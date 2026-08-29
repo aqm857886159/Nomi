@@ -30,6 +30,7 @@ import {
   registerProjectAgentIpc,
 } from "./projectAgentIpc";
 import { createProjectAgentProposalReceiptService } from "./projectAgentProposalReceiptStore";
+import type { ProjectBinding } from "../shared/projectAgentContracts";
 
 const binding = {
   projectId: "project-a",
@@ -263,9 +264,9 @@ describe("ProjectAgent IPC wire boundary", () => {
     expect(frame.send).toHaveBeenCalledWith(
       PROJECT_AGENT_EVENT_CHANNEL.replace(":event", ":patch"),
       expect.objectContaining({
-        subscriptionId: "subscription-frame",
-        subscriptionEpoch: 1,
-        patch: expect.objectContaining({ binding, previousRevision: 0, hostRevision: 1 }),
+        binding,
+        previousRevision: 0,
+        hostRevision: 1,
       }),
     );
     expect(sender.send).not.toHaveBeenCalled();
@@ -491,7 +492,12 @@ describe("ProjectAgent IPC wire boundary", () => {
     const wrongFrame = { sender, senderFrame: { ...frame } } as unknown as IpcMainInvokeEvent;
     const runtime = {
       executionCoordinator: {
-        open: vi.fn(() => ({ subscriptionId: "subscription-receipt", subscriptionEpoch: 1, binding, snapshot: { binding } })),
+        open: vi.fn((_projectBinding: ProjectBinding, _options?: Readonly<{ proposalReceipt?: () => unknown }>) => ({
+          subscriptionId: "subscription-receipt",
+          subscriptionEpoch: 1,
+          binding,
+          snapshot: { binding },
+        })),
         snapshot: vi.fn(() => ({ binding })),
         dispatch: vi.fn(),
         release: vi.fn(),
@@ -506,6 +512,11 @@ describe("ProjectAgent IPC wire boundary", () => {
 
     const opened = await state.handlers.get(PROJECT_AGENT_OPEN_CHANNEL)!(event, { binding });
     expect(opened).toMatchObject({ ok: true, value: { proposalReceipt: null } });
+    const openOptions = runtime.executionCoordinator.open.mock.calls[0]?.[1] as
+      | Readonly<{ proposalReceipt?: () => unknown }>
+      | undefined;
+    expect(openOptions?.proposalReceipt).toEqual(expect.any(Function));
+    expect(openOptions?.proposalReceipt?.()).toBeNull();
     const prepared = await state.handlers.get(PROJECT_AGENT_PROPOSAL_RECEIPT_WRITE_CHANNEL)!(event, {
       subscriptionId: "subscription-receipt",
       expectedRevision: 0,
@@ -524,6 +535,12 @@ describe("ProjectAgent IPC wire boundary", () => {
       proposal,
     });
     expect(written).toMatchObject({ ok: true, value: { binding, revision: 2, lifecycle: "committed", proposal } });
+    expect(openOptions?.proposalReceipt?.()).toMatchObject({
+      binding,
+      revision: 2,
+      lifecycle: "committed",
+      proposal,
+    });
     expect(await state.handlers.get(PROJECT_AGENT_PROPOSAL_RECEIPT_READ_CHANNEL)!(event, {
       subscriptionId: "subscription-receipt",
     })).toMatchObject({ ok: true, value: { binding, revision: 2, lifecycle: "committed", proposal } });
@@ -599,5 +616,102 @@ describe("ProjectAgent IPC wire boundary", () => {
       lifecycle: "preparing",
       proposal,
     })).toMatchObject({ ok: false });
+  });
+
+  it("admits Host receipts only when the claimed approval correlation matches exactly", async () => {
+    receiptRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-ipc-host-receipt-"));
+    fs.mkdirSync(path.join(receiptRoot, ".nomi"), { recursive: true });
+    const sender = {};
+    const frame = { send: vi.fn(), detached: false, isDestroyed: () => false };
+    const event = { sender, senderFrame: frame } as unknown as IpcMainInvokeEvent;
+    const approval = {
+      ref: {
+        approvalId: "approval-host-a",
+        receiptProposalId: "receipt-host-a",
+        actionHash: "a".repeat(64),
+      },
+      lifecycle: "claimed",
+    };
+    const snapshot = { binding, proposalApprovals: [approval] };
+    let snapshotBinding: ProjectBinding = binding;
+    const runtime = {
+      executionCoordinator: {
+        open: vi.fn(() => ({ subscriptionId: "subscription-host-receipt", subscriptionEpoch: 1, binding, snapshot })),
+        snapshot: vi.fn(() => ({ ...snapshot, binding: snapshotBinding })),
+        dispatch: vi.fn(),
+        release: vi.fn(),
+      },
+    };
+    const receiptService = createProjectAgentProposalReceiptService({ projectRoot: receiptRoot, binding });
+    registerProjectAgentIpc({
+      runtime: runtime as never,
+      surfaceCapture: { captureCanvasReadPort: vi.fn(() => Object.freeze({})) } as never,
+      prepareProject: () => ({ proposalReceipts: receiptService }),
+    });
+    await state.handlers.get(PROJECT_AGENT_OPEN_CHANNEL)!(event, { binding });
+
+    const legacyForClaimedApproval = await state.handlers.get(PROJECT_AGENT_PROPOSAL_RECEIPT_WRITE_CHANNEL)!(event, {
+      subscriptionId: "subscription-host-receipt",
+      expectedRevision: 0,
+      proposalId: "receipt-host-a",
+      operationId: "legacy-prepare",
+      lifecycle: "preparing",
+      proposal: { ...proposal, proposalId: "receipt-host-a" },
+    });
+    expect(legacyForClaimedApproval).toMatchObject({ ok: false });
+
+    const correlated = {
+      ...proposal,
+      proposalId: "receipt-host-a",
+      hostApprovalId: "approval-host-a",
+      hostActionHash: "a".repeat(64),
+    };
+    const forged = [
+      { id: "binding", binding: { ...binding, projectId: "project-forged" }, proposal: correlated },
+      { id: "proposal", binding, proposal: { ...correlated, proposalId: "receipt-forged" } },
+      { id: "approval", binding, proposal: { ...correlated, hostApprovalId: "approval-forged" } },
+      { id: "action", binding, proposal: { ...correlated, hostActionHash: "b".repeat(64) } },
+    ] as const;
+    for (const attempt of forged) {
+      snapshotBinding = attempt.binding;
+      expect(await state.handlers.get(PROJECT_AGENT_PROPOSAL_RECEIPT_WRITE_CHANNEL)!(event, {
+        subscriptionId: "subscription-host-receipt",
+        expectedRevision: 0,
+        proposalId: "receipt-host-a",
+        operationId: `wrong-${attempt.id}-prepare`,
+        lifecycle: "preparing",
+        proposal: attempt.proposal,
+      })).toMatchObject({ ok: false });
+    }
+    snapshotBinding = binding;
+
+    expect(await state.handlers.get(PROJECT_AGENT_PROPOSAL_RECEIPT_WRITE_CHANNEL)!(event, {
+      subscriptionId: "subscription-host-receipt",
+      expectedRevision: 0,
+      proposalId: "receipt-host-a",
+      operationId: "host-prepare",
+      lifecycle: "preparing",
+      proposal: correlated,
+    })).toMatchObject({ ok: true, value: { lifecycle: "preparing", proposal: correlated } });
+    for (const attempt of forged) {
+      snapshotBinding = attempt.binding;
+      expect(await state.handlers.get(PROJECT_AGENT_PROPOSAL_RECEIPT_WRITE_CHANNEL)!(event, {
+        subscriptionId: "subscription-host-receipt",
+        expectedRevision: 1,
+        proposalId: "receipt-host-a",
+        operationId: `wrong-${attempt.id}-commit`,
+        lifecycle: "committed",
+        proposal: attempt.proposal,
+      })).toMatchObject({ ok: false });
+    }
+    snapshotBinding = binding;
+    expect(await state.handlers.get(PROJECT_AGENT_PROPOSAL_RECEIPT_WRITE_CHANNEL)!(event, {
+      subscriptionId: "subscription-host-receipt",
+      expectedRevision: 1,
+      proposalId: "receipt-host-a",
+      operationId: "host-commit",
+      lifecycle: "committed",
+      proposal: correlated,
+    })).toMatchObject({ ok: true, value: { lifecycle: "committed", proposal: correlated } });
   });
 });

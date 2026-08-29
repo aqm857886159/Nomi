@@ -46,4 +46,5 @@
 | [2026-08-27-marketing-github-hero.md](2026-08-27-marketing-github-hero.md) | Marketing GitHub Hero Implementation Plan | — |
 | [2026-08-27-quality-gate-single-run.md](2026-08-27-quality-gate-single-run.md) | Quality Gate Single-Run Implementation Plan | ✅ 已交付 |
 | [2026-08-27-release-media-pack-skill.md](2026-08-27-release-media-pack-skill.md) | Nomi Release Media Pack Skill Implementation Plan | 🚧 进行中 |
+| [2026-08-28-project-agent-host-handoff.md](2026-08-28-project-agent-host-handoff.md) | Nomi 项目级常驻 Agent 完整交接（2026-08-29 修订） | 🚧 进行中 |
 | [2026-08-28-quality-gate-parallel-orchestration.md](2026-08-28-quality-gate-parallel-orchestration.md) | Quality Gate Parallel Orchestration Implementation Plan | ✅ 已交付 |

@@ -254,6 +254,9 @@ export async function runWorkbenchAgent(input: RunWorkbenchAgentInput): Promise<
       turnId,
       request: buildRequest(input),
       displayPrompt: input.displayPrompt,
+      ...(input.capturedCanvasReadSnapshot
+        ? { capturedCanvasReadSnapshot: input.capturedCanvasReadSnapshot }
+        : {}),
       ...(input.attachmentClaims?.length ? { attachmentClaims: input.attachmentClaims } : {}),
       ...turnTarget(input),
     })

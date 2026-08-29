@@ -359,6 +359,93 @@ describe("ProjectAgent proposal reducer boundary", () => {
     expect(expiredB.state.items.find((item) => item.itemId === "proposal-b")?.status).toBe("stopped");
   });
 
+  it("atomically settles every running proposal from the multi-approval envelope", () => {
+    const first = proposal("approval-a", "proposal-a");
+    const proposedA = putProposal(runningState(), first, "put-a");
+    const claimedA = reduceProjectAgentMutation(proposedA.state, {
+      commandId: "claim-a",
+      expectedRevision: proposedA.state.hostRevision,
+      binding,
+      sender: { kind: "renderer", senderId: "renderer-a" },
+      type: "proposal.transition",
+      payload: { approvalId: "approval-a", lifecycle: "claimed", occurredAt: now },
+    });
+    const second = proposal("approval-b", "proposal-b");
+    const proposedB = putProposal(claimedA.state, second, "put-b");
+    const claimedB = reduceProjectAgentMutation(proposedB.state, {
+      commandId: "claim-b",
+      expectedRevision: proposedB.state.hostRevision,
+      binding,
+      sender: { kind: "renderer", senderId: "renderer-b" },
+      type: "proposal.transition",
+      payload: { approvalId: "approval-b", lifecycle: "claimed", occurredAt: now },
+    });
+    const assistant = claimedB.state.items.find(
+      (item) => item.kind === "assistant" && item.turnId === "turn-a",
+    );
+    const turn = claimedB.state.turns.find((item) => item.turnId === "turn-a");
+    if (assistant?.kind !== "assistant" || turn === undefined) {
+      throw new Error("expected the running turn and assistant fixture");
+    }
+    const base: ProjectAgentAsyncResultEnvelope = {
+      asyncToken: "token-a",
+      binding,
+      threadId: "thread-a",
+      turnId: "turn-a",
+      queueItemId: "queue-a",
+      target,
+      preconditions,
+      expectedRevision: claimedB.state.hostRevision,
+      items: [],
+      turnStatus: "failed",
+      retryable: false,
+      assistantFinal: {
+        itemId: assistant.itemId,
+        executionToken: turn.executionToken,
+        expectedTextRevision: assistant.textRevision,
+        text: assistant.text,
+      },
+      receivedAt: now,
+    };
+
+    expect(() => reduceProjectAgentMutation(claimedB.state, {
+      commandId: "settle-partial",
+      expectedRevision: claimedB.state.hostRevision,
+      binding,
+      sender: { kind: "internal", senderId: "executor" },
+      type: "async.result",
+      payload: {
+        ...base,
+        proposalSettlements: [{ approvalId: "approval-a", status: "done" }],
+      },
+    })).toThrowError(expect.objectContaining<Partial<ProjectAgentReducerError>>({ code: "async_result_stale" }));
+    expect(claimedB.state.items.filter((item) => item.kind === "proposal").every((item) => item.status === "running")).toBe(true);
+
+    const settled = reduceProjectAgentMutation(claimedB.state, {
+      commandId: "settle-all",
+      expectedRevision: claimedB.state.hostRevision,
+      binding,
+      sender: { kind: "internal", senderId: "executor" },
+      type: "async.result",
+      payload: {
+        ...base,
+        proposalSettlements: [
+          { approvalId: "approval-a", status: "done" },
+          { approvalId: "approval-b", status: "failed" },
+        ],
+      },
+    });
+    expect(settled.state.items.find((item) => item.itemId === "proposal-a")).toMatchObject({
+      status: "done",
+      retryable: false,
+    });
+    expect(settled.state.items.find((item) => item.itemId === "proposal-b")).toMatchObject({
+      status: "failed",
+      retryable: false,
+    });
+    expect(settled.state.turns[0]).toMatchObject({ status: "failed", retryable: false });
+  });
+
   it("rejects an approval record that carries both lifecycle timestamps", () => {
     const proposed = putProposal(
       runningState(),

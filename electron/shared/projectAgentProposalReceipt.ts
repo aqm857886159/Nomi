@@ -12,6 +12,8 @@ export type ProjectAgentProposalCompensation =
 
 export type ProjectAgentCommittedProposalRecord = Readonly<{
   proposalId: string;
+  hostApprovalId?: string;
+  hostActionHash?: string;
   summary: string;
   stepLabels: readonly string[];
   categoryCounts?: readonly Readonly<{ categoryId: string; label: string; count: number }>[];
@@ -234,6 +236,8 @@ export function parseProjectAgentCommittedProposal(value: unknown): ProjectAgent
     !source ||
     !exactKeys(source, [
       "proposalId",
+      "hostApprovalId",
+      "hostActionHash",
       "summary",
       "stepLabels",
       "categoryCounts",
@@ -252,10 +256,17 @@ export function parseProjectAgentCommittedProposal(value: unknown): ProjectAgent
     return null;
   }
   const proposalId = safeString(source.proposalId);
+  const hasHostApprovalId = source.hostApprovalId !== undefined;
+  const hasHostActionHash = source.hostActionHash !== undefined;
+  if (hasHostApprovalId !== hasHostActionHash) return null;
+  const hostApprovalId = hasHostApprovalId ? safeString(source.hostApprovalId) : null;
+  const hostActionHash = hasHostActionHash ? safeString(source.hostActionHash) : null;
   const summary = safeString(source.summary, true);
   const stepLabels = stringList(source.stepLabels);
   if (
     proposalId === null ||
+    (hasHostApprovalId &&
+      (hostApprovalId === null || hostActionHash === null || !/^[a-f0-9]{64}$/.test(hostActionHash))) ||
     summary === null ||
     !stepLabels ||
     !Array.isArray(source.compensation) ||
@@ -314,6 +325,7 @@ export function parseProjectAgentCommittedProposal(value: unknown): ProjectAgent
 
   return Object.freeze({
     proposalId,
+    ...(hostApprovalId !== null && hostActionHash !== null ? { hostApprovalId, hostActionHash } : {}),
     summary,
     stepLabels,
     ...(categoryCounts ? { categoryCounts: Object.freeze(categoryCounts) } : {}),

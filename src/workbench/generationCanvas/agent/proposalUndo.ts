@@ -271,6 +271,8 @@ export async function abortPreparedProposalReceipt(proposalId: string): Promise<
 export type ProposalReceiptMetadata = Readonly<{
   summary: string
   stepLabels: readonly string[]
+  hostApprovalId?: string
+  hostActionHash?: string
   categoryCounts?: CommittedProposalRecord['categoryCounts']
   anchorMessageId?: string
   anchorTextOffset?: number
@@ -304,6 +306,9 @@ async function readProposalReceiptDisposition(proposalId: string): Promise<Propo
 export function createProposalReceiptCoordinator(metadata: ProposalReceiptMetadata): ProposalReceiptCoordinator {
   const base = (proposalId: string) => ({
     proposalId,
+    ...(metadata.hostApprovalId !== undefined && metadata.hostActionHash !== undefined
+      ? { hostApprovalId: metadata.hostApprovalId, hostActionHash: metadata.hostActionHash }
+      : {}),
     summary: metadata.summary,
     stepLabels: metadata.stepLabels,
     ...(metadata.categoryCounts ? { categoryCounts: metadata.categoryCounts } : {}),

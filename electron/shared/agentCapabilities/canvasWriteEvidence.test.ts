@@ -38,6 +38,12 @@ function evidence(patch: Partial<CanvasWriteRawEvidence["node"]> = {}): CanvasWr
 }
 
 describe("canvas.write raw evidence admission", () => {
+  it("rejects an initially locked node at canonical admission", () => {
+    expect(() => buildCanvasWriteAdmission(evidence({ locked: true }))).toThrowError(
+      expect.objectContaining({ code: "capability_target_stale" }),
+    );
+  });
+
   it("derives canonical target and main-owned preconditions from raw evidence", () => {
     const admission = buildCanvasWriteAdmission(evidence());
 
@@ -52,7 +58,6 @@ describe("canvas.write raw evidence admission", () => {
   it.each([
     ["title", { title: "Changed title" }],
     ["prompt", { prompt: "changed prompt" }],
-    ["lock", { locked: true }],
     ["model vendor", { model: { ...evidence().node.model, vendorKey: "kie" } }],
     ["model mode", { model: { ...evidence().node.model, modeId: "t2v" } }],
     ["model variant", { model: { ...evidence().node.model, variantId: "standard" } }],

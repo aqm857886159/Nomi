@@ -1,9 +1,13 @@
 import { EventEmitter } from "node:events";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { IpcMainInvokeEvent } from "electron";
 import type { AgentChatV2Hooks } from "../ai/agentChatV2";
 import type { AgentChatResponse } from "../harness/agentChatContracts";
+import type { ProjectAgentHostState } from "../shared/projectAgentContracts";
 
 const state = vi.hoisted(() => ({
   handlers: new Map<string, (event: IpcMainInvokeEvent, payload: unknown) => unknown>(),
@@ -15,6 +19,9 @@ const state = vi.hoisted(() => ({
   rendererEvent: null as IpcMainInvokeEvent | null,
   surfaceBinding: null as unknown,
   desktopBridge: null as unknown,
+  projectAgentEventListener: null as ((event: unknown) => void) | null,
+  projectAgentPatchListener: null as ((patch: unknown) => void) | null,
+  projectAgentCleanup: null as (() => void) | null,
   activeProjectId: "project-a",
 }));
 
@@ -74,6 +81,18 @@ import { createCanvasReadPortResolver } from "./canvasReadPortResolver";
 import { registerCanvasReadSurfaceIpc } from "./canvasReadSurfaceIpc";
 import { createCanvasReadSurfaceRegistry, createSurfaceOwnerAuthority } from "./canvasReadSurfaceRegistry";
 import { createPiCanvasReadIpcCapture } from "./canvasReadTransportAdapters";
+import { createProjectAgentExecutionCoordinator } from "../projectAgentHost/projectAgentExecutionCoordinator";
+import { createProjectAgentRepositoryRouter } from "../projectAgentHost/projectAgentRepositoryRouter";
+import {
+  PROJECT_AGENT_COMMAND_CHANNEL,
+  PROJECT_AGENT_EVENT_CHANNEL,
+  PROJECT_AGENT_OPEN_CHANNEL,
+  PROJECT_AGENT_PATCH_CHANNEL,
+  PROJECT_AGENT_RELEASE_CHANNEL,
+  PROJECT_AGENT_SNAPSHOT_CHANNEL,
+  registerProjectAgentIpc,
+} from "../projectAgentHost/projectAgentIpc";
+import { projectAgentProjectionStore } from "../../src/workbench/ai/projectAgentProjectionStore";
 import { handleCapabilityApply } from "../../src/workbench/capability/capabilityApplyHandler";
 import { useGenerationCanvasStore } from "../../src/workbench/generationCanvas/store/generationCanvasStore";
 
@@ -103,8 +122,18 @@ function source() {
     detached: false,
     isDestroyed: () => false,
     send: vi.fn((channel: string, packet: { sessionId?: string; event?: unknown }) => {
-      if (channel !== "nomi:agents:chatV2:event" || !packet?.sessionId) return;
-      state.listeners.get(packet.sessionId)?.(packet.event);
+      if (channel === "nomi:agents:chatV2:event" && packet?.sessionId) {
+        state.listeners.get(packet.sessionId)?.(packet.event);
+        return;
+      }
+      if (channel === PROJECT_AGENT_EVENT_CHANNEL) {
+        state.projectAgentEventListener?.(packet);
+        return;
+      }
+      if (channel === PROJECT_AGENT_PATCH_CHANNEL) {
+        projectAgentProjectionStore.applyPatch(packet as never);
+        state.projectAgentPatchListener?.(packet);
+      }
     }),
   };
   const sender = Object.assign(new EventEmitter(), {
@@ -146,6 +175,73 @@ function connectDesktopBridge(renderer: ReturnType<typeof source>): void {
         return () => state.listeners.delete(sessionId);
       },
     },
+    projectAgent: {
+      open: (binding: unknown) => invoke(PROJECT_AGENT_OPEN_CHANNEL, renderer.event, { binding }),
+      snapshot: (subscriptionId: string) => invoke(PROJECT_AGENT_SNAPSHOT_CHANNEL, renderer.event, { subscriptionId }),
+      command: (command: unknown) => invoke(PROJECT_AGENT_COMMAND_CHANNEL, renderer.event, command),
+      release: (subscriptionId: string) => invoke(PROJECT_AGENT_RELEASE_CHANNEL, renderer.event, { subscriptionId }),
+      readProposalReceipt: async () => null,
+      writeProposalReceipt: async () => { throw new Error("not used"); },
+      transitionProposalReceipt: async () => { throw new Error("not used"); },
+      clearProposalReceipt: async () => { throw new Error("not used"); },
+      onPatch: (listener: (patch: unknown) => void) => {
+        state.projectAgentPatchListener = listener;
+        return () => {
+          if (state.projectAgentPatchListener === listener) state.projectAgentPatchListener = null;
+        };
+      },
+      onEvent: (listener: (event: unknown) => void) => {
+        state.projectAgentEventListener = listener;
+        return () => {
+          if (state.projectAgentEventListener === listener) state.projectAgentEventListener = null;
+        };
+      },
+    },
+  };
+}
+
+async function installProjectAgentHost(
+  renderer: ReturnType<typeof source>,
+  surfaceCapture: ReturnType<typeof registerCanvasReadSurfaceIpc>,
+  canvasRead: ReturnType<typeof createPiCanvasReadIpcCapture>,
+  binding: { projectId: string; immutableProjectUuid: string; projectGeneration: number },
+): Promise<void> {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-canvas-read-flow-"));
+  const repositoryRouter = createProjectAgentRepositoryRouter({ rootDir: root });
+  const executionCoordinator = createProjectAgentExecutionCoordinator(
+    repositoryRouter,
+    () => `subscription-${globalThis.crypto.randomUUID()}`,
+    { runAgent: state.run },
+  );
+  registerProjectAgentIpc({
+    runtime: {
+      repositoryRouter,
+      executionCoordinator,
+      attachProject: (projectBinding) => repositoryRouter.attach(projectBinding),
+    },
+    surfaceCapture,
+    captureCanvasRead: (_event, projectBinding, requestId) => canvasRead.capture(
+      renderer.event,
+      { surfaceBinding: state.surfaceBinding, projectId: projectBinding.projectId },
+      requestId,
+    ),
+    captureCanvasReadSnapshot: (event, projectBinding, handle, requestId) => canvasRead.capture(
+      event,
+      { capturedCanvasReadSnapshot: handle, projectId: projectBinding.projectId },
+      requestId,
+    ),
+  });
+  const opened = await invoke(PROJECT_AGENT_OPEN_CHANNEL, renderer.event, { binding });
+  if (!opened || typeof opened !== "object" || !(opened as { ok?: boolean }).ok) {
+    throw new Error("project agent open failed");
+  }
+  const value = (opened as {
+    value: { subscriptionId: string; subscriptionEpoch: number; snapshot: ProjectAgentHostState };
+  }).value;
+  projectAgentProjectionStore.install(value.subscriptionId, value.subscriptionEpoch, value.snapshot);
+  state.projectAgentCleanup = () => {
+    void invoke(PROJECT_AGENT_RELEASE_CHANNEL, renderer.event, { subscriptionId: value.subscriptionId });
+    fs.rmSync(root, { recursive: true, force: true });
   };
 }
 
@@ -156,6 +252,8 @@ beforeEach(() => {
   state.rendererEvent = null;
   state.surfaceBinding = null;
   state.desktopBridge = null;
+  state.projectAgentEventListener = null;
+  state.projectAgentPatchListener = null;
   state.activeProjectId = "project-a";
   state.landing.mockResolvedValue(null);
   state.captureSurface.mockImplementation(() => state.surfaceBinding);
@@ -177,6 +275,12 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => {
+  state.projectAgentCleanup?.();
+  state.projectAgentCleanup = null;
+  projectAgentProjectionStore.clear();
+});
+
 describe("production captured canvas read through real main interception", () => {
   it("keeps the real production prompt and main tool read on one canonical snapshot after selection and project switch", async () => {
     const renderer = source();
@@ -187,7 +291,7 @@ describe("production captured canvas read through real main interception", () =>
         "project-a",
         {
           projectId: "project-a",
-          immutableProjectUuid: "uuid-a",
+          immutableProjectUuid: "11111111-1111-4111-8111-111111111111",
           projectGeneration: 1,
           canonicalRootPath: "/projects/a",
           canonicalRootDigest: "root-a",
@@ -197,7 +301,7 @@ describe("production captured canvas read through real main interception", () =>
         "project-b",
         {
           projectId: "project-b",
-          immutableProjectUuid: "uuid-b",
+          immutableProjectUuid: "22222222-2222-4222-8222-222222222222",
           projectGeneration: 1,
           canonicalRootPath: "/projects/b",
           canonicalRootDigest: "root-b",
@@ -229,14 +333,13 @@ describe("production captured canvas read through real main interception", () =>
         },
       }),
     });
-    registerAgentChatV2Ipc({
-      canvasRead: createPiCanvasReadIpcCapture({
-        surfaceCapture,
-        registry: surfaceRegistry,
-        capturedSnapshots,
-        executor,
-      }),
+    const canvasRead = createPiCanvasReadIpcCapture({
+      surfaceCapture,
+      registry: surfaceRegistry,
+      capturedSnapshots,
+      executor,
     });
+    registerAgentChatV2Ipc({ canvasRead });
 
     const suspendedA = (await invoke("nomi:surface:suspend", renderer.event, {
       surfaceInstanceId: "surface-a",
@@ -244,8 +347,16 @@ describe("production captured canvas read through real main interception", () =>
     const committedA = (await invoke("nomi:surface:commitCanvasRead", renderer.event, {
       projectId: "project-a",
       suspension: structuredClone(suspendedA.value.suspension),
-    })) as { ok: true; value: { binding: unknown } };
+    })) as {
+      ok: true;
+      value: { binding: { binding: { projectId: string; immutableProjectUuid: string; projectGeneration: number } } };
+    };
     state.surfaceBinding = committedA.value.binding;
+    await installProjectAgentHost(renderer, surfaceCapture, canvasRead, committedA.value.binding.binding as {
+      projectId: string;
+      immutableProjectUuid: string;
+      projectGeneration: number;
+    });
     useGenerationCanvasStore.getState().restoreSnapshot({
       nodes: [
         {
@@ -368,7 +479,7 @@ describe("production captured canvas read through real main interception", () =>
         "project-a",
         {
           projectId: "project-a",
-          immutableProjectUuid: "uuid-a",
+          immutableProjectUuid: "11111111-1111-4111-8111-111111111111",
           projectGeneration: 1,
           canonicalRootPath: "/projects/a",
           canonicalRootDigest: "root-a",
@@ -378,7 +489,7 @@ describe("production captured canvas read through real main interception", () =>
         "project-b",
         {
           projectId: "project-b",
-          immutableProjectUuid: "uuid-b",
+          immutableProjectUuid: "22222222-2222-4222-8222-222222222222",
           projectGeneration: 1,
           canonicalRootPath: "/projects/b",
           canonicalRootDigest: "root-b",
@@ -410,14 +521,13 @@ describe("production captured canvas read through real main interception", () =>
         },
       }),
     });
-    registerAgentChatV2Ipc({
-      canvasRead: createPiCanvasReadIpcCapture({
-        surfaceCapture,
-        registry: surfaceRegistry,
-        capturedSnapshots,
-        executor,
-      }),
+    const canvasRead = createPiCanvasReadIpcCapture({
+      surfaceCapture,
+      registry: surfaceRegistry,
+      capturedSnapshots,
+      executor,
     });
+    registerAgentChatV2Ipc({ canvasRead });
 
     const suspendedA = (await invoke("nomi:surface:suspend", renderer.event, {
       surfaceInstanceId: "surface-a",
@@ -425,7 +535,16 @@ describe("production captured canvas read through real main interception", () =>
     const committedA = (await invoke("nomi:surface:commitCanvasRead", renderer.event, {
       projectId: "project-a",
       suspension: structuredClone(suspendedA.value.suspension),
-    })) as { ok: true; value: { binding: unknown } };
+    })) as {
+      ok: true;
+      value: { binding: { binding: { projectId: string; immutableProjectUuid: string; projectGeneration: number } } };
+    };
+    state.surfaceBinding = committedA.value.binding;
+    await installProjectAgentHost(renderer, surfaceCapture, canvasRead, committedA.value.binding.binding as {
+      projectId: string;
+      immutableProjectUuid: string;
+      projectGeneration: number;
+    });
     const sealedA = (await invoke("nomi:surface:captureCanvasReadSnapshot", renderer.event, {
       binding: structuredClone(committedA.value.binding),
       snapshot: structuredClone(SNAPSHOT_A),

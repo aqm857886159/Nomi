@@ -219,4 +219,46 @@ describe("ProjectAgent committed proposal receipt", () => {
       reason: "invalid_legacy_proposal",
     });
   });
+
+  it("keeps Host approval correlation immutable from preparation through commit", () => {
+    const service = createProjectAgentProposalReceiptService({ projectRoot: tempProject(), binding });
+    const correlated = {
+      ...proposal,
+      proposalId: "receipt-host-a",
+      hostApprovalId: "approval-host-a",
+      hostActionHash: "a".repeat(64),
+    };
+    service.write({
+      expectedRevision: 0,
+      proposalId: correlated.proposalId,
+      operationId: "host-prepare",
+      lifecycle: "preparing",
+      proposal: correlated,
+    });
+
+    expect(() => service.write({
+      expectedRevision: 1,
+      proposalId: correlated.proposalId,
+      operationId: "forged-host-commit",
+      lifecycle: "committed",
+      proposal: { ...correlated, hostApprovalId: "approval-forged" },
+    })).toThrow("correlation");
+    expect(() => service.write({
+      expectedRevision: 1,
+      proposalId: correlated.proposalId,
+      operationId: "forged-action-commit",
+      lifecycle: "committed",
+      proposal: { ...correlated, hostActionHash: "b".repeat(64) },
+    })).toThrow("correlation");
+    expect(hashProjectAgentCommittedProposal(correlated)).not.toBe(
+      hashProjectAgentCommittedProposal({ ...correlated, hostActionHash: "b".repeat(64) }),
+    );
+    expect(service.write({
+      expectedRevision: 1,
+      proposalId: correlated.proposalId,
+      operationId: "host-commit",
+      lifecycle: "committed",
+      proposal: correlated,
+    })).toMatchObject({ lifecycle: "committed", proposal: correlated });
+  });
 });

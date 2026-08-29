@@ -131,11 +131,26 @@ export function createCanvasReadSurfacePortRuntime(
         }),
     );
   };
-  ipcMain.on(SURFACE_CANVAS_READ_REPLY_CHANNEL, (event, value) => handleReply(SURFACE_CANVAS_READ_REPLY_CHANNEL, event, value));
-  ipcMain.on(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, (event, value) => handleReply(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, event, value));
-  ipcMain.on(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, (event, value) => handleReply(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, event, value));
-  ipcMain.on(SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL, (event, value) => handleReply(SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL, event, value));
-  ipcMain.on(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL, (event, value) => handleReply(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL, event, value));
+  ipcMain.on(SURFACE_CANVAS_READ_REPLY_CHANNEL, (event, value) => {
+    try { assertTrustedSender(event); } catch { return; }
+    handleReply(SURFACE_CANVAS_READ_REPLY_CHANNEL, event, value);
+  });
+  ipcMain.on(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, (event, value) => {
+    try { assertTrustedSender(event); } catch { return; }
+    handleReply(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, event, value);
+  });
+  ipcMain.on(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, (event, value) => {
+    try { assertTrustedSender(event); } catch { return; }
+    handleReply(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, event, value);
+  });
+  ipcMain.on(SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL, (event, value) => {
+    try { assertTrustedSender(event); } catch { return; }
+    handleReply(SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL, event, value);
+  });
+  ipcMain.on(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL, (event, value) => {
+    try { assertTrustedSender(event); } catch { return; }
+    handleReply(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL, event, value);
+  });
 
   const requestRead = (
     captured: CapturedCanvasReadPort,

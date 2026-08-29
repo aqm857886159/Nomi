@@ -44,6 +44,8 @@ import { createProjectAgentThread } from '../../ai/projectAgentUiCommands'
 import { useProjectAgentSnapshot, useProjectAgentThreadMessages } from '../../ai/useProjectAgentThreadMessages'
 import { projectAgentAttachmentClaims } from '../../ai/projectAgentAttachments'
 import { isProjectAgentLiveStatus } from '../../../../electron/shared/projectAgentContracts'
+import { CANVAS_WRITE_CAPABILITY } from '../../../../electron/shared/agentCapabilities/canvasWrite'
+import { resolveCapabilityAlias } from '../../../../electron/shared/agentCapabilities/registry'
 import {
   createProjectAgentPendingToolRegistry,
   createProjectAgentTurnHandle,
@@ -84,6 +86,10 @@ const onlyTalkWarning = (): string => i18n.t('generationCommon.assistant.onlyTal
 // 截断提示:finishReason=length 且有正文 = 模型这条输出到达单次上限被切断(别把半截当完整)。
 const truncatedWarning = (): string => i18n.t('generationCommon.assistant.truncatedWarning')
 const EPHEMERAL_AGENT_HISTORY: AgentChatHistory = Object.freeze({ kind: 'ephemeral' })
+
+function isHostCanvasWriteTool(toolName: string): boolean {
+  return resolveCapabilityAlias(toolName)?.contract.id === CANVAS_WRITE_CAPABILITY.id
+}
 
 function projectAgentTurnAnchor(turnId: string): CanvasAssistantTimelineAnchor | undefined {
   const items = projectAgentProjectionStore.getState().snapshot?.items ?? []
@@ -268,6 +274,15 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
           // 立即摘卡防双击;事务结果经 transport 回 LLM,卡不复原(与既有 resolve 即摘一致)。
           setPendingRegistryVersion((version) => version + 1)
           try {
+            const hostCanvasWrites = rawSteps.filter((step) => isHostCanvasWriteTool(step.toolName))
+            if (hostCanvasWrites.length > 0) {
+              if (hostCanvasWrites.length !== rawSteps.length) throw new Error('capability_authority_invalid')
+              for (const step of hostCanvasWrites) {
+                if (!handle.canWrite()) return
+                await step.transport({ ok: true })
+              }
+              return
+            }
             const steps = await resolveCanvasApprovalSteps(rawSteps, owner.canWrite)
             assertTurnCanWrite(owner.canWrite)
             const categoryCounts = countCreatedNodesByCategory(steps)
@@ -359,10 +374,12 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
                 await event.confirm({ ok: false, denied: true, message: 'canvas turn ended' })
                 return
               }
-              const gate = evaluateGate(
-                { kind: 'tool-call', toolName: event.toolName, args: event.args },
-                buildLockGateContext(),
-              )
+              const gate = isHostCanvasWriteTool(event.toolName)
+                ? { outcome: 'ask' as const }
+                : evaluateGate(
+                    { kind: 'tool-call', toolName: event.toolName, args: event.args },
+                    buildLockGateContext(),
+                  )
               if (gate.outcome === 'deny') {
                 await event.confirm({ ok: false, message: gate.reason, denied: true })
                 return

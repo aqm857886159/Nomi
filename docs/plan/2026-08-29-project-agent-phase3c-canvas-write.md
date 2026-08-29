@@ -6,8 +6,9 @@
 
 Phase 3C 建立一个 canonical `canvas.write@v1`，通过现有 Project Agent Host、
 Capability Registry 和绑定的 Canvas Surface，最终调用已有画布领域事务。首个最小
-垂直切片只迁移 `set_node_prompt`，后续按 `connect_edges`、`create_nodes`、`tidy`
-逐个闭环。
+垂直切片只迁移 `set_node_prompt`。后续把 `connect_edges`、`create_nodes`、`tidy`
+连同 exact result/version refs 合为一个 Canvas completion 大批；批内仍按依赖顺序
+RED/GREEN，但只做一次 closure、评审、完整 push gate、提交和恢复 push。
 
 本阶段复用以下现有 owner，不另建替代品：
 
@@ -138,10 +139,11 @@ schema 或 approval owner。
 实现中只运行当前失败边界的直接测试。主干批次覆盖 raw evidence/hash、verified
 invocation、Surface transport、executor 和 Host ordering/typed outcome；领域切换批次
 覆盖 proposal transaction/property/receipt lifecycle、Canvas write boundary、renderer
-adapter 与 owner gate。每批只在批末执行一次相关 focused closure、一次只读评审、
-一次 scoped 提交和一次恢复 push；app/electron TypeScript、scoped ESLint 与
-`git diff --check` 也只在批末按影响面执行。Phase 3/4 联合出口才整合一次 `main`、
-跑完整 push gate 并更新远端 PR。
+adapter 与 owner gate。每批只在批末执行一次相关 focused closure、一次只读评审
+和一次完整 push gate，随后形成一次 scoped 提交和一次恢复 push；app/electron
+TypeScript、scoped ESLint 与 `git diff --check` 也只在批末按影响面执行。完整 gate
+是仓库 push 纪律，不代表每批追赶 `main`；Phase 3/4 联合出口才整合一次 `main`
+并更新远端 stage checkpoint。
 
 ## 历史 PR 门禁
 

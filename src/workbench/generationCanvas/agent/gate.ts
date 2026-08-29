@@ -47,7 +47,6 @@ const TOOL_META: Record<string, ToolMeta> = {
   propose_storyboard_plan: { writes: false },
   create_canvas_nodes: { writes: true },
   connect_canvas_edges: { writes: true },
-  set_node_prompt: { writes: true },
   delete_canvas_nodes: { writes: true, destructive: true },
   // S6b 受理语义:不写画布投影,但花真钱——costy 必问,确认前零网络调用。
   run_generation_batch: { writes: false, costy: true },
@@ -102,7 +101,7 @@ function evaluateLock(toolName: string, args: unknown, ctx: GateContext): GateDe
   const resolve = ctx.resolveNodeId ?? ((id: string) => id)
   const record = asRecord(args)
 
-  const denyFor = (nodeId: string, actionKey: 'editPrompt' | 'deleteNode' | 'regenerateNode' | 'addIncomingEdge'): GateDecision => ({
+  const denyFor = (nodeId: string, actionKey: 'deleteNode' | 'regenerateNode' | 'addIncomingEdge'): GateDecision => ({
     outcome: 'deny',
     reason: i18n.t('generationCommon.agentRuntime.lockedNode', {
       node: locked.get(nodeId) || nodeId,
@@ -110,11 +109,6 @@ function evaluateLock(toolName: string, args: unknown, ctx: GateContext): GateDe
     }),
   })
 
-  if (toolName === 'set_node_prompt') {
-    const nodeId = resolve(String(record.nodeId || '').trim())
-    if (locked.has(nodeId)) return denyFor(nodeId, 'editPrompt')
-    return null
-  }
   if (toolName === 'delete_canvas_nodes') {
     const nodeIds = Array.isArray(record.nodeIds) ? record.nodeIds : []
     for (const raw of nodeIds) {

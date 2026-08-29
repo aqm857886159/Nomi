@@ -11,6 +11,7 @@ import type {
   TargetRef,
   PreconditionSet,
 } from '../../../electron/shared/projectAgentContracts'
+import type { CapturedCanvasReadSnapshotHandleWire } from '../../../electron/shared/surfacePortBinding'
 import { isProjectAgentLiveStatus } from '../../../electron/shared/projectAgentContracts'
 import { createProjectAgentContextBinding } from '../../../electron/projectAgentHost/projectAgentContextBinding'
 import { projectAgentClient } from './projectAgentClient'
@@ -31,6 +32,8 @@ export type ProjectAgentTurnCommandInput = ProjectAgentTurnTarget &
     threadTitle?: string
     turnId?: string
     attachmentClaims?: readonly ProjectAgentAttachmentClaim[]
+    /** Main-sealed production canvas read admission; consumed once by Host IPC. */
+    capturedCanvasReadSnapshot?: CapturedCanvasReadSnapshotHandleWire
   }>
 
 export type ProjectAgentTurnCommandResult = Readonly<{
@@ -160,6 +163,9 @@ export async function enqueueProjectAgentTurn(
     payload: {
       ...records,
       request: { ...input.request, history: { kind: 'ephemeral' as const } },
+      ...(input.capturedCanvasReadSnapshot
+        ? { capturedCanvasReadSnapshot: { ...input.capturedCanvasReadSnapshot } }
+        : {}),
       attachmentClaims: Object.freeze((input.attachmentClaims ?? []).map((claim) => Object.freeze({ ...claim }))),
     },
   })

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import { isDurable } from "../durability";
 import { writeJsonFileAtomic } from "../jsonFile";
 import type { ProjectBinding } from "../shared/projectBinding";
 import { assertProjectAgentBinding } from "./projectAgentIdentity";
@@ -132,6 +133,7 @@ function parsePreparation(value: unknown): ProjectAgentCutoverPreparation | null
 }
 
 function fsyncNomiDirectory(projectRoot: string): void {
+  if (!isDurable()) return;
   let fd: number | undefined;
   try {
     fd = fs.openSync(nomiDir(projectRoot), fs.constants.O_RDONLY);

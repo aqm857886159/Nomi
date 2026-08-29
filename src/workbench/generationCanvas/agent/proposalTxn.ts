@@ -50,6 +50,11 @@ export type ProposalOutcome =
     }
   | { status: 'aborted'; proposalId: string; failedIndex: number; reason: string; compensatedNodeIds: string[] }
 
+export type ProposalBatchAdmission = Readonly<{
+  proposalId: string
+  beforePrepare: () => void
+}>
+
 export function mintProposalId(): string {
   return `prop_${crypto.randomUUID().slice(0, 10)}`
 }
@@ -102,13 +107,15 @@ export async function applyProposalBatch(
   steps: ProposalStep[],
   turn?: Pick<AgentTurnHandle, 'canWrite'>,
   receiptCoordinator?: ProposalReceiptCoordinator,
+  admission?: ProposalBatchAdmission,
 ): Promise<ProposalOutcome> {
   if (turn) assertTurnCanWrite(turn.canWrite)
   const journalGeneration = getUndoJournalGeneration()
   const isSameCanvas = () => getUndoJournalGeneration() === journalGeneration
   let aborted: Extract<ProposalOutcome, { status: 'aborted' }> | undefined
   const canWrite = () => !aborted && isSameCanvas() && (!turn || turn.canWrite())
-  const proposalId = mintProposalId()
+  const proposalId = admission ? admission.proposalId.trim() : mintProposalId()
+  if (!proposalId) throw new Error('Project Agent proposal id is invalid')
   const ctx: CanvasGestureContext = {
     source: 'agent',
     txnId: `txn_${proposalId}`,
@@ -201,6 +208,11 @@ export async function applyProposalBatch(
   release = typeof ownership === 'function' ? ownership : await ownership
   try {
     if (aborted) return aborted
+    try {
+      admission?.beforePrepare()
+    } catch (error: unknown) {
+      return abort(errorMessage(error))
+    }
     if (receiptCoordinator) {
       const before = readGenerationCanvasSnapshot()
       try {

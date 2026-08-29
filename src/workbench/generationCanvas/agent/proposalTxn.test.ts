@@ -42,6 +42,46 @@ const createStep = (clientIds: string[]) => ({
 })
 
 describe('applyProposalBatch — S6-2 提议事务状态机', () => {
+  it('fails closed instead of minting a local id when Host admission has a blank proposal id', async () => {
+    await expect(applyProposalBatch(
+      [createStep(['c1'])],
+      undefined,
+      undefined,
+      { proposalId: '  ', beforePrepare() {} },
+    )).rejects.toThrow('Project Agent proposal id is invalid')
+  })
+
+  it('uses a main-preallocated proposal id and rejects boundary drift before receipt or Undo', async () => {
+    const before = projection()
+    let prepareCalls = 0
+    const coordinator: ProposalReceiptCoordinator = {
+      async prepare() {
+        prepareCalls += 1
+        return true
+      },
+      async commit() { return true },
+      async abort() {},
+      async disposition() { return 'missing' },
+    }
+
+    const outcome = await applyProposalBatch(
+      [createStep(['c1'])],
+      undefined,
+      coordinator,
+      {
+        proposalId: 'receipt-host-preallocated',
+        beforePrepare() {
+          throw Object.assign(new Error('capability_target_stale'), { code: 'capability_target_stale' })
+        },
+      },
+    )
+
+    expect(outcome).toMatchObject({ status: 'aborted', proposalId: 'receipt-host-preallocated' })
+    expect(prepareCalls).toBe(0)
+    expect(projection()).toEqual(before)
+    expect(getHistoryFlags()).toEqual({ canUndo: false, canRedo: false })
+  })
+
   it('P2B-RECEIPT-001: durable preparation precedes the first Canvas mutation', async () => {
     const order: string[] = []
     const coordinator: ProposalReceiptCoordinator = {

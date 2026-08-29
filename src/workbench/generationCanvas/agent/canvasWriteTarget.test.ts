@@ -1,7 +1,43 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { buildCanvasWriteAdmission } from "../../../../electron/shared/agentCapabilities/canvasWriteEvidence";
 import type { GenerationCanvasSnapshot } from "../model/generationCanvasTypes";
-import { captureCanvasWriteRawEvidence } from "./canvasWriteTarget";
+
+const deps = vi.hoisted(() => ({
+  applyProposalBatch: vi.fn(),
+  createProposalReceiptCoordinator: vi.fn(() => ({
+    prepare: vi.fn(),
+    commit: vi.fn(),
+    abort: vi.fn(),
+    disposition: vi.fn(),
+  })),
+}));
+
+vi.mock("./proposalTxn", () => ({ applyProposalBatch: deps.applyProposalBatch }));
+vi.mock("./proposalUndo", () => ({ createProposalReceiptCoordinator: deps.createProposalReceiptCoordinator }));
+
+import { captureCanvasWriteRawEvidence, executeCanvasWriteTarget } from "./canvasWriteTarget";
+
+function writableSnapshot(prompt = "old prompt", locked = false): GenerationCanvasSnapshot {
+  return {
+    nodes: [{
+      id: "node-real",
+      kind: "image",
+      title: "Shot",
+      position: { x: 0, y: 0 },
+      prompt,
+      locked,
+    }],
+    edges: [],
+    selectedNodeIds: [],
+    groups: [],
+  };
+}
+
+beforeEach(() => {
+  deps.applyProposalBatch.mockReset();
+  deps.createProposalReceiptCoordinator.mockClear();
+});
 
 describe("canvas.write renderer evidence capture", () => {
   it("resolves an alias to the canonical node and excludes transient/provider state", () => {
@@ -76,5 +112,61 @@ describe("canvas.write renderer evidence capture", () => {
       },
       groups: [{ id: "group-a", categoryId: "shots", nodeIds: ["node-real"] }],
     });
+  });
+
+  it("revalidates inside the transaction and passes exact Host receipt correlation", async () => {
+    const snapshot = writableSnapshot();
+    const admission = buildCanvasWriteAdmission(captureCanvasWriteRawEvidence(snapshot, "node-real"));
+    deps.applyProposalBatch.mockImplementation(async (_steps, _turn, _coordinator, batchAdmission) => {
+      batchAdmission.beforePrepare();
+      return {
+        status: "committed",
+        proposalId: batchAdmission.proposalId,
+        results: [{}],
+        clientIdToNodeId: {},
+        reconciliation: { ok: true, deviations: [] },
+        compensation: [],
+        watchNodes: [],
+      };
+    });
+
+    await expect(executeCanvasWriteTarget({
+      input: { operation: "set_node_prompt", nodeId: "node-real", prompt: "new prompt" },
+      ...admission,
+      receiptProposalId: "receipt-host-a",
+      approvalId: "approval-host-a",
+      actionHash: "a".repeat(64),
+    }, () => snapshot)).resolves.toEqual({
+      applied: true,
+      proposalId: "receipt-host-a",
+      operation: "set_node_prompt",
+      affectedNodeIds: ["node-real"],
+      reconciliation: { ok: true, deviationCount: 0 },
+    });
+    expect(deps.applyProposalBatch).toHaveBeenCalledOnce();
+    expect(deps.createProposalReceiptCoordinator).toHaveBeenCalledWith(expect.objectContaining({
+      hostApprovalId: "approval-host-a",
+      hostActionHash: "a".repeat(64),
+    }));
+  });
+
+  it.each([
+    ["content", writableSnapshot("changed prompt")],
+    ["lock", writableSnapshot("old prompt", true)],
+  ])("rejects %s drift at the final boundary", async (_kind, current) => {
+    const captured = writableSnapshot();
+    const admission = buildCanvasWriteAdmission(captureCanvasWriteRawEvidence(captured, "node-real"));
+    deps.applyProposalBatch.mockImplementation(async (_steps, _turn, _coordinator, batchAdmission) => {
+      batchAdmission.beforePrepare();
+      throw new Error("must not continue");
+    });
+
+    await expect(executeCanvasWriteTarget({
+      input: { operation: "set_node_prompt", nodeId: "node-real", prompt: "new prompt" },
+      ...admission,
+      receiptProposalId: "receipt-host-a",
+      approvalId: "approval-host-a",
+      actionHash: "a".repeat(64),
+    }, () => current)).rejects.toMatchObject({ code: "capability_target_stale" });
   });
 });

@@ -16,7 +16,7 @@ import {
 const FORBIDDEN_OWNER_IMPORT = /(?:from|import\s*\()\s*["'](?:ai|@ai-sdk\/[^"']*|@mariozechner\/[^"']*|@earendil-works\/pi-[^"']*|[^"']*agentChatV2)["']/;
 
 describe("Nomi canvas descriptors", () => {
-  it("owns exactly the active eleven tool names", () => {
+  it("owns exactly the remaining ten legacy tool names", () => {
     expect(Object.keys(canvasToolDescriptors)).toEqual([...canvasToolNames]);
     for (const [name, descriptor] of Object.entries(canvasToolDescriptors)) {
       expect(descriptor.name).toBe(name);
@@ -53,7 +53,7 @@ describe("Nomi canvas descriptors", () => {
     // Captured from buildCanvasToolsForV2 at b4a3f466 before extraction.
     const descriptions = Object.fromEntries(Object.entries(canvasToolDescriptors).map(([name, value]) => [name, value.description]));
     expect(createHash("sha256").update(JSON.stringify(descriptions)).digest("hex"))
-      .toBe("b0feab0c255c606c22a7d126921feba45d5f78491765fd56afe216aa22961d7b");
+      .toBe("90a33a6efb507f3647f6539541ac3d1756dd298337d866425ba099374f321075");
   });
 
   it("projects the Pi canvas.read descriptor directly from the canonical contract", () => {
@@ -243,13 +243,12 @@ describe("canvas descriptor schemas", () => {
   });
 
   describe("canvasToolNames", () => {
-    it("enumerates all 11 tools", () => {
+    it("enumerates all 10 remaining legacy tools", () => {
       expect(canvasToolNames).toEqual([
         "read_canvas_state",
         "propose_storyboard_plan", // 分镜方案：产出结构化方案对象落创作区，确认后才落画布
         "create_canvas_nodes",
         "connect_canvas_edges",
-        "set_node_prompt",
         "delete_canvas_nodes",
         "run_generation_batch", // S6b 受理语义
         "arrange_storyboard_to_timeline", // 按剧本镜序排片到时间轴
@@ -377,19 +376,6 @@ describe("canvas descriptor schemas", () => {
     it("rejects more than 48 edges", () => {
       const edges = Array.from({ length: 49 }, (_, i) => ({ sourceClientId: `s${i}`, targetClientId: `t${i}` }));
       expect(schema.safeParse({ edges }).success).toBe(false);
-    });
-  });
-
-  describe("set_node_prompt parameters", () => {
-    const schema = canvasToolDescriptors.set_node_prompt.parameters;
-
-    it("accepts a well-formed call", () => {
-      expect(schema.safeParse({ nodeId: "node-1", prompt: "new prompt" }).success).toBe(true);
-    });
-
-    it("rejects empty nodeId or prompt", () => {
-      expect(schema.safeParse({ nodeId: "", prompt: "x" }).success).toBe(false);
-      expect(schema.safeParse({ nodeId: "n", prompt: "" }).success).toBe(false);
     });
   });
 

@@ -4,14 +4,17 @@ import type { IpcMainInvokeEvent, WebContents, WebFrameMain } from "electron";
 import { assertTrustedSender } from "../ipcSenderGuard";
 import type { AgentChatRequest, AgentChatToolDecision } from "../harness/agentChatContracts";
 import type {
+  ProjectAgentHostState,
   ProjectAgentAttachmentRef,
   ProjectAgentExecutionEvent,
   ProjectAgentMutation,
   ProjectBinding,
 } from "../shared/projectAgentContracts";
-import type {
-  ProjectAgentProposalReceiptTransition,
-  ProjectAgentProposalReceiptWrite,
+import {
+  parseProjectAgentCommittedProposal,
+  type ProjectAgentCommittedProposalRecord,
+  type ProjectAgentProposalReceiptTransition,
+  type ProjectAgentProposalReceiptWrite,
 } from "../shared/projectAgentProposalReceipt";
 import { assertProjectAgentBinding, sameProjectAgentBinding } from "./projectAgentIdentity";
 import type { ProjectAgentProductionRuntime } from "./projectAgentProductionRuntime";
@@ -21,7 +24,9 @@ import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadT
 import type { PiDocumentReadTransportAdapter } from "../capabilityCore/documentReadTransportAdapters";
 import type { PiDocumentWriteTransportAdapter } from "../capabilityCore/documentWriteTransportAdapters";
 import type { PiCanvasWriteTransportAdapter } from "../capabilityCore/canvasWriteTransportAdapters";
+import type { CapturedCanvasReadSnapshotHandleWire } from "../shared/surfacePortBinding";
 import { ProjectAgentSubscriptionError } from "./projectAgentExecutionCoordinator";
+import { projectAgentProposalMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
 
 export const PROJECT_AGENT_OPEN_CHANNEL = "nomi:projectAgent:open";
 export const PROJECT_AGENT_SNAPSHOT_CHANNEL = "nomi:projectAgent:snapshot";
@@ -81,9 +86,10 @@ function executionEnqueueField(value: unknown): Readonly<{
   payload: Extract<ProjectAgentMutation, { type: "turn.enqueue" }>["payload"];
   request: AgentChatRequest;
   attachmentClaims: readonly unknown[];
+  capturedCanvasReadSnapshot?: CapturedCanvasReadSnapshotHandleWire;
 }> {
   const record = asRecord(value);
-  exactKeys(record, ["thread", "turn", "userItem", "queueItem", "request", "attachmentClaims"]);
+  exactKeys(record, ["thread", "turn", "userItem", "queueItem", "request", "attachmentClaims", "capturedCanvasReadSnapshot"]);
   if (!Array.isArray(record.attachmentClaims)) throw new ProjectAgentIpcInputError("Project Agent attachments are invalid");
   return Object.freeze({
     payload: {
@@ -94,6 +100,9 @@ function executionEnqueueField(value: unknown): Readonly<{
     } as Extract<ProjectAgentMutation, { type: "turn.enqueue" }>["payload"],
     request: record.request as AgentChatRequest,
     attachmentClaims: record.attachmentClaims,
+    ...(record.capturedCanvasReadSnapshot !== undefined
+      ? { capturedCanvasReadSnapshot: record.capturedCanvasReadSnapshot as CapturedCanvasReadSnapshotHandleWire }
+      : {}),
   });
 }
 
@@ -198,6 +207,12 @@ export function registerProjectAgentIpc(
       binding: ProjectBinding,
       requestId: string,
     ) => PiCanvasReadTransportAdapter;
+    captureCanvasReadSnapshot?: (
+      event: IpcMainInvokeEvent,
+      binding: ProjectBinding,
+      handle: CapturedCanvasReadSnapshotHandleWire,
+      requestId: string,
+    ) => PiCanvasReadTransportAdapter;
     captureDocumentRead?: (
       event: IpcMainInvokeEvent,
       binding: ProjectBinding,
@@ -259,6 +274,38 @@ export function registerProjectAgentIpc(
     return service;
   };
   const receiptView = (service: ProjectAgentProposalReceiptService) => service.read();
+  const assertHostReceiptCorrelation = (
+    subscriptionId: string,
+    service: ProjectAgentProposalReceiptService,
+    proposalId: string,
+    value: unknown,
+  ): ProjectAgentCommittedProposalRecord => {
+    const proposal = parseProjectAgentCommittedProposal(value);
+    if (!proposal || proposal.proposalId !== proposalId) {
+      throw new ProjectAgentIpcInputError("Project Agent proposal receipt is invalid");
+    }
+    const snapshot = input.runtime.executionCoordinator.snapshot(subscriptionId) as ProjectAgentHostState;
+    if (!sameProjectAgentBinding(snapshot.binding, service.binding)) {
+      throw new ProjectAgentIpcInputError("Project Agent proposal receipt binding mismatch");
+    }
+    const claimed = (snapshot.proposalApprovals ?? []).filter(
+      (approval) => approval.lifecycle === "claimed" && approval.ref.receiptProposalId === proposalId,
+    );
+    const correlated = proposal.hostApprovalId !== undefined && proposal.hostActionHash !== undefined;
+    if (!correlated) {
+      if (claimed.length > 0) {
+        throw new ProjectAgentIpcInputError("Project Agent proposal receipt is missing Host correlation");
+      }
+      return proposal;
+    }
+    if (
+      claimed.length !== 1 ||
+      !projectAgentProposalMatchesApproval(proposalId, proposal, claimed[0].ref)
+    ) {
+      throw new ProjectAgentIpcInputError("Project Agent proposal receipt Host correlation mismatch");
+    }
+    return proposal;
+  };
   registerHandler(PROJECT_AGENT_OPEN_CHANNEL, async (event, raw) => {
     const request = asRecord(raw);
     exactKeys(request, ["binding"]);
@@ -305,10 +352,22 @@ export function registerProjectAgentIpc(
       canvasWrite = input.captureCanvasWrite?.(event, binding, `project-agent-open-${binding.projectId}`);
       prepared = await input.prepareProject?.(binding);
       assertCurrentAttempt();
+      const proposalReceipts = prepared?.proposalReceipts;
+      if (proposalReceipts && !sameProjectAgentBinding(proposalReceipts.binding, binding)) {
+        throw new ProjectAgentIpcInputError("Project Agent prepared receipt binding mismatch");
+      }
       subscription = await input.runtime.executionCoordinator.open(
         binding,
-        canvasRead || documentRead || documentWrite || canvasWrite
-          ? { ...(canvasRead ? { canvasRead } : {}), ...(documentRead ? { documentRead } : {}), ...(documentWrite ? { documentWrite } : {}), ...(canvasWrite ? { canvasWrite } : {}) }
+        canvasRead || documentRead || documentWrite || canvasWrite || proposalReceipts
+          ? {
+              ...(canvasRead ? { canvasRead } : {}),
+              ...(documentRead ? { documentRead } : {}),
+              ...(documentWrite ? { documentWrite } : {}),
+              ...(canvasWrite ? { canvasWrite } : {}),
+              ...(proposalReceipts
+                ? { proposalReceipt: () => proposalReceipts.read() }
+                : {}),
+            }
           : undefined,
       );
       assertCurrentAttempt();
@@ -378,7 +437,7 @@ export function registerProjectAgentIpc(
             frame.detached ||
             frame.isDestroyed()
           ) return;
-          if (notification.type === "patch") frame.send(PROJECT_AGENT_PATCH_CHANNEL, notification);
+          if (notification.type === "patch") frame.send(PROJECT_AGENT_PATCH_CHANNEL, notification.patch);
           else frame.send(PROJECT_AGENT_EVENT_CHANNEL, notification);
         },
       );
@@ -443,19 +502,35 @@ export function registerProjectAgentIpc(
           kind: ref.display.kind,
         }] : []),
       };
-      return input.runtime.executionCoordinator.enqueue(command.subscriptionId, {
-        mutation: {
-          ...mutation,
-          payload: {
-            ...execution.payload,
-            queueItem: { ...execution.payload.queueItem, attachmentRefs },
-          },
-        } as Extract<
-          ProjectAgentMutation,
-          { type: "turn.enqueue" }
-        >,
-        request,
-      });
+      let canvasRead: PiCanvasReadTransportAdapter | undefined;
+      try {
+        if (execution.capturedCanvasReadSnapshot !== undefined) {
+          if (!input.captureCanvasReadSnapshot) throw new Error("surface_port_unavailable");
+          canvasRead = input.captureCanvasReadSnapshot(
+            event,
+            binding,
+            execution.capturedCanvasReadSnapshot,
+            `project-agent-turn-${command.subscriptionId}-${execution.payload.turn.turnId}`,
+          );
+        }
+        return await input.runtime.executionCoordinator.enqueue(command.subscriptionId, {
+          mutation: {
+            ...mutation,
+            payload: {
+              ...execution.payload,
+              queueItem: { ...execution.payload.queueItem, attachmentRefs },
+            },
+          } as Extract<
+            ProjectAgentMutation,
+            { type: "turn.enqueue" }
+          >,
+          request,
+          ...(canvasRead ? { canvasRead } : {}),
+        });
+      } catch (error) {
+        canvasRead?.dispose();
+        throw error;
+      }
     }
     return input.runtime.executionCoordinator.dispatch(command.subscriptionId, mutation);
   });
@@ -481,12 +556,14 @@ export function registerProjectAgentIpc(
     exactKeys(request, ["subscriptionId", "expectedRevision", "proposalId", "operationId", "lifecycle", "proposal"]);
     const subscriptionId = stringField(request.subscriptionId, "subscriptionId");
     const service = receiptService(event, subscriptionId);
+    const proposalId = stringField(request.proposalId, "proposalId");
+    const proposal = assertHostReceiptCorrelation(subscriptionId, service, proposalId, request.proposal);
     return service.write(Object.freeze({
       expectedRevision: revisionField(request.expectedRevision),
-      proposalId: stringField(request.proposalId, "proposalId"),
+      proposalId,
       operationId: stringField(request.operationId, "operationId"),
       lifecycle: request.lifecycle as ProjectAgentProposalReceiptWrite["lifecycle"],
-      proposal: request.proposal,
+      proposal,
     }) as ProjectAgentProposalReceiptWrite);
   });
 

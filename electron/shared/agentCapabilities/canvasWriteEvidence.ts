@@ -102,6 +102,7 @@ export function buildCanvasWriteAdmission(value: unknown): CanvasWriteAdmission 
   const parsed = canvasWriteRawEvidenceSchema.safeParse(value);
   if (!parsed.success) throw new CanvasWriteEvidenceError("capability_input_invalid");
   const evidence = parsed.data;
+  if (evidence.node.locked) stale();
   assertUnique(evidence.groups.map((group) => group.id));
   for (const group of evidence.groups) assertUnique(group.nodeIds);
 
@@ -162,4 +163,18 @@ export function buildCanvasWriteAdmission(value: unknown): CanvasWriteAdmission 
       : {}),
   });
   return Object.freeze({ target, preconditions });
+}
+
+export function assertCanvasWriteAdmissionMatches(
+  value: unknown,
+  expected: Readonly<{ target: unknown; preconditions: unknown }>,
+): CanvasWriteAdmission {
+  const admission = buildCanvasWriteAdmission(value);
+  if (
+    stableJson(admission.target) !== stableJson(expected.target) ||
+    stableJson(admission.preconditions) !== stableJson(expected.preconditions)
+  ) {
+    stale();
+  }
+  return admission;
 }

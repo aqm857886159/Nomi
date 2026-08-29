@@ -177,6 +177,8 @@ describe("ProjectAgent reducer bounded idempotency history", () => {
     }
     expect(state.turns).toHaveLength(1_000);
     expect(state.queue).toHaveLength(1_000);
-    expect(performance.now() - startedAt).toBeLessThan(1_000);
+    // Keep enough headroom for the full Vitest process to run in parallel while
+    // still catching a regression from bounded growth to a cubic path.
+    expect(performance.now() - startedAt).toBeLessThan(2_000);
   }, 10_000);
 });

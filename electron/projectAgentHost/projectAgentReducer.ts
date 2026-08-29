@@ -751,6 +751,7 @@ export function reduceProjectAgentMutation(
           "retryable",
           "proposalApprovalId",
           "proposalStatus",
+          "proposalSettlements",
           "assistantFinal",
           "receivedAt",
         ]);
@@ -807,30 +808,48 @@ export function reduceProjectAgentMutation(
         );
         const hasProposalApprovalId = result.proposalApprovalId !== undefined;
         const hasProposalStatus = result.proposalStatus !== undefined;
-        if (hasProposalApprovalId !== hasProposalStatus) {
+        const hasProposalSettlements = result.proposalSettlements !== undefined;
+        if (hasProposalApprovalId !== hasProposalStatus || (hasProposalApprovalId && hasProposalSettlements)) {
           fail("async_result_stale");
         }
-        if (runningProposalIds.length > 0 && !hasProposalApprovalId) {
+        let proposalSettlements: readonly Readonly<{ approvalId: string; status: ProjectAgentStatus }>[] = [];
+        if (hasProposalSettlements) {
+          if (!Array.isArray(result.proposalSettlements)) fail("async_result_stale");
+          proposalSettlements = result.proposalSettlements;
+        } else if (hasProposalApprovalId && result.proposalApprovalId && result.proposalStatus) {
+          proposalSettlements = [{ approvalId: result.proposalApprovalId, status: result.proposalStatus }];
+        }
+        if (
+          proposalSettlements.length !== runningProposalIds.length
+          || new Set(proposalSettlements.map((settlement) => settlement.approvalId)).size !== proposalSettlements.length
+          || proposalSettlements.some((settlement) =>
+            !settlement
+            || typeof settlement !== "object"
+            || Object.keys(settlement).length !== 2
+            || !Object.hasOwn(settlement, "approvalId")
+            || !Object.hasOwn(settlement, "status")
+            || typeof settlement.approvalId !== "string"
+            || !runningProposalIds.includes(settlement.approvalId)
+            || !isProjectAgentProposalSettlementStatus(settlement.status))
+        ) {
           fail("async_result_stale");
         }
-        if (hasProposalApprovalId) {
-          const approval = proposalApprovals.find((value) => value.ref.approvalId === result.proposalApprovalId);
+        for (const settlement of proposalSettlements) {
+          const approval = proposalApprovals.find((value) => value.ref.approvalId === settlement.approvalId);
           if (
             !approval ||
             approval.lifecycle !== "claimed" ||
             approval.ref.turnId !== result.turnId ||
-            !runningProposalIds.includes(result.proposalApprovalId) ||
-            !result.proposalStatus ||
-            !isProjectAgentProposalSettlementStatus(result.proposalStatus)
+            !runningProposalIds.includes(settlement.approvalId)
           ) {
             fail("async_result_stale");
           }
           const settledProposal = updateProposalItems(
             items,
-            result.proposalApprovalId,
-            result.proposalStatus,
+            settlement.approvalId,
+            settlement.status,
             result.receivedAt,
-            terminalRetryable,
+            settlement.status === result.turnStatus ? terminalRetryable : false,
           );
           items = settledProposal.items;
           changes.push(...settledProposal.changes);

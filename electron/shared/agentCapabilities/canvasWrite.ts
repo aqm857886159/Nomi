@@ -16,6 +16,9 @@ export const canvasWriteSemanticInputSchema = z
   })
   .strict();
 
+/** Pi derives the operation from the Registry alias; callers provide only semantic arguments. */
+export const canvasWritePiInputSchema = canvasWriteSemanticInputSchema.omit({ operation: true });
+
 export const canvasWriteResultSchema = z
   .object({
     applied: z.literal(true),

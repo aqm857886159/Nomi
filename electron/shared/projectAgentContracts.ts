@@ -344,6 +344,10 @@ export type ProjectAgentAsyncResultEnvelope = Readonly<{
   retryable?: boolean;
   proposalApprovalId?: string;
   proposalStatus?: ProjectAgentStatus;
+  proposalSettlements?: readonly Readonly<{
+    approvalId: string;
+    status: ProjectAgentStatus;
+  }>[];
   assistantFinal?: ProjectAgentAssistantFinal;
   receivedAt: string;
 }>;

@@ -107,6 +107,13 @@ function validId(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= 512 && value === value.trim();
 }
 
+function sameHostCorrelation(
+  left: ProjectAgentCommittedProposalRecord,
+  right: ProjectAgentCommittedProposalRecord,
+): boolean {
+  return left.hostApprovalId === right.hostApprovalId && left.hostActionHash === right.hostActionHash;
+}
+
 function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   const expected = new Set(keys);
   return Object.keys(value).length === expected.size && Object.keys(value).every((key) => expected.has(key));
@@ -377,8 +384,13 @@ export function createProjectAgentProposalReceiptService(input: Readonly<{
         if (receipt && receipt.lifecycle !== "committed" && receipt.lifecycle !== "undone") {
           throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt already has an unfinished operation");
         }
-      } else if (!receipt || receipt.lifecycle !== "preparing" || receipt.proposalId !== value.proposalId) {
-        throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt cannot commit without its preparation");
+      } else {
+        if (!receipt || receipt.lifecycle !== "preparing" || receipt.proposalId !== value.proposalId) {
+          throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt cannot commit without its preparation");
+        }
+        if (!sameHostCorrelation(receipt.proposal, proposal)) {
+          throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt Host correlation is immutable");
+        }
       }
       return toView(store.write(makeReceipt({
         previous: receipt,

@@ -22,6 +22,7 @@ import {
   type CapturedCanvasReadSnapshotPort,
   type CapturedCanvasReadSnapshotRegistry,
 } from "./canvasReadCapturedSnapshotRegistry";
+import type { ProjectBinding } from "../shared/projectAgentContracts";
 
 export const SURFACE_SUSPEND_CHANNEL = "nomi:surface:suspend";
 export const SURFACE_COMMIT_CANVAS_READ_CHANNEL = "nomi:surface:commitCanvasRead";
@@ -42,6 +43,7 @@ type NavigationQuarantine = Readonly<{
 /** Narrow bridge for other trusted main IPC handlers; it cannot mint owners. */
 export type CanvasReadSurfaceIpcCapture = Readonly<{
   captureCanvasReadPort(event: IpcMainInvokeEvent, binding: unknown): CapturedCanvasReadPort;
+  captureCommittedCanvasReadPort(event: IpcMainInvokeEvent, binding: ProjectBinding): CapturedCanvasReadPort;
   consumeCapturedCanvasReadSnapshot(
     event: IpcMainInvokeEvent,
     handle: unknown,
@@ -304,6 +306,26 @@ export function registerCanvasReadSurfaceIpc(
       const owner = captureOwner(event);
       const resolved = input.registry.resolveBindingWire(owner, binding);
       return input.registry.captureCanvasReadPort(owner, resolved);
+    },
+    captureCommittedCanvasReadPort(event: IpcMainInvokeEvent, binding: ProjectBinding): CapturedCanvasReadPort {
+      const owner = captureOwner(event);
+      const selection = input.registry.getCommittedProjectSelection();
+      if (
+        !selection ||
+        selection.projectId !== binding.projectId ||
+        selection.immutableProjectUuid !== binding.immutableProjectUuid ||
+        selection.projectGeneration !== binding.projectGeneration
+      ) throw new SurfacePortError("surface_port_stale");
+      const captured = input.registry.captureCommittedCanvasReadPort({
+        binding,
+        canonicalRootDigest: selection.canonicalRootDigest,
+      });
+      if (!captured) throw new SurfacePortError("surface_port_unavailable");
+      const dispatch = input.registry.resolveCapturedCanvasReadPort(captured);
+      if (dispatch.owner !== input.ownerAuthority.resolve(owner)) {
+        throw new SurfacePortError("surface_owner_mismatch");
+      }
+      return captured;
     },
     consumeCapturedCanvasReadSnapshot(event, handle, requestProjectId) {
       const owner = captureOwner(event);

@@ -24,7 +24,7 @@ describe('evaluateGate — 统一求值流(§6.1)', () => {
   })
 
   it('③ ask:写工具排队等点头', () => {
-    for (const toolName of ['create_canvas_nodes', 'connect_canvas_edges', 'set_node_prompt', 'export_timeline', 'cancel_export_job']) {
+    for (const toolName of ['create_canvas_nodes', 'connect_canvas_edges', 'export_timeline', 'cancel_export_job']) {
       expect(evaluateGate({ kind: 'tool-call', toolName, args: {} })).toEqual({ outcome: 'ask' })
     }
   })
@@ -42,8 +42,13 @@ describe('evaluateGate — 统一求值流(§6.1)', () => {
   })
 
   it('纯函数:同入参恒同出参', () => {
-    const intent = { kind: 'tool-call' as const, toolName: 'set_node_prompt', args: { nodeId: 'n1', prompt: 'x' } }
+    const intent = { kind: 'tool-call' as const, toolName: 'delete_canvas_nodes', args: { nodeIds: ['n1'] } }
     expect(evaluateGate(intent)).toEqual(evaluateGate(intent))
+  })
+
+  it('has no renderer policy owner for the Registry-owned canvas.write alias', () => {
+    expect(evaluateGate({ kind: 'tool-call', toolName: 'set_node_prompt', args: {} }).outcome).toBe('deny')
+    expect(readFileSync(new URL('./gate.ts', import.meta.url), 'utf8')).not.toContain('set_node_prompt')
   })
 
   describe('S6-4 锁不变量(N11):AI 硬禁,出边放行', () => {
@@ -52,18 +57,6 @@ describe('evaluateGate — 统一求值流(§6.1)', () => {
       // clientId 翻译:LLM 口中的 c1 = real-1。
       resolveNodeId: (id: string) => (id === 'c1' ? 'real-1' : id),
     }
-
-    it('改锁住节点的 prompt → deny,reason 人话点名节点+解锁路径', () => {
-      const decision = evaluateGate(
-        { kind: 'tool-call', toolName: 'set_node_prompt', args: { nodeId: 'real-1', prompt: 'x' } },
-        ctx,
-      )
-      expect(decision.outcome).toBe('deny')
-      if (decision.outcome === 'deny') {
-        expect(decision.reason).toContain('女主角定妆卡')
-        expect(decision.reason).toContain('解锁')
-      }
-    })
 
     it('LLM 用 clientId 指代锁住节点 → 翻译后照样 deny', () => {
       const decision = evaluateGate(
@@ -87,9 +80,6 @@ describe('evaluateGate — 统一求值流(§6.1)', () => {
     })
 
     it('不碰锁节点的写操作不受影响', () => {
-      expect(
-        evaluateGate({ kind: 'tool-call', toolName: 'set_node_prompt', args: { nodeId: 'n2', prompt: 'x' } }, ctx),
-      ).toEqual({ outcome: 'ask' })
       expect(
         evaluateGate({ kind: 'tool-call', toolName: 'create_canvas_nodes', args: { nodes: [] } }, ctx),
       ).toEqual({ outcome: 'ask' })

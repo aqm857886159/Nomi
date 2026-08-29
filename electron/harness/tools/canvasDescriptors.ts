@@ -337,14 +337,6 @@ export const canvasToolDescriptors = {
       edges: z.array(plannedEdgeSchema).min(1).max(48),
     }),
   },
-  set_node_prompt: {
-    name: "set_node_prompt",
-    description: "Rewrite the prompt of an existing node.",
-    parameters: z.object({
-      nodeId: z.string().min(1),
-      prompt: z.string().min(1),
-    }),
-  },
   delete_canvas_nodes: {
     name: "delete_canvas_nodes",
     description: "Delete one or more existing canvas nodes (destructive).",

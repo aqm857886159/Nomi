@@ -27,6 +27,16 @@ const SCAN_DIRS = ["src", "electron"];
 const ALLOWLIST = {
   "electron/runtime.ts": 531, // …→ 539（2026-08-15）→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）
   "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 731, // …→ 733（2026-08-16 移除死属性）→ 732（2026-08-24 失败卡加收起钮，压平 onRetry 箭头体抵回）→ 731（2026-08-25 P4 S6：多镜叠加合一 ProductionShotOverlays + onRetry 抽 useProductionNodeRetry，净减 1）
+  // Project Agent Host migration shells. Manually reviewed for this PR because
+  // the task branch introduces these owners ahead of the next decomposition batch.
+  // Ratchet only: any growth is a hard failure; Canvas completion/Phase 4 must
+  // extract these modules and lower the baselines.
+  "electron/capabilityCore/verifiedCapabilityInvocation.ts": 910,
+  "electron/main.ts": 825,
+  "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1461,
+  "electron/projectAgentHost/projectAgentReducer.ts": 959,
+  "src/workbench/NomiStudioApp.tsx": 889,
+  "src/workbench/creation/CreationAiPanel.tsx": 868,
   // PR#21 白板节点引入（2026-06-25）：WhiteboardDrawingTool（1032）与 WhiteboardLeaferCanvas（3406）两巨壳
   // 已按 Rule 9 全部拆完、双双出白名单。LeaferCanvas → whiteboardCanvasTypes/Export/NodeOps/Geometry 四纯模块
   // + whiteboardSceneRender（渲染树）+ useWhiteboardDrawing/BoxSelection/SelectionActions/SceneSync 四交互 hook，

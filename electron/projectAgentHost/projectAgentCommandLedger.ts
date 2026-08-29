@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 
-import { isDurable } from "../durability";
+import { fsyncIfDurable } from "../durability";
 import type { ProjectAgentCompactCommandReceipt, ProjectBinding } from "../shared/projectAgentContracts";
 import { assertProjectAgentBinding, sameProjectAgentBinding, stableProjectAgentJson } from "./projectAgentState";
 const RECORD_KEYS = "appliedRevision|binding|checksum|commandId|mutationHash";
@@ -319,7 +319,7 @@ export function createProjectAgentCommandLedger(deps: ProjectAgentCommandLedgerD
         deps.integrityError,
       );
       fs.ftruncateSync(fd, view.pointer.byteOffset);
-      if (isDurable()) fs.fsyncSync(fd);
+      fsyncIfDurable(fd);
       openedAfter = fs.fstatSync(fd);
     } finally {
       fs.closeSync(fd);
@@ -403,7 +403,7 @@ export function createProjectAgentCommandLedger(deps: ProjectAgentCommandLedgerD
       }
       if (process.platform !== "win32") fs.fchmodSync(fd, 0o600);
       writeAll(fd, bytes);
-      if (isDurable()) fs.fsyncSync(fd);
+      fsyncIfDurable(fd);
       const opened = fs.fstatSync(fd);
       const observed = stamp(input.ledgerPath);
       if (!sameFileIdentity(opened, observed) || opened.nlink !== 1) {

@@ -1,10 +1,19 @@
 import {
+  assertCanvasWriteAdmissionMatches,
   CanvasWriteEvidenceError,
   canvasWriteRawEvidenceSchema,
   type CanvasWriteRawEvidence,
 } from '../../../../electron/shared/agentCapabilities/canvasWriteEvidence'
+import {
+  canvasWriteSemanticInputSchema,
+  type CanvasWriteResult,
+} from '../../../../electron/shared/agentCapabilities/canvasWrite'
+import { SurfacePortWireError } from '../../../../electron/shared/surfacePortBinding'
 import type { GenerationCanvasSnapshot, GenerationNodeResult } from '../model/generationCanvasTypes'
+import { buildStepDetailLabels, summarizeToolCall } from '../components/toolCallSummary'
 import { resolveCanvasToolNodeId } from './clientIdRegistry'
+import { createProposalReceiptCoordinator } from './proposalUndo'
+import { applyProposalBatch } from './proposalTxn'
 
 function trimmedString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null
@@ -67,4 +76,80 @@ export function captureCanvasWriteRawEvidence(
   const parsed = canvasWriteRawEvidenceSchema.safeParse(evidence)
   if (!parsed.success) throw new CanvasWriteEvidenceError('capability_input_invalid')
   return parsed.data
+}
+
+export type CanvasWriteTargetExecution = Readonly<{
+  input: unknown
+  target: unknown
+  preconditions: unknown
+  receiptProposalId: string
+  approvalId: string
+  actionHash: string
+}>
+
+function wireError(error: unknown): SurfacePortWireError {
+  const code = error && typeof error === 'object' ? (error as { code?: unknown }).code : undefined
+  return new SurfacePortWireError(
+    code === 'capability_input_invalid' || code === 'capability_target_stale'
+      ? code
+      : 'capability_receipt_unresolved',
+  )
+}
+
+export async function executeCanvasWriteTarget(
+  request: CanvasWriteTargetExecution,
+  readSnapshot: () => GenerationCanvasSnapshot,
+): Promise<CanvasWriteResult> {
+  const parsed = canvasWriteSemanticInputSchema.safeParse(request.input)
+  if (!parsed.success) throw new SurfacePortWireError('capability_input_invalid')
+  const input = parsed.data
+  const receiptCoordinator = createProposalReceiptCoordinator({
+    summary: summarizeToolCall(input.operation, input),
+    stepLabels: buildStepDetailLabels(input.operation, input),
+    hostApprovalId: request.approvalId,
+    hostActionHash: request.actionHash,
+  })
+  let admittedNodeId: string | undefined
+  let outcome: Awaited<ReturnType<typeof applyProposalBatch>>
+  try {
+    outcome = await applyProposalBatch(
+      [{ toolCallId: request.approvalId, toolName: input.operation, effectiveArgs: input }],
+      undefined,
+      receiptCoordinator,
+      {
+        proposalId: request.receiptProposalId,
+        beforePrepare() {
+          try {
+            const admission = assertCanvasWriteAdmissionMatches(
+              captureCanvasWriteRawEvidence(readSnapshot(), input.nodeId),
+              { target: request.target, preconditions: request.preconditions },
+            )
+            admittedNodeId = admission.target.nodeIds[0]
+          } catch (error) {
+            throw wireError(error)
+          }
+        },
+      },
+    )
+  } catch (error) {
+    throw wireError(error)
+  }
+  if (outcome.status !== 'committed') {
+    throw wireError(Object.assign(new Error(outcome.reason), {
+      code: outcome.reason === 'capability_input_invalid' || outcome.reason === 'capability_target_stale'
+        ? outcome.reason
+        : 'capability_receipt_unresolved',
+    }))
+  }
+  if (!admittedNodeId) throw new SurfacePortWireError('capability_receipt_unresolved')
+  return {
+    applied: true,
+    proposalId: outcome.proposalId,
+    operation: input.operation,
+    affectedNodeIds: [admittedNodeId],
+    reconciliation: {
+      ok: outcome.reconciliation.ok,
+      deviationCount: outcome.reconciliation.deviations.length,
+    },
+  }
 }

@@ -22,10 +22,15 @@
 | Phase 3A | 已完成 checkpoint | canonical `document.read` 已通过 Host，旧 read owner 已删除 |
 | Phase 3B | 已完成 focused closure | `document.write` 已完成 Registry/Host/Surface/adapter/UI 路由；写入队列必须冻结可执行 anchor/revision/hash，缺失或 whole-document 占位在入队前 fail closed |
 | Phase 3C | 实现中 | 首个 `set_node_prompt` 垂直切片；contract 与 durable identity 已完成，剩余六项依赖按主干、领域切换两个交付批次推进 |
-| Phase 3 其余 | 未开始 | 其余 canvas reversible writes、timeline read/write、精确 result/version 引用 |
+| Phase 3 其余 | 未开始 | 其余 canvas reversible writes 与精确 result/version 引用合为一个 Canvas completion 大批；timeline read/write 独立为一个 Phase 3D 大批 |
 | Phase 4 | 未开始 | ProductionRun、付费/破坏性能力、receipt、TaskRef、typed cancel、export truth |
 | Phase 5 | 未开始 | Skill/MCP 从 Registry 派生，list/read guard、shrink-only、legacy firewall |
 | Phase 6 | 未开始 | 常驻 UI；只投影已冻结的 Host/domain 状态，基于现有设计系统调整 |
+
+R12 说明：本任务分支当前有 6 个超过 800 行的 Host/工作台聚合文件。它们已按本批
+人工审查后进入精确行数 allowlist，allowlist 只防止继续增长，不等于债务清零；
+Canvas completion 与 Phase 4 大批必须优先抽取这些 owner 并下调基线，不能再新增
+allowlist 条目来掩盖模块膨胀。
 
 ## 每个能力的固定垂直切片
 
@@ -54,14 +59,15 @@
 先把失败归类为契约、生命周期、实现或环境问题，记录到证据账本；同一失败不
 通过重复跑更宽测试来“确认”。修复后只重跑指纹已变化的直接测试。
 
-每个交付批次 focused 绿后形成一次 **scoped 本地提交**；批内检查点只控制依赖
-顺序和直接 RED/GREEN，不分别触发评审、提交、推送或宽测试。批次提交是日常恢复点，
-不触发 `main` 整合或全量门禁。网络可用时立即把该提交普通 push 到现有任务分支，形成
-**remote recovery checkpoint**，Draft PR 自动得到增量备份；这不等于阶段验收，
-也不要求追赶 `main`。Phase 3/4 联合出口和最终 Phase 6 出口才形成
+每个交付批次 focused 绿后只做一次只读评审。评审通过后，按仓库 push 纪律只运行
+一次完整 push gate，再形成一个 **scoped 本地提交**并普通 push 到现有任务分支；
+批内检查点只控制依赖顺序和直接 RED/GREEN，不分别触发评审、提交、推送或宽测试。
+这样每个大批次只有一次完整门禁成本，同时远端 Draft PR 仍持续获得可恢复备份。
+日常 recovery checkpoint 不整合 `main`；Phase 3/4 联合出口和最终 Phase 6 出口才形成
 **remote stage checkpoint**。
 
-remote recovery push 前只刷新任务分支引用；如果网络失败或远端没有新事实，记录
+remote recovery push 前刷新远端基线与任务分支引用，但只观察、不把 `main` 合入开放中的
+lane；如果网络失败或远端没有新事实，记录
 一次 transport 错误后熔断，不重复 fetch/push，不让它阻塞实现。远端分支若前进，
 普通 push 会安全拒绝，此时才暂停并检查分歧；禁止 force-push。
 
@@ -124,6 +130,12 @@ remote stage checkpoint 才做三件事：
 `adopt / adapt / reject`。Phase 5 做一次全量增量审计，Phase 6 只补 UI 和新 PR
 的变化，不重复同源审计。
 
+这些决定必须进入 tracked evidence，不能只保存在被 `.gitignore` 排除的 harness
+运行态。Phase 5/6 开工合同把以下缺口设为 hard fail：相关 PR 的 base/head SHA 与
+核验日期、相对届时 `main` 的新增/更新 PR 增量、每个 lane 的 `adopt / adapt / reject`
+和对应验收项。UI 另需冻结批准设计的 commit/path、真实工作台截图、关键状态对账和
+设计系统版本；结构门必须拒绝缺失证据的 Registry/MCP/Skill/UI RED，而不是依赖人工记忆。
+
 ## 流程 v4：关键路径与停止无信息循环
 
 本任务的节奏真源是本路线图与本地 harness 的
@@ -159,10 +171,12 @@ adapter、边界内 stale revalidation 和旧 owner 删除。批内仍按最左�
 ## 下一步顺序
 
 1. 完成 Phase 3C 主干批次，再完成领域切换批次；每批只做一次 closure、评审、
-   提交和恢复 push，不新增第二套 approval、status 或 Undo owner。
-2. 完成 timeline read/write 和精确 result/version 引用，形成
-   Phase 3 focused 出口矩阵；此时不单独整合 `main`。
-3. 推进 ProductionRun/付费链与 export integrity，形成 Phase 4 出口，再做一次
+   完整 push gate、提交和恢复 push，不新增第二套 approval、status 或 Undo owner。
+2. 用一个 Canvas completion 大批一次迁移 `connect_canvas_edges`、
+   `create_canvas_nodes`、`tidy_canvas` 和精确 result/version 引用；随后用一个
+   Phase 3D 大批完成 timeline read/propose/apply/undo 与旧 owner 删除，形成
+   Phase 3 出口矩阵。两个大批内部按依赖顺序做 direct RED/GREEN，但不分别整合 `main`。
+3. 用一个端到端大批推进 ProductionRun/付费链与 export integrity，形成 Phase 4 出口，再做一次
    Phase 3/4 联合 closure、整合当时的 `main` 并更新远端 checkpoint。
 4. 阅读历史 PR 增量并完成 Registry 派生的 Skill/MCP surface（Phase 5）。
 5. 最后基于设计系统完成常驻 UI、真实旅程和最终全量发布门（Phase 6）。

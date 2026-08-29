@@ -6,10 +6,27 @@ import { documentToolDescriptors } from './tools/documentDescriptors';
 import { timelineToolDescriptors } from './tools/timelineDescriptors';
 import type { RuntimeToolCall, RuntimeToolDescriptor } from './runtime/runtimePort';
 import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead';
+import { CANVAS_WRITE_CAPABILITY, canvasWritePiInputSchema } from '../shared/agentCapabilities/canvasWrite';
 import { DOCUMENT_READ_CAPABILITY } from '../shared/agentCapabilities/documentRead';
 import { capabilityAliasesFor } from '../shared/agentCapabilities/registry';
 
-const CANVAS_TOOL_NAMES = new Set<string>(canvasToolNames);
+type PiToolDescriptor = Readonly<{
+  name: string;
+  description: string;
+  parameters: RuntimeToolDescriptor['schema'];
+}>;
+
+const CANVAS_WRITE_DESCRIPTORS: PiToolDescriptor[] = capabilityAliasesFor(CANVAS_WRITE_CAPABILITY.id, 'pi').map((alias) => ({
+  name: alias,
+  description: CANVAS_WRITE_CAPABILITY.projections.pi.description,
+  parameters: canvasWritePiInputSchema,
+}));
+if (CANVAS_WRITE_DESCRIPTORS.length !== 1) throw new Error('Missing canvas.write Pi Registry projection');
+const CANVAS_WRITE_DESCRIPTOR = CANVAS_WRITE_DESCRIPTORS[0];
+const CANVAS_DESCRIPTORS: PiToolDescriptor[] = Object.values(canvasToolDescriptors).flatMap<PiToolDescriptor>((descriptor) =>
+  descriptor.name === 'connect_canvas_edges' ? [descriptor, CANVAS_WRITE_DESCRIPTOR] : [descriptor],
+);
+const CANVAS_TOOL_NAMES = new Set<string>([...canvasToolNames, ...CANVAS_WRITE_DESCRIPTORS.map(({ name }) => name)]);
 const DOCUMENT_READ_DESCRIPTORS = capabilityAliasesFor(DOCUMENT_READ_CAPABILITY.id, 'pi').map((alias) => {
   const descriptor = Object.values(documentToolDescriptors).find((candidate) => candidate.name === alias);
   if (!descriptor) throw new Error(`Missing document tool projection for ${alias}`);
@@ -51,10 +68,10 @@ export function captureAgentChatRequest(input: AgentChatRequest): AgentChatReque
 
 export function agentToolsForCapability(capability: AgentChatRequest['capability']): RuntimeToolDescriptor[] {
   const canvas = canvasToolDescriptors;
-  const descriptors = capability === 'creation-editor' ? [...DOCUMENT_READ_DESCRIPTORS, ...DOCUMENT_NON_READ_DESCRIPTORS]
+  const descriptors: PiToolDescriptor[] = capability === 'creation-editor' ? [...DOCUMENT_READ_DESCRIPTORS, ...DOCUMENT_NON_READ_DESCRIPTORS]
     : capability === 'creation-chat' ? [...DOCUMENT_READ_DESCRIPTORS, documentToolDescriptors.author_skill]
-      : capability === 'canvas-agent' ? [...Object.values(canvas), ...Object.values(timelineToolDescriptors)]
-        : capability === 'canvas-refine' ? [canvas.set_node_prompt]
+    : capability === 'canvas-agent' ? [...CANVAS_DESCRIPTORS, ...Object.values(timelineToolDescriptors)]
+        : capability === 'canvas-refine' ? [CANVAS_WRITE_DESCRIPTOR]
           : capability === 'storyboard' ? [canvas[CANVAS_READ_CAPABILITY.aliases.pi], canvas.propose_storyboard_plan] : [];
   return descriptors.map(({ name, description, parameters }) => ({ name, description, schema: parameters }));
 }

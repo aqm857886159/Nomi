@@ -1,0 +1,83 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-29-project-agent-host-cumulative-high-risk-boundaries",
+  "problem_type": "cumulative Project Agent Host high-risk boundary integration",
+  "symptom": "The task branch contains several related Host, IPC, persistence, workspace, asset, workflow, and project-session changes that must be validated as one delivery contract rather than treated as isolated edits; the Host cutover also exposed a per-turn captured Canvas read admission that was not being forwarded to execution.",
+  "direct_cause": "The earlier phase checkpoints changed high-risk production boundaries before the current PR acquired one merge-base-visible contract covering their structural prevention and changed regression evidence. During the Host cutover, the renderer carried a main-sealed Canvas read handle only through the legacy chat IPC shape, so the compatibility runner could silently fall back to a subscription Surface adapter or report project_agent_unavailable.",
+  "class_root": "A long-lived task branch can accumulate high-risk boundary changes across lifecycle, persistence, workspace identity, asset references, and CI delivery without one auditable map from each changed production file to a changed regression test and a structural prevention artifact.",
+  "affected_population": [
+    "Users opening or switching projects while a Project Agent execution is active",
+    "Users whose agent messages, assets, or workspace state cross the Electron IPC and persistence boundaries",
+    "Maintainers relying on pull-request workflow checks and recovery gates"
+  ],
+  "scope_paths": [
+    ".github/workflows/desktop-rc.yml",
+    ".github/workflows/quality-gate.yml",
+    "electron/ai/agentChatV2Ipc.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/projectAgentHost/projectAgentRepository.ts",
+    "electron/tasks/activeProjectFallback.ts",
+    "electron/workspace/workspaceRepository.ts",
+    "src/workbench/generationCanvas/runner/projectAssetHealthCheck.ts",
+    "electron/projectAgentHost/projectAgentCommandLedger.ts",
+    "electron/projectAgentHost/projectAgentCutoverManifest.ts"
+  ],
+  "entry_points": [
+    "Pull request and release-candidate workflow dispatch",
+    "Agent chat IPC request and response routing",
+    "Project asset save, lookup, and health verification",
+    "Project Agent repository read/write and recovery",
+    "Active-project fallback and workspace repository identity"
+  ],
+  "invariants": [
+    "Every changed high-risk boundary has a changed deterministic regression test in the same PR.",
+    "IPC and repository operations remain bound to the originating project/session identity and reject malformed or stale inputs.",
+    "Asset health checks and persistence retain stable project-scoped references without exposing local paths as authority.",
+    "Workflow gates execute the required validation surfaces and fail closed when a required job is absent or unsuccessful.",
+    "Workspace and active-project fallback preserve one canonical project identity across reload, switch, and recovery paths."
+    ,"A main-sealed Canvas read handle is consumed exactly once at the Host turn enqueue boundary and remains the read adapter for that turn; it is never replaced by a later live Surface after a project switch."
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same missing evidence and boundary-ownership problem can recur for every future Host, IPC, asset, workspace, or workflow change in this long-running branch.",
+    "same_class_scan": [
+      "Scanned the PR merge-base file list for high-risk workflow, IPC, store, repository, task, workspace, and generation-runner paths.",
+      "Mapped each reported production path to the changed workflow, IPC, repository, asset, workspace, or runner regression suites in this PR.",
+      "Checked the existing root-cause validator, workflow contract tests, project repository tests, asset store tests, and generation asset-health tests for the shared boundary assertions."
+    ]
+  },
+  "internal_only_reason": "This contract records internal repository ownership, lifecycle, persistence, and CI boundary behavior; no external protocol decision is needed to determine the affected paths.",
+  "prevention": {
+    "strategy": "Keep a merge-base-visible root-cause contract for cumulative high-risk changes, require changed direct regression evidence for each boundary family, and enforce the mapping through the root-cause gate and workflow contract checks.",
+    "artifacts": [
+      ".github/workflows/desktop-rc.yml",
+      ".github/workflows/quality-gate.yml",
+      "electron/ai/agentChatV2Ipc.ts",
+      "electron/assets/projectAssetStore.ts",
+      "electron/projectAgentHost/projectAgentRepository.ts",
+      "electron/tasks/activeProjectFallback.ts",
+    "electron/workspace/workspaceRepository.ts",
+    "src/workbench/generationCanvas/runner/projectAssetHealthCheck.ts",
+    "electron/projectAgentHost/projectAgentCommandLedger.ts",
+    "electron/projectAgentHost/projectAgentCutoverManifest.ts",
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "electron/ai/agentChatV2Ipc.test.ts",
+    "electron/assets/projectAssetStore.test.ts",
+    "electron/projectAgentHost/projectAgentRepository.test.ts",
+    "electron/workspace/workspaceRepository.test.ts",
+    "electron/projectAgentHost/projectAgentCommandLedger.test.ts",
+    "electron/projectAgentHost/projectAgentMigration.test.ts",
+    "src/workbench/generationCanvas/runner/projectAssetHealthCheck.test.ts",
+    "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts"
+  ],
+  "migration": "This is an evidence and ownership contract only. Existing stored bindings, assets, workspace identities, and workflow definitions retain their current migration paths; future high-risk edits must update this contract or add a more specific changed contract.",
+  "residual_risks": [
+    "This cumulative contract does not replace capability-specific contracts such as canvas.write admission.",
+    "The full packaged GUI and real user journey remain reserved for the Phase 6 final candidate.",
+    "The allowlisted large-file baselines remain a ratchet debt and must be reduced in the Canvas completion and Phase 4 batches."
+  ]
+}

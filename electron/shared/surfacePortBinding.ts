@@ -167,6 +167,7 @@ export type CanvasReadSurfaceBridge = Readonly<{
 
 export type SurfacePortWireErrorCode =
   | "capability_input_invalid"
+  | "capability_receipt_unresolved"
   | "capability_target_stale"
   | "project_identity_unavailable"
   | "project_binding_stale"
@@ -177,6 +178,7 @@ export type SurfacePortWireErrorCode =
 
 const SURFACE_PORT_WIRE_ERROR_CODES = new Set<SurfacePortWireErrorCode>([
   "capability_input_invalid",
+  "capability_receipt_unresolved",
   "capability_target_stale",
   "project_identity_unavailable",
   "project_binding_stale",

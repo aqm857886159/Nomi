@@ -34,6 +34,16 @@ describe('P2B-RECEIPT-001 production wiring', () => {
     expect(source).not.toContain('persistCommittedProposal')
   })
 
+  it('records Registry-owned canvas.write approval intent without renderer mutation', () => {
+    const hostBranch = source.indexOf('const hostCanvasWrites = rawSteps.filter')
+    const legacyTransaction = source.indexOf('const outcome = await applyProposalBatch(')
+    expect(hostBranch).toBeGreaterThan(-1)
+    expect(legacyTransaction).toBeGreaterThan(hostBranch)
+    expect(source.slice(hostBranch, legacyTransaction)).toContain('await step.transport({ ok: true })')
+    expect(source.slice(hostBranch, legacyTransaction)).toContain('return')
+    expect(source).toContain('resolveCapabilityAlias(toolName)?.contract.id === CANVAS_WRITE_CAPABILITY.id')
+  })
+
   it('recovers an installed durable receipt before project hydration completes', () => {
     const hideStudio = studioSource.indexOf("setView('library')")
     const install = studioSource.indexOf('projectAgentProjectionStore.install(')
