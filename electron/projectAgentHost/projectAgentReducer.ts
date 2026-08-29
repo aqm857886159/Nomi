@@ -14,7 +14,10 @@ import type {
 } from "../shared/projectAgentContracts";
 import { ProjectAgentReducerError, type ProjectAgentReducerErrorCode } from "./projectAgentReducerContract";
 import { assertCanAppendProjectAgentItem } from "./projectAgentItemSemantics";
-import { hasDuplicateProjectAgentApprovalIdentity } from "./projectAgentSemanticIdentity";
+import {
+  hasDuplicateProjectAgentApprovalIdentity,
+  hasDuplicateProjectAgentProposalReceiptIdentity,
+} from "./projectAgentSemanticIdentity";
 import {
   assertCanonicalMutationTimestamp,
   assertExactMutationKeys,
@@ -608,6 +611,7 @@ export function reduceProjectAgentMutation(
         ) {
           fail("proposal_transition_invalid");
         }
+        if (hasDuplicateProjectAgentProposalReceiptIdentity([...items, item])) fail("record_exists");
         assertCanAppendProjectAgentItem(items, item, true);
         assertCanonicalMutationTimestamp(approval.ref.expiresAt);
         const updatedTurn = transitionRecord(turn, {

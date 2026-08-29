@@ -33,6 +33,7 @@ import { assertTrustedProjectAgentDeltaCoverage } from "./projectAgentTrustedDel
 import {
   hasDuplicateProjectAgentApprovalIdentity,
   hasDuplicateProjectAgentArtifactIdentity,
+  hasDuplicateProjectAgentProposalReceiptIdentity,
   hasDuplicateProjectAgentToolIdentity,
 } from "./projectAgentSemanticIdentity";
 import {
@@ -543,6 +544,7 @@ export function assertProjectAgentHostState(value: unknown): asserts value is Pr
   assertUniqueIds(state.items, (entry) => (entry as ProjectAgentItem).itemId);
   if (hasDuplicateProjectAgentToolIdentity(state.items)) throw new ProjectAgentStateError("invalid_state");
   if (hasDuplicateProjectAgentArtifactIdentity(state.items)) throw new ProjectAgentStateError("invalid_state");
+  if (hasDuplicateProjectAgentProposalReceiptIdentity(state.items)) throw new ProjectAgentStateError("invalid_state");
   const itemTurnById = new Map(state.items.map((item) => [item.itemId, item.turnId]));
   const proposalItemsByApprovalId = new Map<string, Extract<ProjectAgentItem, { kind: "proposal" }>>();
   const userItemTurnIds = new Set<string>();

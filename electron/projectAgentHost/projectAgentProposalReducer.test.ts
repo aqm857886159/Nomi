@@ -517,6 +517,75 @@ describe("ProjectAgent proposal reducer boundary", () => {
     ).toThrowError(/invalid_state/);
   });
 
+  it("reserves receipt proposal identity after the active approval record is removed", () => {
+    const base = runningState();
+    const historical = proposal("approval-history", "proposal-history");
+    const withHistory = snapshotProjectAgentHostState({
+      ...base,
+      items: [...base.items, { ...historical.item, status: "declined" }],
+    });
+    expect(withHistory.proposalApprovals).toEqual([]);
+
+    const next = proposal("approval-next", "proposal-next");
+    const reusedReceiptRef = {
+      ...next.approval.ref,
+      receiptProposalId: historical.approval.ref.receiptProposalId,
+    };
+    expect(() =>
+      putProposal(
+        withHistory,
+        {
+          approval: { ...next.approval, ref: reusedReceiptRef },
+          item: { ...next.item, approval: reusedReceiptRef },
+        },
+        "put-reused-historical-receipt",
+      ),
+    ).toThrowError(expect.objectContaining<Partial<ProjectAgentReducerError>>({ code: "record_exists" }));
+  });
+
+  it("rejects restart state with duplicate receipt identity across terminal proposal cards", () => {
+    const base = runningState();
+    const first = proposal("approval-history-a", "proposal-history-a");
+    const second = proposal("approval-history-b", "proposal-history-b");
+    const duplicateReceipt = {
+      ...second.item,
+      status: "done" as const,
+      approval: {
+        ...second.item.approval,
+        receiptProposalId: first.item.approval.receiptProposalId,
+      },
+    };
+
+    expect(() =>
+      snapshotProjectAgentHostState({
+        ...base,
+        items: [...base.items, { ...first.item, status: "done" }, duplicateReceipt],
+      }),
+    ).toThrow(/invalid_state/);
+
+    const firstTerminal = Object.freeze({ ...first.item, status: "done" as const });
+    const duplicateTerminal = Object.freeze(duplicateReceipt);
+    const next = {
+      ...base,
+      items: [...base.items, firstTerminal, duplicateTerminal],
+    };
+    const receipt: ProjectAgentAppliedCommand = {
+      commandId: "duplicate-terminal-receipt-trusted",
+      mutationHash: "c".repeat(64),
+      appliedRevision: base.hostRevision + 1,
+      patch: {
+        binding,
+        previousRevision: base.hostRevision,
+        hostRevision: base.hostRevision + 1,
+        changes: [
+          { kind: "item-upserted", item: firstTerminal },
+          { kind: "item-upserted", item: duplicateTerminal },
+        ],
+      },
+    };
+    expect(() => appendTrustedProjectAgentHostState(base, next, receipt)).toThrow(/invalid_state/);
+  });
+
   it("rejects duplicate semantic TaskRef cards", () => {
     const state = runningState();
     const task = { kind: "production-run", runId: "run-a", jobId: "job-a" } as const;

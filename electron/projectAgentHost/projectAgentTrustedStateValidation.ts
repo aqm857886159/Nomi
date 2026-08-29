@@ -6,6 +6,7 @@ import { ProjectAgentStateError } from "./projectAgentStateError";
 import {
   hasDuplicateProjectAgentApprovalIdentity,
   hasDuplicateProjectAgentArtifactIdentity,
+  hasDuplicateProjectAgentProposalReceiptIdentity,
   hasDuplicateProjectAgentToolIdentity,
 } from "./projectAgentSemanticIdentity";
 
@@ -31,6 +32,9 @@ export function assertTrustedProjectAgentDelta(
     throw new ProjectAgentStateError("invalid_state");
   }
   if (hasDuplicateProjectAgentArtifactIdentity(next.items)) {
+    throw new ProjectAgentStateError("invalid_state");
+  }
+  if (hasDuplicateProjectAgentProposalReceiptIdentity(next.items)) {
     throw new ProjectAgentStateError("invalid_state");
   }
   if (hasDuplicateProjectAgentApprovalIdentity(next.proposalApprovals)) {

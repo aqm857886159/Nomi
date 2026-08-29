@@ -32,6 +32,16 @@ export function hasDuplicateProjectAgentApprovalIdentity(approvals: readonly Pro
   return false;
 }
 
+export function hasDuplicateProjectAgentProposalReceiptIdentity(items: readonly ProjectAgentItem[]): boolean {
+  const receiptProposalIds = new Set<string>();
+  for (const item of items) {
+    if (item.kind !== "proposal" || !item.approval) continue;
+    if (receiptProposalIds.has(item.approval.receiptProposalId)) return true;
+    receiptProposalIds.add(item.approval.receiptProposalId);
+  }
+  return false;
+}
+
 export function hasDuplicateProjectAgentArtifactIdentity(items: readonly ProjectAgentItem[]): boolean {
   const artifactKeys = new Set<string>();
   for (const item of items) {
