@@ -8,7 +8,6 @@
 
 import { ACTIVE_JOB_STATUSES } from '../productionRun/productionRunControl'
 import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
-import { stripInternalEnrichFields } from './mcpResultEnrich'
 import { projectGenerationRecovery } from './generationRecoveryProjection'
 
 export { buildToolErrorOutcome } from './mcpToolErrorResults'
@@ -18,13 +17,6 @@ export type ResultLocale = 'zh-CN' | 'en'
 
 type Ctx = { locale: ResultLocale }
 const L = (ctx: Ctx, zh: string, en: string): string => (ctx.locale === 'en' ? en : zh)
-
-const INTENT_LABEL: Record<string, { zh: string; en: string }> = {
-  image: { zh: '一张画面', en: 'an image' },
-  video: { zh: '一段视频', en: 'a video clip' },
-  audio: { zh: '一段音频', en: 'an audio clip' },
-  text: { zh: '一段文本', en: 'a text piece' },
-}
 
 /** run 状态 → 人话 + 下一步动作（状态机 productionRunState.ts 的对外翻译，缺省透传原状态）。 */
 const RUN_STATUS_HINT: Record<string, { zh: string; en: string; nextZh: string; nextEn: string; action: string }> = {
@@ -268,77 +260,6 @@ function referenceTag(ctx: Ctx, references: Record<string, unknown>): string {
   const modes = Array.isArray(references.referenceModes) ? (references.referenceModes as string[]) : []
   const modeHint = modes.length ? `@${modes.join('/')}` : ''
   return `${L(ctx, '参考', 'refs')}:${kinds.join('+')}${modeHint}`
-}
-
-/** 审片环交付形（W1）：与 shotVerifyOrchestrate.ShotVerifyOutcome 结构对齐的稳定字段。 */
-type VerifyOutcomeShape = {
-  /** true = 判分被跳过（超时/连续失败/无判分模型），此时只出「跳过（reason）」行、无评分/红标。 */
-  skipped: boolean
-  reason: string | null
-  passed: boolean
-  retries: number
-  scores: Record<string, number>
-  flagged: Array<{ dimension: string; dimensionName: string; score: number; reason: string }>
-  suggestion: string | null
-}
-
-/**
- * 从 core 返回里解审片 outcome：
- * - evaluated:true → 真判分（passed/flagged/…）。
- * - skipped:true 且带 reason → 判分超时/连续失败的**诚实跳过**：出「审片：跳过（原因）」行（L3 韧性修复，D4 不藏）。
- * - 其余（evaluated:false 且无 reason，如视觉静默不可用）→ null，交付不显审片行（与今天一致）。
- */
-function parseVerifyOutcome(raw: unknown): VerifyOutcomeShape | null {
-  if (!raw || typeof raw !== 'object') return null
-  const v = raw as Record<string, unknown>
-  const skipped = v.skipped === true
-  const reason = typeof v.reason === 'string' && v.reason.length > 0 ? v.reason : null
-  // 未评且无 reason（视觉静默不可用等）→ 不显审片行（保持既有静默语义）。
-  if (v.evaluated !== true && !(skipped && reason)) return null
-  const flaggedRaw = Array.isArray(v.flagged) ? v.flagged : []
-  const flagged = flaggedRaw.map((f) => {
-    const r = rec(f)
-    return { dimension: str(r.dimension), dimensionName: str(r.dimensionName), score: Number(r.score) || 0, reason: str(r.reason) }
-  })
-  const scoresRaw = rec(v.scores)
-  const scores: Record<string, number> = {}
-  for (const [k, val] of Object.entries(scoresRaw)) if (typeof val === 'number') scores[k] = val
-  return {
-    skipped: v.evaluated !== true, // 只有真判分才 evaluated:true；带 reason 的跳过在这里记为 skipped
-    reason,
-    passed: v.passed === true,
-    retries: Number(v.retries) || 0,
-    scores,
-    flagged,
-    suggestion: typeof v.suggestion === 'string' ? v.suggestion : null,
-  }
-}
-
-/**
- * 审片行（双语，内联 L()——MCP 结果文案不走 i18n key，方案 §7）。诚实标注不达标镜头（蓝图 D4）：
- * 跳过（判分超时/失败）→ 一句「审片：跳过（原因）」（不影响生成，诚实标缺口）；
- * 通过 → 一句「审片通过（含重试次数）」；有红标 → 逐轴点名「第 N 档，低于阈值，建议重滚」，不藏。
- */
-function buildVerifyLine(ctx: Ctx, v: VerifyOutcomeShape): string {
-  if (v.skipped) {
-    const why = v.reason || L(ctx, '判分模型不可用', 'judge model unavailable')
-    return L(ctx, `审片：跳过（${why}）`, `Review: skipped (${why})`)
-  }
-  if (v.passed) {
-    return v.retries > 0
-      ? L(ctx, `审片：定向重试 ${v.retries} 次后通过（身份/构图/连贯达标）`, `Review: passed after ${v.retries} targeted ${v.retries === 1 ? 'retry' : 'retries'} (identity/composition/continuity on-bar)`)
-      : L(ctx, '审片：一次通过（身份/构图/连贯达标）', 'Review: passed on first try (identity/composition/continuity on-bar)')
-  }
-  const flagLines = v.flagged.map((f) =>
-    L(ctx, `  ⚠️ ${f.dimensionName}第 ${f.score} 档，低于阈值——${f.reason}`, `  ⚠️ ${f.dimensionName} scored ${f.score}/5, below bar — ${f.reason}`),
-  )
-  const head = L(
-    ctx,
-    `⚠️ 审片：${v.retries} 次定向重试后仍有 ${v.flagged.length} 个维度不达标（已标红，不藏）`,
-    `⚠️ Review: ${v.flagged.length} dimension(s) still below bar after ${v.retries} targeted ${v.retries === 1 ? 'retry' : 'retries'} (flagged, not hidden)`,
-  )
-  const tail = v.suggestion ? L(ctx, `  建议：${v.suggestion}`, `  Suggestion: ${v.suggestion}`) : null
-  return [head, ...flagLines, tail].filter(Boolean).join('\n')
 }
 
 /** 交付1 · 模型清单 → 双语转述（按 keyStatus 分组，只有 ok 说可用）+ 结构化透传（模型精确读）。 */
@@ -713,57 +634,6 @@ export function buildToolOutcome(
     }
   }
 
-  if (toolName === 'nomi_generate') {
-    const intent = str(args.intent)
-    const label = INTENT_LABEL[intent]
-    const model = [str(args.vendor), str(args.modelKey)].filter(Boolean).join(' · ')
-    const refs = Array.isArray(args.references) ? args.references.length : 0
-    const echo = echoLine(ctx, [
-      model || null,
-      intent || null,
-      refs ? `${L(ctx, '参考', 'refs')} ${refs}` : null,
-      str(args.prompt) ? `「${truncate(str(args.prompt), 30)}」` : null,
-    ])
-    // 交付③：深链数据化——优先用上游已给的（如 artifact 级 run 链），否则据 projectId 兜工程级
-    // nomi://project/{id}。既进结构化字段（openInNomi）、也现于文本（纯文本宿主可点）。无 projectId 不编。
-    // W3③：深链粒度扩到**节点级**——「指着看」要直达那一镜，而不是把人丢到项目首页自己找。
-    // 有 nodeId 就带上（nomi://project/{p}/node/{n}）；没有才退回工程级。上游给的（artifact 级 run 链）仍最优先。
-    const shotNodeId = str(value.nodeId) || str(args.nodeId)
-    const deepLink = openInNomi
-      || (projectId ? (shotNodeId ? `nomi://project/${projectId}/node/${shotNodeId}` : `nomi://project/${projectId}`) : '')
-    // 结果里可能夹带 App 侧富化的内部字段（_nomiThumbnail=缩略图 base64，已单独成 image block；
-    // _nomiPreviewUrl=签名预览链，已进 widget）——都不该原样 JSON dump 进文本（base64 会灌爆终端）。dump 前剥掉。
-    const dump = stripInternalEnrichFields(result)
-    // 审片环结果（W1）：core 生成成功后跑判分→定向重试→红标，把 ShotVerifyOutcome 挂在 result.verify。
-    // 只在真跑了判分（evaluated）时出审片行/结构字段——默认路径（未接审片）无此字段，转述与今天一致。
-    const verifyOutcome = parseVerifyOutcome(value.verify)
-    const verifyLine = verifyOutcome ? buildVerifyLine(ctx, verifyOutcome) : null
-    // 冻结提醒（core 的第三层冻结门，只提醒不拦）——**必须进文本**，挂在结构化字段里模型不一定读。
-    const advisoryLines = Array.isArray(value.advisories)
-      ? value.advisories.filter((a): a is string => typeof a === 'string' && a.trim().length > 0).map((a) => `⚠️ ${a}`)
-      : []
-    const text = [
-      `✓ ${L(ctx, '已生成', 'Generated')}${label ? L(ctx, label.zh, label.en) : L(ctx, '一个素材', 'an asset')}`,
-      echo ? `  ${echo}` : null,
-      verifyLine,
-      ...advisoryLines,
-      JSON.stringify(dump, null, 2),
-      deepLink ? `${L(ctx, '在 Nomi 打开', 'Open in Nomi')} ${deepLink}` : null,
-    ].filter(Boolean).join('\n')
-    return {
-      text,
-      outcome: {
-        kind: 'generation', projectId,
-        params: { vendor: str(args.vendor), modelKey: str(args.modelKey), intent, references: refs },
-        nextActions: ['open_in_nomi'],
-        openInNomi: deepLink || null,
-        // 审片环结构化字段（模型稳定读「过检/红标/建议」，不必从文本抠，harness 幕 6）。未评则不附。
-        ...(verifyOutcome ? { verify: verifyOutcome } : {}),
-        ...(advisoryLines.length ? { advisories: value.advisories } : {}),
-      },
-    }
-  }
-
   return { text: null, outcome: null }
 }
 
@@ -774,11 +644,6 @@ export function buildProgressStartMessage(
   locale: ResultLocale = 'zh-CN',
 ): string | null {
   const ctx: Ctx = { locale }
-  if (toolName === 'nomi_generate') {
-    const model = [str(args.vendor), str(args.modelKey)].filter(Boolean).join(' · ')
-    return [L(ctx, '已受理', 'accepted'), model || null, str(args.intent) || null]
-      .filter(Boolean).join(' · ')
-  }
   if (toolName === 'nomi_start_playbook') {
     return [L(ctx, '正在创建制作草稿', 'creating production draft'), str(args.playbook) || null]
       .filter(Boolean).join(' · ')

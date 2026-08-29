@@ -414,14 +414,6 @@ export const canvasToolDescriptors = {
       "Produce a structured storyboard plan (cross-shot anchors + shots) for the user to review/edit in the creation area before anything lands on the canvas. Does not touch the canvas and costs nothing. Emit exactly one call.",
     parameters: storyboardPlanParamsSchema,
   },
-  run_generation_batch: {
-    name: "run_generation_batch",
-    description:
-      "Start real generation for existing canvas nodes (costs credits; user must confirm). Returns an acceptance receipt.",
-    parameters: z.object({
-      nodeIds: z.array(z.string().min(1)).min(1).max(24),
-    }),
-  },
   arrange_storyboard_to_timeline: {
     name: "arrange_storyboard_to_timeline",
     description:

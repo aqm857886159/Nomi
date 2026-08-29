@@ -7,7 +7,6 @@ import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
 import { approveLatestScript, approveLatestStoryboard, waitForProduction as waitFor } from './productionRunTestHelpers'
 import { normalizeTrustLevel, trustLevelOf, DEFAULT_TRUST_LEVEL } from './productionRunTypes'
-import { shouldSampleGate } from './productionRunDriverOps'
 import { buildToolOutcome } from '../capabilityCore/mcpToolResults'
 
 // B3 信任档位（plan 2026-08-11-mcp-conversation-native-phase-b）：
@@ -81,12 +80,6 @@ describe('normalizeTrustLevel / trustLevelOf (B3 收口)', () => {
     expect(trustLevelOf({ trustLevel: 'budget_only' })).toBe('budget_only')
   })
 
-  it('shouldSampleGate 仅 budget_only 跳样片门', () => {
-    expect(shouldSampleGate({ policy: { trustLevel: 'budget_only' } } as never)).toBe(false)
-    expect(shouldSampleGate({ policy: { trustLevel: 'key_confirm' } } as never)).toBe(true)
-    expect(shouldSampleGate({ policy: { trustLevel: 'confirm_all' } } as never)).toBe(true)
-    expect(shouldSampleGate({ policy: {} } as never)).toBe(true) // 缺省 = 要门
-  })
 })
 
 describe('trust level gate-skip matrix (B3 · 预算门永不跳)', () => {

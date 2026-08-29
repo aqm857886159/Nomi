@@ -16,7 +16,7 @@ const FORBIDDEN_OWNER_IMPORT =
   /(?:from|import\s*\()\s*["'](?:ai|@ai-sdk\/[^"']*|@mariozechner\/[^"']*|@earendil-works\/pi-[^"']*|[^"']*agentChatV2)["']/;
 
 describe("Nomi canvas descriptors", () => {
-  it("owns exactly the remaining six legacy tool names", () => {
+  it("owns exactly the remaining five legacy tool names", () => {
     expect(Object.keys(canvasToolDescriptors)).toEqual([...canvasToolNames]);
     for (const [name, descriptor] of Object.entries(canvasToolDescriptors)) {
       expect(descriptor.name).toBe(name);
@@ -59,7 +59,7 @@ describe("Nomi canvas descriptors", () => {
       Object.entries(canvasToolDescriptors).map(([name, value]) => [name, value.description]),
     );
     expect(createHash("sha256").update(JSON.stringify(descriptions)).digest("hex")).toBe(
-      "4f3383f266a2e5937ef40c8168b137627a585e4d404edfad0a5fdd35dc8082c8",
+      "da441357a56e731d16ed1567cc6edb753f15c5f3b1dbe27b391078f2cdaff48e",
     );
   });
 
@@ -95,14 +95,6 @@ describe("Nomi canvas descriptors", () => {
         customMove: "handheld follow",
       }),
     ).toEqual({ shotClientId: "video-1", customMove: "handheld follow" });
-  });
-
-  it("keeps generation batches within 1-24 node ids", () => {
-    const schema = canvasToolDescriptors.run_generation_batch.parameters;
-    expect(schema.safeParse({ nodeIds: [] }).success).toBe(false);
-    expect(schema.safeParse({ nodeIds: Array.from({ length: 24 }, (_, i) => `n${i}`) }).success).toBe(true);
-    expect(schema.safeParse({ nodeIds: Array.from({ length: 25 }, (_, i) => `n${i}`) }).success).toBe(false);
-    expect(schema.safeParse({ nodeIds: [""] }).success).toBe(false);
   });
 
   it("requires an explicit non-empty timeline node subset of at most 48 ids", () => {
@@ -270,11 +262,10 @@ describe("canvas descriptor schemas", () => {
   });
 
   describe("canvasToolNames", () => {
-    it("enumerates all 6 remaining legacy tools", () => {
+    it("enumerates all 5 remaining legacy tools", () => {
       expect(canvasToolNames).toEqual([
         "read_canvas_state",
         "propose_storyboard_plan", // 分镜方案：产出结构化方案对象落创作区，确认后才落画布
-        "run_generation_batch", // S6b 受理语义
         "arrange_storyboard_to_timeline", // 按剧本镜序排片到时间轴
         "create_staging_reference", // 3D 站位参考图（站位+动作+机位）
         "create_camera_move", // 3D 运镜参考小片（喂 video_ref / 降级 prompt）

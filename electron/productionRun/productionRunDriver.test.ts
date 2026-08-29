@@ -169,7 +169,7 @@ describe('ProductionRunService driver round 1', () => {
     expect(rejected.run.budget).toMatchObject({ authorized: 0, reserved: 0, actual: 0, unsettled: 0 })
   })
 
-  it('drives approved jobs through local artifacts, rough-cut review, and an approved export only', async () => {
+  it('interrupts unsubmitted legacy jobs without calling a renderer provider bridge', async () => {
     const root = makeRoot()
     fs.mkdirSync(path.join(root, 'assets/generated'), { recursive: true })
     fs.writeFileSync(path.join(root, 'assets/generated/shot.mp4'), 'video', 'utf8')
@@ -215,35 +215,21 @@ describe('ProductionRunService driver round 1', () => {
     expect(calls).not.toContain('production.generate-node')
     const contract = await service.command('project-1', 'run-driver-3', { commandId: 'contract-3', expectedRevision: attached.run.revision, type: 'gate.decide', payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
     expect(contract.run.budget.authorized).toBe(10)
-    // B2 样片门：首镜落地后停一次；批准后才继续到编排。
-    await waitFor(() => service.readFull('project-1', 'run-driver-3').gates.some((gate) => gate.gateId === 'gate-sample-v1' && gate.status === 'waiting'))
-    const atSample = service.readFull('project-1', 'run-driver-3')
-    expect(atSample.status).toBe('running')
-    expect(calls).not.toContain('production.arrange') // 样片门期间未进编排
-    await service.command('project-1', 'run-driver-3', { commandId: 'sample-3', expectedRevision: atSample.revision, type: 'gate.decide', payload: { gateId: 'gate-sample-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
-    await waitFor(() => calls.includes('production.arrange'))
-    const roughCut = service.readFull('project-1', 'run-driver-3')
-    expect(roughCut.status).toBe('awaiting_rough_cut_review')
-    expect(roughCut.jobs[0].status).toBe('adopted')
-    expect(roughCut.artifacts.map((item) => item.kind)).toEqual(expect.arrayContaining(['video', 'timeline']))
-    const videoProjection = service.readProjection('project-1', 'run-driver-3').artifacts.find((item) => item.kind === 'video')
-    expect(videoProjection?.artifactId).toMatch(/^artifact-job-[A-Za-z0-9._-]+-[0-9a-f]{10}$/)
-    expect(service.readArtifactProjection('project-1', 'run-driver-3', videoProjection?.artifactId || '').openInNomi).toMatch(/^nomi:\/\/project\/project-1\/run\/run-driver-3\?artifact=[A-Za-z0-9._-]+$/)
-    expect(calls).toEqual(expect.arrayContaining(['production.plan-storyboard', 'production.generate-node', 'production.arrange']))
-    const exportGate = roughCut.gates.find((gate) => gate.scope === 'export')
-    expect(exportGate?.status).toBe('waiting')
-    await expect(service.command('project-1', 'run-driver-3', { commandId: 'export-too-early-3', expectedRevision: roughCut.revision, type: 'gate.decide', payload: { gateId: exportGate?.gateId, status: 'approved' }, issuedAt: new Date().toISOString() })).rejects.toThrow(/粗剪/)
-    const reviewed = await service.command('project-1', 'run-driver-3', { commandId: 'rough-cut-3', expectedRevision: roughCut.revision, type: 'run.status', payload: { status: 'awaiting_export' }, issuedAt: new Date().toISOString() })
-    await service.command('project-1', 'run-driver-3', { commandId: 'export-3', expectedRevision: reviewed.run.revision, type: 'gate.decide', payload: { gateId: exportGate?.gateId, status: 'approved' }, issuedAt: new Date().toISOString() })
-    await waitFor(() => calls.includes('production.export'))
-    await waitFor(() => service.readFull('project-1', 'run-driver-3').status === 'completed')
-    const completed = service.readFull('project-1', 'run-driver-3')
-    expect(completed.status).toBe('completed')
-    expect(completed.artifacts.find((item) => item.kind === 'export')?.projectRelativePath).toBe('exports/nomi-run-driver-3.mp4')
-    expect(fs.existsSync(path.join(root, '.nomi', 'jobs'))).toBe(false)
+    await waitFor(() => service.readFull('project-1', 'run-driver-3').status === 'needs_attention')
+    const interrupted = service.readFull('project-1', 'run-driver-3')
+    expect(interrupted.jobs).toEqual([
+      expect.objectContaining({
+        status: 'needs_attention',
+        errorCode: 'legacy_generation_writer_retired',
+      }),
+    ])
+    expect(interrupted.artifacts.some((item) => item.kind === 'video')).toBe(false)
+    expect(calls).not.toContain('production.generate-node')
+    expect(calls).not.toContain('production.arrange')
+    expect(calls).not.toContain('production.export')
   })
 
-  it('W2 冻结门：有未冻结视觉锚 → 合同批准后停在冻结门（零 provider 调用）；冻结批准后才提交镜头', async () => {
+  it('does not revive the retired writer even when legacy visual anchors are unfrozen', async () => {
     const root = makeRoot()
     fs.mkdirSync(path.join(root, 'assets/generated'), { recursive: true })
     fs.writeFileSync(path.join(root, 'assets/generated/shot.mp4'), 'video', 'utf8')
@@ -280,25 +266,17 @@ describe('ProductionRunService driver round 1', () => {
       commandId: 'attach-f', expectedRevision: planned.revision, type: 'plan.attach',
       payload: { artifactId: planned.artifacts.find((item) => item.kind === 'storyboard')?.artifactId, bindings: [{ nodeId: 'shot-1', provider: 'local', model: 'demo-video', stageId: 'generate' }] }, issuedAt: new Date().toISOString(),
     })
-    // 合同批准 → driveGeneration 触发；但有未冻结锚 → 停在冻结门，绝不提交（零 generate-node）。
+    // The old anchor checkpoint cannot revive the removed renderer writer.
     await service.command('project-1', 'run-freeze', { commandId: 'contract-f', expectedRevision: attached.run.revision, type: 'gate.decide', payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
-    await waitFor(() => service.readFull('project-1', 'run-freeze').gates.some((gate) => gate.gateId === 'gate-freeze-v1' && gate.status === 'waiting'))
-    const atFreeze = service.readFull('project-1', 'run-freeze')
-    const freezeGate = atFreeze.gates.find((gate) => gate.gateId === 'gate-freeze-v1')
-    expect(freezeGate?.scope).toBe('stage')
-    expect(freezeGate?.status).toBe('waiting')
-    expect(freezeGate?.jobIds).toEqual([]) // 不授权花钱、只呈现
-    expect(calls).not.toContain('production.generate-node') // 冻结门期间零 provider 调用
-    expect(atFreeze.budget.actual).toBe(0)
-    // 冻结确认走创意门 seam（视觉确认），批准 → 重踢 driver → 首镜提交。
-    await service.command('project-1', 'run-freeze', { commandId: 'freeze-f', expectedRevision: atFreeze.revision, type: 'gate.decide', payload: { gateId: 'gate-freeze-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
-    await waitFor(() => service.readFull('project-1', 'run-freeze').jobs.some((job) => job.status === 'adopted' || job.status === 'submitting'))
-    expect(calls).toContain('production.generate-node') // 冻结放行后才提交
-    // 冻结桥只在放行前问一次（放行后 hasApprovedFreezeGate 短路）。
-    expect(calls.filter((op) => op === 'production.check-frozen')).toHaveLength(1)
+    await waitFor(() => service.readFull('project-1', 'run-freeze').status === 'needs_attention')
+    const interrupted = service.readFull('project-1', 'run-freeze')
+    expect(interrupted.jobs[0]).toMatchObject({ status: 'needs_attention', errorCode: 'legacy_generation_writer_retired' })
+    expect(interrupted.budget.actual).toBe(0)
+    expect(calls).not.toContain('production.check-frozen')
+    expect(calls).not.toContain('production.generate-node')
   })
 
-  it('W2 冻结门：全部锚已冻结（桥回空）→ 不设冻结门，直接进首镜（回归：不平白拦住）', async () => {
+  it('does not revive the retired writer when legacy visual anchors are already frozen', async () => {
     const root = makeRoot()
     fs.mkdirSync(path.join(root, 'assets/generated'), { recursive: true })
     fs.writeFileSync(path.join(root, 'assets/generated/shot.mp4'), 'video', 'utf8')
@@ -333,11 +311,12 @@ describe('ProductionRunService driver round 1', () => {
       payload: { artifactId: planned.artifacts.find((item) => item.kind === 'storyboard')?.artifactId, bindings: [{ nodeId: 'shot-1', provider: 'local', model: 'demo-video', stageId: 'generate' }] }, issuedAt: new Date().toISOString(),
     })
     await service.command('project-1', 'run-frozen-ok', { commandId: 'contract-ok', expectedRevision: attached.run.revision, type: 'gate.decide', payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
-    // 全冻结 → 无冻结门、直接进首镜（会停在样片门，证明已越过冻结门）。
-    await waitFor(() => service.readFull('project-1', 'run-frozen-ok').gates.some((gate) => gate.gateId === 'gate-sample-v1' && gate.status === 'waiting'))
+    await waitFor(() => service.readFull('project-1', 'run-frozen-ok').status === 'needs_attention')
     const state = service.readFull('project-1', 'run-frozen-ok')
     expect(state.gates.some((gate) => gate.gateId === 'gate-freeze-v1')).toBe(false)
-    expect(calls).toContain('production.generate-node')
+    expect(state.jobs[0]).toMatchObject({ status: 'needs_attention', errorCode: 'legacy_generation_writer_retired' })
+    expect(calls).not.toContain('production.check-frozen')
+    expect(calls).not.toContain('production.generate-node')
   })
 
   it('turns a submission in progress into submission_unknown after recovery instead of resubmitting', async () => {

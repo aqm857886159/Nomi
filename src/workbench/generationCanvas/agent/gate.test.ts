@@ -55,20 +55,11 @@ describe('evaluateGate — 统一求值流(§6.1)', () => {
     }
   })
 
-  describe('S6-4 锁不变量(N11):付费重生成仍由旧批次门保护', () => {
-    const ctx = {
-      lockedNodes: new Map([['real-1', '女主角定妆卡']]),
-      // clientId 翻译:LLM 口中的 c1 = real-1。
-      resolveNodeId: (id: string) => (id === 'c1' ? 'real-1' : id),
-    }
-
-    it('LLM 用 clientId 指代锁住节点 → 翻译后照样 deny', () => {
-      const decision = evaluateGate(
-        { kind: 'tool-call', toolName: 'run_generation_batch', args: { nodeIds: ['c1'] } },
-        ctx,
-      )
-      expect(decision.outcome).toBe('deny')
-    })
+  it('retires the renderer-owned paid generation tool instead of advertising a dead handler', () => {
+    expect(evaluateGate({ kind: 'tool-call', toolName: 'run_generation_batch', args: { nodeIds: ['n1'] } }).outcome)
+      .toBe('deny')
+    const source = readFileSync(new URL('./gate.ts', import.meta.url), 'utf8')
+    expect(source).not.toContain('run_generation_batch')
   })
 
   it('batch-run / spend intent 先一律 ask(S6b/S7 落地语义)', () => {

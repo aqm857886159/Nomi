@@ -40,7 +40,7 @@ function imageCreateOp(extraImage: boolean, tiered: boolean): HttpOperation {
       { wire: "ratio", from: "aspect_ratio" },
       { wire: "size", fromMany: ["resolution"], transform: "toUpperCase" },
     ] } } : {}),
-    // headless/MCP 兜底：size 是 AGNES 必填（缺则 400）。UI 路已由档案默认填，此处仅救 nomi_generate。
+    // Headless runtime 兜底：size 是 AGNES 必填（缺则 400）；UI 路已由档案默认填。
     defaultParams: tiered ? { size: "1K", ratio: "1:1" } : { size: "1024x1024" },
   };
 }

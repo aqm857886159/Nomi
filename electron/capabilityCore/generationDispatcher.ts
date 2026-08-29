@@ -44,7 +44,6 @@ const LEGACY_ROUTE_CAPABILITY: Readonly<Record<string, McpGenerationCapability>>
   'production.storyboard.materialize': 'create',
   'production.control': 'cancel',
   'production.decide-gate': 'gate_decide',
-  'production.generate-node': 'start',
   nomi_start_playbook: 'create',
 })
 
@@ -300,11 +299,18 @@ async function dispatchSemanticStub(
         leaseToken,
         ctx.projectSession.connection,
       )
-      return ctx.authorizeGeneration({
+      const result = await ctx.authorizeGeneration({
         params: { ...leased.params, leaseHandle: upgraded.token },
         lease: upgraded.lease,
         receipt,
       })
+      const receiptToken = typeof leased.params.receiptToken === 'string' && leased.params.receiptToken.trim()
+        ? leased.params.receiptToken.trim()
+        : ctx.approvalReceiptAuthority?.resolveReceiptToken(receipt.receiptId)
+      if (receiptToken) ctx.approvalReceiptAuthority?.consumeReceipt(receiptToken)
+      return result && typeof result === 'object' && !Array.isArray(result)
+        ? { ...(result as Record<string, unknown>), leaseHandle: upgraded.token }
+        : { result, leaseHandle: upgraded.token }
     }
     if (typeof ctx.generationPlanning === 'function' && route.capability === 'gate_decide') {
       const leaseToken = typeof leased.params.leaseHandle === 'string' ? leased.params.leaseHandle : ''

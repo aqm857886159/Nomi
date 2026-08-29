@@ -128,6 +128,22 @@ describe("GenerationRuntimeAdapter", () => {
     expect(submit).not.toHaveBeenCalled();
   });
 
+  it("does not submit without the approved provider payload hash", async () => {
+    const imageContract = contract("provider.image", "model.image.v1", "text-to-image", { aspectRatio: "16:9" });
+    const binding = bindingFor("provider.image", imageContract.contractHash);
+    const submit = vi.fn();
+    const adapter = createGenerationRuntimeAdapter({ providers: [{
+      providerId: "provider.image",
+      capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
+      buildRequest: (input) => input,
+      submit,
+    }] });
+
+    // @ts-expect-error The provider payload hash is a required production authority.
+    await expect(adapter.submit({ contract: imageContract, binding })).rejects.toThrow();
+    expect(submit).not.toHaveBeenCalled();
+  });
+
   it("maps two different provider profiles without provider-specific branches in the adapter", async () => {
     const imageSubmit = vi.fn(async (request: Record<string, unknown>) => ({ providerTaskId: "image-task-1", raw: request }));
     const videoSubmit = vi.fn(async (request: Record<string, unknown>) => ({ providerTaskId: "video-task-1", raw: request }));
@@ -152,8 +168,10 @@ describe("GenerationRuntimeAdapter", () => {
     const videoContract = contract("provider.video", "model.video.v1", "text-to-video", { duration: 5 });
     const imageBinding = bindingFor("provider.image", imageContract.contractHash);
     const videoBinding = bindingFor("provider.video", videoContract.contractHash);
-    await expect(adapter.submit({ contract: imageContract, binding: imageBinding })).resolves.toMatchObject({ providerTaskId: "image-task-1" });
-    await expect(adapter.submit({ contract: videoContract, binding: videoBinding })).resolves.toMatchObject({ providerTaskId: "video-task-1" });
+    const imagePrepared = adapter.prepare({ contract: imageContract, binding: imageBinding });
+    const videoPrepared = adapter.prepare({ contract: videoContract, binding: videoBinding });
+    await expect(adapter.submit({ contract: imageContract, binding: imageBinding, expectedProviderRequestHash: imagePrepared.providerRequestHash })).resolves.toMatchObject({ providerTaskId: "image-task-1" });
+    await expect(adapter.submit({ contract: videoContract, binding: videoBinding, expectedProviderRequestHash: videoPrepared.providerRequestHash })).resolves.toMatchObject({ providerTaskId: "video-task-1" });
     expect(imageSubmit).toHaveBeenCalledWith(expect.objectContaining({ endpointShape: "image" }), imageBinding.providerIdempotencyKey);
     expect(videoSubmit).toHaveBeenCalledWith(expect.objectContaining({ endpointShape: "video" }), videoBinding.providerIdempotencyKey);
   });
@@ -179,7 +197,9 @@ describe("GenerationRuntimeAdapter", () => {
       submit,
     }] });
     const imageContract = contract("provider.image", "model.image.v1", "text-to-image", { aspectRatio: "1:1" });
-    await expect(adapter.submit({ contract: imageContract, binding: bindingFor("provider.image", imageContract.contractHash) }))
+    const binding = bindingFor("provider.image", imageContract.contractHash);
+    const prepared = adapter.prepare({ contract: imageContract, binding });
+    await expect(adapter.submit({ contract: imageContract, binding, expectedProviderRequestHash: prepared.providerRequestHash }))
       .resolves.toMatchObject({ providerTaskId: "task-apimart-1" });
     expect(submit).toHaveBeenCalledTimes(1);
   });
@@ -193,7 +213,9 @@ describe("GenerationRuntimeAdapter", () => {
       submit,
     }] });
     const imageContract = contract("provider.image", "model.image.v1", "text-to-image", { aspectRatio: "1:1" });
-    await expect(adapter.submit({ contract: imageContract, binding: bindingFor("provider.image", imageContract.contractHash) }))
+    const binding = bindingFor("provider.image", imageContract.contractHash);
+    const prepared = adapter.prepare({ contract: imageContract, binding });
+    await expect(adapter.submit({ contract: imageContract, binding, expectedProviderRequestHash: prepared.providerRequestHash }))
       .resolves.toMatchObject({ providerTaskId: "provider-reference-1" });
   });
 

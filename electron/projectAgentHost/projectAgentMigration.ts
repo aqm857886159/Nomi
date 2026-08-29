@@ -161,6 +161,36 @@ function removeLegacyReceiptIfUnchanged(projectRoot: string, legacyHash: string)
   fs.rmSync(receiptPath, { force: true });
 }
 
+function removeLegacyAgentSourceIfArchived(filePath: string, archivedHash: string): boolean {
+  const source = readPrivateSource(filePath);
+  if (!source.exists) return false;
+  if (hashBytes(source.bytes) !== archivedHash) {
+    throw new ProjectAgentMigrationError(
+      `Legacy Agent source changed after archive publication; refusing to delete it: ${filePath}`,
+    );
+  }
+  fs.rmSync(filePath);
+  return true;
+}
+
+function removeArchivedLegacyAgentSources(
+  projectRoot: string,
+  sources: Pick<ProjectAgentCutoverSources, "conversationsHash" | "contextHash">,
+): void {
+  const nomiDir = path.join(path.resolve(projectRoot), ".nomi");
+  const removed = [
+    removeLegacyAgentSourceIfArchived(
+      path.join(nomiDir, LEGACY_CONVERSATIONS_FILE),
+      sources.conversationsHash,
+    ),
+    removeLegacyAgentSourceIfArchived(
+      path.join(nomiDir, LEGACY_CONTEXT_FILE),
+      sources.contextHash,
+    ),
+  ].some(Boolean);
+  if (removed) fsyncDirectory(nomiDir);
+}
+
 export function migrateProjectAgentLegacy(
   input: Readonly<{
     projectRoot: string;
@@ -178,6 +208,7 @@ export function migrateProjectAgentLegacy(
       assertArchivedCutover(input.projectRoot, existing);
       if (!repository.load(input.binding))
         throw new ProjectAgentMigrationError("Cutover manifest exists without Host state");
+      removeArchivedLegacyAgentSources(input.projectRoot, existing.sources);
       removeLegacyReceiptIfUnchanged(input.projectRoot, existing.sources.proposalReceiptHash);
       return Object.freeze({ migrated: false, manifest: existing });
     }
@@ -203,6 +234,7 @@ export function migrateProjectAgentLegacy(
       completedAt: preparation.startedAt,
     });
     writeProjectAgentCutoverManifest(input.projectRoot, manifest);
+    removeArchivedLegacyAgentSources(input.projectRoot, hashes);
     removeLegacyReceiptIfUnchanged(input.projectRoot, hashes.proposalReceiptHash);
     return Object.freeze({ migrated: true, manifest });
   });

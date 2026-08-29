@@ -55,11 +55,11 @@ export function applyWireDefaults(
 const RATIO_VALUE_RE = /^\d+\s*:\s*\d+$/;
 
 /**
- * 调用方比例（nomi_generate 的 aspect_ratio）该不该写进**这条模式**的 `size` 键。
+ * 调用方归一化比例该不该写进**这条模式**的 `size` 键。
  *
  * 背景：`size` 键名有歧义——apimart-seedream 等把它当**比例**读（wire 默认 "1:1"），而 volcengine-seedream /
  * modelscope / agnes / rh-qwen / rh-sora 把它当**像素**读（默认 "2048x2048" / "1024x1024" / "720x1280"）。
- * buildGenerateParams 无差别把调用方比例铺进 size 别名，caller-wins 于是会把像素档案的 size 覆写成 "16:9"，
+ * 调用方可能把比例铺进 size 别名，caller-wins 于是会把像素档案的 size 覆写成 "16:9"，
  * 渲染进 wire body 就是废请求（火山 seedream 直接坏）。故在**看得见所选模式真实默认**的这道缝（extras 与
  * mapping/档案默认在此汇合）加闸：size 键是比例语义时才准调用方比例落到 size；是像素语义或压根没有 size →
  * 不落（size 那半留给档案像素默认，调用方比例对这个只会说像素的目标不适用）。

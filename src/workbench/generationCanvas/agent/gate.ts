@@ -1,6 +1,6 @@
 // 统一求值流(harness §6.1)——AI 想动你的作品前必经的那道门。
 // 渲染层只评估会抵达 UI 的操作；main-owned 只读能力不会进入这里。
-// 三步:① policy(本地无副作用→allow)② invariant(校验/锁→deny)③ ask(其余→等用户点头)。
+// 三步:① policy(本地无副作用→allow)② invariant(校验→deny)③ ask(其余→等用户点头)。
 // SDK 的 hook registry / permission mode / 规则 DSL 一律不抄(单用户桌面无配置面)。
 import i18n from '../../../i18n'
 
@@ -31,8 +31,6 @@ const TOOL_META: Record<string, ToolMeta> = {
   // 产出分镜方案对象,只落创作 store 给用户审/改(不写画布投影、不花钱)——免费可改,直通放行(allow)。
   // 真正花钱/写画布的是用户确认后由方案转出的 canonical Canvas write + generation batch。
   propose_storyboard_plan: { writes: false },
-  // S6b 受理语义:不写画布投影,但花真钱——costy 必问,确认前零网络调用。
-  run_generation_batch: { writes: false, costy: true },
   // 写时间轴(非画布投影,不花钱):非破坏、可撤销,但有可见副作用——按写操作走确认门(ask)。
   // 锁不变量只管画布节点,evaluateLock 对此工具名返回 null,自然放行到 ask。
   arrange_storyboard_to_timeline: { writes: true },
@@ -47,6 +45,7 @@ const TOOL_META: Record<string, ToolMeta> = {
  * 决策落日志的裁剪在调用方(deny 必入、ask 结果入、只读 allow 不入——纯噪声)。
  */
 export function evaluateGate(intent: GateIntent, ctx: GateContext = {}): GateDecision {
+  void ctx
   if (intent.kind === 'tool-call') {
     const meta = TOOL_META[intent.toolName]
     // ② invariant(校验):不认识的工具 = 注定失败的计划,不让用户批准(§6.5)。
@@ -56,48 +55,11 @@ export function evaluateGate(intent: GateIntent, ctx: GateContext = {}): GateDec
         reason: i18n.t('generationCommon.agentRuntime.unsupportedOperation', { operation: intent.toolName }),
       }
     }
-    // ① policy:只读直通,零摩擦(M1)。花钱的(costy)即使不写画布也必问(S6b 受理语义)。
+    // ① policy:只读直通,零摩擦(M1)。
     if (!meta.writes && !meta.costy) return { outcome: 'allow' }
-    // ② invariant(锁):写操作命中锁住的节点 → deny(N11:AI 硬禁,用户软门)。
-    const denied = evaluateLock(intent.toolName, intent.args, ctx)
-    if (denied) return denied
     // ③ ask:写操作排队等用户点头。
     return { outcome: 'ask' }
   }
   // batch-run / spend:S6b / S7 落地受理与预算语义,本片先一律 ask。
   return { outcome: 'ask' }
-}
-
-const asRecord = (value: unknown): Record<string, unknown> =>
-  value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
-
-/**
- * 锁不变量求值(S6-4):锁面 = 改 prompt / 删除 / **入边**(改变该节点的生成输入)→ deny;
- * **出边**(锁节点作为参考被引用,正是定妆用途)→ 放行。deny 发生在提议构建时——
- * 注定失败的计划不让用户批准(§6.5);reason 人话点名节点+解锁路径,回喂 LLM 可自我修正。
- */
-function evaluateLock(toolName: string, args: unknown, ctx: GateContext): GateDecision | null {
-  const locked = ctx.lockedNodes
-  if (!locked || locked.size === 0) return null
-  const resolve = ctx.resolveNodeId ?? ((id: string) => id)
-  const record = asRecord(args)
-
-  const denyFor = (nodeId: string, actionKey: 'deleteNode' | 'regenerateNode' | 'addIncomingEdge'): GateDecision => ({
-    outcome: 'deny',
-    reason: i18n.t('generationCommon.agentRuntime.lockedNode', {
-      node: locked.get(nodeId) || nodeId,
-      action: i18n.t(`generationCommon.agentRuntime.${actionKey}`),
-    }),
-  })
-
-  if (toolName === 'run_generation_batch') {
-    // 重新生成会覆盖 result——锁住的定妆卡不许被批量重跑(引用它当参考照常,那是出边)。
-    const nodeIds = Array.isArray(record.nodeIds) ? record.nodeIds : []
-    for (const raw of nodeIds) {
-      const nodeId = resolve(String(raw || '').trim())
-      if (locked.has(nodeId)) return denyFor(nodeId, 'regenerateNode')
-    }
-    return null
-  }
-  return null
 }

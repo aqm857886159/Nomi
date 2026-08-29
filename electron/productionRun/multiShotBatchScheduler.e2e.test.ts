@@ -7,7 +7,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { compileExecutionContract, type PlanCandidate } from "../capabilityCore/executionContract";
 import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
 import { createGenerationRuntimeAdapter, type GenerationProvider } from "../capabilityCore/generationRuntimeAdapter";
+import { prepareProductionGenerationReauthorization } from "./prepareProductionGenerationAuthorization";
 import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
+import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
 import { createProductionRunRepository } from "./productionRunRepository";
 import { createMultiShotBatchScheduler } from "./multiShotBatchScheduler";
 import { anchorCheckpointGateId } from "./anchorCheckpoint";
@@ -98,8 +100,26 @@ function setup(shots: ProductionGenerationShot[]) {
   const repository = createProductionRunRepository({ projectDirResolver: (p) => (p === "project-1" ? root : null), now });
   repository.createGenerationDraft({ operationId: "op-batch", projectId: "project-1", origin: { host: "semantic-mcp" }, candidate: shots[0].candidate, policy: { trustedHosts: ["semantic-mcp"], allowedProviders: ["apimart"], allowedModels: ["image-model", "video-model"], maxSpend: null, maxAttemptsPerJob: 2 } });
   const top = shots[0].contract!;
-  repository.execute("project-1", "op-batch", { commandId: "seal", expectedRevision: 0, type: "generation.seal", payload: { contract: top, shots, planHash: "plan-hash-batch" }, issuedAt: now() });
-  repository.execute("project-1", "op-batch", { commandId: "approve", expectedRevision: 1, type: "generation.approve", payload: { receiptId: "receipt-plan", contractHash: "plan-hash-batch" }, issuedAt: now() });
+  sealAndApproveProductionGeneration({
+    repository,
+    projectId: "project-1",
+    operationId: "op-batch",
+    immutableProjectUuid: "project-uuid-1",
+    projectGeneration: 1,
+    projectRevision: 0,
+    candidate: shots[0].candidate,
+    contract: top,
+    providers: [{
+      providerId: "apimart",
+      capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true, materialize: true },
+      buildRequest: (input) => input,
+      submit: async () => ({ providerTaskId: "unused" }),
+    }],
+    multiShot: { shots, planHash: "plan-hash-batch" },
+    resolveShotPrice: () => ({ known: true, amount: 6 }),
+    receiptId: "receipt-plan",
+    now: now(),
+  });
   repository.execute("project-1", "op-batch", { commandId: "submit", expectedRevision: 2, type: "generation.submit", payload: {}, issuedAt: now() });
   return { root, repository };
 }
@@ -109,9 +129,8 @@ function buildSubmission(root: string, repository: ReturnType<typeof createProdu
   // Sanity: the real adapter must accept this provider (proves we exercise the genuine adapter path).
   createGenerationRuntimeAdapter({ providers: [provider] });
   return createProductionGenerationSubmission({
-    repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+    repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1, projectRevision: 0,
     intentMacKey: "test-intent-key", provider,
-    resolveShotPrice: () => ({ known: true, amount: 6 }),
     materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.png` }),
     now,
   });
@@ -140,8 +159,10 @@ describe("P4 S4 J1 — full multi-shot batch over a real loopback vendor", () =>
       expect(gate.status).toBe("waiting");
       // The anchor produced a real durable artifact (submit→poll→materialize chain ran end-to-end).
       expect(run.artifacts.filter((a) => a.kind === "video" && a.status === "ready")).toHaveLength(1);
-      // No video shot job yet (checkpoint blocks the batch).
-      expect(run.jobs.some((j) => j.metadata?.shotId === "shot-1")).toBe(false);
+      // The paid gate created every job, but the free checkpoint blocks the video provider calls.
+      const pendingShot = run.jobs.find((j) => j.metadata?.shotId === "shot-1");
+      expect(pendingShot?.status).toBe("authorized");
+      expect(pendingShot?.providerTaskId).toBeUndefined();
 
       // Phase B: the user approves the checkpoint → the shot batch generates.
       repository.execute("project-1", "op-batch", { commandId: `approve-checkpoint`, expectedRevision: run.revision, type: "gate.decide", payload: { gateId: gate.gateId, status: "approved" }, issuedAt: tickClock() });
@@ -230,32 +251,43 @@ describe("P4 S6 J2 — single-shot rework over a real loopback vendor", () => {
       const shot1JobsBefore = run.jobs.filter((j) => j.metadata?.shotId === "shot-1").length;
       const anchorRefBefore = shot2JobBefore.executionBinding!.requestFingerprint;
 
-      // Phase B: user reworks shot-2. reworkShot pre-creates the new-attempt job (authorized) with parentJobId.
-      const submission = buildSubmission(root, repository, vendor.origin, submits);
-      const rework = await submission.reworkShot({ projectId: "project-1", operationId: "op-batch", shotId: "shot-2" });
+      // Phase B: rework freezes a fresh attempt-2 provider payload and creates an authorization_required
+      // job + waiting gate atomically. Nothing reaches the provider before gate.decide.
+      const rework = prepareProductionGenerationReauthorization({
+        lease: { projectId: "project-1", immutableProjectUuid: "project-uuid-1", projectGeneration: 1, revocationEpoch: 0 },
+        projectRevision: 0,
+        run,
+        shotId: "shot-2",
+        providers: [loopbackProvider(vendor.origin, submits)],
+        resolveShotPrice: () => ({ known: true, amount: 6 }),
+        now: tickClock(),
+      });
       expect(rework.attempt).toBe(2);
       expect(rework.parentJobId).toBe(shot2JobBefore.jobId);
-      expect(rework.nextAction).toBe("request_gate");
+      run = repository.execute("project-1", "op-batch", {
+        commandId: "request-rework", expectedRevision: run.revision, type: "generation.reauthorize",
+        payload: { shotId: "shot-2", authorization: rework }, issuedAt: now(),
+      }).run;
 
-      run = repository.read("project-1", "op-batch")!;
-      const reworkedJob = run.jobs.find((j) => j.jobId === rework.jobId)!;
-      expect(reworkedJob.status).toBe("authorized"); // waiting for the single-shot gate + dispatch
+      const reworkedJob = run.jobs.find((j) => j.jobId === rework.envelope.jobs[0].jobId)!;
+      expect(reworkedJob.status).toBe("authorization_required");
       expect(reworkedJob.parentJobId).toBe(shot2JobBefore.jobId); // 谱系 durable
       expect(reworkedJob.retryReason).toBe("rework");
       expect(reworkedJob.nodeId).toBe(shot2JobBefore.nodeId); // 新版落回同一画布节点（此处两者都无 nodeId）
-      // Anchor/DNA inherited: the reworked job reuses shot-2's SAME sub-contract → identical request fingerprint.
-      expect(reworkedJob.requestFingerprint).toBe(anchorRefBefore);
+      expect(submits).toHaveLength(3);
       // Old shot-2 job + its artifact are still present (version-switchable).
       expect(run.jobs.some((j) => j.jobId === shot2JobBefore.jobId)).toBe(true);
       expect(run.artifacts.some((a) => a.jobId === shot2JobBefore.jobId && a.status === "ready")).toBe(true);
 
-      // Phase C: user confirms the single-shot price → orchestration re-approves (with the new attempt) +
-      // re-submits the plan (reworkShot reverted state→sealed + cleared this shot's approval), then kicks the
-      // scheduler with the raised authorization. The scheduler dispatches ONLY the pre-submission (authorized)
+      // Phase C: user confirms the fresh digest, which writes the only new Approval and budget ceiling;
+      // then the scheduler dispatches ONLY the pre-submission (authorized)
       // rework job; siblings (anchor + shot-1) are already ready → not re-submitted (no double charge).
-      run = repository.execute("project-1", "op-batch", { commandId: "approve-rework", expectedRevision: run.revision, type: "generation.approve", payload: { receiptId: "receipt-rework", contractHash: "plan-hash-batch", attempt: rework.attempt }, issuedAt: tickClock() }).run;
+      run = repository.execute("project-1", "op-batch", {
+        commandId: "approve-rework", expectedRevision: run.revision, type: "gate.decide",
+        payload: { gateId: rework.envelope.gateId, status: "approved", receiptId: "receipt-rework", authorizationDigest: rework.authorizationDigest }, issuedAt: tickClock(),
+      }).run;
       run = repository.execute("project-1", "op-batch", { commandId: "submit-rework", expectedRevision: run.revision, type: "generation.submit", payload: {}, issuedAt: tickClock() }).run;
-      const afterRework = await scheduler(root, repository, vendor.origin, submits, { anchorAutoReleaseMs: 0, raisePlanAuthorizationTo: 24 }).runToQuiescence();
+      const afterRework = await scheduler(root, repository, vendor.origin, submits, { anchorAutoReleaseMs: 0 }).runToQuiescence();
       expect(afterRework.progress.completed).toBe(2); // both video shots still count as completed
 
       run = repository.read("project-1", "op-batch")!;
@@ -266,9 +298,10 @@ describe("P4 S6 J2 — single-shot rework over a real loopback vendor", () => {
       // shot-2 now has TWO jobs (v1 kept + v2 rework), the new one succeeded.
       const shot2Jobs = run.jobs.filter((j) => j.metadata?.shotId === "shot-2");
       expect(shot2Jobs.length).toBe(2);
-      const reworkedDone = run.jobs.find((j) => j.jobId === rework.jobId)!;
+      const reworkedDone = run.jobs.find((j) => j.jobId === rework.envelope.jobs[0].jobId)!;
       expect(["ready", "adopted"]).toContain(reworkedDone.status);
       expect(reworkedDone.parentJobId).toBe(shot2JobBefore.jobId);
+      expect(reworkedDone.executionBinding?.requestFingerprint).toBe(anchorRefBefore);
       // A new artifact landed for the reworked attempt (old one still there → two shot-2 artifacts).
       expect(run.artifacts.filter((a) => shot2Jobs.some((j) => j.jobId === a.jobId) && a.status === "ready").length).toBe(2);
       // Every idempotency key was used at most once (≤1 submit per job).
@@ -330,9 +363,8 @@ describe("P4 slow provider — the batch waits (not spins) and still materialize
    * clock, no polling — the awaited runToQuiescence promise IS the synchronization). */
   function slowScheduler(root: string, repository: ReturnType<typeof createProductionRunRepository>, provider: GenerationProvider, options: Parameters<typeof createMultiShotBatchScheduler>[0]["options"] = {}) {
     const submission = createProductionGenerationSubmission({
-      repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+      repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1, projectRevision: 0,
       intentMacKey: "test-intent-key", provider,
-      resolveShotPrice: () => ({ known: true, amount: 6 }),
       materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.png` }),
       now,
     });

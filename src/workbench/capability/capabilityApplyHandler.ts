@@ -9,8 +9,6 @@ import { runDirectionPlanner } from '../generationCanvas/agent/runDirectionPlann
 import { productionScriptSessionKey } from '../ai/agentSessionKey'
 import { runSingleShotAgent } from '../ai/agentLoopMode'
 import { useWorkbenchStore } from '../workbenchStore'
-import { mintSpendGrant } from '../api/taskApi'
-import { resolveAutonomousUploadConsent, runGenerationNode } from '../generationCanvas/runner/generationRunController'
 import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStoryboardToTimeline'
 import { createTimelineExportManifest } from '../export/exportApi'
 import { exportTimelineToWebm } from '../export/timelineWebmExport'
@@ -30,7 +28,6 @@ import {
   SurfacePortWireError,
   type CapturedCanvasReadSnapshotHandleWire,
 } from '../../../electron/shared/surfacePortBinding'
-import { hasGenerationBinding } from '../../../electron/capabilityCore/generationBindingGuard'
 import { handleMultiShotCanvasLandingOp } from './multiShotCanvasLanding'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
@@ -71,21 +68,6 @@ type GenerationGateConfirmPayload = {
    * 不造并行卡，P1）；无它 → 走今日扁平单镜卡（字节不动，单镜 E2E 是回归门）。
    */
   shots?: MultiShotGatePayload
-}
-
-export class LegacyPathForbiddenError extends Error {
-  readonly code = 'legacy_path_forbidden' as const
-
-  constructor() {
-    super('legacy_path_forbidden')
-    this.name = 'LegacyPathForbiddenError'
-  }
-}
-
-/** Pure renderer-side firewall for the direct legacy generation bridge. */
-export function assertLegacyGenerationPayload(payload: Record<string, unknown>): void {
-  if (!hasGenerationBinding(payload)) return
-  throw new LegacyPathForbiddenError()
 }
 
 function describeIntent(intent: string | undefined): string {
@@ -349,7 +331,6 @@ async function verifyShotsForProduction(shotNodeIds: readonly string[]): Promise
 /** 处理一条主进程转发来的能力操作。未知操作抛错（主进程会把错误透传给 agent）。 */
 export async function handleCapabilityApply(op: string, payload: unknown): Promise<unknown> {
   const data = (payload && typeof payload === 'object' ? payload : {}) as Record<string, unknown>
-  if (op === 'production.generate-node') assertLegacyGenerationPayload(data)
   const projectId = typeof data.projectId === 'string' ? data.projectId : ''
   const activeId = getActiveWorkbenchProjectId()
   // 画布读写**只能**作用于当前打开的项目（动 store → 必须是活动项目，否则串台）；目标≠活动 → 拒。
@@ -586,39 +567,6 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
             ? applied.connectedCount
             : 0,
         bindings,
-      }
-    }
-    case 'production.generate-node': {
-      const nodeId = typeof data.nodeId === 'string' ? data.nodeId.trim() : ''
-      if (!nodeId) throw new Error('Production generation requires a node')
-      const grantId = await mintSpendGrant(
-        [nodeId],
-        typeof data.maxAttemptsPerJob === 'number' ? data.maxAttemptsPerJob : undefined,
-      )
-      const retryDirective =
-        typeof data.retryDirective === 'string' && data.retryDirective.trim() ? data.retryDirective.trim() : undefined
-      // 托管同意：外部 agent / MCP 驱动，没人坐在屏幕前——不能弹卡（会把整条自动化挂死在
-      // 一个没人点的对话框上），也不能默默把本地素材传到公共托管。交给同一个策略真相源判定：
-      // 策略允许 / KIE 已配 / 本地 ComfyUI → 放行；还需要问一次 → 诚实拒发，把「去配 KIE
-      // 或改托管策略」的人话回给 agent（见 resolveAutonomousUploadConsent）。
-      const assetUploadConsent = await resolveAutonomousUploadConsent(nodeId)
-      const result = await runGenerationNode(nodeId, {
-        grantId,
-        assetUploadConsent,
-        ...(retryDirective ? { promptSuffix: retryDirective } : {}),
-      })
-      return {
-        nodeId,
-        status: 'succeeded',
-        assets: result.url
-          ? [
-              {
-                type: result.type,
-                url: result.url,
-                ...(result.thumbnailUrl ? { thumbnailUrl: result.thumbnailUrl } : {}),
-              },
-            ]
-          : [],
       }
     }
     case 'production.arrange': {

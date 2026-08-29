@@ -14,6 +14,10 @@
   ],
   "scope_paths": [
     "electron/productionRun/productionGenerationAuthorization.ts",
+    "electron/productionRun/productionGenerationAuthorizationState.ts",
+    "electron/productionRun/prepareProductionGenerationAuthorization.ts",
+    "electron/productionRun/multiShotBatchScheduler.ts",
+    "electron/productionRun/batchScheduleDerivation.ts",
     "electron/capabilityCore/generationRuntimeAdapter.ts",
     "electron/productionRun/productionGenerationSubmission.ts",
     "electron/productionRun/productionRunReducer.ts",
@@ -21,14 +25,25 @@
     "electron/productionRun/productionRunTypes.ts",
     "electron/capabilityCore/mcpGenerationTools.ts",
     "electron/capabilityCore/generationDispatcher.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
     "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
-    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts"
+    "electron/projectAgentHost/projectAgentMigration.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "electron/catalog/agnesImages.ts",
+    "electron/catalog/taskParams.ts",
+    "electron/catalog/types.ts",
+    "electron/productionRun/productionGenerationAuthorizationTestUtils.ts",
+    "electron/productionRun/productionGenerationOperationStore.ts",
+    "electron/productionRun/productionGenerationSeal.ts",
+    "electron/productionRun/productionRunState.ts"
   ],
   "entry_points": [
     "embedded Agent run_generation_batch",
     "semantic MCP generation gate request, decision, and start",
     "single-shot and multi-shot ProductionGenerationSubmission.start",
     "batch scheduler retries and rework attempts",
+    "trial-first plan narrowing and budget-resume requests",
     "provider adapter buildRequest and submit",
     "budget reserve, durable provider-submit intent, and recovery"
   ],
@@ -41,6 +56,8 @@
     "ExecutionContract.contractHash remains a per-job semantic identity and is never relabeled as the batch authorization digest.",
     "GenerationProvider.buildRequest is pure and deterministic for a sealed request; an unstable or changed wire payload fails before budget reservation, ledger mutation, outbox intent, or submit.",
     "productionGenerationSubmission never creates an Approval or budget authorization. It accepts only the Approval atomically created by the approved ProductionRun gate.",
+    "Batch scheduling never raises authorization or writes an authorize ledger entry. A new attempt or any additional spend first creates a fresh digest-bound authorization_required job set and waiting gate.",
+    "Trial-first invalidates the unapproved envelope, returns the plan to draft with a higher plan version, and requires provider payload preparation plus a fresh seal and gate before submission.",
     "Host persists only the human approval reference and ProductionRun TaskRef; ProductionRun remains the only owner of jobs, gates, budget, outbox, provider receipt, recovery, and artifacts.",
     "The renderer cannot mint a spend grant or dispatch a local Agent generation queue, and nomi_generate cannot reach a direct provider path."
   ],
@@ -49,27 +66,40 @@
     "reason": "Every paid provider, model, single/multi-shot operation, retry, Host/MCP entry, and future request-normalizing adapter reaches the same missing shared identity boundary.",
     "same_class_scan": [
       "Scanned run_generation_batch, nomi_generate, semantic generation gate/start, ExecutionContract, multi-shot planHash, approval receipts, ProductionRun gate.decide, Approval storage, budget ledger, submission outbox, runtime envelope, provider buildRequest/submit, retry/reconcile, TaskRef, and Project Agent coordinator paths.",
-      "Confirmed multi-shot planHash hashes only ordered shotId:contractHash values and excludes Canvas evidence, budget, idempotency, and provider wire payload.",
-      "Confirmed generationRuntimeAdapter builds the provider request only inside submit after outbox authorization and reservation.",
-      "Confirmed productionGenerationSubmission.prepare writes a synthetic Approval and budget authorization instead of requiring the gate.decide artifacts.",
-      "Confirmed the renderer Agent branch mints a spend grant and dispatches runPlanWithToasts independently of ProductionRun, while nomi_generate remains catalogued and routed as a legacy generation path."
+      "Repaired the multi-shot plan identity so the sealed authorization digest includes project/run/plan/job, Canvas evidence, pricing ceiling, idempotency, and exact provider wire payload identity instead of only ordered shotId:contractHash values.",
+      "Moved deterministic provider request construction before approval and added pre-submit payload reconstruction; a changed payload fails before job, ledger, outbox, or provider side effects.",
+      "Removed synthetic Approval and budget authorization from productionGenerationSubmission; the approved run gate atomically creates the only accepted Approval and budget authorization.",
+      "Removed scheduler-owned authorization raises and authorize-ledger writes; new attempts and additional spend return to a fresh authorization_required job set and waiting gate.",
+      "Trial-first now invalidates the unapproved envelope, increments the plan version, and requires provider payload preparation plus a new seal and approval.",
+      "Retired renderer run_generation_batch dispatch, the production.generate-node driver route, and the advertised/routable nomi_generate provider path; the nomi_generate policy tombstone remains fail closed.",
+      "Verified archive-only cutover removes hash-matched legacy conversation/session sources from active paths after archival, resumes cleanup after a crash, rejects changed sources, and never rehydrates legacy queue, approval, or Undo state."
     ]
   },
   "prevention": {
     "strategy": "Create and validate one immutable authorization envelope at the main-owned ProductionRun boundary, make provider request construction a deterministic pre-approval operation with pre-submit hash verification, consume only gate-created Approval/budget facts, and delete the renderer and legacy provider bypasses.",
     "artifacts": [
       "electron/productionRun/productionGenerationAuthorization.ts",
+      "electron/productionRun/productionGenerationAuthorizationState.ts",
+      "electron/productionRun/multiShotBatchScheduler.ts",
       "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
       "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
       "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts"
     ]
   },
   "regression_tests": [
     "electron/productionRun/productionGenerationAuthorization.test.ts",
+    "electron/productionRun/productionGenerationAuthorizationFlow.test.ts",
+    "electron/productionRun/productionGenerationSubmission.test.ts",
+    "electron/productionRun/productionMultiShotSchema.test.ts",
+    "electron/productionRun/multiShotBatchScheduler.test.ts",
+    "electron/productionRun/multiShotBatchScheduler.e2e.test.ts",
     "electron/capabilityCore/generationRuntimeAdapter.test.ts",
+    "electron/capabilityCore/nomiGenerateRetirement.test.ts",
+    "electron/projectAgentHost/projectAgentMigration.test.ts",
     "scripts/check-capability-owners.node-test.mjs"
   ],
-  "migration": "Old Agent conversations and pending approvals are archive-only and never replayed. Existing ProductionRuns without an authorization envelope remain inspectable and reconcilable but cannot make a new paid submission; the user must create and approve a fresh plan. Existing provider_accepted/submission_unknown jobs continue observation or reconciliation without resubmission. No dual-write or legacy generation fallback remains.",
+  "migration": "Old Agent conversations, Pi context, receipts, and pending approvals are archive-only and never replayed. After the archive and manifest are verified, hash-matched legacy conversations.json and agent-session.json files are removed from active locations; cleanup resumes after a crash, an already-missing source is complete, and a changed source fails closed without deletion. Existing ProductionRuns without an authorization envelope remain inspectable and reconcilable but cannot make a new paid submission; the user must create and approve a fresh plan. Existing provider_accepted/submission_unknown jobs continue observation or reconciliation without resubmission. Documents, Canvas state, assets, exports, and ProductionRun data remain byte-preserved in their domain stores. No dual-write or legacy generation fallback remains.",
   "residual_risks": [
     "Provider credentials and transport headers are intentionally outside the body digest; provider adapters must keep authorization secrets out of buildRequest output.",
     "Existing accepted provider tasks cannot retroactively prove their original wire payload and remain legacy audit evidence.",

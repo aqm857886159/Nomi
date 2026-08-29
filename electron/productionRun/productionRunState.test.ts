@@ -78,6 +78,16 @@ describe("production job state", () => {
       "Illegal job transition planned -> submitting",
     );
   });
+
+  it.each(["authorized", "submit_intent_persisted"] as const)(
+    "marks an unsubmitted legacy job %s as needing attention during cutover",
+    (status) => {
+      expect(transitionJob(job(status), "needs_attention", NOW)).toMatchObject({
+        status: "needs_attention",
+        updatedAt: NOW,
+      });
+    },
+  );
 });
 
 describe("production run state", () => {

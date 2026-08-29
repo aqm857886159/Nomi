@@ -4,17 +4,25 @@ import type { ExecutionContractV1 } from "../capabilityCore/executionContract";
 
 export const PRODUCTION_GENERATION_AUTHORIZATION_VERSION = 1 as const;
 
-export type ProductionGenerationNodeEvidence = Readonly<{
-  nodeId: string;
-  nodeRevision: number;
-  currentResultId?: string;
-  currentResultContentHash?: string;
-}>;
+export type ProductionGenerationTargetEvidence =
+  | Readonly<{
+      kind: "canvas-node";
+      nodeId: string;
+      nodeRevision: number;
+      currentResultId?: string;
+      currentResultContentHash?: string;
+    }>
+  | Readonly<{
+      kind: "generation-operation";
+      operationId: string;
+      candidateRevision: number;
+    }>;
 
 export type ProductionGenerationAuthorizationJobV1 = Readonly<{
   jobId: string;
   shotId: string;
-  node: ProductionGenerationNodeEvidence;
+  attempt: number;
+  target: ProductionGenerationTargetEvidence;
   contractHash: string;
   providerId: string;
   modelId: string;
@@ -34,8 +42,17 @@ export type ProductionGenerationAuthorizationEnvelopeV1 = Readonly<{
   projectRevision: number;
   runId: string;
   planVersion: number;
+  gateId: string;
+  costScope: string;
+  expiresAt: string;
   jobs: readonly ProductionGenerationAuthorizationJobV1[];
-  budget: Readonly<{ currency: string; maximum: number }>;
+  budget: Readonly<{
+    currency: string;
+    /** Maximum new liability covered by this human decision. */
+    maximum: number;
+    /** Absolute Run ledger ceiling after this authorization is approved. */
+    ledgerCeiling: number;
+  }>;
 }>;
 
 export class ProductionGenerationAuthorizationError extends Error {
@@ -79,6 +96,32 @@ function nonNegativeMoney(value: number, label: string): number {
   return value;
 }
 
+export function productionGenerationJobId(
+  runId: string,
+  contractHash: string,
+  attempt = 1,
+  shotId?: string,
+): string {
+  const shotSegment = shotId ? `-${requiredText(shotId, "Shot id")}` : "";
+  const normalizedRunId = requiredText(runId, "Run id");
+  const normalizedContractHash = requiredText(contractHash, "Contract hash");
+  if (!Number.isSafeInteger(attempt) || attempt < 1) {
+    throw new ProductionGenerationAuthorizationError("Generation attempt must be a positive integer");
+  }
+  return `generation-${normalizedRunId}${shotSegment}-${normalizedContractHash.slice(0, 16)}${attempt > 1 ? `-attempt-${attempt}` : ""}`;
+}
+
+export function productionGenerationProviderIdempotencyKey(
+  runId: string,
+  contractHash: string,
+  attempt = 1,
+  shotId?: string,
+): string {
+  const jobId = productionGenerationJobId(runId, contractHash, attempt, shotId);
+  const bindingShotId = shotId ? requiredText(shotId, "Shot id") : jobId;
+  return `generation:${requiredText(runId, "Run id")}:${bindingShotId}:${requiredText(contractHash, "Contract hash")}:attempt-${attempt}`;
+}
+
 export function createProductionGenerationAuthorizationEnvelope(input: ProductionGenerationAuthorizationEnvelopeV1): ProductionGenerationAuthorizationEnvelopeV1 {
   if (input.schemaVersion !== PRODUCTION_GENERATION_AUTHORIZATION_VERSION) {
     throw new ProductionGenerationAuthorizationError("Unsupported generation authorization version");
@@ -99,19 +142,46 @@ export function createProductionGenerationAuthorizationEnvelope(input: Productio
     const jobId = requiredText(job.jobId, "Job id");
     if (ids.has(jobId)) throw new ProductionGenerationAuthorizationError(`Duplicate authorization job: ${jobId}`);
     ids.add(jobId);
-    if (!Number.isSafeInteger(job.node.nodeRevision) || job.node.nodeRevision < 0) {
-      throw new ProductionGenerationAuthorizationError("Node revision must be a non-negative integer");
+    if (!Number.isSafeInteger(job.attempt) || job.attempt < 1) {
+      throw new ProductionGenerationAuthorizationError("Generation attempt must be a positive integer");
+    }
+    if (!job.target || typeof job.target !== "object") {
+      throw new ProductionGenerationAuthorizationError("Generation target evidence is invalid");
+    }
+    let target: ProductionGenerationTargetEvidence;
+    if (job.target.kind === "canvas-node") {
+      if (!Number.isSafeInteger(job.target.nodeRevision) || job.target.nodeRevision < 0) {
+        throw new ProductionGenerationAuthorizationError("Node revision must be a non-negative integer");
+      }
+      target = Object.freeze({
+        kind: "canvas-node",
+        nodeId: requiredText(job.target.nodeId, "Node id"),
+        nodeRevision: job.target.nodeRevision,
+        ...(job.target.currentResultId
+          ? { currentResultId: requiredText(job.target.currentResultId, "Current result id") }
+          : {}),
+        ...(job.target.currentResultContentHash
+          ? { currentResultContentHash: requiredText(job.target.currentResultContentHash, "Current result content hash") }
+          : {}),
+      });
+    } else if (job.target.kind === "generation-operation") {
+      if (!Number.isSafeInteger(job.target.candidateRevision) || job.target.candidateRevision < 1) {
+        throw new ProductionGenerationAuthorizationError("Candidate revision must be a positive integer");
+      }
+      target = Object.freeze({
+        kind: "generation-operation",
+        operationId: requiredText(job.target.operationId, "Operation id"),
+        candidateRevision: job.target.candidateRevision,
+      });
+    } else {
+      throw new ProductionGenerationAuthorizationError("Generation target evidence is invalid");
     }
     if (job.price.currency.trim() !== currency) throw new ProductionGenerationAuthorizationError("Job price currency must match the batch budget");
     return Object.freeze({
       jobId,
       shotId: requiredText(job.shotId, "Shot id"),
-      node: Object.freeze({
-        nodeId: requiredText(job.node.nodeId, "Node id"),
-        nodeRevision: job.node.nodeRevision,
-        ...(job.node.currentResultId ? { currentResultId: requiredText(job.node.currentResultId, "Current result id") } : {}),
-        ...(job.node.currentResultContentHash ? { currentResultContentHash: requiredText(job.node.currentResultContentHash, "Current result content hash") } : {}),
-      }),
+      attempt: job.attempt,
+      target,
       contractHash: requiredText(job.contractHash, "Contract hash"),
       providerId: requiredText(job.providerId, "Provider id"),
       modelId: requiredText(job.modelId, "Model id"),
@@ -124,8 +194,12 @@ export function createProductionGenerationAuthorizationEnvelope(input: Productio
     });
   });
   const maximum = nonNegativeMoney(input.budget.maximum, "Budget ceiling");
+  const ledgerCeiling = nonNegativeMoney(input.budget.ledgerCeiling, "Run ledger ceiling");
   const jobMaximum = jobs.reduce((sum, job) => sum + job.price.maximum, 0);
-  if (maximum !== jobMaximum) throw new ProductionGenerationAuthorizationError("Budget ceiling must equal the ordered job ceilings");
+  if (maximum > jobMaximum) throw new ProductionGenerationAuthorizationError("Budget ceiling must not exceed the ordered job ceilings");
+  if (ledgerCeiling < maximum) throw new ProductionGenerationAuthorizationError("Run ledger ceiling must cover the approved job ceiling");
+  const expiresAt = requiredText(input.expiresAt, "Authorization expiry");
+  if (!Number.isFinite(Date.parse(expiresAt))) throw new ProductionGenerationAuthorizationError("Authorization expiry is invalid");
   return Object.freeze({
     schemaVersion: PRODUCTION_GENERATION_AUTHORIZATION_VERSION,
     immutableProjectUuid: requiredText(input.immutableProjectUuid, "Immutable project uuid"),
@@ -134,8 +208,11 @@ export function createProductionGenerationAuthorizationEnvelope(input: Productio
     projectRevision: input.projectRevision,
     runId: requiredText(input.runId, "Run id"),
     planVersion: input.planVersion,
+    gateId: requiredText(input.gateId, "Gate id"),
+    costScope: requiredText(input.costScope, "Cost scope"),
+    expiresAt,
     jobs: Object.freeze(jobs),
-    budget: Object.freeze({ currency, maximum }),
+    budget: Object.freeze({ currency, maximum, ledgerCeiling }),
   });
 }
 

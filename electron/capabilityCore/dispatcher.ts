@@ -5,13 +5,11 @@ import {
   connectProjectNodes,
   createNamedProject,
   deleteProjectNodes,
-  generateOnProject,
   importProjectAsset,
   listAllProjects,
   listAvailableModels,
   setProjectNodePrompt,
   type FetchTaskResultFn,
-  type GenerateInput,
   type MakeVerifyDeps,
   type RunTaskFn,
 } from './core'
@@ -487,15 +485,6 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         path: String(params.path || ''),
         ...(typeof params.title === 'string' && params.title.trim() ? { title: params.title.trim() } : {}),
       })
-    case 'generate':
-      // makeVerifyDeps 是**传输层注入**（不是模型能填的入参）→ 从 ctx 取、覆盖任何请求体里的同名字段
-      // （防外部 agent 伪造），与 makeGateway/planConfirmed 同注入模式。不注入 = 审片环不跑（默认行为不变）。
-      return generateOnProject(
-        { ...(params as unknown as GenerateInput), makeVerifyDeps: ctx.makeVerifyDeps },
-        ctx.makeGateway(projectIdOf(params)),
-        ctx.runTask,
-        ctx.fetchTaskResult,
-      )
     default:
       throw new RpcError(`未知方法: ${method}`, 404)
   }

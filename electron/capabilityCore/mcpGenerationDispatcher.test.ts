@@ -377,10 +377,11 @@ describe('generation.single-shot dispatcher policy boundary', () => {
     await expect(dispatch('nomi_decide_generation_gate', {
       projectId: 'project-1', leaseHandle, runId: 'run-1', gateId: 'gate-1',
       contractHash: 'contract-1', receiptId: approval.receiptId,
-    }, ctx as never)).resolves.toEqual({
+    }, ctx as never)).resolves.toMatchObject({
       status: 'authorization_committed',
       receiptId: approval.receiptId,
       projectId: 'project-1',
+      leaseHandle: expect.any(String),
     })
     expect(authorizeGeneration).toHaveBeenCalledTimes(1)
     expect(authorizeGeneration.mock.calls[0]?.[0].lease).toMatchObject({
@@ -475,6 +476,8 @@ describe('generation.single-shot dispatcher policy boundary', () => {
     'executionBinding', 'requestFingerprint', 'providerIdempotencyKey', 'runtimeEnvelopeRef',
     'runtimeEnvelopeHash', 'fencingEpoch', 'envelopeState', 'providerTaskId', 'sessionId', 'nonce',
     'baseRevision', 'projectRevision', 'attempt', 'runtimeEnvelope',
+    'authorizationEnvelope', 'authorizationDigest', 'authorizationGateId', 'providerWirePayloadHash',
+    'pricingSnapshotHash', 'gateId',
   ])('firewalls canonical binding marker %s on generate', async (field) => {
     const { ctx } = context({ generationPolicy: policy() })
     await expect(dispatch('generate', {

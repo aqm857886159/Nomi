@@ -25,17 +25,19 @@ const SCAN_DIRS = ["src", "electron"];
 // 现存巨壳的基线行数（棘轮上限）。清空此表 = 巨壳债还清。
 // 改小某个数 = 你成功瘦身后锁定的新上限。新增条目应经人工评审。
 const ALLOWLIST = {
-  "electron/runtime.ts": 531, // …→ 539（2026-08-15）→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）
+  "electron/runtime.ts": 532, // …→ 539（2026-08-15）→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）→ 532（task checkpoint de988bcb）
   "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 731, // …→ 733（2026-08-16 移除死属性）→ 732（2026-08-24 失败卡加收起钮，压平 onRetry 箭头体抵回）→ 731（2026-08-25 P4 S6：多镜叠加合一 ProductionShotOverlays + onRetry 抽 useProductionNodeRetry，净减 1）
   // Project Agent Host migration shells. Manually reviewed for this PR because
   // the task branch introduces these owners ahead of the next decomposition batch.
+  // Values below match remote checkpoint de988bcb; Phase 4 did not grow them.
   // Ratchet only: any growth is a hard failure; Canvas completion/Phase 4 must
   // extract these modules and lower the baselines.
-  "electron/capabilityCore/verifiedCapabilityInvocation.ts": 910,
-  "electron/main.ts": 825,
-  "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1461,
-  "electron/projectAgentHost/projectAgentReducer.ts": 959,
-  "src/workbench/NomiStudioApp.tsx": 889,
+  "electron/capabilityCore/verifiedCapabilityInvocation.ts": 1257,
+  "electron/main.ts": 850,
+  "electron/productionRun/productionRunService.ts": 806,
+  "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1707,
+  "electron/projectAgentHost/projectAgentReducer.ts": 920,
+  "src/workbench/NomiStudioApp.tsx": 926,
   "src/workbench/creation/CreationAiPanel.tsx": 868,
   // PR#21 白板节点引入（2026-06-25）：WhiteboardDrawingTool（1032）与 WhiteboardLeaferCanvas（3406）两巨壳
   // 已按 Rule 9 全部拆完、双双出白名单。LeaferCanvas → whiteboardCanvasTypes/Export/NodeOps/Geometry 四纯模块

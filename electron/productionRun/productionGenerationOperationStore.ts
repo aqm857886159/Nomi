@@ -14,6 +14,10 @@ function operationFromRun(run: ReturnType<ProductionRunService["readFull"]>): Ge
     state: plan.state,
     ...(plan.contract ? { contract: structuredClone(plan.contract) } : {}),
     ...(plan.approvedReceiptId ? { approvedReceiptId: plan.approvedReceiptId } : {}),
+    ...(plan.authorizationEnvelope ? { authorizationEnvelope: structuredClone(plan.authorizationEnvelope) } : {}),
+    ...(plan.authorizationDigest ? { authorizationDigest: plan.authorizationDigest } : {}),
+    ...(plan.authorizationGateId ? { authorizationGateId: plan.authorizationGateId } : {}),
+    planVersion: run.planVersion,
     // P4 S4: project the multi-shot entries so the MCP gate can build the real display.shots. A
     // single-shot plan has no shots[] → this is omitted and the flat single-shot path is unchanged.
     ...(plan.shots && plan.shots.length > 0
@@ -26,7 +30,6 @@ function operationFromRun(run: ReturnType<ProductionRunService["readFull"]>): Ge
             ...(shot.contract ? { contract: structuredClone(shot.contract) } : {}),
           })),
           ...(plan.planHash ? { planHash: plan.planHash } : {}),
-          planVersion: run.planVersion,
         }
       : {}),
     updatedAt: plan.updatedAt,
@@ -82,7 +85,7 @@ export function createProductionGenerationOperationStore(owner: GenerationRunOwn
       if (!operation) throw new Error("Production Run lost its generation plan");
       return operation;
     },
-    async seal(projectId, operationId, contract: ExecutionContractV1, now, multiShot) {
+    async seal(projectId, operationId, contract: ExecutionContractV1, now, multiShot, authorization) {
       read(projectId, operationId);
       const result = await owner.command(projectId, operationId, {
         // P4 S6.5: a multi-shot seal keys its commandId on the plan hash (covers the whole batch); a
@@ -93,9 +96,11 @@ export function createProductionGenerationOperationStore(owner: GenerationRunOwn
         // P4 S6.5: forward the per-shot sub-contracts + planHash + derived shotPrices so the reducer
         // freezes the batch and enforces the seal-time hard cap (reducer generation.seal already consumes
         // shots/planHash/shotPrices). Single-shot seal sends only { contract } (byte-identical to today).
-        payload: multiShot
-          ? { contract, shots: multiShot.shots, planHash: multiShot.planHash, ...(multiShot.shotPrices ? { shotPrices: multiShot.shotPrices } : {}) }
-          : { contract },
+        payload: {
+          contract,
+          ...(multiShot ? { shots: multiShot.shots, planHash: multiShot.planHash, ...(multiShot.shotPrices ? { shotPrices: multiShot.shotPrices } : {}) } : {}),
+          ...(authorization ? { authorization } : {}),
+        },
         issuedAt: now,
       });
       const operation = operationFromRun(result.run);
@@ -115,31 +120,13 @@ export function createProductionGenerationOperationStore(owner: GenerationRunOwn
       if (!operation) throw new Error("Production Run lost its generation plan");
       return operation;
     },
-    async approve(projectId, operationId, receiptId, now, options) {
+    async trialNarrow(projectId, operationId, now) {
       const current = read(projectId, operationId);
-      // P4 S6.5: a multi-shot receipt is keyed on the plan hash (covers the whole batch, reducer L446);
-      // a single-shot receipt is keyed on the one sealed contract hash. Send whichever this plan uses,
-      // else the reducer rejects the approval ("does not match the sealed contract").
-      const approvalHash = current.shots && current.shots.length > 0 ? current.planHash : current.contract?.contractHash;
       const result = await owner.command(projectId, operationId, {
-        commandId: `generation.approve:${operationId}:${receiptId}`,
-        expectedRevision: owner.readFull(projectId, operationId).revision,
-        type: "generation.approve",
-        payload: { receiptId, contractHash: approvalHash, ...(options?.attempt === undefined ? {} : { attempt: options.attempt }) },
-        issuedAt: now,
-      });
-      const operation = operationFromRun(result.run);
-      if (!operation) throw new Error("Production Run lost its generation plan");
-      return operation;
-    },
-    async trialNarrow(projectId, operationId, planHash, now) {
-      read(projectId, operationId);
-      const result = await owner.command(projectId, operationId, {
-        // commandId includes the target planHash so a retry is idempotent (same narrow → same result).
-        commandId: `generation.trial_narrow:${operationId}:${planHash}`,
+        commandId: `generation.trial_narrow:${operationId}:v${current.planVersion}`,
         expectedRevision: owner.readFull(projectId, operationId).revision,
         type: "generation.trial_narrow",
-        payload: { planHash },
+        payload: {},
         issuedAt: now,
       });
       const operation = operationFromRun(result.run);

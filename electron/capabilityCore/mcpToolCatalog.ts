@@ -3,11 +3,8 @@
 // 交付前预批的 headroom 提取）——协议握手/派发/确认逻辑留在 mcpProtocol.ts，工具"长什么样"这份数据契约独立成文件。
 // 消费方（mcpProtocol：tools/list 广播、按 name 派发、只读标注）从本模块 import；测试直接测这份契约。
 //
-// build 里 nomi_generate 的画幅/时长参数归一走 buildGenerateParams（不 hardcode vendor，比例同时铺
-// aspect_ratio/size/aspectRatio 三别名，覆盖不同 archetype 读的键）。
 import { listProductionPlaybookNames } from '../productionRun/productionPlaybooks'
 import { MCP_CAPABILITY_RESOLVER, immutableSchemaSnapshot } from './mcpCapabilityProjection'
-import { buildGenerateParams } from './mcpGenerateParams'
 import { MCP_GENERATION_TOOL_CATALOG } from './mcpGenerationTools'
 import { MCP_PROJECT_SESSION_TOOL } from './mcpProjectSessionTool'
 
@@ -368,7 +365,7 @@ export const MCP_TOOL_CATALOG = [
     name: 'nomi_import_asset',
     description:
       '把**本机文件**导入项目当素材，返回可直接引用的 nomi-local:// 地址。'
-      + '用它把手绘帧 / 截图 / 用户给的参考图弄进来——导入后把返回的 url 放进 nomi_generate 的 references，'
+      + '用它把手绘帧 / 截图 / 用户给的参考图弄进来——导入后可在语义生成提案中引用返回的 url，'
       + '或当画布节点的参考源。只收图片与视频（png/jpg/webp/gif/bmp/tiff/heic/mp4/mov/webm/m4v），'
       + '单个 ≤64MB，须传**绝对路径**；系统/凭据目录（如 ~/.ssh、~/.nomi）的文件会被拒绝。',
     inputSchema: {
@@ -383,62 +380,6 @@ export const MCP_TOOL_CATALOG = [
     },
     method: 'asset.import',
     build: (a: Record<string, unknown>) => ({ projectId: a.projectId, path: a.path, ...(a.title ? { title: a.title } : {}) }),
-  },
-  {
-    name: 'nomi_generate',
-    description:
-      '触发一次生成（用 Nomi 的 archetype 正确组装参数 + 落资产回节点）。会花用户额度。intent=image/video/text/audio。'
-      + '画幅/时长要显式传 aspect_ratio/resolution/duration——**写进 prompt 里模型收不到**（真机实测：写"16:9"进提示词仍出方图，'
-      + '因为渠道有默认 1:1 会盖过）。这三个参数会以调用方优先合并进真实请求（caller-wins），不传则用该模型默认。',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        projectId: { type: 'string' },
-        vendor: { type: 'string' },
-        modelKey: { type: 'string' },
-        intent: { type: 'string', enum: ['image', 'video', 'text', 'audio'] },
-        prompt: { type: 'string' },
-        nodeId: { type: 'string', description: '在既有节点上生成（可选）' },
-        references: { type: 'array', items: { type: 'string' }, description: '参考图 URL（可选）' },
-        // 画幅/时长（可选，caller-wins 合并进真实请求体）——修「写进 prompt 无效、静默出方图」的根因。
-        aspect_ratio: { type: 'string', description: '画面比例，如 "16:9" / "9:16" / "1:1"（可选；覆盖模型默认）。' },
-        resolution: { type: 'string', description: '清晰度，如 "1080p" / "2K" / "720p"（可选；取值随模型而定）。' },
-        duration: { type: 'number', description: '视频时长（秒，可选；仅视频类有效）。' },
-        seed: { type: 'number', description: '随机种子（可选）。同 prompt + 同 seed 可复现同一结果——做系列风格一致时用它。' },
-        // 首尾帧语义分解（W2）。**必须在 schema 里露出来，模型才知道能填**——这两个字段在能力核里
-        // 早就通到底了（首帧图 → first_frame_url，尾帧图 → last_frame_url），此前只是没写进工具清单，
-        // 于是永远收不到值，等于没做。
-        firstFrameDesc: {
-          type: 'string',
-          description:
-            '视频镜可选：这一镜**开头那一帧**的静态画面描述（景别/角度/构图/光/人物位置，不写运动）。'
-            + '给了它就先出一张首帧图再让它动起来——「给模型照片让它动」比「让它凭文字想象一个人」稳得多。'
-            + '注意：prompt 写运动，这里写静止的那一帧，别把运动词写进来。',
-        },
-        lastFrameDesc: {
-          type: 'string',
-          description:
-            '视频镜可选：这一镜**结束那一帧**的静态画面描述，须与首帧 + 运动逻辑自洽。'
-            + '首尾都给，运动的落点被两端夹住，不会「动到一半人就变了」。'
-            + '仅在该模型确有尾帧槽时才会生效并多花一张图的额度；模型没有这个槽就自动忽略。',
-        },
-      },
-      required: ['projectId', 'vendor', 'modelKey', 'intent', 'prompt'],
-    },
-    method: 'generate',
-    build: (a: Record<string, unknown>) => ({
-      projectId: a.projectId, vendor: a.vendor, modelKey: a.modelKey, intent: a.intent, prompt: a.prompt, nodeId: a.nodeId, references: a.references,
-      // 首尾帧描述直通能力核（core 自己判「模型有没有这个槽」再决定要不要多出那张图）。
-      ...(typeof a.firstFrameDesc === 'string' && a.firstFrameDesc.trim() ? { firstFrameDesc: a.firstFrameDesc.trim() } : {}),
-      ...(typeof a.lastFrameDesc === 'string' && a.lastFrameDesc.trim() ? { lastFrameDesc: a.lastFrameDesc.trim() } : {}),
-      // 画幅/时长经既有 extras/params 通道下沉到 applyHeadlessParamDefaults（caller-wins）。装配为规范化的
-      // params 交给 core.generateOnProject（它把 params 铺进 extras）——键名归一在 buildGenerateParams，
-      // 不 hardcode 任何 vendor：比例同时铺 aspect_ratio/size/aspectRatio 三别名，覆盖不同 archetype 读的键。
-      ...(() => {
-        const params = buildGenerateParams(a)
-        return Object.keys(params).length ? { params } : {}
-      })(),
-    }),
   },
 ] as const
 

@@ -13,6 +13,8 @@ export const GENERATION_BINDING_MARKERS: ReadonlySet<string> = new Set([
   'runtimeEnvelopeHash', 'fencingEpoch', 'envelopeState', 'providerTaskId', 'sessionId', 'nonce',
   'baseRevision', 'projectRevision', 'attempt', 'runtimeEnvelope',
   'moduleRef', 'operationRef', 'candidate', 'execution', 'resolvedTaskRequest', 'preparedTaskRequest',
+  'authorizationEnvelope', 'authorizationDigest', 'authorizationGateId', 'providerWirePayloadHash',
+  'pricingSnapshotHash', 'gateId',
   'providerRecoveryCapabilities', 'providerId', 'accountId', 'profileId', 'tenantScope', 'endpoint', 'model',
 ])
 

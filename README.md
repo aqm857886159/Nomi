@@ -89,7 +89,7 @@ The installer has no Authenticode signature. In the SmartScreen prompt, choose *
 
 > **Disclosure:** one curated provider (APImart) is linked with a referral code. You always pay providers directly with your own key at their price — Nomi never proxies or resells inference, and every provider can be replaced by your own endpoint.
 
-Read the [user guide](docs/user-guide.md), [provider guide](docs/provider-integration.md), or [CLI + MCP guide](docs/guide/capability-core-cli-mcp.md).
+Read the [user guide](docs/user-guide.md), [provider guide](docs/provider-integration.md), [CLI + MCP guide](docs/guide/capability-core-cli-mcp.md), or [Project Agent Host upgrade note](docs/guide/project-agent-host-upgrade.md).
 
 ## Community
 

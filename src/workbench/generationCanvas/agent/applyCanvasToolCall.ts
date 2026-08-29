@@ -15,12 +15,6 @@ import { listAvailableModelsForAgent, type AgentModelEntry } from './availableMo
 import { buildPlannedNodeMeta } from './plannedNodeMeta'
 import { withCanvasGestureContext, type CanvasGestureContext } from '../events/canvasGestureContext'
 import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
-import { buildDependencyWaves } from '../runner/dependencyWaves'
-import { runPlanWithToasts } from '../components/batchPlanPreview'
-import { resolveAutonomousUploadConsent } from '../runner/generationRunController'
-import { toast } from '../../../ui/toast'
-import { mintSpendGrant } from '../../api/taskApi'
-import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlan'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
@@ -569,53 +563,6 @@ export async function applyCanvasToolCall(
       : []
     const deleted = inCtx(() => generationCanvasTools.delete_nodes(nodeIds))
     return { deletedNodeIds: deleted }
-  }
-
-  if (toolName === 'run_generation_batch') {
-    const projectId = getDesktopActiveProjectId()
-    // S6b 受理语义:本分支只在用户批准后到达(确认前零网络调用)。受理 = 按依赖波次
-    // 规划(显示的≡执行的,S2b 纯函数)并启动;立即返回受理回执——生成进度走 run 域
-    // 事件给用户看,不阻塞 LLM 回合。approved nodeIds ≡ requested:只跑请求里解析
-    // 出来的真实节点,一个不多。
-    const requested = Array.isArray(record.nodeIds)
-      ? record.nodeIds.map((id) => resolveNodeId(String(id || '').trim())).filter(Boolean)
-      : []
-    const existing = new Set(readGenerationCanvasSnapshot().nodes.map((node) => node.id))
-    const nodeIds = requested.filter((id) => existing.has(id))
-    if (!nodeIds.length) throw new Error('node_not_found:请求生成的节点都不存在')
-    const state = readGenerationCanvasSnapshot()
-    const plan = buildDependencyWaves(nodeIds, { nodes: state.nodes, edges: state.edges })
-    const accepted = plan.waves.flat()
-    if (!accepted.length) {
-      const reasons = plan.blocked.map((item) => item.detail).join(';')
-      throw new Error(`批量被拦:${reasons || '没有可执行节点'}`)
-    }
-    // 付费守卫：本分支只在用户批准 pending 卡后到达（人手势在上游）→ 铸令牌绑受理节点，
-    // 随 plan 下到主进程 runTask 核验。删了 defaultExecuteToolCall 的自动放行旁路后此处不会被 AI 静默触发。
-    // 托管同意：这条是**外部 agent 受理**路径，回合不阻塞、也没人在等着点第二张卡。
-    // 交给同一个策略真相源逐节点判定（resolveAutonomousUploadConsent）：策略允许 / KIE 已配
-    // / 本地 ComfyUI → 放行；还需要问一次 → 拒发并把人话原因走 toast 告诉用户，不偷偷上传。
-    void mintSpendGrant(accepted)
-      .then(async (grantId) => {
-        // Approval survives normal Agent finish, but must never hand its node IDs
-        // to another project's live canvas while authorization/consent awaits.
-        if (getDesktopActiveProjectId() !== projectId) return
-        const decisions = await Promise.all(accepted.map((id) => resolveAutonomousUploadConsent(id)))
-        if (getDesktopActiveProjectId() !== projectId) return
-        const consent = decisions.includes('allow') ? ('allow' as const) : ('not-needed' as const)
-        await runPlanWithToasts(plan, { grantId, assetUploadConsent: consent })
-      })
-      .catch((error: unknown) => {
-        // 进度/结果本来全走 toast+run 域事件；托管被拒是唯一需要在此说人话的失败。
-        const message = error instanceof Error && error.message ? error.message : ''
-        if (message) toast(message, 'error')
-      })
-    return {
-      accepted: true,
-      acceptedNodeIds: accepted,
-      waves: plan.waves.length,
-      blocked: plan.blocked.map((item) => ({ nodeId: item.nodeId, detail: item.detail })),
-    }
   }
 
   if (toolName === 'arrange_storyboard_to_timeline') {

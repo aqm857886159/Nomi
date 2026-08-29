@@ -94,9 +94,6 @@ export function buildToolErrorOutcome(
     `✗ ${userAction ? L(ctx, userAction.zh, userAction.en) : hint ? L(ctx, hint.zh, hint.en) : message}`,
     userAction ? null : code ? `${L(ctx, '诊断', 'diagnostic')} ${code}` : null,
     ...(!userAction ? recover.map((line, index) => `${index + 1}. ${line}`) : []),
-    !hint && toolName === 'nomi_generate'
-      ? L(ctx, '已完成的内容安全；确认模型服务与 API Key 后可重试。', 'Finished work is safe; verify the model service and API key, then retry.')
-      : null,
   ].filter(Boolean).join('\n')
   return {
     text,

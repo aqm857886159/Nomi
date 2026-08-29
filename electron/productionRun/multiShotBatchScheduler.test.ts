@@ -6,7 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { compileExecutionContract, type PlanCandidate } from "../capabilityCore/executionContract";
 import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
 import type { GenerationProvider } from "../capabilityCore/generationRuntimeAdapter";
+import { prepareProductionGenerationContinuationAuthorization } from "./prepareProductionGenerationAuthorization";
 import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
+import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
 import { createProductionRunRepository } from "./productionRunRepository";
 import { createMultiShotBatchScheduler } from "./multiShotBatchScheduler";
 import type { ProductionGenerationShot } from "./productionRunTypes";
@@ -74,19 +76,26 @@ function setupBatch(shots: ProductionGenerationShot[], maxSpend: number | null):
     policy: { trustedHosts: ["semantic-mcp"], allowedProviders: ["apimart"], allowedModels: ["image-model", "video-model"], maxSpend, maxAttemptsPerJob: 2 },
   });
   const topContract = shots[0].contract!;
-  repository.execute("project-1", "op-batch", {
-    commandId: "generation.seal:op-batch",
-    expectedRevision: 0,
-    type: "generation.seal",
-    payload: { contract: topContract, shots, planHash: "plan-hash-batch" },
-    issuedAt: NOW,
-  });
-  repository.execute("project-1", "op-batch", {
-    commandId: "generation.approve:op-batch:receipt-plan",
-    expectedRevision: 1,
-    type: "generation.approve",
-    payload: { receiptId: "receipt-plan", contractHash: "plan-hash-batch" },
-    issuedAt: NOW,
+  sealAndApproveProductionGeneration({
+    repository,
+    projectId: "project-1",
+    operationId: "op-batch",
+    immutableProjectUuid: "project-uuid-1",
+    projectGeneration: 1,
+    projectRevision: 0,
+    candidate: shots[0].candidate,
+    contract: topContract,
+    providers: [{
+      providerId: "apimart",
+      capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true, materialize: true },
+      buildRequest: (input) => input,
+      submit: async () => ({ providerTaskId: "unused" }),
+    }],
+    multiShot: { shots, planHash: "plan-hash-batch" },
+    resolveShotPrice: () => ({ known: true, amount: 6 }),
+    maximumSpend: maxSpend,
+    receiptId: "receipt-plan",
+    now: NOW,
   });
   // Move the plan to submitted (the batch is confirmed → scheduler drives it).
   repository.execute("project-1", "op-batch", {
@@ -117,9 +126,9 @@ function scheduler(root: string, repository: ReturnType<typeof createProductionR
     projectRoot: root,
     immutableProjectUuid: "project-uuid-1",
     projectGeneration: 1,
+    projectRevision: 0,
     intentMacKey: "test-intent-key",
     provider: mockProvider(submit),
-    resolveShotPrice: () => ({ known: true, amount: 6 }),
     materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.png` }),
     now: () => NOW,
   });
@@ -156,8 +165,10 @@ describe("P4 S4 batch scheduler — budget halt", () => {
     const run = repository.read("project-1", "op-batch")!;
     // Run is halted (needs_attention) — a queryable stop, never silent over-spend.
     expect(run.status).toBe("needs_attention");
-    // shot-c has no job at all.
-    expect(run.jobs.some((j) => j.metadata?.shotId === "shot-c")).toBe(false);
+    // The gate froze shot-c too, but the capped ledger prevents provider submission.
+    const pendingShot = run.jobs.find((j) => j.metadata?.shotId === "shot-c");
+    expect(pendingShot).toMatchObject({ status: "authorized" });
+    expect(pendingShot?.providerTaskId).toBeUndefined();
   });
 
   it("resumes the halted batch after the cap is raised (same plan, second wave)", async () => {
@@ -168,11 +179,29 @@ describe("P4 S4 batch scheduler — budget halt", () => {
     await scheduler(root, repository, submit).runToQuiescence();
     expect(submit).toHaveBeenCalledTimes(2);
 
-    // Raise the cap (提额续拍): re-authorize the plan to a higher ceiling, re-run the scheduler.
+    // Fresh continuation gate: freeze the remaining request again, then let only gate.decide raise the
+    // absolute ledger ceiling. The scheduler remains a pure consumer of approved authority.
     let run = repository.read("project-1", "op-batch")!;
-    // Move back to running so the scheduler can dispatch again (提额 resumes the batch).
+    const continuation = prepareProductionGenerationContinuationAuthorization({
+      lease: { projectId: "project-1", immutableProjectUuid: "project-uuid-1", projectGeneration: 1, revocationEpoch: 0 },
+      projectRevision: 0,
+      run,
+      providers: [mockProvider(submit)],
+      resolveShotPrice: () => ({ known: true, amount: 6 }),
+      now: NOW,
+    });
+    run = repository.execute("project-1", "op-batch", {
+      commandId: "continue-authorize", expectedRevision: run.revision, type: "generation.continue_authorization",
+      payload: { authorization: continuation }, issuedAt: NOW,
+    }).run;
+    expect(run.jobs.find((job) => job.metadata?.shotId === "shot-c")?.status).toBe("authorization_required");
+    run = repository.execute("project-1", "op-batch", {
+      commandId: "continue-approve", expectedRevision: run.revision, type: "gate.decide",
+      payload: { gateId: continuation.envelope.gateId, status: "approved", receiptId: "receipt-continuation", authorizationDigest: continuation.authorizationDigest }, issuedAt: NOW,
+    }).run;
+    expect(run.budget.authorized).toBe(18);
     repository.execute("project-1", "op-batch", { commandId: `resume:${run.revision}`, expectedRevision: run.revision, type: "run.status", payload: { status: "running" }, issuedAt: NOW });
-    const sched2 = scheduler(root, repository, submit, { raisePlanAuthorizationTo: 30 });
+    const sched2 = scheduler(root, repository, submit);
     const outcome2 = await sched2.runToQuiescence();
 
     expect(submit).toHaveBeenCalledTimes(3); // shot-c now submitted
@@ -270,8 +299,10 @@ describe("P4 S4 batch scheduler — anchor checkpoint", () => {
     const gate = run.gates.find((g) => g.scope === "anchor_checkpoint");
     expect(gate).toBeDefined();
     expect(gate?.status).toBe("waiting");
-    // No video shot job yet.
-    expect(run.jobs.some((j) => j.metadata?.shotId === "shot-a")).toBe(false);
+    // The paid gate created the video job, but the free checkpoint still blocks provider submission.
+    const pendingShot = run.jobs.find((j) => j.metadata?.shotId === "shot-a");
+    expect(pendingShot).toMatchObject({ status: "authorized" });
+    expect(pendingShot?.providerTaskId).toBeUndefined();
 
     // Approve the checkpoint → shots release on the next scheduler run.
     repository.execute("project-1", "op-batch", { commandId: `decide:${run.revision}`, expectedRevision: run.revision, type: "gate.decide", payload: { gateId: gate!.gateId, status: "approved" }, issuedAt: NOW });
@@ -292,13 +323,16 @@ describe("P4 S4 batch scheduler — anchor checkpoint", () => {
     await scheduler(root, repository, submit).runToQuiescence();
     let run = repository.read("project-1", "op-batch")!;
     const gate = run.gates.find((g) => g.scope === "anchor_checkpoint")!;
-    // Reject → the scheduler should re-attempt only the anchor.
+    // Reject → scheduler parks. A replacement anchor requires its own fresh rework authority.
     repository.execute("project-1", "op-batch", { commandId: `reject:${run.revision}`, expectedRevision: run.revision, type: "gate.decide", payload: { gateId: gate.gateId, status: "rejected" }, issuedAt: NOW });
 
     const outcome = await scheduler(root, repository, submit).runToQuiescence();
-    // The rejected checkpoint re-attempts the anchor (attempt 2); no video shot submitted.
+    // No second provider submission and no video shot submission occur from a free checkpoint decision.
     run = repository.read("project-1", "op-batch")!;
-    expect(run.jobs.some((j) => j.metadata?.shotId === "shot-a")).toBe(false);
-    void outcome;
+    expect(submit).toHaveBeenCalledTimes(1);
+    const pendingShot = run.jobs.find((j) => j.metadata?.shotId === "shot-a");
+    expect(pendingShot).toMatchObject({ status: "authorized" });
+    expect(pendingShot?.providerTaskId).toBeUndefined();
+    expect(outcome.checkpoint.status).toBe("rejected");
   });
 });

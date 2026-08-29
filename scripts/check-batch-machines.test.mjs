@@ -37,17 +37,17 @@ describe('check:batch-machines · rogue-renderer-batch（禁白名单外调 runG
 
 describe("check:batch-machines · rogue-durable-submit（禁白名单外请求 production.generate-node）", () => {
   const OUTSIDE = 'electron/productionRun/__new_driver.ts'
-  const REQ_HOME = 'electron/productionRun/productionRunDriverOps.ts'
-  const RESP_HOME = 'src/workbench/capability/capabilityApplyHandler.ts'
+  const FIXTURE_HOME = 'electron/productionRun/productionRunE2eFixture.ts'
 
   it('抓：白名单外新起 production.generate-node 请求点', () => {
     expect(scanAs('rogue-durable-submit', OUTSIDE, "return req('production.generate-node', payload)")).toBeGreaterThan(0)
   })
-  it('不误报：请求方白名单家（brand.promo 驱动）', () => {
-    expect(scanAs('rogue-durable-submit', REQ_HOME, "await requestRenderer('production.generate-node', {})")).toBe(0)
+  it('不误报：只读 E2E fixture 可以模拟旧桥输入', () => {
+    expect(scanAs('rogue-durable-submit', FIXTURE_HOME, "case 'production.generate-node': {")).toBe(0)
   })
-  it('不误报：应答方白名单家（渲染层 capabilityApplyHandler，桥的另一端）', () => {
-    expect(scanAs('rogue-durable-submit', RESP_HOME, "case 'production.generate-node': {")).toBe(0)
+  it('抓：旧请求方或应答方重新出现', () => {
+    expect(scanAs('rogue-durable-submit', 'electron/productionRun/productionRunDriverOps.ts', "await requestRenderer('production.generate-node', {})")).toBeGreaterThan(0)
+    expect(scanAs('rogue-durable-submit', 'src/workbench/capability/capabilityApplyHandler.ts', "case 'production.generate-node': {")).toBeGreaterThan(0)
   })
 })
 

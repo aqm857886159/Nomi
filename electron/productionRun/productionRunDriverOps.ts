@@ -11,7 +11,7 @@ import crypto from 'node:crypto'
 import { settlePauseIfQuiet } from './productionRunControl'
 import { adoptedGenerationShotNodeIds, buildQaRetryPlans, buildQaStageOutcome, type QaVerifyResponse } from './productionQaVerdict'
 import type { ProductionRunRepository } from './productionRunRepository'
-import { trustLevelOf, type ProductionRun } from './productionRunTypes'
+import type { ProductionRun } from './productionRunTypes'
 import { loadPlaybookStageEvidence } from '../skills/skillExecutionEvidence'
 
 /** Job ids intentionally contain a namespace separator (`job:run:node`), but artifact ids are
@@ -85,55 +85,6 @@ export function normalizeDirectionCandidates(value: unknown): Array<{ key: strin
   return out
 }
 
-/** B2 样片门 id（每个 planVersion 一道，与合同/导出门同构命名）。 */
-function sampleGateId(planVersion: number): string {
-  return `gate-sample-v${planVersion}`
-}
-
-/** W2 冻结门 id（每个 planVersion 一道，样片门语义扩展的「更早一站」——看锚而非看首镜）。 */
-function freezeGateId(planVersion: number): string {
-  return `gate-freeze-v${planVersion}`
-}
-
-/** W2 冻结门是否已放行（approved）：放行后同批锚幂等，不再重设。 */
-function hasApprovedFreezeGate(run: ProductionRun): boolean {
-  return run.gates.some((gate) => gate.gateId === freezeGateId(run.planVersion) && gate.status === 'approved')
-}
-
-/** W2 冻结门是否在等（waiting）：等过目期间停在门上，不提交任何镜头。 */
-function hasWaitingFreezeGate(run: ProductionRun): boolean {
-  return run.gates.some((gate) => gate.gateId === freezeGateId(run.planVersion) && gate.status === 'waiting')
-}
-
-/**
- * W2 冻结门读锚：问渲染层「本 run 的画布上有哪些视觉锚还没冻结」。复用 production.verify-shots 的同款
- * 主进程→渲染层桥（渲染层读画布 store 的 node.meta.frozen，判据走 anchorBibleKeys 单一镜像）。
- * 韧性铁律（同 qa/审片「绝不阻断生成」）：渲染层不可达 / 桥异常 → 返回空（放行，fail-open），不把冻结门
- * 卡成死结——结构强制的核由 GUI 依赖波次（dependencyWaves，L1 铁律层）与本桥返回真数据时共同承担；
- * 桥挂了不该让整个 production run 永远卡在冻结门。降级留痕（console.error）。
- */
-async function readUnfrozenAnchors(
-  requestRenderer: DriverOpsDeps['requestRenderer'],
-  projectId: string,
-  runId: string,
-): Promise<Array<{ nodeId: string; title?: string }>> {
-  try {
-    const response = await requestRenderer('production.check-frozen', { projectId, runId }, 60_000) as
-      | { unfrozenAnchors?: Array<{ nodeId?: unknown; title?: unknown }> }
-      | null
-    const raw = Array.isArray(response?.unfrozenAnchors) ? response!.unfrozenAnchors : []
-    return raw
-      .map((item) => ({
-        nodeId: typeof item?.nodeId === 'string' ? item.nodeId.trim() : '',
-        ...(typeof item?.title === 'string' && item.title.trim() ? { title: item.title.trim() } : {}),
-      }))
-      .filter((item): item is { nodeId: string; title?: string } => item.nodeId.length > 0)
-  } catch (error) {
-    console.error('[nomi:production] freeze check failed (freeze gate skipped):', error instanceof Error ? error.message : String(error))
-    return []
-  }
-}
-
 /** One durable, URL-safe gate per plan/job. The hash keeps ids stable even when node ids collide
  * after sanitization, while jobIds[0] remains the authoritative job identity. */
 export function shotGateId(planVersion: number, jobId: string, round = 1): string {
@@ -144,18 +95,6 @@ export function shotGateId(planVersion: number, jobId: string, round = 1): strin
 
 export function isShotGate(gate: Pick<ProductionRun['gates'][number], 'gateId' | 'scope'>): boolean {
   return gate.scope === 'job_set' && gate.gateId.startsWith('gate-shot-')
-}
-
-/** B2：样片门是否在等（waiting）。等 → driver 不再提交新镜头（窗口化的花钱边界）。 */
-function hasWaitingSampleGate(run: ProductionRun): boolean {
-  return run.gates.some((gate) => gate.gateId === sampleGateId(run.planVersion) && gate.status === 'waiting')
-}
-
-/**
- * B2/B3：这个 run 要不要设样片门。budget_only（「别问了直接出」）跳过，只留预算门；其余档位都设。
- */
-export function shouldSampleGate(run: ProductionRun): boolean {
-  return trustLevelOf(run.policy) !== 'budget_only'
 }
 
 export type DriverOps = {
@@ -418,146 +357,22 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
       if (current.status === 'ready') {
         current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'running' }, `driver-${run.runId}-generation-start`).run
       }
-      // W2 冻结门（样片门语义扩展的「更早一站」）：批量提交任何镜头**之前**，先确认本 run 的角色/场景卡都已冻结。
-      // 未冻结 → 停在冻结门（scope:'stage'、jobIds:[]，不授权花钱、只呈现「有 N 个锚待冻结」），等真人视觉确认后
-      // 批准（gate.decide 钩子重踢 driveGeneration 续跑）。放行后同批锚幂等不再问（hasApprovedFreezeGate）。
-      // 只在「有待提交镜头 + run 仍 running」时查（暂停/取消/无 job 不触发）；桥挂了 fail-open（readUnfrozenAnchors 韧性）。
-      if (current.status === 'running' && !hasApprovedFreezeGate(current)) {
-        const pendingJobs = current.jobs.filter((job) => job.status === 'authorized' || job.status === 'submit_intent_persisted')
-        if (hasWaitingFreezeGate(current)) return // 已停在冻结门 → 不重复设、不提交（等 decide）。
-        if (pendingJobs.length > 0) {
-          const unfrozen = await readUnfrozenAnchors(requestRenderer, run.projectId, run.runId)
-          current = requireRun(run.projectId, run.runId)
-          if (unfrozen.length > 0 && current.status === 'running'
-            && !current.gates.some((gate) => gate.gateId === freezeGateId(current.planVersion))) {
-            const gateId = freezeGateId(current.planVersion)
-            const anchorList = unfrozen.map((item) => item.title || item.nodeId).join('、')
-            const freezeGate = {
-              gateId,
-              scope: 'stage' as const,
-              status: 'waiting' as const,
-              planHash: crypto.createHash('sha256').update(`${current.planVersion}:freeze:${unfrozen.map((item) => item.nodeId).sort().join(',')}`).digest('hex'),
-              jobIds: [],
-              title: 'Freeze character and scene cards before the batch',
-              summary: `Freeze ${unfrozen.length} reference card(s) in Nomi before Nomi generates the shots that reference them: ${anchorList}. No provider call occurs before you freeze and approve.`,
-              createdAt: new Date().toISOString(),
-              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-            }
-            executeInternal(run.projectId, run.runId, current, 'gate.add', { gate: freezeGate }, `driver-${gateId}`)
-            return // 停在冻结门；批准时 gate.decide 钩子重踢 driveGeneration。
-          }
-        }
-      }
-      const jobs = current.jobs.filter((job) => job.status === 'authorized' || job.status === 'submit_intent_persisted')
-      for (const job of jobs) {
-        current = requireRun(run.projectId, run.runId)
-        if (current.status !== 'running') break // 花钱边界：暂停/取消后不再提交（已提交的收不回，只能跑完收尾）
-        if (hasWaitingSampleGate(current)) break // B2 样片门：等过目期间不提交剩余镜头（喊停最多亏样片这一镜）
-        const shotGates = current.gates.filter((gate) => isShotGate(gate)
-          && gate.gateId.startsWith(`gate-shot-v${current.planVersion}-`)
-          && gate.jobIds.includes(job.jobId))
-        if (shotGates.some((gate) => gate.status === 'waiting')) return
-        const approvedShotGate = shotGates.some((gate) => gate.status === 'approved')
-        if (trustLevelOf(current.policy) === 'confirm_all' && !approvedShotGate) {
-          const gateId = shotGateId(current.planVersion, job.jobId, shotGates.length + 1)
-          const shotGate = {
-            gateId,
-            scope: 'job_set' as const,
-            status: 'waiting' as const,
-            planHash: crypto.createHash('sha256').update(`${current.planVersion}:${job.jobId}:${job.provider}:${job.model}`).digest('hex'),
-            jobIds: [job.jobId],
-            title: 'Approve shot before provider submission',
-            summary: `${job.nodeId || job.jobId} will be submitted to ${job.provider} using ${job.model}. No provider call occurs before approval.`,
-            createdAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          }
-          executeInternal(run.projectId, run.runId, current, 'gate.add', { gate: shotGate }, `driver-${gateId}`)
-          return
-        }
-        if (job.status === 'authorized') current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'submit_intent_persisted' }, `driver-${job.jobId}-intent`).run
-        current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'submitting' }, `driver-${job.jobId}-submit`).run
-        try {
-          const result = await requestRenderer('production.generate-node', {
-            projectId: run.projectId,
-            runId: run.runId,
+      const retiredWriterJobs = current.jobs.filter((job) => job.status === 'authorized' || job.status === 'submit_intent_persisted')
+      if (retiredWriterJobs.length > 0) {
+        for (const job of retiredWriterJobs) {
+          current = executeInternal(run.projectId, run.runId, current, 'job.status', {
             jobId: job.jobId,
-            nodeId: job.nodeId,
-            maxAttemptsPerJob: current.policy.maxAttemptsPerJob,
-            idempotencyKey: job.idempotencyKey,
-            ...(typeof job.retryCount === 'number' ? { retryCount: job.retryCount } : {}),
-            ...(job.parentJobId ? { parentJobId: job.parentJobId } : {}),
-            ...(typeof job.retryReason === 'string' && job.retryReason.trim() ? { retryReason: job.retryReason } : {}),
-            ...(typeof job.metadata?.retryDirective === 'string' && job.metadata.retryDirective.trim()
-              ? { retryDirective: job.metadata.retryDirective.trim() }
-              : {}),
-          }, 30 * 60_000) as { assets?: Array<{ type?: string; url?: string; thumbnailUrl?: string }> }
-          for (const status of ['provider_accepted', 'polling', 'downloading', 'validating_technical', 'validating_content'] as const) {
-            current = requireRun(run.projectId, run.runId)
-            current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status }, `driver-${job.jobId}-${status}`).run
-          }
-          const asset = result?.assets?.[0]
-          const relativePath = localAssetPath(run.projectId, asset?.url)
-          const thumbnailRelativePath = localAssetPath(run.projectId, asset?.thumbnailUrl)
-          current = requireRun(run.projectId, run.runId)
-          if (asset?.url && relativePath) {
-            current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'ready' }, `driver-${job.jobId}-ready`).run
-            const kind = asset.type === 'video' ? 'video' : asset.type === 'audio' ? 'audio' : 'image'
-            const sampleArtifactId = artifactIdentifierForJob(job.jobId)
-            current = executeInternal(run.projectId, run.runId, current, 'artifact.add', {
-              artifact: {
-                artifactId: sampleArtifactId,
-                stageId: 'generate',
-                jobId: job.jobId,
-                kind,
-                status: 'adopted',
-                ...(job.parentJobId ? { parentArtifactId: artifactIdentifierForJob(job.parentJobId) } : {}),
-                ...(job.retryCount !== undefined ? { retryCount: job.retryCount } : {}),
-                ...(job.retryReason ? { retryReason: job.retryReason } : {}),
-                projectRelativePath: relativePath,
-                ...(thumbnailRelativePath ? { thumbnailRelativePath } : {}),
-                createdAt: new Date().toISOString(),
-                adoptedAt: new Date().toISOString(),
-              },
-            }, `driver-${job.jobId}-artifact`).run
-            current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'adopted' }, `driver-${job.jobId}-adopted`).run
-            // B2 样片门：首镜（第一个 adopted 的 generate 任务）落地后停一次，看过再批量。
-            // scope 'stage'、jobIds=[]（不授权花钱，只呈现）；run 保持 running + gate.waiting（面板/转述显示「等确认」）。
-            // 仅 run 仍 running 时设（用户已暂停/取消则不注入门——暂停语义优先，A3 花钱边界不被样片门搅乱）；
-            // 已存在样片门（本 planVersion）或档位跳过 → 不重复设，继续窗口化循环。
-            const adoptedGenerateCount = current.jobs.filter((candidate) => candidate.stageId === 'generate' && candidate.status === 'adopted').length
-            if (current.status === 'running' && adoptedGenerateCount === 1 && shouldSampleGate(current) && !current.gates.some((gate) => gate.gateId === sampleGateId(current.planVersion))) {
-              const sampleGate = {
-                gateId: sampleGateId(current.planVersion),
-                scope: 'stage' as const,
-                status: 'waiting' as const,
-                planHash: crypto.createHash('sha256').update(sampleArtifactId).digest('hex'),
-                jobIds: [],
-                title: 'Review the sample before the full batch',
-                summary: `Look at the first shot (${sampleArtifactId}) in Nomi before Nomi generates the remaining shots. Approve to continue, or pause to adjust.`,
-                createdAt: new Date().toISOString(),
-                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-              }
-              current = executeInternal(run.projectId, run.runId, current, 'gate.add', { gate: sampleGate }, `driver-${run.runId}-sample-gate`).run
-              return // 停在样片门；批准时 gate.decide 钩子重踢 driveGeneration 续跑剩余镜头。
-            }
-          } else {
-            current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'needs_attention', patch: { errorCode: 'asset_not_localized', errorMessage: '生成已返回，但项目内没有可预览的本地素材' } }, `driver-${job.jobId}-asset-attention`).run
-            if (current.status !== 'needs_attention') {
-              current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'needs_attention' }, `driver-${run.runId}-asset-attention-${current.revision}`).run
-            }
-            return
-          }
-        } catch (error) {
-          current = requireRun(run.projectId, run.runId)
-          if (current.jobs.find((candidate) => candidate.jobId === job.jobId)?.status === 'submitting') {
-            current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'submission_unknown', patch: { errorCode: 'renderer_or_provider_unknown', errorMessage: '生成提交结果无法确认' } }, `driver-${job.jobId}-unknown-${current.revision}`).run
-          }
-          if (current.status !== 'needs_attention') {
-            try { current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'needs_attention' }, `driver-${run.runId}-generation-attention-${current.revision}`).run } catch { /* preserve unknown job state */ }
-          }
-          console.error('[nomi:production] generation driver stopped:', error instanceof Error ? error.message : String(error))
-          return
+            status: 'needs_attention',
+            patch: {
+              errorCode: 'legacy_generation_writer_retired',
+              errorMessage: 'This legacy generation job was interrupted by the Agent Host upgrade and was not submitted. Re-plan it through the current generation flow.',
+            },
+          }, `driver-${job.jobId}-writer-retired`).run
         }
+        if (current.status !== 'needs_attention') {
+          current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'needs_attention' }, `driver-${run.runId}-writer-retired`).run
+        }
+        return
       }
       current = settlePauseIfQuiet(repository, run.projectId, run.runId, requireRun(run.projectId, run.runId))
       if (current.status !== 'running') return

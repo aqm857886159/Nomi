@@ -1,4 +1,4 @@
-import type { GenerationProvider, GenerationProviderOutput, ResolvedTaskRequestV1 } from "./generationRuntimeAdapter";
+import type { GenerationProvider, GenerationProviderOutput, GenerationProviderRequestInputV1 } from "./generationRuntimeAdapter";
 import { appFetch } from "../appFetch";
 
 export type ApimartGenerationProviderOptions = {
@@ -30,7 +30,7 @@ function parameter(parameters: Record<string, unknown>, ...keys: string[]): unkn
   return keys.map((key) => parameters[key]).find((value) => value !== undefined && value !== null && value !== "");
 }
 
-function buildImageRequest(input: ResolvedTaskRequestV1): JsonRecord {
+function buildImageRequest(input: GenerationProviderRequestInputV1): JsonRecord {
   const parameters = input.parameters;
   const body: JsonRecord = {
     model: input.modelId,

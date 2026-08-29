@@ -1,4 +1,5 @@
 import type { ProductionExecutionBinding } from "./productionExecutionBinding";
+import type { ProductionGenerationAuthorizationEnvelopeV1 } from "./productionGenerationAuthorization";
 import type { ExecutionContractV1, PlanCandidate } from "../capabilityCore/executionContract";
 
 export const PRODUCTION_RUN_SCHEMA_VERSION = 1;
@@ -151,6 +152,8 @@ export type ProductionJob = {
   requestFingerprint?: string;
   runtimeEnvelopeRef?: string;
   providerIdempotencyKey?: string;
+  /** Canonical paid authority shared by the gate, Approval, outbox and provider payload. */
+  authorizationDigest?: string;
   taskKind?: string;
   nodeId?: string;
   /** Storyboard provenance copied from the approved script at plan.attach time. */
@@ -235,6 +238,10 @@ export type ProductionGenerationPlan = {
   shots?: ProductionGenerationShot[];
   /** Plan-level hash freezing the whole multi-shot operation (anchor + included shots) at seal time. */
   planHash?: string;
+  /** Immutable paid submission authority prepared before the human gate. */
+  authorizationEnvelope?: ProductionGenerationAuthorizationEnvelopeV1;
+  authorizationDigest?: string;
+  authorizationGateId?: string;
   /**
    * P4 S2 seal-time cost certainty. "known" = every included shot had a derived price at seal.
    * "partial" = the plan sealed with at least one unpriced shot (honest "we could not price all of
@@ -267,6 +274,11 @@ export type ProductionGate = {
   scope: "stage" | "job_set" | "budget_envelope" | "export" | "publish" | "anchor_checkpoint";
   status: ProductionGateStatus;
   planHash: string;
+  /** Present only for the paid generation gate whose planHash is the canonical digest. */
+  authorizationDigest?: string;
+  costScope?: string;
+  receiptId?: string;
+  requestedSpend?: number;
   jobIds: string[];
   title: string;
   summary: string;
@@ -352,7 +364,8 @@ export type ProductionActionResult = {
   ok: boolean;
   code:
     | "reworked" // 返工已确认并派发
-    | "rework_declined" // 用户取消/超时单镜确认 → 不扣费，新 Job 留 authorized
+    | "rework_declined" // 用户取消/超时单镜确认 → 不扣费，新 Job 保持未授权
+    | "resume_declined" // 用户取消/超时续拍确认 → 不扣费，剩余 Job 不提交
     | "resumed" // 续拍已重启
     | "no_prior_attempt" // 该镜没有可返工的上一次（从没生成过）
     | "run_not_open" // 该项目不是当前打开的项目（守卫）
@@ -377,6 +390,8 @@ export type Approval = {
   runId: string;
   scope: ProductionGate["scope"];
   planHash: string;
+  authorizationDigest?: string;
+  receiptId?: string;
   jobIds: string[];
   allowedProviders: string[];
   allowedModels: string[];

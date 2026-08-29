@@ -1,16 +1,12 @@
-import { setImmediate } from 'node:timers/promises'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentsChatResponseDto } from '../../../api/desktopClient'
 import type { RunWorkbenchAgentInput, ToolCallEvent } from '../../ai/workbenchAgentRunner'
 import type { TimelineClip } from '../../timeline/timelineTypes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-const deps = vi.hoisted(() => ({ run: vi.fn(), catalog: vi.fn(), clip: vi.fn(), grant: vi.fn(), consent: vi.fn(), dispatch: vi.fn() }))
+const deps = vi.hoisted(() => ({ run: vi.fn(), catalog: vi.fn(), clip: vi.fn() }))
 vi.mock('../../ai/workbenchAgentRunner', () => ({ runWorkbenchAgent: deps.run }))
 vi.mock('./availableModels', () => ({ listAvailableModelsForAgent: deps.catalog, formatAvailableModelsForPrompt: () => '' }))
 vi.mock('../../timeline/buildGenerationNodeTimelineClip', () => ({ buildGenerationNodeTimelineClip: deps.clip }))
-vi.mock('../../api/taskApi', () => ({ mintSpendGrant: deps.grant }))
-vi.mock('../runner/generationRunController', () => ({ resolveAutonomousUploadConsent: deps.consent }))
-vi.mock('../components/batchPlanPreview', () => ({ runPlanWithToasts: deps.dispatch }))
 import { sendGenerationCanvasAgentMessage } from './generationCanvasAgentClient'
 import { claimCanvasApprovalBatch, resolveCanvasApprovalSteps } from './canvasApprovalSteps'
 import { applyProposalBatch } from './proposalTxn'
@@ -36,9 +32,6 @@ const captured: CanvasShadowEvent[] = []
 beforeEach(() => {
   vi.clearAllMocks()
   deps.catalog.mockResolvedValue([])
-  deps.grant.mockResolvedValue('grant-A')
-  deps.consent.mockResolvedValue('not-needed')
-  deps.dispatch.mockResolvedValue(undefined)
   setDesktopActiveProjectId('project-A')
   useCanvasTurnStore.getState().abandon()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node()], edges: [], groups: [] })
@@ -352,22 +345,4 @@ describe('tool-call approval lifetime at real mutation boundaries', () => {
     await session.finish()
   })
 
-  it('a legitimately approved generation handoff survives confirmation and normal Agent finish', async () => {
-    const session = await startApprovalTurn()
-    const grant = deferred<string>()
-    deps.grant.mockReturnValueOnce(grant.promise)
-    session.call('generate', 'run_generation_batch', { nodeIds: ['existing'] })
-    const generation = session.pending.get('generate')!
-    expect((await session.approve(['generate']))?.status).toBe('committed')
-    expect(generation.isPending()).toBe(false)
-    expect(deps.grant).toHaveBeenCalledExactlyOnceWith(['existing'])
-    await session.finish()
-    useCanvasTurnStore.getState().finish(session.turn.id)
-    grant.resolve('approved-grant')
-    await setImmediate()
-    expect(deps.dispatch).toHaveBeenCalledExactlyOnceWith(
-      { waves: [['existing']], blocked: [], edgesUsed: [] },
-      { grantId: 'approved-grant', assetUploadConsent: 'not-needed' },
-    )
-  })
 })

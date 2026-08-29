@@ -19,7 +19,7 @@ import { appFetch } from '../appFetch'
 import { readProxyPrefs } from '../proxySettings'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { startArtifactPreviewHttpServer, withAssetPreview } from '../productionRun/artifactPreviewHttpServer'
-import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
+import { readWorkspaceProject, resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { getProjectLocationState, getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { dispatchAndEnrich } from './mcpResultEnrichLive'
 import { makeShotVerifyDeps } from './shotVerifyDeps'
@@ -34,6 +34,7 @@ import type { DispatchContext } from './dispatcher'
 import { createGenerationPlanningHandler } from './mcpGenerationTools'
 import { createProductionGenerationOperationStore } from '../productionRun/productionGenerationOperationStore'
 import { createProductionGenerationSubmission } from '../productionRun/productionGenerationSubmission'
+import { prepareProductionGenerationAuthorization } from '../productionRun/prepareProductionGenerationAuthorization'
 import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
 import type { ModuleRegistry } from './moduleRegistry'
 import { createCatalogModuleRegistry } from './moduleCatalogBootstrap'
@@ -48,6 +49,7 @@ import { createMcpLoopbackRpcRequest } from './mcpLoopbackRpcRequest'
 import { createHeadlessCanvasReadExecutionRuntime, type CanvasReadExecutionRuntime } from './canvasReadExecutionRuntime'
 import { createMcpCanvasReadTransportAdapter } from './canvasReadTransportAdapters'
 import type { VerifiedProjectSessionBinding } from './projectSessionRuntime'
+import { createRunOwnedGenerationGateAuthority } from './runOwnedGenerationGateAuthority'
 
 const productionRuns = getProductionRunService()
 
@@ -234,26 +236,44 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   // resolver; the submission seam uses the contract→ShotPrice resolver for its ledger amounts.
   const resolveModelPricing = (providerId: string, modelId: string) => createCatalogModelPricingResolver(readCatalog().models)(providerId, modelId)
   const resolveShotPrice = (contract: Parameters<ReturnType<typeof createCatalogShotPriceResolver>>[0]) => createCatalogShotPriceResolver(readCatalog().models)(contract)
+  const operationStore = createProductionGenerationOperationStore(productionRuns)
   const generationPlanning = authorities.generationPlanning
     ?? createGenerationPlanningHandler({
       registry: generationRegistry,
-      operations: createProductionGenerationOperationStore(productionRuns),
+      operations: operationStore,
       videoModelCandidates,
       recommendVideoGeneration,
       resolveModelPricing,
       providerReadiness: ({ providerId }) => providerBootstrap.readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ['configured_provider'] },
+      prepareAuthorization: ({ lease, operation, contract, multiShot }) => {
+        const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
+        if (!projectRecord || !Number.isInteger(projectRecord.revision)) throw new Error('Generation authorization requires the current project revision')
+        const authorizationRun = productionRuns.repository.read(lease.projectId, operation.operationId)
+        return prepareProductionGenerationAuthorization({
+          lease,
+          projectRevision: projectRecord.revision,
+          operation,
+          contract,
+          ...(multiShot ? { multiShot } : {}),
+          providers: providerBootstrap.providers,
+          resolveShotPrice,
+          maximumSpend: authorizationRun?.policy.maxSpend,
+          now: new Date().toISOString(),
+        })
+      },
       start: async (operation, lease) => {
         const provider = providerBootstrap.providers.find((candidate) => candidate.providerId === operation.contract?.providerId)
         const projectRoot = resolveWorkspaceProjectDir(lease.projectId, getWorkspaceRepositoryDeps())
-        if (!provider || !projectRoot || !operation.contract) return { operationId: operation.operationId, state: operation.state, nextAction: 'provider_not_configured' }
+        const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
+        if (!provider || !projectRoot || !operation.contract || !projectRecord || !Number.isInteger(projectRecord.revision)) return { operationId: operation.operationId, state: operation.state, nextAction: 'provider_not_configured' }
         return createProductionGenerationSubmission({
           repository: productionRuns.repository,
           projectRoot,
           immutableProjectUuid: lease.immutableProjectUuid,
           projectGeneration: lease.projectGeneration,
+          projectRevision: projectRecord.revision,
           intentMacKey: ensureCapabilitySigningKey('generation-intent'),
-          provider,
-          resolveShotPrice,
+          providers: providerBootstrap.providers,
           materializeOutput: ({ projectId, providerTaskId, output }) => outputMaterializer.materialize({ projectId, providerTaskId, output }),
         }).start({ projectId: lease.projectId, operationId: operation.operationId })
       },
@@ -261,16 +281,17 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         if (outcome === 'not_found') return { operationId: operation.operationId, outcome, nextAction: 'manual_review' }
         const provider = providerBootstrap.providers.find((candidate) => candidate.providerId === operation.contract?.providerId)
         const projectRoot = resolveWorkspaceProjectDir(lease.projectId, getWorkspaceRepositoryDeps())
-        if (!provider || !projectRoot || !operation.contract) return { operationId: operation.operationId, outcome, nextAction: 'manual_review' }
+        const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
+        if (!provider || !projectRoot || !operation.contract || !projectRecord || !Number.isInteger(projectRecord.revision)) return { operationId: operation.operationId, outcome, nextAction: 'manual_review' }
         if (!provider.query || !provider.capabilities.query) return { operationId: operation.operationId, outcome, nextAction: 'manual_review', recoveryNotice: '该供应商没有可用的任务查询；请到供应商核对。' }
         const submission = createProductionGenerationSubmission({
           repository: productionRuns.repository,
           projectRoot,
           immutableProjectUuid: lease.immutableProjectUuid,
           projectGeneration: lease.projectGeneration,
+          projectRevision: projectRecord.revision,
           intentMacKey: ensureCapabilitySigningKey('generation-intent'),
-          provider,
-          resolveShotPrice,
+          providers: providerBootstrap.providers,
           materializeOutput: ({ projectId, providerTaskId, output }) => outputMaterializer.materialize({ projectId, providerTaskId, output }),
         })
         try {
@@ -285,13 +306,32 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         }
       },
     })
+  const runOwnedGenerationAuthority = authorities.approvalReceiptAuthority
+    ? createRunOwnedGenerationGateAuthority({
+        owner: productionRuns,
+        operations: operationStore,
+        planning: generationPlanning,
+        receipts: authorities.approvalReceiptAuthority,
+      })
+    : undefined
+  const generationAuthorities = {
+    ...authorities,
+    generationPlanning,
+    generationPolicy,
+    ...(authorities.requestGenerationGate ?? runOwnedGenerationAuthority?.requestGenerationGate
+      ? { requestGenerationGate: authorities.requestGenerationGate ?? runOwnedGenerationAuthority!.requestGenerationGate }
+      : {}),
+    ...(authorities.authorizeGeneration ?? runOwnedGenerationAuthority?.authorizeGeneration
+      ? { authorizeGeneration: authorities.authorizeGeneration ?? runOwnedGenerationAuthority!.authorizeGeneration }
+      : {}),
+  }
   const protocol = createMcpProtocol({
     send: (message) => process.stdout.write(JSON.stringify(message) + '\n'),
     invoke: (method, params, options) => invoke(
       method,
       params,
       options,
-      { ...authorities, generationPlanning, generationPolicy },
+      generationAuthorities,
       projectSession,
       canvasReadExecutionRuntime,
     ),

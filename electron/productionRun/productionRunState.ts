@@ -8,8 +8,8 @@ import type {
 const JOB_TRANSITIONS: Record<ProductionJobStatus, readonly ProductionJobStatus[]> = {
   planned: ["authorization_required"],
   authorization_required: ["authorized"],
-  authorized: ["submit_intent_persisted"],
-  submit_intent_persisted: ["submitting"],
+  authorized: ["submit_intent_persisted", "needs_attention"],
+  submit_intent_persisted: ["submitting", "needs_attention"],
   submitting: ["provider_accepted", "submission_unknown"],
   provider_accepted: ["polling", "ready", "needs_attention", "cancel_requested"],
   polling: ["downloading", "ready", "retry_wait", "needs_attention", "cancel_requested"],

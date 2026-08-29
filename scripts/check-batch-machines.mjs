@@ -3,9 +3,9 @@
 //
 // 起因：P4 收敛审查发现三套并行批量机器长期共存（P1 违规存量）：
 //   ① 语义调度器 multiShotBatchScheduler（正牌：无自有状态派生、合同/收据/预算/检查点/慢供应商韧性）；
-//   ② brand.promo driveGeneration（legacy 顺序循环，逐 job production.generate-node）；
+//   ② brand.promo driveGeneration（legacy 顺序循环，已退役；未提交 job 只转 needs_attention）；
 //   ③ GUI 画布 runner runGenerationNodesByPlan/Batch（渲染层自有派发，无 Run/receipt/observe）。
-// S7a 的处置：#3 现役唯一 GUI 批量路径 → 显式冻结（不加新功能）；#2 冻结门判据先收敛、整体收编排 S7b；
+// S7a 的处置：#3 现役唯一 GUI 批量路径 → 显式冻结（不加新功能）；#2 已删除 provider 提交原语；
 // #1 legacy MCP 路已 fail-closed。收敛计划见 docs/plan/2026-08-25-p4-s7-legacy-converge.md。
 //
 // 为什么值得一道门岗而不是写进文档（P2 通用性铁律）：「别再造第四台批量机器」「别给冻结的 legacy
@@ -55,14 +55,9 @@ const rel = (file) => path.relative(repoRoot, file).split(path.sep).join('/')
 // 必须同 PR 更新计划的收敛映射表 + 说清为什么这台不是「第四台自有循环」。
 const RUN_GENERATION_NODE_HOMES = new Set([
   'src/workbench/generationCanvas/runner/generationRunController.ts', // #1 GUI 批量的唯一家（worker 循环 + 单节点变体）
-  'src/workbench/generationCanvas/agent/generationCanvasTools.ts', // 单节点 agent 工具（非批量循环）
-  'src/workbench/capability/capabilityApplyHandler.ts', // 单节点 capability apply（语义单镜落节点）
 ])
 const PRODUCTION_GENERATE_NODE_HOMES = new Set([
-  'electron/productionRun/productionRunDriverOps.ts', // #2 brand.promo 驱动**请求方**（S7b 收编后这里的循环删掉）
-  'src/workbench/capability/capabilityApplyHandler.ts', // 渲染层**应答方**（主进程 requestRenderer 的另一端，非新驱动）
   'electron/productionRun/productionRunE2eFixture.ts', // e2e 桩：模拟渲染层应答
-  'electron/capabilityCore/generationDispatcher.ts', // capability 声明（method→scope 映射，非调用）
 ])
 const FROZEN_JUDGMENT_HOMES = new Set([
   'electron/capabilityCore/anchorBible.ts', // 权威判据

@@ -407,19 +407,41 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
       // budget — the checkpoint asks "does the face look right?", not "may Nomi spend?" (the receipt
       // already covered the batch at confirmation). Firing this branch for it would (a) demand
       // policy.maxSpend be set and (b) re-authorize the ledger — neither is correct for a free checkpoint.
-      if (gate.scope === "budget_envelope" && gate.jobIds.length > 0) {
+      if (command.payload.status === "approved" && gate.scope === "budget_envelope" && gate.jobIds.length > 0) {
         const jobs = gate.jobIds.map((jobId) => {
           const job = current.jobs.find((item) => item.jobId === jobId);
           if (!job) throw new Error(`Production job not found: ${jobId}`);
           return job;
         });
+        const plan = current.generationPlan;
+        const authorizationEnvelope = gate.authorizationDigest ? plan?.authorizationEnvelope : undefined;
+        const receiptId = typeof command.payload.receiptId === "string" ? command.payload.receiptId.trim() : "";
+        if (gate.authorizationDigest) {
+          if (
+            !authorizationEnvelope
+            || !receiptId
+            || plan?.authorizationDigest !== gate.authorizationDigest
+            || plan.authorizationGateId !== gate.gateId
+            || gate.planHash !== gate.authorizationDigest
+            || authorizationEnvelope.gateId !== gate.gateId
+            || authorizationEnvelope.costScope !== gate.costScope
+            || authorizationEnvelope.expiresAt !== gate.expiresAt
+            || authorizationEnvelope.jobs.map((job) => job.jobId).join("\n") !== gate.jobIds.join("\n")
+            || jobs.some((job) => job.authorizationDigest !== gate.authorizationDigest)
+          ) {
+            throw new Error("Generation authorization gate is incomplete or inconsistent");
+          }
+        }
         assertProductionPolicyReady(current.policy, jobs);
-        const maxSpend = current.policy.maxSpend!;
+        const maxSpend = authorizationEnvelope?.budget.maximum ?? current.policy.maxSpend!;
+        const ledgerCeiling = authorizationEnvelope?.budget.ledgerCeiling ?? maxSpend;
         const approval: Approval = {
           approvalId: `approval:${gate.gateId}`,
           runId,
           scope: gate.scope,
           planHash: gate.planHash,
+          ...(gate.authorizationDigest ? { authorizationDigest: gate.authorizationDigest } : {}),
+          ...(receiptId ? { receiptId } : {}),
           jobIds: [...gate.jobIds],
           allowedProviders: [...new Set(jobs.map((job) => job.provider))],
           allowedModels: [...new Set(jobs.map((job) => job.model))],
@@ -438,7 +460,7 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
         const authorization: BudgetLedgerEntry = {
           billingEntryId: `${approval.approvalId}:authorize`,
           kind: "authorize",
-          amount: maxSpend,
+          amount: ledgerCeiling,
           occurredAt: timestamp,
         };
         const nextLedger = applyBudgetEntry(ledger, authorization);

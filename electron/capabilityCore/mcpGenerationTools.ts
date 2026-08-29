@@ -35,6 +35,7 @@ import {
 } from "./mcpGenerationVideoResolve";
 import type { ModuleRegistry } from "./moduleRegistry";
 import type { ProjectLeaseV2 } from "./projectLease";
+import type { ProductionGenerationAuthorizationEnvelopeV1 } from "../productionRun/productionGenerationAuthorization";
 import {
   classifyGenerationProviderCapabilities,
   type GenerationProviderCapabilityProfile,
@@ -233,7 +234,15 @@ export type GenerationOperation = Readonly<{
   shots?: ReadonlyArray<GenerationOperationShot>;
   planHash?: string;
   planVersion?: number;
+  authorizationEnvelope?: ProductionGenerationAuthorizationEnvelopeV1;
+  authorizationDigest?: string;
+  authorizationGateId?: string;
   updatedAt: string;
+}>;
+
+export type GenerationAuthorizationPreparation = Readonly<{
+  envelope: ProductionGenerationAuthorizationEnvelopeV1;
+  authorizationDigest: string;
 }>;
 
 export type GenerationOperationStore = {
@@ -243,11 +252,10 @@ export type GenerationOperationStore = {
   patch(projectId: string, operationId: string, patch: Partial<Omit<PlanCandidate, "candidateId" | "revision">>, now: string): GenerationOperation | Promise<GenerationOperation>;
   // P4 S6.5: `multiShot` seals per-shot sub-contracts + planHash (reducer freezes the whole batch). Absent
   // → single-shot seal of the one top-level contract (byte-identical to today).
-  seal(projectId: string, operationId: string, contract: ExecutionContractV1, now: string, multiShot?: GenerationSealMultiShot): GenerationOperation | Promise<GenerationOperation>;
-  approve(projectId: string, operationId: string, receiptId: string, now: string, options?: { attempt?: number }): GenerationOperation | Promise<GenerationOperation>;
+  seal(projectId: string, operationId: string, contract: ExecutionContractV1, now: string, multiShot?: GenerationSealMultiShot, authorization?: GenerationAuthorizationPreparation): GenerationOperation | Promise<GenerationOperation>;
   cancel(projectId: string, operationId: string, now: string): GenerationOperation | Promise<GenerationOperation>;
-  /** P4 S4 试拍首镜: narrow a sealed multi-shot plan to its first included video shot (+ a new plan hash). */
-  trialNarrow?(projectId: string, operationId: string, planHash: string, now: string): GenerationOperation | Promise<GenerationOperation>;
+  /** P4 S4 试拍首镜: invalidate the waiting authority and return a narrowed plan to draft for re-seal. */
+  trialNarrow?(projectId: string, operationId: string, now: string): GenerationOperation | Promise<GenerationOperation>;
 };
 
 function freeze<T>(value: T): T {
@@ -290,7 +298,7 @@ export function createInMemoryGenerationOperationStore(): GenerationOperationSto
       operations.set(keyFor(projectId, operationId), next);
       return next;
     },
-    seal(projectId, operationId, contract, now, multiShot) {
+    seal(projectId, operationId, contract, now, multiShot, authorization) {
       const current = read(projectId, operationId);
       if (!current) throw new Error(`Generation operation not found: ${operationId}`);
       if (current.state === "sealed" && current.contract?.contractHash === contract.contractHash) return current;
@@ -303,16 +311,16 @@ export function createInMemoryGenerationOperationStore(): GenerationOperationSto
         // P4 S6.5: freeze the multi-shot bundle (per-shot sub-contracts + plan hash) exactly as the durable
         // reducer does. The gate projection reads these; a single-shot seal omits them (unchanged).
         ...(multiShot ? { shots: multiShot.shots.map((shot) => ({ ...shot, candidate: { ...shot.candidate } })), planHash: multiShot.planHash } : {}),
+        ...(authorization
+          ? {
+              authorizationEnvelope: structuredClone(authorization.envelope),
+              authorizationDigest: authorization.authorizationDigest,
+              authorizationGateId: authorization.envelope.gateId,
+              planHash: authorization.authorizationDigest,
+            }
+          : {}),
         updatedAt: now,
       });
-      operations.set(keyFor(projectId, operationId), next);
-      return next;
-    },
-    approve(projectId, operationId, receiptId, now) {
-      const current = read(projectId, operationId);
-      if (!current) throw new Error(`Generation operation not found: ${operationId}`);
-      if (current.state !== "sealed" || !current.contract) throw new Error("A sealed generation plan is required before approval");
-      const next = freeze({ ...current, approvedReceiptId: receiptId, updatedAt: now });
       operations.set(keyFor(projectId, operationId), next);
       return next;
     },
@@ -368,6 +376,12 @@ export type GenerationPlanningHandlerDependencies = {
    * 单镜与多镜 create 都过它（一个入口两路都堵，P2 通用性）。抛人话 Error 即拒。Omitted → 不校验（向后兼容）。
    */
   assertReferencesResolvable?: AssertReferencesResolvable;
+  prepareAuthorization?: (input: {
+    lease: ProjectLeaseV2;
+    operation: GenerationOperation;
+    contract: ExecutionContractV1;
+    multiShot?: GenerationSealMultiShot;
+  }) => GenerationAuthorizationPreparation | Promise<GenerationAuthorizationPreparation>;
   start?: (operation: GenerationOperation, lease: ProjectLeaseV2) => unknown | Promise<unknown>;
   reconcile?: (operation: GenerationOperation, outcome: "found" | "not_found", lease: ProjectLeaseV2) => unknown | Promise<unknown>;
 };
@@ -644,8 +658,11 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       // single-shot draft passes no bundle (byte-identical to today). Top contract = shots[0]'s contract
       // (顶层 candidate = shots[0].candidate), so the reducer's top-level match holds.
       const multiShotSeal = current.state === "draft" ? sealMultiShotFor(current) : undefined;
+      const authorization = current.state === "draft" && deps.prepareAuthorization
+        ? await deps.prepareAuthorization({ lease: input.lease, operation: current, contract, ...(multiShotSeal ? { multiShot: multiShotSeal } : {}) })
+        : undefined;
       const sealed = current.state === "draft"
-        ? await deps.operations.seal(input.lease.projectId, operationId, contract, now(), multiShotSeal)
+        ? await deps.operations.seal(input.lease.projectId, operationId, contract, now(), multiShotSeal, authorization)
         : current;
       // P4 S2: the receipt's cost ceiling is this shot's derived price. Unknown (no resolver / no
       // catalog pricing) → 0, meaning unbounded exactly as before (an unpriced model still confirms).
@@ -662,11 +679,11 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
           operationId,
           projectId: input.lease.projectId,
           // A multi-shot receipt is keyed on the PLAN hash (covers the whole batch — §1).
-          contractHash: sealed.planHash ?? contract.contractHash,
+          contractHash: sealed.authorizationDigest ?? sealed.planHash ?? contract.contractHash,
           model: `${contract.providerId}/${contract.modelId}`,
           referenceCount: contract.references.length,
-          costScope: `generation.multi-shot:${operationId}`,
-          maximumCost: knownSubtotal,
+          costScope: sealed.authorizationEnvelope?.costScope ?? `generation.multi-shot:${operationId}`,
+          maximumCost: sealed.authorizationEnvelope?.budget.maximum ?? knownSubtotal,
           costKnown: multiShot.shots.every((shot) => shot.price.known),
           currency: "CNY",
           expiresAt,
@@ -686,11 +703,11 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
         operation: sealed,
         operationId,
         projectId: input.lease.projectId,
-        contractHash: contract.contractHash,
+        contractHash: sealed.authorizationDigest ?? contract.contractHash,
         model: `${contract.providerId}/${contract.modelId}`,
         referenceCount: contract.references.length,
-        costScope: `generation.single-shot:${operationId}`,
-        maximumCost: price.known ? price.amount : 0,
+        costScope: sealed.authorizationEnvelope?.costScope ?? `generation.single-shot:${operationId}`,
+        maximumCost: sealed.authorizationEnvelope?.budget.maximum ?? (price.known ? price.amount : 0),
         costKnown: price.known,
         currency: "CNY",
         expiresAt,
@@ -703,11 +720,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       };
     }
     if (input.capability === "gate_decide") {
-      const receiptId = typeof params.receiptId === "string" ? params.receiptId.trim() : "";
-      if (!receiptId) throw new Error("A verified generation gate receipt is required");
-      const attempt = Number.isInteger(params.attempt) && Number(params.attempt) > 0 ? Number(params.attempt) : undefined;
-      const operation = await deps.operations.approve(input.lease.projectId, operationId, receiptId, now(), attempt === undefined ? undefined : { attempt });
-      return { operation, nextAction: "start" };
+      throw new Error("Generation gate decisions must use the Run-owned authorization seam");
     }
     if (input.capability === "start") {
       if (current.state !== "sealed" || !current.contract || !current.approvedReceiptId) throw new Error("Confirm the generation plan before starting");

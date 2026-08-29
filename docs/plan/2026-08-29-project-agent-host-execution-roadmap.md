@@ -1,6 +1,6 @@
 # Project Agent Host 全阶段执行路线图
 
-> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B、3C、3D 与 Phase 4 Surface/export 已形成远端 checkpoint；当前只剩 Phase 4 authority/cutover closure，之后是 Phase 5 和 Phase 6。后续不再新增 Round。
+> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B、3C、3D 与 Phase 4 Surface/export 已形成远端 checkpoint；Phase 4 authority/cutover 的实现、定向证据、closure gates 和限定评审已完成，当前只剩 commit/push 远端 checkpoint，之后立即进入 Phase 5。后续不再新增 Round。
 
 > 交付方法：本路线图继续是唯一活跃任务真源；复杂方案与执行节奏遵循 [engineering-plan-delivery](../../.agents/skills/engineering-plan-delivery/SKILL.md)。Skill 规定单一真源、宏批次、证据复用和成本熔断，不另建新的 protocol/version/ledger；本路线图负责 Project Agent Host 的具体合同、阶段状态和下一步。
 
@@ -25,7 +25,7 @@
 | Phase 3B | 已完成 focused closure | `document.write` 已完成 Registry/Host/Surface/adapter/UI 路由；写入队列必须冻结可执行 anchor/revision/hash，缺失或 whole-document 占位在入队前 fail closed |
 | Phase 3C | 已完成 checkpoint | canonical `canvas.write@v1` 已统一 set/create/connect/tidy；真实 renderer transaction、receipt correlation、stale/lock、exact result pointer 和旧 owner 删除已通过 focused closure |
 | Phase 3D | 已完成 checkpoint | canonical `timeline.read@v1` / `timeline.write@v1` 已统一 read/range/plan/apply/undo；Timeline kernel、CAS、Workbench Undo 和旧 owner 删除已通过 focused closure |
-| Phase 4 | 进行中（closure 宏批次） | Surface、media、Canvas destructive、manifest、TaskRef、TaskCenter 和 export truth 已完成；剩唯一付费 authority 与 archive-only recovery matrix |
+| Phase 4 | closure 已通过，待远端 checkpoint | 唯一付费 authorization、三条旧 writer 退役与 archive-only active-source cleanup 已完成；affected evidence、结构门和限定 P0/P1 review 已通过 |
 | Phase 5 | 未开始 | Skill/MCP 从 Registry 派生，list/read guard、shrink-only、legacy firewall |
 | Phase 6 | 未开始 | 常驻 UI；只投影已冻结的 Host/domain 状态，基于现有设计系统调整 |
 
@@ -82,6 +82,8 @@ P0/P1 阻断项；P2 或既有非回归进入 backlog，不能反向扩张当前
 
 - 首次打开先把旧 `conversations.json`、旧 Pi context 和旧 Canvas proposal receipt
   复制到只读归档，再写一次性 cutover manifest；新 Host 从空状态初始化。
+- manifest 与归档校验后，活跃位置中 hash 一致的旧 `conversations.json` / `agent-session.json`
+  被删除；清理崩溃可重入，源文件已缺失视为完成，源内容变化则 fail closed 且不误删。
 - 旧 pending/已批准但状态不明的 Agent 操作全部失效且不自动重放；旧 Canvas proposal
   只归档，不迁成可执行 Undo receipt。
 - 文档、画布节点、素材、生成结果及 ProductionRun 继续由各自领域存储保留；
@@ -173,6 +175,28 @@ advertised/routable `nomi_generate` 旧 provider 路。随后按已批准的 arc
 cutover；满足则只补 recovery matrix，不写迁移代码，有真实缺口才做最小修复。整批只有一次
 Phase 4 affected matrix、一次评审、一次 commit/push，不整合 `main`，不跑全仓门。
 
+当前实现已关闭三条旧 writer：renderer `run_generation_batch`、driver
+`production.generate-node` 和 advertised/routable `nomi_generate`。`nomi_generate` 的 policy
+tombstone 保留以 fail closed，但 resolver/catalog、MCP `tools/list`、`tools/call` 和 dispatcher
+不再提供执行路径。archive-only cutover 会归档后移除活跃旧源，绝不恢复旧 queue、审批或 Undo。
+
+#### Phase 4 evidence matrix（closure 前）
+
+| Criterion | Evidence | Fingerprint | Result |
+| --- | --- | --- | --- |
+| 唯一 authorization digest 绑定 gate、Approval、预算、outbox 与 provider payload | `productionGenerationAuthorization.test.ts`、`productionGenerationAuthorizationFlow.test.ts`、`productionGenerationSubmission.test.ts`、`generationRuntimeAdapter.test.ts` | base `de988bcb` + Phase 4 paid-authority source/fixtures | 4 files，42/42 passed |
+| renderer/driver 旧 generation writer 不可路由 | binding/dispatcher 与 renderer/driver legacy route 定向矩阵 | base `de988bcb` + legacy route deletion diff | binding/dispatcher 53/53；renderer 79/79；driver 36/36 passed |
+| `nomi_generate` 不广告、不调用且 tombstone 保留 | `nomiGenerateRetirement.test.ts` 与直接受影响 MCP tests | base `de988bcb` + catalog/protocol/result cleanup diff | 10 files，93/93 passed |
+| archive-only 不重放旧执行且保留作品/付费数据 | `projectAgentMigration.test.ts` | base `de988bcb` + active-source hash cleanup/recovery fixtures | 14/14 passed |
+| Electron 类型合同 | `pnpm exec tsc -p electron/tsconfig.json --noEmit` | base `de988bcb` + current Phase 4 TypeScript diff | passed |
+| 抽取后的共享 gate decision 保持 receipt 绑定与拒绝语义 | `productionGenerationAuthorizationFlow.test.ts` | `runOwnedGenerationGateAuthority.ts` / `appIntegration.ts` extraction fingerprint | 7/7 passed |
+| 返工不覆盖仍被兄弟 job 消费的 run-wide authority | `productionMultiShotSchema.test.ts` | reviewer P1 fix：preparation + reducer 双边界 | 10/10 passed；scoped re-review PASS |
+| Phase 4 closure 结构与 hygiene | `check:root-cause-contracts`、`check:capability-owners`、`check:filesize`、`check:batch-machines`、`git diff --check` | base `de988bcb` + complete Phase 4 diff | passed |
+
+上述证据仅在对应源码、fixture、依赖或环境指纹变化时失效。限定 reviewer 只报告了一个 P1：
+返工覆盖 run-wide authority 时可能遗留仍可派发的兄弟 job。修复在 preparation 与 reducer 两层
+拒绝有待批准/已批准/已写提交 intent 的旧 job，直接证据与 scoped re-review 均通过；未重跑无关测试。
+
 ### B. Phase 5 Skill/MCP
 
 复用现有历史 PR coverage index，只枚举相对记录 SHA 的增量，按 lane 写一次
@@ -209,8 +233,7 @@ journey closure 并 push recovery checkpoint。然后只在最终候选前固定
 
 ## 下一步顺序
 
-1. 完成 Phase 4 Closure 宏批次：唯一付费 authorization、旧直达路径删除、archive-only
-   recovery matrix；定向 closure 后评审、提交并推送，不整合 `main`。
+1. 提交并推送 Phase 4 Closure 远端 checkpoint，不整合 `main`。
 2. 完成 Phase 5 Skill/MCP 宏批次：历史 PR 增量决策、Registry 派生 surface 与 guard；
    定向 closure 后评审、提交并推送，不整合 `main`。
 3. 完成 Phase 6 UI focused checkpoint；推远端后固定并整合一个 `main` SHA，运行唯一一次

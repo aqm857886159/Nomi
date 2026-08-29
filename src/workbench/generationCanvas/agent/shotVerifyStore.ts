@@ -204,7 +204,7 @@ export function buildContentFixMessage(deviations: readonly ReconcileDeviation[]
     ...lines,
     '',
     '请读画布，针对这几镜：先判断是提示词没写清还是分镜本身要调；',
-    '能靠改这几镜的提示词修好的就改提示词，再用 run_generation_batch 只重新生成这几镜（会让我确认花费）。',
+    '能靠改这几镜的提示词修好的就改提示词，再提交一个只包含这几镜的新付费生成提案（会让我确认花费）。',
     '不要动其它已经正常的镜头。',
   ].join('\n')
 }

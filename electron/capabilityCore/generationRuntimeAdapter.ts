@@ -21,6 +21,16 @@ export type ResolvedTaskRequestV1 = {
   executionBinding: ProductionExecutionBinding;
 };
 
+/**
+ * Stable, provider-visible request input. Runtime fencing and envelope fields
+ * deliberately stay out of this shape so a restart cannot change the payload
+ * the user approved.
+ */
+export type GenerationProviderRequestInputV1 = Omit<
+  ResolvedTaskRequestV1,
+  "requestFingerprint" | "executionBinding"
+>;
+
 export type GenerationProviderCapabilities = {
   submitIdempotency: boolean;
   query: boolean;
@@ -46,7 +56,7 @@ export type GenerationProviderMaterializationResult = {
 export type GenerationProvider = {
   providerId: string;
   capabilities: GenerationProviderCapabilities;
-  buildRequest: (input: ResolvedTaskRequestV1) => unknown;
+  buildRequest: (input: GenerationProviderRequestInputV1) => unknown;
   submit: (request: unknown, idempotencyKey: string) => Promise<{ providerTaskId: string; raw?: unknown }>;
   query?: (providerTaskId: string) => Promise<{ status: string; raw?: unknown }>;
   reconcile?: (input: { idempotencyKey: string; providerTaskId?: string }) => Promise<{ found: boolean; providerTaskId?: string; raw?: unknown }>;
@@ -126,6 +136,31 @@ export function resolveExecutionContract(contract: ExecutionContractV1, binding:
   };
 }
 
+function providerInput(request: ResolvedTaskRequestV1): GenerationProviderRequestInputV1 {
+  const { requestFingerprint: _requestFingerprint, executionBinding: _executionBinding, ...stable } = request;
+  return stable;
+}
+
+function stableRequestFor(
+  contract: ExecutionContractV1,
+  providerIdempotencyKey: string,
+): GenerationProviderRequestInputV1 {
+  const idempotencyKey = providerIdempotencyKey.trim();
+  if (!idempotencyKey) throw new GenerationRuntimeBindingError("Provider idempotency key is required");
+  return {
+    moduleId: contract.moduleId,
+    providerId: contract.providerId,
+    modelId: contract.modelId,
+    ...(contract.variantId ? { variantId: contract.variantId } : {}),
+    mode: contract.mode,
+    prompt: contract.prompt,
+    parameters: structuredClone(contract.parameters),
+    references: structuredClone(contract.references),
+    contractHash: contract.contractHash,
+    idempotencyKey,
+  };
+}
+
 export function createGenerationRuntimeAdapter(deps: { providers: readonly GenerationProvider[] }) {
   const providers = new Map<string, GenerationProvider>();
   for (const provider of deps.providers) {
@@ -133,12 +168,14 @@ export function createGenerationRuntimeAdapter(deps: { providers: readonly Gener
     providers.set(provider.providerId, provider);
   }
 
-  function prepare(input: { contract: ExecutionContractV1; binding: ProductionExecutionBinding }): Readonly<{
-    request: ResolvedTaskRequestV1;
+  function prepareAuthorization(input: {
+    contract: ExecutionContractV1;
+    providerIdempotencyKey: string;
+  }): Readonly<{
     providerRequest: unknown;
     providerRequestHash: string;
   }> {
-    const request = resolveExecutionContract(input.contract, input.binding);
+    const request = stableRequestFor(input.contract, input.providerIdempotencyKey);
     const provider = providers.get(request.providerId);
     if (!provider) throw new GenerationProviderCapabilityError(request.providerId, ["registered_provider"]);
     assertGenerationProviderCanSubmit(provider);
@@ -148,22 +185,40 @@ export function createGenerationRuntimeAdapter(deps: { providers: readonly Gener
     if (productionGenerationPayloadHash(second) !== firstHash) {
       throw new GenerationProviderRequestError("Provider buildRequest must be deterministic before approval");
     }
-    return Object.freeze({ request, providerRequest: structuredClone(first), providerRequestHash: firstHash });
+    return Object.freeze({ providerRequest: structuredClone(first), providerRequestHash: firstHash });
+  }
+
+  function prepare(input: { contract: ExecutionContractV1; binding: ProductionExecutionBinding }): Readonly<{
+    request: ResolvedTaskRequestV1;
+    providerRequest: unknown;
+    providerRequestHash: string;
+  }> {
+    const request = resolveExecutionContract(input.contract, input.binding);
+    const stableInput = providerInput(request);
+    const prepared = prepareAuthorization({
+      contract: input.contract,
+      providerIdempotencyKey: stableInput.idempotencyKey,
+    });
+    return Object.freeze({ request, ...prepared });
   }
 
   async function submit(input: {
     contract: ExecutionContractV1;
     binding: ProductionExecutionBinding;
-    expectedProviderRequestHash?: string;
+    expectedProviderRequestHash: string;
+    preparedProviderRequest?: unknown;
   }): Promise<{ providerTaskId: string; raw?: unknown; request: ResolvedTaskRequestV1; providerRequestHash: string }> {
-    const prepared = prepare(input);
-    if (input.expectedProviderRequestHash) {
-      assertProductionGenerationPayloadHash(prepared.providerRequest, input.expectedProviderRequestHash);
-    }
-    const provider = providers.get(prepared.request.providerId)!;
-    const result = await provider.submit(prepared.providerRequest, prepared.request.idempotencyKey);
+    const request = resolveExecutionContract(input.contract, input.binding);
+    const provider = providers.get(request.providerId);
+    if (!provider) throw new GenerationProviderCapabilityError(request.providerId, ["registered_provider"]);
+    assertGenerationProviderCanSubmit(provider);
+    const providerRequest = input.preparedProviderRequest === undefined
+      ? provider.buildRequest(structuredClone(providerInput(request)))
+      : structuredClone(input.preparedProviderRequest);
+    assertProductionGenerationPayloadHash(providerRequest, input.expectedProviderRequestHash);
+    const result = await provider.submit(providerRequest, request.idempotencyKey);
     if (!result.providerTaskId.trim()) throw new Error("Provider returned an empty task id");
-    return { ...result, request: prepared.request, providerRequestHash: prepared.providerRequestHash };
+    return { ...result, request, providerRequestHash: productionGenerationPayloadHash(providerRequest) };
   }
 
   async function query(input: { providerId: string; providerTaskId: string }): Promise<GenerationProviderQueryResult> {
@@ -198,5 +253,5 @@ export function createGenerationRuntimeAdapter(deps: { providers: readonly Gener
     return result;
   }
 
-  return { prepare, submit, query, reconcile, materialize };
+  return { prepareAuthorization, prepare, submit, query, reconcile, materialize };
 }

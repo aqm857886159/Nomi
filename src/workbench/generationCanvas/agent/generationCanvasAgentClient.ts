@@ -105,7 +105,6 @@ function buildStaticAgentSystemPrompt(mode: SendGenerationCanvasAgentMessageInpu
     '- propose_storyboard_plan：把一段故事规划成结构化「分镜方案」（跨镜头一致的锚 + 镜头），先给用户在创作区审阅/修改，不碰画布、不花钱（分镜规划师技能用；确认后才由系统落画布）。',
     `- create_canvas_nodes：在画布上创建一批待用户确认的节点，并用 edges 字段一并提交这些节点之间的引用边（每个节点必须给定 clientId、kind=${creatableKinds} 之一、title、prompt；建议再给 modelKey + 可选 modeId + params 以指定模型和比例/清晰度等参数，取值见下方「可用模型」清单）。`,
     '- connect_canvas_edges：仅用于给画布上已有节点补连引用边（后续编辑场景）；新计划的边必须放在 create_canvas_nodes 的 edges 字段里，不要拆成两次调用。',
-    '- run_generation_batch：为已有节点启动真实生成（花费额度，用户必须确认）。nodeIds 用画布上下文里的真实 id 或本轮 create 的 clientId；系统按依赖波次调度（参考先生成）。返回受理回执，生成进度用户在画布上看。',
     '- set_node_prompt：改写一个已有节点的 prompt（润色模式专用）。',
     '- delete_canvas_nodes：删除一个或多个已有节点（破坏性，需要用户确认）。',
     '- create_staging_reference：用 3D 灰模摆出「谁站哪·朝向谁·做什么动作·从哪个机位拍」，离屏出一张站位参考图并自动连到镜头作 composition_ref——锁死视频模型最易崩的站位/动作/身份。词表外的站位/构图用 customBlocking 自由描述（不渲图、追加进关键帧 prompt）。',
