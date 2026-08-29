@@ -8,13 +8,19 @@ import type {
   ProjectAgentMutation,
   ProjectBinding,
 } from "../shared/projectAgentContracts";
-import type { AgentChatRequest, AgentChatResponse } from "../harness/agentChatContracts";
+import type { AgentChatRequest, AgentChatResponse, AgentChatToolDecision } from "../harness/agentChatContracts";
+import type { RuntimeToolCall } from "../harness/runtime/runtimePort";
 import { createProjectAgentContextBinding } from "./projectAgentContextBinding";
 import {
   createProjectAgentExecutionCoordinator,
   ProjectAgentSubscriptionError,
 } from "./projectAgentExecutionCoordinator";
 import { createProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
+import type {
+  PiDocumentWriteTransportAdapter,
+  PreparedDocumentWrite,
+} from "../capabilityCore/documentWriteTransportAdapters";
+import type { PreconditionSet, TargetRef } from "../shared/capabilityTargeting";
 
 const binding = {
   projectId: "project-a",
@@ -102,6 +108,61 @@ function executionInput(
       history: { kind: "ephemeral" as const },
       projectId: projectBinding.projectId,
     },
+  };
+}
+
+function documentWriteAdapter(options: Readonly<{
+  prepareError?: string;
+  result?: AgentChatToolDecision;
+}> = {}): PiDocumentWriteTransportAdapter & {
+  prepare: ReturnType<typeof vi.fn>;
+  execute: ReturnType<typeof vi.fn>;
+  dispose: ReturnType<typeof vi.fn>;
+} {
+  const prepare = vi.fn(async (
+    call: RuntimeToolCall,
+    input: Readonly<{ documentId: string; target: TargetRef; preconditions: PreconditionSet }>,
+    _signal: AbortSignal,
+  ): Promise<PreparedDocumentWrite | null> => {
+    if (options.prepareError) {
+      throw Object.assign(new Error(options.prepareError), { code: options.prepareError });
+    }
+    const invocation = {
+      target: input.target,
+      preconditions: input.preconditions,
+    } as unknown as PreparedDocumentWrite["invocation"];
+    return Object.freeze({ call, invocation });
+  });
+  const execute = vi.fn(async (
+    _prepared: PreparedDocumentWrite,
+    _signal: AbortSignal,
+  ): Promise<AgentChatToolDecision> => options.result ?? {
+    ok: true,
+    result: { applied: true, revision: 2, contentHash: "fnv1a-next" },
+    silent: true,
+  });
+  const dispose = vi.fn();
+  return { prepare, execute, dispose } as unknown as PiDocumentWriteTransportAdapter & {
+    prepare: ReturnType<typeof vi.fn>;
+    execute: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+  };
+}
+
+function documentWriteResponse(call: RuntimeToolCall, decision: AgentChatToolDecision): AgentChatResponse {
+  return {
+    id: `result-${call.toolCallId}`,
+    status: "finished",
+    text: "done",
+    finishReason: "stop",
+    artifacts: [],
+    toolCalls: [{
+      ...call,
+      status: decision.ok ? "ok" : "denied",
+      ...(decision.ok && decision.result !== undefined ? { result: decision.result } : {}),
+      decision,
+    }],
+    usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
   };
 }
 
@@ -782,6 +843,132 @@ describe("ProjectAgentExecutionCoordinator", () => {
     coordinator.release(opened.subscriptionId);
     expect(documentAdapter.dispose).toHaveBeenCalledOnce();
   });
+
+  it("does not execute a document.write or leave a proposal when the user denies it", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-document-write-denied-"));
+    const documentAdapter = documentWriteAdapter();
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-document-write-denied",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = { toolCallId: "tool-document-write-denied", toolName: "insert_at_cursor", args: { content: "x" } };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          expect(decision).toMatchObject({ ok: false, denied: true });
+          return documentWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { documentWrite: documentAdapter });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: false,
+          denied: true,
+          message: "User denied document write",
+        });
+      }
+    });
+
+    const input = executionInput("document-write-denied", 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(documentAdapter.prepare).toHaveBeenCalledOnce();
+    expect(documentAdapter.execute).not.toHaveBeenCalled();
+    expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(0);
+    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({ status: "failed" });
+  });
+
+  it("executes an approved document.write through the Host and settles its frozen proposal", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-document-write-approved-"));
+    const target = {
+      kind: "document" as const,
+      documentId: "document-document-write-approved",
+      anchor: { kind: "cursor" as const, position: 7, beforeHash: "before-a", afterHash: "after-a" },
+    };
+    const preconditions = { document: { revision: 3, contentHash: "fnv1a-before" } } as const;
+    const documentAdapter = documentWriteAdapter();
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-document-write-approved",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = { toolCallId: "tool-document-write-approved", toolName: "replace_selection", args: { content: "new" } };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          expect(decision).toMatchObject({ ok: true, result: { applied: true } });
+          return documentWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { documentWrite: documentAdapter });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: true,
+          result: { applied: true },
+        });
+      }
+    });
+
+    const base = executionInput("document-write-approved", 0);
+    const input = {
+      ...base,
+      mutation: {
+        ...base.mutation,
+        payload: {
+          ...base.mutation.payload,
+          queueItem: { ...base.mutation.payload.queueItem, target, preconditions },
+        },
+      },
+    };
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(documentAdapter.prepare).toHaveBeenCalledWith(
+      expect.objectContaining({ toolName: "replace_selection" }),
+      { documentId: target.documentId, target, preconditions },
+      expect.any(AbortSignal),
+    );
+    expect(documentAdapter.execute).toHaveBeenCalledOnce();
+    expect(documentAdapter.execute.mock.calls[0]?.[0].invocation).toMatchObject({ target, preconditions });
+    const proposal = final.items.find((item) => item.kind === "proposal");
+    expect(proposal).toMatchObject({ status: "done", approval: { target, preconditions } });
+    expect(final.proposalApprovals).toHaveLength(1);
+    expect(final.proposalApprovals[0]).toMatchObject({ lifecycle: "claimed", ref: { target, preconditions } });
+  });
+
+  it.each(["document_target_stale", "surface_port_stale"] as const)(
+    "fails closed when document.write preparation detects a stale %s",
+    async (staleCode) => {
+      root = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-project-agent-document-write-${staleCode}-`));
+      const documentAdapter = documentWriteAdapter({ prepareError: staleCode });
+      const coordinator = createProjectAgentExecutionCoordinator(
+        createProjectAgentRepositoryRouter({ rootDir: root }),
+        () => `subscription-document-write-${staleCode}`,
+        {
+          runAgent: async (_request, hooks) => {
+            const call = { toolCallId: `tool-${staleCode}`, toolName: "append_to_end", args: { content: "x" } };
+            const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+            expect(decision).toMatchObject({ ok: false, code: staleCode });
+            return documentWriteResponse(call, decision);
+          },
+        },
+      );
+      const opened = await coordinator.open(binding, { documentWrite: documentAdapter });
+      const toolEvents: ProjectAgentExecutionEvent[] = [];
+      coordinator.subscribe(opened.subscriptionId, (event) => toolEvents.push(event));
+
+      const input = executionInput(`document-write-${staleCode}`, 0);
+      await coordinator.enqueue(opened.subscriptionId, input);
+      const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+      expect(documentAdapter.prepare).toHaveBeenCalledOnce();
+      expect(documentAdapter.execute).not.toHaveBeenCalled();
+      expect(toolEvents.filter((event) => event.type === "tool-call")).toHaveLength(0);
+      expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(0);
+    },
+  );
 
   it("terminalizes a running turn when the model runtime fails", async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-execution-error-"));
