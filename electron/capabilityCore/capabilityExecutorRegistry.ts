@@ -59,7 +59,7 @@ export type DocumentWritePort = Readonly<{
 
 type AnyVerifiedInvocation = VerifiedCapabilityInvocation<unknown, unknown>;
 
-export type CanvasReadPortResolver = (invocation: AnyVerifiedInvocation) => CanvasReadPort | DocumentReadPort | DocumentWritePort | Promise<CanvasReadPort | DocumentReadPort | DocumentWritePort>;
+export type CanvasReadPortResolver = (invocation: AnyVerifiedInvocation) => CanvasReadPort | Promise<CanvasReadPort>;
 
 export type CapabilityExecutorRegistryOptions = Readonly<{
   resolveCanvasReadPort: CanvasReadPortResolver;
@@ -252,7 +252,7 @@ export class CapabilityExecutorRegistry {
 
     return bounded(this.#timeoutMs, options.signal, async (signal) => {
       await revalidate(invocation);
-      let port: CanvasReadPort | DocumentReadPort | DocumentWritePort;
+      let port: CanvasReadPort;
       try {
         port = await this.#resolveCanvasReadPort(invocation);
       } catch (error) {
