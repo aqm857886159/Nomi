@@ -51,9 +51,16 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('pending.call.confirm')
     expect(resident).toContain('setAssistantModelPref')
     expect(resident).toContain('projectAgentReferences')
-    for (const icon of ['IconPaperclip', 'IconAt', 'IconSparkles', 'IconNotes', 'IconAdjustmentsHorizontal', 'IconStack2', 'IconArrowUp', 'IconChevronLeft']) {
+    for (const icon of ['IconPaperclip', 'IconAt', 'IconTool', 'IconPencil', 'IconAdjustmentsHorizontal', 'IconRobot', 'IconArrowUp', 'IconChevronLeft']) {
       expect(resident).toContain(icon)
     }
+    expect(resident).not.toContain('IconSparkles')
+    expect(resident).not.toContain('IconNotes')
+    expect(resident).not.toContain('IconStack2')
+    expect(resident).toContain('motion-safe:hover:-translate-y-px')
+    expect(resident).not.toContain("t('agentResident.addToRound')")
+    expect(resident).not.toContain("t('agentResident.promptMenuHint')")
+    expect(resident).not.toContain("t('agentResident.modeMenuHint')")
     expect(resident).toContain('title={t(\'agentResident.attachTitle\')}')
     expect(resident).toContain('aria-haspopup="menu"')
     expect(resident).toContain('data-agent-resident-collapsed="true"')

@@ -93,7 +93,7 @@ try {
     const pill = document.querySelector('[data-agent-resident-collapsed="true"]')
     if (!(pill instanceof HTMLElement)) return false
     const rect = pill.getBoundingClientRect()
-    return Math.round(rect.height) === 36 && rect.width >= 160 && pill.className.includes('rounded-pill') && pill.className.includes('border-nomi-line')
+    return Math.round(rect.height) === 36 && rect.width >= 96 && rect.width <= 180 && pill.className.includes('rounded-pill') && pill.className.includes('border-nomi-line')
   }))
   await screenshotSettled(win, { path: path.join(shotsDir, '01-resident-collapsed.png') })
   await win.getByRole('button', { name: '展开 Agent' }).click()
@@ -132,11 +132,14 @@ try {
   check('Skill opens as a searchable dialog', await win.getByRole('dialog', { name: '技能' }).count() === 1)
   const skillSearch = win.locator('[data-agent-menu="技能"] input').first()
   check('Skill dialog has search', await skillSearch.count() === 1)
+  const compactSkillWidth = await win.locator('[data-agent-menu="技能"]').evaluate((menu) => menu.getBoundingClientRect().width)
+  check('Skill dialog collapses the unused preview space', compactSkillWidth <= 340 && await win.locator('[data-agent-menu="技能"] aside').evaluate((aside) => getComputedStyle(aside).display === 'none'))
   await skillSearch.fill('')
   const availableSkillRows = win.locator('[data-agent-menu="技能"] [data-agent-menu-item]:not([data-agent-menu-item="auto"])')
   if (await availableSkillRows.count()) {
     await availableSkillRows.first().hover()
-    check('hovering a skill exposes its preview pane', (await win.locator('[data-agent-menu="技能"] aside').innerText()).trim().length > 0)
+    const expandedSkillWidth = await win.locator('[data-agent-menu="技能"]').evaluate((menu) => menu.getBoundingClientRect().width)
+    check('hovering a skill exposes its preview pane without losing the compact default', expandedSkillWidth > compactSkillWidth && (await win.locator('[data-agent-menu="技能"] aside').innerText()).trim().length > 0)
     await availableSkillRows.first().click()
     await win.waitForTimeout(120)
     check('selecting a skill creates a removable skill chip', await win.locator('[data-agent-reference^="skill:"]').count() === 1)
@@ -179,7 +182,7 @@ try {
     if (await settingsClose.count()) await settingsClose.click()
   }
   await win.keyboard.press('Escape')
-  check('toolbar uses the PR194 semantic icons with hover labels', await win.evaluate(() => {
+  check('toolbar uses the semantic icons with hover labels and reduced-motion-safe motion', await win.evaluate(() => {
     const expected = [
       ['[data-agent-attachment-trigger]', '添加文件', '添加文件，也可直接拖入'],
       ['[data-agent-mention-trigger]', '引用现场或对象', '@ 引用现场或对象'],
@@ -190,9 +193,13 @@ try {
     ]
     return expected.every(([selector, ariaLabel, title]) => {
       const button = document.querySelector(selector)
-      return button?.getAttribute('aria-label') === ariaLabel && button.getAttribute('title') === title && Math.round(button.getBoundingClientRect().height) === 28 && button.querySelector('svg')
+      return button?.getAttribute('aria-label') === ariaLabel && button.getAttribute('title') === title && Math.round(button.getBoundingClientRect().height) === 28 && button.querySelector('svg') && button.className.includes('transition-[background,border-color,color,transform]') && button.className.includes('motion-safe:hover:-translate-y-px')
     })
   }))
+  const attachmentIcon = win.locator('[data-agent-attachment-trigger]')
+  await attachmentIcon.hover()
+  await win.waitForTimeout(180)
+  check('toolbar hover gives the icon control a restrained transform', await attachmentIcon.evaluate((button) => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? getComputedStyle(button).transform === 'none' : getComputedStyle(button).transform !== 'none'))
 
   const composer = win.locator('[data-agent-composer] textarea').first()
   await composer.fill('跨工作区草稿 RESIDENT_DRAFT')
@@ -209,7 +216,7 @@ try {
     const pill = document.querySelector('[data-agent-resident-collapsed="true"]:not([aria-hidden="true"])')
     if (!(pill instanceof HTMLElement)) return false
     const rect = pill.getBoundingClientRect()
-    return rect.height === 36 && rect.width >= 160 && pill.className.includes('rounded-pill')
+    return rect.height === 36 && rect.width >= 96 && rect.width <= 180 && pill.className.includes('rounded-pill')
   }))
   await win.locator('[data-agent-resident-collapsed="true"]:visible').click()
   await screenshotSettled(win, { path: path.join(shotsDir, '02-resident-generation.png') })
@@ -223,7 +230,7 @@ try {
     const pill = document.querySelector('[data-agent-resident-collapsed="true"]:not([aria-hidden="true"])')
     if (!(pill instanceof HTMLElement)) return false
     const rect = pill.getBoundingClientRect()
-    return rect.height === 36 && rect.width >= 160 && pill.className.includes('rounded-pill')
+    return rect.height === 36 && rect.width >= 96 && rect.width <= 180 && pill.className.includes('rounded-pill')
   }))
   await win.locator('[data-agent-resident-collapsed="true"]:visible').click()
   await win.setViewportSize({ width: 900, height: 720 })
