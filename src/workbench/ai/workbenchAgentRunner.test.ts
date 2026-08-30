@@ -195,12 +195,14 @@ describe('Project Agent workbench compatibility runner', () => {
     const running = runWorkbenchAgent({
       ...baseInput,
       capability: 'canvas-chat',
+      toolProfile: 'timeline',
       target: { kind: 'timeline', clipIds: ['clip-a'] },
       preconditions: { timeline: { revision: 'timeline-rev-1' } },
       originSurface: { surfaceId: 'project-agent-resident', kind: 'preview' },
     })
     const command = deps.enqueue.mock.calls[0][0]
     expect(command).toMatchObject({
+      request: { toolProfile: 'timeline' },
       target: { kind: 'timeline', clipIds: ['clip-a'] },
       preconditions: { timeline: { revision: 'timeline-rev-1' } },
       originSurface: { surfaceId: 'project-agent-resident', kind: 'preview' },

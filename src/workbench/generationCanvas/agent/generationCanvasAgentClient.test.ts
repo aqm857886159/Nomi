@@ -17,7 +17,7 @@ vi.mock('../../project/projectCanvasReadSurface', () => ({
 vi.mock('./applyCanvasToolCall', () => ({ applyCanvasToolCall: vi.fn() }))
 vi.mock('./gate', () => ({ evaluateGate: () => ({ outcome: 'allow' }) }))
 vi.mock('./lockGateContext', () => ({ buildLockGateContext: () => ({}) }))
-import { sendGenerationCanvasAgentMessage } from './generationCanvasAgentClient'
+import { buildStaticAgentSystemPrompt, sendGenerationCanvasAgentMessage } from './generationCanvasAgentClient'
 
 const snapshot: GenerationCanvasSnapshot = { nodes: [], edges: [], groups: [] }
 const node = (id: string): GenerationCanvasNode => ({ id, kind: 'image', title: id, position: { x: 0, y: 0 } })
@@ -49,6 +49,15 @@ beforeEach(() => {
 })
 
 describe('canvas business request ownership', () => {
+  it('keeps Preview timeline instructions separate from generation canvas instructions', () => {
+    const timelinePrompt = buildStaticAgentSystemPrompt('agent', 'timeline')
+    const generationPrompt = buildStaticAgentSystemPrompt('agent')
+    expect(timelinePrompt).toContain('预览·时间线')
+    expect(timelinePrompt).toContain('批准后才写入或导出')
+    expect(generationPrompt).toContain('生成画布')
+    expect(generationPrompt).not.toContain('预览·时间线')
+  })
+
   it.each(['agent', 'chat', 'refine'] as const)('%s uses explicit capability and persistent thread', async (mode) => {
     const input = inputFor(mode)
     await sendGenerationCanvasAgentMessage(input)

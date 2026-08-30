@@ -104,6 +104,16 @@ describe("Project Agent Pi capability projection", () => {
       "inspect_export_job", "verify_render", "export_timeline", "cancel_export_job",
       "read_timeline", "inspect_timeline_range", "propose_edit_plan", "apply_edit_plan", "undo_timeline_edit",
     ]);
+    const timelineSkill = agentToolsForRequest(
+      { capability: "canvas-agent", prompt: "检查时间线并导出" } as never,
+      ["canvas.read", "asset.read", "timeline.read", "timeline.write", "export.read", "export.write"],
+    );
+    expect(timelineSkill.map(({ name }) => name)).toEqual([
+      "read_canvas_state",
+      "get_media", "inspect_media", "search_media", "inspect_source_range", "read_waveform",
+      "inspect_export_job", "verify_render", "export_timeline", "cancel_export_job",
+      "read_timeline", "inspect_timeline_range", "propose_edit_plan", "apply_edit_plan", "undo_timeline_edit",
+    ]);
 
     const production = agentToolsForRequest({ capability: "canvas-agent", prompt: "做一个 5 分钟的品牌短片" } as never);
     expect(production.map(({ name }) => name)).toContain("start_production_run");

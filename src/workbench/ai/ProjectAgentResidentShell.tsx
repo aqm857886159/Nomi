@@ -138,15 +138,57 @@ function readableToolName(t: (key: string, options?: Record<string, unknown>) =>
   return t('agentResident.toolGeneric')
 }
 
+const READABLE_PARAMETER_LABELS: Record<string, string> = {
+  size: 'toolParameterSize',
+  aspectRatio: 'toolParameterAspectRatio',
+  aspect_ratio: 'toolParameterAspectRatio',
+  duration: 'toolParameterDuration',
+  fps: 'toolParameterFrameRate',
+  frameRate: 'toolParameterFrameRate',
+  quality: 'toolParameterQuality',
+  count: 'toolParameterCount',
+  copies: 'toolParameterCount',
+  resolution: 'toolParameterResolution',
+  negative_prompt: 'toolParameterNegativePrompt',
+  negativePrompt: 'toolParameterNegativePrompt',
+  seed: 'toolParameterSeed',
+  steps: 'toolParameterSteps',
+  guidance_scale: 'toolParameterGuidance',
+  guidanceScale: 'toolParameterGuidance',
+}
+const TOOL_CONTEXT_KEYS = new Set(['model', 'modelKey', 'prompt', 'text', 'content', 'nodes', 'edges', 'nodeIds', 'clientId', 'title', 'kind'])
+
+function readableParameterValue(t: (key: string, options?: Record<string, unknown>) => string, value: unknown): string {
+  if (typeof value === 'boolean') return value ? t('agentResident.toolParameterOn') : t('agentResident.toolParameterOff')
+  if (typeof value === 'string' || typeof value === 'number') return String(value)
+  return ''
+}
+
+/** Keep internal schema keys out of the first layer; controls expose the exact editable label later. */
+function readableParameters(t: (key: string, options?: Record<string, unknown>) => string, record: Record<string, unknown>): string {
+  const readable: string[] = []
+  let hidden = 0
+  for (const [key, rawValue] of Object.entries(record)) {
+    if (TOOL_CONTEXT_KEYS.has(key)) continue
+    const value = readableParameterValue(t, rawValue)
+    if (!value) continue
+    const labelKey = READABLE_PARAMETER_LABELS[key]
+    if (!labelKey) {
+      hidden += 1
+      continue
+    }
+    readable.push(`${t(`agentResident.${labelKey}`)}: ${value}`)
+  }
+  if (hidden) readable.push(t('agentResident.toolParameterHidden', { count: hidden }))
+  return readable.join(' · ')
+}
+
 function readableToolSummary(t: (key: string, options?: Record<string, unknown>) => string, name: string, args?: unknown): string {
   const normalized = name.toLowerCase()
   const record = args && typeof args === 'object' ? args as Record<string, unknown> : {}
   const model = typeof record.model === 'string' ? record.model : typeof record.modelKey === 'string' ? record.modelKey : ''
   const prompt = typeof record.prompt === 'string' ? record.prompt : typeof record.text === 'string' ? record.text : ''
-  const parameters = ['size', 'aspectRatio', 'duration', 'fps', 'quality', 'count']
-    .map((key) => typeof record[key] === 'string' || typeof record[key] === 'number' ? `${key}: ${String(record[key])}` : '')
-    .filter(Boolean)
-    .join(' · ')
+  const parameters = readableParameters(t, record)
   const modelKind = model.toLowerCase().includes('video') ? t('agentResident.toolVideoModel') : model.toLowerCase().includes('image') ? t('agentResident.toolImageModel') : ''
   const details = [model ? `${modelKind || t('agentResident.toolModel', { model })}${modelKind ? ` (${model})` : ''}` : '', parameters ? t('agentResident.toolParameters', { parameters }) : '', prompt ? t('agentResident.toolPrompt', { prompt: prompt.slice(0, 96) }) : ''].filter(Boolean).join(' · ')
   const shotCards = Array.isArray(record.nodes) ? record.nodes.slice(0, 4).map((node) => {
@@ -156,7 +198,7 @@ function readableToolSummary(t: (key: string, options?: Record<string, unknown>)
     const shotModelKey = typeof shot.modelKey === 'string' ? shot.modelKey : ''
     const shotModel = shotModelKey ? (shotModelKey.toLowerCase().includes('video') ? t('agentResident.toolVideoModel') : shotModelKey.toLowerCase().includes('image') ? t('agentResident.toolImageModel') : shotModelKey) : ''
     const shotPrompt = typeof shot.prompt === 'string' ? shot.prompt.slice(0, 72) : ''
-    const shotParams = shot.params && typeof shot.params === 'object' ? Object.entries(shot.params as Record<string, unknown>).slice(0, 3).map(([key, value]) => `${key}=${String(value)}`).join(', ') : ''
+    const shotParams = shot.params && typeof shot.params === 'object' ? readableParameters(t, shot.params as Record<string, unknown>) : ''
     return [title, shotModel, shotParams, shotPrompt].filter(Boolean).join(' · ')
   }).filter(Boolean).join(' | ') : ''
   const relations = Array.isArray(record.edges) && record.edges.length ? t('agentResident.toolReferences', { count: record.edges.length }) : ''
@@ -200,7 +242,7 @@ function readableToolDetailRows(t: (key: string, options?: Record<string, unknow
       const title = typeof shot.title === 'string' ? shot.title : t('agentResident.untitledShot')
       const model = typeof shot.modelKey === 'string' ? shot.modelKey : ''
       const prompt = typeof shot.prompt === 'string' ? shot.prompt : ''
-      const params = shot.params && typeof shot.params === 'object' ? Object.entries(shot.params as Record<string, unknown>).map(([key, value]) => `${key}=${String(value)}`).join(' · ') : ''
+      const params = shot.params && typeof shot.params === 'object' ? readableParameters(t, shot.params as Record<string, unknown>) : ''
       return [title, model, params, prompt].filter(Boolean).join(' · ')
     }).filter(Boolean).join(' | ')
     if (shots) rows.push({ label: t('agentResident.toolShotLabel'), value: shots })
@@ -223,8 +265,8 @@ function readableToolDetailRows(t: (key: string, options?: Record<string, unknow
   if (normalized.includes('create_canvas_nodes') || normalized.includes('canvas.write') || normalized.includes('canvas_nodes')) rows.push({ label: t('agentResident.toolBoundaryLabel'), value: t('agentResident.toolNoGeneration') })
   if (typeof record.model === 'string' || typeof record.modelKey === 'string') rows.push({ label: t('agentResident.toolModelLabel'), value: String(record.model ?? record.modelKey) })
   if (typeof record.prompt === 'string' || typeof record.text === 'string') rows.push({ label: t('agentResident.toolPromptLabel'), value: String(record.prompt ?? record.text) })
-  const parameterEntries = ['size', 'aspectRatio', 'aspect_ratio', 'duration', 'fps', 'quality', 'count', 'resolution'].flatMap((key) => typeof record[key] === 'string' || typeof record[key] === 'number' ? [`${key}: ${String(record[key])}`] : [])
-  if (parameterEntries.length) rows.push({ label: t('agentResident.toolParametersLabel'), value: parameterEntries.join(' · ') })
+  const parameterEntries = readableParameters(t, record)
+  if (parameterEntries) rows.push({ label: t('agentResident.toolParametersLabel'), value: parameterEntries })
   if (!rows.length && (normalized.includes('delete_canvas_nodes') || normalized.includes('canvas.delete'))) rows.push({ label: t('agentResident.toolTargetLabel'), value: t('agentResident.toolTargetCount', { count: Array.isArray(record.nodeIds) ? record.nodeIds.length : 0 }) })
   if (!rows.length) rows.push({ label: t('agentResident.toolDetailLabel'), value: readableToolSummary(t, name, args) })
   return rows
@@ -351,10 +393,16 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const addReference = React.useCallback((reference: ProjectAgentReference) => { setReferences((previous) => previous.some((item) => item.id === reference.id) ? previous : [...previous, reference]); closeMenu() }, [closeMenu, setReferences])
   const removeReference = React.useCallback((id: string) => setReferences((previous) => previous.filter((item) => item.id !== id)), [setReferences])
   const focusContext = React.useCallback(() => {
-    window.dispatchEvent(new CustomEvent('nomi-agent-context-focus', { detail: { surface } }))
+    window.dispatchEvent(new CustomEvent('nomi-agent-context-focus', {
+      detail: {
+        surface,
+        nodeIds: surface === 'generation' ? [...selectedNodeIds] : undefined,
+        clipIds: surface === 'preview' ? [...selectedClipIds] : undefined,
+      },
+    }))
     setContextPulse(true)
     window.setTimeout(() => setContextPulse(false), 1400)
-  }, [surface])
+  }, [selectedClipIds, selectedNodeIds, surface])
   const focusReceipt = React.useCallback(() => {
     focusContext()
   }, [focusContext])
@@ -400,9 +448,13 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     const turnId = `turn-resident-${globalThis.crypto.randomUUID()}`
     const surfaceContext = surfaceLabel(t, surface)
     const contextDetail = surface === 'generation' ? t('agentResident.contextNodes', { count: selectedNodeIds.length }) : surface === 'preview' ? t('agentResident.contextClips', { count: selectedClipIds.length }) : t('agentResident.currentDocument')
-    const capability = surface === 'generation' ? 'canvas-agent' as const : surface === 'creation' ? 'creation-editor' as const : 'canvas-chat' as const
+    // Preview is a real timeline task surface, not tool-free chat. Keep the
+    // legacy canvas-chat capability for callers that explicitly need prose,
+    // while the resident routes timeline work through the Host's timeline
+    // profile so read/plan/apply/export can use the existing owner.
+    const capability = surface === 'creation' ? 'creation-editor' as const : 'canvas-agent' as const
     const selectedPrompt = getCreationAiMode(promptModeId)
-    const skillKey = activeSkill?.key ?? (surface === 'generation' ? 'workbench.generation.canvas-planner' : `workbench.creation.${selectedPrompt.id}`)
+    const skillKey = activeSkill?.key ?? (surface === 'creation' ? `workbench.creation.${selectedPrompt.id}` : surface === 'preview' ? 'workbench.timeline.editor' : 'workbench.generation.canvas-planner')
     let target: TargetRef; let preconditions: PreconditionSet | undefined
     try { if (surface === 'creation') { const state = creationDocumentTools?.readState(); target = { kind: 'document', documentId: activeDocumentId, anchor: state?.anchor ?? { kind: 'whole-document' } }; if (state) preconditions = { document: { revision: state.revision, contentHash: state.contentHash } } } else if (surface === 'preview') target = { kind: 'timeline', clipIds: Object.freeze([...selectedClipIds]) }; else target = { kind: 'canvas', nodeIds: Object.freeze([...selectedNodeIds]) } } catch (caught) { setError(friendlyError(caught, t)); return }
     const referencesText = references.length ? `\n\n${t('agentResident.referencesLabel')}: ${references.map((reference) => reference.label).join(', ')}` : ''
@@ -412,10 +464,12 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       const requestMode = runMode === 'ask' && !actionIntent ? 'chat' : 'auto'
       const systemPrompt = surface === 'generation'
         ? buildStaticAgentSystemPrompt(requestMode === 'chat' ? 'chat' : 'agent')
+        : surface === 'preview'
+          ? buildStaticAgentSystemPrompt(requestMode === 'chat' ? 'chat' : 'agent', 'timeline')
         : surface === 'creation' && !activeSkill
           ? selectedPromptPreset.prompt || selectedPrompt.prompt
           : undefined
-      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: text, capability, history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIds : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: surface === 'creation' ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, skillKey, skillName: activeSkill?.name ?? selectedPrompt.title, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); emitPending() } })
+      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: text, capability, ...(surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIds : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: surface === 'creation' ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, skillKey, skillName: activeSkill?.name ?? (surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); emitPending() } })
       setLastTurnTokens(response.usage.totalTokens)
     } catch (caught) { setError(friendlyError(caught, t)) } finally { clearResidentPendingTools(turnId) }
   }, [activeDocumentId, activeSkill, attachmentApi, attachments, closeMenu, creationDocumentTools, draft, editingQueue, promptModeId, references, runMode, selectedClipIds, selectedNodeIds, selectedPromptPreset, setDraft, snapshot, surface, t])

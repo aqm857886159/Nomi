@@ -85,6 +85,7 @@ function ProposalNodeEditor({
   const modes = archetype ? archetypeModeChoices(archetype) : []
   const params = node.params || {}
   const knownParamKeys = new Set(controls.map((control) => control.key))
+  const unsupportedParamCount = Object.keys(params).filter((key) => !knownParamKeys.has(key)).length
 
   const updateNode = (patch: Partial<GenerationProposalNode>): void => onChange(updateGenerationProposalNode(args, index, patch))
   const updateParam = (control: DynamicModelControl, value: string): void => {
@@ -105,7 +106,7 @@ function ProposalNodeEditor({
       <label className="grid min-w-0 gap-1 text-micro text-nomi-ink-60"><span>{t('agentResident.proposalMode')}</span>{modes.length ? <select className={fieldClass()} aria-label={t('agentResident.proposalMode')} value={node.modeId || (archetype ? currentArchetypeMode(archetype, meta).id : '')} onChange={(event) => updateNode({ modeId: event.currentTarget.value })}>{modes.map((mode) => <option key={mode.id} value={mode.id}>{mode.vendorTerm}</option>)}</select> : <input className={fieldClass()} aria-label={t('agentResident.proposalMode')} value={node.modeId || ''} onChange={(event) => updateNode({ modeId: event.currentTarget.value })} placeholder={t('agentResident.proposalModeHint')} />}</label>
     </div>
     {controls.length ? <div className="grid gap-1.5"><div className="text-micro font-medium text-nomi-ink-60">{t('agentResident.proposalParameters')}</div>{controls.map((control) => <ProposalControl key={control.key} control={control} meta={meta} onChange={updateParam} />)}</div> : null}
-    {Object.entries(params).filter(([key]) => !knownParamKeys.has(key)).map(([key, value]) => <label key={key} className="grid gap-1 text-micro text-nomi-ink-60"><span>{key}</span><input className={fieldClass()} aria-label={key} value={valueAsString(value)} onChange={(event) => updateParamValue(key, event.currentTarget.value)} /></label>)}
+    {unsupportedParamCount ? <p className="rounded-nomi-sm border border-nomi-warning/40 bg-nomi-warning-soft px-2 py-1 text-micro text-nomi-ink-70" role="status">{t('agentResident.proposalUnsupportedParameters', { count: unsupportedParamCount })}</p> : null}
   </div>
 }
 

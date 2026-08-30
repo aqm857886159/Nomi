@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconAlertTriangle, IconCheck, IconChevronRight, IconCircleDashed, IconFileText, IconLayoutBoard, IconListCheck, IconLoader2, IconPhoto, IconPlayerStopFilled, IconRotateClockwise, IconSparkles, IconTimelineEvent, IconTool, IconVideo, IconX } from '@tabler/icons-react'
+import { IconAlertTriangle, IconCheck, IconChevronRight, IconCircleDashed, IconFileText, IconLayoutBoard, IconListCheck, IconLoader2, IconPhoto, IconPlayerStopFilled, IconRobot, IconRotateClockwise, IconTimelineEvent, IconTool, IconVideo, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import type { ProjectAgentQueueItem, ProjectAgentStatus } from '../../../../electron/shared/projectAgentContracts'
 
@@ -65,7 +65,7 @@ export function ResidentToolChips({ items, emptyLabel, statusLabel, sectionLabel
                 <span className="shrink-0 text-micro font-medium text-nomi-ink">{item.label}</span>
                 <span className="min-w-0 flex-1 truncate rounded-nomi-sm bg-nomi-ink-05 px-1.5 py-0.5 text-micro text-nomi-ink-60 transition-colors duration-[var(--nomi-transition-fast)] group-hover/row:bg-nomi-ink-10 group-focus-visible/row:bg-nomi-ink-10 motion-reduce:transition-none">{item.summary || statusLabel(item.status)}</span><span title={statusLabel(item.status)} className="grid size-4 shrink-0 place-items-center"><ToolStatusIcon status={item.status} /></span>
               </button>
-              {openItem ? <div id={detailId} className="ml-5 overflow-hidden rounded-nomi-sm border-l border-nomi-line-soft pl-2 text-micro" data-agent-tool-detail="true"><div className="flex items-center justify-between gap-2 border-b border-nomi-line-soft py-1 pr-1"><span className="truncate font-medium text-nomi-ink">{item.name}</span><span className="shrink-0 text-nomi-ink-60">{statusLabel(item.status)}</span></div><dl className="grid gap-1.5 py-1.5 pr-1"><div><dt className="text-nomi-ink-40">{explanationLabel}</dt><dd className="mt-0.5 break-words text-nomi-ink-80">{item.detail || item.summary || emptyLabel}</dd></div><div><dt className="text-nomi-ink-40">{resultLabel}</dt><dd className={cn('mt-0.5 break-words', item.status === 'failed' ? 'text-workbench-danger' : 'text-nomi-ink-80')}>{item.result || emptyLabel}</dd></div></dl></div> : null}
+              {openItem ? <div id={detailId} className="ml-5 overflow-hidden rounded-nomi-sm border-l border-nomi-line-soft pl-2 text-micro" data-agent-tool-detail="true"><div className="flex items-center justify-between gap-2 border-b border-nomi-line-soft py-1 pr-1"><span className="truncate font-medium text-nomi-ink">{item.label}</span><span className="shrink-0 text-nomi-ink-60">{statusLabel(item.status)}</span></div><dl className="grid gap-1.5 py-1.5 pr-1"><div><dt className="text-nomi-ink-40">{explanationLabel}</dt><dd className="mt-0.5 break-words text-nomi-ink-80">{item.detail || item.summary || emptyLabel}</dd></div><div><dt className="text-nomi-ink-40">{resultLabel}</dt><dd className={cn('mt-0.5 break-words', item.status === 'failed' ? 'text-workbench-danger' : 'text-nomi-ink-80')}>{item.result || emptyLabel}</dd></div></dl></div> : null}
             </div>
           })}
         </div>
@@ -88,12 +88,12 @@ export function ResidentApprovalCard({ title, iconName, summary, details, detail
 }
 
 export function ResidentTaskRows({ entries, getLabel, getStatusLabel, editLabel, cancelLabel, stopLabel, queueLabel, queueCountLabel, onEdit, onCancel, onStop }: { entries: readonly ProjectAgentQueueItem[]; getLabel: (entry: ProjectAgentQueueItem) => string; getStatusLabel: (status: ProjectAgentStatus) => string; editLabel: string; cancelLabel: string; stopLabel: string; queueLabel: string; queueCountLabel: string; onEdit: (entry: ProjectAgentQueueItem) => void; onCancel: (entry: ProjectAgentQueueItem) => void; onStop?: (entry: ProjectAgentQueueItem) => void }): JSX.Element | null {
-  if (!entries.length) return null
   const [open, setOpen] = React.useState(entries.length <= 1)
   React.useEffect(() => {
     // 一堆任务时只露出数量，避免队列把正在进行的对话顶出屏幕；单个任务仍直达操作。
     setOpen(entries.length <= 1)
   }, [entries.length])
+  if (!entries.length) return null
   const visibleEntries = entries.slice(-3)
   return <section className="space-y-1 border-t border-nomi-line-soft px-3 py-1.5" data-agent-queue="true">
     <div className="flex items-center justify-between gap-2 text-micro text-nomi-ink-60">
@@ -108,7 +108,7 @@ export function ResidentTaskRows({ entries, getLabel, getStatusLabel, editLabel,
 }
 
 export function ResidentThinkingState({ label, detail, open, onToggle }: { label: string; detail: string; open: boolean; onToggle: () => void }): JSX.Element {
-  return <details open={open} className="rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05" data-agent-thinking="true"><summary className="flex min-h-7 cursor-pointer list-none items-center gap-1.5 px-2.5 py-1.5 text-micro text-nomi-ink-60" onClick={(event) => { event.preventDefault(); onToggle() }}><IconChevronRight size={12} className={cn('transition-transform duration-[var(--nomi-transition-fast)] motion-reduce:transition-none', open && 'rotate-90')} aria-hidden="true" /><IconSparkles size={13} className="text-nomi-accent" aria-hidden="true" /><span className="font-medium">{label}</span></summary>{open ? <p className="m-0 border-t border-nomi-line-soft px-2.5 py-2 text-micro leading-relaxed text-nomi-ink-60">{detail}</p> : null}</details>
+  return <details open={open} className="rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05" data-agent-thinking="true"><summary className="flex min-h-7 cursor-pointer list-none items-center gap-1.5 px-2.5 py-1.5 text-micro text-nomi-ink-60" onClick={(event) => { event.preventDefault(); onToggle() }}><IconChevronRight size={12} className={cn('transition-transform duration-[var(--nomi-transition-fast)] motion-reduce:transition-none', open && 'rotate-90')} aria-hidden="true" /><IconRobot size={13} className="text-nomi-accent" aria-hidden="true" /><span className="font-medium">{label}</span></summary>{open ? <p className="m-0 border-t border-nomi-line-soft px-2.5 py-2 text-micro leading-relaxed text-nomi-ink-60">{detail}</p> : null}</details>
 }
 
 export function ResidentStreamingText({ text, streaming, streamingLabel }: { text: string; streaming: boolean; streamingLabel: string }): JSX.Element {

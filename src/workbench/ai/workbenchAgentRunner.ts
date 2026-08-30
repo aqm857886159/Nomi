@@ -4,6 +4,7 @@ import type {
   AgentChatHistory,
   AgentChatRequest,
   AgentChatToolDecision,
+  AgentToolProfile,
 } from '../../../electron/harness/agentChatContracts'
 import type {
   ProjectAgentExecutionEvent,
@@ -77,6 +78,8 @@ export type RunWorkbenchAgentInput = {
   target?: TargetRef
   preconditions?: PreconditionSet
   originSurface?: ProjectAgentOriginSurfaceRef
+  /** Optional Host-selected profile for a surface-specific tool projection. */
+  toolProfile?: AgentToolProfile
 }
 
 type ObservedToolCall = {
@@ -118,6 +121,7 @@ function buildRequest(input: RunWorkbenchAgentInput): AgentChatRequest {
     skillKey: input.skillKey,
     skillName: input.skillName,
     mode: input.mode ?? 'auto',
+    ...(input.toolProfile ? { toolProfile: input.toolProfile } : {}),
     ...(pref ? { agentModelKey: pref.modelKey, agentVendorKey: pref.vendorKey } : {}),
     ...(input.attachments?.length ? { attachments: input.attachments.map((item) => ({ ...item })) } : {}),
   }

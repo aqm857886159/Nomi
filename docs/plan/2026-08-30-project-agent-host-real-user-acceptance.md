@@ -66,6 +66,23 @@
 
 这条规则把检查入口从“按钮是否存在”提升为“用户价值链是否闭环”，用于阻止同类的伪接通、参数丢失和模型默认值张冠李戴再次进入验收。
 
+### PR #194 / 竞品研究增量对账（2026-08-31）
+
+本次只做当前 Phase 6 合同内的增量，不重排既有阶段。基于 PR #194 head
+`43634a90997f4957a16ad9fca52b0801e8d1e94b` 的逐张证据与
+`docs/design/nomi-design-system.md` 对账：
+
+| 研究模式 | Nomi 决定 | 本批动作 |
+|---|---|---|
+| 原位状态链、Thinking/Tool Chips/Task Rows、摘要→细节 | adopt | 保持现有 Host Item 原位投影；继续用 token、Tabler 图标和按需展开，不追加第二份历史。 |
+| 参数/费用/引用同卡、审批是最终提案 | adapt | 继续复用真实节点参数档案；工具摘要不露 raw key，细节层仍可追查；Preview 入口改走时间线 profile。 |
+| Skill / 模型发现的列表→预览 | adapt | Skill 只收窄能力，模型档案只填声明槽；不把竞品供应商皮肤或营销数据带入 Nomi。 |
+| 竞品自动扣费、CLI/JSON 日志、无语义状态缩写、大块空白 | reject | 保留真实费用/停止/回执；技术字段按需显示；所有布局继续过 Nomi 密度与无障碍门。 |
+
+本增量的可观察出口是：Preview resident 使用同一 Host 的 timeline 工具投影；工具摘要使用用户可理解的字段名；未声明的参数不伪装成可编辑能力。既有图片/视频真实生成闭环与四个 handoff 文档不变。
+
+实现对账结果：参数摘要通过 Nomi i18n 映射为“尺寸/画幅/时长/帧率”等用户语言，未知字段只显示为“其他设置”数量；审批编辑器对当前模型未声明的字段只给出可行动提示，不生成 raw key 输入；“回到现场”携带选中的节点/片段，由 Workbench 复用既有节点聚焦或时间线选择，不新增遮挡侧栏；Preview 请求以 `timeline` profile 和 `workbench.timeline.editor` Skill 保持工具集合稳定，兼容 KV cache 的 sticky profile 规则。
+
 ## 任务角色
 
 1. **新手创作者**：只描述目标，不学习 Nomi 格式；Agent 自动读取当前文稿并给出一次可批准的最小改动。
@@ -87,14 +104,14 @@
 | 文本生成 | Agent 创建 text 节点；现有 text composer 负责流式 `/v1/chat/completions` 和结果落盘 | Text node / Generation runner | 已通过真任务；审批回执期间自动元数据写入已修复竞态 |
 | 镜头卡、引用边、提示词与模型参数 | `canvas-agent`：`read_canvas_state`、`create_canvas_nodes`、`connect_canvas_edges`、`tidy_canvas`、`set_node_prompt`、`create_staging_reference`、`create_camera_move`、`delete_canvas_nodes`；审批卡内可编辑 image/video 节点的 prompt、model、mode 和已声明生成参数 | Canvas owner；Host 承担 proposal/approval，并以最终 `effectiveArgs` 重新 prepare | 已补齐审批编辑与 Host 重校验；仍需在 UI walk 中逐字段对账 |
 | Skill / Prompt 选择 | Resident 的 Skill/Prompt 菜单仅改变方法或本轮表达，不新增权限；工具仍由 capability + skill intersection 决定 | Host policy + Skill library | 必须补真实菜单选择走查；不为每个 Skill 复制一套工具 |
-| 素材、时间线检查与导出 | `canvas-agent` 还暴露 asset/timeline/export descriptors；读操作可直接做，时间线写入/导出仍需一次确认 | Asset / Timeline / Export owners | 注册存在；Phase 6 后续补跨 Generation→Preview 真用户任务 |
-| Preview 中的 Agent 操作 | resident 目前只投影 `canvas-chat`，该 capability 没有可执行工具 | Preview/Timeline owner | 明确缺口；不能假装已接通，需在样张合同确认后接入 read/plan/apply 工具 |
+| 素材、时间线检查与导出 | Preview resident 通过 `canvas-agent` 的 `timeline` profile 暴露 asset/timeline/export descriptors；读操作可直接做，时间线写入/导出仍需一次确认 | Asset / Timeline / Export owners | 已接入 Host 路由；仍需跨 Generation→Preview 真用户任务证明结果与回执 |
+| Preview 中的 Agent 操作 | resident 使用真实 timeline target、时间线 skill 和 PR213 owner；不再走无工具的 `canvas-chat` | Preview/Timeline owner | 路由与提示合同已接通；待真实时间线读→计划→批准→验证走查 |
 
 ### 工具建设判断
 
 - 必须做：把样张可见的“生成图片/视频”入口接到既有节点 composer；把自然语言意图、默认模型/参数、引用、费用确认和结果回写串成一条证据链；补 Skill/Prompt 菜单的真实选择走查。
 - 不应做：独立的 Agent 直生成工具、第二套历史/队列/参数表、每个模型一套 UI、把 Skill 当授权、把 Preview 的未接能力伪装成已完成。直生成工具会绕过领域 owner 和付费确认，反而制造重复任务与不可 reconciliation 的状态。
-- 必须标红的未覆盖项：Preview 的 read/plan/apply 工具尚未进入本轮样张交付；Timeline/Export 虽已在 capability registry 中，仍需要单独真实任务证明跨界面结果。
+- 必须标红的未覆盖项：Timeline/Export 虽已进入 resident 的 Host profile，仍需要单独真实任务证明跨界面结果、审批回执和导出验证；不能只因工具已注册就宣称完成。
 
 ## 工具集优化与统一编排（2026-08-31）
 

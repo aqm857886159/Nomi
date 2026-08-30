@@ -83,7 +83,10 @@ export type GenerationCanvasAgentResponse = {
  * 静态系统段(token 优化 T2):身份/模式/工具说明/硬约束——会话内 byte 级稳定,
  * 走 systemPrompt 槽让 vendor 自动前缀缓存命中(动态画布快照在用户消息里,见下)。
  */
-export function buildStaticAgentSystemPrompt(mode: SendGenerationCanvasAgentMessageInput['mode']): string {
+export function buildStaticAgentSystemPrompt(
+  mode: SendGenerationCanvasAgentMessageInput['mode'],
+  surface: 'generation' | 'timeline' = 'generation',
+): string {
   const creatableKinds = getAgentCreatableGenerationNodeKinds().join('|')
   const modeInstruction =
     mode === 'chat'
@@ -93,10 +96,13 @@ export function buildStaticAgentSystemPrompt(mode: SendGenerationCanvasAgentMess
         : '当前模式：Agent。你应当主动调用工具来达成用户的目标。'
 
   // 身份/产品认知/语言/输出铁律由后端共享的 NOMI_AGENT_IDENTITY 注入（单一真相源）；
-  // 这里只声明本面专长——「你在生成画布工作」+ 可用工具 + 硬约束。
+  // 这里只声明本面专长——生成画布或预览时间线 + 可用工具 + 硬约束。
+  const surfaceInstruction = surface === 'timeline'
+    ? '你现在在「预览·时间线」工作：先读取真实时间线与素材，再把用户目标拆成可审阅的剪辑计划；批准后才写入或导出。'
+    : '你现在在「生成画布」工作：把用户的想法落成画布上的节点、引用边和真实生成任务。'
   return [
     'Timeline editing tools are available in Agent mode: read_timeline, inspect_timeline_range, get_media, inspect_media, search_media, inspect_source_range, read_waveform, propose_edit_plan, apply_edit_plan, undo_timeline_edit, export_timeline, inspect_export_job, verify_render, and cancel_export_job. Use project-scoped media ids returned by search_media/get_media; technical inspection and waveform reads are local and never expose file paths. Read the timeline revision first; propose before apply. Timeline apply/undo and export start/cancel require user approval; inspect_export_job and verify_render are read-only.',
-    '你现在在「生成画布」工作：把用户的想法落成画布上的节点、引用边和真实生成任务。',
+    surfaceInstruction,
     '',
     modeInstruction,
     '',

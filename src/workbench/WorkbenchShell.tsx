@@ -139,6 +139,9 @@ export default function WorkbenchShell({
     const setWorkspaceMode = useWorkbenchStore(
         (state) => state.setWorkspaceMode,
     );
+    const setTimelineSelection = useWorkbenchStore(
+        (state) => state.setTimelineSelection,
+    );
     const categories = useWorkbenchStore((state) => state.categories);
     const agentDockCollapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed);
     const [agentDockTargets, setAgentDockTargets] = React.useState<Record<'creation' | 'generation' | 'preview', HTMLDivElement | null>>({ creation: null, generation: null, preview: null });
@@ -184,9 +187,17 @@ export default function WorkbenchShell({
 
     React.useEffect(() => {
         const onAgentContextFocus = (event: Event) => {
-            const surface = (event as CustomEvent<{ surface?: string }>).detail?.surface;
+            const detail = (event as CustomEvent<{ surface?: string; nodeIds?: unknown; clipIds?: unknown }>).detail;
+            const surface = detail?.surface;
             if (surface !== "creation" && surface !== "generation" && surface !== "preview") return;
             const nextMode: WorkspaceMode = surface === "creation" ? "creation" : surface;
+            const nodeIds = Array.isArray(detail?.nodeIds)
+                ? detail.nodeIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+                : [];
+            const clipIds = Array.isArray(detail?.clipIds)
+                ? detail.clipIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+                : [];
+            if (surface === "preview" && clipIds.length > 0) setTimelineSelection(clipIds);
             if (workspaceMode !== nextMode) {
                 setWorkspaceMode(nextMode);
                 writeWorkspaceModeToUrl(nextMode);
@@ -196,11 +207,16 @@ export default function WorkbenchShell({
                     block: "nearest",
                     inline: "nearest",
                 });
+                if (surface === "generation" && nodeIds.length > 0) {
+                    window.dispatchEvent(new CustomEvent("nomi-focus-generation-node", {
+                        detail: { nodeId: nodeIds[0] },
+                    }));
+                }
             });
         };
         window.addEventListener("nomi-agent-context-focus", onAgentContextFocus);
         return () => window.removeEventListener("nomi-agent-context-focus", onAgentContextFocus);
-    }, [setWorkspaceMode, workspaceMode]);
+    }, [setTimelineSelection, setWorkspaceMode, workspaceMode]);
 
     React.useEffect(() => {
         const onOpenSkillLibrary = () => {
