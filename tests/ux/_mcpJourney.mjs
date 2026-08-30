@@ -183,14 +183,14 @@ function crc32(buf) {
  * Write an ISOLATED synthetic model catalog into settingsDir/model-catalog.json.
  * Shapes it for J-MCP1 step (e): a usable no-key mock vendor (authType none → keyStatus ok) exposing an
  * image and a video model, PLUS a real no-key vendor kept enabled so nomi_list_models must flag it
- * not-usable (keyStatus missing) rather than hide it. mockOrigin points the mock vendor at the loopback
+ * not-usable (keyStatus missing) rather than hide it. Each media row carries explicit verified publication
+ * evidence, matching the production catalog invariant; mockOrigin points the mock vendor at the loopback
  * server so runTask's fallback path reaches it.
  *
  * W1 (draft-journey 幕 5b/6): also exposes a TEXT model `nomi-mock-judge` on the mock vendor so the
  * headless shot-verify judge (resolveOnboardingAgentFromCatalog → first usable text model → streamTextTask
- * → POST {baseUrl}/v1/chat/completions) resolves and runs end-to-end at zero quota. resolveOnboardingAgent
- * REQUIRES a non-empty decrypted apiKey even for none-auth vendors, so we seed a plain key record for
- * nomi-mock (the mock server ignores auth). PRODUCTION and L2 run the SAME code — the only difference is
+ * → POST {baseUrl}/v1/chat/completions) resolves and runs end-to-end at zero quota. Auth-free local gateways
+ * do not require a credential; the mock server ignores auth. PRODUCTION and L2 run the SAME code — the only difference is
  * that catalog text model points at the mock server; there is no env branch and no `if (test)` in the
  * judge path (P1: zero escape hatch). The mock's /v1/chat/completions returns a controllable score JSON
  * (low when the shot prompt carries the injected BAD_SHOT_MARKER, all-5 otherwise) — see startMockVendorServer.
@@ -213,18 +213,17 @@ export function writeIsolatedCatalog(settingsDir, mockOrigin) {
       },
     ],
     models: [
-      { modelKey: 'nomi-mock-image', vendorKey: 'nomi-mock', labelZh: 'Mock 图片', kind: 'image', enabled: true, createdAt: now, updatedAt: now },
-      { modelKey: 'nomi-mock-video', vendorKey: 'nomi-mock', labelZh: 'Mock 视频', kind: 'video', enabled: true, createdAt: now, updatedAt: now },
+      { modelKey: 'nomi-mock-image', vendorKey: 'nomi-mock', labelZh: 'Mock 图片', kind: 'image', enabled: true, meta: { adapter: { state: 'verified', activeRevision: 'fixture-image-v1', modes: [{ taskKind: 'text_to_image', state: 'verified' }], updatedAt: now } }, createdAt: now, updatedAt: now },
+      { modelKey: 'nomi-mock-video', vendorKey: 'nomi-mock', labelZh: 'Mock 视频', kind: 'video', enabled: true, meta: { adapter: { state: 'verified', activeRevision: 'fixture-video-v1', modes: [{ taskKind: 'text_to_video', state: 'verified' }, { taskKind: 'image_to_video', state: 'verified' }], updatedAt: now } }, createdAt: now, updatedAt: now },
       // W1 judge model: the FIRST usable text model → resolveOnboardingAgentFromCatalog picks it for shot-verify.
-      { modelKey: 'nomi-mock-judge', vendorKey: 'nomi-mock', labelZh: 'Mock 审片', kind: 'text', enabled: true, createdAt: now, updatedAt: now },
-      { modelKey: 'apimart-image-nokey', vendorKey: 'apimart', labelZh: 'APImart 图片(无Key)', kind: 'image', enabled: true, createdAt: now, updatedAt: now },
+      { modelKey: 'nomi-mock-judge', vendorKey: 'nomi-mock', labelZh: 'Mock 审片', kind: 'text', enabled: true, meta: { adapter: { state: 'verified', activeRevision: 'fixture-judge-v1', modes: [{ taskKind: 'chat', state: 'verified' }], updatedAt: now } }, createdAt: now, updatedAt: now },
+      { modelKey: 'apimart-image-nokey', vendorKey: 'apimart', labelZh: 'APImart 图片(无Key)', kind: 'image', enabled: true, meta: { adapter: { state: 'verified', activeRevision: 'fixture-apimart-v1', modes: [{ taskKind: 'text_to_image', state: 'verified' }], updatedAt: now } }, createdAt: now, updatedAt: now },
     ],
     mappings: [],
-    // resolveOnboardingAgentFromCatalog needs a non-empty decrypted key even for none-auth vendors → seed a
-    // plain (legacy) key record so the judge text model resolves. The mock server ignores auth entirely.
-    apiKeysByVendor: {
-      'nomi-mock': { vendorKey: 'nomi-mock', apiKey: 'mock-judge-key', enc: 'plain', enabled: true, createdAt: now, updatedAt: now },
-    },
+    // No credential material is needed for the auth-free mock gateway. Keeping
+    // this object empty also ensures the fixture cannot exercise legacy plaintext
+    // execution by accident.
+    apiKeysByVendor: {},
   }
   fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify(catalog), 'utf8')
 }

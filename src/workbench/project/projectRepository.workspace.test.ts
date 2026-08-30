@@ -53,6 +53,16 @@ describe('projectRepository workspace project creation', () => {
     expect('rootPath' in record).toBe(false)
   })
 
+  it('same project title still creates independent project records', () => {
+    mockedGetDesktopBridge.mockReturnValue(null)
+
+    const first = createLocalProject('Storyboard')
+    const second = createLocalProject('Storyboard')
+
+    expect(second.id).not.toBe(first.id)
+    expect(second.name).toBe(first.name)
+  })
+
   it('stamps seedKey onto programmatically seeded projects (idempotent example seeding, audit A8)', () => {
     // seedKey 是播种身份：程序化播种用它判断「这个示例已播过」。名字不是身份——
     // 此前以 projectName 重复 createLocalProject 堆出几十个重名示例项目。

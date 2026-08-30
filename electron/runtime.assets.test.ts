@@ -1,11 +1,14 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createProject, importRemoteAsset, listProjectAssets, localizeTaskAsset, localizedTaskAssetFileName } from "./runtime";
 import { importLocalFile } from "./assets/localFileImport";
+import { resolveFfmpegPath } from "./export/ffmpegRunner";
 
 vi.mock("./export/mediaProbe", () => ({
+  MEDIA_DECODER_PROTOCOL_WHITELIST: "file,pipe,data",
   probeMediaMetadata: vi.fn(async () => ({ kind: "video", hasAudio: false, durationSeconds: 3.0625 })),
 }));
 
@@ -19,12 +22,22 @@ vi.mock("./hardenedFetch", async (importOriginal) => ({
   hardenedFetch: hardenedFetchMock,
 }));
 
-// 真实文件头（contentTypeFromMagicBytes 要求 ≥12 字节）——字节是事实，测试也不许拿假字节糊弄。
-const JPEG_BYTES = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]), Buffer.from("JFIF\0", "latin1"), Buffer.alloc(16)]);
-const PNG_BYTES = Buffer.concat([Buffer.from([0x89]), Buffer.from("PNG\r\n\n", "latin1"), Buffer.alloc(16)]);
-const WEBM_BYTES = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(16)]);
-/** ISO-BMFF：mp4 视频与 m4a 音频**共用**这一组魔数（跨族覆盖的反例）。 */
-const ISO_BMFF_BYTES = Buffer.concat([Buffer.from([0, 0, 0, 0x10]), Buffer.from("ftypisom", "ascii"), Buffer.alloc(4)]);
+const MEDIA_FIXTURES = path.join(__dirname, "providerAdapter", "__fixtures__", "certification-media");
+const mediaFixture = (name: string) => fs.readFileSync(path.join(MEDIA_FIXTURES, name));
+const JPEG_BYTES = mediaFixture("valid.jpg");
+const PNG_BYTES = mediaFixture("valid.png");
+const MP4_BYTES = mediaFixture("valid.mp4");
+const WAV_BYTES = mediaFixture("valid.wav");
+
+function transcode(bytes: Buffer, args: string[]): Buffer {
+  const result = spawnSync(resolveFfmpegPath(), [
+    "-hide_banner", "-v", "error", "-i", "pipe:0", ...args, "pipe:1",
+  ], { input: bytes, maxBuffer: 2 * 1024 * 1024 });
+  if (result.status !== 0) throw new Error("fixture transcode failed");
+  return result.stdout;
+}
+const WEBM_BYTES = transcode(MP4_BYTES, ["-c:v", "libvpx", "-f", "webm"]);
+const M4A_BYTES = transcode(WAV_BYTES, ["-c:a", "aac", "-f", "mp4", "-movflags", "frag_keyframe+empty_moov"]);
 
 function respondWith(bytes: Buffer, contentType: string): void {
   hardenedFetchMock.mockResolvedValue({ bytes, contentType, status: 200, finalUrl: "https://cdn.example.com/x", truncated: false });
@@ -135,14 +148,11 @@ describe("runtime workspace asset storage", () => {
       expect(asset.url).toMatch(/\.jpg$/);
     });
 
-    it("prefers the Content-Type over a lying URL extension", async () => {
+    it("fails closed when only Content-Type claims media but bytes are unknown", async () => {
       const workspace = createWorkspace();
-      // 字节认不出（厂商 header 是唯一线索）：URL 说 .png，header 说 image/webp。
       respondWith(Buffer.alloc(32), "image/webp");
-
-      const asset = await localizeTaskAsset(workspace.id, "https://cdn.example.com/gen/out.png", "image", "node-1");
-
-      expect(asset.url).toMatch(/\.webp$/);
+      await expect(localizeTaskAsset(workspace.id, "https://cdn.example.com/gen/out.png", "image", "node-1"))
+        .rejects.toThrow("unknown_bytes");
     });
 
     it("does not rewrite an extension that already agrees with the bytes", async () => {
@@ -167,11 +177,11 @@ describe("runtime workspace asset storage", () => {
 
     it("applies to audio artifacts too (extensionless URL was always .mp3)", async () => {
       const workspace = createWorkspace();
-      respondWith(Buffer.concat([Buffer.from("fLaC", "ascii"), Buffer.alloc(16)]), "audio/flac");
+      respondWith(WAV_BYTES, "audio/wav");
 
       const asset = await localizeTaskAsset(workspace.id, "https://cdn.example.com/gen/voice", "audio", "node-1");
 
-      expect(asset.url).toMatch(/\.flac$/);
+      expect(asset.url).toMatch(/\.wav$/);
       expect(asset.url).not.toMatch(/\.mp3$/);
     });
 
@@ -179,7 +189,7 @@ describe("runtime workspace asset storage", () => {
     // 那比原 bug 更糟（kind 都错了）。只在同族内纠正子类型。
     it("never reclassifies audio as video on shared ISO-BMFF magic bytes", async () => {
       const workspace = createWorkspace();
-      respondWith(ISO_BMFF_BYTES, "audio/mp4");
+      respondWith(M4A_BYTES, "audio/mp4");
 
       const asset = await localizeTaskAsset(workspace.id, "https://cdn.example.com/gen/voice.m4a", "audio", "node-1");
 
@@ -193,7 +203,7 @@ describe("runtime workspace asset storage", () => {
 
     const asset = await localizeTaskAsset(
       workspace.id,
-      "data:video/mp4;base64,aGVsbG8=",
+      `data:video/mp4;base64,${MP4_BYTES.toString("base64")}`,
       "video",
       "node-1",
     );
@@ -207,14 +217,14 @@ describe("runtime workspace asset storage", () => {
 
     const asset = (await importRemoteAsset({
       projectId: workspace.id,
-      url: "data:image/png;base64,aGVsbG8=",
+      url: `data:image/png;base64,${PNG_BYTES.toString("base64")}`,
       fileName: "render.png",
       kind: "generated",
     })) as AssetRecord;
 
     expect(asset.data.relativePath).toBe("assets/generated/2026-05-31/render.png");
     expect(asset.data.absolutePath).toBe(path.join(workspace.rootPath, "assets", "generated", "2026-05-31", "render.png"));
-    expect(fs.readFileSync(asset.data.absolutePath, "utf8")).toBe("hello");
+    expect(fs.readFileSync(asset.data.absolutePath)).toEqual(PNG_BYTES);
     expect(asset.data.url).toBe(`nomi-local://asset/${encodeURIComponent(workspace.id)}/assets/generated/2026-05-31/render.png`);
   });
 
@@ -303,10 +313,11 @@ describe("runtime workspace asset storage", () => {
   it("dedupes colliding generated asset filenames", async () => {
     const workspace = createWorkspace();
 
-    await importRemoteAsset({ projectId: workspace.id, url: "data:image/png;base64,Zmlyc3Q=", fileName: "render.png" });
-    const second = (await importRemoteAsset({ projectId: workspace.id, url: "data:image/png;base64,c2Vjb25k", fileName: "render.png" })) as AssetRecord;
+    const pngUrl = `data:image/png;base64,${PNG_BYTES.toString("base64")}`;
+    await importRemoteAsset({ projectId: workspace.id, url: pngUrl, fileName: "render.png" });
+    const second = (await importRemoteAsset({ projectId: workspace.id, url: pngUrl, fileName: "render.png" })) as AssetRecord;
 
     expect(second.data.relativePath).toBe("assets/generated/2026-05-31/render-2.png");
-    expect(fs.readFileSync(second.data.absolutePath, "utf8")).toBe("second");
+    expect(fs.readFileSync(second.data.absolutePath)).toEqual(PNG_BYTES);
   });
 });

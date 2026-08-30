@@ -1,5 +1,5 @@
 name: Business inquiry
-description: Discuss a custom build, integration, white-label license, or ongoing iteration engagement.
+description: Discuss AGPL-compliant custom development, integration, deployment, or ongoing iteration.
 title: "[Business] "
 body:
   - type: markdown
@@ -13,7 +13,7 @@ body:
       options:
         - Custom build
         - Integration
-        - White-label / commercial license
+        - AGPL-compliant deployment
         - Ongoing iteration
     validations:
       required: true

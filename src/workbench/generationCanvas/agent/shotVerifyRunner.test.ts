@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
+import i18n, { DEFAULT_LOCALE } from '../../../i18n'
 import { verifyGeneratedShots, type ShotVerifyInput, type ShotVerifyDeps } from './shotVerifyRunner'
 
 const imageShot = (over: Partial<ShotVerifyInput> = {}): ShotVerifyInput => ({
@@ -16,6 +17,10 @@ const okDeps = (over: Partial<ShotVerifyDeps> = {}): ShotVerifyDeps => ({
   judge: vi.fn(async () => '{"reason":"脸对不上","scores":{"identity":1,"composition":5,"continuity":5}}'),
   visionAvailable: () => true,
   ...over,
+})
+
+afterEach(async () => {
+  await i18n.changeLanguage(DEFAULT_LOCALE)
 })
 
 describe('verifyGeneratedShots', () => {
@@ -68,5 +73,14 @@ describe('verifyGeneratedShots', () => {
   it('空帧地址 → 跳过', async () => {
     const out = await verifyGeneratedShots([imageShot({ frameSourceUrl: '' })], okDeps())
     expect(out).toEqual([])
+  })
+
+  it('英文界面把当前 locale 注入判官 prompt', async () => {
+    await i18n.changeLanguage('en')
+    const judge = vi.fn<ShotVerifyDeps['judge']>(async () => (
+      '{"reason":"wrong subject","scores":{"identity":1,"composition":5}}'
+    ))
+    await verifyGeneratedShots([imageShot()], okDeps({ judge }))
+    expect(judge.mock.calls[0]?.[0]).toContain('reason 必须用**英文**写')
   })
 })

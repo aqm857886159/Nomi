@@ -1,6 +1,6 @@
-import { ARCHETYPE_MODE_MANIFEST } from "./archetypeModes.generated";
-import { archetypeIdForModel } from "./archetypeIdentity";
 import { isJsonRecord, nowIso, trim } from "../jsonUtils";
+import { defaultCustomCallTaskKind, resolveCapabilityModeEvidence } from "../shared/capabilityModeManifest";
+import type { CapabilityModeManifest } from "../shared/capabilityModeManifest";
 import type { TaskRequest } from "../runtime";
 import type { Mapping, Model, ProfileKind } from "./types";
 
@@ -65,68 +65,11 @@ function requestArchetypeSelection(request: TaskRequest): { archetypeId: string;
   return { archetypeId: trim(raw.id), modeId: trim(raw.modeId) };
 }
 
-type CapabilityModeManifest = {
-  archetypeId: string;
-  defaultModeId: string;
-  modes: Record<string, string>;
-};
-
-function explicitArchetypeId(meta: unknown): string {
-  if (!isJsonRecord(meta)) return "";
-  const direct = trim(meta.archetypeId);
-  if (direct) return direct;
-  return isJsonRecord(meta.archetype) ? trim(meta.archetype.id) : "";
-}
-
-/**
- * 用户能力契约是 catalog 运行时数据，不能进入构建期生成清单。这里只投影脚本派发需要的
- * 最窄信息；完整 slots/params 校验仍由 renderer 的契约解析器负责。无效投影保持惰性，
- * 后续会继续尝试内置档案身份，而不是让坏 meta 阻塞整个模型。
- */
-function customCapabilityModeManifest(model: Model): CapabilityModeManifest | null {
-  if (!isJsonRecord(model.meta) || !isJsonRecord(model.meta.customCapabilityContract)) return null;
-  const contract = model.meta.customCapabilityContract;
-  if (contract.version !== 1 || !Array.isArray(contract.modes)) return null;
-  const defaultModeId = trim(contract.defaultModeId);
-  const rootTaskKind = trim(contract.transportTaskKind);
-  const identifier = trim(model.modelKey) || trim(model.modelAlias);
-  if (!defaultModeId || !rootTaskKind || !identifier || contract.modes.length === 0 || contract.modes.length > 16) return null;
-
-  const modes: Record<string, string> = {};
-  for (const rawMode of contract.modes) {
-    if (!isJsonRecord(rawMode)) return null;
-    const modeId = trim(rawMode.id);
-    const taskKind = trim(rawMode.transportTaskKind) || rootTaskKind;
-    if (!validModeStorageKey(modeId) || !taskKind || hasOwn(modes, modeId)) return null;
-    modes[modeId] = taskKind;
-  }
-  if (!hasOwn(modes, defaultModeId)) return null;
-  return {
-    archetypeId: `custom-capability:${encodeURIComponent(identifier)}`,
-    defaultModeId,
-    modes,
-  };
-}
-
-function builtInModeManifest(model: Model): CapabilityModeManifest | null {
-  const explicitId = explicitArchetypeId(model.meta);
-  const inferredId = archetypeIdForModel(model.modelKey, model.modelAlias);
-  const archetypeId = explicitId && ARCHETYPE_MODE_MANIFEST[explicitId] ? explicitId : inferredId;
-  if (!archetypeId) return null;
-  const manifest = ARCHETYPE_MODE_MANIFEST[archetypeId];
-  return manifest ? { archetypeId, ...manifest } : null;
-}
-
-function capabilityModeManifest(model: Model): CapabilityModeManifest | null {
-  return customCapabilityModeManifest(model) || builtInModeManifest(model);
-}
-
 /**
  * 只从模型档案 / 显式能力契约确认 modeId。供应商名、modelKey 关键词和“有没有参考图”都不能发明模式。
  * mapping 只提供已由 selectTaskMapping 选中的 transport taskKind；模式身份仍由 archetype 验证。
  */
-function validatedModeId(model: Model, request: TaskRequest, taskKind: ProfileKind): string | undefined {
-  const manifest = capabilityModeManifest(model);
+function validatedModeId(manifest: CapabilityModeManifest | null, request: TaskRequest, taskKind: ProfileKind): string | undefined {
   if (!manifest) return undefined;
 
   const selected = requestArchetypeSelection(request);
@@ -144,11 +87,16 @@ export function resolveCustomCallExecution(
   const customCall = model.customCall;
   if (!customCall) return null;
   const taskKind = mapping?.taskKind || request.kind;
-  const modeId = validatedModeId(model, request, taskKind);
+  const resolution = resolveCapabilityModeEvidence(model);
+  if (resolution.state === "invalid-explicit") return null;
+  const manifest = resolution.state === "resolved" ? resolution.manifest : null;
+  const selected = requestArchetypeSelection(request);
+  const modeId = validatedModeId(manifest, request, taskKind);
+  if ((selected.archetypeId || selected.modeId) && !modeId) return null;
   const modeScript = modeId ? trim(customCall.modes?.[modeId]?.script) : "";
   if (modeScript) return { script: modeScript, source: "mode", taskKind, modeId };
   const modelScript = trim(customCall.script);
-  return modelScript
+  return modelScript && taskKind === defaultCustomCallTaskKind(model.kind)
     ? { script: modelScript, source: "model", taskKind, ...(modeId ? { modeId } : {}) }
     : null;
 }

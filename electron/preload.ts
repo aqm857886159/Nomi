@@ -341,6 +341,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     cancel: (taskId: string) => ipcRenderer.invoke("nomi:tasks:cancel", taskId) as Promise<{ ok: boolean }>,
     run: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:run", payload),
     result: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:result", payload),
+    runComfyCandidateTest: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:comfy-candidate-test", payload),
+    cancelComfyCandidateTest: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:comfy-candidate-cancel", payload),
     // 付费守卫：真人确认后铸一次性令牌（绑 nodeIds），返回不透明 grantId 随生成请求下传。
     grantSpend: (payload: unknown) =>
       ipcRenderer.invoke("nomi:tasks:grant-spend", payload) as Promise<{ grantId: string }>,
@@ -434,38 +436,42 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     },
   },
   onboarding: {
+    integrationHandoffList: () => ipcRenderer.invoke("nomi:integration-handoff:list"),
+    integrationHandoffAck: (requestId: string) => ipcRenderer.invoke("nomi:integration-handoff:ack", requestId),
+    integrationHandoffSubscribe: (callback: (entry: unknown) => void) => {
+      const listener = (_event: unknown, entry: unknown) => callback(entry)
+      ipcRenderer.on("nomi:integration-handoff:changed", listener as never)
+      ipcRenderer.send("nomi:integration-handoff:subscribe")
+      return () => ipcRenderer.removeListener("nomi:integration-handoff:changed", listener as never)
+    },
+    integrationSessionSaveCredential: (payload: { sessionId: string; expectedRevision: number; apiKey: string }) =>
+      ipcRenderer.invoke("nomi:integration-session:credential", payload),
+    integrationSessionPrepareComfy: (payload: {
+      vendorKey: string; name: string; workflow: string; binding: unknown; modelKey?: string;
+      enumOptions?: unknown; uiWorkflow?: string;
+    }) => ipcRenderer.invoke("nomi:integration-session:comfyui:prepare", payload),
+    integrationSessionConfirm: (payload: { sessionId: string; expectedRevision: number; challengeId: string }) =>
+      ipcRenderer.invoke("nomi:integration-session:confirm", payload),
+    integrationSessionGet: (sessionId: string) => ipcRenderer.invoke("nomi:integration-session:get", { sessionId }),
     antigravityStatus: () => ipcRenderer.invoke("nomi:antigravity:status"),
     antigravityTest: (payload?: unknown) => ipcRenderer.invoke("nomi:antigravity:test", payload),
     antigravityCancel: () => ipcRenderer.invoke("nomi:antigravity:cancel"),
-    adapterRegister: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:provider-adapter:register", payload),
-    adapterStart: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:provider-adapter:start", payload),
-    adapterGet: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:provider-adapter:get", payload),
-    adapterLatest: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:provider-adapter:latest", payload),
-    adapterCancel: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:provider-adapter:cancel", payload),
-    adapterList: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:provider-adapter:list", payload),
-    existingConnectionListModels: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:provider-adapter:existing:list-models", payload),
-    adapterRegisterExisting: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:provider-adapter:existing:register", payload),
-    adapterStartExisting: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:provider-adapter:existing:start", payload),
-    adapterAdaptExisting: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:provider-adapter:existing:adapt", payload),
-    adapterRetry: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:provider-adapter:retry", payload),
-    manualCommit: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:onboarding:manual-commit", payload) as Promise<{
-        ok: boolean;
-        vendorKey?: string;
-        committed?: Array<{ modelKey: string; displayName: string }>;
-        error?: string;
-      }>,
+    httpConnectionConfigure: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:integration-certification:http:configure", payload),
+    httpCertificationStart: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:integration-certification:http:start", payload),
+    certificationGet: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:integration-certification:get", payload),
+    certificationCancel: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:integration-certification:cancel", payload),
+    certificationList: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:integration-certification:list", payload),
+    httpConnectionListModels: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:integration-certification:http:existing:list-models", payload),
+    httpCertificationStartExisting: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:integration-certification:http:existing:start", payload),
+    httpCertificationRetry: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:integration-certification:http:retry", payload),
     guessKinds: (payload: unknown) =>
       ipcRenderer.invoke("nomi:onboarding:guess-kinds", payload) as Promise<{
         kinds: Record<string, "text" | "image" | "video" | "audio">;

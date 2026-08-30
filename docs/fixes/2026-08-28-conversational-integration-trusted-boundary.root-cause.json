@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-28-conversational-integration-trusted-boundary",
+  "problem_type": "unified conversational integration trust boundary and durable handoff",
+  "symptom": "Conversational integration added new session, ComfyUI, Skill, and handoff paths beside legacy onboarding and renderer IPC, leaving high-risk boundaries without one auditable owner and allowing state or capability transitions to diverge across entry points.",
+  "direct_cause": "The new integration workflow crosses onboarding, catalog, ComfyUI, session, Skill, and trusted-sync IPC modules, but those modules were changed independently and the repository root-cause contract did not yet cover their shared authorization, projection, and persistence invariants.",
+  "class_root": "Nomi lacked a single documented trust-boundary contract for conversational integration handoff: signed client capability, session revision/CAS, redacted projections, trusted sender checks, and verified-only publication had to be enforced consistently at every bridge.",
+  "affected_population": [
+    "Users starting model or ComfyUI setup from an external MCP host",
+    "Users continuing a credential or verification handoff after the Nomi window closes",
+    "Users using the existing settings and ComfyUI workflow editors",
+    "Production consumers that must never see an unverified model or credential value"
+  ],
+  "scope_paths": [
+    "electron/ai/onboarding/onboardingIpc.ts",
+    "electron/catalog/rendererCatalogMutation.ts",
+    "electron/comfyuiIpc.ts",
+    "electron/integrationCertification/integrationSessionIpc.ts",
+    "electron/skills/skillStore.ts",
+    "electron/trustedSyncIpc.ts",
+    "electron/capabilityCore/mcpIntegrationTools.ts",
+    "electron/integrationCertification/integrationSession.ts",
+    "electron/integrationCertification/handoffQueue.ts",
+    "electron/catalog/taskParams.ts",
+    "electron/tasks/taskResultQuery.ts"
+  ],
+  "entry_points": [
+    "Signed MCP client begin, credential handoff, discovery, selection, and certification start",
+    "Trusted renderer catalog and onboarding mutation IPC",
+    "ComfyUI workflow import and candidate-test bridge",
+    "Persistent handoff queue delivery and acknowledgement",
+    "Skill resource publication and redacted session projection",
+    "Fresh-process session and catalog readback"
+  ],
+  "internal_only_reason": "This contract governs Nomi's internal IPC authorization, session ownership, persistence, and publication boundaries. Provider documentation cannot establish which local sender, revision, or receipt is trusted.",
+  "invariants": [
+    "Unsigned or external clients cannot create sessions, open credential UI, mint confirmation receipts, or start spend-bearing certification runs.",
+    "Every write bridge validates the signed client capability, owner, expected revision, and schema before mutating state.",
+    "Session and handoff projections contain no credential values, authorization headers, signed URLs, workflow secrets, or absolute user paths.",
+    "Renderer catalog mutation cannot enable or publish a model outside the canonical certification promotion boundary.",
+    "ComfyUI workflow bindings use explicit nodeId/inputKey/paramKey/mediaKind data and never positional widgets_values inference.",
+    "Handoff delivery is durable across app close and restart and is acknowledged without relying on an ephemeral CustomEvent.",
+    "Missing or unavailable credentials and failed certification converge to an actionable terminal reason instead of a permanent certifying state.",
+    "Only verified modes are visible to ordinary model selection and production runtime consumers."
+  ],
+  "regression_tests": [
+    "electron/capabilityCore/mcpIntegrationTools.test.ts",
+    "electron/integrationCertification/integrationSession.test.ts",
+    "electron/integrationCertification/handoffQueue.test.ts",
+    "electron/catalog/rendererCatalogMutation.test.ts",
+    "electron/trustedSyncIpc.test.ts",
+    "electron/integrationCertification/comfyuiIntegrationSession.test.ts",
+    "electron/catalog/taskParams.test.ts",
+    "electron/tasks/comfyCandidateTest.test.ts"
+  ],
+  "migration": "Existing verified active revisions remain available. Legacy direct onboarding and renderer mutation paths remain readable only where required for migration, while all new and edited connections converge on the canonical session and certification owner. Handoff records are replayed through the same signed owner and revision checks after restart.",
+  "residual_risks": [
+    "Real packaged-host evidence for every external MCP client still depends on the corresponding host being available.",
+    "Provider-specific live production behavior and ComfyUI restart/upgrade journeys require installation-package E2E accounts and fixtures beyond unit tests."
+  ]
+}

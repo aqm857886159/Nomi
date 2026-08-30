@@ -454,18 +454,18 @@ function registerIpc(): void {
       ),
       captureDocumentRead: (event, binding, requestId) => createPiDocumentReadTransportAdapter({
         registry: canvasReadSurfaceRuntime.registry,
-        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCanvasReadPort(event, binding),
+        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCommittedCanvasReadPort(event, binding),
         requestId,
         executor: canvasReadExecutionRuntime.executor,
       }),
       captureDocumentWrite: (event, binding, requestId) => createPiDocumentWriteTransportAdapter({
         registry: canvasReadSurfaceRuntime.registry,
-        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCanvasReadPort(event, binding),
+        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCommittedCanvasReadPort(event, binding),
         requestId,
         executor: canvasReadExecutionRuntime.executor,
       }),
       captureCanvasWrite: (event, binding, requestId) => {
-        const capturedPort = canvasReadExecutionRuntime.surfaceCapture.captureCanvasReadPort(event, binding);
+        const capturedPort = canvasReadExecutionRuntime.surfaceCapture.captureCommittedCanvasReadPort(event, binding);
         const surfacePortRuntime = canvasReadExecutionRuntime.surfacePortRuntime;
         if (!surfacePortRuntime) throw new Error("surface_port_unavailable");
         return createPiCanvasWriteTransportAdapter({
@@ -478,19 +478,19 @@ function registerIpc(): void {
       },
       captureTimelineRead: (event, binding, requestId) => createPiTimelineReadTransportAdapter({
         registry: canvasReadSurfaceRuntime.registry,
-        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCanvasReadPort(event, binding),
+        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCommittedCanvasReadPort(event, binding),
         requestId,
         executor: canvasReadExecutionRuntime.executor,
       }),
       captureTimelineWrite: (event, binding, requestId) => createPiTimelineWriteTransportAdapter({
         registry: canvasReadSurfaceRuntime.registry,
-        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCanvasReadPort(event, binding),
+        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCommittedCanvasReadPort(event, binding),
         requestId,
         executor: canvasReadExecutionRuntime.executor,
       }),
       capturePhase4Surface: (event, binding, requestId) => createPiPhase4SurfaceTransportAdapter({
         registry: canvasReadSurfaceRuntime.registry,
-        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCanvasReadPort(event, binding),
+        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCommittedCanvasReadPort(event, binding),
         requestId,
         executor: canvasReadExecutionRuntime.executor,
       }),

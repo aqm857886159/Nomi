@@ -57,7 +57,7 @@ describe('标签消歧', () => {
 describe('助手可选模型必须来自真实可用 catalog', () => {
   it('不把纯文字 CLI 显示成能执行工具的助手模型', () => {
     expect(filterUsableAssistantTextModels([
-      { vendorKey: 'local', modelKey: 'auto', kind: 'text', enabled: true, meta: { supportsToolCalls: false } },
+      { vendorKey: 'local', modelKey: 'auto', kind: 'text', enabled: true, published: true, meta: { supportsToolCalls: false } },
     ], [{ key: 'local', enabled: true, authType: 'none' }])).toEqual([])
   })
   const vendors = [
@@ -68,13 +68,14 @@ describe('助手可选模型必须来自真实可用 catalog', () => {
 
   it('只保留 text、启用、身份完整且供应商真实可用的目录行', () => {
     const models = filterUsableAssistantTextModels([
-      { vendorKey: 'apimart', modelKey: 'deepseek-v4-pro', kind: 'text', enabled: true, labelZh: 'DeepSeek V4 Pro' },
-      { vendorKey: 'apimart', modelKey: 'prompt-refiner', kind: 'text', enabled: true, meta: { promptRefineOnly: true }, labelZh: 'Prompt Refiner' },
-      { vendorKey: 'kie', modelKey: 'fake-text', kind: 'text', enabled: true, labelZh: 'Fake' },
-      { vendorKey: 'apimart', modelKey: 'disabled', kind: 'text', enabled: false, labelZh: 'Disabled' },
-      { vendorKey: 'apimart', modelKey: 'image-model', kind: 'image', enabled: true, labelZh: 'Image' },
-      { vendorKey: '', modelKey: 'missing-vendor', kind: 'text', enabled: true, labelZh: 'Missing vendor' },
-      { vendorKey: 'local', modelKey: 'local-text', kind: 'text', enabled: true, labelZh: 'Local text' },
+      { vendorKey: 'apimart', modelKey: 'deepseek-v4-pro', kind: 'text', enabled: true, published: true, labelZh: 'DeepSeek V4 Pro' },
+      { vendorKey: 'apimart', modelKey: 'unverified', kind: 'text', enabled: true, published: false, labelZh: 'Unverified' },
+      { vendorKey: 'apimart', modelKey: 'prompt-refiner', kind: 'text', enabled: true, published: true, meta: { promptRefineOnly: true }, labelZh: 'Prompt Refiner' },
+      { vendorKey: 'kie', modelKey: 'fake-text', kind: 'text', enabled: true, published: true, labelZh: 'Fake' },
+      { vendorKey: 'apimart', modelKey: 'disabled', kind: 'text', enabled: false, published: true, labelZh: 'Disabled' },
+      { vendorKey: 'apimart', modelKey: 'image-model', kind: 'image', enabled: true, published: true, labelZh: 'Image' },
+      { vendorKey: '', modelKey: 'missing-vendor', kind: 'text', enabled: true, published: true, labelZh: 'Missing vendor' },
+      { vendorKey: 'local', modelKey: 'local-text', kind: 'text', enabled: true, published: true, labelZh: 'Local text' },
     ], vendors)
 
     expect(models.map((model) => `${model.vendorKey}:${model.modelKey}`)).toEqual([
@@ -85,7 +86,7 @@ describe('助手可选模型必须来自真实可用 catalog', () => {
 
   it('没有真实可用供应商时返回空，调用方必须显示配置入口而不是假下拉', () => {
     const models = filterUsableAssistantTextModels([
-      { vendorKey: 'apimart', modelKey: 'deepseek-v4-pro', kind: 'text', enabled: true, labelZh: 'DeepSeek V4 Pro' },
+      { vendorKey: 'apimart', modelKey: 'deepseek-v4-pro', kind: 'text', enabled: true, published: true, labelZh: 'DeepSeek V4 Pro' },
     ], [{ key: 'apimart', enabled: true, authType: 'bearer', hasApiKey: false }])
 
     expect(models).toEqual([])

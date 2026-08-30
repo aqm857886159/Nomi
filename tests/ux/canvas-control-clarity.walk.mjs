@@ -1,8 +1,8 @@
 // 生成画布控件辨识与比例连续性 R13 走查。
 //
 // 真 Electron + 真构建产物，隔离 userData / projects，不触发任何生成请求（零额度）。
-// 验证：8 个节点入口及 tooltip、自动比例本地化、面积守恒、composer/触发器/浮层不漂移、
-//       1–4 张显式选择、任务/辅助/配置/主动作分组，以及深浅色与紧凑宽度截图。
+// 验证：9 个节点入口及 tooltip、15 档比例与多供应商始终显式分段、自动比例本地化、面积守恒、
+//       composer/触发器/浮层不漂移、1–4 张显式选择、任务/辅助/配置/主动作分组，以及深浅色与紧凑宽度截图。
 //
 // 用法：pnpm run build && node tests/ux/canvas-control-clarity.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
+import { expectVisible, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-control-clarity')
@@ -25,6 +25,7 @@ const { app, win: _initialWin } = await launchNomiApp({
   userDataDir,
   settingsDir: userDataDir,
   projectsDir,
+  syntheticCredentialStorage: true,
   args: ['--no-proxy-server'],
   settleMs: 0,
 })
@@ -143,6 +144,12 @@ async function ensureParameterPanel(composer) {
   return { trigger, panel }
 }
 
+async function selectRatio(panel, ratio) {
+  const segmented = panel.getByRole('radiogroup', { name: '比例', exact: true }).first()
+  await expectVisible(segmented, '比例必须保持显式分段，不随模型选项数量变成下拉')
+  await segmented.getByRole('radio', { name: ratio, exact: true }).click()
+}
+
 const pageErrors = []
 getWin().on('pageerror', (error) => pageErrors.push(String(error)))
 
@@ -162,11 +169,12 @@ try {
   await resize(1600, 1000)
   await dismissFirstRun()
 
-  // 隔离 catalog 里只写一个占位 key，让内置图像模型与真实参数控件出现；全程不点生成。
-  const keyStatus = await getWin().evaluate(() =>
+  // 两家都只写占位 key：让同一个 Nano Banana 2 出现 15 档比例 + 多供应商选择；全程不点生成。
+  const keyStatuses = await getWin().evaluate(() => Promise.all([
     window.nomiDesktop?.modelCatalog?.upsertVendorApiKey('kie', { apiKey: 'nomi-e2e-placeholder', enabled: true }),
-  )
-  assert(Boolean(keyStatus?.hasApiKey), '隔离模型目录已启用图像模型（不发生成请求）')
+    window.nomiDesktop?.modelCatalog?.upsertVendorApiKey('apimart', { apiKey: 'nomi-e2e-placeholder', enabled: true }),
+  ]))
+  assert(keyStatuses.every((status) => Boolean(status?.hasApiKey)), '隔离模型目录已启用两家图像供应商（不发生成请求）')
   await getWin().reload()
   await getWin().waitForLoadState('domcontentloaded')
   await getWin().waitForTimeout(1500)
@@ -179,13 +187,15 @@ try {
   await dismissFirstRun()
   await resize(1600, 1000)
   await ensureGenerationWorkspace()
+  await expectVisible(getWin().locator('.react-flow').first(), '生产生成画布必须挂载 React Flow renderer')
 
-  // ① 左侧栏：8 个入口直接可见，没有省略号，悬浮名称完整。
+  // ① 左侧栏：9 个入口直接可见，没有省略号，悬浮名称完整。
   const toolbar = getWin().locator('.generation-canvas-v2-toolbar').first()
   const expectedTools = [
     ['text', '文本节点'],
     ['image', '图片节点'],
     ['video', '视频节点'],
+    ['clip', '剪辑节点'],
     ['audio', '声音节点'],
     ['model3d', '3D 模型节点'],
     ['whiteboard', '画板节点'],
@@ -193,7 +203,7 @@ try {
     ['scene3d', '3D 场景节点'],
   ]
   const toolButtons = toolbar.locator('[data-node-kind]')
-  assert((await toolButtons.count()) === expectedTools.length, '左侧 8 个节点入口全部直接可见')
+  assert((await toolButtons.count()) === expectedTools.length, '左侧 9 个节点入口全部直接可见')
   assert((await toolbar.locator('[aria-label*="更多"], [aria-label*="省略"]').count()) === 0, '左侧栏没有省略号创建入口')
   for (const [kind, tooltipText] of expectedTools) {
     const button = toolbar.locator(`[data-node-kind="${kind}"]`)
@@ -210,17 +220,27 @@ try {
   const composer = getWin().locator('.generation-canvas-v2-node__composer-card').first()
   await node.waitFor({ timeout: 5000 })
   await composer.waitFor({ timeout: 5000 })
+  const modelSelect = composer.getByRole('button', { name: '模型', exact: true }).first()
+  await modelSelect.click()
+  const nanoBanana2 = getWin().getByRole('option').filter({ hasText: /^Nano Banana 2(?:\s*\d+ 家)?$/ }).first()
+  await expectVisible(nanoBanana2, '模型目录必须提供跨供应商 Nano Banana 2')
+  await nanoBanana2.click()
+  await getWin().waitForTimeout(400)
   const { trigger, panel } = await ensureParameterPanel(composer)
   const ratioGroup = panel.getByRole('radiogroup', { name: '比例', exact: true }).first()
-  await ratioGroup.waitFor({ timeout: 5000 })
-
+  await expectVisible(ratioGroup, '15 档比例仍显示为图形分段组')
+  assert((await ratioGroup.getByRole('radio').count()) === 15, 'Nano Banana 2 的 15 档比例全部显式可见')
   const automatic = ratioGroup.getByRole('radio', { name: '自动', exact: true }).first()
   assert(await automatic.isVisible(), 'Auto 在中文界面显示为“自动”')
-  assert((await automatic.locator('svg').count()) === 1, '自动比例项上方有自适应画幅图标')
+  assert((await automatic.locator('svg').count()) === 1, '分段式自动比例项上方有自适应画幅图标')
+  assert((await ratioGroup.locator('[aria-hidden] span').count()) > 0, '比例分段保留可扫描的宽高形状')
+  const providerGroup = panel.getByRole('radiogroup', { name: '供应商', exact: true }).first()
+  await expectVisible(providerGroup, '多供应商选择保持显式分段组')
+  assert((await providerGroup.getByRole('radio').count()) >= 2, '同模型至少两家供应商并排可见')
 
   const geometries = []
   for (const ratio of ['1:1', '21:9', '9:16']) {
-    await ratioGroup.getByRole('radio', { name: ratio, exact: true }).click()
+    await selectRatio(panel, ratio)
     await getWin().waitForTimeout(220)
     const [nodeBox, composerBox, triggerBox, panelBox, nodeLayout] = await Promise.all([
       node.boundingBox(),

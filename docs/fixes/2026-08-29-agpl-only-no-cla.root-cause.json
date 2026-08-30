@@ -1,0 +1,130 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-29-agpl-only-no-cla",
+  "problem_type": "license and contribution-policy split between AGPL-only intent and CLA/commercial-authority copy",
+  "symptom": "The repository presented AGPL-3.0-only in package metadata while requiring a contributor CLA and advertising closed-source commercial licensing across workflows, README, forms, and marketing pages.",
+  "direct_cause": "A contributor-assistant workflow, a commercial-relicensing CLA document, and duplicated customer-facing copy remained after the product decision changed from dual-track licensing to AGPL-only.",
+  "class_root": "License policy had no single enforced boundary connecting the package license, contributor workflow, contribution guidance, and commercial inquiry surfaces, so stale policy could reappear in any one of them.",
+  "affected_population": [
+    "External contributors who were asked to sign a CLA before opening a pull request",
+    "Users and teams reading README, business inquiry, or marketing copy about delivery options",
+    "Maintainers relying on CI to distinguish current AGPL policy from historical commercial plans"
+  ],
+  "scope_paths": [
+    ".github/workflows/**",
+    "CLA.md",
+    "README.md",
+    "README.zh-CN.md",
+    ".github/ISSUE_TEMPLATE/business_inquiry.yml",
+    "scripts/check-cla-workflow.node-test.mjs",
+    "scripts/marketing/content.mjs",
+    "tests/ux/marketing-home.static.mjs",
+    "docs/research/2026-08-29-openmontage-nomi-license-cla.html",
+    "docs/research/2026-08-29-toonflow-nomi-license-cla.html",
+    "docs/plan/2026-08-29-cla-signature-ledger.md",
+    "docs/plan/2026-08-29-agpl-only-no-cla.md"
+  ],
+  "entry_points": [
+    "GitHub contributor workflow and signature ledger",
+    "Contributor policy and README license sections",
+    "Business inquiry form and generated marketing site",
+    "Research and plan documents that describe Nomi's policy"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.gnu.org/licenses/agpl-3.0.html",
+      "checked_at": "2026-08-29",
+      "purpose": "Confirmed the AGPL-3.0 obligations used to describe source availability for conveyed and network-interactive modified versions."
+    }
+  ],
+  "invariants": [
+    "Nomi's current package and customer-facing policy identify AGPL-3.0-only as the only current license.",
+    "No workflow runs contributor-assistant and no code branch requires a signature ledger.",
+    "Contributor guidance requires no CLA or signature and points to AGPL contribution terms.",
+    "Paid service copy describes AGPL-compliant development, integration, deployment, training, or iteration without promising closed-source Nomi licensing."
+  ],
+  "generality_proof": "The policy is enforced at the workflow, contributor-document, repository-copy, business-form, and marketing-source boundaries. The shared checker scans every workflow for contributor-assistant, while the changed source documents and generated-site static test keep the same AGPL-only/no-signature rule visible across all current entry points.",
+  "shared_boundaries": [
+    {
+      "path": "CLA.md",
+      "symbol": "Nomi contribution policy",
+      "responsibility": "State the single current AGPL-only/no-CLA rule and the permitted AGPL-compliant paid service boundary."
+    },
+    {
+      "path": "scripts/check-cla-workflow.node-test.mjs",
+      "symbol": "AGPL-only policy tests",
+      "responsibility": "Fail closed if a CLA workflow, signature ledger, or missing AGPL/no-signature contributor rule returns."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "all repository workflow files",
+      "disposition": "enforced",
+      "evidence": "The policy test enumerates every YAML workflow and rejects contributor-assistant usage, including this representative CI workflow."
+    },
+    {
+      "path": "README.md",
+      "entry_point": "For Teams, Contributing, and License sections",
+      "disposition": "enforced",
+      "evidence": "The English README now names AGPL-compliant deployment and explicitly says contributors do not sign a CLA or receive a closed-source Nomi exception."
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/business_inquiry.yml",
+      "entry_point": "business inquiry collaboration options",
+      "disposition": "enforced",
+      "evidence": "The form offers AGPL-compliant deployment and no White-label/commercial-license option."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same policy can drift whenever a new workflow, customer-facing surface, generated page, or historical document copies the old dual-track language.",
+    "same_class_scan": [
+      "Searched all GitHub workflows for contributor-assistant and all repository customer-facing sources for CLA, white-label, closed-source, and commercial-license wording.",
+      "Checked README.md, README.zh-CN.md, CLA.md, the business inquiry form, marketing/content.mjs, generated marketing pages, research HTML, and plan documents.",
+      "Checked package.json license metadata and the existing check:cla-workflow command so the no-CLA policy remains a CI contract rather than a prose-only promise."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-cla-workflow.node-test.mjs",
+    "invariant": "The repository has no contributor-assistant workflow or main signature ledger, and CLA.md visibly states AGPL-only/no-signature policy.",
+    "failure_mode": "The check:cla-workflow command exits nonzero if any workflow restores CLA automation, if a stale main signature ledger appears, or if the contributor policy loses the AGPL/no-signature rule.",
+    "exception_policy": "none",
+    "strategy": "Keep one executable workflow scan and one contributor-boundary policy document, then test the generated marketing and README surfaces against the same wording so stale policy cannot pass in a sibling entry point.",
+    "artifacts": [
+      "scripts/check-cla-workflow.node-test.mjs",
+      "CLA.md",
+      "README.md",
+      ".github/ISSUE_TEMPLATE/business_inquiry.yml",
+      "scripts/marketing/content.mjs",
+      "tests/ux/marketing-home.static.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-cla-workflow.node-test.mjs",
+    "tests/ux/marketing-home.static.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-cla-workflow.node-test.mjs",
+    "tests/ux/marketing-home.static.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      ".github/workflows/cla.yml"
+    ],
+    "rationale": "The contributor-assistant workflow and its signature-writing path are obsolete under AGPL-only/no-CLA and are removed rather than left dormant."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The policy split is caused by repository workflow and documentation drift, not a dependency version or runtime lifecycle.",
+    "exit_criteria": []
+  },
+  "migration": "Existing cla-signatures history is retained as historical evidence but is no longer read by CI or required for contribution. Existing contributors do not need to re-sign; new and future contributions follow AGPL-3.0-only without a signature.",
+  "residual_risks": [
+    "Historical release notes and archived plans may still describe the former dual-track policy; they are retained as history and must not be used as current customer guidance.",
+    "AGPL compliance for a particular distribution, dependency combination, trademark use, or network service still requires a case-specific legal review."
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-29-root-cause-governance-v3",
+  "problem_type": "cross-agent root-cause governance enforcement gap",
+  "symptom": "Project rules told AI agents to fix root causes, but a high-risk change could still satisfy the contract gate with non-empty prose that did not identify a real shared boundary, same-class entries, class-level tests, obsolete paths, or a dependency upgrade decision.",
+  "direct_cause": "P2 and R21 repeated guidance across always-loaded text while schema v1 validated mostly field presence and the local reminder hook was gitignored, so execution quality depended on each agent remembering and interpreting the rule.",
+  "class_root": "The repository expressed root-cause remediation as advisory prose instead of a versioned evidence contract whose claims are cross-checked against real paths, changed tests, immutable history, and CI.",
+  "affected_population": [
+    "Users whose defects are handled by Claude, Codex, Cursor, or another repository-aware coding agent",
+    "Maintainers reviewing high-risk provider, media, workflow, task, runtime, IPC, persistence, and compatibility repairs"
+  ],
+  "scope_paths": [
+    ".agents/skills/root-cause-remediation/SKILL.md",
+    ".agents/skills/root-cause-remediation/references/contract-v3.template.json",
+    "CLAUDE.md",
+    "AGENTS.md",
+    "docs/engineering-rules.md",
+    "scripts/root-cause-contracts.mjs",
+    "scripts/check-root-cause-contracts.mjs",
+    "scripts/check-root-cause-contracts.node-test.mjs",
+    "scripts/root-cause-contract-v1-baseline.json",
+    ".github/workflows/quality-gate.yml",
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "package.json"
+  ],
+  "entry_points": [
+    "Claude reads CLAUDE.md and the triggered root-cause-remediation skill before corrective production work",
+    "Codex and other AGENTS-aware tools read generated AGENTS.md and the same repository skill",
+    "Local and GitHub validation run check:root-cause-contracts before merge"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This defect concerns Nomi's own repository instruction and CI contract. The enforcement invariant is decided by committed project files; external agent documentation cannot prove whether this repository's evidence paths and tests match its changes.",
+  "invariants": [
+    "P2 and R21 remain the only always-loaded root-cause rule identifiers; detailed procedure lives once in the repository skill.",
+    "AGENTS.md is generated from CLAUDE.md, so Claude and Codex cannot drift into separately maintained remediation rules.",
+    "Every new or modified contract uses schema v3 and identifies recurrence, real shared boundaries, at least two checked same-class entries, structural prevention, changed class tests, legacy-path disposition, and dependency lifecycle.",
+    "Historical schema v1 and v2 contracts remain readable only while their byte content matches either the committed bootstrap hash baseline or the trusted target-base snapshot; editing or adding a legacy contract relative to that base fails CI.",
+    "The committed contract gate, not a machine-local hook, is the merge authority."
+  ],
+  "generality_proof": "The trigger is phrased by corrective intent rather than one product directory, and the same skill is referenced from both generated agent instruction surfaces. For mechanically high-risk paths, one checker validates every changed contract and covered file regardless of which agent, provider, platform, or defect produced the diff.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "symbol": "validateRootCauseChange and validateRootCauseHistory",
+      "responsibility": "Reject unproven schema-v3 remediation evidence and any legacy history that is new, deleted, or modified relative to the trusted target base before a high-risk change can pass contracts."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "CLAUDE.md",
+      "entry_point": "P2 and R21 corrective-change trigger",
+      "disposition": "enforced",
+      "evidence": "Claude receives the short trigger and is directed to the single detailed skill before production edits."
+    },
+    {
+      "path": "AGENTS.md",
+      "entry_point": "generated P2 and R21 corrective-change trigger",
+      "disposition": "enforced",
+      "evidence": "Codex receives the same trigger because AGENTS.md is regenerated and checked against CLAUDE.md."
+    },
+    {
+      "path": "scripts/check-root-cause-contracts.mjs",
+      "entry_point": "local and CI contracts gate",
+      "disposition": "enforced",
+      "evidence": "The checker hashes every contract, inherits immutable v1 history from ROOT_CAUSE_BASE_REF, and runs the v2 cross-field validator on the repository diff."
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "pull-request quality gate",
+      "disposition": "enforced",
+      "evidence": "The merge workflow invokes the committed contracts command, and its structure test prevents the gate from being silently removed or reordered out of the validation path."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every concurrent agent or PR can otherwise invent a locally complete but incompatible remediation schema, so the collision can recur whenever governance evolves in parallel.",
+    "same_class_scan": [
+      "Compared every root-cause contract schema, template, skill instruction, always-loaded rule, checker, and CI entry point from PR #221 and the latest main branch.",
+      "Verified schema v1, both incompatible schema v2 shapes, new schema v3 contracts, changed legacy contracts, and target-base-only legacy history."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/root-cause-contracts.mjs",
+    "invariant": "A high-risk corrective diff cannot pass using a patch-shaped, pathless, testless, or lifecycle-free root-cause narrative.",
+    "failure_mode": "The contracts command exits nonzero with the missing or inconsistent evidence before unit, package, or merge validation can report success.",
+    "exception_policy": "none",
+    "strategy": "Give the merged recurrence and shared-boundary contract one new schema version, preserve earlier versions as immutable target-base history, and make CI reject any new or edited legacy shape.",
+    "artifacts": [
+      "scripts/root-cause-contracts.mjs",
+      "scripts/check-root-cause-contracts.mjs",
+      ".agents/skills/root-cause-remediation/references/contract-v3.template.json",
+      ".github/workflows/quality-gate.yml"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-root-cause-contracts.node-test.mjs",
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-root-cause-contracts.node-test.mjs",
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/root-cause-contracts.mjs",
+      "scripts/check-root-cause-contracts.mjs"
+    ],
+    "rationale": "The schema-v1 path that accepted mutable non-empty prose is replaced by v2 validation plus a content-hash-only historical reader; no path can create or edit v1 successfully."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The checker uses Node built-ins and repository JSON; no third-party runtime or package version controls this enforcement contract.",
+    "exit_criteria": []
+  },
+  "migration": "Existing schema-v1 hashes bootstrap from scripts/root-cause-contract-v1-baseline.json; every schema-v1 or schema-v2 contract on the trusted ROOT_CAUSE_BASE_REF is inherited by exact SHA-256. They remain readable as immutable incident history. Any edit or PR-local legacy addition must migrate to schema v3.",
+  "residual_risks": [
+    "No static checker can prove an agent's private reasoning or detect a deliberately false statement. The gate instead makes evidence falsifiable by tying claims to repository paths and changed tests.",
+    "Low-risk corrective paths are governed by the mandatory P2/skill trigger but are not all mechanically classified; expanding mechanical coverage should follow observed misses rather than forcing root-cause contracts onto unrelated feature work."
+  ]
+}

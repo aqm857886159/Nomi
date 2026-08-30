@@ -1,0 +1,105 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-30-openai-image-empty-size",
+  "problem_type": "openai-compatible image parameter serialization regression",
+  "symptom": "Selecting Auto · 1K for gpt-image-2 produced an image request with size: \"\", and the provider rejected it with Invalid size \"\".",
+  "direct_cause": "taskTemplateParams used an empty string as the missing-size value. Exact template fields preserve empty strings, so the OpenAI-compatible image body serialized an invalid size instead of omitting the optional field.",
+  "class_root": "Optional provider parameters were not normalized at the shared task-template boundary: missing values could cross into exact request templates as empty strings and become invalid wire values.",
+  "affected_population": [
+    "Users selecting Auto for an OpenAI-compatible image model",
+    "Persisted gpt-image-2 configurations whose aspect ratio has no concrete pixel-size mapping",
+    "Any future exact-template operation that receives an unset optional value through taskTemplateParams"
+  ],
+  "scope_paths": [
+    "electron/catalog/taskParams.ts",
+    "electron/catalog/newapiImageEdit.test.ts"
+  ],
+  "entry_points": [
+    "taskTemplateParams for image-generation and image-edit operations",
+    "OpenAI-compatible image parameter mapping and exact request-body rendering",
+    "Auto aspect-ratio selections with a resolution tier"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/docs/models/gpt-image-2",
+      "checked_at": "2026-08-30",
+      "purpose": "Confirm gpt-image-2 supports the Images API generation and edit surfaces whose optional image parameters must follow the provider contract."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/docs/guides/images-vision",
+      "checked_at": "2026-08-30",
+      "purpose": "Confirm the documented Images API request shape and distinguish it from Chat Completions image understanding."
+    }
+  ],
+  "invariants": [
+    "When no concrete image size is selected, the shared task-template parameter object contains undefined for size and exact request templates omit the field.",
+    "When a concrete ratio and resolution are selected, parameter mapping still produces a valid pixel WxH size.",
+    "The shared normalization boundary never serializes an empty string as an optional provider parameter value.",
+    "The regression is covered at final request-body assembly rather than only at a UI-state snapshot."
+  ],
+  "regression_tests": [
+    "electron/catalog/newapiImageEdit.test.ts"
+  ],
+  "generality_proof": "All catalog operations that derive exact template parameters call taskTemplateParams before param mapping and body rendering; normalizing the shared size value prevents the same empty optional field from entering another OpenAI-compatible operation.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "taskTemplateParams",
+      "responsibility": "Normalize derived task parameters before any provider parameter map or exact request template can serialize them."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "entry_point": "image create/edit template parameters",
+      "disposition": "enforced",
+      "evidence": "Both image create and multipart edit operation tests render parameters produced by taskTemplateParams."
+    },
+    {
+      "path": "electron/catalog/paramTranslate.ts",
+      "entry_point": "concrete ratio and resolution mapping",
+      "disposition": "enforced",
+      "evidence": "Existing parameter consistency and image edit tests retain concrete WxH values while the new Auto case omits size."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any optional field whose missing representation is an empty string can be preserved by exact templates and rejected by a strict provider, so the shared normalization boundary must enforce the rule.",
+    "same_class_scan": [
+      "Scanned taskTemplateParams callers and the exact template renderer for image create/edit operations.",
+      "Checked concrete ratio mappings and existing parameter-consistency coverage to ensure the fix does not remove valid wire values."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/taskParams.ts",
+    "invariant": "Unset optional task parameters remain undefined until the template renderer omits them.",
+    "failure_mode": "The shared builder cannot hand an empty size alias to a strict exact template.",
+    "exception_policy": "none",
+    "strategy": "Normalize empty derived size values at the shared task-template boundary and assert the final wire body.",
+    "artifacts": [
+      "electron/catalog/taskParams.ts",
+      "electron/catalog/newapiImageEdit.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/catalog/newapiImageEdit.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The defect was an invalid value at an existing shared boundary, not a parallel implementation that needs removal."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls optional parameter normalization.",
+    "exit_criteria": []
+  },
+  "migration": "No catalog migration is required. Existing saved Auto selections are normalized when their next request parameters are built.",
+  "residual_risks": [
+    "A third-party relay may expose a different image contract; its official request example is still required before adding a mapping.",
+    "Anonymous upload-host failures remain a network/transport concern and are not made reliable by this size normalization fix."
+  ]
+}

@@ -6,6 +6,7 @@ import {
   contentTypeFromMagicBytes,
   extensionFromContentType,
   extensionsForKind,
+  isCertifiableMediaContentType,
   mediaKindFromExtension,
   normalizeExtension,
   resolveContentType,
@@ -144,6 +145,23 @@ describe("contentTypeFromMagicBytes / resolveContentType（扩展名认不出时
     expect(contentTypeFromMagicBytes(head([0x49, 0x49, 0x2a, 0x00]))).toBe("image/tiff");
     expect(contentTypeFromMagicBytes(head([0x00, 0x00, 0x01, 0x00]))).toBe("image/x-icon");
     expect(contentTypeFromMagicBytes(head([1, 2, 3, 4]))).toBeNull();
+  });
+
+  it("按真实容器品牌/DocType识别 M4V、M4A、MKV、AAC 与 Opus", () => {
+    expect(contentTypeFromMagicBytes(ftyp("M4V "))).toBe("video/x-m4v");
+    expect(contentTypeFromMagicBytes(ftyp("M4A "))).toBe("audio/mp4");
+    expect(contentTypeFromMagicBytes(head([0x1a, 0x45, 0xdf, 0xa3], "matroska"))).toBe("video/x-matroska");
+    expect(contentTypeFromMagicBytes(head([0xff, 0xf1, 0x50, 0x80]))).toBe("audio/aac");
+    expect(contentTypeFromMagicBytes(head("OggS", [0, 0, 0, 0], "OpusHead"))).toBe("audio/opus");
+  });
+
+  it("能力矩阵只声明当前真实 decoder 支持的图片格式", () => {
+    expect(isCertifiableMediaContentType("image/png")).toBe(true);
+    expect(isCertifiableMediaContentType("image/gif")).toBe(false);
+    expect(isCertifiableMediaContentType("image/avif")).toBe(false);
+    expect(isCertifiableMediaContentType("image/heic")).toBe(false);
+    expect(isCertifiableMediaContentType("video/x-matroska")).toBe(true);
+    expect(isCertifiableMediaContentType("audio/opus")).toBe(true);
   });
 
   it("扩展名认得出就用扩展名（快路不变）", () => {

@@ -313,9 +313,9 @@ function titleFromUrl(url: string): string {
   try {
     const parsed = new URL(url)
     const segment = decodeURIComponent(parsed.pathname.split('/').filter(Boolean).pop() || '').replace(/\.[^.]+$/, '')
-    return segment.trim() || parsed.hostname || '网页媒体'
+    return segment.trim() || parsed.hostname || i18n.t('generationCommon.defaultTitles.webMedia')
   } catch {
-    return '网页媒体'
+    return i18n.t('generationCommon.defaultTitles.webMedia')
   }
 }
 

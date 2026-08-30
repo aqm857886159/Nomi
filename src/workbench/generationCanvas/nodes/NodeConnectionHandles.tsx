@@ -38,6 +38,7 @@ type MagneticConnectionHandleProps = {
   pendingTarget: boolean
   onStart: (event: React.PointerEvent<HTMLElement>, side: ConnectionAnchorSide) => void
   onComplete: (event: React.MouseEvent<HTMLButtonElement>) => void
+  ariaLabel?: string
 }
 
 export function MagneticConnectionHandle({
@@ -46,6 +47,7 @@ export function MagneticConnectionHandle({
   pendingTarget,
   onStart,
   onComplete,
+  ariaLabel,
 }: MagneticConnectionHandleProps): JSX.Element {
   const { t } = useTranslation()
   const homeX = side === 'left' ? 'calc(100% - 28px)' : '28px'
@@ -58,7 +60,7 @@ export function MagneticConnectionHandle({
         'touch-none cursor-crosshair border-0 bg-transparent p-0',
         side === 'left' ? 'left-[-112px]' : 'right-[-112px]',
       )}
-      aria-label={pendingTarget ? t('generationCommon.node.connectHere') : t('generationCommon.node.startConnection')}
+      aria-label={ariaLabel || (pendingTarget ? t('generationCommon.node.connectHere') : t('generationCommon.node.startConnection'))}
       data-active={active ? 'true' : 'false'}
       data-home-x={homeX}
       data-side={side}

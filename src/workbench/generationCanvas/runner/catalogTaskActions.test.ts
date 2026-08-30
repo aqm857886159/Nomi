@@ -323,11 +323,11 @@ describe('buildCatalogTaskRequest — 标准参考面与档案投影并存（中
   })
 })
 
-// 根因回归（2026-06-08）：断开 kie、连 apimart 后，钉死在 kie 的老节点运行时必须自动迁到
-// apimart 的同款模型，而不是抛 `API key missing: kie`。
-describe('runCatalogGenerationTask — 断开 kie 后老节点自动迁移到已连接供应商', () => {
-  const vendorDto = (key: string, hasApiKey: boolean): ModelCatalogVendorDto => ({ key, name: key, enabled: true, hasApiKey, createdAt: '', updatedAt: '' })
-  const apimartSeedream: ModelCatalogModelDto = { modelKey: 'doubao-seedream-4.5', vendorKey: 'apimart', labelZh: 'Seedream 4.5', kind: 'image', enabled: true, meta: { archetypeId: 'seedream' }, createdAt: '', updatedAt: '' }
+// 已持久化 vendor 的节点只能沿候选 revision lineage 迁移；独立供应商即便同名/同 archetype 也不能
+// 被静默选中，否则一次 credential repair 会把旧节点送到完全无关的端点并产生付费请求。
+describe('runCatalogGenerationTask — 旧节点只沿 catalog lineage 迁移', () => {
+  const vendorDto = (key: string, hasApiKey: boolean, meta?: unknown): ModelCatalogVendorDto => ({ key, name: key, enabled: true, hasApiKey, ...(meta ? { meta } : {}), createdAt: '', updatedAt: '' })
+  const apimartSeedream: ModelCatalogModelDto = { modelKey: 'doubao-seedream-4.5', vendorKey: 'apimart', labelZh: 'Seedream 4.5', kind: 'image', enabled: true, published: true, publishedModes: ['text_to_image'], meta: { archetypeId: 'seedream' }, createdAt: '', updatedAt: '' }
 
   const staleKieNode: GenerationCanvasNode = {
     id: 'n1', kind: 'image', title: '', position: { x: 0, y: 0 }, prompt: '画只猫',
@@ -347,13 +347,64 @@ describe('runCatalogGenerationTask — 断开 kie 后老节点自动迁移到已
     return { calls, options }
   }
 
-  it('请求打到 apimart，modelKey 改写成 doubao-seedream-4.5（不再要 kie 的 key）', async () => {
+  it('无 lineage 的 legacy vendor 不再按 archetype 静默请求 apimart', async () => {
     const { calls, options } = harness()
-    const result = await runCatalogGenerationTask(staleKieNode, options)
+    await expect(runCatalogGenerationTask(staleKieNode, options)).rejects.toThrow(/没有已连接的供应商提供/)
+    expect(calls).toHaveLength(0)
+  })
+
+  it('无关同名模型排前时，真实 resolve→run 调用链只请求同 lineage active successor', async () => {
+    const calls: Array<{ vendor: string; request: TaskRequestDto }> = []
+    const candidate = {
+      ...apimartSeedream,
+      modelKey: 'seedream',
+      vendorKey: 'kie--candidate-revision-2',
+    }
+    const candidateMeta = {
+      adapterCandidateRootVendorKey: 'kie',
+      adapterCandidateSourceVendorKey: 'kie',
+      adapterCandidatePromotionPredecessors: {
+        seedream: { vendorKey: 'kie', publishedModes: ['text_to_image'] },
+      },
+    }
+
+    await runCatalogGenerationTask(staleKieNode, {
+      listCatalogVendors: async () => [
+        vendorDto('kie', true),
+        vendorDto('unrelated', true),
+        vendorDto('kie--candidate-revision-2', true, candidateMeta),
+      ],
+      // enabled:true 的真实 DTO 不含已停用 source model；source vendor 仍因另一个兄弟模型可执行。
+      listCatalogModels: async () => [
+        { ...candidate, vendorKey: 'unrelated' },
+        candidate,
+      ],
+      runTask: async (vendor: string, request: TaskRequestDto) => {
+        calls.push({ vendor, request })
+        return { id: 't-candidate', kind: request.kind, status: 'succeeded', assets: [{ type: 'image', url: 'https://x/candidate.png' }], raw: {} }
+      },
+    })
+
     expect(calls).toHaveLength(1)
-    expect(calls[0].vendor).toBe('apimart')
-    expect(calls[0].request.extras?.modelKey).toBe('doubao-seedream-4.5')
-    expect(result.url).toBe('https://x/out.png')
+    expect(calls[0].vendor).toBe('kie--candidate-revision-2')
+    expect(calls[0].request.extras?.modelKey).toBe('seedream')
+  })
+
+  it('同 lineage successor disabled 时不向无关同名供应商提交请求', async () => {
+    const runTask = vi.fn()
+    await expect(runCatalogGenerationTask(staleKieNode, {
+      listCatalogVendors: async () => [
+        vendorDto('kie', true),
+        vendorDto('unrelated', true),
+        vendorDto('kie--candidate-disabled', false, {
+          adapterCandidateRootVendorKey: 'kie',
+          adapterCandidateSourceVendorKey: 'kie',
+        }),
+      ],
+      listCatalogModels: async () => [{ ...apimartSeedream, modelKey: 'seedream', vendorKey: 'unrelated' }],
+      runTask,
+    })).rejects.toThrow(/没有已连接的供应商提供/)
+    expect(runTask).not.toHaveBeenCalled()
   })
 
   it('没有任何已连接供应商提供该款 → 抛清晰可行动错误，而非 cryptic key missing', async () => {

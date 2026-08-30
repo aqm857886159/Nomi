@@ -7,20 +7,20 @@ import { probeComfyuiSystemStats } from "./comfyuiProbe";
 import {
   analyzeComfyWorkflowText,
   analyzeComfyWorkflowTextSmart,
-  importComfyWorkflowToCatalog,
   reconcileComfyWorkflowText,
   reconcileComfyWorkflowTexts,
-  updateComfyWorkflowInCatalog,
 } from "./catalog/comfyuiWorkflowImportStore";
 import { fetchComfyuiTemplateDetail, fetchComfyuiTemplates } from "./comfyuiTemplates";
 import { readCatalog } from "./catalog/catalogStore";
 import { COMFYUI_VENDOR_KEY } from "./catalog/types";
 import { listComfyuiPresets } from "./catalog/comfyuiPresets";
 import { interruptComfyuiTask, unwatchComfyuiTask, watchComfyuiTask } from "./comfyuiProgressSocket";
+import { getConnectionCertificationService } from "./integrationCertification/service";
 
 type RegisterSyncIpc = (channel: string, handler: (...args: unknown[]) => unknown) => void;
 
 export function registerComfyuiIpc(registerSyncIpc: RegisterSyncIpc): void {
+  const certification = getConnectionCertificationService();
   // 健康探测（接入卡启用/重检调用；直连 localhost /system_stats，不走系统代理）。
   ipcMain.handle("nomi:model-catalog:comfyui:probe", (event, baseUrl: unknown) => {
     assertTrustedSender(event);
@@ -42,8 +42,34 @@ export function registerComfyuiIpc(registerSyncIpc: RegisterSyncIpc): void {
     assertTrustedSender(event);
     return reconcileComfyWorkflowTexts(items, vendorKey);
   });
-  registerSyncIpc("nomi:model-catalog:comfyui:import-workflow", (payload: unknown) => importComfyWorkflowToCatalog(payload));
-  registerSyncIpc("nomi:model-catalog:comfyui:update-workflow", (payload: unknown) => updateComfyWorkflowInCatalog(payload));
+  // Import/update are staging operations owned by the canonical certification
+  // facade. They intentionally remain disabled until a real candidate run
+  // verifies the production /prompt -> /history -> /view path.
+  registerSyncIpc("nomi:model-catalog:comfyui:import-workflow", (payload: unknown) => {
+    const raw = (payload && typeof payload === "object" ? payload : {}) as Record<string, unknown>;
+    return certification.stageComfyWorkflow({
+      workflowText: String(raw.text || ""),
+      binding: (raw.binding && typeof raw.binding === "object" ? raw.binding : { numeric: [] }) as never,
+      labelZh: String(raw.labelZh || "本地 ComfyUI 工作流"),
+      ...(typeof raw.enumOptions !== "undefined" ? { enumOptions: raw.enumOptions as never } : {}),
+      ...(typeof raw.vendorKey === "string" ? { vendorKey: raw.vendorKey } : {}),
+      ...(typeof raw.uiWorkflowText === "string" ? { uiWorkflowText: raw.uiWorkflowText } : {}),
+    });
+  });
+  registerSyncIpc("nomi:model-catalog:comfyui:update-workflow", (payload: unknown) => {
+    // The store preserves modelKey for edits; route through the existing
+    // staging function after validating the API graph and explicit binding.
+    const raw = (payload && typeof payload === "object" ? payload : {}) as Record<string, unknown>;
+    return certification.updateComfyWorkflow({
+      modelKey: String(raw.modelKey || ""),
+      workflowText: String(raw.text || ""),
+      binding: (raw.binding && typeof raw.binding === "object" ? raw.binding : { numeric: [] }) as never,
+      labelZh: String(raw.labelZh || "本地 ComfyUI 工作流"),
+      ...(typeof raw.enumOptions !== "undefined" ? { enumOptions: raw.enumOptions as never } : {}),
+      ...(typeof raw.vendorKey === "string" ? { vendorKey: raw.vendorKey } : {}),
+      ...(typeof raw.uiWorkflowText === "string" ? { uiWorkflowText: raw.uiWorkflowText } : {}),
+    });
+  });
   // 预置模板（S5）：静态清单，启用前经 reconcile 缺件闸、启用走既有 import 链。
   registerSyncIpc("nomi:model-catalog:comfyui:presets", () => listComfyuiPresets());
   // 模板库（T2）：读**用户自己 ComfyUI 里的**官方模板（几百个），我们零维护。

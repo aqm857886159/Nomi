@@ -150,11 +150,9 @@ try {
   const tools = (await mcp.rpc('tools/list', {}, 20_000)).result?.tools || []
   // 期望清单从目录源 derive（mcpToolCatalog = 自身条目 + spread 进来的 mcpGenerationTools 条目），
   // 断言集合相等：漏播/多播都抓得住，目录再长这里也不会烂成过期死数。
-  const catalogNames = ['mcpToolCatalog.ts', 'mcpGenerationTools.ts']
-    .flatMap((file) => fs.readFileSync(path.join(repoRoot, 'electron/capabilityCore', file), 'utf8')
-      .split('\n')
-      .map((line) => /^\s*name: ["'](nomi_[a-z0-9_]+)["'],?$/.exec(line)?.[1])
-      .filter(Boolean))
+  const catalogNames = ['mcpToolCatalog.ts', 'mcpGenerationTools.ts', 'mcpIntegrationTools.ts']
+    .flatMap((file) => [...fs.readFileSync(path.join(repoRoot, 'electron/capabilityCore', file), 'utf8').matchAll(/\bname:\s*["'](nomi_[a-z0-9_]+)["']/g)]
+      .map((match) => match[1]))
   const stdioNames = tools.map((tool) => tool.name)
   const missing = catalogNames.filter((name) => !stdioNames.includes(name))
   const extra = stdioNames.filter((name) => !catalogNames.includes(name))

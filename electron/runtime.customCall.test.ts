@@ -18,7 +18,7 @@ vi.mock("electron", () => ({
     getAppPath: () => process.cwd(),
   },
   safeStorage: {
-    isEncryptionAvailable: () => false,
+    isEncryptionAvailable: () => true,
     encryptString: (s: string) => Buffer.from(s),
     decryptString: (b: Buffer) => b.toString(),
   },
@@ -43,6 +43,18 @@ function seedScriptedModel(script: string, kind: "image" | "video" | "text" | "a
   upsertModelCatalogVendor({ key: "custom-cc", name: "CC", baseUrlHint: "https://cc.example/v1", authType: "bearer", enabled: true });
   upsertModelCatalogVendorApiKey("custom-cc", { apiKey: "sk-cc-1", enabled: true });
   upsertModelCatalogModel({ vendorKey: "custom-cc", modelKey: "cc-model", kind, enabled: true, customCall: { script } });
+}
+
+function seedImageEditModeScript(script: string) {
+  upsertModelCatalogVendor({ key: "custom-cc", name: "CC", baseUrlHint: "https://cc.example/v1", authType: "bearer", enabled: true });
+  upsertModelCatalogVendorApiKey("custom-cc", { apiKey: "sk-cc-1", enabled: true });
+  upsertModelCatalogModel({
+    vendorKey: "custom-cc",
+    modelKey: "seedream",
+    kind: "image",
+    enabled: true,
+    customCall: { modes: { edit: { script } } },
+  });
 }
 
 describe("runTask × customCall", () => {
@@ -79,7 +91,7 @@ return 'data:image/png;base64,eA=='`,
     const result = await runTask({
       vendor: "custom-cc",
       request: {
-        kind: "prompt_refine",
+        kind: "chat",
         prompt: "make this cinematic",
         extras: { modelKey: "cc-model", nodeId: "n1", grantId },
       },
@@ -111,13 +123,13 @@ return 'data:image/png;base64,eA=='`,
   });
 
   it("脚本接管后不再用遗留 mapping body 误判参考图发不出去", async () => {
-    seedScriptedModel(`if (!params.referenceImages?.[0]) throw new Error('reference missing')
+    seedImageEditModeScript(`if (!params.referenceImages?.[0]) throw new Error('reference missing')
 return 'data:image/png;base64,eA=='`);
     // 模型从声明式 mapping 切到自定义脚本后，旧 mapping 仍可能留在目录里。它的 body 不携带图片，
     // 但脚本会自己读取 params.referenceImages；护栏必须检查实际派发路径，而不是已失效的旧 body。
     upsertModelCatalogMapping({
       vendorKey: "custom-cc",
-      modelKey: "cc-model",
+      modelKey: "seedream",
       taskKind: "image_edit",
       name: "legacy mapping",
       create: {
@@ -134,9 +146,10 @@ return 'data:image/png;base64,eA=='`);
         kind: "image_edit",
         prompt: "keep the subject",
         extras: {
-          modelKey: "cc-model",
+          modelKey: "seedream",
           nodeId: "n1",
           grantId,
+          archetype: { id: "seedream", modeId: "edit" },
           referenceImages: ["https://cdn.example.com/reference.png"],
         },
       },
@@ -146,7 +159,7 @@ return 'data:image/png;base64,eA=='`);
   });
 
   it("custom-call uses the selected non-Comfy identity instead of a stale Comfy exact contract", async () => {
-    seedScriptedModel(`if (params.reference_images?.[0] !== 'https://cdn.example.com/reference.png') throw new Error('reference shadowed')
+    seedImageEditModeScript(`if (params.reference_images?.[0] !== 'https://cdn.example.com/reference.png') throw new Error('reference shadowed')
 return 'data:image/png;base64,eA=='`);
     const grantId = mintSpendGrant({ nodeIds: ["n1"] });
     const result = await runTask({
@@ -155,9 +168,10 @@ return 'data:image/png;base64,eA=='`);
         kind: "image_edit",
         prompt: "keep the subject",
         extras: {
-          modelKey: "cc-model", modelVendor: "comfyui-local", nodeId: "n1", grantId,
+          modelKey: "seedream", modelVendor: "comfyui-local", nodeId: "n1", grantId,
+          archetype: { id: "seedream", modeId: "edit" },
           parameterReferenceSlots: {
-            modelKey: "cc-model", vendorKey: "comfyui-local",
+            modelKey: "seedream", vendorKey: "comfyui-local",
             slots: [{ key: "comfy_image_1", label: "Reference", group: "reference", mediaKind: "image" }],
           },
           comfy_image_1: null,

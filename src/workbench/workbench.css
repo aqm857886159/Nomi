@@ -108,6 +108,14 @@
   border-radius: 3px;
 }
 
+/* The browser's native selection is cleared when the assistant receives focus.
+   This decoration keeps the pending replace target visible across that hand-off. */
+.workbench-editor__content .nomi-persistent-selection {
+  background: var(--nomi-accent-soft);
+  color: var(--nomi-accent);
+  border-radius: 3px;
+}
+
 /* 待办列表（Tiptap v3 用原生 checkbox：label > input + span，非 ColaMD 的 ::before）。 */
 .workbench-editor__content ul[data-type='taskList'] {
   list-style: none;

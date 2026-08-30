@@ -1,3 +1,5 @@
+import i18n from '../../i18n'
+
 const HTTP_URL_RE = /^https?:\/\//i
 const SCHEME_RE = /^[a-z][a-z\d+.-]*:/i
 const IPV4_RE = /^(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?$/u
@@ -29,5 +31,5 @@ export function browserUrlDisplayTitle(url: string): string {
   } catch {
     // Fall through to a compact fallback.
   }
-  return url || '新标签页'
+  return url || i18n.t('browserAssets.newTab')
 }

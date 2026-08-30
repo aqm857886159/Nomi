@@ -6,6 +6,7 @@ import {
   TOOLBAR_ICON as I,
   ToolbarButton,
   ToolbarDivider,
+  ToolbarDuplicateVariantButton,
   ToolbarIconButton,
   ToolbarProvenanceButton,
 } from './NodeFloatingToolbar'
@@ -67,6 +68,7 @@ export default function NodeVideoFrameToolbar({ node, downloading, onDownload, o
         disabled={busy !== null}
         onClick={() => setShotCutOpen(true)}
       />
+      <ToolbarDuplicateVariantButton nodeId={node.id} />
       <ToolbarDivider />
       <ToolbarIconButton
         icon={<IconMaximize size={I.size} stroke={I.stroke} />}

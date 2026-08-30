@@ -31,7 +31,7 @@ describe('explicit video first-frame edges reach generic image parameters as ext
       edges = useGenerationCanvasStore.getState().edges
     }
     edges = [...edges, { id: 'clip', source: source.id, target: target.id, mode: 'reference', targetParamKey: 'clip' }]
-    const model: ModelCatalogModelDto = { modelKey: 'generic-relay', vendorKey: 'custom-relay', labelZh: 'Relay', kind: 'video', enabled: true, createdAt: '', updatedAt: '', meta: catalogMeta }
+    const model: ModelCatalogModelDto = { modelKey: 'generic-relay', vendorKey: 'custom-relay', labelZh: 'Relay', kind: 'video', enabled: true, published: true, publishedModes: ['image_to_video'], createdAt: '', updatedAt: '', meta: catalogMeta }
     const vendor: ModelCatalogVendorDto = { key: 'custom-relay', name: 'Relay', enabled: true, hasApiKey: true, createdAt: '', updatedAt: '' }
     const requests: TaskRequestDto[] = []
     await runCatalogGenerationTask(target, {

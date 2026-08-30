@@ -1,16 +1,12 @@
 import { ipcMain } from "electron";
-import { authHeaders, authQueryParams } from "../ai/requestPipeline";
-import { fetchModelList } from "../ai/onboarding/modelListProbe";
-import { readCatalog } from "../catalog/catalogStore";
-import { decryptApiKeyRecord } from "../catalog/secrets";
-import { mergeHeadersCaseInsensitive } from "../jsonUtils";
 import type { BillingModelKind } from "../catalog/types";
 import {
-  createExistingConnectionActions,
-  type ExistingConnectionActions,
   type ExistingConnectionModel,
 } from "./existingConnection";
-import { getProviderAdapterService } from "./service";
+import {
+  getConnectionCertificationService,
+  type ConnectionCertificationService,
+} from "../integrationCertification/service";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
 function modelKind(value: unknown): BillingModelKind {
@@ -33,57 +29,41 @@ function selectedModels(payload: unknown): ExistingConnectionModel[] {
   });
 }
 
-function defaultActions(): ExistingConnectionActions {
-  const service = getProviderAdapterService();
-  return createExistingConnectionActions({
-    readCatalog,
-    decryptApiKey: decryptApiKeyRecord,
-    async fetchModels(input) {
-      const headers = mergeHeadersCaseInsensitive(
-        input.providerKind === "anthropic" ? { "anthropic-version": "2023-06-01" } : {},
-        authHeaders(input.authType, input.apiKey, input.authHeader),
-        input.headers,
-      );
-      const query = authQueryParams(input.authType, input.apiKey, input.authQueryParam);
-      return fetchModelList(input.providerKind, input.baseUrl, headers, input.signal, { query });
-    },
-    registerAdapter: ({ vendorKey, ...input }) => service.register({
-      ...input,
-      catalogVendorKey: vendorKey,
-      apiKey: "",
-      preserveExistingCredential: true,
-    }),
-    startAdapter: ({ vendorKey, ...input }) => service.start({ ...input, catalogVendorKey: vendorKey }),
-    getAdapterRun: (runId) => service.getRun(runId),
-  });
-}
-
-export function registerExistingConnectionIpc(actions: ExistingConnectionActions = defaultActions()): void {
-  ipcMain.handle("nomi:provider-adapter:existing:list-models", async (event, payload: unknown) => {
+export function registerExistingConnectionIpc(
+  service: ConnectionCertificationService = getConnectionCertificationService(),
+): void {
+  ipcMain.handle("nomi:integration-certification:http:existing:list-models", async (event, payload: unknown) => {
     assertTrustedSender(event);
     const vendorKey = String((payload as { vendorKey?: unknown } | null)?.vendorKey || "").trim();
-    return actions.listModels({ vendorKey });
+    return service.listExistingHttpModels(vendorKey);
   });
-  ipcMain.handle("nomi:provider-adapter:existing:register", async (event, payload: unknown) => {
+  ipcMain.handle("nomi:integration-certification:http:existing:start", async (event, payload: unknown) => {
     assertTrustedSender(event);
-    const vendorKey = String((payload as { vendorKey?: unknown } | null)?.vendorKey || "").trim();
-    return actions.register({ vendorKey, models: selectedModels(payload) });
+    const raw = (payload || {}) as Record<string, unknown>;
+    try {
+      return await service.startExistingHttp({
+        entryPoint: "manual-ui",
+        idempotencyKey: String(raw.idempotencyKey || "").trim(),
+        vendorKey: String(raw.vendorKey || "").trim(),
+        models: selectedModels(payload),
+      });
+    } catch {
+      return { ok: false, code: "START_FAILED", error: "Certification start failed" };
+    }
   });
-  ipcMain.handle("nomi:provider-adapter:existing:start", async (event, payload: unknown) => {
-    assertTrustedSender(event);
-    const vendorKey = String((payload as { vendorKey?: unknown } | null)?.vendorKey || "").trim();
-    return actions.start({ vendorKey, models: selectedModels(payload) });
-  });
-  ipcMain.handle("nomi:provider-adapter:existing:adapt", async (event, payload: unknown) => {
-    assertTrustedSender(event);
-    const vendorKey = String((payload as { vendorKey?: unknown } | null)?.vendorKey || "").trim();
-    return actions.adapt({ vendorKey, models: selectedModels(payload) });
-  });
-  ipcMain.handle("nomi:provider-adapter:retry", async (event, payload: unknown) => {
+  ipcMain.handle("nomi:integration-certification:http:retry", async (event, payload: unknown) => {
     assertTrustedSender(event);
     const raw = (payload || {}) as Record<string, unknown>;
     const runId = String(raw.runId || "").trim();
     const modelKey = String(raw.modelKey || "").trim();
-    return actions.retry({ runId, ...(modelKey ? { modelKey } : {}) });
+    try {
+      return await service.retryHttp({
+        runId,
+        ...(modelKey ? { modelKey } : {}),
+        idempotencyKey: String(raw.idempotencyKey || "").trim(),
+      });
+    } catch {
+      return { ok: false, code: "START_FAILED", error: "Certification retry failed" };
+    }
   });
 }

@@ -70,6 +70,10 @@ type LauncherEntry = {
 }
 
 function packagedNodeLauncherPaths(appCommand: string): Pick<LauncherEntry, 'command' | 'args'> {
+  const joinPortable = (...parts: string[]): string => {
+    const first = String(parts[0] || '')
+    return (path.win32.isAbsolute(first) && !path.posix.isAbsolute(first) ? path.win32 : path.posix).join(...parts)
+  }
   if (process.platform === 'darwin') {
     const contentsDir = path.resolve(path.dirname(appCommand), '..')
     return {
@@ -79,7 +83,7 @@ function packagedNodeLauncherPaths(appCommand: string): Pick<LauncherEntry, 'com
   }
   return {
     command: appCommand,
-    args: [path.join(path.dirname(appCommand), 'resources', 'app.asar', 'dist-electron', 'capabilityCore', 'mcpNodeLauncher.js')],
+    args: [joinPortable(path.dirname(appCommand), 'resources', 'app.asar', 'dist-electron', 'capabilityCore', 'mcpNodeLauncher.js')],
   }
 }
 
@@ -99,8 +103,13 @@ function nodeLauncherEntry(appCommand: string, appArgs: string[], kind: McpLaunc
   const packaged = kind === 'packaged'
   const packagedLauncher = packaged ? packagedNodeLauncherPaths(appCommand) : null
   const command = packagedLauncher?.command ?? appCommand
+  const appPath = app.getAppPath()
+  const joinPortable = (...parts: string[]): string => {
+    const first = String(parts[0] || '')
+    return (path.win32.isAbsolute(first) && !path.posix.isAbsolute(first) ? path.win32 : path.posix).join(...parts)
+  }
   const launcherScript = packagedLauncher?.args[0]
-    ?? path.join(app.getAppPath(), 'dist-electron', 'capabilityCore', 'mcpNodeLauncher.js')
+    ?? joinPortable(appPath, 'dist-electron', 'capabilityCore', 'mcpNodeLauncher.js')
   return {
     command,
     args: [launcherScript],

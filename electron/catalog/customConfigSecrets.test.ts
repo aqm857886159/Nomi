@@ -124,7 +124,8 @@ describe("custom-call custom config secure persistence", () => {
     expect(safeStorageState.isEncryptionAvailable).not.toHaveBeenCalled();
     expect(state.version).toBe(CURRENT_CATALOG_VERSION);
     expect(record).toEqual(persisted.apiKeysByVendor["signed-relay"]);
-    expect(secrets.decryptApiKeyRecord(record)).toBe(apiKey);
+    expect(secrets.apiKeyDecryptStatus(record)).toBe("needs_resave");
+    expect(secrets.decryptApiKeyRecord(record)).toBe("");
     expect(fs.readFileSync(catalogFile(), "utf8")).toContain(apiKey);
   });
 
@@ -141,6 +142,7 @@ describe("custom-call custom config secure persistence", () => {
     const record = store.readCatalog().apiKeysByVendor["signed-relay"];
     expect(safeStorageState.isEncryptionAvailable).toHaveBeenCalledTimes(1);
     expect(record.enc).toBe("safeStorage");
+    expect(secrets.apiKeyDecryptStatus(record)).toBe("ok");
     expect(secrets.decryptApiKeyRecord(record)).toBe(apiKey);
     expect(fs.readFileSync(catalogFile(), "utf8")).not.toContain(apiKey);
   });
@@ -175,7 +177,8 @@ describe("custom-call custom config secure persistence", () => {
     expect(state.version).toBe(8);
     expect(fs.readFileSync(catalogFile(), "utf8")).toBe(before);
     expect(record).toEqual(persisted.apiKeysByVendor["signed-relay"]);
-    expect(secrets.decryptApiKeyRecord(record)).toBe(apiKey);
+    expect(secrets.apiKeyDecryptStatus(record)).toBe("needs_resave");
+    expect(secrets.decryptApiKeyRecord(record)).toBe("");
     expect(secrets.decryptCustomConfigWithLegacy(record, state.vendors[0].meta)).toEqual({
       signingKey,
       region: "cn-beijing",
@@ -221,7 +224,8 @@ describe("custom-call custom config secure persistence", () => {
     expect(state.version).toBe(CURRENT_CATALOG_VERSION);
     expect(record.apiKey).toBe(apiKey);
     expect(record.enc).toBe("plain");
-    expect(secrets.decryptApiKeyRecord(record)).toBe(apiKey);
+    expect(secrets.apiKeyDecryptStatus(record)).toBe("needs_resave");
+    expect(secrets.decryptApiKeyRecord(record)).toBe("");
     expect(JSON.parse(fs.readFileSync(catalogFile(), "utf8")).version).toBe(CURRENT_CATALOG_VERSION);
     expect(safeStorageState.isEncryptionAvailable).not.toHaveBeenCalled();
   });

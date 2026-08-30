@@ -3,7 +3,7 @@
 // 不碰 store；调用方拿到 spec 后 addNode + updateNode。
 
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { getNodeSize } from '../model/generationNodeKinds'
+import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { readCharacterMeta } from '../model/nodeMetaFields'
 import { buildBasicCharacterFixation, buildBasicSceneFixation } from './fixationPromptTemplates'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -60,7 +60,7 @@ export function buildFixationNodeSpec(node: GenerationCanvasNode): FixationNodeS
     prompt,
     references: [srcUrl],
     meta: { ...modelMeta, referenceImages: [srcUrl], referenceImageUrls: [srcUrl] },
-    position: { x: node.position.x + getNodeSize(node).width + 64, y: node.position.y },
+    position: { x: node.position.x + resolveNodeVisualSize(node).width + 64, y: node.position.y },
   }
 }
 

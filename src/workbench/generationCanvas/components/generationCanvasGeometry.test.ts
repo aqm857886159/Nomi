@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  getNodeSize,
+  centerNodeOffset,
+  getCanvasNodeVisualSize,
   getSelectedBounds,
   getCanvasGroupBoxes,
 } from './generationCanvasGeometry'
@@ -15,36 +16,38 @@ function makeNode(partial: Partial<GenerationCanvasNode> & Pick<GenerationCanvas
   } as GenerationCanvasNode
 }
 
-describe('getNodeSize — 单一尺寸真相源', () => {
-  it('显式 size 直接返回（不被回退覆盖）', () => {
-    const node = makeNode({ id: 'a', kind: 'image', size: { width: 555, height: 333 } })
-    expect(getNodeSize(node)).toEqual({ width: 555, height: 333 })
+describe('getCanvasNodeVisualSize — 渲染尺寸单一真相源', () => {
+  it('媒体真实预览高覆盖过期持久化高度', () => {
+    const node = makeNode({
+      id: 'loaded-image',
+      kind: 'image',
+      size: { width: 360, height: 280 },
+      meta: { previewHeight: 432 },
+      result: { id: 'result-1', type: 'image', url: 'nomi-local://asset/image.jpg', createdAt: 1 },
+    })
+    expect(getCanvasNodeVisualSize(node)).toEqual({ width: 360, height: 432 })
   })
 
-  it('无 size 时回退到 registry 的 per-kind 默认尺寸，而非裸 320/360 或 300/220', () => {
-    // character 在 registry 里是 300×190；旧的 geometry 回退把它算成 320×360（DEFAULT_NODE_SIZE）
-    // 或命中判定把它算成 300×220 —— 都和真相源不一致。
-    const character = makeNode({ id: 'c', kind: 'character' })
-    expect(getNodeSize(character)).toEqual(getGenerationNodeDefaultSize('character'))
-    expect(getNodeSize(character)).not.toEqual({ width: 320, height: 360 })
-    expect(getNodeSize(character)).not.toEqual({ width: 300, height: 220 })
-
-    // video 在 registry 里是 420×340；旧的 300×220 命中框比真实窄一大截 → 框选选不中。
-    const video = makeNode({ id: 'v', kind: 'video' })
-    expect(getNodeSize(video)).toEqual(getGenerationNodeDefaultSize('video'))
-    expect(getNodeSize(video).width).toBe(420)
-    expect(getNodeSize(video).height).toBe(340)
-  })
-
-  it('每个 kind 的回退都等于其 registry defaultSize（无第二份真相源）', () => {
-    for (const kind of ['text', 'character', 'scene', 'image', 'keyframe', 'video', 'shot', 'output', 'panorama', 'scene3d', 'asset'] as const) {
-      const node = makeNode({ id: `n-${kind}`, kind })
-      expect(getNodeSize(node)).toEqual(getGenerationNodeDefaultSize(kind))
-    }
+  it('卡片 renderKind 使用真实固定宽度', () => {
+    const character = makeNode({ id: 'c', kind: 'character', size: { width: 300, height: 190 } })
+    expect(getCanvasNodeVisualSize(character)).toEqual({ width: 200, height: 190 })
   })
 })
 
 describe('几何调用点使用真实渲染尺寸', () => {
+  it('centerNodeOffset 按媒体真实预览高居中，不使用过期持久化高度', () => {
+    const node = makeNode({
+      id: 'loaded-image',
+      kind: 'image',
+      position: { x: 160, y: 140 },
+      size: { width: 360, height: 280 },
+      meta: { previewHeight: 432 },
+      result: { id: 'result-1', type: 'image', url: 'nomi-local://asset/image.jpg', createdAt: 1 },
+    })
+
+    expect(centerNodeOffset(node, { width: 1040, height: 648 }, 1)).toEqual({ x: 180, y: -32 })
+  })
+
   it('getSelectedBounds 用 per-kind 真实尺寸算包围盒（video 比 300×220 大）', () => {
     const size = getGenerationNodeDefaultSize('video')
     const node = makeNode({ id: 'v', kind: 'video', position: { x: 100, y: 0 }, size })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ProviderAdapterRun } from './types'
-import { isLiveAdapterTerminalStage, liveAdapterSummary, liveHarnessEnabled } from './liveHarness'
+import { isLiveAdapterTerminalStage, liveAdapterSummary, liveHarnessEnabled, liveHarnessIdempotencyKey } from './liveHarness'
 
 describe('liveAdapterSummary', () => {
   it('only permits the quota-spending live harness in explicit E2E runs', () => {
@@ -33,6 +33,15 @@ describe('liveAdapterSummary', () => {
 
     expect(summary).toMatchObject({ vendorKey: 'custom-provider', stage: 'completed', activeRevision: 'rev-1' })
     expect(summary).not.toHaveProperty('connectionFingerprint')
+  })
+
+  it('uses a fresh idempotency scope for each explicit live invocation', () => {
+    const base = { sourceVendorKey: 'custom-provider', models: [{ modelKey: 'paint-v2' }] }
+
+    expect(liveHarnessIdempotencyKey({ ...base, invocationId: 'e2e-run-a' }))
+      .not.toBe(liveHarnessIdempotencyKey({ ...base, invocationId: 'e2e-run-b' }))
+    expect(liveHarnessIdempotencyKey({ ...base, invocationId: 'e2e-run-a' }))
+      .toBe(liveHarnessIdempotencyKey({ ...base, invocationId: 'e2e-run-a' }))
   })
 
   it.each([

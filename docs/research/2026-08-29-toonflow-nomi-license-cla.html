@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Toonflow × Nomi：架构、Agent 与协议研究</title>
+  <style>
+    :root {
+      --ink: #202126;
+      --muted: #62646d;
+      --paper: #f5f3f0;
+      --panel: #fff;
+      --line: #d9d8dc;
+      --violet: #5b4acb;
+      --violet-soft: #e8e5ff;
+      --lime: #a6c847;
+      --orange: #d86d32;
+      --shadow: 0 16px 44px rgba(32,33,38,.09);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; color: var(--ink);
+      background: radial-gradient(circle at 15% 0%, rgba(91,74,203,.08), transparent 34rem), var(--paper);
+      font-family: "Avenir Next", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      line-height: 1.65;
+    }
+    a { color: var(--violet); text-underline-offset: 3px; }
+    .shell { max-width: 1180px; margin: 0 auto; padding: 28px 22px 80px; }
+    .masthead { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, .9fr); gap: 22px; align-items: end; margin-bottom: 28px; }
+    .kicker { color: var(--orange); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 800; }
+    h1, h2, h3 { font-family: Georgia, "Songti SC", serif; line-height: 1.15; letter-spacing: 0; }
+    h1 { font-size: clamp(2.3rem, 6vw, 5.1rem); margin: 10px 0 14px; max-width: 820px; }
+    h2 { font-size: clamp(1.65rem, 3vw, 2.5rem); margin: 0 0 14px; }
+    h3 { font-size: 1.24rem; margin: 0 0 10px; }
+    .lead { color: var(--muted); font-size: 1.1rem; max-width: 760px; margin: 0; }
+    .stamp { border-top: 5px solid var(--violet); padding: 15px 16px; background: rgba(255,255,255,.85); box-shadow: var(--shadow); }
+    .stamp strong { display: block; font-size: 1.1rem; margin-bottom: 4px; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 32px; }
+    nav a { text-decoration: none; border: 1px solid var(--line); background: var(--panel); padding: 7px 12px; border-radius: 999px; font-size: .88rem; }
+    .section { margin: 0 0 28px; scroll-margin-top: 18px; }
+    .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; border-bottom: 2px solid var(--ink); padding-bottom: 9px; margin-bottom: 16px; }
+    .section-head small { color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+    .card { grid-column: span 4; background: var(--panel); border: 1px solid var(--line); padding: 18px; box-shadow: 0 8px 22px rgba(32,33,38,.06); }
+    .card.wide { grid-column: span 8; }
+    .card.full { grid-column: 1 / -1; }
+    .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+    .metric { font-family: Georgia, serif; font-size: 2rem; color: var(--violet); display: block; }
+    .eyebrow { color: var(--orange); font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .flow { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 8px; align-items: stretch; margin: 20px 0 8px; }
+    .step { position: relative; min-height: 116px; padding: 13px 10px; background: var(--violet-soft); border: 1px solid #c8c0fa; }
+    .step:nth-child(2n) { background: #eff5d9; border-color: #d3e39a; }
+    .step:not(:last-child)::after { content: "→"; position: absolute; right: -16px; top: 40px; z-index: 1; color: var(--orange); font-size: 1.35rem; font-weight: 800; }
+    .step b { display: block; font-size: .9rem; margin-bottom: 5px; }
+    .step span { display: block; color: var(--muted); font-size: .76rem; line-height: 1.4; }
+    .diagram { border: 1px solid var(--line); background: rgba(255,255,255,.78); padding: 16px; }
+    .lane { display: grid; grid-template-columns: 175px 1fr; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px dashed var(--line); }
+    .lane:last-child { border-bottom: 0; }
+    .lane-label { font-weight: 800; }
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .chip { display: inline-block; padding: 3px 8px; border-radius: 4px; background: #ececef; color: #454650; font: .78rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .chip.good { background: #edf5d7; color: #4d6412; }
+    .chip.warn { background: #ffe4d5; color: #843d1b; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { text-align: left; vertical-align: top; padding: 11px 10px; border-bottom: 1px solid var(--line); }
+    th { color: var(--violet); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    ul { padding-left: 1.2rem; margin-top: 8px; }
+    li + li { margin-top: 6px; }
+    details { background: rgba(255,255,255,.8); border: 1px solid var(--line); padding: 12px 15px; }
+    details + details { margin-top: 8px; }
+    summary { cursor: pointer; font-weight: 800; }
+    .callout { border-left: 5px solid var(--violet); background: var(--violet-soft); padding: 14px 17px; }
+    .callout.orange { border-left-color: var(--orange); background: #ffe9dc; }
+    code { font: .9em ui-monospace, SFMono-Regular, Menlo, monospace; background: #ececef; padding: 2px 5px; border-radius: 3px; }
+    .sources { font-size: .88rem; color: var(--muted); }
+    footer { border-top: 2px solid var(--ink); margin-top: 42px; padding-top: 16px; color: var(--muted); font-size: .83rem; }
+    @media (max-width: 900px) {
+      .masthead { grid-template-columns: 1fr; }
+      .card, .card.wide { grid-column: 1 / -1; }
+      .flow { grid-template-columns: repeat(2, 1fr); }
+      .step:not(:last-child)::after { content: ""; }
+      .lane { grid-template-columns: 1fr; gap: 5px; }
+    }
+    @media (max-width: 520px) { .flow { grid-template-columns: 1fr; } }
+    @media (prefers-color-scheme: dark) {
+      :root { --ink: #eff0f5; --muted: #b5b7c3; --paper: #19191f; --panel: #24242d; --line: #42434e; --violet-soft: #302c59; }
+      body { background: var(--paper); }
+      .stamp, .diagram, details { background: rgba(36,36,45,.92); }
+      .chip { background: #373841; color: #e1e2ea; }
+      .chip.good { background: #3b4824; color: #dbeda0; }
+      .chip.warn { background: #583729; color: #ffd0b7; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="masthead">
+      <div>
+        <div class="kicker">Research brief / 2026-08-29</div>
+        <h1>Toonflow<br><span style="color:var(--violet)">把剧本变成</span>动画短剧</h1>
+        <p class="lead">Toonflow 是一套 TypeScript 为主的小说 / 剧本到动画短剧工作台：无限画布承载创作，三层 Agent 负责决策、执行和监督，章节事件图谱与持久化记忆把长项目串起来。</p>
+      </div>
+      <aside class="stamp"><strong>一句话结论</strong>Toonflow 最值得研究的是“产品化 Agent 系统”的完整拼装：能力目录、供应商适配、事件与记忆、实时通道和桌面部署。Nomi 可以借它的能力分层和可观测性，但不应复制其服务端 store 或另起一套时间线真相源。</aside>
+    </header>
+
+    <nav aria-label="页面导航">
+      <a href="#what">它是什么</a><a href="#arch">架构</a><a href="#agents">三层 Agent</a><a href="#data">数据流</a><a href="#nomi">对 Nomi 的启示</a><a href="#license">协议与当前政策</a><a href="#sources">来源</a>
+    </nav>
+
+    <section id="what" class="section">
+      <div class="section-head"><h2>它是什么</h2><small>官方仓库核验</small></div>
+      <div class="grid">
+        <article class="card wide"><span class="eyebrow">Positioning</span><h3>从文本资产到动画成片的工作台</h3><p>Toonflow 处理的不只是“生成一张图”：它覆盖 AI 编剧、智能分镜、角色资产、视频生成、章节组织、实时协作和桌面 / 服务端部署。项目以 TypeScript 为主，应用层由 Express、SQLite、Socket.IO、Electron 等组成，模型通过可编程供应商适配。</p><p>README 还描述了 Markdown Skill 文件化配置、章节事件图谱和基于 ONNX 向量检索的持久化 Agent 记忆。这些机制共同回答一个长项目问题：Agent 如何记住世界观、人物和已发生的事件，并把结果交给下一次执行。</p></article>
+        <article class="card"><span class="eyebrow">Repository signal</span><span class="metric">14.8k</span>GitHub stars（约值）<br><span class="metric">894</span>commits（约值）<br><span class="metric">e03cf59</span>master 核验提交</article>
+        <article class="card"><span class="eyebrow">Stack</span><div class="chips"><span class="chip good">TypeScript 99.7%</span><span class="chip">Electron 40</span><span class="chip">Express 5</span><span class="chip">SQLite</span><span class="chip">Socket.IO</span><span class="chip">ONNX</span></div><p>模型侧 README 列出 OpenAI、Anthropic、Google、DeepSeek、智谱、MiniMax、通义千问、xAI 等适配方向。</p></article>
+      </div>
+    </section>
+
+    <section id="arch" class="section">
+      <div class="section-head"><h2>架构地图</h2><small>从桌面入口到 Agent 能力</small></div>
+      <div class="diagram">
+        <div class="lane"><div class="lane-label">交互入口</div><div class="chips"><span class="chip good">无限画布</span><span class="chip good">Electron</span><span class="chip good">Web UI</span><span class="chip">Socket.IO</span></div></div>
+        <div class="lane"><div class="lane-label">业务 API</div><div class="chips"><span class="chip">Express 5 routes</span><span class="chip">/agents</span><span class="chip">/scriptAgent</span><span class="chip">/production</span></div></div>
+        <div class="lane"><div class="lane-label">Agent 层</div><div class="chips"><span class="chip good">Decision</span><span class="chip good">Execution</span><span class="chip good">Supervision</span><span class="chip">scriptAgent</span><span class="chip">productionAgent</span></div></div>
+        <div class="lane"><div class="lane-label">状态与记忆</div><div class="chips"><span class="chip">SQLite / better-sqlite3</span><span class="chip">Knex</span><span class="chip">ONNX embeddings</span><span class="chip">event graph</span></div></div>
+        <div class="lane"><div class="lane-label">模型与媒体</div><div class="chips"><span class="chip warn">provider adapters</span><span class="chip warn">Sharp</span><span class="chip warn">image / video generation</span><span class="chip warn">Docker server</span></div></div>
+      </div>
+    </section>
+
+    <section id="agents" class="section">
+      <div class="section-head"><h2>三层 Agent</h2><small>职责分离比“一个万能 Agent”更可控</small></div>
+      <div class="flow" aria-label="Toonflow 三层 Agent">
+        <div class="step"><b>决策层</b><span>理解目标、拆解章节和步骤，选择下一项能力。</span></div>
+        <div class="step"><b>执行层</b><span>调用模型、供应商、脚本与生产工具，生成实际资产。</span></div>
+        <div class="step"><b>监督层</b><span>检查结果、状态、失败和重试条件，回报给决策层。</span></div>
+        <div class="step"><b>共享记忆</b><span>通过事件图谱和向量检索回收角色、世界观和历史结果。</span></div>
+        <div class="step"><b>Skill 文件</b><span>用 Markdown 保存可读、可改、可版本化的工作规则。</span></div>
+        <div class="step"><b>供应商接口</b><span>以 TypeScript 编程方式接入不同模型，而不是把厂商写死在 UI。</span></div>
+      </div>
+      <div class="grid">
+        <article class="card"><h3>为什么拆三层</h3><p>决策、执行、监督分别拥有不同失败模式：计划不合理、调用失败和结果不合格不应混成一次不可解释的重试。分层后，可以分别记录成本、输入、输出和责任。</p></article>
+        <article class="card"><h3>记忆不是聊天记录</h3><p>向量检索适合找“相似语义”，事件图谱适合表达“谁在何时做了什么”。两者结合，才能支持跨章节一致性；但检索命中仍需回到项目事实源验证。</p></article>
+        <article class="card"><h3>Skill 是可审计配置</h3><p>Markdown 文件让规则进入版本控制，产品团队可以 review 规则变更，而不必重新编译 Agent runtime。</p></article>
+      </div>
+    </section>
+
+    <section id="data" class="section">
+      <div class="section-head"><h2>一条章节数据流</h2><small>适合拿来和 Nomi 的能力边界对照</small></div>
+      <div class="diagram">
+        <div class="lane"><div class="lane-label">输入</div><div class="chips"><span class="chip">小说 / 剧本</span><span class="chip">角色设定</span><span class="chip">世界观</span><span class="chip">输出规格</span></div></div>
+        <div class="lane"><div class="lane-label">决策</div><div class="chips"><span class="chip good">章节拆解</span><span class="chip good">镜头计划</span><span class="chip good">供应商选择</span></div></div>
+        <div class="lane"><div class="lane-label">执行</div><div class="chips"><span class="chip">图片 / 视频生成</span><span class="chip">角色与场景资产</span><span class="chip">配音 / 音乐</span></div></div>
+        <div class="lane"><div class="lane-label">监督</div><div class="chips"><span class="chip warn">结果检查</span><span class="chip warn">失败回收</span><span class="chip warn">事件写回</span><span class="chip warn">记忆索引</span></div></div>
+        <div class="lane"><div class="lane-label">交付</div><div class="chips"><span class="chip good">章节资产</span><span class="chip good">分镜 / 视频</span><span class="chip good">可继续执行的状态</span></div></div>
+      </div>
+      <details style="margin-top:12px"><summary>代码目录如何映射到这条流</summary><p><code>src/agents/scriptAgent</code> 与 <code>src/agents/productionAgent</code> 对应创作和生产 Agent；<code>src/routes/agents</code>、<code>src/routes/scriptAgent</code>、<code>src/routes/production</code> 暴露 API；<code>src/socket</code> 负责实时通信；<code>data/skills</code> 和 <code>data/models</code> 保存规则与模型配置；<code>data/web</code> 承载 Web 侧资源。</p></details>
+    </section>
+
+    <section id="nomi" class="section">
+      <div class="section-head"><h2>对 Nomi 的启示</h2><small>吸收边界，而不是照搬产品形态</small></div>
+      <div class="grid">
+        <article class="card wide"><h3>相似点与关键差异</h3><table><thead><tr><th>问题</th><th>Toonflow 的做法</th><th>Nomi 的选择</th></tr></thead><tbody>
+          <tr><td>Agent 组织</td><td>决策 / 执行 / 监督三层 + provider adapter</td><td>Agent capability / host 边界；工具执行仍需经过 Nomi 控制面</td></tr>
+          <tr><td>长期状态</td><td>SQLite、事件图谱、ONNX 持久记忆</td><td>项目文件、JSONL / ProductionRun、revision 和 CAS；记忆须回到项目事实核验</td></tr>
+          <tr><td>创作表面</td><td>无限画布、章节和生产面板</td><td>React Flow 画布 + Tiptap 创作区 + 时间线</td></tr>
+          <tr><td>媒体执行</td><td>多模型供应商与服务端 / Docker 运行方式</td><td>本地优先 Electron，FFmpeg 导出；敏感路径不送入模型</td></tr>
+        </tbody></table></article>
+        <article class="card"><span class="eyebrow">Adopt</span><h3>值得借鉴</h3><ul><li>将 capability 作为模型可见的稳定目录。</li><li>把供应商适配放在独立 TypeScript 边界，统一成本和错误。</li><li>用结构化事件记录 Agent 决策、执行、监督和重试。</li><li>为长项目建立章节级 artifact 与可检索记忆。</li><li>把 Skill 作为可 review 的版本化配置。</li></ul></article>
+        <article class="card"><span class="eyebrow">Keep out</span><h3>不要直接复制</h3><ul><li>不要让 Toonflow 的 SQLite / 服务端状态替代 Nomi 的 <code>TimelineState</code>。</li><li>不要让 Agent 直接写 React Flow、Zustand 或外部 NLE store。</li><li>不要把供应商选择结果当作时间线事实；它只是一次可审计的执行决策。</li><li>不要默认 ONNX 记忆命中就是事实，必须保留来源和 revision。</li></ul></article>
+      </div>
+      <div class="callout"><strong>与当前 #223 的关系：</strong>Project Agent Host 已经在推进文稿读写、冻结 target / revision / content hash、审批边界以及 Canvas / Timeline capability。Toonflow 的三层职责可以帮助组织这些能力，但不能绕过 Host 的写入审批，也不能把本次选区持久高亮修复扩大成新的 Agent 状态系统。</div>
+    </section>
+
+    <section id="license" class="section">
+      <div class="section-head"><h2>协议、补充条款与 Nomi 当前政策</h2><small>先区分标准许可证，再看项目声明</small></div>
+      <div class="grid">
+        <article class="card wide"><h3>Toonflow：Apache-2.0 + 项目补充商业协议</h3><p>仓库许可证页面标记 Apache-2.0。Apache 2.0 通常提供较宽的使用、修改、分发和专利许可，只需保留版权、许可证和 NOTICE 等要求。</p><p>README 另写了补充商业安排：以产品形式向 2 个及以上独立第三方分发需要书面商业授权；不超过 5 个法人联合内部使用，README 声称不需要授权；不得删除或修改 Toonflow 标识、版权信息；v1.0.8 之前基于 AGPL-3.0 使用的用户继续按 AGPL-3.0。后面这些不是 Apache-2.0 标准文本本身，能否构成可执行的附加条件，要以仓库 LICENSE 原文、贡献历史和律师意见为准。</p></article>
+        <article class="card"><h3>Nomi：AGPL-only，不要求 CLA</h3><p>Nomi 当前 <code>AGPL-3.0-only</code>，只发布这一种开源版本，不要求贡献者签署 CLA。AGPL 让修改后的分发版本和网络交互服务承担更强的源代码提供义务，避免改进被锁在闭源服务端。</p><p>团队可以收费提供遵守 AGPL 的定制开发、集成、部署、培训和持续迭代，但 Nomi 不提供只交安装包、不提供对应源代码的闭源版本。</p></article>
+      </div>
+      <div class="diagram" style="margin-top:14px"><table><thead><tr><th>场景</th><th>Toonflow README 需要核对</th><th>Nomi 工程动作</th></tr></thead><tbody>
+        <tr><td>内部使用 / 私人 fork</td><td>Apache 许可允许范围较宽；补充商业条款仍需看原文</td><td>按依赖和品牌要求保留 notices，不把内部使用误报成公开发布</td></tr>
+        <tr><td>向多个客户分发产品</td><td>README 声称触发书面商业授权</td><td>若基于 Nomi 分发，按 AGPL 提供对应源代码和许可证说明；服务费可以来自定制开发、部署和维护</td></tr>
+        <tr><td>复制代码到 Nomi</td><td>需保留 Apache notices，且要确认 AGPL / 自定义条款兼容性</td><td>登记依赖、版权和来源；只借设计不等于可以复制实现</td></tr>
+      </tbody></table></div>
+      <details><summary>Nomi 为什么不再要求 CLA</summary><p>旧版 Nomi 曾用 CLA 为商业再许可准备授权，但现行政策是 AGPL-only。CLA 不是 AGPL 的强制要求，现已移除签字机器人和签名账本；<code>CLA.md</code> 仅保留为旧链接的说明页，贡献者无需回复或签署。</p></details>
+      <div class="callout orange" style="margin-top:10px"><strong>边界声明：</strong>这是基于官方仓库页面、README、Nomi 仓库文件的工程研究，不构成法律意见。Apache / AGPL、补充商业条款、商标、依赖和静态 / 动态链接的组合，必须按实际发行方式让律师复核。</div>
+    </section>
+
+    <section id="sources" class="section">
+      <div class="section-head"><h2>来源与核验口径</h2><small>一手来源优先</small></div>
+      <div class="sources"><p>核验日期：2026-08-29。GitHub 指标是该日期附近的约值，随时间变化；README 的路线图或声明不等于全部已经交付的能力。</p><ul>
+        <li><a href="https://github.com/HBAI-Ltd/Toonflow-app" rel="noreferrer">Toonflow-app GitHub 仓库</a>：README、目录、提交、语言与许可证页面。</li>
+        <li><a href="https://github.com/HBAI-Ltd/Toonflow-app/blob/master/README.md" rel="noreferrer">Toonflow README</a>：能力、Agent 分层、部署与补充商业条款声明。</li>
+        <li><a href="https://github.com/aqm857886159/Nomi/blob/main/package.json" rel="noreferrer">Nomi package.json</a>：React / Electron 项目版本与许可证字段。</li>
+        <li><a href="https://github.com/aqm857886159/Nomi/blob/main/CLA.md" rel="noreferrer">Nomi 贡献政策说明</a>：AGPL-only 与不要求 CLA 的现行规则。</li>
+        <li><a href="https://github.com/aqm857886159/Nomi/blob/main/docs/plan/2026-08-28-editing-engine-review.md" rel="noreferrer">Nomi 剪辑引擎评审</a>：Agent、时间线、OpenMontage 与外部项目的本地决策依据。</li>
+      </ul></div>
+    </section>
+    <footer>本文件是 Nomi 仓库内的研究说明，不是 Toonflow 官方文档。协议判断应以实际仓库文件和适用法域为准。</footer>
+  </div>
+</body>
+</html>

@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { makeShotVerifyDeps, type ShotVerifyDepsContext } from './shotVerifyDeps'
+import { setDesktopLocale } from '../desktopLocale'
 
 // L3 真额度验收抓出的韧性缺陷（2026-08-19）：judge 单点依赖「目录第一个 text 模型」太脆——
 // 用户真实目录里它是经 code.newcli.com 中转的 claude-fable-5，该端点对这种 chat 调用连续 500。
@@ -21,6 +22,10 @@ const ctx: ShotVerifyDepsContext = {
 }
 
 const JUDGE_JSON = '{"scores":{"identity":5,"composition":5,"continuity":5},"reason":"好"}'
+
+afterEach(() => {
+  setDesktopLocale('zh-CN')
+})
 
 describe('makeShotVerifyDeps · judge 候选回退（单点→候选序列）', () => {
   it('第一个候选传输失败 → 顺移第二个成功；成功者进程内缓存（第二次判分不再试第一个）', async () => {
@@ -102,6 +107,12 @@ describe('makeShotVerifyDeps · judge 候选回退（单点→候选序列）', 
     const deps = makeShotVerifyDeps(ctx, { runTaskFn, listJudgeCandidates: () => candidates })
     await deps.judge('p', 'f')
     expect(attempted).toEqual(['first']) // 首选成功就停
+  })
+
+  it('把 Electron 当前界面语言注入判官编排依赖', () => {
+    setDesktopLocale('en')
+    const deps = makeShotVerifyDeps(ctx, { runTaskFn: async () => ({ assets: [] }), listJudgeCandidates: () => [] })
+    expect(deps.reasonLanguage).toBe('en')
   })
 })
 

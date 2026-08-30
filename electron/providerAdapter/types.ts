@@ -4,6 +4,17 @@ import type {
   HttpOperation,
   ProfileKind,
 } from "../catalog/types";
+import type {
+  CertificationMediaErrorParams,
+  CertificationMediaEvidence,
+  CertificationMediaReasonCode,
+} from "./certificationMedia";
+import type {
+  CertificationContractBinding,
+  CertificationSettledResult,
+  CertificationSubmissionState,
+} from "../integrationCertification/types";
+import type { AdapterRunStage as SharedAdapterRunStage } from "../shared/providerAdapterContract";
 
 export type AdapterAuthType = "none" | "bearer" | "x-api-key" | "query";
 
@@ -25,6 +36,11 @@ export type ProviderAdapterConnectionInput = {
   authQueryParam?: string;
   headers?: Record<string, string>;
   models: ProviderAdapterModelSelection[];
+};
+
+/** Start-only contract minted by the canonical certification boundary. */
+export type ProviderAdapterCertificationInput = ProviderAdapterConnectionInput & {
+  certification: CertificationContractBinding;
 };
 
 export type ProviderAdapterRegisterInput = ProviderAdapterConnectionInput & {
@@ -97,19 +113,7 @@ export type ProviderAdapterCompilation = {
   failures: ProviderAdapterCompileFailure[];
 };
 
-export type AdapterRunStage =
-  | "queued"
-  | "discovering_docs"
-  | "compiling"
-  | "testing"
-  | "repairing"
-  | "completed"
-  | "partial"
-  | "failed"
-  | "needs_ai"
-  | "cancelled"
-  | "timed_out"
-  | "stale";
+export type AdapterRunStage = SharedAdapterRunStage;
 
 export type AdapterModeState = "queued" | "testing" | "repairing" | "verified" | "failed";
 
@@ -124,9 +128,14 @@ export type AdapterModeResult = {
    * 渲染层据此说人话 + 给对应的下一步动作；**不要在 UI 里用关键词猜**（同型 bug 已反复出现 5 轮，
    * 见 2026-08-12 `fix(errors): 文本侧错误也在源头留住 category`）。
    */
-  errorCategory?: "auth" | "balance" | "quota" | "input" | "server" | "network" | "unknown";
+  errorCategory?: "auth" | "balance" | "quota" | "input" | "server" | "network" | "timeout" | "unknown";
   httpStatus?: number;
   verifiedAt?: string;
+  /** One bounded, sanitized evidence record for every promoted media asset. */
+  mediaEvidence?: CertificationMediaEvidence[];
+  reasonCode?: CertificationMediaReasonCode;
+  errorParams?: CertificationMediaErrorParams;
+  submissionState?: Extract<CertificationSubmissionState, "unknown">;
 };
 
 export type AdapterModelResult = {
@@ -139,6 +148,8 @@ export type AdapterModelResult = {
 export type ProviderAdapterRun = {
   id: string;
   vendorKey: string;
+  /** Stable family identity shared by root and every candidate revision. */
+  lineageRootVendorKey?: string;
   vendorName: string;
   connectionFingerprint: string;
   selectedModelKeys: string[];
@@ -154,6 +165,15 @@ export type ProviderAdapterRun = {
   sourceUrls: string[];
   activeRevision?: string;
   error?: string;
+  recovery?: {
+    reasonCode: "submission_unknown" | "submission_reconcile_unavailable" | "promotion_commit_unknown" | "certification_start_rolled_back";
+    userAction: "reconcile_or_contact_provider" | "restart_certification";
+  };
+  certificationOperations?: Record<string, {
+    operationKey: string;
+    submissionState: CertificationSubmissionState;
+    settledResult?: CertificationSettledResult;
+  }>;
   createdAt: string;
   updatedAt: string;
 };
@@ -169,6 +189,7 @@ export type ProviderAdapterRevision = {
 
 export type ProviderAdapterStoreState = {
   version: 1;
+  revision: number;
   runs: ProviderAdapterRun[];
   revisions: ProviderAdapterRevision[];
 };

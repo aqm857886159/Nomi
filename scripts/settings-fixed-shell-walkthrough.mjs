@@ -15,6 +15,7 @@ const { app, win } = await launchNomiApp({
   settingsDir: mkdtempSync(path.join(os.tmpdir(), 'settings-fixed-shell-set-')),
   projectsDir: mkdtempSync(path.join(os.tmpdir(), 'settings-fixed-shell-proj-')),
   env: { NOMI_RENDERER_URL: `file://${path.join(repoRoot, 'dist', 'index.html')}` },
+  syntheticCredentialStorage: true,
   settleMs: 1600,
 })
 

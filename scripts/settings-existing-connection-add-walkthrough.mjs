@@ -244,12 +244,12 @@ async function assertModelDialogSurface(win, label) {
   }
 }
 
-async function adapterRuns(win) {
+async function certificationRuns(win) {
   const result = await win.evaluate(async () => {
-    const list = window.nomiDesktop?.onboarding?.adapterList
-    return list ? list({ limit: 10 }) : { ok: false, error: 'adapterList bridge missing' }
+    const list = window.nomiDesktop?.onboarding?.certificationList
+    return list ? list({ limit: 10 }) : { ok: false, error: 'certificationList bridge missing' }
   })
-  assertNoPlainCredential(result, 'adapterList return object')
+  assertNoPlainCredential(result, 'certificationList return object')
   return result
 }
 
@@ -357,9 +357,9 @@ try {
     'authenticated GET /models from the saved connection',
   )
 
-  const successListResult = await win.evaluate(async (key) => window.nomiDesktop.onboarding.existingConnectionListModels({ vendorKey: key }), vendorKey)
+  const successListResult = await win.evaluate(async (key) => window.nomiDesktop.onboarding.httpConnectionListModels({ vendorKey: key }), vendorKey)
   returnedObjects.push(successListResult)
-  assertNoPlainCredential(successListResult, 'successful existingConnectionListModels return object')
+  assertNoPlainCredential(successListResult, 'successful httpConnectionListModels return object')
 
   const existingButton = win.getByRole('button', { name: existingModel, exact: true })
   const newButton = win.getByRole('button', { name: listedModel, exact: true })
@@ -372,11 +372,11 @@ try {
   await shot(win, '02-existing-disabled-new-selected.png')
 
   const requestsBeforeSave = requests.length
-  await win.getByRole('button', { name: '保存 1 个模型', exact: true }).click()
+  await win.getByRole('button', { name: '验证 1 个模型', exact: true }).click()
   const connectionPage = win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendorKey}"]`)
   await connectionPage.waitFor({ state: 'visible' })
   if (requests.length !== requestsBeforeSave) throw new Error('Saving an appended model started a hidden provider request')
-  const runsAfterSave = await adapterRuns(win)
+  const runsAfterSave = await certificationRuns(win)
   if (runsAfterSave.runs?.some((run) => run.selectedModelKeys?.includes(listedModel))) {
     throw new Error('Saving an appended model started an adapter run')
   }
@@ -398,7 +398,7 @@ try {
   await win.waitForTimeout(250)
   await win.getByText('正在接入并验证', { exact: true }).waitFor({ timeout: 12_000 })
   const activeList = await pollUntil(
-    () => adapterRuns(win),
+    () => certificationRuns(win),
     (result) => result.ok && result.runs?.some((run) => run.selectedModelKeys?.includes(listedModel) && !terminalStages.has(run.stage)),
     'first adapter run to enter a non-terminal state',
   )
@@ -428,7 +428,7 @@ try {
   await taskButton.click()
   const restoredTask = win.locator(`[data-model-settings-page="verification"][data-adapter-run-id="${firstRun.id}"]`)
   await restoredTask.waitFor({ state: 'visible' })
-  const restoredSnapshot = await adapterRuns(win)
+  const restoredSnapshot = await certificationRuns(win)
   const restoredRun = restoredSnapshot.runs?.find((run) => run.id === firstRun.id)
   if (!restoredRun || terminalStages.has(restoredRun.stage)) throw new Error('Background task did not reopen while the real request was still running')
   await assertSettingsSurface(win, 'restored background task')
@@ -459,7 +459,7 @@ try {
 
   await restoredTask.getByRole('button', { name: '停止验证', exact: true }).click()
   const cancelledSnapshot = await pollUntil(
-    () => adapterRuns(win),
+    () => certificationRuns(win),
     (result) => result.ok && result.runs?.some((run) => run.id === firstRun.id && run.stage === 'cancelled'),
     'cancelled adapter run to persist its terminal state',
   )
@@ -485,7 +485,7 @@ try {
   await retryButton.waitFor({ state: 'visible' })
   await retryButton.click()
   const retrySnapshot = await pollUntil(
-    () => adapterRuns(win),
+    () => certificationRuns(win),
     (result) => result.ok && result.runs?.some((run) =>
       run.id !== firstRun.id && run.selectedModelKeys?.includes(listedModel),
     ),
@@ -513,7 +513,7 @@ try {
     throw new Error('Persisted retry did not reuse the saved main-process credential')
   }
   const completedRetrySnapshot = await pollUntil(
-    () => adapterRuns(win),
+    () => certificationRuns(win),
     (result) => result.ok && result.runs?.some((run) => run.id === retryRun.id && run.stage === 'completed'),
     'retried verification to complete successfully',
   )
@@ -521,7 +521,7 @@ try {
     throw new Error('The old cancelled task changed state while its retry completed')
   }
   await new Promise((resolve) => setTimeout(resolve, 1_100))
-  const stableRuns = await adapterRuns(win)
+  const stableRuns = await certificationRuns(win)
   if (stableRuns.runs?.find((run) => run.id === firstRun.id)?.stage !== 'cancelled') {
     throw new Error('A late provider response resurrected the cancelled task')
   }
@@ -549,9 +549,9 @@ try {
   await assertRendererHasNoCredential(win, 'failed model-list fallback')
   await assertSettingsSurface(win, 'failed model-list fallback')
 
-  const failedListResult = await win.evaluate(async (key) => window.nomiDesktop.onboarding.existingConnectionListModels({ vendorKey: key }), vendorKey)
+  const failedListResult = await win.evaluate(async (key) => window.nomiDesktop.onboarding.httpConnectionListModels({ vendorKey: key }), vendorKey)
   returnedObjects.push(failedListResult)
-  assertNoPlainCredential(failedListResult, 'failed existingConnectionListModels return object')
+  assertNoPlainCredential(failedListResult, 'failed httpConnectionListModels return object')
   if (failedListResult.ok || failedListResult.code !== 'MODEL_LIST_UNAVAILABLE') {
     throw new Error(`Expected a non-blocking MODEL_LIST_UNAVAILABLE response, got ${JSON.stringify(failedListResult)}`)
   }
@@ -564,12 +564,12 @@ try {
   await shot(win, '08-model-list-failed-manual-id-ready.png')
 
   const requestsBeforeManualSave = requests.length
-  await win.getByRole('button', { name: '保存 1 个模型', exact: true }).click()
+  await win.getByRole('button', { name: '验证 1 个模型', exact: true }).click()
   await addPage.waitFor({ state: 'detached' })
   await connectionPage.waitFor({ state: 'visible' })
   await connectionPage.getByRole('button', { name: manualModel, exact: true }).waitFor({ state: 'visible' })
   if (requests.length !== requestsBeforeManualSave) throw new Error('Saving the manual fallback model made a hidden provider request')
-  const runsAfterManualSave = await adapterRuns(win)
+  const runsAfterManualSave = await certificationRuns(win)
   if (runsAfterManualSave.runs?.some((run) => run.selectedModelKeys?.includes(manualModel))) {
     throw new Error('Saving the manual fallback model started an adapter run')
   }
@@ -577,7 +577,7 @@ try {
   await assertSettingsSurface(win, 'manual model saved')
   await shot(win, '09-manual-model-saved.png')
 
-  const finalRuns = await adapterRuns(win)
+  const finalRuns = await certificationRuns(win)
   returnedObjects.push(finalRuns)
   if (finalRuns.runs?.find((run) => run.id === firstRun.id)?.stage !== 'cancelled') {
     throw new Error('The original run no longer has its cancelled terminal state at journey end')

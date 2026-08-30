@@ -1,3 +1,5 @@
+import i18n from '../../../i18n'
+
 import {
   BROWSER_IMAGE_REPLICATE_PROMPT_EXTRACTION_PROMPT,
   BROWSER_IMAGE_STYLE_PROMPT_EXTRACTION_PROMPT,
@@ -46,7 +48,7 @@ function normalizeBrowserPromptExtractionTemplate(input: unknown): BrowserPrompt
   if (!id || id.startsWith('default:')) return null
   return {
     id,
-    title: title || '未命名模板',
+    title: title || i18n.t('browserAssets.extraction.unnamedTemplate'),
     prompt,
     createdAt: typeof record.createdAt === 'string' ? record.createdAt : new Date().toISOString(),
     updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : undefined,

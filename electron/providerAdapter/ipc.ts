@@ -1,22 +1,15 @@
 import { ipcMain } from "electron";
-import type { AdapterAuthType, ProviderAdapterRun } from "./types";
+import type { AdapterAuthType } from "./types";
+import type { ProviderAdapterRegisterInput } from "./service";
 import {
-  getProviderAdapterService,
-  type ProviderAdapterService,
-  type ProviderAdapterStartInput,
-} from "./service";
+  getConnectionCertificationService,
+  type ConnectionCertificationService,
+} from "../integrationCertification/service";
 import { runLiveProviderAdapterHarnessFromEnv } from "./liveHarness";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
-type PublicProviderAdapterRun = Omit<ProviderAdapterRun, "connectionFingerprint">;
 
-function publicRun(run: ProviderAdapterRun): PublicProviderAdapterRun {
-  const projected = structuredClone(run) as Partial<ProviderAdapterRun>;
-  delete projected.connectionFingerprint;
-  return projected as PublicProviderAdapterRun;
-}
-
-function adapterStartInput(payload: unknown): ProviderAdapterStartInput {
+function adapterConnectionInput(payload: unknown): ProviderAdapterRegisterInput {
   const raw = (payload || {}) as Record<string, unknown>;
   const models = Array.isArray(raw.models)
     ? raw.models.map((item) => {
@@ -25,7 +18,7 @@ function adapterStartInput(payload: unknown): ProviderAdapterStartInput {
         return {
           modelKey: String(model.modelKey || model.id || ""),
           labelZh: String(model.labelZh || model.displayName || "") || undefined,
-          kind: (kind === "image" || kind === "video" || kind === "audio" || kind === "model3d" ? kind : "text") as ProviderAdapterStartInput["models"][number]["kind"],
+          kind: (kind === "image" || kind === "video" || kind === "audio" || kind === "model3d" ? kind : "text") as ProviderAdapterRegisterInput["models"][number]["kind"],
         };
       })
     : [];
@@ -54,42 +47,46 @@ function adapterStartInput(payload: unknown): ProviderAdapterStartInput {
   };
 }
 
-export function registerProviderAdapterIpc(service: ProviderAdapterService = getProviderAdapterService()): void {
-  ipcMain.handle("nomi:provider-adapter:register", async (event, payload: unknown) => {
+export function registerProviderAdapterIpc(service: ConnectionCertificationService = getConnectionCertificationService()): void {
+  ipcMain.handle("nomi:integration-certification:http:configure", async (event, payload: unknown) => {
     assertTrustedSender(event);
     try {
-      return { ok: true, registration: service.register(adapterStartInput(payload)) };
+      return { ok: true, registration: service.configureHttpConnection(adapterConnectionInput(payload)) };
     } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      void error;
+      return { ok: false, code: "START_FAILED", error: "Connection configuration failed" };
     }
   });
-  ipcMain.handle("nomi:provider-adapter:start", async (event, payload: unknown) => {
+  ipcMain.handle("nomi:integration-certification:http:start", async (event, payload: unknown) => {
     assertTrustedSender(event);
     try {
-      return { ok: true, run: publicRun(service.start(adapterStartInput(payload))) };
+      const raw = (payload || {}) as Record<string, unknown>;
+      return {
+        ok: true,
+        run: await service.startHttp({
+          entryPoint: "manual-ui",
+          idempotencyKey: String(raw.idempotencyKey || "").trim(),
+          connection: adapterConnectionInput(payload),
+        }),
+      };
     } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      void error;
+      return { ok: false, code: "START_FAILED", error: "Certification start failed" };
     }
   });
-  ipcMain.handle("nomi:provider-adapter:get", async (event, payload: unknown) => {
+  ipcMain.handle("nomi:integration-certification:get", async (event, payload: unknown) => {
     assertTrustedSender(event);
     const runId = String((payload as { runId?: unknown } | null)?.runId || "").trim();
-    const run = runId ? service.getRun(runId) : undefined;
-    return run ? { ok: true, run: publicRun(run) } : { ok: false, error: "Provider adapter run not found" };
+    const run = runId ? service.get(runId) : undefined;
+    return run ? { ok: true, run } : { ok: false, code: "RUN_NOT_FOUND", error: "Certification run not found" };
   });
-  ipcMain.handle("nomi:provider-adapter:latest", async (event, payload: unknown) => {
-    assertTrustedSender(event);
-    const vendorKey = String((payload as { vendorKey?: unknown } | null)?.vendorKey || "").trim();
-    const run = vendorKey ? service.latestRun(vendorKey) : undefined;
-    return run ? { ok: true, run: publicRun(run) } : { ok: false, error: "Provider adapter run not found" };
-  });
-  ipcMain.handle("nomi:provider-adapter:cancel", async (event, payload: unknown) => {
+  ipcMain.handle("nomi:integration-certification:cancel", async (event, payload: unknown) => {
     assertTrustedSender(event);
     const runId = String((payload as { runId?: unknown } | null)?.runId || "").trim();
     const run = runId ? service.cancel(runId) : undefined;
-    return run ? { ok: true, run: publicRun(run) } : { ok: false, error: "Provider adapter run not found" };
+    return run ? { ok: true, run } : { ok: false, code: "RUN_NOT_FOUND", error: "Certification run not found" };
   });
-  ipcMain.handle("nomi:provider-adapter:list", async (event, payload: unknown) => {
+  ipcMain.handle("nomi:integration-certification:list", async (event, payload: unknown) => {
     assertTrustedSender(event);
     const raw = (payload || {}) as Record<string, unknown>;
     const vendorKey = String(raw.vendorKey || "").trim();
@@ -99,7 +96,7 @@ export function registerProviderAdapterIpc(service: ProviderAdapterService = get
       activeOnly: raw.activeOnly === true,
       ...(Number.isFinite(requestedLimit) ? { limit: requestedLimit } : {}),
     };
-    return { ok: true, runs: service.listRuns(options).map(publicRun) };
+    return { ok: true, runs: service.list(options) };
   });
   service.resumeInterrupted();
   void runLiveProviderAdapterHarnessFromEnv(service);

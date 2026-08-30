@@ -5,12 +5,13 @@
 //   ① keyStatus：ok / missing / locked（复用 secrets.apiKeyDecryptStatus 的三态健康度，P1 不另写解密探测）；
 //   ② references：这个模型的 mapping body 到底带得动什么参考（复用 referenceReachability.bodyReferenceSupport，
 //      与第三闸/UI 收窄同源判据，P1 不另写一份），跨该模型所有 mapping 汇总，并记下「哪个 taskKind 模式能带」。
-// 不静默丢任何模型——发不出/没 key 的照列，带上状态与一句人话，让 agent 能对用户说「kie 没配 key」而非瞎猜。
+// 已发布模型即使没 key 也照列并带状态；adapter staging/failed 新行则不进入生产清单。
 import { apiKeyDecryptStatus, type ApiKeyDecryptStatus, type ApiKeyRecord } from "./secrets";
 import { bodyReferenceSupport, type BodyReferenceSupport } from "./referenceReachability";
 import { bodyReferencedParamKeys } from "./paramTranslate";
 import type { ModelModeBody } from "./taskParams";
 import { billingKindForTaskKind, type BillingModelKind, type CatalogState, type Mapping, type ProfileKind } from "./types";
+import { modelHasPublishedExecution } from "../shared/modelPublication";
 
 /** 一个模型跨其所有 mapping 汇总出的参考承载力 + 是哪些模式（taskKind）带得动。 */
 export type ModelReferenceSupport = BodyReferenceSupport & {
@@ -53,6 +54,8 @@ function statusReasonFor(keyStatus: ApiKeyDecryptStatus, vendorName: string): st
       return "已接入且可用";
     case "locked":
       return `${vendorName} 的 API Key 已保存但当前宿主身份解不开（多见于 MCP/命令行宿主与 Nomi 主程序加密身份不一致）；请在 Nomi 应用里重新保存该 Key，或让宿主以正确身份运行`;
+    case "needs_resave":
+      return `${vendorName} 的 API Key 来自旧版明文存储；请在 Nomi 应用里重新保存后再使用`;
     case "missing":
     default:
       return `未配置 ${vendorName} 的 API Key；请先在 Nomi 应用的模型接入里填入`;
@@ -83,6 +86,7 @@ function referenceSupportForModel(modelMappings: Mapping[]): ModelReferenceSuppo
   const out: ModelReferenceSupport = { image: false, video: false, audio: false, multiImage: false, referenceModes: [] };
   const modes = new Set<ProfileKind>();
   for (const mapping of modelMappings) {
+    if (!mapping.enabled) continue;
     const support = bodyReferenceSupport(mapping.create?.body);
     out.image ||= support.image;
     out.video ||= support.video;
@@ -109,7 +113,8 @@ export function videoBodyKeysForModel(
   vendorKey: string,
   modelKey: string,
 ): string[] {
-  const model = state.models.find((m) => m.vendorKey === vendorKey && m.modelKey === modelKey && m.enabled);
+  const model = state.models.find((m) => m.vendorKey === vendorKey && m.modelKey === modelKey
+    && modelHasPublishedExecution(m, { mappings: state.mappings }));
   const modelMappings = mappingsForModel(state.mappings, vendorKey, modelKey, model?.modelAlias);
   const keys = new Set<string>();
   for (const mapping of modelMappings) {
@@ -139,7 +144,8 @@ export function referenceModeForIntent(
   modelKey: string,
   intent: BillingModelKind,
 ): ProfileKind | null {
-  const model = state.models.find((m) => m.vendorKey === vendorKey && m.modelKey === modelKey && m.enabled);
+  const model = state.models.find((m) => m.vendorKey === vendorKey && m.modelKey === modelKey
+    && modelHasPublishedExecution(m, { mappings: state.mappings }));
   const modelMappings = mappingsForModel(state.mappings, vendorKey, modelKey, model?.modelAlias);
   const referenceModes = referenceSupportForModel(modelMappings).referenceModes;
   const matching = referenceModes.filter((taskKind) => billingKindForTaskKind(taskKind) === intent);
@@ -148,7 +154,7 @@ export function referenceModeForIntent(
 }
 
 /**
- * 逐模型清单（只列 enabled 模型，与旧行为一致；但每条都带 keyStatus + references 真话）。
+ * 逐模型生产清单（enabled 且 adapter 已发布；legacy 无 adapter metadata 的存量行保持兼容）。
  * 纯函数：输入完整 CatalogState，不读盘不解密以外的副作用（解密由 secrets 注入的 safeStorage 完成）。
  *
  * **解密探测按 vendorKey 记忆化（本次调用内）**：keyStatus 只取决于 vendorKey（同 vendor 的所有模型共享同一条
@@ -167,7 +173,7 @@ export function deriveModelListing(
   // 本次调用内的 vendorKey → keyStatus 记忆（同 vendor 只探一次解密）。
   const keyStatusByVendor = new Map<string, ApiKeyDecryptStatus>();
   return state.models
-    .filter((model) => model.enabled)
+    .filter((model) => modelHasPublishedExecution(model, { mappings: state.mappings }))
     .map((model) => {
       const vendor = vendorByKey.get(model.vendorKey);
       const vendorName = vendor?.name || model.vendorKey;

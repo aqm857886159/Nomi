@@ -5,7 +5,7 @@
 > **怎么读这份文件（3 层，按访问频率分，每层只活一次，别重复 —— 这套分层本身是为了「文件再长注意力也不消散」）**：
 > - **L0 每轮** = `.Codex/hooks/self-check.sh`（hook，每条消息自动注入「三闸 + 核心原则 + 近期坑」）——salience 层，本文件**不再复述它**。
 > - **L1 always 加载** = 本文件：项目事实 + 命令 + **P1–P5** + **D1–D5** + 规则索引。**每次 session 读完再动手。**保持精简（一屏左右）。
-> - **L2 触发才查** = `docs/engineering-rules.md`：R1–R21 详解 + 工作流框架 + 技能库映射 + 固化纪律。规则索引指明每条住哪，触发某条才去读它。（`docs/coding-standards.md` = 通用编码规范补充。）
+> - **L2 触发才查** = `docs/engineering-rules.md`：R1–R23 详解 + 工作流框架 + 技能库映射 + 固化纪律。规则索引指明每条住哪，触发某条才去读它。（`docs/coding-standards.md` = 通用编码规范补充。）
 > - **查现状（动手前）** = `docs/ARCHITECTURE-NOW.md`：每个子系统**现在真正跑的是什么**（带 file:line）+「常见误解」列。**读任何 `docs/plan/` 之前先过一眼**——方案文档会过期且不带过期标记。搜不到东西时查 `docs/GLOSSARY.md`（同一个东西的多个叫法：自动剪辑=AI 剪辑=EditPlan=E2…）。（2026-08-27 加：有人把 6 月的 agent 方案当现状，整份调研建立在「引擎是 `runAgentChatV2`」这个已被 pi SDK 取代的前提上；同一轮还因搜「自动剪辑」搜不到而重新发明了已批准的 E1/E2/E3 总纲。）
 >
 > **维护纪律（防它再胖回来 —— 治本）**：本文件是**策展的，不是 append 的**。新踩的坑/教训**默认进记忆**（`memory/`，按相关性召回）或 hook 的 `violations.log`，**不塞这里**；只有「反复出现 + 永远相关」的原则才提升进 L1、细节进 L2；每隔一阵压实一次。**加规则前先问「这条非得 always 加载吗」——不是，就别进 L1。**
@@ -15,7 +15,7 @@
 ## 项目概览
 
 Nomi：本地优先 AI 视频创作工作台。
-**技术栈**：Electron + React 18 + Tailwind 3 + Zustand + Vercel AI SDK。
+**技术栈**：Electron + React 18 + Tailwind 3 + Zustand + React Flow (`@xyflow/react`) + Vercel AI SDK。
 **主要模块**：项目库 → 创作（文本）→ 生成画布（节点系统）→ 时间轴预览 → 导出 MP4。
 **设计系统**：`Design.md` + `src/design/`，token-only，光/暗双模式（默认按本地时间「天黑自动暗」·手动切一次后记住·token 翻转），密度优先。
 **主仓库**：`/Users/aoqimin/Desktop/Nomi/`。所有改动从最新 `origin/main` 创建独立任务分支/worktree，通过 PR 交付；禁止直接 push `main`。
@@ -27,6 +27,10 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm dev` | 开发模式启动（Vite + Electron） |
 | `pnpm build` | Vite 构建 + electron tsc |
 | `pnpm run test` | Vitest 单测 |
+| `pnpm run test:system:focused` | 普通 PR 的 changed/sibling/related tests；仍须配合 contracts |
+| `pnpm run test:system:full` | 测试基础设施或手动发布边界的显式全量本地验证 |
+| `pnpm run delivery:preflight` | 任务开始前有界刷新远端基线并验证独立干净分支 |
+| `pnpm run delivery:verify-merged -- --expected-sha <SHA>` | 在真实 merged-main 上记录 exact-SHA CI checks 收据，不本地重跑 |
 | `pnpm run test:e2e` | Playwright smoke（零额度，CI-ready） |
 | `pnpm run lint:ci` | Lint + max-warnings=98 棘轮（新增 1 个 warning 即红）|
 | `pnpm run typecheck` | TypeScript 双向类型检查 |
@@ -38,24 +42,25 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm run check:audit` | 审计节奏提醒（≥25 commit 提示） |
 | `npx skills experimental_install` | 从 `skills-lock.json` 还原 `.Codex/skills/`（换机/协作者用） |
 
-**Push 前必须全过**：`check:filesize` → `check:tokens` → `check:i18n` → `check:heavy-path` → `check:vocabularies` → `lint:ci` → `typecheck` → `test` → `build`
+**Push 前按风险面分层（R22）**：contracts 始终跑；unit 独立选 focused/full；Electron、真实旅程、React Flow 画布、性能和 macOS package 各按受影响路径独立触发，`main` push 也按真实 `before..after` 分类，不因事件名自动全量。删除/重命名、空 diff、测试/CI 分类器自身和手动发布边界 fail-closed 到全维度。连续小修先在本地收敛，再一次性验证和 push，不让每个微提交反复触发全套 CI。
+
+**交付身份只走统一命令**：任务开始先跑 `delivery:preflight`；PR 合并后只在 Git fetch 得到的真实 merge SHA 上跑 `delivery:verify-merged`。任务 commit、PR head、merge commit 与 tree 分开报告；禁止用 REST compare 文件列表重建 Git tree/commit，禁止把 `same-tree-different-commit` 叫成代码不匹配。
 
 ## 五条核心原则
 
 **P1 加新必删旧** — 引入新实现时同 commit 删旧实现，无并行版、无 fallback、无逃生口。CSS 同理：新样式只写组件 `className`，迁 Tailwind 即删旧 CSS；全局 CSS 只可减不可增。
 
-**P2 修根因不修症状 + 通用性判定** — 看到 bug 先分：症状 / 直接原因 / 类根因 / 入口集，再判复发性。只有能证明「仓库里的其他用户、输入、入口不会再走到同一机制，且仓库不可能用不变量预防」才标 `one_off`；同一机制还能影响另一个用户/输入/入口，哪怕目前只发生过一次，也标 `recurring`。`recurring` 必须修最早共享边界，并交机器可验证的结构保证，不能用重试、跳过、人工操作或专用分支盖住症状。自检：「修完后这个问题还能从别的入口出现吗？」答不出“不能” = 没到根因。
-**修完必再问一层（2026-08-20、08-29 用户拍板）**：「这个病只在这个功能上，还是**别的功能也可能有**？」——是通用的就别只修这一处：① **全仓实扫**同类入口、给 file:line（扫，不猜）；② 能 grep 的做成**棘轮门岗**（`scripts/check-*.mjs` + baseline，只减不增），grep 不到的做成共享边界断言或运行时/走查断言；③ 存量进基线慢慢清零，新增当场报红。理由：这类写法**当场看不出毛病**（小图跑得飞快、大图才冻死），靠自觉记不住，只能靠机器每次拦。已固化的一例：`check:heavy-path`（R17）。
+**P2 修根因不修症状** — 任何 bug、回归、CI/平台失败、性能/安全问题或审计发现，动生产代码前必须执行 `.agents/skills/root-cause-remediation/SKILL.md`。详细流程只住在该 skill；L1 只保留判断闸：分清症状/直接原因/类根因，判断 `one_off`/`recurring`，实扫同类入口，修在最早共享边界。自检：「同类问题还能从另一个调用者、供应商、版本、平台或旧数据回来吗？」答不出“不能” = 没解决。`recurring` 与高风险路径另受 R21 schema-v3 合同硬拦。
 
 **P3 全绿 ≠ 完成** — CI 五门只证代码健康，证不了体验对不对。用户可见改动报完成前：① 和获批样张逐项并排对账；② 真体感走查（Playwright 截图人眼判断，不是 expect 断言）。缺一不算完成。**功能交付（尤其用户可见/体感）另过 R16：建几条「真实用户任务」端到端测试系统、带着真实任务跑通整个使用闭环、把过程中冒出的体验/设计/UI/UX/产品感/功能问题全修掉——才算真完成（2026-08-01 用户拍板：不留半成品）。**
 
 **P4 通用第一** — 能力/组件/交互按「模型身份 / 通用场景」设计，与具体供应商/模型解耦。不为不同模型写两套 UI（那是并行版，违反 P1）。档案声明槽，通用系统负责填。
 
-**P5 想清楚再动手** — UI 改动**先读设计系统 `docs/design/nomi-design-system.md`（token/组件/规范）再画**，再出可视样张（HTML mockup）+ 用户拍板；架构/迁移/多阶段交付先用 `.agents/skills/engineering-plan-delivery/SKILL.md`，查 Context7 官方文档 + 顶尖开源真实代码，收敛为单一 tracked 方案、少量宏批次和一次风险匹配的独立评审；不按微步骤堆 Round/评审/全量测试。普通多文件改动仍先写 `docs/plan` 文档。
+**P5 想清楚再动手** — UI 改动**先读设计系统 `docs/design/nomi-design-system.md`（token/组件/规范）再画**，再出可视样张（HTML mockup）+ 用户拍板；架构改动先查 Context7 官方文档 + 读顶尖开源代码 + 6 角色评审；多文件改动先写 `docs/plan` 文档。
 
 ## 动手前/报完成前/push 前的三闸
 
-每轮由 hook（`self-check.sh`，L0）自动顶在眼前，不在此复述。一句话：**动手写码前**想清楚(P5)——用户可见先读设计系统+出可体验样张+拍板(R8，**改/扩现有 UI 先看它真实样子=读完整外壳组件或真实截图，样张是真实布局+改动、不是脑补**)、**加/挪任何控件先过设计系统 §1.5 控件层级规则**（判 L1 常驻还是 L2/L3/L4·查这个面常驻预算还剩几个·确认这动作别处是不是已经有家了=一功能一个家；手法优先级 **先分组→再去重→再归位→最后才收纳**，别一上来就往 ▾ 里塞；动作不许压在内容上）、碰三方库/选型·引入新框架先 Context7+web 查最新现役框架(R5)、复杂交付先用仓库 `engineering-plan-delivery` Skill、普通多文件先 `docs/plan`(R4)、取舍给对比表(R3)；**报完成/交付给用户看前**全绿≠完成(P3)——和样张对账+真机走查(R13，**眼见链：截图自己亲眼 Read 过才算，验证物=用户所见物——同构建/同入口/同平台分支，改哪面验哪面**)+ **功能交付另建「真实用户任务」端到端测试系统、带真实任务跑通使用闭环、把过程中冒出的体验/设计/UI/UX/产品/功能问题全修掉才算真完成(R16)**；**push 前**跑与改动指纹匹配的最小充分门，最终候选才跑一次五门/全量(R11)。贯穿：根因不症状(P2)、加新删旧无并行版(P1)、derive 不 hardcode、分层≤800 行(R9)。细节查 `docs/engineering-rules.md`。
+每轮由 hook（`self-check.sh`，L0）自动顶在眼前，不在此复述。一句话：**动手写码前**想清楚(P5)——用户可见先读设计系统+出可体验样张+拍板(R8，**改/扩现有 UI 先看它真实样子=读完整外壳组件或真实截图，样张是真实布局+改动、不是脑补**)、**加/挪任何控件先过设计系统 §1.5 控件层级规则**（判 L1 常驻还是 L2/L3/L4·查这个面常驻预算还剩几个·确认这动作别处是不是已经有家了=一功能一个家；手法优先级 **先分组→再去重→再归位→最后才收纳**，别一上来就往 ▾ 里塞；动作不许压在内容上）、碰三方库/选型·引入新框架先 Context7+web 查最新现役框架(R5)、多文件先 `docs/plan`(R4)、取舍给对比表(R3)；**报完成/交付给用户看前**全绿≠完成(P3)——和样张对账+真机走查(R13，**眼见链：截图自己亲眼 Read 过才算，验证物=用户所见物——同构建/同入口/同平台分支，改哪面验哪面**)+ **功能交付另建「真实用户任务」端到端测试系统、带真实任务跑通使用闭环、把过程中冒出的体验/设计/UI/UX/产品/功能问题全修掉才算真完成(R16)**；**push 前**按 R22 选择受影响风险面并按 R11 交付。贯穿：根因不症状(P2)、加新删旧无并行版(P1)、derive 不 hardcode、分层≤800 行(R9)。细节查 `docs/engineering-rules.md`。
 
 ## 每日雷达（每 session 第一条消息自动 · 两条）
 
@@ -76,14 +81,14 @@ Nomi：本地优先 AI 视频创作工作台。
 | R1 | 加新必删旧 | 新替旧必同 commit 删旧；CSS 只可减不可增（R10 = R1 的 CSS 实例）|
 | R2 | 用户视角 + 极简 | 每条信息问「有行动价值吗」，没有删；好产品不靠文字解释 |
 | R3 | 决策对比表 | 涉及取舍先给用户对比表（方案/用户看到/代价），不单方面开干 |
-| R4 | 单一方案真源 | 复杂交付先用 `engineering-plan-delivery` Skill；一份 tracked 方案冻结范围/不动项/回滚/验收/宏批次/远端 checkpoint，普通多文件改动最小写 `docs/plan` |
+| R4 | 执行前写文档 | 多文件/多步改动先写 `docs/plan`：范围/不动项/回滚/验收门 |
 | R5 | 查官方文档 | 碰第三方库必先 Context7；**选型/引入新框架·新技术栈先 Context7+web 查当前最现役框架**，不凭记忆判断能力/新旧/是否被取代；**接入/改任何模型前必先抓到该模型真实官方 API 文档逐项对账端点/鉴权/变体/模式/参数，禁凭记忆瞎编（每次都控制住）**；不查就写 = 工作错误 |
 | R6 | 读顶尖开源 | 做方案前先读真实代码（Cline/ComfyUI/xyflow…），给出 file:line |
-| R7 | 风险匹配评审 | 复杂方案定稿前一次独立三轴审查（Spec / Standards / Owner-Authority）；只让当前合同 P0/P1 阻断，真实风险需要时才加领域 reviewer |
+| R7 | 6 角色评审 | 项目方案定稿前：CTO / 设计 / PM / 前端 / 后端 / 真实用户各审一遍 |
 | R8 | 先出样张 | 用户可见改动先出 mockup + 用户拍板；实现后必须与样张逐项对账 |
 | R9 | 模块化 + 防巨壳 | 写码前想清楚分层；单文件 ≤800 行；白名单巨壳只减不增（R12 = R9 的量化门岗）|
 | R10 | → R1 CSS | `src/styles/` 只可减不可增；新样式只写组件 className |
-| R11 | 自动 commit/push | 有意义批次用指纹匹配的最小充分证据验证后 commit + push；全仓五门/全量只在固定最终候选跑一次 |
+| R11 | 自动 commit/push | 按 R22 选定的验证档通过即自己 commit + push；小修本地收敛后一次推送 |
 | R12 | → R9 巨壳 | `check:filesize` 门岗；白名单基线只降不升 |
 | R13 | 体验走查 | Playwright 走真实用户旅程 J1-J5（创作目标，不是功能探索）；截图人眼判断 |
 | R14 | 周期审计 | ≥25 commit 或发版前：多维 subagent 审计 + 走查 + `docs/audit` 文档；固定含 R14.1「同一语义有几份定义」七维横扫与对偶路径检查，机器门岗只覆盖词表 owner |
@@ -93,7 +98,9 @@ Nomi：本地优先 AI 视频创作工作台。
 | R18 | 测试等待门岗 | 测试禁私有墙钟 waitFor / `Date.now()` 截止轮询（单跑绿、并行翻红一族）：`check:test-waits` 硬零；等编排链用 `waitForProduction` |
 | R19 | 解决状态必须可交付 | 侧分支只能称“已实现”；验证通过且提交已进入远端目标分支后才能称“已解决”（原 R17，2026-08-25 与「重活门岗」撞号后改号）|
 | R20 | 造轮子前先过 build-vs-buy 闸 | 写任何**通用能力**前三问：① 这是不是通用问题（不是 Nomi 独有）？② 同类产品/成熟方案怎么做的（Context7+web 实查，别凭记忆）？③ 自研它在不在我们护城河上？**不在护城河上又碰钱碰信任的**（标准协议、边界校验、生命周期语义）→ 用标准实现或至少**对齐标准语义**；在护城河上的（账本/预算/一致性/权限）→ 自研到底。已交学费：2026-08-25 全应用地基审计扫出手写 MCP 协议缺取消绑定/运行时校验/版本协商、IPC 缺来源绑定（`docs/audit/2026-08-25-app-wide-foundation-audit.md`）|
-| R21 | 可复发/高风险修复必须交根因合同 | 所有 bug 先读 `.agents/skills/root-cause-remediation/SKILL.md`；任意 `recurring` 修复和 provider/媒体/workflow/task/runtime 等高风险修复都提交 schema v2 根因合同，声明 `one_off`/`recurring`、同类扫描与变化中的结构防护；`check:root-cause-contracts` 硬拦只修症状或只补测试 |
+| R21 | 修复必须走根因流程；可复发/高风险交 v3 合同 | 所有纠正性改动强制走 `root-cause-remediation`；`recurring` 或高风险生产路径提交 schema-v3 `docs/fixes/*.root-cause.json`，旧 v1/v2 只读；`check:root-cause-contracts` 核验共享边界、结构预防、同类入口、类级测试、旧路径和依赖生命周期 |
+| R22 | 验证分层与测试预算 | contracts 常跑；unit/desktop/journey/canvas/performance/package 按真实风险独立触发；不删安全/持久化/认证边界覆盖 |
+| R23 | React Flow 生成画布单内核与迁移等价 | 生产画布只允许 React Flow 一个交互/变换内核，Zustand 是业务与持久化真相源；迁移必须逐项保留既有几何、交互、视觉和反馈，并用 adapter/结构测试 + 真实 Electron 走查证明 |
 
 ## 决策自治
 
@@ -127,6 +134,6 @@ Nomi：本地优先 AI 视频创作工作台。
 
 主仓库：`/Users/aoqimin/Desktop/Nomi/`。操作文件用绝对路径；新建 worktree 放仓库目录**同级**（非嵌套），分支从最新 `origin/main` 创建。
 
-**并行纪律（这台机器常有 20+ worktree）**：① 动任何 git 第一步 `git branch --show-current`；② 不在共享主仓里切分支、commit 或解决任务冲突，使用独立 sibling worktree；③ push 前 fetch 最新 `origin/main` 并在任务分支上整合，完整门禁通过后只 push 任务分支并创建 PR；④ 不 force-push `main`，不从混合 worktree 挑文件发版；⑤ e2e/测试 hook 放低争用子系统文件。桌面预览、RC 与正式晋级见 `docs/release-process.md`。
+**并行纪律（这台机器常有 20+ worktree）**：① 在独立 sibling worktree 的干净任务分支运行 `pnpm run delivery:preflight` 后再动手；② 不在共享主仓里切分支、commit 或解决任务冲突；③ push 前在任务分支整合最新 `origin/main`，按 R22 验证后只 push 任务分支并创建 PR；④ 不 force-push `main`，不从混合 worktree 挑文件发版；⑤ e2e/测试 hook 放低争用子系统文件。桌面预览、RC 与正式晋级见 `docs/release-process.md`。
 
 ---

@@ -3,16 +3,15 @@
  * 或云平台 ComfyUI（cnb.cool、cloudstudio.net 等，Issue #43）——同一张卡、同一条「接入地址」，
  * 云端只是把地址改成云平台给的 URL，不另起并行卡（本地/云端走同一无鉴权 transport）。
  *
- * ComfyUI 是无 key 的服务，Nomi 生成门槛本就「authType:'none' + vendor.enabled 即可执行」（不要 key），
- * 故接入 = 把种子 vendor（默认 enabled:false，防污染 99% 不用本地的人）翻成 enabled:true。启用时先探
- * /system_stats 报是否连上（effect-first：当场告诉用户通没通，别等生成才失败）；探测是建议性的，不阻断启用
- * （可先启用、再起 ComfyUI）。地址可改（有人跑在别的端口/主机）。
+ * ComfyUI 是无 key 的服务。接入先创建/保留 disabled 候选；只有工作流经过
+ * canonical production certification 后，vendor 与模型才会进入可执行目录。地址可改（有人跑在别的端口/主机）。
  *
  * 特殊卡（不走通用自定义供应商卡 CustomVendorManage）：那张卡假设有 key + BaseURL 手填，对无 key 本地后端
  * 是错的隐喻；本地后端要的是「启用/停用 + 健康状态」，同即梦会员卡一样各有专属卡（非并行版）。
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { IconServerBolt, IconPlugConnected, IconCircleCheck, IconAlertTriangle, IconPhoto, IconMovie, IconRefresh, IconExternalLink, IconCheck, IconX, IconTrash, IconChevronRight } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
@@ -46,6 +45,9 @@ type ComfyuiLocalCardProps = {
   mappings?: Array<{ vendorKey?: string; modelKey?: string; create?: unknown }>
   /** 启用/停用/改地址后冒泡，父组件重查 + 重新分桶。 */
   onChanged: () => void
+  /** Navigate to the trusted verification handoff after a canonical workflow
+   * integration session is prepared. */
+  onVerificationRequested?: () => void
   onOpenDetails?: () => void
   detailMode?: boolean
 }
@@ -65,7 +67,7 @@ function hasWorkflowGraph(meta: unknown, mappings: ComfyuiLocalCardProps['mappin
   return Boolean(prompt && typeof prompt === 'object' && !Array.isArray(prompt))
 }
 
-export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, models, mappings, onChanged, onOpenDetails, detailMode = false }: ComfyuiLocalCardProps): JSX.Element | null {
+export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, models, mappings, onChanged, onVerificationRequested, onOpenDetails, detailMode = false }: ComfyuiLocalCardProps): JSX.Element | null {
   const { t } = useTranslation()
   // 多实例：所有写操作都打到**这一台**（缺省第一台，存量调用零改动）。
   const key = vendorKey || COMFYUI_VENDOR_KEY
@@ -109,9 +111,11 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
     setBusy(true)
     try {
       const r = await probe()
-      catalog.upsertVendor({ key, enabled: true, baseUrlHint: normalizeComfyuiAddressInput(baseUrl) })
+      // Probe is advisory only. Keep the instance disabled until a workflow
+      // canonical run reaches promotion; this prevents save-then-enable.
+      catalog.upsertVendor({ key, enabled: false, baseUrlHint: normalizeComfyuiAddressInput(baseUrl) })
       onChanged()
-      toast(r.ok ? t('onboardingProviders.comfyLocal.enabled') : t('onboardingProviders.comfyLocal.enabledWithoutConnection'), r.ok ? 'success' : 'info')
+      toast(r.ok ? t('onboardingProviders.comfyWorkflow.awaitingVerification', { name: instanceName || key }) : t('onboardingProviders.comfyLocal.enabledWithoutConnection'), 'info')
     } catch (e) {
       toast(e instanceof Error ? e.message : t('onboardingProviders.comfyLocal.enableFailed'), 'error')
     } finally {
@@ -243,7 +247,7 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
     <FoldableModelCard
       glyph={<IconServerBolt size={16} stroke={1.6} />}
       glyphTone="ink"
-      name={instanceName || t('onboardingProviders.comfyLocal.cardName')}
+      name={translateModelDisplayText(instanceName || t('onboardingProviders.comfyLocal.cardName'))}
       subtitle={t('onboardingProviders.comfyLocal.cloudSubtitle')}
       status={cardStatus}
       statusLabel={statusLabel}
@@ -254,6 +258,11 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
       {!enabled ? (
         <>
           {addrRow}
+          <ComfyuiWorkflowImportPanel
+            vendorKey={key}
+            onImported={onChanged}
+            onVerificationRequested={onVerificationRequested}
+          />
           <div className="text-micro text-nomi-ink-30 leading-relaxed">
             {t('onboardingProviders.comfyLocal.defaultLocalPrefix')} <code className="font-mono">127.0.0.1:8188</code>{t('onboardingProviders.comfyLocal.cloudAddressHint')}
           </div>
@@ -275,7 +284,7 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
               <IconCircleCheck size={17} className="shrink-0 mt-0.5 text-workbench-success" />
               <div className="min-w-0">
                 <div className="text-body-sm font-semibold text-nomi-ink">{t('onboardingProviders.comfyLocal.connected')}{health.version ? <span className="text-nomi-ink-60 font-normal">{t('onboardingProviders.comfyLocal.version', { version: health.version })}</span> : null}</div>
-                <div className="text-caption text-nomi-ink-60 mt-0.5">{health.summary}</div>
+                <div className="text-caption text-nomi-ink-60 mt-0.5">{translateModelDisplayText(health.summary)}</div>
                 {health.protocol ? (
                   <div className="text-micro text-nomi-ink-40 mt-0.5">
                     {health.protocol === 'enhanced'
@@ -354,14 +363,18 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
           })}
 
           {/* 模板库（T2）：读用户自己 ComfyUI 里的几百个官方模板——「我这台能用什么」的主入口 */}
-          <ComfyuiTemplateLibrary vendorKey={key} modelLabels={models.map((m) => m.labelZh)} onImported={onChanged} />
+          <ComfyuiTemplateLibrary vendorKey={key} modelLabels={models.map((m) => m.labelZh)} onImported={onChanged} onVerificationRequested={onVerificationRequested} />
 
           {/* 预置模板（S5）：内置 WAN2.2，离线也有一条能用的路（ComfyUI 没模板包时的兜底） */}
-          <ComfyuiPresetSection modelLabels={models.map((m) => m.labelZh)} onImported={onChanged} />
+          <ComfyuiPresetSection vendorKey={key} modelLabels={models.map((m) => m.labelZh)} onImported={onChanged} onVerificationRequested={onVerificationRequested} />
 
           {/* 自定义工作流导入（S4）：贴普通或 API workflow JSON，属**接入**动作，留在卡里。
               导入之后的一切配置（改绑定/改字段/改名/删）都在「工作流设置」整页，不留第二套（P1）。 */}
-          <ComfyuiWorkflowImportPanel vendorKey={key} onImported={onChanged} />
+          <ComfyuiWorkflowImportPanel
+            vendorKey={key}
+            onImported={onChanged}
+            onVerificationRequested={onVerificationRequested}
+          />
 
           {/* 整页的常规入口：没有工作流可点的那一行时（比如只剩内置文生图），这里也进得去改地址/加机器。 */}
           <button

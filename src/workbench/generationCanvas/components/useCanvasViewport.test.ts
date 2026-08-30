@@ -38,4 +38,23 @@ describe('getVisibleCanvasNodesForRender', () => {
       }),
     ).toHaveLength(nodes.length)
   })
+
+  it('keeps a visually intersecting media node mounted when its persisted height is stale', () => {
+    const loadedImage = {
+      ...node('loaded-image', 0, -800),
+      size: { width: 360, height: 280 },
+      meta: { previewHeight: 432 },
+      result: { id: 'result-1', type: 'image', url: 'nomi-local://asset/image.jpg', createdAt: 1 },
+    } as GenerationCanvasNode
+    const offscreenNodes = Array.from({ length: 50 }, (_, index) => node(`far-${index}`, 10_000 + index * 400, 0))
+
+    expect(
+      getVisibleCanvasNodesForRender({
+        nodes: [loadedImage, ...offscreenNodes],
+        zoom: 1,
+        offset: { x: 0, y: 0 },
+        stageSize: { width: 100, height: 100 },
+      }).map((candidate) => candidate.id),
+    ).toContain('loaded-image')
+  })
 })

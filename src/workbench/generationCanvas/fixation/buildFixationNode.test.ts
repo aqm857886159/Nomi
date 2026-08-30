@@ -32,4 +32,14 @@ describe('buildFixationNodeSpec', () => {
     expect(resolveArchetypeForModel({ modelKey: spec?.meta.modelKey as string, vendorKey: null })?.id).toBe('gpt-image-2')
     expect((spec?.meta.archetype as { modeId?: string })?.modeId).toBe('i2i')
   })
+
+  it('派生节点从角色卡真实右边缘落点，不使用名义宽度', () => {
+    const spec = buildFixationNodeSpec(node({
+      kind: 'character',
+      size: { width: 300, height: 190 },
+      result: { id: 'r3', type: 'image', url: 'https://x/character.png', createdAt: 0 },
+    }))
+
+    expect(spec?.position.x).toBe(264)
+  })
 })

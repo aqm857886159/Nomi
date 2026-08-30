@@ -28,8 +28,11 @@ export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatu
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
 
-  const connectedKnown = knownCards.filter((c) => c.meta.hasApiKey)
-  const availableKnown = knownCards.filter((c) => !c.meta.hasApiKey)
+  // A stored credential is not a verified connection. Keep disabled/staged
+  // vendors out of the normal connected projection until certification
+  // promotion publishes a usable revision.
+  const connectedKnown = knownCards.filter((c) => c.meta.hasApiKey && c.meta.enabled)
+  const availableKnown = knownCards.filter((c) => !c.meta.hasApiKey || !c.meta.enabled)
   const otherModels = models.filter((m) =>
     !isKnownVendor(m.vendorKey) &&
     m.vendorKey !== 'dreamina' &&

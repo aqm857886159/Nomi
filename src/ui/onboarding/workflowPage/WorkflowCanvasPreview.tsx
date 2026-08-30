@@ -16,6 +16,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconPlayerPlay } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
+import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { NomiSelect } from '../../../design'
 import type { PreviewField } from '../comfyuiCanvasPreview'
 import { ROLE_TONES } from './roleTone'
@@ -105,7 +106,7 @@ function PreviewControl({
   onChange: (value: string) => void
 }): JSX.Element {
   const { t } = useTranslation()
-  const label = field.label ?? (field.labelKey ? t(ROLE_TONES[field.labelKey as keyof typeof ROLE_TONES].labelKey) : field.key)
+  const label = translateModelDisplayText(field.label ?? (field.labelKey ? t(ROLE_TONES[field.labelKey as keyof typeof ROLE_TONES].labelKey) : field.key))
   const from = t('comfyuiWorkflowPage.preview.fromNode', { id: field.nodeId })
 
   const head = (

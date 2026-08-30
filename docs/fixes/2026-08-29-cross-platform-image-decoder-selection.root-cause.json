@@ -1,0 +1,118 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-29-cross-platform-image-decoder-selection",
+  "problem_type": "cross-platform image decoder command regression",
+  "symptom": "A valid static VP8 WebP passed local macOS tests with bundled FFmpeg 4.4 but was rejected as ANTIGRAVITY_IMAGE_INVALID and media_corrupt by the Linux CI bundle using FFmpeg 4.1.",
+  "direct_cause": "FFmpeg 4.1's image pipe path reads 4096-byte packets when a parser exists and frame_size is unset. The 19352-byte VP8 WebP therefore reached the old parser/decoder as partial packets and was rejected, while FFmpeg 4.4 assembled the same stream successfully.",
+  "class_root": "Nomi verified image MIME and bounded the complete byte buffer but did not carry its trusted byte length into the pipe demuxer contract, leaving packet boundaries to version-specific FFmpeg parser behavior.",
+  "affected_population": [
+    "Linux users or CI runs using the bundled FFmpeg 4.1 image decoder",
+    "Users certifying provider image output or recovering Antigravity image artifacts in PNG, JPEG, or WebP format"
+  ],
+  "scope_paths": [
+    "electron/ai/antigravityArtifacts.ts"
+  ],
+  "entry_points": [
+    "Antigravity generated-image artifact recovery through validateAntigravityImage",
+    "Provider Adapter image certification through certifyMediaArtifact and the shared validateAntigravityImage boundary"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/FFmpeg/FFmpeg/blob/n4.1/libavformat/img2dec.c",
+      "checked_at": "2026-08-29",
+      "purpose": "Confirm that FFmpeg 4.1 pipe inputs with a parser default to 4096-byte packets unless the demuxer's frame_size option is set."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/FFmpeg/FFmpeg/blob/n4.4/libavformat/img2dec.c",
+      "checked_at": "2026-08-29",
+      "purpose": "Compare the image pipe implementation used by the passing macOS FFmpeg bundle and retain one explicit cross-version packet contract."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://ffmpeg.org/ffmpeg.html",
+      "checked_at": "2026-08-29",
+      "purpose": "Verify that input format and demuxer-private options placed before -i apply to that input."
+    }
+  ],
+  "invariants": [
+    "Image bytes are accepted only after PNG, JPEG, or WebP magic and declared MIME agree at the shared boundary.",
+    "Verified WebP bytes use webp_pipe; verified PNG and JPEG bytes use image2pipe; every format passes the already bounded exact byte length as frame_size before the input.",
+    "Provider certification and Antigravity artifact recovery use the same decoder command contract with the same pixel, timeout, output, cancellation, and process-tree limits.",
+    "Decoder stderr, local paths, and raw payloads remain outside persisted certification evidence and user-visible errors."
+  ],
+  "generality_proof": "The fix is applied once in validateAntigravityImage, after byte bounds and MIME magic agreement but before FFmpeg starts. Both Antigravity artifact recovery and Provider Adapter certification call this boundary, and PNG, JPEG, and WebP all bind the exact complete byte length instead of relying on decoder-version packet inference.",
+  "shared_boundaries": [
+    {
+      "path": "electron/ai/antigravityArtifacts.ts",
+      "symbol": "validateAntigravityImage",
+      "responsibility": "Convert a verified, bounded image buffer into one explicit FFmpeg input contract shared by every image certification caller."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/ai/antigravityMedia.ts",
+      "entry_point": "prepareAntigravityImageInput",
+      "disposition": "enforced",
+      "evidence": "Copied and referenced Antigravity images call validateAntigravityImage with the verified bytes and MIME before staging."
+    },
+    {
+      "path": "electron/providerAdapter/certificationMedia.ts",
+      "entry_point": "certifyMediaArtifact image branch",
+      "disposition": "enforced",
+      "evidence": "Provider image certification calls the same validateAntigravityImage boundary after bounded artifact acquisition."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every supported image format and every caller using a pipe decoder can otherwise fall back to decoder-version packet inference when the complete byte length is omitted.",
+    "same_class_scan": [
+      "Scanned Antigravity recovery and Provider Adapter certification callers of validateAntigravityImage.",
+      "Exercised PNG, JPEG, and WebP MIME/magic agreement and exact frame-size command construction across both callers."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/ai/antigravityArtifacts.ts",
+    "invariant": "Every supported image decoder invocation receives trusted format identity and the exact already-bounded complete byte length before pipe input.",
+    "failure_mode": "Unsupported MIME, MIME/magic disagreement, invalid length, or decoder failure rejects before certification or artifact staging; callers cannot opt into implicit packet probing.",
+    "exception_policy": "none",
+    "strategy": "Bind verified format identity and the exact bounded byte length at the single decoder boundary shared by all image certification callers.",
+    "artifacts": [
+      "electron/ai/antigravityArtifacts.ts",
+      "electron/ai/antigravityMedia.test.ts",
+      "electron/providerAdapter/certificationMedia.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/ai/antigravityMedia.test.ts",
+    "electron/providerAdapter/certificationMedia.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/ai/antigravityMedia.test.ts",
+    "electron/providerAdapter/certificationMedia.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/ai/antigravityArtifacts.ts"
+    ],
+    "rationale": "The implicit packet-size decoder invocation is replaced in the shared boundary; no version-specific fallback or parallel decode path remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "@ffmpeg-installer/ffmpeg@1.1.0 with platform bundles that expose FFmpeg 4.1 on Linux/Windows/Intel macOS and FFmpeg 4.4 on Apple Silicon",
+    "target": "One target-aware pinned FFmpeg/ffprobe 6.1.1-or-later maintained line with the same supported version contract on macOS arm64/x64, Linux, and Windows",
+    "rationale": "The current installer package has no newer release, but directly swapping to host-architecture ffmpeg-static would make cross-architecture macOS packaging unsound. The input protocol fix is correct across versions; the runtime upgrade must first become target-aware instead of silently embedding the host binary.",
+    "exit_criteria": [
+      "The packaging pipeline resolves FFmpeg and ffprobe by target platform and architecture rather than the build host.",
+      "Package audits execute each target binary's version and verify its architecture before release.",
+      "Linux, Windows, macOS arm64, and macOS x64 media certification fixtures pass against one declared supported FFmpeg line."
+    ]
+  },
+  "migration": "No stored data changes. Existing artifacts and certification records remain readable; future validation runs use the explicit decoder command contract for the same supported MIME set.",
+  "residual_risks": [
+    "The exact Linux FFmpeg 4.1 executable cannot run natively on the arm64 macOS development host, so the real VP8 WebP fixture must also pass the Linux Quality Gate before merge."
+  ]
+}

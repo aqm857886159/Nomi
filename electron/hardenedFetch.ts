@@ -11,6 +11,9 @@
  * 本模块只做 main 进程内的"主动出站"加固。renderer / preload 不应直接 fetch。
  */
 import { URL } from "node:url";
+import net from "node:net";
+import { lookup as dnsLookup } from "node:dns/promises";
+import { Agent, type Dispatcher } from "undici";
 import { isPrivateHost } from "./networkHostPolicy";
 import { appFetch } from "./appFetch";
 export { isPrivateHost } from "./networkHostPolicy";
@@ -28,6 +31,8 @@ export type HardenedFetchOptions = {
   method?: string;
   /** 请求头。Authorization / Content-Type 等。 */
   headers?: Record<string, string>;
+  /** Additional application-specific credential headers stripped on cross-origin redirects. */
+  sensitiveHeaders?: readonly string[];
   /** 请求体。string 直接发，object/array 自动 JSON.stringify。 */
   body?: unknown;
   /** 上层任务取消信号；与本函数自己的超时共同中断请求。 */
@@ -39,6 +44,14 @@ export type HardenedFetchOptions = {
    * 不得从 renderer/Agent 原样透传；当前只由已配置的本地 ComfyUI 产物回收使用。
    */
   allowedPrivateOrigins?: readonly string[];
+};
+
+export type ResolvedHostAddress = { address: string; family: 4 | 6 };
+
+export type HardenedFetchDependencies = {
+  resolveHost?: (hostname: string) => Promise<ResolvedHostAddress[]>;
+  createPinnedDispatcher?: (hostname: string, addresses: ResolvedHostAddress[]) => Dispatcher;
+  fetch?: (input: URL, init: RequestInit & { dispatcher?: Dispatcher }) => Promise<Response>;
 };
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -72,6 +85,51 @@ function assertSafeUrl(targetUrl: string, allowedPrivateOrigins: readonly string
   return url;
 }
 
+async function resolvePublicAddresses(
+  hostname: string,
+  resolveHost: NonNullable<HardenedFetchDependencies["resolveHost"]>,
+): Promise<ResolvedHostAddress[]> {
+  const literalFamily = net.isIP(hostname);
+  const addresses = literalFamily
+    ? [{ address: hostname, family: literalFamily as 4 | 6 }]
+    : await resolveHost(hostname);
+  if (!addresses.length || addresses.some((entry) => isPrivateHost(entry.address))) {
+    throw new Error("Refusing to fetch private/loopback DNS address");
+  }
+  return addresses;
+}
+
+function connectionHostname(hostname: string): string {
+  return hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+}
+
+export function createPinnedDispatcher(hostname: string, addresses: ResolvedHostAddress[]): Dispatcher {
+  let cursor = 0;
+  const lookup = (
+    requestedHost: string,
+    options: { family?: number; all?: boolean },
+    callback: (error: Error | null, address?: unknown, family?: number) => void,
+  ): void => {
+    if (requestedHost.toLowerCase() !== hostname.toLowerCase()) {
+      callback(new Error("Pinned dispatcher hostname mismatch"));
+      return;
+    }
+    const family = options.family === 4 || options.family === 6 ? options.family : 0;
+    const candidates = family ? addresses.filter((entry) => entry.family === family) : addresses;
+    if (!candidates.length) {
+      callback(new Error("Pinned dispatcher has no address for requested family"));
+      return;
+    }
+    if (options.all) {
+      callback(null, candidates);
+      return;
+    }
+    const selected = candidates[cursor++ % candidates.length];
+    callback(null, selected.address, selected.family);
+  };
+  return new Agent({ connect: { lookup } as never });
+}
+
 function isAllowedContentType(contentType: string, allow: readonly string[]): boolean {
   const lower = contentType.toLowerCase().split(";")[0]?.trim() || "";
   return allow.some((prefix) => lower.startsWith(prefix.toLowerCase()));
@@ -95,23 +153,35 @@ export type HardenedFetchResult = {
 export async function hardenedFetch(
   rawUrl: string,
   options: HardenedFetchOptions = {},
+  dependencies: HardenedFetchDependencies = {},
 ): Promise<HardenedFetchResult> {
   const allowedPrivateOrigins = options.allowedPrivateOrigins || [];
   const url = assertSafeUrl(rawUrl, allowedPrivateOrigins);
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   // 可信本地服务只允许精确同源的一跳请求。禁止重定向，避免先访问重定向目标、事后才校验。
-  const allowRedirect = allowedPrivateOrigins.length === 0 && options.allowRedirect !== false;
   const controller = new AbortController();
   const relayAbort = () => controller.abort(options.signal?.reason);
   if (options.signal?.aborted) relayAbort();
   else options.signal?.addEventListener("abort", relayAbort, { once: true });
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const dispatchers: Dispatcher[] = [];
 
   try {
     const method = (options.method || "GET").toUpperCase();
     const hasBody = method !== "GET" && method !== "HEAD" && options.body != null;
-    const requestHeaders = { ...(options.headers || {}) };
+    let requestHeaders = { ...(options.headers || {}) };
+    const sensitiveHeaders = new Set([
+      "authorization",
+      "proxy-authorization",
+      "cookie",
+      ...(options.sensitiveHeaders || []).map((header) => header.trim().toLowerCase()).filter(Boolean),
+    ]);
+    const carriesSensitiveHeaders = Object.keys(requestHeaders).some((header) => sensitiveHeaders.has(header.toLowerCase()));
+    // Credential-bearing calls reject redirects unless the caller opts in explicitly.
+    const allowRedirect = allowedPrivateOrigins.length === 0
+      && options.allowRedirect !== false
+      && (!carriesSensitiveHeaders || options.allowRedirect === true);
     let bodyInit: string | undefined;
     if (hasBody) {
       bodyInit = typeof options.body === "string" ? options.body : JSON.stringify(options.body);
@@ -119,20 +189,50 @@ export async function hardenedFetch(
         requestHeaders["Content-Type"] = "application/json";
       }
     }
-    const response = await appFetch(url, {
-      method,
-      signal: controller.signal,
-      redirect: allowRedirect ? "follow" : "error",
-      headers: requestHeaders,
-      ...(bodyInit !== undefined ? { body: bodyInit } : {}),
+    const resolveHost = dependencies.resolveHost ?? (async (hostname: string) => {
+      const resolved = await dnsLookup(hostname, { all: true, verbatim: true });
+      return resolved.map((entry) => ({ address: entry.address, family: entry.family as 4 | 6 }));
     });
+    const makeDispatcher = dependencies.createPinnedDispatcher ?? createPinnedDispatcher;
+    const fetchImpl = dependencies.fetch ?? ((input, init) => appFetch(input, init));
+    let currentUrl = url;
+    let response: Response | undefined;
+    for (let hop = 0; hop <= 5; hop += 1) {
+      currentUrl = assertSafeUrl(currentUrl.toString(), allowedPrivateOrigins);
+      const privateAllowed = isPrivateHost(currentUrl.hostname)
+        && isExplicitlyAllowedPrivateOrigin(currentUrl, allowedPrivateOrigins);
+      let dispatcher: Dispatcher | undefined;
+      if (!privateAllowed) {
+        const hostname = connectionHostname(currentUrl.hostname);
+        const addresses = await resolvePublicAddresses(hostname, resolveHost);
+        dispatcher = makeDispatcher(hostname, addresses);
+        dispatchers.push(dispatcher);
+      }
+      response = await fetchImpl(currentUrl, {
+        method,
+        signal: controller.signal,
+        redirect: "manual",
+        headers: requestHeaders,
+        ...(dispatcher ? { dispatcher } : {}),
+        ...(bodyInit !== undefined ? { body: bodyInit } : {}),
+      });
+      if (response.status < 300 || response.status >= 400) break;
+      const location = response.headers.get("location");
+      try { await response.body?.cancel(); } catch { /* ignore */ }
+      if (!allowRedirect || !location || hop === 5 || (method !== "GET" && method !== "HEAD")) {
+        throw new Error("Redirect refused by hardened fetch policy");
+      }
+      const nextUrl = new URL(location, currentUrl);
+      if (nextUrl.origin !== currentUrl.origin) {
+        requestHeaders = Object.fromEntries(
+          Object.entries(requestHeaders).filter(([header]) => !sensitiveHeaders.has(header.toLowerCase())),
+        );
+      }
+      currentUrl = nextUrl;
+    }
+    if (!response) throw new Error("Fetch failed");
     if (!response.ok && options.throwOnNon2xx !== false) {
       throw new Error(`Fetch failed: HTTP ${response.status}`);
-    }
-
-    // 重定向终点必须也通过私网检查
-    if (response.url && response.url !== url.toString()) {
-      assertSafeUrl(response.url, allowedPrivateOrigins);
     }
 
     const contentType = response.headers.get("content-type") || "";
@@ -173,17 +273,20 @@ export async function hardenedFetch(
       bytes: Buffer.concat(chunks.map((c) => Buffer.from(c.buffer, c.byteOffset, c.byteLength)), total),
       contentType,
       status: response.status,
-      finalUrl: response.url || url.toString(),
+      finalUrl: currentUrl.toString(),
       truncated,
     };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Fetch timed out after ${timeoutMs}ms`);
+      const timeoutError = new Error(`Fetch timed out after ${timeoutMs}ms`);
+      (timeoutError as Error & { cause?: unknown }).cause = error;
+      throw timeoutError;
     }
     throw error;
   } finally {
     clearTimeout(timer);
     options.signal?.removeEventListener("abort", relayAbort);
+    await Promise.allSettled(dispatchers.map((dispatcher) => dispatcher.close()));
   }
 }
 

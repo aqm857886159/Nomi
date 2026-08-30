@@ -648,13 +648,15 @@ export function buildComfyImportModelMapping(
       vendorKey,
       labelZh: opts.labelZh,
       kind: imported.kind,
-      enabled: true,
+      // Import is staging, not verification. Task 5 may promote it after a real output passes
+      // the shared media certification boundary; a downloaded/status=success artifact alone is insufficient.
+      enabled: false,
       meta: {
         parameters: imported.parameters,
         ...(normalizedDraft ? { comfyWorkflowImport: normalizedDraft } : {}),
       },
     },
-    mapping: { vendorKey, taskKind: imported.taskKind, modelKey: opts.modelKey, name: opts.labelZh, create, query },
+    mapping: { vendorKey, taskKind: imported.taskKind, modelKey: opts.modelKey, name: opts.labelZh, enabled: false, create, query },
   };
 }
 

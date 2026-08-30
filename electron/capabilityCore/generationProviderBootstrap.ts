@@ -4,6 +4,7 @@ import type { CatalogState } from "../catalog/types";
 import type { GenerationProvider } from "./generationRuntimeAdapter";
 import { createApimartGenerationProvider, type ApimartGenerationProviderOptions } from "./apimartGenerationProvider";
 import type { GenerationProviderReadiness, GenerationProviderReadinessMap } from "./moduleCatalogBootstrap";
+import { modelHasPublishedExecution } from "../shared/modelPublication";
 
 export type GenerationProviderBootstrapOptions = {
   connectionResolver?: (vendorKey: string) => ReturnType<ApimartGenerationProviderOptions["resolveConnection"]>;
@@ -36,13 +37,15 @@ export function createGenerationProviderBootstrap(
   for (const vendor of state.vendors) readinessByProvider[vendor.key] = readiness(false, noRecovery, ["configured_provider"]);
   const providers: GenerationProvider[] = [];
   const apimart = state.vendors.find((vendor) => vendor.key === "apimart" && vendor.enabled);
+  const hasPublishedModel = state.models.some((model) => model.vendorKey === "apimart"
+    && modelHasPublishedExecution(model, { mappings: state.mappings }));
   const apimartCredential = state.apiKeysByVendor.apimart;
   const hasEnabledCredential = Boolean(
     typeof apimartCredential?.apiKey === "string"
       && apimartCredential.apiKey.trim()
       && apimartCredential.enabled !== false,
   );
-  if (apimart && hasEnabledCredential) {
+  if (apimart && hasEnabledCredential && hasPublishedModel) {
     const connectionResolver = options.connectionResolver;
     const catalogReader = options.catalogReader ?? readCatalog;
     const resolveConnection = connectionResolver

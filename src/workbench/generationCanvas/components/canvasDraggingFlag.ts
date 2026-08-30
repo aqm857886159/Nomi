@@ -17,14 +17,45 @@ const STAGE_SELECTOR = '.generation-canvas-v2__stage'
 
 export const CANVAS_DRAGGING_ATTRIBUTE = 'data-dragging'
 
+export const CANVAS_DRAGGING_OWNER = {
+  node: 'node',
+  selection: 'selection',
+  group: 'group',
+  viewport: 'viewport',
+  reactFlowNode: 'react-flow-node',
+  reactFlowPan: 'react-flow-pan',
+  reactFlowViewport: 'react-flow-viewport',
+} as const
+
+export type CanvasDraggingOwner = (typeof CANVAS_DRAGGING_OWNER)[keyof typeof CANVAS_DRAGGING_OWNER]
+
+const draggingOwnersByStage = new WeakMap<Element, Set<CanvasDraggingOwner>>()
+
 /**
  * @param origin 拖动发起处的元素（节点/组框/stage）。用它 closest 到自己那张画布——
  *               多画布并存时不会误伤别的 stage；取不到就退回文档里的第一张。
  */
-export function setCanvasDragging(origin: Element | null | undefined, dragging: boolean): void {
+export function setCanvasDragging(
+  origin: Element | null | undefined,
+  dragging: boolean,
+  owner: CanvasDraggingOwner,
+): void {
   if (typeof document === 'undefined') return
   const stage = origin?.closest(STAGE_SELECTOR) ?? document.querySelector(STAGE_SELECTOR)
   if (!stage) return
-  if (dragging) stage.setAttribute(CANVAS_DRAGGING_ATTRIBUTE, 'true')
-  else stage.removeAttribute(CANVAS_DRAGGING_ATTRIBUTE) // 属性不在时是 no-op，不会白白触发样式重算
+  let owners = draggingOwnersByStage.get(stage)
+  if (dragging) {
+    if (!owners) {
+      owners = new Set()
+      draggingOwnersByStage.set(stage, owners)
+    }
+    owners.add(owner)
+    if (!stage.hasAttribute(CANVAS_DRAGGING_ATTRIBUTE)) {
+      stage.setAttribute(CANVAS_DRAGGING_ATTRIBUTE, 'true')
+    }
+    return
+  }
+  if (!owners?.delete(owner) || owners.size > 0) return
+  draggingOwnersByStage.delete(stage)
+  stage.removeAttribute(CANVAS_DRAGGING_ATTRIBUTE)
 }

@@ -37,6 +37,16 @@ describe('buildTextEditNodeSpec', () => {
     expect(spec?.position.x).toBeGreaterThan(10)
   })
 
+  it('派生节点从分类卡片的真实右边缘落点，不使用名义宽度', () => {
+    const spec = buildTextEditNodeSpec(node({
+      categoryId: 'cast',
+      size: { width: 360, height: 280 },
+      result: { id: 'r4', type: 'image', url: 'https://x/cast.png', createdAt: 0 },
+    }))
+
+    expect(spec?.position.x).toBe(274)
+  })
+
   it('提示词模板含原文/新文字占位 + 保字体约束', () => {
     const p = buildTextEditPrompt()
     expect(p).toContain('原文')

@@ -1,0 +1,57 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-29-cross-model-parameter-presentation",
+  "problem_type": "cross-model generation parameter interaction inconsistency",
+  "symptom": "In the same generation-parameter panel, aspect ratio and supplier choices rendered as the approved visible segmented buttons for some models but changed into a searchable dropdown for models with more choices or longer supplier labels.",
+  "direct_cause": "The generic large-enum fallback selected a component using only option count and visible label length, without preserving the semantic role of aspect-ratio and supplier groups.",
+  "class_root": "Parameter presentation lacked an invariant that semantic control roles take precedence over generic overflow heuristics, so catalog cardinality and provider naming could silently change the interaction contract across otherwise equivalent models.",
+  "affected_population": [
+    "Image and video model users choosing an aspect ratio from a model with more than twelve declared ratios",
+    "Users locking a model to a supplier whose visible names cross the generic label-length threshold",
+    "Users switching between models whose equivalent parameter domains have different option counts"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "src/workbench/generationCanvas/nodes/parameterOptionPresentation.ts"
+  ],
+  "entry_points": [
+    "Archetype parameter controls rendered in the generation-node parameter panel",
+    "Catalog-derived image and video controls rendered in the same panel",
+    "Deduplicated multi-provider model supplier selection",
+    "Imported workflow and model-file enumerations that legitimately require a searchable list"
+  ],
+  "internal_only_reason": "This is Nomi's approved interaction and design-system contract. Provider API documentation cannot decide whether an internal parameter is shown as a segmented grid or a searchable list; the approved node-parameter mockup and real Electron panel are the deciding evidence.",
+  "invariants": [
+    "Aspect-ratio controls render as the visual segmented grid for every supported option count and retain ratio shapes.",
+    "Supplier controls render as explicit segmented choices for every model with multiple usable suppliers.",
+    "Only generic long-label or large option domains fall back to the searchable list.",
+    "Automatic options receive the aspect-ratio icon only when the whole control is semantically an aspect-ratio group.",
+    "The presentation rule is model- and vendor-independent and is applied at the shared parameter-panel boundary."
+  ],
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/parameterOptionPresentation.test.ts",
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.test.ts",
+    "tests/ux/canvas-control-clarity.walk.mjs"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every model or supplier catalog with a different option count or label width could reach the same semantic-control downgrade, so the failure could recur whenever catalogs changed.",
+    "same_class_scan": [
+      "Scanned every parameterOptionLayout caller and confirmed InlineParameterBar is the shared option-presentation boundary.",
+      "Scanned catalog-derived providerOptions and archetype option groups for domains whose semantics must override generic overflow.",
+      "Exercised fifteen ratios, multiple suppliers, pixel-bucket wire values, automatic resolution values, and a legitimate long generic enumeration."
+    ]
+  },
+  "prevention": {
+    "strategy": "Classify the shared option group by semantic purpose before applying the generic option-count and label-width fallback.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/parameterOptionPresentation.ts",
+      "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx"
+    ]
+  },
+  "migration": "No project, node, catalog, or parameter-value migration is required. Existing stored values remain unchanged; only the transient control used to choose them is corrected.",
+  "residual_risks": [
+    "A user-defined supplier name can wrap inside its equal-width segment, but selection remains visible and consistent.",
+    "Extremely large supplier sets can make the panel taller; current deduplicated model catalogs expose only a small supplier set and the panel already has bounded scrolling."
+  ]
+}

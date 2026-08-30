@@ -11,7 +11,7 @@ import {
 // composer 附件入口可接受的类型（点击上传 / 拖拽 / 粘贴共用）。
 // 传输层格式无关（nomi-local），这里只做友好筛选 + 体验提示。
 export const COMPOSER_ATTACHMENT_ACCEPT =
-  'image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.markdown'
+  'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.markdown'
 
 type SetAttachments = (updater: (prev: ComposerAttachment[]) => ComposerAttachment[]) => void
 

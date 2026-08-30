@@ -75,6 +75,36 @@ export function withLinuxNoSandbox(args, platform = process.platform) {
   return normalized
 }
 
+/**
+ * Synthetic credentials used by isolated UI fixtures are deliberately not
+ * secrets. Linux CI has no desktop keyring, so Electron's normal safeStorage
+ * backend is unavailable there. Opted-in fixtures use Chromium's basic test
+ * backend; real-profile and real-provider journeys never receive this flag.
+ */
+export function withLinuxSyntheticCredentialStorage(args, enabled, platform = process.platform) {
+  const normalized = [...args]
+  if (!enabled || platform !== 'linux') return normalized
+
+  const configuredBackend = normalized.find((arg) => arg.startsWith('--password-store='))
+  if (configuredBackend && configuredBackend !== '--password-store=basic') {
+    throw new Error(`synthetic credential storage conflicts with ${configuredBackend}`)
+  }
+  if (!configuredBackend) normalized.push('--password-store=basic')
+  return normalized
+}
+
+export async function configureSyntheticCredentialStorage(app, enabled, platform = process.platform) {
+  if (!enabled || platform !== 'linux') return false
+  const available = await app.evaluate(({ safeStorage }) => {
+    safeStorage.setUsePlainTextEncryption(true)
+    return safeStorage.isEncryptionAvailable()
+  })
+  if (!available) {
+    throw new Error('Linux synthetic credential storage could not initialize an in-memory safeStorage key')
+  }
+  return true
+}
+
 /** Electron 43's packaged Chromium rejects Playwright's DevTools WebSocket
  * Origin unless it is explicitly allowed. This flag exists only in this E2E
  * launcher (which already forces NOMI_E2E=1); normal product launches never
@@ -100,6 +130,7 @@ export function withPackagedPlaywrightOrigin(args, isPackaged) {
  * @param {string} [options.capabilityDir]  单独指定（默认 <tempRoot>/capability）
  * @param {number} [options.timeout]        等窗口上限（ms）
  * @param {number} [options.settleMs=1500]  domcontentloaded 后再等一会儿（渲染层挂载）
+ * @param {boolean} [options.syntheticCredentialStorage=false]  仅供隔离目录里的非秘密测试凭据；Linux CI 使用 basic 后端
  * @returns {Promise<{app: import('playwright').ElectronApplication, win: import('playwright').Page,
  *   tempRoot: string, userDataDir: string, settingsDir: string, projectsDir: string, close: () => Promise<void>}>}
  */
@@ -113,7 +144,13 @@ export async function launchNomiApp(options = {}) {
     // 默认起开发构建；打包产物走查（如 mcp-client-activation）传装好的 .app 二进制。
     executablePath = require('electron'),
     waitForWindow = true,
+    syntheticCredentialStorage = false,
   } = options
+
+  const isolate = options.isolate !== false
+  if (syntheticCredentialStorage && !isolate) {
+    throw new Error('syntheticCredentialStorage requires an isolated Nomi profile')
+  }
 
   // 开发 electron 二进制要靠 `.` 指到仓库根去加载 dist-electron；**打包好的 .app 自带产物**，
   // 再塞个 `.` 反而会被当成「要打开的路径」参数。所以这两件事都跟着「是不是开发构建」走。
@@ -128,7 +165,6 @@ export async function launchNomiApp(options = {}) {
   // isolate:false = 用用户**真实** profile 起（交互式 dev driver ui-driver.mjs 才这么用：
   // 它要能打开已有/示例项目，这是它注释里写明的既定设计，不是漏配）。此时不传 --user-data-dir、
   // 不覆盖三个目录 env，等价于「裸起一个 Nomi」；NOMI_E2E 那两条仍然强制。
-  const isolate = options.isolate !== false
   const tempRoot = isolate ? (options.tempRoot ?? fs.mkdtempSync(path.join(os.tmpdir(), `${name}-`))) : null
   const userDataDir = isolate ? (options.userDataDir ?? path.join(tempRoot, 'user-data')) : null
   const settingsDir = isolate ? (options.settingsDir ?? path.join(tempRoot, 'settings')) : null
@@ -142,11 +178,14 @@ export async function launchNomiApp(options = {}) {
 
   const launchOptions = {
     executablePath,
-    args: withLinuxNoSandbox(withPackagedPlaywrightOrigin([
-      ...(isDevElectron ? ['.'] : []),
-      ...(userDataDir ? [`--user-data-dir=${userDataDir}`] : []),
-      ...extraArgs,
-    ], !isDevElectron)),
+    args: withLinuxNoSandbox(withLinuxSyntheticCredentialStorage(
+      withPackagedPlaywrightOrigin([
+        ...(isDevElectron ? ['.'] : []),
+        ...(userDataDir ? [`--user-data-dir=${userDataDir}`] : []),
+        ...extraArgs,
+      ], !isDevElectron),
+      syntheticCredentialStorage,
+    )),
     cwd: repoRoot,
     env: buildNomiLaunchEnv({ extraEnv, userDataDir, settingsDir, projectsDir, capabilityDir }),
     timeout,
@@ -189,6 +228,13 @@ export async function launchNomiApp(options = {}) {
     }
     await win.waitForLoadState('domcontentloaded')
     if (settleMs > 0) await win.waitForTimeout(settleMs)
+  }
+
+  try {
+    await configureSyntheticCredentialStorage(app, syntheticCredentialStorage)
+  } catch (error) {
+    await app.close().catch(() => undefined)
+    throw error
   }
 
   return {

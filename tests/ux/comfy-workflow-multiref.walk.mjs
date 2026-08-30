@@ -53,6 +53,7 @@ const graph = {
   } : {}),
 }
 const uploads = []
+const certificationUploads = []
 let submitted
 let downloaded = 0
 const server = http.createServer(async (req, res) => {
@@ -71,16 +72,27 @@ const server = http.createServer(async (req, res) => {
         if (!(file instanceof Blob)) throw new Error('Expected multipart image file')
         const bytes = Buffer.from(await file.arrayBuffer())
         const referenceIndex = references.findIndex((reference) => reference.bytes.equals(bytes))
-        if (referenceIndex < 0) throw new Error('Uploaded file is not one of the declared source assets')
+        if (referenceIndex < 0) {
+          // The certification run deliberately uses Nomi-owned deterministic
+          // fixtures, while the later canvas run must use the declared project
+          // assets byte-for-byte. Keep those two assertions separate.
+          const isPng = bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'))
+          const isMp4 = bytes.subarray(4, 8).toString('ascii') === 'ftyp'
+          if (!isPng && !isMp4) throw new Error('Uploaded file is not a declared source or certification asset')
+          const name = `certification-reference-${certificationUploads.length + 1}.${isMp4 ? 'mp4' : 'png'}`
+          certificationUploads.push({ name, bytes: bytes.length, isMp4 })
+          return res.end(JSON.stringify({ name, subfolder: '', type: 'input' }))
+        }
         const name = `uploaded-reference-${referenceIndex + 1}.${referenceIndex === 3 ? 'mp4' : 'png'}`
         uploads.push({ referenceIndex, name, bytes: bytes.length })
         return res.end(JSON.stringify({ name, subfolder: '', type: 'input' }))
       }
       submitted = JSON.parse(body.toString())
+      console.log('Fixture /prompt', JSON.stringify(submitted).slice(0, 1200))
       return res.end(JSON.stringify({ prompt_id: submitted.prompt_id || 'three-refs-prompt' }))
     }
-    if (url.pathname.startsWith('/history/')) return res.end(JSON.stringify({ [url.pathname.split('/').at(-1)]: { status: { status_str: 'success', completed: true }, outputs: { '5': { videos: [{ filename: 'fixture.mp4', subfolder: '', type: 'output' }] } } } }))
-    if (url.pathname === '/view') { downloaded += 1; res.setHeader('Content-Type', 'video/mp4'); return res.end(videoBytes) }
+    if (url.pathname.startsWith('/history/')) { console.log('Fixture /history', url.pathname); return res.end(JSON.stringify({ [url.pathname.split('/').at(-1)]: { status: { status_str: 'success', completed: true }, outputs: { '5': { videos: [{ filename: 'fixture.mp4', subfolder: '', type: 'output' }] } } } })) }
+    if (url.pathname === '/view') { downloaded += 1; console.log('Fixture /view', url.search); res.setHeader('Content-Type', 'video/mp4'); return res.end(videoBytes) }
     res.statusCode = 404
     res.end('{}')
   } catch (error) {
@@ -165,12 +177,27 @@ try {
   await settings.getByPlaceholder('给它起个名（如：本地 WAN 图生视频）', { exact: true }).fill(workflowName)
   await snap('01-three-input-import-dark')
   await clickOrFail(settings.getByRole('button', { name: '导入', exact: true }), '保存全部三路输入')
-  await expect(settings.getByRole('button', { name: `打开「${workflowName}」的工作流设置`, exact: true })).toContainText('视频 · ComfyUI 工作流')
+  // Import is staging only. The durable integration handoff must be confirmed
+  // before the candidate can be promoted into the selectable catalog.
+  await expect(settings.getByRole('heading', { name: '确认接入并开始验证', exact: true })).toBeVisible()
+  await clickOrFail(settings.getByRole('button', { name: '确认并开始验证', exact: true }), '确认 ComfyUI 真实验证')
   const imported = readCatalog().models.find((model) => model.labelZh === workflowName)
+  await expect.poll(() => {
+    const current = readCatalog().models.find((model) => model.labelZh === workflowName)
+    const mapping = current && readCatalog().mappings.find((candidate) => candidate.modelKey === current.modelKey)
+    return Boolean(current?.enabled && mapping?.enabled && current.meta?.adapter?.state === 'verified')
+  }, { timeout: 30_000 }).toBe(true)
+  const promoted = readCatalog().models.find((model) => model.labelZh === workflowName)
+  expect(promoted?.enabled).toBe(true)
+  expect(readCatalog().mappings.find((mapping) => mapping.modelKey === promoted?.modelKey)?.enabled).toBe(true)
   expect(imported.meta.comfyWorkflowImport.binding.images).toHaveLength(references.length)
   expect(new Set(imported.meta.comfyWorkflowImport.binding.images.map((input) => input.paramKey)).size).toBe(references.length)
   await clickOrFail(settings.getByRole('button', { name: '关闭', exact: true }), '返回画布连接三张图')
   const composer = win.locator('.generation-canvas-v2-node__composer')
+  // The imported graph declares an image-to-video mode. Select that explicit
+  // mode before opening the model list so the selector queries the same
+  // published mode rather than the default text-to-video bucket.
+  await clickOrFail(composer.getByRole('button', { name: '图生视频', exact: true }), '切换到图生视频模式')
   await clickOrFail(composer.getByRole('button', { name: '模型', exact: true }), '选取刚导入的工作流')
   await clickOrFail(win.getByRole('option').filter({ hasText: workflowName }), '使用三输入视频工作流')
   const pick = async (slotIndex, sourceIndex) => {
@@ -235,6 +262,10 @@ try {
   for (const reference of references) await expect(restoredComposer.getByRole('button', { name: `移除${reference.label}`, exact: true })).toBeVisible()
   expect(readProject().edges.filter((edge) => edge.target === 'target')).toEqual(edges)
   await snap('03-three-restored-light')
+  // The certification request populated `submitted` earlier in this same walk.
+  // Clear that old response so the production assertion cannot pass before the
+  // post-restart upload sequence and its new /prompt request complete.
+  submitted = undefined
   await clickOrFail(win.getByRole('button', { name: '生成素材', exact: true }), '冷启动后三图真实发送')
   await expect.poll(() => submitted, { timeout: 20_000 }).toBeTruthy()
   expect(uploads.map((upload) => upload.referenceIndex).sort()).toEqual(withVideo ? [0, 1, 2, 3] : [0, 1, 2])

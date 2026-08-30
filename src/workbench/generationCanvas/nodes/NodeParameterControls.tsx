@@ -5,6 +5,7 @@ import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import {
   deriveGenerationModelCatalogStatus,
   findModelOptionByIdentifier,
+  requiredModeForGenerationNode,
   useGenerationModelOptionsState,
 } from '../adapters/modelOptionsAdapter'
 import { type ModelParameterControl } from '../../../config/modelCatalogMeta'
@@ -20,6 +21,7 @@ import {
   isVideoLikeGenerationNodeKind,
 } from '../model/generationNodeKinds'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import type { CanvasMutationOptions } from '../store/canvasGuards'
 import { importWorkbenchLocalAssetFile } from '../../api/assetUploadApi'
 import { comfyWorkflowTakesPrompt } from '../runner/promptRequirement'
 import {
@@ -104,9 +106,6 @@ export default function NodeParameterControls({
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const storeConnectNodes = useGenerationCanvasStore((state) => state.connectNodes)
   const storeDisconnectEdge = useGenerationCanvasStore((state) => state.disconnectEdge)
-  const modelOptionsState = useGenerationModelOptionsState(node.kind)
-  const modelOptions = modelOptionsState.options
-  const modelCatalogStatus = deriveGenerationModelCatalogStatus(node.kind, modelOptionsState)
   const meta = React.useMemo<Record<string, unknown>>(() => node.meta || {}, [node.meta])
   const [uploadingSlotKey, setUploadingSlotKey] = React.useState('')
   const [uploadError, setUploadError] = React.useState('')
@@ -120,6 +119,10 @@ export default function NodeParameterControls({
   // 声音节点同为可生成节点：要走模型自动选择(选到「声音」档案)→ ModeBar(配音/转写)+ 参数才显现。
   const isAudioLike = isAudioLikeGenerationNodeKind(node.kind)
   const isGenerationNode = isImageLike || isVideoLike || isTextLike || isAudioLike
+  const requiredMode = requiredModeForGenerationNode(node, { nodes, edges })
+  const modelOptionsState = useGenerationModelOptionsState(node.kind, requiredMode)
+  const modelOptions = modelOptionsState.options
+  const modelCatalogStatus = deriveGenerationModelCatalogStatus(node.kind, modelOptionsState)
 
   // 模型寻址链单源在 parameterControlModel.nodeSelectedModelAddress（报错卡自定义调用入口共用）。
   // 必须带上节点存的 vendor 寻址：两个中转站可提供同名 modelKey，裸身份匹配永远命中数组首条
@@ -158,10 +161,10 @@ export default function NodeParameterControls({
   const getLatestMeta = (): Record<string, unknown> =>
     useGenerationCanvasStore.getState().nodes.find((n) => n.id === node.id)?.meta || {}
 
-  const updateMeta = (patch: Record<string, unknown>) => {
+  const updateMeta = (patch: Record<string, unknown>, options?: CanvasMutationOptions) => {
     updateNode(node.id, {
       meta: { ...getLatestMeta(), ...patch },
-    })
+    }, options)
   }
 
   const updateAspectRatioMeta = (patch: Record<string, unknown>, targetRatio: number | null) => {
@@ -222,7 +225,7 @@ export default function NodeParameterControls({
     })()
     if (current === preferred) return
     const patch = videoAspectDefaultPatch(renderedControls, preferred)
-    if (Object.keys(patch).length > 0) updateMeta(patch)
+    if (Object.keys(patch).length > 0) updateMeta(patch, { history: false })
     // renderedControls/updateMeta 每渲染重建，入 deps 会令 effect 每次 meta 写都重跑；
     // 触发时机只需「输入边集合 / 模型」变化，语义由下面两个签名精确表达。
     // eslint-disable-next-line react-hooks/exhaustive-deps

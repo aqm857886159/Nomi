@@ -1,16 +1,16 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Stack, Group, Text, PasswordInput, Anchor } from '@mantine/core'
-import {
-  IconCheck,
-  IconX,
-  IconChevronDown,
-} from '@tabler/icons-react'
+import { IconCheck, IconX, IconChevronDown } from '@tabler/icons-react'
 import { DesignButton, DesignModal, DesignTextInput, DesignSwitch } from '../../design'
 import { ModelPickerScreen } from './ModelPickerScreen'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { CustomCallDraftIdentity } from '../../desktop/modelCatalogBridgeTypes'
-import type { DesktopExistingConnectionSummary, DesktopProviderRegistration } from '../../desktop/onboardingBridgeTypes'
+import type {
+  DesktopExistingConnectionSummary,
+  DesktopHttpCertificationRun,
+  DesktopProviderRegistration,
+} from '../../desktop/onboardingBridgeTypes'
 import type { ProviderKind } from '../../desktop/providerKind'
 import { PROVIDER_PRESETS } from './providerPresets'
 import { Field } from './onboardingWizardSupport'
@@ -19,18 +19,15 @@ import { ModelSettingsPageSurface } from './ModelSettingsPageSurface'
 import { ExistingConnectionModelPicker } from './ExistingConnectionModelPicker'
 import { OnboardingWizardResult } from './OnboardingWizardResult'
 import { DirectScriptDraftForm } from './DirectScriptDraftForm'
-import {
-  OnboardingWizardAdvancedFields,
-  ProviderPresetGroups,
-} from './OnboardingWizardAdvancedFields'
+import { OnboardingWizardAdvancedFields, ProviderPresetGroups } from './OnboardingWizardAdvancedFields'
 import { PROVIDER_KIND_LABEL } from './onboardingProviderKindLabels'
 import { modelDiscoveryMessage } from './modelDiscovery'
 import { useModelDiscovery } from './useModelDiscovery'
+import { CertificationIntentKey } from './certificationIntentKey'
+import { certificationFailureMessage } from './certificationFailureMessage'
 
 type Phase = 'input' | 'running' | 'success' | 'error'
-// model3d 必须在这个联合里。少了它的后果不是「3D 没做」，而是 hunyuan3d 这类**必定**被下面的
-// 收敛硬掰成 text——既污染文本下拉，被选中还会当聊天模型塞进 /chat/completions。目录层本来就支持
-// model3d（BillingModelKind / primaryTaskKind text_to_3d），断点只在这条 UI 类型上。
+// Keep model3d in the UI union so non-text models are never sent to chat endpoints.
 type ModelKind = 'text' | 'image' | 'video' | 'audio' | 'model3d'
 const MODEL_KINDS: ModelKind[] = ['text', 'image', 'video', 'audio', 'model3d']
 
@@ -41,21 +38,23 @@ function asModelKind(value: unknown): ModelKind {
 export function OnboardingWizard({
   opened,
   onClose,
-  onCommitted,
-  onConnectionSaved,
+  onCertificationStarted,
+  onConnectionConfigured,
   initialPreset,
   existingVendorKey,
   existingConnection,
   onDirectScriptDraftCreated,
   initialScreen,
+  integrationSessionId,
+  integrationHandoffRequestId,
   presentation = 'modal',
 }: {
   opened: boolean
   onClose: () => void
-  /** Called once a model is committed to the catalog. */
-  onCommitted?: (registration: DesktopProviderRegistration) => void
-  /** Connection-only save completed; parent refreshes the catalog without navigating away. */
-  onConnectionSaved?: (registration: DesktopProviderRegistration) => void
+  /** Model confirmation has started the canonical certification run. */
+  onCertificationStarted?: (run: DesktopHttpCertificationRun) => void
+  /** Connection-only credentials are securely configured but remain unverified. */
+  onConnectionConfigured?: (registration: DesktopProviderRegistration) => void
   /** 打开时预选的预设（如面板「接入你的中转站」卡传 'newapi'，直接进中转拉取流，Issue #8）。 */
   initialPreset?: string
   /** 已有连接追加模型：主进程自取加密凭据，renderer 不再收集或读取 Key。 */
@@ -64,38 +63,37 @@ export function OnboardingWizard({
   existingConnection?: DesktopExistingConnectionSummary
   onDirectScriptDraftCreated?: (identity: CustomCallDraftIdentity) => void
   initialScreen?: 'form' | 'scriptDraft'
+  /** Durable MCP handoff: save the credential through the trusted session IPC. */
+  integrationSessionId?: string
+  integrationHandoffRequestId?: string
   presentation?: 'modal' | 'page'
 }): JSX.Element {
   const { t } = useTranslation()
   const bridge = getDesktopBridge()
+  const certificationIntentKey = React.useRef(new CertificationIntentKey())
   const [phase, setPhase] = React.useState<Phase>('input')
   const [inputMode] = React.useState<'manual'>('manual')
   const [userApiKey, setUserApiKey] = React.useState('')
   const [noApiKey, setNoApiKey] = React.useState(false)
   const [vendorName, setVendorName] = React.useState('')
   const [presetId, setPresetId] = React.useState('')
-  // When a named preset auto-fills BaseURL, we hide that field (correct value,
-  // jargon-y for non-coders). This flag reveals it for the rare custom-gateway case.
+  // Named presets can hide BaseURL; this flag reveals custom gateways.
   const [editBaseUrl, setEditBaseUrl] = React.useState(false)
-  // 接口协议（wire protocol）。保存默认值是本地选择，不发请求；只有用户显式点
-  // 「测试连接」时才让主进程探测 chat / responses / anthropic。
+  // Protocol selection is local until the user tests the connection.
   const [providerKind, setProviderKind] = React.useState<ProviderKind>('openai-compatible')
-  // 专家是否手动锁定了协议。true → 测试时按它强制走（autoProbe 关），且 BaseURL 输入不再
-  // 用 hostname 自动覆盖（解决「自动探测 vs 手选打架」）。
+  // A forced protocol disables auto-probe and hostname inference.
   const [kindForced, setKindForced] = React.useState(false)
-  // 「接口协议」覆盖区是否展开。默认收起；专家点开、或显式测试失败时自动展开。
+  // 「接口协议」覆盖区是否展开。
   const [showKindOverride, setShowKindOverride] = React.useState(false)
-  // 「高级设置」整段（接口协议 + 自定义请求头）是否展开。默认收起；测试失败自动展开当逃生口。
+  // 「高级设置」整段（接口协议 + 自定义请求头）是否展开。
   const [showAdvanced, setShowAdvanced] = React.useState(false)
   const [baseUrl, setBaseUrl] = React.useState('')
-  // 已选中、将落库的模型（单一真相源）。每个携带 per-model 类型（图片/视频/配音/文本，可改）。
-  // 录入唯一入口 = 第二屏 ModelPickerScreen（拉取后勾选确认，2026-06-29 改 opt-in）。
+  // Selected models are confirmed on the picker screen before certification.
   const [models, setModels] = React.useState<Array<{ id: string; kind: ModelKind }>>([])
   const [screen, setScreen] = React.useState<'form' | 'select' | 'scriptDraft'>(
-    existingVendorKey ? 'select' : initialScreen ?? 'form',
+    existingVendorKey ? 'select' : (initialScreen ?? 'form'),
   )
-  // Custom request headers (key/value) for relay/proxy gateways. Empty by default
-  // so the common case stays clean; the "添加请求头" button reveals a row on demand.
+  // Optional custom request headers for relay gateways.
   const [headerRows, setHeaderRows] = React.useState<Array<{ key: string; value: string }>>([])
   const [saving, setSaving] = React.useState(false)
   const [savedConnection, setSavedConnection] = React.useState<DesktopProviderRegistration | null>(null)
@@ -109,14 +107,39 @@ export function OnboardingWizard({
   const effectiveBaseUrl =
     providerKind === 'anthropic' && !baseUrl.trim() ? 'https://api.anthropic.com' : baseUrl.trim()
 
+  React.useEffect(() => {
+    if (!opened || !integrationSessionId || !bridge?.onboarding?.integrationSessionGet) return
+    let alive = true
+    void bridge.onboarding
+      .integrationSessionGet(integrationSessionId)
+      .then((value) => {
+        if (!alive || !value || typeof value !== 'object') return
+        const session = value as Record<string, unknown>
+        const config =
+          session.config && typeof session.config === 'object' ? (session.config as Record<string, unknown>) : {}
+        if (typeof config.name === 'string') setVendorName(config.name)
+        if (typeof config.baseUrl === 'string') setBaseUrl(config.baseUrl)
+        if (
+          config.providerKind === 'anthropic' ||
+          config.providerKind === 'openai-compatible' ||
+          config.providerKind === 'openai-responses'
+        ) {
+          setProviderKind(config.providerKind)
+        }
+        setScreen('form')
+      })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
+  }, [opened, integrationSessionId, bridge])
+
   const resetToInput = React.useCallback(() => {
     setPhase('input')
     setResultLabel('')
     setErrorReason('')
     setErrorHint('')
-    // Existing-connection retry returns to the same candidate pool. Its stored
-    // credential never enters this component, and a failed local registration
-    // should not throw away the user's picks.
+    // Existing-connection retry keeps the candidate pool and selections.
     if (existingVendorKey) setScreen('select')
     else setScreen('form')
     setTestState('idle')
@@ -134,7 +157,7 @@ export function OnboardingWizard({
     setHeaderRows((prev) => prev.filter((_, i) => i !== index))
     setTestState('idle')
   }, [])
-  // Collapse the header rows into a clean {key: value} map (dropping blanks).
+  // Collapse header rows into a clean map.
   const buildHeadersObject = React.useCallback((): Record<string, string> => {
     const out: Record<string, string> = {}
     for (const h of headerRows) {
@@ -146,15 +169,35 @@ export function OnboardingWizard({
   }, [headerRows])
 
   const loadModels = React.useCallback(async () => {
+    const savedVendorKey = existingVendorKey ?? savedConnection?.vendorKey
+    if (savedVendorKey && bridge?.onboarding?.httpConnectionListModels) {
+      return bridge.onboarding.httpConnectionListModels({ vendorKey: savedVendorKey })
+    }
     if (!bridge?.onboarding?.listModels) return { ok: false, error: t('modelSetup.desktopUnavailable') }
     return bridge.onboarding.listModels({
-      baseUrl: effectiveBaseUrl, apiKey: requestAuth.apiKey, providerKind, headers: buildHeadersObject(),
+      baseUrl: effectiveBaseUrl,
+      apiKey: requestAuth.apiKey,
+      providerKind,
+      headers: buildHeadersObject(),
     })
-  }, [bridge, effectiveBaseUrl, requestAuth.apiKey, providerKind, buildHeadersObject, t])
+  }, [
+    bridge,
+    existingVendorKey,
+    savedConnection,
+    effectiveBaseUrl,
+    requestAuth.apiKey,
+    providerKind,
+    buildHeadersObject,
+    t,
+  ])
   const discoveryScope = JSON.stringify([effectiveBaseUrl, requestAuth.apiKey, providerKind, headerRows])
   const {
-    candidates: candidateModels, fetching: fetchingModels, fetchAttempted,
-    result: discoveryResult, fetchModels, cancelPending,
+    candidates: candidateModels,
+    fetching: fetchingModels,
+    fetchAttempted,
+    result: discoveryResult,
+    fetchModels,
+    cancelPending,
   } = useModelDiscovery({ scope: discoveryScope, opened, load: loadModels, guessKinds: bridge?.onboarding?.guessKinds })
   const discoveryNotice = discoveryResult ? modelDiscoveryMessage(discoveryResult, false) : null
   const fetchModelsMsg = discoveryNotice?.key ? t(discoveryNotice.key, discoveryNotice.values) : ''
@@ -178,14 +221,14 @@ export function OnboardingWizard({
     setTestState('idle')
   }, [])
 
-  // 打开时按 initialPreset 预选（面板「接入你的中转站」卡 → 'newapi'，直接进中转拉取流）。
+  // Apply the preset when the panel opens.
   React.useEffect(() => {
     if (opened && initialPreset) handlePickPreset(initialPreset)
     // 仅在打开瞬间执行一次（initialPreset/handlePickPreset 稳定）。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, initialPreset])
 
-  // 第二屏手填未列出的 id 时，问主进程它是哪类（同一启发式 guessModelKind）。
+  // Ask main to classify a manually entered model id.
   const resolveKind = React.useCallback(
     async (id: string): Promise<string> => {
       if (!bridge?.onboarding?.guessKinds) return 'text'
@@ -198,75 +241,98 @@ export function OnboardingWizard({
     [bridge],
   )
 
-  const registerModels = React.useCallback(
+  const startCertification = React.useCallback(
     async (picked: Array<{ id: string; kind: string }>) => {
       const savedVendorKey = savedConnection?.vendorKey
       const targetVendorKey = existingVendorKey ?? savedVendorKey
-      if (!bridge?.onboarding?.adapterRegister || (targetVendorKey && !bridge.onboarding.adapterRegisterExisting)) {
+      if (!targetVendorKey || !bridge?.onboarding?.httpCertificationStartExisting) {
         setErrorReason(t('modelSetup.desktopUnavailable'))
         setPhase('error')
         return
       }
-      // 只对**真正认不出**的值兜底成 text（脏数据/将来新增的第六类），不再把 model3d 一并掰进去。
+      // Unknown values fall back to text; model3d stays distinct.
       const cleanModels = picked.map((m) => ({ id: m.id, kind: asModelKind(m.kind) })).filter((m) => m.id.trim())
       if (cleanModels.length === 0) return
       setModels(cleanModels)
       setSaving(true)
       try {
         const selected = cleanModels.map((model) => ({ modelKey: model.id, labelZh: model.id, kind: model.kind }))
-        const res = targetVendorKey
-          ? await bridge.onboarding.adapterRegisterExisting({ vendorKey: targetVendorKey, models: selected })
-          : await bridge.onboarding.adapterRegister({
-              vendorName: vendorName.trim(),
-              baseUrl: effectiveBaseUrl,
-              apiKey: requestAuth.apiKey,
-              authType: requestAuth.authType,
-              providerKind,
-              headers: buildHeadersObject(),
-              models: selected,
-            })
-        if (!res.ok || !res.registration) {
+        const res = await bridge.onboarding.httpCertificationStartExisting({
+          entryPoint: 'manual-ui',
+          idempotencyKey: certificationIntentKey.current.for({
+            action: 'start',
+            vendorKey: targetVendorKey,
+            models: selected,
+          }),
+          vendorKey: targetVendorKey,
+          models: selected,
+        })
+        if (!res.ok || !res.run) {
+          certificationIntentKey.current.rotate()
           setErrorReason(t('modelSetup.saveFailed'))
-          const rawError = 'error' in res && typeof res.error === 'string' ? res.error : ''
-          setErrorHint(rawError || t('modelSetup.saveFailedHint'))
+          setErrorHint(certificationFailureMessage(t, 'code' in res ? res.code : undefined))
           setPhase('error')
           return
         }
-        if (onCommitted) onCommitted(res.registration)
+        certificationIntentKey.current.rotate()
+        if (onCertificationStarted) onCertificationStarted(res.run)
         else onClose()
-      } catch (error) {
+      } catch {
         setErrorReason(t('modelSetup.saveFailed'))
-        setErrorHint(error instanceof Error ? error.message : t('modelSetup.saveFailedHint'))
+        setErrorHint(t('modelSetup.saveFailedHint'))
         setPhase('error')
       } finally {
         setSaving(false)
       }
     },
-    [
-      bridge,
-      existingVendorKey,
-      savedConnection,
-      vendorName,
-      effectiveBaseUrl,
-      requestAuth.apiKey,
-      requestAuth.authType,
-      providerKind,
-      buildHeadersObject,
-      t,
-      onCommitted,
-      onClose,
-    ],
+    [bridge, existingVendorKey, savedConnection, t, onCertificationStarted, onClose],
   )
 
   const saveConnection = React.useCallback(async () => {
-    if (!bridge?.onboarding?.adapterRegister) {
+    if (integrationSessionId) {
+      const saveCredential = bridge?.onboarding?.integrationSessionSaveCredential
+      if (!saveCredential) {
+        setConnectionSaveError(t('modelSetup.integrationUnavailable'))
+        return
+      }
+      setSaving(true)
+      setConnectionSaveError('')
+      try {
+        const current = await bridge.onboarding.integrationSessionGet?.(integrationSessionId)
+        const currentRecord = current && typeof current === 'object' ? (current as Record<string, unknown>) : null
+        const expectedRevision = Number(currentRecord?.revision || 0)
+        if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1)
+          throw new Error(t('modelSetup.integrationUnavailable'))
+        await saveCredential({
+          sessionId: integrationSessionId,
+          expectedRevision,
+          apiKey: requestAuth.apiKey,
+        })
+        if (integrationHandoffRequestId) await bridge.onboarding.integrationHandoffAck?.(integrationHandoffRequestId)
+        onConnectionConfigured?.({
+          vendorKey: '',
+          vendorName: vendorName.trim(),
+          state: 'configured',
+          selectedModelKeys: [],
+          models: [],
+          savedAt: new Date().toISOString(),
+        })
+        onClose()
+      } catch (error) {
+        setConnectionSaveError(error instanceof Error ? error.message : t('modelSetup.saveFailedHint'))
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+    if (!bridge?.onboarding?.httpConnectionConfigure) {
       setConnectionSaveError(t('modelSetup.desktopUnavailable'))
       return
     }
     setSaving(true)
     setConnectionSaveError('')
     try {
-      const res = await bridge.onboarding.adapterRegister({
+      const res = await bridge.onboarding.httpConnectionConfigure({
         vendorName: vendorName.trim(),
         baseUrl: effectiveBaseUrl,
         apiKey: requestAuth.apiKey,
@@ -280,7 +346,7 @@ export function OnboardingWizard({
         return
       }
       setSavedConnection(res.registration)
-      onConnectionSaved?.(res.registration)
+      onConnectionConfigured?.(res.registration)
     } catch (error) {
       setConnectionSaveError(error instanceof Error ? error.message : t('modelSetup.saveFailedHint'))
     } finally {
@@ -294,19 +360,22 @@ export function OnboardingWizard({
     requestAuth.authType,
     providerKind,
     buildHeadersObject,
-    onConnectionSaved,
+    onConnectionConfigured,
+    integrationSessionId,
+    integrationHandoffRequestId,
+    onClose,
     t,
   ])
 
-  // 第二屏只保存连接和模型。文档发现、AI 编译和真实请求是模型详情里的独立、显式动作。
+  // Confirming the picker starts the canonical certification run.
   const handleConfirmPicked = React.useCallback(
     (picked: Array<{ id: string; kind: string }>) => {
-      void registerModels(picked)
+      void startCertification(picked)
     },
-    [registerModels],
+    [startCertification],
   )
 
-  // Explicit discovery only. The shared loader preserves candidates on failure and ignores stale replies.
+  // Discovery is explicit; the loader preserves candidates on failure.
   const handleFetchModels = React.useCallback(async () => {
     const result = await fetchModels()
     if (result?.ok && result.models?.length) setScreen('select')
@@ -384,9 +453,6 @@ export function OnboardingWizard({
     }
   }, [bridge, effectiveBaseUrl, requestAuth.apiKey, models, providerKind, kindForced, buildHeadersObject, t, noApiKey])
 
-  // handleStart / handleEvent / handleCopyLog / canStart（AI 读文档流）已随子系统删除（Issue #8）。
-  // Anthropic has a hosted default, so a blank BaseURL is allowed there (we fill in
-  // the official host); an OpenAI-compatible endpoint must be supplied.
   const baseUrlTrimmed = effectiveBaseUrl
   const baseUrlValid =
     providerKind === 'anthropic'
@@ -397,22 +463,18 @@ export function OnboardingWizard({
   const selectedPreset = PROVIDER_PRESETS.find((p) => p.id === presetId)
   const isNamedPreset = Boolean(selectedPreset && !selectedPreset.custom)
   const isCustomGatewayEntry = initialPreset === 'newapi' || initialPreset === 'custom'
-  // Named preset already filled a correct BaseURL → hide the jargon-y field unless
-  // the user explicitly wants to point at a custom gateway.
+  // Named presets hide BaseURL until the user opts into customization.
   const showBaseUrlField = !isNamedPreset || editBaseUrl
 
   const content = (
     <Stack gap="md">
       {phase === 'input' && screen === 'form' && !existingVendorKey && (
         <Stack gap={12}>
-          {/* 中转优先·一次拉全·按模型分类（Issue #8）：填中转地址 + 可选 key → 拉取它开放的模型 →
-                每个自动判好类型(图片/视频/文本，可改) → 一次加多类型。文本/图片/视频统一一条路。 */}
-          {!isCustomGatewayEntry ? (
+                  {!isCustomGatewayEntry ? (
             <Text size="xs" c="var(--nomi-ink-60)">
               {t('modelSetup.intro')}
             </Text>
           ) : null}
-
 
           {inputMode === 'manual' && (
             <>
@@ -445,181 +507,190 @@ export function OnboardingWizard({
                 </div>
               ) : (
                 <>
-              {/* Issue #8 可发现性：中转站（含图片/视频）拎到最上、点名 new-api；官方厂商（文本）弱化为次组。 */}
-              {!isCustomGatewayEntry ? (
-                <ProviderPresetGroups presetId={presetId} onPickPreset={handlePickPreset} />
-              ) : null}
-              <Field label={t('modelSetup.vendorName')} hint={t('modelSetup.vendorNameHint')}>
-                <DesignTextInput
-                  value={vendorName}
-                  onChange={(e) => setVendorName(e.currentTarget.value)}
-                  placeholder={t('modelSetup.vendorNamePlaceholder')}
-                />
-              </Field>
-              {showBaseUrlField ? (
-                <Field
-                  label={t('modelSetup.baseUrl')}
-                  hint={
-                    providerKind === 'anthropic' ? t('modelSetup.baseUrlAnthropicHint') : t('modelSetup.baseUrlHint')
-                  }
-                >
-                  <DesignTextInput
-                    value={baseUrl}
-                    onChange={(e) => {
-                      const v = e.currentTarget.value
-                      setBaseUrl(v)
-                      setTestState('idle')
-                      // hostname 仅作「初始猜测」：anthropic-native 网关 host 带 anthropic。
-                      // 一旦专家手选过协议（kindForced），就不再覆盖——否则手选会被下次输入吞掉。
-                      // chat vs responses 无法靠 hostname 区分；用户可显式测试或在高级设置手选。
-                      if (selectedPreset?.custom && !kindForced) {
-                        try {
-                          setProviderKind(/anthropic/i.test(new URL(v).hostname) ? 'anthropic' : 'openai-compatible')
-                        } catch {
-                          /* partial url while typing */
-                        }
+                  {/* Issue #8 可发现性：中转站（含图片/视频）拎到最上、点名 new-api；官方厂商（文本）弱化为次组。 */}
+                  {!isCustomGatewayEntry ? (
+                    <ProviderPresetGroups presetId={presetId} onPickPreset={handlePickPreset} />
+                  ) : null}
+                  <Field label={t('modelSetup.vendorName')} hint={t('modelSetup.vendorNameHint')}>
+                    <DesignTextInput
+                      value={vendorName}
+                      onChange={(e) => setVendorName(e.currentTarget.value)}
+                      placeholder={t('modelSetup.vendorNamePlaceholder')}
+                    />
+                  </Field>
+                  {showBaseUrlField ? (
+                    <Field
+                      label={t('modelSetup.baseUrl')}
+                      hint={
+                        providerKind === 'anthropic'
+                          ? t('modelSetup.baseUrlAnthropicHint')
+                          : t('modelSetup.baseUrlHint')
                       }
-                    }}
-                    placeholder={
-                      providerKind === 'anthropic'
-                        ? t('modelSetup.anthropicUrlPlaceholder')
-                        : t('modelSetup.openAiUrlPlaceholder')
-                    }
-                    error={baseUrlTrimmed.length > 0 && !baseUrlValid ? t('modelSetup.invalidUrl') : undefined}
-                  />
-                </Field>
-              ) : (
-                <Text size="xs" c="var(--nomi-ink-60)">
-                  {t('modelSetup.autoFilledUrl')}{' '}
-                  <Anchor
-                    component="button"
-                    type="button"
-                    onClick={() => setEditBaseUrl(true)}
-                    c="var(--nomi-accent)"
-                    inherit
-                  >
-                    {t('modelSetup.customize')}
-                  </Anchor>
-                </Text>
-              )}
-              {selectedPreset?.custom && (
-                <DesignSwitch
-                  checked={noApiKey}
-                  onChange={(event) => {
-                    setNoApiKey(event.currentTarget.checked)
-                    setTestState('idle')
-                  }}
-                  label={t('modelSetup.noApiKey')}
-                  description={t('modelSetup.noApiKeyHint')}
-                />
-              )}
-              {!noApiKey && (
-                <Field label={t('modelSetup.apiKey')} hint={t('modelSetup.apiKeyHint')}>
-                  <PasswordInput
-                    value={userApiKey}
-                    onChange={(e) => {
-                      setUserApiKey(e.currentTarget.value)
-                      setTestState('idle')
-                    }}
-                    placeholder={t('modelSetup.apiKeyPlaceholder')}
-                    autoFocus
-                  />
-                  {selectedPreset?.keyUrl && (
-                    <Anchor
-                      href={selectedPreset.keyUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      c="var(--nomi-accent)"
-                      size="xs"
                     >
-                      {t('modelSetup.getKey', { provider: selectedPreset.label })}
-                    </Anchor>
+                      <DesignTextInput
+                        value={baseUrl}
+                        onChange={(e) => {
+                          const v = e.currentTarget.value
+                          setBaseUrl(v)
+                          setTestState('idle')
+                          // hostname 仅作「初始猜测」：anthropic-native 网关 host 带 anthropic。
+                          // 一旦专家手选过协议（kindForced），就不再覆盖——否则手选会被下次输入吞掉。
+                          // chat vs responses 无法靠 hostname 区分；用户可显式测试或在高级设置手选。
+                          if (selectedPreset?.custom && !kindForced) {
+                            try {
+                              setProviderKind(
+                                /anthropic/i.test(new URL(v).hostname) ? 'anthropic' : 'openai-compatible',
+                              )
+                            } catch {
+                              /* partial url while typing */
+                            }
+                          }
+                        }}
+                        placeholder={
+                          providerKind === 'anthropic'
+                            ? t('modelSetup.anthropicUrlPlaceholder')
+                            : t('modelSetup.openAiUrlPlaceholder')
+                        }
+                        error={baseUrlTrimmed.length > 0 && !baseUrlValid ? t('modelSetup.invalidUrl') : undefined}
+                      />
+                    </Field>
+                  ) : (
+                    <Text size="xs" c="var(--nomi-ink-60)">
+                      {t('modelSetup.autoFilledUrl')}{' '}
+                      <Anchor
+                        component="button"
+                        type="button"
+                        onClick={() => setEditBaseUrl(true)}
+                        c="var(--nomi-accent)"
+                        inherit
+                      >
+                        {t('modelSetup.customize')}
+                      </Anchor>
+                    </Text>
                   )}
-                </Field>
-              )}
+                  {selectedPreset?.custom && (
+                    <DesignSwitch
+                      checked={noApiKey}
+                      onChange={(event) => {
+                        setNoApiKey(event.currentTarget.checked)
+                        setTestState('idle')
+                      }}
+                      label={t('modelSetup.noApiKey')}
+                      description={t('modelSetup.noApiKeyHint')}
+                    />
+                  )}
+                  {!noApiKey && (
+                    <Field label={t('modelSetup.apiKey')} hint={t('modelSetup.apiKeyHint')}>
+                      <PasswordInput
+                        value={userApiKey}
+                        onChange={(e) => {
+                          setUserApiKey(e.currentTarget.value)
+                          setTestState('idle')
+                        }}
+                        placeholder={t('modelSetup.apiKeyPlaceholder')}
+                        autoFocus
+                      />
+                      {selectedPreset?.keyUrl && (
+                        <Anchor
+                          href={selectedPreset.keyUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          c="var(--nomi-accent)"
+                          size="xs"
+                        >
+                          {t('modelSetup.getKey', { provider: selectedPreset.label })}
+                        </Anchor>
+                      )}
+                    </Field>
+                  )}
 
-              {selectedPreset?.custom && (
-                <OnboardingWizardAdvancedFields
-                  providerKind={providerKind}
-                  kindForced={kindForced}
-                  showAdvanced={showAdvanced}
-                  showKindOverride={showKindOverride}
-                  headerRows={headerRows}
-                  onToggleAdvanced={() => setShowAdvanced((value) => !value)}
-                  onShowKindOverride={() => setShowKindOverride(true)}
-                  onProviderKindChange={(value) => {
-                    setProviderKind(value)
-                    setKindForced(true)
-                    setTestState('idle')
-                  }}
-                  onRestoreAutoDetect={() => {
-                    setKindForced(false)
-                    setShowKindOverride(false)
-                    setTestState('idle')
-                  }}
-                  onUpdateHeader={updateHeader}
-                  onRemoveHeaderRow={removeHeaderRow}
-                  onAddHeaderRow={addHeaderRow}
-                />
-              )}
+                  {selectedPreset?.custom && (
+                    <OnboardingWizardAdvancedFields
+                      providerKind={providerKind}
+                      kindForced={kindForced}
+                      showAdvanced={showAdvanced}
+                      showKindOverride={showKindOverride}
+                      headerRows={headerRows}
+                      onToggleAdvanced={() => setShowAdvanced((value) => !value)}
+                      onShowKindOverride={() => setShowKindOverride(true)}
+                      onProviderKindChange={(value) => {
+                        setProviderKind(value)
+                        setKindForced(true)
+                        setTestState('idle')
+                      }}
+                      onRestoreAutoDetect={() => {
+                        setKindForced(false)
+                        setShowKindOverride(false)
+                        setTestState('idle')
+                      }}
+                      onUpdateHeader={updateHeader}
+                      onRemoveHeaderRow={removeHeaderRow}
+                      onAddHeaderRow={addHeaderRow}
+                    />
+                  )}
 
-              <details className="group border-t border-nomi-line pt-1" data-model-connection-diagnostics>
-                <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 text-caption font-semibold text-nomi-ink-60 hover:text-nomi-ink [&::-webkit-details-marker]:hidden">
-                  {t('modelSetup.diagnostics')}
-                  <IconChevronDown
-                    size={15}
-                    stroke={1.8}
-                    className="transition-transform group-open:rotate-180"
-                    aria-hidden="true"
-                  />
-                </summary>
-                <div className="flex flex-col gap-2 border-t border-nomi-line-soft pt-3">
-                  <Text size="xs" c="var(--nomi-ink-40)" className="leading-relaxed">
-                    {t('modelSetup.testAndSaveHint')}
-                  </Text>
-                  <div className="flex flex-wrap items-center gap-2">
-                  <DesignButton
-                    variant="light"
+                  <details className="group border-t border-nomi-line pt-1" data-model-connection-diagnostics>
+                    <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 text-caption font-semibold text-nomi-ink-60 hover:text-nomi-ink [&::-webkit-details-marker]:hidden">
+                      {t('modelSetup.diagnostics')}
+                      <IconChevronDown
+                        size={15}
+                        stroke={1.8}
+                        className="transition-transform group-open:rotate-180"
+                        aria-hidden="true"
+                      />
+                    </summary>
+                    <div className="flex flex-col gap-2 border-t border-nomi-line-soft pt-3">
+                      <Text size="xs" c="var(--nomi-ink-40)" className="leading-relaxed">
+                        {t('modelSetup.testAndSaveHint')}
+                      </Text>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <DesignButton
+                          variant="light"
                     onClick={handleTestConnection}
-                    disabled={!connectionFieldsReady || testState === 'testing'}
-                    loading={testState === 'testing'}
-                  >
-                    {t('modelSetup.testConnection')}
-                  </DesignButton>
-                  {testState === 'ok' && (
-                    <Group gap={4} align="center" wrap="nowrap" c="var(--workbench-success)">
-                      <Text size="xs" c="var(--workbench-success)">
-                        {testMessage}
-                      </Text>
-                      <IconCheck size={14} stroke={1.5} />
-                    </Group>
-                  )}
-                  {(testState === 'fail' || testState === 'unsupported') && (
-                    <Group gap={4} align="center" wrap="nowrap" c={testState === 'fail' ? 'var(--workbench-danger)' : 'var(--nomi-ink-60)'}>
-                      <Text size="xs" c="inherit" className="break-words leading-relaxed">
-                        {testMessage}
-                      </Text>
-                      {testState === 'fail' ? <IconX size={14} stroke={1.5} /> : null}
-                    </Group>
-                  )}
+                          disabled={!connectionFieldsReady || testState === 'testing'}
+                          loading={testState === 'testing'}
+                        >
+                          {t('modelSetup.testConnection')}
+                        </DesignButton>
+                        {testState === 'ok' && (
+                          <Group gap={4} align="center" wrap="nowrap" c="var(--workbench-success)">
+                            <Text size="xs" c="var(--workbench-success)">
+                              {testMessage}
+                            </Text>
+                            <IconCheck size={14} stroke={1.5} />
+                          </Group>
+                        )}
+                        {(testState === 'fail' || testState === 'unsupported') && (
+                          <Group
+                            gap={4}
+                            align="center"
+                            wrap="nowrap"
+                            c={testState === 'fail' ? 'var(--workbench-danger)' : 'var(--nomi-ink-60)'}
+                          >
+                            <Text size="xs" c="inherit" className="break-words leading-relaxed">
+                              {testMessage}
+                            </Text>
+                            {testState === 'fail' ? <IconX size={14} stroke={1.5} /> : null}
+                          </Group>
+                        )}
+                      </div>
+                    </div>
+                  </details>
+                  {connectionSaveError ? (
+                    <div className="text-caption leading-relaxed text-workbench-danger" role="alert">
+                      {connectionSaveError}
+                    </div>
+                  ) : null}
+                  <div className="flex justify-end">
+                    <DesignButton
+                      variant="filled"
+                      onClick={() => void saveConnection()}
+                      disabled={!connectionFieldsReady || !vendorName.trim() || saving}
+                      loading={saving}
+                    >
+                      {t('modelSetup.saveConnection')}
+                    </DesignButton>
                   </div>
-                </div>
-              </details>
-              {connectionSaveError ? (
-                <div className="text-caption leading-relaxed text-workbench-danger" role="alert">
-                  {connectionSaveError}
-                </div>
-              ) : null}
-              <div className="flex justify-end">
-                <DesignButton
-                  variant="filled"
-                  onClick={() => void saveConnection()}
-                  disabled={!connectionFieldsReady || !vendorName.trim() || saving}
-                  loading={saving}
-                >
-                  {t('modelSetup.saveConnection')}
-                </DesignButton>
-              </div>
                 </>
               )}
             </>
@@ -633,12 +704,14 @@ export function OnboardingWizard({
           <ExistingConnectionModelPicker
             opened={opened}
             vendorKey={existingVendorKey}
-            initialConnection={existingConnection ?? {
-              vendorKey: existingVendorKey,
-              vendorName: existingVendorKey,
-              baseUrl: '',
-              existingModels: [],
-            }}
+            initialConnection={
+              existingConnection ?? {
+                vendorKey: existingVendorKey,
+                vendorName: existingVendorKey,
+                baseUrl: '',
+                existingModels: [],
+              }
+            }
             confirming={saving}
             onBack={onClose}
             onConfirm={handleConfirmPicked}
@@ -661,7 +734,10 @@ export function OnboardingWizard({
             hasFetched={fetchAttempted}
             statusHint={fetchModelsMsg || undefined}
             onRefetch={handleFetchModels}
-            onBack={() => { cancelPending(); setScreen('form') }}
+            onBack={() => {
+              cancelPending()
+              setScreen('form')
+            }}
             onConfirm={handleConfirmPicked}
             onResolveKind={resolveKind}
             confirming={saving}
@@ -689,14 +765,16 @@ export function OnboardingWizard({
     return (
       <ModelSettingsPageSurface
         page="add"
-        title={isCustomGatewayEntry ? (
-          <div className="min-w-0">
-            <h2 className="truncate text-body font-semibold text-nomi-ink">{t('modelSetup.customApiTitle')}</h2>
-            <p className="mt-0.5 truncate text-micro text-nomi-ink-40">{t('modelSetup.customApiSubtitle')}</p>
-          </div>
-        ) : (
-          <h2 className="text-body font-semibold text-nomi-ink">{t('modelSetup.addModel')}</h2>
-        )}
+        title={
+          isCustomGatewayEntry ? (
+            <div className="min-w-0">
+              <h2 className="truncate text-body font-semibold text-nomi-ink">{t('modelSetup.customApiTitle')}</h2>
+              <p className="mt-0.5 truncate text-micro text-nomi-ink-40">{t('modelSetup.customApiSubtitle')}</p>
+            </div>
+          ) : (
+            <h2 className="text-body font-semibold text-nomi-ink">{t('modelSetup.addModel')}</h2>
+          )
+        }
         backLabel={t('common.back')}
         onBack={onClose}
       >

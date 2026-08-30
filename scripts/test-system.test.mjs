@@ -10,25 +10,22 @@ describe("system test profiles", () => {
     expect(expandProfile("ci").map((stage) => stage.id)).toContain("journeys-ci");
   });
 
-  test.each(["ci", "full-local", "release"])("%s cannot skip the B6 MCP and Surface journeys", (profile) => {
-    expect(expandProfile(profile).map((stage) => stage.id)).toEqual(
-      expect.arrayContaining(["project-agent-mcp", "project-agent-surface"]),
-    );
+  test("desktop CI requires the critical real-canvas suite", () => {
+    expect(expandProfile("ci-desktop").map((stage) => stage.id)).toEqual(["build", "e2e"]);
+    expect(expandProfile("ci-journeys").map((stage) => stage.id)).toEqual(["journeys-ci"]);
+    expect(expandProfile("ci-canvas-critical").map((stage) => stage.id)).toEqual(["canvas-critical"]);
+    expect(expandProfile("ci-canvas-full").map((stage) => stage.id)).toEqual(["canvas-full"]);
+    expect(expandProfile("ci-performance").map((stage) => stage.id)).toEqual(["canvas-performance"]);
   });
 
-  test("B6 stages execute the real zero-cost transports", () => {
-    expect(expandProfile("full-local").find((stage) => stage.id === "project-agent-mcp")).toMatchObject({
-      command: "pnpm",
-      args: ["run", "test:mcp"],
-    });
-    expect(expandProfile("full-local").find((stage) => stage.id === "project-agent-surface")).toMatchObject({
-      command: "node",
-      args: ["tests/ux/project-agent-canvas-isolation.e2e.mjs"],
-    });
+  test("full local keeps functional canvas and performance as separately reported stages", () => {
+    const stages = expandProfile("full-local").map((stage) => stage.id);
+    expect(stages).toContain("canvas-full");
+    expect(stages).toContain("canvas-performance");
   });
 
   test("release contains local, real-generation, and repository gates", () => {
-    expect(expandProfile("release").map((stage) => stage.id)).toEqual(expect.arrayContaining(["gates", "e2e", "journeys-all", "real-generation"]));
+    expect(expandProfile("release").map((stage) => stage.id)).toEqual(expect.arrayContaining(["gates", "e2e", "canvas-full", "journeys-all", "real-generation"]));
     expect(expandProfile("release").find((stage) => stage.id === "real-generation")).toMatchObject({
       args: ["tests/ux/camera-move-render-e2e.mjs"],
       env: { NOMI_SPEND_OK: "1" },

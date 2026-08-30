@@ -5,8 +5,20 @@ import { parseVendorErrorFromMessage, stripVendorErrorMarker } from './vendorErr
 import { desktopT } from '../../../../electron/i18n'
 import { describeAgentError } from '../../../../electron/ai/agentError'
 import { vendorStallError } from '../../../../electron/ai/aiSdkVendorError'
+import i18n from '../../../i18n'
 
 describe('classifyGenerationError — 已知分类', () => {
+  it('localizes the local missing-reference guard in English', async () => {
+    await i18n.changeLanguage('en')
+    try {
+      const r = classifyGenerationError('图生图缺少参考图：这次请求里没有任何图片可以发给模型。')
+      expect(r.reason).toBe('Image-to-image requires a reference image. Connect an image node, add a reference, or switch back to text-to-image')
+      expect(r.reason).not.toMatch(/图生图|参考图/)
+    } finally {
+      await i18n.changeLanguage('zh-CN')
+    }
+  })
+
   it('API Key 无效', () => {
     const r = classifyGenerationError('Error: 401 Unauthorized — invalid api key')
     expect(r.reason).toBe('API Key 无效')
@@ -306,6 +318,14 @@ describe('classifyGenerationError — 未识别兜底（方案 B 改进）', () 
 describe('structured 路径(S4-2:VendorRequestError 经 IPC 标记穿透)', () => {
   const encode = (structured: Record<string, unknown>, tail = 'Provider request failed (code 402) at kie POST https://x: 余额不足') =>
     `Error invoking remote method 'nomi:tasks:run': Error: NOMI_VENDOR_ERR_B64::${Buffer.from(JSON.stringify(structured), 'utf8').toString('base64')}:: ${tail}`
+
+  it('uses the stable timeout category without depending on English timeout keywords', () => {
+    const result = classifyGenerationError(encode(
+      { category: 'timeout', reasonCode: 'response_timeout', upstreamMsg: '读取响应超时（120s）' },
+      'Provider request failed: 读取响应超时（120s）',
+    ))
+    expect(result.reason).toBe('连不上服务商')
+  })
 
   it('balance 类别直读 structured,不靠正则;raw 剥掉标记段', () => {
     const r = classifyGenerationError(encode({ category: 'balance', upstreamMsg: '余额不足', vendorKey: 'kie' }))

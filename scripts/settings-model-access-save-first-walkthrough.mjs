@@ -168,10 +168,10 @@ async function rect(locator) {
   })
 }
 
-async function adapterRuns(win) {
+async function certificationRuns(win) {
   return win.evaluate(async () => {
-    const list = window.nomiDesktop?.onboarding?.adapterList
-    return list ? list({ limit: 200 }) : { ok: false, error: 'adapterList bridge missing' }
+    const list = window.nomiDesktop?.onboarding?.certificationList
+    return list ? list({ limit: 200 }) : { ok: false, error: 'certificationList bridge missing' }
   })
 }
 
@@ -351,7 +351,7 @@ async function addExistingModelManually(win, modelId) {
   await manualInput.fill(modelId)
   await addPage.getByRole('button', { name: '添加', exact: true }).click()
   await addPage.getByRole('button', { name: modelId, exact: true }).waitFor({ state: 'visible' })
-  await addPage.getByRole('button', { name: '保存 1 个模型', exact: true }).click()
+  await addPage.getByRole('button', { name: '验证 1 个模型', exact: true }).click()
   await addPage.waitFor({ state: 'detached' })
 }
 
@@ -480,92 +480,23 @@ try {
   for (const modelId of initialModels) {
     await addPage.getByRole('button', { name: modelId, exact: true }).click()
   }
-  await addPage.getByText(/保存后为“已配置、未验证”/).waitFor({ state: 'visible' })
+  await addPage.getByText(/确认后会立即进入认证/).waitFor({ state: 'visible' })
   await screenshot(win, '02-desktop-three-kinds-selected.png')
-  journeyPhase = 'save-initial-models'
-  await addPage.getByRole('button', { name: '保存 3 个模型', exact: true }).click()
+  journeyPhase = 'certify-initial-models'
+  const requestsBeforeCertification = requests.length
+  await addPage.getByRole('button', { name: '验证 3 个模型', exact: true }).click()
   await addPage.waitFor({ state: 'detached' })
-  journeyPhase = 'saved-model-home'
-  await win.waitForTimeout(350)
-  assert(requests.length === requestsBeforeExistingConnection + 1, `Saving models made an unexpected upstream request: ${JSON.stringify(requests)}`)
-
-  const catalogAfterSave = readCatalog()
-  const savedModels = Object.fromEntries(
-    catalogAfterSave.models
-      .filter((model) => model.vendorKey === vendor.key && initialModels.includes(model.modelKey))
-      .map((model) => [model.modelKey, model]),
-  )
-  assert(Object.keys(savedModels).length === 3, `Expected three saved models, got ${Object.keys(savedModels).join(', ')}`)
-  assert(savedModels[textModel]?.kind === 'text' && savedModels[textModel]?.enabled === true, 'Saved text model is not enabled')
-  assert(savedModels[videoModel]?.kind === 'video' && savedModels[videoModel]?.enabled === false, 'Saved video model is not disabled')
-  assert(savedModels[model3d]?.kind === 'model3d' && savedModels[model3d]?.enabled === false, 'Saved 3D model is not disabled')
-  for (const modelId of initialModels) {
-    assert(savedModels[modelId]?.meta?.adapter?.state === 'unverified', `${modelId} is not catalogued as unverified`)
-  }
-  const runsAfterSave = await adapterRuns(win)
-  assert(runsAfterSave.ok && !runsAfterSave.runs.some((run) => run.vendorKey === vendor.key), 'Saving created an adapter run')
-
-  await win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendor.key}"]`).waitFor({ state: 'visible' })
-  await assertSettingsOwnedPage(win, `[data-model-settings-page="connection"][data-model-settings-vendor="${vendor.key}"]`, 'saved connection detail')
-  await win.getByRole('button', { name: textModel, exact: true }).click()
   const detailPanel = win.locator('[data-model-settings-page="model"]')
   const modelDialog = win.locator('[data-model-settings-dialog]')
-  await modelDialog.waitFor({ state: 'visible' })
-  await detailPanel.waitFor({ state: 'visible' })
-  await win.locator('[data-model-adapter-state="readyUntested"]').waitFor({ state: 'visible' })
-  await assertModelDialogSurface(win, '[data-model-settings-page="model"]', 'desktop model detail')
-  await assertNoHorizontalOverflow(win, 'desktop model detail')
-  await screenshot(win, '03-desktop-model-detail-third-level.png')
-
-  const requestsBeforeConsent = requests.length
-  await detailPanel.getByText('更多操作', { exact: true }).click()
-  await detailPanel.getByRole('button', { name: '后台自动适配', exact: true }).click()
-  const consent = win.getByRole('dialog', { name: '开始后台自动适配？', exact: true })
-  await consent.waitFor({ state: 'visible' })
-  await win.waitForTimeout(250)
-  const consentLayers = await consent.evaluate((element) => {
-    const highestLayer = (start) => {
-      let current = start
-      let highest = 0
-      while (current) {
-        const value = Number.parseInt(getComputedStyle(current).zIndex || '0', 10)
-        if (Number.isFinite(value)) highest = Math.max(highest, value)
-        current = current.parentElement
-      }
-      return highest
-    }
-    const settingsDialog = document.querySelector('[data-settings-dialog]')
-    const modelDialog = document.querySelector('[data-model-settings-dialog]')
-    return {
-      confirmation: highestLayer(element),
-      settings: settingsDialog ? highestLayer(settingsDialog) : 0,
-      model: modelDialog ? highestLayer(modelDialog) : 0,
-    }
-  })
-  assert(
-    consentLayers.confirmation > consentLayers.model && consentLayers.model > consentLayers.settings,
-    `Automatic-adaptation dialog layers are out of order: ${JSON.stringify(consentLayers)}`,
-  )
-  const consentText = await consent.innerText()
-  for (const disclosure of ['几分钟', '公开 API 文档', '文本模型', '真实测试请求', '消耗额度', '转到后台', '随时停止']) {
-    assert(consentText.includes(disclosure), `Automatic adaptation consent omitted “${disclosure}”: ${consentText}`)
-  }
-  assert(requests.length === requestsBeforeConsent, 'Opening automatic-adaptation consent contacted the upstream')
-  await screenshot(win, '04-desktop-auto-adapt-consent.png')
-  await consent.locator('[data-confirm-dialog-confirm="true"]').click()
-  await consent.waitFor({ state: 'hidden' })
-  await win.locator('[data-confirm-dialog] [role="dialog"]').waitFor({ state: 'hidden' })
-  await win.waitForTimeout(250)
-
   const firstChatRequest = await pollUntil(
     () => Promise.resolve(requests.find((request) => request.chatAttempt === 1)),
     Boolean,
-    'confirmed automatic adaptation to reach the model API',
+    'confirmed canonical certification to reach the model API',
   )
-  assert(firstChatRequest.sequence > requestsBeforeConsent, 'The real test request was not gated by explicit confirmation')
-  assert(firstChatRequest.authorization === `Bearer ${secretKey}`, 'Automatic adaptation did not use the saved credential')
+  assert(firstChatRequest.sequence > requestsBeforeCertification, 'The real test request was not gated by model confirmation')
+  assert(firstChatRequest.authorization === `Bearer ${secretKey}`, 'Canonical certification did not use the saved credential')
   const firstActiveRuns = await pollUntil(
-    () => adapterRuns(win),
+    () => certificationRuns(win),
     (result) => result.ok && result.runs.some((run) => run.vendorKey === vendor.key && run.selectedModelKeys.includes(textModel) && !terminalStages.has(run.stage)),
     'first adapter run to become active',
   )
@@ -573,8 +504,11 @@ try {
   assert(firstRun, 'Could not identify the first adapter run')
   const firstTaskPage = win.locator(`[data-model-settings-page="verification"][data-adapter-run-id="${firstRun.id}"]`)
   await firstTaskPage.waitFor({ state: 'visible' })
-  await assertModelDialogSurface(win, `[data-model-settings-page="verification"][data-adapter-run-id="${firstRun.id}"]`, 'model-owned verification task')
-  await screenshot(win, '05-desktop-adaptation-running.png')
+  await assertSettingsOwnedPage(win, `[data-model-settings-page="verification"][data-adapter-run-id="${firstRun.id}"]`, 'canonical verification task')
+  const catalogDuringCertification = readCatalog()
+  const candidates = catalogDuringCertification.models.filter((model) => model.vendorKey === vendor.key && initialModels.includes(model.modelKey))
+  assert(candidates.length === 3 && candidates.every((model) => model.enabled === false), 'Unverified candidates became usable before certification')
+  await screenshot(win, '05-desktop-certification-running.png')
 
   await browserWindow.evaluate((window) => {
     window.setMinimumSize(320, 500)
@@ -587,18 +521,15 @@ try {
   await win.waitForTimeout(250)
 
   await firstTaskPage.getByRole('button', { name: '转到后台', exact: true }).click()
-  await detailPanel.waitFor({ state: 'visible' })
-  await modelDialog.getByRole('button', { name: '关闭', exact: true }).click()
-  await modelDialog.waitFor({ state: 'detached' })
   await win.locator(`[data-model-settings-page="connection"][data-model-settings-vendor="${vendor.key}"]`).waitFor({ state: 'visible' })
-  await assertSettingsOwnedPage(win, `[data-model-settings-page="connection"][data-model-settings-vendor="${vendor.key}"]`, 'connection after closing model dialog')
+  await assertSettingsOwnedPage(win, `[data-model-settings-page="connection"][data-model-settings-vendor="${vendor.key}"]`, 'connection after backgrounding certification')
   await settings.locator('[data-settings-close]').click()
   await settings.waitFor({ state: 'detached' })
 
   await openSettingsModels(win)
   const reopenedTaskButton = win.getByRole('button', { name: `查看 ${vendorName} 的接入任务`, exact: true }).first()
   await reopenedTaskButton.waitFor({ state: 'visible' })
-  const stillActive = await adapterRuns(win)
+  const stillActive = await certificationRuns(win)
   assert(stillActive.runs.some((run) => run.id === firstRun.id && !terminalStages.has(run.stage)), 'Closing and reopening Settings lost the active task')
   await screenshot(win, '06-desktop-background-task-restored-home.png')
   await reopenedTaskButton.click()
@@ -610,7 +541,7 @@ try {
   assert(!firstChatRequest.responseFinished, 'The cancellable model request completed before cancellation')
   await restoredTask.getByRole('button', { name: '停止验证', exact: true }).click()
   const cancelledRuns = await pollUntil(
-    () => adapterRuns(win),
+    () => certificationRuns(win),
     (result) => result.ok && result.runs.some((run) => run.id === firstRun.id && run.stage === 'cancelled'),
     'cancelled task to persist',
   )
@@ -632,7 +563,7 @@ try {
 
   await restoredTask.getByRole('button', { name: '全部重新验证', exact: true }).click()
   const retriedRuns = await pollUntil(
-    () => adapterRuns(win),
+    () => certificationRuns(win),
     (result) => result.ok && result.runs.some((run) => run.id !== firstRun.id && run.vendorKey === vendor.key && run.selectedModelKeys.includes(textModel)),
     'retry to create a new task',
   )
@@ -647,7 +578,7 @@ try {
   )
   assert(secondChatRequest.authorization === `Bearer ${secretKey}`, 'Retry did not reuse the encrypted saved credential')
   const completedRuns = await pollUntil(
-    () => adapterRuns(win),
+    () => certificationRuns(win),
     (result) => result.ok && result.runs.some((run) => run.id === retryRun.id && run.stage === 'completed'),
     'retried task to complete',
   )
@@ -714,7 +645,7 @@ try {
   await win.locator('[data-confirm-dialog] [role="dialog"]').waitFor({ state: 'hidden' })
   await win.waitForTimeout(250)
   const failed3dRuns = await pollUntil(
-    () => adapterRuns(win),
+    () => certificationRuns(win),
     (result) => result.ok && result.runs.some((run) => run.vendorKey === vendor.key && run.selectedModelKeys.includes(model3d) && run.stage === 'failed'),
     'unsupported 3D task to fail honestly',
   )

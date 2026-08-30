@@ -347,6 +347,73 @@ describe('generationCanvasStore sidebar grouping actions', () => {
     expect(state.groups.find((candidate) => candidate.id === 'cast-group')?.nodeIds).toContain(duplicated?.id)
   })
 
+  it('duplicates a clean variant with every incoming edge and no prior output state', () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [
+        node('reference', 'cast'),
+        node('first-frame', 'cast'),
+        {
+          ...node('target', 'cast', 'cast-group'),
+          status: 'success',
+          result: imageResult('current', 'nomi-local://current.png'),
+          history: [imageResult('old', 'nomi-local://old.png')],
+          runs: [{ id: 'run-1', status: 'success', startedAt: 1 }],
+          progress: { percent: 100, message: 'done' },
+          error: 'old error',
+          references: [{ id: 'ref-1', kind: 'image', url: 'nomi-local://ref.png' }],
+          meta: { nested: { strength: 0.8 } },
+        },
+        node('downstream', 'cast'),
+      ],
+      edges: [
+        { id: 'incoming-reference', source: 'reference', target: 'target', mode: 'reference', targetParamKey: 'image_ref', order: 2 },
+        { id: 'incoming-first', source: 'first-frame', target: 'target', mode: 'first_frame', order: 5 },
+        { id: 'outgoing', source: 'target', target: 'downstream', mode: 'reference', order: 0 },
+      ],
+      selectedNodeIds: ['target'],
+      groups: [group('cast-group', 'cast', ['target'])],
+    })
+
+    const duplicated = useGenerationCanvasStore.getState().duplicateNodeForRegeneration('target')
+    expect(duplicated).toBeTruthy()
+
+    const state = useGenerationCanvasStore.getState()
+    const copy = state.nodes.find((candidate) => candidate.id === duplicated?.id)
+    expect(copy).toMatchObject({
+      status: 'idle',
+      history: [],
+      derivedFrom: 'target',
+      groupId: 'cast-group',
+    })
+    expect(copy?.result).toBeUndefined()
+    expect(copy?.runs).toEqual([])
+    expect(copy?.progress).toBeUndefined()
+    expect(copy?.error).toBeUndefined()
+    expect(copy?.references).toEqual([{ id: 'ref-1', kind: 'image', url: 'nomi-local://ref.png' }])
+    expect(copy?.references).not.toBe(state.nodes.find((candidate) => candidate.id === 'target')?.references)
+    expect(copy?.meta).toEqual({ nested: { strength: 0.8 } })
+    expect((copy?.meta?.nested as object | undefined)).not.toBe(
+      (state.nodes.find((candidate) => candidate.id === 'target')?.meta?.nested as object | undefined),
+    )
+
+    const clonedIncoming = state.edges.filter((edge) => edge.target === duplicated?.id)
+    expect(clonedIncoming).toHaveLength(2)
+    expect(clonedIncoming.map(({ id: _id, target: _target, ...edge }) => edge)).toEqual([
+      { source: 'reference', mode: 'reference', targetParamKey: 'image_ref', order: 2 },
+      { source: 'first-frame', mode: 'first_frame', order: 5 },
+    ])
+    expect(clonedIncoming.every((edge) => edge.id !== 'incoming-reference' && edge.id !== 'incoming-first')).toBe(true)
+    expect(state.edges.some((edge) => edge.source === duplicated?.id && edge.target === 'downstream')).toBe(false)
+  })
+
+  it('persists group collapse as one undoable state change', () => {
+    useGenerationCanvasStore.getState().setGroupCollapsed('cast-group', true)
+    expect(useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === 'cast-group')?.collapsed).toBe(true)
+
+    useGenerationCanvasStore.getState().undo()
+    expect(useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === 'cast-group')?.collapsed).not.toBe(true)
+  })
+
   it('groups selected nodes in the active category and removes prior group membership', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({
       nodes: [
@@ -664,6 +731,23 @@ describe('selectNodesInRect (框选 AABB)', () => {
     useGenerationCanvasStore.getState().selectNode('b')
     useGenerationCanvasStore.getState().selectNodesInRect({ x1: -10, y1: -10, x2: 110, y2: 110 }, 'shots', true)
     expect([...useGenerationCanvasStore.getState().selectedNodeIds].sort()).toEqual(['a', 'b'])
+  })
+
+  it('按真实媒体预览框选，不因持久化高度过期漏掉可见节点', () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [{
+        ...sized('loaded-image', 'shots', 0, -400),
+        size: { width: 360, height: 280 },
+        meta: { previewHeight: 432 },
+        result: { id: 'result-1', type: 'image', url: 'nomi-local://asset/image.jpg', createdAt: 1 },
+      }],
+      edges: [],
+      selectedNodeIds: [],
+      groups: [],
+    })
+
+    useGenerationCanvasStore.getState().selectNodesInRect({ x1: 0, y1: 0, x2: 40, y2: 20 }, 'shots')
+    expect(useGenerationCanvasStore.getState().selectedNodeIds).toEqual(['loaded-image'])
   })
 })
 

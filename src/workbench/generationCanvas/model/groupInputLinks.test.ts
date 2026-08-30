@@ -366,4 +366,31 @@ describe('动态：成员变动自动补/撤边', () => {
     store().startConnection('t1')
     expect(store().connectToGroup('g1')).toMatchObject({ ok: true, connected: 1 })
   })
+
+  it('从折叠组右端发起连接时，整组成为目标节点的来源', () => {
+    seed(
+      [imageNode('a', 'https://x/a.png'), imageNode('b', 'https://x/b.png'), referenceTarget('dst')],
+      [group('g1', ['a', 'b'])],
+    )
+
+    store().startGroupConnection('g1', 'right')
+    expect(store().connectToNode('dst')).toMatchObject({ ok: true, connected: 2, skipped: 0 })
+
+    expect(edgesTo('dst').map((edge) => edge.source)).toEqual(['a', 'b'])
+    expect(store().groups[0]?.outputLinks).toEqual([{ targetNodeId: 'dst' }])
+    expect(store().pendingConnectionSourceId).toBe('')
+  })
+
+  it('从折叠组左端发起连接时，落点节点成为整组来源', () => {
+    seed([imageNode('src', 'https://x/a.png'), imageNode('m1'), imageNode('m2')], [group('g1', ['m1', 'm2'])])
+
+    store().startGroupConnection('g1', 'left')
+    expect(store().connectToNode('src')).toMatchObject({ ok: true, connected: 2, skipped: 0 })
+
+    expect(store().edges.map((edge) => [edge.source, edge.target])).toEqual([
+      ['src', 'm1'],
+      ['src', 'm2'],
+    ])
+    expect(store().groups[0]?.inputLinks).toEqual([{ sourceNodeId: 'src' }])
+  })
 })

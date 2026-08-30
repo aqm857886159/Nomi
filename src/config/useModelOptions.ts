@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { ModelCatalogHealthDto } from '../workbench/api/modelCatalogApi'
+import type { ModelCatalogHealthDto, ProfileKind } from '../workbench/api/modelCatalogApi'
 import type { ModelOption, NodeKind } from './models'
 import {
   deriveModelCatalogStatus,
@@ -41,7 +41,7 @@ export type ModelOptionsState = {
   statusMessage: string
 }
 
-export function useModelOptionsState(kind?: NodeKind): ModelOptionsState {
+export function useModelOptionsState(kind?: NodeKind, requiredMode?: ProfileKind): ModelOptionsState {
   const [options, setOptions] = useState<ModelOption[]>([])
   const [error, setError] = useState<Error | null>(null)
   const [healthError, setHealthError] = useState<Error | null>(null)
@@ -55,7 +55,7 @@ export function useModelOptionsState(kind?: NodeKind): ModelOptionsState {
     setHealthError(null)
     setHealth(null)
     setLoading(true)
-  }, [kind])
+  }, [kind, requiredMode])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -69,7 +69,7 @@ export function useModelOptionsState(kind?: NodeKind): ModelOptionsState {
     setLoading(true)
     ;(async () => {
       try {
-        const catalogOptions = await preloadModelOptions(kind)
+        const catalogOptions = await preloadModelOptions(kind, requiredMode)
         if (!canceled) {
           setError(null)
           setOptions(catalogOptions)
@@ -102,7 +102,7 @@ export function useModelOptionsState(kind?: NodeKind): ModelOptionsState {
     return () => {
       canceled = true
     }
-  }, [kind, refreshSeq])
+  }, [kind, requiredMode, refreshSeq])
 
   const derived = deriveModelCatalogStatus({ kind, options, health, error, healthError, loading })
   return {
@@ -116,8 +116,8 @@ export function useModelOptionsState(kind?: NodeKind): ModelOptionsState {
   }
 }
 
-export function useModelOptions(kind?: NodeKind): ModelOption[] {
-  const state = useModelOptionsState(kind)
+export function useModelOptions(kind?: NodeKind, requiredMode?: ProfileKind): ModelOption[] {
+  const state = useModelOptionsState(kind, requiredMode)
   if (state.error) throw state.error
 
   return state.options

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 走查质量门岗（2026-08-18）。
 //
-// 为什么需要它：`eslint.config.js:28` 把 `tests/ux/**` 整个 ignore —— 现有所有门岗**没有一道看得见这片地**。
+// 为什么需要它：`eslint.config.mjs:28` 把 `tests/ux/**` 整个 ignore —— 现有所有门岗**没有一道看得见这片地**。
 // 这不是新发现：`scripts/check-e2e-launch.mjs:6` 的注释里前人已经写下这句话，但当时只修了
 // 「启动路径」这一个症状。结果是 143 个走查里长出了 80–94% 命中率的假绿模式，无人拦截。
 //
@@ -43,7 +43,7 @@ function collect() {
 }
 
 function stripComments(source) {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  return source.replace(/\r\n?/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 }
 
 /**
@@ -261,7 +261,7 @@ if (writeBaseline) {
 }
 
 if (!fs.existsSync(BASELINE_FILE)) {
-  console.error(`缺基线文件 ${path.relative(repoRoot, BASELINE_FILE)}，先跑：node scripts/check-walkthroughs.mjs --update-baseline`)
+  console.error(`缺基线文件 ${repoRelative(BASELINE_FILE)}，先跑：node scripts/check-walkthroughs.mjs --update-baseline`)
   process.exit(1)
 }
 const baseline = JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8'))
@@ -277,7 +277,7 @@ for (const rule of RULES) {
     console.error(`  基线 ${was} → 现在 ${now}（新增 ${now - was} 处，棘轮只减不增）`)
     // 只列前 8 处，够定位就行
     for (const hit of found[rule.id].slice(0, 8)) {
-      console.error(`    ${path.relative(repoRoot, hit.file)}:${hit.line}  ${hit.text}`)
+      console.error(`    ${repoRelative(hit.file)}:${hit.line}  ${hit.text}`)
     }
     if (rule.id === 'absence-without-baseline') {
       console.error('  → 改用 tests/ux/_assert.mjs 的 expectAbsent(locator, { provenBy })：')

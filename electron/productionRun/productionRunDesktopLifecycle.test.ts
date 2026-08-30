@@ -70,13 +70,17 @@ describe("production run desktop lifecycle · 单实例再次启动", () => {
   });
 
   it("拿不到单实例锁的那个进程仍然直接退出（让位给老实例）", () => {
+    const log = vi.fn();
     installProductionRunDesktopLifecycle({
       isMcpStdio: false,
       allowE2eMultiInstance: false,
       hasSingleInstanceLock: false,
       ensureMainWindow: vi.fn(),
+      log,
     });
     expect(quit).toHaveBeenCalledTimes(1);
     expect(appHandlers.has("second-instance")).toBe(false);
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("another Nomi instance is already using this profile"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("NOMI_ELECTRON_USER_DATA_DIR"));
   });
 });

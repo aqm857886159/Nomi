@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { tidyCanvasLayout, type TidyNode, type TidyEdge } from './tidyCanvasLayout'
-import { getNodeSize } from '../model/generationNodeKinds'
+import { getNodeBaseSize } from '../model/generationNodeKinds'
 
 // 视觉不重叠用**名义尺寸**判（足迹的 +安全余量是主网格的保守间距，切片簇刻意压更紧，不该用足迹判）。
 function nominal(node: TidyNode): { width: number; height: number } {
-  return getNodeSize({ kind: node.kind, size: node.size })
+  return getNodeBaseSize({ kind: node.kind, size: node.size })
 }
 
 function overlaps(

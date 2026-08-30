@@ -46,12 +46,15 @@ export function registerProviderConnection(input: {
     vendorName: registered.vendor.name,
     state: "configured",
     selectedModelKeys: normalized.models.map((model) => model.modelKey),
-    models: registered.models.map((model) => ({
-      modelKey: model.modelKey,
-      labelZh: model.labelZh,
-      kind: model.kind,
-      state: "unverified",
-    })),
+    models: normalized.models.map((candidate) => {
+      const active = registered.models.find((model) => model.modelKey === candidate.modelKey);
+      return {
+        modelKey: candidate.modelKey,
+        labelZh: candidate.labelZh || active?.labelZh || candidate.modelKey,
+        kind: candidate.kind,
+        state: "unverified",
+      };
+    }),
     savedAt,
   };
 }

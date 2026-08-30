@@ -3,6 +3,7 @@ import type { ModuleManifest } from "./moduleManifest";
 import type { GenerationProviderCapabilities } from "./generationRuntimeAdapter";
 import { readCatalog } from "../catalog/catalogStore";
 import type { CatalogState, Mapping, Model } from "../catalog/types";
+import { modelHasPublishedExecution } from "../shared/modelPublication";
 
 /**
  * Built-ins are passed in by the application bootstrap. This keeps provider/model
@@ -63,7 +64,7 @@ function modelParameterSchema(model: Model, mappings: readonly Mapping[]) {
 }
 
 function manifestFromCatalog(state: CatalogState, readinessByProvider: GenerationProviderReadinessMap = {}): ModuleManifest | null {
-  const enabledModels = state.models.filter((model) => model.enabled);
+  const enabledModels = state.models.filter((model) => modelHasPublishedExecution(model, { mappings: state.mappings }));
   if (!enabledModels.length) return null;
   const enabledModelKeys = new Set(enabledModels.map((model) => `${model.vendorKey}\u0000${model.modelKey}`));
   const mappingsFor = (model: Model) => state.mappings.filter((mapping) =>

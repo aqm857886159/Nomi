@@ -2,7 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconDownload } from '@tabler/icons-react'
 import { useResultDownload } from './useResultDownload'
-import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarProvenanceButton } from './NodeFloatingToolbar'
+import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDuplicateVariantButton, ToolbarProvenanceButton } from './NodeFloatingToolbar'
 import NodeVideoFrameToolbar from './NodeVideoFrameToolbar'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
@@ -36,6 +36,7 @@ export default function NodeResultDownloadButton({ node, selected, onPreview, on
         disabled={downloading}
         onClick={download}
       />
+      <ToolbarDuplicateVariantButton nodeId={node.id} />
       <ToolbarProvenanceButton onOpen={onOpenProvenance} />
     </FloatingToolbarShell>
   )

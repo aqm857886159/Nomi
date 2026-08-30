@@ -1,4 +1,8 @@
 export const zhScene3d = {
+  // 没命名的角色自动编号:A-Z,超过 26 个走 A1/A2…(纯展示名,不是 id)。
+  mannequinName: '角色{{letter}}',
+  mannequinNameOverflow: '角色A{{index}}',
+  referenceTargetNotConnected: '未连接视频镜头',
   toolbar: {
     addNodeAria: '添加 3D 节点',
     sceneTemplates: '场景模板',
@@ -418,6 +422,9 @@ type TranslationShape<T> = {
 }
 
 export const enScene3d = {
+  mannequinName: 'Character {{letter}}',
+  mannequinNameOverflow: 'Character A{{index}}',
+  referenceTargetNotConnected: 'No video shot connected',
   toolbar: {
     addNodeAria: 'Add 3D node',
     sceneTemplates: 'Scene templates',

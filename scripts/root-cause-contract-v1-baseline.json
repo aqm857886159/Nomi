@@ -1,0 +1,12 @@
+{
+  "docs/fixes/2026-08-27-comfy-custom-call-media-boundary.root-cause.json": "dc76d6468b87c6ee1b772d8f51f334e6bdb02b254742fa335d171c9b4ba2f0f3",
+  "docs/fixes/2026-08-28-bounded-media-certification.root-cause.json": "7dc5b34aceabf94ce566ddd23f9c4d2c184eca1f44cd5e01d564492e3ef0b665",
+  "docs/fixes/2026-08-28-canonical-http-onboarding.root-cause.json": "2515d298b27abe537ba9738c70c56ab5f36cb2b70429b0126a2d55d3182fff5c",
+  "docs/fixes/2026-08-28-clip-audio-preview-export-parity.root-cause.json": "d05f4c2d6f571f217d1ed170809eccf2073a8e9535f324567495890e904d4125",
+  "docs/fixes/2026-08-28-conversational-integration-trusted-boundary.root-cause.json": "28da94726e54045548a44edea121b7ecb878635a8a68924997f61566352dbc85",
+  "docs/fixes/2026-08-28-electron-single-instance-startup.root-cause.json": "dc2db4d0511b4c8a7ee3cf26cc31c7d7b34ac22d29598ff4bf950da2e60611da",
+  "docs/fixes/2026-08-28-idempotent-certification-ledger.root-cause.json": "5c1fb6a6c2501e275b5f3e565f3e6fe944d34deedb44c07ebbb55756c68b2ffa",
+  "docs/fixes/2026-08-28-media-certification-lifecycle-hardening.root-cause.json": "16045c19fa6cb46d6cead03d3f6f02d05bcba6c5964b8754969a5e4f270c8d5c",
+  "docs/fixes/2026-08-28-reference-media-mentions.root-cause.json": "a6fcdd1e9f429f407fce153de881e399d20690870e95d4026d5e9382044179df",
+  "docs/fixes/2026-08-28-secure-credential-verified-visibility.root-cause.json": "7462b1acd8dd1b85b36aa21ce93936eceae10e5eed9db429941eb61248036362"
+}

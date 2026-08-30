@@ -203,6 +203,8 @@ export function renderModesFile(manifest: ModeManifest): string {
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
+export const normalizeGeneratedText = (value: string): string => value.replaceAll("\r\n", "\n");
+
 if (isMain) {
   const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../electron/catalog");
   const wireDefaults = buildArchetypeWireDefaults();
@@ -216,7 +218,7 @@ if (isMain) {
     for (const { file, content } of outputs) {
       const target = path.join(dir, file);
       const existing = fs.existsSync(target) ? fs.readFileSync(target, "utf8") : "";
-      if (existing !== content) {
+      if (normalizeGeneratedText(existing) !== normalizeGeneratedText(content)) {
         console.error(`✗ ${file} 与档案不同步——跑 \`pnpm gen:archetype-defaults\` 重生成后提交。`);
         process.exit(1);
       }

@@ -6,7 +6,7 @@ import { cn } from '../../utils/cn'
 import { AssetMention } from './AssetMentionNode'
 import { createAssetMentionSuggestion } from './AssetMentionSuggestion'
 import type { MentionSuggestionItem } from './AssetMentionSuggestionList'
-import { promptToContent } from './promptEditorContent'
+import { promptToContent, shouldApplyExternalPromptSync } from './promptEditorContent'
 import { encodeMention } from './promptMentions'
 
 // 生成节点的描述框(规范 §4):Tiptap 编辑器替换原 textarea —— 句中可放 18px 缩略图 chip(@ 内联媒体引用),
@@ -70,6 +70,8 @@ export default function PromptEditor({ value, onChange, placeholder, className, 
   )
   // 防控制内容回灌死循环:记下编辑器自身最后产出的字符串,外部 value 等于它就不重设。
   const lastStringRef = React.useRef(value)
+  const latestValueRef = React.useRef(value)
+  latestValueRef.current = value
 
   const editor = useEditor({
     extensions: [
@@ -84,6 +86,7 @@ export default function PromptEditor({ value, onChange, placeholder, className, 
     onUpdate: ({ editor: current }) => {
       const next = contentToPrompt(current)
       lastStringRef.current = next
+      latestValueRef.current = next
       onChangeRef.current(next)
     },
   })
@@ -114,9 +117,9 @@ export default function PromptEditor({ value, onChange, placeholder, className, 
   // 外部 value 变化(切节点 / AI 写入)→ 同步进编辑器,跳过自身刚产出的那次。
   React.useEffect(() => {
     if (!editor || editor.isDestroyed) return
-    if (value === lastStringRef.current) return
+    if (!shouldApplyExternalPromptSync(value, latestValueRef.current, lastStringRef.current)) return
     lastStringRef.current = value
-    editor.commands.setContent(promptToContent(value, mentionReferences ?? orderedUrlsRef.current))
+    editor.commands.setContent(promptToContent(value, mentionReferences ?? orderedUrlsRef.current), { emitUpdate: false })
   }, [editor, mentionReferences, value])
 
   // 参考拖拽重排后，prompt 字符串仍是同一批 url，但 chip 的媒体编号必须按最新列表立即刷新。

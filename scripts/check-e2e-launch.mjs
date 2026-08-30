@@ -3,7 +3,7 @@
 //
 // 为什么要专门给它一道门（P2 的结构保证）：手抄 launch 样板抄漏 env 会**静默挂死**——
 // 干等到超时、零截图、零提示，排查时像脚本自己写错了（两条死法见 tests/ux/_launchApp.mjs 文件头）。
-// 而 eslint.config.js 把 tests/ux/** 整个 ignore 了，现有五门**没有任何一道**能看见这片地。
+// 而 eslint.config.mjs 把 tests/ux/** 整个 ignore 了，现有五门**没有任何一道**能看见这片地。
 // 没有这道门，改完照样会有人再抄一份坏的进来。
 import fs from 'node:fs'
 import path from 'node:path'

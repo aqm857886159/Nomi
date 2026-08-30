@@ -95,6 +95,7 @@ const { app, win } = await launchNomiApp({
   userDataDir: userData,
   settingsDir: userData,
   projectsDir,
+  syntheticCredentialStorage: true,
 })
 
 await win.evaluate(() => {

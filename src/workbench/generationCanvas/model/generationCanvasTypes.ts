@@ -184,6 +184,7 @@ export type NodeGroup = {
   name: string
   categoryId: CategoryId
   nodeIds: string[]
+  /** @deprecated Kept only for persisted-project compatibility; group chrome is design-system neutral. */
   color?: string
   frameBounds?: { x: number; y: number; w: number; h: number }
   collapsed?: boolean

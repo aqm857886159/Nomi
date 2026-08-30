@@ -1,3 +1,5 @@
+import i18n from '../../../../i18n'
+
 import type {
   GenerationCanvasEdge,
   GenerationCanvasEdgeMode,
@@ -121,7 +123,7 @@ export function shouldAttachScene3DFrameReference(
 }
 
 export function scene3DReferenceTargetLabel(target: Scene3DReferenceTargetSummary): string {
-  if (target.state === 'not-connected') return '未连接视频镜头'
+  if (target.state === 'not-connected') return i18n.t('scene3d.referenceTargetNotConnected')
   if (target.state === 'video-ref') return `video_ref · ${target.targetTitle}`
   return `prompt · ${target.targetTitle}`
 }

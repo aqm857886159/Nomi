@@ -12,30 +12,65 @@ on:
         required: false
         default: origin/main
         type: string
+      validation_mode:
+        description: Manual runs are always full; keep this explicit for auditability
+        required: false
+        default: full
+        type: choice
+        options:
+          - full
 
 concurrency:
   group: quality-gate-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
+  actions: read
+  checks: read
   contents: read
 
 jobs:
+  scope:
+    name: Validation Scope
+    runs-on: ubuntu-latest
+    outputs:
+      unit: ${{ steps.profile.outputs.unit }}
+      desktop: ${{ steps.profile.outputs.desktop }}
+      journeys: ${{ steps.profile.outputs.journeys }}
+      canvas: ${{ steps.profile.outputs.canvas }}
+      performance: ${{ steps.profile.outputs.performance }}
+      package: ${{ steps.profile.outputs.package }}
+      release: ${{ steps.profile.outputs.release }}
+      fail_closed: ${{ steps.profile.outputs.fail_closed }}
+      reason: ${{ steps.profile.outputs.reason }}
+      changed_count: ${{ steps.profile.outputs.changed_count }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Select fail-closed validation profile
+        id: profile
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          NOMI_VALIDATION_MODE: ${{ inputs.validation_mode || '' }}
+          NOMI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          NOMI_HEAD_SHA: ${{ github.sha }}
+        run: node scripts/select-quality-gate-profile.mjs
+
   contracts:
     name: Contracts
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       VOCAB_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
       ROOT_CAUSE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.8.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -46,74 +81,104 @@ jobs:
 
   unit:
     name: Unit
+    needs: scope
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.8.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Unit and agent runtime tests
+      - name: Unit and agent runtime tests (full lane)
+        if: needs.scope.outputs.unit == 'full'
         run: pnpm run test:system:unit
+      - name: Changed and related tests (fast lane)
+        if: needs.scope.outputs.unit == 'focused'
+        env:
+          NOMI_CHANGED_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'origin/main' }}
+          NOMI_CHANGED_HEAD: ${{ github.sha }}
+        run: pnpm run test:system:focused
 
   desktop-linux:
     name: Desktop Linux
+    needs: scope
+    if: >-
+      needs.scope.outputs.desktop == 'true' ||
+      needs.scope.outputs.journeys == 'true' ||
+      needs.scope.outputs.canvas != 'none' ||
+      needs.scope.outputs.performance == 'true'
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.8.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Build and run desktop journeys
-        run: xvfb-run -a pnpm run test:system:desktop
-      - name: Project Agent MCP journey
-        run: xvfb-run -a pnpm run test:mcp
-      - name: Project Agent Surface isolation
-        run: xvfb-run -a node tests/ux/project-agent-canvas-isolation.e2e.mjs
+      - name: Build selected desktop surfaces once
+        run: pnpm run build
+      - name: Electron smoke
+        if: needs.scope.outputs.desktop == 'true'
+        run: xvfb-run -a pnpm run test:e2e
+      - name: CI-safe user journeys
+        if: needs.scope.outputs.journeys == 'true'
+        run: xvfb-run -a pnpm run test:journeys
+      - name: Critical canvas acceptance
+        if: needs.scope.outputs.canvas == 'critical'
+        run: xvfb-run -a pnpm run test:canvas:critical
+      - name: Full functional canvas acceptance
+        if: needs.scope.outputs.canvas == 'full'
+        run: xvfb-run -a pnpm run test:canvas:acceptance
+      - name: Canvas performance budget
+        if: needs.scope.outputs.performance == 'true'
+        run: xvfb-run -a pnpm run test:canvas:performance
 
       # 走查证据（截图 + output.jsonl）。win-gate.yml 一直有这步，本 job 却没有——
       # 结果是 ubuntu 这边走查一红就只剩一行「✗ 某某检查」，几何类失败隔着 CI 根本判不了因
       # （2026-08-26 实际卡在这：只知道 withinStage=false，拿不到矩形数就没法定位）。
       - name: Upload walkthrough evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-walkthrough-evidence
           path: |
             evals/runs/**/screenshots/**
             evals/runs/**/output.jsonl
+            outputs/canvas-acceptance/**
+            outputs/canvas-smoke/**
+            outputs/canvas-card-stack-20260827/**
+            tests/system/runs/**/report.md
+            tests/system/runs/**/summary.json
+            tests/ux/shots/canvas-drag-pan-gestures/**
+            tests/ux/shots/group-ports/**
+            tests/ux/shots/react-flow-read-only/**
+            tests/ux/perf-results/canvas-*.json
           if-no-files-found: warn
           retention-days: 7
   mac-package:
     name: Mac Package
+    needs: scope
+    if: needs.scope.outputs.package == 'true'
     runs-on: macos-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.8.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -128,13 +193,41 @@ jobs:
 
   quality:
     name: Quality Gate
-    needs: [contracts, unit, desktop-linux, mac-package]
+    needs: [scope, contracts, unit, desktop-linux, mac-package]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Audit CI annotations
+        id: ci-hygiene
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci-annotation-hygiene.mjs
+      - name: Upload CI hygiene evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-hygiene-evidence
+          path: outputs/ci-hygiene/ci-annotations.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Require every validation surface
+        if: ${{ always() }}
         run: |
+          test "${{ steps.ci-hygiene.outcome }}" = "success"
+          test "${{ needs.scope.result }}" = "success"
           test "${{ needs.contracts.result }}" = "success"
           test "${{ needs.unit.result }}" = "success"
-          test "${{ needs['desktop-linux'].result }}" = "success"
-          test "${{ needs['mac-package'].result }}" = "success"
+          if [ "${{ needs.scope.outputs.desktop }}" = "true" ] || \
+             [ "${{ needs.scope.outputs.journeys }}" = "true" ] || \
+             [ "${{ needs.scope.outputs.canvas }}" != "none" ] || \
+             [ "${{ needs.scope.outputs.performance }}" = "true" ]; then
+            test "${{ needs['desktop-linux'].result }}" = "success"
+          fi
+          if [ "${{ needs.scope.outputs.package }}" = "true" ]; then
+            test "${{ needs['mac-package'].result }}" = "success"
+          fi

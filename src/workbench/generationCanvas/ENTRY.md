@@ -8,7 +8,8 @@
 
 | 子目录 | 文件 | 管什么 | 关键入口 |
 |---|---|---|---|
-| **components/** | 10 | 画布外壳与渲染层（React Flow 容器、边层、工具栏） | `GenerationCanvas.tsx`（主壳 992 行）· `CanvasEdgeLayer.tsx` · `AgentPlanCard.tsx`（计划清单卡）；Agent 统一壳位于 `workbench/ai/ProjectAgentResidentShell.tsx` |
+| **components/** | 10 | 画布外壳与非节点 UI（工具栏、分组与选择覆盖层） | `GenerationCanvas.tsx`（React Flow 唯一入口）· `AgentPlanCard.tsx`（计划清单卡）；Agent 统一壳位于 `workbench/ai/ProjectAgentResidentShell.tsx` |
+| **reactFlow/** | 10 | React Flow 适配器、节点/边渲染器与画布交互容器 | `GenerationCanvasReactFlow.tsx` · `GenerationCanvasReactFlowNodes.tsx` · `generationCanvasReactFlowAdapter.ts` |
 | **nodes/** | 42 | 节点渲染与节点内交互（最大子目录）| `BaseGenerationNode.tsx`（节点基座 952 行）· `NodeParameterControls.tsx` · `NodeGenerationComposer.tsx` · `Scene3DEditor.tsx` · `aspectRatio.ts`（比例） |
 | **runner/** | 15 | 执行层：能不能跑、怎么发、错误分类、结果解析 | `generationNodeExecutor.ts` · `generationRunController.ts` · `catalogTask*.ts` · `classifyGenerationError.ts` · `usableVendorModel.ts` |
 | **model/** | 13 | 领域模型：图结构、类型、schema、节点元数据 | `generationCanvasTypes.ts` · `generationCanvasSchema.ts` · `graphOps.ts` · `nodeMetaFields.ts` · `generationNodeKinds.ts` |
@@ -24,11 +25,11 @@
 
 | 我要改… | 去 |
 |---|---|
-| 画布整体布局 / 缩放 / 自动 fit | `components/GenerationCanvas.tsx` · `components/useAutoFitOnLoad.ts` · `components/generationCanvasGeometry.ts` |
+| 画布整体布局 / 缩放 / 自动 fit | `components/GenerationCanvas.tsx` · `reactFlow/GenerationCanvasReactFlow.tsx` · `components/useAutoFitOnLoad.ts` · `components/generationCanvasGeometry.ts` |
 | 画布手势（拖=平移·Shift=框选·滚轮锚光标）/ 平移性能 | `components/canvasPointerGestureModel.ts`（仲裁真值表）· `useCanvasPointerInteractions.ts`（唯一仲裁点）· `useCanvasViewportGestures.ts` · `useMarqueeSelection.ts` · `useCanvasTransformStoreSync.ts`（变换→store 的节流闸）|
 | 节点卡片长相 / 节点内参数控件 | `nodes/BaseGenerationNode.tsx` · `nodes/NodeParameterControls.tsx` · `nodes/InlineParameterBar.tsx` |
 | 比例 / 变形 | `nodes/aspectRatio.ts` |
-| 连线 / 拖入参考 | `nodes/completeNodeConnection.ts` · `components/CanvasEdgeLayer.tsx` · `model/nodeAssetDrop.ts` |
+| 连线 / 拖入参考 | `reactFlow/GenerationCanvasReactFlowNodes.tsx` · `nodes/completeNodeConnection.ts` · `model/nodeAssetDrop.ts` |
 | 生成怎么发出去 / 错误处理 | `runner/generationNodeExecutor.ts` · `runner/generationRunController.ts` · `runner/classifyGenerationError.ts` |
 | agent 建节点 / 计划清单卡 | `agent/applyCanvasToolCall.ts` · `agent/plannedNodeMeta.ts` · `components/AgentPlanCard.tsx` |
 | 状态/撤销重做/存盘快照 | `store/generationCanvasStore.ts` · `store/canvasHistory.ts` · `store/canvasSnapshotNormalizer.ts` |

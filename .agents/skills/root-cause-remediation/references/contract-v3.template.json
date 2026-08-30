@@ -1,0 +1,82 @@
+{
+  "schema_version": 3,
+  "id": "YYYY-MM-DD-short-remediation-id",
+  "problem_type": "Replace with the reusable failure class",
+  "symptom": "Replace with the exact user-visible or CI-visible failure",
+  "direct_cause": "Replace with the observed failure mechanism",
+  "class_root": "Replace with the shared missing invariant",
+  "affected_population": [
+    "Replace with affected users, inputs, versions, or platforms"
+  ],
+  "scope_paths": [
+    "replace/with/changed-production-path.ts"
+  ],
+  "entry_points": [
+    "Replace with a human-readable entry-point summary"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Replace when official docs or source code cannot decide this internal invariant; otherwise remove this field and add checked external_sources objects.",
+  "invariants": [
+    "Replace with a structural condition that must remain true"
+  ],
+  "generality_proof": "Explain why enforcing the declared shared boundaries prevents the same class across every checked entry point.",
+  "shared_boundaries": [
+    {
+      "path": "replace/with/changed-production-path.ts",
+      "symbol": "replaceWithRealSymbol",
+      "responsibility": "Explain the invariant owned by this boundary."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "replace/with/first-existing-entry.ts",
+      "entry_point": "replaceWithFirstEntry",
+      "disposition": "enforced",
+      "evidence": "Explain how repository evidence ties this entry to the shared boundary."
+    },
+    {
+      "path": "replace/with/second-existing-entry.ts",
+      "entry_point": "replaceWithSecondEntry",
+      "disposition": "not-affected",
+      "evidence": "Explain why this equivalent-looking entry is outside the failure class."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Explain why the same mechanism can affect another user, input, entry point, machine, or future run.",
+    "same_class_scan": [
+      "List concrete repository searches and independently checked entry points."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "replace/with/changed-production-path.ts",
+    "invariant": "State the condition enforced for every caller.",
+    "failure_mode": "State how invalid input or state fails closed.",
+    "exception_policy": "none",
+    "strategy": "Explain how the earliest shared boundary prevents recurrence.",
+    "artifacts": [
+      "replace/with/changed-production-path.ts"
+    ]
+  },
+  "regression_tests": [
+    "replace/with/changed-production.test.ts"
+  ],
+  "class_regression_tests": [
+    "replace/with/changed-production.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Explain why there is no obsolete path, or use status removed and list every changed path that removes old behavior."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Explain why no third-party dependency controls the invariant, or choose upgrade-now/retain-with-exit and fill current, target, and exit_criteria.",
+    "exit_criteria": []
+  },
+  "migration": "Explain how old data, state, scripts, or callers transition; state why no migration is needed when applicable.",
+  "residual_risks": [
+    "List every boundary that remains unproven; do not claim completion for it."
+  ]
+}

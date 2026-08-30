@@ -159,3 +159,28 @@ describe('normalizeShotScore + 常量', () => {
     expect(SHOT_VERIFY_DIMENSIONS.map((d) => d.key)).toEqual(['identity', 'composition', 'continuity'])
   })
 })
+
+// 判官 reason 的语言闸(R15):英文界面下,对账卡上那句理由不能是中文。
+// rubric 本身保持中文——它是调过的提示词工程,翻译它等于换一套判官行为;只把「reason 用什么语言写」切掉。
+describe('buildShotVerifyPrompt — reason 语言', () => {
+  it('英文界面追加「reason 用英文写」的指令', () => {
+    const p = buildShotVerifyPrompt(baseCtx({ reasonLanguage: 'en' }))
+    expect(p).toContain('reason 必须用**英文**写')
+  })
+
+  it('中文界面不追加,且与不传该字段逐字节相同', () => {
+    const omitted = buildShotVerifyPrompt(baseCtx())
+    const explicit = buildShotVerifyPrompt(baseCtx({ reasonLanguage: 'zh-CN' }))
+    expect(explicit).toBe(omitted)
+    expect(explicit).not.toContain('必须用**英文**写')
+  })
+
+  it('只改 reason 那一句,rubric 与打分铁律原样保留', () => {
+    const zh = buildShotVerifyPrompt(baseCtx())
+    const en = buildShotVerifyPrompt(baseCtx({ reasonLanguage: 'en' }))
+    for (const anchor of ['<Rubric 逐维度 1-5 档>', '打分铁律', '身份', '构图']) {
+      expect(zh).toContain(anchor)
+      expect(en).toContain(anchor)
+    }
+  })
+})

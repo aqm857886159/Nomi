@@ -1,0 +1,92 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-30-canvas-performance-exit-contract",
+  "problem_type": "Performance benchmark verdict and process status divergence",
+  "symptom": "The canvas benchmark could write a result with pass:false while its process still exited successfully, allowing an outer canvas suite or CI job to report PASS.",
+  "direct_cause": "The benchmark calculated and persisted results.pass but never projected that verdict onto process.exitCode, and no isolated verdict test covered the process boundary.",
+  "class_root": "Recorded performance evidence and executable gate status had no shared fail-closed verdict boundary.",
+  "affected_population": [
+    "Canvas performance budget regressions",
+    "Warmup failures and unreliable benchmark runs",
+    "Local, CI, and release callers that rely on the benchmark exit status"
+  ],
+  "scope_paths": [
+    "scripts/canvas-performance-verdict.mjs",
+    "tests/ux/canvas-performance-benchmark.e2e.mjs"
+  ],
+  "entry_points": [
+    "Direct canvas performance benchmark invocation",
+    "System-test canvas-performance stage invocation"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal Node process contract between Nomi's own JSON verdict and its caller-visible exit status; no third-party behavior decides the invariant.",
+  "invariants": [
+    "Only an explicit results.pass === true may exit successfully.",
+    "Warmup, hard failure, and budget failure evidence remains persisted before the nonzero exit status is applied.",
+    "Every caller observes the same verdict through the benchmark process status."
+  ],
+  "generality_proof": "Direct CLI, canvas-real-suite, system profile, CI, and release callers all spawn the same benchmark process. Projecting the persisted verdict at that process boundary covers every caller without scenario-specific checks.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/canvas-performance-verdict.mjs",
+      "symbol": "applyPerformanceVerdict",
+      "responsibility": "Convert the persisted benchmark pass contract into a fail-closed process exit status for every caller."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/canvas-performance-benchmark.e2e.mjs",
+      "entry_point": "direct benchmark CLI",
+      "disposition": "enforced",
+      "evidence": "The benchmark applies the shared verdict only after its final JSON result has been written."
+    },
+    {
+      "path": "tests/ux/canvas-real-suite.mjs",
+      "entry_point": "canvas performance child process",
+      "disposition": "enforced",
+      "evidence": "The suite already treats any nonzero child status as failure, so the shared process verdict propagates without another interpretation."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future budget or scenario failure could produce pass:false again, and every wrapper would continue trusting exit status.",
+    "same_class_scan": [
+      "Searched the benchmark for results.pass, writeResults, process.exit, process.exitCode, verdict, warmupFailures, and budgetChecks.",
+      "Inspected canvas-real-suite and test-system stage execution; both classify the child solely from its process status.",
+      "Inspected tracked canvas performance evidence and confirmed pass is a first-class persisted field consumed by maintainers."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/canvas-performance-verdict.mjs",
+    "invariant": "A benchmark process can report success only when its final persisted result explicitly reports pass:true.",
+    "failure_mode": "False, missing, or malformed pass state sets process.exitCode to 1 after evidence is written.",
+    "exception_policy": "none",
+    "strategy": "Introduce one testable verdict adapter and require the benchmark CLI to use it after final result persistence.",
+    "artifacts": [
+      "scripts/canvas-performance-verdict.mjs",
+      "tests/ux/canvas-performance-benchmark.e2e.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/canvas-performance-verdict.test.mjs",
+    "tests/ux/canvas-real-suite.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/canvas-performance-verdict.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "There is one benchmark executable; its missing exit projection is completed in place and no alternate caller or fallback verdict path exists."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The missing invariant is repository-owned process status handling and does not depend on Electron, Playwright, or Node version behavior.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data migration is required. Existing JSON evidence remains readable; future runs additionally expose the same pass field through process status.",
+  "residual_risks": [
+    "Machine-to-machine performance variance remains possible; the benchmark records machine identity and detailed metric evidence so a failure is diagnosed rather than silently accepted."
+  ]
+}

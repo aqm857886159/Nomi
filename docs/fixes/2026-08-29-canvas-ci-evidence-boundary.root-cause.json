@@ -1,0 +1,52 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-29-canvas-ci-evidence-boundary",
+  "problem_type": "required canvas CI failure evidence omission",
+  "symptom": "The required Linux Quality Gate could fail or time out in a real canvas journey without retaining the new canvas suite summaries, smoke diagnostics, or screenshots needed to identify the user-visible regression.",
+  "direct_cause": "The Quality Gate artifact upload list predated the real-canvas suite and covered evaluation outputs but not the canvas acceptance output and screenshot directories.",
+  "class_root": "A required end-to-end gate and its failure-evidence boundary were maintained separately, so adding canvas scenarios did not structurally require their machine-readable summaries and visual diagnostics to survive the runner.",
+  "affected_population": [
+    "Maintainers diagnosing a required Linux canvas regression from CI",
+    "Contributors whose pull request is blocked by a canvas journey that passes locally but fails under Xvfb",
+    "Users protected by the required production-entry and real-canvas interaction gate"
+  ],
+  "scope_paths": [
+    ".github/workflows/quality-gate.yml"
+  ],
+  "entry_points": [
+    "Critical real-canvas suite summaries written under outputs/canvas-acceptance",
+    "Production canvas smoke diagnostics written under outputs/canvas-smoke",
+    "Card-stack walkthrough reports and real canvas screenshots",
+    "Quality Gate artifact upload after success, assertion failure, child timeout, or process exit"
+  ],
+  "internal_only_reason": "The artifact names and required CI jobs are Nomi repository contracts. GitHub Actions documentation cannot determine which Nomi canvas diagnostics must be retained for a failed user journey.",
+  "invariants": [
+    "The required Quality Gate uploads canvas suite summaries, smoke diagnostics, card-stack reports, and critical journey screenshots even when an earlier canvas assertion fails.",
+    "Missing optional evidence warns instead of masking the original test conclusion.",
+    "Canvas failure evidence has a bounded retention period and does not include local user project data.",
+    "The workflow contract test changes with the artifact boundary so a renamed or removed evidence path fails before CI delivery."
+  ],
+  "regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every Linux canvas failure can lose its diagnostics when a suite adds or renames output paths without updating the independent workflow artifact list.",
+    "same_class_scan": [
+      "Scanned every output and screenshot directory written by the critical real-canvas, production smoke, and card-stack journeys.",
+      "Scanned the Quality Gate upload-artifact steps and verified canvas evidence is collected by the always-running diagnostics step.",
+      "Scanned artifact payloads for isolated test data only; local outputs remain untracked and no user project directory is uploaded."
+    ]
+  },
+  "prevention": {
+    "strategy": "Bind the required canvas journeys to an explicit always-running artifact allowlist and enforce the workflow shape with the repository workflow contract test.",
+    "artifacts": [
+      ".github/workflows/quality-gate.yml"
+    ]
+  },
+  "migration": "No application or project migration is required. Future Quality Gate runs begin retaining the new diagnostics; historical runs remain unchanged.",
+  "residual_risks": [
+    "A future journey that writes evidence outside the declared directories still requires a matching workflow and contract-test update.",
+    "GitHub artifact upload service failures can still prevent retention, but they no longer result from a missing repository path declaration."
+  ]
+}

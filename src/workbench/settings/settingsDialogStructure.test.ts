@@ -122,7 +122,7 @@ describe('settings dialog structure', () => {
 
   it('keeps all five non-model sections byte-for-byte at the origin/main baseline', () => {
     for (const [fileName, expectedHash] of Object.entries(MAIN_NON_MODEL_SECTION_SHA256)) {
-      const source = fs.readFileSync(path.join(settingsDirectory, fileName))
+      const source = fs.readFileSync(path.join(settingsDirectory, fileName), 'utf8').replaceAll('\r\n', '\n')
       expect(createHash('sha256').update(source).digest('hex'), fileName).toBe(expectedHash)
     }
   })

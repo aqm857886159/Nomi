@@ -17,6 +17,7 @@ import {
   createCanvasPerformanceFixture,
   defaultPerfTempRoot,
 } from './fixtures/canvas-performance-fixture.mjs'
+import { applyPerformanceVerdict } from '../../scripts/canvas-performance-verdict.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outputDir = path.join(repoRoot, 'tests/ux/perf-results')
@@ -443,8 +444,8 @@ async function visibleNodeBox(page, kind) {
 async function captureNodeIdentity(page) {
   await page.evaluate(() => {
     window.__canvasPerformanceNodeIdentity = new Map(
-      Array.from(document.querySelectorAll('.generation-canvas-v2-node[data-node-id]')).map((element) => [
-        element.getAttribute('data-node-id'),
+      Array.from(document.querySelectorAll('.react-flow__node[data-id]')).map((element) => [
+        element.getAttribute('data-id'),
         element,
       ]),
     )
@@ -455,8 +456,8 @@ async function readNodeIdentity(page, targetNodeId = null) {
   return page.evaluate((targetId) => {
     const before = window.__canvasPerformanceNodeIdentity || new Map()
     const current = new Map(
-      Array.from(document.querySelectorAll('.generation-canvas-v2-node[data-node-id]')).map((element) => [
-        element.getAttribute('data-node-id'),
+      Array.from(document.querySelectorAll('.react-flow__node[data-id]')).map((element) => [
+        element.getAttribute('data-id'),
         element,
       ]),
     )
@@ -624,14 +625,25 @@ async function runAction(page, scenario, fixture) {
     // would intentionally trigger its double-click preview, changing the
     // workload from multi-select into a full-screen media dialog.
     const count = Math.min(20, await nodes.count())
-    for (let index = 0; index < count; index += 1) {
-      const box = await nodes
-        .nth(index)
-        .boundingBox()
-        .catch(() => null)
-      if (!box) continue
-      await page.mouse.click(box.x + box.width * 0.45, box.y + 14, { modifiers: index ? ['Shift'] : [] })
-      await sleep(page, 20)
+    await page.keyboard.down('Shift')
+    try {
+      for (let index = 0; index < count; index += 1) {
+        const box = await nodes
+          .nth(index)
+          .boundingBox()
+          .catch(() => null)
+        if (!box) continue
+        await page.mouse.click(box.x + box.width * 0.45, box.y + 14)
+        await sleep(page, 20)
+      }
+    } finally {
+      await page.keyboard.up('Shift')
+    }
+    const selectionBeforeClear = {
+      domainSelected: await page.locator('.generation-canvas-v2-node[data-selected="true"]').count(),
+      flowSelected: await page.locator('.react-flow__node.selected').count(),
+      lightweight: await page.locator('.generation-canvas-v2-node[data-render-mode="lightweight"]').count(),
+      mounted: await nodes.count(),
     }
     const blank = await findBlank(page)
     if (!blank) throw new Error('找不到可用于清空选择的画布空白点')
@@ -696,6 +708,7 @@ async function runAction(page, scenario, fixture) {
     await sleep(page, 250)
     return {
       selectedAfterClear: await page.locator('.generation-canvas-v2-node[data-selected="true"]').count(),
+      selectionBeforeClear,
       blank,
       blankHit,
     }
@@ -767,7 +780,13 @@ async function runAction(page, scenario, fixture) {
     if (!node) throw new Error('没有可见节点可缩放')
     await node.locator.click({ position: { x: node.box.width * 0.45, y: 14 } })
     await sleep(page, 120)
-    const handle = node.locator.locator('.generation-canvas-v2-node__resize-zone--se')
+    const nodeId = await node.locator.getAttribute('data-node-id')
+    if (!nodeId) throw new Error('selected node is missing data-node-id')
+    // React Flow owns resize controls on the outer flow node, while the
+    // legacy business card remains nested inside it.
+    const handle = page.locator(
+      `.react-flow__node[data-id="${nodeId}"] .react-flow__resize-control.handle.bottom.right`,
+    )
     const box = await handle.boundingBox()
     if (!box) throw new Error('选中节点后找不到右下角缩放把手')
     await dragPath(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, { x: box.x + 100, y: box.y + 60 })
@@ -1196,6 +1215,7 @@ try {
   const outputPath = writeResults(results, label)
   console.log(`\n✅ 画布性能 benchmark 完成：${outputPath}`)
   if (results.warmupFailures.length) console.log(`⚠ warmup 失败 ${results.warmupFailures.length} 次，结果标记为不可靠`)
+  if (!applyPerformanceVerdict(results)) console.error('❌ 画布性能 benchmark 未通过预算或可靠性门槛')
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true })
 }

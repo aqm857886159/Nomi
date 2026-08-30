@@ -1,14 +1,14 @@
 import React from 'react'
 import { IconAlertTriangle, IconCheck, IconChevronRight, IconPlayerStop } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
-import type { DesktopProviderAdapterRun } from '../../desktop/bridge'
+import type { DesktopHttpCertificationRun } from '../../desktop/onboardingBridgeTypes'
 import { IconActionButton, NomiLoadingMark } from '../../design'
 import { cn } from '../../utils/cn'
 import { AdapterVerificationScreen } from './AdapterVerificationScreen'
 import { adapterRunProgress, isAdapterRunTerminal } from './adapterVerificationViewModel'
 import { ModelSettingsPageHeader } from './ModelSettingsWorkspacePages'
 
-function taskIcon(run: DesktopProviderAdapterRun): JSX.Element {
+function taskIcon(run: DesktopHttpCertificationRun): JSX.Element {
   if (!isAdapterRunTerminal(run.stage)) return <NomiLoadingMark size={16} />
   if (run.stage === 'completed') return <IconCheck size={16} stroke={1.8} aria-hidden="true" />
   return <IconAlertTriangle size={16} stroke={1.8} aria-hidden="true" />
@@ -19,9 +19,9 @@ export function AdapterTaskList({
   onOpen,
   onCancel,
 }: {
-  runs: DesktopProviderAdapterRun[]
-  onOpen: (run: DesktopProviderAdapterRun) => void
-  onCancel: (run: DesktopProviderAdapterRun) => void
+  runs: DesktopHttpCertificationRun[]
+  onOpen: (run: DesktopHttpCertificationRun) => void
+  onCancel: (run: DesktopHttpCertificationRun) => void
 }): JSX.Element | null {
   const { t } = useTranslation()
   if (runs.length === 0) return null
@@ -92,7 +92,7 @@ export function AdapterTaskWorkspace({
   onSelfConnect,
   onRecoverConnection,
 }: {
-  run?: DesktopProviderAdapterRun
+  run?: DesktopHttpCertificationRun
   onBack: () => void
   onCancel: () => void
   onRetry: (modelKey?: string) => void

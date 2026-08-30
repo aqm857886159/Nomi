@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-28-electron-single-instance-startup",
+  "problem_type": "silent Electron exit when the profile is already owned",
+  "symptom": "Launching the compiled desktop app while another Nomi instance is using the same profile exits with code 0 and no diagnostic, which is indistinguishable from an Electron or renderer startup failure.",
+  "direct_cause": "The single-instance guard correctly relinquishes a second process, but the lock-conflict branch only called app.quit() and emitted no user-visible or terminal diagnostic.",
+  "class_root": "Desktop startup had a fail-safe ownership rule without an observable failure contract, so development and packaged smoke runs could not distinguish profile contention from renderer failure.",
+  "affected_population": [
+    "Developers launching pnpm start while the installed Nomi app is open",
+    "Packaged smoke or support workflows that reuse the default user profile",
+    "Users diagnosing a second launch that appears to do nothing"
+  ],
+  "scope_paths": [
+    "electron/productionRun/productionRunDesktopLifecycle.ts"
+  ],
+  "entry_points": [
+    "Electron startup with a profile owned by another Nomi process",
+    "pnpm start compiled-app launch",
+    "Single-instance handoff before the first BrowserWindow"
+  ],
+  "internal_only_reason": "The failure is entirely within Nomi's local Electron process ownership and startup diagnostics; no provider or external protocol can establish whether the local profile lock is held.",
+  "invariants": [
+    "A process that does not own the profile lock still exits without registering UI, IPC, or capability writers.",
+    "Lock-conflict exit emits a stable diagnostic that identifies profile contention and gives an isolated-profile remediation.",
+    "MCP stdio and explicitly isolated E2E processes keep their existing non-conflicting startup behavior."
+  ],
+  "regression_tests": [
+    "electron/productionRun/productionRunDesktopLifecycle.test.ts"
+  ],
+  "migration": "No ownership semantics change. Existing single-instance behavior remains fail-closed; only the previously silent relinquish path gains an actionable diagnostic.",
+  "residual_risks": [
+    "A renderer crash after the lock is acquired still requires the existing Electron console and crash-log diagnostics.",
+    "Launching pnpm start with a profile owned by a different application remains outside this contract."
+  ]
+}

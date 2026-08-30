@@ -3,20 +3,25 @@ import { useTranslation } from 'react-i18next'
 import type { ModelOption } from '../../../config/models'
 import BulkModelPicker from '../../common/BulkModelPicker'
 import { useGenerationModelOptionsState } from '../adapters/modelOptionsAdapter'
+import { resolveCanvasBulkModelLabelKey } from './canvasBatchModelLabel'
 import type { CanvasGenerationExecutionGroup } from './canvasProductionScope'
 
 export type CanvasApplyModelInput = {
   executionKind: string
+  requiredMode: CanvasGenerationExecutionGroup['requiredMode']
   value: string
   vendor?: string
   modelOptions: readonly ModelOption[]
 }
 
-function modelGroupLabel(executionKind: string, count: number, t: ReturnType<typeof useTranslation>['t']): string {
-  return t(
-    `generationCommon.production.modelGroup.${executionKind}` as 'generationCommon.production.modelGroup.image',
-    { count },
-  )
+function modelGroupLabel(
+  group: CanvasGenerationExecutionGroup,
+  peerGroups: readonly CanvasGenerationExecutionGroup[],
+  t: ReturnType<typeof useTranslation>['t'],
+): string {
+  return t(resolveCanvasBulkModelLabelKey(group, peerGroups), {
+    count: group.nodeIds.length,
+  })
 }
 
 /**
@@ -27,20 +32,22 @@ function modelGroupLabel(executionKind: string, count: number, t: ReturnType<typ
  */
 export function CanvasBulkModelSelect({
   group,
+  peerGroups,
   onApplyModel,
 }: {
   group: CanvasGenerationExecutionGroup
+  peerGroups: readonly CanvasGenerationExecutionGroup[]
   onApplyModel: (input: CanvasApplyModelInput) => void
 }): JSX.Element | null {
   const { t } = useTranslation()
-  const state = useGenerationModelOptionsState(group.representativeKind)
+  const state = useGenerationModelOptionsState(group.representativeKind, group.requiredMode)
   const handlePick = React.useCallback(
     (value: string, vendor?: string) => {
-      onApplyModel({ executionKind: group.executionKind, value, vendor, modelOptions: state.options })
+      onApplyModel({ executionKind: group.executionKind, requiredMode: group.requiredMode, value, vendor, modelOptions: state.options })
     },
-    [group.executionKind, onApplyModel, state.options],
+    [group.executionKind, group.requiredMode, onApplyModel, state.options],
   )
-  const label = modelGroupLabel(group.executionKind, group.nodeIds.length, t)
+  const label = modelGroupLabel(group, peerGroups, t)
   return (
     <BulkModelPicker
       modelOptions={state.options}
@@ -48,7 +55,7 @@ export function CanvasBulkModelSelect({
       ariaLabel={label}
       leadingLabel={label}
       placeholder={t('generationCommon.production.unifyModel')}
-      size="xs"
+      size="sm"
       triggerMaxWidth={140}
     />
   )

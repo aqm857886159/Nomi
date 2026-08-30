@@ -43,6 +43,7 @@ import {
   resolveAssetUploadConsent,
 } from './assetUploadConsent'
 import type { HostingDisclosure } from '../spend/spendConfirm'
+import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 
 /** 节点 kind → 付费预估用的产物口径，喂给 describeGenerationCost 报对名词与时长。 */
 function spendCostKind(kind: GenerationNodeKind): Exclude<GenerationCostKind, 'mixed'> {
@@ -577,6 +578,9 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
     const dup = useGenerationCanvasStore.getState().duplicateNodeForRegeneration(nodeId)
     if (!dup) return
     runId = dup.id
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId: dup.id } }))
+    }
   }
   let grantId: string
   try {

@@ -7,6 +7,9 @@
 //
 // 放行的边界必须钉死：只放行与用户刚填的端点**完全同源**的 URL；换个私网地址照样拒。
 // 这条边界不能松——松了就等于让上游随便指一个内网地址让我们去打。
+import fs from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
 import type { Model, Vendor } from "../catalog/types";
@@ -14,6 +17,7 @@ import type { AdapterModeDraft } from "./types";
 import { verifyAdapterMode } from "./verifier";
 
 const LOCAL_BASE = "http://127.0.0.1:8188";
+const VALID_PNG = fs.readFileSync(path.join(__dirname, "__fixtures__", "certification-media", "valid.png"));
 
 function vendor(baseUrlHint: string | null): Vendor {
   return { key: "local-gw", name: "local", baseUrlHint, authType: "none", enabled: true, createdAt: "t", updatedAt: "t" } as unknown as Vendor;
@@ -29,7 +33,7 @@ const mode: AdapterModeDraft = {
 
 /** 跑一次验证，返回 fetchAsset 收到的选项。产物 URL 可指定，默认与端点同源。 */
 async function runVerify(baseUrlHint: string | null, assetUrl = `${LOCAL_BASE}/asset/a.png`) {
-  const fetchAsset = vi.fn(async () => ({ contentType: "image/png", bytes: Buffer.from([1]) }));
+  const fetchAsset = vi.fn(async () => ({ contentType: "image/png", bytes: VALID_PNG }));
   const result = await verifyAdapterMode(
     { vendor: vendor(baseUrlHint), model: imageModel, apiKey: "", mode },
     {

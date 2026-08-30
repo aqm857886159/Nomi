@@ -1,4 +1,7 @@
 export const zhTimelineEditor = {
+  // 新建文字轨道片段的默认内容(用户随后会改写;跟界面语言走,不是固定中文)。
+  defaultTitleText: '标题',
+  defaultSubtitleText: '字幕文字',
   arranged: '已把 {{count}} 个镜头按镜序排进时间轴',
   noShots: '生成区还没有镜头——先去生成区生成几个镜头再拼片',
   alreadyArranged: '镜头都已在时间轴上了',
@@ -156,6 +159,8 @@ type TranslationShape<T> = {
 }
 
 export const enTimelineEditor = {
+  defaultTitleText: 'Title',
+  defaultSubtitleText: 'Subtitle text',
   arranged: 'Arranged {{count}} shots on the timeline in shot order',
   noShots: 'There are no shots in Generation yet. Generate a few shots before arranging.',
   alreadyArranged: 'All shots are already on the timeline',

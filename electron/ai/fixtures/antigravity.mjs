@@ -3,9 +3,11 @@ import fs from 'node:fs';
 import { Buffer } from 'node:buffer';
 import process from 'node:process';
 import { setInterval, setTimeout } from 'node:timers';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, execSync, spawn } from 'node:child_process';
 import path from 'node:path';
 const [mode, output, ...args] = process.argv.slice(2);
+const runShell = (command, options = {}) => process.platform === 'win32'
+  ? execSync(command, options) : execFileSync('/bin/sh', ['-c', command], options);
 if (mode === 'discovery') {
   process.stdin.resume();
   process.stdin.on('end', () => process.stdout.write(args.includes('--version')
@@ -35,8 +37,8 @@ if (mode === 'discovery') {
     const plugin = path.join(process.cwd(), 'task-gate');
     policy = JSON.parse(/^const policy = (.+);$/m.exec(fs.readFileSync(path.join(plugin, 'gate.cjs'), 'utf8'))[1]);
     const hooks = JSON.parse(fs.readFileSync(path.join(plugin, 'hooks.json'), 'utf8'))['nomi-task-gate'];
-    hook = (phase, event) => JSON.parse(execFileSync('/bin/sh', ['-c', phase === 'init'
-      ? hooks.PreInvocation[0].command : hooks.PreToolUse[0].hooks[0].command],
+    hook = (phase, event) => JSON.parse(runShell(phase === 'init'
+      ? hooks.PreInvocation[0].command : hooks.PreToolUse[0].hooks[0].command,
       { input: JSON.stringify(event), encoding: 'utf8', timeout: 3000 }));
 
   }

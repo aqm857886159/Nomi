@@ -21,7 +21,7 @@ const catalogState = {
   version: 8,
   vendors: [{ key: "volcengine", name: "火山", enabled: true, authType: "bearer", createdAt: "t", updatedAt: "t" }],
   models: [{ modelKey: "seedream", vendorKey: "volcengine", labelZh: "Seedream", kind: "image", enabled: true, createdAt: "t", updatedAt: "t" }],
-  mappings: [],
+  mappings: [] as Array<Record<string, unknown>>,
   apiKeysByVendor: {} as Record<string, unknown>,
 };
 vi.mock("./catalogStore", () => ({ readCatalog: () => catalogState }));
@@ -32,6 +32,11 @@ const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
 
 beforeEach(() => {
   catalogState.apiKeysByVendor = {};
+  catalogState.mappings = [{
+    id: "published", vendorKey: "volcengine", modelKey: "seedream", taskKind: "text_to_image",
+    name: "published", enabled: true, create: { method: "POST", path: "/images" }, createdAt: "t", updatedAt: "t",
+  }];
+  catalogState.models[0] = { modelKey: "seedream", vendorKey: "volcengine", labelZh: "Seedream", kind: "image", enabled: true, createdAt: "t", updatedAt: "t" };
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
@@ -66,6 +71,38 @@ describe("findExecutableModel — 诚实 key 错误（missing vs locked）", () 
     const resolved = findExecutableModel("volcengine", "seedream", "image");
     expect(resolved.apiKey).toBe("sk-real");
     expect(resolved.model.modelKey).toBe("seedream");
+  });
+
+  it("rejects an enabled adapter candidate with a key and enabled mapping until certification publishes execution", () => {
+    catalogState.apiKeysByVendor = {
+      volcengine: { vendorKey: "volcengine", apiKey: b64("sk-real"), enc: "safeStorage", enabled: true, createdAt: "t", updatedAt: "t" },
+    };
+    catalogState.models[0] = {
+      ...catalogState.models[0],
+      enabled: true,
+      meta: { adapter: { state: "unverified", modes: [], updatedAt: "t" } },
+    } as typeof catalogState.models[number];
+    catalogState.mappings = [{
+      id: "raw-enabled", vendorKey: "volcengine", modelKey: "seedream", taskKind: "text_to_image",
+      name: "raw enabled", enabled: true, create: { method: "POST", path: "/images" }, createdAt: "t", updatedAt: "t",
+    }];
+
+    expect(() => findExecutableModel("volcengine", "seedream", "image")).toThrow(/not enabled|not published/i);
+  });
+
+  it("legacy plaintext stays a migration-only record and never becomes an executable credential", () => {
+    const sentinel = "SENTINEL-LEGACY-EXECUTABLE";
+    catalogState.apiKeysByVendor = {
+      volcengine: { vendorKey: "volcengine", apiKey: sentinel, enc: "plain", enabled: true, createdAt: "t", updatedAt: "t" },
+    };
+    let message = "";
+    try {
+      findExecutableModel("volcengine", "seedream", "image");
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toContain("重新保存");
+    expect(message).not.toContain(sentinel);
   });
 
   it("两条错误信息互不相同（missing / locked 是两句话，不是同一句）", () => {

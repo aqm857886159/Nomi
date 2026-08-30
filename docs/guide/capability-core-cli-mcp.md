@@ -208,9 +208,17 @@ Claude Code 会依次调 `nomi_create_project` → `nomi_list_models` → `nomi_
 | `nomi_session_open` / `nomi_get_generation_context` | 打开项目安全会话 / 读取通用模块、模型、模式与素材能力（不花额度） |
 | `nomi_operation_create` / `nomi_submit_generation_plan` | 创建并编辑单镜生成草稿；模型、供应商、模式、参数、参考素材均可替换（不花额度） |
 | `nomi_preview_execution` | 预览封存合同、字段警告与合同 hash（不花额度） |
-| `nomi_request_generation_gate` / `nomi_decide_generation_gate` | 请求并提交一次真人确认凭据；裸 boolean 不算确认 |
-| `nomi_start_generation` | 在 rollout 与确认均满足后进入统一 Runtime Adapter；未满足时 fail-closed |
-| `nomi_operation_read` / `nomi_cancel_generation` / `nomi_reconcile_generation` | 读取、取消或核对语义 Run；未知结果不盲目重提 |
+ | `nomi_request_generation_gate` / `nomi_decide_generation_gate` | 请求并提交一次真人确认凭据；裸 boolean 不算确认 |
+ | `nomi_start_generation` | 在 rollout 与确认均满足后进入统一 Runtime Adapter；未满足时 fail-closed |
+ | `nomi_operation_read` / `nomi_cancel_generation` / `nomi_reconcile_generation` | 读取、取消或核对语义 Run；未知结果不盲目重提 |
+| `nomi_integration_begin` | 创建模型或 ComfyUI 接入会话，只接收公开连接资料 |
+| `nomi_integration_open_credentials` | 打开 Nomi 安全凭据页面；密钥不会经过 Agent |
+| `nomi_integration_discover` | 分页、搜索并返回带证据来源的模型候选 |
+| `nomi_integration_select` | 一次选择多个精确模型，进入支出合同确认 |
+| `nomi_integration_request_confirmation` | 请求 Nomi 安全 UI 展示不可变认证合同并等待用户确认；Agent 不能铸造 receipt |
+| `nomi_integration_submit_workflow` / `nomi_integration_resolve_input` | 提交 ComfyUI workflow，并一次回答全部未决绑定字段 |
+| `nomi_integration_start` | 用不可变 receipt 启动唯一认证 run；重复幂等键不会重复提交 |
+| `nomi_integration_get` / `nomi_integration_cancel` | 读取脱敏会话或取消尚未提交的会话 |
 
 ---
 

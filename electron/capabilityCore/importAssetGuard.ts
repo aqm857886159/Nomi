@@ -59,7 +59,7 @@ export type ImportGuardVerdict =
 function hasDeniedSegment(absolute: string): boolean {
   const lower = absolute.toLowerCase()
   if (DENY_PREFIXES.some((prefix) => lower.startsWith(prefix.toLowerCase()))) return true
-  const segments = lower.split(path.sep).filter(Boolean)
+  const segments = lower.split(/[\\/]+/).filter(Boolean)
   return segments.some((segment) => DENY_PATH_SEGMENTS.includes(segment))
 }
 
@@ -70,15 +70,19 @@ function hasDeniedSegment(absolute: string): boolean {
 export function checkImportAsset(input: ImportGuardInput): ImportGuardVerdict {
   const raw = String(input.rawPath || '').trim()
   if (!raw) return { ok: false, reason: '没给文件路径。请传本机文件的**绝对路径**（如 /Users/你/Desktop/参考.png）。' }
-  if (!path.isAbsolute(raw)) {
+  if (!path.posix.isAbsolute(raw) && !path.win32.isAbsolute(raw)) {
     return { ok: false, reason: `路径必须是绝对路径（收到「${raw}」）。相对路径依赖当前工作目录、结果不可预期，请传完整路径。` }
   }
   if (!input.realPath) {
     return { ok: false, reason: `找不到这个文件（「${raw}」）。确认路径拼写与文件是否还在原处。` }
   }
-  const real = path.normalize(input.realPath)
+  const normalizePortable = (value: string): string => {
+    if (path.win32.isAbsolute(value) && !path.posix.isAbsolute(value)) return path.win32.normalize(value)
+    return path.posix.normalize(value)
+  }
+  const real = normalizePortable(input.realPath)
   // ⑤+④：deny 段对**解析后**的真实路径再查一遍——软链指向 ~/.ssh 之类的绕法在此断掉。
-  if (hasDeniedSegment(real) || hasDeniedSegment(path.normalize(raw))) {
+  if (hasDeniedSegment(real) || hasDeniedSegment(normalizePortable(raw))) {
     return { ok: false, reason: '这个位置的文件不允许作为素材导入（系统/凭据/配置目录）。请把素材放到普通目录（如桌面或项目文件夹）再导入。' }
   }
   if (!input.isFile) {

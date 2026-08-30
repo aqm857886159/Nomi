@@ -12,7 +12,7 @@ describe('existing connection model add UI contract', () => {
     expect(wizard).toContain('existingVendorKey?: string')
     expect(wizard).toContain("screen === 'form' && !existingVendorKey")
     expect(wizard).toContain('<ExistingConnectionModelPicker')
-    expect(wizard).toMatch(/adapterRegisterExisting\(\{\s*vendorKey:\s*targetVendorKey,\s*models:\s*selected/)
+    expect(wizard).toContain('bridge.onboarding.httpCertificationStartExisting({')
     expect(drawer).toContain('existingVendorKey={page.existingVendorKey}')
     expect(drawer).not.toContain('updateWizardVerificationRoute')
     expect(drawer).not.toContain('onAdapterRunChange=')
@@ -21,7 +21,7 @@ describe('existing connection model add UI contract', () => {
   it('loads by vendor id only and never handles an API key in the existing picker', () => {
     const picker = source('ExistingConnectionModelPicker.tsx')
 
-    expect(picker).toContain('existingConnectionListModels({ vendorKey })')
+    expect(picker).toContain('httpConnectionListModels({ vendorKey })')
     expect(picker).not.toContain('apiKey')
     expect(picker).toContain("result.code !== 'MODEL_LIST_UNAVAILABLE'")
     expect(picker).toContain('alreadyAddedIds=')

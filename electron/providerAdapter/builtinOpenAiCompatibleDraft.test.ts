@@ -75,4 +75,32 @@ describe("buildOpenAiCompatibleDraft", () => {
     expect(draft.sources).toEqual([]);
     expect(draft.models[0].modes.every((mode) => mode.sourceUrls.length === 0)).toBe(true);
   });
+
+  it("uses the Anthropic Messages contract when the provider declares Anthropic", () => {
+    const mode = buildOpenAiCompatibleDraft({
+      baseUrl: "https://api.anthropic.com",
+      authType: "x-api-key",
+      providerKind: "anthropic",
+      models: [{ modelKey: "claude-test", labelZh: "Claude", kind: "text" }],
+    }).models[0].modes[0];
+
+    expect(mode.create.path).toBe("/v1/messages");
+    expect(mode.create.headers?.["anthropic-version"]).toBe("2023-06-01");
+    expect(mode.create.headers?.["x-api-key"]).toBe("{{user_api_key}}");
+    expect(mode.create.headers?.Authorization).toBeUndefined();
+    expect((mode.create.body as Record<string, unknown>).max_tokens).toBe(16);
+  });
+
+  it("keeps the OpenAI-compatible contract for other providers", () => {
+    const mode = buildOpenAiCompatibleDraft({
+      baseUrl: "https://api.example.com/v1",
+      authType: "bearer",
+      providerKind: "openai-compatible",
+      models: [{ modelKey: "gpt-test", labelZh: "GPT", kind: "text" }],
+    }).models[0].modes[0];
+
+    expect(mode.create.path).toBe("/v1/chat/completions");
+    expect(mode.create.headers?.Authorization).toBe("Bearer {{user_api_key}}");
+    expect(mode.create.headers?.["anthropic-version"]).toBeUndefined();
+  });
 });

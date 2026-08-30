@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { expectVisible } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-canvas-image-preview-'))
@@ -122,13 +123,20 @@ try {
   const characterNode = win.locator('[data-node-id="character-result-node"]')
   await characterNode.waitFor({ state: 'visible', timeout: 8000 })
 
-  const imagePreviewButton = imageNode.getByRole('button', { name: `放大预览：${ORIGINAL_TITLE}` })
-  const cardPreviewButton = characterNode.getByRole('button', { name: '放大预览：林夏' })
-  const bothKindsHavePreview = await imagePreviewButton.isVisible() && await cardPreviewButton.isVisible()
+  await imageNode.click()
+  const imagePreviewButton = imageNode.getByRole('button', { name: '全屏预览图片' })
+  await expectVisible(imagePreviewButton, '图片节点选中后显示全屏预览入口', 3000)
+  const imageHasPreview = await imagePreviewButton.isVisible()
+  await characterNode.click()
+  const cardPreviewButton = characterNode.getByRole('button', { name: '全屏预览图片' })
+  await expectVisible(cardPreviewButton, '角色节点选中后显示全屏预览入口', 3000)
+  const bothKindsHavePreview = imageHasPreview && await cardPreviewButton.isVisible()
 
+  await imageNode.click()
+  await expectVisible(imagePreviewButton, '重新选中图片节点后恢复全屏预览入口', 3000)
   await imagePreviewButton.click()
-  const lightbox = win.locator('[data-node-image-lightbox="true"]')
-  await lightbox.waitFor({ state: 'visible', timeout: 3000 })
+  const lightbox = win.getByRole('dialog', { name: `${ORIGINAL_TITLE}预览` })
+  await expectVisible(lightbox, '点击预览入口后打开图片预览对话框', 3000)
   const modalSemantics = await lightbox.getAttribute('aria-modal') === 'true'
   const lightboxImageSrc = await lightbox.locator('img').getAttribute('src')
   const originalImageUsed = lightboxImageSrc === IMAGE_URL

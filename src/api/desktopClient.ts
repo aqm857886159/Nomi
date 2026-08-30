@@ -66,6 +66,8 @@ export type ModelCatalogModelDto = {
   labelZh: string
   kind: BillingModelKind
   enabled: boolean
+  published: boolean
+  publishedModes: ProfileKind[]
   meta?: unknown
   pricing?: {
     cost: number

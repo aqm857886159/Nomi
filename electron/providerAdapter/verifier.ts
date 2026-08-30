@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import { hardenedFetch, type HardenedFetchOptions } from "../hardenedFetch";
 import type { LocalAssetReader } from "../catalog/assetLocalization";
 import type { Mapping, Model, Vendor } from "../catalog/types";
 import { streamTextTask } from "../ai/streamTextTask";
@@ -12,6 +11,14 @@ import {
 import { VendorRequestError, type VendorErrorCategory } from "../vendor/vendorHttp";
 import type { AdapterModeDraft } from "./types";
 import { redactAdapterSecrets } from "./redaction";
+import {
+  CertificationMediaError,
+  certifyMediaArtifact,
+  type CertificationMediaDependencies,
+  type CertificationMediaEvidence,
+  type CertificationMediaReasonCode,
+} from "./certificationMedia";
+import type { CertificationSubmissionState } from "../integrationCertification/types";
 
 // 文本探测的额度上限。**上限不是花费**——模型答完 "ready" 就停，实际只出几十 token，
 // 设大不多花一分钱；设小却会把整类思考型模型判死：DeepSeek V4 / R1 / o 系默认先思考，
@@ -21,13 +28,21 @@ import { redactAdapterSecrets } from "./redaction";
 const TEXT_PROBE_MAX_TOKENS = 2_048;
 
 const REFERENCE_URL = "nomi-local://adapter-test/reference.png";
+const MAX_VERIFIED_ASSETS = 8;
 const REFERENCE_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8AARAwMjDAGDAAANgQCAf6mRpsAAAAASUVORK5CYII=",
   "base64",
 );
 
 export type AdapterVerificationResult =
-  | { ok: true; taskKind: AdapterModeDraft["taskKind"]; requestSummary?: unknown }
+  | {
+      ok: true;
+      taskKind: AdapterModeDraft["taskKind"];
+      requestSummary?: unknown;
+      mediaEvidence?: CertificationMediaEvidence[];
+      remoteTaskId?: string;
+      submissionState?: Extract<CertificationSubmissionState, "settled">;
+    }
   | {
       ok: false;
       taskKind: AdapterModeDraft["taskKind"];
@@ -42,7 +57,11 @@ export type AdapterVerificationResult =
        */
       errorCategory?: VendorErrorCategory;
       httpStatus?: number;
+      reasonCode?: CertificationMediaReasonCode;
+      errorParams?: Readonly<Record<string, string | number | boolean>>;
       requestSummary?: unknown;
+      remoteTaskId?: string;
+      submissionState?: Extract<CertificationSubmissionState, "unknown" | "settled">;
     };
 
 type ExecuteInput = Parameters<typeof executeProfileOperation>[0];
@@ -51,10 +70,8 @@ type NormalizeInput = Parameters<typeof buildProfileTaskResult>[0];
 export type AdapterVerifierDependencies = {
   execute?: (input: ExecuteInput) => Promise<{ response: unknown; request: unknown }>;
   normalize?: (input: NormalizeInput) => Promise<{ result: TaskResult; providerMeta: Record<string, unknown> }>;
-  fetchAsset?: (
-    url: string,
-    options: HardenedFetchOptions,
-  ) => Promise<{ contentType: string; bytes: Buffer }>;
+  fetchAsset?: CertificationMediaDependencies["fetch"];
+  certifyMedia?: typeof certifyMediaArtifact;
   sleep?: (ms: number) => Promise<void>;
   maxPolls?: number;
   pollIntervalMs?: number;
@@ -131,18 +148,6 @@ function verificationRequest(model: Model, mode: AdapterModeDraft): TaskRequest 
   };
 }
 
-function allowedContentTypes(kind: Model["kind"]): string[] {
-  if (kind === "video") return ["video/"];
-  if (kind === "audio") return ["audio/"];
-  if (kind === "model3d") return ["model/", "application/octet-stream", "application/gltf", "application/json"];
-  return ["image/"];
-}
-
-function dataUrlMatches(url: string, kind: Model["kind"]): boolean {
-  const prefix = kind === "video" ? "data:video/" : kind === "audio" ? "data:audio/" : kind === "model3d" ? "data:model/" : "data:image/";
-  return url.toLowerCase().startsWith(prefix);
-}
-
 /** 取 http(s) origin；非法/非 http 一律 null（拿不到就不放行，保守失败）。 */
 function originOf(baseUrlHint: string | null | undefined): string | null {
   if (!baseUrlHint) return null;
@@ -155,12 +160,22 @@ function originOf(baseUrlHint: string | null | undefined): string | null {
 }
 
 export async function verifyAdapterMode(
-  input: { vendor: Vendor; model: Model; apiKey: string; mode: AdapterModeDraft; signal?: AbortSignal },
+  input: {
+    vendor: Vendor;
+    model: Model;
+    apiKey: string;
+    mode: AdapterModeDraft;
+    signal?: AbortSignal;
+    onRemoteTaskAccepted?: (remoteTaskId: string) => void;
+  },
   dependencies: AdapterVerifierDependencies = {},
 ): Promise<AdapterVerificationResult> {
   const execute = dependencies.execute || executeProfileOperation;
   const normalize = dependencies.normalize || buildProfileTaskResult;
-  const fetchAsset = dependencies.fetchAsset || hardenedFetch;
+  const certifyMedia = dependencies.certifyMedia || ((mediaInput) => certifyMediaArtifact(
+    mediaInput,
+    dependencies.fetchAsset ? { fetch: dependencies.fetchAsset } : {},
+  ));
   const sleep = dependencies.sleep || ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const verifyText = dependencies.verifyText || (async (textInput) => streamTextTask(
     {
@@ -178,6 +193,7 @@ export async function verifyAdapterMode(
     ? "localize_reference"
     : "create";
   let requestSummary: unknown;
+  let remoteTaskId: string | undefined;
 
   try {
     if (input.model.kind === "text") {
@@ -235,6 +251,8 @@ export async function verifyAdapterMode(
       vendor: input.vendor,
       model: input.model,
     });
+    remoteTaskId = normalized.result.id;
+    input.onRemoteTaskAccepted?.(remoteTaskId);
 
     if (normalized.result.status === "failed") throw new Error(normalized.result.error || "Provider returned a failed task");
     if (normalized.result.status !== "succeeded") {
@@ -265,39 +283,33 @@ export async function verifyAdapterMode(
           vendor: input.vendor,
           model: input.model,
         });
+        remoteTaskId = normalized.result.id;
         if (normalized.result.status === "failed") throw new Error(normalized.result.error || "Provider returned a failed task");
       }
       if (normalized.result.status !== "succeeded") throw new Error("Provider verification timed out while polling");
     }
 
     stage = "verify_asset";
-    const asset = normalized.result.assets[0];
-    if (!asset?.url) throw new Error("Successful task returned no media asset URL");
-    if (asset.url.startsWith("data:")) {
-      if (!dataUrlMatches(asset.url, input.model.kind)) throw new Error("Returned data URL has the wrong media type");
-    } else {
-      await fetchAsset(asset.url, {
-        timeoutMs: 20_000,
-        maxBytes: input.model.kind === "video" ? 25 * 1024 * 1024 : 12 * 1024 * 1024,
-        allowContentTypes: allowedContentTypes(input.model.kind),
-        signal: input.signal,
-        // 自建/局域网端点产出的图片视频，URL 本身就在私网上（http://127.0.0.1:8080/asset/x.png）。
-        // 不放行就必然卡在 verify_asset：「Refusing to fetch private/loopback host」→ 本地端点的
-        // 图片/视频能力**永远无法通过验证**（真实走查跑出来的，见 tests/ux/local-gateway-onboarding.walk.mjs）。
-        //
-        // 与 assetLocalization.trustedLocalOutputOrigin 只放行 curated ComfyUI 的那条决策不冲突：
-        // 那条防的是「持久化 vendor 字段自行长期打开私网下载」；这里的放行是**本次验证内**、
-        // 且只认与用户刚亲手填的那个端点**完全同源**的 URL（hardenedFetch 比对 origin 全等，
-        // 且放行私网时会同时关掉重定向跟随，杜绝跳转绕过）。换个私网地址照样拒。
+    const assets = normalized.result.assets;
+    if (!assets.length || assets.some((asset) => !asset?.url)) throw new Error("Successful task returned no media asset URL");
+    if (assets.length > MAX_VERIFIED_ASSETS) throw new Error("Successful task returned too many media assets");
+    const mediaEvidence: CertificationMediaEvidence[] = [];
+    for (const asset of assets) {
+      mediaEvidence.push(await certifyMedia({
+        source: asset.url,
+        expectedKind: input.model.kind,
         ...(verifiedOrigin ? { allowedPrivateOrigins: [verifiedOrigin] } : {}),
-      });
+        ...(input.signal ? { signal: input.signal } : {}),
+      }));
     }
-    return { ok: true, taskKind: input.mode.taskKind, requestSummary };
+    return { ok: true, taskKind: input.mode.taskKind, requestSummary, mediaEvidence, remoteTaskId, submissionState: "settled" };
   } catch (error) {
     const message = errorMessage(error);
     if (stage === "localize_reference" && !/素材|asset|upload|local|上传/i.test(message)) stage = "create";
     // 归类不在这里判——原样取抛出点已经查表定好的那个（见 errorCategory 注释）。
     const structured = error instanceof VendorRequestError ? error.structured : undefined;
+    const submissionUnknown = (stage === "create" || stage === "poll")
+      && (structured?.category === "network" || structured?.category === "timeout");
     return {
       ok: false,
       taskKind: input.mode.taskKind,
@@ -305,7 +317,12 @@ export async function verifyAdapterMode(
       error: message,
       ...(structured?.category ? { errorCategory: structured.category } : {}),
       ...(structured?.httpStatus ? { httpStatus: structured.httpStatus } : {}),
+      ...(error instanceof CertificationMediaError
+        ? { reasonCode: error.reasonCode, errorParams: error.params }
+        : {}),
       requestSummary,
+      ...(remoteTaskId ? { remoteTaskId } : {}),
+      ...(submissionUnknown ? { submissionState: "unknown" as const } : { submissionState: "settled" as const }),
     };
   }
 }

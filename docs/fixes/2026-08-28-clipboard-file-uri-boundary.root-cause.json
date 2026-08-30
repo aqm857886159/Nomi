@@ -1,0 +1,63 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-28-clipboard-file-uri-boundary",
+  "problem_type": "cross-platform clipboard path parsing regression",
+  "symptom": "Pasting a local file from a Windows clipboard can produce a malformed path when a file URI is decoded on a Windows host, while POSIX file URIs must remain valid on every host.",
+  "direct_cause": "The shared clipboard parser delegated file URI pathname conversion to the host-specific fileURLToPath helper, which interprets a POSIX URI pathname differently on Windows and can manufacture an invalid drive-prefixed path.",
+  "class_root": "Clipboard payloads are a cross-platform protocol boundary, but URI paths, drive paths, UNC paths, and native multi-string paths were not normalized according to their protocol form before entering the local asset pipeline.",
+  "affected_population": [
+    "Windows users pasting files copied by applications that expose public.file-url or text/uri-list",
+    "Users pasting UNC-shared files from a Windows clipboard",
+    "POSIX users receiving drive-qualified or URI-form clipboard payloads"
+  ],
+  "scope_paths": [
+    "electron/assets/clipboardFilePaths.ts"
+  ],
+  "entry_points": [
+    "parseClipboardFilePaths for public.file-url, text/uri-list, and text/plain URI payloads",
+    "parseClipboardFilePaths for FileNameW and FileName native Windows payloads",
+    "readClipboardFilePathsFromFormats before clipboard asset import"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.rfc-editor.org/rfc/rfc8089",
+      "checked_at": "2026-08-28",
+      "purpose": "Confirm file URI drive-letter, authority, localhost, and local POSIX path forms are protocol syntax independent of the host implementation."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats",
+      "checked_at": "2026-08-28",
+      "purpose": "Confirm Windows clipboard has native file-list formats distinct from URI text formats."
+    }
+  ],
+  "invariants": [
+    "A file URI is decoded according to URI syntax first; only drive-qualified and UNC forms are converted to host Windows separators.",
+    "A local POSIX file URI remains an absolute POSIX path even when the parser runs on Windows.",
+    "Native FileNameW/FileName values are accepted only when they are absolute paths and are deduplicated before import."
+  ],
+  "regression_tests": [
+    "electron/assets/clipboardFilePaths.test.ts"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every Windows, POSIX, URI-list, or native clipboard paste can reach the same protocol-to-host path boundary, so host-dependent parsing could repeatedly corrupt equivalent payloads.",
+    "same_class_scan": [
+      "Scanned all parseClipboardFilePaths callers and clipboard format branches for URI, FileNameW, FileName, and plain-text path inputs.",
+      "Scanned downstream asset import guards to confirm path existence and media validation remain owned after protocol normalization.",
+      "Exercised Windows drive, UNC authority, localhost, POSIX absolute, multi-string, malformed URI, and duplicate payload boundaries."
+    ]
+  },
+  "prevention": {
+    "strategy": "Normalize clipboard payloads by protocol form before applying host-specific separators or passing paths to the asset pipeline.",
+    "artifacts": [
+      "electron/assets/clipboardFilePaths.ts"
+    ]
+  },
+  "migration": "Clipboard payloads are transient and have no stored schema. Existing imported assets retain their persisted local path; the corrected parser applies to the next paste without rewriting stored assets.",
+  "residual_risks": [
+    "A clipboard producer that emits a malformed URI remains rejected rather than repaired heuristically.",
+    "The parser does not verify that a returned path exists; the downstream local asset import boundary remains responsible for file availability and media validation."
+  ]
+}

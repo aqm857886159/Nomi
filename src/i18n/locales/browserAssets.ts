@@ -190,6 +190,36 @@ export const zhBrowserAssets = {
     copy: '复制',
     videoPrompt: '视频提示词',
   },
+  // 网页捕捞素材的副标题与失败文案。每种失败都要给**唯一可行动的下一步**
+  // (2026-07-22 审计 P1:通用「请重试」会让用户重复一个必败动作)。
+  capture: {
+    downloadFailed: '下载失败',
+    retry: '下载失败，请重试',
+    subtitle: {
+      screenshot: '页面截图',
+      frame: '视频当前帧',
+      animated: '动态图',
+      webOriginal: '网页原图',
+    },
+    error: {
+      forbidden: '网站拒绝了下载（可能要登录）——先在浏览器里登录该网站再捕捞',
+      notFound: '素材链接已失效——回到页面重新选一次',
+      htmlNotMedia: '网站返回的是网页而不是图片/视频（防盗链或人机验证）——通过验证后重试',
+      tooLarge: '素材超过 200MB 上限——换小一点的素材',
+      timeout: '下载超时——网络慢或站点限流，稍后重试',
+      blockedByClient: '请求被浏览器安全策略拦截——重新捕捞一次',
+      mseStream: '这是流媒体视频（边播边传），没有可下载的原件——回到视频页让画面可见后重试保存当前帧',
+      blackFrame: '视频当前是黑屏/无画面——先在页面里播放到有清晰画面的一帧，再保存当前帧',
+      network: '网络连接失败——检查网络后重试',
+      sourceClosed: '来源网页已关闭，请重新拖入',
+      timedOut: '下载超时，请重试',
+      siteRefused: '网站拒绝下载（可能需要登录）',
+      expired: '网页素材已失效',
+      notMedia: '网站返回的不是图片或视频',
+      tooLargeShort: '素材超过 200MB',
+      blobExpired: '网页临时资源已失效',
+    },
+  },
 } as const
 
 type TranslationShape<T> = {
@@ -387,5 +417,33 @@ export const enBrowserAssets = {
     copied: 'Copied',
     copy: 'Copy',
     videoPrompt: 'Video prompt',
+  },
+  capture: {
+    downloadFailed: 'Download failed',
+    retry: 'Download failed. Please try again.',
+    subtitle: {
+      screenshot: 'Page screenshot',
+      frame: 'Current video frame',
+      animated: 'Animated image',
+      webOriginal: 'Original web image',
+    },
+    error: {
+      forbidden: 'The site refused the download (it may require a login). Sign in to the site in the browser, then capture again.',
+      notFound: 'The asset link has expired. Go back to the page and select it again.',
+      htmlNotMedia: 'The site returned a web page instead of an image or video (hotlink protection or a human check). Pass the check, then retry.',
+      tooLarge: 'The asset exceeds the 200 MB limit. Choose a smaller one.',
+      timeout: 'The download timed out. The network is slow or the site is throttling. Try again later.',
+      blockedByClient: 'The request was blocked by browser security policy. Capture it again.',
+      mseStream: 'This is a streaming video with no downloadable original. Go back to the video page, make the picture visible, then save the current frame.',
+      blackFrame: 'The video is currently black or has no picture. Play it to a clear frame on the page, then save the current frame.',
+      network: 'The network connection failed. Check your connection and try again.',
+      sourceClosed: 'The source page was closed. Please drag the asset in again.',
+      timedOut: 'The download timed out. Please try again.',
+      siteRefused: 'The site refused the download (it may require a login).',
+      expired: 'This web asset is no longer available.',
+      notMedia: 'The site did not return an image or a video.',
+      tooLargeShort: 'The asset exceeds 200 MB.',
+      blobExpired: 'This temporary web resource has expired.',
+    },
   },
 } satisfies TranslationShape<typeof zhBrowserAssets>

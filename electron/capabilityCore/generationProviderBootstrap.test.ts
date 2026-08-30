@@ -44,6 +44,17 @@ describe("generation provider bootstrap", () => {
     expect(createCatalogModuleRegistry(state(), { readinessByProvider: boot.readinessByProvider }).resolve({ moduleId: "generation.single-shot", providerId: "apimart", modelId: "gpt-image-2", mode: "text_to_image" })).toMatchObject({ providerId: "apimart", modelId: "gpt-image-2" });
   });
 
+  it("does not bootstrap a provider from an unverified enabled adapter row with key and raw mapping", () => {
+    const unverified = state("test-key");
+    unverified.models[0] = {
+      ...unverified.models[0],
+      meta: { adapter: { state: "unverified", modes: [], updatedAt: "now" } },
+    };
+    const boot = createGenerationProviderBootstrap(unverified, { connectionResolver: () => ({ apiKey: "test-key" }) });
+    expect(boot.providers).toEqual([]);
+    expect(boot.readinessByProvider.apimart).toMatchObject({ providerReady: false });
+  });
+
   it("proves only the capabilities implemented by the APIMart adapter", () => {
     const boot = createGenerationProviderBootstrap(state("test-key"), { connectionResolver: () => ({ apiKey: "test-key" }) });
     expect(boot.providers).toHaveLength(1);

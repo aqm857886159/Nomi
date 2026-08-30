@@ -1,9 +1,11 @@
-import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import type { ProfileKind } from '../../api/modelCatalogApi'
+import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import {
   getGenerationNodeExecutionKind,
   type GenerationNodeExecutionKind,
   type GenerationNodeKind,
 } from '../model/generationNodeKinds'
+import { requiredModeForGenerationNode } from '../adapters/modelOptionsAdapter'
 
 export const CANVAS_BATCH_CONCURRENCY_STORAGE_KEY = 'nomi.canvas.batch-concurrency'
 export const DEFAULT_CANVAS_BATCH_CONCURRENCY = 6
@@ -93,23 +95,31 @@ export function shouldShowCanvasBatchGenerateDock(input: {
 
 export type CanvasGenerationExecutionGroup = {
   executionKind: GenerationNodeExecutionKind
+  requiredMode: ProfileKind
   nodeIds: string[]
   representativeKind: GenerationNodeKind
 }
 
 export function groupGenerationNodesByExecutionKind(
   nodes: readonly GenerationCanvasNode[],
+  edges: readonly GenerationCanvasEdge[] = [],
+  contextNodes: readonly GenerationCanvasNode[] = nodes,
 ): CanvasGenerationExecutionGroup[] {
-  const groups = new Map<GenerationNodeExecutionKind, CanvasGenerationExecutionGroup>()
+  const groups = new Map<string, CanvasGenerationExecutionGroup>()
   for (const node of nodes) {
     const executionKind = getGenerationNodeExecutionKind(node.kind)
     if (!executionKind) continue
-    const existing = groups.get(executionKind)
+    const requiredMode = requiredModeForGenerationNode(node, {
+      nodes: contextNodes as GenerationCanvasNode[],
+      edges: edges as GenerationCanvasEdge[],
+    })
+    const groupKey = `${executionKind}:${requiredMode}`
+    const existing = groups.get(groupKey)
     if (existing) {
       existing.nodeIds.push(node.id)
       continue
     }
-    groups.set(executionKind, { executionKind, nodeIds: [node.id], representativeKind: node.kind })
+    groups.set(groupKey, { executionKind, requiredMode, nodeIds: [node.id], representativeKind: node.kind })
   }
   return [...groups.values()]
 }

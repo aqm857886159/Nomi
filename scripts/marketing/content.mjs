@@ -165,7 +165,7 @@ const zhCN = {
       { label: '工作台', value: 'AGPL-3.0 开源' },
       { label: '项目与素材', value: '保存在本机' },
       { label: '模型与密钥', value: '由你选择和持有' },
-      { label: '闭源集成 / 贴牌', value: '可沟通商业授权' },
+      { label: '定制与部署', value: '按 AGPL 合规交付' },
     ],
   },
   start: {
@@ -195,7 +195,7 @@ const zhCN = {
     project: {
       eyebrow: 'FOR REAL PROJECTS',
       title: '有真实项目，直接聊清楚怎么落地。',
-      description: '内部 AI 视频工作台、系统与模型集成、垂直流程、贴牌交付和持续迭代。',
+      description: '内部 AI 视频工作台、系统与模型集成、垂直流程、AGPL 合规部署和持续迭代。',
       wechat: '添加作者微信',
       submit: '提交项目需求',
     },
@@ -391,7 +391,7 @@ const english = {
       { label: 'Workbench', value: 'AGPL-3.0 open source' },
       { label: 'Projects & media', value: 'Stored on your computer' },
       { label: 'Models & keys', value: 'Chosen and held by you' },
-      { label: 'Closed integrations / white label', value: 'Commercial licensing available' },
+      { label: 'Custom & deployment', value: 'AGPL-compliant delivery' },
     ],
   },
   start: {
@@ -421,7 +421,7 @@ const english = {
     project: {
       eyebrow: 'FOR REAL PROJECTS',
       title: 'Bring a real project and discuss how to ship it.',
-      description: 'Internal AI video workbenches, model integrations, vertical workflows, white-label delivery, and ongoing iteration.',
+      description: 'Internal AI video workbenches, model integrations, vertical workflows, AGPL-compliant deployment, and ongoing iteration.',
       wechat: 'Maintainer WeChat',
       submit: 'Submit project brief',
     },

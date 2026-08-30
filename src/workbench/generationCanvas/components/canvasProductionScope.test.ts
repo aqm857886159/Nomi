@@ -115,9 +115,9 @@ describe('groupGenerationNodesByExecutionKind', () => {
     ]
 
     expect(groupGenerationNodesByExecutionKind(nodes)).toEqual([
-      { executionKind: 'image', nodeIds: ['image', 'character'], representativeKind: 'image' },
-      { executionKind: 'video', nodeIds: ['video'], representativeKind: 'video' },
-      { executionKind: 'text', nodeIds: ['text'], representativeKind: 'text' },
+      { executionKind: 'image', requiredMode: 'text_to_image', nodeIds: ['image', 'character'], representativeKind: 'image' },
+      { executionKind: 'video', requiredMode: 'text_to_video', nodeIds: ['video'], representativeKind: 'video' },
+      { executionKind: 'text', requiredMode: 'chat', nodeIds: ['text'], representativeKind: 'text' },
     ])
   })
 
@@ -125,7 +125,36 @@ describe('groupGenerationNodesByExecutionKind', () => {
     const nodes = [node('shot-image', 'image', 'idle', 'shots'), node('scene-image', 'image', 'idle', 'scene')]
 
     expect(groupGenerationNodesByExecutionKind(nodesInCanvasProductionScope(nodes, { categoryId: 'shots' }))).toEqual([
-      { executionKind: 'image', nodeIds: ['shot-image'], representativeKind: 'image' },
+      { executionKind: 'image', requiredMode: 'text_to_image', nodeIds: ['shot-image'], representativeKind: 'image' },
+    ])
+  })
+
+  it('splits batch picker groups by the real execution mode within one billing kind', () => {
+    const nodes = [
+      node('t2i', 'image', 'idle'),
+      { ...node('edit', 'image', 'idle'), meta: { referenceImages: ['https://example.test/ref.png'] } },
+      node('t2v', 'video', 'idle'),
+      { ...node('i2v', 'video', 'idle'), meta: { firstFrameUrl: 'https://example.test/first.png' } },
+    ]
+
+    expect(groupGenerationNodesByExecutionKind(nodes)).toEqual([
+      { executionKind: 'image', requiredMode: 'text_to_image', nodeIds: ['t2i'], representativeKind: 'image' },
+      { executionKind: 'image', requiredMode: 'image_edit', nodeIds: ['edit'], representativeKind: 'image' },
+      { executionKind: 'video', requiredMode: 'text_to_video', nodeIds: ['t2v'], representativeKind: 'video' },
+      { executionKind: 'video', requiredMode: 'image_to_video', nodeIds: ['i2v'], representativeKind: 'video' },
+    ])
+  })
+
+  it('uses reference inputs from outside the selected batch scope when deriving its picker mode', () => {
+    const source = {
+      ...node('source', 'image', 'success'),
+      result: { id: 'result', type: 'image' as const, url: 'https://example.test/source.png', createdAt: 1 },
+    }
+    const target = node('target', 'video', 'idle')
+    const edge = { id: 'edge', source: source.id, target: target.id, mode: 'first_frame' as const }
+
+    expect(groupGenerationNodesByExecutionKind([target], [edge], [source, target])).toEqual([
+      { executionKind: 'video', requiredMode: 'image_to_video', nodeIds: ['target'], representativeKind: 'video' },
     ])
   })
 })

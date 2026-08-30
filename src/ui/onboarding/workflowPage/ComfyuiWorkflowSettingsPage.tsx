@@ -19,9 +19,10 @@ import { IconAlertTriangle, IconArrowLeft, IconTrash, IconX } from '@tabler/icon
 import { cn } from '../../../utils/cn'
 import { alertDialog, confirmDialog, NOMI_OVERLAY_Z_INDEX } from '../../../design'
 import { getDesktopBridge } from '../../../desktop/bridge'
+import { cancelComfyCandidateTestRevision, type TaskKind } from '../../../workbench/api/taskApi'
 import { toast } from '../../toast'
 import { buildWorkflowGraphView, type GraphInput } from '../comfyuiWorkflowGraphView'
-import { buildCanvasPreview, previewValuesToExtras } from '../comfyuiCanvasPreview'
+import { buildCanvasPreview } from '../comfyuiCanvasPreview'
 import {
   assignRole,
   clearRole,
@@ -40,7 +41,6 @@ import { WorkflowSidebar, type BackendRow } from './WorkflowSidebar'
 import { WorkflowGraphCanvas } from './WorkflowGraphCanvas'
 import { WorkflowCanvasPreview } from './WorkflowCanvasPreview'
 import { useWorkflowCatalog } from './useWorkflowCatalog'
-import { runTestGeneration } from './runTestGeneration'
 
 type ComfyuiWorkflowSettingsPageProps = {
   /** 从哪台 ComfyUI 进来的。 */
@@ -74,6 +74,31 @@ export function ComfyuiWorkflowSettingsPage({
   const [busy, setBusy] = React.useState(false)
   const [running, setRunning] = React.useState(false)
   const [previewValues, setPreviewValues] = React.useState<Record<string, string>>({})
+  const [verificationPending, setVerificationPending] = React.useState(false)
+  const candidateRef = React.useRef<{ revisionId: string; modelKey: string; taskKind: TaskKind } | null>(null)
+  const replaceCandidate = React.useCallback((candidate: { revisionId: string; modelKey: string; taskKind: TaskKind } | null) => {
+    const previous = candidateRef.current
+    candidateRef.current = candidate
+    if (previous && previous.revisionId !== candidate?.revisionId) {
+      void cancelComfyCandidateTestRevision(previous).catch(() => undefined)
+    }
+  }, [])
+  React.useEffect(() => () => {
+    const candidate = candidateRef.current
+    candidateRef.current = null
+    if (candidate) void cancelComfyCandidateTestRevision(candidate).catch(() => undefined)
+  }, [])
+  const closePage = React.useCallback(() => { onClose() }, [onClose])
+  const selectVendor = React.useCallback((next: string) => {
+    replaceCandidate(null)
+    setVerificationPending(false)
+    setVendorKey(next)
+  }, [replaceCandidate])
+  const selectWorkflow = React.useCallback((next: string) => {
+    replaceCandidate(null)
+    setVerificationPending(false)
+    setSelectedModelKey(next)
+  }, [replaceCandidate])
 
   const bumpAll = React.useCallback(() => {
     setRefreshToken((v) => v + 1)
@@ -86,11 +111,11 @@ export function ComfyuiWorkflowSettingsPage({
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return
       event.stopPropagation()
-      onClose()
+      closePage()
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [onClose])
+  }, [closePage])
 
   // 换后端 → 选中它的第一条工作流（别把上一台的选中项留在这儿，那条在这台上不存在）。
   const workflowKeys = catalog.workflows.map((w) => w.modelKey).join(',')
@@ -189,33 +214,37 @@ export function ComfyuiWorkflowSettingsPage({
     patchBinding((current) => toggleField(current, candidate))
   }, [patchBinding])
 
-  const save = React.useCallback((): boolean => {
+  const save = React.useCallback(async (): Promise<boolean> => {
     if (!selectedModelKey || !binding) return false
-    const update = getDesktopBridge()?.modelCatalog?.updateComfyWorkflow
-    if (!update) { setError(t('comfyuiWorkflowPage.errors.unsupported')); return false }
+    if (verificationPending && !dirty) return true
+    const prepare = getDesktopBridge()?.onboarding?.integrationSessionPrepareComfy
+    if (!prepare) { setError(t('comfyuiWorkflowPage.errors.unsupported')); return false }
     const label = name.trim() || labelOf(selectedModelKey)
     setBusy(true)
     try {
-      const result = update({
-        modelKey: selectedModelKey,
-        text: graphText,
-        binding,
-        labelZh: label,
-        // enumOptions 随保存烤回参数控件——combo 参数在画布才是真实文件下拉（与导入同口径）。
-        ...(reconcile?.enumOptions?.length ? { enumOptions: reconcile.enumOptions } : {}),
+      await prepare({
         vendorKey,
-        ...(uiWorkflowText ? { uiWorkflowText } : {}),
+        name: label,
+        modelKey: selectedModelKey,
+        workflow: graphText,
+        binding,
+        ...(reconcile?.enumOptions?.length ? { enumOptions: reconcile.enumOptions } : {}),
+        ...(uiWorkflowText ? { uiWorkflow: uiWorkflowText } : {}),
       })
-      if (!result.ok) { setError(t('comfyuiWorkflowPage.errors.saveFailed', { error: result.error })); return false }
       setDirty(false)
+      setVerificationPending(true)
       setError('')
-      toast(t('comfyuiWorkflowPage.header.saved', { name: label }), 'success')
-      bumpAll()
+      toast(t('onboardingProviders.comfyWorkflow.awaitingVerification', { name: label }), 'success')
       return true
+    } catch (value) {
+      setError(t('comfyuiWorkflowPage.errors.saveFailed', {
+        error: value instanceof Error ? value.message : String(value),
+      }))
+      return false
     } finally {
       setBusy(false)
     }
-  }, [selectedModelKey, binding, name, graphText, reconcile?.enumOptions, vendorKey, uiWorkflowText, labelOf, bumpAll, t])
+  }, [selectedModelKey, binding, verificationPending, dirty, name, labelOf, vendorKey, graphText, reconcile?.enumOptions, uiWorkflowText, t])
 
   const remove = React.useCallback(async () => {
     if (!selectedModelKey) return
@@ -291,23 +320,13 @@ export function ComfyuiWorkflowSettingsPage({
 
   const runTest = React.useCallback(async () => {
     if (!selectedModelKey || !binding) return
-    // 先保存再跑：跑的是**落库的那条**工作流，不能拿屏幕上的草稿假装跑通了（P3 全绿≠完成同理）。
-    if (dirty && !save()) { setError(t('comfyuiWorkflowPage.preview.runNeedsSave')); return }
     setRunning(true)
     try {
-      const result = await runTestGeneration({
-        vendorKey,
-        modelKey: selectedModelKey,
-        binding,
-        prompt: previewValues.prompt ?? '',
-        extras: previewValuesToExtras(preview.fields, previewValues),
-      })
-      if (result.ok) toast(t('comfyuiWorkflowPage.preview.runStarted'), 'success')
-      else toast(t('comfyuiWorkflowPage.preview.runFailed', { error: result.error }), 'error')
+      if (!(await save())) setError(t('comfyuiWorkflowPage.preview.runNeedsSave'))
     } finally {
       setRunning(false)
     }
-  }, [selectedModelKey, binding, dirty, save, vendorKey, previewValues, preview.fields, t])
+  }, [selectedModelKey, binding, save, t])
 
   const nodeCount = view.nodes.length
 
@@ -324,7 +343,7 @@ export function ComfyuiWorkflowSettingsPage({
         <header className="flex flex-none items-center gap-2 border-b border-nomi-line px-3 py-2">
           <button
             type="button"
-            onClick={onClose}
+            onClick={closePage}
             className="inline-flex h-7 items-center gap-1.5 rounded-nomi-sm px-2 text-caption text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink"
           >
             <IconArrowLeft size={14} stroke={1.8} aria-hidden="true" />{t('comfyuiWorkflowPage.back')}
@@ -334,7 +353,7 @@ export function ComfyuiWorkflowSettingsPage({
           <span className="flex-1" />
           <button
             type="button"
-            onClick={onClose}
+            onClick={closePage}
             aria-label={t('comfyuiWorkflowPage.close')}
             className="grid size-7 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink"
           >
@@ -347,13 +366,13 @@ export function ComfyuiWorkflowSettingsPage({
             <WorkflowSidebar
               backends={catalog.backends}
               selectedVendorKey={vendorKey}
-              onSelectBackend={setVendorKey}
+              onSelectBackend={selectVendor}
               onSaveAddress={saveAddress}
               onRemoveBackend={(row) => void removeBackend(row)}
               onBackendsChanged={bumpAll}
               workflows={catalog.workflows}
               selectedModelKey={selectedModelKey}
-              onSelectWorkflow={setSelectedModelKey}
+              onSelectWorkflow={selectWorkflow}
             />
             {selectedModelKey && binding ? (
               <WorkflowCanvasPreview
@@ -410,7 +429,7 @@ export function ComfyuiWorkflowSettingsPage({
               >
                 <button
                   type="button"
-                  onClick={save}
+                  onClick={() => { void save() }}
                   disabled={!selectedModelKey || !binding || busy || !binding.outputNodeId}
                   data-workflow-save
                   className="inline-flex h-7 items-center rounded-nomi-sm bg-nomi-ink px-3 text-micro font-semibold text-nomi-paper hover:bg-nomi-accent disabled:opacity-45"

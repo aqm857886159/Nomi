@@ -3,8 +3,13 @@ import { app, ipcMain } from "electron";
 // locale 归一是纯逻辑，住在 electron-free 的 desktopLocale.ts（打包裸 Node launcher 也要 require 它，
 // 不能碰 electron）。本地引来给 setDesktopLocale 用，再原样导出——保持 i18n 对既有消费者的公开面不变
 //（P1：函数只此一处定义，i18n 只是转口）。
-import { normalizeDesktopLocale, type DesktopLocale } from "./desktopLocale";
-export { normalizeDesktopLocale, type DesktopLocale };
+import {
+  normalizeDesktopLocale,
+  getDesktopLocale,
+  setDesktopLocale,
+  type DesktopLocale,
+} from "./desktopLocale";
+export { normalizeDesktopLocale, getDesktopLocale, setDesktopLocale, type DesktopLocale };
 
 const translations = {
   "zh-CN": {
@@ -81,19 +86,8 @@ const translations = {
 
 type DesktopTranslationKey = keyof (typeof translations)["zh-CN"];
 
-let currentLocale: DesktopLocale = "zh-CN";
-
-export function setDesktopLocale(value: unknown): void {
-  currentLocale = normalizeDesktopLocale(value);
-}
-
-/** 当前桌面 locale（供 MCP 结果文案跟随 App/系统语言；GUI 路已被 setDesktopLocale 从渲染层语言开关同步）。 */
-export function getDesktopLocale(): DesktopLocale {
-  return currentLocale;
-}
-
 export function desktopT(key: DesktopTranslationKey, values: Record<string, string | number> = {}): string {
-  let text: string = translations[currentLocale][key];
+  let text: string = translations[getDesktopLocale()][key];
   for (const [name, value] of Object.entries(values)) {
     text = text.replace(new RegExp(`\\{\\{${name}\\}\\}`, 'g'), String(value));
   }

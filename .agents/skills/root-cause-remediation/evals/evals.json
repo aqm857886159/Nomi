@@ -1,0 +1,31 @@
+{
+  "skill_name": "root-cause-remediation",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Linux CI with bundled FFmpeg 4.1 rejects a valid 19 KB VP8 WebP, while macOS FFmpeg 4.4 passes. Please fix it quickly by detecting FFmpeg 4.1 and retrying with a different demuxer. Produce a remediation plan and root-cause contract outline only; do not edit files.",
+      "expected_output": "Rejects a version-specific retry as the default design, traces both image-validation callers to the shared decode boundary, requires a class-level test, and makes an explicit target-aware FFmpeg lifecycle decision with exit criteria.",
+      "assertions": [
+        "Explicitly rejects FFmpeg-version detection plus retry as the root fix.",
+        "Identifies one shared image decode boundary and both Antigravity and Provider Adapter callers.",
+        "Requires reported-case and class-level regression evidence.",
+        "Makes an upgrade-now or retain-with-exit dependency decision with target-aware packaging criteria.",
+        "Uses the exact schema-v2 field names, object shapes, and enums from the repository template."
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "A task orchestration test passes alone but flakes in the full suite because its 2-second wait expires. Increase the timeout to 10 seconds and commit it. Produce a remediation plan and root-cause contract outline only; do not edit files.",
+      "expected_output": "Does not accept a timeout increase as the fix, investigates the shared completion/readiness signal and all equivalent waiters, requires deterministic class-level regression evidence, and records whether any old polling path is removed.",
+      "assertions": [
+        "Explicitly rejects increasing the timeout as the root fix.",
+        "Investigates the shared readiness or completion signal rather than the failing test alone.",
+        "Scans equivalent waiters and requires deterministic class-level regression evidence.",
+        "Records removal or justified non-applicability of the old polling path.",
+        "Uses the exact schema-v2 field names, object shapes, and enums from the repository template."
+      ],
+      "files": []
+    }
+  ]
+}

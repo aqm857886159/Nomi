@@ -27,7 +27,7 @@ import { currentArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
 import { resolveComfyWorkflowTaskKind } from '../../../../electron/catalog/comfyuiWorkflowTaskContract'
 import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
-import { loadUsableVendorKeys, remapArchetypeMode, resolveUsableModelForNode } from './usableVendorModel'
+import { remapArchetypeMode, resolveUsableModelForNode, usableVendorKeys } from './usableVendorModel'
 
 export type CatalogTaskActionOptions = {
   references?: Partial<ResolvedGenerationReferences>
@@ -138,20 +138,28 @@ export async function resolveExecutableNodeFromCatalog(
   // 「可用供应商」需要 catalog runtime；非 Electron 上下文（单测/Web）拿不到 → 退回旧行为：信任钉死的
   // 供应商（无法重解析，但也不该误抛）。能拿到时才进入「断开→自动迁移」新逻辑。
   const listVendors = options.listCatalogVendors || listWorkbenchModelCatalogVendors
-  let usable: Set<string> | null = null
+  let vendors: ModelCatalogVendorDto[]
+  let usable: Set<string>
   try {
-    usable = await loadUsableVendorKeys(listVendors)
+    vendors = await listVendors()
+    usable = usableVendorKeys(vendors)
   } catch {
-    usable = null
+    return node
   }
-  if (!usable) return node
+  const listCatalogModels = options.listCatalogModels || listWorkbenchModelCatalogModels
+  let models: ModelCatalogModelDto[] | null = null
 
   // Even an available vendor can have an updated parameter declaration. Refresh from the actual catalog.
+  // Vendor availability is not proof that this exact model is executable: a sibling can keep the source
+  // vendor alive after this model has migrated to a candidate revision. A missing exact row therefore
+  // continues into the same whole-catalog lineage resolver used for disconnected vendors.
   if (vendor && usable.has(vendor)) {
     try {
-      const models = await (options.listCatalogModels || listWorkbenchModelCatalogModels)({ kind: catalogKindForNode(node), enabled: true })
-      const match = models.find((model) => model.vendorKey === vendor && [model.modelKey, model.modelAlias].includes(modelKey))
-      return match ? { ...node, meta: projectParameterReferenceSlots(node.meta || {}, match.meta) } : node
+      models = await listCatalogModels({ kind: catalogKindForNode(node), enabled: true })
+      const match = models.find((model) =>
+        model.published && model.vendorKey === vendor && [model.modelKey, model.modelAlias].includes(modelKey),
+      )
+      if (match) return { ...node, meta: projectParameterReferenceSlots(node.meta || {}, match.meta) }
     } catch {
       // Non-desktop/test callers may have no model catalog bridge; retain their already validated declaration.
       return node
@@ -162,18 +170,20 @@ export async function resolveExecutableNodeFromCatalog(
     throw new Error(`供应商「${vendor}」已断开，且该节点未记录模型。请重新连接，或在该节点上改选已连接供应商的模型。`)
   }
 
-  const listCatalogModels = options.listCatalogModels || listWorkbenchModelCatalogModels
-  let models: ModelCatalogModelDto[]
-  try {
-    models = await listCatalogModels({ kind: catalogKindForNode(node), enabled: true })
-  } catch (error: unknown) {
-    const message = error instanceof Error && error.message ? error.message : String(error)
-    throw new Error(`模型目录解析失败：${message}`)
+  if (!models) {
+    try {
+      models = await listCatalogModels({ kind: catalogKindForNode(node), enabled: true })
+    } catch (error: unknown) {
+      const message = error instanceof Error && error.message ? error.message : String(error)
+      const catalogError = new Error(`模型目录解析失败：${message}`) as Error & { cause?: unknown }
+      catalogError.cause = error
+      throw catalogError
+    }
   }
 
   const meta = node.meta || {}
   const modelAlias = asTrimmedString(meta.modelAlias)
-  const match = resolveUsableModelForNode({ modelKey, modelAlias, vendor, meta, models, usable })
+  const match = resolveUsableModelForNode({ modelKey, modelAlias, vendor, meta, models, vendors, usable })
   if (!match) {
     const sourceArchetype = resolveArchetypeForModel({ modelKey, modelAlias, vendorKey: vendor, meta })
     const brand = sourceArchetype?.label || asTrimmedString(meta.modelLabel) || modelKey

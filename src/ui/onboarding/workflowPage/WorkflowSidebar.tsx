@@ -20,6 +20,7 @@ import {
   IconX,
 } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
+import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { AddComfyuiInstanceButton } from '../AddComfyuiInstanceButton'
 
 export type BackendRow = {
@@ -40,6 +41,7 @@ export type WorkflowRow = {
   fieldCount: number
   /** 缺件对账结果；null = 还没对完 / 这台没开。 */
   missing: { nodes: number; files: number } | null
+  missingFileNames: string[]
   offline: boolean
   /** 内置文生图没有原始 JSON，改不了绑定——列出来但标明白。 */
   builtin: boolean
@@ -184,7 +186,7 @@ function BackendItem({
         <IconServerBolt size={14} stroke={1.7} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1">
-            <span className="min-w-0 truncate text-caption text-nomi-ink">{backend.name}</span>
+            <span className="min-w-0 truncate text-caption text-nomi-ink">{translateModelDisplayText(backend.name)}</span>
             <span
               className={cn('size-1.5 shrink-0 rounded-full', backend.reachable === null
                 ? 'bg-nomi-ink-30'
@@ -247,7 +249,7 @@ function WorkflowItem({
       <Icon size={14} stroke={1.7} className="mt-0.5 shrink-0 text-nomi-ink-40" aria-hidden="true" />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1">
-          <span className="min-w-0 truncate text-caption text-nomi-ink">{workflow.labelZh}</span>
+          <span className="min-w-0 truncate text-caption text-nomi-ink">{translateModelDisplayText(workflow.labelZh)}</span>
           {workflow.builtin ? (
             <span className="shrink-0 rounded-full bg-nomi-ink-05 px-1.5 text-micro text-nomi-ink-40">
               {t('comfyuiWorkflowPage.workflows.builtin')}
@@ -262,11 +264,17 @@ function WorkflowItem({
           ) : missing === null ? (
             <span className="min-w-0 truncate text-nomi-ink-30">{t('comfyuiWorkflowPage.backends.checking')}</span>
           ) : hasMissing ? (
-            <span className="inline-flex min-w-0 items-center gap-0.5 truncate text-nomi-danger">
+            <span
+              className="inline-flex min-w-0 items-start gap-0.5 whitespace-normal break-all text-nomi-danger"
+              title={workflow.missingFileNames.join(', ')}
+            >
               <IconAlertTriangle size={11} stroke={1.9} aria-hidden="true" />
               {missing.nodes > 0
                 ? t('comfyuiWorkflowPage.workflows.missingNodes', { count: missing.nodes })
-                : t('comfyuiWorkflowPage.workflows.missingFiles', { count: missing.files })}
+                : t('comfyuiWorkflowPage.workflows.missingFiles', {
+                    count: missing.files,
+                    names: workflow.missingFileNames.join(', '),
+                  })}
             </span>
           ) : (
             <span className="inline-flex min-w-0 items-center gap-0.5 truncate text-[var(--nomi-track-video)]">

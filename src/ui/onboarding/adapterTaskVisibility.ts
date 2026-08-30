@@ -3,31 +3,31 @@ import { isAdapterRunTerminal } from './adapterVerificationViewModel'
 
 const RECENT_TASK_WINDOW_MS = 24 * 60 * 60 * 1000
 
-export function mergeAdapterRuns(
-  current: DesktopProviderAdapterRun[],
-  incoming: DesktopProviderAdapterRun[],
-): DesktopProviderAdapterRun[] {
+export function mergeAdapterRuns<T extends DesktopProviderAdapterRun>(
+  current: T[],
+  incoming: T[],
+): T[] {
   const byId = new Map(current.map((run) => [run.id, run]))
   for (const run of incoming) byId.set(run.id, run)
   return [...byId.values()].sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
 }
 
-export function adapterRunsRequiringCatalogRefresh(
-  previous: DesktopProviderAdapterRun[],
-  current: DesktopProviderAdapterRun[],
-): DesktopProviderAdapterRun[] {
+export function adapterRunsRequiringCatalogRefresh<T extends DesktopProviderAdapterRun>(
+  previous: T[],
+  current: T[],
+): T[] {
   const previousById = new Map(previous.map((run) => [run.id, run]))
   return current.filter((run) => {
     const before = previousById.get(run.id)
-    return isAdapterRunTerminal(run.stage) && (!before || !isAdapterRunTerminal(before.stage))
+    return Boolean(before) && isAdapterRunTerminal(run.stage) && !isAdapterRunTerminal(before!.stage)
   })
 }
 
-export function visibleAdapterRuns(
-  runs: DesktopProviderAdapterRun[],
+export function visibleAdapterRuns<T extends DesktopProviderAdapterRun>(
+  runs: T[],
   now = Date.now(),
   limit = 3,
-): DesktopProviderAdapterRun[] {
+): T[] {
   const newestFirst = [...runs].sort(
     (left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
   )

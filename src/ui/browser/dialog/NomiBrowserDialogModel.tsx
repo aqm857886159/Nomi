@@ -416,7 +416,7 @@ export function promptCaptureRequestFromBrowserEvent(
     extractionMode: event.extractionMode === 'style' ? 'style' : 'replicate',
     viewId: event.viewId,
     sourceUrl: event.url,
-    title: event.title || event.pageTitle || '网页图片提示词',
+    title: event.title || event.pageTitle || i18n.t('browserAssets.imagePromptCategory'),
     fileName: event.fileName || undefined,
     pageUrl: event.pageUrl || undefined,
     pageTitle: event.pageTitle || undefined,
@@ -467,4 +467,3 @@ export function PromptModeOption({
     </button>
   )
 }
-

@@ -26,7 +26,7 @@ vi.mock("electron", () => ({
     getAppPath: () => process.cwd(),
   },
   safeStorage: {
-    isEncryptionAvailable: () => false,
+    isEncryptionAvailable: () => true,
     encryptString: (s: string) => Buffer.from(s),
     decryptString: (b: Buffer) => b.toString(),
   },
@@ -69,7 +69,10 @@ async function seedFallbackImageVendor(): Promise<void> {
     meta: { extraHeaders: { "HTTP-Referer": "https://nomi.app", "X-Title": "Nomi" } },
   });
   store.upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-relay" });
-  store.upsertModelCatalogModel({ vendorKey: "relay", modelKey: "some-image-model", kind: "image", enabled: true });
+  store.upsertModelCatalogModel({
+    vendorKey: "relay", modelKey: "some-image-model", kind: "image", enabled: true,
+    meta: { adapter: { state: "verified", activeRevision: "fallback-certified", modes: [{ taskKind: "text_to_image", state: "verified" }] } },
+  });
 }
 
 describe("runTask fallback 路径 — 结构化错误 + extraHeaders", () => {

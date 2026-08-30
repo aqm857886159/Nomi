@@ -35,4 +35,18 @@ describe("createCatalogModuleRegistry", () => {
     const registry = createCatalogModuleRegistry(state({ models: [] }));
     expect(() => registry.resolve({ moduleId: "generation.single-shot", providerId: "anything", modelId: "anything", mode: "text_to_image" })).toThrow(/Unknown module/);
   });
+
+  it("does not register an enabled unverified adapter model even when a raw enabled mapping exists", () => {
+    const registry = createCatalogModuleRegistry(state({
+      models: [model({ meta: { adapter: { state: "unverified", modes: [], updatedAt: "t" } } })],
+      mappings: [mapping({ enabled: true })],
+    }));
+
+    expect(() => registry.resolve({
+      moduleId: "generation.single-shot",
+      providerId: "provider-a",
+      modelId: "image-model",
+      mode: "text_to_image",
+    })).toThrow(/Unknown module/);
+  });
 });

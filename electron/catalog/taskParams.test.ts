@@ -292,6 +292,16 @@ describe("hasImageEditReferences — L3 诚实护栏判定（图生图/图生视
     } })).toBe(false);
     expect(hasImageEditReferences({ extras: { comfy_image_1: "https://cdn/arbitrary.png" } })).toBe(false);
   });
+  it("允许精确 Comfy 槽在上传后使用 input 文件名继续通过媒体护栏", () => {
+    expect(hasImageEditReferences({ extras: declaredExtras(
+      [{ key: "comfy_image_1", mediaKind: "image" }],
+      { comfy_image_1: "certification-reference-1.png" },
+    ) })).toBe(true);
+    expect(hasImageEditReferences({ extras: declaredExtras(
+      [{ key: "comfy_video_1", mediaKind: "video" }],
+      { comfy_video_1: "certification-reference-1.mp4" },
+    ) })).toBe(false);
+  });
   it("non-Comfy keyed declarations keep relying on their legacy generic alias", () => {
     const extras = declaredExtras(
       [{ key: "custom_image", mediaKind: "image" }],

@@ -45,12 +45,11 @@ export function getGenerationNodeDefaultSize(kind: GenerationNodeKind): { width:
 // 极端兜底：理论不可达（registry 必含每个 kind 的 defaultSize），仅防 kind 串入非法值。
 const FOOTPRINT_FALLBACK_SIZE = { width: 340, height: 280 }
 
-// 节点尺寸的**单一真相源**（跨 store / components / fixation 共用，避免第二份真相源）：
-// 显式 node.size 优先，否则回退到 registry 的 per-kind defaultSize。所有几何子系统
-// （虚拟化 / fitView / 连线命中 / 框选 / 自适应散落 / minimap / 边 / 分组框 / 碰撞避让）
-// 都经此函数取尺寸，不再各自内联 ||300/220 或裸 320×360——那些常量与真实渲染宽不一致，
-// 让同一无 size 节点在不同子系统被算成不同大小（框选命中框比真实窄 → 选不中可见卡）。
-export function getNodeSize(node: Pick<GenerationCanvasNode, 'kind' | 'size'>): { width: number; height: number } {
+// 节点的**基础模型尺寸**：显式 node.size 优先，否则回退到 registry defaultSize。
+// 它只服务尚无完整节点状态的布局估算（例如新节点碰撞足迹），不是屏幕渲染尺寸。
+// 已有节点的 fit / focus / 框选 / minimap / 派生落点必须走 resolveNodeVisualSize；该函数还会纳入
+// renderKind、媒体 previewHeight、画幅和 clip 特例。刻意不用含混的 getNodeSize 名称，防止两种语义再混用。
+export function getNodeBaseSize(node: Pick<GenerationCanvasNode, 'kind' | 'size'>): { width: number; height: number } {
   return node.size ?? DEFAULT_NODE_SIZE[node.kind] ?? FOOTPRINT_FALLBACK_SIZE
 }
 
@@ -59,14 +58,14 @@ export function getNodeSize(node: Pick<GenerationCanvasNode, 'kind' | 'size'>): 
 // 吸收「渲染 > 名义」的增量 → 任何 kind、任何布局路径都不重叠。
 // 单插避让（store/resolveInsertionPosition）与批量布局（agent/trajectoryLayout）共用同一常量，
 // 不许各搞一套余量（那就是第二份真相源，正是「有的路径会重叠」这类 bug 的来源）。
-// 基础尺寸同样走 getNodeSize（共用单一真相源，不再各自 size ?? DEFAULT[kind]）。
+// 基础尺寸同样走 getNodeBaseSize（不再各自 size ?? DEFAULT[kind]）。
 export const NODE_RENDER_SAFETY = 64
 
 export function getGenerationNodeFootprintSize(
   kind: GenerationNodeKind,
   size?: { width: number; height: number },
 ): { width: number; height: number } {
-  const base = getNodeSize({ kind, size })
+  const base = getNodeBaseSize({ kind, size })
   return { width: base.width + NODE_RENDER_SAFETY, height: base.height + NODE_RENDER_SAFETY }
 }
 

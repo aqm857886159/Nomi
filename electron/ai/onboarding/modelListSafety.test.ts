@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { describeNetworkError, rememberProxyStateForTests, resetProxyStateForTests, type ProxySource } from "../../systemProxy";
+import { buildHttpRequest, buildTemplateContext } from "../requestPipeline";
 import { modelListErrorRedactor } from "./modelListSafety";
 
 afterEach(resetProxyStateForTests);
@@ -125,5 +126,21 @@ describe("model-list diagnostics preserve prose around sanitized URLs", () => {
     expect(result).toBe("[REDACTED]");
     expect(result).not.toContain("unknown-private-key");
     expect(sanitize(result)).toBe(result);
+  });
+
+  it("redacts arbitrary caller header values but preserves explicitly public request headers", () => {
+    const secret = "SENTINEL-CUSTOM-HEADER-SECRET";
+    const built = buildHttpRequest({
+      baseUrl: "https://gateway.test",
+      authType: "none",
+      apiKey: "",
+      context: buildTemplateContext({ request: {}, params: {}, model: {}, modelKey: "m", apiKey: "" }),
+      operation: { method: "POST", path: "/v1", body: {} },
+      extraHeaders: { "X-Workspace": secret },
+    });
+    const sanitize = modelListErrorRedactor(built.url, built.headers);
+    const result = sanitize(`upstream echoed ${secret}; content-type=application/json`);
+    expect(result).not.toContain(secret);
+    expect(result).toContain("content-type=application/json");
   });
 });

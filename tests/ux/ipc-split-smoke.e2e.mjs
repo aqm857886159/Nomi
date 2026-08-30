@@ -1,7 +1,7 @@
 // 巨壳拆分后的 IPC 接线回归冒烟（runtime.ts / main.ts 拆分专用，规则 13）。
 // 验证：app 启动后，被搬走的 export / onboarding / catalog IPC handler 仍注册、
 // 仍路由到新模块（exportJobs / exportJobIpc / onboardingIpc / catalogStore /
-// catalogCommit）。只验「接线通」——深层逻辑由 792 个单测覆盖；不发真实网络、不写真目录。
+// providerAdapter canonical facade）。只验「接线通」；不发真实网络、不写真目录。
 import { launchNomiApp } from "./_launchApp.mjs";
 
 let passed = 0;
@@ -34,8 +34,8 @@ try {
     }
     // 3) onboarding IPC：test-connection 空 baseUrl → registerOnboardingIpc + catalogStore.normalizeProviderKind
     out.onboardTest = await d.onboarding.testConnection({});
-    // 4) onboarding IPC：manual-commit 空 → registerOnboardingIpc → catalogCommit.commitManualOpenAiCompatibleModels
-    out.onboardCommit = await d.onboarding.manualCommit({});
+    // 4) onboarding canonical facade：configure 空连接 → providerAdapter IPC 稳定业务错误
+    out.onboardConfigure = await d.onboarding.httpConnectionConfigure({});
     // 5) catalog 读 IPC（catalogStore）：health + 列表
     out.health = d.modelCatalog?.health?.() ?? d.modelCatalog?.getHealth?.() ?? null;
     out.vendorCount = (d.modelCatalog?.listVendors?.() ?? []).length;
@@ -50,7 +50,7 @@ try {
   assert(/no handler/i.test(r.exportStatus) === false, "exports:status 非「handler 未注册」");
   assert(/projectId is required/i.test(r.exportStart), "nomi:exports:start-job 路由到 exportJobs.startExportJob（缺 projectId 报错）");
   assert(r.onboardTest && r.onboardTest.ok === false && /http/i.test(r.onboardTest.error || ""), "nomi:onboarding:test-connection 路由到 onboardingIpc（空地址返回业务错）");
-  assert(r.onboardCommit && r.onboardCommit.ok === false, "nomi:onboarding:manual-commit 路由到 catalogCommit（空入参优雅失败）");
+  assert(r.onboardConfigure && r.onboardConfigure.ok === false && r.onboardConfigure.code === "START_FAILED", "canonical http:configure 路由到 providerAdapter（空入参稳定失败）");
   assert(r.vendorCount >= 1, "catalog 读 IPC 经 catalogStore 返回内置 vendor");
 
   console.log(`\nIPC-SMOKE PASS: ${passed} assertions`);

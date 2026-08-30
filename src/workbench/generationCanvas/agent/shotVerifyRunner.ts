@@ -6,6 +6,7 @@
 // 容错铁律:verify 是**增益**,不该阻断「生成已完成」——任一镜取帧/判决失败 → 跳过该镜(不误报、不抛)。
 // 视觉模型不可用 → 整体跳过(降级仅结构对账,plan §4 Stage 1「没连视觉→仅结构校验」)。
 
+import { getAppLocale } from '../../../i18n'
 import type { ReconcileDeviation } from './reconcile'
 import {
   buildShotVerifyPrompt,
@@ -46,6 +47,8 @@ function toContext(shot: ShotVerifyInput): ShotVerifyContext {
     shotPrompt: shot.shotPrompt,
     anchorDescriptions: shot.anchorDescriptions,
     ...(shot.previousShotPrompt ? { previousShotPrompt: shot.previousShotPrompt } : {}),
+    // 判官的 reason 直接显示在对账卡上 → 让它按当前界面语言写(纯核保持无全局态,locale 由这层注入)。
+    reasonLanguage: getAppLocale(),
   }
 }
 

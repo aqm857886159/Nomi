@@ -1,0 +1,54 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-29-result-stack-viewport-collision",
+  "problem_type": "generation result history tray viewport collision",
+  "symptom": "On the constrained Linux desktop viewport, opening the version tray for a video node near the right canvas edge placed most of the tray outside the interactive stage, so the historical video and its controls were not visibly usable.",
+  "direct_cause": "NodeResultStack used an unconditional right-side absolute offset without measuring the node, tray, or canvas-stage bounds.",
+  "class_root": "Node-relative canvas overlays lacked the invariant that their resolved placement must use available stage space and avoid the viewport edge rather than assuming the preferred side always fits.",
+  "affected_population": [
+    "Desktop users opening result history for a node near the right canvas edge",
+    "Users on constrained windows or Linux virtual displays where the requested window size is clamped",
+    "Video-history users who need the hover player, scrubber, preview, download, or delete controls"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+    "src/workbench/generationCanvas/nodes/nodeResultStackPlacement.ts"
+  ],
+  "entry_points": [
+    "CardStackPeeks version-count trigger for image nodes",
+    "CardStackPeeks version-count trigger for video nodes",
+    "NodeResultStack opening after canvas pan, zoom, fit-view, or constrained-window layout"
+  ],
+  "internal_only_reason": "This is an internal Nomi canvas geometry and interaction invariant. Third-party documentation cannot decide the stage boundary, preferred side, or fallback behavior for Nomi's node-relative history tray; the production DOM measurements and Linux Electron artifact are the deciding evidence.",
+  "invariants": [
+    "The result tray prefers the right side when the measured stage space is sufficient.",
+    "The result tray flips to the left when the right side collides and the left side can contain it.",
+    "When neither side fully fits, placement chooses the side with more measured stage space.",
+    "The real Electron journey proves the opened tray is fully contained by the interactive canvas stage before exercising history media controls."
+  ],
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/nodeResultStackPlacement.test.ts",
+    "tests/ux/canvas-card-stack.walk.mjs"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any result tray opened near a stage edge or inside a constrained window could collide because the previous placement ignored measured space.",
+    "same_class_scan": [
+      "Scanned every NodeResultStack entry from image and video card-stack peeks and the shared node-relative tray implementation.",
+      "Exercised right-side fit, left-side flip, and neither-side-fits geometry boundaries in the placement helper.",
+      "Ran the image and video history Electron journey at wide and constrained stage sizes and checked containment before media interaction."
+    ]
+  },
+  "prevention": {
+    "strategy": "Resolve the tray side from measured node, tray, and stage geometry whenever the result stack opens.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+      "src/workbench/generationCanvas/nodes/nodeResultStackPlacement.ts"
+    ]
+  },
+  "migration": "No project, node, result-history, or media schema changes are required. Placement remains transient UI state and is recomputed whenever the tray opens.",
+  "residual_risks": [
+    "At an unsupported window size where neither side can contain the tray, the larger side is chosen but the fixed-width tray may still be partially clipped.",
+    "Placement is recomputed on open; moving an already-open node across the viewport is currently hidden by the shared canvas-dragging contract rather than continuously repositioned."
+  ]
+}

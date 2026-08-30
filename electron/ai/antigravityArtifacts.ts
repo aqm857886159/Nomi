@@ -1,20 +1,27 @@
-import { spawn } from "node:child_process";
 import { constants } from "node:fs";
 import { lstat, open } from "node:fs/promises";
 import path from "node:path";
 import { resolveFfmpegPath } from "../export/ffmpegRunner";
+import { runBoundedProcess } from "../export/mediaProbe";
 import type { AntigravityArtifact, AntigravityToolStep } from "./antigravityProtocol";
 
 export const ANTIGRAVITY_IMAGE_LIMIT = 20 * 1024 * 1024;
 const MAX_PIXELS = 16_777_216;
 
+export function imageDecoderInputArgs(mimeType: string, byteLength: number): string[] {
+  const inputDemuxer = mimeType === "image/webp" ? "webp_pipe" : "image2pipe";
+  return ["-f", inputDemuxer, "-frame_size", String(byteLength)];
+}
+
 /** No directory enumeration, symlinks, devices, FIFOs, or unbounded reads. */
 export async function readAntigravityFile(root: string, relative: string, limit: number): Promise<Buffer> {
   try {
-    if (path.isAbsolute(relative) || relative.split(path.sep).some((part) => !part || part === "." || part === "..")) throw new Error();
+    const parts = relative.split(/[\\/]+/);
+    if (path.posix.isAbsolute(relative) || path.win32.isAbsolute(relative)
+      || parts.some((part) => !part || part === "." || part === "..")) throw new Error();
     let current = root;
     const directories: Array<{ path: string; dev: number; ino: number }> = [];
-    for (const part of ["", ...relative.split(path.sep).slice(0, -1)]) {
+    for (const part of ["", ...parts.slice(0, -1)]) {
       if (part) current = path.join(current, part);
       const info = await lstat(current);
       if (!info.isDirectory() || info.isSymbolicLink()) throw new Error();
@@ -30,7 +37,13 @@ export async function readAntigravityFile(root: string, relative: string, limit:
         if (!now.isDirectory() || now.isSymbolicLink() || now.dev !== directory.dev || now.ino !== directory.ino) throw new Error();
       }
       const named = await lstat(path.join(root, relative));
-      if (named.isSymbolicLink() || named.dev !== info.dev || named.ino !== info.ino) throw new Error();
+      // libuv reports different `dev` values for an open handle and lstat on
+      // Windows, while the file index (`ino`) remains stable. Keep the
+      // identity race check strict on POSIX and use the stable Windows index.
+      const identityChanged = process.platform === "win32"
+        ? named.ino !== info.ino
+        : named.dev !== info.dev || named.ino !== info.ino;
+      if (named.isSymbolicLink() || identityChanged) throw new Error();
       const bytes = Buffer.alloc(Math.min(info.size + 1, limit + 1));
       let offset = 0;
       while (offset < bytes.length) {
@@ -61,32 +74,19 @@ export async function validateAntigravityImage(bytes: Uint8Array, declaredMime?:
   if (!mimeType || data.length > ANTIGRAVITY_IMAGE_LIMIT || (declaredMime && declaredMime !== mimeType)) {
     throw new Error("ANTIGRAVITY_IMAGE_INVALID");
   }
-  const decoded = await new Promise<string>((resolve, reject) => {
-    // Existing bundled decoder; strict error mode validates pixels, not merely headers.
-    const child = spawn(resolveFfmpegPath(), ["-hide_banner", "-v", "error", "-xerror", "-err_detect", "explode",
-      "-max_pixels", String(MAX_PIXELS), "-f", "image2pipe", "-i", "pipe:0", "-frames:v", "1", "-f", "framehash", "pipe:1"],
-    { shell: false, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
-    let output = ""; let diagnostics = ""; let failure: Error | undefined;
-    const stop = (error: Error) => { failure ??= error; child.kill("SIGKILL"); };
-    const abort = () => stop(Object.assign(new Error("ANTIGRAVITY_CANCELLED"), { name: "AbortError" }));
-    const timer = setTimeout(() => stop(new Error("ANTIGRAVITY_IMAGE_INVALID")), 10_000);
-    child.stdout.on("data", (chunk: Buffer) => {
-      output += chunk.toString("utf8");
-      if (output.length > 16_384) stop(new Error("ANTIGRAVITY_IMAGE_INVALID"));
-    });
-    child.stderr.on("data", (chunk: Buffer) => { diagnostics = (diagnostics + chunk.toString("utf8")).slice(-4096); });
-    child.stdin.on("error", () => {});
-    child.on("error", () => { failure ??= new Error("ANTIGRAVITY_IMAGE_INVALID"); });
-    child.on("close", (code) => {
-      clearTimeout(timer); signal?.removeEventListener("abort", abort);
-      if (signal?.aborted) failure ??= Object.assign(new Error("ANTIGRAVITY_CANCELLED"), { name: "AbortError" });
-      if (failure) reject(failure);
-      else if (code !== 0 || diagnostics.trim()) reject(new Error("ANTIGRAVITY_IMAGE_INVALID"));
-      else resolve(output);
-    });
-    signal?.addEventListener("abort", abort, { once: true });
-    if (signal?.aborted) abort(); else child.stdin.end(data);
-  });
+  // Existing bundled decoder; strict error mode validates pixels, not merely headers. It shares the
+  // certification process runner so timeout/cancel kills the complete process tree and waits for reap.
+  // FFmpeg 4.1 otherwise splits piped WebP into 4096-byte packets. Bind the trusted MIME and exact
+  // bounded byte count so every bundled version sends one complete image container to the decoder.
+  const decodedResult = await runBoundedProcess(
+    resolveFfmpegPath(),
+    ["-hide_banner", "-v", "error", "-xerror", "-err_detect", "explode",
+      "-max_pixels", String(MAX_PIXELS), ...imageDecoderInputArgs(mimeType, data.length),
+      "-i", "pipe:0", "-frames:v", "1", "-f", "framehash", "pipe:1"],
+    { signal, timeoutMs: 10_000, maxStdoutBytes: 16_384, maxStderrBytes: 4_096, input: data },
+  );
+  if (decodedResult.code !== 0 || decodedResult.stderr.trim()) throw new Error("ANTIGRAVITY_IMAGE_INVALID");
+  const decoded = decodedResult.stdout;
   const dimensions = /^#dimensions 0: (\d+)x(\d+)$/m.exec(decoded);
   const frames = decoded.split("\n").filter((line) => /^0,/.test(line));
   const width = Number(dimensions?.[1]); const height = Number(dimensions?.[2]);

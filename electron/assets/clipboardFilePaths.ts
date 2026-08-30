@@ -1,17 +1,28 @@
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 const URI_FORMATS = new Set(["public.file-url", "text/uri-list", "text/plain"]);
 const WINDOWS_FORMATS = new Set(["FileNameW", "FileName"]);
 
 function isAbsoluteFilePath(value: string): boolean {
-  return path.isAbsolute(value) || /^[A-Za-z]:[\\/]/.test(value) || /^\\\\/.test(value);
+  return path.posix.isAbsolute(value) || path.win32.isAbsolute(value);
 }
 
 function decodeFileUri(value: string): string | null {
   try {
     const url = new URL(value);
-    return url.protocol === "file:" ? fileURLToPath(url) : null;
+    if (url.protocol !== "file:") return null;
+    const pathname = decodeURIComponent(url.pathname);
+    // URI paths are a cross-platform protocol. Preserve POSIX paths even when
+    // the host running Nomi is Windows; only drive/UNC forms use win32 syntax.
+    if (/^\/[A-Za-z]:\//.test(pathname)) {
+      const drivePath = pathname.slice(1);
+      return process.platform === "win32" ? path.win32.normalize(drivePath) : drivePath;
+    }
+    if (url.host && url.host !== "localhost") {
+      const unc = `//${url.host}${pathname}`;
+      return process.platform === "win32" ? path.win32.normalize(unc) : unc;
+    }
+    return path.posix.normalize(pathname);
   } catch {
     return null;
   }

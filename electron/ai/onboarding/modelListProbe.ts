@@ -10,6 +10,12 @@
  */
 import type { AiSdkProviderKind } from "../../catalog/types";
 import { appFetch } from "../../appFetch";
+import {
+  appendQueryParams,
+  buildHttpRequest,
+  type AuthType,
+  type BuiltRequest,
+} from "../requestPipeline";
 import { describeIllegalHeader, findIllegalHeader, isJsonRecord, mergeHeadersCaseInsensitive, pickUpstreamMessage } from "../../jsonUtils";
 import { parseModelListPage, type ModelListFailureKind } from "./modelListResponse";
 import { modelListErrorRedactor } from "./modelListSafety";
@@ -76,19 +82,38 @@ function failureKindForStatus(status: number): ModelListFailureKind {
   return "upstream";
 }
 
-function modelListCandidates(providerKind: AiSdkProviderKind, baseUrl: string, query: Record<string, string>): URL[] {
+export function buildModelListRequests(input: {
+  providerKind: AiSdkProviderKind;
+  baseUrl: string;
+  authType: AuthType;
+  apiKey: string;
+  authHeader?: string;
+  authQueryParam?: string;
+  headers: Record<string, string>;
+  query?: Record<string, string>;
+}): BuiltRequest[] {
+  const { providerKind, baseUrl } = input;
   const base = new URL(baseUrl);
   if (!/^https?:$/.test(base.protocol) || base.username || base.password) throw new Error("Invalid API address");
   base.hash = "";
+  const baseQuery = Object.fromEntries(base.searchParams);
+  base.search = "";
   const path = base.pathname.replace(/\/+$/, "");
   const versioned = /\/v\d+(?:[a-z]+\d*)?$/i.test(path);
-  const paths = /\/models$/i.test(path) ? [path] : versioned ? [`${path}/models`]
-    : providerKind === "anthropic" ? [`${path}/v1/models`] : [`${path}/models`, `${path}/v1/models`];
-  return paths.map((pathname) => {
-    const url = new URL(base);
-    url.pathname = pathname;
-    for (const [key, value] of Object.entries(query)) if (key && value) url.searchParams.set(key, value);
-    return url;
+  const paths = /\/models$/i.test(path) ? ["/models"] : versioned ? ["/models"]
+    : providerKind === "anthropic" ? ["/v1/models"] : ["/models", "/v1/models"];
+  return paths.map((operationPath) => {
+    const built = buildHttpRequest({
+      baseUrl: base.toString(),
+      authType: input.authType,
+      authHeaderName: input.authHeader,
+      authQueryParam: input.authQueryParam,
+      apiKey: input.apiKey,
+      context: {},
+      operation: { method: "GET", path: operationPath, query: { ...baseQuery, ...(input.query || {}) } },
+      extraHeaders: input.headers,
+    });
+    return { ...built, url: appendQueryParams(built.url, built.query) };
   });
 }
 
@@ -122,8 +147,17 @@ export async function fetchModelList(
   });
   const headerProblem = findIllegalHeader(headers);
   if (headerProblem) return failure("auth", describeIllegalHeader(headerProblem).message);
-  let candidates: URL[];
-  try { candidates = modelListCandidates(providerKind, baseUrl, query); }
+  let candidates: BuiltRequest[];
+  try {
+    candidates = buildModelListRequests({
+      providerKind,
+      baseUrl,
+      authType: "none",
+      apiKey: "",
+      headers,
+      query,
+    });
+  }
   catch { return failure("invalid_response", "Invalid API address"); }
   let strongest: Failure | undefined;
   const remember = (failed: Failure): Failure => {
@@ -132,7 +166,7 @@ export async function fetchModelList(
   };
   let sawEmptyList = false;
   for (const candidate of candidates) {
-    let url = candidate;
+    let url = new URL(candidate.url);
     const seenPages = new Set<string>();
     const models = new Set<string>();
     for (let pageNumber = 0; pageNumber < MAX_PAGES; pageNumber += 1) {
@@ -142,7 +176,7 @@ export async function fetchModelList(
       let status: number | undefined;
       try {
         // Never auto-follow redirects with arbitrary gateway auth headers/query credentials.
-        res = await appFetch(url.toString(), { method: "GET", headers, signal, redirect: "manual" });
+        res = await appFetch(url.toString(), { method: candidate.method, headers: candidate.headers, signal, redirect: "manual" });
         statuses.push(res.status);
         status = res.status;
         body = await res.text();
@@ -171,11 +205,12 @@ export async function fetchModelList(
         try {
           next = page.next ? new URL(page.next, url) : new URL(url);
           if (page.afterId) next.searchParams.set("after_id", page.afterId);
-          if (next.origin !== candidate.origin || next.pathname !== candidate.pathname || next.username || next.password || next.hash) {
+          const candidateUrl = new URL(candidate.url);
+          if (next.origin !== candidateUrl.origin || next.pathname !== candidateUrl.pathname || next.username || next.password || next.hash) {
             return remember(failure("invalid_response", "Unsafe model-list pagination link", res.status));
           }
           // Keep saved base/query authentication when next contains only its cursor.
-          for (const [key, value] of candidate.searchParams) if (!next.searchParams.has(key)) next.searchParams.set(key, value);
+          for (const [key, value] of candidateUrl.searchParams) if (!next.searchParams.has(key)) next.searchParams.set(key, value);
           for (const [key, value] of Object.entries(query)) if (key && value) next.searchParams.set(key, value);
           if (seenPages.has(pageIdentity(next))) return remember(failure("invalid_response", "Repeated model-list pagination cursor", res.status));
         } catch { return remember(failure("invalid_response", "Invalid model-list pagination link", res.status)); }

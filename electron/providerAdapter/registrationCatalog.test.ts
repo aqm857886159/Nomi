@@ -62,7 +62,7 @@ describe("provider adapter registration catalog", () => {
 
     expect(upsertVendor).toHaveBeenCalledWith(expect.objectContaining({
       key: "saved-gateway",
-      enabled: true,
+      enabled: false,
     }));
     expect(upsertApiKey).toHaveBeenCalledWith("saved-gateway", {
       apiKey: "sk-encrypt-me",
@@ -71,7 +71,7 @@ describe("provider adapter registration catalog", () => {
     expect(upsertModel).not.toHaveBeenCalled();
   });
 
-  it("enables only new text models and marks every new model as manually added and unverified", () => {
+  it("keeps every newly registered model disabled and marks it unverified", () => {
     const kinds = ["text", "image", "video", "audio", "model3d"] as const;
     const models = Array.from({ length: 20 }, (_, index) => ({
       modelKey: `model-${index + 1}`,
@@ -92,7 +92,7 @@ describe("provider adapter registration catalog", () => {
 
     expect(upsertVendor).toHaveBeenCalledWith(expect.objectContaining({
       key: "generic-gateway",
-      enabled: true,
+      enabled: false,
     }));
     expect(upsertApiKey).toHaveBeenCalledWith("generic-gateway", {
       apiKey: "sk-encrypt-me",
@@ -101,7 +101,7 @@ describe("provider adapter registration catalog", () => {
     expect(upsertModel).toHaveBeenCalledTimes(20);
     for (const [written] of upsertModel.mock.calls) {
       expect(written).toMatchObject({
-        enabled: written.kind === "text",
+        enabled: false,
         onboarding: { addedVia: "manual", addedAt: now, fields: [] },
         meta: {
           adapter: {
@@ -162,6 +162,55 @@ describe("provider adapter registration catalog", () => {
         adapter: expect.objectContaining({ state: "unverified" }),
       }),
     }));
+  });
+
+  it("rejects preserving a legacy plaintext credential and never echoes it", () => {
+    const sentinel = "sk-legacy-sentinel";
+    state = {
+      ...emptyState(),
+      vendors: [{
+        key: "saved-gateway",
+        name: "Saved Gateway",
+        enabled: true,
+        baseUrlHint: "https://gateway.example.test/v1",
+        authType: "bearer",
+        createdAt: now,
+        updatedAt: now,
+      }],
+      apiKeysByVendor: {
+        "saved-gateway": {
+          vendorKey: "saved-gateway",
+          apiKey: sentinel,
+          enc: "plain",
+          enabled: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    };
+
+    let error: unknown;
+    try {
+      defaultCatalog.register({
+        vendorKey: "saved-gateway",
+        vendorName: "Saved Gateway",
+        baseUrl: "https://gateway.example.test/v1",
+        apiKey: "",
+        authType: "bearer",
+        providerKind: "openai-compatible",
+        preserveExistingCredential: true,
+        models: [{ modelKey: "new-image", kind: "image" }],
+        savedAt: now,
+      });
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(Error);
+    expect(String(error)).toContain("save");
+    expect(String(error)).not.toContain(sentinel);
+    expect(upsertVendor).not.toHaveBeenCalled();
+    expect(upsertApiKey).not.toHaveBeenCalled();
   });
 
   it("preserves executable existing models and their adapter, mapping, and custom-call capability", () => {
@@ -251,7 +300,7 @@ describe("provider adapter registration catalog", () => {
       },
     };
 
-    defaultCatalog.register({
+    const registered = defaultCatalog.register({
       vendorKey: "saved-gateway",
       vendorName: "Saved Gateway",
       baseUrl: "https://gateway.example.test/v1",
@@ -259,30 +308,114 @@ describe("provider adapter registration catalog", () => {
       authType: "bearer",
       providerKind: "openai-compatible",
       preserveExistingCredential: true,
-      models: state.models.map(({ modelKey, labelZh, kind }) => ({ modelKey, labelZh, kind })),
+      models: state.models.map(({ modelKey, labelZh, kind }) => modelKey === "revision-image"
+        ? { modelKey, labelZh: "Unverified replacement", kind: "video" as const }
+        : { modelKey, labelZh, kind }),
       savedAt: now,
     });
 
+    const returned = new Map(registered.models.map((model) => [model.modelKey, model]));
     const writes = new Map(upsertModel.mock.calls.map(([model]) => [model.modelKey, model]));
-    expect(writes.get("revision-image")).toMatchObject({
-      enabled: true,
-      meta: { adapter: oldAdapter, parameters: [{ key: "size" }] },
-      onboarding: { addedVia: "agent" },
+    expect(registered.vendor.key).not.toBe("saved-gateway");
+    expect(returned.get("revision-image")).toMatchObject({
+      labelZh: "Unverified replacement",
+      kind: "video",
+      enabled: false,
+      meta: { adapter: { state: "unverified" } },
+      onboarding: { addedVia: "manual" },
     });
-    expect(writes.get("script-video")).toMatchObject({
-      enabled: true,
-      customCall: { script: expect.stringContaining("assets") },
-      meta: { adapter: { state: "failed" } },
+    expect(returned.get("script-video")).toMatchObject({
+      enabled: false,
+      meta: { adapter: { state: "unverified" } },
     });
-    expect(writes.get("mapped-audio")).toMatchObject({
-      enabled: true,
-      meta: { adapter: { state: "partial" } },
+    expect(returned.get("mapped-audio")).toMatchObject({
+      enabled: false,
+      meta: { adapter: { state: "unverified" } },
     });
     expect(writes.get("no-contract-image")).toMatchObject({
       enabled: false,
       meta: { adapter: { state: "unverified", modes: [], updatedAt: now } },
       onboarding: { addedVia: "manual", addedAt: now, fields: [] },
     });
+    expect(state.models.find((model) => model.modelKey === "revision-image")).toMatchObject({
+      labelZh: "Revision image",
+      kind: "image",
+      enabled: true,
+      meta: { adapter: oldAdapter, parameters: [{ key: "size" }] },
+      onboarding: { addedVia: "agent" },
+    });
+    expect(state.models.find((model) => model.modelKey === "script-video")).toMatchObject({
+      enabled: true,
+      customCall: { script: expect.stringContaining("assets") },
+    });
     expect(state.mappings).toHaveLength(1);
+  });
+
+  it("stages a replacement connection under an isolated vendor identity without touching the published vendor or credential", () => {
+    const activeVendor: Vendor = {
+      key: "shared-gateway",
+      name: "Shared Gateway",
+      enabled: true,
+      baseUrlHint: "https://gateway.example.test/v1",
+      authType: "bearer",
+      providerKind: "openai-compatible",
+      meta: { extraHeaders: { "X-Active": "yes" } },
+      createdAt: now,
+      updatedAt: now,
+    };
+    const activeCredential = {
+      vendorKey: activeVendor.key,
+      apiKey: "encrypted-active-key",
+      enc: "safeStorage" as const,
+      enabled: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    state = {
+      ...emptyState(),
+      vendors: [activeVendor],
+      models: [
+        { vendorKey: activeVendor.key, modelKey: "target", labelZh: "Target", kind: "image", enabled: true, createdAt: now, updatedAt: now },
+        { vendorKey: activeVendor.key, modelKey: "sibling", labelZh: "Sibling", kind: "video", enabled: true, createdAt: now, updatedAt: now },
+      ],
+      mappings: [
+        { id: "target-map", vendorKey: activeVendor.key, modelKey: "target", taskKind: "text_to_image", name: "target", enabled: true, create: { method: "POST", path: "/active-target" }, createdAt: now, updatedAt: now },
+        { id: "sibling-map", vendorKey: activeVendor.key, modelKey: "sibling", taskKind: "text_to_video", name: "sibling", enabled: true, create: { method: "POST", path: "/active-sibling" }, createdAt: now, updatedAt: now },
+      ],
+      apiKeysByVendor: { [activeVendor.key]: activeCredential },
+    };
+    const before = structuredClone(state);
+
+    const registered = defaultCatalog.register({
+      catalogVendorKey: activeVendor.key,
+      vendorKey: activeVendor.key,
+      vendorName: "Candidate Gateway",
+      baseUrl: "https://gateway.example.test/v2",
+      apiKey: "candidate-secret",
+      authType: "bearer",
+      providerKind: "openai-responses",
+      headers: { "X-Candidate": "yes" },
+      models: [{ modelKey: "target", labelZh: "Candidate Target", kind: "video" }],
+      savedAt: now,
+    });
+
+    expect(registered.vendor.key).not.toBe(activeVendor.key);
+    expect(upsertVendor).not.toHaveBeenCalledWith(expect.objectContaining({ key: activeVendor.key }));
+    expect(upsertVendor).toHaveBeenCalledWith(expect.objectContaining({
+      key: registered.vendor.key,
+      baseUrlHint: "https://gateway.example.test/v2",
+      providerKind: "openai-responses",
+      enabled: false,
+      meta: expect.objectContaining({ adapterCandidateSourceVendorKey: activeVendor.key }),
+    }));
+    expect(upsertApiKey).toHaveBeenCalledWith(registered.vendor.key, { apiKey: "candidate-secret", enabled: true });
+    expect(upsertApiKey).not.toHaveBeenCalledWith(activeVendor.key, expect.anything());
+    expect(upsertModel).toHaveBeenCalledWith(expect.objectContaining({
+      vendorKey: registered.vendor.key,
+      modelKey: "target",
+      kind: "video",
+      enabled: false,
+    }));
+    expect(state).toEqual(before);
   });
 });

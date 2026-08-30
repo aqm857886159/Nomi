@@ -33,6 +33,10 @@ describe('adapterFailureAdvice', () => {
     expect(adapterFailureAdvice({ errorCategory: 'server', httpStatus: 503 }).action).toBe('retry')
   })
 
+  it('keeps a transport timeout distinct and offers a retry instead of configuration changes', () => {
+    expect(adapterFailureAdvice({ errorCategory: 'timeout' })).toEqual({ reasonKey: 'network', action: 'retry' })
+  })
+
   // 编译失败 = 我们没读懂这家文档，跟用户配置无关；先于状态码判断，别让他改地址瞎试。
   it('offers the escape hatch when compilation failed, regardless of status', () => {
     expect(adapterFailureAdvice({ stage: 'compile' })).toEqual({ reasonKey: 'compile', action: 'selfConnect' })

@@ -1,8 +1,9 @@
 import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
-import type { BillingModelKind } from '../../api/desktopClient'
+import type { BillingModelKind, ProfileKind } from '../../api/desktopClient'
 
 // 单一真相源：复用 desktopClient 的 BillingModelKind（含 'audio'），避免两份定义漂移。
 export type { BillingModelKind }
+export type { ProfileKind }
 
 export type ModelCatalogVendorAuthType = 'none' | 'bearer' | 'x-api-key' | 'query'
 
@@ -10,6 +11,8 @@ export type ModelCatalogHealthIssueCode =
   | 'catalog_empty'
   | 'vendor_disabled'
   | 'vendor_api_key_missing'
+  | 'vendor_api_key_locked'
+  | 'vendor_api_key_needs_resave'
   | 'model_mapping_missing'
 
 export type ModelCatalogHealthIssueDto = {
@@ -61,6 +64,8 @@ export type ModelCatalogModelDto = {
   labelZh: string
   kind: BillingModelKind
   enabled: boolean
+  published: boolean
+  publishedModes: ProfileKind[]
   meta?: unknown
   pricing?: {
     cost: number

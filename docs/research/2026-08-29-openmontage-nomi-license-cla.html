@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>OpenMontage × Nomi：架构、Agent 与协议研究</title>
+  <style>
+    :root {
+      --ink: #192326;
+      --muted: #59676a;
+      --paper: #f4f1e9;
+      --panel: #fffdf7;
+      --line: #d7d2c6;
+      --teal: #0d6b68;
+      --teal-soft: #d8eeeb;
+      --coral: #c45638;
+      --yellow: #f1c45e;
+      --shadow: 0 18px 50px rgba(25, 35, 38, .10);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(13,107,104,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(13,107,104,.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: "Avenir Next", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      line-height: 1.65;
+    }
+    a { color: var(--teal); text-underline-offset: 3px; }
+    .shell { max-width: 1180px; margin: 0 auto; padding: 28px 22px 80px; }
+    .masthead {
+      display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(250px, .8fr);
+      gap: 22px; align-items: end; margin-bottom: 28px;
+    }
+    .kicker { color: var(--coral); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 800; }
+    h1, h2, h3 { font-family: Georgia, "Songti SC", serif; line-height: 1.15; letter-spacing: 0; }
+    h1 { font-size: clamp(2.25rem, 6vw, 5.2rem); margin: 10px 0 14px; max-width: 800px; }
+    h2 { font-size: clamp(1.65rem, 3vw, 2.5rem); margin: 0 0 14px; }
+    h3 { font-size: 1.25rem; margin: 0 0 10px; }
+    .lead { color: var(--muted); font-size: 1.1rem; max-width: 760px; margin: 0; }
+    .stamp { border-left: 4px solid var(--coral); padding: 14px 16px; background: rgba(255,253,247,.82); box-shadow: var(--shadow); }
+    .stamp strong { display: block; font-size: 1.1rem; margin-bottom: 4px; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 32px; }
+    nav a { text-decoration: none; border: 1px solid var(--line); background: var(--panel); padding: 7px 12px; border-radius: 999px; font-size: .88rem; }
+    .section { margin: 0 0 28px; scroll-margin-top: 18px; }
+    .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; border-bottom: 2px solid var(--ink); padding-bottom: 9px; margin-bottom: 16px; }
+    .section-head small { color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+    .card { grid-column: span 4; background: var(--panel); border: 1px solid var(--line); padding: 18px; box-shadow: 0 8px 22px rgba(25,35,38,.06); }
+    .card.wide { grid-column: span 8; }
+    .card.full { grid-column: 1 / -1; }
+    .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+    .metric { font-family: Georgia, serif; font-size: 2rem; color: var(--teal); display: block; }
+    .eyebrow { color: var(--coral); font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .flow { display: grid; grid-template-columns: repeat(9, minmax(85px, 1fr)); gap: 7px; align-items: stretch; margin: 20px 0 8px; }
+    .step { position: relative; min-height: 112px; padding: 13px 10px; background: var(--teal-soft); border: 1px solid #a8d6d1; }
+    .step:not(:last-child)::after { content: "→"; position: absolute; right: -15px; top: 39px; z-index: 1; color: var(--coral); font-size: 1.35rem; font-weight: 800; }
+    .step b { display: block; font-size: .9rem; margin-bottom: 5px; }
+    .step span { display: block; color: var(--muted); font-size: .76rem; line-height: 1.4; }
+    .gate { background: #fff0d1; border-color: #e6bd66; }
+    .diagram { border: 1px solid var(--line); background: rgba(255,253,247,.72); padding: 16px; }
+    .lane { display: grid; grid-template-columns: 170px 1fr; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px dashed var(--line); }
+    .lane:last-child { border-bottom: 0; }
+    .lane-label { font-weight: 800; }
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .chip { display: inline-block; padding: 3px 8px; border-radius: 4px; background: #e9e6dc; color: #354245; font: .78rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .chip.good { background: var(--teal-soft); color: #07514e; }
+    .chip.warn { background: #ffe5d8; color: #86351f; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { text-align: left; vertical-align: top; padding: 11px 10px; border-bottom: 1px solid var(--line); }
+    th { color: var(--teal); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    ul { padding-left: 1.2rem; margin-top: 8px; }
+    li + li { margin-top: 6px; }
+    details { background: rgba(255,253,247,.72); border: 1px solid var(--line); padding: 12px 15px; }
+    details + details { margin-top: 8px; }
+    summary { cursor: pointer; font-weight: 800; }
+    .callout { border-left: 5px solid var(--teal); background: var(--teal-soft); padding: 14px 17px; }
+    .callout.coral { border-left-color: var(--coral); background: #ffe8dd; }
+    code { font: .9em ui-monospace, SFMono-Regular, Menlo, monospace; background: #e9e6dc; padding: 2px 5px; border-radius: 3px; }
+    .sources { font-size: .88rem; color: var(--muted); }
+    footer { border-top: 2px solid var(--ink); margin-top: 42px; padding-top: 16px; color: var(--muted); font-size: .83rem; }
+    @media (max-width: 820px) {
+      .masthead { grid-template-columns: 1fr; }
+      .card, .card.wide { grid-column: 1 / -1; }
+      .flow { grid-template-columns: 1fr; }
+      .step:not(:last-child)::after { content: "↓"; top: auto; right: 50%; bottom: -22px; }
+      .lane { grid-template-columns: 1fr; gap: 5px; }
+      th, td { padding: 9px 6px; }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --ink: #e8eee9; --muted: #aab9b5; --paper: #152020; --panel: #1c2a29; --line: #3a4a47; --teal-soft: #173f3d; --yellow: #d9aa42; }
+      body { background-color: var(--paper); }
+      .stamp, .diagram, details { background: rgba(28,42,41,.9); }
+      .chip { background: #30403d; color: #dce6e2; }
+      .chip.good { background: #174947; color: #b5e2dc; }
+      .chip.warn { background: #573127; color: #ffd1be; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="masthead">
+      <div>
+        <div class="kicker">Research brief / 2026-08-29</div>
+        <h1>OpenMontage<br><span style="color:var(--coral)">像写软件一样</span>制作视频</h1>
+        <p class="lead">把 brief、调研、剧本、场景计划、素材、旁白、音乐和渲染，变成可检查、可回滚、可追溯的 Agent 工作流。下面说明它真正解决了什么，以及哪些边界适合 Nomi 借鉴。</p>
+      </div>
+      <aside class="stamp"><strong>一句话结论</strong>OpenMontage 最有价值的不是一套渲染器，而是把创作中间产物和人工闸门做成一等公民。Nomi 应借它的 artifact / checkpoint / provenance 思路，继续保留自己的 TimelineState、EditPlan 与 Adoption 真相源。</aside>
+    </header>
+
+    <nav aria-label="页面导航">
+      <a href="#what">它是什么</a><a href="#flow">工作流</a><a href="#arch">架构</a><a href="#nomi">对 Nomi 的启示</a><a href="#license">协议与当前政策</a><a href="#sources">来源</a>
+    </nav>
+
+    <section id="what" class="section">
+      <div class="section-head"><h2>它是什么</h2><small>官方仓库与官网核验</small></div>
+      <div class="grid">
+        <article class="card wide"><span class="eyebrow">Positioning</span><h3>Agent-native 的视频制作系统</h3><p>OpenMontage 由 Agent harness 驱动，兼容 Claude Code、Codex、OpenCode 等工作方式，同时提供 OpenMontage Studio。它的产品假设是：人用自然语言描述目标，Agent 把目标拆成文件化的中间产物，人在人机闸门处确认，再进入昂贵的生成和渲染。</p><p>项目不是“点按钮自动出片”的黑盒。每一步都留下 brief、research、script、scene plan、素材来源、成本和渲染检查结果，方便局部重做与审计。</p></article>
+        <article class="card"><span class="eyebrow">Repository signal</span><span class="metric">53.7k</span>GitHub stars（约值）<br><span class="metric">AGPL-3.0</span>项目许可证<br><span class="metric">cd9f3c1</span>主分支最新核验提交</article>
+        <article class="card"><span class="eyebrow">Outputs</span><h3>多种发布比例</h3><div class="chips"><span class="chip good">16:9</span><span class="chip good">1:1</span><span class="chip good">9:16</span></div><p>同一项目可以面向横屏、方形和竖屏输出；场景计划先声明意图，再由渲染阶段兑现。</p></article>
+      </div>
+    </section>
+
+    <section id="flow" class="section">
+      <div class="section-head"><h2>九段工作流</h2><small>顺序是产品合同，不是装饰性步骤</small></div>
+      <div class="flow" aria-label="OpenMontage 工作流">
+        <div class="step"><b>01 Brief</b><span>受众、目标、规格与边界</span></div>
+        <div class="step"><b>02 Research</b><span>事实、参考与来源</span></div>
+        <div class="step"><b>03 Script</b><span>口播、字幕和节奏</span></div>
+        <div class="step"><b>04 Scene plan</b><span>逐场景画面意图</span></div>
+        <div class="step gate"><b>05 The Gate</b><span>人确认范围和预计成本</span></div>
+        <div class="step"><b>06 Narration</b><span>配音生成与检查</span></div>
+        <div class="step"><b>07 Music</b><span>音乐、音量与来源</span></div>
+        <div class="step"><b>08 Compose</b><span>合成时间线与字幕</span></div>
+        <div class="step"><b>09 Render</b><span>输出、抽帧与 provenance</span></div>
+      </div>
+      <div class="callout"><strong>The Gate 的意义：</strong>付费生成前先把成本显示出来并等待批准。它把“模型能不能调用”改成“这一步是否值得花钱”，也让拒绝成为一种正常的项目状态，而不是异常。</div>
+    </section>
+
+    <section id="arch" class="section">
+      <div class="section-head"><h2>架构拆解</h2><small>从意图到可交付文件</small></div>
+      <div class="diagram">
+        <div class="lane"><div class="lane-label">人 / Agent 输入</div><div class="chips"><span class="chip">brief.md</span><span class="chip">自然语言目标</span><span class="chip">scene feedback</span></div></div>
+        <div class="lane"><div class="lane-label">语义产物层</div><div class="chips"><span class="chip good">research/</span><span class="chip good">script.md</span><span class="chip good">scene-plan.json</span><span class="chip good">asset references</span></div></div>
+        <div class="lane"><div class="lane-label">权限与质量闸</div><div class="chips"><span class="chip warn">cost approval</span><span class="chip warn">source/license check</span><span class="chip warn">technical self-check</span></div></div>
+        <div class="lane"><div class="lane-label">本地媒体管线</div><div class="chips"><span class="chip">narration</span><span class="chip">music</span><span class="chip">compose</span><span class="chip">render</span></div></div>
+        <div class="lane"><div class="lane-label">可追溯交付</div><div class="chips"><span class="chip good">video variants</span><span class="chip good">captions</span><span class="chip good">provenance report</span></div></div>
+      </div>
+      <div class="grid" style="margin-top:14px">
+        <article class="card"><h3>Artifact 是状态</h3><p>中间文件不是日志附件，而是下一阶段的输入。场景卡可以单独重做，避免一次小修改触发整条管线。</p></article>
+        <article class="card"><h3>Scene card 是反馈单元</h3><p>反馈可以落在某一场景：换素材、改镜头、改旁白或调整节奏。Agent 获得了明确的局部上下文。</p></article>
+        <article class="card"><h3>Provenance 是交付物</h3><p>素材来源、许可证、模型和生成参数都应可回看。视频“看起来对”不等于项目“可交付”。</p></article>
+      </div>
+    </section>
+
+    <section id="nomi" class="section">
+      <div class="section-head"><h2>对 Nomi 的启示</h2><small>借原则，不搬运行时</small></div>
+      <div class="grid">
+        <article class="card wide"><h3>两者的分工不同</h3><table><thead><tr><th>层</th><th>OpenMontage</th><th>Nomi 当前边界</th></tr></thead><tbody>
+          <tr><td>创作编排</td><td>文件化 pipeline，阶段产物驱动下一阶段</td><td>画布 / 创作区 / Agent harness 协作</td></tr>
+          <tr><td>时间线事实源</td><td>以 edit decisions / render manifest 表达</td><td><code>TimelineState</code> + <code>EditPlan</code> + <code>timelineRevision</code></td></tr>
+          <tr><td>写入安全</td><td>人工 Gate 与阶段检查</td><td>Proposal / Adoption 原子应用、CAS、一次 Undo</td></tr>
+          <tr><td>运行时</td><td>Python 管线 + FFmpeg 生态</td><td>Electron + React Flow + Tiptap，FFmpeg 导出底座</td></tr>
+        </tbody></table></article>
+        <article class="card"><span class="eyebrow">Adopt</span><h3>建议吸收</h3><ul><li>把 brief、调研、计划、渲染诊断纳入 artifact 目录。</li><li>在生成前显示镜头级和总成本，并记录批准事件。</li><li>补 provenance、来源和许可证检查。</li><li>把渲染后 ffprobe / 抽帧验证做成可复用 gate。</li></ul></article>
+        <article class="card"><span class="eyebrow">Keep out</span><h3>不要直接复制</h3><ul><li>不要把 OpenMontage 的 Python runtime 接进 Electron 主流程。</li><li>不要把完整 <code>edit_decisions</code> 大 schema 塞进 Nomi 的时间线领域模型。</li><li>不要让外部 store 绕过 Nomi 的 Adoption、revision 和 Undo。</li></ul></article>
+      </div>
+      <div class="callout coral"><strong>兼容 #223：</strong>OpenMontage 的 artifact/checkpoint 思路与 Project Agent Host 的冻结 target、revision、content hash 是同一类“先锁定再写入”纪律；但本次创作区选区修复解决的是失焦后的视觉反馈，两者不应混成一套状态源。</div>
+    </section>
+
+    <section id="license" class="section">
+      <div class="section-head"><h2>协议与 Nomi 当前政策</h2><small>工程判断不等于法律意见</small></div>
+      <div class="grid">
+        <article class="card wide"><h3>OpenMontage：AGPL-3.0</h3><p>AGPL 允许运行、研究、修改和再分发，但对“向他人提供修改后的程序”有更强的源代码提供义务；网络交互场景也不能简单当作只在本机运行。合并 OpenMontage 代码或形成基于它的派生服务前，应保留版权与许可证通知，提供对应源代码，并逐项审计依赖。</p><p>“参考架构”与“复制代码”是两件事：前者通常不触发代码许可义务，后者必须按实际复制范围、链接方式和分发方式做合规判断。</p></article>
+        <article class="card"><h3>Nomi：AGPL-only，不要求 CLA</h3><p>Nomi 当前 <code>package.json</code> 标记为 <code>AGPL-3.0-only</code>，项目只发布这一种开源版本，不要求贡献者签署 CLA。个人使用、内部使用和普通 fork 可按 AGPL 使用；修改后分发或提供网络服务时，应按 AGPL 提供对应源代码和许可证说明。团队可以收费提供合规的定制开发、集成、部署、培训和持续迭代，但不承诺隐瞒对应源代码的闭源 Nomi 版本。</p></article>
+      </div>
+      <div class="diagram" style="margin-top:14px"><table><thead><tr><th>行为</th><th>通常要关注什么</th><th>工程建议</th></tr></thead><tbody>
+        <tr><td>只读 OpenMontage 的公开文档</td><td>没有代码复制</td><td>保留来源链接与核验日期</td></tr>
+        <tr><td>复制代码或 schema</td><td>版权、NOTICE、对应源代码、网络交互条款</td><td>在依赖清单和发行审计中登记，不用“只复制几行”规避</td></tr>
+        <tr><td>Nomi 接受外部贡献</td><td>贡献者是否有权提交、来源与依赖许可证是否清楚</td><td>不需要签 CLA；按 <code>AGPL-3.0-only</code> 接受贡献并保留必要的版权、许可证和来源说明</td></tr>
+      </tbody></table></div>
+      <details><summary>Nomi 为什么不再要求 CLA</summary><p>旧版仓库曾用 CLA 为“AGPL 开源 + 商业授权”双轨准备贡献授权，但现行决策是只发布 AGPL-3.0-only。继续要求签字只会增加贡献摩擦，并不是 AGPL 的要求，因此已移除 CLA 机器人和签名账本；<code>CLA.md</code> 仅保留为旧链接的说明页。</p></details>
+      <div class="callout coral" style="margin-top:10px"><strong>边界声明：</strong>这里是基于仓库文件和官方页面的工程调研，不构成法律意见。具体分发、网络服务、静态/动态链接、商标和第三方依赖组合，应让熟悉适用法域的律师复核。</div>
+    </section>
+
+    <section id="sources" class="section">
+      <div class="section-head"><h2>来源与核验口径</h2><small>一手来源优先</small></div>
+      <div class="sources"><p>核验日期：2026-08-29。仓库指标会变化，页面中的 stars / forks / commits 为该日期附近的约值，不作为产品能力证明。</p><ul>
+        <li><a href="https://github.com/calesthio/OpenMontage" rel="noreferrer">OpenMontage GitHub 仓库</a>：代码、README、许可证、提交与目录结构。</li>
+        <li><a href="https://www.openmontage.video/" rel="noreferrer">OpenMontage 官方站点</a>：产品定位、Studio、工作流和输出说明。</li>
+        <li><a href="https://github.com/aqm857886159/Nomi/blob/main/package.json" rel="noreferrer">Nomi package.json</a>：版本、Node 引擎和许可证字段。</li>
+        <li><a href="https://github.com/aqm857886159/Nomi/blob/main/CLA.md" rel="noreferrer">Nomi 贡献政策说明</a>：AGPL-only 与不要求 CLA 的现行规则。</li>
+        <li><a href="https://github.com/aqm857886159/Nomi/blob/main/docs/plan/2026-08-28-editing-engine-review.md" rel="noreferrer">Nomi 剪辑引擎 build-vs-buy 评审</a>：OpenMontage 与时间线边界的本地决策依据。</li>
+      </ul></div>
+    </section>
+    <footer>本文件是 Nomi 仓库内的研究说明，不是 OpenMontage 官方文档。建议把它与对应提交、依赖清单和法务审计一起阅读。</footer>
+  </div>
+</body>
+</html>

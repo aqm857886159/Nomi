@@ -18,6 +18,7 @@ import { runTask } from '../runtime'
 import { listOnboardingAgentCandidates } from '../catalog/catalogStore'
 import { extractVideoEndpointsToAsset, extractVideoFrameToAsset } from '../video/extractVideoFrame'
 import { parseLocalAssetUrl } from '../protocol/localProtocol'
+import { getDesktopLocale } from '../desktopLocale'
 import type { ShotVerifyDeps } from './shotVerifyOrchestrate'
 
 /** 首发生成的上下文——重试要复用它（同 grant/同 node/同模型/同参数），judge 要它的 projectId。 */
@@ -170,6 +171,9 @@ export function makeShotVerifyDeps(
 
   return {
     visionAvailable: () => candidates.length > 0, // 无任何可用 text 判分模型 → 整体跳过（仅生成，不报错，方案 §2）
+    // 判官的 reason 会原样出现在交付里给用户看 → 按桌面端当前界面语言写它。
+    // 在这层读 locale（接线层可以碰 electron），capabilityCore 的纯核保持 electron-free。
+    reasonLanguage: getDesktopLocale(),
     extractFrame: async (videoUrl: string) => {
       const { url } = await extractFirstFrame({ videoUrl, projectId: ctx.projectId })
       return url

@@ -50,7 +50,11 @@ export default function CreationWorkspace({ aiCollapsed = false, agentDockRef }:
           {activeStoryboard ? <StoryboardPlanEditor /> : <WorkbenchEditor />}
         </div>
       </div>
-      {agentDockRef ? <aside className="min-w-0 min-h-0 overflow-hidden border-l border-[var(--workbench-border)] bg-[var(--workbench-surface)]"><div ref={agentDockRef} className="h-full w-full min-w-0 min-h-0" /></aside> : null}
+      {agentDockRef ? <aside className={cn(
+        aiCollapsed
+          ? 'min-w-0 min-h-0 overflow-visible border-l border-[var(--workbench-border)] bg-[var(--workbench-surface)]'
+          : 'min-w-0 min-h-0 overflow-hidden border-l border-[var(--workbench-border)] bg-[var(--workbench-surface)]',
+      )}><div ref={agentDockRef} className="h-full w-full min-w-0 min-h-0" /></aside> : null}
     </section>
   )
 }

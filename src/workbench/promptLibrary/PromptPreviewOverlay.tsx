@@ -12,6 +12,7 @@ import {
 } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import type { LibraryPrompt } from '../api/promptLibraryApi'
+import { promptDisplayTitle, promptSourceLabel } from './promptDisplay'
 
 type Props = {
   prompt: LibraryPrompt
@@ -32,6 +33,7 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
   const [copied, setCopied] = React.useState(false)
   const isVideo = prompt.mediaType === 'video'
   const hasMedia = Boolean(prompt.mediaUrl)
+  const displayTitle = promptDisplayTitle(prompt)
 
   const mapToOrigin = React.useCallback(
     (box: HTMLDivElement) => {
@@ -94,7 +96,7 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
     <Portal>
       <div
         role="dialog"
-        aria-label={prompt.title}
+        aria-label={displayTitle}
         className={cn('fixed inset-0 grid place-items-center p-6')}
         style={{ zIndex: 4200, background: 'var(--nomi-scrim)', animation: `nomi-fade ${ANIM_MS}ms ${EASE}` }}
         onMouseDown={(e) => {
@@ -124,7 +126,7 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
               ) : (
                 <img
                   src={prompt.mediaUrl}
-                  alt={prompt.title}
+                  alt={displayTitle}
                   className={cn('absolute inset-0 w-full h-full object-cover')}
                 />
               )
@@ -140,7 +142,7 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
                 'bg-nomi-overlay-chip-strong border border-nomi-paper/20 text-nomi-paper shadow-nomi-sm backdrop-blur-sm',
               )}
             >
-              {isVideo ? t('libraries.prompt.category.video') : t('libraries.prompt.category.image')} · {prompt.source}
+              {isVideo ? t('libraries.prompt.category.video') : t('libraries.prompt.category.image')} · {promptSourceLabel(prompt)}
             </span>
             <button
               type="button"
@@ -158,7 +160,7 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
 
           {/* 内容 */}
           <div className={cn('flex-1 min-h-0 overflow-y-auto px-4 pt-3.5 pb-4')}>
-            <div className={cn('text-title font-semibold text-nomi-ink mb-2')}>{prompt.title}</div>
+            <div className={cn('text-title font-semibold text-nomi-ink mb-2')}>{displayTitle}</div>
             <p className={cn('text-body-sm leading-relaxed text-nomi-ink-80 whitespace-pre-wrap')}>{prompt.prompt}</p>
           </div>
 

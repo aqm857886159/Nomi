@@ -250,6 +250,69 @@ describe("buildHttpRequest — vendor extraHeaders (relay/proxy gateway auth)", 
     expect(built.headers["X-Title"]).toBe("from-mapping");
   });
 
+  it("redacts custom auth headers and encoded query secrets from the returned preview only", () => {
+    const secret = "opaque+Credential/Value=987654%";
+    const secretContext = buildTemplateContext({ request: {}, params: {}, model: {}, modelKey: "m", apiKey: secret });
+    const built = buildHttpRequest({
+      baseUrl: "https://relay",
+      authType: "query",
+      authHeaderName: "X-Workspace-Auth",
+      apiKey: secret,
+      context: secretContext,
+      operation: {
+        method: "GET",
+        path: "/p",
+        headers: { "X-Workspace-Auth": "{{user_api_key}}", "X-Ordinary": "ordinary-header-secret" },
+        query: { credential: "{{user_api_key}}", ordinary: "ordinary-query-marker" },
+      },
+      extraHeaders: { "X-Relay-Token": secret },
+    });
+
+    const preview = JSON.stringify(built.preview);
+    expect(built.headers["X-Workspace-Auth"]).toBe(secret);
+    expect(built.query.credential).toBe(secret);
+    expect(preview).toContain("ordinary-query-marker");
+    expect(preview).not.toContain("ordinary-header-secret");
+    expect(preview).not.toContain(secret);
+    expect(preview).not.toContain(encodeURIComponent(secret));
+    expect(preview).not.toContain(new URLSearchParams({ credential: secret }).toString().slice("credential=".length));
+  });
+
+  it("treats every non-public gateway header value as sensitive regardless of its name", () => {
+    const workspaceSecret = "SENTINEL-CUSTOM-HEADER-SECRET";
+    const randomNameSecret = "RANDOM-NAMED-HEADER-SECRET";
+    const built = buildHttpRequest({
+      baseUrl: "https://relay",
+      authType: "none",
+      apiKey: "",
+      context,
+      operation: {
+        method: "POST",
+        path: "/p",
+        body: { a: 1 },
+      },
+      extraHeaders: {
+        "X-Workspace": workspaceSecret,
+        "X-Random-Gateway-Field": randomNameSecret,
+        Accept: "SENTINEL-USER-CONFIGURED-ACCEPT",
+        "User-Agent": "SENTINEL-USER-CONFIGURED-AGENT",
+      },
+    });
+
+    expect(built.headers["X-Workspace"]).toBe(workspaceSecret);
+    expect(built.headers["X-Random-Gateway-Field"]).toBe(randomNameSecret);
+    expect(built.preview.headers["X-Workspace"]).toBe("[redacted]");
+    expect(built.preview.headers["X-Random-Gateway-Field"]).toBe("[redacted]");
+    expect(built.preview.headers["Content-Type"]).toBe("application/json");
+    expect(built.preview.headers.Accept).toBe("[redacted]");
+    expect(built.preview.headers["User-Agent"]).toBe("[redacted]");
+    const preview = JSON.stringify(built.preview);
+    for (const secret of [workspaceSecret, randomNameSecret, "SENTINEL-USER-CONFIGURED-ACCEPT", "SENTINEL-USER-CONFIGURED-AGENT"]) {
+      expect(preview).not.toContain(secret);
+      expect(preview).not.toContain(encodeURIComponent(secret));
+    }
+  });
+
   it("no extraHeaders → headers unchanged (zero-cost when none set)", () => {
     const built = buildHttpRequest({
       baseUrl: "https://relay",

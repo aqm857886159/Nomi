@@ -24,7 +24,7 @@ D 类原始命中被 `design-fidelity.e2e.mjs` 的像素几何断言灌了水，
 ## 根因（两层）
 
 **第一层：这片地没有任何门岗看得见。**
-`eslint.config.js:28` 把 `tests/ux/**` 整个 ignore。更能说明问题的是——
+`eslint.config.mjs:28` 把 `tests/ux/**` 整个 ignore。更能说明问题的是——
 `scripts/check-e2e-launch.mjs:6` 的注释里**前人已经诊断过**：「现有五门没有任何一道能看见这片地」，
 但当时只修了「启动路径」这一个症状，没治「这片地没人管」这个病。
 

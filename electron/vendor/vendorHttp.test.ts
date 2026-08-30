@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { VendorRequestError, categorizeVendorFailure, requestJson } from "./vendorHttp";
 import type { Vendor } from "../catalog/types";
+import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 
 const vendor = { key: "kie", authType: "bearer", baseUrlHint: "https://api.kie.ai" } as unknown as Vendor;
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { delete process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS; vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 const stubFetch = (impl: () => Promise<Response> | Response) => vi.stubGlobal("fetch", vi.fn(async () => impl()));
 
@@ -44,6 +45,126 @@ describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
     expect(error.structured).toMatchObject({ httpStatus: 400, category: "input", retryable: false });
     expect(error.structured.upstreamMsg).toBe("size must be pixels like 1024x1024");
     expect(String(error.message)).not.toContain("no detail from provider");
+  });
+
+  it("redacts the exact opaque API credential from upstream message, structured detail, and encoded result", async () => {
+    const secret = "opaqueCredentialValue987654";
+    stubFetch(() => new Response(JSON.stringify({ message: `invalid credential ${secret}` }), { status: 400 }));
+
+    const error = await requestJson(
+      vendor,
+      secret,
+      "POST",
+      "https://api.kie.ai/v1/task",
+      { Authorization: `Bearer ${secret}` },
+      {},
+      {},
+    ).catch((e) => e);
+
+    assert(error instanceof VendorRequestError);
+    expect(error.structured).toMatchObject({ httpStatus: 400, category: "input" });
+    expect(`${error.message}${JSON.stringify(error.structured)}`).not.toContain(secret);
+  });
+
+  it("redacts an opaque custom auth header value echoed by an upstream 400 detail", async () => {
+    const customHeaderSecret = "opaqueCustomHeaderValue987654";
+    stubFetch(() => new Response(JSON.stringify({ errors: { detail: `bad x-workspace-auth ${customHeaderSecret}` } }), { status: 400 }));
+
+    const error = await requestJson(
+      { ...vendor, authType: "none" } as Vendor,
+      "",
+      "POST",
+      "https://api.kie.ai/v1/task",
+      { "X-Workspace-Auth": customHeaderSecret, "Content-Type": "application/json" },
+      {},
+      {},
+    ).catch((e) => e);
+
+    assert(error instanceof VendorRequestError);
+    expect(`${error.message}${JSON.stringify(error.structured)}`).not.toContain(customHeaderSecret);
+  });
+
+  it("redacts arbitrary gateway header values and encoded variants while preserving public header detail", async () => {
+    const workspaceSecret = "SENTINEL-CUSTOM-HEADER-SECRET";
+    const randomNameSecret = "opaque+Credential/Value=987654%";
+    const encodedRandomSecret = encodeURIComponent(randomNameSecret);
+    stubFetch(() => new Response(JSON.stringify({
+      message: `ordinary-validation-marker content-type=application/json workspace=${workspaceSecret} random=${encodedRandomSecret}`,
+    }), { status: 500 }));
+
+    const built = buildHttpRequest({
+      baseUrl: "https://api.kie.ai",
+      authType: "none",
+      apiKey: "",
+      context: buildTemplateContext({ request: {}, params: {}, model: {}, modelKey: "m", apiKey: "" }),
+      operation: { method: "POST", path: "/v1/task", body: {} },
+      extraHeaders: {
+        "X-Workspace": workspaceSecret,
+        "X-Random-Gateway-Field": randomNameSecret,
+      },
+    });
+
+    const error = await requestJson(
+      { ...vendor, authType: "none" } as Vendor,
+      "",
+      built.method,
+      built.url,
+      built.headers,
+      built.query,
+      built.body,
+    ).catch((caught) => caught);
+
+    assert(error instanceof VendorRequestError);
+    const exposed = `${error.message}${JSON.stringify(error.structured)}`;
+    expect(exposed).toContain("ordinary-validation-marker");
+    expect(exposed).toContain("content-type=application/json");
+    for (const secret of [workspaceSecret, randomNameSecret, encodedRandomSecret]) expect(exposed).not.toContain(secret);
+  });
+
+  it("redacts the actual query-auth value echoed by an upstream 500 message", async () => {
+    const querySecret = "opaqueQueryCredentialValue987654";
+    stubFetch(() => new Response(JSON.stringify({ message: `query api_key=${querySecret}` }), { status: 500 }));
+
+    const error = await requestJson(
+      { ...vendor, authType: "query", authQueryParam: "api_key" } as Vendor,
+      querySecret,
+      "GET",
+      "https://api.kie.ai/v1/task",
+      {},
+      {},
+      null,
+    ).catch((e) => e);
+
+    assert(error instanceof VendorRequestError);
+    expect(error.structured).toMatchObject({ httpStatus: 500, category: "server" });
+    expect(`${error.message}${JSON.stringify(error.structured)}`).not.toContain(querySecret);
+  });
+
+  it("redacts encoded outbound query credentials without deleting ordinary upstream detail", async () => {
+    const secret = "opaque+Credential/Value=987654%";
+    const encoded = encodeURIComponent(secret);
+    const wireEncoded = new URLSearchParams({ api_key: secret }).toString().slice("api_key=".length);
+    const doubleEncoded = encodeURIComponent(wireEncoded);
+    stubFetch(() => new Response(JSON.stringify({
+      message: `ordinary-validation-marker rejected ${encoded} ${wireEncoded} ${doubleEncoded}`,
+    }), { status: 500 }));
+
+    const error = await requestJson(
+      { ...vendor, authType: "query", authQueryParam: "api_key" } as Vendor,
+      secret,
+      "GET",
+      "https://api.kie.ai/v1/task",
+      {},
+      {},
+      null,
+    ).catch((e) => e);
+
+    assert(error instanceof VendorRequestError);
+    const exposed = `${error.message}${JSON.stringify(error.structured)}`;
+    expect(exposed).toContain("ordinary-validation-marker");
+    for (const variant of [secret, encoded, wireEncoded, doubleEncoded]) {
+      expect(exposed).not.toContain(variant);
+    }
   });
 
   it("网络层抛错 → category network 可重试", async () => {
@@ -101,6 +222,34 @@ describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
   it("成功路径原样回 JSON", async () => {
     stubFetch(() => new Response(JSON.stringify({ ok: 1 }), { status: 200 }));
     await expect(requestJson(vendor, "k", "GET", "https://x", {}, {}, null)).resolves.toEqual({ ok: 1 });
+  });
+
+  it("普通 API 响应超过共享上限时稳定失败，不泄露响应 body", async () => {
+    const sentinel = "SIGNED_URL_SECRET_SENTINEL";
+    stubFetch(() => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(`{"value":"${sentinel}${"x".repeat(200)}"}`));
+        controller.close();
+      },
+    }), { status: 200 }));
+    const error = await requestJson(vendor, "k", "GET", "https://x", {}, {}, null, undefined, { maxResponseBytes: 32 })
+      .catch((caught) => caught);
+    assert(error instanceof VendorRequestError);
+    expect(error.structured).toMatchObject({ category: "network", retryable: false, upstreamMsg: "Provider response exceeded the safe size limit" });
+    expect(`${error.message}${JSON.stringify(error.structured)}`).not.toContain(sentinel);
+  });
+
+  it("maps a bounded response-body deadline to the stable timeout category and reason", async () => {
+    vi.useFakeTimers(); process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS = "10";
+    stubFetch(() => new Response(new ReadableStream({ pull: () => new Promise(() => {}) })));
+    const pending = requestJson(vendor, "k", "GET", "https://x", {}, {}, null).catch((caught) => caught);
+    await vi.advanceTimersByTimeAsync(11);
+    const error = await pending;
+    assert(error instanceof VendorRequestError);
+    expect(error.structured).toMatchObject({
+      category: "timeout", retryable: true, reasonCode: "response_timeout",
+      upstreamMsg: "读取响应超时（0s）",
+    });
   });
 
   it("请求头含非法字符(密钥混中文)→ 发送前拦截为 auth 不可重试,根本不发 fetch(治 ByteString 误判网络)", async () => {

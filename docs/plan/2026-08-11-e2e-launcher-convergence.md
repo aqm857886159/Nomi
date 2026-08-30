@@ -26,7 +26,7 @@
 2. `tests/ux/helpers/electronFixture.mjs` → `isolatedElectronLaunchOptions`（只拼 options，仅 1 个消费者）
 3. 100+ 份内联手抄（72 份是坏的）
 
-**为什么这类 bug 能一直复发**：`eslint.config.js:28` 把 `tests/ux/**` 整个 ignore 了 —— 现有五门
+**为什么这类 bug 能一直复发**：`eslint.config.mjs:28` 把 `tests/ux/**` 整个 ignore 了 —— 现有五门
 **没有任何一道**能看见这里。不加结构保证，改完还会再抄坏。
 
 ## 做法

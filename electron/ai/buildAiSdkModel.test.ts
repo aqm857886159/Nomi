@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { generateText } from "ai";
-import { buildAiSdkModel } from "./buildAiSdkModel";
+import { anthropicBaseUrl, buildAiSdkModel } from "./buildAiSdkModel";
 import { buildLanguageModelForVendor } from "./vendorLanguageModel";
 import type { Model, Vendor } from "../catalog/types";
 
@@ -85,7 +85,7 @@ describe("buildAiSdkModel", () => {
   });
 
   it.each([
-    ["anthropic", "", "/messages"],
+    ["anthropic", "", "/v1/messages"],
     ["anthropic", "/v1/", "/v1/messages"],
     ["openai-responses", "", "/v1/responses"],
     ["openai-responses", "/custom/v3/", "/custom/v3/responses"],
@@ -129,6 +129,13 @@ describe("buildAiSdkModel", () => {
     expect(model.specificationVersion).toBe("v1");
     expect(model.modelId).toBe("claude-3-5-sonnet-latest");
     expect(model.provider).toMatch(/anthropic/);
+  });
+
+  it("normalizes Anthropic host roots without double-versioning", () => {
+    expect(anthropicBaseUrl("https://api.anthropic.com")).toBe("https://api.anthropic.com/v1");
+    expect(anthropicBaseUrl("https://api.anthropic.com/v1/")).toBe("https://api.anthropic.com/v1");
+    expect(anthropicBaseUrl("https://relay.example.com/anthropic")).toBe("https://relay.example.com/anthropic/v1");
+    expect(anthropicBaseUrl("https://relay.example.com/anthropic/v2")).toBe("https://relay.example.com/anthropic/v2");
   });
 
   it("accepts custom request headers without breaking model construction", () => {

@@ -4,7 +4,7 @@ import { findNonHeaderSafeChar, isJsonRecord, nowIso, type JsonRecord } from "..
 import { sanitizeName } from "../projects/repository";
 import { writeJsonFileAtomic } from "../jsonFile";
 import { CATALOG_FILE, getSettingsRoot, readJson } from "../runtimePaths";
-import { type ApiKeyRecord, decryptApiKeyRecord, makeApiKeyRecordFromPlain } from "./secrets";
+import { apiKeyDecryptStatus, type ApiKeyRecord, decryptApiKeyRecord, makeApiKeyRecordFromPlain } from "./secrets";
 import { humanizeModelKey } from "./modelLabel";
 import { applyBuiltinSeeds } from "./seedBuiltins";
 import { migrateRelayImageEditProtocols } from "./relayImageEditMigration";
@@ -15,6 +15,9 @@ import { migrateRelayImageEditCapability, migrateRelayParamMaps } from "./relayL
 import type { AiSdkProviderKind, BillingModelKind, CatalogState, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./types";
 import { CURRENT_CATALOG_VERSION } from "./types";
 import { normalizeCustomCall } from "./customCallMode";
+import { derivePublishedExecution, modelHasPublishedExecution } from "../shared/modelPublication";
+import { deriveModelCatalogHealth } from "./catalogHealth";
+import { deleteVendorLineageAndRestore, removeVendorLineage } from "./vendorLineageLifecycle";
 import { guardAntigravityMappingWrite, guardAntigravityModelWrite, guardAntigravityVendorWrite } from "./antigravityWriteGuard";
 import { antigravityConnection } from "../ai/antigravityConnection";
 import { extractLegacyStages, normalizeLegacyMappings } from "./legacyMappingMigration";
@@ -72,7 +75,7 @@ export function readCatalog(): CatalogState {
     vendors: migrated.vendors.map((vendor) => ({
       ...vendor,
       providerKind: normalizeProviderKind(vendor.providerKind),
-      hasApiKey: Boolean(apiKeysByVendor[vendor.key]?.apiKey && apiKeysByVendor[vendor.key]?.enabled !== false),
+      hasApiKey: apiKeyDecryptStatus(apiKeysByVendor[vendor.key]) === "ok",
     })),
     apiKeysByVendor,
   };
@@ -249,11 +252,12 @@ function filterByParams<
 export function listModelCatalogVendors(): Vendor[] {
   return readCatalog().vendors.map(publicVendor);
 }
-
-export function listModelCatalogModels(params?: unknown): Model[] {
-  return filterByParams(readCatalog().models, params);
+export function listModelCatalogModels(params?: unknown): Array<Model & { published: boolean; publishedModes: ProfileKind[] }> {
+  const state = readCatalog();
+  return filterByParams(state.models, params).map((model) => ({
+    ...model, ...derivePublishedExecution(model, { mappings: state.mappings }),
+  })) as Array<Model & { published: boolean; publishedModes: ProfileKind[] }>;
 }
-
 export function listModelCatalogMappings(params?: unknown): Mapping[] {
   return filterByParams(readCatalog().mappings, params);
 }
@@ -284,11 +288,14 @@ export function listOnboardingAgentCandidates(): OnboardingAgent[] {
   const state = readCatalog();
   const out: OnboardingAgent[] = [];
   for (const model of state.models) {
-    if (model.kind !== "text" || !model.enabled) continue;
+    if (model.kind !== "text" || !modelHasPublishedExecution(model, { mappings: state.mappings })) continue;
     const vendor = state.vendors.find((v) => v.key === model.vendorKey && v.enabled);
     if (!vendor || !vendor.baseUrlHint) continue;
-    const apiKey = decryptApiKeyRecord(state.apiKeysByVendor[vendor.key]);
-    if (!apiKey) continue;
+    // Auth-free local gateways are executable without a credential. Do not
+    // probe or require a stale/legacy key record for them; credentialed
+    // providers remain fail-closed and must have a decryptable safeStorage key.
+    const apiKey = vendor.authType === "none" ? "" : decryptApiKeyRecord(state.apiKeysByVendor[vendor.key]);
+    if (vendor.authType !== "none" && !apiKey) continue;
     const extraHeaders = extractVendorExtraHeaders(vendor);
     out.push({
       providerKind: normalizeProviderKind(vendor.providerKind),
@@ -319,61 +326,7 @@ export function resolveOnboardingAgentFromCatalog(): OnboardingAgent | null {
 }
 
 export function getModelCatalogHealth(): unknown {
-  const state = readCatalog();
-  const enabledVendors = state.vendors.filter((vendor) => vendor.enabled);
-  const enabledModels = state.models.filter((model) => model.enabled);
-  const enabledApiKeys = Object.values(state.apiKeysByVendor).filter((key) => key.enabled && key.apiKey).length;
-  const executableModels = enabledModels.filter((model) => {
-    const vendor = state.vendors.find((item) => item.key === model.vendorKey);
-    const apiKey = state.apiKeysByVendor[model.vendorKey];
-    return Boolean(vendor?.enabled && (vendor.authType === "none" || (apiKey?.enabled && apiKey.apiKey)));
-  });
-  const byKind = (["text", "image", "video", "audio"] as BillingModelKind[]).map((kind) => ({
-    kind,
-    enabledModels: enabledModels.filter((model) => model.kind === kind).length,
-    executableModels: executableModels.filter((model) => model.kind === kind).length,
-  }));
-  const issues = [];
-  if (state.vendors.length === 0 || state.models.length === 0) {
-    issues.push({ code: "catalog_empty", severity: "error", message: "Local model catalog is empty" });
-  }
-  for (const model of enabledModels) {
-    const vendor = state.vendors.find((item) => item.key === model.vendorKey);
-    const apiKey = state.apiKeysByVendor[model.vendorKey];
-    if (!vendor?.enabled) {
-      issues.push({
-        code: "vendor_disabled",
-        severity: "error",
-        message: `Vendor disabled: ${model.vendorKey}`,
-        vendorKey: model.vendorKey,
-        modelKey: model.modelKey,
-        kind: model.kind,
-      });
-    } else if (vendor.authType !== "none" && !apiKey?.apiKey) {
-      issues.push({
-        code: "vendor_api_key_missing",
-        severity: "error",
-        message: `API key missing: ${model.vendorKey}`,
-        vendorKey: model.vendorKey,
-        modelKey: model.modelKey,
-        kind: model.kind,
-      });
-    }
-  }
-  return {
-    ok: issues.every((issue) => issue.severity !== "error"),
-    counts: {
-      vendors: state.vendors.length,
-      enabledVendors: enabledVendors.length,
-      models: state.models.length,
-      enabledModels: enabledModels.length,
-      mappings: state.mappings.length,
-      enabledMappings: state.mappings.filter((mapping) => mapping.enabled).length,
-      enabledApiKeys,
-    },
-    byKind,
-    issues,
-  };
+  return deriveModelCatalogHealth(readCatalog());
 }
 
 /**
@@ -442,15 +395,12 @@ export function upsertModelCatalogVendor(payload: unknown): Vendor {
   const state = readCatalog();
   const vendor = applyVendorUpsert(state, payload);
   writeCatalog(state);
-  return publicVendor({ ...vendor, hasApiKey: Boolean(state.apiKeysByVendor[vendor.key]?.apiKey) });
+  return publicVendor({ ...vendor, hasApiKey: apiKeyDecryptStatus(state.apiKeysByVendor[vendor.key]) === "ok" });
 }
 
 export function deleteModelCatalogVendor(key: string): void {
   const state = readCatalog();
-  state.vendors = state.vendors.filter((vendor) => vendor.key !== key);
-  state.models = state.models.filter((model) => model.vendorKey !== key);
-  state.mappings = state.mappings.filter((mapping) => mapping.vendorKey !== key);
-  delete state.apiKeysByVendor[key];
+  deleteVendorLineageAndRestore(state, key);
   writeCatalog(state);
 }
 
@@ -745,6 +695,7 @@ export type CatalogMutation = {
   upsertVendor: (payload: unknown) => Vendor;
   upsertApiKey: (vendorKey: string, payload: unknown) => void;
   deleteApiKey: (vendorKey: string) => void;
+  deleteVendor: (vendorKey: string) => void;
   upsertModel: (payload: unknown) => Model;
   upsertMapping: (payload: unknown) => Mapping;
   deleteModelMappings: (vendorKey: string, modelKey: string) => void;
@@ -764,6 +715,7 @@ export function mutateCatalog<T>(fn: (tx: CatalogMutation) => T): T {
     deleteApiKey: (vendorKey) => {
       delete state.apiKeysByVendor[String(vendorKey || "").trim()];
     },
+    deleteVendor: (vendorKey) => removeVendorLineage(state, String(vendorKey || "").trim()),
     upsertModel: (payload) => applyModelUpsert(state, payload),
     upsertMapping: (payload) => applyMappingUpsert(state, payload),
     deleteModelMappings: (vendorKey, modelKey) => {

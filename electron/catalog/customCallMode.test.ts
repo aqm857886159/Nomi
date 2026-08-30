@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parseCustomCapabilityContract } from "../shared/customCapabilityContract";
 import { resolveCustomCallExecution } from "./customCallMode";
 import type { Mapping, Model } from "./types";
 import type { TaskRequest } from "../runtime";
@@ -59,26 +60,19 @@ describe("resolveCustomCallExecution", () => {
     expect(resolveCustomCallExecution(model(), request("firstlast"), mapping())?.script).toContain("firstlast");
   });
 
-  it("falls back to the legacy model script when a valid mode has no override", () => {
-    expect(resolveCustomCallExecution(model(), request("omni"), mapping())).toEqual({
-      script: "return 'fallback'",
-      source: "model",
-      taskKind: "image_to_video",
-      modeId: "omni",
-    });
-  });
-
-  it("does not trust an unknown or task-kind-incompatible mode id", () => {
-    expect(resolveCustomCallExecution(model(), request("made-up"), mapping())).toMatchObject({
-      script: "return 'fallback'",
-      source: "model",
-      taskKind: "image_to_video",
-    });
-    expect(resolveCustomCallExecution(model(), request("first", "text_to_video"), mapping("text_to_video"))).toEqual({
+  it("allows the legacy model script only for the kind minimum default task", () => {
+    expect(resolveCustomCallExecution(model(), request("t2v", "text_to_video"), mapping("text_to_video"))).toEqual({
       script: "return 'fallback'",
       source: "model",
       taskKind: "text_to_video",
+      modeId: "t2v",
     });
+    expect(resolveCustomCallExecution(model(), request("omni"), mapping())).toBeNull();
+  });
+
+  it("does not trust an unknown or task-kind-incompatible mode id", () => {
+    expect(resolveCustomCallExecution(model(), request("made-up"), mapping())).toBeNull();
+    expect(resolveCustomCallExecution(model(), request("first", "text_to_video"), mapping("text_to_video"))).toBeNull();
   });
 
   it("derives mode identity from the model archetype, independent of provider names", () => {
@@ -100,8 +94,26 @@ describe("resolveCustomCallExecution", () => {
         defaultModeId: "references",
         transportTaskKind: "image_to_video",
         modes: [
-          { id: "references", transportTaskKind: "image_to_video" },
-          { id: "firstlast", transportTaskKind: "image_to_video" },
+          {
+            id: "references",
+            intent: "character",
+            vendorTerm: "References",
+            hint: "Animate reference images",
+            promptRequired: true,
+            transportTaskKind: "image_to_video",
+            slots: [],
+            params: [],
+          },
+          {
+            id: "firstlast",
+            intent: "firstlast",
+            vendorTerm: "First and last frame",
+            hint: "Animate between two frames",
+            promptRequired: true,
+            transportTaskKind: "image_to_video",
+            slots: [],
+            params: [],
+          },
         ],
       },
     };
@@ -128,7 +140,37 @@ describe("resolveCustomCallExecution", () => {
       .toMatchObject({ source: "mode", modeId: "references", script: "return 'references'" });
   });
 
-  it("keeps an invalid custom contract inert instead of trusting its mode id", () => {
+  it("does not dispatch a built-in seedream mode when an explicit contract is malformed", () => {
+    const custom = model("future-relay");
+    custom.modelKey = "seedream";
+    custom.kind = "image";
+    custom.meta = {
+      customCapabilityContract: {
+        version: 1,
+        kind: "image",
+        defaultModeId: "create",
+        transportTaskKind: "text_to_image",
+        modes: "not-an-array",
+      },
+    };
+    custom.customCall = {
+      modes: { edit: { script: "return 'edited'", updatedAt: "2026-08-15T00:00:00.000Z" } },
+      updatedAt: "2026-08-15T00:00:00.000Z",
+    };
+    const editRequest: TaskRequest = {
+      kind: "image_edit",
+      prompt: "edit",
+      extras: { modelKey: "seedream", archetype: { id: "seedream", modeId: "edit" } },
+    };
+
+    expect(resolveCustomCallExecution(custom, editRequest, {
+      ...mapping("image_edit"),
+      vendorKey: custom.vendorKey,
+      modelKey: custom.modelKey,
+    })).toBeNull();
+  });
+
+  it("blocks an invalid explicit contract instead of falling back to the generic script", () => {
     const custom = model();
     custom.modelKey = "unknown-future-model";
     custom.meta = {
@@ -151,10 +193,46 @@ describe("resolveCustomCallExecution", () => {
       },
     };
 
-    expect(resolveCustomCallExecution(custom, customRequest, mapping())).toEqual({
-      script: "return 'fallback'",
-      source: "model",
-      taskKind: "image_to_video",
-    });
+    expect(resolveCustomCallExecution(custom, customRequest, mapping())).toBeNull();
+  });
+
+  it("does not execute a mode accepted only by the legacy id/task validator", () => {
+    const custom = model("future-relay");
+    custom.modelKey = "future/video-v1";
+    custom.meta = {
+      customCapabilityContract: {
+        version: 1,
+        kind: "video",
+        defaultModeId: "references",
+        transportTaskKind: "image_to_video",
+        modes: [
+          { id: "references", transportTaskKind: "image_to_video" },
+        ],
+      },
+    };
+    custom.customCall = {
+      modes: {
+        references: { script: "return 'references'", updatedAt: "2026-08-15T00:00:00.000Z" },
+      },
+      updatedAt: "2026-08-15T00:00:00.000Z",
+    };
+    const customRequest: TaskRequest = {
+      kind: "image_to_video",
+      prompt: "move",
+      extras: {
+        modelKey: custom.modelKey,
+        archetype: {
+          id: `custom-capability:${encodeURIComponent(custom.modelKey)}`,
+          modeId: "references",
+        },
+      },
+    };
+
+    expect(parseCustomCapabilityContract(custom.meta)).toBeNull();
+    expect(resolveCustomCallExecution(custom, customRequest, {
+      ...mapping(),
+      vendorKey: custom.vendorKey,
+      modelKey: custom.modelKey,
+    })).toBeNull();
   });
 });

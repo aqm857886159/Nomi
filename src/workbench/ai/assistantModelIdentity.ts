@@ -16,6 +16,7 @@ export type AssistantCatalogModelLike = {
   modelKey: string;
   kind: string;
   enabled: boolean;
+  published: boolean;
   meta?: unknown;
 };
 
@@ -55,6 +56,7 @@ export function filterUsableAssistantTextModels<T extends AssistantCatalogModelL
     const vendorKey = model.vendorKey.trim().toLowerCase()
     return model.kind === 'text'
       && model.enabled
+      && model.published
       && !isPromptRefineOnly(model.meta)
       && modelSupportsToolCalls(model.meta)
       && Boolean(vendorKey)

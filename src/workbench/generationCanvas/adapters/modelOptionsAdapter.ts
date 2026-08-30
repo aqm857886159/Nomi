@@ -11,8 +11,11 @@ import { normalizeOrientation, type Orientation } from '../../../utils/orientati
 import i18n from '../../../i18n'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import type { ModelOption, NodeKind } from '../../../config/models'
-import type { GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
+import type { ProfileKind } from '../../api/modelCatalogApi'
+import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
 import { getGenerationNodeCatalogKind, isVideoLikeGenerationNodeKind } from '../model/generationNodeKinds'
+import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
+import { resolveTaskKind } from '../runner/catalogTaskResolve'
 
 export function findModelOptionByIdentifier(
   options: readonly ModelOption[],
@@ -30,12 +33,12 @@ export type GenerationModelSelection = {
   meta: unknown
 }
 
-export function useGenerationModelOptions(kind: GenerationNodeKind): ModelOption[] {
-  return useModelOptions(toCatalogNodeKind(kind))
+export function useGenerationModelOptions(kind: GenerationNodeKind, requiredMode?: ProfileKind): ModelOption[] {
+  return useModelOptions(toCatalogNodeKind(kind, requiredMode), requiredMode)
 }
 
-export function useGenerationModelOptionsState(kind: GenerationNodeKind): ModelOptionsState {
-  return useModelOptionsState(toCatalogNodeKind(kind))
+export function useGenerationModelOptionsState(kind: GenerationNodeKind, requiredMode?: ProfileKind): ModelOptionsState {
+  return useModelOptionsState(toCatalogNodeKind(kind, requiredMode), requiredMode)
 }
 
 export function deriveGenerationModelCatalogStatus(kind: GenerationNodeKind, state: ModelOptionsState) {
@@ -49,8 +52,25 @@ export function deriveGenerationModelCatalogStatus(kind: GenerationNodeKind, sta
   })
 }
 
-function toCatalogNodeKind(kind: GenerationNodeKind): NodeKind {
+function toCatalogNodeKind(kind: GenerationNodeKind, requiredMode?: ProfileKind): NodeKind {
+  if (requiredMode === 'image_edit') return 'imageEdit'
   return getGenerationNodeCatalogKind(kind)
+}
+
+export function requiredModeForGenerationNode(
+  node: GenerationCanvasNode,
+  context: { nodes?: GenerationCanvasNode[]; edges?: GenerationCanvasEdge[] } = {},
+): ProfileKind {
+  try {
+    return resolveTaskKind(node, resolveGenerationReferences(node, context)) as ProfileKind
+  } catch {
+    const kind = getGenerationNodeCatalogKind(node.kind)
+    if (kind === 'image') return 'text_to_image'
+    if (kind === 'video') return 'text_to_video'
+    if (kind === 'audio') return 'text_to_audio'
+    if (kind === 'model3d') return 'text_to_3d'
+    return 'chat'
+  }
 }
 
 export function resolveGenerationModelSelection(

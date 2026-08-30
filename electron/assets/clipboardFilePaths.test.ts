@@ -37,6 +37,22 @@ describe("parseClipboardFilePaths", () => {
     ]);
   });
 
+  it("preserves file URI drive paths on Windows and POSIX hosts", () => {
+    const bytes = Buffer.from("file:///C:/Users/test/hero%20image.png\0", "utf8");
+    const expected = process.platform === "win32"
+      ? "C:\\Users\\test\\hero image.png"
+      : "C:/Users/test/hero image.png";
+
+    expect(parseClipboardFilePaths("public.file-url", bytes)).toEqual([expected]);
+  });
+
+  it("preserves file URI UNC authorities without treating them as remote URLs", () => {
+    const bytes = Buffer.from("file://render-host/share/hero.png\0", "utf8");
+    const expected = process.platform === "win32" ? "\\\\render-host\\share\\hero.png" : "//render-host/share/hero.png";
+
+    expect(parseClipboardFilePaths("public.file-url", bytes)).toEqual([expected]);
+  });
+
   it("returns no paths for unknown formats or relative values", () => {
     expect(parseClipboardFilePaths("text/plain", Buffer.from("file:///tmp/a.png"))).toEqual(["/tmp/a.png"]);
     expect(parseClipboardFilePaths("text/plain", Buffer.from("/tmp/b.png"))).toEqual(["/tmp/b.png"]);

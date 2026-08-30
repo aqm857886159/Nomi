@@ -2,13 +2,13 @@
 // 全是无副作用纯函数（不碰 React / store / DOM），可单测、可复用；行为与抽出前逐字一致。
 
 import type { GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
-import { getNodeSize } from '../model/generationNodeKinds'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import type { CanvasGroupBox } from './GroupFrame'
 
-// getNodeSize 的真相源在 model 层（generationNodeKinds），跨 store/components/fixation 共用。
-// 这里重导出，让既有 components 调用方 import 路径不变（从 ./generationCanvasGeometry）。
-export { getNodeSize }
+/** 画布屏幕几何的唯一尺寸入口；与 BaseGenerationNode 的实际外壳使用同一解析器。 */
+export function getCanvasNodeVisualSize(node: GenerationCanvasNode): { width: number; height: number } {
+  return resolveNodeVisualSize(node)
+}
 
 const GROUP_BOX_PADDING = 24
 const GROUP_BOX_LABEL_HEIGHT = 28
@@ -43,7 +43,7 @@ export function getSelectedBounds(nodes: readonly GenerationCanvasNode[], select
   if (!selectedNodes.length) return null
   const minX = Math.min(...selectedNodes.map((node) => node.position.x))
   const minY = Math.min(...selectedNodes.map((node) => node.position.y))
-  const selectedNodeSizes = selectedNodes.map((node) => ({ node, size: resolveNodeVisualSize(node) }))
+  const selectedNodeSizes = selectedNodes.map((node) => ({ node, size: getCanvasNodeVisualSize(node) }))
   const maxX = Math.max(...selectedNodeSizes.map(({ node, size }) => node.position.x + size.width))
   const maxY = Math.max(...selectedNodeSizes.map(({ node, size }) => node.position.y + size.height))
   return {
@@ -55,7 +55,7 @@ export function getSelectedBounds(nodes: readonly GenerationCanvasNode[], select
 }
 
 export function centerNodeOffset(node: GenerationCanvasNode, stageSize: { width: number; height: number }, zoom: number): { x: number; y: number } {
-  const size = getNodeSize(node)
+  const size = getCanvasNodeVisualSize(node)
   return {
     x: Math.round(stageSize.width / 2 - (node.position.x + size.width / 2) * zoom),
     y: Math.round(stageSize.height / 2 - (node.position.y + size.height / 2) * zoom),
@@ -72,7 +72,7 @@ export function getCanvasGroupBoxes(groups: readonly NodeGroup[], nodes: readonl
     if (!members.length) return []
     const minX = Math.min(...members.map((node) => node.position.x))
     const minY = Math.min(...members.map((node) => node.position.y))
-    const memberSizes = members.map((node) => ({ node, size: resolveNodeVisualSize(node) }))
+    const memberSizes = members.map((node) => ({ node, size: getCanvasNodeVisualSize(node) }))
     const maxX = Math.max(...memberSizes.map(({ node, size }) => node.position.x + size.width))
     const maxY = Math.max(...memberSizes.map(({ node, size }) => node.position.y + size.height))
     return [{

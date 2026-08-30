@@ -223,6 +223,9 @@ export function useWorkflowCatalog(vendorKey: string, refreshToken: number): Wor
       missing: reconcile && reconcile.serverReachable
         ? { nodes: reconcile.unknownNodeTypes.length, files: reconcile.missingEnumValues.length }
         : null,
+      missingFileNames: reconcile && reconcile.serverReachable
+        ? reconcile.missingEnumValues.map((item) => item.value)
+        : [],
       offline: Boolean(reconcile && !reconcile.serverReachable),
       builtin: model.modelKey === BUILTIN_COMFYUI_TXT2IMG_MODEL_KEY || !draft,
     }

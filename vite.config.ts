@@ -1,55 +1,54 @@
-import fs from 'node:fs';
-import { createLogger, defineConfig, loadEnv, type Logger, type Plugin } from 'vite';
-import type { IncomingMessage, ServerResponse } from 'node:http';
-import { resolve } from 'node:path';
+import fs from 'node:fs'
+import { createLogger, defineConfig, loadEnv, type ConfigEnv, type Logger, type Plugin, type UserConfig } from 'vite'
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import { resolve } from 'node:path'
 
-const NOMI_TAILWIND_CSS_PATH = '/tailwind.generated.css';
-const NOMI_TAILWIND_CSS_FILE = resolve(__dirname, 'public', 'tailwind.generated.css');
+const NOMI_TAILWIND_CSS_PATH = '/tailwind.generated.css'
+const NOMI_TAILWIND_CSS_FILE = resolve(__dirname, 'public', 'tailwind.generated.css')
 
 function nomiStaticAssetPlugin(): Plugin {
   return {
     name: 'nomi-static-assets',
     configureServer(server) {
       server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
-        const url = req.url?.split('?')[0] ?? '';
+        const url = req.url?.split('?')[0] ?? ''
         if (url === NOMI_TAILWIND_CSS_PATH) {
           fs.readFile(NOMI_TAILWIND_CSS_FILE, (error, css) => {
             if (error) {
-              next();
-              return;
+              next()
+              return
             }
-            res.statusCode = 200;
-            res.setHeader('content-type', 'text/css; charset=utf-8');
-            res.setHeader('cache-control', 'no-cache');
-            res.end(css);
-          });
-          return;
+            res.statusCode = 200
+            res.setHeader('content-type', 'text/css; charset=utf-8')
+            res.setHeader('cache-control', 'no-cache')
+            res.end(css)
+          })
+          return
         }
-        next();
-      });
+        next()
+      })
     },
-  };
+  }
 }
 
 function isKnownDevDependencyWarning(message: string): boolean {
   return (
-    message.includes('The above dynamic import cannot be analyzed by Vite') &&
-    message.includes('react-router-dom.js')
-  );
+    message.includes('The above dynamic import cannot be analyzed by Vite') && message.includes('react-router-dom.js')
+  )
 }
 
 function createNomiLogger(): Logger {
-  const logger = createLogger();
-  const warn = logger.warn.bind(logger);
+  const logger = createLogger()
+  const warn = logger.warn.bind(logger)
   logger.warn = (message, options) => {
-    if (typeof message === 'string' && isKnownDevDependencyWarning(message)) return;
-    warn(message, options);
-  };
-  return logger;
+    if (typeof message === 'string' && isKnownDevDependencyWarning(message)) return
+    warn(message, options)
+  }
+  return logger
 }
 
 function createManualChunks(id: string): string | undefined {
-  const normalizedId = id.replace(/\\/g, '/');
+  const normalizedId = id.replace(/\\/g, '/')
 
   if (
     normalizedId.includes('vite/preload-helper') ||
@@ -58,7 +57,7 @@ function createManualChunks(id: string): string | undefined {
     normalizedId.includes('/node_modules/@babel/helpers/') ||
     normalizedId.includes('/node_modules/tslib/')
   ) {
-    return 'runtime-vendor';
+    return 'runtime-vendor'
   }
   if (
     normalizedId.includes('/node_modules/react/') ||
@@ -66,35 +65,26 @@ function createManualChunks(id: string): string | undefined {
     normalizedId.includes('/node_modules/scheduler/') ||
     normalizedId.includes('/node_modules/use-sync-external-store/')
   ) {
-    return 'react-vendor';
+    return 'react-vendor'
   }
-  if (
-    normalizedId.includes('/node_modules/zustand/') ||
-    normalizedId.includes('/node_modules/immer/')
-  ) {
-    return 'state-vendor';
+  if (normalizedId.includes('/node_modules/zustand/') || normalizedId.includes('/node_modules/immer/')) {
+    return 'state-vendor'
   }
-  if (
-    normalizedId.includes('/node_modules/clsx/') ||
-    normalizedId.includes('/node_modules/tailwind-merge/')
-  ) {
-    return 'ui-vendor';
+  if (normalizedId.includes('/node_modules/clsx/') || normalizedId.includes('/node_modules/tailwind-merge/')) {
+    return 'ui-vendor'
   }
   if (normalizedId.includes('/node_modules/@photo-sphere-viewer/core/')) {
-    return 'panorama-vendor';
+    return 'panorama-vendor'
   }
   if (
     normalizedId.includes('/node_modules/prosemirror-') ||
     normalizedId.includes('/node_modules/orderedmap/') ||
     normalizedId.includes('/node_modules/w3c-keyname/')
   ) {
-    return 'prosemirror-vendor';
+    return 'prosemirror-vendor'
   }
-  if (
-    normalizedId.includes('/node_modules/@tiptap/') ||
-    normalizedId.includes('/node_modules/@prosemirror')
-  ) {
-    return 'tiptap-vendor';
+  if (normalizedId.includes('/node_modules/@tiptap/') || normalizedId.includes('/node_modules/@prosemirror')) {
+    return 'tiptap-vendor'
   }
   if (
     normalizedId.includes('/node_modules/react-markdown/') ||
@@ -104,20 +94,20 @@ function createManualChunks(id: string): string | undefined {
     normalizedId.includes('/node_modules/mdast-') ||
     normalizedId.includes('/node_modules/hast-')
   ) {
-    return 'markdown-vendor';
+    return 'markdown-vendor'
   }
-  if (normalizedId.includes('/node_modules/three/')) return 'three-vendor';
+  if (normalizedId.includes('/node_modules/three/')) return 'three-vendor'
   if (
     normalizedId.includes('/node_modules/@react-three/') ||
     normalizedId.includes('/node_modules/three-stdlib/') ||
     normalizedId.includes('/node_modules/tunnel-rat/') ||
     normalizedId.includes('/node_modules/suspend-react/')
   ) {
-    return 'r3f-vendor';
+    return 'r3f-vendor'
   }
-  if (normalizedId.includes('/src/ui/stats/')) return 'app-stats';
-  if (normalizedId.includes('/src/api/')) return 'app-api';
-  return undefined;
+  if (normalizedId.includes('/src/ui/stats/')) return 'app-stats'
+  if (normalizedId.includes('/src/api/')) return 'app-api'
+  return undefined
 }
 
 const DEFERRED_MODULE_PRELOAD_PATTERNS: RegExp[] = [
@@ -156,15 +146,13 @@ function shouldDeferModulePreload(dep: string): boolean {
   return DEFERRED_MODULE_PRELOAD_PATTERNS.some((pattern) => pattern.test(fileName))
 }
 
-export default defineConfig(async ({ command, mode }) => {
-  const react = (await import('@vitejs/plugin-react')).default;
+export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserConfig> => {
+  const react = (await import('@vitejs/plugin-react')).default
 
-  loadEnv(mode, process.cwd(), 'VITE_');
+  loadEnv(mode, process.cwd(), 'VITE_')
 
   if (command === 'build' && mode !== 'production') {
-    throw new Error(
-      `[nomi] Dev build is disabled. Use \`vite build --mode production\` (current mode: ${mode}).`,
-    );
+    throw new Error(`[nomi] Dev build is disabled. Use \`vite build --mode production\` (current mode: ${mode}).`)
   }
 
   return {
@@ -243,6 +231,7 @@ export default defineConfig(async ({ command, mode }) => {
         '@mantine/core',
         '@mantine/modals',
         '@mantine/notifications',
+        '@xmldom/xmldom',
         '@react-three/drei',
         '@react-three/fiber',
         '@react-three/fiber > react-reconciler',
@@ -263,6 +252,10 @@ export default defineConfig(async ({ command, mode }) => {
         'tailwind-merge',
         'swr',
         'three',
+        // assetLocalization is reachable from the renderer through catalogTaskActions.
+        // @xmldom/xmldom is CommonJS, so Vite must prebundle it before the browser
+        // requests the module; otherwise the raw CJS file has no DOMParser export.
+        '@xmldom/xmldom',
         'zod',
         'zustand',
         'zustand/middleware',
@@ -274,8 +267,8 @@ export default defineConfig(async ({ command, mode }) => {
       outDir: resolve(__dirname, 'dist'),
       emptyOutDir: true,
       modulePreload: {
-        resolveDependencies(_filename, deps) {
-          return deps.filter((dep) => !shouldDeferModulePreload(dep));
+        resolveDependencies(_filename: string, deps: string[]) {
+          return deps.filter((dep) => !shouldDeferModulePreload(dep))
         },
       },
       commonjsOptions: {
@@ -291,5 +284,5 @@ export default defineConfig(async ({ command, mode }) => {
     worker: {
       format: 'es',
     },
-  };
-});
+  }
+})

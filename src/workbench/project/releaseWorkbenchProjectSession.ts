@@ -59,6 +59,8 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     creationActiveSkill: null,
     projectAgentDraft: '',
     projectAgentAttachments: [],
+    projectAgentReferences: [],
+    projectAgentRunMode: 'balanced',
     projectAgentDockCollapsed: false,
     storyboardPlans: {},
     storyboardDesignsByDocumentId: {},

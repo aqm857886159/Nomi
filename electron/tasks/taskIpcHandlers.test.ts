@@ -8,6 +8,7 @@ type QuitEvent = { preventDefault: () => void };
 const mocks = vi.hoisted(() => ({
   handlers: new Map<string, Handler>(), quitHandler: undefined as undefined | ((event: QuitEvent) => void),
   guard: vi.fn(), quit: vi.fn(), cancel: vi.fn(), cancelOwner: vi.fn(), cancelAll: vi.fn(), grant: vi.fn(),
+  runCandidate: vi.fn(), cancelCandidate: vi.fn(), failCandidateEnvelope: vi.fn(),
 }));
 vi.mock("electron", () => ({
   ipcMain: { handle: (name: string, fn: Handler) => mocks.handlers.set(name, fn) },
@@ -20,6 +21,11 @@ vi.mock("./taskIpcGuard", () => ({ runTaskIpcGuard: (_payload: unknown, run: () 
 vi.mock("../catalog/antigravityImageOperation", () => ({ antigravityImageJobs: {
   cancel: mocks.cancel, cancelOwner: mocks.cancelOwner, cancelAll: mocks.cancelAll,
 } }));
+vi.mock("./comfyCandidateTest", () => ({
+  runComfyCandidateTest: mocks.runCandidate,
+  cancelComfyCandidateTest: mocks.cancelCandidate,
+  failComfyCandidateEnvelope: mocks.failCandidateEnvelope,
+}));
 
 import { registerTaskIpcHandlers } from "./taskIpcHandlers";
 type Runtime = Awaited<ReturnType<Parameters<typeof registerTaskIpcHandlers>[0]>>;
@@ -71,6 +77,48 @@ describe("task IPC local operation lifecycle", () => {
     await call("cancel", owner, id);
     expect(mocks.cancel).toHaveBeenCalledExactlyOnceWith(id, 31);
     expect(mocks.guard).toHaveBeenCalledTimes(3);
+  });
+  it("routes exact Comfy candidate test and cancel through trusted dedicated IPC", async () => {
+    const runtime = { runTask: vi.fn(), fetchTaskResult: vi.fn() };
+    mocks.runCandidate.mockResolvedValue({ ok: true, revisionId: "revision-1", active: { vendorKey: "candidate", modelKey: "model" } });
+    mocks.cancelCandidate.mockReturnValue({ ok: true });
+    registerTaskIpcHandlers(async () => runtime as unknown as Runtime);
+    const owner = sender(31); const payload = {
+      candidate: { revisionId: "revision-1", modelKey: "model", taskKind: "text_to_video" },
+      request: { extras: { comfyCertificationRevisionId: "revision-1" } },
+    };
+    await expect(call("comfy-candidate-test", owner, payload)).resolves.toMatchObject({ ok: true });
+    expect(call("comfy-candidate-cancel", owner, payload.candidate)).toEqual({ ok: true });
+    expect(mocks.runCandidate).toHaveBeenCalledWith(payload, expect.objectContaining(runtime));
+    expect(mocks.cancelCandidate).toHaveBeenCalledWith(payload.candidate);
+  });
+  it("returns structured failure and exact cleanup when runtime loading throws before the executor guard", async () => {
+    const failure = { ok: false, revisionId: "revision-1", reasonCode: "provider_failed", params: {} };
+    mocks.failCandidateEnvelope.mockReturnValue(failure);
+    registerTaskIpcHandlers(async () => { throw new Error("runtime load failed"); });
+    const owner = sender(31); const payload = {
+      candidate: { revisionId: "revision-1", modelKey: "model", taskKind: "text_to_video" },
+      request: {},
+    };
+    await expect(call("comfy-candidate-test", owner, payload)).resolves.toEqual(failure);
+    expect(mocks.failCandidateEnvelope).toHaveBeenCalledWith(payload, "provider_failed");
+  });
+  it("cancels and cleans the exact in-flight candidate when its renderer is destroyed", async () => {
+    let loaded!: (runtime: Runtime) => void;
+    const failure = { ok: false, revisionId: "revision-1", reasonCode: "candidate_cancelled", params: {} };
+    mocks.failCandidateEnvelope.mockReturnValue(failure);
+    registerTaskIpcHandlers(() => new Promise((resolve) => { loaded = resolve; }));
+    const owner = sender(31); const payload = {
+      candidate: { revisionId: "revision-1", modelKey: "model", taskKind: "text_to_video" },
+      request: {},
+    };
+    const pending = call("comfy-candidate-test", owner, payload);
+    owner.emit("destroyed");
+    loaded({ runTask: vi.fn(), fetchTaskResult: vi.fn() } as unknown as Runtime);
+    await expect(pending).resolves.toMatchObject({ ok: false, revisionId: "revision-1" });
+    expect(mocks.cancelCandidate).toHaveBeenCalledWith(payload.candidate);
+    expect(mocks.failCandidateEnvelope).toHaveBeenCalledWith(payload, "candidate_cancelled");
+    expect(mocks.runCandidate).not.toHaveBeenCalled();
   });
   it("prevents repeated quit events from bypassing process cleanup", async () => {
     let finish!: () => void;

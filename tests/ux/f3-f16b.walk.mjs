@@ -1,7 +1,7 @@
 // F3 + F16b 真 UI 走查：选区入口与合并后的单张确认卡。
 // 这条走查只用本地文稿与 E2E spend bridge，不调用供应商；四路隔离目录由启动器统一注入。
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expectAbsent, expectVisible, proveProbe } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe } from './_assert.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -78,6 +78,19 @@ try {
   })
   const popover = win.locator('[role="toolbar"][aria-label="选中文本工具"]')
   await expectVisible(popover, '选中文字后浮条出现')
+  const persistentSelection = editor.locator('.nomi-persistent-selection')
+  await expectVisible(persistentSelection, '编辑器选区 decoration 初始可见')
+  await expect(persistentSelection, '选区 decoration 包含待替换文本').toContainText('林薇在雨夜的老码头')
+  const assistantInput = win.getByLabel('创作 AI 输入')
+  await expectVisible(assistantInput, '创作助手输入框可见')
+  await assistantInput.focus()
+  await assistantInput.fill('已选中，准备替换')
+  await expect.poll(() => editor.locator('.nomi-persistent-selection').count(), {
+    message: '助手获得焦点后仍保留持久选区 decoration',
+  }).toBeGreaterThan(0)
+  await expect(editor.locator('.nomi-persistent-selection'), '助手获得焦点后高亮仍覆盖待替换文本').toContainText('林薇在雨夜的老码头')
+  const nativeSelection = await win.evaluate(() => window.getSelection()?.toString() ?? '')
+  if (nativeSelection !== '') throw new Error('走查前提失效：助手获得焦点后原生 selection 应为空')
   const splitButton = popover.getByRole('button', { name: '拆成镜头', exact: true })
   const splitProof = await proveProbe(splitButton, '选中浮条上的「拆成镜头」探针可测到')
   await expectVisible(splitButton, '选中浮条上「拆成镜头」可见')

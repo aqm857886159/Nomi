@@ -1,3 +1,5 @@
+import { sensitiveRequestHeaderValues } from "../requestPipeline";
+
 /** Public model-discovery diagnostics never contain a credential-bearing URL. */
 export function publicModelListUrl(raw: string): string {
   try {
@@ -41,7 +43,7 @@ export function modelListErrorRedactor(
   headers: Record<string, string>,
   query: Record<string, string> = {},
 ): (message: string) => string {
-  const secrets = [...Object.values(headers), ...Object.values(query)];
+  const secrets = [...sensitiveRequestHeaderValues(headers), ...Object.values(query)];
   for (const [key, value] of Object.entries(headers)) {
     if (/authorization/i.test(key)) secrets.push(value.replace(/^\S+\s+/, ""));
   }

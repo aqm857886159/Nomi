@@ -157,14 +157,32 @@ function materializeGroupOutputLink(
 
 export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = (set, get) => ({
   startConnection: (nodeId, side = 'right') => {
-    set({ pendingConnectionSourceId: nodeId, pendingConnectionSourceSide: side })
+    set({ pendingConnectionSourceId: nodeId, pendingConnectionSourceSide: side, pendingConnectionSourceKind: 'node' })
+  },
+  startGroupConnection: (groupId, side = 'right') => {
+    const group = get().groups.find((candidate) => candidate.id === groupId)
+    if (!group?.nodeIds.length) return
+    set({ pendingConnectionSourceId: groupId, pendingConnectionSourceSide: side, pendingConnectionSourceKind: 'group' })
   },
   cancelConnection: () => {
-    set({ pendingConnectionSourceId: '', pendingConnectionSourceSide: 'right' })
+    set({ pendingConnectionSourceId: '', pendingConnectionSourceSide: 'right', pendingConnectionSourceKind: 'node' })
   },
   connectToNode: (connectedNodeId) => {
     const pendingNodeId = get().pendingConnectionSourceId
     if (!pendingNodeId) return { ok: false, reason: 'dangling' }
+    if (get().pendingConnectionSourceKind === 'group') {
+      const groupId = pendingNodeId
+      const groupSide = get().pendingConnectionSourceSide
+      // Re-express the group-origin gesture through the existing node→group
+      // commit path. This keeps materialization, declarations, undo and event
+      // replay in one implementation instead of creating a parallel graph API.
+      set({
+        pendingConnectionSourceId: connectedNodeId,
+        pendingConnectionSourceSide: groupSide === 'right' ? 'left' : 'right',
+        pendingConnectionSourceKind: 'node',
+      })
+      return get().connectToGroup(groupId)
+    }
     // mode 选择在 set 外用同一份 pre-state 计算(与原内嵌逻辑等价),事件要带上它
     const pre = get()
     // 右端口是输出：pending → 松手节点；左端口是输入：松手节点 → pending。
@@ -186,6 +204,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
       set((state) => {
         state.pendingConnectionSourceId = ''
         state.pendingConnectionSourceSide = 'right'
+        state.pendingConnectionSourceKind = 'node'
       })
       return connection
     }
@@ -199,6 +218,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
       }
       state.pendingConnectionSourceId = ''
       state.pendingConnectionSourceSide = 'right'
+      state.pendingConnectionSourceKind = 'node'
     })
     const afterEdges = get().edges
     if (afterEdges !== beforeEdges) {
@@ -211,12 +231,16 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
   },
   connectToGroup: (groupId) => {
     const pendingNodeId = get().pendingConnectionSourceId
-    if (!pendingNodeId) return { ok: false, reason: 'dangling', connected: 0, skipped: 0, alreadyConnected: 0 }
+    if (!pendingNodeId || get().pendingConnectionSourceKind !== 'node') {
+      get().cancelConnection()
+      return { ok: false, reason: 'dangling', connected: 0, skipped: 0, alreadyConnected: 0 }
+    }
     const pre = get()
     const group = pre.groups.find((candidate) => candidate.id === groupId)
-    const clearPending = (state: { pendingConnectionSourceId: string; pendingConnectionSourceSide: 'left' | 'right' }) => {
+    const clearPending = (state: { pendingConnectionSourceId: string; pendingConnectionSourceSide: 'left' | 'right'; pendingConnectionSourceKind: 'node' | 'group' }) => {
       state.pendingConnectionSourceId = ''
       state.pendingConnectionSourceSide = 'right'
+      state.pendingConnectionSourceKind = 'node'
     }
     if (!group) {
       set(clearPending)
@@ -516,6 +540,26 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     })
     const recolored = get().groups.find((candidate) => candidate.id === groupId)
     if (recolored) emitCanvasGesture([{ type: 'canvas.group.updated', payload: { group: recolored } }])
+  },
+  setGroupCollapsed: (groupId, collapsed) => {
+    const current = get()
+    const existing = current.groups.find((group) => group.id === groupId)
+    if (!existing || Boolean(existing.collapsed) === collapsed) return
+    pushUndoSnapshot(current)
+    set((state) => {
+      const group = state.groups.find((candidate) => candidate.id === groupId)
+      if (!group) return
+      group.collapsed = collapsed
+      group.updatedAt = Date.now()
+      if (collapsed) {
+        const memberIds = new Set(group.nodeIds)
+        state.selectedNodeIds = state.selectedNodeIds.filter((nodeId) => !memberIds.has(nodeId))
+      }
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+    const updated = get().groups.find((candidate) => candidate.id === groupId)
+    if (updated) emitCanvasGesture([{ type: 'canvas.group.updated', payload: { group: updated } }])
   },
   ungroup: (groupId) => {
     const current = get()

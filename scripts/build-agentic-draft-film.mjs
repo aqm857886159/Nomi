@@ -13,11 +13,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
 
-const repoRoot = path.resolve(new URL('..', import.meta.url).pathname)
+const repoRoot = fileURLToPath(new URL('..', import.meta.url))
 const sampleRoot = path.join(repoRoot, 'artifacts', 'nomi-agentic-draft-film-2026-08-21')
 const exportDir = path.join(sampleRoot, 'exports')
 const runDir = path.join(sampleRoot, '.nomi', 'runs', 'run-agentic-draft-film-30s')

@@ -222,7 +222,7 @@ for (const label of [
   'For Teams',
   'Custom builds',
   'Integrations',
-  'White-label / commercial licenses',
+  'AGPL-compliant deployment',
   'Ongoing iteration',
 ]) {
   expect(readmeEn.includes(label), `English README conversion survives: ${label}`)

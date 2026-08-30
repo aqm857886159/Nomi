@@ -8,7 +8,7 @@
 // transcript：http/request 每次调用记一条（Authorization/apiKey 脱敏），试跑面板摊开
 // 「实际发了什么」——参考图第三闸对脚本失明的补偿（plan §10）。
 import { isJsonRecord, type JsonRecord } from "../jsonUtils";
-import { requestJson, requestMultipart, VendorRequestError } from "../vendor/vendorHttp";
+import { requestJson, requestMultipart, vendorResponseLimitForKind, VendorRequestError } from "../vendor/vendorHttp";
 import { CustomCallSandboxError, runCustomCallSandbox } from "./customCallSandbox";
 import type { Model, ProfileKind, Vendor } from "./types";
 
@@ -35,6 +35,12 @@ export type CustomCallScriptResult = {
 
 const PREVIEW_LIMIT = 2000;
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+
+function customCallTimeoutReason(timeoutMs: number): Error {
+  const error = new Error(`自定义调用脚本超时（${Math.round(timeoutMs / 1000)}s）`);
+  error.name = "TimeoutError";
+  return error;
+}
 
 function preview(value: unknown, redact: (s: string) => string): string | undefined {
   if (value === undefined || value === null) return undefined;
@@ -171,7 +177,7 @@ export async function runCustomCallScript(input: {
   const controller = new AbortController();
   const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const deadlineAt = Date.now() + timeoutMs;
-  const timer = setTimeout(() => controller.abort(new Error(`自定义调用脚本超时（${Math.round(timeoutMs / 1000)}s）`)), timeoutMs);
+  const timer = setTimeout(() => controller.abort(customCallTimeoutReason(timeoutMs)), timeoutMs);
   const relayAbort = () => controller.abort(input.signal?.reason);
   if (input.signal) {
     if (input.signal.aborted) relayAbort();
@@ -231,8 +237,12 @@ export async function runCustomCallScript(input: {
     const body = restoredForm ?? init.body;
     return record(init.method, url, body, () =>
       restoredForm
-        ? requestMultipart(vendor, apiKey, url, headers, init.query || {}, restoredForm, controller.signal)
-        : requestJson(vendor, apiKey, String(init.method || "POST"), url, headers, init.query || {}, body, controller.signal),
+        ? requestMultipart(vendor, apiKey, url, headers, init.query || {}, restoredForm, controller.signal, {
+            maxResponseBytes: vendorResponseLimitForKind(input.model.kind),
+          })
+        : requestJson(vendor, apiKey, String(init.method || "POST"), url, headers, init.query || {}, body, controller.signal, {
+            maxResponseBytes: vendorResponseLimitForKind(input.model.kind),
+          }),
     );
   };
 

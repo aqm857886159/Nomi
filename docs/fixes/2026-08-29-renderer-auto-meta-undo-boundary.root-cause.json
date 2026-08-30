@@ -1,0 +1,57 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-29-renderer-auto-meta-undo-boundary",
+  "problem_type": "renderer lifecycle writes split a canvas undo transaction",
+  "symptom": "A multi-shot materialization correctly created four nodes and one group as a single transaction in the store, but after the real React renderer mounted those nodes, one Cmd+Z left all four nodes and the group on the canvas.",
+  "direct_cause": "Node mount and reconciliation effects wrote default model, supplier, archetype, and video-aspect metadata through updateNode without disabling edit history. updateNode therefore opened new user-edit barriers after the materialization barrier even though no user edit had occurred.",
+  "class_root": "Automatic renderer normalization and explicit user edits shared the same history-defaulting write path without declaring their different undo intent, allowing lifecycle timing to change the document's user-visible undo granularity.",
+  "affected_population": [
+    "Users undoing a newly materialized multi-shot batch after its generation cards rendered",
+    "Users undoing a manual model or reference change followed by automatic supplier, archetype, or aspect reconciliation",
+    "Users opening legacy or partially initialized generation nodes whose metadata is healed on mount"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx"
+  ],
+  "entry_points": [
+    "Default model selection after generation-model preferences load",
+    "Supplier identity and capability declaration reconciliation",
+    "Legacy variant and disconnected-supplier healing",
+    "Archetype metadata initialization",
+    "Automatic video aspect selection after model or reference changes"
+  ],
+  "internal_only_reason": "Undo granularity and renderer lifecycle ownership are internal canvas contracts. Provider documentation cannot determine whether automatic metadata normalization is a separate user edit; the canvas transaction model and real Electron behavior are the deciding evidence.",
+  "invariants": [
+    "Automatic renderer metadata normalization persists and emits its document events without creating an undo barrier of its own.",
+    "A user action and its synchronous or deferred automatic normalization undo as one user-visible step.",
+    "A materialized batch remains one undo step after its real generation-node components mount and initialize.",
+    "Explicit user changes to model, supplier, parameters, prompt, or title continue to create user-edit history.",
+    "Automatic reconciliation remains idempotent and does not suppress persistence or the canvas event journal."
+  ],
+  "regression_tests": [
+    "src/workbench/capability/multiShotCanvasLanding.test.ts",
+    "tests/ux/p4-s5-canvas-landing.e2e.mjs"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every generation card mount, legacy-node heal, supplier disconnect, or reference-driven normalization could create a new history barrier after an unrelated user action.",
+    "same_class_scan": [
+      "Scanned generation-node mount effects and updateNode meta writes for automatic model, supplier, variant, archetype, and aspect normalization.",
+      "Separated automatic normalization callers from explicit model, supplier, prompt, title, and parameter edit handlers.",
+      "Exercised a four-node materialization with real mounted generation cards and result attachment before the first Undo."
+    ]
+  },
+  "prevention": {
+    "strategy": "Declare history intent at every shared automatic normalization write while leaving persistence and event journaling enabled.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx"
+    ]
+  },
+  "migration": "No project migration is required. Existing metadata remains valid; only the history intent attached to future automatic normalization writes changes.",
+  "residual_risks": [
+    "A future renderer effect that writes prompt, title, or meta without history: false can reintroduce the same class of bug; the real Electron transaction walkthrough remains the end-to-end guard.",
+    "Automatic normalization events remain in the append-only canvas journal by design, so persistence and crash recovery continue to observe the normalized state."
+  ]
+}

@@ -11,7 +11,7 @@ import React from 'react'
 import { clampNumber, getWheelZoomFactor } from './generationCanvasGeometry'
 import { findScrollableAncestor } from './canvasScroll'
 import { resolveWheelIntent, useCanvasGestureScheme } from '../../../utils/canvasGesturePreference'
-import { setCanvasDragging } from './canvasDraggingFlag'
+import { CANVAS_DRAGGING_OWNER, setCanvasDragging } from './canvasDraggingFlag'
 import {
   createViewportAnimationCoordinator,
   type ViewportAnimationCoordinator,
@@ -110,7 +110,7 @@ export function useCanvasViewportGestures({
   const resetPanState = React.useCallback(() => {
     isPanningRef.current = false
     setStagePanFlag('data-panning', false)
-    setCanvasDragging(stageRef.current, false)
+    setCanvasDragging(stageRef.current, false, CANVAS_DRAGGING_OWNER.viewport)
     panStartRef.current = null
     lastPointerPositionRef.current = null
   }, [setStagePanFlag, stageRef])
@@ -370,7 +370,7 @@ export function useCanvasViewportGestures({
         start.moved = true
         // 真拖起来才升拖动态（点一下空白不升，否则又变成「点空白也在刷新」）。
         // 平移同样算「我在摆位置/找位置」：浮层一起收起（2026-08-09 用户拍板）。
-        setCanvasDragging(stageRef.current, true)
+        setCanvasDragging(stageRef.current, true, CANVAS_DRAGGING_OWNER.viewport)
         if (start.button === 2) suppressContextMenuRef.current = true // 右键拖→吞菜单
       }
     }

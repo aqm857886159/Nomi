@@ -47,6 +47,7 @@ Capabilities: 23 · uncovered dimensions: 23
 | Capability | Risk | Normal | Boundary | Failure | Persistence | Journeys |
 |---|---|---:|---:|---:|---:|---|
 | models.catalog-parameters | high | 1 | 1 | 1 | 1 | j1-promo |
+| models.integration-certification | high | 1 | 2 | 1 | 2 | model-integration-j0, model-integration-j3, model-integration-j4 |
 
 ## references
 

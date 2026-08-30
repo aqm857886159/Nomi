@@ -1,0 +1,107 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-30-custom-call-timeout-classification",
+  "problem_type": "timeout signal misclassified as user cancellation",
+  "symptom": "A custom-call script interrupted by its own deadline could report that the user cancelled it, and the Linux unit lane intermittently observed the wrong classification.",
+  "direct_cause": "The timeout controller aborted with an ordinary Error while classifyFailure inferred timeout only from Date.now() >= deadlineAt. A timer callback can run at the deadline boundary before the next clock read crosses it, so the already-aborted signal fell through to the generic cancelled branch.",
+  "class_root": "Cancellation provenance was inferred from a second wall-clock read instead of being carried by the abort reason that caused the interruption.",
+  "affected_population": [
+    "Users whose custom provider script reaches its execution deadline",
+    "Callers that propagate a standard TimeoutError abort reason into the custom-call runner",
+    "Linux CI workers whose timer and wall-clock reads expose the deadline-boundary race"
+  ],
+  "scope_paths": [
+    "electron/catalog/customCallRunner.ts",
+    "electron/catalog/customCallSandbox.ts",
+    "electron/catalog/customCallRunner.test.ts"
+  ],
+  "entry_points": [
+    "runCustomCallScript internal deadline timer",
+    "runCustomCallScript external AbortSignal relay",
+    "runCustomCallSandbox failure classification"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Nomi owns the custom-call timeout and cancellation semantics. The standard TimeoutError name supplies provenance, but no external API determines the user-facing classification or runner contract.",
+  "invariants": [
+    "The runner-created deadline abort carries the standard TimeoutError name.",
+    "A TimeoutError signal is classified as timeout even before a subsequent Date.now read crosses deadlineAt.",
+    "An ordinary external abort remains classified as cancellation.",
+    "The deadlineAt check remains a fail-safe for CPU-bound QuickJS interruption where the timer callback has not executed."
+  ],
+  "generality_proof": "Both timeout sources converge on classifyFailure: runner-owned timers now carry explicit provenance, propagated TimeoutError signals retain that provenance, and the existing deadlineAt comparison still covers interrupt-handler deadlines. Generic abort reasons continue through the cancellation branch.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "customCallTimeoutReason and runCustomCallScript",
+      "responsibility": "Attach explicit timeout provenance to runner-owned deadline aborts."
+    },
+    {
+      "path": "electron/catalog/customCallSandbox.ts",
+      "symbol": "classifyFailure",
+      "responsibility": "Map timeout, cancellation, and runtime failures from one authoritative signal/deadline boundary."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/customCallRunner.ts",
+      "entry_point": "internal timeout timer",
+      "disposition": "enforced",
+      "evidence": "The timer aborts with an Error named TimeoutError instead of an untyped Error."
+    },
+    {
+      "path": "electron/catalog/customCallRunner.ts",
+      "entry_point": "external signal relay",
+      "disposition": "enforced",
+      "evidence": "The relay preserves signal.reason, so upstream TimeoutError provenance reaches the classifier unchanged."
+    },
+    {
+      "path": "electron/catalog/customCallSandbox.ts",
+      "entry_point": "sandbox interruption and host-promise failure",
+      "disposition": "enforced",
+      "evidence": "Every sandbox failure path already converges on classifyFailure, which now checks timeout provenance before generic cancellation."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any deadline implemented as a generic abort can race a later wall-clock classification and be mislabeled as user cancellation.",
+    "same_class_scan": [
+      "Searched the custom-call runner and sandbox for every AbortController, deadlineAt, signal.reason, timeout, and cancelled branch.",
+      "Verified the runner-owned timer and external signal relay both reach the same controller.",
+      "Checked the QuickJS interrupt loop and host sleep bridge for alternate classification paths."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/customCallSandbox.ts",
+    "invariant": "Timeout provenance travels on AbortSignal.reason and is classified before generic cancellation or wall-clock fallback.",
+    "failure_mode": "An untyped abort remains cancellation; a standard TimeoutError or elapsed deadline becomes timeout; runtime failures remain runtime errors.",
+    "exception_policy": "none",
+    "strategy": "Use a standard timeout reason at the producer, preserve it through signal relay, and assert classification without depending on timer scheduling.",
+    "artifacts": [
+      "electron/catalog/customCallRunner.ts",
+      "electron/catalog/customCallSandbox.ts",
+      "electron/catalog/customCallRunner.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/customCallRunner.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/customCallRunner.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The supported runner and sandbox are corrected at their shared classification boundary; no parallel legacy timeout path exists."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The race is in Nomi-owned AbortSignal provenance and classification, not in QuickJS or Vitest versions.",
+    "exit_criteria": []
+  },
+  "migration": "No state or protocol migration is required. Existing callers keep the same AbortSignal interface, and ordinary cancellation behavior is unchanged.",
+  "residual_risks": [
+    "A third-party caller can label an unrelated abort reason TimeoutError; Nomi intentionally follows the standard reason identity supplied by the caller.",
+    "Wall-clock fallback remains necessary for CPU-bound interruption before the timeout callback runs."
+  ]
+}

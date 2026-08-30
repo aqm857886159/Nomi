@@ -32,10 +32,12 @@ Nomi 是一个开源的 AI 视频创作桌面工作台。接任何 OpenAI 兼容
 </p>
 
 <p align="center">
-  群码失效，或沟通定制开发、系统集成、贴牌交付与持续迭代，请添加作者微信 <strong>TZ857886159</strong>。
+  群码失效，或沟通遵守 AGPL 的定制开发、系统集成、部署与持续迭代，请添加作者微信 <strong>TZ857886159</strong>。
 </p>
 
 [参与 GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) · [提交商务咨询](https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml)
+
+工作流接入支持：**2373272608@qq.com** · [X/Twitter](https://x.com/sdf297417627618)
 
 [![最新版本](https://img.shields.io/github/v/release/aqm857886159/Nomi?label=release)](https://github.com/aqm857886159/Nomi/releases/latest)
 ![平台](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-1a1816)
@@ -90,15 +92,15 @@ Windows 安装包未使用 Authenticode 签名。SmartScreen 弹窗选择“更�
 
 > **利益披露**：预置供应商中有一家（APImart）的注册链接带推广码。你始终用自己的密钥、按供应商原价直接付给他们——Nomi 不代理、不转售任何推理服务，任何一家供应商都可以换成你自己的接口。
 
-详细说明：[使用指南](docs/user-guide.md) · [模型接入](docs/provider-integration.md) · [CLI + MCP 指南](docs/guide/capability-core-cli-mcp.md)
+详细说明：[使用指南](docs/user-guide.md) · [模型接入](docs/provider-integration.md) · [英文 Codex / Claude Code 接入提示词](docs/guide/model-integration-prompt-en.md) · [对话式模型接入](docs/guide/conversational-model-integration.md) · [CLI + MCP 指南](docs/guide/capability-core-cli-mcp.md)
 
 ## 团队服务
 
-如果你想把 Nomi 变成内部 AI 视频工作台、客户项目、垂直行业流程或贴牌产品，我们可以从首次验证一直做到上线后的持续迭代：
+如果你想把 Nomi 用在内部 AI 视频工作台、客户项目或垂直行业流程，我们可以按 AGPL 合规方式从首次验证一直做到上线后的持续迭代：
 
 - 定制开发
 - 系统与模型集成
-- 贴牌交付与商业授权
+- AGPL 合规部署
 - 持续优化、维护与迭代
 
 [提交商务咨询](https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml)，或添加作者微信 **TZ857886159**（[查看个人微信二维码](docs/media/qingyang-wechat.jpg)）。GitHub Issue 是公开页面，请勿填写密钥、私人联系方式、预算明细或受 NDA 保护的材料。
@@ -137,9 +139,9 @@ pnpm run gates
 
 ## 贡献与许可证
 
-欢迎提交 Bug、需求、文档和代码。外部贡献者在 Pull Request 中一次性签署 [CLA](CLA.md)。
+欢迎提交 Bug、需求、文档和代码。贡献者不需要签署 CLA，贡献按 AGPL-3.0-only 接受。
 
-当前版本采用 **[AGPL-3.0-only](LICENSE)**；此前以 Apache-2.0 发布的历史版本继续保留原许可证。闭源集成、换牌分发或其他商业授权需求，请通过[商务咨询](https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml)联系。
+当前版本采用 **[AGPL-3.0-only](LICENSE)**；此前以 Apache-2.0 发布的历史版本继续保留原许可证。我们可以收费提供遵守 AGPL 的定制开发、集成、部署、培训和持续迭代，但不提供隐瞒对应源代码的闭源 Nomi 分发版本。
 
 ## 关于作者
 

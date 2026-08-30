@@ -114,6 +114,7 @@ const { app, win } = await launchNomiApp({
   settingsDir,
   env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
   settleMs: 1600,
+  syntheticCredentialStorage: true,
 })
 const errors = []
 try {

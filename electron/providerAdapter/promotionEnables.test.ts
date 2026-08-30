@@ -1,12 +1,4 @@
-// 不变量钉子（2026-08-12 用户拍板）：**验证结果不得决定「给不给用」。**
-//
-// 旧行为 `enabled: existing.enabled || verifiedForModel.length > 0` 把探测结果变成了准入闸：
-// 没验过 → 模型停用 → 画布里根本看不见；再叠上 isAdapterModelLocked 锁住勾选框，
-// 用户连手动启用都做不到，只能删掉整个供应商重来。而失败若源于我们自己探测的 bug
-// （2026-08-11 接 DeepSeek 那次正是：探测只给 24 token，思考型模型正文被截空），
-// 重来多少遍都一样 → 「接不进来」。
-//
-// 用户明确要求加的模型就该加进来，没验过的标出来让他自己试。
+// 发布不变量：配置成功只进入 settings staging；只有真实 verified executable mode 才进入生产目录。
 import { describe, expect, it, vi } from "vitest";
 import type { Model, Vendor } from "../catalog/types";
 
@@ -46,7 +38,7 @@ vi.mock("../catalog/catalogStore", () => ({
 
 const { defaultCatalog } = await import("./service");
 
-function promoteWithEverythingFailed(): void {
+function promoteWithEverythingFailed() {
   const draft = {
     models: [
       {
@@ -57,7 +49,7 @@ function promoteWithEverythingFailed(): void {
       },
     ],
   };
-  defaultCatalog.promote({
+  return defaultCatalog.promote({
     run: {
       id: "run-1",
       vendorKey: vendor.key,
@@ -106,22 +98,23 @@ describe("adapter promotion", () => {
     expect(upsertApiKey).not.toHaveBeenCalled();
   });
 
-  it("still enables the model when every mode failed verification", () => {
+  it("rejects zero-verified promotion without writing model or vendor state", () => {
     upsertModel.mockClear();
     upsertVendor.mockClear();
 
-    promoteWithEverythingFailed();
+    const result = promoteWithEverythingFailed();
 
-    expect(upsertModel).toHaveBeenCalledWith(expect.objectContaining({ modelKey: model.modelKey, enabled: true }));
-    expect(upsertVendor).toHaveBeenCalledWith(expect.objectContaining({ key: vendor.key, enabled: true }));
+    expect(result).toEqual({ status: "no-lease" });
+    expect(upsertModel).not.toHaveBeenCalled();
+    expect(upsertVendor).not.toHaveBeenCalled();
   });
 
-  it("records the failure on the model so the UI can mark it unverified", () => {
+  it("leaves failure recording to the fail lifecycle rather than promotion", () => {
     upsertModel.mockClear();
 
-    promoteWithEverythingFailed();
+    const result = promoteWithEverythingFailed();
 
-    const [written] = upsertModel.mock.calls[0] as [{ meta?: { adapter?: { state?: string } } }];
-    expect(written.meta?.adapter?.state).toBe("failed");
+    expect(result).toEqual({ status: "no-lease" });
+    expect(upsertModel).not.toHaveBeenCalled();
   });
 });

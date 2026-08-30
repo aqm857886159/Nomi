@@ -25,7 +25,7 @@ vi.mock("electron", () => ({
     getAppPath: () => process.cwd(),
   },
   safeStorage: {
-    isEncryptionAvailable: () => false,
+    isEncryptionAvailable: () => true,
     encryptString: (s: string) => Buffer.from(s),
     decryptString: (b: Buffer) => b.toString(),
   },

@@ -1,0 +1,57 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-29-react-flow-context-menu-lifecycle",
+  "problem_type": "React Flow canvas context-menu gesture lifecycle regression",
+  "symptom": "A secondary-button click on blank canvas or on a node no longer opened the add-node or node-action menu in the real macOS Electron build, while the same secondary button still needed to support drag-to-pan.",
+  "direct_cause": "The React Flow renderer opened menus directly from onPaneContextMenu and onNodeContextMenu instead of using the existing pointer-down, movement-threshold, pointer-up lifecycle that distinguishes a context click from a secondary-button pan.",
+  "class_root": "The renderer migration preserved the context-menu component but did not preserve its gesture ownership protocol; a structure test checked that the old hook still existed without proving that the active React Flow renderer consumed it.",
+  "affected_population": [
+    "macOS users opening a blank-canvas add menu with a secondary click or Control-click",
+    "Users opening node copy, cut, paste, group, or delete actions from the visible node menu",
+    "Users who use the secondary mouse button both for context clicks and canvas panning"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+    "src/workbench/generationCanvas/components/useCanvasContextNodeMenu.ts"
+  ],
+  "entry_points": [
+    "Secondary-button click on React Flow pane",
+    "Secondary-button click on a generation node",
+    "macOS Control-click on pane or node",
+    "Secondary-button drag that must pan without opening a menu"
+  ],
+  "internal_only_reason": "The deciding behavior is Nomi's canvas gesture contract and the event ordering of its active Electron renderer. External documentation cannot decide whether Nomi should open a menu or pan after a specific pointer sequence, and the existing real journeys are the authoritative interaction probes.",
+  "invariants": [
+    "The active React Flow renderer prepares a context candidate on pointer-down and commits it only after pointer-up without movement beyond the drag threshold.",
+    "A secondary-button drag pans the canvas and suppresses both the native browser menu and the custom Nomi menu.",
+    "A node context click preserves an existing multi-selection or selects the clicked node before menu actions run.",
+    "Menu pointer-down events do not close the menu before the selected action receives its click.",
+    "Structure coverage proves the active renderer imports and wires the shared context-menu lifecycle instead of merely checking dormant source code."
+  ],
+  "regression_tests": [
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+    "tests/ux/canvas-context-menu-click.walk.mjs"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every pane or node secondary-click shares the active renderer lifecycle, and future renderer rewiring could again leave the gesture hook dormant while menus still render.",
+    "same_class_scan": [
+      "Scanned every onContextMenu, onPaneContextMenu, and onNodeContextMenu binding in the generation-canvas renderer.",
+      "Scanned the shared context-menu hook entry points for pane clicks, node clicks, Control-click, secondary drag, and multi-selection preservation.",
+      "Ran the blank-menu, node-menu, keyboard shortcut, and secondary-button pan Electron journeys against the active React Flow renderer."
+    ]
+  },
+  "prevention": {
+    "strategy": "Make the active React Flow host consume the shared deferred pointer lifecycle and keep menu suppression coupled to the same pan gesture state.",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts"
+    ]
+  },
+  "migration": "No project or canvas schema migration is required. The change restores transient pointer and menu state only.",
+  "residual_risks": [
+    "Non-pointer keyboard context-menu invocation remains browser-owned because the shared lifecycle intentionally requires a pointer candidate.",
+    "Platform-specific event ordering remains covered by the real macOS Electron journeys and the Linux suite will continue to exercise the same renderer path."
+  ]
+}

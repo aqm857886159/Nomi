@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 import type { Mapping, Model, Vendor } from "../catalog/types";
 import type { TaskRequest, TaskResult } from "../runtime";
@@ -5,6 +8,7 @@ import type { AdapterModeDraft } from "./types";
 import { verifyAdapterMode, type AdapterVerifierDependencies } from "./verifier";
 
 const now = "2026-08-07T00:00:00.000Z";
+const mediaFixture = (name: string) => fs.readFileSync(path.join(__dirname, "__fixtures__", "certification-media", name));
 const vendor: Vendor = {
   key: "example-com",
   name: "Example",
@@ -97,7 +101,7 @@ describe("verifyAdapterMode", () => {
       result: result("succeeded", [{ type: "image", url: "https://cdn.example.com/out.png" }]),
       providerMeta: {},
     });
-    const fetchAsset = vi.fn().mockResolvedValue({ contentType: "image/png", bytes: Buffer.from("png") });
+    const fetchAsset = vi.fn().mockResolvedValue({ contentType: "image/png", bytes: mediaFixture("valid.png") });
 
     const verification = await verifyAdapterMode(
       { vendor, model, apiKey: "sk-test", mode: mode() },
@@ -105,7 +109,50 @@ describe("verifyAdapterMode", () => {
     );
 
     expect(verification.ok).toBe(true);
-    expect(fetchAsset).toHaveBeenCalledWith("https://cdn.example.com/out.png", expect.objectContaining({ allowContentTypes: ["image/"] }));
+    expect(fetchAsset).toHaveBeenCalledWith("https://cdn.example.com/out.png", expect.objectContaining({
+      allowRedirect: false,
+      maxBytes: 12 * 1024 * 1024,
+    }));
+    if (verification.ok) expect(verification.mediaEvidence).toMatchObject([{ kind: "image", contentType: "image/png" }]);
+  });
+
+  it.each([
+    ["HTML", "image/png", mediaFixture("http-200-html.txt"), "media_markup_masquerade"],
+    ["oversize bytes", "image/png", Buffer.alloc(12 * 1024 * 1024 + 1), "media_too_large"],
+    ["wrong media kind", "video/mp4", mediaFixture("valid.mp4"), "media_kind_mismatch"],
+  ])("rejects the whole mode when a second asset is %s", async (_label, contentType, bytes, reasonCode) => {
+    const urls = ["https://cdn.example.com/first.png", "https://cdn.example.com/second.bin"];
+    const execute = vi.fn().mockResolvedValue({ response: {}, request: {} });
+    const normalize = vi.fn().mockResolvedValue({
+      result: result("succeeded", urls.map((url) => ({ type: "image", url }))),
+      providerMeta: {},
+    });
+    const fetchAsset = vi.fn(async (url: string) => url === urls[0]
+      ? { contentType: "image/png", bytes: mediaFixture("valid.png") }
+      : { contentType, bytes });
+
+    const verification = await verifyAdapterMode(
+      { vendor, model, apiKey: "sk-test", mode: mode() },
+      { execute, normalize, fetchAsset },
+    );
+
+    expect(verification.ok).toBe(false);
+    if (!verification.ok) expect(verification.reasonCode).toBe(reasonCode);
+    expect(fetchAsset).toHaveBeenCalledTimes(2);
+  });
+
+  it("persists evidence for every bounded media asset", async () => {
+    const urls = ["https://cdn.example.com/first.png", "https://cdn.example.com/second.png"];
+    const verification = await verifyAdapterMode(
+      { vendor, model, apiKey: "sk-test", mode: mode() },
+      {
+        execute: vi.fn().mockResolvedValue({ response: {}, request: {} }),
+        normalize: vi.fn().mockResolvedValue({ result: result("succeeded", urls.map((url) => ({ type: "image", url }))), providerMeta: {} }),
+        fetchAsset: vi.fn().mockResolvedValue({ contentType: "image/png", bytes: mediaFixture("valid.png") }),
+      },
+    );
+    expect(verification.ok).toBe(true);
+    if (verification.ok) expect(verification.mediaEvidence).toHaveLength(2);
   });
 
   it("polls an asynchronous mapping until it reaches a terminal success", async () => {
@@ -126,7 +173,7 @@ describe("verifyAdapterMode", () => {
         },
         providerMeta: { task_id: "job-1" },
       });
-    const fetchAsset = vi.fn().mockResolvedValue({ contentType: "video/mp4", bytes: Buffer.from("mp4") });
+    const fetchAsset = vi.fn().mockResolvedValue({ contentType: "video/mp4", bytes: mediaFixture("valid.mp4") });
 
     const verification = await verifyAdapterMode(
       {
@@ -183,7 +230,7 @@ describe("verifyAdapterMode", () => {
           result: result("succeeded", [{ type: "image", url: "https://cdn.example.com/out.png" }]),
           providerMeta: {},
         }),
-        fetchAsset: async () => ({ contentType: "image/png", bytes: Buffer.from("png") }),
+        fetchAsset: async () => ({ contentType: "image/png", bytes: mediaFixture("valid.png") }),
       },
     );
 
@@ -201,14 +248,58 @@ describe("verifyAdapterMode", () => {
           result: result("succeeded", [{ type: "image", url: "https://cdn.example.com/not-an-image" }]),
           providerMeta: {},
         }),
-        fetchAsset: async () => {
-          throw new Error("Unsupported content type: text/html");
-        },
+        fetchAsset: async () => ({ contentType: "text/plain", bytes: mediaFixture("valid.png") }),
       },
     );
 
     expect(verification).toMatchObject({ ok: false, stage: "verify_asset" });
-    expect(verification.error).toMatch(/content type/i);
+    if (!verification.ok) expect(verification.reasonCode).toBe("media_content_type_unsupported");
+  });
+
+  it("rejects an HTTP 200 HTML error page even when the response claims image/png", async () => {
+    const verification = await verifyAdapterMode(
+      { vendor, model, apiKey: "sk-test", mode: mode() },
+      {
+        execute: async () => ({ response: {}, request: {} }),
+        normalize: async () => ({
+          result: result("succeeded", [{ type: "image", url: "https://cdn.example.com/out.png" }]),
+          providerMeta: {},
+        }),
+        fetchAsset: async () => ({
+          contentType: "image/png",
+          bytes: Buffer.from("<!doctype html><html><body>upstream error</body></html>"),
+        }),
+      },
+    );
+
+    expect(verification).toMatchObject({
+      ok: false,
+      stage: "verify_asset",
+      reasonCode: "media_markup_masquerade",
+    });
+  });
+
+  it("rejects a corrupt raster header instead of promoting the provider", async () => {
+    const verification = await verifyAdapterMode(
+      { vendor, model, apiKey: "sk-test", mode: mode() },
+      {
+        execute: async () => ({ response: {}, request: {} }),
+        normalize: async () => ({
+          result: result("succeeded", [{ type: "image", url: "https://cdn.example.com/out.png" }]),
+          providerMeta: {},
+        }),
+        fetchAsset: async () => ({
+          contentType: "image/png",
+          bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01, 0x02]),
+        }),
+      },
+    );
+
+    expect(verification).toMatchObject({
+      ok: false,
+      stage: "verify_asset",
+      reasonCode: "media_corrupt",
+    });
   });
 
   it("passes caller cancellation to the active provider request", async () => {

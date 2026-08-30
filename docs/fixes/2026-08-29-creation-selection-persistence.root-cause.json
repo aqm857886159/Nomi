@@ -1,0 +1,118 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-29-creation-selection-persistence",
+  "problem_type": "creation editor selection feedback disappearing on assistant focus",
+  "symptom": "Selecting script text and focusing the creation assistant cleared the browser selection highlight even though the assistant still read and replaced the selected text correctly.",
+  "direct_cause": "WorkbenchEditor published only selected text and a version counter; it did not retain the ProseMirror from/to range or render a focus-independent decoration after the browser moved focus to the assistant input.",
+  "class_root": "The shared rich-text kernel had no explicit contract for selection ownership across a focus hand-off, so the browser's transient native selection was treated as the only visual representation while tool execution relied on an implicit editor selection.",
+  "affected_population": [
+    "Creation users selecting script text before asking the assistant to revise it",
+    "Users who click, type, or attach context in the creation assistant before approving replace_selection",
+    "Any future creation editor action that hands focus to a sibling surface while retaining a document range"
+  ],
+  "scope_paths": [
+    "src/workbench/common/useNomiRichTextEditor.ts",
+    "src/workbench/common/persistentSelection.ts",
+    "src/workbench/creation/WorkbenchEditor.tsx",
+    "src/workbench/workbench.css"
+  ],
+  "entry_points": [
+    "WorkbenchEditor selection hand-off to CreationAiPanel",
+    "Creation assistant read_selection and replace_selection tool execution",
+    "TextDocumentNode shared rich-text hook, explicitly not affected because it does not opt into the creation-only extension"
+  ],
+  "internal_only_reason": "The behavior is owned by Nomi's Tiptap/ProseMirror selection lifecycle and its creation-to-assistant focus hand-off. External editor documentation cannot decide which Nomi surface should retain a visual range.",
+  "invariants": [
+    "A non-empty creation-editor selection remains visibly decorated after editor focus moves to the assistant.",
+    "Document transactions map the saved range so edits before it do not move the highlight to the wrong text.",
+    "A collapsed selection, replacement transaction, or document switch clears the stale decoration.",
+    "Canvas text nodes do not receive the creation-only persistent-selection extension.",
+    "The assistant read_selection and replace_selection tools continue to use the same editor selection and replacement path."
+  ],
+  "regression_tests": [
+    "src/workbench/common/persistentSelection.test.ts",
+    "tests/ux/f3-f16b.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/common/persistentSelection.test.ts",
+    "tests/ux/f3-f16b.walk.mjs"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://tiptap.dev/docs/editor/core-concepts/prose-mirror",
+      "checked_at": "2026-08-29",
+      "purpose": "Confirmed that Tiptap exposes the underlying ProseMirror state and transaction model used by the shared editor kernel."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://prosemirror.net/docs/ref/#view.Decoration",
+      "checked_at": "2026-08-29",
+      "purpose": "Confirmed that inline decorations are focus-independent document-view annotations suitable for rendering a retained range."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every sibling-surface focus hand-off can make a transient native selection disappear, and any future rich-text caller without a shared range contract could recreate the same visual failure.",
+    "same_class_scan": [
+      "Scanned every useNomiRichTextEditor caller: WorkbenchEditor is the only feature-rich creation surface; TextDocumentNode is the separate canvas entry point and remains explicitly not affected.",
+      "Scanned all creation assistant read_selection and replace_selection paths and confirmed they consume the shared creation document tools rather than a second selection store.",
+      "Reproduced the real packaged workflow: native selection becomes empty after assistant focus, while replacement still lands at the original range."
+    ]
+  },
+  "generality_proof": "The persistent-selection extension is installed at the shared rich-text hook boundary and is opt-in for the creation editor. The plugin maps every document transaction and clears every explicit collapsed or replacement selection, so all current and future creation focus hand-offs share the same behavior without changing the canvas text-node entry point.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/common/useNomiRichTextEditor.ts",
+      "symbol": "useNomiRichTextEditor",
+      "responsibility": "Own the opt-in extension boundary so the creation editor receives persistent selection behavior while other rich-text callers do not."
+    },
+    {
+      "path": "src/workbench/common/persistentSelection.ts",
+      "symbol": "createPersistentSelectionPlugin",
+      "responsibility": "Own range capture, transaction mapping, clearing, and focus-independent inline decorations for every creation selection hand-off."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "entry_point": "Creation editor useNomiRichTextEditor call",
+      "disposition": "enforced",
+      "evidence": "The creation editor opts into PersistentSelectionExtension and its real Electron walkthrough verifies the decoration survives assistant focus."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/render/TextDocumentNode.tsx",
+      "entry_point": "Canvas text-node useNomiRichTextEditor call",
+      "disposition": "not-affected",
+      "evidence": "The canvas caller passes no featureExtensions or persistent-selection option, preserving its existing selection and edit behavior."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/common/persistentSelection.ts",
+    "invariant": "A creation selection is represented by a mapped ProseMirror range and inline decoration until an explicit collapsed or replacement transaction clears it.",
+    "failure_mode": "The plugin state becomes null and renders no decoration; focused unit tests and the creation Electron walkthrough fail before a stale or invisible selection can ship.",
+    "exception_policy": "none",
+    "strategy": "Move focus-independent selection ownership into one ProseMirror plugin and require the creation editor to opt into that shared boundary instead of relying on browser-native selection painting.",
+    "artifacts": [
+      "src/workbench/common/persistentSelection.ts",
+      "src/workbench/common/useNomiRichTextEditor.ts",
+      "src/workbench/creation/WorkbenchEditor.tsx"
+    ]
+  },
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "There was no parallel selection store or legacy decoration path; the repair adds the missing shared representation and keeps the existing editor/tool protocol."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The defect is caused by Nomi's selection lifecycle contract, not by a Tiptap or ProseMirror dependency version.",
+    "exit_criteria": []
+  },
+  "migration": "No stored document or tool protocol migration is required. The selection range and decoration are transient editor state and disappear when the editor unmounts or the selection is explicitly replaced.",
+  "residual_risks": [
+    "A browser-native selection can still be empty by design; the decoration is the authoritative visual cue while the assistant owns focus.",
+    "If a future creation command intentionally keeps a non-empty selection after applying content, it must dispatch a collapsed selection or explicit clear transaction so stale decoration is not retained."
+  ]
+}

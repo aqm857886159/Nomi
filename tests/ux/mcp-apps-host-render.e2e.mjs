@@ -29,9 +29,39 @@ const ok = (c, l) => { if (!c) throw new Error(`FAIL: ${l}`); passed += 1; conso
 const UI_EXT = 'io.modelcontextprotocol/ui'
 const MIME = 'text/html;profile=mcp-app'
 
-const child = spawn(require('electron'), withLinuxNoSandbox([repoRoot, '--disable-gpu']), {
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_MCP_STDIO: '1', NOMI_SETTINGS_DIR: tmp, NOMI_ELECTRON_USER_DATA_DIR: tmp, NOMI_PROJECTS_DIR: path.join(tmp, 'projects'), NOMI_CAPABILITY_DIR: path.join(tmp, 'cap') },
+const appBundle = process.env.NOMI_APP_PATH || path.join(repoRoot, 'release', 'mac-arm64', 'Nomi.app')
+const packaged = process.platform === 'darwin' && fs.existsSync(path.join(appBundle, 'Contents', 'MacOS', 'Nomi'))
+const appExecutable = packaged ? path.join(appBundle, 'Contents', 'MacOS', 'Nomi') : require('electron')
+const appArgs = packaged ? [] : withLinuxNoSandbox([repoRoot, '--disable-gpu'])
+// 打包版 MCP 入口必须经过同 bundle 的 bare-Node launcher。直接执行 Electron 主进程会
+// 启动 GUI/单实例路径而不是把 stdio 接口交给宿主；发布冒烟使用同一条已验证路径。
+const launcherScript = packaged
+  ? path.join(appBundle, 'Contents', 'Resources', 'app.asar', 'dist-electron', 'capabilityCore', 'mcpNodeLauncher.js')
+  : null
+const spawnCommand = packaged
+  ? path.join(appBundle, 'Contents', 'Frameworks', 'Nomi Helper.app', 'Contents', 'MacOS', 'Nomi Helper')
+  : appExecutable
+const spawnArgs = packaged ? [launcherScript] : appArgs
+
+const child = spawn(spawnCommand, spawnArgs, {
+  cwd: packaged ? tmp : repoRoot,
+  env: {
+    ...process.env,
+    NOMI_E2E: '1',
+    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
+    NOMI_MCP_STDIO: '1',
+    NOMI_SETTINGS_DIR: tmp,
+    NOMI_ELECTRON_USER_DATA_DIR: tmp,
+    NOMI_PROJECTS_DIR: path.join(tmp, 'projects'),
+    NOMI_CAPABILITY_DIR: path.join(tmp, 'cap'),
+    ...(packaged
+      ? {
+          ELECTRON_RUN_AS_NODE: '1',
+          NOMI_MCP_APP_COMMAND: appExecutable,
+          NOMI_MCP_APP_ARGS: '[]',
+        }
+      : {}),
+  },
   stdio: ['pipe', 'pipe', 'inherit'],
 })
 const pending = new Map()
@@ -51,7 +81,9 @@ try {
   // 1) initialize —— 声明 UI 扩展（像一个真 MCP Apps 宿主）。
   let init = null
   for (let i = 0; i < 20 && !init; i++) {
-    try { init = await rpc('initialize', { protocolVersion: '2026-01-26', capabilities: { extensions: { [UI_EXT]: { mimeTypes: [MIME] } } } }, 4000) } catch { await new Promise((r) => setTimeout(r, 1000)) }
+    // MCP Apps 的 UI 扩展独立于核心协议版本协商；Nomi 当前支持的核心版本是
+    // 2025-11-25，不能把扩展规范日期误当成 initialize.protocolVersion。
+    try { init = await rpc('initialize', { protocolVersion: '2025-11-25', capabilities: { extensions: { [UI_EXT]: { mimeTypes: [MIME] } } } }, 4000) } catch { await new Promise((r) => setTimeout(r, 1000)) }
   }
   ok(init?.result, '真 Nomi stdio server 起来了（app 二进制 NOMI_MCP_STDIO）')
 

@@ -7,7 +7,8 @@
  * 原来 disabled={!ready} 把人拦在外面，可 /object_info 只知道「本机此刻装了什么」——用户可能
  * 正边下模型边配、模型在别的路径、或干脆想先把模板加到画布上回头再补。检测继续跑、缺什么照说，
  * 但按钮走 resolvePrecheckGateAction 的 arm→confirm 二次确认（与 manual 接入同一份门槛逻辑，P1）。
- * 检测复用 Tier-1 的 reconcileComfyWorkflow（/object_info 对账）；启用复用 importComfyWorkflow 整条导入链（P1）。
+ * 检测复用 Tier-1 的 reconcileComfyWorkflow（/object_info 对账）；提交统一进入
+ * integration session handoff，不直接启用 Catalog。
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -28,12 +29,14 @@ type Reconcile = {
 }
 
 type ComfyuiPresetSectionProps = {
+  vendorKey: string
   /** 已有模型标签集合（判「已启用」防重复导入）。 */
   modelLabels: string[]
   onImported: () => void
+  onVerificationRequested?: () => void
 }
 
-export function ComfyuiPresetSection({ modelLabels, onImported }: ComfyuiPresetSectionProps): JSX.Element | null {
+export function ComfyuiPresetSection({ vendorKey, modelLabels, onImported, onVerificationRequested }: ComfyuiPresetSectionProps): JSX.Element | null {
   const { t } = useTranslation()
   const catalog = getDesktopBridge()?.modelCatalog
   const presets = React.useMemo<Preset[]>(() => {
@@ -58,14 +61,17 @@ export function ComfyuiPresetSection({ modelLabels, onImported }: ComfyuiPresetS
 
   if (!catalog || presets.length === 0) return null
 
-  const enable = (preset: Preset) => {
-    if (!catalog.importComfyWorkflow) return
+  const enable = async (preset: Preset) => {
+    const prepare = getDesktopBridge()?.onboarding?.integrationSessionPrepareComfy
+    if (!prepare) return
     setBusy(true)
     try {
-      const r = catalog.importComfyWorkflow({ text: preset.workflowText, binding: preset.binding, labelZh: preset.labelZh })
-      if (!r.ok) { toast(r.error, 'error'); return }
-      toast(t('onboardingProviders.comfyPreset.enabled', { name: preset.labelZh }), 'success')
+      await prepare({ vendorKey, name: preset.labelZh, workflow: preset.workflowText, binding: preset.binding })
+      toast(t('onboardingProviders.comfyWorkflow.awaitingVerification', { name: preset.labelZh }), 'info')
       onImported()
+      onVerificationRequested?.()
+    } catch (error) {
+      toast(error instanceof Error ? error.message : String(error), 'error')
     } finally { setBusy(false) }
   }
 

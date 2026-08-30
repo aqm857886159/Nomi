@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // 批量机器门岗（P4 S7，2026-08-25）。守一条不变量：**批量生成只剩一台机器**（语义调度器）。
 //
 // 起因：P4 收敛审查发现三套并行批量机器长期共存（P1 违规存量）：
@@ -68,6 +67,7 @@ const FROZEN_JUDGMENT_HOMES = new Set([
 // 可能从旧路穿透双写项目事实，runtime plan §7 铁律）。
 const REQUIRED_LEGACY_ROUTES = ['generate', 'nomi_generate', 'production.start', 'production.control', 'production.decide-gate', 'nomi_start_playbook']
 const LEGACY_ROUTES_FILE = 'electron/capabilityCore/mcpGenerationPolicy.ts'
+const LF = String.fromCharCode(10)
 
 const RULES = [
   {
@@ -79,7 +79,7 @@ const RULES = [
       const home = rel(file)
       if (RUN_GENERATION_NODE_HOMES.has(home)) return []
       const hits = []
-      code.split('\n').forEach((line, i) => {
+      code.split(/\n/).forEach((line, i) => {
         // 只认「调用」形态 runGenerationNode(...)，不认定义/re-export/类型引用（那些不发起生成）。
         if (/(^|[^.\w])runGenerationNode\s*\(/.test(line) && !/function\s+runGenerationNode/.test(line)) {
           hits.push({ line: i + 1, text: line.trim().slice(0, 120), file })
@@ -97,7 +97,7 @@ const RULES = [
       const home = rel(file)
       if (PRODUCTION_GENERATE_NODE_HOMES.has(home)) return []
       const hits = []
-      code.split('\n').forEach((line, i) => {
+      code.split(/\n/).forEach((line, i) => {
         if (/['"]production\.generate-node['"]/.test(line)) {
           hits.push({ line: i + 1, text: line.trim().slice(0, 120), file })
         }
@@ -131,14 +131,14 @@ const RULES = [
       const home = rel(file)
       if (FROZEN_JUDGMENT_HOMES.has(home)) return []
       const hits = []
-      const lines = code.split('\n')
+      const lines = code.split(/\n/)
       lines.forEach((line, i) => {
         // 只认 isAnchorFrozen 的**判据实现签名**：读 frozen 标记里的 .at 并做数值门（at > 0 且
         // typeof number / Number.isFinite）。这是唯一真实的漂移风险（重抄一遍冻结判据）。
         // 刻意**不**认 `referenceSheet === true`——那是个到处在用的合法标记读取（分镜编号/画布工具/
         // nodeKindDomain 都读它），认它 = 噪音爆炸 = 整条规则被无视（heavy-path 教训）。视觉锚判定的
         // 单源由 typecheck + isVisualAnchorNode 的调用点收敛兜，不靠本 grep。
-        const window = lines.slice(i, i + 4).join('\n')
+        const window = lines.slice(i, i + 4).join(LF)
         if (/frozen/i.test(window) && /\bat\b[^\n]*>\s*0/.test(window) && /(typeof[^\n]*['"]number['"]|Number\.isFinite)/.test(window)) {
           hits.push({ line: i + 1, text: line.trim().slice(0, 120), file })
         }

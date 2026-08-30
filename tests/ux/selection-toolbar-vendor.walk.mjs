@@ -19,16 +19,16 @@ fs.mkdirSync(settingsDir, { recursive: true })
 // 在那种现场跑「没有『N 家』折叠行」等于什么都没验（空洞的绿）——必须造出多家现场。
 const now = '2026-08-18T00:00:00.000Z'
 const vendors = [
-  { key: 'apimart', name: 'APIMart' },
-  { key: 'kie', name: 'Kie' },
+  { key: 'ux-apimart', name: 'APIMart' },
+  { key: 'ux-kie', name: 'Kie' },
 ]
 fs.writeFileSync(
   path.join(settingsDir, 'model-catalog.json'),
   JSON.stringify({
-    version: 1,
+    version: 8,
     vendors: vendors.map((v) => ({
       key: v.key, name: v.name, enabled: true,
-      baseUrlHint: `https://${v.key}.example/v1`, authType: 'bearer',
+      baseUrlHint: `https://${v.key}.example/v1`, authType: 'none',
       providerKind: 'openai-compatible', meta: {}, createdAt: now, updatedAt: now,
     })),
     models: [
@@ -36,20 +36,27 @@ fs.writeFileSync(
       ...vendors.map((v) => ({
         vendorKey: v.key, modelKey: `nano-banana-${v.key}`, labelZh: 'Nano Banana', kind: 'image',
         enabled: true, createdAt: now, updatedAt: now,
-        meta: { adapter: { state: 'verified', runId: 'run-x', updatedAt: now } },
+        meta: {
+          adapter: {
+            state: 'verified', activeRevision: 'revision-x', publicationModes: ['text_to_image'],
+            modes: [{ taskKind: 'text_to_image', state: 'verified' }], runId: 'run-x', updatedAt: now,
+          },
+        },
       })),
       // 单家对照组：它应该仍是一行。
       {
-        vendorKey: 'apimart', modelKey: 'gpt-image-2', labelZh: 'GPT Image 2', kind: 'image',
+        vendorKey: 'ux-apimart', modelKey: 'gpt-image-2', labelZh: 'GPT Image 2', kind: 'image',
         enabled: true, createdAt: now, updatedAt: now,
-        meta: { adapter: { state: 'verified', runId: 'run-x', updatedAt: now } },
+        meta: {
+          adapter: {
+            state: 'verified', activeRevision: 'revision-x', publicationModes: ['text_to_image'],
+            modes: [{ taskKind: 'text_to_image', state: 'verified' }], runId: 'run-x', updatedAt: now,
+          },
+        },
       },
     ],
     mappings: [],
-    apiKeysByVendor: Object.fromEntries(vendors.map((v) => [
-      v.key,
-      { vendorKey: v.key, apiKey: 'sk-walkthrough', enc: 'plain', enabled: true, createdAt: now, updatedAt: now },
-    ])),
+    apiKeysByVendor: {},
   }, null, 2),
 )
 

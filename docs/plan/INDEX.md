@@ -12,6 +12,8 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-06-07-model-onboarding-final-plan.md](2026-06-07-model-onboarding-final-plan.md) | **模型接入最终方案**（R7 定稿，审计+设计+计划）— 本簇主文档 | ✅ |
+| [2026-08-28-conversational-model-integration-verification.md](2026-08-28-conversational-model-integration-verification.md) | 对话式模型接入与认证闭环：J0–J5 真实验收和发布记录 | 🚧 |
+| [2026-08-30-issue-237-onboarding.md](2026-08-30-issue-237-onboarding.md) | Issue #237：OpenAI-compatible 图片请求根因修复、匿名上传分诊与英文接入入口 | 🚧 |
 | [2026-06-07-apimart-curated-onboarding.md](2026-06-07-apimart-curated-onboarding.md) | 策展两家(kie+apimart)一键接入；战略从「通用接入」转向 | ✅ |
 | [2026-06-06-universal-model-onboarding.md](2026-06-06-universal-model-onboarding.md) | 「描述符+通用解释器接长尾」研究稿 | ⛔ |
 | [2026-05-30-onboarding-schema-first-extraction.md](2026-05-30-onboarding-schema-first-extraction.md) | 参数抽取从 curl-only 升级为 schema-first | 🚧 |
@@ -44,6 +46,9 @@
 | [2026-06-06-HANDOFF.md](2026-06-06-HANDOFF.md) | 生成节点「通用化」项目交接 | 📎 |
 | [2026-06-06-P0-P1-execution-log.md](2026-06-06-P0-P1-execution-log.md) | 通用素材系统 P0+P1 执行日志 | 📎 |
 | [2026-06-06-reference-at-and-sources.md](2026-06-06-reference-at-and-sources.md) | 通用「素材引用」系统（非 Seedance 专用） | 🚧 |
+| [2026-08-27-react-flow-canvas-complete-migration.md](2026-08-27-react-flow-canvas-complete-migration.md) | **生成画布迁至 React Flow 单内核**（R21）：删旧 renderer、无并行版/无 fallback；配套不变量测试 | ✅ |
+| [2026-08-27-canvas-card-stack.md](2026-08-27-canvas-card-stack.md) | **画布结果卡组与编组交互**：多版本堆叠、复制变体、收起/展开编组与关系线 | ✅ |
+| [2026-08-28-pr216-real-canvas-merge-gate.md](2026-08-28-pr216-real-canvas-merge-gate.md) | **PR 216 合入闸**：生产入口几何修复 + 真实 Electron 画布分层验收 + CI 证据 | 🚧 |
 | [2026-08-08-canvas-drag-pan-and-quiet-render.md](2026-08-08-canvas-drag-pan-and-quiet-render.md) | **画布手势现行契约**：拖=平移 / Shift=框选 / 滚轮锚光标；平移零重绘、边标签按选中显示、拖节点收浮层（推翻 08-07 selection-first）| ✅ |
 | [2026-08-09-prompt-paste-node-duplication.md](2026-08-09-prompt-paste-node-duplication.md) | 外部提示词粘贴进编辑器时不再误触画布节点粘贴兜底 | ✅ |
 | [2026-08-09-windows-drag-floating-surfaces.md](2026-08-09-windows-drag-floating-surfaces.md) | Windows 顶部浮层避开自绘窗口栏与功能顶栏拖拽区 | ✅ |
@@ -64,11 +69,13 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
-| [2026-08-29-project-agent-host-execution-roadmap.md](2026-08-29-project-agent-host-execution-roadmap.md) | Project Agent Host Phase 2B–6 全阶段执行路线、出口门与 main 整合策略 | 🚧 |
-| [2026-08-29-project-agent-phase3a-closure.md](2026-08-29-project-agent-phase3a-closure.md) | Project Agent Phase 3A：canonical document.read Host 闭环 | ✅ |
-| [2026-08-29-project-agent-phase3b-document-write.md](2026-08-29-project-agent-phase3b-document-write.md) | Project Agent Phase 3B：可撤销 document.write Host 闭环 | 🚧 |
-| [2026-08-29-project-agent-phase3c-canvas-write.md](2026-08-29-project-agent-phase3c-canvas-write.md) | Project Agent Phase 3C：canonical canvas.write、Host-before-Surface 与精确 precondition | 🚧 |
-| [2026-08-29-cla-signature-ledger.md](2026-08-29-cla-signature-ledger.md) | CLA 签名账本与受保护主分支解耦 | ✅ |
+| [2026-08-29-project-agent-host-execution-roadmap.md](2026-08-29-project-agent-host-execution-roadmap.md) | Project Agent Host 全阶段执行路线图与 Phase 6 resident shell 合同 | 🚧 |
+| [2026-08-29-project-agent-phase3a-closure.md](2026-08-29-project-agent-phase3a-closure.md) | `document.read` canonical Host 垂直切片收口 | ✅ |
+| [2026-08-29-project-agent-phase3b-document-write.md](2026-08-29-project-agent-phase3b-document-write.md) | 可逆 `document.write` 迁移与冻结 target admission | ✅ |
+| [2026-08-29-project-agent-phase3c-canvas-write.md](2026-08-29-project-agent-phase3c-canvas-write.md) | canonical `canvas.write@v1` 可逆画布写入 | ✅ |
+| [2026-08-29-agpl-only-no-cla.md](2026-08-29-agpl-only-no-cla.md) | **只发布 AGPL-3.0-only，不要求 CLA**：统一贡献、分发和 AGPL 合规服务边界 | ✅ |
+| [2026-08-29-cla-signature-ledger.md](2026-08-29-cla-signature-ledger.md) | CLA 签名账本与受保护主分支解耦（历史方案，已废弃） | ⛔ |
+| [2026-08-29-creation-selection-persistence.md](2026-08-29-creation-selection-persistence.md) | 创作区失焦后保留待替换文本的视觉选区 | ✅ |
 | [2026-08-28-reference-media-mentions.md](2026-08-28-reference-media-mentions.md) | 图片/视频/音频 @ 引用统一：候选、真实参考槽、编辑器与发送投影 | ✅ |
 | [2026-08-27-root-cause-remediation-and-media-boundary-fixes.md](2026-08-27-root-cause-remediation-and-media-boundary-fixes.md) | Comfy/custom-call 媒体契约根因修复 + 可执行根因合同门禁 | ✅ |
 | [2026-08-27-single-source-semantics-gate.md](2026-08-27-single-source-semantics-gate.md) | ProjectAgent 统一前置：AST 语义词表门岗 + R14.1 单一 owner 审计 | ✅ |
@@ -116,6 +123,10 @@
 | [2026-05-25-phase-e2-completion-and-tech-uplift.md](2026-05-25-phase-e2-completion-and-tech-uplift.md) | Phase E.2 完成 + 技术栈升级(v0.6) | 🚧 |
 | [2026-05-31-unify-request-pipeline.md](2026-05-31-unify-request-pipeline.md) | 统一请求构建管线（根治测试过/生产挂） | 📋 |
 | [2026-06-04-runtime-split-execution.md](2026-06-04-runtime-split-execution.md) | 增量拆分 electron/runtime.ts（strangler） | 🚧 |
+| [2026-08-29-focused-validation-policy.md](2026-08-29-focused-validation-policy.md) | PR `fast/full` 两档验证历史基线（已被 08-30 独立风险面取代） | 📎 |
+| [2026-08-30-risk-scoped-validation-evidence.md](2026-08-30-risk-scoped-validation-evidence.md) | **按真实风险拆分 unit/desktop/journey/canvas/performance/package，并用 exact-SHA CI 证据替代合并后第三遍全量测试** | ✅ |
+| [2026-08-29-root-cause-contract-v2.md](2026-08-29-root-cause-contract-v2.md) | 根因合同 v2、跨 AI 强制执行与规则收敛 | 🚧 |
+| [2026-08-29-git-delivery-integrity.md](2026-08-29-git-delivery-integrity.md) | Git 交付身份、有界远端刷新与 merged-main 单次验收 | ✅ |
 | [2026-06-03-styles-css-teardown.md](2026-06-03-styles-css-teardown.md) | styles.css 拆除（死 CSS 清理） | 🚧 |
 | [2026-06-06-main-process-proxy.md](2026-06-06-main-process-proxy.md) | 主进程 fetch 走代理（Phase 1 自动探测） | ✅ |
 | [2026-06-08-巨壳拆分-B-Scene3D-A-NodeParameterControls.md](2026-06-08-巨壳拆分-B-Scene3D-A-NodeParameterControls.md) | 巨壳拆分：Scene3DFullscreen → NodeParameterControls | 🚧 |

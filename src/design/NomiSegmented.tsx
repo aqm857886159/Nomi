@@ -27,9 +27,11 @@ export type NomiSegmentedProps = {
   className?: string
   /** 每个分段项的附加类（如比例组统一双行高，保证图形/文字跨项对齐）。 */
   itemClassName?: string
+  /** compact = 28px item height for dense canvas controls; default = 32px. */
+  density?: 'compact' | 'default'
 }
 
-export function NomiSegmented({ value, options, onChange, ariaLabel, className, itemClassName }: NomiSegmentedProps): JSX.Element {
+export function NomiSegmented({ value, options, onChange, ariaLabel, className, itemClassName, density = 'default' }: NomiSegmentedProps): JSX.Element {
   return (
     // grid 等宽列（2026-07-17 用户反馈：flex-1 下换行的孤项被拉伸，「多出来的选项要和其他一样大」）：
     // auto-fit+minmax——所有项严格等宽；选项少于一行时空轨道塌陷、项拉伸**填满父容器**（1K/2K 两项
@@ -52,7 +54,7 @@ export function NomiSegmented({ value, options, onChange, ariaLabel, className, 
             title={option.title}
             disabled={option.disabled}
             onClick={() => { if (!on) onChange(option.value) }}
-            style={{ minHeight: 32 }}
+            style={{ minHeight: density === 'compact' ? 28 : 32 }}
             className={cn(
               'px-2 py-1 rounded-nomi-sm border-0 text-caption cursor-pointer min-w-0',
               'inline-flex flex-col items-center justify-center gap-1 font-[inherit]',

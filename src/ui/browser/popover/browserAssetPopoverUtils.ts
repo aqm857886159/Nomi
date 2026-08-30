@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import i18n from '../../../i18n'
 import type { DesktopAssetDto } from '../../../desktop/bridge'
 import type { BrowserAssetCanvasImportItem } from '../overlay/globalAssetPopoverEvents'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
@@ -103,10 +104,10 @@ export function browserAssetTimeValue(asset: NomiBrowserAsset): number {
 
 export function browserAssetDisplaySubtitle(asset: NomiBrowserAsset): string {
   const concreteSubtitle = asset.subtitle?.trim()
-  if (asset.status === 'loading') return '下载中...'
-  if (asset.status === 'error') return concreteSubtitle || '下载失败'
+  if (asset.status === 'loading') return i18n.t('browserAssets.downloadingEllipsis')
+  if (asset.status === 'error') return concreteSubtitle || i18n.t('browserAssets.capture.downloadFailed')
   if (concreteSubtitle) return concreteSubtitle
-  return asset.type === 'image' ? '图片' : '视频'
+  return asset.type === 'image' ? i18n.t('browserAssets.image') : i18n.t('browserAssets.video')
 }
 
 export function isBrowserAssetDraggable(asset: NomiBrowserAsset): boolean {
@@ -115,31 +116,36 @@ export function isBrowserAssetDraggable(asset: NomiBrowserAsset): boolean {
 
 // 结构化错误码（主进程 [nomi-capture:<code>] 前缀）→ 文案 + 唯一下一步。
 // 每种失败必须映射到一个可行动动作（2026-07-22 审计 P1：通用「请重试」让用户重复必败动作）。
-const CAPTURE_ERROR_CODE_MESSAGES: Record<string, string> = {
-  'forbidden': '网站拒绝了下载（可能要登录）——先在浏览器里登录该网站再捕捞',
-  'not-found': '素材链接已失效——回到页面重新选一次',
-  'html-not-media': '网站返回的是网页而不是图片/视频（防盗链或人机验证）——通过验证后重试',
-  'too-large': '素材超过 200MB 上限——换小一点的素材',
-  'timeout': '下载超时——网络慢或站点限流，稍后重试',
-  'blocked-by-client': '请求被浏览器安全策略拦截——重新捕捞一次',
-  'mse-stream': '这是流媒体视频（边播边传），没有可下载的原件——回到视频页让画面可见后重试保存当前帧',
-  'black-frame': '视频当前是黑屏/无画面——先在页面里播放到有清晰画面的一帧，再保存当前帧',
-  'network': '网络连接失败——检查网络后重试',
+// 主进程错误码 → i18n 键。文案本身住在 browserAssets.capture.error(码是协议、文案是界面,分开放)。
+const CAPTURE_ERROR_CODE_KEYS: Record<string, string> = {
+  'forbidden': 'forbidden',
+  'not-found': 'notFound',
+  'html-not-media': 'htmlNotMedia',
+  'too-large': 'tooLarge',
+  'timeout': 'timeout',
+  'blocked-by-client': 'blockedByClient',
+  'mse-stream': 'mseStream',
+  'black-frame': 'blackFrame',
+  'network': 'network',
 }
+
+const captureError = (key: string): string =>
+  i18n.t(`browserAssets.capture.error.${key}` as 'browserAssets.capture.error.forbidden')
 
 export function browserAssetImportErrorMessage(reason: string, url: string): string {
   // 不锚行首：渲染层拿到的是 IPC 包裹后的 message（Error invoking remote method …: Error: [nomi-capture:…]）。
   const code = /\[nomi-capture:([a-z-]+)\]/i.exec(reason)?.[1]?.toLowerCase()
-  if (code && CAPTURE_ERROR_CODE_MESSAGES[code]) return CAPTURE_ERROR_CODE_MESSAGES[code]
+  if (code && CAPTURE_ERROR_CODE_KEYS[code]) return captureError(CAPTURE_ERROR_CODE_KEYS[code])
   // 旧构建/渲染层自产错误没有 code——按字符串归类（保留旧口径）。
-  if (/来源页面会话|source page session/i.test(reason)) return '来源网页已关闭，请重新拖入'
-  if (/timed out|超时/i.test(reason)) return '下载超时，请重试'
-  if (/HTTP\s*(401|403)|forbidden|hotlink|referer/i.test(reason)) return '网站拒绝下载（可能需要登录）'
-  if (/HTTP\s*(404|410)/i.test(reason)) return '网页素材已失效'
-  if (/不是图片或视频|not supported media|media type/i.test(reason)) return '网站返回的不是图片或视频'
-  if (/too large|200\s*MiB|超过.*MB/i.test(reason)) return '素材超过 200MB'
-  if (/^blob:/i.test(url)) return '网页临时资源已失效'
-  return '下载失败，请重试'
+  // 这里匹配的中文是**上游错误原文**(不是我们要显示的字),故留中文;显示一律走上面的 i18n。
+  if (/来源页面会话|source page session/i.test(reason)) return captureError('sourceClosed')
+  if (/timed out|超时/i.test(reason)) return captureError('timedOut')
+  if (/HTTP\s*(401|403)|forbidden|hotlink|referer/i.test(reason)) return captureError('siteRefused')
+  if (/HTTP\s*(404|410)/i.test(reason)) return captureError('expired')
+  if (/不是图片或视频|not supported media|media type/i.test(reason)) return captureError('notMedia')
+  if (/too large|200\s*MiB|超过.*MB/i.test(reason)) return captureError('tooLargeShort')
+  if (/^blob:/i.test(url)) return captureError('blobExpired')
+  return i18n.t('browserAssets.capture.retry')
 }
 
 function assetTypeFromDesktopAsset(asset: DesktopAssetDto): NomiBrowserAsset['type'] | null {
@@ -160,15 +166,15 @@ function browserAssetSubtitleFromDesktopAsset(asset: DesktopAssetDto): string {
   if (kind === 'browser-capture') {
     // 来源质量诚实标注（审计 L4）：页面截图/视频当前帧不冒充原图——后续模型也据此知道输入质量。
     const quality = typeof asset.data.captureQuality === 'string' ? asset.data.captureQuality : ''
-    if (quality === 'screenshot') return '页面截图'
-    if (quality === 'frame') return '视频当前帧'
+    if (quality === 'screenshot') return i18n.t('browserAssets.capture.subtitle.screenshot')
+    if (quality === 'frame') return i18n.t('browserAssets.capture.subtitle.frame')
     // 动图（GIF/动画 WebP）诚实标注为「动态图」，不笼统当静态「网页原图」（后续用户/模型据此知道是动态参考）。
-    if (asset.data.animated === true) return '动态图'
-    return '网页原图'
+    if (asset.data.animated === true) return i18n.t('browserAssets.capture.subtitle.animated')
+    return i18n.t('browserAssets.capture.subtitle.webOriginal')
   }
-  if (kind === 'browser-upload') return '本地导入'
-  if (kind === 'upload') return '本地导入'
-  return '项目素材'
+  if (kind === 'browser-upload') return i18n.t('browserAssets.localImport')
+  if (kind === 'upload') return i18n.t('browserAssets.localImport')
+  return i18n.t('browserAssets.projectAssets')
 }
 
 /**

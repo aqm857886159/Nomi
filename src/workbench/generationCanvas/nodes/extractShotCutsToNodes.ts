@@ -5,7 +5,7 @@
 // 也能一根线连到组上一次喂参考（见 model/groupInputLinks.ts）。
 //
 // 抽帧是逐个 ffmpeg，几十张会花点时间 → 串行 + 逐个报进度，别一次并发几十个进程把机器打满。
-import { getNodeSize } from '../model/generationNodeKinds'
+import { resolveNodeVisualSize } from './nodeSizing'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSession'
 import { getDesktopBridge } from '../../../desktop/bridge'
@@ -36,7 +36,7 @@ export async function extractShotCutsToNodes(params: {
     return { created: 0, failed: 0 }
   }
 
-  const size = getNodeSize(node)
+  const size = resolveNodeVisualSize(node)
   const positions = shotCutNodePositions({ origin: node.position, sourceSize: size, count: seconds.length })
   const sourceTitle = (node.title || i18n.t('generationCommon.node.extractFrame.defaultVideoTitle')).trim()
 

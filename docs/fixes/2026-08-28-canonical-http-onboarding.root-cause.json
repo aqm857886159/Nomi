@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-28-canonical-http-onboarding",
+  "problem_type": "parallel HTTP onboarding ownership and premature completion semantics",
+  "symptom": "Manual connection save, model registration, existing-model adaptation, future programmatic setup, task polling, and cancellation could enter Provider Adapter through separate actions; confirming models only wrote unverified rows while callbacks and copy treated registration as completion, and discovery assembled BaseURL candidates separately from production request construction.",
+  "direct_cause": "Renderer/preload/IPC exposed register, start, register-existing, start-existing, and adapt-existing as sibling execution paths. ProviderAdapterService was both a reusable HTTP implementation and a public workflow owner, while model-list discovery maintained independent URL joining rules.",
+  "class_root": "HTTP onboarding lacked one canonical certification boundary that owns start/get/cancel/promotion semantics and delegates all provider-specific discovery, compile, repair, verification, and request construction to shared primitives.",
+  "affected_population": [
+    "Users saving a new HTTP API connection and assuming selected models were usable",
+    "Users adding or repairing models on an existing connection",
+    "Future Agent-driven sessions that would otherwise create a second certification workflow",
+    "Users whose BaseURL already contains /v1, /api/v3, no version segment, or a trailing slash"
+  ],
+  "scope_paths": [
+    "electron/integrationCertification/service.ts",
+    "electron/integrationCertification/httpConnector.ts",
+    "electron/integrationCertification/providerAdapterCoordinator.ts",
+    "electron/providerAdapter/service.ts",
+    "electron/providerAdapter/types.ts",
+    "electron/providerAdapter/serviceCatalog.ts",
+    "electron/providerAdapter/existingConnection.ts",
+    "electron/providerAdapter/ipc.ts",
+    "electron/providerAdapter/existingConnectionIpc.ts",
+    "electron/providerAdapter/liveHarness.ts",
+    "electron/ai/onboarding/modelListProbe.ts",
+    "electron/preload.ts",
+    "src/desktop/onboardingBridgeTypes.ts",
+    "src/i18n/locales/modelSetup.ts",
+    "src/i18n/locales/onboardingProviders.ts",
+    "src/ui/onboarding/AdapterTaskWorkspace.tsx",
+    "src/ui/onboarding/ExistingConnectionModelPicker.tsx",
+    "src/ui/onboarding/OnboardingWizard.tsx",
+    "src/ui/onboarding/OnboardingDrawer.tsx",
+    "src/ui/onboarding/adapterTaskVisibility.ts",
+    "src/ui/onboarding/useProviderAdapterTasks.ts"
+  ],
+  "entry_points": [
+    "New-connection secure save from OnboardingWizard",
+    "New and existing model confirmation from ModelPickerScreen",
+    "Existing model repair from OnboardingDrawer",
+    "Provider certification get/list/cancel/retry from the task workspace",
+    "Future programmatic IntegrationSessionService starts",
+    "Saved-connection model discovery and production request execution"
+  ],
+  "internal_only_reason": "The defect is Nomi's workflow ownership, persistence visibility, and callback semantics. External provider documentation cannot decide when Nomi may publish an unverified model or how Nomi's IPC paths converge.",
+  "invariants": [
+    "ConnectionCertificationService is the only public HTTP certification start/get/cancel/list owner; manual and programmatic entry points produce the same canonical run shape.",
+    "HttpProviderConnector delegates Provider Adapter registration, discovery, compile, repair, verification, and lifecycle work without copying vendor/model branches.",
+    "A connection-only secure save produces configured/unverified disabled state and never starts, completes, or promotes a run.",
+    "Confirming one or more models starts one canonical certification run; selected rows remain invisible to production consumers until verified promotion commits.",
+    "One idempotency key and effective contract resolve to one child run regardless of whether the caller is manual UI or a programmatic session.",
+    "Manual IPC, preload, and renderer no longer expose direct register-existing or adapt-existing completion paths.",
+    "Discovery and production build concrete requests through buildHttpRequest, including /v1, /api/v3, unversioned, and trailing-slash BaseURLs.",
+    "Registration callbacks and localized copy never describe configured/unverified state as completed or usable."
+  ],
+  "regression_tests": [
+    "electron/integrationCertification/service.test.ts",
+    "electron/integrationCertification/httpConnector.test.ts",
+    "electron/providerAdapter/ipc.test.ts",
+    "electron/providerAdapter/existingConnectionIpc.test.ts",
+    "electron/providerAdapter/existingConnection.test.ts",
+    "src/ui/onboarding/saveFirstOnboardingContract.test.ts"
+  ],
+  "migration": "Existing verified active revisions remain usable. Existing configured/unverified rows remain visible only in settings and require a new canonical certification start. Renderer bridge and IPC channel names migrate in one change; removed direct register-existing/adapt-existing paths are not retained as fallbacks.",
+  "residual_risks": [
+    "Task 6 will add the persistent programmatic session owner; Task 4 exposes the same canonical service API and verifies its shape without implementing MCP or session UI.",
+    "ComfyUI migration is intentionally deferred to Task 5 and remains outside this HTTP-only contract."
+  ]
+}

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   LIGHTWEIGHT_NODE_RENDER_THRESHOLD,
+  retainLargeCanvasLightweightRendering,
   resolveLightweightNodePreview,
   shouldRenderFullNodeContent,
   shouldUseLightweightNodeRendering,
+  shouldUseLightweightNodeRenderingForSelection,
 } from './canvasNodeLevelOfDetail'
 
 describe('canvas node level of detail', () => {
@@ -18,6 +20,21 @@ describe('canvas node level of detail', () => {
     expect(shouldRenderFullNodeContent({ lightweightMode: true, selected: true, focusFlash: false })).toBe(true)
     expect(shouldRenderFullNodeContent({ lightweightMode: true, selected: false, focusFlash: true })).toBe(true)
     expect(shouldRenderFullNodeContent({ lightweightMode: false, selected: false, focusFlash: false })).toBe(true)
+  })
+
+  it('keeps large-canvas multi-selection lightweight without degrading single selection', () => {
+    const nodeCount = LIGHTWEIGHT_NODE_RENDER_THRESHOLD + 1
+    expect(shouldUseLightweightNodeRenderingForSelection({ nodeCount, zoom: 1, selected: true, primarySelection: false })).toBe(true)
+    expect(shouldUseLightweightNodeRenderingForSelection({ nodeCount, zoom: 1, selected: true, primarySelection: true })).toBe(false)
+    expect(shouldUseLightweightNodeRenderingForSelection({ nodeCount: 20, zoom: 1, selected: true, primarySelection: false })).toBe(false)
+  })
+
+  it('retains lightweight nodes after clearing a large multi-selection until single selection', () => {
+    const nodeCount = LIGHTWEIGHT_NODE_RENDER_THRESHOLD + 1
+    expect(retainLargeCanvasLightweightRendering({ retained: false, nodeCount, selected: true, primarySelection: false })).toBe(true)
+    expect(retainLargeCanvasLightweightRendering({ retained: true, nodeCount, selected: false, primarySelection: false })).toBe(true)
+    expect(retainLargeCanvasLightweightRendering({ retained: true, nodeCount, selected: true, primarySelection: true })).toBe(false)
+    expect(retainLargeCanvasLightweightRendering({ retained: true, nodeCount: 20, selected: false, primarySelection: false })).toBe(false)
   })
 })
 

@@ -13,3 +13,18 @@ export type DesktopLocale = 'zh-CN' | 'en'
 export function normalizeDesktopLocale(value: unknown): DesktopLocale {
   return value === 'en' || (typeof value === 'string' && value.toLowerCase().startsWith('en')) ? 'en' : 'zh-CN'
 }
+
+// 当前 locale 的状态也住这里（同样零 electron）：主进程里除了 desktopT，还有别的 electron-free 模块
+// 需要知道界面语言——判官 prompt 就是一例（reason 要按界面语言写）。若让它们去 import i18n.ts，就会
+// 顺带把 `require('electron')` 拖进本不该碰 electron 的闭包，正是上面那条不变量要防的事。
+// i18n.ts 继续再导出这两个函数，对既有消费者公开面不变（P1：只此一处定义）。
+let currentLocale: DesktopLocale = 'zh-CN'
+
+export function setDesktopLocale(value: unknown): void {
+  currentLocale = normalizeDesktopLocale(value)
+}
+
+/** 当前桌面 locale（供 MCP 结果文案与判官 prompt 跟随 App/系统语言；GUI 路由渲染层语言开关同步）。 */
+export function getDesktopLocale(): DesktopLocale {
+  return currentLocale
+}

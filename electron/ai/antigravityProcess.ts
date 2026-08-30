@@ -137,7 +137,11 @@ function failureFromExit(stderr: string): Error {
 export async function runAntigravityProcess(input: AntigravityRunOptions, options: ProcessOptions = {}): Promise<AntigravityResult> {
   // Windows needs a Job Object to own descendants even after the CLI exits.
   // Do not advertise bounded cancellation there until that boundary exists.
-  if (process.platform === "win32" && !options.invocation) throw new Error("ANTIGRAVITY_PLATFORM_UNVERIFIED");
+  // A prepared invocation is the authenticated result of main-process discovery
+  // and is safe to use on Windows just like the explicit test seam invocation.
+  if (process.platform === "win32" && !options.invocation && !options.preparedInvocation) {
+    throw new Error("ANTIGRAVITY_PLATFORM_UNVERIFIED");
+  }
   if (input.signal?.aborted) throw abortError();
   if (!input.prompt.trim()) throw new Error("ANTIGRAVITY_EMPTY_PROMPT");
   if (input.model && !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,127}$/.test(input.model)) throw new Error("ANTIGRAVITY_INVALID_MODEL");

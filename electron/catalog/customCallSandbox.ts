@@ -171,7 +171,10 @@ function readGlobal(context: QuickJSContext, name: string): unknown {
 }
 
 function classifyFailure(input: CustomCallSandboxInput, message: string, causeError?: unknown): CustomCallSandboxError {
-  if (Date.now() >= input.deadlineAt) return new CustomCallSandboxError("timeout", "自定义调用脚本超时", causeError);
+  const reason = input.signal.reason;
+  if ((reason instanceof Error && reason.name === "TimeoutError") || Date.now() >= input.deadlineAt) {
+    return new CustomCallSandboxError("timeout", "自定义调用脚本超时", causeError ?? reason);
+  }
   if (input.signal.aborted) return new CustomCallSandboxError("cancelled", "自定义调用已取消", causeError);
   const match = message.match(new RegExp(`${HOST_ERROR_MARKER}([^:]+):`));
   return new CustomCallSandboxError("runtime", input.redact(message.replace(match?.[0] || "", "")), causeError);
@@ -293,8 +296,10 @@ export async function runCustomCallSandbox(input: CustomCallSandboxInput): Promi
     if (evaluated.error) {
       const message = guestErrorMessage(context.dump(evaluated.error));
       evaluated.error.dispose();
-      const kind = /SyntaxError/i.test(message) ? "syntax" : "runtime";
-      throw new CustomCallSandboxError(kind, input.redact(message));
+      if (/SyntaxError/i.test(message)) {
+        throw new CustomCallSandboxError("syntax", input.redact(message));
+      }
+      throw classifyFailure(input, message);
     }
     programHandle = evaluated.value;
 

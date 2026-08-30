@@ -182,6 +182,38 @@ export default function WorkbenchShell({
         );
     }, [workspaceMode]);
 
+    React.useEffect(() => {
+        const onAgentContextFocus = (event: Event) => {
+            const surface = (event as CustomEvent<{ surface?: string }>).detail?.surface;
+            if (surface !== "creation" && surface !== "generation" && surface !== "preview") return;
+            const nextMode: WorkspaceMode = surface === "creation" ? "creation" : surface;
+            if (workspaceMode !== nextMode) {
+                setWorkspaceMode(nextMode);
+                writeWorkspaceModeToUrl(nextMode);
+            }
+            requestAnimationFrame(() => {
+                document.querySelector<HTMLElement>(`.workbench-${surface}`)?.scrollIntoView({
+                    block: "nearest",
+                    inline: "nearest",
+                });
+            });
+        };
+        window.addEventListener("nomi-agent-context-focus", onAgentContextFocus);
+        return () => window.removeEventListener("nomi-agent-context-focus", onAgentContextFocus);
+    }, [setWorkspaceMode, workspaceMode]);
+
+    React.useEffect(() => {
+        const onOpenSkillLibrary = () => {
+            if (workspaceMode !== "generation") {
+                setWorkspaceMode("generation");
+                writeWorkspaceModeToUrl("generation");
+            }
+            window.setTimeout(() => window.dispatchEvent(new Event("nomi-open-skill-library")), 0);
+        };
+        window.addEventListener("nomi-focus-skill-library", onOpenSkillLibrary);
+        return () => window.removeEventListener("nomi-focus-skill-library", onOpenSkillLibrary);
+    }, [setWorkspaceMode, workspaceMode]);
+
     const handleWorkspaceModeChange = React.useCallback(
         (mode: WorkspaceMode) => {
             if (!isWorkspaceMode(mode)) return;

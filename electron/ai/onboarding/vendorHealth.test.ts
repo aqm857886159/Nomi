@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("electron", () => ({
   app: { getPath: () => process.cwd(), getAppPath: () => process.cwd() },
   ipcMain: { handle: () => {} },
+  safeStorage: {
+    decryptString: (value: Buffer) => value.toString("utf8"),
+  },
 }));
 
 const readCatalog = vi.fn();
@@ -12,11 +15,14 @@ vi.mock("../../catalog/catalogStore", () => ({
     v === "anthropic" || v === "openai-compatible" || v === "openai-responses" ? v : fallback,
 }));
 
-vi.mock("../../catalog/secrets", () => ({
-  decryptApiKeyRecord: (rec: { apiKey?: string } | undefined) => rec?.apiKey ?? "",
-}));
-
 import { checkVendorHealth, classifyProbe, resetVendorHealthCache } from "./vendorHealth";
+
+const encryptedRecord = (plain: string, updatedAt: string) => ({
+  apiKey: Buffer.from(plain).toString("base64"),
+  enc: "safeStorage" as const,
+  enabled: true,
+  updatedAt,
+});
 
 describe("classifyProbe — 探测结果 → 四态的唯一映射表", () => {
   const at = 1_700_000_000_000;
@@ -100,9 +106,25 @@ describe("checkVendorHealth — 前置跳过（不发请求的那些）", () => 
   function catalog(vendor: Record<string, unknown> | null, apiKey = "sk-test") {
     return {
       vendors: vendor ? [vendor] : [],
-      apiKeysByVendor: apiKey ? { v: { apiKey, updatedAt: "2026-08-11T00:00:00Z" } } : {},
+      apiKeysByVendor: apiKey ? { v: encryptedRecord(apiKey, "2026-08-11T00:00:00Z") } : {},
     };
   }
+
+  it("legacy plaintext never reaches a health-probe request, header, error, or log", async () => {
+    const sentinel = "SENTINEL-LEGACY-HEALTH";
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    readCatalog.mockReturnValue({
+      vendors: [{ key: "v", authType: "bearer", hasApiKey: true, baseUrlHint: "https://api.example.com/v1" }],
+      apiKeysByVendor: { v: { apiKey: sentinel, enc: "plain", enabled: true, updatedAt: "one" } },
+    });
+    const result = await checkVendorHealth("v");
+    expect(result.state).toBe("unsupported");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(JSON.stringify([result, errorSpy.mock.calls, warnSpy.mock.calls])).not.toContain(sentinel);
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
 
   it("没这家 → unsupported，一个请求都不发", async () => {
     readCatalog.mockReturnValue(catalog(null));
@@ -151,7 +173,7 @@ describe("checkVendorHealth — 缓存与并发（「重开面板不回退」靠
     vi.stubGlobal("fetch", fetchSpy);
     readCatalog.mockReturnValue({
       vendors: [{ key: "v", authType: "bearer", hasApiKey: true, baseUrlHint: "https://api.example.com/v1" }],
-      apiKeysByVendor: { v: { apiKey: "sk-a", updatedAt: "2026-08-11T00:00:00Z" } },
+      apiKeysByVendor: { v: encryptedRecord("sk-a", "2026-08-11T00:00:00Z") },
     });
   });
 
@@ -186,7 +208,7 @@ describe("checkVendorHealth — 缓存与并发（「重开面板不回退」靠
     const callsAfterFirst = fetchSpy.mock.calls.length;
     readCatalog.mockReturnValue({
       vendors: [{ key: "v", authType: "bearer", hasApiKey: true, baseUrlHint: "https://api.example.com/v1" }],
-      apiKeysByVendor: { v: { apiKey: "sk-b", updatedAt: "2026-08-11T09:00:00Z" } },
+      apiKeysByVendor: { v: encryptedRecord("sk-b", "2026-08-11T09:00:00Z") },
     });
     await checkVendorHealth("v");
     expect(fetchSpy.mock.calls.length).toBeGreaterThan(callsAfterFirst);
@@ -197,7 +219,7 @@ describe("checkVendorHealth — 缓存与并发（「重开面板不回退」靠
     const callsAfterFirst = fetchSpy.mock.calls.length;
     readCatalog.mockReturnValue({
       vendors: [{ key: "v", authType: "bearer", hasApiKey: true, baseUrlHint: "https://api.other.com/v1" }],
-      apiKeysByVendor: { v: { apiKey: "sk-a", updatedAt: "2026-08-11T00:00:00Z" } },
+      apiKeysByVendor: { v: encryptedRecord("sk-a", "2026-08-11T00:00:00Z") },
     });
     await checkVendorHealth("v");
     expect(fetchSpy.mock.calls.length).toBeGreaterThan(callsAfterFirst);
@@ -214,7 +236,7 @@ describe("checkVendorHealth — 缓存与并发（「重开面板不回退」靠
     readCatalog.mockReturnValue({
       vendors: [{ key: "v", authType: "x-api-key", authHeader: "X-Tenant-Key", hasApiKey: true,
         baseUrlHint: "https://api.example.com/v1", meta: { extraHeaders: { "X-Gateway": "private-tenant" } } }],
-      apiKeysByVendor: { v: { apiKey: "custom-key", updatedAt: "one" } },
+      apiKeysByVendor: { v: encryptedRecord("custom-key", "one") },
     });
     expect((await checkVendorHealth("v")).state).toBe("reachable");
     expect(fetchSpy.mock.calls[0][1].headers).toEqual({ "X-Tenant-Key": "custom-key", "X-Gateway": "private-tenant" });
@@ -223,7 +245,7 @@ describe("checkVendorHealth — 缓存与并发（「重开面板不回退」靠
   it("replays saved query auth and invalidates cache when its configuration changes", async () => {
     const vendor = { key: "v", authType: "query", authQueryParam: "token", hasApiKey: true,
       baseUrlHint: "https://api.example.com/v1", meta: { extraHeaders: { "X-Gateway": "tenant-one" } } };
-    readCatalog.mockReturnValue({ vendors: [vendor], apiKeysByVendor: { v: { apiKey: "query-key", updatedAt: "one" } } });
+    readCatalog.mockReturnValue({ vendors: [vendor], apiKeysByVendor: { v: encryptedRecord("query-key", "one") } });
     await checkVendorHealth("v");
     expect(new URL(fetchSpy.mock.calls[0][0]).searchParams.get("token")).toBe("query-key");
     expect(fetchSpy.mock.calls[0][1].headers).toEqual({ "X-Gateway": "tenant-one" });
@@ -245,7 +267,7 @@ describe("checkVendorHealth — 缓存与并发（「重开面板不回退」靠
     readCatalog.mockReturnValue({
       vendors: [{ key: "v", authType: "bearer", hasApiKey: true, baseUrlHint: "https://api.example.com/v1",
         meta: { extraHeaders: { [header]: "Bearer gateway-override" } } }],
-      apiKeysByVendor: { v: { apiKey: "stored", updatedAt: "one" } },
+      apiKeysByVendor: { v: encryptedRecord("stored", "one") },
     });
     expect((await checkVendorHealth("v")).state).toBe("reachable");
     expect(new Headers(fetchSpy.mock.calls[0][1].headers).get("authorization")).toBe("Bearer gateway-override");

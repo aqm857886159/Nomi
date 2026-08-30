@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "fixtures": {
+    "httpPublicDraft": {
+      "kind": "http-api-provider",
+      "name": "redacted HTTP provider",
+      "baseUrl": "https://example.invalid/v1",
+      "docs": "https://example.invalid/docs",
+      "authType": "bearer"
+    },
+    "comfyBindings": [
+      { "nodeId": "image-a", "inputKey": "image", "paramKey": "reference_a", "mediaKind": "image" },
+      { "nodeId": "image-b", "inputKey": "image", "paramKey": "reference_b", "mediaKind": "image" },
+      { "nodeId": "combine", "inputKey": "frame_rate", "paramKey": "frame_rate", "mediaKind": "number" }
+    ]
+  },
+  "constraints": [
+    "Fixtures never contain credential values.",
+    "Comfy media bindings are explicit nodeId/inputKey/paramKey/mediaKind records.",
+    "frame_rate remains numeric and is never mapped from widget position."
+  ]
+}

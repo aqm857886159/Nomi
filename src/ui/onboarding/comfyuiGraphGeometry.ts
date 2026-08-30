@@ -2,9 +2,8 @@
 // 翻成绝对坐标 + 贝塞尔路径 + 「适应」的缩放。
 // plan: docs/plan/2026-08-12-model-settings-home-and-comfyui-workflow-page.md
 //
-// 不引图库（P1）：仓库零图库依赖（package.json 实查无 xyflow/React Flow/D3/dagre/cytoscape），
-// 生成画布本身就是 CSS transform + 绝对定位 div + SVG 连线层自研的。手法照搬既有的
-// src/workbench/generationCanvas/components/CanvasEdgeLayer.tsx：起点在源节点右缘中点、
+// 这是 onboarding 独立的只读工作流图，不复用生成画布的交互状态或渲染器；它继续用
+// CSS transform + 绝对定位 div + SVG 连线层表达静态拓扑。起点在源节点右缘中点、
 // 落点在目标节点左缘中点、控制点取水平距离的 0.45 且钳在 [64,140]（钳位是为了近距离不打结、
 // 远距离不甩成大弧）。
 import type { GraphView, GraphViewNode } from './comfyuiWorkflowGraphView'

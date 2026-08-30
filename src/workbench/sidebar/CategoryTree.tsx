@@ -9,6 +9,7 @@ import { useCommittedProposal } from '../generationCanvas/agent/proposalUndo'
 import CategoryItem from './CategoryItem'
 import GroupItem from './GroupItem'
 import NodeItem from './NodeItem'
+import { FOCUS_GENERATION_NODE_EVENT } from '../generationCanvas/nodes/nodeSizing'
 
 type Props = {
   categories?: ProjectCategory[]
@@ -25,8 +26,6 @@ type SidebarMenuPayload =
   | { type: 'category'; categoryId: string }
   | { type: 'node'; nodeId: string }
   | { type: 'group'; groupId: string }
-
-const DEFAULT_GROUP_COLOR = '#d8c3a5'
 
 /**
  * 分类导航的完整内容（分类 → 节点/子组、右键菜单、跨分类拖拽、点节点定位画布）。
@@ -50,7 +49,6 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
   const deleteNode = useGenerationCanvasStore((s) => s.deleteNode)
   const createGroup = useGenerationCanvasStore((s) => s.createGroup)
   const renameGroup = useGenerationCanvasStore((s) => s.renameGroup)
-  const setGroupColor = useGenerationCanvasStore((s) => s.setGroupColor)
   const ungroup = useGenerationCanvasStore((s) => s.ungroup)
   const deleteGroup = useGenerationCanvasStore((s) => s.deleteGroup)
   const moveNodeToGroup = useGenerationCanvasStore((s) => s.moveNodeToGroup)
@@ -305,7 +303,10 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
   }, [closeMenu, nodeById, updateNode, t])
 
   const handleRegenerateDerivedNode = React.useCallback((nodeId: string) => {
-    duplicateNodeForRegeneration(nodeId)
+    const duplicate = duplicateNodeForRegeneration(nodeId)
+    if (duplicate) {
+      window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId: duplicate.id } }))
+    }
     closeMenu()
   }, [closeMenu, duplicateNodeForRegeneration])
 
@@ -326,14 +327,6 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     setEditingGroupId(groupId) // 与新建走同一行内改名，不再弹 window.prompt
     closeMenu()
   }, [closeMenu])
-
-  const handleSetGroupColor = React.useCallback(async (groupId: string) => {
-    const group = groups.find((candidate) => candidate.id === groupId)
-    if (!group) return
-    closeMenu()
-    const color = await promptDialog({ title: t('libraries.sidebar.groupColor'), message: t('libraries.sidebar.groupColorMessage'), initialValue: group.color || DEFAULT_GROUP_COLOR })
-    if (color !== null) setGroupColor(groupId, color)
-  }, [closeMenu, groups, setGroupColor, t])
 
   const handleUngroup = React.useCallback((groupId: string) => {
     ungroup(groupId)
@@ -393,7 +386,6 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
         {menu.type === 'group' ? (
           <>
             <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRenameGroup(menu.groupId)}>{t('libraries.sidebar.rename')}</button>
-            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleSetGroupColor(menu.groupId)}>{t('libraries.sidebar.changeColor')}</button>
             <button type="button" role="menuitem" className={buttonClass} onClick={() => handleUngroup(menu.groupId)}>{t('libraries.sidebar.ungroup')}</button>
             <div className="my-0.5 h-px bg-nomi-line" />
             <button type="button" role="menuitem" className={dangerClass} onClick={() => handleDeleteGroup(menu.groupId)}>{t('libraries.sidebar.deleteWithNodes')}</button>

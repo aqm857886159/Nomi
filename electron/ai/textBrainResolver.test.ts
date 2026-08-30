@@ -7,7 +7,7 @@ import * as resolver from "./textBrainResolver";
 
 const FORBIDDEN_OWNER_IMPORT = /(?:from|import\s*\()\s*["'](?:ai|@ai-sdk\/[^"']*|@mariozechner\/[^"']*|@earendil-works\/pi-[^"']*|[^"']*(?:agentChatV2|agentLoop|agentSession|agentStream))['"]/;
 const safeStorageMocks = vi.hoisted(() => ({
-  decryptString: vi.fn((): string => { throw new Error("test keychain locked"); }),
+  decryptString: vi.fn((_value: Buffer): string => { throw new Error("test keychain locked"); }),
 }));
 
 vi.mock("../catalog/catalogStore", () => ({ readCatalog: vi.fn() }));
@@ -20,7 +20,7 @@ const catalog = (overrides: Partial<CatalogState> = {}): CatalogState => ({ vers
 
 describe("Nomi text brain resolver", () => {
   beforeEach(() => {
-    safeStorageMocks.decryptString.mockReset().mockImplementation((): string => { throw new Error("test keychain locked"); });
+    safeStorageMocks.decryptString.mockReset().mockImplementation((_value: Buffer): string => { throw new Error("test keychain locked"); });
     vi.mocked(readCatalog).mockReturnValue(catalog());
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -54,7 +54,7 @@ describe("Nomi text brain resolver", () => {
 
   it("prefers the complete vendor/model identity even for same-named models", () => {
     const state = catalog({ vendors: [vendor("a"), vendor("b")], models: [model("a", "gpt-5.2"), model("b", "gpt-5.2")] });
-    expect(resolver.selectTextModelCandidates(state, { vendorKey: " b ", modelKey: " gpt-5.2 " }).map((candidate) => candidate.vendor.key)).toEqual(["b", "a"]);
+    expect(resolver.selectTextModelCandidates(state, { vendorKey: " b ", modelKey: " gpt-5.2 " }).map((candidate) => candidate.vendor.key)).toEqual(["b"]);
   });
 
   it("keeps model-only preferences compatible and stable", () => {
@@ -82,12 +82,126 @@ describe("Nomi text brain resolver", () => {
     expect(resolver.selectTextModelCandidates(state).map((candidate) => candidate.model.modelKey)).toEqual(["chat"]);
   });
 
-  it("selects the first usable credential after ranking and skips locked keys", () => {
+  it("allows credential fallback only for automatic selection without an explicit vendor identity", () => {
+    safeStorageMocks.decryptString.mockImplementation((value: Buffer) => {
+      const decoded = value.toString("utf8");
+      if (decoded === "locked") throw new Error("test keychain locked");
+      return decoded;
+    });
     vi.mocked(readCatalog).mockReturnValue(catalog({
       vendors: [vendor("a"), vendor("b")], models: [model("a", "preferred"), model("b", "fallback")],
-      apiKeysByVendor: { a: key("a", "bG9ja2Vk", "safeStorage"), b: key("b", "test-usable-key") },
+      apiKeysByVendor: {
+        a: key("a", "bG9ja2Vk", "safeStorage"),
+        b: key("b", "dGVzdC11c2FibGUta2V5", "safeStorage"),
+      },
     }));
-    expect(resolver.chooseTextModel("preferred", false, "a")).toMatchObject({ vendor: { key: "b" }, model: { modelKey: "fallback" }, apiKey: "test-usable-key" });
+    expect(resolver.chooseTextModel()).toMatchObject({ vendor: { key: "b" }, model: { modelKey: "fallback" }, apiKey: "test-usable-key" });
+  });
+
+  it("returns structured unavailable instead of using an unrelated same-name model when the explicit credential is missing", () => {
+    safeStorageMocks.decryptString.mockImplementation((value: Buffer) => value.toString("utf8"));
+    vi.mocked(readCatalog).mockReturnValue(catalog({
+      vendors: [vendor("selected"), vendor("unrelated")],
+      models: [model("selected", "chat"), model("unrelated", "chat")],
+      apiKeysByVendor: { unrelated: key("unrelated", "dW5yZWxhdGVkLXNlY3JldA==", "safeStorage") },
+    }));
+
+    expect(() => resolver.chooseTextModel("chat", false, "selected")).toThrow(expect.objectContaining({
+      code: "text_model_unavailable",
+      reason: "credential_missing",
+      vendorKey: "selected",
+      modelKey: "chat",
+    }));
+    expect(safeStorageMocks.decryptString).not.toHaveBeenCalled();
+  });
+
+  it("returns needs_resave for explicit legacy plaintext and never decrypts or falls back", () => {
+    const sentinel = "SENTINEL-EXPLICIT-PLAIN";
+    safeStorageMocks.decryptString.mockImplementation((value: Buffer) => value.toString("utf8"));
+    vi.mocked(readCatalog).mockReturnValue(catalog({
+      vendors: [vendor("selected"), vendor("unrelated")],
+      models: [model("selected", "chat"), model("unrelated", "chat")],
+      apiKeysByVendor: {
+        selected: key("selected", sentinel, "plain"),
+        unrelated: key("unrelated", "dW5yZWxhdGVkLXNlY3JldA==", "safeStorage"),
+      },
+    }));
+
+    expect(() => resolver.chooseTextModel("chat", false, "selected")).toThrow(expect.objectContaining({
+      code: "text_model_unavailable",
+      reason: "credential_needs_resave",
+    }));
+    expect(safeStorageMocks.decryptString).not.toHaveBeenCalled();
+  });
+
+  it("returns structured unavailable after explicit safeStorage decrypt failure without trying another vendor", () => {
+    safeStorageMocks.decryptString.mockImplementation((value: Buffer) => {
+      if (value.toString("utf8") === "selected-locked") throw new Error("test keychain locked");
+      return value.toString("utf8");
+    });
+    vi.mocked(readCatalog).mockReturnValue(catalog({
+      vendors: [vendor("selected"), vendor("unrelated")],
+      models: [model("selected", "chat"), model("unrelated", "chat")],
+      apiKeysByVendor: {
+        selected: key("selected", Buffer.from("selected-locked").toString("base64"), "safeStorage"),
+        unrelated: key("unrelated", Buffer.from("unrelated-secret").toString("base64"), "safeStorage"),
+      },
+    }));
+
+    expect(() => resolver.chooseTextModel("chat", false, "selected")).toThrow(expect.objectContaining({
+      code: "text_model_unavailable",
+      reason: "credential_locked",
+    }));
+    expect(safeStorageMocks.decryptString).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not replace an explicitly disabled model with an unrelated enabled same-name model", () => {
+    safeStorageMocks.decryptString.mockImplementation((value: Buffer) => value.toString("utf8"));
+    vi.mocked(readCatalog).mockReturnValue(catalog({
+      vendors: [vendor("selected"), vendor("unrelated")],
+      models: [model("selected", "chat", { enabled: false }), model("unrelated", "chat")],
+      apiKeysByVendor: { unrelated: key("unrelated", Buffer.from("unrelated-secret").toString("base64"), "safeStorage") },
+    }));
+
+    expect(() => resolver.chooseTextModel("chat", false, "selected")).toThrow(expect.objectContaining({
+      code: "text_model_unavailable",
+      reason: "model_disabled",
+    }));
+    expect(safeStorageMocks.decryptString).not.toHaveBeenCalled();
+  });
+
+  it("migrates an explicit disabled identity only to its active lineage successor", () => {
+    safeStorageMocks.decryptString.mockImplementation((value: Buffer) => value.toString("utf8"));
+    const successorKey = "selected--candidate-2";
+    vi.mocked(readCatalog).mockReturnValue(catalog({
+      vendors: [
+        vendor("unrelated"),
+        vendor("selected"),
+        vendor(successorKey, { meta: {
+          adapterCandidateRootVendorKey: "selected",
+          adapterCandidateSourceVendorKey: "selected",
+          adapterCandidatePromotionPredecessors: {
+            chat: { vendorKey: "selected", publishedModes: ["chat"] },
+          },
+        } }),
+      ],
+      models: [
+        model("unrelated", "chat"),
+        model("selected", "chat", { enabled: false }),
+        model(successorKey, "chat", { meta: { adapter: { activeRevision: "revision-2", modes: [] } } }),
+      ],
+      apiKeysByVendor: {
+        unrelated: key("unrelated", Buffer.from("unrelated-secret").toString("base64"), "safeStorage"),
+        [successorKey]: key(successorKey, Buffer.from("successor-secret").toString("base64"), "safeStorage"),
+      },
+    }));
+
+    expect(resolver.chooseTextModel("chat", false, "selected")).toMatchObject({
+      vendor: { key: successorKey },
+      model: { vendorKey: successorKey, modelKey: "chat" },
+      apiKey: "successor-secret",
+    });
+    expect(safeStorageMocks.decryptString).toHaveBeenCalledTimes(1);
   });
 
   it("reports a structured locked failure only when the first real selection decrypts", () => {
@@ -118,8 +232,21 @@ describe("Nomi text brain resolver", () => {
     expect(safeStorageMocks.decryptString).not.toHaveBeenCalled();
   });
 
+  it("never selects or advertises a legacy plaintext credential as a usable text brain", () => {
+    const sentinel = "SENTINEL-LEGACY-TEXT-BRAIN";
+    vi.mocked(readCatalog).mockReturnValue(catalog({
+      vendors: [vendor("legacy")],
+      models: [model("legacy", "chat")],
+      apiKeysByVendor: { legacy: key("legacy", sentinel, "plain") },
+    }));
+    expect(() => resolver.chooseTextModel()).toThrow("Model is not configured: no usable text model");
+    expect(resolver.resolveTextBrainKeys()).toBeNull();
+    expect(resolver.resolveTextBrainStatus()).toEqual({ status: "missing" });
+    expect(safeStorageMocks.decryptString).not.toHaveBeenCalled();
+  });
+
   it("returns only public model keys from the reusable status API", () => {
-    vi.mocked(readCatalog).mockReturnValue(catalog({ vendors: [vendor("a")], models: [model("a", "chat")], apiKeysByVendor: { a: key("a", "test-secret") } }));
+    vi.mocked(readCatalog).mockReturnValue(catalog({ vendors: [vendor("a")], models: [model("a", "chat")], apiKeysByVendor: { a: key("a", "dGVzdC1zZWNyZXQ=", "safeStorage") } }));
     expect(resolver.resolveTextBrainKeys()).toEqual({ vendor: "a", modelKey: "chat" });
     expect(resolver.resolveTextBrainStatus()).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
   });

@@ -1,24 +1,27 @@
 import React from 'react'
-import type { DesktopProviderAdapterRun } from '../../desktop/bridge'
+import type { DesktopHttpCertificationRun } from '../../desktop/onboardingBridgeTypes'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { isAdapterRunTerminal } from './adapterVerificationViewModel'
 import { mergeAdapterRuns, visibleAdapterRuns } from './adapterTaskVisibility'
+import { CertificationIntentKey } from './certificationIntentKey'
+import { CertificationUiError } from './certificationFailureMessage'
 
 export function useProviderAdapterTasks(): {
-  runs: DesktopProviderAdapterRun[]
-  visibleRuns: DesktopProviderAdapterRun[]
-  recordRun: (run: DesktopProviderAdapterRun) => void
-  cancelRun: (run: DesktopProviderAdapterRun) => Promise<void>
-  retryRun: (run: DesktopProviderAdapterRun, modelKey?: string) => Promise<DesktopProviderAdapterRun>
+  runs: DesktopHttpCertificationRun[]
+  visibleRuns: DesktopHttpCertificationRun[]
+  recordRun: (run: DesktopHttpCertificationRun) => void
+  cancelRun: (run: DesktopHttpCertificationRun) => Promise<void>
+  retryRun: (run: DesktopHttpCertificationRun, modelKey?: string) => Promise<DesktopHttpCertificationRun>
 } {
-  const [runs, setRuns] = React.useState<DesktopProviderAdapterRun[]>([])
+  const [runs, setRuns] = React.useState<DesktopHttpCertificationRun[]>([])
+  const retryIntentKey = React.useRef(new CertificationIntentKey())
 
-  const recordRun = React.useCallback((run: DesktopProviderAdapterRun) => {
+  const recordRun = React.useCallback((run: DesktopHttpCertificationRun) => {
     setRuns((current) => mergeAdapterRuns(current, [run]))
   }, [])
 
   const loadRuns = React.useCallback(async () => {
-    const list = getDesktopBridge()?.onboarding?.adapterList
+    const list = getDesktopBridge()?.onboarding?.certificationList
     if (!list) return
     // Active work must never disappear behind newer history. The store caps this
     // query at 200; visibleAdapterRuns applies the small limit only to terminal rows.
@@ -34,19 +37,27 @@ export function useProviderAdapterTasks(): {
     return () => window.clearInterval(timer)
   }, [hasActiveRun, loadRuns])
 
-  const cancelRun = React.useCallback(async (run: DesktopProviderAdapterRun) => {
-    const cancel = getDesktopBridge()?.onboarding?.adapterCancel
+  const cancelRun = React.useCallback(async (run: DesktopHttpCertificationRun) => {
+    const cancel = getDesktopBridge()?.onboarding?.certificationCancel
     if (!cancel || isAdapterRunTerminal(run.stage)) return
     const result = await cancel({ runId: run.id }).catch(() => null)
     if (result?.ok && result.run) recordRun(result.run)
   }, [recordRun])
 
-  const retryRun = React.useCallback(async (run: DesktopProviderAdapterRun, modelKey?: string) => {
-    const adapterRetry = getDesktopBridge()?.onboarding?.adapterRetry
-    if (!adapterRetry) throw new Error('Adapter retry is unavailable')
-    if (!isAdapterRunTerminal(run.stage)) throw new Error('An active adapter run cannot be retried')
-    const result = await adapterRetry({ runId: run.id, ...(modelKey ? { modelKey } : {}) })
-    if (!result.ok) throw new Error(result.error || 'Adapter retry failed')
+  const retryRun = React.useCallback(async (run: DesktopHttpCertificationRun, modelKey?: string) => {
+    const retryCertification = getDesktopBridge()?.onboarding?.httpCertificationRetry
+    if (!retryCertification) throw new CertificationUiError('START_FAILED')
+    if (!isAdapterRunTerminal(run.stage)) throw new CertificationUiError('RUN_ACTIVE')
+    const result = await retryCertification({
+      runId: run.id,
+      ...(modelKey ? { modelKey } : {}),
+      idempotencyKey: retryIntentKey.current.for({ action: 'retry', runId: run.id, modelKey }),
+    })
+    if (!result.ok) {
+      retryIntentKey.current.rotate()
+      throw new CertificationUiError(result.code)
+    }
+    retryIntentKey.current.rotate()
     recordRun(result.run)
     return result.run
   }, [recordRun])

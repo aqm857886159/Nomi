@@ -24,10 +24,10 @@ export function ExistingConnectionModelPicker({
   const { t } = useTranslation()
   const onboarding = getDesktopBridge()?.onboarding
   const load = React.useCallback(async () => {
-    if (!onboarding?.existingConnectionListModels) {
+    if (!onboarding?.httpConnectionListModels) {
       return { ok: false, code: 'DESKTOP_UNAVAILABLE', error: t('modelSetup.desktopUnavailable') }
     }
-    return onboarding.existingConnectionListModels({ vendorKey })
+    return onboarding.httpConnectionListModels({ vendorKey })
   }, [onboarding, t, vendorKey])
   const { candidates, remoteTotal, fetching, fetchAttempted, result, fetchModels } = useModelDiscovery({
     scope: JSON.stringify([vendorKey, initialConnection.baseUrl]), opened, load,

@@ -265,10 +265,120 @@ function stringifyHeaders(headers: unknown): Record<string, string> {
 }
 
 /** Redact secret-bearing header values for logging/preview. */
-export function redactHeaders(headers: Record<string, string>): Record<string, string> {
+const REQUEST_REDACTED = "«redacted»";
+const SENSITIVE_REQUEST_FIELD = /(?:^|[-_])(?:authorization|auth|api[-_]?key|access[-_]?token|token|secret|password|credential|signature|sig)(?:$|[-_])/i;
+const PUBLIC_REQUEST_HEADERS = new Set(["accept", "content-type", "user-agent"]);
+const publicSystemHeadersByRequest = new WeakMap<Record<string, string>, ReadonlySet<string>>();
+
+export function isSensitiveRequestField(name: string): boolean {
+  return SENSITIVE_REQUEST_FIELD.test(name);
+}
+
+/**
+ * Header names are not a credential contract: gateways accept secrets under
+ * arbitrary names. Only explicitly public, system-generated representation
+ * headers may remain visible in diagnostics and request previews.
+ */
+export function markPublicSystemRequestHeaders<T extends Record<string, string>>(headers: T, names: readonly string[]): T {
+  const publicNames = new Set(
+    names.map((name) => name.trim().toLowerCase()).filter((name) => PUBLIC_REQUEST_HEADERS.has(name)),
+  );
+  if (publicNames.size > 0) publicSystemHeadersByRequest.set(headers, publicNames);
+  return headers;
+}
+
+function isPublicSystemRequestHeader(headers: Record<string, string>, name: string): boolean {
+  return publicSystemHeadersByRequest.get(headers)?.has(name.trim().toLowerCase()) ?? false;
+}
+
+export function sensitiveRequestHeaderValues(headers: Record<string, string>): string[] {
+  return Object.entries(headers)
+    .filter(([name, value]) => Boolean(value) && !isPublicSystemRequestHeader(headers, name))
+    .map(([, value]) => value);
+}
+
+function stringValues(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(stringValues);
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return [String(value)];
+  return [];
+}
+
+/** Exact values that became credentials in this concrete outbound request. */
+export function collectRequestSecretValues(input: {
+  apiKey?: string;
+  headers?: Record<string, string>;
+  authQuery?: Record<string, unknown>;
+  query?: Record<string, unknown>;
+}): string[] {
+  const apiKey = input.apiKey?.trim() ?? "";
+  const values = new Set<string>();
+  if (apiKey) values.add(apiKey);
+  for (const value of sensitiveRequestHeaderValues(input.headers || {})) values.add(value);
+  for (const value of Object.values(input.authQuery || {})) {
+    for (const item of stringValues(value)) if (item) values.add(item);
+  }
+  for (const [name, value] of Object.entries(input.query || {})) {
+    for (const item of stringValues(value)) {
+      if (item && (isSensitiveRequestField(name) || (apiKey && item.includes(apiKey)))) values.add(item);
+    }
+  }
+  return [...values].filter(Boolean).sort((left, right) => right.length - left.length);
+}
+
+/** Raw and wire-encoded forms an upstream can echo after URL serialization. */
+export function requestSecretVariants(secrets: readonly string[]): string[] {
+  const variants = new Set<string>();
+  for (const secret of secrets) {
+    if (!secret) continue;
+    let pending = new Set([secret]);
+    for (let depth = 0; depth < 3; depth += 1) {
+      const next = new Set<string>();
+      for (const value of pending) {
+        variants.add(value);
+        const component = encodeURIComponent(value);
+        const form = new URLSearchParams({ value }).toString().slice("value=".length);
+        variants.add(component);
+        variants.add(form);
+        next.add(component);
+        next.add(form);
+      }
+      pending = next;
+    }
+  }
+  return [...variants].filter(Boolean).sort((left, right) => right.length - left.length);
+}
+
+export function redactRequestSecrets(value: string, secrets: readonly string[], maximumLength = Number.POSITIVE_INFINITY): string {
+  let redacted = value;
+  for (const variant of requestSecretVariants(secrets)) {
+    if (variant.length < 4) {
+      const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      redacted = redacted.replace(new RegExp(`(^|[^A-Za-z0-9])${escaped}(?=$|[^A-Za-z0-9])`, "g"), `$1${REQUEST_REDACTED}`);
+    } else {
+      redacted = redacted.split(variant).join(REQUEST_REDACTED);
+    }
+  }
+  return redacted.slice(0, maximumLength);
+}
+
+export function redactRequestValue<T>(value: T, secrets: readonly string[]): T {
+  if (typeof value === "string") return redactRequestSecrets(value, secrets) as T;
+  if (Array.isArray(value)) return value.map((item) => redactRequestValue(item, secrets)) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+      key,
+      isSensitiveRequestField(key) && typeof item === "string" && item
+        ? REQUEST_REDACTED
+        : redactRequestValue(item, secrets),
+    ])) as T;
+  }
+  return value;
+}
+
+export function redactHeaders(headers: Record<string, string>, secrets: readonly string[] = []): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
-    out[key] = /authorization|api[-_]?key|token/i.test(key) ? "[redacted]" : value;
+    out[key] = isPublicSystemRequestHeader(headers, key) ? redactRequestSecrets(value, secrets) : "[redacted]";
   }
   return out;
 }
@@ -297,6 +407,7 @@ export function buildHttpRequest(input: {
   baseUrl: string;
   authType: AuthType;
   authHeaderName?: string;
+  authQueryParam?: string;
   apiKey: string;
   context: JsonRecord;
   operation: HttpOperationLike;
@@ -326,11 +437,20 @@ export function buildHttpRequest(input: {
   const body = renderTemplateValue(operation.body, context);
   if (method !== "GET" && method !== "HEAD" && body != null && !Object.keys(headers).some((k) => k.toLowerCase() === "content-type")) {
     headers["Content-Type"] = "application/json";
+    markPublicSystemRequestHeaders(headers, ["Content-Type"]);
   }
 
   const query = isRecord(renderTemplateValue(operation.query, context))
     ? (renderTemplateValue(operation.query, context) as JsonRecord)
     : {};
+  const outboundAuthQuery = authQueryParams(input.authType, input.apiKey, input.authQueryParam);
+  const outboundQuery = { ...outboundAuthQuery, ...query };
+  const requestSecrets = collectRequestSecretValues({
+    apiKey: input.apiKey,
+    headers,
+    authQuery: outboundAuthQuery,
+    query: outboundQuery,
+  });
 
   return {
     method,
@@ -340,9 +460,9 @@ export function buildHttpRequest(input: {
     body,
     preview: {
       method,
-      url: appendQueryParams(url, query),
-      headers: redactHeaders(headers),
-      body,
+      url: redactRequestSecrets(appendQueryParams(url, outboundQuery), requestSecrets),
+      headers: redactHeaders(headers, requestSecrets),
+      body: redactRequestValue(body, requestSecrets),
     },
   };
 }

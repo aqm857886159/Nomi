@@ -193,7 +193,8 @@ function findCredentials(line) {
 /** 凭证只脱敏成「头4…尾4」，避免门岗自己把 key 完整打进 CI 日志。 */
 const maskSample = (s) => (s.length <= 12 ? `${s.slice(0, 2)}…` : `${s.slice(0, 4)}…${s.slice(-4)}（${s.length} 位）`);
 
-const isAllowed = (f) => ALLOWLIST.some((re) => re.test(f));
+const normalizeScanPath = (f) => String(f).replaceAll("\\", "/");
+const isAllowed = (f) => ALLOWLIST.some((re) => re.test(normalizeScanPath(f)));
 
 function listStaged() {
   try {
@@ -229,9 +230,10 @@ function scan(files, staged) {
     // 白名单**只**赦免路径黑名单 + 微信类内容规则；凭证规则往下对所有文件生效。
     // （整体 continue 正是当初漏掉 kie.ai key 的原因，见文件顶部凭证检测那段注释。）
     const allowed = isAllowed(f);
+    const scanPath = normalizeScanPath(f);
     if (!allowed) {
       for (const { re, why } of FORBIDDEN_PATHS) {
-        if (re.test(f)) hits.push({ f, kind: "禁止路径", detail: why });
+        if (re.test(scanPath)) hits.push({ f, kind: "禁止路径", detail: why });
       }
     }
     const content = readContent(f, staged);

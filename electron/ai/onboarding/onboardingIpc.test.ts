@@ -17,6 +17,9 @@ beforeEach(() => { handlers.clear(); registerOnboardingIpc(); });
 afterEach(() => vi.unstubAllGlobals());
 
 describe("onboarding discovery IPC preserves the shared result contract", () => {
+  it("does not register the removed raw manual Catalog commit bypass", () => {
+    expect(handlers.has("nomi:onboarding:manual-commit")).toBe(false);
+  });
   it.each(["list-models", "test-connection"])("forwards HTTP200 auth errors through %s", async (channel) => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ code: 401, data: [], message: "expired" }), { status: 200 })));
     const result = await handlers.get(`nomi:onboarding:${channel}`)?.({}, {

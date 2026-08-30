@@ -98,6 +98,9 @@ describe('model select structure — 选了模型就必须选得了供应商', (
     for (const relative of canvasBulkEntryPoints) {
       const source = readCode(relative)
       expect(source, `${relative} 应复用共享的 CanvasBulkModelSelect`).toContain('CanvasBulkModelSelect')
+      expect(source, `${relative} 必须把完整同级组交给共享选择器，才能区分同类不同执行模式`).toContain(
+        'peerGroups=',
+      )
       expect(source, `${relative} 不该再直接用 ${HOOK_NAME}`).not.toContain(HOOK_NAME)
       expect(source, `${relative} 不该再自己内联 BulkModelPicker（要走共享组件）`).not.toContain(
         "from '../../common/BulkModelPicker'",
@@ -112,6 +115,8 @@ describe('model select structure — 选了模型就必须选得了供应商', (
 
     // 画布共享封装把 (value, vendor) 一起回抛给 onApplyModel（vendor 丢了 = 又锁不了家）。
     const sharedCanvasPicker = readCode('src/workbench/generationCanvas/components/CanvasBulkModelSelect.tsx')
-    expect(sharedCanvasPicker).toContain('onApplyModel({ executionKind: group.executionKind, value, vendor')
+    expect(sharedCanvasPicker).toContain(
+      'onApplyModel({ executionKind: group.executionKind, requiredMode: group.requiredMode, value, vendor',
+    )
   })
 })

@@ -99,6 +99,12 @@ function sanitizeHeaders(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/** Catalogs store an Anthropic host root; the SDK appends only `/messages`. */
+export function anthropicBaseUrl(baseURL: string): string {
+  const trimmed = baseURL.trim().replace(/\/+$/, "");
+  return /\/v\d+$/i.test(trimmed) ? trimmed : `${trimmed}/v1`;
+}
+
 export function buildAiSdkModel(input: BuildAiSdkModelInput): LanguageModelV1 {
   const apiKey = (input.apiKey || "").trim();
   const unauthenticated = input.authType === "none";
@@ -117,7 +123,7 @@ export function buildAiSdkModel(input: BuildAiSdkModelInput): LanguageModelV1 {
     const provider = createAnthropic({
       apiKey,
       fetch: appFetch,
-      ...(baseURL ? { baseURL } : {}),
+      ...(baseURL ? { baseURL: anthropicBaseUrl(baseURL) } : {}),
       ...(headers ? { headers } : {}),
     });
     return provider.languageModel(modelId);

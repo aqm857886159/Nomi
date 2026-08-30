@@ -13,6 +13,7 @@ import {
   IconWaveSine,
   IconWriting,
   IconScissors,
+  type IconProps,
 } from '@tabler/icons-react'
 import {
   GENERATION_NODE_PLUGIN_BY_KIND,
@@ -26,9 +27,15 @@ import i18n from '../../../i18n'
 
 export type { GenerationNodeRenderProps, GenerationNodeComponent } from './registry'
 
-export type GenerationNodeIcon = React.ComponentType<any>
+export type GenerationNodeIcon = React.ComponentType<IconProps>
 
-export type GenerationNodeRenderPlugin = Omit<GenerationNodePlugin, 'component' | 'icon'> & {
+export type GenerationNodeRenderPlugin = Omit<
+  GenerationNodePlugin,
+  'component' | 'icon' | 'label' | 'menuLabel' | 'defaultTitle'
+> & {
+  label: string
+  menuLabel: string
+  defaultTitle?: string
   icon: GenerationNodeIcon
   component: React.LazyExoticComponent<GenerationNodeComponent>
   promptPlaceholder?: string

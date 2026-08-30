@@ -24,7 +24,15 @@ function check(name, ok, detail) {
 }
 async function snap(win, name, clip) {
   n += 1
-  await screenshotSettled(win, { path: path.join(shotsDir, `${String(n).padStart(2, '0')}-${name}.png`), ...(clip ? { clip } : {}) })
+  const options = { path: path.join(shotsDir, `${String(n).padStart(2, '0')}-${name}.png`), ...(clip ? { clip } : {}) }
+  // The pending connection state is intentionally captured while the pointer is down;
+  // its preview line is interactive, so the generic quiescence guard cannot settle it.
+  if (name === 'group-drop-target') {
+    await win.waitForTimeout(500)
+    await win.screenshot(options)
+  } else {
+    await screenshotSettled(win, options)
+  }
   console.log(`  · shot ${String(n).padStart(2, '0')}-${name}`)
 }
 async function snapNear(win, name, locator, pad = 30) {
@@ -56,7 +64,12 @@ for (const label of ['新建空白项目', '开始一个项目']) {
   const el = win.locator('button', { hasText: label }).first()
   if (await el.count()) { await el.click({ timeout: 4000 }).catch(() => {}); break }
 }
-await win.waitForTimeout(2500)
+await win
+  .locator('div.fixed.inset-0')
+  .filter({ hasText: /开始生成/ })
+  .last()
+  .waitFor({ state: 'visible', timeout: 15_000 })
+  .catch(() => {})
 const genTab = win.locator('button', { hasText: /^生成$/ }).first()
 if (await genTab.count()) await genTab.click({ timeout: 5000 }).catch(() => {})
 await win.waitForTimeout(2500)
@@ -111,7 +124,7 @@ await win.waitForTimeout(900)
 const selectedText = await win.locator('.generation-canvas-v2__selection-toolbar').first().textContent().catch(() => '')
 console.log('  → 点组框后选择浮条:', JSON.stringify(selectedText))
 check('点组框 = 选中全部成员（整组运行的现成入口）', /已选\s*4\s*个/.test(selectedText || ''), String(selectedText))
-check('浮条上有「生成 4 个」', /生成\s*4\s*个/.test(selectedText || ''), String(selectedText))
+check('浮条上有「生成选中 4 个」', /生成选中\s*4\s*个/.test(selectedText || ''), String(selectedText))
 
 // 反并行版断言：整屏只应有**一个**「生成」动作，组标签上不许再挂第二个。
 const generateAffordances = await win.evaluate(() => ({
@@ -128,10 +141,17 @@ check('生成动作全屏只有一个（就是选择浮条那个）', generateAf
 
 // ② 走浮条那条路跑整组：应当进现成的批量确认卡，张数 = 组成员数。
 await win.locator('[data-storyboard-run-all]').first().click({ timeout: 5000 })
-await win.waitForTimeout(2500)
+// 等真实条件（确认卡出现），不是盲等固定毫秒：机器慢一点 sleep 就不够，读到空却报绿。
+// 超时不抛——下面的 check 仍要把「读到什么」打出来，保留这条走查的失败可读性。
+await win
+  .locator('div.fixed.inset-0')
+  .filter({ hasText: /开始生成/ })
+  .last()
+  .waitFor({ state: 'visible', timeout: 15_000 })
+  .catch(() => {})
 await snap(win, 'after-run-group')
 const confirmCard = await win.evaluate(() => {
-  const veil = document.querySelector('.fixed.inset-0.z-\\[3500\\]')
+  const veil = Array.from(document.querySelectorAll('.fixed.inset-0')).find((element) => element.textContent?.includes('开始生成'))
   return veil ? veil.textContent?.replace(/\s+/g, ' ').trim() ?? '' : null
 })
 console.log('  → 确认卡:', JSON.stringify(confirmCard))
@@ -141,7 +161,7 @@ check('确认卡张数 = 组成员数 4', /生成\s*4\s*张/.test(confirmCard ||
 const cancelBtn = win.locator('button', { hasText: /^取消$/ }).first()
 if (await cancelBtn.count()) await cancelBtn.click({ timeout: 4000 }).catch(() => {})
 await win.waitForTimeout(1200)
-const veilGone = await win.evaluate(() => !document.querySelector('.fixed.inset-0.z-\\[3500\\]'))
+const veilGone = await win.evaluate(() => !Array.from(document.querySelectorAll('.fixed.inset-0')).some((element) => element.textContent?.includes('开始生成')))
 check('取消后确认卡收掉', veilGone)
 
 // ③ 连到组：加一个组外节点 → 从它拉线 → 组框应变成可落点（虚线 + 加深底色）
@@ -159,7 +179,7 @@ await win.locator(`[data-node-id="${srcId}"]`).first().click({ timeout: 4000 })
 await win.waitForTimeout(800)
 // 用**真手势**：从磁吸连接点按下 → 拖到组框空白处 → 松手。这条路走的是 pointerup（useDragToConnect），
 // 和「点一下连接点再点目标」的 click 路是两条，必须两条都真的通（走查第一版就是漏了 pointerup 那条）。
-const handle = win.locator(`[data-node-id="${srcId}"] [data-side="right"]`).first()
+const handle = win.locator(`.react-flow__node[data-id="${srcId}"] .generation-canvas-react-flow__handle[data-side="right"]`).last()
 check('找得到连接点', await handle.count() > 0)
 const hb = await handle.boundingBox()
 const gbox0 = await win.locator('.generation-canvas-v2__group-box').first().boundingBox()
@@ -182,6 +202,24 @@ const dropPoint = await win.evaluate((gb) => {
 check('组框内找得到不压节点的空白落点', Boolean(dropPoint), JSON.stringify(dropPoint))
 if (!dropPoint) { await app.close(); process.exit(1) }
 await win.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2)
+const hitHandle = await win.evaluate(({ x, y }) => {
+  const hit = document.elementFromPoint(x, y)?.closest('.generation-canvas-react-flow__handle')
+  return {
+    viewport: { width: window.innerWidth, height: window.innerHeight },
+    point: { x, y },
+    stack: document.elementsFromPoint(x, y).slice(0, 8).map((element) => ({
+      tag: element.tagName,
+      className: element.className?.toString() || '',
+      nodeId: element.closest('.react-flow__node')?.getAttribute('data-id') || null,
+    })),
+    handle: hit ? {
+      nodeId: hit.closest('.react-flow__node')?.getAttribute('data-id'),
+      handleId: hit.getAttribute('data-handleid'),
+      handleType: hit.getAttribute('data-nodeid') ? hit.className.toString() : null,
+    } : null,
+  }
+}, { x: hb.x + hb.width / 2, y: hb.y + hb.height / 2 })
+check('连接点中心命中 React Flow 握把', hitHandle.handle?.nodeId === srcId, JSON.stringify({ box: hb, ...hitHandle }))
 await win.mouse.down()
 await win.mouse.move(dropPoint.x, dropPoint.y, { steps: 12 })
 await win.waitForTimeout(500)

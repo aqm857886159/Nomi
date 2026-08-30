@@ -54,6 +54,7 @@ export function buildProfileHttpRequest(input: {
       : String(input.vendor.baseUrlHint || ""),
     authType: input.vendor.authType as AuthType,
     authHeaderName: input.vendor.authHeader ?? undefined,
+    authQueryParam: input.vendor.authQueryParam ?? undefined,
     apiKey: input.apiKey,
     context: templateContext(input.request, input.model, input.apiKey, input.providerMeta || {}, input.operation.paramMap),
     operation: input.operation,

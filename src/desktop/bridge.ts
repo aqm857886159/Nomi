@@ -7,14 +7,10 @@ import type { DesktopSettingsBridge } from './settingsBridge'
 import type { DesktopOnboardingBridge } from './onboardingBridgeTypes'
 import type { DesktopProductionRunBridge } from './productionRunBridgeTypes'
 import type { CustomCallBridge } from './modelCatalogBridgeTypes'
+import type { ComfyCandidateTestPayload, ComfyCandidateTestResult, ComfyWorkflowMutationResult } from './comfyCandidateContracts'
 import type { CanvasReadSurfaceBridge } from '../../electron/shared/surfacePortBinding'
-import type { ProjectAgentExecutionEvent, ProjectAgentHostState, ProjectAgentMutationType, ProjectAgentPatch, ProjectBinding } from '../../electron/shared/projectAgentContracts'
-import type {
-  ProjectAgentProposalReceiptClear,
-  ProjectAgentProposalReceiptTransition,
-  ProjectAgentProposalReceiptView,
-  ProjectAgentProposalReceiptWrite,
-} from '../../electron/shared/projectAgentProposalReceipt'
+import type { ProjectAgentBridge } from './projectAgentBridgeTypes'
+export type { ProjectAgentBridge, ProjectAgentCommandWire } from './projectAgentBridgeTypes'
 export type { ProviderKind }
 export type {
   DesktopAdapterModeResult,
@@ -23,44 +19,31 @@ export type {
 } from './onboardingBridgeTypes'
 export type { ScreenshotHotkeyStatus } from './bridgeMedia'
 
-export type ProjectAgentCommandWire = {
-  subscriptionId: string
-  clientCommandId: string
-  knownRevision: number
-  type: ProjectAgentMutationType | 'tool.decision'
-  payload: unknown
+/** 落盘的对话消息(conversation 域;draft/附件是 session 域不落盘)。 */
+export type PersistedAiMessage = {
+  id: string
+  role: string
+  content: string
+  /** 分镜方案卡锚在这条消息上(方案随项目持久化,它的「家」也要一起落盘)。 */
+  storyboardPlan?: true
 }
 
-export type ProjectAgentBridge = {
-  open: (binding: ProjectBinding) => Promise<{
-    subscriptionId: string
-    subscriptionEpoch: number
-    snapshot: ProjectAgentHostState
-    proposalReceipt: ProjectAgentProposalReceiptView | null
-  }>
-  snapshot: (subscriptionId: string) => Promise<ProjectAgentHostState>
-  command: (command: Omit<ProjectAgentCommandWire, 'subscriptionId'> & { subscriptionId: string }) => Promise<{
-    state: ProjectAgentHostState
-    patch: ProjectAgentPatch | null
-    replayed: boolean
-    snapshotRequired?: boolean
-  }>
-  release: (subscriptionId: string) => Promise<{ released: true }>
-  readProposalReceipt: (subscriptionId: string) => Promise<ProjectAgentProposalReceiptView | null>
-  writeProposalReceipt: (
-    subscriptionId: string,
-    input: ProjectAgentProposalReceiptWrite,
-  ) => Promise<ProjectAgentProposalReceiptView>
-  transitionProposalReceipt: (
-    subscriptionId: string,
-    input: ProjectAgentProposalReceiptTransition,
-  ) => Promise<ProjectAgentProposalReceiptView>
-  clearProposalReceipt: (
-    subscriptionId: string,
-    input: ProjectAgentProposalReceiptClear,
-  ) => Promise<{ cleared: true; receipt: ProjectAgentProposalReceiptView }>
-  onPatch?: (handler: (patch: ProjectAgentPatch) => void) => () => void
-  onEvent?: (handler: (event: ProjectAgentExecutionEvent) => void) => () => void
+/** 一条会话线程(v2 会话历史)。messages=该线程气泡;title=一句话摘要(首句兜底)。 */
+export type PersistedThread = {
+  id: string
+  title: string
+  createdAt: number
+  updatedAt: number
+  messages: PersistedAiMessage[]
+}
+/** 一个面板(创作/画布)的会话列表 + 当前活动线程。 */
+export type PersistedConversationArea = { activeId: string | null; threads: PersistedThread[] }
+/** conversations.json v2:两个面板各一份会话列表。 */
+export type PersistedConversationsV2 = {
+  v: 2
+  creation: PersistedConversationArea
+  generation: PersistedConversationArea
+  committedProposal?: unknown
 }
 
 /** 代理三态：跟随系统探测 / 只对 Nomi 生效的自定义地址 / 强制直连。 */
@@ -570,6 +553,8 @@ export type DesktopBridge = DesktopMediaBridge & {
     cancel?: (taskId: string) => Promise<{ ok: boolean }>
     run: (payload: unknown) => Promise<unknown>
     result: (payload: unknown) => Promise<unknown>
+    runComfyCandidateTest?: (payload: ComfyCandidateTestPayload) => Promise<ComfyCandidateTestResult>
+    cancelComfyCandidateTest?: (payload: { revisionId: string; modelKey: string; taskKind: string }) => Promise<{ ok: boolean }>
     grantSpend: (payload: { nodeIds: string[]; maxAttemptsPerNode?: number }) => Promise<{ grantId: string }>
     runTextStream: (payload: unknown) => Promise<{ streamId: string }>
     cancelTextStream: (streamId: string) => Promise<unknown>
@@ -733,15 +718,15 @@ export type DesktopBridge = DesktopMediaBridge & {
     }>
     /** 按绑定落库为用户自有 model+mapping（同步）。enumOptions 可选 = combo 参数烤成真实文件下拉。 */
     importComfyWorkflow: (payload: { text: string; binding: unknown; labelZh: string; enumOptions?: unknown; vendorKey?: string; uiWorkflowText?: string }) =>
-      { ok: true; modelKey: string; kind: string; taskKind: string } | { ok: false; error: string }
+      ComfyWorkflowMutationResult
     /** 用同一 modelKey 更新已导入 workflow（同步）。 */
     updateComfyWorkflow?: (payload: { modelKey: string; text: string; binding: unknown; labelZh: string; enumOptions?: unknown; vendorKey?: string; uiWorkflowText?: string }) =>
-      { ok: true; modelKey: string; kind: string; taskKind: string } | { ok: false; error: string }
+      ComfyWorkflowMutationResult
   }
   skill: {
     list: () => unknown[]
     exportPackage: (dirName: string) => unknown
-    importPackage: (payload: unknown) => Promise<unknown>
+    importPackage: (payload: unknown) => unknown
     deleteByDir: (dirName: string) => unknown
   }
   /** 即梦会员（dreamina CLI）：设备码登录/账户检测/安装（可选——老 preload 无此口）。 */
@@ -760,6 +745,7 @@ export type DesktopBridge = DesktopMediaBridge & {
   }
   /** 能力核：上报当前打开项目，供外部调用的 A/B 守卫（可选——老 preload 无此口）。 */
   capability?: {
+    setActiveProject: (projectId: string) => void
     /** 「接入 AI 编程助手」卡：读接入状态 + 各客户端配置片段（类型见 mcpBridgeTypes）。 */
     mcpInfo: () => McpInfo
     /** 一键写入指定客户端配置的 nomi 条目（合并 + 备份）。默认 Claude Code。 */

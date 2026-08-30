@@ -5,6 +5,8 @@ import { spawn } from "node:child_process";
 import { resolveFfmpegPath } from "./ffmpegRunner";
 import { ensureExecutable } from "./ensureExecutable";
 
+export const MEDIA_DECODER_PROTOCOL_WHITELIST = "file,pipe,data";
+
 export type MediaProbeMetadata = {
   kind: "image" | "video" | "audio" | "unknown";
   durationSeconds?: number;
@@ -16,9 +18,223 @@ export type MediaProbeMetadata = {
   hasAudio: boolean;
   sampleRate?: number;
   channels?: number;
+  streamCount?: number;
 };
 
-export type RunProbeProcess = (command: string, args: string[]) => Promise<{ code: number | null; stdout: string; stderr: string }>;
+export type BoundedProcessOptions = {
+  signal?: AbortSignal;
+  timeoutMs: number;
+  maxStdoutBytes: number;
+  maxStderrBytes: number;
+  input?: Uint8Array;
+};
+
+export class BoundedProcessError extends Error {
+  code: string;
+
+  constructor(code: string) {
+    super(`Bounded process failed (${code})`);
+    this.name = "BoundedProcessError";
+    this.code = code;
+  }
+}
+
+export type RunProbeProcess = (
+  command: string,
+  args: string[],
+  options?: BoundedProcessOptions,
+) => Promise<{ code: number | null; stdout: string; stderr: string }>;
+
+type ProcessTreeChild = {
+  pid?: number;
+  killed: boolean;
+  kill(signal?: NodeJS.Signals): boolean;
+};
+
+type ProcessTreeDeps = {
+  platform?: NodeJS.Platform;
+  killGroup?: (pid: number, signal: NodeJS.Signals) => void;
+  runTaskkill?: (pid: number) => Promise<void>;
+};
+
+type BoundedProcessDependencies = {
+  terminateTree?: (child: ProcessTreeChild, force: boolean) => Promise<void>;
+  cleanupGraceMs?: number;
+  cleanupDeadlineMs?: number;
+};
+
+async function runWindowsTaskkill(pid: number): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const child = spawn("taskkill", ["/PID", String(pid), "/T", "/F"], {
+      shell: false,
+      windowsHide: true,
+      stdio: "ignore",
+    });
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (error) reject(error);
+      else resolve();
+    };
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      finish(new Error("taskkill timed out"));
+    }, 2_000);
+    child.once("close", (code) => finish(code === 0 ? undefined : new Error("taskkill failed")));
+    child.once("error", () => finish(new Error("taskkill failed")));
+  });
+}
+
+export async function terminateProcessTree(
+  child: ProcessTreeChild,
+  force: boolean,
+  deps: ProcessTreeDeps = {},
+): Promise<void> {
+  const pid = child.pid;
+  if (!Number.isInteger(pid) || !pid || pid < 1) {
+    if (!child.killed) child.kill(force ? "SIGKILL" : "SIGTERM");
+    return;
+  }
+  const platform = deps.platform ?? process.platform;
+  if (platform === "win32") {
+    try {
+      await (deps.runTaskkill ?? runWindowsTaskkill)(pid);
+      return;
+    } catch {
+      const killed = child.killed || child.kill("SIGKILL");
+      if (!killed) throw new BoundedProcessError("process_cleanup_failed");
+      return;
+    }
+  }
+  try {
+    (deps.killGroup ?? process.kill)(-pid, force ? "SIGKILL" : "SIGTERM");
+  } catch {
+    if (!child.killed) child.kill(force ? "SIGKILL" : "SIGTERM");
+  }
+}
+
+export async function runBoundedProcess(
+  command: string,
+  args: string[],
+  options: BoundedProcessOptions,
+  dependencies: BoundedProcessDependencies = {},
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  if (options.signal?.aborted) throw new BoundedProcessError("cancelled");
+  return new Promise((resolve, reject) => {
+    let child: ReturnType<typeof spawn>;
+    try {
+      ensureExecutable(command);
+      child = spawn(command, args, {
+        shell: false,
+        windowsHide: true,
+        detached: process.platform !== "win32",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+    } catch {
+      reject(new BoundedProcessError("spawn_failed"));
+      return;
+    }
+
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let failure: BoundedProcessError | undefined;
+    let settled = false;
+    let closeSeen = false;
+    let closeCode: number | null = null;
+    let cleanupPending = 0;
+    let cleanupRejected = false;
+    let forceTimer: ReturnType<typeof setTimeout> | undefined;
+    let finalTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const finish = () => {
+      if (settled || !closeSeen || cleanupPending > 0) return;
+      settled = true;
+      clearTimeout(timer);
+      if (forceTimer) clearTimeout(forceTimer);
+      if (finalTimer) clearTimeout(finalTimer);
+      options.signal?.removeEventListener("abort", onAbort);
+      if (cleanupRejected) reject(new BoundedProcessError("process_cleanup_failed"));
+      else if (failure) reject(failure);
+      else resolve({
+        code: closeCode,
+        stdout: Buffer.concat(stdoutChunks, stdoutBytes).toString("utf8"),
+        stderr: Buffer.concat(stderrChunks, stderrBytes).toString("utf8"),
+      });
+    };
+
+    const terminate = (force: boolean) => {
+      cleanupPending += 1;
+      let operation: Promise<void>;
+      try { operation = (dependencies.terminateTree || terminateProcessTree)(child, force); }
+      catch { cleanupRejected = true; cleanupPending -= 1; finish(); return; }
+      void operation.then(
+        () => { cleanupPending -= 1; finish(); },
+        () => { cleanupRejected = true; cleanupPending -= 1; finish(); },
+      );
+    };
+
+    const stop = (code: string) => {
+      if (settled) return;
+      failure ??= new BoundedProcessError(code);
+      child.stdin?.destroy();
+      if (cleanupPending === 0 && !forceTimer && !finalTimer) terminate(false);
+      forceTimer ??= setTimeout(() => { if (!closeSeen) terminate(true); }, dependencies.cleanupGraceMs ?? 250);
+      finalTimer ??= setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        options.signal?.removeEventListener("abort", onAbort);
+        reject(new BoundedProcessError("process_cleanup_failed"));
+      }, dependencies.cleanupDeadlineMs ?? 2_500);
+    };
+    const onAbort = () => stop("cancelled");
+    const timer = setTimeout(() => stop("timeout"), Math.max(1, options.timeoutMs));
+    options.signal?.addEventListener("abort", onAbort, { once: true });
+
+    child.stdout?.on("data", (raw: Buffer | string) => {
+      const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
+      stdoutBytes += chunk.byteLength;
+      if (stdoutBytes > options.maxStdoutBytes) {
+        stop("output_limit");
+        return;
+      }
+      stdoutChunks.push(chunk);
+    });
+    child.stderr?.on("data", (raw: Buffer | string) => {
+      const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
+      stderrBytes += chunk.byteLength;
+      if (stderrBytes > options.maxStderrBytes) {
+        stop("output_limit");
+        return;
+      }
+      stderrChunks.push(chunk);
+    });
+    child.stdin?.on("error", () => {
+      if (!failure) stop("spawn_failed");
+    });
+    child.on("error", () => {
+      if (!settled) stop("spawn_failed");
+    });
+    child.on("close", (code) => {
+      if (settled) return;
+      closeSeen = true;
+      closeCode = code;
+      if (forceTimer) clearTimeout(forceTimer);
+      finish();
+    });
+
+    if (options.signal?.aborted) {
+      onAbort();
+      return;
+    }
+    if (options.input) child.stdin?.end(Buffer.from(options.input));
+    else child.stdin?.end();
+  });
+}
 
 export class MediaProbeError extends Error {
   code: "missing_file" | "probe_failed" | "unsupported_media" | "invalid_probe_output";
@@ -41,6 +257,7 @@ type FfprobeStream = Record<string, unknown> & {
   channels?: unknown;
   nb_frames?: unknown;
   duration?: unknown;
+  disposition?: unknown;
 };
 
 type FfprobeOutput = {
@@ -103,6 +320,10 @@ function isStillImage(videoStream: FfprobeStream | undefined, durationSeconds: n
   return durationSeconds === undefined && nbFrames === 1;
 }
 
+function isAttachedPicture(stream: FfprobeStream): boolean {
+  return isRecord(stream.disposition) && (stream.disposition.attached_pic === 1 || stream.disposition.attached_pic === true);
+}
+
 export function parseFfprobeJson(json: string): MediaProbeMetadata {
   let parsed: FfprobeOutput;
   try {
@@ -120,7 +341,7 @@ export function parseFfprobeJson(json: string): MediaProbeMetadata {
     throw new MediaProbeError("unsupported_media", "ffprobe output did not contain media streams");
   }
 
-  const videoStream = streams.find((stream) => stream.codec_type === "video");
+  const videoStream = streams.find((stream) => stream.codec_type === "video" && !isAttachedPicture(stream));
   const audioStream = streams.find((stream) => stream.codec_type === "audio");
   if (!videoStream && !audioStream) {
     throw new MediaProbeError("unsupported_media", "ffprobe output did not contain audio or video streams");
@@ -143,7 +364,7 @@ export function parseFfprobeJson(json: string): MediaProbeMetadata {
       ? "audio"
       : "unknown";
 
-  const metadata: MediaProbeMetadata = { kind, hasAudio };
+  const metadata: MediaProbeMetadata = { kind, hasAudio, streamCount: streams.length };
   if (durationSeconds !== undefined && kind !== "image") metadata.durationSeconds = durationSeconds;
   if (width !== undefined) metadata.width = width;
   if (height !== undefined) metadata.height = height;
@@ -202,26 +423,17 @@ function resolveFfprobePath(explicitFfprobePath?: string, explicitFfmpegPath?: s
   return commandExists(executableName) ? executableName : "";
 }
 
-function defaultRunProcess(command: string, args: string[]): Promise<{ code: number | null; stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    ensureExecutable(command);
-    const child = spawn(command, args, { windowsHide: true });
-    let stdout = "";
-    let stderr = "";
-    child.stdout?.on("data", (chunk) => {
-      stdout += Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk);
-    });
-    child.stderr?.on("data", (chunk) => {
-      stderr += Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk);
-    });
-    child.on("error", reject);
-    child.on("close", (code) => resolve({ code, stdout, stderr }));
-  });
-}
-
 export async function probeMediaMetadata(
   inputPath: string,
-  options: { ffprobePath?: string; ffmpegPath?: string; runProcess?: RunProbeProcess } = {},
+  options: {
+    ffprobePath?: string;
+    ffmpegPath?: string;
+    runProcess?: RunProbeProcess;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+    maxStdoutBytes?: number;
+    maxStderrBytes?: number;
+  } = {},
 ): Promise<MediaProbeMetadata> {
   const absoluteInputPath = path.resolve(inputPath);
   if (!fs.existsSync(absoluteInputPath) || !fs.statSync(absoluteInputPath).isFile()) {
@@ -233,13 +445,27 @@ export async function probeMediaMetadata(
     throw new MediaProbeError("probe_failed", "ffprobe executable could not be resolved");
   }
 
-  const args = ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", absoluteInputPath];
-  const runProcess = options.runProcess || defaultRunProcess;
+  const args = ["-v", "error", "-protocol_whitelist", MEDIA_DECODER_PROTOCOL_WHITELIST, "-print_format", "json", "-show_format", "-show_streams", absoluteInputPath];
+  const hasExplicitProcessLimits = options.signal !== undefined
+    || options.timeoutMs !== undefined
+    || options.maxStdoutBytes !== undefined
+    || options.maxStderrBytes !== undefined;
+  const processOptions: BoundedProcessOptions = {
+    timeoutMs: options.timeoutMs ?? 15_000,
+    maxStdoutBytes: options.maxStdoutBytes ?? 256 * 1024,
+    maxStderrBytes: options.maxStderrBytes ?? 64 * 1024,
+    ...(options.signal ? { signal: options.signal } : {}),
+  };
   let result: Awaited<ReturnType<RunProbeProcess>>;
   try {
-    result = await runProcess(ffprobePath, args);
+    if (!options.runProcess) result = await runBoundedProcess(ffprobePath, args, processOptions);
+    else if (hasExplicitProcessLimits) result = await options.runProcess(ffprobePath, args, processOptions);
+    else result = await options.runProcess(ffprobePath, args);
   } catch (error) {
-    throw new MediaProbeError("probe_failed", `ffprobe failed to start: ${error instanceof Error ? error.message : String(error)}`);
+    const detail = error instanceof BoundedProcessError
+      ? `ffprobe process ${error.code}`
+      : "ffprobe failed to start";
+    throw new MediaProbeError("probe_failed", detail);
   }
 
   if (result.code !== 0) {
@@ -248,4 +474,86 @@ export async function probeMediaMetadata(
   }
 
   return parseFfprobeJson(result.stdout);
+}
+
+type ProbeBytesOptions = {
+  ffprobePath?: string;
+  ffmpegPath?: string;
+  runProcess?: RunProbeProcess;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  maxStdoutBytes?: number;
+  maxStderrBytes?: number;
+};
+
+export async function probeMediaBytes(
+  bytes: Uint8Array,
+  options: ProbeBytesOptions = {},
+): Promise<MediaProbeMetadata> {
+  const ffprobePath = resolveFfprobePath(options.ffprobePath, options.ffmpegPath);
+  if (!ffprobePath) throw new MediaProbeError("probe_failed", "ffprobe executable could not be resolved");
+  const args = ["-v", "error", "-protocol_whitelist", MEDIA_DECODER_PROTOCOL_WHITELIST, "-print_format", "json", "-show_format", "-show_streams", "pipe:0"];
+  const processOptions: BoundedProcessOptions = {
+    timeoutMs: options.timeoutMs ?? 15_000,
+    maxStdoutBytes: options.maxStdoutBytes ?? 256 * 1024,
+    maxStderrBytes: options.maxStderrBytes ?? 64 * 1024,
+    input: bytes,
+    ...(options.signal ? { signal: options.signal } : {}),
+  };
+  let result: Awaited<ReturnType<RunProbeProcess>>;
+  try {
+    result = await (options.runProcess ?? runBoundedProcess)(ffprobePath, args, processOptions);
+  } catch (error) {
+    const detail = error instanceof BoundedProcessError ? `ffprobe process ${error.code}` : "ffprobe failed to start";
+    throw new MediaProbeError("probe_failed", detail);
+  }
+  if (result.code !== 0) throw new MediaProbeError("probe_failed", "ffprobe rejected the media payload");
+  return parseFfprobeJson(result.stdout);
+}
+
+export class MediaDecodeError extends Error {
+  code: "decode_failed";
+
+  constructor() {
+    super("Media decoder rejected the payload");
+    this.name = "MediaDecodeError";
+    this.code = "decode_failed";
+  }
+}
+
+export async function decodeMediaBytes(
+  bytes: Uint8Array,
+  kind: "video" | "audio",
+  options: {
+    ffmpegPath?: string;
+    runProcess?: RunProbeProcess;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+    maxStdoutBytes?: number;
+    maxStderrBytes?: number;
+  } = {},
+): Promise<void> {
+  const ffmpegPath = resolveFfmpegPath(options.ffmpegPath);
+  if (!ffmpegPath) throw new MediaDecodeError();
+  const args = [
+    "-hide_banner", "-v", "error", "-xerror", "-err_detect", "explode",
+    "-protocol_whitelist", MEDIA_DECODER_PROTOCOL_WHITELIST, "-i", "pipe:0",
+    "-map", kind === "video" ? "0:v:0" : "0:a:0",
+    ...(kind === "video" ? ["-frames:v", "1"] : ["-t", "1"]),
+    "-f", "null", "-",
+  ];
+  const processOptions: BoundedProcessOptions = {
+    timeoutMs: options.timeoutMs ?? 20_000,
+    maxStdoutBytes: options.maxStdoutBytes ?? 16 * 1024,
+    maxStderrBytes: options.maxStderrBytes ?? 64 * 1024,
+    input: bytes,
+    ...(options.signal ? { signal: options.signal } : {}),
+  };
+  try {
+    const result = await (options.runProcess ?? runBoundedProcess)(ffmpegPath, args, processOptions);
+    if (result.code !== 0) throw new MediaDecodeError();
+  } catch (error) {
+    if (error instanceof MediaDecodeError) throw error;
+    throw new MediaDecodeError();
+  }
 }

@@ -86,11 +86,19 @@ export const DesignButton = forwardRef<HTMLButtonElement, DesignButtonProps>(fun
 export type WorkbenchIconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   icon: ReactNode
   label: string
+  /** md = 32px (default), sm = 28px for compact canvas/tool surfaces. */
+  size?: 'sm' | 'md'
 }
+
+const WORKBENCH_ICON_BUTTON_SIZE = {
+  md: 'size-8',
+  sm: 'size-7',
+} as const
 
 export const WorkbenchIconButton = forwardRef<HTMLButtonElement, WorkbenchIconButtonProps>(function WorkbenchIconButton({
   icon,
   label,
+  size = 'md',
   className,
   type = 'button',
   ...props
@@ -98,7 +106,8 @@ export const WorkbenchIconButton = forwardRef<HTMLButtonElement, WorkbenchIconBu
   const rootClassName = cn(
     'tc-workbench-icon-button',
     'inline-grid place-items-center',
-    'size-8 rounded-workbench-control border-0',
+    WORKBENCH_ICON_BUTTON_SIZE[size],
+    'rounded-workbench-control border-0',
     'bg-transparent text-workbench-muted',
     'cursor-pointer',
     'transition-[background,color] duration-150 ease-out',

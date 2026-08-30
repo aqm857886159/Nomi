@@ -29,6 +29,17 @@ const OPENAI_COMPATIBLE_CHAT_OP: HttpOperation = {
   },
 };
 
+const ANTHROPIC_CHAT_OP: HttpOperation = {
+  method: "POST",
+  path: "/v1/messages",
+  headers: { "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
+  body: {
+    model: "{{model.modelKey}}",
+    max_tokens: 16,
+    messages: [{ role: "user", content: "{{request.prompt}}" }],
+  },
+};
+
 type ParamControl = ReturnType<typeof newapiTransportFor>["params"][number];
 type DraftParameters = NonNullable<AdapterModelDraft["parameters"]>;
 
@@ -67,11 +78,18 @@ function withAuthHeader(operation: HttpOperation, authType: AdapterAuthType): Ht
   return next;
 }
 
-function modesForKind(kind: BillingModelKind, authType: AdapterAuthType): AdapterModeDraft[] {
+function modesForKind(
+  kind: BillingModelKind,
+  authType: AdapterAuthType,
+  providerKind?: AiSdkProviderKind,
+): AdapterModeDraft[] {
   // 没有文档出处就诚实留空——这张卡来自内置标准契约，不是从某个页面读出来的（D4 缺口明着标）。
   const noSources = { sourceUrls: [] as string[] };
   const auth = (operation: HttpOperation) => withAuthHeader(operation, authType);
-  if (kind === "text") return [{ taskKind: "chat", create: auth(OPENAI_COMPATIBLE_CHAT_OP), ...noSources }];
+  if (kind === "text") {
+    const operation = providerKind === "anthropic" ? ANTHROPIC_CHAT_OP : OPENAI_COMPATIBLE_CHAT_OP;
+    return [{ taskKind: "chat", create: auth(operation), ...noSources }];
+  }
   // 3D 没有通用 OpenAI 兼容契约 → 不编造。返回空 modes，验证阶段如实报「这个模型没有可用通道」。
   if (kind !== "image" && kind !== "video" && kind !== "audio") return [];
   const transport = newapiTransportFor(kind);
@@ -131,7 +149,7 @@ export function buildOpenAiCompatibleDraft(input: {
         labelZh: model.labelZh,
         kind: model.kind,
         ...(parameters.length > 0 ? { parameters } : {}),
-        modes: modesForKind(model.kind, input.authType),
+        modes: modesForKind(model.kind, input.authType, input.providerKind),
       };
     }),
   };

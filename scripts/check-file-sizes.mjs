@@ -25,15 +25,26 @@ const SCAN_DIRS = ["src", "electron"];
 // 现存巨壳的基线行数（棘轮上限）。清空此表 = 巨壳债还清。
 // 改小某个数 = 你成功瘦身后锁定的新上限。新增条目应经人工评审。
 const ALLOWLIST = {
-  "electron/runtime.ts": 532, // …→ 539（2026-08-15）→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）→ 532（task checkpoint de988bcb）
-  "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 731, // …→ 733（2026-08-16 移除死属性）→ 732（2026-08-24 失败卡加收起钮，压平 onRetry 箭头体抵回）→ 731（2026-08-25 P4 S6：多镜叠加合一 ProductionShotOverlays + onRetry 抽 useProductionNodeRetry，净减 1）
+  "electron/runtime.ts": 531, // …→ 539（2026-08-15）→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）→ 530（2026-08-28 onboarding facade cleanup）→ 531（Phase 6 merge）
+  // Main-process IPC bootstrap is a reviewed legacy shell; keep the Phase 5
+  // ratchet while extraction follows the stable registration ownership seams.
+  "electron/main.ts": 836,
+  // Conversational model integration boundary: the session service keeps the
+  // state machine, receipt contract, canonical certification and recovery
+  // transitions together. It is reviewed as one security boundary and must
+  // be split only along a stable ownership seam, not by moving methods into
+  // a second writer. (2026-08-29)
+  "electron/integrationCertification/integrationSession.ts": 1696,
+  // Existing SettingsDialog shell now owns the durable integration handoff
+  // projection alongside the legacy model settings pages. Keep this reviewed
+  // baseline until the planned settings-surface extraction. (2026-08-29)
+  "src/ui/onboarding/OnboardingDrawer.tsx": 819,
+  "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 713, // …→ 731（2026-08-25 P4 S6：多镜叠加合一 ProductionShotOverlays）→ 713（2026-08-29 React Flow 单内核：移除旧布局与缩放分支）
   // Project Agent Host migration shells. Manually reviewed for this PR because
   // the task branch introduces these owners ahead of the next decomposition batch.
-  // Values below match remote checkpoint de988bcb; Phase 4 did not grow them.
-  // Ratchet only: any growth is a hard failure; Canvas completion/Phase 4 must
-  // extract these modules and lower the baselines.
+  // Ratchet only: any growth is a hard failure; Phase 6 must keep the resident
+  // shell as the sole UI owner while future work lowers these baselines.
   "electron/capabilityCore/verifiedCapabilityInvocation.ts": 1257,
-  "electron/main.ts": 836,
   "electron/productionRun/productionRunService.ts": 806,
   "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1707,
   "electron/projectAgentHost/projectAgentReducer.ts": 920,

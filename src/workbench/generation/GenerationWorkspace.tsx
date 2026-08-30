@@ -95,6 +95,7 @@ export default function GenerationWorkspace({
     <motion.section
       className={cn(
         'workbench-generation',
+        'relative',
         'grid grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--workbench-timeline-height)]',
         'w-full h-full overflow-hidden bg-[var(--workbench-bg)]',
       )}
@@ -148,8 +149,10 @@ export default function GenerationWorkspace({
         <aside
           className={cn(
             'workbench-generation__ai relative',
-            'grid min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)]',
-            'justify-items-end border-l border-l-[var(--workbench-border)] bg-[var(--workbench-surface)]',
+            'grid min-w-0 min-h-0 border-b border-[var(--workbench-border)]',
+            aiCollapsed
+              ? 'overflow-visible justify-items-end border-l border-l-[var(--workbench-border)] bg-[var(--workbench-surface)]'
+              : 'overflow-hidden justify-items-end border-l border-l-[var(--workbench-border)] bg-[var(--workbench-surface)]',
           )}
           aria-label={t('generationCommon.workspace.assistantSidebar')}
         >

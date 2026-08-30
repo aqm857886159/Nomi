@@ -4,7 +4,7 @@ import { IconBrush, IconCheck, IconCrop, IconDownload, IconFlipHorizontal, IconF
 import { type ImageGridSize, type ImageTransformOp } from './useNodeImageEditing'
 import type { CropGridSize } from './render/ImageCropGridOverlay'
 import { useResultDownload } from './useResultDownload'
-import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDivider, ToolbarIconButton, ToolbarMenu, ToolbarProvenanceButton } from './NodeFloatingToolbar'
+import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDivider, ToolbarDuplicateVariantButton, ToolbarIconButton, ToolbarMenu, ToolbarProvenanceButton } from './NodeFloatingToolbar'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import WhiteboardModal from './whiteboard/WhiteboardModal'
 import { inferWhiteboardAspectRatio, readWhiteboardState } from './whiteboard/whiteboardState'
@@ -85,6 +85,7 @@ export default function NodeImageEditToolbar({ node, editGrid, imageOpBusy, onGr
           ]}
         />
         <ToolbarDivider />
+        <ToolbarDuplicateVariantButton nodeId={node.id} />
         <ToolbarButton
           icon={<IconCrop size={I.size} stroke={I.stroke} />}
           label={t('generationCommon.imageToolbar.crop')}

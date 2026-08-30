@@ -20,7 +20,17 @@ import { apiKeyDecryptStatus } from "./secrets";
 
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
 const vendor = (over: Partial<Vendor>): Vendor => ({ key: "v", name: "V", enabled: true, authType: "bearer", createdAt: "t", updatedAt: "t", ...over });
-const model = (over: Partial<Model>): Model => ({ modelKey: "m", vendorKey: "v", labelZh: "M", kind: "image", enabled: true, createdAt: "t", updatedAt: "t", ...over } as Model);
+const model = (over: Partial<Model>): Model => ({
+  modelKey: "m",
+  vendorKey: "v",
+  labelZh: "M",
+  kind: "image",
+  enabled: true,
+  customCall: { script: "return { assets: [] }", updatedAt: "t" },
+  createdAt: "t",
+  updatedAt: "t",
+  ...over,
+} as Model);
 const mapping = (over: Partial<Mapping>): Mapping => ({ id: "id", vendorKey: "v", taskKind: "text_to_image", name: "n", enabled: true, create: { method: "POST", path: "/x", body: {} }, createdAt: "t", updatedAt: "t", ...over } as Mapping);
 
 function state(over: Partial<CatalogState>): CatalogState {
@@ -95,6 +105,79 @@ describe("deriveModelListing — keyStatus 三态（ok / missing / locked）", (
       apiKeysByVendor: { apimart: { vendorKey: "apimart", apiKey: b64("k"), enc: "safeStorage", enabled: true, createdAt: "t", updatedAt: "t" } },
     });
     expect(deriveModelListing(withDisabled).map((e) => e.modelKey)).toEqual(["on"]);
+  });
+
+  it("hides staged or failed adapter models without an active revision even when raw mappings are enabled", () => {
+    const hidden = state({
+      vendors: [vendor({ key: "relay", authType: "none" })],
+      models: [
+        model({ modelKey: "staged", vendorKey: "relay", customCall: undefined, meta: { adapter: { state: "unverified", modes: [], updatedAt: "t" } } }),
+        model({ modelKey: "failed", vendorKey: "relay", customCall: undefined, meta: { adapter: { state: "failed", modes: [], updatedAt: "t" } } }),
+      ],
+      mappings: [
+        mapping({ id: "staged-map", vendorKey: "relay", modelKey: "staged", enabled: true }),
+        mapping({ id: "failed-map", vendorKey: "relay", modelKey: "failed", enabled: true }),
+      ],
+    });
+
+    expect(deriveModelListing(hidden)).toEqual([]);
+  });
+
+  it("keeps only legacy text fallback plus a failed repair with a preserved active revision visible", () => {
+    const visible = state({
+      vendors: [vendor({ key: "relay", authType: "none" })],
+      models: [
+        model({ modelKey: "legacy-text", vendorKey: "relay", kind: "text", customCall: undefined }),
+        model({ modelKey: "legacy-image", vendorKey: "relay", kind: "image", customCall: undefined }),
+        model({ modelKey: "legacy-video", vendorKey: "relay", kind: "video", customCall: undefined }),
+        model({ modelKey: "legacy-audio", vendorKey: "relay", kind: "audio", customCall: undefined }),
+        model({
+          modelKey: "active",
+          vendorKey: "relay",
+          customCall: undefined,
+          meta: { adapter: { state: "failed", activeRevision: "revision-good", modes: [{ taskKind: "text_to_image", state: "verified" }], updatedAt: "t" } },
+        }),
+      ],
+    });
+
+    expect(deriveModelListing(visible).map((entry) => entry.modelKey)).toEqual(["legacy-text", "active"]);
+  });
+
+  it("does not let a raw custom-call script publish an adapter model without a certified active revision", () => {
+    const customCall = state({
+      vendors: [vendor({ key: "relay", authType: "none" })],
+      models: [
+        model({
+          modelKey: "scripted",
+          vendorKey: "relay",
+          customCall: { script: "return { text: 'ok' }", updatedAt: "t" },
+          meta: { adapter: { state: "failed", modes: [], updatedAt: "t" } },
+        }),
+        model({
+          modelKey: "failed-without-execution",
+          vendorKey: "relay",
+          customCall: undefined,
+          meta: { adapter: { state: "failed", modes: [], updatedAt: "t" } },
+        }),
+      ],
+    });
+
+    expect(deriveModelListing(customCall).map((entry) => entry.modelKey)).toEqual([]);
+  });
+
+  it("reports legacy plaintext credentials as needs_resave with a migration action", () => {
+    const legacy = state({
+      vendors: [vendor({ key: "relay", name: "Relay" })],
+      models: [model({ modelKey: "legacy", vendorKey: "relay" })],
+      apiKeysByVendor: {
+        relay: { vendorKey: "relay", apiKey: "sk-legacy", enc: "plain", enabled: true, createdAt: "t", updatedAt: "t" },
+      },
+    });
+
+    expect(deriveModelListing(legacy)[0]).toMatchObject({
+      keyStatus: "needs_resave",
+      statusReason: expect.stringContaining("重新保存"),
+    });
   });
 });
 

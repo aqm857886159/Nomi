@@ -12,10 +12,11 @@
 //
 // 媒体输入（首帧/尾帧/源视频）**不带**：那要先把素材上传成 ComfyUI 的文件名，是画布的活。
 // 试跑只验「图能不能跑通 + 参数有没有接对」；界面上已明说这一点，不假装带了。
-import { mintSpendGrant, runWorkbenchTaskByVendor, type TaskKind } from '../../../workbench/api/taskApi'
+import { cancelComfyCandidateTestRevision, mintSpendGrant, runComfyCandidateTestByVendor, type ComfyCandidateTestResultDto, type TaskKind } from '../../../workbench/api/taskApi'
 import { workflowMediaBindings, type WorkflowBinding } from '../comfyuiWorkflowBinding'
+import { buildComfyCertificationFixtureParams } from '../../../../electron/shared/comfyCertificationFixtures'
 
-export type TestRunResult = { ok: true } | { ok: false; error: string }
+export type TestRunResult = ComfyCandidateTestResultDto
 
 /**
  * taskKind 必须与**导入时登记 mapping 的那一个逐字一致**
@@ -37,6 +38,8 @@ function taskKindOf(binding: WorkflowBinding): TaskKind {
 
 export async function runTestGeneration(input: {
   vendorKey: string
+  candidateVendorKey: string
+  revisionId: string
   modelKey: string
   binding: WorkflowBinding
   prompt: string
@@ -44,7 +47,18 @@ export async function runTestGeneration(input: {
 }): Promise<TestRunResult> {
   // nodeId 是主进程用来对账/可中断的句柄。这次试跑不属于画布上任何节点，
   // 给一个带前缀的独立 id，别去撞画布节点的 id 空间。
-  const nodeId = `comfy-workflow-test-${input.modelKey}`
+  const nodeId = `comfy-workflow-test-${input.revisionId}`
+  const taskKind = taskKindOf(input.binding)
+  const certificationMedia = buildComfyCertificationFixtureParams({
+    vendorKey: input.candidateVendorKey,
+    modelKey: input.modelKey,
+    slots: workflowMediaBindings(input.binding).map((slot) => ({
+      paramKey: slot.paramKey,
+      label: slot.label,
+      mediaKind: slot.mediaKind,
+    })),
+  })
+  const candidate = { revisionId: input.revisionId, modelKey: input.modelKey, taskKind }
   try {
     // 付费守卫（electron/spendGrant.ts）硬拦所有未授权的 vendor 出口，试跑也不例外——
     // 走查实锤：不铸令牌就是 SpendNotAuthorizedError。**这颗令牌在「运行测试」按钮的 onClick
@@ -53,20 +67,25 @@ export async function runTestGeneration(input: {
     // maxAttemptsPerNode: 1 —— 试跑是一次性的，不给自动重试预算：失败要让用户看见失败、
     // 回去改绑定，而不是背着他重试三次。
     const grantId = await mintSpendGrant([nodeId], 1)
-    const result = await runWorkbenchTaskByVendor(input.vendorKey, {
-      kind: taskKindOf(input.binding),
-      prompt: input.prompt,
-      extras: {
-        ...input.extras,
-        modelKey: input.modelKey,
-        modelAlias: input.modelKey,
-        nodeId,
-        grantId,
+    return await runComfyCandidateTestByVendor(input.candidateVendorKey, {
+      candidate,
+      request: {
+        kind: taskKind,
+        prompt: input.prompt,
+        extras: {
+          ...input.extras,
+          ...certificationMedia,
+          modelKey: input.modelKey,
+          modelAlias: input.modelKey,
+          nodeId,
+          grantId,
+          certifyOutput: true,
+          comfyCertificationRevisionId: input.revisionId,
+        },
       },
     })
-    if (result.status === 'failed') return { ok: false, error: result.error || 'failed' }
-    return { ok: true }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  } catch {
+    await cancelComfyCandidateTestRevision(candidate).catch(() => undefined)
+    return { ok: false, revisionId: input.revisionId, reasonCode: 'provider_failed', params: {} }
   }
 }

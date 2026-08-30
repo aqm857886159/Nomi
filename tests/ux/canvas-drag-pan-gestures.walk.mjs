@@ -31,6 +31,7 @@ const { app, win: _initialWin } = await launchNomiApp({
   projectsDir,
   args: ['--no-proxy-server'],
   settleMs: 0,
+  syntheticCredentialStorage: true,
 })
 
 let passed = 0
@@ -118,21 +119,45 @@ function canvasPointAt(transform, screen, origin) {
   }
 }
 
-// 从一串候选点里挑第一个「真·空白」（框选起手点必须落在空白，否则会被节点/底部坞抢走）。
-async function firstBlankOf(candidates) {
-  return getWin().evaluate((points) => {
+// 适应视图后，从包围节点的四个方向寻找完整落在 stage 内的框选手势。
+async function findMarqueeGesture() {
+  return getWin().evaluate(() => {
     const stage = document.querySelector('.generation-canvas-v2__stage')
-    const rect = stage.getBoundingClientRect()
-    for (const point of points) {
-      if (point.x < rect.left + 8 || point.x > rect.right - 8) continue
-      if (point.y < rect.top + 8 || point.y > rect.bottom - 8) continue
-      const hit = document.elementFromPoint(point.x, point.y)
-      if (!hit || !stage.contains(hit)) continue
-      if (hit.closest('.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-bounds, .generation-canvas-v2__selection-toolbar, button, input, textarea, [role="menu"], [role="toolbar"], .generation-canvas-v2__edge-hit, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack')) continue
-      return { x: Math.round(point.x), y: Math.round(point.y) }
+    const nodes = Array.from(document.querySelectorAll('.generation-canvas-v2-node'))
+    if (!stage || nodes.length === 0) return null
+    const stageRect = stage.getBoundingClientRect()
+    const nodeRects = nodes.map((node) => node.getBoundingClientRect())
+    const bounds = {
+      left: Math.min(...nodeRects.map((rect) => rect.left)),
+      top: Math.min(...nodeRects.map((rect) => rect.top)),
+      right: Math.max(...nodeRects.map((rect) => rect.right)),
+      bottom: Math.max(...nodeRects.map((rect) => rect.bottom)),
+    }
+    const insideStage = (point) =>
+      point.x >= stageRect.left + 8 && point.x <= stageRect.right - 8 &&
+      point.y >= stageRect.top + 8 && point.y <= stageRect.bottom - 8
+    const excluded = '.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-bounds, .generation-canvas-v2__selection-toolbar, button, input, textarea, [role="menu"], [role="toolbar"], .generation-canvas-v2__edge-hit, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack'
+
+    for (const gap of [24, 40, 64, 80]) {
+      const gestures = [
+        { start: { x: bounds.right + gap, y: bounds.bottom + gap }, end: { x: bounds.left - gap, y: bounds.top - gap } },
+        { start: { x: bounds.right + gap, y: bounds.top - gap }, end: { x: bounds.left - gap, y: bounds.bottom + gap } },
+        { start: { x: bounds.left - gap, y: bounds.bottom + gap }, end: { x: bounds.right + gap, y: bounds.top - gap } },
+        { start: { x: bounds.left - gap, y: bounds.top - gap }, end: { x: bounds.right + gap, y: bounds.bottom + gap } },
+      ]
+      for (const gesture of gestures) {
+        if (!insideStage(gesture.start) || !insideStage(gesture.end)) continue
+        const hit = document.elementFromPoint(gesture.start.x, gesture.start.y)
+        if (!hit || !stage.contains(hit)) continue
+        if (hit.closest(excluded)) continue
+        return {
+          start: { x: Math.round(gesture.start.x), y: Math.round(gesture.start.y) },
+          end: { x: Math.round(gesture.end.x), y: Math.round(gesture.end.y) },
+        }
+      }
     }
     return null
-  }, candidates)
+  })
 }
 
 // 数一段操作里「连线层 / 标签层 / 画布外壳」到底被写了多少次 DOM。
@@ -249,7 +274,7 @@ try {
       visibleOverlays: Array.from(
         document.querySelectorAll('.generation-canvas-v2-node__composer, [data-node-floating-toolbar="true"]'),
       ).filter((el) => getComputedStyle(el).visibility !== 'hidden').length,
-      marquee: document.querySelectorAll('.generation-canvas-v2__marquee').length,
+      marquee: document.querySelectorAll('.react-flow__selection').length,
     }
   })
   await snap('01-panning.png')
@@ -310,39 +335,48 @@ try {
     JSON.stringify(idleClick),
   )
 
-  // Shift 框选：从空白起手，拉过两个节点。
-  const nodesBox = await getWin().evaluate(() => {
-    const rects = Array.from(document.querySelectorAll('.generation-canvas-v2-node')).map((node) =>
-      node.getBoundingClientRect(),
-    )
-    const left = Math.min(...rects.map((r) => r.left))
-    const top = Math.min(...rects.map((r) => r.top))
-    const right = Math.max(...rects.map((r) => r.right))
-    const bottom = Math.max(...rects.map((r) => r.bottom))
-    return { left, top, right, bottom }
-  })
-  const marqueeStart = await firstBlankOf([
-    { x: nodesBox.right + 70, y: nodesBox.bottom + 40 },
-    { x: nodesBox.right + 70, y: nodesBox.top - 40 },
-    { x: nodesBox.right + 130, y: nodesBox.bottom - 20 },
-    { x: nodesBox.right + 40, y: nodesBox.top - 60 },
-  ])
-  assert(Boolean(marqueeStart), '框选起手点落在空白处', JSON.stringify(marqueeStart))
+  // Shift 框选：先用真实「适应视图」收回所有节点，再从空白角落包围它们。
+  await getWin().locator('.generation-canvas-v2__zoom-bar button').first().click()
+  await getWin().waitForTimeout(420)
+  const marqueeGesture = await findMarqueeGesture()
+  assert(Boolean(marqueeGesture), '框选起手点与终点完整落在画布空白处', JSON.stringify(marqueeGesture))
   await getWin().keyboard.down('Shift')
-  await getWin().mouse.move(marqueeStart.x, marqueeStart.y)
+  await getWin().mouse.move(marqueeGesture.start.x, marqueeGesture.start.y)
   await getWin().mouse.down()
-  await getWin().mouse.move(nodesBox.left - 40, marqueeStart.y > nodesBox.top ? nodesBox.top - 30 : nodesBox.bottom + 30, { steps: 16 })
-  const marqueeVisible = await getWin().evaluate(
-    () => document.querySelectorAll('.generation-canvas-v2__marquee').length,
-  )
+  await getWin().mouse.move(marqueeGesture.end.x, marqueeGesture.end.y, { steps: 16 })
+  const marqueeVisual = await getWin().evaluate(() => {
+    const marquee = document.querySelector('.react-flow__selection')
+    const host = document.querySelector('.generation-canvas-react-flow')
+    if (!marquee || !host) return null
+    const accentProbe = document.createElement('span')
+    accentProbe.style.border = '1px solid var(--nomi-accent)'
+    host.appendChild(accentProbe)
+    const accentBorderColor = getComputedStyle(accentProbe).borderTopColor
+    accentProbe.remove()
+    const style = getComputedStyle(marquee)
+    return {
+      borderColor: style.borderTopColor,
+      backgroundColor: style.backgroundColor,
+      accentBorderColor,
+    }
+  })
   await snap('02-shift-marquee.png')
   await getWin().mouse.up()
   await getWin().keyboard.up('Shift')
   await getWin().waitForTimeout(300)
   const marqueeSelected = await selectedNodeIds()
 
-  assert(marqueeVisible === 1, 'Shift+左键拖会画出框选矩形')
+  assert(Boolean(marqueeVisual), 'Shift+左键拖会画出框选矩形')
+  assert(
+    marqueeVisual.borderColor !== marqueeVisual.accentBorderColor,
+    '实时框选使用 Nomi 中性色，不被 React Flow 蓝色或 accent 覆盖',
+    JSON.stringify(marqueeVisual),
+  )
   assert(marqueeSelected.length >= 2, '框选把框内节点都选上了', `${marqueeSelected.length} 个`)
+
+  // 适应视图可能在宽屏把两个节点放大到接近上限；重置视图后，后面两轮滚轮都有缩放余量。
+  await getWin().locator('.generation-canvas-v2__zoom-bar button').nth(1).click()
+  await getWin().waitForTimeout(420)
 
   // ── ① 滚轮以光标为锚缩放 ───────────────────────────────────────────────
   const anchor = await findBlankPoint()
@@ -423,6 +457,59 @@ try {
 
   await imageNode.click({ position: { x: 20, y: 10 } })
   await getWin().waitForTimeout(450)
+  const selectedImageAffordances = await getWin().evaluate(() => {
+    const image = document.querySelector('.generation-canvas-v2-node[data-kind="image"]')
+    const flowNode = image?.closest('.react-flow__node')
+    const handles = Array.from(
+      flowNode?.querySelectorAll('.generation-canvas-react-flow__handle[data-affordance="magnetic"]') || [],
+    )
+    const resizeControls = Array.from(flowNode?.querySelectorAll('.react-flow__resize-control') || [])
+    return {
+      handles: handles.map((handle) => {
+        const icon = handle.querySelector('.generation-canvas-react-flow__handle-icon')
+        const rect = icon?.getBoundingClientRect()
+        const style = icon ? getComputedStyle(icon) : null
+        return {
+          side: handle.getAttribute('data-side'),
+          hasPlus: Boolean(icon?.querySelector('svg')),
+          cssWidth: style?.width || null,
+          cssHeight: style?.height || null,
+          screenWidth: rect?.width || 0,
+          screenHeight: rect?.height || 0,
+          opacity: style?.opacity || null,
+        }
+      }),
+      resizeControls: resizeControls.map((control) => {
+        const style = getComputedStyle(control)
+        return {
+          backgroundColor: style.backgroundColor,
+          borderTopWidth: style.borderTopWidth,
+          borderTopColor: style.borderTopColor,
+          boxShadow: style.boxShadow,
+        }
+      }),
+    }
+  })
+  assert(
+      selectedImageAffordances.handles.length === 2 &&
+      selectedImageAffordances.handles.map((handle) => handle.side).sort().join(',') === 'left,right' &&
+      selectedImageAffordances.handles.every(
+        (handle) => handle.hasPlus && handle.cssWidth === '29px' && handle.cssHeight === '29px' && Number(handle.opacity) >= 0.8,
+      ),
+    '选中图片节点恢复左右两个 29px 磁吸 +',
+    JSON.stringify(selectedImageAffordances.handles),
+  )
+  assert(
+    selectedImageAffordances.resizeControls.length > 0 &&
+      selectedImageAffordances.resizeControls.every(
+        (control) =>
+          control.backgroundColor === 'rgba(0, 0, 0, 0)' &&
+          (control.borderTopWidth === '0px' || control.borderTopColor === 'rgba(0, 0, 0, 0)') &&
+          control.boxShadow === 'none',
+      ),
+    '缩放命中区保留但不显示 React Flow 小球',
+    JSON.stringify(selectedImageAffordances.resizeControls),
+  )
   const imageBox = await imageNode.boundingBox()
   const videoBox = await videoNode.boundingBox()
   const handlePoint = { x: Math.round(imageBox.x + imageBox.width + 10), y: Math.round(imageBox.y + imageBox.height / 2) }
@@ -430,7 +517,7 @@ try {
     (point) => {
       const hit = document.elementFromPoint(point.x, point.y)
       return {
-        magnetic: Boolean(hit?.closest('.generation-canvas-v2-node__magnetic-handle, .generation-canvas-v2-node__handle--output')),
+        magnetic: Boolean(hit?.closest('.generation-canvas-react-flow__handle, .generation-canvas-v2-node__magnetic-handle, .generation-canvas-v2-node__handle--output')),
         label: hit?.getAttribute('aria-label') || hit?.className?.toString().slice(0, 60) || hit?.tagName,
       }
     },
@@ -448,6 +535,48 @@ try {
   await getWin().waitForTimeout(700)
   const edgeCount = await getWin().evaluate(() => document.querySelectorAll('.generation-canvas-v2__edge').length)
   assert(edgeCount >= 1, '图片节点连到了视频节点', `${edgeCount} 条边`)
+  const connectedEdgeVisual = await getWin().evaluate(() => {
+    const image = document.querySelector('.generation-canvas-v2-node[data-kind="image"]')
+    const video = document.querySelector('.generation-canvas-v2-node[data-kind="video"]')
+    const path = document.querySelector('.generation-canvas-v2__edge-path')
+    if (!image || !video || !(path instanceof SVGPathElement)) return null
+    const imageRect = image.getBoundingClientRect()
+    const videoRect = video.getBoundingClientRect()
+    const matrix = path.getScreenCTM()
+    if (!matrix) return null
+    const toScreen = (point) => new DOMPoint(point.x, point.y).matrixTransform(matrix)
+    const start = toScreen(path.getPointAtLength(0))
+    const end = toScreen(path.getPointAtLength(path.getTotalLength()))
+    const boundaryError = (point, rect) => Math.min(
+      Math.abs(point.x - rect.left),
+      Math.abs(point.x - rect.right),
+    )
+    const accentProbe = document.createElement('span')
+    accentProbe.style.color = 'var(--nomi-accent)'
+    document.body.appendChild(accentProbe)
+    const accent = getComputedStyle(accentProbe).color
+    accentProbe.remove()
+    return {
+      sourceBoundaryError: boundaryError(start, imageRect),
+      targetBoundaryError: boundaryError(end, videoRect),
+      sourceWithinHeight: start.y >= imageRect.top - 1 && start.y <= imageRect.bottom + 1,
+      targetWithinHeight: end.y >= videoRect.top - 1 && end.y <= videoRect.bottom + 1,
+      stroke: getComputedStyle(path).stroke,
+      accent,
+    }
+  })
+  assert(
+    connectedEdgeVisual &&
+      connectedEdgeVisual.sourceBoundaryError <= 2 && connectedEdgeVisual.targetBoundaryError <= 2 &&
+      connectedEdgeVisual.sourceWithinHeight && connectedEdgeVisual.targetWithinHeight,
+    '连线起终点真实贴在两个节点的渲染边界',
+    JSON.stringify(connectedEdgeVisual),
+  )
+  assert(
+    connectedEdgeVisual?.stroke === connectedEdgeVisual?.accent,
+    '连线恢复主题 accent 色',
+    JSON.stringify(connectedEdgeVisual),
+  )
 
   const blankForDeselect = await findBlankPoint()
   await getWin().mouse.click(blankForDeselect.x, blankForDeselect.y)
@@ -460,13 +589,31 @@ try {
 
   await videoNode.click({ position: { x: 20, y: 10 } })
   await getWin().waitForTimeout(400)
-  const selectedEdgeState = await getWin().evaluate(() => ({
-    labels: document.querySelectorAll('.generation-canvas-v2__edge-tag-pill').length,
-    incident: document.querySelectorAll('.generation-canvas-v2__edge[data-incident="true"]').length,
-  }))
+  const selectedEdgeState = await getWin().evaluate(() => {
+    const label = document.querySelector('.generation-canvas-v2__edge-tag-pill')
+    const accentProbe = document.createElement('span')
+    accentProbe.style.color = 'var(--nomi-accent)'
+    document.body.appendChild(accentProbe)
+    const accent = getComputedStyle(accentProbe).color
+    accentProbe.remove()
+    const labelStyle = label ? getComputedStyle(label) : null
+    return {
+      labels: document.querySelectorAll('.generation-canvas-v2__edge-tag-pill').length,
+      incident: document.querySelectorAll('.generation-canvas-v2__edge[data-incident="true"]').length,
+      fontSize: labelStyle?.fontSize || null,
+      color: labelStyle?.color || null,
+      accent,
+      hasChevron: Boolean(label?.querySelector('svg')),
+    }
+  })
   await snap('04-edge-labels-on-selection.png')
   assert(selectedEdgeState.incident >= 1, '选中节点后其关联边点亮（data-incident）')
   assert(selectedEdgeState.labels >= 1, '选中节点后其关联边的类型标签浮出', JSON.stringify(selectedEdgeState))
+  assert(
+    selectedEdgeState.fontSize === '12px' && selectedEdgeState.color === selectedEdgeState.accent && selectedEdgeState.hasChevron,
+    '连线标签恢复 12px accent 文字与下拉图标',
+    JSON.stringify(selectedEdgeState),
+  )
 
   // ── ④ 拖动节点：浮条 / 提示词面板隐身，松手回来 ─────────────────────────
   const composerBefore = await getWin().evaluate(() => {
@@ -514,7 +661,18 @@ try {
   // 用户 2026-08-09 的场景：选中 A（面板展开）后去拖 B —— A 的面板不能杵在原地。
   // 按下 B 会把选中切给 B，所以判据是「拖动期间画布上一个可见浮层都没有」。
   const otherBox = await imageNode.boundingBox()
-  await getWin().mouse.move(otherBox.x + otherBox.width / 2, otherBox.y + 12)
+  const otherDragPoint = { x: otherBox.x + otherBox.width / 2, y: otherBox.y + 12 }
+  const otherDragProbe = await getWin().evaluate(({ x, y }) => {
+    const hit = document.elementFromPoint(x, y)
+    const node = hit?.closest('.react-flow__node')
+    return {
+      hit: hit?.className?.toString().slice(0, 160) || hit?.tagName || null,
+      nodeId: hit?.closest('[data-node-id]')?.getAttribute('data-node-id') || null,
+      flowNodeId: node?.getAttribute('data-id') || null,
+      transform: node ? getComputedStyle(node).transform : null,
+    }
+  }, otherDragPoint)
+  await getWin().mouse.move(otherDragPoint.x, otherDragPoint.y)
   await getWin().mouse.down()
   await getWin().mouse.move(otherBox.x + otherBox.width / 2 - 80, otherBox.y + 70, { steps: 12 })
   const crossDrag = await getWin().evaluate(() => ({
@@ -525,11 +683,31 @@ try {
     visible: Array.from(
       document.querySelectorAll('.generation-canvas-v2-node__composer, [data-node-floating-toolbar="true"]'),
     ).filter((el) => getComputedStyle(el).visibility !== 'hidden').length,
+    selected: Array.from(document.querySelectorAll('.react-flow__node.selected')).map((node) => ({
+      id: node.getAttribute('data-id'),
+      transform: getComputedStyle(node).transform,
+    })),
   }))
+  const draggedImage = crossDrag.selected.find((node) => node.id === otherDragProbe.flowNodeId)
+  const transformNumbers = (value) => {
+    const match = String(value || '').match(/^matrix\([^,]+, [^,]+, [^,]+, [^,]+, ([^,]+), ([^)]+)\)$/)
+    return match ? { x: Number(match[1]), y: Number(match[2]) } : null
+  }
+  const beforeImageTransform = transformNumbers(otherDragProbe.transform)
+  const afterImageTransform = transformNumbers(draggedImage?.transform)
+  const imageMoveDistance = beforeImageTransform && afterImageTransform
+    ? Math.hypot(afterImageTransform.x - beforeImageTransform.x, afterImageTransform.y - beforeImageTransform.y)
+    : 0
   await snap('06-drag-other-node.png')
   await getWin().mouse.up()
   await getWin().waitForTimeout(300)
-  assert(crossDrag.dragging === 'true', '拖另一个节点时画布同样进入拖动态')
+  assert(
+    crossDrag.dragging === 'true',
+    '拖另一个节点时画布同样进入拖动态',
+    JSON.stringify({ probe: otherDragProbe, crossDrag, imageMoveDistance }),
+  )
+  assert(crossDrag.selected.some((node) => node.id === otherDragProbe.flowNodeId), '直接拖动未选中节点后，该节点成为当前选中节点')
+  assert(imageMoveDistance >= 10, '直接拖动未选中节点时节点确实发生位移', `位移 ${imageMoveDistance.toFixed(1)}px`)
   assert(
     crossDrag.overlays > 0 && crossDrag.visible === 0,
     '拖另一个节点时，画布上挂着的浮层一个都不显示',

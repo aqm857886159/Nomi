@@ -1,0 +1,122 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-28-persisted-localized-display-strings",
+  "problem_type": "localized display text persisted as user data",
+  "symptom": "Prompt-library entries created without a title displayed Chinese placeholders and source labels in the English UI, and switching languages could not repair the stored text.",
+  "direct_cause": "addUserPrompt and updateUserPrompt wrote the rendered literals 未命名提示词 and 我的 into persisted records, while several cards, previews, accessibility labels, and notifications rendered prompt.title or prompt.source directly.",
+  "class_root": "The prompt-library storage contract did not distinguish stable semantic values from locale-dependent display text, and display consumers had no shared projection for legacy persisted literals.",
+  "affected_population": [
+    "English UI users creating untitled prompt-library entries",
+    "Users switching language after creating prompt-library entries",
+    "Existing installations whose prompt-library files contain legacy localized title or source literals"
+  ],
+  "scope_paths": [
+    "electron/promptLibrary/userPromptStore.ts",
+    "src/workbench/promptLibrary/promptDisplay.ts",
+    "src/workbench/promptLibrary/PromptCard.tsx",
+    "src/workbench/promptLibrary/UserPromptCard.tsx",
+    "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+    "src/workbench/promptLibrary/PromptLibraryPanel.tsx"
+  ],
+  "entry_points": [
+    "addUserPrompt and updateUserPrompt persistence writes",
+    "PromptCard and UserPromptCard list rendering",
+    "PromptPreviewOverlay title, source, image alternative text, and dialog label rendering",
+    "PromptLibraryPanel deletion notification rendering"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This invariant is entirely owned by Nomi's prompt-library storage schema and i18n display boundary; no external API or dependency decides which fields are stable persisted values.",
+  "invariants": [
+    "Untitled user prompts persist an empty title and user provenance persists as origin=user rather than as a localized source label.",
+    "Every user-visible prompt title or user-source label is derived at render time by promptDisplay from the active locale.",
+    "Legacy persisted untitled literals in either supported language are treated as semantic untitled values without rewriting user files.",
+    "User-authored non-placeholder titles and curated proper-noun sources remain unchanged."
+  ],
+  "generality_proof": "The write boundary no longer emits locale-dependent values, and all current title/source display consumers found by repository-wide prompt.title and prompt.source scans converge on promptDisplay. The display boundary recognizes both historical placeholder forms, so new writes and old stored rows follow the same locale-independent contract.",
+  "shared_boundaries": [
+    {
+      "path": "electron/promptLibrary/userPromptStore.ts",
+      "symbol": "addUserPrompt and updateUserPrompt",
+      "responsibility": "Persist stable prompt identity, content, and provenance values without rendered locale text."
+    },
+    {
+      "path": "src/workbench/promptLibrary/promptDisplay.ts",
+      "symbol": "promptDisplayTitle and promptSourceLabel",
+      "responsibility": "Project stable and legacy persisted values into text for the currently active UI locale."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/promptLibrary/userPromptStore.ts",
+      "entry_point": "addUserPrompt and updateUserPrompt",
+      "disposition": "enforced",
+      "evidence": "Both create and edit paths now persist an empty untitled value and never write a localized user-source label."
+    },
+    {
+      "path": "src/workbench/promptLibrary/PromptCard.tsx",
+      "entry_point": "prompt card title, source, tooltip, and image alternative text",
+      "disposition": "enforced",
+      "evidence": "Every visible or accessibility-facing value is obtained from promptDisplay rather than directly from persisted placeholders."
+    },
+    {
+      "path": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+      "entry_point": "preview dialog label, heading, media alternative text, and source badge",
+      "disposition": "enforced",
+      "evidence": "The preview computes one localized display title and uses the shared source-label projection."
+    },
+    {
+      "path": "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
+      "entry_point": "delete-and-undo notification",
+      "disposition": "enforced",
+      "evidence": "The notification displays the projected title while Undo writes the original stable title back to storage."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future write fallback or direct rendering consumer could persist or expose the locale active at creation time, and every existing legacy row can reproduce the issue after a language switch.",
+    "same_class_scan": [
+      "Searched electron/promptLibrary and src/workbench/promptLibrary for 未命名提示词, source: 我的, prompt.title, and prompt.source.",
+      "Checked the create, edit, card, preview, tooltip, accessibility-label, and deletion-notification paths independently.",
+      "Verified the legacy Chinese and English placeholder populations under both supported locales."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/promptLibrary/promptDisplay.ts",
+    "invariant": "Persisted prompt-library values are converted to locale-dependent text only at the shared display boundary.",
+    "failure_mode": "Unknown values remain user-authored text rather than being guessed or rewritten; known legacy placeholders are projected through i18n, and regression tests fail if either locale leaks the stored literal.",
+    "exception_policy": "none",
+    "strategy": "Keep semantic emptiness and provenance in storage, recognize legacy values on read, and route every current display consumer through one projection module.",
+    "artifacts": [
+      "electron/promptLibrary/userPromptStore.ts",
+      "src/workbench/promptLibrary/promptDisplay.ts",
+      "src/workbench/promptLibrary/PromptCard.tsx",
+      "src/workbench/promptLibrary/UserPromptCard.tsx",
+      "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+      "src/workbench/promptLibrary/PromptLibraryPanel.tsx"
+    ]
+  },
+  "regression_tests": [
+    "electron/promptLibrary/userPromptStore.test.ts",
+    "src/workbench/promptLibrary/promptDisplay.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/promptLibrary/userPromptStore.test.ts",
+    "src/workbench/promptLibrary/promptDisplay.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The supported store and components were corrected in place; there is no parallel legacy implementation. Historical data remains readable through the display projection."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The defect is in repository-owned persistence and rendering semantics, not in i18next or another third-party package version.",
+    "exit_criteria": []
+  },
+  "migration": "No destructive file rewrite is performed. Existing rows containing 未命名提示词 or Untitled prompt are recognized as untitled at display time, and origin=user overrides historical source labels. New and edited rows persist stable empty values.",
+  "residual_risks": [
+    "A user who deliberately chose a title exactly equal to a historical placeholder will see the active-locale placeholder instead; the stored value is preserved.",
+    "Curated non-user source names remain verbatim because they are treated as proper nouns; a future descriptive source field would need an explicit translation identity."
+  ]
+}

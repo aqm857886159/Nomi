@@ -1,0 +1,106 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-29-git-delivery-identity",
+  "problem_type": "Git delivery identity, transport, and merged-main verification divergence",
+  "symptom": "A ReactFlow delivery repeatedly stalled during Git transport, reported expected PR-head/merge-commit SHA differences as mismatches, failed to reconstruct the merged tree through the GitHub compare API, risked rerunning the same complete test suite on one merged SHA, and initially rejected the documented pnpm argument separator before final validation could start.",
+  "direct_cause": "Delivery steps used independent ad hoc Git and REST operations without a bounded fetch or stage model; the fallback tree materializer consumed a compare file list capped at 300 changed files; commit identity was compared without separating commit metadata from tree identity; complete merged-main runs had no durable per-SHA receipt; and the first CLI parser treated pnpm's standalone -- delimiter as a delivery option because tests covered internal commands but not the documented argv boundary.",
+  "class_root": "The repository had prose about branches and testing but no executable shared boundary that bound each delivery phase to its authoritative Git identity, bounded its only remote refresh, prohibited synthesized remote objects, and made final full validation idempotent per merged commit.",
+  "affected_population": [
+    "Agents and maintainers delivering any Nomi task through a pull request",
+    "Large comparisons containing more files than a hosting API returns in one comparison response",
+    "Repositories or machines where Git HTTPS can stall or credentials can prompt interactively",
+    "Final validators distinguishing a pull-request head from the merge commit on the protected branch"
+  ],
+  "scope_paths": ["scripts/git-delivery.mjs"],
+  "entry_points": [
+    "Task-branch baseline preflight before implementation or delivery",
+    "Exact merged-main identity and full-local acceptance after pull-request merge"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://git-scm.com/book/en/v2/Git-Internals-Git-Objects",
+      "checked_at": "2026-08-29",
+      "purpose": "Verified that commit identity includes tree, parents, author/committer metadata, timestamps and message, while a tree separately identifies the file snapshot and modes."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.github.com/en/rest/commits/commits#compare-two-commits",
+      "checked_at": "2026-08-29",
+      "purpose": "Verified that the compare endpoint exposes changed files only on the first page and caps the entire comparison file list at 300 entries."
+    }
+  ],
+  "invariants": [
+    "Remote commits and trees used for delivery are obtained by one bounded non-interactive Git fetch, never synthesized from REST comparison payloads.",
+    "Task commit, task tree, remote-base commit, remote-base tree and expected merge commit are reported as distinct identities.",
+    "Preflight refuses protected branches, dirty worktrees and task heads that do not contain the freshly fetched remote baseline.",
+    "Merged verification runs only when HEAD, the freshly fetched remote default branch and the explicit expected merge SHA are the same commit.",
+    "The documented pnpm invocation and direct Node invocation resolve to the same delivery options; a standalone package-manager argument delimiter is never interpreted as a delivery option.",
+    "A per-SHA atomic lock prevents concurrent complete validations, and the durable result is idempotent for one commit SHA unless a human explicitly chooses a rerun."
+  ],
+  "generality_proof": "Both task-start and merged-main entry points converge on the same CLI parser, bounded Git transport and identity inspector. The parser accepts the standard package-manager delimiter for every delivery subcommand. The inspector derives commit and tree identities from fetched Git objects, so API pagination, commit-message normalization, GitHub merge metadata and equivalent future hosting differences cannot be mistaken for file-content divergence. The common-dir atomic lock and receipt key full validation by exact merged SHA across worktrees, preventing concurrent and sequential duplicate full runs.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/git-delivery.mjs",
+      "symbol": "runDeliveryCommand",
+      "responsibility": "Own the stage-specific Git refresh, identity assertions, and idempotent merged-main full-validation receipt for every delivery caller."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/git-delivery.mjs",
+      "entry_point": "preflightDelivery",
+      "disposition": "enforced",
+      "evidence": "The task-start path performs the single bounded fetch and refuses protected, dirty, or stale task branches before work proceeds."
+    },
+    {
+      "path": "scripts/git-delivery.mjs",
+      "entry_point": "verifyMergedDelivery",
+      "disposition": "enforced",
+      "evidence": "The final path performs the same bounded fetch, binds HEAD and remote main to the explicit merge SHA, then records exactly one full-local result for that SHA."
+    },
+    {
+      "path": "scripts/release-contract.mjs",
+      "entry_point": "release artifact SHA validation",
+      "disposition": "not-affected",
+      "evidence": "Release artifacts already require a full commit SHA and validate packaged artifacts; they do not reconstruct or classify PR and merge Git objects."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every future pull-request delivery crosses the same task-head, remote baseline, PR head and merge-commit identities, and any machine or hosting outage can trigger the same temptation to retry or synthesize objects.",
+    "same_class_scan": [
+      "Searched CLAUDE.md and docs/engineering-rules.md for worktree, remote baseline, merge and solved-state instructions; found prose but no executable stage authority.",
+      "Searched scripts and package.json for delivery, worktree, commit SHA, tree SHA and merged-main commands; release-contract validates release manifests but no PR delivery command exists.",
+      "Inspected scripts/test-system.mjs and tests/system/profiles.mjs; full-local already includes canvas acceptance and CI-safe J3/J5 but has no Git identity or per-SHA idempotency boundary.",
+      "Reproduced the out-of-repository REST materializer mismatch and checked the official compare API 300-file limit against the large comparison.",
+      "Ran the documented pnpm merged-main command on the actual PR #227 merge SHA; it failed before fetch or tests with unknown_argument for the standalone -- delimiter, proving the package-manager argv boundary needed direct regression coverage."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/git-delivery.mjs",
+    "invariant": "Each delivery stage obtains one authoritative remote snapshot through bounded Git transport, checks the identities valid for that stage, and uses an atomic lock plus receipt to run full merged-main validation at most once per exact merge SHA.",
+    "failure_mode": "The command exits nonzero with the failed stage and observed identities; it never retries automatically, falls back to REST tree materialization, pushes a protected branch, or runs tests against an unverified commit.",
+    "exception_policy": "none",
+    "strategy": "Replace remembered multi-step prose and ad hoc fallback scripts with one package-level command used by R11, R19 and R22, plus a contracts-chain regression test that locks the command and forbidden object-synthesis paths.",
+    "artifacts": ["scripts/git-delivery.mjs"]
+  },
+  "regression_tests": ["scripts/git-delivery.node-test.mjs"],
+  "class_regression_tests": ["scripts/git-delivery.node-test.mjs"],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The failing REST materializer was an untracked temporary script outside the repository, not a callable product or repository path. The new canonical command contains no REST object-materialization fallback."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No Git or GitHub package version caused the missing repository invariant. The fix uses stable Git commit/tree semantics through the installed Git CLI and treats external transport availability as a bounded failure, not as a dependency-upgrade claim.",
+    "exit_criteria": []
+  },
+  "migration": "Agents and maintainers replace manual fetch/SHA reasoning with the package preflight and merged verification commands. Existing branches and commits require no rewrite; existing successful CI evidence remains valid, while future merged-main full runs create common-dir receipts outside tracked product data.",
+  "residual_risks": [
+    "A real GitHub, proxy, DNS or credential outage can still prevent delivery; the command makes that state early and bounded but cannot restore an unavailable external service.",
+    "A deliberate explicit rerun flag can spend the validation budget again and must remain visible in the receipt history."
+  ]
+}

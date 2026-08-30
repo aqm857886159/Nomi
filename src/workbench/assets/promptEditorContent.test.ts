@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { promptToContent } from './promptEditorContent'
+import { promptToContent, shouldApplyExternalPromptSync } from './promptEditorContent'
 import { encodeMention } from './promptMentions'
 
 const A = 'nomi-local://asset/a.png'
@@ -30,5 +30,16 @@ describe('promptToContent mention numbering', () => {
     expect(content.content?.[0]?.content).toEqual([
       { type: 'assetMention', attrs: { url: V, index: 1, kind: 'video' } },
     ])
+  })
+})
+
+describe('external prompt synchronization', () => {
+  it('drops a stale effect after a local edit has advanced the latest value', () => {
+    expect(shouldApplyExternalPromptSync('', 'new local prompt', 'new local prompt')).toBe(false)
+  })
+
+  it('applies a current external change exactly when it differs from the editor', () => {
+    expect(shouldApplyExternalPromptSync('AI rewrite', 'AI rewrite', 'old prompt')).toBe(true)
+    expect(shouldApplyExternalPromptSync('AI rewrite', 'AI rewrite', 'AI rewrite')).toBe(false)
   })
 })

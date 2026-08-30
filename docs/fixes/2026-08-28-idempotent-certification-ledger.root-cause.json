@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-28-idempotent-certification-ledger",
+  "problem_type": "provider certification idempotency and crash recovery gap",
+  "symptom": "Repeating certification start created a new run, application restart failed every active run, and a lost provider create response could be followed by another create, causing duplicate remote tasks and duplicate spend.",
+  "direct_cause": "Provider Adapter persisted only UI-oriented run progress. It had no immutable contract/idempotency index, no durable pre-create submission checkpoint, no remote reconciliation state, and no prepared promotion journal coordinating Catalog publication with terminal run state. The first ledger revision also returned an ambiguous duplicate result, encoded mode identity by slash splitting, kept stale in-memory ProviderAdapterStore snapshots, and appended one top-level archive reference per compaction.",
+  "class_root": "Paid or externally stateful certification work lacked one versioned, fail-closed operation state machine spanning canonical start identity, structured per-mode attempt identity, cross-process run-store CAS, remote submission uncertainty, bounded permanent history, artifact evidence, Catalog lease/CAS, and terminal publication.",
+  "affected_population": [
+    "Users who repeat the same certification confirmation because the UI or Agent did not receive the first response",
+    "Users whose app or machine exits while provider create, poll, media verification, or Catalog promotion is in progress",
+    "Users starting or cancelling competing certification sessions for the same provider lineage"
+  ],
+  "scope_paths": [
+    "electron/integrationCertification/types.ts",
+    "electron/integrationCertification/operationLedger.ts",
+    "electron/integrationCertification/providerAdapterCoordinator.ts",
+    "electron/integrationCertification/promotionJournal.ts",
+    "electron/providerAdapter/existingConnection.ts",
+    "electron/providerAdapter/ipc.ts",
+    "electron/providerAdapter/liveHarness.ts",
+    "electron/providerAdapter/service.ts",
+    "electron/providerAdapter/serviceLanguageModels.ts",
+    "electron/providerAdapter/serviceVerificationResults.ts",
+    "electron/providerAdapter/store.ts",
+    "electron/providerAdapter/types.ts",
+    "electron/providerAdapter/verifier.ts",
+    "electron/shared/providerAdapterContract.ts",
+    "src/desktop/onboardingBridgeTypes.ts"
+  ],
+  "entry_points": [
+    "ProviderAdapterService.start from existing manual onboarding and future canonical certification facade",
+    "Provider Adapter mode verification create and poll execution",
+    "Provider Adapter cancel, restart resume, same-lineage supersede, and Catalog promotion",
+    "Fresh-process promotion journal replay",
+    "Concurrent ProviderAdapterService instances and separate Electron processes sharing provider-adapters.json",
+    "Electron IPC, saved-connection actions, and the live harness awaiting the canonical asynchronous start contract",
+    "Ledger and promotion-journal compaction/reopen after more than one thousand terminal operations"
+  ],
+  "internal_only_reason": "The defect is Nomi's local operation ordering and persistence contract. A provider can advertise remote idempotency or expose a remote task id, but external documentation cannot make Nomi's local duplicate-start, crash checkpoint, Catalog CAS, or journal replay behavior correct.",
+  "invariants": [
+    "One idempotency key is permanently bound to one immutable effective contract digest and returns the original canonical run on every duplicate start.",
+    "OperationLedger.begin explicitly returns created or duplicate plus canonicalRunId; ProviderAdapterService exits the duplicate path before Catalog stage, store mutation, scheduling, cleanup, or provider create.",
+    "A duplicate waiting for its canonical run uses bounded asynchronous timer polling with fresh store and ledger reads; it never blocks the Electron event loop with Atomics.wait or a busy spin, and every IPC/manual/live caller awaits the same Promise-only start contract.",
+    "ProviderAdapterStore serializes every mutation under one cross-process lock, fresh-reads inside the lock, verifies the persisted revision before atomic replacement, and merges only the addressed run or revision record.",
+    "Mode identity is a versioned canonical tuple of modelKey and taskKind, never a delimiter split; operationKey is opaque and the index records the latest attempt and operation key.",
+    "Restart recovery always follows the indexed latest attempt. A settled, failed, submitted, or unknown attempt 2 can never cause attempt 1 to be recreated.",
+    "The mode index and child map form a bijection: every child is referenced exactly once, every index resolves, and identity, latestAttempt, and operationKey agree. Any contradiction quarantines the ledger before scheduling.",
+    "Before any provider create begins, a private atomically persisted ledger record is in submitting state; a crash or timeout after that point is treated as unknown, never as safe-to-create-again.",
+    "Submitted or unknown work may use only a persisted safe remote task id and the reconcile path; absent a usable remote id, Nomi remains fail-closed with one structured user action.",
+    "Provider-declared remote idempotency capability is recorded explicitly but does not upgrade Nomi's local guarantee into a claim of remote exactly-once behavior.",
+    "A competing session cannot start in the same lineage while an earlier remote submission is submitting, submitted, or unknown.",
+    "Cancel marks only pre-submission work cancelled; in-flight or uncertain work becomes reconciling and is never presented as refunded or cancelled remotely.",
+    "Ledger and journal files are versioned, size-bounded, private-permission, atomically replaced, fsynced, and fail closed on corruption, truncation, unsupported versions, or failed durable writes.",
+    "Ledger and promotion archive heads remain fixed-size while content-addressed predecessor segments preserve permanent idempotency/finalization history across more than one thousand compactions.",
+    "Ledger and journal records contain no credential, request header, signed URL, raw provider body, or local path; artifact persistence is limited to digest and allowlisted metadata.",
+    "Promotion writes a prepared journal before Catalog promotion, uses the existing Catalog run lease as CAS, durably commits the journal before terminal completed or partial run publication, and can replay every checkpoint idempotently.",
+    "A promotion lease loss or journal failure leaves the previous active revision available and never persists the proposed revision as completed.",
+    "A fresh process resumes safe pre-submission work, reconciles recoverable submitted work, and never automatically recreates unknown work."
+  ],
+  "regression_tests": [
+    "electron/integrationCertification/operationLedger.test.ts",
+    "electron/integrationCertification/promotionJournal.test.ts",
+    "electron/providerAdapter/existingConnection.test.ts",
+    "electron/providerAdapter/ipc.test.ts",
+    "electron/providerAdapter/service.test.ts",
+    "electron/providerAdapter/serviceCatalogLifecycle.integration.test.ts"
+  ],
+  "migration": "Existing provider adapter runs without an operation record retain their stored terminal state. Version 2 ledgers are migrated on read to version 3 by deriving structured identity from each child's stored modelKey/taskKind fields, retaining only the highest valid attempt per mode, and replacing delimiter-shaped operation keys with deterministic opaque hashes. Legacy archive reference arrays are normalized to a single content-addressed predecessor chain on the next compaction. Store files without a revision begin at revision zero. No uncertain historic request is automatically replayed.",
+  "residual_risks": [
+    "No local journal can prove whether a provider accepted a request when the response and remote task id were both lost. Those cases remain reconciling and require provider-side lookup or user review.",
+    "Remote exactly-once depends on a provider actually honoring its documented idempotency mechanism. Nomi guarantees only local same-key deduplication and no automatic create after uncertainty.",
+    "Task 4 must make the canonical facade contract/idempotency binding mandatory for migrated UI and programmatic entry points; Task 3 keeps a unique-key transitional path so existing UI remains operable."
+  ]
+}

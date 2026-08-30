@@ -65,6 +65,14 @@ export type WorkspaceMode = (typeof WORKSPACE_MODES)[number]
 
 type GraphViewport = { zoom: number; offset: { x: number; y: number } }
 
+export type ProjectAgentReference = Readonly<{
+  id: string
+  label: string
+  kind: 'document' | 'canvas' | 'preview' | 'timeline' | 'browser'
+}>
+
+export type ProjectAgentRunMode = 'ask' | 'guided' | 'balanced' | 'auto'
+
 type WorkbenchState = WorkbenchDocumentSlice & {
   persistRevision: number
   workspaceMode: WorkspaceMode
@@ -149,9 +157,14 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   /** Resident ProjectAgent composer state. Draft/attachments are ephemeral UI state, not Host history. */
   projectAgentDraft: string
   projectAgentAttachments: ComposerAttachment[]
+  /** Composer-only references. Host remains the sole owner of durable context/history. */
+  projectAgentReferences: ProjectAgentReference[]
+  projectAgentRunMode: ProjectAgentRunMode
   projectAgentDockCollapsed: boolean
   setProjectAgentDraft: (draft: string) => void
   setProjectAgentAttachments: (attachments: ComposerAttachment[] | ((attachments: ComposerAttachment[]) => ComposerAttachment[])) => void
+  setProjectAgentReferences: (references: ProjectAgentReference[] | ((references: ProjectAgentReference[]) => ProjectAgentReference[])) => void
+  setProjectAgentRunMode: (mode: ProjectAgentRunMode) => void
   setProjectAgentDockCollapsed: (collapsed: boolean) => void
   setTimeline: (timeline: TimelineState) => void
   restoreProjectWorkbenchState: (payload: { workbenchDocument: WorkbenchDocument; timeline: TimelineState }) => void
@@ -284,11 +297,17 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   canvasFitCategoryId: null,
   projectAgentDraft: '',
   projectAgentAttachments: [],
+  projectAgentReferences: [],
+  projectAgentRunMode: 'balanced',
   projectAgentDockCollapsed: false,
   setProjectAgentDraft: (projectAgentDraft) => set({ projectAgentDraft }),
   setProjectAgentAttachments: (attachments) => set((state) => ({
     projectAgentAttachments: typeof attachments === 'function' ? attachments(state.projectAgentAttachments) : attachments,
   })),
+  setProjectAgentReferences: (references) => set((state) => ({
+    projectAgentReferences: typeof references === 'function' ? references(state.projectAgentReferences) : references,
+  })),
+  setProjectAgentRunMode: (projectAgentRunMode) => set({ projectAgentRunMode }),
   setProjectAgentDockCollapsed: (projectAgentDockCollapsed) => set({ projectAgentDockCollapsed: Boolean(projectAgentDockCollapsed) }),
   timeline: createDefaultTimeline(),
   timelinePlaying: false,

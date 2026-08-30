@@ -35,9 +35,18 @@ describe("makeApiKeyRecordFromPlain + decryptApiKeyRecord round-trip", () => {
 });
 
 describe("decryptApiKeyRecord branches", () => {
-  it("returns plaintext for enc=plain and legacy (no enc) records", () => {
-    expect(decryptApiKeyRecord({ vendorKey: "v", apiKey: "raw", enc: "plain", enabled: true, createdAt: "c", updatedAt: "u" })).toBe("raw");
-    expect(decryptApiKeyRecord({ vendorKey: "v", apiKey: "legacy", enabled: true, createdAt: "c", updatedAt: "u" })).toBe("legacy");
+  it("recognizes legacy plaintext for migration status but never resolves it for execution", () => {
+    const sentinel = "SENTINEL-LEGACY-PLAIN-SECRET";
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    for (const enc of ["plain", undefined] as const) {
+      const record = { vendorKey: "v", apiKey: sentinel, enc, enabled: true, createdAt: "c", updatedAt: "u" };
+      expect(apiKeyDecryptStatus(record)).toBe("needs_resave");
+      expect(decryptApiKeyRecord(record)).toBe("");
+    }
+    expect(JSON.stringify([...errorSpy.mock.calls, ...warnSpy.mock.calls])).not.toContain(sentinel);
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   it("returns '' for missing record or empty key", () => {
@@ -61,7 +70,7 @@ describe("decryptApiKeyRecord branches", () => {
   });
 });
 
-describe("apiKeyDecryptStatus — 三态健康度（ok / missing / locked，单一真相源）", () => {
+describe("apiKeyDecryptStatus — credential readiness（ok / missing / locked / needs_resave）", () => {
   it("无记录 / 空 key 材料 → missing", () => {
     expect(apiKeyDecryptStatus(undefined)).toBe("missing");
     expect(apiKeyDecryptStatus({ vendorKey: "v", apiKey: "", enabled: true, createdAt: "c", updatedAt: "u" })).toBe("missing");
@@ -83,8 +92,8 @@ describe("apiKeyDecryptStatus — 三态健康度（ok / missing / locked，单�
     expect(apiKeyDecryptStatus(locked)).toBe("locked");
     spy.mockRestore();
   });
-  it("plain / legacy 非空明文 → ok", () => {
-    expect(apiKeyDecryptStatus({ vendorKey: "v", apiKey: "raw", enc: "plain", enabled: true, createdAt: "c", updatedAt: "u" })).toBe("ok");
-    expect(apiKeyDecryptStatus({ vendorKey: "v", apiKey: "legacy", enabled: true, createdAt: "c", updatedAt: "u" })).toBe("ok");
+  it("plain / legacy 非空明文 → needs_resave，而不是可用于新认证的 ok", () => {
+    expect(apiKeyDecryptStatus({ vendorKey: "v", apiKey: "raw", enc: "plain", enabled: true, createdAt: "c", updatedAt: "u" })).toBe("needs_resave");
+    expect(apiKeyDecryptStatus({ vendorKey: "v", apiKey: "legacy", enabled: true, createdAt: "c", updatedAt: "u" })).toBe("needs_resave");
   });
 });

@@ -17,7 +17,7 @@ function source(kind: 'image' | 'video' = 'image'): GenerationCanvasNode {
 }
 async function run(node: GenerationCanvasNode, sourceNode: GenerationCanvasNode, edge: GenerationCanvasEdge, meta: Record<string, unknown>) {
   const calls: TaskRequestDto[] = []
-  const model: ModelCatalogModelDto = { modelKey: 'model', vendorKey: 'custom', labelZh: 'model', kind: 'video', enabled: true, createdAt: '', updatedAt: '', meta }
+  const model: ModelCatalogModelDto = { modelKey: 'model', vendorKey: 'custom', labelZh: 'model', kind: 'video', enabled: true, published: true, publishedModes: ['image_to_video'], createdAt: '', updatedAt: '', meta }
   await runCatalogGenerationTask(node, {
     referenceContext: { nodes: [node, sourceNode], edges: [edge] },
     listCatalogVendors: async () => [vendor], listCatalogModels: async () => [model],

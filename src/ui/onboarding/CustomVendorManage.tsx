@@ -86,7 +86,9 @@ export function CustomVendorManage({
     setBusy(true)
     setError('')
     try {
-      bridge.modelCatalog.upsertVendorApiKey(vendorKey, { apiKey, enabled: true })
+      // Credential changes invalidate the active certification revision.
+      bridge.modelCatalog.upsertVendor({ key: vendorKey, enabled: false })
+      bridge.modelCatalog.upsertVendorApiKey(vendorKey, { apiKey, enabled: false })
       setKeyDraft('')
       setKeyEditing(false)
       onChanged()

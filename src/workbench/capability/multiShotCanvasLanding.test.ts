@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { attachShotResult } from './multiShotCanvasLanding'
+import { attachShotResult, materializeShots } from './multiShotCanvasLanding'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
+import { resetClientIdRegistry } from '../generationCanvas/agent/applyCanvasToolCall'
 
 // P4 S5 — attach-shot-result 的运行时断言（result.url 必须 nomi-local://）+ 节点已删静默跳过。
 
@@ -12,6 +13,7 @@ function shotNode(id: string): GenerationCanvasNode {
 
 describe('attachShotResult', () => {
   beforeEach(() => {
+    resetClientIdRegistry()
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [shotNode('node-1')], edges: [], groups: [] })
   })
 
@@ -55,5 +57,56 @@ describe('attachShotResult', () => {
       result: { id: 'r', type: 'text', text: '一段字', createdAt: 1 } as never,
     })
     expect(outcome).toEqual({ attached: true, nodeId: 'node-1' })
+  })
+})
+
+describe('materializeShots undo transaction', () => {
+  beforeEach(() => {
+    resetClientIdRegistry()
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] })
+  })
+
+  it('removes every materialized node and its group with one undo', async () => {
+    const operationId = 'canvas-landing:unit-undo'
+    const result = await materializeShots({
+      materializationOperationId: operationId,
+      groupName: '一批镜头',
+      shots: [
+        { shotId: 'anchor-1', role: 'anchor', kind: 'image' },
+        { shotId: 'shot-1', role: 'shot', kind: 'video' },
+        { shotId: 'shot-2', role: 'shot', kind: 'video' },
+        { shotId: 'shot-3', role: 'shot', kind: 'video' },
+      ],
+    })
+
+    expect(result.createdNodeIds).toHaveLength(4)
+    expect(result.groupId).toBeTruthy()
+    expect(useGenerationCanvasStore.getState().canUndo).toBe(true)
+
+    // Real generation cards normalize model/archetype/aspect metadata after mount.
+    // Those lifecycle writes belong to the materialization step and must not split Undo.
+    for (const nodeId of result.createdNodeIds) {
+      useGenerationCanvasStore.getState().updateNode(nodeId, {
+        meta: {
+          ...(useGenerationCanvasStore.getState().nodes.find((node) => node.id === nodeId)?.meta || {}),
+          modelKey: 'auto-selected-model',
+          modelVendor: 'auto-selected-provider',
+          aspect_ratio: '16:9',
+        },
+      }, { history: false })
+    }
+
+    const shotNodeId = result.bindings.find((binding) => binding.shotId === 'shot-1')?.nodeId
+    expect(shotNodeId).toBeTruthy()
+    attachShotResult({
+      nodeId: shotNodeId,
+      shotId: 'shot-1',
+      result: { id: 'shot-1-result', type: 'video', url: 'nomi-local://shot-1.mp4', createdAt: 1 },
+    })
+
+    useGenerationCanvasStore.getState().undo()
+    const afterUndo = useGenerationCanvasStore.getState()
+    expect(afterUndo.nodes.filter((node) => node.meta?.materializationOperationId === operationId)).toEqual([])
+    expect(afterUndo.groups.filter((group) => group.materializationOperationId === operationId)).toEqual([])
   })
 })

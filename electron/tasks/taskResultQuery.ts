@@ -10,6 +10,7 @@ import { taskFailureMessageFromResponse } from "./responseParsing";
 import { activeTaskProjectFallback, unlocalizedTaskAsset } from "./activeProjectFallback";
 import { traceVendorCompleted } from "../events/vendorCallTrace";
 import { rememberTaskResult } from "../vendor/fingerprintCache";
+import { resolveComfyCandidateExecution } from "../catalog/comfyuiCandidateLifecycle";
 import {
   type CachedTask,
   type TaskResult,
@@ -90,18 +91,41 @@ function rebuildCachedTaskFromPayload(taskId: string, raw: JsonRecord): CachedTa
   const modelKey = trim(raw.modelKey);
   if (!vendorKey || !taskKind || !modelKey) return null;
   const wantedKind = billingKindForTaskKind(taskKind);
+  const certificationRevisionId = trim(raw.comfyCertificationRevisionId);
   let model: Model;
+  let stagedCandidate: ReturnType<typeof resolveComfyCandidateExecution> | undefined;
   try {
-    model = findExecutableModel(vendorKey, modelKey, wantedKind).model;
+    if (certificationRevisionId) {
+      const resolved = resolveComfyCandidateExecution({
+        kind: taskKind,
+        extras: {
+          modelKey,
+          comfyCertificationRevisionId: certificationRevisionId,
+          certifyOutput: true,
+        },
+      });
+      if (!resolved) return null;
+      stagedCandidate = resolved;
+      model = resolved.model;
+    } else {
+      model = findExecutableModel(vendorKey, modelKey, wantedKind).model;
+    }
   } catch {
     return null; // 模型已不可用/未配置 → 无法重建，落回诚实诊断
   }
-  const mapping = findTaskMapping(vendorKey, taskKind, modelKey);
+  const mapping = stagedCandidate?.mapping || findTaskMapping(vendorKey, taskKind, modelKey);
   if (!mapping?.query) return null; // 同步模型无 query op，没法续查
   const projectId = trim(raw.projectId) || activeTaskProjectFallback();
   return {
     vendor: vendorKey,
-    request: { kind: taskKind, prompt: trim(raw.prompt), extras: { modelKey } },
+    request: {
+      kind: taskKind,
+      prompt: trim(raw.prompt),
+      extras: {
+        modelKey,
+        ...(certificationRevisionId ? { comfyCertificationRevisionId: certificationRevisionId, certifyOutput: true } : {}),
+      },
+    },
     raw: {},
     mapping,
     model,
@@ -119,7 +143,11 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
   const queryOperation = cached.mapping?.query;
   if (cached.mapping && queryOperation && cached.model) {
     // 不再用缓存的明文 key，轮询时按 vendor 重新派生（并重新校验 key 仍可用）。
-    const { vendor, model, apiKey } = findExecutableModel(cached.vendor, cached.model.modelKey, cached.wantedKind);
+    // ComfyUI certification intentionally keeps its candidate disabled until
+    // this query has produced and decoded a real artifact. Resolve the exact
+    // staged revision instead of treating that disabled model as unavailable.
+    const stagedCandidate = resolveComfyCandidateExecution(cached.request);
+    const { vendor, model, apiKey } = stagedCandidate || findExecutableModel(cached.vendor, cached.model.modelKey, cached.wantedKind);
     const executed = await executeProfileOperation({
       vendor,
       model,

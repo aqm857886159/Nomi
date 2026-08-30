@@ -13,10 +13,11 @@ export const STAGES = {
   gates: stage("gates", "pnpm", ["run", "gates"]),
   build: stage("build", "pnpm", ["run", "build"]),
   e2e: stage("e2e", "pnpm", ["run", "test:e2e"]),
+  "canvas-critical": stage("canvas-critical", "pnpm", ["run", "test:canvas:critical"]),
+  "canvas-full": stage("canvas-full", "pnpm", ["run", "test:canvas:acceptance"]),
+  "canvas-performance": stage("canvas-performance", "pnpm", ["run", "test:canvas:performance"]),
   "journeys-ci": stage("journeys-ci", "pnpm", ["run", "test:journeys"]),
   "journeys-all": stage("journeys-all", "pnpm", ["eval:journey"]),
-  "project-agent-mcp": stage("project-agent-mcp", "pnpm", ["run", "test:mcp"]),
-  "project-agent-surface": stage("project-agent-surface", "node", ["tests/ux/project-agent-canvas-isolation.e2e.mjs"]),
   "real-generation": stage("real-generation", "node", ["tests/ux/camera-move-render-e2e.mjs"], {
     env: { APIMART_E2E: "1", NOMI_SPEND_OK: "1", NOMI_E2E: "1", NOMI_E2E_ALLOW_MULTI_INSTANCE: "1" },
   }),
@@ -24,11 +25,15 @@ export const STAGES = {
 
 export const PROFILES = {
   quick: ["matrix", "unit"],
-  ci: ["matrix", "unit", "build", "e2e", "journeys-ci", "project-agent-mcp", "project-agent-surface"],
+  ci: ["matrix", "unit", "build", "e2e", "journeys-ci"],
   "ci-contracts": ["contracts"],
   "ci-unit": ["unit"],
-  "ci-desktop": ["build", "e2e", "journeys-ci"],
-  "full-local": ["matrix", "gates", "e2e", "journeys-ci", "project-agent-mcp", "project-agent-surface"],
+  "ci-desktop": ["build", "e2e"],
+  "ci-journeys": ["journeys-ci"],
+  "ci-canvas-critical": ["canvas-critical"],
+  "ci-canvas-full": ["canvas-full"],
+  "ci-performance": ["canvas-performance"],
+  "full-local": ["matrix", "gates", "e2e", "canvas-full", "canvas-performance", "journeys-ci"],
   "real-generation": ["real-generation"],
-  release: ["matrix", "gates", "e2e", "journeys-all", "project-agent-mcp", "project-agent-surface", "real-generation"],
+  release: ["matrix", "gates", "e2e", "canvas-full", "canvas-performance", "journeys-all", "real-generation"],
 };

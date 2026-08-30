@@ -8,6 +8,7 @@ import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { markdownToTiptapContent } from '../creation/markdownToTiptap'
 import { sanitizePastedHtml } from './sanitizePastedHtml'
+import { PersistentSelectionExtension } from './persistentSelection'
 
 // ==高亮== 输入/粘贴规则：Tiptap 默认规则要求 `==` 前是行首或空白，中文「这是==重点==」
 // 无空格场景会失效；这里放宽为任意位置触发，对齐 ColaMD 的 `/==([^=]+)==/`。
@@ -71,12 +72,23 @@ export function useNomiRichTextEditor(options: {
   featureExtensions?: AnyExtension[]
   /** 粘贴 HTML 清洗（Excel/Word 脏 HTML → 干净语义结构）。创作编辑器开，画布文字节点默认关。 */
   sanitizePaste?: boolean
+  /** Keep a selected creation range visibly marked while a sibling surface owns focus. */
+  persistentSelection?: boolean
   /** Fires on every edit with the new JSON. Caller persists however it wants. */
   onChange?: (json: JSONContent) => void
   /** Fires on selection change with the selected plain text (empty when none). */
   onSelectionChange?: (text: string) => void
 }): { editor: Editor | null; tools: NomiRichTextTools } {
-  const { content, placeholder, editable = true, featureExtensions = EMPTY_EXTENSIONS, sanitizePaste = false, onChange, onSelectionChange } = options
+  const {
+    content,
+    placeholder,
+    editable = true,
+    featureExtensions = EMPTY_EXTENSIONS,
+    sanitizePaste = false,
+    persistentSelection = false,
+    onChange,
+    onSelectionChange,
+  } = options
 
   // Keep callbacks in refs so changing them never re-creates the editor instance.
   const onChangeRef = React.useRef(onChange)
@@ -94,7 +106,12 @@ export function useNomiRichTextEditor(options: {
   const editor = useEditor(
     {
       editable,
-      extensions: [StarterKit, Placeholder.configure({ placeholder: placeholder ?? '' }), ...featureExtensions],
+      extensions: [
+        StarterKit,
+        Placeholder.configure({ placeholder: placeholder ?? '' }),
+        ...featureExtensions,
+        ...(persistentSelection ? [PersistentSelectionExtension] : []),
+      ],
       content,
       editorProps: {
         attributes: { class: 'workbench-editor__content' },

@@ -41,13 +41,13 @@ const modeFor = (taskKind: ProfileKind, path: string) => ({
   sourceUrls: [],
 });
 
-function promote(draftModels: AdapterModelDraft[], verifiedModes: Array<{ modelKey: string; taskKind: ProfileKind }> = []): void {
+function promote(draftModels: AdapterModelDraft[], verifiedModes: Array<{ modelKey: string; taskKind: ProfileKind }> = []) {
   const draft: ProviderAdapterDraft = {
     provider: { baseUrl: String(vendor.baseUrlHint), authType: "none", providerKind: "openai-compatible" },
     sources: [],
     models: draftModels,
   };
-  defaultCatalog.promote({
+  return defaultCatalog.promote({
     run: {
       id: "run-mapping",
       vendorKey: vendor.key,
@@ -89,18 +89,17 @@ describe("adapter media mapping promotion", () => {
     upsertVendor.mockClear();
   });
 
-  it("publishes executable mappings for brand-new image and video candidates even when probes fail", () => {
-    promote([
+  it("rejects zero-verified promotion without materializing failed mappings", () => {
+    const result = promote([
       { modelKey: "image-v1", labelZh: "Image V1", kind: "image", modes: [modeFor("text_to_image", "/images/new")] },
       { modelKey: "video-v1", labelZh: "Video V1", kind: "video", modes: [modeFor("text_to_video", "/videos/new")] },
     ]);
 
-    expect(upsertMapping).toHaveBeenCalledTimes(2);
-    expect(upsertMapping).toHaveBeenCalledWith(expect.objectContaining({ modelKey: "image-v1", taskKind: "text_to_image", enabled: true }));
-    expect(upsertMapping).toHaveBeenCalledWith(expect.objectContaining({ modelKey: "video-v1", taskKind: "text_to_video", enabled: true }));
+    expect(result).toEqual({ status: "no-lease" });
+    expect(upsertMapping).not.toHaveBeenCalled();
   });
 
-  it("preserves an existing exact mapping when a retry candidate fails", () => {
+  it("does not mutate an existing exact mapping when no mode verified", () => {
     catalogMappings = [{
       id: "mapping-good",
       vendorKey: vendor.key,
@@ -113,7 +112,43 @@ describe("adapter media mapping promotion", () => {
       updatedAt: now,
     }];
 
-    promote([{ modelKey: "image-v1", labelZh: "Image V1", kind: "image", modes: [modeFor("text_to_image", "/images/failed-draft")] }]);
+    const result = promote([{ modelKey: "image-v1", labelZh: "Image V1", kind: "image", modes: [modeFor("text_to_image", "/images/failed-draft")] }]);
+
+    expect(result).toEqual({ status: "no-lease" });
+    expect(upsertMapping).not.toHaveBeenCalled();
+  });
+
+  it("preserves an existing exact mapping when a failed repair has an active revision", () => {
+    catalogMappings = [{
+      id: "mapping-good",
+      vendorKey: vendor.key,
+      modelKey: "image-v1",
+      taskKind: "text_to_image",
+      name: "Last known good",
+      enabled: true,
+      create: { method: "POST", path: "/images/good" },
+      createdAt: now,
+      updatedAt: now,
+    }];
+    const originalMeta = models[0].meta;
+    const originalEnabled = models[0].enabled;
+    models[0].enabled = true;
+    models[0].meta = {
+      adapter: {
+        state: "testing",
+        runId: "run-mapping",
+        activeRevision: "revision-good",
+        modes: [],
+        updatedAt: now,
+      },
+    };
+
+    try {
+      promote([{ modelKey: "image-v1", labelZh: "Image V1", kind: "image", modes: [modeFor("text_to_image", "/images/failed-draft")] }]);
+    } finally {
+      models[0].meta = originalMeta;
+      models[0].enabled = originalEnabled;
+    }
 
     expect(upsertMapping).not.toHaveBeenCalled();
   });
@@ -140,6 +175,58 @@ describe("adapter media mapping promotion", () => {
       modelKey: "image-v1",
       taskKind: "text_to_image",
       create: expect.objectContaining({ path: "/images/verified" }),
+    }));
+  });
+
+  it("enables only the verified mode during partial promotion", () => {
+    promote(
+      [{
+        modelKey: "image-v1",
+        labelZh: "Image V1",
+        kind: "image",
+        modes: [modeFor("text_to_image", "/images/verified"), modeFor("image_edit", "/images/failed")],
+      }],
+      [{ modelKey: "image-v1", taskKind: "text_to_image" }],
+    );
+
+    expect(upsertMapping).toHaveBeenCalledWith(expect.objectContaining({
+      modelKey: "image-v1",
+      taskKind: "text_to_image",
+      enabled: true,
+    }));
+    expect(upsertMapping).toHaveBeenCalledWith(expect.objectContaining({
+      modelKey: "image-v1",
+      taskKind: "image_edit",
+      enabled: false,
+    }));
+    expect(upsertModel).toHaveBeenCalledWith(expect.objectContaining({ modelKey: "image-v1", enabled: true }));
+    expect(upsertVendor).toHaveBeenCalledWith(expect.objectContaining({ key: vendor.key, enabled: true }));
+  });
+
+  it("switches a staged replacement contract only when its candidate mode verifies", () => {
+    const original = structuredClone(models[0]);
+    models[0] = {
+      ...models[0],
+      labelZh: "Published image",
+      kind: "image",
+      enabled: true,
+      meta: { adapter: { state: "testing", runId: "run-mapping", activeRevision: "revision-old", modes: [], updatedAt: now } },
+      onboarding: { addedVia: "agent", addedAt: "old", fields: [] },
+    };
+    try {
+      promote(
+        [{ modelKey: "image-v1", labelZh: "Verified replacement video", kind: "video", modes: [modeFor("text_to_video", "/videos/new")] }],
+        [{ modelKey: "image-v1", taskKind: "text_to_video" }],
+      );
+    } finally {
+      models[0] = original;
+    }
+
+    expect(upsertModel).toHaveBeenCalledWith(expect.objectContaining({
+      modelKey: "image-v1",
+      labelZh: "Verified replacement video",
+      kind: "video",
+      enabled: true,
     }));
   });
 

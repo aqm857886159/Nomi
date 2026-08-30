@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "journey": "model-integration-release",
+  "capturedAt": "YYYY-MM-DDTHH:MM:SSZ",
+  "sourceCommit": "<commit>",
+  "workingTreeEvidence": false,
+  "evidencePolicy": "redacted-only; live and mock evidence are separate",
+  "journeys": {
+    "J0": {
+      "status": "pass|unverified|blocked",
+      "runtime": "packaged|compiled|unknown",
+      "toolsListed": 0,
+      "resourcesListed": 0,
+      "paginationComplete": false,
+      "unsignedWritesRejected": true,
+      "credentialBytesInResults": 0,
+      "providerRequests": 0
+    },
+    "J1": {
+      "status": "pass|unverified|blocked",
+      "provider": "redacted provider label",
+      "officialDocsChecked": false,
+      "discoveredModels": 0,
+      "selectedModels": 0,
+      "paginationComplete": false,
+      "capabilities": {},
+      "failureReasonCodes": [],
+      "createRequests": 0,
+      "spend": { "currency": "unknown", "amount": 0 }
+    },
+    "J2": {
+      "status": "pass|unverified|blocked",
+      "workflowKinds": [],
+      "mediaSlots": 0,
+      "distinctFixtures": 0,
+      "frameRateType": "unknown",
+      "routes": [],
+      "failureReasonCodes": []
+    },
+    "J3": {
+      "status": "pass|partial|blocked",
+      "cases": {},
+      "credentialBytesObserved": 0,
+      "duplicateCreateCount": 0,
+      "unknownSubmissionReconciled": false
+    },
+    "J4": {
+      "status": "pass|unverified|blocked",
+      "freshProcessReadback": false,
+      "restartReadback": false,
+      "upgradeReadback": false,
+      "duplicateCreateCount": 0,
+      "reenteredCredential": false
+    },
+    "J5": {
+      "status": "pass|partial|blocked",
+      "existingConnectionsChecked": 0,
+      "verifiedModelsVisible": 0,
+      "unverifiedModelsHidden": true
+    }
+  },
+  "externalHost": {
+    "codex": "pass|unverified|blocked",
+    "claudeCode": "pass|unverified|blocked",
+    "workBuddy": "pass|unverified|blocked",
+    "genericHarness": "pass|unverified|blocked"
+  },
+  "notes": []
+}

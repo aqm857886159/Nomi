@@ -126,6 +126,15 @@ describe("通用中转 text_to_image 分辨率派生（治「只能出 1K」）"
   it("body 不再钉死 1024：2K/4K 能选出", () => {
     expect(derive("1:1", "2K")).not.toBe("1024x1024");
   });
+
+  it("Auto · 1K → 不发送空的 size（避免 OpenAI-compatible 返回 Invalid size）", () => {
+    const params = applyParamMap(
+      NEWAPI_IMAGE_PARAM_MAP,
+      taskTemplateParams({ extras: { aspect_ratio: "auto", resolution: "1K" } }),
+    );
+    const body = renderBody(NEWAPI_IMAGE_CREATE_OP, "一只小猪", params);
+    expect(body).not.toHaveProperty("size");
+  });
 });
 
 describe("通用中转路径夯实（输出多资产 + 参数广度 + i2v 断链）", () => {

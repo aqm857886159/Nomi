@@ -1,14 +1,23 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateRootCauseChange } from "./root-cause-contracts.mjs";
+import { inheritLegacyContractHashes, validateRootCauseChange, validateRootCauseHistory } from "./root-cause-contracts.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function git(args) {
   return execFileSync("git", args, { cwd: repoRoot, encoding: "utf8" }).trim();
+}
+
+function gitRaw(args) {
+  return execFileSync("git", args, {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 }
 
 function lines(value) {
@@ -55,9 +64,11 @@ const contractFiles = fs.existsSync(fixesDir)
 const contracts = contractFiles.map((file) => {
   const absolutePath = path.join(fixesDir, file);
   try {
+    const raw = fs.readFileSync(absolutePath, "utf8");
     return {
-      ...JSON.parse(fs.readFileSync(absolutePath, "utf8")),
+      ...JSON.parse(raw),
       __file: path.relative(repoRoot, absolutePath).replaceAll(path.sep, "/"),
+      __contentHash: createHash("sha256").update(raw).digest("hex"),
     };
   } catch (error) {
     console.error(`✖ 无法解析根因合同 ${path.relative(repoRoot, absolutePath)}：${error instanceof Error ? error.message : String(error)}`);
@@ -65,7 +76,43 @@ const contracts = contractFiles.map((file) => {
   }
 });
 
-const result = validateRootCauseChange({ changedFiles: [...changedFiles], contracts, existingFiles });
+const legacyBaselineRelativePath = "scripts/root-cause-contract-v1-baseline.json";
+const legacyBaselinePath = path.join(repoRoot, legacyBaselineRelativePath);
+let legacyHashes;
+try {
+  let baselineRaw;
+  try {
+    baselineRaw = gitRaw(["show", `${baseRef}:${legacyBaselineRelativePath}`]);
+  } catch {
+    // Bootstrap only: before schema v2 reaches main, the trusted base has no baseline file yet.
+    baselineRaw = fs.readFileSync(legacyBaselinePath, "utf8");
+  }
+  legacyHashes = new Map(Object.entries(JSON.parse(baselineRaw)));
+
+  const baseContractFiles = lines(git(["ls-tree", "-r", "--name-only", baseRef, "--", "docs/fixes"]))
+    .filter((file) => file.endsWith(".root-cause.json"));
+  const baseContracts = baseContractFiles.map((file) => {
+    const raw = gitRaw(["show", `${baseRef}:${file}`]);
+    return {
+      ...JSON.parse(raw),
+      __file: file,
+      __contentHash: createHash("sha256").update(raw).digest("hex"),
+    };
+  });
+  legacyHashes = inheritLegacyContractHashes(legacyHashes, baseContracts);
+} catch (error) {
+  console.error(`✖ 无法读取根因合同 v1 只读基线或可信 base 历史：${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
+}
+
+const history = validateRootCauseHistory({ contracts, legacyHashes });
+if (!history.ok) {
+  console.error("✖ 根因合同历史门禁失败");
+  for (const error of history.errors) console.error(`  - ${error}`);
+  process.exit(1);
+}
+
+const result = validateRootCauseChange({ changedFiles: [...changedFiles], contracts, existingFiles, legacyHashes });
 if (!result.ok) {
   console.error(`✖ 根因合同门禁失败（触发 ${result.triggeredFiles.length} 个高风险生产文件）`);
   for (const error of result.errors) console.error(`  - ${error}`);

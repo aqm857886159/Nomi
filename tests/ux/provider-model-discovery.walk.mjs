@@ -54,7 +54,12 @@ const row = id => picker().getByRole('button', { name: id, exact: true })
 const refetch = () => picker().getByRole('button', { name: /获取可用模型|重新获取列表|Get available models|Get list again/ })
 
 async function start() {
-  instance = await launchNomiApp({ name: 'provider-model-discovery', tempRoot, args: ['--no-proxy-server'] })
+  instance = await launchNomiApp({
+    name: 'provider-model-discovery',
+    tempRoot,
+    args: ['--no-proxy-server'],
+    syntheticCredentialStorage: true,
+  })
   win = instance.win
   await win.evaluate(() => {
     localStorage.setItem('nomi:locale:v1', 'zh-CN')
@@ -248,7 +253,12 @@ try {
   // Cold start proves persistence; final light/en screenshot checks both locale and theme branches.
   await win.evaluate(() => { localStorage.setItem('nomi-color-scheme', 'light'); localStorage.setItem('nomi:locale:v1', 'en') })
   await instance.close()
-  instance = await launchNomiApp({ name: 'provider-model-discovery-cold', tempRoot, args: ['--no-proxy-server'] })
+  instance = await launchNomiApp({
+    name: 'provider-model-discovery-cold',
+    tempRoot,
+    args: ['--no-proxy-server'],
+    syntheticCredentialStorage: true,
+  })
   win = instance.win
   await expect(win.locator('[data-testid="open-model-settings"]').first()).toBeVisible({ timeout: 30_000 })
   expect(await savedKeys('kie')).toEqual(expect.arrayContaining([...originalKieKeys, 'manual-discovery-model']))

@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "journey": "model-integration-release",
+  "capturedAt": "2026-08-29T00:00:00Z",
+  "sourceCommit": "working-tree-after-a8027afc",
+  "workingTreeEvidence": true,
+  "evidencePolicy": "redacted-only; live and mock evidence are separate",
+  "journeys": {
+    "J0": {
+      "status": "pass",
+      "runtime": "packaged",
+      "toolsListed": 43,
+      "resourcesListed": 25,
+      "paginationComplete": true,
+      "unsignedWritesRejected": true,
+      "credentialBytesInResults": 0,
+      "providerRequests": 0,
+      "evidence": "packaged-mcp-smoke.e2e.mjs plus model-integration-no-repo.mjs; run after current build"
+    },
+    "J1": {
+      "status": "partial",
+      "provider": "ModelScope live minimum slice; BananaRouter and second blind provider pending",
+      "officialDocsChecked": false,
+      "discoveredModels": 47,
+      "selectedModels": 1,
+      "paginationComplete": false,
+      "capabilities": {
+        "chat": {
+          "status": "pass",
+          "verifiedModes": 1,
+          "attempts": 1
+        }
+      },
+      "failureReasonCodes": ["full_multi_provider_matrix_pending"],
+      "createRequests": 2,
+      "spend": {
+        "currency": "unknown",
+        "amount": null,
+        "measurement": "provider billing was not exposed to the harness"
+      },
+      "evidence": "Two isolated live ModelScope certifications used the saved encrypted credential without reading it: one basic completion and one stop/restart/idempotent replay."
+    },
+    "J2": {
+      "status": "unverified",
+      "workflowKinds": ["ui-saved", "api"],
+      "mediaSlots": 2,
+      "distinctFixtures": 2,
+      "frameRateType": "number",
+      "routes": ["/upload/image", "/prompt", "/history", "/view"],
+      "failureReasonCodes": ["native_comfy_instance_unavailable"]
+    },
+    "J3": {
+      "status": "pass",
+      "cases": {
+        "safeStorageUnavailable": "pass",
+        "originRebind": "pass",
+        "dnsRedirect": "pass",
+        "htmlXmlMedia": "pass",
+        "oversizeMedia": "pass",
+        "duplicateStart": "pass",
+        "unknownSubmission": "pass",
+        "concurrentCancel": "pass",
+        "corruptJournal": "pass",
+        "preparedPromotionCrash": "pass"
+      },
+      "credentialBytesObserved": 0,
+      "duplicateCreateCount": 0,
+      "unknownSubmissionReconciled": true,
+      "evidence": "test:model-integration:fault-matrix; 8 focused fail-closed suites; zero provider requests"
+    },
+    "J4": {
+      "status": "partial",
+      "freshProcessReadback": true,
+      "restartReadback": true,
+      "upgradeReadback": false,
+      "duplicateCreateCount": 0,
+      "reenteredCredential": false,
+      "liveProviderRestartReadback": true,
+      "liveProviderIdempotentReplay": true,
+      "evidence": "model-integration-packaged.e2e.mjs no-spend restart smoke plus isolated live ModelScope restart/readback; release upgrade remains pending"
+    },
+    "J5": {
+      "status": "pass",
+      "existingConnectionsChecked": 5,
+      "verifiedModelsVisible": 3,
+      "unverifiedModelsHidden": true,
+      "evidence": "test:journeys J3/J5 and existing onboarding regression suites"
+    }
+  },
+  "externalHost": {
+    "codex": "pass",
+    "claudeCode": "pass",
+    "workBuddy": "unverified",
+    "genericHarness": "pass"
+  },
+  "notes": [
+    "A saved encrypted ModelScope credential was available and used only inside an isolated copied Catalog; no credential material was read or emitted and the temporary profile was deleted.",
+    "The live result is a one-model chat minimum slice, not a complete multi-provider J1 pass.",
+    "No running native ComfyUI instance or real WorkBuddy host was available; no live pass is claimed for those boundaries.",
+    "The packaged smoke proves signed identities and public MCP exposure, not paid production generation.",
+    "Electron build and pnpm run test:system:full passed after the local evidence assets were added; this file records working-tree evidence before the final commit."
+  ]
+}

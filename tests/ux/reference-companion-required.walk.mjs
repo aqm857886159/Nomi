@@ -59,6 +59,7 @@ const { app, win } = await launchNomiApp({
   userDataDir,
   settingsDir: userDataDir,
   projectsDir,
+  syntheticCredentialStorage: true,
   args: ['--no-proxy-server'],
   settleMs: 0,
 })

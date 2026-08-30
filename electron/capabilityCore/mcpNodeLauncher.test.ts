@@ -434,7 +434,9 @@ describe('mcpNodeLauncher library fingerprint handshake', () => {
     // 永不串库：绝不返回走查库的项目 marker。
     expect(serialized).not.toContain('HIJACKED-fixture')
     // 人话报错含两个库根 + 两条出路。
-    const message = response.error?.message || serialized
+    const resultContent = Array.isArray(response.result?.content) ? response.result.content : []
+    const visibleText = resultContent.find((item) => item && typeof item === 'object' && 'text' in item) as { text?: unknown } | undefined
+    const message = response.error?.message || (typeof visibleText?.text === 'string' ? visibleText.text : serialized)
     expect(message).toContain(myLibrary)
     expect(message).toContain(hijackLibrary)
     expect(message).toMatch(/重启 Nomi/)

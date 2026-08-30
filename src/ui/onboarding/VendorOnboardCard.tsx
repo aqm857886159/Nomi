@@ -124,7 +124,11 @@ export function VendorOnboardCard({
     setBusy(true)
     setError('')
     try {
-      bridge.modelCatalog.upsertVendorApiKey(directory.vendorKey, { apiKey, enabled: true })
+      // Saving a new key invalidates any previous certification. The vendor
+      // remains hidden from executable model selection until a canonical run
+      // verifies the selected modes.
+      bridge.modelCatalog.upsertVendor({ key: directory.vendorKey, enabled: false })
+      bridge.modelCatalog.upsertVendorApiKey(directory.vendorKey, { apiKey, enabled: false })
       setDrafts({})
       setEditing(false)
       onChanged()

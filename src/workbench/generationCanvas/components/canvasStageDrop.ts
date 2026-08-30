@@ -113,7 +113,13 @@ function normalizeBrowserAssetCanvasItem(item: unknown): BrowserAssetCanvasItem 
   if (!type) return null
   const title = cleanBrowserAssetTitle(
     asset.title,
-    type === 'video' ? '参考视频' : type === 'image' ? '参考图片' : '提示词',
+    i18n.t(
+      type === 'video'
+        ? 'generationCommon.defaultTitles.referenceVideo'
+        : type === 'image'
+          ? 'generationCommon.defaultTitles.referenceImage'
+          : 'generationCommon.defaultTitles.prompt',
+    ),
   )
   if (type === 'prompt') {
     const prompt =
@@ -181,7 +187,7 @@ export function importBrowserAssetsToGenerationCanvas(
       const prompt = asset.prompt || asset.title
       const node = store.addNode({
         kind: 'text',
-        title: asset.title.replace(/\.[^.]+$/, '') || '提示词',
+        title: asset.title.replace(/\.[^.]+$/, '') || i18n.t('generationCommon.defaultTitles.prompt'),
         prompt,
         position: positions[index],
         categoryId: options.categoryId,

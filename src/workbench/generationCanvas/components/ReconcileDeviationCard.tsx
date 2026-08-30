@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
 import type { ReconcileDeviation } from '../agent/reconcile'
+import { SHOT_VERIFY_DIMENSIONS, type ShotVerifyDimensionKey } from '../agent/shotVerify'
 
 type ReconcileDeviationCardProps = {
   deviations: ReconcileDeviation[]
@@ -30,7 +31,9 @@ const isEdgeField = (field: string): boolean => field === '引用边' || field =
 /** 一条偏差的人话正文:内容(画面校验)→直接显原因;边→为什么没接上;其余结构→批准 vs 实际。 */
 function detailLine(d: ReconcileDeviation, t: TFunction): string {
   if (d.kind === 'content') {
-    return d.reason ? String(d.reason) : t('generationCommon.reconcile.contentMismatch', { actual: trunc(d.actual) })
+    return d.reason
+      ? localizedContentReason(d.reason, t)
+      : t('generationCommon.reconcile.contentMismatch', { actual: localizedValue(d.actual, t) })
   }
   if (d.field === '引用边') {
     return d.reason
@@ -69,7 +72,8 @@ function fieldLabel(field: string, t: TFunction): string {
   if (field.startsWith('数组参考槽 ')) {
     return t('generationCommon.reconcile.fields.arrayReferenceSlot', { name: field.slice('数组参考槽 '.length) })
   }
-  return field
+  // 内容偏差(画面校验)的 field 是轴名,同样得译——此前直落 `return field`,英文界面上原样显中文。
+  return localizedDimensionName(field, t)
 }
 
 const DEVIATION_VALUE_KEYS: Record<string, string> = {
@@ -87,6 +91,7 @@ const DEVIATION_VALUE_KEYS: Record<string, string> = {
   画布内来源应建成有序边: 'edgeBackedSource',
   显示出边参考但无边: 'orphanEdgeReference',
   'meta-only 残留（无边有图）': 'orphanMeta',
+  '与设定/描述一致': 'matchesBrief',
 }
 
 const DEVIATION_REASON_KEYS: Record<string, string> = {
@@ -95,12 +100,49 @@ const DEVIATION_REASON_KEYS: Record<string, string> = {
   连接的一端节点找不到: 'dangling',
 }
 
+/**
+ * 画面校验(shotVerify)三轴的中文源串 → i18n 键。**derive 自 SHOT_VERIFY_DIMENSIONS**,不手抄第二份:
+ * 轴改名时这张表跟着变,不会出现「轴名改了、译名没跟上」的静默漏译。
+ *
+ * 为什么在这一层译而不是在产出侧:`deviationsFromVerdict` 与 electron/capabilityCore 那份有
+ * **逐字节相等**的等价性单测(shotVerify.equivalence.test.ts),核心必须与界面语言无关;
+ * 所以核心只产稳定中文源串,翻译一律在这个显示边界做——与结构偏差用的那套词表同一个做法。
+ */
+const DIMENSION_NAME_KEYS: Record<string, ShotVerifyDimensionKey> = Object.fromEntries(
+  SHOT_VERIFY_DIMENSIONS.map((d) => [d.name, d.key]),
+) as Record<string, ShotVerifyDimensionKey>
+
+/** `第 N 档`:产出侧拼出来的稳定格式(不是自由文本),显示时按语种重排。 */
+const TIER_VALUE = /^第\s*(\d+)\s*档$/
+/** `<轴名>不达标(第 N 档)`:判官没给理由时产出侧拼的兜底句,同样是稳定格式。 */
+const FALLBACK_REASON = /^(.+?)不达标\(第\s*(\d+)\s*档\)$/
+
+function localizedDimensionName(name: string, t: TFunction): string {
+  const key = DIMENSION_NAME_KEYS[name]
+  return key
+    ? t(`generationCommon.reconcile.fields.${key}` as 'generationCommon.reconcile.fields.identity')
+    : name
+}
+
+/** 内容偏差的原因:兜底句按语种重组;判官自己写的理由原样显示(它的语言由判官 prompt 决定)。 */
+function localizedContentReason(reason: unknown, t: TFunction): string {
+  const text = String(reason ?? '')
+  const match = FALLBACK_REASON.exec(text)
+  if (!match) return text
+  return t('generationCommon.reconcile.contentFallbackReason', {
+    dimension: localizedDimensionName(match[1], t),
+    n: Number(match[2]),
+  })
+}
+
 function localizedValue(value: unknown, t: TFunction): string {
   const text = trunc(value)
   const valueKey = DEVIATION_VALUE_KEYS[text]
   if (valueKey) {
     return t(`generationCommon.reconcile.values.${valueKey}` as 'generationCommon.reconcile.values.connected')
   }
+  const tier = TIER_VALUE.exec(text)
+  if (tier) return t('generationCommon.reconcile.values.tier', { n: Number(tier[1]) })
   return text
 }
 

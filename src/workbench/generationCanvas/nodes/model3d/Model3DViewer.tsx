@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { FencedCanvas } from '../fencedCanvas'
 import { Bounds, Center, OrbitControls, useGLTF } from '@react-three/drei'
 import { cn } from '../../../../utils/cn'
+import { validateGlbStructure } from '../../../../../electron/assets/model3dValidation'
 
 /**
  * 生成出的 3D 模型（.glb）的卡内交互预览。
@@ -19,6 +20,34 @@ function Glb({ url }: { url: string }): JSX.Element {
   // clone：同一 glb 被多个节点引用时不共享 mutable 场景（与 Mannequin 同款防串改）。
   const object = React.useMemo(() => scene.clone(true), [scene])
   return <primitive object={object} />
+}
+
+function ValidatedGlb({ url }: { url: string }): JSX.Element | null {
+  const [validatedUrl, setValidatedUrl] = React.useState<string | null>(null)
+  const [error, setError] = React.useState<unknown>(null)
+  React.useEffect(() => {
+    const controller = new AbortController()
+    let objectUrl = ''
+    setValidatedUrl(null)
+    setError(null)
+    void fetch(url, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('MODEL3D_FETCH_FAILED')
+        const bytes = new Uint8Array(await response.arrayBuffer())
+        validateGlbStructure(bytes)
+        objectUrl = URL.createObjectURL(new Blob([bytes], { type: 'model/gltf-binary' }))
+        setValidatedUrl(objectUrl)
+      })
+      .catch((caught) => {
+        if (!controller.signal.aborted) setError(caught)
+      })
+    return () => {
+      controller.abort()
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [url])
+  if (error) throw error
+  return validatedUrl ? <Glb url={validatedUrl} /> : null
 }
 
 class GlbBoundary extends React.Component<
@@ -42,6 +71,7 @@ export default function Model3DViewer({ url }: { url: string }): JSX.Element {
   return (
     <div className={cn('w-full h-full bg-nomi-ink-05')}>
       <GlbBoundary
+        key={url}
         fallback={
           <div className={cn('flex h-full w-full items-center justify-center text-caption text-nomi-ink-40')}>
             {t('generationCommon.node.model3dLoadFailed')}
@@ -55,7 +85,7 @@ export default function Model3DViewer({ url }: { url: string }): JSX.Element {
           <React.Suspense fallback={null}>
             <Bounds fit clip observe margin={1.25}>
               <Center>
-                <Glb url={url} />
+                <ValidatedGlb url={url} />
               </Center>
             </Bounds>
           </React.Suspense>

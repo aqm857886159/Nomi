@@ -1,0 +1,100 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-29-canvas-batch-mode-label-disambiguation",
+  "problem_type": "canvas batch model picker execution-mode ambiguity",
+  "symptom": "After a dependency edge split one image batch into text-to-image and reference-image-edit groups, both model pickers were rendered as '图片 ×1', so users and the Electron acceptance journey could not tell which nodes each picker would change.",
+  "direct_cause": "CanvasBulkModelSelect built its visible and accessible label from executionKind and count only, even though grouping and model-option filtering had already become requiredMode-aware.",
+  "class_root": "The shared batch-picker presentation contract did not require every independently actionable execution group to have a distinct user-facing label.",
+  "affected_population": [
+    "Canvas users batch-selecting same-kind nodes that require different generation modes",
+    "Image, video, audio, and 3D batch groups whose available model lists differ by requiredMode",
+    "Both the selection toolbar and the no-selection batch generation dock"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/components/canvasBatchModelLabel.ts",
+    "src/workbench/generationCanvas/components/CanvasBulkModelSelect.tsx",
+    "src/workbench/generationCanvas/components/CanvasSelectionToolbar.tsx",
+    "src/workbench/generationCanvas/components/CanvasBatchGenerateDock.tsx",
+    "src/i18n/locales/generationCommon.ts"
+  ],
+  "entry_points": [
+    "Selection toolbar batch model pickers",
+    "Bottom batch-generation dock model pickers",
+    "Any future CanvasBulkModelSelect caller with multiple required modes for one execution kind"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal Nomi grouping and accessible-label invariant; third-party documentation cannot decide how separate canvas execution groups must be named.",
+  "invariants": [
+    "Every simultaneously rendered CanvasBulkModelSelect action has a label that uniquely identifies its affected execution group.",
+    "A single-mode execution kind retains the compact kind-and-count label.",
+    "When one execution kind is split across required modes, both visible and accessible labels include the localized required mode."
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The batch grouper can split every billing kind by requiredMode, and any caller that labels only by executionKind can recreate indistinguishable actions.",
+    "same_class_scan": [
+      "Searched all CanvasBulkModelSelect call sites and found two independently rendered entry points: CanvasSelectionToolbar and CanvasBatchGenerateDock.",
+      "Inspected groupGenerationNodesByExecutionKind and its tests; image and video already split into text/reference modes, while audio and 3D share the same generic grouping mechanism.",
+      "Inspected the shared model-selection structure gate and confirmed both canvas entry points intentionally converge on CanvasBulkModelSelect, making it the earliest common presentation boundary."
+    ]
+  },
+  "generality_proof": "Both existing batch-picker entry points pass their complete peer-group set into CanvasBulkModelSelect, whose label-key resolver disambiguates any same-kind, different-mode group before the shared NomiSelect receives either its visible or aria label.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/components/canvasBatchModelLabel.ts",
+      "symbol": "resolveCanvasBulkModelLabelKey",
+      "responsibility": "Choose the compact kind label for single-mode groups and a required-mode label whenever peer actions of the same kind would otherwise be indistinguishable."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasSelectionToolbar.tsx",
+      "entry_point": "CanvasSelectionToolbar executionGroups map",
+      "disposition": "enforced",
+      "evidence": "The selection toolbar passes its complete executionGroups collection to every shared CanvasBulkModelSelect instance."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasBatchGenerateDock.tsx",
+      "entry_point": "CanvasBatchGenerateDock executionGroups map",
+      "disposition": "enforced",
+      "evidence": "The bottom dock passes its complete executionGroups collection to the same shared CanvasBulkModelSelect boundary."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/components/canvasBatchModelLabel.ts",
+    "invariant": "Same-kind peer actions with different requiredMode values cannot receive the same label key.",
+    "failure_mode": "Callers that omit the peer-group context fail TypeScript validation, and same-kind groups with different requiredMode values always resolve to different mode-qualified label keys.",
+    "exception_policy": "none",
+    "strategy": "Resolve label identity once in the shared picker and require every caller to supply the peer set used to detect ambiguity.",
+    "artifacts": [
+      "src/workbench/generationCanvas/components/canvasBatchModelLabel.ts",
+      "src/workbench/generationCanvas/components/CanvasBulkModelSelect.tsx",
+      "src/workbench/generationCanvas/components/CanvasSelectionToolbar.tsx",
+      "src/workbench/generationCanvas/components/CanvasBatchGenerateDock.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/components/canvasBatchModelLabel.test.ts",
+    "src/workbench/common/modelSelectStructure.test.ts",
+    "tests/ux/canvas-batch-production.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/components/canvasBatchModelLabel.test.ts",
+    "src/workbench/common/modelSelectStructure.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "There is already one shared picker implementation; the repair changes its labeling contract rather than replacing a parallel legacy path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The defect is owned by Nomi's execution grouping and localization logic and does not depend on a third-party package version.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted project or catalog data changes. Existing groups are relabeled from current runtime state when the toolbar or dock renders.",
+  "residual_risks": [
+    "A future batch picker outside CanvasBulkModelSelect could bypass this contract; the source-structure test currently covers all repository canvas call sites."
+  ]
+}

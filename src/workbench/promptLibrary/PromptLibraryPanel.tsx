@@ -18,6 +18,7 @@ import { PromptCard } from './PromptCard'
 import { UserPromptCard } from './UserPromptCard'
 import { UserPromptComposer } from './UserPromptComposer'
 import { PromptPreviewOverlay } from './PromptPreviewOverlay'
+import { promptDisplayTitle } from './promptDisplay'
 
 const GRID_GAP = 12 // gap-3
 const MIN_CARD_WIDTH = 200 // 卡片最小宽,据此推列数(窄窗自动减列,不再写死 4 列挤压)
@@ -140,7 +141,7 @@ export function PromptLibraryContent({
   const handleDelete = React.useCallback((prompt: LibraryPrompt) => {
     void user.remove(prompt.id)
     showUndoToast({
-      message: t('libraries.prompt.removedFromMine', { title: prompt.title }),
+      message: t('libraries.prompt.removedFromMine', { title: promptDisplayTitle(prompt) }),
       onUndo: () => void user.add({ title: prompt.title, prompt: prompt.prompt, promptType: prompt.promptType }),
     })
   }, [user, t])

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handlers = new Map<string, (...args: unknown[]) => unknown>();
 
@@ -35,11 +35,6 @@ vi.mock("electron", () => ({
   },
 }));
 
-const dependencies = vi.hoisted(() => ({ readCatalog: vi.fn() }));
-vi.mock("../catalog/catalogStore", () => ({ readCatalog: dependencies.readCatalog }));
-vi.mock("../catalog/secrets", () => ({ decryptApiKeyRecord: () => "stored" }));
-vi.mock("./service", () => ({ getProviderAdapterService: () => ({ register: vi.fn(), start: vi.fn(), getRun: vi.fn() }) }));
-
 import { registerExistingConnectionIpc } from "./existingConnectionIpc";
 import { setMainWindow } from "../mainWindowRegistry";
 
@@ -55,52 +50,34 @@ function trustedEvent(): { sender: unknown; senderFrame: unknown } {
 
 describe("registerExistingConnectionIpc", () => {
   beforeEach(() => handlers.clear());
-  afterEach(() => vi.unstubAllGlobals());
 
   it("accepts only a saved vendor id when listing models", async () => {
-    const actions = {
-      listModels: vi.fn(async () => ({ ok: true, models: ["a"], connection: { vendorKey: "saved" } })),
-      register: vi.fn(),
-      start: vi.fn(),
-      adapt: vi.fn(),
-      retry: vi.fn(),
+    const service = {
+      listExistingHttpModels: vi.fn(async () => ({ ok: true, models: ["a"], connection: { vendorKey: "saved" } })),
+      startExistingHttp: vi.fn(),
+      retryHttp: vi.fn(),
     };
-    registerExistingConnectionIpc(actions as never);
+    registerExistingConnectionIpc(service as never);
 
-    await handlers.get("nomi:provider-adapter:existing:list-models")?.(trustedEvent(), {
+    await handlers.get("nomi:integration-certification:http:existing:list-models")?.(trustedEvent(), {
       vendorKey: " saved ",
       apiKey: "renderer-must-not-override-this",
       baseUrl: "https://attacker.invalid",
     });
 
-    expect(actions.listModels).toHaveBeenCalledWith({ vendorKey: "saved" });
-  });
-
-  it.each(["authorization", "AUTHORIZATION"])("the production saved-connection fetch sends only the %s override", async (header) => {
-    dependencies.readCatalog.mockReturnValue({
-      vendors: [{ key: "saved", name: "Saved", baseUrlHint: "https://gateway.test/v1", authType: "bearer",
-        providerKind: "openai-compatible", meta: { extraHeaders: { [header]: "Bearer gateway-override" } } }],
-      models: [], apiKeysByVendor: { saved: { apiKey: "stored" } },
-    });
-    const fetchSpy = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ data: [{ id: "model" }] }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchSpy);
-    registerExistingConnectionIpc();
-    expect(await handlers.get("nomi:provider-adapter:existing:list-models")?.(trustedEvent(), { vendorKey: "saved" }))
-      .toMatchObject({ ok: true, models: ["model"] });
-    expect(new Headers(fetchSpy.mock.calls[0][1].headers).get("authorization")).toBe("Bearer gateway-override");
+    expect(service.listExistingHttpModels).toHaveBeenCalledWith("saved");
   });
 
   it("sanitizes model selections and ignores renderer connection credentials", async () => {
-    const actions = {
-      listModels: vi.fn(),
-      register: vi.fn(),
-      start: vi.fn(async () => ({ ok: true, run: { id: "run-1" } })),
-      adapt: vi.fn(),
-      retry: vi.fn(),
+    const service = {
+      listExistingHttpModels: vi.fn(),
+      startExistingHttp: vi.fn(async () => ({ ok: true, run: { id: "run-1" } })),
+      retryHttp: vi.fn(),
     };
-    registerExistingConnectionIpc(actions as never);
+    registerExistingConnectionIpc(service as never);
 
-    const result = await handlers.get("nomi:provider-adapter:existing:start")?.(trustedEvent(), {
+    const result = await handlers.get("nomi:integration-certification:http:existing:start")?.(trustedEvent(), {
+      idempotencyKey: "confirm-1",
       vendorKey: "saved",
       apiKey: "renderer-must-not-override-this",
       models: [
@@ -109,7 +86,9 @@ describe("registerExistingConnectionIpc", () => {
       ],
     });
 
-    expect(actions.start).toHaveBeenCalledWith({
+    expect(service.startExistingHttp).toHaveBeenCalledWith({
+      entryPoint: "manual-ui",
+      idempotencyKey: "confirm-1",
       vendorKey: "saved",
       models: [
         { modelKey: "image-a", labelZh: "Image A", kind: "image" },
@@ -119,54 +98,58 @@ describe("registerExistingConnectionIpc", () => {
     expect(result).toEqual({ ok: true, run: { id: "run-1" } });
   });
 
-  it("keeps save and explicit adaptation as separate existing-connection actions", async () => {
-    const actions = {
-      listModels: vi.fn(),
-      register: vi.fn(async () => ({ ok: true, registration: { vendorKey: "saved" } })),
-      start: vi.fn(),
-      adapt: vi.fn(async () => ({ ok: true, run: { id: "run-adapt" } })),
-      retry: vi.fn(),
-    };
-    registerExistingConnectionIpc(actions as never);
-    const payload = {
-      vendorKey: " saved ",
-      apiKey: "renderer-must-not-override-this",
-      models: [{ id: " image-a ", displayName: " Image A ", kind: "image" }],
-    };
-
-    const registered = await handlers.get("nomi:provider-adapter:existing:register")?.(trustedEvent(), payload);
-    const adapted = await handlers.get("nomi:provider-adapter:existing:adapt")?.(trustedEvent(), payload);
-
-    const expected = {
-      vendorKey: "saved",
-      models: [{ modelKey: "image-a", labelZh: "Image A", kind: "image" }],
-    };
-    expect(actions.register).toHaveBeenCalledWith(expected);
-    expect(actions.adapt).toHaveBeenCalledWith(expected);
-    expect(registered).toEqual({ ok: true, registration: { vendorKey: "saved" } });
-    expect(adapted).toEqual({ ok: true, run: { id: "run-adapt" } });
+  it("does not expose legacy register/start/adapt paths beside canonical certification", () => {
+    registerExistingConnectionIpc({
+      listExistingHttpModels: vi.fn(),
+      startExistingHttp: vi.fn(),
+      retryHttp: vi.fn(),
+    } as never);
+    for (const legacy of [
+      "nomi:provider-adapter:existing:list-models",
+      "nomi:provider-adapter:existing:register",
+      "nomi:provider-adapter:existing:start",
+      "nomi:provider-adapter:existing:adapt",
+      "nomi:provider-adapter:retry",
+    ]) expect(handlers.has(legacy)).toBe(false);
   });
 
   it("accepts only the persisted run id and optional model key when retrying", async () => {
-    const actions = {
-      listModels: vi.fn(),
-      register: vi.fn(),
-      start: vi.fn(),
-      adapt: vi.fn(),
-      retry: vi.fn(async () => ({ ok: true, run: { id: "run-new" } })),
+    const service = {
+      listExistingHttpModels: vi.fn(),
+      startExistingHttp: vi.fn(),
+      retryHttp: vi.fn(async () => ({ ok: true, run: { id: "run-new" } })),
     };
-    registerExistingConnectionIpc(actions as never);
+    registerExistingConnectionIpc(service as never);
 
-    const result = await handlers.get("nomi:provider-adapter:retry")?.(trustedEvent(), {
+    const result = await handlers.get("nomi:integration-certification:http:retry")?.(trustedEvent(), {
       runId: " run-old ",
       modelKey: " failed-video ",
+      idempotencyKey: "retry-1",
       vendorKey: "attacker-vendor",
       apiKey: "renderer-must-not-override-this",
       baseUrl: "https://attacker.invalid",
       models: [{ modelKey: "attacker-model", kind: "text" }],
     });
 
-    expect(actions.retry).toHaveBeenCalledWith({ runId: "run-old", modelKey: "failed-video" });
+    expect(service.retryHttp).toHaveBeenCalledWith({
+      runId: "run-old",
+      modelKey: "failed-video",
+      idempotencyKey: "retry-1",
+    });
     expect(result).toEqual({ ok: true, run: { id: "run-new" } });
+  });
+
+  it("converts thrown start and retry failures to stable redacted codes", async () => {
+    const service = {
+      listExistingHttpModels: vi.fn(),
+      startExistingHttp: vi.fn(async () => { throw new Error("raw provider English sk-secret"); }),
+      retryHttp: vi.fn(async () => { throw new Error("raw retry detail sk-secret"); }),
+    };
+    registerExistingConnectionIpc(service as never);
+    const start = await handlers.get("nomi:integration-certification:http:existing:start")?.(trustedEvent(), {});
+    const retry = await handlers.get("nomi:integration-certification:http:retry")?.(trustedEvent(), {});
+    expect(start).toEqual({ ok: false, code: "START_FAILED", error: "Certification start failed" });
+    expect(retry).toEqual({ ok: false, code: "START_FAILED", error: "Certification retry failed" });
+    expect(JSON.stringify([start, retry])).not.toContain("sk-secret");
   });
 });

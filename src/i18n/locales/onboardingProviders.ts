@@ -435,9 +435,9 @@ export const zhOnboardingProviders = {
     keyPlaceholder: '粘贴平台 API Key',
     keyRequired: '请先填写 API Key',
     managedHint: '平台地址、模型目录和请求方式由 Nomi 维护，不需要填写 URL、模型 ID 或接口文档。',
-    save: '保存并接入预置模型',
-    savedTitle: '{{name}} 已接入',
-    savedHint: '可用的预置模型已加入模型列表，以后仍可从连接详情增删。连通性会在后台检查，不会阻塞保存。',
+    save: '安全保存并继续验证',
+    savedTitle: '{{name}} 密钥已安全保存，尚未验证',
+    savedHint: '密钥已加密保存，但 Nomi 还没有通过真实生产请求验证任何模型。继续验证后，只有通过的模型才会出现在可用模型列表。',
     unavailable: '暂时连不上 Nomi 后台，请重启应用后再试。',
     saveFailed: '保存失败：{{message}}',
   },
@@ -671,8 +671,8 @@ export const zhOnboardingProviders = {
     manualPlaceholder: '没列出来的，输入模型 id 回车添加',
     add: '添加',
     saveModelsDisclosure:
-      '保存后为“已配置、未验证”；本步骤只写入本地，不读文档、不调用 AI、不做真实测试。需要时可在模型详情单独启动“后台自动适配”，它可能读取公开文档、调用文本 AI，并通过真实请求消耗上游额度。',
-    addModels: '保存 {{count}} 个模型',
+      '确认后会立即进入认证：可能读取公开文档、调用文本 AI，并通过真实请求消耗上游额度。认证完成前，这些模型不会出现在普通模型选择器中。',
+    addModels: '验证 {{count}} 个模型',
   },
   adapterVerification: {
     title: {
@@ -808,6 +808,7 @@ export const zhOnboardingProviders = {
     defaultName: '本地 ComfyUI 工作流',
     defaultShortName: '本地工作流',
     imported: '已导入「{{name}}」·{{kind}}',
+    awaitingVerification: '已提交「{{name}}」，请在 Nomi 中确认后开始真实验证',
     saved: '已保存「{{name}}」·{{kind}}',
     unsupportedEdit: '当前版本不支持编辑',
     importCustom: '导入自定义工作流（文生视频 / 图生视频…）',
@@ -1609,9 +1610,9 @@ export const enOnboardingProviders = {
     keyPlaceholder: 'Paste the platform API key',
     keyRequired: 'Enter an API key first',
     managedHint: 'Nomi maintains the platform URL, model catalog, and request behavior. You do not need to enter a URL, model ID, or API docs.',
-    save: 'Save and connect preset models',
-    savedTitle: '{{name}} connected',
-    savedHint: 'Preset models are now in your model list and can be added or removed later. Connectivity is checked in the background and never blocks saving.',
+    save: 'Securely save and continue verification',
+    savedTitle: '{{name}} key saved securely; not verified yet',
+    savedHint: 'The key is encrypted locally, but no model has passed a real production request yet. Continue verification; only verified models will appear in the available model list.',
     unavailable: 'The Nomi backend is unavailable. Restart the app and try again.',
     saveFailed: 'Could not save: {{message}}',
   },
@@ -1855,8 +1856,8 @@ export const enOnboardingProviders = {
     manualPlaceholder: 'Enter an unlisted model ID and press Enter',
     add: 'Add',
     saveModelsDisclosure:
-      'Models are saved as configured and unverified. This step only writes locally: it does not read docs, call AI, or run a real test. You can explicitly start Background auto-adaptation later from model details; it may read public docs, call a text AI, and use upstream credit through real requests.',
-    addModels: 'Save {{count}} models',
+      'Confirmation starts certification immediately. It may read public docs, call a text AI, and use upstream credit through real requests. These models stay out of normal pickers until certification passes.',
+    addModels: 'Verify {{count}} models',
   },
   adapterVerification: {
     title: {
@@ -2000,6 +2001,7 @@ export const enOnboardingProviders = {
     defaultName: 'Local ComfyUI workflow',
     defaultShortName: 'Local workflow',
     imported: 'Imported “{{name}}” · {{kind}}',
+    awaitingVerification: '“{{name}}” is ready. Confirm in Nomi to start production verification.',
     saved: 'Saved “{{name}}” · {{kind}}',
     unsupportedEdit: 'Editing is unavailable in this version',
     importCustom: 'Import custom workflow (text-to-video / image-to-video…)',

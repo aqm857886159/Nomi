@@ -301,6 +301,17 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
     return challenge;
   }
 
+  /** Resolve a challenge handle for the trusted Nomi UI without exposing the
+   * signed token to MCP clients or persisting it in the handoff queue. */
+  function resolveChallengeToken(challengeId: string): string {
+    const normalized = typeof challengeId === "string" ? challengeId.trim() : "";
+    if (!normalized) throw new ReceiptScopeError("Challenge id is required");
+    const record = readState().challenges[normalized];
+    if (!record) throw new ReceiptScopeError("Challenge is not registered");
+    verifyChallenge(record.token);
+    return record.token;
+  }
+
   function requestChallenge(input: HumanApprovalChallengeInput): { input: HumanApprovalChallengeInput; token: string; challenge: HumanApprovalChallengeV1 } {
     return mutate<{ input: HumanApprovalChallengeInput; token: string; challenge: HumanApprovalChallengeV1 }>((state) => {
       const existing = Object.values(state.challenges).find((record) => record.input.challengeKey === input.challengeKey);
@@ -473,6 +484,7 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
     filePath: deps.filePath,
     requestChallenge,
     verifyChallenge,
+    resolveChallengeToken,
     createMainProcessGestureAttestation,
     mintReceipt,
     verifyReceipt,

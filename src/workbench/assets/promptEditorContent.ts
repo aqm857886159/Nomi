@@ -2,6 +2,14 @@ import type { JSONContent } from '@tiptap/react'
 import { parsePromptSegments } from './promptMentions'
 import type { PromptReference } from './promptMentions'
 
+export function shouldApplyExternalPromptSync(
+  effectValue: string,
+  latestValue: string,
+  lastEditorValue: string,
+): boolean {
+  return effectValue === latestValue && effectValue !== lastEditorValue
+}
+
 export function promptToContent(
   prompt: string,
   references: readonly string[] | readonly PromptReference[] = [],

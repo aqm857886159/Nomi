@@ -105,13 +105,16 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
+const matte = (step: string): string =>
+  i18n.t(`generationCommon.imageToolbar.matteProgress.${step}` as 'generationCommon.imageToolbar.matteProgress.decode')
+
 function removeBackgroundProgressMessage(key: string): string {
-  if (key.includes('decode')) return '读取图片中'
-  if (key.includes('inference')) return '识别主体中'
-  if (key.includes('mask')) return '生成透明遮罩'
-  if (key.includes('encode')) return '导出透明 PNG'
-  if (key.includes('model')) return '加载抠图模型'
-  return '抠图中'
+  if (key.includes('decode')) return matte('decode')
+  if (key.includes('inference')) return matte('inference')
+  if (key.includes('mask')) return matte('mask')
+  if (key.includes('encode')) return matte('encode')
+  if (key.includes('model')) return matte('model')
+  return matte('fallback')
 }
 
 function imageGridTileNodeSize(

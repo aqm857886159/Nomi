@@ -36,6 +36,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
         selectedNodeIds: [],
         pendingConnectionSourceId: '',
         pendingConnectionSourceSide: 'right',
+        pendingConnectionSourceKind: 'node',
         canvasZoom: 1,
         canvasOffset: { x: 0, y: 0 },
         canUndo: false,
@@ -124,6 +125,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
             state.selectedNodeIds = cloned.selectedNodeIds
             state.pendingConnectionSourceId = ''
             state.pendingConnectionSourceSide = 'right'
+            state.pendingConnectionSourceKind = 'node'
             bumpPersistRevision(state)
             Object.assign(state, getHistoryFlags())
           })
@@ -145,6 +147,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
             state.selectedNodeIds = state.selectedNodeIds.filter((id) => surviving.has(id))
             state.pendingConnectionSourceId = ''
             state.pendingConnectionSourceSide = 'right'
+            state.pendingConnectionSourceKind = 'node'
             bumpPersistRevision(state)
             Object.assign(state, getHistoryFlags())
           })
@@ -167,6 +170,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
             state.selectedNodeIds = state.selectedNodeIds.filter((id) => surviving.has(id))
             state.pendingConnectionSourceId = ''
             state.pendingConnectionSourceSide = 'right'
+            state.pendingConnectionSourceKind = 'node'
             bumpPersistRevision(state)
             Object.assign(state, getHistoryFlags())
           })
@@ -211,6 +215,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
             selectedNodeIds: [],
             pendingConnectionSourceId: '',
             pendingConnectionSourceSide: 'right',
+            pendingConnectionSourceKind: 'node',
             canvasZoom: 1,
             canvasOffset: { x: 0, y: 0 },
             hasClipboard: false,
@@ -240,8 +245,9 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
             // 选区是会话态:clamp 到仍存在的节点(外部可能删了选中的)。
             const surviving = new Set(normalized.nodes.map((node) => node.id))
             state.selectedNodeIds = state.selectedNodeIds.filter((id) => surviving.has(id))
-            state.pendingConnectionSourceId = ''
-            state.pendingConnectionSourceSide = 'right'
+      state.pendingConnectionSourceId = ''
+      state.pendingConnectionSourceSide = 'right'
+      state.pendingConnectionSourceKind = 'node'
             bumpPersistRevision(state) // 触发 700ms 防抖落盘
             Object.assign(state, getHistoryFlags())
           })

@@ -2,7 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { getNodeSize } from './generationCanvasGeometry'
+import { getCanvasNodeVisualSize } from './generationCanvasGeometry'
 import { resolveLightweightNodePreview } from './canvasNodeLevelOfDetail'
 import { DeferredNodeImage, DeferredNodeVideo } from '../nodes/DeferredNodeMedia'
 
@@ -13,14 +13,16 @@ import { DeferredNodeImage, DeferredNodeVideo } from '../nodes/DeferredNodeMedia
 export function LightweightGenerationNode({
   node,
   appear,
-  onSelect,
+  selected = false,
+  readOnly = false,
 }: {
   node: GenerationCanvasNode
   appear: boolean
-  onSelect: (nodeId: string, additive: boolean) => void
+  selected?: boolean
+  readOnly?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
-  const size = getNodeSize(node)
+  const size = getCanvasNodeVisualSize(node)
   const preview = resolveLightweightNodePreview(node)
   const status = node.status || 'idle'
   const statusLabel =
@@ -38,11 +40,13 @@ export function LightweightGenerationNode({
       className={cn(
         'generation-canvas-v2-node',
         'absolute p-0 border-0 rounded-none bg-transparent shadow-none',
-        'cursor-pointer select-none touch-none overflow-visible',
+        readOnly ? 'cursor-default' : 'cursor-pointer',
+        'select-none touch-none overflow-visible',
         'block',
       )}
       data-node-id={node.id}
       data-kind={node.kind}
+      data-selected={selected ? 'true' : 'false'}
       data-render-mode="lightweight"
       data-appear={appear ? 'true' : undefined}
       style={{
@@ -50,15 +54,11 @@ export function LightweightGenerationNode({
         width: size.width,
         height: size.height,
       }}
-      onPointerDown={(event) => {
-        if (event.button !== 0) return
-        event.stopPropagation()
-        onSelect(node.id, event.shiftKey || event.metaKey || event.ctrlKey)
-      }}
     >
       <div
         className={cn(
-          'w-full h-full overflow-hidden rounded-nomi border border-nomi-line',
+          'w-full h-full overflow-hidden rounded-nomi border',
+          selected ? 'border-nomi-accent ring-2 ring-nomi-accent' : 'border-nomi-line',
           'bg-nomi-paper/90 shadow-nomi-sm',
           'grid grid-rows-[4px_minmax(0,1fr)]',
         )}

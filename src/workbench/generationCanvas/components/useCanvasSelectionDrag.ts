@@ -1,7 +1,7 @@
 import React from 'react'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { setCanvasDragging } from './canvasDraggingFlag'
+import { CANVAS_DRAGGING_OWNER, setCanvasDragging } from './canvasDraggingFlag'
 import type { GenerationCanvasState } from '../store/canvasStoreTypes'
 
 type DragRecord = {
@@ -35,7 +35,11 @@ export function useCanvasSelectionDrag({
   moveSelectedNodes,
   selectNodes,
 }: CanvasSelectionDragOptions): {
-  handleGroupFramePointerDown: (event: React.PointerEvent<HTMLDivElement>, groupId: string) => void
+  handleGroupFramePointerDown: (
+    event: React.PointerEvent<HTMLDivElement>,
+    groupId: string,
+    options?: { selectMembers?: boolean },
+  ) => void
   handleSelectionBoundsPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
 } {
   const draggingGroupRef = React.useRef<GroupDragRecord | null>(null)
@@ -124,7 +128,7 @@ export function useCanvasSelectionDrag({
           drag.historyCaptured = true
         }
         Object.assign(drag, { clientX: event.clientX, clientY: event.clientY, moved: true })
-        setCanvasDragging(null, true) // 拖组框 = 组里的节点在动：浮层与拖单个节点一样收起
+        setCanvasDragging(null, true, CANVAS_DRAGGING_OWNER.group) // 拖组框 = 组里的节点在动：浮层与拖单个节点一样收起
         scheduleGroupMove(drag.groupId, delta)
         return
       }
@@ -140,13 +144,14 @@ export function useCanvasSelectionDrag({
         selectionDrag.historyCaptured = true
       }
       Object.assign(selectionDrag, { clientX: event.clientX, clientY: event.clientY, moved: true })
-      setCanvasDragging(null, true)
+      setCanvasDragging(null, true, CANVAS_DRAGGING_OWNER.selection)
       scheduleSelectionMove(delta)
     }
     const handleUp = () => {
       const drag = draggingGroupRef.current
       const selectionDrag = draggingSelectionRef.current
-      if (drag || selectionDrag) setCanvasDragging(null, false)
+      if (drag) setCanvasDragging(null, false, CANVAS_DRAGGING_OWNER.group)
+      if (selectionDrag) setCanvasDragging(null, false, CANVAS_DRAGGING_OWNER.selection)
       if (drag?.moved || selectionDrag?.moved) flushScheduledDragMove()
       if (drag) {
         draggingGroupRef.current = null
@@ -183,13 +188,17 @@ export function useCanvasSelectionDrag({
     zoomRef,
   ])
 
-  const handleGroupFramePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>, groupId: string) => {
+  const handleGroupFramePointerDown = React.useCallback((
+    event: React.PointerEvent<HTMLDivElement>,
+    groupId: string,
+    options?: { selectMembers?: boolean },
+  ) => {
     if (readOnly || event.button !== 0) return
     event.preventDefault()
     event.stopPropagation()
     const state = useGenerationCanvasStore.getState()
     const group = state.groups.find((candidate) => candidate.id === groupId)
-    if (group?.nodeIds.length) {
+    if (options?.selectMembers !== false && group?.nodeIds.length) {
       const groupNodeIds = new Set(group.nodeIds)
       const memberIds = state.nodes
         .filter((node) => groupNodeIds.has(node.id) && (node.categoryId || 'shots') === group.categoryId)

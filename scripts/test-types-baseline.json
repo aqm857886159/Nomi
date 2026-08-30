@@ -25,7 +25,6 @@
   "electron/providerAdapter/docsDiscovery.test.ts": 3,
   "electron/providerAdapter/service.test.ts": 3,
   "electron/providerAdapter/serviceLifecycle.test.ts": 3,
-  "electron/providerAdapter/verifier.test.ts": 1,
   "electron/providerAdapter/verifierPrivateAsset.test.ts": 6,
   "electron/runtime.customCall.test.ts": 1,
   "electron/runtime.fallback-path.test.ts": 2,

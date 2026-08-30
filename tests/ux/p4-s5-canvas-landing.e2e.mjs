@@ -95,6 +95,7 @@ try {
   await clickOrFail(win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }), '工作区切换到「生成」')
   await win.waitForFunction(() => Boolean(window.__nomiCanvasStore), undefined, { timeout: 15_000 })
   await win.waitForFunction(() => Boolean(window.__nomiProductionLandingStore), undefined, { timeout: 15_000 })
+  await win.waitForFunction(() => window.__nomiCanvasStore.getState().isReady === true, undefined, { timeout: 15_000 })
   check(true, 'E2E 桥挂上（真 handler + 画布 store + landing store）')
 
   const projectId = await win.evaluate(() => new URLSearchParams(window.location.hash.split('?')[1]).get('projectId'))
@@ -200,6 +201,7 @@ try {
   // ── 整批一个 Cmd+Z：撤销后整组 + 全部占位节点消失 ──
   const beforeUndo = await win.evaluate((opId) => window.__nomiCanvasStore.getState().nodes.filter((n) => n.meta?.materializationOperationId === opId).length, OP_ID)
   check(beforeUndo === 4, `撤销前画布上 4 个占位节点在（实得 ${beforeUndo}）`)
+  check(await win.evaluate(() => window.__nomiCanvasStore.getState().canUndo === true), '整批落地后撤销栈保留一个事务边界')
   // 点画布再按一次 Cmd+Z（走渲染层真实撤销路径）。
   await win.evaluate(() => window.__nomiCanvasStore.getState().undo?.())
   await win.waitForTimeout(400)

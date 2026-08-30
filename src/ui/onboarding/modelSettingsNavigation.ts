@@ -8,7 +8,7 @@ export type ModelSettingsPage =
     }
   | { type: 'model'; vendorKey: string; modelKey: string }
   | { type: 'capability'; vendorKey: string; modelKey: string }
-  | { type: 'add'; preset?: string; existingVendorKey?: string; initialScreen?: 'form' | 'scriptDraft' }
+  | { type: 'add'; preset?: string; existingVendorKey?: string; initialScreen?: 'form' | 'scriptDraft'; integrationSessionId?: string }
   | { type: 'verification'; runId: string }
   | { type: 'script'; vendorKey: string; modelKey: string }
 

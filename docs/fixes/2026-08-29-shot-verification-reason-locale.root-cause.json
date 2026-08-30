@@ -1,0 +1,140 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-29-shot-verification-reason-locale",
+  "problem_type": "generated user-visible verification text ignored the active locale",
+  "symptom": "The English UI could show Chinese shot-verification reasons because the judge generated free-form reason text from a Chinese rubric and the result was displayed verbatim.",
+  "direct_cause": "The renderer and Electron shot-verification orchestration paths built the same locale-agnostic judge prompt and did not pass the current application or desktop locale into the pure verification core.",
+  "class_root": "User-visible text produced by a model had no explicit output-language contract at the shared prompt boundary, and the Electron-free locale state was not available to both verification runtimes.",
+  "affected_population": [
+    "English UI users receiving shot-verification deviations in the canvas",
+    "English UI users receiving verification results through the Electron capability runtime",
+    "Any future caller of either mirrored shot-verification core that omits the reason-language context"
+  ],
+  "scope_paths": [
+    "electron/desktopLocale.ts",
+    "electron/i18n.ts",
+    "electron/capabilityCore/shotVerifyCore.ts",
+    "electron/capabilityCore/shotVerifyDeps.ts",
+    "electron/capabilityCore/shotVerifyOrchestrate.ts",
+    "src/workbench/generationCanvas/agent/shotVerify.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+    "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx"
+  ],
+  "entry_points": [
+    "verifyGeneratedShots renderer orchestration",
+    "makeShotVerifyDeps and runShotVerification Electron capability orchestration",
+    "ReconcileDeviationCard display of generated and deterministic fallback reasons"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Nomi owns the supported locales, verification prompt, dual runtime wiring, and display behavior. External model documentation cannot decide which language Nomi must request for user-visible reasons.",
+  "invariants": [
+    "The active renderer locale is passed to the renderer verification core for every judged shot.",
+    "The active Electron desktop locale is held in one Electron-free module and passed to the capability verification core for every judged shot.",
+    "English verification prompts explicitly require an English reason while score keys and the calibrated rubric remain unchanged.",
+    "Chinese and omitted locale contexts produce byte-identical historical prompts.",
+    "The renderer and Electron verification cores remain byte-equivalent for every locale and frame mode.",
+    "Deterministic dimension names, tier values, and fallback reasons are translated at the ReconcileDeviationCard display boundary."
+  ],
+  "generality_proof": "Both production orchestration paths now inject their authoritative locale before converging on the mirrored buildShotVerifyPrompt boundary. The equivalence suite covers English, Chinese, omitted locale, and video frame-pair combinations, while separate runner and dependency tests prove the renderer and Electron wiring cannot silently omit locale context.",
+  "shared_boundaries": [
+    {
+      "path": "electron/desktopLocale.ts",
+      "symbol": "setDesktopLocale and getDesktopLocale",
+      "responsibility": "Own normalized desktop locale state without importing Electron so capability-runtime wiring can read it safely."
+    },
+    {
+      "path": "electron/capabilityCore/shotVerifyCore.ts",
+      "symbol": "buildShotVerifyPrompt",
+      "responsibility": "Apply the explicit reason-language instruction while preserving the calibrated scoring rubric and deterministic JSON shape."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerify.ts",
+      "symbol": "buildShotVerifyPrompt",
+      "responsibility": "Mirror the Electron core contract for renderer-originated verification and remain byte-equivalent under tests."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx",
+      "symbol": "localizedContentReason and localizedDimensionName",
+      "responsibility": "Translate deterministic verification labels and fallbacks while preserving arbitrary user/model text."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "entry_point": "verifyGeneratedShots renderer path",
+      "disposition": "enforced",
+      "evidence": "toContext reads getAppLocale and the runner regression test observes the English instruction in the actual judge prompt."
+    },
+    {
+      "path": "electron/capabilityCore/shotVerifyDeps.ts",
+      "entry_point": "makeShotVerifyDeps Electron capability path",
+      "disposition": "enforced",
+      "evidence": "The dependency factory reads getDesktopLocale and a focused test proves English is exposed to orchestration."
+    },
+    {
+      "path": "electron/capabilityCore/shotVerifyOrchestrate.ts",
+      "entry_point": "runShotVerification judge context",
+      "disposition": "enforced",
+      "evidence": "Every judge call converts a shot with deps.reasonLanguage before invoking the shared core prompt builder."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx",
+      "entry_point": "content deviation display",
+      "disposition": "enforced",
+      "evidence": "Stable dimension and fallback formats are reconstructed through i18n; free-form judge reasons remain the language requested upstream."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every new verification caller or mirrored-core edit can omit locale context, and model-generated free-form text will otherwise inherit the rubric language rather than the user's interface language.",
+    "same_class_scan": [
+      "Searched renderer and Electron capability paths for buildShotVerifyPrompt, reasonLanguage, verdict.reason, and deviation.reason consumers.",
+      "Checked the renderer runner and Electron dependency/orchestration paths independently rather than relying only on pure-core tests.",
+      "Checked deterministic fallback reasons separately from arbitrary model-generated reasons at the display boundary."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/shotVerifyCore.ts",
+    "invariant": "Every English verification context adds one explicit English-reason instruction without changing score semantics or the Chinese default prompt.",
+    "failure_mode": "Unsupported or omitted locale values retain the established Chinese default; focused wiring and byte-equivalence tests fail if either production path or mirrored core drifts.",
+    "exception_policy": "none",
+    "strategy": "Centralize desktop locale state outside Electron imports, inject locale at both orchestration boundaries, enforce output language in the pure prompt builders, and translate only deterministic fallback strings at render time.",
+    "artifacts": [
+      "electron/desktopLocale.ts",
+      "electron/i18n.ts",
+      "electron/capabilityCore/shotVerifyCore.ts",
+      "electron/capabilityCore/shotVerifyDeps.ts",
+      "electron/capabilityCore/shotVerifyOrchestrate.ts",
+      "src/workbench/generationCanvas/agent/shotVerify.ts",
+      "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/shotVerifyDeps.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerify.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerify.equivalence.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyRunner.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/shotVerifyDeps.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerify.equivalence.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyRunner.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Both current verification runtimes remain supported and now share the explicit locale contract; no fallback implementation or legacy route is retained."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The failure is in Nomi-owned locale propagation and prompt construction, not in a third-party model SDK or i18n dependency version.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted state or protocol migration is required. The locale is process state, reasonLanguage is optional for backward-compatible callers, and omitted values preserve the previous Chinese prompt byte-for-byte.",
+  "residual_risks": [
+    "An upstream judge model can still disobey an explicit output-language instruction; arbitrary free-form reasons cannot be safely machine-translated without changing meaning.",
+    "Verification skip and transport-error reasons are separate deterministic runtime strings and require their own translation keys when exposed by a future English flow."
+  ]
+}

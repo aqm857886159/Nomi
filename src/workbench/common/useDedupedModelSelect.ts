@@ -10,6 +10,7 @@ import type { NomiSelectOption } from '../../design'
 import i18n from '../../i18n'
 import { dedupeModelOptions, resolveBestProvider, type DedupedModel } from '../../config/modelIdentity'
 import { isModelRecentlyAiling } from '../generationCanvas/runner/modelHealthMemory'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 
 import type { ModelProviderRef } from '../../config/modelIdentity'
 
@@ -30,12 +31,12 @@ const VENDOR_LABELS: Record<string, string> = {
 /** 厂商显示名：内置短名映射（下拉附注要短）> option.vendorName（自定义中转的真名）> key 原样。
  *  短名优先：catalog 里内置家的 name 是接入卡全称（如「即梦会员（本地 CLI）」），当 trailing 太啰嗦。 */
 function providerLabel(provider?: ModelProviderRef | null): string {
-  if (!provider) return '默认'
+  if (!provider) return translateModelDisplayText('默认')
   const short = provider.vendor ? VENDOR_LABELS[provider.vendor.toLowerCase()] : undefined
-  if (short) return short
+  if (short) return translateModelDisplayText(short)
   const fromCatalog = provider.option.vendorName?.trim()
-  if (fromCatalog) return fromCatalog
-  return provider.vendor || '默认'
+  if (fromCatalog) return translateModelDisplayText(fromCatalog)
+  return translateModelDisplayText(provider.vendor || '默认')
 }
 
 /** 该模型是否「病」了：**每一家**供应商都在避让期才算。注入判据便于纯函数单测。 */

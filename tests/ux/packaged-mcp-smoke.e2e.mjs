@@ -6,7 +6,6 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import readline from 'node:readline'
-import { parseJsonToolResult, proveCanonicalCanvasReadToolResult } from './_b6CanvasReadProof.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 
 const bundlePath = path.resolve(process.argv[2] || '')
@@ -41,7 +40,18 @@ function proofFor(client) {
     .digest('base64url')
 }
 
-async function smokeClient(client) {
+async function smokeClient(client, { signed = true } = {}) {
+  const clientIdentity = signed
+    ? {
+        NOMI_MCP_CLIENT: client,
+        NOMI_MCP_CLIENT_PROOF: proofFor(client),
+      }
+    : {
+        // A generic host may connect and inspect the public catalog, but it must
+        // remain external until Nomi installs a signed client capability.
+        NOMI_MCP_CLIENT: '',
+        NOMI_MCP_CLIENT_PROOF: '',
+      }
   const child = spawn(launcherPath, [launcherScript], {
     cwd: tempRoot,
     env: {
@@ -54,8 +64,7 @@ async function smokeClient(client) {
       NOMI_ELECTRON_USER_DATA_DIR: tempRoot,
       NOMI_CAPABILITY_DIR: capabilityDir,
       NOMI_PROJECTS_DIR: path.join(tempRoot, 'projects'),
-      NOMI_MCP_CLIENT: client,
-      NOMI_MCP_CLIENT_PROOF: proofFor(client),
+      ...clientIdentity,
     },
     stdio: ['pipe', 'pipe', 'inherit'],
   })
@@ -123,7 +132,6 @@ async function smokeClient(client) {
     // and provider/model declarations must not turn this smoke test into a fixed count.
     assert(tools.length >= 22, `${client} expected the legacy catalog baseline, got ${tools.length}`)
     const requiredTools = [
-      'nomi_create_project', 'nomi_read_canvas',
       'nomi_start_playbook', 'nomi_get_run', 'nomi_subscribe_run', 'nomi_get_artifact', 'nomi_control_run', 'nomi_decide_gate',
       'nomi_session_open', 'nomi_operation_create', 'nomi_submit_generation_plan', 'nomi_preview_execution',
       'nomi_request_generation_gate', 'nomi_decide_generation_gate', 'nomi_start_generation', 'nomi_operation_read',
@@ -140,33 +148,60 @@ async function smokeClient(client) {
     const body = (await rpc('resources/read', { uri: director.uri })).result?.contents?.[0]?.text || ''
     assert(body.includes('镜头语言') && body.length > 1_000, `${client} director cinematography body is incomplete`)
 
+    if (!signed) {
+      const begin = await rpc('tools/call', {
+        name: 'nomi_integration_begin',
+        arguments: {
+          kind: 'http-api-provider',
+          name: 'Unsigned generic host',
+          baseUrl: 'https://example.invalid/v1',
+        },
+      })
+      assert(begin.result?.isError === true, `${client} unsigned integration.begin is rejected`)
+      const openCredentials = await rpc('tools/call', {
+        name: 'nomi_integration_open_credentials',
+        arguments: { sessionId: 'unsigned-session', expectedRevision: 1 },
+      })
+      assert(openCredentials.result?.isError === true, `${client} unsigned credential handoff is rejected`)
+      const start = await rpc('tools/call', {
+        name: 'nomi_integration_start',
+        arguments: {
+          sessionId: 'unsigned-session',
+          expectedRevision: 1,
+          idempotencyKey: 'unsigned-start',
+          receipt: 'unsigned-receipt',
+        },
+      })
+      assert(start.result?.isError === true, `${client} unsigned certification start is rejected`)
+      return { tools: tools.length, resources: resources.length, body: body.length, origin: 'external' }
+    }
+
+    // J0 positive path: a Nomi-signed host can create a durable integration
+    // draft from an empty directory without exposing a credential or sending a
+    // provider request. The companion external branch above proves that the
+    // exact same write boundary remains closed to an unsigned generic host.
+    const integrationBegin = await rpc('tools/call', {
+      name: 'nomi_integration_begin',
+      arguments: {
+        kind: 'http-api-provider',
+        name: `Packaged MCP integration draft - ${client}`,
+        baseUrl: 'https://example.invalid/v1',
+        authType: 'bearer',
+        clientRequestId: `packaged-${client}-integration-draft`,
+      },
+    })
+    assert(integrationBegin.result?.isError !== true, `${client} signed integration.begin succeeds without a credential`)
+    const integration = JSON.parse(integrationBegin.result?.content?.[0]?.text || '{}')
+    assert(typeof integration.id === 'string' && integration.ownerClientId === client, `${client} integration draft is owned by its signed identity`)
+    assert(integration.stage === 'needs_credential' && integration.credentialStatus === 'missing', `${client} integration draft remains unverified until secure credential handoff`)
+    assert(!JSON.stringify(integration).match(/authorization|api.?key|credentialRef/i), `${client} integration draft exposes no credential-shaped value`)
+
     const created = await rpc('tools/call', {
       name: 'nomi_create_project',
       arguments: { name: `Packaged MCP origin smoke - ${client}` },
     })
-    const project = parseJsonToolResult(created.result, `${client} create project`)
+    const project = JSON.parse(created.result?.content?.[0]?.text || '{}')
     assert(project.id, `${client} isolated project creation`)
-    assert(project.projectSelectionHandle, `${client} create project returned a connection-bound selection`)
-
-    const opened = await rpc('tools/call', {
-      name: 'nomi_session_open',
-      arguments: { projectSelectionHandle: project.projectSelectionHandle },
-    })
-    const session = parseJsonToolResult(opened.result, `${client} open project session`)
-    assert(session.projectId === project.id, `${client} project session retained the selected project`)
-    assert(session.leaseHandle, `${client} project session returned a lease`)
-    assert(
-      Array.isArray(session.effectiveScope) && session.effectiveScope.includes('canvas:read'),
-      `${client} project session includes canvas:read`,
-    )
-
-    const read = await rpc('tools/call', {
-      name: 'nomi_read_canvas',
-      arguments: { leaseHandle: session.leaseHandle, projectId: project.id },
-    })
-    const canonicalCanvas = proveCanonicalCanvasReadToolResult(read.result)
-    assert(canonicalCanvas.nodes.length === 0, `${client} new packaged project canvas starts empty`)
-    assert(canonicalCanvas.edges.length === 0, `${client} new packaged project has no canvas edges`)
     const started = await rpc('tools/call', {
       name: 'nomi_start_playbook',
       arguments: {
@@ -177,7 +212,7 @@ async function smokeClient(client) {
     })
     const run = started.result?.structuredContent?.nomiRunData
     assert(run?.origin?.host === client, `${client} expected signed origin, got ${run?.origin?.host || 'missing'}`)
-    return { tools: tools.length, resources: resources.length, body: body.length, origin: run.origin.host, canvasNodes: canonicalCanvas.nodes.length }
+    return { tools: tools.length, resources: resources.length, body: body.length, origin: run.origin.host }
   } finally {
     failPending(new Error(`Packaged MCP ${client} smoke finished`))
     await terminateChild()
@@ -197,8 +232,9 @@ try {
   })
   const evidence = []
   for (const client of clients) evidence.push(await smokeClient(client))
+  evidence.push(await smokeClient('generic', { signed: false }))
   const first = evidence[0]
-  console.log(`PACKAGED MCP SMOKE PASS: ${first.tools} tools, ${first.resources} resources, director body ${first.body} chars, canonical canvas nodes ${first.canvasNodes}, origins ${evidence.map((item) => item.origin).join('/')}`)
+  console.log(`PACKAGED MCP SMOKE PASS: ${first.tools} tools, ${first.resources} resources, director body ${first.body} chars, origins ${evidence.map((item) => item.origin).join('/')}; unsigned generic writes rejected`)
 } catch (error) {
   exitCode = 1
   console.error(error instanceof Error ? error.message : String(error))

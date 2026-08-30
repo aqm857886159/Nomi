@@ -8,42 +8,25 @@ import { load } from 'js-yaml'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const workflowsDir = path.join(repoRoot, '.github/workflows')
 const signaturePath = path.join(repoRoot, 'signatures/cla.json')
+const claWorkflowPath = path.join(workflowsDir, 'cla.yml')
+const claDocument = fs.readFileSync(path.join(repoRoot, 'CLA.md'), 'utf8')
+const packageManifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'))
 
-function claActionSteps() {
-  return fs.readdirSync(workflowsDir)
-    .filter((name) => /\.ya?ml$/i.test(name))
-    .flatMap((name) => {
-      const file = path.join(workflowsDir, name)
-      const workflow = load(fs.readFileSync(file, 'utf8'))
-      return Object.values(workflow.jobs ?? {}).flatMap((job) =>
-        (job.steps ?? [])
-          .filter((step) => typeof step.uses === 'string' && step.uses.startsWith('contributor-assistant/github-action@'))
-          .map((step) => ({ file, workflow, step })))
-    })
-}
-
-test('CLA signatures have one automation-owned ledger outside protected code branches', () => {
-  const steps = claActionSteps()
-  assert.equal(steps.length, 1, 'exactly one contributor-assistant action must own CLA signatures')
-  assert.equal(steps[0].step.with?.branch, 'cla-signatures')
-  assert.equal(steps[0].step.with?.['path-to-signatures'], 'signatures/cla.json')
-  assert.equal(fs.existsSync(signaturePath), false, 'main must not retain a stale signature ledger copy')
+test('AGPL-only policy has no contributor-assistant workflow or main-branch signature ledger', () => {
+  assert.equal(fs.existsSync(claWorkflowPath), false, 'CLA workflow must be removed')
+  assert.equal(fs.existsSync(signaturePath), false, 'main must not retain a signature ledger copy')
+  const workflowFiles = fs.readdirSync(workflowsDir).filter((name) => /\.ya?ml$/i.test(name))
+  for (const name of workflowFiles) {
+    const workflow = load(fs.readFileSync(path.join(workflowsDir, name), 'utf8'))
+    const serialized = JSON.stringify(workflow)
+    assert.doesNotMatch(serialized, /contributor-assistant\/github-action@/i, `${name} must not run CLA automation`)
+  }
 })
 
-test('privileged CLA events never execute fork code and keep the required write boundary explicit', () => {
-  const [{ workflow }] = claActionSteps()
-  assert.deepEqual(workflow.on, {
-    issue_comment: { types: ['created'] },
-    pull_request_target: { types: ['opened', 'closed', 'synchronize'] },
-  })
-  assert.deepEqual(workflow.permissions, {
-    actions: 'write',
-    contents: 'write',
-    'pull-requests': 'write',
-    statuses: 'write',
-  })
-
-  const serializedSteps = JSON.stringify(workflow.jobs)
-  assert.doesNotMatch(serializedSteps, /actions\/checkout/i)
-  assert.doesNotMatch(serializedSteps, /github\.event\.pull_request\.head|github\.head_ref/i)
+test('AGPL-only and no-signature rule is visible at the contributor boundary', () => {
+  assert.match(claDocument, /不要求.*CLA/u)
+  assert.match(claDocument, /不需要.*签/u)
+  assert.match(claDocument, /AGPL-3\.0-only/)
+  assert.match(claDocument, /no extra signature/i)
+  assert.equal(packageManifest.license, 'AGPL-3.0-only')
 })

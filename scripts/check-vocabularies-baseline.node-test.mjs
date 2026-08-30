@@ -65,10 +65,6 @@ test('cross-process exact copies stay debt until a neutral runtime contract exis
       'src/desktop/onboardingBridgeTypes.ts::type:DesktopAdapterModeResult/property:state/type-union',
     ],
     [
-      'electron/providerAdapter/types.ts::type:AdapterRunStage/type-union',
-      'src/desktop/onboardingBridgeTypes.ts::type:DesktopProviderAdapterRun/property:stage/type-union',
-    ],
-    [
       'electron/providerAdapter/types.ts::type:AdapterModelMeta/property:state/type-union',
       'src/ui/onboarding/ModelChipGroups.tsx::type:ChipModel/property:adapterState/type-union',
       'src/ui/onboarding/modelSettingsCatalogProjection.ts::variable:ADAPTER_STATES/set',
@@ -96,6 +92,11 @@ test('cross-process exact copies stay debt until a neutral runtime contract exis
       assert.match(reason, /main.*preload.*renderer/i, site)
     }
   }
+  assert.equal(
+    registeredSites.has('electron/shared/providerAdapterContract.ts::variable:ADAPTER_RUN_STAGES/as-const'),
+    true,
+    'Provider Adapter run stages have converged on the neutral shared contract',
+  )
 })
 
 test('repository exact-set owners are upstream and every local projection stays in debt', () => {
@@ -163,6 +164,29 @@ test('repository text-brain reasons preserve metadata readiness without keychain
   assert.match(registeredBySite.get(readiness)?.reason ?? '', /metadata readiness.*(?:零解密|不解密)/i)
   assert.match(debtBySite.get(stalePreload)?.reason ?? '', /旧投影.*execution.*locked/i)
   assert.doesNotMatch(debtBySite.get(stalePreload)?.reason ?? '', /应.*复用.*ApiKeyDecryptStatus/i)
+})
+
+test('repository credential and catalog health vocabularies preserve fail-closed migration states', () => {
+  const baseline = JSON.parse(fs.readFileSync(repositoryBaselinePath, 'utf8'))
+  const registeredBySite = new Map(baseline.registered.map((entry) => [entry.site, entry]))
+  const credential = registeredBySite.get(
+    'electron/catalog/secrets.ts::type:ApiKeyDecryptStatus/type-union',
+  )
+  const health = registeredBySite.get(
+    'src/workbench/api/modelCatalogApi.ts::type:ModelCatalogHealthIssueCode/type-union',
+  )
+
+  assert.deepEqual(credential?.members, ['locked', 'missing', 'needs_resave', 'ok'])
+  assert.match(credential?.reason ?? '', /needs_resave.*legacy plaintext.*不可执行/i)
+  assert.deepEqual(health?.members, [
+    'catalog_empty',
+    'model_mapping_missing',
+    'vendor_api_key_locked',
+    'vendor_api_key_missing',
+    'vendor_api_key_needs_resave',
+    'vendor_disabled',
+  ])
+  assert.match(health?.reason ?? '', /safeStorage.*锁定.*legacy plaintext.*重存/i)
 })
 
 test('repository helper subsets and incomplete projections remain debt', () => {

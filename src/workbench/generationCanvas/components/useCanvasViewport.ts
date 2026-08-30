@@ -1,6 +1,6 @@
 import React from 'react'
 import { useWorkbenchStore } from '../../workbenchStore'
-import { createInitialViewport, getNodeSize } from './generationCanvasGeometry'
+import { createInitialViewport, getCanvasNodeVisualSize } from './generationCanvasGeometry'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 // 从 GenerationCanvas（顶死 800 行的 god-component）抽出的视口 + 虚拟化子系统：
@@ -29,7 +29,7 @@ export function getVisibleCanvasNodesForRender(params: {
   return nodes.filter((node) => {
     const nx = node.position.x
     const ny = node.position.y
-    const { width: nw, height: nh } = getNodeSize(node)
+    const { width: nw, height: nh } = getCanvasNodeVisualSize(node)
     return nx + nw >= viewLeft && nx <= viewRight && ny + nh >= viewTop && ny <= viewBottom
   })
 }

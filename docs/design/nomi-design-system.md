@@ -580,9 +580,11 @@ mark 是 **28×28 viewBox 的圆角方块**：深色底（`oklch(0.22 0.01 80)` 
 
 规格：
 
-- 边框颜色：`box.group.color`（用户自定义，默认 `#d8c3a5`）
-- 背景：基于 color 的 18% alpha（`getHexAlphaColor` 派生）
-- Label 背景：原 color
+- 普通态只有一套共享视觉契约：`components/groupVisualContract.ts`
+- 展开组框：`border-nomi-line` + 半透明 `bg-nomi-paper`；label 同样使用 `nomi-line / nomi-paper / nomi-ink`
+- 折叠卡、后层卡片、标签圆点、空态图标与侧栏组标识共用同一组暖中性 token，不用 `nomi-accent` 或项目自定义色标识编组
+- `NodeGroup.color` 仅为旧项目兼容保留，不再进入渲染层；侧栏不再提供无效的“改颜色”入口
+- 强调色只允许出现在共享的瞬时交互反馈（键盘焦点、连接握把），不能成为编组常驻底色或描边
 - 可拖动整组
 
 ### 4.5 Notification / `showUndoToast`

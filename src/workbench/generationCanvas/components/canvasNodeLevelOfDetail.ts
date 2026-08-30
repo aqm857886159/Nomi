@@ -30,6 +30,26 @@ export function shouldUseLightweightNodeRendering(nodeCount: number, zoom: numbe
   return nodeCount > LIGHTWEIGHT_NODE_RENDER_THRESHOLD && zoom < LIGHTWEIGHT_NODE_ZOOM_THRESHOLD
 }
 
+export function shouldUseLightweightNodeRenderingForSelection(input: {
+  nodeCount: number
+  zoom: number
+  selected: boolean
+  primarySelection: boolean
+}): boolean {
+  return shouldUseLightweightNodeRendering(input.nodeCount, input.zoom)
+    || (input.nodeCount > LIGHTWEIGHT_NODE_RENDER_THRESHOLD && input.selected && !input.primarySelection)
+}
+
+export function retainLargeCanvasLightweightRendering(input: {
+  retained: boolean
+  nodeCount: number
+  selected: boolean
+  primarySelection: boolean
+}): boolean {
+  if (input.nodeCount <= LIGHTWEIGHT_NODE_RENDER_THRESHOLD || input.primarySelection) return false
+  return input.retained || input.selected
+}
+
 export function shouldRenderFullNodeContent(input: {
   lightweightMode: boolean
   selected: boolean

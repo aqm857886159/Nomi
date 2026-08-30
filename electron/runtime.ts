@@ -4,7 +4,7 @@ import { assetIngestionResolver, assetLocalizationOptions } from "./catalog/asse
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload } from "./assets/localAssetFile";
 import { importRemoteAsset, writeAsset, writeDeterministicAsset } from "./assets/projectAssetStore";
 import { endpoint } from "./vendorEndpoint";
-import { requestJson, requestMultipart } from "./vendor/vendorHttp";
+import { requestJson, requestMultipart, vendorResponseLimitForKind } from "./vendor/vendorHttp";
 import { runMultipartProfileOperation } from "./catalog/multipartOperation";
 import { templateContext, buildProfileHttpRequest, validateProfileRequestBeforeSpend } from "./catalog/profileHttpRequest";
 import { chatImageFallbackOperation } from "./catalog/imageRouteFallback";
@@ -12,11 +12,7 @@ import { buildNormalizedRecipe, buildTaskProvenance } from "./vendor/provenance"
 import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallTrace";
 import { scheduleTechnicalReview } from "./review/reviewTrace";
 import { localizedTaskAssetFileName, probeLocalizedDurationSeconds } from "./assets/localizedAsset";
-import {
-  type AuthType,
-  authHeaders as buildAuthHeaders,
-  extractTaskId as extractTaskIdShared,
-} from "./ai/requestPipeline";
+import { type AuthType, authHeaders as buildAuthHeaders, extractTaskId as extractTaskIdShared } from "./ai/requestPipeline";
 import { assertCanonicalAntigravityOperation, executeProcessOperation, prepareAntigravityCreateOperation } from "./catalog/processOperation";
 import { executeTextTask } from "./textTaskRunner";
 import { runAudioTask } from "./audioTaskRunner";
@@ -51,6 +47,7 @@ import { applyHeadlessParamDefaults, imageEditGuardError } from "./catalog/taskP
 import { modelModeBodies } from "./catalog/modelCatalogListing";
 import { runCustomCallTask } from "./catalog/customCallDispatch";
 import { resolveCustomCallExecution } from "./catalog/customCallMode";
+import { certifyTaskOutputAndSettleComfyCandidate, materializeCertifiedComfyAssets, resolveComfyCandidateExecution } from "./catalog/comfyuiCandidateLifecycle";
 import { assertAndConsumeSpendGrant } from "./spendGrant";
 export type {
   AiSdkProviderKind,
@@ -98,7 +95,6 @@ export {
 export {
   commitOnboardedModelToCatalog,
   deriveVendorKeyFromBaseUrl,
-  commitManualOpenAiCompatibleModels,
   fetchModelCatalogDocs,
   testModelCatalogMapping,
 } from "./catalog/catalogCommit";
@@ -191,6 +187,7 @@ export async function localizeTaskAsset(
   assetUrl: string,
   type: "image" | "video" | "audio" | "model3d",
   nodeId?: string, vendor?: Pick<Vendor, "key" | "baseUrlHint">,
+  certificationEvidence?: import("./providerAdapter/certificationMedia").CertificationMediaEvidence,
 ): Promise<TaskResult["assets"][number]> {
   const imported = (await importRemoteAsset({
     projectId,
@@ -198,7 +195,10 @@ export async function localizeTaskAsset(
     kind: "generated",
     ownerNodeId: nodeId || null,
     fileName: localizedTaskAssetFileName(type, assetUrl),
-  }, { trustedPrivateOrigin: trustedLocalOutputOrigin(vendor) || undefined })) as { id?: string; name?: string; data?: { url?: string; absolutePath?: string } };
+  }, {
+    trustedPrivateOrigin: trustedLocalOutputOrigin(vendor) || undefined,
+    ...(certificationEvidence ? { certificationEvidence } : {}),
+  })) as { id?: string; name?: string; data?: { url?: string; absolutePath?: string } };
   const durationSeconds = await probeLocalizedDurationSeconds(type, imported.data?.absolutePath);
   if (type === "image" || type === "video")
     scheduleTechnicalReview({
@@ -256,7 +256,7 @@ export async function executeProfileOperation(input: {
   }
   // multipart transport（P4）：op 声明 multipart（/v1/images/edits 图生图文件上传）→ 全套分发在 multipartOperation
   // （localize 前分流：要参考图原始字节，不先上传换 URL）。requestMultipart 注入以带 vendor 计费上下文。
-  if (input.operation.multipart) return runMultipartProfileOperation(input, (u, h, q, f) => requestMultipart(input.vendor, input.apiKey, u, h, q, f, input.signal));
+  if (input.operation.multipart) return runMultipartProfileOperation(input, (u, h, q, f) => requestMultipart(input.vendor, input.apiKey, u, h, q, f, input.signal, { maxResponseBytes: vendorResponseLimitForKind(input.model.kind) }));
 
   // R1：发送前把本地素材(nomi-local://)按策略变成 vendor 可达值。带跨供应商 fallback + 内容类型感知：
   // 每素材按媒体类型挑通道(图→apimart/KIE base64;视频→KIE stream,apimart image-only 跳过)。上传 key 可异于生成 key。
@@ -277,10 +277,9 @@ export async function executeProfileOperation(input: {
   // 命名请求变换（P4，与 response_transform 对称）：发送前按后端实况补全 body；未声明 → 原样。
   const body = await applyRequestTransform(input.operation.request_transform, built.body, { baseUrl: String(input.vendor.baseUrlHint || ""), promptId: trim(input.request.extras?.comfyPromptId), request: input.request });
   const { vendor, apiKey } = effectiveInput;
-  const response = await requestJson(vendor, apiKey, built.method, built.url, built.headers, built.query, body, input.signal);
+  const response = await requestJson(vendor, apiKey, built.method, built.url, built.headers, built.query, body, input.signal, { maxResponseBytes: vendorResponseLimitForKind(input.model.kind) });
   return { response, request: built.preview };
 }
-
 /** 归一上游响应成 TaskResult：命名响应变换（可选）→ 点路径 mapping（kie 等返 JSON 字符串已透明 parse）。 */
 export async function buildProfileTaskResult(input: {
   response: unknown;
@@ -311,18 +310,16 @@ export async function buildProfileTaskResult(input: {
     extractTaskIdShared(response),
     input.taskIdFallback,
   );
-  const mappedAssetValues = ["assets", "image_url", "video_url", "model_url"].flatMap((key) =>
-    valuesFromMapping(response, responseMapping, key),
-  );
-  const assetUrls = Array.from(
-    new Set([...mappedAssetValues.flatMap(collectAssetUrls), ...collectAssetUrls(extractAssetUrl(response))]),
-  );
+  const mappedAssetValues = ["assets", "image_url", "video_url", "model_url"].flatMap((key) => valuesFromMapping(response, responseMapping, key));
+  const assetUrls = Array.from(new Set([...mappedAssetValues.flatMap(collectAssetUrls), ...collectAssetUrls(extractAssetUrl(response))]));
   const { status, unrecognizedStatus } = resolveTaskStatus(response, responseMapping, input.mapping.statusMapping, assetUrls);
   const type: "image" | "video" | "model3d" =
     input.wantedKind === "video" ? "video" : input.wantedKind === "model3d" ? "model3d" : "image";
-  const assets = input.projectId
-    ? await Promise.all(assetUrls.map((url) => localizeTaskAsset(input.projectId || "", url, type, input.nodeId, input.vendor)))
-    : assetUrls.map((url) => unlocalizedTaskAsset(type, url));
+  const certification = await certifyTaskOutputAndSettleComfyCandidate({ request: input.request, modelKey: input.model?.modelKey, status, urls: assetUrls, kind: type, vendorBaseUrl: String(input.vendor?.baseUrlHint || "") });
+  const assets = await materializeCertifiedComfyAssets({ certification, status, urls: assetUrls,
+    materialize: (url, index) => input.projectId
+      ? localizeTaskAsset(input.projectId, url, type, input.nodeId, input.vendor, certification.evidence[index])
+      : Promise.resolve(unlocalizedTaskAsset(type, url)) });
   return {
     providerMeta,
     unrecognizedStatus,
@@ -356,18 +353,20 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   const kind = request.kind;
   const wantedKind = billingKindForTaskKind(kind);
   const modelKey = firstString(request.extras?.modelKey, request.extras?.modelAlias);
-  const { vendor, model, apiKey, customConfig } = findExecutableModel(vendorKey, modelKey, wantedKind);
+  const stagedCandidate = resolveComfyCandidateExecution(request);
+  const { vendor, model, apiKey, customConfig } = stagedCandidate || findExecutableModel(vendorKey, modelKey, wantedKind);
   const projectId = trim(request.extras?.projectId) || activeTaskProjectFallback();
   const nodeId = trim(request.extras?.nodeId);
   const grantId = trim(request.extras?.grantId);
   const taskId = `task-${crypto.randomUUID()}`;
-  const mapping = findTaskMapping(vendorKey, kind, modelKey);
+  const effectiveVendorKey = vendor.key;
+  const mapping = stagedCandidate?.mapping || findTaskMapping(effectiveVendorKey, kind, modelKey);
   // headless/MCP extras 预备：缺参兜底 + W1d 参考键形态投影（末参 createBody，逻辑/文档住 taskParams.applyHeadlessParamDefaults）；自定义调用脚本存在即接管图/视频/3D（对 L3 护栏算「有 mapping」，参考缺失拒发仍生效，派发抽到 catalog/customCallDispatch，R12）。
-  request.extras = applyHeadlessParamDefaults(request.extras, (model?.meta as { archetypeId?: string } | undefined)?.archetypeId, kind, vendorKey, mapping?.create?.defaultParams, mapping?.create?.body, model.modelKey);
+  request.extras = applyHeadlessParamDefaults(request.extras, (model?.meta as { archetypeId?: string } | undefined)?.archetypeId, kind, effectiveVendorKey, mapping?.create?.defaultParams, mapping?.create?.body, model.modelKey);
   const customCall = resolveCustomCallExecution(model as Model, request, mapping);
   const customCallScript = customCall?.script || "";
   // L3 诚实护栏（判定在 taskParams.imageEditGuardError）：图生图/图生视频缺参考或缺 mapping → 付费守卫前拒发人话，绝不静默退化纯文生。末参 modelModeBodies（该模型所有模式 body）= 交付4：拒发时点名"哪个模式带得动你连的参考"（同套 mapping derive）。
-  const guardError = imageEditGuardError(kind, request, Boolean(mapping) || Boolean(customCallScript), model.labelZh || model.modelKey, customCallScript ? undefined : mapping?.create?.body, modelModeBodies(readCatalog().mappings, vendorKey, modelKey, (model as Model).modelAlias), { vendorKey, modelKey: model.modelKey });
+  const guardError = imageEditGuardError(kind, request, Boolean(mapping) || Boolean(customCallScript), model.labelZh || model.modelKey, customCallScript ? undefined : mapping?.create?.body, modelModeBodies(readCatalog().mappings, effectiveVendorKey, modelKey, (model as Model).modelAlias), { vendorKey: effectiveVendorKey, modelKey: model.modelKey });
   if (guardError) throw new Error(guardError);
   if (customCallScript) // 先于 mapping/fallback；注入避免循环依赖。文本也走这里（去掉 wantedKind!=="text" 排除：那等于「接不上的文本模型毫无出路」，而用户最初踩的正是文本模型）；文本脚本 return { text }
     return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, writeAsset });
@@ -397,7 +396,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
     const fingerprint = recipeFingerprint(recipe);
     const cachedHit = readCachedTaskResult({ projectId, fingerprint, nodeId, extras: request.extras });
     if (cachedHit) return cachedHit as TaskResult;
-    const antigravityPreflight = await prepareAntigravityCreateOperation({ vendorKey, modelKey: model.modelKey, taskKind: kind, operation: mapping.create, request });
+    const antigravityPreflight = await prepareAntigravityCreateOperation({ vendorKey: effectiveVendorKey, modelKey: model.modelKey, taskKind: kind, operation: mapping.create, request });
     assertAndConsumeSpendGrant(grantId, nodeId); // 付费守卫：缓存未命中=真发 vendor，发前校验消费令牌
     // 中转生图路由回退（y7api 403 定案）：OpenAI images 端点被「分组未开通」类确定性拒绝（403 命中
     // 窄短语 / 404/405，未创建任务未扣费）→ 换 chat/completions 多模态 op 重发一次；结果归一按
@@ -435,7 +434,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
     }
     if (!["succeeded", "failed"].includes(normalized.result.status)) {
       admitTask(normalized.result.id, {
-        vendor: vendorKey,
+        vendor: effectiveVendorKey,
         request,
         raw: executed.response,
         mapping,

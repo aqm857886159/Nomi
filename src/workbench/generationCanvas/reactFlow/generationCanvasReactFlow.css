@@ -1,0 +1,314 @@
+.generation-canvas-react-flow {
+  --xy-node-border-radius: 0;
+  --xy-connectionline-stroke: var(--nomi-accent);
+  --xy-connectionline-stroke-width: 2;
+  --xy-edge-stroke-selected: var(--nomi-accent);
+  --xy-handle-background-color: transparent;
+  --xy-handle-border-color: transparent;
+}
+
+.generation-canvas-react-flow:active {
+  cursor: grabbing !important;
+}
+
+.generation-canvas-react-flow .react-flow {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+.generation-canvas-react-flow .react-flow__node {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.generation-canvas-react-flow .react-flow__node.selected {
+  z-index: 5 !important;
+}
+
+.generation-canvas-react-flow .react-flow__selection {
+  border: 1px solid color-mix(in oklch, var(--nomi-ink) 36%, transparent);
+  background: color-mix(in oklch, var(--nomi-ink) 7%, transparent);
+}
+
+/* A completed selection is a stable canvas object, not an in-progress action.
+ * Keep the old neutral Nomi treatment instead of React Flow's blue default. */
+.generation-canvas-react-flow .react-flow__nodesselection-rect {
+  box-sizing: border-box;
+  border: 1px solid color-mix(in oklch, var(--nomi-ink) 32%, transparent);
+  border-radius: 14px;
+  background: color-mix(in oklch, var(--nomi-paper) 5%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--nomi-paper) 22%, transparent) inset,
+    0 14px 34px color-mix(in oklch, var(--nomi-ink) 10%, transparent);
+}
+
+.generation-canvas-react-flow .react-flow__resize-control {
+  z-index: 7;
+}
+
+.generation-canvas-react-flow .react-flow__resize-control.handle {
+  min-width: 16px;
+  min-height: 16px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.generation-canvas-react-flow .react-flow__resize-control.line {
+  border-color: transparent !important;
+}
+
+.generation-canvas-react-flow .react-flow__viewport {
+  will-change: transform;
+}
+
+.generation-canvas-react-flow .react-flow__nodes {
+  z-index: 2;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__node-shell {
+  position: relative;
+  min-width: 1px;
+  min-height: 1px;
+}
+
+/* Existing node cards still contain their legacy canvas positioning and handles.
+ * React Flow owns the outer transform and connection ports in this experiment. */
+.generation-canvas-react-flow .generation-canvas-v2-node {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__node-shell .generation-canvas-v2-node__magnetic-handle,
+.generation-canvas-react-flow .generation-canvas-react-flow__node-shell .generation-canvas-v2-node__handle,
+.generation-canvas-react-flow .generation-canvas-react-flow__node-shell .generation-canvas-v2-node__resize-zone {
+  display: none !important;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle {
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+  z-index: 8;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--target {
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--source {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  opacity: 0.8;
+  pointer-events: all;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle-hit {
+  position: absolute;
+  display: block;
+  touch-action: none;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--dot .generation-canvas-react-flow__handle-hit {
+  inset: 0;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--dot .generation-canvas-react-flow__handle-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--workbench-surface-solid);
+  border-radius: 999px;
+  background: var(--workbench-muted-soft);
+  box-shadow: 0 4px 12px rgba(18, 24, 38, 0.14);
+  transition: transform 150ms ease, background 150ms ease, opacity 150ms ease;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--dot:hover .generation-canvas-react-flow__handle-icon,
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--dot[data-active='true'] .generation-canvas-react-flow__handle-icon,
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--dot.connecting .generation-canvas-react-flow__handle-icon {
+  background: var(--workbench-accent);
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic {
+  width: 1px;
+  height: 1px;
+  border-radius: 0;
+  opacity: 1;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-hit {
+  top: 0;
+  width: 112px;
+  height: min(168px, calc(var(--generation-flow-node-height) + 28px));
+  transform: translateY(-50%);
+  cursor: crosshair;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-side='left'] .generation-canvas-react-flow__handle-hit {
+  right: 0;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-side='right'] .generation-canvas-react-flow__handle-hit {
+  left: 0;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-icon {
+  --connection-handle-reveal-x: 0px;
+  position: absolute;
+  top: var(--connection-handle-y);
+  left: var(--connection-handle-x);
+  display: grid;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  transform: translate(calc(-50% + var(--connection-handle-reveal-x)), -50%) scale(0.86);
+  border: 2px solid color-mix(in srgb, var(--workbench-muted-soft) 72%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--nomi-paper) 82%, transparent);
+  color: var(--workbench-muted);
+  box-shadow:
+    0 10px 26px rgba(18, 24, 38, 0.18),
+    0 0 0 1px color-mix(in srgb, var(--nomi-ink) 8%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: left 180ms cubic-bezier(0.16, 1, 0.3, 1), top 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-side='left'] .generation-canvas-react-flow__handle-icon {
+  --connection-handle-reveal-x: 28px;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-side='right'] .generation-canvas-react-flow__handle-icon {
+  --connection-handle-reveal-x: -28px;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__node-shell:hover .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-icon,
+.generation-canvas-react-flow .generation-canvas-react-flow__node-shell:focus-within .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-icon,
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-active='true'] .generation-canvas-react-flow__handle-icon,
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-hit[data-following='true'] .generation-canvas-react-flow__handle-icon {
+  --connection-handle-reveal-x: 0px;
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 0.82;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic:hover .generation-canvas-react-flow__handle-icon,
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-active='true'] .generation-canvas-react-flow__handle-icon,
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-hit[data-following='true'] .generation-canvas-react-flow__handle-icon {
+  border-color: var(--workbench-accent);
+  color: var(--workbench-accent);
+  opacity: 1;
+}
+
+.generation-canvas-react-flow .react-flow__edge-path {
+  stroke: var(--nomi-accent);
+  stroke-width: 2;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__edge--selected {
+  stroke: var(--nomi-accent);
+  stroke-width: 3;
+}
+
+.generation-canvas-react-flow__edge-label {
+  position: absolute;
+  z-index: 10;
+  border: 1px solid color-mix(in srgb, var(--nomi-accent) 40%, transparent);
+  border-radius: 999px;
+  background: var(--nomi-paper);
+  color: var(--nomi-accent);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: auto;
+  box-shadow: var(--nomi-shadow-sm);
+}
+
+.generation-canvas-react-flow__edge-label-button {
+  display: inline-flex;
+  height: 24px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.generation-canvas-react-flow__edge-menu {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  z-index: 3;
+  display: grid;
+  width: 176px;
+  gap: 2px;
+  padding: 4px;
+  transform: translateX(-50%);
+  border: 1px solid var(--workbench-border);
+  border-radius: 6px;
+  background: var(--nomi-paper);
+  box-shadow: 0 8px 24px rgba(18, 24, 38, 0.12);
+}
+
+.generation-canvas-react-flow__edge-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nomi-ink);
+  text-align: left;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.generation-canvas-react-flow__edge-menu button span:first-child {
+  flex: 1;
+}
+
+.generation-canvas-react-flow__edge-menu button:hover,
+.generation-canvas-react-flow__edge-menu button[aria-checked='true'] {
+  background: color-mix(in srgb, var(--nomi-accent) 14%, transparent);
+}
+
+.generation-canvas-react-flow__edge-menu .generation-canvas-react-flow__edge-menu-delete {
+  margin-top: 3px;
+  border-top: 1px solid var(--workbench-border);
+  color: var(--workbench-danger);
+}
+
+.generation-canvas-react-flow .react-flow__controls,
+.generation-canvas-react-flow .react-flow__minimap {
+  border: 1px solid var(--workbench-border);
+  box-shadow: 0 8px 24px rgba(18, 24, 38, 0.08);
+}
+
+.generation-canvas-react-flow .react-flow__attribution {
+  display: none;
+}

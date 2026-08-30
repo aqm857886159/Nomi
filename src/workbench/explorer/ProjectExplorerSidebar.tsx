@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../
 import { type ProjectCategory } from '../project/projectCategories'
 import { useWorkbenchStore } from '../workbenchStore'
 import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
+import { observeProjectSidebarTransition } from './projectSidebarProjectTransition'
 
 const CategoryTree = lazyWithChunkBoundary('i18n:sidebar.categoryPanel', () => import('../sidebar/CategoryTree'))
 const PromptLibraryContent = lazyWithChunkBoundary('i18n:sidebar.promptLibrary', () =>
@@ -86,6 +87,13 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
   const collapsed = useWorkbenchStore((s) => s.sidebarCollapsed)
   const toggle = useWorkbenchStore((s) => s.toggleSidebarCollapsed)
   const setSidebarCollapsed = useWorkbenchStore((s) => s.setSidebarCollapsed)
+  const lastProjectIdRef = React.useRef(String(projectId || '').trim())
+
+  React.useEffect(() => {
+    const transition = observeProjectSidebarTransition(lastProjectIdRef.current, projectId)
+    lastProjectIdRef.current = transition.lastProjectId
+    if (transition.collapse) setSidebarCollapsed(true)
+  }, [projectId, setSidebarCollapsed])
 
   // 加号 = 新建一个顶层分类（建子组改走分类行右键「新建子组」）。
   const handleAddCategory = React.useCallback(() => {
@@ -111,6 +119,15 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
     }
     window.addEventListener('nomi-open-files-panel', open)
     return () => window.removeEventListener('nomi-open-files-panel', open)
+  }, [setSidebarCollapsed])
+
+  React.useEffect(() => {
+    const open = () => {
+      setTab('skill-library')
+      setSidebarCollapsed(false)
+    }
+    window.addEventListener('nomi-open-skill-library', open)
+    return () => window.removeEventListener('nomi-open-skill-library', open)
   }, [setSidebarCollapsed])
 
   const railItems = React.useMemo(

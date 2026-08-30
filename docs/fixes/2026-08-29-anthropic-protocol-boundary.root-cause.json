@@ -1,0 +1,118 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-29-anthropic-protocol-boundary",
+  "problem_type": "provider protocol mismatch",
+  "symptom": "Anthropic connections could pass onboarding but fail in the canvas with HTTP 404; built-in model verification used the OpenAI chat contract and could time out.",
+  "direct_cause": "The runtime passed a host-root URL to an SDK that appends /messages, and the verification draft selected /v1/chat/completions for every text provider regardless of providerKind.",
+  "class_root": "Provider protocol metadata was not the single source for endpoint and request shape at every consumer boundary.",
+  "affected_population": [
+    "Users connecting Anthropic or Claude-compatible providers",
+    "Maintainers adding another non-OpenAI text protocol"
+  ],
+  "scope_paths": [
+    "electron/ai/buildAiSdkModel.ts",
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts"
+  ],
+  "entry_points": [
+    "buildAiSdkModel runtime model construction",
+    "buildOpenAiCompatibleDraft provider verification construction"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://platform.claude.com/docs/en/api/messages",
+      "checked_at": "2026-08-29",
+      "purpose": "Confirm Anthropic Messages uses POST /v1/messages, x-api-key, anthropic-version, and required max_tokens."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/vercel/ai",
+      "checked_at": "2026-08-29",
+      "purpose": "Confirm the Anthropic SDK base URL is versioned and appends /messages."
+    }
+  ],
+  "invariants": [
+    "Anthropic runtime requests use a versioned base and resolve to /v1/messages.",
+    "Provider verification selects endpoint, authentication headers, and body shape from providerKind.",
+    "OpenAI-compatible verification remains on /v1/chat/completions with bearer authentication."
+  ],
+  "regression_tests": [
+    "electron/ai/buildAiSdkModel.test.ts",
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts"
+  ],
+  "generality_proof": "Runtime model construction and provider verification are separate consumers of the same provider metadata; both now derive the protocol boundary from providerKind instead of carrying an implicit OpenAI assumption.",
+  "shared_boundaries": [
+    {
+      "path": "electron/ai/buildAiSdkModel.ts",
+      "symbol": "buildAiSdkModel",
+      "responsibility": "Normalize provider-specific runtime base URLs before constructing the language model."
+    },
+    {
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "modesForKind",
+      "responsibility": "Create provider-specific verification operations, including endpoint, auth headers, and body shape."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/ai/buildAiSdkModel.ts",
+      "entry_point": "Anthropic runtime model construction",
+      "disposition": "enforced",
+      "evidence": "Anthropic bases are normalized to a versioned SDK base before every runtime request."
+    },
+    {
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "entry_point": "Anthropic model verification draft",
+      "disposition": "enforced",
+      "evidence": "The verification operation is selected from providerKind and uses the Messages API contract."
+    },
+    {
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "entry_point": "OpenAI-compatible model verification draft",
+      "disposition": "enforced",
+      "evidence": "The default branch retains the OpenAI-compatible chat operation and bearer auth."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every provider runtime and verification path can repeat this mismatch when a protocol is introduced or its URL convention changes.",
+    "same_class_scan": [
+      "Scanned all AiSdkProviderKind branches in runtime model construction.",
+      "Scanned provider adapter draft construction and auth-header derivation.",
+      "Added positive Anthropic and negative OpenAI contract tests at both affected boundaries."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+    "invariant": "A provider verification operation never sends a request shape belonging to a different provider protocol.",
+    "failure_mode": "The provider-specific operation is selected at the shared draft boundary and contract tests fail if endpoint, auth, or body shape drifts.",
+    "exception_policy": "none",
+    "strategy": "Centralize Anthropic base normalization and derive verification operations from providerKind, with focused contract tests for endpoint, auth, and body shape.",
+    "artifacts": [
+      "electron/ai/buildAiSdkModel.ts",
+      "electron/ai/buildAiSdkModel.test.ts",
+      "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/ai/buildAiSdkModel.test.ts",
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The affected runtime and verification boundaries remain the supported implementations; no legacy implementation is retained."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "This change uses the existing provider SDKs and does not add or retain an aging dependency.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted catalog data changes. Existing host-root Anthropic URLs are normalized when read; explicitly versioned URLs remain idempotent.",
+  "residual_risks": [
+    "A valid endpoint can still return 404 for a model unavailable to the configured API key.",
+    "End-to-end verification against a live Anthropic key is not part of CI."
+  ]
+}

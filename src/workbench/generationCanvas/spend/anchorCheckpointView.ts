@@ -1,3 +1,4 @@
+import i18n from '../../../i18n'
 import { buildNomiLocalAssetUrl } from '../../../media/nomiLocalAssetUrl'
 import type {
   ProductionArtifact,
@@ -63,7 +64,8 @@ function anchorName(shot: ProductionGenerationShot | undefined): string {
   // 先在句读处断第一段（不含中点·，中点是角色分隔符另处理）。
   const firstSegment = raw.split(/[\n。，,、:：]/)[0]?.trim() ?? raw
   // 剥掉角色前缀：「男生 · 阿澈」→「阿澈」（roleLabel 另出，名称不重复带角色词）。
-  const role = anchorRoleLabel(shot)
+  // 用**源串**剥,不用显示名——显示名会随界面语言变,拿英文名去剥中文 prompt 一个字也剥不掉。
+  const role = anchorRolePrefix(shot)
   let name = firstSegment
   if (role) {
     const prefix = new RegExp(`^${role}\\s*[·・]\\s*`, 'u')
@@ -218,19 +220,43 @@ export function buildAnchorCheckpointCard(
   }
 }
 
-/** 角色前缀：优先 shot.candidate.parameters.roleLabel（driver 若填了），否则从 prompt 里嗅「男生/女生/场景/道具」。
- *  嗅不到返回空（卡上只显名称，不硬塞）。零内部词。 */
+type AnchorRoleKey = 'female' | 'male' | 'scene' | 'prop'
+
+/** prompt 里可能出现的角色词 → 规范 key。needle 原词要留着:剥前缀得按**命中的那个词**剥。 */
+const ANCHOR_ROLE_NEEDLES: ReadonlyArray<readonly [string, AnchorRoleKey]> = [
+  ['女生', 'female'], ['女孩', 'female'], ['女主', 'female'],
+  ['男生', 'male'], ['男孩', 'male'], ['男主', 'male'],
+  ['场景', 'scene'], ['背景', 'scene'],
+  ['道具', 'prop'],
+]
+
+/** 嗅 prompt 得到角色:返回命中的原词(供剥前缀)与规范 key(供取显示名)。 */
+function anchorRoleMatch(
+  shot: ProductionGenerationShot | undefined,
+): { needle: string; key: AnchorRoleKey } | undefined {
+  const prompt = shot?.candidate?.prompt ?? ''
+  for (const [needle, key] of ANCHOR_ROLE_NEEDLES) {
+    if (prompt.includes(needle)) return { needle, key }
+  }
+  return undefined
+}
+
+/** 要从名称开头剥掉的角色前缀:driver 填了就用它的原话,否则用 prompt 里命中的那个词。
+ *  用「命中的原词」而不是规范词——「女孩 · 阿澈」得剥「女孩」,按规范词「女生」剥会一个字都剥不掉。 */
+function anchorRolePrefix(shot: ProductionGenerationShot | undefined): string | undefined {
+  const explicit = shot?.candidate?.parameters?.['roleLabel']
+  if (typeof explicit === 'string' && explicit.trim()) return explicit.trim()
+  return anchorRoleMatch(shot)?.needle
+}
+
+/** 卡上显示的角色前缀:driver 填了就显它的原话(那是用户/driver 自己的词),否则显本地化的规范名。
+ *  嗅不到返回空（卡上只显名称，不硬塞）。 */
 function anchorRoleLabel(shot: ProductionGenerationShot | undefined): string | undefined {
   const explicit = shot?.candidate?.parameters?.['roleLabel']
   if (typeof explicit === 'string' && explicit.trim()) return explicit.trim()
-  const prompt = shot?.candidate?.prompt ?? ''
-  for (const [needle, label] of [
-    ['女生', '女生'], ['女孩', '女生'], ['女主', '女生'],
-    ['男生', '男生'], ['男孩', '男生'], ['男主', '男生'],
-    ['场景', '场景'], ['背景', '场景'],
-    ['道具', '道具'],
-  ] as const) {
-    if (prompt.includes(needle)) return label
-  }
-  return undefined
+  const match = anchorRoleMatch(shot)
+  if (!match) return undefined
+  return i18n.t(
+    `generationCommon.production.anchorRole.${match.key}` as 'generationCommon.production.anchorRole.female',
+  )
 }

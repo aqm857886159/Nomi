@@ -41,10 +41,11 @@
 | [2026-08-25-comfyui-workflow-matrix.md](2026-08-25-comfyui-workflow-matrix.md) | ComfyUI 通用工作流矩阵验证 Implementation Plan | — |
 | [2026-08-25-foundation-replacement-plan.md](2026-08-25-foundation-replacement-plan.md) | Foundation Replacement and Isolation Plan | — |
 | [2026-08-25-video-node-audio-playback.md](2026-08-25-video-node-audio-playback.md) | Video Node Audio Playback Implementation Plan | — |
-| [2026-08-27-canvas-read-capability-spine.md](2026-08-27-canvas-read-capability-spine.md) | `canvas.read` 单一能力脊梁实施计划 | 🚧 进行中 |
 | [2026-08-27-electron-install-identity.md](2026-08-27-electron-install-identity.md) | Electron 安装身份执行计划 | ✅ 已交付 |
 | [2026-08-27-marketing-github-hero.md](2026-08-27-marketing-github-hero.md) | Marketing GitHub Hero Implementation Plan | — |
 | [2026-08-27-quality-gate-single-run.md](2026-08-27-quality-gate-single-run.md) | Quality Gate Single-Run Implementation Plan | ✅ 已交付 |
 | [2026-08-27-release-media-pack-skill.md](2026-08-27-release-media-pack-skill.md) | Nomi Release Media Pack Skill Implementation Plan | 🚧 进行中 |
-| [2026-08-28-project-agent-host-handoff.md](2026-08-28-project-agent-host-handoff.md) | Nomi 项目级常驻 Agent 完整交接（2026-08-29 修订） | 🚧 进行中 |
+| [2026-08-28-conversational-model-integration.md](2026-08-28-conversational-model-integration.md) | Conversational Model Integration Implementation Plan | 🚧 进行中 |
 | [2026-08-28-quality-gate-parallel-orchestration.md](2026-08-28-quality-gate-parallel-orchestration.md) | Quality Gate Parallel Orchestration Implementation Plan | ✅ 已交付 |
+| [2026-08-27-canvas-read-capability-spine.md](2026-08-27-canvas-read-capability-spine.md) | `canvas.read` 单一能力脊梁实施计划 | 🚧 进行中 |
+| [2026-08-28-project-agent-host-handoff.md](2026-08-28-project-agent-host-handoff.md) | Nomi 项目级常驻 Agent 完整交接（历史文件） | ⛔ 历史 |

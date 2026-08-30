@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { buildStepDetailLabels, countCreatedNodesByCategory, summarizeToolCall, describeToolCallDetail } from './toolCallSummary'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import i18n, { DEFAULT_LOCALE } from '../../../i18n'
 
 // id→标题翻译读 store 节点(A6:杀掉漏给用户的 n1/shot-1 这类机器 id)。测试注入几个有标题的节点。
 function seedNodes(nodes: Array<{ id: string; title: string }>): void {
@@ -28,11 +28,6 @@ describe('summarizeToolCall — 时间线步骤标题(人话,无 toolName 原文
 
   it('未知工具退回工具名(不崩)', () => {
     expect(summarizeToolCall('mystery', {})).toBe('mystery')
-  })
-
-  it('does not own an unreachable summary branch for silent canvas reads', () => {
-    const source = readFileSync(new URL('./toolCallSummary.ts', import.meta.url), 'utf8')
-    expect(source).not.toMatch(/toolName === ['"]read_canvas_state['"]/)
   })
 })
 
@@ -126,5 +121,52 @@ describe('countCreatedNodesByCategory — 落点分组(审计 A1)', () => {
     expect(byId.get('cast')).toMatchObject({ label: '角色', count: 2 })
     expect(byId.get('scene')).toMatchObject({ label: '场景', count: 1 })
     expect(byId.get('shots')).toMatchObject({ label: '分镜', count: 2 })
+  })
+})
+
+// 英文界面回归闸(R15):这套摘要曾整份硬编码中文、直接渲染在 AI 时间线上,英文界面照样出中文。
+// 断言两件事——① 切 en 后一个汉字都不许剩;② 单复数是真英语("Create 1 node" 不是 "Create 1 nodes")。
+describe('summarizeToolCall — English locale', () => {
+  const HAN = /[\u4e00-\u9fff]/
+
+  beforeAll(async () => {
+    await i18n.changeLanguage('en')
+  })
+  afterAll(async () => {
+    await i18n.changeLanguage(DEFAULT_LOCALE)
+  })
+
+  it('英文界面下不残留任何汉字', () => {
+    seedNodes([{ id: 'n1', title: 'Shot 1' }])
+    const lines = [
+      summarizeToolCall('create_canvas_nodes', { nodes: [1, 2, 3], summary: 'three seaside shots' }),
+      summarizeToolCall('connect_canvas_edges', { edges: [1, 2] }),
+      summarizeToolCall('set_node_prompt', { nodeId: 'n1' }),
+      summarizeToolCall('delete_canvas_nodes', { nodeIds: ['n1'] }),
+      summarizeToolCall('run_generation_batch', { nodeIds: ['n1'] }),
+      summarizeToolCall('read_canvas_state', {}),
+      summarizeToolCall('arrange_storyboard_to_timeline', { nodeIds: ['n1'] }),
+      summarizeToolCall('arrange_storyboard_to_timeline', {}),
+      summarizeToolCall('tidy_canvas', { categoryId: 'cast' }),
+      summarizeToolCall('tidy_canvas', {}),
+      summarizeToolCall('create_staging_reference', { characters: [1, 2], camera: { shot: 'wide' } }),
+      summarizeToolCall('create_camera_move', { move: 'push_in', speed: 'slow', shot: 'wide' }),
+      ...buildStepDetailLabels('connect_canvas_edges', { edges: [{ mode: 'first_frame' }, { mode: 'style_ref' }] }),
+      ...buildStepDetailLabels('create_canvas_nodes', { nodes: [{ kind: 'image', title: 'Hero look' }] }),
+      describeToolCallDetail('delete_canvas_nodes', { nodeIds: ['n1'] }),
+    ]
+    for (const line of lines) expect(line, line).not.toMatch(HAN)
+  })
+
+  it('单复数走 i18next 复数式,不出 "1 nodes"', () => {
+    expect(summarizeToolCall('create_canvas_nodes', { nodes: [1] })).toBe('Create 1 node')
+    expect(summarizeToolCall('create_canvas_nodes', { nodes: [1, 2] })).toBe('Create 2 nodes')
+    expect(summarizeToolCall('connect_canvas_edges', { edges: [1] })).toBe('Connect 1 reference link')
+    expect(summarizeToolCall('connect_canvas_edges', { edges: [1, 2] })).toBe('Connect 2 reference links')
+  })
+
+  it('内置分类名与连接语义复用既有译名,不另起第二份', () => {
+    expect(summarizeToolCall('tidy_canvas', { categoryId: 'cast' })).toContain('Characters')
+    expect(buildStepDetailLabels('connect_canvas_edges', { edges: [{ mode: 'first_frame' }] })[0]).toContain('First frame')
   })
 })

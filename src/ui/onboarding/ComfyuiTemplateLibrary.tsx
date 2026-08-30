@@ -7,7 +7,8 @@
  *
  * 关键：模板不是我们维护的，是读他 ComfyUI 的（他装了什么就看到什么、随 ComfyUI 更新、我们零维护）。
  * 官方模板是界面格式 → 取详情时经 comfyuiGraphConvert 借 ComfyUI 自己的前端转 API（T1）。
- * 缺件闸/启用链全部复用既有（reconcile + importComfyWorkflow），不复制逻辑（P1）。
+ * 缺件闸复用既有 reconcile；提交统一进入 integration session handoff，
+ * 不直接写入 Catalog 或绕过 canonical certification。
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -35,12 +36,13 @@ type Props = {
   /** 已启用的模型名（判重复）。 */
   modelLabels: string[]
   onImported: () => void
+  onVerificationRequested?: () => void
 }
 
 /** 一次展示多少条（几百条全渲染会卡；用户靠分类+搜索收窄，不需要无限滚动）。 */
 const PAGE_SIZE = 12
 
-export function ComfyuiTemplateLibrary({ vendorKey, modelLabels, onImported }: Props): JSX.Element | null {
+export function ComfyuiTemplateLibrary({ vendorKey, modelLabels, onImported, onVerificationRequested }: Props): JSX.Element | null {
   const { t } = useTranslation()
   const catalog = getDesktopBridge()?.modelCatalog
   const [list, setList] = React.useState<TemplateEntry[] | null | 'loading'>('loading')
@@ -94,18 +96,21 @@ export function ComfyuiTemplateLibrary({ vendorKey, modelLabels, onImported }: P
   if (!catalog) return null
   if (list === null) return null // 这台 ComfyUI 没有模板包/没连上 → 整块不出现（不占位、不报错）
 
-  const enable = (entry: TemplateEntry, d: Detail) => {
-    if (!catalog.importComfyWorkflow) return
+  const enable = async (entry: TemplateEntry, d: Detail) => {
+    const prepare = getDesktopBridge()?.onboarding?.integrationSessionPrepareComfy
+    if (!prepare) return
     setBusy(true)
     try {
       // 官方模板的绑定交给既有分析器推导（它已能认 86% 的提示词/90% 的输出）。
       const analyzed = catalog.analyzeComfyWorkflow?.(d.apiText)
       if (!analyzed || !analyzed.ok) { toast(t('onboardingProviders.comfyTemplates.analyzeFailed'), 'error'); return }
       const binding = (analyzed.analysis as { suggested?: unknown }).suggested
-      const r = catalog.importComfyWorkflow({ text: d.apiText, binding, labelZh: entry.title, enumOptions: d.enumOptions, vendorKey, uiWorkflowText: d.uiWorkflowText })
-      if (!r.ok) { toast(r.error, 'error'); return }
-      toast(t('onboardingProviders.comfyTemplates.enabled', { name: entry.title }), 'success')
+      await prepare({ vendorKey, name: entry.title, workflow: d.apiText, binding, enumOptions: d.enumOptions, uiWorkflow: d.uiWorkflowText })
+      toast(t('onboardingProviders.comfyWorkflow.awaitingVerification', { name: entry.title }), 'info')
       onImported()
+      onVerificationRequested?.()
+    } catch (error) {
+      toast(error instanceof Error ? error.message : String(error), 'error')
     } finally { setBusy(false) }
   }
 

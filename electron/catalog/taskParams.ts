@@ -139,7 +139,11 @@ export function taskTemplateParams(request: TaskParamsInput, selected?: Paramete
   const jsonEditInput = jsonImageEditInput(refInput.reference_images);
   return {
     ...extras,
-    size,
+    // An unset size must stay undefined so exact template fields are omitted.
+    // Sending the empty alias (the persisted value for the gpt-image-2
+    // `Auto` aspect-ratio choice) makes OpenAI-compatible endpoints reject the
+    // request with `Invalid size ""` instead of applying their default.
+    size: size || undefined,
     // n 强制数字（OpenAI images 要 int；UI number 参数可能存成字符串 "1"，整 token 会原样发 → 严格端点 400）。
     n: Number(extras.n) || 1,
     width: request.width,
@@ -229,8 +233,12 @@ function declaredComfyReferences(extras: JsonRecord, selected?: ParameterReferen
   if (!contract) return []
   return contract.slots.flatMap((slot) => {
     const value = extras[slot.key]
+    // A native ComfyUI slot is first a data/nomi-local URL and then, after
+    // the mandatory /upload/image step, an input-directory filename. The
+    // exact contract is the authority for this latter non-URL form; generic
+    // fields still require URL-shaped values and cannot bypass the guard.
     const url = typeof value === 'string' ? value.trim() : ''
-    if (!url || !REF_URL_RE.test(url)) return []
+    if (!url || url.includes('\0')) return []
     return [{ key: slot.key, family: slot.mediaKind === 'video' ? 'video' as const : 'image' as const, url }]
   })
 }

@@ -1,0 +1,56 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-29-react-flow-pan-zoom-takeover",
+  "problem_type": "React Flow mid-pan wheel takeover double translation",
+  "symptom": "After holding the primary mouse button to pan, zooming with the wheel, and moving the pointer another 10 pixels, the canvas translated 20 pixels instead of continuing from the zoomed viewport by exactly 10 pixels.",
+  "direct_cause": "The Nomi host synchronously added the post-wheel pointer delta while React Flow's native pan listener remained active and added the same delta again later in the same event.",
+  "class_root": "The post-wheel takeover had two concurrent viewport writers and no reconciliation boundary that assigned a single final viewport to each pointer-move frame.",
+  "affected_population": [
+    "Canvas users who zoom with the wheel while a primary-button pan is still held",
+    "Users on platforms where React Flow continues its native pan listener after wheel zoom",
+    "Users on platforms where the native listener instead keeps a stale drag baseline and can jump back"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+    "src/workbench/generationCanvas/reactFlow/panZoomTakeoverReconciler.ts"
+  ],
+  "entry_points": [
+    "Blank-canvas primary-button pan followed by bare-wheel zoom",
+    "Blank-canvas primary-button pan followed by modified-wheel or trackpad zoom",
+    "One or more pointer moves before the next animation frame after a mid-pan zoom"
+  ],
+  "internal_only_reason": "The required behavior is Nomi's existing 10-pixel pan/zoom-mix interaction contract. The failure comes from the ordering of Nomi's React capture handler and the installed React Flow listener in the real Electron build; external documentation cannot decide Nomi's final viewport ownership or regression threshold.",
+  "invariants": [
+    "Every post-wheel pointer delta contributes exactly once to the final viewport.",
+    "Nomi computes one target viewport from the last reconciled target and queues at most one animation-frame write.",
+    "The queued write runs after native event handling and converges both native-continuation and stale-baseline outcomes to the same target.",
+    "Pointer end flushes any queued target before persisting the category viewport.",
+    "The real Electron pan-zoom-mix journey proves a 10-pixel pointer move produces a 10-pixel viewport delta without changing the zoom."
+  ],
+  "regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/panZoomTakeoverReconciler.test.ts",
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+    "tests/ux/canvas-drag-pan-gestures.walk.mjs"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every primary-button pan that receives a wheel zoom before pointer-up can activate both viewport writers, so the displacement error recurs across gestures and platforms with the same event ordering.",
+    "same_class_scan": [
+      "Scanned all flow.setViewport calls in React Flow pointer and viewport ownership code for competing per-frame writers.",
+      "Exercised native continuation, stale native baseline, multiple queued deltas, pointer-up flush, and unmount cancellation in the reconciler tests.",
+      "Ran the real pan-zoom-mix Electron journey and verified one ten-pixel pointer delta produces one ten-pixel viewport translation."
+    ]
+  },
+  "prevention": {
+    "strategy": "Assign one queued target viewport to each post-wheel animation frame and flush that target before persistence at pointer end.",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/panZoomTakeoverReconciler.ts",
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts"
+    ]
+  },
+  "migration": "No project or viewport schema migration is required. Pending takeover targets exist only for the active pointer gesture and are flushed or cancelled before teardown.",
+  "residual_risks": [
+    "A browser that applies an additional native pan after requestAnimationFrame would require disabling the native listener explicitly; the supported Electron build applies native movement during the pointer event and is covered by the real journey.",
+    "Touch pinch gestures do not enter the primary-mouse takeover path and retain React Flow ownership."
+  ]
+}

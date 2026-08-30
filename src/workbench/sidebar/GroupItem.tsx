@@ -9,9 +9,7 @@ import {
   classifySidebarDrag,
 } from './groupDragDisclosure'
 import NodeItem from './NodeItem'
-
-// 用户子组未指定颜色时的默认色点底色（暖灰半透明，与品牌一致）。
-const DEFAULT_GROUP_TINT = 'rgba(160,132,90,0.18)'
+import { GROUP_VISUAL_CLASS } from '../generationCanvas/components/groupVisualContract'
 
 type Props = {
   group: NodeGroup
@@ -115,7 +113,7 @@ export default function GroupItem({
     <div
       className={cn(
         'rounded-nomi-sm border border-nomi-line/70 bg-nomi-paper/35',
-        dragOver && 'ring-2 ring-nomi-accent/60',
+        dragOver && 'ring-2 ring-nomi-ink-30',
       )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -127,8 +125,7 @@ export default function GroupItem({
             {expanded ? '▾' : '▸'}
           </span>
           <span
-            className="h-2.5 w-2.5 rounded-full border border-nomi-line shrink-0"
-            style={{ backgroundColor: group.color || DEFAULT_GROUP_TINT }}
+            className={cn('size-2.5 shrink-0 rounded-full border', GROUP_VISUAL_CLASS.marker)}
             aria-hidden
           />
           <input
@@ -152,7 +149,7 @@ export default function GroupItem({
                 onCommitName?.(group.id, event.currentTarget.value)
               }
             }}
-            className="min-w-0 flex-1 bg-transparent border-b border-nomi-accent/40 text-micro text-nomi-ink outline-none"
+            className="min-w-0 flex-1 border-b border-nomi-ink-30 bg-transparent text-micro text-nomi-ink outline-none focus:border-nomi-ink-60"
           />
         </div>
       ) : (
@@ -173,8 +170,7 @@ export default function GroupItem({
             {expanded ? '▾' : '▸'}
           </span>
           <span
-            className="h-2.5 w-2.5 rounded-full border border-nomi-line shrink-0"
-            style={{ backgroundColor: group.color || DEFAULT_GROUP_TINT }}
+            className={cn('size-2.5 shrink-0 rounded-full border', GROUP_VISUAL_CLASS.marker)}
             aria-hidden
           />
           <span className="min-w-0 flex-1 truncate">{group.name}</span>

@@ -4,10 +4,11 @@ import { readCatalog } from "../catalog/catalogStore";
 import { decryptApiKeyRecord } from "../catalog/secrets";
 import type { BillingModelKind } from "../catalog/types";
 import type { ProviderAdapterRun } from "./types";
-import type { ProviderAdapterService } from "./service";
+import type { ConnectionCertificationService } from "../integrationCertification/service";
 import { redactAdapterSecrets } from "./redaction";
 
 type LiveConfig = {
+  invocationId: string;
   sourceVendorKey: string;
   vendorName: string;
   baseUrl: string;
@@ -37,7 +38,7 @@ export function liveHarnessEnabled(env: Record<string, string | undefined>): boo
     && Boolean(env.NOMI_PROVIDER_ADAPTER_LIVE_OUTPUT);
 }
 
-export function liveAdapterSummary(run: ProviderAdapterRun): Record<string, unknown> {
+export function liveAdapterSummary(run: Omit<ProviderAdapterRun, "connectionFingerprint">): Record<string, unknown> {
   return {
     id: run.id,
     vendorKey: run.vendorKey,
@@ -56,13 +57,21 @@ export function liveAdapterSummary(run: ProviderAdapterRun): Record<string, unkn
 
 function parseLiveConfig(raw: string): LiveConfig {
   const parsed = JSON.parse(raw) as LiveConfig;
-  if (!parsed.sourceVendorKey || !/^https?:\/\//i.test(parsed.baseUrl) || !Array.isArray(parsed.models) || parsed.models.length === 0) {
+  if (!/^[A-Za-z0-9_.:-]{1,128}$/.test(parsed.invocationId) || !parsed.sourceVendorKey || !/^https?:\/\//i.test(parsed.baseUrl) || !Array.isArray(parsed.models) || parsed.models.length === 0) {
     throw new Error("Invalid live provider-adapter config");
   }
   return parsed;
 }
 
-export async function runLiveProviderAdapterHarnessFromEnv(service: ProviderAdapterService): Promise<void> {
+export function liveHarnessIdempotencyKey(input: {
+  invocationId: string;
+  sourceVendorKey: string;
+  models: Array<{ modelKey: string }>;
+}): string {
+  return `live-harness:${input.invocationId}:${input.sourceVendorKey}:${input.models.map((model) => model.modelKey).sort().join(",")}`;
+}
+
+export async function runLiveProviderAdapterHarnessFromEnv(service: ConnectionCertificationService): Promise<void> {
   if (!liveHarnessEnabled(process.env)) return;
   const rawConfig = process.env.NOMI_PROVIDER_ADAPTER_LIVE_CONFIG;
   const outputPath = process.env.NOMI_PROVIDER_ADAPTER_LIVE_OUTPUT;
@@ -74,19 +83,23 @@ export async function runLiveProviderAdapterHarnessFromEnv(service: ProviderAdap
     const catalog = readCatalog();
     const sourceKey = decryptApiKeyRecord(catalog.apiKeysByVendor[config.sourceVendorKey]);
     if (!sourceKey) throw new Error("The configured source vendor has no usable encrypted API key");
-    const run = service.start({
-      vendorName: config.vendorName,
-      baseUrl: config.baseUrl,
-      apiKey: sourceKey,
-      authType: config.providerKind === "anthropic" ? "x-api-key" : "bearer",
-      providerKind: config.providerKind || "openai-compatible",
-      models: config.models,
+    const run = await service.startHttp({
+      entryPoint: "programmatic-session",
+      idempotencyKey: liveHarnessIdempotencyKey(config),
+      connection: {
+        vendorName: config.vendorName,
+        baseUrl: config.baseUrl,
+        apiKey: sourceKey,
+        authType: config.providerKind === "anthropic" ? "x-api-key" : "bearer",
+        providerKind: config.providerKind || "openai-compatible",
+        models: config.models,
+      },
     });
     const deadline = Date.now() + (config.maxMs ?? 15 * 60_000);
     let current = run;
     while (!isLiveAdapterTerminalStage(current.stage) && Date.now() < deadline) {
       await new Promise<void>((resolve) => setTimeout(resolve, 1_000));
-      current = service.getRun(run.id) || current;
+      current = service.get(run.id) || current;
     }
     if (!isLiveAdapterTerminalStage(current.stage)) throw new Error("Live provider-adapter verification timed out");
     writeJsonFileAtomic(outputPath, { ok: true, run: liveAdapterSummary(current) });

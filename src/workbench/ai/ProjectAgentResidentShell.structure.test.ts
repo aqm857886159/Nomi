@@ -18,9 +18,11 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('editProjectAgentQueueItem')
     expect(resident).toContain('stopProjectAgentTurn')
     expect(resident).toContain('pending.call.confirm')
+    expect(resident).toContain('clearResidentPendingTools(turnId)')
+    expect(resident).toContain('residentResolvingTools.has(key)')
     expect(resident).toContain("t('agentResident.task'")
     expect(resident).toContain("t('agentResident.artifact'")
-    expect(resident).toContain("t('agentResident.retry'")
+    expect(resident).toContain("t('agentResident.changeModelRetry'")
   })
 
   it('mounts the same resident projection at each surface slot', () => {
@@ -30,5 +32,34 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(shell).toContain('agentDockRefs.preview')
     expect(shell).not.toContain('CanvasAssistantEntry')
     expect(shell).not.toContain('generationAi')
+  })
+
+  it('keeps PR194 controls separate and routes actions through the Host boundary', () => {
+    for (const control of [
+      'data-agent-attachment-trigger',
+      'data-agent-mention-trigger',
+      'data-agent-skill-trigger',
+      'data-agent-prompt-trigger',
+      'data-agent-mode-trigger',
+      'data-agent-model-trigger',
+      'data-agent-send',
+      'data-agent-context',
+      'data-agent-queue-item',
+    ]) expect(resident).toContain(control)
+    expect(resident).toContain('editProjectAgentQueueItem')
+    expect(resident).toContain('stopProjectAgentTurn')
+    expect(resident).toContain('pending.call.confirm')
+    expect(resident).toContain('setAssistantModelPref')
+    expect(resident).toContain('projectAgentReferences')
+    for (const icon of ['IconPaperclip', 'IconAt', 'IconSparkles', 'IconNotes', 'IconAdjustmentsHorizontal', 'IconStack2', 'IconArrowUp', 'IconChevronLeft']) {
+      expect(resident).toContain(icon)
+    }
+    expect(resident).toContain('title={t(\'agentResident.attachTitle\')}')
+    expect(resident).toContain('aria-haspopup="menu"')
+    expect(resident).toContain('data-agent-resident-collapsed="true"')
+    expect(resident).toContain('rounded-pill border border-nomi-line')
+    expect(resident).not.toContain('CreationPromptPicker')
+    expect(resident).not.toContain('AssistantModelPicker')
+    expect(resident).not.toContain('<select')
   })
 })

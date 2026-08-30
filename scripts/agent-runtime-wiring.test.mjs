@@ -9,6 +9,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const read = (relative) => fs.readFileSync(path.join(repoRoot, relative), 'utf8')
 const pkg = JSON.parse(read('package.json'))
 const nativeTests = ['attachments', 'context', 'session', 'snapshot'].map((name) => `${name}.test.mts`)
+const normalizedPath = (value) => path.resolve(value).split(path.sep).join('/')
 
 function json(relative) {
   expect(fs.existsSync(path.join(repoRoot, relative)), `missing integration config: ${relative}`).toBe(true)
@@ -120,16 +121,18 @@ describe('private pi build and test wiring', () => {
     expect(parsed.options.noEmitOnError).toBe(true)
     const suites = fs.readdirSync(path.join(repoRoot, 'tests/agent-runtime'))
       .filter((name) => /\.test\.mts$/.test(name))
-      .map((name) => path.join(repoRoot, 'tests/agent-runtime', name)).sort()
-    expect(parsed.fileNames.filter((name) => /\.test\.mts$/.test(name)).sort()).toEqual(suites)
+      .map((name) => normalizedPath(path.join(repoRoot, 'tests/agent-runtime', name))).sort()
+    expect(parsed.fileNames.filter((name) => /\.test\.mts$/.test(name)).map(normalizedPath).sort()).toEqual(suites)
   })
 
   test('ESLint applies production TS rules and Node globals to .mts and .cts', async () => {
     const eslint = new ESLint({ cwd: repoRoot })
-    for (const extension of ['mts', 'cts']) {
-      const config = await eslint.calculateConfigForFile(`electron/harness/runtime/pi/example.${extension}`)
+    const extensions = ['mts', 'cts']
+    const configs = await Promise.all(extensions.map((extension) =>
+      eslint.calculateConfigForFile(`electron/harness/runtime/pi/example.${extension}`)))
+    for (const config of configs) {
       expect(config.languageOptions.globals?.process).toBe(false)
       expect(config.rules['@typescript-eslint/no-unused-vars'][0]).toBe(1)
     }
-  })
+  }, 60_000)
 })

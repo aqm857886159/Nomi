@@ -73,8 +73,8 @@
     },
     {
       "site": "electron/catalog/secrets.ts::type:ApiKeyDecryptStatus/type-union",
-      "members": ["locked", "missing", "ok"],
-      "reason": "ApiKeyDecryptStatus 是首次真实执行时的凭据可解密性合同：missing 表示没有可用记录，locked 表示 safeStorage 密文存在但宿主无法解密，ok 表示取得可用明文；它会触碰解密能力，与零解密的 textBrain metadata readiness 正交。"
+      "members": ["locked", "missing", "needs_resave", "ok"],
+      "reason": "ApiKeyDecryptStatus 是首次真实执行时的凭据可解密性合同：missing 表示没有可用记录，needs_resave 表示 legacy plaintext 仅可用于迁移提示且不可执行，locked 表示 safeStorage 密文存在但宿主无法解密，ok 表示取得可用明文；它会触碰解密能力，与零解密的 textBrain metadata readiness 正交。"
     },
     {
       "site": "electron/export/exportTypes.ts::type:ExportJobStatus/type-union",
@@ -123,6 +123,31 @@
       "reason": "Pi runtime 端口/快照协议的结果词表（aborted / error / length / stop / toolUse），描述 turn、tool 或 stop reason 的协议语义。"
     },
     {
+      "site": "electron/integrationCertification/operationLedger.ts::type:OperationLedgerBeginResult/property:status/type-union",
+      "members": ["created", "duplicate"],
+      "reason": "OperationLedgerBeginResult.status 是认证启动在跨进程锁内完成幂等占位后的唯一权威结果：created 表示本次调用取得 canonical run 和 create lease，duplicate 表示 idempotency hash 已绑定且调用方必须直接返回既有 canonical run；它决定是否允许 stage、schedule 和远端 create，不能复用展示态或提交状态。"
+    },
+    {
+      "site": "electron/integrationCertification/types.ts::variable:CERTIFICATION_START_TRANSACTION_STATES/as-const",
+      "members": ["catalog_staged", "committed", "intent", "rolled_back", "run_persisted"],
+      "reason": "CERTIFICATION_START_TRANSACTION_STATES 是认证启动跨文件事务的耐久状态机：intent 先占 canonical id，run_persisted 记录本地 run，catalog_staged 记录现有 Catalog writer 已完成候选 staging，committed 才允许调度，rolled_back 保留 canonical tombstone 并要求重新认证；它用于崩溃恢复而非远端提交状态。"
+    },
+    {
+      "site": "electron/integrationCertification/types.ts::variable:CERTIFICATION_SUBMISSION_STATES/as-const",
+      "members": ["idle", "settled", "submitted", "submitting", "unknown"],
+      "reason": "CERTIFICATION_SUBMISSION_STATES 是付费认证单次远端提交的耐久状态机：idle 尚未提交，submitting 已在 create 前落盘，submitted 已取得远端任务标识，unknown 表示受理结果不确定且只准 reconcile，settled 表示该提交已得到确定结果；它是本地防重复花费边界，不等同于 Provider Adapter 展示阶段。"
+    },
+    {
+      "site": "electron/integrationCertification/types.ts::variable:PROMOTION_JOURNAL_STATES/as-const",
+      "members": ["aborted", "catalog_committed", "catalog_committing", "committed", "prepared"],
+      "reason": "PROMOTION_JOURNAL_STATES 是认证发布 journal 的耐久协调状态：prepared 记录发布意图，catalog_committing 在外部 Catalog 写前 fail-closed，catalog_committed 记录 CAS 已提交，committed 允许终态 run 收敛，aborted 表示 lease/CAS 丢失；它必须区分可能已提交但响应丢失的窗口才能安全重放。"
+    },
+    {
+      "site": "electron/integrationCertification/types.ts::variable:PROMOTION_TERMINAL_STAGES/as-const",
+      "members": ["completed", "partial"],
+      "reason": "PROMOTION_TERMINAL_STAGES 是认证 journal 唯一允许发布的成功结果子集：completed 表示所选模式全部通过，partial 表示只发布明确验证通过的模式；失败、取消、超时或不确定提交都不能借 journal 进入可见 Catalog。"
+    },
+    {
       "site": "electron/productionRun/batchScheduleDerivation.ts::type:CheckpointStatus/type-union",
       "members": ["approved", "auto_release", "not_required", "pending_anchors", "rejected", "should_open", "waiting"],
       "reason": "ProductionRun 账本域的业务合同（approved / auto_release / not_required / pending_anchors / rejected / should_open / waiting），描述关卡、产物、阶段或整条生产运行，不等同于通用后台任务态。"
@@ -146,6 +171,11 @@
       "site": "electron/productionRun/productionRunRuntimeEnvelope.ts::type:RuntimeEnvelopeState/type-union",
       "members": ["materialized", "provider_accepted", "sealed", "submitted_unknown"],
       "reason": "RuntimeEnvelopeState 是供应商提交信封的耐久恢复状态：sealed、provider_accepted、submitted_unknown、materialized 对应请求冻结、远端受理、不确定提交与产物落盘；resume 输入必须从该导出 owner 复用成员。"
+    },
+    {
+      "site": "electron/shared/providerAdapterContract.ts::variable:ADAPTER_RUN_STAGES/as-const",
+      "members": ["cancelled", "compiling", "completed", "discovering_docs", "failed", "needs_ai", "partial", "queued", "reconciling", "repairing", "stale", "testing", "timed_out"],
+      "reason": "ADAPTER_RUN_STAGES 是 Provider Adapter 跨主进程、IPC 与 renderer 的中立运行阶段合同；reconciling 明确表示远端提交结果不确定且只能查询，所有 DTO、终态判断和持久化解析必须从该 owner 派生，禁止再维护平行字符串集合。"
     },
     {
       "site": "electron/productionRun/productionRunTypes.ts::type:ProductionArtifact/property:reviewStatus/type-union",
@@ -399,8 +429,8 @@
     },
     {
       "site": "src/workbench/api/modelCatalogApi.ts::type:ModelCatalogHealthIssueCode/type-union",
-      "members": ["catalog_empty", "model_mapping_missing", "vendor_api_key_missing", "vendor_disabled"],
-      "reason": "ModelCatalogHealthIssueCode 是模型目录健康 DTO 的结构化问题码，区分目录为空、供应商禁用、缺 API key 与缺模型映射；renderer 据此定位配置缺口，它不是连接探测或任务状态。"
+      "members": ["catalog_empty", "model_mapping_missing", "vendor_api_key_locked", "vendor_api_key_missing", "vendor_api_key_needs_resave", "vendor_disabled"],
+      "reason": "ModelCatalogHealthIssueCode 是模型目录健康 DTO 的结构化问题码，区分目录为空、供应商禁用、缺 API key、safeStorage 密文锁定、legacy plaintext 需重存与缺模型映射；renderer 据此定位安全且可执行的配置缺口，它不是连接探测或任务状态。"
     },
     {
       "site": "src/workbench/export/exportApi.ts::type:ExportTimelineToMp4Options/property:onProgress/parameter:progress/property:status/type-union",
@@ -517,6 +547,21 @@
       "site": "src/workbench/taskCenter/taskCenterProjection.ts::type:TaskCenterOutcome/type-union",
       "members": ["cancelled", "error", "success"],
       "reason": "TaskCenterOutcome 是 TaskCenter 终局徽标的合法 view model：success、error、cancelled 由各上游任务状态通过各自 mapper 产生，跨 generation 与 ProductionRun 共用展示语义但不反向成为业务真相源。"
+    },
+    {
+      "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_CREDENTIAL_STATUSES/as-const",
+      "members": ["missing", "needs_resave", "ready", "unavailable"],
+      "reason": "INTEGRATION_CREDENTIAL_STATUSES 是模型接入会话的凭据持久化状态唯一合同；主进程 session、trusted UI projection 和跨进程恢复都从该 tuple 派生，避免把安全存储失败误报成可用。"
+    },
+    {
+      "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_STAGES/as-const",
+      "members": ["cancelled", "certifying", "committing", "completed", "discovering", "draft", "failed", "needs_credential", "needs_input", "needs_selection", "needs_spend_confirmation", "partial"],
+      "reason": "INTEGRATION_STAGES 是模型/ComfyUI 接入会话生命周期唯一合同；MCP、trusted UI、持久化恢复和下一步映射都从同一 tuple 派生。"
+    },
+    {
+      "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_START_RECEIPT_STATUSES/as-const",
+      "members": ["consumed", "pending"],
+      "reason": "INTEGRATION_START_RECEIPT_STATUSES 是接入认证 receipt 的两阶段持久化窗口；pending 先落 intent、consumed 才允许执行，保证崩溃恢复不重复花费。"
     },
     {
       "site": "src/workbench/workbenchTypes.ts::variable:STORYBOARD_DESIGN_STATUSES/as-const",
@@ -734,24 +779,6 @@
       "reason": "AdapterModeState 模型模式验证合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODE_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
-      "site": "electron/providerAdapter/types.ts::type:AdapterRunStage/type-union",
-      "members": [
-        "cancelled",
-        "compiling",
-        "completed",
-        "discovering_docs",
-        "failed",
-        "needs_ai",
-        "partial",
-        "queued",
-        "repairing",
-        "stale",
-        "testing",
-        "timed_out"
-      ],
-      "reason": "AdapterRunStage 模型适配运行合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_RUN_STAGES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
-    },
-    {
       "site": "electron/providerAdapter/verifier.ts::function:verifyAdapterMode/variable:stage/type-union",
       "members": ["create", "localize_reference", "poll", "verify_asset"],
       "reason": "Exact duplicate of electron/providerAdapter/verifier.ts::type:AdapterVerificationResult/property:stage/type-union; converge by importing or deriving the canonical members instead of maintaining this local literal set."
@@ -848,24 +875,6 @@
       "site": "src/desktop/onboardingBridgeTypes.ts::type:DesktopAdapterModeResult/property:state/type-union",
       "members": ["failed", "queued", "repairing", "testing", "verified"],
       "reason": "AdapterModeState 模型模式验证合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODE_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
-    },
-    {
-      "site": "src/desktop/onboardingBridgeTypes.ts::type:DesktopProviderAdapterRun/property:stage/type-union",
-      "members": [
-        "cancelled",
-        "compiling",
-        "completed",
-        "discovering_docs",
-        "failed",
-        "needs_ai",
-        "partial",
-        "queued",
-        "repairing",
-        "stale",
-        "testing",
-        "timed_out"
-      ],
-      "reason": "AdapterRunStage 模型适配运行合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_RUN_STAGES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "src/desktop/onboardingBridgeTypes.ts::type:VendorHealthState/type-union",

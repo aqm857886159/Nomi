@@ -1,3 +1,5 @@
+import i18n from '../../../i18n'
+
 import {
   hostedAssetUrl,
   importWorkbenchLocalAssetFile,
@@ -133,7 +135,7 @@ function fileSignature(file: File): string {
 
 function deriveLabelFromFileName(fileName: string): string {
   const cleaned = String(fileName || '').replace(/\.[^.]+$/, '').trim()
-  return cleaned || '参考图片'
+  return cleaned || i18n.t('generationCommon.defaultTitles.referenceImage')
 }
 
 function readFileDataUrl(file: File): Promise<string> {
@@ -318,7 +320,13 @@ export async function importLocalMediaFilesToGenerationCanvas(
   prepared.forEach(({ dimensions, file, kind, size }, index) => {
     const node = useGenerationCanvasStore.getState().addNode({
       kind: 'asset',
-      title: file.name || (kind === 'video' ? '参考视频' : '参考图片'),
+      title:
+        file.name ||
+        i18n.t(
+          kind === 'video'
+            ? 'generationCommon.defaultTitles.referenceVideo'
+            : 'generationCommon.defaultTitles.referenceImage',
+        ),
       prompt: '',
       position: positions[index],
       categoryId: options.categoryId,

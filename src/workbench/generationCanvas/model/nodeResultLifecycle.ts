@@ -36,20 +36,26 @@ export function listNodeMediaResults(node: Pick<GenerationCanvasNode, 'result' |
   return listNodeResults(node).filter(isMediaResult)
 }
 
-export function promoteNodeResult(
-  node: Pick<GenerationCanvasNode, 'result' | 'history'>,
-  identity: string,
-): NodeResultLifecyclePatch | null {
-  const results = listNodeResults(node)
-  const nextResult = results.find((result) => resultIdentity(result) === identity)
-  if (!nextResult || !isMediaResult(nextResult)) return null
-  const ordered = [nextResult, ...results.filter((result) => resultIdentity(result) !== identity)]
-  return {
-    result: nextResult,
-    history: ordered,
-    status: 'success',
-    error: undefined,
+/**
+ * 版本托盘的稳定顺序：history 是持久化版本序，切换 current 只改 result 指针，不应让卡片跳位。
+ * 极旧快照若 current 未进入 history，则把它补到最前；之后仍按 history 原序去重。
+ */
+export function listStableNodeMediaResults(node: Pick<GenerationCanvasNode, 'result' | 'history'>): GenerationNodeResult[] {
+  const history = (node.history ?? []).filter(isMediaResult)
+  const seen = new Set<string>()
+  const stable: GenerationNodeResult[] = []
+  const currentIdentity = node.result ? resultIdentity(node.result) : ''
+  if (isMediaResult(node.result) && !history.some((entry) => resultIdentity(entry) === currentIdentity)) {
+    stable.push(node.result)
+    seen.add(currentIdentity)
   }
+  for (const entry of history) {
+    const identity = resultIdentity(entry)
+    if (!identity || seen.has(identity)) continue
+    seen.add(identity)
+    stable.push(entry)
+  }
+  return stable
 }
 
 export function removeNodeResult(

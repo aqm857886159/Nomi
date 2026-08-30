@@ -25,9 +25,10 @@ export default function ModeBar({ choices, activeId, onSelect }: ModeBarProps): 
         {t('generationCommon.parameters.generationMode')}
       </span>
       <div
-        className={cn('inline-flex flex-wrap gap-0.5 p-0.5 rounded-nomi-sm bg-nomi-ink-05 self-start')}
+        className={cn('inline-flex flex-nowrap gap-0.5 p-0.5 rounded-nomi-sm bg-nomi-ink-05 self-start')}
         role="group"
         aria-label={t('generationCommon.parameters.generationMode')}
+        onPointerDown={(event) => event.stopPropagation()}
       >
         {choices.map((choice) => {
           const isActive = choice.id === active.id
@@ -37,8 +38,9 @@ export default function ModeBar({ choices, activeId, onSelect }: ModeBarProps): 
               type="button"
               aria-pressed={isActive}
               data-active={isActive ? 'true' : 'false'}
+              title={choice.vendorTerm}
               className={cn(
-                'rounded-nomi-sm px-3 py-1.5 text-body-sm leading-none',
+                'min-h-7 rounded-nomi-sm px-3 py-1 text-caption leading-none',
                 'text-nomi-ink-60 cursor-pointer transition-colors',
                 'data-[active=true]:bg-nomi-paper data-[active=true]:text-nomi-ink',
                 'data-[active=true]:font-semibold data-[active=true]:shadow-nomi-sm',

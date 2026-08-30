@@ -40,6 +40,7 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
     <section
       className={cn(
         'workbench-preview',
+        'relative',
         'w-full h-full min-w-0 min-h-0 grid grid-rows-[minmax(0,1fr)_var(--workbench-preview-timeline-height)]',
         'overflow-hidden bg-[var(--workbench-bg)]',
       )}
@@ -68,7 +69,10 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
             timeline={timeline}
           />
         </div>
-        {agentDockRef ? <aside className="min-w-0 min-h-0 overflow-hidden border-l border-[var(--workbench-border)] bg-[var(--workbench-surface)]"><div ref={agentDockRef} className="h-full w-full min-w-0 min-h-0" /></aside> : null}
+        {agentDockRef ? <aside className={cn(
+          'min-w-0 min-h-0 border-l border-[var(--workbench-border)] bg-[var(--workbench-surface)]',
+          aiCollapsed ? 'overflow-visible' : 'overflow-hidden',
+        )}><div ref={agentDockRef} className="h-full w-full min-w-0 min-h-0" /></aside> : null}
       </div>
       <div className="relative min-w-0 min-h-0">
         <TimelineResizeHandle />

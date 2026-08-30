@@ -168,6 +168,7 @@ export default function WorkbenchEditor(): JSX.Element {
     onSelectionChange: handleSelectionChange,
     featureExtensions: RICH_TEXT_FEATURE_EXTENSIONS,
     sanitizePaste: true,
+    persistentSelection: true,
   })
 
   // Publish creation document tools = the shared rich-text read/write surface (read full/selection,

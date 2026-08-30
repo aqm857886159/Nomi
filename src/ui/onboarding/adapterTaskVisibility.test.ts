@@ -60,13 +60,13 @@ describe('adapter task visibility', () => {
     ])
   })
 
-  it('refreshes once for terminal transitions and terminal work first observed after completion', () => {
+  it('refreshes only for a known nonterminal to terminal transition, not first hydration of history', () => {
     const active = run('same', 'testing', '2026-08-15T10:00:00.000Z')
     const completed = run('same', 'completed', '2026-08-15T10:01:00.000Z')
     const historical = run('history', 'failed', '2026-08-15T09:00:00.000Z')
 
     expect(adapterRunsRequiringCatalogRefresh([active, historical], [completed, historical]).map((item) => item.id)).toEqual(['same'])
-    expect(adapterRunsRequiringCatalogRefresh([], [completed, historical]).map((item) => item.id)).toEqual(['same', 'history'])
+    expect(adapterRunsRequiringCatalogRefresh([], [completed, historical])).toEqual([])
     expect(adapterRunsRequiringCatalogRefresh([completed, historical], [completed, historical])).toEqual([])
   })
 })
