@@ -71,6 +71,8 @@ import {
   createPiTimelineWriteTransportAdapter,
 } from "./capabilityCore/timelineTransportAdapters";
 import { createPiPhase4SurfaceTransportAdapter } from "./capabilityCore/phase4SurfaceTransportAdapters";
+import { createPiProductionRunTransportAdapter } from "./capabilityCore/productionRunTransportAdapters";
+import { getProductionRunService } from "./productionRun/productionRunRuntime";
 import { getSettingsRoot } from "./runtimePaths";
 import { installProductionProjectAgentHost } from "./projectAgentHost/projectAgentProductionRuntime";
 import { createProjectAgentRepositoryRouter } from "./projectAgentHost/projectAgentRepositoryRouter";
@@ -113,7 +115,6 @@ if (isMcpStdio) {
       app.exit(1);
     });
 }
-
 protocol.registerSchemesAsPrivileged([
   {
     scheme: "nomi-local",
@@ -126,7 +127,6 @@ protocol.registerSchemesAsPrivileged([
     },
   },
 ]);
-
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL || process.env.NOMI_DESKTOP_DEV);
 const devRemoteDebuggingPort = process.env.NOMI_DESKTOP_REMOTE_DEBUGGING_PORT;
 const DEV_RENDERER_LOAD_ATTEMPTS = 20;
@@ -145,7 +145,6 @@ function loadRuntimeModule(): Promise<typeof import("./runtime")> {
   runtimeModulePromise ??= import("./runtime");
   return runtimeModulePromise;
 }
-
 async function loadCapabilityCoreModule(): Promise<typeof import("./capabilityCore/appIntegration")> {
   if (capabilityCoreModule) return capabilityCoreModule;
   capabilityCoreModulePromise ??= import("./capabilityCore/appIntegration").then((module) => {
@@ -435,6 +434,7 @@ function registerIpc(): void {
   installProductionProjectAgentHost({
     createRepository: () => createProjectAgentRepositoryRouter({ rootDir: getSettingsRoot() }),
     subscribeSurface: () => canvasReadSurfaceRuntime.subscribeCommittedProject(() => undefined),
+    productionRun: (binding) => createPiProductionRunTransportAdapter({ service: getProductionRunService(), binding }),
     registerIpc: (runtime) => registerProjectAgentIpc({
       runtime,
       surfaceCapture: canvasReadExecutionRuntime.surfaceCapture,

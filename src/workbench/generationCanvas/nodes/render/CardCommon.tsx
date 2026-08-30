@@ -159,11 +159,20 @@ export function PendingGenerationPlaceholder({
   prompt?: string
 }): JSX.Element | null {
   const { t } = useTranslation()
-  if (selected) return null
+  // Keep the title and prompt visible even while the node is selected and its
+  // composer is open. Hiding the entire placeholder made a selected video
+  // shot look like an empty card, so users could not verify what they were
+  // about to generate.
   if (needsFirstFrame) {
     return (
-      <div className="flex w-full h-full items-center justify-center pointer-events-none px-4 text-center">
-        <span className="text-micro text-nomi-ink-40 leading-relaxed">
+      <div data-selected-placeholder={selected ? 'true' : 'false'} className="flex w-full h-full flex-col pointer-events-none p-2.5 gap-1 overflow-hidden">
+        <NodeBodyHeader title={title} shotIndex={shotIndex} />
+        {prompt ? (
+          <span className="text-caption text-nomi-ink-60 leading-snug overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] select-text cursor-text pointer-events-auto" onPointerDown={(event) => event.stopPropagation()}>
+            {prompt}
+          </span>
+        ) : null}
+        <span className="mt-auto text-micro text-nomi-ink-40 leading-relaxed">
           {waitingUpstream ? (
             <>
               {t('generationCommon.card.upstreamConnected')}
@@ -178,11 +187,12 @@ export function PendingGenerationPlaceholder({
             </>
           )}
         </span>
+        <span className="text-micro text-nomi-ink-40">{t('generationCommon.card.pendingOnDemand')}</span>
       </div>
     )
   }
   return (
-    <div className="flex w-full h-full flex-col pointer-events-none p-2.5 gap-1 overflow-hidden">
+    <div data-selected-placeholder={selected ? 'true' : 'false'} className="flex w-full h-full flex-col pointer-events-none p-2.5 gap-1 overflow-hidden">
       <NodeBodyHeader title={title} shotIndex={shotIndex} />
       {prompt ? (
         // 提示词是用户最常想复制的内容：穿透容器的 pointer-events-none + 覆盖 stage 的
@@ -194,7 +204,7 @@ export function PendingGenerationPlaceholder({
           {prompt}
         </span>
       ) : null}
-      <span className="mt-auto text-micro text-nomi-ink-40">{t('generationCommon.card.pending')}</span>
+      <span className="mt-auto text-micro text-nomi-ink-40">{t('generationCommon.card.pendingOnDemand')}</span>
     </div>
   )
 }

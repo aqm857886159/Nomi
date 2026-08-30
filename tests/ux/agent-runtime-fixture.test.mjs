@@ -9,6 +9,7 @@ import {
   FIXTURE_API_KEY,
   FIXTURE_IMAGE_MODEL,
   FIXTURE_TEXT_MODEL,
+  FIXTURE_VIDEO_MODEL,
   FIXTURE_USAGE,
   FIXTURE_VENDOR,
 } from './agent-runtime-fixture.mjs'
@@ -264,7 +265,7 @@ describe('agent runtime loopback fixture', () => {
     fixture.assertClean()
   })
 
-  test('returns the real local JPEG and seeds only the two loopback models and correct image mappings', async () => {
+  test('returns certified local image/video fixtures and seeds the loopback catalog mappings', async () => {
     const fixture = await startFixture()
     const catalog = JSON.parse(await readFile(path.join(fixture.settingsDir, 'model-catalog.json'), 'utf8'))
     expect(catalog.version).toBe(8)
@@ -275,14 +276,15 @@ describe('agent runtime loopback fixture', () => {
     expect(catalog.models).toEqual([
       expect.objectContaining({ modelKey: FIXTURE_TEXT_MODEL, kind: 'text', vendorKey: FIXTURE_VENDOR, enabled: true, meta: { supportsImageInput: true } }),
       expect.objectContaining({ modelKey: FIXTURE_IMAGE_MODEL, kind: 'image', vendorKey: FIXTURE_VENDOR, enabled: true, meta: { archetypeId: 'agnes-image' } }),
+      expect.objectContaining({ modelKey: FIXTURE_VIDEO_MODEL, kind: 'video', vendorKey: FIXTURE_VENDOR, enabled: true, meta: { archetypeId: 'agnes-video' } }),
     ])
     expect(catalog.apiKeysByVendor).toEqual({
       [FIXTURE_VENDOR]: expect.objectContaining({ apiKey: FIXTURE_API_KEY, vendorKey: FIXTURE_VENDOR, enabled: true, enc: 'plain' }),
     })
     expect(FIXTURE_API_KEY).toBe('sk-agent-runtime-fixture')
-    expect(catalog.mappings).toHaveLength(2)
-    expect(catalog.mappings.map((mapping) => mapping.taskKind)).toEqual(['text_to_image', 'image_edit'])
-    for (const mapping of catalog.mappings) {
+    expect(catalog.mappings).toHaveLength(4)
+    expect(catalog.mappings.map((mapping) => mapping.taskKind)).toEqual(['text_to_image', 'image_edit', 'text_to_video', 'image_to_video'])
+    for (const mapping of catalog.mappings.filter((mapping) => mapping.modelKey === FIXTURE_IMAGE_MODEL)) {
       expect(mapping).toMatchObject({
         vendorKey: FIXTURE_VENDOR, modelKey: FIXTURE_IMAGE_MODEL, enabled: true,
         create: {
@@ -304,6 +306,16 @@ describe('agent runtime loopback fixture', () => {
     const result = await response.json()
     expect(result.data[0].url).toBe(`data:image/jpeg;base64,${(await readFile(path.join(rootDir, 'resources/onboarding-demo/shot-4.jpg'))).toString('base64')}`)
     expect(fixture.images).toEqual([expect.objectContaining({ path: '/v1/images/generations', body, authorization: `Bearer ${FIXTURE_API_KEY}` })])
+    const videoBody = { model: FIXTURE_VIDEO_MODEL, prompt: '红杯沿推近', image: 'data:image/jpeg;base64,fixture', aspect_ratio: '16:9', resolution: '720p', duration: 5 }
+    const videoResponse = await fetch(`${fixture.baseURL}/v1/videos`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${FIXTURE_API_KEY}` },
+      body: JSON.stringify(videoBody),
+    })
+    expect(videoResponse.status).toBe(200)
+    const videoResult = await videoResponse.json()
+    expect(videoResult.video_id).toBe('fixture-video-0')
+    expect(videoResult.url).toMatch(/^data:video\/mp4;base64,/)
+    expect(fixture.videos).toEqual([expect.objectContaining({ path: '/v1/videos', body: videoBody, authorization: `Bearer ${FIXTURE_API_KEY}` })])
     expect(fixture.requests).toEqual([])
     fixture.assertClean()
   })

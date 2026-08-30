@@ -10,7 +10,12 @@ import type {
   ProjectBinding,
   ProposalApprovalRef,
 } from "../shared/projectAgentContracts";
-import type { AgentChatRequest, AgentChatResponse, AgentChatToolDecision } from "../harness/agentChatContracts";
+import type {
+  AgentChatCapability,
+  AgentChatRequest,
+  AgentChatResponse,
+  AgentChatToolDecision,
+} from "../harness/agentChatContracts";
 import type { RuntimeToolCall } from "../harness/runtime/runtimePort";
 import { createProjectAgentContextBinding } from "./projectAgentContextBinding";
 import {
@@ -36,6 +41,7 @@ import type {
   PiPhase4SurfaceTransportAdapter,
   PreparedExportWrite,
 } from "../capabilityCore/phase4SurfaceTransportAdapters";
+import type { PiProductionRunTransportAdapter } from "../capabilityCore/productionRunTransportAdapters";
 import type { PreconditionSet, TargetRef } from "../shared/capabilityTargeting";
 import type { ProjectAgentProposalReceiptView } from "../shared/projectAgentProposalReceipt";
 
@@ -51,10 +57,11 @@ function executionInput(
   id: string,
   expectedRevision: number,
   projectBinding: ProjectBinding = binding,
+  options: Readonly<{ threadId?: string; prompt?: string; capability?: AgentChatCapability }> = {},
 ): ExecutionInput {
   const occurredAt = "2026-08-28T00:00:00.000Z";
   const thread = {
-    threadId: `thread-${id}`,
+    threadId: options.threadId ?? `thread-${id}`,
     createdAt: occurredAt,
     updatedAt: occurredAt,
   };
@@ -119,8 +126,8 @@ function executionInput(
       payload: { thread, turn, userItem, queueItem },
     },
     request: {
-      prompt: id,
-      capability: "creation-chat",
+      prompt: options.prompt ?? id,
+      capability: options.capability ?? "creation-chat",
       history: { kind: "ephemeral" as const },
       projectId: projectBinding.projectId,
     },
@@ -200,6 +207,7 @@ function documentWriteResponse(call: RuntimeToolCall, decision: AgentChatToolDec
 function canvasWriteAdapter(
   options: Readonly<{
     prepareError?: string;
+    prepareErrors?: readonly (string | undefined)[];
     result?: AgentChatToolDecision;
     executeError?: string;
   }> = {},
@@ -208,13 +216,17 @@ function canvasWriteAdapter(
   execute: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
 } {
+  let prepareCallCount = 0;
   const prepare = vi.fn(async (call: RuntimeToolCall, _signal: AbortSignal): Promise<PreparedCanvasWrite | null> => {
-    if (call.toolName !== "set_node_prompt") return null;
-    if (options.prepareError) {
-      throw Object.assign(new Error(options.prepareError), { code: options.prepareError });
+    if (call.toolName !== "set_node_prompt" && call.toolName !== "create_canvas_nodes") return null;
+    const prepareError = options.prepareErrors?.[prepareCallCount++] ?? options.prepareError;
+    if (prepareError) {
+      throw Object.assign(new Error(prepareError), { code: prepareError });
     }
     const invocation = {
-      input: { operation: "set_node_prompt", nodeId: "node-real", prompt: "new prompt" },
+      input: call.toolName === "create_canvas_nodes"
+        ? { operation: "create_canvas_nodes", ...(call.args as Record<string, unknown>) }
+        : { operation: "set_node_prompt", nodeId: "node-real", prompt: "new prompt" },
       target: { kind: "canvas", nodeIds: ["node-real"] },
       preconditions: { nodes: [{ nodeId: "node-real", contentHash: "sha256-node" }] },
       policyRevision: 1,
@@ -697,6 +709,108 @@ describe("ProjectAgentExecutionCoordinator", () => {
       .map((event) => event.patch.hostRevision);
     expect(firstPatchRevisions).toEqual(secondPatchRevisions.slice(0, firstPatchRevisions.length));
     expect(secondPatchRevisions).toEqual([...secondPatchRevisions].sort((left, right) => left - right));
+  });
+
+  it("keeps a Thread's tool profile sticky for KV-cache stability", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-tool-profile-"));
+    const seen: Array<{ profile: AgentChatRequest["toolProfile"] }> = [];
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-tool-profile",
+      {
+        runAgent: async (request) => {
+          seen.push({ profile: request.toolProfile });
+          return {
+            id: `result-${seen.length}`,
+            status: "finished",
+            text: "done",
+            finishReason: "stop",
+            artifacts: [],
+            toolCalls: [],
+            usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 1, totalTokens: 1 },
+          } satisfies AgentChatResponse;
+        },
+      },
+    );
+    const opened = await coordinator.open(binding);
+    const first = executionInput("profile-first", 0, binding, {
+      threadId: "thread-sticky-profile",
+      prompt: "检查时间线并导出",
+      capability: "canvas-agent",
+    });
+    await coordinator.enqueue(opened.subscriptionId, first);
+    const firstState = await coordinator.waitForTurn(opened.subscriptionId, first.mutation.payload.turn.turnId);
+    const second = executionInput("profile-second", firstState.hostRevision, binding, {
+      threadId: "thread-sticky-profile",
+      prompt: "继续",
+      capability: "canvas-agent",
+    });
+    await coordinator.enqueue(opened.subscriptionId, second);
+    await coordinator.waitForTurn(opened.subscriptionId, second.mutation.payload.turn.turnId);
+
+    expect(seen.map(({ profile }) => profile)).toEqual(["timeline", "timeline"]);
+  });
+
+  it("routes a started ProductionRun through Host history and a task ref", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-production-host-"));
+    const productionRun = {
+      tryExecute: vi.fn(async (call: RuntimeToolCall) => call.toolName === "start_production_run"
+        ? {
+            ok: true as const,
+            result: { runId: "run-host-1", revision: 1, stageId: "direction" },
+            silent: true as const,
+          }
+        : null),
+      prepare: vi.fn(async () => null),
+      execute: vi.fn(async () => ({ ok: false as const, code: "unexpected_execute" })),
+      dispose: vi.fn(),
+    } as unknown as PiProductionRunTransportAdapter & {
+      tryExecute: ReturnType<typeof vi.fn>;
+      prepare: ReturnType<typeof vi.fn>;
+      execute: ReturnType<typeof vi.fn>;
+      dispose: ReturnType<typeof vi.fn>;
+    };
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-production-host",
+      {
+        productionRun: () => productionRun,
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "production-start-1",
+            toolName: "start_production_run",
+            args: { goal: "做一个五分钟品牌片" },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          return {
+            id: "production-result-1",
+            status: "finished",
+            text: "已建立制作任务草稿。",
+            finishReason: "toolUse",
+            artifacts: [],
+            toolCalls: [{ ...call, status: decision.ok ? "ok" as const : "error" as const, decision, ...(decision.ok ? { result: decision.result } : {}) }],
+            usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 1, totalTokens: 1 },
+          } satisfies AgentChatResponse;
+        },
+      },
+    );
+    const opened = await coordinator.open(binding);
+    const input = executionInput("production-host", 0, binding, {
+      prompt: "帮我做一个 5 分钟品牌视频",
+      capability: "canvas-agent",
+    });
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const state = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+    expect(productionRun.tryExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ toolName: "start_production_run" }),
+      expect.any(AbortSignal),
+    );
+    expect(state.items.some((item) => item.kind === "tool" && item.toolCallId === "production-start-1")).toBe(true);
+    expect(state.items).toContainEqual(expect.objectContaining({
+      kind: "task",
+      task: expect.objectContaining({ kind: "production-run", runId: "run-host-1", stageId: "direction" }),
+    }));
+    expect(productionRun.execute).not.toHaveBeenCalled();
   });
 
   it("reattaches a pending decision after release without aborting or executing twice", async () => {
@@ -1661,6 +1775,165 @@ describe("ProjectAgentExecutionCoordinator", () => {
     expect(final.proposalApprovals).toMatchObject([
       { lifecycle: "claimed", ref: { actionHash: "action-hash", target: { kind: "canvas", nodeIds: ["node-real"] } } },
     ]);
+    expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "done" });
+    coordinator.release(opened.subscriptionId);
+  });
+
+  it("re-prepares a Canvas proposal from the approved effective parameters", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-canvas-effective-args-"));
+    const canvasAdapter = canvasWriteAdapter();
+    let receipt: ProjectAgentProposalReceiptView | null = null;
+    canvasAdapter.execute.mockImplementation(
+      async (prepared: PreparedCanvasWrite, approval: CanvasWriteApprovalAuthority) => {
+        receipt = committedCanvasReceipt(binding, approval);
+        expect(prepared.call.args).toEqual({ nodeId: "node-real", prompt: "edited prompt" });
+        return { ok: true, result: { applied: true, proposalId: approval.receiptProposalId }, silent: true };
+      },
+    );
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-canvas-effective-args",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "tool-canvas-effective-args",
+            toolName: "set_node_prompt",
+            args: { nodeId: "node-real", prompt: "original prompt" },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          expect(decision).toMatchObject({ ok: true, effectiveArgs: { prompt: "edited prompt" } });
+          return canvasWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, {
+      canvasWrite: canvasAdapter,
+      proposalReceipt: vi.fn(() => receipt),
+    });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: true,
+          effectiveArgs: { nodeId: "node-real", prompt: "edited prompt" },
+          overridesDelta: { prompt: "edited prompt" },
+        });
+      }
+    });
+    const base = executionInput("canvas-effective-args", 0);
+    const input = {
+      ...base,
+      mutation: {
+        ...base.mutation,
+        payload: {
+          ...base.mutation.payload,
+          queueItem: {
+            ...base.mutation.payload.queueItem,
+            target: { kind: "canvas" as const, nodeIds: ["node-real"] },
+            preconditions: { nodes: [{ nodeId: "node-real", contentHash: "sha256-node" }] },
+            originSurface: { surfaceId: "canvas-surface", kind: "canvas" as const },
+          },
+        },
+      },
+    };
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+    expect(canvasAdapter.prepare).toHaveBeenCalledTimes(2);
+    expect(canvasAdapter.prepare.mock.calls[1]?.[0]).toMatchObject({ args: { prompt: "edited prompt" } });
+    expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "done" });
+    coordinator.release(opened.subscriptionId);
+  });
+
+  it("returns a correctable failure when edited Canvas parameters fail revalidation", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-canvas-invalid-effective-args-"));
+    const canvasAdapter = canvasWriteAdapter({ prepareErrors: [undefined, "capability_input_invalid"] });
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-canvas-invalid-effective-args",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "tool-canvas-invalid-effective-args",
+            toolName: "set_node_prompt",
+            args: { nodeId: "node-real", prompt: "original prompt" },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          expect(decision).toMatchObject({ ok: false, code: "capability_input_invalid" });
+          return canvasWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { canvasWrite: canvasAdapter });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: true,
+          effectiveArgs: { nodeId: "node-real", prompt: "edited prompt" },
+          overridesDelta: { prompt: "edited prompt" },
+        });
+      }
+    });
+    const input = canvasExecutionInput("canvas-invalid-effective-args", 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(canvasAdapter.prepare).toHaveBeenCalledTimes(2);
+    expect(canvasAdapter.execute).not.toHaveBeenCalled();
+    expect(final.turns.find((turn) => turn.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+      status: "failed",
+      retryable: true,
+    });
+    expect(final.items.find((item) => item.kind === "failure")).toMatchObject({
+      code: "capability_input_invalid",
+      retryable: true,
+    });
+    coordinator.release(opened.subscriptionId);
+  });
+
+  it("re-prepares create_canvas_nodes from every approved image/video field before execute", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-canvas-create-effective-args-"));
+    const canvasAdapter = canvasWriteAdapter();
+    const originalArgs = {
+      nodes: [{ clientId: "image-1", kind: "image", prompt: "original", modelKey: "image-a", modeId: "t2i", params: { size: "1024x1024" } },
+        { clientId: "video-1", kind: "video", prompt: "original video", modelKey: "video-a", modeId: "t2v", params: { aspect_ratio: "16:9", resolution: "720p", duration: 5 } }],
+    };
+    const effectiveArgs = {
+      nodes: [{ clientId: "image-1", kind: "image", prompt: "edited image", modelKey: "image-b", modeId: "t2i", params: { size: "1536x1024" } },
+        { clientId: "video-1", kind: "video", prompt: "edited video", modelKey: "video-b", modeId: "i2v", params: { aspect_ratio: "9:16", resolution: "1080p", duration: 8 } }],
+    };
+    let receipt: ProjectAgentProposalReceiptView | null = null;
+    canvasAdapter.execute.mockImplementation(async (prepared: PreparedCanvasWrite, approval: CanvasWriteApprovalAuthority) => {
+      expect(prepared.call.args).toEqual(effectiveArgs);
+      expect(prepared.invocation.input).toMatchObject({ operation: "create_canvas_nodes", nodes: effectiveArgs.nodes });
+      receipt = committedCanvasReceipt(binding, approval);
+      return { ok: true, result: { applied: true, proposalId: approval.receiptProposalId }, silent: true };
+    });
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-canvas-create-effective-args",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = { toolCallId: "tool-canvas-create-effective-args", toolName: "create_canvas_nodes", args: originalArgs };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          expect(decision).toMatchObject({ ok: true, effectiveArgs });
+          return canvasWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { canvasWrite: canvasAdapter, proposalReceipt: vi.fn(() => receipt) });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+        ok: true, effectiveArgs, overridesDelta: { nodes: effectiveArgs.nodes },
+      });
+    });
+    const base = canvasExecutionInput("canvas-create-effective-args", 0);
+    const input = { ...base, mutation: { ...base.mutation, payload: { ...base.mutation.payload,
+      queueItem: { ...base.mutation.payload.queueItem, target: { kind: "canvas" as const, nodeIds: ["node-real"] }, preconditions: { nodes: [{ nodeId: "node-real", contentHash: "sha256-node" }] },
+        originSurface: { surfaceId: "canvas-surface", kind: "canvas" as const } },
+    } } };
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+    expect(canvasAdapter.prepare).toHaveBeenCalledTimes(2);
+    expect(canvasAdapter.execute).toHaveBeenCalledOnce();
     expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "done" });
     coordinator.release(opened.subscriptionId);
   });

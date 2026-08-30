@@ -9,6 +9,11 @@ import { DOCUMENT_WRITE_CAPABILITY, DOCUMENT_WRITE_ALIASES } from "./documentWri
 import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "./exportCapabilities";
 import { TIMELINE_READ_CAPABILITY } from "./timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "./timelineWrite";
+import {
+  PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
+  PRODUCTION_RUN_READ_CAPABILITY,
+  PRODUCTION_RUN_WRITE_CAPABILITY,
+} from "./productionRun";
 import { CAPABILITY_CONTRACTS, capabilityOperationAliasesFor, resolveCapabilityAlias } from "./registry";
 import type { ContractOnlyRegistry } from "./registry";
 
@@ -36,6 +41,9 @@ describe("capability contract registry", () => {
       EXPORT_WRITE_CAPABILITY,
       TIMELINE_READ_CAPABILITY,
       TIMELINE_WRITE_CAPABILITY,
+      PRODUCTION_RUN_READ_CAPABILITY,
+      PRODUCTION_RUN_WRITE_CAPABILITY,
+      PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
     ]);
 
     const ids = CAPABILITY_CONTRACTS.map((contract) => contract.id);
@@ -54,6 +62,9 @@ describe("capability contract registry", () => {
       "export.write",
       "timeline.read",
       "timeline.write",
+      "production.run.read",
+      "production.run.write",
+      "production.artifact.write",
     ]);
     expect(aliases).toEqual([
       "get_media",
@@ -67,6 +78,9 @@ describe("capability contract registry", () => {
       "export_timeline",
       "read_timeline",
       "apply_edit_plan",
+      "get_production_run",
+      "start_production_run",
+      "revise_production_artifact",
     ]);
     expect(CAPABILITY_CONTRACTS.find((contract) => contract.id === "canvas.read")?.exposure).toBe("mcp_safe");
     expect(resolveCapabilityAlias(CANVAS_WRITE_CAPABILITY.aliases.pi)?.contract).toBe(CANVAS_WRITE_CAPABILITY);

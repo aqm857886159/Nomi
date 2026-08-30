@@ -15,6 +15,7 @@ import { listAvailableModelsForAgent, type AgentModelEntry } from './availableMo
 import { buildPlannedNodeMeta } from './plannedNodeMeta'
 import { withCanvasGestureContext, type CanvasGestureContext } from '../events/canvasGestureContext'
 import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
+import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlan'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
@@ -399,7 +400,9 @@ export async function applyCanvasToolCall(
       }
     }
     // 批量落节点后统一请求适应视图。AI 直接建卡、方案确认和示例引导都走这里，
-    // 避免调用方漏触发后只看到被视口裁断的一部分新节点。单节点保留用户当前视口。
+    // 避免调用方漏触发后只看到被视口裁断的一部分新节点。单节点不重排全局视口，
+    // 但要把刚创建的卡居中：布局原点在已有内容下方，若时间轴占据底部，单卡可能
+    // 被裁在视口外；保留当前视口并不等于让用户自己猜卡片去了哪里。
     if (created.length > 1) {
       const workbench = useWorkbenchStore.getState()
       const categoryCounts = new Map<string, { count: number; firstIndex: number }>()
@@ -417,6 +420,8 @@ export async function applyCanvasToolCall(
               left.firstIndex - right.firstIndex,
           )[0]?.[0]
       workbench.requestCanvasFit(fitCategoryId)
+    } else if (created[0] && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId: created[0].id } }))
     }
     return {
       createdNodeIds: created.map((node) => node.id),

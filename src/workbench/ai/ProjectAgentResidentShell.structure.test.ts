@@ -6,6 +6,10 @@ const resident = fs.readFileSync(
   path.join(process.cwd(), 'src/workbench/ai/ProjectAgentResidentShell.tsx'),
   'utf8',
 )
+const residentPrimitives = fs.readFileSync(
+  path.join(process.cwd(), 'src/workbench/ai/resident/ResidentUiPrimitives.tsx'),
+  'utf8',
+)
 const shell = fs.readFileSync(
   path.join(process.cwd(), 'src/workbench/WorkbenchShell.tsx'),
   'utf8',
@@ -32,6 +36,12 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('pending.call.confirm')
     expect(resident).toContain('clearResidentPendingTools(turnId)')
     expect(resident).toContain('residentResolvingTools.has(key)')
+    expect(resident).toContain('activeQueue')
+    expect(resident).toContain('readableToolSummary')
+    expect(resident).toContain('readableToolPreview')
+    expect(resident).toContain('useAgentUsageStore')
+    expect(resident).toContain('data-agent-usage')
+    expect(resident).not.toContain('resultRef ?? t(\'agentResident.waitingApproval\')')
     expect(resident).toContain("t('agentResident.task'")
     expect(resident).toContain("t('agentResident.artifact'")
     expect(resident).toContain("t('agentResident.changeModelRetry'")
@@ -56,14 +66,18 @@ describe('ProjectAgentResidentShell production contract', () => {
       'data-agent-model-trigger',
       'data-agent-send',
       'data-agent-context',
-      'data-agent-queue-item',
+      'data-agent-context-focus',
     ]) expect(resident).toContain(control)
+    expect(residentPrimitives).toContain('data-agent-queue-item')
+    expect(residentPrimitives).toContain('data-agent-tool-header')
+    expect(residentPrimitives).toContain('ToolActionIcon')
+    expect(residentPrimitives).toContain('data-agent-approval-details')
     expect(resident).toContain('editProjectAgentQueueItem')
     expect(resident).toContain('stopProjectAgentTurn')
     expect(resident).toContain('pending.call.confirm')
     expect(resident).toContain('setAssistantModelPref')
     expect(resident).toContain('projectAgentReferences')
-    for (const icon of ['IconPaperclip', 'IconAt', 'IconTool', 'IconPencil', 'IconAdjustmentsHorizontal', 'IconRobot', 'IconArrowUp', 'IconChevronLeft']) {
+    for (const icon of ['IconPaperclip', 'IconAt', 'IconTool', 'IconPencil', 'IconAdjustmentsHorizontal', 'IconRobot', 'IconArrowUp', 'IconChevronLeft', 'IconFocusCentered']) {
       expect(resident).toContain(icon)
     }
     expect(resident).not.toContain('IconSparkles')
@@ -73,6 +87,7 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).not.toContain("t('agentResident.addToRound')")
     expect(resident).not.toContain("t('agentResident.promptMenuHint')")
     expect(resident).not.toContain("t('agentResident.modeMenuHint')")
+    expect(resident).not.toContain('data-agent-action="approve-plan"')
     expect(resident).toContain('title={t(\'agentResident.attachTitle\')}')
     expect(resident).toContain('aria-haspopup="menu"')
     expect(resident).toContain('data-agent-resident-collapsed="true"')

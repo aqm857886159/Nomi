@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
-import type { AgentChatRequest, AgentChatResponse, AgentChatToolDecision } from "../harness/agentChatContracts";
+import type { AgentChatRequest, AgentChatResponse, AgentChatToolDecision, AgentToolProfile } from "../harness/agentChatContracts";
 import type { AgentChatV2Hooks } from "../ai/agentChatV2";
-import { captureAgentChatRequest } from "../harness/agentChatPolicy";
+import type { RuntimeToolCall } from "../harness/runtime/runtimePort";
+import { captureAgentChatRequest, mergeAgentToolProfiles, resolveAgentToolProfile } from "../harness/agentChatPolicy";
 import type {
   ProjectAgentExecutionEvent,
   ProjectAgentMutation,
@@ -35,6 +36,8 @@ import type {
   PiPhase4SurfaceTransportAdapter,
   PreparedExportWrite,
 } from "../capabilityCore/phase4SurfaceTransportAdapters";
+import type { PiProductionRunTransportAdapter } from "../capabilityCore/productionRunTransportAdapters";
+import { callWithEffectiveArgs, executeProductionApproval, reprepareEffectiveCall } from "./projectAgentApprovalHelpers";
 import { resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
 import { DOCUMENT_READ_CAPABILITY } from "../shared/agentCapabilities/documentRead";
 import { CANVAS_DELETE_CAPABILITY } from "../shared/agentCapabilities/canvasDelete";
@@ -49,20 +52,18 @@ import {
   digest,
   executionPrompt,
   exportJobTaskItems,
+  productionRunTaskItems,
   stableJson,
   statusForResponse,
   toolItem,
 } from "./projectAgentExecutionHelpers";
-
 export type ProjectAgentSubscription = Readonly<{
   subscriptionId: string;
   subscriptionEpoch: number;
   binding: ProjectBinding;
   snapshot: ProjectAgentHostState;
 }>;
-
 export type ProjectAgentProposalReceiptReader = () => ProjectAgentProposalReceiptView | null;
-
 export type ProjectAgentExecutionOpenOptions = Readonly<{
   canvasRead?: PiCanvasReadTransportAdapter;
   documentRead?: PiDocumentReadTransportAdapter;
@@ -73,7 +74,6 @@ export type ProjectAgentExecutionOpenOptions = Readonly<{
   phase4Surface?: PiPhase4SurfaceTransportAdapter;
   proposalReceipt?: ProjectAgentProposalReceiptReader;
 }>;
-
 export type ProjectAgentExecutionCoordinatorDeps = Readonly<{
   runAgent?: (request: AgentChatRequest, hooks: AgentChatV2Hooks) => Promise<AgentChatResponse>;
   now?: () => string;
@@ -81,8 +81,8 @@ export type ProjectAgentExecutionCoordinatorDeps = Readonly<{
     error: unknown,
     context: Readonly<{ phase: "start" | "terminalize-runtime-failure"; turnId: string; message: string }>,
   ) => void;
+  productionRun?: (binding: ProjectBinding) => PiProductionRunTransportAdapter;
 }>;
-
 function readProposalReceiptSafely(
   reader: ProjectAgentProposalReceiptReader | undefined,
 ): ProjectAgentProposalReceiptView | null {
@@ -92,13 +92,11 @@ function readProposalReceiptSafely(
     return null;
   }
 }
-
 type ProjectAgentExecutionEnqueue = Readonly<{
   mutation: Extract<ProjectAgentMutation, { type: "turn.enqueue" }>;
   request: AgentChatRequest;
   canvasRead?: PiCanvasReadTransportAdapter;
 }>;
-
 type ProjectAgentExecutionListener = (event: ProjectAgentExecutionEvent) => void;
 
 type Deferred<T> = {
@@ -169,6 +167,11 @@ const CANVAS_WRITE_OUTCOMES = Object.freeze({
     status: "failed",
     retryable: false,
     nextAction: "use a capability supported by this surface",
+  },
+  capability_input_invalid: {
+    status: "failed",
+    retryable: true,
+    nextAction: "correct the proposal parameters and submit it again",
   },
   capability_target_stale: {
     status: "failed",
@@ -256,6 +259,7 @@ type ExecutionPartition = {
   host: OfflineProjectAgentHost;
   subscriptionIds: Set<string>;
   requests: Map<string, FrozenExecutionRequest>;
+  toolProfiles: Map<string, AgentToolProfile>;
   active: Map<string, ActiveExecution>;
   completions: Map<string, Deferred<ProjectAgentHostState>>;
   initialization: Promise<void>;
@@ -316,6 +320,7 @@ export function createProjectAgentExecutionCoordinator(
   const timelineReads = new Map<string, PiTimelineReadTransportAdapter | undefined>();
   const timelineWrites = new Map<string, PiTimelineWriteTransportAdapter | undefined>();
   const phase4Surfaces = new Map<string, PiPhase4SurfaceTransportAdapter | undefined>();
+  const productionRuns = new Map<string, PiProductionRunTransportAdapter | undefined>();
   const proposalReceiptReaders = new Map<string, ProjectAgentProposalReceiptReader | undefined>();
   const runAgent =
     deps.runAgent ?? (async (request, hooks) => (await import("../ai/agentChatV2")).runAgentChatV2(request, hooks));
@@ -507,6 +512,7 @@ export function createProjectAgentExecutionCoordinator(
         host: router.attach(binding),
         subscriptionIds: new Set(),
         requests: new Map(),
+        toolProfiles: new Map(),
         active: new Map(),
         completions: new Map(),
         initialization: Promise.resolve(),
@@ -602,14 +608,18 @@ export function createProjectAgentExecutionCoordinator(
   async function enqueue(subscriptionId: string, input: ProjectAgentExecutionEnqueue) {
     const record = requireSubscription(subscriptionId);
     const partition = requirePartition(record);
+    const turnId = input.mutation.payload.turn.turnId;
     for (const claimedProjectId of [input.request.projectId, input.request.canvasProjectId]) {
       if (claimedProjectId !== undefined && claimedProjectId !== record.binding.projectId) {
         throw new ProjectAgentSubscriptionError("Project Agent request project does not match its subscription");
       }
     }
     const target = input.mutation.payload.queueItem.target;
+    const requestedProfile = resolveAgentToolProfile({ capability: input.request.capability, prompt: input.request.prompt, toolProfile: input.request.toolProfile });
+    const stickyProfile = mergeAgentToolProfiles(partition.toolProfiles.get(input.mutation.payload.turn.threadId), requestedProfile);
     const request = captureAgentChatRequest({
       ...input.request,
+      toolProfile: stickyProfile,
       history: { kind: "ephemeral" },
       projectId: record.binding.projectId,
       ...(target.kind === "canvas"
@@ -617,7 +627,6 @@ export function createProjectAgentExecutionCoordinator(
         : { canvasProjectId: undefined, selectedNodeIds: [] }),
     });
     const requestMap = partition.requests;
-    const turnId = input.mutation.payload.turn.turnId;
     const previousRequest = requestMap.get(turnId);
     const requestDigest = digest(request);
     if (previousRequest && previousRequest.requestDigest !== requestDigest) {
@@ -634,7 +643,10 @@ export function createProjectAgentExecutionCoordinator(
         ...(input.canvasRead ? { canvasRead: input.canvasRead } : {}),
       });
     if (previousRequest && input.canvasRead) input.canvasRead.dispose();
-    if (!previousRequest) requestMap.set(turnId, reservation);
+    if (!previousRequest) {
+      requestMap.set(turnId, reservation);
+      partition.toolProfiles.set(input.mutation.payload.turn.threadId, stickyProfile);
+    }
     try {
       const reduction = await dispatchPartition(partition, input.mutation);
       if (!reduction.replayed) {
@@ -676,7 +688,6 @@ export function createProjectAgentExecutionCoordinator(
     }
     throw lastError ?? new ProjectAgentSubscriptionError("Project Agent mutation could not be committed");
   }
-
   async function persistApprovedProposal(
     partition: ExecutionPartition,
     execution: ActiveExecution,
@@ -755,11 +766,20 @@ export function createProjectAgentExecutionCoordinator(
     if (!persisted || persisted.lifecycle !== "claimed" || stableJson(persisted.ref) !== stableJson(ref)) {
       throw new Error("approval_persistence_failed");
     }
+    const committedQueue = partition.host.getSnapshot(partition.binding).queue.find((queueItem) => queueItem.turnId === execution.turn.turnId);
+    if (committedQueue) execution.queueItem = committedQueue;
     execution.approvedProposalIds ??= [];
     execution.approvedProposalIds.push(approvalId);
     return persisted.ref;
   }
-
+  async function persistPreparedProposal(partition: ExecutionPartition, execution: ActiveExecution, call: { toolCallId: string; toolName: string; args: unknown }, decision: AgentChatToolDecision, prepared: { invocation: { target: ProjectAgentQueueItem["target"]; preconditions: ProjectAgentQueueItem["preconditions"]; policyRevision: number; inputHash: string; actionHash: string } }): Promise<ProposalApprovalRef> {
+    const persisted = await persistApprovedProposal(partition, execution, call, decision, {
+      approvalId: `approval-${digest([execution.turn.executionToken, call.toolCallId])}`,
+      receiptProposalId: `receipt-${digest([execution.turn.executionToken, call.toolCallId, "receipt"])}`,
+      ...prepared.invocation,
+    });
+    if (!persisted) throw new Error("approval_persistence_failed"); return persisted;
+  }
   function cleanupExecution(partition: ExecutionPartition, execution: ActiveExecution, keepRequest: boolean): void {
     execution.pending.clear();
     partition.active.delete(execution.turn.turnId);
@@ -771,7 +791,6 @@ export function createProjectAgentExecutionCoordinator(
     }
     complete(partition, execution.turn.turnId);
   }
-
   async function awaitToolDecision(
     partition: ExecutionPartition,
     execution: ActiveExecution,
@@ -956,7 +975,11 @@ export function createProjectAgentExecutionCoordinator(
     }
     return selected;
   }
-
+  function productionRunFor(partition: ExecutionPartition): PiProductionRunTransportAdapter | undefined {
+    const existing = productionRuns.get(partition.partitionKey);
+    if (existing || !deps.productionRun) return existing;
+    const adapter = deps.productionRun(partition.binding); productionRuns.set(partition.partitionKey, adapter); return adapter;
+  }
   function proposalReceiptReaderFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
     const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
       ? proposalReceiptReaders.get(preferredSubscriptionId)
@@ -974,7 +997,6 @@ export function createProjectAgentExecutionCoordinator(
     }
     return selected;
   }
-
   async function executeTurn(partition: ExecutionPartition, execution: ActiveExecution): Promise<"continue" | "stop"> {
     const startAt = now();
     const current = partition.host.getSnapshot(partition.binding);
@@ -1008,9 +1030,6 @@ export function createProjectAgentExecutionCoordinator(
     } catch (error) {
       const code = (error as { code?: unknown })?.code;
       if (code === "revision_conflict" || code === "running_turn_exists" || code === "queue_order_violation") {
-        // The queue entry is still authoritative, but another mutation won
-        // between the snapshot and turn.start. Keep its request so the next
-        // drain can rebuild the start command from the latest revision.
         cleanupExecution(partition, execution, true);
         return partition.host.getSnapshot(partition.binding).hostRevision !== current.hostRevision ? "continue" : "stop";
       }
@@ -1066,14 +1085,8 @@ export function createProjectAgentExecutionCoordinator(
         abortSignal: execution.controller.signal,
         emit: (event) => {
           if (event.type === "content-delta") append(event.delta);
-          // The runtime emits tool-call before the await hook. The hook emits
-          // the single renderer notification after read-tool auto execution is
-          // ruled out, so no duplicate pending card is possible here.
         },
         awaitToolConfirmation: async (call, signal) => {
-          // Transport adapters own capability-name matching. The coordinator
-          // only offers the injected adapter a chance to handle a call, so it
-          // cannot become a second tool dispatch/executor owner.
           const frozen = partition.requests.get(execution.turn.turnId);
           const canonicalCapability = resolveCapabilityAlias(call.toolName)?.contract;
           const isCanvasMutation = canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id
@@ -1109,6 +1122,16 @@ export function createProjectAgentExecutionCoordinator(
           ) {
             return { ok: false, code: "surface_port_unavailable", message: "surface_port_unavailable" };
           }
+          const productionRun = productionRunFor(partition);
+          const productionRead = await productionRun?.tryExecute(call, signal);
+          if (productionRead) return productionRead;
+          if (productionRun) {
+            const production = await executeProductionApproval({ adapter: productionRun, call, signal, awaitDecision: (nextCall, nextSignal) => awaitToolDecision(partition, execution, nextCall, nextSignal), persist: (nextCall, decision, prepared) => persistPreparedProposal(partition, execution, nextCall, decision, prepared as { invocation: { target: ProjectAgentQueueItem["target"]; preconditions: ProjectAgentQueueItem["preconditions"]; policyRevision: number; inputHash: string; actionHash: string } }), remember: (code, fallback, denied) => rememberCanvasWriteOutcome(execution, call.toolCallId, code, fallback as CanvasWriteCapabilityOutcomeCode, denied), settle: (approvalId, status) => recordProposalSettlement(execution, approvalId, status) });
+            if (production) return production;
+          }
+          if (resolveCapabilityAlias(call.toolName)?.contract?.execution.port === "production-run") {
+            return rememberCanvasWriteOutcome(execution, call.toolCallId, "capability_surface_unavailable", "capability_surface_unavailable");
+          }
           const canvasWriteAdapter = canvasWriteFor(partition, frozen?.preferredSubscriptionId ?? "");
           if (canvasWriteAdapter) {
             let prepared: PreparedCanvasWrite | null;
@@ -1131,19 +1154,12 @@ export function createProjectAgentExecutionCoordinator(
                   decision.denied,
                 );
               }
-              const persisted = await persistApprovedProposal(partition, execution, call, decision, {
-                approvalId: `approval-${digest([execution.turn.executionToken, call.toolCallId])}`,
-                receiptProposalId: `receipt-${digest([execution.turn.executionToken, call.toolCallId, "receipt"])}`,
-                target: prepared.invocation.target,
-                preconditions: prepared.invocation.preconditions,
-                policyRevision: prepared.invocation.policyRevision,
-                inputHash: prepared.invocation.inputHash,
-                actionHash: prepared.invocation.actionHash,
-              });
-              if (!persisted) throw new Error("approval_persistence_failed");
+              const effective = await reprepareEffectiveCall(call, decision, prepared, (effectiveCall) => canvasWriteAdapter.prepare(effectiveCall, signal));
+              if (!effective.ok) return rememberCanvasWriteOutcome(execution, call.toolCallId, effective.code, effective.code);
+              const persisted = await persistPreparedProposal(partition, execution, effective.call, decision, effective.prepared);
               let executed: AgentChatToolDecision | undefined;
               try {
-                executed = await canvasWriteAdapter.execute(prepared, {
+                executed = await canvasWriteAdapter.execute(effective.prepared, {
                   receiptProposalId: persisted.receiptProposalId,
                   approvalId: persisted.approvalId,
                   actionHash: persisted.actionHash,
@@ -1231,17 +1247,10 @@ export function createProjectAgentExecutionCoordinator(
                   decision.denied,
                 );
               }
-              const persisted = await persistApprovedProposal(partition, execution, call, decision, {
-                approvalId: `approval-${digest([execution.turn.executionToken, call.toolCallId])}`,
-                receiptProposalId: `receipt-${digest([execution.turn.executionToken, call.toolCallId, "receipt"])}`,
-                target: prepared.invocation.target,
-                preconditions: prepared.invocation.preconditions,
-                policyRevision: prepared.invocation.policyRevision,
-                inputHash: prepared.invocation.inputHash,
-                actionHash: prepared.invocation.actionHash,
-              });
-              if (!persisted) throw new Error("approval_persistence_failed");
-              const executed = await phase4Surface.executeWrite(prepared, {
+              const effective = await reprepareEffectiveCall(call, decision, prepared, (effectiveCall) => phase4Surface.prepareWrite(effectiveCall, signal));
+              if (!effective.ok) return rememberCanvasWriteOutcome(execution, call.toolCallId, effective.code, effective.code);
+              const persisted = await persistPreparedProposal(partition, execution, effective.call, decision, effective.prepared);
+              const executed = await phase4Surface.executeWrite(effective.prepared, {
                 receiptProposalId: persisted.receiptProposalId,
                 approvalId: persisted.approvalId,
                 actionHash: persisted.actionHash,
@@ -1298,17 +1307,10 @@ export function createProjectAgentExecutionCoordinator(
                   decision.denied,
                 );
               }
-              const persisted = await persistApprovedProposal(partition, execution, call, decision, {
-                approvalId: `approval-${digest([execution.turn.executionToken, call.toolCallId])}`,
-                receiptProposalId: `receipt-${digest([execution.turn.executionToken, call.toolCallId, "receipt"])}`,
-                target: prepared.invocation.target,
-                preconditions: prepared.invocation.preconditions,
-                policyRevision: prepared.invocation.policyRevision,
-                inputHash: prepared.invocation.inputHash,
-                actionHash: prepared.invocation.actionHash,
-              });
-              if (!persisted) throw new Error("approval_persistence_failed");
-              const executed = await timelineWriteAdapter.execute(prepared, {
+              const effective = await reprepareEffectiveCall(call, decision, prepared, (effectiveCall) => timelineWriteAdapter.prepare(effectiveCall, signal));
+              if (!effective.ok) return rememberCanvasWriteOutcome(execution, call.toolCallId, effective.code, effective.code);
+              const persisted = await persistPreparedProposal(partition, execution, effective.call, decision, effective.prepared);
+              const executed = await timelineWriteAdapter.execute(effective.prepared, {
                 receiptProposalId: persisted.receiptProposalId,
                 approvalId: persisted.approvalId,
                 actionHash: persisted.actionHash,
@@ -1352,20 +1354,16 @@ export function createProjectAgentExecutionCoordinator(
             if (prepared) {
               const decision = await awaitToolDecision(partition, execution, call, signal);
               if (!decision.ok) return decision;
+              const effective = await reprepareEffectiveCall(call, decision, prepared, (effectiveCall) => writeAdapter.prepare(effectiveCall, { documentId, target: execution.queueItem.target, preconditions: execution.queueItem.preconditions }, signal));
+              if (!effective.ok) return { ok: false, message: effective.code, code: effective.code };
               try {
-                await persistApprovedProposal(partition, execution, call, decision, {
-                  approvalId: `approval-${digest([execution.turn.executionToken, call.toolCallId])}`,
-                  receiptProposalId: `receipt-${digest([execution.turn.executionToken, call.toolCallId, "receipt"])}`,
-                  target: prepared.invocation.target,
-                  preconditions: prepared.invocation.preconditions,
-                  policyRevision: prepared.invocation.policyRevision,
-                  inputHash: prepared.invocation.inputHash,
-                  actionHash: prepared.invocation.actionHash,
-                });
+                const persisted = await persistPreparedProposal(partition, execution, effective.call, decision, effective.prepared);
+                const executed = await writeAdapter.execute(effective.prepared, signal);
+                recordProposalSettlement(execution, persisted.approvalId, executed.ok ? "done" : "failed");
+                return executed;
               } catch {
                 return { ok: false, message: "approval_persistence_failed" };
               }
-              return writeAdapter.execute(prepared, signal);
             }
           }
           const decision = await awaitToolDecision(partition, execution, call, signal);
@@ -1405,7 +1403,8 @@ export function createProjectAgentExecutionCoordinator(
         beforeResult.items,
         receivedAt,
       );
-      const resultItems = [...toolItems, ...taskItems];
+      const productionTaskItems = productionRunTaskItems(partition.binding, execution.turn, response.toolCalls.filter((record) => record.status === "ok"), [...beforeResult.items, ...taskItems], receivedAt);
+      const resultItems = [...toolItems, ...taskItems, ...productionTaskItems];
       const outcomeFailure: ProjectAgentFailureItem | undefined = capabilityOutcome
         ? Object.freeze({
             itemId: `failure-${digest([execution.turn.executionToken, capabilityOutcome.toolCallId, capabilityOutcome.code])}`,
@@ -1698,6 +1697,7 @@ export function createProjectAgentExecutionCoordinator(
       timelineReads.delete(subscriptionId);
       timelineWrites.get(subscriptionId)?.dispose();
       timelineWrites.delete(subscriptionId);
+      if (![...subscriptions.values()].some((candidate) => candidate.partitionKey === subscription.partitionKey)) { productionRuns.get(subscription.partitionKey)?.dispose(); productionRuns.delete(subscription.partitionKey); }
       phase4Surfaces.get(subscriptionId)?.dispose();
       phase4Surfaces.delete(subscriptionId);
       proposalReceiptReaders.delete(subscriptionId);

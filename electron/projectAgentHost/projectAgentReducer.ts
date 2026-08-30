@@ -56,7 +56,6 @@ import {
   transitionRecord,
   updateProposalItems,
 } from "./projectAgentRecordReduction";
-
 export {
   PROJECT_AGENT_REDUCER_ERROR_CODES,
   ProjectAgentReducerError,
@@ -66,15 +65,12 @@ export type { ProjectAgentReducerErrorCode } from "./projectAgentReducerContract
 export { hashProjectAgentMutation } from "./projectAgentMutationValidation";
 export { replayProjectAgentCompactCommand } from "./projectAgentCompactReplay";
 export type { ProjectAgentReduction } from "./projectAgentReduction";
-
 function isProposalTransition(from: ProjectAgentProposalLifecycle, to: ProjectAgentProposalLifecycle): boolean {
   return from === "pending" && (to === "claimed" || to === "expired");
 }
-
 function fail(code: ProjectAgentReducerErrorCode): never {
   throw new ProjectAgentReducerError(code);
 }
-
 function assertNoAreaIdentity(thread: ProjectAgentThread): void {
   const record = thread as unknown as Record<string, unknown>;
   if (
@@ -86,7 +82,6 @@ function assertNoAreaIdentity(thread: ProjectAgentThread): void {
   }
   if (!isCanonicalProjectAgentId(thread.threadId)) fail("invalid_mutation");
 }
-
 function assertThreadHistory(existing: ProjectAgentThread | undefined, incoming: ProjectAgentThread): void {
   if (
     existing &&
@@ -96,13 +91,11 @@ function assertThreadHistory(existing: ProjectAgentThread | undefined, incoming:
     fail("invalid_mutation");
   }
 }
-
 function findTurn(state: ProjectAgentHostState, turnId: string): ProjectAgentTurn {
   const turn = state.turns.find((value) => value.turnId === turnId);
   if (!turn) fail("record_not_found");
   return turn;
 }
-
 function findQueueForTurn(queue: readonly ProjectAgentQueueItem[], turnId: string): ProjectAgentQueueItem {
   const item = queue.find((value) => value.turnId === turnId);
   if (!item) fail("record_not_found");
@@ -558,6 +551,12 @@ export function reduceProjectAgentMutation(
         }
         const turn = findTurn(current, approval.ref.turnId);
         const queueItem = findQueueForTurn(queue, turn.turnId);
+        const deferredCanvasAdmission =
+          queueItem.target.kind === "canvas" &&
+          Object.keys(queueItem.preconditions).length === 0 &&
+          approval.ref.target.kind === "canvas" &&
+          Array.isArray(approval.ref.preconditions.edges) &&
+          approval.ref.preconditions.edges.length > 0;
         if (
           turn.threadId !== approval.ref.threadId ||
           turn.status !== "running" ||
@@ -568,8 +567,9 @@ export function reduceProjectAgentMutation(
           item.turnId !== turn.turnId ||
           items.some((value) => value.itemId === item.itemId) ||
           stableProjectAgentJson(item.approval) !== stableProjectAgentJson(approval.ref) ||
-          stableProjectAgentJson(approval.ref.target) !== stableProjectAgentJson(queueItem.target) ||
-          stableProjectAgentJson(approval.ref.preconditions) !== stableProjectAgentJson(queueItem.preconditions) ||
+          (!deferredCanvasAdmission &&
+            (stableProjectAgentJson(approval.ref.target) !== stableProjectAgentJson(queueItem.target) ||
+              stableProjectAgentJson(approval.ref.preconditions) !== stableProjectAgentJson(queueItem.preconditions))) ||
           new Date(occurredAt).getTime() < new Date(turn.updatedAt).getTime() ||
           new Date(approval.ref.expiresAt).getTime() <= new Date(occurredAt).getTime()
         ) {
@@ -582,10 +582,9 @@ export function reduceProjectAgentMutation(
           status: "proposed",
           updatedAt: occurredAt,
         });
-        const updatedQueue = transitionRecord(queueItem, {
-          status: "proposed",
-          updatedAt: occurredAt,
-        });
+        const updatedQueue = transitionRecord(deferredCanvasAdmission
+          ? { ...queueItem, target: approval.ref.target, preconditions: approval.ref.preconditions }
+          : queueItem, { status: "proposed", updatedAt: occurredAt });
         proposalApprovals = [...proposalApprovals, approval];
         items = [...items, item];
         turns = replaceById(

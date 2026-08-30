@@ -7,6 +7,11 @@ import { DOCUMENT_WRITE_CAPABILITY } from "./documentWrite";
 import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "./exportCapabilities";
 import { TIMELINE_READ_CAPABILITY } from "./timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "./timelineWrite";
+import {
+  PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
+  PRODUCTION_RUN_READ_CAPABILITY,
+  PRODUCTION_RUN_WRITE_CAPABILITY,
+} from "./productionRun";
 import type { CapabilityContract, CapabilityProjectionSurface } from "./capabilityContract";
 
 type AnyCapabilityContract = CapabilityContract<unknown, unknown>;
@@ -29,6 +34,9 @@ const REGISTERED_CONTRACTS = [
   EXPORT_WRITE_CAPABILITY,
   TIMELINE_READ_CAPABILITY,
   TIMELINE_WRITE_CAPABILITY,
+  PRODUCTION_RUN_READ_CAPABILITY,
+  PRODUCTION_RUN_WRITE_CAPABILITY,
+  PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
 ] as const satisfies readonly CapabilityContract<unknown, unknown>[];
 
 export const CAPABILITY_CONTRACTS: ContractOnlyRegistry<typeof REGISTERED_CONTRACTS> = REGISTERED_CONTRACTS;

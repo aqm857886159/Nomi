@@ -557,7 +557,11 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
           // 宽度内容驱动（w-max）：按底栏一行(锁+参数+生成钮)的真实宽长开，参数少则窄、多则宽，不塌不爆、不换行。
           // max-w-[880px] 兜底：现有最宽是 apimart Seedance 7 控件(model+变体+比例+清晰度+时长+seed+生成音频)
           // ≈810px，880 留头不触发截断；纯防极端（防 omni 模式参考槽行等异常撑爆）。实测 2026-06-16 校准。
-          'border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md',
+          // Beautiful UI's compact cards keep the action footer reachable while
+          // the body scrolls when the timeline leaves only a narrow viewport.
+          // This prevents the expanded timeline from painting over composer
+          // controls instead of letting the user reach them.
+          'border border-nomi-line rounded-nomi bg-nomi-paper overflow-y-auto overscroll-contain shadow-nomi-md',
           'transition-[outline-color] duration-150',
           isDragOver && 'outline-2 outline-dashed outline-nomi-accent outline-offset-[-2px]',
         )}

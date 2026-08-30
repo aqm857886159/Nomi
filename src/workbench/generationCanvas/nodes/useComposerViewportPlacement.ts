@@ -254,7 +254,13 @@ export function useComposerViewportPlacement(input: {
         const acknowledge = panRequestLatch.tryAcquire()
         if (acknowledge) {
           const detail: EnsureComposerVisibleEventDetail = { deltaY: panDeltaY, onSettled: acknowledge }
-          window.dispatchEvent(new CustomEvent(ENSURE_COMPOSER_VISIBLE_EVENT, { detail }))
+          // The placement measurement runs in a child layout effect while the
+          // canvas pan listener is installed in the parent effect. Deferring
+          // one frame avoids losing the first visibility request during mount,
+          // which previously left the composer under the expanded timeline.
+          window.requestAnimationFrame(() => {
+            window.dispatchEvent(new CustomEvent(ENSURE_COMPOSER_VISIBLE_EVENT, { detail }))
+          })
         }
       }
       const attachmentObstructed = selectedAvailableSpace < neededScreenHeight

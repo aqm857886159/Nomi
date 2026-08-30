@@ -79,11 +79,16 @@ try {
   await win.locator('[data-agent-thread-menu]').press('Escape')
   check('Escape closes thread history menu', await win.locator('[data-agent-thread-menu]').count() === 0)
 
-  let contextFocused = false
-  await win.evaluate(() => { window.__residentContextFocused = false; window.addEventListener('nomi-agent-context-focus', () => { window.__residentContextFocused = true }, { once: true }) })
-  await win.locator('[data-agent-context] button').click()
-  contextFocused = await win.evaluate(() => window.__residentContextFocused === true)
-  check('back to scene dispatches a focus request to the active work surface', contextFocused)
+  await win.evaluate(() => {
+    window.__residentContextFocused = false
+    window.addEventListener('nomi-agent-context-focus', () => { window.__residentContextFocused = true }, { once: true })
+  })
+  const contextButton = win.locator('[data-agent-context] button[data-agent-context-focus="true"]').first()
+  await contextButton.waitFor({ state: 'visible', timeout: 7000 })
+  await contextButton.click()
+  check('back to scene dispatches a focus request to the active work surface', await win.evaluate(() => window.__residentContextFocused === true))
+  check('context focus gives visible feedback', await win.locator('[data-agent-context][data-agent-context-focused="true"]').count() === 1)
+  await screenshotSettled(win, { path: path.join(shotsDir, '02-resident-context-focused.png') })
 
   const collapseButton = win.getByRole('button', { name: '收起 Agent' }).first()
   await collapseButton.click()
@@ -174,19 +179,22 @@ try {
     check(`prompt preset ${preset} updates the selected session context`, preset === 'general' ? await win.locator('[data-agent-reference^="prompt:"]').count() === 0 : await win.locator(`[data-agent-reference="prompt:${preset}"]`).count() === 1)
   }
 
-  await win.locator('[data-agent-mode-trigger]').click()
-  check('Mode menu is not a native select', await win.locator('[data-agent-menu="运行方式与操作授权"] [data-agent-menu-item]').count() === 4)
-  await win.locator('[data-agent-menu-item="ask"]').click()
-  check('Ask mode is selected', (await win.locator('[data-agent-mode-trigger]').getAttribute('aria-label')) === '选择工作方式与操作授权' && await win.locator('[data-agent-mode-trigger]').getAttribute('title') === '工作方式与操作授权 · Ask')
+  const creationResident = win.locator('[data-agent-resident][data-agent-surface="creation"]:visible')
+  const modeTrigger = creationResident.locator('[data-agent-mode-trigger]')
+  await modeTrigger.click()
+  check('Mode menu is not a native select', await win.locator('[data-agent-menu="模式"] [data-agent-menu-item]').count() === 4)
+  await win.locator('[data-agent-menu="模式"] [data-agent-menu-item="ask"]').click()
+  check('Ask mode is selected', (await modeTrigger.getAttribute('aria-label')) === '模式' && await modeTrigger.getAttribute('title') === '模式 · Ask')
   for (const [mode, label] of [['guided', '引导'], ['balanced', '平衡'], ['auto', '策略自动'], ['ask', 'Ask']]) {
-    await win.locator('[data-agent-mode-trigger]').click()
-    await win.locator(`[data-agent-menu-item="${mode}"]`).click()
-    check(`run mode ${mode} updates the icon hover label`, await win.locator('[data-agent-mode-trigger]').getAttribute('aria-label') === '选择工作方式与操作授权' && await win.locator('[data-agent-mode-trigger]').getAttribute('title') === `工作方式与操作授权 · ${label}`)
+    await modeTrigger.click()
+    await win.locator(`[data-agent-menu="模式"] [data-agent-menu-item="${mode}"]`).click()
+    check(`run mode ${mode} updates the icon hover label`, await modeTrigger.getAttribute('aria-label') === '模式' && await modeTrigger.getAttribute('title') === `模式 · ${label}`)
   }
 
-  await win.locator('[data-agent-model-trigger]').click()
-  check('Model menu is present even when catalog is empty', await win.locator('[data-agent-menu="当前会话的模型默认"]').count() === 1)
-  const catalogFallback = win.locator('[data-agent-menu-item="catalog"]')
+  const modelTrigger = creationResident.locator('[data-agent-model-trigger]')
+  await modelTrigger.click()
+  check('Model menu is present even when catalog is empty', await win.locator('[data-agent-menu="模型"]').count() === 1)
+  const catalogFallback = win.locator('[data-agent-menu="模型"] [data-agent-menu-item="catalog"]')
   if (await catalogFallback.count()) {
     await win.evaluate(() => { window.__residentModelCatalogOpened = false; window.addEventListener('nomi-open-model-catalog', () => { window.__residentModelCatalogOpened = true }, { once: true }) })
     await catalogFallback.click()
@@ -201,11 +209,12 @@ try {
       ['[data-agent-mention-trigger]', '引用现场或对象', '@ 引用现场或对象'],
       ['[data-agent-skill-trigger]', '选择技能', '技能 · 自动匹配'],
       ['[data-agent-prompt-trigger]', '选择提示词', '提示词 · 未选择'],
-      ['[data-agent-mode-trigger]', '选择工作方式与操作授权', '工作方式与操作授权 · Ask'],
+      ['[data-agent-mode-trigger]', '模式', '模式 · Ask'],
       ['[data-agent-model-trigger]', '选择模型', '模型 · 全部自动选择'],
     ]
-    return expected.every(([selector, ariaLabel, title]) => {
-      const button = document.querySelector(selector)
+    const resident = document.querySelector('[data-agent-resident][data-agent-surface="creation"]')
+    return Boolean(resident) && expected.every(([selector, ariaLabel, title]) => {
+      const button = resident.querySelector(selector)
       return button?.getAttribute('aria-label') === ariaLabel && button.getAttribute('title') === title && Math.round(button.getBoundingClientRect().height) === 28 && button.querySelector('svg') && button.className.includes('transition-[background,border-color,color,transform]') && button.className.includes('motion-safe:hover:-translate-y-px')
     })
   }))
@@ -222,7 +231,7 @@ try {
   await clickSurface('generation')
   check('same resident shell projection appears on generation', await win.locator('[data-agent-resident][data-agent-surface="generation"]').count() === 1)
   check('draft and reference survive Creation → Generation', (await win.locator('[data-agent-composer] textarea').inputValue()).includes('RESIDENT_DRAFT') && await win.locator('[data-agent-reference="document:resident-doc"]').count() === 1)
-  check('mode survives Creation → Generation', (await win.locator('[data-agent-mode-trigger]').getAttribute('title')) === '工作方式与操作授权 · Ask')
+  check('mode survives Creation → Generation', (await win.locator('[data-agent-resident][data-agent-surface="generation"]:visible [data-agent-mode-trigger]').getAttribute('title')) === '模式 · Ask')
   await win.locator('[data-agent-resident][data-agent-surface="generation"]:visible').getByRole('button', { name: '收起 Agent' }).click()
   await win.locator('[data-agent-resident-collapsed="true"]:visible').waitFor({ state: 'visible', timeout: 5000 })
   check('generation keeps the same rounded collapsed status pill', await win.evaluate(() => {

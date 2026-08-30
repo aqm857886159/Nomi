@@ -5,6 +5,7 @@ import {
   type ProjectAgentExecutionCoordinator,
 } from "./projectAgentExecutionCoordinator";
 import type { ProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
+import type { PiProductionRunTransportAdapter } from "../capabilityCore/productionRunTransportAdapters";
 
 export class ProjectAgentOwnerConflictError extends Error {
   readonly code = "project_agent_owner_conflict" as const;
@@ -27,6 +28,7 @@ export type ProjectAgentProductionRuntimeDeps = Readonly<{
   createRepository: () => ProjectAgentProductionRepositoryRouter;
   subscribeSurface: () => () => void;
   registerIpc: (runtime: ProjectAgentProductionRuntime) => void;
+  productionRun?: (binding: ProjectBinding) => PiProductionRunTransportAdapter;
 }>;
 
 let installed: ProjectAgentProductionRuntime | null = null;
@@ -46,7 +48,9 @@ export function installProductionProjectAgentHost(
   try {
     const repositoryRouter = deps.createRepository();
     unsubscribeSurface = deps.subscribeSurface();
-    const executionCoordinator = createProjectAgentExecutionCoordinator(repositoryRouter);
+    const executionCoordinator = createProjectAgentExecutionCoordinator(repositoryRouter, undefined, {
+      productionRun: deps.productionRun,
+    });
     const runtime: ProjectAgentProductionRuntime = Object.freeze({
       repositoryRouter,
       executionCoordinator,

@@ -11,6 +11,12 @@ export const AGENT_CHAT_CAPABILITIES = [
   'creation-editor', 'creation-chat', 'canvas-agent', 'canvas-chat', 'canvas-refine', 'storyboard', 'single-shot',
 ] as const;
 export type AgentChatCapability = typeof AGENT_CHAT_CAPABILITIES[number];
+/**
+ * A bounded projection of the canonical capability catalog. The Host may only
+ * move this value forward within a Thread; it is never an authorization input.
+ */
+export const AGENT_TOOL_PROFILES = ["creation", "generation", "storyboard", "timeline", "production"] as const;
+export type AgentToolProfile = typeof AGENT_TOOL_PROFILES[number];
 export type AgentChatHistory = AgentContextScope;
 export type AgentChatToolDecision = RuntimeToolDecision;
 export type AgentChatUsage = RuntimeUsage;
@@ -39,6 +45,8 @@ export interface AgentChatRequest {
   agentModelKey?: string;
   agentVendorKey?: string;
   attachments?: AgentChatAttachment[];
+  /** Host-captured tool projection; renderer input cannot grant capabilities. */
+  toolProfile?: AgentToolProfile;
 }
 
 export interface AgentChatResponse {

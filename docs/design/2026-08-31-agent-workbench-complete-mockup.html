@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nomi Agent Host · 完整交互样张</title>
+  <style>
+    :root{
+      --bg:#11110f;--panel:#191916;--panel-2:#211f1b;--panel-3:#2a2722;
+      --ink:#f4f0e9;--muted:#a9a39a;--dim:#716c64;--line:#3a3731;--line-soft:#292722;
+      --blue:#9bd8ff;--blue-bg:#18364c;--copper:#e8a56c;--copper-bg:#38291e;
+      --green:#96dfb5;--green-bg:#173428;--red:#f29d91;--red-bg:#3a211f;
+      --shadow:0 20px 70px rgba(0,0,0,.34);--r-sm:6px;--r:10px;--r-lg:14px;
+      --font:ui-sans-serif,"SF Pro Display","PingFang SC","Hiragino Sans GB",sans-serif;
+      --mono:ui-monospace,"SFMono-Regular",Menlo,monospace;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px}
+    button,input,textarea{font:inherit;color:inherit}
+    button{border:0;background:none;cursor:pointer}
+    button:focus-visible,textarea:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+    svg.icon{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+    .app{height:100%;display:grid;grid-template-rows:56px 1fr;overflow:hidden;background:
+      radial-gradient(circle at 29% 24%,rgba(196,132,78,.07),transparent 25rem),
+      linear-gradient(135deg,#11110f 0%,#151411 55%,#10100e 100%)}
+    .topbar{display:flex;align-items:center;gap:16px;padding:0 18px;border-bottom:1px solid var(--line-soft);background:rgba(19,18,16,.86);backdrop-filter:blur(18px);z-index:20}
+    .brand{display:flex;align-items:center;gap:10px;min-width:188px;font-weight:650;letter-spacing:.01em}
+    .logo{width:25px;height:25px;border:1px solid var(--copper);border-radius:8px;display:grid;place-items:center;color:var(--copper);background:var(--copper-bg)}
+    .logo svg{width:15px;height:15px}
+    .crumb{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+    .crumb strong{color:var(--ink);font-weight:600}
+    .top-spacer{flex:1}
+    .demo-select{display:flex;align-items:center;gap:7px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:7px 10px;background:rgba(255,255,255,.025);font-size:12px}
+    .demo-select select{border:0;background:transparent;color:var(--ink);font-size:12px;outline:0}
+    .top-icon{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
+    .top-icon:hover{background:var(--panel-3);color:var(--ink)}
+    .body{min-height:0;display:grid;grid-template-columns:58px minmax(420px,1fr) minmax(344px,390px)}
+    .rail{border-right:1px solid var(--line-soft);display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 0;background:rgba(11,11,10,.42)}
+    .rail button{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--dim)}
+    .rail button:hover,.rail button.active{background:var(--panel-3);color:var(--ink)}
+    .rail button.active{box-shadow:inset 2px 0 var(--copper)}
+    .rail .rail-bottom{margin-top:auto}
+    .workbench{min-width:0;display:grid;grid-template-rows:52px 1fr 54px;overflow:hidden}
+    .stagebar{display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid var(--line-soft);background:rgba(24,23,20,.55)}
+    .surface-tabs{display:flex;gap:4px;padding:3px;background:var(--panel);border:1px solid var(--line);border-radius:9px}
+    .surface-tab{padding:6px 10px;border-radius:6px;color:var(--muted);font-size:12px}
+    .surface-tab.active{background:var(--panel-3);color:var(--ink)}
+    .surface-meta{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
+    .surface-meta .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 10px rgba(150,223,181,.55)}
+    .stagebar .stretch{flex:1}
+    .stage-action{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;padding:6px 9px;color:var(--muted);font-size:12px}
+    .stage-action:hover{color:var(--ink);background:var(--panel-3)}
+    .stage{position:relative;min-height:0;overflow:hidden;background-image:radial-gradient(rgba(255,255,255,.075) 1px,transparent 1px);background-size:22px 22px;background-position:10px 10px}
+    .stage::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 65%,rgba(9,9,8,.72));pointer-events:none}
+    .stage-label{position:absolute;left:24px;top:22px;z-index:2;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:8px}
+    .stage-label b{color:var(--ink);font-weight:600}
+    .canvas-node{position:absolute;z-index:3;left:10%;top:15%;width:min(650px,72%);min-width:420px;border:1px solid #4d463d;border-radius:14px;background:#292621;box-shadow:var(--shadow);overflow:hidden;transition:transform .3s ease,box-shadow .3s ease}
+    .canvas-node:hover{transform:translateY(-3px);box-shadow:0 25px 80px rgba(0,0,0,.45)}
+    .node-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.09);font-size:12px}
+    .node-head .node-type{color:var(--copper);font-family:var(--mono);font-size:10px;letter-spacing:.08em}
+    .node-head .node-title{flex:1;color:var(--ink);font-weight:620}
+    .node-head .node-version{color:var(--dim);font-family:var(--mono);font-size:10px}
+    .node-media{display:grid;grid-template-columns:1.12fr 1fr;min-height:274px;background:#c9c5bf}
+    .portrait{position:relative;overflow:hidden;background:radial-gradient(circle at 48% 32%,#dbcbb8 0 10%,transparent 10.5%),linear-gradient(120deg,#9d8975,#dfd0bd 48%,#6c5c51)}
+    .portrait::before{content:"";position:absolute;width:145px;height:195px;left:18%;top:18%;border-radius:48% 48% 40% 42%;background:linear-gradient(145deg,#d7b596,#ac7a5e);box-shadow:inset -22px -10px 0 rgba(91,57,43,.24),0 12px 26px rgba(53,35,27,.24)}
+    .portrait::after{content:"";position:absolute;width:210px;height:72px;left:8%;top:5%;border-radius:55% 45% 15% 35%;background:repeating-linear-gradient(110deg,#625d58 0 7px,#aaa49d 8px 12px,#6d6863 13px 18px);transform:rotate(-7deg);opacity:.95}
+    .eye{position:absolute;z-index:2;left:45%;top:46%;width:28px;height:28px;border:3px solid #27221d;border-radius:50%;background:radial-gradient(circle,#e8be72 0 17%,#312319 18% 33%,#161311 34% 100%);box-shadow:0 0 0 3px rgba(28,22,18,.35)}
+    .moustache{position:absolute;z-index:2;left:33%;top:65%;width:86px;height:22px;border-bottom:7px solid #57443b;border-radius:0 0 50% 50%;transform:rotate(-2deg)}
+    .portrait-note{position:absolute;left:16px;bottom:12px;color:#f9eee1;font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-shadow:0 1px 2px #332820}
+    .turnaround{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px 12px;background:#bcb8b1}
+    .turn{position:relative;display:flex;align-items:end;justify-content:center;border:1px solid rgba(55,50,44,.14);border-radius:6px;background:rgba(255,255,255,.16);overflow:hidden}
+    .turn::before{content:"";width:33px;height:102px;border-radius:48% 48% 18% 18%;background:linear-gradient(90deg,#705642,#b99b7b 48%,#60483b);box-shadow:0 -24px 0 -5px #72675e;transform:scaleX(var(--turn-scale,1))}
+    .turn.side::before{--turn-scale:.55}
+    .turn.back::before{background:linear-gradient(90deg,#5a4538,#3f3029 52%,#725844)}
+    .turn span{position:absolute;bottom:6px;color:#625b54;font:9px var(--mono)}
+    .node-foot{display:flex;align-items:center;gap:12px;padding:10px 14px;color:var(--muted);font-size:11px}
+    .node-foot .status{color:var(--green);display:flex;align-items:center;gap:5px}
+    .node-foot .status::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green)}
+    .node-foot .node-link{margin-left:auto;color:var(--blue);display:flex;align-items:center;gap:5px}
+    .ghost-node{position:absolute;z-index:2;width:170px;height:92px;right:8%;top:22%;border:1px dashed #413d36;border-radius:10px;color:var(--dim);padding:12px;font-size:11px;background:rgba(25,24,21,.5)}
+    .ghost-node small{display:block;margin-top:8px;color:#534f48;font-family:var(--mono)}
+    .stage-status{position:absolute;z-index:4;left:24px;bottom:22px;display:flex;align-items:center;gap:9px;color:var(--muted);font-size:12px}
+    .stage-status .status-line{width:70px;height:3px;background:var(--line);border-radius:9px;overflow:hidden}
+    .stage-status .status-line i{display:block;width:68%;height:100%;background:var(--copper);border-radius:9px;animation:pulse 2.4s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
+    .timeline{border-top:1px solid var(--line-soft);background:#151411;padding:10px 18px;display:flex;align-items:center;gap:14px}
+    .timeline-label{width:58px;color:var(--dim);font:10px var(--mono)}
+    .timeline-track{height:28px;position:relative;flex:1;border-radius:6px;background:repeating-linear-gradient(90deg,#27251f 0 1px,transparent 1px 58px),#1e1c18;border:1px solid var(--line)}
+    .timeline-clip{position:absolute;top:4px;height:18px;border-radius:4px;background:linear-gradient(90deg,#4f777e,#6f8c67);font-size:9px;padding:4px 7px;color:#eef4e7;overflow:hidden;white-space:nowrap}
+    .timeline-clip.a{left:1%;width:29%}.timeline-clip.b{left:33%;width:20%;background:linear-gradient(90deg,#795744,#a66f4e)}.timeline-clip.c{left:57%;width:36%;background:linear-gradient(90deg,#48586c,#77736c)}
+    .playhead{position:absolute;left:42%;top:-4px;bottom:-4px;width:1px;background:var(--copper);box-shadow:0 0 10px var(--copper)}
+    .timecode{color:var(--muted);font:11px var(--mono);width:76px;text-align:right}
+    .agent-host{min-width:0;display:grid;grid-template-rows:auto auto 1fr auto;border-left:1px solid var(--line);background:rgba(23,22,19,.96);box-shadow:-18px 0 40px rgba(0,0,0,.14);z-index:8}
+    .agent-head{display:flex;align-items:center;gap:10px;padding:14px 16px 11px;border-bottom:1px solid var(--line-soft)}
+    .agent-avatar{width:28px;height:28px;display:grid;place-items:center;border:1px solid #637e8d;border-radius:9px;background:#1a3341;color:var(--blue)}
+    .agent-name{font-weight:650;line-height:1.1}.agent-sub{color:var(--dim);font-size:10px;margin-top:4px}
+    .agent-head .spacer{flex:1}
+    .agent-util{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--muted)}
+    .agent-util:hover{background:var(--panel-3);color:var(--ink)}
+    .context-strip{display:flex;align-items:center;gap:7px;padding:10px 16px;border-bottom:1px solid var(--line-soft);color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden}
+    .context-strip .context-dot{width:6px;height:6px;border-radius:50%;background:var(--copper);flex:none}
+    .context-strip strong{color:var(--ink);font-weight:600}
+    .context-strip .context-end{margin-left:auto;color:var(--dim);font-family:var(--mono);font-size:10px}
+    .transcript{min-height:0;overflow:auto;padding:17px 15px 18px;scroll-behavior:smooth}
+    .thread-tabs{display:flex;align-items:center;gap:4px;margin:-3px 0 15px;padding:3px;border:1px solid var(--line-soft);border-radius:8px;background:#171612}.thread-tab{flex:1;padding:6px 4px;border-radius:5px;color:var(--dim);font-size:10px}.thread-tab.active{background:#2d2a24;color:var(--ink)}
+    .phase{display:flex;align-items:center;gap:8px;color:var(--dim);font:10px var(--mono);letter-spacing:.07em;text-transform:uppercase;margin:0 2px 15px}
+    .phase::after{content:"";height:1px;background:var(--line-soft);flex:1}
+    .user-msg{margin:0 0 13px 22px;padding:10px 12px;border:1px solid #3c3a34;border-radius:10px 10px 3px 10px;background:#26241f;color:var(--ink);font-size:12px;line-height:1.55}
+    .agent-copy{padding:0 2px;color:#ddd8d0;font-size:12px;line-height:1.6;margin-bottom:13px}
+    .agent-copy strong{color:var(--ink);font-weight:650}
+    .operation{margin:8px 0 14px;border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft)}
+    .operation-summary{width:100%;display:flex;align-items:center;gap:8px;padding:9px 4px;color:var(--muted);font-size:11px;text-align:left}
+    .operation-summary:hover{color:var(--ink)}
+    .operation-summary .op-icon{color:var(--green)}
+    .operation-summary .op-chevron{margin-left:auto;transition:transform .2s}
+    .operation.open .op-chevron{transform:rotate(180deg)}
+    .operation-details{display:none;padding:3px 4px 11px}
+    .operation.open .operation-details{display:block}
+    .op-row{display:flex;align-items:center;gap:8px;color:var(--dim);font:10px var(--mono);padding:5px 0}
+    .op-row .check{color:var(--green)}.op-row.fail{color:var(--red)}.op-row.fail .check{color:var(--red)}
+    .op-count{margin-left:auto;color:var(--muted)}
+    .thinking-row{display:flex;align-items:center;gap:8px;margin:0 2px 13px;color:var(--muted);font-size:11px}.thinking-row .thinking-dot{width:7px;height:7px;border-radius:50%;background:var(--copper);box-shadow:0 0 0 4px rgba(232,165,108,.1);animation:think 1.3s ease-in-out infinite}.thinking-row button{margin-left:auto;color:var(--dim);font-size:10px}.thinking-row button:hover{color:var(--ink)}@keyframes think{50%{opacity:.35;transform:scale(.75)}}
+    .review-card,.proposal-card,.question-card{border:1px solid #4a4238;border-radius:12px;background:linear-gradient(145deg,#2a2722,#211f1b);overflow:hidden;margin:10px 0 15px;box-shadow:0 9px 30px rgba(0,0,0,.13)}
+    .card-kicker{display:flex;align-items:center;gap:8px;padding:13px 14px 5px;color:var(--copper);font:10px var(--mono);letter-spacing:.08em}
+    .card-kicker .counter{margin-left:auto;color:var(--muted);font:11px var(--mono);letter-spacing:0}
+    .card-title{padding:0 14px;color:var(--ink);font-size:15px;font-weight:650;line-height:1.35}
+    .card-copy{padding:7px 14px 11px;color:var(--muted);font-size:11px;line-height:1.55}
+    .confidence{display:flex;align-items:center;gap:8px;padding:0 14px 12px;color:var(--muted);font-size:10px}.confidence strong{color:var(--green);font-weight:600}.confidence-meter{height:4px;flex:1;border-radius:99px;background:#4a443b;overflow:hidden}.confidence-meter i{display:block;width:86%;height:100%;border-radius:99px;background:var(--green)}
+    .next-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 9px 12px}
+    .next-option{min-width:0;display:flex;flex-direction:column;text-align:left;gap:5px;padding:10px;border:1px solid #464039;border-radius:9px;background:#37332e;transition:.2s}
+    .next-option:hover{border-color:#a17856;transform:translateY(-2px)}.next-option.recommended{background:#35281e;border-color:#845d3e}
+    .next-option .option-type{color:#a8a096;font-size:10px}.next-option.recommended .option-type{color:var(--copper)}
+    .next-option b{font-size:12px;line-height:1.35}.next-option small{color:var(--muted);font-size:10px;line-height:1.45;min-height:28px}
+    .option-btn{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:3px;padding:6px 4px;border:1px solid #61594f;border-radius:999px;color:var(--ink);font-size:10px;white-space:nowrap}
+    .recommended .option-btn{border-color:var(--copper);color:#f3c195;background:rgba(232,165,108,.06)}
+    .option-btn:hover{background:rgba(255,255,255,.08)}
+    .receipt{display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #3c3933;border-radius:8px;background:#201f1b;color:var(--muted);font-size:11px;margin:10px 0}
+    .receipt .receipt-icon{color:var(--green)}.receipt b{color:var(--ink);font-weight:600}.receipt .arrow{margin-left:auto;color:var(--blue)}
+    .card-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 14px 14px}
+    .btn-ghost,.btn-primary,.btn-danger{border-radius:7px;padding:8px 12px;font-size:11px;transition:.2s}
+    .btn-ghost{color:var(--muted);border:1px solid #4a4640}.btn-ghost:hover{background:#35322d;color:var(--ink)}
+    .btn-primary{background:var(--ink);color:#181713;font-weight:650}.btn-primary:hover{background:#fff}
+    .btn-danger{color:var(--red);border:1px solid #72433e}.btn-danger:hover{background:var(--red-bg)}
+    .proposal-card{display:none}.proposal-card.show{display:block}
+    .proposal-top{display:flex;align-items:flex-start;gap:9px;padding:13px 14px 6px}.proposal-top .media-icon{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:var(--copper);background:#3b2a1d}
+    .proposal-top .proposal-title{flex:1;font-size:13px;font-weight:650}.proposal-top .cost{color:var(--copper);font:11px var(--mono);white-space:nowrap}
+    .prompt-box{margin:0 14px 10px;border:1px solid #464139;border-radius:8px;background:#1f1d19}
+    .prompt-box button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;text-align:left;color:var(--muted);font-size:10px}.prompt-box button svg{margin-left:auto}
+    .prompt-text{display:none;padding:0 10px 10px;color:#bbb3a8;line-height:1.5;font-size:10px}.prompt-box.expanded .prompt-text{display:block}.prompt-box.expanded button svg{transform:rotate(180deg)}
+    .param-row{display:flex;gap:5px;padding:0 14px 11px;overflow:auto}.param{display:flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid #4a443c;border-radius:999px;color:var(--muted);font:10px var(--mono);white-space:nowrap}.param b{color:var(--ink);font-weight:500}
+    .question-card{display:none}.question-card.show{display:block}
+    .question-list{display:grid;gap:6px;padding:2px 14px 12px}.question-option{display:flex;align-items:center;gap:8px;padding:8px 9px;border:1px solid #4a443c;border-radius:7px;color:var(--muted);font-size:11px;text-align:left}.question-option:hover,.question-option.selected{border-color:var(--blue);background:rgba(155,216,255,.08);color:var(--ink)}.question-option em{font-style:normal;font-family:var(--mono);color:var(--dim)}
+    .queue{display:none;border-top:1px solid var(--line-soft);padding:9px 15px;background:#171612}.queue.show{display:block}.queue-head{display:flex;align-items:center;color:var(--muted);font-size:10px;margin-bottom:7px}.queue-head b{color:var(--ink);font-weight:600}.queue-head span{margin-left:auto;color:var(--copper);font-family:var(--mono)}.queue-row{display:flex;align-items:center;gap:8px;padding:8px 9px;border:1px solid #38352f;border-radius:7px;background:#211f1b;color:var(--muted);font-size:10px}.queue-row .queue-status{width:6px;height:6px;border-radius:50%;background:var(--copper);box-shadow:0 0 9px rgba(232,165,108,.5)}.queue-row .queue-edit{margin-left:auto;color:var(--dim)}
+    .composer{padding:10px 12px 12px;border-top:1px solid var(--line-soft);background:#161512;position:relative}.composer-shell{border:1px solid #46423b;border-radius:11px;background:#1f1d1a;box-shadow:0 8px 26px rgba(0,0,0,.15)}.composer-shell:focus-within{border-color:#736856}
+    .composer-context{display:flex;gap:6px;flex-wrap:wrap;padding:9px 10px 0}.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid #524b43;border-radius:999px;padding:5px 8px;color:#d4cec5;font-size:10px;background:#292621}.chip .chip-x{color:var(--dim);font-size:13px;line-height:10px}.chip.skill{border-color:#775438;color:#edc29f;background:#33261c}
+    .composer textarea{display:block;width:100%;height:60px;resize:none;border:0;background:transparent;padding:10px;color:var(--ink);font-size:12px;line-height:1.5}.composer textarea::placeholder{color:#706b63}.composer-row{display:flex;align-items:center;gap:4px;padding:0 7px 7px}.composer-btn{width:28px;height:28px;display:grid;place-items:center;border-radius:7px;color:var(--muted);position:relative}.composer-btn:hover,.composer-btn.active{background:#35322d;color:var(--ink)}.composer-btn .badge{position:absolute;top:-3px;right:-2px;min-width:13px;height:13px;padding:0 3px;border-radius:99px;background:var(--copper);color:#18130f;font:9px var(--mono);display:grid;place-items:center}.composer-divider{height:17px;width:1px;background:var(--line);margin:0 3px}.mode-label{font-size:10px;color:var(--muted);padding:0 5px}.composer-row .grow{flex:1}.send-btn{width:31px;height:31px;display:grid;place-items:center;border-radius:9px;background:var(--ink);color:#161510}.send-btn.stop{background:#46322a;color:var(--copper)}.send-btn:hover{background:#fff}
+    .popover{position:absolute;z-index:30;bottom:54px;left:10px;min-width:170px;padding:5px;border:1px solid #4a453d;border-radius:10px;background:#24221e;box-shadow:var(--shadow);display:none}.popover.show{display:block;animation:rise .16s ease-out}@keyframes rise{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}.popover button{display:flex;align-items:center;gap:9px;width:100%;padding:9px 10px;border-radius:7px;color:var(--muted);font-size:11px;text-align:left}.popover button:hover{background:#35322d;color:var(--ink)}.popover button small{display:block;color:var(--dim);font-size:9px;margin-top:2px}
+    .mode-popover{left:auto;right:52px;min-width:226px}.mode-popover button{align-items:flex-start}.mode-popover button .mode-check{margin-left:auto;color:var(--green);opacity:0}.mode-popover button.selected .mode-check{opacity:1}
+    .toast{position:fixed;z-index:80;right:24px;bottom:24px;padding:10px 13px;border:1px solid #4b463d;border-radius:9px;background:#28251f;color:var(--ink);font-size:11px;box-shadow:var(--shadow);opacity:0;transform:translateY(8px);pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translateY(0)}
+    .overlay{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.64);backdrop-filter:blur(8px)}.overlay.show{display:flex}.modal{width:min(720px,calc(100vw - 36px));max-height:calc(100vh - 56px);overflow:auto;border:1px solid #4c473f;border-radius:14px;background:#201f1c;box-shadow:var(--shadow);animation:rise .18s ease-out}.modal-head{display:flex;align-items:center;padding:17px 19px 13px;border-bottom:1px solid var(--line-soft)}.modal-head h2{font-size:16px;margin:0}.modal-head p{margin:4px 0 0;color:var(--muted);font-size:11px}.modal-head .grow{flex:1}.close{width:28px;height:28px;display:grid;place-items:center;color:var(--muted);border-radius:7px}.close:hover{background:#35322d;color:var(--ink)}.modal-body{padding:17px 19px}
+    .model-tabs{display:flex;gap:5px;padding:4px;border:1px solid var(--line);border-radius:9px;background:#181714;margin-bottom:15px}.model-tab{flex:1;padding:8px;border-radius:6px;color:var(--muted);font-size:12px}.model-tab.active{background:#3a3833;color:var(--ink)}.model-section{color:var(--dim);font-size:10px;margin-bottom:7px;text-transform:uppercase;letter-spacing:.08em}.model-row{display:flex;align-items:center;gap:10px;padding:11px 10px;border:1px solid transparent;border-radius:8px}.model-row:hover{background:#2b2924;border-color:#464139}.model-icon{width:31px;height:31px;border-radius:8px;display:grid;place-items:center;background:#34322d;color:var(--blue)}.model-row .grow{flex:1}.model-row b{font-size:12px;font-weight:600}.model-row small{display:block;margin-top:4px;color:var(--muted);font-size:10px}.model-add{width:25px;height:25px;border:1px solid #5c574f;border-radius:50%;display:grid;place-items:center;color:var(--muted)}.model-add:hover{color:var(--ink);border-color:var(--blue)}
+    .skill-layout{display:grid;grid-template-columns:1fr 1.05fr;gap:16px}.skill-list{min-width:0}.skill-tools{display:flex;gap:7px;margin-bottom:12px}.skill-search{flex:1;border:1px solid var(--line);border-radius:7px;background:#181714;padding:8px 10px;color:var(--muted);font-size:11px}.skill-row{display:flex;gap:9px;padding:10px 8px;border-radius:8px}.skill-row:hover,.skill-row.selected{background:#35332e}.skill-row .skill-mark{width:25px;height:25px;border:1px solid #575148;border-radius:7px;display:grid;place-items:center;color:var(--copper)}.skill-row b{font-size:11px}.skill-row small{display:block;color:var(--muted);font-size:9px;margin-top:4px}.skill-detail{border:1px solid #4b443a;border-radius:10px;background:#2a2722;overflow:hidden}.skill-cover{height:132px;background:radial-gradient(circle at 62% 39%,#d1b48e 0 8%,transparent 8.5%),linear-gradient(135deg,#23313c,#84624b 54%,#1d2427);position:relative}.skill-cover::after{content:"PLAY";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:35px;height:35px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.7);border-radius:50%;font:9px var(--mono);color:#fff}.skill-detail-body{padding:14px}.skill-detail h3{margin:0;font-size:15px}.skill-detail p{color:var(--muted);font-size:10px;line-height:1.55}.skill-meta{display:flex;gap:8px;color:var(--dim);font-size:10px;margin-bottom:10px}.skill-add{width:100%;padding:8px;border:1px solid var(--copper);border-radius:7px;color:#f0bd91;background:#34271e;font-size:11px}
+    .settings-grid{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden}.setting{display:flex;align-items:center;gap:12px;padding:14px;background:#292722}.setting .grow{flex:1}.setting b{display:block;font-size:12px}.setting small{display:block;color:var(--muted);font-size:10px;margin-top:4px;line-height:1.45}.switch{width:34px;height:20px;padding:2px;border-radius:99px;background:#4b4740}.switch i{display:block;width:16px;height:16px;border-radius:50%;background:#aaa49b;transition:.2s}.switch.on{background:#4c7b67}.switch.on i{margin-left:14px;background:#e8f4eb}.number{font:12px var(--mono);color:var(--copper);border-bottom:1px dashed var(--copper);padding-bottom:2px}
+    .history{position:absolute;z-index:60;top:56px;right:0;width:330px;height:calc(100% - 56px);border-left:1px solid var(--line);background:#201f1c;box-shadow:-18px 0 40px rgba(0,0,0,.24);transform:translateX(100%);transition:.25s;display:flex;flex-direction:column}.history.open{transform:translateX(0)}.history-head{display:flex;align-items:center;padding:15px;border-bottom:1px solid var(--line-soft)}.history-head b{font-size:13px}.history-list{padding:12px;overflow:auto}.history-item{padding:12px;border:1px solid #3e3a34;border-radius:8px;margin-bottom:8px;color:var(--muted);font-size:11px}.history-item.active{border-color:#785638;background:#30251e;color:var(--ink)}.history-item time{display:block;margin-top:7px;color:var(--dim);font:10px var(--mono)}
+    @media (max-width:900px){.body{grid-template-columns:50px minmax(350px,1fr) 350px}.canvas-node{left:5%;width:86%;min-width:0}.ghost-node{display:none}.next-options{grid-template-columns:1fr}.next-option small{min-height:0}}
+    @media (max-width:720px){.body{grid-template-columns:1fr}.rail{display:none}.agent-host{position:absolute;inset:56px 0 0 auto;width:min(390px,100%);transform:translateX(100%);transition:.25s}.agent-host.mobile-open{transform:none}.workbench{grid-template-rows:52px 1fr 54px}.brand{min-width:0}.brand span,.crumb{display:none}.demo-select{margin-left:auto}.stagebar{padding:0 12px}.stage-action:nth-last-child(-n+2){display:none}.canvas-node{top:16%;width:90%}.node-media{grid-template-columns:1fr;min-height:0}.turnaround{height:130px}.portrait{height:220px}.mobile-agent{display:grid!important}}
+    @media (min-width:721px){.mobile-agent{display:none!important}}
+  </style>
+</head>
+<body>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.2 5.8L19 10l-5.8 1.2L12 17l-1.2-5.8L5 10l5.8-1.2L12 3ZM19 16l.5 2.5L22 19l-2.5.5L19 22l-.5-2.5L16 19l2.5-.5L19 16Z"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5M12 7v5l3 2"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.4m-7.6 7.8 7.6 4.4"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h16M4 18h16M4 12h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="10" cy="18" r="2"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="m8 12 4 4m-8-2 4 4m8-14-4 4m8 0-4-4M7 17l3-3 4-4 3-3a3 3 0 0 1 4 4l-3 3-4 4-3 3a3 3 0 0 1-4-4Z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></symbol>
+  <symbol id="i-cube" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 4 8 4-8 4-8-4 8-4Zm-8 8 8 4 8-4M4 16l8 4 8-4"/></symbol>
+  <symbol id="i-skill" viewBox="0 0 24 24"><path d="m14.7 6.3 3-3 3 3-3 3m-1.4-1.6L8.4 15.6a2 2 0 0 0 0 2.8l.2.2a2 2 0 0 0 2.8 0l7.8-7.8M5 20h5"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m4 4 16 8-16 8 3-8-3-8Zm3 8h13"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h13m-5-5 5 5-5 5"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8v.2"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="m4 13-1-1 1-1 1-2-1-1 1-1 2 1 2-1 1-2h2l1 2 2 1 2-1 1 1-1 2 1 2 2 1v2l-2 1-1 2 1 1-1 1-2-1-2 1-1 2h-2l-1-2-2-1-2 1-1-1 1-2-1-2-2-1v-2l2-1 1-2Z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5V3Z"/><path d="M15 3v5h4M8 12h8m-8 4h6"/></symbol>
+</svg>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="logo"><svg class="icon"><use href="#i-spark"/></svg></span><span>Nomi Studio</span></div>
+    <div class="crumb"><span>项目</span><span>›</span><strong>雾中钟表铺</strong><span>›</span><span>Agent Host</span></div>
+    <div class="top-spacer"></div>
+    <label class="demo-select"><span>演示状态</span><select id="demoState" aria-label="切换演示状态"><option value="review">资产审查</option><option value="proposal">生成提案</option><option value="running">执行中</option><option value="question">前置问题</option></select></label>
+    <button class="top-icon" id="mobileAgent" title="打开 Agent"><svg class="icon"><use href="#i-spark"/></svg></button>
+    <button class="top-icon" id="openSettings" title="Agent 设置"><svg class="icon"><use href="#i-sliders"/></svg></button>
+  </header>
+  <main class="body">
+    <nav class="rail" aria-label="工作面">
+      <button class="active" title="生成画布"><svg class="icon"><use href="#i-cube"/></svg></button>
+      <button title="文稿"><svg class="icon"><use href="#i-doc"/></svg></button>
+      <button title="素材库"><svg class="icon"><use href="#i-folder"/></svg></button>
+      <button title="时间线"><svg class="icon"><use href="#i-layers"/></svg></button>
+      <div class="rail-bottom"><button title="设置"><svg class="icon"><use href="#i-settings"/></svg></button></div>
+    </nav>
+    <section class="workbench">
+      <div class="stagebar">
+        <div class="surface-tabs"><button class="surface-tab active">生成</button><button class="surface-tab">创作</button><button class="surface-tab">预览</button></div>
+        <div class="surface-meta"><span class="dot"></span><span>当前现场</span><strong>2 个对象已选</strong></div>
+        <div class="stretch"></div>
+        <button class="stage-action"><svg class="icon"><use href="#i-history"/></svg>版本历史</button>
+        <button class="stage-action"><svg class="icon"><use href="#i-share"/></svg>分享</button>
+      </div>
+      <div class="stage" id="stage">
+        <div class="stage-label"><svg class="icon"><use href="#i-cube"/></svg><b>生成画布</b><span>/</span><span>角色与道具标准件</span></div>
+        <article class="canvas-node" id="characterNode">
+          <div class="node-head"><span class="node-type">CHARACTER · STANDARD</span><span class="node-title">老钟表匠 · 角色标准设定图</span><span class="node-version">v1.2</span><button class="top-icon" title="节点更多"><svg class="icon"><use href="#i-plus"/></svg></button></div>
+          <div class="node-media">
+            <div class="portrait"><span class="eye"></span><span class="moustache"></span><span class="portrait-note">PORTRAIT / IDENTITY LOCK</span></div>
+            <div class="turnaround"><div class="turn"><span>FRONT</span></div><div class="turn side"><span>SIDE</span></div><div class="turn back"><span>BACK</span></div></div>
+          </div>
+          <div class="node-foot"><span class="status">已通过一致性检查</span><span>面部 / 服装 / 三视图</span><span class="node-link">在对话中查看 <svg class="icon"><use href="#i-arrow"/></svg></span></div>
+        </article>
+        <div class="ghost-node">下一个资产<small>古董黄铜怀表</small><small>等待生成提案</small></div>
+        <div class="stage-status"><span class="status-line"><i></i></span><span id="stageStatus">资产库已同步 · 角色标准件 v1.2</span></div>
+      </div>
+      <div class="timeline"><span class="timeline-label">TIMELINE</span><div class="timeline-track"><span class="timeline-clip a">角色定妆</span><span class="timeline-clip b">怀表 · 待生成</span><span class="timeline-clip c">钟表铺内景</span><span class="playhead"></span></div><span class="timecode">00:07:18</span></div>
+    </section>
+    <aside class="agent-host" id="agentHost">
+      <div class="agent-head"><span class="agent-avatar"><svg class="icon"><use href="#i-spark"/></svg></span><div><div class="agent-name">Nomi Agent</div><div class="agent-sub">一个 Host · 三个工作面</div></div><div class="spacer"></div><button class="agent-util" id="openHistory" title="任务历史"><svg class="icon"><use href="#i-history"/></svg></button><button class="agent-util" id="collapseAgent" title="收起 Agent"><svg class="icon"><use href="#i-chevron"/></svg></button></div>
+      <div class="context-strip"><span class="context-dot"></span><span>当前现场</span><strong>生成画布</strong><span>·</span><span>老钟表匠 / 2 个节点</span><span class="context-end">rev 1.2</span></div>
+      <div class="transcript" id="transcript">
+        <div class="thread-tabs"><button class="thread-tab active">当前任务</button><button class="thread-tab">上下文</button><button class="thread-tab">执行证据</button></div>
+        <div class="phase"><span>BUILD · 04</span><span>资产标准件</span></div>
+        <div class="agent-copy"><strong>老钟表匠的角色标准件已就绪。</strong><br>面部特写、银灰卷发、单目修表镜，以及正面 / 侧面 / 背后三视图已完成一致性检查。</div>
+        <div class="operation" id="operation">
+          <button class="operation-summary"><svg class="icon op-icon"><use href="#i-check"/></svg><span id="opLabel">已完成 8 个操作</span><span class="op-count">5s</span><svg class="icon op-chevron"><use href="#i-chevron"/></svg></button>
+          <div class="operation-details">
+            <div class="op-row"><svg class="icon check"><use href="#i-check"/></svg>读取角色标准设定</div>
+            <div class="op-row"><svg class="icon check"><use href="#i-check"/></svg>更新 asset-registry.md</div>
+            <div class="op-row"><svg class="icon check"><use href="#i-check"/></svg>绑定媒体到画布节点</div>
+            <div class="op-row fail"><svg class="icon check"><use href="#i-info"/></svg>查看媒体失败 · 可重试</div>
+          </div>
+        </div>
+        <div class="thinking-row" id="thinkingRow"><span class="thinking-dot"></span><span>正在读取当前现场，准备最小执行计划</span><button>查看思考步骤</button></div>
+        <article class="review-card" id="reviewCard">
+          <div class="card-kicker"><span>ASSET REVIEW & NEXT STEP</span><span class="counter">1 / 4 待确认</span></div>
+          <div class="card-title">标准件已就绪，请选择下一步</div>
+          <div class="card-copy">这张角色设定图会成为后续镜头的一致性锚点。推荐先补齐核心道具，再进入分镜规划。</div>
+          <div class="confidence"><strong>推荐度 86%</strong><span class="confidence-meter"><i></i></span><span>基于当前资产缺口</span></div>
+          <div class="next-options">
+            <button class="next-option recommended" data-action="watch"><span class="option-type">推荐下一步 · 核心道具</span><b>古董黄铜怀表</b><small>雕花外壳 / 破损机芯 / 修复三状态</small><span class="option-btn">生成道具设定图 <svg class="icon"><use href="#i-arrow"/></svg></span></button>
+            <button class="next-option" data-action="woman"><span class="option-type">第二角色 · 委托人</span><b>年轻女子</b><small>20 多岁 / 微湿短发 / 米色风衣</small><span class="option-btn">生成角色图 <svg class="icon"><use href="#i-arrow"/></svg></span></button>
+            <button class="next-option" data-action="scene"><span class="option-type">核心场景 · 空间氛围</span><b>钟表铺内景工作台</b><small>古钟零件 / 复古台灯 / 暖光空间</small><span class="option-btn">生成场景图 <svg class="icon"><use href="#i-arrow"/></svg></span></button>
+          </div>
+        </article>
+        <article class="proposal-card" id="proposalCard">
+          <div class="proposal-top"><span class="media-icon"><svg class="icon"><use href="#i-spark"/></svg></span><div class="proposal-title">古董黄铜怀表 · 道具标准件<div style="font-size:10px;color:var(--muted);font-weight:400;margin-top:4px">将生成 1 张标准设定图，并登记到资产库</div></div><span class="cost">≈ 9 credits</span></div>
+          <div class="prompt-box" id="promptBox"><button>查看完整生成描述 <svg class="icon"><use href="#i-chevron"/></svg></button><div class="prompt-text">维多利亚风雕花黄铜怀表，轻微氧化和磨损，表盘有细小裂纹；左侧 3/4 英雄视图，右侧展示拆解后的微型齿轮、摆轮、宝石轴承和盘簧机构。中性浅灰背景，产品设计标准件，结构与材质严格一致。</div></div>
+          <div class="param-row"><span class="param">模型 <b>Lib Image</b></span><span class="param">比例 <b>16:9</b></span><span class="param">尺寸 <b>1K</b></span><span class="param">质量 <b>中</b></span><span class="param">份数 <b>1×</b></span></div>
+          <div class="card-actions"><button class="btn-ghost" data-action="editProposal">修改参数</button><button class="btn-primary" data-action="confirmProposal">确认生成</button></div>
+        </article>
+        <article class="question-card" id="questionCard">
+          <div class="card-kicker"><span>BEFORE STORYBOARD</span><span class="counter">STEP 4</span></div>
+          <div class="card-title">先确认视频输出比例</div>
+          <div class="card-copy">这个选择会影响后续分镜构图和镜头安全区，默认推荐横屏。</div>
+          <div class="question-list"><button class="question-option selected"><em>1</em>16:9 · 横屏，适合 YouTube / B 站</button><button class="question-option"><em>2</em>9:16 · 竖屏，适合短视频</button><button class="question-option"><em>3</em>1:1 · 方形，适合社交媒体</button></div>
+          <div class="card-actions"><button class="btn-ghost">忽略</button><button class="btn-primary" data-action="submitQuestion">提交答案</button></div>
+        </article>
+        <div class="receipt" id="receipt" hidden><svg class="icon receipt-icon"><use href="#i-check"/></svg><span><b>角色标准件已归档</b> · 版本 v1.2 已写入项目资产库</span><svg class="icon arrow"><use href="#i-arrow"/></svg></div>
+      </div>
+      <div class="queue" id="queue"><div class="queue-head"><b>执行队列</b><span>1 项 · 可编辑</span></div><div class="queue-row"><span class="queue-status"></span><span id="queueLabel">生成古董黄铜怀表标准件</span><span class="queue-edit">编辑</span></div></div>
+      <div class="composer">
+        <div class="popover" id="plusPopover"><button data-action="upload"><svg class="icon"><use href="#i-upload"/></svg><span>本地上传<small>从电脑添加素材</small></span></button><button data-action="library"><svg class="icon"><use href="#i-folder"/></svg><span>素材库添加<small>引用已有项目资产</small></span></button></div>
+        <div class="popover mode-popover" id="modePopover"><button class="selected" data-mode="guided"><svg class="icon"><use href="#i-history"/></svg><span><b>引导执行</b><small>每次有副作用前询问</small></span><svg class="icon mode-check"><use href="#i-check"/></svg></button><button data-mode="auto"><svg class="icon"><use href="#i-spark"/></svg><span><b>自动执行</b><small>按预算策略连续推进</small></span><svg class="icon mode-check"><use href="#i-check"/></svg></button></div>
+        <div class="composer-shell"><div class="composer-context" id="composerContext"><span class="chip"><svg class="icon"><use href="#i-layers"/></svg>Lib Image <span class="chip-x">×</span></span><span class="chip"><svg class="icon"><use href="#i-spark"/></svg>Seedance 2.5 <span class="chip-x">×</span></span><span class="chip skill"><svg class="icon"><use href="#i-skill"/></svg>资产标准件 v1 <span class="chip-x">×</span></span></div><textarea id="composerInput" placeholder="描述目标、修改内容，或让我检查当前现场…"></textarea><div class="composer-row"><button class="composer-btn" id="plusButton" title="添加素材"><svg class="icon"><use href="#i-plus"/></svg></button><button class="composer-btn" id="mentionButton" title="引用当前对象">@</button><button class="composer-btn" id="commandButton" title="调用 Skill">/</button><button class="composer-btn" id="modelButton" title="选择生产模型"><svg class="icon"><use href="#i-cube"/></svg><span class="badge">2</span></button><button class="composer-btn" id="skillButton" title="选择 Skill"><svg class="icon"><use href="#i-skill"/></svg></button><div class="composer-divider"></div><button class="composer-btn" id="modeButton" title="执行方式"><svg class="icon"><use href="#i-history"/></svg></button><span class="mode-label" id="modeLabel">引导执行</span><div class="grow"></div><button class="send-btn" id="sendButton" title="发送"><svg class="icon"><use href="#i-send"/></svg></button></div></div>
+      </div>
+    </aside>
+  </main>
+  <aside class="history" id="historyPanel"><div class="history-head"><b>任务历史</b><div class="grow"></div><button class="close" id="closeHistory"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="history-list"><div class="history-item active"><b>角色与道具标准件</b><div>已完成角色一致性检查，等待下一步</div><time>刚刚 · 8 个操作</time></div><div class="history-item"><b>资产库同步</b><div>更新 2 个登记文件，创建 1 个版本</div><time>今天 02:58</time></div><div class="history-item"><b>雾中钟表铺 · 初始设定</b><div>建立角色、场景与道具资产结构</div><time>昨天 23:14</time></div></div></aside>
+</div>
+
+<div class="overlay" id="modelOverlay"><section class="modal"><div class="modal-head"><div><h2>选择生产模型</h2><p>模型只决定生成能力；Agent 仍由当前 Host 负责规划与授权。</p></div><div class="grow"></div><button class="close" data-close="modelOverlay"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="model-tabs"><button class="model-tab active">图片</button><button class="model-tab">视频</button></div><div class="model-section">图片模型</div><div class="model-row"><span class="model-icon"><svg class="icon"><use href="#i-spark"/></svg></span><div class="grow"><b>Lib Image</b><small>长文本理解突出 · 适合标准件和角色一致性</small></div><button class="model-add" data-model="Lib Image">＋</button></div><div class="model-row"><span class="model-icon"><svg class="icon"><use href="#i-layers"/></svg></span><div class="grow"><b>General Image Pro</b><small>图像编辑稳定 · 适合局部修改与变体</small></div><button class="model-add" data-model="General Image Pro">＋</button></div><div class="model-row"><span class="model-icon"><svg class="icon"><use href="#i-cube"/></svg></span><div class="grow"><b>Seedream 5.0 Pro</b><small>原生多语言排版 · 适合海报与成片画面</small></div><button class="model-add" data-model="Seedream 5.0 Pro">＋</button></div></div></section></div>
+<div class="overlay" id="skillOverlay"><section class="modal"><div class="modal-head"><div><h2>Skill 技能</h2><p>Skill 是方法与流程，不等于外部权限。</p></div><div class="grow"></div><button class="close" data-close="skillOverlay"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="skill-layout"><div class="skill-list"><div class="skill-tools"><input class="skill-search" placeholder="搜索 Skill"><button class="stage-action">全部 <svg class="icon"><use href="#i-chevron"/></svg></button></div><div class="skill-row selected"><span class="skill-mark"><svg class="icon"><use href="#i-skill"/></svg></span><div><b>资产标准件</b><small>/asset-standard · 角色/道具/场景一致性</small></div></div><div class="skill-row"><span class="skill-mark"><svg class="icon"><use href="#i-skill"/></svg></span><div><b>分镜头表生成</b><small>/storyboard · 从剧本到镜头规划</small></div></div><div class="skill-row"><span class="skill-mark"><svg class="icon"><use href="#i-skill"/></svg></span><div><b>爆款拉片复刻</b><small>/viral-video · 拆解节奏与镜头结构</small></div></div></div><div class="skill-detail"><div class="skill-cover"></div><div class="skill-detail-body"><div class="skill-meta">我的 Skill · v1.0 · 生成阶段</div><h3>资产标准件</h3><p>读取当前资产、提出一致性约束、生成设定图并登记到项目资产库。每次生产前展示最终参数和费用。</p><button class="skill-add" id="applySkill">添加到当前任务</button></div></div></div></div></section></div>
+<div class="overlay" id="settingsOverlay"><section class="modal"><div class="modal-head"><div><h2>Agent 设置</h2><p>执行策略、预算策略和通知策略分开管理。</p></div><div class="grow"></div><button class="close" data-close="settingsOverlay"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="settings-grid"><div class="setting"><div class="grow"><b>自动执行已批准任务</b><small>只执行已经确认过参数的任务，不扩大授权范围。</small></div><button class="switch on"><i></i></button></div><div class="setting"><div class="grow"><b>预算管理</b><small>项目累计消耗达到提醒阈值时暂停并询问。</small></div><button class="switch on"><i></i></button></div><div class="setting"><div class="grow"><b>提醒阈值</b><small>当前项目额度单位 · 达到后显示确认卡。</small></div><span class="number">1000</span></div><div class="setting"><div class="grow"><b>浏览器通知</b><small>Agent 在后台完成任务后请求系统通知权限。</small></div><button class="switch"><i></i></button></div></div><div class="card-actions" style="padding:16px 0 0"><button class="btn-primary" data-close="settingsOverlay">完成</button></div></div></section></div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const $ = (s, root=document) => root.querySelector(s);
+  const $$ = (s, root=document) => [...root.querySelectorAll(s)];
+  const toast = (msg) => { const el=$('#toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(window.__toast); window.__toast=setTimeout(()=>el.classList.remove('show'),2400); };
+  const closePopovers = () => $$('.popover').forEach(p=>p.classList.remove('show'));
+  const showOverlay = id => { closePopovers(); $('#'+id).classList.add('show'); };
+  const setState = state => {
+    const review=$('#reviewCard'), proposal=$('#proposalCard'), question=$('#questionCard'), receipt=$('#receipt'), queue=$('#queue');
+    review.style.display='none'; proposal.classList.remove('show'); question.classList.remove('show'); receipt.hidden=true; queue.classList.remove('show');
+    $('#stageStatus').textContent='资产库已同步 · 角色标准件 v1.2';
+    $('#sendButton').classList.remove('stop'); $('#sendButton').innerHTML='<svg class="icon"><use href="#i-send"></use></svg>'; $('#sendButton').title='发送';
+    if(state==='review'){review.style.display='block';$('#opLabel').textContent='已完成 8 个操作';}
+    if(state==='proposal'){proposal.classList.add('show');$('#opLabel').textContent='已完成 4 个操作';}
+    if(state==='question'){question.classList.add('show');$('#opLabel').textContent='已完成 3 个操作';}
+    if(state==='running'){proposal.classList.add('show');queue.classList.add('show');$('#opLabel').textContent='正在执行 · 2 / 4';$('#stageStatus').textContent='正在提交生成任务 · 可随时停止';$('#sendButton').classList.add('stop');$('#sendButton').innerHTML='<svg class="icon"><use href="#i-stop"></use></svg>';$('#sendButton').title='停止当前任务';}
+    $('#demoState').value=state;
+  };
+  $('#demoState').addEventListener('change', e=>setState(e.target.value));
+  $('#operation .operation-summary').addEventListener('click',()=>$('#operation').classList.toggle('open'));
+  $('#promptBox button').addEventListener('click',()=>$('#promptBox').classList.toggle('expanded'));
+  $$('.thread-tab').forEach(tab=>tab.addEventListener('click',()=>{$$('.thread-tab').forEach(t=>t.classList.remove('active'));tab.classList.add('active');toast('已切换到 '+tab.textContent+' 视图')}));
+  $('#thinkingRow button').addEventListener('click',()=>{const row=$('#thinkingRow');row.querySelector('span:nth-child(2)').textContent='已读取 3 个对象 · 未修改已确认资产';row.querySelector('button').textContent='收起步骤';toast('思考步骤已展开为可验证摘要')});
+  $('#mentionButton').addEventListener('click',()=>{const input=$('#composerInput');input.value=(input.value?'当前对象：':'@当前对象 ')+'老钟表匠角色标准件';input.focus()});
+  $('#commandButton').addEventListener('click',()=>{const input=$('#composerInput');input.value=(input.value?'':'/')+'asset-standard';input.focus();toast('已插入 Skill 命令，可继续补充目标')});
+  $('#plusButton').addEventListener('click',e=>{e.stopPropagation();closePopovers();$('#plusPopover').classList.toggle('show')});
+  $('#modeButton').addEventListener('click',e=>{e.stopPropagation();closePopovers();$('#modePopover').classList.toggle('show')});
+  $('#modelButton').addEventListener('click',()=>showOverlay('modelOverlay'));
+  $('#skillButton').addEventListener('click',()=>showOverlay('skillOverlay'));
+  $('#openSettings').addEventListener('click',()=>showOverlay('settingsOverlay'));
+  $('#collapseAgent').addEventListener('click',()=>{$('#agentHost').classList.toggle('mobile-open');toast('窄屏下 Agent 已切换')});
+  $('#mobileAgent').addEventListener('click',()=>$('#agentHost').classList.toggle('mobile-open'));
+  $('#openHistory').addEventListener('click',()=>$('#historyPanel').classList.add('open'));
+  $('#closeHistory').addEventListener('click',()=>$('#historyPanel').classList.remove('open'));
+  document.addEventListener('click',e=>{if(!e.target.closest('.popover')&&!e.target.closest('#plusButton')&&!e.target.closest('#modeButton'))closePopovers()});
+  $$('[data-close]').forEach(b=>b.addEventListener('click',()=>$('#'+b.dataset.close).classList.remove('show')));
+  $$('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show')}));
+  $$('.surface-tab').forEach(tab=>tab.addEventListener('click',()=>{$$('.surface-tab').forEach(t=>t.classList.remove('active'));tab.classList.add('active');toast('已切换到 '+tab.textContent+' 工作面 · Agent 上下文保持不变')}));
+  $$('.next-option').forEach(btn=>btn.addEventListener('click',()=>{const action=btn.dataset.action;if(action==='watch'){setState('proposal');toast('已读取标准件并准备生成提案')}else{setState('question');toast('已把 '+btn.querySelector('b').textContent+' 加入下一步草案')}}));
+  $$('[data-action="confirmProposal"]').forEach(btn=>btn.addEventListener('click',()=>{setState('running');toast('提案已确认 · 正在执行，可点击方形按钮停止');setTimeout(()=>{if($('#demoState').value==='running'){setState('review');$('#receipt').hidden=false;$('#stageStatus').textContent='古董黄铜怀表已生成 · 等待画布复核';toast('生成完成 · 结果已回到画布')}} ,4200)}));
+  $$('[data-action="editProposal"]').forEach(btn=>btn.addEventListener('click',()=>{toast('进入参数编辑 · 可修改模型、比例、尺寸、质量和份数');$('#promptBox').classList.add('expanded')}));
+  $$('.question-option').forEach(btn=>btn.addEventListener('click',()=>{$$('.question-option').forEach(x=>x.classList.remove('selected'));btn.classList.add('selected')}));
+  $('[data-action="submitQuestion"]').addEventListener('click',()=>{setState('review');toast('已保存 16:9 · 后续分镜会继承这个版本')});
+  $('#sendButton').addEventListener('click',()=>{if($('#sendButton').classList.contains('stop')){setState('review');toast('已停止当前任务，未创建新的生成结果');return}const input=$('#composerInput');const value=input.value.trim();if(!value){toast('先描述一个目标，或直接选择下一步');return}const msg=document.createElement('div');msg.className='user-msg';msg.textContent=value;$('#transcript').appendChild(msg);input.value='';const thinking=document.createElement('div');thinking.className='agent-copy';thinking.innerHTML='<span style="color:var(--copper)">思考中…</span> 正在读取当前现场并生成最小执行计划';$('#transcript').appendChild(thinking);$('#transcript').scrollTop=$('#transcript').scrollHeight;setTimeout(()=>{thinking.innerHTML='<strong>已收到。</strong> 我会沿用当前角色标准件，不改变已确认资产；下一步建议先生成古董黄铜怀表。';toast('计划已生成 · 等待你确认')},900)});
+  $$('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{$$('[data-mode]').forEach(x=>x.classList.remove('selected'));btn.classList.add('selected');$('#modeLabel').textContent=btn.dataset.mode==='auto'?'自动执行':'引导执行';closePopovers();toast(btn.dataset.mode==='auto'?'自动执行已开启 · 生成前仍受预算策略约束':'已切回引导执行 · 每次副作用前询问')}));
+  $$('[data-action="upload"],[data-action="library"]').forEach(btn=>btn.addEventListener('click',()=>{closePopovers();toast(btn.dataset.action==='upload'?'打开本地上传':'打开素材库选择器')}));
+  $$('[data-model]').forEach(btn=>btn.addEventListener('click',()=>{const model=btn.dataset.model;$('#composerContext').insertAdjacentHTML('beforeend','<span class="chip"><svg class="icon"><use href="#i-cube"></use></svg>'+model+' <span class="chip-x">×</span></span>');$('#modelOverlay').classList.remove('show');toast('已加入生产模型 · 发送前仍可移除或查看参数')}));
+  $('#applySkill').addEventListener('click',()=>{$('#composerContext').insertAdjacentHTML('beforeend','<span class="chip skill"><svg class="icon"><use href="#i-skill"></use></svg>资产标准件 v1 <span class="chip-x">×</span></span>');$('#skillOverlay').classList.remove('show');toast('Skill 已加入当前任务')});
+  $$('.switch').forEach(sw=>sw.addEventListener('click',()=>{sw.classList.toggle('on');sw.querySelector('i').style.marginLeft=sw.classList.contains('on')?'14px':'0';toast(sw.classList.contains('on')?'设置已开启':'设置已关闭')}));
+  setState('review');
+</script>
+</body>
+</html>

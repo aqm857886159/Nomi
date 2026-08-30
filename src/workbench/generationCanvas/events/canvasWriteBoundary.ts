@@ -44,6 +44,16 @@ function waitUntilSettled(): Promise<void> {
   return new Promise<void>((resolve) => settledWaiters.push(resolve))
 }
 
+/**
+ * Derived renderer metadata (for example a newly mounted node's default
+ * model) must not interrupt a durable proposal receipt commit. Callers can
+ * defer that non-user write until the transaction has released ownership.
+ * User edits still go through interruptPendingCanvasWrite synchronously.
+ */
+export function whenCanvasWriteBoundarySettled(): Promise<void> {
+  return pending || cancelling ? waitUntilSettled() : Promise.resolve()
+}
+
 function cancelPending(): boolean {
   const previous = pending
   if (!previous) return true

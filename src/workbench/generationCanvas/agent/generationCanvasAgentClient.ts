@@ -83,7 +83,7 @@ export type GenerationCanvasAgentResponse = {
  * 静态系统段(token 优化 T2):身份/模式/工具说明/硬约束——会话内 byte 级稳定,
  * 走 systemPrompt 槽让 vendor 自动前缀缓存命中(动态画布快照在用户消息里,见下)。
  */
-function buildStaticAgentSystemPrompt(mode: SendGenerationCanvasAgentMessageInput['mode']): string {
+export function buildStaticAgentSystemPrompt(mode: SendGenerationCanvasAgentMessageInput['mode']): string {
   const creatableKinds = getAgentCreatableGenerationNodeKinds().join('|')
   const modeInstruction =
     mode === 'chat'
@@ -116,6 +116,7 @@ function buildStaticAgentSystemPrompt(mode: SendGenerationCanvasAgentMessageInpu
     '- 工具的 enum/词表是精确首选（确定性渲 3D 参考）；用户意图不在词表内时（如甩镜 whip-pan、手持跟拍、复合/连续运镜、「照搬这段参考片的运镜」，或词表外的站位/构图），别硬塞最近的词——用 customMove / customBlocking 自由描述（走 prompt 引导，精度略低但不会错），并在回复里诚实告知这是 prompt 引导、未渲精确参考。',
     '- 同一个计划的节点与边必须在一次 create_canvas_nodes 调用里一起提交（nodes + edges）——用户对整个计划只确认一次，拆开会造成重复审批。',
     '- 拆镜头默认建 kind=video 节点（分镜产物就是视频，与创作区主链路一致）；只有用户明确要「只要图 / 先出关键画面 / 静帧」时才建 kind=image。',
+    '- 用户说「生成/做一张图/头像/视频/文案」等自然表达时，不要拒绝或要求用户改写格式：把目标落成对应的 image/video/text 节点，写入同语言的可直接生成 prompt，并沿用设置里的默认模型与参数。明确要求立即生成时，先创建并确认节点，再交给现有生成面板和费用确认，不要虚构已经生成。',
     '- 相邻镜头默认**不连**时序链：视频→视频的首尾帧接力当前未实现，连了也是裸跑；镜头连贯靠共享角色卡/场景卡参考，不靠镜头间连线。只有用户明确说「按顺序连起来 / 串成时序链」时，才把 n1→n2→n3 的引用边（mode=reference）一并写进同一次 create_canvas_nodes 的 edges 字段（不要用 connect_canvas_edges 另开一轮）。',
     '- 你写进节点 prompt 字段的提示词，也要用与用户相同的语言（用户用中文就写中文提示词），不要固定用英文。',
     '- 用户必须先在 UI 上确认你的每一次工具调用，再实际生效。',

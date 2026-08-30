@@ -975,6 +975,77 @@ describe("ProjectAgentHost turn serialization and async re-entry", () => {
     expect(afterDecline.state.turns.find((turn) => turn.turnId === "turn-b")?.status).toBe("running");
   });
 
+  it("binds a deferred batch canvas admission before claiming its proposal even with a stale selection", () => {
+    const base = enqueueMutation();
+    const queued = reduceProjectAgentMutation(createInitialProjectAgentState(binding), {
+      ...base,
+      payload: {
+        ...base.payload,
+        queueItem: {
+          ...base.payload.queueItem,
+          // The active canvas selection is captured on the queue request, but
+          // a create batch has no stable target until its proposal is verified.
+          target: { kind: "canvas", nodeIds: ["node-selected"] },
+          preconditions: {},
+        },
+      },
+    });
+    const running = reduceProjectAgentMutation(queued.state, startMutation("start-deferred-canvas", "turn-a", 1));
+    const deferredTarget = { kind: "canvas", nodeIds: ["node-created"] } as const;
+    const deferredPreconditions = { edges: [{ relationHash: "sha256-empty-canvas" }] } as const;
+    const approval = {
+      ref: {
+        approvalId: "approval-deferred-canvas",
+        receiptProposalId: "receipt-deferred-canvas",
+        threadId: "thread-a",
+        turnId: "turn-a",
+        toolCallId: "create-canvas",
+        policyRevision: 5,
+        inputHash: "input-hash",
+        actionHash: "action-hash",
+        target: deferredTarget,
+        preconditions: deferredPreconditions,
+        expiresAt: "2026-08-28T00:10:00.000Z",
+      },
+      lifecycle: "pending",
+    } as const;
+    const item = {
+      kind: "proposal" as const,
+      itemId: "proposal-deferred-canvas",
+      threadId: "thread-a",
+      turnId: "turn-a",
+      status: "proposed" as const,
+      retryable: false,
+      deviated: false,
+      approval: approval.ref,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const proposed = reduceProjectAgentMutation(running.state, {
+      commandId: "put-deferred-canvas",
+      expectedRevision: 2,
+      binding,
+      sender: { kind: "embedded-agent", senderId: "agent" },
+      type: "proposal.put",
+      payload: { approval, item, occurredAt: now },
+    });
+    expect(proposed.state.queue[0]).toMatchObject({
+      status: "proposed",
+      target: deferredTarget,
+      preconditions: deferredPreconditions,
+    });
+    const claimed = reduceProjectAgentMutation(proposed.state, {
+      commandId: "claim-deferred-canvas",
+      expectedRevision: 3,
+      binding,
+      sender: { kind: "embedded-agent", senderId: "agent" },
+      type: "proposal.transition",
+      payload: { approvalId: approval.ref.approvalId, lifecycle: "claimed", occurredAt: now },
+    });
+    expect(claimed.state.proposalApprovals[0]?.lifecycle).toBe("claimed");
+    expect(claimed.state.queue[0]).toMatchObject({ status: "running", target: deferredTarget });
+  });
+
   it("stores only TaskRef and display-only HumanApprovalRef, never foreign truth", () => {
     const queued = reduceProjectAgentMutation(createInitialProjectAgentState(binding), enqueueMutation());
     const taskItem = {

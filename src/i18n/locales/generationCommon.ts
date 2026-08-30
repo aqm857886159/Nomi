@@ -903,6 +903,7 @@ export const zhGenerationCommon = {
   },
   card: {
     pending: '等待生成',
+    pendingOnDemand: '未生成 · 按需生成',
     shot: '镜头 {{index}}',
     open: '打开',
     variants: '⊕{{count}} 变体',
@@ -2415,6 +2416,7 @@ export const enGenerationCommon = {
   },
   card: {
     pending: 'Waiting to generate',
+    pendingOnDemand: 'Not generated · on demand',
     shot: 'Shot {{index}}',
     open: 'Open',
     variants: '⊕{{count}} variants',

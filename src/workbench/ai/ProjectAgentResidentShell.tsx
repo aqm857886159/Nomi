@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next'
 import {
   IconAlertTriangle, IconAperture, IconArrowUp, IconAt, IconBolt, IconCheck,
   IconAdjustmentsHorizontal, IconChevronLeft, IconChevronRight, IconCircleDashed, IconExternalLink, IconFileText, IconFilePencil,
-  IconHistory, IconLayoutSidebarRightCollapse, IconListCheck, IconLoader2, IconLock, IconMicrophone, IconPaperclip, IconPencil, IconPhoto,
+  IconHistory, IconLayoutSidebarRightCollapse, IconListCheck, IconMicrophone, IconPaperclip, IconPencil, IconPhoto,
   IconMessageQuestion, IconRobot, IconRoute, IconSearch, IconSettings, IconTextSpellcheck, IconTimelineEvent, IconTool, IconWaveSine,
-  IconPlayerStopFilled, IconPlus, IconTrash, IconVideo, IconWorld, IconWorldSearch, IconX,
+  IconPlus, IconTrash, IconVideo, IconWorld, IconWorldSearch, IconX, IconFocusCentered,
 } from '@tabler/icons-react'
 import { NomiLogoMark, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
@@ -24,16 +24,23 @@ import { getAvailableSkillProviders, listWorkbenchSkills, providerLabel, skillCa
 import { listWorkbenchModelCatalogModels, listWorkbenchModelCatalogVendors, type ModelCatalogModelDto } from '../api/modelCatalogApi'
 import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from './assistantModelIdentity'
 import { getAssistantModelPref, setAssistantModelPref } from './assistantModelPref'
+import { useAgentUsageStore } from './agentUsageStore'
 import type { ComposerAttachment } from './composer/composerAttachmentTypes'
-import type { ProjectAgentItem, ProjectAgentQueueItem, ProjectAgentStatus } from '../../../electron/shared/projectAgentContracts'
+import type { ProjectAgentItem, ProjectAgentStatus } from '../../../electron/shared/projectAgentContracts'
 import type { PreconditionSet, TargetRef } from '../../../electron/shared/capabilityTargeting'
 import { useProductionRunStore } from '../production/productionRunStore'
+import { ResidentApprovalCard, ResidentStreamingText, ResidentTaskRows, ResidentThinkingState, ResidentToolChips, type ResidentApprovalDetail, type ResidentToolChipData } from './resident/ResidentUiPrimitives'
+import { GenerationProposalEditor } from './resident/GenerationProposalEditor'
+import { proposalDecisionPayload } from './resident/generationProposalEditing'
+import { isAgentActionIntent } from './agentIntent'
+import { buildStaticAgentSystemPrompt } from '../generationCanvas/agent/generationCanvasAgentClient'
 
 type ResidentSurface = Extract<WorkspaceMode, 'creation' | 'generation' | 'preview'>
 type PendingTool = { call: ToolCallEvent; bindingKey: string; state: 'pending' | 'approved' | 'denied' }
 type MenuId = 'attachments' | 'references' | 'skills' | 'prompts' | 'modes' | 'models' | null
 
 const residentPendingTools = new Map<string, PendingTool>()
+const residentToolArgs = new Map<string, unknown>()
 const residentPendingListeners = new Set<() => void>()
 const residentResolvingTools = new Set<string>()
 const pendingKey = (call: Pick<ToolCallEvent, 'turnId' | 'toolCallId'>): string => `${call.turnId}:${call.toolCallId}`
@@ -46,6 +53,7 @@ function clearResidentPendingTools(turnId: string): void {
   for (const key of residentPendingTools.keys()) {
     if (!key.startsWith(`${turnId}:`)) continue
     residentPendingTools.delete(key)
+    residentToolArgs.delete(key)
     residentResolvingTools.delete(key)
     changed = true
   }
@@ -104,8 +112,140 @@ function surfaceShortLabel(t: (key: string, options?: Record<string, unknown>) =
 }
 
 function statusLabel(t: (key: string, options?: Record<string, unknown>) => string, status: ProjectAgentStatus): string {
-  const key = status === 'drafting' || status === 'proposed' ? 'queued' : status === 'declined' ? 'stopped' : status
+  const key = status === 'drafting' ? 'planning' : status === 'proposed' ? 'waitingApprovalShort' : status === 'declined' ? 'stopped' : status
   return t(`agentResident.${key}`)
+}
+
+function isActiveQueueStatus(status: ProjectAgentStatus): boolean {
+  return status === 'queued' || status === 'proposed' || status === 'running'
+}
+
+function readableToolName(t: (key: string, options?: Record<string, unknown>) => string, name: string): string {
+  const normalized = name.toLowerCase()
+  if (normalized.includes('delete_canvas_nodes') || normalized.includes('canvas.delete')) return t('agentResident.toolCanvasDelete')
+  if (normalized.includes('append_to_end') || normalized.includes('document_append')) return t('agentResident.toolDocumentWrite')
+  if (normalized.includes('create_canvas_nodes') || normalized.includes('canvas_nodes')) return t('agentResident.toolCanvasWrite')
+  if (normalized.includes('document.read')) return t('agentResident.toolDocumentRead')
+  if (normalized.includes('document.write')) return t('agentResident.toolDocumentWrite')
+  if (normalized.includes('canvas.read')) return t('agentResident.toolCanvasRead')
+  if (normalized.includes('canvas.write')) return t('agentResident.toolCanvasWrite')
+  if (normalized.includes('canvas.delete')) return t('agentResident.toolCanvasDelete')
+  if (normalized.includes('timeline.read')) return t('agentResident.toolTimelineRead')
+  if (normalized.includes('timeline.write')) return t('agentResident.toolTimelineWrite')
+  if (normalized.includes('asset.read')) return t('agentResident.toolAssetRead')
+  if (normalized.includes('export')) return t('agentResident.toolExport')
+  if (normalized.includes('image') || normalized.includes('video') || normalized.includes('generation')) return t('agentResident.toolGeneration')
+  return t('agentResident.toolGeneric')
+}
+
+function readableToolSummary(t: (key: string, options?: Record<string, unknown>) => string, name: string, args?: unknown): string {
+  const normalized = name.toLowerCase()
+  const record = args && typeof args === 'object' ? args as Record<string, unknown> : {}
+  const model = typeof record.model === 'string' ? record.model : typeof record.modelKey === 'string' ? record.modelKey : ''
+  const prompt = typeof record.prompt === 'string' ? record.prompt : typeof record.text === 'string' ? record.text : ''
+  const parameters = ['size', 'aspectRatio', 'duration', 'fps', 'quality', 'count']
+    .map((key) => typeof record[key] === 'string' || typeof record[key] === 'number' ? `${key}: ${String(record[key])}` : '')
+    .filter(Boolean)
+    .join(' · ')
+  const modelKind = model.toLowerCase().includes('video') ? t('agentResident.toolVideoModel') : model.toLowerCase().includes('image') ? t('agentResident.toolImageModel') : ''
+  const details = [model ? `${modelKind || t('agentResident.toolModel', { model })}${modelKind ? ` (${model})` : ''}` : '', parameters ? t('agentResident.toolParameters', { parameters }) : '', prompt ? t('agentResident.toolPrompt', { prompt: prompt.slice(0, 96) }) : ''].filter(Boolean).join(' · ')
+  const shotCards = Array.isArray(record.nodes) ? record.nodes.slice(0, 4).map((node) => {
+    if (!node || typeof node !== 'object') return ''
+    const shot = node as Record<string, unknown>
+    const title = typeof shot.title === 'string' ? shot.title : t('agentResident.untitledShot')
+    const shotModelKey = typeof shot.modelKey === 'string' ? shot.modelKey : ''
+    const shotModel = shotModelKey ? (shotModelKey.toLowerCase().includes('video') ? t('agentResident.toolVideoModel') : shotModelKey.toLowerCase().includes('image') ? t('agentResident.toolImageModel') : shotModelKey) : ''
+    const shotPrompt = typeof shot.prompt === 'string' ? shot.prompt.slice(0, 72) : ''
+    const shotParams = shot.params && typeof shot.params === 'object' ? Object.entries(shot.params as Record<string, unknown>).slice(0, 3).map(([key, value]) => `${key}=${String(value)}`).join(', ') : ''
+    return [title, shotModel, shotParams, shotPrompt].filter(Boolean).join(' · ')
+  }).filter(Boolean).join(' | ') : ''
+  const relations = Array.isArray(record.edges) && record.edges.length ? t('agentResident.toolReferences', { count: record.edges.length }) : ''
+  if (normalized.includes('delete_canvas_nodes') || normalized.includes('canvas.delete')) return t('agentResident.toolCanvasDeleteSummary')
+  if (normalized.includes('append_to_end') || normalized.includes('document.write') || normalized.includes('document_append')) return details ? `${t('agentResident.toolDocumentWriteSummary')} · ${details}` : t('agentResident.toolDocumentWriteSummary')
+  if (normalized.includes('create_canvas_nodes') || normalized.includes('canvas.write') || normalized.includes('canvas_nodes')) return [t('agentResident.toolCanvasWriteSummary'), shotCards ? t('agentResident.toolShotConfig', { details: shotCards }) : '', relations, t('agentResident.toolNoGeneration'), details].filter(Boolean).join(' · ')
+  if (normalized.includes('timeline.write')) return details ? `${t('agentResident.toolTimelineWriteSummary')} · ${details}` : t('agentResident.toolTimelineWriteSummary')
+  if (normalized.includes('image') || normalized.includes('video') || normalized.includes('generation')) return details ? `${t('agentResident.toolGenerationSummary')} · ${details}` : t('agentResident.toolGenerationSummary')
+  return details || t('agentResident.toolPendingSummary')
+}
+
+/** The row answers the user's immediate question; settings stay behind one disclosure. */
+function readableToolPreview(t: (key: string, options?: Record<string, unknown>) => string, name: string, args?: unknown): string {
+  const normalized = name.toLowerCase()
+  const record = args && typeof args === 'object' ? args as Record<string, unknown> : {}
+  if (normalized.includes('append_to_end') || normalized.includes('document.write') || normalized.includes('document_append')) return typeof record.content === 'string' && record.content.trim() ? t('agentResident.toolContentCount', { count: 1 }) : t('agentResident.toolInspectDetails')
+  if (normalized.includes('create_canvas_nodes') || normalized.includes('canvas.write') || normalized.includes('canvas_nodes')) {
+    const nodes = Array.isArray(record.nodes) ? record.nodes.length : 0
+    const edges = Array.isArray(record.edges) ? record.edges.length : 0
+    return [nodes ? t('agentResident.toolShotCount', { count: nodes }) : '', edges ? t('agentResident.toolRelationCount', { count: edges }) : '', t('agentResident.toolNoGenerationShort')].filter(Boolean).join(' · ') || t('agentResident.toolInspectDetails')
+  }
+  if (normalized.includes('delete_canvas_nodes') || normalized.includes('canvas.delete')) {
+    const count = Array.isArray(record.nodeIds) ? record.nodeIds.length : 0
+    return count ? t('agentResident.toolTargetCount', { count }) : t('agentResident.toolInspectDetails')
+  }
+  if (normalized.includes('timeline.write')) return t('agentResident.toolTimelineWriteSummary')
+  if (normalized.includes('image') || normalized.includes('video') || normalized.includes('generation')) return t('agentResident.toolGenerationSummary')
+  return t('agentResident.toolInspectDetails')
+}
+
+function readableToolDetailRows(t: (key: string, options?: Record<string, unknown>) => string, name: string, args?: unknown): readonly ResidentApprovalDetail[] {
+  const normalized = name.toLowerCase()
+  const record = args && typeof args === 'object' ? args as Record<string, unknown> : {}
+  const rows: ResidentApprovalDetail[] = []
+  if (typeof record.content === 'string' && record.content.trim()) rows.push({ label: t('agentResident.toolContentLabel'), value: record.content.trim() })
+  const nodes = Array.isArray(record.nodes) ? record.nodes : []
+  if (nodes.length) {
+    const shots = nodes.slice(0, 4).map((node) => {
+      if (!node || typeof node !== 'object') return ''
+      const shot = node as Record<string, unknown>
+      const title = typeof shot.title === 'string' ? shot.title : t('agentResident.untitledShot')
+      const model = typeof shot.modelKey === 'string' ? shot.modelKey : ''
+      const prompt = typeof shot.prompt === 'string' ? shot.prompt : ''
+      const params = shot.params && typeof shot.params === 'object' ? Object.entries(shot.params as Record<string, unknown>).map(([key, value]) => `${key}=${String(value)}`).join(' · ') : ''
+      return [title, model, params, prompt].filter(Boolean).join(' · ')
+    }).filter(Boolean).join(' | ')
+    if (shots) rows.push({ label: t('agentResident.toolShotLabel'), value: shots })
+  }
+  if (Array.isArray(record.edges) && record.edges.length) {
+    const titles = new Map(nodes.map((node) => {
+      const shot = node && typeof node === 'object' ? node as Record<string, unknown> : {}
+      return [typeof shot.clientId === 'string' ? shot.clientId : '', typeof shot.title === 'string' ? shot.title : t('agentResident.untitledShot')] as const
+    }))
+    const relations = record.edges.slice(0, 4).map((edge) => {
+      if (!edge || typeof edge !== 'object') return ''
+      const relation = edge as Record<string, unknown>
+      const source = typeof relation.sourceClientId === 'string' ? relation.sourceClientId : ''
+      const target = typeof relation.targetClientId === 'string' ? relation.targetClientId : ''
+      const mode = relation.mode === 'reference' ? t('agentResident.referenceRelation') : typeof relation.mode === 'string' ? relation.mode : t('agentResident.referenceRelation')
+      return `${titles.get(source) || source || t('agentResident.untitledShot')} → ${titles.get(target) || target || t('agentResident.untitledShot')} · ${mode}`
+    }).filter(Boolean)
+    rows.push({ label: t('agentResident.toolRelationLabel'), value: relations.join(' | ') || t('agentResident.toolRelationCount', { count: record.edges.length }) })
+  }
+  if (normalized.includes('create_canvas_nodes') || normalized.includes('canvas.write') || normalized.includes('canvas_nodes')) rows.push({ label: t('agentResident.toolBoundaryLabel'), value: t('agentResident.toolNoGeneration') })
+  if (typeof record.model === 'string' || typeof record.modelKey === 'string') rows.push({ label: t('agentResident.toolModelLabel'), value: String(record.model ?? record.modelKey) })
+  if (typeof record.prompt === 'string' || typeof record.text === 'string') rows.push({ label: t('agentResident.toolPromptLabel'), value: String(record.prompt ?? record.text) })
+  const parameterEntries = ['size', 'aspectRatio', 'aspect_ratio', 'duration', 'fps', 'quality', 'count', 'resolution'].flatMap((key) => typeof record[key] === 'string' || typeof record[key] === 'number' ? [`${key}: ${String(record[key])}`] : [])
+  if (parameterEntries.length) rows.push({ label: t('agentResident.toolParametersLabel'), value: parameterEntries.join(' · ') })
+  if (!rows.length && (normalized.includes('delete_canvas_nodes') || normalized.includes('canvas.delete'))) rows.push({ label: t('agentResident.toolTargetLabel'), value: t('agentResident.toolTargetCount', { count: Array.isArray(record.nodeIds) ? record.nodeIds.length : 0 }) })
+  if (!rows.length) rows.push({ label: t('agentResident.toolDetailLabel'), value: readableToolSummary(t, name, args) })
+  return rows
+}
+
+function readableToolResult(t: (key: string, options?: Record<string, unknown>) => string, status: ProjectAgentStatus): string {
+  if (status === 'done') return t('agentResident.toolCompleted')
+  if (status === 'failed') return t('agentResident.toolFailed')
+  if (status === 'stopped' || status === 'declined') return t('agentResident.toolStopped')
+  if (status === 'proposed') return t('agentResident.waitingApproval')
+  if (status === 'running') return t('agentResident.toolRunning')
+  return t('agentResident.toolPendingSummary')
+}
+
+function readableFailure(t: (key: string, options?: Record<string, unknown>) => string, code: string, message: string): string {
+  const text = `${code} ${message}`.toLowerCase()
+  if (text.includes('model') && (text.includes('config') || text.includes('credential') || text.includes('key'))) return t('agentResident.modelUnavailable')
+  if (text.includes('stale') || text.includes('precondition')) return t('agentResident.contextChanged')
+  if (text.includes('denied') || text.includes('approval')) return t('agentResident.operationDenied')
+  if (text.includes('cancel')) return t('agentResident.operationStopped')
+  return t('agentResident.operationFailed')
 }
 
 function friendlyError(error: unknown, t: (key: string, options?: Record<string, unknown>) => string): string {
@@ -156,6 +296,10 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const [models, setModels] = React.useState<ModelCatalogModelDto[]>([])
   const [vendors, setVendors] = React.useState<Record<string, string>>({})
   const [selectedModel, setSelectedModel] = React.useState(() => { const pref = getAssistantModelPref(); return pref ? `${pref.vendorKey}:${pref.modelKey}` : '' })
+  const [lastTurnTokens, setLastTurnTokens] = React.useState(0)
+  const [contextPulse, setContextPulse] = React.useState(false)
+  const [thinkingOpen, setThinkingOpen] = React.useState(false)
+  const [proposalDrafts, setProposalDrafts] = React.useState<Record<string, Record<string, unknown>>>({})
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const threadMenuRef = React.useRef<HTMLDivElement>(null)
   const binding = snapshot?.binding ?? null
@@ -164,13 +308,28 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const activeThread = snapshot?.threads.find((thread) => thread.threadId === activeThreadId)
   const items = React.useMemo(() => snapshot?.items.filter((item) => item.threadId === activeThreadId) ?? [], [activeThreadId, snapshot])
   const queue = React.useMemo(() => snapshot?.queue.filter((item) => item.threadId === activeThreadId) ?? [], [activeThreadId, snapshot])
+  const activeQueue = React.useMemo(() => queue.filter((item) => isActiveQueueStatus(item.status)), [queue])
   const activeTurn = snapshot?.turns.find((turn) => turn.threadId === activeThreadId && isLive(turn.status))
   const runningTurn = snapshot?.turns.find((turn) => turn.threadId === activeThreadId && turn.status === 'running')
+  const planningTurn = snapshot?.turns.find((turn) => turn.threadId === activeThreadId && turn.status === 'drafting')
+  const sessionTotalTokens = useAgentUsageStore((state) => state.totalTokens)
+  const selectedModelRow = models.find((model) => encodeModelIdentity(model) === selectedModel)
+  const costLabel = selectedModelRow?.pricing?.enabled && Number.isFinite(selectedModelRow.pricing.cost)
+    ? t('agentResident.costCataloguedAmount', { amount: selectedModelRow.pricing.cost.toFixed(2) })
+    : t('agentResident.costUnknown')
+  const toolChipItems = React.useMemo<ResidentToolChipData[]>(() => items.filter((item): item is Extract<ProjectAgentItem, { kind: 'tool' }> => item.kind === 'tool').map((item) => { const args = residentToolArgs.get(pendingKey({ turnId: item.turnId, toolCallId: item.toolCallId })); return { id: item.itemId, label: readableToolName(t, item.capability.id), name: item.capability.id, summary: readableToolPreview(t, item.capability.id, args) || item.text || '', detail: readableToolSummary(t, item.capability.id, args) || item.text || '', result: item.resultRef ? `${t('agentResident.toolReferenceResult')} · ${item.resultRef}` : readableToolResult(t, item.status), status: item.status } } ), [items, t])
   const selectedPromptPreset = PROMPT_PRESETS.find((preset) => preset.id === promptModeId) ?? PROMPT_PRESETS[0]
   const contextCount = surface === 'generation' ? t('agentResident.contextNodes', { count: selectedNodeIds.length }) : surface === 'preview' ? t('agentResident.contextClips', { count: selectedClipIds.length }) : t('agentResident.currentDocument')
 
   React.useEffect(() => { try { setSkills(listWorkbenchSkills().filter((item) => item.isPlaybook)) } catch { setSkills([]) }; void getAvailableSkillProviders().then(setAvailableSkillProviders).catch(() => setAvailableSkillProviders(new Set())) }, [])
   React.useEffect(() => { let alive = true; void Promise.all([listWorkbenchModelCatalogVendors(), listWorkbenchModelCatalogModels({ kind: 'text', enabled: true })]).then(([vendorRows, modelRows]) => { if (!alive) return; const usable = filterUsableAssistantTextModels(modelRows, vendorRows); setModels(usable); setVendors(Object.fromEntries(vendorRows.map((row) => [row.key, row.name]))); const pref = getAssistantModelPref(); const found = pref && usable.find((row) => row.vendorKey === pref.vendorKey && row.modelKey === pref.modelKey); if (!found && usable[0]) { setAssistantModelPref({ vendorKey: usable[0].vendorKey, modelKey: usable[0].modelKey }); setSelectedModel(encodeModelIdentity(usable[0])) } else if (found) setSelectedModel(encodeModelIdentity(found)) }).catch(() => { if (alive) setModels([]) }); return () => { alive = false } }, [])
+  React.useEffect(() => {
+    const activeKeys = new Set(pendingTools.map((pending) => pendingKey(pending.call)))
+    setProposalDrafts((previous) => {
+      const next = Object.fromEntries(Object.entries(previous).filter(([key]) => activeKeys.has(key)))
+      return Object.keys(next).length === Object.keys(previous).length ? previous : next
+    })
+  }, [pendingTools])
   React.useEffect(() => { const node = scrollRef.current; if (node) node.scrollTop = node.scrollHeight }, [items.length, pendingTools.length, activeTurn?.status])
   React.useEffect(() => {
     if (!threadsOpen) return
@@ -193,7 +352,12 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const removeReference = React.useCallback((id: string) => setReferences((previous) => previous.filter((item) => item.id !== id)), [setReferences])
   const focusContext = React.useCallback(() => {
     window.dispatchEvent(new CustomEvent('nomi-agent-context-focus', { detail: { surface } }))
+    setContextPulse(true)
+    window.setTimeout(() => setContextPulse(false), 1400)
   }, [surface])
+  const focusReceipt = React.useCallback(() => {
+    focusContext()
+  }, [focusContext])
   const startVoiceInput = React.useCallback(() => {
     type VoiceRecognition = { lang: string; interimResults: boolean; maxAlternatives: number; onresult: (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void; onerror: () => void; start: () => void }
     const speechWindow = window as unknown as { SpeechRecognition?: new () => VoiceRecognition; webkitSpeechRecognition?: new () => VoiceRecognition }
@@ -210,12 +374,13 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   }, [closeMenu, setDraft, t])
   const openTask = React.useCallback((item: Extract<ProjectAgentItem, { kind: 'task' | 'artifact' }>) => { const projectId = snapshot?.binding.projectId; if (!projectId) return; window.dispatchEvent(new Event('nomi-open-task-center')); const runId = item.kind === 'task' ? (item.task.kind === 'production-run' ? item.task.runId : undefined) : item.artifact.runId; if (runId) void useProductionRunStore.getState().navigateTo(projectId, runId, item.kind === 'artifact' ? item.artifact.artifactId : undefined).catch((caught) => setError(friendlyError(caught, t))) }, [snapshot, t])
   const stopTurn = React.useCallback(async (turnId: string) => { try { await stopProjectAgentTurn(turnId) } catch (caught) { setError(friendlyError(caught, t)) } }, [t])
-  const resolveTool = React.useCallback(async (pending: PendingTool, ok: boolean) => {
+  const resolveTool = React.useCallback(async (pending: PendingTool, ok: boolean, editedArgs?: Record<string, unknown>) => {
     const key = pendingKey(pending.call)
     if (pending.state !== 'pending' || residentResolvingTools.has(key)) return
     residentResolvingTools.add(key)
     try {
-      await pending.call.confirm({ ok, ...(ok ? {} : { message: t('agentResident.deny') }) })
+      const editedPayload = ok ? proposalDecisionPayload(pending.call.args, editedArgs ?? proposalDrafts[key]) : {}
+      await pending.call.confirm({ ok, ...(ok ? editedPayload : { message: t('agentResident.deny') }) })
       const current = residentPendingTools.get(key)
       if (current?.state === 'pending') {
         residentPendingTools.set(key, { ...current, state: ok ? 'approved' : 'denied' })
@@ -226,7 +391,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     } finally {
       residentResolvingTools.delete(key)
     }
-  }, [t])
+  }, [proposalDrafts, t])
 
   const submit = React.useCallback(async () => {
     const text = draft.trim(); if (!text || !snapshot) return; setError('')
@@ -242,7 +407,17 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     try { if (surface === 'creation') { const state = creationDocumentTools?.readState(); target = { kind: 'document', documentId: activeDocumentId, anchor: state?.anchor ?? { kind: 'whole-document' } }; if (state) preconditions = { document: { revision: state.revision, contentHash: state.contentHash } } } else if (surface === 'preview') target = { kind: 'timeline', clipIds: Object.freeze([...selectedClipIds]) }; else target = { kind: 'canvas', nodeIds: Object.freeze([...selectedNodeIds]) } } catch (caught) { setError(friendlyError(caught, t)); return }
     const referencesText = references.length ? `\n\n${t('agentResident.referencesLabel')}: ${references.map((reference) => reference.label).join(', ')}` : ''
     setDraft(''); attachmentApi.clearAttachments(); closeMenu()
-    try { await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(surface === 'creation' && !activeSkill ? { systemPrompt: selectedPromptPreset.prompt || selectedPrompt.prompt } : {}), displayPrompt: text, capability, history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIds : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: surface === 'creation' ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: runMode === 'ask' ? 'chat' : 'auto', skillKey, skillName: activeSkill?.name ?? selectedPrompt.title, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); emitPending() } }) } catch (caught) { setError(friendlyError(caught, t)) } finally { clearResidentPendingTools(turnId) }
+    try {
+      const actionIntent = isAgentActionIntent(text)
+      const requestMode = runMode === 'ask' && !actionIntent ? 'chat' : 'auto'
+      const systemPrompt = surface === 'generation'
+        ? buildStaticAgentSystemPrompt(requestMode === 'chat' ? 'chat' : 'agent')
+        : surface === 'creation' && !activeSkill
+          ? selectedPromptPreset.prompt || selectedPrompt.prompt
+          : undefined
+      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: text, capability, history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIds : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: surface === 'creation' ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, skillKey, skillName: activeSkill?.name ?? selectedPrompt.title, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); emitPending() } })
+      setLastTurnTokens(response.usage.totalTokens)
+    } catch (caught) { setError(friendlyError(caught, t)) } finally { clearResidentPendingTools(turnId) }
   }, [activeDocumentId, activeSkill, attachmentApi, attachments, closeMenu, creationDocumentTools, draft, editingQueue, promptModeId, references, runMode, selectedClipIds, selectedNodeIds, selectedPromptPreset, setDraft, snapshot, surface, t])
   const onKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void submit() } }, [submit])
 
@@ -256,8 +431,10 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     ? t('agentResident.running')
     : pendingTools.some((pending) => pending.state === 'pending')
       ? t('agentResident.waitingApproval')
-      : queue.length
-        ? t('agentResident.queueCount', { count: queue.length })
+      : planningTurn
+        ? t('agentResident.planning')
+        : activeQueue.length
+          ? t('agentResident.queueCount', { count: activeQueue.length })
         : t('agentResident.ready')
 
   if (collapsed) {
@@ -271,29 +448,30 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     </section>
   }
 
-  return <section id="project-agent-resident" onKeyDownCapture={(event) => { if (event.key === 'Escape') { setThreadsOpen(false); setMenu(null) } }} className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col bg-[var(--workbench-ai-panel-bg)] text-nomi-ink" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-surface={surface}>
-    <header className="relative flex shrink-0 items-center gap-2 border-b border-nomi-line-soft px-3 py-2" data-agent-header="true">
+  return <section id="project-agent-resident" onKeyDownCapture={(event) => { if (event.key === 'Escape') { setThreadsOpen(false); setMenu(null) } }} className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col bg-[var(--workbench-ai-panel-bg)] text-nomi-ink" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-surface={surface} data-agent-run-mode={runMode}>
+    <header className="relative flex shrink-0 items-center gap-2 border-b border-nomi-line-soft px-3 py-1.5" data-agent-header="true">
       <div className="flex min-w-0 flex-1 items-center gap-2 text-left"><NomiLogoMark size={19} /><span className="min-w-0"><span className="block text-body-sm font-semibold leading-tight">{t('agentResident.brand')}</span><span className="block truncate text-micro text-nomi-ink-60">{activeThread?.title || t('agentResident.untitledThread')}</span></span></div>
-      <span className="flex shrink-0 items-center gap-1 text-micro text-nomi-ink-60" aria-label={t('agentResident.usage', { value: 0 })}><span className="h-1 w-6 overflow-hidden rounded-pill bg-nomi-ink-10"><span className="block h-full w-0 rounded-pill bg-nomi-ink-40" /></span><span>0%</span></span>
+      <span className="max-w-[12rem] shrink-0 truncate text-micro text-nomi-ink-60" data-agent-usage="true" title={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })} aria-label={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })}>{t('agentResident.usageCompact', { last: lastTurnTokens, total: sessionTotalTokens })}</span><span className="max-w-[4.5rem] shrink-0 truncate text-micro text-nomi-ink-40" data-agent-cost="true" title={costLabel}>{costLabel}</span>
       <WorkbenchIconButton size="sm" label={t('agentResident.threadList')} icon={<IconHistory size={15} />} onClick={() => setThreadsOpen((value) => !value)} data-agent-thread-trigger="true" />
       <WorkbenchIconButton size="sm" label={t('agentResident.collapse')} icon={<IconLayoutSidebarRightCollapse size={15} />} onClick={() => setCollapsed(true)} />
       {threadsOpen ? <div ref={threadMenuRef} tabIndex={-1} onKeyDown={(event) => { if (event.key === 'Escape') setThreadsOpen(false) }} className="absolute right-2 top-full z-50 mt-1 w-[280px] rounded-nomi border border-nomi-line bg-nomi-paper p-1 shadow-nomi-lg" data-agent-thread-menu="true" role="menu"><div className="flex items-center justify-between px-2 py-1 text-micro text-nomi-ink-60"><span>{t('agentResident.threads')}</span><button type="button" className="text-nomi-accent" onClick={() => { void createProjectAgentThread(); setThreadsOpen(false) }}>{t('agentResident.newThread')}</button></div>{(snapshot?.threads ?? []).map((thread) => <div key={thread.threadId} className={cn('flex items-center gap-1 rounded-nomi-sm px-2 py-1', thread.threadId === activeThreadId && 'bg-nomi-accent-soft')}><button type="button" className="min-w-0 flex-1 truncate text-left text-caption" onClick={() => { void activateProjectAgentThread(thread.threadId); setThreadsOpen(false) }}>{thread.title || t('agentResident.untitledThread')}</button><button type="button" className="grid size-6 place-items-center rounded-nomi-sm hover:bg-nomi-ink-10" aria-label={t('agentResident.removeThread')} onClick={() => void removeProjectAgentThread(thread.threadId)}><IconTrash size={13} /></button></div>)}</div> : null}
     </header>
-    <div className="flex shrink-0 items-center justify-between gap-2 border-b border-nomi-line-soft px-3 py-2" data-agent-context="true"><div className="min-w-0 truncate text-caption"><span className="text-nomi-ink-60">{t('agentResident.currentScene')} · </span><span className="font-medium">{surfaceShortLabel(t, surface)}</span><span className="text-nomi-ink-60"> · {contextCount}</span></div><button type="button" className="inline-flex h-7 shrink-0 items-center gap-1 rounded-nomi-sm px-1.5 text-micro font-medium text-nomi-ink-60 transition-[background,color] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05 hover:text-nomi-ink" onClick={focusContext}>{t('agentResident.backToScene')}<IconChevronRight size={12} /></button></div>
-    <div ref={scrollRef} className={cn('min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3', menu && 'pointer-events-none')} role="log" aria-live="polite" data-agent-transcript="true">
-      {!items.length && !queue.length ? <div className="grid min-h-28 place-items-center px-3 text-center"><div><div className="mb-1 text-body-sm font-semibold">{t('agentResident.emptyTitle')}</div><p className="m-0 text-caption text-nomi-ink-60">{t('agentResident.emptyDescription')}</p></div></div> : null}
-      {items.map((item) => { const proposal = item.kind === 'proposal' && item.approval; return <article key={item.itemId} data-agent-item-kind={item.kind} className={cn('rounded-nomi-sm border px-2.5 py-2 text-caption', item.kind === 'user' ? 'ml-6 border-nomi-ink bg-nomi-ink text-nomi-paper' : item.kind === 'failure' ? 'border-workbench-danger bg-workbench-danger-soft' : proposal ? 'border-nomi-accent bg-nomi-accent-soft' : 'border-nomi-line-soft bg-nomi-paper')}>
+    <div className={cn('flex shrink-0 items-center gap-2 border-b border-nomi-line-soft px-3 py-1.5 transition-[background,box-shadow] duration-[var(--nomi-transition-fast)]', contextPulse && 'bg-nomi-accent-soft shadow-[inset_0_-2px_0_var(--nomi-accent)]')} data-agent-context="true" data-agent-context-focused={contextPulse ? 'true' : 'false'}><div className="min-w-0 flex-1 truncate text-caption"><span className="text-nomi-ink-60">{t('agentResident.currentScene')} · </span><span className="font-medium">{surfaceShortLabel(t, surface)}</span><span className="text-nomi-ink-60"> · {contextCount}</span></div>{contextPulse ? <span className="shrink-0 text-micro text-nomi-accent">{t('agentResident.sceneFocused')}</span> : null}<button type="button" className={iconControlClass(contextPulse)} aria-label={t('agentResident.focusContext')} title={t('agentResident.focusContext')} data-agent-context-focus="true" onClick={focusContext}><IconFocusCentered size={14} aria-hidden="true" /></button></div>
+    <div ref={scrollRef} className={cn('min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 py-2', menu && 'pointer-events-none')} role="log" aria-live="polite" data-agent-transcript="true">
+      {!items.length && !activeQueue.length ? <div className="grid min-h-28 place-items-center px-3 text-center"><div><div className="mb-1 text-body-sm font-semibold">{t('agentResident.emptyTitle')}</div><p className="m-0 text-caption text-nomi-ink-60">{t('agentResident.emptyDescription')}</p></div></div> : null}
+      {planningTurn ? <ResidentThinkingState label={t('agentResident.planning')} detail={t('agentResident.planningDetail')} open={thinkingOpen} onToggle={() => setThinkingOpen((value) => !value)} /> : null}
+      <ResidentToolChips items={toolChipItems} emptyLabel={t('agentResident.toolDetailEmpty')} sectionLabel={t('agentResident.toolCalls')} headerLabel={t('agentResident.toolCallsCount', { count: toolChipItems.length })} explanationLabel={t('agentResident.toolExplanation')} resultLabel={t('agentResident.toolResult')} statusLabel={(status) => statusLabel(t, status)} />
+      {items.map((item) => { const proposal = item.kind === 'proposal' && item.approval; const proposalActive = item.kind === 'proposal' && item.status === 'proposed' && Boolean(proposal); const declined = item.kind === 'failure' && item.status === 'declined'; if (item.kind === 'tool' || proposalActive) return null; return <article key={item.itemId} data-agent-item-kind={item.kind} data-agent-turn-id={item.turnId} data-agent-status={item.status} className={cn(item.kind === 'user' ? 'ml-6 rounded-nomi-sm border border-nomi-ink bg-nomi-ink px-2.5 py-1.5 text-caption text-nomi-paper' : item.kind === 'assistant' ? 'px-1 py-0.5 text-caption' : cn('rounded-nomi-sm border px-2.5 py-1.5 text-caption', item.kind === 'failure' && !declined ? 'border-workbench-danger bg-workbench-danger-soft' : declined ? 'border-nomi-line-soft bg-nomi-ink-05' : 'border-nomi-line-soft bg-nomi-paper'))}>
         {item.kind === 'user' ? <div className="whitespace-pre-wrap break-words">{item.text}</div> : null}
-        {item.kind === 'assistant' ? <div className="whitespace-pre-wrap break-words">{item.text || (isLive(item.status) ? `${t('creationAi.assistantMessage.processing')}…` : '')}</div> : null}
-        {item.kind === 'tool' ? <><div className="flex items-center gap-1.5 font-medium"><IconFileText size={13} />{t('agentResident.toolCall', { name: item.capability.id })}{item.status === 'running' ? <IconLoader2 size={13} className="animate-spin" /> : <IconCheck size={13} className="text-workbench-success-ink" />}</div><div className="mt-1 text-micro text-nomi-ink-60">{item.resultRef ?? t('agentResident.waitingApproval')}</div></> : null}
-        {item.kind === 'proposal' ? <><div className="flex items-center gap-1.5 font-medium"><IconListCheck size={18} className="text-nomi-accent" />{t('agentResident.plan')}<span className="ml-auto text-micro text-nomi-accent">{statusLabel(t, item.status)}</span></div><div className="mt-1 text-micro text-nomi-ink-60">{t('agentResident.approval')}</div>{proposal ? <div className="mt-2 grid grid-cols-2 gap-1.5"><button type="button" className="h-7 rounded-nomi-sm border border-nomi-line text-micro" data-agent-action="edit-plan" onClick={() => setDraft(t('agentResident.editPlanPrompt'))}>{t('agentResident.editPlan')}</button><button type="button" className="h-7 rounded-nomi-sm bg-nomi-ink text-micro text-nomi-paper" data-agent-action="approve-plan" disabled>{t('agentResident.approve')}</button></div> : null}</> : null}
-        {item.kind === 'failure' ? <><div className="flex items-center gap-1.5 font-medium text-workbench-danger"><IconAlertTriangle size={18} />{item.message}</div><div className="mt-1 text-micro text-nomi-ink-60">{item.nextAction ?? t('agentResident.sendFailed')}</div><div className="mt-2 grid grid-cols-3 gap-1.5"><button type="button" className="h-7 min-w-0 rounded-nomi-sm bg-nomi-ink px-1 text-micro text-nomi-paper" data-agent-action="retry" onClick={() => { const user = items.find((candidate) => candidate.kind === 'user' && candidate.turnId === item.turnId); if (user?.kind === 'user') setDraft(user.text) }}>{t('agentResident.changeModelRetry')}</button><button type="button" className="h-7 min-w-0 rounded-nomi-sm border border-nomi-line px-1 text-micro" data-agent-action="edit-prompt" onClick={() => setDraft(t('agentResident.editPlanPrompt'))}>{t('agentResident.editPrompt')}</button><button type="button" className="h-7 min-w-0 rounded-nomi-sm border border-nomi-line px-1 text-micro" data-agent-action="view-log" onClick={() => window.dispatchEvent(new Event('nomi-open-task-center'))}>{t('agentResident.viewLog')}</button></div></> : null}
+        {item.kind === 'assistant' ? <ResidentStreamingText text={item.text || (isLive(item.status) ? `${t('creationAi.assistantMessage.processing')}…` : '')} streaming={isLive(item.status)} streamingLabel={t('agentResident.streaming')} /> : null}
+        {item.kind === 'proposal' ? <><div className="flex items-center gap-1.5 font-medium"><IconListCheck size={18} className="text-nomi-accent" />{t('agentResident.plan')}<span className="ml-auto text-micro text-nomi-accent">{statusLabel(t, item.status)}</span></div>{item.status === 'done' ? <div className="mt-1 flex items-center justify-end gap-2 text-micro text-nomi-ink-60"><span>{t('agentResident.approvedReceiptHint')}</span><button type="button" className="shrink-0 rounded-nomi-sm border border-nomi-line px-2 py-1 hover:bg-nomi-ink-05" data-agent-action="focus-receipt" onClick={focusReceipt}>{t('agentResident.viewChange')}</button></div> : null}</> : null}
+        {item.kind === 'failure' ? declined ? <div className="flex items-center gap-1.5 font-medium text-nomi-ink-60"><IconCircleDashed size={18} />{t('agentResident.operationDeniedReceipt')}</div> : <><div className="flex items-center gap-1.5 font-medium text-workbench-danger"><IconAlertTriangle size={18} />{readableFailure(t, item.code, item.message)}</div><div className="mt-1 text-micro text-nomi-ink-60">{t('agentResident.failureNextAction')}</div><div className="mt-2 grid grid-cols-3 gap-1.5"><button type="button" className="h-7 min-w-0 rounded-nomi-sm bg-nomi-ink px-1 text-micro text-nomi-paper" data-agent-action="retry" onClick={() => { const user = items.find((candidate) => candidate.kind === 'user' && candidate.turnId === item.turnId); if (user?.kind === 'user') setDraft(user.text) }}>{t('agentResident.changeModelRetry')}</button><button type="button" className="h-7 min-w-0 rounded-nomi-sm border border-nomi-line px-1 text-micro" data-agent-action="edit-prompt" onClick={() => setDraft(t('agentResident.editPlanPrompt'))}>{t('agentResident.editPrompt')}</button><button type="button" className="h-7 min-w-0 rounded-nomi-sm border border-nomi-line px-1 text-micro" data-agent-action="view-log" onClick={() => window.dispatchEvent(new Event('nomi-open-task-center'))}>{t('agentResident.viewLog')}</button></div></> : null}
         {item.kind === 'task' || item.kind === 'artifact' ? <div className="flex items-center justify-between gap-2"><span className="flex min-w-0 items-center gap-1.5 truncate"><IconExternalLink size={14} />{item.kind === 'task' ? t('agentResident.task', { id: itemRef(item) }) : t('agentResident.artifact', { id: itemRef(item) })}</span><button type="button" className="h-7 rounded-nomi-sm border border-nomi-line px-2 text-micro" onClick={() => openTask(item)}>{item.kind === 'task' ? t('agentResident.openTask') : t('agentResident.openArtifact')}</button></div> : null}
       </article> })}
-      {pendingTools.map((pending) => <article key={pending.call.toolCallId} className="rounded-nomi-sm border border-nomi-accent bg-nomi-accent-soft px-2.5 py-2 text-caption" data-agent-item-kind="approval"><div className="flex items-center gap-1.5 font-medium"><IconLock size={14} />{t('agentResident.toolCall', { name: pending.call.toolName })}</div><div className="mt-1 text-micro text-nomi-ink-60">{pending.state === 'pending' ? t('agentResident.waitingApproval') : pending.state === 'approved' ? t('agentResident.approved') : t('agentResident.denied')}</div>{pending.state === 'pending' ? <div className="mt-2 grid grid-cols-2 gap-1.5"><button type="button" className="h-7 rounded-nomi-sm border border-nomi-line text-micro" data-agent-action="deny" onClick={() => void resolveTool(pending, false)}>{t('agentResident.deny')}</button><button type="button" className="h-7 rounded-nomi-sm bg-nomi-ink text-micro text-nomi-paper" data-agent-action="approve" onClick={() => void resolveTool(pending, true)}>{t('agentResident.approve')}</button></div> : null}</article>)}
+      {pendingTools.map((pending) => { const key = pendingKey(pending.call); const editableArgs = proposalDrafts[key] ?? (pending.call.args && typeof pending.call.args === 'object' && !Array.isArray(pending.call.args) ? pending.call.args as Record<string, unknown> : undefined); return <div key={pending.call.toolCallId} data-agent-item-kind="approval"><ResidentApprovalCard title={readableToolName(t, pending.call.toolName)} iconName={pending.call.toolName} summary={readableToolPreview(t, pending.call.toolName, editableArgs)} details={readableToolDetailRows(t, pending.call.toolName, editableArgs)} detailsLabel={t('agentResident.toolInspectDetails')} state={pending.state === 'approved' ? 'approved' : pending.state === 'denied' ? 'denied' : 'pending'} approveLabel={t('agentResident.approve')} denyLabel={t('agentResident.deny')} pendingLabel={t('agentResident.waitingApproval')} approvedLabel={t('agentResident.approved')} deniedLabel={t('agentResident.denied')} resolvedApprovedHint={t('agentResident.approvedReceiptHint')} resolvedDeniedHint={t('agentResident.deniedReceiptHint')} notWrittenLabel={t('agentResident.notWritten')} onApprove={() => void resolveTool(pending, true, editableArgs)} onDeny={() => void resolveTool(pending, false)}>{pending.state === 'pending' ? <GenerationProposalEditor args={editableArgs} t={t} onChange={(next) => setProposalDrafts((previous) => ({ ...previous, [key]: next }))} /> : null}</ResidentApprovalCard></div> })}
     </div>
-    <div className="relative z-20 shrink-0 border-t border-nomi-line-soft bg-nomi-paper" data-agent-composer="true">{queue.length || runningTurn ? <div className="flex items-center justify-between gap-2 px-3 pt-2 text-micro text-nomi-ink-60"><span>{t('agentResident.queue')}{queue.length ? ` · ${t('agentResident.queueCount', { count: queue.length })}` : ''}</span>{runningTurn ? <button type="button" className="inline-flex h-7 items-center gap-1 rounded-nomi-sm px-2 text-workbench-danger transition-[background,color] duration-[var(--nomi-transition-fast)] hover:bg-workbench-danger-soft" data-agent-action="stop" onClick={() => void stopTurn(runningTurn.turnId)}><IconPlayerStopFilled size={12} />{t('agentResident.stop')}</button> : null}</div> : null}{queue.length ? <div className="space-y-1 px-3 py-1.5">{queue.slice(-3).map((entry: ProjectAgentQueueItem) => { const user = snapshot?.items.find((candidate) => candidate.kind === 'user' && candidate.turnId === entry.turnId); return <div key={entry.queueItemId} className="flex items-center gap-2 rounded-nomi-sm bg-nomi-ink-05 px-2 py-1.5 text-micro" data-agent-queue-item="true"><span className="size-1.5 rounded-pill bg-nomi-accent" /><span className="min-w-0 flex-1 truncate">{user?.kind === 'user' ? user.text : entry.turnId}</span><span>{statusLabel(t, entry.status)}</span>{entry.status === 'queued' && user?.kind === 'user' ? <button type="button" className="grid size-6 place-items-center rounded-nomi-sm hover:bg-nomi-ink-10" aria-label={t('agentResident.edit')} onClick={() => { setDraft(user.text); setEditingQueue({ queueItemId: entry.queueItemId, userItemId: user.itemId }) }}><IconPencil size={12} /></button> : null}<button type="button" className="grid size-6 place-items-center rounded-nomi-sm text-workbench-danger hover:bg-workbench-danger-soft" aria-label={t('agentResident.cancel')} onClick={() => void stopTurn(entry.turnId)}><IconX size={12} /></button></div> })}</div> : null}{error ? <div className="px-3 pb-1 text-micro text-workbench-danger" role="alert">{error}</div> : null}
-      <form className="relative grid gap-1.5 px-3 pb-2 pt-1" onSubmit={(event) => { event.preventDefault(); void submit() }} {...attachmentApi.dragHandlers}><input ref={attachmentApi.inputRef} type="file" multiple accept={COMPOSER_ATTACHMENT_ACCEPT} className="hidden" tabIndex={-1} aria-hidden="true" onChange={attachmentApi.onInputChange} /><AttachmentRail attachments={attachments} onRemove={attachmentApi.removeAttachment} />{references.length || activeSkill || (promptModeId !== 'general' && !activeSkill) ? <div className="flex max-h-14 flex-wrap gap-1 overflow-y-auto" data-agent-references="true">{references.map((reference) => <span key={reference.id} data-agent-reference={reference.id} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80"><IconAt size={12} /><span className="truncate">{reference.label}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => removeReference(reference.id)}><IconX size={11} /></button></span>)}{activeSkill ? <span data-agent-reference={`skill:${activeSkill.key}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent"><IconTool size={12} /><span className="truncate">{activeSkill.name}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setActiveSkill(null)}><IconX size={11} /></button></span> : null}{promptModeId !== 'general' && !activeSkill ? <span data-agent-reference={`prompt:${promptModeId}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80"><PromptIcon size={12} /><span className="truncate">{t(`agentResident.${promptPreset.labelKey}`)}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setPromptModeId('general')}><IconX size={11} /></button></span> : null}</div> : null}
+    <div className="relative z-20 shrink-0 border-t border-nomi-line-soft bg-nomi-paper" data-agent-composer="true"><ResidentTaskRows entries={activeQueue} getLabel={(entry) => { const user = snapshot?.items.find((candidate) => candidate.kind === 'user' && candidate.turnId === entry.turnId); return user?.kind === 'user' ? user.text : t('agentResident.taskFallback') }} getStatusLabel={(status) => statusLabel(t, status)} editLabel={t('agentResident.edit')} cancelLabel={t('agentResident.cancel')} stopLabel={t('agentResident.stop')} queueLabel={t('agentResident.queue')} queueCountLabel={t('agentResident.queueCount', { count: activeQueue.length })} onEdit={(entry) => { const user = snapshot?.items.find((candidate) => candidate.kind === 'user' && candidate.turnId === entry.turnId); if (user?.kind === 'user') { setDraft(user.text); setEditingQueue({ queueItemId: entry.queueItemId, userItemId: user.itemId }) } }} onCancel={(entry) => void stopTurn(entry.turnId)} onStop={runningTurn ? () => void stopTurn(runningTurn.turnId) : undefined} />{error ? <div className="px-3 pb-1 text-micro text-workbench-danger" role="alert">{error}</div> : null}
+      <form className="relative grid gap-1 px-3 pb-1.5 pt-1" onSubmit={(event) => { event.preventDefault(); void submit() }} {...attachmentApi.dragHandlers}><input ref={attachmentApi.inputRef} type="file" multiple accept={COMPOSER_ATTACHMENT_ACCEPT} className="hidden" tabIndex={-1} aria-hidden="true" onChange={attachmentApi.onInputChange} /><AttachmentRail attachments={attachments} onRemove={attachmentApi.removeAttachment} />{references.length || activeSkill || (promptModeId !== 'general' && !activeSkill) ? <div className="flex max-h-14 flex-wrap gap-1 overflow-y-auto" data-agent-references="true">{references.map((reference) => <span key={reference.id} data-agent-reference={reference.id} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80"><IconAt size={12} /><span className="truncate">{reference.label}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => removeReference(reference.id)}><IconX size={11} /></button></span>)}{activeSkill ? <span data-agent-reference={`skill:${activeSkill.key}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent"><IconTool size={12} /><span className="truncate">{activeSkill.name}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setActiveSkill(null)}><IconX size={11} /></button></span> : null}{promptModeId !== 'general' && !activeSkill ? <span data-agent-reference={`prompt:${promptModeId}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80"><PromptIcon size={12} /><span className="truncate">{t(`agentResident.${promptPreset.labelKey}`)}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setPromptModeId('general')}><IconX size={11} /></button></span> : null}</div> : null}
         <div className={cn('rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1', attachmentApi.isDragging && 'border-nomi-accent bg-nomi-accent-soft')}><AutoGrowTextarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} onPaste={attachmentApi.handlePaste} placeholder={t('agentResident.placeholder')} aria-label={t('agentResident.messageAria')} maxHeight={120} className="min-h-10 text-body-sm" /><div className="flex flex-wrap items-center gap-1 border-t border-nomi-line-soft pt-1">
           <div className="relative shrink-0"><button type="button" className={iconControlClass(menu === 'attachments')} aria-expanded={menu === 'attachments'} aria-haspopup="menu" data-agent-attachment-trigger="true" aria-label={t('agentResident.attach')} title={t('agentResident.attachTitle')} onClick={() => setMenu(menu === 'attachments' ? null : 'attachments')}><IconPaperclip size={16} /></button><Popover open={menu === 'attachments'} onClose={closeMenu} label={t('agentResident.attach')}><MenuRow testId="image" onClick={() => { attachmentApi.openFilePicker(); closeMenu() }}><IconPhoto size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.attachImage')} hint={t('agentResident.attachImageHint')} /></MenuRow><MenuRow testId="video" onClick={() => { attachmentApi.openFilePicker(); closeMenu() }}><IconVideo size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.attachVideo')} hint={t('agentResident.attachVideoHint')} /></MenuRow><MenuRow testId="audio" onClick={() => { attachmentApi.openFilePicker(); closeMenu() }}><IconWaveSine size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.attachAudio')} hint={t('agentResident.attachAudioHint')} /></MenuRow><MenuRow testId="document" onClick={() => { attachmentApi.openFilePicker(); closeMenu() }}><IconFileText size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.attachDocument')} hint={t('agentResident.attachDocumentHint')} /></MenuRow><div className="my-1 border-t border-nomi-line-soft" /><MenuRow testId="voice" onClick={() => { startVoiceInput() }}><IconMicrophone size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.voiceInput')} hint={t('agentResident.voiceInputHint')} /></MenuRow></Popover></div>
           <div className="relative shrink-0"><button type="button" className={iconControlClass(menu === 'references')} aria-expanded={menu === 'references'} aria-haspopup="menu" data-agent-mention-trigger="true" aria-label={t('agentResident.mention')} title={t('agentResident.mentionTitle')} onClick={() => setMenu(menu === 'references' ? null : 'references')}><IconAt size={16} /></button><Popover open={menu === 'references'} onClose={closeMenu} label={t('agentResident.mention')}><MenuRow testId="canvas" onClick={() => addReference({ id: 'canvas:selection', label: t('agentResident.referenceCanvas'), kind: 'canvas' })}><IconPhoto size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.referenceCanvas')} hint={t('agentResident.referenceCanvasHint')} /></MenuRow><MenuRow testId="document" onClick={() => addReference({ id: `document:${activeDocumentId || 'current'}`, label: t('agentResident.referenceDocument'), kind: 'document' })}><IconFileText size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.referenceDocument')} hint={t('agentResident.referenceDocumentHint')} /></MenuRow><MenuRow testId="preview" onClick={() => addReference({ id: 'preview:frame', label: t('agentResident.referencePreview'), kind: 'preview' })}><IconVideo size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.referencePreview')} hint={t('agentResident.referencePreviewHint')} /></MenuRow><MenuRow testId="timeline" onClick={() => addReference({ id: 'timeline:range', label: t('agentResident.referenceTimeline'), kind: 'timeline' })}><IconTimelineEvent size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.referenceTimeline')} hint={t('agentResident.referenceTimelineHint')} /></MenuRow><MenuRow testId="browser" onClick={() => addReference({ id: 'browser:selection', label: t('agentResident.referenceBrowser'), kind: 'browser' })}><IconWorld size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.referenceBrowser')} hint={t('agentResident.referenceBrowserHint')} /></MenuRow></Popover></div>

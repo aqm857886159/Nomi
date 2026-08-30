@@ -98,10 +98,11 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
     expect(state.request?.capability.maxSteps).toBe(maxSteps);
   });
 
-  it('canvas-agent gets the canvas tools plus timeline control-plane tools', async () => {
-    await runAgentChatV2(request('canvas-agent'), hooks());
-    expect(state.request?.tools).toHaveLength(24);
-    expect(state.request?.tools.slice(-14).map((tool) => tool.name)).toEqual([
+  it('canvas-agent receives only the goal profile required for timeline control', async () => {
+    await runAgentChatV2({ ...request('canvas-agent'), prompt: '检查时间线并导出当前项目' }, hooks());
+    expect(state.request?.tools).toHaveLength(18);
+    expect(state.request?.tools.map((tool) => tool.name)).toEqual([
+      'read_canvas_state', 'set_node_prompt', 'create_canvas_nodes', 'connect_canvas_edges',
       'get_media', 'inspect_media', 'search_media', 'inspect_source_range', 'read_waveform',
       'inspect_export_job', 'verify_render', 'export_timeline', 'cancel_export_job',
       'read_timeline', 'inspect_timeline_range', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit',

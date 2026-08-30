@@ -70,6 +70,7 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-08-29-project-agent-host-execution-roadmap.md](2026-08-29-project-agent-host-execution-roadmap.md) | Project Agent Host 全阶段执行路线图与 Phase 6 resident shell 合同 | 🚧 |
+| [2026-08-30-project-agent-host-real-user-acceptance.md](2026-08-30-project-agent-host-real-user-acceptance.md) | Phase 6 真实用户任务、能力完整性对账与生成闭环验收 | 🚧 |
 | [2026-08-29-project-agent-phase3a-closure.md](2026-08-29-project-agent-phase3a-closure.md) | `document.read` canonical Host 垂直切片收口 | ✅ |
 | [2026-08-29-project-agent-phase3b-document-write.md](2026-08-29-project-agent-phase3b-document-write.md) | 可逆 `document.write` 迁移与冻结 target admission | ✅ |
 | [2026-08-29-project-agent-phase3c-canvas-write.md](2026-08-29-project-agent-phase3c-canvas-write.md) | canonical `canvas.write@v1` 可逆画布写入 | ✅ |

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import type { AgentChatActivity, AgentChatRequest, AgentChatResponse, AgentChatHistoryRequest } from '../harness/agentChatContracts';
-import { agentToolsForCapabilityAndSkill, agentToolIsInScope, captureAgentChatRequest, captureAgentHistory } from '../harness/agentChatPolicy';
+import { agentToolsForRequest, agentToolIsInScope, captureAgentChatRequest, captureAgentHistory } from '../harness/agentChatPolicy';
 import { agentContextHost, withAgentRuntimePaths } from '../harness/context/agentContextHost';
 import { NOMI_AGENT_IDENTITY, buildSkillSystemPrompt, composeAgentSystemPrompt, resolveRequestedSkill } from '../harness/context/agentContext';
 import type { RuntimeTurnHooks, NomiModelConfig } from '../harness/runtime/runtimePort';
@@ -47,7 +47,7 @@ export async function runAgentChatV2(input: AgentChatRequest, hooks: AgentChatV2
   const requestedCapabilities = requestedSkill?.manifestError
     ? []
     : requestedSkill?.manifest?.requestedCapabilities;
-  const runtimeTools = agentToolsForCapabilityAndSkill(payload.capability, requestedCapabilities);
+  const runtimeTools = agentToolsForRequest(payload, requestedCapabilities);
   let selectedModel: { id: string; label: string; vendorKey: string } | undefined;
   const runtimeHooks: RuntimeTurnHooks = {
     signal: hooks.abortSignal,

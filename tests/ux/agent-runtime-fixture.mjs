@@ -6,6 +6,9 @@ import path from 'node:path'
 export const FIXTURE_VENDOR = 'agent-runtime-loopback'
 export const FIXTURE_TEXT_MODEL = 'agent-runtime-text'
 export const FIXTURE_IMAGE_MODEL = 'agent-runtime-image'
+export const FIXTURE_IMAGE_ALT_MODEL = 'agent-runtime-image-alt'
+export const FIXTURE_VIDEO_MODEL = 'agent-runtime-video'
+export const FIXTURE_VIDEO_ALT_MODEL = 'agent-runtime-video-alt'
 export const FIXTURE_API_KEY = 'sk-agent-runtime-fixture'
 export const FIXTURE_USAGE = Object.freeze({
   prompt_tokens: 11, completion_tokens: 7, total_tokens: 18,
@@ -24,10 +27,10 @@ export function flattenRequestText(body) {
   }).filter(Boolean).join('\n')
 }
 
-function imageMapping(taskKind) {
+function imageMapping(taskKind, modelKey = FIXTURE_IMAGE_MODEL) {
   return {
-    id: `${FIXTURE_IMAGE_MODEL}-${taskKind}`,
-    vendorKey: FIXTURE_VENDOR, modelKey: FIXTURE_IMAGE_MODEL, taskKind,
+    id: `${modelKey}-${taskKind}`,
+    vendorKey: FIXTURE_VENDOR, modelKey, taskKind,
     name: `Fixture ${taskKind}`, enabled: true,
     create: {
       method: 'POST', path: '/v1/images/generations',
@@ -45,6 +48,31 @@ function imageMapping(taskKind) {
   }
 }
 
+// The resident real-user walk must exercise the same catalog/HTTP path as a
+// user-generated image-to-video task. Keep this mapping loopback-only: the
+// response carries a certified MP4 URL so the renderer still runs the real
+// task result materializer without creating a paid provider job.
+function videoMapping(taskKind, modelKey = FIXTURE_VIDEO_MODEL) {
+  return {
+    id: `${modelKey}-${taskKind}`,
+    vendorKey: FIXTURE_VENDOR, modelKey, taskKind,
+    name: `Fixture ${taskKind}`, enabled: true,
+    create: {
+      method: 'POST', path: '/v1/videos',
+      headers: { Authorization: 'Bearer {{user_api_key}}', 'Content-Type': 'application/json' },
+      body: {
+        model: '{{model.modelKey}}', prompt: '{{request.prompt}}',
+        aspect_ratio: '{{request.params.aspect_ratio}}', resolution: '{{request.params.resolution}}',
+        duration: '{{request.params.duration}}', image: '{{request.params.image}}',
+      },
+      response_mapping: { task_id: 'video_id', video_url: 'url' },
+      provider_meta_mapping: { task_id: 'video_id' },
+      defaultParams: { aspect_ratio: '16:9', resolution: '720p', duration: 5 },
+    },
+    createdAt: NOW, updatedAt: NOW,
+  }
+}
+
 function modelCatalog(baseURL) {
   const common = { vendorKey: FIXTURE_VENDOR, enabled: true, createdAt: NOW, updatedAt: NOW }
   return {
@@ -57,8 +85,14 @@ function modelCatalog(baseURL) {
     models: [
       { ...common, modelKey: FIXTURE_TEXT_MODEL, labelZh: 'Fixture 文本', kind: 'text', meta: { supportsImageInput: true } },
       { ...common, modelKey: FIXTURE_IMAGE_MODEL, labelZh: 'Fixture 图片', kind: 'image', meta: { archetypeId: 'agnes-image' } },
+      { ...common, modelKey: FIXTURE_IMAGE_ALT_MODEL, labelZh: 'Fixture 图片备用', kind: 'image', meta: { archetypeId: 'agnes-image' } },
+      { ...common, modelKey: FIXTURE_VIDEO_MODEL, labelZh: 'Fixture 视频', kind: 'video', meta: { archetypeId: 'agnes-video' } },
+      { ...common, modelKey: FIXTURE_VIDEO_ALT_MODEL, labelZh: 'Fixture 视频备用', kind: 'video', meta: { archetypeId: 'agnes-video' } },
     ],
-    mappings: ['text_to_image', 'image_edit'].map(imageMapping),
+    mappings: [
+      ...['text_to_image', 'image_edit'].flatMap((taskKind) => [imageMapping(taskKind), imageMapping(taskKind, FIXTURE_IMAGE_ALT_MODEL)]),
+      ...['text_to_video', 'image_to_video'].flatMap((taskKind) => [videoMapping(taskKind), videoMapping(taskKind, FIXTURE_VIDEO_ALT_MODEL)]),
+    ],
     apiKeysByVendor: {
       [FIXTURE_VENDOR]: { ...common, apiKey: FIXTURE_API_KEY, enc: 'plain' },
     },
@@ -136,8 +170,11 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir }) {
   }
   const imageBytes = await readFile(path.join(rootDir, 'resources/onboarding-demo/shot-4.jpg'))
   const imageURL = `data:image/jpeg;base64,${imageBytes.toString('base64')}`
+  const videoBytes = await readFile(path.join(rootDir, 'electron/providerAdapter/__fixtures__/certification-media/valid.mp4'))
+  const videoURL = `data:video/mp4;base64,${videoBytes.toString('base64')}`
   const requests = []
   const images = []
+  const videos = []
   const unexpected = []
   const expectations = []
   const sockets = new Set()
@@ -153,6 +190,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir }) {
   async function handleRequest(request, response, record) {
     if (record.path === '/v1/chat/completions') requests.push(record)
     else if (record.path === '/v1/images/generations') images.push(record)
+    else if (record.path === '/v1/videos') videos.push(record)
     const chunks = []
     for await (const chunk of request) chunks.push(chunk)
     record.body = Buffer.concat(chunks).toString('utf8')
@@ -168,6 +206,10 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir }) {
     }
     if (record.path === '/v1/images/generations') {
       jsonResponse(response, 200, { data: [{ url: imageURL }] })
+      return
+    }
+    if (record.path === '/v1/videos') {
+      jsonResponse(response, 200, { video_id: `fixture-video-${videos.length - 1}`, url: videoURL })
       return
     }
     if (record.path !== '/v1/chat/completions') {
@@ -228,7 +270,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir }) {
     await mkdir(settingsDir, { recursive: true })
     await writeFile(path.join(settingsDir, 'model-catalog.json'), `${JSON.stringify(modelCatalog(baseURL), null, 2)}\n`, { flag: 'wx' })
     return {
-      baseURL, requests, images, unexpected, close,
+      baseURL, requests, images, videos, unexpected, close,
       /** @param {{label:string, match?:(body:unknown, record:RequestRecord)=>boolean, reply:Reply}} options */
       expectText({ label, match = () => true, reply }) {
         if (closed) throw new Error('Fixture is closed')

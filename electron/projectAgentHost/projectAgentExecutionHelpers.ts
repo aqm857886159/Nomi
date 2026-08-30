@@ -120,3 +120,48 @@ export function exportJobTaskItems(
   }
   return items;
 }
+
+/** A started ProductionRun is a task projection, never a second Host-owned status ledger. */
+export function productionRunTaskItems(
+  binding: ProjectBinding,
+  turn: ProjectAgentTurn,
+  records: AgentChatResponse["toolCalls"],
+  existingItems: readonly ProjectAgentItem[],
+  now: string,
+): ProjectAgentTaskItem[] {
+  const knownRunIds = new Set(
+    existingItems.flatMap((item) => item.kind === "task" && item.task.kind === "production-run"
+      ? [item.task.runId]
+      : []),
+  );
+  const items: ProjectAgentTaskItem[] = [];
+  for (const record of records) {
+    if (record.status !== "ok" || record.toolName !== "start_production_run") continue;
+    if (!record.result || typeof record.result !== "object" || Array.isArray(record.result)) continue;
+    const result = record.result as Record<string, unknown>;
+    const runId = typeof result.runId === "string" ? result.runId.trim() : "";
+    if (!runId || knownRunIds.has(runId)) continue;
+    knownRunIds.add(runId);
+    const revision = typeof result.revision === "number" && Number.isSafeInteger(result.revision) ? result.revision : undefined;
+    const stageId = typeof result.stageId === "string" && result.stageId.trim() ? result.stageId : undefined;
+    items.push(Object.freeze({
+      itemId: `task-${digest([binding, turn.executionToken, "production-run", runId])}`,
+      threadId: turn.threadId,
+      turnId: turn.turnId,
+      correlationId: record.toolCallId,
+      kind: "task" as const,
+      task: Object.freeze({
+        kind: "production-run" as const,
+        runId,
+        ...(revision !== undefined ? { expectedRunRevision: revision } : {}),
+        ...(stageId ? { stageId } : {}),
+      }),
+      status: "done" as const,
+      retryable: false,
+      deviated: false,
+      createdAt: now,
+      updatedAt: now,
+    }));
+  }
+  return items;
+}

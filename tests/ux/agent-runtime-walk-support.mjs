@@ -223,7 +223,12 @@ export async function createRuntimeWalk(name) {
     await finalizeRuntimeWalk(report, {
       error, cleanup: [stopApp, () => fixture.close()],
       collect: () => {
-        Object.assign(report, { textRequests: fixture.requests.length, imageRequests: fixture.images.length, unexpected: fixture.unexpected })
+        Object.assign(report, {
+          textRequests: fixture.requests.length,
+          imageRequests: fixture.images.length,
+          videoRequests: fixture.videos?.length ?? 0,
+          unexpected: fixture.unexpected,
+        })
         fixture.assertClean() // Includes requests received during app teardown, after the body checkpoint.
       },
     })
