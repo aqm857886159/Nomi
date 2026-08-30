@@ -10,6 +10,18 @@ const shell = fs.readFileSync(
   path.join(process.cwd(), 'src/workbench/WorkbenchShell.tsx'),
   'utf8',
 )
+const creation = fs.readFileSync(
+  path.join(process.cwd(), 'src/workbench/creation/CreationWorkspace.tsx'),
+  'utf8',
+)
+const generation = fs.readFileSync(
+  path.join(process.cwd(), 'src/workbench/generation/GenerationWorkspace.tsx'),
+  'utf8',
+)
+const preview = fs.readFileSync(
+  path.join(process.cwd(), 'src/workbench/preview/PreviewWorkspace.tsx'),
+  'utf8',
+)
 
 describe('ProjectAgentResidentShell production contract', () => {
   it('projects one Host timeline and keeps busy queue actions in the shell', () => {
@@ -68,5 +80,16 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).not.toContain('CreationPromptPicker')
     expect(resident).not.toContain('AssistantModelPicker')
     expect(resident).not.toContain('<select')
+  })
+
+  it('overlays the collapsed affordance without reserving a sidebar column', () => {
+    expect(creation).not.toContain('grid-cols-[240px_minmax(0,1fr)_36px]')
+    expect(creation).toContain("'pointer-events-none absolute inset-0 z-40 overflow-visible'")
+    expect(generation).toContain("aiCollapsed ? '0px' : assistantTargetWidth")
+    expect(generation).toContain("data-ai-layout={hasAssistant ? (aiCollapsed ? 'overlay' : 'sidebar') : 'none'}")
+    expect(generation).toContain('pointer-events-none absolute inset-0 z-40 overflow-visible')
+    expect(preview).toContain("aiCollapsed ? '0px' : `${assistantWidth}px`")
+    expect(preview).toContain("'relative min-w-0 min-h-0 grid overflow-hidden'")
+    expect(preview).toContain('pointer-events-none absolute inset-0 z-40 overflow-visible')
   })
 })

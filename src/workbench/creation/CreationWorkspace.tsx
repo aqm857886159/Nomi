@@ -38,9 +38,7 @@ export default function CreationWorkspace({ aiCollapsed = false, agentDockRef }:
         'grid max-w-[1480px] mx-auto gap-5',
         agentDockRef && !aiCollapsed
           ? 'grid-cols-[240px_minmax(0,1fr)_340px] max-[1320px]:grid-cols-[200px_minmax(0,1fr)_340px] max-[980px]:grid-cols-[180px_minmax(0,1fr)] max-[980px]:grid-rows-[minmax(300px,1fr)_minmax(240px,40%)]'
-          : agentDockRef
-            ? 'grid-cols-[240px_minmax(0,1fr)_36px] max-[1180px]:grid-cols-[200px_minmax(0,1fr)_36px] max-[980px]:grid-cols-[180px_minmax(0,1fr)] max-[980px]:grid-rows-[minmax(300px,1fr)_auto]'
-            : 'grid-cols-[240px_minmax(0,1fr)] max-[1180px]:grid-cols-[200px_minmax(0,1fr)]',
+          : 'grid-cols-[240px_minmax(0,1fr)] max-[1180px]:grid-cols-[200px_minmax(0,1fr)]',
       )}
       aria-label={t('creationAi.workspace.aria')}
     >
@@ -52,7 +50,7 @@ export default function CreationWorkspace({ aiCollapsed = false, agentDockRef }:
       </div>
       {agentDockRef ? <aside className={cn(
         aiCollapsed
-          ? 'min-w-0 min-h-0 overflow-visible border-l border-[var(--workbench-border)] bg-[var(--workbench-surface)]'
+          ? 'pointer-events-none absolute inset-0 z-40 overflow-visible'
           : 'min-w-0 min-h-0 overflow-hidden border-l border-[var(--workbench-border)] bg-[var(--workbench-surface)]',
       )}><div ref={agentDockRef} className="h-full w-full min-w-0 min-h-0" /></aside> : null}
     </section>

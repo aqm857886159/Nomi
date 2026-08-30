@@ -100,6 +100,19 @@ try {
   await win.locator('[data-agent-resident]').waitFor({ state: 'visible', timeout: 5000 })
   check('expand control restores the full resident shell', await win.locator('[data-agent-composer]').count() === 1)
 
+  await clickSurface('creation')
+  check('same resident shell projection appears on creation', await win.locator('[data-agent-resident][data-agent-surface="creation"]').count() === 1)
+  await win.locator('[data-agent-resident][data-agent-surface="creation"]:visible').getByRole('button', { name: '收起 Agent' }).click()
+  await win.locator('[data-agent-resident-collapsed="true"]:visible').waitFor({ state: 'visible', timeout: 5000 })
+  check('creation collapse overlays without reserving a side rail', await win.evaluate(() => {
+    const resident = document.querySelector('[data-agent-resident][data-agent-surface="creation"]')
+    const workspace = resident?.closest('.workbench-creation')
+    const assistant = resident?.parentElement?.parentElement
+    if (!(workspace instanceof HTMLElement) || !(assistant instanceof HTMLElement)) return false
+    return getComputedStyle(assistant).position === 'absolute' && !getComputedStyle(workspace).gridTemplateColumns.includes('36px')
+  }))
+  await win.locator('[data-agent-resident-collapsed="true"]:visible').click()
+
   const attach = win.locator('[data-agent-attachment-trigger]')
   await attach.click()
   check('attachment menu has five PR194 entries', await win.locator('[data-agent-menu-item]').count() === 5)
@@ -218,6 +231,18 @@ try {
     const rect = pill.getBoundingClientRect()
     return rect.height === 36 && rect.width >= 96 && rect.width <= 180 && pill.className.includes('rounded-pill')
   }))
+  await win.waitForTimeout(500)
+  const generationCollapseLayout = await win.evaluate(() => {
+    const workspace = document.querySelector('.workbench-generation')
+    const canvas = document.querySelector('.workbench-generation__canvas')
+    const assistant = document.querySelector('.workbench-generation__ai')
+    if (!(workspace instanceof HTMLElement) || !(canvas instanceof HTMLElement) || !(assistant instanceof HTMLElement)) return null
+    const workspaceRect = workspace.getBoundingClientRect()
+    const canvasRect = canvas.getBoundingClientRect()
+    const workspaceStyle = getComputedStyle(workspace)
+    return { position: getComputedStyle(assistant).position, width: workspaceStyle.getPropertyValue('--generation-assistant-width').trim(), grid: workspaceStyle.gridTemplateColumns, canvasRight: canvasRect.right, workspaceRight: workspaceRect.right }
+  })
+  check('generation collapse overlays without reserving a side rail', Boolean(generationCollapseLayout && generationCollapseLayout.position === 'absolute' && generationCollapseLayout.width === '0px' && Math.abs(generationCollapseLayout.canvasRight - generationCollapseLayout.workspaceRight) <= 1))
   await win.locator('[data-agent-resident-collapsed="true"]:visible').click()
   await screenshotSettled(win, { path: path.join(shotsDir, '02-resident-generation.png') })
 
@@ -232,6 +257,18 @@ try {
     const rect = pill.getBoundingClientRect()
     return rect.height === 36 && rect.width >= 96 && rect.width <= 180 && pill.className.includes('rounded-pill')
   }))
+  const previewCollapseLayout = await win.evaluate(() => {
+    const stage = document.querySelector('.workbench-preview__stage')
+    const player = document.querySelector('.workbench-preview__player')
+    const resident = stage?.querySelector('[data-agent-resident]')
+    const assistant = resident?.parentElement?.parentElement
+    if (!(stage instanceof HTMLElement) || !(player instanceof HTMLElement) || !(assistant instanceof HTMLElement)) return null
+    const stageRect = stage.getBoundingClientRect()
+    const playerRect = player.getBoundingClientRect()
+    const stageStyle = getComputedStyle(stage)
+    return { position: getComputedStyle(assistant).position, width: stageStyle.getPropertyValue('--preview-assistant-width').trim(), grid: stageStyle.gridTemplateColumns, playerRight: playerRect.right, stageRight: stageRect.right }
+  })
+  check('preview collapse overlays without reserving a side rail', Boolean(previewCollapseLayout && previewCollapseLayout.position === 'absolute' && previewCollapseLayout.width === '0px' && Math.abs(previewCollapseLayout.playerRight - previewCollapseLayout.stageRight) <= 1))
   await win.locator('[data-agent-resident-collapsed="true"]:visible').click()
   await win.setViewportSize({ width: 900, height: 720 })
   const geometry = await win.evaluate(() => ({ width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth, resident: document.querySelector('[data-agent-resident]')?.getBoundingClientRect().width ?? 0 }))

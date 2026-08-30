@@ -261,8 +261,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         : t('agentResident.ready')
 
   if (collapsed) {
-    return <section id="project-agent-resident" className="relative h-full w-full overflow-visible" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-surface={surface}>
-      <button type="button" className="absolute right-0 top-0 z-40 flex h-9 w-fit max-w-[calc(100vw-24px)] items-center gap-1.5 rounded-pill border border-nomi-line bg-nomi-paper px-2 text-left text-caption text-nomi-ink shadow-nomi-md transition-[box-shadow,transform] duration-[var(--nomi-transition-fast)] motion-reduce:transition-none hover:-translate-y-px hover:shadow-nomi-lg" aria-label={t('agentResident.expand')} title={t('agentResident.expand')} aria-controls="project-agent-resident" aria-expanded="false" data-agent-resident-collapsed="true" onClick={() => setCollapsed(false)}>
+    return <section id="project-agent-resident" className="pointer-events-none relative h-full w-full overflow-visible" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-surface={surface}>
+      <button type="button" className="pointer-events-auto absolute right-0 top-0 z-40 flex h-9 w-fit max-w-[calc(100vw-24px)] items-center gap-1.5 rounded-pill border border-nomi-line bg-nomi-paper px-2 text-left text-caption text-nomi-ink shadow-nomi-md transition-[box-shadow,transform] duration-[var(--nomi-transition-fast)] motion-reduce:transition-none hover:-translate-y-px hover:shadow-nomi-lg" aria-label={t('agentResident.expand')} title={t('agentResident.expand')} aria-controls="project-agent-resident" aria-expanded="false" data-agent-resident-collapsed="true" onClick={() => setCollapsed(false)}>
         <NomiLogoMark size={17} />
         <span className={cn('size-1.5 shrink-0 rounded-pill', runningTurn ? 'bg-nomi-accent' : pendingTools.some((pending) => pending.state === 'pending') ? 'bg-nomi-warning' : 'bg-nomi-ink-30')} aria-hidden="true" />
         <span className="max-w-[8rem] shrink truncate">{compactStatus}</span>

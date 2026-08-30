@@ -77,7 +77,7 @@ export default function GenerationWorkspace({
   }, [])
   const assistantTargetWidth = `${width}px`
   const hasAssistant = Boolean(agentDockRef)
-  const assistantColumnWidth = hasAssistant ? (aiCollapsed ? '36px' : assistantTargetWidth) : '0px'
+  const assistantColumnWidth = hasAssistant ? (aiCollapsed ? '0px' : assistantTargetWidth) : '0px'
   const isDockedAssistant = hasAssistant
   const workspaceStyle = {
     '--generation-assistant-width': assistantColumnWidth,
@@ -104,7 +104,7 @@ export default function GenerationWorkspace({
       animate={{ '--generation-assistant-width': assistantColumnWidth } as Record<string, string>}
       transition={reduceMotion ? { duration: 0 } : ASSISTANT_LAYOUT_SPRING}
       data-has-ai={hasAssistant ? 'true' : 'false'}
-      data-ai-layout={hasAssistant ? 'sidebar' : 'none'}
+      data-ai-layout={hasAssistant ? (aiCollapsed ? 'overlay' : 'sidebar') : 'none'}
       aria-label={t('generationCommon.workspace.aria')}
     >
       <div
@@ -151,7 +151,7 @@ export default function GenerationWorkspace({
             'workbench-generation__ai relative',
             'grid min-w-0 min-h-0 border-b border-[var(--workbench-border)]',
             aiCollapsed
-              ? 'overflow-visible justify-items-end border-l border-l-[var(--workbench-border)] bg-[var(--workbench-surface)]'
+              ? 'pointer-events-none absolute inset-0 z-40 overflow-visible justify-items-end border-0 bg-transparent'
               : 'overflow-hidden justify-items-end border-l border-l-[var(--workbench-border)] bg-[var(--workbench-surface)]',
           )}
           aria-label={t('generationCommon.workspace.assistantSidebar')}
