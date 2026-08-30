@@ -1,6 +1,8 @@
 # Project Agent Host 全阶段执行路线图
 
-> 状态：⏸️ Phase 1、2A、2B、3A、3B、3C、3D、4 与 5 已完成 checkpoint；按产品输入暂停在 Phase 6 之前，等待 Agent 交互设计补充。后续不再新增 Round，也不在暂停期间追逐或整合 `main`。
+> 状态：🧊 暂缓/远期。Phase 1、2A、2B、3A、3B、3C、3D、4 与 5 已完成 checkpoint；按产品输入暂停在 Phase 6 之前，等待 Agent 交互设计补充。后续不再新增 Round，也不在暂停期间追逐或整合 `main`。
+
+> 下一位 AI 的恢复入口：[Phase 6 与最终交付 Handoff](../superpowers/plans/2026-08-30-project-agent-host-phase6-handoff.md)。它只负责导航；本路线图仍是唯一状态/合同真源。
 
 > 交付方法：本路线图继续是唯一活跃任务真源；复杂方案与执行节奏遵循 [engineering-plan-delivery](../../.agents/skills/engineering-plan-delivery/SKILL.md)。Skill 规定单一真源、宏批次、证据复用和成本熔断，不另建新的 protocol/version/ledger；本路线图负责 Project Agent Host 的具体合同、阶段状态和下一步。
 

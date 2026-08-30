@@ -1,5 +1,11 @@
 # Nomi 项目级常驻 Agent 完整交接（2026-08-29 修订）
 
+> ⚠️ **历史文件，禁止按本文恢复或执行。** 本文停在 Phase 3，且包含已经废止的旧会话/Pi
+> context 无损迁移方案。2026-08-30 之后的恢复入口是
+> [Project Agent Host Phase 6 与最终交付 Handoff](./2026-08-30-project-agent-host-phase6-handoff.md)；
+> 唯一阶段真源仍是
+> [全阶段执行路线图](../../plan/2026-08-29-project-agent-host-execution-roadmap.md)。
+
 > 状态：🚧 持续实施（远端任务分支已到 Phase 3B checkpoint `0a3de699`；本地 HEAD `820be401` 只领先一个状态文档提交；Draft PR #223 仍作为现场保护）
 > 用途：在当前任务额度耗尽或上下文丢失时，让下一位 Agent 从真实冻结点继续，不重做已完成切片，也不把尚未审完的工作误报为完成。
 > 工作树：`/Users/aoqimin/Desktop/Nomi-project-agent-host-phase1-20260827`
