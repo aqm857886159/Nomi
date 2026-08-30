@@ -63,6 +63,15 @@ export async function removeProjectAgentThread(threadId: string): Promise<Projec
   return dispatch('thread.remove', { threadId, occurredAt: new Date().toISOString() })
 }
 
+/** Edit a queued user turn through the Host; queue text is never owned by the shell. */
+export async function editProjectAgentQueueItem(input: Readonly<{
+  queueItemId: string
+  userItemId: string
+  text: string
+}>): Promise<ProjectAgentHostState> {
+  return dispatch('queue.edit', { ...input, occurredAt: new Date().toISOString() })
+}
+
 export function projectAgentIsReady(): boolean {
   return Boolean(
     projectAgentProjectionStore.getState().snapshot && projectAgentProjectionStore.getState().subscriptionId,

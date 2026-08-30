@@ -15,7 +15,6 @@ import {
 import type { WorkbenchProjectPersistenceService } from './project/projectPersistenceService'
 import { useWorkspaceEvents } from './useWorkspaceEvents'
 import { useWorkbenchStore, type WorkspaceMode } from './workbenchStore'
-import { swapGenerationAiProject } from './generationCanvas/store/generationAiConversation'
 import {
   clearCommittedProposal,
   hydrateCommittedProposalReceipt,
@@ -99,10 +98,6 @@ const GenerationCanvas = lazyWithChunkBoundary(
   '生成画布',
   () => import('./generationCanvas/components/GenerationCanvas'),
 )
-const CanvasAssistantEntry = lazyWithChunkBoundary(
-  'AI 助手入口',
-  () => import('./generationCanvas/components/CanvasAssistantEntry'),
-)
 const SpendConfirmDialog = lazyWithChunkBoundary('付费确认', () =>
   import('./generationCanvas/spend/SpendConfirmDialog').then((module) => ({
     default: module.SpendConfirmDialog,
@@ -147,7 +142,6 @@ export default function NomiStudioApp(): JSX.Element {
   const [view, setView] = React.useState<AppView>('library')
   const { projects, refreshProjects } = useLocalProjects()
   const [activeProject, setActiveProject] = React.useState<LocalProjectSummary | null>(null)
-  const generationAiCollapsed = useGenerationCanvasStore((state) => state.generationAiCollapsed)
   const settingsDialogController = useSettingsDialogController()
   const [handbookOpened, setHandbookOpened] = React.useState(false)
   const [browserOpened, setBrowserOpened] = React.useState(false)
@@ -438,12 +432,6 @@ export default function NomiStudioApp(): JSX.Element {
           return false
         }
         surfaceEpoch.assertCurrent()
-        // S1 治串台:切项目时交换两个 AI 面板的对话桶(存旧载新),气泡不再跨项目漂移。
-        const prevProjectId = activeProjectIdRef.current ?? null
-        if (prevProjectId !== hydrated.id) {
-          useWorkbenchStore.getState().swapCreationAiProject(prevProjectId, hydrated.id)
-          swapGenerationAiProject(prevProjectId, hydrated.id)
-        }
         activeProjectIdRef.current = hydrated.id
         // 同步喂全局（不等 effect 滞后一拍）：切项目瞬间拖图上传时 resolveProjectId 取的就是新项目，
         // 不再误写进旧项目目录 / 编错 projectId 致渲染 404（C2 修，对齐 activeProjectIdRef 同步口径）。
@@ -865,12 +853,6 @@ export default function NomiStudioApp(): JSX.Element {
                 {/* P4 S5 画布落地 host（跟着画布常驻）：poll 活跃多镜 Run 喂占位三态 + 进度通知 + 删节点上报 detach。 */}
                 <ProductionCanvasLandingHost projectId={activeProject?.id ?? null} />
               </div>
-            </React.Suspense>
-          }
-          generationAiLayout={generationAiCollapsed ? 'overlay' : 'sidebar'}
-          generationAi={
-            <React.Suspense fallback={null}>
-              <CanvasAssistantEntry defaultCollapsed />
             </React.Suspense>
           }
           projectId={activeProject?.id ?? null}

@@ -191,6 +191,24 @@ describe('Project Agent workbench compatibility runner', () => {
     expect(useAgentUsageStore.getState()).toMatchObject({ turns: 1, totalTokens: 8 })
   })
 
+  it('preserves an explicit surface target instead of inventing a document or canvas target', async () => {
+    const running = runWorkbenchAgent({
+      ...baseInput,
+      capability: 'canvas-chat',
+      target: { kind: 'timeline', clipIds: ['clip-a'] },
+      preconditions: { timeline: { revision: 'timeline-rev-1' } },
+      originSurface: { surfaceId: 'project-agent-resident', kind: 'preview' },
+    })
+    const command = deps.enqueue.mock.calls[0][0]
+    expect(command).toMatchObject({
+      target: { kind: 'timeline', clipIds: ['clip-a'] },
+      preconditions: { timeline: { revision: 'timeline-rev-1' } },
+      originSurface: { surfaceId: 'project-agent-resident', kind: 'preview' },
+    })
+    finish(command.turnId, 'done', response())
+    await expect(running).resolves.toMatchObject({ status: 'finished' })
+  })
+
   it('streams Assistant Item revisions from the shared projection', async () => {
     const onContent = vi.fn()
     const running = runWorkbenchAgent({ ...baseInput, onContent })

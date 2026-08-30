@@ -40,8 +40,6 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     pendingConnectionSourceSide: 'right',
     canvasZoom: 1,
     canvasOffset: { x: 0, y: 0 },
-    generationAiDraft: '',
-    generationAiCollapsed: true,
     canUndo: false,
     canRedo: false,
     hasClipboard: false,
@@ -59,9 +57,9 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     creationSelectionText: '',
     creationAiModeId: 'general',
     creationActiveSkill: null,
-    creationAiDraft: '',
-    creationAiAttachments: [],
-    creationAiError: '',
+    projectAgentDraft: '',
+    projectAgentAttachments: [],
+    projectAgentDockCollapsed: false,
     storyboardPlans: {},
     storyboardDesignsByDocumentId: {},
     activeStoryboardId: null,
@@ -74,6 +72,5 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     timelineSplitMode: false,
     timelineUndoStack: [],
     timelineRedoStack: [],
-    creationAssistantAutoOpen: false,
   })
 }

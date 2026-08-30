@@ -32,8 +32,7 @@ export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload)
   )
   useWorkbenchStore.getState().setTimeline(payload.timeline)
   useWorkbenchStore.getState().setCategories(payload.categories)
-  // P4:恢复整套分镜方案映射。restore 在 hydrate 里先于 swapCreationAiProject 跑。
-  // 用 hydrateStoryboardPlans(非 setStoryboardPlan):载入不标脏。
+  // P4：恢复整套分镜方案映射。用 hydrateStoryboardDesigns（非 setStoryboardPlan）载入不标脏。
   const store = useWorkbenchStore.getState()
   store.hydrateStoryboardDesigns(
     payload.storyboardDesignsByDocumentId ?? {},

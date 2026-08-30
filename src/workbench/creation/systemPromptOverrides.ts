@@ -2,7 +2,7 @@
 // 这里只负责把用户改过的那几条盖上去。
 //
 // 为什么需要一个模块级缓存（而不是 React state / async getter）：
-// `getCreationAiMode()` 是**同步**函数，渲染期被调用（CreationAiPanel.tsx:147），它的结果又直接
+// `getCreationAiMode()` 是**同步**函数，渲染期被调用，它的结果又直接
 // 喂给 `buildCreationAiPrompt()`（同文件 :313，发消息那一刻同步取值）。而覆盖值只能走异步 IPC 拿。
 // 三个约束凑在一起 → 必须有个「进程内已经装好答案」的同步读取口：
 //   1. 模块加载时**发一次**异步 IPC，回来后写进模块级 `overrides`（load-once，同 modelCatalogCache 的范式）；

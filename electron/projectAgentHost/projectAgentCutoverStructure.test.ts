@@ -11,20 +11,21 @@ function exists(relativePath: string): boolean {
 }
 
 describe("Project Agent production cutover structure", () => {
-  it("keeps the legacy conversation files migration-only", () => {
+  it("removes the legacy conversation shells after Host cutover", () => {
     const main = source("electron/main.ts");
     const preload = source("electron/preload.ts");
     const bridge = source("src/desktop/bridge.ts");
     const app = source("src/workbench/NomiStudioApp.tsx");
-    const creationPanel = source("src/workbench/creation/CreationAiPanel.tsx");
-    const canvasPanel = source("src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx");
 
     expect(main).not.toContain("registerConversationsIpc");
     expect(preload).not.toContain("nomi:conversations:");
     expect(bridge).not.toContain("conversations?:");
     expect(app).not.toContain("conversationPersistence");
-    expect(creationPanel).not.toContain("conversationPersistence");
-    expect(canvasPanel).not.toContain("conversationPersistence");
+    expect(exists("src/workbench/creation/CreationAiPanel.tsx")).toBe(false);
+    expect(exists("src/workbench/generationCanvas/components/CanvasAssistantEntry.tsx")).toBe(false);
+    expect(exists("src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx")).toBe(false);
+    expect(exists("src/workbench/generationCanvas/store/generationAiConversation.ts")).toBe(false);
+    expect(exists("src/workbench/aiConversationBuckets.ts")).toBe(false);
     expect(exists("src/workbench/ai/conversationPersistence.ts")).toBe(false);
     expect(exists("src/workbench/ai/conversationThreads.ts")).toBe(false);
   });
@@ -46,34 +47,34 @@ describe("Project Agent production cutover structure", () => {
     expect(exists("src/workbench/ai/workbenchAiClient.ts")).toBe(false);
   });
 
-  it("keeps both workbench panels as direct Host projections without local transcript owners", () => {
+  it("keeps the resident shell as the only Host projection without local transcript owners", () => {
     const app = source("src/workbench/NomiStudioApp.tsx");
     const workbenchStore = source("src/workbench/workbenchStore.ts");
     const canvasStore = source("src/workbench/generationCanvas/store/generationCanvasStore.ts");
     const canvasTypes = source("src/workbench/generationCanvas/store/canvasStoreTypes.ts");
-    const creationPanel = source("src/workbench/creation/CreationAiPanel.tsx");
-    const canvasPanel = source("src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx");
+    const residentShell = source("src/workbench/ai/ProjectAgentResidentShell.tsx");
+    const workbenchShell = source("src/workbench/WorkbenchShell.tsx");
 
     expect(app).not.toContain("installProjectAgentSnapshotToUi");
     expect(workbenchStore).not.toContain("creationAiMessages");
     expect(workbenchStore).not.toContain("setCreationAiMessages");
     expect(canvasStore).not.toContain("generationAiMessages");
     expect(canvasTypes).not.toContain("setGenerationAiMessages");
-    expect(creationPanel).toContain("useProjectAgentThreadMessages");
-    expect(canvasPanel).toContain("useProjectAgentThreadMessages");
-    expect(creationPanel).not.toContain("setCreationAiMessages");
-    expect(canvasPanel).not.toContain("setGenerationAiMessages");
+    expect(residentShell).toContain("useProjectAgentSnapshot");
+    expect(residentShell).toContain("projectAgentDraft");
+    expect(workbenchShell).toContain("createPortal(<ProjectAgentResidentShell surface={agentSurface} />, agentDock)");
+    expect(workbenchStore).not.toContain("creationAiDraft");
+    expect(canvasTypes).not.toContain("generationAiDraft");
   });
 
   it("keeps retired area turn controllers out of the production import graph", () => {
     const productionFiles = [
-      "src/workbench/creation/CreationAiPanel.tsx",
       "src/workbench/creation/creationToolCalls.ts",
       "src/workbench/creation/creationAiReplyText.ts",
       "src/workbench/project/projectPersistenceService.ts",
       "src/workbench/project/releaseWorkbenchProjectSession.ts",
       "src/workbench/workbenchStore.ts",
-      "src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx",
+      "src/workbench/ai/ProjectAgentResidentShell.tsx",
     ];
 
     for (const file of productionFiles) {

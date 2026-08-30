@@ -43,7 +43,7 @@ export function setCommittedProposal(record: CommittedProposalRecord): void {
   notify()
 }
 
-/** 约束 ③:切项目/清空对话时清场(swapGenerationAiProject / handleNewConversation 调)。 */
+/** 约束 ③：切项目/清空当前作品时只清 renderer 的临时 receipt 视图。 */
 export function clearCommittedProposal(): void {
   if (!current && !currentReceipt) return
   current = null

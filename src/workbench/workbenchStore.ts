@@ -34,19 +34,8 @@ import { readPreviewSourceCollapsed, writePreviewSourceCollapsed } from './previ
 import type { TimelineClip, TimelineState, TimelineTextStyle, TimelineTrackType } from './timeline/timelineTypes'
 import { timelineUndoTimeline, type TimelineUndoEntry } from './timeline/timelineUndoHistory'
 import { normalizeWorkbenchDocument, type CreationDocumentTools, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
-import type { WorkbenchAiMessage } from './ai/workbenchAiTypes'
 import type { ComposerAttachment } from './ai/composer/composerAttachmentTypes'
-import { createConversationBuckets } from './aiConversationBuckets'
 import { createWorkbenchDocumentSlice, type WorkbenchDocumentSlice } from './workbenchDocumentSlice'
-
-// 创作面板会话「会话域」per-project 桶(S1 治串台)。
-// Agent messages are projected from ProjectAgentHost; this bucket owns only local composer state.
-// 本桶只管 draft/附件/error 这些「不落盘的 session 态」的切项目交换。
-const creationAiBuckets = createConversationBuckets(() => ({
-  creationAiDraft: '',
-  creationAiAttachments: [] as ComposerAttachment[],
-  creationAiError: '',
-}))
 import {
   cloneBuiltinCategories,
   createCustomCategory,
@@ -109,9 +98,6 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   creationAiModeId: string
   /** 手动锁定的 active skill（覆盖 mode 推导的 skillKey）。null = 自动（用创作模式默认）。 */
   creationActiveSkill: { key: string; name: string } | null
-  creationAiDraft: string
-  creationAiAttachments: ComposerAttachment[]
-  creationAiError: string
   /**
    * 「请画布适应视图」一次性信号（nonce，仿 createCategoryNonce）。bump 一次 = 请生成画布
    * 平滑 fit 到全部节点一次。用于落画布等「批量加节点到已加载画布」的场景——useAutoFitOnLoad
@@ -134,6 +120,9 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   /** 生成页底部时间轴收起/展开（会话级 UI 态；节点「加入时间轴」成功后会展开它）。 */
   timelinePanelCollapsed: boolean
   setTimelinePanelCollapsed: (collapsed: boolean) => void
+  /** 跨生成/预览共享的时间轴高度（会话级 UI 态，不写入项目）。 */
+  timelinePanelHeight: number
+  setTimelinePanelHeight: (height: number) => void
   /** 剪辑页左侧素材来源栏收起/展开（跨会话记住：剪片习惯因人而异）。 */
   previewSourcePanelCollapsed: boolean
   setPreviewSourcePanelCollapsed: (collapsed: boolean) => void
@@ -155,23 +144,15 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   setCreationSelectionText: (text: string) => void; setStoryboardPlannerLauncher: (launcher: ((displayPrompt?: string) => void) | null) => void
   setCreationAiModeId: (modeId: string) => void
   setCreationActiveSkill: (skill: { key: string; name: string } | null) => void
-  setCreationAiDraft: (draft: string) => void
-  setCreationAiAttachments: (attachments: ComposerAttachment[] | ((attachments: ComposerAttachment[]) => ComposerAttachment[])) => void
-  setCreationAiError: (error: string) => void
   /** 请生成画布平滑 fit 一次；可显式切到并绑定目标分类。 */
   requestCanvasFit: (categoryId?: string) => void
-  /** 切项目时交换对话桶(S1 治串台):存旧项目的对话,载入新项目的(没有则空)。 */
-  swapCreationAiProject: (prevId: string | null, nextId: string | null) => void
-  /** 一次性信号：打开示例/新项目时请求创作助手默认展开（让「拆镜头」CTA 一眼可见），消费后清掉。 */
-  creationAssistantAutoOpen: boolean
-  setCreationAssistantAutoOpen: (open: boolean) => void
-  /**
-   * 创作助手收起态（用户拍板 2026-07-25 根治）：默认 false=常驻展开成编辑器右侧栏；用户点 ✕ 收起成 pill。
-   * 放 store（非组件本地 useState）→ 跨页面/跨导航不重置（收起「粘住」），架构对齐生成区 generationAiCollapsed。
-   * 不落盘（store 无 persist）→ 每次开 App 回到常驻展开，符合「打开之后是常驻的」。
-   */
-  creationAiCollapsed: boolean
-  setCreationAiCollapsed: (collapsed: boolean) => void
+  /** Resident ProjectAgent composer state. Draft/attachments are ephemeral UI state, not Host history. */
+  projectAgentDraft: string
+  projectAgentAttachments: ComposerAttachment[]
+  projectAgentDockCollapsed: boolean
+  setProjectAgentDraft: (draft: string) => void
+  setProjectAgentAttachments: (attachments: ComposerAttachment[] | ((attachments: ComposerAttachment[]) => ComposerAttachment[])) => void
+  setProjectAgentDockCollapsed: (collapsed: boolean) => void
   setTimeline: (timeline: TimelineState) => void
   restoreProjectWorkbenchState: (payload: { workbenchDocument: WorkbenchDocument; timeline: TimelineState }) => void
   setTimelinePlaying: (playing: boolean) => void
@@ -299,13 +280,16 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   creationSelectionText: '', storyboardPlannerLauncher: null,
   creationAiModeId: 'general',
   creationActiveSkill: null,
-  creationAiDraft: '',
-  creationAiAttachments: [],
-  creationAiError: '',
   canvasFitNonce: 0,
   canvasFitCategoryId: null,
-  creationAssistantAutoOpen: false,
-  creationAiCollapsed: false,
+  projectAgentDraft: '',
+  projectAgentAttachments: [],
+  projectAgentDockCollapsed: false,
+  setProjectAgentDraft: (projectAgentDraft) => set({ projectAgentDraft }),
+  setProjectAgentAttachments: (attachments) => set((state) => ({
+    projectAgentAttachments: typeof attachments === 'function' ? attachments(state.projectAgentAttachments) : attachments,
+  })),
+  setProjectAgentDockCollapsed: (projectAgentDockCollapsed) => set({ projectAgentDockCollapsed: Boolean(projectAgentDockCollapsed) }),
   timeline: createDefaultTimeline(),
   timelinePlaying: false,
   previewAspectRatio: '16:9',
@@ -313,8 +297,10 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   selectedTextClipId: '',
   timelineSnapGuide: null,
   timelineSplitMode: false,
-  timelinePanelCollapsed: true,
+  timelinePanelCollapsed: false,
   setTimelinePanelCollapsed: (collapsed) => set({ timelinePanelCollapsed: Boolean(collapsed) }),
+  timelinePanelHeight: 206,
+  setTimelinePanelHeight: (height) => set({ timelinePanelHeight: Math.max(140, Math.min(300, Math.round(height))) }),
   previewSourcePanelCollapsed: readPreviewSourceCollapsed(),
   setPreviewSourcePanelCollapsed: (collapsed) => {
     writePreviewSourceCollapsed(Boolean(collapsed))
@@ -341,40 +327,11 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   setCreationActiveSkill: (creationActiveSkill) => {
     set({ creationActiveSkill })
   },
-  setCreationAiDraft: (creationAiDraft) => {
-    set({ creationAiDraft })
-  },
-  setCreationAiAttachments: (attachments) => {
-    set((state) => ({
-      creationAiAttachments: typeof attachments === 'function' ? attachments(state.creationAiAttachments) : attachments,
-    }))
-  },
-  setCreationAiError: (creationAiError) => {
-    set({ creationAiError })
-  },
   requestCanvasFit: (categoryId) => {
     // 一次性信号：目标分类与 nonce 原子更新。显式目标立即切过去，延迟消费时若用户又手动切走则跳过。
     set((state) => {
       const target = typeof categoryId === 'string' && categoryId.trim() ? categoryId.trim() : state.activeCategoryId
       return { activeCategoryId: target, canvasFitCategoryId: target, canvasFitNonce: state.canvasFitNonce + 1 }
-    })
-  },
-  setCreationAssistantAutoOpen: (creationAssistantAutoOpen) => {
-    set({ creationAssistantAutoOpen })
-  },
-  setCreationAiCollapsed: (creationAiCollapsed) => {
-    set({ creationAiCollapsed })
-  },
-  swapCreationAiProject: (prevId, nextId) => {
-    const state = get()
-    set({
-      ...creationAiBuckets.swap(prevId, nextId, {
-        creationAiDraft: state.creationAiDraft,
-        creationAiAttachments: state.creationAiAttachments,
-        creationAiError: state.creationAiError,
-      }),
-      // 方案(storyboardPlan)与 committed 不在此清:随项目持久化(P0-6),hydrate restore 先于本 swap 跑、
-      // 已按新项目 payload 载入(无则 null/false)。此处再清会清掉刚 restore 的 → 切项目即丢。防串台职责移交 restore。
     })
   },
   setTimeline: (timeline) => {

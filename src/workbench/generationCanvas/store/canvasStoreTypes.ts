@@ -117,8 +117,6 @@ export type GenerationCanvasState = {
   pendingConnectionSourceSide: ConnectionAnchorSide
   canvasZoom: number
   canvasOffset: { x: number; y: number }
-  generationAiDraft: string
-  generationAiCollapsed: boolean
   canUndo: boolean
   canRedo: boolean
   hasClipboard: boolean
@@ -126,8 +124,6 @@ export type GenerationCanvasState = {
   captureHistory: () => void
   setCanvasTransform: (zoom: number, offset: { x: number; y: number }) => void
   setCanvasZoom: (zoom: number) => void
-  setGenerationAiDraft: (draft: string) => void
-  setGenerationAiCollapsed: (collapsed: boolean) => void
   copySelectedNodes: () => void
   cutSelectedNodes: () => void
   pasteNodes: (basePosition?: { x: number; y: number }) => void

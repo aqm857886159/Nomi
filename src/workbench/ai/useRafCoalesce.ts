@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react'
 /**
  * rAF 合帧：把高频更新合并成「每帧最多执行一次」。根治流式吐字时每个 token 都
  * `setMessages((prev) => prev.map(...))`——每秒 20–60 次克隆整个消息数组 + 全线程 reconcile
- * 导致的掉帧（创作助手此前没做合帧，而画布助手 CanvasAssistantPanel 已用同样的 rAF 思路）。
+ * 导致的掉帧（resident Agent shell 统一使用这一套合帧）。
  *
  * 用 thunk 形式而非「累积文本」：流式内容是 cumulative（最新 thunk 即写全文），所以只保留
  * 最新 thunk、每帧 flush 一次即正确，且对调用方零侵入（push 一个 setState 闭包即可）。

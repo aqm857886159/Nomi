@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from 'react-dom';
 import { useTranslation } from "react-i18next";
 import "./workbench.css";
 import "./workbench-ai.css";
@@ -16,6 +17,7 @@ import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
 import { WindowControls } from "../ui/app-shell/WindowControls";
 import { handleWindowTitlebarDoubleClick } from "../ui/app-shell/windowTitlebarDoubleClick";
 import { OnboardingChecklist } from "./onboarding/OnboardingChecklist";
+import ProjectAgentResidentShell from './ai/ProjectAgentResidentShell';
 
 // 工作区懒加载走容错域（审计 A5）：单个工作区 chunk 失败不拖死其余工作区。
 const CreationWorkspace = lazyWithChunkBoundary(
@@ -30,8 +32,6 @@ const PreviewWorkspace = lazyWithChunkBoundary("预览区", () => import("./prev
 
 type WorkbenchShellProps = {
     generation: React.ReactNode;
-    generationAi?: React.ReactNode;
-    generationAiLayout?: "sidebar" | "overlay";
     projectId?: string | null;
     projectName?: string;
     onBackToLibrary?: () => void;
@@ -127,8 +127,6 @@ function openBrowser(): void {
 
 export default function WorkbenchShell({
     generation,
-    generationAi,
-    generationAiLayout = "sidebar",
     projectId,
     projectName,
     onBackToLibrary,
@@ -142,6 +140,18 @@ export default function WorkbenchShell({
         (state) => state.setWorkspaceMode,
     );
     const categories = useWorkbenchStore((state) => state.categories);
+    const agentDockCollapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed);
+    const [agentDockTargets, setAgentDockTargets] = React.useState<Record<'creation' | 'generation' | 'preview', HTMLDivElement | null>>({ creation: null, generation: null, preview: null });
+    const setAgentDockTarget = React.useCallback((surface: 'creation' | 'generation' | 'preview') => (node: HTMLDivElement | null) => {
+        setAgentDockTargets((current) => current[surface] === node ? current : { ...current, [surface]: node });
+    }, []);
+    const agentDockRefs = React.useMemo(() => ({
+        creation: setAgentDockTarget('creation'),
+        generation: setAgentDockTarget('generation'),
+        preview: setAgentDockTarget('preview'),
+    }), [setAgentDockTarget]);
+    const agentSurface = workspaceMode === 'generation' ? 'generation' : workspaceMode === 'preview' ? 'preview' : 'creation';
+    const agentDock = agentDockTargets[agentSurface];
     const [mountedWorkspaceModes, setMountedWorkspaceModes] = React.useState<
         WorkspaceMode[]
     >(() => [workspaceMode]);
@@ -273,7 +283,7 @@ export default function WorkbenchShell({
                         <WorkspaceSlot
                             active={workspaceMode === "creation" || workspaceMode === "storyboard"}
                             label={t("workspace.creation")}>
-                            <CreationWorkspace />
+                            <CreationWorkspace aiCollapsed={agentDockCollapsed} agentDockRef={agentDockRefs.creation} />
                         </WorkspaceSlot>
                     ) : null}
                     {mountedWorkspaceModes.includes("generation") ? (
@@ -282,8 +292,8 @@ export default function WorkbenchShell({
                             label={t("workspace.generation")}>
                             <GenerationWorkspace
                                 canvas={generation}
-                                aiSidebar={generationAi}
-                                aiLayout={generationAiLayout}
+                                aiCollapsed={agentDockCollapsed}
+                                agentDockRef={agentDockRefs.generation}
                             />
                         </WorkspaceSlot>
                     ) : null}
@@ -291,10 +301,14 @@ export default function WorkbenchShell({
                         <WorkspaceSlot
                             active={workspaceMode === "preview"}
                             label={t("workspace.preview")}>
-                            <PreviewWorkspace />
+                            <PreviewWorkspace
+                                aiCollapsed={agentDockCollapsed}
+                                agentDockRef={agentDockRefs.preview}
+                            />
                         </WorkspaceSlot>
                     ) : null}
                 </div>
+                {agentDock ? createPortal(<ProjectAgentResidentShell surface={agentSurface} />, agentDock) : null}
             </main>
         </div>
     );

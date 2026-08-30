@@ -125,7 +125,6 @@ const DEFERRED_MODULE_PRELOAD_PATTERNS: RegExp[] = [
   /^BaseGenerationNode-/,
   /^BatchPlanOverlay-/,
   /^CameraMoveCaptureHost-/,
-  /^CanvasAssistantPanel-/,
   /^JourneyTourController-/,
   /^Model3DViewer-/,
   /^NodeGenerationComposer-/,

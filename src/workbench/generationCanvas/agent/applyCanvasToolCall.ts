@@ -38,7 +38,7 @@ export { resetClientIdRegistry, resolveCanvasToolNodeId } from './clientIdRegist
  * map the throw to `{ ok: false, message }`).
  *
  * Used by BOTH the auto-execute path (`generationCanvasAgentClient`) and the
- * user-confirmed path (`CanvasAssistantPanel`) — there is no parallel
+ * user-confirmed path (resident Agent approval) — there is no parallel
  * implementation anymore (P1). Tool execution does not depend on any panel
  * being mounted: the store + tools are global.
  */

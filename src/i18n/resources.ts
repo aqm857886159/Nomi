@@ -15,6 +15,7 @@ import { enCreationAi, zhCreationAi } from './locales/creationAi'
 import { enStoryboardEditor, zhStoryboardEditor } from './locales/storyboardEditor'
 import { enGenerationCommon, zhGenerationCommon } from './locales/generationCommon'
 import { enRuntime, zhRuntime } from './locales/runtime'
+import { enAgentResident, zhAgentResident } from './locales/agentResident'
 
 export const zhCN = {
   common: {
@@ -391,6 +392,7 @@ export const zhCN = {
   storyboardEditor: zhStoryboardEditor,
   generationCommon: zhGenerationCommon,
   runtime: zhRuntime,
+  agentResident: zhAgentResident,
 } as const
 
 type TranslationShape<T> = {
@@ -777,6 +779,7 @@ export const en = {
   storyboardEditor: enStoryboardEditor,
   generationCommon: enGenerationCommon,
   runtime: enRuntime,
+  agentResident: enAgentResident,
 } satisfies TranslationShape<typeof zhCN>
 
 export const resources = {

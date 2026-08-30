@@ -1,7 +1,7 @@
 // 「创作助手缺文本大脑」恢复卡（Issue #9 Part B）：替掉死胡同英文串
 // 「No local text model is configured」——后者只是一句报错、用户不知道怎么办。
 //
-// 触发：agent 报错且 catalog 里没有任何 enabled 的 text 模型（CreationAiPanel 用
+// 触发：agent 报错且 catalog 里没有任何 enabled 的 text 模型（resident Agent shell 用
 // useHasTextModel 判定，传 show=true 才渲染）。判的是**真实目录状态**而非匹配错误字符串（P2）。
 //
 // 一键启用是**派生**的，不 hardcode 任何模型描述符（单一真相源在种子 apimartTexts.ts，P1）：

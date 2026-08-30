@@ -11,7 +11,9 @@ import type {
   ProjectAgentAssistantTextAnchor,
   ProjectAgentHostState,
   ProjectAgentStatus,
+  ProjectAgentOriginSurfaceRef,
 } from '../../../electron/shared/projectAgentContracts'
+import type { PreconditionSet, TargetRef } from '../../../electron/shared/capabilityTargeting'
 import type {
   CapturedCanvasReadSnapshotHandleWire,
   SurfacePortBindingWire,
@@ -71,6 +73,10 @@ export type RunWorkbenchAgentInput = {
   onToolCall?: (event: ToolCallEvent) => void | Promise<void>
   onToolError?: (error: ProjectAgentToolError) => void
   onCancelReady?: (cancel: () => void) => void
+  /** Optional exact domain target captured by a surface owner before enqueue. */
+  target?: TargetRef
+  preconditions?: PreconditionSet
+  originSurface?: ProjectAgentOriginSurfaceRef
 }
 
 type ObservedToolCall = {
@@ -118,6 +124,13 @@ function buildRequest(input: RunWorkbenchAgentInput): AgentChatRequest {
 }
 
 function turnTarget(input: RunWorkbenchAgentInput) {
+  if (input.target) {
+    return {
+      target: input.target,
+      ...(input.preconditions ? { preconditions: input.preconditions } : {}),
+      originSurface: input.originSurface ?? { surfaceId: 'workbench-agent-runner', kind: 'project' as const },
+    }
+  }
   if (input.capability.startsWith('canvas-') || input.capability === 'storyboard') {
     return {
       target: { kind: 'canvas' as const, nodeIds: Object.freeze([...(input.selectedNodeIds ?? [])]) },

@@ -38,8 +38,6 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
         pendingConnectionSourceSide: 'right',
         canvasZoom: 1,
         canvasOffset: { x: 0, y: 0 },
-        generationAiDraft: '',
-        generationAiCollapsed: true,
         canUndo: false,
         canRedo: false,
         hasClipboard: false,
@@ -52,12 +50,6 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
         },
         setCanvasTransform: (zoom, offset) => set({ canvasZoom: zoom, canvasOffset: offset }),
         setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
-        setGenerationAiDraft: (generationAiDraft) => {
-          set({ generationAiDraft })
-        },
-        setGenerationAiCollapsed: (generationAiCollapsed) => {
-          set({ generationAiCollapsed })
-        },
         copySelectedNodes: () => {
           const nextClipboard = buildSelectedClipboard(get())
           if (!nextClipboard) return

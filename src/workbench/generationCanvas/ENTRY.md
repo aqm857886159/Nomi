@@ -8,7 +8,7 @@
 
 | 子目录 | 文件 | 管什么 | 关键入口 |
 |---|---|---|---|
-| **components/** | 10 | 画布外壳与渲染层（React Flow 容器、边层、工具栏、助手面板） | `GenerationCanvas.tsx`（主壳 992 行）· `CanvasEdgeLayer.tsx` · `CanvasAssistantPanel.tsx` · `AgentPlanCard.tsx`（计划清单卡）|
+| **components/** | 10 | 画布外壳与渲染层（React Flow 容器、边层、工具栏） | `GenerationCanvas.tsx`（主壳 992 行）· `CanvasEdgeLayer.tsx` · `AgentPlanCard.tsx`（计划清单卡）；Agent 统一壳位于 `workbench/ai/ProjectAgentResidentShell.tsx` |
 | **nodes/** | 42 | 节点渲染与节点内交互（最大子目录）| `BaseGenerationNode.tsx`（节点基座 952 行）· `NodeParameterControls.tsx` · `NodeGenerationComposer.tsx` · `Scene3DEditor.tsx` · `aspectRatio.ts`（比例） |
 | **runner/** | 15 | 执行层：能不能跑、怎么发、错误分类、结果解析 | `generationNodeExecutor.ts` · `generationRunController.ts` · `catalogTask*.ts` · `classifyGenerationError.ts` · `usableVendorModel.ts` |
 | **model/** | 13 | 领域模型：图结构、类型、schema、节点元数据 | `generationCanvasTypes.ts` · `generationCanvasSchema.ts` · `graphOps.ts` · `nodeMetaFields.ts` · `generationNodeKinds.ts` |

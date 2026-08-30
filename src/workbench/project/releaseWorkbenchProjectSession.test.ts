@@ -37,7 +37,6 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
       edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
       groups: [{ id: 'g1', name: 'Group', categoryId: 'shots', nodeIds: ['n1'], createdAt: 0, updatedAt: 0 }],
       selectedNodeIds: ['n1'],
-      generationAiDraft: 'draft',
       hasClipboard: true,
     })
     useWorkbenchStore.setState({
@@ -71,7 +70,6 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
     expect(canvas.edges).toEqual([])
     expect(canvas.groups).toEqual([])
     expect(canvas.selectedNodeIds).toEqual([])
-    expect(canvas.generationAiDraft).toBe('')
     expect(canvas.addNode).toBe(addNode)
 
     const workbench = useWorkbenchStore.getState()

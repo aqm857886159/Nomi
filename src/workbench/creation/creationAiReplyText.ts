@@ -1,4 +1,4 @@
-// 创作面板的两个纯工具函数（从 CreationAiPanel.tsx 抽出，R9 防巨壳）：
+// 创作区回复的两个纯工具函数（由旧 Agent shell 抽出，R9 防巨壳）：
 // 都不依赖组件状态，纯输入→输出，单独成模块便于单测、也让面板壳只留交互逻辑。
 import type { WriteToolName } from './creationToolContracts'
 

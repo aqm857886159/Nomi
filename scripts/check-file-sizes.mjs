@@ -37,8 +37,7 @@ const ALLOWLIST = {
   "electron/productionRun/productionRunService.ts": 806,
   "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1707,
   "electron/projectAgentHost/projectAgentReducer.ts": 920,
-  "src/workbench/NomiStudioApp.tsx": 926,
-  "src/workbench/creation/CreationAiPanel.tsx": 868,
+  "src/workbench/NomiStudioApp.tsx": 908,
   // PR#21 白板节点引入（2026-06-25）：WhiteboardDrawingTool（1032）与 WhiteboardLeaferCanvas（3406）两巨壳
   // 已按 Rule 9 全部拆完、双双出白名单。LeaferCanvas → whiteboardCanvasTypes/Export/NodeOps/Geometry 四纯模块
   // + whiteboardSceneRender（渲染树）+ useWhiteboardDrawing/BoxSelection/SelectionActions/SceneSync 四交互 hook，

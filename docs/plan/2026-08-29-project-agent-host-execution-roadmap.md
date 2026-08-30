@@ -1,6 +1,6 @@
 # Project Agent Host 全阶段执行路线图
 
-> 状态：🧊 暂缓/远期。Phase 1、2A、2B、3A、3B、3C、3D、4 与 5 已完成 checkpoint；按产品输入暂停在 Phase 6 之前，等待 Agent 交互设计补充。后续不再新增 Round，也不在暂停期间追逐或整合 `main`。
+> 状态：🚧 Phase 6 B 批次实施中。Phase 1、2A、2B、3A、3B、3C、3D、4 与 5 已完成 checkpoint；PR #194 的 Agent 交互样张已作为 Phase 6 A 批次设计输入，当前进入 resident shell 实施。后续不追逐或整合 `main`，直到 Phase 6 focused checkpoint。
 
 > 下一位 AI 的恢复入口：[Phase 6 与最终交付 Handoff](../superpowers/plans/2026-08-30-project-agent-host-phase6-handoff.md)。它只负责导航；本路线图仍是唯一状态/合同真源。
 
@@ -29,7 +29,7 @@
 | Phase 3D | 已完成 checkpoint | canonical `timeline.read@v1` / `timeline.write@v1` 已统一 read/range/plan/apply/undo；Timeline kernel、CAS、Workbench Undo 和旧 owner 删除已通过 focused closure |
 | Phase 4 | 已完成 checkpoint | 唯一付费 authorization、三条旧 writer 退役与 archive-only active-source cleanup 已完成；affected evidence、结构门和限定 P0/P1 review 已通过；远端恢复点 `189ac884` |
 | Phase 5 | 已完成 checkpoint | 显式 audience、list/read 同 guard、version/hash URI、shrink-only、Registry-only 投影和 main-owned knowledge-only ZIP 边界已收口；affected closure 与限定复审通过 |
-| Phase 6 | 暂停，未开始 | 常驻 UI；等待 Agent 交互设计补充后，只投影已冻结的 Host/domain 状态并基于现有设计系统调整 |
+| Phase 6 | B 批次实施中 | 采用 PR #194 样张：一个 Host projection Dock 跨 Creation/Generation/Preview；共享 206px timeline splitter、queue/Stop/approval/task/artifact/thread/composer；旧面板不再挂载。 |
 
 R12 说明：本任务分支当前有 6 个超过 800 行的 Host/工作台聚合文件。它们已按本批
 人工审查后进入精确行数 allowlist，allowlist 只防止继续增长，不等于债务清零；
@@ -187,6 +187,24 @@ Registry + 显式 transport adapter 派生，Skill/manifest 不改变 `MCP_CAPAB
 - 现有设计系统和真实工作台是基准；先做可体验样张，再替换旧面板。
 - 最终出口才运行全量 gates、typecheck/test/build/package、真实创作→生成→预览→
   导出旅程、重启/跨项目/冲突/MCP 私有性/付费审批验收。
+
+#### Phase 6 设计输入与当前实施记录（2026-08-30）
+
+PR #194（head `b157cebd49ef93eb98aedc871ead96ed06b35e6b`）只作为问题与设计证据，未 cherry-pick：
+
+- **adopt**：稳定 Item 气泡、忙碌队列、工具请求需批准、340px resident Dock、36px 收起入口、
+  共享 Thread/Skill/context/model/approval 入口、生成/预览时间轴可拖拽高度。
+- **adapt**：样张的静态按钮和演示数据改为 `ProjectAgentHost` snapshot/patch、
+  `runWorkbenchAgent`、`turn.transition`、`queue.edit` 和现有领域组件投影；Dock 在当前真实
+  Workbench 三个 Workspace 的高层注入，跨面板不建立第二份历史。
+- **reject**：样张中的本地 demo transcript、独立 approval/task/result owner、旧面板 fallback；
+  文档/画布/时间轴/ProductionRun 继续由既有领域 owner 持有。
+
+当前 B 批次已落地：`ProjectAgentResidentShell`、共享 timeline 高度（默认 206px、140–300px）与
+水平 separator；Creation/Generation/Preview 均从 `WorkbenchShell` 注入同一 Host projection Dock，
+支持 queue edit/cancel、Stop、工具批准/拒绝、Thread 切换/删除、Skill/context/model/mode、附件、
+ 任务/产物引用展示。原 `CreationAiPanel`、`CanvasAssistantEntry`/`CanvasAssistantPanel` 与旧
+ conversation bucket 已删除；生产挂载图只保留 resident shell，不再提供 fallback。
 
 ## 历史 PR 注意点
 

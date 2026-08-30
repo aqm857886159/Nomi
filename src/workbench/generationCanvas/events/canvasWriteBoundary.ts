@@ -11,7 +11,6 @@ type ActionName = {
 // status/progress is not a new edit. Previously accepted jobs are never cancelled.
 const documentActions = {
   markReady: false, captureHistory: true, setCanvasTransform: false, setCanvasZoom: false,
-  setGenerationAiDraft: false, setGenerationAiCollapsed: false,
   copySelectedNodes: false, cutSelectedNodes: true,
   pasteNodes: true, undo: true, redo: true, readSnapshot: false, readDocumentSnapshot: false,
   restoreSnapshot: true, applyEventTail: true, applyExternalGraph: true,

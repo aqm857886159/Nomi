@@ -197,7 +197,7 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
         exportJobs={resolvedExportJobs}
         onRevealProductionRun={(targetProjectId, runId) => {
           useWorkbenchStore.getState().setWorkspaceMode('generation')
-          useGenerationCanvasStore.getState().setGenerationAiCollapsed(false)
+          useWorkbenchStore.getState().setProjectAgentDockCollapsed(false)
           void useProductionRunStore.getState().navigateTo(targetProjectId, runId)
         }}
         {...(onRevealNode ? { onRevealNode } : {})}

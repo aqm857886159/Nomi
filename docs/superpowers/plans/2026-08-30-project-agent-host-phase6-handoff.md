@@ -1,11 +1,11 @@
 # Project Agent Host Phase 6 与最终交付 Handoff
 
-> 状态：📎 交接/日志。2026-08-30 Phase 5 远端 checkpoint 后的唯一恢复入口。
+> 状态：🚧 Phase 6 B 批次实施中。2026-08-30 Phase 5 远端 checkpoint 后的唯一恢复入口；用户已指定 PR #194 作为交互样张并授权据此实现。
 >
 > 面向：接手本任务的下一位 AI 工程代理。
 >
 > 当前状态：Phase 1、2A、2B、3A、3B、3C、3D、4、5 已形成远端 checkpoint；
-> 用户要求暂停在 Phase 6 前，等待其补充 Agent 交互设计。
+> PR #194（head `b157cebd49ef93eb98aedc871ead96ed06b35e6b`）已作为设计输入，当前实施一个跨 Creation、Generation、Preview 的 resident Host projection shell。
 >
 > 本文件是恢复导航，不是第二份计划真源。阶段状态、冻结合同、证据与下一步只以
 > [全阶段执行路线图](../../plan/2026-08-29-project-agent-host-execution-roadmap.md)
@@ -76,6 +76,11 @@ PR `headRefOid` 必须一致，PR head/base 必须分别是任务分支/`main`�
    组件复用、i18n、light/dark、键盘焦点和真实截图规则。
 7. [engineering-plan-delivery](../../../.agents/skills/engineering-plan-delivery/SKILL.md)：
    继续沿用单一计划、宏批次、证据复用、三个不同范围各一次的评审和一次最终主线整合。
+
+设计采用记录：PR #194 只提取问题与设计证据，不 cherry-pick。adopt：稳定 Item、忙碌 queue、
+工具批准、340px Dock、36px 收起入口、共享 Thread/Skill/context/model 与 206px timeline；adapt：
+把样张静态 demo 数据替换为 Host snapshot/patch 和现有领域组件；reject：本地 transcript、独立
+approval/task/result owner 与旧面板 fallback。旧 Creation/Canvas shell 与 conversation bucket 已删除。
 
 旧文件
 [2026-08-28-project-agent-host-handoff.md](./2026-08-28-project-agent-host-handoff.md)
