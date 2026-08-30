@@ -167,6 +167,18 @@ CSS 文件分工与「只可减不可增」规则详见 R1 最后一节。
 
 **例外（先问再 push）**：改动未验证 / 破坏性操作（删历史/force push/发版 tag）/ 用户说先别提交 / 混入多个不相关改动。
 
+### 提交/推送前的 Ponytail 复杂度审查
+
+每次真正执行 `git commit` 或 `git push` 前，都必须先运行一次 Ponytail 复杂度审查。用户要求的命令名是 `/ponytail-review`；Codex 宿主中的同一技能触发名是 `@ponytail-review`，它不是 shell 可执行文件。仓库的版本化适配器 `scripts/ponytail-review-hook.mjs` 负责调用 Codex 的只读、临时会话，并把**准确的目标 diff**交给技能：
+
+- `pre-commit` 只审 `git diff --cached`，所以不会把未暂存的 handoff 文档带进审查；
+- `pre-push` 读取 Git 提供的 `local_sha/remote_sha` 行，只审 outgoing ref range，不审空的工作树；
+- 审查输出写到系统临时目录并打印 SHA-256 与报告路径，便于复核；Ponytail 发现项不代替正确性、安全或功能测试，但必须在重新提交前看过并处理；
+- Codex 缺失、插件未启用、命令异常、超时或没有合法结果标记时 fail-closed，hook 阻止提交/推送并提示安装/手动运行 `@ponytail-review`；
+- `git --no-verify`、GitHub 网页/API 或合并机器人可以绕过本地 hook，因此“任何入口都不可绕过”仍需仓库分支保护/CI 的服务端门岗；本规则禁止为了省事使用这些绕过方式。
+
+hook 真源是 `scripts/install-git-hooks.cjs`，由 `pnpm install` 的 postinstall 安装；不要直接编辑共享 `.git/hooks`。这项审查只负责“是否有不必要复杂度”，不把 Ponytail 的建议误当成 P0/P1 正确性结论。
+
 ## R12 → 见 R9（量化门岗）
 
 白名单巨壳基线与 check:filesize 详见 R9 最后一节。
@@ -479,7 +491,7 @@ pnpm run delivery:verify-merged -- --expected-sha <merge-commit-sha>
 
 统一方法只住在 `.agents/skills/root-cause-remediation/SKILL.md`。`recurring` 或高风险生产路径在改代码前必须提交 schema-v3 `docs/fixes/*.root-cause.json`；`pnpm run check:root-cause-contracts` 会交叉核验真实共享边界、至少两个同类入口、变化中的结构预防与类级测试、旧路径处置和依赖生命周期。schema v1/v2 是内容哈希锁定的历史记录，修改时必须迁移到 v3，禁止新增旧 schema。
 
-本地 Agent hook 只负责提前提醒，可能不存在；已提交的 `CLAUDE.md`、生成的 `AGENTS.md`、skill 和 CI 才是跨 Agent 的执行链。合同字段和完整步骤不在本节重复，避免规则再次膨胀和分叉。
+版本化 Git hook 适配器会在本地 fail-closed 地执行 Ponytail，但 `git --no-verify`、GitHub 网页/API 或合并机器人仍可绕过本地 hook；需要“任何入口都不可绕过”时，必须把同一门岗接到 CI/分支保护。已提交的 `CLAUDE.md`、生成的 `AGENTS.md`、skill 和 CI 才是跨 Agent 的执行链。合同字段和完整步骤不在本节重复，避免规则再次膨胀和分叉。
 
 ## R22 验证分层与测试预算
 

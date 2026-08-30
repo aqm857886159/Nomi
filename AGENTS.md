@@ -88,7 +88,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | R8 | 先出样张 | 用户可见改动先出 mockup + 用户拍板；实现后必须与样张逐项对账 |
 | R9 | 模块化 + 防巨壳 | 写码前想清楚分层；单文件 ≤800 行；白名单巨壳只减不增（R12 = R9 的量化门岗）|
 | R10 | → R1 CSS | `src/styles/` 只可减不可增；新样式只写组件 className |
-| R11 | 自动 commit/push | 按 R22 选定的验证档通过即自己 commit + push；小修本地收敛后一次推送 |
+| R11 | 自动 commit/push + Ponytail review | 按 R22 选定的验证档通过，并在每次 commit/push 前运行 `/ponytail-review`（Codex 用 `@ponytail-review`）；小修本地收敛后一次推送 |
 | R12 | → R9 巨壳 | `check:filesize` 门岗；白名单基线只降不升 |
 | R13 | 体验走查 | Playwright 走真实用户旅程 J1-J5（创作目标，不是功能探索）；截图人眼判断 |
 | R14 | 周期审计 | ≥25 commit 或发版前：多维 subagent 审计 + 走查 + `docs/audit` 文档；固定含 R14.1「同一语义有几份定义」七维横扫与对偶路径检查，机器门岗只覆盖词表 owner |
