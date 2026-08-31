@@ -34,12 +34,19 @@ PONYTAIL_REVIEW: FINDINGS
 Then include the skill's one-line findings and its net line estimate.
 `
 
+// Large merges (e.g. the 46-commit #223 integration) produce multi-MB diffs.
+// execFileSync defaults to a 1 MB stdout buffer and throws ENOBUFS past it,
+// which surfaced as a misleading "BLOCKED: spawnSync git ENOBUFS". Give git
+// stdout enough headroom to carry the full review diff.
+const GIT_MAX_BUFFER = 512 * 1024 * 1024
+
 function runGit(repoRoot, args) {
   return execFileSync('git', args, {
     cwd: repoRoot,
     encoding: 'utf8',
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
     stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: GIT_MAX_BUFFER,
   })
 }
 
