@@ -4,54 +4,50 @@
 
 # Nomi
 
-**Bring your own models. Let your AI assistant direct them.**
+**Bring the cost of AI video down.**
 
-Nomi is an open-source desktop workbench for AI video. Connect any OpenAI-compatible endpoint or your local ComfyUI, then let Claude Code, Codex, or Cursor drive it over MCP — storyboard, references, generation, and an editable first cut on a real timeline.
+Nomi is an open-source, local-first desktop workbench for AI video. Use the models, membership credits, APIs, or local ComfyUI you already have to run the whole pipeline — script, storyboard, generation, and editing — with your footage, generated takes, and workflows all on your own machine. No account. No telemetry.
 
-Your projects, prompts, and API keys stay on your machine. No account. No telemetry.
-
-[简体中文](README.zh-CN.md) · [Website](https://nomiaqm.com/en/) · [Download](#download) · [Tutorial](docs/guide/model-connection-en.md) · [Community](https://github.com/aqm857886159/Nomi/discussions) · [Follow on X](https://x.com/sdf297417627618) · [For Teams](https://nomiaqm.com/en/#teams) · [Watch the 60s film](https://nomiaqm.com/assets/video/launch-film-en.mp4) · [Documentation](docs/user-guide.md)
-
-Workflow support: **2373272608@qq.com** · [X/Twitter](https://x.com/sdf297417627618)
-
-## WeChat / 微信联系
-
-### Join the Nomi user group / 加入 Nomi 用户群
-
-<p align="center">
-  <a href="docs/media/nomi-canvas-group-wechat-2026-08-25.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-08-25.jpg" alt="Nomi 用户群微信二维码" width="220" /></a>
-</p>
-
-<p align="center">
-  <strong>Scan to join the user group. / 扫码加入 Nomi 用户群</strong><br />
-  Product feedback from the group goes directly into ongoing iteration. / 群内反馈会直接进入产品迭代。
-</p>
-
-### Maintainer & project collaboration / 添加作者与项目合作
-
-<p align="center">
-  <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi 作者青阳的微信二维码" width="180" /></a>
-</p>
-
-<p align="center">
-  If the group QR expires, or for AGPL-compliant custom development, integrations, deployment, and ongoing iteration, add <strong>TZ857886159</strong>.<br />
-  群码失效，或沟通遵守 AGPL 的定制开发、系统集成、部署与持续迭代，请添加作者微信 <strong>TZ857886159</strong>。
-</p>
-
-International community: [GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) · Project inquiry: [Business Inquiry](https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml)
+[简体中文](README.zh-CN.md) · [Website](https://nomiaqm.com/en/) · [Download](#download) · [Video tutorial (Bilibili)](https://www.bilibili.com/video/BV1Lf8b6nEjf/) · [Let your AI connect it](docs/integrate-with-your-agent-en.md) · [Community](https://github.com/aqm857886159/Nomi/discussions) · [For Teams](https://nomiaqm.com/en/#teams) · [Watch the 60s film](https://nomiaqm.com/assets/video/launch-film-en.mp4) · [X/Twitter](https://x.com/sdf297417627618)
 
 [![Latest release](https://img.shields.io/github/v/release/aqm857886159/Nomi?label=release)](https://github.com/aqm857886159/Nomi/releases/latest)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-1a1816)
 [![License](https://img.shields.io/badge/license-AGPL--3.0--only-1a1816)](LICENSE)
 
+## WeChat / 微信联系
+
+<p align="center">
+  <a href="docs/media/nomi-canvas-group-wechat-2026-08-25.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-08-25.jpg" alt="Nomi user group WeChat QR" width="220" /></a>
+  &nbsp;&nbsp;
+  <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi maintainer WeChat QR" width="180" /></a>
+</p>
+
+<p align="center">
+  <strong>Scan to join the Nomi user group</strong> (left) — feedback goes straight into iteration.<br />
+  If the group QR expires, or for AGPL-compliant custom development, deployment, and ongoing iteration, add the maintainer (right) at <strong>TZ857886159</strong>.
+</p>
+
 [![Nomi director workflow](marketing/assets/video/hero-poster.jpg)](https://nomiaqm.com/assets/video/launch-film-en.mp4)
 
 ## Why Nomi
 
-- **One project, not eleven tabs.** Story, shots, references, generated takes, and the timeline live in the same file on your disk instead of being copied between disconnected tools.
-- **Shot 4 and shot 9 should be the same person.** Lock characters, locations, props, camera, and style once; later shots inherit them instead of restarting from a new prompt.
-- **Bring your own stack.** Around ten curated providers are pre-wired, and any OpenAI-compatible, Anthropic, Responses, or relay endpoint can be added by pasting a URL and a key — no rebuild. A local ComfyUI is a provider like any other: Nomi converts the normal "Save" workflow format, so the workflows you download actually import, and it diffs the graph against `/object_info` to tell you which custom nodes and model files you are missing before you run it.
-- **Your agent can operate it.** Thirty-three MCP tools let Claude Code, Codex, or Cursor converge on a direction in one pass, create projects, import local assets, lay out shots, materialize an approved storyboard into the Nomi canvas, wire references, run generation, and control a durable production run. The staged semantic generation tools make model, provider, mode, parameters, and references editable before sealing; they remain zero-credit and feature-gated until the Run/recovery checks pass. Reversible direction and sample choices receive a server-issued human confirmation in the originating client; budgets, per-shot paid submissions, rough-cut acceptance, and export stay in Nomi, enforced in the main process.
+People generating AI video at scale — and companies that want to put AI video to work — increasingly need an **open-source, local** canvas. Three reasons:
+
+**① Cost** — the real spend in AI video is generation. Nomi lets you **freely combine cheap generation sources**: relay wholesale prices, time-limited platform promotions, the free image credits bundled with your agent membership, free sources like ModelScope, and your own local ComfyUI — whichever is cheapest. Layer the "draft → reference → finish" workflow on top: use cheap / free models for storyboard sketches, pose frames, and reference videos (regenerate freely), then feed the good ones as references into a high-quality model, spending the expensive credits only on the final step. Per-unit cost drops sharply.
+
+**② Customization** — the code is open. Use your own Codex / Claude Code to bend it into what you want and add your own skills; a company can customize it into an internal AI-video platform, and the whole team's cost comes down with it.
+
+**③ Local** — your footage, generated takes, workflows, and provider setup all live on your machine. When you call an external model API, only the inputs required to complete the task are sent to the provider you configured.
+
+And a structural difference: **use Nomi as your agent's generation backend.** Thirty-three MCP tools let Codex / Claude Code / Cursor drive Nomi over MCP for generation, orchestration, and editing, reusing the credits bundled with your agent membership. Online platforms make their money on compute, so structurally they can't offer this; an open-source local app is naturally happy to be driven by an agent.
+
+## Connecting your own stack
+
+"Connecting my own stuff is a hassle" is the one big pain point. Nomi gives you two paths:
+
+**① Works out of the box** — **APIMart** and **Kie.ai** are wired in as the two cores, alongside around ten more ready-to-use providers (ModelScope, Volcengine, Runway, fal, Replicate, MiniMax, ElevenLabs, and more); flagship models have a continuously growing integration-certification ledger (currently 66 certified entries). Any OpenAI-compatible, Anthropic, Responses, or relay endpoint can be added by pasting a URL and a key — no rebuild. A local ComfyUI is a provider like any other: Nomi converts the normal "Save" workflow format, so the workflows you download actually import, and it diffs the graph against `/object_info` to tell you which custom nodes and model files you are missing before you run it.
+
+**② Let your AI connect it for you** — you don't have to figure out integration yourself. Clone the repo, hand the **[Let your AI connect Nomi for you](docs/integrate-with-your-agent-en.md)** document to your Codex / Claude Code, and tell it what you want to connect (a relay, DeepSeek, a local ComfyUI…) — it will walk you through it step by step. The doc covers four paths: custom / relay providers, local ComfyUI, MCP driven by an agent, and skill import — each with its "success signal" and a recommended combo that drives cost to the floor.
 
 ## Download
 
@@ -85,17 +81,25 @@ The installer has no Authenticode signature. In the SmartScreen prompt, choose *
 
 ## Quick start
 
-1. **Connect a model.** Choose a curated provider and enter one API key, or add your own OpenAI-, Responses-, or Anthropic-compatible endpoint.
+1. **Connect a model.** Choose a curated provider and enter one API key, or add your own OpenAI-, Responses-, or Anthropic-compatible endpoint. Connecting your own stuff a hassle? Hand [Let your AI connect Nomi for you](docs/integrate-with-your-agent-en.md) to your Codex / Claude Code and let it do it.
 2. **Write the intent.** Start with a story or one shot. Ask Nomi—or a connected AI assistant over MCP—to build an editable storyboard and canvas plan.
 3. **Direct and export.** Review visual anchors, generate images or video with your configured models, choose the results, arrange the timeline, and export MP4.
 
 > **Disclosure:** one curated provider (APImart) is linked with a referral code. You always pay providers directly with your own key at their price — Nomi never proxies or resells inference, and every provider can be replaced by your own endpoint.
 
-Read the [English model connection tutorial](docs/guide/model-connection-en.md), [urgent Codex / Claude Code provider-setup prompt](docs/guide/model-integration-prompt-en.md), [copy-paste Codex issue-fix prompt](docs/guide/codex-issue-fix-prompt-en.md), [user guide](docs/user-guide.md), [provider guide](docs/provider-integration.md), [conversational model integration guide](docs/guide/conversational-model-integration.md), or [CLI + MCP guide](docs/guide/capability-core-cli-mcp.md).
+Read [Let your AI connect Nomi](docs/integrate-with-your-agent-en.md), the [English model connection tutorial](docs/guide/model-connection-en.md), [urgent Codex / Claude Code provider-setup prompt](docs/guide/model-integration-prompt-en.md), [copy-paste Codex issue-fix prompt](docs/guide/codex-issue-fix-prompt-en.md), [user guide](docs/user-guide.md), [provider guide](docs/provider-integration.md), [conversational model integration guide](docs/guide/conversational-model-integration.md), or [CLI + MCP guide](docs/guide/capability-core-cli-mcp.md).
+
+## Feedback & building it together
+
+Nomi is built by one person, and it moves fast — features land quickly, sometimes a little rough around the edges, but it's genuinely moving forward and the commits never stop.
+
+- **Hit a problem? Let your AI fix it first.** The code is open source — send the error along with the [Codex issue-fix prompt](docs/guide/codex-issue-fix-prompt-en.md) to your Codex / Claude Code, and it can patch many issues for you directly.
+- **Tell me the general ones and I'll iterate them away.** Say so in the [community](https://github.com/aqm857886159/Nomi/discussions) or open an [Issue](https://github.com/aqm857886159/Nomi/issues); anything everyone runs into, I fold into the mainline.
+- Bug reports, feature proposals, docs, and code are all welcome — see [Contributing](#contributing) below.
 
 ## Community
 
-Use [GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) to ask questions, share workflows, and follow what is being built next, and [GitHub Issues](https://github.com/aqm857886159/Nomi/issues) to report bugs and request features. Follow the project on [X / Twitter](https://x.com/sdf297417627618) for release notes and short demos; workflow support is available at **2373272608@qq.com**. WeChat users can use the group and maintainer QR codes at the top of this README; the [Chinese README](README.zh-CN.md#用户群) contains the full Chinese guide.
+Use [GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) to ask questions, share workflows, and follow what is being built next, and [GitHub Issues](https://github.com/aqm857886159/Nomi/issues) to report bugs and request features. Follow the project on [X / Twitter](https://x.com/sdf297417627618) for release notes and short demos; workflow support is available at **2373272608@qq.com**. WeChat users can use the group and maintainer QR codes in the [Chinese README](README.zh-CN.md#微信联系).
 
 ## For Teams
 

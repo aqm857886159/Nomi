@@ -4,53 +4,50 @@
 
 # Nomi
 
-**模型你自己带，让你的 AI 助手替你导演。**
+**把 AI 视频的成本打下来。**
 
-Nomi 是一个开源的 AI 视频创作桌面工作台。接任何 OpenAI 兼容接口，或者你本机跑着的 ComfyUI；然后让 Claude Code / Codex / Cursor 经 MCP 直接开工——搭分镜、连参考、跑生成，在真实时间线上给你一版能改的初稿。
+Nomi 是一个开源、本地优先的 AI 视频创作桌面工作台。用你已有的模型、会员额度、API 或本机 ComfyUI，从脚本、分镜、生成到剪辑跑通全流程——素材、生成物、工作流全在你自己电脑上。不用注册，没有埋点。
 
-项目、提示词和密钥都在你自己电脑上。不用注册，没有埋点。
-
-[English](README.md) · [官网](https://nomiaqm.com/) · [下载](#下载) · [夸克网盘镜像](https://pan.quark.cn/s/d3322c17e7b6) · [加入用户群](#用户群) · [团队合作](#团队服务) · [看 60 秒宣传片](https://nomiaqm.com/assets/demo.mp4)
-
-## 微信联系
-
-### 加入 Nomi 用户群
-
-<p align="center">
-  <a href="docs/media/nomi-canvas-group-wechat-2026-08-25.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-08-25.jpg" alt="Nomi 用户群微信二维码" width="220" /></a>
-</p>
-
-<p align="center">
-  <strong>扫码加入 Nomi 用户群</strong><br />
-  群内反馈会直接进入产品迭代。
-</p>
-
-### 群码失效 / 项目合作
-
-<p align="center">
-  <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi 作者青阳的微信二维码" width="180" /></a>
-</p>
-
-<p align="center">
-  群码失效，或沟通遵守 AGPL 的定制开发、系统集成、部署与持续迭代，请添加作者微信 <strong>TZ857886159</strong>。
-</p>
-
-[参与 GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) · [提交商务咨询](https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml)
-
-工作流接入支持：**2373272608@qq.com** · [X/Twitter](https://x.com/sdf297417627618)
+[English](README.md) · [官网](https://nomiaqm.com/) · [下载](#下载) · [B 站视频教程](https://www.bilibili.com/video/BV1Lf8b6nEjf/) · [夸克网盘镜像](https://pan.quark.cn/s/d3322c17e7b6) · [让 AI 替你接入](docs/integrate-with-your-agent.md) · [加入用户群](#用户群) · [团队合作](#团队服务) · [看 60 秒宣传片](https://nomiaqm.com/assets/demo.mp4) · [X/Twitter](https://x.com/sdf297417627618)
 
 [![最新版本](https://img.shields.io/github/v/release/aqm857886159/Nomi?label=release)](https://github.com/aqm857886159/Nomi/releases/latest)
 ![平台](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-1a1816)
 [![许可证](https://img.shields.io/badge/license-AGPL--3.0--only-1a1816)](LICENSE)
 
+## 微信联系
+
+<p align="center">
+  <a href="docs/media/nomi-canvas-group-wechat-2026-08-25.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-08-25.jpg" alt="Nomi 用户群微信二维码" width="220" /></a>
+  &nbsp;&nbsp;
+  <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi 作者青阳的微信二维码" width="180" /></a>
+</p>
+
+<p align="center">
+  <strong>扫码加入 Nomi 用户群</strong>（左，反馈会直接进入产品迭代）。<br />
+  群码失效，或沟通遵守 AGPL 的定制开发、部署与持续迭代，请添加作者微信（右）<strong>TZ857886159</strong>。
+</p>
+
 [![Nomi 导演工作流](marketing/assets/video/hero-poster.jpg)](https://nomiaqm.com/assets/demo.mp4)
 
 ## 为什么是 Nomi
 
-- **一个项目，不是十一个标签页**：故事、镜头、参考、生成结果和时间线在你自己盘上的同一个文件里，不用在多个工具之间反复搬运。
-- **第 4 个镜头和第 9 个镜头得是同一个人**：人物、场景、道具、机位和风格先锁一次，后面的镜头继承它，而不是重新赌一次提示词。
-- **自带全套**：内置约 10 家可直接用的供应商；任何 OpenAI 兼容 / Anthropic / Responses / 中转接口，粘贴地址和密钥就能加，不用重新编译。本机 ComfyUI 和云端模型一样是一个供应商：Nomi 会转换 ComfyUI 常规「保存」格式的工作流，你从网上下载的工作流能直接导入；并且会拿工作流和 `/object_info` 对账，在你按下运行之前就告诉你缺哪些自定义节点和模型文件。
-- **你的 AI 助手能真的操作它**：15 个 MCP 工具，让 Claude Code / Codex / Cursor 建项目、排镜头、连参考、跑生成并发起可恢复的完整制作。创作方向、付费生成、粗剪采用和导出都必须回到 Nomi 明确批准；审批由主进程强制执行，助手无法越权。
+大量批量做 AI 视频的人，和想把 AI 视频用起来的公司，越来越需要一个**开源、本地**的画布项目。三个原因：
+
+**① 成本**——AI 视频真正的大头是生成费。Nomi 让你**自由组合便宜的生成来源**：中转站的批发价、平台的限时活动、agent 会员自带的免费生图额度、魔搭一类免费源、你本机的 ComfyUI——哪个便宜用哪个。再叠加「草稿→参考→精修」的姿势：用便宜 / 免费的模型出分镜草图、动作图、参考视频（反复生成不心疼），挑好的当参考喂给高质量模型只在最后一步花贵额度出成品。单位成本因此大幅下降。
+
+**② 定制**——代码开源。用你自己的 Codex / Claude Code 把它改成你要的样子、加你自己的 skills；公司可以把它定制成一套自家的内部 AI 视频平台，整个团队的成本随之下降。
+
+**③ 本地**——素材、生成物、工作流、模型接入全在你本机，更安全。用外部模型 API 时，只有完成任务所必需的输入才会发给你配置的供应商。
+
+还有一个结构性差异：**把 Nomi 当你 agent 的生成后端**。让 Codex / Claude Code 经 MCP 直接调用 Nomi 做生成、编排、剪辑，你 agent 会员自带的额度可以直接复用。在线平台靠算力赚钱，结构上做不了这件事；开源本地端天然愿意被 agent 接入。
+
+## 怎么接你自己的东西
+
+「接自己的很麻烦」是唯一的大痛点。Nomi 给两条路：
+
+**① 开箱即用**——内置 **APIMart** 与 **Kie.ai** 双核心，另有约 10 家可直接用的供应商（魔搭、火山、Runway、fal、Replicate、MiniMax、ElevenLabs 等）；旗舰模型有持续扩充的接入认证台账（当前 66 条认证条目）。任何 OpenAI 兼容 / Anthropic / Responses / 中转接口，粘贴地址和密钥就能加，不用重新编译。本机 ComfyUI 和云端模型一样是一个供应商：Nomi 会转换 ComfyUI 常规「保存」格式的工作流，你从网上下载的工作流能直接导入；并且会拿工作流和 `/object_info` 对账，在你按下运行之前就告诉你缺哪些自定义节点和模型文件。
+
+**② 让你的 AI 替你接**——你不用自己啃接入。把仓库克隆下来，把 **[《让你的 AI 替你接入 Nomi》](docs/integrate-with-your-agent.md)** 这份文档发给你的 Codex / Claude Code，告诉它你要接什么（某个中转站、DeepSeek、本机 ComfyUI…），它会照文档一步步带你接完。文档覆盖四条路：自定义 / 中转供应商、本机 ComfyUI、MCP 被 agent 调用、技能导入，每条都写了「验证成功的标志」和一个把成本打到最低的推荐组合。
 
 ## 下载
 
@@ -86,13 +83,27 @@ Windows 安装包未使用 Authenticode 签名。SmartScreen 弹窗选择“更�
 
 ## 三步开始
 
-1. **接入模型**：选择预置供应商并填写一个 Key，或添加自己的 OpenAI / Responses / Anthropic 兼容接口。
+1. **接入模型**：选择预置供应商并填写一个 Key，或添加自己的 OpenAI / Responses / Anthropic 兼容接口。接自己的东西很麻烦？把 [《让你的 AI 替你接入 Nomi》](docs/integrate-with-your-agent.md) 发给你的 Codex / Claude Code，让它替你接。
 2. **说出镜头意图**：写一个故事或一句镜头描述，让 Nomi 或已接入的 AI 助手生成可编辑的分镜与画布方案。
 3. **导演并导出**：检查视觉锚点，用自己配置的模型生成图片或视频，选择结果、排上时间线并导出 MP4。
 
 > **利益披露**：预置供应商中有一家（APImart）的注册链接带推广码。你始终用自己的密钥、按供应商原价直接付给他们——Nomi 不代理、不转售任何推理服务，任何一家供应商都可以换成你自己的接口。
 
-详细说明：[使用指南](docs/user-guide.md) · [模型接入](docs/provider-integration.md) · [英文 Codex / Claude Code 接入提示词](docs/guide/model-integration-prompt-en.md) · [对话式模型接入](docs/guide/conversational-model-integration.md) · [CLI + MCP 指南](docs/guide/capability-core-cli-mcp.md)
+详细说明：[让你的 AI 替你接入](docs/integrate-with-your-agent.md) · [使用指南](docs/user-guide.md) · [模型接入](docs/provider-integration.md) · [英文 Codex / Claude Code 接入提示词](docs/guide/model-integration-prompt-en.md) · [对话式模型接入](docs/guide/conversational-model-integration.md) · [CLI + MCP 指南](docs/guide/capability-core-cli-mcp.md)
+
+## 反馈与共建
+
+Nomi 是我一个人在做，迭代很快——功能上得快，偶尔也带点毛边，但都是真的在往前跑，代码提交一直没停。
+
+- **遇到问题，可以先让你的 AI 帮你解**：代码是开源的，把报错和 [Codex 修复提示词](docs/guide/codex-issue-fix-prompt-en.md) 一起发给你的 Codex / Claude Code，很多问题它能直接帮你改。
+- **通用的问题告诉我，我直接迭代掉**：进[用户群](#用户群)或提 [Issue](https://github.com/aqm857886159/Nomi/issues) 说一声，凡是大家都会碰到的，我会直接修进主线。
+- 欢迎提 Bug、需求、文档和代码 —— 见下方[贡献与许可证](#贡献与许可证)。
+
+## 社区与联系
+
+微信群与作者二维码在 README 首屏（[群二维码](docs/media/nomi-canvas-group-wechat-2026-08-25.jpg) · [作者二维码](docs/media/qingyang-wechat.jpg)，或直接加微信 **TZ857886159**）。
+
+[参与 GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) · [提交商务咨询](https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml) · 工作流接入支持：**2373272608@qq.com** · [X/Twitter](https://x.com/sdf297417627618)
 
 ## 团队服务
 
