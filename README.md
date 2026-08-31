@@ -17,7 +17,7 @@ Nomi is an open-source, local-first desktop workbench for AI video. Use the mode
 ## WeChat / 微信联系
 
 <p align="center">
-  <a href="docs/media/nomi-canvas-group-wechat-2026-08-25.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-08-25.jpg" alt="Nomi user group WeChat QR" width="220" /></a>
+  <a href="docs/media/nomi-canvas-group-wechat-2026-09-01.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-09-01.jpg" alt="Nomi user group WeChat QR" width="220" /></a>
   &nbsp;&nbsp;
   <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi maintainer WeChat QR" width="180" /></a>
 </p>
@@ -99,7 +99,7 @@ Nomi is built by one person, and it moves fast — features land quickly, someti
 
 ## Community
 
-Use [GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) to ask questions, share workflows, and follow what is being built next, and [GitHub Issues](https://github.com/aqm857886159/Nomi/issues) to report bugs and request features. Follow the project on [X / Twitter](https://x.com/sdf297417627618) for release notes and short demos; workflow support is available at **2373272608@qq.com**. WeChat users can use the group and maintainer QR codes in the [Chinese README](README.zh-CN.md#微信联系).
+Use [GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) to ask questions, share workflows, and follow what is being built next, and [GitHub Issues](https://github.com/aqm857886159/Nomi/issues) to report bugs and request features. Follow the project on [X / Twitter](https://x.com/sdf297417627618) for release notes and short demos; workflow support is available at **2373272608@qq.com**. There is also a [getting-started walkthrough on YouTube](https://www.youtube.com/watch?v=NugvKQjN22A) (in Chinese). WeChat users can use the group and maintainer QR codes in the [Chinese README](README.zh-CN.md#微信联系).
 
 ## For Teams
 

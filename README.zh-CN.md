@@ -17,7 +17,7 @@ Nomi 是一个开源、本地优先的 AI 视频创作桌面工作台。用你�
 ## 微信联系
 
 <p align="center">
-  <a href="docs/media/nomi-canvas-group-wechat-2026-08-25.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-08-25.jpg" alt="Nomi 用户群微信二维码" width="220" /></a>
+  <a href="docs/media/nomi-canvas-group-wechat-2026-09-01.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-09-01.jpg" alt="Nomi 用户群微信二维码" width="220" /></a>
   &nbsp;&nbsp;
   <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi 作者青阳的微信二维码" width="180" /></a>
 </p>
@@ -101,9 +101,9 @@ Nomi 是我一个人在做，迭代很快——功能上得快，偶尔也带点
 
 ## 社区与联系
 
-微信群与作者二维码在 README 首屏（[群二维码](docs/media/nomi-canvas-group-wechat-2026-08-25.jpg) · [作者二维码](docs/media/qingyang-wechat.jpg)，或直接加微信 **TZ857886159**）。
+微信群与作者二维码在 README 首屏（[群二维码](docs/media/nomi-canvas-group-wechat-2026-09-01.jpg) · [作者二维码](docs/media/qingyang-wechat.jpg)，或直接加微信 **TZ857886159**）。
 
-[参与 GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) · [提交商务咨询](https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml) · 工作流接入支持：**2373272608@qq.com** · [X/Twitter](https://x.com/sdf297417627618)
+[参与 GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) · [提交商务咨询](https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml) · 邮箱：**2373272608@qq.com** · [入门讲解视频（YouTube，中文）](https://www.youtube.com/watch?v=NugvKQjN22A) · [X/Twitter](https://x.com/sdf297417627618)
 
 ## 团队服务
 
@@ -120,7 +120,7 @@ Nomi 是我一个人在做，迭代很快——功能上得快，偶尔也带点
 
 欢迎加入“nomi 画布群”，反馈会直接进入产品迭代。
 
-群二维码已放在 README 首屏；也可以[打开群二维码原图](docs/media/nomi-canvas-group-wechat-2026-08-25.jpg)。二维码不可用时，添加作者微信 **TZ857886159** 拉你进群。
+群二维码已放在 README 首屏；也可以[打开群二维码原图](docs/media/nomi-canvas-group-wechat-2026-09-01.jpg)。二维码不可用时，添加作者微信 **TZ857886159** 拉你进群。
 
 ## 开发者
 

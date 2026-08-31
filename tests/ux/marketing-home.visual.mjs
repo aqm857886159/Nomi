@@ -183,7 +183,7 @@ async function auditStandardCase(browser, testCase) {
   )
   assert(facts.h1Count === 1 && facts.sections, `${testCase.name}: one H1 and complete information architecture`)
   assert(
-    facts.groupQrVisible && facts.groupQrSource === '/assets/group-wechat-2026-08-25.jpg',
+    facts.groupQrVisible && facts.groupQrSource === '/assets/group-wechat-2026-09-01.jpg',
     `${testCase.name}: current group QR is directly visible`,
   )
   assert(
@@ -335,7 +335,7 @@ async function auditNoJavaScript(browser, pathName, locale, claim) {
     `${locale}: no-JS direct downloads remain without a Releases detour`,
   )
   assert(heroGithub === 1 && heroFilm === 0 && heroContribution === 1, `${locale}: no-JS hero GitHub path remains without the film path`)
-  assert(qr === '/assets/group-wechat-2026-08-25.jpg' && business > 0, `${locale}: no-JS QR and project paths remain`)
+  assert(qr === '/assets/group-wechat-2026-09-01.jpg' && business > 0, `${locale}: no-JS QR and project paths remain`)
   assert(
     installGuide.includes('xattr -dr com.apple.quarantine') && /official|官方/.test(installGuide),
     `${locale}: no-JS macOS recovery stays available and source-qualified`,
@@ -389,7 +389,7 @@ async function auditBlockedMedia(browser) {
     'blocked media: claim and primary action remain',
   )
   assert(
-    facts.qr === '/assets/group-wechat-2026-08-25.jpg' && facts.business,
+    facts.qr === '/assets/group-wechat-2026-09-01.jpg' && facts.business,
     'blocked media: community and project paths remain',
   )
   assert(facts.overflow <= 1, 'blocked media: layout remains stable')
