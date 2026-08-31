@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-08-31T07:20:23.563Z",
+  "baseUrl": "https://nomiaqm.com",
+  "pages": [
+    {
+      "url": "https://nomiaqm.com/en/",
+      "checked": 10,
+      "failures": []
+    }
+  ],
+  "sitemap": {
+    "checked": 4,
+    "entries": [],
+    "failures": []
+  },
+  "robots": {
+    "checked": 2,
+    "failures": []
+  },
+  "performance": {
+    "status": "not_configured"
+  },
+  "summary": {
+    "pages": 1,
+    "checks": 16,
+    "failures": 4,
+    "networkFailures": 4,
+    "errors": 4
+  },
+  "failures": [
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/",
+      "evidence": "HTTP 403 for https://nomiaqm.com/",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/quickstart.html",
+      "evidence": "HTTP 403 for https://nomiaqm.com/quickstart.html",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-PAGE",
+      "severity": "error",
+      "message": "Could not fetch https://nomiaqm.com/handbook.html",
+      "evidence": "HTTP 403 for https://nomiaqm.com/handbook.html",
+      "recommendation": "Retry the scheduled audit and investigate origin availability."
+    },
+    {
+      "rule": "NETWORK-SITEMAP",
+      "severity": "error",
+      "message": "Could not fetch sitemap.xml",
+      "evidence": "HTTP 403 for https://nomiaqm.com/sitemap.xml",
+      "recommendation": "Keep robots.txt and sitemap.xml publicly reachable."
+    }
+  ]
+}
