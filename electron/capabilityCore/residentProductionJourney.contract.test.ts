@@ -241,7 +241,7 @@ describe("resident Agent production journey (zero quota contract)", () => {
       },
       submitPlan,
       createScheduler: (run) => {
-        expect(run.generationPlan.shots).toHaveLength(20);
+        expect(run.generationPlan?.shots).toHaveLength(20);
         return { runToQuiescence: schedulerRun };
       },
       driveScheduler: (scheduler) => { void scheduler.runToQuiescence(); },

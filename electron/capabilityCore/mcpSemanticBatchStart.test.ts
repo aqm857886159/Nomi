@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { startSemanticMultiShotBatch, type SemanticBatchStartDependencies } from "./mcpSemanticBatchStart";
+import { startSemanticMultiShotBatch, type SemanticBatchStartDependencies, type SemanticBatchStartScheduler } from "./mcpSemanticBatchStart";
 import type { GenerationOperation } from "./mcpGenerationTools";
 
 function operation(): Pick<GenerationOperation, "operationId" | "projectId" | "shots"> {
@@ -32,7 +32,7 @@ describe("semantic multi-shot start", () => {
     const submitPlan = vi.fn(() => { current = durableRun("submitted"); });
     const scheduler = { runToQuiescence: vi.fn(async () => ({ quiescent: true })) };
     const createScheduler = vi.fn(() => scheduler);
-    const driveScheduler = vi.fn((value: typeof scheduler) => { void value.runToQuiescence(); });
+    const driveScheduler = vi.fn((value: SemanticBatchStartScheduler) => { void value.runToQuiescence(); });
     const deps: SemanticBatchStartDependencies = {
       readRun: () => current,
       submitPlan,

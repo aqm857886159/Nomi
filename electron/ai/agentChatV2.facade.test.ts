@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RuntimeTurnHooks, RuntimeTurnRequest, RuntimeTurnResult } from '../harness/runtime/runtimePort';
+import type { RuntimeTurnHooks, RuntimeTurnRequest, RuntimeTurnResult, RuntimeToolCall, RuntimeToolDecision } from '../harness/runtime/runtimePort';
 import { parseVendorErrorFromMessage } from '../../src/workbench/generationCanvas/runner/vendorErrorIpc';
 import type { SkillRecord } from '../skills/skillStore';
 
@@ -31,7 +31,12 @@ function request(capability = 'canvas-chat') {
     projectId: 'project', skillKey: 'workbench.creation.editor',
   };
 }
-const hooks = () => ({ emit: vi.fn(), awaitToolConfirmation: vi.fn(async () => ({ ok: true as const, result: { applied: true } })) });
+const hooks = () => ({
+  emit: vi.fn(),
+  awaitToolConfirmation: vi.fn<(call: RuntimeToolCall, signal: AbortSignal) => Promise<RuntimeToolDecision>>(
+    async () => ({ ok: true as const, result: { applied: true } }),
+  ),
+});
 
 beforeEach(() => {
   vi.clearAllMocks();

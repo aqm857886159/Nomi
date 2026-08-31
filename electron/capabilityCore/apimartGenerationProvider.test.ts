@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createApimartGenerationProvider as createProvider } from "./apimartGenerationProvider";
+import type { ApimartReferenceUrlResolver } from "./apimartGenerationProjection";
 import type { CatalogState } from "../catalog/types";
 import { APIMART_IMAGE_MODELS } from "../catalog/apimartImages";
 import { APIMART_VIDEO_MODELS } from "../catalog/apimartVideos";
@@ -309,15 +310,15 @@ describe("APIMart observe-only generation provider", () => {
       expect(init?.method).toBe("POST");
       return new Response(JSON.stringify({ code: 200, data: [{ status: "submitted", task_id: "task-1" }] }), { status: 200, headers: { "content-type": "application/json" } });
     });
-    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl });
+    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl: fetchImpl as unknown as typeof fetch });
     const request = provider.buildRequest(input({ prompt: "x" }));
     await expect(provider.submit(structuredClone(request), "stable-key")).resolves.toMatchObject({ providerTaskId: "task-1" });
     expect(fetchImpl.mock.calls[0]?.[1]?.headers).toMatchObject({ Authorization: "Bearer test-key" });
   });
 
   it("queries by task id and never sends the stable Nomi key as a false provider idempotency claim", async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ code: 200, data: { id: "task-1", status: "processing" } }), { status: 200 }));
-    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl });
+    const fetchImpl = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ code: 200, data: { id: "task-1", status: "processing" } }), { status: 200 }));
+    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl: fetchImpl as unknown as typeof fetch });
     await expect(provider.query?.("task-1")).resolves.toMatchObject({ status: "processing" });
     expect(fetchImpl).toHaveBeenCalledWith("https://api.apimart.ai/v1/tasks/task-1", expect.objectContaining({ method: "GET" }));
     expect(fetchImpl.mock.calls[0]?.[1]?.headers).not.toHaveProperty("Idempotency-Key");
@@ -512,7 +513,7 @@ describe("APIMart observe-only generation provider", () => {
       expect(body).not.toHaveProperty("aspect_ratio");
       return new Response(JSON.stringify({ code: 200, data: [{ task_id: "h3-task" }] }), { status: 200 });
     });
-    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl });
+    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl: fetchImpl as unknown as typeof fetch });
     const requestInput = input({
       modelId: "MiniMax-H3",
       mode: "image_to_video",
@@ -525,7 +526,7 @@ describe("APIMart observe-only generation provider", () => {
     });
     const body = provider.buildRequest(requestInput);
     const contextual = (provider as typeof provider & {
-      submitWithContext: (request: unknown, idempotencyKey: string, input: ReturnType<typeof input>) => Promise<unknown>;
+      submitWithContext: (request: unknown, idempotencyKey: string, semanticInput: ReturnType<typeof input>) => Promise<unknown>;
     }).submitWithContext;
     await expect(contextual(structuredClone(body), "h3-key", requestInput)).resolves.toMatchObject({ providerTaskId: "h3-task" });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
@@ -608,7 +609,7 @@ describe("APIMart observe-only generation provider", () => {
       expect(JSON.parse(String(init?.body))).toMatchObject({ model: "sora-2", duration: 4, aspect_ratio: "16:9" });
       return new Response(JSON.stringify({ code: 200, data: [{ status: "submitted", task_id: "video-task-1" }] }), { status: 200 });
     });
-    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl });
+    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl: fetchImpl as unknown as typeof fetch });
     const request = provider.buildRequest(input({ modelId: "sora-2", mode: "text_to_video", parameters: { duration: 4, aspect_ratio: "16:9" } }));
     // Runtime Adapter passes a structuredClone of the prepared request.  A
     // deep clone must still select the video endpoint from the local hash map.
@@ -655,7 +656,7 @@ describe("APIMart observe-only generation provider", () => {
       expect(body.image_urls).toEqual(["https://cdn.example/character.png"]);
       return new Response(JSON.stringify({ code: 200, data: [{ status: "submitted", task_id: "i2v-task-1" }] }), { status: 200 });
     });
-    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl });
+    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl: fetchImpl as unknown as typeof fetch });
     const request = provider.buildRequest(input({
       modelId: "sora-2",
       mode: "image_to_video",
@@ -663,7 +664,7 @@ describe("APIMart observe-only generation provider", () => {
       parameters: { duration: 4, imageUrls: ["https://cdn.example/character.png"] },
     }));
     const contextual = (provider as typeof provider & {
-      submitWithContext: (request: unknown, idempotencyKey: string, input: ReturnType<typeof input>) => Promise<unknown>;
+      submitWithContext: (request: unknown, idempotencyKey: string, semanticInput: ReturnType<typeof input>) => Promise<unknown>;
     }).submitWithContext;
     await expect(contextual(structuredClone(request), "stable-key", input({
       modelId: "sora-2",
@@ -674,7 +675,7 @@ describe("APIMart observe-only generation provider", () => {
   });
 
   it("projects references through the explicit resolver contract before building the body", () => {
-    const resolveReferenceUrls = vi.fn((request: ReturnType<typeof input>) => ({
+    const resolveReferenceUrls = vi.fn<ApimartReferenceUrlResolver>((request) => ({
       referenceImageUrls: request.references.map((reference) => `https://cdn.example/${reference.assetId}.png`),
     }));
     const provider = createApimartGenerationProvider({

@@ -551,7 +551,7 @@ describe("semantic MCP generation tools", () => {
     it("returns a serializable display.shots with per-shot rows + anchor chips + plan-level cost", async () => {
       const handler = createGenerationPlanningHandler({ registry, operations: multiShotStore(), resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" });
       const result = await handler({ capability: "gate_request", params: { operationId: "op-multi" }, lease }) as {
-        shots?: { shots: Array<{ shotId: string; index: number; price: unknown }>; anchorChips?: unknown[]; planHash?: string; hardLimit?: number };
+        shots?: { shots: Array<{ shotId: string; index: number; price: unknown }>; anchorChips?: unknown[]; planHash?: string; hardLimit?: number; specs?: { shotCount: number; durationSeconds?: number } };
         maximumCost: number;
         costScope: string;
         contractHash: string;

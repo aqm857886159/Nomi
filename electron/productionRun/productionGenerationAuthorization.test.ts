@@ -63,10 +63,13 @@ describe("ProductionGenerationAuthorizationEnvelope", () => {
     ["wire payload", (value: ProductionGenerationAuthorizationEnvelopeV1) => ({ ...value, jobs: [{ ...value.jobs[0], providerWirePayloadHash: productionGenerationPayloadHash({ changed: true }) }] })],
     ["idempotency identity", (value: ProductionGenerationAuthorizationEnvelopeV1) => ({ ...value, jobs: [{ ...value.jobs[0], providerIdempotencyKey: "generation:run-1:shot-1:attempt-2" }] })],
     ["budget", (value: ProductionGenerationAuthorizationEnvelopeV1) => ({ ...value, jobs: [{ ...value.jobs[0], price: { currency: "CNY", maximum: 7 } }], budget: { currency: "CNY", maximum: 7, ledgerCeiling: 7 } })],
-  ])("changes the digest when %s changes", (_label, mutate) => {
-    const original = envelope();
-    expect(productionGenerationAuthorizationDigest(mutate(original))).not.toBe(productionGenerationAuthorizationDigest(original));
-  });
+  ] as Array<[string, (value: ProductionGenerationAuthorizationEnvelopeV1) => ProductionGenerationAuthorizationEnvelopeV1]>)(
+    "changes the digest when %s changes",
+    (_label, mutate) => {
+      const original = envelope();
+      expect(productionGenerationAuthorizationDigest(mutate(original))).not.toBe(productionGenerationAuthorizationDigest(original));
+    },
+  );
 
   it("rejects a provider payload that differs from the approved hash", () => {
     const expected = productionGenerationPayloadHash({ model: "model-1", prompt: "approved" });

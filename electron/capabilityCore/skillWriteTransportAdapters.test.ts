@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { RuntimeToolCall } from "../harness/runtime/runtimePort";
 import { SKILL_WRITE_CAPABILITY } from "../shared/agentCapabilities/skillWrite";
 import type { SkillRecord } from "../skills/skillStore";
+import type { SkillManifest } from "../skills/skillManifestSchema";
 import {
   computeSkillContentHash,
   type ImportSkillResult,
@@ -14,7 +15,7 @@ import { createPiSkillWriteTransportAdapter } from "./skillWriteTransportAdapter
 const target = { kind: "document" as const, documentId: "doc-a", anchor: { kind: "whole-document" as const } };
 const preconditions = { document: { revision: 2, contentHash: "before" } } as const;
 
-function manifest() {
+function manifest(): SkillManifest {
   return {
     name: "creative.avatar",
     version: "1.0.0",

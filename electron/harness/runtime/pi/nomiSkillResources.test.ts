@@ -7,7 +7,7 @@ import {
   formatNomiSkillIndex,
   getNomiSkillRoots,
   type NomiLoadedSkill,
-} from './nomiSkillResources.mts';
+} from './nomiSkillResources.mjs';
 import { discoverSkillRecordsFromRoots } from '../../../skills/skillStore';
 
 describe('Nomi skill resource catalog', () => {

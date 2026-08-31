@@ -73,7 +73,10 @@ describe('project-scoped export Agent tools', () => {
     expect(serialized).not.toContain('projectDir')
     expect(serialized).not.toContain('jobDir')
     expect(serialized).not.toContain('C:/private')
-    expect(serialized).not.toContain('manifest')
+    // manifestIntegrity is an intentional status summary; the raw manifest object
+    // (its "manifest" key with timeline/profile/asset internals) must not leak.
+    expect(serialized).not.toContain('"manifest"')
+    expect(result).not.toHaveProperty('manifest')
   })
 
   it('binds inspection and cancellation to the active project', async () => {

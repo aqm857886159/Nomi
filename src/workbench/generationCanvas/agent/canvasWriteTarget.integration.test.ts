@@ -173,7 +173,7 @@ describe('canvas.write real renderer execution', () => {
       nodeCount: 2,
       reconciliation: { ok: true, deviationCount: 0 },
     })
-    expect(result.affectedNodeIds).not.toContain(cast.id)
+    expect('affectedNodeIds' in result ? result.affectedNodeIds : []).not.toContain(cast.id)
   })
 
   it('rejects a stale Canvas mutation before durable receipt preparation', async () => {

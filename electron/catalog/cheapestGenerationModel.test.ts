@@ -46,7 +46,7 @@ describe("selectCheapestTestGenerationModel (test harness only)", () => {
       models: [model("z-image", "image", 0.1), model("a-image", "image", 0.1)],
     });
 
-    expect(result?.modelKey).toBe("a-image");
+    expect(result && "modelKey" in result ? result.modelKey : undefined).toBe("a-image");
   });
 
   it("returns an explicit unpriced result instead of guessing when no enabled candidate has a price", () => {

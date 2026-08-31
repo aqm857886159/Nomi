@@ -37,7 +37,10 @@ function evidence(overrides: Record<string, unknown> = {}) {
   };
 }
 
-const input = { operation: "delete_canvas_nodes", nodeIds: ["client-1"] } as const;
+const input: { operation: "delete_canvas_nodes"; nodeIds: string[] } = {
+  operation: "delete_canvas_nodes",
+  nodeIds: ["client-1"],
+};
 
 describe("canvas.delete exact admission", () => {
   it("freezes node, result, membership, and edge relations", () => {

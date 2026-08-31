@@ -64,6 +64,7 @@ describe("Nomi agent context ownership", () => {
     const skill: SkillRecord = {
       name: "story-method", directoryName: "story", filePath: path.join(process.cwd(), "skills/story/SKILL.md"),
       description: "Story method", body: "# Method\nWrite, review, revise.", manifest: null, origin: "user",
+      audience: "internal", packageVersion: "nomi-skill-v1", contentHash: "hash-story",
     };
     vi.mocked(findSkillRecord).mockReturnValue(skill);
     expect(context.buildSkillSystemPrompt({ chatContext: { skill: { key: "workbench.creation.story", name: "Story" } } })).toBe([
@@ -78,6 +79,7 @@ describe("Nomi agent context ownership", () => {
     vi.mocked(findSkillRecord).mockReturnValue({
       name: "story-method", directoryName: "story", filePath: path.join(process.cwd(), "skills/story/SKILL.md"),
       description: "Story method", body: "Method", manifest: null, origin: "builtin",
+      audience: "internal", packageVersion: "nomi-skill-v1", contentHash: "hash-story",
     });
     const prompt = context.buildSkillSystemPrompt({ chatContext: { skill: { name: "Story" } } });
     expect(prompt).toContain("skillKey: story-method\nskillName: Story");

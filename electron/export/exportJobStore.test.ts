@@ -82,7 +82,15 @@ describe("ExportJobStore", () => {
       ...snapshot,
       status: "succeeded",
       updatedAt: "2026-05-24T01:01:00.000Z",
-      result: { outputPath: path.join(projectDir, "exports", "video.mp4"), relativeOutputPath: "exports/video.mp4" },
+      result: {
+        outputPath: path.join(projectDir, "exports", "video.mp4"),
+        relativeOutputPath: "exports/video.mp4",
+        execution: {
+          auditManifestDigest: "sha256:audit",
+          input: { kind: "filtergraph" },
+          correlationDigest: "sha256:correlation",
+        },
+      },
     });
 
     expect(fs.existsSync(path.join(snapshot.jobDir, "manifest.json"))).toBe(true);

@@ -8,6 +8,8 @@ import {
   GenerationProviderRequestError,
   createGenerationRuntimeAdapter,
   resolveExecutionContract,
+  type GenerationProvider,
+  type GenerationProviderRequestInputV1,
 } from "./generationRuntimeAdapter";
 import type { ModuleManifest } from "./moduleManifest";
 import { createProductionExecutionBinding } from "../productionRun/productionExecutionBinding";
@@ -145,8 +147,8 @@ describe("GenerationRuntimeAdapter", () => {
   });
 
   it("maps two different provider profiles without provider-specific branches in the adapter", async () => {
-    const imageSubmit = vi.fn(async (request: Record<string, unknown>) => ({ providerTaskId: "image-task-1", raw: request }));
-    const videoSubmit = vi.fn(async (request: Record<string, unknown>) => ({ providerTaskId: "video-task-1", raw: request }));
+    const imageSubmit = vi.fn(async (request: unknown, _idempotencyKey: string) => ({ providerTaskId: "image-task-1", raw: request }));
+    const videoSubmit = vi.fn(async (request: unknown, _idempotencyKey: string) => ({ providerTaskId: "video-task-1", raw: request }));
     const adapter = createGenerationRuntimeAdapter({
       providers: [
         {
@@ -178,10 +180,10 @@ describe("GenerationRuntimeAdapter", () => {
 
   it("keeps the full recovery assertion available for callers that explicitly require it", () => {
     const submit = vi.fn();
-    const provider = {
+    const provider: GenerationProvider = {
       providerId: "provider.image",
       capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: true },
-      buildRequest: (input) => input,
+      buildRequest: (input: GenerationProviderRequestInputV1) => input,
       submit,
     };
     expect(() => assertGenerationProviderCapabilities(provider)).toThrow(GenerationProviderCapabilityError);
@@ -209,13 +211,15 @@ describe("GenerationRuntimeAdapter", () => {
       providerTaskId: `context-${input.mode}`,
     }));
     const submit = vi.fn();
+    // submitWithContext is an optional runtime hook the adapter probes for; it is
+    // not part of the public GenerationProvider surface, so widen through it.
     const adapter = createGenerationRuntimeAdapter({ providers: [{
       providerId: "provider.image",
       capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false },
-      buildRequest: (input) => ({ model: input.modelId, prompt: input.prompt }),
+      buildRequest: (input: GenerationProviderRequestInputV1) => ({ model: input.modelId, prompt: input.prompt }),
       submit,
       submitWithContext: contextualSubmit,
-    }] });
+    } as GenerationProvider] });
     const imageContract = contract("provider.image", "model.image.v1", "text-to-image", { aspectRatio: "1:1" });
     const binding = bindingFor("provider.image", imageContract.contractHash);
     const prepared = adapter.prepare({ contract: imageContract, binding });

@@ -152,6 +152,11 @@ function harness() {
         timelineWriteHandler = undefined
       }
     }),
+    // Asset/export surfaces are not exercised by these canvas-read cases, but the
+    // bridge contract now requires them; register inert subscriptions.
+    onAssetRead: vi.fn(() => () => {}),
+    onExportRead: vi.fn(() => () => {}),
+    onExportWrite: vi.fn(() => () => {}),
   }
   const coordinator = createProjectCanvasReadSurfaceCoordinator({
     getSurfaceBridge: () => bridge,

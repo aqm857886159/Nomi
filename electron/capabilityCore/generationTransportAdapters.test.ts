@@ -4,6 +4,7 @@ import type { RuntimeToolCall } from "../harness/runtime/runtimePort";
 import type { ProjectBinding } from "../shared/projectBinding";
 import type { ProjectLeaseV2 } from "./projectLease";
 import { createPiGenerationTransportAdapter } from "./generationTransportAdapters";
+import type { ApprovalReceiptAuthority } from "./approvalReceipt";
 
 const binding: ProjectBinding = {
   projectId: "project-1",
@@ -39,15 +40,13 @@ const call = (toolName: string, args: unknown): RuntimeToolCall => ({
 
 function authority() {
   const receipt = { receiptId: "receipt-1" } as never;
+  // The adapter only exercises verify/resolve/consume; declare the full authority
+  // type so the partial stub still satisfies the dependency contract.
   return {
     verifyReceipt: vi.fn(() => receipt),
     resolveReceiptToken: vi.fn(() => "receipt-token"),
     consumeReceipt: vi.fn(() => ({ receipt, replayed: false })),
-  } as unknown as {
-    verifyReceipt: ReturnType<typeof vi.fn>;
-    resolveReceiptToken: ReturnType<typeof vi.fn>;
-    consumeReceipt: ReturnType<typeof vi.fn>;
-  };
+  } as unknown as ApprovalReceiptAuthority;
 }
 
 describe("resident semantic generation transport", () => {

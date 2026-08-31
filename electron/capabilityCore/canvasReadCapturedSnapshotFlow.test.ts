@@ -218,6 +218,7 @@ async function installProjectAgentHost(
       repositoryRouter,
       executionCoordinator,
       attachProject: (projectBinding) => repositoryRouter.attach(projectBinding),
+      setGenerationAdapterFactory: () => {},
     },
     surfaceCapture,
     captureCanvasRead: (_event, projectBinding, requestId) => canvasRead.capture(

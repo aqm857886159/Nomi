@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDesktopBridge } from '../../desktop/bridge'
-import { fetchPromptLibrary, fetchUserPrompts, filterPrompts } from './promptLibraryApi'
+import { fetchPromptLibrary, fetchUserPrompts, filterPrompts, type LibraryPrompt } from './promptLibraryApi'
 
 vi.mock('../../desktop/bridge', () => ({ getDesktopBridge: vi.fn() }))
 
@@ -52,9 +52,9 @@ describe('promptLibraryApi', () => {
   })
 
   it('filters by prompt type and searchable title/body/source without another data owner', () => {
-    const prompts = [
-      { id: 'image', title: 'Portrait', prompt: 'soft light', source: 'Nomi', promptType: 'image', mediaType: 'image', tags: [], mediaUrl: '', sourceId: '', sourceUrl: '', origin: 'public' as const },
-      { id: 'video', title: 'Night alley', prompt: 'slow dolly', source: 'Sora', promptType: 'video', mediaType: 'video', tags: [], mediaUrl: '', sourceId: '', sourceUrl: '', origin: 'public' as const },
+    const prompts: LibraryPrompt[] = [
+      { id: 'image', title: 'Portrait', prompt: 'soft light', source: 'Nomi', promptType: 'image', mediaType: 'image', tags: [], mediaUrl: '', sourceId: '', sourceUrl: '', origin: 'public' },
+      { id: 'video', title: 'Night alley', prompt: 'slow dolly', source: 'Sora', promptType: 'video', mediaType: 'video', tags: [], mediaUrl: '', sourceId: '', sourceUrl: '', origin: 'public' },
     ]
 
     expect(filterPrompts(prompts, 'video', 'alley').map((prompt) => prompt.id)).toEqual(['video'])

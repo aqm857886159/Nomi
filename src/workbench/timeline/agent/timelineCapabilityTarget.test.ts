@@ -12,6 +12,23 @@ import {
   executeTimelineWriteTarget,
 } from './timelineCapabilityTarget'
 import { timelineAgentUndoMetadata } from '../timelineUndoHistory'
+import type { TimelineWriteResult } from '../../../../electron/shared/agentCapabilities/timelineWrite'
+
+// The write result is a discriminated union keyed on `operation`; undoToken is
+// declared optional on the apply_edit_plan member (the schema shares one member
+// for success and failure), but production always emits it for a landed apply.
+// Narrow to that member and prove the token is present so tests can feed it back
+// into undo requests after asserting a successful apply.
+type ApplyEditPlanWrite = Extract<TimelineWriteResult, { operation: 'apply_edit_plan' }>
+function applyEditWrite(result: TimelineWriteResult): ApplyEditPlanWrite & { undoToken: string } {
+  if (result.operation !== 'apply_edit_plan') {
+    throw new Error(`Expected an apply_edit_plan write, received: ${JSON.stringify(result)}`)
+  }
+  if (typeof result.undoToken !== 'string') {
+    throw new Error(`Expected a landed apply to carry an undoToken, received: ${JSON.stringify(result)}`)
+  }
+  return result as ApplyEditPlanWrite & { undoToken: string }
+}
 
 function fixture(): TimelineState {
   const base = createDefaultTimeline()
@@ -96,7 +113,7 @@ describe('canonical Timeline capability target', () => {
     expect(useWorkbenchStore.getState().timelineRedoStack).toBe(beforePreview.timelineRedoStack)
     expect(useWorkbenchStore.getState().persistRevision).toBe(beforePreview.persistRevision)
 
-    const first = executeTimelineWriteTarget({ input: plan, target: { kind: 'timeline', clipIds: ['clip-b'] }, preconditions: { timeline: { revision: baseRevision } }, ...approval })
+    const first = applyEditWrite(executeTimelineWriteTarget({ input: plan, target: { kind: 'timeline', clipIds: ['clip-b'] }, preconditions: { timeline: { revision: baseRevision } }, ...approval }))
     expect(first).toMatchObject({ operation: 'apply_edit_plan', ok: true, applied: true, replayed: false })
     expect(useWorkbenchStore.getState().timelineUndoStack).toHaveLength(1)
     expect(timelineAgentUndoMetadata(useWorkbenchStore.getState().timelineUndoStack.at(-1))).toMatchObject({
@@ -130,12 +147,12 @@ describe('canonical Timeline capability target', () => {
     expect(JSON.stringify(preview)).not.toContain('before')
     expect(JSON.stringify(preview)).not.toContain('after')
 
-    const applied = executeTimelineWriteTarget({
+    const applied = applyEditWrite(executeTimelineWriteTarget({
       input: plan,
       target: { kind: 'timeline', clipIds: ['clip-a'] },
       preconditions: { timeline: { revision: baseRevision } },
       ...approval,
-    })
+    }))
     expect(applied).toMatchObject({ ok: true, applied: true, diff: { changed: true } })
     expect(JSON.stringify(applied)).not.toContain('/Users/private')
     expect(JSON.stringify(applied)).not.toContain('nomi://')
@@ -189,7 +206,7 @@ describe('canonical Timeline capability target', () => {
     }
     useWorkbenchStore.setState({ timeline: largeTimeline, timelineUndoStack: [], timelineRedoStack: [] })
     const baseRevision = timelineRevision(largeTimeline)
-    const applied = executeTimelineWriteTarget({
+    const applied = applyEditWrite(executeTimelineWriteTarget({
       input: {
         operation: 'apply_edit_plan',
         planId: 'plan-large-ripple',
@@ -200,7 +217,7 @@ describe('canonical Timeline capability target', () => {
       target: { kind: 'timeline', clipIds: [] },
       preconditions: { timeline: { revision: baseRevision } },
       ...approval,
-    })
+    }))
     expect(applied).toMatchObject({
       operation: 'apply_edit_plan',
       ok: true,
@@ -228,7 +245,7 @@ describe('canonical Timeline capability target', () => {
       summary: 'Move clip B',
       operations: [{ kind: 'move' as const, clipId: 'clip-b', startFrame: 72 }],
     }
-    const applied = executeTimelineWriteTarget({ input: plan, target: { kind: 'timeline', clipIds: ['clip-b'] }, preconditions: { timeline: { revision: baseRevision } }, ...approval })
+    const applied = applyEditWrite(executeTimelineWriteTarget({ input: plan, target: { kind: 'timeline', clipIds: ['clip-b'] }, preconditions: { timeline: { revision: baseRevision } }, ...approval }))
     const conflict = executeTimelineWriteTarget({
       input: { ...plan, summary: 'Different content' },
       target: { kind: 'timeline', clipIds: ['clip-b'] },
@@ -262,7 +279,7 @@ describe('canonical Timeline capability target', () => {
       summary: 'Move clip B',
       operations: [{ kind: 'move' as const, clipId: 'clip-b', startFrame: 72 }],
     }
-    const applied = executeTimelineWriteTarget({ input: plan, target: { kind: 'timeline', clipIds: ['clip-b'] }, preconditions: { timeline: { revision: baseRevision } }, ...approval })
+    const applied = applyEditWrite(executeTimelineWriteTarget({ input: plan, target: { kind: 'timeline', clipIds: ['clip-b'] }, preconditions: { timeline: { revision: baseRevision } }, ...approval }))
     const request = {
       input: { operation: 'undo_timeline_edit' as const, undoToken: applied.undoToken, expectedRevision: applied.revision },
       target: { kind: 'timeline' as const, clipIds: [] },
@@ -287,12 +304,12 @@ describe('canonical Timeline capability target', () => {
       summary: 'Move clip B',
       operations: [{ kind: 'move' as const, clipId: 'clip-b', startFrame: 72 }],
     }
-    const applied = executeTimelineWriteTarget({
+    const applied = applyEditWrite(executeTimelineWriteTarget({
       input: plan,
       target: { kind: 'timeline', clipIds: ['clip-b'] },
       preconditions: { timeline: { revision: baseRevision } },
       ...approval,
-    })
+    }))
     const request = {
       input: {
         operation: 'undo_timeline_edit' as const,
@@ -335,12 +352,12 @@ describe('canonical Timeline capability target', () => {
       summary: 'Move clip B',
       operations: [{ kind: 'move' as const, clipId: 'clip-b', startFrame: 72 }],
     }
-    const applied = executeTimelineWriteTarget({
+    const applied = applyEditWrite(executeTimelineWriteTarget({
       input: plan,
       target: { kind: 'timeline', clipIds: ['clip-b'] },
       preconditions: { timeline: { revision: baseRevision } },
       ...approval,
-    })
+    }))
     useWorkbenchStore.getState().moveTimelineClip('clip-b', 84)
     const afterUserEdit = useWorkbenchStore.getState()
     expect(timelineRevision(afterUserEdit.timeline)).not.toBe(applied.revision)
