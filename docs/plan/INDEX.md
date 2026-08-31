@@ -18,6 +18,7 @@
 | [2026-08-30-provider-model-expansion-and-runtime.md](2026-08-30-provider-model-expansion-and-runtime.md) | 旗舰供应商与统一运行时扩充的早期范围（已被统一认证计划取代） | ⛔ |
 | [2026-08-30-issue-237-onboarding.md](2026-08-30-issue-237-onboarding.md) | Issue #237：OpenAI-compatible 图片请求根因修复、匿名上传分诊与英文接入入口 | 🚧 |
 | [2026-08-31-asset-upload-routing.md](2026-08-31-asset-upload-routing.md) | 本地图片/视频/音频统一上传路由、供应商上传 API 与可选 R2 relay | 🚧 |
+| [2026-09-01-pr258-derived-directions-eval.md](2026-09-01-pr258-derived-directions-eval.md) | PR #258 拆项评估 v2：provider proxy(🟢)/即梦 CLI 3.x 模型面(🟡·命名雷)/onboarding 加固(🟢) + #258 本体三档拆分 | 📎 |
 | [2026-06-07-apimart-curated-onboarding.md](2026-06-07-apimart-curated-onboarding.md) | 策展两家(kie+apimart)一键接入；战略从「通用接入」转向 | ✅ |
 | [2026-06-06-universal-model-onboarding.md](2026-06-06-universal-model-onboarding.md) | 「描述符+通用解释器接长尾」研究稿 | ⛔ |
 | [2026-05-30-onboarding-schema-first-extraction.md](2026-05-30-onboarding-schema-first-extraction.md) | 参数抽取从 curl-only 升级为 schema-first | 🚧 |
