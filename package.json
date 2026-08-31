@@ -69,6 +69,8 @@
     "dist:mac:dir": "electron-builder --mac dir --arm64 && node tests/ux/packaged-mcp-smoke.e2e.mjs release/mac-arm64/Nomi.app",
     "postinstall": "node ./scripts/install-git-hooks.cjs",
     "test:e2e": "node tests/ux/smoke.e2e.mjs",
+    "test:model-access:inventory": "vitest run tests/ux/model-access-journeys/inventory.test.mjs",
+    "test:model-access:journeys": "node tests/ux/model-access-journeys/run-journeys.mjs --all",
     "test:canvas-perf": "node tests/ux/canvas-performance-benchmark.e2e.mjs",
     "test:canvas-perf:compare": "node tests/ux/canvas-performance-compare.mjs",
     "test:canvas-perf:fixture": "node tests/ux/fixtures/gen-canvas-performance-fixture.mjs",
