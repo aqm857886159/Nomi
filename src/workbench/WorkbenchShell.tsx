@@ -17,6 +17,7 @@ import { WindowControls } from "../ui/app-shell/WindowControls";
 import { handleWindowTitlebarDoubleClick } from "../ui/app-shell/windowTitlebarDoubleClick";
 import { OnboardingChecklist } from "./onboarding/OnboardingChecklist";
 import ProjectAgentResidentShell from './ai/ProjectAgentResidentShell';
+import { useAgentHostEnabled } from '../utils/agentHostPreference';
 
 // 工作区懒加载走容错域（审计 A5）：单个工作区 chunk 失败不拖死其余工作区。
 const CreationWorkspace = lazyWithChunkBoundary(
@@ -143,17 +144,21 @@ export default function WorkbenchShell({
     );
     const categories = useWorkbenchStore((state) => state.categories);
     const agentDockCollapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed);
+    // 发布闸（默认关，见 agentHostPreference）：关闭时常驻 Agent 整套 UI 一概不渲染——
+    // 不挂 portal、不给工作区传 dock ref（于是也不预留助手列 / 折叠药丸 / 入口），不只是折叠态。
+    // 开闸即删此闸的默认值歧义（P1）。
+    const agentHostEnabled = useAgentHostEnabled();
     const [agentDockTargets, setAgentDockTargets] = React.useState<Record<'creation' | 'generation' | 'preview', HTMLDivElement | null>>({ creation: null, generation: null, preview: null });
     const setAgentDockTarget = React.useCallback((surface: 'creation' | 'generation' | 'preview') => (node: HTMLDivElement | null) => {
         setAgentDockTargets((current) => current[surface] === node ? current : { ...current, [surface]: node });
     }, []);
-    const agentDockRefs = React.useMemo(() => ({
+    const agentDockRefs = React.useMemo(() => agentHostEnabled ? {
         creation: setAgentDockTarget('creation'),
         generation: setAgentDockTarget('generation'),
         preview: setAgentDockTarget('preview'),
-    }), [setAgentDockTarget]);
+    } : { creation: undefined, generation: undefined, preview: undefined }, [agentHostEnabled, setAgentDockTarget]);
     const agentSurface = workspaceMode === 'generation' ? 'generation' : workspaceMode === 'preview' ? 'preview' : 'creation';
-    const agentDock = agentDockTargets[agentSurface];
+    const agentDock = agentHostEnabled ? agentDockTargets[agentSurface] : null;
     const [mountedWorkspaceModes, setMountedWorkspaceModes] = React.useState<
         WorkspaceMode[]
     >(() => [workspaceMode]);

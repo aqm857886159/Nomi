@@ -161,7 +161,7 @@ export function discoverSkillRecordsFromRoots(
     } catch (error) {
       diagnostics.push({
         type: "warning",
-        message: `无法读取 Skill 根目录：${(error as Error).message}`,
+        message: `Could not read Skill root: ${(error as Error).message}`,
         path: root.path,
       });
       continue;
@@ -177,7 +177,7 @@ export function discoverSkillRecordsFromRoots(
       } catch (error) {
         diagnostics.push({
           type: "warning",
-          message: `Skill 包无法读取，已跳过：${(error as Error).message}`,
+          message: `Skill package could not be read, skipped: ${(error as Error).message}`,
           path: skillDir,
         });
         continue;

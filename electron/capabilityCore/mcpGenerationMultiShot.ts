@@ -18,6 +18,7 @@ import {
   isLongFormGenerationRequest,
   requestedVideoDurationSeconds,
 } from "./semanticGenerationCandidate";
+import type { ShotPrice } from "../productionRun/shotPricing";
 
 /**
  * P4 S6.5 生产入口: a draft shot the multi-shot `create` entrance persists (candidate/role/included;
@@ -47,8 +48,10 @@ export type SealedMultiShotEntry = Readonly<{
 export type GenerationSealMultiShot = Readonly<{
   shots: ReadonlyArray<SealedMultiShotEntry>;
   planHash: string;
-  // Shape matches the reducer's shotPricesFrom: [{ shotId, price: { known, amount? } }].
-  shotPrices?: ReadonlyArray<{ shotId: string; price: { known: boolean; amount?: number } }>;
+  // Shape matches the reducer's shotPricesFrom: [{ shotId, price: ShotPrice }].
+  // ShotPrice is the canonical honest-unknown union (never a fabricated 0), shared with the
+  // paid-gate precheck so assertKnownShotPrice can narrow it at the seal boundary.
+  shotPrices?: ReadonlyArray<{ shotId: string; price: ShotPrice }>;
 }>;
 
 /**
@@ -179,7 +182,7 @@ export type MultiShotHelperDeps = {
   parsers: MultiShotCandidateParsers;
   normalizeVideoCandidate: (candidate: PlanCandidate) => PlanCandidate;
   videoParameterSchema: (candidate: PlanCandidate) => Record<string, ParameterField> | undefined;
-  priceForCandidate: (candidate: PlanCandidate) => { known: boolean; amount?: number };
+  priceForCandidate: (candidate: PlanCandidate) => ShotPrice;
   effectiveVideoModes: (candidate: VideoModelCandidate) => Array<{ id?: string; transportTaskKind?: string }>;
   /**
    * Saved Workbench model preferences projected into the semantic planner.
