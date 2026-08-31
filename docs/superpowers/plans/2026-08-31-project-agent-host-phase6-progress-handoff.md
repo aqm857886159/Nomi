@@ -43,6 +43,7 @@
 | 提交前 HEAD | `0f8657826660e3bcd1ac015bd753c2ed37e619fd` |
 | Phase 5 checkpoint | `63c825ce7aecbe1a6ca07446733c84d789090290` |
 | 远端 head（提交前） | `0f8657826660e3bcd1ac015bd753c2ed37e619fd` |
+| 已推送 checkpoint（本次代码提交） | `9ad5974efc71d79663a857fd0940de11e4eab189` |
 
 提交完成后，以 `git rev-parse HEAD`、`git ls-remote` 和 `gh pr view 223` 的现场结果为准；不要把上表的提交前 SHA 当作最终 checkpoint SHA。
 
@@ -64,7 +65,7 @@ gh pr view 223 --repo aqm857886159/Nomi \
 
 ## 3. 本 checkpoint 保存的实现范围
 
-当前工作树是在既有 Phase 1–5 checkpoint 和已提交的 Phase 6 早期提交之上累积的增量。提交前工作树约为 157 个已修改/新增文件、约 9,875 行新增和 2,485 行删除；这不是一个已经拆分、审查并可直接合并的最终 diff。下面按能力边界记录其内容。
+当前工作树是在既有 Phase 1–5 checkpoint 和已提交的 Phase 6 早期提交之上累积的增量。提交前 `git diff --stat` 对已跟踪文件显示约 157 个文件、9,883 行新增和 2,487 行删除；把未跟踪的新增实现/测试纳入提交后，本次 checkpoint 实际为 246 个文件、20,340 行新增和 2,488 行删除。这不是一个已经拆分、审查并可直接合并的最终 diff。下面按能力边界记录其内容。
 
 ### 3.1 Capability / Host / transport
 
