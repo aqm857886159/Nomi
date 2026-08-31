@@ -1,6 +1,6 @@
 {
   "label": "pr216-acceptance",
-  "commit": "7786f89d24ab6b383952d2bf39c9374e81c4c592",
+  "commit": "1f2ea98e02c7ef55f73bd77f7be8ee7f5b9b4959",
   "dirty": true,
   "platform": "darwin",
   "arch": "arm64",
@@ -56,10 +56,10 @@
         ]
       },
       "cold": {
-        "firstCanvasMs": 13718,
-        "mediaSettledMs": 1836,
+        "firstCanvasMs": 13779,
+        "mediaSettledMs": 1793,
         "settled": {
-          "domNodes": 1174,
+          "domNodes": 1222,
           "canvasNodes": 12,
           "lightweightCanvasNodes": 0,
           "lightweightPreviewNodes": 0,
@@ -73,7 +73,7 @@
           "visibleMediaFailures": 0,
           "activeVideos": 0,
           "resourceCount": 0,
-          "jsHeapUsedMB": 37.8,
+          "jsHeapUsedMB": 48.1,
           "transform": {
             "x": 0,
             "y": 0,
@@ -82,7 +82,7 @@
         }
       },
       "beforePage": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -96,7 +96,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 37.8,
+        "jsHeapUsedMB": 48.1,
         "transform": {
           "x": 0,
           "y": 0,
@@ -104,33 +104,33 @@
         }
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 311.3,
-        "gpuWorkingSetMB": 131.2,
+        "rendererWorkingSetMB": 873.8,
+        "gpuWorkingSetMB": 131.9,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 2525,
-            "workingSetMB": 260.5
+            "pid": 54371,
+            "workingSetMB": 276.4
           },
           {
             "type": "GPU",
-            "pid": 2528,
-            "workingSetMB": 131.2
+            "pid": 54374,
+            "workingSetMB": 131.9
           },
           {
             "type": "Utility",
-            "pid": 2529,
-            "workingSetMB": 57.8
+            "pid": 54375,
+            "workingSetMB": 56.1
           },
           {
             "type": "Tab",
-            "pid": 2530,
-            "workingSetMB": 311.3
+            "pid": 54376,
+            "workingSetMB": 873.8
           },
           {
             "type": "Utility",
-            "pid": 2531,
+            "pid": 54377,
             "workingSetMB": 45.3
           }
         ]
@@ -144,7 +144,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 18054
+      "elapsedMs": 17405
     },
     {
       "scale": "M",
@@ -167,19 +167,19 @@
         ]
       },
       "probe": {
-        "elapsedMs": 1813,
-        "frames": 218,
-        "fps": 120.2,
+        "elapsedMs": 1777,
+        "frames": 214,
+        "fps": 120.4,
         "frameGapP50Ms": 8.4,
-        "frameGapP95Ms": 11,
-        "maxFrameGapMs": 13.1,
+        "frameGapP95Ms": 11.4,
+        "maxFrameGapMs": 14.7,
         "longTasks": 0,
         "longTaskMs": 0,
         "longTaskP95Ms": null,
         "maxLoadingImages": 0,
         "maxLoadingVideos": 0,
         "maxActiveVideos": 0,
-        "firstMutationMs": 29.4,
+        "firstMutationMs": 17.3,
         "mutations": {
           "stage": 2,
           "edges": 21,
@@ -189,38 +189,38 @@
       "cdpBefore": {
         "LayoutCount": 0,
         "RecalcStyleCount": 0,
-        "ScriptDurationMs": 1.3,
+        "ScriptDurationMs": 1,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 5.7,
-        "JSHeapUsedMB": 27.1,
-        "domNodes": 2479,
-        "domDocuments": 7,
-        "jsEventListeners": 1373
+        "TaskDurationMs": 2.6,
+        "JSHeapUsedMB": 29.1,
+        "domNodes": 2828,
+        "domDocuments": 13,
+        "jsEventListeners": 1510
       },
       "cdpAfter": {
         "LayoutCount": 3,
-        "RecalcStyleCount": 84,
-        "ScriptDurationMs": 98.9,
+        "RecalcStyleCount": 83,
+        "ScriptDurationMs": 142.9,
         "LayoutDurationMs": 0.8,
-        "TaskDurationMs": 253.4,
-        "JSHeapUsedMB": 31.2,
-        "domNodes": 2676,
+        "TaskDurationMs": 311,
+        "JSHeapUsedMB": 21.2,
+        "domNodes": 2565,
         "domDocuments": 7,
-        "jsEventListeners": 1653
+        "jsEventListeners": 1332
       },
       "cdpDelta": {
         "LayoutCount": 3,
-        "RecalcStyleCount": 84,
-        "ScriptDurationMs": 97.6,
+        "RecalcStyleCount": 83,
+        "ScriptDurationMs": 141.9,
         "LayoutDurationMs": 0.8,
-        "TaskDurationMs": 247.7,
-        "JSHeapUsedMB": 4.1,
-        "domNodes": 197,
-        "domDocuments": 0,
-        "jsEventListeners": 280
+        "TaskDurationMs": 308.4,
+        "JSHeapUsedMB": -7.9,
+        "domNodes": -263,
+        "domDocuments": -6,
+        "jsEventListeners": -178
       },
       "beforePage": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -234,7 +234,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 33.5,
+        "jsHeapUsedMB": 35.6,
         "transform": {
           "x": 0,
           "y": 0,
@@ -242,7 +242,7 @@
         }
       },
       "page": {
-        "domNodes": 1341,
+        "domNodes": 1401,
         "canvasNodes": 15,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -256,7 +256,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 33.5,
+        "jsHeapUsedMB": 35.6,
         "transform": {
           "x": -260,
           "y": -140,
@@ -274,34 +274,34 @@
         "targetIdentityPreserved": null
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 308,
-        "gpuWorkingSetMB": 124.9,
+        "rendererWorkingSetMB": 886.1,
+        "gpuWorkingSetMB": 138.7,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 2593,
-            "workingSetMB": 255.3
+            "pid": 54445,
+            "workingSetMB": 279.5
           },
           {
             "type": "GPU",
-            "pid": 2596,
-            "workingSetMB": 124.9
+            "pid": 54448,
+            "workingSetMB": 138.7
           },
           {
             "type": "Utility",
-            "pid": 2598,
-            "workingSetMB": 53.8
+            "pid": 54449,
+            "workingSetMB": 55.7
           },
           {
             "type": "Tab",
-            "pid": 2599,
-            "workingSetMB": 308
+            "pid": 54460,
+            "workingSetMB": 886.1
           },
           {
             "type": "Utility",
-            "pid": 2600,
-            "workingSetMB": 42.3
+            "pid": 54461,
+            "workingSetMB": 45.4
           }
         ]
       },
@@ -314,7 +314,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 20558
+      "elapsedMs": 19734
     },
     {
       "scale": "M",
@@ -337,19 +337,19 @@
         ]
       },
       "probe": {
-        "elapsedMs": 2386,
-        "frames": 282,
-        "fps": 118.2,
-        "frameGapP50Ms": 8,
-        "frameGapP95Ms": 16.6,
-        "maxFrameGapMs": 35.8,
+        "elapsedMs": 2331,
+        "frames": 280,
+        "fps": 120.1,
+        "frameGapP50Ms": 8.1,
+        "frameGapP95Ms": 15.8,
+        "maxFrameGapMs": 17,
         "longTasks": 0,
         "longTaskMs": 0,
         "longTaskP95Ms": null,
         "maxLoadingImages": 0,
         "maxLoadingVideos": 0,
         "maxActiveVideos": 0,
-        "firstMutationMs": 29.1,
+        "firstMutationMs": 32.1,
         "mutations": {
           "stage": 2,
           "edges": 602,
@@ -361,36 +361,36 @@
         "RecalcStyleCount": 0,
         "ScriptDurationMs": 0.9,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 4.5,
-        "JSHeapUsedMB": 31.2,
-        "domNodes": 2519,
-        "domDocuments": 7,
-        "jsEventListeners": 1395
+        "TaskDurationMs": 2.4,
+        "JSHeapUsedMB": 29.1,
+        "domNodes": 2828,
+        "domDocuments": 13,
+        "jsEventListeners": 1510
       },
       "cdpAfter": {
-        "LayoutCount": 122,
-        "RecalcStyleCount": 464,
-        "ScriptDurationMs": 466.5,
-        "LayoutDurationMs": 19.4,
-        "TaskDurationMs": 865.6,
-        "JSHeapUsedMB": 72.5,
-        "domNodes": 4785,
+        "LayoutCount": 145,
+        "RecalcStyleCount": 457,
+        "ScriptDurationMs": 441.2,
+        "LayoutDurationMs": 17.1,
+        "TaskDurationMs": 865.9,
+        "JSHeapUsedMB": 24.5,
+        "domNodes": 2479,
         "domDocuments": 7,
-        "jsEventListeners": 6417
+        "jsEventListeners": 1745
       },
       "cdpDelta": {
-        "LayoutCount": 122,
-        "RecalcStyleCount": 464,
-        "ScriptDurationMs": 465.6,
-        "LayoutDurationMs": 19.4,
-        "TaskDurationMs": 861.1,
-        "JSHeapUsedMB": 41.3,
-        "domNodes": 2266,
-        "domDocuments": 0,
-        "jsEventListeners": 5022
+        "LayoutCount": 145,
+        "RecalcStyleCount": 457,
+        "ScriptDurationMs": 440.3,
+        "LayoutDurationMs": 17.1,
+        "TaskDurationMs": 863.5,
+        "JSHeapUsedMB": -4.6,
+        "domNodes": -349,
+        "domDocuments": -6,
+        "jsEventListeners": 235
       },
       "beforePage": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -404,7 +404,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 31.6,
+        "jsHeapUsedMB": 35.6,
         "transform": {
           "x": 0,
           "y": 0,
@@ -412,7 +412,7 @@
         }
       },
       "page": {
-        "domNodes": 1364,
+        "domNodes": 1417,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -426,7 +426,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 31.6,
+        "jsHeapUsedMB": 35.6,
         "transform": {
           "x": 0,
           "y": 0,
@@ -446,34 +446,34 @@
         "targetIdentityPreserved": true
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 398.3,
-        "gpuWorkingSetMB": 119.7,
+        "rendererWorkingSetMB": 965.6,
+        "gpuWorkingSetMB": 142.7,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 2693,
-            "workingSetMB": 224
+            "pid": 54569,
+            "workingSetMB": 286.9
           },
           {
             "type": "GPU",
-            "pid": 2696,
-            "workingSetMB": 119.7
+            "pid": 54572,
+            "workingSetMB": 142.7
           },
           {
             "type": "Utility",
-            "pid": 2697,
-            "workingSetMB": 49.8
+            "pid": 54573,
+            "workingSetMB": 55.4
           },
           {
             "type": "Tab",
-            "pid": 2699,
-            "workingSetMB": 398.3
+            "pid": 54574,
+            "workingSetMB": 965.6
           },
           {
             "type": "Utility",
-            "pid": 2700,
-            "workingSetMB": 38.1
+            "pid": 54575,
+            "workingSetMB": 45.3
           }
         ]
       },
@@ -486,7 +486,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 21064
+      "elapsedMs": 20365
     },
     {
       "scale": "M",
@@ -509,60 +509,60 @@
         ]
       },
       "probe": {
-        "elapsedMs": 2561,
-        "frames": 301,
-        "fps": 117.5,
+        "elapsedMs": 2632,
+        "frames": 311,
+        "fps": 118.2,
         "frameGapP50Ms": 7.9,
-        "frameGapP95Ms": 18,
-        "maxFrameGapMs": 39.7,
+        "frameGapP95Ms": 18.6,
+        "maxFrameGapMs": 29.1,
         "longTasks": 0,
         "longTaskMs": 0,
         "longTaskP95Ms": null,
         "maxLoadingImages": 0,
         "maxLoadingVideos": 0,
         "maxActiveVideos": 1,
-        "firstMutationMs": 27.9,
+        "firstMutationMs": 40.7,
         "mutations": {
           "stage": 2,
-          "edges": 721,
+          "edges": 733,
           "labels": 0
         }
       },
       "cdpBefore": {
         "LayoutCount": 0,
         "RecalcStyleCount": 0,
-        "ScriptDurationMs": 0.4,
+        "ScriptDurationMs": 0.8,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 1.2,
-        "JSHeapUsedMB": 27.3,
-        "domNodes": 2479,
-        "domDocuments": 7,
-        "jsEventListeners": 1373
+        "TaskDurationMs": 2.9,
+        "JSHeapUsedMB": 29.1,
+        "domNodes": 2828,
+        "domDocuments": 13,
+        "jsEventListeners": 1510
       },
       "cdpAfter": {
-        "LayoutCount": 211,
-        "RecalcStyleCount": 392,
-        "ScriptDurationMs": 589.3,
-        "LayoutDurationMs": 22,
-        "TaskDurationMs": 996.1,
-        "JSHeapUsedMB": 64.8,
-        "domNodes": 5318,
-        "domDocuments": 11,
-        "jsEventListeners": 8838
+        "LayoutCount": 214,
+        "RecalcStyleCount": 488,
+        "ScriptDurationMs": 639.2,
+        "LayoutDurationMs": 24.2,
+        "TaskDurationMs": 1198.6,
+        "JSHeapUsedMB": 27.9,
+        "domNodes": 2728,
+        "domDocuments": 9,
+        "jsEventListeners": 2112
       },
       "cdpDelta": {
-        "LayoutCount": 211,
-        "RecalcStyleCount": 392,
-        "ScriptDurationMs": 588.9,
-        "LayoutDurationMs": 22,
-        "TaskDurationMs": 994.9,
-        "JSHeapUsedMB": 37.5,
-        "domNodes": 2839,
-        "domDocuments": 4,
-        "jsEventListeners": 7465
+        "LayoutCount": 214,
+        "RecalcStyleCount": 488,
+        "ScriptDurationMs": 638.4,
+        "LayoutDurationMs": 24.2,
+        "TaskDurationMs": 1195.7,
+        "JSHeapUsedMB": -1.2,
+        "domNodes": -100,
+        "domDocuments": -4,
+        "jsEventListeners": 602
       },
       "beforePage": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -576,7 +576,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 28,
+        "jsHeapUsedMB": 35.6,
         "transform": {
           "x": 0,
           "y": 0,
@@ -584,7 +584,7 @@
         }
       },
       "page": {
-        "domNodes": 1408,
+        "domNodes": 1462,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -598,7 +598,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 1,
         "resourceCount": 0,
-        "jsHeapUsedMB": 28,
+        "jsHeapUsedMB": 35.6,
         "transform": {
           "x": 0,
           "y": 0,
@@ -618,34 +618,34 @@
         "targetIdentityPreserved": true
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 465.8,
-        "gpuWorkingSetMB": 139.5,
+        "rendererWorkingSetMB": 976.6,
+        "gpuWorkingSetMB": 138,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 2989,
-            "workingSetMB": 279.7
+            "pid": 54665,
+            "workingSetMB": 287.9
           },
           {
             "type": "GPU",
-            "pid": 2992,
-            "workingSetMB": 139.5
+            "pid": 54668,
+            "workingSetMB": 138
           },
           {
             "type": "Utility",
-            "pid": 2993,
-            "workingSetMB": 58.5
+            "pid": 54669,
+            "workingSetMB": 55.8
           },
           {
             "type": "Tab",
-            "pid": 2994,
-            "workingSetMB": 465.8
+            "pid": 54671,
+            "workingSetMB": 976.6
           },
           {
             "type": "Utility",
-            "pid": 2996,
-            "workingSetMB": 45.2
+            "pid": 54672,
+            "workingSetMB": 45.3
           }
         ]
       },
@@ -658,7 +658,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 34718
+      "elapsedMs": 20705
     },
     {
       "scale": "M",
@@ -681,60 +681,60 @@
         ]
       },
       "probe": {
-        "elapsedMs": 1811,
-        "frames": 215,
-        "fps": 118.7,
+        "elapsedMs": 1630,
+        "frames": 195,
+        "fps": 119.7,
         "frameGapP50Ms": 8.3,
-        "frameGapP95Ms": 10.8,
-        "maxFrameGapMs": 31.2,
+        "frameGapP95Ms": 12.3,
+        "maxFrameGapMs": 23.8,
         "longTasks": 0,
         "longTaskMs": 0,
         "longTaskP95Ms": null,
         "maxLoadingImages": 0,
         "maxLoadingVideos": 0,
         "maxActiveVideos": 1,
-        "firstMutationMs": 69.6,
+        "firstMutationMs": 71.5,
         "mutations": {
           "stage": 8,
-          "edges": 174,
+          "edges": 296,
           "labels": 0
         }
       },
       "cdpBefore": {
-        "LayoutCount": 20,
-        "RecalcStyleCount": 65,
-        "ScriptDurationMs": 101.3,
-        "LayoutDurationMs": 4.5,
-        "TaskDurationMs": 221.7,
-        "JSHeapUsedMB": 41.8,
-        "domNodes": 3469,
+        "LayoutCount": 16,
+        "RecalcStyleCount": 54,
+        "ScriptDurationMs": 85.6,
+        "LayoutDurationMs": 3,
+        "TaskDurationMs": 156.4,
+        "JSHeapUsedMB": 34.2,
+        "domNodes": 3555,
         "domDocuments": 11,
-        "jsEventListeners": 1709
+        "jsEventListeners": 1673
       },
       "cdpAfter": {
-        "LayoutCount": 122,
-        "RecalcStyleCount": 208,
-        "ScriptDurationMs": 297.1,
-        "LayoutDurationMs": 15,
-        "TaskDurationMs": 688.4,
-        "JSHeapUsedMB": 22.8,
-        "domNodes": 3318,
+        "LayoutCount": 135,
+        "RecalcStyleCount": 240,
+        "ScriptDurationMs": 315.3,
+        "LayoutDurationMs": 14.1,
+        "TaskDurationMs": 679.7,
+        "JSHeapUsedMB": 29.9,
+        "domNodes": 4216,
         "domDocuments": 9,
-        "jsEventListeners": 2168
+        "jsEventListeners": 2278
       },
       "cdpDelta": {
-        "LayoutCount": 102,
-        "RecalcStyleCount": 143,
-        "ScriptDurationMs": 195.8,
-        "LayoutDurationMs": 10.5,
-        "TaskDurationMs": 466.7,
-        "JSHeapUsedMB": -19,
-        "domNodes": -151,
+        "LayoutCount": 119,
+        "RecalcStyleCount": 186,
+        "ScriptDurationMs": 229.7,
+        "LayoutDurationMs": 11.1,
+        "TaskDurationMs": 523.3,
+        "JSHeapUsedMB": -4.3,
+        "domNodes": 661,
         "domDocuments": -2,
-        "jsEventListeners": 459
+        "jsEventListeners": 605
       },
       "beforePage": {
-        "domNodes": 1594,
+        "domNodes": 1674,
         "canvasNodes": 20,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -748,32 +748,32 @@
         "visibleMediaFailures": 0,
         "activeVideos": 1,
         "resourceCount": 0,
-        "jsHeapUsedMB": 37.8,
+        "jsHeapUsedMB": 42.6,
         "transform": {
           "x": 261.989,
-          "y": 134.397,
+          "y": 134.057,
           "zoom": 0.659754
         }
       },
       "page": {
-        "domNodes": 1706,
-        "canvasNodes": 20,
+        "domNodes": 1967,
+        "canvasNodes": 24,
         "lightweightCanvasNodes": 15,
         "lightweightPreviewNodes": 15,
         "imageElements": 12,
-        "videoElements": 8,
-        "visibleMedia": 20,
+        "videoElements": 12,
+        "visibleMedia": 24,
         "loadedImages": 12,
-        "loadedVideos": 8,
-        "visibleMediaNodes": 20,
+        "loadedVideos": 12,
+        "visibleMediaNodes": 24,
         "visibleMediaPending": 0,
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 37.8,
+        "jsHeapUsedMB": 42.6,
         "transform": {
-          "x": 222.314,
-          "y": 80.2472,
+          "x": 197.839,
+          "y": 52.6194,
           "zoom": 0.659754
         }
       },
@@ -781,14 +781,14 @@
         "selected": 15,
         "bounds": {
           "left": 374.769775390625,
-          "top": 243.17750549316406,
+          "top": 242.83726501464844,
           "right": 1615.107177734375,
-          "bottom": 955.7117919921875
+          "bottom": 955.37158203125
         }
       },
       "nodeIdentity": {
         "before": 20,
-        "after": 20,
+        "after": 24,
         "common": 20,
         "preserved": 20,
         "commonIdentityPreserved": true,
@@ -796,34 +796,34 @@
         "targetIdentityPreserved": null
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 387.6,
-        "gpuWorkingSetMB": 155.8,
+        "rendererWorkingSetMB": 889.4,
+        "gpuWorkingSetMB": 154,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 3572,
-            "workingSetMB": 269.7
+            "pid": 54795,
+            "workingSetMB": 273.1
           },
           {
             "type": "GPU",
-            "pid": 3575,
-            "workingSetMB": 155.8
+            "pid": 54798,
+            "workingSetMB": 154
           },
           {
             "type": "Utility",
-            "pid": 3576,
-            "workingSetMB": 56.7
+            "pid": 54799,
+            "workingSetMB": 52.3
           },
           {
             "type": "Tab",
-            "pid": 3577,
-            "workingSetMB": 387.6
+            "pid": 54800,
+            "workingSetMB": 889.4
           },
           {
             "type": "Utility",
-            "pid": 3639,
-            "workingSetMB": 41.4
+            "pid": 54801,
+            "workingSetMB": 40.3
           }
         ]
       },
@@ -836,7 +836,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 22657
+      "elapsedMs": 21158
     },
     {
       "scale": "M",
@@ -859,19 +859,19 @@
         ]
       },
       "probe": {
-        "elapsedMs": 961,
-        "frames": 113,
-        "fps": 117.6,
+        "elapsedMs": 924,
+        "frames": 111,
+        "fps": 120.1,
         "frameGapP50Ms": 8.3,
-        "frameGapP95Ms": 12.1,
-        "maxFrameGapMs": 30.1,
+        "frameGapP95Ms": 10.8,
+        "maxFrameGapMs": 28.3,
         "longTasks": 0,
         "longTaskMs": 0,
         "longTaskP95Ms": null,
         "maxLoadingImages": 0,
         "maxLoadingVideos": 0,
         "maxActiveVideos": 0,
-        "firstMutationMs": 26.7,
+        "firstMutationMs": 12.5,
         "mutations": {
           "stage": 0,
           "edges": 241,
@@ -881,38 +881,38 @@
       "cdpBefore": {
         "LayoutCount": 0,
         "RecalcStyleCount": 0,
-        "ScriptDurationMs": 1,
+        "ScriptDurationMs": 0.4,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 4.3,
-        "JSHeapUsedMB": 31.2,
-        "domNodes": 4723,
+        "TaskDurationMs": 1,
+        "JSHeapUsedMB": 32.6,
+        "domNodes": 2520,
         "domDocuments": 7,
-        "jsEventListeners": 1941
+        "jsEventListeners": 1347
       },
       "cdpAfter": {
-        "LayoutCount": 40,
-        "RecalcStyleCount": 147,
-        "ScriptDurationMs": 103.2,
-        "LayoutDurationMs": 5.7,
-        "TaskDurationMs": 244.7,
-        "JSHeapUsedMB": 47.4,
-        "domNodes": 6839,
+        "LayoutCount": 39,
+        "RecalcStyleCount": 111,
+        "ScriptDurationMs": 92.6,
+        "LayoutDurationMs": 4.7,
+        "TaskDurationMs": 200.9,
+        "JSHeapUsedMB": 27.9,
+        "domNodes": 4633,
         "domDocuments": 7,
-        "jsEventListeners": 3520
+        "jsEventListeners": 2925
       },
       "cdpDelta": {
-        "LayoutCount": 40,
-        "RecalcStyleCount": 147,
-        "ScriptDurationMs": 102.2,
-        "LayoutDurationMs": 5.7,
-        "TaskDurationMs": 240.4,
-        "JSHeapUsedMB": 16.2,
-        "domNodes": 2116,
+        "LayoutCount": 39,
+        "RecalcStyleCount": 111,
+        "ScriptDurationMs": 92.2,
+        "LayoutDurationMs": 4.7,
+        "TaskDurationMs": 199.9,
+        "JSHeapUsedMB": -4.7,
+        "domNodes": 2113,
         "domDocuments": 0,
-        "jsEventListeners": 1579
+        "jsEventListeners": 1578
       },
       "beforePage": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -926,7 +926,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 37.8,
+        "jsHeapUsedMB": 33.5,
         "transform": {
           "x": 0,
           "y": 0,
@@ -934,7 +934,7 @@
         }
       },
       "page": {
-        "domNodes": 1084,
+        "domNodes": 1132,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 12,
         "lightweightPreviewNodes": 12,
@@ -948,7 +948,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 37.8,
+        "jsHeapUsedMB": 33.5,
         "transform": {
           "x": 0,
           "y": 0,
@@ -965,7 +965,7 @@
         },
         "blank": {
           "x": 1477,
-          "y": 720
+          "y": 718
         },
         "blankHit": {
           "tag": "DIV",
@@ -1007,10 +1007,10 @@
             "x": 60,
             "y": 56,
             "width": 1540,
-            "height": 790,
+            "height": 788,
             "top": 56,
             "right": 1600,
-            "bottom": 846,
+            "bottom": 844,
             "left": 60
           },
           "mediaRects": [
@@ -1311,34 +1311,34 @@
         "targetIdentityPreserved": null
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 403,
-        "gpuWorkingSetMB": 152.1,
+        "rendererWorkingSetMB": 923.4,
+        "gpuWorkingSetMB": 154.3,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 3836,
-            "workingSetMB": 267.2
+            "pid": 54953,
+            "workingSetMB": 281.8
           },
           {
             "type": "GPU",
-            "pid": 3839,
-            "workingSetMB": 152.1
+            "pid": 54957,
+            "workingSetMB": 154.3
           },
           {
             "type": "Utility",
-            "pid": 3840,
-            "workingSetMB": 53.9
+            "pid": 54958,
+            "workingSetMB": 56
           },
           {
             "type": "Tab",
-            "pid": 3841,
-            "workingSetMB": 403
+            "pid": 54959,
+            "workingSetMB": 923.4
           },
           {
             "type": "Utility",
-            "pid": 3842,
-            "workingSetMB": 45.3
+            "pid": 54960,
+            "workingSetMB": 45.2
           }
         ]
       },
@@ -1351,7 +1351,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 19710
+      "elapsedMs": 18851
     },
     {
       "scale": "M",
@@ -1374,12 +1374,12 @@
         ]
       },
       "probe": {
-        "elapsedMs": 2270,
-        "frames": 273,
-        "fps": 120.3,
+        "elapsedMs": 2271,
+        "frames": 272,
+        "fps": 119.8,
         "frameGapP50Ms": 8.3,
-        "frameGapP95Ms": 11.5,
-        "maxFrameGapMs": 13.2,
+        "frameGapP95Ms": 12.5,
+        "maxFrameGapMs": 13.6,
         "longTasks": 0,
         "longTaskMs": 0,
         "longTaskP95Ms": null,
@@ -1396,38 +1396,38 @@
       "cdpBefore": {
         "LayoutCount": 0,
         "RecalcStyleCount": 0,
-        "ScriptDurationMs": 1.2,
+        "ScriptDurationMs": 1.1,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 4.4,
-        "JSHeapUsedMB": 31.8,
-        "domNodes": 2656,
+        "TaskDurationMs": 2.7,
+        "JSHeapUsedMB": 41.1,
+        "domNodes": 2605,
         "domDocuments": 7,
-        "jsEventListeners": 1468
+        "jsEventListeners": 1391
       },
       "cdpAfter": {
         "LayoutCount": 0,
         "RecalcStyleCount": 77,
-        "ScriptDurationMs": 106.9,
+        "ScriptDurationMs": 197.6,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 252.2,
-        "JSHeapUsedMB": 35.3,
-        "domNodes": 2656,
+        "TaskDurationMs": 385.3,
+        "JSHeapUsedMB": 33.3,
+        "domNodes": 2605,
         "domDocuments": 7,
-        "jsEventListeners": 1484
+        "jsEventListeners": 1407
       },
       "cdpDelta": {
         "LayoutCount": 0,
         "RecalcStyleCount": 77,
-        "ScriptDurationMs": 105.7,
+        "ScriptDurationMs": 196.5,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 247.8,
-        "JSHeapUsedMB": 3.5,
+        "TaskDurationMs": 382.6,
+        "JSHeapUsedMB": -7.8,
         "domNodes": 0,
         "domDocuments": 0,
         "jsEventListeners": 16
       },
       "beforePage": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -1441,7 +1441,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 37.8,
+        "jsHeapUsedMB": 48.1,
         "transform": {
           "x": 0,
           "y": 0,
@@ -1449,7 +1449,7 @@
         }
       },
       "page": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -1463,7 +1463,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 37.8,
+        "jsHeapUsedMB": 48.1,
         "transform": {
           "x": 0,
           "y": 0,
@@ -1493,34 +1493,34 @@
         "targetIdentityPreserved": null
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 337.5,
-        "gpuWorkingSetMB": 120,
+        "rendererWorkingSetMB": 896.9,
+        "gpuWorkingSetMB": 133.4,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 3995,
-            "workingSetMB": 252.2
+            "pid": 57354,
+            "workingSetMB": 276.1
           },
           {
             "type": "GPU",
-            "pid": 3998,
-            "workingSetMB": 120
+            "pid": 57357,
+            "workingSetMB": 133.4
           },
           {
             "type": "Utility",
-            "pid": 3999,
-            "workingSetMB": 52.5
+            "pid": 57358,
+            "workingSetMB": 56.3
           },
           {
             "type": "Tab",
-            "pid": 4000,
-            "workingSetMB": 337.5
+            "pid": 57359,
+            "workingSetMB": 896.9
           },
           {
             "type": "Utility",
-            "pid": 4001,
-            "workingSetMB": 40.3
+            "pid": 57360,
+            "workingSetMB": 45.3
           }
         ]
       },
@@ -1533,7 +1533,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 21119
+      "elapsedMs": 20233
     },
     {
       "scale": "M",
@@ -1556,11 +1556,11 @@
         ]
       },
       "probe": {
-        "elapsedMs": 1301,
-        "frames": 157,
-        "fps": 120.7,
+        "elapsedMs": 1295,
+        "frames": 156,
+        "fps": 120.4,
         "frameGapP50Ms": 8.4,
-        "frameGapP95Ms": 10.9,
+        "frameGapP95Ms": 11.4,
         "maxFrameGapMs": 12,
         "longTasks": 0,
         "longTaskMs": 0,
@@ -1568,7 +1568,7 @@
         "maxLoadingImages": 0,
         "maxLoadingVideos": 0,
         "maxActiveVideos": 0,
-        "firstMutationMs": 32.5,
+        "firstMutationMs": 26.9,
         "mutations": {
           "stage": 2,
           "edges": 1,
@@ -1578,38 +1578,38 @@
       "cdpBefore": {
         "LayoutCount": 0,
         "RecalcStyleCount": 0,
-        "ScriptDurationMs": 1.2,
+        "ScriptDurationMs": 1.3,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 4.4,
-        "JSHeapUsedMB": 38.8,
-        "domNodes": 6594,
-        "domDocuments": 13,
-        "jsEventListeners": 3452
+        "TaskDurationMs": 2.8,
+        "JSHeapUsedMB": 32.4,
+        "domNodes": 2521,
+        "domDocuments": 7,
+        "jsEventListeners": 1347
       },
       "cdpAfter": {
         "LayoutCount": 2,
         "RecalcStyleCount": 54,
-        "ScriptDurationMs": 64.9,
-        "LayoutDurationMs": 0.2,
-        "TaskDurationMs": 177.9,
-        "JSHeapUsedMB": 25.5,
-        "domNodes": 2365,
+        "ScriptDurationMs": 90.2,
+        "LayoutDurationMs": 0.3,
+        "TaskDurationMs": 192.1,
+        "JSHeapUsedMB": 32.7,
+        "domNodes": 2521,
         "domDocuments": 7,
-        "jsEventListeners": 1384
+        "jsEventListeners": 1493
       },
       "cdpDelta": {
         "LayoutCount": 2,
         "RecalcStyleCount": 54,
-        "ScriptDurationMs": 63.7,
-        "LayoutDurationMs": 0.2,
-        "TaskDurationMs": 173.5,
-        "JSHeapUsedMB": -13.3,
-        "domNodes": -4229,
-        "domDocuments": -6,
-        "jsEventListeners": -2068
+        "ScriptDurationMs": 88.9,
+        "LayoutDurationMs": 0.3,
+        "TaskDurationMs": 189.3,
+        "JSHeapUsedMB": 0.3,
+        "domNodes": 0,
+        "domDocuments": 0,
+        "jsEventListeners": 146
       },
       "beforePage": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -1623,7 +1623,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 45.2,
+        "jsHeapUsedMB": 37.8,
         "transform": {
           "x": 0,
           "y": 0,
@@ -1631,7 +1631,7 @@
         }
       },
       "page": {
-        "domNodes": 1105,
+        "domNodes": 1141,
         "canvasNodes": 9,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -1645,7 +1645,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 45.2,
+        "jsHeapUsedMB": 37.8,
         "transform": {
           "x": -585.308,
           "y": -296.072,
@@ -1668,34 +1668,34 @@
         "targetIdentityPreserved": null
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 349.1,
-        "gpuWorkingSetMB": 127.4,
+        "rendererWorkingSetMB": 901.2,
+        "gpuWorkingSetMB": 136.3,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 4093,
-            "workingSetMB": 268.1
+            "pid": 57425,
+            "workingSetMB": 279.2
           },
           {
             "type": "GPU",
-            "pid": 4096,
-            "workingSetMB": 127.4
+            "pid": 57428,
+            "workingSetMB": 136.3
           },
           {
             "type": "Utility",
-            "pid": 4097,
-            "workingSetMB": 58
+            "pid": 57429,
+            "workingSetMB": 55.8
           },
           {
             "type": "Tab",
-            "pid": 4098,
-            "workingSetMB": 349.1
+            "pid": 57430,
+            "workingSetMB": 901.2
           },
           {
             "type": "Utility",
-            "pid": 4099,
-            "workingSetMB": 39.3
+            "pid": 57431,
+            "workingSetMB": 45.4
           }
         ]
       },
@@ -1708,7 +1708,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 20018
+      "elapsedMs": 19261
     },
     {
       "scale": "M",
@@ -1731,11 +1731,11 @@
         ]
       },
       "probe": {
-        "elapsedMs": 2526,
-        "frames": 302,
-        "fps": 119.6,
+        "elapsedMs": 2486,
+        "frames": 299,
+        "fps": 120.3,
         "frameGapP50Ms": 8.2,
-        "frameGapP95Ms": 16.4,
+        "frameGapP95Ms": 15.9,
         "maxFrameGapMs": 18.6,
         "longTasks": 0,
         "longTaskMs": 0,
@@ -1743,7 +1743,7 @@
         "maxLoadingImages": 0,
         "maxLoadingVideos": 0,
         "maxActiveVideos": 0,
-        "firstMutationMs": 40.3,
+        "firstMutationMs": 40,
         "mutations": {
           "stage": 0,
           "edges": 612,
@@ -1753,38 +1753,38 @@
       "cdpBefore": {
         "LayoutCount": 0,
         "RecalcStyleCount": 0,
-        "ScriptDurationMs": 1,
+        "ScriptDurationMs": 0.9,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 4.1,
-        "JSHeapUsedMB": 38.6,
-        "domNodes": 6594,
-        "domDocuments": 13,
-        "jsEventListeners": 3452
+        "TaskDurationMs": 2.8,
+        "JSHeapUsedMB": 24.3,
+        "domNodes": 2656,
+        "domDocuments": 7,
+        "jsEventListeners": 1420
       },
       "cdpAfter": {
-        "LayoutCount": 124,
-        "RecalcStyleCount": 286,
-        "ScriptDurationMs": 407,
-        "LayoutDurationMs": 15.6,
-        "TaskDurationMs": 785.8,
-        "JSHeapUsedMB": 24.1,
-        "domNodes": 2478,
+        "LayoutCount": 146,
+        "RecalcStyleCount": 439,
+        "ScriptDurationMs": 429,
+        "LayoutDurationMs": 18,
+        "TaskDurationMs": 916.1,
+        "JSHeapUsedMB": 29.7,
+        "domNodes": 2961,
         "domDocuments": 7,
-        "jsEventListeners": 1794
+        "jsEventListeners": 2656
       },
       "cdpDelta": {
-        "LayoutCount": 124,
-        "RecalcStyleCount": 286,
-        "ScriptDurationMs": 406,
-        "LayoutDurationMs": 15.6,
-        "TaskDurationMs": 781.7,
-        "JSHeapUsedMB": -14.5,
-        "domNodes": -4116,
-        "domDocuments": -6,
-        "jsEventListeners": -1658
+        "LayoutCount": 146,
+        "RecalcStyleCount": 439,
+        "ScriptDurationMs": 428.1,
+        "LayoutDurationMs": 18,
+        "TaskDurationMs": 913.3,
+        "JSHeapUsedMB": 5.4,
+        "domNodes": 305,
+        "domDocuments": 0,
+        "jsEventListeners": 1236
       },
       "beforePage": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -1798,7 +1798,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 51,
+        "jsHeapUsedMB": 29.8,
         "transform": {
           "x": 0,
           "y": 0,
@@ -1806,7 +1806,7 @@
         }
       },
       "page": {
-        "domNodes": 1364,
+        "domNodes": 1417,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -1820,7 +1820,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 51,
+        "jsHeapUsedMB": 29.8,
         "transform": {
           "x": 0,
           "y": 0,
@@ -1840,34 +1840,34 @@
         "targetIdentityPreserved": true
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 425.1,
-        "gpuWorkingSetMB": 132.3,
+        "rendererWorkingSetMB": 990.2,
+        "gpuWorkingSetMB": 140.3,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 4153,
-            "workingSetMB": 271.1
+            "pid": 57474,
+            "workingSetMB": 282.8
           },
           {
             "type": "GPU",
-            "pid": 4156,
-            "workingSetMB": 132.3
+            "pid": 57477,
+            "workingSetMB": 140.3
           },
           {
             "type": "Utility",
-            "pid": 4157,
-            "workingSetMB": 56.3
+            "pid": 57478,
+            "workingSetMB": 55.7
           },
           {
             "type": "Tab",
-            "pid": 4158,
-            "workingSetMB": 425.1
+            "pid": 57479,
+            "workingSetMB": 990.2
           },
           {
             "type": "Utility",
-            "pid": 4159,
-            "workingSetMB": 43.1
+            "pid": 57480,
+            "workingSetMB": 45.4
           }
         ]
       },
@@ -1880,7 +1880,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 21191
+      "elapsedMs": 20519
     },
     {
       "scale": "M",
@@ -1903,60 +1903,60 @@
         ]
       },
       "probe": {
-        "elapsedMs": 5984,
-        "frames": 712,
-        "fps": 119,
-        "frameGapP50Ms": 8.3,
-        "frameGapP95Ms": 10.7,
-        "maxFrameGapMs": 41.1,
+        "elapsedMs": 6895,
+        "frames": 414,
+        "fps": 60,
+        "frameGapP50Ms": 16.7,
+        "frameGapP95Ms": 18.8,
+        "maxFrameGapMs": 40.7,
         "longTasks": 0,
         "longTaskMs": 0,
         "longTaskP95Ms": null,
         "maxLoadingImages": 0,
         "maxLoadingVideos": 0,
         "maxActiveVideos": 0,
-        "firstMutationMs": 28.8,
+        "firstMutationMs": 36.2,
         "mutations": {
           "stage": 10,
-          "edges": 210,
+          "edges": 207,
           "labels": 0
         }
       },
       "cdpBefore": {
         "LayoutCount": 0,
         "RecalcStyleCount": 0,
-        "ScriptDurationMs": 1.3,
+        "ScriptDurationMs": 1.2,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 3.9,
-        "JSHeapUsedMB": 26.1,
-        "domNodes": 4811,
+        "TaskDurationMs": 3.2,
+        "JSHeapUsedMB": 41,
+        "domNodes": 2619,
         "domDocuments": 7,
-        "jsEventListeners": 1985
+        "jsEventListeners": 1391
       },
       "cdpAfter": {
-        "LayoutCount": 46,
-        "RecalcStyleCount": 607,
-        "ScriptDurationMs": 426.1,
-        "LayoutDurationMs": 8.2,
-        "TaskDurationMs": 1159,
-        "JSHeapUsedMB": 57.1,
-        "domNodes": 7009,
+        "LayoutCount": 38,
+        "RecalcStyleCount": 360,
+        "ScriptDurationMs": 409.3,
+        "LayoutDurationMs": 6,
+        "TaskDurationMs": 931,
+        "JSHeapUsedMB": 60,
+        "domNodes": 4817,
         "domDocuments": 7,
-        "jsEventListeners": 3345
+        "jsEventListeners": 2679
       },
       "cdpDelta": {
-        "LayoutCount": 46,
-        "RecalcStyleCount": 607,
-        "ScriptDurationMs": 424.8,
-        "LayoutDurationMs": 8.2,
-        "TaskDurationMs": 1155.1,
-        "JSHeapUsedMB": 31,
+        "LayoutCount": 38,
+        "RecalcStyleCount": 360,
+        "ScriptDurationMs": 408.1,
+        "LayoutDurationMs": 6,
+        "TaskDurationMs": 927.8,
+        "JSHeapUsedMB": 19,
         "domNodes": 2198,
         "domDocuments": 0,
-        "jsEventListeners": 1360
+        "jsEventListeners": 1288
       },
       "beforePage": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -1970,7 +1970,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 40.1,
+        "jsHeapUsedMB": 42.6,
         "transform": {
           "x": 0,
           "y": 0,
@@ -1978,7 +1978,7 @@
         }
       },
       "page": {
-        "domNodes": 1342,
+        "domNodes": 1390,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -1992,7 +1992,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 40.1,
+        "jsHeapUsedMB": 42.6,
         "transform": {
           "x": -400,
           "y": -950,
@@ -2002,7 +2002,7 @@
       "actionDetails": {
         "snapshots": [
           {
-            "domNodes": 1174,
+            "domNodes": 1222,
             "canvasNodes": 12,
             "lightweightCanvasNodes": 0,
             "lightweightPreviewNodes": 0,
@@ -2016,7 +2016,7 @@
             "visibleMediaFailures": 0,
             "activeVideos": 0,
             "resourceCount": 0,
-            "jsHeapUsedMB": 40.1,
+            "jsHeapUsedMB": 42.6,
             "transform": {
               "x": -80,
               "y": -190,
@@ -2024,7 +2024,7 @@
             }
           },
           {
-            "domNodes": 1411,
+            "domNodes": 1471,
             "canvasNodes": 15,
             "lightweightCanvasNodes": 0,
             "lightweightPreviewNodes": 0,
@@ -2038,7 +2038,7 @@
             "visibleMediaFailures": 0,
             "activeVideos": 0,
             "resourceCount": 0,
-            "jsHeapUsedMB": 40.1,
+            "jsHeapUsedMB": 42.6,
             "transform": {
               "x": -160,
               "y": -380,
@@ -2046,7 +2046,7 @@
             }
           },
           {
-            "domNodes": 1453,
+            "domNodes": 1513,
             "canvasNodes": 15,
             "lightweightCanvasNodes": 0,
             "lightweightPreviewNodes": 0,
@@ -2060,7 +2060,7 @@
             "visibleMediaFailures": 0,
             "activeVideos": 0,
             "resourceCount": 0,
-            "jsHeapUsedMB": 40.1,
+            "jsHeapUsedMB": 42.6,
             "transform": {
               "x": -240,
               "y": -570,
@@ -2068,7 +2068,7 @@
             }
           },
           {
-            "domNodes": 1453,
+            "domNodes": 1513,
             "canvasNodes": 15,
             "lightweightCanvasNodes": 0,
             "lightweightPreviewNodes": 0,
@@ -2082,7 +2082,7 @@
             "visibleMediaFailures": 0,
             "activeVideos": 0,
             "resourceCount": 0,
-            "jsHeapUsedMB": 40.1,
+            "jsHeapUsedMB": 42.6,
             "transform": {
               "x": -320,
               "y": -760,
@@ -2090,7 +2090,7 @@
             }
           },
           {
-            "domNodes": 1342,
+            "domNodes": 1390,
             "canvasNodes": 12,
             "lightweightCanvasNodes": 0,
             "lightweightPreviewNodes": 0,
@@ -2104,7 +2104,7 @@
             "visibleMediaFailures": 0,
             "activeVideos": 0,
             "resourceCount": 0,
-            "jsHeapUsedMB": 40.1,
+            "jsHeapUsedMB": 42.6,
             "transform": {
               "x": -400,
               "y": -950,
@@ -2113,7 +2113,7 @@
           }
         ],
         "settled": {
-          "domNodes": 1342,
+          "domNodes": 1390,
           "canvasNodes": 12,
           "lightweightCanvasNodes": 0,
           "lightweightPreviewNodes": 0,
@@ -2127,7 +2127,7 @@
           "visibleMediaFailures": 0,
           "activeVideos": 0,
           "resourceCount": 0,
-          "jsHeapUsedMB": 40.1,
+          "jsHeapUsedMB": 42.6,
           "transform": {
             "x": -400,
             "y": -950,
@@ -2145,34 +2145,34 @@
         "targetIdentityPreserved": null
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 365.7,
-        "gpuWorkingSetMB": 133.7,
+        "rendererWorkingSetMB": 950.1,
+        "gpuWorkingSetMB": 148,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 4214,
-            "workingSetMB": 235.9
+            "pid": 58571,
+            "workingSetMB": 287.7
           },
           {
             "type": "GPU",
-            "pid": 4217,
-            "workingSetMB": 133.7
+            "pid": 58586,
+            "workingSetMB": 148
           },
           {
             "type": "Utility",
-            "pid": 4218,
-            "workingSetMB": 52.7
+            "pid": 58587,
+            "workingSetMB": 56
           },
           {
             "type": "Tab",
-            "pid": 4219,
-            "workingSetMB": 365.7
+            "pid": 58588,
+            "workingSetMB": 950.1
           },
           {
             "type": "Utility",
-            "pid": 4220,
-            "workingSetMB": 42.7
+            "pid": 58601,
+            "workingSetMB": 45.4
           }
         ]
       },
@@ -2185,7 +2185,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 24698
+      "elapsedMs": 24551
     },
     {
       "scale": "M",
@@ -2208,12 +2208,12 @@
         ]
       },
       "probe": {
-        "elapsedMs": 1024,
+        "elapsedMs": 1022,
         "frames": 123,
-        "fps": 120.2,
-        "frameGapP50Ms": 8.4,
-        "frameGapP95Ms": 10.2,
-        "maxFrameGapMs": 10.4,
+        "fps": 120.4,
+        "frameGapP50Ms": 8.3,
+        "frameGapP95Ms": 9.1,
+        "maxFrameGapMs": 12,
         "longTasks": 0,
         "longTaskMs": 0,
         "longTaskP95Ms": null,
@@ -2228,40 +2228,40 @@
         }
       },
       "cdpBefore": {
-        "LayoutCount": 31,
-        "RecalcStyleCount": 73,
-        "ScriptDurationMs": 161.9,
-        "LayoutDurationMs": 5.6,
-        "TaskDurationMs": 310.8,
-        "JSHeapUsedMB": 44,
-        "domNodes": 6709,
+        "LayoutCount": 28,
+        "RecalcStyleCount": 66,
+        "ScriptDurationMs": 159,
+        "LayoutDurationMs": 6,
+        "TaskDurationMs": 304,
+        "JSHeapUsedMB": 32,
+        "domNodes": 9274,
         "domDocuments": 11,
-        "jsEventListeners": 2261
+        "jsEventListeners": 2397
       },
       "cdpAfter": {
-        "LayoutCount": 31,
-        "RecalcStyleCount": 73,
-        "ScriptDurationMs": 180.4,
-        "LayoutDurationMs": 5.6,
-        "TaskDurationMs": 357.1,
-        "JSHeapUsedMB": 44.6,
-        "domNodes": 6709,
+        "LayoutCount": 28,
+        "RecalcStyleCount": 66,
+        "ScriptDurationMs": 184.7,
+        "LayoutDurationMs": 6,
+        "TaskDurationMs": 367.6,
+        "JSHeapUsedMB": 32.5,
+        "domNodes": 9274,
         "domDocuments": 11,
-        "jsEventListeners": 2261
+        "jsEventListeners": 2397
       },
       "cdpDelta": {
         "LayoutCount": 0,
         "RecalcStyleCount": 0,
-        "ScriptDurationMs": 18.5,
+        "ScriptDurationMs": 25.7,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 46.3,
-        "JSHeapUsedMB": 0.6,
+        "TaskDurationMs": 63.6,
+        "JSHeapUsedMB": 0.5,
         "domNodes": 0,
         "domDocuments": 0,
         "jsEventListeners": 0
       },
       "beforePage": {
-        "domNodes": 1586,
+        "domNodes": 1682,
         "canvasNodes": 24,
         "lightweightCanvasNodes": 24,
         "lightweightPreviewNodes": 24,
@@ -2275,7 +2275,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 40.1,
+        "jsHeapUsedMB": 37.8,
         "transform": {
           "x": 385,
           "y": 197,
@@ -2283,7 +2283,7 @@
         }
       },
       "page": {
-        "domNodes": 1586,
+        "domNodes": 1682,
         "canvasNodes": 24,
         "lightweightCanvasNodes": 24,
         "lightweightPreviewNodes": 24,
@@ -2297,7 +2297,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 40.1,
+        "jsHeapUsedMB": 37.8,
         "transform": {
           "x": 385,
           "y": 197,
@@ -2306,7 +2306,7 @@
       },
       "actionDetails": {
         "settled": {
-          "domNodes": 1586,
+          "domNodes": 1682,
           "canvasNodes": 24,
           "lightweightCanvasNodes": 24,
           "lightweightPreviewNodes": 24,
@@ -2320,7 +2320,7 @@
           "visibleMediaFailures": 0,
           "activeVideos": 0,
           "resourceCount": 0,
-          "jsHeapUsedMB": 40.1,
+          "jsHeapUsedMB": 37.8,
           "transform": {
             "x": 385,
             "y": 197,
@@ -2339,34 +2339,34 @@
         "targetIdentityPreserved": null
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 867.6,
-        "gpuWorkingSetMB": 111.4,
+        "rendererWorkingSetMB": 879.6,
+        "gpuWorkingSetMB": 135.9,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 4270,
-            "workingSetMB": 242
+            "pid": 59400,
+            "workingSetMB": 261.3
           },
           {
             "type": "GPU",
-            "pid": 4273,
-            "workingSetMB": 111.4
+            "pid": 59403,
+            "workingSetMB": 135.9
           },
           {
             "type": "Utility",
-            "pid": 4274,
-            "workingSetMB": 48.2
+            "pid": 59404,
+            "workingSetMB": 50.1
           },
           {
             "type": "Tab",
-            "pid": 4275,
-            "workingSetMB": 867.6
+            "pid": 59405,
+            "workingSetMB": 879.6
           },
           {
             "type": "Utility",
-            "pid": 4276,
-            "workingSetMB": 38.7
+            "pid": 59406,
+            "workingSetMB": 42.1
           }
         ]
       },
@@ -2379,7 +2379,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 22081
+      "elapsedMs": 21348
     },
     {
       "scale": "M",
@@ -2402,19 +2402,19 @@
         ]
       },
       "probe": {
-        "elapsedMs": 311,
+        "elapsedMs": 314,
         "frames": 38,
-        "fps": 122.2,
-        "frameGapP50Ms": 8.4,
-        "frameGapP95Ms": 10.3,
-        "maxFrameGapMs": 10.4,
+        "fps": 121,
+        "frameGapP50Ms": 8.3,
+        "frameGapP95Ms": 9.3,
+        "maxFrameGapMs": 9.7,
         "longTasks": 0,
         "longTaskMs": 0,
         "longTaskP95Ms": null,
         "maxLoadingImages": 0,
         "maxLoadingVideos": 0,
         "maxActiveVideos": 0,
-        "firstMutationMs": 25.9,
+        "firstMutationMs": 33.8,
         "mutations": {
           "stage": 0,
           "edges": 3,
@@ -2424,38 +2424,38 @@
       "cdpBefore": {
         "LayoutCount": 0,
         "RecalcStyleCount": 0,
-        "ScriptDurationMs": 1.2,
+        "ScriptDurationMs": 1,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 3.8,
-        "JSHeapUsedMB": 33,
-        "domNodes": 2544,
+        "TaskDurationMs": 2.3,
+        "JSHeapUsedMB": 32.5,
+        "domNodes": 2535,
         "domDocuments": 7,
-        "jsEventListeners": 1399
+        "jsEventListeners": 1344
       },
       "cdpAfter": {
         "LayoutCount": 2,
         "RecalcStyleCount": 30,
-        "ScriptDurationMs": 8.5,
+        "ScriptDurationMs": 9.4,
         "LayoutDurationMs": 0.2,
-        "TaskDurationMs": 39,
-        "JSHeapUsedMB": 33.6,
-        "domNodes": 2569,
+        "TaskDurationMs": 39.2,
+        "JSHeapUsedMB": 33.1,
+        "domNodes": 2560,
         "domDocuments": 7,
-        "jsEventListeners": 1410
+        "jsEventListeners": 1355
       },
       "cdpDelta": {
         "LayoutCount": 2,
         "RecalcStyleCount": 30,
-        "ScriptDurationMs": 7.3,
+        "ScriptDurationMs": 8.4,
         "LayoutDurationMs": 0.2,
-        "TaskDurationMs": 35.2,
+        "TaskDurationMs": 36.9,
         "JSHeapUsedMB": 0.6,
         "domNodes": 25,
         "domDocuments": 0,
         "jsEventListeners": 11
       },
       "beforePage": {
-        "domNodes": 1179,
+        "domNodes": 1227,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -2477,7 +2477,7 @@
         }
       },
       "page": {
-        "domNodes": 1179,
+        "domNodes": 1227,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -2512,34 +2512,34 @@
         "targetIdentityPreserved": null
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 308.4,
-        "gpuWorkingSetMB": 135.2,
+        "rendererWorkingSetMB": 891.4,
+        "gpuWorkingSetMB": 137.1,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 4313,
-            "workingSetMB": 265
+            "pid": 59587,
+            "workingSetMB": 281.8
           },
           {
             "type": "GPU",
-            "pid": 4316,
-            "workingSetMB": 135.2
+            "pid": 59590,
+            "workingSetMB": 137.1
           },
           {
             "type": "Utility",
-            "pid": 4317,
-            "workingSetMB": 56.9
+            "pid": 59591,
+            "workingSetMB": 55.7
           },
           {
             "type": "Tab",
-            "pid": 4318,
-            "workingSetMB": 308.4
+            "pid": 59592,
+            "workingSetMB": 891.4
           },
           {
             "type": "Utility",
-            "pid": 4319,
-            "workingSetMB": 45.3
+            "pid": 59593,
+            "workingSetMB": 45.4
           }
         ]
       },
@@ -2552,7 +2552,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 19043
+      "elapsedMs": 18182
     },
     {
       "scale": "M",
@@ -2575,12 +2575,12 @@
         ]
       },
       "probe": {
-        "elapsedMs": 1448,
-        "frames": 174,
-        "fps": 120.1,
+        "elapsedMs": 1428,
+        "frames": 172,
+        "fps": 120.5,
         "frameGapP50Ms": 8.3,
-        "frameGapP95Ms": 10.3,
-        "maxFrameGapMs": 12.1,
+        "frameGapP95Ms": 9.2,
+        "maxFrameGapMs": 10,
         "longTasks": 0,
         "longTaskMs": 0,
         "longTaskP95Ms": null,
@@ -2597,38 +2597,38 @@
       "cdpBefore": {
         "LayoutCount": 0,
         "RecalcStyleCount": 0,
-        "ScriptDurationMs": 0.9,
+        "ScriptDurationMs": 1.2,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 2.8,
-        "JSHeapUsedMB": 31.1,
-        "domNodes": 2519,
+        "TaskDurationMs": 3.4,
+        "JSHeapUsedMB": 24.3,
+        "domNodes": 2656,
         "domDocuments": 7,
-        "jsEventListeners": 1395
+        "jsEventListeners": 1420
       },
       "cdpAfter": {
         "LayoutCount": 7,
         "RecalcStyleCount": 145,
-        "ScriptDurationMs": 29.1,
-        "LayoutDurationMs": 2.5,
-        "TaskDurationMs": 217.5,
-        "JSHeapUsedMB": 32.1,
-        "domNodes": 2617,
+        "ScriptDurationMs": 25.2,
+        "LayoutDurationMs": 1.7,
+        "TaskDurationMs": 141.6,
+        "JSHeapUsedMB": 25.3,
+        "domNodes": 2754,
         "domDocuments": 11,
-        "jsEventListeners": 1395
+        "jsEventListeners": 1420
       },
       "cdpDelta": {
         "LayoutCount": 7,
         "RecalcStyleCount": 145,
-        "ScriptDurationMs": 28.2,
-        "LayoutDurationMs": 2.5,
-        "TaskDurationMs": 214.7,
+        "ScriptDurationMs": 24,
+        "LayoutDurationMs": 1.7,
+        "TaskDurationMs": 138.2,
         "JSHeapUsedMB": 1,
         "domNodes": 98,
         "domDocuments": 4,
         "jsEventListeners": 0
       },
       "beforePage": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -2650,7 +2650,7 @@
         }
       },
       "page": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -2684,34 +2684,34 @@
         "targetIdentityPreserved": null
       },
       "appMetrics": {
-        "rendererWorkingSetMB": 316.3,
+        "rendererWorkingSetMB": 880.4,
         "gpuWorkingSetMB": 135.5,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 4385,
-            "workingSetMB": 242.2
+            "pid": 59772,
+            "workingSetMB": 279.3
           },
           {
             "type": "GPU",
-            "pid": 4389,
+            "pid": 59775,
             "workingSetMB": 135.5
           },
           {
             "type": "Utility",
-            "pid": 4390,
-            "workingSetMB": 56.6
+            "pid": 59776,
+            "workingSetMB": 55.5
           },
           {
             "type": "Tab",
-            "pid": 4391,
-            "workingSetMB": 316.3
+            "pid": 59777,
+            "workingSetMB": 880.4
           },
           {
             "type": "Utility",
-            "pid": 4392,
-            "workingSetMB": 45.3
+            "pid": 59778,
+            "workingSetMB": 45.4
           }
         ]
       },
@@ -2724,7 +2724,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 20362
+      "elapsedMs": 19476
     },
     {
       "scale": "M",
@@ -2747,12 +2747,12 @@
         ]
       },
       "probe": {
-        "elapsedMs": 2112,
+        "elapsedMs": 2109,
         "frames": 253,
-        "fps": 119.4,
+        "fps": 119.6,
         "frameGapP50Ms": 8.3,
-        "frameGapP95Ms": 10.2,
-        "maxFrameGapMs": 10.4,
+        "frameGapP95Ms": 9.1,
+        "maxFrameGapMs": 9.4,
         "longTasks": 0,
         "longTaskMs": 0,
         "longTaskP95Ms": null,
@@ -2769,38 +2769,38 @@
       "cdpBefore": {
         "LayoutCount": 0,
         "RecalcStyleCount": 0,
-        "ScriptDurationMs": 0.7,
+        "ScriptDurationMs": 1,
         "LayoutDurationMs": 0,
-        "TaskDurationMs": 3.6,
-        "JSHeapUsedMB": 31.9,
-        "domNodes": 2656,
-        "domDocuments": 7,
-        "jsEventListeners": 1468
+        "TaskDurationMs": 2.7,
+        "JSHeapUsedMB": 41.8,
+        "domNodes": 2828,
+        "domDocuments": 13,
+        "jsEventListeners": 1510
       },
       "cdpAfter": {
-        "LayoutCount": 30,
-        "RecalcStyleCount": 119,
-        "ScriptDurationMs": 94.9,
-        "LayoutDurationMs": 5.4,
-        "TaskDurationMs": 277.9,
-        "JSHeapUsedMB": 61.9,
-        "domNodes": 10958,
-        "domDocuments": 10,
-        "jsEventListeners": 4720
+        "LayoutCount": 29,
+        "RecalcStyleCount": 110,
+        "ScriptDurationMs": 113,
+        "LayoutDurationMs": 5.8,
+        "TaskDurationMs": 306.3,
+        "JSHeapUsedMB": 30,
+        "domNodes": 4630,
+        "domDocuments": 8,
+        "jsEventListeners": 1269
       },
       "cdpDelta": {
-        "LayoutCount": 30,
-        "RecalcStyleCount": 119,
-        "ScriptDurationMs": 94.2,
-        "LayoutDurationMs": 5.4,
-        "TaskDurationMs": 274.3,
-        "JSHeapUsedMB": 30,
-        "domNodes": 8302,
-        "domDocuments": 3,
-        "jsEventListeners": 3252
+        "LayoutCount": 29,
+        "RecalcStyleCount": 110,
+        "ScriptDurationMs": 112,
+        "LayoutDurationMs": 5.8,
+        "TaskDurationMs": 303.6,
+        "JSHeapUsedMB": -11.8,
+        "domNodes": 1802,
+        "domDocuments": -5,
+        "jsEventListeners": -241
       },
       "beforePage": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -2814,7 +2814,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 0,
-        "jsHeapUsedMB": 37.8,
+        "jsHeapUsedMB": 48.1,
         "transform": {
           "x": 0,
           "y": 0,
@@ -2822,7 +2822,7 @@
         }
       },
       "page": {
-        "domNodes": 1174,
+        "domNodes": 1222,
         "canvasNodes": 12,
         "lightweightCanvasNodes": 0,
         "lightweightPreviewNodes": 0,
@@ -2836,7 +2836,7 @@
         "visibleMediaFailures": 0,
         "activeVideos": 0,
         "resourceCount": 2,
-        "jsHeapUsedMB": 37.8,
+        "jsHeapUsedMB": 48.1,
         "transform": {
           "x": 0,
           "y": 0,
@@ -2846,7 +2846,7 @@
       "actionDetails": {
         "snapshots": [
           {
-            "domNodes": 1174,
+            "domNodes": 1222,
             "canvasNodes": 12,
             "lightweightCanvasNodes": 0,
             "lightweightPreviewNodes": 0,
@@ -2860,7 +2860,7 @@
             "visibleMediaFailures": 0,
             "activeVideos": 0,
             "resourceCount": 0,
-            "jsHeapUsedMB": 37.8,
+            "jsHeapUsedMB": 48.1,
             "transform": {
               "x": 0,
               "y": 0,
@@ -2868,7 +2868,7 @@
             }
           },
           {
-            "domNodes": 1174,
+            "domNodes": 1222,
             "canvasNodes": 12,
             "lightweightCanvasNodes": 0,
             "lightweightPreviewNodes": 0,
@@ -2882,7 +2882,7 @@
             "visibleMediaFailures": 0,
             "activeVideos": 0,
             "resourceCount": 2,
-            "jsHeapUsedMB": 37.8,
+            "jsHeapUsedMB": 48.1,
             "transform": {
               "x": 0,
               "y": 0,
@@ -2890,7 +2890,7 @@
             }
           },
           {
-            "domNodes": 1174,
+            "domNodes": 1222,
             "canvasNodes": 12,
             "lightweightCanvasNodes": 0,
             "lightweightPreviewNodes": 0,
@@ -2904,7 +2904,7 @@
             "visibleMediaFailures": 0,
             "activeVideos": 0,
             "resourceCount": 2,
-            "jsHeapUsedMB": 37.8,
+            "jsHeapUsedMB": 48.1,
             "transform": {
               "x": 0,
               "y": 0,
@@ -2912,7 +2912,7 @@
             }
           },
           {
-            "domNodes": 1174,
+            "domNodes": 1222,
             "canvasNodes": 12,
             "lightweightCanvasNodes": 0,
             "lightweightPreviewNodes": 0,
@@ -2926,7 +2926,7 @@
             "visibleMediaFailures": 0,
             "activeVideos": 0,
             "resourceCount": 2,
-            "jsHeapUsedMB": 37.8,
+            "jsHeapUsedMB": 48.1,
             "transform": {
               "x": 0,
               "y": 0,
@@ -2935,58 +2935,58 @@
           }
         ],
         "reloadDurationsMs": [
-          978,
-          987,
-          929
+          1056,
+          1004,
+          967
         ],
         "reloadProbes": [
           {
-            "elapsedMs": 704,
-            "frames": 84,
-            "fps": 119.3,
-            "frameGapP50Ms": 8.3,
-            "frameGapP95Ms": 10.2,
-            "maxFrameGapMs": 10.4,
-            "longTasks": 0,
-            "longTaskMs": 0,
-            "longTaskP95Ms": null,
-            "maxLoadingImages": 0,
-            "maxLoadingVideos": 0,
-            "maxActiveVideos": 0,
-            "firstMutationMs": null,
-            "mutations": {
-              "stage": 0,
-              "edges": 0,
-              "labels": 0
-            }
-          },
-          {
-            "elapsedMs": 704,
-            "frames": 84,
-            "fps": 119.4,
-            "frameGapP50Ms": 8.3,
-            "frameGapP95Ms": 9.9,
-            "maxFrameGapMs": 10.3,
-            "longTasks": 0,
-            "longTaskMs": 0,
-            "longTaskP95Ms": null,
-            "maxLoadingImages": 0,
-            "maxLoadingVideos": 0,
-            "maxActiveVideos": 0,
-            "firstMutationMs": null,
-            "mutations": {
-              "stage": 0,
-              "edges": 0,
-              "labels": 0
-            }
-          },
-          {
-            "elapsedMs": 704,
+            "elapsedMs": 703,
             "frames": 85,
-            "fps": 120.7,
+            "fps": 120.9,
             "frameGapP50Ms": 8.3,
-            "frameGapP95Ms": 10.2,
-            "maxFrameGapMs": 10.4,
+            "frameGapP95Ms": 8.8,
+            "maxFrameGapMs": 9.4,
+            "longTasks": 0,
+            "longTaskMs": 0,
+            "longTaskP95Ms": null,
+            "maxLoadingImages": 0,
+            "maxLoadingVideos": 0,
+            "maxActiveVideos": 0,
+            "firstMutationMs": null,
+            "mutations": {
+              "stage": 0,
+              "edges": 0,
+              "labels": 0
+            }
+          },
+          {
+            "elapsedMs": 703,
+            "frames": 84,
+            "fps": 119.6,
+            "frameGapP50Ms": 8.3,
+            "frameGapP95Ms": 8.8,
+            "maxFrameGapMs": 9.3,
+            "longTasks": 0,
+            "longTaskMs": 0,
+            "longTaskP95Ms": null,
+            "maxLoadingImages": 0,
+            "maxLoadingVideos": 0,
+            "maxActiveVideos": 0,
+            "firstMutationMs": null,
+            "mutations": {
+              "stage": 0,
+              "edges": 0,
+              "labels": 0
+            }
+          },
+          {
+            "elapsedMs": 703,
+            "frames": 84,
+            "fps": 119.6,
+            "frameGapP50Ms": 8.3,
+            "frameGapP95Ms": 9.1,
+            "maxFrameGapMs": 9.4,
             "longTasks": 0,
             "longTaskMs": 0,
             "longTaskP95Ms": null,
@@ -3005,34 +3005,34 @@
       },
       "nodeIdentity": null,
       "appMetrics": {
-        "rendererWorkingSetMB": 415,
-        "gpuWorkingSetMB": 143.3,
+        "rendererWorkingSetMB": 1005.4,
+        "gpuWorkingSetMB": 145.3,
         "processCount": 5,
         "processes": [
           {
             "type": "Browser",
-            "pid": 4443,
-            "workingSetMB": 254.4
+            "pid": 59983,
+            "workingSetMB": 283.3
           },
           {
             "type": "GPU",
-            "pid": 4446,
-            "workingSetMB": 143.3
+            "pid": 59986,
+            "workingSetMB": 145.3
           },
           {
             "type": "Utility",
-            "pid": 4447,
-            "workingSetMB": 52.2
+            "pid": 59987,
+            "workingSetMB": 56.5
           },
           {
             "type": "Tab",
-            "pid": 4448,
-            "workingSetMB": 415
+            "pid": 59988,
+            "workingSetMB": 1005.4
           },
           {
             "type": "Utility",
-            "pid": 4450,
-            "workingSetMB": 43.5
+            "pid": 59989,
+            "workingSetMB": 45.5
           }
         ]
       },
@@ -3045,7 +3045,7 @@
       },
       "pageErrors": [],
       "consoleErrors": [],
-      "elapsedMs": 24107
+      "elapsedMs": 23542
     }
   ],
   "warmupFailures": [],
@@ -3055,17 +3055,17 @@
       "errors": 0,
       "metrics": {
         "coldFirstCanvasMs": {
-          "median": 13718,
-          "p95": 13718,
+          "median": 13779,
+          "p95": 13779,
           "samples": [
-            13718
+            13779
           ]
         },
         "coldMediaSettledMs": {
-          "median": 1836,
-          "p95": 1836,
+          "median": 1793,
+          "p95": 1793,
           "samples": [
-            1836
+            1793
           ]
         },
         "fps": null,
@@ -3089,10 +3089,10 @@
         "loadedVideos": null,
         "activeVideos": null,
         "rendererWorkingSetMB": {
-          "median": 311.3,
-          "p95": 311.3,
+          "median": 873.8,
+          "p95": 873.8,
           "samples": [
-            311.3
+            873.8
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -3111,24 +3111,24 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 120.2,
-          "p95": 120.2,
+          "median": 120.4,
+          "p95": 120.4,
           "samples": [
-            120.2
+            120.4
           ]
         },
         "frameGapP95Ms": {
-          "median": 11,
-          "p95": 11,
+          "median": 11.4,
+          "p95": 11.4,
           "samples": [
-            11
+            11.4
           ]
         },
         "maxFrameGapMs": {
-          "median": 13.1,
-          "p95": 13.1,
+          "median": 14.7,
+          "p95": 14.7,
           "samples": [
-            13.1
+            14.7
           ]
         },
         "longTaskMs": {
@@ -3168,17 +3168,17 @@
           ]
         },
         "recalcStyleCount": {
-          "median": 84,
-          "p95": 84,
+          "median": 83,
+          "p95": 83,
           "samples": [
-            84
+            83
           ]
         },
         "scriptDurationMs": {
-          "median": 97.6,
-          "p95": 97.6,
+          "median": 141.9,
+          "p95": 141.9,
           "samples": [
-            97.6
+            141.9
           ]
         },
         "layoutDurationMs": {
@@ -3189,10 +3189,10 @@
           ]
         },
         "jsHeapUsedMB": {
-          "median": 33.5,
-          "p95": 33.5,
+          "median": 35.6,
+          "p95": 35.6,
           "samples": [
-            33.5
+            35.6
           ]
         },
         "visibleMedia": {
@@ -3245,10 +3245,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 308,
-          "p95": 308,
+          "median": 886.1,
+          "p95": 886.1,
           "samples": [
-            308
+            886.1
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -3260,13 +3260,13 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 11,
+            "actualP95": 11.4,
             "max": 33,
             "pass": true
           },
           {
             "metric": "maxFrameGapMs",
-            "actualP95": 13.1,
+            "actualP95": 14.7,
             "max": 100,
             "pass": true
           },
@@ -3298,24 +3298,24 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 118.2,
-          "p95": 118.2,
+          "median": 120.1,
+          "p95": 120.1,
           "samples": [
-            118.2
+            120.1
           ]
         },
         "frameGapP95Ms": {
-          "median": 16.6,
-          "p95": 16.6,
+          "median": 15.8,
+          "p95": 15.8,
           "samples": [
-            16.6
+            15.8
           ]
         },
         "maxFrameGapMs": {
-          "median": 35.8,
-          "p95": 35.8,
+          "median": 17,
+          "p95": 17,
           "samples": [
-            35.8
+            17
           ]
         },
         "longTaskMs": {
@@ -3348,38 +3348,38 @@
           ]
         },
         "layoutCount": {
-          "median": 122,
-          "p95": 122,
+          "median": 145,
+          "p95": 145,
           "samples": [
-            122
+            145
           ]
         },
         "recalcStyleCount": {
-          "median": 464,
-          "p95": 464,
+          "median": 457,
+          "p95": 457,
           "samples": [
-            464
+            457
           ]
         },
         "scriptDurationMs": {
-          "median": 465.6,
-          "p95": 465.6,
+          "median": 440.3,
+          "p95": 440.3,
           "samples": [
-            465.6
+            440.3
           ]
         },
         "layoutDurationMs": {
-          "median": 19.4,
-          "p95": 19.4,
+          "median": 17.1,
+          "p95": 17.1,
           "samples": [
-            19.4
+            17.1
           ]
         },
         "jsHeapUsedMB": {
-          "median": 31.6,
-          "p95": 31.6,
+          "median": 35.6,
+          "p95": 35.6,
           "samples": [
-            31.6
+            35.6
           ]
         },
         "visibleMedia": {
@@ -3432,10 +3432,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 398.3,
-          "p95": 398.3,
+          "median": 965.6,
+          "p95": 965.6,
           "samples": [
-            398.3
+            965.6
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -3447,13 +3447,13 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 16.6,
+            "actualP95": 15.8,
             "max": 33,
             "pass": true
           },
           {
             "metric": "maxFrameGapMs",
-            "actualP95": 35.8,
+            "actualP95": 17,
             "max": 100,
             "pass": true
           },
@@ -3485,24 +3485,24 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 117.5,
-          "p95": 117.5,
+          "median": 118.2,
+          "p95": 118.2,
           "samples": [
-            117.5
+            118.2
           ]
         },
         "frameGapP95Ms": {
-          "median": 18,
-          "p95": 18,
+          "median": 18.6,
+          "p95": 18.6,
           "samples": [
-            18
+            18.6
           ]
         },
         "maxFrameGapMs": {
-          "median": 39.7,
-          "p95": 39.7,
+          "median": 29.1,
+          "p95": 29.1,
           "samples": [
-            39.7
+            29.1
           ]
         },
         "longTaskMs": {
@@ -3535,38 +3535,38 @@
           ]
         },
         "layoutCount": {
-          "median": 211,
-          "p95": 211,
+          "median": 214,
+          "p95": 214,
           "samples": [
-            211
+            214
           ]
         },
         "recalcStyleCount": {
-          "median": 392,
-          "p95": 392,
+          "median": 488,
+          "p95": 488,
           "samples": [
-            392
+            488
           ]
         },
         "scriptDurationMs": {
-          "median": 588.9,
-          "p95": 588.9,
+          "median": 638.4,
+          "p95": 638.4,
           "samples": [
-            588.9
+            638.4
           ]
         },
         "layoutDurationMs": {
-          "median": 22,
-          "p95": 22,
+          "median": 24.2,
+          "p95": 24.2,
           "samples": [
-            22
+            24.2
           ]
         },
         "jsHeapUsedMB": {
-          "median": 28,
-          "p95": 28,
+          "median": 35.6,
+          "p95": 35.6,
           "samples": [
-            28
+            35.6
           ]
         },
         "visibleMedia": {
@@ -3619,10 +3619,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 465.8,
-          "p95": 465.8,
+          "median": 976.6,
+          "p95": 976.6,
           "samples": [
-            465.8
+            976.6
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -3634,13 +3634,13 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 18,
+            "actualP95": 18.6,
             "max": 33,
             "pass": true
           },
           {
             "metric": "maxFrameGapMs",
-            "actualP95": 39.7,
+            "actualP95": 29.1,
             "max": 100,
             "pass": true
           },
@@ -3672,24 +3672,24 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 118.7,
-          "p95": 118.7,
+          "median": 119.7,
+          "p95": 119.7,
           "samples": [
-            118.7
+            119.7
           ]
         },
         "frameGapP95Ms": {
-          "median": 10.8,
-          "p95": 10.8,
+          "median": 12.3,
+          "p95": 12.3,
           "samples": [
-            10.8
+            12.3
           ]
         },
         "maxFrameGapMs": {
-          "median": 31.2,
-          "p95": 31.2,
+          "median": 23.8,
+          "p95": 23.8,
           "samples": [
-            31.2
+            23.8
           ]
         },
         "longTaskMs": {
@@ -3722,52 +3722,52 @@
           ]
         },
         "layoutCount": {
-          "median": 102,
-          "p95": 102,
+          "median": 119,
+          "p95": 119,
           "samples": [
-            102
+            119
           ]
         },
         "recalcStyleCount": {
-          "median": 143,
-          "p95": 143,
+          "median": 186,
+          "p95": 186,
           "samples": [
-            143
+            186
           ]
         },
         "scriptDurationMs": {
-          "median": 195.8,
-          "p95": 195.8,
+          "median": 229.7,
+          "p95": 229.7,
           "samples": [
-            195.8
+            229.7
           ]
         },
         "layoutDurationMs": {
-          "median": 10.5,
-          "p95": 10.5,
+          "median": 11.1,
+          "p95": 11.1,
           "samples": [
-            10.5
+            11.1
           ]
         },
         "jsHeapUsedMB": {
-          "median": 37.8,
-          "p95": 37.8,
+          "median": 42.6,
+          "p95": 42.6,
           "samples": [
-            37.8
+            42.6
           ]
         },
         "visibleMedia": {
-          "median": 20,
-          "p95": 20,
+          "median": 24,
+          "p95": 24,
           "samples": [
-            20
+            24
           ]
         },
         "visibleMediaNodes": {
-          "median": 20,
-          "p95": 20,
+          "median": 24,
+          "p95": 24,
           "samples": [
-            20
+            24
           ]
         },
         "visibleMediaPending": {
@@ -3792,10 +3792,10 @@
           ]
         },
         "loadedVideos": {
-          "median": 8,
-          "p95": 8,
+          "median": 12,
+          "p95": 12,
           "samples": [
-            8
+            12
           ]
         },
         "activeVideos": {
@@ -3806,10 +3806,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 387.6,
-          "p95": 387.6,
+          "median": 889.4,
+          "p95": 889.4,
           "samples": [
-            387.6
+            889.4
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -3821,13 +3821,13 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 10.8,
+            "actualP95": 12.3,
             "max": 33,
             "pass": true
           },
           {
             "metric": "maxFrameGapMs",
-            "actualP95": 31.2,
+            "actualP95": 23.8,
             "max": 100,
             "pass": true
           },
@@ -3859,24 +3859,24 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 117.6,
-          "p95": 117.6,
+          "median": 120.1,
+          "p95": 120.1,
           "samples": [
-            117.6
+            120.1
           ]
         },
         "frameGapP95Ms": {
-          "median": 12.1,
-          "p95": 12.1,
+          "median": 10.8,
+          "p95": 10.8,
           "samples": [
-            12.1
+            10.8
           ]
         },
         "maxFrameGapMs": {
-          "median": 30.1,
-          "p95": 30.1,
+          "median": 28.3,
+          "p95": 28.3,
           "samples": [
-            30.1
+            28.3
           ]
         },
         "longTaskMs": {
@@ -3909,38 +3909,38 @@
           ]
         },
         "layoutCount": {
-          "median": 40,
-          "p95": 40,
+          "median": 39,
+          "p95": 39,
           "samples": [
-            40
+            39
           ]
         },
         "recalcStyleCount": {
-          "median": 147,
-          "p95": 147,
+          "median": 111,
+          "p95": 111,
           "samples": [
-            147
+            111
           ]
         },
         "scriptDurationMs": {
-          "median": 102.2,
-          "p95": 102.2,
+          "median": 92.2,
+          "p95": 92.2,
           "samples": [
-            102.2
+            92.2
           ]
         },
         "layoutDurationMs": {
-          "median": 5.7,
-          "p95": 5.7,
+          "median": 4.7,
+          "p95": 4.7,
           "samples": [
-            5.7
+            4.7
           ]
         },
         "jsHeapUsedMB": {
-          "median": 37.8,
-          "p95": 37.8,
+          "median": 33.5,
+          "p95": 33.5,
           "samples": [
-            37.8
+            33.5
           ]
         },
         "visibleMedia": {
@@ -3993,10 +3993,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 403,
-          "p95": 403,
+          "median": 923.4,
+          "p95": 923.4,
           "samples": [
-            403
+            923.4
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -4008,13 +4008,13 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 12.1,
+            "actualP95": 10.8,
             "max": 33,
             "pass": true
           },
           {
             "metric": "maxFrameGapMs",
-            "actualP95": 30.1,
+            "actualP95": 28.3,
             "max": 100,
             "pass": true
           },
@@ -4046,24 +4046,24 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 120.3,
-          "p95": 120.3,
+          "median": 119.8,
+          "p95": 119.8,
           "samples": [
-            120.3
+            119.8
           ]
         },
         "frameGapP95Ms": {
-          "median": 11.5,
-          "p95": 11.5,
+          "median": 12.5,
+          "p95": 12.5,
           "samples": [
-            11.5
+            12.5
           ]
         },
         "maxFrameGapMs": {
-          "median": 13.2,
-          "p95": 13.2,
+          "median": 13.6,
+          "p95": 13.6,
           "samples": [
-            13.2
+            13.6
           ]
         },
         "longTaskMs": {
@@ -4110,10 +4110,10 @@
           ]
         },
         "scriptDurationMs": {
-          "median": 105.7,
-          "p95": 105.7,
+          "median": 196.5,
+          "p95": 196.5,
           "samples": [
-            105.7
+            196.5
           ]
         },
         "layoutDurationMs": {
@@ -4124,10 +4124,10 @@
           ]
         },
         "jsHeapUsedMB": {
-          "median": 37.8,
-          "p95": 37.8,
+          "median": 48.1,
+          "p95": 48.1,
           "samples": [
-            37.8
+            48.1
           ]
         },
         "visibleMedia": {
@@ -4180,10 +4180,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 337.5,
-          "p95": 337.5,
+          "median": 896.9,
+          "p95": 896.9,
           "samples": [
-            337.5
+            896.9
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -4195,13 +4195,13 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 11.5,
+            "actualP95": 12.5,
             "max": 33,
             "pass": true
           },
           {
             "metric": "maxFrameGapMs",
-            "actualP95": 13.2,
+            "actualP95": 13.6,
             "max": 100,
             "pass": true
           },
@@ -4233,17 +4233,17 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 120.7,
-          "p95": 120.7,
+          "median": 120.4,
+          "p95": 120.4,
           "samples": [
-            120.7
+            120.4
           ]
         },
         "frameGapP95Ms": {
-          "median": 10.9,
-          "p95": 10.9,
+          "median": 11.4,
+          "p95": 11.4,
           "samples": [
-            10.9
+            11.4
           ]
         },
         "maxFrameGapMs": {
@@ -4297,24 +4297,24 @@
           ]
         },
         "scriptDurationMs": {
-          "median": 63.7,
-          "p95": 63.7,
+          "median": 88.9,
+          "p95": 88.9,
           "samples": [
-            63.7
+            88.9
           ]
         },
         "layoutDurationMs": {
-          "median": 0.2,
-          "p95": 0.2,
+          "median": 0.3,
+          "p95": 0.3,
           "samples": [
-            0.2
+            0.3
           ]
         },
         "jsHeapUsedMB": {
-          "median": 45.2,
-          "p95": 45.2,
+          "median": 37.8,
+          "p95": 37.8,
           "samples": [
-            45.2
+            37.8
           ]
         },
         "visibleMedia": {
@@ -4367,10 +4367,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 349.1,
-          "p95": 349.1,
+          "median": 901.2,
+          "p95": 901.2,
           "samples": [
-            349.1
+            901.2
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -4382,7 +4382,7 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 10.9,
+            "actualP95": 11.4,
             "max": 33,
             "pass": true
           },
@@ -4420,17 +4420,17 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 119.6,
-          "p95": 119.6,
+          "median": 120.3,
+          "p95": 120.3,
           "samples": [
-            119.6
+            120.3
           ]
         },
         "frameGapP95Ms": {
-          "median": 16.4,
-          "p95": 16.4,
+          "median": 15.9,
+          "p95": 15.9,
           "samples": [
-            16.4
+            15.9
           ]
         },
         "maxFrameGapMs": {
@@ -4470,38 +4470,38 @@
           ]
         },
         "layoutCount": {
-          "median": 124,
-          "p95": 124,
+          "median": 146,
+          "p95": 146,
           "samples": [
-            124
+            146
           ]
         },
         "recalcStyleCount": {
-          "median": 286,
-          "p95": 286,
+          "median": 439,
+          "p95": 439,
           "samples": [
-            286
+            439
           ]
         },
         "scriptDurationMs": {
-          "median": 406,
-          "p95": 406,
+          "median": 428.1,
+          "p95": 428.1,
           "samples": [
-            406
+            428.1
           ]
         },
         "layoutDurationMs": {
-          "median": 15.6,
-          "p95": 15.6,
+          "median": 18,
+          "p95": 18,
           "samples": [
-            15.6
+            18
           ]
         },
         "jsHeapUsedMB": {
-          "median": 51,
-          "p95": 51,
+          "median": 29.8,
+          "p95": 29.8,
           "samples": [
-            51
+            29.8
           ]
         },
         "visibleMedia": {
@@ -4554,10 +4554,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 425.1,
-          "p95": 425.1,
+          "median": 990.2,
+          "p95": 990.2,
           "samples": [
-            425.1
+            990.2
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -4569,7 +4569,7 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 16.4,
+            "actualP95": 15.9,
             "max": 33,
             "pass": true
           },
@@ -4607,24 +4607,24 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 119,
-          "p95": 119,
+          "median": 60,
+          "p95": 60,
           "samples": [
-            119
+            60
           ]
         },
         "frameGapP95Ms": {
-          "median": 10.7,
-          "p95": 10.7,
+          "median": 18.8,
+          "p95": 18.8,
           "samples": [
-            10.7
+            18.8
           ]
         },
         "maxFrameGapMs": {
-          "median": 41.1,
-          "p95": 41.1,
+          "median": 40.7,
+          "p95": 40.7,
           "samples": [
-            41.1
+            40.7
           ]
         },
         "longTaskMs": {
@@ -4657,38 +4657,38 @@
           ]
         },
         "layoutCount": {
-          "median": 46,
-          "p95": 46,
+          "median": 38,
+          "p95": 38,
           "samples": [
-            46
+            38
           ]
         },
         "recalcStyleCount": {
-          "median": 607,
-          "p95": 607,
+          "median": 360,
+          "p95": 360,
           "samples": [
-            607
+            360
           ]
         },
         "scriptDurationMs": {
-          "median": 424.8,
-          "p95": 424.8,
+          "median": 408.1,
+          "p95": 408.1,
           "samples": [
-            424.8
+            408.1
           ]
         },
         "layoutDurationMs": {
-          "median": 8.2,
-          "p95": 8.2,
+          "median": 6,
+          "p95": 6,
           "samples": [
-            8.2
+            6
           ]
         },
         "jsHeapUsedMB": {
-          "median": 40.1,
-          "p95": 40.1,
+          "median": 42.6,
+          "p95": 42.6,
           "samples": [
-            40.1
+            42.6
           ]
         },
         "visibleMedia": {
@@ -4741,10 +4741,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 365.7,
-          "p95": 365.7,
+          "median": 950.1,
+          "p95": 950.1,
           "samples": [
-            365.7
+            950.1
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -4756,13 +4756,13 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 10.7,
+            "actualP95": 18.8,
             "max": 33,
             "pass": true
           },
           {
             "metric": "maxFrameGapMs",
-            "actualP95": 41.1,
+            "actualP95": 40.7,
             "max": 100,
             "pass": true
           },
@@ -4794,24 +4794,24 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 120.2,
-          "p95": 120.2,
+          "median": 120.4,
+          "p95": 120.4,
           "samples": [
-            120.2
+            120.4
           ]
         },
         "frameGapP95Ms": {
-          "median": 10.2,
-          "p95": 10.2,
+          "median": 9.1,
+          "p95": 9.1,
           "samples": [
-            10.2
+            9.1
           ]
         },
         "maxFrameGapMs": {
-          "median": 10.4,
-          "p95": 10.4,
+          "median": 12,
+          "p95": 12,
           "samples": [
-            10.4
+            12
           ]
         },
         "longTaskMs": {
@@ -4858,10 +4858,10 @@
           ]
         },
         "scriptDurationMs": {
-          "median": 18.5,
-          "p95": 18.5,
+          "median": 25.7,
+          "p95": 25.7,
           "samples": [
-            18.5
+            25.7
           ]
         },
         "layoutDurationMs": {
@@ -4872,10 +4872,10 @@
           ]
         },
         "jsHeapUsedMB": {
-          "median": 40.1,
-          "p95": 40.1,
+          "median": 37.8,
+          "p95": 37.8,
           "samples": [
-            40.1
+            37.8
           ]
         },
         "visibleMedia": {
@@ -4928,10 +4928,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 867.6,
-          "p95": 867.6,
+          "median": 879.6,
+          "p95": 879.6,
           "samples": [
-            867.6
+            879.6
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -4943,13 +4943,13 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 10.2,
+            "actualP95": 9.1,
             "max": 33,
             "pass": true
           },
           {
             "metric": "maxFrameGapMs",
-            "actualP95": 10.4,
+            "actualP95": 12,
             "max": 100,
             "pass": true
           },
@@ -4981,24 +4981,24 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 122.2,
-          "p95": 122.2,
+          "median": 121,
+          "p95": 121,
           "samples": [
-            122.2
+            121
           ]
         },
         "frameGapP95Ms": {
-          "median": 10.3,
-          "p95": 10.3,
+          "median": 9.3,
+          "p95": 9.3,
           "samples": [
-            10.3
+            9.3
           ]
         },
         "maxFrameGapMs": {
-          "median": 10.4,
-          "p95": 10.4,
+          "median": 9.7,
+          "p95": 9.7,
           "samples": [
-            10.4
+            9.7
           ]
         },
         "longTaskMs": {
@@ -5045,10 +5045,10 @@
           ]
         },
         "scriptDurationMs": {
-          "median": 7.3,
-          "p95": 7.3,
+          "median": 8.4,
+          "p95": 8.4,
           "samples": [
-            7.3
+            8.4
           ]
         },
         "layoutDurationMs": {
@@ -5115,10 +5115,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 308.4,
-          "p95": 308.4,
+          "median": 891.4,
+          "p95": 891.4,
           "samples": [
-            308.4
+            891.4
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -5130,13 +5130,13 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 10.3,
+            "actualP95": 9.3,
             "max": 33,
             "pass": true
           },
           {
             "metric": "maxFrameGapMs",
-            "actualP95": 10.4,
+            "actualP95": 9.7,
             "max": 100,
             "pass": true
           },
@@ -5168,24 +5168,24 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 120.1,
-          "p95": 120.1,
+          "median": 120.5,
+          "p95": 120.5,
           "samples": [
-            120.1
+            120.5
           ]
         },
         "frameGapP95Ms": {
-          "median": 10.3,
-          "p95": 10.3,
+          "median": 9.2,
+          "p95": 9.2,
           "samples": [
-            10.3
+            9.2
           ]
         },
         "maxFrameGapMs": {
-          "median": 12.1,
-          "p95": 12.1,
+          "median": 10,
+          "p95": 10,
           "samples": [
-            12.1
+            10
           ]
         },
         "longTaskMs": {
@@ -5232,17 +5232,17 @@
           ]
         },
         "scriptDurationMs": {
-          "median": 28.2,
-          "p95": 28.2,
+          "median": 24,
+          "p95": 24,
           "samples": [
-            28.2
+            24
           ]
         },
         "layoutDurationMs": {
-          "median": 2.5,
-          "p95": 2.5,
+          "median": 1.7,
+          "p95": 1.7,
           "samples": [
-            2.5
+            1.7
           ]
         },
         "jsHeapUsedMB": {
@@ -5302,10 +5302,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 316.3,
-          "p95": 316.3,
+          "median": 880.4,
+          "p95": 880.4,
           "samples": [
-            316.3
+            880.4
           ]
         },
         "reloadHeapDeltaMB": null,
@@ -5317,13 +5317,13 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 10.3,
+            "actualP95": 9.2,
             "max": 33,
             "pass": true
           },
           {
             "metric": "maxFrameGapMs",
-            "actualP95": 12.1,
+            "actualP95": 10,
             "max": 100,
             "pass": true
           },
@@ -5355,24 +5355,24 @@
         "coldFirstCanvasMs": null,
         "coldMediaSettledMs": null,
         "fps": {
-          "median": 119.4,
-          "p95": 119.4,
+          "median": 119.6,
+          "p95": 119.6,
           "samples": [
-            119.4
+            119.6
           ]
         },
         "frameGapP95Ms": {
-          "median": 10.2,
-          "p95": 10.2,
+          "median": 9.1,
+          "p95": 9.1,
           "samples": [
-            10.2
+            9.1
           ]
         },
         "maxFrameGapMs": {
-          "median": 10.4,
-          "p95": 10.4,
+          "median": 9.4,
+          "p95": 9.4,
           "samples": [
-            10.4
+            9.4
           ]
         },
         "longTaskMs": {
@@ -5405,38 +5405,38 @@
           ]
         },
         "layoutCount": {
-          "median": 30,
-          "p95": 30,
+          "median": 29,
+          "p95": 29,
           "samples": [
-            30
+            29
           ]
         },
         "recalcStyleCount": {
-          "median": 119,
-          "p95": 119,
+          "median": 110,
+          "p95": 110,
           "samples": [
-            119
+            110
           ]
         },
         "scriptDurationMs": {
-          "median": 94.2,
-          "p95": 94.2,
+          "median": 112,
+          "p95": 112,
           "samples": [
-            94.2
+            112
           ]
         },
         "layoutDurationMs": {
-          "median": 5.4,
-          "p95": 5.4,
+          "median": 5.8,
+          "p95": 5.8,
           "samples": [
-            5.4
+            5.8
           ]
         },
         "jsHeapUsedMB": {
-          "median": 37.8,
-          "p95": 37.8,
+          "median": 48.1,
+          "p95": 48.1,
           "samples": [
-            37.8
+            48.1
           ]
         },
         "visibleMedia": {
@@ -5489,10 +5489,10 @@
           ]
         },
         "rendererWorkingSetMB": {
-          "median": 415,
-          "p95": 415,
+          "median": 1005.4,
+          "p95": 1005.4,
           "samples": [
-            415
+            1005.4
           ]
         },
         "reloadHeapDeltaMB": {
@@ -5503,10 +5503,10 @@
           ]
         },
         "reloadDurationP95Ms": {
-          "median": 987,
-          "p95": 987,
+          "median": 1056,
+          "p95": 1056,
           "samples": [
-            987
+            1056
           ]
         }
       },
@@ -5516,13 +5516,13 @@
         "budgetChecks": [
           {
             "metric": "frameGapP95Ms",
-            "actualP95": 10.2,
+            "actualP95": 9.1,
             "max": 33,
             "pass": true
           },
           {
             "metric": "maxFrameGapMs",
-            "actualP95": 10.4,
+            "actualP95": 9.4,
             "max": 100,
             "pass": true
           },
