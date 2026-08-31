@@ -145,4 +145,43 @@ describe("production run IPC", () => {
       issuedAt: "2026-08-08T08:00:00.000Z",
     });
   });
+
+  it("preserves only validated storyboard bindings when crossing into the service", async () => {
+    const service = {
+      listFull: vi.fn(() => [fakeRun()]),
+      readFull: vi.fn(() => fakeRun()),
+      createDraft: vi.fn(() => fakeRun()),
+      command: vi.fn(async () => ({ run: fakeRun(), events: [] })),
+      readEvents: vi.fn(async () => ({ events: [], nextCursor: 3 })),
+    };
+    registerProductionRunIpc(service as never);
+
+    await handlers.get("nomi:production-runs:command")?.({}, {
+      projectId: "project-1",
+      runId: "run-1",
+      command: {
+        commandId: "cmd-attach",
+        expectedRevision: 2,
+        type: "plan.attach",
+        payload: {
+          artifactId: "artifact-storyboard-v1",
+          bindings: [{ nodeId: "shot-1", provider: "kie", model: "bytedance/seedance-2", stageId: "generate", secret: "drop-me" }],
+          jobs: [{ provider: "attacker" }],
+          gate: { status: "approved" },
+        },
+        issuedAt: "2026-08-08T08:00:00.000Z",
+      },
+    });
+
+    expect(service.command).toHaveBeenCalledWith("project-1", "run-1", {
+      commandId: "cmd-attach",
+      expectedRevision: 2,
+      type: "plan.attach",
+      payload: {
+        artifactId: "artifact-storyboard-v1",
+        bindings: [{ nodeId: "shot-1", provider: "kie", model: "bytedance/seedance-2", stageId: "generate" }],
+      },
+      issuedAt: "2026-08-08T08:00:00.000Z",
+    });
+  });
 });

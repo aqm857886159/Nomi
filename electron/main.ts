@@ -56,6 +56,40 @@ import { registerScreenshotIpc } from "./screenshot/screenshotIpc";
 import { desktopT, registerI18nIpc, setDesktopLocale } from "./i18n";
 import { registerSettingsIpc } from "./settings/registerSettingsIpc";
 import { registerProductionRunIpc } from "./productionRun/productionRunIpc";
+import { registerVideoAnalysisIpc } from "./videoAnalysis/ipc";
+import { installProductionRunDesktopLifecycle } from "./productionRun/productionRunDesktopLifecycle";
+
+// 主进程 stdout/stderr 在「启动终端已关闭 / 输出被管道接管后断开」时会变成坏管道，
+// 此时任何 console.* 写都会抛 EIO/EPIPE，经 Electron 默认 uncaughtException 弹出
+// 「Uncaught Exception」对话框并循环弹出，用户无法退出。把 write 包一层：写不进去就
+// 静默丢弃，从根因层杜绝「日志把进程搞崩」。落盘诊断仍走 crashLog（文件），不受影响。
+function installSafeStdio(): void {
+  const guard = (stream: { write: unknown }): void => {
+    const original = (stream.write as (...args: unknown[]) => boolean).bind(stream);
+    (stream as { write: (...args: unknown[]) => boolean }).write = function guardedWrite(
+      ...args: unknown[]
+    ): boolean {
+      try {
+        return (original as (...a: unknown[]) => boolean)(...args);
+      } catch {
+        // 坏管道：丢弃，绝不向上抛。返回 false 让调用方按「满/失败」处理，不重试。
+        return false;
+      }
+    };
+  };
+  try {
+    guard(process.stdout);
+  } catch {
+    /* noop */
+  }
+  try {
+    guard(process.stderr);
+  } catch {
+    /* noop */
+  }
+}
+installSafeStdio();
+
 installMainProcessLifecycle(app);
 const configuredUserDataDir = String(process.env.NOMI_ELECTRON_USER_DATA_DIR || "").trim();
 if (configuredUserDataDir) {
@@ -72,23 +106,12 @@ if (configuredUserDataDir) {
 const isMcpStdio = process.env.NOMI_MCP_STDIO === "1";
 const allowE2eMultiInstance = process.env.NOMI_E2E_ALLOW_MULTI_INSTANCE === "1";
 const hasSingleInstanceLock = isMcpStdio ? false : allowE2eMultiInstance ? true : app.requestSingleInstanceLock();
-if (!isMcpStdio && !allowE2eMultiInstance) {
-  if (!hasSingleInstanceLock) {
-    app.quit();
-  } else {
-    app.on("second-instance", () => {
-      const [existing] = BrowserWindow.getAllWindows();
-      if (existing) {
-        if (existing.isMinimized()) existing.restore();
-        existing.focus();
-      }
-    });
-  }
-}
+const { ensureArtifactPreviewSecret, flushPendingProductionDeepLink } = installProductionRunDesktopLifecycle({ isMcpStdio, allowE2eMultiInstance, hasSingleInstanceLock });
 if (isMcpStdio) {
   void app
     .whenReady()
     .then(async () => {
+      ensureArtifactPreviewSecret();
       const { startMcpStdioServer } = await import("./capabilityCore/mcpStdioServer");
       await startMcpStdioServer();
     })
@@ -650,6 +673,7 @@ function registerIpc(): void {
   registerOnboardingIpc();
   registerProviderAdapterIpc();
   registerProductionRunIpc();
+  registerVideoAnalysisIpc();
   registerUpdaterIpc();
   // M0 独立捕捞窗已退役（方案A 2026-07-12）：捕捞面收敛到应用内浏览器（registerBrowserViewIpc）。
   // S4-1 评测安全铁律:事件落盘前,已配置的 vendor key 精确匹配脱敏(形态兜底之外的地基)。
@@ -729,6 +753,12 @@ if (hasSingleInstanceLock)
     .whenReady()
     .then(async () => {
       setDesktopLocale(app.getLocale());
+      ensureArtifactPreviewSecret();
+      try {
+        app.setAsDefaultProtocolClient("nomi");
+      } catch {
+        // Registration is best-effort in dev and on platforms that disallow it.
+      }
       registerLocalProtocol();
       installContentSecurityPolicy(session.defaultSession);
       // 写入内置模型种子（Seedance 等主流模型档案）；幂等、存在即跳过，不覆盖用户已有记录。
@@ -750,6 +780,7 @@ if (hasSingleInstanceLock)
         });
       }
       await createWindow();
+      flushPendingProductionDeepLink();
       setTimeout(
         () => {
           // 全局截图热键：默认关，只有用户在设置里开过才会真注册（见 screenshot/screenshotHotkey.ts）。
@@ -771,7 +802,7 @@ if (hasSingleInstanceLock)
         if (BrowserWindow.getAllWindows().length === 0) {
           void createWindow().catch((error) => {
             console.error("[nomi:desktop] failed to recreate window:", error);
-          });
+          }).then(() => flushPendingProductionDeepLink());
         }
       });
     })
@@ -779,12 +810,10 @@ if (hasSingleInstanceLock)
       console.error("[nomi:desktop] failed to start:", error);
       app.quit();
     });
-
 app.on("window-all-closed", () => {
   if (isRecreatingMainWindow) return;
   if (process.platform !== "darwin") app.quit();
 });
-
 // 退出时中止所有在跑导出，否则 ffmpeg 子进程会变孤儿（继续占 CPU/写文件，直到自己跑完）。
 // abort → ffmpegRunner 监听 abort 后 kill 子进程。同步、不抛，绝不拖住退出。
 app.on("before-quit", () => {

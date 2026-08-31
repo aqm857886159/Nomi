@@ -2,6 +2,7 @@ import { useGenerationCanvasStore } from '../generationCanvas/store/generationCa
 import { useWorkbenchStore } from '../workbenchStore'
 import { emitCanvasGesture, getCanvasEventLastSeq, seedCanvasEventLastSeq } from '../generationCanvas/events/canvasEventEmitter'
 import { getDesktopBridge } from '../../desktop/bridge'
+import { saveLocalProject } from '../library/localProjectStore'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
 
 export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
@@ -87,30 +88,46 @@ type ActiveWorkbenchProjectSaveTarget = {
 }
 
 let activeWorkbenchProjectSaveTarget: ActiveWorkbenchProjectSaveTarget | null = null
+let activeWorkbenchProjectId: string | null = null
+
+export function rememberActiveWorkbenchProjectId(projectId: string | null): void {
+  activeWorkbenchProjectId = String(projectId || '').trim() || null
+  getDesktopBridge()?.capability?.setActiveProject(activeWorkbenchProjectId ?? '')
+}
 
 export function setActiveWorkbenchProjectSaveTarget(target: ActiveWorkbenchProjectSaveTarget | null): void {
   activeWorkbenchProjectSaveTarget = target
+  if (target) activeWorkbenchProjectId = target.projectId
+  else activeWorkbenchProjectId = null
   // 能力核 A/B 守卫：把「当前窗口打开的项目」上报主进程——外部 CLI/MCP 据此拒绝直写正在编辑的工程
   // （防内存 store 防抖回盘覆盖外部改动）。可选口（老 preload 无 capability 即 no-op）。
   getDesktopBridge()?.capability?.setActiveProject(target?.projectId ?? '')
 }
 
 export function clearActiveWorkbenchProjectSaveTarget(projectId?: string): void {
-  if (projectId && activeWorkbenchProjectSaveTarget?.projectId !== projectId) return
+  if (projectId && activeWorkbenchProjectSaveTarget && activeWorkbenchProjectSaveTarget.projectId !== projectId) return
   activeWorkbenchProjectSaveTarget = null
+  if (!projectId || activeWorkbenchProjectId === projectId) activeWorkbenchProjectId = null
 }
 
 /** 当前活动 workbench 项目 id（单一真相源）—— 抽帧落素材需要它，runner 作用域本身拿不到。 */
 export function getActiveWorkbenchProjectId(): string | null {
-  return activeWorkbenchProjectSaveTarget?.projectId ?? null
+  return activeWorkbenchProjectId
 }
 
-export async function persistActiveWorkbenchProjectNow(): Promise<WorkbenchProjectRecordV1 | null> {
+export async function persistActiveWorkbenchProjectNow(fallbackProjectId?: string): Promise<WorkbenchProjectRecordV1 | null> {
+  if (fallbackProjectId && activeWorkbenchProjectId && activeWorkbenchProjectId !== fallbackProjectId) return null
   const target = activeWorkbenchProjectSaveTarget
-  if (!target || !target.canPersist()) return null
-  const saved = await saveCurrentWorkbenchProject(target.projectId, target.projectName, target.saveProject)
-  target.onSaved(saved)
-  return saved
+  if (target) {
+    if (fallbackProjectId && target.projectId !== fallbackProjectId) return null
+    if (!target.canPersist()) return null
+    const saved = await saveCurrentWorkbenchProject(target.projectId, target.projectName, target.saveProject)
+    target.onSaved(saved)
+    return saved
+  }
+  const projectId = String(fallbackProjectId || '').trim()
+  if (!projectId) return null
+  return saveLocalProject(projectId, readCurrentWorkbenchProjectPayload())
 }
 
 export type WorkbenchProjectPersistenceOptions = {

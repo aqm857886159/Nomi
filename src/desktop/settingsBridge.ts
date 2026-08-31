@@ -24,4 +24,14 @@ export type DesktopSettingsBridge = {
     get: () => Promise<import('../../electron/settings/automationPolicyContract').AutomationPolicySettings>
     set: (payload: unknown) => Promise<import('../../electron/settings/automationPolicyContract').AutomationPolicySettings>
   }
+  videoAnalysis: {
+    get: () => Promise<import('../../electron/settings/videoAnalysisSettings').VideoAnalysisSettings>
+    set: (payload: {
+      engineOrigin?: string
+      apiToken?: string
+      clearApiToken?: boolean
+      externalInference?: boolean
+      engineSourceRetention?: 'delete_after_analysis' | 'keep'
+    }) => Promise<import('../../electron/settings/videoAnalysisSettings').VideoAnalysisSettings>
+  }
 }

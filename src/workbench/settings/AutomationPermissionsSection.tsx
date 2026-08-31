@@ -5,6 +5,7 @@ import { IconLock } from '@tabler/icons-react'
 import { DesignSwitch, NomiSegmented } from '../../design'
 import type { AutomationPolicySettings } from '../../../electron/settings/automationPolicyContract'
 import { buildAutomationSettingsView, type SettingsHostKey } from './settingsAutomationView'
+import { VideoAnalysisSettingsSection } from './VideoAnalysisSettingsSection'
 
 type Props = {
   settings: AutomationPolicySettings
@@ -114,6 +115,8 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
           </SettingRow>
         ))}
       </section>
+
+      <VideoAnalysisSettingsSection />
 
       <section className="border-t border-nomi-line pt-4" aria-labelledby="settings-notifications-title">
         <h3 id="settings-notifications-title" className="text-caption font-medium text-nomi-ink-60">

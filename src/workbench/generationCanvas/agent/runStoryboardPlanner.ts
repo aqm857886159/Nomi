@@ -21,6 +21,7 @@ export async function runStoryboardPlanner(input: {
   /** 修改现方案（P0-9 Slice 3）：当前方案 + 修改要求。*/
   currentPlan?: StoryboardPlan | null
   revisionRequest?: string
+  skill?: { key: string; name: string }
   onContent?: (text: string) => void
   onCancelReady?: (cancel: () => void) => void
 }): Promise<{ text: string }> {
@@ -34,7 +35,7 @@ export async function runStoryboardPlanner(input: {
     snapshot: generationCanvasTools.read_canvas(),
     selectedNodes: [],
     mode: 'agent',
-    skill: STORYBOARD_PLANNER_SKILL,
+    skill: input.skill || STORYBOARD_PLANNER_SKILL,
     onContent: (_delta, text) => input.onContent?.(text),
     ...(input.onCancelReady ? { onCancelReady: input.onCancelReady } : {}),
     onToolCall: (event) => {

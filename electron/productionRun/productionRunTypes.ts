@@ -22,6 +22,8 @@ export type BudgetLedgerSummary = {
 
 export type ProductionRunStatus =
   | "draft"
+  | "awaiting_direction"
+  | "awaiting_storyboard_review"
   | "awaiting_contract"
   | "ready"
   | "running"
@@ -79,6 +81,16 @@ export type ProductionContract = {
   estimatedCost?: { currency: string; minimum: number; maximum: number };
 };
 
+export type ProductionBrief = {
+  goal: string;
+  audience?: string;
+  channel?: string;
+  tone?: string;
+  durationSeconds?: number;
+  sellingPoints?: string[];
+  referenceArtifactIds?: string[];
+};
+
 export type ProductionStage = {
   stageId: string;
   title: string;
@@ -97,6 +109,7 @@ export type ProductionJob = {
   model: string;
   idempotencyKey: string;
   providerTaskId?: string;
+  taskKind?: string;
   nodeId?: string;
   progressPercent?: number;
   lastPollAt?: string;
@@ -142,6 +155,7 @@ export type ProductionRun = {
   stageId: string;
   playbook: { name: string; version: string };
   origin: { host: string; actorId?: string };
+  brief?: ProductionBrief;
   policy: AutomationPolicy;
   budget: BudgetLedgerSummary;
   planVersion: number;
@@ -164,6 +178,7 @@ export type CreateProductionRunInput = {
   projectId: string;
   playbook: { name: string; version: string };
   origin: { host: string; actorId?: string };
+  brief?: ProductionBrief;
   policy?: Partial<AutomationPolicy>;
   currency?: string;
 };

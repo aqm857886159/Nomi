@@ -49,7 +49,7 @@ International community: [GitHub Discussions](https://github.com/aqm857886159/No
 - **One project, not eleven tabs.** Story, shots, references, generated takes, and the timeline live in the same file on your disk instead of being copied between disconnected tools.
 - **Shot 4 and shot 9 should be the same person.** Lock characters, locations, props, camera, and style once; later shots inherit them instead of restarting from a new prompt.
 - **Bring your own stack.** Around ten curated providers are pre-wired, and any OpenAI-compatible, Anthropic, Responses, or relay endpoint can be added by pasting a URL and a key — no rebuild. A local ComfyUI is a provider like any other: Nomi converts the normal "Save" workflow format, so the workflows you download actually import, and it diffs the graph against `/object_info` to tell you which custom nodes and model files you are missing before you run it.
-- **Your agent can operate it.** Nine MCP tools let Claude Code, Codex, or Cursor create the project, lay out shots, wire references, and run generation, then hand you an editable first cut. Anything that spends money stops and asks you first — enforced in the main process, so an agent cannot quietly spend your money.
+- **Your agent can operate it.** Thirteen MCP tools let Claude Code, Codex, or Cursor create projects, lay out shots, wire references, run generation, and start a durable production run. Direction, paid generation, rough-cut acceptance, and export stop for explicit approval in Nomi, enforced in the main process.
 
 ## Download
 

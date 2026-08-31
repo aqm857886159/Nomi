@@ -2,7 +2,7 @@ import path from "node:path";
 
 function assertRunId(runId: string): string {
   const normalized = String(runId || "").trim();
-  if (!/^[A-Za-z0-9._-]{1,160}$/.test(normalized)) {
+  if (!/^[A-Za-z0-9._-]{1,160}$/.test(normalized) || normalized === "." || normalized === "..") {
     throw new Error("Invalid production run id");
   }
   return normalized;
@@ -24,4 +24,3 @@ export function productionRunPaths(projectDir: string, runId: string) {
     jobsDir: path.join(dir, "jobs"),
   };
 }
-

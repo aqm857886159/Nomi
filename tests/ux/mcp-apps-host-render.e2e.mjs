@@ -4,7 +4,7 @@
 //
 // 流程：起真 stdio server → initialize(声明 io.modelcontextprotocol/ui) → tools/list 拿 nomi_generate 的
 // _meta.ui.resourceUri → resources/read 取**server 真吐的 widget HTML** → 在 chromium 里当 iframe 装进一个
-// 迷你宿主页（做 ui/initialize↔tool-result postMessage 握手）→ 注入代表性 nomiDraft → 截图。零生成、零额度。
+// 迷你宿主页（做 ui/initialize↔tool-result postMessage 握手）→ 注入 canonical nomiRun → 截图。零生成、零额度。
 // 用法：pnpm run build && node tests/ux/mcp-apps-host-render.e2e.mjs
 import { chromium } from 'playwright'
 import { spawn } from 'node:child_process'
@@ -69,15 +69,15 @@ try {
 
   // 4) 在 chromium 里当真宿主渲染：iframe 装 widget，做 ui/initialize↔tool-result 握手，注入代表性数据。
   const thumb = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100"><rect width="160" height="100" fill="#241c12"/><circle cx="80" cy="55" r="22" fill="#e0a84e"/><rect y="84" width="160" height="16" fill="#12100a"/></svg>')
-  const draft = {
-    kind: 'generation', title: 'Nomi · 深夜面馆 · 逐镜生成', status: 'running', projectName: '深夜面馆·初稿', deepLink: 'nomi://project/demo',
-    shots: [
-      { index: 1, title: '空荡店面', status: 'success', kind: 'image', thumbnailUrl: thumb },
-      { index: 2, title: '擦拭木桌', status: 'success', kind: 'image', thumbnailUrl: thumb },
-      { index: 3, title: '门帘一挑', status: 'running', kind: 'image' },
-      { index: 4, title: '女儿入门', status: 'queued', kind: 'image' },
-      { index: 5, title: '声音发颤', status: 'queued', kind: 'image' },
-    ],
+  const run = {
+    kind: 'production',
+    title: 'Nomi · brand.promo',
+    status: 'available',
+    message: '分镜已准备好；尚未批准付费或导出。',
+    projectId: 'project-demo',
+    runId: 'run-demo',
+    deepLink: 'nomi://project/project-demo/run/run-demo',
+    shots: [{ index: 1, title: 'video', status: 'success', kind: 'video', thumbnailUrl: thumb }],
   }
   const browser = await chromium.launch()
   async function render(colorScheme, name) {
@@ -90,28 +90,39 @@ try {
       window.addEventListener('message', (e) => {
         const m = e.data
         if (m && (m.method === 'ui/initialize' || m.method === 'ui/notifications/initialized')) {
-          f.contentWindow.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: { structuredContent: { nomiDraft: data } } }, '*')
+          f.contentWindow.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: { structuredContent: { nomiRun: data } } }, '*')
         }
       })
       f.srcdoc = html
       document.getElementById('host').appendChild(f)
-    }, { html: widgetHtml, data: draft })
+    }, { html: widgetHtml, data: run })
     await page.waitForTimeout(700)
+    const frame = page.frames().find((candidate) => candidate !== page.mainFrame())
+    const evidence = frame ? await frame.evaluate(() => ({
+      previewCount: document.querySelectorAll('.shot').length,
+      message: document.querySelector('#msg')?.textContent || '',
+      actionCount: [...document.querySelectorAll('button')].filter((button) => button.textContent?.trim() === '在 Nomi 打开').length,
+      status: document.querySelector('#badge')?.textContent || '',
+    })) : null
     await page.screenshot({ path: path.join(shotsDir, name) })
     console.log(`  · shot ${name}`)
     await page.close()
+    return evidence
   }
-  await render('light', 'host-render-light.png')
+  const rendered = await render('light', 'host-render-light.png')
   await render('dark', 'host-render-dark.png')
+  ok(rendered?.previewCount === 1, 'canonical nomiRun 只渲染一个最新预览')
+  ok(rendered?.message === run.message && rendered?.status === '可查看', '状态与一句话说明真实可核对')
+  ok(rendered?.actionCount === 1, '只有一个精确的「在 Nomi 打开」动作')
 
   // ChatGPT 桥：数据经 window.openai.toolOutput（非标准 postMessage）。注入 window.openai 于 widget 脚本前，
   // 验证同一份 widget 在 ChatGPT 那条桥上也能渲染出数据（双桥并存）。
   async function renderOpenAi(colorScheme, name) {
-    const injected = widgetHtml.replace('<body>', `<body><script>window.openai={toolOutput:${JSON.stringify({ nomiDraft: draft })}}</script>`)
+    const injected = widgetHtml.replace('<body>', `<body><script>window.openai={toolOutput:${JSON.stringify({ nomiRun: run })}}</script>`)
     const page = await browser.newPage({ colorScheme, viewport: { width: 460, height: 560 } })
     await page.goto('data:text/html;charset=utf-8,' + encodeURIComponent(injected))
     await page.waitForTimeout(500)
-    const hasShots = await page.evaluate(() => /镜 1|已出/.test(document.body.innerText))
+    const hasShots = await page.evaluate(() => /镜 1|已出/.test(document.body.innerText) && document.querySelectorAll('.shot').length === 1)
     await page.screenshot({ path: path.join(shotsDir, name) })
     await page.close()
     return hasShots

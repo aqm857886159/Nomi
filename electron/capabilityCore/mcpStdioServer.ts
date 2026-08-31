@@ -15,6 +15,10 @@ import { readLiveInstance, type InstanceAdvertisement } from './lockfile'
 import { runTask, fetchTaskResult } from '../runtime'
 import { mintSpendGrant } from '../spendGrant'
 import { applySystemProxy } from '../systemProxy'
+import { getProductionRunService } from '../productionRun/productionRunRuntime'
+import { startArtifactPreviewHttpServer } from '../productionRun/artifactPreviewHttpServer'
+
+const productionRuns = getProductionRunService()
 
 // 传输兜底超时：须 ≥ 服务端最长合法耗时（core.ts 视频轮询 300s）才不误杀真生成；默认 360s，可经 env 调。
 function transportTimeoutMs(): number {
@@ -63,13 +67,14 @@ async function invoke(method: string, params: Record<string, unknown>, options?:
   const instance = readLiveInstance()
   if (instance) return callViaRpc(instance, method, params)
   const makeGateway = options?.spendConfirmed ? makeConfirmedGateway : createDiskGateway
-  return dispatch(method, params, { runTask, fetchTaskResult, makeGateway })
+  return dispatch(method, params, { runTask, fetchTaskResult, makeGateway, productionRuns, origin: { host: 'external' } })
 }
 
 /** 启动 stdio JSON-RPC server。main.ts 在 NOMI_MCP_STDIO 模式的 app.whenReady 后调；不开窗、不抢单实例锁。 */
 export async function startMcpStdioServer(): Promise<void> {
   // 无窗口进程：mac 别在 dock 弹图标。
   app.dock?.hide?.()
+  const previewServer = await startArtifactPreviewHttpServer(productionRuns)
   // 关键：stdout 是 JSON-RPC 通道，任何杂质都会毁帧。把我们自己的非错误 console.* 改写到 stderr
   //（Chromium 自身日志本就走 stderr），stdout 只出 JSON-RPC。
   const toErr = (...parts: unknown[]) => process.stderr.write(parts.map((p) => (typeof p === 'string' ? p : JSON.stringify(p))).join(' ') + '\n')
@@ -104,6 +109,12 @@ export async function startMcpStdioServer(): Promise<void> {
     protocol.handleIncoming(message as Parameters<typeof protocol.handleIncoming>[0])
   })
   // 客户端关闭 stdin（断连/退出）→ 我们也退出，不留孤儿进程。
-  rl.on('close', () => app.exit(0))
-  process.stdin.on('end', () => app.exit(0))
+  let closing = false
+  const close = () => {
+    if (closing) return
+    closing = true
+    void previewServer.close().finally(() => app.exit(0))
+  }
+  rl.on('close', close)
+  process.stdin.on('end', close)
 }

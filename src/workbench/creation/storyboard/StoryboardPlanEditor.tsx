@@ -25,6 +25,8 @@ import {
 } from '../../generationCanvas/agent/storyboardPlanEdits'
 import StoryboardAnchorCard from './StoryboardAnchorCard'
 import StoryboardShotCard from './StoryboardShotCard'
+import { productionRunApi } from '../../production/productionRunApi'
+import { useProductionRunStore } from '../../production/productionRunStore'
 
 /**
  * 分镜方案字段编辑器（S3，决策 B）。创作区主列在 storyboardPlan 存在时替换文档编辑器渲染它。
@@ -91,6 +93,32 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
         ...(videoDefault.modeId ? { defaultVideoModeId: videoDefault.modeId } : {}),
       })
       await applyCanvasToolCall('create_canvas_nodes', args)
+      const productionRun = useProductionRunStore.getState().run
+      const storyboardArtifact = productionRun?.artifacts.find((artifact) => artifact.kind === 'storyboard' && artifact.status === 'candidate')
+      if (productionRun && storyboardArtifact) {
+        const nodeById = new Map(useGenerationCanvasStore.getState().nodes.map((node) => [node.id, node]))
+        const bindings = args.nodes
+          .map((created) => {
+            const nodeId = resolveCanvasToolNodeId(created.clientId)
+            const node = nodeById.get(nodeId)
+            const meta = node?.meta as Record<string, unknown> | undefined
+            return {
+              nodeId,
+              stageId: 'generate',
+              provider: typeof meta?.modelVendor === 'string' ? meta.modelVendor : typeof meta?.vendor === 'string' ? meta.vendor : '',
+              model: typeof meta?.modelKey === 'string' ? meta.modelKey : '',
+            }
+          })
+          .filter((binding) => binding.nodeId)
+        await productionRunApi.command(productionRun.projectId, productionRun.runId, {
+          commandId: globalThis.crypto.randomUUID(),
+          expectedRevision: productionRun.revision,
+          type: 'plan.attach',
+          payload: { artifactId: storyboardArtifact.artifactId, bindings },
+          issuedAt: new Date().toISOString(),
+        })
+        await useProductionRunStore.getState().load(productionRun.projectId)
+      }
       // 不再即焚:方案保留、转「已落画布」、收起编辑器 → 卡片留在对话流可回看/再编辑。
       commitStoryboardPlan()
       setWorkspaceMode('generation')

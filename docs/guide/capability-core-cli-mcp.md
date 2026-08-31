@@ -116,20 +116,37 @@ node scripts/nomi.mjs generate workspace-xxxx modelscope "Tongyi-MAI/Z-Image-Tur
 
 ## 3. 完整流程 B —— 用 Claude Code（MCP）对话式做
 
-**① 配置**（项目级 `.mcp.json` 或全局 `~/.claude.json`）：
+**① 一键接入（推荐）**
+
+打开 Nomi 的「模型接入」→「接入 AI 编程助手」，选择 Claude Code、Codex 或 Cursor，点击接入。Nomi 会只合并自己的 `nomi` 条目、保留其它 MCP server，并在改写前留下 `.nomi-backup`。接入卡会真正启动配置中的命令做握手，不会只凭“配置里有一行”显示成功。
+
+手工配置时，MCP server 必须启动 **Nomi 应用自身**，并传入 `NOMI_MCP_STDIO=1`。不要再使用旧版 `scripts/nomi-mcp.mjs`；该脚本已经退役。例如安装版 macOS 的 Claude Code / Cursor 配置为：
 
 ```json
 {
   "mcpServers": {
     "nomi": {
-      "command": "node",
-      "args": ["/你的路径/Nomi/scripts/nomi-mcp.mjs"]
+      "command": "/Applications/Nomi.app/Contents/MacOS/Nomi",
+      "args": [],
+      "env": { "NOMI_MCP_STDIO": "1" }
     }
   }
 }
 ```
 
-**② 重启 Claude Code**，确认 `nomi` 这组工具出现了（`nomi_list_models` / `nomi_create_project` / `nomi_generate` 等 9 个）。
+Codex 使用 `~/.codex/config.toml`，还需要为 Electron 冷启动和视频任务保留足够超时：
+
+```toml
+[mcp_servers.nomi]
+command = "/Applications/Nomi.app/Contents/MacOS/Nomi"
+args = []
+startup_timeout_sec = 60
+tool_timeout_sec = 600
+default_tools_approval_mode = "writes"
+env = { NOMI_MCP_STDIO = "1" }
+```
+
+**② 重启对应客户端**，确认 `nomi` 这组 13 个工具出现了，包括 `nomi_list_models`、`nomi_create_project`、`nomi_generate` 和 `nomi_start_playbook`。
 
 **③ 直接说人话**，它自己挑工具完成：
 
@@ -179,6 +196,9 @@ Claude Code 会依次调 `nomi_create_project` → `nomi_list_models` → `nomi_
 | `nomi_add_nodes` / `nomi_connect_nodes` | 加节点 / 连线 |
 | `nomi_set_node_prompt` / `nomi_delete_nodes` | 改提示词 / 删节点 |
 | `nomi_generate` | 真生成（含参考图 references、指定 nodeId） |
+| `nomi_start_playbook` | 创建不花钱、可恢复的制作草稿；当前完整流程为 `brand.promo` |
+| `nomi_get_run` / `nomi_subscribe_run` | 读取制作状态 / 按游标等待持久事件 |
+| `nomi_get_artifact` | 取得指定 Run 产物的安全投影、精确 Nomi 深链和限时预览 |
 
 ---
 
@@ -198,14 +218,15 @@ Claude Code 会依次调 `nomi_create_project` → `nomi_list_models` → `nomi_
 ## 7. 安全
 
 - 本地服务**只监听 `127.0.0.1`**（外网 / 局域网够不着）+ **token 校验**。
-- **生成会花你的额度**——目前只过 token 这道门，别把 `~/.nomi/capability-core/token` 交给不信任的程序。
+- **付费生成不能只凭 token 启动**——方向和制作合同必须在 Nomi 里由真人批准，支出上限、模型和任务集合会绑定到本次授权；外部 MCP 客户端不能伪造批准。
 - 外部调用只能做 Nomi 的领域操作（建工程 / 改画布 / 生成），**不是**任意文件读写。
+- 项目、素材、提示词、密钥和编排状态保存在本机。使用外部模型 API 时，完成任务所需的输入仍会发送给你配置的供应商；“本地优先”不等于“所有推理都离线”。
 
 ---
 
 ## 8. 已知边界（诚实标注）
 
-- **真实视频生成**：图、文已端到端验证；视频走同一条路、命令支持，但还没真跑过一次（更慢更贵）。
-- **打包安装版**：CLI 的「Nomi 关着自动拉后台」目前走 dev（仓库 + node_modules 里的 Electron）；打包版的等价入口是后续切片。
-- **app 开着时的实时反映**：现在是「拒绝改打开中的项目」（防覆盖）；「外部改动实时显示到画布」待做。
-- **付费确认门**：外部生成只过 token，还没接 app 内「真人确认才花钱」的令牌机制。
+- **完整制作从 Nomi 收口**：MCP 可以创建和观察 Production Run，但方向、预算、粗剪、导出、发布、删除和覆盖文件不能在外部客户端自动批准。
+- **当前公开 playbook**：Production Run 的完整驱动先覆盖 `brand.promo`；没有公开“批量生成所有片段”的工具。
+- **供应商差异**：只有供应商返回真实进度时 Nomi 才显示百分比；超时或提交结果不明会安全暂停，不会自动重下单。
+- **媒体查看**：外部宿主拿到的是去路径、去 prompt、去供应商内部字段的安全投影；真文件通过 project / Run / artifact 绑定的限时 loopback 预览访问。

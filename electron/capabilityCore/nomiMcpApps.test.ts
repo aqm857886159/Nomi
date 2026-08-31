@@ -4,7 +4,9 @@ import {
   NOMI_LIVE_DRAFT_UI_URI,
   MCP_APP_MIME_TYPE,
   MCP_UI_EXTENSION_ID,
+  NOMI_LIVE_DRAFT_WIDGET_HTML,
   buildNomiDraftFromGenerate,
+  buildNomiRunFromProjection,
 } from './mcpAppWidget'
 
 // MCP Apps 活生成 widget 的协议层 serving（扩展 io.modelcontextprotocol/ui，Stable 2026-01-26）：
@@ -96,7 +98,14 @@ describe('nomi-mcp · MCP Apps 活生成 widget serving', () => {
     const res = await h.call(2, 'tools/list')
     const tools = (res.result as { tools: Array<{ name: string; annotations?: { readOnlyHint?: boolean } }> }).tools
     const readOnly = tools.filter((t) => t.annotations?.readOnlyHint === true).map((t) => t.name).sort()
-    expect(readOnly).toEqual(['nomi_list_models', 'nomi_list_projects', 'nomi_read_canvas'])
+    expect(readOnly).toEqual([
+      'nomi_get_artifact',
+      'nomi_get_run',
+      'nomi_list_models',
+      'nomi_list_projects',
+      'nomi_read_canvas',
+      'nomi_subscribe_run',
+    ])
     // 花钱的那个绝不能被标成只读。
     expect(tools.find((t) => t.name === 'nomi_generate')?.annotations?.readOnlyHint).toBeUndefined()
   })
@@ -182,5 +191,74 @@ describe('buildNomiDraftFromGenerate（纯函数）', () => {
     expect(draft.status).toBe('running')
     expect(draft.shots?.[0]?.status).toBe('running')
     expect(draft.shots?.[0]?.thumbnailUrl).toBeUndefined()
+  })
+})
+
+describe('buildNomiRunFromProjection（纯函数）', () => {
+  it('只把安全 nomi-local 预览和 Nomi 深链带入 widget', () => {
+    const run = buildNomiRunFromProjection({
+      projectId: 'project-1',
+      runId: 'run-1',
+      result: {
+        projectId: 'project-1',
+        runId: 'run-1',
+        status: 'running',
+        playbook: { name: 'brand.promo' },
+        artifacts: [{ artifactId: 'a1', kind: 'image', status: 'ready', preview: { url: 'nomi-local://asset/project-1/a.png', expiresAt: '2026-08-08T10:01:00.000Z' } }],
+        openInNomi: 'nomi://project/project-1/run/run-1',
+      },
+    })
+    expect(run.kind).toBe('production')
+    expect(run.shots?.[0]).toMatchObject({ status: 'success', thumbnailUrl: 'nomi-local://asset/project-1/a.png' })
+    expect(run.deepLink).toBe('nomi://project/project-1/run/run-1')
+  })
+
+  it('production widget consumes the canonical nomiRun frame and exposes one exact Nomi action', () => {
+    expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('sc.nomiRun')
+    expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('structuredContent.nomiRun')
+    expect(NOMI_LIVE_DRAFT_WIDGET_HTML.match(/>在 Nomi 打开</g)).toHaveLength(1)
+    expect(NOMI_LIVE_DRAFT_WIDGET_HTML).not.toContain('>在 Nomi 中打开<')
+  })
+
+  it('selects only the newest safe preview instead of rendering every artifact', () => {
+    const run = buildNomiRunFromProjection({
+      projectId: 'project-1',
+      runId: 'run-1',
+      result: {
+        projectId: 'project-1',
+        runId: 'run-1',
+        status: 'running',
+        artifacts: [
+          { artifactId: 'new-without-preview', kind: 'timeline', status: 'ready', createdAt: '2026-08-08T10:03:00.000Z' },
+          { artifactId: 'old', kind: 'image', status: 'ready', createdAt: '2026-08-08T10:01:00.000Z', preview: { url: 'http://127.0.0.1:3131/production-preview?preview=old' } },
+          { artifactId: 'new', kind: 'video', status: 'adopted', createdAt: '2026-08-08T10:02:00.000Z', preview: { url: 'http://127.0.0.1:3131/production-preview?preview=new' } },
+        ],
+      },
+    })
+    expect(run.shots).toHaveLength(1)
+    expect(run.shots?.[0]).toMatchObject({ title: 'video', kind: 'video', thumbnailUrl: 'http://127.0.0.1:3131/production-preview?preview=new' })
+  })
+
+  it('does not invent running progress for event-only or ready-artifact projections', () => {
+    const eventOnly = buildNomiRunFromProjection({
+      projectId: 'project-1',
+      runId: 'run-1',
+      result: { events: [{ cursor: 4, type: 'stage.updated', message: '分镜规划已完成' }], nextCursor: 4 },
+    })
+    expect(eventOnly.status).toBe('unknown')
+    expect(eventOnly.message).toBe('分镜规划已完成')
+
+    const artifact = buildNomiRunFromProjection({
+      projectId: 'project-1',
+      runId: 'run-1',
+      result: {
+        artifactId: 'artifact-1',
+        kind: 'storyboard',
+        status: 'ready',
+        preview: { url: 'http://127.0.0.1:3131/production-preview?preview=ready' },
+      },
+    })
+    expect(artifact.status).toBe('available')
+    expect(artifact.shots).toHaveLength(1)
   })
 })

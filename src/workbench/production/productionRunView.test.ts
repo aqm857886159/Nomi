@@ -84,6 +84,46 @@ describe('production run view', () => {
     })
   })
 
+  it('requires rough-cut review before exposing the waiting export gate', () => {
+    const exportGate = {
+      gateId: 'gate-export-v1',
+      scope: 'export' as const,
+      status: 'waiting' as const,
+      planHash: 'export-plan',
+      jobIds: [],
+      title: 'Export',
+      summary: 'Review first',
+      createdAt: '2026-08-08T08:00:00.000Z',
+      expiresAt: '2026-08-08T09:00:00.000Z',
+    }
+    expect(buildProductionRunView(run({ status: 'awaiting_rough_cut_review', gates: [exportGate] }), now)).toMatchObject({
+      titleKey: 'production.status.roughCutReady',
+      primaryAction: 'review-rough-cut',
+    })
+    expect(buildProductionRunView(run({ status: 'awaiting_export', gates: [exportGate] }), now)).toMatchObject({
+      titleKey: 'production.status.exportReady',
+      primaryAction: 'open-gate',
+      targetId: 'gate-export-v1',
+    })
+  })
+
+  it('shows a durable contract refusal and states that no spend occurred', () => {
+    const value = run({
+      status: 'awaiting_contract',
+      budget: { currency: 'CNY', authorized: 0, reserved: 0, actual: 0, unsettled: 0 },
+      gates: [{
+        gateId: 'gate-contract-v1', scope: 'budget_envelope', status: 'rejected', planHash: 'plan-1', jobIds: ['job-1'],
+        title: 'Production contract', summary: '5 shots', createdAt: '2026-08-08T08:00:00.000Z', expiresAt: '2026-08-08T09:00:00.000Z', decidedAt: '2026-08-08T08:05:00.000Z',
+      }],
+    })
+    expect(buildProductionRunView(value, now)).toMatchObject({
+      tone: 'neutral',
+      titleKey: 'production.status.contractDeclined',
+      descriptionKey: 'production.description.contractDeclined',
+      primaryAction: null,
+    })
+  })
+
   it('stops on submission_unknown and never suggests retry', () => {
     const value = run({ jobs: [{ ...run().jobs[0], status: 'submission_unknown', progressPercent: undefined }] })
     expect(buildProductionRunView(value, now)).toMatchObject({
@@ -120,6 +160,41 @@ describe('production run view', () => {
       artifactId: 'safe-new',
       kind: 'video',
       thumbnailRelativePath: 'assets/new.jpg',
+    })
+  })
+
+  it('projects a playable video path and auditable stage, skill, and update details', () => {
+    const value = run({
+      updatedAt: '2026-08-08T08:09:30.000Z',
+      stages: [
+        { stageId: 'script', title: 'Script', status: 'completed', order: 1 },
+        { stageId: 'generate', title: 'Generate', status: 'running', order: 2 },
+      ],
+      gates: [{
+        gateId: 'gate-contract', scope: 'budget_envelope', status: 'approved', planHash: 'plan-1', jobIds: ['job-1'],
+        title: 'Production contract', summary: 'One shot', createdAt: '2026-08-08T08:00:00.000Z', expiresAt: '2026-08-08T09:00:00.000Z',
+        contract: { specs: {}, claims: [], evidence: [], skills: [{ name: 'director', version: '2.1.0' }] },
+      }],
+      artifacts: [{
+        artifactId: 'video-1', stageId: 'generate', kind: 'video', status: 'ready',
+        projectRelativePath: 'assets/generated/shot.mp4', createdAt: '2026-08-08T08:08:00.000Z',
+      }],
+    })
+
+    expect(buildProductionRunView(value, now)).toMatchObject({
+      preview: {
+        artifactId: 'video-1',
+        kind: 'video',
+        projectRelativePath: 'assets/generated/shot.mp4',
+      },
+      details: {
+        updatedAt: '2026-08-08T08:09:30.000Z',
+        stages: [
+          { stageId: 'script', title: 'Script', status: 'completed' },
+          { stageId: 'generate', title: 'Generate', status: 'running' },
+        ],
+        skills: [{ name: 'director', version: '2.1.0' }],
+      },
     })
   })
 })

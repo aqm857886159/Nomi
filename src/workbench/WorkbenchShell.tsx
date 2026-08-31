@@ -248,6 +248,7 @@ export default function WorkbenchShell({
                 workspaceMode={workspaceMode}
                 onWorkspaceModeChange={handleWorkspaceModeChange}
                 projectName={projectName}
+                projectId={projectId}
                 onBackToLibrary={onBackToLibrary}
                 onOpenModelCatalog={onOpenModelCatalog}
                 onOpenSettings={onOpenSettings}

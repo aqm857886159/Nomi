@@ -7,25 +7,30 @@
 // 抽帧是逐个 ffmpeg，几十张会花点时间 → 串行 + 逐个报进度，别一次并发几十个进程把机器打满。
 import { getNodeSize } from '../model/generationNodeKinds'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSession'
+import { getActiveWorkbenchProjectId, persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { toast } from '../../../ui/toast'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { formatShotTimestamp, shotCutNodePositions } from './shotCutSelection'
 import i18n from '../../../i18n'
+import type { StructureExtractionAnalysis, StructureExtractionItem } from './videoDeconstructionModel'
 
 export type ExtractShotCutsProgress = { done: number; total: number }
 
 export async function extractShotCutsToNodes(params: {
   node: GenerationCanvasNode
-  seconds: readonly number[]
+  projectId: string
+  seconds?: readonly number[]
+  items?: readonly StructureExtractionItem[]
   onProgress?: (progress: ExtractShotCutsProgress) => void
 }): Promise<{ created: number; failed: number }> {
-  const { node, seconds, onProgress } = params
+  const { node, projectId, onProgress } = params
+  const items: Array<{ seconds: number; analysis?: StructureExtractionAnalysis }> = params.items
+    ? [...params.items]
+    : (params.seconds ?? []).map((seconds) => ({ seconds }))
   const videoUrl = node.result?.url
-  if (node.result?.type !== 'video' || !videoUrl || !seconds.length) return { created: 0, failed: 0 }
+  if (node.result?.type !== 'video' || !videoUrl || !items.length) return { created: 0, failed: 0 }
 
-  const projectId = getActiveWorkbenchProjectId()
   if (!projectId) {
     toast(i18n.t('generationCommon.node.extractFrame.missingProject'), 'error')
     return { created: 0, failed: 0 }
@@ -37,14 +42,16 @@ export async function extractShotCutsToNodes(params: {
   }
 
   const size = getNodeSize(node)
-  const positions = shotCutNodePositions({ origin: node.position, sourceSize: size, count: seconds.length })
+  const positions = shotCutNodePositions({ origin: node.position, sourceSize: size, count: items.length })
   const sourceTitle = (node.title || i18n.t('generationCommon.node.extractFrame.defaultVideoTitle')).trim()
 
   const createdIds: string[] = []
   let failed = 0
-  for (let i = 0; i < seconds.length; i += 1) {
-    const at = seconds[i] as number
-    onProgress?.({ done: i, total: seconds.length })
+  for (let i = 0; i < items.length; i += 1) {
+    if (getActiveWorkbenchProjectId() !== projectId) break
+    const item = items[i] as { seconds: number; analysis?: StructureExtractionAnalysis }
+    const at = item.seconds
+    onProgress?.({ done: i, total: items.length })
     let url: string
     try {
       const result = await extractFrame({ videoUrl, which: at, projectId })
@@ -54,6 +61,7 @@ export async function extractShotCutsToNodes(params: {
       failed += 1
       continue
     }
+    if (getActiveWorkbenchProjectId() !== projectId) break
     if (!url) { failed += 1; continue }
     const created = useGenerationCanvasStore.getState().addNode({
       kind: 'image',
@@ -62,6 +70,15 @@ export async function extractShotCutsToNodes(params: {
       // 成组紧凑布局：信任算好的坐标，跳过逐卡碰撞避让（否则会被推散成一片，切图九宫格栽过）。
       exactPosition: true,
       categoryId: node.categoryId,
+      ...(item.analysis ? {
+        meta: {
+          videoAnalysis: {
+            ...item.analysis,
+            sourceNodeId: node.id,
+            sourceTitle,
+          },
+        },
+      } : {}),
     })
     const createdAt = Date.now()
     useGenerationCanvasStore.getState().updateNode(created.id, {
@@ -69,9 +86,10 @@ export async function extractShotCutsToNodes(params: {
     })
     createdIds.push(created.id)
   }
-  onProgress?.({ done: seconds.length, total: seconds.length })
+  onProgress?.({ done: items.length, total: items.length })
 
   if (createdIds.length) {
+    if (getActiveWorkbenchProjectId() !== projectId) return { created: createdIds.length, failed }
     // 自动成一组：拆出来的一整场戏立刻能整组运行 / 一根线喂满（拍板 2026-08-02）。
     const latest = useGenerationCanvasStore.getState()
     const group = latest.createGroup(node.categoryId || 'shots', i18n.t('generationCommon.node.shotCuts.groupName', { title: sourceTitle }))
@@ -79,6 +97,9 @@ export async function extractShotCutsToNodes(params: {
       for (const id of createdIds) useGenerationCanvasStore.getState().moveNodeToGroup(id, group.id)
     }
     useGenerationCanvasStore.getState().selectNodes(createdIds)
+    // “加入画布”完成时结果必须已落盘；只依赖 700ms 自动保存会在重载后的订阅绑定窗口漏掉整批节点。
+    const persisted = await persistActiveWorkbenchProjectNow(projectId)
+    if (!persisted) return { created: createdIds.length, failed }
   }
 
   if (failed > 0) {

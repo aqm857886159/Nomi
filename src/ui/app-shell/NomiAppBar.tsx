@@ -39,6 +39,7 @@ type NomiAppBarProps = {
   workspaceMode: WorkspaceMode
   onWorkspaceModeChange: (mode: WorkspaceMode) => void
   projectName?: string
+  projectId?: string | null
   onBackToLibrary?: () => void
   onOpenModelCatalog?: () => void
   onOpenSettings?: () => void
@@ -49,6 +50,7 @@ export default function NomiAppBar({
   workspaceMode,
   onWorkspaceModeChange,
   projectName,
+  projectId,
   onBackToLibrary,
   onOpenModelCatalog,
   onOpenSettings,
@@ -217,6 +219,7 @@ export default function NomiAppBar({
           )}
         >
           <TaskCenterButton
+            projectId={projectId}
             onRevealNode={(nodeId) => {
               onWorkspaceModeChange('generation')
               useGenerationCanvasStore.getState().selectNodes([nodeId])

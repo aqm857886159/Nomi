@@ -65,7 +65,7 @@ ComfyUI；然后让 Claude Code / Codex / Cursor 经 MCP 直接开工——搭�
 | Connected context | **One project, not eleven tabs.** Story, shots, references, generated takes, and the timeline live in the same file. | **一个项目，不是十一个标签页。** 故事、镜头、参考、生成结果和时间线在同一个文件里。 |
 | Visual anchors | **Shot 4 and shot 9 should be the same person.** Lock characters, locations, props, and style once; later shots inherit them instead of restarting from a new prompt. | **第 4 个镜头和第 9 个镜头得是同一个人。** 人物、场景、道具、风格先锁一次，后面的镜头继承它，而不是重新赌一次提示词。 |
 | Directable workflow | **Bring your own stack.** ~10 curated providers out of the box; paste any OpenAI-compatible, Anthropic, Responses, or relay endpoint to add more. Local ComfyUI is a provider like any other. | **自带全套。** 内置约 10 家可直接用的供应商；任何 OpenAI 兼容 / Anthropic / Responses / 中转接口，粘贴地址就能加。本机 ComfyUI 和云端模型一样是一个供应商。 |
-| Agentic creation over MCP | **Your agent can operate it.** Nine MCP tools let Claude Code, Codex, or Cursor create the project, lay out shots, wire references, and run generation. Anything that spends money still stops and asks you first. | **你的 AI 助手能真的操作它。** 九个 MCP 工具，让 Claude Code / Codex / Cursor 建项目、排镜头、连参考、跑生成。**任何要花钱的动作都会停下来先问你。** |
+| Agentic creation over MCP | **Your agent can operate it.** Thirteen MCP tools let Claude Code, Codex, or Cursor create projects, lay out shots, wire references, run generation, and start a durable production run. Direction, spend, rough-cut acceptance, and export still stop for you in Nomi. | **你的 AI 助手能真的操作它。** 13 个 MCP 工具，让 Claude Code / Codex / Cursor 建项目、排镜头、连参考、跑生成并发起可恢复的完整制作。方向、支出、粗剪采用和导出仍要回到 Nomi 由你批准。 |
 
 ### GitHub 仓库 description（现在那句太像功能清单）
 
@@ -111,11 +111,10 @@ on your disk. Two things in it are less common, and they're the reason I'm posti
    against /object_info and tells you which custom nodes and model files you're
    missing before you run it.
 
-2. It exposes 9 MCP tools, so Claude Code / Codex / Cursor can create the project,
-   lay out shots, wire references, and trigger real generation. Every paid call
-   stops for a human confirmation — enforced in the main process, and when the GUI
-   is closed it goes out as an MCP elicitation. An agent cannot quietly spend your
-   money.
+2. It exposes 13 MCP tools, so Claude Code / Codex / Cursor can create the project,
+   lay out shots, wire references, trigger generation, and start a durable production
+   run. Direction, spend, rough-cut acceptance, and export stop for explicit approval
+   in Nomi, enforced in the main process. An agent cannot quietly spend your money.
 
 Honest limits: macOS and Windows only, no Linux build. Generation costs whatever
 your provider charges — you pay them directly with your own key. The 3D staging tool
@@ -153,10 +152,10 @@ Open-source workbench for keeping the same character across shots — bring your
 
 **r/LocalLLaMA** — 标题：
 ```
-I gave Claude Code 9 MCP tools and it directed a short film — with a hard spend gate
+I gave Claude Code 13 MCP tools and it directed a short film — with four human gates
 ```
 开头：
-> Nomi exposes 9 MCP tools (`nomi_create_project`, `nomi_add_nodes`, `nomi_connect_nodes`, `nomi_set_node_prompt`, `nomi_generate`, ...). Your agent builds the storyboard and runs generation; you get an editable first cut. The part I actually spent the most time on is the spend gate — every paid call halts in the main process for a human confirm, and when the GUI is closed it goes out as an MCP `elicitation/create`. No token, no generation. Bring your own endpoint, including a local ComfyUI.
+> Nomi exposes 13 MCP tools (`nomi_create_project`, `nomi_add_nodes`, `nomi_connect_nodes`, `nomi_generate`, `nomi_start_playbook`, ...). Your agent can build the storyboard and start a durable production run, but direction, spend, rough-cut acceptance, and export halt in Nomi for a human decision. Bring your own endpoint, including a local ComfyUI.
 
 ### 2.3 X / Twitter thread（7 条）
 
@@ -191,8 +190,8 @@ you don't have — before you hit run, not 40 seconds into a failure.
 
 5/ The part nobody else has yet:
 
-9 MCP tools. Claude Code / Codex / Cursor can create the project, lay out shots,
-wire references, and run generation.
+13 MCP tools. Claude Code / Codex / Cursor can create the project, lay out shots,
+wire references, run generation, and start a durable production run.
 
 You come back to an editable first cut.
 [录屏]
@@ -250,9 +249,9 @@ Two things make it different from the AI video tools you've already seen:
   provider — and Nomi converts the normal "Save" workflow format, so the workflows
   you download actually import.
 
-→ Your coding agent can operate it. Nine MCP tools let Claude Code, Codex, or Cursor
-  build the storyboard and run generation, then hand you an editable first cut.
-  Every paid call stops for your confirmation first.
+→ Your coding agent can operate it. Thirteen MCP tools let Claude Code, Codex, or Cursor
+  build the storyboard, run generation, and start a durable production run.
+  Direction, paid generation, rough-cut acceptance, and export stop for you in Nomi.
 
 Free and open source (AGPL-3.0), macOS + Windows. No account, no telemetry.
 

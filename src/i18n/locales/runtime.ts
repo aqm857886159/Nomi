@@ -141,6 +141,7 @@ export const zhRuntime = {
     defaultModel: '默认模型',
     projectChanged: '项目已切换，无法实时应用',
     unknownOperation: '未知 capability 操作：{{operation}}',
+    storyboardPlanMissing: '分镜规划没有返回可审阅的方案',
   },
   export: {
     jobRequiresDesktop: '导出任务需要 Electron 桌面运行时',
@@ -344,6 +345,7 @@ export const enRuntime = {
     defaultModel: 'Default model',
     projectChanged: 'The active project changed, so this operation cannot be applied live.',
     unknownOperation: 'Unknown capability operation: {{operation}}',
+    storyboardPlanMissing: 'The storyboard planner did not return a reviewable plan.',
   },
   export: {
     jobRequiresDesktop: 'Export jobs require the Electron desktop runtime',

@@ -12,3 +12,9 @@ export function buildVideoPlaybackUrl(rawVideoUrl: string): string {
   if (!trimmed || !isHttpUrl(trimmed)) return trimmed
   return trimmed
 }
+
+/** Ask Chromium to decode a paused first frame; metadata alone can still render black. */
+export function primePausedVideoFrame(video: HTMLVideoElement): void {
+  if (video.readyState >= 2) return
+  video.currentTime = Math.min(0.01, video.duration || 0.01)
+}

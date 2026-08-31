@@ -637,6 +637,8 @@ export default function CanvasAssistantPanel({
         <ProductionStatusPanel
           projectId={productionStatus.production.run.projectId}
           view={productionStatus.view}
+          artifacts={productionStatus.production.run.artifacts}
+          focusedArtifactId={productionStatus.focusedArtifactId}
           onPrimaryAction={(action) => { void productionStatus.onPrimaryAction(action) }}
         />
       ) : null}

@@ -136,8 +136,53 @@ export function applyProductionCommand(
         : current.jobs;
       const run = status === "approved" && current.status === "awaiting_contract"
         ? transitionRun({ ...current, gates, jobs }, "ready", now)
+        : status === "approved" && current.status === "awaiting_direction"
+          ? transitionRun({ ...current, gates, jobs }, "running", now)
+        : status === "approved" && current.status === "awaiting_rough_cut_review"
+          ? transitionRun({ ...current, gates, jobs }, "awaiting_export", now)
         : { ...current, gates, jobs, updatedAt: now };
       return { run, eventType: "gate.decided", message: gateId };
+    }
+    case "plan.proposed": {
+      const proposed = Array.isArray(command.payload.artifacts) ? command.payload.artifacts.map((item) => artifact({ artifact: item })) : [];
+      if (proposed.length === 0) throw new Error("Production plan artifacts are required");
+      if (proposed.some((nextArtifact) => current.artifacts.some((item) => item.artifactId === nextArtifact.artifactId))) {
+        throw new Error("Duplicate production plan artifact");
+      }
+      const stages = current.stages.map((stage) => {
+        if (stage.stageId === "script" || stage.stageId === "storyboard") return { ...stage, status: "completed" as const, completedAt: now };
+        if (stage.stageId === "build") return { ...stage, status: "awaiting_gate" as const };
+        return stage;
+      });
+      const next = { ...current, artifacts: [...current.artifacts, ...proposed], stages, stageId: "storyboard", updatedAt: now };
+      const run = current.status === "running" ? transitionRun(next, "awaiting_storyboard_review", now) : next;
+      return { run, eventType: "plan.proposed", message: proposed[0].artifactId };
+    }
+    case "plan.attach": {
+      const artifactId = text(command.payload, "artifactId");
+      const jobs = Array.isArray(command.payload.jobs)
+        ? command.payload.jobs.map((item) => item && typeof item === "object" && !Array.isArray(item) ? item as ProductionJob : (() => { throw new Error("Invalid production job"); })())
+        : [];
+      const gate = record(command.payload, "gate") as unknown as ProductionGate;
+      const nextArtifact = current.artifacts.find((item) => item.artifactId === artifactId);
+      if (!nextArtifact) throw new Error(`Production entity not found: ${artifactId}`);
+      if (current.gates.some((item) => item.gateId === gate.gateId)) throw new Error(`Duplicate gate: ${gate.gateId}`);
+      if (jobs.some((job) => current.jobs.some((item) => item.jobId === job.jobId))) throw new Error("Duplicate production job");
+      const stages = current.stages.map((stage) => {
+        if (stage.stageId === "script" || stage.stageId === "storyboard") return { ...stage, status: "completed" as const, completedAt: now };
+        if (stage.stageId === "build") return { ...stage, status: "awaiting_gate" as const };
+        return stage;
+      });
+      const artifacts = current.artifacts.map((item) => item.artifactId === artifactId ? { ...item, status: "adopted" as const, adoptedAt: now } : item);
+      const attached = { ...current, artifacts, jobs: [...current.jobs, ...jobs], gates: [...current.gates, gate], stages, stageId: "build", updatedAt: now };
+      const run = current.status === "running" || current.status === "awaiting_storyboard_review"
+        ? transitionRun(attached, "awaiting_contract", now)
+        : attached;
+      return { run, eventType: "plan.attached", message: nextArtifact.artifactId };
+    }
+    case "skill.evidence": {
+      const skillName = text(command.payload, "skillName");
+      return { run: { ...current, updatedAt: now }, eventType: "skill.loaded", message: skillName };
     }
     case "artifact.add": {
       const nextArtifact = artifact(command.payload);
@@ -158,6 +203,10 @@ export function applyProductionCommand(
     case "budget.set": {
       const budget = validateBudget(record(command.payload, "budget"), current.budget);
       return { run: { ...current, budget, updatedAt: now }, eventType: "budget.updated", message: budget.currency };
+    }
+    case "policy.set": {
+      const policy = record(command.payload, "policy") as unknown as ProductionRun["policy"];
+      return { run: { ...current, policy, updatedAt: now }, eventType: "policy.updated", message: policy.mode };
     }
     default:
       throw new Error(`Unknown production command: ${command.type}`);

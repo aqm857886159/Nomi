@@ -31,7 +31,6 @@ import { NodeVideoPlaybackGuard } from './NodeVideoPlaybackGuard'
 import { useNodePanoramaHandlers } from './useNodePanoramaHandlers'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
-import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { NodeGeneratingOverlay } from './NodeGeneratingOverlay'
 import { NodeQueuedBadge } from './NodeQueuedBadge'
@@ -45,7 +44,7 @@ import { NodeRecoverableReport } from './NodeRecoverableReport'
 import { dismissRecoverableNode, recoverNodeResult } from '../runner/recoverTaskActions'
 import { WorkbenchButton } from '../../../design'
 import { completeNodeConnection } from './completeNodeConnection'
-import { buildVideoPlaybackUrl } from '../../../media/videoPlaybackUrl'
+import { primePausedVideoFrame } from '../../../media/videoPlaybackUrl'
 import { getGenerationNodeExecutionKind, isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import { applyFixationMakeup } from '../fixation/buildFixationNode'
 import { TechnicalReviewBadge } from './TechnicalReviewBadge'
@@ -63,7 +62,7 @@ import { useNodeVideoHoverPreview } from './useNodeVideoHoverPreview'
 import { NodeInlineImageTitle } from './NodeImagePreviewActions'
 import { useNodeDisplayPrompt } from './useNodeDisplayPrompt'
 import { useNodeMediaPreview } from './useNodeMediaPreview'
-
+import { VideoAnalysisNodeBadge, VideoAnalysisProvenanceBadge } from './VideoAnalysisNodeBadge'
 export type BaseGenerationNodeProps = {
   node: GenerationCanvasNode
   selected: boolean
@@ -76,7 +75,6 @@ const Model3DViewer = lazyWithChunkBoundary('3D 模型预览', () => import('./m
 const TextDocumentNode = lazyWithChunkBoundary('文本节点编辑器', () => import('./render/TextDocumentNode'))
 const PanoramaViewer = lazyWithChunkBoundary('全景预览', () => import('./PanoramaViewer'))
 const NodeGenerationComposer = lazyWithChunkBoundary('节点生成面板', () => import('./NodeGenerationComposer'))
-
 function NodeBodyLoading(): JSX.Element {
   return <div className="h-full w-full rounded-nomi bg-nomi-paper shadow-nomi-md ring-1 ring-inset ring-nomi-line" />
 }
@@ -428,11 +426,11 @@ function BaseGenerationNodeImpl({
           onOpenProvenance={() => setProvenanceOpen(true)}
         />
       ) : null}
-      {mediaPreviewControls}
+      {mediaPreviewControls}<VideoAnalysisProvenanceBadge node={node} />
       <header
         className={cn(
           'generation-canvas-v2-node__header',
-          'absolute top-[10px] left-[10px] right-[10px] z-[2]',
+          shotIndex == null ? 'absolute top-[10px] left-[10px] right-[10px] z-[2]' : 'absolute top-[32px] left-[10px] right-[10px] z-[2]',
           'flex items-center justify-start gap-2 min-h-0 p-0',
           'pointer-events-auto cursor-grab',
         )}
@@ -452,6 +450,7 @@ function BaseGenerationNodeImpl({
           </span>
         ) : null}
         <TechnicalReviewBadge meta={node.meta} />
+        {node.result?.type === 'video' ? <VideoAnalysisNodeBadge nodeId={node.id} /> : null}
         {/* 锁徽标已移到 NodeGenerationComposer 底栏（编辑面板），卡片预览保持干净（用户反馈②）。 */}
         {/* E.2C-25 副本角标：跨分类独立副本永久显示（derivedFrom 仅承载此语义；同分类重生成在 regeneratedFrom）。 */}
         {node.derivedFrom ? (
@@ -578,7 +577,7 @@ function BaseGenerationNodeImpl({
               controls
               muted
               playsInline
-              preload="metadata"
+              preload="auto" displayReadyState="current-data"
               draggable={false}
               onLoadedMetadata={(event) => {
                 updateMediaDimensions(
@@ -586,6 +585,7 @@ function BaseGenerationNodeImpl({
                   event.currentTarget.videoHeight,
                   event.currentTarget.duration,
                 )
+                primePausedVideoFrame(event.currentTarget)
               }}
             />
           ) : (

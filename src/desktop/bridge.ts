@@ -6,6 +6,7 @@ import type { McpInfo, McpVerifyResult } from './mcpBridgeTypes'
 import type { DesktopSettingsBridge } from './settingsBridge'
 import type { DesktopOnboardingBridge } from './onboardingBridgeTypes'
 import type { DesktopProductionRunBridge } from './productionRunBridgeTypes'
+import type { DesktopVideoAnalysisBridge } from './videoAnalysisBridge'
 export type { ProviderKind }
 export type { DesktopAdapterModeResult, DesktopProviderAdapterRun } from './onboardingBridgeTypes'
 export type { ScreenshotHotkeyStatus } from './bridgeMedia'
@@ -307,9 +308,11 @@ export type DesktopBridge = DesktopMediaBridge & {
   app?: {
     reopenLibraryWindow: () => void
     hardReloadWindow?: () => void
+    onProductionDeepLink?: (cb: (payload: { projectId: string; runId: string; artifactId?: string }) => void) => () => void
   }
   settings?: DesktopSettingsBridge
   productionRuns?: DesktopProductionRunBridge
+  videoAnalysis?: DesktopVideoAnalysisBridge
   startupProbe?: {
     enabled: boolean
     mark: (label: string, payload?: Record<string, unknown>) => void

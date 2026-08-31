@@ -10,8 +10,8 @@ import {
   ToolbarProvenanceButton,
 } from './NodeFloatingToolbar'
 import { extractVideoFrameToNode } from './extractVideoFrameToNode'
-import NodeShotCutPanel from './NodeShotCutPanel'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { openVideoDeconstruction } from './videoDeconstructionEvents'
 
 // 视频节点浮条（按「创作优先级」排左→右，与图片工具栏一致）：左·创作：抽首帧 / 抽尾帧 ｜ 右·工具：全屏 · 下载。
 // 全屏是「看」的工具，与下载同归右侧工具区，不占最左（此前全屏在最左，抢了创作动作的位）。
@@ -30,15 +30,12 @@ type Props = {
 export default function NodeVideoFrameToolbar({ node, downloading, onDownload, onPreview, onOpenProvenance }: Props): JSX.Element {
   const { t } = useTranslation()
   const [busy, setBusy] = React.useState<'first' | 'last' | null>(null)
-  const [shotCutOpen, setShotCutOpen] = React.useState(false)
   const extract = (which: 'first' | 'last') => {
     if (busy) return
     setBusy(which)
     void extractVideoFrameToNode(node, which).finally(() => setBusy(null))
   }
   return (
-    <>
-    {shotCutOpen ? <NodeShotCutPanel node={node} onClose={() => setShotCutOpen(false)} /> : null}
     <FloatingToolbarShell ariaLabel={t('generationCommon.videoToolbar.aria')}>
       <ToolbarButton
         icon={<IconPlayerTrackPrev size={I.size} stroke={I.stroke} />}
@@ -65,7 +62,7 @@ export default function NodeVideoFrameToolbar({ node, downloading, onDownload, o
         label={t('generationCommon.videoToolbar.shotCuts')}
         title={t('generationCommon.videoToolbar.shotCutsHint')}
         disabled={busy !== null}
-        onClick={() => setShotCutOpen(true)}
+        onClick={() => openVideoDeconstruction(node.id)}
       />
       <ToolbarDivider />
       <ToolbarIconButton
@@ -83,6 +80,5 @@ export default function NodeVideoFrameToolbar({ node, downloading, onDownload, o
       />
       <ToolbarProvenanceButton onOpen={onOpenProvenance} />
       </FloatingToolbarShell>
-    </>
   )
 }

@@ -258,7 +258,6 @@ export default defineConfig(async ({ command, mode }) => {
         'clsx',
         'framer-motion',
         'i18next',
-        'lucide-react',
         'react-i18next',
         'react-markdown',
         '@photo-sphere-viewer/core',

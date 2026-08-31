@@ -11,6 +11,7 @@ import { startRpcServer, type RpcServerHandle } from './rpcServer'
 import { ensureToken } from './security'
 import { clearInstanceAdvertisement, writeInstanceAdvertisement } from './lockfile'
 import type { FetchTaskResultFn, RunTaskFn } from './core'
+import { getProductionRunService } from '../productionRun/productionRunRuntime'
 
 let handle: RpcServerHandle | null = null
 let openProjectId = ''
@@ -35,6 +36,7 @@ export async function startCapabilityCore(runTask: RunTaskFn, fetchTaskResult: F
       runTask,
       fetchTaskResult,
       isProjectOpen: (id) => Boolean(openProjectId) && id === openProjectId,
+      productionRuns: getProductionRunService(),
     })
     writeInstanceAdvertisement({
       pid: process.pid,

@@ -33,15 +33,101 @@ export type NomiDraftShot = {
   thumbnailUrl?: string
 }
 export type NomiDraftState = {
-  kind?: 'generation' | 'reference' | 'plan'
+  kind?: 'generation' | 'reference' | 'plan' | 'production'
   title?: string
-  status?: 'running' | 'succeeded' | 'failed'
+  status?: 'running' | 'succeeded' | 'failed' | 'available' | 'unknown'
   message?: string
   shots?: NomiDraftShot[]
   projectId?: string
   projectName?: string
   /** 深链：宿主支持 ui/open-link 时「在 Nomi 中打开」跳这里。 */
   deepLink?: string
+  runId?: string
+}
+
+/** Convert a safe MCP production projection into the same compact widget state used by generation. */
+export function buildNomiRunFromProjection(args: {
+  projectId?: string
+  runId?: string
+  result: unknown
+}): NomiDraftState {
+  const value = (args.result && typeof args.result === 'object' && !Array.isArray(args.result))
+    ? args.result as Record<string, unknown>
+    : {}
+  const rawStatus = String(value.status || '')
+  const isArtifactProjection = typeof value.artifactId === 'string'
+  const status: NomiDraftState['status'] = rawStatus === 'completed' || rawStatus === 'succeeded'
+    ? 'succeeded'
+    : rawStatus === 'cancelled' || rawStatus === 'failed' || rawStatus === 'needs_attention'
+      ? 'failed'
+      : ['running', 'exporting', 'pausing'].includes(rawStatus) || (rawStatus === 'ready' && !isArtifactProjection)
+        ? 'running'
+        : ['candidate', 'ready', 'adopted'].includes(rawStatus)
+          ? 'available'
+          : rawStatus.startsWith('awaiting_') || rawStatus === 'draft' || rawStatus === 'paused'
+            ? 'available'
+            : 'unknown'
+  const projectId = typeof value.projectId === 'string' ? value.projectId : args.projectId
+  const runId = typeof value.runId === 'string' ? value.runId : args.runId
+  const playbook = value.playbook && typeof value.playbook === 'object' ? value.playbook as Record<string, unknown> : {}
+  const artifacts = Array.isArray(value.artifacts) ? value.artifacts as Array<Record<string, unknown>> : []
+  const safePreviewUrl = (candidate: unknown): string | undefined => {
+    if (typeof candidate !== 'string') return undefined
+    if (candidate.startsWith('nomi-local://')) return candidate
+    try {
+      const parsed = new URL(candidate)
+      return parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1' && parsed.pathname === '/production-preview' && parsed.searchParams.has('preview')
+        ? candidate
+        : undefined
+    } catch {
+      return undefined
+    }
+  }
+  const previewArtifacts = artifacts
+    .filter((artifact) => {
+      const preview = artifact.preview && typeof artifact.preview === 'object' ? artifact.preview as Record<string, unknown> : {}
+      return Boolean(safePreviewUrl(preview.url))
+    })
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+    .slice(0, 1)
+  const shots = previewArtifacts.map((artifact, index) => {
+    const preview = artifact.preview && typeof artifact.preview === 'object' ? artifact.preview as Record<string, unknown> : {}
+    const previewUrl = safePreviewUrl(preview.url)
+    return {
+      index: index + 1,
+      title: typeof artifact.kind === 'string' ? artifact.kind : `产物 ${index + 1}`,
+      status: artifact.status === 'ready' || artifact.status === 'adopted' ? 'success' as const : 'queued' as const,
+      kind: artifact.kind === 'video' ? 'video' as const : 'image' as const,
+      ...(previewUrl ? { thumbnailUrl: previewUrl } : {}),
+    }
+  })
+  const ownPreview = value.preview && typeof value.preview === 'object' ? value.preview as Record<string, unknown> : undefined
+  if (shots.length === 0 && ownPreview?.url && typeof value.kind === 'string') {
+    const previewUrl = safePreviewUrl(ownPreview.url)
+    if (previewUrl) shots.push({ index: 1, title: String(value.kind), status: value.status === 'ready' || value.status === 'adopted' ? 'success' as const : 'queued' as const, kind: value.kind === 'video' ? 'video' as const : 'image' as const, thumbnailUrl: previewUrl })
+  }
+  const latestEvent = Array.isArray(value.events) ? (value.events as Array<Record<string, unknown>>).at(-1) : undefined
+  const candidateDeepLink = typeof value.openInNomi === 'string' ? value.openInNomi : ''
+  const deepLink = /^nomi:\/\/project\/[A-Za-z0-9._-]+\/run\/[A-Za-z0-9._-]+(?:\?artifact=[A-Za-z0-9._-]+)?$/.test(candidateDeepLink)
+    ? candidateDeepLink
+    : (projectId && runId ? `nomi://project/${encodeURIComponent(projectId)}/run/${encodeURIComponent(runId)}` : undefined)
+  const fallbackMessage = status === 'unknown'
+    ? '已查询 Nomi，当前结果未提供运行状态。'
+    : status === 'available'
+      ? 'Nomi 已准备好当前结果，未自动批准付费或导出。'
+      : undefined
+  return {
+    kind: 'production',
+    title: `Nomi · ${typeof playbook.name === 'string' ? playbook.name : '制作 Run'}`,
+    status,
+    ...(typeof latestEvent?.message === 'string' && latestEvent.message
+      ? { message: latestEvent.message }
+      : fallbackMessage ? { message: fallbackMessage } : {}),
+    shots,
+    ...(projectId ? { projectId } : {}),
+    ...(runId ? { runId } : {}),
+    ...(deepLink ? { deepLink } : {}),
+  }
 }
 
 /**
@@ -180,19 +266,19 @@ export const NOMI_LIVE_DRAFT_WIDGET_HTML = `<!DOCTYPE html>
     <span class="badge" id="badge">等待中</span>
   </div>
   <div class="body" id="bodyWrap">
-    <div class="empty" id="empty">等待 Nomi 传入生成…</div>
+  <div class="empty" id="empty">等待 Nomi 传入生成或制作 Run…</div>
     <p class="msg" id="msg" hidden></p>
     <div class="grid" id="grid"></div>
   </div>
   <div class="foot" id="foot" hidden>
-    <button class="btn primary" id="openBtn" type="button">在 Nomi 中打开</button>
+    <button class="btn primary" id="openBtn" type="button">在 Nomi 打开</button>
     <span class="hint" id="hint"></span>
   </div>
 </div>
 <script>
 (function () {
   "use strict";
-  var STATUS_LABEL = { running: "生成中", succeeded: "已完成", failed: "失败" };
+  var STATUS_LABEL = { running: "进行中", succeeded: "已完成", failed: "需要处理", available: "可查看", unknown: "状态未知" };
   var SHOT_LABEL = { queued: "排队", running: "生成中", success: "已出", error: "失败" };
   var state = null;
   var rpcId = 0;
@@ -225,8 +311,8 @@ export const NOMI_LIVE_DRAFT_WIDGET_HTML = `<!DOCTYPE html>
     var hint = document.getElementById("hint");
     if (!state) { empty.hidden = false; grid.innerHTML = ""; foot.hidden = true; reportSize(); return; }
     empty.hidden = true;
-    title.textContent = state.title || "Nomi 活生成";
-    var st = state.status || "running";
+    title.textContent = state.title || (state.kind === "production" ? "Nomi 制作 Run" : "Nomi 活生成");
+    var st = state.status || "unknown";
     badge.textContent = STATUS_LABEL[st] || st;
     badge.className = "badge " + st;
     if (state.message) { msg.hidden = false; msg.textContent = state.message; } else { msg.hidden = true; }
@@ -247,9 +333,9 @@ export const NOMI_LIVE_DRAFT_WIDGET_HTML = `<!DOCTYPE html>
   }
 
   function ingest(sc) {
-    // 宿主注入的 tool result / tool input：读 structuredContent.nomiDraft。
+    // 宿主注入的 tool result / tool input：生成读 nomiDraft，Production Run 读 nomiRun。
     if (sc && typeof sc === "object") {
-      var draft = sc.nomiDraft || (sc.structuredContent && sc.structuredContent.nomiDraft);
+      var draft = sc.nomiRun || sc.nomiDraft || (sc.structuredContent && (sc.structuredContent.nomiRun || sc.structuredContent.nomiDraft));
       if (draft) { state = draft; render(); }
     }
   }

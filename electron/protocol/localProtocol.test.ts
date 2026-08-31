@@ -22,6 +22,7 @@ vi.mock("../projects/repository", () => ({
 }));
 
 import { handleNomiLocalRequest } from "./localProtocol";
+import { createArtifactProjection, getArtifactPreviewSecret } from "../productionRun/artifactProjection";
 
 beforeAll(() => {
   projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-local-protocol-"));
@@ -71,5 +72,36 @@ describe("handleNomiLocalRequest", () => {
     expect(response.headers.get("Accept-Ranges")).toBe("bytes");
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
     expect(await response.text()).toBe("0123456789");
+  });
+
+  it("requires a valid scoped preview token when a preview query is present", async () => {
+    const projection = createArtifactProjection({
+      projectRoot,
+      run: { projectId: "project-a", runId: "run-a" },
+      artifact: { artifactId: "artifact-a", stageId: "stage-a", kind: "video", status: "ready", projectRelativePath: "assets/generated/clip.mp4", createdAt: new Date().toISOString() },
+      secret: getArtifactPreviewSecret(),
+      nowMs: Date.now(),
+      ttlMs: 60_000,
+    });
+    const valid = await handleNomiLocalRequest(new Request(projection.preview!.nomiUrl));
+    expect(valid.status).toBe(200);
+    const tampered = await handleNomiLocalRequest(new Request(`${projection.preview!.nomiUrl.slice(0, -1)}x`));
+    expect(tampered.status).toBe(404);
+  });
+
+  it("fails closed when a production preview token is missing or stripped", async () => {
+    const projection = createArtifactProjection({
+      projectRoot,
+      run: { projectId: "project-a", runId: "run-a" },
+      artifact: { artifactId: "artifact-a", stageId: "stage-a", kind: "video", status: "ready", projectRelativePath: "assets/generated/clip.mp4", createdAt: new Date().toISOString() },
+      secret: getArtifactPreviewSecret(),
+      nowMs: Date.now(),
+      ttlMs: 60_000,
+    });
+    const stripped = projection.preview!.nomiUrl.split("?")[0];
+    const missing = await handleNomiLocalRequest(new Request(stripped));
+    expect(missing.status).toBe(404);
+    const forged = await handleNomiLocalRequest(new Request("nomi-local://production-preview/project-a/run-a/artifact-a/assets/generated/clip.mp4?preview=forged"));
+    expect(forged.status).toBe(404);
   });
 });

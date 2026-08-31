@@ -32,15 +32,38 @@ const TABS: { id: SettingsTab; icon: typeof IconFolder; labelKey: string }[] = [
   { id: 'about', icon: IconInfoCircle, labelKey: 'settings.tab.about' },
 ]
 
-export function SettingsDialog({ onClose, onReplaySplash }: { onClose: () => void; onReplaySplash?: () => void }): JSX.Element {
+export function SettingsDialog({
+  initialTab = 'file',
+  initialSection = null,
+  onClose,
+  onReplaySplash,
+}: {
+  initialTab?: SettingsTab
+  initialSection?: 'automation' | 'video-analysis' | null
+  onClose: () => void
+  onReplaySplash?: () => void
+}): JSX.Element {
   const { t } = useTranslation()
   const { isDark } = useNomiColorScheme()
-  const [tab, setTab] = React.useState<SettingsTab>('file')
+  const [tab, setTab] = React.useState<SettingsTab>(initialTab)
   // t 随语言变化重渲，渲染时读 getAppLocale() 即拿最新值（沿用 LanguageMenuButton 的做法）。
   const locale = getAppLocale()
   const [enabled, setEnabled] = React.useState(false)
   const [dir, setDir] = React.useState('')
   const [automationPolicy, setAutomationPolicy] = React.useState<AutomationPolicySettings>(defaultAutomationPolicySettings)
+  const contentRef = React.useRef<HTMLElement>(null)
+
+  React.useEffect(() => setTab(initialTab), [initialTab])
+
+  React.useEffect(() => {
+    if (tab !== 'automation' || !initialSection) return
+    const frame = window.requestAnimationFrame(() => {
+      contentRef.current
+        ?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`)
+        ?.scrollIntoView({ block: 'start' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [initialSection, tab])
 
   // 打开时读当前偏好（主进程 download-prefs.json）。
   React.useEffect(() => {
@@ -107,7 +130,7 @@ export function SettingsDialog({ onClose, onReplaySplash }: { onClose: () => voi
   return (
     <Portal>
       <div
-        className="fixed inset-0 z-[9000] flex items-center justify-center bg-black/45 p-6"
+        className="fixed inset-0 z-[9000] flex items-center justify-center bg-black/45 p-2 sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-label={t('settings.title')}
@@ -116,17 +139,16 @@ export function SettingsDialog({ onClose, onReplaySplash }: { onClose: () => voi
         }}
       >
         <div
-          className="flex max-w-full overflow-hidden rounded-nomi-lg border border-nomi-line bg-nomi-paper shadow-nomi-lg"
-          style={{ width: 760, height: 560 }}
+          className="flex h-[calc(100svh-16px)] w-full max-w-[760px] flex-col overflow-hidden rounded-nomi-lg border border-nomi-line bg-nomi-paper shadow-nomi-lg sm:h-[min(560px,calc(100svh-48px))] sm:flex-row"
         >
-          <aside className="flex flex-none flex-col gap-0.5 border-r border-nomi-line bg-nomi-ink-05 p-3.5" style={{ width: 196 }}>
-            <div className="px-3 pb-3 pt-1 text-body-sm font-medium text-nomi-ink">{t('settings.title')}</div>
+          <aside className="flex w-full flex-none flex-row gap-0.5 overflow-x-auto border-b border-nomi-line bg-nomi-ink-05 p-2 sm:w-[196px] sm:flex-col sm:overflow-x-visible sm:border-b-0 sm:border-r sm:p-3.5">
+            <div className="hidden px-3 pb-3 pt-1 text-body-sm font-medium text-nomi-ink sm:block">{t('settings.title')}</div>
             {TABS.map(({ id, icon: Icon, labelKey }) => (
               <button
                 key={id}
                 type="button"
                 className={cn(
-                  'flex w-full items-center gap-2.5 rounded-nomi-sm border-0 px-3 py-2 text-left text-body-sm cursor-pointer',
+                  'flex w-auto shrink-0 items-center gap-2.5 rounded-nomi-sm border-0 px-3 py-2 text-left text-body-sm cursor-pointer sm:w-full',
                   tab === id ? 'bg-nomi-ink text-nomi-paper' : 'bg-transparent text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink',
                 )}
                 onClick={() => setTab(id)}
@@ -136,7 +158,7 @@ export function SettingsDialog({ onClose, onReplaySplash }: { onClose: () => voi
             ))}
           </aside>
 
-          <section className="relative min-w-0 flex-1 overflow-y-auto p-6">
+          <section ref={contentRef} className="relative min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
             <button
               type="button"
               className="absolute right-3 top-3 grid size-8 place-items-center rounded-nomi-sm border-0 bg-transparent cursor-pointer text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink"

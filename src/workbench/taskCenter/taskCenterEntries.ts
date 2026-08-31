@@ -6,36 +6,10 @@
 //   node（canvas store） → 执行：标题、进度、跑起来之后的状态（running/error/recoverable）
 import type { GenerationCanvasNode, GenerationNodeStatus } from '../generationCanvas/model/generationCanvasTypes'
 import type { GenerationQueueBatch, GenerationQueueEntry } from '../generationCanvas/runner/generationQueueStore'
+import type { GenerationTaskCenterProjection, TaskCancelKind, TaskCenterGroup } from './taskCenterProjection'
 
 /** 这一行能不能停、停了什么后果 —— 直接映射到 UI 给不给按钮、给什么文案。 */
-export type TaskCancelKind =
-  /** 还没提交厂商：真能停，且零费用。取消的价值 90% 在这。 */
-  | 'free'
-  /** ComfyUI 本地跑：能真中断（/interrupt + 出队），本地无费用。 */
-  | 'interrupt'
-  /** 云端已提交：停不下来，钱已花。硬停只是丢结果 → 不给按钮，明着说。 */
-  | 'none'
-
-export type TaskCenterGroup = 'running' | 'queued' | 'done'
-
-export type TaskCenterRow = {
-  id: string
-  batchId: string
-  nodeId: string
-  title: string
-  group: TaskCenterGroup
-  /** 已完成行是成是败：'success' | 'error' | 'cancelled'；进行中/排队中为 undefined。 */
-  outcome?: 'success' | 'error' | 'cancelled'
-  /** 「可找回」不是普通失败（上游可能仍在跑），文案与动作都不同。 */
-  recoverable: boolean
-  waveIndex: number
-  percent?: number
-  phaseText?: string
-  /** 进行中 = 已跑多久；已完成 = 总用时。毫秒。 */
-  elapsedMs?: number
-  cancel: TaskCancelKind
-  error?: string
-}
+export type TaskCenterRow = GenerationTaskCenterProjection
 
 export type TaskCenterSummary = {
   running: number
@@ -95,6 +69,7 @@ export function buildTaskCenterView(input: {
     const recoverable = entry.state === 'error' && nodeStatus === 'recoverable'
     return {
       id: entry.id,
+      kind: 'generation' as const,
       batchId: entry.batchId,
       nodeId: entry.nodeId,
       title: (node?.title || '').trim() || fallbackTitle,
@@ -106,6 +81,14 @@ export function buildTaskCenterView(input: {
       ...(group === 'running' && node?.progress?.message ? { phaseText: node.progress.message } : {}),
       ...(elapsedFor(entry, now) !== undefined ? { elapsedMs: elapsedFor(entry, now) } : {}),
       cancel: group === 'queued' ? 'free' : group === 'running' ? resolveRunningCancelKind(node) : 'none',
+      target: { kind: 'canvas_node' as const, nodeId: entry.nodeId },
+      action: group === 'queued'
+        ? { kind: 'cancel_generation_queue' as const, batchId: entry.batchId, nodeId: entry.nodeId }
+        : group === 'running' && resolveRunningCancelKind(node) === 'interrupt'
+          ? { kind: 'interrupt_generation' as const, nodeId: entry.nodeId }
+          : group === 'done' && entry.state === 'error' && !recoverable
+            ? { kind: 'retry_generation' as const, nodeId: entry.nodeId }
+            : null,
       ...(entry.error ? { error: entry.error } : {}),
     }
   })

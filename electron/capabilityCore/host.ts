@@ -15,6 +15,9 @@ import { ensureBuiltinModelSeeds } from '../catalog/catalogStore'
 import { runTask, fetchTaskResult } from '../runtime'
 import { verifyToken } from './security'
 import { applySystemProxy } from '../systemProxy'
+import { getProductionRunService } from '../productionRun/productionRunRuntime'
+
+const productionRuns = getProductionRunService()
 
 // 身份对齐（解密 vendor key 的前提）：CLI 用 `electron host.js` spawn 时 getName 默认 "Electron"，与主 app
 // 加密 safeStorage key 时的身份不符 → 解不开 key（真机实测「API key missing」根因）。spawner 经 NOMI_APP_NAME
@@ -63,7 +66,13 @@ async function run(): Promise<number> {
   const params = command.params && typeof command.params === 'object' ? command.params : {}
   // headless 永远是工程文件的唯一写者（app 关着时 CLI 才 spawn 它），无运行中渲染层 → 恒磁盘网关。
   try {
-    const result = await dispatch(method, params, { runTask, fetchTaskResult, makeGateway: createDiskGateway })
+    const result = await dispatch(method, params, {
+      runTask,
+      fetchTaskResult,
+      makeGateway: createDiskGateway,
+      productionRuns,
+      origin: { host: 'external' },
+    })
     emit({ ok: true, result })
     return 0
   } catch (error) {

@@ -209,23 +209,48 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
     const paths = productionRunPaths(dir, runId);
     if (fs.existsSync(paths.events) || fs.existsSync(paths.snapshot)) throw new Error(`Production run already exists: ${runId}`);
     const timestamp = now();
+    const isBrandPromo = input.playbook.name === "brand.promo" && Boolean(input.brief);
+    const stages: ProductionRun["stages"] = isBrandPromo
+      ? [
+          { stageId: "brief", title: "Brief", status: "completed", order: 0, startedAt: timestamp, completedAt: timestamp },
+          { stageId: "direction", title: "Direction", status: "awaiting_gate", order: 1, startedAt: timestamp },
+          { stageId: "script", title: "Script", status: "pending", order: 2 },
+          { stageId: "storyboard", title: "Storyboard", status: "pending", order: 3 },
+          { stageId: "build", title: "Canvas", status: "pending", order: 4 },
+          { stageId: "generate", title: "Generate", status: "pending", order: 5 },
+          { stageId: "qa", title: "QA", status: "pending", order: 6 },
+          { stageId: "assemble", title: "Assemble", status: "pending", order: 7 },
+          { stageId: "export", title: "Export", status: "pending", order: 8 },
+        ]
+      : [];
+    const briefArtifact: ProductionRun["artifacts"][number] | undefined = input.brief && isBrandPromo
+      ? { artifactId: "artifact-brief-v1", stageId: "brief", kind: "brief", status: "adopted", projectRelativePath: `.nomi/runs/${runId}/brief-v1.json`, createdAt: timestamp, adoptedAt: timestamp }
+      : undefined;
+    const directionArtifact: ProductionRun["artifacts"][number] | undefined = input.brief && isBrandPromo
+      ? { artifactId: "artifact-direction-v1", stageId: "direction", kind: "direction", status: "candidate", projectRelativePath: `.nomi/runs/${runId}/direction-v1.json`, createdAt: timestamp }
+      : undefined;
+    const directionGate: ProductionRun["gates"][number] | undefined = isBrandPromo
+      ? { gateId: "gate-direction-v1", scope: "stage", status: "waiting", planHash: crypto.createHash("sha256").update(JSON.stringify(input.brief || {})).digest("hex"), jobIds: [], title: "Confirm creative direction", summary: "Review audience, channel, tone, and truthful selling points before any model or paid API call.", createdAt: timestamp, expiresAt: new Date(Date.parse(timestamp) + 24 * 60 * 60 * 1000).toISOString() }
+      : undefined;
+    const initialArtifacts = [briefArtifact, directionArtifact].filter((value): value is ProductionRun["artifacts"][number] => Boolean(value));
     const run: ProductionRun = {
       schemaVersion: PRODUCTION_RUN_SCHEMA_VERSION,
       runId,
       projectId: input.projectId,
       revision: 0,
-      status: "draft",
-      stageId: "brief",
+      status: isBrandPromo ? "awaiting_direction" : "draft",
+      stageId: isBrandPromo ? "direction" : "brief",
       playbook: input.playbook,
       origin: input.origin,
+      ...(input.brief ? { brief: input.brief } : {}),
       policy: { ...DEFAULT_POLICY, ...input.policy },
       budget: { currency: input.currency || "CNY", authorized: 0, reserved: 0, actual: 0, unsettled: 0 },
       planVersion: 1,
       snapshotCursor: 1,
-      stages: [],
-      gates: [],
+      stages,
+      gates: directionGate ? [directionGate] : [],
       jobs: [],
-      artifacts: [],
+      artifacts: initialArtifacts,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -242,8 +267,21 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
       payload: { run },
     };
     appendDurableJsonLine(paths.events, event);
-    writeJsonFileAtomic(paths.snapshot, envelopeFor(run));
+    if (input.brief && isBrandPromo) {
+      writeJsonFileAtomic(path.join(dir, `.nomi/runs/${runId}/brief-v1.json`), { schemaVersion: 1, kind: "brief", brief: input.brief });
+      writeJsonFileAtomic(path.join(dir, `.nomi/runs/${runId}/direction-v1.json`), { schemaVersion: 1, kind: "direction", brief: input.brief, status: "awaiting_direction" });
+      appendDurableJsonLine(paths.events, {
+        ...event,
+        eventId: `evt-${randomId()}`,
+        cursor: 2,
+        type: "gate.waiting",
+        message: "direction",
+        payload: { run },
+      } satisfies RunEvent);
+      run.snapshotCursor = 2;
+    }
     fs.writeFileSync(paths.commands, "", { encoding: "utf8", flag: "a" });
+    writeJsonFileAtomic(paths.snapshot, envelopeFor(run));
     return run;
   }
 

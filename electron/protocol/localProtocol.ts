@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { pathToFileURL } from "node:url";
 import { contentTypeFromPath } from "../assets/assetPaths";
 import { resolveProjectRelativePath } from "../projects/repository";
+import { getArtifactPreviewSecret, verifyArtifactPreviewHandle } from "../productionRun/artifactProjection";
 
 function withLocalAssetHeaders(headers?: HeadersInit): Headers {
   const next = new Headers(headers);
@@ -22,7 +23,7 @@ export function parseLocalAssetUrl(rawUrl: string): { projectId: string; filePat
   } catch {
     return null;
   }
-  if (url.protocol !== "nomi-local:" || url.hostname !== "asset") return null;
+  if (url.protocol !== "nomi-local:" || !["asset", "production-preview"].includes(url.hostname)) return null;
   // 解码与 localAssetUrl 的「逐段 encodeURIComponent」对称：先按 "/" 切段、再逐段 decode。
   // （此前先整体 decode 再 split，文件名若含被编码的 %2F 会让段边界错位 → 路径错位 404。）
   const segments = url.pathname
@@ -35,9 +36,23 @@ export function parseLocalAssetUrl(rawUrl: string): { projectId: string; filePat
         return seg;
       }
     });
-  const [projectId, ...relativeParts] = segments;
+  const productionPreview = url.hostname === "production-preview";
+  const [projectId, runId, artifactId, ...previewRelativeParts] = productionPreview ? segments : [segments[0], "", "", ...segments.slice(1)];
+  const relativeParts = productionPreview ? previewRelativeParts : segments.slice(1);
   if (!projectId) return null;
   try {
+    const queryKeys = [...url.searchParams.keys()];
+    if (productionPreview) {
+      if (!runId || !artifactId || queryKeys.length !== 1 || queryKeys[0] !== "preview") return null;
+      const token = url.searchParams.get("preview") || "";
+      verifyArtifactPreviewHandle({
+        token,
+        secret: getArtifactPreviewSecret(),
+        expected: { projectId, runId, artifactId, relativePath: relativeParts.join("/") },
+      });
+    } else if (queryKeys.length > 0) {
+      return null;
+    }
     const filePath = resolveProjectRelativePath(projectId, relativeParts.join("/"));
     return filePath ? { projectId, filePath } : null;
   } catch {

@@ -24,6 +24,10 @@ export function ProductionDetails({ details }: Props): JSX.Element {
   const { t, i18n } = useTranslation()
   const budget = details.budget
   const amount = (value: number) => formatAmount(value, budget.currency, i18n.language)
+  const updatedAt = new Intl.DateTimeFormat(i18n.language, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(details.updatedAt))
 
   return (
     <div className={cn('grid gap-3 pt-3')}>
@@ -35,6 +39,16 @@ export function ProductionDetails({ details }: Props): JSX.Element {
             total: details.totalStages,
           })}
         </span>
+      </div>
+      <div className={cn('grid gap-1.5')}>
+        {details.stages.map((stage) => (
+          <div key={stage.stageId} className={cn('flex items-center justify-between gap-3 text-caption')}>
+            <span className={cn('truncate text-nomi-ink-80')}>{stage.title}</span>
+            <span className={cn('shrink-0 text-micro text-nomi-ink-60')}>
+              {t(`generationCommon.production.runDetails.stageStatus.${stage.status}`)}
+            </span>
+          </div>
+        ))}
       </div>
       <dl className={cn('grid grid-cols-2 gap-x-3 gap-y-2 text-caption')}>
         <div>
@@ -54,6 +68,18 @@ export function ProductionDetails({ details }: Props): JSX.Element {
           <dd className={cn('mt-0.5 font-medium tabular-nums text-nomi-ink')}>{amount(budget.unsettled)}</dd>
         </div>
       </dl>
+      <div className={cn('grid gap-1 text-caption')}>
+        <span className={cn('text-nomi-ink-60')}>{t('generationCommon.production.runDetails.skills')}</span>
+        <span className={cn('text-nomi-ink-80')}>
+          {details.skills.length > 0
+            ? details.skills.map((skill) => `${skill.name} v${skill.version}`).join(' · ')
+            : t('generationCommon.production.runDetails.noSkills')}
+        </span>
+      </div>
+      <div className={cn('flex items-center justify-between gap-3 text-caption')}>
+        <span className={cn('text-nomi-ink-60')}>{t('generationCommon.production.runDetails.updatedAt')}</span>
+        <time dateTime={details.updatedAt} className={cn('text-right tabular-nums text-nomi-ink-80')}>{updatedAt}</time>
+      </div>
     </div>
   )
 }

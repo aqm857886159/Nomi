@@ -3,6 +3,12 @@ import { getActiveWorkbenchProjectId } from '../project/workbenchProjectSession'
 import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
 import { getDesktopBridge } from '../../desktop/bridge'
 import i18n from '../../i18n'
+import { runStoryboardPlanner } from '../generationCanvas/agent/runStoryboardPlanner'
+import { useWorkbenchStore } from '../workbenchStore'
+import { mintSpendGrant } from '../api/taskApi'
+import { runGenerationNode } from '../generationCanvas/runner/generationRunController'
+import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStoryboardToTimeline'
+import { exportTimelineToMp4 } from '../export/exportApi'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。
@@ -122,6 +128,46 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       return confirmSpendForAgent(data as SpendConfirmPayload)
     case 'plan.confirm':
       return confirmPlanForAgent(data as PlanConfirmPayload)
+    case 'production.plan-storyboard': {
+      const brief = data.brief && typeof data.brief === 'object' && !Array.isArray(data.brief)
+        ? data.brief as Record<string, unknown>
+        : {}
+      const result = await runStoryboardPlanner({
+        storyText: typeof brief.goal === 'string' ? brief.goal : '',
+        skill: { key: 'brand.promo', name: '品牌宣传片' },
+      })
+      const plan = useWorkbenchStore.getState().storyboardPlan
+      if (!plan) throw new Error(i18n.t('runtime.capability.storyboardPlanMissing'))
+      return { text: result.text, plan }
+    }
+    case 'production.generate-node': {
+      const nodeId = typeof data.nodeId === 'string' ? data.nodeId.trim() : ''
+      if (!nodeId) throw new Error('Production generation requires a node')
+      const grantId = await mintSpendGrant([nodeId], typeof data.maxAttemptsPerJob === 'number' ? data.maxAttemptsPerJob : undefined)
+      const result = await runGenerationNode(nodeId, { grantId })
+      return {
+        nodeId,
+        status: 'succeeded',
+        assets: result.url ? [{ type: result.type, url: result.url, ...(result.thumbnailUrl ? { thumbnailUrl: result.thumbnailUrl } : {}) }] : [],
+      }
+    }
+    case 'production.arrange': {
+      const result = arrangeStoryboardToTimeline()
+      if (!result.ok && result.total === 0) throw new Error('没有可排片的镜头')
+      return { arranged: result.sent.length, total: result.total, placed: result.sent.map((item) => ({ nodeId: item.nodeId, role: item.role, startFrame: item.startFrame })), skipped: result.skipped }
+    }
+    case 'production.export': {
+      const project = typeof data.projectId === 'string' ? data.projectId : ''
+      const state = useWorkbenchStore.getState()
+      const result = await exportTimelineToMp4({
+        projectId: project,
+        timeline: state.timeline,
+        aspectRatio: state.previewAspectRatio,
+        generationNodes: useGenerationCanvasStore.getState().nodes,
+        outputName: typeof data.outputName === 'string' ? data.outputName : undefined,
+      })
+      return { relativePath: result.relativePath, size: result.size }
+    }
     default:
       throw new Error(i18n.t('runtime.capability.unknownOperation', { operation: op }))
   }

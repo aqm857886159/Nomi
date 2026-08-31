@@ -109,6 +109,22 @@ export const zhCN = {
       interrupt: '中断',
       retry: '重试',
     },
+    videoAnalysis: {
+      title: '视频拆解',
+      stages: { queued: '排队', readingMedia: '读取视频', analyzingEvidence: '分析画面与文字', structuring: '整理结构', completed: '完成' },
+      stillProcessing: '仍在处理 · 引擎上次更新于 {{time}} 前',
+      submissionUnknown: '正在只读核对提交结果 · 不会重复提交',
+      engineOffline: '本地引擎离线 · 只查询已有任务',
+    },
+    productionRun: {
+      title: 'Nomi 制作',
+      statuses: {
+        draft: '等待开始', awaitingDirection: '等待确认方向', awaitingStoryboardReview: '等待审核分镜',
+        awaitingContract: '等待确认制作与预算', ready: '准备生成', running: '正在生成', pausing: '正在暂停',
+        paused: '已暂停', needsAttention: '需要处理', awaitingRoughCutReview: '等待审核粗剪',
+        awaitingExport: '等待确认导出', exporting: '正在导出', completed: '制作完成', cancelled: '已取消',
+      },
+    },
     empty: {
       title: '没有在跑的任务',
       hint: '框选镜头点「生成」就会出现在这里',
@@ -452,6 +468,22 @@ export const en = {
       cancel: 'Cancel',
       interrupt: 'Interrupt',
       retry: 'Retry',
+    },
+    videoAnalysis: {
+      title: 'Video deconstruction',
+      stages: { queued: 'Queued', readingMedia: 'Reading video', analyzingEvidence: 'Analyzing visuals and text', structuring: 'Structuring', completed: 'Complete' },
+      stillProcessing: 'Still processing · engine last updated {{time}} ago',
+      submissionUnknown: 'Reconciling by lookup only · no duplicate submission',
+      engineOffline: 'Local engine offline · checking existing task only',
+    },
+    productionRun: {
+      title: 'Nomi production',
+      statuses: {
+        draft: 'Waiting to start', awaitingDirection: 'Direction approval required', awaitingStoryboardReview: 'Storyboard review required',
+        awaitingContract: 'Production and budget approval required', ready: 'Ready to generate', running: 'Generating', pausing: 'Pausing',
+        paused: 'Paused', needsAttention: 'Needs attention', awaitingRoughCutReview: 'Rough-cut review required',
+        awaitingExport: 'Export approval required', exporting: 'Exporting', completed: 'Production complete', cancelled: 'Cancelled',
+      },
     },
     empty: {
       title: 'No tasks running',

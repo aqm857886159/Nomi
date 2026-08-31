@@ -17,13 +17,18 @@ import {
   MCP_APP_MIME_TYPE,
   NOMI_LIVE_DRAFT_WIDGET_HTML,
   buildNomiDraftFromGenerate,
+  buildNomiRunFromProjection,
 } from './mcpAppWidget'
 
 export type McpInvokeOptions = { spendConfirmed?: boolean }
 
-// 哪些工具挂活 widget（tool.name → ui:// 资源）。目前 nomi_generate（活生成面板）。
+// 哪些工具挂活 widget（tool.name → ui:// 资源）：单次生成与 production Run 共用一张活面板。
 const TOOL_UI_RESOURCE: Record<string, string> = {
   nomi_generate: NOMI_LIVE_DRAFT_UI_URI,
+  nomi_start_playbook: NOMI_LIVE_DRAFT_UI_URI,
+  nomi_get_run: NOMI_LIVE_DRAFT_UI_URI,
+  nomi_subscribe_run: NOMI_LIVE_DRAFT_UI_URI,
+  nomi_get_artifact: NOMI_LIVE_DRAFT_UI_URI,
 }
 
 export interface McpTransport {
@@ -127,6 +132,95 @@ const TOOLS = [
     build: (a: Record<string, unknown>) => ({ projectId: a.projectId, nodeIds: a.nodeIds || [] }),
   },
   {
+    name: 'nomi_start_playbook',
+    description: '在本地 Nomi 项目中创建一个可审阅的制作草稿。只记录 brief 与 playbook，不批准预算、不调用付费模型。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string', description: '目标 Nomi 项目 id' },
+        playbook: { type: 'string', description: '制作 playbook，例如 brand.promo' },
+        playbookVersion: { type: 'string', description: '可选版本；默认 1.0.0' },
+        brief: {
+          type: 'object',
+          properties: {
+            goal: { type: 'string', description: '要完成什么' },
+            audience: { type: 'string' },
+            channel: { type: 'string' },
+            tone: { type: 'string' },
+            durationSeconds: { type: 'number', minimum: 1, maximum: 3600 },
+            sellingPoints: { type: 'array', maxItems: 20, items: { type: 'string' } },
+            referenceArtifactIds: { type: 'array', maxItems: 20, items: { type: 'string' } },
+          },
+          required: ['goal'],
+          additionalProperties: false,
+        },
+      },
+      required: ['projectId', 'playbook', 'brief'],
+      additionalProperties: false,
+    },
+    method: 'production.start',
+    build: (a: Record<string, unknown>) => ({
+      projectId: a.projectId,
+      playbook: a.playbook,
+      playbookVersion: a.playbookVersion,
+      brief: a.brief,
+    }),
+  },
+  {
+    name: 'nomi_get_run',
+    description: '读取一个持久化制作 Run 的安全状态投影：阶段、任务、待确认项、预算与最新产物。',
+    inputSchema: {
+      type: 'object',
+      properties: { projectId: { type: 'string' }, runId: { type: 'string' } },
+      required: ['projectId', 'runId'],
+      additionalProperties: false,
+    },
+    method: 'production.get',
+    build: (a: Record<string, unknown>) => ({ projectId: a.projectId, runId: a.runId }),
+  },
+  {
+    name: 'nomi_subscribe_run',
+    description: '从 durable cursor 开始长轮询制作 Run 的重要事件；最多等待 25 秒，不返回轮询噪声。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string' },
+        runId: { type: 'string' },
+        afterCursor: { type: 'integer', minimum: 0, default: 0 },
+        waitMs: { type: 'integer', minimum: 0, maximum: 25_000, default: 0 },
+      },
+      required: ['projectId', 'runId'],
+      additionalProperties: false,
+    },
+    method: 'production.events',
+    build: (a: Record<string, unknown>) => ({
+      projectId: a.projectId,
+      runId: a.runId,
+      afterCursor: a.afterCursor ?? 0,
+      waitMs: a.waitMs ?? 0,
+    }),
+  },
+  {
+    name: 'nomi_get_artifact',
+    description: '读取 Run 内一个产物的安全元数据、受控预览能力与 Nomi 深链；不返回绝对路径或供应商地址。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string' },
+        runId: { type: 'string' },
+        artifactId: { type: 'string' },
+      },
+      required: ['projectId', 'runId', 'artifactId'],
+      additionalProperties: false,
+    },
+    method: 'production.artifact',
+    build: (a: Record<string, unknown>) => ({
+      projectId: a.projectId,
+      runId: a.runId,
+      artifactId: a.artifactId,
+    }),
+  },
+  {
     name: 'nomi_generate',
     description: '触发一次生成（用 Nomi 的 archetype 正确组装参数 + 落资产回节点）。会花用户额度。intent=image/video/text/audio。',
     inputSchema: {
@@ -154,9 +248,16 @@ const TOOL_BY_NAME = new Map<string, ToolDef>(TOOLS.map((tool) => [tool.name, to
  * 只读工具（annotations.readOnlyHint）——**只查不改不花钱**的那几个。
  * 为什么必须标：宿主按它决定要不要每次弹确认（Codex 的 `default_tools_approval_mode = "writes"`
  * 就是「没标 read-only 的才问」）。不标 → 连「列一下项目」都要用户点一次同意，助手基本没法用；
- * 标错（把 nomi_generate 也标上）→ 花钱的生成被静默放行。故只列这三个查询类，其余一律按会改/会花钱对待。
+ * 标错（把 nomi_generate 也标上）→ 花钱的生成被静默放行。只列查询类，其余一律按会改/会花钱对待。
  */
-const READ_ONLY_TOOLS = new Set(['nomi_list_projects', 'nomi_list_models', 'nomi_read_canvas'])
+const READ_ONLY_TOOLS = new Set([
+  'nomi_list_projects',
+  'nomi_list_models',
+  'nomi_read_canvas',
+  'nomi_get_run',
+  'nomi_subscribe_run',
+  'nomi_get_artifact',
+])
 
 const INTENT_LABEL: Record<string, string> = { image: '一张画面', video: '一段视频', audio: '一段音频', text: '一段文本' }
 
@@ -182,6 +283,7 @@ type SkillContentFrame = { name: string; directoryName: string; description: str
 export function createMcpProtocol(transport: McpTransport) {
   // 客户端能力（initialize 时捕获）。elicitation = 客户端能代我们向真人弹确认对话框（MCP 规范 2025-06-18）。
   let clientSupportsElicitation = false
+  let clientHost = 'external'
   // 服务端→客户端请求自管 id 与 pending，等客户端回响应。
   let serverReqSeq = 0
   const pendingServerReqs = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>()
@@ -197,13 +299,53 @@ export function createMcpProtocol(transport: McpTransport) {
   }
 
   // tool result 载荷：文本兜底（宿主无 UI 时也看得到，且 content[].text 不变=终端体验零回归）+ 挂 widget 的
-  // 工具额外带 structuredContent.nomiDraft（宿主注入 iframe/window.openai 渲活生成面板）+ _meta.ui.resourceUri
+  // 工具额外带 structuredContent.nomiDraft / nomiRun（宿主注入 iframe/window.openai 渲活面板）+ _meta.ui.resourceUri
   // （标准）与 openai/outputTemplate（ChatGPT 别名）。always 附——宿主不支持则忽略这些附加字段（spec 设计），
   // 跨 Claude/ChatGPT/参考宿主通用（P4）；不 gate on 客户端声明，否则 ChatGPT 不声明该扩展就拿不到 widget。
+  function productionResultText(toolName: string, result: unknown): string | null {
+    const value = result && typeof result === 'object' && !Array.isArray(result) ? result as Record<string, unknown> : {}
+    const openInNomi = typeof value.openInNomi === 'string' ? value.openInNomi : ''
+    if (toolName === 'nomi_start_playbook') {
+      return `Nomi 已创建制作草稿 ${String(value.runId || '')}；尚未批准预算，也没有调用付费生成。${openInNomi ? `\n在 Nomi 打开 ${openInNomi}` : ''}`
+    }
+    if (toolName === 'nomi_get_run') {
+      const artifacts = Array.isArray(value.artifacts) ? value.artifacts as Array<Record<string, unknown>> : []
+      const latest = artifacts.at(-1)
+      const preview = latest?.preview && typeof latest.preview === 'object' ? latest.preview as Record<string, unknown> : undefined
+      return `[Nomi] ${String(value.runId || '')} · ${String(value.status || 'unknown')} · ${String(value.stageId || 'unknown')}${preview?.url ? `\n最新预览 ${String(preview.url)}（${String(preview.expiresAt || '限时')}）` : ''}${openInNomi ? `\n在 Nomi 打开 ${openInNomi}` : ''}`
+    }
+    if (toolName === 'nomi_subscribe_run') {
+      const events = Array.isArray(value.events) ? value.events as Array<Record<string, unknown>> : []
+      const lines = events.map((event) => `[Nomi] ${String(event.type || 'event')} · ${String(event.message || '')}`)
+      return `${lines.length ? lines.join('\n') : '[Nomi] 暂无新的重要事件'}\nnext cursor ${String(value.nextCursor ?? 0)}`
+    }
+    if (toolName === 'nomi_get_artifact') {
+      const preview = value.preview && typeof value.preview === 'object' ? value.preview as Record<string, unknown> : undefined
+      const nomiUri = typeof value.nomiUri === 'string' ? value.nomiUri : ''
+      return `[Nomi] ${String(value.kind || 'artifact')} · ${String(value.status || 'unknown')} · ${String(value.artifactId || '')}${nomiUri ? `\n产物 ${nomiUri}` : ''}${preview?.url ? `\n预览 ${String(preview.url)}（${String(preview.expiresAt || '限时')}）` : ''}${openInNomi ? `\n在 Nomi 打开 ${openInNomi}` : ''}`
+    }
+    return null
+  }
+
   function buildToolResultPayload(toolName: string, args: Record<string, unknown>, result: unknown): Record<string, unknown> {
-    const payload: Record<string, unknown> = { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] }
+    const payload: Record<string, unknown> = {
+      content: [{ type: 'text', text: productionResultText(toolName, result) ?? JSON.stringify(result, null, 2) }],
+    }
     const uiUri = TOOL_UI_RESOURCE[toolName]
-    if (toolName === 'nomi_generate' && uiUri) {
+    if (uiUri && ['nomi_start_playbook', 'nomi_get_run', 'nomi_subscribe_run', 'nomi_get_artifact'].includes(toolName)) {
+      payload.structuredContent = {
+        nomiRun: buildNomiRunFromProjection({
+          projectId: typeof args.projectId === 'string' ? args.projectId : undefined,
+          runId: typeof args.runId === 'string' ? args.runId : undefined,
+          result,
+        }),
+        // The widget needs a compact presentation frame; the AI client needs the complete safe
+        // projection to reason about gates, cursors, jobs and artifact identities. The service
+        // owns redaction before this protocol boundary.
+        nomiRunData: result,
+      }
+      payload._meta = { ui: { resourceUri: uiUri }, 'openai/outputTemplate': uiUri }
+    } else if (toolName === 'nomi_generate' && uiUri) {
       payload.structuredContent = {
         nomiDraft: buildNomiDraftFromGenerate({
           intent: typeof args.intent === 'string' ? args.intent : undefined,
@@ -264,6 +406,14 @@ export function createMcpProtocol(transport: McpTransport) {
 
     if (method === 'initialize') {
       clientSupportsElicitation = Boolean(params?.capabilities && (params.capabilities as Record<string, unknown>).elicitation)
+      const clientName = String((params?.clientInfo as Record<string, unknown> | undefined)?.name || '').toLowerCase()
+      clientHost = clientName.includes('codex')
+        ? 'codex'
+        : clientName.includes('claude')
+          ? 'claude'
+          : clientName.includes('cursor')
+            ? 'cursor'
+            : 'external'
       // 协议版本回显客户端请求的版本（兼容性根因 R5 实证）：硬回我们偏好版本会让只讲老协议的客户端按规范断开。
       const requested = params?.protocolVersion
       const negotiatedVersion = typeof requested === 'string' && requested ? requested : PROTOCOL_VERSION
@@ -272,7 +422,7 @@ export function createMcpProtocol(transport: McpTransport) {
         capabilities: { tools: {}, resources: {}, prompts: {} },
         serverInfo: { name: 'nomi-capability-core', version: '0.1.0' },
         instructions:
-          '用 nomi_* 工具在本机驱动 Nomi：列项目/模型、建项目、读画布、加节点/连线/改提示词、触发生成（会花用户额度）。' +
+          '用 nomi_* 工具在本机驱动 Nomi：可安全发起制作草稿、读取 Run/事件/产物并深链回 Nomi；低层画布与单次生成工具继续兼容。' +
           '另经 resources/prompts 暴露 Nomi 的「导演/编剧技能库」（从阿泽导演台整过来的电影方法论：拆镜头/运镜/一致性/摄影/对白/结构等）——' +
           '做视频/剧本前先 resources/list 看有哪些、resources/read 或 prompts/get 载入相关技能，再据其方法论写提示词、组装画布、驱动生成，产出质量更专业。',
       })
@@ -310,6 +460,13 @@ export function createMcpProtocol(transport: McpTransport) {
       }
       const args = (params?.arguments as Record<string, unknown>) || {}
       try {
+        const built = tool.build(args) as Record<string, unknown>
+        if (tool.name === 'nomi_start_playbook') {
+          // initialize.clientInfo is self-declared and cannot grant a trusted-host approval.
+          // Keep the detected client only as an audit label; the authority boundary is `external`.
+          built.host = 'external'
+          built.actorId = clientHost
+        }
         // 付费生成 + Nomi 没开（无应用内确认卡可弹）→ 在 Claude 这一侧弹 elicitation 让真人确认。
         // 真人确认才以 spendConfirmed 授权本次生成；enforcement 仍在主进程硬闸。
         // app 开着则照常走——由应用内确认卡处理（用户人在 Nomi 边上）。
@@ -327,11 +484,11 @@ export function createMcpProtocol(transport: McpTransport) {
             reply(id, { content: [{ type: 'text', text: '已取消：你未确认这次付费生成，未生成、未消耗额度。' }], isError: true })
             return
           }
-          const result = await transport.invoke(tool.method, tool.build(args), { spendConfirmed: true })
+          const result = await transport.invoke(tool.method, built, { spendConfirmed: true })
           reply(id, buildToolResultPayload(tool.name, args, result))
           return
         }
-        const result = await transport.invoke(tool.method, tool.build(args))
+        const result = await transport.invoke(tool.method, built)
         reply(id, buildToolResultPayload(tool.name, args, result))
       } catch (error) {
         // 工具执行失败用 isError 返回（让模型看到错误而非协议级 error）。
@@ -350,11 +507,11 @@ export function createMcpProtocol(transport: McpTransport) {
         description: s.description,
         mimeType: 'text/markdown',
       }))
-      // 活 widget 资源（MCP Apps）：宿主预取渲染 nomi_generate 的活生成面板。always 列出（宿主不支持则不取）。
+      // 活 widget 资源（MCP Apps）：宿主预取渲染生成结果与 production Run 投影的活面板。
       const uiResources = [{
         uri: NOMI_LIVE_DRAFT_UI_URI,
         name: 'Nomi 活生成面板',
-        description: '在支持 MCP Apps 的宿主里内嵌显示 Nomi 生成的画面缩略图与状态。',
+        description: '在支持 MCP Apps 的宿主里内嵌显示 Nomi 生成或制作 Run 的状态与安全预览。',
         mimeType: MCP_APP_MIME_TYPE,
       }]
       reply(id, { resources: [...uiResources, ...skillResources] })

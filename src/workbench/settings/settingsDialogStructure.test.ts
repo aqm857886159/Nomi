@@ -12,6 +12,18 @@ describe('settings dialog structure', () => {
     }
     expect(settingsSource).toContain('<AiModelsSection')
     expect(settingsSource).toContain('<AutomationPermissionsSection')
+    expect(settingsSource).toContain('sm:flex-row')
+    expect(settingsSource).toContain('overflow-x-auto')
+  })
+
+  it('keeps video deconstruction permissions in the automation settings surface', () => {
+    const automationSource = fs.readFileSync(path.join(process.cwd(), 'src/workbench/settings/AutomationPermissionsSection.tsx'), 'utf8')
+    const videoAnalysisSource = fs.readFileSync(path.join(process.cwd(), 'src/workbench/settings/VideoAnalysisSettingsSection.tsx'), 'utf8')
+    expect(automationSource)
+      .toContain('<VideoAnalysisSettingsSection')
+    expect(videoAnalysisSource).toContain('data-settings-section="video-analysis"')
+    expect(settingsSource).toContain('initialSection')
+    expect(settingsSource).toContain('scrollIntoView')
   })
 
   it('keeps notification policy in settings instead of duplicating it in task center', () => {
