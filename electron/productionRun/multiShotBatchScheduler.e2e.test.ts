@@ -165,6 +165,74 @@ describe("P4 S4 J1 — full multi-shot batch over a real loopback vendor", () =>
   });
 });
 
+// P4 真供应商加固 — 锚检查点「不满意只重锚」闭环（验收门 §5.1 变体 + T1 拍板）over a real loopback vendor.
+// 证：checkpoint 出现 → REJECT → 镜批**不开拍**（一个视频镜都没提交）→ 只重锚（reworkShot 锚 shot）→ 旧
+// rejected 检查点门被丢、新锚生成后**重开一道全新 waiting 检查点**（引用新锚 job，不是旧的）→ approve 新检查点
+// → 镜批才开拍。这补上了「reject 后检查点门恒 rejected、gate.add 拒重复 → 永远死锁」的根因缺口。
+describe("P4 真供应商加固 — 锚检查点 reject 只重锚 → 重开检查点 → approve 开拍", () => {
+  it("REJECT 检查点后镜不开拍；只重锚；新锚重开一道全新检查点；approve 后镜批才提交", async () => {
+    const shots = [shotEntry("anchor-1", "阿雨 定妆照", "anchor"), shotEntry("shot-1", "雨夜推门", "shot"), shotEntry("shot-2", "货架对视", "shot")];
+    const { root, repository } = setup(shots);
+    const vendor = await startLoopbackVendor();
+    try {
+      const submits: string[] = [];
+      // Phase A: batch generates the anchor and stops at the checkpoint (no auto-release).
+      const phaseA = await scheduler(root, repository, vendor.origin, submits).runToQuiescence();
+      expect(phaseA.checkpoint.status).toBe("waiting");
+      expect(submits).toHaveLength(1); // only the anchor image
+      let run = repository.read("project-1", "op-batch")!;
+      const gate = run.gates.find((g) => g.gateId === anchorCheckpointGateId("op-batch"))!;
+      expect(gate.status).toBe("waiting");
+      const firstAnchorJobId = run.jobs.find((j) => j.metadata?.shotId === "anchor-1")!.jobId;
+
+      // Phase B: user REJECTS the checkpoint ("不满意"). Shots must NOT proceed.
+      run = repository.execute("project-1", "op-batch", { commandId: "reject-checkpoint", expectedRevision: run.revision, type: "gate.decide", payload: { gateId: gate.gateId, status: "rejected" }, issuedAt: tickClock() }).run;
+      const phaseB = await scheduler(root, repository, vendor.origin, submits).runToQuiescence();
+      expect(phaseB.checkpoint.status).toBe("rejected");
+      expect(submits).toHaveLength(1);                                    // STILL only the anchor — no video shot submitted
+      run = repository.read("project-1", "op-batch")!;
+      expect(run.jobs.some((j) => j.metadata?.shotId === "shot-1")).toBe(false);
+      expect(run.jobs.some((j) => j.metadata?.shotId === "shot-2")).toBe(false);
+
+      // Phase C: user re-anchors ONLY the anchor (checkpoint card's「只重画形象」→ S6 reworkShot on role:'anchor').
+      const submission = buildSubmission(root, repository, vendor.origin, submits);
+      const rework = await submission.reworkShot({ projectId: "project-1", operationId: "op-batch", shotId: "anchor-1" });
+      expect(rework.attempt).toBe(2);
+      run = repository.read("project-1", "op-batch")!;
+      // The rejected checkpoint gate was DROPPED by generation.new_attempt (so a fresh one can open).
+      expect(run.gates.some((g) => g.gateId === anchorCheckpointGateId("op-batch"))).toBe(false);
+      // Approve + submit the re-anchor (models the single-shot confirm the checkpoint card triggers for the new anchor).
+      run = repository.execute("project-1", "op-batch", { commandId: "approve-reanchor", expectedRevision: run.revision, type: "generation.approve", payload: { receiptId: "receipt-reanchor", contractHash: "plan-hash-batch", attempt: rework.attempt }, issuedAt: tickClock() }).run;
+      run = repository.execute("project-1", "op-batch", { commandId: "submit-reanchor", expectedRevision: run.revision, type: "generation.submit", payload: {}, issuedAt: tickClock() }).run;
+
+      // Phase D: scheduler re-anchors → new anchor ready → a BRAND-NEW checkpoint opens (waiting), referencing the
+      // NEW anchor job. Shots STILL blocked (one video shot not submitted). This is the reopened stop-a-beat.
+      // raisePlanAuthorizationTo lifts the ceiling for the re-anchor's extra spend (as reworkShot does in prod):
+      // anchor v1 + anchor v2 + 2 shots = 4 × 6 = 24.
+      const phaseD = await scheduler(root, repository, vendor.origin, submits, { raisePlanAuthorizationTo: 24 }).runToQuiescence();
+      expect(phaseD.checkpoint.status).toBe("waiting");
+      expect(submits).toHaveLength(2);                                    // anchor v1 + anchor v2; NO video shot yet
+      run = repository.read("project-1", "op-batch")!;
+      const reopened = run.gates.find((g) => g.gateId === anchorCheckpointGateId("op-batch"))!;
+      expect(reopened.status).toBe("waiting");
+      const secondAnchorJobId = run.jobs.find((j) => j.metadata?.shotId === "anchor-1" && j.jobId !== firstAnchorJobId)!.jobId;
+      expect(reopened.jobIds).toContain(secondAnchorJobId);              // references the NEW anchor, not the old one
+      expect(reopened.jobIds).not.toContain(firstAnchorJobId);
+      expect(run.jobs.some((j) => j.metadata?.shotId === "shot-1")).toBe(false);
+
+      // Phase E: approve the reopened checkpoint → NOW the shot batch generates.
+      run = repository.execute("project-1", "op-batch", { commandId: "approve-reopened", expectedRevision: run.revision, type: "gate.decide", payload: { gateId: reopened.gateId, status: "approved" }, issuedAt: tickClock() }).run;
+      const phaseE = await scheduler(root, repository, vendor.origin, submits, { raisePlanAuthorizationTo: 24 }).runToQuiescence();
+      expect(phaseE.progress.completed).toBe(2);                         // both video shots finished after re-anchor approval
+      expect(submits).toHaveLength(4);                                    // anchor v1 + anchor v2 + 2 shots
+      run = repository.read("project-1", "op-batch")!;
+      expect(new Set(submits).size).toBe(submits.length);                // ≤1 submit per job (no double charge)
+    } finally {
+      await vendor.close();
+    }
+  });
+});
+
 describe("P4 S4 J3 — crash recovery + detached driver over a real loopback vendor", () => {
   it("re-running the scheduler over the same durable Run submits nothing new (restart ≤1 submit per job)", async () => {
     const shots = [shotEntry("shot-1", "a", "shot"), shotEntry("shot-2", "b", "shot")];
@@ -203,6 +271,117 @@ describe("P4 S4 J3 — crash recovery + detached driver over a real loopback ven
       const outcome = await detached; // the batch completes regardless of any client lifecycle
       expect(outcome.progress.completed).toBe(2);
       expect(submits).toHaveLength(2);
+    } finally {
+      await vendor.close();
+    }
+  });
+});
+
+// P4 真供应商加固 — 慢供应商轮询。真视频要几分钟：provider `query` 会连续返回 processing 若干轮才 succeeded。
+// 旧调度器在 dispatchUnit 里做 32 次**无间隔** poll，对秒回的 loopback 恰好首轮 materialize，所以从没暴露；
+// 真供应商上 32 次瞬间打完、job 停在 polling，且静息后再没有东西 poll 它 → 视频永不落地。这套用例把 vendor 做
+// 成「头 N 轮 processing」，断言：① 单次 runToQuiescence 后 job 仍在飞（未落地，inFlight>0）；② 持续再驱动
+// （重复 runToQuiescence 推进，模拟 owner 的持久退避再 kick）后最终 materialize + artifact ready。
+// R18：不使用私有墙钟 waitFor / Date.now 截止轮询——用重复 runToQuiescence 的确定性推进 + 断言 outcome。
+async function startSlowLoopbackVendor(processingRounds: number) {
+  const hits: Array<{ url: string; method: string }> = [];
+  const pngDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+  // Per-task query count → the provider reports processing for the first `processingRounds` queries, then succeeded.
+  const queryCounts = new Map<string, number>();
+  const server = http.createServer((req, res) => {
+    const url = req.url ?? "";
+    hits.push({ url, method: req.method ?? "" });
+    req.on("data", () => { /* drain */ }); req.on("end", () => {
+      // Submit endpoint (/v1/generations POST) mints a task id; query endpoint (/v1/generations/:id) reports status.
+      const isSubmit = req.method === "POST" && url.endsWith("/v1/generations");
+      if (isSubmit) {
+        const taskId = `task-${hits.filter((h) => h.method === "POST").length}`;
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ created: 1, data: [{ task_id: taskId, status: "processing" }] }));
+        return;
+      }
+      const taskId = url.split("/").pop() ?? "";
+      const n = (queryCounts.get(taskId) ?? 0) + 1;
+      queryCounts.set(taskId, n);
+      const ready = n > processingRounds;
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ created: 1, data: [{ task_id: taskId, status: ready ? "succeeded" : "processing", ...(ready ? { url: pngDataUrl, images: [{ url: pngDataUrl }] } : {}) }] }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+  const { port } = server.address() as { port: number };
+  return { origin: `http://127.0.0.1:${port}`, hits, queryCounts, close: () => new Promise<void>((r) => server.close(() => r())) };
+}
+
+function slowLoopbackProvider(origin: string, submits: string[]): GenerationProvider {
+  return {
+    providerId: "apimart",
+    capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true, materialize: true },
+    buildRequest: (input) => input,
+    submit: async (_request, idempotencyKey) => {
+      submits.push(idempotencyKey);
+      const res = await fetch(`${origin}/v1/generations`, { method: "POST", body: JSON.stringify({ idempotencyKey }) });
+      const json = await res.json() as { data: Array<{ task_id: string }> };
+      return { providerTaskId: json.data[0].task_id, raw: json };
+    },
+    // The real slow path: query hits the server which reports processing until the round threshold, then succeeded.
+    query: async (providerTaskId) => {
+      const res = await fetch(`${origin}/v1/generations/${providerTaskId}`, { method: "GET" });
+      const json = await res.json() as { data: Array<{ status: string }> };
+      return { status: json.data[0].status, raw: { id: providerTaskId, status: json.data[0].status } };
+    },
+    materialize: async ({ providerTaskId }) => ({ outputs: [{ kind: "video", url: `nomi-local://asset/project-1/${providerTaskId}.png` }] }),
+  };
+}
+
+function slowScheduler(root: string, repository: ReturnType<typeof createProductionRunRepository>, origin: string, submits: string[], options: Parameters<typeof createMultiShotBatchScheduler>[0]["options"] = {}) {
+  const provider = slowLoopbackProvider(origin, submits);
+  createGenerationRuntimeAdapter({ providers: [provider] }); // sanity: genuine adapter path
+  const submission = createProductionGenerationSubmission({
+    repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+    intentMacKey: "test-intent-key", provider,
+    resolveShotPrice: () => ({ known: true, amount: 6 }),
+    materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.png` }),
+    now,
+  });
+  // sleep: 0 (no wall-clock in tests, R18); maxFastPolls: 1 so a single runToQuiescence does NOT drain a slow task.
+  return createMultiShotBatchScheduler({ repository, submission, projectId: "project-1", runId: "op-batch", perShotPrice: () => ({ known: true, amount: 6 }), now, sleep: async () => {}, options: { maxFastPolls: 1, fastPollBackoffMs: 0, ...options } });
+}
+
+describe("P4 真供应商加固 — 慢供应商轮询（真视频分钟级）", () => {
+  it("单次 runToQuiescence 不 materialize 慢 job（旧 32-poll 会误落）；持续再驱动后最终落地 + artifact ready", async () => {
+    const shots = [shotEntry("shot-1", "雨夜推门", "shot"), shotEntry("shot-2", "货架对视", "shot")];
+    const { root, repository } = setup(shots);
+    // Each task reports processing for 5 query rounds before succeeding — far more than one runToQuiescence's fast-poll budget.
+    const vendor = await startSlowLoopbackVendor(5);
+    try {
+      const submits: string[] = [];
+
+      // Phase A: one kick. Both shots submit to the real provider, but the provider is still processing →
+      // NOTHING materializes this tick. The batch rests with jobs in-flight (this is exactly where the old
+      // scheduler died: it returned here and no re-poll ever came).
+      const first = await slowScheduler(root, repository, vendor.origin, submits).runToQuiescence();
+      expect(submits).toHaveLength(2);                       // both shots submitted (≤1 submit each)
+      expect(first.progress.completed).toBe(0);              // none done yet (provider still processing)
+      expect(first.progress.inFlight).toBe(2);               // both waiting on the provider → owner must re-drive
+      expect(first.quiescent).toBe(true);                    // rested (not spinning)
+      let run = repository.read("project-1", "op-batch")!;
+      expect(run.jobs.filter((j) => j.status === "polling")).toHaveLength(2);
+      expect(run.artifacts.filter((a) => a.kind === "video" && a.status === "ready")).toHaveLength(0);
+
+      // Phase B: the persistent re-drive. Repeatedly re-kick the SAME durable Run (models the owner's backoff
+      // timer) — no wall-clock waiting, just deterministic re-derivation. The provider settles after its rounds
+      // and the shots materialize. Bounded loop so a real regression (never settles) fails instead of hanging.
+      let completed = first.progress.completed;
+      for (let kick = 0; kick < 20 && completed < 2; kick += 1) {
+        const outcome = await slowScheduler(root, repository, vendor.origin, submits).runToQuiescence();
+        completed = outcome.progress.completed;
+      }
+      expect(completed).toBe(2);                             // the slow batch DID converge via re-drive
+      expect(submits).toHaveLength(2);                       // re-driving never re-submitted (≤1 submit per job)
+      run = repository.read("project-1", "op-batch")!;
+      expect(run.artifacts.filter((a) => a.kind === "video" && a.status === "ready")).toHaveLength(2);
+      expect(new Set(submits).size).toBe(submits.length);    // every idempotency key used at most once
     } finally {
       await vendor.close();
     }

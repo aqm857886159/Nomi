@@ -16,6 +16,7 @@ import type {
 } from "./productionRunTypes";
 import { validateProductionExecutionBinding } from "./productionExecutionBinding";
 import { checkSealAffordability, type ShotPrice } from "./shotPricing";
+import { isAnchorCheckpointGate } from "./anchorCheckpoint";
 
 /**
  * P4 S2: raised when a seal is requested with a hard spend ceiling that cannot cover the known-price
@@ -509,10 +510,21 @@ export function applyProductionCommand(
             updatedAt: now,
           }
         : { ...currentPlan, state: "sealed", approvedReceiptId: undefined, approvedAt: undefined, approvedAttempt: undefined, updatedAt: now };
+      // P4 真供应商加固：若返工的是**锚**（用户在检查点点了「不满意只重锚」）→ 丢掉旧的锚检查点门。这样新锚
+      // 生成完成后 deriveCheckpoint 返回 should_open，scheduler 用**新锚 jobIds** 重开一道全新 waiting 检查点
+      // （卡展示的是新形象，不是旧的）。不丢的话：旧门是 rejected/approved，deriveCheckpoint 恒返旧态、gate.add
+      // 又拒重复 id → 检查点永不重开，reject→重锚闭环断裂。只影响锚返工；镜返工不碰检查点门。
+      const reworkedShotIsAnchor = shotId
+        ? (currentPlan.shots ?? []).some((shot) => shot.shotId === shotId && shot.role === "anchor")
+        : false;
+      const gatesAfterAttempt = reworkedShotIsAnchor
+        ? current.gates.filter((gate) => !isAnchorCheckpointGate(gate))
+        : current.gates;
       return {
         run: {
           ...current,
           generationPlan: nextPlan,
+          gates: gatesAfterAttempt,
           jobs: [...current.jobs, job],
           updatedAt: now,
         },

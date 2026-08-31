@@ -19,6 +19,7 @@ import {
 import { listSkillSummaries, readSkillContent } from '../skills/skillStore'
 import type { ProductionRunService } from '../productionRun/productionRunService'
 import type { ProductionBrief } from '../productionRun/productionRunTypes'
+import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
 import { withPreApprovedPlan, type ProjectGateway } from './gateway'
 import { INTAKE_MAX_QUESTIONS, buildIntakeMessage, buildIntakeQuestions } from './mcpBriefIntake'
 import type { CapabilityOriginHost } from './security'
@@ -377,7 +378,10 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       if (!gate) throw new RpcError(`Production gate not found: ${gateId}`, 404)
       const creativeGate = gate.scope === 'stage'
         && (gate.gateId.startsWith('gate-direction-') || gate.gateId.startsWith('gate-sample-') || gate.gateId.startsWith('gate-freeze-'))
-      if (!creativeGate) throw new RpcError('This production gate must be decided in Nomi', 403)
+      // P4 真供应商加固：锚亮相检查点（T1 拍板）是免费质量门——外部 MCP 客户端（nomi_decide_gate）可批准/拒绝。
+      // approve=点头开拍；reject=只重锚（scheduler 据 gate.status rejected 只重派锚、镜不动）。花钱门仍必须回 Nomi。
+      const anchorCheckpoint = isAnchorCheckpointGate(gate)
+      if (!creativeGate && !anchorCheckpoint) throw new RpcError('This production gate must be decided in Nomi', 403)
       await ctx.productionRuns.command(projectId, runId, {
         commandId: `mcp-decide-${gateId}-${decision}-${full.revision}`,
         expectedRevision: full.revision,

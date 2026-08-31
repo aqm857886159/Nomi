@@ -6,7 +6,7 @@ import type {
 
 export type ProductionRunTone = 'working' | 'attention' | 'danger' | 'success' | 'neutral'
 /** 门类：决定文案与「在哪决定」。方向/样片不花钱，预算/导出才是钱与不可逆。 */
-export type ProductionGateKind = 'direction' | 'sample' | 'shot' | 'contract' | 'export' | 'stage'
+export type ProductionGateKind = 'direction' | 'sample' | 'shot' | 'contract' | 'export' | 'checkpoint' | 'stage'
 /** 决定的家：origin=发起端（CLI）主决策、Nomi 只指路兜底；nomi=用户自主发起，门在 Nomi 是主路径。 */
 export type ProductionDecisionHome = 'origin' | 'nomi'
 
@@ -17,6 +17,8 @@ export function gateKindOf(gate: { gateId: string; scope: string }): ProductionG
   if (gate.scope === 'job_set' && gate.gateId.startsWith('gate-shot-')) return 'shot'
   if (gate.scope === 'budget_envelope') return 'contract'
   if (gate.scope === 'export') return 'export'
+  // P4 真供应商加固：锚亮相检查点（免费质量门，T1 拍板）——渲染层用「定妆形象」家族词汇的确认卡。
+  if (gate.scope === 'anchor_checkpoint' && gate.gateId.startsWith('gate-anchor-checkpoint-')) return 'checkpoint'
   return 'stage'
 }
 export type ProductionRunPrimaryAction = 'open-stage' | 'open-gate' | 'review-script' | 'review-storyboard' | 'reconcile' | 'review-rough-cut' | 'open-export' | 'resume-run' | null
@@ -226,6 +228,8 @@ export function buildProductionRunView(
           ? 'shotGate'
         : gateKind === 'export'
           ? 'exportGate'
+        : gateKind === 'checkpoint'
+          ? 'checkpointGate'
           : 'approvalRequired'
     const gateJob = gateKind === 'shot'
       ? run.jobs.find((candidate) => candidate.jobId === waitingGate.jobIds[0])

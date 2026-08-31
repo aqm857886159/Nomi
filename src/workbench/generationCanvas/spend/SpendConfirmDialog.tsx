@@ -210,6 +210,24 @@ export function SpendConfirmDialog() {
           </div>
         ) : null}
 
+        {pending.previewImages?.length ? (
+          // P4 真供应商加固：锚亮相检查点——把主角/场景形象缩图摊在卡上，用户「看着形象点头」。
+          <div className={cn('mb-3 flex flex-wrap gap-2')}>
+            {pending.previewImages.map((image, index) => (
+              <figure key={image.url} className={cn('flex flex-col gap-1')}>
+                <img
+                  src={image.url}
+                  alt={image.label ?? ''}
+                  className={cn('h-24 w-24 rounded-nomi-sm border border-nomi-line-soft object-cover bg-nomi-ink-05')}
+                />
+                {image.label ? (
+                  <figcaption className={cn('text-micro text-nomi-ink-60 text-center max-w-24 truncate')}>{image.label}</figcaption>
+                ) : null}
+              </figure>
+            ))}
+          </div>
+        ) : null}
+
         {pending.kind !== 'contract' && pending.details?.length ? (
           <div className={cn('mb-3 rounded-nomi-sm border border-nomi-line-soft divide-y divide-nomi-line-soft')}>
             {pending.details.map((row) => (

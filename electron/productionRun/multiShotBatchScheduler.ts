@@ -37,6 +37,17 @@ export type BatchSchedulerOptions = {
   maxShotsPerRun?: number;
   /** Safety cap on scheduler ticks before giving up (default 64). A healthy batch needs a few. */
   maxTicks?: number;
+  /**
+   * P4 真供应商加固：一个 dispatchUnit 内「快轮询」的最多次数（默认 3）。快轮询专治**秒回**的供应商
+   * （loopback / 快 mock / 已缓存）——poll 到 materialize 就当场落。仍 pending 就快返（job 停在 `polling`），
+   * 分钟级的等待交给 owner 的持久再驱动（P1 不把分钟级 sleep 塞进请求路径）。`0` = 不快轮询，纯靠再驱动。
+   */
+  maxFastPolls?: number;
+  /**
+   * P4 真供应商加固：两次快轮询之间的退避（ms，默认 800）。给秒级供应商一点结算窗口，又不空转。测试注 `0`
+   * = 无退避（逐字节等同旧 loopback 行为：秒回 vendor 首轮即 materialize）。生产退避定时是允许的（R18 只禁测试墙钟）。
+   */
+  fastPollBackoffMs?: number;
 };
 
 export type BatchSchedulerDependencies = {
@@ -47,6 +58,11 @@ export type BatchSchedulerDependencies = {
   /** Resolve a shot's derived price (S2) for the halt accounting. */
   perShotPrice: (shot: ProductionGenerationShot) => ShotPrice;
   now?: () => string;
+  /**
+   * P4 真供应商加固：快轮询之间的等待钩子（默认 setTimeout）。只在 dispatchUnit 的快轮询里用；分钟级等待
+   * 由 owner 的持久再驱动承担，不阻塞此处。测试注入受控 sleep（或 0 退避）避免墙钟（R18）。
+   */
+  sleep?: (delayMs: number) => Promise<void>;
   options?: BatchSchedulerOptions;
   /**
    * P4 S5：一镜成功物化后回调（best-effort，永不抛）——appIntegration 据此 requestRenderer 把该镜 result
@@ -91,6 +107,9 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
   const now = deps.now ?? (() => new Date().toISOString());
   const options = deps.options ?? {};
   const maxTicks = options.maxShotsPerRun !== undefined ? Math.max(options.maxShotsPerRun + 4, 8) : (options.maxTicks ?? 64);
+  const sleep = deps.sleep ?? ((delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
+  const maxFastPolls = Math.max(0, options.maxFastPolls ?? 3);
+  const fastPollBackoffMs = Math.max(0, options.fastPollBackoffMs ?? 800);
 
   function command(run: ProductionRun, type: string, payload: Record<string, unknown>, suffix: string): ProductionRun {
     return deps.repository.execute(run.projectId, run.runId, {
@@ -117,12 +136,31 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
     }, `plan-authorize:${ceiling}`);
   }
 
-  /** Drive one unit (anchor or shot) to a terminal state through the submission facade (start→poll→materialize). */
-  async function dispatchUnit(task: DispatchTask): Promise<void> {
+  /**
+   * Drive one unit (anchor or shot) one step through the submission facade (start→poll→[materialize]).
+   *
+   * P4 真供应商加固修根因：旧实现在这里做 32 次**无间隔** poll。真视频（分钟级、query 恒返 processing）会让
+   * 这 32 次瞬间打完然后悄悄返回，job 停在 `polling`，且 runToQuiescence 静息后**再没有东西 poll 它** → 真视频
+   * 永不 materialize。改成：`start`（对已提交 job 返 observe = 安全续 poll）→ **有界快轮询**（专治秒回的
+   * loopback/快 mock/已缓存，带短退避给结算窗口）→ 若仍 pending 就**返回**（job 留在 `polling`）。分钟级的
+   * 等待不在这里空转，而由 owner（appIntegration.kickSchedulerForRun）在 outcome.inFlight>0 时用持久、重启安全的
+   * 退避再驱动承担（P1：不把分钟级 sleep 塞进请求路径 / 不造第二套调度系统）。返回值 = 这一镜是否已落地。
+   */
+  async function dispatchUnit(task: DispatchTask): Promise<boolean> {
     const started = await deps.submission.start({ projectId: deps.projectId, operationId: deps.runId, shotId: task.shotId });
-    if (started.nextAction !== "observe") return;
-    // Poll until the provider settles, then materialize. Bounded so a stuck provider cannot spin forever.
-    for (let i = 0; i < 32; i += 1) {
+    if (started.nextAction !== "observe") return false;
+    return pollUnit(task);
+  }
+
+  /**
+   * Poll one already-submitted unit (anchor or shot) toward materialization — the path that advances an
+   * in-flight job across ticks. Fast-poll a bounded number of times (a fast provider settles here with no
+   * wasted round-trips; a slow provider stays `polling` and we return, deferring to the owner's persistent
+   * re-drive). Idempotent: for a finished/failed job the submission facade short-circuits. Returns whether
+   * the unit materialized this call.
+   */
+  async function pollUnit(task: DispatchTask): Promise<boolean> {
+    for (let i = 0; i <= maxFastPolls; i += 1) {
       const polled = await deps.submission.poll({ projectId: deps.projectId, operationId: deps.runId, shotId: task.shotId });
       if (polled.nextAction === "materialize") {
         await deps.submission.materialize({ projectId: deps.projectId, operationId: deps.runId, shotId: task.shotId });
@@ -134,17 +172,24 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
             console.warn("[nomi:production] onShotMaterialized failed:", error instanceof Error ? error.message : String(error));
           }
         }
-        return;
+        return true;
       }
-      if (polled.nextAction === "attention") return; // provider failed → job is needs_attention, leave it
-      // still polling → the mock/provider will settle on the next query; a real provider adds a wait.
+      if (polled.nextAction === "attention") return false; // provider failed → job is needs_attention, leave it
+      // still polling → give a fast provider a brief settle window, then re-poll. When the fast-poll budget is
+      // spent the job stays `polling`; the persistent re-drive resumes it (this pollUnit is a single step).
+      if (i < maxFastPolls && fastPollBackoffMs > 0) await sleep(fastPollBackoffMs);
     }
+    return false;
   }
 
   /** Open the anchor checkpoint gate (§3.2) referencing the ready anchor jobs — a free quality gate. */
   function openCheckpoint(run: ProductionRun, checkpoint: CheckpointState): ProductionRun {
     const gate = buildAnchorCheckpointGate({ runId: run.runId, planHash: run.generationPlan?.planHash ?? "", anchorJobIds: checkpoint.readyAnchorJobIds, now: now() });
-    return command(run, "gate.add", { gate }, "open-anchor-checkpoint");
+    // P4 真供应商加固：commandId 后缀带**当前就绪锚 jobIds** 摘要——「不满意只重锚」后旧检查点门被丢、新锚有新
+    // jobId，这里必须是一条**新** command 才能重开门；若用固定后缀，幂等命令库会把重开当作首次开门的重放而吞掉
+    // （结果：新锚生成后检查点永不重开、批次死锁）。首次开门的后缀不变（同一批锚 → 幂等，不重复开）。
+    const anchorFingerprint = [...checkpoint.readyAnchorJobIds].sort().join(",").slice(0, 48);
+    return command(run, "gate.add", { gate }, `open-anchor-checkpoint:${anchorFingerprint}`);
   }
 
   /** Record an auto-release as an approval on the checkpoint gate (§3.2) —留痕, then shots release. */
@@ -211,6 +256,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
         anchorAutoReleaseMs: options.anchorAutoReleaseMs,
       });
       lastResult = result;
+      const anchorShotIds = new Set((plan.shots ?? []).filter((shot) => shot.role === "anchor").map((shot) => shot.shotId));
 
       // 1. Open the checkpoint once anchors are ready and no gate exists yet.
       if (result.checkpoint.status === "should_open") {
@@ -229,6 +275,18 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
           await dispatchUnit(task);
         }
         continue; // re-derive: anchors now have jobs; checkpoint may open next
+      }
+
+      // 3b. Poll any in-flight anchors (submitted, still settling) BEFORE resting at pending_anchors. A slow
+      // real anchor stays `polling` across ticks; if this poll lands one, re-derive (the checkpoint may open).
+      // If nothing progressed, fall through to rest — the owner's persistent re-drive polls again later.
+      if (result.checkpoint.status === "pending_anchors") {
+        const anchorPolls = result.inFlightPoll.filter((task) => anchorShotIds.has(task.shotId));
+        let advanced = false;
+        for (const task of anchorPolls) {
+          if (await pollUnit(task)) advanced = true;
+        }
+        if (advanced) continue; // an anchor materialized → re-derive (checkpoint may open)
       }
 
       // 4. If the checkpoint is waiting (user must approve) → rest here (nothing more to do this run).
@@ -272,13 +330,27 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
         continue; // re-derive: dispatched shots now have jobs; halt/completion decided next
       }
 
-      // 7. Nothing to dispatch and no blocking checkpoint → the batch is complete (or stopped).
+      // 6b. Nothing new to dispatch, but shots are in-flight (submitted, still settling on the provider). Poll
+      // them BEFORE declaring completion. A slow real video stays `polling` across ticks; if this poll lands
+      // one, re-derive (more shots may release / the batch may complete). If nothing progressed, fall through
+      // to rest — the batch is NOT complete (inFlight>0 in the outcome), and the owner re-drives later.
+      if (result.inFlightPoll.length > 0) {
+        let advanced = false;
+        for (const task of result.inFlightPoll) {
+          if (await pollUnit(task)) advanced = true;
+        }
+        if (advanced) continue; // a shot materialized → re-derive
+        // Still all in-flight → rest (owner's persistent re-drive resumes polling). Report current progress.
+        return { progress: result.progress, checkpoint: result.checkpoint, ...(result.halt ? { halt: result.halt } : {}), quiescent: true };
+      }
+
+      // 7. Nothing to dispatch, nothing in-flight, no blocking checkpoint → the batch is complete (or stopped).
       return { progress: result.progress, checkpoint: result.checkpoint, ...(result.halt ? { halt: result.halt } : {}), quiescent: true };
     }
 
     // Bounded-out (should not happen for a healthy batch) — report the last derived state. The loop ran
     // at least once (maxTicks >= 8), so lastResult is set; fall back to an empty progress only defensively.
-    const result = lastResult ?? { progress: { total: 0, completed: 0, inFlight: 0, pending: 0 }, checkpoint: { status: "not_required" as const, readyAnchorJobIds: [] }, anchorDispatch: [], shotDispatch: [] };
+    const result = lastResult ?? { progress: { total: 0, completed: 0, inFlight: 0, pending: 0 }, checkpoint: { status: "not_required" as const, readyAnchorJobIds: [] }, anchorDispatch: [], shotDispatch: [], inFlightPoll: [] };
     return { progress: result.progress, checkpoint: result.checkpoint, ...(result.halt ? { halt: result.halt } : {}), quiescent: false };
   }
 

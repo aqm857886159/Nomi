@@ -126,6 +126,13 @@ export type BatchDerivationInput = {
 export type BatchDerivationResult = {
   anchorDispatch: DispatchTask[];
   shotDispatch: DispatchTask[];
+  /**
+   * P4 真供应商加固：已提交给供应商、仍在飞（polling / provider_accepted / …）的单元——需要**继续 poll**（不是
+   * 重新 submit）。旧调度器把 submit+poll 耦合在一次阻塞的 dispatchUnit 里（32 次内联 poll），所以从不需要这个；
+   * 现在 dispatchUnit 快返（慢供应商留 polling），必须有一条「跨 tick 续 poll 在飞单元」的路径，调度器才能在
+   * 再驱动时把慢真视频推到落地。锚 + 镜都可能在飞（锚在检查点前、镜在批次里）。
+   */
+  inFlightPoll: DispatchTask[];
   checkpoint: CheckpointState;
   progress: BatchProgress;
   halt?: BudgetHalt;
@@ -252,13 +259,22 @@ export function deriveBatchPlan(input: BatchDerivationInput): BatchDerivationRes
     pending: videoShots.length - completed - inFlight,
   };
 
+  // Units already handed to the provider and still settling (anchors + shots). These get POLLED (not
+  // re-submitted) every tick — the path that carries a slow real video from "submitted" to "materialized"
+  // across the owner's persistent re-drive. Skipped for a stopped run (in-flight jobs settle on their own).
+  const inFlightPoll: DispatchTask[] = input.runStatus === "pausing" || input.runStatus === "paused" || input.runStatus === "cancelled"
+    ? []
+    : [...anchors, ...videoShots]
+        .filter((unit) => shotInFlight(input.runId, unit, input.jobs))
+        .map((unit) => toTask(input.runId, unit));
+
   const checkpoint = deriveCheckpoint(input, anchors);
 
   // Stop semantics (plan §3.3/§4): a stopped run dispatches nothing NEW (未提交=不提交不扣费).
   // In-flight jobs settle on their own; completed jobs are preserved (both reflected in `progress`).
   const stopped = input.runStatus === "pausing" || input.runStatus === "paused" || input.runStatus === "cancelled";
   if (stopped) {
-    return { anchorDispatch: [], shotDispatch: [], checkpoint, progress };
+    return { anchorDispatch: [], shotDispatch: [], inFlightPoll, checkpoint, progress };
   }
 
   // Anchors go first. Any anchor still needing a job (fresh or a rejected-checkpoint re-attempt) is
@@ -269,7 +285,7 @@ export function deriveBatchPlan(input: BatchDerivationInput): BatchDerivationRes
   const checkpointReleased = checkpoint.status === "approved" || checkpoint.status === "auto_release";
   if (anchors.length > 0 && !checkpointReleased) {
     // Anchors present but checkpoint not released → dispatch anchors (if any pending), block shots.
-    return { anchorDispatch, shotDispatch: [], checkpoint, progress };
+    return { anchorDispatch, shotDispatch: [], inFlightPoll, checkpoint, progress };
   }
 
   // Checkpoint released (approved / auto_release) or no anchors at all → consider video shots.
@@ -315,5 +331,5 @@ export function deriveBatchPlan(input: BatchDerivationInput): BatchDerivationRes
     halt = { ...halt, dispatchableCount, remainingCount: remaining };
   }
 
-  return { anchorDispatch, shotDispatch, checkpoint, progress, ...(halt ? { halt } : {}) };
+  return { anchorDispatch, shotDispatch, inFlightPoll, checkpoint, progress, ...(halt ? { halt } : {}) };
 }

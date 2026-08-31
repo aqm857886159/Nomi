@@ -20,7 +20,7 @@ import { clearInstanceAdvertisement, writeInstanceAdvertisement } from './lockfi
 import { HEARTBEAT_INTERVAL_MS, type InstanceAdvertisement } from './instanceAdvert'
 import { getProjectLocationState, getWorkspaceRepositoryDeps } from '../runtimePaths'
 import type { FetchTaskResultFn, RunTaskFn } from './core'
-import { getProductionRunService } from '../productionRun/productionRunRuntime'
+import { getProductionRunService, setProductionRunEventListener } from '../productionRun/productionRunRuntime'
 import { createProjectLeaseAuthority, type ProjectLeaseAuthority } from './projectLease'
 import { createProjectLeaseStore } from './projectLeaseStore'
 import { createApprovalReceiptAuthority, type ApprovalReceiptAuthority } from './approvalReceipt'
@@ -35,7 +35,8 @@ import { createGenerationPlanningHandler } from './mcpGenerationTools'
 import { createProductionGenerationOperationStore } from '../productionRun/productionGenerationOperationStore'
 import { createProductionGenerationSubmission } from '../productionRun/productionGenerationSubmission'
 import { createMultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
-import type { ProductionActionResult } from '../productionRun/productionRunTypes'
+import type { ProductionActionResult, ProductionRun, RunEvent } from '../productionRun/productionRunTypes'
+import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
 import { landCanvasForRun } from '../productionRun/multiShotCanvasLanding'
 import { createArtifactProjection, getArtifactPreviewSecret } from '../productionRun/artifactProjection'
 import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
@@ -52,10 +53,23 @@ let openProjectId = ''
 // 幂等补落缺失节点/组、回填已完成 result，并恢复未完批次调度（resumeUnfinishedRuns）。模块级 hoist 是因为
 // setOpenProjectId 是模块级导出（main.ts 的 active-project IPC 直接调它），而补齐逻辑住在 start 闭包内。
 let reconcileOpenProjectHook: ((projectId: string) => void) | null = null
+// P4 真供应商加固：慢供应商的持久再驱动。scheduler 跑到静息若仍有 job 在等 provider（分钟级真视频），
+// owner 用一个 per-run 退避 timer 重新 kick——直到全部落地/停在用户检查点/halt。key=`projectId::runId`。
+// 一个 run 至多一个 timer（不是第二套调度系统，只是「什么时候再喊无状态 scheduler」）。重启后由
+// reconcileOpenProjectHook + resumeUnfinishedRuns 触发点重新 kick → 重新 arm；durable 真相仍是 polling job。
+const batchRedriveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+// 再驱动退避（ms）。真供应商分钟级：给 4s 一个节奏，既及时又不打爆 provider query。测试不走此路径
+// （E2E 用重复 runToQuiescence 推进，见 multiShotBatchScheduler.e2e.test.ts 慢 vendor 用例）。
+const BATCH_REDRIVE_BACKOFF_MS = 4_000
 // P4 S6：返工/续拍编排钩子（start 闭包装配后设进来）——住在 start 闭包里因为它们要用 scheduler builder +
 // 单镜 gate 确认（confirmGenerationInNomi + 收据机构）+ 提交门面，这些都在闭包内。main.ts 的 IPC 转调这两个导出。
 let reworkProductionShotHook: ((input: { projectId: string; runId: string; shotId?: string }) => Promise<ProductionActionResult>) | null = null
 let resumeProductionBatchHook: ((input: { projectId: string; runId: string; reason: 'budget' | 'manual' }) => Promise<ProductionActionResult>) | null = null
+// P4 真供应商加固：锚亮相检查点被决定后要**再驱动批次**（scheduler 只被 owner kick，本身无自有状态）——
+// approve→释放镜批开拍；reject→只重锚（reworkShot 锚 shot → 新 attempt → scheduler 重派锚 → 检查点重开）。
+// 装在 start 闭包里（要 kickSchedulerForRun + reworkProductionShot）。渲染层 IPC 与 MCP 都经 service.command
+// 落 gate.decide，两条都经 onEvents funnel 打到这个钩子（一个家，P1），不管谁点的都对。
+let onBatchGateDecidedHook: ((events: RunEvent[], run: ProductionRun) => void) | null = null
 // 心跳定时器 + 当前广告所在库（退出时按同一命名空间文件名清理）。
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null
 let advertisedLibrary: { projectsRoot: string; isDefault: boolean } | null = null
@@ -202,6 +216,15 @@ export async function reworkProductionShot(input: { projectId: string; runId: st
 export async function resumeProductionBatch(input: { projectId: string; runId: string; reason: 'budget' | 'manual' }): Promise<ProductionActionResult> {
   if (!resumeProductionBatchHook) return { ok: false, code: 'unavailable' }
   return resumeProductionBatchHook(input)
+}
+
+/**
+ * P4 真供应商加固：production run 事件 funnel（组进 runtime 的 onEvents）。当前只反应锚检查点决定——把它转成
+ * 批次再驱动（approve 释放镜批 / reject 只重锚）。渲染层 IPC 与 MCP 决门都经 service.command → onEvents 打到这里，
+ * 所以「谁点的都对」。能力核未就绪时静默（钩子为空）。绝不影响 run 主流程（钩子内自吞错）。
+ */
+export function notifyProductionRunEvents(events: RunEvent[], run: ProductionRun): void {
+  if (onBatchGateDecidedHook) onBatchGateDecidedHook(events, run)
 }
 
 /** 组装本实例的 v2 广告：projectsRoot 取自 getProjectLocationState（与 runtimePaths 同源），心跳戳 = now。 */
@@ -380,7 +403,20 @@ export async function startCapabilityCore(
         ...(options ? { options } : {}),
       })
     }
-    const kickSchedulerForRun = (projectId: string, runId: string): void => {
+    const redriveKey = (projectId: string, runId: string) => `${projectId}::${runId}`
+    const clearBatchRedrive = (projectId: string, runId: string): void => {
+      const key = redriveKey(projectId, runId)
+      const timer = batchRedriveTimers.get(key)
+      if (timer) {
+        clearTimeout(timer)
+        batchRedriveTimers.delete(key)
+      }
+    }
+    // P4 真供应商加固：kick 无状态 scheduler 跑到静息，然后**读 outcome**决定要不要再驱动。
+    // outcome.progress.inFlight>0 = 有 job 还在等 provider（慢真视频）→ 用一个 per-run 退避 timer 重新 kick，
+    // 直到 inFlight===0（全落地）或停在用户检查点/halt/急停（此时不再自动喊，等用户）。这补上了「一次 kick
+    // 跑到静息后在途 job 无人再 poll」的根因缺口。scheduler 本身无自有状态：重复 kick 已提交不重提、已完成不重扣。
+    const kickSchedulerForRun = (projectId: string, runId: string, raisePlanAuthorizationTo?: number): void => {
       let run
       try {
         run = generationService.repository.read(projectId, runId)
@@ -389,10 +425,32 @@ export async function startCapabilityCore(
       }
       if (!run || !run.generationPlan?.shots || run.generationPlan.shots.length === 0) return
       if (run.generationPlan.state !== 'submitted') return // 还没确认过的草稿不驱动
-      if (['completed', 'cancelled', 'paused', 'pausing'].includes(run.status)) return // 已停/急停不自动续
-      const scheduler = buildSchedulerForRun(projectId, runId, run)
+      if (['completed', 'cancelled', 'paused', 'pausing'].includes(run.status)) { // 已停/急停不自动续 → 也停再驱动
+        clearBatchRedrive(projectId, runId)
+        return
+      }
+      // 提额（返工/续拍抬预算上界）只在**首次**这条 kick 传，重驱动 timer 的 re-kick 不再传（ledger 只增不减、
+      // 已授权则本就不会降，但不重传更干净）。scheduler 的 ensurePlanAuthorization 幂等按 ceiling 只升不降。
+      const scheduler = buildSchedulerForRun(projectId, runId, run, raisePlanAuthorizationTo !== undefined ? { raisePlanAuthorizationTo } : undefined)
       if (!scheduler) return
-      void scheduler.runToQuiescence().catch((error) => {
+      // 这次 kick 已经开始 → 清掉旧 timer（避免叠加）；跑完根据 outcome 决定是否 arm 下一次。
+      clearBatchRedrive(projectId, runId)
+      void scheduler.runToQuiescence().then((outcome) => {
+        // 停在用户检查点（waiting）时不轮询催——等用户点头；halt 同理（等提额续拍）。仅「还有 job 在飞」才再驱动。
+        const stillInFlight = outcome.progress.inFlight > 0 && outcome.checkpoint.status !== 'waiting' && !outcome.halt
+        if (!stillInFlight) {
+          clearBatchRedrive(projectId, runId)
+          return
+        }
+        const key = redriveKey(projectId, runId)
+        if (batchRedriveTimers.has(key)) return // 另一路已 arm（并发去重）
+        const timer = setTimeout(() => {
+          batchRedriveTimers.delete(key)
+          kickSchedulerForRun(projectId, runId)
+        }, BATCH_REDRIVE_BACKOFF_MS)
+        if (typeof timer.unref === 'function') timer.unref() // 别拖住进程退出
+        batchRedriveTimers.set(key, timer)
+      }).catch((error) => {
         console.warn('[nomi:production] batch resume tick failed:', error instanceof Error ? error.message : String(error))
       })
     }
@@ -443,19 +501,10 @@ export async function startCapabilityCore(
                 issuedAt: new Date().toISOString(),
               })
             }
-            const scheduler = createMultiShotBatchScheduler({
-              repository: generationService.repository,
-              submission,
-              projectId: lease.projectId,
-              runId: operation.operationId,
-              perShotPrice: (shot) => (shot.contract ? resolveShotPrice(shot.contract) : { known: false }),
-              onShotMaterialized: (shotId) => pushShotResultToRenderer(lease.projectId, operation.operationId, shotId),
-            })
-            // Kick the batch off the request path (durable + restart-safe): the scheduler runs to its next
-            // resting point (anchors done + checkpoint waiting, or halt, or completion) without blocking.
-            void scheduler.runToQuiescence().catch((error) => {
-              console.error('[nomi:capability-core] batch scheduler tick failed:', error instanceof Error ? error.message : String(error))
-            })
+            // Kick the batch off the request path through the SHARED kick (P1 一个家)：它 runToQuiescence 到
+            // 下一个静息点（锚完成+检查点 waiting / halt / 完成）不阻塞请求，并且——关键——若仍有 job 在等真
+            // 供应商（分钟级视频），用持久、重启安全的退避 timer 再驱动直到全部落地。这补上了慢供应商 poll 失效。
+            kickSchedulerForRun(lease.projectId, operation.operationId)
             return { operationId: operation.operationId, state: operation.state, nextAction: 'observe' }
           }
           return submission.start({ projectId: lease.projectId, operationId: operation.operationId })
@@ -618,15 +667,12 @@ export async function startCapabilityCore(
       } catch (error) {
         return { ok: false, code: 'failed', message: error instanceof Error ? error.message : String(error) }
       }
-      // 5. kick scheduler：派发这个 authorized 新 Job（已完成兄弟镜不重扣）；提额上界给该镜单价（累计已授权则不降）。
+      // 5. kick scheduler（经 kickSchedulerForRun → 带慢供应商持久再驱动）：派发这个 authorized 新 Job（已完成兄弟
+      // 镜不重扣）；提额上界给该镜单价（累计已授权则不降）。返工的是锚时，new_attempt 已丢旧检查点门 → 新锚生成后
+      // scheduler 重开一道全新 waiting 检查点（卡展示新形象），等用户再点头。
       const kicking = generationService.repository.read(projectId, runId)
       if (kicking) {
-        const scheduler = buildSchedulerForRun(projectId, runId, kicking, maximumCost > 0 ? { raisePlanAuthorizationTo: kicking.budget.authorized + maximumCost } : undefined)
-        if (scheduler) {
-          void scheduler.runToQuiescence().catch((error) => {
-            console.warn('[nomi:production] rework dispatch tick failed:', error instanceof Error ? error.message : String(error))
-          })
-        }
+        kickSchedulerForRun(projectId, runId, maximumCost > 0 ? kicking.budget.authorized + maximumCost : undefined)
       }
       return { ok: true, code: 'reworked' }
     }
@@ -674,15 +720,45 @@ export async function startCapabilityCore(
         }
         raiseTo = running.budget.authorized + remaining
       }
-      const scheduler = buildSchedulerForRun(projectId, runId, running, raiseTo !== undefined ? { raisePlanAuthorizationTo: raiseTo } : undefined)
-      if (!scheduler) return { ok: false, code: 'unavailable' }
-      void scheduler.runToQuiescence().catch((error) => {
-        console.warn('[nomi:production] batch resume tick failed:', error instanceof Error ? error.message : String(error))
-      })
+      // provider 未配置 / 工程根不可达 → 保留 unavailable 契约（先探一次可建性）；否则经 kickSchedulerForRun
+      // 驱动（带慢供应商持久再驱动 + 提额上界）。
+      if (!buildSchedulerForRun(projectId, runId, running)) return { ok: false, code: 'unavailable' }
+      kickSchedulerForRun(projectId, runId, raiseTo)
       return { ok: true, code: 'resumed' }
+    }
+    // P4 真供应商加固：锚检查点被决定 → 再驱动批次。事件 funnel（renderer IPC + MCP 都经此），只反应
+    // anchor_checkpoint 的 gate.decided：approve → kick scheduler 释放镜批；reject → 对每个锚 shot 走 reworkShot
+    // （新 attempt → scheduler 重派锚 → 检查点重开）。best-effort、自吞错，绝不影响 run 主流程。
+    onBatchGateDecidedHook = (events, run) => {
+      try {
+        const decidedCheckpoint = events.some((event) => {
+          if (event.type !== 'gate.decided') return false
+          const gate = run.gates.find((candidate) => candidate.gateId === event.message)
+          return Boolean(gate && isAnchorCheckpointGate(gate))
+        })
+        if (!decidedCheckpoint) return
+        const gate = run.gates.find((candidate) => isAnchorCheckpointGate(candidate))
+        if (!gate) return
+        if (gate.status === 'approved') {
+          // 点头开拍：释放镜批（scheduler 据 checkpoint approved 派发勾选镜）。
+          kickSchedulerForRun(run.projectId, run.runId)
+        } else if (gate.status === 'rejected') {
+          // 不满意只重锚：对每个锚 shot 走 reworkShot（锚也是 shot，role:'anchor'）→ 新 attempt → 重派锚 → 检查点重开。
+          const anchorShots = (run.generationPlan?.shots ?? []).filter((shot) => shot.role === 'anchor' && shot.included !== false)
+          for (const anchor of anchorShots) {
+            void reworkProductionShot({ projectId: run.projectId, runId: run.runId, shotId: anchor.shotId }).catch((error) => {
+              console.warn('[nomi:production] anchor checkpoint re-anchor failed:', error instanceof Error ? error.message : String(error))
+            })
+          }
+        }
+      } catch (error) {
+        console.warn('[nomi:production] anchor checkpoint reaction failed:', error instanceof Error ? error.message : String(error))
+      }
     }
     reworkProductionShotHook = reworkProductionShot
     resumeProductionBatchHook = resumeProductionBatch
+    // 把锚检查点反应注册进 run 事件 funnel（避开循环 import：runtime 持有 setter，appIntegration 注册）。
+    setProductionRunEventListener(notifyProductionRunEvents)
     handle = await startRpcServer({
       runTask,
       fetchTaskResult,
@@ -730,4 +806,10 @@ export function stopCapabilityCore(): void {
   reconcileOpenProjectHook = null
   reworkProductionShotHook = null
   resumeProductionBatchHook = null
+  onBatchGateDecidedHook = null
+  setProductionRunEventListener(null)
+  // P4 真供应商加固：清掉所有慢供应商再驱动 timer（进程收尾/重启时不留悬挂）。durable 真相仍在 run.json，
+  // 下次 startCapabilityCore + reconcileOpenProjectHook 会从 polling job 重新 arm。
+  for (const timer of batchRedriveTimers.values()) clearTimeout(timer)
+  batchRedriveTimers.clear()
 }

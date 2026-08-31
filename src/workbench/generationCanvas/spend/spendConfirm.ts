@@ -49,6 +49,11 @@ export type SpendConfirmRequest = {
   /** 明细行（节点 / 模型 / 预估），让用户一眼看懂谁要花钱、花在哪。 */
   details?: Array<{ label: string; value: string }>
   /**
+   * P4 真供应商加固：预览缩图（锚亮相检查点用）——把已生成的主角/场景形象直接摊在卡上，用户「看着形象点头」。
+   * nomi-local:// URL（渲染层安全解析）。空 = 不显缩图区。只读展示，不改 boolean 确认契约。
+   */
+  previewImages?: Array<{ url: string; label?: string }>
+  /**
    * 倒计时（毫秒）：设了即显进度条 + 「N 秒后自动忽略」，到点自动按「未确认」返回（不死等）。
    * 给 MCP/agent 驱动的确认用——外部调用方那头在等，超时必须给个干净返回。
    */

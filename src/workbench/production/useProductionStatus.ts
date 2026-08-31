@@ -45,6 +45,13 @@ function localizedGateCopy(
       message: translate('generationCommon.production.gate.sampleSummary'),
     }
   }
+  if (gate.scope === 'anchor_checkpoint') {
+    // P4 真供应商加固：锚亮相检查点（T1）——先看主角形象，点头开拍；不满意只重画形象（术语人话，不说「锚」）。
+    return {
+      title: translate('generationCommon.production.gate.checkpointTitle'),
+      message: translate('generationCommon.production.gate.checkpointSummary'),
+    }
+  }
   if (gate.scope === 'job_set' && gate.gateId.startsWith('gate-shot-')) {
     const job = run.jobs.find((candidate) => candidate.jobId === gate.jobIds[0])
     const index = job ? run.jobs.findIndex((candidate) => candidate.jobId === job.jobId) + 1 : 0
