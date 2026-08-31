@@ -23,7 +23,7 @@ const LOCALE_LABEL_KEY: Record<AppLocale, string> = { 'zh-CN': 'common.chinese',
 // 集中设置页（2026-08-01 用户拍板样张）：左 tab 右内容。首批「文件与保存」做实——自动另存开关+目录；
 // 其余 tab 占位。复用 OnboardingFloatingPanel 的外壳交互（Portal + Esc + 点遮罩关），布局是居中大 modal。
 type SettingsTab = 'file' | 'ai' | 'automation' | 'general' | 'about'
-export type SettingsInitialSection = 'automation' | 'cursor-host' | null
+export type SettingsInitialSection = 'automation' | 'cursor-host' | 'ai-models' | 'hard-budget' | null
 
 const TABS: { id: SettingsTab; icon: typeof IconFolder; labelKey: string }[] = [
   { id: 'file', icon: IconFolder, labelKey: 'settings.tab.file' },
@@ -51,20 +51,26 @@ export function SettingsDialog({
   const locale = getAppLocale()
   const [enabled, setEnabled] = React.useState(false)
   const [dir, setDir] = React.useState('')
-  const [automationPolicy, setAutomationPolicy] = React.useState<AutomationPolicySettings>(defaultAutomationPolicySettings)
+  const [automationPolicy, setAutomationPolicy] = React.useState<AutomationPolicySettings>(
+    defaultAutomationPolicySettings,
+  )
   const [automationPolicyLoaded, setAutomationPolicyLoaded] = React.useState(false)
   const contentRef = React.useRef<HTMLElement>(null)
 
   React.useEffect(() => setTab(initialTab), [initialTab])
 
   React.useEffect(() => {
-    if (tab !== 'automation' || !initialSection) return
+    if (!initialSection) return
     const frame = window.requestAnimationFrame(() => {
-      const section = contentRef.current
-        ?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`)
+      const section =
+        initialSection === 'hard-budget'
+          ? contentRef.current?.querySelector<HTMLElement>('[data-settings-field="hard-budget"]')
+          : contentRef.current?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`)
       section?.scrollIntoView({ block: 'center' })
-      if (initialSection === 'cursor-host' && automationPolicyLoaded) {
-        section?.querySelector<HTMLElement>('button, input, [tabindex]')?.focus({ preventScroll: true })
+      if (automationPolicyLoaded) {
+        const focusTarget =
+          initialSection === 'hard-budget' ? section : section?.querySelector<HTMLElement>('button, input, [tabindex]')
+        focusTarget?.focus({ preventScroll: true })
       }
     })
     return () => window.cancelAnimationFrame(frame)
@@ -89,7 +95,8 @@ export function SettingsDialog({
       setAutomationPolicyLoaded(true)
       return
     }
-    void policy.get()
+    void policy
+      .get()
       .then((value) => {
         if (active && value) setAutomationPolicy(value)
       })
@@ -115,7 +122,9 @@ export function SettingsDialog({
   }, [onClose])
 
   const persist = React.useCallback((nextEnabled: boolean, nextDir: string): void => {
-    void getDesktopBridge()?.assets?.setAutoSavePrefs?.({ enabled: nextEnabled, dir: nextDir }).catch(() => undefined)
+    void getDesktopBridge()
+      ?.assets?.setAutoSavePrefs?.({ enabled: nextEnabled, dir: nextDir })
+      .catch(() => undefined)
   }, [])
 
   const onToggle = (next: boolean): void => {
@@ -130,22 +139,25 @@ export function SettingsDialog({
     }
   }
 
-  const updateAutomationPolicy = React.useCallback((patch: Partial<AutomationPolicySettings>): void => {
-    if (!automationPolicyLoaded) return
-    setAutomationPolicy((current) => {
-      const next = { ...current, ...patch }
-      void getDesktopBridge()
-        ?.settings?.automationPolicy?.set(next)
-        .then((stored) => {
-          if (stored) {
-            setAutomationPolicy(stored)
-            window.dispatchEvent(new CustomEvent('nomi-automation-policy-changed'))
-          }
-        })
-        .catch(() => undefined)
-      return next
-    })
-  }, [automationPolicyLoaded])
+  const updateAutomationPolicy = React.useCallback(
+    (patch: Partial<AutomationPolicySettings>): void => {
+      if (!automationPolicyLoaded) return
+      setAutomationPolicy((current) => {
+        const next = { ...current, ...patch }
+        void getDesktopBridge()
+          ?.settings?.automationPolicy?.set(next)
+          .then((stored) => {
+            if (stored) {
+              setAutomationPolicy(stored)
+              window.dispatchEvent(new CustomEvent('nomi-automation-policy-changed'))
+            }
+          })
+          .catch(() => undefined)
+        return next
+      })
+    },
+    [automationPolicyLoaded],
+  )
 
   return (
     <Portal>
@@ -158,18 +170,20 @@ export function SettingsDialog({
           if (event.target === event.currentTarget) onClose()
         }}
       >
-        <div
-          className="flex h-[calc(100svh-16px)] w-full max-w-[760px] flex-col overflow-hidden rounded-nomi-lg border border-nomi-line bg-nomi-paper shadow-nomi-lg sm:h-[min(560px,calc(100svh-48px))] sm:flex-row"
-        >
+        <div className="flex h-[calc(100svh-16px)] w-full max-w-[760px] flex-col overflow-hidden rounded-nomi-lg border border-nomi-line bg-nomi-paper shadow-nomi-lg sm:h-[min(560px,calc(100svh-48px))] sm:flex-row">
           <aside className="flex w-full flex-none flex-row gap-0.5 overflow-x-auto border-b border-nomi-line bg-nomi-ink-05 p-2 sm:w-[196px] sm:flex-col sm:overflow-x-visible sm:border-b-0 sm:border-r sm:p-3.5">
-            <div className="hidden px-3 pb-3 pt-1 text-body-sm font-medium text-nomi-ink sm:block">{t('settings.title')}</div>
+            <div className="hidden px-3 pb-3 pt-1 text-body-sm font-medium text-nomi-ink sm:block">
+              {t('settings.title')}
+            </div>
             {TABS.map(({ id, icon: Icon, labelKey }) => (
               <button
                 key={id}
                 type="button"
                 className={cn(
                   'flex w-auto shrink-0 items-center gap-2.5 rounded-nomi-sm border-0 px-3 py-2 text-left text-body-sm cursor-pointer sm:w-full',
-                  tab === id ? 'bg-nomi-ink text-nomi-paper' : 'bg-transparent text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink',
+                  tab === id
+                    ? 'bg-nomi-ink text-nomi-paper'
+                    : 'bg-transparent text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink',
                 )}
                 onClick={() => setTab(id)}
               >
@@ -200,7 +214,9 @@ export function SettingsDialog({
                     aria-label={t('settings.file.autoSave')}
                   />
                 </div>
-                <div className="mb-4 text-caption leading-relaxed text-nomi-ink-40">{t('settings.file.autoSaveHint')}</div>
+                <div className="mb-4 text-caption leading-relaxed text-nomi-ink-40">
+                  {t('settings.file.autoSaveHint')}
+                </div>
 
                 <div className={cn('mb-5', !enabled && 'pointer-events-none opacity-45')}>
                   <div className="mb-1.5 text-caption text-nomi-ink-60">{t('settings.file.saveTo')}</div>
@@ -277,7 +293,9 @@ export function SettingsDialog({
                   <div className="flex min-h-9 items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-body-sm text-nomi-ink">{t('theme.appearance')}</div>
-                      <div className="mt-0.5 text-micro text-nomi-ink-40">{isDark ? t('theme.dark') : t('theme.light')}</div>
+                      <div className="mt-0.5 text-micro text-nomi-ink-40">
+                        {isDark ? t('theme.dark') : t('theme.light')}
+                      </div>
                     </div>
                     <ThemeToggleButton className="shrink-0 border-nomi-line bg-nomi-paper" />
                   </div>

@@ -13,6 +13,11 @@ describe('production status panel structure', () => {
     expect(panel).toContain('<ProductionDetails')
   })
 
+  it('keeps the approval recovery path visible for missing budgets', () => {
+    expect(panel).toContain('disabled={actionInFlight}')
+    expect(panel).toContain('data-production-focused-artifact')
+  })
+
   it('does not fabricate progress and sits before assistant chat history', () => {
     expect(panel).toContain("typeof view.percent === 'number'")
     expect(panel).not.toContain('?? 0')

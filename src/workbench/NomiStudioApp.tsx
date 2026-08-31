@@ -123,7 +123,9 @@ export default function NomiStudioApp(): JSX.Element {
   const generationAiCollapsed = useGenerationCanvasStore((state) => state.generationAiCollapsed)
   const [modelCatalogOpened, setModelCatalogOpened] = React.useState(false)
   const [settingsOpened, setSettingsOpened] = React.useState(false)
-  const [settingsInitialTab, setSettingsInitialTab] = React.useState<'file' | 'ai' | 'automation' | 'general' | 'about'>('file')
+  const [settingsInitialTab, setSettingsInitialTab] = React.useState<
+    'file' | 'ai' | 'automation' | 'general' | 'about'
+  >('file')
   const [settingsInitialSection, setSettingsInitialSection] = React.useState<SettingsInitialSection>(null)
   const [handbookOpened, setHandbookOpened] = React.useState(false)
   const [browserOpened, setBrowserOpened] = React.useState(false)
@@ -197,9 +199,14 @@ export default function NomiStudioApp(): JSX.Element {
     const handleOpenSettings = (event: Event) => {
       const detail = (event as CustomEvent<{ tab?: string; section?: string }>).detail
       const tab = detail?.tab
-      setSettingsInitialTab(tab === 'automation' ? 'automation' : 'file')
+      setSettingsInitialTab(tab === 'automation' || tab === 'ai' ? tab : 'file')
       setSettingsInitialSection(
-        detail?.section === 'cursor-host' ? 'cursor-host' : detail?.section === 'automation' ? 'automation' : null,
+        detail?.section === 'cursor-host' ||
+          detail?.section === 'automation' ||
+          detail?.section === 'ai-models' ||
+          detail?.section === 'hard-budget'
+          ? detail.section
+          : null,
       )
       setSettingsOpened(true)
     }
@@ -302,9 +309,7 @@ export default function NomiStudioApp(): JSX.Element {
         })
         if (!hydrated) {
           const projectBridge = getDesktopBridge()?.projects
-          const diagnostic = projectBridge?.diagnose
-            ? await projectBridge.diagnose(projectId).catch(() => null)
-            : null
+          const diagnostic = projectBridge?.diagnose ? await projectBridge.diagnose(projectId).catch(() => null) : null
           if (diagnostic?.recoverable && projectBridge?.recover) {
             const confirmed = await confirmDialog({
               title: t('studio.projectRecoveryTitle'),
@@ -412,17 +417,20 @@ export default function NomiStudioApp(): JSX.Element {
     })
   }, [hydrateProject, refreshProjects, t])
 
-  const revealProjectFolder = React.useCallback((projectId: string) => {
-    const bridge = getDesktopBridge()
-    if (!bridge?.workspace?.revealProjectFolder) {
-      toast(t('studio.folderUnsupported'), 'error')
-      return
-    }
-    void bridge.workspace.revealProjectFolder({ projectId }).catch((error: unknown) => {
-      const message = error instanceof Error && error.message ? error.message : t('studio.openFolderFailed')
-      toast(message, 'error')
-    })
-  }, [t])
+  const revealProjectFolder = React.useCallback(
+    (projectId: string) => {
+      const bridge = getDesktopBridge()
+      if (!bridge?.workspace?.revealProjectFolder) {
+        toast(t('studio.folderUnsupported'), 'error')
+        return
+      }
+      void bridge.workspace.revealProjectFolder({ projectId }).catch((error: unknown) => {
+        const message = error instanceof Error && error.message ? error.message : t('studio.openFolderFailed')
+        toast(message, 'error')
+      })
+    },
+    [t],
+  )
 
   // 创建并打开项目的单一编排点（收口创建入口的重复拼装，P1）：
   // 落地视图 → 建项目 → 刷新库 → hydrate，按 spec 统一走一遍。落地视图是 spec 必填字段，
@@ -664,12 +672,14 @@ export default function NomiStudioApp(): JSX.Element {
     [activeProject, ensureProjectPersistenceService, t],
   )
 
-  const globalBrowserDialog = browserOpened || browserMounted ? (
-    <React.Suspense key="global-browser-dialog" fallback={null}>
-      <NomiBrowserDialog opened={browserOpened} onClose={closeBrowser} />
-    </React.Suspense>
-  ) : null
-  const viewContent = view === 'library' ? (
+  const globalBrowserDialog =
+    browserOpened || browserMounted ? (
+      <React.Suspense key="global-browser-dialog" fallback={null}>
+        <NomiBrowserDialog opened={browserOpened} onClose={closeBrowser} />
+      </React.Suspense>
+    ) : null
+  const viewContent =
+    view === 'library' ? (
       <>
         <ProjectLibraryPage
           projects={projects}
@@ -698,7 +708,12 @@ export default function NomiStudioApp(): JSX.Element {
           </React.Suspense>
         ) : null}
         {settingsOpened ? (
-          <SettingsDialog initialTab={settingsInitialTab} initialSection={settingsInitialSection} onClose={() => setSettingsOpened(false)} onReplaySplash={() => setSplashDone(false)} />
+          <SettingsDialog
+            initialTab={settingsInitialTab}
+            initialSection={settingsInitialSection}
+            onClose={() => setSettingsOpened(false)}
+            onReplaySplash={() => setSplashDone(false)}
+          />
         ) : null}
         {/* 付费确认卡提全局：外部 MCP 想在「非当前项目」生成时，用户停在项目库首页也能弹卡确认
                     （治静默黑洞，用户拍板 A）。同一全局 store，库/studio 任一时刻只一个分支渲染、不双弹。 */}
@@ -749,7 +764,12 @@ export default function NomiStudioApp(): JSX.Element {
           </React.Suspense>
         ) : null}
         {settingsOpened ? (
-          <SettingsDialog initialTab={settingsInitialTab} initialSection={settingsInitialSection} onClose={() => setSettingsOpened(false)} onReplaySplash={() => setSplashDone(false)} />
+          <SettingsDialog
+            initialTab={settingsInitialTab}
+            initialSection={settingsInitialSection}
+            onClose={() => setSettingsOpened(false)}
+            onReplaySplash={() => setSplashDone(false)}
+          />
         ) : null}
 
         {handbookOpened ? (

@@ -8,6 +8,7 @@ import { buildProductionContractView } from '../generationCanvas/spend/productio
 import { useWorkbenchStore } from '../workbenchStore'
 import { productionRunApi } from './productionRunApi'
 import { executeProductionRunCommand } from './productionRunCommands'
+import { isMissingHardBudgetError, PRODUCTION_BUDGET_SETTINGS_TARGET } from './productionBudgetGuard'
 import { useProductionRunStore } from './productionRunStore'
 import { buildProductionRunView, type ProductionRunPrimaryAction } from './productionRunView'
 import { useActiveProductionRun } from './useActiveProductionRun'
@@ -206,15 +207,28 @@ export function useProductionStatus() {
           })
           await useProductionRunStore.getState().loadRun(activeRun.projectId, activeRun.runId)
         } catch (error) {
+          const missingHardBudget = isMissingHardBudgetError(error)
           const openSettings = await confirmDialog({
-            title: t('generationCommon.production.gate.failed'),
-            message: error instanceof Error ? error.message : String(error),
-            confirmLabel: t('generationCommon.production.gate.openSettings'),
+            title: missingHardBudget
+              ? t('generationCommon.production.gate.missingBudgetTitle')
+              : t('generationCommon.production.gate.failed'),
+            message: missingHardBudget
+              ? t('generationCommon.production.gate.missingBudgetMessage')
+              : error instanceof Error
+                ? error.message
+                : String(error),
+            confirmLabel: missingHardBudget
+              ? t('generationCommon.production.gate.openBudgetSettings')
+              : t('generationCommon.production.gate.openSettings'),
             cancelLabel: t('common.cancel'),
           })
           if (openSettings)
             window.dispatchEvent(
-              new CustomEvent('nomi-open-settings', { detail: { tab: 'automation', section: 'automation' } }),
+              new CustomEvent('nomi-open-settings', {
+                detail: missingHardBudget
+                  ? PRODUCTION_BUDGET_SETTINGS_TARGET
+                  : { tab: 'automation', section: 'automation' },
+              }),
             )
         }
       } finally {

@@ -21,7 +21,9 @@ export function AiModelsSection({ settings, onChange }: Props): JSX.Element {
     try {
       const values = getDesktopBridge()?.modelCatalog.listVendors() as SettingsProviderInput[] | undefined
       setProviders(Array.isArray(values) ? values : [])
-      void listWorkbenchModelCatalogModels({ enabled: true }).then((values) => setModels(Array.isArray(values) ? values : [])).catch(() => setModels([]))
+      void listWorkbenchModelCatalogModels({ enabled: true })
+        .then((values) => setModels(Array.isArray(values) ? values : []))
+        .catch(() => setModels([]))
     } catch {
       setProviders([])
     }
@@ -42,9 +44,11 @@ export function AiModelsSection({ settings, onChange }: Props): JSX.Element {
               <div key={provider.key} className="flex min-h-12 items-center justify-between gap-4 py-2">
                 <div className="min-w-0 truncate text-body-sm text-nomi-ink">{provider.name}</div>
                 <span
-                  className={provider.state === 'connected' || provider.state === 'local'
-                    ? 'shrink-0 text-caption text-nomi-success'
-                    : 'shrink-0 text-caption text-nomi-ink-40'}
+                  className={
+                    provider.state === 'connected' || provider.state === 'local'
+                      ? 'shrink-0 text-caption text-nomi-success'
+                      : 'shrink-0 text-caption text-nomi-ink-40'
+                  }
                 >
                   {t(`settings.ai.health.${provider.state}`)}
                 </span>
@@ -65,7 +69,9 @@ export function AiModelsSection({ settings, onChange }: Props): JSX.Element {
         <div className="flex min-h-12 items-center justify-between gap-4 py-2">
           <div className="min-w-0">
             <div className="text-body-sm text-nomi-ink">{t('settings.ai.upload.minimize')}</div>
-            <div className="mt-0.5 text-caption leading-relaxed text-nomi-ink-40">{t('settings.ai.upload.minimizeHint')}</div>
+            <div className="mt-0.5 text-caption leading-relaxed text-nomi-ink-40">
+              {t('settings.ai.upload.minimizeHint')}
+            </div>
           </div>
           <DesignSwitch
             checked={settings.minimizeUploads}
@@ -85,18 +91,26 @@ export function AiModelsSection({ settings, onChange }: Props): JSX.Element {
         </div>
         <div className="py-2">
           <div className="text-body-sm text-nomi-ink">{t('settings.ai.policy.media')}</div>
-          <div className="mt-0.5 text-caption leading-relaxed text-nomi-ink-40">{t('settings.ai.policy.mediaHint')}</div>
+          <div className="mt-0.5 text-caption leading-relaxed text-nomi-ink-40">
+            {t('settings.ai.policy.mediaHint')}
+          </div>
         </div>
         <div className="mt-3 grid gap-3 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 p-3">
           <label className="grid gap-1.5">
             <span className="text-caption font-medium text-nomi-ink-80">{t('settings.ai.policy.hardBudget')}</span>
             <span className="text-micro text-nomi-ink-40">{t('settings.ai.policy.hardBudgetHint')}</span>
             <input
+              data-settings-field="hard-budget"
+              id="settings-hard-budget"
               type="number"
               min={0}
               step="0.01"
               value={settings.maxSpend ?? ''}
-              onChange={(event) => onChange({ maxSpend: event.currentTarget.value === '' ? null : Math.max(0, Number(event.currentTarget.value)) })}
+              onChange={(event) =>
+                onChange({
+                  maxSpend: event.currentTarget.value === '' ? null : Math.max(0, Number(event.currentTarget.value)),
+                })
+              }
               aria-label={t('settings.ai.policy.hardBudget')}
               className="h-8 w-40 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 text-caption text-nomi-ink outline-none focus:border-nomi-accent"
             />
@@ -128,7 +142,10 @@ export function AiModelsSection({ settings, onChange }: Props): JSX.Element {
             <span className="text-micro text-nomi-ink-40">{t('settings.ai.policy.modelsHint')}</span>
             <div className="grid max-h-36 gap-1 overflow-y-auto sm:grid-cols-2">
               {models.map((model) => (
-                <label key={`${model.vendorKey}:${model.modelKey}`} className="inline-flex items-center gap-2 text-caption text-nomi-ink-80">
+                <label
+                  key={`${model.vendorKey}:${model.modelKey}`}
+                  className="inline-flex items-center gap-2 text-caption text-nomi-ink-80"
+                >
                   <input
                     type="checkbox"
                     checked={settings.allowedModels.includes(model.modelKey)}
