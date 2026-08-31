@@ -73,6 +73,29 @@ export type AssistantTimelineProps = {
   threadBottomRef: React.RefObject<HTMLDivElement>
 }
 
+/**
+ * 从 WorkbenchAiMessage 推导 AssistantMessageView 所需的渲染 props。
+ * 这是 renderAssistantMessage 内部 props 推导的单一实现（P1），提取为纯函数
+ * 以便单元测试可以直接导入、断言，而不是维护一份镜像副本。
+ *
+ * status 是 pending/streaming 的唯一真相源(P2)。
+ *   streaming && !hasContent → NomiLoadingMark + pendingLabel（等首 token）
+ *   streaming && hasContent  → markdown + StreamingDots（正在吐字）
+ * undefined 兼容旧 session 持久化消息（视为 done）。
+ * 旧 session 用「（错误）」前缀作 isError 兜底。
+ */
+export function deriveAssistantViewProps(message: Pick<WorkbenchAiMessage, 'status' | 'content'>): {
+  streaming: boolean
+  isError: boolean
+} {
+  const streaming = message.status === 'pending' || message.status === 'streaming'
+  const isError =
+    message.status === 'error' ||
+    message.content.startsWith('（错误）') ||
+    message.content.startsWith('(Error)')
+  return { streaming, isError }
+}
+
 export default function AssistantTimeline(props: AssistantTimelineProps): JSX.Element {
   const { t } = useTranslation()
   const { messages, staleBoundaryId, pendingToolCalls } = props
@@ -228,28 +251,17 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
   )
 
   const renderAssistantMessage = (message: WorkbenchAiMessage): JSX.Element => {
-    // status 是 pending/streaming 的唯一真相源(P2)。CanvasAssistantPanel 负责维护状态机：
-    // 气泡创建时=pending，首 token 到达时转 streaming，收口时转 done/error/cancelled。
-    // undefined 兼容旧 session 持久化消息（视为 done，不进 streaming 分支）。
-    // AssistantMessageView 自己正确处理两种流式子情形：
-    //   streaming && !hasContent → NomiLoadingMark + pendingLabel（等首 token）
-    //   streaming && hasContent  → markdown + StreamingDots（正在吐字）
-    // 不再在这里强清 content——让组件本身决定渲染路径。
-    const isStreaming = message.status === 'pending' || message.status === 'streaming'
-    // status 是错误真相源(旧 session 用「（错误）」前缀兜底)。错误分流到红色错误卡(人话+一键出路),
-    // 不再当普通回复渲染。
-    const isErrorMsg =
-      message.status === 'error' || message.content.startsWith('（错误）') || message.content.startsWith('(Error)')
+    const { streaming, isError } = deriveAssistantViewProps(message)
     return (
       <React.Fragment key={message.id}>
-        {isErrorMsg ? (
+        {isError ? (
           <AssistantErrorCard error={message.content} onRetry={props.onRetry} />
         ) : (
           <AssistantMessageView
             content={message.content}
             attachments={message.attachments}
-            streaming={isStreaming}
-            pendingLabel={isStreaming ? t('generationCommon.assistant.processingShort') : undefined}
+            streaming={streaming}
+            pendingLabel={streaming ? t('generationCommon.assistant.processingShort') : undefined}
             cancelled={message.status === 'cancelled'}
           />
         )}
