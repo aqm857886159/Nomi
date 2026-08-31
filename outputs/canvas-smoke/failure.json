@@ -1,0 +1,311 @@
+{
+  "error": "locator.boundingBox: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.generation-canvas-v2-node__composer-card').first()\u001b[22m\n\n    at /Users/aoqimin/Desktop/Nomi-pr216-review-20260828/tests/ux/smoke.e2e.mjs:118:32",
+  "url": "file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/index.html?step=generate#/studio?projectId=project-1787926074329-flss0z",
+  "rendererDiagnostics": [
+    {
+      "type": "console.error",
+      "text": "Error: Minified React error #185; visit https://reactjs.org/docs/error-decoder.html?invariant=185 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.\n    at st (file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/react-vendor-ePGTbDW8.js:8:33896)\n    at gs (file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/react-vendor-ePGTbDW8.js:6:19867)\n    at file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/react-vendor-ePGTbDW8.js:6:19730\n    at file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/state-vendor-KfVRn9p6.js:1:254\n    at Set.forEach (<anonymous>)\n    at r (file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/state-vendor-KfVRn9p6.js:1:243)\n    at setNodes (file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/GenerationCanvasReactFlow-BvQZ_TXz.js:7:51800)\n    at file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/GenerationCanvasReactFlow-BvQZ_TXz.js:2:105170\n    at cl (file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/react-vendor-ePGTbDW8.js:8:24358)\n    at Tn (file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/react-vendor-ePGTbDW8.js:8:42533)"
+    },
+    {
+      "type": "console.error",
+      "text": "[nomi] chunk boundary \"React Flow 画布\" caught: Error: Minified React error #185; visit https://reactjs.org/docs/error-decoder.html?invariant=185 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.\n    at st (file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/react-vendor-ePGTbDW8.js:8:33896)\n    at gs (file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/react-vendor-ePGTbDW8.js:6:19867)\n    at file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/react-vendor-ePGTbDW8.js:6:19730\n    at file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/state-vendor-KfVRn9p6.js:1:254\n    at Set.forEach (<anonymous>)\n    at r (file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/state-vendor-KfVRn9p6.js:1:243)\n    at setNodes (file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/GenerationCanvasReactFlow-BvQZ_TXz.js:7:51800)\n    at file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/GenerationCanvasReactFlow-BvQZ_TXz.js:2:105170\n    at cl (file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/react-vendor-ePGTbDW8.js:8:24358)\n    at Tn (file:///Users/aoqimin/Desktop/Nomi-pr216-review-20260828/dist/assets/react-vendor-ePGTbDW8.js:8:42533)"
+    },
+    {
+      "type": "console.warning",
+      "text": "env.wasm.numThreads is set to 10, but this will not work unless you enable crossOriginIsolated mode. See https://web.dev/cross-origin-isolation-guide/ for more info."
+    },
+    {
+      "type": "console.warning",
+      "text": "WebAssembly multi-threading is not supported in the current environment. Falling back to single-threading."
+    }
+  ],
+  "debugCounters": {
+    "canvasRenders": 68,
+    "nodeProjections": 56,
+    "promptEditorMounts": 1,
+    "nodeChangeCalls": 2,
+    "nodeChangeTypes": [
+      "dimensions"
+    ],
+    "editorUpdates": 53,
+    "promptUpdates": 53,
+    "promptValues": [
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      },
+      {
+        "length": 0,
+        "lines": 1,
+        "tail": ""
+      },
+      {
+        "length": 620,
+        "lines": 14,
+        "tail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。"
+      }
+    ],
+    "externalSetContent": 52,
+    "lastExternalValues": {
+      "incomingLength": 620,
+      "previousLength": 0,
+      "incomingTail": "满编辑区直到超过卡片高度上限，验证底栏不被盖住。",
+      "previousTail": ""
+    }
+  },
+  "alerts": [
+    "React Flow 画布加载失败其余功能不受影响；可重新加载重试重新加载"
+  ],
+  "nodes": []
+}
