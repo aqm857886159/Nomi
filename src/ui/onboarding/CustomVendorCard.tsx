@@ -8,6 +8,7 @@
  * 地址/key 通不了也生成不出东西，所以 unreachable 时红字覆盖 adapter 状态。
  */
 import React from 'react'
+import { MODEL_ACCESS_ENTRY } from '../../../electron/shared/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
 import { IconStack2, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
@@ -63,6 +64,7 @@ export function CustomVendorCard({
 
   return (
     <FoldableModelCard
+      dataAccessEntry={`${MODEL_ACCESS_ENTRY.customCallScript} ${MODEL_ACCESS_ENTRY.manualModelRetype}`}
       glyph={<IconStack2 size={16} stroke={1.6} />}
       glyphTone="soft"
       name={name}

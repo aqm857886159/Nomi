@@ -6,6 +6,7 @@
  * 接回 --workbench-* token 域（Portal 脱域陷阱，见 OnboardingFloatingPanel 头注释）。
  */
 import React from 'react'
+import { MODEL_ACCESS_ENTRY } from '../../../electron/shared/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconCheck, IconCopy, IconPlayerPlay, IconPlus, IconSparkles, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
@@ -271,7 +272,7 @@ export function CustomCallEditor({
       closeButtonProps={{ 'aria-label': t('onboardingProviders.customCall.closeAria') }}
     >
       {target ? (
-        <div className="flex flex-col gap-3">
+        <div data-model-access-entry={MODEL_ACCESS_ENTRY.customCallScript} className="flex flex-col gap-3">
           <div className="text-caption text-nomi-ink-60 -mt-1">{t('onboardingProviders.customCall.subtitle')}</div>
 
           {/* ① 贴材料 + AI 生成 */}

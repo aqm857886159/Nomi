@@ -9,6 +9,7 @@
  * Backed by: nomiDesktop.onboarding.{listModels, guessKinds, testConnection, adapterStart, adapterGet}。
  */
 import React from 'react'
+import { MODEL_ACCESS_ENTRY } from '../../../electron/shared/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
 import { Stack, Group, Text, PasswordInput, ActionIcon, Anchor, Select, Collapse, Loader } from '@mantine/core'
 import { IconPlus, IconTrash, IconCheck, IconX, IconChevronDown, IconChevronRight, IconAlertTriangle, IconListCheck, IconCloudDownload } from '@tabler/icons-react'
@@ -383,7 +384,10 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset, 
       closeOnClickOutside={phase !== 'running'}
       closeOnEscape={phase !== 'running'}
     >
-      <Stack gap="md">
+      <Stack
+        gap="md"
+        data-model-access-entry={`${MODEL_ACCESS_ENTRY.relayModelDiscovery} ${MODEL_ACCESS_ENTRY.officialProviderPreset} ${MODEL_ACCESS_ENTRY.minimalMaterialProbe}`}
+      >
         {phase === 'input' && screen === 'form' && (
           <Stack gap={12}>
             {/* 中转优先·一次拉全·按模型分类（Issue #8）：填中转地址 + key → 拉取它开放的模型 →

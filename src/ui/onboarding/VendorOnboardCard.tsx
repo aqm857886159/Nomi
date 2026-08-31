@@ -9,6 +9,7 @@
  * 样张：docs/design/mockups/onboarding-panel-A.html
  */
 import React from 'react'
+import { MODEL_ACCESS_ENTRY } from '../../../electron/shared/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
 import { IconKey, IconExternalLink, IconPencil } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
@@ -171,6 +172,7 @@ export function VendorOnboardCard({
 
   return (
     <FoldableModelCard
+      dataAccessEntry={isMulti ? MODEL_ACCESS_ENTRY.knownMultiCredential : MODEL_ACCESS_ENTRY.knownSingleKey}
       glyph={
         directory.logo ? <img src={directory.logo} alt="" className="w-full h-full object-contain" /> : directory.glyph
       }

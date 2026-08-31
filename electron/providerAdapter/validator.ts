@@ -1,24 +1,8 @@
 import crypto from "node:crypto";
 import { z } from "zod";
-import type { BillingModelKind, HttpOperation, ProfileKind } from "../catalog/types";
+import { BILLING_MODEL_KINDS, PROFILE_KINDS, type BillingModelKind, type HttpOperation, type ProfileKind } from "../catalog/types";
 import type { AdapterModelDraft, ProviderAdapterDraft } from "./types";
 
-const profileKinds = [
-  "chat",
-  "prompt_refine",
-  "text_to_image",
-  "image_to_prompt",
-  "image_to_video",
-  "text_to_video",
-  "image_edit",
-  "text_to_audio",
-  "image_to_audio",
-  "transcribe",
-  "text_to_3d",
-  "image_to_3d",
-] as const satisfies readonly ProfileKind[];
-
-const billingKinds = ["text", "image", "video", "audio", "model3d"] as const satisfies readonly BillingModelKind[];
 const allowedMethods = new Set(["GET", "POST", "PUT", "PATCH"]);
 const allowedTemplateRoots = new Set(["user_api_key", "model", "request", "providerMeta"]);
 const forbiddenObjectPathParts = new Set(["__proto__", "prototype", "constructor"]);
@@ -71,7 +55,7 @@ const adapterModesSchema = z
   .array(
     z
       .object({
-        taskKind: z.enum(profileKinds),
+        taskKind: z.enum(PROFILE_KINDS),
         create: httpOperationSchema,
         query: httpOperationSchema.optional(),
         statusMapping: z.record(z.string(), z.array(z.string().max(128)).max(32)).optional(),
@@ -120,7 +104,7 @@ const adapterDraftSchema: z.ZodType<ProviderAdapterDraft> = z
           .object({
             modelKey: z.string().min(1).max(256),
             labelZh: z.string().min(1).max(256),
-            kind: z.enum(billingKinds),
+            kind: z.enum(BILLING_MODEL_KINDS),
             parameters: adapterParametersSchema.optional(),
             modes: adapterModesSchema,
           })

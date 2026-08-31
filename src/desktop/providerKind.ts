@@ -1,5 +1,6 @@
 /**
- * 渲染层 providerKind 的单一真相源（R1）。
+ * 渲染层 providerKind 类型。值的单一真相源在 electron/shared/modelAccessCapabilities，
+ * Electron 与 renderer 都从同一常量反推，避免跨层漂移。
  *
  * 对应 electron 侧 `electron/catalog/types.ts` 的 `AiSdkProviderKind`——两边是
  * 同一组值（`openai-compatible | anthropic | openai-responses`），但渲染层不 import
@@ -10,4 +11,7 @@
  *  - openai-responses ：OpenAI Responses（/responses）。codex 类中转（如 foxcode）。
  *  - anthropic        ：Anthropic Messages（/v1/messages，x-api-key）。
  */
-export type ProviderKind = 'openai-compatible' | 'anthropic' | 'openai-responses'
+import { AI_SDK_PROVIDER_KINDS } from '../../electron/shared/modelAccessCapabilities'
+
+export { AI_SDK_PROVIDER_KINDS as PROVIDER_KINDS }
+export type ProviderKind = (typeof AI_SDK_PROVIDER_KINDS)[number]

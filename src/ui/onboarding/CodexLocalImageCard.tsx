@@ -12,6 +12,7 @@
  * 不探测 codex 是否已装/已登录（无该 IPC）：如实在卡里写明前提，别假装知道（D4 诚实交付）。
  */
 import React from 'react'
+import { MODEL_ACCESS_ENTRY } from '../../../electron/shared/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
 import { IconSparkles, IconCircleCheck } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
@@ -49,6 +50,7 @@ export function CodexLocalImageCard({ enabled, onChanged }: CodexLocalImageCardP
 
   return (
     <FoldableModelCard
+      dataAccessEntry={MODEL_ACCESS_ENTRY.codexLocal}
       glyph={<IconSparkles size={16} stroke={1.6} />}
       glyphTone="ink"
       name={t('onboardingProviders.codexImage.name')}

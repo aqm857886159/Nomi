@@ -8,6 +8,7 @@
  * （非任意即梦会员，光充积分不行）——非会员明示，不让用户点了干等（D4 effect-first / 诚实交付）。
  */
 import React from 'react'
+import { MODEL_ACCESS_ENTRY } from '../../../electron/shared/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
 import { IconMovie, IconExternalLink, IconCircleCheck, IconQrcode, IconDownload, IconCopy, IconCheck } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
@@ -106,6 +107,7 @@ export function DreaminaMemberCard({ status, onChanged }: DreaminaMemberCardProp
 
   return (
     <FoldableModelCard
+      dataAccessEntry={MODEL_ACCESS_ENTRY.dreaminaOauth}
       glyph={<IconMovie size={16} stroke={1.6} />}
       glyphTone="ink"
       name={t('onboardingProviders.dreamina.name')}

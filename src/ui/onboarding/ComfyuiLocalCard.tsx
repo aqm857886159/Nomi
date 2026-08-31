@@ -12,6 +12,7 @@
  * 是错的隐喻；本地后端要的是「启用/停用 + 健康状态」，同即梦会员卡一样各有专属卡（非并行版）。
  */
 import React from 'react'
+import { MODEL_ACCESS_ENTRY } from '../../../electron/shared/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
 import { IconServerBolt, IconPlugConnected, IconCircleCheck, IconAlertTriangle, IconPhoto, IconMovie, IconRefresh, IconExternalLink, IconCheck, IconX, IconTrash, IconChevronRight } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
@@ -223,6 +224,7 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
     <>
     {workflowPage}
     <FoldableModelCard
+      dataAccessEntry={`${MODEL_ACCESS_ENTRY.comfyuiPreset} ${MODEL_ACCESS_ENTRY.comfyuiWorkflowImport} ${MODEL_ACCESS_ENTRY.comfyuiMultiInstance}`}
       glyph={<IconServerBolt size={16} stroke={1.6} />}
       glyphTone="ink"
       name={instanceName || t('onboardingProviders.comfyLocal.cardName')}

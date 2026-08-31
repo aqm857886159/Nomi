@@ -10,14 +10,10 @@
 // 现有层只有按 key 名猜的 image-url，表达不了 character1..N / 视频 / 音频）。
 
 import type { ModelParameterControl } from "../modelCatalogMeta";
+import { ARCHETYPE_REFERENCE_SLOT_KINDS } from "../../../electron/shared/modelAccessCapabilities";
 
-export type ArchetypeReferenceSlotKind =
-  | "first_frame"
-  | "last_frame"
-  | "image_ref" // 多图，按序对应 prompt 里的 character1..N
-  | "video_ref"
-  | "audio_ref"
-  | "source_video";
+export { ARCHETYPE_REFERENCE_SLOT_KINDS };
+export type ArchetypeReferenceSlotKind = (typeof ARCHETYPE_REFERENCE_SLOT_KINDS)[number];
 
 export type ArchetypeReferenceSlot = {
   kind: ArchetypeReferenceSlotKind;

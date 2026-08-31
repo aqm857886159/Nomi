@@ -16,10 +16,12 @@
  * (see requestPipeline.test.ts). Do not import `electron` here.
  */
 
+import type { VendorAuthType } from "../catalog/types";
+
 export type JsonRecord = Record<string, unknown>;
 
 /** How a vendor authenticates. Mirrors the catalog Vendor.authType field. */
-export type AuthType = "none" | "bearer" | "x-api-key" | "query";
+export type AuthType = VendorAuthType;
 
 /** A single HTTP call template (matches the catalog HttpOperation shape). */
 export interface HttpOperationLike {

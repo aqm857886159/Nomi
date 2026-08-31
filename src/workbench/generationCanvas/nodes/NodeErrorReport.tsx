@@ -1,4 +1,5 @@
 import React from 'react'
+import { MODEL_ACCESS_ENTRY } from '../../../../electron/shared/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconChevronDown, IconChevronRight, IconRefresh, IconReplace, IconSettings, IconWand } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
@@ -166,6 +167,7 @@ export function NodeErrorReport({
   return (
     <div
       ref={rootRef}
+      data-model-access-entry={MODEL_ACCESS_ENTRY.failureRecovery}
       role="alert"
       aria-label={t('generationCommon.error.failedAria', { reason: report.reason })}
       className={cn(
