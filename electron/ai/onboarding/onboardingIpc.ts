@@ -12,9 +12,11 @@ import {
 } from "./modelListProbe";
 import { normalizeProviderKind } from "../../catalog/catalogStore";
 import { checkVendorHealth } from "./vendorHealth";
+import { createExplicitProxyDispatcher } from "../../systemProxy";
 
 import { assertTrustedSender } from "../../ipcSenderGuard";
 import { registerAntigravityIpc } from "../antigravityIpc";
+import type { Dispatcher } from "undici";
 // ---------------------------------------------------------------------------
 // Onboarding — 中转拉取式接入 IPC（手填地址+key → 拉模型 → 按 id 分类 → 保存）。
 // 「AI 读文档」子系统已下线（Issue #8：各家中转参数不一，读文档抠参数不可靠）。
@@ -36,6 +38,7 @@ async function probeOneProtocol(
   modelId: string,
   extraHeaders: Record<string, string>,
   signal: AbortSignal,
+  proxyUrl?: string,
 ): Promise<ProtocolProbe> {
   let url: string;
   const headers = mergeHeadersCaseInsensitive({ "content-type": "application/json" }, buildAuthHeaders(kind, apiKey, extraHeaders));
@@ -51,8 +54,10 @@ async function probeOneProtocol(
     url = `${rawBaseUrl}/chat/completions`;
     body = { model: modelId || "gpt-3.5-turbo", messages: [{ role: "user", content: "ping" }], max_tokens: 1 };
   }
+  let dispatcher: Dispatcher | undefined;
   try {
-    const res = await appFetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
+    dispatcher = proxyUrl ? createExplicitProxyDispatcher(proxyUrl) : undefined;
+    const res = await appFetch(url, { method: "POST", headers, body: JSON.stringify(body), signal, ...(dispatcher ? { dispatcher } : {}) });
     if (res.ok) return { ok: true, status: res.status };
     const text = await res.text().catch(() => "");
     // 404/405/501/502/503 多为「路由/协议不对」→ 换下一个协议；401/403/400 多为鉴权/请求问题（不是协议错）。
@@ -60,6 +65,8 @@ async function probeOneProtocol(
     return { ok: false, status: res.status, error: upstreamErrorText(text, res.status), mismatch };
   } catch (error) {
     return { ok: false, error: await describeNetworkErrorLazy(error), mismatch: true };
+  } finally {
+    if (dispatcher) await dispatcher.close().catch(() => undefined);
   }
 }
 export function registerOnboardingIpc(): void {
@@ -105,6 +112,7 @@ export function registerOnboardingIpc(): void {
     // User-supplied relay/proxy headers replay on every probe so a gateway that gates
     // on them doesn't report a false failure.
     const extraHeaders = readExtraHeaders(payload?.headers);
+    const proxyUrl = typeof payload?.proxyUrl === "string" ? payload.proxyUrl : undefined;
     // 发送前请求头守卫（与 vendorHttp.requestJson 同一判据/措辞）：这条 handler 自带裸 fetch，
     // 不经发送闸——脏 key（含中文/全角）会让 fetch 同步抛原始 ByteString，被 describeNetworkError
     // 误判网络。先识别、说人话、根本不发 fetch（治本，避免「连不上：Cannot convert…」）。
@@ -120,7 +128,7 @@ export function registerOnboardingIpc(): void {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 12_000);
       try {
-        const listed = await fetchModelList(kind, rawBaseUrl, headers, controller.signal);
+        const listed = await fetchModelList(kind, rawBaseUrl, headers, controller.signal, { proxyUrl });
         return listed.ok
           ? { ok: true, reachabilityOnly: true }
           : { ok: false, status: listed.status, failureKind: listed.failureKind, error: listed.error };
@@ -156,7 +164,7 @@ export function registerOnboardingIpc(): void {
       for (const kind of candidates) {
         // openai-* 没地址就跳过（避免 fetch 无效 URL）。
         if (kind !== "anthropic" && !/^https?:\/\//i.test(rawBaseUrl)) continue;
-        const r = await probeOneProtocol(kind, rawBaseUrl, apiKey, modelId, extraHeaders, controller.signal);
+        const r = await probeOneProtocol(kind, rawBaseUrl, apiKey, modelId, extraHeaders, controller.signal, proxyUrl);
         if (r.ok) return { ok: true, status: r.status, detectedKind: kind };
         // 留住「最该报给用户」的错：非 mismatch（鉴权/请求错，可操作）优先于 mismatch（换协议）。
         if (!best || (best.mismatch && !r.mismatch)) best = { ...r, kind };
@@ -181,6 +189,7 @@ export function registerOnboardingIpc(): void {
     const apiKey = String(payload?.apiKey || "").trim();
     if (!/^https?:\/\//i.test(baseUrl)) return { ok: false, failureKind: "invalid_response", error: "接入地址需以 http:// 或 https:// 开头" };
     const extraHeaders = readExtraHeaders(payload?.headers);
+    const proxyUrl = typeof payload?.proxyUrl === "string" ? payload.proxyUrl : undefined;
     const headers = buildAuthHeaders(providerKind, apiKey, extraHeaders);
     // 发送前请求头守卫（同 test-connection）：自带裸 fetch 绕过发送闸，脏 key 先拦+说人话，不发 fetch。
     const headerProblem = findIllegalHeader(headers);
@@ -188,7 +197,7 @@ export function registerOnboardingIpc(): void {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12_000);
     try {
-      return await fetchModelList(providerKind, baseUrl, headers, controller.signal);
+      return await fetchModelList(providerKind, baseUrl, headers, controller.signal, { proxyUrl });
     } finally {
       clearTimeout(timeout);
     }

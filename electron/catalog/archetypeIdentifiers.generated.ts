@@ -248,6 +248,18 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "seedance2.0fast_vip",
     "seedance2.0mini"
   ],
+  "dreamina-seedance-3-i2v": [
+    "dreamina-seedance-3-i2v",
+    "3.0",
+    "3.0fast",
+    "3.0pro",
+    "3.5pro"
+  ],
+  "dreamina-seedance-3-frames": [
+    "dreamina-seedance-3-frames",
+    "3.0",
+    "3.5pro"
+  ],
   "dreamina-image": [
     "dreamina-image",
     "5.0",

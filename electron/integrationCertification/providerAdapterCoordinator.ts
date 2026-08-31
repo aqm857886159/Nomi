@@ -90,6 +90,7 @@ function contractIdentity(input: ProviderAdapterConnectionInput, lineageRoot: st
     authHeader: input.authHeader || null,
     authQueryParam: input.authQueryParam || null,
     providerKind: input.providerKind || null,
+    proxyUrl: input.proxyUrl?.trim() || null,
     credentialFingerprint,
     catalogIdentityFingerprint,
     customHeaderIdentityFingerprint,

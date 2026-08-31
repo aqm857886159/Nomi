@@ -35,7 +35,7 @@ export function buildHttpDiscoveryRequests(input: {
   apiKey: string;
   authHeader?: string;
   authQueryParam?: string;
-  headers: Record<string, string>;
+      headers: Record<string, string>;
 }): BuiltRequest[] {
   return buildModelListRequests(input);
 }
@@ -55,7 +55,7 @@ function defaultExistingActions(service: HttpConnectorPrimitives): ExistingConne
         input.headers,
       );
       const query = authQueryParams(input.authType, input.apiKey, input.authQueryParam);
-      return fetchModelList(input.providerKind, input.baseUrl, headers, input.signal, { query });
+      return fetchModelList(input.providerKind, input.baseUrl, headers, input.signal, { query, proxyUrl: input.proxyUrl });
     },
     startAdapter: ({ vendorKey, ...input }) => service.start({ ...input, catalogVendorKey: vendorKey }),
     getAdapterRun: (runId) => service.getRun(runId),

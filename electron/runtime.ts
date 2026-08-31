@@ -5,6 +5,7 @@ import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload
 import { importRemoteAsset, writeAsset, writeDeterministicAsset } from "./assets/projectAssetStore";
 import { endpoint } from "./vendorEndpoint";
 import { requestJson, requestMultipart, vendorResponseLimitForKind } from "./vendor/vendorHttp";
+import { providerDispatcher } from "./providerNetwork";
 import { runMultipartProfileOperation } from "./catalog/multipartOperation";
 import { templateContext, buildProfileHttpRequest, validateProfileRequestBeforeSpend } from "./catalog/profileHttpRequest";
 import { chatImageFallbackOperation } from "./catalog/imageRouteFallback";
@@ -176,16 +177,14 @@ import { findExecutableModel } from "./catalog/executableModel";
 function authHeaders(vendor: Vendor, apiKey: string): Record<string, string> {
   return buildAuthHeaders(vendor.authType as AuthType, apiKey, vendor.authHeader ?? undefined);
 }
-
 // billingKindForTaskKind 下沉到 catalog/types（R12 净减）；re-export 保住既有消费方 import 面。
 export { billingKindForTaskKind } from "./catalog/types";
 export { extractAssetUrl } from "./tasks/assetUrlExtract";
-
 export async function localizeTaskAsset(
   projectId: string,
   assetUrl: string,
   type: "image" | "video" | "audio" | "model3d",
-  nodeId?: string, vendor?: Pick<Vendor, "key" | "baseUrlHint">,
+  nodeId?: string, vendor?: Pick<Vendor, "key" | "baseUrlHint" | "network">,
   certificationEvidence?: import("./providerAdapter/certificationMedia").CertificationMediaEvidence,
 ): Promise<TaskResult["assets"][number]> {
   const imported = (await importRemoteAsset({
@@ -197,6 +196,7 @@ export async function localizeTaskAsset(
   }, {
     trustedPrivateOrigin: trustedLocalOutputOrigin(vendor) || undefined,
     ...(certificationEvidence ? { certificationEvidence } : {}),
+    ...(vendor?.network?.proxyUrl ? { dispatcher: providerDispatcher(vendor) } : {}),
   })) as { id?: string; name?: string; data?: { url?: string; absolutePath?: string } };
   const durationSeconds = await probeLocalizedDurationSeconds(type, imported.data?.absolutePath);
   if (type === "image" || type === "video")
@@ -218,7 +218,6 @@ export async function localizeTaskAsset(
     providerUrl: /^https?:\/\//i.test(assetUrl) ? assetUrl : null,
   };
 }
-
 export function findTaskMapping(vendorKey: string, taskKind: ProfileKind, modelKey?: string): Mapping | null {
   // 按 (vendor, taskKind, modelKey) 选——同 vendor 下两模型共用一个 taskKind 但请求形状不同时（如 HappyHorse 与 Kling 都 text_to_video），靠 modelKey 精确路由，不再「第一个赢、另一个套错模板」。
   return selectTaskMapping(readCatalog().mappings, vendorKey, taskKind, modelKey);
@@ -259,14 +258,15 @@ export async function executeProfileOperation(input: {
 
   // R1：发送前把本地素材按策略变成 vendor 可达值，带跨供应商 fallback 与媒体类型感知。
   const uploadCatalog = readCatalog();
+  const networkDispatcher = providerDispatcher(input.vendor);
   const localized = await localizeAssetsForVendor(
     input.request.extras,
     assetIngestionResolver(input.vendor, uploadCatalog),
     input.localAssetReader || readNomiLocalAsset,
-    postJsonForAssetUpload,
-    postMultipartForAssetUpload,
+    (url, headers, body) => postJsonForAssetUpload(url, headers, body, networkDispatcher),
+    (url, headers, file, fileName, contentType, extraFields, fileField) => postMultipartForAssetUpload(url, headers, file, fileName, contentType, extraFields, fileField, networkDispatcher),
     assetLocalizationOptions(input.request.extras),
-    putBinaryForAssetUpload,
+    (url, headers, file, contentType) => putBinaryForAssetUpload(url, headers, file, contentType, networkDispatcher),
   );
   const effectiveInput =
     localized.uploaded > 0

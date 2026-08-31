@@ -52,6 +52,17 @@ describe('save-first gateway onboarding contract', () => {
     expect(wizard).not.toContain('resolvePrecheckGateAction')
   })
 
+  it('carries an optional provider proxy through discovery, testing, and connection persistence', () => {
+    const wizard = source('OnboardingWizard.tsx')
+    const proxyField = source('ProviderProxyField.tsx')
+    const bridge = fs.readFileSync(path.join(process.cwd(), 'src/desktop/onboardingBridgeTypes.ts'), 'utf8')
+
+    expect(wizard).toContain('ProviderProxyField')
+    expect(proxyField).toContain("t('modelSetup.proxyUrl')")
+    expect(wizard).toContain("proxyUrl: proxyUrl.trim()")
+    expect(bridge).toContain('proxyUrl?: string')
+  })
+
   it('keeps connection testing optional and gives each setup state one primary action', () => {
     const wizard = source('OnboardingWizard.tsx')
 

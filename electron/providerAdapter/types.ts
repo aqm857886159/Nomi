@@ -35,6 +35,8 @@ export type ProviderAdapterConnectionInput = {
   authHeader?: string;
   authQueryParam?: string;
   headers?: Record<string, string>;
+  /** Optional proxy for this connection only; never inherited by other vendors or local services. */
+  proxyUrl?: string;
   models: ProviderAdapterModelSelection[];
 };
 

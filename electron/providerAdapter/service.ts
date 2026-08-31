@@ -69,7 +69,7 @@ export type { ProviderAdapterRegisterInput, ProviderAdapterRegistration } from "
 export type ProviderAdapterServiceDependencies = {
   catalog: ProviderAdapterCatalogPort;
   schedule?: (runId: string) => void;
-  discover: (input: { baseUrl: string; modelKeys: readonly string[]; signal?: AbortSignal }) => Promise<DiscoveredDocs>;
+  discover: (input: { baseUrl: string; modelKeys: readonly string[]; proxyUrl?: string; signal?: AbortSignal }) => Promise<DiscoveredDocs>;
   resolveLanguageModels: (connection: LoadedConnection) => readonly LanguageModelV1[];
   compile: (input: {
     languageModels: readonly LanguageModelV1[];
@@ -117,10 +117,9 @@ export type ProviderAdapterServiceDependencies = {
   canonicalStartWaitMs?: number;
   certificationCheckpoint?: (checkpoint: CertificationStartCheckpoint) => void | Promise<void>;
 };
-
 const defaultDependencies: ProviderAdapterServiceDependencies = {
   catalog: defaultCatalog,
-  discover: ({ baseUrl, modelKeys, signal }) => discoverProviderDocs({ baseUrl, modelKeys, signal }),
+  discover: ({ baseUrl, modelKeys, proxyUrl, signal }) => discoverProviderDocs({ baseUrl, modelKeys, proxyUrl, signal }),
   resolveLanguageModels: defaultResolveLanguageModels,
   compile: (input) => compileProviderAdapter(input),
   repair: (input) => repairProviderAdapter(input),
@@ -183,8 +182,8 @@ export class ProviderAdapterService {
         baseUrl: input.baseUrl,
         authType: input.authType,
         apiKey: input.apiKey,
-        selectedModelKeys: input.models.map((model) => model.modelKey),
-        headers: input.headers,
+        selectedModelKeys: input.models.map((model) => model.modelKey), headers: input.headers,
+        proxyUrl: input.proxyUrl,
       }),
       deadlineAt: deadlineFrom(timestamp, this.dependencies.batchTimeoutMs ?? 5 * 60_000),
       checkpoint: this.dependencies.certificationCheckpoint,
@@ -288,8 +287,8 @@ export class ProviderAdapterService {
       baseUrl: String(connection.vendor.baseUrlHint || ""),
       authType: connection.vendor.authType || "bearer",
       apiKey: connection.apiKey,
-      selectedModelKeys: initial.selectedModelKeys,
-      headers: connection.headers,
+      selectedModelKeys: initial.selectedModelKeys, headers: connection.headers,
+      proxyUrl: connection.vendor.network?.proxyUrl,
     });
     if (fingerprint !== initial.connectionFingerprint) {
       const staleAt = this.dependencies.now();
@@ -342,6 +341,7 @@ export class ProviderAdapterService {
             this.dependencies.discover({
               baseUrl: String(connection.vendor.baseUrlHint || ""),
               modelKeys: mediaModels.map((model) => model.modelKey),
+              proxyUrl: connection.vendor.network?.proxyUrl,
               signal,
             }),
           );

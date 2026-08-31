@@ -154,6 +154,10 @@ function rememberProxyState(route: CommittedRoute): void {
 function classifyProxyString(raw: string, source: ProxySource): ProxyResolution {
   const value = raw.trim();
   if (!value) return { kind: "none" };
+  const explicitScheme = value.match(/^([a-z][a-z\d+.-]*):/i)?.[1]?.toLowerCase();
+  if (explicitScheme && !["http", "https", "socks", "socks4", "socks5"].includes(explicitScheme)) {
+    return { kind: "unsupported", detail: `不支持的协议 ${explicitScheme}:`, source };
+  }
   if (/^socks/i.test(value)) {
     // socks 从 2026-08-01 起真支持（见 socksDispatcher）。解析不出主机/端口才算 unsupported——
     // 绝不静默按直连跑，那会让用户以为代理生效了。
@@ -171,6 +175,26 @@ function classifyProxyString(raw: string, source: ProxySource): ProxyResolution 
   } catch {
     return { kind: "unsupported", detail: `无法解析的代理地址（${value}）`, source };
   }
+}
+
+/** 为单个供应商创建显式出口，复用应用级代理对 http/https/SOCKS 的同一解析语义。 */
+export function normalizeExplicitProxyUrl(raw: string | null | undefined): string {
+  const resolution = classifyProxyString(String(raw ?? ""), "custom");
+  if (resolution.kind === "none") return "";
+  if (resolution.kind === "unsupported") throw new Error(`Invalid provider proxy URL: ${resolution.detail}`);
+  return resolution.url;
+}
+
+export function createExplicitProxyDispatcher(raw: string): Dispatcher {
+  const normalized = normalizeExplicitProxyUrl(raw);
+  if (!normalized) throw new Error("Provider proxy URL is empty");
+  const resolution = classifyProxyString(normalized, "custom");
+  if (resolution.kind === "http") return new ProxyAgent(resolution.url);
+  if (resolution.kind === "socks") {
+    const socks = parseSocksProxyUrl(resolution.url);
+    if (socks) return createSocksDispatcher(socks);
+  }
+  throw new Error("Invalid provider proxy URL");
 }
 
 /** 从环境变量读代理（HTTPS 优先，其次 HTTP，再 ALL）。GUI 从 Finder 启动时这些通常为空。 */

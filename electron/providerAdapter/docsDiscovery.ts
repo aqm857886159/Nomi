@@ -1,4 +1,5 @@
 import { hardenedFetchText } from "../hardenedFetch";
+import { createExplicitProxyDispatcher } from "../systemProxy";
 
 export type DocsFetchText = typeof hardenedFetchText;
 
@@ -143,6 +144,7 @@ export async function discoverProviderDocs(options: {
   baseUrl: string;
   modelKeys: readonly string[];
   signal?: AbortSignal;
+  proxyUrl?: string;
   fetchText?: DocsFetchText;
   maxPages?: number;
   maxCorpusBytes?: number;
@@ -153,6 +155,7 @@ export async function discoverProviderDocs(options: {
   if (!canHostPublicDocs(baseUrl.hostname)) return { sources: [], corpus: "" };
   const domain = registrableDomain(baseUrl.hostname);
   const fetchText = options.fetchText || hardenedFetchText;
+  const dispatcher = options.proxyUrl ? createExplicitProxyDispatcher(options.proxyUrl) : undefined;
   const maxPages = options.maxPages ?? 16;
   const maxCorpusBytes = options.maxCorpusBytes ?? 160_000;
   const queue = seedUrls(baseUrl, domain, options.modelKeys);
@@ -179,6 +182,7 @@ export async function discoverProviderDocs(options: {
         timeoutMs: 8_000,
         signal: options.signal,
         allowContentTypes: ["text/", "application/json", "application/xml", "application/yaml"],
+        ...(dispatcher ? { dispatcher } : {}),
       });
       const finalUrl = normalizedUrl(result.finalUrl || current);
       if (!isProviderSite(new URL(finalUrl), domain)) continue;

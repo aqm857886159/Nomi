@@ -18,10 +18,16 @@ describe("即梦 dreamina 全量接线", () => {
     expect(v).toMatchObject({ key: "dreamina", enabled: true, authType: "none" });
   });
 
-  it("模型：视频 1 + 图片 2，kind/档案正确", () => {
+  it("模型：Seedance 2.0 + 3.x 视频 + 图片，kind/档案正确", () => {
     const video = state.models.find((m) => m.modelKey === "dreamina-seedance-2.0");
     expect(video).toMatchObject({ vendorKey: "dreamina", kind: "video" });
     expect(video?.meta).toMatchObject({ archetypeId: "dreamina-seedance-2" });
+    expect(state.models.find((m) => m.modelKey === "dreamina-seedance-3-i2v")).toMatchObject({
+      vendorKey: "dreamina", kind: "video", meta: { archetypeId: "dreamina-seedance-3-i2v" },
+    });
+    expect(state.models.find((m) => m.modelKey === "dreamina-seedance-3-frames")).toMatchObject({
+      vendorKey: "dreamina", kind: "video", meta: { archetypeId: "dreamina-seedance-3-frames" },
+    });
     expect(state.models.find((m) => m.modelKey === "dreamina-image")).toMatchObject({ kind: "image" });
     expect(state.models.find((m) => m.modelKey === "dreamina-upscale")).toMatchObject({ kind: "image" });
   });
@@ -42,6 +48,16 @@ describe("即梦 dreamina 全量接线", () => {
     // 子命令正确
     expect(t2v?.create.process?.args?.[0]).toBe("text2video");
     expect(t2i?.create.process?.args?.[0]).toBe("text2image");
+  });
+
+  it("3.x mapping 只走 image2video 进程，并与 Seedance 2.0 的 text/multimodal 能力隔离", () => {
+    const i2v = selectTaskMapping(state.mappings, "dreamina", "image_to_video", "dreamina-seedance-3-i2v");
+    const frames = selectTaskMapping(state.mappings, "dreamina", "image_to_video", "dreamina-seedance-3-frames");
+    expect(i2v?.create.process?.args?.[0]).toBe("{{request.params.dreamina_cmd}}");
+    expect(frames?.create.process?.args?.[0]).toBe("{{request.params.dreamina_cmd}}");
+    expect(selectTaskMapping(state.mappings, "dreamina", "text_to_video", "dreamina-seedance-3-i2v")).toBeNull();
+    expect(getArchetypeById("dreamina-seedance-3-i2v")?.modes.map((mode) => mode.fixedParams?.dreamina_cmd)).toEqual(["image2video"]);
+    expect(getArchetypeById("dreamina-seedance-3-frames")?.modes.map((mode) => mode.fixedParams?.dreamina_cmd)).toEqual(["frames2video"]);
   });
 
   it("image_to_video 合并 mapping：子命令取 dreamina_cmd + fileParams 覆盖 i2v/首尾帧/全能参考输入", () => {
@@ -87,5 +103,17 @@ describe("即梦 dreamina 全量接线", () => {
     expect(arch?.kind).toBe("image");
     expect((arch?.modes || []).map((m) => m.id)).toEqual(["t2i", "i2i"]);
     expect(arch?.variants).toHaveLength(8); // 3.0/3.1/4.0/4.1/4.5/4.6/4.7/5.0
+  });
+
+  it("即梦图片分辨率按 model_version 收窄，5.0 仍是官方 5.0 而非伪造 5.0 Pro", () => {
+    const arch = getArchetypeById("dreamina-image")!;
+    const params = (variantId: string) => {
+      const variant = arch.variants?.find((item) => item.id === variantId);
+      const specialized = variant?.paramOverrides?.t2i?.(arch.modes[0].params) || arch.modes[0].params;
+      return specialized.find((item) => item.key === "resolution_type")?.options.map((item) => item.value);
+    };
+    expect(params("v3_0")).toEqual(["1k", "2k"]);
+    expect(params("v5_0")).toEqual(["2k", "4k"]);
+    expect(arch.variants?.some((item) => item.modelKey === "5.0pro")).toBe(false);
   });
 });

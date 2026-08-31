@@ -395,6 +395,26 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       }
     }
   },
+  "dreamina-seedance-3-i2v": {
+    "image_to_video": {
+      "*": {
+        "dreamina_cmd": "image2video",
+        "video_resolution": "720p",
+        "duration": 5,
+        "model": "3.0fast"
+      }
+    }
+  },
+  "dreamina-seedance-3-frames": {
+    "image_to_video": {
+      "*": {
+        "dreamina_cmd": "frames2video",
+        "video_resolution": "720p",
+        "duration": 5,
+        "model": "3.0"
+      }
+    }
+  },
   "dreamina-multiframe": {
     "image_to_video": {
       "*": {

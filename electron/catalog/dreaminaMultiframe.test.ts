@@ -14,13 +14,19 @@ describe("buildMultiframeArgs（按图数变形）", () => {
     expect(args).toEqual(["multiframe2video", "--images=/a.png,/b.png", "--prompt=角色转身", "--duration=4", "--poll=30"]);
   });
 
-  it("3 图：N-1=2 句 --transition-prompt，不发 --prompt/--duration", () => {
+  it("3 图：N-1=2 句 --transition-prompt + --transition-duration，不发 --prompt/--duration", () => {
     const args = buildMultiframeArgs({ imagePaths: ["/a.png", "/b.png", "/c.png"], prompt: "白天到黄昏\n黄昏到夜晚", transitionLines: ["白天到黄昏", "黄昏到夜晚"], duration: 5 });
     expect(args).toEqual([
       "multiframe2video", "--images=/a.png,/b.png,/c.png",
-      "--transition-prompt=白天到黄昏", "--transition-prompt=黄昏到夜晚", "--poll=30",
+      "--transition-prompt=白天到黄昏", "--transition-prompt=黄昏到夜晚",
+      "--transition-duration=5", "--transition-duration=5", "--poll=30",
     ]);
     expect(args).not.toContain("--prompt=白天到黄昏\n黄昏到夜晚");
+  });
+
+  it("3 图：小数时长按 0.5 步进，并把总时长抬到至少 2 秒", () => {
+    const args = buildMultiframeArgs({ imagePaths: ["/a", "/b", "/c"], prompt: "p", transitionLines: ["1", "2"], duration: 0.5 });
+    expect(args.filter((a) => a.startsWith("--transition-duration="))).toEqual(["--transition-duration=1", "--transition-duration=1"]);
   });
 
   it("3 图但过渡只给 1 句：用它补齐到 N-1=2 句", () => {

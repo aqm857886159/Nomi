@@ -7,6 +7,7 @@ import { resolveContentType } from "./mediaTypes";
 import { categorizeVendorFailure } from "../vendor/vendorHttp";
 import { maybeResolveVendorBase, rewriteVendorUrl } from "../vendor/vendorBaseFallback";
 import type { LocalAsset } from "../catalog/assetLocalization";
+import type { Dispatcher } from "undici";
 
 /** nomi-local URL → 项目内文件绝对路径(校验 projectId 一致 + 是真实文件);否则 null。 */
 export function absolutePathFromLocalAssetUrl(url: unknown, projectId: string): string | null {
@@ -186,13 +187,13 @@ export async function postWithUploadRetry(
 }
 
 /** R1 上传通道(JSON body):固定可信端点(vendor 声明里),用普通 fetch(与 requestJson 一致)。瞬态失败有界重试。 */
-export async function postJsonForAssetUpload(url: string, headers: Record<string, string>, body: unknown): Promise<unknown> {
+export async function postJsonForAssetUpload(url: string, headers: Record<string, string>, body: unknown, dispatcher?: Dispatcher): Promise<unknown> {
   const serialized = JSON.stringify(body);
   let wireUrl = url;
   return postWithUploadRetry(
     () => {
       wireUrl = rewriteVendorUrl(url); // 每次 attempt 重取——自愈换线后下一跳即生效
-      return appFetch(wireUrl, { method: "POST", headers, body: serialized });
+      return appFetch(wireUrl, { method: "POST", headers, body: serialized, ...(dispatcher ? { dispatcher } : {}) });
     },
     { onNetworkError: async (error) => { await maybeResolveVendorBase(wireUrl, error); } },
   );
@@ -208,6 +209,7 @@ export async function postMultipartForAssetUpload(
   contentType: string,
   extraFields?: Record<string, string>,
   fileField = "file",
+  dispatcher?: Dispatcher,
 ): Promise<unknown> {
   // 不手动设 Content-Type，fetch 会自动加 boundary。
   const { "Content-Type": _drop, ...restHeaders } = headers;
@@ -220,7 +222,7 @@ export async function postMultipartForAssetUpload(
       const form = new FormData();
       form.append(fileField, new Blob([arrayBuffer], { type: contentType }), fileName);
       for (const [key, value] of Object.entries(extraFields ?? {})) form.append(key, value);
-      return appFetch(wireUrl, { method: "POST", headers: restHeaders, body: form });
+      return appFetch(wireUrl, { method: "POST", headers: restHeaders, body: form, ...(dispatcher ? { dispatcher } : {}) });
     },
     { onNetworkError: async (error) => { await maybeResolveVendorBase(wireUrl, error); } },
   );
@@ -232,6 +234,7 @@ export async function putBinaryForAssetUpload(
   headers: Record<string, string>,
   file: Buffer,
   contentType: string,
+  dispatcher?: Dispatcher,
 ): Promise<unknown> {
   const arrayBuffer = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
   let wireUrl = url;
@@ -242,6 +245,7 @@ export async function putBinaryForAssetUpload(
         method: "PUT",
         headers: { "Content-Type": contentType, ...headers },
         body: new Uint8Array(arrayBuffer),
+        ...(dispatcher ? { dispatcher } : {}),
       });
     },
     { onNetworkError: async (error) => { await maybeResolveVendorBase(wireUrl, error); } },

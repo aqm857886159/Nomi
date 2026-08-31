@@ -44,6 +44,10 @@ export function CodexLocalImageCard({ enabled, onChanged, onOpenDetails, detailM
       catalog.upsertVendor({ key: CODEX_LOCAL_VENDOR_KEY, enabled: next })
       onChanged()
       toast(t(next ? 'onboardingProviders.codexImage.enabledToast' : 'onboardingProviders.codexImage.disabledToast'), 'success')
+    } catch (error) {
+      // 例如旧安装包打开了新版本目录时，主进程会为防止降级而拒绝写盘。
+      // 不能让这个受保护的错误穿过 React 事件处理器变成“按钮没反应”。
+      toast(error instanceof Error ? error.message : t('onboardingProviders.drawer.operationFailed'), 'error')
     } finally {
       setBusy(false)
     }

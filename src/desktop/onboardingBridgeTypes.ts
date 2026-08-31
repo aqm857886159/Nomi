@@ -147,6 +147,7 @@ export type DesktopOnboardingBridge = {
     authType?: 'none' | 'bearer' | 'x-api-key' | 'query'
     providerKind?: ProviderKind
     headers?: Record<string, string>
+    proxyUrl?: string
     models: Array<{ modelKey: string; labelZh?: string; kind: 'text' | 'image' | 'video' | 'audio' | 'model3d' }>
   }) => AdapterRegistrationResponse
   httpCertificationStart: (payload: {
@@ -158,6 +159,7 @@ export type DesktopOnboardingBridge = {
     authType?: 'none' | 'bearer' | 'x-api-key' | 'query'
     providerKind?: ProviderKind
     headers?: Record<string, string>
+    proxyUrl?: string
     models: Array<{ modelKey: string; labelZh?: string; kind: 'text' | 'image' | 'video' | 'audio' | 'model3d' }>
   }) => AdapterResponse
   certificationGet: (payload: { runId: string }) => AdapterResponse
@@ -185,6 +187,7 @@ export type DesktopOnboardingBridge = {
     autoProbe?: boolean
     probe?: 'reachability'
     headers?: Record<string, string>
+    proxyUrl?: string
   }) => Promise<{
     ok: boolean
     status?: number
@@ -198,6 +201,7 @@ export type DesktopOnboardingBridge = {
     apiKey: string
     providerKind?: ProviderKind
     headers?: Record<string, string>
+    proxyUrl?: string
   }) => Promise<{ ok: boolean; models?: string[]; status?: number; error?: string; failureKind?: ModelListFailureKind; partial?: boolean }>
   guessKinds: (payload: { ids: string[] }) => Promise<{
     kinds: Record<string, 'text' | 'image' | 'video' | 'audio' | 'model3d'>

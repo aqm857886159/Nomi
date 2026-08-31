@@ -316,6 +316,7 @@ export function connectionFingerprint(input: {
   apiKey: string;
   selectedModelKeys: readonly string[];
   headers?: Record<string, string>;
+  proxyUrl?: string;
 }): string {
   const normalized = {
     baseUrl: input.baseUrl.trim().replace(/\/+$/, ""),
@@ -323,6 +324,7 @@ export function connectionFingerprint(input: {
     keyDigest: crypto.createHash("sha256").update(input.apiKey).digest("hex"),
     selectedModelKeys: [...input.selectedModelKeys].sort(),
     headers: Object.fromEntries(Object.entries(input.headers || {}).sort(([a], [b]) => a.localeCompare(b))),
+    proxyUrl: input.proxyUrl || "",
   };
   return crypto.createHash("sha256").update(JSON.stringify(normalized)).digest("hex");
 }

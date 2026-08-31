@@ -29,6 +29,7 @@ import type {
   ProviderAdapterRevision,
   ProviderAdapterRun,
 } from "./types";
+import { normalizeProviderProxyUrl } from "../providerNetwork";
 
 export type LoadedConnection = {
   vendor: Vendor;
@@ -95,6 +96,7 @@ function connectionIdentity(input: ProviderAdapterConnectionInput): Record<strin
     authHeader: input.authHeader || null,
     authQueryParam: input.authQueryParam || null,
     providerKind: normalizeProviderKind(input.providerKind),
+    proxyUrl: normalizeProviderProxyUrl(input.proxyUrl),
     headers: input.headers || {},
   };
 }
@@ -140,6 +142,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
         authHeader: input.authHeader || null,
         authQueryParam: input.authQueryParam || null,
         providerKind: normalizeProviderKind(input.providerKind),
+        ...(input.proxyUrl ? { network: { proxyUrl: input.proxyUrl } } : { network: undefined }),
         meta: {
           ...asRecord(existingVendor?.meta),
           ...(Object.keys(cleanHeaders).length ? { extraHeaders: cleanHeaders } : {}),
@@ -216,6 +219,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
         authHeader: input.authHeader || null,
         authQueryParam: input.authQueryParam || null,
         providerKind: normalizeProviderKind(input.providerKind),
+        ...(input.proxyUrl ? { network: { proxyUrl: input.proxyUrl } } : { network: undefined }),
         meta: {
           ...asRecord(existingVendor?.meta),
           ...(Object.keys(cleanHeaders).length ? { extraHeaders: cleanHeaders } : {}),

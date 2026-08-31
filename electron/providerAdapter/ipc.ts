@@ -43,6 +43,7 @@ function adapterConnectionInput(payload: unknown): ProviderAdapterRegisterInput 
         : "openai-compatible",
     ...(typeof raw.authHeader === "string" ? { authHeader: raw.authHeader } : {}),
     ...(typeof raw.authQueryParam === "string" ? { authQueryParam: raw.authQueryParam } : {}),
+    ...(typeof raw.proxyUrl === "string" ? { proxyUrl: raw.proxyUrl } : {}),
     headers,
     models,
   };

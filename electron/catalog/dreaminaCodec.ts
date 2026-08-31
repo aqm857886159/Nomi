@@ -315,6 +315,14 @@ export function clampDreaminaDuration(duration: unknown, low = 4, high = 15): nu
   return Math.max(low, Math.min(high, Math.trunc(n)));
 }
 
+/** 多帧 CLI 的小数段时长：按 0.5 秒步进归一，避免 parseInt 把 0.5 变成 0。 */
+export function clampDreaminaSegmentDuration(duration: unknown, low = 0.5, high = 8): number {
+  const fallback = Math.max(low, Math.min(high, 3));
+  const n = typeof duration === "number" ? duration : Number.parseFloat(String(duration ?? "").trim());
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(low, Math.min(high, Math.round(n * 2) / 2));
+}
+
 /** 校验比例；非法回落空串（让 CLI 用模型默认）。 */
 export function normalizeDreaminaRatio(ratio: unknown): string {
   const v = String(ratio ?? "").trim();
@@ -338,7 +346,8 @@ export function splitTransitionLines(text: unknown): string[] {
  * multiframe2video 的**按图数变形**参数构建（纯函数）。官方 -h：
  *  - 2 图：`--images a,b --prompt <主提示> [--duration <秒>]`（shorthand）
  *  - 3+ 图：`--images a,b,c --transition-prompt <P1> --transition-prompt <P2> …`（N 图要 N-1 句；此时不发 --prompt）
- * 过渡行不足 N-1 时用「最后一句 / 主提示」补齐；多出则截断。3+ 时长走后端默认每段 3s（不发 --duration）。
+ * 过渡行不足 N-1 时用「最后一句 / 主提示」补齐；多出则截断。3+ 时长使用同一段时长重复发 N-1 次，
+ * 并把总时长抬到官方要求的至少 2 秒。
  */
 export function buildMultiframeArgs(input: {
   imagePaths: string[];
@@ -351,7 +360,7 @@ export function buildMultiframeArgs(input: {
   if (images.length <= 2) {
     const prompt = String(input.prompt || "").trim();
     if (prompt) args.push(`--prompt=${prompt}`);
-    const dur = clampDreaminaDuration(input.duration, 1, 8); // 段时长 [0.5,8]，整数化夹取
+    const dur = Math.max(2, clampDreaminaSegmentDuration(input.duration)); // 2 图只有 1 段，官方总时长至少 2s
     args.push(`--duration=${dur}`);
   } else {
     const need = images.length - 1;
@@ -361,6 +370,9 @@ export function buildMultiframeArgs(input: {
     for (const line of finalLines) {
       if (line) args.push(`--transition-prompt=${line}`);
     }
+    const segmentDuration = clampDreaminaSegmentDuration(input.duration);
+    const totalSafeDuration = Math.max(segmentDuration, Math.ceil((2 / need) * 2) / 2);
+    for (let i = 0; i < need; i += 1) args.push(`--transition-duration=${totalSafeDuration}`);
   }
   args.push("--poll=30");
   return args;

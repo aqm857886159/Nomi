@@ -498,7 +498,7 @@ export function createRuntimeIntegrationSessionService(
         ...extraHeaders,
       };
       const result = await fetchModelList(providerKind, session.config.baseUrl, headers, new AbortController().signal, {
-        query: authQueryParams(authType, apiKey, session.config.authQueryParam),
+        query: authQueryParams(authType, apiKey, session.config.authQueryParam), ...(vendor?.network?.proxyUrl ? { proxyUrl: vendor.network.proxyUrl } : {}),
       });
       if (!result.ok) throw new Error(`model_discovery_${result.failureKind || "unknown"}`);
       const all = result.models.map((modelKey) => {

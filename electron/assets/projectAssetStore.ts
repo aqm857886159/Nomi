@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { hardenedFetch } from "../hardenedFetch";
+import type { Dispatcher } from "undici";
 import { isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
 import { projectDirById, sanitizeName } from "../projects/repository";
 import { ensureDir } from "../runtimePaths";
@@ -415,6 +416,7 @@ type RemoteAssetImportOptions = {
   /** 仅供 main 进程内部已配置的本地生成服务使用；renderer IPC 无法注入第二参数。 */
   trustedPrivateOrigin?: string;
   certificationEvidence?: CertificationMediaEvidence;
+  dispatcher?: Dispatcher;
 };
 
 export async function importRemoteAsset(payload: unknown, options: RemoteAssetImportOptions = {}): Promise<unknown> {
@@ -451,6 +453,7 @@ export async function importRemoteAsset(payload: unknown, options: RemoteAssetIm
     maxBytes: 200 * 1024 * 1024,
     allowContentTypes: ["image/", "video/", "audio/", "application/octet-stream"],
     ...(options.trustedPrivateOrigin ? { allowedPrivateOrigins: [options.trustedPrivateOrigin] } : {}),
+    ...(options.dispatcher ? { dispatcher: options.dispatcher } : {}),
   });
   const bytes = fetched.bytes;
   const hintedContentType = fetched.contentType || "application/octet-stream";

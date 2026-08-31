@@ -11,6 +11,7 @@ import {
   clampDreaminaDuration,
   normalizeDreaminaRatio,
   normalizeDreaminaVideoResolution,
+  clampDreaminaSegmentDuration,
   parseDeviceFlow,
   parseAccountStatus,
   isNotMaestroVip,
@@ -165,6 +166,11 @@ describe("normalizeDreaminaOutput（端到端）", () => {
 });
 
 describe("命令参数校验/归一", () => {
+  it("多帧段时长保留 0.5 秒步进", () => {
+    expect(clampDreaminaSegmentDuration(0.5)).toBe(0.5);
+    expect(clampDreaminaSegmentDuration("1.25")).toBe(1.5);
+    expect(clampDreaminaSegmentDuration(99)).toBe(8);
+  });
   it("clampDreaminaDuration 按区间夹取", () => {
     expect(clampDreaminaDuration(4)).toBe(4);
     expect(clampDreaminaDuration(99)).toBe(15);

@@ -320,6 +320,18 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "multimodal": "image_to_video"
     }
   },
+  "dreamina-seedance-3-i2v": {
+    "defaultModeId": "i2v",
+    "modes": {
+      "i2v": "image_to_video"
+    }
+  },
+  "dreamina-seedance-3-frames": {
+    "defaultModeId": "firstlast",
+    "modes": {
+      "firstlast": "image_to_video"
+    }
+  },
   "dreamina-image": {
     "defaultModeId": "t2i",
     "modes": {

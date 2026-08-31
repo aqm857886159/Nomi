@@ -59,6 +59,7 @@ type Target = {
   providerKind: AiSdkProviderKind;
   headers: Record<string, string>;
   query: Record<string, string>;
+  proxyUrl?: string;
   fingerprint: string;
 };
 
@@ -91,8 +92,9 @@ function resolveTarget(vendorKey: string): Target | null {
     providerKind,
     headers,
     query,
+    ...(vendor.network?.proxyUrl ? { proxyUrl: vendor.network.proxyUrl } : {}),
     fingerprint: createHash("sha256").update(JSON.stringify({
-      baseUrl, updatedAt: record?.updatedAt, providerKind, authType,
+      baseUrl, updatedAt: record?.updatedAt, providerKind, authType, proxyUrl: vendor.network?.proxyUrl || null,
       authHeader: vendor.authHeader, authQueryParam: vendor.authQueryParam, headers, query,
     })).digest("hex"),
   };
@@ -117,7 +119,10 @@ async function probe(vendorKey: string, target: Target): Promise<VendorHealth> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
-    const res = await fetchModelList(target.providerKind, target.baseUrl, target.headers, controller.signal, { query: target.query });
+    const res = await fetchModelList(target.providerKind, target.baseUrl, target.headers, controller.signal, {
+      query: target.query,
+      ...(target.proxyUrl ? { proxyUrl: target.proxyUrl } : {}),
+    });
     return classifyProbe(
       vendorKey,
       { ok: res.ok, error: res.ok ? undefined : res.error, statuses: res.statuses, failureKind: res.ok ? undefined : res.failureKind },

@@ -8,7 +8,7 @@ import type { ModelParameterControl } from "./types";
 import type { ModelArchetype } from "./types";
 
 const PARAMS: ModelParameterControl[] = [
-  { key: "duration", label: "段时长(秒,仅2图)", type: "number", options: [], min: 1, max: 8, step: 1, defaultValue: 3 },
+  { key: "duration", label: "段时长(秒)", type: "number", options: [], min: 0.5, max: 8, step: 0.5, defaultValue: 3 },
 ];
 
 export const DREAMINA_MULTIFRAME_ARCHETYPE: ModelArchetype = {

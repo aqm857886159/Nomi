@@ -51,6 +51,7 @@ export type ExistingConnectionAdapterStartInput = {
   authHeader?: string;
   authQueryParam?: string;
   headers?: Record<string, string>;
+  proxyUrl?: string;
   models: ExistingConnectionModel[];
   certification: CertificationContractBinding;
 };
@@ -93,6 +94,7 @@ export type ExistingConnectionActionsDependencies = {
     authHeader?: string;
     authQueryParam?: string;
     headers: Record<string, string>;
+    proxyUrl?: string;
     signal: AbortSignal;
   }) => Promise<ModelListResult>;
   startAdapter: (
@@ -269,6 +271,7 @@ async function startResolvedConnection(
       ...(connection.vendor.authHeader ? { authHeader: connection.vendor.authHeader } : {}),
       ...(connection.vendor.authQueryParam ? { authQueryParam: connection.vendor.authQueryParam } : {}),
       ...(connection.headers ? { headers: connection.headers } : {}),
+      ...(connection.vendor.network?.proxyUrl ? { proxyUrl: connection.vendor.network.proxyUrl } : {}),
       models,
       certification,
     });
@@ -302,6 +305,7 @@ export function createExistingConnectionActions(
           ...(connection.vendor.authHeader ? { authHeader: connection.vendor.authHeader } : {}),
           ...(connection.vendor.authQueryParam ? { authQueryParam: connection.vendor.authQueryParam } : {}),
           headers: connection.headers || {},
+          ...(connection.vendor.network?.proxyUrl ? { proxyUrl: connection.vendor.network.proxyUrl } : {}),
           signal: controller.signal,
         });
         if (!listed.ok) {

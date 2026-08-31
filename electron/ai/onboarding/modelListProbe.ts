@@ -19,6 +19,8 @@ import {
 import { describeIllegalHeader, findIllegalHeader, isJsonRecord, mergeHeadersCaseInsensitive, pickUpstreamMessage } from "../../jsonUtils";
 import { parseModelListPage, type ModelListFailureKind } from "./modelListResponse";
 import { modelListErrorRedactor } from "./modelListSafety";
+import { createExplicitProxyDispatcher } from "../../systemProxy";
+import type { Dispatcher } from "undici";
 export type { ModelListFailureKind } from "./modelListResponse";
 
 export async function describeNetworkErrorLazy(error: unknown): Promise<string> {
@@ -137,7 +139,7 @@ export async function fetchModelList(
   baseUrl: string,
   headers: Record<string, string>,
   signal: AbortSignal,
-  options: { query?: Record<string, string> } = {},
+  options: { query?: Record<string, string>; proxyUrl?: string } = {},
 ): Promise<ModelListResult> {
   const query = options.query || {};
   const redact = modelListErrorRedactor(baseUrl, headers, query);
@@ -145,6 +147,14 @@ export async function fetchModelList(
   const failure = (failureKind: ModelListFailureKind, error: string, status?: number): Failure => ({
     ok: false, failureKind, ...(status !== undefined ? { status } : {}), error: redact(error), statuses,
   });
+  let dispatcher: Dispatcher | undefined;
+  try {
+    dispatcher = options.proxyUrl ? createExplicitProxyDispatcher(options.proxyUrl) : undefined;
+  } catch (error) {
+    return failure("invalid_response", error instanceof Error ? error.message : "Invalid provider proxy URL");
+  }
+  try {
+    return await (async (): Promise<ModelListResult> => {
   const headerProblem = findIllegalHeader(headers);
   if (headerProblem) return failure("auth", describeIllegalHeader(headerProblem).message);
   let candidates: BuiltRequest[];
@@ -176,7 +186,7 @@ export async function fetchModelList(
       let status: number | undefined;
       try {
         // Never auto-follow redirects with arbitrary gateway auth headers/query credentials.
-        res = await appFetch(url.toString(), { method: candidate.method, headers: candidate.headers, signal, redirect: "manual" });
+        res = await appFetch(url.toString(), { method: candidate.method, headers: candidate.headers, signal, redirect: "manual", ...(dispatcher ? { dispatcher } : {}) });
         statuses.push(res.status);
         status = res.status;
         body = await res.text();
@@ -228,4 +238,8 @@ export async function fetchModelList(
     return { ok: true, models: [], statuses };
   }
   return strongest || failure("invalid_response", "Unable to retrieve a model list");
+    })();
+  } finally {
+    if (dispatcher) await dispatcher.close().catch(() => undefined);
+  }
 }

@@ -44,4 +44,11 @@ describe('Codex 两个方向必须分开', () => {
     expect(src).not.toContain('mcpInfo')
     expect(src).not.toContain('installMcp')
   })
+
+  it('生图开关写盘失败时必须给出错误反馈，不能表现成死按钮', () => {
+    const src = read('CodexLocalImageCard.tsx')
+    expect(src).toContain('} catch (error)')
+    expect(src).toContain("toast(error instanceof Error ? error.message")
+    expect(src).toContain("'error'")
+  })
 })

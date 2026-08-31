@@ -12,6 +12,8 @@
 import type { HttpOperation } from "./types";
 
 export const DREAMINA_VIDEO_MODEL_KEY = "dreamina-seedance-2.0";
+export const DREAMINA_SEEDANCE_3_I2V_MODEL_KEY = "dreamina-seedance-3-i2v";
+export const DREAMINA_SEEDANCE_3_FRAMES_MODEL_KEY = "dreamina-seedance-3-frames";
 export const DREAMINA_ARCHETYPE_ID = "dreamina-seedance-2";
 
 // 进程型 op 的 method/path 是惰性占位（process 分支在用到它们前就短路了）——只为满足 HttpOperation 类型。
@@ -40,7 +42,7 @@ const TEXT2VIDEO_CREATE: HttpOperation = {
 // 图生视频 / 首尾帧 / 全能参考 合一：子命令取 {{request.params.dreamina_cmd}}（mode.fixedParams 注入）。
 // args 含所有模式的 flag，per-mode params 只填对应的：i2v 填 i2v_image_path；首尾帧填 frames_*_path；
 // 全能参考填 mm_*_flags（重复 flag 数组 spread）+ ratio。其余渲染成空被丢。fileParams 把输入 URL 物化成本地路径。
-const IMAGE_TO_VIDEO_CREATE: HttpOperation = {
+export const DREAMINA_IMAGE_TO_VIDEO_CREATE: HttpOperation = {
   method: PROCESS_METHOD,
   path: "dreamina:image_to_video",
   process: {
@@ -116,6 +118,8 @@ export const DREAMINA_MULTIFRAME_MODEL_KEY = "dreamina-multiframe";
 
 export const DREAMINA_CURATED_MODELS = [
   { modelKey: DREAMINA_VIDEO_MODEL_KEY, labelZh: "即梦 Seedance 2.0（会员）", kind: "video" as const, archetypeId: DREAMINA_ARCHETYPE_ID },
+  { modelKey: DREAMINA_SEEDANCE_3_I2V_MODEL_KEY, labelZh: "即梦 Seedance 3.x 图生视频（会员）", kind: "video" as const, archetypeId: "dreamina-seedance-3-i2v" },
+  { modelKey: DREAMINA_SEEDANCE_3_FRAMES_MODEL_KEY, labelZh: "即梦 Seedance 3.x 首尾帧（会员）", kind: "video" as const, archetypeId: "dreamina-seedance-3-frames" },
   { modelKey: DREAMINA_MULTIFRAME_MODEL_KEY, labelZh: "即梦多帧视频（会员）", kind: "video" as const, archetypeId: "dreamina-multiframe" },
 ];
 
@@ -134,7 +138,25 @@ export const DREAMINA_CURATED_MAPPINGS = [
     taskKind: "image_to_video" as const,
     modelKey: DREAMINA_VIDEO_MODEL_KEY,
     name: "即梦 Seedance 2.0 · 图生/首尾帧/全能参考",
-    create: IMAGE_TO_VIDEO_CREATE,
+    create: DREAMINA_IMAGE_TO_VIDEO_CREATE,
+    query: QUERY_RESULT,
+    statusMapping: DREAMINA_VIDEO_STATUS,
+  },
+  {
+    id: "seed-dreamina-seedance-3-i2v-image_to_video",
+    taskKind: "image_to_video" as const,
+    modelKey: DREAMINA_SEEDANCE_3_I2V_MODEL_KEY,
+    name: "即梦 Seedance 3.x · 图生视频",
+    create: DREAMINA_IMAGE_TO_VIDEO_CREATE,
+    query: QUERY_RESULT,
+    statusMapping: DREAMINA_VIDEO_STATUS,
+  },
+  {
+    id: "seed-dreamina-seedance-3-frames-image_to_video",
+    taskKind: "image_to_video" as const,
+    modelKey: DREAMINA_SEEDANCE_3_FRAMES_MODEL_KEY,
+    name: "即梦 Seedance 3.x · 首尾帧",
+    create: DREAMINA_IMAGE_TO_VIDEO_CREATE,
     query: QUERY_RESULT,
     statusMapping: DREAMINA_VIDEO_STATUS,
   },

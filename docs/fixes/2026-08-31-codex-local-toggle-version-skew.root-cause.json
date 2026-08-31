@@ -1,0 +1,101 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-31-codex-local-toggle-version-skew",
+  "problem_type": "stale desktop package hides protected catalog write failure",
+  "symptom": "Clicking '开启 Codex 本地生图' in the installed Nomi app appears to do nothing and codex-local remains disabled.",
+  "direct_cause": "The installed app is catalog schema v10 while the user's persisted model-catalog.json is schema v11. The catalog writer correctly refuses to write when the on-disk version is newer than the app version, but CodexLocalImageCard had no catch path, so the synchronous IPC exception escaped the click handler without user feedback.",
+  "class_root": "Version-protected persistence failures are not represented as an actionable UI state at the shared settings control boundary; a deliberate fail-closed write can therefore look like a dead control.",
+  "affected_population": [
+    "Users who open a newer Nomi catalog with an older installed desktop package",
+    "Any onboarding control that writes the model catalog while the catalog writer rejects a newer on-disk schema",
+    "Future catalog migrations if a renderer control omits its write-failure feedback path"
+  ],
+  "scope_paths": [
+    "src/ui/onboarding/CodexLocalImageCard.tsx",
+    "tests/ux/codex-local-image.walk.mjs",
+    "electron/catalog/catalogStore.ts"
+  ],
+  "entry_points": [
+    "Model settings → Codex 本地生图 → 开启 Codex 本地生图",
+    "Renderer model-catalog vendor upsert IPC",
+    "Catalog write protection when on-disk schema exceeds the running app schema"
+  ],
+  "internal_only_reason": "The version-skew guard and its user-facing recovery message are Nomi's local persistence contract; no external provider controls this behavior.",
+  "invariants": [
+    "An app must never overwrite a catalog whose schema version is newer than the app understands.",
+    "A rejected catalog write must produce visible error feedback at the initiating settings control.",
+    "A successful Codex toggle must persist vendor.enabled and be observable through the same catalog read path.",
+    "The Codex local image toggle remains independent from Codex MCP assistant onboarding."
+  ],
+  "generality_proof": "The writer's version guard is shared by all catalog mutations. The renderer card now handles the same synchronous write-failure class explicitly, while the Electron journey verifies the complete success path through the same IPC and persistence boundary.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "writeCatalog",
+      "responsibility": "Fail closed instead of silently downgrading a newer persisted catalog."
+    },
+    {
+      "path": "src/ui/onboarding/CodexLocalImageCard.tsx",
+      "symbol": "toggle",
+      "responsibility": "Translate the catalog write result or failure into visible onboarding feedback."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/onboarding/ComfyuiLocalCard.tsx",
+      "entry_point": "ComfyUI enable/disable controls",
+      "disposition": "enforced",
+      "evidence": "The existing card already catches synchronous catalog writes and shows an error toast; the Codex card is aligned to that boundary."
+    },
+    {
+      "path": "src/ui/onboarding/CodexLocalImageCard.tsx",
+      "entry_point": "Codex local image enable/disable controls",
+      "disposition": "enforced",
+      "evidence": "The toggle now catches the IPC write failure and reports the original protected-write message."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Catalog schema upgrades are a normal release event and any older package can encounter a newer user catalog; every synchronous catalog control is exposed to the same protected-write failure class.",
+    "same_class_scan": [
+      "Inspected all onboarding model-catalog upsertVendor callers and compared their error handling.",
+      "Inspected catalogStore.writeCatalog and CURRENT_CATALOG_VERSION against the installed app's extracted catalogStore/types bundle.",
+      "Read the real user catalog and confirmed version 11; extracted /Applications/Nomi.app and confirmed its compiled CURRENT_CATALOG_VERSION is 10.",
+      "Ran a real Electron Codex toggle journey in an isolated profile without invoking Codex or spending generation quota."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/ui/onboarding/CodexLocalImageCard.tsx",
+    "invariant": "Newer persisted catalog schemas remain read-only, and every initiating settings control must surface the rejected-write reason.",
+    "failure_mode": "The write is refused without data loss; the user sees the explicit version-protection error instead of a silent no-op.",
+    "exception_policy": "none",
+    "strategy": "Keep the fail-closed persistence guard and add the missing renderer error path at the Codex settings control, with a real Electron regression journey for the successful write path.",
+    "artifacts": [
+      "src/ui/onboarding/CodexLocalImageCard.tsx",
+      "tests/ux/codex-local-image.walk.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/ui/onboarding/codexDirectionSeparation.test.ts",
+    "tests/ux/codex-local-image.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/ui/onboarding/codexDirectionSeparation.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The fail-closed version guard is retained; the missing error feedback path is added without creating a parallel persistence implementation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "This is an internal Electron persistence and renderer feedback contract.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration is performed by the toggle. Users on an older package must update to a build that understands the persisted catalog schema; bypassing the guard would risk dropping newer fields.",
+  "residual_risks": [
+    "The currently installed /Applications/Nomi.app remains an older package until a newer build is installed; source changes alone cannot alter that already-built binary.",
+    "The journey proves the success path in the current source build; a stale package's failure toast can only be observed after installing the patched build."
+  ]
+}

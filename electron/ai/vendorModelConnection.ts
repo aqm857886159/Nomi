@@ -29,5 +29,6 @@ export function vendorModelConnection(vendor: Vendor, model: Model, apiKey: stri
     authType: vendor.authType,
     modelId: (model.modelAlias || model.modelKey).trim(),
     ...(headers ? { headers } : {}),
+    ...(vendor.network?.proxyUrl ? { proxyUrl: vendor.network.proxyUrl } : {}),
   };
 }

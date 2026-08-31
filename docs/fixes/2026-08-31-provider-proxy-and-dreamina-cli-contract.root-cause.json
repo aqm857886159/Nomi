@@ -1,0 +1,169 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-31-provider-proxy-and-dreamina-cli-contract",
+  "problem_type": "provider-specific network and CLI capability drift",
+  "symptom": "A provider can require a different network route, while model onboarding and Dreamina multiframe calls previously had no durable per-provider proxy contract and could drift from the current official CLI capabilities.",
+  "direct_cause": "Outbound code used only the application route or recreated provider behavior from incomplete assumptions; the catalog, onboarding, asset upload, SDK, and Dreamina capability layers did not share one normalized provider network declaration and the official CLI model/parameter matrix was not represented as typed archetypes.",
+  "class_root": "Provider identity, transport routing, capability declarations, and request serialization were not joined at their shared boundaries, so a new gateway or CLI version could be accepted by one path and rejected or misrouted by another.",
+  "affected_population": [
+    "Users whose API gateway requires a proxy different from other providers",
+    "Users onboarding image/video-only relays through model discovery or reachability checks",
+    "Dreamina CLI users selecting Seedance 3.x image-to-video or multiframe models",
+    "Existing providers whose request or asset-upload path must remain on the application route"
+  ],
+  "scope_paths": [
+    "electron/providerNetwork.ts",
+    "electron/systemProxy.ts",
+    "electron/hardenedFetch.ts",
+    "electron/ai/buildAiSdkModel.ts",
+    "electron/ai/onboarding/modelListProbe.ts",
+    "electron/ai/onboarding/onboardingIpc.ts",
+    "electron/ai/vendorModelConnection.ts",
+    "electron/assets/localAssetFile.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/catalog/customCallDispatch.ts",
+    "electron/catalog/dreaminaCodec.ts",
+    "electron/catalog/dreaminaVideos.ts",
+    "electron/catalog/types.ts",
+    "electron/integrationCertification/httpConnector.ts",
+    "electron/integrationCertification/providerAdapterCoordinator.ts",
+    "electron/providerAdapter/docsDiscovery.ts",
+    "electron/providerAdapter/existingConnection.ts",
+    "electron/providerAdapter/ipc.ts",
+    "electron/providerAdapter/registration.ts",
+    "electron/providerAdapter/service.ts",
+    "electron/providerAdapter/serviceCatalog.ts",
+    "electron/providerAdapter/store.ts",
+    "electron/providerAdapter/types.ts",
+    "electron/runtime.ts",
+    "electron/shared/videoCapabilities/dreaminaMultiframe.ts",
+    "electron/shared/videoCapabilities/dreaminaSeedance3.ts",
+    "electron/vendor/vendorHttp.ts",
+    "src/config/modelArchetypes/dreaminaImage.ts",
+    "src/config/modelArchetypes/dreaminaSeedance.ts",
+    "src/config/modelArchetypes/index.ts",
+    "electron/catalog/archetypeIdentifiers.generated.ts",
+    "electron/catalog/archetypeModes.generated.ts",
+    "electron/catalog/archetypeWireDefaults.video.generated.ts",
+    "src/desktop/onboardingBridgeTypes.ts",
+    "src/i18n/locales/modelSetup.ts",
+    "src/ui/onboarding/OnboardingWizard.tsx"
+  ],
+  "entry_points": [
+    "Model onboarding → model discovery",
+    "Model onboarding → reachability/protocol test",
+    "HTTP provider adapter registration/discovery/certification",
+    "Normal HTTP/SDK generation and local reference-asset upload",
+    "Dreamina Seedance 3.x image-to-video, frames-to-video, and multiframe serialization"
+  ],
+  "internal_only_reason": "The provider route and Dreamina CLI contract are Nomi-owned integration boundaries. Official behavior is recorded in the research note and used as the source for typed capability declarations; no provider credentials or paid generation are required for the regression tests.",
+  "invariants": [
+    "A provider-specific proxy is normalized once, persisted with that provider identity, and used only for that provider's outbound HTTP/SDK/discovery/upload calls.",
+    "Providers without an explicit route continue using the application-level dispatcher unchanged; private/local destinations retain their existing SSRF and direct-route policy.",
+    "Proxy configuration never bypasses hardened URL and header checks.",
+    "Dreamina CLI model names, modes, durations, resolution limits, and multiframe transition rules are represented by typed capability declarations and deterministic codec tests.",
+    "Existing model mappings and providers remain unchanged unless their own stored vendor network declaration is present."
+  ],
+  "generality_proof": "The same provider network field flows through onboarding, catalog identity, adapter registration, docs discovery, SDK construction, normal vendor HTTP, custom calls, and asset localization. The same Dreamina capability registry is consumed by model selection and request serialization, with generated archetypes keeping renderer and Electron defaults aligned.",
+  "shared_boundaries": [
+    {
+      "path": "electron/providerNetwork.ts",
+      "symbol": "providerDispatcher",
+      "responsibility": "Resolve the normalized per-provider route and leave unconfigured vendors without an override."
+    },
+    {
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "hardenedFetch",
+      "responsibility": "Apply an explicit provider dispatcher without weakening SSRF, redirect, response-size, or timeout protections."
+    },
+    {
+      "path": "electron/catalog/dreaminaCodec.ts",
+      "symbol": "buildDreaminaMultiframeArgs",
+      "responsibility": "Serialize official Dreamina multiframe semantics instead of positional or guessed parameters."
+    },
+    {
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "symbol": "loadModels / handleTestConnection / saveConnection",
+      "responsibility": "Carry the user-selected provider route through every onboarding request and persist it with the connection."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "entry_point": "list-models and test-connection",
+      "disposition": "enforced",
+      "evidence": "Both discovery and reachability/protocol probes pass the normalized explicit dispatcher when one is configured."
+    },
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "entry_point": "normal provider JSON/multipart requests",
+      "disposition": "enforced",
+      "evidence": "The shared requestVendor boundary resolves the provider dispatcher, covering generation and both upload wire formats."
+    },
+    {
+      "path": "electron/ai/buildAiSdkModel.ts",
+      "entry_point": "Anthropic/OpenAI SDK requests",
+      "disposition": "enforced",
+      "evidence": "All SDK provider fetch implementations receive the explicit provider route."
+    },
+    {
+      "path": "electron/catalog/dreaminaCodec.ts",
+      "entry_point": "Dreamina multiframe request serialization",
+      "disposition": "enforced",
+      "evidence": "Unit tests cover exactly-two images and three-or-more transition duration serialization and minimum-total lifting."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Providers and their upstream model catalogs change independently; route requirements and CLI capability drift will recur as users add gateways and vendors publish new model variants.",
+    "same_class_scan": [
+      "Inspected onboarding discovery/test, provider adapter registration/discovery, SDK, vendor HTTP, custom call, asset localization, and catalog persistence exits.",
+      "Inspected the official Dreamina CLI model/mode/parameter matrix and Volcengine Seedance HTTP documentation; recorded the source links in docs/research/2026-08-31-dreamina-and-per-api-proxy.md.",
+      "Inspected existing ComfyUI/local and application proxy boundaries to ensure the provider override does not replace the global route or proxy private services."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/providerNetwork.ts",
+    "invariant": "Every provider-specific outbound request resolves the same normalized provider route, while absent configuration preserves the application route.",
+    "failure_mode": "Invalid routes fail before network I/O; valid routes stay scoped to the owning provider; existing providers without a route keep their prior behavior.",
+    "exception_policy": "none",
+    "strategy": "Keep provider route resolution in one module, thread it through all existing shared transport boundaries, and use typed Dreamina capabilities plus codec tests for upstream CLI drift.",
+    "artifacts": [
+      "electron/providerNetwork.ts",
+      "electron/providerNetwork.test.ts",
+      "electron/ai/onboarding/onboardingIpc.test.ts",
+      "electron/catalog/dreaminaCodec.test.ts",
+      "electron/catalog/dreaminaSeed.test.ts",
+      "docs/research/2026-08-31-dreamina-and-per-api-proxy.md"
+    ]
+  },
+  "regression_tests": [
+    "electron/providerNetwork.test.ts",
+    "electron/ai/onboarding/onboardingIpc.test.ts",
+    "electron/catalog/dreaminaCodec.test.ts",
+    "electron/catalog/dreaminaMultiframe.test.ts",
+    "electron/catalog/dreaminaSeed.test.ts",
+    "electron/catalog/dreaminaSeed.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/providerNetwork.test.ts",
+    "electron/ai/onboarding/onboardingIpc.test.ts",
+    "electron/catalog/dreaminaCodec.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The application route, existing provider mappings, and existing Dreamina model keys remain; the new contract is threaded through shared boundaries rather than creating provider-specific parallel transports."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No new runtime dependency was introduced; the existing undici dispatcher and official CLI documentation are used.",
+    "exit_criteria": []
+  },
+  "migration": "Existing catalog entries without network.proxyUrl are read as before. New or re-saved provider connections may store a normalized proxy URL. Users should use the provider settings route for gateways that require it.",
+  "residual_risks": [
+    "A provider may require a proxy at an endpoint not represented by its own mapping; that remains a provider contract/configuration issue and should surface as a structured upstream failure.",
+    "Dreamina official CLI capability changes still require refreshing the research note and regenerating archetype defaults; the current tests prevent silent parameter drift but do not predict future upstream additions."
+  ]
+}

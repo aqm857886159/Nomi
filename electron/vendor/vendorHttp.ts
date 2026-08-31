@@ -15,6 +15,7 @@ import { fetchVendorWithBaseFallback } from "./vendorBaseFallback";
 import type { Vendor } from "../catalog/types";
 import { networkFailureDetails, redactNetworkMessage, safeNetworkUrl } from "../networkErrorDetails";
 import { BoundedResponseError, readBoundedResponseText } from "./boundedResponse";
+import { providerDispatcher } from "../providerNetwork";
 
 export type VendorErrorCategory = "auth" | "balance" | "quota" | "input" | "server" | "network" | "timeout" | "unknown";
 
@@ -159,6 +160,7 @@ async function requestVendor(
   if (signal?.aborted) relayAbort();
   else signal?.addEventListener("abort", relayAbort, { once: true });
   const timer = setTimeout(() => controller.abort(new DOMException("Provider response timeout", "TimeoutError")), timeoutMs);
+  const dispatcher = providerDispatcher(vendor);
   let response: Response;
   try {
     // 经 vendorBaseFallback：主域被墙（连接从未建立）→ 零额度探测官方备用域 → 换线重发一次。
@@ -167,6 +169,7 @@ async function requestVendor(
       method: upperMethod,
       headers,
       signal: controller.signal,
+      ...(dispatcher ? { dispatcher } : {}),
       ...(hasBody ? { body: bodyInit } : {}),
     });
   } catch (error: unknown) {

@@ -17,6 +17,7 @@ import { readCatalog } from "./catalogStore";
 import { readAutomationPolicySettings } from "../settings/automationPolicySettings";
 import { assetLocalizationOptions } from "./assetTransportRuntime";
 import { trim } from "../jsonUtils";
+import { providerDispatcher } from "../providerNetwork";
 import type { BillingModelKind, Model, Vendor } from "./types";
 import type { TaskRequest, TaskResult } from "../runtime";
 
@@ -44,7 +45,7 @@ export type CustomCallDispatchInput = {
     assetUrl: string,
     type: "image" | "video" | "audio" | "model3d",
     nodeId?: string,
-    vendor?: Pick<Vendor, "key" | "baseUrlHint">,
+    vendor?: Pick<Vendor, "key" | "baseUrlHint" | "network">,
   ) => Promise<TaskResult["assets"][number]>;
 };
 
@@ -73,6 +74,7 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
   );
   assertAndConsumeSpendGrant(grantId, nodeId); // 付费守卫：本地资产/上传策略预检通过后才消费
   traceVendorRequested(projectId, { runId: taskId, nodeId, recipe });
+  const networkDispatcher = providerDispatcher(vendor);
   const localized = await localizeAssetsForVendor(
     request.extras,
     (mediaKind) =>
@@ -83,10 +85,10 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
         mediaKind,
       ),
     readNomiLocalAsset,
-    postJsonForAssetUpload,
-    postMultipartForAssetUpload,
+    (url, headers, body) => postJsonForAssetUpload(url, headers, body, networkDispatcher),
+    (url, headers, file, fileName, contentType, extraFields, fileField) => postMultipartForAssetUpload(url, headers, file, fileName, contentType, extraFields, fileField, networkDispatcher),
     localizationOptions,
-    putBinaryForAssetUpload,
+    (url, headers, file, contentType) => putBinaryForAssetUpload(url, headers, file, contentType, networkDispatcher),
   );
   const effectiveRequest =
     localized.uploaded > 0 ? { ...request, extras: localized.value as TaskRequest["extras"] } : request;
