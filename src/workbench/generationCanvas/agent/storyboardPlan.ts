@@ -45,6 +45,12 @@ export type PlanAnchor = {
    * 落画布时拼进卡片提示词的「变体行」，让多视图+多变体集中在一张图里、整张喂参考。
    */
   variants?: string[]
+  /** 可选的参考卡图片模型；不填时由当前真实 catalog 默认解析。 */
+  modelKey?: string
+  /** 与 modelKey 配套的模型模式；不填时使用该模型默认模式。 */
+  modeId?: string
+  /** 参考卡的模型参数（例如比例/分辨率），按该模型档案解释。 */
+  params?: Record<string, unknown>
 }
 
 export type PlanShot = {
@@ -169,6 +175,9 @@ export const planAnchorSchema = z.object({
       '同一锚需要并列在一张定妆卡/场景卡里的变体/状态。仅当剧情里该角色/场景有明显形态差异时填，' +
         '如角色「成年」「童年」，场景「白天远景」「夜晚近景」；没有就省略。',
     ),
+  modelKey: z.string().min(1).optional(),
+  modeId: z.string().min(1).optional(),
+  params: z.record(z.unknown()).optional(),
 })
 
 export const planShotSchema = z.object({
@@ -541,8 +550,9 @@ export function storyboardPlanToCreateNodesArgs(
           materializationClientId: anchor.id,
         },
       } : {}),
-      ...(options.defaultImageModelKey ? { modelKey: options.defaultImageModelKey } : {}),
-      ...(options.defaultImageModeId ? { modeId: options.defaultImageModeId } : {}),
+      ...(anchor.modelKey ? { modelKey: anchor.modelKey } : options.defaultImageModelKey ? { modelKey: options.defaultImageModelKey } : {}),
+      ...(anchor.modeId ? { modeId: anchor.modeId } : options.defaultImageModeId ? { modeId: options.defaultImageModeId } : {}),
+      ...(anchor.params ? { params: anchor.params } : {}),
     })
   }
 

@@ -47,6 +47,9 @@ export type DispatchContext = {
     requestArtifactRevision: (input: { projectId: string; runId: string; artifactId: string; expectedVersion: number; instruction: string; kind: 'script' | 'storyboard' }) => unknown
     reviewArtifact: (input: { projectId: string; runId: string; artifactId: string; expectedVersion: number; decision: 'approved' | 'changes_requested' | 'rejected' }) => unknown
     materializeStoryboard: (input: { projectId: string; runId: string; artifactId: string; expectedVersion: number }) => unknown
+    proposeDirectionCandidates: (projectId: string, runId: string, candidates: unknown, source?: string) => unknown
+    proposeScriptCandidate: (projectId: string, runId: string, content: unknown, source?: string) => unknown
+    proposeStoryboardCandidate: (projectId: string, runId: string, plan: unknown, source?: string) => unknown
   }>
   /** Transport-owned authority. Request bodies may provide only an audit label, never trust. */
   origin?: { host: CapabilityOriginHost; actorId?: string }
@@ -70,6 +73,12 @@ const PRODUCTION_START_FIELDS = new Set([
 function requiredIdentifier(value: unknown, label: string): string {
   const normalized = typeof value === 'string' ? value.trim() : ''
   if (!/^[A-Za-z0-9._-]{1,160}$/.test(normalized) || normalized === '.' || normalized === '..') throw new RpcError(`Invalid ${label} id`, 400)
+  return normalized
+}
+
+function requiredJobIdentifier(value: unknown): string {
+  const normalized = typeof value === 'string' ? value.trim() : ''
+  if (!/^job:[A-Za-z0-9._-]{1,160}:[A-Za-z0-9._:-]{1,240}$/.test(normalized)) throw new RpcError('Invalid job id', 400)
   return normalized
 }
 
@@ -191,6 +200,42 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       return readSkillContent(String(params.name || params.directoryName || ''))
     case 'production.start':
       return ctx.productionRuns.createDraft(productionStartInput(params, ctx.origin))
+    case 'production.propose-directions': {
+      assertOnlyFields(params, new Set(['projectId', 'runId', 'candidates']))
+      if (!Array.isArray(params.candidates) || params.candidates.length < 2 || params.candidates.length > 3) {
+        throw new RpcError('Direction candidates must contain 2 or 3 items', 400)
+      }
+      if (!ctx.productionRuns.proposeDirectionCandidates) throw new RpcError('Direction proposal is unavailable', 501)
+      return ctx.productionRuns.proposeDirectionCandidates(
+        requiredIdentifier(params.projectId, 'project'),
+        requiredIdentifier(params.runId, 'run'),
+        params.candidates,
+        ctx.origin?.host ?? 'external-agent',
+      )
+    }
+    case 'production.propose-script': {
+      assertOnlyFields(params, new Set(['projectId', 'runId', 'content']))
+      if (typeof params.content !== 'string' || !params.content.trim()) throw new RpcError('Script content is required', 400)
+      if (params.content.length > 100_000) throw new RpcError('Script content is too large', 400)
+      if (!ctx.productionRuns.proposeScriptCandidate) throw new RpcError('Script proposal is unavailable', 501)
+      return ctx.productionRuns.proposeScriptCandidate(
+        requiredIdentifier(params.projectId, 'project'),
+        requiredIdentifier(params.runId, 'run'),
+        params.content,
+        ctx.origin?.host ?? 'external-agent',
+      )
+    }
+    case 'production.propose-storyboard': {
+      assertOnlyFields(params, new Set(['projectId', 'runId', 'plan']))
+      if (!params.plan || typeof params.plan !== 'object' || Array.isArray(params.plan)) throw new RpcError('Structured storyboard plan is required', 400)
+      if (!ctx.productionRuns.proposeStoryboardCandidate) throw new RpcError('Storyboard proposal is unavailable', 501)
+      return ctx.productionRuns.proposeStoryboardCandidate(
+        requiredIdentifier(params.projectId, 'project'),
+        requiredIdentifier(params.runId, 'run'),
+        params.plan,
+        ctx.origin?.host ?? 'external-agent',
+      )
+    }
     case 'production.get':
       assertOnlyFields(params, new Set(['projectId', 'runId']))
       return ctx.productionRuns.readProjection(
@@ -262,11 +307,12 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       })
     }
     case 'production.control': {
-      // A4：pause/resume/cancel。B3：set_trust（配 trustLevel）改信任档位。
+      // A4：pause/resume/cancel。B3：set_trust（配 trustLevel）改信任档位；
+      // concurrency 只改变尚未提交的下一波，不会撤回已经送到供应商的任务。
       // commandId 按 (action[/trustLevel], revision) 确定 → 同一状态下重复触发天然幂等。
-      assertOnlyFields(params, new Set(['projectId', 'runId', 'action', 'trustLevel']))
+      assertOnlyFields(params, new Set(['projectId', 'runId', 'action', 'trustLevel', 'maxConcurrentJobs']))
       const action = String(params.action || '')
-      if (!['pause', 'resume', 'cancel', 'set_trust'].includes(action)) throw new RpcError('Invalid production control action', 400)
+      if (!['pause', 'resume', 'cancel', 'set_trust', 'set_concurrency'].includes(action)) throw new RpcError('Invalid production control action', 400)
       const projectId = requiredIdentifier(params.projectId, 'project')
       const runId = requiredIdentifier(params.runId, 'run')
       const full = ctx.productionRuns.readFull(projectId, runId)
@@ -287,6 +333,19 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         })
         return ctx.productionRuns.readProjection(projectId, runId)
       }
+      if (action === 'set_concurrency') {
+        const raw = params.maxConcurrentJobs
+        if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 1 || raw > 6) throw new RpcError('Concurrency must be an integer from 1 to 6', 400)
+        const maxConcurrentJobs = Math.floor(raw)
+        await ctx.productionRuns.command(projectId, runId, {
+          commandId: `mcp-control-set_concurrency-${maxConcurrentJobs}-${full.revision}`,
+          expectedRevision: full.revision,
+          type: 'run.control',
+          payload: { action, maxConcurrentJobs },
+          issuedAt: new Date().toISOString(),
+        })
+        return ctx.productionRuns.readProjection(projectId, runId)
+      }
       await ctx.productionRuns.command(projectId, runId, {
         commandId: `mcp-control-${action}-${full.revision}`,
         expectedRevision: full.revision,
@@ -296,9 +355,27 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       })
       return ctx.productionRuns.readProjection(projectId, runId)
     }
+    case 'production.reconcile-job': {
+      assertOnlyFields(params, new Set(['projectId', 'runId', 'jobId', 'outcome']))
+      const projectId = requiredIdentifier(params.projectId, 'project')
+      const runId = requiredIdentifier(params.runId, 'run')
+      const jobId = requiredJobIdentifier(params.jobId)
+      const outcome = String(params.outcome || '')
+      if (outcome !== 'found' && outcome !== 'not_found') throw new RpcError('Invalid reconciliation outcome', 400)
+      const full = ctx.productionRuns.readFull(projectId, runId)
+      if (!full) throw new RpcError(`Production run not found: ${runId}`, 404)
+      await ctx.productionRuns.command(projectId, runId, {
+        commandId: `mcp-reconcile-${jobId}-${outcome}-${full.revision}`,
+        expectedRevision: full.revision,
+        type: 'job.reconcile',
+        payload: { jobId, outcome },
+        issuedAt: new Date().toISOString(),
+      })
+      return ctx.productionRuns.readProjection(projectId, runId)
+    }
     case 'production.decide-gate': {
       // B1：agent 已用 elicitation 问过真人，拿到 accept 才调这里表态一道门（方向门可带 choiceKey）。
-      assertOnlyFields(params, new Set(['projectId', 'runId', 'gateId', 'decision', 'choiceKey']))
+      assertOnlyFields(params, new Set(['projectId', 'runId', 'gateId', 'decision', 'choiceKey', 'policy']))
       const decision = String(params.decision || '')
       if (decision !== 'approved' && decision !== 'rejected') throw new RpcError('Invalid production gate decision', 400)
       const projectId = requiredIdentifier(params.projectId, 'project')
@@ -310,14 +387,69 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       if (!full) throw new RpcError(`Production run not found: ${runId}`, 404)
       const gate = full.gates.find((item) => item.gateId === gateId)
       if (!gate) throw new RpcError(`Production gate not found: ${gateId}`, 404)
-      const creativeGate = gate.scope === 'stage'
-        && (gate.gateId.startsWith('gate-direction-') || gate.gateId.startsWith('gate-sample-') || gate.gateId.startsWith('gate-freeze-'))
-      if (!creativeGate) throw new RpcError('This production gate must be decided in Nomi', 403)
+      const externalGate = gate.scope === 'stage'
+        ? gate.gateId.startsWith('gate-direction-') || gate.gateId.startsWith('gate-sample-') || gate.gateId.startsWith('gate-freeze-')
+        : gate.scope === 'budget_envelope'
+          || gate.scope === 'job_set' && gate.gateId.startsWith('gate-shot-')
+          || gate.scope === 'export'
+      if (!externalGate) throw new RpcError('This production gate requires an explicit Nomi takeover', 403)
+      let current = full
+      if (gate.scope === 'budget_envelope' && params.policy !== undefined) {
+        const policy = params.policy as Record<string, unknown>
+        const maxSpend = Number(policy.maxSpend)
+        const allowedProviders = Array.isArray(policy.allowedProviders)
+          ? policy.allowedProviders.filter((value): value is string => typeof value === 'string' && value.trim().length > 0).map((value) => value.trim())
+          : current.policy.allowedProviders
+        const allowedModels = Array.isArray(policy.allowedModels)
+          ? policy.allowedModels.filter((value): value is string => typeof value === 'string' && value.trim().length > 0).map((value) => value.trim())
+          : current.policy.allowedModels
+        if (!Number.isFinite(maxSpend) || maxSpend < 0 || allowedProviders.length === 0 || allowedModels.length === 0) {
+          throw new RpcError('合同门策略必须包含非负预算、至少一个供应商和至少一个模型', 400)
+        }
+        current = (await ctx.productionRuns.command(projectId, runId, {
+          commandId: `mcp-policy-${gateId}-${full.revision}`,
+          expectedRevision: full.revision,
+          type: 'policy.set',
+          payload: { policy: { ...current.policy, maxSpend, allowedProviders, allowedModels } },
+          issuedAt: new Date().toISOString(),
+        })).run
+      }
       await ctx.productionRuns.command(projectId, runId, {
-        commandId: `mcp-decide-${gateId}-${decision}-${full.revision}`,
-        expectedRevision: full.revision,
+        commandId: `mcp-decide-${gateId}-${decision}-${current.revision}`,
+        expectedRevision: current.revision,
         type: 'gate.decide',
         payload: { gateId, status: decision, ...(choiceKey ? { choiceKey } : {}) },
+        issuedAt: new Date().toISOString(),
+      })
+      return ctx.productionRuns.readProjection(projectId, runId)
+    }
+    case 'production.approve-rough-cut': {
+      // 粗剪是外部 Agent 正常路径上的最后一个可见确认点。它不是 gate.decide：
+      // 先把状态推进到 awaiting_export，再在同一条受保护命令里批准 export gate，避免用户
+      // 在 Agent 里对同一份已经看过的粗剪重复点两次。
+      assertOnlyFields(params, new Set(['projectId', 'runId']))
+      const projectId = requiredIdentifier(params.projectId, 'project')
+      const runId = requiredIdentifier(params.runId, 'run')
+      const full = ctx.productionRuns.readFull(projectId, runId)
+      if (!full) throw new RpcError(`Production run not found: ${runId}`, 404)
+      if (full.status !== 'awaiting_rough_cut_review') {
+        throw new RpcError('粗剪当前不在待审状态；请先用 nomi_get_run 读取最新 Run 状态', 409)
+      }
+      await ctx.productionRuns.command(projectId, runId, {
+        commandId: `mcp-rough-cut-approved-${full.revision}`,
+        expectedRevision: full.revision,
+        type: 'run.status',
+        payload: { status: 'awaiting_export' },
+        issuedAt: new Date().toISOString(),
+      })
+      const afterReview = ctx.productionRuns.readFull(projectId, runId)
+      const exportGate = afterReview?.gates.find((candidate) => candidate.scope === 'export' && candidate.status === 'waiting')
+      if (!afterReview || !exportGate) throw new RpcError('粗剪已确认，但当前 Run 没有可批准的导出门', 409)
+      await ctx.productionRuns.command(projectId, runId, {
+        commandId: `mcp-export-after-rough-cut-${exportGate.gateId}-${afterReview.revision}`,
+        expectedRevision: afterReview.revision,
+        type: 'gate.decide',
+        payload: { gateId: exportGate.gateId, status: 'approved' },
         issuedAt: new Date().toISOString(),
       })
       return ctx.productionRuns.readProjection(projectId, runId)

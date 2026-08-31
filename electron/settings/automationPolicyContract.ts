@@ -1,4 +1,4 @@
-import type { AutomationMode } from "../productionRun/productionRunTypes";
+import { normalizeMaxConcurrentJobs, type AutomationMode } from "../productionRun/productionRunTypes";
 
 const TRUSTED_HOSTS = new Set(["nomi", "claude", "codex", "cursor"]);
 const SAFE_CATALOG_KEY = /^[A-Za-z0-9._:-]{1,160}$/;
@@ -11,6 +11,7 @@ export type AutomationPolicySettings = {
   allowedModels: string[];
   maxSpend: number | null;
   maxAttemptsPerJob: number;
+  maxConcurrentJobs: number;
   confirmFirstSpend: true;
   autoContinueWithinBudget: boolean;
   confirmIrreversible: true;
@@ -30,6 +31,7 @@ export const DEFAULT_AUTOMATION_POLICY_SETTINGS: AutomationPolicySettings = {
   allowedModels: [],
   maxSpend: null,
   maxAttemptsPerJob: 3,
+  maxConcurrentJobs: 1,
   confirmFirstSpend: true,
   autoContinueWithinBudget: true,
   confirmIrreversible: true,
@@ -73,6 +75,7 @@ export function normalizeAutomationPolicySettings(value: unknown): AutomationPol
   const attempts = typeof raw.maxAttemptsPerJob === "number" && Number.isFinite(raw.maxAttemptsPerJob)
     ? Math.min(10, Math.max(1, Math.floor(raw.maxAttemptsPerJob)))
     : DEFAULT_AUTOMATION_POLICY_SETTINGS.maxAttemptsPerJob;
+  const maxConcurrentJobs = normalizeMaxConcurrentJobs(raw.maxConcurrentJobs, DEFAULT_AUTOMATION_POLICY_SETTINGS.maxConcurrentJobs);
   return {
     schemaVersion: 1,
     mode,
@@ -81,6 +84,7 @@ export function normalizeAutomationPolicySettings(value: unknown): AutomationPol
     allowedModels: catalogKeys(raw.allowedModels),
     maxSpend,
     maxAttemptsPerJob: attempts,
+    maxConcurrentJobs,
     confirmFirstSpend: true,
     autoContinueWithinBudget: boolean(raw.autoContinueWithinBudget, true),
     confirmIrreversible: true,

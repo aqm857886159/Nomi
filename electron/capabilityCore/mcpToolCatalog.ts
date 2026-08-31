@@ -174,6 +174,65 @@ export const MCP_TOOL_CATALOG = [
     build: (a: Record<string, unknown>) => ({ projectId: a.projectId, runId: a.runId }),
   },
   {
+    name: 'nomi_propose_directions',
+    description: '为外部 MCP 制作草稿提交 2–3 个创意方向候选。候选由 Codex/Claude/WorkBuddy 自己基于 brief 生成；Nomi 不重复调用内部文本模型，也不花费生成额度。提交后仍必须由真人在方向门选择并确认。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string' },
+        runId: { type: 'string' },
+        candidates: {
+          type: 'array', minItems: 2, maxItems: 3,
+          items: {
+            type: 'object', additionalProperties: false,
+            properties: {
+              key: { type: 'string', description: '英文小写稳定 key' },
+              title: { type: 'string', description: '方向标题' },
+              oneLiner: { type: 'string', description: '一句话说明方向如何呈现' },
+            },
+            required: ['title', 'oneLiner'],
+          },
+        },
+      },
+      required: ['projectId', 'runId', 'candidates'],
+      additionalProperties: false,
+    },
+    method: 'production.propose-directions',
+    build: (a: Record<string, unknown>) => ({ projectId: a.projectId, runId: a.runId, candidates: a.candidates }),
+  },
+  {
+    name: 'nomi_propose_script',
+    description: '为已确认方向提交一份由当前 Codex/Claude/WorkBuddy 自己生成的剧本候选。Nomi 只负责版本化、保存和审阅门，不会再次调用内部文本模型；提交后必须由真人审阅。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string' },
+        runId: { type: 'string' },
+        content: { type: 'string', minLength: 1, maxLength: 100_000, description: '剧本正文；内容事实与对白放这里，不要传“请帮我写剧本”的指令。' },
+      },
+      required: ['projectId', 'runId', 'content'],
+      additionalProperties: false,
+    },
+    method: 'production.propose-script',
+    build: (a: Record<string, unknown>) => ({ projectId: a.projectId, runId: a.runId, content: a.content }),
+  },
+  {
+    name: 'nomi_propose_storyboard',
+    description: '为已批准剧本提交由当前 Codex/Claude/WorkBuddy 生成的结构化 StoryboardPlan。Nomi 会校验 6+ 个有因果关系的镜头、首尾帧/连续性/字幕等字段，保存后进入分镜审阅；不会自动落画布或调用付费模型。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string' },
+        runId: { type: 'string' },
+        plan: { type: 'object', description: 'StoryboardPlan JSON：title、anchors、shots；每个生产镜头要有 narrativeGoal/actionChain/dramaticBeat/continuityLocks/ffDesc/motionDesc/lfDesc。' },
+      },
+      required: ['projectId', 'runId', 'plan'],
+      additionalProperties: false,
+    },
+    method: 'production.propose-storyboard',
+    build: (a: Record<string, unknown>) => ({ projectId: a.projectId, runId: a.runId, plan: a.plan }),
+  },
+  {
     name: 'nomi_subscribe_run',
     description: '从 durable cursor 开始长轮询制作 Run 的重要事件；最多等待 25 秒，不返回轮询噪声。',
     inputSchema: {
@@ -310,26 +369,27 @@ export const MCP_TOOL_CATALOG = [
     name: 'nomi_control_run',
     description:
       '控制制作 Run：pause 暂停（保住已花预算与已完成镜头）/ resume 从断点继续（不重做不重付）/ cancel 取消（未提交任务不计费）'
-      + ' / set_trust 改信任档位（配 trustLevel）。用户说「停一下 / 继续 / 别做了」用前三个；说「别问了直接出」= set_trust 到 budget_only（跳过创意与样片门，只留预算门）。',
+      + ' / set_trust 改信任档位（配 trustLevel）/ set_concurrency 调整下一波并发（1 最稳，2–3 通常更快，已提交任务不会被撤回）。用户说「停一下 / 继续 / 别做了」用前三个；说「别问了直接出」= set_trust 到 budget_only（跳过创意与样片门，只留预算门）。',
     inputSchema: {
       type: 'object',
       properties: {
         projectId: { type: 'string' },
         runId: { type: 'string' },
-        action: { type: 'string', enum: ['pause', 'resume', 'cancel', 'set_trust'] },
+        action: { type: 'string', enum: ['pause', 'resume', 'cancel', 'set_trust', 'set_concurrency'] },
         trustLevel: { type: 'string', enum: ['key_confirm', 'budget_only', 'confirm_all'], description: 'action=set_trust 时必填：key_confirm 五门全开 / budget_only 只管钱 / confirm_all 每镜确认' },
+        maxConcurrentJobs: { type: 'integer', minimum: 1, maximum: 6, description: 'action=set_concurrency 时必填：下一波同时提交的独立任务数；1/2/3/4/6' },
       },
       required: ['projectId', 'runId', 'action'],
       additionalProperties: false,
     },
     method: 'production.control',
-    build: (a: Record<string, unknown>) => ({ projectId: a.projectId, runId: a.runId, action: a.action, ...(a.trustLevel ? { trustLevel: a.trustLevel } : {}) }),
+    build: (a: Record<string, unknown>) => ({ projectId: a.projectId, runId: a.runId, action: a.action, ...(a.trustLevel ? { trustLevel: a.trustLevel } : {}), ...(a.maxConcurrentJobs !== undefined ? { maxConcurrentJobs: a.maxConcurrentJobs } : {}) }),
   },
   {
     name: 'nomi_decide_gate',
     description:
-      '对制作 Run 的可逆创意门表态：approved 批准 / rejected 否决。方向门（gate-direction-*）可带 choiceKey 指定候选。'
-      + 'Nomi 会在服务端再次向真人发起确认；预算、逐镜头付费、导出和发布必须回 Nomi 决定，不能用本工具跳过。',
+      '在当前制作 Run 的用户决策点做一次批准或否决：方向、创作稿、预算合同、样片、资产冻结、逐镜和最终导出都可以在外部 Agent 中完成。'
+      + '工具调用前会在 Claude/Codex/WorkBuddy 里向真人发起 elicitation；只有明确接受后才写入 Nomi。发布类不可逆动作仍需显式接管。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -338,12 +398,57 @@ export const MCP_TOOL_CATALOG = [
         gateId: { type: 'string', description: '门 id，例如 gate-direction-v1' },
         decision: { type: 'string', enum: ['approved', 'rejected'] },
         choiceKey: { type: 'string', description: '方向门专用：用户选中的候选 key（来自 gate.waiting 的 directionCandidates）' },
+        policy: {
+          type: 'object',
+          description: '合同门可选：与本次用户确认一起写入预算/供应商/模型策略，避免用户跳到 Nomi 设置页。',
+          properties: {
+            maxSpend: { type: 'number', minimum: 0, description: '本次 Run 的最高预算；单位沿用项目预算货币。' },
+            allowedProviders: { type: 'array', maxItems: 20, items: { type: 'string', minLength: 1, maxLength: 120 } },
+            allowedModels: { type: 'array', maxItems: 50, items: { type: 'string', minLength: 1, maxLength: 160 } },
+          },
+          additionalProperties: false,
+        },
       },
       required: ['projectId', 'runId', 'gateId', 'decision'],
       additionalProperties: false,
     },
     method: 'production.decide-gate',
-    build: (a: Record<string, unknown>) => ({ projectId: a.projectId, runId: a.runId, gateId: a.gateId, decision: a.decision, choiceKey: a.choiceKey }),
+    build: (a: Record<string, unknown>) => ({ projectId: a.projectId, runId: a.runId, gateId: a.gateId, decision: a.decision, choiceKey: a.choiceKey, policy: a.policy }),
+  },
+  {
+    name: 'nomi_reconcile_job',
+    description:
+      '在当前 Agent 中处理供应商任务的可恢复对账：found 继续跟踪同一个 providerTaskId，not_found 只把任务标红；不会重新提交，也不需要跳回 Nomi。调用前会在 Agent 里请求真人确认。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string' },
+        runId: { type: 'string' },
+        jobId: { type: 'string', description: '生产任务 id，例如 job:run-id:node-id' },
+        outcome: { type: 'string', enum: ['found', 'not_found'] },
+      },
+      required: ['projectId', 'runId', 'jobId', 'outcome'],
+      additionalProperties: false,
+    },
+    method: 'production.reconcile-job',
+    build: (a: Record<string, unknown>) => ({ projectId: a.projectId, runId: a.runId, jobId: a.jobId, outcome: a.outcome }),
+  },
+  {
+    name: 'nomi_approve_rough_cut',
+    description:
+      '确认当前 Run 的粗剪并开始最终 MP4 导出。调用前会在当前 Agent 桌面端发起一次真人确认；'
+      + '通过后由同一条受保护命令完成“粗剪确认 → 导出门批准”，不会让用户在 Nomi 内重复点第二次。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: { type: 'string' },
+        runId: { type: 'string' },
+      },
+      required: ['projectId', 'runId'],
+      additionalProperties: false,
+    },
+    method: 'production.approve-rough-cut',
+    build: (a: Record<string, unknown>) => ({ projectId: a.projectId, runId: a.runId }),
   },
   {
     name: 'nomi_intake_brief',

@@ -18,7 +18,7 @@ describe('production run task card structure', () => {
 
   it('主动作与兜底键互斥：指路态走次级键，非指路态走主按钮（同一时刻只有一个）', () => {
     expect((card.match(/data-production-primary-action/g) ?? []).length).toBe(2)
-    expect(card).toContain('const routedGate = Boolean(view.gateKind && view.decisionHome === \'origin\')')
+    expect(card).toContain('const routedApproval = view.primaryAction === \'review-script\'')
     expect(card).toContain('{routedGate ? (')
     expect(card).toContain('{!routedGate && action ? (')
   })

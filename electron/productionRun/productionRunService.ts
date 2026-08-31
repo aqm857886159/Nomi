@@ -17,14 +17,15 @@ import {
 } from './artifactProjection'
 import { buildProductionDeepLink } from './productionDeepLink'
 import { applyRunControl } from './productionRunControl'
-import { createDriverOps, isShotGate } from './productionRunDriverOps'
+import { createDriverOps, isShotGate, normalizeDirectionCandidates } from './productionRunDriverOps'
 import { withEventTap } from './productionRunEventTap'
 import { safeExternalText, safeProductionContract } from './productionRunProjectionSanitizer'
 import { assertStoryboardSourceFresh, createArtifactOperations } from './productionRunArtifactOperations'
 import { assertStoryboardSourceApproved } from './productionRunReducer'
 import { readAutomationPolicySettings } from '../settings/automationPolicySettings'
 import { assertProductionPolicyReady } from './productionPolicyReadiness'
-import { normalizeTrustLevel, trustLevelOf } from './productionRunTypes'
+import { loadPlaybookStageEvidence } from '../skills/skillExecutionEvidence'
+import { normalizeMaxConcurrentJobs, normalizeTrustLevel, trustLevelOf } from './productionRunTypes'
 import {
   metadataProjection,
   storyboardMetadata,
@@ -33,6 +34,7 @@ import type {
   AutomationPolicy,
   CreateProductionRunInput,
   ProductionRun,
+  ProductionRunAttention,
   RunEvent,
   RunCommand,
 } from './productionRunTypes'
@@ -57,8 +59,11 @@ export type ProductionRunProjection = {
   gates: SafeProductionGate[]
   jobs: SafeProductionJob[]
   artifacts: Array<Omit<ArtifactProjection, 'projectId' | 'runId' | 'openInNomi'>>
+  attention?: ProductionRunAttention
   /** B3：信任档位（run 级）。老 run 无字段 → 默认 key_confirm。用于合同/状态转述。 */
   trustLevel: import('./productionRunTypes').TrustLevel
+  /** Maximum independent provider jobs in the next generation wave. */
+  maxConcurrentJobs: number
   createdAt: string
   updatedAt: string
   openInNomi: string
@@ -125,6 +130,7 @@ const MEANINGFUL_EVENT_TYPES = new Set([
   'skill.applied',
   'plan.proposed',
   'plan.attached',
+  'run.needs_attention',
   // W1.5：审片判决（per-shot 过检/红标）——纳入可转述事件，让 nomi_subscribe_run 读得到。
   'qa.verdict',
 ])
@@ -133,6 +139,40 @@ function identifier(value: string, label: string): string {
   const normalized = String(value || '').trim()
   if (!/^[A-Za-z0-9._-]{1,160}$/.test(normalized) || normalized === '.' || normalized === '..') throw new Error(`Invalid ${label} id`)
   return normalized
+}
+
+/** Electron-side boundary validation for externally submitted StoryboardPlan JSON.
+ * The renderer has the richer UI schema; this keeps the main-process contract
+ * independent of React/JSX while enforcing the production invariants that stop
+ * a prose blob or disconnected shot list from reaching paid generation. */
+function parseExternalProductionStoryboard(raw: unknown): Record<string, unknown> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Structured storyboard plan is required')
+  const value = raw as Record<string, unknown>
+  if (typeof value.title !== 'string' || !value.title.trim()) throw new Error('Storyboard title is required')
+  if (!Array.isArray(value.anchors) || value.anchors.length === 0) throw new Error('Production storyboard needs persistent anchors')
+  const shots = Array.isArray(value.shots) ? value.shots : []
+  if (shots.length < 6) throw new Error('Production storyboard needs at least 6 causal shots')
+  const transitionTypes = new Set(['cut', 'dissolve', 'fade', 'match_cut', 'whip_pan'])
+  shots.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`Production shot ${index + 1} is invalid`)
+    const shot = entry as Record<string, unknown>
+    const requiredText = ['shotId', 'narrativeGoal', 'actionChain', 'dramaticBeat', 'ffDesc', 'motionDesc', 'lfDesc']
+    for (const field of requiredText) if (typeof shot[field] !== 'string' || !String(shot[field]).trim()) throw new Error(`Production shot ${index + 1} missing ${field}`)
+    if (typeof shot.durationSec !== 'number' || !Number.isFinite(shot.durationSec) || shot.durationSec <= 0) throw new Error(`Production shot ${index + 1} needs positive durationSec`)
+    if (!Array.isArray(shot.anchorIds) || shot.anchorIds.length === 0) throw new Error(`Production shot ${index + 1} needs anchorIds`)
+    if (typeof shot.prompt !== 'string' || shot.prompt.trim().length < 24) throw new Error(`Production shot ${index + 1} prompt is too short`)
+    if (index > 0) {
+      if (typeof shot.previousShotId !== 'string' || shot.previousShotId !== String((shots[index - 1] as Record<string, unknown>)?.shotId || '')) throw new Error(`Production shot ${index + 1} previousShotId must point to the prior shot`)
+      if (typeof shot.firstFrameRef !== 'string' || !shot.firstFrameRef.trim()) throw new Error(`Production shot ${index + 1} needs firstFrameRef`)
+    }
+    if (shot.transition !== undefined) {
+      if (!shot.transition || typeof shot.transition !== 'object' || Array.isArray(shot.transition)) throw new Error(`Production shot ${index + 1} transition is invalid`)
+      const transition = shot.transition as Record<string, unknown>
+      if (typeof transition.type !== 'string' || !transitionTypes.has(transition.type)) throw new Error(`Production shot ${index + 1} transition type is invalid`)
+      if (transition.durationFrames !== undefined && (!Number.isInteger(transition.durationFrames) || Number(transition.durationFrames) <= 0)) throw new Error(`Production shot ${index + 1} transition duration is invalid`)
+    }
+  })
+  return { ...value, shots }
 }
 
 function safeRunProjection(run: ProductionRun): Omit<ProductionRunProjection, 'artifacts' | 'openInNomi'> {
@@ -150,6 +190,9 @@ function safeRunProjection(run: ProductionRun): Omit<ProductionRunProjection, 'a
     snapshotCursor: run.snapshotCursor,
     // B3：run 级信任档位（老 run 无字段 → 默认 key_confirm）。合同/状态转述据此显示打扰程度。
     trustLevel: trustLevelOf(run.policy),
+    // Concurrency is a run-level, auditable control: it affects only future
+    // independent waves, never an already-submitted provider task.
+    maxConcurrentJobs: normalizeMaxConcurrentJobs(run.policy.maxConcurrentJobs),
     stages: run.stages.map((stage) => ({
       stageId: stage.stageId, title: safeExternalText(stage.title), status: stage.status, order: stage.order,
       ...(stage.startedAt ? { startedAt: stage.startedAt } : {}),
@@ -178,6 +221,7 @@ function safeRunProjection(run: ProductionRun): Omit<ProductionRunProjection, 'a
       ...(job.errorCode ? { errorCode: job.errorCode } : {}),
       createdAt: job.createdAt, updatedAt: job.updatedAt,
     })),
+    ...(run.attention ? { attention: { ...run.attention, message: safeExternalText(run.attention.message) } } : {}),
     createdAt: run.createdAt,
     updatedAt: run.updatedAt,
   }
@@ -250,6 +294,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       allowedModels: [...settings.allowedModels],
       maxSpend: settings.maxSpend,
       maxAttemptsPerJob: settings.maxAttemptsPerJob,
+      maxConcurrentJobs: settings.maxConcurrentJobs,
       minimizeUploads: settings.minimizeUploads,
     }
   })
@@ -290,10 +335,11 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
     if (run.status !== 'awaiting_direction' || run.gates.length === 0 || run.jobs.length > 0 || run.budget.authorized !== 0) {
       throw new Error('Production draft invariant failed')
     }
-    // B3：budget_only（「别问了直接出」）→ 自动批准创意方向门（留痕），不拟候选、不打扰。
-    // 其余档位 → 异步拟方向候选（GUI 有 LLM 才成；关着则保持兜底 gate）。均不阻塞返回。
-    if (trustLevelOf(run.policy) === 'budget_only') void autoApproveGate(run.projectId, run.runId, 'gate-direction-v1')
-    else void proposeDirections(run)
+      // B3：budget_only（「别问了直接出」）→ 自动批准创意方向门（留痕），不拟候选、不打扰。
+      // 外部 MCP 的方向由调用它的 Codex/Claude/WorkBuddy 自己提出，Nomi 不再重复调用内部文本模型；
+      // Nomi 画布内的 Agent 才走 renderer planner。两条入口之后都落同一个 gate.set_candidates seam。
+      if (trustLevelOf(run.policy) === 'budget_only') void autoApproveGate(run.projectId, run.runId, 'gate-direction-v1')
+      else if (run.origin.host === 'nomi') void proposeDirections(run)
     return runProjection(run, projectRootResolver, previewSecret)
   }
 
@@ -309,6 +355,141 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
 
   function executeInternal(projectId: string, runId: string, current: ProductionRun, type: string, payload: Record<string, unknown>, commandId: string) {
     return repository.execute(projectId, runId, { commandId, expectedRevision: current.revision, type, payload, issuedAt: new Date().toISOString() })
+  }
+
+  function proposeDirectionCandidates(
+    projectId: string,
+    runId: string,
+    rawCandidates: unknown,
+    source: string = 'external-agent',
+  ): ProductionRunProjection {
+    let current = requireRun(projectId, runId)
+    if (!['awaiting_direction', 'needs_attention'].includes(current.status) || current.stageId !== 'direction') {
+      throw new Error(`Cannot propose directions while production run is ${current.status}`)
+    }
+    const gate = current.gates.find((item) => item.gateId === 'gate-direction-v1' && item.status === 'waiting')
+    if (!gate) throw new Error('Direction gate is not waiting')
+    if ((gate.directionCandidates?.length ?? 0) > 0) return runProjection(current, projectRootResolver, previewSecret)
+    const candidates = normalizeDirectionCandidates(rawCandidates)
+    if (current.status === 'needs_attention') {
+      current = executeInternal(projectId, runId, current, 'run.status', { status: 'awaiting_direction' }, `mcp-${runId}-direction-recover-${current.revision}`).run
+    }
+    const hash = crypto.createHash('sha256').update(JSON.stringify(candidates)).digest('hex')
+    writeProjectJson(projectId, `.nomi/runs/${runId}/direction-v1.json`, {
+      schemaVersion: 1, kind: 'direction', projectId, runId, brief: current.brief,
+      status: 'awaiting_direction', source: source === 'nomi' ? 'nomi-agent' : 'external-agent', candidates,
+      contentHash: hash, createdAt: new Date().toISOString(),
+    })
+    current = executeInternal(projectId, runId, current, 'gate.set_candidates', {
+      gateId: 'gate-direction-v1', candidates,
+    }, `mcp-${runId}-direction-candidates-${hash.slice(0, 16)}`).run
+    return runProjection(current, projectRootResolver, previewSecret)
+  }
+
+  /**
+   * External MCP seam: the calling Agent owns the language-model reasoning and
+   * submits the script it just drafted. Nomi only versions, persists and gates
+   * it; it must not call a second internal text planner on this path.
+   */
+  function proposeScriptCandidate(projectId: string, runId: string, rawContent: unknown, source = 'external-mcp'): ProductionRunProjection {
+    const current = requireRun(projectId, runId)
+    if (current.origin.host === 'nomi') throw new Error('Nomi-origin runs use the in-app script planner')
+    if (current.status !== 'running' || current.stageId !== 'direction') throw new Error(`Cannot propose a script while production run is ${current.status}/${current.stageId}`)
+    const content = typeof rawContent === 'string' ? rawContent.trim() : ''
+    if (!content || content.length > 100_000) throw new Error('Script content must be a non-empty string under 100000 characters')
+    if (current.artifacts.some((artifact) => artifact.kind === 'script' && artifact.status === 'candidate')) {
+      throw new Error('A script candidate is already waiting for review')
+    }
+    const hash = crypto.createHash('sha256').update(content, 'utf8').digest('hex')
+    const version = Math.max(0, ...current.artifacts.filter((artifact) => artifact.kind === 'script').map((artifact) => artifact.version || 0)) + 1
+    const artifactId = `artifact-script-v${version}`
+    const scriptPath = `.nomi/runs/${runId}/script-v${version}.json`
+    const timestamp = new Date().toISOString()
+    const normalizedSource = source === 'nomi' ? 'nomi-agent' : 'external-mcp'
+    writeProjectJson(projectId, scriptPath, {
+      schemaVersion: 1, kind: 'script', projectId, runId, artifactId, version,
+      source: normalizedSource, content, contentHash: hash, createdAt: timestamp,
+    })
+    const skillEvidence = loadPlaybookStageEvidence(current.playbook.name, current.playbook.version, 'script')
+    const result = repository.execute(projectId, runId, {
+      commandId: `mcp-${runId}:script-proposed:${hash.slice(0, 16)}`,
+      expectedRevision: current.revision,
+      type: 'plan.proposed',
+      payload: { artifacts: [{
+        artifactId, stageId: 'script', kind: 'script', status: 'candidate', version,
+        source: normalizedSource, contentHash: hash, reviewStatus: 'waiting', skillEvidence,
+        projectRelativePath: scriptPath, createdAt: timestamp,
+      }] },
+      issuedAt: timestamp,
+    }).run
+    repository.execute(projectId, runId, {
+      commandId: `mcp-${runId}:script-skill:${hash.slice(0, 16)}`,
+      expectedRevision: result.revision,
+      type: 'skill.evidence',
+      payload: { skillName: current.playbook.name, version: current.playbook.version, artifactId, stageId: 'script', skillEvidence },
+      issuedAt: timestamp,
+    })
+    return runProjection(requireRun(projectId, runId), projectRootResolver, previewSecret)
+  }
+
+  /**
+   * External MCP seam: the calling Agent submits a structured storyboard IR.
+   * Schema and production-story checks run here before it can become a review
+   * candidate, so prose or a six-card collage cannot silently reach the canvas.
+   */
+  function proposeStoryboardCandidate(projectId: string, runId: string, rawPlan: unknown, source = 'external-mcp'): ProductionRunProjection {
+    const current = requireRun(projectId, runId)
+    if (current.origin.host === 'nomi') throw new Error('Nomi-origin runs use the in-app storyboard planner')
+    if (current.status !== 'running' || current.stageId !== 'storyboard') throw new Error(`Cannot propose a storyboard while production run is ${current.status}/${current.stageId}`)
+    const script = [...current.artifacts].reverse().find((artifact) => artifact.kind === 'script' && artifact.status === 'adopted')
+    if (!script) throw new Error('An approved script is required before proposing a storyboard')
+    if (current.artifacts.some((artifact) => artifact.kind === 'storyboard' && artifact.status === 'candidate')) {
+      throw new Error('A storyboard candidate is already waiting for review')
+    }
+    const sourceVersion = script.version || 1
+    const sourceHash = script.contentHash || ''
+    if (!sourceHash) throw new Error('Approved script is missing its content hash')
+    const parsed = parseExternalProductionStoryboard(rawPlan)
+    const plan = {
+      ...parsed,
+      sourceScriptArtifactId: script.artifactId,
+      sourceScriptVersion: sourceVersion,
+      sourceScriptHash: sourceHash,
+    }
+    const hash = crypto.createHash('sha256').update(JSON.stringify(plan), 'utf8').digest('hex')
+    const version = Math.max(0, ...current.artifacts.filter((artifact) => artifact.kind === 'storyboard').map((artifact) => artifact.version || 0)) + 1
+    const artifactId = `artifact-storyboard-v${version}`
+    const storyboardPath = `.nomi/runs/${runId}/storyboard-v${version}.json`
+    const timestamp = new Date().toISOString()
+    const normalizedSource = source === 'nomi' ? 'nomi-agent' : 'external-mcp'
+    writeProjectJson(projectId, storyboardPath, {
+      schemaVersion: 1, kind: 'storyboard', projectId, runId, artifactId, version,
+      source: normalizedSource, sourceArtifactId: script.artifactId, sourceVersion, sourceContentHash: sourceHash,
+      sourceHash, sourceScriptArtifactId: script.artifactId, sourceScriptVersion: sourceVersion, sourceScriptHash: sourceHash,
+      contentHash: hash, planHash: hash, plan, createdAt: timestamp,
+    })
+    const skillEvidence = loadPlaybookStageEvidence(current.playbook.name, current.playbook.version, 'storyboard')
+    const result = repository.execute(projectId, runId, {
+      commandId: `mcp-${runId}:storyboard-proposed:${hash.slice(0, 16)}`,
+      expectedRevision: current.revision,
+      type: 'plan.proposed',
+      payload: { artifacts: [{
+        artifactId, stageId: 'storyboard', kind: 'storyboard', status: 'candidate', version,
+        source: normalizedSource, contentHash: hash,
+        sourceArtifactId: script.artifactId, sourceVersion, sourceContentHash: sourceHash, sourceHash,
+        sourceScriptArtifactId: script.artifactId, sourceScriptVersion: sourceVersion, sourceScriptHash: sourceHash,
+        reviewStatus: 'waiting', skillEvidence, projectRelativePath: storyboardPath, createdAt: timestamp,
+      }] },
+      issuedAt: timestamp,
+    }).run
+    repository.execute(projectId, runId, {
+      commandId: `mcp-${runId}:storyboard-skill:${hash.slice(0, 16)}`,
+      expectedRevision: result.revision,
+      type: 'skill.evidence',
+      payload: { skillName: current.playbook.name, version: current.playbook.version, artifactId, stageId: 'storyboard', skillEvidence },
+      issuedAt: timestamp,
+    })
+    return runProjection(requireRun(projectId, runId), projectRootResolver, previewSecret)
   }
 
   function localAssetPath(projectId: string, rawUrl: unknown): string | undefined {
@@ -344,6 +525,17 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
     return relativePath.replace(/\\/g, '/')
   }
 
+  function readProjectJson(projectId: string, relativePath: string): unknown {
+    const safeRelativePath = projectRelativePath(projectId, relativePath, { requireFile: true })
+    const root = projectRootResolver(projectId)
+    if (!root) throw new Error('Production project artifact root unavailable')
+    try {
+      return JSON.parse(fs.readFileSync(path.resolve(root, safeRelativePath), 'utf8')) as unknown
+    } catch {
+      throw new Error('Production timeline artifact is unavailable')
+    }
+  }
+
   function stageValue(run: ProductionRun, stageId: string, patch: Record<string, unknown>): Record<string, unknown> {
     const stage = run.stages.find((candidate) => candidate.stageId === stageId)
     if (!stage) throw new Error(`Production stage not found: ${stageId}`)
@@ -359,6 +551,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
     executeInternal,
     requestRenderer,
     writeProjectJson,
+    readProjectJson,
     localAssetPath,
     projectRelativePath,
     stageValue,
@@ -404,6 +597,17 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       void driveReconciliation(safeProjectId, safeRunId, jobId)
       return result
     }
+    if (runCommand.type === 'run.control' && runCommand.payload.action === 'set_concurrency') {
+      const current = requireRun(safeProjectId, safeRunId)
+      const requested = runCommand.payload.maxConcurrentJobs
+      if (typeof requested !== 'number' || !Number.isFinite(requested)) throw new Error('Invalid concurrency value')
+      const maxConcurrentJobs = normalizeMaxConcurrentJobs(requested)
+      return repository.execute(safeProjectId, safeRunId, {
+        ...runCommand,
+        type: 'policy.set',
+        payload: { policy: { ...current.policy, maxConcurrentJobs } },
+      })
+    }
     if (runCommand.type === 'run.control' && runCommand.payload.action === 'set_trust') {
       // B3：对话改档（「别问了直接出」= 降 budget_only）。写 policy + 事件留痕（policy.set→policy.updated）。
       // 若正卡在创意/样片门等待且新档位是 budget_only → 顺手自动批准该门，让「直接出」立刻生效。
@@ -426,7 +630,11 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
     if (runCommand.type === 'run.control') {
       // A4 run 控制：逻辑在 productionRunControl.ts（MCP 与渲染端同一收口）。
       const controlled = applyRunControl(repository, safeProjectId, safeRunId, requireRun(safeProjectId, safeRunId), runCommand)
-      if (runCommand.payload.action === 'resume' && controlled.run.status === 'running') void driveGeneration(controlled.run) // 恢复必须重踢 driver：只回状态不回工作=假 resume
+      if (runCommand.payload.action === 'resume' && controlled.run.status === 'running') {
+        // 方向规划失败也走同一个 resume 入口：恢复后重试规划器，而不是把“无任务的方向阶段”交给生成 driver。
+        if (controlled.run.stageId === 'direction') void proposeDirections(controlled.run)
+        else void driveGeneration(controlled.run)
+      }
       return controlled
     }
     if (runCommand.type === 'script.review' || runCommand.type === 'artifact.review') {
@@ -441,7 +649,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
         type: 'script.review',
         payload: { ...runCommand.payload, artifactId, decision },
       })
-      if (decision === 'approved' && artifact.kind === 'script') void proposeStoryboard(result.run)
+      if (decision === 'approved' && artifact.kind === 'script' && result.run.origin.host === 'nomi') void proposeStoryboard(result.run)
       return result
     }
     if (runCommand.type === 'plan.attach') {
@@ -534,7 +742,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       }
     }
     const result = repository.execute(safeProjectId, safeRunId, runCommand)
-    if (runCommand.type === 'gate.decide' && runCommand.payload.status === 'approved' && runCommand.payload.gateId === 'gate-direction-v1') {
+    if (runCommand.type === 'gate.decide' && runCommand.payload.status === 'approved' && runCommand.payload.gateId === 'gate-direction-v1' && result.run.origin.host === 'nomi') {
       void proposeScript(result.run)
     }
     if (runCommand.type === 'gate.decide' && runCommand.payload.status === 'approved' && runCommand.payload.gateId === `gate-contract-v${result.run.planVersion}`) {
@@ -635,6 +843,14 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       for (const summary of summaries) {
         let current = repository.read(safeProjectId, summary.runId)
         if (!current || ['completed', 'cancelled'].includes(current.status)) continue
+        // `readProjection` is also the live MCP `nomi_get_run` path and may be
+        // polled while the current process is actively submitting a provider
+        // job.  An in-flight driver owns that submission; treating it as a
+        // restart here would manufacture `submission_unknown` before the
+        // renderer can return its receipt.  A fresh service instance has an
+        // empty `inFlight` set, so genuine process-restart recovery still
+        // converts stale work below.
+        if (inFlight.has(current.runId)) continue
         let changedUnknown = false
         for (const job of current.jobs) {
           if (!['submitting', 'provider_accepted', 'polling', 'retry_wait', 'downloading', 'validating_technical', 'validating_content'].includes(job.status)) continue
@@ -661,7 +877,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
           if (trustLevelOf(current.policy) === 'budget_only') void autoApproveGate(current.projectId, current.runId, 'gate-direction-v1')
           else void proposeDirections(current)
         }
-        if (current.status === 'running' && current.stageId === 'direction') void proposeScript(current)
+        if (current.status === 'running' && current.stageId === 'direction' && current.origin.host === 'nomi') void proposeScript(current)
         const qaStage = current.stages.find((stage) => stage.stageId === 'qa')
         const resumableProductionStage = current.status === 'running'
           && (current.stageId === 'qa' || current.stageId === 'assemble' || current.stageId === 'generate' && qaStage?.status !== 'completed')
@@ -751,6 +967,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
   return {
     createDraft, readProjection, readFull, readEvents, readArtifactProjection, readArtifactContent, readScriptDraft,
     requestArtifactRevision, reviewArtifact, materializeStoryboard, resolveArtifactPreview, command, proposeScript, proposeStoryboard,
+    proposeDirectionCandidates, proposeScriptCandidate, proposeStoryboardCandidate,
     resumeUnfinishedRuns, listProjections, listFull,
   }
 }

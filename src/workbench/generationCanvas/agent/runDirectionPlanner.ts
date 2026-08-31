@@ -15,6 +15,7 @@ import { sendWorkbenchAiMessage } from '../../ai/workbenchAiClient'
 import { clearWorkbenchAgentSession } from '../../../api/desktopClient'
 import { getAssistantModelPref } from '../../ai/assistantModelPref'
 import { readWindowUrlParam } from '../../windowUrlParam'
+import { listWorkbenchModelCatalogModels, listWorkbenchModelCatalogVendors, type ModelCatalogModelDto } from '../../api/modelCatalogApi'
 
 export type DirectionCandidate = { key: string; title: string; oneLiner: string }
 
@@ -32,6 +33,52 @@ export type RunDirectionPlannerInput = {
   brief?: DirectionPlannerBrief | null
   /** playbook 声明（key/name 等），用于给模型「这是哪类片子」的上下文；结构宽松，只读取文本字段。 */
   playbook?: Record<string, unknown> | null
+}
+
+type DirectionModelChoice = { modelKey: string; vendorKey: string }
+
+function isRetryablePlannerError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  // Provider adapters may surface the same transient outage as an HTTP 503,
+  // a normalized `fetch failed`/network/TLS error, or a localized request
+  // failure. All are safe to retry with the next catalog text model; malformed
+  // planner JSON remains non-retryable so we never duplicate a bad draft.
+  return /model_not_found|model not found|\b503\b|fetch failed|network|socket|tls|no local text model|请求失败|请求错误|模型.*不可用|模型.*未找到/i.test(message)
+}
+
+/**
+ * 把用户偏好放第一位，但不要把一个已经下线的模型变成整条生产链的单点故障。
+ * 目录是唯一可用模型来源；这里不写死供应商，只取 enabled 的文本模型，并排除
+ * prompt-refine 专用模型。第二候选只在第一候选真实失败后尝试。
+ */
+async function directionModelChoices(preference: ReturnType<typeof getAssistantModelPref>): Promise<DirectionModelChoice[]> {
+  let models: ModelCatalogModelDto[] = []
+  let vendors: Awaited<ReturnType<typeof listWorkbenchModelCatalogVendors>> = []
+  try {
+    ;[models, vendors] = await Promise.all([
+      listWorkbenchModelCatalogModels({ kind: 'text', enabled: true }),
+      listWorkbenchModelCatalogVendors(),
+    ])
+  } catch {
+    return preference ? [{ modelKey: preference.modelKey, vendorKey: preference.vendorKey }] : []
+  }
+  const enabledVendors = new Map(vendors.filter((vendor) => vendor.enabled && (vendor.authType === 'none' || vendor.hasApiKey)).map((vendor) => [vendor.key, vendor]))
+  const choices = models
+    .filter((model) => {
+      const meta = model.meta && typeof model.meta === 'object' ? model.meta as Record<string, unknown> : {}
+      return model.enabled && enabledVendors.has(model.vendorKey) && meta.promptRefineOnly !== true
+    })
+    .map((model) => ({ modelKey: model.modelKey, vendorKey: model.vendorKey }))
+  const ordered = preference
+    ? [{ modelKey: preference.modelKey, vendorKey: preference.vendorKey }, ...choices.filter((choice) => !(choice.modelKey === preference.modelKey && choice.vendorKey === preference.vendorKey))]
+    : choices
+  const seen = new Set<string>()
+  return ordered.filter((choice) => {
+    const key = `${choice.vendorKey}:${choice.modelKey}`
+    if (!choice.modelKey || seen.has(key)) return false
+    seen.add(key)
+    return true
+  }).slice(0, 2)
 }
 
 /** 方向门用独立会话键（与创作/生成区线程隔离，不污染用户对话历史）。 */
@@ -149,19 +196,31 @@ export async function runDirectionPlanner(
   const pref = getAssistantModelPref()
   const projectId = readWindowUrlParam('projectId') || ''
   const prompt = buildDirectionPlannerPrompt(input)
-  const response = await sendWorkbenchAiMessage(
-    {
-      prompt,
-      displayPrompt: '构思创意方向',
-      sessionKey,
-      ...(projectId ? { projectId } : {}),
-      skillKey: 'workbench.production.direction-planner',
-      skillName: '方向候选规划',
-      mode: 'chat', // 无工具的一次性文本产出（方向候选不碰画布、不花生成额度）
-      ...(pref ? { agentModelKey: pref.modelKey, agentVendorKey: pref.vendorKey } : {}),
-    },
-    {},
-  )
-  const candidates = parseDirectionCandidates(response.text ?? '')
-  return { candidates }
+  const choices = await directionModelChoices(pref)
+  const attempts = choices.length > 0 ? choices : [undefined]
+  let lastError: unknown = new Error('No local text model is configured. Open model settings and add an API key.')
+  for (const choice of attempts) {
+    try {
+      await clearWorkbenchAgentSession(sessionKey).catch(() => {})
+      const response = await sendWorkbenchAiMessage(
+        {
+          prompt,
+          displayPrompt: '构思创意方向',
+          sessionKey,
+          ...(projectId ? { projectId } : {}),
+          skillKey: 'workbench.production.direction-planner',
+          skillName: '方向候选规划',
+          mode: 'chat', // 无工具的一次性文本产出（方向候选不碰画布、不花生成额度）
+          ...(choice ? { agentModelKey: choice.modelKey, agentVendorKey: choice.vendorKey } : {}),
+        },
+        {},
+      )
+      const candidates = parseDirectionCandidates(response.text ?? '')
+      return { candidates }
+    } catch (error) {
+      lastError = error
+      if (!isRetryablePlannerError(error)) break
+    }
+  }
+  throw lastError
 }

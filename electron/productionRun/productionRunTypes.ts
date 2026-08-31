@@ -32,10 +32,17 @@ export type AutomationPolicy = {
   allowedModels: string[];
   maxSpend: number | null;
   maxAttemptsPerJob: number;
+  /** Maximum number of independent provider jobs the driver may submit in one wave. */
+  maxConcurrentJobs?: number;
   minimizeUploads: boolean;
   /** B3 信任档位。老 run 文件无此字段 → 读作默认 key_confirm（向后兼容）。 */
   trustLevel?: TrustLevel;
 };
+
+export function normalizeMaxConcurrentJobs(value: unknown, fallback = 1): number {
+  const candidate = typeof value === "number" && Number.isFinite(value) ? Math.floor(value) : fallback;
+  return Math.min(6, Math.max(1, candidate));
+}
 
 export type BudgetLedgerSummary = {
   currency: string;
@@ -242,8 +249,18 @@ export type ProductionRun = {
   gates: ProductionGate[];
   jobs: ProductionJob[];
   artifacts: ProductionArtifact[];
+  /** 可恢复的运行阻塞原因；只在 needs_attention 时存在，供 MCP/项目页给出下一步。 */
+  attention?: ProductionRunAttention;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ProductionRunAttention = {
+  code: string;
+  message: string;
+  operation: string;
+  retryable: boolean;
+  occurredAt: string;
 };
 
 export type ProductionRunSummary = Pick<

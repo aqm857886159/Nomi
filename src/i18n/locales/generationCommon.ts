@@ -1079,7 +1079,7 @@ export const zhGenerationCommon = {
     },
     route: {
       waiting: '{{host}} 那边等你决定——回到那边一句话就行',
-      fallback: '也可以在这里决定',
+      fallback: '在 Nomi 中接管并决定',
     },
     runAction: {
       'open-stage': '查看当前阶段',

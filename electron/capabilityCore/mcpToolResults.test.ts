@@ -194,6 +194,16 @@ describe('buildToolOutcome (A2 结果重写：转述原材料 + 参数回显)', 
     expect(text).toBeNull()
     expect(outcome).toBeNull()
   })
+
+  it('storyboard artifact read exposes the persisted plan through the stable content slot', () => {
+    const { text, outcome } = buildToolOutcome(
+      'nomi_read_artifact',
+      { projectId: 'p1', runId: 'r1', artifactId: 'artifact-storyboard-v1' },
+      { projectId: 'p1', runId: 'r1', artifactId: 'artifact-storyboard-v1', kind: 'storyboard', status: 'candidate', version: 1, plan: { title: '雨夜的门', shots: [{ shotId: 'shot-1' }] } },
+    )
+    expect(text).toContain('雨夜的门')
+    expect(outcome).toMatchObject({ content: { title: '雨夜的门', shots: [{ shotId: 'shot-1' }] } })
+  })
 })
 
 describe('nomi_list_models 转述（交付1：只有 keyStatus=ok 说可用 + 参考能力 + locale）', () => {

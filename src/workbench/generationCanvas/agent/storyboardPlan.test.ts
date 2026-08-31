@@ -53,6 +53,21 @@ describe('storyboardPlanToCreateNodesArgs', () => {
     expect(nodes.some((n) => n.clientId === 'a-style')).toBe(false)
   })
 
+  it('外部计划可为视觉锚显式选择真实 catalog 模型，且覆盖默认图片模型', () => {
+    const plan: StoryboardPlan = {
+      ...PLAN,
+      anchors: PLAN.anchors.map((anchor) => anchor.id === 'a-linxia'
+        ? { ...anchor, modelKey: 'doubao-seedream-4.5', modeId: 'text_to_image', params: { aspect_ratio: '16:9' } }
+        : anchor),
+    }
+    const { nodes } = storyboardPlanToCreateNodesArgs(plan, { defaultImageModelKey: 'gpt-image-2', defaultImageModeId: 'default' })
+    expect(nodes.find((node) => node.clientId === 'a-linxia')).toMatchObject({
+      modelKey: 'doubao-seedream-4.5',
+      modeId: 'text_to_image',
+      params: { aspect_ratio: '16:9' },
+    })
+  })
+
   it('整批落「分镜」分类（用户拍板 A：角色/场景/镜头落在一起，参考边同屏可连）', () => {
     expect(storyboardPlanToCreateNodesArgs(PLAN).groupCategoryId).toBe('shots')
   })

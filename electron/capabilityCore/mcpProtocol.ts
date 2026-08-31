@@ -237,7 +237,7 @@ export function createMcpProtocol(transport: McpTransport) {
     }
   }
 
-  async function elicitCreativeGateDecision(
+  async function elicitGateDecision(
     args: Record<string, unknown>,
   ): Promise<{ supported: boolean; confirmed?: boolean }> {
     if (!clientSupportsElicitation) return { supported: false }
@@ -249,11 +249,16 @@ export function createMcpProtocol(transport: McpTransport) {
     const gates = Array.isArray(projection.gates) ? projection.gates as Array<Record<string, unknown>> : []
     const gate = gates.find((candidate) => candidate.gateId === gateId && candidate.status === 'waiting')
     if (!gate) throw new Error(`Production gate is not waiting: ${gateId}`)
-    const creative = gate.scope === 'stage'
-      && (gateId.startsWith('gate-direction-') || gateId.startsWith('gate-sample-') || gateId.startsWith('gate-freeze-'))
-    if (!creative) throw new Error('This decision must be completed in Nomi')
-    // W2 冻结门是「视觉确认」语义（确认这批角色/场景卡定妆了、可锁死当身份基准），走同一条创意门 seam。
+    const externalGate = gate.scope === 'stage'
+      ? gateId.startsWith('gate-direction-') || gateId.startsWith('gate-sample-') || gateId.startsWith('gate-freeze-')
+      : gate.scope === 'budget_envelope'
+        || gate.scope === 'job_set' && gateId.startsWith('gate-shot-')
+        || gate.scope === 'export'
+    if (!externalGate) throw new Error('This decision must be completed through an explicit Nomi takeover')
     const isFreeze = gateId.startsWith('gate-freeze-')
+    const isContract = gate.scope === 'budget_envelope'
+    const isShot = gate.scope === 'job_set' && gateId.startsWith('gate-shot-')
+    const isExport = gate.scope === 'export'
 
     const approved = args.decision === 'approved'
     const choiceKey = typeof args.choiceKey === 'string' ? args.choiceKey : ''
@@ -268,24 +273,98 @@ export function createMcpProtocol(transport: McpTransport) {
     const summary = typeof gate.summary === 'string' ? gate.summary.trim() : ''
     const choiceText = typeof choice?.title === 'string' ? choice.title.trim() : choiceKey
     const isEnglish = locale() === 'en'
+    const policy = args.policy && typeof args.policy === 'object' ? args.policy as Record<string, unknown> : undefined
+    const policyText = policy
+      ? `${isEnglish ? 'Budget' : '预算'} ${String(policy.maxSpend ?? '?')} · ${isEnglish ? 'providers' : '供应商'} ${Array.isArray(policy.allowedProviders) ? policy.allowedProviders.join(', ') : '?'} · ${isEnglish ? 'models' : '模型'} ${Array.isArray(policy.allowedModels) ? policy.allowedModels.join(', ') : '?'}`
+      : ''
     const decisionText = approved
       ? (isEnglish ? 'Approve and continue' : '批准并继续')
       : (isEnglish ? 'Reject and stop here' : '否决并停在这里')
-    const details = [title, choiceText ? `${isEnglish ? 'Choice' : '选择'}: ${choiceText}` : '', summary]
+    const details = [title, choiceText ? `${isEnglish ? 'Choice' : '选择'}: ${choiceText}` : '', policyText, summary]
       .filter(Boolean)
       .join('\n')
     return elicitBooleanConfirm({
       message: `${decisionText}?\n${details}`,
       title: isFreeze
-        ? (isEnglish ? 'Confirm you have reviewed and frozen these cards' : '确认这些卡已过目并冻结')
-        : (isEnglish ? 'Confirm this creative decision' : '确认这次创意决定'),
+        ? (isEnglish ? 'Confirm the identity cards' : '确认角色和场景卡')
+        : isContract
+          ? (isEnglish ? 'Authorize this production budget' : '确认本次制作预算')
+          : isShot
+            ? (isEnglish ? 'Approve this shot' : '确认这个镜头')
+            : isExport
+              ? (isEnglish ? 'Approve the rough cut and export' : '确认粗剪并导出')
+              : (isEnglish ? 'Confirm this creative decision' : '确认这次创作决定'),
       description: isFreeze
         ? (isEnglish
-            ? 'Freezing locks these character/scene cards as the identity baseline for every shot. Review them in Nomi first. Spending and export approvals still happen in Nomi.'
-            : '冻结会把这些角色/场景卡锁成每个镜头的身份基准，请先在 Nomi 里过目。支出与导出仍必须在 Nomi 中确认。')
-        : (isEnglish
-            ? 'Only this reversible creative gate will be decided. Spending and export approvals remain in Nomi.'
-            : '只会决定这道可逆创意门；支出与导出仍必须在 Nomi 中确认。'),
+            ? 'This locks the character and scene identity baseline for every shot.'
+            : '这会把角色和场景卡冻结为所有镜头的身份基准。')
+        : isContract
+          ? (isEnglish
+              ? 'This authorizes the listed providers, models, shot count, and maximum budget.'
+              : '这会批准当前列出的供应商、模型、镜头数量和最高预算。')
+          : isShot
+            ? (isEnglish
+                ? 'Only this shot will be submitted; no other job is authorized by this decision.'
+                : '这次只会提交这个镜头，不会因为这次确认额外授权其他任务。')
+            : isExport
+              ? (isEnglish
+                  ? 'This approves the reviewed rough cut and creates the final MP4 export.'
+                  : '这会批准当前粗剪并生成最终 MP4。')
+              : (isEnglish
+                  ? 'Only this waiting production decision will be applied.'
+                  : '只会应用当前等待中的这道制作决定。'),
+    })
+  }
+
+  async function elicitArtifactDecision(
+    args: Record<string, unknown>,
+  ): Promise<{ supported: boolean; confirmed?: boolean }> {
+    if (!clientSupportsElicitation) return { supported: false }
+    const decision = args.decision
+    if (decision !== 'approved' && decision !== 'changes_requested' && decision !== 'rejected') {
+      throw new Error('Invalid artifact review decision')
+    }
+    const kind = typeof args.kind === 'string' ? args.kind : 'artifact'
+    const artifactId = typeof args.artifactId === 'string' ? args.artifactId : ''
+    const version = Number(args.expectedVersion)
+    const projectId = typeof args.projectId === 'string' ? args.projectId : ''
+    const runId = typeof args.runId === 'string' ? args.runId : ''
+    const isEnglish = locale() === 'en'
+    const action = decision === 'approved'
+      ? (isEnglish ? 'approve' : '批准')
+      : decision === 'changes_requested'
+        ? (isEnglish ? 'request changes to' : '请求修改')
+        : (isEnglish ? 'reject' : '否决')
+    return elicitBooleanConfirm({
+      message: `${isEnglish ? 'Review' : '审阅'} ${kind} ${artifactId} v${Number.isInteger(version) ? version : '?'}. ${action}?`,
+      title: isEnglish ? 'Confirm artifact review' : '确认产物审阅决定',
+      description: isEnglish
+        ? 'This records your decision for the exact artifact version in the Nomi project. A newer version will require a new review.'
+        : '这会把你的决定记录到 Nomi 项目的指定产物版本；如果版本变了，必须重新审阅。',
+    })
+  }
+
+  async function elicitRoughCutApproval(): Promise<{ supported: boolean; confirmed?: boolean }> {
+    return elicitBooleanConfirm({
+      message: locale() === 'en'
+        ? 'The rough cut is ready. Approve it and start the final MP4 export?'
+        : '粗剪已经准备好。确认粗剪并开始最终 MP4 导出吗？',
+      title: locale() === 'en' ? 'Approve rough cut and export' : '确认粗剪并导出',
+      description: locale() === 'en'
+        ? 'This records one final human decision for the reviewed rough cut and the local MP4 export.'
+        : '这一次确认会同时记录粗剪审阅和本地 MP4 导出，不会再重复弹第二个导出确认。',
+    })
+  }
+
+  async function elicitReconciliationDecision(args: Record<string, unknown>): Promise<{ supported: boolean; confirmed?: boolean }> {
+    return elicitBooleanConfirm({
+      message: locale() === 'en'
+        ? `Reconcile provider job ${String(args.jobId || '')} as ${String(args.outcome || '')}?`
+        : `要把供应商任务 ${String(args.jobId || '')} 对账为「${String(args.outcome || '')}」吗？`,
+      title: locale() === 'en' ? 'Confirm provider-task reconciliation' : '确认供应商任务对账',
+      description: locale() === 'en'
+        ? 'Found continues tracking the same providerTaskId; not found marks the job for attention. Nomi will never resubmit automatically.'
+        : '“已找到”会继续跟踪同一个 providerTaskId；“未找到”只会标红并停住。Nomi 不会自动重新提交。',
     })
   }
 
@@ -370,14 +449,14 @@ export function createMcpProtocol(transport: McpTransport) {
           built.actorId = clientHost
         }
         if (tool.name === 'nomi_decide_gate') {
-          const confirm = await elicitCreativeGateDecision(args)
+          const confirm = await elicitGateDecision(args)
           if (!confirm.supported) {
             reply(id, {
               content: [{
                 type: 'text',
                 text: locale() === 'en'
-                  ? 'Not applied: this client cannot show Nomi\'s required human confirmation. Decide the creative gate in Nomi instead.'
-                  : '未生效：当前客户端无法显示 Nomi 强制的人为确认，请改在 Nomi 中决定这道创意门。',
+                  ? 'Not applied: this client cannot show the required human confirmation. Use the explicit Nomi takeover path instead.'
+                  : '未生效：当前客户端无法显示必须的人为确认，请使用 Nomi 的明确接管入口。',
               }],
               isError: true,
             })
@@ -388,9 +467,81 @@ export function createMcpProtocol(transport: McpTransport) {
               content: [{
                 type: 'text',
                 text: locale() === 'en'
-                  ? 'Not applied: you did not confirm this creative decision.'
-                  : '未生效：你没有确认这次创意决定。',
+                  ? 'Not applied: you did not confirm this production decision.'
+                  : '未生效：你没有确认这次制作决定。',
               }],
+              isError: true,
+            })
+            return
+          }
+          const result = await transport.invoke(tool.method, built)
+          reply(id, buildToolResultPayload(tool.name, args, result))
+          return
+        }
+        if (tool.name === 'nomi_review_artifact') {
+          const confirm = await elicitArtifactDecision({ ...args, kind: typeof built.kind === 'string' ? built.kind : undefined })
+          if (!confirm.supported) {
+            reply(id, {
+              content: [{ type: 'text', text: locale() === 'en'
+                ? 'Not applied: this client cannot show the required artifact review confirmation. Use the explicit Nomi takeover path instead.'
+                : '未生效：当前客户端无法显示产物审阅确认，请使用 Nomi 的明确接管入口。' }],
+              isError: true,
+            })
+            return
+          }
+          if (!confirm.confirmed) {
+            reply(id, {
+              content: [{ type: 'text', text: locale() === 'en'
+                ? 'Not applied: the artifact review was not confirmed.'
+                : '未生效：这次产物审阅没有得到确认。' }],
+              isError: true,
+            })
+            return
+          }
+          const result = await transport.invoke(tool.method, built)
+          reply(id, buildToolResultPayload(tool.name, args, result))
+          return
+        }
+        if (tool.name === 'nomi_approve_rough_cut') {
+          const confirm = await elicitRoughCutApproval()
+          if (!confirm.supported) {
+            reply(id, {
+              content: [{ type: 'text', text: locale() === 'en'
+                ? 'Not applied: this client cannot show the required rough-cut confirmation. Use the explicit Nomi takeover path instead.'
+                : '未生效：当前客户端无法显示粗剪确认，请使用 Nomi 的明确接管入口。' }],
+              isError: true,
+            })
+            return
+          }
+          if (!confirm.confirmed) {
+            reply(id, {
+              content: [{ type: 'text', text: locale() === 'en'
+                ? 'Not applied: the rough cut was not approved.'
+                : '未生效：粗剪没有获准进入导出。' }],
+              isError: true,
+            })
+            return
+          }
+          const result = await transport.invoke(tool.method, built)
+          reply(id, buildToolResultPayload(tool.name, args, result))
+          return
+        }
+        if (tool.name === 'nomi_reconcile_job') {
+          const confirm = await elicitReconciliationDecision(args)
+          if (!confirm.supported) {
+            reply(id, {
+              content: [{ type: 'text', text: locale() === 'en'
+                ? 'Not applied: this client cannot show the required reconciliation confirmation. Use the explicit Nomi takeover path instead.'
+                : '未生效：当前客户端无法显示供应商对账确认，请使用 Nomi 的明确接管入口。' }],
+              isError: true,
+            })
+            return
+          }
+          if (!confirm.confirmed) {
+            reply(id, {
+              content: [{ type: 'text', text: locale() === 'en'
+                ? 'Not applied: the provider-task reconciliation was not confirmed.'
+                : '未生效：供应商任务对账没有得到确认。' }],
               isError: true,
             })
             return

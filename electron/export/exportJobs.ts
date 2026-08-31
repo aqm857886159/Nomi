@@ -181,6 +181,9 @@ async function tryBuildFiltergraphExport(
       range: { startFrame: 0, endFrame: durationFrames },
       tracks: rawTimeline.tracks as NomiRenderManifestV1["timeline"]["tracks"],
     },
+    ...(Array.isArray((rawManifest as Record<string, unknown>).transitions)
+      ? { transitions: (rawManifest as Record<string, unknown>).transitions as NomiRenderManifestV1["transitions"] }
+      : {}),
     profile,
     assets: resolvedAssets,
   };

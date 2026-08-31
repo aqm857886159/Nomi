@@ -1,0 +1,41 @@
+{
+  "projectId": "project-1787255846399-rc9057",
+  "refs": [
+    {
+      "shot": 1,
+      "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256094523.mp4",
+      "absolutePath": "/Users/aoqimin/Documents/Nomi Projects/未命名项目 08_21 03_57-mt1xzh1c-31b70fdc/assets/generated/2026-08-20/video-1787256094523.mp4",
+      "assetId": "asset-e65a0c766e3f32232c22"
+    },
+    {
+      "shot": 2,
+      "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256307538.mp4",
+      "absolutePath": "/Users/aoqimin/Documents/Nomi Projects/未命名项目 08_21 03_57-mt1xzh1c-31b70fdc/assets/generated/2026-08-20/video-1787256307538.mp4",
+      "assetId": "asset-c8722c9cc70162ff6410"
+    },
+    {
+      "shot": 3,
+      "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256571147.mp4",
+      "absolutePath": "/Users/aoqimin/Documents/Nomi Projects/未命名项目 08_21 03_57-mt1xzh1c-31b70fdc/assets/generated/2026-08-20/video-1787256571147.mp4",
+      "assetId": "asset-ed666f9d44e10b215c09"
+    },
+    {
+      "shot": 4,
+      "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256311018.mp4",
+      "absolutePath": "/Users/aoqimin/Documents/Nomi Projects/未命名项目 08_21 03_57-mt1xzh1c-31b70fdc/assets/generated/2026-08-20/video-1787256311018.mp4",
+      "assetId": "asset-ef575c90d516c0f9a4a4"
+    },
+    {
+      "shot": 5,
+      "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256351759.mp4",
+      "absolutePath": "/Users/aoqimin/Documents/Nomi Projects/未命名项目 08_21 03_57-mt1xzh1c-31b70fdc/assets/generated/2026-08-20/video-1787256351759.mp4",
+      "assetId": "asset-4bf467529f5b1332af5d"
+    },
+    {
+      "shot": 6,
+      "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256354759.mp4",
+      "absolutePath": "/Users/aoqimin/Documents/Nomi Projects/未命名项目 08_21 03_57-mt1xzh1c-31b70fdc/assets/generated/2026-08-20/video-1787256354759.mp4",
+      "assetId": "asset-837c14fd6c3793fa58b6"
+    }
+  ]
+}

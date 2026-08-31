@@ -194,7 +194,9 @@ export function buildProductionRunView(
   if (run.status === 'awaiting_export') {
     return {
       ...base,
-      decisionHome: 'nomi',
+      // External Agent runs keep the final export decision in the same Agent conversation;
+      // Nomi remains a visible read-only preview and takeover fallback.
+      decisionHome: base.decisionHome,
       tone: 'attention',
       titleKey: 'production.status.exportReady',
       descriptionKey: 'production.description.exportReady',
@@ -233,7 +235,9 @@ export function buildProductionRunView(
     const gateJobIndex = gateJob ? run.jobs.findIndex((candidate) => candidate.jobId === gateJob.jobId) + 1 : 0
     return {
       ...base,
-      decisionHome: gateKind === 'direction' || gateKind === 'sample' ? base.decisionHome : 'nomi',
+      // 外部 Agent 是正常审批入口：合同、样片、冻结、逐镜和导出都回到发起端。
+      // Nomi 仍提供卡片上的次级「接管」动作；只有 origin=nomi 时才把本地按钮作为主入口。
+      decisionHome: base.decisionHome,
       tone: 'attention',
       titleKey: `production.status.${copyKey}`,
       descriptionKey: `production.description.${copyKey}`,

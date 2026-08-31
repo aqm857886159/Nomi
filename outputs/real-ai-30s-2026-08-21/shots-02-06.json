@@ -1,0 +1,272 @@
+{
+  "projectId": "project-1787255846399-rc9057",
+  "imageUrl": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/image-1787255863588.jpg",
+  "modelKey": "doubao-seedance-2.0",
+  "results": {
+    "02": {
+      "id": "task_01M0GC942QEZWMY5DGRJVJFK24",
+      "status": "succeeded",
+      "videoUrl": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256307538.mp4",
+      "error": null,
+      "result": {
+        "id": "task_01M0GC942QEZWMY5DGRJVJFK24",
+        "kind": "image_to_video",
+        "status": "succeeded",
+        "assets": [
+          {
+            "type": "video",
+            "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256307538.mp4",
+            "thumbnailUrl": null,
+            "assetId": "asset-c9be6a2b-6d01-4353-a273-b4ed6c9d0de0",
+            "assetName": "video-1787256307538.mp4",
+            "durationSeconds": 5.062,
+            "providerUrl": "https://getapib.org/video/9998212743706622-f5074eba-a885-4a01-a3b7-e674cd9781bc-video_task_01M0GC942QEZWMY5DGRJVJFK24.mp4"
+          }
+        ],
+        "raw": {
+          "code": 200,
+          "data": {
+            "actual_time": 148,
+            "completed": 1787256296,
+            "cost": 0.71,
+            "created": 1787256148,
+            "credits_cost": 7.1,
+            "estimated_time": 300,
+            "id": "task_01M0GC942QEZWMY5DGRJVJFK24",
+            "progress": 100,
+            "result": {
+              "videos": [
+                {
+                  "expires_at": 1787342696,
+                  "url": [
+                    "https://getapib.org/video/9998212743706622-f5074eba-a885-4a01-a3b7-e674cd9781bc-video_task_01M0GC942QEZWMY5DGRJVJFK24.mp4"
+                  ]
+                }
+              ]
+            },
+            "status": "completed"
+          }
+        },
+        "provenance": {
+          "provider": "apimart",
+          "modelKey": "doubao-seedance-2.0",
+          "prompt": "近景跟拍。保持参考图中的同一位短黑发、银色耳钉、明黄色雨衣女性。她在雨夜街角停下，抬起手中的暖光灯照向一扇半开的门，镜头从她的肩后缓慢推近，雨滴、霓虹反射和人物服装保持稳定，电影广告质感。",
+          "params": {
+            "extras": {
+              "modelKey": "doubao-seedance-2.0"
+            }
+          },
+          "vendorRequestId": "task_01M0GC942QEZWMY5DGRJVJFK24",
+          "timestamp": 1787256310228
+        }
+      }
+    },
+    "03": {
+      "id": "task_01M0GC94376CRVPHJ4WFS0EEZ6",
+      "status": "failed",
+      "videoUrl": null,
+      "error": "Blocked by a specific content policy (e.g. public figures, minors, audio copyright).",
+      "result": {
+        "id": "task_01M0GC94376CRVPHJ4WFS0EEZ6",
+        "kind": "image_to_video",
+        "status": "failed",
+        "assets": [],
+        "raw": {
+          "code": 200,
+          "data": {
+            "actual_time": 94,
+            "completed": 1787256242,
+            "cost": 0,
+            "created": 1787256148,
+            "credits_cost": 0,
+            "error": {
+              "code": "task_failed",
+              "message": "Blocked by a specific content policy (e.g. public figures, minors, audio copyright).",
+              "param": "",
+              "type": "task_failed"
+            },
+            "estimated_time": 300,
+            "id": "task_01M0GC94376CRVPHJ4WFS0EEZ6",
+            "progress": 100,
+            "status": "failed"
+          }
+        },
+        "error": "Blocked by a specific content policy (e.g. public figures, minors, audio copyright)."
+      }
+    },
+    "04": {
+      "id": "task_01M0GC943CBJ6N4GQKP5WDFNDB",
+      "status": "succeeded",
+      "videoUrl": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256311018.mp4",
+      "error": null,
+      "result": {
+        "id": "task_01M0GC943CBJ6N4GQKP5WDFNDB",
+        "kind": "image_to_video",
+        "status": "succeeded",
+        "assets": [
+          {
+            "type": "video",
+            "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256311018.mp4",
+            "thumbnailUrl": null,
+            "assetId": "asset-843c47b6-52a1-459d-8361-38b1331adcef",
+            "assetName": "video-1787256311018.mp4",
+            "durationSeconds": 5.062,
+            "providerUrl": "https://getapib.org/video/9998212743717052-c7d5b604-2e7d-453e-90e1-4e7db7b259df-video_task_01M0GC943CBJ6N4GQKP5WDFNDB.mp4"
+          }
+        ],
+        "raw": {
+          "code": 200,
+          "data": {
+            "actual_time": 138,
+            "completed": 1787256286,
+            "cost": 0.71,
+            "created": 1787256148,
+            "credits_cost": 7.1,
+            "estimated_time": 300,
+            "id": "task_01M0GC943CBJ6N4GQKP5WDFNDB",
+            "progress": 100,
+            "result": {
+              "videos": [
+                {
+                  "expires_at": 1787342686,
+                  "url": [
+                    "https://getapib.org/video/9998212743717052-c7d5b604-2e7d-453e-90e1-4e7db7b259df-video_task_01M0GC943CBJ6N4GQKP5WDFNDB.mp4"
+                  ]
+                }
+              ]
+            },
+            "status": "completed"
+          }
+        },
+        "provenance": {
+          "provider": "apimart",
+          "modelKey": "doubao-seedance-2.0",
+          "prompt": "室内广角。保持参考图中的同一位短黑发、银色耳钉、明黄色雨衣女性。她把暖光灯放在桌上，桌面上浮现出几张有秩序的分镜画面，镜头轻轻环绕她，光影细腻，画面像高端科技品牌广告，不要生成可读文字。",
+          "params": {
+            "extras": {
+              "modelKey": "doubao-seedance-2.0"
+            }
+          },
+          "vendorRequestId": "task_01M0GC943CBJ6N4GQKP5WDFNDB",
+          "timestamp": 1787256312318
+        }
+      }
+    },
+    "05": {
+      "id": "task_01M0GC943710PRFYT51SD2K307",
+      "status": "succeeded",
+      "videoUrl": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256351759.mp4",
+      "error": null,
+      "result": {
+        "id": "task_01M0GC943710PRFYT51SD2K307",
+        "kind": "image_to_video",
+        "status": "succeeded",
+        "assets": [
+          {
+            "type": "video",
+            "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256351759.mp4",
+            "thumbnailUrl": null,
+            "assetId": "asset-083ee53e-1ef0-46c2-8177-138299a2b800",
+            "assetName": "video-1787256351759.mp4",
+            "durationSeconds": 5.062,
+            "providerUrl": "https://getapib.org/video/9998212743655580-a437dea3-ea1e-42c6-901e-4aa0703e4e73-video_task_01M0GC943710PRFYT51SD2K307.mp4"
+          }
+        ],
+        "raw": {
+          "code": 200,
+          "data": {
+            "actual_time": 199,
+            "completed": 1787256347,
+            "cost": 0.71,
+            "created": 1787256148,
+            "credits_cost": 7.1,
+            "estimated_time": 300,
+            "id": "task_01M0GC943710PRFYT51SD2K307",
+            "progress": 100,
+            "result": {
+              "videos": [
+                {
+                  "expires_at": 1787342747,
+                  "url": [
+                    "https://getapib.org/video/9998212743655580-a437dea3-ea1e-42c6-901e-4aa0703e4e73-video_task_01M0GC943710PRFYT51SD2K307.mp4"
+                  ]
+                }
+              ]
+            },
+            "status": "completed"
+          }
+        },
+        "provenance": {
+          "provider": "apimart",
+          "modelKey": "doubao-seedance-2.0",
+          "prompt": "俯拍转中景。保持参考图中的同一位短黑发、银色耳钉、明黄色雨衣女性。她伸手整理桌面上的分镜卡片，卡片像被风吹动一样有节奏地排列成一条时间线，镜头从上方缓慢下降，人物身份、发型、耳钉、黄色雨衣保持一致。",
+          "params": {
+            "extras": {
+              "modelKey": "doubao-seedance-2.0"
+            }
+          },
+          "vendorRequestId": "task_01M0GC943710PRFYT51SD2K307",
+          "timestamp": 1787256354354
+        }
+      }
+    },
+    "06": {
+      "id": "task_01M0GC9433T3XFW22QEWVZS8PF",
+      "status": "succeeded",
+      "videoUrl": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256354759.mp4",
+      "error": null,
+      "result": {
+        "id": "task_01M0GC9433T3XFW22QEWVZS8PF",
+        "kind": "image_to_video",
+        "status": "succeeded",
+        "assets": [
+          {
+            "type": "video",
+            "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256354759.mp4",
+            "thumbnailUrl": null,
+            "assetId": "asset-d823f304-a62e-44cf-b45a-36075b4f102f",
+            "assetName": "video-1787256354759.mp4",
+            "durationSeconds": 5.062,
+            "providerUrl": "https://getapib.org/video/9998212743706800-4a0515d8-b89e-42df-bc56-85d2d328560e-video_task_01M0GC9433T3XFW22QEWVZS8PF.mp4"
+          }
+        ],
+        "raw": {
+          "code": 200,
+          "data": {
+            "actual_time": 148,
+            "completed": 1787256296,
+            "cost": 0.71,
+            "created": 1787256148,
+            "credits_cost": 7.1,
+            "estimated_time": 300,
+            "id": "task_01M0GC9433T3XFW22QEWVZS8PF",
+            "progress": 100,
+            "result": {
+              "videos": [
+                {
+                  "expires_at": 1787342696,
+                  "url": [
+                    "https://getapib.org/video/9998212743706800-4a0515d8-b89e-42df-bc56-85d2d328560e-video_task_01M0GC9433T3XFW22QEWVZS8PF.mp4"
+                  ]
+                }
+              ]
+            },
+            "status": "completed"
+          }
+        },
+        "provenance": {
+          "provider": "apimart",
+          "modelKey": "doubao-seedance-2.0",
+          "prompt": "结尾英雄镜头。保持参考图中的同一位短黑发、银色耳钉、明黄色雨衣女性。她走到明亮的清晨窗边，回头对镜头露出克制的微笑，暖光灯在桌面形成一个发光方形，镜头缓慢拉远，雨夜变成清晨，电影感品牌片结尾，不要可读文字。",
+          "params": {
+            "extras": {
+              "modelKey": "doubao-seedance-2.0"
+            }
+          },
+          "vendorRequestId": "task_01M0GC9433T3XFW22QEWVZS8PF",
+          "timestamp": 1787256355960
+        }
+      }
+    }
+  }
+}

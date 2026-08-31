@@ -203,6 +203,20 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
           />
         </SettingRow>
         <LockedRule title={t('settings.automation.risk.irreversible')} hint={t('settings.automation.risk.irreversibleHint')} />
+        <SettingRow title={t('settings.automation.risk.concurrency')} hint={t('settings.automation.risk.concurrencyHint')}>
+          <NomiSegmented
+            value={String(settings.maxConcurrentJobs)}
+            ariaLabel={t('settings.automation.risk.concurrency')}
+            onChange={(value) => onChange({ maxConcurrentJobs: Number(value) })}
+            options={[
+              { value: '1', label: '1' },
+              { value: '2', label: '2' },
+              { value: '3', label: '3' },
+              { value: '4', label: '4' },
+              { value: '6', label: '6' },
+            ]}
+          />
+        </SettingRow>
       </section>
 
       <section className="mb-6 border-t border-nomi-line pt-4" aria-labelledby="settings-mcp-title">

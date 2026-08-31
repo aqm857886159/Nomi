@@ -178,6 +178,16 @@ export function buildRenderManifestRequest(options: {
       range: { startFrame: 0, endFrame: durationFrames },
       tracks,
     },
+    ...(options.timeline.transitions?.length
+      ? {
+          transitions: options.timeline.transitions.map((transition) => ({
+            fromClipId: transition.fromClipId,
+            toClipId: transition.toClipId,
+            type: transition.type,
+            ...(transition.durationFrames ? { durationFrames: transition.durationFrames } : {}),
+          })),
+        }
+      : {}),
     profile: {
       preset: options.preset,
       container: 'mp4',

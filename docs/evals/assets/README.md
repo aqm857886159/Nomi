@@ -5,7 +5,7 @@ Git because media binaries do not belong in the source commit. Rebuild the exact
 acceptance asset from the repository source with:
 
 ```bash
-node scripts/build-agentic-draft-film.mjs
+node scripts/benchmarks/build-agentic-draft-film.mjs
 ```
 
 The builder uses the checked-in launch film and subtitle source, trims both to 30

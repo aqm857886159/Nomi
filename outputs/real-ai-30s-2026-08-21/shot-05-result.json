@@ -1,0 +1,61 @@
+{
+  "projectId": "project-1787255846399-rc9057",
+  "imageUrl": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/image-1787255863588.jpg",
+  "modelKey": "doubao-seedance-2.0",
+  "id": "task_01M0GC943710PRFYT51SD2K307",
+  "status": "succeeded",
+  "videoUrl": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256351759.mp4",
+  "error": null,
+  "result": {
+    "id": "task_01M0GC943710PRFYT51SD2K307",
+    "kind": "image_to_video",
+    "status": "succeeded",
+    "assets": [
+      {
+        "type": "video",
+        "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256351759.mp4",
+        "thumbnailUrl": null,
+        "assetId": "asset-083ee53e-1ef0-46c2-8177-138299a2b800",
+        "assetName": "video-1787256351759.mp4",
+        "durationSeconds": 5.062,
+        "providerUrl": "https://getapib.org/video/9998212743655580-a437dea3-ea1e-42c6-901e-4aa0703e4e73-video_task_01M0GC943710PRFYT51SD2K307.mp4"
+      }
+    ],
+    "raw": {
+      "code": 200,
+      "data": {
+        "actual_time": 199,
+        "completed": 1787256347,
+        "cost": 0.71,
+        "created": 1787256148,
+        "credits_cost": 7.1,
+        "estimated_time": 300,
+        "id": "task_01M0GC943710PRFYT51SD2K307",
+        "progress": 100,
+        "result": {
+          "videos": [
+            {
+              "expires_at": 1787342747,
+              "url": [
+                "https://getapib.org/video/9998212743655580-a437dea3-ea1e-42c6-901e-4aa0703e4e73-video_task_01M0GC943710PRFYT51SD2K307.mp4"
+              ]
+            }
+          ]
+        },
+        "status": "completed"
+      }
+    },
+    "provenance": {
+      "provider": "apimart",
+      "modelKey": "doubao-seedance-2.0",
+      "prompt": "俯拍转中景。保持参考图中的同一位短黑发、银色耳钉、明黄色雨衣女性。她伸手整理桌面上的分镜卡片，卡片像被风吹动一样有节奏地排列成一条时间线，镜头从上方缓慢下降，人物身份、发型、耳钉、黄色雨衣保持一致。",
+      "params": {
+        "extras": {
+          "modelKey": "doubao-seedance-2.0"
+        }
+      },
+      "vendorRequestId": "task_01M0GC943710PRFYT51SD2K307",
+      "timestamp": 1787256354354
+    }
+  }
+}

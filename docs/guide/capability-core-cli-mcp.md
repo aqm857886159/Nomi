@@ -130,10 +130,10 @@ node scripts/nomi.mjs generate workspace-xxxx modelscope "Tongyi-MAI/Z-Image-Tur
 
 **② 完成两侧权限并重启对应客户端**：
 
-- Claude Code / Codex：卡片真实握手成功后，确认 `nomi` 的 22 个工具出现。
+- Claude Code / Codex：卡片真实握手成功后，确认 `nomi` 的 27 个工具出现。
 - Cursor：先在 Nomi「设置 → 自动化与权限」允许 Cursor 发起草稿；首次在 Cursor 调用 Nomi 时，Cursor 自己仍可能要求你批准本地 MCP。Nomi 不会代替你静默批准 Cursor。
 
-22 个工具包括 `nomi_list_models`、`nomi_create_project`、`nomi_intake_brief`、`nomi_import_asset`、`nomi_generate`、`nomi_start_playbook`、`nomi_materialize_storyboard`、`nomi_control_run` 和 `nomi_decide_gate`。
+27 个工具包括 `nomi_list_models`、`nomi_create_project`、`nomi_start_playbook`、`nomi_propose_directions`、`nomi_propose_script`、`nomi_propose_storyboard`、`nomi_review_artifact`、`nomi_materialize_storyboard`、`nomi_control_run`、`nomi_reconcile_job`、`nomi_decide_gate` 和 `nomi_approve_rough_cut`。
 
 **③ 直接说人话**，它自己挑工具完成：
 
@@ -200,6 +200,9 @@ Claude Code 会依次调 `nomi_create_project` → `nomi_list_models` → `nomi_
 | `nomi_import_asset` | 把本机文件（手绘帧/截图/参考图）导入项目当素材，返回可直接引用的 `nomi-local://` 地址 |
 | `nomi_generate` | 真生成（含参考图 references、指定 nodeId、可选 seed 复现） |
 | `nomi_start_playbook` | 创建不花钱、可恢复的制作草稿；当前完整流程为 `brand.promo` |
+| `nomi_propose_directions` | 外部 Agent 用自己的模型提交 2–3 个方向候选；Nomi 只校验、持久化并等待真人选择，不重复调用内部文本模型 |
+| `nomi_propose_script` | 外部 Agent 用自己的模型提交剧本候选；Nomi 只版本化、持久化并等待真人审阅 |
+| `nomi_propose_storyboard` | 外部 Agent 用自己的模型提交结构化分镜；Nomi 校验生产字段并等待真人审阅 |
 | `nomi_get_run` / `nomi_subscribe_run` | 读取制作状态 / 按游标等待持久事件 |
 | `nomi_get_artifact` | 取得指定 Run 产物的安全投影、精确 Nomi 深链和限时预览 |
 | `nomi_materialize_storyboard` | 将已批准且来源新鲜的分镜一次性落到 Nomi 画布并登记制作合同（不批准预算、不调用付费模型） |

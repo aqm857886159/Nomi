@@ -127,7 +127,11 @@ export function ProductionRunTaskCard({
 
   // 门在发起端（外部 CLI 驱动）→ 这里只指路，兜底键降为次级文字键；
   // 门在本地（origin=nomi，没有 CLI 可用）→ 主按钮直接开门。
-  const routedGate = Boolean(view.gateKind && view.decisionHome === 'origin')
+  const routedApproval = view.primaryAction === 'review-script'
+    || view.primaryAction === 'review-storyboard'
+    || view.primaryAction === 'review-rough-cut'
+    || view.primaryAction === 'open-gate'
+  const routedGate = Boolean(routedApproval && view.decisionHome === 'origin')
   // 取消是这张卡上唯一能点的东西（无主动作、无暂停）——推不动的坏 Run 就长这样。
   const onlyExit = !action && view.controls.length === 1 && view.controls[0] === 'cancel'
   const hostLabel = t(`generationCommon.production.origin.${view.originHost}`)

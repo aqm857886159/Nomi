@@ -66,6 +66,20 @@ function formatNumber(value: number): string {
   return Number(value.toFixed(6)).toString();
 }
 
+/**
+ * FFmpeg's overlay `n` counts frames on the overlay input, so it resets to 0
+ * for every clip and cannot represent a timeline window after the first clip.
+ * Use the main timeline timestamp instead. A tiny half-frame tolerance avoids
+ * losing the first frame when decimal PTS values (e.g. 15.3s) round just above
+ * the authored boundary while keeping the end boundary exclusive.
+ */
+function timelineEnable(startFrame: number, endFrame: number, fps: number): string {
+  const epsilon = 0.0001;
+  const start = Math.max(0, secondsFromFrames(startFrame, fps) - epsilon);
+  const end = Math.max(start, secondsFromFrames(endFrame, fps) - epsilon);
+  return `gte(t,${formatSeconds(start)})*lt(t,${formatSeconds(end)})`;
+}
+
 // ── 取景（fit / 缩放 / 平移）──────────────────────────────────────────────
 // 与预览 CSS / WebM canvas computeFramedRect 同一套公式，用 ffmpeg 运行期表达式实现
 // （iw/ih=源尺寸，main_w/overlay_w=帧/已缩放媒体）。offsetX/Y 为帧尺寸的归一化分数。
@@ -119,6 +133,21 @@ function framingOverlayPosition(framing: ClipFraming): { x: string; y: string } 
   };
 }
 
+function framingCanvasFilter(
+  framing: ClipFraming,
+  width: number,
+  height: number,
+  fittedLabel: string,
+  outputLabel: string,
+): string {
+  const offsetX = formatNumber(framing.offsetX)
+  const offsetY = formatNumber(framing.offsetY)
+  if (framing.fit === "cover") {
+    return `[${fittedLabel}]crop=w=${width}:h=${height}:x='(iw-ow)/2-(${offsetX})*ow':y='(ih-oh)/2-(${offsetY})*oh'[${outputLabel}]`
+  }
+  return `[${fittedLabel}]pad=w=${width}:h=${height}:x='(ow-iw)/2+(${offsetX})*ow':y='(oh-ih)/2+(${offsetY})*oh':color=white[${outputLabel}]`
+}
+
 function labelForClip(clipId: string, suffix: string): string {
   const safeId = clipId.replace(/[^a-zA-Z0-9_]/g, "_");
   return `clip_${safeId}_${suffix}`;
@@ -134,6 +163,10 @@ function isAudioTrack(track: NomiRenderTrack): boolean {
 
 function isVisualTrack(track: NomiRenderTrack): boolean {
   return track.kind === "visual" || track.kind === "video" || track.type === "visual" || track.type === "video";
+}
+
+function transitionKey(fromClipId: string, toClipId: string): string {
+  return `${fromClipId}->${toClipId}`
 }
 
 function collectReferencedClips(manifest: NomiRenderManifestV1): ResolvedClip[] {
@@ -260,8 +293,7 @@ function buildVisualGraph(manifest: NomiRenderManifestV1, visualClips: ResolvedC
   const { profile } = manifest;
   const fps = manifest.timeline.fps;
   const durationSeconds = secondsFromFrames(manifest.timeline.durationFrames, fps);
-  // 白底 = 与预览舞台一致（--nomi-paper 纯白）；contain 留白边、cover 铺满，三引擎统一。
-  const filters = [`color=white:size=${profile.width}x${profile.height}:rate=${fps}:duration=${formatSeconds(durationSeconds)}[base]`];
+  const filters: string[] = [];
 
   const orderedVisualClips = [...visualClips].sort((left, right) => {
     return (
@@ -280,32 +312,57 @@ function buildVisualGraph(manifest: NomiRenderManifestV1, visualClips: ResolvedC
     group.push(resolvedClip);
     visualSourceGroups.set(resolvedClip.inputIndex, group);
   });
+
+  // 白底 = 与预览舞台一致（--nomi-paper 纯白）；contain 留白边、cover 铺满，三引擎统一。
+  filters.unshift(`color=white:size=${profile.width}x${profile.height}:rate=${fps}:duration=${formatSeconds(durationSeconds)}[base]`)
   visualSourceGroups.forEach((group, inputIndex) => {
     if (group.length <= 1) return;
     const labels = group.map((resolvedClip) => `[${sourceLabelForClip(resolvedClip, "video")}]`).join("");
     filters.push(`[${inputIndex}:v]split=${group.length}${labels}`);
   });
 
-  orderedVisualClips.forEach(({ clip, asset, inputIndex }) => {
+  const transitionByPair = new Map(
+    (manifest.transitions ?? []).map((transition) => [transitionKey(transition.fromClipId, transition.toClipId), transition]),
+  )
+
+  orderedVisualClips.forEach((resolvedClip, index) => {
+    const { clip, asset, inputIndex } = resolvedClip
     const segmentLabel = labelForClip(clip.id, "segment");
     const fittedLabel = labelForClip(clip.id, "fitted");
     const sourceCount = visualSourceGroups.get(inputIndex)?.length ?? 1;
     const sourceLabel = sourceCount > 1
       ? `[${sourceLabelForClip({ clip }, "video")}]`
       : `[${inputIndex}:v]`;
-    const start = secondsFromFrames(clip.startFrame, fps);
-    const duration = secondsFromFrames(clip.endFrame - clip.startFrame, fps);
+    const previousClip = orderedVisualClips[index - 1]?.clip
+    const transition = previousClip
+      ? transitionByPair.get(transitionKey(previousClip.id, clip.id))
+      : undefined
+    const transitionFrames = transition && transition.type !== "cut"
+      ? Math.max(1, Math.min(transition.durationFrames ?? 12, clip.endFrame - clip.startFrame - 1))
+      : 0
+    const authoredDurationFrames = Math.max(1, clip.endFrame - clip.startFrame)
+    const sourceDurationFrames = authoredDurationFrames + transitionFrames
+    const startFrame = Math.max(0, clip.startFrame - transitionFrames)
+    const start = secondsFromFrames(startFrame, fps);
+    const duration = secondsFromFrames(sourceDurationFrames, fps);
     const timelineSetpts = `PTS-STARTPTS+${formatSeconds(start)}/TB`;
 
     if (asset.kind === "image") {
       filters.push(
-        `${sourceLabel}trim=duration=${formatSeconds(duration)},setpts=${timelineSetpts}[${segmentLabel}]`,
+        `${sourceLabel}fps=${fps},trim=end_frame=${sourceDurationFrames},setpts=${timelineSetpts}[${segmentLabel}]`,
       );
     } else if (asset.kind === "video") {
       const sourceStart = secondsFromFrames(clip.sourceStartFrame ?? 0, fps);
       const sourceEnd = secondsFromFrames(clip.sourceEndFrame ?? (clip.sourceStartFrame ?? 0) + (clip.endFrame - clip.startFrame), fps);
+      // Provider containers may carry an audio tail (or round their visual
+      // stream down to a different frame rate), so the requested clip window
+      // can be a few frames longer than the decoded video. `eof_action=pass`
+      // would reveal the white base during that underrun. Clone the last
+      // decoded frame, then trim back to the authored window; this preserves
+      // the timeline contract without inventing a new transition or dropping
+      // a frame at every shot boundary.
       filters.push(
-        `${sourceLabel}trim=start=${formatSeconds(sourceStart)}:end=${formatSeconds(sourceEnd)},setpts=${timelineSetpts}[${segmentLabel}]`,
+        `${sourceLabel}trim=start=${formatSeconds(sourceStart)}:end=${formatSeconds(sourceEnd)},setpts=PTS-STARTPTS,fps=${fps},tpad=stop_mode=clone:stop_duration=${formatSeconds(duration)},trim=end_frame=${sourceDurationFrames},setpts=${timelineSetpts}[${segmentLabel}]`,
       );
     } else {
       throw new FfmpegFiltergraphError("unsupported_clip", `Asset ${asset.id} is not visual`);
@@ -314,17 +371,31 @@ function buildVisualGraph(manifest: NomiRenderManifestV1, visualClips: ResolvedC
     // 取景：按 contain/cover×scale 缩放（不补边），位置由下方 overlay 居中+偏移决定。
     const framing = resolveClipFraming(clip.transform);
     filters.push(framingFilters(framing, profile.width, profile.height, segmentLabel, fittedLabel));
+    if (transitionFrames > 0) {
+      const transitionStart = secondsFromFrames(startFrame, fps);
+      const fadedLabel = labelForClip(clip.id, "faded");
+      filters.push(
+        `[${fittedLabel}]format=rgba,fade=t=in:st=${formatSeconds(transitionStart)}:d=${formatSeconds(secondsFromFrames(transitionFrames, fps))}:alpha=1[${fadedLabel}]`,
+      );
+    }
   });
 
   let baseLabel = "base";
   orderedVisualClips.forEach(({ clip }, index) => {
-    const fittedLabel = labelForClip(clip.id, "fitted");
+    const previousClip = orderedVisualClips[index - 1]?.clip
+    const transition = previousClip
+      ? transitionByPair.get(transitionKey(previousClip.id, clip.id))
+      : undefined
+    const transitionFrames = transition && transition.type !== "cut"
+      ? Math.max(1, Math.min(transition.durationFrames ?? 12, clip.endFrame - clip.startFrame - 1))
+      : 0
+    const fittedLabel = transitionFrames > 0
+      ? labelForClip(clip.id, "faded")
+      : labelForClip(clip.id, "fitted");
     const outputLabel = index === orderedVisualClips.length - 1 ? "vcomposite" : `vstack${index}`;
-    const start = secondsFromFrames(clip.startFrame, fps);
-    const end = secondsFromFrames(clip.endFrame, fps);
     const { x, y } = framingOverlayPosition(resolveClipFraming(clip.transform));
     filters.push(
-      `[${baseLabel}][${fittedLabel}]overlay=x='${x}':y='${y}':shortest=0:eof_action=pass:enable='gte(t,${formatSeconds(start)})*lt(t,${formatSeconds(end)})'[${outputLabel}]`,
+      `[${baseLabel}][${fittedLabel}]overlay=x='${x}':y='${y}':shortest=0:eof_action=pass:enable='${timelineEnable(Math.max(0, clip.startFrame - transitionFrames), clip.endFrame, fps)}'[${outputLabel}]`,
     );
     baseLabel = outputLabel;
   });
@@ -361,7 +432,7 @@ function buildTextOverlayGraph(
     const out = isLast ? "voutfinal" : `vtxt${index}`;
     const formatSuffix = isLast ? `,format=${pixelFormat}` : "";
     filters.push(
-      `[${label}][${inputIndex}:v]overlay=0:0:eof_action=pass:enable='between(t,${formatSeconds(start)},${formatSeconds(end)})'${formatSuffix}[${out}]`,
+      `[${label}][${inputIndex}:v]overlay=0:0:eof_action=pass:enable='${timelineEnable(overlay.startFrame, overlay.endFrame, fps)}'${formatSuffix}[${out}]`,
     );
     label = out;
   });

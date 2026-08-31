@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 /**
+ * BENCHMARK_ONLY: this file is frozen media-contract evidence, not a Nomi
+ * ProductionRun/MCP entrypoint. It intentionally writes a deterministic
+ * fixture and must never be used to claim an end-to-end product run.
+ *
  * Build the local, visual acceptance sample for the agentic production path.
  *
  * This intentionally uses the repository's existing high-quality launch film as

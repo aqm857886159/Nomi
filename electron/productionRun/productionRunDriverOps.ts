@@ -11,8 +11,9 @@ import crypto from 'node:crypto'
 import { settlePauseIfQuiet } from './productionRunControl'
 import { adoptedGenerationShotNodeIds, buildQaRetryPlans, buildQaStageOutcome, type QaVerifyResponse } from './productionQaVerdict'
 import type { ProductionRunRepository } from './productionRunRepository'
-import { trustLevelOf, type ProductionRun } from './productionRunTypes'
+import { normalizeMaxConcurrentJobs, trustLevelOf, type ProductionRun } from './productionRunTypes'
 import { loadPlaybookStageEvidence } from '../skills/skillExecutionEvidence'
+import { buildProductionExportTimeline } from './productionRunExportTimeline'
 
 /** Job ids intentionally contain a namespace separator (`job:run:node`), but artifact ids are
  * public deep-link identifiers. Keep the mapping stable, collision-resistant, and URL-safe. */
@@ -20,6 +21,12 @@ export function artifactIdentifierForJob(jobId: string): string {
   const base = jobId.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 96) || 'job'
   const suffix = crypto.createHash('sha256').update(jobId).digest('hex').slice(0, 10)
   return `artifact-job-${base}-${suffix}`
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
 }
 
 export type DriverOpsDeps = {
@@ -36,6 +43,7 @@ export type DriverOpsDeps = {
   ) => { run: ProductionRun; events: unknown[] }
   requestRenderer: (op: string, payload: unknown, timeoutMs: number) => Promise<unknown>
   writeProjectJson: (projectId: string, relativePath: string, value: unknown) => void
+  readProjectJson: (projectId: string, relativePath: string) => unknown
   localAssetPath: (projectId: string, rawUrl: unknown) => string | undefined
   projectRelativePath: (projectId: string, rawPath: unknown, options?: { requireFile?: boolean }) => string
   stageValue: (run: ProductionRun, stageId: string, patch: Record<string, unknown>) => Record<string, unknown>
@@ -157,6 +165,15 @@ export function shouldSampleGate(run: ProductionRun): boolean {
   return trustLevelOf(run.policy) !== 'budget_only'
 }
 
+const RECONCILE_QUERY_RETRY_LIMIT = 3
+const RECONCILE_QUERY_RETRY_DELAY_MS = 2_000
+
+/** A failed provider query is not evidence that the accepted task disappeared. */
+function isTransientReconciliationError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  return /fetch failed|network|timeout|timed out|ECONNRESET|ECONNREFUSED|502|503|504|429/i.test(message)
+}
+
 export type DriverOps = {
   proposeDirections: (run: ProductionRun) => Promise<void>
   proposeScript: (run: ProductionRun) => Promise<void>
@@ -168,11 +185,61 @@ export type DriverOps = {
 
 export function createDriverOps(deps: DriverOpsDeps): DriverOps {
   const {
-    repository, sleep, requireRun, executeInternal, requestRenderer, writeProjectJson,
+    repository, sleep, requireRun, executeInternal, requestRenderer, writeProjectJson, readProjectJson,
     localAssetPath, projectRelativePath, stageValue, reconcileProviderTask, inFlight, reconciliationInFlight,
     directionsInFlight,
   } = deps
   const generationRerunRequested = new Set<string>()
+
+  type GenerationResult = {
+    assets?: Array<{ type?: string; url?: string; thumbnailUrl?: string }>
+    status?: string
+    providerTaskId?: string
+    taskKind?: string
+    modelKey?: string
+    errorCode?: string
+    errorMessage?: string
+  }
+
+  /**
+   * A storyboard can contain both reference-card jobs and shot jobs.  Reference
+   * cards must settle before a shot that consumes them, and an explicit
+   * previousShotId is a real dependency (not merely descriptive text).  Jobs
+   * without those dependencies are safe to put in the same provider wave.
+   *
+   * This is deliberately derived from the durable metadata instead of from
+   * array position.  A retry or a future planner may reorder jobs without
+   * accidentally allowing a dependent shot to race its source.
+   */
+  function generationDependenciesReady(job: ProductionRun['jobs'][number], current: ProductionRun): boolean {
+    const shotId = typeof job.metadata?.shotId === 'string' ? job.metadata.shotId.trim() : ''
+    if (!shotId) return true // reference/anchor job
+    const anchorJobs = current.jobs.filter((candidate) => {
+      const candidateShotId = typeof candidate.metadata?.shotId === 'string' ? candidate.metadata.shotId.trim() : ''
+      return !candidateShotId && candidate.stageId === 'generate'
+    })
+    if (anchorJobs.some((candidate) => candidate.status !== 'adopted' && !['cancelled_remote', 'detached'].includes(candidate.status))) return false
+    const previousShotId = typeof job.metadata?.previousShotId === 'string' ? job.metadata.previousShotId.trim() : ''
+    if (!previousShotId) return true
+    return current.jobs.some((candidate) => candidate.metadata?.shotId === previousShotId && candidate.status === 'adopted')
+  }
+
+  function generationPayload(projectId: string, runId: string, job: ProductionRun['jobs'][number], current: ProductionRun): Record<string, unknown> {
+    return {
+      projectId,
+      runId,
+      jobId: job.jobId,
+      nodeId: job.nodeId,
+      maxAttemptsPerJob: current.policy.maxAttemptsPerJob,
+      idempotencyKey: job.idempotencyKey,
+      ...(typeof job.retryCount === 'number' ? { retryCount: job.retryCount } : {}),
+      ...(job.parentJobId ? { parentJobId: job.parentJobId } : {}),
+      ...(typeof job.retryReason === 'string' && job.retryReason.trim() ? { retryReason: job.retryReason } : {}),
+      ...(typeof job.metadata?.retryDirective === 'string' && job.metadata.retryDirective.trim()
+        ? { retryDirective: job.metadata.retryDirective.trim() }
+        : {}),
+    }
+  }
 
   /**
    * W1.5 qa 阶段：对本次已 adopted 的生成镜头发 production.verify-shots 给渲染层（复用现成
@@ -258,7 +325,7 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
     // B1：run 停在 awaiting_direction、方向门 waiting 且还没候选 → 让 renderer 的 LLM 拟 2-3 个方向。
     // GUI 关着 / 拟失败 → 保持现状 gate（title/summary 兜底），错误吞掉不影响主流程（诚实降级）。
     if (directionsInFlight.has(run.runId)) return
-    if (run.status !== 'awaiting_direction') return
+    if (!['awaiting_direction', 'running'].includes(run.status) || (run.status === 'running' && run.stageId !== 'direction')) return
     const gate = run.gates.find((item) => item.gateId === 'gate-direction-v1' && item.status === 'waiting')
     if (!gate || (gate.directionCandidates?.length ?? 0) > 0) return
     directionsInFlight.add(run.runId)
@@ -278,7 +345,25 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
       })
       executeInternal(run.projectId, run.runId, current, 'gate.set_candidates', { gateId: 'gate-direction-v1', candidates }, `driver-${run.runId}-direction-candidates`)
     } catch (error) {
-      console.error('[nomi:production] direction planning failed:', error instanceof Error ? error.message : String(error))
+      const rawMessage = error instanceof Error ? error.message : String(error)
+      const modelUnavailable = /model_not_found|model not found|\b503\b|no local text model|模型.*不可用|模型.*未找到/i.test(rawMessage)
+      const message = modelUnavailable
+        ? '方向候选生成失败：当前文本模型不可用或已下线。请在模型设置选择一个可用的文本模型，然后继续重试。'
+        : '方向候选生成失败：文本规划器没有返回可用结果。请检查模型设置后继续重试。'
+      const current = requireRun(run.projectId, run.runId)
+      if (['awaiting_direction', 'running'].includes(current.status) && current.stageId === 'direction') {
+        try {
+          executeInternal(run.projectId, run.runId, current, 'run.attention', {
+            code: modelUnavailable ? 'direction_model_unavailable' : 'direction_planner_failed',
+            message,
+            operation: 'production.plan-directions',
+            retryable: true,
+          }, `driver-${run.runId}-direction-attention-${current.revision}`)
+        } catch (attentionError) {
+          console.error('[nomi:production] could not persist direction planning failure:', attentionError instanceof Error ? attentionError.message : String(attentionError))
+        }
+      }
+      console.error('[nomi:production] direction planning failed:', rawMessage)
     } finally {
       directionsInFlight.delete(run.runId)
     }
@@ -403,6 +488,109 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
     }
   }
 
+  async function applyGenerationResult(
+    projectId: string,
+    runId: string,
+    job: ProductionRun['jobs'][number],
+    result: GenerationResult,
+    incoming: ProductionRun,
+  ): Promise<{ current: ProductionRun; stop: boolean }> {
+    let current = incoming
+    // The renderer can finish with a durable provider receipt but no local
+    // asset when polling timed out. Preserve that receipt as a reconciliation
+    // seam; treating this envelope as "asset not localized" would discard the
+    // task id and force the user to report a transient network outage as missing.
+    const recoverable = result && result.status === 'recoverable' ? result : null
+    const recoverableTaskId = typeof recoverable?.providerTaskId === 'string' ? recoverable.providerTaskId.trim() : ''
+    if (recoverable && recoverableTaskId) {
+      current = requireRun(projectId, runId)
+      const recoverableJob = current.jobs.find((candidate) => candidate.jobId === job.jobId)
+      if (recoverableJob?.status === 'submitting') {
+        current = executeInternal(projectId, runId, current, 'job.status', {
+          jobId: job.jobId,
+          status: 'submission_unknown',
+          patch: {
+            providerTaskId: recoverableTaskId,
+            ...(typeof recoverable.taskKind === 'string' && recoverable.taskKind.trim() ? { taskKind: recoverable.taskKind.trim() } : {}),
+            ...(typeof recoverable.modelKey === 'string' && recoverable.modelKey.trim() ? { model: recoverable.modelKey.trim() } : {}),
+            errorCode: typeof recoverable.errorCode === 'string' && recoverable.errorCode.trim() ? recoverable.errorCode.trim() : 'provider_poll_recoverable',
+            errorMessage: typeof recoverable.errorMessage === 'string' && recoverable.errorMessage.trim() ? recoverable.errorMessage.trim() : '供应商任务已受理，但暂时无法查询结果；请稍后对账',
+          },
+        }, `driver-${job.jobId}-recoverable-${current.revision}`).run
+      }
+      if (current.status !== 'needs_attention') {
+        try { current = executeInternal(projectId, runId, current, 'run.status', { status: 'needs_attention' }, `driver-${runId}-recoverable-attention-${current.revision}`).run } catch { /* preserve durable job state */ }
+      }
+      return { current, stop: true }
+    }
+    try {
+      for (const status of ['provider_accepted', 'polling', 'downloading', 'validating_technical', 'validating_content'] as const) {
+        current = requireRun(projectId, runId)
+        current = executeInternal(projectId, runId, current, 'job.status', { jobId: job.jobId, status }, `driver-${job.jobId}-${status}`).run
+      }
+      const asset = result?.assets?.[0]
+      const relativePath = localAssetPath(projectId, asset?.url)
+      const thumbnailRelativePath = localAssetPath(projectId, asset?.thumbnailUrl)
+      current = requireRun(projectId, runId)
+      if (asset?.url && relativePath) {
+        current = executeInternal(projectId, runId, current, 'job.status', { jobId: job.jobId, status: 'ready' }, `driver-${job.jobId}-ready`).run
+        const kind = asset.type === 'video' ? 'video' : asset.type === 'audio' ? 'audio' : 'image'
+        const sampleArtifactId = artifactIdentifierForJob(job.jobId)
+        current = executeInternal(projectId, runId, current, 'artifact.add', {
+          artifact: {
+            artifactId: sampleArtifactId,
+            stageId: 'generate',
+            jobId: job.jobId,
+            kind,
+            status: 'adopted',
+            ...(job.parentJobId ? { parentArtifactId: artifactIdentifierForJob(job.parentJobId) } : {}),
+            ...(job.retryCount !== undefined ? { retryCount: job.retryCount } : {}),
+            ...(job.retryReason ? { retryReason: job.retryReason } : {}),
+            projectRelativePath: relativePath,
+            ...(thumbnailRelativePath ? { thumbnailRelativePath } : {}),
+            createdAt: new Date().toISOString(),
+            adoptedAt: new Date().toISOString(),
+          },
+        }, `driver-${job.jobId}-artifact`).run
+        current = executeInternal(projectId, runId, current, 'job.status', { jobId: job.jobId, status: 'adopted' }, `driver-${job.jobId}-adopted`).run
+        // B2 样片门：只在第一份生成结果落地后停一次。波次调度器在此门之前强制
+        // waveSize=1，因此不会出现「样片门已出现但同一波又偷偷烧了 N 镜」的竞态。
+        const adoptedGenerateCount = current.jobs.filter((candidate) => candidate.stageId === 'generate' && candidate.status === 'adopted').length
+        if (current.status === 'running' && adoptedGenerateCount === 1 && shouldSampleGate(current) && !current.gates.some((gate) => gate.gateId === sampleGateId(current.planVersion))) {
+          const sampleGate = {
+            gateId: sampleGateId(current.planVersion),
+            scope: 'stage' as const,
+            status: 'waiting' as const,
+            planHash: crypto.createHash('sha256').update(sampleArtifactId).digest('hex'),
+            jobIds: [],
+            title: 'Review the sample before the full batch',
+            summary: `Look at the first shot (${sampleArtifactId}) in Nomi before Nomi generates the remaining shots. Approve to continue, or pause to adjust.`,
+            createdAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          }
+          current = executeInternal(projectId, runId, current, 'gate.add', { gate: sampleGate }, `driver-${runId}-sample-gate`).run
+          return { current, stop: true }
+        }
+        return { current, stop: false }
+      }
+      current = executeInternal(projectId, runId, current, 'job.status', { jobId: job.jobId, status: 'needs_attention', patch: { errorCode: 'asset_not_localized', errorMessage: '生成已返回，但项目内没有可预览的本地素材' } }, `driver-${job.jobId}-asset-attention`).run
+      if (current.status !== 'needs_attention') {
+        current = executeInternal(projectId, runId, current, 'run.status', { status: 'needs_attention' }, `driver-${runId}-asset-attention-${current.revision}`).run
+      }
+      return { current, stop: true }
+    } catch (error) {
+      current = requireRun(projectId, runId)
+      if (current.jobs.find((candidate) => candidate.jobId === job.jobId)?.status === 'submitting') {
+        current = executeInternal(projectId, runId, current, 'job.status', { jobId: job.jobId, status: 'submission_unknown', patch: { errorCode: 'renderer_or_provider_unknown', errorMessage: '生成提交结果无法确认' } }, `driver-${job.jobId}-unknown-${current.revision}`).run
+      }
+      if (current.status !== 'needs_attention') {
+        try { current = executeInternal(projectId, runId, current, 'run.status', { status: 'needs_attention' }, `driver-${runId}-generation-attention-${current.revision}`).run } catch { /* preserve unknown job state */ }
+      }
+      console.error('[nomi:production] generation driver stopped:', error instanceof Error ? error.message : String(error))
+      return { current, stop: true }
+    }
+  }
+
   async function driveGeneration(run: ProductionRun): Promise<void> {
     if (inFlight.has(run.runId)) {
       // A gate decision or resume can arrive after the gate is durable but before the current
@@ -417,8 +605,8 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
         current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'running' }, `driver-${run.runId}-generation-start`).run
       }
       // W2 冻结门（样片门语义扩展的「更早一站」）：批量提交任何镜头**之前**，先确认本 run 的角色/场景卡都已冻结。
-      // 未冻结 → 停在冻结门（scope:'stage'、jobIds:[]，不授权花钱、只呈现「有 N 个锚待冻结」），等真人视觉确认后
-      // 批准（gate.decide 钩子重踢 driveGeneration 续跑）。放行后同批锚幂等不再问（hasApprovedFreezeGate）。
+      // Nomi-origin 仍停在冻结门交给本地视觉确认；外部 Agent-origin 则把同一校验作为自动化制作锁，
+      // 只留下 gate.decided 审计事件，不再让用户在 Agent 之外重复确认一次已经在创作稿中锁定的身份。
       // 只在「有待提交镜头 + run 仍 running」时查（暂停/取消/无 job 不触发）；桥挂了 fail-open（readUnfrozenAnchors 韧性）。
       if (current.status === 'running' && !hasApprovedFreezeGate(current)) {
         const pendingJobs = current.jobs.filter((job) => job.status === 'authorized' || job.status === 'submit_intent_persisted')
@@ -441,121 +629,81 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
               createdAt: new Date().toISOString(),
               expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
             }
-            executeInternal(run.projectId, run.runId, current, 'gate.add', { gate: freezeGate }, `driver-${gateId}`)
-            return // 停在冻结门；批准时 gate.decide 钩子重踢 driveGeneration。
+            current = executeInternal(run.projectId, run.runId, current, 'gate.add', { gate: freezeGate }, `driver-${gateId}`).run
+            if (current.origin.host === 'nomi') return // 本地创作仍保留视觉确认；批准时 gate.decide 钩子重踢 driver。
+            current = executeInternal(run.projectId, run.runId, current, 'gate.decide', {
+              gateId,
+              status: 'approved',
+            }, `driver-${gateId}-external-auto`).run
           }
         }
       }
-      const jobs = current.jobs.filter((job) => job.status === 'authorized' || job.status === 'submit_intent_persisted')
-      for (const job of jobs) {
+      // Independent jobs run in bounded waves. The first adopted result still
+      // remains a hard sample stop (wave size 1), and dependencies/confirm_all
+      // gates are resolved before any provider call in a wave. This preserves
+      // the old spending safety while allowing a user-selected 2–6 concurrency
+      // for independent work after the sample decision.
+      while (true) {
         current = requireRun(run.projectId, run.runId)
-        if (current.status !== 'running') break // 花钱边界：暂停/取消后不再提交（已提交的收不回，只能跑完收尾）
-        if (hasWaitingSampleGate(current)) break // B2 样片门：等过目期间不提交剩余镜头（喊停最多亏样片这一镜）
-        const shotGates = current.gates.filter((gate) => isShotGate(gate)
-          && gate.gateId.startsWith(`gate-shot-v${current.planVersion}-`)
-          && gate.jobIds.includes(job.jobId))
-        if (shotGates.some((gate) => gate.status === 'waiting')) return
-        const approvedShotGate = shotGates.some((gate) => gate.status === 'approved')
-        if (trustLevelOf(current.policy) === 'confirm_all' && !approvedShotGate) {
-          const gateId = shotGateId(current.planVersion, job.jobId, shotGates.length + 1)
-          const shotGate = {
-            gateId,
-            scope: 'job_set' as const,
-            status: 'waiting' as const,
-            planHash: crypto.createHash('sha256').update(`${current.planVersion}:${job.jobId}:${job.provider}:${job.model}`).digest('hex'),
-            jobIds: [job.jobId],
-            title: 'Approve shot before provider submission',
-            summary: `${job.nodeId || job.jobId} will be submitted to ${job.provider} using ${job.model}. No provider call occurs before approval.`,
-            createdAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          }
-          executeInternal(run.projectId, run.runId, current, 'gate.add', { gate: shotGate }, `driver-${gateId}`)
-          return
-        }
-        if (job.status === 'authorized') current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'submit_intent_persisted' }, `driver-${job.jobId}-intent`).run
-        current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'submitting' }, `driver-${job.jobId}-submit`).run
-        try {
-          const result = await requestRenderer('production.generate-node', {
-            projectId: run.projectId,
-            runId: run.runId,
-            jobId: job.jobId,
-            nodeId: job.nodeId,
-            maxAttemptsPerJob: current.policy.maxAttemptsPerJob,
-            idempotencyKey: job.idempotencyKey,
-            ...(typeof job.retryCount === 'number' ? { retryCount: job.retryCount } : {}),
-            ...(job.parentJobId ? { parentJobId: job.parentJobId } : {}),
-            ...(typeof job.retryReason === 'string' && job.retryReason.trim() ? { retryReason: job.retryReason } : {}),
-            ...(typeof job.metadata?.retryDirective === 'string' && job.metadata.retryDirective.trim()
-              ? { retryDirective: job.metadata.retryDirective.trim() }
-              : {}),
-          }, 30 * 60_000) as { assets?: Array<{ type?: string; url?: string; thumbnailUrl?: string }> }
-          for (const status of ['provider_accepted', 'polling', 'downloading', 'validating_technical', 'validating_content'] as const) {
-            current = requireRun(run.projectId, run.runId)
-            current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status }, `driver-${job.jobId}-${status}`).run
-          }
-          const asset = result?.assets?.[0]
-          const relativePath = localAssetPath(run.projectId, asset?.url)
-          const thumbnailRelativePath = localAssetPath(run.projectId, asset?.thumbnailUrl)
-          current = requireRun(run.projectId, run.runId)
-          if (asset?.url && relativePath) {
-            current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'ready' }, `driver-${job.jobId}-ready`).run
-            const kind = asset.type === 'video' ? 'video' : asset.type === 'audio' ? 'audio' : 'image'
-            const sampleArtifactId = artifactIdentifierForJob(job.jobId)
-            current = executeInternal(run.projectId, run.runId, current, 'artifact.add', {
-              artifact: {
-                artifactId: sampleArtifactId,
-                stageId: 'generate',
-                jobId: job.jobId,
-                kind,
-                status: 'adopted',
-                ...(job.parentJobId ? { parentArtifactId: artifactIdentifierForJob(job.parentJobId) } : {}),
-                ...(job.retryCount !== undefined ? { retryCount: job.retryCount } : {}),
-                ...(job.retryReason ? { retryReason: job.retryReason } : {}),
-                projectRelativePath: relativePath,
-                ...(thumbnailRelativePath ? { thumbnailRelativePath } : {}),
-                createdAt: new Date().toISOString(),
-                adoptedAt: new Date().toISOString(),
-              },
-            }, `driver-${job.jobId}-artifact`).run
-            current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'adopted' }, `driver-${job.jobId}-adopted`).run
-            // B2 样片门：首镜（第一个 adopted 的 generate 任务）落地后停一次，看过再批量。
-            // scope 'stage'、jobIds=[]（不授权花钱，只呈现）；run 保持 running + gate.waiting（面板/转述显示「等确认」）。
-            // 仅 run 仍 running 时设（用户已暂停/取消则不注入门——暂停语义优先，A3 花钱边界不被样片门搅乱）；
-            // 已存在样片门（本 planVersion）或档位跳过 → 不重复设，继续窗口化循环。
-            const adoptedGenerateCount = current.jobs.filter((candidate) => candidate.stageId === 'generate' && candidate.status === 'adopted').length
-            if (current.status === 'running' && adoptedGenerateCount === 1 && shouldSampleGate(current) && !current.gates.some((gate) => gate.gateId === sampleGateId(current.planVersion))) {
-              const sampleGate = {
-                gateId: sampleGateId(current.planVersion),
-                scope: 'stage' as const,
-                status: 'waiting' as const,
-                planHash: crypto.createHash('sha256').update(sampleArtifactId).digest('hex'),
-                jobIds: [],
-                title: 'Review the sample before the full batch',
-                summary: `Look at the first shot (${sampleArtifactId}) in Nomi before Nomi generates the remaining shots. Approve to continue, or pause to adjust.`,
-                createdAt: new Date().toISOString(),
-                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-              }
-              current = executeInternal(run.projectId, run.runId, current, 'gate.add', { gate: sampleGate }, `driver-${run.runId}-sample-gate`).run
-              return // 停在样片门；批准时 gate.decide 钩子重踢 driveGeneration 续跑剩余镜头。
+        if (current.status !== 'running' || hasWaitingSampleGate(current)) break
+        const pendingJobs = current.jobs.filter((job) => job.status === 'authorized' || job.status === 'submit_intent_persisted')
+        if (pendingJobs.length === 0) break
+        const eligibleJobs: typeof pendingJobs = []
+        for (const job of pendingJobs) {
+          if (!generationDependenciesReady(job, current)) continue
+          const shotGates = current.gates.filter((gate) => isShotGate(gate)
+            && gate.gateId.startsWith(`gate-shot-v${current.planVersion}-`)
+            && gate.jobIds.includes(job.jobId))
+          if (shotGates.some((gate) => gate.status === 'waiting')) return
+          const approvedShotGate = shotGates.some((gate) => gate.status === 'approved')
+          if (trustLevelOf(current.policy) === 'confirm_all' && !approvedShotGate) {
+            const gateId = shotGateId(current.planVersion, job.jobId, shotGates.length + 1)
+            const shotGate = {
+              gateId,
+              scope: 'job_set' as const,
+              status: 'waiting' as const,
+              planHash: crypto.createHash('sha256').update(`${current.planVersion}:${job.jobId}:${job.provider}:${job.model}`).digest('hex'),
+              jobIds: [job.jobId],
+              title: 'Approve shot before provider submission',
+              summary: `${job.nodeId || job.jobId} will be submitted to ${job.provider} using ${job.model}. No provider call occurs before approval.`,
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
             }
-          } else {
-            current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'needs_attention', patch: { errorCode: 'asset_not_localized', errorMessage: '生成已返回，但项目内没有可预览的本地素材' } }, `driver-${job.jobId}-asset-attention`).run
-            if (current.status !== 'needs_attention') {
-              current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'needs_attention' }, `driver-${run.runId}-asset-attention-${current.revision}`).run
-            }
+            executeInternal(run.projectId, run.runId, current, 'gate.add', { gate: shotGate }, `driver-${gateId}`)
             return
           }
-        } catch (error) {
-          current = requireRun(run.projectId, run.runId)
-          if (current.jobs.find((candidate) => candidate.jobId === job.jobId)?.status === 'submitting') {
-            current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'submission_unknown', patch: { errorCode: 'renderer_or_provider_unknown', errorMessage: '生成提交结果无法确认' } }, `driver-${job.jobId}-unknown-${current.revision}`).run
-          }
-          if (current.status !== 'needs_attention') {
-            try { current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'needs_attention' }, `driver-${run.runId}-generation-attention-${current.revision}`).run } catch { /* preserve unknown job state */ }
-          }
-          console.error('[nomi:production] generation driver stopped:', error instanceof Error ? error.message : String(error))
-          return
+          eligibleJobs.push(job)
         }
+        if (eligibleJobs.length === 0) break // 依赖未就绪：等待上游 job 完成后由同一 driver 继续。
+        const adoptedCount = current.jobs.filter((candidate) => candidate.stageId === 'generate' && candidate.status === 'adopted').length
+        const configuredConcurrency = normalizeMaxConcurrentJobs(current.policy.maxConcurrentJobs)
+        const waveSize = adoptedCount === 0 && shouldSampleGate(current) ? 1 : configuredConcurrency
+        const wave = eligibleJobs.slice(0, waveSize)
+
+        // Durable intent first; only after every member is marked submitting do
+        // we call the renderer. A crash can therefore recover the whole wave
+        // without silently re-submitting a job whose request never started.
+        for (const job of wave) {
+          current = requireRun(run.projectId, run.runId)
+          if (job.status === 'authorized') current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'submit_intent_persisted' }, `driver-${job.jobId}-intent`).run
+          current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'submitting' }, `driver-${job.jobId}-submit`).run
+        }
+        const requests = wave.map((job) => requestRenderer('production.generate-node', generationPayload(run.projectId, run.runId, job, current), 30 * 60_000))
+        const outcomes = await Promise.allSettled(requests)
+        let stopAfterWave = false
+        for (let index = 0; index < wave.length; index += 1) {
+          const outcome = outcomes[index]
+          if (outcome.status === 'rejected') {
+            const processed = await applyGenerationResult(run.projectId, run.runId, wave[index], { status: 'error', errorMessage: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason) }, requireRun(run.projectId, run.runId))
+            current = processed.current
+            stopAfterWave = true
+          } else {
+            const processed = await applyGenerationResult(run.projectId, run.runId, wave[index], (outcome.value || {}) as GenerationResult, requireRun(run.projectId, run.runId))
+            current = processed.current
+            stopAfterWave ||= processed.stop
+          }
+        }
+        if (stopAfterWave) return
       }
       current = settlePauseIfQuiet(repository, run.projectId, run.runId, requireRun(run.projectId, run.runId))
       if (current.status !== 'running') return
@@ -576,8 +724,22 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
       current = executeInternal(run.projectId, run.runId, current, 'run.stage', { stageId: 'assemble' }, `driver-${run.runId}-stage-assemble-start-${current.revision}`).run
       current = executeInternal(run.projectId, run.runId, current, 'stage.upsert', { stage: stageValue(current, 'assemble', { status: 'running', startedAt: new Date().toISOString() }) }, `driver-${run.runId}-stage-assemble`).run
       const arrangement = await requestRenderer('production.arrange', { projectId: run.projectId, runId: run.runId }, 5 * 60_000) as Record<string, unknown>
+      const exportTimeline = arrangement.timelineContract
+        ? buildProductionExportTimeline({
+            projectId: run.projectId,
+            arrangement,
+            jobs: current.jobs,
+            artifacts: current.artifacts,
+          })
+        : undefined
       const timelinePath = `.nomi/runs/${run.runId}/timeline-v${current.planVersion}.json`
-      writeProjectJson(run.projectId, timelinePath, { schemaVersion: 1, kind: 'timeline', arrangement, timelineContract: arrangement.timelineContract })
+      writeProjectJson(run.projectId, timelinePath, {
+        schemaVersion: 1,
+        kind: 'timeline',
+        arrangement,
+        timelineContract: arrangement.timelineContract,
+        ...(exportTimeline ? { exportTimeline } : {}),
+      })
       current = requireRun(run.projectId, run.runId)
       current = executeInternal(run.projectId, run.runId, current, 'artifact.add', { artifact: { artifactId: `artifact-timeline-v${current.planVersion}`, stageId: 'assemble', kind: 'timeline', status: 'adopted', projectRelativePath: timelinePath, createdAt: new Date().toISOString(), adoptedAt: new Date().toISOString() } }, `driver-${run.runId}-timeline`).run
       const exportGate = { gateId: `gate-export-v${current.planVersion}`, scope: 'export' as const, status: 'waiting' as const, planHash: crypto.createHash('sha256').update(JSON.stringify(arrangement)).digest('hex'), jobIds: [], title: 'Review rough cut and approve export', summary: 'Check pacing and media in Preview before explicitly approving the MP4 export.', createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() }
@@ -601,7 +763,20 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
     try {
       let current = requireRun(run.projectId, run.runId)
       current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'exporting' }, `driver-${run.runId}-export-start`).run
-      const result = await requestRenderer('production.export', { projectId: run.projectId, runId: run.runId, outputName: `nomi-${run.runId}.mp4` }, 30 * 60_000) as { relativePath?: string; size?: number }
+      const timelineArtifact = current.artifacts.find((artifact) => artifact.kind === 'timeline' && artifact.status === 'adopted')
+      const timelineDocument = timelineArtifact?.projectRelativePath
+        ? record(readProjectJson(run.projectId, timelineArtifact.projectRelativePath))
+        : {}
+      const exportTimeline = timelineDocument.exportTimeline
+      if (!exportTimeline || typeof exportTimeline !== 'object' || Array.isArray(exportTimeline)) {
+        throw new Error('Production export timeline artifact is missing the durable media plan')
+      }
+      const result = await requestRenderer('production.export', {
+        projectId: run.projectId,
+        runId: run.runId,
+        outputName: `nomi-${run.runId}.mp4`,
+        timeline: exportTimeline,
+      }, 30 * 60_000) as { relativePath?: string; size?: number }
       const relativePath = projectRelativePath(run.projectId, result?.relativePath, { requireFile: true })
       current = requireRun(run.projectId, run.runId)
       current = executeInternal(run.projectId, run.runId, current, 'artifact.add', { artifact: { artifactId: `artifact-export-v${current.planVersion}`, stageId: 'export', kind: 'export', status: 'adopted', projectRelativePath: relativePath, createdAt: new Date().toISOString(), adoptedAt: new Date().toISOString() } }, `driver-${run.runId}-export-artifact`).run
@@ -623,11 +798,25 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
     if (reconciliationInFlight.has(key)) return
     reconciliationInFlight.add(key)
     try {
+      let transientQueryFailures = 0
       while (true) {
         let current = requireRun(projectId, runId)
         let job = current.jobs.find((candidate) => candidate.jobId === jobId)
         if (!job || !['reconciling', 'provider_accepted', 'polling'].includes(job.status)) return
-        const result = await reconcileProviderTask(job)
+        let result: Awaited<ReturnType<DriverOpsDeps['reconcileProviderTask']>>
+        try {
+          result = await reconcileProviderTask(job)
+          transientQueryFailures = 0
+        } catch (error) {
+          // The task id is already durable. Retry only the free provider query on
+          // transient network failures; never call production.generate-node again.
+          transientQueryFailures += 1
+          if (isTransientReconciliationError(error) && transientQueryFailures < RECONCILE_QUERY_RETRY_LIMIT) {
+            await sleep(RECONCILE_QUERY_RETRY_DELAY_MS)
+            continue
+          }
+          throw error
+        }
         const status = String(result.status || '').toLowerCase()
         if (['queued', 'running', 'processing', 'pending'].includes(status)) {
           if (job.status === 'reconciling') {

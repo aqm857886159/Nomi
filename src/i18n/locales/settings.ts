@@ -86,6 +86,8 @@ export const zhSettings = {
       continueHint: '换供应商、超预算或提交结果不明时仍会暂停。',
       irreversible: '发布、删除与覆盖文件',
       irreversibleHint: '这些操作不可逆，始终要求当次确认。',
+      concurrency: '同时提交的生成任务',
+      concurrencyHint: '1 最稳；2–3 通常更快；更高并发可能触发供应商限流，也会更快消耗预算。',
     },
     mcp: {
       title: 'AI 助手连接（MCP）',
@@ -242,6 +244,8 @@ export const enSettings = {
       continueHint: 'Nomi still pauses for a provider change, overspend, or an unknown submission result.',
       irreversible: 'Publish, delete, and overwrite files',
       irreversibleHint: 'These actions are irreversible and always require contextual approval.',
+      concurrency: 'Concurrent generation jobs',
+      concurrencyHint: '1 is safest; 2–3 is usually faster. Higher concurrency may hit provider limits and spend budget sooner.',
     },
     mcp: {
       title: 'AI agent connections (MCP)',

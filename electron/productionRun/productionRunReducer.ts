@@ -169,7 +169,23 @@ export function applyProductionCommand(
   switch (command.type) {
     case "run.status": {
       const status = text(command.payload, "status") as ProductionRunStatus;
-      return { run: transitionRun(current, status, now), eventType: "run.status.changed", message: status };
+      const next = transitionRun(current, status, now);
+      return {
+        run: ["running", "awaiting_direction"].includes(status) && next.attention ? { ...next, attention: undefined } : next,
+        eventType: "run.status.changed",
+        message: status,
+      };
+    }
+    case "run.attention": {
+      const code = text(command.payload, "code");
+      const message = text(command.payload, "message");
+      const operation = text(command.payload, "operation");
+      const retryable = command.payload.retryable !== false;
+      const next = current.status === "needs_attention"
+        ? { ...current, updatedAt: now }
+        : transitionRun(current, "needs_attention", now);
+      const attention = { code, message: message.slice(0, 400), operation, retryable, occurredAt: now };
+      return { run: { ...next, attention }, eventType: "run.needs_attention", message: attention.message };
     }
     case "run.stage": {
       const stageId = text(command.payload, "stageId");

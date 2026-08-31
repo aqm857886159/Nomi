@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-21T04:34:57.392Z",
+  "filmPath": "nomi-real-ai-film-30s.mp4",
+  "film": {
+    "durationSeconds": 28.334,
+    "videoCodec": "h264",
+    "audioCodec": "aac",
+    "subtitleDurationSeconds": 28.25
+  },
+  "shots": [
+    {
+      "shotId": "shot-1",
+      "frames": {
+        "start": "frames/shot-1-start.jpg",
+        "middle": "frames/shot-1-middle.jpg",
+        "end": "frames/shot-1-end.jpg"
+      },
+      "timestampsSeconds": {
+        "start": 0,
+        "middle": 2.3666666666666667,
+        "end": 4.653333333333333
+      }
+    },
+    {
+      "shotId": "shot-2",
+      "frames": {
+        "start": "frames/shot-2-start.jpg",
+        "middle": "frames/shot-2-middle.jpg",
+        "end": "frames/shot-2-end.jpg"
+      },
+      "timestampsSeconds": {
+        "start": 4.733333333333333,
+        "middle": 7.083333333333334,
+        "end": 9.353333333333333
+      }
+    },
+    {
+      "shotId": "shot-3",
+      "frames": {
+        "start": "frames/shot-3-start.jpg",
+        "middle": "frames/shot-3-middle.jpg",
+        "end": "frames/shot-3-end.jpg"
+      },
+      "timestampsSeconds": {
+        "start": 9.433333333333334,
+        "middle": 11.8,
+        "end": 14.086666666666666
+      }
+    },
+    {
+      "shotId": "shot-4",
+      "frames": {
+        "start": "frames/shot-4-start.jpg",
+        "middle": "frames/shot-4-middle.jpg",
+        "end": "frames/shot-4-end.jpg"
+      },
+      "timestampsSeconds": {
+        "start": 14.166666666666666,
+        "middle": 16.53333333333333,
+        "end": 18.82
+      }
+    },
+    {
+      "shotId": "shot-5",
+      "frames": {
+        "start": "frames/shot-5-start.jpg",
+        "middle": "frames/shot-5-middle.jpg",
+        "end": "frames/shot-5-end.jpg"
+      },
+      "timestampsSeconds": {
+        "start": 18.9,
+        "middle": 21.25,
+        "end": 23.520000000000003
+      }
+    },
+    {
+      "shotId": "shot-6",
+      "frames": {
+        "start": "frames/shot-6-start.jpg",
+        "middle": "frames/shot-6-middle.jpg",
+        "end": "frames/shot-6-end.jpg"
+      },
+      "timestampsSeconds": {
+        "start": 23.6,
+        "middle": 25.96666666666667,
+        "end": 28.253333333333334
+      }
+    }
+  ],
+  "boundaries": [
+    {
+      "fromShotId": "shot-1",
+      "toShotId": "shot-2",
+      "timestampsSeconds": {
+        "fromTail": 4.653333333333333,
+        "cut": 4.733333333333333,
+        "toHead": 4.8133333333333335
+      },
+      "evidence": [
+        "boundaries/shot-1-to-shot-2-fromTail.jpg",
+        "boundaries/shot-1-to-shot-2-cut.jpg",
+        "boundaries/shot-1-to-shot-2-toHead.jpg"
+      ],
+      "spatialContinuity": "pending-human-review",
+      "causalHandoff": "pending-human-review",
+      "characterState": "pending-human-review",
+      "verdict": "pending-human-review"
+    },
+    {
+      "fromShotId": "shot-2",
+      "toShotId": "shot-3",
+      "timestampsSeconds": {
+        "fromTail": 9.353333333333333,
+        "cut": 9.433333333333334,
+        "toHead": 9.513333333333334
+      },
+      "evidence": [
+        "boundaries/shot-2-to-shot-3-fromTail.jpg",
+        "boundaries/shot-2-to-shot-3-cut.jpg",
+        "boundaries/shot-2-to-shot-3-toHead.jpg"
+      ],
+      "spatialContinuity": "pending-human-review",
+      "causalHandoff": "pending-human-review",
+      "characterState": "pending-human-review",
+      "verdict": "pending-human-review"
+    },
+    {
+      "fromShotId": "shot-3",
+      "toShotId": "shot-4",
+      "timestampsSeconds": {
+        "fromTail": 14.086666666666666,
+        "cut": 14.166666666666666,
+        "toHead": 14.246666666666666
+      },
+      "evidence": [
+        "boundaries/shot-3-to-shot-4-fromTail.jpg",
+        "boundaries/shot-3-to-shot-4-cut.jpg",
+        "boundaries/shot-3-to-shot-4-toHead.jpg"
+      ],
+      "spatialContinuity": "pending-human-review",
+      "causalHandoff": "pending-human-review",
+      "characterState": "pending-human-review",
+      "verdict": "pending-human-review"
+    },
+    {
+      "fromShotId": "shot-4",
+      "toShotId": "shot-5",
+      "timestampsSeconds": {
+        "fromTail": 18.82,
+        "cut": 18.9,
+        "toHead": 18.979999999999997
+      },
+      "evidence": [
+        "boundaries/shot-4-to-shot-5-fromTail.jpg",
+        "boundaries/shot-4-to-shot-5-cut.jpg",
+        "boundaries/shot-4-to-shot-5-toHead.jpg"
+      ],
+      "spatialContinuity": "pending-human-review",
+      "causalHandoff": "pending-human-review",
+      "characterState": "pending-human-review",
+      "verdict": "pending-human-review"
+    },
+    {
+      "fromShotId": "shot-5",
+      "toShotId": "shot-6",
+      "timestampsSeconds": {
+        "fromTail": 23.520000000000003,
+        "cut": 23.6,
+        "toHead": 23.68
+      },
+      "evidence": [
+        "boundaries/shot-5-to-shot-6-fromTail.jpg",
+        "boundaries/shot-5-to-shot-6-cut.jpg",
+        "boundaries/shot-5-to-shot-6-toHead.jpg"
+      ],
+      "spatialContinuity": "pending-human-review",
+      "causalHandoff": "pending-human-review",
+      "characterState": "pending-human-review",
+      "verdict": "pending-human-review"
+    }
+  ],
+  "narrative": {
+    "openingGoal": false,
+    "development": false,
+    "turn": false,
+    "result": false,
+    "verdict": "pending-human-review"
+  },
+  "reviewInstructions": "请先看 shot-contact-sheet.jpg，再看 boundary-contact-sheet.jpg；逐项填写 boundaries 的四个 verdict 和 narrative 四个布尔证据。不得根据文件可播放直接通过。"
+}

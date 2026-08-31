@@ -82,7 +82,7 @@ class ProductionHarness {
 }
 
 describe('production run MCP tools', () => {
-  it('exposes the exact 22-tool contract with truthful read-only annotations', async () => {
+  it('exposes the exact current MCP contract with truthful read-only annotations', async () => {
     const harness = new ProductionHarness()
     const response = await harness.call(1, 'tools/list')
     const tools = (response.result as {
@@ -124,8 +124,8 @@ describe('production run MCP tools', () => {
   it('keeps the current README count and guide table aligned with the exported catalog', () => {
     const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8')
     const guide = fs.readFileSync(path.join(process.cwd(), 'docs/guide/capability-core-cli-mcp.md'), 'utf8')
-    expect(readme).toContain('Twenty-two MCP tools')
-    expect(guide).toContain('22 个工具')
+    expect(readme).toContain('Twenty-five MCP tools')
+    expect(guide).toContain('27 个工具')
     // The public guide is updated in the release-docs task; this contract test only
     // requires the pre-existing catalog entries to remain documented while Task 4
     // adds the versioned artifact business tools.

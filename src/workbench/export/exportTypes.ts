@@ -62,6 +62,13 @@ export type RendererRenderTrack = {
   clips: RendererRenderClip[]
 }
 
+export type RendererRenderTransition = {
+  fromClipId: string
+  toClipId: string
+  type: 'cut' | 'dissolve' | 'fade' | 'match_cut' | 'whip_pan'
+  durationFrames?: number
+}
+
 export type RendererTextOverlay = {
   id: string
   startFrame: number
@@ -80,6 +87,7 @@ export type RendererRenderManifestRequest = {
     range: { startFrame: number; endFrame: number }
     tracks: RendererRenderTrack[]
   }
+  transitions?: RendererRenderTransition[]
   profile: ExportProfile
   assets: Record<string, RendererRenderAsset>
   /** 字幕/标题卡叠加层（导出主路 filtergraph overlay 用）。无文字时为空/缺省。 */

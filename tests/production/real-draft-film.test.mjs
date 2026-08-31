@@ -19,7 +19,7 @@ function json(relativePath) {
 
 function ensureSample() {
   if (fs.existsSync(filmPath) && fs.existsSync(path.join(runRoot, 'timeline-v1.json'))) return
-  execFileSync(process.execPath, [path.join(repoRoot, 'scripts/build-agentic-draft-film.mjs')], {
+  execFileSync(process.execPath, [path.join(repoRoot, 'scripts/benchmarks/build-agentic-draft-film.mjs')], {
     cwd: repoRoot,
     stdio: 'ignore',
     timeout: 120_000,

@@ -130,17 +130,49 @@ describe('production run capability methods', () => {
     ['gate-contract-v1', 'budget_envelope'],
     ['gate-shot-v1-job', 'job_set'],
     ['gate-export-v1', 'export'],
-    ['gate-publish-v1', 'publish'],
-  ] as const)('keeps %s decisions inside Nomi', async (gateId, scope) => {
+  ] as const)('allows external Agent decisions for %s after dispatcher validation', async (gateId, scope) => {
     const { ctx, productionRuns } = context()
     productionRuns.readFull.mockReturnValueOnce({
       revision: 3,
-      gates: [{ gateId, scope, status: 'waiting' }],
+      policy: { maxSpend: 0, allowedProviders: ['provider'], allowedModels: ['model'] },
+      gates: [{ gateId, scope, status: 'waiting', jobIds: [] }],
     })
+    const params = gateId === 'gate-contract-v1'
+      ? {
+          projectId: 'project-1', runId: 'run-1', gateId, decision: 'approved',
+          policy: { maxSpend: 100, allowedProviders: ['provider'], allowedModels: ['model'] },
+        }
+      : { projectId: 'project-1', runId: 'run-1', gateId, decision: 'approved' }
+    await expect(dispatch('production.decide-gate', params, ctx as never)).resolves.toMatchObject({ runId: 'run-1' })
+    expect(productionRuns.command).toHaveBeenCalledWith('project-1', 'run-1', expect.objectContaining({ type: 'gate.decide' }))
+  })
+
+  it('keeps publish outside the reversible external approval surface', async () => {
+    const { ctx, productionRuns } = context()
+    productionRuns.readFull.mockReturnValueOnce({ revision: 3, gates: [{ gateId: 'gate-publish-v1', scope: 'publish', status: 'waiting' }] })
     await expect(dispatch('production.decide-gate', {
-      projectId: 'project-1', runId: 'run-1', gateId, decision: 'approved',
+      projectId: 'project-1', runId: 'run-1', gateId: 'gate-publish-v1', decision: 'approved',
     }, ctx as never)).rejects.toMatchObject({ httpStatus: 403 })
     expect(productionRuns.command).not.toHaveBeenCalled()
+  })
+
+  it('moves an external Run from rough-cut review through the export gate in one approval', async () => {
+    const { ctx, productionRuns } = context()
+    productionRuns.readFull.mockReturnValueOnce({ revision: 8, status: 'awaiting_rough_cut_review' })
+    productionRuns.readFull.mockReturnValueOnce({
+      revision: 9,
+      status: 'awaiting_export',
+      gates: [{ gateId: 'gate-export-v1', scope: 'export', status: 'waiting' }],
+    })
+    await expect(dispatch('production.approve-rough-cut', {
+      projectId: 'project-1', runId: 'run-1',
+    }, ctx as never)).resolves.toMatchObject({ runId: 'run-1' })
+    expect(productionRuns.command).toHaveBeenNthCalledWith(1, 'project-1', 'run-1', expect.objectContaining({
+      type: 'run.status', expectedRevision: 8, payload: { status: 'awaiting_export' },
+    }))
+    expect(productionRuns.command).toHaveBeenNthCalledWith(2, 'project-1', 'run-1', expect.objectContaining({
+      type: 'gate.decide', payload: { gateId: 'gate-export-v1', status: 'approved' },
+    }))
   })
 
   it('allows a reversible sample decision through the guarded dispatcher path', async () => {
@@ -167,6 +199,30 @@ describe('production run capability methods', () => {
       projectId: 'project-1', runId: 'run-1', action: 'set_trust', trustLevel: 'budget_only',
     }, ctx as never)).rejects.toMatchObject({ httpStatus: 403 })
     expect(productionRuns.command).not.toHaveBeenCalled()
+  })
+
+  it('lets MCP tune only the next independent generation wave', async () => {
+    const { ctx, productionRuns } = context()
+    productionRuns.readFull.mockReturnValueOnce({ revision: 4, gates: [] })
+    productionRuns.readProjection.mockReturnValue({ runId: 'run-1', policy: { maxConcurrentJobs: 3 } })
+    await dispatch('production.control', {
+      projectId: 'project-1', runId: 'run-1', action: 'set_concurrency', maxConcurrentJobs: 3,
+    }, ctx as never)
+    expect(productionRuns.command).toHaveBeenCalledWith('project-1', 'run-1', expect.objectContaining({
+      type: 'run.control', payload: { action: 'set_concurrency', maxConcurrentJobs: 3 },
+    }))
+  })
+
+  it('keeps provider reconciliation on the external MCP surface', async () => {
+    const { ctx, productionRuns } = context()
+    productionRuns.readFull.mockReturnValueOnce({ revision: 6, gates: [] })
+    productionRuns.readProjection.mockReturnValue({ runId: 'run-1', status: 'needs_attention' })
+    await dispatch('production.reconcile-job', {
+      projectId: 'project-1', runId: 'run-1', jobId: 'job:run-1:shot-1', outcome: 'found',
+    }, ctx as never)
+    expect(productionRuns.command).toHaveBeenCalledWith('project-1', 'run-1', expect.objectContaining({
+      type: 'job.reconcile', payload: { jobId: 'job:run-1:shot-1', outcome: 'found' },
+    }))
   })
 
   it.each([

@@ -45,6 +45,7 @@ async function plannedRun(root: string) {
     payload: { gateId: 'gate-direction-v1', status: 'approved' },
     issuedAt: new Date().toISOString(),
   })
+  service.proposeScriptCandidate('project-1', 'run-storyboard-binding', 'approved script text')
   let run = service.readFull('project-1', 'run-storyboard-binding')
   const script = run.artifacts.find((artifact) => artifact.kind === 'script')!
   const reviewed = await service.command('project-1', run.runId, {
@@ -52,6 +53,23 @@ async function plannedRun(root: string) {
     payload: { artifactId: script.artifactId, decision: 'approved' }, issuedAt: new Date().toISOString(),
   })
   run = reviewed.run
+  service.proposeStoryboardCandidate('project-1', 'run-storyboard-binding', {
+    title: '有来源分镜',
+    anchors: [{ anchorId: 'anchor-room', title: '同一创作室' }],
+    shots: Array.from({ length: 6 }, (_, index) => ({
+      shotId: `shot-${index + 1}`,
+      narrativeGoal: `推进线索 ${index + 1}`,
+      actionChain: `完成可见动作 ${index + 1}`,
+      dramaticBeat: `发生变化 ${index + 1}`,
+      ffDesc: '雨夜同一创作室的连续起始画面',
+      motionDesc: '人物完成一个可见的物理动作',
+      lfDesc: '动作结束并留下下一镜可接的状态',
+      durationSec: 2,
+      anchorIds: ['anchor-room'],
+      prompt: '电影化连续镜头，雨夜人物在同一创作室内推动线索发展',
+      ...(index > 0 ? { previousShotId: `shot-${index}`, firstFrameRef: `shot-${index}-tail` } : {}),
+    })),
+  })
   const deadline = Date.now() + 500
   while (!run.artifacts.some((artifact) => artifact.kind === 'storyboard') && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 5))
@@ -87,7 +105,13 @@ describe('production storyboard binding', () => {
         sourceScriptHash: 'different-script-hash',
         bindings: [{
           nodeId: 'shot-stable-1', provider: 'local', model: 'demo-video', stageId: 'generate',
-          metadata: { shotId: 'shot-stable-1', ffDesc: 'ff', lfDesc: 'lf', variationType: 'small', camIdx: 1, continuity: 'same-room', transition: { type: 'dissolve', durationFrames: 12 } },
+          metadata: {
+            shotId: 'shot-stable-1', ffDesc: 'ff', lfDesc: 'lf', variationType: 'small', camIdx: 1,
+            continuity: 'same-room', continuityLocks: ['same-room', 'same-character'],
+            previousShotId: 'shot-previous', firstFrameRef: 'shot-previous-tail',
+            narrativeGoal: 'the clue advances', actionChain: 'pick up the note', dramaticBeat: 'the door opens',
+            transition: { type: 'dissolve', durationFrames: 12 },
+          },
         }],
       },
       issuedAt: new Date().toISOString(),
@@ -129,7 +153,13 @@ describe('production storyboard binding', () => {
         ...source,
         bindings: [{
           nodeId: 'shot-stable-1', provider: 'local', model: 'demo-video', stageId: 'generate',
-          metadata: { shotId: 'shot-stable-1', ffDesc: 'ff', lfDesc: 'lf', variationType: 'small', camIdx: 1, continuity: 'same-room', transition: { type: 'dissolve', durationFrames: 12 } },
+          metadata: {
+            shotId: 'shot-stable-1', ffDesc: 'ff', lfDesc: 'lf', variationType: 'small', camIdx: 1,
+            continuity: 'same-room', continuityLocks: ['same-room', 'same-character'],
+            previousShotId: 'shot-previous', firstFrameRef: 'shot-previous-tail',
+            narrativeGoal: 'the clue advances', actionChain: 'pick up the note', dramaticBeat: 'the door opens',
+            transition: { type: 'dissolve', durationFrames: 12 },
+          },
         }],
       },
       issuedAt: new Date().toISOString(),
@@ -138,7 +168,13 @@ describe('production storyboard binding', () => {
     expect(result.run.jobs[0]).toMatchObject({
       nodeId: 'shot-stable-1',
       ...source,
-      metadata: { shotId: 'shot-stable-1', ffDesc: 'ff', lfDesc: 'lf', variationType: 'small', camIdx: 1, continuity: 'same-room', transition: { type: 'dissolve', durationFrames: 12 } },
+      metadata: {
+        shotId: 'shot-stable-1', ffDesc: 'ff', lfDesc: 'lf', variationType: 'small', camIdx: 1,
+        continuity: 'same-room', continuityLocks: ['same-room', 'same-character'],
+        previousShotId: 'shot-previous', firstFrameRef: 'shot-previous-tail',
+        narrativeGoal: 'the clue advances', actionChain: 'pick up the note', dramaticBeat: 'the door opens',
+        transition: { type: 'dissolve', durationFrames: 12 },
+      },
     })
   })
 

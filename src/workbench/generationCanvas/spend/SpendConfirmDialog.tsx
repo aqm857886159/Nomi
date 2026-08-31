@@ -67,6 +67,7 @@ export function SpendConfirmDialog() {
     <div
       // 全屏固定模态：付费确认是全局阻断性动作，要盖住整窗（含顶栏/侧栏），任意视图（库/studio）都能弹。
       // 之前 absolute 只盖画布层 → 只在 studio 可见，是「外部生成到非当前项目静默黑洞」的放大器之一。
+      data-spend-confirm-dialog
       className={cn('fixed inset-0 z-[3500] flex items-center justify-center bg-nomi-ink/20 pointer-events-auto')}
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) resolvePending(false)
@@ -194,11 +195,12 @@ export function SpendConfirmDialog() {
         ) : null}
 
         <div className={cn('flex items-center justify-end gap-2')}>
-          <WorkbenchButton className={cn('h-8 px-4 cursor-pointer')} onClick={() => resolvePending(false)}>
+          <WorkbenchButton data-spend-confirm-cancel className={cn('h-8 px-4 cursor-pointer')} onClick={() => resolvePending(false)}>
             {pending.cancelLabel || (isAgent ? t('generationCommon.spend.ignore') : t('generationCommon.spend.cancel'))}
           </WorkbenchButton>
           {incompletePolicy ? (
             <WorkbenchButton
+              data-spend-policy-open
               className={cn('h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper')}
               onClick={() => {
                 const openPolicySettings = pending.onOpenPolicySettings
@@ -210,6 +212,7 @@ export function SpendConfirmDialog() {
             </WorkbenchButton>
           ) : (
             <WorkbenchButton
+              data-spend-confirm-approve
               className={cn(
                 'h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper',
               )}

@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 /**
+ * BENCHMARK_ONLY: this file is the previous credentialed media benchmark,
+ * not a Nomi ProductionRun/MCP entrypoint. The next black-box test must not
+ * invoke it or use its hand-written Run snapshot as product evidence.
+ *
  * Real-provider acceptance run through Nomi capability core.
  * Every media URL in the record is returned by a real Nomi generate call.
  */
@@ -9,7 +13,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
-import { invoke } from './lib/nomiClient.mjs'
+import { invoke } from '../lib/nomiClient.mjs'
 
 const require = createRequire(import.meta.url)
 const ffmpeg = require('@ffmpeg-installer/ffmpeg').path

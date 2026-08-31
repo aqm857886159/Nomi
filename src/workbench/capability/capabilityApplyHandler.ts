@@ -10,8 +10,10 @@ import { clearWorkbenchAgentSession } from '../../api/desktopClient'
 import { getAssistantModelPref } from '../ai/assistantModelPref'
 import { readWindowUrlParam } from '../windowUrlParam'
 import { useWorkbenchStore } from '../workbenchStore'
+import { normalizeTimeline } from '../timeline/timelineMath'
 import { mintSpendGrant } from '../api/taskApi'
 import { runGenerationNode } from '../generationCanvas/runner/generationRunController'
+import { isRecoverableTimeoutError } from '../generationCanvas/runner/recoverableTimeout'
 import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStoryboardToTimeline'
 import { exportTimelineToMp4 } from '../export/exportApi'
 import { verifyShotsAndReport, useShotVerifyStore, isShotVerifyEnabled } from '../generationCanvas/agent/shotVerifyStore'
@@ -419,7 +421,27 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       const retryDirective = typeof data.retryDirective === 'string' && data.retryDirective.trim()
         ? data.retryDirective.trim()
         : undefined
-      const result = await runGenerationNode(nodeId, { grantId, ...(retryDirective ? { promptSuffix: retryDirective } : {}) })
+      let result
+      try {
+        result = await runGenerationNode(nodeId, { grantId, ...(retryDirective ? { promptSuffix: retryDirective } : {}) })
+      } catch (error) {
+        // A provider task was accepted, but polling lost the network before a terminal
+        // result. Return the durable receipt across the renderer bridge so ProductionRun
+        // can reconcile the same task; throwing only the localized message would erase
+        // providerTaskId and make a transient fetch failure look like "task not found".
+        if (isRecoverableTimeoutError(error)) {
+          return {
+            nodeId,
+            status: 'recoverable',
+            providerTaskId: error.detail.taskId,
+            taskKind: error.detail.taskKind,
+            modelKey: error.detail.modelKey,
+            errorCode: 'provider_poll_recoverable',
+            errorMessage: error.message,
+          }
+        }
+        throw error
+      }
       return {
         nodeId,
         status: 'succeeded',
@@ -457,16 +479,23 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
     case 'production.export': {
       const project = typeof data.projectId === 'string' ? data.projectId : ''
       const state = useWorkbenchStore.getState()
+      // External ProductionRun exports carry a durable timeline projection from
+      // arrange. Do not silently fall back to the focused window's Zustand state:
+      // an MCP run is allowed to execute while no canvas is open or while the
+      // canvas is still showing an older project.
+      const timeline = data.timeline && typeof data.timeline === 'object'
+        ? normalizeTimeline(data.timeline)
+        : state.timeline
       // Production Run exports are the final quality gate: a rough cut without
       // captions or a complete shot sequence must stop with an actionable
       // message instead of being reported as a finished film. Manual exports
       // without a runId retain the existing flexible editor behavior.
       if (typeof data.runId === 'string' && data.runId.trim()) {
-        assertDraftFilmReady(draftFilmTimelineFromState(state.timeline))
+        assertDraftFilmReady(draftFilmTimelineFromState(timeline))
       }
       const result = await exportTimelineToMp4({
         projectId: project,
-        timeline: state.timeline,
+        timeline,
         aspectRatio: state.previewAspectRatio,
         generationNodes: useGenerationCanvasStore.getState().nodes,
         outputName: typeof data.outputName === 'string' ? data.outputName : undefined,

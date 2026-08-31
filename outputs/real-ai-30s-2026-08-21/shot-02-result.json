@@ -1,0 +1,61 @@
+{
+  "projectId": "project-1787255846399-rc9057",
+  "imageUrl": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/image-1787255863588.jpg",
+  "modelKey": "doubao-seedance-2.0",
+  "id": "task_01M0GC942QEZWMY5DGRJVJFK24",
+  "status": "succeeded",
+  "videoUrl": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256307538.mp4",
+  "error": null,
+  "result": {
+    "id": "task_01M0GC942QEZWMY5DGRJVJFK24",
+    "kind": "image_to_video",
+    "status": "succeeded",
+    "assets": [
+      {
+        "type": "video",
+        "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256307538.mp4",
+        "thumbnailUrl": null,
+        "assetId": "asset-c9be6a2b-6d01-4353-a273-b4ed6c9d0de0",
+        "assetName": "video-1787256307538.mp4",
+        "durationSeconds": 5.062,
+        "providerUrl": "https://getapib.org/video/9998212743706622-f5074eba-a885-4a01-a3b7-e674cd9781bc-video_task_01M0GC942QEZWMY5DGRJVJFK24.mp4"
+      }
+    ],
+    "raw": {
+      "code": 200,
+      "data": {
+        "actual_time": 148,
+        "completed": 1787256296,
+        "cost": 0.71,
+        "created": 1787256148,
+        "credits_cost": 7.1,
+        "estimated_time": 300,
+        "id": "task_01M0GC942QEZWMY5DGRJVJFK24",
+        "progress": 100,
+        "result": {
+          "videos": [
+            {
+              "expires_at": 1787342696,
+              "url": [
+                "https://getapib.org/video/9998212743706622-f5074eba-a885-4a01-a3b7-e674cd9781bc-video_task_01M0GC942QEZWMY5DGRJVJFK24.mp4"
+              ]
+            }
+          ]
+        },
+        "status": "completed"
+      }
+    },
+    "provenance": {
+      "provider": "apimart",
+      "modelKey": "doubao-seedance-2.0",
+      "prompt": "近景跟拍。保持参考图中的同一位短黑发、银色耳钉、明黄色雨衣女性。她在雨夜街角停下，抬起手中的暖光灯照向一扇半开的门，镜头从她的肩后缓慢推近，雨滴、霓虹反射和人物服装保持稳定，电影广告质感。",
+      "params": {
+        "extras": {
+          "modelKey": "doubao-seedance-2.0"
+        }
+      },
+      "vendorRequestId": "task_01M0GC942QEZWMY5DGRJVJFK24",
+      "timestamp": 1787256310228
+    }
+  }
+}

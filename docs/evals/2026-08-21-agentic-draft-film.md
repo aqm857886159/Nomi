@@ -39,7 +39,7 @@ pnpm vitest run tests/production/real-draft-film.test.mjs electron/productionRun
 ```
 
 这条媒体合同测试会在 `artifacts/` 还没有生成物时先运行
-`node scripts/build-agentic-draft-film.mjs`，再用 ffprobe 和项目内 JSON 对账；因此
+`node scripts/benchmarks/build-agentic-draft-film.mjs`，再用 ffprobe 和项目内 JSON 对账；因此
 它不是只检查“文件存在”，而是检查 30 秒、音视频编码、字幕流时长、镜头连续性、
 显式转场、剧本→分镜 provenance 和项目归档。
 

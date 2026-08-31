@@ -35,6 +35,7 @@ export function getProductionRunService(): ProductionRunService {
               allowedModels: [...settings.allowedModels],
               maxSpend: settings.maxSpend,
               maxAttemptsPerJob: settings.maxAttemptsPerJob,
+              maxConcurrentJobs: settings.maxConcurrentJobs,
               minimizeUploads: settings.minimizeUploads,
             }
           }

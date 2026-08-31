@@ -62,6 +62,7 @@ const DEFAULT_POLICY: AutomationPolicy = {
   allowedModels: [],
   maxSpend: null,
   maxAttemptsPerJob: 1,
+  maxConcurrentJobs: 1,
   minimizeUploads: true,
 };
 

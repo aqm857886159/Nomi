@@ -32,7 +32,7 @@ const RUN_STATUS_HINT: Record<string, { zh: string; en: string; nextZh: string; 
   running: { zh: '制作进行中', en: 'running', nextZh: '可随时说「先停一下」暂停', nextEn: 'Say "pause" anytime to pause the run', action: 'watch_or_pause' },
   pausing: { zh: '正在暂停', en: 'pausing', nextZh: '正在安全停下，已提交的镜头会先收尾', nextEn: 'Stopping safely; in-flight shots will settle first', action: 'wait' },
   paused: { zh: '已暂停', en: 'paused', nextZh: '已提交的花费不退但产物保留；未提交的不再花钱。可继续或取消', nextEn: 'Submitted spend is not refundable but its output is kept; nothing new will be charged. Resume or cancel', action: 'resume_or_cancel' },
-  awaiting_rough_cut_review: { zh: '粗剪等你审阅', en: 'rough cut awaiting review', nextZh: '下一步：在 Nomi 里过一遍粗剪', nextEn: 'Next: review the rough cut in Nomi', action: 'review_rough_cut' },
+  awaiting_rough_cut_review: { zh: '粗剪等你审阅', en: 'rough cut awaiting review', nextZh: '下一步：在当前 Agent 里审阅粗剪并调用 nomi_approve_rough_cut', nextEn: 'Next: review the rough cut in this Agent and call nomi_approve_rough_cut', action: 'approve_rough_cut' },
   needs_attention: { zh: '需要处理', en: 'needs attention', nextZh: '有任务卡住了，看错误详情选恢复动作', nextEn: 'A job is stuck; check the error details for recovery actions', action: 'recover' },
   completed: { zh: '已完成', en: 'completed', nextZh: '产物已保存到项目，可在 Nomi 里查看', nextEn: 'Artifacts are saved to the project; open them in Nomi', action: 'open_in_nomi' },
   cancelled: { zh: '已取消', en: 'cancelled', nextZh: '未提交的任务不计费', nextEn: 'Unsubmitted jobs are not charged', action: 'none' },
@@ -141,7 +141,12 @@ function buildArtifactBodyOutcome(
   const status = str(value.status) || 'unknown'
   const version = artifactVersionValue(value)
   const contentHash = str(value.contentHash)
-  const content = value.content === undefined ? undefined : safeArtifactValue(value.content)
+  // File-backed storyboards store their IR under `plan` (the script stores text
+  // under `content`). Expose both through one stable `nomiOutcome.content` slot
+  // so an external Agent can genuinely read the reviewed draft instead of only
+  // receiving metadata and an empty shot count.
+  const rawContent = value.content !== undefined ? value.content : kind === 'storyboard' ? value.plan : undefined
+  const content = rawContent === undefined ? undefined : safeArtifactValue(rawContent)
   const bodyText = content === undefined ? null : JSON.stringify(content, null, 2)
   const preview = rec(value.preview)
   const previewUrl = str(preview.url)
@@ -438,6 +443,41 @@ export function buildToolOutcome(
     }
   }
 
+  if (toolName === 'nomi_propose_directions') {
+    const candidates = Array.isArray(value.gates)
+      ? (value.gates as Array<Record<string, unknown>>).find((gate) => gate.gateId === 'gate-direction-v1')?.directionCandidates
+      : undefined
+    const count = Array.isArray(candidates) ? candidates.length : 0
+    return {
+      text: `✓ ${L(ctx, '方向候选已提交', 'Direction candidates submitted')} · ${count} ${L(ctx, '个候选', 'candidates')} · ${L(ctx, '尚未花费', 'nothing spent')}`
+        + `\n${L(ctx, '下一步：读取 Run 后让真人选择一个方向并确认。', 'Next: read the Run, then ask the human to choose and confirm one direction.')}${openLine}`,
+      outcome: {
+        kind: 'direction_candidates', runId, projectId,
+        candidateCount: count, nextActions: ['decide_direction'], openInNomi: openInNomi || null,
+      },
+    }
+  }
+
+  if (toolName === 'nomi_propose_script') {
+    const artifacts = Array.isArray(value.artifacts) ? (value.artifacts as Array<Record<string, unknown>>) : []
+    const script = artifacts.find((artifact) => artifact.kind === 'script' && artifact.status === 'candidate')
+    return {
+      text: `✓ ${L(ctx, '剧本候选已提交', 'Script candidate submitted')} · ${str(script?.artifactId) || 'script'} v${String(script?.version || 1)} · ${L(ctx, '尚未花费', 'nothing spent')}`
+        + `\n${L(ctx, '下一步：读取剧本，让真人审阅；批准前不会拟分镜。', 'Next: read the script and have a human review it; no storyboard is drafted before approval.')}${openLine}`,
+      outcome: { kind: 'script_candidate', runId, projectId, artifactId: str(script?.artifactId) || null, artifactVersion: script?.version || 1, nextActions: ['review_script'], openInNomi: openInNomi || null },
+    }
+  }
+
+  if (toolName === 'nomi_propose_storyboard') {
+    const artifacts = Array.isArray(value.artifacts) ? (value.artifacts as Array<Record<string, unknown>>) : []
+    const storyboard = artifacts.find((artifact) => artifact.kind === 'storyboard' && artifact.status === 'candidate')
+    return {
+      text: `✓ ${L(ctx, '分镜候选已提交', 'Storyboard candidate submitted')} · ${str(storyboard?.artifactId) || 'storyboard'} v${String(storyboard?.version || 1)} · ${L(ctx, '尚未花费', 'nothing spent')}`
+        + `\n${L(ctx, '下一步：读取分镜，让真人审阅；批准后才可落画布。', 'Next: read the storyboard and have a human review it; materialization is only available after approval.')}${openLine}`,
+      outcome: { kind: 'storyboard_candidate', runId, projectId, artifactId: str(storyboard?.artifactId) || null, artifactVersion: storyboard?.version || 1, nextActions: ['review_storyboard'], openInNomi: openInNomi || null },
+    }
+  }
+
   if (toolName === 'nomi_get_run') {
     const status = str(value.status) || 'unknown'
     const hint = stalledDraftHint(value) ?? RUN_STATUS_HINT[status]
@@ -465,11 +505,19 @@ export function buildToolOutcome(
         `第 ${shotGate.index} 镜（${shotGate.nodeId}）提交前正在等你确认。`,
         `Shot ${shotGate.index} (${shotGate.nodeId}) is waiting for approval before provider submission.`),
       L(ctx,
-        `  ${shotTarget ? `${shotTarget}；` : ''}批准前不会调用供应商，也不会产生这镜的费用。请回 Nomi 决定。`,
-        `  ${shotTarget ? `${shotTarget}; ` : ''}no provider call or charge occurs before approval. Decide in Nomi.`),
+        `  ${shotTarget ? `${shotTarget}；` : ''}批准前不会调用供应商，也不会产生这镜的费用。请在当前 Agent 中确认。`,
+        `  ${shotTarget ? `${shotTarget}; ` : ''}no provider call or charge occurs before approval. Confirm it in this Agent.`),
     ] : []
     // B3：状态转述带当前信任档位（非默认时才占一行，避免默认档噪音）。
     const trustLevel = str(value.trustLevel) || 'key_confirm'
+    const externalArtifacts = str(rec(value.origin).host) !== 'nomi' && Array.isArray(value.artifacts) ? (value.artifacts as Array<Record<string, unknown>>) : []
+    const awaitingExternalScript = status === 'running' && str(value.stageId) === 'direction' && !externalArtifacts.some((artifact) => artifact.kind === 'script')
+    const awaitingExternalStoryboard = status === 'running' && str(value.stageId) === 'storyboard' && !externalArtifacts.some((artifact) => artifact.kind === 'storyboard')
+    const externalProposalLines = awaitingExternalScript
+      ? [L(ctx, '方向已确认：请由当前 Agent 生成剧本后调用 nomi_propose_script；Nomi 不会重复调用内部文本模型。', 'Direction approved: have the current Agent generate the script, then call nomi_propose_script; Nomi will not call a second internal text model.')]
+      : awaitingExternalStoryboard
+        ? [L(ctx, '剧本已批准：请由当前 Agent 生成结构化分镜后调用 nomi_propose_storyboard；Nomi 只负责校验和审阅。', 'Script approved: have the current Agent generate a structured storyboard, then call nomi_propose_storyboard; Nomi only validates and gates it.')]
+        : []
     const text = [
       `[Nomi] ${runId} · ${hint ? L(ctx, hint.zh, hint.en) : status} · ${str(value.stageId) || 'unknown'}`,
       budgetLine ? `  ${budgetLine}` : null,
@@ -478,6 +526,10 @@ export function buildToolOutcome(
       ...candidateLines,
       ...sampleLines,
       ...shotLines,
+      ...externalProposalLines,
+      ...(value.attention && typeof value.attention === 'object' && !Array.isArray(value.attention)
+        ? [`  ${L(ctx, '原因', 'Reason')}：${str((value.attention as Record<string, unknown>).message)}`]
+        : []),
       hint ? L(ctx, hint.nextZh, hint.nextEn) : null,
     ].filter(Boolean).join('\n') + openLine
     return {
@@ -489,7 +541,11 @@ export function buildToolOutcome(
         ...(direction && direction.candidates.length ? { directionGateId: direction.gateId, directionCandidates: direction.candidates } : {}),
         ...(sampleGateId ? { sampleGateId } : {}),
         ...(shotGate ? { shotGateId: shotGate.gateId, shotJobId: shotGate.jobId } : {}),
-        nextActions: direction && direction.candidates.length
+        nextActions: awaitingExternalScript
+          ? ['propose_script']
+          : awaitingExternalStoryboard
+            ? ['propose_storyboard']
+            : direction && direction.candidates.length
           ? ['decide_direction']
           : sampleGateId
             ? ['review_sample']
@@ -594,6 +650,29 @@ export function buildToolOutcome(
     }
   }
 
+  if (toolName === 'nomi_control_run' && str(args.action) === 'set_concurrency') {
+    const maxConcurrentJobs = Number(args.maxConcurrentJobs)
+    const text = [
+      `✓ ${L(ctx, '下一波并发已改为', 'Next-wave concurrency set to')}：${maxConcurrentJobs} · ${runId}`,
+      L(ctx, '只影响尚未提交的独立任务；已经送到供应商的任务不会撤回或重复提交。', 'Only independent jobs not yet submitted are affected; provider tasks already submitted are not cancelled or duplicated.'),
+    ].join('\n') + openLine
+    return {
+      text,
+      outcome: { kind: 'run_control', runId, projectId, action: 'set_concurrency', maxConcurrentJobs, nextActions: [] },
+    }
+  }
+
+  if (toolName === 'nomi_reconcile_job') {
+    const outcome = str(args.outcome)
+    const text = outcome === 'found'
+      ? L(ctx, '✓ 已找到原供应商任务，继续跟踪同一个任务（不会重新提交）。', '✓ Original provider task found; continuing to track the same task (no resubmission).')
+      : L(ctx, '⚠ 未找到原供应商任务。Nomi 已停住并标红，不会自动重提。', '⚠ Original provider task not found. Nomi is paused and marked it; no automatic resubmission.')
+    return {
+      text: `${text}${openLine}`,
+      outcome: { kind: 'job_reconciliation', runId, projectId, jobId: str(args.jobId), outcome, nextActions: outcome === 'found' ? ['wait_for_job'] : ['review_job'] },
+    }
+  }
+
   if (toolName === 'nomi_control_run') {
     const action = str(args.action)
     const status = str(value.status)
@@ -672,6 +751,24 @@ export function buildToolOutcome(
         ...(chosen ? { choiceKey: chosen.key } : {}),
         status: status || null,
         nextActions: hint ? [hint.action] : [],
+        openInNomi: openInNomi || null,
+      },
+    }
+  }
+
+  if (toolName === 'nomi_approve_rough_cut') {
+    const status = str(value.status)
+    const hint = RUN_STATUS_HINT[status]
+    const text = [
+      `✓ ${L(ctx, '粗剪已确认并开始导出', 'Rough cut approved; export started')}`,
+      hint ? L(ctx, hint.nextZh, hint.nextEn) : null,
+      openLine,
+    ].filter(Boolean).join('\n')
+    return {
+      text,
+      outcome: {
+        kind: 'rough_cut_approval', runId, projectId, status: status || null,
+        nextActions: ['wait_for_export'],
         openInNomi: openInNomi || null,
       },
     }

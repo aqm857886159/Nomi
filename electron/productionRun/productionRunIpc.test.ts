@@ -213,4 +213,30 @@ describe("production run IPC", () => {
       issuedAt: "2026-08-08T08:00:00.000Z",
     });
   });
+
+  it("preserves composite production job IDs for safe reconciliation", async () => {
+    const repo = repository();
+    repo.read.mockReturnValue({
+      ...fakeRun(),
+      jobs: [{ jobId: "job:run-1:gen-v2-character-mt2n0d9e-xw6q", status: "submission_unknown" }],
+    });
+    registerProductionRunIpc(repo as never);
+
+    await handlers.get("nomi:production-runs:command")?.({}, {
+      projectId: "project-1",
+      runId: "run-1",
+      command: {
+        commandId: "cmd-reconcile",
+        expectedRevision: 2,
+        type: "job.reconcile",
+        payload: { jobId: "job:run-1:gen-v2-character-mt2n0d9e-xw6q", outcome: "not_found" },
+        issuedAt: "2026-08-08T08:00:00.000Z",
+      },
+    });
+
+    expect(repo.execute).toHaveBeenCalledWith("project-1", "run-1", expect.objectContaining({
+      type: "job.reconcile",
+      payload: { jobId: "job:run-1:gen-v2-character-mt2n0d9e-xw6q", outcome: "not_found" },
+    }));
+  });
 });

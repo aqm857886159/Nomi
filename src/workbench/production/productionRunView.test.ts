@@ -172,7 +172,7 @@ describe('production run view', () => {
     const sample = buildProductionRunView(run({ status: 'running', gates: [gate('gate-sample-v1', 'stage')] }), now)
     expect(sample).toMatchObject({ titleKey: 'production.status.sampleGate', gateKind: 'sample' })
     const contract = buildProductionRunView(run({ status: 'awaiting_contract', gates: [gate('gate-contract-v1', 'budget_envelope')] }), now)
-    expect(contract).toMatchObject({ titleKey: 'production.status.approvalRequired', gateKind: 'contract', decisionHome: 'nomi' })
+    expect(contract).toMatchObject({ titleKey: 'production.status.approvalRequired', gateKind: 'contract', decisionHome: 'origin' })
     const shot = buildProductionRunView(run({
       status: 'running',
       jobs: [{ ...run().jobs[0], nodeId: 'shot-1' }],
@@ -182,7 +182,7 @@ describe('production run view', () => {
       titleKey: 'production.status.shotGate',
       descriptionKey: 'production.description.shotGate',
       gateKind: 'shot',
-      decisionHome: 'nomi',
+      decisionHome: 'origin',
       gateJob: { index: 1, nodeId: 'shot-1', provider: 'tapcanvas', model: 'seedance' },
     })
     // origin=nomi（用户自主发起，没有 CLI 可用）→ 门在 Nomi 是主路径
@@ -205,11 +205,13 @@ describe('production run view', () => {
     expect(buildProductionRunView(run({ status: 'awaiting_rough_cut_review', gates: [exportGate] }), now)).toMatchObject({
       titleKey: 'production.status.roughCutReady',
       primaryAction: 'review-rough-cut',
+      decisionHome: 'origin',
     })
     expect(buildProductionRunView(run({ status: 'awaiting_export', gates: [exportGate] }), now)).toMatchObject({
       titleKey: 'production.status.exportReady',
       primaryAction: 'open-gate',
       targetId: 'gate-export-v1',
+      decisionHome: 'origin',
     })
   })
 

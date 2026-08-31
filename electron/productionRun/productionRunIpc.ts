@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 
 import { createProductionRunRepository, type ProductionRunRepository } from "./productionRunRepository";
 import { getProductionRunService } from "./productionRunRuntime";
+import { storyboardMetadata } from "./productionRunArtifactHelpers";
 import type { ProductionRunService } from "./productionRunService";
 import type { CreateProductionRunInput, RunCommand } from "./productionRunTypes";
 
@@ -13,35 +14,18 @@ function identifier(value: unknown, label: string): string {
   return normalized;
 }
 
+// Production job IDs are durable composite IDs (`job:<runId>:<nodeId>`). They
+// are not filesystem paths, but the separators are part of the ID and must
+// survive the renderer→main IPC boundary for reconciliation to work.
+function jobIdentifier(value: unknown): string {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (!/^job:[A-Za-z0-9._-]{1,160}:[A-Za-z0-9._:-]{1,240}$/.test(normalized)) throw new Error("Invalid job id");
+  return normalized;
+}
+
 function objectValue(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Invalid ${label}`);
   return value as Record<string, unknown>;
-}
-
-function storyboardMetadata(value: unknown): Record<string, unknown> | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const raw = value as Record<string, unknown>;
-  const metadata: Record<string, unknown> = {};
-  for (const key of ["shotId", "ffDesc", "motionDesc", "subtitle", "dialogue", "lfDesc"]) {
-    if (typeof raw[key] === "string" && raw[key].trim()) metadata[key] = raw[key].trim();
-  }
-  const transition = raw.transition;
-  const transitionType = transition && typeof transition === "object" && !Array.isArray(transition)
-    ? (transition as Record<string, unknown>).type
-    : transition;
-  if (transitionType === "cut" || transitionType === "dissolve" || transitionType === "fade" || transitionType === "match_cut" || transitionType === "whip_pan") {
-    const durationFrames = transition && typeof transition === "object" && !Array.isArray(transition)
-      ? (transition as Record<string, unknown>).durationFrames
-      : undefined;
-    metadata.transition = {
-      type: transitionType,
-      ...(typeof durationFrames === "number" && Number.isInteger(durationFrames) && durationFrames > 0 ? { durationFrames } : {}),
-    };
-  }
-  if (raw.variationType === "large" || raw.variationType === "medium" || raw.variationType === "small") metadata.variationType = raw.variationType;
-  if (typeof raw.camIdx === "number" && Number.isInteger(raw.camIdx) && raw.camIdx >= 0) metadata.camIdx = raw.camIdx;
-  if (raw.continuity !== undefined && (typeof raw.continuity === "string" || typeof raw.continuity === "number" || (typeof raw.continuity === "object" && raw.continuity !== null && !Array.isArray(raw.continuity)))) metadata.continuity = raw.continuity;
-  return Object.keys(metadata).length ? metadata : undefined;
 }
 
 function rendererCommandPayload(type: string, value: unknown): Record<string, unknown> {
@@ -93,12 +77,16 @@ function rendererCommandPayload(type: string, value: unknown): Record<string, un
   if (type === "job.reconcile") {
     const outcome = typeof raw.outcome === "string" ? raw.outcome.trim() : "";
     if (outcome !== "found" && outcome !== "not_found") throw new Error("Invalid production reconciliation outcome");
-    return { jobId: identifier(raw.jobId, "job"), outcome };
+    return { jobId: jobIdentifier(raw.jobId), outcome };
   }
   // A4 暂停/继续/取消。合法性（当前状态允不允许这个动作）由 applyRunControl 判，这里只管形状。
   if (type === "run.control") {
     const action = typeof raw.action === "string" ? raw.action.trim() : "";
-    if (!["pause", "resume", "cancel"].includes(action)) throw new Error("Invalid production control action");
+    if (!["pause", "resume", "cancel", "set_concurrency"].includes(action)) throw new Error("Invalid production control action");
+    if (action === "set_concurrency") {
+      if (typeof raw.maxConcurrentJobs !== "number" || !Number.isFinite(raw.maxConcurrentJobs)) throw new Error("Invalid concurrency value");
+      return { action, maxConcurrentJobs: Math.floor(raw.maxConcurrentJobs) };
+    }
     return { action };
   }
   if (type === "artifact.adopt") return { artifactId: identifier(raw.artifactId, "artifact") };

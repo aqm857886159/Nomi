@@ -81,7 +81,12 @@ function extractFrame(film, timestamp, target) {
 }
 
 function makeTile(inputGlob, target, columns) {
-  const files = fs.readdirSync(path.dirname(inputGlob)).filter((file) => file.endsWith('.jpg') && (inputGlob.includes('/frames/') ? /^shot-\d+-(early|middle|late)\.jpg$/.test(file) : /^shot-\d+-to-shot-\d+-(fromTail|cut|toHead)\.jpg$/.test(file))).sort()
+  // Shot ids are authored node ids (for example `gen-v2-video-...`), not
+  // necessarily the fallback `shot-1` shape. The input directory is already
+  // scoped to either frames or boundaries, so filtering by image type is the
+  // durable contract; a shot-id naming convention would silently produce no
+  // contact sheet for real ProductionRun exports.
+  const files = fs.readdirSync(path.dirname(inputGlob)).filter((file) => file.endsWith('.jpg')).sort()
   if (!files.length) return
   execFileSync(ffmpeg, ['-y', '-pattern_type', 'glob', '-i', inputGlob, '-vf', `scale=320:-2,tile=${columns}x${Math.ceil(files.length / columns)}:padding=8:margin=8`, '-frames:v', '1', '-q:v', '3', target], { stdio: 'ignore' })
 }

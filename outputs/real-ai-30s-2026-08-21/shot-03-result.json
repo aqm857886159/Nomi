@@ -1,0 +1,73 @@
+{
+  "projectId": "project-1787255846399-rc9057",
+  "imageUrl": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/image-1787255863588.jpg",
+  "status": "succeeded",
+  "videoUrl": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256571147.mp4",
+  "error": null,
+  "result": {
+    "id": "task_01M0GCGFNJK4CSRFN8077VSAJN",
+    "kind": "image_to_video",
+    "status": "succeeded",
+    "assets": [
+      {
+        "type": "video",
+        "url": "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/video-1787256571147.mp4",
+        "thumbnailUrl": null,
+        "assetId": "asset-ec7ec71f-7dce-469d-a2c6-f5371617cf63",
+        "assetName": "video-1787256571147.mp4",
+        "durationSeconds": 5.042,
+        "providerUrl": "https://getapib.org/video/9998212743444478-0b18c661-3470-481a-9601-6b41af0606ba-video_task_01M0GCGFNJK4CSRFN8077VSAJN.mp4"
+      }
+    ],
+    "raw": {
+      "code": 200,
+      "data": {
+        "actual_time": 169,
+        "completed": 1787256558,
+        "cost": 0.71,
+        "created": 1787256389,
+        "credits_cost": 7.1,
+        "estimated_time": 300,
+        "id": "task_01M0GCGFNJK4CSRFN8077VSAJN",
+        "progress": 100,
+        "result": {
+          "videos": [
+            {
+              "expires_at": 1787342958,
+              "url": [
+                "https://getapib.org/video/9998212743444478-0b18c661-3470-481a-9601-6b41af0606ba-video_task_01M0GCGFNJK4CSRFN8077VSAJN.mp4"
+              ]
+            }
+          ]
+        },
+        "status": "completed"
+      }
+    },
+    "provenance": {
+      "provider": "apimart",
+      "modelKey": "doubao-seedance-2.0",
+      "prompt": "保持参考图中的同一位成年短黑发、银色耳钉、明黄色雨衣女性和电影写实风格。她从雨夜街道走进明亮的创意工作室，暖光灯照亮空气中的水汽，镜头平稳横移，冷蓝色雨光逐渐变成温暖金色，动作自然连贯，脸部和服装保持一致，不出现文字。",
+      "params": {
+        "extras": {
+          "size": "16:9",
+          "resolution": "720p",
+          "duration": 5,
+          "generate_audio": false,
+          "model": "doubao-seedance-2.0",
+          "modelKey": "doubao-seedance-2.0",
+          "referenceImages": [
+            "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/image-1787255863588.jpg"
+          ],
+          "grantId": "13965dc7-6356-466e-922d-3ed558b9dc04",
+          "nodeId": "real-shot-03-retry3",
+          "projectId": "project-1787255846399-rc9057",
+          "image_urls": [
+            "nomi-local://asset/project-1787255846399-rc9057/assets/generated/2026-08-20/image-1787255863588.jpg"
+          ]
+        }
+      },
+      "vendorRequestId": "task_01M0GCGFNJK4CSRFN8077VSAJN",
+      "timestamp": 1787256574973
+    }
+  }
+}

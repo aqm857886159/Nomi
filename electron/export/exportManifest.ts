@@ -12,9 +12,18 @@ export type NomiRenderManifestV1 = {
     range: { startFrame: number; endFrame: number };
     tracks: NomiRenderTrack[];
   };
+  /** Authored transitions between adjacent visual clips. */
+  transitions?: NomiRenderTransition[];
   profile: ExportProfile;
   assets: Record<string, NomiRenderAsset>;
   diagnostics?: { warnings: string[] };
+};
+
+export type NomiRenderTransition = {
+  fromClipId: string;
+  toClipId: string;
+  type: "cut" | "dissolve" | "fade" | "match_cut" | "whip_pan";
+  durationFrames?: number;
 };
 
 export type NomiRenderAsset = {
@@ -157,6 +166,22 @@ function assertValidClip(value: unknown, fieldName: string): asserts value is No
   }
 }
 
+function assertValidTransitions(value: unknown): asserts value is NomiRenderTransition[] {
+  if (!Array.isArray(value)) throw new Error("transitions must be an array when present");
+  value.forEach((transition, index) => {
+    const fieldName = `transitions[${index}]`;
+    assertRecord(transition, fieldName);
+    assertNonEmptyString(transition.fromClipId, `${fieldName}.fromClipId`);
+    assertNonEmptyString(transition.toClipId, `${fieldName}.toClipId`);
+    if (!["cut", "dissolve", "fade", "match_cut", "whip_pan"].includes(String(transition.type))) {
+      throw new Error(`${fieldName}.type must be a supported transition`);
+    }
+    if (transition.durationFrames !== undefined) {
+      assertOptionalPositiveInteger(transition.durationFrames, `${fieldName}.durationFrames`);
+    }
+  });
+}
+
 function assertValidTrack(value: unknown, fieldName: string): asserts value is NomiRenderTrack {
   assertRecord(value, fieldName);
   assertNonEmptyString(value.id, `${fieldName}.id`);
@@ -248,6 +273,10 @@ export function assertValidManifest(value: unknown): asserts value is NomiRender
   });
 
   assertClipAssetReferencesExist(value.timeline.tracks as NomiRenderTrack[], value.assets as Record<string, NomiRenderAsset>);
+
+  if (value.transitions !== undefined) {
+    assertValidTransitions(value.transitions);
+  }
 
   if (value.diagnostics !== undefined) {
     assertValidDiagnostics(value.diagnostics);

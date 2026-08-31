@@ -1,0 +1,32 @@
+{
+  "projectId": "project-1787255846399-rc9057",
+  "generatedAt": "2026-08-20T20:12:11.516Z",
+  "source": "real-provider-generation",
+  "provider": "apimart",
+  "model": "doubao-seedance-2.0",
+  "imageModel": "doubao-seedream-4.5",
+  "referenceAssetId": "asset-1491fb52fc79b093b1ec",
+  "shotAssetIds": [
+    "asset-e65a0c766e3f32232c22",
+    "asset-c8722c9cc70162ff6410",
+    "asset-ed666f9d44e10b215c09",
+    "asset-ef575c90d516c0f9a4a4",
+    "asset-4bf467529f5b1332af5d",
+    "asset-837c14fd6c3793fa58b6"
+  ],
+  "durationSeconds": 28.33,
+  "shots": 6,
+  "transition": {
+    "type": "fade",
+    "durationSeconds": 0.35,
+    "betweenShots": 5
+  },
+  "subtitles": {
+    "file": "real-ai-30s.srt",
+    "cues": 6,
+    "burnedIn": true,
+    "embeddedTrack": true
+  },
+  "finalAssetId": "asset-fa7494d01a9ba38b98d5",
+  "finalPath": "/Users/aoqimin/Documents/Nomi Projects/未命名项目 08_21 03_57-mt1xzh1c-31b70fdc/exports/nomi-real-ai-film-30s.mp4"
+}

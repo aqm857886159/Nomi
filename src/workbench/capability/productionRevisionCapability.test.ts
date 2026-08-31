@@ -13,8 +13,12 @@ vi.mock('../ai/assistantModelPref', () => ({ getAssistantModelPref: () => undefi
 vi.mock('../project/workbenchProjectSession', () => ({ getActiveWorkbenchProjectId: () => 'project-1' }))
 vi.mock('../generationCanvas/agent/runDirectionPlanner', () => ({ runDirectionPlanner: vi.fn() }))
 vi.mock('../generationCanvas/agent/runStoryboardPlanner', () => ({ runStoryboardPlanner: vi.fn() }))
+vi.mock('../generationCanvas/runner/generationRunController', () => ({ runGenerationNode: vi.fn() }))
+vi.mock('../api/taskApi', () => ({ mintSpendGrant: vi.fn().mockResolvedValue('grant-1') }))
 
 import { handleCapabilityApply } from './capabilityApplyHandler'
+import { RecoverableTimeoutError } from '../generationCanvas/runner/recoverableTimeout'
+import { runGenerationNode } from '../generationCanvas/runner/generationRunController'
 
 const VALID_PLAN = {
   title: '雨夜找猫',
@@ -54,5 +58,19 @@ describe('production.revise-storyboard renderer seam', () => {
       sourceContent: JSON.stringify(VALID_PLAN),
       instruction: '改近景',
     })).rejects.toThrow()
+  })
+})
+
+describe('production.generate-node recoverable renderer seam', () => {
+  it('returns the provider receipt instead of throwing away the task id', async () => {
+    vi.mocked(runGenerationNode).mockRejectedValueOnce(new RecoverableTimeoutError({
+      taskId: 'provider-task-poll-1', vendor: 'apimart', taskKind: 'text_to_video', modelKey: 'doubao-seedance-2.0',
+    }))
+
+    const result = await handleCapabilityApply('production.generate-node', { nodeId: 'shot-1', maxAttemptsPerJob: 1 }) as Record<string, unknown>
+    expect(result).toMatchObject({
+      nodeId: 'shot-1', status: 'recoverable', providerTaskId: 'provider-task-poll-1',
+      taskKind: 'text_to_video', modelKey: 'doubao-seedance-2.0', errorCode: 'provider_poll_recoverable',
+    })
   })
 })

@@ -82,6 +82,11 @@ export function storyboardMetadata(value: unknown): Record<string, unknown> | un
   const subtitle = textField(raw.subtitle)
   const dialogue = textField(raw.dialogue)
   const lfDesc = textField(raw.lfDesc)
+  const narrativeGoal = textField(raw.narrativeGoal)
+  const actionChain = textField(raw.actionChain)
+  const dramaticBeat = textField(raw.dramaticBeat)
+  const previousShotId = textField(raw.previousShotId)
+  const firstFrameRef = textField(raw.firstFrameRef)
   const variationType = raw.variationType === 'large' || raw.variationType === 'medium' || raw.variationType === 'small' ? raw.variationType : undefined
   const camIdx = typeof raw.camIdx === 'number' && Number.isInteger(raw.camIdx) && raw.camIdx >= 0 ? raw.camIdx : undefined
   if (shotId) metadata.shotId = shotId
@@ -90,9 +95,22 @@ export function storyboardMetadata(value: unknown): Record<string, unknown> | un
   if (subtitle) metadata.subtitle = subtitle
   if (dialogue) metadata.dialogue = dialogue
   if (lfDesc) metadata.lfDesc = lfDesc
+  if (narrativeGoal) metadata.narrativeGoal = narrativeGoal
+  if (actionChain) metadata.actionChain = actionChain
+  if (dramaticBeat) metadata.dramaticBeat = dramaticBeat
+  if (previousShotId) metadata.previousShotId = previousShotId
+  if (firstFrameRef) metadata.firstFrameRef = firstFrameRef
   if (variationType) metadata.variationType = variationType
   if (camIdx !== undefined) metadata.camIdx = camIdx
   if (raw.continuity !== undefined && (typeof raw.continuity === 'string' || typeof raw.continuity === 'number' || (typeof raw.continuity === 'object' && raw.continuity !== null && !Array.isArray(raw.continuity)))) metadata.continuity = raw.continuity
+  if (typeof raw.continuityLocks === 'string' && raw.continuityLocks.trim()) {
+    metadata.continuityLocks = raw.continuityLocks.trim()
+  } else if (Array.isArray(raw.continuityLocks)) {
+    const locks = raw.continuityLocks
+      .filter((lock): lock is string => typeof lock === 'string' && lock.trim().length > 0)
+      .map((lock) => lock.trim())
+    if (locks.length) metadata.continuityLocks = locks
+  }
   const transitionValue = raw.transition
   const transition = transitionValue === 'cut' || transitionValue === 'dissolve' || transitionValue === 'fade' || transitionValue === 'match_cut' || transitionValue === 'whip_pan'
     ? { type: transitionValue }
