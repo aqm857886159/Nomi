@@ -24,6 +24,7 @@ export function SkillCard({
     t(`libraries.skill.provider.${kind}` as 'libraries.skill.provider.text')
   const cap = skillCapabilityFor(skill, available)
   const isUser = skill.origin === 'user'
+  const manifestUnavailable = Boolean(skill.manifestError)
 
   return (
     <div className={cn('flex flex-col gap-2 rounded-nomi border border-nomi-line bg-nomi-paper p-3')}>
@@ -55,6 +56,13 @@ export function SkillCard({
         {t('libraries.skill.identity', { version: skill.packageVersion, hash: skill.contentHash.slice(0, 8) })}
       </span>
 
+      {manifestUnavailable ? (
+        <div className={cn('flex items-start gap-1.5 rounded-nomi-sm bg-workbench-danger-soft px-2 py-1.5 text-micro text-workbench-danger')} role="alert">
+          <IconAlertTriangle size={13} stroke={1.8} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span>{t('libraries.skill.manifestError', { message: skill.manifestError })}</span>
+        </div>
+      ) : null}
+
       {skill.neededProviders.length > 0 && (
         <div className={cn('flex flex-wrap items-center gap-2')}>
           {skill.neededProviders.map((kind) => {
@@ -79,8 +87,14 @@ export function SkillCard({
         <button
           type="button"
           onClick={() => onUse(skill)}
+          disabled={manifestUnavailable}
+          aria-disabled={manifestUnavailable}
+          title={manifestUnavailable ? t('libraries.skill.unavailable') : undefined}
           className={cn(
-            'shrink-0 whitespace-nowrap rounded-nomi-sm px-2 py-1 text-caption text-nomi-accent hover:bg-nomi-accent-soft transition-colors',
+            'shrink-0 whitespace-nowrap rounded-nomi-sm px-2 py-1 text-caption transition-colors',
+            manifestUnavailable
+              ? 'cursor-not-allowed text-nomi-ink-35'
+              : 'text-nomi-accent hover:bg-nomi-accent-soft',
           )}
         >
           {t('libraries.skill.useInCreation')}

@@ -412,11 +412,8 @@ export type DesktopBridge = DesktopMediaBridge & {
       contentType?: string
       kind?: string
     }) => Promise<DesktopAssetDto | null>
-    copyFiles?: (payload: { projectId: string; paths: string[] }) => Promise<{
-      created: DesktopAssetDto[]
-      skippedUnsupportedCount: number
-      failedCount: number
-    }>
+    copyFiles?: (payload: { projectId: string; paths: string[] }) => Promise<{ created: DesktopAssetDto[]; skippedUnsupportedCount: number; failedCount: number }>
+    copyProjectAsset?: (payload: { sourceProjectId: string; targetProjectId: string; relativePath: string }) => Promise<DesktopAssetDto>
     /** 播放懒自愈：nomi-local 视频解不了（HEVC 存量/供应商 HEVC 产物）→ 转码出新 MP4 资产；不适用 → null。 */
     ensurePlayable?: (payload: { url: string }) => Promise<DesktopAssetDto | null>
     /**

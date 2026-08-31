@@ -13,12 +13,15 @@ import {
   IconTrash,
 } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { ActionCard, NomiLogoMark, NomiWordmark, DesignEmptyState, DesignSearchInput } from '../../design'
+import { ActionCard, NomiLogoMark, NomiWordmark, DesignEmptyState } from '../../design'
 import { NomiImage } from '../../design/media'
 import { WindowControls } from '../../ui/app-shell/WindowControls'
 import { handleWindowTitlebarDoubleClick } from '../../ui/app-shell/windowTitlebarDoubleClick'
 import type { LocalProjectSummary } from './localProjectStore'
 import type { ProjectTemplateId } from './projectTemplates'
+import { markLibraryUsed, sortByLibraryUsage, useLibraryUsageVersion } from './libraryDiscovery'
+import { filterProjectLibraryItems } from './libraryAdapters'
+import { LibraryDiscoveryToolbar } from './LibraryDiscoveryToolbar'
 
 type Props = {
   onOpenProject: (projectId: string) => void
@@ -116,6 +119,8 @@ export default function ProjectLibraryPage({
   const { t } = useTranslation()
   const [query, setQuery] = React.useState('')
   const [sourceFilter, setSourceFilter] = React.useState<'all' | 'native' | 'folder'>('all')
+  const usageVersion = useLibraryUsageVersion()
+  const normalizedQuery = query.trim()
   // 双击项目名进入 inline 编辑：editingId 记哪张卡在编辑、editValue 是输入中的名字。
   const [editingId, setEditingId] = React.useState('')
   const [editValue, setEditValue] = React.useState('')
@@ -129,10 +134,18 @@ export default function ProjectLibraryPage({
     if (next && next !== originalName) onRenameProject?.(projectId, next)
     setEditingId('')
   }
-  const normalizedQuery = query.trim().toLowerCase()
-  const searchedProjects = normalizedQuery
-    ? projects.filter((project) => project.name.toLowerCase().includes(normalizedQuery))
-    : projects
+  const searchedProjects = React.useMemo(() => {
+    // The usage hook is a renderer invalidation signal; keep it in this memo's
+    // dependency list so a just-opened project moves without another action.
+    void usageVersion
+    const sorted = sortByLibraryUsage(
+      projects,
+      'project',
+      (project) => project.id,
+      (project) => project.updatedAt,
+    )
+    return filterProjectLibraryItems(sorted, query)
+  }, [projects, query, usageVersion])
   const sourceCounts = React.useMemo(
     () => ({
       all: searchedProjects.length,
@@ -153,6 +166,10 @@ export default function ProjectLibraryPage({
     { id: 'folder', label: t('library.folders'), count: sourceCounts.folder },
   ]
   const textModelMissing = hasTextModel === false
+  const openProject = React.useCallback((projectId: string): void => {
+    onOpenProject(projectId)
+    markLibraryUsed('project', projectId)
+  }, [onOpenProject])
   // 单一入口互斥：缺文本模型时弱入口隐藏，模型入口 = 状态条（有项目）/ 主 CTA 自动带入（空库）
   const showModelEntry = Boolean(onOpenModelCatalog) && !textModelMissing
   // Windows：库窗也 frame:false，需自绘标题栏才能拖动/关窗。mac/Linux：原生 chrome，右上操作留在 header 原位。
@@ -299,39 +316,40 @@ export default function ProjectLibraryPage({
           ) : null}
 
           {/* ── 最近项目：标题 + 来源筛选（名词，与动作动词区隔）｜搜索同行 ── */}
-          <div className="shrink-0 flex items-center justify-between gap-4 flex-wrap">
-            <div className="inline-flex items-center gap-8 flex-wrap">
-              <h2 className="m-0 text-caption font-medium text-nomi-ink-60">{t('library.recentProjects')}</h2>
-              <div
-                className="inline-flex items-center gap-1 p-1 rounded-full border border-nomi-line bg-nomi-paper"
-                aria-label={t('library.sourceFilter')}
-              >
-                {sourceOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    aria-pressed={sourceFilter === option.id}
-                    onClick={() => setSourceFilter(option.id)}
-                    className={cn(
-                      'h-7 px-3 rounded-full border-0 bg-transparent text-caption font-medium font-inherit cursor-pointer',
-                      'text-nomi-ink-60 transition-[background,color] duration-150',
-                      sourceFilter === option.id && 'bg-nomi-ink-10 text-nomi-ink',
-                      option.count === 0 && 'text-nomi-ink-30',
-                    )}
-                  >
-                    {option.label} {option.count}
-                  </button>
-                ))}
+          <LibraryDiscoveryToolbar
+            query={query}
+            onQueryChange={setQuery}
+            placeholder={t('library.searchPlaceholder')}
+            ariaLabel={t('library.searchPlaceholder')}
+            searchSize="md"
+            searchClassName="w-[280px] max-w-full flex-none"
+            leading={(
+              <div className="inline-flex items-center gap-8 flex-wrap">
+                <h2 className="m-0 text-caption font-medium text-nomi-ink-60">{t('library.recentProjects')}</h2>
+                <div
+                  className="inline-flex items-center gap-1 p-1 rounded-full border border-nomi-line bg-nomi-paper"
+                  aria-label={t('library.sourceFilter')}
+                >
+                  {sourceOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-pressed={sourceFilter === option.id}
+                      onClick={() => setSourceFilter(option.id)}
+                      className={cn(
+                        'h-7 px-3 rounded-full border-0 bg-transparent text-caption font-medium font-inherit cursor-pointer',
+                        'text-nomi-ink-60 transition-[background,color] duration-150',
+                        sourceFilter === option.id && 'bg-nomi-ink-10 text-nomi-ink',
+                        option.count === 0 && 'text-nomi-ink-30',
+                      )}
+                    >
+                      {option.label} {option.count}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <DesignSearchInput
-              size="md"
-              className="w-[280px]"
-              placeholder={t('library.searchPlaceholder')}
-              value={query}
-              onChange={setQuery}
-            />
-          </div>
+            )}
+          />
 
           {filteredProjects.length === 0 ? (
             // 审计 A10：库非空但「搜索 × 来源 tab」过滤后为空——给空态与出路（统一空态组件）。
@@ -375,8 +393,8 @@ export default function ProjectLibraryPage({
                   )}
                   role={project.missing ? undefined : 'button'}
                   tabIndex={project.missing ? undefined : 0}
-                  onClick={project.missing ? undefined : () => onOpenProject(project.id)}
-                  onKeyDown={project.missing ? undefined : (e) => e.key === 'Enter' && onOpenProject(project.id)}
+                  onClick={project.missing ? undefined : () => openProject(project.id)}
+                  onKeyDown={project.missing ? undefined : (e) => e.key === 'Enter' && openProject(project.id)}
                 >
                   <div
                     className="aspect-video relative overflow-hidden bg-nomi-ink-05"
@@ -421,7 +439,7 @@ export default function ProjectLibraryPage({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
-                            onOpenProject(project.id)
+                            openProject(project.id)
                           }}
                         >
                           {t('library.continueCreating')}

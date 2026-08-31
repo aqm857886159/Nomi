@@ -3,6 +3,7 @@ import { readVideoDurationSeconds } from '../../media/videoDurationProbe'
 import i18n from '../../i18n'
 import { toast } from '../../ui/toast'
 import { parseAssetLibraryDrag, type AssetLibraryDragPayload } from '../assets/assetLibraryDrag'
+import { assetBelongsToProject } from '../assets/assetLibraryUsage'
 import type { AssetKind, AssetRef } from '../assets/assetTypes'
 import { useWorkbenchStore } from '../workbenchStore'
 import { buildClipFromAssetRef } from './buildClipFromAssetRef'
@@ -12,6 +13,7 @@ import type { TimelineClip, TimelineState, TimelineTrackType } from './timelineT
 export type AssetDropResolution =
   | { status: 'accept'; asset: TimelineAssetRef }
   | { status: 'reject'; expectedTrack: TimelineTrackType }
+  | { status: 'reject-external' }
 
 type TimelineAssetRef = AssetRef & { kind: TimelineTrackType }
 
@@ -45,9 +47,11 @@ export function assetRefFromDragPayload(payload: AssetLibraryDragPayload): Timel
 export function resolveAssetDrop(
   payload: AssetLibraryDragPayload,
   trackType: TimelineTrackType,
+  activeProjectId: string | null = null,
 ): AssetDropResolution | null {
   const asset = assetRefFromDragPayload(payload)
   if (!asset) return null
+  if (!assetBelongsToProject(asset, activeProjectId)) return { status: 'reject-external' }
   return asset.kind === trackType
     ? { status: 'accept', asset }
     : { status: 'reject', expectedTrack: asset.kind }
@@ -84,27 +88,37 @@ export async function addAssetToTimeline(
 }
 
 /** Preview-source click action: probe, append to the matching track, then reveal the result. */
-export async function addAssetToTimelineEnd(asset: AssetRef): Promise<void> {
+export async function addAssetToTimelineEnd(asset: AssetRef): Promise<boolean> {
   const initialTimeline = useWorkbenchStore.getState().timeline
-  const clip = await buildAssetTimelineClip(asset, { fps: initialTimeline.fps, startFrame: 0 })
-  if (!clip) return
+  let clip: TimelineClip | null
+  try {
+    clip = await buildAssetTimelineClip(asset, { fps: initialTimeline.fps, startFrame: 0 })
+  } catch (error) {
+    // A failed media probe is a failed primary action, not a recent use. Keep
+    // the picker responsive and let callers decide how to surface the error.
+    console.warn('asset timeline append probe failed', error)
+    return false
+  }
+  if (!clip) return false
   const store = useWorkbenchStore.getState()
   const startFrame = findAssetAppendFrame(store.timeline, clip.type)
   store.addTimelineClipAtFrame(clip, clip.type, startFrame)
   store.setTimelinePanelCollapsed(false)
   toast(i18n.t('timelineEditor.addedToEnd'), 'success')
+  return true
 }
 
 /** Parse and route an asset-library drop without duplicating media-kind logic in track components. */
 export function tryAddAssetFromDragData(
   raw: string | null | undefined,
-  options: { fps: number; startFrame: number; targetTrackType: TimelineTrackType },
-): ({ status: 'accept'; kind: AssetKind } | { status: 'reject'; expectedTrack: TimelineTrackType }) | null {
+  options: { fps: number; startFrame: number; targetTrackType: TimelineTrackType; activeProjectId: string | null },
+): ({ status: 'accept'; kind: AssetKind } | { status: 'reject'; expectedTrack: TimelineTrackType } | { status: 'reject-external' }) | null {
   const payload = parseAssetLibraryDrag(raw)
   if (!payload) return null
-  const resolution = resolveAssetDrop(payload, options.targetTrackType)
+  const resolution = resolveAssetDrop(payload, options.targetTrackType, options.activeProjectId)
   if (!resolution) return null
   if (resolution.status === 'reject') return resolution
+  if (resolution.status === 'reject-external') return resolution
   void addAssetToTimeline(resolution.asset, options)
   return { status: 'accept', kind: resolution.asset.kind }
 }

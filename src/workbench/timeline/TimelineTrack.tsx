@@ -17,6 +17,7 @@ import type { TimelineTrack as TimelineTrackData } from './timelineTypes'
 import { toast } from '../../ui/toast'
 import TimelineTransitionMarker from './TimelineTransitionMarker'
 import type { TimelineTransitionFeedback } from './timelineVisualFeedback'
+import { getActiveWorkbenchProjectId } from '../project/workbenchProjectSession'
 
 type TimelineTrackProps = {
   track: TimelineTrackData
@@ -115,13 +116,16 @@ function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: 
         fps,
         startFrame: resolveFrame(event.clientX),
         targetTrackType: track.type,
+        activeProjectId: getActiveWorkbenchProjectId(),
       })
       if (!result) return false
       event.preventDefault()
       setDragPreview(null)
       setIsDragHovering(false)
       setDropCaretFrame(null)
-      if (result.status === 'reject') {
+      if (result.status === 'reject-external') {
+        toast(t('assetLibrary.externalAssetHint'), 'info')
+      } else if (result.status === 'reject') {
         const expectedTrack = result.expectedTrack === 'image'
           ? t('timelineEditor.track.imageLabel')
           : result.expectedTrack === 'video'

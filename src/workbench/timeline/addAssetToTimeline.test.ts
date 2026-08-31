@@ -62,11 +62,16 @@ describe('asset timeline actions', () => {
   })
 
   it('accepts only the matching target track and reports the expected track', () => {
-    expect(resolveAssetDrop(payload('video'), 'video')).toMatchObject({ status: 'accept' })
-    expect(resolveAssetDrop(payload('video'), 'image')).toEqual({
+    expect(resolveAssetDrop(payload('video'), 'video', 'project-a')).toMatchObject({ status: 'accept' })
+    expect(resolveAssetDrop(payload('video'), 'image', 'project-a')).toEqual({
       status: 'reject',
       expectedTrack: 'video',
     })
+  })
+
+  it('rejects a project asset from another project before timeline write', () => {
+    expect(resolveAssetDrop(payload('video'), 'video', 'project-b')).toEqual({ status: 'reject-external' })
+    expect(resolveAssetDrop(payload('video'), 'video')).toEqual({ status: 'reject-external' })
   })
 
   it('finds the matching track end for click-to-append', () => {

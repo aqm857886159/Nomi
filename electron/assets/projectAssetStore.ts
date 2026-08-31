@@ -387,6 +387,50 @@ export async function copyAssetFile(
   };
 }
 
+/**
+ * Copy an already stored project asset by project id + relative path.
+ *
+ * This is deliberately narrower than copy-files: renderer code never submits
+ * an arbitrary native path. The source project directory and realpath are
+ * checked in main before the existing media validation/copy boundary runs.
+ */
+export async function copyProjectAsset(input: {
+  sourceProjectId: string
+  targetProjectId: string
+  relativePath: string
+}): Promise<unknown> {
+  const sourceProjectId = String(input.sourceProjectId || '').trim()
+  const targetProjectId = String(input.targetProjectId || '').trim()
+  const relativePath = String(input.relativePath || '').replace(/\\/g, '/').trim()
+  if (!sourceProjectId || !targetProjectId || !relativePath) throw new Error('sourceProjectId, targetProjectId and relativePath are required')
+  if (path.posix.isAbsolute(relativePath) || relativePath.split('/').some((segment) => segment === '..')) {
+    throw new Error('asset relativePath is unsafe')
+  }
+  const sourceRoot = projectDirById(sourceProjectId)
+  if (!sourceRoot) throw new Error('Source project not found')
+  const targetRoot = projectDirById(targetProjectId)
+  if (!targetRoot) throw new Error('Target project not found')
+  const resolvedRoot = path.resolve(sourceRoot)
+  const sourcePath = path.resolve(resolvedRoot, relativePath)
+  if (sourcePath !== resolvedRoot && !sourcePath.startsWith(`${resolvedRoot}${path.sep}`)) {
+    throw new Error('asset path escapes source project')
+  }
+  const realRoot = await fs.promises.realpath(resolvedRoot)
+  const realSourcePath = await fs.promises.realpath(sourcePath)
+  if (realSourcePath !== realRoot && !realSourcePath.startsWith(`${realRoot}${path.sep}`)) {
+    throw new Error('asset path escapes source project')
+  }
+  const stat = await fs.promises.stat(realSourcePath)
+  if (!stat.isFile()) throw new Error('source asset is not a file')
+  return copyAssetFile(
+    targetProjectId,
+    realSourcePath,
+    path.basename(relativePath),
+    contentTypeFromStoredFile(realSourcePath),
+    readAssetSidecarMeta(realSourcePath),
+  )
+}
+
 export function moveAssetFile(
   projectId: string,
   sourcePath: string,

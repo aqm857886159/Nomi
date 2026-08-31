@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCopyFilesPayload, readClipboardFilePathsFromFormats } from "./assetsIpc";
+import { parseCopyFilesPayload, parseCopyProjectAssetPayload, readClipboardFilePathsFromFormats } from "./assetsIpc";
 
 describe("assets IPC contracts", () => {
   it("reads the first supported clipboard file format with paths", () => {
@@ -18,5 +18,15 @@ describe("assets IPC contracts", () => {
     });
     expect(parseCopyFilesPayload({ projectId: "", paths: ["/tmp/a.png"] })).toBeNull();
     expect(parseCopyFilesPayload({ projectId: "p1", paths: [] })).toBeNull();
+  });
+
+  it("accepts only project-scoped relative asset copy requests", () => {
+    expect(parseCopyProjectAssetPayload({ sourceProjectId: "source", targetProjectId: "target", relativePath: "assets/ref.png" })).toEqual({
+      sourceProjectId: "source",
+      targetProjectId: "target",
+      relativePath: "assets/ref.png",
+    });
+    expect(parseCopyProjectAssetPayload({ sourceProjectId: "source", targetProjectId: "target", relativePath: "../outside" })).toBeNull();
+    expect(parseCopyProjectAssetPayload({ sourceProjectId: "source", targetProjectId: "target", relativePath: "" })).toBeNull();
   });
 });

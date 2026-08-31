@@ -1,7 +1,7 @@
 # 现在真正跑的是什么
 
 > 状态：🚧 长期维护（这份文件不描述计划，只描述**当下 main 上真实运行的东西**）
-> 最后核对：2026-08-31 · 核对基线：任务分支 `codex/provider-model-expansion-20260830` + `origin/main`
+> 最后核对：2026-08-31 · 核对基线：`origin/main`
 
 ## 这份文件为什么存在
 
@@ -45,6 +45,7 @@
 | **非 Agent 文本链** | 仍是 `ai@4` 的 `streamText`（**没有**跟着换 pi） | `electron/ai/streamTextTask.ts:8`、`package.json:132` | ❌ 以为换芯是全局的 |
 | **生成画布 renderer** | `@xyflow/react` 单内核，`GenerationCanvas` 是唯一稳定入口 | R21 · `src/workbench/generationCanvas/` | ❌ 以为还有第二 renderer / engine flag / fallback |
 | **本地资产上传路由** | 普通 mapping、自定义调用和 Replicate 拆解都在付费供应商请求前经过同一 `AssetIngestion` resolver；按图片/视频/音频能力排序为目标/已配置供应商上传 API → 用户自定义 Relay → Nomi 受限公共 Relay → 匿名链。支持 KIE、APIMart、fal、Replicate、Runway、RunningHub 的声明式上传协议；自定义 Relay Token 由主进程系统安全存储 | `electron/catalog/assetLocalization.ts:745`、`electron/catalog/assetRelayRuntimeConfig.ts:1`、`electron/settings/assetRelaySettings.ts:1`、`electron/runtime.ts:263`、`electron/catalog/customCallDispatch.ts:76`、`electron/image/decomposeLayers.ts:62` | ❌「只要有匿名图床就解决了」——匿名 host 仍是最后兜底；公共 Relay 有总量/过期/限流保护，供应商 key/额度/模型输入字段仍需分别验证 |
+| **资源库发现层** | 项目、提示词、技能、素材仍各自使用原有 store/API；renderer 仅通过 `libraryDiscovery.ts`/`libraryAdapters.ts` 统一多词搜索、确定性筛选与最近使用排序，不保存资源正文、不提供 Agent 入口 | `src/workbench/library/libraryDiscovery.ts`、`src/workbench/library/libraryAdapters.ts`、各库 `*Library*` 组件 | ❌ 以为这会新增一个“概览/超级资源库”或替换 #223 Agent 能力边界 |
 | **时间轴数据模型** | 固定 **3 轨**（image/video/audio）+ 独立 `textClips[]` + `transitions[]`。video/audio clip 可选带 `audio`（-60..0 dB、mute、帧级 fade-in/out）；无任意图层、无变速 | `src/workbench/timeline/timelineTypes.ts`、`src/workbench/timeline/clipAudio.ts` | ❌ 以为片段音量只有预览全局滑杆——clip 音频参数已经落盘并进入导出 |
 | **分镜 → 时间轴** | `planStoryboardTimeline` 只按 `shotIndex` 排序选片；**落轴归采纳桥** `adoptStoryboardBatch`（整批一次写定、一层撤销、带 Proposal 幂等键 replay/stale/needs_attention） | `storyboardTimelinePlan.ts:58`、`adoptStoryboardBatch.ts` | ❌ 只读 planner 就断言「意图被丢掉了」——**字幕和转场是在采纳桥里落的**，planner 里看不到 |
 | **字幕/转场落轴** | **已实现**：`node.meta.subtitle\|dialogue` → `textClips`；`node.meta.transition` → `transitions[]` | `adoptStoryboardBatch.ts:79`（caption）、`:88`（transition）、`:199`、`:217` | ❌ 以为字幕只能手打 |

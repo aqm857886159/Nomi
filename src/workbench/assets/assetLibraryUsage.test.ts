@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  assetBelongsToProject,
   canManageAssetFolders,
   resolveAssetLibraryItemAction,
   shouldRunAssetItemAction,
@@ -28,5 +29,11 @@ describe('asset library usage context', () => {
     expect(shouldRunAssetItemAction('append', 1)).toBe(true)
     expect(shouldRunAssetItemAction('append', 2)).toBe(false)
     expect(shouldRunAssetItemAction('select', 2)).toBe(true)
+  })
+
+  it('keeps external project files out of current-project writes', () => {
+    expect(assetBelongsToProject({ origin: { source: 'project', projectId: 'current', relativePath: 'a.png' } }, 'current')).toBe(true)
+    expect(assetBelongsToProject({ origin: { source: 'project', projectId: 'other', relativePath: 'a.png' } }, 'current')).toBe(false)
+    expect(assetBelongsToProject({ origin: { source: 'canvas', nodeId: 'n1' } }, 'current')).toBe(true)
   })
 })

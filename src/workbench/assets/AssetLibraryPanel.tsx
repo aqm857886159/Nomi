@@ -11,11 +11,11 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../i18n'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { IconChevronLeft, IconFilter, IconFolderPlus, IconPhoto, IconPlus, IconTrash, IconX } from '@tabler/icons-react'
+import { IconPhoto, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { useAssetPool } from './useAssetPool'
-import { mergeAssetRefs, useAllProjectAssets } from './useAllProjectAssets'
+import { assetTimeValue, mergeAssetRefs, useAllProjectAssets } from './useAllProjectAssets'
 import { assetsForFolderScope, folderCountsForAssets, useAssetFolderInteractions, useAssetFolders } from './useAssetFolders'
 import { filterAssets, type AssetKind, type AssetRef } from './assetTypes'
 import { ASSET_LIBRARY_DRAG_MIME, serializeAssetLibraryDrag } from './assetLibraryDrag'
@@ -23,15 +23,14 @@ import { importAudioFilesToLibrary, type AudioImportResult } from './importAudio
 import type { GenerationAssetImportResult } from '../generationCanvas/adapters/assetImportAdapter'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
-import { confirmDialog, DesignEmptyState, DesignSearchInput, TooltipProvider } from '../../design'
+import { confirmDialog, DesignEmptyState, NomiLoadingMark, TooltipProvider } from '../../design'
 import { acceptAttrForKinds, mediaKindFromExtension } from '../../../electron/assets/mediaTypes'
 import { toast } from '../../ui/toast'
 import {
   AssetGridCell,
-  AssetKindFilterMenu,
   FolderGridCell,
-  NewFolderInput,
 } from './AssetLibraryPanelParts'
+import { AssetLibraryToolbar } from './AssetLibraryToolbar'
 import { AssetPreviewDialog } from './AssetPreviewDialog'
 import { ASSET_KIND_FILTER_VALUES, FILTER_OPTIONS, type FilterValue } from './assetLibraryPanelFilters'
 import { filterCanvasLibraryAssets, filterPlayableAssets } from './assetLibrarySources'
@@ -41,6 +40,7 @@ import { useAssetLibraryLocalImport } from './assetLibraryLocalImport'
 import {
   assetToDragPayload,
   assetsForLibraryDrag,
+  assetBelongsToProject,
   canManageAssetFolders,
   resolveAssetLibraryItemAction,
   shouldRunAssetItemAction,
@@ -49,6 +49,7 @@ import {
   type AssetLibraryUsageContext,
   type AssetGridActivationEvent,
 } from './assetLibraryUsage'
+import { markLibraryUsed, sortByLibraryUsage, useLibraryUsageVersion } from '../library/libraryDiscovery'
 
 const DEFAULT_GRID_COLS = 3
 const ESTIMATED_ROW_HEIGHT = 121
@@ -141,6 +142,7 @@ export function AssetLibraryContent({
   // 文件夹（素材面收敛 2026-07-22 转正）：只在「项目素材」tab 生效,搜索时退成全量平铺。
   const [activeFolderId, setActiveFolderId] = React.useState<string | null>(null)
   const [newFolderOpen, setNewFolderOpen] = React.useState(false)
+  const usageVersion = useLibraryUsageVersion()
   const lastSelectedIdRef = React.useRef<string | null>(null)
   const selectedIdsRef = React.useRef(selectedIds)
   selectedIdsRef.current = selectedIds
@@ -151,7 +153,12 @@ export function AssetLibraryContent({
     projectAssets: workspaceProjectAssets,
     refresh: refreshProjectAssets,
   } = useAssetPool(projectId)
-  const { assets: allProjectAssets, refresh: refreshAllProjectAssets } = useAllProjectAssets()
+  const {
+    assets: allProjectAssets,
+    loading: allProjectAssetsLoading,
+    partial: allProjectAssetsPartial,
+    refresh: refreshAllProjectAssets,
+  } = useAllProjectAssets()
   const localImport = useAssetLibraryLocalImport({ projectId, refreshProjectAssets, refreshAllProjectAssets })
   const folderApi = useAssetFolders(projectId)
   const allSourceAssets = React.useMemo(
@@ -166,10 +173,12 @@ export function AssetLibraryContent({
     () => (includeAudio ? filterPlayableAssets(currentProjectAssets) : filterCanvasLibraryAssets(currentProjectAssets)),
     [currentProjectAssets, includeAudio],
   )
-
   const sourceFilteredAssets = React.useMemo(
-    () => (sourceFilter === 'project' ? projectSourceAssets : allSourceAssets),
-    [allSourceAssets, projectSourceAssets, sourceFilter],
+    () => {
+      void usageVersion
+      return sortByLibraryUsage(sourceFilter === 'project' ? projectSourceAssets : allSourceAssets, 'asset', (asset) => asset.id, assetTimeValue)
+    },
+    [allSourceAssets, projectSourceAssets, sourceFilter, usageVersion],
   )
   const filterBaseAssets = React.useMemo(
     () => filterAssets(sourceFilteredAssets, { query }),
@@ -368,15 +377,25 @@ export function AssetLibraryContent({
   const activateAsset = React.useCallback((asset: AssetRef, event: AssetGridActivationEvent): void => {
     if (!shouldRunAssetItemAction(itemAction, event.detail)) return
     if (itemAction === 'append') {
-      void addAssetToTimelineEnd(asset)
+      // The all-project view is intentionally browse-only until a materialized
+      // copy contract exists. Never write another project's URL into this
+      // project's timeline; let the user inspect the source instead.
+      if (!assetBelongsToProject(asset, projectId)) {
+        setPreviewAsset(asset)
+        return
+      }
+      void addAssetToTimelineEnd(asset).then((added) => {
+        if (added) markLibraryUsed('asset', asset.id)
+      })
       return
     }
     if (itemAction === 'preview') {
       setPreviewAsset(asset)
+      if (assetBelongsToProject(asset, projectId)) markLibraryUsed('asset', asset.id)
       return
     }
     selectAsset(asset, event)
-  }, [itemAction, selectAsset])
+  }, [itemAction, projectId, selectAsset])
 
   const showAllAssetKinds = React.useCallback((): void => {
     setVisibleKinds(new Set(ASSET_KIND_FILTER_VALUES))
@@ -392,8 +411,13 @@ export function AssetLibraryContent({
   }, [])
 
   const handleAssetDragStart = React.useCallback((asset: AssetRef, event: React.DragEvent<HTMLDivElement>): void => {
+    if (!assetBelongsToProject(asset, projectId)) {
+      event.preventDefault()
+      return
+    }
     const currentSelection = selectedIdsRef.current
     const selectedForDrag = assetsForLibraryDrag(visibleAssetsRef.current, currentSelection, asset)
+      .filter((candidate) => assetBelongsToProject(candidate, projectId))
     if (!currentSelection.has(asset.id)) {
       setSelectedIds(new Set([asset.id]))
       lastSelectedIdRef.current = asset.id
@@ -409,7 +433,7 @@ export function AssetLibraryContent({
     event.dataTransfer.setData(ASSET_LIBRARY_DRAG_MIME, serializeAssetLibraryDrag(payloads))
     event.dataTransfer.effectAllowed = 'copy'
     event.dataTransfer.setData('text/plain', payloads.length > 1 ? `${payloads.length} 个素材` : asset.name)
-  }, [])
+  }, [projectId])
 
   // 项目素材 tab 的格子拖拽=归类进夹（独立 MIME,画布 drop 端不认识,不会误建重复节点）。
   // 三件套 handler 抽在 useAssetFolderInteractions（R9 防巨壳）。
@@ -427,8 +451,19 @@ export function AssetLibraryContent({
     : projectSelectionEnabled
       ? t('assetLibrary.dragHintFolder')
       : undefined
-  const assetPreviewAction = itemAction === 'select' ? setPreviewAsset : undefined
-  const assetDragStartAction = projectSelectionEnabled ? handleFolderAssignDragStart : handleAssetDragStart
+  const assetPreviewAction = React.useMemo(() => itemAction === 'select' ? (asset: AssetRef) => {
+    setPreviewAsset(asset)
+    if (assetBelongsToProject(asset, projectId)) markLibraryUsed('asset', asset.id)
+  } : undefined, [itemAction, projectId])
+  const assetDragStartAction = React.useCallback((asset: AssetRef, event: React.DragEvent<HTMLDivElement>): void => {
+    if (!assetBelongsToProject(asset, projectId)) {
+      event.preventDefault()
+      toast(t('assetLibrary.externalAssetHint'), 'info')
+      return
+    }
+    if (projectSelectionEnabled) handleFolderAssignDragStart(asset, event)
+    else handleAssetDragStart(asset, event)
+  }, [handleAssetDragStart, handleFolderAssignDragStart, projectId, projectSelectionEnabled, t])
 
   const deleteSelectedProjectAssets = React.useCallback(async (): Promise<void> => {
     if (!projectId) {
@@ -467,6 +502,10 @@ export function AssetLibraryContent({
   }, [projectId, refreshAllProjectAssets, refreshProjectAssets, selectedProjectAssets, t])
 
   const deleteOneAsset = React.useCallback(async (asset: AssetRef): Promise<void> => {
+    if (!assetBelongsToProject(asset, projectId)) {
+      toast(t('assetLibrary.externalAssetHint'), 'info')
+      return
+    }
     const confirmed = await confirmDialog({
       title: t('assetLibrary.confirmDeleteTitle', { count: 1 }),
       message: t('assetLibrary.confirmDeleteMessage'),
@@ -487,125 +526,6 @@ export function AssetLibraryContent({
     }
   }, [projectId, refreshAllProjectAssets, refreshProjectAssets, t])
 
-  const uploadButton = (
-    <button
-      type="button"
-      className={cn(
-        'inline-flex items-center justify-center gap-1.5 rounded-full cursor-pointer',
-        'bg-nomi-ink text-nomi-paper text-caption font-semibold border-0',
-        'transition-[background] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-80',
-        compact ? 'h-[30px] px-2.5 shrink-0' : 'h-7 px-3',
-      )}
-      aria-label={t('assetLibrary.uploadAssets')}
-      onClick={() => uploadInputRef.current?.click()}
-    >
-      <IconPlus size={compact ? 12 : 13} stroke={2} />
-      {t('assetLibrary.upload')}
-    </button>
-  )
-
-  const deleteSelectedButton = projectSelectionEnabled ? (
-    <button
-      type="button"
-      className={cn(
-        'inline-flex h-8 min-w-10 shrink-0 items-center justify-center gap-1.5 rounded-nomi-sm border text-caption font-semibold tabular-nums',
-        'transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
-        selectedProjectAssets.length > 0
-          ? 'cursor-pointer border-workbench-danger/20 bg-workbench-danger-soft px-2 text-workbench-danger hover:bg-workbench-danger-soft/80'
-          : 'cursor-default border-nomi-line bg-nomi-ink-05 px-2 text-nomi-ink-30',
-      )}
-      disabled={selectedProjectAssets.length === 0}
-      aria-disabled={selectedProjectAssets.length === 0}
-      aria-label={selectedProjectAssets.length > 0 ? t('assetLibrary.deleteSelection', { count: selectedProjectAssets.length }) : t('assetLibrary.deleteProjectAsset')}
-      title={selectedProjectAssets.length > 0 ? t('assetLibrary.deleteSelection', { count: selectedProjectAssets.length }) : t('assetLibrary.selectProjectAssetFirst')}
-      onMouseDown={(event) => event.stopPropagation()}
-      onClick={() => {
-        void deleteSelectedProjectAssets()
-      }}
-    >
-      <IconTrash size={15} stroke={2} aria-hidden="true" />
-      <span>{selectedProjectAssets.length}</span>
-    </button>
-  ) : null
-
-  const sourceTabs = (
-    <div
-      className={cn(
-        'inline-flex bg-nomi-ink-05 rounded-full p-0.5',
-        compact ? 'min-w-0 flex-1' : 'shrink-0',
-      )}
-      role="tablist"
-      aria-label={t('assetLibrary.sourceFilter')}
-    >
-      {sourceOptions.map((option) => {
-        const active = sourceFilter === option.value
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            className={cn(
-              'rounded-full text-caption cursor-pointer border-0 bg-transparent whitespace-nowrap',
-              'transition-[background,color] duration-[var(--nomi-transition-fast)]',
-              compact ? 'min-w-0 flex-1 px-1.5 py-1' : 'px-2.5 py-1',
-              active
-                ? 'bg-nomi-paper text-nomi-ink font-semibold shadow-nomi-sm'
-                : 'text-nomi-ink-60 hover:text-nomi-ink',
-            )}
-            onClick={() => {
-              setSourceFilter(option.value)
-              setSelectedIds(new Set())
-              lastSelectedIdRef.current = null
-              showAllAssetKinds()
-              setFilterOpen(false)
-              setActiveFolderId(null)
-              setNewFolderOpen(false)
-            }}
-          >
-            {t(option.labelKey)}
-          </button>
-        )
-      })}
-    </div>
-  )
-
-  const categoryFilterButton = (
-    <div className="relative shrink-0">
-      <button
-        ref={filterButtonRef}
-        type="button"
-        className={cn(
-          'inline-flex items-center justify-center gap-1.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper',
-          'cursor-pointer text-caption text-nomi-ink-65 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
-          'hover:border-nomi-ink-20 hover:bg-nomi-ink-05 hover:text-nomi-ink',
-          compact ? 'h-8 px-2.5' : 'h-8 px-3',
-          (filterOpen || filterActive) && 'border-nomi-ink-20 bg-nomi-ink-05 text-nomi-ink',
-        )}
-        aria-label={t('assetLibrary.categoryFilter')}
-        aria-haspopup="dialog"
-        aria-expanded={filterOpen}
-        aria-pressed={filterActive}
-        title={t('assetLibrary.categoryTitle', { label: activeFilterLabel })}
-        onClick={() => setFilterOpen((open) => !open)}
-      >
-        <IconFilter size={15} stroke={1.8} aria-hidden="true" />
-        {!compact ? <span>{activeFilterLabel}</span> : null}
-      </button>
-      {filterOpen ? (
-        <AssetKindFilterMenu
-          selectedKinds={visibleKinds}
-          counts={filterCounts}
-          setNodeRef={(node) => {
-            filterMenuRef.current = node
-          }}
-          onToggleKind={toggleVisibleKind}
-          onShowAll={showAllAssetKinds}
-        />
-      ) : null}
-    </div>
-  )
-
   return (
     <TooltipProvider delayDuration={180} skipDelayDuration={80}>
       <div tabIndex={0} onDragOver={localImport.onDragOver} onDragLeave={localImport.onDragLeave} onDrop={localImport.onDrop} onPaste={localImport.onPaste} className={cn('flex min-h-0 flex-1 flex-col overflow-hidden outline-none', className, localImport.isDragOver && 'ring-2 ring-inset ring-nomi-accent/50')}>
@@ -613,7 +533,7 @@ export function AssetLibraryContent({
         {showHeader ? (
           <div className={cn('flex items-center gap-2 px-4 pt-3.5 pb-3 border-b border-nomi-line')}>
             <b className={cn('text-title font-bold text-nomi-ink')}>{t('assetLibrary.title')}</b>
-            <span className={cn('text-caption text-nomi-ink-40')}>· {sourceFilteredAssets.length}</span>
+            <span className={cn('text-caption text-nomi-ink-40')}>· {scopedAssets.length}</span>
             <span className={cn('flex-1')} />
             {onClose ? (
               <button
@@ -641,62 +561,54 @@ export function AssetLibraryContent({
           onChange={handleUploadFiles}
         />
 
-        {/* 工具行：筛选 + 搜索 */}
-        <div className={cn('grid gap-2', compact ? 'px-3 py-3' : 'px-3 py-2.5')}>
-          <div className={cn('flex min-w-0 items-center gap-2')}>
-            {sourceTabs}
-            {uploadButton}
-          </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <DesignSearchInput className="min-w-0 flex-1" placeholder={t('assetLibrary.search')} ariaLabel={t('assetLibrary.searchAria')} value={query} onChange={setQuery} />
-            {deleteSelectedButton}
-            {projectSelectionEnabled ? (
-              newFolderOpen ? (
-                <NewFolderInput onCreate={folderApi.createFolder} onCancel={() => setNewFolderOpen(false)} />
-              ) : (
-                <button
-                  type="button"
-                  className={cn(
-                    'inline-flex h-8 shrink-0 items-center justify-center rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
-                    'cursor-pointer text-nomi-ink-65 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
-                    'hover:border-nomi-ink-20 hover:bg-nomi-ink-05 hover:text-nomi-ink',
-                  )}
-                  aria-label={t('assetLibrary.newFolder')}
-                  title={t('assetLibrary.newFolder')}
-                  onClick={() => setNewFolderOpen(true)}
-                >
-                  <IconFolderPlus size={15} stroke={1.8} aria-hidden="true" />
-                </button>
-              )
-            ) : null}
-            {categoryFilterButton}
-          </div>
-          {folderViewActive && activeFolder ? (
-            <div className="flex min-w-0 items-center gap-1.5">
-              <button
-                type="button"
-                className={cn(
-                  'inline-flex shrink-0 items-center gap-0.5 rounded-nomi-sm border-0 bg-transparent px-1.5 py-1',
-                  'cursor-pointer text-caption text-nomi-accent transition-colors duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05',
-                )}
-                aria-label={t('assetLibrary.backToAllAssets')}
-                title={t(folderManagementEnabled ? 'assetLibrary.backDropToRemove' : 'assetLibrary.backToAllAssets')}
-                onClick={() => setActiveFolderId(null)}
-                onDragOver={folderManagementEnabled ? (event) => {
-                  event.preventDefault()
-                  event.dataTransfer.dropEffect = 'copy'
-                } : undefined}
-                onDrop={folderManagementEnabled ? (event) => handleFolderDropAssets(null, event) : undefined}
-              >
-                <IconChevronLeft size={14} stroke={2} aria-hidden="true" />
-                {t('common.back')}
-              </button>
-              <span className="min-w-0 truncate text-caption text-nomi-ink-40">／ {activeFolder.label} · {scopedAssets.length}</span>
-            </div>
-          ) : null}
-        </div>
+        <AssetLibraryToolbar
+          compact={compact}
+          uploadInputRef={uploadInputRef}
+          sourceOptions={sourceOptions}
+          sourceFilter={sourceFilter}
+          onSourceFilterChange={setSourceFilter}
+          onResetSelection={() => {
+            setSelectedIds(new Set())
+            lastSelectedIdRef.current = null
+          }}
+          onResetKinds={showAllAssetKinds}
+          onCloseFilter={() => setFilterOpen(false)}
+          onResetFolder={() => setActiveFolderId(null)}
+          onCloseNewFolder={() => setNewFolderOpen(false)}
+          query={query}
+          onQueryChange={setQuery}
+          projectSelectionEnabled={projectSelectionEnabled}
+          selectedProjectAssetCount={selectedProjectAssets.length}
+          onDeleteSelected={() => {
+            void deleteSelectedProjectAssets()
+          }}
+          newFolderOpen={newFolderOpen}
+          onOpenNewFolder={() => setNewFolderOpen(true)}
+          onCreateFolder={folderApi.createFolder}
+          filterButtonRef={filterButtonRef}
+          filterMenuRef={filterMenuRef}
+          visibleKinds={visibleKinds}
+          filterCounts={filterCounts}
+          filterOpen={filterOpen}
+          filterActive={filterActive}
+          activeFilterLabel={activeFilterLabel}
+          onToggleFilter={() => setFilterOpen((open) => !open)}
+          onToggleKind={toggleVisibleKind}
+          onShowAllKinds={showAllAssetKinds}
+          folderViewActive={folderViewActive}
+          activeFolder={activeFolder}
+          folderManagementEnabled={folderManagementEnabled}
+          scopedAssetCount={scopedAssets.length}
+          onBackToAllAssets={() => setActiveFolderId(null)}
+          onDropToFolder={handleFolderDropAssets}
+        />
 
         <div ref={setScrollEl} className={cn('flex-1 overflow-y-auto', compact ? 'px-3 pb-3' : 'px-3.5 pb-4')}>
+          {sourceFilter === 'all' && allProjectAssetsPartial ? (
+            <div className="mb-2 rounded-nomi-sm border border-workbench-warning/25 bg-workbench-warning-soft px-2.5 py-2 text-micro text-workbench-warning" role="status">
+              {t('assetLibrary.partialResults')}
+            </div>
+          ) : null}
           {visibleFolders.length > 0 ? (
             <div
               className="grid gap-2.5 pb-2.5"
@@ -718,7 +630,12 @@ export function AssetLibraryContent({
               ))}
             </div>
           ) : null}
-          {isEmpty ? (
+          {sourceFilter === 'all' && allProjectAssetsLoading && allProjectAssets.length === 0 ? (
+            <div className="grid min-h-32 place-items-center gap-2 py-8 text-caption text-nomi-ink-50" role="status" aria-busy="true">
+              <NomiLoadingMark size={24} label={t('assetLibrary.loading')} />
+              <span>{t('assetLibrary.loading')}</span>
+            </div>
+          ) : isEmpty ? (
             <DesignEmptyState
               density="inline"
               icon={<IconPhoto size={34} stroke={1.4} className="text-nomi-ink-30" />}
@@ -737,13 +654,13 @@ export function AssetLibraryContent({
                   asset={asset}
                   compact
                   selectable={projectSelectionEnabled}
-                  draggable={asset.kind !== 'model3d'}
+                  draggable={(projectSelectionEnabled || assetBelongsToProject(asset, projectId)) && asset.kind !== 'model3d'}
                   selected={selectedIds.has(asset.id)}
-                  dragHint={assetDragHint}
+                  dragHint={assetBelongsToProject(asset, projectId) ? assetDragHint : t('assetLibrary.externalAssetHint')}
                   onSelect={activateAsset}
                   onPreview={assetPreviewAction}
                   onDragStartAsset={assetDragStartAction}
-                  onDelete={usageContext === 'canvas' && sourceFilter === 'all' ? (assetToDelete) => void deleteOneAsset(assetToDelete) : undefined}
+                  onDelete={usageContext === 'canvas' && sourceFilter === 'all' && assetBelongsToProject(asset, projectId) ? (assetToDelete) => void deleteOneAsset(assetToDelete) : undefined}
                 />
               ))}
             </div>
@@ -772,13 +689,13 @@ export function AssetLibraryContent({
                         key={asset.id}
                         asset={asset}
                         selectable={projectSelectionEnabled}
-                        draggable={asset.kind !== 'model3d'}
+                        draggable={(projectSelectionEnabled || assetBelongsToProject(asset, projectId)) && asset.kind !== 'model3d'}
                         selected={selectedIds.has(asset.id)}
-                        dragHint={assetDragHint}
+                        dragHint={assetBelongsToProject(asset, projectId) ? assetDragHint : t('assetLibrary.externalAssetHint')}
                         onSelect={activateAsset}
                         onPreview={assetPreviewAction}
                         onDragStartAsset={assetDragStartAction}
-                        onDelete={usageContext === 'canvas' && sourceFilter === 'all' ? (assetToDelete) => void deleteOneAsset(assetToDelete) : undefined}
+                        onDelete={usageContext === 'canvas' && sourceFilter === 'all' && assetBelongsToProject(asset, projectId) ? (assetToDelete) => void deleteOneAsset(assetToDelete) : undefined}
                       />
                     ))}
                   </div>

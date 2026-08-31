@@ -88,5 +88,5 @@ MP4 magic bytes、B站 WBI 测试向量），用两条结构判据分开，**没
 
 ## 装配（换机/新 worktree 时）
 
-- **pre-commit hook**：`scripts/install-git-hooks.cjs`（`pnpm install` 的 postinstall 自动跑）装到共享 `.git/hooks`，所有 worktree 一次生效。手动补装：`node scripts/install-git-hooks.cjs`。
+- **pre-commit / pre-push hook**：`scripts/install-git-hooks.cjs`（`pnpm install` 的 postinstall 自动跑）安装到当前 Git hooks 配置。pre-commit 先扫 staged 敏感数据，再把同一份 staged diff 交给只读、限时的 `scripts/ponytail-review-hook.mjs`；pre-push 审 Git 传入的 outgoing ref ranges。普通 worktree 使用其 configured hooks 路径；linked worktree 只有在 `extensions.worktreeConfig=true` 时才写入专属目录，无法隔离则跳过并提示，避免一个分支改坏并行 worktree。手动补装：`node scripts/install-git-hooks.cjs`。
 - **secret-guard**：注册在 `.claude/settings.json` 的 PreToolUse→Bash。`.claude/` 不随 git，换机需手动复制 `.claude/hooks/secret-guard.sh` + settings.json 那条注册（与其它 hook 同）。

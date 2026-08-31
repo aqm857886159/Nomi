@@ -1,4 +1,4 @@
-import { IconFolderMinus, IconFolderPlus, IconLayoutGrid, IconX } from '@tabler/icons-react'
+import { IconFolderMinus, IconFolderPlus, IconLayoutGrid, IconRoute, IconX } from '../../../vendor/tablerIcons'
 import { useTranslation } from 'react-i18next'
 import { WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
@@ -22,6 +22,7 @@ type CanvasSelectionToolbarProps = {
   onGroupSelectedNodes: () => void
   onUngroupSelectedNodes: () => void
   onBuildContactSheet: () => void
+  onSaveWorkflow: () => void
   onClearSelection: () => void
 }
 
@@ -40,6 +41,7 @@ export function CanvasSelectionToolbar({
   onGroupSelectedNodes,
   onUngroupSelectedNodes,
   onBuildContactSheet,
+  onSaveWorkflow,
   onClearSelection,
 }: CanvasSelectionToolbarProps): JSX.Element {
   const { t } = useTranslation()
@@ -96,6 +98,13 @@ export function CanvasSelectionToolbar({
           onClick={onGroupSelectedNodes}
         />
       )}
+      <WorkbenchIconButton
+        size="sm"
+        className="shrink-0"
+        label={t('generationCommon.selection.saveWorkflow')}
+        icon={<IconRoute size={16} />}
+        onClick={onSaveWorkflow}
+      />
       <WorkbenchIconButton
         size="sm"
         className="shrink-0"

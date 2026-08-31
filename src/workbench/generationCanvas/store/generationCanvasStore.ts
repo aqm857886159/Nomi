@@ -33,6 +33,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
         persistRevision: 0,
         // 初始画布走默认快照单一真相源（勿再内联一份节点/边，见审计 A4）。
         ...createDefaultGenerationCanvasSnapshot(),
+        workflowTemplates: [],
         selectedNodeIds: [],
         pendingConnectionSourceId: '',
         pendingConnectionSourceSide: 'right',
@@ -198,6 +199,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
             nodes: state.nodes,
             edges: state.edges,
             groups: state.groups,
+            workflowTemplates: state.workflowTemplates,
           }
         },
         restoreSnapshot: (snapshot) => {
@@ -211,6 +213,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
             nodes: normalized.nodes,
             edges: normalized.edges,
             groups: normalized.groups,
+            workflowTemplates: normalized.workflowTemplates || [],
             // S5-b-0:重开项目不再恢复幽灵选区(老 payload 里残存的 selectedNodeIds 忽略)
             selectedNodeIds: [],
             pendingConnectionSourceId: '',
@@ -242,6 +245,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
             state.nodes = normalized.nodes
             state.edges = normalized.edges
             state.groups = normalized.groups
+            state.workflowTemplates = normalized.workflowTemplates || state.workflowTemplates
             // 选区是会话态:clamp 到仍存在的节点(外部可能删了选中的)。
             const surviving = new Set(normalized.nodes.map((node) => node.id))
             state.selectedNodeIds = state.selectedNodeIds.filter((id) => surviving.has(id))

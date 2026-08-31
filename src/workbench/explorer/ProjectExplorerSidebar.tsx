@@ -8,6 +8,7 @@ import {
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
   IconPlus,
+  IconRoute,
   IconTags,
 } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
@@ -33,13 +34,18 @@ const AssetLibraryContent = lazyWithChunkBoundary('i18n:sidebar.assetLibrary', (
     default: module.AssetLibraryContent,
   })),
 )
+const WorkflowLibraryContent = lazyWithChunkBoundary('i18n:sidebar.workflowLibrary', () =>
+  import('../library/WorkflowLibraryContent').then((module) => ({
+    default: module.WorkflowLibraryContent,
+  })),
+)
 
 type Props = {
   categories?: ProjectCategory[]
   projectId?: string | null
 }
 
-type ProjectSidebarTab = 'categories' | 'prompt-library' | 'skill-library' | 'asset-library'
+type ProjectSidebarTab = 'categories' | 'prompt-library' | 'skill-library' | 'asset-library' | 'workflow-library'
 
 const PROJECT_SIDEBAR_COLLAPSED_WIDTH = 60
 const PROJECT_SIDEBAR_EXPANDED_WIDTH = 300
@@ -73,11 +79,12 @@ function sidebarPanelTitle(tab: ProjectSidebarTab, t: TFunction): string {
   if (tab === 'categories') return t('sidebar.groups')
   if (tab === 'prompt-library') return t('sidebar.promptLibrary')
   if (tab === 'skill-library') return t('sidebar.skillLibrary')
+  if (tab === 'workflow-library') return t('sidebar.workflowLibrary')
   return t('sidebar.assetLibrary')
 }
 
 function isLibraryTab(tab: ProjectSidebarTab): boolean {
-  return tab === 'prompt-library' || tab === 'skill-library' || tab === 'asset-library'
+  return tab === 'prompt-library' || tab === 'skill-library' || tab === 'asset-library' || tab === 'workflow-library'
 }
 
 export default function ProjectExplorerSidebar({ categories, projectId = null }: Props): JSX.Element {
@@ -161,6 +168,12 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
         label: t('sidebar.skillLibrary'),
         railLabel: t('sidebar.skills'),
         icon: IconBooks,
+      },
+      {
+        id: 'workflow-library' as const,
+        label: t('sidebar.workflowLibrary'),
+        railLabel: t('sidebar.workflows'),
+        icon: IconRoute,
       },
     ],
     [t],
@@ -333,6 +346,10 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                 ) : tab === 'skill-library' ? (
                   <React.Suspense fallback={null}>
                     <SkillLibraryContent active compact showHeader={false} />
+                  </React.Suspense>
+                ) : tab === 'workflow-library' ? (
+                  <React.Suspense fallback={null}>
+                    <WorkflowLibraryContent projectId={projectId} compact showHeader={false} />
                   </React.Suspense>
                 ) : (
                   <React.Suspense fallback={null}>

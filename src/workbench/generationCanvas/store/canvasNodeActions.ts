@@ -15,6 +15,8 @@ import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { useWorkbenchStore } from '../../workbenchStore'
 import type { CanvasNodeActions, CanvasSliceCreator } from './canvasStoreTypes'
 import i18n from '../../../i18n'
+import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
+import { captureCanvasWorkflowTemplate, instantiateCanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
 
 // 删节点 → 时间轴对账(数据一致性):clip 创建时把节点产物 url 快照冻结、无 node→clip 同步,
 // 删了节点时间轴仍引用悬空/过期素材(导出会渲染已删节点的旧帧)。删完节点单向通知 workbenchStore
@@ -46,6 +48,12 @@ function pushEditBurstBarrier(nodeId: string, state: unknown): void {
 export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (set, get) => ({
   addNode: (input) => {
     const currentState = get()
+    if (input.typeId && !canvasPluginRegistry.resolve(input.typeId)) {
+      throw new Error(`canvas plugin node is not registered: ${input.typeId}`)
+    }
+    if (input.pluginState && input.typeId !== input.pluginState.typeId) {
+      throw new Error('canvas plugin node state type does not match node type')
+    }
     // 节点出生必带 categoryId：调用方没给就按 kind 推断（与迁移共用同一映射）。
     // 这是「无分类节点」的总闸——漏传 categoryId 的创建入口曾在下次打开项目时
     // 触发 legacy 迁移 toast 甚至删节点（审计 A4 的入口集）。
@@ -79,6 +87,8 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       currentState.nodes,
       RENDERER_NODE_FACTORY_DEPS,
     ) as GenerationCanvasNode
+    if (input.typeId) nextNode.typeId = input.typeId
+    if (input.pluginState) nextNode.pluginState = input.pluginState
     pushUndoSnapshot(currentState)
     set((state) => {
       state.nodes = upsertNode(state.nodes, nextNode)
@@ -99,8 +109,13 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
   },
   updateNode: (nodeId, patch, options) => {
     if (!get().nodes.some((candidate) => candidate.id === nodeId)) return
-    // 用户态内容编辑(prompt/meta/标题)按 burst 打撤销点;其余 patch(状态机等)不打。
-    if (options?.history !== false && ('prompt' in patch || 'meta' in patch || 'title' in patch)) pushEditBurstBarrier(nodeId, get())
+    // 用户态内容与插件 envelope 编辑按统一撤销边界落点；状态机等运行态 patch 不打。
+    // 插件只能通过这个 action 请求 state patch，因此不会产生绕过 undo 的第二条写路径。
+    if (options?.history !== false && ('prompt' in patch || 'meta' in patch || 'title' in patch)) {
+      pushEditBurstBarrier(nodeId, get())
+    } else if (options?.history !== false && 'pluginState' in patch) {
+      pushUndoSnapshot(get())
+    }
     set((state) => {
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
       if (!node) return
@@ -473,5 +488,49 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       ...touchedGroups.map((group) => ({ type: 'canvas.group.updated', payload: { group } })),
     ])
     reconcileTimelineForDeletedNodes([nodeId])
+  },
+  saveSelectedAsWorkflowTemplate: (name) => {
+    const currentState = get()
+    const template = captureCanvasWorkflowTemplate(
+      currentState.nodes,
+      currentState.edges,
+      currentState.selectedNodeIds,
+      name || '',
+      `workflow-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      currentState.groups,
+    )
+    if (!template) return null
+    set((state) => {
+      state.workflowTemplates = [...state.workflowTemplates, template]
+      bumpPersistRevision(state)
+    })
+    return template
+  },
+  instantiateWorkflowTemplate: (templateId, position) => {
+    const template = get().workflowTemplates.find((candidate) => candidate.id === templateId)
+    if (!template) return []
+    return get().instantiateWorkflowTemplateSnapshot(template, position)
+  },
+  instantiateWorkflowTemplateSnapshot: (template, position) => {
+    const currentState = get()
+    const instantiated = instantiateCanvasWorkflowTemplate(template, position, createNodeId, createEdgeId)
+    if (!instantiated.nodes.length) return []
+    pushUndoSnapshot(currentState)
+    set((state) => {
+      state.nodes = [...state.nodes, ...instantiated.nodes]
+      state.edges = [...state.edges, ...instantiated.edges]
+      state.groups = [...state.groups, ...instantiated.groups]
+      state.selectedNodeIds = instantiated.nodes.map((node) => node.id)
+      state.pendingConnectionSourceId = ''
+      state.pendingConnectionSourceSide = 'right'
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+    emitCanvasGesture([
+      ...instantiated.nodes.map((node) => ({ type: 'canvas.node.added' as const, payload: { node } })),
+      ...instantiated.edges.map((edge) => ({ type: 'canvas.edge.added' as const, payload: { edge } })),
+      ...instantiated.groups.map((group) => ({ type: 'canvas.group.created' as const, payload: { group } })),
+    ])
+    return instantiated.nodes
   },
 })

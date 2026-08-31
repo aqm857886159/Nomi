@@ -19,6 +19,7 @@ const documentActions = {
   tidyCategory: true, deleteSelectedNodes: true, selectNode: false, selectNodes: false,
   clearSelection: false, selectAllNodes: false, selectNodesInRect: false,
   duplicateNodeForRegeneration: true, reassignNodeCategory: true, copyNodeToCategory: true, deleteNode: true,
+  saveSelectedAsWorkflowTemplate: true, instantiateWorkflowTemplate: true, instantiateWorkflowTemplateSnapshot: true,
   startConnection: false, startGroupConnection: false, cancelConnection: false, connectToNode: true, connectNodes: true,
   connectToGroup: true, updateEdgeMode: true, disconnectEdge: true, moveGroupNodes: true,
   createGroup: true, groupSelectedNodes: true, renameGroup: true, setGroupColor: true, setGroupCollapsed: true,

@@ -1,0 +1,127 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-31-workflow-asset-copy-boundary",
+  "problem_type": "Cross-project workflow asset materialization and renderer file-boundary drift",
+  "symptom": "A reusable workflow can contain local asset references, but copying it to another project either exposes an arbitrary renderer path or silently loses the referenced media.",
+  "direct_cause": "Workflow snapshots previously had no explicit asset-reference contract, while the existing copy-files bridge accepts native paths. There was no single host-owned operation that resolved a source project plus relative asset path, validated containment, and returned a target-project nomi-local URL.",
+  "class_root": "Canvas workflow reuse and Electron asset ownership had separate write boundaries, so a cross-project copy feature could accidentally introduce a second renderer filesystem path or drop media when a source asset was unavailable.",
+  "affected_population": [
+    "Users copying image, video, audio, or model references from one Nomi project into another",
+    "Projects containing workflow snapshots with missing source projects or malformed local asset references",
+    "Electron renderer and preload surfaces that must not receive arbitrary native filesystem paths"
+  ],
+  "scope_paths": [
+    "electron/assets/assetsIpc.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/runtime.ts",
+    "electron/preload.ts",
+    "src/desktop/bridge.ts",
+    "src/workbench/generationCanvas/plugins/canvasWorkflowTemplates.ts",
+    "src/workbench/library/**"
+  ],
+  "entry_points": [
+    "Saving a selected React Flow node set as a workflow snapshot",
+    "Reading and validating the app-level workflow library index",
+    "Copying a workflow asset into the active target project",
+    "Instantiating nodes, edges, groups, and plugin envelopes after asset materialization"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an internal Nomi contract between React Flow snapshots, the Electron preload bridge, and project asset storage. The security decision is determined by Nomi's project ownership and existing MIME/byte validation boundaries, not by third-party behavior.",
+  "invariants": [
+    "Renderer workflow code submits only sourceProjectId, targetProjectId, and a normalized relativePath; it never submits or receives an arbitrary native path.",
+    "The main process resolves both project roots, rejects absolute or parent-traversal paths, checks lexical and realpath containment, and copies only a regular file.",
+    "Copied bytes and sidecar metadata pass through the existing MIME, byte, and structured-media validation boundary before a target nomi-local URL is returned.",
+    "Malformed or unavailable asset references never delete the workflow node, result, plugin envelope, edge, or group; the original reference remains available for recovery.",
+    "Workflow instantiation remains one unified canvas store write with one undo barrier, persist revision, and canvas event transaction."
+  ],
+  "generality_proof": "Every cross-project workflow asset request enters the same preload channel and registerAssetsIpc handler, then converges on copyProjectAsset and the existing copyAssetFile validation path. Snapshot capture, localStorage normalization, and template instantiation all preserve the same reference-or-placeholder behavior, so adding another media-bearing node does not create a second filesystem or persistence path.",
+  "shared_boundaries": [
+    {
+      "path": "electron/assets/assetsIpc.ts",
+      "symbol": "registerAssetsIpc",
+      "responsibility": "Own the trusted sender check and narrow copy-project-asset payload contract before any filesystem resolution."
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "copyProjectAsset",
+      "responsibility": "Own project-root resolution, lexical/realpath containment, regular-file validation, and delegation to the existing validated asset copy boundary."
+    },
+    {
+      "path": "electron/runtime.ts",
+      "symbol": "copyProjectAsset",
+      "responsibility": "Expose the same host-owned asset operation to existing Electron runtime consumers without adding a second implementation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/assets/assetsIpc.ts",
+      "entry_point": "nomi:assets:copy-project-asset",
+      "disposition": "enforced",
+      "evidence": "The handler asserts the trusted sender and accepts only the parsed source project, target project, and relative path tuple."
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "copyProjectAsset",
+      "disposition": "enforced",
+      "evidence": "The host resolves both project roots, validates lexical and physical containment, rejects non-files, and delegates bytes to copyAssetFile."
+    },
+    {
+      "path": "src/workbench/generationCanvas/plugins/canvasWorkflowTemplates.ts",
+      "entry_point": "captureCanvasWorkflowTemplate / instantiateCanvasWorkflowTemplate",
+      "disposition": "enforced",
+      "evidence": "The snapshot captures only canonical nomi-local asset references, remaps node/group identities, and leaves failed references untouched for recovery."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future cross-project resource reuse can accidentally add a renderer path or bypass the existing asset validation boundary unless all callers converge on the same host-owned operation.",
+    "same_class_scan": [
+      "Searched existing asset IPC channels, preload exposure, runtime re-exports, localAssetUrl/localAssetFile handling, and copyAssetFile callers.",
+      "Inspected workflow template capture, app-level library normalization, and canvas store instantiation for every asset-reference read/write path.",
+      "Checked path traversal, symlink escape, malformed URL, missing project, missing bridge, and failed copy behavior in focused tests and implementation review."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/assets/assetsIpc.ts",
+    "invariant": "Every renderer-initiated workflow asset copy is authenticated, schema-validated, and delegated to the host-owned project-relative copy operation; no renderer path or alternate copy implementation is permitted.",
+    "failure_mode": "Malformed payloads, untrusted senders, missing projects, traversal, symlink escape, non-files, or failed byte validation reject or preserve the original workflow reference without writing arbitrary files.",
+    "exception_policy": "none",
+    "strategy": "Add one narrow copy-project-asset IPC contract, resolve and validate project-relative paths in the main process, reuse copyAssetFile validation, and keep template URLs immutable until successful materialization.",
+    "artifacts": [
+      "electron/assets/assetsIpc.ts",
+      "electron/assets/projectAssetStore.ts",
+      "electron/preload.ts",
+      "src/desktop/bridge.ts",
+      "src/workbench/generationCanvas/plugins/canvasWorkflowTemplates.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/assets/assetsIpc.test.ts",
+    "src/workbench/generationCanvas/plugins/canvasWorkflowTemplates.test.ts",
+    "src/workbench/library/workflowLibrary.test.ts",
+    "src/workbench/generationCanvas/store/canvasWorkflowStore.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/assets/assetsIpc.test.ts",
+    "src/workbench/generationCanvas/plugins/canvasWorkflowTemplates.test.ts",
+    "src/workbench/library/workflowLibrary.test.ts",
+    "src/workbench/generationCanvas/store/canvasWorkflowStore.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The existing copy-files channel remains for its original local-import use case; workflow reuse adds a narrower project-relative operation instead of replacing or widening that channel."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The change uses existing Electron, React Flow, and project asset infrastructure; no dependency lifecycle decision is required.",
+    "exit_criteria": []
+  },
+  "migration": "Existing project snapshots and old workflow templates without an assets field remain valid. New snapshots record only canonical local references; unavailable source assets remain in the snapshot and can be retried or resolved later.",
+  "residual_risks": [
+    "The first phase does not perform content-hash deduplication, so repeated cross-project copies may create additional target assets.",
+    "If a source project has been deleted, the original nomi-local reference remains but the media cannot be materialized until the source is restored.",
+    "Video first-frame thumbnails and a richer cross-library index are deferred; this does not change the copy or data-preservation boundary."
+  ]
+}

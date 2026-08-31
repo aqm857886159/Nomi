@@ -3,7 +3,7 @@
 > **怎么读这份文件（3 层，按访问频率分，每层只活一次，别重复 —— 这套分层本身是为了「文件再长注意力也不消散」）**：
 > - **L0 每轮** = `.claude/hooks/self-check.sh`（hook，每条消息自动注入「三闸 + 核心原则 + 近期坑」）——salience 层，本文件**不再复述它**。
 > - **L1 always 加载** = 本文件：项目事实 + 命令 + **P1–P5** + **D1–D5** + 规则索引。**每次 session 读完再动手。**保持精简（一屏左右）。
-> - **L2 触发才查** = `docs/engineering-rules.md`：R1–R24 详解 + 工作流框架 + 技能库映射 + 固化纪律。规则索引指明每条住哪，触发某条才去读它。（`docs/coding-standards.md` = 通用编码规范补充。）
+> - **L2 触发才查** = `docs/engineering-rules.md`：R1–R25 详解 + 工作流框架 + 技能库映射 + 固化纪律。规则索引指明每条住哪，触发某条才去读它。（`docs/coding-standards.md` = 通用编码规范补充。）
 > - **查现状（动手前）** = `docs/ARCHITECTURE-NOW.md`：每个子系统**现在真正跑的是什么**（带 file:line）+「常见误解」列。**读任何 `docs/plan/` 之前先过一眼**——方案文档会过期且不带过期标记。搜不到东西时查 `docs/GLOSSARY.md`（同一个东西的多个叫法：自动剪辑=AI 剪辑=EditPlan=E2…）。（2026-08-27 加：有人把 6 月的 agent 方案当现状，整份调研建立在「引擎是 `runAgentChatV2`」这个已被 pi SDK 取代的前提上；同一轮还因搜「自动剪辑」搜不到而重新发明了已批准的 E1/E2/E3 总纲。）
 >
 > **维护纪律（防它再胖回来 —— 治本）**：本文件是**策展的，不是 append 的**。新踩的坑/教训**默认进记忆**（`memory/`，按相关性召回）或 hook 的 `violations.log`，**不塞这里**；只有「反复出现 + 永远相关」的原则才提升进 L1、细节进 L2；每隔一阵压实一次。**加规则前先问「这条非得 always 加载吗」——不是，就别进 L1。**
@@ -43,6 +43,8 @@ Nomi：本地优先 AI 视频创作工作台。
 **Push 前按风险面分层（R22）**：contracts 始终跑；unit 独立选 focused/full；Electron、真实旅程、React Flow 画布、性能和 macOS package 各按受影响路径独立触发，`main` push 也按真实 `before..after` 分类，不因事件名自动全量。删除/重命名、空 diff、测试/CI 分类器自身和手动发布边界 fail-closed 到全维度。连续小修先在本地收敛，再一次性验证和 push，不让每个微提交反复触发全套 CI。
 
 **交付身份只走统一命令**：任务开始先跑 `delivery:preflight`；PR 合并后只在 Git fetch 得到的真实 merge SHA 上跑 `delivery:verify-merged`。任务 commit、PR head、merge commit 与 tree 分开报告；禁止用 REST compare 文件列表重建 Git tree/commit，禁止把 `same-tree-different-commit` 叫成代码不匹配。
+
+**提交/推送前的 Ponytail 闸门（R25，R24 由 PR #223 保留）**：每次成功的 commit 或 push 前都必须由版本化 `pre-commit` / `pre-push` hook 调用只读、限时的 Ponytail Codex 适配器，对准确的 staged 或 outgoing ref diff 运行 `/ponytail-review`（Codex 中是 `@ponytail-review`）；pre-commit 先通过敏感数据扫描，扫描已阻止的提交不会继续调用模型。缺少 Codex/插件、超时、异常或无合法结果标记就 fail-closed。发现过度工程化时只记录阻断状态；逐条删除清单需另行运行 `@ponytail-review` 后处理。`--no-verify`、网页/API 和未安装 hook 的环境仍需 CI/分支保护补强，不能把本地 hook 当成不可绕过的服务器门岗。
 
 ## 五条核心原则
 
@@ -100,6 +102,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | R22 | 验证分层与测试预算 | contracts 常跑；unit/desktop/journey/canvas/performance/package 按真实风险独立触发；不删安全/持久化/认证边界覆盖 |
 | R23 | React Flow 生成画布单内核与迁移等价 | 生产画布只允许 React Flow 一个交互/变换内核，Zustand 是业务与持久化真相源；迁移必须逐项保留既有几何、交互、视觉和反馈，并用 adapter/结构测试 + 真实 Electron 走查证明 |
 | R24 | 能力完整性对账 | 交付前按真实领域 UI 的字段逐项核对 schema、审批编辑、effectiveArgs、adapter 校验和结果回执；真实任务必须断言用户结果与关键参数，不能只断言工具被调用 |
+| R25 | 提交/推送前 Ponytail 评审 | pre-commit/pre-push 自动调用只读、限时 `/ponytail-review` 适配器；失败或缺少结果 fail-closed |
 
 ## 决策自治
 

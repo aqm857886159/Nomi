@@ -2,10 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { getGenerationNodeDefaultSize, getGenerationNodeFootprintSize } from '../model/generationNodeKinds'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import {
+  isAssetLibraryDropAllowed,
   importBrowserAssetsToGenerationCanvas,
   layoutBrowserAssetDropPositions,
   resolveAssetLibraryDropPosition,
 } from './canvasStageDrop'
+
+describe('asset-library canvas write boundary', () => {
+  it('allows current/canvas origins and rejects another project', () => {
+    expect(isAssetLibraryDropAllowed({ origin: { source: 'canvas', nodeId: 'n1' } }, 'current')).toBe(true)
+    expect(isAssetLibraryDropAllowed({ origin: { source: 'project', projectId: 'current', relativePath: 'a.png' } }, 'current')).toBe(true)
+    expect(isAssetLibraryDropAllowed({ origin: { source: 'project', projectId: 'other', relativePath: 'a.png' } }, 'current')).toBe(false)
+  })
+})
 
 describe('layoutBrowserAssetDropPositions', () => {
   it('lays multiple browser assets into a non-overlapping grid', () => {

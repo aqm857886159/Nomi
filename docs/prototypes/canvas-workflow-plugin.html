@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nomi · 固定流程插件样张（原型）</title>
+  <style>
+    /* THROWAWAY PROTOTYPE — not production CSS. Three variants answer: where should
+       “save/reuse this selected workflow” live without making the canvas busier? */
+    :root {
+      --bg: #f4f2ee;
+      --paper: #fffefa;
+      --ink: #292721;
+      --ink-60: #77736a;
+      --ink-40: #aaa69d;
+      --line: #dfdcd4;
+      --line-strong: #c8c3b8;
+      --accent: #6558d7;
+      --accent-soft: #eeecff;
+      --green: #3f8766;
+      --shadow: 0 12px 32px rgba(44, 39, 28, .12);
+      --radius: 10px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); }
+    button, select { font: inherit; }
+    button { cursor: pointer; }
+    .appbar { height: 54px; display: flex; align-items: center; gap: 20px; padding: 0 20px; border-bottom: 1px solid var(--line); background: var(--paper); }
+    .logo { font-weight: 800; letter-spacing: -.03em; }
+    .logo i { color: var(--accent); font-style: normal; }
+    .crumb { color: var(--ink-60); font-size: 13px; }
+    .spacer { flex: 1; }
+    .mode { border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; color: var(--ink-60); background: transparent; font-size: 12px; }
+    .workspace { display: grid; grid-template-columns: 58px 1fr; height: calc(100vh - 54px); }
+    .rail { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 8px; border-right: 1px solid var(--line); background: rgba(255, 254, 250, .7); }
+    .rail button { width: 36px; height: 36px; border: 0; border-radius: 9px; color: var(--ink-60); background: transparent; font-size: 18px; }
+    .rail button.active, .rail button:hover { color: var(--accent); background: var(--accent-soft); }
+    .stage { position: relative; overflow: hidden; padding: 38px 42px; background-color: #f8f7f3; background-image: linear-gradient(#eae7df 1px, transparent 1px), linear-gradient(90deg, #eae7df 1px, transparent 1px); background-size: 28px 28px; }
+    .stage-head { display: flex; align-items: center; gap: 10px; color: var(--ink-60); font-size: 12px; }
+    .stage-head strong { color: var(--ink); font-size: 14px; }
+    .nodes { position: relative; width: 760px; height: 460px; margin: 46px auto 0; }
+    .node { position: absolute; width: 224px; min-height: 132px; padding: 14px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--paper); box-shadow: 0 5px 14px rgba(44,39,28,.06); }
+    .node.selected { border: 2px solid var(--accent); box-shadow: 0 0 0 4px rgba(101,88,215,.11), var(--shadow); }
+    .node.a { left: 20px; top: 90px; } .node.b { left: 280px; top: 14px; } .node.c { left: 520px; top: 146px; }
+    .node-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .node p { margin: 13px 0 0; color: var(--ink-60); font-size: 12px; line-height: 1.55; }
+    .node-foot { display: flex; gap: 6px; margin-top: 14px; color: var(--ink-40); font-size: 11px; }
+    .edge { position: absolute; height: 1px; background: var(--line-strong); transform-origin: left center; }
+    .edge.one { left: 238px; top: 164px; width: 86px; transform: rotate(-25deg); } .edge.two { left: 500px; top: 112px; width: 78px; transform: rotate(28deg); }
+    .selection-box { position: absolute; left: 8px; top: 4px; width: 744px; height: 262px; border: 1px dashed var(--accent); border-radius: 12px; background: rgba(238,236,255,.22); pointer-events: none; }
+    .selection-box span { position: absolute; left: 12px; top: -26px; color: var(--accent); font-size: 12px; }
+    .selection-toolbar { position: absolute; left: 50%; top: -42px; display: flex; align-items: center; gap: 8px; transform: translateX(-50%); padding: 7px 9px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,254,250,.97); box-shadow: var(--shadow); white-space: nowrap; }
+    .selection-toolbar .count { padding: 0 7px; color: var(--ink-60); font-size: 12px; }
+    .action { border: 0; border-radius: 7px; padding: 8px 11px; color: var(--ink); background: transparent; font-size: 12px; }
+    .action:hover { background: #f0eee8; } .action.primary { color: white; background: var(--accent); } .action.primary:hover { background: #5649c8; }
+    .toast { position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%); padding: 10px 14px; border: 1px solid #c9dfd3; border-radius: 8px; color: #2f674c; background: #eff8f2; box-shadow: var(--shadow); font-size: 12px; opacity: 0; transition: opacity .16s ease; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .panel { position: absolute; top: 0; right: 0; width: 292px; height: 100%; padding: 24px 18px; border-left: 1px solid var(--line); background: var(--paper); box-shadow: -10px 0 26px rgba(44,39,28,.05); }
+    .stage.has-panel { padding-right: 334px; }
+    .panel h2 { margin: 0; font-size: 16px; } .panel .hint { margin: 8px 0 20px; color: var(--ink-60); font-size: 12px; line-height: 1.5; }
+    .template { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fcfbf7; }
+    .template .glyph { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: var(--accent); background: var(--accent-soft); }
+    .template strong { display: block; font-size: 12px; } .template small { color: var(--ink-60); font-size: 11px; }
+    .panel .wide { width: 100%; margin-top: 14px; }
+    .variant-c .selection-box { left: 8px; top: 8px; width: 744px; height: 258px; }
+    .inline-popover { position: absolute; left: 126px; top: 286px; display: flex; flex-direction: column; gap: 9px; width: 202px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); box-shadow: var(--shadow); }
+    .inline-popover strong { font-size: 12px; } .inline-popover span { color: var(--ink-60); font-size: 11px; line-height: 1.45; }
+    .switcher { position: fixed; z-index: 20; left: 50%; bottom: 14px; display: flex; align-items: center; gap: 10px; transform: translateX(-50%); padding: 7px 10px; border: 1px solid #4f4a42; border-radius: 999px; color: #fff; background: #302d28; box-shadow: 0 8px 24px rgba(0,0,0,.24); font-size: 12px; }
+    .switcher button { display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 50%; color: white; background: transparent; } .switcher button:hover { background: rgba(255,255,255,.15); }
+    .switcher .label { min-width: 164px; text-align: center; }
+    @media (max-width: 900px) { .panel { width: 250px; } .nodes { transform: scale(.82); transform-origin: top left; } }
+  </style>
+</head>
+<body>
+  <header class="appbar"><div class="logo">N<span><i>o</i>mi</span></div><div class="crumb">我的项目 / 生成画布 / 流程样张</div><div class="spacer"></div><button class="mode">原型 · 只读</button></header>
+  <div id="app"></div>
+  <div class="switcher" aria-label="原型变体切换"><button id="prev" aria-label="上一种方案">‹</button><div class="label" id="variant-label"></div><button id="next" aria-label="下一种方案">›</button></div>
+  <script>
+    const variants = [
+      { key: 'A', name: '选区浮条（推荐）' },
+      { key: 'B', name: '流程侧栏' },
+      { key: 'C', name: '选区旁动作卡' },
+    ];
+    const params = new URLSearchParams(location.search);
+    let current = Math.max(0, Math.min(variants.length - 1, Number(params.get('variant') || 0)));
+    const workflow = (buttonText = '保存为流程') => `<button class="action primary" data-save>${buttonText}</button>`;
+    const nodes = (variant) => `<div class="nodes">
+      <div class="selection-box"><span>当前选区 · 3 个节点</span></div><div class="edge one"></div><div class="edge two"></div>
+      <article class="node a selected"><div class="node-title"><span class="dot"></span>参考图整理</div><p>输入：3 张角色参考图<br>输出：角色实体卡</p><div class="node-foot">图片 · 已确认</div></article>
+      <article class="node b selected"><div class="node-title"><span class="dot"></span>镜头生成</div><p>模型：Seedance 2<br>提示词和参数已调好</p><div class="node-foot">视频 · 可复用</div></article>
+      <article class="node c selected"><div class="node-title"><span class="dot" style="background:var(--green)"></span>人工检查点</div><p>确认角色、场景和转场<br>再进入时间轴</p><div class="node-foot">插件节点 · 已检查</div></article>
+      ${variant === 0 ? `<div class="selection-toolbar"><span class="count">已选 3</span><button class="action">创建分组</button>${workflow()}<button class="action">清除</button></div>` : ''}
+      ${variant === 2 ? `<div class="inline-popover"><strong>这套步骤值得固定下来？</strong><span>保存节点、内部连线和相对布局，下次一键复用。</span>${workflow('保存这套流程')}</div>` : ''}
+    </div>`;
+    function render() {
+      const v = variants[current];
+      document.getElementById('variant-label').textContent = `${v.key} · ${v.name}`;
+      const side = current === 1 ? `<aside class="panel"><h2>流程</h2><p class="hint">把一次成功的画布工作方法固定下来。不会自动执行，只会创建一份可检查的节点簇。</p>${workflow('保存当前选区')}<div class="template"><div class="glyph">↗</div><div><strong>角色参考 → 镜头生成</strong><small>3 个节点 · 2 条连线</small></div></div><div class="template"><div class="glyph">↗</div><div><strong>人工检查点</strong><small>1 个节点 · 最近使用</small></div></div><button class="action wide">从流程创建到画布</button></aside>` : '';
+      document.getElementById('app').innerHTML = `<div class="workspace"><nav class="rail"><button class="active" title="生成画布">⌘</button><button title="流程">↗</button><button title="资产">▦</button></nav><main class="stage ${current === 2 ? 'variant-c' : ''} ${current === 1 ? 'has-panel' : ''}"><div class="stage-head"><strong>生成画布</strong><span>·</span><span>框选一套步骤，保存后下次复用</span></div>${nodes(current)}${side}<div class="toast" id="toast">已保存流程「角色参考 → 镜头生成」</div></main></div>`;
+      document.querySelectorAll('[data-save]').forEach((button) => button.addEventListener('click', () => { const toast = document.getElementById('toast'); toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 1800); }));
+    }
+    function setVariant(next) { current = (next + variants.length) % variants.length; const url = new URL(location.href); url.searchParams.set('variant', current); history.replaceState({}, '', url); render(); }
+    document.getElementById('prev').onclick = () => setVariant(current - 1); document.getElementById('next').onclick = () => setVariant(current + 1);
+    document.addEventListener('keydown', (event) => { if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return; if (event.key === 'ArrowLeft') setVariant(current - 1); if (event.key === 'ArrowRight') setVariant(current + 1); });
+    render();
+  </script>
+</body>
+</html>

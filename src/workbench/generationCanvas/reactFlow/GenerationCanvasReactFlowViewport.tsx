@@ -65,6 +65,7 @@ type GenerationCanvasReactFlowViewportProps = {
   onGroupSelectedNodes: () => void
   onUngroupSelectedNodes: () => void
   onBuildContactSheet: () => void
+  onSaveWorkflow: () => void
   onClearSelection: () => void
 }
 
@@ -110,6 +111,7 @@ export function GenerationCanvasReactFlowViewport({
   onGroupSelectedNodes,
   onUngroupSelectedNodes,
   onBuildContactSheet,
+  onSaveWorkflow,
   onClearSelection,
 }: GenerationCanvasReactFlowViewportProps): JSX.Element {
   const selectionToolbarPlacement = selectedBounds
@@ -195,6 +197,7 @@ export function GenerationCanvasReactFlowViewport({
           onGroupSelectedNodes={onGroupSelectedNodes}
           onUngroupSelectedNodes={onUngroupSelectedNodes}
           onBuildContactSheet={onBuildContactSheet}
+          onSaveWorkflow={onSaveWorkflow}
           onClearSelection={onClearSelection}
         />
       ) : null}

@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { IconX, IconBulb, IconRefresh, IconPlus } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { NomiLoadingMark, NomiWordmark, DesignEmptyState, DesignSearchInput, TooltipProvider } from '../../design'
+import { NomiLoadingMark, NomiWordmark, DesignEmptyState, TooltipProvider } from '../../design'
 import { showUndoToast } from '../../utils/showUndoToast'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { filterPrompts, type LibraryPrompt, type PromptCategory } from '../api/promptLibraryApi'
@@ -19,6 +19,8 @@ import { UserPromptCard } from './UserPromptCard'
 import { UserPromptComposer } from './UserPromptComposer'
 import { PromptPreviewOverlay } from './PromptPreviewOverlay'
 import { promptDisplayTitle } from './promptDisplay'
+import { markLibraryUsed, sortByLibraryUsage, useLibraryUsageVersion } from '../library/libraryDiscovery'
+import { LibraryDiscoveryToolbar } from '../library/LibraryDiscoveryToolbar'
 
 const GRID_GAP = 12 // gap-3
 const MIN_CARD_WIDTH = 200 // 卡片最小宽,据此推列数(窄窗自动减列,不再写死 4 列挤压)
@@ -63,11 +65,24 @@ export function PromptLibraryContent({
   const [scrollEl, setScrollEl] = React.useState<HTMLDivElement | null>(null)
   const [composing, setComposing] = React.useState(false)
   const [editing, setEditing] = React.useState<LibraryPrompt | null>(null)
+  const usageVersion = useLibraryUsageVersion()
 
   const { items, loading, error, reload } = usePromptLibrary(active)
   const user = useUserPrompts(active)
   const isMine = source === 'mine'
-  const activeItems = isMine ? user.items : items
+  const activeItems = React.useMemo(
+    () => {
+      // See ProjectLibraryPage: usageVersion invalidates recency after a use.
+      void usageVersion
+      return sortByLibraryUsage(
+        isMine ? user.items : items,
+        'prompt',
+        (prompt) => prompt.id,
+        (prompt) => prompt.updatedAt ? Date.parse(prompt.updatedAt) : undefined,
+      )
+    },
+    [isMine, items, user.items, usageVersion],
+  )
   const visible = React.useMemo(() => filterPrompts(activeItems, category, query), [activeItems, category, query])
 
   // 响应式列数 + 由实际卡宽推出的行高（替代写死的 grid-cols-4 / 188），窄窗也不挤压、滚动不跳。
@@ -134,6 +149,7 @@ export function PromptLibraryContent({
       message: t('libraries.prompt.sentToCanvas', { kind: prompt.promptType === 'video' ? t('libraries.prompt.category.video') : t('libraries.prompt.storyboard') }),
       onUndo: () => useGenerationCanvasStore.getState().deleteNode(node.id),
     })
+    markLibraryUsed('prompt', prompt.id)
   }, [t])
 
   const handleNew = React.useCallback(() => { setEditing(null); setComposing(true) }, [])
@@ -237,17 +253,15 @@ export function PromptLibraryContent({
           ) : null}
 
           {/* 工具行 */}
-          <div className={cn('flex gap-2', compact ? 'flex-col px-3 py-3' : 'items-center px-5 py-2.5')}>
-            {sourceTabs}
-            {categoryTabs}
-            <DesignSearchInput
-              className={compact ? 'w-full' : 'flex-1'}
-              placeholder={t('libraries.prompt.searchPlaceholder')}
-              ariaLabel={t('libraries.prompt.searchAria')}
-              value={query}
-              onChange={setQuery}
-            />
-          </div>
+          <LibraryDiscoveryToolbar
+            className={compact ? 'px-3 py-3' : 'px-5 py-2.5'}
+            compact={compact}
+            query={query}
+            onQueryChange={setQuery}
+            placeholder={t('libraries.prompt.searchPlaceholder')}
+            ariaLabel={t('libraries.prompt.searchAria')}
+            leading={<>{sourceTabs}{categoryTabs}</>}
+          />
 
           {/* 网格 / 状态 */}
           <div ref={setScrollEl} className={cn('flex-1 overflow-y-auto', compact ? 'px-3 pb-3' : 'px-5 pb-5')}>

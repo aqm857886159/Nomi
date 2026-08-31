@@ -5,6 +5,7 @@ import { assertTrustedSender } from "../ipcSenderGuard";
 import { getAutoSavePrefs, setAutoSavePrefs, type AutoSavePrefs } from "./downloadPrefs";
 import { CLIPBOARD_FILE_PATH_FORMATS, parseClipboardFilePaths } from "./clipboardFilePaths";
 import { copyLocalImageFiles } from "./localFileCopy";
+import { copyProjectAsset } from "./projectAssetStore";
 
 export function readClipboardFilePathsFromFormats(
   availableFormats: readonly string[],
@@ -32,6 +33,20 @@ export function parseCopyFilesPayload(payload: unknown): { projectId: string; pa
   return projectId && paths.length > 0 ? { projectId, paths } : null;
 }
 
+export function parseCopyProjectAssetPayload(payload: unknown): {
+  sourceProjectId: string
+  targetProjectId: string
+  relativePath: string
+} | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const raw = payload as { sourceProjectId?: unknown; targetProjectId?: unknown; relativePath?: unknown };
+  const sourceProjectId = typeof raw.sourceProjectId === "string" ? raw.sourceProjectId.trim() : "";
+  const targetProjectId = typeof raw.targetProjectId === "string" ? raw.targetProjectId.trim() : "";
+  const relativePath = typeof raw.relativePath === "string" ? raw.relativePath.trim().replace(/\\/g, "/") : "";
+  if (!sourceProjectId || !targetProjectId || !relativePath || relativePath.startsWith("/") || relativePath.split("/").some((segment) => segment === "..")) return null;
+  return { sourceProjectId, targetProjectId, relativePath };
+}
+
 export function registerAssetsIpc(): void {
   ipcMain.handle("nomi:clipboard:read-file-paths", (event) => {
     // 外泄面：剪贴板里的文件路径会暴露用户磁盘布局，只准主窗口读。
@@ -45,6 +60,12 @@ export function registerAssetsIpc(): void {
     const parsed = parseCopyFilesPayload(payload);
     if (!parsed) throw new Error("projectId and paths are required");
     return copyLocalImageFiles(parsed.projectId, parsed.paths);
+  });
+  ipcMain.handle("nomi:assets:copy-project-asset", async (event, payload) => {
+    assertTrustedSender(event);
+    const parsed = parseCopyProjectAssetPayload(payload);
+    if (!parsed) throw new Error("sourceProjectId, targetProjectId and relativePath are required");
+    return copyProjectAsset(parsed);
   });
   ipcMain.handle("nomi:assets:folders-get", async (event, payload) => {
     assertTrustedSender(event);

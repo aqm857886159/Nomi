@@ -34,7 +34,7 @@ import {
 } from "./projects/repository";
 // 公共 API：main.ts 仍从 "./runtime" 消费这些 —— re-export 保持其 import 不变。
 export { createProject, deleteProject, listProjects, readProject, resolveProjectRelativePath, saveProject };
-export { copyAssetFile, importRemoteAsset, listProjectAssets, moveAssetFile, writeAsset } from "./assets/projectAssetStore";
+export { copyAssetFile, copyProjectAsset, importRemoteAsset, listProjectAssets, moveAssetFile, writeAsset } from "./assets/projectAssetStore";
 // localizedTaskAssetFileName 已抽到 ./assets/localizedAsset（规则 9/12 减负 giant shell）；re-export 保持既有 import（含 runtime.assets.test）不变。
 export { localizedTaskAssetFileName }; export type ProfileOperationStage = AntigravityProcessStage | Extract<NonNullable<import("./providerAdapter/types").AdapterModeResult["stage"]>, "result">;
 // 任务执行复用 catalog 状态（readCatalog + extractVendorExtraHeaders 纯函数）；

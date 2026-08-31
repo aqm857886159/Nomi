@@ -119,10 +119,12 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-08-31-library-discovery-slice.md](2026-08-31-library-discovery-slice.md) | **非 Agent 资源库发现优化**：四库各自有家，共用搜索/确定性分类与素材真实媒体路径 | 🚧 |
 | [2026-05-31-workspace-folder-projects-implementation-plan.md](2026-05-31-workspace-folder-projects-implementation-plan.md) | 任意文件夹 Workspace 项目实施 | 🚧 |
 | [2026-05-31-merge-workspace-feature.md](2026-05-31-merge-workspace-feature.md) | 把 workspace 文件管理合并进 main | 🚧 |
 | [2026-05-31-left-panel-material-redesign.md](2026-05-31-left-panel-material-redesign.md) | 左面板重做：分类/素材双 Tab | 📋 |
 | [2026-05-31-library-search-cost-fixes.md](2026-05-31-library-search-cost-fixes.md) | 30秒体验/假搜索/花费徽章 三处修复 | 🚧 |
+| [2026-08-30-library-discovery-optimization.md](2026-08-30-library-discovery-optimization.md) | 跨项目工作流与素材库发现体验：搜索、分类、居中详情与原样复制边界 | 📋 |
 | [2026-06-08-custom-categories-and-chat-polish.md](2026-06-08-custom-categories-and-chat-polish.md) | 自定义分类+聊天气泡统一+右键菜单瘦身 | 🚧 |
 
 ## 性能 / 技术地基 / 巨壳拆分 / 管线

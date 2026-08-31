@@ -43,6 +43,12 @@ export function sourceOptionsForUsage(_usage: AssetLibraryUsageContext): typeof 
   return ASSET_LIBRARY_SOURCE_OPTIONS
 }
 
+/** A canvas result belongs to the active canvas; project files must match the active project. */
+export function assetBelongsToProject(asset: Pick<AssetRef, 'origin'>, projectId: string | null): boolean {
+  if (asset.origin.source === 'canvas') return true
+  return Boolean(projectId && asset.origin.projectId === projectId)
+}
+
 export function assetToDragPayload(
   asset: AssetRef,
   dragAnchor?: AssetLibraryDragPayload['dragAnchor'],

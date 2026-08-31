@@ -9,6 +9,8 @@ import type {
   GenerationNodeStatus,
   NodeGroup,
 } from '../model/generationCanvasTypes'
+import type { CanvasPluginNodeState } from '../plugins/canvasPluginTypes'
+import type { CanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
 import type { EdgeCapabilityResult } from '../agent/referenceEdgeCapability'
 import type { CanvasMutationOptions } from './canvasGuards'
 import type { NodeProgressInput, NodeRunRecordInput, NodeRunRecordPatch } from './runRecordHelpers'
@@ -38,6 +40,9 @@ export type CreateNodeInput = {
   // 调用方已算好「成组紧凑布局」(如切图九宫格瓦片)时置 true：信任 position 原值、跳过逐卡碰撞避让。
   // 缺省 false = 走避让总闸。没有它，成组布局会被避让逐张推散（用户报「切完散落」的根因）。
   exactPosition?: boolean
+  /** Only host-registered plugin node types may be created through this path. */
+  typeId?: string
+  pluginState?: CanvasPluginNodeState
 }
 
 export type CanvasNodeActions = {
@@ -65,6 +70,9 @@ export type CanvasNodeActions = {
   reassignNodeCategory: (nodeId: string, categoryId: string) => void
   copyNodeToCategory: (nodeId: string, categoryId: string) => GenerationCanvasNode | null
   deleteNode: (nodeId: string) => void
+  saveSelectedAsWorkflowTemplate: (name?: string) => CanvasWorkflowTemplate | null
+  instantiateWorkflowTemplate: (templateId: string, position: { x: number; y: number }) => GenerationCanvasNode[]
+  instantiateWorkflowTemplateSnapshot: (template: CanvasWorkflowTemplate, position: { x: number; y: number }) => GenerationCanvasNode[]
 }
 
 export type CanvasGraphActions = {
@@ -115,6 +123,7 @@ export type GenerationCanvasState = {
   nodes: GenerationCanvasNode[]
   edges: GenerationCanvasEdge[]
   groups: NodeGroup[]
+  workflowTemplates: CanvasWorkflowTemplate[]
   selectedNodeIds: string[]
   pendingConnectionSourceId: string
   pendingConnectionSourceSide: ConnectionAnchorSide

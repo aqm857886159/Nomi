@@ -2,6 +2,7 @@
 // 主进程已聚合+缓存;这里取全量,搜索/分类过滤是平凡纯函数,放渲染层(不重复后端逻辑)。
 import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
 import i18n from '../../i18n'
+import { matchesLibraryQuery } from '../library/libraryDiscovery'
 
 export type PromptMediaType = 'image' | 'video'
 
@@ -116,12 +117,11 @@ export async function getTextBrain(): Promise<{ vendor: string; modelKey: string
 
 export type PromptCategory = 'all' | 'image' | 'video'
 
-/** 平凡过滤:分类(全部/图片/视频)+ 关键词(标题/正文/来源)。 */
+/** 平凡过滤:分类(全部/图片/视频)+ 关键词(标题/正文/来源/已有标签)。 */
 export function filterPrompts(items: LibraryPrompt[], category: PromptCategory, keyword: string): LibraryPrompt[] {
-  const kw = keyword.trim().toLowerCase()
-  return items.filter((item) => {
-    if (category !== 'all' && item.promptType !== category) return false
-    if (!kw) return true
-    return `${item.title} ${item.prompt} ${item.source}`.toLowerCase().includes(kw)
-  })
+  const byCategory = items.filter((item) => category === 'all' || item.promptType === category)
+  return byCategory.filter((item) => matchesLibraryQuery(
+    { title: item.title, description: item.prompt, keywords: [item.source, ...item.tags] },
+    keyword,
+  ))
 }

@@ -20,6 +20,8 @@ export function AssetPreviewDialog({ asset, onClose }: { asset: AssetRef; onClos
   const { t } = useTranslation()
   const heal = useVideoPlaybackHeal({ rawUrl: asset.renderUrl })
   const title = asset.name || ''
+  const sourceName = asset.sourceProjectName?.trim() || ''
+  const mediaTypeLabel = asset.kind === 'video' ? t('assetLibrary.video') : t('assetLibrary.image')
   const [downloading, setDownloading] = React.useState(false)
   const downloadModel = React.useCallback(() => {
     const bridge = getDesktopBridge()
@@ -69,6 +71,19 @@ export function AssetPreviewDialog({ asset, onClose }: { asset: AssetRef; onClos
       >
         <IconX size={18} stroke={1.8} />
       </button>
+
+      {asset.kind !== 'audio' ? (
+        <span
+          className={cn(
+            'pointer-events-none absolute left-4 top-4 z-[2] flex max-w-[calc(100%-80px)] items-baseline gap-2 truncate rounded-full px-3 py-1.5',
+            'border border-nomi-paper/20 bg-nomi-overlay-chip-strong text-caption font-medium text-nomi-paper shadow-nomi-sm backdrop-blur-sm',
+          )}
+          data-asset-preview-title="true"
+        >
+          <span className="min-w-0 truncate">{title || mediaTypeLabel}</span>
+          {sourceName ? <span className="shrink-0 truncate text-micro font-normal text-nomi-paper/70">{t('assetLibrary.previewSource', { name: sourceName })}</span> : null}
+        </span>
+      ) : null}
 
       {asset.kind === 'model3d' ? (
         <button
@@ -124,6 +139,7 @@ export function AssetPreviewDialog({ asset, onClose }: { asset: AssetRef; onClos
           onPointerDown={(event) => event.stopPropagation()}
         >
           <div className="mb-3 max-w-[60vw] truncate text-body-sm font-medium text-nomi-ink">{title}</div>
+          {sourceName ? <div className="mb-3 max-w-[60vw] truncate text-micro text-nomi-ink-60">{t('assetLibrary.previewSource', { name: sourceName })}</div> : null}
           <audio src={asset.renderUrl} controls autoPlay aria-label={title} style={{ width: 'min(60vw, 520px)' }} />
         </div>
       ) : (

@@ -6,7 +6,7 @@ import { NomiImage } from '../../design/media'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../design'
 import { AssetThumb } from './AssetTile'
 import { AssetVideoCover } from './AssetVideoCover'
-import type { AssetKind, AssetRef } from './assetTypes'
+import { assetAspectRatio, type AssetKind, type AssetRef } from './assetTypes'
 import { isAssetGridActivationKey, type AssetGridActivationEvent } from './assetLibraryUsage'
 import { ASSET_KIND_FILTER_VALUES, FILTER_OPTIONS, type FilterValue } from './assetLibraryPanelFilters'
 
@@ -276,6 +276,7 @@ export const AssetGridCell = React.memo(function AssetGridCell({
   const dragHint = dragHintProp ?? (canDrag
     ? asset.kind === 'audio' ? t('assetLibrary.dragAudio') : t('assetLibrary.dragCanvas')
     : asset.kind === 'model3d' ? t('assetLibrary.previewModel3d') : t('assetLibrary.selectableProjectAsset'))
+  const mediaAspectRatio = assetAspectRatio(asset)
   const check = selectable ? (
     <span
       className={cn(
@@ -333,11 +334,22 @@ export const AssetGridCell = React.memo(function AssetGridCell({
             aria-label={onSelect ? asset.name : undefined}
             aria-selected={selectable ? selected : undefined}
           >
-            <div className="relative overflow-hidden bg-nomi-ink-05">
+            <div
+              className={cn(
+                'relative overflow-hidden bg-nomi-ink-05',
+                asset.kind === 'video' && !mediaAspectRatio && 'h-[96px] min-h-[86px]',
+              )}
+              style={mediaAspectRatio ? { aspectRatio: mediaAspectRatio } : undefined}
+            >
               {asset.kind === 'image' ? (
-                <NomiImage className="block h-auto w-full object-contain" thumbnailSrc={asset.thumbUrl} src={asset.renderUrl} alt={asset.name} />
+                <NomiImage
+                  className={cn('block w-full object-contain', mediaAspectRatio ? 'h-full' : 'h-auto')}
+                  thumbnailSrc={asset.thumbUrl}
+                  src={asset.renderUrl}
+                  alt={asset.name}
+                />
               ) : asset.kind === 'video' ? (
-                <div className="relative h-[96px] min-h-[86px]">
+                <div className="relative h-full w-full">
                   <AssetVideoCover asset={asset} />
                   <span className="absolute inset-0 bg-[oklch(0.2_0.01_80/0.22)]" aria-hidden />
                   <span className="absolute inset-0 grid place-items-center text-nomi-paper drop-shadow-[0_1px_2px_oklch(0_0_0/0.55)]" aria-hidden>
@@ -352,6 +364,9 @@ export const AssetGridCell = React.memo(function AssetGridCell({
               <AssetKindBadge kind={asset.kind} compact />
               {check}
               {deleteButton}
+            </div>
+            <div className="min-w-0 truncate px-1.5 py-1 text-micro text-nomi-ink-70" title={asset.name}>
+              {asset.name}
             </div>
           </div>
         ) : (

@@ -61,9 +61,24 @@ describe('normalizeStoreSnapshot — 连线身份修复', () => {
       ],
       groups: [],
     })
-
     expect(snapshot.edges).toHaveLength(2)
     expect(new Set(snapshot.edges.map((edge) => edge.id)).size).toBe(2)
     expect(snapshot.edges.map((edge) => edge.mode)).toEqual(['first_frame', 'last_frame'])
+  })
+})
+
+describe('normalizeStoreSnapshot — plugin preservation', () => {
+  it('keeps a plugin node envelope, its edges, and workflow templates across normalization', () => {
+    const snapshot = normalizeStoreSnapshot({
+      nodes: [{ id: 'checkpoint', kind: 'text', title: '检查', position: { x: 10, y: 20 }, typeId: 'nomi.workflow/checkpoint', pluginState: {
+        pluginId: 'nomi.workflow', pluginVersion: '1.0.0', typeId: 'nomi.workflow/checkpoint', schemaVersion: 1, state: { checked: false },
+      } }, { id: 'target', kind: 'image', title: '镜头', position: { x: 300, y: 20 } }],
+      edges: [{ id: 'edge', source: 'checkpoint', target: 'target' }],
+      groups: [],
+      workflowTemplates: [{ id: 't1', name: '流程', createdAt: 1, updatedAt: 1, nodes: [], edges: [] }],
+    })
+    expect(snapshot.nodes[0].pluginState?.state).toEqual({ checked: false })
+    expect(snapshot.edges).toHaveLength(1)
+    expect(snapshot.workflowTemplates).toHaveLength(1)
   })
 })

@@ -15,7 +15,8 @@ import { useTranslation } from 'react-i18next'
 import { IconCheck, IconChevronDown, IconPlus, IconScissors } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { getGenerationNodeComponent } from '../nodes/renderRegistry'
+import { getGenerationNodeComponentForNode } from '../nodes/renderRegistry'
+import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
 import { getNodeSizeBounds, resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { availableEdgeModes } from '../components/edgeModeMenu'
@@ -28,6 +29,7 @@ import {
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import { GenerationFlowNodeScope } from './generationFlowNodeContext'
 import { resolveGenerationFlowConnectionAffordance } from './generationCanvasReactFlowVisualContract'
+import type { CanvasPluginNodeState } from '../plugins/canvasPluginTypes'
 
 const MAGNETIC_HANDLE_ICON_RADIUS = 14.5
 
@@ -118,7 +120,7 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
   const { t } = useTranslation()
   const node = data.generationNode
   const collapsedGroupProxy = node.meta?.collapsedGroupProxy === true
-  const NodeComponent = getGenerationNodeComponent(node.kind)
+  const NodeComponent = getGenerationNodeComponentForNode(node)
   const size = resolveNodeVisualSize(node)
   const bounds = getNodeSizeBounds(node.kind)
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
@@ -149,6 +151,17 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
   const isPendingConnectionTarget = Boolean(pendingConnectionSourceId && !isPendingConnectionSource)
   const startConnectionLabel = t('generationCommon.node.startConnection')
   const targetConnectionLabel = t('generationCommon.node.connectHere')
+  const pluginManifest = node.pluginState ? canvasPluginRegistry.getManifest(node.pluginState.pluginId) : undefined
+  const pluginHost = node.typeId && pluginManifest ? {
+    hasPermission: (permission: 'canvas.read' | 'canvas.write' | 'workflow.read' | 'workflow.write') => pluginManifest.permissions.includes(permission),
+    requestNodePatch: ({ pluginState }: { pluginState: CanvasPluginNodeState }) => {
+      if (
+        pluginState.pluginId !== node.pluginState?.pluginId ||
+        pluginState.typeId !== node.typeId
+      ) return
+      updateNode(node.id, { pluginState }, { history: true })
+    },
+  } : undefined
 
   return (
     <div
@@ -213,6 +226,7 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
               readOnly={data.readOnly}
               focusFlash={data.focusFlash}
               appear={data.appear}
+              host={pluginHost}
             />
           ) : (
             <LightweightGenerationNode

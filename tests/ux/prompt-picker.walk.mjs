@@ -138,7 +138,10 @@ try {
   // 设置面板异步挂载：等标题出现，不拿 sleep 赌（赌短了「新建」读不到，④ 直接假红）。
   await expectVisible(heading, '设置 → AI 里找不到「系统提示词」区').catch(() => {})
   await heading.scrollIntoViewIfNeeded().catch(() => {})
-  const newChip = win.getByRole('button', { name: /新建/ }).first()
+  // Scope the action to the settings prompt section. A generic "新建" query
+  // can resolve to the always-mounted creation toolbar behind the modal and
+  // make Playwright report a false interaction failure.
+  const newChip = win.locator('[data-settings-prompt-create]').first()
   const canCreate = await expectVisible(newChip, '设置页里找不到「新建」自定义提示词的入口')
     .then(() => true).catch(() => false)
   if (canCreate) {

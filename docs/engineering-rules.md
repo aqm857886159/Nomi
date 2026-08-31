@@ -1,9 +1,9 @@
 # Nomi 工程纪律 — 详细规则（L2 · 触发才查）
 
-> 这是 `CLAUDE.md` 的「按需查阅」层。`CLAUDE.md`（always 加载）= 精简核心：项目事实 + P1–P5 + D1–D5 + 规则索引 + 三闸。本文件存**触发某条规则后才查的细节**：R1–R24 详解、工作流框架、技能库映射、固化的工作纪律。
+> 这是 `CLAUDE.md` 的「按需查阅」层。`CLAUDE.md`（always 加载）= 精简核心：项目事实 + P1–P5 + D1–D5 + 规则索引 + 三闸。本文件存**触发某条规则后才查的细节**：R1–R25 详解、工作流框架、技能库映射、固化的工作纪律。
 > 真相源仍单一：`CLAUDE.md` 的规则索引指明每条住哪；冲突一律以 `CLAUDE.md` 的 P1–P5 / D1–D5 为准。改触发清单同步 `.claude/hooks/self-check.sh`，规则细节只改本文件。
 
-# 详细规则 R1–R24
+# 详细规则 R1–R25
 
 > `CLAUDE.md` 的规则索引触发某个编号后，到这里查它的细节。
 
@@ -560,3 +560,28 @@ pnpm run delivery:verify-merged -- --expected-sha <merge-commit-sha>
 **硬门**：任何一层缺字段，都只能标记为“未支持”，不能用“批准后再去节点修改”或“工具名出现”伪装成已接通。审批是最终提案确认，不是二元开关；参数被编辑后必须走同一条 prepare → validate → hash → execute → receipt 链，拒绝不得写入，非法值必须返回可纠正反馈。
 
 **真实证据**：至少一条自然语言用户目标从 UI 入口走到领域 owner 的真实结果，并断言关键字段（模型、模式、尺寸/时长、提示词、引用、预算或费用）在 UI、Host、adapter 和结果中的一致性。每新增字段同时增加 schema、编辑器、effectiveArgs 回归测试和真实 Electron 走查；只点按钮或只测工具调用不算覆盖。
+
+## R25 提交/推送前 Ponytail 评审
+
+**触发**：任何 `git commit` 或 `git push`，包括文档、配置和脚本的小改动。目标是让过度工程化评审发生在变更离开工作树前，而不是把它误当成正确性、安全或 CI 评审的替代品。
+
+### 合规流程
+
+1. 版本化 `pre-commit` / `pre-push` hook 自动调用 `scripts/ponytail-review-hook.mjs`。Codex 适配器以 `--ask-for-approval never --ignore-rules --sandbox read-only` 启动只读、临时会话，并触发 `@ponytail-review`（宿主 slash 名是 `/ponytail-review`）。
+2. `pre-commit` 只把 `git diff --cached` 交给评审；`pre-push` 解析 Git 传入的四列 ref-update，逐个评审实际 outgoing range。新建远端 ref 没有旧 SHA 时，以远端 HEAD 的 merge-base 为基线，拒绝退化成整仓 diff；无法确定基线就 fail closed。不会把无关的未暂存改动或其他分支混进上下文。
+3. 评审只看过度工程化（delete/stdlib/native/yagni/shrink）。有发现时 hook 只报告状态和字节数摘要，不替用户判断功能正确性；需要逐条意见时另行运行 `@ponytail-review`。没有合法结果、Codex 缺失、插件未启用、异常或超时都 fail closed，必须处理环境后重试。
+4. 运行器固定为只读、临时、限时调用，报告写入系统临时目录，不进项目和 Git index；评审结束后立即删除唯一临时目录，清理失败也 fail closed。hook/返回值只保留状态、diff hash 和 report/stdout/stderr 字节数，绝不把报告正文或进程输出复制到终端、CI 日志或错误对象。报告读取上限为 256 KB；`pre-commit` 先执行既有敏感数据扫描，避免把明显凭据送入模型；`pre-push` 只审 outgoing diff。单次送审 diff 上限为 1.5 MB、push ref-update 上限为 32 条，超限直接 fail closed。
+5. 只接受 `--output-last-message` 报告的严格、报告-only 合同：适配器形式要求唯一一条 `net: -N lines possible.` 后紧跟唯一最终行 `PONYTAIL_REVIEW: PASS|FINDINGS`；同时兼容 Ponytail 原生的精确 clean 行 `Lean already. Ship.` 和以 `net: -N lines possible.` 收尾的 findings 报告。stdout/stderr、prompt 回显、重复 marker 和不完整报告一律不算通过。
+
+### 为什么不把它做成收据或第二套 Agent
+
+`/ponytail-review` 是宿主 Agent skill，不是可移植的 shell 可执行文件；因此仓库只保留一个版本化 Codex 适配器，不再另设“手工 ACK 收据”旁路，也不接入 Nomi 的 Agent/Canvas 能力链。hook 内不执行修改、测试、commit 或 push，避免递归和工作树污染。
+
+`--no-verify`、GitHub 网页/API 和未安装 hook 的环境仍可绕过本地 Git hook；若要对所有入口强制，需在 CI/分支保护中复用同一只读评审合同。不得把本地 hook 通过写成“代码正确”或“已经合入”。
+
+### 环境与并行 worktree
+
+- `scripts/install-git-hooks.cjs` 由 `postinstall` 调用，保留既有 `commit-msg` 和敏感数据扫描顺序，并新增 `pre-push`。普通 worktree 使用 configured hooks 路径；linked worktree 只有在 Git `extensions.worktreeConfig=true` 时才写入专属目录，无法隔离则跳过并警告，避免一个分支改坏并行 worktree。
+- `PONYTAIL_REVIEW_CODEX_BIN` 可在本机明确指定 Codex 可执行文件；`PONYTAIL_REVIEW_REPORT_DIR` 仅用于调试报告目录。缺失配置不会放行。
+
+**验证**：`scripts/ponytail-review-hook.node-test.mjs` 覆盖 hook 生成顺序、staged/outgoing diff 范围、结果分类、Codex 失败/超时、真实 fake-runner 调用和 linked-worktree 隔离；改动本规则或 hook 时必须运行该测试与 contracts gate。

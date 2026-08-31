@@ -2,9 +2,11 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { cn } from '../../../utils/cn'
+import { IconRoute } from '../../../vendor/tablerIcons'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import { getQuickAddGenerationNodePlugins } from '../nodes/renderRegistry'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../design'
 import { CANVAS_TOOLBAR_NODE_GROUPS, canvasToolbarNodeKinds } from './canvasToolbarModel'
 
@@ -112,6 +114,8 @@ type CanvasToolbarProps = {
 export default function CanvasToolbar({ getInsertionPosition, categoryId }: CanvasToolbarProps): JSX.Element {
   const { t } = useTranslation()
   const addNode = useGenerationCanvasStore((state) => state.addNode)
+  const workflowTemplates = useGenerationCanvasStore((state) => state.workflowTemplates)
+  const instantiateWorkflowTemplate = useGenerationCanvasStore((state) => state.instantiateWorkflowTemplate)
 
   const handleAddNode = (kind: GenerationNodeKind) => {
     addNode({ kind, position: getInsertionPosition(), categoryId })
@@ -159,6 +163,56 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
             })}
           </React.Fragment>
         ))}
+        {workflowTemplates.length ? (
+          <>
+            <span className="my-0.5 h-px w-5 shrink-0 bg-nomi-line" aria-hidden="true" />
+            <label className="relative grid size-8 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-05" title={t('generationCommon.selection.workflowMenu')}>
+              <IconRoute size={18} stroke={1.6} />
+              <select
+                aria-label={t('generationCommon.selection.workflowMenu')}
+                className="absolute inset-0 size-8 cursor-pointer opacity-0"
+                value=""
+                onChange={(event) => {
+                  if (event.target.value) instantiateWorkflowTemplate(event.target.value, getInsertionPosition())
+                  event.currentTarget.value = ''
+                }}
+              >
+                <option value="">{t('generationCommon.selection.workflowMenu')}</option>
+                {workflowTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+              </select>
+            </label>
+          </>
+        ) : null}
+        {canvasPluginRegistry.isEnabled() && canvasPluginRegistry.resolve('nomi.workflow/checkpoint') ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                data-plugin-type="nomi.workflow/checkpoint"
+                className="grid size-8 min-h-8 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent p-0 text-nomi-ink-60 cursor-pointer transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink"
+                aria-label={t('generationCommon.workflowPlugin.addCheckpoint')}
+                onClick={() => addNode({
+                  kind: 'text',
+                  typeId: 'nomi.workflow/checkpoint',
+                  title: t('generationCommon.workflowPlugin.checkpointTitle'),
+                  size: { width: 280, height: 190 },
+                  pluginState: {
+                    pluginId: 'nomi.workflow',
+                    pluginVersion: '1.0.0',
+                    typeId: 'nomi.workflow/checkpoint',
+                    schemaVersion: 1,
+                    state: { checked: false },
+                  },
+                  position: getInsertionPosition(),
+                  categoryId,
+                })}
+              >
+                <IconRoute size={18} stroke={1.6} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{t('generationCommon.workflowPlugin.addCheckpoint')}</TooltipContent>
+          </Tooltip>
+        ) : null}
       </TooltipProvider>
     </div>
   )

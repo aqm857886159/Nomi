@@ -8,7 +8,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconBooks, IconUpload, IconWand, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { DesignEmptyState, DesignSearchInput, NomiWordmark, TooltipProvider } from '../../design'
+import { DesignEmptyState, NomiSegmented, NomiWordmark, TooltipProvider } from '../../design'
 import { showInfoToast } from '../../utils/showInfoToast'
 import { showUndoToast } from '../../utils/showUndoToast'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -16,6 +16,9 @@ import type { SkillListItemDto } from '../api/skillApi'
 import { useWorkbenchSkills } from './useWorkbenchSkills'
 import { SkillCard } from './SkillCard'
 import { parseSkillImportFile } from './parseSkillImport'
+import { markLibraryUsed, sortByLibraryUsage, useLibraryUsageVersion } from '../library/libraryDiscovery'
+import { filterSkillLibraryItems, type SkillLibraryCategory } from '../library/libraryAdapters'
+import { LibraryDiscoveryToolbar } from '../library/LibraryDiscoveryToolbar'
 
 type Source = 'mine' | 'builtin'
 
@@ -43,21 +46,26 @@ export function SkillLibraryContent({
 }: SkillLibraryContentProps): JSX.Element {
   const { t } = useTranslation()
   const [source, setSource] = React.useState<Source>('mine')
+  const [category, setCategory] = React.useState<SkillLibraryCategory>('all')
   const [query, setQuery] = React.useState('')
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const usageVersion = useLibraryUsageVersion()
 
   const { items, available, remove, importPackage, exportPackage } = useWorkbenchSkills(active)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
   const setCreationActiveSkill = useWorkbenchStore((s) => s.setCreationActiveSkill)
 
+  const sortedItems = React.useMemo(
+    () => {
+      // The usage hook is the same-window invalidation signal for recency.
+      void usageVersion
+      return sortByLibraryUsage(items, 'skill', (skill) => skill.directoryName)
+    },
+    [items, usageVersion],
+  )
   const visible = React.useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return items.filter((s) => {
-      if (source === 'mine' ? s.origin !== 'user' : s.origin !== 'builtin') return false
-      if (!q) return true
-      return s.label.toLowerCase().includes(q) || (s.description ?? '').toLowerCase().includes(q)
-    })
-  }, [items, source, query])
+    return filterSkillLibraryItems(sortedItems, { source, category, query })
+  }, [category, query, source, sortedItems])
 
   React.useEffect(() => {
     if (!active || !onClose) return
@@ -79,7 +87,10 @@ export function SkillLibraryContent({
   )
 
   const handleUse = React.useCallback(
-    (skill: SkillListItemDto) => gotoCreationWith({ key: skill.name, name: skill.label }),
+    (skill: SkillListItemDto) => {
+      gotoCreationWith({ key: skill.name, name: skill.label })
+      markLibraryUsed('skill', skill.directoryName)
+    },
     [gotoCreationWith],
   )
 
@@ -145,7 +156,7 @@ export function SkillLibraryContent({
     [importPackage, t],
   )
 
-  const showNewTile = source === 'mine' && !query.trim()
+  const showNewTile = source === 'mine' && category === 'all' && !query.trim()
 
   const sourceTabs = (
     <div
@@ -176,6 +187,21 @@ export function SkillLibraryContent({
         )
       })}
     </div>
+  )
+
+  const categoryTabs = (
+    <NomiSegmented
+      value={category}
+      onChange={(value) => setCategory(value as SkillLibraryCategory)}
+      ariaLabel={t('libraries.skill.categoryAria')}
+      density="compact"
+      className={cn(compact ? 'w-full' : 'shrink-0')}
+      options={[
+        { value: 'all', label: t('libraries.skill.category.all') },
+        { value: 'playbook', label: t('libraries.skill.category.playbook') },
+        { value: 'assistant', label: t('libraries.skill.category.assistant') },
+      ]}
+    />
   )
 
   const importButton = (
@@ -217,7 +243,7 @@ export function SkillLibraryContent({
             <IconBooks size={18} stroke={1.6} className={cn('text-nomi-accent')} />
             <b className={cn('text-title font-bold text-nomi-ink')}>{t('libraries.skill.title')}</b>
             <NomiWordmark fontSize={13} className={cn('text-nomi-ink-40')} />
-            <span className={cn('text-caption text-nomi-ink-40')}>· {items.length}</span>
+            <span className={cn('text-caption text-nomi-ink-40')}>· {visible.length}</span>
             <span className={cn('flex-1')} />
             {onClose ? (
               <button
@@ -232,18 +258,17 @@ export function SkillLibraryContent({
           </div>
         ) : null}
 
-        {/* 工具行 */}
-        <div className={cn('flex gap-2', compact ? 'flex-col px-3 py-3' : 'items-center px-5 py-2.5')}>
-          {sourceTabs}
-          <DesignSearchInput
-            className={compact ? 'w-full' : 'flex-1'}
-            placeholder={t('libraries.skill.searchPlaceholder')}
-            ariaLabel={t('libraries.skill.searchAria')}
-            value={query}
-            onChange={setQuery}
-          />
-          {compact ? (
-            <div className={cn('grid grid-cols-2 gap-2')}>
+        {/* 工具行：来源/类型留在技能库自己的上下文，搜索与低频动作共用发现条布局。 */}
+        <LibraryDiscoveryToolbar
+          className={compact ? 'px-3 py-3' : 'px-5 py-2.5'}
+          compact={compact}
+          query={query}
+          onQueryChange={setQuery}
+          placeholder={t('libraries.skill.searchPlaceholder')}
+          ariaLabel={t('libraries.skill.searchAria')}
+          leading={<>{sourceTabs}{categoryTabs}</>}
+          trailing={compact ? (
+            <div className={cn('grid w-full grid-cols-2 gap-2')}>
               {importButton}
               {newWithAiButton}
             </div>
@@ -253,26 +278,26 @@ export function SkillLibraryContent({
               {newWithAiButton}
             </>
           )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".md,.markdown,.zip,.json,.nomiskill,text/markdown,application/zip,application/json"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) void handleImportFile(file)
-              e.target.value = ''
-            }}
-          />
-        </div>
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".md,.markdown,.zip,.json,.nomiskill,text/markdown,application/zip,application/json"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) void handleImportFile(file)
+            e.target.value = ''
+          }}
+        />
 
         {/* 网格 */}
         <div className={cn('flex-1 overflow-y-auto', compact ? 'px-3 pb-3' : 'px-5 pb-5')}>
           {!visible.length && !showNewTile ? (
             <DesignEmptyState
-              title={query.trim() ? t('libraries.skill.noMatch') : source === 'mine' ? t('libraries.skill.noMine') : t('libraries.skill.noBuiltin')}
+              title={query.trim() || category !== 'all' ? t('libraries.skill.noMatch') : source === 'mine' ? t('libraries.skill.noMine') : t('libraries.skill.noBuiltin')}
               description={
-                query.trim()
+                query.trim() || category !== 'all'
                   ? t('libraries.skill.tryAnotherSearch')
                   : source === 'mine'
                     ? t('libraries.skill.mineEmptyHint')

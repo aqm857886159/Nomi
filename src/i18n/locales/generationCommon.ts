@@ -1140,6 +1140,21 @@ export const zhGenerationCommon = {
     ungroup: '解除分组 (⇧⌘G)',
     group: '创建分组 (⌘G)',
     clear: '清除选择',
+    saveWorkflow: '保存为流程',
+    defaultWorkflowName: '流程 · {{count}} 个节点',
+    workflowSaved: '已保存流程「{{name}}」',
+    workflowMenu: '复用已保存流程',
+  },
+  workflowPlugin: {
+    addCheckpoint: '添加工作流检查点',
+    checkpointTitle: '工作流检查点',
+    checkpointAction: '标记这一步已检查',
+    checked: '已检查',
+    checkpointHint: '这是一个可复用流程里的人工确认点。',
+    missingTitle: '插件节点不可用',
+    missingHint: '数据仍保留。重新启用插件后，这个节点会恢复。',
+    restoreHint: '原始节点与连线未删除',
+    readOnly: '只读画布',
   },
   production: {
     // 锚点卡上的角色前缀:嗅 prompt 得到规范 key,显示名在这里(源串在 anchorCheckpointView 只作匹配用)。
@@ -2658,6 +2673,21 @@ export const enGenerationCommon = {
     ungroup: 'Ungroup (⇧⌘G)',
     group: 'Create group (⌘G)',
     clear: 'Clear selection',
+    saveWorkflow: 'Save as workflow',
+    defaultWorkflowName: 'Workflow · {{count}} nodes',
+    workflowSaved: 'Saved workflow “{{name}}”',
+    workflowMenu: 'Reuse a saved workflow',
+  },
+  workflowPlugin: {
+    addCheckpoint: 'Add workflow checkpoint',
+    checkpointTitle: 'Workflow checkpoint',
+    checkpointAction: 'Mark this step checked',
+    checked: 'Checked',
+    checkpointHint: 'A human review point you can reuse in a workflow.',
+    missingTitle: 'Plugin node unavailable',
+    missingHint: 'Your data is kept. Re-enable the plugin to restore this node.',
+    restoreHint: 'Original node and connections kept',
+    readOnly: 'Read-only canvas',
   },
   production: {
     anchorRole: {

@@ -12,11 +12,13 @@ import '@xyflow/react/dist/style.css'
 import './generationCanvasReactFlow.css'
 import { useTranslation } from 'react-i18next'
 import { toast } from '../../../ui/toast'
+import { saveWorkflowFromCurrentProject } from '../../library/workflowLibrary'
 import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
 import { cn } from '../../../utils/cn'
 import { WORKSPACE_FILE_DRAG_MIME } from '../../explorer/workspaceFileDrag'
 import { ASSET_LIBRARY_DRAG_MIME } from '../../assets/assetLibraryDrag'
 import { useWorkbenchStore } from '../../workbenchStore'
+import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSession'
 import { clientXToFrame } from '../../timeline/timelineEdit'
 import { adoptGenerationNode } from '../../adoption/adoptGenerationNode'
 import { reportAdoptionOutcome } from '../../adoption/adoptionReceipt'
@@ -25,7 +27,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { findTimelineDropTarget } from '../nodes/nodeSizing'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
-import { getCanvasGroupBoxes } from '../components/generationCanvasGeometry'
+import { getCanvasGroupBoxes, getSelectedBounds } from '../components/generationCanvasGeometry'
 import { useCollapsedGroupConnectionSource } from '../components/useCollapsedGroupConnectionSource'
 import { projectCollapsedGroups } from '../model/canvasCardStackModel'
 import { useCanvasSelectionDrag } from '../components/useCanvasSelectionDrag'
@@ -43,7 +45,6 @@ import { useCanvasContextNodeMenu } from '../components/useCanvasContextNodeMenu
 import type { ViewportAnimationSettlementOutcome } from '../components/viewportAnimationSettlement'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import { buildCanvasMenuActions } from '../components/useCanvasMenuActions'
-import { getSelectedBounds } from '../components/generationCanvasGeometry'
 import { hasPendingScene3DCameraMoveCapture, hasPendingScene3DStagingCapture } from '../components/scene3dCaptureHostActivation'
 import { isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import CanvasToolbar from '../components/CanvasToolbar'
@@ -129,7 +130,12 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const pasteNodes = useGenerationCanvasStore((state) => state.pasteNodes)
   const undo = useGenerationCanvasStore((state) => state.undo)
   const redo = useGenerationCanvasStore((state) => state.redo)
+  const saveSelectedAsWorkflowTemplate = useGenerationCanvasStore((state) => state.saveSelectedAsWorkflowTemplate)
   const appearingNodeIds = useNodeAppearTracking(allNodes)
+  const handleSaveWorkflow = React.useCallback(() => {
+    const template = saveSelectedAsWorkflowTemplate(t('generationCommon.selection.defaultWorkflowName', { count: selectedNodeIds.length })); if (!template) return
+    saveWorkflowFromCurrentProject(template); toast(t('generationCommon.selection.workflowSaved', { name: template.name }), 'success')
+  }, [saveSelectedAsWorkflowTemplate, selectedNodeIds.length, t])
 
   const nodes = React.useMemo(
     () => allNodes.filter((node) => (node.categoryId || 'shots') === activeCategoryId),
@@ -648,14 +654,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
 
   const handleDragOver = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
     if (readOnly) return
-    const types = Array.from(event.dataTransfer.types)
-    if (
-      types.includes('Files') ||
-      types.includes(WORKSPACE_FILE_DRAG_MIME) ||
-      types.includes(ASSET_LIBRARY_DRAG_MIME) ||
-      types.includes(BROWSER_ASSET_DRAG_MIME) ||
-      types.includes(LEGACY_BROWSER_ASSET_DRAG_MIME)
-    ) {
+    const droppableTypes = ['Files', WORKSPACE_FILE_DRAG_MIME, ASSET_LIBRARY_DRAG_MIME, BROWSER_ASSET_DRAG_MIME, LEGACY_BROWSER_ASSET_DRAG_MIME]
+    if (droppableTypes.some((type) => event.dataTransfer.types.includes(type))) {
       event.preventDefault()
       event.dataTransfer.dropEffect = 'copy'
     }
@@ -665,6 +665,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     const currentViewport = flow.getViewport()
     handleCanvasStageDrop(event, {
       readOnly,
+      activeProjectId: getActiveWorkbenchProjectId(),
       offset: { x: currentViewport.x, y: currentViewport.y },
       zoom: currentViewport.zoom,
       activeCategoryId,
@@ -741,6 +742,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         onGroupSelectedNodes={handleGroupSelectedNodes}
         onUngroupSelectedNodes={handleUngroupSelectedNodes}
         onBuildContactSheet={handleBuildContactSheet}
+        onSaveWorkflow={handleSaveWorkflow}
         onClearSelection={clearSelection}
       />
       <GenerationCanvasReactFlowOverlays

@@ -44,6 +44,16 @@ describe('generation canvas React Flow adapter', () => {
     expect(source).toEqual(node('source', 10, 20))
   })
 
+  it('keeps plugin identity in the React Flow data adapter', () => {
+    const source = { ...node('checkpoint', 10, 20), typeId: 'nomi.workflow/checkpoint', pluginState: {
+      pluginId: 'nomi.workflow', pluginVersion: '1.0.0', typeId: 'nomi.workflow/checkpoint', schemaVersion: 1, state: { checked: false },
+    } }
+    const mapped = toGenerationFlowNode(source, false, false)
+    expect(mapped.type).toBe('generation')
+    expect(mapped.data.generationNode.typeId).toBe('nomi.workflow/checkpoint')
+    expect(mapped.data.generationNode.pluginState?.state).toEqual({ checked: false })
+  })
+
   it('maps read-only nodes and selected state for a collection', () => {
     const mapped = toGenerationFlowNodes([node('a', 0), node('b', 200)], new Set(['b']), true)
     expect(mapped.map((item) => [item.id, item.selected, item.draggable, item.connectable])).toEqual([

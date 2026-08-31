@@ -4,6 +4,7 @@ import { IconMusic, IconPlus } from '@tabler/icons-react'
 import { useWorkbenchStore } from '../workbenchStore'
 import { cn } from '../../utils/cn'
 import { WorkbenchButton } from '../../design'
+import { toast } from '../../ui/toast'
 import { ASSET_LIBRARY_DRAG_MIME } from '../assets/assetLibraryDrag'
 import { addAssetToTimeline, tryAddAssetFromDragData } from './addAssetToTimeline'
 import AssetPicker from '../assets/AssetPicker'
@@ -41,14 +42,15 @@ export function TimelineSecondaryAddRow({
     setDropHover(false)
     if (!showAudio) return
     const playhead = useWorkbenchStore.getState().timeline.playheadFrame
-    if (
-      tryAddAssetFromDragData(event.dataTransfer.getData(ASSET_LIBRARY_DRAG_MIME), {
-        fps,
-        startFrame: playhead,
-        targetTrackType: 'audio',
-      })
-    )
-      event.preventDefault()
+    const result = tryAddAssetFromDragData(event.dataTransfer.getData(ASSET_LIBRARY_DRAG_MIME), {
+      fps,
+      startFrame: playhead,
+      targetTrackType: 'audio',
+      activeProjectId: getActiveWorkbenchProjectId(),
+    })
+    if (!result) return
+    event.preventDefault()
+    if (result.status === 'reject-external') toast(t('assetLibrary.externalAssetHint'), 'info')
   }
   const acceptsAudio = (types: readonly string[]) => showAudio && types.includes(ASSET_LIBRARY_DRAG_MIME)
 

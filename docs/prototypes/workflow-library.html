@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nomi · 工作流库样张（原型）</title>
+  <!-- Canonical prototype moved to library-discovery.html so workflow and resource-library interaction stay in one source. -->
+  <meta http-equiv="refresh" content="0; url=library-discovery.html?variant=0&amp;library=workflow" />
+  <script>location.replace('library-discovery.html?variant=0&library=workflow')</script>
+  <style>
+    /* THROWAWAY PROTOTYPE — not production CSS. Three library surfaces answer:
+       where should saved workflows live without taking the canvas away? */
+    :root {
+      --bg: #f4f2ee;
+      --paper: #fffefa;
+      --ink: #292721;
+      --ink-60: #77736a;
+      --ink-40: #aaa69d;
+      --line: #dfdcd4;
+      --line-strong: #c8c3b8;
+      --accent: #6558d7;
+      --accent-soft: #eeecff;
+      --green: #3f8766;
+      --amber: #9b6e28;
+      --shadow: 0 12px 32px rgba(44, 39, 28, .12);
+      --radius: 10px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .appbar { height: 54px; display: flex; align-items: center; gap: 20px; padding: 0 20px; border-bottom: 1px solid var(--line); background: var(--paper); }
+    .logo { font-weight: 800; letter-spacing: -.03em; }
+    .logo i { color: var(--accent); font-style: normal; }
+    .crumb { color: var(--ink-60); font-size: 13px; }
+    .spacer { flex: 1; }
+    .mode { border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; color: var(--ink-60); background: transparent; font-size: 12px; }
+    .workspace { display: grid; grid-template-columns: 58px 1fr; height: calc(100vh - 54px); }
+    .rail { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 8px; border-right: 1px solid var(--line); background: rgba(255, 254, 250, .7); }
+    .rail button { width: 36px; height: 36px; border: 0; border-radius: 9px; color: var(--ink-60); background: transparent; font-size: 18px; }
+    .rail button.active, .rail button:hover { color: var(--accent); background: var(--accent-soft); }
+    .stage { position: relative; overflow: hidden; padding: 38px 42px; background-color: #f8f7f3; background-image: linear-gradient(#eae7df 1px, transparent 1px), linear-gradient(90deg, #eae7df 1px, transparent 1px); background-size: 28px 28px; }
+    .workspace.library-left { grid-template-columns: 58px 360px 1fr; }
+    .stage-head { display: flex; align-items: center; gap: 10px; color: var(--ink-60); font-size: 12px; }
+    .stage-head strong { color: var(--ink); font-size: 14px; }
+    .nodes { position: relative; width: 760px; height: 470px; margin: 58px auto 0; }
+    .node { position: absolute; width: 224px; min-height: 132px; padding: 14px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--paper); box-shadow: 0 5px 14px rgba(44,39,28,.06); }
+    .node.selected { border: 2px solid var(--accent); box-shadow: 0 0 0 4px rgba(101,88,215,.11), var(--shadow); }
+    .node.a { left: 20px; top: 90px; } .node.b { left: 280px; top: 14px; } .node.c { left: 520px; top: 146px; }
+    .node-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .node p { margin: 13px 0 0; color: var(--ink-60); font-size: 12px; line-height: 1.55; }
+    .node-foot { display: flex; gap: 6px; margin-top: 14px; color: var(--ink-40); font-size: 11px; }
+    .edge { position: absolute; height: 1px; background: var(--line-strong); transform-origin: left center; }
+    .edge.one { left: 238px; top: 164px; width: 86px; transform: rotate(-25deg); } .edge.two { left: 500px; top: 112px; width: 78px; transform: rotate(28deg); }
+    .selection-box { position: absolute; left: 8px; top: 4px; width: 744px; height: 262px; border: 1px dashed var(--accent); border-radius: 12px; background: rgba(238,236,255,.22); pointer-events: none; }
+    .selection-box span { position: absolute; left: 12px; top: -26px; color: var(--accent); font-size: 12px; }
+    .selection-toolbar { position: absolute; left: 50%; top: -42px; display: flex; align-items: center; gap: 8px; transform: translateX(-50%); padding: 7px 9px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,254,250,.97); box-shadow: var(--shadow); white-space: nowrap; }
+    .selection-toolbar .count { padding: 0 7px; color: var(--ink-60); font-size: 12px; }
+    .action { border: 0; border-radius: 7px; padding: 8px 11px; color: var(--ink); background: transparent; font-size: 12px; }
+    .action:hover { background: #f0eee8; }
+    .action.primary { color: white; background: var(--accent); }
+    .action.primary:hover { background: #5649c8; }
+    .drawer { position: absolute; top: 0; right: 0; width: 350px; height: 100%; padding: 24px 18px; border-left: 1px solid var(--line); background: var(--paper); box-shadow: -10px 0 26px rgba(44,39,28,.05); }
+    .drawer.drawer-left { position: relative; top: auto; right: auto; width: auto; height: 100%; border-right: 1px solid var(--line); border-left: 0; box-shadow: 10px 0 26px rgba(44,39,28,.04); }
+    .drawer-head { display: flex; align-items: baseline; gap: 9px; }
+    .drawer h2 { margin: 0; font-size: 17px; }
+    .drawer-head span { color: var(--ink-60); font-size: 12px; }
+    .drawer .hint { margin: 6px 0 14px; color: var(--ink-60); font-size: 11px; line-height: 1.4; }
+    .search { width: 100%; height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: #fcfbf7; outline: none; font-size: 12px; }
+    .search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(101,88,215,.12); }
+    .filters { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
+    .filter-tabs { display: inline-flex; align-items: center; gap: 2px; }
+    .filter-tab { border: 0; border-radius: 6px; padding: 6px 8px; color: var(--ink-60); background: transparent; font-size: 11px; }
+    .filter-tab.active, .filter-tab:hover { color: var(--ink); background: #f0eee8; }
+    .type-filter { border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; color: var(--ink-60); background: #fcfbf7; font-size: 11px; }
+    .library-card { position: relative; display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: #fcfbf7; }
+    .library-card.active { border-color: #b7b0f2; background: #faf9ff; }
+    .card-main { display: flex; align-items: flex-start; gap: 9px; min-width: 0; flex: 1; }
+    .workflow-preview { position: relative; flex: 0 0 auto; width: 68px; height: 54px; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 7px; background: #f2f0ea; }
+    .workflow-preview.media { background: linear-gradient(135deg, #d7c7bd 0%, #b3c4cf 48%, #6c7283 100%); }
+    .workflow-preview.media::before, .workflow-preview.media::after { position: absolute; content: ''; border: 1px solid rgba(255,255,255,.7); border-radius: 4px; background: linear-gradient(155deg, rgba(255,255,255,.64), rgba(255,255,255,.06)); }
+    .workflow-preview.media::before { top: 7px; left: 7px; width: 38px; height: 31px; }
+    .workflow-preview.media::after { top: 14px; right: 6px; width: 24px; height: 25px; opacity: .8; }
+    .preview-mark { position: absolute; top: 5px; right: 5px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; color: white; background: rgba(41,39,33,.58); font-size: 8px; }
+    .preview-graph { position: absolute; right: 4px; bottom: 4px; display: inline-flex; align-items: center; gap: 2px; padding: 3px 4px; border: 1px solid rgba(255,255,255,.7); border-radius: 5px; background: rgba(41,39,33,.46); }
+    .preview-graph i { display: block; width: 7px; height: 5px; border: 1px solid rgba(255,255,255,.9); border-radius: 2px; }
+    .preview-graph b { display: block; width: 4px; height: 1px; background: rgba(255,255,255,.8); }
+    .workflow-preview.graph { display: grid; place-items: center; border-color: #b7b0f2; background: var(--accent-soft); }
+    .workflow-preview.graph .graph-map { position: relative; width: 50px; height: 34px; }
+    .workflow-preview.graph .graph-map::before, .workflow-preview.graph .graph-map::after { position: absolute; content: ''; height: 1px; background: #aaa2eb; transform-origin: left center; }
+    .workflow-preview.graph .graph-map::before { top: 17px; left: 11px; width: 26px; transform: rotate(-18deg); }
+    .workflow-preview.graph .graph-map::after { top: 17px; left: 28px; width: 20px; transform: rotate(20deg); }
+    .workflow-preview.graph .graph-map i { position: absolute; width: 12px; height: 9px; border: 1px solid var(--accent); border-radius: 3px; background: #fff; }
+    .workflow-preview.graph .graph-map i:nth-child(1) { top: 13px; left: 0; }
+    .workflow-preview.graph .graph-map i:nth-child(2) { top: 5px; left: 21px; }
+    .workflow-preview.graph .graph-map i:nth-child(3) { top: 20px; right: 0; }
+    .mini-graph { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; padding-top: 2px; }
+    .mini-graph i { display: block; width: 13px; height: 10px; border: 1px solid var(--accent); border-radius: 3px; background: var(--accent-soft); }
+    .mini-graph b { display: block; width: 7px; height: 1px; background: var(--line-strong); }
+    .card-main > div:last-child { min-width: 0; }
+    .card-main strong { display: block; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.35; }
+    .card-meta { margin-top: 4px; color: var(--ink-60); font-size: 11px; }
+    .card-note { margin: 10px 0 0; color: var(--ink-60); font-size: 11px; line-height: 1.45; }
+    .card-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; margin-top: 0; }
+    .card-actions .action { padding: 6px 8px; }
+    .card-actions .action.primary { padding-inline: 10px; }
+    .card-actions .more { width: 28px; height: 28px; padding: 0; color: var(--ink-60); font-size: 17px; line-height: 1; }
+    .card-menu { position: absolute; z-index: 4; top: 46px; right: 10px; width: 126px; padding: 5px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); box-shadow: var(--shadow); }
+    .card-menu button { display: block; width: 100%; border: 0; border-radius: 5px; padding: 7px 8px; color: var(--ink); background: transparent; text-align: left; font-size: 11px; }
+    .card-menu button:hover { background: var(--accent-soft); }
+    .badge { display: inline-flex; align-items: center; gap: 4px; margin-top: 9px; color: var(--green); font-size: 10px; }
+    .badge.warn { color: var(--amber); }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .drawer-foot { position: absolute; right: 18px; bottom: 22px; left: 18px; padding-top: 13px; border-top: 1px solid var(--line); color: var(--ink-60); font-size: 11px; line-height: 1.45; }
+    .page { min-width: 0; overflow: auto; padding: 34px 42px 80px; background: #f8f7f3; }
+    .page-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; max-width: 980px; margin: 0 auto; }
+    .page h1 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
+    .page-head p { margin: 7px 0 0; color: var(--ink-60); font-size: 12px; }
+    .page-tools { display: flex; gap: 8px; align-items: center; }
+    .page-tools .search { width: 184px; }
+    .library-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; max-width: 980px; margin: 28px auto 0; }
+    .large-card { min-height: 150px; padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); box-shadow: 0 5px 14px rgba(44,39,28,.04); }
+    .large-card .card-main strong { max-width: 280px; font-size: 14px; }
+    .large-card .card-meta { font-size: 12px; }
+    .large-card .card-actions { margin-top: 0; }
+    .large-card .workflow-preview { width: 104px; height: 74px; }
+    .empty-link { margin-top: 22px; color: var(--accent); font-size: 12px; }
+    .palette-scrim { position: absolute; inset: 0; background: rgba(41,39,33,.17); }
+    .palette { position: absolute; z-index: 2; top: 92px; left: 50%; width: 472px; transform: translateX(-50%); padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); box-shadow: 0 18px 48px rgba(44,39,28,.2); }
+    .palette-title { display: flex; align-items: center; justify-content: space-between; padding: 4px 5px 10px; }
+    .palette-title strong { font-size: 13px; }
+    .palette-title span { color: var(--ink-60); font-size: 11px; }
+    .palette .search { height: 38px; }
+    .palette-item { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 10px; border-radius: 8px; }
+    .palette-item.active, .palette-item:hover { background: var(--accent-soft); }
+    .palette-item .mini-graph { width: 54px; }
+    .palette-item .item-copy { min-width: 0; flex: 1; }
+    .palette-item strong { display: block; font-size: 12px; }
+    .palette-item small { display: block; margin-top: 4px; color: var(--ink-60); font-size: 11px; }
+    .palette-item .key { color: var(--ink-40); font-size: 11px; }
+    .palette-foot { margin-top: 8px; padding: 8px 5px 2px; color: var(--ink-60); font-size: 11px; }
+    .switcher { position: fixed; z-index: 20; left: 50%; bottom: 14px; display: flex; align-items: center; gap: 10px; transform: translateX(-50%); padding: 7px 10px; border: 1px solid #4f4a42; border-radius: 999px; color: #fff; background: #302d28; box-shadow: 0 8px 24px rgba(0,0,0,.24); font-size: 12px; }
+    .switcher button { display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 50%; color: white; background: transparent; }
+    .switcher button:hover { background: rgba(255,255,255,.15); }
+    .switcher .label { min-width: 180px; text-align: center; }
+    .edit-scrim { position: fixed; z-index: 10; inset: 0; background: rgba(41,39,33,.18); }
+    .edit-panel { position: fixed; z-index: 11; top: 50%; left: 50%; width: 340px; transform: translate(-50%, -50%); padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 18px 48px rgba(44,39,28,.2); }
+    .edit-panel h3 { margin: 0; font-size: 14px; }
+    .edit-panel .subhead { margin: 5px 0 16px; color: var(--ink-60); font-size: 11px; line-height: 1.4; }
+    .edit-panel label { display: block; margin-top: 11px; color: var(--ink-60); font-size: 11px; }
+    .edit-panel input, .edit-panel textarea { display: block; width: 100%; margin-top: 5px; padding: 8px 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: #fcfbf7; outline: none; font-size: 12px; }
+    .edit-panel textarea { min-height: 64px; resize: vertical; line-height: 1.45; }
+    .edit-panel input:focus, .edit-panel textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(101,88,215,.12); }
+    .edit-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 17px; }
+    @media (max-width: 980px) { .workspace.library-left { grid-template-columns: 58px 300px 1fr; } .drawer { width: 280px; } .library-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header class="appbar"><div class="logo">N<span><i>o</i>mi</span></div><div class="crumb">我的项目 / 生成画布 / 工作流库</div><div class="spacer"></div><button class="mode">原型 · 只读</button></header>
+  <div id="app"></div>
+  <div class="switcher" aria-label="原型变体切换"><button id="prev" aria-label="上一种方案">‹</button><div class="label" id="variant-label"></div><button id="next" aria-label="下一种方案">›</button></div>
+  <script>
+    const variants = [
+      { key: 'A', name: '左侧栏库（推荐）' },
+      { key: 'B', name: '独立库页' },
+      { key: 'C', name: '命令面板' },
+    ];
+    const params = new URLSearchParams(location.search);
+    let current = Math.max(0, Math.min(variants.length - 1, Number(params.get('variant') || 0)));
+    const workflowCard = (large = false) => `<article class="${large ? 'large-card' : 'library-card active'}"><div class="card-main"><div class="workflow-preview media" aria-label="工作流素材预览"><span class="preview-mark">▶</span><span class="preview-graph"><i></i><b></b><i></i><b></b><i></i></span></div><div><strong>角色参考 → 镜头生成</strong><div class="card-meta">3 节点 · 2 张图 · 昨天</div><div class="card-note">把角色参考整理后生成镜头，含人工检查。</div><div class="badge"><span class="badge-dot"></span>可用</div></div></div><div class="card-actions"><button class="action primary" data-insert aria-label="复制到画布（含 2 张图）" title="复制到画布（含 2 张图）">复制到画布</button><button class="action more" data-more aria-label="更多操作" title="更多操作">⋯</button></div></article>`;
+    const secondCard = (large = false) => `<article class="${large ? 'large-card' : 'library-card'}"><div class="card-main"><div class="workflow-preview graph" aria-label="工作流结构预览"><span class="graph-map"><i></i><i></i><i></i></span></div><div><strong>人工检查点</strong><div class="card-meta">1 节点 · 无素材 · 3 天前</div><div class="card-note">每次生成前确认角色、场景和转场。</div><div class="badge"><span class="badge-dot"></span>可用</div></div></div><div class="card-actions"><button class="action primary" data-insert aria-label="复制到画布" title="复制到画布">复制到画布</button><button class="action more" data-more aria-label="更多操作" title="更多操作">⋯</button></div></article>`;
+    const canvas = (withDrawer = false, palette = false) => `<main class="stage ${withDrawer ? 'with-drawer' : ''}"><div class="stage-head"><strong>生成画布</strong></div><div class="nodes"><div class="selection-box"><span>当前选区 · 3 个节点</span></div><div class="edge one"></div><div class="edge two"></div><article class="node a selected"><div class="node-title"><span class="dot"></span>参考图整理</div><p>输入：3 张角色参考图<br>输出：角色实体卡</p><div class="node-foot">图片 · 已确认</div></article><article class="node b selected"><div class="node-title"><span class="dot"></span>镜头生成</div><p>模型：Seedance 2<br>提示词和参数已调好</p><div class="node-foot">视频 · 可复用</div></article><article class="node c selected"><div class="node-title"><span class="dot" style="background:var(--green)"></span>人工检查点</div><p>确认角色、场景和转场<br>再进入时间轴</p><div class="node-foot">插件节点 · 已检查</div></article><div class="selection-toolbar"><span class="count">已选 3</span><button class="action">创建分组</button><button class="action primary">保存为流程</button><button class="action">清除</button></div></div>${palette ? '<div class="palette-scrim"></div>' : ''}</main>`;
+    function render() {
+      const v = variants[current];
+      document.getElementById('variant-label').textContent = `${v.key} · ${v.name}`;
+      let content = '';
+      if (current === 0) {
+        content = `<div class="workspace library-left"><nav class="rail"><button title="生成画布">⌘</button><button class="active" title="流程库">↗</button><button title="资产">▦</button></nav><aside class="drawer drawer-left"><div class="drawer-head"><h2>我的流程</h2><span>所有项目 · 2 个</span></div><input class="search" aria-label="搜索流程" placeholder="搜索流程" /><div class="filters"><div class="filter-tabs"><button class="filter-tab active">全部</button><button class="filter-tab">最近</button><button class="filter-tab">收藏</button></div><button class="type-filter">类型⌄</button></div>${workflowCard()}${secondCard()}</aside>${canvas(false)}</div>`;
+      } else if (current === 1) {
+        content = `<div class="workspace"><nav class="rail"><button title="生成画布">⌘</button><button class="active" title="流程库">↗</button><button title="资产">▦</button></nav><section class="page"><div class="page-head"><div><h1>流程库</h1><p>当前项目 · 2 个流程</p></div><div class="page-tools"><input class="search" aria-label="搜索流程" placeholder="搜索流程" /><button class="action primary">从选区保存</button></div></div><div class="library-grid">${workflowCard(true)}${secondCard(true)}</div><div class="empty-link">+ 从当前选区保存一套新流程</div></section></div>`;
+      } else {
+        content = `<div class="workspace"><nav class="rail"><button class="active" title="生成画布">⌘</button><button title="流程库">↗</button><button title="资产">▦</button></nav>${canvas(false, true)}<div class="palette"><div class="palette-title"><strong>插入流程</strong><span>⌘ K</span></div><input class="search" aria-label="搜索流程" placeholder="搜索流程" value="" /><div class="palette-item active" data-insert><div class="mini-graph"><i></i><b></b><i></i><b></b><i></i></div><div class="item-copy"><strong>角色参考 → 镜头生成</strong><small>3 个节点 · 最近使用</small></div><span class="key">↵</span></div><div class="palette-item" data-insert><div class="mini-graph"><i></i></div><div class="item-copy"><strong>人工检查点</strong><small>1 个节点 · 已检查</small></div><span class="key">2</span></div><div class="palette-foot">Enter 放入画布 · Esc 关闭</div></div></div>`;
+      }
+      document.getElementById('app').innerHTML = content;
+      document.querySelectorAll('[data-insert]').forEach((button) => button.addEventListener('click', () => {
+        const toast = document.createElement('div');
+        toast.textContent = '已复制到画布 · 节点和素材保持不变';
+        toast.style.cssText = 'position:fixed;z-index:30;left:50%;bottom:70px;transform:translateX(-50%);padding:10px 14px;border:1px solid #c9dfd3;border-radius:8px;color:#2f674c;background:#eff8f2;box-shadow:var(--shadow);font-size:12px';
+        document.body.appendChild(toast); setTimeout(() => toast.remove(), 1800);
+      }));
+      document.querySelectorAll('[data-more]').forEach((button) => button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        document.querySelectorAll('.card-menu').forEach((menu) => menu.remove());
+        const menu = document.createElement('div');
+        menu.className = 'card-menu';
+        menu.innerHTML = '<button data-edit-info>编辑信息</button><button>收藏</button><button>删除流程</button>';
+        button.closest('article').appendChild(menu);
+        menu.querySelector('[data-edit-info]').addEventListener('click', () => openEditPanel(button.closest('article')));
+      }));
+    }
+    function openEditPanel(card) {
+      document.querySelectorAll('.card-menu').forEach((menu) => menu.remove());
+      const name = card.querySelector('strong')?.textContent || '';
+      const note = card.querySelector('.card-note')?.textContent || '';
+      const scrim = document.createElement('div'); scrim.className = 'edit-scrim';
+      const panel = document.createElement('form'); panel.className = 'edit-panel';
+      panel.innerHTML = `<h3>编辑流程信息</h3><div class="subhead">只修改名称和描述，不会改变复制时的节点、素材和参数。</div><label>名称<input name="name" value="${name}" /></label><label>描述<textarea name="note">${note}</textarea></label><div class="edit-actions"><button type="button" class="action" data-cancel>取消</button><button type="submit" class="action primary">保存</button></div>`;
+      document.body.append(scrim, panel);
+      const close = () => { scrim.remove(); panel.remove(); };
+      scrim.addEventListener('click', close);
+      panel.querySelector('[data-cancel]').addEventListener('click', close);
+      panel.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(panel); card.querySelector('strong').textContent = data.get('name'); card.querySelector('.card-note').textContent = data.get('note'); close(); });
+      panel.querySelector('input').focus();
+    }
+    function setVariant(next) { current = (next + variants.length) % variants.length; const url = new URL(location.href); url.searchParams.set('variant', current); history.replaceState({}, '', url); render(); }
+    document.getElementById('prev').onclick = () => setVariant(current - 1); document.getElementById('next').onclick = () => setVariant(current + 1);
+    document.addEventListener('keydown', (event) => { if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return; if (event.key === 'ArrowLeft') setVariant(current - 1); if (event.key === 'ArrowRight') setVariant(current + 1); });
+    render();
+  </script>
+</body>
+</html>

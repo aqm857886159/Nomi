@@ -9,7 +9,7 @@
 
 ---
 
-## 现役欠账（8）
+## 现役欠账（11）
 
 | 状态 | 文档 | 标题 |
 |---|---|---|
@@ -18,9 +18,12 @@
 | 🚧 进行中 | [2026-08-28-editing-engine-uplift.md](plan/2026-08-28-editing-engine-uplift.md) | Nomi Editing Engine Uplift |
 | 🚧 进行中 | [2026-08-29-root-cause-contract-v2.md](plan/2026-08-29-root-cause-contract-v2.md) | 根因合同 v2 与规则收敛 |
 | 🚧 进行中 | [2026-08-30-issue-237-onboarding.md](plan/2026-08-30-issue-237-onboarding.md) | Issue #237: 接入请求与英文上手入口 |
+| 🚧 进行中 | [2026-08-30-library-discovery-optimization.md](plan/2026-08-30-library-discovery-optimization.md) | Nomi 资源库发现与检索统一方案 |
 | 🚧 进行中 | [2026-08-30-unified-model-integration-certification.md](plan/2026-08-30-unified-model-integration-certification.md) | Unified Provider And Model Integration Certification |
+| 🚧 进行中 | [2026-08-31-library-discovery-slice.md](plan/2026-08-31-library-discovery-slice.md) | Nomi 资源库发现优化方案与交付 |
 | 🚧 进行中 | [2026-08-27-release-media-pack-skill.md](superpowers/plans/2026-08-27-release-media-pack-skill.md) | Nomi Release Media Pack Skill Implementation Plan |
 | 🚧 进行中 | [2026-08-28-conversational-model-integration.md](superpowers/plans/2026-08-28-conversational-model-integration.md) | Conversational Model Integration Implementation Plan |
+| 🚧 进行中 | [2026-08-30-canvas-workflow-plugin.md](superpowers/plans/2026-08-30-canvas-workflow-plugin.md) | Nomi 固定流程与原生画布插件计划 |
 
 ## 远期 / 暂缓（6）
 
@@ -52,7 +55,7 @@
 
 </details>
 
-- 合计扫描：468 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
+- 合计扫描：471 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
 
 ---
 

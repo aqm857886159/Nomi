@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import type { BillingModelKind } from '../../../api/desktopClient'
+import type { CanvasPluginHost } from '../plugins/canvasPluginTypes'
 
 export type GenerationNodeRenderProps<TNode = unknown> = {
   node: TNode
@@ -8,6 +9,8 @@ export type GenerationNodeRenderProps<TNode = unknown> = {
   focusFlash?: boolean
   /** 新落点（add/paste/Agent）一次性弹入动画；开项目已有节点不传（不齐闪）。 */
   appear?: boolean
+  /** Present only for host-registered plugin nodes; core nodes ignore it. */
+  host?: CanvasPluginHost
 }
 
 export type GenerationNodeComponent = ComponentType<GenerationNodeRenderProps<unknown>>

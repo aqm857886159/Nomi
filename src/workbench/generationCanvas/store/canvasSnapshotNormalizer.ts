@@ -16,6 +16,7 @@ import type {
   GenerationNodeStatus,
   NodeGroup,
 } from '../model/generationCanvasTypes'
+import { isCanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
 
 /**
  * 重启收敛：磁盘里 status 仍是 running/queued 的节点 = 上次退出时正在生成（没活着的轮询循环了）。
@@ -106,10 +107,14 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
         }]
       })
     : []
+  const workflowTemplates = Array.isArray(raw.workflowTemplates)
+    ? raw.workflowTemplates.filter(isCanvasWorkflowTemplate)
+    : []
   return {
     nodes,
     edges: normalizeParameterEdges(nodes, edges),
     groups,
     selectedNodeIds,
+    workflowTemplates,
   }
 }
