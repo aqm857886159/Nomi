@@ -351,7 +351,7 @@ export function GeneratingOverlay({
         {onCancel ? (
           <button
             type="button"
-            aria-label={t('generationCommon.card.generationCancelAria')}
+            aria-label={t('generationCommon.card.comfyCancelAria')}
             onClick={(event) => {
               event.stopPropagation()
               onCancel()
@@ -363,7 +363,7 @@ export function GeneratingOverlay({
             )}
           >
             <IconPlayerStop size={13} stroke={1.8} />
-            {t('generationCommon.card.generationCancel')}
+            {t('generationCommon.card.comfyCancel')}
           </button>
         ) : null}
       </div>

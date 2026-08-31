@@ -37,7 +37,7 @@ export type CapabilityInputProjection = {
   label: string
   mediaKind: 'image' | 'video' | 'audio'
   min: number
-  max?: number
+  max: number
   inputKey?: string
   characterIndexed: boolean
 }

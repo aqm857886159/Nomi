@@ -7,7 +7,6 @@
 import type { GenerationCanvasNode, GenerationNodeStatus } from '../generationCanvas/model/generationCanvasTypes'
 import type { GenerationQueueBatch, GenerationQueueEntry } from '../generationCanvas/runner/generationQueueStore'
 import type { GenerationTaskCenterProjection, TaskCancelKind, TaskCenterGroup } from './taskCenterProjection'
-import { canInterruptGenerationTask } from '../generationCanvas/model/taskCancellation'
 
 /** 这一行能不能停、停了什么后果 —— 直接映射到 UI 给不给按钮、给什么文案。 */
 export type TaskCenterRow = GenerationTaskCenterProjection
@@ -27,12 +26,14 @@ export type TaskCenterView = {
   summary: TaskCenterSummary
 }
 
+const COMFYUI_PHASES = new Set(['comfyui-node', 'comfyui-queued'])
+
 /**
  * 进行中的这一条能不能中断。判据取 node.progress.phase 与 NodeGeneratingOverlay 保持一致
  * （那里也是靠 comfyui-* phase 决定显不显示取消按钮）—— 同一个事实只有一处判法。
  */
 export function resolveRunningCancelKind(node: GenerationCanvasNode | undefined): TaskCancelKind {
-  return canInterruptGenerationTask(node) ? 'interrupt' : 'none'
+  return node?.progress?.phase && COMFYUI_PHASES.has(node.progress.phase) ? 'interrupt' : 'none'
 }
 
 function elapsedFor(entry: GenerationQueueEntry, now: number): number | undefined {

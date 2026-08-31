@@ -10,7 +10,7 @@ import React from 'react'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { isComfyuiVendorKey } from '../../../workbench/generationCanvas/model/comfyuiVendor'
 import { COMFYUI_VENDOR_KEY } from '../ComfyuiLocalCard'
-import { workflowMediaBindings, type WorkflowBinding } from '../comfyuiWorkflowBinding'
+import type { WorkflowBinding } from '../comfyuiWorkflowBinding'
 import type { EnumOption } from '../comfyuiCanvasPreview'
 import type { BackendRow, WorkflowRow } from './WorkflowSidebar'
 
@@ -58,13 +58,13 @@ function fieldCountOf(binding: WorkflowBinding | undefined): number {
   if (!binding) return 0
   let count = (binding.params ?? binding.numeric ?? []).length
   if (binding.promptNodeId && binding.promptInputKey) count += 1
-  count += workflowMediaBindings(binding).length
+  if (binding.firstFrameNodeId && binding.firstFrameInputKey) count += 1
+  if (binding.lastFrameNodeId && binding.lastFrameInputKey) count += 1
+  if (binding.sourceVideoNodeId && binding.sourceVideoInputKey) count += 1
   return count
 }
 
 export type WorkflowCatalog = {
-  /** False until this backend's local catalog has loaded; an empty loaded catalog is still ready. */
-  ready: boolean
   backends: BackendRow[]
   workflows: WorkflowRow[]
   /** 选中这台的工作流原始 JSON + 已存绑定。 */
@@ -83,7 +83,6 @@ export function useWorkflowCatalog(vendorKey: string, refreshToken: number): Wor
   const [mappings, setMappings] = React.useState<Array<Record<string, unknown>>>([])
   const [reconciles, setReconciles] = React.useState<Map<string, WorkflowReconcile>>(new Map())
   const [probes, setProbes] = React.useState<Map<string, boolean>>(new Map())
-  const [loadedVendorKey, setLoadedVendorKey] = React.useState<string | null>(null)
 
   const refresh = React.useCallback(() => setVersion((v) => v + 1), [])
 
@@ -125,8 +124,6 @@ export function useWorkflowCatalog(vendorKey: string, refreshToken: number): Wor
       setVendors([])
       setModels([])
       setMappings([])
-    } finally {
-      setLoadedVendorKey(vendorKey)
     }
   }, [vendorKey, version, refreshToken])
 
@@ -229,7 +226,6 @@ export function useWorkflowCatalog(vendorKey: string, refreshToken: number): Wor
   })
 
   return {
-    ready: loadedVendorKey === vendorKey,
     backends,
     workflows,
     draftOf,

@@ -1,12 +1,7 @@
 // 钉住启动器的核心不变量（替掉原 helpers/electronFixture.test.mjs，2026-08-11 收敛）。
 // 这条不变量就是本次修复的根因：漏掉这两个 env，窗口起不来且**毫无提示**，只会干等到超时。
 import { describe, expect, test } from 'vitest'
-import {
-  buildNomiLaunchEnv,
-  diagnoseLaunchFailure,
-  withLinuxNoSandbox,
-  withPackagedPlaywrightOrigin,
-} from './_launchApp.mjs'
+import { buildNomiLaunchEnv, withLinuxNoSandbox } from './_launchApp.mjs'
 
 const dirs = { userDataDir: '/tmp/case/user-data', settingsDir: '/tmp/case/settings', projectsDir: '/tmp/case/projects' }
 
@@ -54,52 +49,5 @@ describe('withLinuxNoSandbox', () => {
   test('non-Linux spawns keep their original arguments', () => {
     expect(withLinuxNoSandbox(['.', '--disable-gpu'], 'darwin')).toEqual(['.', '--disable-gpu'])
     expect(withLinuxNoSandbox(['.', '--disable-gpu'], 'win32')).toEqual(['.', '--disable-gpu'])
-  })
-})
-
-describe('withPackagedPlaywrightOrigin', () => {
-  test('packaged E2E admits the Playwright DevTools websocket exactly once', () => {
-    expect(withPackagedPlaywrightOrigin(['--user-data-dir=/tmp/case'], true))
-      .toEqual(['--user-data-dir=/tmp/case', '--remote-allow-origins=*'])
-    expect(withPackagedPlaywrightOrigin(['--remote-allow-origins=*'], true))
-      .toEqual(['--remote-allow-origins=*'])
-  })
-
-  test('development launches do not broaden the DevTools origin policy', () => {
-    expect(withPackagedPlaywrightOrigin(['.', '--disable-gpu'], false)).toEqual(['.', '--disable-gpu'])
-  })
-})
-
-describe('diagnoseLaunchFailure', () => {
-  test('extracts the real main-process stderr from Playwright Call log and filters debugger noise', () => {
-    const error = new Error([
-      'electron.launch: Timeout 30000ms exceeded.',
-      'Call log:',
-      '  - <launching> /Applications/Nomi.app/Contents/MacOS/Nomi',
-      '  - <launched> pid=4242',
-      '  - [pid=4242][err] Debugger listening on ws://127.0.0.1:9229/abc',
-      '  - [pid=4242][err] Debugger attached.',
-      '  - [pid=4242][err] DevTools listening on ws://127.0.0.1:31337/devtools/browser/abc',
-      '  - [pid=4242][err] fatal: catalog migration failed',
-    ].join('\n'))
-
-    const report = diagnoseLaunchFailure('Electron launch timed out', 'synthetic-launch', error, [])
-
-    expect(report).toContain('fatal: catalog migration failed')
-    expect(report).not.toContain('Debugger listening')
-    expect(report).not.toContain('Debugger attached')
-    expect(report).not.toContain('DevTools listening')
-  })
-
-  test('an empty capture reports only that the launcher did not capture output', () => {
-    const report = diagnoseLaunchFailure(
-      'Electron launch timed out',
-      'no-output-launch',
-      new Error('electron.launch: Timeout 30000ms exceeded.'),
-      [],
-    )
-
-    expect(report).toContain('启动器未捕获到主进程输出')
-    expect(report).not.toContain('压根没起来')
   })
 })

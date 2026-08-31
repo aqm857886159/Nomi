@@ -13,15 +13,6 @@ import {
 } from "./index";
 
 describe("shared video capability registry", () => {
-  it("does not reject references just because the provider has not published a maximum", () => {
-    const [base] = buildVideoModelCandidates([{ provider: "apimart", modelKey: "sora-2", label: "Sora", archetypeId: "sora-2" }]);
-    const candidate = { ...base!, archetype: { ...base!.archetype,
-      modes: base!.archetype.modes.map(mode => ({ ...mode, slots: mode.slots.map(slot => ({ ...slot, max: undefined })) })),
-    } };
-    const result = recommendVideoGeneration({ references: Array.from({ length: 12 }, () => ({ kind: "image" as const })) }, [candidate]);
-    expect(result.recommendations.some(item => item.modeId === "i2v")).toBe(true);
-  });
-
   it("exposes the same source-backed profile to renderer and shared consumers", () => {
     expect(rendererSeedance20).toBe(SEEDANCE_2_APIMART_ARCHETYPE);
     const candidates = buildVideoModelCandidates([

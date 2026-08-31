@@ -100,85 +100,9 @@ describe("firstReferenceImage — 单图首选", () => {
     expect(firstReferenceImage({ extras: { referenceImages: ["r.png"] } })).toBe("r.png");
     expect(firstReferenceImage({ extras: {} })).toBe("");
   });
-
-  it("valid Comfy exact contract ignores stale aggregate aliases", () => {
-    const exactPending = {
-      modelKey: "workflow", modelVendor: "comfyui-local",
-      parameterReferenceSlots: {
-        modelKey: "workflow", vendorKey: "comfyui-local",
-        slots: [{ key: "comfy_image_1", label: "Reference", group: "reference", mediaKind: "image" }],
-      },
-      comfy_image_1: null,
-      firstFrameUrl: "https://stale.test/frame.png",
-      referenceImages: ["https://stale.test/reference.png"],
-    };
-    expect(firstReferenceImage({ extras: exactPending })).toBe("");
-    expect(firstReferenceImage({ extras: {
-      ...exactPending,
-      comfy_image_1: "https://exact.test/reference.png",
-    } })).toBe("https://exact.test/reference.png");
-  });
-});
-
-describe("taskTemplateParams — explicit media slots precede aggregate fallbacks", () => {
-  it("keeps the archetype projection authoritative over explicit and aggregate values", () => {
-    expect(taskTemplateParams({ extras: {
-      first_frame_url: "explicit.png", firstFrameUrl: "fallback.png",
-      archetypeInput: { first_frame_url: null },
-    } }).first_frame_url).toBeNull();
-  });
-
-  it.each([null, []] as const)("binds exact Comfy %j authority to the actually selected vendor and model", (pending) => {
-    const extras = {
-      modelKey: "workflow", modelVendor: "comfyui-local",
-      parameterReferenceSlots: {
-        modelKey: "workflow", vendorKey: "comfyui-local",
-        slots: [{ key: "reference_images", label: "Reference", group: "reference", mediaKind: "image" }],
-      },
-      reference_images: pending,
-      referenceImages: ["nomi-local://asset/project/fallback.png"],
-    };
-    expect(taskTemplateParams({ extras }, { vendorKey: "comfyui-local", modelKey: "workflow" }).reference_images)
-      .toEqual(pending);
-    expect(taskTemplateParams({ extras }, { vendorKey: "antigravity-cli", modelKey: "generate_image" }).reference_images)
-      .toEqual(["nomi-local://asset/project/fallback.png"]);
-    expect(firstReferenceImage({ extras }, { vendorKey: "antigravity-cli", modelKey: "generate_image" }))
-      .toBe("nomi-local://asset/project/fallback.png");
-  });
-
-  it.each([
-    ["image_url", "first.png"], ["first_frame_url", "first.png"], ["last_frame_url", "last.png"],
-    ["source_video_url", "fallback.mp4"], ["reference_images", ["fallback.png"]],
-    ["reference_image_urls", ["fallback.png"]], ["reference_video_urls", ["fallback.mp4"]],
-    ["reference_audio_urls", ["fallback.mp3"]],
-  ] as const)("empty defaults do not mask populated legacy %s values", (key, expected) => {
-    for (const empty of ["", "   ", undefined]) {
-      const params = taskTemplateParams({ extras: {
-        [key]: empty, firstFrameUrl: "first.png", lastFrameUrl: "last.png",
-        referenceImages: ["fallback.png"], referenceImageUrls: ["fallback.png"],
-        referenceVideoUrls: ["fallback.mp4"], referenceAudioUrls: ["fallback.mp3"],
-      } });
-      expect(params[key]).toEqual(expected);
-    }
-  });
 });
 
 describe("hasImageEditReferences — L3 诚实护栏判定（图生图/图生视频是否真带了参考）", () => {
-  const declaredExtras = (
-    slots: Array<{ key: string; mediaKind?: "image" | "video" }>,
-    values: Record<string, unknown>,
-    vendorKey = "comfyui-local",
-  ) => ({
-    modelKey: "workflow",
-    modelVendor: vendorKey,
-    parameterReferenceSlots: {
-      modelKey: "workflow",
-      vendorKey,
-      slots: slots.map((slot) => ({ ...slot, label: slot.key, group: "reference" })),
-    },
-    ...values,
-  });
-
   it("空 extras → false", () => {
     expect(hasImageEditReferences({ extras: {} })).toBe(false);
     expect(hasImageEditReferences({})).toBe(false);
@@ -200,122 +124,6 @@ describe("hasImageEditReferences — L3 诚实护栏判定（图生图/图生视
   });
   it("firstFrameUrl 单图口径 → true", () => {
     expect(hasImageEditReferences({ extras: { firstFrameUrl: "https://cdn/f.png" } })).toBe(true);
-  });
-  it("Comfy 单个或多个已填 image 参数 → true，pending null 不计入", () => {
-    expect(hasImageEditReferences({ extras: declaredExtras(
-      [{ key: "comfy_image_1", mediaKind: "image" }],
-      { comfy_image_1: "https://cdn/single.png" },
-    ) })).toBe(true);
-    expect(hasImageEditReferences({ extras: declaredExtras(
-      [{ key: "comfy_image_1" }, { key: "comfy_image_2", mediaKind: "image" }],
-      { comfy_image_1: null, comfy_image_2: "nomi-local://asset/p/second.png" },
-    ) })).toBe(true);
-    expect(hasImageEditReferences({ extras: declaredExtras(
-      [{ key: "comfy_image_1", mediaKind: "image" }],
-      { comfy_image_1: null },
-    ) })).toBe(false);
-  });
-  const staleGenericReferences: Array<[string, Record<string, unknown>]> = [
-    ["image", { image: "https://stale.test/image.png" }],
-    ["image_url", { image_url: "https://stale.test/image.png" }],
-    ["imageUrl", { imageUrl: "https://stale.test/image.png" }],
-    ["referenceImages", { referenceImages: ["https://stale.test/image.png"] }],
-    ["referenceImageUrl", { referenceImageUrl: "https://stale.test/image.png" }],
-    ["referenceImageUrls", { referenceImageUrls: ["https://stale.test/image.png"] }],
-    ["reference_images", { reference_images: ["https://stale.test/image.png"] }],
-    ["reference_image_urls", { reference_image_urls: ["https://stale.test/image.png"] }],
-    ["firstFrameUrl", { firstFrameUrl: "https://stale.test/first.png" }],
-    ["first_frame_url", { first_frame_url: "https://stale.test/first.png" }],
-    ["lastFrameUrl", { lastFrameUrl: "https://stale.test/last.png" }],
-    ["last_frame_url", { last_frame_url: "https://stale.test/last.png" }],
-    ["referenceVideoUrls", { referenceVideoUrls: ["https://stale.test/video.mp4"] }],
-    ["sourceVideoUrl", { sourceVideoUrl: "https://stale.test/video.mp4" }],
-    ["referenceAudioUrls", { referenceAudioUrls: ["https://stale.test/audio.mp3"] }],
-    ["styleReferenceImages", { styleReferenceImages: ["https://stale.test/style.png"] }],
-    ["characterReferenceImages", { characterReferenceImages: ["https://stale.test/character.png"] }],
-    ["compositionReferenceImages", { compositionReferenceImages: ["https://stale.test/composition.png"] }],
-    ["upstreamResultUrls", { upstreamResultUrls: ["https://stale.test/upstream.png"] }],
-    ["activeAssetUrls", { activeAssetUrls: ["https://stale.test/active.png"] }],
-    ["archetypeInput", { archetypeInput: { input_urls: ["https://stale.test/archetype.png"] } }],
-  ];
-  it.each(staleGenericReferences)("valid Comfy pending image contract ignores stale generic %s", (_name, stale) => {
-    const extras = declaredExtras(
-      [{ key: "comfy_image_1", mediaKind: "image" }],
-      { comfy_image_1: null, ...stale },
-    );
-    expect(hasImageEditReferences({ extras })).toBe(false);
-  });
-  it("valid Comfy contract uses only exact structural image inputs", () => {
-    expect(hasImageEditReferences({ extras: declaredExtras(
-      [{ key: "comfy_image_1", mediaKind: "image" }],
-      { comfy_image_1: "https://exact.test/reference.png", referenceImages: ["https://stale.test/reference.png"] },
-    ) })).toBe(true);
-    expect(hasImageEditReferences({ extras: declaredExtras(
-      [{ key: "comfy_video_1", mediaKind: "video" }],
-      { comfy_video_1: "https://exact.test/video.mp4", referenceImages: ["https://stale.test/reference.png"] },
-    ) })).toBe(false);
-    expect(hasImageEditReferences({ extras: declaredExtras(
-      [],
-      { comfy_input_image: "https://not-media.test/text", referenceImages: ["https://stale.test/reference.png"] },
-    ) })).toBe(false);
-  });
-  it("invalid Comfy and non-Comfy declarations retain the legacy generic guard", () => {
-    const invalid = declaredExtras(
-      [{ key: "comfy_image_1", mediaKind: "image" }],
-      { comfy_image_1: null, referenceImages: ["https://legacy.test/reference.png"] },
-    );
-    invalid.parameterReferenceSlots.vendorKey = "other";
-    expect(hasImageEditReferences({ extras: invalid })).toBe(true);
-    expect(hasImageEditReferences({ extras: declaredExtras(
-      [],
-      { referenceImages: ["https://legacy.test/reference.png"] },
-      "custom",
-    ) })).toBe(true);
-  });
-  it("reachability and headless projection also ignore stale generics behind a pending exact contract", () => {
-    const extras = declaredExtras(
-      [{ key: "comfy_image_1", mediaKind: "image" }],
-      { comfy_image_1: null, referenceImages: ["https://stale.test/reference.png"] },
-    );
-    const body = { image: "{{request.params.comfy_image_1}}" };
-    expect(unreachableReferenceLabels({ extras }, body)).toEqual([]);
-    expect(projectReferencesOntoBodyKeys(extras, { image_urls: "{{request.params.image_urls}}" })).toEqual({});
-  });
-  it("Comfy video 参数、失效声明和任意字符串参数都不冒充 image 参考", () => {
-    expect(hasImageEditReferences({ extras: declaredExtras(
-      [{ key: "comfy_video_1", mediaKind: "video" }],
-      { comfy_video_1: "https://cdn/clip.mp4" },
-    ) })).toBe(false);
-    expect(hasImageEditReferences({ extras: {
-      ...declaredExtras([{ key: "comfy_image_1", mediaKind: "image" }], { comfy_image_1: "https://cdn/stale.png" }),
-      modelKey: "replacement-workflow",
-    } })).toBe(false);
-    expect(hasImageEditReferences({ extras: { comfy_image_1: "https://cdn/arbitrary.png" } })).toBe(false);
-  });
-  it("non-Comfy keyed declarations keep relying on their legacy generic alias", () => {
-    const extras = declaredExtras(
-      [{ key: "custom_image", mediaKind: "image" }],
-      { custom_image: "https://cdn/custom.png" },
-      "custom",
-    );
-    expect(hasImageEditReferences({ extras })).toBe(false);
-    expect(hasImageEditReferences({ extras: { ...extras, referenceImages: ["https://cdn/custom.png"] } })).toBe(true);
-  });
-
-  it("checks declared Comfy media against the exact body parameter without generic projection", () => {
-    const extras = declaredExtras(
-      [{ key: "comfy_image_1", mediaKind: "image" }],
-      { comfy_image_1: "https://cdn/reference.png" },
-    );
-    expect(unreachableReferenceLabels(
-      { extras },
-      { image: "{{request.params.comfy_image_1}}" },
-    )).toEqual([]);
-    expect(unreachableReferenceLabels(
-      { extras },
-      { image: "{{request.params.different_image_key}}" },
-    )).toEqual(["参考图"]);
-    expect(taskTemplateParams({ extras })).not.toHaveProperty("referenceImages");
   });
 });
 
@@ -375,19 +183,6 @@ describe("projectReferencesOntoBodyKeys — headless 参考键形态投影（W1d
   it("无任何携带参考 → 空对象（零开销）", () => {
     expect(projectReferencesOntoBodyKeys({}, editBody)).toEqual({});
     expect(projectReferencesOntoBodyKeys(undefined, editBody)).toEqual({});
-  });
-});
-
-describe("declared numeric and negative controls", () => {
-  it("preserves extras seed and negative_prompt when top-level request fields are absent", () => {
-    const params = taskTemplateParams({ extras: { seed: "123", negative_prompt: "blur" } });
-    expect(params.seed).toBe(123);
-    expect(params.negative_prompt).toBe("blur");
-  });
-  it("top-level request values win over extras, including seed zero", () => {
-    const params = taskTemplateParams({ seed: 0, negativePrompt: "noise", extras: { seed: "123", negative_prompt: "blur" } });
-    expect(params.seed).toBe(0);
-    expect(params.negative_prompt).toBe("noise");
   });
 });
 

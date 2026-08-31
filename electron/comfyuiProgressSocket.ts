@@ -1,7 +1,7 @@
 // ComfyUI ws 进度桥（P 轨 · 2026-08-01 拍板：进度环 + 活预览 + 遮罩取消）。
 //
 // 为什么在主进程：渲染层 CSP connect-src 不含 ws://（dev 只放 Vite 5273、prod 无 ws），直连必被拦；
-// 主进程用 undici 自带 WebSocket，与 appFetch 显式共用应用路由；本机/私网始终直连。
+// 主进程用 undici 自带 WebSocket（与全仓 fetch 同源、零新依赖、不认系统代理 → 直连本机不被 Clash 绕开）。
 // 事件面（实查 ComfyUI server.py / protocol.py HEAD 2026-08-01）：
 //   text: {type:'progress',data:{value,max,prompt_id,node}} / {type:'executing',data:{node|null,prompt_id}}
 //         {type:'execution_cached',data:{nodes[],prompt_id}} / {type:'status',...}
@@ -11,8 +11,6 @@
 // prompt_id→node 注册表是本模块唯一的数据结构缺口补齐：渲染层提交拿到 prompt_id 后经 watch IPC 登记。
 import { webContents } from "electron";
 import { WebSocket } from "undici";
-import { appFetch } from "./appFetch";
-import { getAppDispatcher } from "./systemProxy";
 import { readCatalog } from "./catalog/catalogStore";
 import { COMFYUI_VENDOR_KEY, isComfyuiVendor } from "./catalog/types";
 import { COMFYUI_CLIENT_FEATURE_FLAGS, getComfyuiClientId } from "./comfyui/clientSession";
@@ -242,7 +240,7 @@ async function probeQueuePosition(entry: WatchEntry): Promise<void> {
   if (now - entry.lastQueueProbeAt < QUEUE_PROBE_MIN_INTERVAL_MS) return;
   entry.lastQueueProbeAt = now;
   try {
-    const res = await appFetch(comfyuiEndpoint(entry.baseUrl, "queue"), { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(comfyuiEndpoint(entry.baseUrl, "queue"), { signal: AbortSignal.timeout(3000) });
     if (!res.ok) return;
     const data = (await res.json()) as { queue_pending?: unknown[] };
     const pending = Array.isArray(data.queue_pending) ? data.queue_pending : [];
@@ -264,19 +262,13 @@ function handleBinaryMessage(baseUrl: string, buf: Buffer): void {
   send(entry, { kind: "preview", previewDataUrl: `data:${frame.mime};base64,${frame.bytes.toString("base64")}` });
 }
 
-async function ensureSocket(baseUrl: string): Promise<boolean> {
+function ensureSocket(baseUrl: string): Promise<boolean> {
   const existing = socketsByBase.get(baseUrl);
   if (existing?.alive) return Promise.resolve(true);
   if (existing) return existing.ready;
   let ws: WebSocket;
   try {
-    const url = comfyuiWebSocketUrl(baseUrl, getComfyuiClientId());
-    const dispatcher = await getAppDispatcher(AbortSignal.timeout(800), url);
-    if (![...registry.values()].some((entry) => entry.baseUrl === baseUrl)) return false;
-    // Another watch may have completed initialization during the route wait.
-    const readySocket = socketsByBase.get(baseUrl);
-    if (readySocket) return readySocket.alive ? true : readySocket.ready;
-    ws = new WebSocket(url, { dispatcher });
+    ws = new WebSocket(comfyuiWebSocketUrl(baseUrl, getComfyuiClientId()));
   } catch {
     return Promise.resolve(false); // 起不来就没有进度（轮询照常兜底），不炸任务
   }
@@ -391,7 +383,7 @@ export type ComfyuiCancelResult = { ok: boolean; mode: "targeted" | "nothing-to-
 export async function cancelComfyuiPrompt(
   baseUrl: string,
   promptId: string,
-  fetchImpl: typeof fetch = appFetch,
+  fetchImpl: typeof fetch = fetch,
 ): Promise<ComfyuiCancelResult> {
   const postJson = (url: string, body?: unknown) =>
     fetchImpl(url, {

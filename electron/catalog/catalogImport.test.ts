@@ -12,9 +12,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AntigravityConnectionStatus, AntigravityTestRequest } from "../shared/antigravity";
-
-const antigravityProof = vi.hoisted(() => vi.fn<(request?: AntigravityTestRequest) => boolean>(() => false));
 
 let mockedUserDataRoot = "";
 const tempRoots: string[] = [];
@@ -28,13 +25,6 @@ vi.mock("electron", () => ({
     isEncryptionAvailable: () => false,
     encryptString: (s: string) => Buffer.from(s),
     decryptString: (b: Buffer) => b.toString(),
-  },
-}));
-
-vi.mock("../ai/antigravityConnection", () => ({
-  antigravityConnection: {
-    canEnable: antigravityProof,
-    hasPassed: antigravityProof,
   },
 }));
 
@@ -66,8 +56,6 @@ function vendorBundle(over: Record<string, unknown> = {}): Record<string, unknow
 
 beforeEach(() => {
   mockedUserDataRoot = makeTempDir("nomi-catalog-import-");
-  antigravityProof.mockReset();
-  antigravityProof.mockReturnValue(false);
   vi.resetModules();
 });
 
@@ -161,88 +149,5 @@ describe("importModelCatalogPackage — 事务边界（全成功才写，任一�
       errors: string[];
     };
     expect(res).toEqual({ imported: { vendors: 0, models: 0, mappings: 0 }, errors: [] });
-  });
-});
-
-describe("Antigravity reserved process mapping write choke", () => {
-  const status = (passed = false): AntigravityConnectionStatus => ({
-    state: passed ? "ready" : "unverified",
-    version: "1.1.21",
-    checkedAt: 1,
-    loginCommand: "agy",
-    models: [{ id: "real-model", label: "Real" }],
-    checks: passed
-      ? [{ capability: "image", modelId: "auto", state: "passed", version: "1.1.21", checkedAt: 1 }]
-      : [],
-  });
-
-  it.each([true, false])("rejects another vendor claiming the reserved parser when enabled=%s", async (enabled) => {
-    emptyCatalog();
-    const [{ upsertModelCatalogMapping }, { antigravityImageMappings }] = await Promise.all([
-      import("./catalogStore"),
-      import("./antigravityCatalog"),
-    ]);
-    const malicious = { ...antigravityImageMappings(status(false))[0], vendorKey: "attacker", enabled };
-
-    expect(() => upsertModelCatalogMapping(malicious)).toThrow("ANTIGRAVITY_INVALID_CONFIG");
-  });
-
-  it("allows a canonical disabled mapping without proof", async () => {
-    emptyCatalog();
-    const [{ upsertModelCatalogMapping }, { antigravityImageMappings }] = await Promise.all([
-      import("./catalogStore"),
-      import("./antigravityCatalog"),
-    ]);
-
-    expect(() => upsertModelCatalogMapping(antigravityImageMappings(status(false))[0])).not.toThrow();
-  });
-
-  it("requires exact historical proof for a canonical enabled mapping", async () => {
-    emptyCatalog();
-    const [{ upsertModelCatalogMapping }, { antigravityImageMappings }] = await Promise.all([
-      import("./catalogStore"),
-      import("./antigravityCatalog"),
-    ]);
-    const mapping = antigravityImageMappings(status(true))[0];
-
-    expect(() => upsertModelCatalogMapping(mapping)).toThrow("ANTIGRAVITY_TEST_REQUIRED");
-    antigravityProof.mockImplementation((request) => request?.capability === "image" && request?.modelId === "auto");
-    expect(() => upsertModelCatalogMapping(mapping)).not.toThrow();
-  });
-
-  it("does not let an enabled non-Antigravity row with the same id bypass proof", async () => {
-    const [{ antigravityImageMappings }] = await Promise.all([import("./antigravityCatalog")]);
-    const canonical = antigravityImageMappings(status(true))[0];
-    writeRawCatalog({
-      version: CURRENT,
-      vendors: [],
-      models: [],
-      mappings: [{ ...canonical, vendorKey: "attacker", enabled: true }],
-      apiKeysByVendor: {},
-    });
-    const { upsertModelCatalogMapping } = await import("./catalogStore");
-
-    expect(() => upsertModelCatalogMapping(canonical)).toThrow("ANTIGRAVITY_TEST_REQUIRED");
-  });
-
-  it("rejects a poisoned import and rolls back earlier valid bundles", async () => {
-    emptyCatalog();
-    const [{ importModelCatalogPackage, listModelCatalogVendors }, { antigravityImageMappings }] = await Promise.all([
-      import("./catalogStore"),
-      import("./antigravityCatalog"),
-    ]);
-    const poisoned = { ...antigravityImageMappings(status(false))[0], vendorKey: "attacker", enabled: false };
-    const result = importModelCatalogPackage({
-      vendors: [vendorBundle(), vendorBundle({
-        vendor: { key: "attacker", name: "Attacker", enabled: true, authType: "none" },
-        apiKey: undefined,
-        models: [],
-        mappings: [poisoned],
-      })],
-    }) as { imported: { vendors: number; models: number; mappings: number }; errors: string[] };
-
-    expect(result.errors).toContain("ANTIGRAVITY_INVALID_CONFIG");
-    expect(result.imported).toEqual({ vendors: 0, models: 0, mappings: 0 });
-    expect(listModelCatalogVendors()).toEqual([]);
   });
 });

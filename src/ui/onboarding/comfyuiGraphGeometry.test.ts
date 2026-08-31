@@ -11,7 +11,6 @@ import {
   MIN_ZOOM,
   NODE_HEIGHT,
   NODE_WIDTH,
-  zoomGraphAtPoint,
 } from './comfyuiGraphGeometry'
 
 /** 一条直链 + 一个旁支：200 与 110 同列，108 消费两者，300 收尾。 */
@@ -76,30 +75,6 @@ describe('节点图几何', () => {
 })
 
 describe('缩放', () => {
-  it.each([0.6, 1.5, 99, 0.01])('鼠标所在内容点在缩放到 %s 后仍在原位（含钳位）', (requestedZoom) => {
-    const current = { zoom: 0.8, offset: { x: -132, y: 51 } }
-    const point = { x: 425, y: 289 }
-    const next = zoomGraphAtPoint(current, requestedZoom, point)
-    expect(next.zoom).toBe(clampZoom(requestedZoom))
-    for (const axis of ['x', 'y'] as const) {
-      const contentPoint = (point[axis] - current.offset[axis]) / current.zoom
-      expect(contentPoint * next.zoom + next.offset[axis]).toBeCloseTo(point[axis], 8)
-    }
-  })
-
-  it.each([MIN_ZOOM, MAX_ZOOM])('到达 %s 后继续滚动不漂移也不创建新视口', (zoom) => {
-    const current = { zoom, offset: { x: -132, y: 51 } }
-    expect(zoomGraphAtPoint(current, zoom === MIN_ZOOM ? 0.01 : 99, { x: 425, y: 289 })).toBe(current)
-  })
-
-  it('连续放大再缩小回原位', () => {
-    const current = { zoom: 0.8, offset: { x: -132, y: 51 } }
-    const point = { x: 425, y: 289 }
-    const next = zoomGraphAtPoint(zoomGraphAtPoint(current, 1.5, point), current.zoom, point)
-    expect(next.offset.x).toBeCloseTo(current.offset.x, 8)
-    expect(next.offset.y).toBeCloseTo(current.offset.y, 8)
-  })
-
   it('钳在上下限内', () => {
     expect(clampZoom(0.01)).toBe(MIN_ZOOM)
     expect(clampZoom(99)).toBe(MAX_ZOOM)

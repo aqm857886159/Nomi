@@ -1,14 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 import {
-  buildModelControls,
+  buildImageUrlSlots,
   isImportedComfyWorkflowModel,
   parseControlInput,
   shouldUseVideoFrameSlotFallback,
   videoAspectDefaultPatch,
   type DynamicModelControl,
 } from './parameterControlModel'
-import { buildImageUrlSlots } from '../../model/parameterReferenceSlots'
 
 // parseControlInput 按控件类型回类型。关键修复（2026-06-16）：select 按选中 option 的声明类型回类型——
 // 数值 option（如 duration 离散枚举 4/8/12）回 number 整数，避免发字符串 "8" 被 vendor 400。
@@ -109,17 +108,6 @@ describe('buildImageUrlSlots — ComfyUI 导入工作流按声明逐条出槽', 
 
   it('一个图像输入都没声明 → 一个槽都不出，绝不瞎猜首尾帧', () => {
     expect(buildImageUrlSlots(comfyMeta([{ key: 'comfy_seed', label: 'Seed', type: 'number' }]))).toEqual([])
-  })
-
-  it('导入 contract 的普通 input_image 文本参数留在标量控件，不按名字误升格', () => {
-    const meta = {
-      comfyWorkflowImport: { binding: { images: [] } },
-      parameters: [{ key: 'comfy_input_image', label: 'Caption', type: 'text', default: 'caption' }],
-    }
-    expect(buildImageUrlSlots(meta)).toEqual([])
-    expect(buildModelControls(meta, true, false)).toMatchObject([
-      { key: 'comfy_input_image', type: 'text', defaultValue: 'caption' },
-    ])
   })
 })
 

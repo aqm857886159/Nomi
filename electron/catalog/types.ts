@@ -313,7 +313,7 @@ export type HttpOperation = {
   process?: {
     bin: string;
     args: string[];
-    parser: "dreamina-cli" | "codex-cli-image" | "antigravity-cli-image";
+    parser: "dreamina-cli" | "codex-cli-image";
     appendDownloadDir?: boolean;
     /**
      * 特殊 arg 构建器（声明驱动分派）。缺省=用 `args` 模板渲染。"multiframe"=多帧按图数变形（2 图 shorthand /
@@ -471,9 +471,8 @@ export function billingKindForTaskKind(kind: ProfileKind): BillingModelKind {
  *  路径，已同 commit 修）。只碰非内置 vendor + /video/generations 形状。 */
 /*  v9 moves custom-call named configuration out of vendor.meta and into the
  *  existing safeStorage-backed vendor credential record. */
-/* v10 corrects stored ComfyUI model/output/task contracts from the selected file output. */
-export type CatalogVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
-export const CURRENT_CATALOG_VERSION: CatalogVersion = 10;
+export type CatalogVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+export const CURRENT_CATALOG_VERSION: CatalogVersion = 9;
 
 export type CatalogState = {
   version: CatalogVersion;

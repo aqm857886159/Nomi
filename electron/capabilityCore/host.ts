@@ -15,7 +15,6 @@ import { ensureBuiltinModelSeeds } from '../catalog/catalogStore'
 import { runTask, fetchTaskResult } from '../runtime'
 import { verifyToken } from './security'
 import { applySystemProxy } from '../systemProxy'
-import { readProxyPrefs } from '../proxySettings'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { rpcErrorWirePayload } from './mcpRpcError'
 
@@ -86,11 +85,12 @@ async function run(): Promise<number> {
 app.whenReady().then(async () => {
   let code = 1
   try {
-    // 与 GUI 共用持久化偏好；公共请求等已确认路由，本机/私网不依赖公共代理就绪。
+    // 和主 app 一致设代理(main.ts:436):headless host 默认 session 不设代理 → 代理后的机器 vendor fetch 失败。
+    // 失败兜底直连(不崩),与主 app 同一不变量。
     try {
-      await applySystemProxy(session.defaultSession, readProxyPrefs())
+      await applySystemProxy(session.defaultSession)
     } catch {
-      /* 初始化失败不退出 host；appFetch 阻止未经确认的公共请求，不隐式直连。 */
+      /* 代理设失败 → 直连兜底 */
     }
     // 内置种子对账（与主 app 启动 main.ts 同一步）：headless 此前从不调它 → 代码改了 curated mapping 后只有
     // 开过 GUI 才同步，纯 MCP/CLI 用户跑旧目录。幂等：无变化不写盘、atomic 写。userData 由顶部 setPath 钉死同源。

@@ -10,13 +10,27 @@ import type { CanvasGroupBox } from './GroupFrame'
 // 这里重导出，让既有 components 调用方 import 路径不变（从 ./generationCanvasGeometry）。
 export { getNodeSize }
 
+const WHEEL_ZOOM_FACTOR = 1.24
+const WHEEL_ZOOM_DELTA = 120
+const WHEEL_LINE_HEIGHT = 16
+const WHEEL_PAGE_HEIGHT = 800
 const GROUP_BOX_PADDING = 24
 const GROUP_BOX_LABEL_HEIGHT = 28
 
-export { getWheelZoomFactor, type WheelZoomEvent } from '../../../utils/wheelZoom'
+export type WheelZoomEvent = Pick<WheelEvent, 'deltaMode' | 'deltaY'>
 
 export function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
+}
+
+export function getWheelZoomFactor(event: WheelZoomEvent): number {
+  const deltaModeMultiplier = event.deltaMode === 1
+    ? WHEEL_LINE_HEIGHT
+    : event.deltaMode === 2
+      ? WHEEL_PAGE_HEIGHT
+      : 1
+  const deltaPixels = clampNumber(event.deltaY * deltaModeMultiplier, -WHEEL_ZOOM_DELTA, WHEEL_ZOOM_DELTA)
+  return Math.pow(WHEEL_ZOOM_FACTOR, -deltaPixels / WHEEL_ZOOM_DELTA)
 }
 
 export function createInitialViewport(): { zoom: number; offset: { x: number; y: number } } {

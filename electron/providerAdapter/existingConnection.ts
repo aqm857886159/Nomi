@@ -6,8 +6,7 @@ import type {
   Model,
   Vendor,
 } from "../catalog/types";
-import type { ModelListFailureKind, ModelListResult } from "../ai/onboarding/modelListProbe";
-import { modelListErrorRedactor, publicModelListUrl } from "../ai/onboarding/modelListSafety";
+import type { ModelListResult } from "../ai/onboarding/modelListProbe";
 import type { ProviderAdapterRegistration, ProviderAdapterRun } from "./types";
 
 export type ExistingConnectionErrorCode =
@@ -63,13 +62,11 @@ type PublicFailure = {
   ok: false;
   code: ExistingConnectionErrorCode;
   error: string;
-  status?: number;
-  failureKind?: ModelListFailureKind;
   connection?: ExistingConnectionSummary;
 };
 
 export type ExistingConnectionListResult =
-  | { ok: true; connection: ExistingConnectionSummary; models: string[]; partial?: boolean }
+  | { ok: true; connection: ExistingConnectionSummary; models: string[] }
   | PublicFailure;
 
 export type ExistingConnectionStartResult =
@@ -82,7 +79,6 @@ export type ExistingConnectionRegisterResult =
 
 type ResolvedConnection = {
   summary: ExistingConnectionSummary;
-  baseUrl: string;
   vendor: Vendor;
   apiKey: string;
   headers?: Record<string, string>;
@@ -215,7 +211,7 @@ function resolveConnection(
   const summary: ExistingConnectionSummary = {
     vendorKey,
     vendorName: vendor.name || vendorKey,
-    baseUrl: publicModelListUrl(baseUrl),
+    baseUrl,
     existingModels: models,
   };
   const authType = vendor.authType || "bearer";
@@ -232,7 +228,6 @@ function resolveConnection(
   }
   return {
     summary,
-    baseUrl,
     vendor,
     apiKey,
     headers: extraHeaders(vendor),
@@ -315,7 +310,7 @@ async function startResolvedConnection(
     const run = await dependencies.startAdapter({
       vendorKey: connection.summary.vendorKey,
       vendorName: connection.summary.vendorName,
-      baseUrl: connection.baseUrl,
+      baseUrl: connection.summary.baseUrl,
       apiKey: connection.apiKey,
       authType: connection.vendor.authType || "bearer",
       providerKind: providerKind(connection.vendor.providerKind),
@@ -344,7 +339,7 @@ async function registerResolvedConnection(
     const registration = await dependencies.registerAdapter({
       vendorKey: connection.summary.vendorKey,
       vendorName: connection.summary.vendorName,
-      baseUrl: connection.baseUrl,
+      baseUrl: connection.summary.baseUrl,
       authType: connection.vendor.authType || "bearer",
       providerKind: providerKind(connection.vendor.providerKind),
       ...(connection.vendor.authHeader ? { authHeader: connection.vendor.authHeader } : {}),
@@ -370,13 +365,12 @@ export function createExistingConnectionActions(
     async listModels({ vendorKey }) {
       const connection = resolveConnection(vendorKey, dependencies);
       if ("ok" in connection) return connection;
-      const redact = modelListErrorRedactor(connection.baseUrl, { ...connection.headers, "saved-api-key": connection.apiKey });
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), dependencies.listTimeoutMs ?? 12_000);
       try {
         const listed = await dependencies.fetchModels({
           providerKind: providerKind(connection.vendor.providerKind),
-          baseUrl: connection.baseUrl,
+          baseUrl: connection.summary.baseUrl,
           apiKey: connection.apiKey,
           authType: connection.vendor.authType || "bearer",
           ...(connection.vendor.authHeader ? { authHeader: connection.vendor.authHeader } : {}),
@@ -388,19 +382,16 @@ export function createExistingConnectionActions(
           return {
             ok: false,
             code: "MODEL_LIST_UNAVAILABLE",
-            error: redact(scrubCredential(listed.error, connection.apiKey)),
-            ...(listed.status !== undefined ? { status: listed.status } : {}),
-            ...(listed.failureKind ? { failureKind: listed.failureKind } : {}),
+            error: scrubCredential(listed.error, connection.apiKey),
             connection: connection.summary,
           };
         }
-        return { ok: true, connection: connection.summary, models: [...new Set(listed.models)], ...(listed.partial ? { partial: true } : {}) };
+        return { ok: true, connection: connection.summary, models: [...new Set(listed.models)] };
       } catch (error) {
         return {
           ok: false,
           code: "MODEL_LIST_UNAVAILABLE",
-          error: redact(error instanceof Error ? error.message : String(error)),
-          failureKind: "network",
+          error: scrubCredential(error instanceof Error ? error.message : String(error), connection.apiKey),
           connection: connection.summary,
         };
       } finally {

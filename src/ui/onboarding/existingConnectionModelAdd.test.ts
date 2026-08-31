@@ -23,21 +23,18 @@ describe('existing connection model add UI contract', () => {
 
     expect(picker).toContain('existingConnectionListModels({ vendorKey })')
     expect(picker).not.toContain('apiKey')
-    expect(picker).toContain("result.code !== 'MODEL_LIST_UNAVAILABLE'")
+    expect(picker).toContain("result.code === 'MODEL_LIST_UNAVAILABLE'")
     expect(picker).toContain('alreadyAddedIds=')
   })
 
   it('does not contact the saved upstream until the user explicitly asks for its model list', () => {
     const picker = source('ExistingConnectionModelPicker.tsx')
-    const loader = source('useModelDiscovery.ts')
-    const effectStart = loader.indexOf('React.useEffect')
-    const effectEnd = loader.indexOf('const visible', effectStart)
-    const mountEffect = loader.slice(effectStart, effectEnd)
+    const effectStart = picker.indexOf('React.useEffect')
+    const effectEnd = picker.indexOf('const resolveKind', effectStart)
+    const mountEffect = picker.slice(effectStart, effectEnd)
 
     expect(picker).toContain('initialConnection: DesktopExistingConnectionSummary')
     expect(mountEffect).not.toContain('fetchModels()')
-    expect(effectStart).toBeGreaterThan(-1)
-    expect(picker).toContain('useModelDiscovery({')
     expect(picker).toContain('onRefetch={fetchModels}')
     expect(picker).toContain('hasFetched={fetchAttempted}')
   })
@@ -80,7 +77,5 @@ describe('existing connection model add UI contract', () => {
     expect(resetBody).not.toContain('setCandidateModels([])')
     expect(resetBody).not.toContain("setFetchModelsMsg('')")
     expect(wizard).toContain('statusHint={fetchModelsMsg || undefined}')
-    expect(wizard).toContain('useModelDiscovery({')
-    expect(wizard).not.toContain('setCandidateModels(')
   })
 })

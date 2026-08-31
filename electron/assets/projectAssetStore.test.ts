@@ -76,23 +76,4 @@ describe("writeAsset canonical media filename", () => {
     expect(second).toMatchObject({ id: first.id, data: { relativePath: first.data?.relativePath } });
     expect(fs.readdirSync(path.join(projectRoot, first.data?.relativePath ? path.dirname(first.data.relativePath) : "assets"))).toHaveLength(2);
   });
-  it.each(["missing", "truncated"])("repairs a %s deterministic asset sidecar on retry", (failure) => {
-    const args = ["project-1", Buffer.from("generated"), "result.jpg", "image/jpeg", { kind: "generated", localTaskId: "local-task" }, "task-1:output-1"] as const;
-    const first = writeDeterministicAsset(...args) as { data: { absolutePath: string } };
-    const sidecar = `${first.data.absolutePath}.meta`;
-    if (failure === "missing") fs.unlinkSync(sidecar); else fs.writeFileSync(sidecar, "{");
-    writeDeterministicAsset(...args);
-    expect(JSON.parse(fs.readFileSync(sidecar, "utf8"))).toMatchObject({ kind: "generated", localTaskId: "local-task" });
-    expect(fs.readdirSync(path.dirname(sidecar))).toHaveLength(2);
-  });
-  it("does not report deterministic import success when its sidecar cannot be committed", () => {
-    const original = fs.writeFileSync;
-    const write = vi.spyOn(fs, "writeFileSync").mockImplementation((...args: Parameters<typeof fs.writeFileSync>) => {
-      if (String(args[0]).endsWith(".meta")) throw new Error("sidecar unavailable");
-      return original(...args);
-    });
-    try {
-      expect(() => writeDeterministicAsset("project-1", Buffer.from("generated"), "result.jpg", "image/jpeg", { kind: "generated" }, "task-2")).toThrow("sidecar unavailable");
-    } finally { write.mockRestore(); }
-  });
 });

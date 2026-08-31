@@ -40,7 +40,6 @@ export type ModelSettingsHomeConnection = {
   name: string
   kind: 'api' | 'local' | 'account'
   models: ChipModel[]
-  auxiliaryCounts?: { tools: number; routes: number }
   logo?: string
   glyph?: string
   /** 连接健康探测要的两个入参；缺省（本地/会员类连接）则这一行不探。 */
@@ -236,9 +235,7 @@ function ConnectedRow({
       <span className="min-w-0 flex-1">
         <span className="block truncate text-caption font-semibold text-nomi-ink">{connection.name}</span>
         <span className="mt-0.5 block text-micro leading-relaxed text-nomi-ink-40">
-          {connection.auxiliaryCounts
-            ? t('antigravity.catalogSummary', { count: connection.models.length, ...connection.auxiliaryCounts })
-            : t('onboardingProviders.drawer.home.connectionSummary', { count: connection.models.length })}
+          {t('onboardingProviders.drawer.home.connectionSummary', { count: connection.models.length })}
         </span>
       </span>
       <span className={cn(
@@ -296,7 +293,6 @@ function availableHint(connection: ModelSettingsHomeConnection, t: ReturnType<ty
   if (connection.vendorKey.startsWith('comfyui')) return t('onboardingProviders.drawer.home.comfyuiHint')
   if (connection.vendorKey === 'dreamina-member') return t('onboardingProviders.drawer.home.dreaminaHint')
   if (connection.vendorKey === 'codex-local') return t('onboardingProviders.drawer.home.codexImageHint')
-  if (connection.vendorKey === 'antigravity-cli') return t('antigravity.subtitle')
   return t('onboardingProviders.drawer.home.adaptedHint', { name: connection.name })
 }
 

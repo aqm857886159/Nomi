@@ -70,7 +70,7 @@ const EXCLUDED_FILES = new Set([
   'src/workbench/timeline/timelineTypes.ts', // persisted stable labels; TimelineTrack displays by type key
   'electron/catalog/comfyuiLocal.ts', // translated by renderer model display-text boundary
   'electron/catalog/newapiTransport.ts', // translated by renderer model display-text boundary
-  'electron/harness/tools/canvasDescriptors.ts', // tool schemas and multilingual examples are agent-facing protocol text
+  'electron/ai/canvasTools.ts', // tool schemas and multilingual examples are agent-facing protocol text
   'electron/promptLibrary/promptSources.ts', // external curated source names
 ])
 

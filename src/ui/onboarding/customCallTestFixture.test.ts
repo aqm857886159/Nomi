@@ -17,17 +17,6 @@ function mode(patch: Partial<CustomCallScriptMode> = {}): CustomCallScriptMode {
 }
 
 describe('custom call test fixture', () => {
-  it('does not drop references when no provider cap was documented', () => {
-    const urls = Array.from({ length: 12 }, (_, i) => `https://assets.test/${i}.png`)
-    const fixture = buildCustomCallTestFixture({
-      modelKind: 'video',
-      mode: mode({ slots: [{ kind: 'image_ref', label: 'References', min: 1 }] }),
-      references: { image_ref: urls },
-    })
-    expect(fixture.ready).toBe(true)
-    expect(fixture.params.reference_image_urls).toEqual(urls)
-  })
-
   it('uses declared slots rather than interpreting a mode name', () => {
     const selected = mode({
       id: 'future_motion_reference',

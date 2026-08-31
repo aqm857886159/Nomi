@@ -75,7 +75,7 @@ const summarizeReferences = (references: readonly VideoReferenceInput[]): Refere
 });
 
 const countFitsSlot = (count: number, slot: ArchetypeReferenceSlot | undefined): boolean =>
-  count === 0 ? true : Boolean(slot && count >= slot.min && (slot.max === undefined || count <= slot.max));
+  count === 0 ? true : Boolean(slot && count >= slot.min && count <= slot.max);
 
 const modeMatchesReferences = (mode: ArchetypeMode, summary: ReferenceSummary): boolean => {
   if (!summary.hasAny) return mode.intent === "text";

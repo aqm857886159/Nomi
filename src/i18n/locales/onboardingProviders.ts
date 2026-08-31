@@ -448,13 +448,13 @@ export const zhOnboardingProviders = {
       promoCta: '用我们的链接',
     },
     agnes: {
-      tagline: '文本、图片与视频 · 可用模型以当前账户为准',
+      tagline: '全模态免费 · 一个 key 解锁文本/图片/视频',
       credentialPlaceholder: '粘贴 Agnes API Key',
       credentialHint:
-        '在 Agnes 官方平台创建 API Key。部分模型需付费或单独开通；可用模型、价格和限额以当前账户为准。凭证本地加密存储。',
+        '免费：去 platform.agnes-ai.com 邮箱注册（不绑卡）→ 创建 API Key。免费层有速率上限（RPM 20），个人/原型够用。凭证本地加密存储。',
       promoText:
-        'Agnes AI 提供 OpenAI 兼容的文本、图片与视频 API。公开模型清单不代表当前套餐均可调用。',
-      promoCta: '打开 Agnes 平台',
+        'Agnes AI（新加坡 Sapiens AI）把文本/图片/视频三模态 API 无限期免费开放，OpenAI 兼容。邮箱注册不绑卡即可拿 Key。',
+      promoCta: '去 Agnes 注册（免费）',
     },
     kie: {
       tagline: '一个 key，解锁内置模型',
@@ -835,8 +835,6 @@ export const zhOnboardingProviders = {
     sourceVideoNode: '源视频接哪个节点',
     sourceVideoNodeAria: '源视频节点',
     noSourceVideo: '无（不吃视频）',
-    mediaInputs: '媒体输入（按声明逐个绑定）',
-    model3d: '3D 模型',
     outputNode: '成品输出节点',
     outputNodeAria: '输出节点',
     adjustableParams: '可调参数：{{params}}',
@@ -1622,13 +1620,13 @@ export const enOnboardingProviders = {
       promoCta: 'Use our link',
     },
     agnes: {
-      tagline: 'Text, image and video · Availability depends on your account',
+      tagline: 'Free multimodal access · One key for text, image, and video',
       credentialPlaceholder: 'Paste your Agnes API Key',
       credentialHint:
-        'Create an API Key on the official Agnes platform. Some models require payment or separate access. Availability, pricing and limits depend on your account. Credentials are encrypted locally.',
+        'Free: sign up with email at platform.agnes-ai.com without a card, then create an API Key. The free tier is rate-limited to 20 RPM, which is enough for personal projects and prototypes. Credentials are encrypted locally.',
       promoText:
-        'Agnes AI provides OpenAI-compatible text, image and video APIs. The public model catalog does not guarantee access under your current plan.',
-      promoCta: 'Open Agnes platform',
+        'Agnes AI by Singapore-based Sapiens AI provides free OpenAI-compatible text, image, and video APIs. Sign up with email without a card to get a key.',
+      promoCta: 'Register with Agnes for free',
     },
     kie: {
       tagline: 'One key unlocks built-in models',
@@ -2027,8 +2025,6 @@ export const enOnboardingProviders = {
     sourceVideoNode: 'Source video input node',
     sourceVideoNodeAria: 'Source video node',
     noSourceVideo: 'None (takes no video)',
-    mediaInputs: 'Media inputs (one row per declared input)',
-    model3d: '3D model',
     outputNode: 'Final output node',
     outputNodeAria: 'Output node',
     adjustableParams: 'Adjustable parameters: {{params}}',

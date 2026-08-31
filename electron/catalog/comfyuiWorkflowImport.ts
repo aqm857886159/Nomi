@@ -12,8 +12,6 @@
 import { COMFYUI_VENDOR_KEY, type HttpOperation } from "./types";
 import type { ComfyObjectInfoIndex } from "../comfyuiObjectInfo";
 import { normalizeWorkflowBinding } from "./comfyuiWorkflowBindingNormalize";
-import { comfyOutputCandidates, resolveComfyWorkflowOutput, suggestedComfyOutput } from "./comfyuiWorkflowOutput";
-import { resolveComfyWorkflowTaskKind } from "./comfyuiWorkflowTaskContract";
 
 export { inputKeyOf, roleBoundInputKeys } from "./comfyuiWorkflowBindingNormalize";
 export { normalizeWorkflowBinding };
@@ -98,7 +96,7 @@ export type WorkflowAnalysis = {
 
 /** `image-url`：媒体输入槽。画布侧 looksLikeImageUrlControl 认这个 type，
  *  于是通用出槽器 buildImageUrlSlots 会**按条出槽**——声明几个就长几个，不再靠 key 名瞎猜。 */
-export type ParamControl = { key: string; label: string; type: WorkflowParamType | "select" | "image-url"; mediaKind?: "image" | "video"; default: number | string | boolean; options?: string[] };
+export type ParamControl = { key: string; label: string; type: WorkflowParamType | "select" | "image-url"; default: number | string | boolean; options?: string[] };
 export type ImportedWorkflow = { templatedGraph: ComfyGraph; parameters: ParamControl[]; kind: "image" | "video" | "model3d"; taskKind: "text_to_image" | "image_edit" | "text_to_video" | "image_to_video" | "text_to_3d" | "image_to_3d" };
 export type ComfyWorkflowImportDraft = { text: string; binding: WorkflowBinding; uiWorkflowText?: string };
 /** (classType, inputKey) → 本机 combo 可选值（reconcile 顺手带出；导入/保存时烤进参数控件）。 */
@@ -119,6 +117,18 @@ const LOAD_VIDEO_RE = /loadvideo|vhs_loadvideo/i;
  * 教训：节点输入键必须拿真服务器的 object_info 对，不能照着自己编的 fixture 写。
  */
 const MEDIA_INPUT_KEYS = new Set(["image", "file", "video", "audio"]);
+const VIDEO_OUT_RE = /videocombine|savevideo|saveanimated|savewebp|savewebm|createvideo/i;
+/** 真把产物**写进 /output** 的节点（对照：CreateVideo/PreviewX 只在内存里造对象或只预览，不产文件）。
+ *  同 kind 的多个输出里优先它——否则会挑中不产文件的中间节点，产物拉不回来。 */
+const SAVE_OUT_RE = /^(save|export)/i;
+/** 预览类也是输出（纯图工作流常只有 PreviewImage/MaskPreview，此前被判「无输出」整张图不可导入）。 */
+const IMAGE_OUT_RE = /saveimage|previewimage|maskpreview/i;
+/** 3D 网格输出——**Nomi 支持 model3d 产物**（GenerationResultType 含它、runtime 读 model_url、
+ *  画布 Model3DViewer 能转着看、runninghub3d 早有先例）。此前误标 unsupported 是错的，已纠正。 */
+const MODEL3D_OUT_RE = /saveglb|preview3d|save3d|savemesh/i;
+/** 真正还没通的产物类型：音频要动生成路由分叉（audioTaskRunner 是另一条同步链）、矢量图无对应类型。
+ *  识别得出但明着标缺口（D4 诚实交付），绝不硬塞成图让用户拿到打不开的东西。 */
+const UNSUPPORTED_OUT_RE = /saveaudio|savesvg|savewav|saveflac/i;
 /**
  * 直接写在节点上的提示词键（云端 API 节点形态：prompt 就是节点自己的 widget，没有独立 CLIPTextEncode）。
  * 语料实测：154 张识别不出提示词的图里 112 张（73%）其实 prompt 字符串就摆在节点上——全部
@@ -336,7 +346,7 @@ export function analyzeComfyWorkflow(graph: ComfyGraph): WorkflowAnalysis {
   const imageInputs: NodeInputCandidate[] = [];
   const numericInputs: NodeInputCandidate[] = [];
   const widgetInputs: NodeInputCandidate[] = [];
-  const outputNodes = comfyOutputCandidates(graph);
+  const outputNodes: OutputNodeCandidate[] = [];
 
   for (const [nodeId, node] of Object.entries(graph)) {
     const classType = node.class_type ?? "";
@@ -376,6 +386,10 @@ export function analyzeComfyWorkflow(graph: ComfyGraph): WorkflowAnalysis {
         numericInputs.push({ nodeId, inputKey, classType, title: node._meta?.title, value });
       }
     }
+    if (VIDEO_OUT_RE.test(classType)) outputNodes.push({ nodeId, classType, kind: "video" });
+    else if (MODEL3D_OUT_RE.test(classType)) outputNodes.push({ nodeId, classType, kind: "model3d" });
+    else if (IMAGE_OUT_RE.test(classType)) outputNodes.push({ nodeId, classType, kind: "image" });
+    else if (UNSUPPORTED_OUT_RE.test(classType)) outputNodes.push({ nodeId, classType, kind: "unsupported" });
   }
 
   const positiveId = findPositiveTargetId(graph);
@@ -396,39 +410,28 @@ export function analyzeComfyWorkflow(graph: ComfyGraph): WorkflowAnalysis {
   const videoInputs = imageInputs.filter((i) => i.mediaKind === "video");
   const stillInputs = imageInputs.filter((i) => i.mediaKind !== "video");
   const suggestedSourceVideo = videoInputs[0];
-  // 只有图里明确声明了 start/end，或确实只有一个/两个静态输入时才给首尾语义。
-  // 三张以上的 LoadImage 通常是角色/风格/构图等多参引用；把第一张擅自叫「首帧」会让
-  // 画布把通用参考误投到 first_frame_url，正是用户反馈的「多参被压成一张」的另一种变体。
-  const suggestedFirstFrame = candidateForNodeInput(stillInputs, startImageId, "image")
-    ?? (stillInputs.length <= 2 ? stillInputs[0] : undefined);
-  const suggestedLastFrame = candidateForNodeInput(stillInputs, endImageId, "image")
-    ?? (stillInputs.length === 2 ? stillInputs[1] : undefined);
-  const suggestedImageTargets = new Set<string>();
-  const suggestedImages: WorkflowImageBinding[] = [];
-  for (let index = 0; index < imageInputs.length; index += 1) {
-    const candidate = imageInputs[index];
-    const target = `${candidate.nodeId} ${candidate.inputKey}`;
-    if (suggestedImageTargets.has(target)) continue;
-    suggestedImageTargets.add(target);
-    const isSourceVideo = candidate.nodeId === suggestedSourceVideo?.nodeId && candidate.inputKey === suggestedSourceVideo.inputKey;
-    const isFirstFrame = candidate.nodeId === suggestedFirstFrame?.nodeId && candidate.inputKey === suggestedFirstFrame.inputKey;
-    const isLastFrame = candidate.nodeId === suggestedLastFrame?.nodeId && candidate.inputKey === suggestedLastFrame.inputKey;
-    const paramKey = isSourceVideo
-      ? LEGACY_IMAGE_ROLE_PARAM_KEYS.sourceVideo
-      : isFirstFrame
-        ? LEGACY_IMAGE_ROLE_PARAM_KEYS.firstFrame
-        : isLastFrame
-          ? LEGACY_IMAGE_ROLE_PARAM_KEYS.lastFrame
-          : `comfy_${candidate.mediaKind ?? "image"}_${index + 1}`;
-    suggestedImages.push({
-      nodeId: candidate.nodeId,
-      inputKey: candidate.inputKey,
-      paramKey,
-      label: candidate.title?.trim() || candidate.inputKey,
-      mediaKind: candidate.mediaKind ?? "image",
-    });
-  }
-  const suggestedOutput = suggestedComfyOutput(outputNodes);
+  const suggestedFirstFrame = candidateForNodeInput(stillInputs, startImageId, "image") ?? stillInputs[0];
+  const suggestedLastFrame = candidateForNodeInput(stillInputs, endImageId, "image");
+  // 视频输出优先（有视频节点就当视频工作流）；否则图片。unsupported（3D/音频/矢量）不进建议——
+  // 它只留在 outputNodes 里供 UI 诚实说明「这条工作流产出 Nomi 存不下的类型」（D4 明着标缺口）。
+  // 类型上就把 unsupported 挡在建议之外（binding.outputKind 只有 image|video——typecheck 会拦住
+  // 任何未来想把 unsupported 塞进绑定的改动，这正是结构保证而不是靠注释约束）。
+  const usableOutputs = outputNodes.filter(
+    (o): o is OutputNodeCandidate & { kind: "image" | "video" | "model3d" } => o.kind !== "unsupported",
+  );
+  // 优先级 video > model3d > image：3D 工作流常同时挂 PreviewImage（预览渲染图），成品是 .glb 那个。
+  // 同类里再优先**真落盘的 Save/Export 节点**：CreateVideo 只是把帧序列装成 VIDEO 对象、不写文件，
+  // 后面必须再接一个 SaveVideo 才有产物。按枚举序取第一个会挑中 CreateVideo（节点号更小），
+  // 结果 Nomi 去一个不产文件的节点上找产物 → 拉不回成片。MiniMax H3 官方模板正是 CreateVideo→SaveVideo。
+  const preferSaving = (list: typeof usableOutputs, kind: "image" | "video" | "model3d") =>
+    list.find((o) => o.kind === kind && SAVE_OUT_RE.test(o.classType)) ?? list.find((o) => o.kind === kind);
+  const suggestedOutput =
+    preferSaving(usableOutputs, "video") ??
+    preferSaving(usableOutputs, "model3d") ??
+    preferSaving(usableOutputs, "image") ??
+    usableOutputs.find((o) => o.kind === "video") ??
+    usableOutputs.find((o) => o.kind === "model3d") ??
+    usableOutputs[0];
   // 建议数值参数：按优先序每个 inputKey 只取第一个（去重，clean）。
   const seenKey = new Set<string>();
   const suggestedNumeric: WorkflowNumericParam[] = [];
@@ -447,11 +450,10 @@ export function analyzeComfyWorkflow(graph: ComfyGraph): WorkflowAnalysis {
     textInputs, imageInputs, outputNodes, numericInputs, widgetInputs,
     suggested: {
       promptNodeId: suggestedPrompt?.nodeId, promptInputKey: suggestedPrompt?.inputKey,
-      images: suggestedImages,
       firstFrameNodeId: suggestedFirstFrame?.nodeId, firstFrameInputKey: suggestedFirstFrame?.inputKey,
       lastFrameNodeId: suggestedLastFrame?.nodeId, lastFrameInputKey: suggestedLastFrame?.inputKey,
       sourceVideoNodeId: suggestedSourceVideo?.nodeId, sourceVideoInputKey: suggestedSourceVideo?.inputKey,
-      outputNodeId: suggestedOutput?.outputNodeId, outputKind: suggestedOutput?.outputKind,
+      outputNodeId: suggestedOutput?.nodeId, outputKind: suggestedOutput?.kind,
       numeric: suggestedNumeric,
       params: suggestedParams,
     },
@@ -552,7 +554,7 @@ export function buildImportedWorkflow(graph: ComfyGraph, binding: WorkflowBindin
   // 于是 N 条声明自动长出 N 个槽，不再需要任何「首帧/尾帧」特例。
   for (const image of normalizedBinding.images ?? []) {
     setMediaInput(templated, image.nodeId, image.inputKey, `{{request.params.${image.paramKey}}}`);
-    parameters.push({ key: image.paramKey, label: image.label || image.inputKey, type: "image-url", mediaKind: image.mediaKind, default: "" });
+    parameters.push({ key: image.paramKey, label: image.label || image.inputKey, type: "image-url", default: "" });
   }
   for (const np of normalizedBinding.params ?? []) {
     const paramKey = np.paramKey;
@@ -571,12 +573,19 @@ export function buildImportedWorkflow(graph: ComfyGraph, binding: WorkflowBindin
     }
     parameters.push({ key: paramKey, label: np.label || np.inputKey, type: resolvedType, default: defaultValue });
   }
-  const { outputKind } = resolveComfyWorkflowOutput(graph, normalizedBinding);
+  const outputKind = normalizedBinding.outputKind ?? "image";
+  // 只数**图**输入：视频输入不进 taskKind 的判据（原因见下方注释），所以过滤掉 mediaKind==='video'。
+  const hasFrameInput = (normalizedBinding.images ?? []).some((image) => image.mediaKind === "image");
   // 视频输入**不进** taskKind 的判据：ProfileKind 没有 video_to_video，而画布侧 resolveTaskKind
   // 只按「有没有图输入」分 image_to_video/text_to_video。这里硬造一个新枚举，会让画布算出的 kind
   // 与 mapping 登记的对不上 → 选不到 mapping → 直接报「没有可用模型」。所以视频走「参考视频」通道
   // （连一条视频边 → extras.referenceVideoUrls → electron 派生 source_video_url），kind 仍按图输入分桶。
-  const taskKind = resolveComfyWorkflowTaskKind(outputKind, normalizedBinding.images ?? []);
+  const taskKind =
+    outputKind === "model3d"
+      ? hasFrameInput ? "image_to_3d" : "text_to_3d"   // 混元3D/Tripo/Rodin 多是「传一张图出模型」
+      : outputKind === "video"
+        ? hasFrameInput ? "image_to_video" : "text_to_video"
+        : hasFrameInput ? "image_edit" : "text_to_image";
   return { templatedGraph: templated, parameters, kind: outputKind, taskKind };
 }
 
@@ -599,13 +608,9 @@ export function buildComfyImportModelMapping(
     } catch {
       // 旧草稿可能残缺；仍收敛 binding 形状，不能把未校验的 payload 重新写回目录。
     }
-    const normalizedBinding = normalizeWorkflowBinding(opts.draft.binding, draftGraph);
     normalizedDraft = {
       text: opts.draft.text,
-      binding: {
-        ...normalizedBinding,
-        ...(draftGraph ? resolveComfyWorkflowOutput(draftGraph, normalizedBinding) : {}),
-      },
+      binding: normalizeWorkflowBinding(opts.draft.binding, draftGraph),
       ...(opts.draft.uiWorkflowText ? { uiWorkflowText: opts.draft.uiWorkflowText } : {}),
     };
   }
@@ -671,11 +676,7 @@ export function importComfyWorkflow(
   upsertMapping: (mapping: Record<string, unknown>) => void,
 ): { modelKey: string; kind: "image" | "video" | "model3d"; taskKind: string } {
   const graph = parseComfyApiWorkflow(payload.text);
-  const normalizedBinding = normalizeWorkflowBinding(payload.binding, graph);
-  const binding = {
-    ...normalizedBinding,
-    ...resolveComfyWorkflowOutput(graph, normalizedBinding),
-  };
+  const binding = normalizeWorkflowBinding(payload.binding, graph);
   const built = buildImportedWorkflow(graph, binding, payload.enumOptions);
   const { model, mapping } = buildComfyImportModelMapping(built, {
     modelKey: payload.modelKey,

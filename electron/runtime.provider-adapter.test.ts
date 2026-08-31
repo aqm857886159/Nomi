@@ -31,26 +31,6 @@ afterEach(() => {
 });
 
 describe("executeProfileOperation adapter verification seam", () => {
-  it("rejects a polluted Antigravity operation envelope at the full-operation runtime boundary", async () => {
-    const [{ executeProfileOperation }, { antigravityImageMappings }] = await Promise.all([
-      import("./runtime"),
-      import("./catalog/antigravityCatalog"),
-    ]);
-    const now = "2026-08-27T00:00:00.000Z";
-    const mapping = antigravityImageMappings({
-      state: "unverified", version: "1.1.21", checkedAt: 1, loginCommand: "agy", models: [], checks: [],
-    })[0];
-    const vendor: Vendor = { key: "antigravity-cli", name: "Antigravity", enabled: true, authType: "none",
-      baseUrlHint: "local://antigravity", createdAt: now, updatedAt: now };
-    const model: Model = { vendorKey: vendor.key, modelKey: "generate_image", labelZh: "generate_image", kind: "image",
-      enabled: true, createdAt: now, updatedAt: now };
-
-    await expect(executeProfileOperation({
-      vendor, model, apiKey: "", request: { kind: "text_to_image", prompt: "crane", extras: {} },
-      operation: { ...mapping.create, body: { prompt: "{{request.params.untrusted}}" } }, stage: "create",
-    } as Parameters<typeof executeProfileOperation>[0])).rejects.toThrow("ANTIGRAVITY_INVALID_CONFIG");
-  });
-
   it("uses the injected local asset reader while preserving the production localization pipeline", async () => {
     const fetchFn = vi.fn(async () =>
       new Response(JSON.stringify({ data: [{ url: "https://cdn.example.com/output.png" }] }), { status: 200 }),

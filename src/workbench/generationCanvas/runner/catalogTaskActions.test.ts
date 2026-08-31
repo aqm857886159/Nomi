@@ -14,7 +14,6 @@ import { MODEL_ARCHETYPES } from '../../../config/modelArchetypes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { TaskRequestDto, TaskResultDto } from '../../api/taskApi'
 import type { ModelCatalogModelDto, ModelCatalogVendorDto } from '../../api/modelCatalogApi'
-import * as localTaskControl from './localTaskControl'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -446,34 +445,6 @@ describe('runCatalogGenerationTask — 轮询硬超时抛 RecoverableTimeoutErro
     expect(error.detail).toMatchObject({
       taskId: 'up-task-9', vendor: 'asyncv', taskKind: 'text_to_video', modelKey: 'vid',
     })
-  })
-})
-
-describe('runCatalogGenerationTask — confirmed local cancellation wins over polling', () => {
-  const node: GenerationCanvasNode = {
-    id: 'local-image-node', kind: 'image', title: '', position: { x: 0, y: 0 }, prompt: 'a crane',
-    meta: { modelKey: 'generate_image', vendor: 'antigravity-cli' },
-  }
-  it.each(['before-query', 'during-query'])('does not publish a late success when cancelled %s', async (moment) => {
-    let cancelled = false
-    const cancelFlag = vi.spyOn(localTaskControl, 'isTaskCancelRequested').mockImplementation((id) => id === node.id && cancelled)
-    const runTask = vi.fn(async (_vendor: string, request: TaskRequestDto): Promise<TaskResultDto> => {
-      if (moment === 'before-query') cancelled = true
-      return { id: 'local-job', kind: request.kind, status: 'queued', assets: [], raw: {} }
-    })
-    const fetchTaskResult = vi.fn(async () => {
-      await Promise.resolve()
-      cancelled = true // Models a cancellation acknowledgement arriving while the query was in flight.
-      return { vendor: 'antigravity-cli', result: {
-        id: 'local-job', kind: 'text_to_image' as const, status: 'succeeded' as const,
-        assets: [{ type: 'image' as const, url: 'nomi-local://late-output.jpg' }], raw: {},
-      } }
-    })
-    try {
-      await expect(runCatalogGenerationTask(node, { runTask, fetchTaskResult, pollIntervalMs: 1 })).rejects.toMatchObject({ name: 'LocalTaskCancelledError' })
-      expect(runTask).toHaveBeenCalledOnce()
-      expect(fetchTaskResult).toHaveBeenCalledTimes(moment === 'before-query' ? 0 : 1)
-    } finally { cancelFlag.mockRestore() }
   })
 })
 

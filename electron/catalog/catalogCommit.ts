@@ -649,7 +649,7 @@ export async function testModelCatalogMapping(id: string, payload: unknown): Pro
       request: preview,
     };
   }
-  const executed = await executeProfileOperation({ vendor, model, apiKey, request, operation, providerMeta, stage });
+  const executed = await executeProfileOperation({ vendor, model, apiKey, request, operation, providerMeta });
   const normalized = await buildProfileTaskResult({
     response: executed.response,
     mapping,

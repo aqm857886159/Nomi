@@ -21,7 +21,7 @@ import {
   resolveArchetypeForModel,
   specializeArchetypeForVariant,
 } from '../../../../config/modelArchetypes'
-import type { ImageUrlSlot } from '../../model/parameterReferenceSlots'
+import type { ImageUrlSlot } from './parameterControlModel'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import { DEFAULT_SLOT_INPUT_KEY, modeSlotReach, type SlotReach } from '../../../../../electron/catalog/referenceReachability'
 
@@ -88,7 +88,7 @@ export function currentArchetypeMode(
   meta: Record<string, unknown> | undefined,
 ): ArchetypeMode {
   const stored = readArchetypeNodeMeta(meta)
-  const modeId = stored && (stored.id === archetype.id || archetype.legacyIds?.includes(stored.id)) ? stored.modeId : ''
+  const modeId = stored?.id === archetype.id ? stored.modeId : ''
   return (
     archetype.modes.find((m) => m.id === modeId) ??
     archetype.modes.find((m) => m.id === archetype.defaultModeId) ??
@@ -146,7 +146,7 @@ export type ArchetypeArraySlot = {
   metaKey: string
   label: string
   min: number
-  max?: number
+  max: number
   accept: 'image' | 'video' | 'audio'
   /** 角色图按序标 ①②③ = prompt 的 character1..N（U2）；视频/音频不编号。 */
   numbered: boolean
@@ -313,7 +313,7 @@ export type ArchetypeArrayAppend =
   | { status: 'added'; next: string[] }
   | { status: 'empty' }
   | { status: 'duplicate' }
-  | { status: 'full'; max: number }
+  | { status: 'full' }
 
 /**
  * 往数组参考槽追加一个 URL 的**纯**单源逻辑（去重 + 上限判定）。**仅 meta-only 上传路径**用它：
@@ -330,7 +330,7 @@ export function appendArchetypeArrayValue(
   if (!trimmed) return { status: 'empty' }
   const current = readArchetypeArray(meta, slot.metaKey)
   if (current.includes(trimmed)) return { status: 'duplicate' }
-  if (slot.max !== undefined && current.length >= slot.max) return { status: 'full', max: slot.max }
+  if (current.length >= slot.max) return { status: 'full' }
   return { status: 'added', next: [...current, trimmed] }
 }
 
@@ -514,10 +514,6 @@ export function ensureArchetypeNodeMeta(
   archetype: ModelArchetype,
 ): Record<string, unknown> | null {
   const stored = readArchetypeNodeMeta(meta)
-  if (stored && archetype.legacyIds?.includes(stored.id)) {
-    const mode = currentArchetypeMode(archetype, meta)
-    return applyArchetypeModeSwitch(preserveLegacyPixelRatio(meta, mode), archetype, mode.id)
-  }
   // 已是该档案：若有变体但 variantId 缺/失效 → 补默认变体（旧 meta 升级）；否则幂等 null。
   if (stored?.id === archetype.id) {
     if (!(archetype.variants?.length ?? 0)) return null
@@ -526,23 +522,6 @@ export function ensureArchetypeNodeMeta(
     return applyArchetypeVariantSwitch(meta, archetype, canonicalStoredId || defaultVariantIdOf(archetype))
   }
   return applyArchetypeModeSwitch(meta, archetype, archetype.defaultModeId)
-}
-
-/** Split legacy pixel size into the new profile's ratio before its size is clamped.
- * Only declared legacy-profile migrations use this; explicit ratio choices win. */
-function preserveLegacyPixelRatio(meta: Record<string, unknown>, mode: ArchetypeMode): Record<string, unknown> {
-  const pixels = typeof meta.size === 'string' ? /^(\d+)x(\d+)$/.exec(meta.size) : null
-  const size = mode.params.find((param) => param.key === 'size')
-  const ratio = mode.params.find((param) => param.key === 'ratio' || param.key === 'aspect_ratio')
-  if (!pixels || !size || size.options?.some((option) => option.value === meta.size)
-    || !ratio || meta[ratio.key] !== undefined) return meta
-  const width = Number(pixels[1]); const height = Number(pixels[2])
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return meta
-  const matching = ratio.options?.find((option) => {
-    const parts = /^(\d+):(\d+)$/.exec(String(option.value))
-    return parts && width * Number(parts[2]) === height * Number(parts[1])
-  })
-  return matching ? { ...meta, [ratio.key]: matching.value } : meta
 }
 
 /** 单图 frame 槽（含 source_video）在 meta 里的存储键。source_video UI 本轮从简（meta 直存）。 */
@@ -627,14 +606,14 @@ function volcengineContentItem(inputKey: string, url: string): Record<string, un
 export function mergeOrderedReferenceImageUrls(
   edgeImageUrls: readonly string[],
   uploadUrls: readonly string[],
-  maxCap?: number,
+  maxCap: number,
 ): string[] {
   const merged: string[] = []
   for (const candidate of [...edgeImageUrls, ...uploadUrls]) {
     const url = typeof candidate === 'string' ? candidate.trim() : ''
     if (url && !merged.includes(url)) merged.push(url)
   }
-  return maxCap !== undefined && maxCap > 0 ? merged.slice(0, maxCap) : merged
+  return maxCap > 0 ? merged.slice(0, maxCap) : merged
 }
 
 /**

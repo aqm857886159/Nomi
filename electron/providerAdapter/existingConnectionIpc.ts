@@ -3,7 +3,6 @@ import { authHeaders, authQueryParams } from "../ai/requestPipeline";
 import { fetchModelList } from "../ai/onboarding/modelListProbe";
 import { readCatalog } from "../catalog/catalogStore";
 import { decryptApiKeyRecord } from "../catalog/secrets";
-import { mergeHeadersCaseInsensitive } from "../jsonUtils";
 import type { BillingModelKind } from "../catalog/types";
 import {
   createExistingConnectionActions,
@@ -39,11 +38,11 @@ function defaultActions(): ExistingConnectionActions {
     readCatalog,
     decryptApiKey: decryptApiKeyRecord,
     async fetchModels(input) {
-      const headers = mergeHeadersCaseInsensitive(
-        input.providerKind === "anthropic" ? { "anthropic-version": "2023-06-01" } : {},
-        authHeaders(input.authType, input.apiKey, input.authHeader),
-        input.headers,
-      );
+      const headers = {
+        ...(input.providerKind === "anthropic" ? { "anthropic-version": "2023-06-01" } : {}),
+        ...authHeaders(input.authType, input.apiKey, input.authHeader),
+        ...input.headers,
+      };
       const query = authQueryParams(input.authType, input.apiKey, input.authQueryParam);
       return fetchModelList(input.providerKind, input.baseUrl, headers, input.signal, { query });
     },

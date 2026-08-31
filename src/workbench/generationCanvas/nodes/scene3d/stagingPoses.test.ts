@@ -50,14 +50,14 @@ describe('staging pose presets', () => {
     }
   })
 
-  it('工具 schema 的 pose 枚举与预设 id 不漂移（canvasDescriptors 手抄镜像必须同步）', () => {
-    // canvasDescriptors.ts 在主进程、刻意手抄 pose 枚举避免拉 THREE 进主进程（见该文件注释）。
+  it('工具 schema 的 pose 枚举与预设 id 不漂移（canvasTools 手抄镜像必须同步）', () => {
+    // canvasTools.ts 在主进程、刻意手抄 pose 枚举避免拉 THREE 进主进程（见该文件注释）。
     // 手抄就会漂移——这里读源码文本对账，新增/改名预设而忘了同步工具枚举即红。
-    const canvasDescriptorsPath = fileURLToPath(new URL('../../../../../electron/harness/tools/canvasDescriptors.ts', import.meta.url))
-    const source = readFileSync(canvasDescriptorsPath, 'utf8')
+    const canvasToolsPath = fileURLToPath(new URL('../../../../../electron/ai/canvasTools.ts', import.meta.url))
+    const source = readFileSync(canvasToolsPath, 'utf8')
     // 抓 pose 字段的 enum 数组（schema 里形如 pose: { type: 'string', enum: ['standing', ...] } 或 z.enum([...])）
     const match = source.match(/pose[\s\S]{0,120}?enum[\s(]*\[([\s\S]*?)\]/)
-    expect(match, 'canvasDescriptors.ts 里没找到 pose 枚举,schema 结构变了请更新本测试').not.toBeNull()
+    expect(match, 'canvasTools.ts 里没找到 pose 枚举,schema 结构变了请更新本测试').not.toBeNull()
     const enumIds = (match?.[1] ?? '')
       .split(',')
       .map((token) => token.trim().replace(/^['"]|['"]$/g, ''))

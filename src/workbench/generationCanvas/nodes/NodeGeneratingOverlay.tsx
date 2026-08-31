@@ -4,9 +4,8 @@
 import React from 'react'
 import { GeneratingOverlay } from './render/CardCommon'
 import { useComfyuiPreviewStore } from '../store/comfyuiPreviewStore'
-import { requestTaskCancel } from '../runner/localTaskControl'
+import { requestComfyuiCancel } from '../runner/comfyuiTaskControl'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { canInterruptGenerationTask } from '../model/taskCancellation'
 
 export function NodeGeneratingOverlay({ node }: { node: GenerationCanvasNode }): JSX.Element {
   const comfyLive =
@@ -14,8 +13,8 @@ export function NodeGeneratingOverlay({ node }: { node: GenerationCanvasNode }):
       ? node.progress
       : null
   const previewUrl = useComfyuiPreviewStore((state) => state.byNode[node.id])
-  const handleCancel = React.useCallback(() => requestTaskCancel(node), [node])
-  if (!comfyLive) return <GeneratingOverlay onCancel={canInterruptGenerationTask(node) ? handleCancel : undefined} />
+  const handleCancel = React.useCallback(() => requestComfyuiCancel(node), [node])
+  if (!comfyLive) return <GeneratingOverlay />
   return (
     <GeneratingOverlay
       percent={comfyLive.percent}

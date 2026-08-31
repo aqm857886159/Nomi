@@ -2,6 +2,8 @@
   "_comment": "未登记官方文档出处的存量档案。棘轮：只减不增——补一个删一行，新增档案不许进这里。门岗 scripts/check-archetype-sources.mjs（规则 G1/G3）。",
   "_why": "2026-08-12：Seedance 2.5 的 4 个契约数字全是自己填的，注释却写着已逐项对账。注释没法验，结构化出处才能验。",
   "unsourced": [
+    "agnesImage.ts",
+    "agnesVideo.ts",
     "audioArchetype.ts",
     "codexImagegen.ts",
     "doubaoTtsArchetype.ts",

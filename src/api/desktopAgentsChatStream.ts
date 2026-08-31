@@ -1,126 +1,271 @@
 import { getDesktopBridge, type DesktopBridge } from '../desktop/bridge'
-import type { AgentChatAttachment, AgentChatErrorCode, AgentChatRequest, AgentChatResponse, AgentChatStatus, AgentChatToolDecision, AgentChatUsage } from '../../electron/harness/agentChatContracts'
 
 export function requireDesktopRuntime(feature: string): DesktopBridge {
   const desktop = getDesktopBridge()
-  if (!desktop) throw new Error(`Desktop runtime is required for ${feature}`)
+  if (!desktop) throw new Error(`${feature} requires the Electron desktop runtime`)
   return desktop
 }
-export type AgentAttachmentPayload = AgentChatAttachment
-export type AgentsChatRequestDto = AgentChatRequest
-export type AgentsChatResponseDto = AgentChatResponse
-export type AgentUsage = AgentChatUsage
-export type AgentChatV2ToolDecision = AgentChatToolDecision
 
-/** Native Agent usage is already normalized; tolerate unknown transport input without inventing consumption. */
-export function coerceAgentUsage(raw: unknown): AgentUsage | undefined {
-  if (!raw || typeof raw !== 'object') return undefined
-  const rec = raw as Record<string, unknown>
-  const number = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0
-  const promptTokens = number(rec.promptTokens)
-  const completionTokens = number(rec.completionTokens)
-  const cachedPromptTokens = number(rec.cachedPromptTokens)
-  const totalTokens = number(rec.totalTokens) || promptTokens + completionTokens
-  return { promptTokens, completionTokens, cachedPromptTokens, totalTokens }
+// 一条待发附件的「上线」表示（renderer→IPC→electron 透传）。bytes 不进 payload——
+// 只带 nomi-local:// URL，electron 主进程按需读字节（readNomiLocalAsset）。
+export type AgentAttachmentPayload = {
+  url: string
+  contentType: string
+  fileName: string
+  kind: 'image' | 'file'
 }
 
-export type AgentsChatToolStreamPayload = { toolName: string; action: string; stage: 'started' | 'completed' | 'warning' | 'error'; message: string; progress?: number; payload?: unknown }
+export type AgentsChatRequestDto = {
+  vendor?: string
+  prompt: string
+  displayPrompt?: string
+  sessionKey?: string
+  canvasProjectId?: string
+  canvasFlowId?: string
+  chatContext?: unknown
+  mode?: 'chat' | 'auto' | string
+  temperature?: number
+  systemPrompt?: string
+  attachments?: AgentAttachmentPayload[]
+}
+
+export type AgentUsage = {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+  /** vendor 前缀缓存命中的输入 token(命中率=cached/prompt;缺省=vendor 未回报)。 */
+  cachedPromptTokens?: number
+}
+
+export type AgentsChatResponseDto = {
+  id?: string
+  text: string
+  raw?: unknown
+  toolCalls?: unknown[]
+  artifacts?: unknown[]
+  /** Token usage for this turn (was previously buried in `raw` and dropped). */
+  usage?: AgentUsage
+  /** SDK 终止原因（'stop' 正常 / 'length' 达输出上限被截断 / 'tool-calls' 等）。
+   *  面板据此在「有文本但 finishReason=length」时标「可能被截断」，避免把半截当完整。 */
+  finishReason?: string
+}
+
+/** Coerce the SDK's loosely-typed usage object into AgentUsage (0-filled). */
+export function coerceAgentUsage(raw: unknown): AgentUsage | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+  const usage: AgentUsage = {
+    promptTokens: num(r.promptTokens ?? r.inputTokens),
+    completionTokens: num(r.completionTokens ?? r.outputTokens),
+    totalTokens: num(r.totalTokens),
+    ...(num(r.cachedPromptTokens) > 0 ? { cachedPromptTokens: num(r.cachedPromptTokens) } : {}),
+  }
+  if (!usage.totalTokens) usage.totalTokens = usage.promptTokens + usage.completionTokens
+  if (!usage.promptTokens && !usage.completionTokens && !usage.totalTokens) return undefined
+  return usage
+}
+
+export type AgentsChatToolStreamPayload = Record<string, unknown>
+
 export type AgentsChatStreamEvent =
   | { event: 'initial'; data: { requestId: string; messageId?: string } }
-  | { event: 'content'; data: { delta: string; messageId?: string } }
+  | { event: 'content'; data: { delta: string; text: string } }
   | { event: 'tool'; data: AgentsChatToolStreamPayload }
   | { event: 'tool-call'; data: { sessionId: string; toolCallId: string; toolName: string; args: unknown } }
-  | { event: 'tool-result'; data: { toolCallId: string; toolName: string; result: unknown; decision?: AgentChatToolDecision } }
-  | { event: 'tool-error'; data: { toolCallId: string; toolName: string; message: string; denied?: boolean; cancelled?: boolean } }
-  | { event: 'step-finish'; data: { finishReason: string; usage?: AgentUsage } }
+  | { event: 'tool-result'; data: { toolCallId: string; toolName: string; result: unknown } }
+  | { event: 'tool-error'; data: { toolCallId: string; toolName: string; message: string } }
+  | { event: 'step-finish'; data: { finishReason: string } }
   | { event: 'result'; data: { response: AgentsChatResponseDto } }
-  | { event: 'error'; data: { message: string; code?: AgentChatErrorCode } }
-  | { event: 'done'; data: { reason: AgentChatStatus } }
+  | { event: 'error'; data: { message: string; code?: string } }
+  | { event: 'done'; data: { reason: 'finished' | 'error' } }
+
+export type AgentChatV2ToolDecision =
+  // S6-0 对账的「米」：effectiveArgs=合并后全量自洽快照(reconcile 逐字段比对用),
+  // overridesDelta=用户改了 AI 提议的哪些字段(记忆提炼的最强偏好信号)。二者只进轨迹,
+  // 不污染回喂 LLM 的 result(IPC 层只取 result.resolve)。
+  // S6-1 silent=只读 allow 自动放行,不记 proposal.approved(§6.1 纯噪声不入)。
+  // S6-2 proposalId=提议事务标注(approved 事件挂上它,与画布事件/txn.committed 同键可 join)。
+  | { ok: true; result?: unknown; effectiveArgs?: Record<string, unknown>; overridesDelta?: Record<string, unknown>; silent?: boolean; proposalId?: string }
+  // S6-1 denied=gate 判定拒绝(非用户拒),走 gate.denied 而非 proposal.rejected。
+  | { ok: false; message?: string; denied?: boolean }
 
 export type AgentChatV2Session = {
   sessionId: string
-  confirmTool: (toolCallId: string, decision: AgentChatToolDecision) => Promise<void>
+  confirmTool: (toolCallId: string, decision: AgentChatV2ToolDecision) => Promise<void>
   cancel: () => Promise<void>
 }
+
+/**
+ * Real IPC-stream consumer. Subscribes to `nomi:agents:chatV2:event` and
+ * relays each chunk as the existing `AgentsChatStreamEvent` shape so
+ * downstream consumers (workbenchAiClient et al) keep working unchanged.
+ *
+ * Returns a stop function. Calling it cancels the underlying session and
+ * unsubscribes the IPC listener.
+ */
+export async function openDesktopAgentsChatStream(
+  payload: AgentsChatRequestDto,
+  handlers: {
+    onEvent: (event: AgentsChatStreamEvent) => void
+    onOpen?: () => void
+    onError?: (error: Error) => void
+    onSession?: (session: AgentChatV2Session) => void
+  },
+): Promise<() => void> {
+  const desktop = requireDesktopRuntime('agents chat')
+
+  let aborted = false
+  let streamedText = ''
+  let sessionId: string | null = null
+  let unsubscribe: (() => void) | null = null
+
+  handlers.onOpen?.()
+  const requestId = `desktop-${Date.now()}`
+  const messageId = `message-${Date.now()}`
+  handlers.onEvent({ event: 'initial', data: { requestId, messageId } })
+
+  const stop = async (): Promise<void> => {
+    if (aborted) return
+    aborted = true
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
+    // We just unsubscribed, so the backend's own `result`/`done` events (it
+    // emits them after the AbortController fires) will be dropped. Without a
+    // terminal event here the awaiting consumer (sendWorkbenchAiMessage) never
+    // resolves → the panel's `sending/busy` flag is stuck true forever → the
+    // Stop button never reverts and the spinner spins on. So synthesize a
+    // terminal `result` (carrying whatever streamed so far) + `done` to settle
+    // the whole await chain. These calls bypass the `aborted` guard because
+    // they go straight to `handlers.onEvent`, not through the IPC listener.
+    handlers.onEvent({
+      event: 'result',
+      data: {
+        response: {
+          id: `agent-cancelled-${Date.now()}`,
+          text: streamedText || '（已停止生成）',
+          raw: { cancelled: true },
+          toolCalls: [],
+          artifacts: [],
+        },
+      },
+    })
+    handlers.onEvent({ event: 'done', data: { reason: 'finished' } })
+    if (sessionId) {
+      try { await desktop.agents.cancelChatV2(sessionId) } catch { /* noop */ }
+    }
+  }
+
+  try {
+    const start = await desktop.agents.chatV2Start(payload)
+    sessionId = start.sessionId
+
+    unsubscribe = desktop.agents.onChatV2Event(sessionId, (rawEvent) => {
+      if (aborted) return
+      const evt = rawEvent as { type: string } & Record<string, unknown>
+      switch (evt.type) {
+        case 'content-delta': {
+          const delta = String(evt.delta || '')
+          if (!delta) return
+          streamedText += delta
+          handlers.onEvent({ event: 'content', data: { delta, text: streamedText } })
+          return
+        }
+        case 'tool-call-pending': {
+          handlers.onEvent({
+            event: 'tool-call',
+            data: {
+              sessionId: sessionId!,
+              toolCallId: String(evt.toolCallId),
+              toolName: String(evt.toolName),
+              args: evt.args,
+            },
+          })
+          return
+        }
+        case 'tool-result': {
+          handlers.onEvent({
+            event: 'tool-result',
+            data: {
+              toolCallId: String(evt.toolCallId),
+              toolName: String(evt.toolName),
+              result: evt.result,
+            },
+          })
+          return
+        }
+        case 'tool-error': {
+          handlers.onEvent({
+            event: 'tool-error',
+            data: {
+              toolCallId: String(evt.toolCallId),
+              toolName: String(evt.toolName),
+              message: String(evt.message || 'tool failed'),
+            },
+          })
+          return
+        }
+        case 'step-finish': {
+          handlers.onEvent({ event: 'step-finish', data: { finishReason: String(evt.finishReason || 'unknown') } })
+          return
+        }
+        case 'result': {
+          const inner = (evt.result as { id?: string; text?: string; usage?: unknown; finishReason?: string }) || {}
+          const response: AgentsChatResponseDto = {
+            id: typeof inner.id === 'string' ? inner.id : `agent-${Date.now()}`,
+            text: typeof inner.text === 'string' ? inner.text : streamedText,
+            raw: evt.result,
+            toolCalls: [],
+            artifacts: [],
+            usage: coerceAgentUsage(inner.usage),
+            ...(typeof inner.finishReason === 'string' ? { finishReason: inner.finishReason } : {}),
+          }
+          handlers.onEvent({ event: 'result', data: { response } })
+          return
+        }
+        case 'error': {
+          const message = String(evt.message || 'agent error')
+          handlers.onError?.(new Error(message))
+          handlers.onEvent({ event: 'error', data: { message } })
+          return
+        }
+        case 'done': {
+          const reason = (evt.reason === 'error' ? 'error' : 'finished') as 'finished' | 'error'
+          handlers.onEvent({ event: 'done', data: { reason } })
+          if (unsubscribe) {
+            unsubscribe()
+            unsubscribe = null
+          }
+          return
+        }
+      }
+    })
+
+    handlers.onSession?.({
+      sessionId,
+      confirmTool: async (toolCallId, decision) => {
+        if (!sessionId) return
+        await desktop.agents.confirmTool(sessionId, toolCallId, decision)
+      },
+      cancel: stop,
+    })
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error))
+    handlers.onError?.(err)
+    handlers.onEvent({ event: 'error', data: { message: err.message } })
+    handlers.onEvent({ event: 'done', data: { reason: 'error' } })
+  }
+
+  return () => {
+    void stop()
+  }
+}
+
 export type AgentsChatStreamHandlers = {
   onEvent: (event: AgentsChatStreamEvent) => void
   onOpen?: () => void
   onError?: (error: Error) => void
   onSession?: (session: AgentChatV2Session) => void
-}
-
-/** Subscribe and publish cancellation synchronously; an ACK is never a stream admission gate. */
-export async function openDesktopAgentsChatStream(payload: AgentChatRequest, handlers: AgentsChatStreamHandlers): Promise<() => void> {
-  const desktop = requireDesktopRuntime('agents chat')
-  const sessionId = `agent-${globalThis.crypto.randomUUID()}`
-  let settled = false
-  let startDispatched = false
-  let cancelRequested = false
-  let cancelPromise: Promise<void> | undefined
-  let unsubscribe: (() => void) | undefined
-
-  const finish = (reason: AgentChatStatus) => {
-    if (settled) return
-    settled = true
-    unsubscribe?.()
-    unsubscribe = undefined
-    handlers.onEvent({ event: 'done', data: { reason } })
-  }
-  const fail = (error: unknown) => {
-    if (settled) return
-    const actual = error instanceof Error ? error : new Error(String(error))
-    handlers.onEvent({ event: 'error', data: { message: actual.message } })
-    handlers.onError?.(actual)
-    finish('error')
-  }
-  const requestCancel = () => {
-    if (!startDispatched || settled) return Promise.resolve()
-    return cancelPromise ??= desktop.agents.cancelChatV2(sessionId).then(() => {}, fail)
-  }
-  const stop = async () => {
-    if (settled) return
-    cancelRequested = true
-    await requestCancel()
-  }
-
-  handlers.onOpen?.()
-  handlers.onEvent({ event: 'initial', data: { requestId: sessionId, messageId: sessionId } })
-  unsubscribe = desktop.agents.onChatV2Event(sessionId, (event) => {
-    if (settled) return
-    switch (event.type) {
-      case 'content-delta': handlers.onEvent({ event: 'content', data: { delta: event.delta, messageId: sessionId } }); return
-      case 'tool-call-pending': handlers.onEvent({ event: 'tool-call', data: { sessionId, toolCallId: event.toolCallId, toolName: event.toolName, args: event.args } }); return
-      case 'tool-result': handlers.onEvent({ event: 'tool-result', data: { toolCallId: event.toolCallId, toolName: event.toolName, result: event.result, decision: event.decision } }); return
-      case 'tool-error': handlers.onEvent({ event: 'tool-error', data: { toolCallId: event.toolCallId, toolName: event.toolName, message: event.message, denied: event.denied, cancelled: event.cancelled } }); return
-      case 'step-finish': handlers.onEvent({ event: 'step-finish', data: { finishReason: event.finishReason, usage: event.usage } }); return
-      case 'result': {
-        const value = event.result
-        const response: AgentChatResponse = { id: value.id, text: value.text, status: value.status,
-          toolCalls: value.toolCalls, artifacts: value.artifacts, finishReason: value.finishReason,
-          usage: coerceAgentUsage(value.usage) ?? { promptTokens: 0, completionTokens: 0, cachedPromptTokens: 0, totalTokens: 0 },
-          ...(value.status === 'cancelled' ? { raw: { cancelled: true } as const } : {}),
-        }
-        handlers.onEvent({ event: 'result', data: { response } })
-        return
-      }
-      case 'error': handlers.onEvent({ event: 'error', data: { message: event.message, ...(event.code ? { code: event.code } : {}) } }); return
-      case 'done': finish(event.reason); return
-      case 'warning': return // Recoverable compaction warning, not a terminal/user failure.
-      case 'tool-call': return // The registered pending event is the sole host-execution notification.
-    }
-  })
-  if (settled) { unsubscribe(); unsubscribe = undefined }
-  handlers.onSession?.({ sessionId, cancel: stop, confirmTool: async (toolCallId, decision) => {
-    if (settled || cancelRequested) return
-    const reply = await desktop.agents.confirmTool(sessionId, toolCallId, decision)
-    if (!reply.ok && !settled && !cancelRequested) throw new Error(reply.error || 'Agent confirmation rejected')
-  } })
-  try {
-    const starting = desktop.agents.chatV2Start({ requestId: sessionId, request: payload })
-    startDispatched = true
-    if (cancelRequested) void requestCancel()
-    const ack = await starting
-    if (!settled && ack.sessionId !== sessionId) fail(new Error('Agent start acknowledgement identity mismatch'))
-  } catch (error) { fail(error) }
-  return () => { void stop() }
 }

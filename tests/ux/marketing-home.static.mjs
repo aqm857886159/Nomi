@@ -35,7 +35,6 @@ const headers = read('marketing/_headers')
 const readmeEn = read('README.md')
 const readmeZh = read('README.zh-CN.md')
 const quickstart = read('marketing/quickstart.html')
-const releaseVersion = JSON.parse(read('package.json')).version
 const files = [
   'marketing/assets/video/launch-film-en.mp4',
   'marketing/assets/video/launch-film-zh.vtt',
@@ -75,20 +74,8 @@ for (const html of [zh, en]) {
     'tab panels are associated',
   )
   expect(
-    html.includes('class="hero-actions"'),
-    'hero actions remain present',
-  )
-  expect(html.includes('data-github-hero'), 'hero GitHub CTA is marked for verification')
-  expect(html.includes('https://github.com/aqm857886159/Nomi'), 'hero GitHub CTA uses the canonical repository')
-  expect(html.includes('target="_blank" rel="noreferrer"'), 'hero GitHub CTA opens an external repository safely')
-  expect(!html.includes('data-open-dialog="launch-film"'), 'hero no longer opens the 60-second workflow dialog')
-  expect(
-    !html.includes('观看 60 秒工作流') && !html.includes('Watch the 60s workflow'),
-    '60-second hero copy is removed',
-  )
-  expect(
-    !html.includes('OPEN-SOURCE · LOCAL-FIRST · AI VIDEO WORKBENCH'),
-    'hero-only generic English float label is removed',
+    html.includes('<dialog id="launch-film"') && html.includes('<track kind="captions"'),
+    'localized film dialog and captions',
   )
   expect(html.includes('<dialog id="author-dialog"'), 'maintainer contact dialog exists')
   expect(html.includes('<dialog id="download-dialog"'), 'ambiguous platforms get an in-page download chooser')
@@ -129,8 +116,7 @@ for (const html of [zh, en]) {
   expect(!html.includes('data-open-dialog="group'), 'group QR does not require a dialog trigger')
   expect(html.includes('/assets/qingyang-wechat.jpg'), 'maintainer QR destination exists')
   expect(html.includes('/assets/nomi-logo.svg'), 'official Nomi mark is used')
-  expect(html.includes('macOS 12+'), 'macOS minimum version is explicit')
-  expect(html.includes(`"softwareVersion":"${releaseVersion}"`), 'structured data matches the release version')
+expect(html.includes('"softwareVersion":"0.20.1"'), 'structured data matches the release version')
   expect(
     html.includes('navigator.languages') && html.includes('find(Boolean)'),
     'browser locale priority logic is embedded',
@@ -251,9 +237,8 @@ expect(
   readmeEn.includes('Linux, Windows arm64, and macOS universal installers are not currently published'),
   'English README scopes supported release targets',
 )
-expect(quickstart.includes(`data-latest-version>v${releaseVersion}<`), 'quickstart fallback version matches the release')
-expect(quickstart.includes(`"softwareVersion":"${releaseVersion}"`), 'quickstart structured data matches the release version')
-expect(quickstart.includes('macOS 12+'), 'quickstart states the macOS minimum version')
+expect(quickstart.includes('data-latest-version>v0.20.1<'), 'quickstart fallback version matches the release')
+expect(!quickstart.includes('data-latest-version>v0.19.0<'), 'quickstart has no stale release fallback')
 
 const readmeHero = '[![Nomi director workflow]'
 const readmeZhHero = '[![Nomi 导演工作流]'

@@ -11,7 +11,6 @@ import { ensureElectronSignature } from "./ensure-electron-signature.mjs";
 const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const buildTailwindScript = path.join(repoRoot, "scripts", "build-tailwind.mjs");
-const buildElectronScript = path.join(repoRoot, "scripts", "build-electron.mjs");
 const childProcessLifecycle = installChildProcessLifecycle();
 
 function configureWindowsConsoleEncoding() {
@@ -59,6 +58,8 @@ ensureElectronSignature(electron, { log: (msg) => console.log(msg) });
 const vitePackagePath = require.resolve("vite/package.json");
 const vitePackageDir = path.dirname(vitePackagePath);
 const viteBin = path.join(vitePackageDir, "bin", "vite.js");
+const tscPackagePath = require.resolve("typescript/package.json");
+const tscBin = path.join(path.dirname(tscPackagePath), "bin", "tsc");
 function electronEnv(extra = {}) {
   const env = { ...process.env, ...extra };
   delete env.ELECTRON_RUN_AS_NODE;
@@ -66,14 +67,12 @@ function electronEnv(extra = {}) {
 }
 
 function compileElectronMain() {
-  const result = spawnSync(process.execPath, [buildElectronScript], {
-    cwd: repoRoot,
+  const result = spawnSync(process.execPath, [tscBin, "-p", "electron/tsconfig.json"], {
     stdio: "inherit",
     env: electronEnv(),
   });
-  if (result.error) throw result.error;
   if (result.signal) process.kill(process.pid, result.signal);
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  if (typeof result.status === "number" && result.status !== 0) process.exit(result.status);
 }
 
 function compileTailwindStyles() {

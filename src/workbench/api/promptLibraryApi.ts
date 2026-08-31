@@ -107,11 +107,22 @@ export async function deleteUserPrompt(id: string): Promise<LibraryPrompt[]> {
   return mapUserPrompts(await desktop.promptLibrary!.userDelete(id))
 }
 
-/** 节点提示词优化用的已配置文本大脑键(与创作助手同脑);未配文本模型返回 null。 */
+/** 节点提示词优化用的文本大脑键(与创作助手同脑);未配文本模型返回 null。 */
 export async function getTextBrain(): Promise<{ vendor: string; modelKey: string } | null> {
   const desktop = requireDesktopRuntime('prompt optimize')
   const res = await desktop.promptLibrary!.textBrain()
   return res?.ok && res.brain ? res.brain : null
+}
+
+/**
+ * 文本大脑三态（ok / locked / missing）——上手清单第一步、恢复卡、库页状态条据此把
+ * 「已保存的 Key 读不出（locked）」和「压根没配（missing）」说清楚，而不是一律「去接入」。
+ * 与 getTextBrain 同一 IPC，判据同一份（chooseTextModel + apiKeyDecryptStatus）。
+ */
+export async function getTextBrainStatus(): Promise<'ok' | 'locked' | 'missing'> {
+  const desktop = requireDesktopRuntime('text brain status')
+  const res = await desktop.promptLibrary!.textBrain()
+  return res?.status ?? (res?.ok ? 'ok' : 'missing')
 }
 
 export type PromptCategory = 'all' | 'image' | 'video'

@@ -126,10 +126,6 @@ function normalizeImageBindings(
     push(nodeId, inputKey, paramKey, nonEmptyString(raw.label) ?? inputKey, mediaKind);
   }
 
-  // `images` 一旦出现就是作者/用户明确声明的完整列表，包含空数组也一样；旧角色只在
-  // 没有这个字段的旧快照里迁移。否则用户删空多参工作流后，遗留 firstFrame 字段会把槽位复活。
-  if (Array.isArray(source.images)) return images;
-
   const legacyRoles: Array<[keyof WorkflowBinding, keyof WorkflowBinding, string, "image" | "video"]> = [
     ["firstFrameNodeId", "firstFrameInputKey", "first_frame_url", "image"],
     ["lastFrameNodeId", "lastFrameInputKey", "last_frame_url", "image"],
@@ -187,11 +183,7 @@ export function normalizeWorkflowBinding(binding: unknown, graph?: ComfyGraph): 
 
   // 媒体输入收敛成 images[]：先吃显式声明的，再把三个老角色**折进来**（读时一次性迁移）。
   // 迁移后老角色字段即从产物里删掉——写路径与消费路径只认 images[]，不留并行版（P1）。
-  const promptTarget = normalized.promptNodeId && normalized.promptInputKey
-    ? inputKeyOf(normalized.promptNodeId, normalized.promptInputKey)
-    : "";
-  normalized.images = normalizeImageBindings(source, normalized, graph)
-    .filter((image) => inputKeyOf(image.nodeId, image.inputKey) !== promptTarget);
+  normalized.images = normalizeImageBindings(source, normalized, graph);
   delete normalized.firstFrameNodeId; delete normalized.firstFrameInputKey;
   delete normalized.lastFrameNodeId; delete normalized.lastFrameInputKey;
   delete normalized.sourceVideoNodeId; delete normalized.sourceVideoInputKey;
@@ -202,8 +194,7 @@ export function normalizeWorkflowBinding(binding: unknown, graph?: ComfyGraph): 
     : Array.isArray(source.numeric) ? source.numeric : [];
   const params: WorkflowParamBinding[] = [];
   const seenTargets = new Set<string>();
-  // 图片/视频与普通字段最终都写 request.params；媒体键优先，普通字段只加后缀、不丢弃。
-  const seenKeys = new Set(normalized.images.map((image) => image.paramKey));
+  const seenKeys = new Set<string>();
   const roleTargets = roleBoundInputKeys(normalized);
 
   for (const raw of rawParams) {

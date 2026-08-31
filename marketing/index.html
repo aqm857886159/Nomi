@@ -24,7 +24,7 @@
 <meta name="twitter:description" content="开源、本地优先的 AI 视频工作台。使用你已有的模型、会员、API 或本地 ComfyUI，从脚本、分镜、生成到剪辑，减少平台溢价、重复订阅、无效生成和重复劳动。" />
 <meta name="twitter:image" content="https://nomiaqm.com/assets/social-preview-zh.jpg" />
 <meta name="twitter:image:alt" content="Nomi 开源、本地优先的低成本 AI 视频工作台" />
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://nomiaqm.com/#website","name":"Nomi","url":"https://nomiaqm.com/","inLanguage":["zh-CN","en"]},{"@type":"WebPage","@id":"https://nomiaqm.com/","url":"https://nomiaqm.com/","name":"Nomi — 把 AI 视频的成本打下来","description":"开源、本地优先的 AI 视频工作台。使用你已有的模型、会员、API 或本地 ComfyUI，从脚本、分镜、生成到剪辑，减少平台溢价、重复订阅、无效生成和重复劳动。","inLanguage":"zh-CN","isPartOf":{"@id":"https://nomiaqm.com/#website"},"about":{"@id":"https://nomiaqm.com/#application"},"primaryImageOfPage":{"@type":"ImageObject","contentUrl":"https://nomiaqm.com/assets/social-preview-zh.jpg"}},{"@type":"SoftwareApplication","@id":"https://nomiaqm.com/#application","name":"Nomi","applicationCategory":"MultimediaApplication","operatingSystem":"macOS, Windows","codeRepository":"https://github.com/aqm857886159/Nomi","license":"https://www.gnu.org/licenses/agpl-3.0.html","url":"https://nomiaqm.com/","softwareVersion":"0.21.0","downloadUrl":"https://github.com/aqm857886159/Nomi/releases/latest"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://nomiaqm.com/#website","name":"Nomi","url":"https://nomiaqm.com/","inLanguage":["zh-CN","en"]},{"@type":"WebPage","@id":"https://nomiaqm.com/","url":"https://nomiaqm.com/","name":"Nomi — 把 AI 视频的成本打下来","description":"开源、本地优先的 AI 视频工作台。使用你已有的模型、会员、API 或本地 ComfyUI，从脚本、分镜、生成到剪辑，减少平台溢价、重复订阅、无效生成和重复劳动。","inLanguage":"zh-CN","isPartOf":{"@id":"https://nomiaqm.com/#website"},"about":{"@id":"https://nomiaqm.com/#application"},"primaryImageOfPage":{"@type":"ImageObject","contentUrl":"https://nomiaqm.com/assets/social-preview-zh.jpg"}},{"@type":"SoftwareApplication","@id":"https://nomiaqm.com/#application","name":"Nomi","applicationCategory":"MultimediaApplication","operatingSystem":"macOS, Windows","codeRepository":"https://github.com/aqm857886159/Nomi","license":"https://www.gnu.org/licenses/agpl-3.0.html","url":"https://nomiaqm.com/","softwareVersion":"0.20.1","downloadUrl":"https://github.com/aqm857886159/Nomi/releases/latest"}]}</script>
 <script>(() => {
   if (location.pathname !== '/') return
   const localeKey = 'nomi_locale'
@@ -92,8 +92,6 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 12px); }
 .button.primary:hover { background: var(--coral-dark); }
 .button.light { color: var(--ink); background: var(--white); border-color: var(--white); }
 .button.coral { color: var(--ink); background: var(--coral); border-color: var(--coral); }
-.button.hero-github { color: var(--coral-dark); border-color: var(--coral-dark); }
-.button.hero-github:hover { color: var(--white); background: var(--coral-dark); }
 
 .hero { min-height: calc(100vh - var(--nav-h)); padding: 72px 0 0; overflow: hidden; }
 .hero-copy { max-width: 1120px; margin: 0 auto; text-align: center; animation: hero-enter 520ms ease both; }
@@ -103,7 +101,6 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 12px); }
 .hero h1 .hit::after { content: ""; position: absolute; left: 0; right: 0; bottom: 2px; height: 7px; background: var(--coral); transform: rotate(-1.5deg); z-index: -1; }
 .hero-lede { max-width: 800px; margin: 28px auto 0; color: var(--ink-soft); font-size: 19px; line-height: 1.7; }
 .hero-actions { margin-top: 28px; display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
-.hero-contribution { max-width: 720px; margin: 12px auto 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .mac-download-note { max-width: 720px; margin: 14px auto 0; color: var(--ink-soft); font-size: 13px; }
 .mac-download-note a { color: var(--coral-dark); font-weight: 800; text-underline-offset: 3px; }
 .truth-note { margin: 18px auto 0; color: var(--muted); font-size: 12px; }
@@ -340,13 +337,13 @@ dialog::backdrop { background: rgba(0,0,0,.72); }
 <main id="main">
 <section class="hero" id="top">
   <div class="wrap hero-copy" data-reveal>
+    <p class="eyebrow">OPEN-SOURCE · LOCAL-FIRST · AI VIDEO WORKBENCH</p>
     <h1><span class="line">把 AI 视频的成本，</span><span class="line hit">打下来。</span></h1>
     <p class="hero-lede">模型、会员、API、ComfyUI，都用你自己的。Nomi 把脚本、分镜、生成、剪辑和 AI 助手放进一个开源工作台，不再为平台套餐、重复工具和低效试错多付一遍。</p>
     <div class="hero-actions">
       <a class="button primary" data-download-nomi href="#download-options">下载 Nomi</a>
-      <a class="button hero-github" data-github-hero href="https://github.com/aqm857886159/Nomi" target="_blank" rel="noreferrer">去 GitHub 参与改进 ↗</a>
+      <a class="button" href="/assets/demo.mp4" data-open-dialog="launch-film">观看 60 秒工作流</a>
     </div>
-    <p class="hero-contribution">项目还在快速迭代。遇到问题欢迎提 Issue，想一起改进可以提交 PR。</p>
     <p class="mac-download-note">macOS 安装包暂未签名或公证，首次打开可能被系统拦截。 <a href="#download-options" data-open-dialog="download-dialog">查看安全打开方法</a></p>
     <p class="truth-note">生成仍会消耗你所选服务的额度；Nomi 减少平台溢价、重复订阅、无效生成和重复劳动。</p>
   </div>
@@ -497,7 +494,7 @@ dialog::backdrop { background: rgba(0,0,0,.72); }
 </dialog>
 <dialog id="download-dialog" aria-labelledby="download-title">
   <div class="dialog-head"><strong id="download-title">选择适合这台电脑的版本</strong><button class="dialog-close" type="button" aria-label="关闭">×</button></div>
-  <div class="dialog-body download-dialog-body"><p>能识别系统时会直接下载；无法可靠判断 Mac 芯片时，请选择对应安装包。</p><div class="download-options"><a class="download-option" data-direct-download href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-windows-setup.exe"><span><strong>Windows x64</strong><small>Windows 10 / 11 · .exe 安装包</small></span><span aria-hidden="true">EXE ↓</span></a><a class="download-option" data-direct-download href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-mac-arm64.dmg"><span><strong>Mac Apple 芯片</strong><small>macOS 12+ · M1 / M2 / M3 / M4 · .dmg 安装包</small></span><span aria-hidden="true">ARM64 ↓</span></a><a class="download-option" data-direct-download href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-mac-intel.dmg"><span><strong>Mac Intel 芯片</strong><small>macOS 12+ · Intel 处理器 · .dmg 安装包</small></span><span aria-hidden="true">X64 ↓</span></a></div><section class="mac-install-guide" data-mac-install-guide>
+  <div class="dialog-body download-dialog-body"><p>能识别系统时会直接下载；无法可靠判断 Mac 芯片时，请选择对应安装包。</p><div class="download-options"><a class="download-option" data-direct-download href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-windows-setup.exe"><span><strong>Windows x64</strong><small>Windows 10 / 11 · .exe 安装包</small></span><span aria-hidden="true">EXE ↓</span></a><a class="download-option" data-direct-download href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-mac-arm64.dmg"><span><strong>Mac Apple 芯片</strong><small>M1 / M2 / M3 / M4 · .dmg 安装包</small></span><span aria-hidden="true">ARM64 ↓</span></a><a class="download-option" data-direct-download href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-mac-intel.dmg"><span><strong>Mac Intel 芯片</strong><small>Intel 处理器 · .dmg 安装包</small></span><span aria-hidden="true">X64 ↓</span></a></div><section class="mac-install-guide" data-mac-install-guide>
   <strong class="mac-install-guide-title">macOS 第一次打开</strong>
   <p>当前 macOS 安装包未使用 Apple Developer ID 签名，也未经过 Apple 公证。请只使用本页或 Nomi GitHub 官方仓库的下载链接。</p>
   <ol><li>下载对应的 DMG，把 Nomi 拖到“应用程序”。</li><li>在 Finder 的“应用程序”中右键 Nomi，选择“打开”，再确认“打开”。</li><li>如果仍被拦截，打开“系统设置” → “隐私与安全”，找到 Nomi 后点击“仍要打开”。</li></ol>
@@ -506,7 +503,7 @@ dialog::backdrop { background: rgba(0,0,0,.72); }
   <p class="mac-install-safety">不需要、也不要全局关闭 Gatekeeper。</p>
 </section></div>
 </dialog>
-<noscript><section class="download-fallback" id="download-options"><div class="wrap"><h2>选择适合这台电脑的版本</h2><p>能识别系统时会直接下载；无法可靠判断 Mac 芯片时，请选择对应安装包。</p><div class="download-options"><a class="download-option" data-direct-download href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-windows-setup.exe"><span><strong>Windows x64</strong><small>Windows 10 / 11 · .exe 安装包</small></span><span aria-hidden="true">EXE ↓</span></a><a class="download-option" data-direct-download href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-mac-arm64.dmg"><span><strong>Mac Apple 芯片</strong><small>macOS 12+ · M1 / M2 / M3 / M4 · .dmg 安装包</small></span><span aria-hidden="true">ARM64 ↓</span></a><a class="download-option" data-direct-download href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-mac-intel.dmg"><span><strong>Mac Intel 芯片</strong><small>macOS 12+ · Intel 处理器 · .dmg 安装包</small></span><span aria-hidden="true">X64 ↓</span></a></div><section class="mac-install-guide" data-mac-install-guide>
+<noscript><section class="download-fallback" id="download-options"><div class="wrap"><h2>选择适合这台电脑的版本</h2><p>能识别系统时会直接下载；无法可靠判断 Mac 芯片时，请选择对应安装包。</p><div class="download-options"><a class="download-option" data-direct-download href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-windows-setup.exe"><span><strong>Windows x64</strong><small>Windows 10 / 11 · .exe 安装包</small></span><span aria-hidden="true">EXE ↓</span></a><a class="download-option" data-direct-download href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-mac-arm64.dmg"><span><strong>Mac Apple 芯片</strong><small>M1 / M2 / M3 / M4 · .dmg 安装包</small></span><span aria-hidden="true">ARM64 ↓</span></a><a class="download-option" data-direct-download href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-mac-intel.dmg"><span><strong>Mac Intel 芯片</strong><small>Intel 处理器 · .dmg 安装包</small></span><span aria-hidden="true">X64 ↓</span></a></div><section class="mac-install-guide" data-mac-install-guide>
   <strong class="mac-install-guide-title">macOS 第一次打开</strong>
   <p>当前 macOS 安装包未使用 Apple Developer ID 签名，也未经过 Apple 公证。请只使用本页或 Nomi GitHub 官方仓库的下载链接。</p>
   <ol><li>下载对应的 DMG，把 Nomi 拖到“应用程序”。</li><li>在 Finder 的“应用程序”中右键 Nomi，选择“打开”，再确认“打开”。</li><li>如果仍被拦截，打开“系统设置” → “隐私与安全”，找到 Nomi 后点击“仍要打开”。</li></ol>

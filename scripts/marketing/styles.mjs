@@ -49,8 +49,6 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 12px); }
 .button.primary:hover { background: var(--coral-dark); }
 .button.light { color: var(--ink); background: var(--white); border-color: var(--white); }
 .button.coral { color: var(--ink); background: var(--coral); border-color: var(--coral); }
-.button.hero-github { color: var(--coral-dark); border-color: var(--coral-dark); }
-.button.hero-github:hover { color: var(--white); background: var(--coral-dark); }
 
 .hero { min-height: calc(100vh - var(--nav-h)); padding: 72px 0 0; overflow: hidden; }
 .hero-copy { max-width: 1120px; margin: 0 auto; text-align: center; animation: hero-enter 520ms ease both; }
@@ -60,7 +58,6 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 12px); }
 .hero h1 .hit::after { content: ""; position: absolute; left: 0; right: 0; bottom: 2px; height: 7px; background: var(--coral); transform: rotate(-1.5deg); z-index: -1; }
 .hero-lede { max-width: 800px; margin: 28px auto 0; color: var(--ink-soft); font-size: 19px; line-height: 1.7; }
 .hero-actions { margin-top: 28px; display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
-.hero-contribution { max-width: 720px; margin: 12px auto 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .mac-download-note { max-width: 720px; margin: 14px auto 0; color: var(--ink-soft); font-size: 13px; }
 .mac-download-note a { color: var(--coral-dark); font-weight: 800; text-underline-offset: 3px; }
 .truth-note { margin: 18px auto 0; color: var(--muted); font-size: 12px; }

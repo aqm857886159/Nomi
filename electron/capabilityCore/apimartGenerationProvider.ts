@@ -1,8 +1,8 @@
 import type { GenerationProvider, GenerationProviderOutput, ResolvedTaskRequestV1 } from "./generationRuntimeAdapter";
-import { appFetch } from "../appFetch";
 
 export type ApimartGenerationProviderOptions = {
-  resolveConnection: () => { apiKey: string; baseUrl?: string } | null;
+  apiKey: string;
+  baseUrl?: string;
   fetchImpl?: typeof fetch;
 };
 
@@ -112,27 +112,14 @@ function extractMaterializationOutputs(raw: unknown): GenerationProviderOutput[]
 }
 
 export function createApimartGenerationProvider(options: ApimartGenerationProviderOptions): GenerationProvider {
-  const fetchImpl = options.fetchImpl ?? appFetch;
-  const request = async (path: string, init: RequestInit, context: string): Promise<JsonRecord> => {
-    let connection: { apiKey: string; baseUrl?: string } | null = null;
-    try {
-      connection = options.resolveConnection();
-    } catch {
-      // Credential resolution is deliberately deferred to a real network action.
-      // Keep OS/keychain details private while preserving a structured provider error.
-    }
-    const apiKey = typeof connection?.apiKey === "string" ? connection.apiKey.trim() : "";
-    if (!apiKey) throw new ApimartGenerationProviderError("APIMart connection is disabled, missing, or locked");
-    const url = `${baseUrl(connection?.baseUrl)}${path}`;
+  const apiKey = options.apiKey.trim();
+  const root = baseUrl(options.baseUrl);
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const request = async (url: string, init: RequestInit, context: string): Promise<JsonRecord> => {
+    if (!apiKey) throw new ApimartGenerationProviderError("APIMart credential is missing");
     let response: Response;
     try {
-      response = await fetchImpl(url, {
-        ...init,
-        headers: {
-          ...(init.headers as Record<string, string> | undefined),
-          Authorization: `Bearer ${apiKey}`,
-        },
-      });
+      response = await fetchImpl(url, init);
     } catch (error) {
       throw new ApimartGenerationProviderError(`APIMart ${context} failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -146,8 +133,9 @@ export function createApimartGenerationProvider(options: ApimartGenerationProvid
   const queryTask = async (providerTaskId: string) => {
     const taskId = providerTaskId.trim();
     if (!taskId) throw new ApimartGenerationProviderError("APIMart task id is missing");
-    const payload = await request(`/v1/tasks/${encodeURIComponent(taskId)}`, {
+    const payload = await request(`${root}/v1/tasks/${encodeURIComponent(taskId)}`, {
       method: "GET",
+      headers: { Authorization: `Bearer ${apiKey}` },
     }, "task query");
     const data = record(payload.data, "task query");
     const status = typeof data.status === "string" ? data.status : "unknown";
@@ -158,9 +146,9 @@ export function createApimartGenerationProvider(options: ApimartGenerationProvid
     capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false, materialize: true },
     buildRequest: buildImageRequest,
     async submit(providerRequest) {
-      const payload = await request("/v1/images/generations", {
+      const payload = await request(`${root}/v1/images/generations`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify(record(providerRequest, "submit")),
       }, "image submission");
       const first = Array.isArray(payload.data) ? payload.data[0] : undefined;

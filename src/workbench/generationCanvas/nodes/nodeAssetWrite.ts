@@ -24,7 +24,7 @@ export function addAssetUrlToNode(nodeId: string, kind: AssetDropKind, url: stri
   const slot = findArraySlotForKind(resolveNodeArraySlots(meta), kind)
   if (!slot) return { status: 'no-slot' }
   const result = appendArchetypeArrayValue(meta, slot, url)
-  if (result.status === 'full') return { status: 'full', max: result.max, label: slot.label }
+  if (result.status === 'full') return { status: 'full', max: slot.max, label: slot.label }
   if (result.status !== 'added') return { status: result.status }
   state.updateNode(nodeId, { meta: { ...meta, [slot.metaKey]: result.next } })
   return { status: 'added' }

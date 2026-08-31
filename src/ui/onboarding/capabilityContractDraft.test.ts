@@ -46,18 +46,6 @@ const existingContract: CustomCapabilityContractV1 = {
 }
 
 describe('capability contract form draft', () => {
-  it('keeps builtin modes and parameters when the upstream reference limit is unpublished', () => {
-    const archetype = MODEL_ARCHETYPES.find((candidate) => candidate.id === 'agnes-image-2.1')!
-    const draft = createCapabilityContractDraft({ modelKind: 'image', archetype, defaultModeLabel: 'Default mode' })!
-    expect(draft.modes.map((mode) => mode.id)).toEqual(['t2i', 'edit'])
-    expect(draft.modes.map((mode) => mode.parameters.map((parameter) => parameter.key)))
-      .toEqual([['size', 'ratio'], ['size', 'ratio']])
-    expect(draft.modes[1].slots[0]).toMatchObject({ inputKey: 'image', min: '1', max: '' })
-    // An unknown builtin cap must not silently invent a permissive custom override.
-    expect(validateCapabilityContractDraft(draft).contract).toBeNull()
-    expect(validateCapabilityContractDraft(draft).errors).toHaveProperty('modes.1.slots.0.max')
-  })
-
   it('round-trips a valid contract while retaining advanced fields the basic form does not edit', () => {
     const draft = createCapabilityContractDraft({
       modelKind: 'video',
@@ -268,7 +256,7 @@ describe('capability contract form draft', () => {
   })
 
   it.each(MODEL_ARCHETYPES.map((archetype) => [archetype.id, archetype] as const))(
-    'preserves the existing %s profile and requires explicit caps only for custom overrides',
+    'can open and save the existing %s profile without dropping it into an invalid draft',
     (_id, archetype) => {
       const draft = createCapabilityContractDraft({
         modelKind: archetype.kind,
@@ -277,11 +265,7 @@ describe('capability contract form draft', () => {
       })
 
       expect(draft).not.toBeNull()
-      expect(draft!.modes.map((mode) => mode.id)).toEqual(archetype.modes.map((mode) => mode.id))
-      const requiredCaps = Object.fromEntries(archetype.modes.flatMap((mode, modeIndex) =>
-        mode.slots.flatMap((slot, slotIndex) => slot.max === undefined
-          ? [[`modes.${modeIndex}.slots.${slotIndex}.max`, 'invalidInteger']] : [])))
-      expect(validateCapabilityContractDraft(draft!).errors).toEqual(requiredCaps)
+      expect(validateCapabilityContractDraft(draft!).errors).toEqual({})
     },
   )
 })

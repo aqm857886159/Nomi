@@ -173,17 +173,6 @@ export function ModelWorkspaceRecovery({
   )
 }
 
-export type ModelWorkspaceConnection = {
-  status: React.ReactNode
-  fields?: React.ReactNode
-  title?: string
-  enabledLocked: boolean
-  enabledHint: string
-  onSetEnabled: (enabled: boolean) => void
-  inputSummary?: string
-  requestSummary: string
-}
-
 export function ModelWorkspacePage({
   model,
   vendorName,
@@ -203,7 +192,6 @@ export function ModelWorkspacePage({
   onRetype,
   onDelete,
   onBack,
-  connection,
 }: {
   model?: ChipModel
   vendorName: string
@@ -223,7 +211,6 @@ export function ModelWorkspacePage({
   onRetype: (kind: string) => void
   onDelete: () => void
   onBack: () => void
-  connection?: ModelWorkspaceConnection
 }): JSX.Element {
   const { t } = useTranslation()
   if (!model) {
@@ -233,11 +220,11 @@ export function ModelWorkspacePage({
   const capabilityKnown = model.kind === 'text' || capability.inputContract === 'known'
   const transportAvailable = model.kind === 'text' || capability.customCall.enabled || capability.transport.mappings.length > 0
   const readyForCanvas = capabilityKnown && transportAvailable
-  const switchLocked = connection?.enabledLocked ?? Boolean(enabledLocked || !readyForCanvas)
+  const switchLocked = Boolean(enabledLocked || !readyForCanvas)
   return (
     <div className="flex h-full min-h-0 flex-col" data-model-settings-page="model" data-model-settings-model={modelKey}>
       <ModelSettingsPageHeader
-        title={connection?.title || model.labelZh || modelKey}
+        title={model.labelZh || modelKey}
         subtitle={t('onboardingProviders.workspace.modelIdentity', { vendor: vendorName, model: modelKey })}
         backLabel={t('common.back')}
         onBack={onBack}
@@ -245,7 +232,7 @@ export function ModelWorkspacePage({
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         <div className="mx-auto w-full max-w-[720px]">
           <div className="flex flex-col gap-5">
-            {connection?.status ?? <ModelAdapterStatusSection
+            <ModelAdapterStatusSection
               model={model}
               canAutoAdapt={canAutoAdapt}
               canUseScript={canUseScript}
@@ -258,7 +245,7 @@ export function ModelWorkspacePage({
               onOpenTask={onOpenTask}
               onOpenScript={onOpenScript}
               onEditCapability={onOpenCapability}
-            />}
+            />
             <section>
               <h3 className="mb-1 text-body-sm font-semibold text-nomi-ink">{t('onboardingProviders.workspace.basicSettings')}</h3>
               <div className="border-y border-nomi-line">
@@ -266,7 +253,7 @@ export function ModelWorkspacePage({
                   <div className="min-w-0">
                     <div className="text-body-sm font-medium text-nomi-ink">{t('onboardingProviders.workspace.enabled')}</div>
                     <div className="mt-0.5 text-caption text-nomi-ink-40">
-                      {connection?.enabledHint ?? t(!readyForCanvas
+                      {t(!readyForCanvas
                         ? 'onboardingProviders.workspace.adapter.notReadyEnabledHint'
                         : enabledLocked
                         ? hasActiveRun
@@ -275,9 +262,8 @@ export function ModelWorkspacePage({
                         : 'onboardingProviders.workspace.enabledHint')}
                     </div>
                   </div>
-                  <DesignSwitch disabled={switchLocked} checked={model.enabled} onChange={(event) => (connection?.onSetEnabled ?? onSetEnabled)(event.currentTarget.checked)} />
+                  <DesignSwitch disabled={switchLocked} checked={model.enabled} onChange={(event) => onSetEnabled(event.currentTarget.checked)} />
                 </div>
-                {connection?.fields}
                 <div className="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-2.5">
                   <div className="min-w-0">
                     <div className="text-body-sm font-medium text-nomi-ink">{t('onboardingProviders.workspace.modelKind')}</div>
@@ -309,11 +295,9 @@ export function ModelWorkspacePage({
               canUseScript={canUseScript}
               onEdit={onOpenCapability}
               onEditRequest={canUseScript ? onOpenScript : undefined}
-              inputSummaryOverride={connection?.inputSummary}
-              requestSummaryOverride={connection?.requestSummary}
             />
 
-            {!connection ? <details className="group border-t border-nomi-line pt-1">
+            <details className="group border-t border-nomi-line pt-1">
               <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 text-caption font-semibold text-nomi-ink-60 hover:text-nomi-ink [&::-webkit-details-marker]:hidden">
                 {t('onboardingProviders.workspace.moreActions')}
                 <IconChevronDown size={16} stroke={1.6} className="transition-transform group-open:rotate-180" aria-hidden="true" />
@@ -328,7 +312,7 @@ export function ModelWorkspacePage({
                   {t('onboardingProviders.drawer.deleteModel')}
                 </button>
               </div>
-            </details> : null}
+            </details>
           </div>
         </div>
       </div>

@@ -29,7 +29,6 @@ import {
   normalizeBinding,
   roleChoicesForNode,
   toggleField,
-  workflowMediaBindings,
   type RoleChoice,
   type WorkflowAnalysis,
   type WorkflowBinding,
@@ -95,14 +94,12 @@ export function ComfyuiWorkflowSettingsPage({
   // 换后端 → 选中它的第一条工作流（别把上一台的选中项留在这儿，那条在这台上不存在）。
   const workflowKeys = catalog.workflows.map((w) => w.modelKey).join(',')
   React.useEffect(() => {
-    // The initial empty array means "not loaded", not "requested workflow was deleted".
-    if (!catalog.ready) return
     setSelectedModelKey((current) => {
       if (current && catalog.workflows.some((w) => w.modelKey === current)) return current
       return catalog.workflows.find((w) => !w.builtin)?.modelKey ?? catalog.workflows[0]?.modelKey ?? null
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workflowKeys, catalog.ready])
+  }, [workflowKeys])
 
   // 选中的工作流 → 读原始 JSON → 分析出候选 → 回填已存绑定。
   //
@@ -113,7 +110,6 @@ export function ComfyuiWorkflowSettingsPage({
   const draftOf = catalog.draftOf
   const labelOf = catalog.labelOf
   React.useEffect(() => {
-    if (!catalog.ready) return
     if (!selectedModelKey) { setAnalysis(null); setBinding(null); setGraphText(''); setUiWorkflowText(''); setName(''); return }
     const draft = draftOf(selectedModelKey)
     setError('')
@@ -133,7 +129,7 @@ export function ComfyuiWorkflowSettingsPage({
   // draftOf/labelOf 故意不进 deps（见上方注释）：它们每次重查都换身份，会把用户正在编辑的内容冲掉。
   // workflowKeys 变时这一轮渲染里的 draftOf 已是最新的，闭包取到的就是新数据，不会读到旧目录。
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedModelKey, vendorKey, workflowKeys, catalog.ready, t])
+  }, [selectedModelKey, vendorKey, workflowKeys, t])
 
   // 原始 JSON → 图。**必须容错**：草稿是落库的用户数据，手改坏过的、老版本存的半形态都可能进来，
   // 一个 throw 就是整页白屏（buildWorkflowGraphView 内部对畸形节点已经是逐个跳过，不会炸）。
@@ -280,7 +276,10 @@ export function ComfyuiWorkflowSettingsPage({
   // 绑了首帧/尾帧的那条为什么也挡：试跑**不带素材**（上传资产是画布的活），而 image_to_* 通道
   // 没图根本发不出去——主进程会原地报「缺少参考图」。走查实锤过一次：与其让用户点了才撞上一句
   // 他看不懂的失败，不如一开始就说清「这条得去画布上跑」（C4：禁用不做沟通死路）。
-  const needsFrame = Boolean(binding && workflowMediaBindings(binding).some((image) => image.mediaKind === 'image'))
+  const needsFrame = Boolean(
+    (binding?.firstFrameNodeId && binding.firstFrameInputKey) ||
+    (binding?.lastFrameNodeId && binding.lastFrameInputKey),
+  )
   const runBlockedReason = !binding?.outputNodeId
     ? t('comfyuiWorkflowPage.preview.runNeedsOutput')
     : catalog.reachable === false

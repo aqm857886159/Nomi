@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { IconKeyboard } from '@tabler/icons-react'
 import { Tooltip, TooltipContent, TooltipTrigger, WorkbenchButton } from '../../../design'
 import { cn } from '../../../utils/cn'
-import { useCanvasGestureScheme } from '../../../utils/canvasGesturePreference'
+import { useCanvasGestureScheme } from './canvasGesturePreference'
 import { canvasControlsHelpSections } from './canvasControlsHelpModel'
 
 export function CanvasControlsHelpPopover(): JSX.Element {

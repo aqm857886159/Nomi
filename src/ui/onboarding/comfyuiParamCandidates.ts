@@ -22,7 +22,6 @@ export type RoleBinding = {
   lastFrameInputKey?: string
   sourceVideoNodeId?: string
   sourceVideoInputKey?: string
-  images?: ReadonlyArray<{ nodeId: string; inputKey: string }>
 }
 
 export type InputRef = { nodeId: string; inputKey: string }
@@ -42,7 +41,6 @@ export function roleBoundInputKeys(binding: RoleBinding | null | undefined): Set
   for (const [nodeId, inputKey] of roles) {
     if (nodeId && inputKey) keys.add(refKey(nodeId, inputKey))
   }
-  for (const image of binding.images ?? []) keys.add(refKey(image.nodeId, image.inputKey))
   return keys
 }
 

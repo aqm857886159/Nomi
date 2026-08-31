@@ -1,6 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { importNativeFileFromPreload } from "./assets/nativeFileBridge";
-import type { AgentChatStartRequest, AgentChatHistoryRequest, AgentChatToolDecision, AgentChatWireEvent } from './harness/agentChatContracts';
 
 type SyncResult<T> = { ok: true; value: T } | { ok: false; error: string };
 type ProductionDeepLinkPayload = { projectId: string; runId?: string; nodeId?: string; artifactId?: string };
@@ -335,7 +334,6 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     showInFolder: (payload: unknown) => ipcRenderer.invoke("nomi:exports:show-in-folder", payload),
   },
   tasks: {
-    cancel: (taskId: string) => ipcRenderer.invoke("nomi:tasks:cancel", taskId) as Promise<{ ok: boolean }>,
     run: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:run", payload),
     result: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:result", payload),
     // 付费守卫：真人确认后铸一次性令牌（绑 nodeIds），返回不透明 grantId 随生成请求下传。
@@ -436,17 +434,18 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:conversations:write", { projectId, ...payload }),
   },
   agents: {
-    chatV2Start: (payload: AgentChatStartRequest) =>
+    chatV2Start: (payload: unknown) =>
       ipcRenderer.invoke("nomi:agents:chatV2:start", payload) as Promise<{ sessionId: string }>,
-    confirmTool: (sessionId: string, toolCallId: string, decision: AgentChatToolDecision) =>
+    confirmTool: (sessionId: string, toolCallId: string, decision: unknown) =>
       ipcRenderer.invoke("nomi:agents:chatV2:confirmTool", { sessionId, toolCallId, decision }),
     cancelChatV2: (sessionId: string) => ipcRenderer.invoke("nomi:agents:chatV2:cancel", { sessionId }),
-    clearChatV2Session: (request: AgentChatHistoryRequest) => ipcRenderer.invoke("nomi:agents:chatV2:clearSession", request),
-    seedChatV2Session: (request: AgentChatHistoryRequest) => ipcRenderer.invoke("nomi:agents:chatV2:seedSession", request),
-    chatV2SessionAlive: (request: AgentChatHistoryRequest) =>
-      ipcRenderer.invoke("nomi:agents:chatV2:sessionAlive", request) as Promise<{ alive: boolean }>,
-    onChatV2Event: (sessionId: string, callback: (event: AgentChatWireEvent) => void) => {
-      const listener = (_event: unknown, payload: { sessionId: string; event: AgentChatWireEvent }) => {
+    clearChatV2Session: (sessionKey: string) => ipcRenderer.invoke("nomi:agents:chatV2:clearSession", { sessionKey }),
+    seedChatV2Session: (sessionKey: string, messages: Array<{ role: string; content: string }>) =>
+      ipcRenderer.invoke("nomi:agents:chatV2:seedSession", { sessionKey, messages }),
+    chatV2SessionAlive: (sessionKey: string) =>
+      ipcRenderer.invoke("nomi:agents:chatV2:sessionAlive", { sessionKey }) as Promise<{ alive: boolean }>,
+    onChatV2Event: (sessionId: string, callback: (event: unknown) => void) => {
+      const listener = (_event: unknown, payload: { sessionId: string; event: unknown }) => {
         if (payload && payload.sessionId === sessionId) callback(payload.event);
       };
       ipcRenderer.on("nomi:agents:chatV2:event", listener as never);
@@ -456,9 +455,6 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     },
   },
   onboarding: {
-    antigravityStatus: () => ipcRenderer.invoke("nomi:antigravity:status"),
-    antigravityTest: (payload?: unknown) => ipcRenderer.invoke("nomi:antigravity:test", payload),
-    antigravityCancel: () => ipcRenderer.invoke("nomi:antigravity:cancel"),
     adapterRegister: (payload: unknown) =>
       ipcRenderer.invoke("nomi:provider-adapter:register", payload),
     adapterStart: (payload: unknown) =>

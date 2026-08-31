@@ -141,7 +141,6 @@ export const generationCanvasEdgeSchema = z.object({
   source: z.string().min(1),
   target: z.string().min(1),
   mode: generationCanvasEdgeModeSchema.optional(),
-  targetParamKey: z.string().min(1).optional(),
   // 落入同一 target 的放入顺序（数组参考 character1..N 的真相源；旧快照无 → undefined，排序退化为原序）。
   order: z.number().optional(),
   // 溯源：由哪个组的输入/输出声明物化而来（只用于撤边时不误伤手工边）。

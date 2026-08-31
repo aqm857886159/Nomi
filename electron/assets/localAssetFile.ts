@@ -1,7 +1,6 @@
 // nomi-local 素材的文件侧读取 + 上传通道(从 runtime.ts 抽出 —— 规则 12 巨壳净减)。
 // R1 用:把本地素材(nomi-local://)读成字节,或 POST 到 vendor 上传端点。
 import fs from "node:fs";
-import { appFetch } from "../appFetch";
 import { resolveProjectRelativePath } from "../projects/repository";
 import { resolveContentType } from "./mediaTypes";
 import { categorizeVendorFailure } from "../vendor/vendorHttp";
@@ -58,7 +57,7 @@ export function absolutePathFromLocalAssetUrlAnyProject(url: unknown): string | 
 /** R1：把 nomi-local URL(自带 projectId)读成字节 + contentType + 文件名,供 assetLocalization 上传/内联。
  *  同时读 sidecar `.meta` 文件里的 originalUrl（生成素材落盘时写入），
  *  供 assetLocalization 优先直接使用公网 URL 而无需转 base64 或调供应商上传 API。 */
-export function readNomiLocalAsset(url: string, options: { maxBytes?: number } = {}): LocalAsset | null {
+export function readNomiLocalAsset(url: string): LocalAsset | null {
   const prefix = "nomi-local://asset/";
   if (typeof url !== "string" || !url.startsWith(prefix)) return null;
   const rest = url.slice(prefix.length);
@@ -75,26 +74,8 @@ export function readNomiLocalAsset(url: string, options: { maxBytes?: number } =
   const absolutePath = absolutePathFromLocalAssetUrl(url, projectId);
   if (!absolutePath) return null;
   try {
-    let boundedBytes: Buffer | undefined;
-    if (options.maxBytes !== undefined) {
-      if (!Number.isSafeInteger(options.maxBytes) || options.maxBytes <= 0) return null;
-      const fd = fs.openSync(absolutePath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
-      try {
-        const info = fs.fstatSync(fd);
-        if (!info.isFile() || info.size > options.maxBytes) return null;
-        const buffer = Buffer.alloc(info.size + 1);
-        let used = 0;
-        while (used < buffer.length) {
-          const n = fs.readSync(fd, buffer, used, buffer.length - used, used);
-          if (!n) break;
-          used += n;
-        }
-        if (used !== info.size) return null;
-        boundedBytes = buffer.subarray(0, used);
-      } finally { fs.closeSync(fd); }
-    }
     let originalUrl: string | undefined;
-    if (!boundedBytes) try {
+    try {
       const sidecar = JSON.parse(fs.readFileSync(`${absolutePath}.meta`, "utf8")) as Record<string, unknown>;
       if (typeof sidecar.originalUrl === "string" && /^https?:\/\//i.test(sidecar.originalUrl)) {
         originalUrl = sidecar.originalUrl;
@@ -109,7 +90,7 @@ export function readNomiLocalAsset(url: string, options: { maxBytes?: number } =
     // contentType 认不出时**读文件头**，不能只信扩展名：认不出会被 mediaKindFromContentType
     // 一律当图片，视频于是走进 base64 图片通道被反代 413 顶回来（2026-08-20 用户实测，2 秒的视频
     // 也失败）。字节已在手上，嗅探零额外 IO。
-    const bytes = boundedBytes ?? fs.readFileSync(absolutePath);
+    const bytes = fs.readFileSync(absolutePath);
     return {
       bytes,
       contentType: resolveContentType(absolutePath, bytes),
@@ -192,7 +173,7 @@ export async function postJsonForAssetUpload(url: string, headers: Record<string
   return postWithUploadRetry(
     () => {
       wireUrl = rewriteVendorUrl(url); // 每次 attempt 重取——自愈换线后下一跳即生效
-      return appFetch(wireUrl, { method: "POST", headers, body: serialized });
+      return fetch(wireUrl, { method: "POST", headers, body: serialized });
     },
     { onNetworkError: async (error) => { await maybeResolveVendorBase(wireUrl, error); } },
   );
@@ -220,7 +201,7 @@ export async function postMultipartForAssetUpload(
       const form = new FormData();
       form.append(fileField, new Blob([arrayBuffer], { type: contentType }), fileName);
       for (const [key, value] of Object.entries(extraFields ?? {})) form.append(key, value);
-      return appFetch(wireUrl, { method: "POST", headers: restHeaders, body: form });
+      return fetch(wireUrl, { method: "POST", headers: restHeaders, body: form });
     },
     { onNetworkError: async (error) => { await maybeResolveVendorBase(wireUrl, error); } },
   );

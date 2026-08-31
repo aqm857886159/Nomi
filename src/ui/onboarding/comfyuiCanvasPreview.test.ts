@@ -42,20 +42,6 @@ describe('画布节点预览', () => {
     expect(field.kind).toBe('video')
   })
 
-  it('多参 images 按声明顺序全部出槽，显式空数组保持空态', () => {
-    const preview = buildCanvasPreview({ images: [
-      { nodeId: '1', inputKey: 'image', paramKey: 'comfy_image_1', label: '角色', mediaKind: 'image' },
-      { nodeId: '2', inputKey: 'image', paramKey: 'comfy_image_2', label: '风格', mediaKind: 'image' },
-      { nodeId: '3', inputKey: 'file', paramKey: 'comfy_video_3', label: '源视频', mediaKind: 'video' },
-    ] })
-    expect(preview.fields.map((field) => [field.key, field.kind, field.label])).toEqual([
-      ['comfy_image_1', 'image', '角色'],
-      ['comfy_image_2', 'image', '风格'],
-      ['comfy_video_3', 'video', '源视频'],
-    ])
-    expect(buildCanvasPreview({ images: [] })).toEqual({ fields: [], isEmpty: true })
-  })
-
   it('可调字段带上用户起的名字、类型和默认值', () => {
     const fields = buildCanvasPreview({ params: [param('steps', 'number', 20), param('hires', 'boolean', true)] }).fields
     expect(fields.map((f) => [f.label, f.kind, f.defaultValue])).toEqual([

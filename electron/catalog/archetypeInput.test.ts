@@ -65,17 +65,4 @@ describe("referenceInputParams", () => {
     });
     expect(out.first_frame_url).toBe("mode-filtered.png");
   });
-
-  it("does not let a non-Comfy empty snake default erase legacy aggregate images", () => {
-    expect(referenceInputParams({
-      referenceImages: ["nomi-local://asset/project/reference.png"],
-      reference_images: [],
-    }).reference_images).toEqual(["nomi-local://asset/project/reference.png"]);
-  });
-
-  it("preserves a non-Comfy non-empty snake reference without a camel aggregate", () => {
-    expect(referenceInputParams({
-      reference_images: ["nomi-local://asset/project/snake.png"],
-    }).reference_images).toEqual(["nomi-local://asset/project/snake.png"]);
-  });
 });

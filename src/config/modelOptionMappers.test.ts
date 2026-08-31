@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest'
 import { toCatalogModelOptions } from './modelOptionMappers'
 import { findModelOptionByIdentifier, resolveExecutableImageModelFromOptions } from './modelOptionResolvers'
 import type { ModelCatalogModelDto } from '../workbench/api/modelCatalogApi'
-import { dedupeModelOptions } from './modelIdentity'
 
 function dto(modelKey: string, vendorKey: string, labelZh = modelKey): ModelCatalogModelDto {
   return {
@@ -20,33 +19,6 @@ function dto(modelKey: string, vendorKey: string, labelZh = modelKey): ModelCata
 }
 
 describe('toCatalogModelOptions — 同名 modelKey 跨厂商不互吞', () => {
-  it('groups known text variants without dropping their exact catalog identities', () => {
-    const ids = [
-      ...['3.7', '3.6', '3.5'].flatMap(version => ['low', 'medium', 'high'].map(tier => `gemini-${version}-flash-${tier}`)),
-      'gemini-3.1-pro-low', 'gemini-3.1-pro-high', 'claude-sonnet-4-6', 'claude-opus-4-6-thinking', 'gpt-oss-120b-medium',
-    ]
-    const rows = ids.map(id => ({ ...dto(id, 'antigravity-cli'), kind: 'text' as const }))
-    const options = toCatalogModelOptions(rows)
-    expect(options.map(option => option.value)).toEqual(ids)
-    expect(options.map(option => option.modelKey)).toEqual(ids)
-    const grouped = dedupeModelOptions(options)
-    expect(grouped).toHaveLength(7)
-    expect(grouped[0].label).toBe('Gemini 3.7 Flash')
-    expect(grouped[0].providers.map(provider => provider.option.value)).toEqual(ids.slice(0, 3))
-  })
-
-  it('keeps unknown CLI IDs independent even if labels coincide with a known family', () => {
-    const options = toCatalogModelOptions([
-      dto('gemini-3.7-flash-medium', 'antigravity-cli', 'Gemini 3.7 Flash'),
-      dto('gemini-3.7-flash-future', 'antigravity-cli', 'Gemini 3.7 Flash'),
-      dto('gemini-3.7-flash-next', 'antigravity-cli', 'Gemini 3.7 Flash'),
-      dto('gemini-3.7-flash', 'antigravity-cli', 'Gemini 3.7 Flash'),
-      dto('gemini-3.7-flash-medium', 'other-vendor', 'Gemini 3.7 Flash'),
-    ])
-    expect(dedupeModelOptions(options)).toHaveLength(5)
-    expect(options.slice(1).every(option => option.variant === undefined)).toBe(true)
-  })
-
   it('两个厂商同名模型都存活，各自带 vendor（newest-first 时先接那家不再被覆盖）', () => {
     const options = toCatalogModelOptions([
       dto('gpt-image-2', 'relay-b'), // 最新接入，数组在前

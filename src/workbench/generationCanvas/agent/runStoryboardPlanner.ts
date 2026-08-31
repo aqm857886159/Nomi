@@ -1,82 +1,67 @@
-import type { AgentChatHistory, AgentChatStatus } from '../../../../electron/harness/agentChatContracts'
-import type { GenerationCanvasSnapshot } from '../model/generationCanvasTypes'
-import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import { sendGenerationCanvasAgentMessage } from './generationCanvasAgentClient'
 import { generationCanvasTools } from './generationCanvasTools'
 import { applyCanvasToolCall } from './applyCanvasToolCall'
-import { formatCanvasForAgent } from './canvasPromptContext'
 import { evaluateGate } from './gate'
 import { buildLockGateContext } from './lockGateContext'
 import { STORYBOARD_PLANNER_SKILL, buildStoryboardPlanningMessage, type StoryboardShotMode } from './storyboardLauncher'
-import { parseStoryboardPlan, type StoryboardPlan } from './storyboardPlan'
+import type { StoryboardPlan } from './storyboardPlan'
 
-type StoryboardPlannerInput = {
-  projectId?: string
-  featureKey?: string
-  canWrite: () => boolean
+/**
+ * 在**创作区**就地跑分镜规划师（流程 A：不切到生成区，无弹区闪屏）。
+ *
+ * 规划阶段只该产出方案对象（propose_storyboard_plan，gate=allow→落创作 store）或读画布
+ * （read_canvas_state）；写画布的工具一律 deny——创作区没有画布审批卡，且方案没确认前不该碰画布、
+ * 不该花钱（规划免费铁律）。propose_storyboard_plan 落库时会把工作区切到 creation（本就在），编辑器随即展开。
+ */
+export async function runStoryboardPlanner(input: {
+  /** 首次拆镜头：剧本正文。*/
   storyText?: string
+  /** 首拆的分镜模式（image=图片分镜默认 / video=视频分镜）；改方案不传（保留现方案每镜 shotKind）。*/
   shotMode?: StoryboardShotMode
+  /** 修改现方案（P0-9 Slice 3）：当前方案 + 修改要求。*/
   currentPlan?: StoryboardPlan | null
   revisionRequest?: string
   skill?: { key: string; name: string }
   onContent?: (text: string) => void
   onCancelReady?: (cancel: () => void) => void
-} & (
-  | { target: 'creation'; history: Extract<AgentChatHistory, { kind: 'persistent' }> }
-  | { target: 'production'; history: Extract<AgentChatHistory, { kind: 'ephemeral' }>; snapshot: GenerationCanvasSnapshot }
-)
-
-/** Same planner capability for inline and production. Only the inline caller
- * projects the parsed plan into the editor; production owns the returned plan. */
-export async function runStoryboardPlanner(input: StoryboardPlannerInput): Promise<{ text: string; status: AgentChatStatus; plan?: StoryboardPlan }> {
-  const snapshot = input.target === 'production' ? input.snapshot : generationCanvasTools.read_canvas()
-  const target = input.target
-  const canWrite = input.canWrite
-  let plan: StoryboardPlan | undefined
-  const { response } = await sendGenerationCanvasAgentMessage({
+}): Promise<{ text: string }> {
+  const response = await sendGenerationCanvasAgentMessage({
     message: buildStoryboardPlanningMessage({
-      storyText: input.storyText, currentPlan: input.currentPlan, revisionRequest: input.revisionRequest,
+      storyText: input.storyText,
+      currentPlan: input.currentPlan,
+      revisionRequest: input.revisionRequest,
       ...(input.shotMode ? { shotMode: input.shotMode } : {}),
     }),
-    projectId: input.projectId,
-    history: input.history,
-    featureKey: input.featureKey,
-    capability: 'storyboard',
-    canWrite,
-    snapshot,
+    snapshot: generationCanvasTools.read_canvas(),
     selectedNodes: [],
     mode: 'agent',
     skill: input.skill || STORYBOARD_PLANNER_SKILL,
-    onContent: (_delta, text) => { if (canWrite()) input.onContent?.(text) },
-    onCancelReady: input.onCancelReady,
-    onToolCall: async (event) => {
-      if (!canWrite() || !['read_canvas_state', 'propose_storyboard_plan'].includes(event.toolName)) {
-        await event.confirm({ ok: false, denied: true, message: 'storyboard turn cannot perform this action' })
+    onContent: (_delta, text) => input.onContent?.(text),
+    ...(input.onCancelReady ? { onCancelReady: input.onCancelReady } : {}),
+    onToolCall: (event) => {
+      const decision = evaluateGate(
+        { kind: 'tool-call', toolName: event.toolName, args: event.args },
+        buildLockGateContext(),
+      )
+      if (decision.outcome === 'allow') {
+        // 只读 / 产出方案：经单一真相源 applyCanvasToolCall 执行（propose_storyboard_plan 落 store）。
+        void (async () => {
+          try {
+            const result = await applyCanvasToolCall(event.toolName, event.args)
+            await event.confirm({ ok: true, result, silent: true })
+          } catch (error: unknown) {
+            await event.confirm({ ok: false, message: error instanceof Error ? error.message : String(error) })
+          }
+        })()
         return
       }
-      try {
-        let result: unknown
-        if (target === 'creation') {
-          const gate = evaluateGate({ kind: 'tool-call', toolName: event.toolName, args: event.args }, buildLockGateContext())
-          if (gate.outcome !== 'allow') {
-            await event.confirm({ ok: false, denied: true, message: gate.outcome === 'deny' ? gate.reason : 'storyboard action requires approval' })
-            return
-          }
-          result = await applyCanvasToolCall(event.toolName, event.args, undefined, canWrite)
-        } else if (event.toolName === 'read_canvas_state') {
-          // This snapshot was captured by the capability host before its first await.
-          result = formatCanvasForAgent(snapshot)
-        }
-        assertTurnCanWrite(canWrite)
-        if (event.toolName === 'propose_storyboard_plan') {
-          plan = parseStoryboardPlan(event.args)
-          if (target === 'production') result = { title: plan.title, anchorCount: plan.anchors.length, shotCount: plan.shots.length }
-        }
-        await event.confirm({ ok: true, result, silent: true })
-      } catch (error: unknown) {
-        await event.confirm({ ok: false, message: error instanceof Error ? error.message : String(error), ...(!canWrite() ? { denied: true } : {}) })
-      }
+      // 写/破坏性/花钱工具：规划阶段拒绝，人话回喂让模型改用 propose_storyboard_plan（不静默写画布）。
+      void event.confirm({
+        ok: false,
+        message: '现在是分镜规划阶段，请用 propose_storyboard_plan 产出方案给用户审阅，不要直接创建或修改画布节点。',
+        denied: true,
+      })
     },
   })
-  return { text: response.text.trim(), status: response.status, ...(plan ? { plan } : {}) }
+  return { text: response.response.text?.trim() ?? '' }
 }

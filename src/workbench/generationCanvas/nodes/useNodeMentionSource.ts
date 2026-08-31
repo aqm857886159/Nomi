@@ -89,7 +89,7 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
       // 素材库图 → 落进 image_ref 槽的上传位（与拖文件进卡同一条存储路径）。
       const slot = resolveReferenceSlots(target, store.nodes, store.edges).find((s) => s.slotKind === 'image_ref')
       if (!slot) { showInfoToast(t('connection.unsupported')); return null }
-      if (slot.max !== undefined && slot.fills.length >= slot.max) {
+      if (slot.fills.length >= slot.max) {
         showInfoToast(t('connection.slotsFull', { max: slot.max }))
         return null
       }

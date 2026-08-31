@@ -336,19 +336,5 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
         "size": "1024x1024"
       }
     }
-  },
-  "agnes-image-2.1": {
-    "text_to_image": {
-      "*": {
-        "size": "1K",
-        "ratio": "1:1"
-      }
-    },
-    "image_edit": {
-      "*": {
-        "size": "1K",
-        "ratio": "1:1"
-      }
-    }
   }
 };

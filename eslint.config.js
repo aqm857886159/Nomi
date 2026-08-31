@@ -15,9 +15,6 @@ export default tseslint.config(
       'dist/**',
       'dist-electron/**',
       'release/**',
-      // R0 历史兼容探针产物保留；正式 pi 源码在 electron/harness/runtime/pi 参加 lint。
-      'experiments/pi-agent-runtime/dist/**',
-      'experiments/pi-agent-runtime/release/**',
       'node_modules/**',
       // Vite 预打包依赖缓存（vite.config cacheDir = .tmp/vite）——第三方 bundle，非源码，不 lint。
       '.tmp/**',
@@ -50,17 +47,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['tests/network/**/*.{cjs,mjs}'],
-    languageOptions: { globals: globals.node },
-  },
-  {
-    // The regression must enter through Electron CommonJS before loading the
-    // native pi ESM island; require is intentional here, not application style.
-    files: ['tests/network/**/*.cjs'],
-    rules: { '@typescript-eslint/no-require-imports': 'off' },
-  },
-  {
-    files: ['**/*.{ts,tsx,mts,cts}'],
+    files: ['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',

@@ -1,14 +1,6 @@
 // English display equivalents for curated model metadata. The Chinese source
 // values remain stable because old projects and catalog mappings may persist them.
 export const enModelDisplayText: Readonly<Record<string, string>> = {
-  参考视频起始秒: 'Reference video start (seconds)',
-  参考视频必须含音轨: 'Require audio in reference video',
-  关键帧动画: 'Keyframe animation',
-  帧率: 'Frame rate',
-  '按图片顺序生成关键帧过渡': 'Animate transitions in image order',
-  '首帧、尾帧至少提供一张': 'Provide a first frame, a last frame, or both',
-  '图片或音频参考生成视频': 'Generate video using image or audio references',
-  '图片、音频或视频参考生成视频': 'Generate video using image, audio or video references',
   'CFG 提示词强度': 'CFG prompt strength',
   'checkpoint 文件名': 'Checkpoint filename',
   '不想出现的内容（可留空）': 'Content to exclude (optional)',

@@ -12,27 +12,6 @@ describe("probeTargets — 从图床声明 derive，不另抄一份地址", () =
 });
 
 describe("probeOutbound — 聚合「任一通即通」，但逐项留痕", () => {
-  it("只需响应头的连通探测会取消未读取的响应体，释放网络连接", async () => {
-    let cancelCalls = 0;
-    const response = new Response(new ReadableStream({
-      cancel: () => { cancelCalls += 1; },
-    }));
-    await probeOutbound(['https://fixture.invalid'], async () => response);
-    expect(cancelCalls).toBe(1);
-    expect(response.bodyUsed).toBe(true);
-  });
-
-  it("已收到 HTTP 响应后即使响应体清理失败仍判定网络可达", async () => {
-    const cleanupError = new Error('synthetic response cleanup failure');
-    const response = new Response(new ReadableStream({
-      start: (controller) => { controller.error(cleanupError); },
-    }), { status: 200 });
-    const result = await probeOutbound(['https://fixture.invalid'], async () => response);
-    expect(result).toMatchObject({ ok: true, target: 'https://fixture.invalid', error: '' });
-    expect(result.tried).toEqual([
-      expect.objectContaining({ target: 'https://fixture.invalid', ok: true, error: '' }),
-    ]);
-  });
   it("全通 → ok，tried 两项都 ok", async () => {
     const r = await probeOutbound(["https://a", "https://b"], ok as unknown as typeof fetch);
     expect(r.ok).toBe(true);

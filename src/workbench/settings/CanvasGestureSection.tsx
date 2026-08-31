@@ -13,7 +13,7 @@ import {
   setCanvasGestureScheme,
   useCanvasGestureScheme,
   type CanvasGestureScheme,
-} from '../../utils/canvasGesturePreference'
+} from '../generationCanvas/components/canvasGesturePreference'
 
 const OPTIONS: { id: CanvasGestureScheme; labelKey: string; hintKey: string }[] = [
   { id: 'wheel-zoom', labelKey: 'settings.general.canvasGestureZoom', hintKey: 'settings.general.canvasGestureZoomHint' },

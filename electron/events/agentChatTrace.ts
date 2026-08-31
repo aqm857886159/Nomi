@@ -32,10 +32,7 @@ function append(trace: TurnTrace, event: Omit<NewNomiEvent, "id"> & { id?: strin
 
 /** turn 开始:从 start payload 建 trace(项目不可解析时返回 null,全程 no-op)。 */
 export function beginTurnTrace(sessionId: string, payload: Record<string, unknown>): void {
-  const history = payload.history as { kind?: string; binding?: { sessionKey?: string; threadId?: string } } | undefined;
-  const binding = history?.kind === 'persistent' ? history.binding : undefined;
-  const projectId = projectIdFromSessionKey(binding?.sessionKey)
-    || (typeof payload.projectId === 'string' ? payload.projectId : typeof payload.canvasProjectId === 'string' ? payload.canvasProjectId : null);
+  const projectId = projectIdFromSessionKey(typeof payload.sessionKey === "string" ? payload.sessionKey : undefined);
   if (!projectId) return;
   const trace: TurnTrace = { projectId, sessionId, proposedIds: new Map() };
   turns.set(sessionId, trace);
@@ -44,8 +41,6 @@ export function beginTurnTrace(sessionId: string, payload: Record<string, unknow
     type: "agent.turn.started",
     payload: {
       sessionId,
-      ...(binding ? { sessionKey: binding.sessionKey, threadId: binding.threadId } : {}),
-      ...(typeof payload.featureKey === 'string' ? { featureKey: payload.featureKey } : {}),
       skillKey: head(payload.skillKey, 128),
       promptHead: head(payload.displayPrompt || payload.prompt, PROMPT_HEAD),
     },
@@ -99,7 +94,7 @@ export function traceChatEvent(sessionId: string, event: unknown): void {
         type: "agent.turn.finished",
         payload: {
           sessionId,
-          status: result.status,
+          status: "ok",
           finalTextHead: text.slice(0, TEXT_HEAD),
           finalTextSha256: crypto.createHash("sha256").update(text).digest("hex"),
           usage: result.usage ?? null,
@@ -153,4 +148,13 @@ export function traceGateDenied(sessionId: string, toolCallId: string, reason: s
     ...(trace.proposedIds.has(toolCallId) ? { causeId: trace.proposedIds.get(toolCallId) } : {}),
     payload: { toolCallId, reason },
   });
+}
+
+/** context.capped:截断真的发生时记账(C1 触发器观测 + 对话内提示的数据源)。 */
+export function traceContextCapped(sessionKey: string, droppedCount: number, keptCount: number): void {
+  const projectId = projectIdFromSessionKey(sessionKey);
+  if (!projectId || droppedCount <= 0) return;
+  appendEvents(projectId, [
+    { id: mintId(), source: "system", type: "context.capped", payload: { sessionKey, droppedCount, keptCount } },
+  ]);
 }

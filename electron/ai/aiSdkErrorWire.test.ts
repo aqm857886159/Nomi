@@ -2,7 +2,7 @@
 // 只证「给定这个形状，映射对不对」；证不了「真跑一趟 AI SDK 时，抛出来的到底是不是这个形状」。
 // 后者才是这次修复的地基，而且实测推翻过两条想当然（2026-08-12 探针）：
 //   · `textStream` 失败时**不抛**，静默结束 —— 错误只从 `fullStream` 的 error 块 / onError 出来
-//     （这条 AI4 错误契约仍供非 Agent 文本任务使用；Agent 已独立使用 pi errorFacts）。
+//     （生产就是这么接的：agentStreamConsumer.ts / agentLoop.ts，本文件照抄那条线）。
 //   · 可重试错误（429/5xx/网络）在生产的 maxRetries=3 下**一律被 RetryError 套壳**，真错误在
 //     .lastError 里 —— 不拆壳的话这次修复对最常见的那几类等于没做。
 //
@@ -35,8 +35,8 @@ afterAll(async () => {
 });
 
 /**
- * 真发一次请求，把 AI4 fullStream 的 error 块交给非 Agent 文本任务仍使用的
- * describeAgentError；这不再充当 Agent pi runtime 的验收测试。
+ * 真发一次请求，把 SDK 真给出的错误交给生产漏斗 describeAgentError——取错误的方式与
+ * agentStreamConsumer.ts 逐字一致（fullStream 的 error 块），不另走一条测试专用路。
  * maxRetries 由用例给：0=看裸形态，1=看 RetryError 套壳（只多等一次 2s 退避）。
  */
 async function realFailureMessage(baseUrl: string, maxRetries: number): Promise<string> {

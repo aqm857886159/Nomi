@@ -12,7 +12,7 @@
 //    comfyuiWorkflowImport.ts buildImportedWorkflow），画布节点底栏按 parameters 渲染控件。
 //  - 提示词 ⟵ 绑了提示词节点才有输入框；没绑就是「这条工作流不吃提示词」，画布上也确实没有。
 // 改画布那边的口径，这里要同步（两处都指向对方，别只改一处）。
-import { workflowMediaBindings, type WorkflowBinding, type WorkflowParamType } from './comfyuiWorkflowBinding'
+import type { WorkflowBinding, WorkflowParamType } from './comfyuiWorkflowBinding'
 
 /** 画布上一个可填控件的类型。media 槽 = 拖图/拖视频的方框，不是输入框。 */
 export type PreviewFieldKind = 'prompt' | 'image' | 'video' | WorkflowParamType
@@ -56,7 +56,7 @@ function optionsFor(
 
 /**
  * binding（+ 本机 combo 可选值）→ 画布上会出现的控件清单。
- * 顺序固定：提示词 → 工作流声明的媒体输入（按声明顺序）→ 可调字段（按用户添加顺序）。
+ * 顺序固定：提示词 → 源视频 → 首帧 → 尾帧 → 可调字段（按用户添加顺序）。
  * 固定顺序是为了让「改一处」只让那一处动，别整列重排——重排会让人以为改坏了别的东西。
  */
 export function buildCanvasPreview(
@@ -79,15 +79,32 @@ export function buildCanvasPreview(
       inputKey: binding.promptInputKey,
     })
   }
-  for (const image of workflowMediaBindings(binding)) {
-    const isReserved = image.paramKey === 'first_frame_url' || image.paramKey === 'last_frame_url' || image.paramKey === 'source_video_url'
-    const key = image.paramKey === 'source_video_url' ? 'sourceVideo' : image.paramKey === 'first_frame_url' ? 'firstFrame' : image.paramKey === 'last_frame_url' ? 'lastFrame' : image.paramKey
+  if (binding.sourceVideoNodeId && binding.sourceVideoInputKey) {
     fields.push({
-      key,
-      kind: image.mediaKind,
-      ...(isReserved ? { labelKey: image.paramKey === 'source_video_url' ? 'sourceVideo' : image.paramKey === 'first_frame_url' ? 'firstFrame' : 'lastFrame' } : { label: image.label }),
-      nodeId: image.nodeId,
-      inputKey: image.inputKey,
+      key: 'sourceVideo',
+      kind: 'video',
+      labelKey: 'sourceVideo',
+      nodeId: binding.sourceVideoNodeId,
+      inputKey: binding.sourceVideoInputKey,
+    })
+  }
+  // 首帧/尾帧：**节点 + 输入键成对齐了**才算绑上（与画布 buildComfyWorkflowImageUrlSlots 同判据）。
+  if (binding.firstFrameNodeId && binding.firstFrameInputKey) {
+    fields.push({
+      key: 'firstFrame',
+      kind: 'image',
+      labelKey: 'firstFrame',
+      nodeId: binding.firstFrameNodeId,
+      inputKey: binding.firstFrameInputKey,
+    })
+  }
+  if (binding.lastFrameNodeId && binding.lastFrameInputKey) {
+    fields.push({
+      key: 'lastFrame',
+      kind: 'image',
+      labelKey: 'lastFrame',
+      nodeId: binding.lastFrameNodeId,
+      inputKey: binding.lastFrameInputKey,
     })
   }
   for (const param of binding.params ?? []) {

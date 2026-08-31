@@ -126,7 +126,6 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
       apiKey,
       request: cached.request,
       operation: queryOperation,
-      stage: "query",
       providerMeta: {
         ...(cached.providerMeta || {}),
         query_id: cached.providerMeta?.query_id || taskId,

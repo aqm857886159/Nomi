@@ -6,10 +6,10 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { toast } from '../../../ui/toast'
 import { mintSpendGrant } from '../../api/taskApi'
-import { confirmGenerationSpend, describeGenerationCost, type GenerationCostKind } from '../spend/spendConfirm'
+import { confirmGenerationSpend, describeGenerationCost } from '../spend/spendConfirm'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
 import { narrateProgress } from '../../observability/narrate'
-import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
+import { ComfyuiTaskCancelledError, clearComfyuiCancel, isComfyuiCancelRequested, isComfyuiTaskCancelledError } from './comfyuiTaskControl'
 import { useComfyuiPreviewStore } from '../store/comfyuiPreviewStore'
 import { isRecoverableTimeoutError } from './recoverableTimeout'
 import { recordModelFailure, recordModelSuccess } from './modelHealthMemory'
@@ -44,14 +44,14 @@ import {
 } from './assetUploadConsent'
 import type { HostingDisclosure } from '../spend/spendConfirm'
 
-/** 节点 kind → 付费预估用的产物口径，喂给 describeGenerationCost 报对名词与时长。 */
-function spendCostKind(kind: GenerationNodeKind): Exclude<GenerationCostKind, 'mixed'> {
+/** 节点 kind → 付费预估用的产物口径（视频/配音/画面），喂给 describeGenerationCost 报对名词与时长。 */
+function spendCostKind(kind: GenerationNodeKind): 'image' | 'video' | 'audio' {
   const exec = getGenerationNodeExecutionKind(kind)
-  return exec === 'text' || exec === 'video' || exec === 'audio' ? exec : 'image'
+  return exec === 'video' ? 'video' : exec === 'audio' ? 'audio' : 'image'
 }
 
 /** 一批节点的产物口径：全同则取该类，混合则 'mixed'，喂给 describeGenerationCost 报对名词。 */
-export function spendCostKindForNodes(ids: string[]): GenerationCostKind {
+export function spendCostKindForNodes(ids: string[]): 'image' | 'video' | 'audio' | 'mixed' {
   const nodes = useGenerationCanvasStore.getState().nodes
   const kinds = new Set(
     ids
@@ -349,13 +349,13 @@ export async function runGenerationNode(
     return result
   } catch (error: unknown) {
     // P 轨遮罩取消：用户主动停的，不进红色错误桶也不算模型失败——回 idle 静静结束。
-    // 两条路都要兜：① 轮询 tick 主动抛 LocalTaskCancelledError；② 竞态——点取消瞬间轮询恰好
+    // 两条路都要兜：① 轮询 tick 主动抛 ComfyuiTaskCancelledError；② 竞态——点取消瞬间轮询恰好
     // 把 /history 的 interrupted 终态拉回来当失败抛（走查实锤），靠 cancelRequested 登记识别。
-    if (isLocalTaskCancelledError(error) || isTaskCancelRequested(id)) {
+    if (isComfyuiTaskCancelledError(error) || isComfyuiCancelRequested(id)) {
       useGenerationCanvasStore.getState().setNodeStatus(id, 'idle')
       // 用户主动停的：不进刹车计数（模型没挂，是人喊停的）。
       useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
-      throw isLocalTaskCancelledError(error) ? error : new LocalTaskCancelledError()
+      throw isComfyuiTaskCancelledError(error) ? error : new ComfyuiTaskCancelledError()
     }
     if (error instanceof AssetUploadConsentCancelledError) {
       useGenerationCanvasStore.getState().setNodeStatus(id, 'idle')
@@ -385,7 +385,7 @@ export async function runGenerationNode(
     throw error
   } finally {
     // 取消登记与活预览帧都是会话瞬态：任务收尾（成/败/取消）一律清，防泄漏到下一次生成。
-    clearTaskCancel(id)
+    clearComfyuiCancel(id)
     useComfyuiPreviewStore.getState().clearPreview(id)
     // 单发路径的批次由本函数自建，也由本函数收尾（批量路径归 runGenerationNodesByPlan 收）。
     if (ownsBatch) useGenerationQueueStore.getState().finishBatch(batchId)

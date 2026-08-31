@@ -27,38 +27,12 @@ export type NumericParam = { nodeId: string; inputKey: string; paramKey: string;
  *  改一侧必须同步另一侧——3D 产物那次就是只改了后端，这里的 outputKind 还停在 image|video）。 */
 export type WorkflowBinding = {
   promptNodeId?: string; promptInputKey?: string
-  /** 工作流声明的全部媒体输入；消费侧按条注参，不再把它们压成首帧/尾帧。 */
-  images?: WorkflowImageBinding[]
   firstFrameNodeId?: string; firstFrameInputKey?: string
   lastFrameNodeId?: string; lastFrameInputKey?: string
   sourceVideoNodeId?: string; sourceVideoInputKey?: string
   outputNodeId?: string; outputKind?: 'image' | 'video' | 'model3d'
   numeric?: NumericParam[]
   params?: WorkflowParam[]
-}
-
-export type WorkflowImageBinding = {
-  nodeId: string
-  inputKey: string
-  paramKey: string
-  label: string
-  mediaKind: 'image' | 'video'
-}
-
-/** 统一读取媒体绑定；显式 images: [] 表示用户确实不想暴露任何媒体槽，不能再回落到旧角色。 */
-export function workflowMediaBindings(binding: WorkflowBinding): WorkflowImageBinding[] {
-  if (binding.images !== undefined) return binding.images
-  return [
-    binding.sourceVideoNodeId && binding.sourceVideoInputKey
-      ? { nodeId: binding.sourceVideoNodeId, inputKey: binding.sourceVideoInputKey, paramKey: 'source_video_url', label: binding.sourceVideoInputKey, mediaKind: 'video' as const }
-      : null,
-    binding.firstFrameNodeId && binding.firstFrameInputKey
-      ? { nodeId: binding.firstFrameNodeId, inputKey: binding.firstFrameInputKey, paramKey: 'first_frame_url', label: binding.firstFrameInputKey, mediaKind: 'image' as const }
-      : null,
-    binding.lastFrameNodeId && binding.lastFrameInputKey
-      ? { nodeId: binding.lastFrameNodeId, inputKey: binding.lastFrameInputKey, paramKey: 'last_frame_url', label: binding.lastFrameInputKey, mediaKind: 'image' as const }
-      : null,
-  ].filter((item): item is WorkflowImageBinding => Boolean(item))
 }
 
 export type WorkflowCandidate = {
@@ -70,7 +44,7 @@ export type WorkflowCandidate = {
   /** 媒体输入才有：收图还是收视频（LoadVideo.file 收视频）。 */
   mediaKind?: 'image' | 'video'
 }
-export type WorkflowOutputCandidate = { nodeId: string; classType: string; kind: 'image' | 'video' | 'model3d' | 'unsupported' }
+export type WorkflowOutputCandidate = { nodeId: string; classType: string; kind: 'image' | 'video' }
 
 export type WorkflowAnalysis = {
   textInputs: WorkflowCandidate[]
@@ -85,46 +59,11 @@ const PARAM_KEY_RE = /^[A-Za-z0-9_]+$/
 
 /** 老快照只有 numeric（全是数值参数）→ 补齐成统一的 params，之后全链只面对一种形态（不留两套）。 */
 export function normalizeBinding(binding: WorkflowBinding): WorkflowBinding {
-  const images = workflowMediaBindings(binding)
-  const existing: Array<Pick<WorkflowParam, 'paramKey'>> = [...images]
-  const params = (binding.params ?? (binding.numeric ?? []).map((n) => ({ ...n, type: 'number' as const })))
-    .map((param) => {
-      const next = { ...param, paramKey: uniqueParamKey(param.paramKey, existing) }
-      existing.push(next)
-      return next
-    })
   return {
     ...binding,
-    images,
     numeric: binding.numeric ?? [],
-    params,
+    params: binding.params ?? (binding.numeric ?? []).map((n) => ({ ...n, type: 'number' as const })),
   }
-}
-
-/** 从后端分析事实生成导入面板的媒体行；一个候选就是一个稳定槽位。 */
-export function mediaBindingsFromAnalysis(analysis: WorkflowAnalysis): WorkflowImageBinding[] {
-  const suggested = analysis.suggested
-  const seen = new Set<string>()
-  return analysis.imageInputs.flatMap((candidate, index) => {
-    const target = `${candidate.nodeId} ${candidate.inputKey}`
-    if (seen.has(target)) return []
-    seen.add(target)
-    const is = (nodeId: string | undefined, inputKey: string | undefined) => nodeId === candidate.nodeId && inputKey === candidate.inputKey
-    const paramKey = is(suggested.sourceVideoNodeId, suggested.sourceVideoInputKey)
-      ? 'source_video_url'
-      : is(suggested.firstFrameNodeId, suggested.firstFrameInputKey)
-        ? 'first_frame_url'
-        : is(suggested.lastFrameNodeId, suggested.lastFrameInputKey)
-          ? 'last_frame_url'
-          : `comfy_${candidate.mediaKind === 'video' ? 'video' : 'image'}_${index + 1}`
-    return [{
-      nodeId: candidate.nodeId,
-      inputKey: candidate.inputKey,
-      paramKey,
-      label: candidate.title?.trim() || `${candidate.inputKey} #${candidate.nodeId}`,
-      mediaKind: candidate.mediaKind === 'video' ? 'video' : 'image',
-    }]
-  })
 }
 
 export function inferParamType(value: WorkflowCandidate['value']): WorkflowParamType {
@@ -158,21 +97,17 @@ export function fallbackParamLabel(candidate: Pick<WorkflowCandidate, 'title' | 
  */
 const PARAM_KEY_PREFIX = 'comfy_'
 
-/** 媒体和普通字段共用 request.params，分配 key 时必须一起去重。 */
-export function uniqueParamKey(baseKey: string, existing: readonly Pick<WorkflowParam, 'paramKey'>[]): string {
-  const used = new Set(existing.map((item) => item.paramKey))
-  let paramKey = baseKey
-  let suffix = 2
-  while (used.has(paramKey)) paramKey = `${baseKey}_${suffix++}`
-  return paramKey
-}
-
 /** 候选 → 参数行（paramKey 去重加后缀；label 用作者的节点标题优先）。 */
-export function paramFromCandidate(candidate: WorkflowCandidate, existing: readonly Pick<WorkflowParam, 'paramKey'>[] = []): WorkflowParam {
+export function paramFromCandidate(candidate: WorkflowCandidate, existing: WorkflowParam[] = []): WorkflowParam {
   const label = fallbackParamLabel(candidate)
   const derived = sanitizeParamKey(label.toLowerCase(), candidate.inputKey)
   const baseKey = derived.startsWith(PARAM_KEY_PREFIX) ? derived : `${PARAM_KEY_PREFIX}${derived}`
-  const paramKey = uniqueParamKey(baseKey, existing)
+  let paramKey = baseKey
+  let i = 2
+  while (existing.some((p) => p.paramKey === paramKey)) {
+    paramKey = `${baseKey}_${i}`
+    i += 1
+  }
   return {
     nodeId: candidate.nodeId,
     inputKey: candidate.inputKey,
@@ -184,9 +119,9 @@ export function paramFromCandidate(candidate: WorkflowCandidate, existing: reado
 }
 
 /** 参数 key 合法性（空/非法字符/重名）。返回出错的那一类，调用方翻成文案。 */
-export function paramKeyProblem(params: readonly WorkflowParam[], images: readonly WorkflowImageBinding[] = []): 'invalid' | 'duplicate' | null {
+export function paramKeyProblem(params: readonly WorkflowParam[]): 'invalid' | 'duplicate' | null {
   const seen = new Set<string>()
-  for (const param of [...images, ...params]) {
+  for (const param of params) {
     if (!param.paramKey.trim() || !PARAM_KEY_RE.test(param.paramKey)) return 'invalid'
     if (seen.has(param.paramKey)) return 'duplicate'
     seen.add(param.paramKey)
@@ -213,49 +148,26 @@ export function assignRole(
   if (role === 'output') return { ...binding, outputNodeId: nodeId, outputKind: target.outputKind ?? binding.outputKind }
   if (!inputKey) return binding
   const params = (binding.params ?? []).filter((p) => !(p.nodeId === nodeId && p.inputKey === inputKey))
-  const media = workflowMediaBindings(binding)
-  const next: WorkflowBinding = { ...binding, images: media, params }
-  if (role === 'prompt') {
-    return {
-      ...next,
-      images: media.filter((item) => !(item.nodeId === nodeId && item.inputKey === inputKey)),
-      promptNodeId: nodeId,
-      promptInputKey: inputKey,
-    }
-  }
-  const targetKind = role === 'sourceVideo' ? 'video' : 'image'
-  const targetKey = role === 'firstFrame' ? 'first_frame_url' : role === 'lastFrame' ? 'last_frame_url' : 'source_video_url'
-  const withoutRole = media.filter((item) => item.paramKey !== targetKey && !(item.nodeId === nodeId && item.inputKey === inputKey))
-  const image = { nodeId, inputKey, paramKey: targetKey, label: inputKey, mediaKind: targetKind as 'image' | 'video' }
-  return normalizeBinding({
-    ...next,
-    promptNodeId: next.promptNodeId === nodeId && next.promptInputKey === inputKey ? undefined : next.promptNodeId,
-    promptInputKey: next.promptNodeId === nodeId && next.promptInputKey === inputKey ? undefined : next.promptInputKey,
-    images: [...withoutRole, image],
-  })
+  const next: WorkflowBinding = { ...binding, params }
+  if (role === 'prompt') return { ...next, promptNodeId: nodeId, promptInputKey: inputKey }
+  if (role === 'firstFrame') return { ...next, firstFrameNodeId: nodeId, firstFrameInputKey: inputKey }
+  if (role === 'lastFrame') return { ...next, lastFrameNodeId: nodeId, lastFrameInputKey: inputKey }
+  return { ...next, sourceVideoNodeId: nodeId, sourceVideoInputKey: inputKey }
 }
 
 /** 清掉某个角色（成品不可清空——没有成品节点就取不回结果，UI 也不给这个选项）。 */
 export function clearRole(binding: WorkflowBinding, role: Exclude<WorkflowRole, 'output'>): WorkflowBinding {
   if (role === 'prompt') return { ...binding, promptNodeId: undefined, promptInputKey: undefined }
-  const targetKey = role === 'firstFrame' ? 'first_frame_url' : role === 'lastFrame' ? 'last_frame_url' : 'source_video_url'
-  return {
-    ...binding,
-    images: workflowMediaBindings(binding).filter((item) => item.paramKey !== targetKey),
-    ...(role === 'firstFrame'
-      ? { firstFrameNodeId: undefined, firstFrameInputKey: undefined }
-      : role === 'lastFrame'
-        ? { lastFrameNodeId: undefined, lastFrameInputKey: undefined }
-        : { sourceVideoNodeId: undefined, sourceVideoInputKey: undefined }),
-  }
+  if (role === 'firstFrame') return { ...binding, firstFrameNodeId: undefined, firstFrameInputKey: undefined }
+  if (role === 'lastFrame') return { ...binding, lastFrameNodeId: undefined, lastFrameInputKey: undefined }
+  return { ...binding, sourceVideoNodeId: undefined, sourceVideoInputKey: undefined }
 }
 
 export function currentRoleOf(binding: WorkflowBinding, nodeId: string): WorkflowRole | null {
   if (binding.promptNodeId === nodeId) return 'prompt'
-  const media = workflowMediaBindings(binding).filter((item) => item.nodeId === nodeId)
-  if (media.some((item) => item.paramKey === 'first_frame_url')) return 'firstFrame'
-  if (media.some((item) => item.paramKey === 'last_frame_url')) return 'lastFrame'
-  if (media.some((item) => item.paramKey === 'source_video_url')) return 'sourceVideo'
+  if (binding.firstFrameNodeId === nodeId) return 'firstFrame'
+  if (binding.lastFrameNodeId === nodeId) return 'lastFrame'
+  if (binding.sourceVideoNodeId === nodeId) return 'sourceVideo'
   if (binding.outputNodeId === nodeId) return 'output'
   return null
 }
@@ -295,23 +207,23 @@ export function roleChoicesForNode(
       choices.push({
         role: 'sourceVideo',
         inputKey: candidate.inputKey,
-        active: workflowMediaBindings(binding).some((item) => item.paramKey === 'source_video_url' && item.nodeId === nodeId && item.inputKey === candidate.inputKey),
+        active: binding.sourceVideoNodeId === nodeId && binding.sourceVideoInputKey === candidate.inputKey,
       })
       continue
     }
     choices.push({
       role: 'firstFrame',
       inputKey: candidate.inputKey,
-      active: workflowMediaBindings(binding).some((item) => item.paramKey === 'first_frame_url' && item.nodeId === nodeId && item.inputKey === candidate.inputKey),
+      active: binding.firstFrameNodeId === nodeId && binding.firstFrameInputKey === candidate.inputKey,
     })
     choices.push({
       role: 'lastFrame',
       inputKey: candidate.inputKey,
-      active: workflowMediaBindings(binding).some((item) => item.paramKey === 'last_frame_url' && item.nodeId === nodeId && item.inputKey === candidate.inputKey),
+      active: binding.lastFrameNodeId === nodeId && binding.lastFrameInputKey === candidate.inputKey,
     })
   }
   const output = analysis.outputNodes.find((o) => o.nodeId === nodeId)
-  if (output && output.kind !== 'unsupported') {
+  if (output) {
     choices.push({ role: 'output', active: binding.outputNodeId === nodeId, outputKind: output.kind })
   }
   return choices
@@ -350,5 +262,5 @@ export function toggleField(binding: WorkflowBinding, candidate: WorkflowCandida
   if (exists) {
     return { ...binding, params: params.filter((p) => !(p.nodeId === candidate.nodeId && p.inputKey === candidate.inputKey)) }
   }
-  return { ...binding, params: [...params, paramFromCandidate(candidate, [...workflowMediaBindings(binding), ...params])] }
+  return { ...binding, params: [...params, paramFromCandidate(candidate, params)] }
 }

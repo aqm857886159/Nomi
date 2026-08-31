@@ -237,10 +237,8 @@ describe('model settings workspace structure', () => {
     expect(home).not.toContain('useVendorHealthMap')
     expect(home).toContain('data-model-home-unreachable')
     // 探测要的入参得真的从 drawer 传下来，否则 hook 拿到空 baseUrl 永远探不出结果。
-    expect(drawer).toContain('projectOnboardingConnections({')
-    const connections = read('src/ui/onboarding/onboardingDrawerConnections.ts')
-    expect(connections).toContain('hasApiKey: meta?.hasApiKey ?? true')
-    expect(connections).toContain('baseUrl: card.meta.baseUrl')
+    expect(drawer).toContain('hasApiKey: meta?.hasApiKey ?? true')
+    expect(drawer).toContain('baseUrl: card.meta.baseUrl')
     // 区块标题不许在有家连不上时还写「N 个可使用」（与行内红字打架）。
     expect(home).toContain('unreachableAside ?? (hasAttention')
   })

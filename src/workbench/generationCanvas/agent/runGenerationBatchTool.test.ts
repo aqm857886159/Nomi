@@ -1,43 +1,19 @@
 // S6b 受理语义验收:确认前零网络调用(gate ask 流程保证,此处锁 gate 决策);
 // approved nodeIds ≡ requested(受理回执只含请求里解析出的真实节点)。
-import { setImmediate } from 'node:timers/promises'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-const deps = vi.hoisted(() => ({ grant: vi.fn(), consent: vi.fn(), dispatch: vi.fn(), toast: vi.fn() }))
-vi.mock('../../api/taskApi', () => ({ mintSpendGrant: deps.grant }))
-vi.mock('../runner/generationRunController', () => ({ resolveAutonomousUploadConsent: deps.consent }))
-vi.mock('../components/batchPlanPreview', () => ({ runPlanWithToasts: deps.dispatch }))
-vi.mock('../../../ui/toast', () => ({ toast: deps.toast }))
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { applyCanvasToolCall } from './applyCanvasToolCall'
 import { evaluateGate } from './gate'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
 import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
-import { setDesktopActiveProjectId } from '../../../desktop/activeProject'
-import { useCanvasTurnStore } from './canvasTurnController'
-
-function openProject(projectId: string) {
-  setDesktopActiveProjectId(projectId)
-  useCanvasTurnStore.getState().abandon()
-  useGenerationCanvasStore.getState().restoreSnapshot({
-    nodes: [{ id: 'same-id', kind: 'image', title: projectId, prompt: projectId, position: { x: 0, y: 0 } }],
-    edges: [], groups: [],
-  })
-}
 
 beforeEach(() => {
-  vi.clearAllMocks()
-  deps.grant.mockResolvedValue('grant-A')
-  deps.consent.mockResolvedValue('not-needed')
-  deps.dispatch.mockResolvedValue(undefined)
-  setDesktopActiveProjectId('project-A')
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
   __resetCanvasUndoJournalForTests()
   setCanvasEventSinkForTests(() => {})
 })
 
 afterEach(() => {
-  useCanvasTurnStore.getState().abandon()
-  setDesktopActiveProjectId(null)
   setCanvasEventSinkForTests(null)
 })
 
@@ -81,55 +57,5 @@ describe('run_generation_batch — S6b 受理语义', () => {
 
   it('全部不存在 → 抛 node_not_found(gate 之外的执行层兜底)', async () => {
     await expect(applyCanvasToolCall('run_generation_batch', { nodeIds: ['ghost-1'] })).rejects.toThrow('node_not_found')
-  })
-
-  it('switching projects while the grant is pending cannot hand the old accepted node ID to the new project', async () => {
-    let release!: (grantId: string) => void
-    deps.grant.mockImplementationOnce(() => new Promise<string>((resolve) => { release = resolve }))
-    openProject('project-A')
-    const turn = useCanvasTurnStore.getState().begin()
-    const receipt = await applyCanvasToolCall('run_generation_batch', { nodeIds: ['same-id'] }, undefined, turn.canWrite)
-    expect(receipt).toMatchObject({ accepted: true, acceptedNodeIds: ['same-id'] })
-    expect(deps.grant).toHaveBeenCalledExactlyOnceWith(['same-id'])
-    openProject('project-B')
-    expect(turn.canWrite()).toBe(false)
-    release('grant-A')
-    // The fire-and-forget continuation only awaits the controlled promises.
-    // An event-loop checkpoint drains it; no elapsed-time polling is involved.
-    await setImmediate()
-    expect(deps.dispatch).not.toHaveBeenCalled()
-    expect(deps.consent).not.toHaveBeenCalled()
-    expect(useGenerationCanvasStore.getState().nodes[0].title).toBe('project-B')
-  })
-
-  it('switching projects during upload-consent resolution cannot dispatch against colliding new-project IDs', async () => {
-    let release!: (consent: 'allow') => void
-    deps.consent.mockImplementationOnce(() => new Promise<'allow'>((resolve) => { release = resolve }))
-    openProject('project-A')
-    const turn = useCanvasTurnStore.getState().begin()
-    await applyCanvasToolCall('run_generation_batch', { nodeIds: ['same-id'] }, undefined, turn.canWrite)
-    expect(deps.consent).toHaveBeenCalledExactlyOnceWith('same-id')
-    openProject('project-B')
-    release('allow')
-    await setImmediate()
-    expect(deps.dispatch).not.toHaveBeenCalled()
-    expect(useGenerationCanvasStore.getState().nodes[0].title).toBe('project-B')
-  })
-
-  it('normal Agent finish still dispatches an already-approved same-project batch with its original grant', async () => {
-    let release!: (grantId: string) => void
-    deps.grant.mockImplementationOnce(() => new Promise<string>((resolve) => { release = resolve }))
-    openProject('project-A')
-    const turn = useCanvasTurnStore.getState().begin()
-    await applyCanvasToolCall('run_generation_batch', { nodeIds: ['same-id'] }, undefined, turn.canWrite)
-    useCanvasTurnStore.getState().finish(turn.id)
-    expect(turn.canWrite()).toBe(false)
-    release('grant-A')
-    await setImmediate()
-    expect(deps.dispatch).toHaveBeenCalledExactlyOnceWith(
-      { waves: [['same-id']], blocked: [], edgesUsed: [] },
-      { grantId: 'grant-A', assetUploadConsent: 'not-needed' },
-    )
-    expect(deps.consent).toHaveBeenCalledExactlyOnceWith('same-id')
   })
 })

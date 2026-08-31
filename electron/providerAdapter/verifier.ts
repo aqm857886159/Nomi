@@ -218,7 +218,6 @@ export async function verifyAdapterMode(
       apiKey: input.apiKey,
       request,
       operation: input.mode.create,
-      stage: "create",
       localAssetReader: defaultReadFixture,
       signal: input.signal,
     });
@@ -249,7 +248,6 @@ export async function verifyAdapterMode(
           apiKey: input.apiKey,
           request,
           operation: input.mode.query,
-          stage: "query",
           providerMeta: normalized.providerMeta,
           localAssetReader: defaultReadFixture,
           signal: input.signal,

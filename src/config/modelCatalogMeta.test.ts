@@ -8,14 +8,6 @@ function controlFrom(partial: Record<string, unknown>) {
 }
 
 describe('parseModelParameterControls — 参数边界', () => {
-  it('preserves a declared media kind without turning ordinary controls into media slots', () => {
-    expect(controlFrom({ type: 'image-url', mediaKind: 'video' })).toMatchObject({ type: 'image-url', mediaKind: 'video' })
-    expect(controlFrom({ type: 'image-url', mediaKind: 'image' })).toMatchObject({ mediaKind: 'image' })
-    expect(controlFrom({ type: 'image-url', mediaKind: 'audio' })).not.toHaveProperty('mediaKind')
-    expect(controlFrom({ type: 'number', mediaKind: 'video' })).toMatchObject({ type: 'number', mediaKind: 'video' })
-    expect(controlFrom({ type: 'image-url' })).not.toHaveProperty('mediaKind')
-  })
-
   it('keeps a zero or negative bound instead of dropping it', () => {
     // CFG 的下界就是 0、denoise 是 0–1、shift 可为负。此前 min/max 走「必须为正」的解析，
     // 0 和负数被当非法丢掉，控件失去下界（滑杆从 undefined 起跳、数字框不再夹取值）。

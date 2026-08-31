@@ -6,19 +6,15 @@ import { type ChipModel } from './ModelChipGroups'
 import { CustomVendorCard } from './CustomVendorCard'
 import { CustomCallEditor, type CustomCallTarget } from './CustomCallEditor'
 import { consumePendingCustomCallIntent } from './customCallIntent'
+import { confirmAndDeleteVendor } from './vendorDeleteAction'
 import { DreaminaMemberCard } from './DreaminaMemberCard'
-import { ComfyuiLocalCard } from './ComfyuiLocalCard'
+import { ComfyuiLocalCard, COMFYUI_VENDOR_KEY } from './ComfyuiLocalCard'
 import { AddComfyuiInstanceButton } from './AddComfyuiInstanceButton'
 import { isComfyuiVendorKey } from '../../workbench/generationCanvas/model/comfyuiVendor'
 import { NetworkSection } from './NetworkSection'
 import { CODEX_LOCAL_VENDOR_KEY } from './codexLocalProvider'
 import { CodexLocalImageCard } from './CodexLocalImageCard'
-import { AntigravityConnectionCard } from './AntigravityConnectionCard'
-import { useAntigravitySettings } from './useAntigravitySettings'
-import { useAntigravityModelWorkspace } from './useAntigravityModelWorkspace'
-import { getAntigravityModelVariant } from '../../../electron/shared/antigravityModelVariants'
-import { ANTIGRAVITY_VENDOR_KEY } from '../../../electron/shared/antigravity'
-import { projectOnboardingConnections } from './onboardingDrawerConnections'
+import { KNOWN_VENDORS, isKnownVendor } from '../../config/knownVendors'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { DesktopProviderRegistration } from '../../desktop/onboardingBridgeTypes'
 import { alertDialog, confirmDialog } from '../../design'
@@ -38,11 +34,12 @@ import { useModelSettingsPageFocus } from './useModelSettingsPageFocus'
 import { useOnboardingDrawerCatalog } from './useOnboardingDrawerCatalog'
 import { DREAMINA_CONNECTION_KEY } from './onboardingDrawerConstants'
 import { canConfigureModelRequestScript } from './modelRequestScriptAvailability'
-import { ModelSettingsHome } from './ModelSettingsHome'
+import { ModelSettingsHome, type ModelSettingsHomeConnection } from './ModelSettingsHome'
 import { KnownVendorKeyConnectPage } from './KnownVendorKeyConnectPage'
 import {
   buildExistingConnectionSummary,
   canAddModelsToConnection,
+  groupOtherVendorModels,
   resolveKindGuessGap,
 } from './onboardingDrawerDerivations'
 import {
@@ -91,17 +88,6 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     reloadFromError,
     refresh,
   } = useOnboardingDrawerCatalog()
-  const [selectedVariants, setSelectedVariants] = React.useState<Record<string, string>>({})
-  const antigravitySession = useAntigravitySettings('vendorKey' in page && page.vendorKey === ANTIGRAVITY_VENDOR_KEY, refresh,
-    page.type === 'model' && page.vendorKey === ANTIGRAVITY_VENDOR_KEY ? page.modelKey : undefined)
-  const antigravityWorkspace = useAntigravityModelWorkspace(
-    page.type === 'model' ? models.find((model) => model.vendorKey === page.vendorKey && model.modelKey === page.modelKey) : undefined,
-    models, antigravitySession, (modelKey) => {
-      const familyKey = getAntigravityModelVariant(modelKey)?.familyKey ?? modelKey
-      setSelectedVariants((current) => ({ ...current, [familyKey]: modelKey }))
-      setNavigation((current) => replaceModelSettingsPage(current, { type: 'model', vendorKey: ANTIGRAVITY_VENDOR_KEY, modelKey }))
-    },
-  )
   const [customCallTarget, setCustomCallTarget] = React.useState<CustomCallTarget | null>(null)
   const [enableAfterCapability, setEnableAfterCapability] = React.useState<string | null>(null)
   const [registrationHandoff, setRegistrationHandoff] = React.useState<{
@@ -257,16 +243,50 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     }
   }, [refresh, t])
 
-  const { knownCards, otherVendorGroups, comfyuiInstances, comfyuiConnected, codexImageEnabled, antigravityEnabled,
-    connectionTitle, homeConnections, availableHomeConnections } = projectOnboardingConnections({
-    models, vendorMeta, dreaminaStatus, openPage,
-    localNames: {
-      dreamina: t('onboardingProviders.dreamina.name'),
-      codex: t('onboardingProviders.codexImage.name'),
-      antigravity: t('antigravity.name'),
-    },
-  })
+  const knownCards = KNOWN_VENDORS
+    .map((directory) => {
+      const meta = vendorMeta.get(directory.vendorKey)
+      if (!meta) return null
+      const vendorModels = models.filter((m) => m.vendorKey === directory.vendorKey)
+      return { directory, meta, vendorModels }
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+
+  const connectedKnown = knownCards.filter((c) => c.meta.hasApiKey)
+  const availableKnown = knownCards.filter((c) => !c.meta.hasApiKey)
+  const otherModels = models.filter((m) =>
+    !isKnownVendor(m.vendorKey) &&
+    m.vendorKey !== 'dreamina' &&
+    m.vendorKey !== COMFYUI_VENDOR_KEY &&
+    m.vendorKey !== CODEX_LOCAL_VENDOR_KEY,
+  )
+  const otherVendorKeys = [...vendorMeta.keys()].filter((vendorKey) => (
+    !isKnownVendor(vendorKey) &&
+    vendorKey !== 'dreamina' &&
+    vendorKey !== DREAMINA_CONNECTION_KEY &&
+    !isComfyuiVendorKey(vendorKey) &&
+    vendorKey !== CODEX_LOCAL_VENDOR_KEY
+  ))
+
+  const comfyuiInstances = React.useMemo(
+    () =>
+      [...vendorMeta.entries()]
+        .filter(([key]) => isComfyuiVendorKey(key))
+        .sort(([a], [b]) => (a === COMFYUI_VENDOR_KEY ? -1 : b === COMFYUI_VENDOR_KEY ? 1 : a.localeCompare(b)))
+        .map(([key, meta]) => ({ key, meta, models: models.filter((m) => m.vendorKey === key) })),
+    [vendorMeta, models],
+  )
+  const comfyuiConnected = comfyuiInstances.filter((i) => i.meta.enabled)
+  const comfyuiAvailableList = comfyuiInstances.filter((i) => !i.meta.enabled)
+
+  const dreaminaAvailable = dreaminaStatus !== null
+  const dreaminaConnected = !!(dreaminaStatus?.installed && dreaminaStatus?.loggedIn)
+  const codexImageMeta = vendorMeta.get(CODEX_LOCAL_VENDOR_KEY)
+  const codexImageAvailable = codexImageMeta !== undefined
+  const codexImageEnabled = codexImageMeta?.enabled === true
+
   const kindGuessGap = resolveKindGuessGap(models, vendorMeta)
+  const otherVendorGroups = groupOtherVendorModels(otherModels, vendorMeta, otherVendorKeys)
   const renderVendorCard = (
     card: typeof knownCards[number],
     detailMode = false,
@@ -323,6 +343,108 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       />
     )
   }
+  const connectionTitle = (vendorKey: string): string => {
+    const known = knownCards.find((card) => card.directory.vendorKey === vendorKey)
+    if (known) return known.meta.name
+    const custom = otherVendorGroups.find((group) => group.vendorKey === vendorKey)
+    if (custom) return custom.name
+    const comfy = comfyuiInstances.find((instance) => instance.key === vendorKey)
+    if (comfy) return comfy.meta.name
+    if (vendorKey === DREAMINA_CONNECTION_KEY) return t('onboardingProviders.dreamina.name')
+    if (vendorKey === CODEX_LOCAL_VENDOR_KEY) return t('onboardingProviders.codexImage.name')
+    return vendorKey
+  }
+
+  const homeConnection = (
+    value: Omit<ModelSettingsHomeConnection, 'onOpen'>,
+    onOpen?: () => void,
+  ): ModelSettingsHomeConnection => ({
+    ...value,
+    onOpen: onOpen ?? (() => openPage({ type: 'connection', vendorKey: value.vendorKey })),
+  })
+
+  const homeConnections: ModelSettingsHomeConnection[] = [
+    ...connectedKnown.map((card) => homeConnection({
+      vendorKey: card.directory.vendorKey,
+      name: card.meta.name,
+      kind: 'api',
+      models: card.vendorModels,
+      logo: card.directory.logo,
+      glyph: card.directory.glyph,
+      baseUrl: card.meta.baseUrl,
+      hasApiKey: card.meta.hasApiKey,
+    })),
+    ...otherVendorGroups.map((group) => {
+      const meta = vendorMeta.get(group.vendorKey)
+      return homeConnection({
+        vendorKey: group.vendorKey,
+        name: group.name,
+        kind: 'api',
+        models: group.models,
+        baseUrl: meta?.baseUrl ?? '',
+        hasApiKey: meta?.hasApiKey ?? true,
+        // 与 renderCustomVendorCard 同一判据：direct-script 那类没有可预检的通用接口。
+        skipHealthProbe: Boolean(meta?.customCallOnly)
+          && group.models.every((model) => model.hasCustomCall || model.customCallDraft),
+      })
+    }),
+    ...comfyuiConnected.map((instance) => homeConnection({
+      vendorKey: instance.key,
+      name: instance.meta.name,
+      kind: 'local',
+      models: instance.models,
+      glyph: 'C',
+    })),
+    ...(dreaminaConnected ? [homeConnection({
+      vendorKey: DREAMINA_CONNECTION_KEY,
+      name: connectionTitle(DREAMINA_CONNECTION_KEY),
+      kind: 'account',
+      models: [],
+      glyph: 'D',
+    })] : []),
+    ...(codexImageEnabled ? [homeConnection({
+      vendorKey: CODEX_LOCAL_VENDOR_KEY,
+      name: connectionTitle(CODEX_LOCAL_VENDOR_KEY),
+      kind: 'local',
+      models: models.filter((model) => model.vendorKey === CODEX_LOCAL_VENDOR_KEY),
+      glyph: 'C',
+    })] : []),
+  ]
+
+  const availableHomeConnections: ModelSettingsHomeConnection[] = [
+    ...availableKnown.map((card) => homeConnection({
+      vendorKey: card.directory.vendorKey,
+      name: card.meta.name,
+      kind: 'api',
+      models: [],
+      logo: card.directory.logo,
+      glyph: card.directory.glyph,
+    }, ['apimart', 'kie'].includes(card.directory.vendorKey)
+      ? () => openPage({ type: 'platformConnect', vendorKey: card.directory.vendorKey })
+      : undefined)),
+    ...comfyuiAvailableList.map((instance) => homeConnection({
+      vendorKey: instance.key,
+      name: instance.meta.name,
+      kind: 'local',
+      models: [],
+      glyph: 'C',
+    })),
+    ...(dreaminaAvailable && !dreaminaConnected ? [homeConnection({
+      vendorKey: DREAMINA_CONNECTION_KEY,
+      name: connectionTitle(DREAMINA_CONNECTION_KEY),
+      kind: 'account',
+      models: [],
+      glyph: 'D',
+    })] : []),
+    ...(codexImageAvailable && !codexImageEnabled ? [homeConnection({
+      vendorKey: CODEX_LOCAL_VENDOR_KEY,
+      name: connectionTitle(CODEX_LOCAL_VENDOR_KEY),
+      kind: 'local',
+      models: [],
+      glyph: 'C',
+    })] : []),
+  ]
+
   const handleRegistrationCommitted = React.useCallback((registration: DesktopProviderRegistration): void => {
     refresh()
     setCustomCallTarget(null)
@@ -398,12 +520,6 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     }
     if (vendorKey === CODEX_LOCAL_VENDOR_KEY) {
       return <CodexLocalImageCard enabled={codexImageEnabled} onChanged={refresh} detailMode />
-    }
-    if (vendorKey === ANTIGRAVITY_VENDOR_KEY) {
-      return <AntigravityConnectionCard enabled={antigravityEnabled}
-        models={models.filter((model) => model.vendorKey === ANTIGRAVITY_VENDOR_KEY)}
-        selectedVariants={selectedVariants} session={antigravitySession} onChanged={refresh}
-        onOpenModel={(model) => openPage({ type: 'model', vendorKey: model.vendorKey, modelKey: model.modelKey })} />
     }
     return null
   }
@@ -601,8 +717,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       (vendor.hasApiKey || vendor.authType === 'none') &&
       !vendor.customCallOnly &&
       !isComfyuiVendorKey(page.vendorKey) &&
-      page.vendorKey !== CODEX_LOCAL_VENDOR_KEY &&
-      page.vendorKey !== ANTIGRAVITY_VENDOR_KEY,
+      page.vendorKey !== CODEX_LOCAL_VENDOR_KEY,
     )
     const vendorName = connectionTitle(page.vendorKey)
     const recovery = (
@@ -619,7 +734,6 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       >
         <ModelWorkspacePage
           model={model}
-          connection={antigravityWorkspace}
           vendorName={vendorName}
           modelKey={page.modelKey}
           canUseScript={canUseScript}

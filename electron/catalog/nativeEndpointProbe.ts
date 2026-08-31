@@ -1,5 +1,4 @@
 import { hostRootBase, hostRootJoin } from "../ai/requestPipeline";
-import { appFetch } from "../appFetch";
 
 // ---------------------------------------------------------------------------
 // 「这家中转有没有某个原生端点」探测。零成本：只发 GET、不建任务、不计费，连有效 key 都不需要。
@@ -51,7 +50,7 @@ async function probeOnce(url: string, headers: Record<string, string>): Promise<
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
-    const res = await appFetch(url, { method: "GET", headers, signal: controller.signal });
+    const res = await fetch(url, { method: "GET", headers, signal: controller.signal });
     const text = await res.text().catch(() => "");
     return { status: res.status, shape: bodyShape(text) };
   } catch {

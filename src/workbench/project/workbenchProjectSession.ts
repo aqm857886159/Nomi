@@ -1,5 +1,4 @@
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
-import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { useWorkbenchStore } from '../workbenchStore'
 import { emitCanvasGesture, getCanvasEventLastSeq, seedCanvasEventLastSeq } from '../generationCanvas/events/canvasEventEmitter'
 import { getDesktopBridge } from '../../desktop/bridge'
@@ -91,9 +90,6 @@ let activeWorkbenchProjectSaveTarget: ActiveWorkbenchProjectSaveTarget | null = 
 
 export function setActiveWorkbenchProjectSaveTarget(target: ActiveWorkbenchProjectSaveTarget | null): void {
   activeWorkbenchProjectSaveTarget = target
-  // 当前工作台项目是审片结果的所有权边界。绑定新项目时同步切换 shot verify scope；
-  // activateProject 对同 id 幂等，不会因保存订阅重绑而误清本项目预算。
-  useShotVerifyStore.getState().activateProject(target?.projectId)
   // 能力核 A/B 守卫：把「当前窗口打开的项目」上报主进程——外部 CLI/MCP 据此拒绝直写正在编辑的工程
   // （防内存 store 防抖回盘覆盖外部改动）。可选口（老 preload 无 capability 即 no-op）。
   getDesktopBridge()?.capability?.setActiveProject(target?.projectId ?? '')

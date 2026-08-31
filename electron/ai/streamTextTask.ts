@@ -9,9 +9,6 @@ import { streamText } from "ai";
 import { buildLanguageModelForVendor } from "./vendorLanguageModel";
 import { sanitizeForBroadCompat } from "./promptSanitize";
 import type { Model, Vendor } from "../catalog/types";
-import { readNomiLocalAsset } from "../assets/localAssetFile";
-import { ANTIGRAVITY_VENDOR_KEY } from "../shared/antigravity";
-import { runAntigravityTask } from "./antigravityTask";
 
 export type StreamTextTaskInput = {
   vendor: Vendor;
@@ -39,12 +36,7 @@ const FIRST_TOKEN_TIMEOUT_MS = 30_000;
 const OVERALL_TIMEOUT_MS = 120_000;
 
 /** http(s) URL 走 URL 引用（不内联）；data:/base64 等原样作字符串传给 SDK。 */
-function toImagePart(imageUrl: string): { type: "image"; image: URL | string | Uint8Array; mimeType?: string } {
-  if (imageUrl.startsWith("nomi-local://")) {
-    const asset = readNomiLocalAsset(imageUrl);
-    if (!asset || !asset.contentType.startsWith("image/")) throw new Error("Local image attachment is missing or unreadable");
-    return { type: "image", image: asset.bytes, mimeType: asset.contentType };
-  }
+function toImagePart(imageUrl: string): { type: "image"; image: URL | string } {
   if (/^https?:\/\//i.test(imageUrl)) {
     try {
       return { type: "image", image: new URL(imageUrl) };
@@ -68,12 +60,6 @@ export async function streamTextTask(
   input: StreamTextTaskInput,
   opts: StreamTextTaskOptions = {},
 ): Promise<{ text: string; raw: unknown; finishReason?: string; reasoning?: string }> {
-  if (input.vendor.key === ANTIGRAVITY_VENDOR_KEY) {
-    const result = await runAntigravityTask({ prompt: input.prompt, model: input.model.modelKey,
-      imageUrls: input.imageUrl ? [input.imageUrl] : [], signal: opts.abortSignal, onDelta: opts.onDelta });
-    return { text: result.text, raw: { choices: [{ message: { role: "assistant", content: result.text } }],
-      usage: result.usage }, finishReason: "stop" };
-  }
   const model = buildLanguageModelForVendor(input.vendor, input.model, input.apiKey);
   // 收口 sanitize（P0-6）：与原文本分支同语义，prompt 统一 ASCII 可移植化。
   const promptText = sanitizeForBroadCompat(input.prompt);

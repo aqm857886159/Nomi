@@ -14,7 +14,6 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { showInfoToast } from '../../../utils/showInfoToast'
 import { isTextPromptEdge } from '../agent/referenceEdgeCapability'
 import { resolveReferenceSlots } from '../runner/referenceSlots'
-import { readParameterReferenceSlots, resolveParameterReferenceAssignments } from '../model/parameterReferenceSlots'
 import i18n from '../../../i18n'
 
 export function completeNodeConnection(connectedNodeId: string): void {
@@ -30,11 +29,7 @@ export function completeNodeConnection(connectedNodeId: string): void {
     return
   }
   if (!verdict.ok && verdict.reason === 'unsupported_reference') {
-    const target = before.nodes.find((node) => node.id === targetNodeId)
-    const declared = readParameterReferenceSlots(target?.meta)
-    const filled = target && declared.length && resolveParameterReferenceAssignments(target, before.nodes, before.edges, declared)
-      .every(({ slot, edge }) => edge || target.meta?.[slot.key])
-    showInfoToast(filled ? i18n.t('connection.slotsFull', { max: declared.length }) : i18n.t('connection.unsupported'))
+    showInfoToast(i18n.t('connection.unsupported'))
     return
   }
   // D4：边建了，但目标参考槽已满 → placeAt 把它丢弃（显示/发送都不含它）= 连了等于没连。
@@ -48,14 +43,11 @@ export function completeNodeConnection(connectedNodeId: string): void {
     )
     if (hasPromptEdge) return
     if (target) {
-      if (resolveParameterReferenceAssignments(target, nodes, edges).some(({ edge }) => edge?.source === sourceNodeId)) return
       const slots = resolveReferenceSlots(target, nodes, edges)
       const landed = slots.some((s) => s.fills.some((f) => f.origin.type === 'edge' && f.origin.sourceNodeId === sourceNodeId))
       const hasEdge = edges.some((e) => e.source === sourceNodeId && e.target === targetNodeId)
       if (hasEdge && !landed) {
-        const maxOfSlots = slots.some(s => s.max === undefined)
-          ? 0
-          : slots.reduce((m, s) => Math.max(m, s.max ?? 0), 0)
+        const maxOfSlots = slots.reduce((m, s) => Math.max(m, s.max), 0)
         showInfoToast(
           maxOfSlots > 0
             ? i18n.t('connection.slotsFull', { max: maxOfSlots })

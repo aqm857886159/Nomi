@@ -5,8 +5,6 @@ import {
   type AgentsChatResponseDto,
   type AgentsChatStreamEvent,
 } from '../../api/desktopClient'
-import type { AgentChatCapability, AgentChatErrorCode, AgentChatHistory, AgentChatStatus } from '../../../electron/harness/agentChatContracts'
-import { useAgentUsageStore } from './agentUsageStore'
 
 export type WorkbenchAiRequest = {
   prompt: string
@@ -14,10 +12,7 @@ export type WorkbenchAiRequest = {
    *  后端 runAgentChatV2 把它排在 NOMI_AGENT_IDENTITY 之后、skill 方法论之前。 */
   systemPrompt?: string
   displayPrompt: string
-  capability: AgentChatCapability
-  history: AgentChatHistory
-  featureKey?: string
-  selectedNodeIds?: readonly string[]
+  sessionKey: string
   projectId?: string
   flowId?: string
   projectName?: string
@@ -42,10 +37,7 @@ export const WORKBENCH_AI_REQUEST_FIELDS: Record<keyof WorkbenchAiRequest, true>
   prompt: true,
   systemPrompt: true,
   displayPrompt: true,
-  capability: true,
-  history: true,
-  featureKey: true,
-  selectedNodeIds: true,
+  sessionKey: true,
   projectId: true,
   flowId: true,
   projectName: true,
@@ -63,23 +55,13 @@ export type WorkbenchAiStreamHandlers = {
   onSession?: (session: AgentChatV2Session) => void
 }
 
-export class WorkbenchAiError extends Error {
-  constructor(message: string, readonly code?: AgentChatErrorCode) {
-    super(message)
-    this.name = 'WorkbenchAiError'
-  }
-}
-
 export function buildWorkbenchAiPayload(input: WorkbenchAiRequest) {
   return {
     vendor: 'agents',
     prompt: input.prompt,
     ...(input.systemPrompt ? { systemPrompt: input.systemPrompt } : {}),
     displayPrompt: input.displayPrompt,
-    capability: input.capability,
-    history: input.history,
-    ...(input.featureKey ? { featureKey: input.featureKey } : {}),
-    ...(input.selectedNodeIds !== undefined ? { selectedNodeIds: [...input.selectedNodeIds] } : {}),
+    sessionKey: input.sessionKey,
     ...(input.projectId ? { canvasProjectId: input.projectId } : {}),
     ...(input.flowId ? { canvasFlowId: input.flowId } : {}),
     chatContext: {
@@ -91,8 +73,7 @@ export function buildWorkbenchAiPayload(input: WorkbenchAiRequest) {
     },
     mode: input.mode || 'auto',
     temperature: 0.7,
-    ...(input.agentModelKey ? { agentModelKey: input.agentModelKey } : {}),
-    ...(input.agentVendorKey ? { agentVendorKey: input.agentVendorKey } : {}),
+    ...(input.agentModelKey ? { agentModelKey: input.agentModelKey, agentVendorKey: input.agentVendorKey } : {}),
     ...(input.attachments?.length ? { attachments: input.attachments } : {}),
   }
 }
@@ -104,41 +85,41 @@ export async function sendWorkbenchAiMessage(
   const payload = buildWorkbenchAiPayload(input)
 
   let streamedText = ''
-  const outcome: { response?: AgentsChatResponseDto; error?: Error } = {}
-  let settled = false
-  const observe = (work: () => void) => {
-    try { work() } catch (error) { console.warn('Agent view observer failed', error) }
-  }
+  let finalResponse: AgentsChatResponseDto | null = null
+  let streamError: Error | null = null
 
-  const terminalReason = await new Promise<AgentChatStatus>((resolve, reject) => {
+  const terminalReason = await new Promise<'finished' | 'error'>((resolve, reject) => {
     void workbenchAgentsChatStream(payload, {
-      onSession: (session) => observe(() => handlers.onSession?.(session)),
+      onSession: handlers.onSession,
       onEvent: (event) => {
-        if (settled) return
+        handlers.onEvent?.(event)
         if (event.event === 'content') {
           const delta = String(event.data.delta || '')
+          if (!delta) return
           streamedText += delta
-          if (delta) observe(() => handlers.onContent?.(delta, streamedText))
-        } else if (event.event === 'result') {
-          outcome.response = event.data.response
-        } else if (event.event === 'error') {
+          handlers.onContent?.(delta, streamedText)
+          return
+        }
+        if (event.event === 'result') {
+          finalResponse = event.data.response
+          return
+        }
+        if (event.event === 'error') {
           const message = String(event.data.message || '').trim() || 'agents chat stream failed'
-          outcome.error = new WorkbenchAiError(message, event.data.code)
-        } else if (event.event === 'done') {
-          settled = true
+          streamError = new Error(message)
+          reject(streamError)
+          return
+        }
+        if (event.event === 'done') {
           resolve(event.data.reason)
         }
-        // View callbacks are observers; they cannot veto actual result/usage settlement.
-        observe(() => handlers.onEvent?.(event))
       },
-      onError: (error) => { outcome.error = error },
+      onError: reject,
     }).catch(reject)
   })
 
-  // Stable final consumption is counted once for all six callers, including errors and Stop.
-  if (outcome.response) useAgentUsageStore.getState().addUsage(outcome.response.usage)
-  if (terminalReason === 'error') throw outcome.error ?? new Error('agents chat stream failed')
-  if (terminalReason !== 'cancelled' && outcome.error) throw outcome.error
-  if (!outcome.response) throw new Error('agents chat stream ended without result')
-  return outcome.response
+  if (streamError) throw streamError
+  if (terminalReason === 'error') throw new Error('agents chat stream failed')
+  if (!finalResponse) throw new Error('agents chat stream ended without result')
+  return finalResponse
 }

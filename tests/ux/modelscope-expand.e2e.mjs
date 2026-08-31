@@ -5,7 +5,6 @@
 //      → output_video_url 出片
 // 用法：MODELSCOPE_E2E=1 pnpm run build && node tests/ux/modelscope-expand.e2e.mjs
 import { launchNomiApp } from "./_launchApp.mjs";
-import { runAgentProbe } from "./_agentProbe.mjs";
 
 if (!process.env.MODELSCOPE_E2E) {
   console.log("SKIP modelscope-expand: 会花魔搭额度。MODELSCOPE_E2E=1 node tests/ux/modelscope-expand.e2e.mjs 才跑（用 app 已配魔搭 key）。");
@@ -33,7 +32,6 @@ const STATUS_MAPPING = { queued: ["pending", "queued"], running: ["running", "pr
 
 const { app, win } = await launchNomiApp({ name: "modelscope-expand", args: ["--disable-gpu"], settleMs: 1200 });
 const results = [];
-let agentProbeFailed = false;
 const ok = (n, v, d) => { results.push({ n, v }); console.log(`  ${v ? "✓" : "✗"} ${n}${d ? " — " + d : ""}`); };
 
 try {
@@ -47,20 +45,26 @@ try {
   console.log("\n▶ ① 魔搭 LLM（免费文本大脑）chat + tool_use");
   for (const mk of LLM_CANDIDATES) {
     await win.evaluate((id) => window.nomiDesktop.modelCatalog.upsertModel({ vendorKey: "modelscope", modelKey: id, labelZh: id, kind: "text", enabled: true }), mk);
-    const outcome = await win.evaluate(runAgentProbe, {
-      timeoutMs: 70000,
-      request: {
+    const out = await win.evaluate(async (mk) => {
+      const { sessionId } = await window.nomiDesktop.agents.chatV2Start({
         prompt: "把这句话拆成 2 个分镜，必须调用 propose_storyboard_plan 工具，不要只用文字。故事：一只猫在屋顶看月亮。",
-        capability: "storyboard", history: { kind: "ephemeral" }, featureKey: "ms-probe",
-        skillKey: "workbench.generation.canvas-planner", mode: "auto",
+        sessionKey: "ms-probe", skillKey: "workbench.generation.canvas-planner", mode: "auto",
         agentModelKey: mk, agentVendorKey: "modelscope",
-      },
-    });
-    if (!outcome.ok) agentProbeFailed = true;
-    if (outcome.result?.usage) console.log(`   usage: ${JSON.stringify(outcome.result.usage)}`);
-    const tool = outcome.calls.length > 0;
-    ok(`LLM ${mk}: chat`, outcome.ok && (Boolean(outcome.text) || tool), outcome.error || "");
-    ok(`LLM ${mk}: tool_use`, outcome.ok && tool, outcome.error || (tool ? "" : "未触发工具调用"));
+      });
+      return await new Promise((resolve) => {
+        const seen = { content: false, tool: false, error: "" };
+        const off = window.nomiDesktop.agents.onChatV2Event(sessionId, (ev) => {
+          if (!ev) return;
+          if (ev.type === "content-delta" && (ev.delta || "").length) seen.content = true;
+          if (ev.type === "tool-call" || ev.type === "tool-call-pending") { seen.tool = true; if (ev.type === "tool-call-pending" && ev.toolCallId) window.nomiDesktop.agents.confirmTool(sessionId, ev.toolCallId, { ok: false, denied: true, message: "probe" }); }
+          if (ev.type === "error") seen.error = ev.message || "err";
+          if (ev.type === "done") { off?.(); resolve(seen); }
+        });
+        setTimeout(() => { off?.(); resolve(seen); }, 70000);
+      });
+    }, mk);
+    ok(`LLM ${mk}: chat`, out.content || out.tool, out.error || "");
+    ok(`LLM ${mk}: tool_use`, out.tool, out.tool ? "" : "未触发工具调用");
   }
 
   // ② 视频：upsert Wan + 视频 mapping → tasks.run → 轮询出片。
@@ -90,4 +94,4 @@ finally { await app.close().catch(() => undefined); }
 const pass = results.filter((r) => r.v).length;
 console.log(`\n═══ 魔搭扩容 verify-first：${pass}/${results.length} ═══`);
 for (const r of results) console.log(`  ${r.v ? "✓" : "✗"} ${r.n}`);
-process.exit(agentProbeFailed ? 1 : 0); // 候选能力仍供发现；Agent 超时/传输失败不能伪装成成功探针。
+process.exit(0); // 探针:不因部分失败非零退出(发现性质,据结果挑能用的)

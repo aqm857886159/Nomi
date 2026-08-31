@@ -14,7 +14,7 @@ import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSessi
  *
  * 接力语义：用**源视频的尾帧**当本镜首帧（前一镜结束画面 → 后一镜开始画面，视觉连贯）。
  */
-export async function applyRelayFirstFrame(references: Partial<ResolvedGenerationReferences>): Promise<void> {
+export async function applyRelayFirstFrame(references: ResolvedGenerationReferences): Promise<void> {
   if (!references.relayFromVideoUrl || references.firstFrameUrl) return
   const relayVideoUrl = references.relayFromVideoUrl
 

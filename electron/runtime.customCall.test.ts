@@ -145,30 +145,6 @@ return 'data:image/png;base64,eA=='`);
     expect(result.status).toBe("succeeded");
   });
 
-  it("custom-call uses the selected non-Comfy identity instead of a stale Comfy exact contract", async () => {
-    seedScriptedModel(`if (params.reference_images?.[0] !== 'https://cdn.example.com/reference.png') throw new Error('reference shadowed')
-return 'data:image/png;base64,eA=='`);
-    const grantId = mintSpendGrant({ nodeIds: ["n1"] });
-    const result = await runTask({
-      vendor: "custom-cc",
-      request: {
-        kind: "image_edit",
-        prompt: "keep the subject",
-        extras: {
-          modelKey: "cc-model", modelVendor: "comfyui-local", nodeId: "n1", grantId,
-          parameterReferenceSlots: {
-            modelKey: "cc-model", vendorKey: "comfyui-local",
-            slots: [{ key: "comfy_image_1", label: "Reference", group: "reference", mediaKind: "image" }],
-          },
-          comfy_image_1: null,
-          reference_images: [],
-          referenceImages: ["https://cdn.example.com/reference.png"],
-        },
-      },
-    });
-    expect(result.status).toBe("succeeded");
-  });
-
   it("audio 也先走 customCall，不会被独立 audio runner 绕过", async () => {
     seedScriptedModel(`if (taskKind !== 'text_to_audio') throw new Error('wrong task kind')
 return 'data:audio/mpeg;base64,eA=='`, "audio");

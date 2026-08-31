@@ -24,11 +24,6 @@ const batches: Record<string, GenerationQueueBatch> = {
 }
 
 describe('buildTaskCenterView', () => {
-  it('offers the same local-process cancel action as the canvas after receipt', () => {
-    const view = buildTaskCenterView({ entries: [entry({nodeId:'agy',state:'running'})], batches,
-      nodes: [node('agy', {status:'running', progress:{phase:'generating',taskId:'local-123',updatedAt:0}})], fallbackTitle:'untitled', now:2000 })
-    expect(view.rows[0]).toMatchObject({cancel:'interrupt',action:{kind:'interrupt_generation',nodeId:'agy'}})
-  })
   it('排队中 = 可免费取消；云端进行中 = 不给取消按钮（提交后停不下来，钱已花）', () => {
     const view = buildTaskCenterView({
       entries: [

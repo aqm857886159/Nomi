@@ -59,23 +59,6 @@ describe("pickUpstreamMessage", () => {
     expect(msg).toContain("Cannot execute because a node is missing");
     expect(msg).toContain("UNETLoaderGGUF");
   });
-
-  it("sanitizes nested error details before the 200-character message budget", () => {
-    const secret = "private-token-beyond-the-budget";
-    const message = pickUpstreamMessage({ error: { message: "rejected", details: `${"x".repeat(190)}${secret}` } },
-      (text) => text.split(secret).join("[REDACTED]"));
-    expect(message).not.toContain("private-to");
-    expect(message).toContain("rejected");
-  });
-
-  it("sanitizes node details before the 160-character per-node budget", () => {
-    const secret = "private-token-beyond-the-budget";
-    const message = pickUpstreamMessage({
-      node_errors: { node: { class_type: "Loader", errors: [{ details: `${"x".repeat(150)}${secret}` }] } },
-    }, (text) => text.split(secret).join("[REDACTED]"));
-    expect(message).not.toContain("private-to");
-    expect(message).toContain("Loader");
-  });
 });
 
 describe("trim", () => {

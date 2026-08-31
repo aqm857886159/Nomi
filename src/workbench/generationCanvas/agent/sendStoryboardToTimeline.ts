@@ -65,8 +65,6 @@ export async function sendStoryboardToTimeline(
 export type ArrangeStoryboardToTimelineOptions = {
   /** 排片范围：省略 = 整条故事板（所有镜头节点）；给定 = 仅这些节点。 */
   nodeIds?: readonly string[]
-  /** Agent turn ownership only; manual adoption has no conversation dependency. */
-  assertCanApply?: () => void
 }
 
 /**
@@ -77,7 +75,6 @@ export type ArrangeStoryboardToTimelineOptions = {
 export async function arrangeStoryboardToTimeline(
   options: ArrangeStoryboardToTimelineOptions = {},
 ): Promise<SendStoryboardToTimelineResult> {
-  options.assertCanApply?.()
   const canvasState = useGenerationCanvasStore.getState()
   const { units, skipped } = planStoryboardTimeline(canvasState.nodes, canvasState.edges, options.nodeIds)
   const startFrame = timelineEndFrame(useWorkbenchStore.getState().timeline)
@@ -86,7 +83,6 @@ export async function arrangeStoryboardToTimeline(
     skipped,
     startFrame,
     readNodes: () => useGenerationCanvasStore.getState().nodes,
-    assertCanApply: options.assertCanApply,
   })
   return toResult(outcome, units.length)
 }

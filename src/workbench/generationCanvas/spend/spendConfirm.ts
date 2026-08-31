@@ -3,7 +3,6 @@ import { create } from 'zustand'
 import { mintSpendGrant } from '../../api/taskApi'
 import type { ProductionContractView } from './productionContractView'
 import type { AnchorCheckpointCardModel } from './anchorCheckpointView'
-import i18n from '../../../i18n'
 
 export type HostingDisclosure = {
   message: string
@@ -187,13 +186,10 @@ export async function confirmGenerationSpend(
   })
 }
 
-export type GenerationCostKind = 'text' | 'image' | 'video' | 'audio' | 'mixed'
-
-/** 件数 + 额度提示；文本耗时无可靠估计，不沿用媒体的固定时长。 */
-export function describeGenerationCost(count: number, kind: GenerationCostKind = 'image'): string {
-  if (kind === 'text') return i18n.t('generationCommon.spend.cost.text', { count })
+/** 人话出片预估（C1：只显件数 + 预计时长，不显金额——守卫不依赖金额）。 */
+export function describeGenerationCost(count: number, kind: 'image' | 'video' | 'audio' | 'mixed' = 'image'): string {
   const perItemSec = kind === 'video' ? 40 : kind === 'audio' ? 20 : 12
-  const minutes = Math.max(1, Math.round((count * perItemSec) / 60))
-  const unit = i18n.t(`generationCommon.spend.cost.units.${kind}`, { count })
-  return i18n.t('generationCommon.spend.cost.media', { count, unit, minutes })
+  const mins = Math.max(1, Math.round((count * perItemSec) / 60))
+  const unit = kind === 'video' ? '段视频' : kind === 'audio' ? '段配音' : kind === 'mixed' ? '个素材' : '张画面'
+  return `将生成 ${count} ${unit} · 预计约 ${mins} 分钟 · 会消耗模型额度`
 }

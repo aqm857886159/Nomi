@@ -8,7 +8,6 @@ import { RUNNINGHUB_VENDOR_SEED } from "./runninghub3d";
 import { REPLICATE_VENDOR_SEED } from "./replicate";
 import { COMFYUI_VENDOR_SEED } from "./comfyuiLocal";
 import { CODEX_LOCAL_VENDOR_SEED } from "./codexImages";
-import { ANTIGRAVITY_VENDOR_SEED } from "./antigravityTexts";
 import type { Vendor } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -31,7 +30,7 @@ export type VendorSeed = {
 export const BUILTIN_VENDOR_SEEDS: readonly VendorSeed[] = [
   KIE_VENDOR_SEED,
   APIMART_VENDOR_SEED,
-  AGNES_VENDOR_SEED, // Agnes AI 公开模型目录；以账户实际额度为准
+  AGNES_VENDOR_SEED, // Agnes AI（全模态免费网关）
   MODELSCOPE_VENDOR_SEED,
   VOLCENGINE_VENDOR_SEED,
   VOLCENGINE_SPEECH_VENDOR_SEED,
@@ -40,7 +39,6 @@ export const BUILTIN_VENDOR_SEEDS: readonly VendorSeed[] = [
   REPLICATE_VENDOR_SEED, // Replicate（元素拆解 qwen-image-layered，按量付费）
   COMFYUI_VENDOR_SEED, // 本地 ComfyUI（无鉴权本地后端，默认关、用户显式启用）
   CODEX_LOCAL_VENDOR_SEED, // Codex 本地生图（实验，默认关）
-  ANTIGRAVITY_VENDOR_SEED, // 官方本机 CLI；完整能力验证前默认关闭
 ];
 
 /**

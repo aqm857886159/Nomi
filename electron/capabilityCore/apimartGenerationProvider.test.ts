@@ -33,7 +33,7 @@ function input(overrides: Record<string, unknown> = {}) {
 
 describe("APIMart observe-only generation provider", () => {
   it("maps a generic image contract to APIMart's flat image request", () => {
-    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl: vi.fn() });
+    const provider = createApimartGenerationProvider({ apiKey: "test-key", fetchImpl: vi.fn() });
     expect(provider.buildRequest(input())).toEqual({
       model: "gpt-image-2",
       prompt: "a red paper crane",
@@ -50,14 +50,14 @@ describe("APIMart observe-only generation provider", () => {
       expect(init?.method).toBe("POST");
       return new Response(JSON.stringify({ code: 200, data: [{ status: "submitted", task_id: "task-1" }] }), { status: 200, headers: { "content-type": "application/json" } });
     });
-    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl });
+    const provider = createApimartGenerationProvider({ apiKey: "test-key", fetchImpl });
     await expect(provider.submit({ model: "gpt-image-2", prompt: "x", size: "1:1", resolution: "1K", n: 1 }, "stable-key")).resolves.toMatchObject({ providerTaskId: "task-1" });
     expect(fetchImpl.mock.calls[0]?.[1]?.headers).toMatchObject({ Authorization: "Bearer test-key" });
   });
 
   it("queries by task id and never sends the stable Nomi key as a false provider idempotency claim", async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ code: 200, data: { id: "task-1", status: "processing" } }), { status: 200 }));
-    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl });
+    const provider = createApimartGenerationProvider({ apiKey: "test-key", fetchImpl });
     await expect(provider.query?.("task-1")).resolves.toMatchObject({ status: "processing" });
     expect(fetchImpl).toHaveBeenCalledWith("https://api.apimart.ai/v1/tasks/task-1", expect.objectContaining({ method: "GET" }));
     expect(fetchImpl.mock.calls[0]?.[1]?.headers).not.toHaveProperty("Idempotency-Key");
@@ -65,14 +65,14 @@ describe("APIMart observe-only generation provider", () => {
 
   it("reconcile returns not-found without a task id and never invents one", async () => {
     const fetchImpl = vi.fn();
-    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl });
+    const provider = createApimartGenerationProvider({ apiKey: "test-key", fetchImpl });
     await expect(provider.reconcile?.({ idempotencyKey: "stable-key" })).resolves.toEqual({ found: false });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("extracts provider-specific image/video output shapes without making a second request", async () => {
     const fetchImpl = vi.fn();
-    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl });
+    const provider = createApimartGenerationProvider({ apiKey: "test-key", fetchImpl });
     await expect(provider.materialize?.({
       providerTaskId: "task-1",
       raw: { code: 200, data: { status: "completed", result: { images: [{ url: "https://cdn.example/image.png" }], videos: [{ url: "https://cdn.example/video.mp4" }] } } },
@@ -88,7 +88,7 @@ describe("APIMart observe-only generation provider", () => {
     // delivers `videos[0].url` as ["https://…"], not a plain string. The old extractor returned zero
     // outputs → adapter.materialize threw "no materializable output" on EVERY observe round, so a real
     // completed video never landed. Docs-shaped plain strings must keep working (previous test).
-    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl: vi.fn() });
+    const provider = createApimartGenerationProvider({ apiKey: "test-key", fetchImpl: vi.fn() });
     await expect(provider.materialize?.({
       providerTaskId: "task-1",
       raw: {

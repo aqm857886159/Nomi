@@ -3,7 +3,6 @@
 // S5-b 翻正后当 hydrate/undo 的正式投影。复用 graphOps 纯算子保证与 store 同语义。
 // 未知事件类型原样跳过(前向兼容:老版本重放新日志不崩,§4.1 演进策略)。
 import { connectNodes, disconnectEdge, removeNodes, upsertNode } from '../model/graphOps'
-import { normalizeParameterEdges } from '../model/parameterReferenceSlots'
 import type { GenerationCanvasEdge, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 
 export type CanvasProjection = {
@@ -18,7 +17,7 @@ type ReplayableEvent = { type: string; payload: Record<string, unknown> }
 
 /** 事件重放的幂等语义是 source+target+mode；ID 是交互身份，不代替图语义去重。 */
 function sameEdgeSemantic(a: GenerationCanvasEdge, b: GenerationCanvasEdge): boolean {
-  return a.source === b.source && a.target === b.target && a.mode === b.mode && a.targetParamKey === b.targetParamKey
+  return a.source === b.source && a.target === b.target && a.mode === b.mode
 }
 
 export function applyCanvasEvent(projection: CanvasProjection, event: ReplayableEvent): CanvasProjection {
@@ -58,19 +57,21 @@ export function applyCanvasEvent(projection: CanvasProjection, event: Replayable
       const nodeId = String(payload.nodeId || '')
       const patch = payload.patch as Record<string, unknown> | undefined
       if (!nodeId || !patch) return projection
-      const nodes = projection.nodes.map((node) => {
-        if (node.id !== nodeId) return node
-        // patch 里 value===null = 「清除该字段」(如离开分镜清 shotIndex)——store 用 delete,
-        // 重放必须等价删键才 ≡ snapshot。null 是 JSON-safe 的删除信号(undefined 会被
-        // EventLog 的 JSON 序列化吞掉,过不了持久化)。
-        const next: Record<string, unknown> = { ...node }
-        for (const [key, value] of Object.entries(patch)) {
-          if (value === null) delete next[key]
-          else next[key] = value
-        }
-        return next as GenerationCanvasNode
-      })
-      return { ...projection, nodes, edges: 'meta' in patch ? normalizeParameterEdges(nodes, projection.edges) : projection.edges }
+      return {
+        ...projection,
+        nodes: projection.nodes.map((node) => {
+          if (node.id !== nodeId) return node
+          // patch 里 value===null = 「清除该字段」(如离开分镜清 shotIndex)——store 用 delete,
+          // 重放必须等价删键才 ≡ snapshot。null 是 JSON-safe 的删除信号(undefined 会被
+          // EventLog 的 JSON 序列化吞掉,过不了持久化)。
+          const next: Record<string, unknown> = { ...node }
+          for (const [key, value] of Object.entries(patch)) {
+            if (value === null) delete next[key]
+            else next[key] = value
+          }
+          return next as GenerationCanvasNode
+        }),
+      }
     }
     case 'canvas.node.locked':
     case 'canvas.node.unlocked': {

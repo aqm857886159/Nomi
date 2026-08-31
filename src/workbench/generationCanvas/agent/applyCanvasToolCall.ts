@@ -17,7 +17,6 @@ import { runPlanWithToasts } from '../components/batchPlanPreview'
 import { resolveAutonomousUploadConsent } from '../runner/generationRunController'
 import { toast } from '../../../ui/toast'
 import { mintSpendGrant } from '../../api/taskApi'
-import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlan'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
@@ -26,7 +25,6 @@ import type { ScenePropPlacement } from '../nodes/scene3d/scene3dPropSpecs'
 import type { Scene3DSceneTemplate } from '../nodes/scene3d/scene3dSceneTemplates'
 import type { CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
 import { useWorkbenchStore } from '../../workbenchStore'
-import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { registerCanvasToolClientId, resolveCanvasToolNodeId } from './clientIdRegistry'
 export { resetClientIdRegistry, resolveCanvasToolNodeId } from './clientIdRegistry'
@@ -217,18 +215,12 @@ export async function applyCanvasToolCall(
   toolName: string,
   args: unknown,
   gesture?: CanvasGestureContext,
-  canWrite?: () => boolean,
 ): Promise<unknown> {
-  const assertWritable = () => { if (canWrite) assertTurnCanWrite(canWrite) }
-  assertWritable()
   const record = args && typeof args === 'object' ? (args as Record<string, unknown>) : {}
   // S6-2:提议事务把手势上下文传进来,store 变更段(纯同步)包在上下文里——途经 action
   // 发出的画布事件统一携带 source:'agent'+txnId/proposalId。只包同步段,await 间隙不持有
   // (异步持有会让并行的用户手势串台,见 canvasGestureContext 纪律)。
-  const inCtx = <T>(fn: () => T): T => {
-    assertWritable()
-    return gesture ? withCanvasGestureContext(gesture, fn) : fn()
-  }
+  const inCtx = <T>(fn: () => T): T => (gesture ? withCanvasGestureContext(gesture, fn) : fn())
 
   if (toolName === 'read_canvas_state') {
     // T1 token 优化:回包用紧凑行格式(与 system prompt 的画布段同源),
@@ -546,7 +538,6 @@ export async function applyCanvasToolCall(
   }
 
   if (toolName === 'run_generation_batch') {
-    const projectId = getDesktopActiveProjectId()
     // S6b 受理语义:本分支只在用户批准后到达(确认前零网络调用)。受理 = 按依赖波次
     // 规划(显示的≡执行的,S2b 纯函数)并启动;立即返回受理回执——生成进度走 run 域
     // 事件给用户看,不阻塞 LLM 回合。approved nodeIds ≡ requested:只跑请求里解析
@@ -571,11 +562,7 @@ export async function applyCanvasToolCall(
     // / 本地 ComfyUI → 放行；还需要问一次 → 拒发并把人话原因走 toast 告诉用户，不偷偷上传。
     void mintSpendGrant(accepted)
       .then(async (grantId) => {
-        // Approval survives normal Agent finish, but must never hand its node IDs
-        // to another project's live canvas while authorization/consent awaits.
-        if (getDesktopActiveProjectId() !== projectId) return
         const decisions = await Promise.all(accepted.map((id) => resolveAutonomousUploadConsent(id)))
-        if (getDesktopActiveProjectId() !== projectId) return
         const consent = decisions.includes('allow') ? 'allow' as const : 'not-needed' as const
         await runPlanWithToasts(plan, { grantId, assetUploadConsent: consent })
       })
@@ -598,7 +585,7 @@ export async function applyCanvasToolCall(
     const rawIds = Array.isArray(record.nodeIds)
       ? record.nodeIds.map((id) => resolveNodeId(String(id || '').trim())).filter(Boolean)
       : undefined
-    const result = await arrangeStoryboardToTimeline({ ...(rawIds && rawIds.length ? { nodeIds: rawIds } : {}), assertCanApply: assertWritable })
+    const result = await arrangeStoryboardToTimeline(rawIds && rawIds.length ? { nodeIds: rawIds } : {})
     if (!result.ok && result.total === 0) {
       throw new Error('没有可排片的镜头:画布上还没有生成好的视频或可占位的关键帧')
     }

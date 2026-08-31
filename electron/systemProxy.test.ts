@@ -6,7 +6,6 @@ import {
   applySystemProxy,
   describeNetworkError,
   getProxyStatus,
-  getAppDispatcher,
   parseEnvProxy,
   parseResolveProxyString,
   rememberProxyStateForTests,
@@ -156,7 +155,7 @@ describe("describeNetworkError（把 fetch failed 翻成人话）", () => {
   it("AbortError → 请求超时", () => {
     const e = new Error("aborted");
     e.name = "AbortError";
-    expect(describeNetworkError(e)).toMatch(/中止|超时/);
+    expect(describeNetworkError(e)).toMatch(/请求超时/);
   });
 
   it("裸 fetch failed（无 code）→ 兜底人话，不再露出 'fetch failed'", () => {
@@ -172,29 +171,11 @@ describe("describeNetworkError（把 fetch failed 翻成人话）", () => {
     expect(out).toMatch(/用不了|地址/);
     // 关键：不再误导用户「当前未启用代理」（他明明配了）。
     expect(out).not.toMatch(/未启用代理/);
-    expect(out).not.toMatch(/已按直连处理/);
   });
 
   it("生效 HTTP 代理后 → 诊断带出代理标签（回归既有行为）", () => {
     rememberProxyStateForTests({ kind: "http", url: "http://127.0.0.1:7897", source: "system" });
     expect(describeNetworkError(withCause("ETIMEDOUT"))).toMatch(/当前代理/);
-  });
-
-  it("happy-eyeballs AggregateError 的 DNS cause 不会退化成普通 fetch failed", () => {
-    const failure = new TypeError('fetch failed', { cause: new AggregateError([
-      Object.assign(new Error('lookup failed'), { code: 'ENOTFOUND' }),
-    ]) });
-    expect(describeNetworkError(failure)).toMatch(/DNS/);
-  });
-
-  it("AbortError 不虚构一个并不存在的固定12秒超时", () => {
-    const error = new DOMException('aborted', 'AbortError');
-    expect(describeNetworkError(error)).not.toMatch(/12\s*秒/);
-  });
-
-  it("代理诊断标签不会暴露URL里的用户名或密码", () => {
-    rememberProxyStateForTests({ kind: 'http', url: 'http://fixture-user:fixture-password@127.0.0.1:7897', source: 'custom' });
-    expect(describeNetworkError(withCause('ETIMEDOUT'))).not.toMatch(/fixture-user|fixture-password/);
   });
 });
 
@@ -300,15 +281,15 @@ describe("getProxyStatus — 选了什么 × 实际生效什么", () => {
 describe("applySystemProxy 可重复调用（热切换是本设置的前提）", () => {
   const fakeSession = { resolveProxy: async () => "DIRECT", setProxy: async () => {} } as never;
 
-  it("热切换使用同一个应用路由入口，当前地址来自已提交配置，不抢全局 dispatcher", async () => {
+  it("二次调用不套娃：第二次的「直连档」仍是原始 dispatcher，不是上一次装的 Selective", async () => {
     const original = getGlobalDispatcher();
     try {
       await applySystemProxy(fakeSession, { mode: "custom", customUrl: "http://127.0.0.1:7897" });
-      const first = await getAppDispatcher();
+      const first = getGlobalDispatcher() as unknown as { direct: unknown };
       await applySystemProxy(fakeSession, { mode: "custom", customUrl: "http://127.0.0.1:7898" });
-      expect(await getAppDispatcher()).toBe(first);
-      expect(getProxyStatus().activeUrl).toBe("http://127.0.0.1:7898");
-      expect(getGlobalDispatcher() === original).toBe(true);
+      const second = getGlobalDispatcher() as unknown as { direct: unknown };
+      expect(second.direct).toBe(first.direct);
+      expect(second.direct).not.toBeInstanceOf(SelectiveProxyDispatcher);
     } finally {
       setGlobalDispatcher(original);
     }
@@ -318,10 +299,9 @@ describe("applySystemProxy 可重复调用（热切换是本设置的前提）",
     const original = getGlobalDispatcher();
     try {
       await applySystemProxy(fakeSession, { mode: "custom", customUrl: "http://127.0.0.1:7897" });
-      expect(getProxyStatus().activeUrl).toBe("http://127.0.0.1:7897");
+      expect(getGlobalDispatcher()).toBeInstanceOf(SelectiveProxyDispatcher);
       await applySystemProxy(fakeSession, { mode: "off", customUrl: "http://127.0.0.1:7897" });
-      expect(getProxyStatus().activeUrl).toBe("");
-      expect(getGlobalDispatcher() === original).toBe(true);
+      expect(getGlobalDispatcher()).not.toBeInstanceOf(SelectiveProxyDispatcher);
     } finally {
       setGlobalDispatcher(original);
     }

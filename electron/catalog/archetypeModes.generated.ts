@@ -346,13 +346,6 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "i2i": "image_edit"
     }
   },
-  "antigravity-image": {
-    "defaultModeId": "t2i",
-    "modes": {
-      "t2i": "text_to_image",
-      "i2i": "image_edit"
-    }
-  },
   "hunyuan3d": {
     "defaultModeId": "text",
     "modes": {
@@ -450,35 +443,11 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "edit": "image_edit"
     }
   },
-  "agnes-image-2.1": {
-    "defaultModeId": "t2i",
-    "modes": {
-      "t2i": "text_to_image",
-      "edit": "image_edit"
-    }
-  },
   "agnes-video": {
     "defaultModeId": "t2v",
     "modes": {
       "t2v": "text_to_video",
-      "i2v": "image_to_video",
-      "keyframes": "image_to_video"
-    }
-  },
-  "agnes-video-2.5": {
-    "defaultModeId": "text",
-    "modes": {
-      "text": "text_to_video",
-      "keyframe": "image_to_video",
-      "reference": "image_to_video"
-    }
-  },
-  "agnes-video-2.5-flash": {
-    "defaultModeId": "text",
-    "modes": {
-      "text": "text_to_video",
-      "keyframe": "image_to_video",
-      "reference": "image_to_video"
+      "i2v": "image_to_video"
     }
   }
 };

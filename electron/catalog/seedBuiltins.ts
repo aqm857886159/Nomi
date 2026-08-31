@@ -51,7 +51,7 @@ import { APIMART_IMAGE_MODELS, APIMART_IMAGE_QUERY, APIMART_IMAGE_STATUS } from 
 import { APIMART_VIDEO_MODELS, APIMART_VIDEO_QUERY, APIMART_VIDEO_STATUS } from "./apimartVideos";
 import { APIMART_AUDIO_MODELS } from "./apimartAudios";
 import { APIMART_TEXT_MAPPINGS, APIMART_TEXT_MODELS } from "./apimartTexts";
-import { AGNES_VENDOR_SEED, AGNES_STATUS_MAPPING } from "./agnesVendor";
+import { AGNES_VENDOR_SEED, AGNES_VIDEO_QUERY_OP, AGNES_STATUS_MAPPING } from "./agnesVendor";
 import { AGNES_IMAGE_MODELS } from "./agnesImages";
 import { AGNES_VIDEO_MODELS } from "./agnesVideos";
 import { AGNES_TEXT_MODELS } from "./agnesTexts";
@@ -196,10 +196,10 @@ const APIMART_CURATED_MAPPINGS: CuratedMapping[] = [
   ),
 ];
 
-/** Agnes AI 公开模型 curated 种子；实际调用权限和费用由账户决定。文本(无 mapping，直连 chat)；
+/** Agnes AI（全模态免费网关）curated 模型 + mapping。文本：免费大脑(无 mapping，直连 chat)；
  *  图片：同步 create(无 query)；视频：异步 create→poll(query 参数版轮询，见 agnesVendor)。 */
 const AGNES_CURATED_MODELS: CuratedModel[] = [
-  ...AGNES_TEXT_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "text" as const, meta: m.meta })),
+  ...AGNES_TEXT_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "text" as const })),
   ...AGNES_IMAGE_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "image" as const, archetypeId: m.archetypeId })),
   ...AGNES_VIDEO_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "video" as const, archetypeId: m.archetypeId })),
 ];
@@ -208,11 +208,11 @@ const AGNES_CURATED_MAPPINGS: CuratedMapping[] = [
   ...AGNES_IMAGE_MODELS.flatMap((m) =>
     m.mappings.map((mp) => ({ id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name, create: mp.create })),
   ),
-  // 视频异步族：模型声明自己的 query；2.5 必须带 model_name。
+  // 视频异步族：共用 AGNES_VIDEO_QUERY_OP 轮询 + AGNES_STATUS_MAPPING 状态归一。
   ...AGNES_VIDEO_MODELS.flatMap((m) =>
     m.mappings.map((mp) => ({
       id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name,
-      create: mp.create, query: m.query, statusMapping: AGNES_STATUS_MAPPING,
+      create: mp.create, query: AGNES_VIDEO_QUERY_OP, statusMapping: AGNES_STATUS_MAPPING,
     })),
   ),
 ];
@@ -429,10 +429,12 @@ function reconcileModels(models: Model[], vendorKey: string, curated: CuratedMod
     }
     const ex = models[i];
     const exMeta = (ex.meta || {}) as Record<string, unknown>;
-    // Compare every code-owned capability, including supportsImageInput added to existing text rows.
-    // Unrelated user metadata is not compared or removed.
-    const metaDrift = Object.entries(curatedMeta).some(([key, value]) => JSON.stringify(exMeta[key]) !== JSON.stringify(value));
-    const drift = ex.kind !== c.kind || metaDrift;
+    const exArch = (exMeta as { archetypeId?: string }).archetypeId;
+    // parameters 是代码所有（workflow 契约），漂移强制对账（老装机自愈）。
+    const paramsDrift = c.meta?.parameters !== undefined && JSON.stringify(exMeta.parameters) !== JSON.stringify(c.meta.parameters);
+    // canonicalModelId 同为代码所有：缺失/漂移强制对账（老装机自愈，去重键才可靠）。
+    const canonicalDrift = canonicalId !== undefined && exMeta.canonicalModelId !== canonicalId;
+    const drift = ex.kind !== c.kind || (Boolean(c.archetypeId) && exArch !== c.archetypeId) || paramsDrift || canonicalDrift;
     if (drift) {
       const nextMeta = { ...exMeta, ...curatedMeta };
       models[i] = {

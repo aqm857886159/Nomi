@@ -1,7 +1,5 @@
 import { connectNodes, disconnectEdge, removeNodes } from '../model/graphOps'
-import { normalizeParameterEdges, readParameterReferenceSlots } from '../model/parameterReferenceSlots'
-import { resolveCanvasReferenceConnection } from '../model/canvasReferenceConnection'
-import { archetypeForNode, resolveTargetModeForEdge } from '../agent/referenceEdgeCapability'
+import { archetypeForNode, resolveTargetModeForEdge, selectConnectionEdgeMode, validateReferenceEdge } from '../agent/referenceEdgeCapability'
 import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { groupMemberNodes, planGroupLinkEdges, removeGroupLinkEdgesForMember, upsertGroupInputLink, upsertGroupOutputLink } from '../model/groupInputLinks'
@@ -105,7 +103,7 @@ function materializeGroupLink(
   let edges = pre.edges
   const connected: GroupMaterializedConnection[] = []
   for (const item of plan.connect) {
-    const next = connectNodes(edges, item.sourceNodeId, item.targetNodeId, item.mode, item.targetParamKey)
+    const next = connectNodes(edges, item.sourceNodeId, item.targetNodeId, item.mode)
     if (next === edges) continue
     // connectNodes 是 append；给刚加的那条盖上溯源章（成员移出组时据此精确撤边、不误伤手工边）。
     const added = next[next.length - 1]
@@ -131,19 +129,17 @@ function materializeGroupOutputLink(
   let alreadyConnected = 0
   for (const source of sources) {
     if (source.id === target.id) continue
-    const connection = resolveCanvasReferenceConnection(source, target, pre.nodes, edges)
-    const slots = readParameterReferenceSlots(target.meta)
-    if (edges.some((edge) => edge.source === source.id && edge.target === target.id &&
-      (edge.targetParamKey ? slots.some((slot) => slot.key === edge.targetParamKey) : connection.ok && edge.mode === connection.mode))) {
+    const mode = selectConnectionEdgeMode(source, target, edges.filter((edge) => edge.target === target.id))
+    if (edges.some((edge) => edge.source === source.id && edge.target === target.id && edge.mode === mode)) {
       alreadyConnected += 1
       continue
     }
-    if (!connection.ok) {
+    const verdict = validateReferenceEdge(source, target, mode)
+    if (!verdict.ok) {
       skipped += 1
       continue
     }
-    const { mode, targetParamKey } = connection
-    const next = connectNodes(edges, source.id, target.id, mode, targetParamKey)
+    const next = connectNodes(edges, source.id, target.id, mode)
     if (next === edges) continue
     const added = next[next.length - 1]
     if (!added) continue
@@ -175,24 +171,26 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     const targetNode = pre.nodes.find((n) => n.id === targetNodeId)
     // 边语义按**目标当前模式**挑（单一真相源 selectConnectionEdgeMode）：数组参考槽（omni 角色参考）→
     // character_ref（有序，对应 character1..N）；单帧 i2v → 首/尾帧填空。无源/目标 → 默认通用 reference。
-    const connection = sourceNode && targetNode
-      ? resolveCanvasReferenceConnection(sourceNode, targetNode, pre.nodes, pre.edges)
-      : { ok: false as const, reason: 'dangling' as const }
+    const mode: GenerationCanvasEdge['mode'] = sourceNode && targetNode
+      ? selectConnectionEdgeMode(sourceNode, targetNode, pre.edges.filter((e) => e.target === targetNodeId))
+      : 'reference'
     // 连边能力校验收口到此(手动连线总闸):错配参考槽等盲连在创建期就拦；
     // 文本→图片/视频的通用 reference 边作为 prompt 上下文放行。
     // T8 此前只补了 agent 入口,手动拖把柄/点输入口的边落库后才在生成期被静默丢弃。
     // agent 路径已在 generationCanvasTools 预校验;这里防的是手动入口。
-    if (!connection.ok) {
-      set((state) => {
-        state.pendingConnectionSourceId = ''
-        state.pendingConnectionSourceSide = 'right'
-      })
-      return connection
+    if (sourceNode && targetNode) {
+      const verdict = validateReferenceEdge(sourceNode, targetNode, mode)
+      if (!verdict.ok) {
+        set((state) => {
+          state.pendingConnectionSourceId = ''
+          state.pendingConnectionSourceSide = 'right'
+        })
+        return verdict
+      }
     }
-    const { mode, targetParamKey } = connection
     const beforeEdges = pre.edges
     set((state) => {
-      const nextEdges = normalizeParameterEdges(state.nodes, connectNodes(state.edges, sourceNodeId, targetNodeId, mode, targetParamKey))
+      const nextEdges = connectNodes(state.edges, sourceNodeId, targetNodeId, mode)
       if (nextEdges !== state.edges) {
         state.edges = nextEdges
         bumpPersistRevision(state)
@@ -269,31 +267,18 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     }
     return { ok: true, connected: outcome.connected.length, skipped: outcome.skipped, alreadyConnected: outcome.alreadyConnected }
   },
-  connectNodes: (sourceNodeId, targetNodeId, mode, targetParamKey) => {
+  connectNodes: (sourceNodeId, targetNodeId, mode) => {
     const beforeEdges = get().edges
     set((state) => {
-      const target = state.nodes.find((node) => node.id === targetNodeId)
-      const source = state.nodes.find((node) => node.id === sourceNodeId)
-      const slots = readParameterReferenceSlots(target?.meta)
-      const connection = slots.length && source && target
-        ? resolveCanvasReferenceConnection(source, target, state.nodes, state.edges, mode, targetParamKey)
-        : { ok: true as const, mode: mode ?? 'reference', targetParamKey }
-      if (!connection.ok) return
-      const key = connection.targetParamKey
-      let nextEdges = connectNodes(state.edges, sourceNodeId, targetNodeId, connection.mode, key)
+      const nextEdges = connectNodes(state.edges, sourceNodeId, targetNodeId, mode)
       if (nextEdges === state.edges) return
-      if (key) nextEdges = nextEdges.filter((edge) => edge.target !== targetNodeId || edge.targetParamKey !== key || (edge.source === sourceNodeId && edge.mode === connection.mode))
-      state.edges = normalizeParameterEdges(state.nodes, nextEdges)
+      state.edges = nextEdges
       bumpPersistRevision(state)
     })
     const afterEdges = get().edges
     if (afterEdges !== beforeEdges) {
       const addedEdge = afterEdges.find((candidate) => !beforeEdges.some((edge) => edge.id === candidate.id))
-      if (addedEdge) emitCanvasGesture([
-        ...beforeEdges.filter((edge) => !afterEdges.some((candidate) => candidate.id === edge.id))
-          .map((edge) => ({ type: 'canvas.edge.removed' as const, payload: { edge } })),
-        { type: 'canvas.edge.added', payload: { edge: addedEdge } },
-      ])
+      if (addedEdge) emitCanvasGesture([{ type: 'canvas.edge.added', payload: { edge: addedEdge } }])
       // agent 计划 / 3D 站位经此入口连线，同样把收不下参考的目标自动切到能收的模式(幂等，见 helper)。
       autoPromoteTargetModeForEdge(get(), sourceNodeId, targetNodeId, mode)
     }
@@ -309,7 +294,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     })
     emitCanvasGesture([{ type: 'canvas.edge.mode-changed', payload: { edgeId, mode } }])
   },
-  disconnectEdge: (edgeId, options) => {
+  disconnectEdge: (edgeId) => {
     const pre = get()
     const existing = pre.edges.find((candidate) => candidate.id === edgeId)
     if (!existing) return
@@ -317,18 +302,9 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     const removedEdges = groupScope
       ? pre.edges.filter((edge) => isEdgeInDisconnectScope(edge, groupScope))
       : [existing]
-    // Editing one inherited parameter ends that group relationship, retaining the other inputs as manual edges.
-    const retainedEdges = options?.scope === 'parameter' && groupScope
-      ? removedEdges.filter((edge) => edge.id !== edgeId).map((edge) => {
-          const retained = { ...edge }
-          delete retained.viaGroupId
-          return retained
-        })
-      : []
-    if (options?.scope === 'parameter') pushUndoSnapshot(pre)
     set((state) => {
       const nextEdges = groupScope
-        ? [...state.edges.filter((edge) => !isEdgeInDisconnectScope(edge, groupScope)), ...retainedEdges]
+        ? state.edges.filter((edge) => !isEdgeInDisconnectScope(edge, groupScope))
         : disconnectEdge(state.edges, edgeId)
       if (nextEdges.length === state.edges.length) return
       state.edges = nextEdges
@@ -351,14 +327,12 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
         }
       }
       bumpPersistRevision(state)
-      if (options?.scope === 'parameter') Object.assign(state, getHistoryFlags())
     })
     const post = get()
     if (post.edges.length === pre.edges.length) return
     emitCanvasGesture(groupScope
       ? [
           ...removedEdges.map((edge) => ({ type: 'canvas.edge.removed' as const, payload: { edge } })),
-          ...retainedEdges.map((edge) => ({ type: 'canvas.edge.added' as const, payload: { edge } })),
           ...post.groups
             .filter((group) => group.id === groupScope.groupId)
             .map((group) => ({ type: 'canvas.group.updated' as const, payload: { group } })),

@@ -44,7 +44,6 @@ import {
   type GenerationVariantCount,
 } from './generationVariantCount'
 import { useComposerViewportPlacement } from './useComposerViewportPlacement'
-import { COMPOSER_MIN_USABLE_HEIGHT } from './nodeSizing'
 import {
   findModelOptionByIdentifier,
   useGenerationModelOptionsState,
@@ -496,14 +495,11 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
     else await confirmAndRunNode(node.id)
   }
 
-  // 吃提示词的节点才有「最小可用高度」——不吃的（如某些 ComfyUI 工作流）本来就该按内容自然矮。
-  const minUsableHeight = acceptsPrompt ? COMPOSER_MIN_USABLE_HEIGHT : 0
   const { anchorRef, canvasZoom, flipUp, aboveClearance, shiftX, maxHeight } = useComposerViewportPlacement({
     node,
     visualSize,
     gap: composerLayout.gap,
     preferredMaxHeight: composerLayout.maxHeight,
-    minUsableHeight,
   })
 
   // 卡宽 = **内容驱动**（用户拍板 2026-06-16，推翻 06-13 的「按最宽模型恒定宽」）：
@@ -548,8 +544,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         className={cn(
           'generation-canvas-v2-node__composer-card',
           'relative flex flex-col gap-2.5 p-3 min-w-[360px] max-w-[880px] w-max',
-          // 高度下限只由 style.minHeight 一处给（COMPOSER_MIN_USABLE_HEIGHT）：
-          // 旧的 min-h-[150px] 与下面的 Math.min(150, maxHeight) 是两套魔数、且后者允许塌到不可用，已删（P1）。
+          acceptsPrompt ? 'min-h-[150px]' : 'min-h-0',
           // 宽度内容驱动（w-max）：按底栏一行(锁+参数+生成钮)的真实宽长开，参数少则窄、多则宽，不塌不爆、不换行。
           // max-w-[880px] 兜底：现有最宽是 apimart Seedance 7 控件(model+变体+比例+清晰度+时长+seed+生成音频)
           // ≈810px，880 留头不触发截断；纯防极端（防 omni 模式参考槽行等异常撑爆）。实测 2026-06-16 校准。
@@ -559,7 +554,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         )}
         style={{
           maxHeight,
-          minHeight: minUsableHeight,
+          minHeight: acceptsPrompt ? Math.min(150, maxHeight) : 0,
           cursor: 'default',
           userSelect: 'auto',
           touchAction: 'auto',

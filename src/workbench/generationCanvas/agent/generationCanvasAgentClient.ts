@@ -1,11 +1,13 @@
 import type { AgentAttachmentPayload, AgentsChatResponseDto } from '../../../api/desktopClient'
-import { runWorkbenchAgent, type RunWorkbenchAgentInput, type ToolCallEvent } from '../../ai/workbenchAgentRunner'
-import type { AgentChatCapability, AgentChatHistory } from '../../../../electron/harness/agentChatContracts'
-import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
+import { runWorkbenchAgent, workbenchSessionKey, type ToolCallEvent } from '../../ai/workbenchAgentRunner'
 import type { GenerationCanvasSnapshot, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { getAgentCreatableGenerationNodeKinds } from '../model/generationNodeKinds'
+import { applyCanvasToolCall } from './applyCanvasToolCall'
+import { evaluateGate } from './gate'
+import { buildLockGateContext } from './lockGateContext'
 import { listAvailableModelsForAgent, formatAvailableModelsForPrompt } from './availableModels'
 import { formatCanvasForAgent } from './canvasPromptContext'
+import i18n from '../../../i18n'
 
 export type { ToolCallEvent } from '../../ai/workbenchAgentRunner'
 
@@ -13,14 +15,9 @@ type SendGenerationCanvasAgentMessageInput = {
   message: string
   snapshot: GenerationCanvasSnapshot
   selectedNodes: GenerationCanvasNode[]
-  projectId?: string
-  history: AgentChatHistory
-  capability: Extract<AgentChatCapability, 'canvas-agent' | 'canvas-chat' | 'canvas-refine' | 'storyboard'>
-  featureKey?: string
-  canWrite: () => boolean
   mode?: 'agent' | 'chat' | 'refine'
   /**
-   * Optional override for which skill (methodology, never tool authority) the
+   * Optional override for which skill (system prompt + tool whitelist) the
    * agent loads. Defaults to the generation-canvas planner. The Story to
    * Storyboard demo uses `workbench.storyboard.planner`.
    */
@@ -39,12 +36,10 @@ type SendGenerationCanvasAgentMessageInput = {
   onContent?: (delta: string, text: string) => void
   /**
    * Called whenever the LLM issues a tool call. The caller is responsible
-   * for showing UI and calling `event.confirm(...)`. With no executor the
-   * shared runner explicitly denies the call; it cannot grant itself authority.
+   * for showing UI and calling `event.confirm(...)`. If `auto` is set, the
+   * client will auto-confirm or auto-execute on the user's behalf.
    */
-  onToolCall?: (event: ToolCallEvent) => void | Promise<void>
-  /** A single approval can expire while the same turn continues streaming. */
-  onToolError?: RunWorkbenchAgentInput['onToolError']
+  onToolCall?: (event: ToolCallEvent) => void
   /** Exposes a cancel handle (user "Stop") once the backend session exists. */
   onCancelReady?: (cancel: () => void) => void
   /** 待发附件（图片/PDF 走原生多模态；文档抽文本）。透传给共享 runWorkbenchAgent。 */
@@ -114,28 +109,48 @@ function buildGenerationCanvasUserMessage(input: SendGenerationCanvasAgentMessag
   ].join('\n')
 }
 
-export async function sendGenerationCanvasAgentMessage(
-  request: SendGenerationCanvasAgentMessageInput,
-): Promise<GenerationCanvasAgentResponse> {
-  // Everything that owns the turn is captured before catalog I/O. UI changes
-  // afterwards cannot retarget its project, thread, mode or refine selection.
-  const input: SendGenerationCanvasAgentMessageInput = {
-    ...request,
-    history: request.history.kind === 'persistent'
-      ? { kind: 'persistent', binding: { ...request.history.binding } }
-      : { kind: 'ephemeral' },
-    selectedNodes: request.selectedNodes.slice(),
-    skill: request.skill ? { ...request.skill } : undefined,
-    attachments: request.attachments?.map((attachment) => ({ ...attachment })),
+/**
+ * Default tool-call executor used when the host doesn't supply its own
+ * `onToolCall` handler ("auto-execute" path). Delegates to the shared
+ * `applyCanvasToolCall` (single source of truth) and maps the result/throw
+ * onto the LLM confirmation channel.
+ */
+async function defaultExecuteToolCall(event: ToolCallEvent): Promise<void> {
+  const { toolName, args, confirm } = event
+  // S6-1/S6-2:auto 路径同样过 gate(此前完全绕过)——只读直通 silent;写操作代用户点头,
+  // 但仍走提议事务(proposalId 贯穿、txn 事件入账,与面板路径同一台账)。
+  const decision = evaluateGate({ kind: 'tool-call', toolName, args }, buildLockGateContext())
+  if (decision.outcome === 'deny') {
+    await confirm({ ok: false, message: decision.reason, denied: true })
+    return
   }
-  const selectedNodeIds = input.selectedNodes.map((node) => node.id)
-  assertTurnCanWrite(input.canWrite)
+  if (decision.outcome === 'allow') {
+    try {
+      const result = await applyCanvasToolCall(toolName, args)
+      await confirm({ ok: true, result, silent: true })
+    } catch (error: unknown) {
+      const message = error instanceof Error && error.message ? error.message : String(error)
+      await confirm({ ok: false, message })
+    }
+    return
+  }
+  // 付费守卫（红队洞 5）：ask（costy/写）绝不在「无 onToolCall」的 auto 路径静默放行——
+  // 否则谁忘传 onToolCall 就是一条 AI 静默烧钱的雷。这里直接拒绝，要求走真人确认 UI（生产面板）。
+  await confirm({
+    ok: false,
+    denied: true,
+    message: i18n.t('generationCommon.agentRuntime.approvalRequired'),
+  })
+}
+
+export async function sendGenerationCanvasAgentMessage(
+  input: SendGenerationCanvasAgentMessageInput,
+): Promise<GenerationCanvasAgentResponse> {
   // bug①:可用模型清单——必须留在用户消息里贴着请求(见 buildGenerationCanvasUserMessage 注)。
   let modelsBlock = ''
   try {
     modelsBlock = formatAvailableModelsForPrompt(await listAvailableModelsForAgent())
   } catch { /* 静默退回无清单 */ }
-  assertTurnCanWrite(input.canWrite)
   const prompt = input.buildPrompt
     ? input.buildPrompt({ message: input.message, snapshot: input.snapshot, selectedNodes: input.selectedNodes })
     : buildGenerationCanvasUserMessage(input, modelsBlock)
@@ -147,19 +162,20 @@ export async function sendGenerationCanvasAgentMessage(
     prompt,
     ...(input.buildPrompt ? {} : { systemPrompt: staticSystemPrompt }),
     displayPrompt: input.message,
-    history: input.history,
-    capability: input.capability,
-    projectId: input.projectId,
-    featureKey: input.featureKey,
-    selectedNodeIds,
-    mode: input.mode === 'chat' ? 'chat' : 'auto',
+    sessionKey: workbenchSessionKey('generation'),
     skillKey: input.skill?.key || 'workbench.generation.canvas-planner',
     skillName: input.skill?.name || '生成区节点规划',
     ...(input.attachments?.length ? { attachments: input.attachments } : {}),
     onContent: input.onContent,
     onCancelReady: input.onCancelReady,
-    onToolCall: input.onToolCall,
-    onToolError: input.onToolError,
+    onToolCall: (event) => {
+      if (input.onToolCall) {
+        input.onToolCall(event)
+      } else {
+        // No host UI provided, auto-execute on the renderer.
+        void defaultExecuteToolCall(event)
+      }
+    },
   })
 
   return { response }

@@ -1,4 +1,4 @@
-import type { CanvasGestureScheme } from '../../../utils/canvasGesturePreference'
+import type { CanvasGestureScheme } from './canvasGesturePreference'
 import { isMacCanvasPlatform } from './canvasPointerGestureModel'
 
 export type CanvasControlsHelpSectionId = 'selection' | 'pan' | 'zoom' | 'node'

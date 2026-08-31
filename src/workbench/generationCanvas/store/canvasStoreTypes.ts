@@ -72,15 +72,14 @@ export type CanvasGraphActions = {
   cancelConnection: () => void
   // 返回连边能力校验结果:ok=已连;否则带 reason(手动连线总闸,UI 据此提示)。
   connectToNode: (targetNodeId: string) => EdgeCapabilityResult
-  connectNodes: (sourceNodeId: string, targetNodeId: string, mode?: GenerationCanvasEdge['mode'], targetParamKey?: string) => void
+  connectNodes: (sourceNodeId: string, targetNodeId: string, mode?: GenerationCanvasEdge['mode']) => void
   /**
    * 把待连的线落到**一个组**上：给组内每个成员各连一根真边，并记下组入参
    * （以后新进组的成员自动补一根）。图结构不变——组只是输入手势的语法糖，见 model/groupInputLinks.ts。
    */
   connectToGroup: (groupId: string) => GroupConnectResult
   updateEdgeMode: (edgeId: string, mode: GenerationCanvasEdge['mode']) => void
-  /** 单槽编辑解除该编组输入关系、保留其它槽；缺省仍按线菜单语义整组断开。 */
-  disconnectEdge: (edgeId: string, options?: { scope: 'parameter' }) => void
+  disconnectEdge: (edgeId: string) => void
   moveGroupNodes: (groupId: string, delta: { x: number; y: number }, options?: CanvasMutationOptions) => void
   createGroup: (categoryId: string, name?: string, options?: { materializationOperationId?: string; nodeIds?: string[] }) => NodeGroup | null
   groupSelectedNodes: (categoryId: string, name?: string) => NodeGroup | null

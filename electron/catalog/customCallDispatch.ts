@@ -112,7 +112,7 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
       customConfig,
       script,
       prompt: trim(effectiveRequest.prompt),
-      params: taskTemplateParams(effectiveRequest, { vendorKey: vendor.key, modelKey: model.modelKey }),
+      params: taskTemplateParams(effectiveRequest),
       taskKind,
       modeId,
       timeoutMs: wantedKind === "video" ? 15 * 60 * 1000 : 5 * 60 * 1000,

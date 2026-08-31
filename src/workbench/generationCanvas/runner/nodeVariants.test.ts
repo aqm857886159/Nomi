@@ -1,9 +1,8 @@
 // ×N 变体连发的付费语义（样张拍板 2026-07-29）：一次确认 N 次跑、串行、失败即停不连烧。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace, spendCostKindForNodes } from './generationRunController'
+import { confirmAndRunNodeVariants } from './generationRunController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { describeGenerationCost, useSpendConfirmStore } from '../spend/spendConfirm'
-import i18n from '../../../i18n'
+import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
 import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
 import { resetModelHealthMemory } from './modelHealthMemory'
@@ -20,7 +19,6 @@ function fakeResult(id: string): GenerationNodeResult {
 describe('confirmAndRunNodeVariants', () => {
   let confirmCalls = 0
   let confirmAnswer = true
-  let confirmMessages: string[] = []
 
   beforeEach(() => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
@@ -29,53 +27,16 @@ describe('confirmAndRunNodeVariants', () => {
     resetModelHealthMemory()
     confirmCalls = 0
     confirmAnswer = true
-    confirmMessages = []
     useSpendConfirmStore.setState({
-      requestConfirm: async (request) => {
+      requestConfirm: async () => {
         confirmCalls += 1
-        confirmMessages.push(request.message)
         return confirmAnswer
       },
     } as Partial<ReturnType<typeof useSpendConfirmStore.getState>>)
   })
 
-  afterEach(async () => {
+  afterEach(() => {
     setCanvasEventSinkForTests(null)
-    await i18n.changeLanguage('zh-CN')
-  })
-
-  it('describes text at every confirmation entry without inventing an image count or duration', async () => {
-    confirmAnswer = false
-    const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: '改写这句话' })
-    await confirmAndRunNode(node.id)
-    await regenerateNodeInPlace(node.id)
-    await confirmAndRunNodeVariants(node.id, 3)
-    expect(confirmMessages).toEqual([
-      '将生成 1 段文本 · 会消耗模型额度',
-      '将生成 1 段文本 · 会消耗模型额度',
-      '将生成 3 段文本 · 会消耗模型额度',
-    ])
-  })
-
-  it('keeps text-only batches distinct from image and mixed batches', () => {
-    const text = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: '改写' })
-    const image = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '画面' })
-    expect(spendCostKindForNodes([text.id])).toBe('text')
-    expect(spendCostKindForNodes([text.id, image.id])).toBe('mixed')
-    expect(describeGenerationCost(2, spendCostKindForNodes([text.id]))).toBe('将生成 2 段文本 · 会消耗模型额度')
-    expect(describeGenerationCost(1, spendCostKindForNodes([image.id]))).toBe('将生成 1 张画面 · 预计约 1 分钟 · 会消耗模型额度')
-  })
-
-  it('localizes text confirmation counts in English without a made-up duration', async () => {
-    await i18n.changeLanguage('en')
-    confirmAnswer = false
-    const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'Rewrite' })
-    await confirmAndRunNode(node.id)
-    await confirmAndRunNodeVariants(node.id, 3)
-    expect(confirmMessages).toEqual([
-      'Will generate 1 text result · Uses model credits',
-      'Will generate 3 text results · Uses model credits',
-    ])
   })
 
   it('一次确认 → N 次串行执行，产物堆进同一节点（最后一张为主图）', async () => {

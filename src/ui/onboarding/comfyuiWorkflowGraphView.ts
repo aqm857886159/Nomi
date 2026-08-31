@@ -28,7 +28,6 @@ export type GraphRole = 'prompt' | 'firstFrame' | 'lastFrame' | 'sourceVideo' | 
 
 export type GraphBinding = {
   promptNodeId?: string
-  images?: ReadonlyArray<{ nodeId: string; inputKey: string; paramKey?: string }>
   firstFrameNodeId?: string
   lastFrameNodeId?: string
   sourceVideoNodeId?: string
@@ -101,10 +100,6 @@ function computeColumns(graph: GraphInput): Map<string, number> {
 
 function roleOf(binding: GraphBinding, nodeId: string): GraphRole | null {
   if (binding.promptNodeId === nodeId) return 'prompt'
-  const images = binding.images ?? []
-  if (images.some((item) => item.nodeId === nodeId && item.paramKey === 'first_frame_url')) return 'firstFrame'
-  if (images.some((item) => item.nodeId === nodeId && item.paramKey === 'last_frame_url')) return 'lastFrame'
-  if (images.some((item) => item.nodeId === nodeId && item.paramKey === 'source_video_url')) return 'sourceVideo'
   if (binding.firstFrameNodeId === nodeId) return 'firstFrame'
   if (binding.lastFrameNodeId === nodeId) return 'lastFrame'
   if (binding.sourceVideoNodeId === nodeId) return 'sourceVideo'

@@ -502,48 +502,14 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       "*": {
         "aspect_ratio": "16:9",
         "resolution": "720p",
-        "duration": 5,
-        "frame_rate": 24
+        "duration": 5
       }
     },
     "image_to_video": {
       "*": {
         "aspect_ratio": "16:9",
         "resolution": "720p",
-        "duration": 5,
-        "frame_rate": 24
-      }
-    }
-  },
-  "agnes-video-2.5": {
-    "text_to_video": {
-      "*": {
-        "duration": "5",
-        "size": "720P",
-        "aspect_ratio": "16:9"
-      }
-    },
-    "image_to_video": {
-      "*": {
-        "duration": "5",
-        "size": "720P",
-        "aspect_ratio": "16:9"
-      }
-    }
-  },
-  "agnes-video-2.5-flash": {
-    "text_to_video": {
-      "*": {
-        "duration": "5",
-        "size": "720P",
-        "aspect_ratio": "16:9"
-      }
-    },
-    "image_to_video": {
-      "*": {
-        "duration": "5",
-        "size": "720P",
-        "aspect_ratio": "16:9"
+        "duration": 5
       }
     }
   }

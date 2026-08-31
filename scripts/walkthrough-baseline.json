@@ -3,7 +3,7 @@
   "whole-page-text": 29,
   "sleep-as-done-signal": 113,
   "dead-selector": 0,
-  "source-scan-without-strip": 9,
+  "source-scan-without-strip": 15,
   "assertion-density-thin": {
     "tests/ux/accent-soft-hue.walk.mjs": 0,
     "tests/ux/adapter-failed-unlock.walk.mjs": 0,

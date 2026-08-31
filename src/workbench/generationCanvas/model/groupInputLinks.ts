@@ -22,8 +22,7 @@ import type {
   GenerationCanvasNode,
   NodeGroup,
 } from './generationCanvasTypes'
-import { resolveCanvasReferenceConnection } from './canvasReferenceConnection'
-import { readParameterReferenceSlots } from './parameterReferenceSlots'
+import { selectConnectionEdgeMode, validateReferenceEdge } from '../agent/referenceEdgeCapability'
 import type { EdgeSkipReason } from '../agent/referenceEdgeCapability'
 
 export type GroupInputLink = {
@@ -38,7 +37,7 @@ export type GroupOutputLink = {
 
 export type GroupLinkEdgePlan = {
   /** 该建的边（已过能力校验、且当前还不存在）。 */
-  connect: { sourceNodeId: string; targetNodeId: string; mode?: GenerationCanvasEdgeMode; targetParamKey?: string }[]
+  connect: { sourceNodeId: string; targetNodeId: string; mode?: GenerationCanvasEdgeMode }[]
   /** 过不了能力校验被跳过的成员——**必须给用户人话**，不许静默丢。 */
   skipped: { targetNodeId: string; reason: EdgeSkipReason }[]
   /** 已经连过的（同 source+target+mode），不重复建。 */
@@ -76,20 +75,19 @@ export function planGroupLinkEdges(params: {
   if (!source) return plan
   for (const target of targets) {
     if (target.id === source.id) continue
-    const connection = resolveCanvasReferenceConnection(source, target, nodes, edges, link.mode)
-    const slots = readParameterReferenceSlots(target.meta)
+    const mode = link.mode
+      ?? selectConnectionEdgeMode(source, target, edges.filter((edge) => edge.target === target.id))
     // graphOps.connectNodes 按 (source,target,mode) 去重；这里先判一次，好把「已连」和「新连」分开计数报给用户。
-    if (edges.some((edge) => edge.source === source.id && edge.target === target.id &&
-      (edge.targetParamKey ? slots.some((slot) => slot.key === edge.targetParamKey) : connection.ok && edge.mode === connection.mode))) {
+    if (edges.some((edge) => edge.source === source.id && edge.target === target.id && edge.mode === mode)) {
       plan.alreadyConnected.push(target.id)
       continue
     }
-    if (!connection.ok) {
-      plan.skipped.push({ targetNodeId: target.id, reason: connection.reason })
+    const verdict = validateReferenceEdge(source, target, mode)
+    if (!verdict.ok) {
+      plan.skipped.push({ targetNodeId: target.id, reason: verdict.reason })
       continue
     }
-    plan.connect.push({ sourceNodeId: source.id, targetNodeId: target.id, mode: connection.mode,
-      ...(connection.targetParamKey ? { targetParamKey: connection.targetParamKey } : {}) })
+    plan.connect.push({ sourceNodeId: source.id, targetNodeId: target.id, mode })
   }
   return plan
 }

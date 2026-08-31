@@ -11,7 +11,6 @@
 // **会花真实额度（仅文本，极少）**。额度闸：不显式 APIMART_E2E=1 / APIMART_API_KEY 就 SKIP。
 // 用法：pnpm run build && APIMART_E2E=1 node tests/ux/apimart-text-brain.e2e.mjs
 import { launchNomiApp } from "./_launchApp.mjs";
-import { runAgentProbe } from "./_agentProbe.mjs";
 
 
 if (!process.env.APIMART_E2E && !process.env.APIMART_API_KEY) {
@@ -50,31 +49,43 @@ try {
   console.log(`apimart 文本大脑 ${MODEL_KEY} 在 catalog：${hasBrain === null ? "(listModels 未暴露,跳过自检)" : hasBrain}`);
 
   // 驱动一整轮 agent：强制 agentModelKey=deepseek-v4-pro，发拆镜头 prompt，监听 chatV2 事件。
-  // 先订阅预生成的 requestId；拒绝所有待确认工具，真实 result + done 后才判定。
+  // 顺序同真实渲染层：先 start 拿 sessionId，再 onChatV2Event(sessionId, cb)（vendor 网络延迟覆盖订阅窗口）。
   console.log(`\n▶ chatV2 拆镜头（agentModelKey=${MODEL_KEY}）`);
-  const outcome = await win.evaluate(runAgentProbe, {
-    timeoutMs: 90000,
-    request: {
-      prompt: `把下面这段故事拆成 3 个分镜镜头，必须调用 propose_storyboard_plan 工具产出方案，不要只用文字回答。\n\n故事：${STORY}`,
-      capability: "storyboard",
-      history: { kind: "ephemeral" },
-      featureKey: "probe-text-brain",
+  const outcome = await win.evaluate(async ({ mk, story }) => {
+    const { sessionId } = await window.nomiDesktop.agents.chatV2Start({
+      prompt: `把下面这段故事拆成 3 个分镜镜头，必须调用 propose_storyboard_plan 工具产出方案，不要只用文字回答。\n\n故事：${story}`,
+      sessionKey: "probe-text-brain",
       skillKey: "workbench.generation.canvas-planner",
       mode: "auto",
-      agentModelKey: MODEL_KEY,
+      agentModelKey: mk,
       agentVendorKey: "apimart",
-    },
-  });
+    });
+    return await new Promise((resolve) => {
+      const seen = { content: false, toolCall: false, error: "", done: false };
+      const off = window.nomiDesktop.agents.onChatV2Event(sessionId, (ev) => {
+        if (!ev) return;
+        if (ev.type === "content-delta" && (ev.delta || "").length) seen.content = true;
+        if (ev.type === "tool-call" || ev.type === "tool-call-pending") {
+          seen.toolCall = true;
+          // 规划阶段不真写画布：收到待确认就拒绝，尽快收尾省额度。
+          if (ev.type === "tool-call-pending" && ev.toolCallId) {
+            window.nomiDesktop.agents.confirmTool(sessionId, ev.toolCallId, { ok: false, denied: true, message: "probe: reject to end" });
+          }
+        }
+        if (ev.type === "result" && ev.result?.text) seen.content = true;
+        if (ev.type === "error") seen.error = ev.message || "unknown";
+        if (ev.type === "done") { seen.done = true; off?.(); resolve(seen); }
+      });
+      setTimeout(() => { off?.(); resolve(seen); }, 90000);
+    });
+  }, { mk: MODEL_KEY, story: STORY });
 
-  const content = Boolean(outcome.text);
-  const toolCall = outcome.calls.length > 0;
-  console.log(`  content(chat 解析): ${content}`);
-  console.log(`  toolCall(tool_use): ${toolCall}`);
-  if (outcome.result?.usage) console.log(`  usage: ${JSON.stringify(outcome.result.usage)}`);
+  console.log(`  content(chat 解析): ${outcome.content}`);
+  console.log(`  toolCall(tool_use): ${outcome.toolCall}`);
   if (outcome.error) console.log(`  error: ${outcome.error}`);
 
-  const chatOk = outcome.ok && (content || toolCall);
-  const toolOk = outcome.ok && toolCall;
+  const chatOk = outcome.content || outcome.toolCall;
+  const toolOk = outcome.toolCall;
   console.log(`\n═══ apimart 文本大脑 E2E：chat=${chatOk ? "✓" : "✗"} tool_use=${toolOk ? "✓" : "✗"} ═══`);
   if (chatOk && toolOk) {
     console.log(`  ✓ ${MODEL_KEY} 在 apimart 上 chat + tool_use 双通，可当默认大脑。`);

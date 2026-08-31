@@ -1,6 +1,10 @@
 {
+  "electron/ai/agentLoopIntegration.test.ts": 1,
+  "electron/ai/agentStreamConsumer.test.ts": 1,
+  "electron/ai/buildAiSdkModel.test.ts": 1,
   "electron/ai/composeAgentSystemPrompt.test.ts": 1,
   "electron/capabilityCore/apimartGenerationProvider.test.ts": 3,
+  "electron/capabilityCore/generationProviderBootstrap.test.ts": 3,
   "electron/capabilityCore/generationRuntimeAdapter.test.ts": 3,
   "electron/capabilityCore/mcpGenerationDispatcher.test.ts": 1,
   "electron/capabilityCore/mcpGenerationTools.test.ts": 2,
@@ -25,6 +29,7 @@
   "electron/productionRun/productionRunRepository.test.ts": 1,
   "electron/productionRun/productionTrustLevel.test.ts": 1,
   "electron/providerAdapter/docsDiscovery.test.ts": 3,
+  "electron/providerAdapter/existingConnection.test.ts": 3,
   "electron/providerAdapter/service.test.ts": 3,
   "electron/providerAdapter/serviceLifecycle.test.ts": 3,
   "electron/providerAdapter/verifier.test.ts": 1,
@@ -36,6 +41,7 @@
   "electron/runtime.task-envelope.test.ts": 1,
   "electron/skills/skillStore.test.ts": 1,
   "electron/vendor/vendorBaseFallback.test.ts": 1,
+  "electron/vendor/vendorHttp.test.ts": 11,
   "evals/journeys/journeyContracts.test.ts": 4,
   "evals/lib/isoAppEnv.test.ts": 1,
   "evals/loop/metrics.ts": 3

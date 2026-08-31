@@ -47,10 +47,9 @@ type ModelChipGroupsProps = {
   onDelete?: (model: ChipModel) => void
   /** 连接详情页使用：点击 chip 进入模型详情，启停改到详情页完成。 */
   onOpenModel?: (model: ChipModel) => void
-  kindLabels?: Readonly<Record<string, string>>
 }
 
-export function ModelChipGroups({ models, connected, onToggle, onDelete, onOpenModel, kindLabels }: ModelChipGroupsProps): JSX.Element | null {
+export function ModelChipGroups({ models, connected, onToggle, onDelete, onOpenModel }: ModelChipGroupsProps): JSX.Element | null {
   const { t } = useTranslation()
   if (models.length === 0) return null
 
@@ -63,9 +62,9 @@ export function ModelChipGroups({ models, connected, onToggle, onDelete, onOpenM
         return (
           <div key={kind} className="flex flex-col gap-2">
             <div className="text-micro font-semibold text-nomi-ink-60">
-              {kindLabels?.[kind] ?? (isKnownModelChipKind(kind)
+              {isKnownModelChipKind(kind)
                 ? t(`onboardingProviders.modelControls.kind.${kind}` as 'onboardingProviders.modelControls.kind.text')
-                : kind)}{' '}
+                : kind}{' '}
               <span className="font-normal text-nomi-ink-40">
                 {onToggle ? `${enabledN} / ${list.length}` : list.length}
               </span>

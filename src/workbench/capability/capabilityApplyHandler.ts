@@ -8,12 +8,13 @@ import { runStoryboardPlanner } from '../generationCanvas/agent/runStoryboardPla
 import { runDirectionPlanner } from '../generationCanvas/agent/runDirectionPlanner'
 import { productionScriptSessionKey } from '../ai/agentSessionKey'
 import { runSingleShotAgent } from '../ai/agentLoopMode'
+import { readWindowUrlParam } from '../windowUrlParam'
 import { useWorkbenchStore } from '../workbenchStore'
 import { mintSpendGrant } from '../api/taskApi'
 import { resolveAutonomousUploadConsent, runGenerationNode } from '../generationCanvas/runner/generationRunController'
 import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStoryboardToTimeline'
 import { exportTimelineToMp4 } from '../export/exportApi'
-import { verifyShotsAndReport, isShotVerifyEnabled } from '../generationCanvas/agent/shotVerifyStore'
+import { verifyShotsAndReport, useShotVerifyStore, isShotVerifyEnabled } from '../generationCanvas/agent/shotVerifyStore'
 import { isAnchorFrozen, isVisualAnchorNode } from '../generationCanvas/model/anchorBibleKeys'
 import { assertDraftFilmReady, draftFilmTimelineFromState } from '../preview/timelineSubtitleTransitionContract'
 import {
@@ -96,7 +97,7 @@ async function runProductionTextPlanner(input: {
   source?: string
   outputFormat?: 'script' | 'storyboard'
 }): Promise<string> {
-  const projectId = input.projectId || ''
+  const projectId = input.projectId || readWindowUrlParam('projectId') || ''
   const prompt = input.outputFormat === 'storyboard'
     ? [
         '你是分镜规划师。请根据下面的原分镜方案和修改要求，输出一份完整、可执行的 StoryboardPlan JSON。',
@@ -121,9 +122,9 @@ async function runProductionTextPlanner(input: {
         input.goal || '',
         '只输出稿件正文，不要解释。',
       ].join('\n')
-  // Ephemeral single-shot text planning never clears a UI conversation.
+  // 单次链路（清会话 + mode:'chat' + 模型偏好）收口到 runSingleShotAgent。
   const response = await runSingleShotAgent({
-    featureKey: productionScriptSessionKey(projectId),
+    sessionKey: productionScriptSessionKey(projectId),
     prompt,
     displayPrompt: input.instruction ? '修改制作稿件' : '生成制作剧本',
     ...(projectId ? { projectId } : {}),
@@ -283,8 +284,8 @@ function scoreFromDeviationActual(actual: unknown): number | undefined {
 
 /**
  * W1.5 路径②审片：production run 的 qa 阶段让渲染层对本次生成镜头判分。
- * 复用**现成的** verifyShotsAndReport（判分+对账卡+回灌闭环），
- * 这里只做参数适配（run 的镜头节点 id → 它的入参）+ 将本次调用返回的判决塑形回传。
+ * 复用**现成的** verifyShotsAndReport（判分+对账卡+回灌闭环，内部逻辑一字不改），
+ * 这里只做参数适配（run 的镜头节点 id → 它的入参）+ 从 shotVerify store 读回判决塑形回传。
  * 判决 = content 偏差（每条 kind:'content' 回指 shotNodeId + 维度 field + 档位 actual + reason）；
  * 被审但无偏差的镜头 = 过检。verify 关闭 / 无镜头 → skipped（driver 据此落「审片跳过」）。
  */
@@ -293,9 +294,9 @@ async function verifyShotsForProduction(shotNodeIds: readonly string[]): Promise
   const knownNodeIds = new Set(useGenerationCanvasStore.getState().nodes.map((node) => node.id))
   const reviewedShotIds = shotNodeIds.filter((id) => knownNodeIds.has(id))
   if (reviewedShotIds.length === 0) return { skipped: true, skipReason: '当前项目里找不到本次生成的镜头节点' }
-  // 现成闭环：内部 gather → 判分 → 写 shotVerify store。直接使用「本次」返回值，不能在 await
-  // 后读全局 store——同项目另一轮审片可能已经后发先至，读到的会是另一次结果。
-  const deviations = await verifyShotsAndReport(reviewedShotIds)
+  // 现成闭环：内部 gather → 判分 → 写 shotVerify store（不改它）。判决从 store 读回。
+  await verifyShotsAndReport(reviewedShotIds)
+  const deviations = useShotVerifyStore.getState().deviations
   const flaggedByShot = new Map<string, Array<{ dimensionName?: string; score?: number; reason?: string }>>()
   for (const deviation of deviations) {
     if (deviation.kind !== 'content' || !deviation.shotNodeId) continue
@@ -333,8 +334,6 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   if (op !== 'spend.confirm' && op !== 'plan.confirm' && projectId && activeId && projectId !== activeId) {
     throw new Error(i18n.t('runtime.capability.projectChanged'))
   }
-  const plannerSnapshot = op === 'production.plan-storyboard' ? generationCanvasTools.read_canvas() : null
-  const plannerFeatureKey = `nomi:production-planner:${projectId || 'local'}:${typeof data.runId === 'string' ? data.runId : 'unbound'}:${typeof data.operationId === 'string' ? data.operationId : op}`
 
   // P4 S5 画布落地（materialize-shots / attach-shot-result）——受上面的活动项目守卫约束（只动当前项目 store），
   // 落点住在 multiShotCanvasLanding（保持本 handler 精简）。未处理返回 null → 继续走下方 switch。
@@ -363,7 +362,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       const playbook = data.playbook && typeof data.playbook === 'object' && !Array.isArray(data.playbook)
         ? data.playbook as Record<string, unknown>
         : null
-      return runDirectionPlanner({ brief, playbook, projectId })
+      return runDirectionPlanner({ brief, playbook })
     }
     case 'production.plan-script': {
       const brief = data.brief && typeof data.brief === 'object' && !Array.isArray(data.brief)
@@ -410,16 +409,10 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
         ? data.brief as Record<string, unknown>
         : {}
       const result = await runStoryboardPlanner({
-        target: 'production',
-        history: { kind: 'ephemeral' },
-        projectId,
-        featureKey: plannerFeatureKey,
-        snapshot: plannerSnapshot!,
-        canWrite: () => true,
         storyText: typeof brief.goal === 'string' ? brief.goal : '',
         skill: { key: 'brand.promo', name: '品牌宣传片' },
       })
-      const plan = result.plan
+      const plan = useWorkbenchStore.getState().storyboardPlan
       if (!plan) throw new Error(i18n.t('runtime.capability.storyboardPlanMissing'))
       return { text: result.text, plan }
     }

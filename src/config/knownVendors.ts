@@ -86,16 +86,17 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     },
   },
   {
-    // Agnes AI: public model coverage and account eligibility are separate (checked 2026-08-26).
+    // Agnes AI（Sapiens AI，新加坡）：全模态 OpenAI 兼容网关，文本/图片/视频**无限期免费**
+    // （2026-06-01 起，免费层 RPM 20）。一个 key 解锁三模态、邮箱注册不绑卡 → 新手零成本起点。
     vendorKey: 'agnes',
     glyph: 'Ag',
-    tagline: '文本、图片与视频 · 可用模型以当前账户为准',
+    tagline: '全模态免费 · 一个 key 解锁文本/图片/视频',
     credentialPlaceholder: '粘贴 Agnes API Key',
     credentialHint:
-      '在 Agnes 官方平台创建 API Key。部分模型需付费或单独开通；可用模型、价格和限额以当前账户为准。凭证本地加密存储。',
+      '免费：去 platform.agnes-ai.com 邮箱注册（不绑卡）→ 创建 API Key。免费层有速率上限（RPM 20），个人/原型够用。凭证本地加密存储。',
     promo: {
-      text: 'Agnes AI 提供 OpenAI 兼容的文本、图片与视频 API。公开模型清单不代表当前套餐均可调用。',
-      ctaLabel: '打开 Agnes 平台',
+      text: 'Agnes AI（新加坡 Sapiens AI）把文本/图片/视频三模态 API 无限期免费开放，OpenAI 兼容。邮箱注册不绑卡即可拿 Key。',
+      ctaLabel: '去 Agnes 注册（免费）',
       url: 'https://agnes-ai.com',
     },
   },

@@ -9,7 +9,6 @@ import {
   replaceCustomCapabilityContractMeta,
 } from '../../../config/modelArchetypes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { projectParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { buildModelControls, defaultPatchForControls, readMeta } from './controls/parameterControlModel'
 import {
   applyArchetypeModeSwitch,
@@ -89,7 +88,7 @@ export function useNodeModelAutoSelect({
     const defaultPatch = defaultPatchForControls(buildModelControls(firstOption.meta, isImageLike, isVideoLike))
     const modelMeta = replaceCustomCapabilityContractMeta(node.meta || {}, firstOption.meta)
     updateNode(node.id, {
-      meta: projectParameterReferenceSlots({
+      meta: {
         ...modelMeta,
         modelKey: firstOption.modelKey || firstOption.value,
         modelAlias: firstOption.modelAlias || firstOption.value,
@@ -100,7 +99,7 @@ export function useNodeModelAutoSelect({
         ...(isVideoLike
           ? { videoModel: firstOption.value, videoModelVendor: firstOption.vendor || null }
           : { imageModel: firstOption.value, imageModelVendor: firstOption.vendor || null }),
-      }, firstOption.meta),
+      },
     })
   }, [defaultsReady, isGenerationNode, isImageLike, isVideoLike, modelOptions, node.id, node.meta, selectedModelValue, updateNode])
 
@@ -114,21 +113,21 @@ export function useNodeModelAutoSelect({
     if (!optionVendor) return
     const contractChanged = JSON.stringify(parseCustomCapabilityContract(node.meta))
       !== JSON.stringify(parseCustomCapabilityContract(selectedModelOption.meta))
+    if (currentVendor === optionVendor && !contractChanged) return
     const modelMeta = replaceCustomCapabilityContractMeta(node.meta || {}, selectedModelOption.meta)
-    const nextMeta = projectParameterReferenceSlots({
-      ...modelMeta,
-      modelKey: selectedModelOption.modelKey || selectedModelOption.value,
-      modelAlias: selectedModelOption.modelAlias || selectedModelOption.value,
-      modelVendor: optionVendor,
-      vendor: optionVendor,
-      modelLabel: selectedModelOption.label,
-      ...(isVideoLike
-        ? { videoModel: selectedModelOption.value, videoModelVendor: optionVendor }
-        : { imageModel: selectedModelOption.value, imageModelVendor: optionVendor }),
-    }, selectedModelOption.meta)
-    const declarationsChanged = JSON.stringify(node.meta?.parameterReferenceSlots) !== JSON.stringify(nextMeta.parameterReferenceSlots)
-    if (currentVendor === optionVendor && !contractChanged && !declarationsChanged) return
-    updateNode(node.id, { meta: nextMeta })
+    updateNode(node.id, {
+      meta: {
+        ...modelMeta,
+        modelKey: selectedModelOption.modelKey || selectedModelOption.value,
+        modelAlias: selectedModelOption.modelAlias || selectedModelOption.value,
+        modelVendor: optionVendor,
+        vendor: optionVendor,
+        modelLabel: selectedModelOption.label,
+        ...(isVideoLike
+          ? { videoModel: selectedModelOption.value, videoModelVendor: optionVendor }
+          : { imageModel: selectedModelOption.value, imageModelVendor: optionVendor }),
+      },
+    })
   }, [isGenerationNode, isVideoLike, meta, node.id, node.meta, selectedModelOption, updateNode])
 
   // ★变体合并迁移（2026-06-16，最大风险点）：旧项目 node.meta.modelKey 钉的是具体变体串

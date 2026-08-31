@@ -55,11 +55,11 @@ export function registerPromptLibraryIpc(): void {
     }
   });
 
-  // 节点提示词优化用的文本大脑(vendor/modelKey,不含 apiKey)。这里只回答 catalog 是否已配置，
-  // 不为首屏 readiness 解密；locked 由首次真实文本请求以结构化错误报告。
+  // 节点提示词优化用的文本大脑(vendor/modelKey,不含 apiKey)——渲染层据此走现成文本流式管线。
+  // status 三态（ok/locked/missing）让上手清单/恢复卡把「Key 读不出」和「没配」说清楚（2026-08-25 走查）。
   ipcMain.handle("nomi:prompt-library:text-brain", async (event) => {
     assertTrustedSender(event);
-    const { resolveTextBrainStatus } = await import("../ai/textBrainResolver");
+    const { resolveTextBrainStatus } = await import("../ai/agentChatV2");
     const resolved = resolveTextBrainStatus();
     return resolved.status === "ok"
       ? { ok: true, brain: resolved.brain, status: "ok" as const }

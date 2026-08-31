@@ -5,6 +5,7 @@ import { generateAudio } from './audioActions'
 import { generateImage } from './imageActions'
 import { generate3D } from './model3dActions'
 import { resolveGenerationReferences } from './generationReferenceResolver'
+import { applyRelayFirstFrame } from './relayFrameResolver'
 import { withConnectedTextPrompts } from './connectedTextPrompt'
 import { generateText } from './textActions'
 import { generateVideo } from './videoActions'
@@ -35,7 +36,6 @@ export const generationNodeExecutor: GenerationNodeExecutor = async (node, conte
   const grantId = context?.grantId
   // gate = 付费相关透传(令牌 + 幂等键)，随各付费 action 一路进 buildCatalogTaskRequest 的 extras。
   const gate = {
-    ...(context ? { referenceContext: { nodes: context.nodes, edges: context.edges } } : {}),
     ...(grantId ? { grantId } : {}),
     ...(context?.idempotencyKey ? { idempotencyKey: context.idempotencyKey } : {}),
     ...(context?.anonymousAssetHostingConsent ? { anonymousAssetHostingConsent: context.anonymousAssetHostingConsent } : {}),
@@ -48,6 +48,9 @@ export const generationNodeExecutor: GenerationNodeExecutor = async (node, conte
   }
   if (executionKind === 'video') {
     const references = resolveGenerationReferences(node, context)
+    // 接力帧：源是视频时，抽其尾帧填本镜首帧（唯一消费 relayFromVideoUrl 的地方）。
+    // 抽帧失败会抛错 → 节点标人话错误、不裸跑（不冒充不变量）。
+    await applyRelayFirstFrame(references)
     const promptNode = withConnectedTextPrompts(node, context)
     return generateVideo(promptNode, { references, ...gate, ...(onProgress ? { onProgress } : {}) })
   }

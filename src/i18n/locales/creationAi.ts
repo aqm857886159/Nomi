@@ -117,6 +117,9 @@ export const zhCreationAi = {
     descriptionBefore: '你接的是图片 / 视频生成模型，负责出画面。拆镜头、对话、写文案需要一个',
     textModel: '文本对话模型',
     descriptionAfter: '当大脑。',
+    // locked：文本模型接过、但本机读不出它的 Key（多见于换机/系统钥匙串身份变化）——不是没配，别叫用户再接一个。
+    lockedTitle: '文本模型的 API Key 读不出来了',
+    lockedDescription: '你接过文本模型，但本机现在解不开它保存的 Key（多见于换了机器或系统钥匙串变化）。去模型设置把这个 Key 重新粘贴一次即可。',
     enable: '启用 {{model}}',
     settings: '检查模型',
   },
@@ -294,6 +297,9 @@ export const enCreationAi = {
       'Your image and video models create visuals. Splitting shots, chatting, and writing copy require a ',
     textModel: 'text conversation model',
     descriptionAfter: ' as the assistant’s brain.',
+    lockedTitle: 'Your text model’s API key can’t be read',
+    lockedDescription:
+      'You connected a text model, but this machine can’t decrypt its saved key (common after switching machines or a system keychain change). Open model setup and paste that key again.',
     enable: 'Enable {{model}}',
     settings: 'Open model setup',
   },

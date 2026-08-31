@@ -208,11 +208,9 @@ export function writeDeterministicAsset(
     if (existingHash !== nextHash) throw new Error("Deterministic materialization key maps to different bytes");
   } else {
     fs.writeFileSync(absolutePath, bytes);
+    writeAssetSidecarMeta(absolutePath, meta);
+    broadcastAssetsUpdated(projectId);
   }
-  // A prior attempt may have written pixels before its sidecar failed. Repair it
-  // before reporting success; retain any metadata edited on the existing asset.
-  fs.writeFileSync(`${absolutePath}.meta`, JSON.stringify({ ...meta, ...readAssetSidecarMeta(absolutePath) }));
-  broadcastAssetsUpdated(projectId);
   const url = localAssetUrl(projectId, relativePath);
   const t = nowIso();
   return {

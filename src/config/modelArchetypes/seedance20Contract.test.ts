@@ -122,7 +122,7 @@ describe('Seedance 2.0 archetype vs official docs', () => {
         expect(Object.hasOwn(omni as object, key), `${vendor} 出现了 ${key}：合计上限已于 2026-08-20 证伪`).toBe(false)
       }
       // 各槽上限之和就是文档写的「参考素材数量上限」（2.0=15、2.5=50），不存在更紧的合计约束。
-      const sum = (omni?.slots ?? []).reduce((total, slot) => total + (slot.max ?? 0), 0)
+      const sum = (omni?.slots ?? []).reduce((total, slot) => total + slot.max, 0)
       expect(sum, `${vendor} 各槽上限之和应等于文档的参考素材数量上限`).toBe(vendor.startsWith('2.5') ? 50 : 15)
     }
   })

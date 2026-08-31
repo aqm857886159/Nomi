@@ -8,7 +8,6 @@ import React from 'react'
 import { resolveCanvasPointerDownAction, isCanvasInteractiveTarget } from './canvasPointerGestureModel'
 import { useCanvasViewportGestures } from './useCanvasViewportGestures'
 import { useMarqueeSelection, type MarqueeRect } from './useMarqueeSelection'
-import type { ViewportAnimationSettlementOutcome } from './viewportAnimationSettlement'
 
 type Offset = { x: number; y: number }
 
@@ -29,12 +28,7 @@ type Args = {
 export type CanvasPointerInteractions = {
   marqueeRect: MarqueeRect | null
   setViewportTransform: (zoom: number, offset: Offset) => void
-  animateViewportTo: (
-    zoom: number,
-    offset: Offset,
-    duration?: number,
-    onSettled?: (outcome: ViewportAnimationSettlementOutcome) => void,
-  ) => void
+  animateViewportTo: (zoom: number, offset: Offset, duration?: number) => void
   zoomAtStagePoint: (zoom: number, point: { x: number; y: number }) => void
   shouldSuppressContextMenu: () => boolean
   onPointerDownCapture: (event: React.PointerEvent<HTMLDivElement>) => void

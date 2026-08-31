@@ -1,9 +1,7 @@
 // 病模型沉底/灰化的判定（2026-07-30 拍板）。核心是**别误伤**：下拉一条 = 去重后的模型，
 // 底下可能挂 2-4 家供应商；只要还有一家健康就该走那家、整条不算病。
 // 判据以 AilingProbe 注入 → 纯函数直测，不引 React 测试库、不碰 localStorage。
-import { describe, expect, it, vi } from 'vitest'
-import { createElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
+import { describe, expect, it } from 'vitest'
 import {
   buildModelSelectOptions,
   buildProviderSelectOptions,
@@ -12,71 +10,15 @@ import {
   providerAddress,
   resolveProviderByAddress,
   resolveProviderSelectValue,
-  useDedupedModelSelect,
-  type DedupedModelSelectView,
 } from './useDedupedModelSelect'
 import { dedupeModelOptions } from '../../config/modelIdentity'
 import type { ModelOption } from '../../config/models'
-import { toCatalogModelOptions } from '../../config/modelOptionMappers'
 
 function option(modelKey: string, vendor: string, label: string): ModelOption {
   return { value: `${vendor}:${modelKey}`, label, modelKey, vendor, kind: 'image' } as ModelOption
 }
 const ailing = (...keys: string[]) => (modelKey: string) => keys.includes(modelKey)
 const healthy = () => false
-
-function variantOptions(tiers = ['low', 'medium', 'high']): ModelOption[] {
-  return toCatalogModelOptions(tiers.map(tier => ({
-    modelKey: `gemini-3.7-flash-${tier}`, vendorKey: 'antigravity-cli', labelZh: `Gemini 3.7 Flash ${tier}`,
-    kind: 'text', enabled: true, createdAt: '', updatedAt: '',
-  }))).map(option => ({ ...option, vendorName: 'Antigravity CLI' }))
-}
-
-function renderSelect(options: ModelOption[], value: string, vendor = 'antigravity-cli') {
-  const onChange = vi.fn()
-  let view!: DedupedModelSelectView
-  function Probe() {
-    view = useDedupedModelSelect(options, value, onChange, vendor)
-    return null
-  }
-  renderToStaticMarkup(createElement(Probe))
-  return { view, onChange }
-}
-
-describe('exact catalog variants in the generic model selector', () => {
-  it('shows one family and one supplier while retaining all enabled exact tiers', () => {
-    const { view, onChange } = renderSelect(variantOptions(), 'gemini-3.7-flash-high')
-    expect(view.modelOptions).toHaveLength(1)
-    expect(view.modelOptions[0]).toMatchObject({ label: 'Gemini 3.7 Flash', trailing: 'Antigravity CLI' })
-    expect(view.providerOptions).toEqual([])
-    expect(view.variantOptions.map(option => option.label)).toEqual(['Low', 'Medium', 'High'])
-    expect(view.variantOptions.find(option => option.value === view.variantValue)?.label).toBe('High')
-    view.onVariantPick(view.variantOptions[0].value)
-    expect(onChange).toHaveBeenCalledWith('gemini-3.7-flash-low', 'antigravity-cli')
-  })
-
-  it('preserves the selected tier when reselecting its family and chooses the documented default only for a new selection', () => {
-    const existing = renderSelect(variantOptions(), 'gemini-3.7-flash-low')
-    existing.view.onModelPick(existing.view.modelOptions[0].value)
-    expect(existing.onChange).toHaveBeenCalledWith('gemini-3.7-flash-low', 'antigravity-cli')
-    const fresh = renderSelect(variantOptions(), '')
-    fresh.view.onModelPick(fresh.view.modelOptions[0].value)
-    expect(fresh.onChange).toHaveBeenCalledWith('gemini-3.7-flash-medium', 'antigravity-cli')
-  })
-
-  it('never invents an unavailable default or accepts disabled and unknown tier addresses', () => {
-    const { view, onChange } = renderSelect(variantOptions(['low', 'high']), 'gemini-3.7-flash-low')
-    expect(view.variantOptions.map(option => option.label)).toEqual(['Low', 'High'])
-    for (const unavailable of ['gemini-3.7-flash-medium', 'gemini-3.7-flash-future']) {
-      view.onVariantPick(`antigravity-cli\u0000${unavailable}`)
-      view.onProviderPick(`antigravity-cli\u0000${unavailable}`)
-    }
-    expect(onChange).not.toHaveBeenCalled()
-    const fresh = renderSelect(variantOptions(['low']), '')
-    fresh.view.onModelPick(fresh.view.modelOptions[0].value)
-    expect(fresh.onChange).toHaveBeenCalledWith('gemini-3.7-flash-low', 'antigravity-cli')
-  })
-})
 
 describe('buildModelSelectOptions — 病模型沉底 + 灰化', () => {
   it('全家都病 → 沉到最后 + 灰化 + 右侧标注换成「最近多次失败」', () => {

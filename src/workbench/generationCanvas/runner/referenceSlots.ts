@@ -34,7 +34,7 @@ export type ResolvedReferenceSlot = {
   slotKind: ArchetypeReferenceSlotKind
   label: string
   min: number
-  max?: number
+  max: number
   /** 角色图按序对应 prompt character1..N（缩略图标 ①②③）。 */
   numbered: boolean
   accept: readonly ReferenceAssetKind[]
@@ -84,20 +84,20 @@ export function resolveReferenceSlots(
   if (slots.length === 0) return []
   const nodesById = new Map(nodes.map((n) => [n.id, n]))
 
-  // 按实际输入增长，不为未公开的上限分配 Infinity/NaN 长度数组，也不编造数量限制。
-  const positionsBySlot: (ReferenceFill | null)[][] = slots.map(() => [])
+  // 每个槽一个定长 (max) 位置数组，先放边（含位置偏好）、再放上传到剩余空位、去重。
+  const positionsBySlot: (ReferenceFill | null)[][] = slots.map((s) => Array.from({ length: Math.max(s.max, 0) }, () => null))
   const seenUrlBySlot: Set<string>[] = slots.map(() => new Set<string>())
 
   const placeAt = (slotIndex: number, fill: Omit<ReferenceFill, 'position'>, preferred?: number) => {
     const row = positionsBySlot[slotIndex]
-    const max = slots[slotIndex].max
-    if (fill.url && seenUrlBySlot[slotIndex].has(fill.url)) return
-    let pos = preferred != null && (max === undefined || preferred < max) && row[preferred] == null ? preferred : -1
+    if (row.length === 0) return
+    if (fill.url) {
+      if (seenUrlBySlot[slotIndex].has(fill.url)) return
+      seenUrlBySlot[slotIndex].add(fill.url)
+    }
+    let pos = preferred != null && preferred < row.length && row[preferred] === null ? preferred : -1
     if (pos < 0) pos = row.findIndex((cell) => cell === null)
-    if (pos < 0 && (max === undefined || row.length < max)) pos = row.length
     if (pos < 0) return // 槽已满
-    while (row.length <= pos) row.push(null)
-    if (fill.url) seenUrlBySlot[slotIndex].add(fill.url)
     row[pos] = { ...fill, position: pos }
   }
 

@@ -2,8 +2,8 @@
 // docs/plan/2026-06-04-runtime-split-execution.md 第 4 步）。
 //
 // safeStorage 走 OS 钥匙串（macOS Keychain / Windows DPAPI / Linux libsecret）。
-// 不可用时（如无 keyring 的 rootless Linux）回退明文，并给记录打 enc 标记。
-// 目录读取不触碰钥匙串；明文兼容记录保持可读，只有明确的凭据写操作才尝试加密。
+// 不可用时（如无 keyring 的 rootless Linux）回退明文，并给记录打 enc 标记，
+// 供下次读取时懒升级（见 runtime.ts readCatalog）。
 import { safeStorage } from "electron";
 
 export type ApiKeyRecord = {
@@ -98,7 +98,7 @@ export function decryptCustomConfigRecord(record: ApiKeyRecord | undefined): Rec
   return out;
 }
 
-/** Runtime compatibility for a v8 catalog whose migration is deferred until an explicit custom-config write. */
+/** Runtime compatibility for a v8 catalog whose migration is deferred until the keychain is available. */
 export function decryptCustomConfigWithLegacy(
   record: ApiKeyRecord | undefined,
   vendorMeta: unknown,

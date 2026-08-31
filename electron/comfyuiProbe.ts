@@ -3,7 +3,6 @@
 // 探测是**建议性**的：失败只提示「没连上」，不阻断启用（用户可能先启用、再起 ComfyUI）。
 import { getComfyuiCapabilities } from "./comfyui/capabilityStore";
 import { comfyuiEndpoint, normalizeComfyuiBaseUrl } from "./comfyui/endpointResolver";
-import { appFetch } from "./appFetch";
 
 export type ComfyuiProbeResult =
   | { ok: true; summary: string; version?: string; protocol: "enhanced" | "compatibility" }
@@ -19,7 +18,7 @@ export async function probeComfyuiSystemStats(baseUrl: string): Promise<ComfyuiP
   const base = normalizeComfyuiBaseUrl(baseUrl);
   try {
     const capabilitiesPromise = getComfyuiCapabilities(base, true);
-    const res = await appFetch(comfyuiEndpoint(base, "systemStats"), { signal: AbortSignal.timeout(3500) });
+    const res = await fetch(comfyuiEndpoint(base, "systemStats"), { signal: AbortSignal.timeout(3500) });
     if (!res.ok) return { ok: false, error: `ComfyUI 返回 HTTP ${res.status}` };
     const data = (await res.json()) as SystemStats;
     const sys = data.system || {};

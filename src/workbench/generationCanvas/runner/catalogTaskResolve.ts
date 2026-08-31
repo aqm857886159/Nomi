@@ -10,8 +10,7 @@ import {
   type TaskRequestDto,
   type TaskResultDto,
 } from '../../api/taskApi'
-import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { projectParameterReferenceSlots } from '../model/parameterReferenceSlots'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { GenerationProgressPhase } from '../../observability/narrate'
 import {
   getGenerationNodeCatalogKind,
@@ -25,14 +24,10 @@ import {
 } from '../../../config/modelArchetypes'
 import { currentArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
-import { resolveComfyWorkflowTaskKind } from '../../../../electron/catalog/comfyuiWorkflowTaskContract'
-import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
 import { loadUsableVendorKeys, remapArchetypeMode, resolveUsableModelForNode } from './usableVendorModel'
 
 export type CatalogTaskActionOptions = {
   references?: Partial<ResolvedGenerationReferences>
-  /** Re-resolve declared inputs against the freshly selected catalog model, without persisting URLs. */
-  referenceContext?: { nodes?: GenerationCanvasNode[]; edges?: GenerationCanvasEdge[] }
   /** Optional bounded QA retry instruction appended to the model prompt for this one run. */
   promptSuffix?: string
   /** 付费守卫令牌：真人确认后铸的 grantId，随 request.extras 下到主进程 runTask 核验消费。 */
@@ -146,17 +141,8 @@ export async function resolveExecutableNodeFromCatalog(
   }
   if (!usable) return node
 
-  // Even an available vendor can have an updated parameter declaration. Refresh from the actual catalog.
-  if (vendor && usable.has(vendor)) {
-    try {
-      const models = await (options.listCatalogModels || listWorkbenchModelCatalogModels)({ kind: catalogKindForNode(node), enabled: true })
-      const match = models.find((model) => model.vendorKey === vendor && [model.modelKey, model.modelAlias].includes(modelKey))
-      return match ? { ...node, meta: projectParameterReferenceSlots(node.meta || {}, match.meta) } : node
-    } catch {
-      // Non-desktop/test callers may have no model catalog bridge; retain their already validated declaration.
-      return node
-    }
-  }
+  // Happy path：钉死的供应商现在仍可用 → 原样执行（绝大多数情况）。
+  if (vendor && usable.has(vendor)) return node
   // 钉了供应商但它现在不可用、却又没有 modelKey 可据以重解析 → 直接报清晰错误。
   if (!modelKey) {
     throw new Error(`供应商「${vendor}」已断开，且该节点未记录模型。请重新连接，或在该节点上改选已连接供应商的模型。`)
@@ -193,7 +179,7 @@ export async function resolveExecutableNodeFromCatalog(
 
   return {
     ...node,
-    meta: projectParameterReferenceSlots({
+    meta: {
       ...migratedMeta,
       modelKey: asTrimmedString(match.modelKey) || modelKey,
       modelAlias: asTrimmedString(match.modelAlias) || modelKey,
@@ -204,7 +190,7 @@ export async function resolveExecutableNodeFromCatalog(
       ...(isVideoLikeGenerationNodeKind(node.kind)
         ? { videoModel: asTrimmedString(match.modelKey) || modelKey, videoModelVendor: resolvedVendor }
         : { imageModel: asTrimmedString(match.modelKey) || modelKey, imageModelVendor: resolvedVendor }),
-    }, match.meta),
+    },
   }
 }
 
@@ -217,11 +203,6 @@ export function resolveTaskKind(node: GenerationCanvasNode, references: Partial<
   if (executionKind === 'video' || executionKind === 'image' || executionKind === 'audio') {
     const archetype = resolveTaskArchetype(meta)
     if (archetype) return currentArchetypeMode(archetype, meta).transportTaskKind ?? archetype.transportTaskKind
-  }
-  const parameterContract = readParameterReferenceContract(meta)
-  if (isComfyuiVendorKey(selectedVendor(node)) && parameterContract && isComfyuiVendorKey(parameterContract.vendorKey)
-    && (executionKind === 'image' || executionKind === 'video' || executionKind === 'model3d')) {
-    return resolveComfyWorkflowTaskKind(executionKind, parameterContract.slots)
   }
   if (executionKind === 'video') {
     const hasFrame = Boolean(

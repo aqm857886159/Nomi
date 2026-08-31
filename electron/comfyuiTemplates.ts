@@ -16,7 +16,6 @@ import { fetchComfyuiObjectInfoIndex } from "./comfyuiObjectInfo";
 import { collectGraphEnumOptions, parseComfyApiWorkflow, reconcileComfyWorkflow, type MissingEnumValue } from "./catalog/comfyuiWorkflowImport";
 import { convertUiWorkflowToApi } from "./comfyuiGraphConvert";
 import { normalizeComfyuiBaseUrl } from "./comfyui/endpointResolver";
-import { appFetch } from "./appFetch";
 
 export type ComfyTemplateEntry = {
   name: string;
@@ -80,7 +79,7 @@ export async function fetchComfyuiTemplates(baseUrl: string): Promise<ComfyTempl
   const hit = cache.get(base);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value;
   try {
-    const res = await appFetch(`${base}/templates/index.json`, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(`${base}/templates/index.json`, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
     const list = parseTemplateIndex(await res.json(), base);
     if (list.length === 0) return null;
@@ -112,7 +111,7 @@ export async function fetchComfyuiTemplateDetail(baseUrl: string, name: string):
   if (!safeName || !/^[\w.-]+$/.test(safeName)) return { error: "模板名不合法" };
   let uiText: string;
   try {
-    const res = await appFetch(`${base}/templates/${safeName}.json`, { signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(`${base}/templates/${safeName}.json`, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) return { error: `取模板失败（HTTP ${res.status}）` };
     uiText = await res.text();
   } catch {

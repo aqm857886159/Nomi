@@ -166,7 +166,7 @@ function slotDraft(slot: ArchetypeReferenceSlot): CapabilitySlotDraft {
     kind: slot.kind,
     label: slot.label,
     min: String(slot.min),
-    max: scalarText(slot.max),
+    max: String(slot.max),
     inputKey: slot.inputKey ?? '',
     ...(typeof slot.asArray === 'boolean' ? { asArray: slot.asArray } : {}),
     ...(typeof slot.characterIndexed === 'boolean' ? { characterIndexed: slot.characterIndexed } : {}),
@@ -189,6 +189,30 @@ function modeDraft(mode: CustomCapabilityModeV1, fallbackTaskKind: ArchetypeTran
   }
 }
 
+function contractFromArchetype(archetype: ModelArchetype): CustomCapabilityContractV1 | null {
+  return normalizeCustomCapabilityContract({
+    version: 1,
+    kind: archetype.kind,
+    defaultModeId: archetype.defaultModeId,
+    transportTaskKind: archetype.transportTaskKind,
+    modes: archetype.modes.map((mode) => ({
+      id: mode.id,
+      intent: mode.intent,
+      vendorTerm: mode.vendorTerm,
+      hint: mode.hint,
+      promptRequired: mode.promptRequired,
+      ...(mode.transportTaskKind ? { transportTaskKind: mode.transportTaskKind } : {}),
+      slots: mode.slots.map((slot) => ({ ...slot })),
+      params: mode.params.map((parameter) => ({
+        ...parameter,
+        options: parameter.options.map((option) => ({ ...option })),
+      })),
+      ...(mode.fixedParams ? { fixedParams: { ...mode.fixedParams } } : {}),
+      ...(mode.combineSlotsInto ? { combineSlotsInto: { ...mode.combineSlotsInto } } : {}),
+    })),
+  })
+}
+
 export function createCapabilityContractDraft({
   modelKind,
   customContract,
@@ -201,10 +225,7 @@ export function createCapabilityContractDraft({
   defaultModeLabel: string
 }): CapabilityContractDraft | null {
   if (!isCapabilityContractKind(modelKind)) return null
-  // Builtins may truthfully omit unpublished limits. Do not reject their entire
-  // display draft through the stricter user-authored contract validator. Saving
-  // a custom override still requires validateCapabilityContractDraft below.
-  const source = customContract ?? (archetype?.kind === modelKind ? archetype : null)
+  const source = customContract ?? (archetype?.kind === modelKind ? contractFromArchetype(archetype) : null)
   if (source?.kind === modelKind) {
     return {
       kind: source.kind,

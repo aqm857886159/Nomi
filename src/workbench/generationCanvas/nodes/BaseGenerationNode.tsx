@@ -325,7 +325,7 @@ function BaseGenerationNodeImpl({
             <WorkbenchButton
               className={cn(
                 'generation-canvas-v2-node__handle generation-canvas-v2-node__handle--input',
-                'absolute top-1/2 left-[-14px] z-[7] inline-grid w-7 h-7 place-items-center p-0',
+                'absolute top-1/2 left-[-14px] inline-grid w-7 h-7 place-items-center p-0',
                 'border-0 rounded-full bg-transparent -translate-y-1/2 cursor-crosshair',
                 'opacity-80 transition-opacity duration-150 hover:opacity-100',
                 'data-[active=true]:opacity-100',
@@ -354,7 +354,7 @@ function BaseGenerationNodeImpl({
             <WorkbenchButton
               className={cn(
                 'generation-canvas-v2-node__handle generation-canvas-v2-node__handle--output',
-                'absolute top-1/2 right-[-14px] z-[7] inline-grid w-7 h-7 place-items-center p-0',
+                'absolute top-1/2 right-[-14px] inline-grid w-7 h-7 place-items-center p-0',
                 'border-0 rounded-full bg-transparent -translate-y-1/2 cursor-crosshair',
                 'opacity-80 transition-opacity duration-150 hover:opacity-100',
                 'data-[active=true]:opacity-100',

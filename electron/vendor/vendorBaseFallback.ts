@@ -20,7 +20,6 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { appFetch } from "../appFetch";
 
 type VendorBaseFamily = {
   vendorKey: string;
@@ -150,7 +149,7 @@ async function probeCandidate(base: string, marker: RegExp): Promise<boolean> {
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
     // 无鉴权 GET /v1/models：可达则任何网关都会回（apimart 回 401 + apimart_error 体），零费用。
-    const response = await appFetch(`${base}/v1/models`, { method: "GET", signal: controller.signal });
+    const response = await fetch(`${base}/v1/models`, { method: "GET", signal: controller.signal });
     const text = await response.text();
     return marker.test(text);
   } catch {
@@ -217,12 +216,12 @@ export async function restorePrimaryIfHealthy(vendorKey: string): Promise<void> 
 export async function fetchVendorWithBaseFallback(url: string, init: RequestInit): Promise<Response> {
   const first = rewriteVendorUrl(url);
   try {
-    return await appFetch(first, init);
+    return await fetch(first, init);
   } catch (error) {
     if (!(await maybeResolveVendorBase(first, error))) throw error;
     const second = rewriteVendorUrl(url);
     if (second === first) throw error;
-    return await appFetch(second, init);
+    return await fetch(second, init);
   }
 }
 

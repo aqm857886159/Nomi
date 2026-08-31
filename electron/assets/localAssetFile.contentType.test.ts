@@ -33,10 +33,6 @@ function writeFixture(fileName: string, bytes: Buffer): string {
 }
 
 describe("readNomiLocalAsset — 素材真实类型判定", () => {
-  it("rejects oversized local inputs before loading bytes when a caller sets a budget", () => {
-    expect(readNomiLocalAsset(writeFixture("large.png", Buffer.alloc(1024)), { maxBytes: 16 })).toBeNull();
-    expect(readNomiLocalAsset(writeFixture("small.png", Buffer.from("small")), { maxBytes: 16 })?.bytes.toString()).toBe("small");
-  });
   it.each([["clip.mp4"], ["clip.bin"], ["clip.mkv"], ["clip"]])(
     "%s 里装的是 mp4 → 判成 video，不再走图片通道",
     (fileName) => {

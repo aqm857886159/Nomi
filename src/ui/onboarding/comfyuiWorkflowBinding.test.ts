@@ -7,7 +7,6 @@ import {
   currentRoleOf,
   fieldChoicesForNode,
   normalizeBinding,
-  mediaBindingsFromAnalysis,
   paramFromCandidate,
   paramKeyProblem,
   roleChoicesForNode,
@@ -36,21 +35,6 @@ const ANALYSIS: WorkflowAnalysis = {
 }
 
 describe('工作流绑定的角色指派', () => {
-  it('按分析出的每个媒体输入生成独立绑定，不再把多参压成首尾帧', () => {
-    const threeImages: WorkflowAnalysis = {
-      ...ANALYSIS,
-      imageInputs: [image('1'), image('2'), image('3')],
-      suggested: {
-        firstFrameNodeId: '1', firstFrameInputKey: 'image',
-        lastFrameNodeId: '2', lastFrameInputKey: 'image',
-      },
-    }
-    const bindings = mediaBindingsFromAnalysis(threeImages)
-    expect(bindings).toHaveLength(3)
-    expect(bindings.map((item) => item.nodeId)).toEqual(['1', '2', '3'])
-    expect(bindings.map((item) => item.mediaKind)).toEqual(['image', 'image', 'image'])
-  })
-
   it('指派角色会撤掉绑同一个输入的参数行——一个输入只能有一个身份', () => {
     // 这正是 2026-08-03/08-11 两次反馈的根因形状：参数占位覆盖角色占位 → 用户的提示词静默送不进去。
     const before: WorkflowBinding = {
@@ -89,24 +73,6 @@ describe('工作流绑定的角色指派', () => {
     expect(currentRoleOf(bound, '110')).toBe('prompt')
     expect(currentRoleOf(bound, '300')).toBe('output')
     expect(currentRoleOf(bound, '292')).toBeNull()
-  })
-
-  it('角色改绑写回 images[]，不会让旧的首尾字段与通用媒体并行生效', () => {
-    const bound: WorkflowBinding = {
-      images: [
-        { nodeId: '1', inputKey: 'image', paramKey: 'comfy_image_1', label: '角色', mediaKind: 'image' },
-        { nodeId: '2', inputKey: 'image', paramKey: 'comfy_image_2', label: '风格', mediaKind: 'image' },
-      ],
-    }
-    const first = assignRole(bound, 'firstFrame', { nodeId: '2', inputKey: 'image' })
-    expect(first.images).toEqual([
-      { nodeId: '1', inputKey: 'image', paramKey: 'comfy_image_1', label: '角色', mediaKind: 'image' },
-      { nodeId: '2', inputKey: 'image', paramKey: 'first_frame_url', label: 'image', mediaKind: 'image' },
-    ])
-    const cleared = clearRole(first, 'firstFrame')
-    expect(cleared.images).toEqual([
-      { nodeId: '1', inputKey: 'image', paramKey: 'comfy_image_1', label: '角色', mediaKind: 'image' },
-    ])
   })
 })
 
@@ -156,33 +122,6 @@ describe('画布可调字段', () => {
     expect(first.paramKey).toBe('comfy_width')
     const second = paramFromCandidate(widget('293', 'value', 544, 'WIDTH'), [first])
     expect(second.paramKey).toBe('comfy_width_2')
-  })
-
-  it('新增普通字段避让媒体和普通字段共用的 request.params 键', () => {
-    const binding: WorkflowBinding = {
-      images: mediaBindingsFromAnalysis({ ...ANALYSIS, imageInputs: [image('1'), image('2'), image('3')] }),
-      params: [paramFromCandidate({ ...text('4'), title: 'image_1_2' })],
-    }
-    const candidate = { ...text('5'), title: 'image_1', value: 'a caption' }
-    const exposed = toggleField(binding, candidate)
-    expect(exposed.params?.map((param) => param.paramKey)).toEqual(['comfy_image_1_2', 'comfy_image_1_3'])
-    expect(exposed.images).toEqual(binding.images)
-    expect(paramFromCandidate(candidate, [...binding.images!, ...binding.params!]).paramKey).toBe('comfy_image_1_3')
-  })
-
-  it.each(['comfy_image_1', 'first_frame_url', 'last_frame_url', 'source_video_url'])(
-    '手动字段 key 与媒体 %s 重名时沿用 duplicate 阻断', (paramKey) => {
-      const media = { nodeId: '1', inputKey: 'image', paramKey, label: 'Image', mediaKind: 'image' as const }
-      const param = { ...paramFromCandidate(text('2')), paramKey }
-      expect(paramKeyProblem([param], [media])).toBe('duplicate')
-    },
-  )
-
-  it('旧角色的保留键优先，后指派角色也不会覆盖已有普通字段', () => {
-    const param = { ...paramFromCandidate(text('2')), paramKey: 'first_frame_url' }
-    const after = assignRole({ params: [param] }, 'firstFrame', { nodeId: '1', inputKey: 'image' })
-    expect(after.images?.[0]?.paramKey).toBe('first_frame_url')
-    expect(after.params).toEqual([{ ...param, paramKey: 'first_frame_url_2' }])
   })
 
   it('没有标题时退回 inputKey #nodeId，且 key 里的非法字符被替掉', () => {

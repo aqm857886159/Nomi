@@ -1,4 +1,3 @@
-import { enAntigravity, zhAntigravity } from './locales/antigravity'
 import { enModelSetup, zhModelSetup } from './locales/modelSetup'
 import { enBrowserAssets, zhBrowserAssets } from './locales/browserAssets'
 import { enTimelinePreview, zhTimelinePreview } from './locales/timelinePreview'
@@ -32,8 +31,6 @@ export const zhCN = {
     rendering: '正在渲染...',
     back: '返回',
     select: '选择',
-    searchOptions: '搜索选项',
-    noMatchingOptions: '没有匹配的选项',
     undo: '撤销',
   },
   media: {
@@ -222,9 +219,9 @@ export const zhCN = {
     startProject: '开始一个项目',
     watchHow: '看 Nomi 怎么出片',
     modelStatus: '模型状态',
-    textModelMissing: '创作助手尚未连接模型',
-    textModelMissingHint: '写故事、拆镜头的助手与画布生成模型分别配置。',
-    connectTextModel: '连接助手模型',
+    textModelMissing: '文本模型未接入',
+    textModelMissingHint: '写故事、拆镜头都需要它；图片 / 视频模型可以等到生成前再接。',
+    connectTextModel: '接入文本模型',
     sourceFilter: '筛选项目来源',
     noMatchNamed: '没有匹配「{{query}}」的项目',
     // 首次空库（无搜索、来源=全部、零项目）：给行动指引，别用系统腔（2026-08-25 走查 F1）。
@@ -365,7 +362,6 @@ export const zhCN = {
   assetLibrary: zhAssetLibrary,
   settings: zhSettings,
   onboardingProviders: zhOnboardingProviders,
-  antigravity: zhAntigravity,
   comfyuiWorkflowPage: zhComfyuiWorkflowPage,
   libraries: zhLibraries,
   scene3d: {
@@ -403,8 +399,6 @@ export const en = {
     rendering: 'Rendering...',
     back: 'Back',
     select: 'Select',
-    searchOptions: 'Search options',
-    noMatchingOptions: 'No matching options',
     undo: 'Undo',
   },
   media: {
@@ -594,10 +588,10 @@ export const en = {
     startProject: 'Start a project',
     watchHow: 'See how Nomi creates a video',
     modelStatus: 'Model status',
-    textModelMissing: 'No model connected to the creative assistant',
+    textModelMissing: 'No text model connected',
     textModelMissingHint:
-      'The assistant for stories and shot planning is configured separately from canvas generation models.',
-    connectTextModel: 'Connect assistant model',
+      'Writing stories and planning shots require one. Image and video models can be connected before generation.',
+    connectTextModel: 'Connect text model',
     sourceFilter: 'Filter project sources',
     noMatchNamed: 'No projects match “{{query}}”',
     firstEmpty: 'No projects yet — start with “New blank project” above',
@@ -741,7 +735,6 @@ export const en = {
   assetLibrary: enAssetLibrary,
   settings: enSettings,
   onboardingProviders: enOnboardingProviders,
-  antigravity: enAntigravity,
   comfyuiWorkflowPage: enComfyuiWorkflowPage,
   libraries: enLibraries,
   scene3d: {

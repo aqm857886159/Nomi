@@ -1,7 +1,6 @@
 import { ipcMain } from "electron";
-import { appFetch } from "../../appFetch";
 import type { AiSdkProviderKind } from "../../catalog/types";
-import { describeIllegalHeader, findIllegalHeader, findNonHeaderSafeChar, mergeHeadersCaseInsensitive } from "../../jsonUtils";
+import { describeIllegalHeader, findIllegalHeader, findNonHeaderSafeChar } from "../../jsonUtils";
 import { guessModelKind, type GuessableModelKind } from "../../catalog/modelKindHeuristic";
 import {
   buildAuthHeaders,
@@ -14,7 +13,6 @@ import { normalizeProviderKind } from "../../catalog/catalogStore";
 import { checkVendorHealth } from "./vendorHealth";
 
 import { assertTrustedSender } from "../../ipcSenderGuard";
-import { registerAntigravityIpc } from "../antigravityIpc";
 // ---------------------------------------------------------------------------
 // Onboarding — 中转拉取式接入 IPC（手填地址+key → 拉模型 → 按 id 分类 → 保存）。
 // 「AI 读文档」子系统已下线（Issue #8：各家中转参数不一，读文档抠参数不可靠）。
@@ -38,21 +36,29 @@ async function probeOneProtocol(
   signal: AbortSignal,
 ): Promise<ProtocolProbe> {
   let url: string;
-  const headers = mergeHeadersCaseInsensitive({ "content-type": "application/json" }, buildAuthHeaders(kind, apiKey, extraHeaders));
+  let headers: Record<string, string>;
   let body: Record<string, unknown>;
   if (kind === "anthropic") {
     const root = (rawBaseUrl || "https://api.anthropic.com").replace(/\/v1$/i, "");
     url = `${root}/v1/messages`;
+    headers = {
+      "content-type": "application/json",
+      "anthropic-version": "2023-06-01",
+      ...(apiKey ? { "x-api-key": apiKey } : {}),
+      ...extraHeaders,
+    };
     body = { model: modelId || "claude-3-5-haiku-latest", max_tokens: 1, messages: [{ role: "user", content: "ping" }] };
   } else if (kind === "openai-responses") {
     url = `${rawBaseUrl}/responses`;
+    headers = { "content-type": "application/json", ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}), ...extraHeaders };
     body = { model: modelId || "gpt-4o-mini", input: "ping", max_output_tokens: 16 };
   } else {
     url = `${rawBaseUrl}/chat/completions`;
+    headers = { "content-type": "application/json", ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}), ...extraHeaders };
     body = { model: modelId || "gpt-3.5-turbo", messages: [{ role: "user", content: "ping" }], max_tokens: 1 };
   }
   try {
-    const res = await appFetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
+    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
     if (res.ok) return { ok: true, status: res.status };
     const text = await res.text().catch(() => "");
     // 404/405/501/502/503 多为「路由/协议不对」→ 换下一个协议；401/403/400 多为鉴权/请求问题（不是协议错）。
@@ -64,7 +70,6 @@ async function probeOneProtocol(
 }
 
 export function registerOnboardingIpc(): void {
-  registerAntigravityIpc();
   // 「AI 读文档」接入路径已下线（Issue #8：改为中转拉取式接入图片/视频/文本）。
 
   // 供应商连接健康：模型面板每次打开时按家自查「现在能不能用」。凭证由主进程自取——
@@ -192,12 +197,12 @@ export function registerOnboardingIpc(): void {
     // 不经发送闸——脏 key（含中文/全角）会让 fetch 同步抛原始 ByteString，被 describeNetworkError
     // 误判网络。先识别、说人话、根本不发 fetch（治本，避免「连不上：Cannot convert…」）。
     const keyProblem = apiKey ? findNonHeaderSafeChar(apiKey) : null;
-    if (keyProblem) return { ok: false, failureKind: "auth", error: describeIllegalHeader({ name: "API Key", ...keyProblem }).message };
+    if (keyProblem) return { ok: false, error: describeIllegalHeader({ name: "API Key", ...keyProblem }).message };
     const headerProblem = findIllegalHeader(extraHeaders);
-    if (headerProblem) return { ok: false, failureKind: "auth", error: describeIllegalHeader(headerProblem).message };
+    if (headerProblem) return { ok: false, error: describeIllegalHeader(headerProblem).message };
     // 纯图片/视频上游：不探协议（探了也白探，它们不走 providerKind），只探地址+Key 通不通。
     if (reachabilityOnly) {
-      if (!/^https?:\/\//i.test(rawBaseUrl)) return { ok: false, failureKind: "invalid_response", error: "接入地址需以 http:// 或 https:// 开头" };
+      if (!/^https?:\/\//i.test(rawBaseUrl)) return { ok: false, error: "接入地址需以 http:// 或 https:// 开头" };
       const kind = forcedKind ?? "openai-compatible";
       const headers = buildAuthHeaders(kind, apiKey, extraHeaders);
       const controller = new AbortController();
@@ -206,7 +211,7 @@ export function registerOnboardingIpc(): void {
         const listed = await fetchModelList(kind, rawBaseUrl, headers, controller.signal);
         return listed.ok
           ? { ok: true, reachabilityOnly: true }
-          : { ok: false, status: listed.status, failureKind: listed.failureKind, error: listed.error };
+          : { ok: false, status: listed.status, error: listed.error };
       } finally {
         clearTimeout(timeout);
       }
@@ -262,12 +267,12 @@ export function registerOnboardingIpc(): void {
     const baseUrl =
       providerKind === "anthropic" && !rawBaseUrl ? "https://api.anthropic.com" : rawBaseUrl;
     const apiKey = String(payload?.apiKey || "").trim();
-    if (!/^https?:\/\//i.test(baseUrl)) return { ok: false, failureKind: "invalid_response", error: "接入地址需以 http:// 或 https:// 开头" };
+    if (!/^https?:\/\//i.test(baseUrl)) return { ok: false, error: "接入地址需以 http:// 或 https:// 开头" };
     const extraHeaders = readExtraHeaders(payload?.headers);
     const headers = buildAuthHeaders(providerKind, apiKey, extraHeaders);
     // 发送前请求头守卫（同 test-connection）：自带裸 fetch 绕过发送闸，脏 key 先拦+说人话，不发 fetch。
     const headerProblem = findIllegalHeader(headers);
-    if (headerProblem) return { ok: false, failureKind: "auth", error: describeIllegalHeader(headerProblem).message };
+    if (headerProblem) return { ok: false, error: describeIllegalHeader(headerProblem).message };
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12_000);
     try {

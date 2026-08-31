@@ -94,22 +94,6 @@ export function clampZoom(zoom: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom))
 }
 
-export type GraphViewport = { zoom: number; offset: { x: number; y: number } }
-
-/** Keep the content under the pointer fixed, using the clamped (not requested) scale. */
-export function zoomGraphAtPoint(current: GraphViewport, requestedZoom: number, point: { x: number; y: number }): GraphViewport {
-  const zoom = clampZoom(requestedZoom)
-  if (zoom === current.zoom) return current
-  const ratio = zoom / current.zoom
-  return {
-    zoom,
-    offset: {
-      x: point.x - (point.x - current.offset.x) * ratio,
-      y: point.y - (point.y - current.offset.y) * ratio,
-    },
-  }
-}
-
 /**
  * 「适应」：整张图塞进视口的缩放。**不放大**（上限 1）——小图被拉到 2 倍会糊，
  * 且「适应」的语义是「让我看全」，不是「让我看大」。

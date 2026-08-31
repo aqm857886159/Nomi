@@ -35,35 +35,4 @@ describe("parseModelListResponse", () => {
   it("丢掉空 id、去掉首尾空格", () => {
     expect(parseModelListResponse('{"data":[{"id":" a "},{"id":""},{"nope":1}]}')).toEqual(["a"]);
   });
-
-  it("preserves the native Replicate owner/name identifier, without a hostname condition", () => {
-    expect(parseModelListResponse(JSON.stringify({
-      results: [{ owner: "black-forest-labs", name: "flux-schnell" }, { owner: "another", name: "flux-schnell" }],
-      next: null,
-      previous: null,
-    }))).toEqual(["black-forest-labs/flux-schnell", "another/flux-schnell"]);
-  });
-
-  it.each([
-    { items: [{ id: {} }] }, { items: [{ id: 42 }] }, { items: [{ id: true }] },
-    { items: [{ name: "display name" }] }, { items: [null, " "] },
-  ])(
-    "does not turn malformed nonempty lists into empty success or coerced IDs: $items", ({ items }) => {
-      expect(parseModelListResponse(JSON.stringify({ data: items }))).toBeNull();
-    },
-  );
-
-  it("deduplicates IDs without changing case, slashes or punctuation", () => {
-    expect(parseModelListResponse(JSON.stringify({ data: ["Owner/Model:v2", "owner/model:v2", "Owner/Model:v2"] })))
-      .toEqual(["Owner/Model:v2", "owner/model:v2"]);
-  });
-
-  it.each([
-    { code: 401, data: [] },
-    { status: "error", data: [{ id: "not-a-success" }] },
-    { success: false, data: [] },
-    { error: { code: "invalid_api_key", message: "Invalid key" }, data: [] },
-  ])("does not parse an HTTP-200 error envelope as a list: %j", (body) => {
-    expect(parseModelListResponse(JSON.stringify(body))).toBeNull();
-  });
 });

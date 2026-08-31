@@ -1,7 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { projectParameterReferenceSlots } from '../model/parameterReferenceSlots'
-import { showInfoToast } from '../../../utils/showInfoToast'
-vi.mock('../../../utils/showInfoToast', () => ({ showInfoToast: vi.fn() }))
+import { beforeEach, describe, expect, it } from 'vitest'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { completeNodeConnection } from './completeNodeConnection'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -43,24 +40,9 @@ const refImages = (id: string) =>
   (useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)?.meta?.referenceImageUrls as string[] | undefined)
 const edgesTo = (id: string) => useGenerationCanvasStore.getState().edges.filter((e) => e.target === id)
 
-beforeEach(() => { seed([]); vi.mocked(showInfoToast).mockClear() })
+beforeEach(() => seed([]))
 
 describe('completeNodeConnection — 捷径 B（地基收口：数组参考也建有序边）', () => {
-  it('declared media slots do not report a successful bare connection as full', () => {
-    const target = plainVideoNode('dst')
-    target.meta = projectParameterReferenceSlots({ modelKey: 'custom-video', modelVendor: 'custom' }, {
-      parameters: [{ key: 'input_a', label: 'A', type: 'image-url' }],
-    })
-    seed([imageNode('src', 'https://cdn/x.png'), target])
-    useGenerationCanvasStore.getState().startConnection('src')
-    completeNodeConnection('dst')
-    expect(edgesTo('dst')).toMatchObject([{ targetParamKey: 'input_a' }])
-    expect(showInfoToast).not.toHaveBeenCalled()
-    useGenerationCanvasStore.getState().startConnection('src')
-    completeNodeConnection('dst')
-    expect(edgesTo('dst')).toHaveLength(1)
-    expect(showInfoToast).toHaveBeenCalledOnce()
-  })
   it('image source(有结果) → omni target：建有序 character_ref 边(order 0)，不写 meta-only，不弹 toast', () => {
     seed([imageNode('src', 'https://cdn/x.png'), omniVideoNode('dst')])
     useGenerationCanvasStore.getState().startConnection('src')

@@ -31,7 +31,6 @@ const textToVideoWorkflow = (promptText: string) => JSON.stringify({
   "3": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "m.safetensors" } },
   "4": { class_type: "KSampler", inputs: { seed: 2, steps: 12, positive: ["2", 0], model: ["3", 0] } },
   "5": { class_type: "CreateVideo", inputs: { images: ["4", 0], fps: 16 } },
-  "6": { class_type: "SaveVideo", inputs: { video: ["5", 0], filename_prefix: "test" } },
 });
 
 beforeEach(() => {

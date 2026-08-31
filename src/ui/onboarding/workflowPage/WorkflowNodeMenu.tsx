@@ -50,33 +50,6 @@ export function WorkflowNodeMenu({
 }: WorkflowNodeMenuProps): JSX.Element {
   const { t } = useTranslation()
   const ref = React.useRef<HTMLDivElement>(null)
-  const [bounds, setBounds] = React.useState<{ top: number; maxHeight: number } | null>(null)
-
-  // Zoom/pan can put a node near the bottom edge. Measure the actual menu rather than
-  // guessing its height from field counts; long menus scroll without shrinking their rows.
-  React.useLayoutEffect(() => {
-    const element = ref.current
-    const viewport = element?.closest('[data-workflow-graph]')
-    const container = element?.offsetParent
-    if (!element || !viewport || !container) return
-    const update = (): void => {
-      const frame = viewport.getBoundingClientRect()
-      const origin = container.getBoundingClientRect().top
-      const maxHeight = Math.max(0, frame.height - 16)
-      const height = Math.min(element.scrollHeight + element.offsetHeight - element.clientHeight, maxHeight)
-      const top = Math.max(frame.top + 8, Math.min(origin + position.y, frame.bottom - height - 8)) - origin
-      setBounds((current) => current?.top === top && current.maxHeight === maxHeight ? current : { top, maxHeight })
-    }
-    update()
-    const observer = new ResizeObserver(update)
-    observer.observe(viewport)
-    observer.observe(element)
-    viewport.addEventListener('scroll', update, true)
-    return () => {
-      observer.disconnect()
-      viewport.removeEventListener('scroll', update, true)
-    }
-  }, [position.y, nodeId])
 
   // Esc 收菜单。capture 阶段拦下来并 stopPropagation：否则会一路冒到设置对话框那个
   // window keydown，把整张设置一起关掉（走查栽过同类）。
@@ -91,7 +64,7 @@ export function WorkflowNodeMenu({
   }, [onClose])
 
   React.useEffect(() => {
-    ref.current?.focus({ preventScroll: true })
+    ref.current?.focus()
   }, [nodeId])
 
   return (
@@ -101,9 +74,9 @@ export function WorkflowNodeMenu({
       role="menu"
       aria-label={t('comfyuiWorkflowPage.menu.aria', { id: nodeId })}
       className={cn(
-        'absolute z-[3] flex flex-col gap-1 overflow-y-auto overscroll-contain rounded-nomi border border-nomi-line bg-nomi-paper p-1.5 shadow-nomi-lg outline-none [&>*]:shrink-0',
+        'absolute z-[3] flex flex-col gap-1 rounded-nomi border border-nomi-line bg-nomi-paper p-1.5 shadow-nomi-lg outline-none',
       )}
-      style={{ left: position.x, top: bounds?.top ?? position.y, maxHeight: bounds?.maxHeight, width: MENU_WIDTH }}
+      style={{ left: position.x, top: position.y, width: MENU_WIDTH }}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >

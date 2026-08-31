@@ -6,7 +6,6 @@ import type {
 } from "./types";
 import type { VideoModelCandidate } from "./recommendation";
 import { AGNES_VIDEO_ARCHETYPE } from "./agnesVideo";
-import { AGNES_VIDEO_25_ARCHETYPE, AGNES_VIDEO_25_FLASH_ARCHETYPE } from "./agnesVideo25";
 import { DREAMINA_MULTIFRAME_ARCHETYPE } from "./dreaminaMultiframe";
 import { DREAMINA_SEEDANCE_ARCHETYPE } from "./dreaminaSeedance";
 import { GROK_IMAGINE_1_5_VIDEO_ARCHETYPE } from "./grokImagine15Video";
@@ -81,8 +80,6 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   RUNNINGHUB_SEEDANCE_ARCHETYPE,
   ...RUNNINGHUB_VIDEO_ARCHETYPES,
   AGNES_VIDEO_ARCHETYPE,
-  AGNES_VIDEO_25_ARCHETYPE,
-  AGNES_VIDEO_25_FLASH_ARCHETYPE,
 ];
 
 function modelProfileMatchScore(modelKey: string, profile: ModelArchetype): number {

@@ -16,12 +16,7 @@ import { normalizeOrientation, type Orientation } from '../../../../utils/orient
 import { isComfyuiVendorKey } from '../../model/comfyuiVendor'
 import { normalizeAspectRatioToWH } from '../aspectRatio'
 import { resultUrl } from '../../runner/referenceUrl'
-import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
-import {
-  isParameterReferenceControl,
-  usesExplicitParameterReferenceDeclarations,
-  type ImageUrlSlot,
-} from '../../model/parameterReferenceSlots'
+import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import type { WorkbenchAssetDto } from '../../../api/assetUploadApi'
 
 export type SelectOption = string | {
@@ -53,9 +48,69 @@ export type DynamicParameterControl = ModelParameterControl & {
 
 export type DynamicModelControl = DynamicParameterControl | DynamicCatalogControl
 
+export type ImageUrlGroup = 'first_frame' | 'last_frame' | 'reference'
+
+export type ImageUrlSlot = {
+  key: string
+  label: string
+  group: ImageUrlGroup
+}
+
 export type FrameSlotLabels = {
   firstFrame: string
   lastFrame: string
+}
+
+const FIRST_FRAME_KEY_FRAGMENTS = ['firstframe', 'firstimage', 'startframe', 'startimage', 'initialframe']
+const LAST_FRAME_KEY_FRAGMENTS = ['lastframe', 'lastimage', 'endframe', 'endimage', 'finalframe']
+
+function inferImageUrlGroup(key: string): ImageUrlGroup {
+  const lower = key.toLowerCase().replace(/[-_]/g, '')
+  if (FIRST_FRAME_KEY_FRAGMENTS.some((f) => lower.includes(f))) return 'first_frame'
+  if (LAST_FRAME_KEY_FRAGMENTS.some((f) => lower.includes(f))) return 'last_frame'
+  return 'reference'
+}
+
+// A param is an image-reference input if onboarding tagged it 'image-url',
+// OR its key name clearly names an image URL (onboarding sometimes mis-tags
+// these as plain text). Both buildImageUrlSlots (top reference boxes) and
+// buildDynamicControls (bottom param row) use THIS predicate, so any given
+// param lands in exactly one place — and it works for any model, not just the
+// ones whose type was tagged correctly during onboarding.
+const IMAGE_URL_KEY_FRAGMENTS = [
+  'imageurl', 'imgurl', 'imageurls', 'inputurl', 'inputurls', 'inputimage', 'inputimg', 'imageinput',
+  'referenceimage', 'refimage', 'initimage', 'sourceimage', 'sourceimg',
+  'startimage', 'endimage', 'firstframe', 'lastframe', 'frameurl', 'photourl',
+]
+export function looksLikeImageUrlControl(control: ModelParameterControl): boolean {
+  if (control.type === 'image-url') return true
+  // Only ever promote a free-text param; never a select/number/boolean (those
+  // are real value pickers, not image inputs).
+  if (control.type !== 'text') return false
+  const lower = control.key.toLowerCase().replace(/[-_]/g, '')
+  return IMAGE_URL_KEY_FRAGMENTS.some((f) => lower.includes(f))
+}
+
+export function edgeModeForGroup(group: ImageUrlGroup): GenerationCanvasEdgeMode {
+  if (group === 'first_frame') return 'first_frame'
+  if (group === 'last_frame') return 'last_frame'
+  return 'reference'
+}
+
+export function getEdgeSourceForSlot(
+  group: ImageUrlGroup,
+  edges: GenerationCanvasEdge[],
+  targetNodeId: string,
+): string {
+  const mode = edgeModeForGroup(group)
+  return edges.find((e) => e.target === targetNodeId && e.mode === mode)?.source || ''
+}
+
+export function buildImageUrlSlots(meta: unknown): ImageUrlSlot[] {
+  const controls = parseModelParameterControls(meta)
+  return controls
+    .filter(looksLikeImageUrlControl)
+    .map((c) => ({ key: c.key, label: c.label, group: inferImageUrlGroup(c.key) }))
 }
 
 /**
@@ -432,12 +487,11 @@ export function buildDynamicControls(input: {
   videoCatalogConfig: VideoModelCatalogConfig | null
   isImageLike: boolean
   isVideoLike: boolean
-  explicitMediaParametersOnly?: boolean
 }): DynamicModelControl[] {
   const paramControls = dedupeParamControls(
     // image-url-like params render as reference boxes at the top (buildImageUrlSlots),
     // so they must NOT also appear in the bottom value row.
-    input.parameterControls.filter((c) => !isParameterReferenceControl(c, input.explicitMediaParametersOnly) && !isEmptyInputControl(c)),
+    input.parameterControls.filter((c) => !looksLikeImageUrlControl(c) && !isEmptyInputControl(c)),
   )
   const controls: DynamicModelControl[] = paramControls.map((control) => ({
     ...control,
@@ -623,6 +677,5 @@ export function buildModelControls(meta: unknown, isImageLike: boolean, isVideoL
     videoCatalogConfig: buildEffectiveVideoCatalogConfig(meta),
     isImageLike,
     isVideoLike,
-    explicitMediaParametersOnly: usesExplicitParameterReferenceDeclarations(meta),
   })
 }

@@ -9,11 +9,8 @@
  * 从 onboardingIpc.ts 移出——那份是 IPC 面，这份是领域原语（R9 分层）。
  */
 import type { AiSdkProviderKind } from "../../catalog/types";
-import { appFetch } from "../../appFetch";
-import { describeIllegalHeader, findIllegalHeader, isJsonRecord, mergeHeadersCaseInsensitive, pickUpstreamMessage } from "../../jsonUtils";
-import { parseModelListPage, type ModelListFailureKind } from "./modelListResponse";
-import { modelListErrorRedactor } from "./modelListSafety";
-export type { ModelListFailureKind } from "./modelListResponse";
+import { isJsonRecord, pickUpstreamMessage } from "../../jsonUtils";
+import { parseModelListResponse } from "./modelListResponse";
 
 export async function describeNetworkErrorLazy(error: unknown): Promise<string> {
   const { describeNetworkError } = await import("../../systemProxy");
@@ -21,13 +18,11 @@ export async function describeNetworkErrorLazy(error: unknown): Promise<string> 
 }
 
 /** 上游失败体 → 那句人话。键优先级表住 jsonUtils（全仓唯一），挑不出来才退回原文/HTTP 码。 */
-export function upstreamErrorText(bodyText: string, status: number, sanitize?: (message: string) => string): string {
+export function upstreamErrorText(bodyText: string, status: number): string {
   let parsed: unknown;
   try { parsed = bodyText ? JSON.parse(bodyText) : null; } catch { parsed = null; }
-  const said = isJsonRecord(parsed) ? pickUpstreamMessage(parsed, sanitize) : "";
-  if (/^no message available[.!]?$/i.test(said || bodyText.trim())) return `HTTP ${status}`;
-  const message = said || bodyText.trim() || `HTTP ${status}`;
-  return (sanitize ? sanitize(message) : message).slice(0, 300);
+  const said = isJsonRecord(parsed) ? pickUpstreamMessage(parsed) : "";
+  return said || bodyText.trim().slice(0, 300) || `HTTP ${status}`;
 }
 
 /** payload.headers（用户自填的中转请求头）→ 干净的 kv。 */
@@ -49,54 +44,14 @@ export function buildAuthHeaders(
   apiKey: string,
   extraHeaders: Record<string, string>,
 ): Record<string, string> {
-  return mergeHeadersCaseInsensitive(
-    providerKind === "anthropic"
-      ? { "anthropic-version": "2023-06-01", ...(apiKey ? { "x-api-key": apiKey } : {}) }
-      : { ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
-    extraHeaders,
-  );
+  return providerKind === "anthropic"
+    ? { "anthropic-version": "2023-06-01", ...(apiKey ? { "x-api-key": apiKey } : {}), ...extraHeaders }
+    : { ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}), ...extraHeaders };
 }
 
 export type ModelListResult =
-  | { ok: true; models: string[]; statuses: number[]; partial?: boolean }
-  | { ok: false; status?: number; error: string; statuses: number[]; failureKind?: ModelListFailureKind };
-
-type Failure = Extract<ModelListResult, { ok: false }> & { failureKind: ModelListFailureKind };
-const FAILURE_PRIORITY: Record<ModelListFailureKind, number> = {
-  unsupported: 0, invalid_response: 1, upstream: 2, network: 3, rate_limit: 4, auth: 5,
-};
-const MAX_PAGES = 10;
-const MAX_MODELS = 2000;
-
-function failureKindForStatus(status: number): ModelListFailureKind {
-  if (status === 401 || status === 403) return "auth";
-  if (status === 429) return "rate_limit";
-  if (status === 404 || status === 405) return "unsupported";
-  if (status >= 300 && status < 400) return "invalid_response";
-  return "upstream";
-}
-
-function modelListCandidates(providerKind: AiSdkProviderKind, baseUrl: string, query: Record<string, string>): URL[] {
-  const base = new URL(baseUrl);
-  if (!/^https?:$/.test(base.protocol) || base.username || base.password) throw new Error("Invalid API address");
-  base.hash = "";
-  const path = base.pathname.replace(/\/+$/, "");
-  const versioned = /\/v\d+(?:[a-z]+\d*)?$/i.test(path);
-  const paths = /\/models$/i.test(path) ? [path] : versioned ? [`${path}/models`]
-    : providerKind === "anthropic" ? [`${path}/v1/models`] : [`${path}/models`, `${path}/v1/models`];
-  return paths.map((pathname) => {
-    const url = new URL(base);
-    url.pathname = pathname;
-    for (const [key, value] of Object.entries(query)) if (key && value) url.searchParams.set(key, value);
-    return url;
-  });
-}
-
-function pageIdentity(url: URL): string {
-  const canonical = new URL(url);
-  canonical.searchParams.sort();
-  return canonical.toString();
-}
+  | { ok: true; models: string[]; statuses: number[] }
+  | { ok: false; status?: number; error: string; statuses: number[] };
 
 /**
  * 拉这个上游开放的模型列表。候选 URL：openai-compatible 的 baseUrl 通常已含 /v1 → /models；
@@ -104,8 +59,9 @@ function pageIdentity(url: URL): string {
  * index.html。所以依次试 /models 与 /v1/models，且**命中判据是「解析得出模型列表」而不是
  * 「HTTP 200」**（只看 200 会被 SPA 骗到提前收工，真正对的 /v1/models 永远轮不到）。
  *
- * `statuses` 保留每次实际 HTTP 状态作诊断；`failureKind` 是调用方的唯一分类依据，
- * 因为业务错误能藏在 HTTP 200 中，网络异常又不产生 HTTP 状态。空列表不掩盖这些错误。
+ * `statuses` 收集**每个候选**的 HTTP 码，供调用方区分「这家没有这个端点」（全 404/405）
+ * 与「凭证不对」（任一 401/403）——只看 lastStatus 会漏：/models 回 401、/v1/models 回 404 时
+ * 末位是 404，据此判「不支持」就把真正的 key 失效吞掉了。
  */
 export async function fetchModelList(
   providerKind: AiSdkProviderKind,
@@ -114,83 +70,37 @@ export async function fetchModelList(
   signal: AbortSignal,
   options: { query?: Record<string, string> } = {},
 ): Promise<ModelListResult> {
-  const query = options.query || {};
-  const redact = modelListErrorRedactor(baseUrl, headers, query);
-  const statuses: number[] = [];
-  const failure = (failureKind: ModelListFailureKind, error: string, status?: number): Failure => ({
-    ok: false, failureKind, ...(status !== undefined ? { status } : {}), error: redact(error), statuses,
-  });
-  const headerProblem = findIllegalHeader(headers);
-  if (headerProblem) return failure("auth", describeIllegalHeader(headerProblem).message);
-  let candidates: URL[];
-  try { candidates = modelListCandidates(providerKind, baseUrl, query); }
-  catch { return failure("invalid_response", "Invalid API address"); }
-  let strongest: Failure | undefined;
-  const remember = (failed: Failure): Failure => {
-    if (!strongest || FAILURE_PRIORITY[failed.failureKind] > FAILURE_PRIORITY[strongest.failureKind]) strongest = failed;
-    return strongest;
-  };
-  let sawEmptyList = false;
-  for (const candidate of candidates) {
-    let url = candidate;
-    const seenPages = new Set<string>();
-    const models = new Set<string>();
-    for (let pageNumber = 0; pageNumber < MAX_PAGES; pageNumber += 1) {
-      seenPages.add(pageIdentity(url));
-      let res: Response;
-      let body: string;
-      let status: number | undefined;
-      try {
-        // Never auto-follow redirects with arbitrary gateway auth headers/query credentials.
-        res = await appFetch(url.toString(), { method: "GET", headers, signal, redirect: "manual" });
-        statuses.push(res.status);
-        status = res.status;
-        body = await res.text();
-      } catch (error) {
-        const failed = status === 401 || status === 403 || status === 429
-          ? failure(failureKindForStatus(status), `HTTP ${status}`, status)
-          : failure("network", await describeNetworkErrorLazy(error), status);
-        const best = remember(failed);
-        if (pageNumber > 0 || signal.aborted) return best;
-        break;
-      }
-      if (!res.ok) {
-        const failed = remember(failure(failureKindForStatus(res.status), upstreamErrorText(body, res.status, redact), res.status));
-        if (pageNumber > 0) return failed;
-        break;
-      }
-      const page = parseModelListPage(body, redact);
-      if (!page.ok) {
-        const failed = remember(failure(page.failureKind, page.error || "Response is not a valid model list", res.status));
-        if (pageNumber > 0) return failed;
-        break;
-      }
-      for (const id of page.models) models.add(id);
-      let next: URL | undefined;
-      if (page.next || page.afterId) {
-        try {
-          next = page.next ? new URL(page.next, url) : new URL(url);
-          if (page.afterId) next.searchParams.set("after_id", page.afterId);
-          if (next.origin !== candidate.origin || next.pathname !== candidate.pathname || next.username || next.password || next.hash) {
-            return remember(failure("invalid_response", "Unsafe model-list pagination link", res.status));
-          }
-          // Keep saved base/query authentication when next contains only its cursor.
-          for (const [key, value] of candidate.searchParams) if (!next.searchParams.has(key)) next.searchParams.set(key, value);
-          for (const [key, value] of Object.entries(query)) if (key && value) next.searchParams.set(key, value);
-          if (seenPages.has(pageIdentity(next))) return remember(failure("invalid_response", "Repeated model-list pagination cursor", res.status));
-        } catch { return remember(failure("invalid_response", "Invalid model-list pagination link", res.status)); }
-      }
-      if (models.size > MAX_MODELS || (next && (models.size >= MAX_MODELS || pageNumber + 1 === MAX_PAGES))) {
-        return { ok: true, models: [...models].slice(0, MAX_MODELS), statuses, partial: true };
-      }
-      if (next) { url = next; continue; }
-      if (models.size > 0) return { ok: true, models: [...models], statuses };
-      sawEmptyList = true;
-      break;
+  const rawCandidates =
+    providerKind === "anthropic"
+      ? [`${baseUrl}/v1/models`]
+      : [`${baseUrl}/models`, `${baseUrl}/v1/models`];
+  const candidates = rawCandidates.map((candidate) => {
+    const query = options.query || {};
+    if (Object.keys(query).length === 0) return candidate;
+    const url = new URL(candidate);
+    for (const [key, value] of Object.entries(query)) {
+      if (key && value) url.searchParams.set(key, value);
     }
+    return url.toString();
+  });
+  let lastErr = "";
+  let lastStatus: number | undefined;
+  const statuses: number[] = [];
+  // 某候选回了「合法但空」的列表：先记下，仍继续试下一个候选（可能那个才有货）；全试完还是空，
+  // 才如实报「这个地址确实没列出模型」。
+  let sawEmptyList = false;
+  for (const url of candidates) {
+    let res: Response;
+    try { res = await fetch(url, { method: "GET", headers, signal }); }
+    catch (e) { lastErr = await describeNetworkErrorLazy(e); continue; }
+    statuses.push(res.status);
+    const text = await res.text().catch(() => "");
+    if (!res.ok) { lastStatus = res.status; lastErr = upstreamErrorText(text, res.status); continue; }
+    const models = parseModelListResponse(text);
+    if (models === null) { lastStatus = res.status; lastErr = `${url} 返回的不是模型列表（像是网页）`; continue; }
+    if (models.length === 0) { sawEmptyList = true; continue; }
+    return { ok: true, models, statuses };
   }
-  if (sawEmptyList && (!strongest || FAILURE_PRIORITY[strongest.failureKind] < FAILURE_PRIORITY.upstream)) {
-    return { ok: true, models: [], statuses };
-  }
-  return strongest || failure("invalid_response", "Unable to retrieve a model list");
+  if (sawEmptyList) return { ok: true, models: [], statuses };
+  return { ok: false, status: lastStatus, error: lastErr || "拉取不到模型列表", statuses };
 }

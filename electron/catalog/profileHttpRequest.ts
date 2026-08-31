@@ -21,8 +21,7 @@ export function templateContext(
 ): JsonRecord {
   return buildTemplateContext({
     request: request as unknown as JsonRecord,
-    params: applyParamMap(paramMap, taskTemplateParams(request,
-      { vendorKey: model.vendorKey, modelKey: model.modelKey })),
+    params: applyParamMap(paramMap, taskTemplateParams(request)),
     model: model as unknown as JsonRecord,
     modelKey: model.modelAlias || model.modelKey,
     apiKey,

@@ -1,7 +1,8 @@
-import type { AgentAttachmentPayload, AgentsChatResponseDto, AgentChatV2Session, AgentsChatStreamEvent } from '../../api/desktopClient'
+import type { AgentAttachmentPayload, AgentsChatResponseDto, AgentChatV2Session } from '../../api/desktopClient'
 import { sendWorkbenchAiMessage, type WorkbenchAiRequest } from './workbenchAiClient'
 import { getAssistantModelPref } from './assistantModelPref'
-import type { AgentChatCapability, AgentChatHistory, AgentChatToolDecision } from '../../../electron/harness/agentChatContracts'
+import { useAgentUsageStore } from './agentUsageStore'
+import { workbenchSessionKey, type WorkbenchAgentArea } from './agentSessionKey'
 
 // 会话键工厂已收口到 agentSessionKey.ts（B1a）。此处 re-export 保持既有 import 路径不破
 // （generationCanvasAgentClient / 两面板 / staleConversationDivider / conversationPersistence 仍从这里取）。
@@ -11,7 +12,7 @@ export { workbenchSessionKey, type WorkbenchAgentArea } from './agentSessionKey'
  * One shared agent runner for both workbench panels (创作区 + 生成区).
  *
  * The backend engine (`runAgentChatV2`) is identical for both areas; only the
- * explicit capability differs. Skills only supply methods. This runner owns the common
+ * tool group differs (selected by skillKey). This runner owns the common
  * plumbing: send the message, stream content back via `onContent`, and surface
  * each LLM tool call as a `ToolCallEvent` whose `confirm` callback feeds the
  * user's decision back into the IPC session so the loop can continue.
@@ -24,13 +25,13 @@ export type ToolCallEvent = {
   toolCallId: string
   toolName: string
   args: unknown
-  /** This exact call still awaits a decision, independently of its turn's lifetime. */
-  isPending: () => boolean
   /** Resolve with the user's decision; main process feeds the result back to the model.
    *  S6-0: ok 分支可带 effectiveArgs/overridesDelta(对账快照+偏好增量),透传至 proposal.approved。
    *  S6-1: ok.silent=只读直通不记 approved;false.denied=gate 拒绝走 gate.denied。
    *  S6-2: ok.proposalId=提议事务标注,approved 事件级字段。 */
-  confirm: (decision: AgentChatToolDecision) => Promise<void>
+  confirm: (decision:
+    | { ok: true; result?: unknown; effectiveArgs?: Record<string, unknown>; overridesDelta?: Record<string, unknown>; silent?: boolean; proposalId?: string }
+    | { ok: false; message?: string; denied?: boolean }) => Promise<void>
 }
 
 export type RunWorkbenchAgentInput = {
@@ -40,15 +41,13 @@ export type RunWorkbenchAgentInput = {
   systemPrompt?: string
   /** Short text shown in the user's chat bubble / thread history. */
   displayPrompt: string
-  capability: AgentChatCapability
-  history: AgentChatHistory
-  featureKey?: string
-  selectedNodeIds?: readonly string[]
-  /** Domain method and system prompt; never tool authority. */
+  /** Shared backend memory key. Both areas use `nomi:workbench:<projectId|local>`. */
+  sessionKey: string
+  /** Selects the backend tool group + system prompt. */
   skillKey: string
   skillName: string
   projectId?: string
-  mode?: 'auto' | 'chat'
+  mode?: 'auto'
   /** 待发附件（图片走原生多模态；文件 S4 抽文本）。 */
   attachments?: AgentAttachmentPayload[]
   onContent?: (delta: string, text: string) => void
@@ -56,9 +55,7 @@ export type RunWorkbenchAgentInput = {
    * Called whenever the LLM issues a tool call. The caller shows UI (or
    * auto-executes for read tools) and must invoke `event.confirm(...)`.
    */
-  onToolCall?: (event: ToolCallEvent) => void | Promise<void>
-  /** Expire a matching approval immediately, even if the model keeps generating. */
-  onToolError?: (error: Extract<AgentsChatStreamEvent, { event: 'tool-error' }>['data']) => void
+  onToolCall?: (event: ToolCallEvent) => void
   /** Called once the backend session exists, exposing a cancel handle (user "Stop"). */
   onCancelReady?: (cancel: () => void) => void
 }
@@ -74,10 +71,7 @@ export async function runWorkbenchAgent(input: RunWorkbenchAgentInput): Promise<
     prompt: input.prompt,
     ...(input.systemPrompt ? { systemPrompt: input.systemPrompt } : {}),
     displayPrompt: input.displayPrompt,
-    capability: input.capability,
-    history: input.history,
-    featureKey: input.featureKey,
-    selectedNodeIds: input.selectedNodeIds,
+    sessionKey: input.sessionKey,
     projectId: input.projectId || '',
     flowId: '',
     projectName: '',
@@ -89,65 +83,32 @@ export async function runWorkbenchAgent(input: RunWorkbenchAgentInput): Promise<
   }
 
   let activeSession: AgentChatV2Session | null = null
-  const pendingCalls = new Map<string, object>()
-  let ended = false
-  const expireAll = () => { ended = true; pendingCalls.clear() }
   const handlers = {
     onContent: input.onContent,
     onSession: (session: AgentChatV2Session) => {
       activeSession = session
       input.onCancelReady?.(() => {
-        expireAll()
-        void session.cancel().catch(() => {})
+        void session.cancel()
       })
     },
-    onEvent: (event: AgentsChatStreamEvent) => {
-      if (event.event === 'tool-error' || event.event === 'tool-result') {
-        pendingCalls.delete(event.data.toolCallId)
-        if (event.event === 'tool-error') input.onToolError?.(event.data)
-        return
-      }
-      if (event.event === 'result' || event.event === 'done' || event.event === 'error') {
-        expireAll()
-        return
-      }
-      if (event.event !== 'tool-call' || ended) return
-      const data = event.data
-      const identity = {}
-      pendingCalls.set(data.toolCallId, identity)
-      const isPending = () => !ended && pendingCalls.get(data.toolCallId) === identity
-      const confirm: ToolCallEvent['confirm'] = async (decision) => {
-        if (!isPending()) throw new DOMException('Agent tool call is no longer pending', 'AbortError')
-        // Claim synchronously, before IPC awaits. Local mutations run before
-        // confirm; a second confirmation must never consume the same approval.
-        pendingCalls.delete(data.toolCallId)
-        if (!activeSession) throw new Error('Agent tool arrived without a session')
-        await activeSession.confirmTool(data.toolCallId, decision)
-      }
-      if (!input.onToolCall) {
-        void confirm({ ok: false, denied: true, message: 'This request has no tool handler' }).catch(() => {})
-        return
-      }
-      const call: ToolCallEvent = {
+    onEvent: (event: { event: string; data: Record<string, unknown> | Record<string, never> }) => {
+      if (event.event !== 'tool-call') return
+      const data = event.data as { toolCallId: string; toolName: string; args: unknown }
+      input.onToolCall?.({
         toolCallId: data.toolCallId,
         toolName: data.toolName,
         args: data.args,
-        isPending,
-        confirm,
-      }
-      const rejectFailedView = (error: unknown) => {
-        // A timeout/Stop may already have settled the pending tool while its view was awaiting.
-        void confirm({ ok: false, message: error instanceof Error ? error.message : String(error) }).catch(() => {})
-      }
-      try {
-        void Promise.resolve(input.onToolCall(call)).catch(rejectFailedView)
-      } catch (error) { rejectFailedView(error) }
+        confirm: async (decision) => {
+          if (!activeSession) return
+          await activeSession.confirmTool(data.toolCallId, decision)
+        },
+      })
     },
   }
 
-  try {
-    return await sendWorkbenchAiMessage(request, handlers)
-  } finally {
-    expireAll()
-  }
+  const response = await sendWorkbenchAiMessage(request, handlers)
+  // Accumulate token usage for both panels here (single feed point) so a
+  // token/cost readout can render it; previously usage was dropped (audit #8).
+  useAgentUsageStore.getState().addUsage(response.usage)
+  return response
 }

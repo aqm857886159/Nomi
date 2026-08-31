@@ -55,11 +55,6 @@ describe('标签消歧', () => {
 })
 
 describe('助手可选模型必须来自真实可用 catalog', () => {
-  it('不把纯文字 CLI 显示成能执行工具的助手模型', () => {
-    expect(filterUsableAssistantTextModels([
-      { vendorKey: 'local', modelKey: 'auto', kind: 'text', enabled: true, meta: { supportsToolCalls: false } },
-    ], [{ key: 'local', enabled: true, authType: 'none' }])).toEqual([])
-  })
   const vendors = [
     { key: 'apimart', enabled: true, authType: 'bearer' as const, hasApiKey: true },
     { key: 'kie', enabled: true, authType: 'bearer' as const, hasApiKey: false },

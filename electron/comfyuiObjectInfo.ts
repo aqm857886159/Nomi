@@ -5,7 +5,6 @@
 // 形状实查 ComfyUI server.py：/object_info 返回 { <class_type>: { input: { required/optional: { <key>: [spec, opts?] } } } }，
 // combo 输入的 spec 是字符串数组（如 checkpoints 文件名列表）；/object_info/{class} 只返回该类同构子集。
 import { comfyuiEndpoint, normalizeComfyuiBaseUrl } from "./comfyui/endpointResolver";
-import { appFetch } from "./appFetch";
 
 export type ComfyObjectInfoIndex = {
   /** 本机已装的全部节点 class_type。 */
@@ -57,7 +56,7 @@ function normalizeBase(baseUrl: string): string {
 
 async function fetchJson(url: string, timeoutMs: number): Promise<unknown | null> {
   try {
-    const res = await appFetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+    const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
     if (!res.ok) return null;
     return await res.json();
   } catch {

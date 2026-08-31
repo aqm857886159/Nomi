@@ -3,7 +3,6 @@
 // 一旦把纯函数留在里面就再也没法在纯 Node 下直测。
 import { LITTERBOX_INGESTION, TMPFILES_INGESTION } from "./catalog/assetLocalization";
 import { describeNetworkError } from "./systemProxy";
-import { appFetch } from "./appFetch";
 
 /** 单次探测超时：够慢网络握手，又不至于让用户对着转圈干等。 */
 const PROBE_TIMEOUT_MS = 8000;
@@ -45,7 +44,7 @@ export type ProxyProbeResult = { ok: boolean; ms: number; target: string; error:
  */
 export async function probeOutbound(
   targets: string[],
-  fetchImpl: typeof fetch = appFetch,
+  fetchImpl: typeof fetch = fetch,
   timeoutMs = PROBE_TIMEOUT_MS,
 ): Promise<ProxyProbeResult> {
   const tried: ProxyProbeAttempt[] = [];
@@ -55,12 +54,7 @@ export async function probeOutbound(
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       // 只要握手 + 拿到任意 HTTP 响应就算「通」——4xx/5xx 说明网络到得了，正是我们要判的。
-      const response = await fetchImpl(target, { method: "GET", signal: controller.signal });
-      try {
-        await response.body?.cancel();
-      } catch {
-        // 响应已证明网络可达；释放未读 body 是 best-effort，清理失败不能改写连通性事实。
-      }
+      await fetchImpl(target, { method: "GET", signal: controller.signal });
       tried.push({ target, ok: true, ms: Date.now() - startedAt, error: "" });
     } catch (error) {
       tried.push({ target, ok: false, ms: Date.now() - startedAt, error: describeNetworkError(error) });

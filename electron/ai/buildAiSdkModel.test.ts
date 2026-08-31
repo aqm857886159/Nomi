@@ -9,32 +9,13 @@ import type { Model, Vendor } from "../catalog/types";
 let noAuthServer: http.Server;
 let noAuthBaseUrl = "";
 let observedAuthorization: string | undefined;
-let observedUrl: string | undefined;
 
 beforeAll(async () => {
   noAuthServer = http.createServer((req, res) => {
     observedAuthorization = req.headers.authorization;
-    observedUrl = req.url;
     req.resume();
     req.on("end", () => {
       res.writeHead(200, { "content-type": "application/json" });
-      if (req.url?.endsWith("/messages")) {
-        res.end(JSON.stringify({
-          id: "message-1", type: "message", role: "assistant", model: "local-model",
-          content: [{ type: "text", text: "pong" }], stop_reason: "end_turn", stop_sequence: null,
-          usage: { input_tokens: 1, output_tokens: 1 },
-        }));
-        return;
-      }
-      if (req.url?.endsWith("/responses")) {
-        res.end(JSON.stringify({
-          id: "response-1", created_at: 1, model: "local-model", status: "completed", incomplete_details: null,
-          output: [{ id: "msg-1", type: "message", role: "assistant", status: "completed",
-            content: [{ type: "output_text", text: "pong", annotations: [] }] }],
-          usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-        }));
-        return;
-      }
       res.end(JSON.stringify({
         id: "local-response",
         object: "chat.completion",
@@ -54,56 +35,6 @@ afterAll(async () => {
 });
 
 describe("buildAiSdkModel", () => {
-  it("preserves the vendor-specific missing base diagnostic before API-key validation", () => {
-    const vendor = { key: "missing-base", providerKind: "openai-compatible", baseUrlHint: "   " } as Vendor;
-    const model = { modelKey: "local-model" } as Model;
-    expect(() => buildLanguageModelForVendor(vendor, model, "")).toThrow("Base URL missing: missing-base");
-  });
-
-  it.each([
-    ["", "/v1/chat/completions"],
-    ["/", "/v1/chat/completions"],
-    ["/v1", "/v1/chat/completions"],
-    ["/v1/", "/v1/chat/completions"],
-    ["/v1beta/openai", "/v1beta/openai/chat/completions"],
-    ["/v1beta/openai/", "/v1beta/openai/chat/completions"],
-    ["/api/v3", "/api/v3/chat/completions"],
-    ["/api/paas/v4", "/api/paas/v4/chat/completions"],
-    ["/custom/gateway", "/custom/gateway/chat/completions"],
-  ])("keeps an explicit SDK API base %s without adding a version", async (suffix, expectedPath) => {
-    const vendor: Vendor = {
-      key: "endpoint-test", name: "Endpoint test", enabled: true, authType: "none",
-      providerKind: "openai-compatible", baseUrlHint: `${noAuthBaseUrl}${suffix}`,
-      createdAt: "2026-08-26T00:00:00Z", updatedAt: "2026-08-26T00:00:00Z",
-    };
-    const model: Model = {
-      vendorKey: vendor.key, modelKey: "local-model", labelZh: "Local", kind: "text",
-      enabled: true, createdAt: vendor.createdAt, updatedAt: vendor.updatedAt,
-    };
-    await generateText({ model: buildLanguageModelForVendor(vendor, model, ""), prompt: "ping", maxRetries: 0 });
-    expect(observedUrl).toBe(expectedPath);
-  });
-
-  it.each([
-    ["anthropic", "", "/messages"],
-    ["anthropic", "/v1/", "/v1/messages"],
-    ["openai-responses", "", "/v1/responses"],
-    ["openai-responses", "/custom/v3/", "/custom/v3/responses"],
-  ] as const)("preserves %s resource routing for %s", async (providerKind, suffix, expectedPath) => {
-    const vendor: Vendor = {
-      key: "endpoint-test", name: "Endpoint test", enabled: true, authType: "bearer",
-      providerKind, baseUrlHint: `${noAuthBaseUrl}${suffix}`,
-      createdAt: "2026-08-26T00:00:00Z", updatedAt: "2026-08-26T00:00:00Z",
-    };
-    const model: Model = {
-      vendorKey: vendor.key, modelKey: "local-model", labelZh: "Local", kind: "text",
-      enabled: true, createdAt: vendor.createdAt, updatedAt: vendor.updatedAt,
-    };
-    const result = await generateText({ model: buildLanguageModelForVendor(vendor, model, "test-key"), prompt: "ping", maxRetries: 0 });
-    expect(result.text).toBe("pong");
-    expect(observedUrl).toBe(expectedPath);
-  });
-
   it("returns an openai-compatible language model for kind=openai-compatible", () => {
     const model = buildAiSdkModel({
       kind: "openai-compatible",
@@ -177,9 +108,10 @@ describe("buildAiSdkModel", () => {
     const model: Model = {
       vendorKey: vendor.key,
       modelKey: "local-model",
-      labelZh: "Local model",
+      displayName: "Local model",
       kind: "text",
       enabled: true,
+      capabilities: {},
       createdAt: "2026-08-16T00:00:00.000Z",
       updatedAt: "2026-08-16T00:00:00.000Z",
     };

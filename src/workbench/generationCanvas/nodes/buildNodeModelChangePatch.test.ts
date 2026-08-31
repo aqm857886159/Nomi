@@ -9,23 +9,6 @@ function option(partial: Partial<ModelOption> & Pick<ModelOption, 'value' | 'lab
 }
 
 describe('buildNodeModelChangePatch', () => {
-  it('projects ordered reference declarations with the selected model identity and replaces stale declarations', () => {
-    const node = createGenerationNode({ id: 'video', kind: 'video' })
-    const next = option({ value: 'three', vendor: 'custom', label: 'Three', meta: {
-      parameters: ['a', 'b', 'c'].map((key) => ({ key, label: key, type: 'image-url' })),
-    } })
-    const patch = buildNodeModelChangePatch({ node, nodes: [node], edges: [], modelOptions: [next], value: 'three', vendor: 'custom' })
-    expect(patch.meta.parameterReferenceSlots).toEqual({ modelKey: 'three', vendorKey: 'custom', slots: [
-      { key: 'a', label: 'a', group: 'reference' }, { key: 'b', label: 'b', group: 'reference' }, { key: 'c', label: 'c', group: 'reference' },
-    ] })
-    const changed = buildNodeModelChangePatch({
-      node: { ...node, meta: { ...patch.meta, a: 'https://old.test/a.png' } }, nodes: [node], edges: [],
-      modelOptions: [next, option({ value: 'plain', label: 'Plain', vendor: 'custom' })], value: 'plain', vendor: 'custom',
-    })
-    expect(changed.meta.parameterReferenceSlots).toBeUndefined()
-    expect(changed.meta.a).toBeUndefined()
-  })
-
   it('removes previous controls and writes the complete next model address and defaults', () => {
     const current = option({
       value: 'old',

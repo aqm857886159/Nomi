@@ -10,8 +10,4 @@ describe('model request script availability', () => {
     expect(canConfigureModelRequestScript({ vendorKey: 'comfyui-local' })).toBe(false)
     expect(canConfigureModelRequestScript({ vendorKey: 'comfyui-local-studio' })).toBe(false)
   })
-
-  it('keeps Antigravity on its restricted official CLI transport', () => {
-    expect(canConfigureModelRequestScript({ vendorKey: 'antigravity-cli' })).toBe(false)
-  })
 })

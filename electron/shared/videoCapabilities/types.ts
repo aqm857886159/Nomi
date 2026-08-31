@@ -18,8 +18,6 @@ export type ModelParameterControl = {
   key: string;
   label: string;
   type: ModelParameterControlType;
-  /** Media-reference controls retain the declared asset kind; older controls default to image. */
-  mediaKind?: "image" | "video";
   options: ModelParameterControlOption[];
   defaultValue?: string | number | boolean;
   min?: number;
@@ -40,8 +38,7 @@ export type ArchetypeReferenceSlot = {
   kind: ArchetypeReferenceSlotKind;
   label: string;
   min: number;
-  /** Absent when the provider has not published a reference count limit. */
-  max?: number;
+  max: number;
   inputKey?: string;
   asArray?: boolean;
   characterIndexed?: boolean;
@@ -103,8 +100,6 @@ export type ArchetypeSource = {
 };
 
 export type ModelArchetype = {
-  /** Older shared profile IDs accepted only when model identity matches this profile. */
-  legacyIds?: string[];
   id: string;
   family: string;
   label: string;

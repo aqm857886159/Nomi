@@ -19,9 +19,9 @@ export type CustomCallTestFixture = {
   ready: boolean
 }
 
-function cleanUrls(values: readonly string[] | undefined, max?: number): string[] {
+function cleanUrls(values: readonly string[] | undefined, max: number): string[] {
   if (!values) return []
-  return values.map((value) => value.trim()).filter(Boolean).slice(0, max === undefined ? undefined : Math.max(0, max))
+  return values.map((value) => value.trim()).filter(Boolean).slice(0, Math.max(0, max))
 }
 
 function defaultPrompt(kind: BillingModelKind): string {

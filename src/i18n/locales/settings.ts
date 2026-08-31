@@ -143,11 +143,11 @@ export const zhSettings = {
     screenshotOpenSettings: '打开系统设置',
     canvasGesture: '画布滚轮',
     canvasGestureHint:
-      '生成画布和 ComfyUI 工作流设置共用此滚轮/双指手势。在生成画布中，空白处左键拖动为平移，Shift+左键拖动为框选（加进当前选区），点击空白取消选中。',
+      '在生成画布里滚动滚轮（触控板双指滑）时做什么。不管选哪档，空白处左键拖动都是平移画布，Shift+左键拖是框选（加进当前选区），点一下空白取消选中。',
     canvasGestureZoom: '缩放',
     canvasGestureZoomHint: '滚轮直接缩放，以光标位置为中心。多数节点编辑器（ComfyUI 等）的习惯。',
     canvasGesturePan: '平移',
-    canvasGesturePanHint: '滚轮/双指滑平移画布，捏合或 ⌘/Ctrl+滚轮缩放。触控板用户通常选这档（Figma 等的习惯）。',
+    canvasGesturePanHint: '滚轮/双指滑平移画布，⌘/Ctrl+滚轮才缩放。触控板用户通常选这档（Figma 等的习惯）。',
   },
   file: {
     title: '文件与保存',
@@ -317,11 +317,11 @@ export const enSettings = {
     screenshotOpenSettings: 'Open System Settings',
     canvasGesture: 'Canvas wheel',
     canvasGestureHint:
-      'The generation canvas and ComfyUI workflow settings share this wheel/two-finger gesture. On the generation canvas, left-drag empty space to pan, Shift+left-drag to add a box selection, or click empty space to clear the selection.',
+      'What the wheel (or a trackpad two-finger swipe) does on the generation canvas. Either way, left-drag empty space pans the canvas, Shift+left-drag box-selects (adding to the current selection), and a click on empty space clears it.',
     canvasGestureZoom: 'Zoom',
     canvasGestureZoomHint: 'The wheel zooms directly, centered on the cursor. What most node editors (ComfyUI and friends) do.',
     canvasGesturePan: 'Pan',
-    canvasGesturePanHint: 'Wheel/two-finger swipe pans the canvas; pinch or ⌘/Ctrl+wheel zooms. Usually what trackpad users want (the Figma convention).',
+    canvasGesturePanHint: 'Wheel/two-finger swipe pans the canvas; ⌘/Ctrl+wheel zooms. Usually what trackpad users want (the Figma convention).',
   },
   file: {
     title: 'File & saving',

@@ -13,7 +13,7 @@
 // 媒体输入（首帧/尾帧/源视频）**不带**：那要先把素材上传成 ComfyUI 的文件名，是画布的活。
 // 试跑只验「图能不能跑通 + 参数有没有接对」；界面上已明说这一点，不假装带了。
 import { mintSpendGrant, runWorkbenchTaskByVendor, type TaskKind } from '../../../workbench/api/taskApi'
-import { workflowMediaBindings, type WorkflowBinding } from '../comfyuiWorkflowBinding'
+import type { WorkflowBinding } from '../comfyuiWorkflowBinding'
 
 export type TestRunResult = { ok: true } | { ok: false; error: string }
 
@@ -29,7 +29,10 @@ export type TestRunResult = { ok: true } | { ok: false; error: string }
  * 视频输入不进判据（同上游）：ProfileKind 没有 video_to_video，源视频走「参考视频」通道。
  */
 function taskKindOf(binding: WorkflowBinding): TaskKind {
-  const hasFrameInput = workflowMediaBindings(binding).some((image) => image.mediaKind === 'image')
+  const hasFrameInput = Boolean(
+    (binding.firstFrameNodeId && binding.firstFrameInputKey) ||
+    (binding.lastFrameNodeId && binding.lastFrameInputKey),
+  )
   if (binding.outputKind === 'model3d') return hasFrameInput ? 'image_to_3d' : 'text_to_3d'
   if (binding.outputKind === 'video') return hasFrameInput ? 'image_to_video' : 'text_to_video'
   return hasFrameInput ? 'image_edit' : 'text_to_image'

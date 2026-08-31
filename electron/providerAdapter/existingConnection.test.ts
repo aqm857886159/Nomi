@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { CatalogState, Model, Vendor } from "../catalog/types";
 import {
   createExistingConnectionActions,
-  type ExistingConnectionActionsDependencies,
   type ExistingConnectionAdapterRegisterInput,
   type ExistingConnectionAdapterStartInput,
 } from "./existingConnection";
@@ -57,12 +56,12 @@ function catalog(patch: Partial<CatalogState> = {}): CatalogState {
 }
 
 function harness(state = catalog()) {
-  const fetchModels = vi.fn<ExistingConnectionActionsDependencies["fetchModels"]>(async () => ({
+  const fetchModels = vi.fn(async () => ({
     ok: true as const,
     models: ["already-there", "new-video"],
     statuses: [200],
   }));
-  const startAdapter = vi.fn<ExistingConnectionActionsDependencies["startAdapter"]>((input: ExistingConnectionAdapterStartInput) => ({
+  const startAdapter = vi.fn((input: ExistingConnectionAdapterStartInput) => ({
     id: "run-1",
     vendorKey: input.vendorKey,
     vendorName: input.vendorName,
@@ -161,33 +160,6 @@ describe("existing connection model discovery", () => {
 
     expect(result).toMatchObject({ ok: false, code: "CREDENTIAL_MISSING" });
     expect(fetchModels).not.toHaveBeenCalled();
-  });
-
-  it("forwards discovery failure classification and real HTTP status to the renderer", async () => {
-    const { actions, fetchModels } = harness();
-    fetchModels.mockResolvedValueOnce({ ok: false, error: "expired key", status: 200, statuses: [200], failureKind: "auth" });
-    expect(await actions.listModels({ vendorKey: "my-private-relay" }))
-      .toMatchObject({ ok: false, code: "MODEL_LIST_UNAVAILABLE", failureKind: "auth", status: 200, error: "expired key" });
-  });
-
-  it("forwards partial success rather than presenting a budget-limited list as complete", async () => {
-    const { actions, fetchModels } = harness();
-    fetchModels.mockResolvedValueOnce({ ok: true, models: ["new-video"], statuses: [200], partial: true });
-    expect(await actions.listModels({ vendorKey: "my-private-relay" }))
-      .toMatchObject({ ok: true, models: ["new-video"], partial: true });
-  });
-
-  it("keeps base/query/header credentials in main even when a rejected fetch echoes them", async () => {
-    const baseUrl = "https://gateway.example.test/v1?tenant_secret=base-secret";
-    const { actions, fetchModels } = harness(catalog({
-      vendors: [vendor({ baseUrlHint: baseUrl, meta: { extraHeaders: { "X-Private": "header-secret" } } })],
-    }));
-    fetchModels.mockRejectedValueOnce(new Error(`${baseUrl} ${SECRET} header-secret base-secret`));
-    const result = await actions.listModels({ vendorKey: "my-private-relay" });
-    expect(fetchModels).toHaveBeenCalledWith(expect.objectContaining({ baseUrl }));
-    expect(result).toMatchObject({ ok: false, failureKind: "network" });
-    const output = JSON.stringify(result);
-    for (const secret of [SECRET, "header-secret", "base-secret", "tenant_secret="]) expect(output).not.toContain(secret);
   });
 });
 

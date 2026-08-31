@@ -24,21 +24,15 @@ import { paramCandidates } from './comfyuiParamCandidates'
 // 类型与参数塑形规则的单一真相源——整页（工作流设置）与这条导入路共用同一份，
 // 抄第二份必然漂（那正是「提示词被参数占位覆盖」反复复发的形状）。
 import {
+  normalizeBinding,
   paramFromCandidate,
   paramKeyProblem,
-  workflowMediaBindings,
   type WorkflowAnalysis as Analysis,
   type WorkflowBinding as Binding,
   type WorkflowCandidate as Candidate,
   type WorkflowParam,
   type WorkflowParamType,
 } from './comfyuiWorkflowBinding'
-import {
-  bindingFromAnalysis,
-  mediaBindingRows,
-  setMediaBinding,
-  supportedOutputOptions,
-} from './comfyuiWorkflowImportPanelViewModel'
 
 type ParamPresetKey = 'width' | 'height' | 'seconds' | 'fps'
 type ParamPreset = { key: ParamPresetKey; labelKey: string; paramKey: string; match: (candidate: Candidate) => boolean }
@@ -152,7 +146,7 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
       if (!r.ok) { setError(r.error); setAnalysis(null); setBinding(null); setReconcile(null); return }
       const a = r.analysis as Analysis
       setAnalysis(a)
-      setBinding(bindingFromAnalysis(a))
+      setBinding(normalizeBinding(a.suggested))
       runReconcile(text)
       return
     }
@@ -169,7 +163,7 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
         }
         const a = r.analysis as Analysis
         setAnalysis(a)
-        setBinding(bindingFromAnalysis(a))
+        setBinding(normalizeBinding(a.suggested))
         runReconcile(effectiveText)
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
@@ -177,11 +171,11 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
   }, [catalog, text, t, runReconcile, vendorKey])
 
   const paramKeyError = React.useMemo(() => {
-    const problem = paramKeyProblem(binding?.params ?? [], workflowMediaBindings(binding ?? {}))
+    const problem = paramKeyProblem(binding?.params ?? [])
     if (problem === 'invalid') return t('onboardingProviders.comfyWorkflow.paramKeyInvalid')
     if (problem === 'duplicate') return t('onboardingProviders.comfyWorkflow.paramKeyDuplicate')
     return ''
-  }, [binding, t])
+  }, [binding?.params, t])
 
   const doImport = React.useCallback(() => {
     if (!binding || !catalog?.importComfyWorkflow) return
@@ -193,11 +187,7 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
       const enumOptions = reconcile && reconcile.enumOptions?.length ? reconcile.enumOptions : undefined
       const r = catalog.importComfyWorkflow({ text, binding, labelZh: name, enumOptions, vendorKey, ...(uiWorkflowText ? { uiWorkflowText } : {}) })
       if (!r.ok) { setError(r.error); return }
-      const kindLabel = r.kind === 'video'
-        ? t('onboardingProviders.comfyWorkflow.video')
-        : r.kind === 'model3d'
-          ? t('onboardingProviders.comfyWorkflow.model3d')
-          : t('onboardingProviders.comfyWorkflow.image')
+      const kindLabel = r.kind === 'video' ? t('onboardingProviders.comfyWorkflow.video') : t('onboardingProviders.comfyWorkflow.image')
       toast(t('onboardingProviders.comfyWorkflow.imported', { name, kind: kindLabel }), 'success')
       reset()
       setOpen(false)
@@ -218,10 +208,13 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
     )
   }
 
-  const setPromptRole = (raw: string) => {
+  const setRole = (role: 'prompt' | 'firstFrame' | 'lastFrame' | 'sourceVideo', raw: string) => {
     setBinding((b) => {
       if (!b) return b
       if (raw === NONE) {
+        if (role === 'firstFrame') return { ...b, firstFrameNodeId: undefined, firstFrameInputKey: undefined }
+        if (role === 'lastFrame') return { ...b, lastFrameNodeId: undefined, lastFrameInputKey: undefined }
+        if (role === 'sourceVideo') return { ...b, sourceVideoNodeId: undefined, sourceVideoInputKey: undefined }
         return { ...b, promptNodeId: undefined, promptInputKey: undefined }
       }
       const parsed = parseNodeValue(raw)
@@ -230,19 +223,22 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
       // 角色抢走这个输入时，原本绑同一处的参数行必须撤掉：一个输入只能有一个身份，
       // 否则导入时参数占位会把角色占位覆盖掉（用户的提示词静默失效）。留着那行等于骗他配了个不生效的参数。
       const params = (b.params ?? []).filter((p) => !(p.nodeId === nodeId && p.inputKey === inputKey))
-      return { ...b, params, promptNodeId: nodeId, promptInputKey: inputKey }
+      const next = { ...b, params }
+      if (role === 'prompt') return { ...next, promptNodeId: nodeId, promptInputKey: inputKey }
+      if (role === 'sourceVideo') return { ...next, sourceVideoNodeId: nodeId, sourceVideoInputKey: inputKey }
+      return role === 'firstFrame'
+        ? { ...next, firstFrameNodeId: nodeId, firstFrameInputKey: inputKey }
+        : { ...next, lastFrameNodeId: nodeId, lastFrameInputKey: inputKey }
     })
   }
-  const mediaRows = analysis && binding ? mediaBindingRows(analysis, binding) : []
-  const setMedia = (candidate: Candidate, checked: boolean) => {
-    setBinding((current) => current ? setMediaBinding(current, candidate, checked) : current)
-  }
+  // 媒体输入分流：LoadVideo.file 收的是**视频**，和首帧图不是一回事（当首帧发 = 把 mp4 当图传，必失败）。
+  const videoInputs = (analysis?.imageInputs ?? []).filter((i) => i.mediaKind === 'video')
+  const stillInputs = (analysis?.imageInputs ?? []).filter((i) => i.mediaKind !== 'video')
   const setOutput = (nodeId: string) => {
     setBinding((b) => {
       if (!b || !analysis) return b
       const out = analysis.outputNodes.find((o) => o.nodeId === nodeId)
-      if (!out || out.kind === 'unsupported') return b
-      return { ...b, outputNodeId: nodeId, outputKind: out.kind }
+      return { ...b, outputNodeId: nodeId, outputKind: out?.kind }
     })
   }
   // 候选池按**当前** binding 现算：用户改了提示词节点，新选中的立刻从参数里消失、旧的立刻回来。
@@ -267,7 +263,7 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
       if (!b) return b
       const params = b.params ?? []
       const candidate = widgetCandidates.find((c) => !params.some((p) => p.nodeId === c.nodeId && p.inputKey === c.inputKey)) ?? widgetCandidates[0]
-      return { ...b, params: [...params, paramFromCandidate(candidate, [...workflowMediaBindings(b), ...params])] }
+      return { ...b, params: [...params, paramFromCandidate(candidate, params)] }
     })
   }
   const addPresetParam = (preset: ParamPreset, candidate: Candidate) => {
@@ -280,8 +276,12 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
         params: [
           ...params,
           {
-            ...paramFromCandidate({ ...candidate, title: preset.paramKey }, [...workflowMediaBindings(b), ...params]),
+            nodeId: candidate.nodeId,
+            inputKey: candidate.inputKey,
+            paramKey: preset.paramKey,
             label: t(preset.labelKey),
+            type: 'number',
+            default: candidate.value,
           },
         ],
       }
@@ -307,7 +307,7 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
       const params = [...(b.params ?? [])]
       const current = params[index]
       if (!current) return b
-      const next = paramFromCandidate(candidate, [...workflowMediaBindings(b), ...params.filter((_, i) => i !== index)])
+      const next = paramFromCandidate(candidate, params.filter((_, i) => i !== index))
       params[index] = { ...next, paramKey: current.paramKey || next.paramKey, label: current.label || next.label }
       return { ...b, params }
     })
@@ -316,13 +316,11 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
     setBinding((b) => b ? { ...b, params: (b.params ?? []).filter((_, i) => i !== index) } : b)
   }
 
-  const hasFirstFrame = Boolean(binding?.images?.some((item) => item.paramKey === 'first_frame_url'))
-  const hasLastFrame = Boolean(binding?.images?.some((item) => item.paramKey === 'last_frame_url'))
-  const frameKindLabel = hasFirstFrame && hasLastFrame
+  const frameKindLabel = binding?.firstFrameNodeId && binding.lastFrameNodeId
     ? t('onboardingProviders.comfyWorkflow.frameKindBoth')
-    : hasFirstFrame
+    : binding?.firstFrameNodeId
       ? t('onboardingProviders.comfyWorkflow.frameKindFirst')
-      : hasLastFrame
+      : binding?.lastFrameNodeId
         ? t('onboardingProviders.comfyWorkflow.frameKindLast')
         : t('onboardingProviders.comfyWorkflow.frameKindNone')
 
@@ -409,34 +407,52 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
               ariaLabel={t('onboardingProviders.comfyWorkflow.promptNodeAria')} size="sm"
               value={binding.promptNodeId && binding.promptInputKey ? nodeValue(binding.promptNodeId, binding.promptInputKey) : NONE}
               options={nodeSelectOptions(analysis.textInputs)}
-              onChange={setPromptRole}
+              onChange={(v) => setRole('prompt', v)}
               triggerMaxWidth={160}
               className="w-full max-w-full justify-between"
             />
           </BindRow>
-          {mediaRows.length > 0 ? (
-            <BindRow label={t('onboardingProviders.comfyWorkflow.mediaInputs')}>
-              <div className="flex flex-col gap-1 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 p-1.5">
-                {mediaRows.map((row) => (
-                  <label key={`${row.nodeId}:${row.inputKey}`} className="flex items-center gap-2 rounded-nomi-sm px-1.5 py-1 text-caption text-nomi-ink-80">
-                    <input
-                      type="checkbox"
-                      checked={row.checked}
-                      onChange={(event) => setMedia(row, event.currentTarget.checked)}
-                      aria-label={`${row.classType}.${row.inputKey}`}
-                    />
-                    <span className="min-w-0 flex-1 truncate">{row.title?.trim() || `${row.inputKey} #${row.nodeId}`}</span>
-                    <span className="text-micro text-nomi-ink-40">{row.mediaKind === 'video' ? t('onboardingProviders.comfyWorkflow.video') : t('onboardingProviders.comfyWorkflow.image')}</span>
-                  </label>
-                ))}
-              </div>
+          {videoInputs.length > 0 ? (
+            <BindRow label={t('onboardingProviders.comfyWorkflow.sourceVideoNode')}>
+              <NomiSelect
+                ariaLabel={t('onboardingProviders.comfyWorkflow.sourceVideoNodeAria')} size="sm"
+                value={binding.sourceVideoNodeId && binding.sourceVideoInputKey ? nodeValue(binding.sourceVideoNodeId, binding.sourceVideoInputKey) : NONE}
+                options={[{ value: NONE, label: t('onboardingProviders.comfyWorkflow.noSourceVideo') }, ...nodeSelectOptions(videoInputs)]}
+                onChange={(v) => setRole('sourceVideo', v)}
+                triggerMaxWidth={160}
+                className="w-full max-w-full justify-between"
+              />
+            </BindRow>
+          ) : null}
+          {stillInputs.length > 0 ? (
+            <BindRow label={t('onboardingProviders.comfyWorkflow.firstFrameNode')}>
+              <NomiSelect
+                ariaLabel={t('onboardingProviders.comfyWorkflow.firstFrameNodeAria')} size="sm"
+                value={binding.firstFrameNodeId && binding.firstFrameInputKey ? nodeValue(binding.firstFrameNodeId, binding.firstFrameInputKey) : NONE}
+                options={[{ value: NONE, label: t('onboardingProviders.comfyWorkflow.noFirstFrame') }, ...nodeSelectOptions(stillInputs)]}
+                onChange={(v) => setRole('firstFrame', v)}
+                triggerMaxWidth={160}
+                className="w-full max-w-full justify-between"
+              />
+            </BindRow>
+          ) : null}
+          {stillInputs.length > 1 ? (
+            <BindRow label={t('onboardingProviders.comfyWorkflow.lastFrameNode')}>
+              <NomiSelect
+                ariaLabel={t('onboardingProviders.comfyWorkflow.lastFrameNodeAria')} size="sm"
+                value={binding.lastFrameNodeId && binding.lastFrameInputKey ? nodeValue(binding.lastFrameNodeId, binding.lastFrameInputKey) : NONE}
+                options={[{ value: NONE, label: t('onboardingProviders.comfyWorkflow.noLastFrame') }, ...nodeSelectOptions(stillInputs)]}
+                onChange={(v) => setRole('lastFrame', v)}
+                triggerMaxWidth={160}
+                className="w-full max-w-full justify-between"
+              />
             </BindRow>
           ) : null}
           <BindRow label={t('onboardingProviders.comfyWorkflow.outputNode')}>
             <NomiSelect
               ariaLabel={t('onboardingProviders.comfyWorkflow.outputNodeAria')} size="sm"
               value={binding.outputNodeId ?? ''}
-              options={supportedOutputOptions(analysis).map((o) => ({ value: o.nodeId, label: `#${o.nodeId} ${o.classType}（${o.kind === 'video' ? t('onboardingProviders.comfyWorkflow.video') : o.kind === 'model3d' ? t('onboardingProviders.comfyWorkflow.model3d') : t('onboardingProviders.comfyWorkflow.image')}）` }))}
+              options={analysis.outputNodes.map((o) => ({ value: o.nodeId, label: `#${o.nodeId} ${o.classType}（${o.kind === 'video' ? t('onboardingProviders.comfyWorkflow.video') : t('onboardingProviders.comfyWorkflow.image')}）` }))}
               onChange={setOutput}
               triggerMaxWidth={160}
               className="w-full max-w-full justify-between"
@@ -529,7 +545,7 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
               className="flex-1 h-8 px-2.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-caption text-nomi-ink placeholder:text-nomi-ink-30 focus:border-nomi-accent outline-none"
             />
             <button
-              type="button" onClick={doImport} disabled={busy || !binding.outputNodeId || supportedOutputOptions(analysis).length === 0}
+              type="button" onClick={doImport} disabled={busy || !binding.outputNodeId}
               className={cn('inline-flex items-center gap-1.5 h-8 px-3.5 rounded-nomi-sm bg-nomi-ink text-nomi-paper',
                 'text-caption font-medium hover:bg-nomi-accent disabled:opacity-45')}
             >

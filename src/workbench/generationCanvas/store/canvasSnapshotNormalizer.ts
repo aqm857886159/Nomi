@@ -2,7 +2,6 @@
 // 注意：这是 store 专用的深度归一化（过滤未知 kind、position 兜底、groups 走 zod、edges 校验端点），
 // 与 workbenchPersistence.ts 的轻量直通版 normalizeGenerationCanvasSnapshot 行为不同，故改名 normalizeStoreSnapshot。
 import { isGenerationNodeKind } from '../model/generationNodeKinds'
-import { normalizeParameterEdges } from '../model/parameterReferenceSlots'
 import { nodeGroupSchema } from '../model/generationCanvasSchema'
 import { isCategoryId } from './canvasGuards'
 import { createDefaultGenerationCanvasSnapshot } from './generationCanvasDefaults'
@@ -108,7 +107,7 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
     : []
   return {
     nodes,
-    edges: normalizeParameterEdges(nodes, edges),
+    edges,
     groups,
     selectedNodeIds,
   }

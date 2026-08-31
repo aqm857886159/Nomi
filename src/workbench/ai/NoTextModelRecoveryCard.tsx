@@ -10,10 +10,11 @@
 // 故本卡是兜底安全网，常态下因 hasTextModel=true 根本不出现。
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconBulb, IconCheck, IconSettings } from '@tabler/icons-react'
+import { IconBulb, IconCheck, IconKey, IconSettings } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { WorkbenchButton } from '../../design'
 import { NomiIdentityRow } from './AssistantMessageView'
+import { getTextBrainStatus } from '../api/promptLibraryApi'
 import {
   listWorkbenchModelCatalogModels,
   listWorkbenchModelCatalogVendors,
@@ -42,12 +43,21 @@ export function NoTextModelRecoveryCard({ onResolved }: { onResolved?: () => voi
   const { t } = useTranslation()
   const [state, setState] = React.useState<CardState>('prompt')
   const [recoverable, setRecoverable] = React.useState<Recoverable | null>(null)
+  // locked = 文本模型接过、只是本机解不开它的 Key（换机/钥匙串变化）——文案要说「去重粘 Key」而非「你只接了图/视频模型」。
+  const [locked, setLocked] = React.useState(false)
 
   React.useEffect(() => {
     let alive = true
     void findRecoverableBrain().then((r) => {
       if (alive) setRecoverable(r)
     })
+    void getTextBrainStatus()
+      .then((status) => {
+        if (alive) setLocked(status === 'locked')
+      })
+      .catch(() => {
+        /* 探测失败：退回通用文案（不误标 locked）。 */
+      })
     return () => {
       alive = false
     }
@@ -88,20 +98,31 @@ export function NoTextModelRecoveryCard({ onResolved }: { onResolved?: () => voi
       ) : (
         <div className={cn('flex flex-col gap-3 p-3 rounded-nomi border border-nomi-line')}>
           <div className={cn('flex items-start gap-2')}>
-            <IconBulb size={18} className={cn('mt-0.5 shrink-0 text-nomi-ink-60')} />
+            {locked ? (
+              <IconKey size={18} className={cn('mt-0.5 shrink-0 text-nomi-ink-60')} />
+            ) : (
+              <IconBulb size={18} className={cn('mt-0.5 shrink-0 text-nomi-ink-60')} />
+            )}
             <div className={cn('flex flex-col gap-1')}>
               <span className={cn('text-body-sm font-medium text-nomi-ink leading-snug')}>
-                {t('creationAi.noTextModel.title')}
+                {locked ? t('creationAi.noTextModel.lockedTitle') : t('creationAi.noTextModel.title')}
               </span>
               <span className={cn('text-caption text-nomi-ink-60 leading-snug')}>
-                {t('creationAi.noTextModel.descriptionBefore')}
-                <span className={cn('text-nomi-ink')}>{t('creationAi.noTextModel.textModel')}</span>
-                {t('creationAi.noTextModel.descriptionAfter')}
+                {locked ? (
+                  t('creationAi.noTextModel.lockedDescription')
+                ) : (
+                  <>
+                    {t('creationAi.noTextModel.descriptionBefore')}
+                    <span className={cn('text-nomi-ink')}>{t('creationAi.noTextModel.textModel')}</span>
+                    {t('creationAi.noTextModel.descriptionAfter')}
+                  </>
+                )}
               </span>
             </div>
           </div>
           <div className={cn('flex flex-col gap-2')}>
-            {recoverable ? (
+            {/* locked 态不给「一键启用」——模型本就 enabled，缺的是能解开的 Key，只指向模型设置去重粘。 */}
+            {!locked && recoverable ? (
               <WorkbenchButton
                 variant="primary"
                 className="w-full"
