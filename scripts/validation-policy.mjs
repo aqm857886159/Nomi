@@ -64,6 +64,19 @@ const PERFORMANCE_PATTERNS = [
   /^tests\/ux\/(?:canvas-performance|fixtures\/canvas-performance).*/,
 ]
 
+// Files that define the performance gate's own instrument: the benchmark that
+// holds PERFORMANCE_BUDGETS and the platform calibration, the verdict applier,
+// and this policy (which decides whether the perf lane runs at all). Editing the
+// instrument must re-run the instrument on main code so a budget/calibration
+// change is validated against a known baseline before it can merge — otherwise a
+// mis-tuned ceiling ships unverified. These override the general validation-
+// infrastructure carve-out (which normally suppresses the perf lane to keep
+// runner variance from blocking unrelated infra changes).
+const PERFORMANCE_INSTRUMENT_PATTERNS = [
+  /^tests\/ux\/canvas-performance-benchmark(?:\.|$)/,
+  /^scripts\/(?:canvas-performance-verdict|validation-policy)(?:\.|$)/,
+]
+
 function normalizePath(file) {
   return String(file || '')
     .replaceAll('\\', '/')
@@ -138,6 +151,13 @@ export function classifyValidationPolicy(changedFiles, options = {}) {
       }
 
   for (const { path } of files) {
+    if (matchesAny(path, PERFORMANCE_INSTRUMENT_PATTERNS)) {
+      policy.unit = 'full'
+      policy.desktop = true
+      policy.canvas = 'full'
+      policy.performance = true
+      policy.reasons.push(`performance-instrument:${path}`)
+    }
     if (matchesAny(path, VALIDATION_INFRASTRUCTURE_PATTERNS)) continue
     if (path.startsWith('electron/')) {
       policy.unit = 'full'

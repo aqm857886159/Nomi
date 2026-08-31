@@ -130,9 +130,9 @@ test('empty, delete, rename, and explicit full requests fail closed across every
 
 test('validation infrastructure changes exercise functional coverage without unrelated performance or packaging gates', () => {
   for (const files of [
-    ['scripts/validation-policy.mjs'],
     ['.github/workflows/quality-gate.yml'],
     [{ status: 'R100', path: 'eslint.config.mjs' }],
+    ['scripts/select-quality-gate-profile.mjs'],
   ]) {
     assert.deepEqual(surfaces(classifyValidationPolicy(files)), {
       unit: 'full',
@@ -140,6 +140,25 @@ test('validation infrastructure changes exercise functional coverage without unr
       journeys: true,
       canvas: 'full',
       performance: false,
+      package: false,
+      release: false,
+      failClosed: true,
+    })
+  }
+})
+
+test('performance-instrument changes re-run the performance lane on themselves so a mis-tuned budget cannot merge unverified', () => {
+  for (const files of [
+    ['scripts/validation-policy.mjs'],
+    ['tests/ux/canvas-performance-benchmark.e2e.mjs'],
+    ['scripts/canvas-performance-verdict.mjs'],
+  ]) {
+    assert.deepEqual(surfaces(classifyValidationPolicy(files)), {
+      unit: 'full',
+      desktop: true,
+      journeys: true,
+      canvas: 'full',
+      performance: true,
       package: false,
       release: false,
       failClosed: true,
@@ -166,12 +185,23 @@ test('validation infrastructure composes monotonically with real product and pac
       failClosed: true,
     },
   )
-  assert.deepEqual(surfaces(classifyValidationPolicy(['scripts/validation-policy.mjs', 'package.json'])), {
+  assert.deepEqual(surfaces(classifyValidationPolicy(['scripts/select-quality-gate-profile.mjs', 'package.json'])), {
     unit: 'full',
     desktop: true,
     journeys: true,
     canvas: 'full',
     performance: false,
+    package: true,
+    release: false,
+    failClosed: true,
+  })
+  // The perf instrument composes with packaging risk and still forces its own lane.
+  assert.deepEqual(surfaces(classifyValidationPolicy(['scripts/validation-policy.mjs', 'package.json'])), {
+    unit: 'full',
+    desktop: true,
+    journeys: true,
+    canvas: 'full',
+    performance: true,
     package: true,
     release: false,
     failClosed: true,
