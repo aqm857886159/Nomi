@@ -1,0 +1,36 @@
+{
+  "label": "old-r2",
+  "fixture": "ZZ 性能基准 fixture (96 节点/156 边/20 clip)",
+  "scenarios": {
+    "canvas-pan": {
+      "elapsedMs": 8592,
+      "frames": 680,
+      "fps": 79.1,
+      "longTasks": 1,
+      "longTaskMs": 58,
+      "maxFrameGapMs": 61
+    },
+    "canvas-zoom": {
+      "elapsedMs": 2546,
+      "frames": 302,
+      "fps": 118.6,
+      "longTasks": 0,
+      "longTaskMs": 0,
+      "maxFrameGapMs": 34
+    },
+    "timeline-play": {
+      "elapsedMs": 6033,
+      "frames": 724,
+      "fps": 120,
+      "longTasks": 0,
+      "longTaskMs": 0,
+      "maxFrameGapMs": 10
+    }
+  },
+  "opened": {
+    "url": "#/studio?projectId=project-perf-fixture-0001",
+    "nodes": 96,
+    "onStudio": true
+  },
+  "visibleNodes": 96
+}
