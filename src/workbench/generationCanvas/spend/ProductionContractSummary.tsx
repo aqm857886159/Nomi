@@ -78,7 +78,7 @@ export function ProductionContractSummary({ view }: { view: ProductionContractVi
                   {allowed
                     ? <IconCheck size={13} stroke={1.8} className={cn('text-workbench-success')} aria-hidden />
                     : <IconAlertTriangle size={13} stroke={1.8} className={cn('text-nomi-warning')} aria-hidden />}
-                  <span className={cn('truncate text-caption text-nomi-ink-80')}>{item.provider} · {item.model}</span>
+                  <span className={cn('truncate text-caption text-nomi-ink-80')}>{item.providerLabel} · {item.model}</span>
                   <span className={cn('text-micro', allowed ? 'text-workbench-success' : 'text-nomi-warning')}>
                     {t(allowed
                       ? 'generationCommon.production.contract.policyAllowed'

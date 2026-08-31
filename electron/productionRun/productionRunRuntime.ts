@@ -4,8 +4,8 @@ import { getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { createProductionRunService, type ProductionRunService } from './productionRunService'
 import {
+  createProductionRunE2ePreflight,
   createProductionRunE2eRenderer,
-  isProductionRunE2eFixtureEnabled,
   PRODUCTION_E2E_FIXTURE_MODEL,
   PRODUCTION_E2E_FIXTURE_PROVIDER,
 } from './productionRunE2eFixture'
@@ -16,13 +16,14 @@ let shared: ProductionRunService | null = null
 /** One in-process control plane for MCP, RPC, IPC and recovery. The repository remains the durable source of truth. */
 export function getProductionRunService(): ProductionRunService {
   if (!shared) {
-    const fixtureEnabled = isProductionRunE2eFixtureEnabled(process.env, Boolean(app?.isPackaged))
-    if (fixtureEnabled) {
+    const fixturePreflight = createProductionRunE2ePreflight(process.env, Boolean(app?.isPackaged))
+    if (fixturePreflight) {
       const projectRootResolver = (projectId: string) => resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps())
       const recoverIncompletePolicy = process.env.NOMI_E2E_PRODUCTION_MISSING_POLICY === '1'
       shared = createProductionRunService({
         projectRootResolver,
         requestRenderer: createProductionRunE2eRenderer({ projectRootResolver }),
+        preflightProviderModel: fixturePreflight,
         policyResolver: () => {
           if (recoverIncompletePolicy) {
             const settings = readAutomationPolicySettings()

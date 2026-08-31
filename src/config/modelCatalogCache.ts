@@ -118,7 +118,6 @@ async function getCatalogModelOptions(kind?: NodeKind): Promise<ModelOption[]> {
       const filteredRows = (Array.isArray(rows) ? rows : []).filter((row) => {
         const vendorKey = String(row?.vendorKey || '').trim().toLowerCase()
         if (!vendorKey) return false
-        if (!enabledVendorKeys.size) return true
         return enabledVendorKeys.has(vendorKey)
       })
       const normalized = toCatalogModelOptions(filteredRows)

@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { buildPlannedNodeMeta, resolvePlannedNodeArgs } from "./plannedNodeMeta";
-import { buildAgentModelEntries, type AgentModelEntry } from "./availableModels";
+import { buildAgentModelEntries, indexAgentModelEntries, type AgentModelEntry } from "./availableModels";
 import type { ModelOption } from "../../../config/models";
 
 function entryByKey(): Map<string, AgentModelEntry> {
   const entries = buildAgentModelEntries([
     { value: "seedance-2", label: "即梦 Seedance", vendor: "kie", meta: { archetypeId: "seedance-2" } } as ModelOption,
   ]);
-  return new Map(entries.map((e) => [e.modelKey, e]));
+  return indexAgentModelEntries(entries);
 }
 
 describe("buildPlannedNodeMeta", () => {
@@ -28,6 +28,16 @@ describe("buildPlannedNodeMeta", () => {
     expect(meta!.archetype).toMatchObject({ id: "seedance-2" });
     // 默认参数已铺（seedance aspect_ratio 默认 16:9）
     expect(meta!.aspect_ratio).toBe("16:9");
+  });
+
+  it("同名模型必须按 modelVendor 命中，缺供应商时拒绝目录顺序猜测", () => {
+    const entries = buildAgentModelEntries([
+      { value: 'seedance-2', modelKey: 'seedance-2', label: 'A', vendor: 'relay-a', meta: { archetypeId: 'seedance-2' } } as ModelOption,
+      { value: 'seedance-2', modelKey: 'seedance-2', label: 'B', vendor: 'relay-b', meta: { archetypeId: 'seedance-2' } } as ModelOption,
+    ]);
+    const index = indexAgentModelEntries(entries);
+    expect(buildPlannedNodeMeta({ modelKey: 'seedance-2' }, index)).toBeUndefined();
+    expect(buildPlannedNodeMeta({ modelKey: 'seedance-2', modelVendor: 'relay-b' }, index)?.modelVendor).toBe('relay-b');
   });
 
   it("agent 的合法参数覆盖默认", () => {

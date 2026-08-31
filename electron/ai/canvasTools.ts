@@ -54,6 +54,7 @@ export const plannedNodeSchema = z.object({
   // bug①：agent 为节点建议模型 + 模式 + 标量参数（比例/清晰度…），用户在计划卡可改可确认。
   // modelKey/modeId 必须取自系统提示词给出的「可用模型清单」；params 是宽松键值（schema 不按
   // 单个模型严格——一次 batch 可含多模型），合法性在写入时按档案逐字段校验（单字段，跨字段留二期）。
+  modelVendor: z.string().optional(),
   modelKey: z.string().optional(),
   modeId: z.string().optional(),
   params: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
@@ -105,6 +106,7 @@ const storyboardShotSchema = z.object({
   prompt: z.string().describe("Directly-generatable prompt: camera move + action progression; do NOT restate the anchors' static descriptions."),
   // P0-9:让 AI 一并产出每镜的模型/模式/参数(含负面词)。取值必须来自用户消息里的「可用模型」清单,
   // 不要编不存在的 modelKey/参数名;不确定就留空,落画布时系统用默认视频模型兜底。
+  modelVendor: z.string().optional().describe("Provider paired with modelKey, chosen from the same row in the available-models list."),
   modelKey: z.string().optional().describe("Video model key for this shot, chosen from the 「可用模型」 list in the user message. Omit to use the default video model."),
   modeId: z.string().optional().describe("Model mode/variant id (paired with modelKey), from the same list. Omit to use the model's default mode."),
   params: z.record(z.unknown()).optional().describe("Per-shot generation params keyed exactly as the chosen model exposes them in the 「可用模型」 list (e.g. aspect_ratio, resolution, and negative_prompt where the model supports it). Only use param keys that model actually lists; omit unknowns."),
@@ -112,6 +114,7 @@ const storyboardShotSchema = z.object({
     .object({
       enabled: z.boolean().optional().describe("Set true only for 图片+视频 mode: create a first-frame image before the video."),
       prompt: z.string().optional().describe("Static first-frame image prompt: composition, shot size, light, character pose/expression, environment. No camera movement, action progression, dialogue, subtitles, or sound."),
+      modelVendor: z.string().optional().describe("Provider paired with the first-frame modelKey, from the same available-models row."),
       modelKey: z.string().optional().describe("Image model key for the first-frame image, chosen from the available image models. Omit to use the default image model."),
       modeId: z.string().optional().describe("Image model mode id for the first-frame image. Prefer an image_ref/edit mode when this shot references visual anchors."),
       params: z.record(z.unknown()).optional().describe("First-frame image params, using only keys supported by the chosen image model/mode."),

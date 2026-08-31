@@ -6,7 +6,12 @@ import path from 'node:path'
 export const PRODUCTION_E2E_FIXTURE_PROVIDER = 'nomi-e2e-fixture'
 export const PRODUCTION_E2E_FIXTURE_MODEL = 'nomi-e2e-fixture-video'
 
-type FixtureEnvironment = Partial<Record<'NOMI_E2E' | 'NOMI_E2E_PRODUCTION_FIXTURE', string | undefined>>
+type FixtureEnvironment = Partial<Record<
+  | 'NOMI_E2E'
+  | 'NOMI_E2E_PRODUCTION_FIXTURE'
+  | 'NOMI_E2E_PRODUCTION_FAIL_PROVIDER_AFTER_PREFLIGHT',
+  string | undefined
+>>
 
 type FixtureOptions = {
   projectRootResolver: (projectId: string) => string | null
@@ -29,6 +34,23 @@ export function isProductionRunE2eFixtureEnabled(
   return !isPackaged
     && env.NOMI_E2E === '1'
     && env.NOMI_E2E_PRODUCTION_FIXTURE === '1'
+}
+
+export function createProductionRunE2ePreflight(
+  env: FixtureEnvironment,
+  isPackaged: boolean,
+): ((job: { provider: string; model: string }) => void) | null {
+  if (!isProductionRunE2eFixtureEnabled(env, isPackaged)) return null
+  const failProvider = String(env.NOMI_E2E_PRODUCTION_FAIL_PROVIDER_AFTER_PREFLIGHT || '').trim()
+  const approvedBindings = new Set<string>()
+  return (job) => {
+    if (!failProvider || job.provider !== failProvider) return
+    const binding = `${job.provider}\u0000${job.model}`
+    if (approvedBindings.has(binding)) {
+      throw new Error(`E2E provider unavailable before submission: ${job.provider}`)
+    }
+    approvedBindings.add(binding)
+  }
 }
 
 function identifier(value: unknown, label: string): string {
@@ -113,12 +135,38 @@ export function createProductionRunE2eRenderer(options: FixtureOptions) {
       generatedByRun.set(`${projectId}:${runId}`, relativeVideoPath)
       return {
         status: 'succeeded',
+        providerTaskId: `fixture:${runId}:${jobId}`,
         assets: [{
           type: 'video',
           url: projectAssetUrl(projectId, relativeVideoPath),
           thumbnailUrl: projectAssetUrl(projectId, relativeThumbnailPath),
         }],
       }
+    }
+
+    if (operation === 'production.rebind-nodes') {
+      const bindings = Array.isArray(payload.bindings) ? payload.bindings : []
+      if (bindings.length === 0) throw new Error('Production fixture replacements are required')
+      return {
+        previousBindings: bindings.map((raw, index) => {
+          const binding = payloadRecord(raw)
+          const nodeId = identifier(binding.nodeId, `replacement node ${index}`)
+          const previousProvider = identifier(binding.previousProvider, `previous provider ${index}`)
+          const previousModel = identifier(binding.previousModel, `previous model ${index}`)
+          return {
+            nodeId,
+            patch: {
+              meta: { modelVendor: previousProvider, modelKey: previousModel },
+              status: 'error',
+              error: `E2E provider unavailable before submission: ${previousProvider}`,
+            },
+          }
+        }),
+      }
+    }
+
+    if (operation === 'production.restore-node-bindings') {
+      return { restored: Array.isArray(payload.bindings) ? payload.bindings.length : 0 }
     }
 
     if (operation === 'production.arrange') {

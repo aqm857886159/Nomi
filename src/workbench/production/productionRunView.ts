@@ -5,12 +5,13 @@ import type {
 } from '../../../electron/productionRun/productionRunTypes'
 
 export type ProductionRunTone = 'working' | 'attention' | 'danger' | 'success' | 'neutral'
-export type ProductionRunPrimaryAction = 'open-stage' | 'open-gate' | 'review-storyboard' | 'reconcile' | 'review-rough-cut' | 'open-export' | null
+export type ProductionRunPrimaryAction = 'open-stage' | 'open-gate' | 'review-storyboard' | 'replace-provider' | 'reconcile' | 'review-rough-cut' | 'open-export' | null
 
 export type ProductionRunView = {
   tone: ProductionRunTone
   titleKey: string
   descriptionKey: string
+  descriptionValues?: Record<string, string | number>
   percent?: number
   primaryAction: ProductionRunPrimaryAction
   targetId?: string
@@ -20,6 +21,11 @@ export type ProductionRunView = {
     kind: ProductionArtifact['kind']
     thumbnailRelativePath?: string
     projectRelativePath?: string
+  }
+  recovery?: {
+    failedProvider: string
+    replacementProvider: string
+    affectedCount: number
   }
   details: {
     completedStages: number
@@ -63,11 +69,15 @@ function validPercent(value: number | undefined): number | undefined {
 export function buildProductionRunView(
   run: ProductionRun,
   now = Date.now(),
-  options: { staleAfterMs?: number } = {},
+  options: {
+    staleAfterMs?: number
+    replacement?: { failedProvider: string; replacementProviderLabel: string; affectedCount: number }
+  } = {},
 ): ProductionRunView {
   const staleAfterMs = options.staleAfterMs ?? 2 * 60_000
   const job = latestJob(run)
   const unknown = run.jobs.find((value) => value.status === 'submission_unknown')
+  const notDispatched = run.jobs.find((value) => value.status === 'not_dispatched')
   const waitingGate = run.gates.find((value) => value.status === 'waiting')
   const skills = [...new Map(
     run.gates.flatMap((gate) => gate.contract?.skills ?? [])
@@ -88,6 +98,35 @@ export function buildProductionRunView(
         .map(({ stageId, title, status }) => ({ stageId, title, status })),
       skills,
     },
+  }
+
+  const replacement = options.replacement
+  if (replacement) {
+    return {
+      ...base,
+      tone: 'danger',
+      titleKey: 'production.status.providerUnavailable',
+      descriptionKey: 'production.description.providerUnavailable',
+      descriptionValues: { provider: replacement.failedProvider },
+      primaryAction: 'replace-provider',
+      targetId: notDispatched?.jobId ?? unknown?.jobId,
+      recovery: {
+        failedProvider: replacement.failedProvider,
+        replacementProvider: replacement.replacementProviderLabel,
+        affectedCount: replacement.affectedCount,
+      },
+    }
+  }
+  if (notDispatched) {
+    return {
+      ...base,
+      tone: 'danger',
+      titleKey: 'production.status.providerUnavailable',
+      descriptionKey: 'production.description.providerUnavailableNoReplacement',
+      descriptionValues: { provider: notDispatched.provider },
+      primaryAction: 'open-stage',
+      targetId: notDispatched.jobId,
+    }
   }
 
   if (unknown) {

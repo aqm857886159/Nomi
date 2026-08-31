@@ -49,7 +49,7 @@ export class ProductionPolicyIncompleteError extends Error {
 
   constructor(readiness: ProductionPolicyReadiness) {
     const issues = [
-      ...(readiness.missingHardBudget ? ['未设置硬预算上限'] : []),
+      ...(readiness.missingHardBudget ? ['未设置本次制作授权上限'] : []),
       ...(readiness.missingProviders.length
         ? [`供应商「${readiness.missingProviders.join('、')}」未加入白名单`]
         : []),

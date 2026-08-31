@@ -11,7 +11,12 @@ import {
   type PlannedEdge,
   type PlannedNode,
 } from './agentPlanSummary'
-import { listAvailableModelsForAgent, type AgentModelEntry } from '../agent/availableModels'
+import {
+  findAgentModelEntry,
+  indexAgentModelEntries,
+  listAvailableModelsForAgent,
+  type AgentModelEntry,
+} from '../agent/availableModels'
 import { normalizeAspectRatioToWH } from '../nodes/aspectRatio'
 
 export { summarizeAgentPlan }
@@ -40,7 +45,7 @@ function nodeChipValues(node: PlannedNode, entryByKey: ReadonlyMap<string, Agent
   const aspect = normalizeAspectRatioToWH(params.aspect_ratio) ?? normalizeAspectRatioToWH(params.size) ?? undefined
   const resolution = typeof params.resolution === 'string' ? params.resolution : undefined
   return {
-    modelLabel: entryByKey.get(node.modelKey)?.label ?? node.modelKey,
+    modelLabel: findAgentModelEntry(entryByKey, node.modelKey, node.modelVendor)?.label ?? node.modelKey,
     aspect,
     resolution,
   }
@@ -182,7 +187,7 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
     let alive = true
     listAvailableModelsForAgent()
       .then((entries) => {
-        if (alive) setEntryByKey(new Map(entries.map((e) => [e.modelKey, e])))
+        if (alive) setEntryByKey(indexAgentModelEntries(entries))
       })
       .catch(() => {
         /* 清单拉取失败:chip 退回显示 modelKey,不阻断确认 */
@@ -245,6 +250,7 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
       ...(node.position ? { position: node.position } : {}),
       // bug①：把 agent 建议的模型/参数透传给执行层（确认后写入 node.meta）。
       ...(node.modelKey ? { modelKey: node.modelKey } : {}),
+      ...(node.modelVendor ? { modelVendor: node.modelVendor } : {}),
       ...(node.modeId ? { modeId: node.modeId } : {}),
       ...(node.params ? { params: node.params } : {}),
     }))

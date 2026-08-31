@@ -2,7 +2,7 @@ import type { BuiltinCanvasCategoryId, GenerationCanvasEdgeMode, GenerationNodeK
 import { CATEGORY_IDS } from '../model/generationCanvasTypes'
 import { getDefaultCategoryForNodeKind, getGenerationNodeDefaultTitle } from '../model/generationNodeKinds'
 import { generationCanvasTools, type CreateGenerationNodeToolInput } from './generationCanvasTools'
-import { listAvailableModelsForAgent, type AgentModelEntry } from './availableModels'
+import { indexAgentModelEntries, listAvailableModelsForAgent } from './availableModels'
 import { buildPlannedNodeMeta } from './plannedNodeMeta'
 import { withCanvasGestureContext, type CanvasGestureContext } from '../events/canvasGestureContext'
 import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
@@ -226,9 +226,7 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
     const needsModels = incoming.some(
       (raw) => raw && typeof raw === 'object' && typeof (raw as Record<string, unknown>).modelKey === 'string',
     )
-    const entryByKey = new Map<string, AgentModelEntry>(
-      needsModels ? (await listAvailableModelsForAgent()).map((entry) => [entry.modelKey, entry]) : [],
-    )
+    const entryByKey = indexAgentModelEntries(needsModels ? await listAvailableModelsForAgent() : [])
     const total = incoming.length
     // T4 轨迹分层布局：层由 kind 推导（参考/关键帧/视频三列），原点避让画布已有节点
     // 包围盒（修审计 bug D）；单层/不可推导退网格（同样避让）。忽略 LLM 像素坐标。

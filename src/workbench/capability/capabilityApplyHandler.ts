@@ -9,6 +9,13 @@ import { mintSpendGrant } from '../api/taskApi'
 import { runGenerationNode } from '../generationCanvas/runner/generationRunController'
 import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStoryboardToTimeline'
 import { exportTimelineToMp4 } from '../export/exportApi'
+import { preloadModelOptions } from '../../config/modelCatalogCache'
+import { findModelOptionByIdentifier } from '../generationCanvas/adapters/modelOptionsAdapter'
+import { buildNodeModelChangePatch } from '../generationCanvas/nodes/buildNodeModelChangePatch'
+import { isVideoLikeGenerationNodeKind } from '../generationCanvas/model/generationNodeKinds'
+import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
+import { CatalogTaskNotDispatchedError } from '../generationCanvas/runner/catalogTaskActions'
+import { isRecoverableTimeoutError } from '../generationCanvas/runner/recoverableTimeout'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。
@@ -30,6 +37,20 @@ type PlanConfirmPayload = {
   projectId?: string
   nodeCount?: number
   titles?: string[]
+}
+
+export type ProductionDispatchState = 'not_dispatched' | 'submission_unknown' | 'provider_accepted'
+
+export class ProductionGenerationApplyError extends Error {
+  readonly code: string
+  readonly dispatchState: ProductionDispatchState
+
+  constructor(message: string, code: string, dispatchState: ProductionDispatchState) {
+    super(message)
+    this.name = 'ProductionGenerationApplyError'
+    this.code = code
+    this.dispatchState = dispatchState
+  }
 }
 
 function describeIntent(intent: string | undefined): string {
@@ -142,14 +163,146 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
     }
     case 'production.generate-node': {
       const nodeId = typeof data.nodeId === 'string' ? data.nodeId.trim() : ''
-      if (!nodeId) throw new Error('Production generation requires a node')
-      const grantId = await mintSpendGrant([nodeId], typeof data.maxAttemptsPerJob === 'number' ? data.maxAttemptsPerJob : undefined)
-      const result = await runGenerationNode(nodeId, { grantId })
+      if (!nodeId) throw new ProductionGenerationApplyError('Production generation requires a node', 'node_missing', 'not_dispatched')
+      const expectedProvider = typeof data.provider === 'string' ? data.provider.trim() : ''
+      const expectedModel = typeof data.model === 'string' ? data.model.trim() : ''
+      if (!expectedProvider || !expectedModel) {
+        throw new ProductionGenerationApplyError(
+          'Production generation requires an approved provider/model binding',
+          'approved_binding_missing',
+          'not_dispatched',
+        )
+      }
+      if (!useGenerationCanvasStore.getState().nodes.some((candidate) => candidate.id === nodeId)) {
+        throw new ProductionGenerationApplyError('Production generation node was not found', 'node_not_found', 'not_dispatched')
+      }
+      let grantId: string
+      try {
+        grantId = await mintSpendGrant([nodeId], typeof data.maxAttemptsPerJob === 'number' ? data.maxAttemptsPerJob : undefined)
+      } catch (error) {
+        throw new ProductionGenerationApplyError(
+          error instanceof Error ? error.message : String(error),
+          'spend_grant_failed',
+          'not_dispatched',
+        )
+      }
+      let result
+      try {
+        result = await runGenerationNode(nodeId, {
+          grantId,
+          expectedBinding: { provider: expectedProvider, model: expectedModel },
+          ...(typeof data.idempotencyKey === 'string' && data.idempotencyKey.trim()
+            ? { idempotencyKey: data.idempotencyKey.trim() }
+            : {}),
+        })
+      } catch (error) {
+        if (error instanceof CatalogTaskNotDispatchedError) {
+          throw new ProductionGenerationApplyError(
+            error.message,
+            error.code,
+            'not_dispatched',
+          )
+        }
+        if (isRecoverableTimeoutError(error)) {
+          throw new ProductionGenerationApplyError(error.message, 'provider_task_recoverable', 'provider_accepted')
+        }
+        throw error
+      }
       return {
         nodeId,
         status: 'succeeded',
+        providerTaskId: result.taskId,
         assets: result.url ? [{ type: result.type, url: result.url, ...(result.thumbnailUrl ? { thumbnailUrl: result.thumbnailUrl } : {}) }] : [],
       }
+    }
+    case 'production.inspect-node-failures': {
+      const nodeIds = Array.isArray(data.nodeIds)
+        ? data.nodeIds.filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
+        : []
+      const byId = new Map(useGenerationCanvasStore.getState().nodes.map((node) => [node.id, node]))
+      return {
+        failures: nodeIds.map((nodeId) => ({
+          nodeId,
+          error: byId.get(nodeId)?.error || '',
+        })),
+      }
+    }
+    case 'production.rebind-nodes': {
+      const bindings = Array.isArray(data.bindings) ? data.bindings : []
+      if (bindings.length === 0) throw new Error('Production node replacements are required')
+      const state = useGenerationCanvasStore.getState()
+      const prepared = await Promise.all(bindings.map(async (raw, index) => {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`Invalid production node replacement ${index}`)
+        const binding = raw as Record<string, unknown>
+        const nodeId = typeof binding.nodeId === 'string' ? binding.nodeId.trim() : ''
+        const provider = typeof binding.provider === 'string' ? binding.provider.trim() : ''
+        const model = typeof binding.model === 'string' ? binding.model.trim() : ''
+        const previousProvider = typeof binding.previousProvider === 'string' ? binding.previousProvider.trim() : ''
+        const previousModel = typeof binding.previousModel === 'string' ? binding.previousModel.trim() : ''
+        const node = state.nodes.find((candidate) => candidate.id === nodeId)
+        if (!node || !provider || !model) throw new Error(`Invalid production node replacement ${index}`)
+        const meta = (node.meta || {}) as Record<string, unknown>
+        const currentProvider = typeof meta.modelVendor === 'string' ? meta.modelVendor : typeof meta.vendor === 'string' ? meta.vendor : ''
+        const currentModel = typeof meta.modelKey === 'string' ? meta.modelKey : ''
+        if (currentProvider !== previousProvider || currentModel !== previousModel) {
+          throw new Error(`Production node binding changed before replacement: ${nodeId}`)
+        }
+        const modelOptions = await preloadModelOptions(isVideoLikeGenerationNodeKind(node.kind) ? 'video' : 'image')
+        const option = findModelOptionByIdentifier(modelOptions, model, provider)
+        if (!option) throw new Error(`Replacement model is not executable: ${provider} / ${model}`)
+        const modelPatch = buildNodeModelChangePatch({
+          node,
+          nodes: state.nodes,
+          edges: state.edges,
+          modelOptions,
+          value: option.modelKey || option.value,
+          vendor: option.vendor,
+        })
+        return {
+          node,
+          previous: {
+            nodeId,
+            patch: {
+              meta: { ...meta },
+              status: node.status,
+              error: node.error,
+              progress: node.progress,
+            },
+          },
+          patch: {
+            ...modelPatch,
+            status: 'idle' as const,
+            error: undefined,
+            progress: undefined,
+          },
+        }
+      }))
+      try {
+        for (const item of prepared) useGenerationCanvasStore.getState().updateNode(item.node.id, item.patch)
+        await persistActiveWorkbenchProjectNow()
+      } catch (error) {
+        for (const item of prepared) useGenerationCanvasStore.getState().updateNode(item.node.id, item.previous.patch)
+        throw error
+      }
+      return { previousBindings: prepared.map((item) => item.previous) }
+    }
+    case 'production.restore-node-bindings': {
+      const bindings = Array.isArray(data.bindings) ? data.bindings : []
+      for (const raw of bindings) {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue
+        const binding = raw as Record<string, unknown>
+        const nodeId = typeof binding.nodeId === 'string' ? binding.nodeId.trim() : ''
+        const patch = binding.patch && typeof binding.patch === 'object' && !Array.isArray(binding.patch)
+          ? binding.patch as Record<string, unknown>
+          : binding.meta && typeof binding.meta === 'object' && !Array.isArray(binding.meta)
+            ? { meta: binding.meta as Record<string, unknown> }
+            : null
+        if (nodeId && patch && useGenerationCanvasStore.getState().nodes.some((node) => node.id === nodeId)) {
+          useGenerationCanvasStore.getState().updateNode(nodeId, patch)
+        }
+      }
+      await persistActiveWorkbenchProjectNow()
+      return { restored: bindings.length }
     }
     case 'production.arrange': {
       const result = arrangeStoryboardToTimeline()

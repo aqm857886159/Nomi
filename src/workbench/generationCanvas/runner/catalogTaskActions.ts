@@ -46,6 +46,18 @@ import { parseVendorErrorFromMessage } from './vendorErrorIpc'
 export type { CatalogTaskActionOptions } from './catalogTaskResolve'
 export { normalizeCatalogTaskResult } from './catalogTaskResultParse'
 
+export class CatalogTaskNotDispatchedError extends Error {
+  readonly code: string
+  readonly retryable: boolean
+
+  constructor(message: string, options: { code?: string; retryable?: boolean } = {}) {
+    super(message)
+    this.name = 'CatalogTaskNotDispatchedError'
+    this.code = options.code || 'catalog_preflight_failed'
+    this.retryable = options.retryable ?? false
+  }
+}
+
 const TERMINAL_STATUSES = new Set(['succeeded', 'failed'])
 
 // 任务已提交(付费已发生)后，查结果连续失败多久就放弃轮询、落「可找回」态（不重发，给「重新拉取」入口）。
@@ -377,8 +389,24 @@ export async function runCatalogGenerationTask(
   const report = (phase: GenerationProgressPhase, taskId?: string, ctx?: ProgressNarrationContext) =>
     options.onProgress?.({ phase, message: narrateProgress(phase, ctx), ...(taskId ? { taskId } : {}) })
   report('resolving')
-  const executableNode = await resolveExecutableNodeFromCatalog(node, options)
-  const { vendor, request } = buildCatalogTaskRequest(executableNode, options)
+  let executableNode: GenerationCanvasNode
+  let vendor: string
+  let request: TaskRequestDto
+  try {
+    executableNode = await resolveExecutableNodeFromCatalog(node, options)
+    ;({ vendor, request } = buildCatalogTaskRequest(executableNode, options))
+    if (options.expectedBinding) {
+      const actualModel = asTrimmedString(request.extras?.modelKey)
+      if (vendor !== options.expectedBinding.provider || actualModel !== options.expectedBinding.model) {
+        throw new Error(
+          `Production approved binding changed: expected ${options.expectedBinding.provider}/${options.expectedBinding.model}, got ${vendor}/${actualModel}`,
+        )
+      }
+    }
+  } catch (error) {
+    if (error instanceof CatalogTaskNotDispatchedError) throw error
+    throw new CatalogTaskNotDispatchedError(error instanceof Error ? error.message : String(error))
+  }
 
   // 文本任务 + 调用方要逐字 → 走流式通道:逐 token 回调 onTextDelta,终态直接返回
   // (文本无轮询,流 resolve 即 succeeded),不走下面的 runTask + 轮询。runTask 覆盖项
@@ -393,7 +421,18 @@ export async function runCatalogGenerationTask(
 
   const runTask = options.runTask || runWorkbenchTaskByVendor
   report('requesting')
-  const initialResult = await runTask(vendor, request)
+  let initialResult: TaskResultDto
+  try {
+    initialResult = await runTask(vendor, request)
+  } catch (error) {
+    if (error && typeof error === 'object' && (error as { dispatchState?: unknown }).dispatchState === 'not_dispatched') {
+      throw new CatalogTaskNotDispatchedError(error instanceof Error ? error.message : String(error), {
+        code: typeof (error as { code?: unknown }).code === 'string' ? (error as { code: string }).code : undefined,
+        retryable: (error as { retryable?: unknown }).retryable === true,
+      })
+    }
+    throw error
+  }
   report('waiting', initialResult.id)
   // P 轨：本地 ComfyUI 提交成功即登记 ws 进度（prompt_id→节点）。桥不在/失败 = 没进度，轮询照常。
   // 多实例：vendor 就是「跑这个任务的那台机器」的 key，带下去让主进程连对地址、查对 mapping。

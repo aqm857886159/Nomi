@@ -14,6 +14,13 @@ const recoverySource = fs.readFileSync(path.join(process.cwd(), 'src/workbench/p
 const settingsSource = fs.readFileSync(path.join(process.cwd(), 'src/workbench/settings/AiModelsSection.tsx'), 'utf8')
 
 describe('production policy UX structure', () => {
+  it('exposes the blocking contract confirmation as an accessible modal', () => {
+    expect(dialogSource).toContain('role="dialog"')
+    expect(dialogSource).toContain('aria-modal="true"')
+    expect(dialogSource).toContain('aria-labelledby={titleId}')
+    expect(dialogSource).toContain('data-spend-confirm-dialog')
+  })
+
   it('turns every incomplete policy into one direct settings action', () => {
     expect(dialogSource).toContain('incompletePolicy')
     expect(dialogSource).toContain('missingPolicyProviders')
@@ -26,6 +33,8 @@ describe('production policy UX structure', () => {
     expect(summarySource).toContain('data-production-hard-budget')
     expect(summarySource).toContain('data-production-provider-model-status')
     expect(summarySource).toContain('production.contract.notSet')
+    expect(summarySource).toContain('item.providerLabel')
+    expect(summarySource).toContain('item.provider')
   })
 
   it('marks the exact Run requirements in the shared settings block', () => {

@@ -12,6 +12,11 @@ import { buildProductionPolicySettingsTarget, isProductionPolicyError } from './
 import { useProductionRunStore } from './productionRunStore'
 import { buildProductionRunView, type ProductionRunPrimaryAction } from './productionRunView'
 import { useActiveProductionRun } from './useActiveProductionRun'
+import {
+  resolveProductionProviderLabels,
+  resolveProductionProviderReplacementPlan,
+  type ProductionProviderReplacementPlan,
+} from './productionProviderRecovery'
 
 function localizedGateCopy(
   gate: NonNullable<ReturnType<typeof useActiveProductionRun>['run']>['gates'][number],
@@ -41,8 +46,43 @@ function localizedGateCopy(
 export function useProductionStatus() {
   const { t } = useTranslation()
   const production = useActiveProductionRun()
+  const generationNodes = useGenerationCanvasStore((state) => state.nodes)
+  const [replacementPlan, setReplacementPlan] = React.useState<ProductionProviderReplacementPlan | null>(null)
+  const [selectedReplacementId, setSelectedReplacementId] = React.useState('')
   const actionInFlightRef = React.useRef(false)
-  const view = React.useMemo(() => (production.run ? buildProductionRunView(production.run) : null), [production.run])
+  React.useEffect(() => {
+    let alive = true
+    const run = production.run
+    if (!run || !run.jobs.some((job) => ['not_dispatched', 'submission_unknown', 'needs_attention'].includes(job.status))) {
+      setReplacementPlan(null)
+      return () => { alive = false }
+    }
+    void resolveProductionProviderReplacementPlan(run, generationNodes)
+      .then((plan) => {
+        if (!alive) return
+        setReplacementPlan(plan)
+        setSelectedReplacementId((current) =>
+          plan?.candidates.some((candidate) => candidate.id === current)
+            ? current
+            : plan?.candidates[0]?.id || '')
+      })
+      .catch(() => { if (alive) setReplacementPlan(null) })
+    return () => { alive = false }
+  }, [generationNodes, production.run])
+  const selectedReplacementPlan = React.useMemo(() => {
+    if (!replacementPlan) return null
+    const candidate = replacementPlan.candidates.find((item) => item.id === selectedReplacementId)
+      ?? replacementPlan.candidates[0]
+    return candidate ? {
+      ...replacementPlan,
+      replacementProvider: candidate.provider,
+      replacementProviderLabel: candidate.label,
+      replacements: candidate.replacements,
+    } : replacementPlan
+  }, [replacementPlan, selectedReplacementId])
+  const view = React.useMemo(() => (production.run ? buildProductionRunView(production.run, Date.now(), {
+    ...(selectedReplacementPlan ? { replacement: selectedReplacementPlan } : {}),
+  }) : null), [production.run, selectedReplacementPlan])
   const executeCommand = React.useCallback(
     (projectId: string, runId: string, command: Parameters<typeof productionRunApi.command>[2]) =>
       executeProductionRunCommand(projectId, runId, command, {
@@ -101,6 +141,61 @@ export function useProductionStatus() {
         }
         if (action === 'open-export') {
           useWorkbenchStore.getState().setWorkspaceMode('preview')
+          return
+        }
+        if (action === 'replace-provider') {
+          if (!selectedReplacementPlan) return
+          const accepted = await confirmDialog({
+            title: t('generationCommon.production.recovery.confirmTitle'),
+            message: t('generationCommon.production.recovery.confirmMessage', {
+              failedProvider: selectedReplacementPlan.failedProvider,
+              replacementProvider: selectedReplacementPlan.replacementProviderLabel,
+              count: selectedReplacementPlan.affectedCount,
+            }),
+            confirmLabel: t('generationCommon.production.recovery.confirm', {
+              provider: selectedReplacementPlan.replacementProviderLabel,
+            }),
+            cancelLabel: t('common.cancel'),
+          })
+          if (!accepted) return
+          try {
+            const rebound = await executeCommand(run.projectId, run.runId, {
+              commandId: globalThis.crypto.randomUUID(),
+              expectedRevision: run.revision,
+              type: 'plan.rebind-provider',
+              payload: {
+                replacements: selectedReplacementPlan.replacements,
+              },
+              issuedAt: new Date().toISOString(),
+            })
+            await useProductionRunStore.getState().loadRun(run.projectId, run.runId)
+            const gate = rebound.run.gates.find((item) => item.gateId === `gate-contract-v${rebound.run.planVersion}` && item.status === 'waiting')
+            if (!gate) return
+            const providerLabels = await resolveProductionProviderLabels()
+            const contract = buildProductionContractView(rebound.run, gate, { providerLabels })
+            const approved = await useSpendConfirmStore.getState().requestConfirm({
+              title: t('generationCommon.production.gate.replacementContractTitle'),
+              message: t('generationCommon.production.gate.replacementContractSummary'),
+              confirmLabel: t('generationCommon.production.gate.approve'),
+              source: rebound.run.origin.host === 'nomi' ? 'user' : 'agent',
+              kind: 'contract',
+              contract,
+            })
+            if (!approved) return
+            await executeCommand(rebound.run.projectId, rebound.run.runId, {
+              commandId: globalThis.crypto.randomUUID(),
+              expectedRevision: rebound.run.revision,
+              type: 'gate.decide',
+              payload: { gateId: gate.gateId, status: 'approved' },
+              issuedAt: new Date().toISOString(),
+            })
+            await useProductionRunStore.getState().loadRun(rebound.run.projectId, rebound.run.runId)
+          } catch (error) {
+            await alertDialog({
+              title: t('generationCommon.production.recovery.failed'),
+              message: error instanceof Error ? error.message : String(error),
+            })
+          }
           return
         }
         if (action === 'reconcile') {
@@ -170,8 +265,10 @@ export function useProductionStatus() {
           }
         }
         const gateCopy = localizedGateCopy(gate, (key) => t(key))
-        const contract = gate.scope === 'stage' ? undefined : buildProductionContractView(activeRun, gate)
-        let openingPolicySettings = false
+        const providerLabels = gate.scope === 'stage' ? {} : await resolveProductionProviderLabels()
+        const contract = gate.scope === 'stage'
+          ? undefined
+          : buildProductionContractView(activeRun, gate, { providerLabels })
         const approved = await useSpendConfirmStore.getState().requestConfirm({
           title: gateCopy.title,
           message: gateCopy.message,
@@ -181,33 +278,13 @@ export function useProductionStatus() {
           ...(contract ? { contract } : {}),
           ...(gate.scope === 'budget_envelope' && contract && !contract.policy.ready ? {
             onOpenPolicySettings: () => {
-              openingPolicySettings = true
               window.dispatchEvent(new CustomEvent('nomi-open-settings', {
                 detail: buildProductionPolicySettingsTarget(contract.policy),
               }))
             },
           } : {}),
         })
-        if (!approved) {
-          if (openingPolicySettings) return
-          if (gate.scope !== 'budget_envelope') return
-          try {
-            await executeCommand(activeRun.projectId, activeRun.runId, {
-              commandId: globalThis.crypto.randomUUID(),
-              expectedRevision: activeRun.revision,
-              type: 'gate.decide',
-              payload: { gateId: gate.gateId, status: 'rejected' },
-              issuedAt: new Date().toISOString(),
-            })
-            await useProductionRunStore.getState().loadRun(activeRun.projectId, activeRun.runId)
-          } catch (error) {
-            await alertDialog({
-              title: t('generationCommon.production.gate.failed'),
-              message: error instanceof Error ? error.message : String(error),
-            })
-          }
-          return
-        }
+        if (!approved) return
         try {
           await executeCommand(activeRun.projectId, activeRun.runId, {
             commandId: globalThis.crypto.randomUUID(),
@@ -244,7 +321,7 @@ export function useProductionStatus() {
         actionInFlightRef.current = false
       }
     },
-    [executeCommand, production.run, t, view?.targetId],
+    [executeCommand, production.run, selectedReplacementPlan, t, view?.targetId],
   )
 
   const navigationTarget = production.navigationTarget
@@ -255,5 +332,21 @@ export function useProductionStatus() {
       ? (navigationTarget.artifactId ?? null)
       : null
 
-  return { production, view, focusedArtifactId, onPrimaryAction }
+  return {
+    production,
+    view,
+    focusedArtifactId,
+    onPrimaryAction,
+    recoverySelection: replacementPlan ? {
+      value: selectedReplacementId || replacementPlan.candidates[0]?.id || '',
+      options: replacementPlan.candidates.map((candidate) => ({
+        value: candidate.id,
+        label: candidate.label,
+        trailing: candidate.id === replacementPlan.candidates[0]?.id
+          ? t('generationCommon.production.recovery.recommended')
+          : undefined,
+      })),
+      onChange: setSelectedReplacementId,
+    } : null,
+  }
 }

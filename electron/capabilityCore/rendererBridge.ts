@@ -22,9 +22,14 @@ export class RendererUnavailableError extends Error {
 }
 
 export class RendererApplyError extends Error {
-  constructor(message: string) {
+  readonly code?: string
+  readonly dispatchState?: 'not_dispatched' | 'submission_unknown' | 'provider_accepted'
+
+  constructor(message: string, options: { code?: string; dispatchState?: 'not_dispatched' | 'submission_unknown' | 'provider_accepted' } = {}) {
     super(message)
     this.name = 'RendererApplyError'
+    this.code = options.code
+    this.dispatchState = options.dispatchState
   }
 }
 
@@ -45,14 +50,19 @@ export function isRendererAvailable(): boolean {
 function ensureReplyListener(): void {
   if (replyListenerBound) return
   replyListenerBound = true
-  ipcMain.on(CAPABILITY_APPLY_REPLY_CHANNEL, (_event, payload: { id?: number; ok?: boolean; result?: unknown; error?: string }) => {
+  ipcMain.on(CAPABILITY_APPLY_REPLY_CHANNEL, (_event, payload: { id?: number; ok?: boolean; result?: unknown; error?: string; errorCode?: string; dispatchState?: string }) => {
     const id = Number(payload?.id)
     const entry = pending.get(id)
     if (!entry) return
     clearTimeout(entry.timer)
     pending.delete(id)
     if (payload?.ok) entry.resolve(payload.result)
-    else entry.reject(new RendererApplyError(String(payload?.error || '渲染层处理失败')))
+    else entry.reject(new RendererApplyError(String(payload?.error || '渲染层处理失败'), {
+      ...(typeof payload?.errorCode === 'string' ? { code: payload.errorCode } : {}),
+      ...(['not_dispatched', 'submission_unknown', 'provider_accepted'].includes(String(payload?.dispatchState))
+        ? { dispatchState: payload.dispatchState as 'not_dispatched' | 'submission_unknown' | 'provider_accepted' }
+        : {}),
+    }))
   })
 }
 

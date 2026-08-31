@@ -57,6 +57,7 @@ export function ConfirmDialogHost(): JSX.Element {
       centered
       size="sm"
       zIndex={5000}
+      transitionProps={{ duration: 140, exitDuration: 0 }}
       data-confirm-dialog={active ? active.kind : undefined}
     >
       <div className={cn('flex flex-col gap-3')}>

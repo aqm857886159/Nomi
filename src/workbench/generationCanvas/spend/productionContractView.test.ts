@@ -60,7 +60,9 @@ function gate(overrides: Partial<ProductionGate> = {}): ProductionGate {
 
 describe('production contract view', () => {
   it('projects the approved plan, evidence, skills, models, retries, and known cost boundary', () => {
-    expect(buildProductionContractView(run(), gate())).toMatchObject({
+    expect(buildProductionContractView(run(), gate(), {
+      providerLabels: { tapcanvas: 'TapCanvas' },
+    })).toMatchObject({
       planVersion: 4,
       planHash: 'sha256:plan-4',
       specs: { durationSeconds: 60, aspectRatio: '16:9', language: 'zh-CN', shotCount: 8 },
@@ -72,7 +74,7 @@ describe('production contract view', () => {
         { name: 'brand.promo', version: '1.2.0' },
         { name: 'director.storyboard', version: '2.0.0' },
       ],
-      providerModels: [{ provider: 'tapcanvas', model: 'seedance-1.0' }],
+      providerModels: [{ provider: 'tapcanvas', providerLabel: 'TapCanvas', model: 'seedance-1.0' }],
       policy: {
         ready: true,
         issueCount: 0,

@@ -167,7 +167,9 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
 
   function readApprovals(projectId: string, runId: string): Approval[] {
     const paths = productionRunPaths(projectDir(projectId), runId);
-    return readJsonLines<Approval>(paths.approvals);
+    const latest = new Map<string, Approval>();
+    for (const approval of readJsonLines<Approval>(paths.approvals)) latest.set(approval.approvalId, approval);
+    return [...latest.values()];
   }
 
   function replayBudget(projectId: string, runId: string, currency: string): BudgetLedger {
@@ -325,6 +327,27 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
         eventType: `budget.${entry.kind}`,
         message: entry.billingEntryId,
       };
+    } else if (command.type === "plan.rebind") {
+      effect = applyProductionCommand(current, command, timestamp);
+      const revokedGateIds = Array.isArray(command.payload.revokedGateIds)
+        ? command.payload.revokedGateIds.filter((item): item is string => typeof item === "string")
+        : [];
+      const approvals = readApprovals(projectId, runId);
+      for (const gateId of revokedGateIds) {
+        const approval = approvals.find((item) => item.approvalId === `approval:${gateId}`);
+        if (approval && !approval.revokedAt) appendDurableJsonLine(paths.approvals, { ...approval, revokedAt: timestamp });
+      }
+      const ledger = replayBudget(projectId, runId, current.budget.currency);
+      const liabilities = summarizeBudgetLedger(ledger);
+      const authorization: BudgetLedgerEntry = {
+        billingEntryId: `${command.commandId}:revoke-budget`,
+        kind: "authorize",
+        amount: liabilities.reserved + liabilities.actual + liabilities.unsettled,
+        occurredAt: timestamp,
+      };
+      const nextLedger = applyBudgetEntry(ledger, authorization);
+      if (nextLedger !== ledger) appendDurableJsonLine(paths.budgetLedger, authorization);
+      effect = { ...effect, run: { ...effect.run, budget: summarizeBudgetLedger(nextLedger) } };
     } else if (command.type === "gate.decide" && command.payload.status === "approved") {
       effect = applyProductionCommand(current, command, timestamp);
       const gateId = typeof command.payload.gateId === "string" ? command.payload.gateId.trim() : "";

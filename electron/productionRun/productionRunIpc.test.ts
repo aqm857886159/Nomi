@@ -184,4 +184,54 @@ describe("production run IPC", () => {
       issuedAt: "2026-08-08T08:00:00.000Z",
     });
   });
+
+  it("accepts durable namespaced job ids for provider recovery and reconciliation", async () => {
+    const service = {
+      listFull: vi.fn(() => [fakeRun()]),
+      readFull: vi.fn(() => fakeRun()),
+      createDraft: vi.fn(() => fakeRun()),
+      command: vi.fn(async () => ({ run: fakeRun(), events: [] })),
+      readEvents: vi.fn(async () => ({ events: [], nextCursor: 3 })),
+    };
+    registerProductionRunIpc(service as never);
+    const jobId = "job:run-1:gen-v2-image-1";
+
+    await handlers.get("nomi:production-runs:command")?.({}, {
+      projectId: "project-1",
+      runId: "run-1",
+      command: {
+        commandId: "cmd-rebind",
+        expectedRevision: 2,
+        type: "plan.rebind-provider",
+        payload: {
+          replacements: [{ jobId, provider: "apimart", model: "gpt-image-2", secret: "drop-me" }],
+          confirmedNotDispatched: true,
+        },
+        issuedAt: "2026-08-08T08:00:00.000Z",
+      },
+    });
+    await handlers.get("nomi:production-runs:command")?.({}, {
+      projectId: "project-1",
+      runId: "run-1",
+      command: {
+        commandId: "cmd-reconcile",
+        expectedRevision: 2,
+        type: "job.reconcile",
+        payload: { jobId, outcome: "not_found" },
+        issuedAt: "2026-08-08T08:00:00.000Z",
+      },
+    });
+
+    expect(service.command).toHaveBeenNthCalledWith(1, "project-1", "run-1", expect.objectContaining({
+      type: "plan.rebind-provider",
+      payload: {
+        replacements: [{ jobId, provider: "apimart", model: "gpt-image-2" }],
+        confirmedNotDispatched: true,
+      },
+    }));
+    expect(service.command).toHaveBeenNthCalledWith(2, "project-1", "run-1", expect.objectContaining({
+      type: "job.reconcile",
+      payload: { jobId, outcome: "not_found" },
+    }));
+  });
 });

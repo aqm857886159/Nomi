@@ -13,10 +13,12 @@ import { ProductionContractSummary } from './ProductionContractSummary'
 // - 外部 AI 助手（MCP，source='agent'）：换机器人图标 + 明细行 + 倒计时（到点自动按未确认返回，不死等）。
 export function SpendConfirmDialog() {
   const { t } = useTranslation()
+  const titleId = React.useId()
   const pending = useSpendConfirmStore((state) => state.pending)
   const resolvePending = useSpendConfirmStore((state) => state.resolvePending)
   const [suppress, setSuppress] = React.useState(false)
   const [remainingMs, setRemainingMs] = React.useState(0)
+  const dialogRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
     if (!pending) setSuppress(false)
@@ -41,6 +43,45 @@ export function SpendConfirmDialog() {
       }
     }, 200)
     return () => window.clearInterval(tick)
+  }, [pending, resolvePending])
+
+  React.useEffect(() => {
+    if (!pending) return
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const focusableSelector = 'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    const frame = window.requestAnimationFrame(() => {
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector)
+      focusable?.[focusable.length - 1]?.focus()
+    })
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        resolvePending(false)
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [])
+      if (focusable.length === 0) {
+        event.preventDefault()
+        dialogRef.current?.focus()
+        return
+      }
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      document.removeEventListener('keydown', onKeyDown)
+      previousFocus?.focus()
+    }
   }, [pending, resolvePending])
 
   if (!pending) return null
@@ -69,6 +110,12 @@ export function SpendConfirmDialog() {
       }}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        data-spend-confirm-dialog
         className={cn(
           pending.kind === 'contract' ? 'w-[680px]' : 'w-[380px]',
           'max-h-[88vh] max-w-[88%] overflow-y-auto rounded-nomi-lg border border-nomi-line bg-nomi-paper p-4 shadow-nomi-md',
@@ -84,7 +131,7 @@ export function SpendConfirmDialog() {
             <Icon size={18} aria-hidden />
           </span>
           <div className={cn('min-w-0')}>
-            <p className={cn('text-title font-medium text-nomi-ink truncate')}>{pending.title}</p>
+            <p id={titleId} className={cn('text-title font-medium text-nomi-ink truncate')}>{pending.title}</p>
             {isAgent ? (
               <p className={cn('text-micro text-nomi-ink-60')}>
                 {/* 方案门免费 → 副标不提「花费」（否则与「不花额度」正文自相矛盾，2026-08-02 走查抓出）。 */}
@@ -165,7 +212,9 @@ export function SpendConfirmDialog() {
 
         <div className={cn('flex items-center justify-end gap-2')}>
           <WorkbenchButton className={cn('h-8 px-4 cursor-pointer')} onClick={() => resolvePending(false)}>
-            {isAgent ? t('generationCommon.spend.ignore') : t('generationCommon.spend.cancel')}
+            {pending.kind === 'contract'
+              ? t('generationCommon.spend.later')
+              : isAgent ? t('generationCommon.spend.ignore') : t('generationCommon.spend.cancel')}
           </WorkbenchButton>
           {incompletePolicy ? (
             <WorkbenchButton

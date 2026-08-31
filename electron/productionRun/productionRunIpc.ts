@@ -5,11 +5,19 @@ import { getProductionRunService } from "./productionRunRuntime";
 import type { ProductionRunService } from "./productionRunService";
 import type { CreateProductionRunInput, RunCommand } from "./productionRunTypes";
 
-const RENDERER_COMMAND_TYPES = new Set(["run.status", "gate.decide", "artifact.adopt", "plan.attach", "policy.refresh", "job.reconcile"]);
+const RENDERER_COMMAND_TYPES = new Set(["run.status", "gate.decide", "artifact.adopt", "plan.attach", "plan.rebind-provider", "policy.refresh", "job.reconcile"]);
 
 function identifier(value: unknown, label: string): string {
   const normalized = typeof value === "string" ? value.trim() : "";
   if (!/^[A-Za-z0-9._-]{1,160}$/.test(normalized) || normalized === "." || normalized === "..") throw new Error(`Invalid ${label} id`);
+  return normalized;
+}
+
+function namespacedJobIdentifier(value: unknown): string {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (!/^[A-Za-z0-9._:-]{1,320}$/.test(normalized) || normalized === "." || normalized === "..") {
+    throw new Error("Invalid job id");
+  }
   return normalized;
 }
 
@@ -54,11 +62,30 @@ function rendererCommandPayload(type: string, value: unknown): Record<string, un
       bindings,
     };
   }
+  if (type === "plan.rebind-provider") {
+    const rawReplacements = Array.isArray(raw.replacements) ? raw.replacements : [];
+    if (rawReplacements.length === 0 || rawReplacements.length > 128) throw new Error("Invalid production replacements");
+    return {
+      replacements: rawReplacements.map((value, index) => {
+        const replacement = objectValue(value, `production replacement ${index}`);
+        const model = typeof replacement.model === "string" ? replacement.model.trim() : "";
+        if (!model || model.length > 240 || Array.from(model).some((character) => (character.codePointAt(0) ?? 0) <= 0x1f)) {
+          throw new Error(`Invalid production replacement model ${index}`);
+        }
+        return {
+          jobId: namespacedJobIdentifier(replacement.jobId),
+          provider: identifier(replacement.provider, "provider"),
+          model,
+        };
+      }),
+      confirmedNotDispatched: raw.confirmedNotDispatched === true,
+    };
+  }
   if (type === "policy.refresh") return {};
   if (type === "job.reconcile") {
     const outcome = typeof raw.outcome === "string" ? raw.outcome.trim() : "";
     if (outcome !== "found" && outcome !== "not_found") throw new Error("Invalid production reconciliation outcome");
-    return { jobId: identifier(raw.jobId, "job"), outcome };
+    return { jobId: namespacedJobIdentifier(raw.jobId), outcome };
   }
   return { artifactId: identifier(raw.artifactId, "artifact") };
 }

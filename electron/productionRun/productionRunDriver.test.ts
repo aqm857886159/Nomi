@@ -4,7 +4,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { createProductionRunRepository } from './productionRunRepository'
-import { createProductionRunService } from './productionRunService'
+import { createProductionRunService, type ProductionRunService } from './productionRunService'
 
 function makeRoot(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-production-driver-'))
@@ -13,6 +13,31 @@ function makeRoot(): string {
 async function waitFor(check: () => boolean, timeoutMs = 500): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (!check() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5))
+}
+
+async function prepareContract(
+  service: ProductionRunService,
+  runId: string,
+  bindings = [{ nodeId: 'shot-1', provider: 'broken-relay', model: 'same-model', stageId: 'generate' }],
+) {
+  service.createDraft({
+    runId,
+    projectId: 'project-1',
+    playbook: { name: 'brand.promo', version: '1.0.0' },
+    origin: { host: 'codex' },
+    brief: { goal: 'Provider recovery test', durationSeconds: 60 },
+  })
+  await service.command('project-1', runId, {
+    commandId: `${runId}-direction`, expectedRevision: 0, type: 'gate.decide',
+    payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
+  })
+  await waitFor(() => service.readFull('project-1', runId).status === 'awaiting_storyboard_review')
+  const planned = service.readFull('project-1', runId)
+  return service.command('project-1', runId, {
+    commandId: `${runId}-attach`, expectedRevision: planned.revision, type: 'plan.attach',
+    payload: { artifactId: planned.artifacts.find((item) => item.kind === 'storyboard')?.artifactId, bindings },
+    issuedAt: new Date().toISOString(),
+  })
 }
 
 describe('ProductionRunService driver round 1', () => {
@@ -80,7 +105,7 @@ describe('ProductionRunService driver round 1', () => {
     await expect(service.command('project-1', 'run-driver-2', {
       commandId: 'incomplete-contract-1', expectedRevision: attached.run.revision, type: 'gate.decide',
       payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
-    })).rejects.toThrow(/未设置硬预算上限.*供应商「local」.*模型「demo-video」/)
+    })).rejects.toThrow(/未设置本次制作授权上限.*供应商「local」.*模型「demo-video」/)
     expect(service.readFull('project-1', 'run-driver-2')).toMatchObject({
       revision: attached.run.revision,
       status: 'awaiting_contract',
@@ -116,7 +141,7 @@ describe('ProductionRunService driver round 1', () => {
     const requestRenderer = async (op: string) => {
       calls.push(op)
       if (op === 'production.plan-storyboard') return { plan: { title: 'Nomi promo', anchors: [], shots: [{ index: 1, shotKind: 'video', prompt: 'show Nomi' }] } }
-      if (op === 'production.generate-node') return { assets: [{ type: 'video', url: 'nomi-local://asset/project-1/assets/generated/shot.mp4' }] }
+      if (op === 'production.generate-node') return { providerTaskId: 'provider-shot-1', assets: [{ type: 'video', url: 'nomi-local://asset/project-1/assets/generated/shot.mp4' }] }
       if (op === 'production.arrange') return { arranged: 1, total: 1 }
       if (op === 'production.export') {
         fs.writeFileSync(path.join(root, 'exports/nomi-run-driver-3.mp4'), 'mp4', 'utf8')
@@ -129,6 +154,7 @@ describe('ProductionRunService driver round 1', () => {
       repository,
       projectRootResolver: () => root,
       requestRenderer,
+      preflightProviderModel: () => undefined,
       policyResolver: () => ({ trustedHosts: ['nomi', 'codex'], allowedProviders: ['local'], allowedModels: ['demo-video'], maxSpend: 10, maxAttemptsPerJob: 1 }),
     })
     service.createDraft({
@@ -211,5 +237,247 @@ describe('ProductionRunService driver round 1', () => {
     await waitFor(() => service.readFull('project-1', 'run-driver-recovery').jobs[0].status === 'adopted')
     expect(service.readFull('project-1', 'run-driver-recovery').artifacts.some((artifact) => artifact.kind === 'video')).toBe(true)
     expect(rendererCalls).not.toContain('production.generate-node')
+  })
+
+  it('rejects an unavailable provider before contract approval and leaves the gate waiting', async () => {
+    const root = makeRoot()
+    const calls: string[] = []
+    const repository = createProductionRunRepository({ projectDirResolver: () => root })
+    const service = createProductionRunService({
+      repository,
+      projectRootResolver: () => root,
+      requestRenderer: async (op) => {
+        calls.push(op)
+        if (op === 'production.plan-storyboard') return { plan: { shots: [{ index: 1, prompt: 'shot' }] } }
+        throw new Error(`unexpected renderer op: ${op}`)
+      },
+      preflightProviderModel: () => { throw new Error('API key missing: broken-relay') },
+      policyResolver: () => ({ trustedHosts: ['codex'], allowedProviders: ['broken-relay'], allowedModels: ['same-model'], maxSpend: 10 }),
+    })
+    const attached = await prepareContract(service, 'run-preflight-before-approval')
+
+    await expect(service.command('project-1', attached.run.runId, {
+      commandId: 'approve-broken-provider', expectedRevision: attached.run.revision, type: 'gate.decide',
+      payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
+    })).rejects.toThrow(/broken-relay.*same-model.*API key missing/)
+
+    const blocked = service.readFull('project-1', attached.run.runId)
+    expect(blocked.gates.find((gate) => gate.gateId === 'gate-contract-v1')?.status).toBe('waiting')
+    expect(blocked.jobs[0].status).toBe('authorization_required')
+    expect(blocked.budget).toMatchObject({ authorized: 0, reserved: 0, actual: 0, unsettled: 0 })
+    expect(calls).not.toContain('production.generate-node')
+  })
+
+  it('records a provider that becomes unavailable after approval as not_dispatched', async () => {
+    const root = makeRoot()
+    const calls: string[] = []
+    let preflightCalls = 0
+    const repository = createProductionRunRepository({ projectDirResolver: () => root })
+    const service = createProductionRunService({
+      repository,
+      projectRootResolver: () => root,
+      requestRenderer: async (op) => {
+        calls.push(op)
+        if (op === 'production.plan-storyboard') return { plan: { shots: [{ index: 1, prompt: 'shot' }] } }
+        throw new Error(`unexpected renderer op: ${op}`)
+      },
+      preflightProviderModel: () => {
+        preflightCalls += 1
+        if (preflightCalls > 1) throw new Error('API key missing: broken-relay')
+      },
+      policyResolver: () => ({ trustedHosts: ['codex'], allowedProviders: ['broken-relay'], allowedModels: ['same-model'], maxSpend: 10 }),
+    })
+    const attached = await prepareContract(service, 'run-preflight-after-approval')
+    await service.command('project-1', attached.run.runId, {
+      commandId: 'approve-then-key-removed', expectedRevision: attached.run.revision, type: 'gate.decide',
+      payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
+    })
+    await waitFor(() => service.readFull('project-1', attached.run.runId).jobs[0].status === 'not_dispatched')
+
+    const blocked = service.readFull('project-1', attached.run.runId)
+    expect(blocked.status).toBe('needs_attention')
+    expect(blocked.jobs[0]).toMatchObject({ status: 'not_dispatched', errorCode: 'provider_preflight_failed' })
+    expect(calls).not.toContain('production.generate-node')
+    const projectedEvents = await service.readEvents('project-1', attached.run.runId)
+    expect(projectedEvents.events.some((event) => event.type === 'job.not_dispatched')).toBe(true)
+  })
+
+  it('preserves renderer not_dispatched state and forwards the durable idempotency key', async () => {
+    const root = makeRoot()
+    const generationPayloads: Array<Record<string, unknown>> = []
+    const repository = createProductionRunRepository({ projectDirResolver: () => root })
+    const service = createProductionRunService({
+      repository,
+      projectRootResolver: () => root,
+      requestRenderer: async (op, payload) => {
+        if (op === 'production.plan-storyboard') return { plan: { shots: [{ index: 1, prompt: 'shot' }] } }
+        if (op === 'production.generate-node') {
+          generationPayloads.push(payload as Record<string, unknown>)
+          expect(repository.read('project-1', 'run-renderer-not-dispatched')?.jobs[0].status).toBe('submitting')
+          expect(repository.read('project-1', 'run-renderer-not-dispatched')?.budget.reserved).toBe(10)
+          throw Object.assign(new Error('API key missing: broken-relay'), {
+            code: 'api_key_missing',
+            dispatchState: 'not_dispatched',
+          })
+        }
+        throw new Error(`unexpected renderer op: ${op}`)
+      },
+      preflightProviderModel: () => undefined,
+      policyResolver: () => ({ trustedHosts: ['codex'], allowedProviders: ['broken-relay'], allowedModels: ['same-model'], maxSpend: 10 }),
+    })
+    const attached = await prepareContract(service, 'run-renderer-not-dispatched')
+    const durableKey = attached.run.jobs[0].idempotencyKey
+    await service.command('project-1', attached.run.runId, {
+      commandId: 'approve-renderer-local-failure', expectedRevision: attached.run.revision, type: 'gate.decide',
+      payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
+    })
+    await waitFor(() => service.readFull('project-1', attached.run.runId).jobs[0].status === 'not_dispatched')
+
+    const blocked = service.readFull('project-1', attached.run.runId)
+    expect(blocked.jobs[0]).toMatchObject({ status: 'not_dispatched', errorCode: 'api_key_missing' })
+    expect(blocked.jobs.some((job) => job.status === 'submission_unknown')).toBe(false)
+    expect(generationPayloads).toEqual([expect.objectContaining({
+      idempotencyKey: durableKey,
+      provider: 'broken-relay',
+      model: 'same-model',
+    })])
+  })
+
+  it('revokes the old approval and creates an unapproved replacement contract without resubmitting', async () => {
+    const root = makeRoot()
+    const calls: string[] = []
+    const repository = createProductionRunRepository({ projectDirResolver: () => root })
+    const service = createProductionRunService({
+      repository,
+      projectRootResolver: () => root,
+      requestRenderer: async (op, payload) => {
+        calls.push(op)
+        if (op === 'production.plan-storyboard') return { plan: { shots: [{ index: 1, prompt: 'shot' }, { index: 2, prompt: 'shot' }] } }
+        if (op === 'production.generate-node') throw Object.assign(new Error('API key missing: broken-relay'), {
+          code: 'api_key_missing',
+          dispatchState: 'not_dispatched',
+        })
+        if (op === 'production.rebind-nodes') return { previousBindings: [] }
+        throw new Error(`unexpected renderer op: ${op}`)
+      },
+      preflightProviderModel: () => undefined,
+      policyResolver: () => ({ trustedHosts: ['codex'], allowedProviders: ['broken-relay', 'healthy-relay'], allowedModels: ['same-model', 'other-model'], maxSpend: 10 }),
+    })
+    const attached = await prepareContract(service, 'run-provider-rebind', [
+      { nodeId: 'shot-1', provider: 'broken-relay', model: 'same-model', stageId: 'generate' },
+      { nodeId: 'shot-2', provider: 'healthy-relay', model: 'other-model', stageId: 'generate' },
+    ])
+    await service.command('project-1', attached.run.runId, {
+      commandId: 'approve-old-contract', expectedRevision: attached.run.revision, type: 'gate.decide',
+      payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
+    })
+    await waitFor(() => service.readFull('project-1', attached.run.runId).jobs[0].status === 'not_dispatched')
+    const failed = service.readFull('project-1', attached.run.runId)
+    expect(failed.jobs.map((job) => job.status)).toEqual(['not_dispatched', 'authorized'])
+    expect(failed.budget.authorized).toBe(10)
+    expect(failed.budget.reserved).toBe(0)
+    expect(calls.filter((op) => op === 'production.generate-node')).toHaveLength(1)
+
+    const rebound = await service.command('project-1', failed.runId, {
+      commandId: 'replace-broken-provider', expectedRevision: failed.revision, type: 'plan.rebind-provider',
+      payload: {
+        replacements: [{ jobId: failed.jobs[0].jobId, provider: 'apimart', model: 'same-model' }],
+      },
+      issuedAt: new Date().toISOString(),
+    })
+
+    expect(rebound.run).toMatchObject({ planVersion: 2, status: 'awaiting_contract' })
+    expect(rebound.run.jobs.slice(0, 2).map((job) => job.status)).toEqual(['detached', 'detached'])
+    expect(rebound.run.jobs.slice(2).map((job) => ({ status: job.status, provider: job.provider }))).toEqual([
+      { status: 'authorization_required', provider: 'apimart' },
+      { status: 'authorization_required', provider: 'healthy-relay' },
+    ])
+    expect(rebound.run.gates.find((gate) => gate.gateId === 'gate-contract-v1')?.status).toBe('revoked')
+    expect(rebound.run.gates.find((gate) => gate.gateId === 'gate-contract-v2')?.status).toBe('waiting')
+    expect(rebound.run.budget).toMatchObject({ authorized: 0, reserved: 0, actual: 0, unsettled: 0 })
+    expect(repository.readApprovals('project-1', failed.runId).find((approval) => approval.approvalId === 'approval:gate-contract-v1')?.revokedAt).toBeTruthy()
+    expect(repository.readApprovals('project-1', failed.runId).some((approval) => approval.approvalId === 'approval:gate-contract-v2')).toBe(false)
+    expect(calls.filter((op) => op === 'production.generate-node')).toHaveLength(1)
+    expect(rebound.run.jobs.slice(2).map((job) => job.idempotencyKey)).toEqual([
+      `production:${failed.runId}:v2:shot-1`,
+      `production:${failed.runId}:v2:shot-2`,
+    ])
+    const events = await service.readEvents('project-1', failed.runId)
+    expect(events.events.some((event) => event.type === 'plan.rebound')).toBe(true)
+  })
+
+  it('rejects a contract whose visible gate omits an active executable job', async () => {
+    const root = makeRoot()
+    const calls: string[] = []
+    const repository = createProductionRunRepository({ projectDirResolver: () => root })
+    const service = createProductionRunService({
+      repository,
+      projectRootResolver: () => root,
+      requestRenderer: async (op) => {
+        calls.push(op)
+        if (op === 'production.plan-storyboard') return { plan: { shots: [{ index: 1, prompt: 'shot' }] } }
+        throw new Error(`unexpected renderer op: ${op}`)
+      },
+      preflightProviderModel: () => undefined,
+      policyResolver: () => ({ trustedHosts: ['codex'], allowedProviders: ['relay'], allowedModels: ['model'], maxSpend: 10 }),
+    })
+    const attached = await prepareContract(service, 'run-incomplete-gate', [
+      { nodeId: 'shot-1', provider: 'relay', model: 'model', stageId: 'generate' },
+    ])
+    const withHiddenJob = repository.execute('project-1', attached.run.runId, {
+      commandId: 'inject-hidden-active-job',
+      expectedRevision: attached.run.revision,
+      type: 'job.add',
+      payload: {
+        job: {
+          jobId: 'job:hidden', stageId: 'generate', status: 'authorization_required', attempt: 0,
+          provider: 'relay', model: 'model', idempotencyKey: 'hidden-job-key', nodeId: 'shot-hidden',
+          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        },
+      },
+      issuedAt: new Date().toISOString(),
+    })
+
+    await expect(service.command('project-1', attached.run.runId, {
+      commandId: 'approve-incomplete-gate', expectedRevision: withHiddenJob.run.revision, type: 'gate.decide',
+      payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
+    })).rejects.toThrow(/任务范围不完整/)
+    expect(calls).not.toContain('production.generate-node')
+  })
+
+  it('never switches provider while a submission receipt is genuinely unknown', async () => {
+    const root = makeRoot()
+    const calls: string[] = []
+    const repository = createProductionRunRepository({ projectDirResolver: () => root })
+    const service = createProductionRunService({
+      repository,
+      projectRootResolver: () => root,
+      requestRenderer: async (op) => {
+        calls.push(op)
+        if (op === 'production.plan-storyboard') return { plan: { shots: [{ index: 1, prompt: 'shot' }] } }
+        if (op === 'production.generate-node') throw new Error('connection lost after dispatch boundary')
+        if (op === 'production.rebind-nodes') return { previousBindings: [] }
+        throw new Error(`unexpected renderer op: ${op}`)
+      },
+      preflightProviderModel: () => undefined,
+      policyResolver: () => ({ trustedHosts: ['codex'], allowedProviders: ['relay'], allowedModels: ['model'], maxSpend: 10 }),
+    })
+    const attached = await prepareContract(service, 'run-unknown-no-switch', [
+      { nodeId: 'shot-1', provider: 'relay', model: 'model', stageId: 'generate' },
+    ])
+    await service.command('project-1', attached.run.runId, {
+      commandId: 'approve-unknown', expectedRevision: attached.run.revision, type: 'gate.decide',
+      payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
+    })
+    await waitFor(() => service.readFull('project-1', attached.run.runId).jobs[0].status === 'submission_unknown')
+    const unknown = service.readFull('project-1', attached.run.runId)
+
+    await expect(service.command('project-1', unknown.runId, {
+      commandId: 'unsafe-switch', expectedRevision: unknown.revision, type: 'plan.rebind-provider',
+      payload: { replacements: [{ jobId: unknown.jobs[0].jobId, provider: 'other-relay', model: 'model' }] },
+      issuedAt: new Date().toISOString(),
+    })).rejects.toThrow(/不能安全换供应商|cannot be safely/i)
+    expect(calls.filter((op) => op === 'production.generate-node')).toHaveLength(1)
+    expect(calls).not.toContain('production.rebind-nodes')
   })
 })

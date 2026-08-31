@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const panel = fs.readFileSync(path.join(process.cwd(), 'src/workbench/production/ProductionStatusPanel.tsx'), 'utf8')
 const assistant = fs.readFileSync(path.join(process.cwd(), 'src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx'), 'utf8')
+const activeRun = fs.readFileSync(path.join(process.cwd(), 'src/workbench/production/useActiveProductionRun.ts'), 'utf8')
 
 describe('production status panel structure', () => {
   it('renders one status, one preview, one primary action, and one details disclosure', () => {
@@ -23,5 +24,12 @@ describe('production status panel structure', () => {
     expect(panel).not.toContain('?? 0')
     expect(assistant.indexOf('<ProductionStatusPanel')).toBeGreaterThan(-1)
     expect(assistant.indexOf('<ProductionStatusPanel')).toBeLessThan(assistant.indexOf('<AssistantTimeline'))
+  })
+
+  it('reacts to the authoritative desktop project instead of waiting for persistence binding', () => {
+    expect(activeRun).toContain('useSyncExternalStore')
+    expect(activeRun).toContain('subscribeDesktopActiveProjectIdChange')
+    expect(activeRun).toContain('getDesktopActiveProjectId')
+    expect(activeRun).not.toContain('getActiveWorkbenchProjectId')
   })
 })

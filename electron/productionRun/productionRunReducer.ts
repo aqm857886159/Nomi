@@ -180,6 +180,64 @@ export function applyProductionCommand(
         : attached;
       return { run, eventType: "plan.attached", message: nextArtifact.artifactId };
     }
+    case "plan.rebind": {
+      const jobs = Array.isArray(command.payload.jobs)
+        ? command.payload.jobs.map((item) => item && typeof item === "object" && !Array.isArray(item) ? item as ProductionJob : (() => { throw new Error("Invalid replacement production job"); })())
+        : [];
+      const oldJobIds = Array.isArray(command.payload.oldJobIds)
+        ? command.payload.oldJobIds.filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
+        : [];
+      const revokedGateIds = Array.isArray(command.payload.revokedGateIds)
+        ? command.payload.revokedGateIds.filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
+        : [];
+      const gate = record(command.payload, "gate") as unknown as ProductionGate;
+      const planVersion = Number(command.payload.planVersion);
+      if (!Number.isInteger(planVersion) || planVersion !== current.planVersion + 1) throw new Error("Invalid replacement plan version");
+      if (jobs.length === 0 || oldJobIds.length !== jobs.length) throw new Error("Replacement jobs are required");
+      if (current.gates.some((item) => item.gateId === gate.gateId)) throw new Error(`Duplicate gate: ${gate.gateId}`);
+      if (jobs.some((job) => current.jobs.some((item) => item.jobId === job.jobId))) throw new Error("Duplicate replacement production job");
+      const replaceable = new Set(["authorization_required", "authorized", "not_dispatched", "needs_attention"]);
+      for (const jobId of oldJobIds) {
+        const previous = current.jobs.find((item) => item.jobId === jobId);
+        if (!previous || !replaceable.has(previous.status) || previous.providerTaskId) {
+          throw new Error(`Production job cannot be safely replaced: ${jobId}`);
+        }
+      }
+      const detachedJobs = current.jobs.map((job) => {
+        if (!oldJobIds.includes(job.jobId)) return job;
+        const safelyStopped = job.status === "needs_attention"
+          ? job
+          : job.status === "not_dispatched"
+            ? job
+            : transitionJob(job, "not_dispatched", now);
+        return transitionJob(safelyStopped, "detached", now);
+      });
+      const gates = current.gates.map((item) => revokedGateIds.includes(item.gateId) && item.status !== "revoked"
+        ? { ...item, status: "revoked" as const, decidedAt: now }
+        : item);
+      const stages = current.stages.map((stage) => stage.stageId === "generate"
+        ? { ...stage, status: "awaiting_gate" as const, completedAt: undefined }
+        : stage);
+      const policy = {
+        ...current.policy,
+        allowedProviders: [...new Set([...current.policy.allowedProviders, ...jobs.map((job) => job.provider)])],
+        allowedModels: [...new Set([...current.policy.allowedModels, ...jobs.map((job) => job.model)])],
+      };
+      const rebound = {
+        ...current,
+        planVersion,
+        policy,
+        jobs: [...detachedJobs, ...jobs],
+        gates: [...gates, gate],
+        stages,
+        stageId: "generate",
+        updatedAt: now,
+      };
+      const run = current.status === "needs_attention"
+        ? transitionRun(rebound, "awaiting_contract", now)
+        : { ...rebound, status: "awaiting_contract" as const };
+      return { run, eventType: "plan.rebound", message: gate.gateId };
+    }
     case "skill.evidence": {
       const skillName = text(command.payload, "skillName");
       return { run: { ...current, updatedAt: now }, eventType: "skill.loaded", message: skillName };

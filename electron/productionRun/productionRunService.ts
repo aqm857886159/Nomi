@@ -13,49 +13,40 @@ import {
   getArtifactPreviewSecret,
   resolveOwnedArtifactFile,
   verifyArtifactPreviewHandle,
-  type ArtifactProjection,
 } from './artifactProjection'
-import { buildProductionDeepLink } from './productionDeepLink'
-import { safeExternalText, safeProductionContract } from './productionRunProjectionSanitizer'
 import { readAutomationPolicySettings } from '../settings/automationPolicySettings'
 import { assertProductionPolicyReady } from './productionPolicyReadiness'
+import { findExecutableModel } from '../catalog/executableModel'
+import {
+  ProductionProviderUnavailableError,
+  rebindProductionProvider,
+  type ProductionProviderPreflight,
+} from './productionProviderRecovery'
+import {
+  SubmissionNotDispatchedError,
+  createSubmissionOutbox,
+} from './submissionOutbox'
+import {
+  createProductionArtifactMetadataProjection,
+  createProductionEventProjection,
+  createProductionRunProjection,
+  isMeaningfulProductionEvent,
+  type ProductionArtifactProjection,
+  type ProductionEventProjection,
+  type ProductionRunProjection,
+} from './productionRunProjection'
 import type {
   AutomationPolicy,
   CreateProductionRunInput,
-  ProductionArtifact,
   ProductionRun,
-  RunEvent,
   RunCommand,
 } from './productionRunTypes'
 
-type SafeProductionGate = Omit<ProductionRun['gates'][number], 'planHash' | 'jobIds' | 'contract'> & {
-  contract?: ReturnType<typeof safeProductionContract>
-}
-type SafeProductionJob = Pick<ProductionRun['jobs'][number], 'jobId' | 'stageId' | 'status' | 'attempt' | 'progressPercent' | 'lastPollAt' | 'lastVendorStateChangeAt' | 'createdAt' | 'updatedAt' | 'errorCode'>
-export type ProductionRunProjection = {
-  schemaVersion: number
-  runId: string
-  projectId: string
-  revision: number
-  status: ProductionRun['status']
-  stageId: string
-  playbook: ProductionRun['playbook']
-  origin: ProductionRun['origin']
-  budget: ProductionRun['budget']
-  planVersion: number
-  snapshotCursor: number
-  stages: ProductionRun['stages']
-  gates: SafeProductionGate[]
-  jobs: SafeProductionJob[]
-  artifacts: Array<Omit<ArtifactProjection, 'projectId' | 'runId' | 'openInNomi'>>
-  createdAt: string
-  updatedAt: string
-  openInNomi: string
-}
-
-export type ProductionEventProjection = Pick<RunEvent, 'schemaVersion' | 'eventId' | 'cursor' | 'runId' | 'runRevision' | 'commandId' | 'type' | 'message' | 'emittedAt' | 'stageId' | 'jobId' | 'artifactId' | 'causationId' | 'correlationId' | 'attemptId' | 'providerOccurredAt'>
-
-export type ProductionArtifactProjection = ArtifactProjection
+export type {
+  ProductionArtifactProjection,
+  ProductionEventProjection,
+  ProductionRunProjection,
+} from './productionRunProjection'
 
 type ServiceDeps = {
   repository?: ProductionRunRepository
@@ -69,27 +60,16 @@ type ServiceDeps = {
     assets?: Array<{ type?: string; url?: string; thumbnailUrl?: string }>
     error?: string
   }>
+  preflightProviderModel?: ProductionProviderPreflight
 }
 
-const MEANINGFUL_EVENT_TYPES = new Set([
-  'run.created',
-  'run.status.changed',
-  'run.stage.changed',
-  'stage.updated',
-  'gate.waiting',
-  'gate.decided',
-  'artifact.ready',
-  'artifact.adopted',
-  'job.ready',
-  'job.adopted',
-  'job.submission_unknown',
-  'job.needs_attention',
-  'job.vendor_state_stale',
-  'skill.loaded',
-  'skill.applied',
-  'plan.proposed',
-  'plan.attached',
-])
+function rendererDispatchState(error: unknown): 'not_dispatched' | 'submission_unknown' | 'provider_accepted' | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const state = (error as { dispatchState?: unknown }).dispatchState
+  if (state === 'not_dispatched' || state === 'submission_unknown' || state === 'provider_accepted') return state
+  if ((error as { name?: unknown }).name === 'RendererUnavailableError') return 'not_dispatched'
+  return undefined
+}
 
 function identifier(value: string, label: string): string {
   const normalized = String(value || '').trim()
@@ -103,106 +83,6 @@ function artifactIdentifierForJob(jobId: string): string {
   const base = jobId.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 96) || 'job'
   const suffix = crypto.createHash('sha256').update(jobId).digest('hex').slice(0, 10)
   return `artifact-job-${base}-${suffix}`
-}
-
-function metadataProjection(run: ProductionRun, artifact: ProductionArtifact): Omit<ArtifactProjection, 'preview'> {
-  return {
-    artifactId: artifact.artifactId,
-    runId: run.runId,
-    projectId: run.projectId,
-    stageId: artifact.stageId,
-    ...(artifact.jobId ? { jobId: artifact.jobId } : {}),
-    kind: artifact.kind,
-    status: artifact.status,
-    createdAt: artifact.createdAt,
-    ...(artifact.adoptedAt ? { adoptedAt: artifact.adoptedAt } : {}),
-    nomiUri: `nomi://project/${encodeURIComponent(run.projectId)}/run/${encodeURIComponent(run.runId)}/artifact/${encodeURIComponent(artifact.artifactId)}`,
-    openInNomi: buildProductionDeepLink(run.projectId, run.runId, artifact.artifactId),
-  }
-}
-
-function safeRunProjection(run: ProductionRun): Omit<ProductionRunProjection, 'artifacts' | 'openInNomi'> {
-  return {
-    schemaVersion: run.schemaVersion,
-    runId: run.runId,
-    projectId: run.projectId,
-    revision: run.revision,
-    status: run.status,
-    stageId: run.stageId,
-    playbook: { name: run.playbook.name, version: run.playbook.version },
-    origin: { host: run.origin.host, ...(run.origin.actorId ? { actorId: run.origin.actorId } : {}) },
-    budget: { ...run.budget },
-    planVersion: run.planVersion,
-    snapshotCursor: run.snapshotCursor,
-    stages: run.stages.map((stage) => ({
-      stageId: stage.stageId, title: safeExternalText(stage.title), status: stage.status, order: stage.order,
-      ...(stage.startedAt ? { startedAt: stage.startedAt } : {}),
-      ...(stage.completedAt ? { completedAt: stage.completedAt } : {}),
-    })),
-    gates: run.gates.map((gate) => ({
-      gateId: gate.gateId, scope: gate.scope, status: gate.status, title: safeExternalText(gate.title), summary: safeExternalText(gate.summary),
-      createdAt: gate.createdAt, expiresAt: gate.expiresAt, ...(gate.decidedAt ? { decidedAt: gate.decidedAt } : {}),
-      ...(gate.contract ? { contract: safeProductionContract(gate.contract) } : {}),
-    })),
-    jobs: run.jobs.map((job) => ({
-      jobId: job.jobId, stageId: job.stageId, status: job.status, attempt: job.attempt,
-      ...(job.progressPercent !== undefined ? { progressPercent: job.progressPercent } : {}),
-      ...(job.lastPollAt ? { lastPollAt: job.lastPollAt } : {}),
-      ...(job.lastVendorStateChangeAt ? { lastVendorStateChangeAt: job.lastVendorStateChangeAt } : {}),
-      ...(job.errorCode ? { errorCode: job.errorCode } : {}),
-      createdAt: job.createdAt, updatedAt: job.updatedAt,
-    })),
-    createdAt: run.createdAt,
-    updatedAt: run.updatedAt,
-  }
-}
-
-function runProjection(
-  run: ProductionRun,
-  projectRootResolver: (projectId: string) => string | null,
-  previewSecret: string,
-): ProductionRunProjection {
-  const { artifacts } = run
-  const safeRun = safeRunProjection(run)
-  return {
-    ...safeRun,
-    artifacts: artifacts.map((artifact) => {
-      const root = projectRootResolver(run.projectId)
-      if (root && (artifact.projectRelativePath || artifact.thumbnailRelativePath)) {
-        try {
-          const projected = createArtifactProjection({ projectRoot: root, run, artifact, secret: previewSecret })
-          const { runId: _runId, projectId: _projectId, openInNomi: _openInNomi, ...safeArtifact } = projected
-          return safeArtifact
-        } catch {
-          // Missing or changed files must not hide the Run itself; expose metadata without a preview.
-        }
-      }
-      const { runId: _runId, projectId: _projectId, openInNomi: _openInNomi, ...safeArtifact } = metadataProjection(run, artifact)
-      return safeArtifact
-    }),
-    openInNomi: buildProductionDeepLink(run.projectId, run.runId),
-  }
-}
-
-function eventProjection(event: RunEvent): ProductionEventProjection {
-  return {
-    schemaVersion: event.schemaVersion,
-    eventId: event.eventId,
-    cursor: event.cursor,
-    runId: event.runId,
-    runRevision: event.runRevision,
-    commandId: event.commandId,
-    type: event.type,
-    message: safeExternalText(event.message),
-    emittedAt: event.emittedAt,
-    ...(event.stageId ? { stageId: event.stageId } : {}),
-    ...(event.jobId ? { jobId: event.jobId } : {}),
-    ...(event.artifactId ? { artifactId: event.artifactId } : {}),
-    ...(event.causationId ? { causationId: event.causationId } : {}),
-    ...(event.correlationId ? { correlationId: event.correlationId } : {}),
-    ...(event.attemptId ? { attemptId: event.attemptId } : {}),
-    ...(event.providerOccurredAt ? { providerOccurredAt: event.providerOccurredAt } : {}),
-  }
 }
 
 export function createProductionRunService(deps: ServiceDeps = {}) {
@@ -226,6 +106,9 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       minimizeUploads: settings.minimizeUploads,
     }
   })
+  const preflightProviderModel = deps.preflightProviderModel ?? ((job) => {
+    findExecutableModel(job.provider, job.model)
+  })
   const inFlight = new Set<string>()
   const recoveryInFlight = new Set<string>()
   const reconciliationInFlight = new Set<string>()
@@ -240,6 +123,42 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       modelKey: job.model,
     })
     return response.result
+  })
+  const submissionOutbox = createSubmissionOutbox({
+    repository,
+    dispatch: async (input) => {
+      try {
+        const result = await requestRenderer('production.generate-node', {
+          projectId: input.run.projectId,
+          runId: input.run.runId,
+          jobId: input.job.jobId,
+          nodeId: input.job.nodeId,
+          provider: input.job.provider,
+          model: input.job.model,
+          maxAttemptsPerJob: input.run.policy.maxAttemptsPerJob,
+          idempotencyKey: input.idempotencyKey,
+        }, 30 * 60_000) as {
+          providerTaskId?: string
+          assets?: Array<{ type?: string; url?: string; thumbnailUrl?: string }>
+        }
+        const providerTaskId = typeof result?.providerTaskId === 'string' ? result.providerTaskId.trim() : ''
+        if (!providerTaskId) throw new Error('Provider completed without a durable task receipt')
+        return { providerTaskId, result }
+      } catch (error) {
+        if (rendererDispatchState(error) === 'not_dispatched') {
+          throw new SubmissionNotDispatchedError(
+            error instanceof Error ? error.message : String(error),
+            {
+              code: typeof (error as { code?: unknown })?.code === 'string'
+                ? (error as { code: string }).code
+                : 'renderer_not_dispatched',
+              retryable: false,
+            },
+          )
+        }
+        throw error
+      }
+    },
   })
 
   function requireRun(projectId: string, runId: string): ProductionRun {
@@ -260,7 +179,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
     if (!['draft', 'awaiting_direction'].includes(run.status) || run.jobs.length > 0 || (run.status === 'draft' && run.gates.length > 0) || run.budget.authorized !== 0) {
       throw new Error('Production draft invariant failed')
     }
-    return runProjection(run, projectRootResolver, previewSecret)
+    return createProductionRunProjection(run, projectRootResolver, previewSecret)
   }
 
   function writeProjectJson(projectId: string, relativePath: string, value: unknown): void {
@@ -391,21 +310,54 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       if (current.status === 'ready') {
         current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'running' }, `driver-${run.runId}-generation-start`).run
       }
-      const jobs = current.jobs.filter((job) => job.status === 'authorized' || job.status === 'submit_intent_persisted')
+      const approvedGate = current.gates.find((gate) =>
+        gate.gateId === `gate-contract-v${current.planVersion}`
+        && gate.scope === 'budget_envelope'
+        && gate.status === 'approved')
+      if (!approvedGate) throw new Error('Production generation has no approved contract for the active plan')
+      const approvedJobIds = new Set(approvedGate.jobIds)
+      const jobs = current.jobs.filter((job) =>
+        approvedJobIds.has(job.jobId)
+        && (job.status === 'authorized' || job.status === 'submit_intent_persisted'))
+      const approval = repository.readApprovals(run.projectId, run.runId)
+        .find((item) => item.approvalId === `approval:${approvedGate.gateId}`)
+      if (!approval) throw new Error('Production contract approval record is missing')
+      const perJobCeiling = approvedGate.jobIds.length > 0
+        ? approval.maxSpend / approvedGate.jobIds.length
+        : 0
       for (const job of jobs) {
         current = requireRun(run.projectId, run.runId)
-        if (job.status === 'authorized') current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'submit_intent_persisted' }, `driver-${job.jobId}-intent`).run
-        current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'submitting' }, `driver-${job.jobId}-submit`).run
+        const currentJob = current.jobs.find((candidate) => candidate.jobId === job.jobId)
+        if (!currentJob || !['authorized', 'submit_intent_persisted'].includes(currentJob.status)) continue
         try {
-          const result = await requestRenderer('production.generate-node', {
+          await preflightProviderModel(currentJob)
+        } catch (error) {
+          current = executeInternal(run.projectId, run.runId, current, 'job.status', {
+            jobId: job.jobId,
+            status: 'not_dispatched',
+            patch: {
+              errorCode: 'provider_preflight_failed',
+              errorMessage: error instanceof Error ? error.message : String(error),
+            },
+          }, `driver-${job.jobId}-not-dispatched-${current.revision}`).run
+          if (current.status !== 'needs_attention') {
+            current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'needs_attention' }, `driver-${run.runId}-preflight-attention-${current.revision}`).run
+          }
+          return
+        }
+        try {
+          const submission = await submissionOutbox.submit({
             projectId: run.projectId,
             runId: run.runId,
             jobId: job.jobId,
-            nodeId: job.nodeId,
-            maxAttemptsPerJob: current.policy.maxAttemptsPerJob,
-            idempotencyKey: job.idempotencyKey,
-          }, 30 * 60_000) as { assets?: Array<{ type?: string; url?: string; thumbnailUrl?: string }> }
-          for (const status of ['provider_accepted', 'polling', 'downloading', 'validating_technical', 'validating_content'] as const) {
+            approvalId: approval.approvalId,
+            planHash: approvedGate.planHash,
+            costCeiling: perJobCeiling,
+            currency: approval.currency,
+          })
+          const result = submission.result as { assets?: Array<{ type?: string; url?: string; thumbnailUrl?: string }> } | undefined
+          current = submission.run
+          for (const status of ['polling', 'downloading', 'validating_technical', 'validating_content'] as const) {
             current = requireRun(run.projectId, run.runId)
             current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status }, `driver-${job.jobId}-${status}`).run
           }
@@ -429,9 +381,6 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
           }
         } catch (error) {
           current = requireRun(run.projectId, run.runId)
-          if (current.jobs.find((candidate) => candidate.jobId === job.jobId)?.status === 'submitting') {
-            current = executeInternal(run.projectId, run.runId, current, 'job.status', { jobId: job.jobId, status: 'submission_unknown', patch: { errorCode: 'renderer_or_provider_unknown', errorMessage: '生成提交结果无法确认' } }, `driver-${job.jobId}-unknown-${current.revision}`).run
-          }
           if (current.status !== 'needs_attention') {
             try { current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'needs_attention' }, `driver-${run.runId}-generation-attention-${current.revision}`).run } catch { /* preserve unknown job state */ }
           }
@@ -596,6 +545,18 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       void driveReconciliation(safeProjectId, safeRunId, jobId)
       return result
     }
+    if (runCommand.type === 'plan.rebind-provider') {
+      const current = requireRun(safeProjectId, safeRunId)
+      return rebindProductionProvider({
+        projectId: safeProjectId,
+        runId: safeRunId,
+        current,
+        command: runCommand,
+        repository,
+        requestRenderer,
+        preflightProviderModel,
+      })
+    }
     if (runCommand.type === 'plan.attach') {
       const current = requireRun(safeProjectId, safeRunId)
       const artifactId = typeof runCommand.payload.artifactId === 'string' ? runCommand.payload.artifactId : ''
@@ -623,7 +584,6 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
           updatedAt: new Date().toISOString(),
         }
       })
-      const maxSpend = current.policy.maxSpend
       const gate = {
         gateId: `gate-contract-v${current.planVersion}`,
         scope: 'budget_envelope' as const,
@@ -631,13 +591,12 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
         planHash: typeof runCommand.payload.planHash === 'string' ? runCommand.payload.planHash : crypto.createHash('sha256').update(JSON.stringify(runCommand.payload.bindings)).digest('hex'),
         jobIds: jobs.map((job) => job.jobId),
         title: 'Approve production contract and budget',
-        summary: 'Review shots, models, and the hard spend limit before Nomi submits any paid generation.',
+        summary: 'Review shots, models, and the production authorization limit before Nomi submits any paid generation.',
         contract: {
           specs: { durationSeconds: current.brief?.durationSeconds, shotCount: jobs.length },
-          claims: (current.brief?.sellingPoints || []).map((text, index) => ({ text, evidenceIds: [`brief-${index + 1}`] })),
-          evidence: (current.brief?.sellingPoints || []).map((label, index) => ({ evidenceId: `brief-${index + 1}`, label })),
+          claims: (current.brief?.sellingPoints || []).map((text) => ({ text, evidenceIds: [] })),
+          evidence: [],
           skills: [{ name: 'brand.promo', version: current.playbook.version }],
-          ...(maxSpend !== null ? { estimatedCost: { currency: current.budget.currency, minimum: 0, maximum: maxSpend } } : {}),
         },
         createdAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
@@ -660,7 +619,28 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
         const jobs = gate.jobIds
           .map((jobId) => current.jobs.find((job) => job.jobId === jobId))
           .filter((job): job is ProductionRun['jobs'][number] => Boolean(job))
+        const activeUnsubmittedJobIds = current.jobs
+          .filter((job) => !job.providerTaskId && [
+            'authorization_required',
+            'authorized',
+            'submit_intent_persisted',
+            'not_dispatched',
+            'needs_attention',
+          ].includes(job.status))
+          .map((job) => job.jobId)
+          .sort()
+        const gateJobIds = [...gate.jobIds].sort()
+        if (jobs.length !== gate.jobIds.length || JSON.stringify(activeUnsubmittedJobIds) !== JSON.stringify(gateJobIds)) {
+          throw new Error('制作合同任务范围不完整；请重新生成合同后再批准')
+        }
         assertProductionPolicyReady(current.policy, jobs)
+        for (const job of jobs) {
+          try {
+            await preflightProviderModel(job)
+          } catch (error) {
+            throw new ProductionProviderUnavailableError(job.provider, job.model, error)
+          }
+        }
       }
     }
     const result = repository.execute(safeProjectId, safeRunId, runCommand)
@@ -689,12 +669,19 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
         for (const job of current.jobs) {
           if (!['submitting', 'provider_accepted', 'polling', 'retry_wait', 'downloading', 'validating_technical', 'validating_content'].includes(job.status)) continue
           try {
+            const recoveryStatus = job.status === 'submitting' ? 'submission_unknown' : 'reconciling'
             current = executeInternal(safeProjectId, current.runId, current, 'job.status', {
               jobId: job.jobId,
-              status: 'submission_unknown',
-              patch: { errorCode: 'restart_recovery_required', errorMessage: 'Nomi 重启后无法确认供应商状态，请先对账' },
+              status: recoveryStatus,
+              patch: {
+                errorCode: job.status === 'submitting' ? 'restart_recovery_required' : 'restart_reconciling',
+                errorMessage: job.status === 'submitting'
+                  ? 'Nomi 重启时提交尚未落回执，请先对账'
+                  : 'Nomi 正在从已有供应商任务恢复进度，不会重新提交',
+              },
             }, `recovery-${current.runId}-${job.jobId}-${current.revision}`).run
             changedUnknown = true
+            if (recoveryStatus === 'reconciling') void driveReconciliation(safeProjectId, current.runId, job.jobId)
           } catch {
             // A concurrent command may have already reconciled this job.
           }
@@ -718,7 +705,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
 
   function readProjection(projectId: string, runId: string): ProductionRunProjection {
     void resumeUnfinishedRuns(projectId)
-    return runProjection(requireRun(projectId, runId), projectRootResolver, previewSecret)
+    return createProductionRunProjection(requireRun(projectId, runId), projectRootResolver, previewSecret)
   }
 
   function readFull(projectId: string, runId: string): ProductionRun {
@@ -739,7 +726,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       durableEvents = repository.readEvents(run.projectId, run.runId, cursor)
     }
     const nextCursor = durableEvents.reduce((latest, event) => Math.max(latest, event.cursor), cursor)
-    return { events: durableEvents.filter((event) => MEANINGFUL_EVENT_TYPES.has(event.type)).map(eventProjection), nextCursor }
+    return { events: durableEvents.filter(isMeaningfulProductionEvent).map(createProductionEventProjection), nextCursor }
   }
 
   function readArtifactProjection(projectId: string, runId: string, artifactId: string): ProductionArtifactProjection {
@@ -755,7 +742,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
         // Return safe metadata when a previously-ready file has been moved or removed.
       }
     }
-    return metadataProjection(run, artifact)
+    return createProductionArtifactMetadataProjection(run, artifact)
   }
 
   function resolveArtifactPreview(token: string): { filePath: string; expiresAt: string } {
@@ -773,7 +760,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
   }
 
   function listProjections(projectId: string): ProductionRunProjection[] {
-    return repository.list(identifier(projectId, 'project')).map((summary) => runProjection(requireRun(projectId, summary.runId), projectRootResolver, previewSecret))
+    return repository.list(identifier(projectId, 'project')).map((summary) => createProductionRunProjection(requireRun(projectId, summary.runId), projectRootResolver, previewSecret))
   }
 
   function listFull(projectId: string): ProductionRun[] {

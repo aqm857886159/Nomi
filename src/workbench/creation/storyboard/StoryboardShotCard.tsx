@@ -57,18 +57,19 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
   const shotTypeValue = isImageShot ? 'image' : shot.keyframe?.enabled === true ? 'image-video' : 'video'
   const onKindChange = (value: string): void => {
     if (value === shotTypeValue) return
-    if (value === 'image') onUpdate({ shotKind: 'image', keyframe: undefined, modelKey: undefined, modeId: undefined, params: undefined })
+    if (value === 'image') onUpdate({ shotKind: 'image', keyframe: undefined, modelKey: undefined, modelVendor: undefined, modeId: undefined, params: undefined })
     else if (value === 'image-video') {
       onUpdate({
         shotKind: 'video',
         durationSec: shot.durationSec > 0 ? shot.durationSec : 5,
         keyframe: { ...(shot.keyframe || {}), enabled: true, prompt: shot.keyframe?.prompt || '' },
         modelKey: undefined,
+        modelVendor: undefined,
         modeId: undefined,
         params: undefined,
       })
     } else {
-      onUpdate({ shotKind: 'video', keyframe: undefined, durationSec: shot.durationSec > 0 ? shot.durationSec : 5, modelKey: undefined, modeId: undefined, params: undefined })
+      onUpdate({ shotKind: 'video', keyframe: undefined, durationSec: shot.durationSec > 0 ? shot.durationSec : 5, modelKey: undefined, modelVendor: undefined, modeId: undefined, params: undefined })
     }
   }
 
@@ -80,18 +81,18 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
   // （由 buildPlannedNodeMeta 按所选模型自动取默认模式，避免把别的模型的 modeId 套错）。
   // 选具体模型 → 写 modelKey、清 modeId/params（由 buildPlannedNodeMeta 按所选模型取默认模式）。
   const onShotModelChange = React.useCallback(
-    (value: string) => onUpdate({ modelKey: value || undefined, modeId: undefined, params: undefined }),
+    (value: string, vendor?: string) => onUpdate({ modelKey: value || undefined, modelVendor: value ? vendor : undefined, modeId: undefined, params: undefined }),
     [onUpdate],
   )
   // 去重选择 view-model（与画布节点共用同一逻辑，P1）。
-  const modelSelect = useDedupedModelSelect(modelOptions ?? [], shot.modelKey ?? '', onShotModelChange)
+  const modelSelect = useDedupedModelSelect(modelOptions ?? [], shot.modelKey ?? '', onShotModelChange, shot.modelVendor)
   // 模型下拉：「默认模型」空值项 + 去重后的模型（同模型只一条，多家标「N 家」）。
   const modelSelectOptions = modelOptions && modelOptions.length > 0
     ? [{ value: '', label: t('storyboardEditor.defaultModel') }, ...modelSelect.modelOptions]
     : null
   const onModelSelect = (id: string): void => (id ? modelSelect.onModelPick(id) : onShotModelChange(''))
   // 选中模型的完整 option（带 archetype 信息）→ 给 ShotParamControls 解析参数。空值=默认模型（无参数）。
-  const selectedModelOption = modelOptions?.find((o) => o.value === shot.modelKey) ?? null
+  const selectedModelOption = modelOptions?.find((o) => o.value === shot.modelKey && (!shot.modelVendor || o.vendor === shot.modelVendor)) ?? null
 
   return (
     <div

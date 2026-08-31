@@ -73,6 +73,13 @@ describe("production job state", () => {
     expect(transitionJob(job("reconciling"), "provider_accepted", NOW).status).toBe("provider_accepted");
   });
 
+  it.each(["provider_accepted", "polling", "retry_wait", "downloading", "validating_technical", "validating_content"] as const)(
+    "allows restart recovery to reconcile %s without resubmitting",
+    (status) => {
+      expect(transitionJob(job(status), "reconciling", NOW).status).toBe("reconciling");
+    },
+  );
+
   it("rejects skipping authorization and submit intent", () => {
     expect(() => transitionJob(job("planned"), "submitting", NOW)).toThrow(
       "Illegal job transition planned -> submitting",

@@ -61,23 +61,31 @@ describe('chooseDefaultModelOption 健康避让', () => {
 
   it('默认位第一名连败 ≥2 → 自动让位给下一个健康模型', () => {
     expect(chooseDefaultModelOption([imagen, seedream], true, false)?.value).toBe('imagen-4.0-apimart')
-    recordModelFailure('imagen-4.0-apimart')
-    recordModelFailure('imagen-4.0-apimart')
+    recordModelFailure('apimart\u0000imagen-4.0-apimart')
+    recordModelFailure('apimart\u0000imagen-4.0-apimart')
     expect(chooseDefaultModelOption([imagen, seedream], true, false)?.value).toBe('doubao-seedream-4.5')
   })
 
   it('全部候选都在避让期 → 回退原序，绝不空选', () => {
     for (const key of ['imagen-4.0-apimart', 'doubao-seedream-4.5']) {
-      recordModelFailure(key)
-      recordModelFailure(key)
+      recordModelFailure(`apimart\u0000${key}`)
+      recordModelFailure(`apimart\u0000${key}`)
     }
     expect(chooseDefaultModelOption([imagen, seedream], true, false)?.value).toBe('imagen-4.0-apimart')
   })
 
   it('成功清零后重新回到默认位', () => {
-    recordModelFailure('imagen-4.0-apimart')
-    recordModelFailure('imagen-4.0-apimart')
-    recordModelSuccess('imagen-4.0-apimart')
+    recordModelFailure('apimart\u0000imagen-4.0-apimart')
+    recordModelFailure('apimart\u0000imagen-4.0-apimart')
+    recordModelSuccess('apimart\u0000imagen-4.0-apimart')
     expect(chooseDefaultModelOption([imagen, seedream], true, false)?.value).toBe('imagen-4.0-apimart')
+  })
+
+  it('同名模型只避让失败的供应商，不污染另一家', () => {
+    const relayA = { ...imagen, vendor: 'relay-a' }
+    const relayB = { ...imagen, vendor: 'relay-b' }
+    recordModelFailure('relay-a\u0000imagen-4.0-apimart')
+    recordModelFailure('relay-a\u0000imagen-4.0-apimart')
+    expect(chooseDefaultModelOption([relayA, relayB], true, false)?.vendor).toBe('relay-b')
   })
 })

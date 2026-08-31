@@ -3,11 +3,12 @@
 // 关键约束（bug① spike）：agent 一旦写了 modelKey，useNodeModelAutoSelect 的 effect1（只在
 // modelKey 空时跑）就不会再自动补 vendor/label/默认参数——所以这里必须**自铺全**：
 // modelVendor / modelLabel / archetype.{id,modeId} / 该 mode 的默认参数，再用 agent 的合法参数覆盖。
-import type { AgentModelEntry } from "./availableModels";
+import { findAgentModelEntry, type AgentModelEntry } from "./availableModels";
 import type { ModelParameterControl } from "../../../config/modelCatalogMeta";
 
 export type PlannedNodeModelInput = {
   modelKey?: unknown;
+  modelVendor?: unknown;
   modeId?: unknown;
   params?: unknown;
 };
@@ -36,7 +37,8 @@ export function buildPlannedNodeMeta(
 ): Record<string, unknown> | undefined {
   const modelKey = typeof planned.modelKey === "string" ? planned.modelKey.trim() : "";
   if (!modelKey) return undefined;
-  const entry = entryByKey.get(modelKey);
+  const modelVendor = typeof planned.modelVendor === "string" ? planned.modelVendor.trim() : "";
+  const entry = findAgentModelEntry(entryByKey, modelKey, modelVendor);
   // 模型不在可用清单 → 不写模型 meta，回退原自动选（避开 effect3 供应商断开自愈覆盖）。
   if (!entry) return undefined;
 
@@ -47,7 +49,7 @@ export function buildPlannedNodeMeta(
     entry.modes[0];
 
   const meta: Record<string, unknown> = {
-    modelKey,
+    modelKey: entry.modelKey,
     modelLabel: entry.label,
     archetype: { id: entry.archetypeId, modeId: mode?.modeId ?? entry.defaultModeId },
   };
@@ -95,7 +97,7 @@ export function resolvePlannedNodeArgs(
   if (typeof node.modelKey !== "string" || !node.modelKey.trim()) return node;
   const meta = buildPlannedNodeMeta(node as PlannedNodeModelInput, entryByKey);
   if (!meta) {
-    const { modelKey: _mk, modeId: _md, params: _p, ...rest } = node;
+    const { modelKey: _mk, modelVendor: _mv, modeId: _md, params: _p, ...rest } = node;
     return rest;
   }
   const params: Record<string, unknown> = {};
@@ -106,6 +108,7 @@ export function resolvePlannedNodeArgs(
   return {
     ...node,
     modelKey: meta.modelKey,
+    ...(meta.modelVendor ? { modelVendor: meta.modelVendor } : {}),
     ...(archetype?.modeId ? { modeId: archetype.modeId } : {}),
     params,
   };

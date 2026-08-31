@@ -62,6 +62,14 @@ function normalizeKey(modelKey: unknown): string {
   return typeof modelKey === "string" ? modelKey.trim() : "";
 }
 
+/** Provider-qualified health identity. A failure at one relay must not poison the same model at another relay. */
+export function modelHealthKey(modelKey: unknown, vendor?: unknown): string {
+  const model = normalizeKey(modelKey)
+  if (!model) return ''
+  const provider = normalizeKey(vendor)
+  return provider ? `${provider}\u0000${model}` : model
+}
+
 /** 生成失败记一笔（连败计数 +1）。无 modelKey（未选模型的异常路径）静默跳过。 */
 export function recordModelFailure(modelKey: unknown, now: number = Date.now()): void {
   const key = normalizeKey(modelKey);

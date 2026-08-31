@@ -14,6 +14,7 @@ import type { ModelParameterControl } from "../../../config/modelCatalogMeta";
 import type { ArchetypeReferenceSlotKind } from "../../../config/modelArchetypes";
 import { resolveArchetypeForModel } from "../../../config/modelArchetypes";
 import { preloadModelOptions } from "../../../config/modelCatalogCache";
+import { dedupeModelOptions, resolveBestProvider } from "../../../config/modelIdentity";
 
 /** 该模式声明的一个参考槽——agent 据此知道这个模式吃哪些参考、各能吃几张，从而只连模型真支持的边。 */
 export type AgentModelSlot = {
@@ -37,6 +38,8 @@ export type AgentModelMode = {
 };
 
 export type AgentModelEntry = {
+  /** Provider-qualified address. modelKey alone is not an execution identity. */
+  address: string;
   modelKey: string;
   modelAlias: string | null;
   vendor: string | null;
@@ -47,16 +50,48 @@ export type AgentModelEntry = {
   modes: AgentModelMode[];
 };
 
+const AGENT_MODEL_ADDRESS_SEPARATOR = "\u0000";
+
+export function agentModelAddress(modelKey: string, vendor?: string | null): string {
+  return `${vendor ?? ""}${AGENT_MODEL_ADDRESS_SEPARATOR}${modelKey}`;
+}
+
+/**
+ * Composite entries are always indexed. A bare modelKey alias is added only
+ * when that key is unique, so legacy plans remain readable without silently
+ * choosing a provider by catalog order.
+ */
+export function indexAgentModelEntries(entries: readonly AgentModelEntry[]): Map<string, AgentModelEntry> {
+  const index = new Map<string, AgentModelEntry>();
+  const counts = new Map<string, number>();
+  for (const entry of entries) counts.set(entry.modelKey, (counts.get(entry.modelKey) ?? 0) + 1);
+  for (const entry of entries) {
+    index.set(entry.address, entry);
+    if (counts.get(entry.modelKey) === 1) index.set(entry.modelKey, entry);
+  }
+  return index;
+}
+
+export function findAgentModelEntry(
+  index: ReadonlyMap<string, AgentModelEntry>,
+  modelKey: string,
+  vendor?: string | null,
+): AgentModelEntry | undefined {
+  if (vendor) return index.get(agentModelAddress(modelKey, vendor));
+  return index.get(modelKey);
+}
+
 /**
  * 把 catalog 的 ModelOption[] join 档案后 flatten 成 agent 可选模型清单。纯函数，可单测。
- * 无档案的模型直接跳过；同一 modelKey 去重（image/video 两边可能重复）。
+ * 无档案的模型直接跳过；同一 provider+modelKey 去重（image/video 两边可能重复）。
  */
 export function buildAgentModelEntries(options: readonly ModelOption[]): AgentModelEntry[] {
   const entries: AgentModelEntry[] = [];
   const seen = new Set<string>();
   for (const option of options) {
     const modelKey = option.modelKey ?? option.value;
-    if (!modelKey || seen.has(modelKey)) continue;
+    const address = agentModelAddress(modelKey, option.vendor);
+    if (!modelKey || seen.has(address)) continue;
     const archetype = resolveArchetypeForModel({
       modelKey: option.modelKey ?? option.value,
       modelAlias: option.modelAlias,
@@ -64,8 +99,9 @@ export function buildAgentModelEntries(options: readonly ModelOption[]): AgentMo
       meta: option.meta,
     });
     if (!archetype) continue;
-    seen.add(modelKey);
+    seen.add(address);
     entries.push({
+      address,
       modelKey,
       modelAlias: option.modelAlias ?? null,
       vendor: option.vendor ?? null,
@@ -111,22 +147,26 @@ export async function listAvailableModelsForAgent(): Promise<AgentModelEntry[]> 
  *   省略（参考边在生成期按能力降级跳过，不假装喂入）。
  * 无任何可用图片模型 → 全空，节点不带模型、用户自己选。
  */
-export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: string; modeId?: string; refModeId?: string }> {
-  let entries: AgentModelEntry[]
+export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: string; modelVendor?: string; modeId?: string; refModeId?: string }> {
+  let options: ModelOption[]
   try {
-    entries = await listAvailableModelsForAgent()
+    options = await preloadModelOptions("image")
   } catch {
     return {}
   }
-  const images = entries.filter((entry) => entry.kind === 'image')
+  const images = dedupeModelOptions(options)
   if (images.length === 0) return {}
   const byName = (re: RegExp) =>
-    images.find((entry) => re.test(`${entry.modelKey} ${entry.modelAlias ?? ''} ${entry.label}`))
-  const prefer = byName(/gpt[\s-]?image/i) ?? byName(/nano[\s-]?banana/i) ?? images[0]
+    images.find((entry) => re.test(`${entry.canonicalId} ${entry.label}`))
+  const preferredModel = byName(/gpt[\s-]?image/i) ?? byName(/nano[\s-]?banana/i) ?? images[0]
+  const preferredProvider = resolveBestProvider(preferredModel)
+  const prefer = preferredProvider ? buildAgentModelEntries([preferredProvider.option])[0] : undefined
+  if (!prefer) return {}
   const plainMode = prefer.modes.find((m) => m.modeId === prefer.defaultModeId) ?? prefer.modes[0]
   const refMode = prefer.modes.find((m) => m.slots.some((s) => s.kind === 'image_ref'))
   return {
     modelKey: prefer.modelKey,
+    ...(prefer.vendor ? { modelVendor: prefer.vendor } : {}),
     ...(plainMode ? { modeId: plainMode.modeId } : {}),
     ...(refMode ? { refModeId: refMode.modeId } : {}),
   }
@@ -138,22 +178,26 @@ export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: stri
  * （图→视频），故模式优先挑带 image_ref / first_frame 槽的 i2v（参考才喂得进），否则默认模式。
  * 无任何可用视频模型 → 全空，镜头不带模型、用户在画布上自己选；编辑器为某镜选了模型则覆盖本默认。
  */
-export async function resolveStoryboardVideoDefault(): Promise<{ modelKey?: string; modeId?: string }> {
-  let entries: AgentModelEntry[]
+export async function resolveStoryboardVideoDefault(): Promise<{ modelKey?: string; modelVendor?: string; modeId?: string }> {
+  let options: ModelOption[]
   try {
-    entries = await listAvailableModelsForAgent()
+    options = await preloadModelOptions("video")
   } catch {
     return {}
   }
-  const videos = entries.filter((entry) => entry.kind === 'video')
+  const videos = dedupeModelOptions(options)
   if (videos.length === 0) return {}
   const byName = (re: RegExp) =>
-    videos.find((entry) => re.test(`${entry.modelKey} ${entry.modelAlias ?? ''} ${entry.label}`))
-  const prefer = byName(/seedance/i) ?? videos[0]
+    videos.find((entry) => re.test(`${entry.canonicalId} ${entry.label}`))
+  const preferredModel = byName(/seedance/i) ?? videos[0]
+  const preferredProvider = resolveBestProvider(preferredModel)
+  const prefer = preferredProvider ? buildAgentModelEntries([preferredProvider.option])[0] : undefined
+  if (!prefer) return {}
   const refMode = prefer.modes.find((m) => m.slots.some((s) => s.kind === 'image_ref' || s.kind === 'first_frame'))
   const mode = refMode ?? prefer.modes.find((m) => m.modeId === prefer.defaultModeId) ?? prefer.modes[0]
   return {
     modelKey: prefer.modelKey,
+    ...(prefer.vendor ? { modelVendor: prefer.vendor } : {}),
     ...(mode ? { modeId: mode.modeId } : {}),
   }
 }
@@ -178,12 +222,12 @@ export function formatAvailableModelsForPrompt(entries: readonly AgentModelEntry
           return opts ? `${p.key}[${opts}]` : p.key;
         })
         .join(" ") ?? "";
-    return `- modelKey=${entry.modelKey}（${entry.label}，${entry.kind}）模式: ${modes}；参数: ${params}`;
+    return `- modelVendor=${entry.vendor ?? "default"} modelKey=${entry.modelKey}（${entry.label}，${entry.kind}）模式: ${modes}；参数: ${params}`;
   });
   return [
-    "可用模型（为每个节点选一个，在 create_canvas_nodes 的节点里给出 modelKey、可选 modeId、params）：",
+    "可用模型（为每个节点选一个，在 create_canvas_nodes 的节点里同时给出 modelVendor、modelKey，以及可选 modeId、params）：",
     ...lines,
-    "规则：modelKey 必须用上面列出的；modeId 用该模型的模式 id；params 用对应模型/模式支持的取值（如 aspect_ratio=9:16）。用户会在确认卡上调整，配错会被自动纠正。",
+    "规则：modelVendor + modelKey 必须使用同一行列出的组合；modeId 用该模型的模式 id；params 用对应模型/模式支持的取值（如 aspect_ratio=9:16）。用户会在确认卡上调整，配错会被自动纠正。",
     "连参考边只连目标模型支持的：character_ref/style_ref/composition_ref 需要目标模式有图片参考槽（角色参考/参考图/输入图）；first_frame/last_frame 需要对应的首/尾帧槽；纯文生模式（无参考槽）不要连任何参考边。文本/镜头/输出节点不能作参考源（它们没有可参考的产物）。配错的边会被跳过并在 skippedEdges 里告知原因。",
   ].join("\n");
 }

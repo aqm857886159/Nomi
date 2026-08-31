@@ -167,6 +167,18 @@ describe("SubmissionOutbox", () => {
     expect(dispatch.mock.calls[0][0].idempotencyKey).toBe(dispatch.mock.calls[1][0].idempotencyKey);
   });
 
+  it("keeps repeated definite local failures out of receipt-unknown and releases the reservation", async () => {
+    const repository = setup();
+    const dispatch = vi.fn(async () => {
+      throw new SubmissionNotDispatchedError("renderer rejected before provider dispatch");
+    });
+
+    await expect(outbox({ repository, dispatch }).submit(request)).rejects.toBeInstanceOf(SubmissionNotDispatchedError);
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(repository.read("project-1", "run-1")?.jobs[0].status).toBe("not_dispatched");
+    expect(repository.read("project-1", "run-1")?.budget).toMatchObject({ reserved: 0, unsettled: 0, actual: 0 });
+  });
+
   it("turns a lost receipt into submission_unknown and never submits twice", async () => {
     const repository = setup();
     const dispatch = vi.fn(async () => ({ providerTaskId: "provider-task-1" }));

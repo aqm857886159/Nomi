@@ -12,7 +12,7 @@ import { narrateProgress } from '../../observability/narrate'
 import { ComfyuiTaskCancelledError, clearComfyuiCancel, isComfyuiCancelRequested, isComfyuiTaskCancelledError } from './comfyuiTaskControl'
 import { useComfyuiPreviewStore } from '../store/comfyuiPreviewStore'
 import { isRecoverableTimeoutError } from './recoverableTimeout'
-import { recordModelFailure, recordModelSuccess } from './modelHealthMemory'
+import { modelHealthKey, recordModelFailure, recordModelSuccess } from './modelHealthMemory'
 import {
   beginSingletonBatch,
   isEntryCancelled,
@@ -63,6 +63,10 @@ export type RunGenerationNodeOptions = {
   grantId?: string
   /** 队列批次 id（任务中心的调度真相源，见 generationQueueStore）。不传 = 单发，内部自建 1 节点批次。 */
   batchId?: string
+  /** Production/MCP supplied stable submission identity. Retries must reuse it end to end. */
+  idempotencyKey?: string
+  /** Production-approved provider/model pair, verified again before task dispatch. */
+  expectedBinding?: { provider: string; model: string }
 }
 
 type GenerationRunContext = {
@@ -140,7 +144,8 @@ export function reconcileNodeModeWithConnectedReferences(nodeId: string): void {
 /** 结算时读节点当前绑定的模型键（健康记忆的记账主体；meta 无 modelKey 的异常路径记空=跳过）。 */
 function currentNodeModelKey(nodeId: string): unknown {
   const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
-  return (node?.meta as Record<string, unknown> | undefined)?.modelKey
+  const meta = node?.meta as Record<string, unknown> | undefined
+  return modelHealthKey(meta?.modelKey, meta?.modelVendor ?? meta?.vendor)
 }
 
 export async function runGenerationNode(
@@ -195,7 +200,8 @@ export async function runGenerationNode(
           ...(options.grantId ? { grantId: options.grantId } : {}),
           // 提交幂等键 = 本次 run.id：重试循环内每次 attempt 复用同一个 run.id，
           // electron 侧台账据此认作「同一次意图提交」→ 重试绝不二次下单。新生成 = 新 run.id。
-          idempotencyKey: run.id,
+          idempotencyKey: options.idempotencyKey || run.id,
+          ...(options.expectedBinding ? { expectedBinding: options.expectedBinding } : {}),
           // S2:catalog 任务各阶段回报 → 节点进度(人话已由 narrate 翻好)。
           onProgress: (progress) => {
             useGenerationCanvasStore.getState().setNodeProgress(id, {

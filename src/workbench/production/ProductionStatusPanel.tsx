@@ -2,7 +2,7 @@ import { IconAlertTriangle, IconCheck, IconChevronRight, IconLoader2 } from '@ta
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { WorkbenchButton } from '../../design'
+import { NomiSelect, WorkbenchButton, type NomiSelectOption } from '../../design'
 import { buildNomiLocalAssetUrl } from '../../media/nomiLocalAssetUrl'
 import { cn } from '../../utils/cn'
 import { ProductionDetails } from './ProductionDetails'
@@ -15,6 +15,11 @@ type Props = {
   artifacts?: ProductionArtifact[]
   focusedArtifactId?: string | null
   onPrimaryAction: (action: Exclude<ProductionRunPrimaryAction, null>) => void
+  recoverySelection?: {
+    value: string
+    options: NomiSelectOption[]
+    onChange: (value: string) => void
+  } | null
 }
 
 const toneClass: Record<ProductionRunView['tone'], string> = {
@@ -47,6 +52,7 @@ export function ProductionStatusPanel({
   artifacts = [],
   focusedArtifactId = null,
   onPrimaryAction,
+  recoverySelection = null,
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const actionInFlightRef = React.useRef(false)
@@ -111,9 +117,39 @@ export function ProductionStatusPanel({
           {t(`generationCommon.${view.titleKey}`)}
         </h2>
         <p className={cn('text-caption leading-relaxed text-nomi-ink-60')}>
-          {t(`generationCommon.${view.descriptionKey}`)}
+          {t(`generationCommon.${view.descriptionKey}`, view.descriptionValues)}
         </p>
       </div>
+
+      {view.recovery ? (
+        <dl className={cn('grid gap-2 border-y border-nomi-line-soft py-3 text-caption')} data-production-recovery>
+          <div className={cn('grid grid-cols-[auto_1fr] items-baseline gap-3')}>
+            <dt className={cn('text-nomi-ink-60')}>{t('generationCommon.production.recovery.replacement')}</dt>
+            <dd className={cn('m-0 min-w-0 justify-self-end text-right font-medium text-nomi-ink')}>
+              {recoverySelection && recoverySelection.options.length > 0 ? (
+                <NomiSelect
+                  value={recoverySelection.value}
+                  options={recoverySelection.options}
+                  onChange={recoverySelection.onChange}
+                  ariaLabel={t('generationCommon.production.recovery.replacement')}
+                  triggerMaxWidth={260}
+                  className={cn('max-w-full')}
+                />
+              ) : view.recovery.replacementProvider}
+            </dd>
+          </div>
+          <div className={cn('grid grid-cols-[auto_1fr] items-baseline gap-3')}>
+            <dt className={cn('text-nomi-ink-60')}>{t('generationCommon.production.recovery.affected')}</dt>
+            <dd className={cn('m-0 text-right font-medium text-nomi-ink')}>
+              {t('generationCommon.production.recovery.affectedValue', { count: view.recovery.affectedCount })}
+            </dd>
+          </div>
+          <div className={cn('grid grid-cols-[auto_1fr] items-baseline gap-3')}>
+            <dt className={cn('text-nomi-ink-60')}>{t('generationCommon.production.recovery.next')}</dt>
+            <dd className={cn('m-0 text-right text-nomi-ink-80')}>{t('generationCommon.production.recovery.nextValue')}</dd>
+          </div>
+        </dl>
+      ) : null}
 
       {typeof view.percent === 'number' ? (
         <div className={cn('grid grid-cols-[1fr_auto] items-center gap-2')}>
@@ -124,7 +160,7 @@ export function ProductionStatusPanel({
         </div>
       ) : null}
 
-      <figure
+      {!view.recovery || preview ? <figure
         data-production-preview
         data-production-focused-artifact={previewFocused ? focusedArtifactId : undefined}
         className={cn(
@@ -165,7 +201,7 @@ export function ProductionStatusPanel({
               : t('generationCommon.production.runPanel.pending')}
           </span>
         </figcaption>
-      </figure>
+      </figure> : null}
 
       {action ? (
         <WorkbenchButton
@@ -177,7 +213,9 @@ export function ProductionStatusPanel({
           onClick={handlePrimaryAction}
         >
           <StatusIcon tone={view.tone} />
-          {t(`generationCommon.production.runAction.${action}`)}
+          {action === 'replace-provider' && view.recovery
+            ? t('generationCommon.production.runAction.replace-provider', { provider: view.recovery.replacementProvider })
+            : t(`generationCommon.production.runAction.${action}`)}
         </WorkbenchButton>
       ) : null}
 

@@ -543,6 +543,14 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
               id,
               ok: false,
               error: error instanceof Error ? error.message : String(error),
+              errorCode:
+                error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string"
+                  ? (error as { code: string }).code
+                  : undefined,
+              dispatchState:
+                error && typeof error === "object" && typeof (error as { dispatchState?: unknown }).dispatchState === "string"
+                  ? (error as { dispatchState: string }).dispatchState
+                  : undefined,
             });
           }
         })();

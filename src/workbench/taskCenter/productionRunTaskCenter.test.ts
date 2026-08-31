@@ -56,13 +56,13 @@ describe('production run task-center projection', () => {
     expect(row).not.toHaveProperty('elapsedMs')
   })
 
-  it('keeps human approval states active and routes to the exact Run', () => {
+  it('groups human approval states as waiting instead of actively running', () => {
     const [row] = buildProductionRunTaskRows([
       summary({ status: 'awaiting_rough_cut_review', runId: 'run-review-2' }),
     ], labels)
 
     expect(row).toMatchObject({
-      group: 'running',
+      group: 'queued',
       phaseText: '等待审核粗剪',
       target: { projectId: 'project-a', runId: 'run-review-2' },
     })

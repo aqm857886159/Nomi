@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { buildAgentModelEntries, formatAvailableModelsForPrompt } from "./availableModels";
+import {
+  buildAgentModelEntries,
+  findAgentModelEntry,
+  formatAvailableModelsForPrompt,
+  indexAgentModelEntries,
+} from "./availableModels";
 import type { ModelOption } from "../../../config/models";
 
 // 用 meta.archetypeId 显式命中内置档案（resolveArchetypeForModel 优先看 archetypeId）。
@@ -52,6 +57,27 @@ describe("buildAgentModelEntries", () => {
     expect(entries).toHaveLength(1);
   });
 
+  it("同名模型跨供应商保留两条复合身份，裸 key 不再随机命中", () => {
+    const entries = buildAgentModelEntries([
+      opt({ value: "seedance-2", modelKey: "seedance-2", vendor: 'relay-a', meta: { archetypeId: "seedance-2" } }),
+      opt({ value: "seedance-2", modelKey: "seedance-2", vendor: 'relay-b', meta: { archetypeId: "seedance-2" } }),
+    ]);
+    expect(entries).toHaveLength(2);
+    const index = indexAgentModelEntries(entries);
+    expect(findAgentModelEntry(index, 'seedance-2')).toBeUndefined();
+    expect(findAgentModelEntry(index, 'seedance-2', 'relay-a')?.vendor).toBe('relay-a');
+    expect(findAgentModelEntry(index, 'seedance-2', 'relay-b')?.vendor).toBe('relay-b');
+  });
+
+  it("显式供应商不存在时不回退到另一家的唯一裸模型", () => {
+    const entries = buildAgentModelEntries([
+      opt({ value: "seedance-2", modelKey: "seedance-2", vendor: 'relay-b', meta: { archetypeId: "seedance-2" } }),
+    ]);
+    const index = indexAgentModelEntries(entries);
+    expect(findAgentModelEntry(index, 'seedance-2', 'relay-a')).toBeUndefined();
+    expect(findAgentModelEntry(index, 'seedance-2')).toMatchObject({ vendor: 'relay-b' });
+  });
+
   it("空输入返回空", () => {
     expect(buildAgentModelEntries([])).toEqual([]);
   });
@@ -68,6 +94,7 @@ describe("formatAvailableModelsForPrompt", () => {
     ]);
     const text = formatAvailableModelsForPrompt(entries);
     expect(text).toContain("modelKey=seedance-2");
+    expect(text).toContain("modelVendor=");
     expect(text).toContain("aspect_ratio[");
     expect(text).toContain("9:16");
     // T8：提示词里带每个模式的参考槽，让 agent 按模型真实能力连边

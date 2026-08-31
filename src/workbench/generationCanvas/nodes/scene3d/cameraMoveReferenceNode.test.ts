@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // availableModels 链路走 window.nomiDesktop IPC，node 测试环境不存在——mock 掉
 // （本测试不带 modelKey，真实代码路径也不会调它，与 applyCanvasToolCall.test.ts 同例）。
-vi.mock('../../agent/availableModels', () => ({ listAvailableModelsForAgent: vi.fn(async () => []) }))
+vi.mock('../../agent/availableModels', () => ({
+  indexAgentModelEntries: vi.fn(() => new Map()),
+  listAvailableModelsForAgent: vi.fn(async () => []),
+}))
 
 import { applyCanvasToolCall, resetClientIdRegistry } from '../../agent/applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'

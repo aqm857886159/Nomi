@@ -7,6 +7,15 @@ type Labels = {
 }
 
 const TERMINAL = new Set<ProductionRunStatus>(['completed', 'cancelled'])
+const WAITING_FOR_USER = new Set<ProductionRunStatus>([
+  'awaiting_direction',
+  'awaiting_storyboard_review',
+  'awaiting_contract',
+  'paused',
+  'needs_attention',
+  'awaiting_rough_cut_review',
+  'awaiting_export',
+])
 
 export function buildProductionRunTaskRows(
   runs: readonly ProductionRunSummary[],
@@ -20,7 +29,7 @@ export function buildProductionRunTaskRows(
       projectId: run.projectId,
       runId: run.runId,
       title: `${labels.title} · ${run.playbook.name}`,
-      group: terminal ? 'done' : 'running',
+      group: terminal ? 'done' : WAITING_FOR_USER.has(run.status) ? 'queued' : 'running',
       ...(run.status === 'completed'
         ? { outcome: 'success' as const }
         : run.status === 'cancelled'

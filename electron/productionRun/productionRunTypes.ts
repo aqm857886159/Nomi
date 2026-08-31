@@ -50,6 +50,7 @@ export type ProductionJobStatus =
   | "validating_content"
   | "ready"
   | "adopted"
+  | "not_dispatched"
   | "submission_unknown"
   | "reconciling"
   | "needs_attention"

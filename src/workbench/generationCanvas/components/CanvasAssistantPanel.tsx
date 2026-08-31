@@ -14,7 +14,7 @@ import { clearWorkbenchAgentSession } from '../../../api/desktopClient'
 import { generationCanvasTools } from '../agent/generationCanvasTools'
 import { applyCanvasToolCall } from '../agent/applyCanvasToolCall'
 import { applyProposalBatch } from '../agent/proposalTxn'
-import { listAvailableModelsForAgent } from '../agent/availableModels'
+import { indexAgentModelEntries, listAvailableModelsForAgent } from '../agent/availableModels'
 import { resolvePlannedNodeArgs } from '../agent/plannedNodeMeta'
 import { partitionConnectableEdges, type PlannedEdgeLike } from '../agent/referenceEdgeCapability'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -281,9 +281,7 @@ export default function CanvasAssistantPanel({
               (node) => node && typeof node === 'object' && typeof (node as Record<string, unknown>).modelKey === 'string',
             ),
         )
-        const entryByKey = needsModels
-          ? new Map((await listAvailableModelsForAgent()).map((entry) => [entry.modelKey, entry]))
-          : new Map()
+        const entryByKey = indexAgentModelEntries(needsModels ? await listAvailableModelsForAgent() : [])
         const nodeResolvedSteps = rawSteps.map((step) => {
           const args = step.effectiveArgs as Record<string, unknown>
           if (step.toolName !== 'create_canvas_nodes' || !Array.isArray(args.nodes)) return step
@@ -304,7 +302,12 @@ export default function CanvasAssistantPanel({
               plannedById.set(node.clientId, {
                 id: node.clientId,
                 kind: node.kind,
-                meta: typeof node.modelKey === 'string' ? { modelKey: node.modelKey } : {},
+                meta: typeof node.modelKey === 'string'
+                  ? {
+                      modelKey: node.modelKey,
+                      ...(typeof node.modelVendor === 'string' ? { modelVendor: node.modelVendor } : {}),
+                    }
+                  : {},
               } as GenerationCanvasNode)
             }
           }
@@ -639,6 +642,7 @@ export default function CanvasAssistantPanel({
           view={productionStatus.view}
           artifacts={productionStatus.production.run.artifacts}
           focusedArtifactId={productionStatus.focusedArtifactId}
+          recoverySelection={productionStatus.recoverySelection}
           onPrimaryAction={(action) => { void productionStatus.onPrimaryAction(action) }}
         />
       ) : null}

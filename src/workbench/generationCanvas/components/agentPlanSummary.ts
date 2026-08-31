@@ -16,6 +16,7 @@ export type PlannedNode = {
   position?: { x: number; y: number }
   // bug①：agent 建议的模型 + 模式 + 标量参数（计划卡 chip 展示 + 用户可改 + 确认后写入节点 meta）。
   modelKey?: string
+  modelVendor?: string
   modeId?: string
   params?: Record<string, string | number | boolean>
 }
@@ -99,6 +100,7 @@ export function summarizeAgentPlan(calls: readonly PendingToolCallLike[]): Agent
         ? { position: { x: position.x, y: position.y } }
         : {}),
       ...(typeof node.modelKey === 'string' && node.modelKey.trim() ? { modelKey: node.modelKey.trim() } : {}),
+      ...(typeof node.modelVendor === 'string' && node.modelVendor.trim() ? { modelVendor: node.modelVendor.trim() } : {}),
       ...(typeof node.modeId === 'string' && node.modeId.trim() ? { modeId: node.modeId.trim() } : {}),
       ...(node.params && typeof node.params === 'object' && !Array.isArray(node.params)
         ? { params: sanitizeAgentParams(node.params as Record<string, unknown>) }

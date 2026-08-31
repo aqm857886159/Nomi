@@ -135,6 +135,22 @@ describe('production run view', () => {
     expect(JSON.stringify(buildProductionRunView(value, now))).not.toContain('retry')
   })
 
+  it('states zero-dispatch recovery facts and offers the executable replacement', () => {
+    const value = run({
+      status: 'needs_attention',
+      jobs: [{ ...run().jobs[0], status: 'not_dispatched', provider: 'broken-relay', model: 'same-model', errorCode: 'provider_preflight_failed' }],
+    })
+    expect(buildProductionRunView(value, now, {
+      replacement: { failedProvider: 'broken-relay', replacementProviderLabel: 'APIMart', affectedCount: 16 },
+    })).toMatchObject({
+      tone: 'danger',
+      titleKey: 'production.status.providerUnavailable',
+      descriptionKey: 'production.description.providerUnavailable',
+      primaryAction: 'replace-provider',
+      recovery: { failedProvider: 'broken-relay', replacementProvider: 'APIMart', affectedCount: 16 },
+    })
+  })
+
   it('explains stale provider state without inventing failure or ETA', () => {
     const value = run({
       jobs: [{ ...run().jobs[0], progressPercent: undefined, lastVendorStateChangeAt: '2026-08-08T08:00:00.000Z' }],

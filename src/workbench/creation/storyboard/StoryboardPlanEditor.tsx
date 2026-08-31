@@ -87,9 +87,11 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
       ])
       const args = storyboardPlanToCreateNodesArgs(plan, {
         ...(imageDefault.modelKey ? { defaultImageModelKey: imageDefault.modelKey } : {}),
+        ...(imageDefault.modelVendor ? { defaultImageModelVendor: imageDefault.modelVendor } : {}),
         ...(imageDefault.modeId ? { defaultImageModeId: imageDefault.modeId } : {}),
         ...(imageDefault.refModeId ? { defaultImageRefModeId: imageDefault.refModeId } : {}),
         ...(videoDefault.modelKey ? { defaultVideoModelKey: videoDefault.modelKey } : {}),
+        ...(videoDefault.modelVendor ? { defaultVideoModelVendor: videoDefault.modelVendor } : {}),
         ...(videoDefault.modeId ? { defaultVideoModeId: videoDefault.modeId } : {}),
       })
       await applyCanvasToolCall('create_canvas_nodes', args)
@@ -233,7 +235,7 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
                 onRemove={() => setStoryboardPlan(removeShotAt(plan, pos))}
                 onApplyParamsToAll={() => setStoryboardPlan({
                   ...plan,
-                  shots: plan.shots.map((s) => ({ ...s, modelKey: shot.modelKey, modeId: shot.modeId, params: shot.params })),
+                  shots: plan.shots.map((s) => ({ ...s, modelKey: shot.modelKey, modelVendor: shot.modelVendor, modeId: shot.modeId, params: shot.params })),
                 })}
               />
             ))}

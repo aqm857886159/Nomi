@@ -617,6 +617,29 @@ describe('供应商真实 modelKey + 节点 meta.archetype.id：连线参考必�
   })
 })
 
+describe('production approved binding', () => {
+  it('rejects provider/model drift before the paid task call', async () => {
+    const runTask = vi.fn()
+    const node: GenerationCanvasNode = {
+      id: 'approved-node',
+      kind: 'image',
+      title: 'Approved shot',
+      position: { x: 0, y: 0 },
+      prompt: 'shot',
+      meta: { modelVendor: 'relay-b', vendor: 'relay-b', modelKey: 'same-model' },
+    }
+
+    await expect(runCatalogGenerationTask(node, {
+      expectedBinding: { provider: 'relay-a', model: 'same-model' },
+      runTask,
+      listCatalogVendors: async () => [{
+        key: 'relay-b', name: 'Relay B', enabled: true, authType: 'none', createdAt: '', updatedAt: '',
+      }],
+    })).rejects.toThrow(/approved binding changed/i)
+    expect(runTask).not.toHaveBeenCalled()
+  })
+})
+
 // ───────── 「接入即验证」零额度结构闸门 ─────────
 // 遍历**每个内置档案 × 每个模式**：把该模式声明的参考槽都填上 → 构建请求 → 断言每个填进去的参考值
 // 都真的到达了请求（extras.archetypeInput）。这正是 omni 参考图丢失那类 bug 的结构防线：以后任何模型/

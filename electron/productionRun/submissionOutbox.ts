@@ -4,9 +4,14 @@ import type { ProductionRunRepository } from "./productionRunRepository";
 import type { ProductionJob, ProductionRun } from "./productionRunTypes";
 
 export class SubmissionNotDispatchedError extends Error {
-  constructor(message: string) {
+  readonly code: string
+  readonly retryable: boolean
+
+  constructor(message: string, options: { code?: string; retryable?: boolean } = {}) {
     super(message);
     this.name = "SubmissionNotDispatchedError";
+    this.code = options.code || "provider_not_dispatched";
+    this.retryable = options.retryable ?? true;
   }
 }
 
@@ -50,6 +55,7 @@ export type ProviderDispatchInput = {
 
 export type ProviderDispatchResult = {
   providerTaskId: string;
+  result?: unknown;
 };
 
 export type SubmissionOutboxDependencies = {
@@ -124,6 +130,29 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
     return run;
   }
 
+  function markNotDispatched(request: SubmissionOutboxRequest, error: SubmissionNotDispatchedError): ProductionRun {
+    let run = requiredRun(deps.repository, request.projectId, request.runId);
+    const job = requiredJob(run, request.jobId);
+    if (job.status === "submitting") {
+      run = jobCommand(request, "not-dispatched", "not_dispatched", {
+        errorCode: error.code,
+        errorMessage: error.message,
+      });
+    }
+    const reservationId = `${request.runId}:${request.jobId}:${job.attempt}`;
+    const ledger = deps.repository.readBudgetLedger(request.projectId, request.runId);
+    if (ledger.reservations[reservationId]?.status === "reserved") {
+      run = budgetCommand(request, "release", {
+        billingEntryId: `${reservationId}:release`,
+        kind: "release",
+        reservationId,
+        providerSafe: true,
+        occurredAt: now(),
+      });
+    }
+    return run;
+  }
+
   async function submitOnce(request: SubmissionOutboxRequest): Promise<SubmissionOutboxResult> {
     let run = requiredRun(deps.repository, request.projectId, request.runId);
     let job = requiredJob(run, request.jobId);
@@ -179,7 +208,7 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
     const dispatchInput: ProviderDispatchInput = {
       run,
       job,
-      idempotencyKey: `${request.runId}:${request.jobId}:${job.attempt}`,
+      idempotencyKey: job.idempotencyKey,
       costCeiling: request.costCeiling,
     };
     await deps.beforeDispatch?.(dispatchInput);
@@ -192,7 +221,7 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
       try {
         response = await deps.dispatch(dispatchInput);
       } catch (error) {
-        if (!(error instanceof SubmissionNotDispatchedError)) throw error;
+        if (!(error instanceof SubmissionNotDispatchedError) || !error.retryable) throw error;
         response = await deps.dispatch(dispatchInput);
       }
       if (!response.providerTaskId.trim()) throw new Error("Provider returned an empty task id");
@@ -206,6 +235,10 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
       const recoveredJob = requiredJob(recovered, request.jobId);
       if (recoveredJob.status === "provider_accepted" && recoveredJob.providerTaskId) {
         return { providerTaskId: recoveredJob.providerTaskId, run: recovered };
+      }
+      if (error instanceof SubmissionNotDispatchedError) {
+        markNotDispatched(request, error);
+        throw error;
       }
       markSubmissionUnknown(request);
       throw new SubmissionReceiptUnknownError(error instanceof Error ? error.message : undefined);

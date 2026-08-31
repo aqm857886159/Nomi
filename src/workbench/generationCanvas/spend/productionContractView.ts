@@ -15,7 +15,7 @@ export type ProductionContractView = {
   }
   claims: Array<{ text: string; evidenceCount: number; verified: boolean }>
   skills: Array<{ name: string; version: string }>
-  providerModels: Array<{ provider: string; model: string }>
+  providerModels: Array<{ provider: string; providerLabel: string; model: string }>
   policy: ProductionPolicyReadiness
   maxAttemptsPerJob: number
   cost: {
@@ -32,7 +32,11 @@ function finiteNonNegative(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
 }
 
-export function buildProductionContractView(run: ProductionRun, gate: ProductionGate): ProductionContractView {
+export function buildProductionContractView(
+  run: ProductionRun,
+  gate: ProductionGate,
+  options: { providerLabels?: Readonly<Record<string, string>> } = {},
+): ProductionContractView {
   const contract = gate.contract
   const evidenceIds = new Set((contract?.evidence ?? []).map((item) => item.evidenceId))
   const jobs = gate.jobIds
@@ -61,7 +65,12 @@ export function buildProductionContractView(run: ProductionRun, gate: Production
       }
     }),
     skills: contract?.skills ?? [],
-    providerModels: policy.requiredProviderModels,
+    providerModels: policy.requiredProviderModels.map((item) => ({
+      ...item,
+      providerLabel: options.providerLabels?.[item.provider]
+        ?? options.providerLabels?.[item.provider.toLowerCase()]
+        ?? item.provider,
+    })),
     policy,
     maxAttemptsPerJob: run.policy.maxAttemptsPerJob,
     cost: {
