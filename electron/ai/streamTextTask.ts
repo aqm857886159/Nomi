@@ -8,6 +8,7 @@
 import { streamText } from "ai";
 import { buildLanguageModelForVendor } from "./vendorLanguageModel";
 import { sanitizeForBroadCompat } from "./promptSanitize";
+import { readNomiLocalAsset } from "../assets/localAssetFile";
 import type { Model, Vendor } from "../catalog/types";
 
 export type StreamTextTaskInput = {
@@ -17,6 +18,13 @@ export type StreamTextTaskInput = {
   prompt: string;
   /** image_to_prompt：把参考图作为多模态输入一并喂给模型。 */
   imageUrl?: string;
+  /**
+   * 多图版（2026-08-13 加，视频拆解要求）：一次请求喂 N 张图。
+   * 为什么必须支持多图——视频拆解按镜取 3 帧一起问，单帧会漏掉「出现又消失」的字幕/角标
+   * （实测：同一镜 3 帧里下载弹窗只在第 3 帧）；而多帧的代价是 image token 线性涨、
+   * **墙钟只慢 26%**（瓶颈在模型思考不在传图）。给 imageUrls 时忽略 imageUrl。
+   */
+  imageUrls?: string[];
   temperature?: number;
   maxTokens?: number;
 };
@@ -35,8 +43,16 @@ export type StreamTextTaskOptions = {
 const FIRST_TOKEN_TIMEOUT_MS = 30_000;
 const OVERALL_TIMEOUT_MS = 120_000;
 
-/** http(s) URL 走 URL 引用（不内联）；data:/base64 等原样作字符串传给 SDK。 */
-function toImagePart(imageUrl: string): { type: "image"; image: URL | string } {
+/**
+ * http(s) URL 走 URL 引用（不内联）；**nomi-local:// 读成字节内联**；data:/base64 原样给 SDK。
+ *
+ * ⚠️ nomi-local 这一支是 2026-08-13 修的一类**静默骗人**的 bug：项目内素材（抽出来的帧、
+ * 用户上传的图）都是 nomi-local:// 协议，AI SDK 解析不了，此前会被当普通字符串塞进 image part
+ * ——请求照发、模型照答，只是**它根本没看见图**，于是凭提示词里的上下文瞎编一段。
+ * 不报错、不重试、看起来一切正常，实测拆解时一半镜头是幻觉、另一半自己说「缺少帧信息」。
+ * 修在这里而不是各调用方：凡走多模态的都过这个函数，修一处整类消失（P2）。
+ */
+function toImagePart(imageUrl: string): { type: "image"; image: URL | string | Uint8Array } {
   if (/^https?:\/\//i.test(imageUrl)) {
     try {
       return { type: "image", image: new URL(imageUrl) };
@@ -44,7 +60,18 @@ function toImagePart(imageUrl: string): { type: "image"; image: URL | string } {
       /* 退回字符串 */
     }
   }
+  if (imageUrl.startsWith("nomi-local://")) {
+    const local = readNomiLocalAsset(imageUrl);
+    // 读不出来就让它以原样字符串继续——上游 imagesResolved 会发现少了图并拒发，不至于静默瞎编。
+    if (local?.bytes) return { type: "image", image: new Uint8Array(local.bytes) };
+  }
   return { type: "image", image: imageUrl };
+}
+
+/** 这张图能不能真的被模型看见（nomi-local 读得出字节、或本就是 http/data）。 */
+function isResolvableImage(part: { image: URL | string | Uint8Array }): boolean {
+  if (part.image instanceof URL || part.image instanceof Uint8Array) return true;
+  return /^data:/i.test(String(part.image));
 }
 
 /**
@@ -63,9 +90,15 @@ export async function streamTextTask(
   const model = buildLanguageModelForVendor(input.vendor, input.model, input.apiKey);
   // 收口 sanitize（P0-6）：与原文本分支同语义，prompt 统一 ASCII 可移植化。
   const promptText = sanitizeForBroadCompat(input.prompt);
-  const content = input.imageUrl
-    ? [{ type: "text" as const, text: promptText }, toImagePart(input.imageUrl)]
-    : promptText;
+  const images = (input.imageUrls?.length ? input.imageUrls : input.imageUrl ? [input.imageUrl] : [])
+    .filter((url): url is string => typeof url === "string" && url.length > 0);
+  const parts = images.map(toImagePart);
+  // 要了图却一张都送不进去 → **宁可报错也别让模型瞎编**。这是上面那个「静默骗人」bug 的第二道闸：
+  // 调用方明确要求看图，我们却只发了文字，任何结果都是不可信的。
+  if (images.length && !parts.some(isResolvableImage)) {
+    throw new Error(`参考图都读不出来（${images.length} 张），没法让模型看图作答。请检查素材是否还在项目里。`);
+  }
+  const content = parts.length ? [{ type: "text" as const, text: promptText }, ...parts] : promptText;
 
   // 内部 controller 统一承载「超时」与「外部取消」两个中断源 → 只给 streamText 一个 signal。
   const controller = new AbortController();

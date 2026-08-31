@@ -43,6 +43,40 @@ export type DesktopMediaBridge = {
       sheetTileHeight: number
       truncated: boolean
     }>
+    /**
+     * 视频拆解：切镜 + 每镜多帧读图 + 音轨转写 → 结构化分镜表。见 electron/video/deconstructVideo.ts。
+     * 与 detectShotCuts 的区别：那个只找切点（本地 ffmpeg、秒级、零成本），这个**读得懂内容**（要调模型、慢、花钱）。
+     * `failedShotIndexes` 是画面分析没成功的镜号——诚实回报，那几镜其余字段（如对白）仍可用。
+     */
+    deconstruct: (payload: {
+      videoUrl: string
+      projectId: string
+      threshold?: number
+      framesPerShot?: number
+      customColumns?: { name: string; hint?: string }[]
+      concurrency?: number
+    }) => Promise<{
+      shots: {
+        index: number
+        startSeconds: number
+        endSeconds: number
+        durationSeconds: number
+        sourceFrameUrl: string
+        shotSize: string
+        mood: string
+        visual: string
+        onScreenText: string
+        dialogue: string
+        carriedOver: boolean
+        imagePrompt: string
+        motionPrompt: string
+        custom: Record<string, string>
+        visionFailed?: boolean
+      }[]
+      durationSeconds: number
+      hasAudio: boolean
+      failedShotIndexes: number[]
+    }>
   }
   /**
    * 全局截图热键（默认关，见 electron/screenshot/screenshotHotkey.ts）。

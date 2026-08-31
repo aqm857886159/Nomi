@@ -6,7 +6,7 @@
 // 无加载期互调）。
 import crypto from "node:crypto";
 import { streamTextTask } from "./ai/streamTextTask";
-import { firstReferenceImage } from "./catalog/taskParams";
+import { allReferenceImages } from "./catalog/taskParams";
 import { firstString, trim } from "./jsonUtils";
 import { billingKindForTaskKind, findExecutableModelForTask, type TaskRequest, type TaskResult } from "./runtime";
 import type { Model, Vendor } from "./catalog/types";
@@ -23,7 +23,10 @@ export async function executeTextTask(input: {
   onDelta?: (delta: string) => void;
   abortSignal?: AbortSignal;
 }): Promise<TaskResult> {
-  const imageUrl = input.kind === "image_to_prompt" ? firstReferenceImage(input.request) : "";
+  // image_to_prompt 走**多图**：视频拆解一次喂一镜的 3 帧（单帧会漏掉「出现又消失」的字幕/角标，
+  // 实测同一镜 3 帧里下载弹窗只在第 3 帧）。单图调用方（浏览器「画面复刻」）传的
+  // referenceImages 只有一个元素，行为完全不变。
+  const imageUrls = input.kind === "image_to_prompt" ? allReferenceImages(input.request) : [];
   const maxTokensValue = Number(input.request.extras?.maxTokens ?? input.request.extras?.max_tokens);
   const temperatureValue = Number(input.request.extras?.temperature);
   const { raw } = await streamTextTask(
@@ -32,7 +35,7 @@ export async function executeTextTask(input: {
       model: input.model,
       apiKey: input.apiKey,
       prompt: input.request.prompt,
-      ...(imageUrl ? { imageUrl } : {}),
+      ...(imageUrls.length ? { imageUrls } : {}),
       ...(Number.isFinite(temperatureValue) ? { temperature: temperatureValue } : {}),
       ...(Number.isFinite(maxTokensValue) && maxTokensValue > 0 ? { maxTokens: maxTokensValue } : {}),
     },

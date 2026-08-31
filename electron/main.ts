@@ -595,6 +595,12 @@ function registerIpc(): void {
     const { detectShotCuts } = await import("./video/detectShotCuts");
     return detectShotCuts(payload);
   });
+  // 视频拆解：切镜 + 每镜多帧读图 + 音轨转写 → 结构化分镜表（docs/plan/2026-08-13-…）。
+  // 比 detect-shot-cuts 慢得多（要调模型），渲染层自己给进度态，别当同步调用用。
+  ipcMain.handle("nomi:video:deconstruct", async (_event, payload) => {
+    const { deconstructVideo } = await import("./video/deconstructVideo");
+    return deconstructVideo(payload);
+  });
   ipcMain.handle("nomi:image:decompose-layers", async (_event, payload) => {
     const { decomposeLayers } = await import("./image/decomposeLayers");
     return decomposeLayers(payload);

@@ -11,7 +11,7 @@ import { projectDirById, sanitizeName } from "../projects/repository";
 import { ensureDir } from "../runtimePaths";
 import { localAssetUrl } from "./assetPaths";
 
-export type ProjectCacheBucket = "filmstrip" | "shot-cuts";
+export type ProjectCacheBucket = "filmstrip" | "shot-cuts" | "audio-track";
 
 export type ProjectCacheFile = { url: string; absolutePath: string };
 

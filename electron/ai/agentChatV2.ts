@@ -129,10 +129,17 @@ function chooseTextModel(prefModelKey?: string, preferImageInput = false): { ven
 /**
  * 解析默认文本大脑的 vendor/model 键（**不含 apiKey**,供渲染层经现成文本流式管线复用——
  * 提示词优化与创作助手用同一个脑,P4 通用）。拿不到(没配文本模型)返回 null。
+ *
+ * `preferImageInput`（2026-08-13 加）：本轮要喂图时传 true，把**能读图**的模型排到第一位
+ * （imageInputRank → meta.supportsImageInput，如 gemini-3.5-flash）。默认 false，
+ * 既有调用方行为完全不变——无偏好时仍按「像不像通用对话模型」排序，把 vision/preview
+ * 降到末尾（它们常发不可靠的 tool_use，agent 主控要避开，见 AUTO_TEXT_MODEL_DEPRIORITIZE）。
  */
-export function resolveTextBrainKeys(): { vendor: string; modelKey: string } | null {
+export function resolveTextBrainKeys(
+  options: { preferImageInput?: boolean } = {},
+): { vendor: string; modelKey: string } | null {
   try {
-    const { vendor, model } = chooseTextModel();
+    const { vendor, model } = chooseTextModel(undefined, options.preferImageInput === true);
     return { vendor: vendor.key, modelKey: model.modelKey };
   } catch {
     return null;
