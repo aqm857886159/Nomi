@@ -1,6 +1,6 @@
 import React from 'react'
 import { Group, Stack, Text } from '@mantine/core'
-import { IconAlertTriangle, IconCheck, IconRefresh } from '@tabler/icons-react'
+import { IconAlertTriangle, IconCheck, IconRefresh, IconTrash } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import type { DesktopAdapterModeResult, DesktopProviderAdapterRun } from '../../desktop/bridge'
 import { DesignButton, DesignProgress, NomiLoadingMark } from '../../design'
@@ -45,6 +45,7 @@ export function AdapterVerificationScreen({
   onSelfConnect,
   onRetry,
   onCancel,
+  onClear,
   onRecoverConnection,
 }: {
   run: DesktopProviderAdapterRun
@@ -55,6 +56,8 @@ export function AdapterVerificationScreen({
   onRetry?: (modelKey?: string) => void
   /** Stop the persisted background task; unlike closing, this aborts main-process work. */
   onCancel?: () => void
+  /** Remove this terminal history record without touching the saved connection. */
+  onClear?: () => void
   /** Return to the saved connection and focus the field named by the recovery action. */
   onRecoverConnection?: (target: 'baseUrl' | 'apiKey') => void
 }): JSX.Element {
@@ -296,6 +299,11 @@ export function AdapterVerificationScreen({
         {terminal && needsAttentionCount > 0 && onRetry ? (
           <DesignButton variant="subtle" onClick={() => onRetry()}>
             {t('onboardingProviders.adapterVerification.retryAll')}
+          </DesignButton>
+        ) : null}
+        {terminal && onClear ? (
+          <DesignButton variant="subtle" className="text-workbench-danger" onClick={onClear} leftSection={<IconTrash size={15} stroke={1.8} />}>
+            {t('onboardingProviders.adapterVerification.clearRecord')}
           </DesignButton>
         ) : null}
         <DesignButton variant={terminal ? 'filled' : 'subtle'} onClick={onClose}>

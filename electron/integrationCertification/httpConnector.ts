@@ -19,7 +19,7 @@ import type { CertificationChildRunRef, CertificationContractBinding } from "./t
 
 export type HttpConnectorPrimitives = Pick<
   ProviderAdapterService,
-  "register" | "start" | "getRun" | "latestRun" | "cancel" | "listRuns" | "resumeInterrupted" | "certificationChildRunRef" | "certificationSourceVendorKey"
+  "register" | "start" | "getRun" | "latestRun" | "cancel" | "deleteRun" | "listRuns" | "resumeInterrupted" | "certificationChildRunRef" | "certificationSourceVendorKey"
 >;
 
 export type HttpExistingCertificationStart = {
@@ -91,6 +91,10 @@ export class HttpProviderConnector {
 
   cancel(runId: string): ProviderAdapterRun | undefined {
     return this.primitives.cancel(runId);
+  }
+
+  deleteRun(runId: string): ProviderAdapterRun | undefined {
+    return this.primitives.deleteRun(runId);
   }
 
   list(options: { vendorKey?: string; activeOnly?: boolean; limit?: number } = {}): ProviderAdapterRun[] {

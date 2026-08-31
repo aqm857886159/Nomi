@@ -189,6 +189,27 @@ const startInput = {
 };
 
 describe("ProviderAdapterService", () => {
+  it("clears terminal history without removing active work", () => {
+    const adapterStore = store();
+    adapterStore.upsertRun({
+      id: "terminal-run",
+      vendorKey: "example-com",
+      vendorName: "Example",
+      connectionFingerprint: "fingerprint",
+      selectedModelKeys: ["paint-v2"],
+      stage: "failed",
+      repairAttempt: 0,
+      models: [],
+      sourceUrls: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    const service = new ProviderAdapterService(adapterStore, dependencies(fakeCatalog()));
+
+    expect(service.deleteRun("terminal-run")?.stage).toBe("failed");
+    expect(service.getRun("terminal-run")).toBeUndefined();
+  });
+
   it("rejects direct starts that bypass the canonical certification contract", async () => {
     const service = new ProviderAdapterService(store(), dependencies(fakeCatalog()));
     const uncertified = { ...startInput } as Partial<typeof startInput>;

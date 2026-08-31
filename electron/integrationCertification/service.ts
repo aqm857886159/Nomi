@@ -211,6 +211,14 @@ export class ConnectionCertificationService {
     return publicRun(run, ref);
   }
 
+  deleteRun(runId: string): CanonicalHttpCertificationRun | undefined {
+    const ref = this.http.childRunRef(runId);
+    if (!ref) return undefined;
+    const run = this.http.deleteRun(runId);
+    if (!run) return undefined;
+    return publicRun(run, ref);
+  }
+
   list(options: { vendorKey?: string; activeOnly?: boolean; limit?: number } = {}): CanonicalHttpCertificationRun[] {
     return this.http.list(options).flatMap((run) => {
       const ref = this.http.childRunRef(run.id);

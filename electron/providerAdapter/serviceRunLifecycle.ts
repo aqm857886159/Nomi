@@ -1,5 +1,5 @@
 import { completedModelCount, failUnfinishedModes } from "./serviceFallback";
-import { isTerminalAdapterStage } from "./store";
+import { isTerminalAdapterStage, ProviderAdapterRunActiveError, type ProviderAdapterStore } from "./store";
 import type {
   AdapterModeResult,
   ProviderAdapterDraft,
@@ -9,6 +9,13 @@ import type {
 import { adapterRevisionDigest } from "./validator";
 
 export type ModeResultWithModel = AdapterModeResult & { modelKey: string };
+
+export function deleteTerminalAdapterRun(store: ProviderAdapterStore, id: string): ProviderAdapterRun | undefined {
+  const current = store.getRun(id);
+  if (!current) return undefined;
+  if (!isTerminalAdapterStage(current.stage)) throw new ProviderAdapterRunActiveError();
+  return store.deleteRun(id);
+}
 
 export function planAdapterPromotionFinal(input: {
   current: ProviderAdapterRun;

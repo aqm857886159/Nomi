@@ -32,6 +32,7 @@ function connector() {
     get: vi.fn(() => providerRun),
     latest: vi.fn(() => providerRun),
     cancel: vi.fn(() => ({ ...providerRun, stage: "cancelled" as const })),
+    deleteRun: vi.fn(() => ({ ...providerRun, stage: "failed" as const })),
     list: vi.fn(() => [providerRun]),
     childRunRef: vi.fn(() => ({ runId: providerRun.id, revisionDigest: "a".repeat(64) })),
     resumeInterrupted: vi.fn(),
@@ -169,9 +170,11 @@ describe("ConnectionCertificationService", () => {
 
     expect(service.get("adapter-run-1")).toMatchObject({ id: "adapter-run-1", kind: "http-api-provider" });
     expect(service.cancel("adapter-run-1")).toMatchObject({ id: "adapter-run-1", stage: "cancelled" });
+    expect(service.deleteRun("adapter-run-1")).toMatchObject({ id: "adapter-run-1", stage: "failed" });
     expect(service.list({ activeOnly: true })).toHaveLength(1);
     expect(http.get).toHaveBeenCalledWith("adapter-run-1");
     expect(http.cancel).toHaveBeenCalledWith("adapter-run-1");
+    expect(http.deleteRun).toHaveBeenCalledWith("adapter-run-1");
     expect(http.list).toHaveBeenCalledWith({ activeOnly: true });
   });
 });

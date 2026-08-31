@@ -490,6 +490,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:integration-certification:get", payload),
     certificationCancel: (payload: unknown) =>
       ipcRenderer.invoke("nomi:integration-certification:cancel", payload),
+    certificationDelete: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:integration-certification:delete", payload),
     certificationList: (payload: unknown) =>
       ipcRenderer.invoke("nomi:integration-certification:list", payload),
     httpConnectionListModels: (payload: unknown) =>

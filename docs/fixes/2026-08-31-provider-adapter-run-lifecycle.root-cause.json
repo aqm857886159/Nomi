@@ -1,0 +1,126 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-31-provider-adapter-run-lifecycle",
+  "problem_type": "Persisted terminal provider-adapter run has no user-controlled lifecycle",
+  "symptom": "An API verification error remains visible after the connection is fixed or deleted and after restarting Nomi.",
+  "direct_cause": "The provider adapter store persists terminal certification runs indefinitely, and the renderer bridge exposes list/get/cancel but no deletion path.",
+  "class_root": "The shared persistence boundary does not distinguish active work from terminal history or provide a safe terminal-record cleanup operation.",
+  "affected_population": [
+    "Users who encounter a failed, partial, cancelled, timed-out, stale, or needs-AI provider verification run",
+    "Users who later edit/delete the connection or restart the desktop app"
+  ],
+  "scope_paths": [
+    "electron/providerAdapter/store.ts",
+    "electron/providerAdapter/service.ts",
+    "electron/providerAdapter/serviceRunLifecycle.ts",
+    "electron/providerAdapter/ipc.ts",
+    "electron/integrationCertification/httpConnector.ts",
+    "electron/integrationCertification/service.ts",
+    "electron/preload.ts",
+    "src/desktop/onboardingBridgeTypes.ts",
+    "src/ui/onboarding/useProviderAdapterTasks.ts",
+    "src/ui/onboarding/AdapterTaskWorkspace.tsx",
+    "src/ui/onboarding/AdapterVerificationScreen.tsx",
+    "src/ui/onboarding/OnboardingDrawer.tsx",
+    "src/i18n/locales/onboardingProviders.ts",
+    "electron/providerAdapter/store.test.ts",
+    "electron/providerAdapter/service.test.ts",
+    "electron/providerAdapter/ipc.test.ts",
+    "electron/integrationCertification/httpConnector.test.ts",
+    "electron/integrationCertification/service.test.ts",
+    "src/ui/onboarding/modelSettingsWorkspaceStructure.test.ts"
+  ],
+  "entry_points": [
+    "Manual provider connection verification task list",
+    "Persisted provider-adapter run reload after application restart",
+    "Terminal verification detail screen"
+  ],
+  "internal_only_reason": "This invariant belongs to Nomi's internal persisted run lifecycle; no external provider contract decides whether a local historical verification record may be cleared.",
+  "invariants": [
+    "Only terminal provider-adapter runs may be cleared.",
+    "Clearing a run removes it from persistent runs and leaves revisions, credentials, and catalog models untouched.",
+    "Active runs remain cancellable and cannot be deleted through the renderer bridge.",
+    "A stale or unknown run id fails closed with a stable RUN_NOT_FOUND response."
+  ],
+  "generality_proof": "All provider-adapter verification callers persist and reload through ProviderAdapterStore and the canonical integration-certification IPC bridge. Enforcing terminal-only deletion at the store and service boundaries covers list rows, detail views, restart reloads, and future renderer callers without relying on vendor existence or UI filtering.",
+  "shared_boundaries": [
+    {
+      "path": "electron/providerAdapter/store.ts",
+      "symbol": "ProviderAdapterStore.deleteRun",
+      "responsibility": "Atomically remove only a terminal run from provider-adapters.json."
+    },
+    {
+      "path": "electron/providerAdapter/service.ts",
+      "symbol": "ProviderAdapterService.deleteRun",
+      "responsibility": "Apply the run lifecycle check before delegating deletion and preserve active work."
+    },
+    {
+      "path": "electron/providerAdapter/ipc.ts",
+      "symbol": "nomi:integration-certification:delete",
+      "responsibility": "Expose a stable, sender-guarded renderer boundary for terminal record cleanup."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/onboarding/AdapterTaskWorkspace.tsx",
+      "entry_point": "AdapterTaskList terminal row and AdapterTaskWorkspace terminal detail",
+      "disposition": "enforced",
+      "evidence": "Both surfaces display persisted certification runs and will call the same delete bridge operation."
+    },
+    {
+      "path": "electron/providerAdapter/serviceCatalogLifecycle.integration.test.ts",
+      "entry_point": "Catalog lifecycle and promotion revision state",
+      "disposition": "not-affected",
+      "evidence": "The fix intentionally preserves active revisions and catalog entries; only historical run records change."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every failed or partial verification can create a terminal record, and every restart or task-list reload rehydrates that record unless the shared lifecycle boundary removes it.",
+    "same_class_scan": [
+      "rg certificationList/certificationCancel/listRuns across src/ui/onboarding and electron/providerAdapter",
+      "Inspected ProviderAdapterStore persistence and reload paths",
+      "Inspected catalog vendor/model deletion paths and confirmed they do not own certification history",
+      "Inspected task list and terminal detail entry points"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/providerAdapter/store.ts",
+    "invariant": "Persistent run deletion is permitted only for terminal stages and is atomic.",
+    "failure_mode": "Active runs return RUN_ACTIVE and unknown ids return RUN_NOT_FOUND; no partial state is written.",
+    "exception_policy": "none",
+    "strategy": "Make the persistent store the earliest shared owner of terminal history lifecycle, then expose the same invariant through service and IPC layers.",
+    "artifacts": [
+      "electron/providerAdapter/store.ts",
+      "electron/providerAdapter/service.ts",
+      "electron/providerAdapter/ipc.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/providerAdapter/store.test.ts",
+    "electron/providerAdapter/service.test.ts",
+    "electron/providerAdapter/ipc.test.ts",
+    "src/ui/onboarding/modelSettingsWorkspaceStructure.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/providerAdapter/store.test.ts",
+    "electron/providerAdapter/service.test.ts",
+    "electron/providerAdapter/ipc.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "There is no obsolete code path to remove; the fix adds an explicit terminal-record lifecycle while preserving active work and revisions."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the local provider-adapter run lifecycle invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No migration is needed. Existing terminal records remain until the user clears them, and active/revision state is unchanged.",
+  "residual_risks": [
+    "This fix does not introduce automatic retention expiry; users must clear old terminal records explicitly.",
+    "Real Electron click-through validation must confirm the renderer bridge is wired in the packaged desktop entry point."
+  ]
+}

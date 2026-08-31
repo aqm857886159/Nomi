@@ -31,6 +31,15 @@ export function isTerminalAdapterStage(stage: ProviderAdapterRun["stage"]): bool
   return TERMINAL_ADAPTER_STAGES.has(stage);
 }
 
+export class ProviderAdapterRunActiveError extends Error {
+  readonly code = "RUN_ACTIVE" as const;
+
+  constructor() {
+    super("Provider adapter run is still active");
+    this.name = "ProviderAdapterRunActiveError";
+  }
+}
+
 function clone<T>(value: T): T {
   return structuredClone(value);
 }
@@ -169,6 +178,18 @@ export class ProviderAdapterStore {
       .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
       .slice(0, limit)
       .map(clone);
+  }
+
+  deleteRun(id: string): ProviderAdapterRun | undefined {
+    return this.mutate((fresh) => {
+      const current = fresh.runs.find((run) => run.id === id);
+      if (!current) return { state: fresh, result: undefined };
+      if (!isTerminalAdapterStage(current.stage)) throw new ProviderAdapterRunActiveError();
+      return {
+        state: { ...fresh, runs: fresh.runs.filter((run) => run.id !== id) },
+        result: current,
+      };
+    });
   }
 
   upsertRun(run: ProviderAdapterRun): ProviderAdapterRun {

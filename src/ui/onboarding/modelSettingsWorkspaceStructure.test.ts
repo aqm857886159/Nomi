@@ -87,6 +87,7 @@ describe('model settings workspace structure', () => {
     const drawer = read('src/ui/onboarding/OnboardingDrawer.tsx')
     expect(tasks).toContain('certificationList')
     expect(tasks).toContain('certificationCancel')
+    expect(tasks).toContain('certificationDelete')
     expect(tasks).toContain('httpCertificationRetry')
     expect(tasks).toContain('recordRun(result.run)')
     expect(tasks).toContain('setInterval')
@@ -99,7 +100,9 @@ describe('model settings workspace structure', () => {
     expect(drawer).not.toContain('handleWizardRunChange')
     expect(drawer).toContain("alertDialog({ title: t('onboardingProviders.drawer.operationFailed')")
     expect(read('src/ui/onboarding/AdapterTaskWorkspace.tsx')).toContain('onRetry={onRetry}')
+    expect(read('src/ui/onboarding/AdapterTaskWorkspace.tsx')).toContain('onClear={onClear}')
     expect(read('src/ui/onboarding/AdapterVerificationScreen.tsx')).toContain('onRetry(model.modelKey)')
+    expect(read('src/ui/onboarding/AdapterVerificationScreen.tsx')).toContain('onClear')
   })
 
   it('refreshes the model catalog when a background adapter run reaches a terminal state', () => {

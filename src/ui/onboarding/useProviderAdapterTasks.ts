@@ -11,6 +11,7 @@ export function useProviderAdapterTasks(): {
   visibleRuns: DesktopHttpCertificationRun[]
   recordRun: (run: DesktopHttpCertificationRun) => void
   cancelRun: (run: DesktopHttpCertificationRun) => Promise<void>
+  clearRun: (run: DesktopHttpCertificationRun) => Promise<void>
   retryRun: (run: DesktopHttpCertificationRun, modelKey?: string) => Promise<DesktopHttpCertificationRun>
 } {
   const [runs, setRuns] = React.useState<DesktopHttpCertificationRun[]>([])
@@ -44,6 +45,13 @@ export function useProviderAdapterTasks(): {
     if (result?.ok && result.run) recordRun(result.run)
   }, [recordRun])
 
+  const clearRun = React.useCallback(async (run: DesktopHttpCertificationRun) => {
+    const remove = getDesktopBridge()?.onboarding?.certificationDelete
+    if (!remove || !isAdapterRunTerminal(run.stage)) return
+    const result = await remove({ runId: run.id }).catch(() => null)
+    if (result?.ok) setRuns((current) => current.filter((item) => item.id !== run.id))
+  }, [])
+
   const retryRun = React.useCallback(async (run: DesktopHttpCertificationRun, modelKey?: string) => {
     const retryCertification = getDesktopBridge()?.onboarding?.httpCertificationRetry
     if (!retryCertification) throw new CertificationUiError('START_FAILED')
@@ -67,6 +75,7 @@ export function useProviderAdapterTasks(): {
     visibleRuns: visibleAdapterRuns(runs),
     recordRun,
     cancelRun,
+    clearRun,
     retryRun,
   }
 }

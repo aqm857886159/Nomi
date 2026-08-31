@@ -162,6 +162,7 @@ export type DesktopOnboardingBridge = {
   }) => AdapterResponse
   certificationGet: (payload: { runId: string }) => AdapterResponse
   certificationCancel: (payload: { runId: string }) => AdapterResponse
+  certificationDelete: (payload: { runId: string }) => AdapterResponse
   certificationList: (payload?: { vendorKey?: string; activeOnly?: boolean; limit?: number }) => AdapterListResponse
   httpConnectionListModels: (payload: { vendorKey: string }) => Promise<
     | { ok: true; connection: DesktopExistingConnectionSummary; models: string[]; partial?: boolean }

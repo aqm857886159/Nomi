@@ -6,6 +6,7 @@ import {
   type ConnectionCertificationService,
 } from "../integrationCertification/service";
 import { runLiveProviderAdapterHarnessFromEnv } from "./liveHarness";
+import { ProviderAdapterRunActiveError } from "./store";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
 
@@ -85,6 +86,20 @@ export function registerProviderAdapterIpc(service: ConnectionCertificationServi
     const runId = String((payload as { runId?: unknown } | null)?.runId || "").trim();
     const run = runId ? service.cancel(runId) : undefined;
     return run ? { ok: true, run } : { ok: false, code: "RUN_NOT_FOUND", error: "Certification run not found" };
+  });
+  ipcMain.handle("nomi:integration-certification:delete", async (event, payload: unknown) => {
+    assertTrustedSender(event);
+    const runId = String((payload as { runId?: unknown } | null)?.runId || "").trim();
+    if (!runId) return { ok: false, code: "RUN_NOT_FOUND", error: "Certification run not found" };
+    try {
+      const run = service.deleteRun(runId);
+      return run ? { ok: true, run } : { ok: false, code: "RUN_NOT_FOUND", error: "Certification run not found" };
+    } catch (error) {
+      if (error instanceof ProviderAdapterRunActiveError || (error as { code?: unknown })?.code === "RUN_ACTIVE") {
+        return { ok: false, code: "RUN_ACTIVE", error: "Active certification runs cannot be cleared" };
+      }
+      return { ok: false, code: "START_FAILED", error: "Certification record could not be cleared" };
+    }
   });
   ipcMain.handle("nomi:integration-certification:list", async (event, payload: unknown) => {
     assertTrustedSender(event);

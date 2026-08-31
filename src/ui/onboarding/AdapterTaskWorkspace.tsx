@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconAlertTriangle, IconCheck, IconChevronRight, IconPlayerStop } from '@tabler/icons-react'
+import { IconAlertTriangle, IconCheck, IconChevronRight, IconPlayerStop, IconTrash } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import type { DesktopHttpCertificationRun } from '../../desktop/onboardingBridgeTypes'
 import { IconActionButton, NomiLoadingMark } from '../../design'
@@ -18,10 +18,12 @@ export function AdapterTaskList({
   runs,
   onOpen,
   onCancel,
+  onClear,
 }: {
   runs: DesktopHttpCertificationRun[]
   onOpen: (run: DesktopHttpCertificationRun) => void
   onCancel: (run: DesktopHttpCertificationRun) => void
+  onClear: (run: DesktopHttpCertificationRun) => void
 }): JSX.Element | null {
   const { t } = useTranslation()
   if (runs.length === 0) return null
@@ -75,7 +77,15 @@ export function AdapterTaskList({
                   title={t('onboardingProviders.workspace.cancelTask', { name: run.vendorName })}
                   icon={<IconPlayerStop size={16} stroke={1.8} aria-hidden="true" />}
                 />
-              ) : null}
+              ) : (
+                <IconActionButton
+                  onClick={() => onClear(run)}
+                  className="size-11 shrink-0 text-nomi-ink-40 hover:bg-nomi-paper hover:text-workbench-danger sm:size-8"
+                  aria-label={t('onboardingProviders.workspace.clearTask', { name: run.vendorName })}
+                  title={t('onboardingProviders.workspace.clearTask', { name: run.vendorName })}
+                  icon={<IconTrash size={16} stroke={1.8} aria-hidden="true" />}
+                />
+              )}
             </div>
           )
         })}
@@ -88,6 +98,7 @@ export function AdapterTaskWorkspace({
   run,
   onBack,
   onCancel,
+  onClear,
   onRetry,
   onSelfConnect,
   onRecoverConnection,
@@ -95,6 +106,7 @@ export function AdapterTaskWorkspace({
   run?: DesktopHttpCertificationRun
   onBack: () => void
   onCancel: () => void
+  onClear: () => void
   onRetry: (modelKey?: string) => void
   onSelfConnect: (modelKey: string) => void
   onRecoverConnection: (target: 'baseUrl' | 'apiKey') => void
@@ -114,6 +126,7 @@ export function AdapterTaskWorkspace({
             run={run}
             onClose={onBack}
             onCancel={onCancel}
+            onClear={onClear}
             onRetry={onRetry}
             onSelfConnect={(modelKey) => onSelfConnect(modelKey)}
             onRecoverConnection={onRecoverConnection}

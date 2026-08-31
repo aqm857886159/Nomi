@@ -44,6 +44,7 @@ import { normalizeProviderAdapterInput, registerProviderConnection } from "./reg
 import {
   activeRunsSupersededBy,
   adapterRunLineageRoot,
+  deleteTerminalAdapterRun,
   buildTerminalFailureRun,
   latestRunInLineage,
   planAdapterPromotionFinal,
@@ -201,22 +202,21 @@ export class ProviderAdapterService {
   getRun(id: string): ProviderAdapterRun | undefined {
     return this.store.getRun(id);
   }
-
   certificationChildRunRef(id: string) {
     return this.certification.childRunRef(id);
   }
-
   certificationSourceVendorKey(id: string) {
     return this.certification.sourceVendorKey(id);
   }
-
   latestRun(vendorKey: string): ProviderAdapterRun | undefined {
     return this.store.latestRun(vendorKey);
   }
-
   listRuns(options: { vendorKey?: string; activeOnly?: boolean; limit?: number } = {}): ProviderAdapterRun[] {
     return this.store.listRuns(options);
   }
+
+  deleteRun(id: string): ProviderAdapterRun | undefined { return deleteTerminalAdapterRun(this.store, id); }
+
   cancel(id: string): ProviderAdapterRun | undefined {
     const current = this.store.getRun(id);
     if (!current || isTerminalAdapterStage(current.stage)) return current;

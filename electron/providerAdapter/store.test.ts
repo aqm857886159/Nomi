@@ -131,6 +131,17 @@ describe("ProviderAdapterStore", () => {
     expect(store.listRuns({ activeOnly: true }).map((item) => item.id)).toEqual(["other", "older"]);
   });
 
+  it("deletes terminal history atomically but refuses active work", () => {
+    const { store, filePath } = createStore();
+    store.upsertRun(run({ id: "active", stage: "testing" }));
+    store.upsertRun(run({ id: "failed", stage: "failed" }));
+
+    expect(() => store.deleteRun("active")).toThrowError(/active/i);
+    expect(store.deleteRun("failed")).toMatchObject({ id: "failed", stage: "failed" });
+    expect(new ProviderAdapterStore(filePath).getRun("failed")).toBeUndefined();
+    expect(new ProviderAdapterStore(filePath).getRun("active")?.stage).toBe("testing");
+  });
+
   it("marks recoverable work stale when the connection fingerprint changed", () => {
     const { store } = createStore();
     store.upsertRun(run({ stage: "compiling" }));

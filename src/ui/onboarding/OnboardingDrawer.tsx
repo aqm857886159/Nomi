@@ -193,7 +193,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     runs: adapterRuns,
     visibleRuns: visibleAdapterTaskRuns,
     recordRun: recordAdapterRun,
-    cancelRun: cancelAdapterRun,
+    cancelRun: cancelAdapterRun, clearRun: clearAdapterRun,
     retryRun: retryAdapterRun,
   } = useProviderAdapterTasks()
   const previousAdapterRunsRef = React.useRef(adapterRuns)
@@ -606,9 +606,8 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       <AdapterTaskWorkspace
         run={run}
         onBack={goBack}
-        onCancel={() => {
-          if (run) void cancelAdapterRun(run)
-        }}
+        onCancel={() => run && void cancelAdapterRun(run)}
+        onClear={() => run && void clearAdapterRun(run).then(goBack)}
         onRetry={(modelKey) => {
           if (!run) return
           void retryAdapterRun(run, modelKey)
@@ -785,9 +784,8 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
         <AdapterTaskList
           runs={visibleAdapterTaskRuns}
           onOpen={(run) => openPage({ type: 'verification', runId: run.id })}
-          onCancel={(run) => {
-            void cancelAdapterRun(run)
-          }}
+          onCancel={(run) => void cancelAdapterRun(run)}
+          onClear={(run) => void clearAdapterRun(run)}
         />
       }
       diagnostic={

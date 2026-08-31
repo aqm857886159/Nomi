@@ -51,7 +51,7 @@ function trustedEvent(): { sender: unknown; senderFrame: unknown } {
 describe("registerProviderAdapterIpc", () => {
   beforeEach(() => handlers.clear());
 
-  it("exposes only canonical configure/start/get/cancel/list without returning credentials", async () => {
+  it("exposes only canonical configure/start/get/cancel/list/delete without returning credentials", async () => {
     const run = {
       id: "run-1",
       vendorKey: "example-com",
@@ -80,6 +80,7 @@ describe("registerProviderAdapterIpc", () => {
       startHttp: vi.fn(async () => run),
       get: vi.fn(() => run),
       cancel: vi.fn(() => ({ ...run, stage: "cancelled" })),
+      deleteRun: vi.fn(() => ({ ...run, stage: "failed" })),
       list: vi.fn(() => [run]),
       resumeInterrupted: vi.fn(),
     };
@@ -102,6 +103,7 @@ describe("registerProviderAdapterIpc", () => {
     });
     const fetched = await handlers.get("nomi:integration-certification:get")?.(trustedEvent(), { runId: "run-1" });
     const cancelled = await handlers.get("nomi:integration-certification:cancel")?.(trustedEvent(), { runId: "run-1" });
+    const deleted = await handlers.get("nomi:integration-certification:delete")?.(trustedEvent(), { runId: "run-1" });
     const listed = await handlers.get("nomi:integration-certification:list")?.(trustedEvent(), { vendorKey: "example-com", activeOnly: true, limit: 5 });
 
     expect(configured).toEqual({ ok: true, registration });
@@ -122,6 +124,8 @@ describe("registerProviderAdapterIpc", () => {
     expect(JSON.stringify(started)).not.toContain("sk-secret");
     expect(fetched).toEqual({ ok: true, run });
     expect(cancelled).toEqual({ ok: true, run: { ...run, stage: "cancelled" } });
+    expect(deleted).toEqual({ ok: true, run: { ...run, stage: "failed" } });
+    expect(service.deleteRun).toHaveBeenCalledWith("run-1");
     expect(listed).toEqual({ ok: true, runs: [run] });
     expect(service.list).toHaveBeenCalledWith({ vendorKey: "example-com", activeOnly: true, limit: 5 });
     expect(service.resumeInterrupted).toHaveBeenCalledTimes(1);
@@ -139,7 +143,7 @@ describe("registerProviderAdapterIpc", () => {
     const service = {
       configureHttpConnection: vi.fn(() => { throw new Error("upstream sk-secret exploded"); }),
       startHttp: vi.fn(async () => { throw new Error("provider English raw detail"); }),
-      get: vi.fn(), cancel: vi.fn(), list: vi.fn(() => []), resumeInterrupted: vi.fn(),
+      get: vi.fn(), cancel: vi.fn(), deleteRun: vi.fn(), list: vi.fn(() => []), resumeInterrupted: vi.fn(),
     };
     registerProviderAdapterIpc(service as never);
     const configured = await handlers.get("nomi:integration-certification:http:configure")?.(trustedEvent(), {});

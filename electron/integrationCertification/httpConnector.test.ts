@@ -27,6 +27,7 @@ describe("HttpProviderConnector", () => {
       getRun: vi.fn(() => ({ id: "run-1" })),
       latestRun: vi.fn(() => ({ id: "run-1" })),
       cancel: vi.fn(() => ({ id: "run-1", stage: "cancelled" })),
+      deleteRun: vi.fn(() => ({ id: "run-1", stage: "failed" })),
       listRuns: vi.fn(() => [{ id: "run-1" }]),
       resumeInterrupted: vi.fn(),
     };
@@ -36,6 +37,7 @@ describe("HttpProviderConnector", () => {
     await expect(connector.start({ ...connection, certification })).resolves.toEqual({ id: "run-1" });
     expect(connector.get("run-1")).toEqual({ id: "run-1" });
     expect(connector.cancel("run-1")).toEqual({ id: "run-1", stage: "cancelled" });
+    expect(connector.deleteRun("run-1")).toEqual({ id: "run-1", stage: "failed" });
     expect(connector.list({ limit: 5 })).toEqual([{ id: "run-1" }]);
   });
 
