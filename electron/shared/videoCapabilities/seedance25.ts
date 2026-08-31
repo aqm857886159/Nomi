@@ -1,12 +1,15 @@
 import type { ModelParameterControl } from "./types";
 import type { ModelArchetype } from "./types";
 
-// Seedance 2.5 档案。契约逐项对账自**两家**官方文档（2026-08-12 复核，用户给的链接）：
+// Seedance 2.5 档案。契约逐项对账自**三家官方入口**（2026-08-30 复核）：
 //   - kie:     docs.kie.ai/market/bytedance/seedance-2-5 · POST /api/v1/jobs/createTask
 //              input.reference_image_urls / reference_video_urls / reference_audio_urls = 30 / 10 / 10
 //   - apimart: docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation · POST /v1/videos/generations
 //              （原 /cn/.../doubao-seedance-2-5 已 404，2026-08-20 复核后更新为现行路径；30/10/10 未变）
 //              image_urls / video_urls / audio_urls = 30 / 10 / 10（另有 image_with_roles 表达首尾帧）
+//   - runway:   docs.dev.runwayml.com/guides/models/ + Runway OpenAPI · POST /v1/text_to_video 或
+//              /v1/image_to_video，model=seedance2_5；references/referenceVideos/referenceAudio =
+//              typed URI objects（mapping request_transform 负责 wire 形状转换）。
 //
 // ⚠️ 2026-08-12 修正：此前写 9 图 / 3 视频 / 3 音频、比例默认 16:9——**两处都不是文档里的数**，
 // 是我们自己填的，等于把模型能力掐窄了（用户要连多段 3D 白膜做分镜时直接卡住）。
@@ -76,6 +79,12 @@ export const SEEDANCE_2_5_ARCHETYPE: ModelArchetype = {
       vendorKey: "apimart",
       covers: "POST /v1/videos/generations；image_urls/video_urls/audio_urls 上限 30/10/10；image_with_roles 表首尾帧；首尾帧与参考编辑类提示词下 size 必须 adaptive",
     },
+    {
+      url: "https://raw.githubusercontent.com/runwayml/openapi/main/openapi.json",
+      checkedAt: "2026-08-30",
+      vendorKey: "runway",
+      covers: "Runway OpenAPI v2024-11-06：seedance2_5 文生/图生视频，duration 4–30，references 最多 30 图、referenceVideos 最多 10 个、referenceAudio 最多 10 个",
+    },
   ],
   // 默认进文生视频，与 Seedance 2.0 / apimart / RunningHub 一致（P4 通用第一）。
   defaultModeId: "t2v",
@@ -134,6 +143,7 @@ export const SEEDANCE_2_5_ARCHETYPE: ModelArchetype = {
         // 别在"对齐两代"时补回来——seedance20Contract.test.ts 有负向钉子拦着。
         { kind: "audio_ref", label: "参考音频", min: 0, max: 10 },
       ],
+      transportTaskKind: "image_to_video",
       params: PARAMS,
     },
   ],

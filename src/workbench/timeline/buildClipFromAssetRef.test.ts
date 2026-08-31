@@ -3,7 +3,7 @@ import { buildClipFromAssetRef } from './buildClipFromAssetRef'
 import type { AssetKind, AssetRef } from '../assets/assetTypes'
 
 function asset(kind: AssetKind, over: Partial<AssetRef> = {}): AssetRef {
-  const extension = kind === 'image' ? 'png' : kind === 'video' ? 'mp4' : 'mp3'
+  const extension = kind === 'image' ? 'png' : kind === 'video' ? 'mp4' : kind === 'audio' ? 'mp3' : 'glb'
   const relativePath = `assets/imported/media.${extension}`
   return {
     id: relativePath,
@@ -85,5 +85,9 @@ describe('buildClipFromAssetRef', () => {
     })
     expect(clip?.startFrame).toBe(0)
     expect(clip?.frameCount).toBe(90)
+  })
+
+  it('keeps 3D assets out of the existing timeline', () => {
+    expect(buildClipFromAssetRef(asset('model3d'), { fps: 30, startFrame: 0 })).toBeNull()
   })
 })

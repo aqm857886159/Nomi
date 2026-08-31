@@ -567,31 +567,35 @@ function applyMappingUpsert(state: CatalogState, payload: unknown): Mapping {
   // 可选 modelKey：把 mapping 绑到特定模型。本地 ComfyUI 导入的每条 workflow 各一 mapping——同 vendor 同 taskKind
   // 靠 modelKey 区分、不互相覆盖（selectTaskMapping：精确 modelKey > generic）。缺省=generic 桶模板（老行为不变）。
   const modelKey = typeof raw.modelKey === "string" && raw.modelKey.trim() ? raw.modelKey.trim() : undefined;
-  // 定位既有行：给了 id 按 id；否则按 (vendor, taskKind, modelKey)——让调用方无需追 id 也能精确 upsert，
+  const modeId = typeof raw.modeId === "string" && raw.modeId.trim() ? raw.modeId.trim() : undefined;
+  // 定位既有行：给了 id 按 id；否则按 (vendor, taskKind, modelKey, modeId)——让调用方无需追 id 也能精确 upsert，
   // 且带 modelKey 的与 generic 的、以及不同 modelKey 的互不覆盖。
   const existing = state.mappings.find((m) =>
     raw.id
       ? m.id === raw.id
-      : m.vendorKey === vendorKey && m.taskKind === taskKind && (m.modelKey || undefined) === modelKey,
+      : m.vendorKey === vendorKey && m.taskKind === taskKind && (m.modelKey || undefined) === modelKey && (m.modeId || undefined) === modeId,
   );
   const id = String(raw.id || existing?.id || `mapping-${crypto.randomUUID()}`);
   const t = nowIso();
-  // Accept new shape (create/query) directly, or legacy {requestMapping,...}
+  // Accept new shape (create/query/result) directly, or legacy {requestMapping,...}
   // (e.g. via the unchanged import path) and normalize on the way in.
   const legacy = extractLegacyStages(raw.requestMapping ?? raw.requestProfile);
   const legacyResp = extractLegacyStages(raw.responseMapping);
   const create = (raw.create as HttpOperation | undefined) || legacy.create || legacyResp.create || existing?.create;
   const query = (raw.query as HttpOperation | undefined) || legacy.query || legacyResp.query || existing?.query;
+  const result = (raw.result as HttpOperation | undefined) || existing?.result;
   if (!create) throw new Error("create operation is required (method + path)");
   const mapping: Mapping = {
     id,
     vendorKey,
     taskKind,
     ...(modelKey ? { modelKey } : {}),
+    ...(modeId ? { modeId } : {}),
     name: String(raw.name || existing?.name || taskKind).trim(),
     enabled: normalizeEnabled(raw.enabled, existing?.enabled ?? true),
     create,
     ...(query ? { query } : {}),
+    ...(result ? { result } : {}),
     ...(raw.statusMapping || legacy.statusMapping || existing?.statusMapping
       ? {
           statusMapping:

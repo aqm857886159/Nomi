@@ -1,5 +1,6 @@
 import type { ProductionExecutionBinding } from "./productionExecutionBinding";
 import type { ProductionGenerationAuthorizationEnvelopeV1 } from "./productionGenerationAuthorization";
+import type { GenerationProviderTaskState } from "../capabilityCore/generationRuntimeAdapter";
 import type { ExecutionContractV1, PlanCandidate } from "../capabilityCore/executionContract";
 
 export const PRODUCTION_RUN_SCHEMA_VERSION = 1;
@@ -147,6 +148,8 @@ export type ProductionJob = {
   providerTaskId?: string;
   /** Last provider status observed through the provider's query/reconcile capability. */
   providerStatus?: string;
+  /** Closed control-plane state derived from providerStatus; absent on legacy jobs. */
+  providerState?: GenerationProviderTaskState;
   /** P1/P3 sealed execution identity; absent only on legacy jobs. */
   executionBinding?: ProductionExecutionBinding;
   requestFingerprint?: string;
@@ -308,7 +311,7 @@ export type ProductionArtifact = {
   artifactId: string;
   stageId: string;
   jobId?: string;
-  kind: "brief" | "direction" | "script" | "storyboard" | "image" | "video" | "audio" | "timeline" | "export";
+  kind: "brief" | "direction" | "script" | "storyboard" | "image" | "video" | "audio" | "model3d" | "timeline" | "export";
   status: "candidate" | "ready" | "adopted" | "rejected";
   /** Monotonic artifact version within a run. Optional for pre-contract artifacts. */
   version?: number;

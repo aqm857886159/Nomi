@@ -257,10 +257,70 @@ describe("GenerationRuntimeAdapter", () => {
     }] });
 
     await expect(adapter.query({ providerId: "provider.image", providerTaskId: "task-1" }))
-      .resolves.toMatchObject({ status: "processing", raw: { id: "task-1" } });
+      .resolves.toMatchObject({ state: "running", providerStatus: "processing", raw: { id: "task-1" } });
     expect(query).toHaveBeenCalledWith("task-1");
     expect(submit).not.toHaveBeenCalled();
   });
+
+  it("fails closed when a provider returns an unfamiliar task status", async () => {
+    const adapter = createGenerationRuntimeAdapter({ providers: [{
+      providerId: "provider.image",
+      capabilities: { submitIdempotency: false, query: true, reconcile: false, cancel: false },
+      buildRequest: (input) => input,
+      submit: vi.fn(async () => ({ providerTaskId: "task-1" })),
+      query: vi.fn(async () => ({ status: "provider-did-something-new" })),
+    }] });
+
+    await expect(adapter.query({ providerId: "provider.image", providerTaskId: "task-1" }))
+      .resolves.toEqual({ state: "unknown", providerStatus: "provider-did-something-new" });
+  });
+
+  it.each(["found", "not_found", "indeterminate"] as const)(
+    "preserves the closed %s reconciliation disposition",
+    async (disposition) => {
+      const reconcile = vi.fn(async () => ({ disposition, ...(disposition === "found" ? { providerTaskId: "task-1" } : {}) }));
+      const adapter = createGenerationRuntimeAdapter({ providers: [{
+        providerId: "provider.image",
+        capabilities: { submitIdempotency: false, query: false, reconcile: true, cancel: false },
+        buildRequest: (input) => input,
+        submit: vi.fn(async () => ({ providerTaskId: "task-1" })),
+        reconcile,
+      }] });
+
+      await expect(adapter.reconcile({ providerId: "provider.image", idempotencyKey: "idem-1" }))
+        .resolves.toMatchObject({ disposition });
+    },
+  );
+
+  it("returns unsupported cancellation without calling a missing provider operation", async () => {
+    const adapter = createGenerationRuntimeAdapter({ providers: [{
+      providerId: "provider.image",
+      capabilities: { submitIdempotency: false, query: false, reconcile: false, cancel: false },
+      buildRequest: (input) => input,
+      submit: vi.fn(async () => ({ providerTaskId: "task-1" })),
+    }] });
+
+    await expect(adapter.cancel({ providerId: "provider.image", providerTaskId: "task-1" }))
+      .resolves.toEqual({ disposition: "unsupported" });
+  });
+
+  it.each(["requested", "confirmed", "already_terminal", "too_late"] as const)(
+    "preserves the closed %s provider cancellation disposition",
+    async (disposition) => {
+      const cancel = vi.fn(async () => ({ disposition }));
+      const adapter = createGenerationRuntimeAdapter({ providers: [{
+        providerId: "provider.image",
+        capabilities: { submitIdempotency: false, query: false, reconcile: false, cancel: true },
+        buildRequest: (input) => input,
+        submit: vi.fn(async () => ({ providerTaskId: "task-1" })),
+        cancel,
+      }] });
+
+      await expect(adapter.cancel({ providerId: "provider.image", providerTaskId: "task-1" }))
+        .resolves.toEqual({ disposition });
+      expect(cancel).toHaveBeenCalledWith("task-1");
+    },
+  );
 
   it("delegates terminal output extraction to the provider without assuming its response shape", async () => {
     const materialize = vi.fn(async ({ providerTaskId, raw }: { providerTaskId: string; raw?: unknown }) => ({
@@ -278,6 +338,19 @@ describe("GenerationRuntimeAdapter", () => {
     await expect(adapter.materialize({ providerId: "provider.video", providerTaskId: "task-1", raw: { provider: "opaque" } }))
       .resolves.toMatchObject({ outputs: [{ kind: "video", url: "https://cdn.example/video.mp4" }], raw: { provider: "opaque" } });
     expect(materialize).toHaveBeenCalledWith({ providerTaskId: "task-1", raw: { provider: "opaque" } });
+  });
+
+  it("accepts model3d as a first-class provider output kind", async () => {
+    const adapter = createGenerationRuntimeAdapter({ providers: [{
+      providerId: "provider.video",
+      capabilities: { submitIdempotency: false, query: false, reconcile: false, cancel: false, materialize: true },
+      buildRequest: (input) => input,
+      submit: vi.fn(async () => ({ providerTaskId: "task-3d" })),
+      materialize: vi.fn(async () => ({ outputs: [{ kind: "model3d" as const, url: "https://cdn.example/model.glb" }] })),
+    }] });
+
+    await expect(adapter.materialize({ providerId: "provider.video", providerTaskId: "task-3d" }))
+      .resolves.toMatchObject({ outputs: [{ kind: "model3d", url: "https://cdn.example/model.glb" }] });
   });
 
   it("creates a provider-neutral request with the sealed contract hash and idempotency key", () => {

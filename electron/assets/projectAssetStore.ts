@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import crypto from "node:crypto";
+import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { hardenedFetch } from "../hardenedFetch";
 import { isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
 import { projectDirById, sanitizeName } from "../projects/repository";
@@ -18,7 +20,11 @@ import {
   sanitizeAssetMetaForKind,
   stableAssetId,
 } from "./assetPaths";
-import { contentTypeFromMagicBytes, resolveContentType } from "./mediaTypes";
+import { contentTypeFromMagicBytes, isCertifiableMediaContentType, resolveContentType } from "./mediaTypes";
+import { validateGlbStructure } from "./model3dValidation";
+import { resolveFfmpegPath } from "../export/ffmpegRunner";
+import { MEDIA_DECODER_PROTOCOL_WHITELIST } from "../export/mediaProbe";
+import type { CertificationMediaEvidence } from "../providerAdapter/certificationMedia";
 import type {
   ProjectAgentAttachmentClaim,
   ProjectAgentAttachmentRef,
@@ -96,6 +102,85 @@ function effectiveContentType(fileName: string, declared: string, bytes?: Uint8A
   const sniffed = bytes ? contentTypeFromMagicBytes(bytes) : null;
   if (sniffed && sniffed !== normalized && sniffed.split("/")[0] === normalized.split("/")[0]) return sniffed;
   return normalized;
+}
+
+function validateStructuredAsset(contentType: string, bytes: Uint8Array): void {
+  if (contentType === "model/gltf-binary") validateGlbStructure(bytes);
+}
+
+function generatedMediaKind(contentType: string): "image" | "video" | "audio" | "model3d" | null {
+  if (contentType.startsWith("image/")) return "image";
+  if (contentType.startsWith("video/")) return "video";
+  if (contentType.startsWith("audio/")) return "audio";
+  return contentType === "model/gltf-binary" ? "model3d" : null;
+}
+
+/** Generated outputs are executable evidence, not ordinary user imports: fail closed before disk. */
+function validatedGeneratedMeta(meta: JsonRecord, declaredRaw: string, bytes: Uint8Array, sourcePath?: string): JsonRecord {
+  if (String(meta.kind || "").toLowerCase() !== "generated") return meta;
+  const prefix = Buffer.from(bytes.subarray(0, 4096)).toString("utf8").trimStart();
+  if (/^(?:<!doctype\s+html|<html\b|<\?xml\b|<svg\b|<(?:error|response|message)\b)/i.test(prefix)) {
+    throw new Error("Generated media validation failed (markup_masquerade)");
+  }
+  const detected = bytes.byteLength >= 12 && Buffer.from(bytes.subarray(0, 4)).toString("ascii") === "glTF"
+    ? "model/gltf-binary"
+    : contentTypeFromMagicBytes(bytes);
+  const normalizedDeclared = String(declaredRaw || "").toLowerCase().split(";", 1)[0].trim();
+  const declared = !normalizedDeclared || normalizedDeclared === "application/octet-stream"
+    ? detected || normalizedDeclared
+    : normalizedDeclared;
+  const expectedKind = generatedMediaKind(declared);
+  if (!expectedKind) return meta;
+  if (!detected) throw new Error("Generated media validation failed (unknown_bytes)");
+  const detectedKind = generatedMediaKind(detected);
+  const ambiguousAudioContainer = expectedKind === "audio"
+    && (declared === "audio/mp4" && detected === "video/mp4"
+      || declared === "audio/webm" && detected === "video/webm");
+  if (!detectedKind || (detectedKind !== expectedKind && !ambiguousAudioContainer)) {
+    throw new Error("Generated media validation failed (kind_mismatch)");
+  }
+  if (!isCertifiableMediaContentType(detected) && !ambiguousAudioContainer) {
+    throw new Error("Generated media validation failed (unsupported_format)");
+  }
+  const claimed = meta.certificationEvidence && typeof meta.certificationEvidence === "object"
+    ? meta.certificationEvidence as Partial<CertificationMediaEvidence>
+    : undefined;
+  const cleanMeta = { ...meta };
+  delete cleanMeta.certificationEvidence;
+  if (claimed) {
+    const digest = crypto.createHash("sha256").update(bytes).digest("hex");
+    if (claimed.sha256 !== digest || claimed.byteLength !== bytes.byteLength || claimed.kind !== expectedKind
+      || claimed.contentType !== declared) throw new Error("Generated media validation failed (evidence_mismatch)");
+    return cleanMeta;
+  }
+  if (expectedKind === "model3d") {
+    validateGlbStructure(bytes);
+    return cleanMeta;
+  }
+  const map = expectedKind === "audio" ? "0:a:0" : "0:v:0";
+  const decodeLimit = expectedKind === "video" ? ["-frames:v", "1"] : expectedKind === "audio" ? ["-t", "1"] : ["-frames:v", "1"];
+  // MP4/MOV commonly stores its index (moov atom) at the end of the file.
+  // Feeding such a container through stdin makes ffmpeg report "partial file"
+  // because a pipe cannot seek. Validate the exact bytes from a 0600 temporary
+  // file when the caller has not already got a Nomi-owned path.
+  let validationPath = sourcePath;
+  let validationDir = "";
+  if (!validationPath || !fs.existsSync(validationPath)) {
+    validationDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-generated-validation-"));
+    validationPath = path.join(validationDir, "artifact.media");
+    fs.writeFileSync(validationPath, Buffer.from(bytes), { mode: 0o600, flag: "wx" });
+  }
+  try {
+    const result = spawnSync(resolveFfmpegPath(), [
+      "-hide_banner", "-v", "error", "-xerror", "-err_detect", "explode",
+      "-protocol_whitelist", MEDIA_DECODER_PROTOCOL_WHITELIST,
+      "-i", validationPath, "-map", map, ...decodeLimit, "-f", "null", "-",
+    ], { timeout: 12_000, maxBuffer: 64 * 1024, windowsHide: true });
+    if (result.error || result.status !== 0) throw new Error("Generated media validation failed (decode_failed)");
+    return cleanMeta;
+  } finally {
+    if (validationDir) fs.rmSync(validationDir, { recursive: true, force: true });
+  }
 }
 
 async function writeAssetSidecarMetaAsync(absolutePath: string, meta: JsonRecord): Promise<void> {
@@ -267,6 +352,8 @@ export async function copyAssetFile(
     }
   })();
   const actualContentType = effectiveContentType(fileName, contentType, header);
+  if (String(meta.kind || "").toLowerCase() === "generated") meta = validatedGeneratedMeta(meta, contentType, await fs.promises.readFile(sourcePath), sourcePath);
+  if (actualContentType === "model/gltf-binary") validateStructuredAsset(actualContentType, await fs.promises.readFile(sourcePath));
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));
   await fs.promises.copyFile(sourcePath, absolutePath);
@@ -316,6 +403,8 @@ export function moveAssetFile(
     }
   })();
   const actualContentType = effectiveContentType(fileName, contentType, header);
+  if (String(meta.kind || "").toLowerCase() === "generated") meta = validatedGeneratedMeta(meta, contentType, fs.readFileSync(sourcePath), sourcePath);
+  if (actualContentType === "model/gltf-binary") validateStructuredAsset(actualContentType, fs.readFileSync(sourcePath));
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));
   try {

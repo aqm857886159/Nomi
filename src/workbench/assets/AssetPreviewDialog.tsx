@@ -1,12 +1,16 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
-import { IconX } from '@tabler/icons-react'
+import { IconDownload, IconLoader2, IconX } from '@tabler/icons-react'
 import { NomiImage } from '../../design/media'
 import { cn } from '../../utils/cn'
 import { useVideoPlaybackHeal } from '../../media/useVideoPlaybackHeal'
 import { VideoPlaybackStatusOverlay } from '../../media/VideoPlaybackStatusOverlay'
 import type { AssetRef } from './assetTypes'
+import { getDesktopBridge } from '../../desktop/bridge'
+import { toast } from '../../ui/toast'
+
+const Model3DViewer = React.lazy(() => import('../generationCanvas/nodes/model3d/Model3DViewer'))
 
 // 素材库双击放大预览（#52 群反馈「加个双击放大预览」）。独立的 body-portal 全屏 lightbox：
 // 不复用 NodeMediaPreviewDialog——它 portal 到画布区、且创作页画布 hidden 时预览会挂到隐藏画布上
@@ -16,6 +20,20 @@ export function AssetPreviewDialog({ asset, onClose }: { asset: AssetRef; onClos
   const { t } = useTranslation()
   const heal = useVideoPlaybackHeal({ rawUrl: asset.renderUrl })
   const title = asset.name || ''
+  const [downloading, setDownloading] = React.useState(false)
+  const downloadModel = React.useCallback(() => {
+    const bridge = getDesktopBridge()
+    if (!bridge?.assets?.download || downloading) return
+    const suggestedName = /\.glb$/i.test(title) ? title : `${title || 'model'}.glb`
+    setDownloading(true)
+    void bridge.assets.download({ url: asset.renderUrl, suggestedName })
+      .then((result) => {
+        if (result.ok) toast(t('assetLibrary.downloadedModel3d'), 'success')
+        else if (!result.canceled) toast(t('assetLibrary.downloadModel3dFailed'), 'error')
+      })
+      .catch(() => toast(t('assetLibrary.downloadModel3dFailed'), 'error'))
+      .finally(() => setDownloading(false))
+  }, [asset.renderUrl, downloading, t, title])
 
   React.useEffect(() => {
     // capture 阶段拦 Esc：素材库/画布也监听 window keydown，先于它们关预览（不误删节点等）。
@@ -52,7 +70,39 @@ export function AssetPreviewDialog({ asset, onClose }: { asset: AssetRef; onClos
         <IconX size={18} stroke={1.8} />
       </button>
 
-      {asset.kind === 'video' ? (
+      {asset.kind === 'model3d' ? (
+        <button
+          type="button"
+          className={cn(
+            'absolute right-16 top-4 z-[3] grid size-9 place-items-center rounded-full border-0 cursor-pointer',
+            'bg-nomi-overlay-chip text-nomi-paper hover:bg-nomi-overlay-chip-strong disabled:cursor-wait disabled:opacity-60',
+            'focus-visible:outline-2 focus-visible:outline-nomi-paper focus-visible:outline-offset-2',
+          )}
+          aria-label={t('assetLibrary.downloadModel3d')}
+          title={t('assetLibrary.downloadModel3d')}
+          disabled={downloading}
+          onClick={downloadModel}
+        >
+          {downloading ? <IconLoader2 size={18} stroke={1.8} className="animate-spin" /> : <IconDownload size={18} stroke={1.8} />}
+        </button>
+      ) : null}
+
+      {asset.kind === 'model3d' ? (
+        <div
+          className="h-[72vh] max-h-[720px] w-[84vw] max-w-[960px] overflow-hidden rounded-nomi bg-nomi-paper shadow-nomi-lg"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <React.Suspense
+            fallback={
+              <div className="grid h-full w-full place-items-center text-nomi-ink-40">
+                <IconLoader2 size={24} stroke={1.6} className="animate-spin" aria-label={t('assetLibrary.loadingModel3d')} />
+              </div>
+            }
+          >
+            <Model3DViewer url={asset.renderUrl} />
+          </React.Suspense>
+        </div>
+      ) : asset.kind === 'video' ? (
         <div className="relative flex max-h-full max-w-full" onPointerDown={(event) => event.stopPropagation()}>
           <video
             src={heal.playbackUrl}

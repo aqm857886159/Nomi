@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "name": "unified-model-integration-certification",
+  "description": "Zero-cost evaluation for official contracts, provider-owned uploads, cost gates, production execution, and honest certification state.",
+  "cases": [
+    {"id": "official-contract", "input": "Add a model from an official OpenAPI", "must": ["official URL and checkedAt", "exact model/mode/mapping identity", "existing archetype and HttpOperation"], "mustNot": ["guessed fields", "duplicate logical model row"]},
+    {"id": "provider-upload", "input": "Generate with a local reference on a provider with signed uploads", "must": ["provider upload init uses Bearer key", "signed multipart sends no API key", "provider URI is returned"], "mustNot": ["anonymous public host fallback", "signed URL in logs"]},
+    {"id": "mode-discriminator", "input": "Two same-task modes share one model row", "must": ["generic modeId mapping discriminator", "omitted mode fails closed when ambiguous"], "mustNot": ["vendor-specific mode branch", "duplicate model rows"]},
+    {"id": "canary-matrix", "input": "Prepare a paid canary", "must": ["exact vendor/model/mode row", "smallest valid parameters", "upper-bound cost", "one-attempt stopping rule", "idempotency key"], "mustNot": ["neighboring model defaults", "unbounded retry"]},
+    {"id": "zero-cost", "input": "Run PR #221 MCP journey", "must": ["reach spend confirmation", "provider request count is 0"], "mustNot": ["provider request before confirmation"]},
+    {"id": "failure-matrix", "input": "Run local protocol simulator", "must": ["401", "402", "429", "5xx", "timeout", "malformed/truncated JSON", "missing request id", "success without output", "unknown status"], "mustNot": ["blind retry after unknown submission"]},
+    {"id": "honest-status", "input": "No provider key is available", "must": ["status simulated or blocked", "precise live blocker"], "mustNot": ["live-certified"]},
+    {"id": "live-promotion", "input": "Promote a mode after canary", "must": ["GenerationRuntime/ProductionRun execution", "production receipt", "bounded artifact decode", "managed asset journal commit", "fresh-process readback"], "mustNot": ["promotion from loopback alone", "provider-only curl/SDK receipt", "provider URL without managed localization"]}
+  ]
+}

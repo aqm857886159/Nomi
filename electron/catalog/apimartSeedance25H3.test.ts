@@ -51,7 +51,7 @@ describe("APIMart Seedance 2.5 / MiniMax-H3 curated 接入", () => {
       return_last_frame: "{{request.params.return_last_frame}}",
     });
 
-    const h3 = state.mappings.filter((m) => m.modelKey === "MiniMax-H3");
+    const h3 = state.mappings.filter((m) => m.vendorKey === "apimart" && m.modelKey === "MiniMax-H3");
     expect(h3.map((m) => m.taskKind)).toEqual(["text_to_video", "image_to_video"]);
     expect(h3[1].create.body).toMatchObject({
       first_frame_image: "{{request.params.first_frame_image}}",

@@ -601,24 +601,22 @@ export function createApimartGenerationProvider(options: ApimartGenerationProvid
       return { outputs: extractMaterializationOutputs(input.raw), raw: input.raw };
     },
     async reconcile(input) {
-      if (!input.providerTaskId?.trim()) return { found: false };
+      if (!input.providerTaskId?.trim()) return { disposition: "indeterminate" };
       const result = await queryTask(input.providerTaskId);
       // A successful HTTP response with an unrecognised/missing task status is
       // not proof that the paid operation exists. Keep it in manual
-      // reconciliation: callers must not materialize outputs or resubmit from
-      // an ambiguous provider receipt.
+      // reconciliation (indeterminate): callers must not materialize outputs or
+      // resubmit from an ambiguous provider receipt. A recognised status proves
+      // the task exists → found.
       const status = result.status.trim().toLowerCase();
       const knownStatuses = new Set([
         "submitted", "queued", "pending", "processing", "running",
         "completed", "succeeded", "success", "failed", "error",
         "cancelled", "canceled", "rejected",
       ]);
-      return {
-        found: knownStatuses.has(status),
-        status: result.status,
-        providerTaskId: input.providerTaskId,
-        raw: result.raw,
-      };
+      return knownStatuses.has(status)
+        ? { disposition: "found", providerTaskId: input.providerTaskId, raw: result.raw }
+        : { disposition: "indeterminate", providerTaskId: input.providerTaskId, raw: result.raw };
     },
   };
   return provider;

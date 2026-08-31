@@ -56,6 +56,72 @@ describe("hardenedFetch 私网边界", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it("已确认应用代理时不在本机解析公网 CDN，让代理侧解析 fake-IP", async () => {
+    const resolveHost = vi.fn(async () => [{ address: "198.18.0.93", family: 4 as const }]);
+    const dispatcher = { close: vi.fn(async () => {}) };
+    const fetchImpl = vi.fn(async (_url: URL, init?: RequestInit) => {
+      expect((init as RequestInit & { dispatcher?: unknown }).dispatcher).toBeUndefined();
+      return new Response(Buffer.from([1, 2, 3]), {
+        status: 200,
+        headers: { "Content-Type": "image/png" },
+      });
+    });
+
+    await expect(hardenedFetch("https://media.example.test/a.png", {}, {
+      resolveHost,
+      createPinnedDispatcher: vi.fn(() => dispatcher as never),
+      fetch: fetchImpl,
+      isApplicationProxyActive: () => true,
+    })).resolves.toMatchObject({ status: 200 });
+    expect(resolveHost).not.toHaveBeenCalled();
+    expect(dispatcher.close).not.toHaveBeenCalled();
+  });
+
+  it("等待应用代理提交完成后才决定 DNS 路径，避免启动竞态把代理 fake-IP 当私网", async () => {
+    let routeReady = false;
+    const waitForApplicationRoute = vi.fn(async () => { routeReady = true; });
+    const resolveHost = vi.fn(async () => [{ address: "198.18.0.93", family: 4 as const }]);
+    const fetchImpl = vi.fn(async (_url: URL, init?: RequestInit) => {
+      expect(routeReady).toBe(true);
+      expect((init as RequestInit & { dispatcher?: unknown }).dispatcher).toBeUndefined();
+      return new Response(Buffer.from([1, 2, 3]), { status: 200, headers: { "Content-Type": "image/png" } });
+    });
+
+    await expect(hardenedFetch("https://media.example.test/boot.png", {}, {
+      resolveHost,
+      fetch: fetchImpl,
+      isApplicationProxyActive: () => routeReady,
+      waitForApplicationRoute,
+    })).resolves.toMatchObject({ status: 200 });
+    expect(waitForApplicationRoute).toHaveBeenCalledOnce();
+    expect(resolveHost).not.toHaveBeenCalled();
+  });
+
+  it("应用代理切换回直连后重新启用 DNS pinning", async () => {
+    const useApplicationProxy = vi.fn().mockReturnValueOnce(true).mockReturnValueOnce(false);
+    const resolveHost = vi.fn(async () => [{ address: "93.184.216.34", family: 4 as const }]);
+    const dispatcher = { close: vi.fn(async () => {}) };
+    const fetchImpl = vi.fn(async (url: URL, init?: RequestInit) => {
+      if (url.pathname === "/a.png") {
+        expect((init as RequestInit & { dispatcher?: unknown }).dispatcher).toBeUndefined();
+        return new Response(null, { status: 302, headers: { Location: "/final.png" } });
+      }
+      expect((init as RequestInit & { dispatcher?: unknown }).dispatcher).toBe(dispatcher);
+      return new Response(Buffer.from([1, 2, 3]), {
+        status: 200,
+        headers: { "Content-Type": "image/png" },
+      });
+    });
+
+    await expect(hardenedFetch("https://media.example.test/a.png", {}, {
+      resolveHost,
+      createPinnedDispatcher: vi.fn(() => dispatcher as never),
+      fetch: fetchImpl,
+      isApplicationProxyActive: useApplicationProxy,
+    })).resolves.toMatchObject({ status: 200 });
+    expect(resolveHost).toHaveBeenCalledTimes(1);
+  });
+
   it("pins the validated DNS answer so fetch cannot resolve the hostname a second time", async () => {
     const resolveHost = vi.fn()
       .mockResolvedValueOnce([{ address: "93.184.216.34", family: 4 }])

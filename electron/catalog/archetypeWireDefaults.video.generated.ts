@@ -51,6 +51,71 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       }
     }
   },
+  "minimax-h3-max": {
+    "text_to_video": {
+      "*": {
+        "resolution": "768P",
+        "duration": 5,
+        "aspect_ratio": "16:9"
+      }
+    },
+    "image_to_video": {
+      "*": {
+        "resolution": "768P",
+        "duration": 5
+      }
+    }
+  },
+  "runway-gen4.5": {
+    "text_to_video": {
+      "*": {
+        "aspect_ratio": "1280:720",
+        "duration": 5,
+        "seed": 0
+      }
+    },
+    "image_to_video": {
+      "*": {
+        "aspect_ratio": "1280:720",
+        "duration": 5,
+        "seed": 0
+      }
+    }
+  },
+  "runway-gen4-turbo": {
+    "image_to_video": {
+      "*": {
+        "aspect_ratio": "1280:720",
+        "duration": 5,
+        "seed": 0
+      }
+    }
+  },
+  "runway-video": {
+    "text_to_video": {
+      "*": {
+        "aspect_ratio": "1280:720",
+        "duration": 5,
+        "generate_audio": true
+      }
+    },
+    "image_to_video": {
+      "*": {
+        "aspect_ratio": "1280:720",
+        "duration": 5,
+        "generate_audio": true
+      }
+    }
+  },
+  "runway-video-t2v": {
+    "text_to_video": {
+      "*": {
+        "aspect_ratio": "1280:720",
+        "duration": 5,
+        "generate_audio": true
+      }
+    }
+  },
   "happyhorse": {
     "text_to_video": {
       "*": {
@@ -216,6 +281,22 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       "*": {
         "quality": "480p",
         "duration": 6
+      }
+    }
+  },
+  "gemini-omni-1.1": {
+    "text_to_video": {
+      "*": {
+        "duration": 8,
+        "aspect_ratio": "16:9",
+        "resolution": "720p"
+      }
+    },
+    "image_to_video": {
+      "*": {
+        "duration": 8,
+        "aspect_ratio": "16:9",
+        "resolution": "720p"
       }
     }
   },

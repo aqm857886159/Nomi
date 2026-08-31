@@ -275,6 +275,7 @@ export const NEWAPI_AUDIO_TTS_OP: HttpOperation = {
     speed: "{{request.params.speed}}", // OpenAI /v1/audio/speech 标准语速（0.25~4.0，缺省由模板丢弃→站默认）
     response_format: "mp3",
   },
+  audioResponse: { type: "binary", contentType: "audio/mpeg", extension: "mp3" },
 };
 
 // 通用中转配音参数（裸 relay 模型的兜底；模型若命中 seed-tts 档案，UI 由档案给火山音色下拉）。

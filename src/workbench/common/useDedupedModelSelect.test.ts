@@ -172,9 +172,12 @@ describe('buildVendorExplicitModelOptions — 批量下拉里把供应商摊开�
 
   it('单家的模型仍是一行，trailing = 那家短名（与今天的折叠版行为一致）', () => {
     const deduped = dedupeModelOptions([option('z-image-turbo', 'apimart', 'Z-Image Turbo')])
-    expect(buildVendorExplicitModelOptions(deduped, healthy)).toEqual([
-      { value: providerAddress(deduped[0].providers[0]), label: 'Z-Image Turbo', trailing: 'APIMart' },
-    ])
+    expect(buildVendorExplicitModelOptions(deduped, healthy)).toEqual([expect.objectContaining({
+      value: providerAddress(deduped[0].providers[0]),
+      label: 'Z-Image Turbo',
+      trailing: 'APIMart',
+      icon: { kind: 'model' },
+    })])
   })
 
   // 回归锁：2026-08-18 真机走查抓到的。第一版按 (vendor, option.value) 折叠，
@@ -249,6 +252,10 @@ describe('供应商锁定寻址 — 同名 modelKey 跨厂商不撞值（2026-07
     const opts = buildProviderSelectOptions(model)
     expect(opts).toHaveLength(2)
     expect(new Set(opts.map((o) => o.value)).size).toBe(2)
+    expect(opts.map((o) => o.icon)).toEqual([
+      { kind: 'provider', fallback: 'R' },
+      { kind: 'provider', fallback: 'R' },
+    ])
   })
 
   it('resolveProviderSelectValue：按节点存的 vendor 显示锁定那家，不再永远显示首家', () => {

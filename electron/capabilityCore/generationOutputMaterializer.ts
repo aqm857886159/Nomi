@@ -26,7 +26,16 @@ export type GenerationOutputMaterializationReceipt = {
 };
 
 function extensionFor(kind: GenerationProviderOutput["kind"]): string {
-  return kind === "video" ? ".mp4" : kind === "audio" ? ".mp3" : ".png";
+  return kind === "video" ? ".mp4" : kind === "audio" ? ".mp3" : kind === "model3d" ? ".glb" : ".png";
+}
+
+function allowedContentTypesFor(kind: GenerationProviderOutput["kind"]): readonly string[] {
+  return kind === "model3d" ? ["model/gltf-binary", "application/octet-stream"] : [`${kind}/`, "application/octet-stream"];
+}
+
+function contentTypeMatchesKind(kind: GenerationProviderOutput["kind"], contentType: string): boolean {
+  if (contentType === "application/octet-stream") return true;
+  return kind === "model3d" ? contentType === "model/gltf-binary" : contentType.startsWith(`${kind}/`);
 }
 
 function fileNameFor(output: GenerationProviderOutput): string {
@@ -50,7 +59,7 @@ export function createGenerationOutputMaterializer(deps: GenerationOutputMateria
   const storeAsset = deps.writeAsset ?? writeDeterministicAsset;
 
   async function materialize(input: { projectId: string; providerTaskId: string; output: GenerationProviderOutput }): Promise<GenerationOutputMaterializationReceipt> {
-    const allowedContentTypes = [`${input.output.kind}/`, "application/octet-stream"] as const;
+    const allowedContentTypes = allowedContentTypesFor(input.output.kind);
     let bytes: Buffer;
     let contentType = input.output.contentType || "application/octet-stream";
     if (input.output.url.startsWith("data:")) {
@@ -64,7 +73,7 @@ export function createGenerationOutputMaterializer(deps: GenerationOutputMateria
       contentType = fetched.contentType || contentType;
     }
     const normalizedType = contentType.toLowerCase().split(";")[0]?.trim() || "application/octet-stream";
-    if (!normalizedType.startsWith(`${input.output.kind}/`) && normalizedType !== "application/octet-stream") {
+    if (!contentTypeMatchesKind(input.output.kind, normalizedType)) {
       throw new Error(`Generation output content type does not match ${input.output.kind}`);
     }
     const materializationKey = `${input.providerTaskId}:${input.output.providerOutputId || input.output.url}`;

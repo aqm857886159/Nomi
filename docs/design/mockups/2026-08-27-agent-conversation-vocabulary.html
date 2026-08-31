@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nomi Agent 对话词汇表 · 18 种反馈形态样张（2026-08-27 拍板）</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<style>
+:root{
+  --nomi-bg:oklch(0.985 0.003 90);--nomi-paper:#fff;
+  --ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);
+  --ink40:oklch(0.68 0.01 80);--ink30:oklch(0.78 0.01 80);--ink20:oklch(0.88 0.005 80);
+  --ink10:oklch(0.94 0.003 80);--ink05:oklch(0.97 0.003 80);
+  --line:oklch(0.91 0.004 80);--lineS:oklch(0.95 0.003 80);
+  --ac:oklch(0.55 0.13 250);--acS:oklch(0.955 0.018 250);
+  --warn:oklch(0.62 0.14 75);--ok:#248a3d;--okBg:rgba(52,199,89,.12);
+  --dg:#b3241c;--dgBg:rgba(255,59,48,.045);
+  --r-ctl:6px;--r-panel:10px;--r-lg:16px;
+  --t-tap:140ms;--t-enter:260ms;--t-settle:420ms;
+  --ease:cubic-bezier(.2,.7,.3,1);
+}
+*{box-sizing:border-box}
+body{margin:0;padding:28px 20px 60px;background:var(--nomi-bg);color:var(--ink);
+  font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+h1{font-size:20px;font-weight:500;margin:0 0 4px}
+.meta{font-size:12px;color:var(--ink40);margin:0 0 22px;line-height:1.7}
+.meta a{color:var(--ac)}
+.wrap{max-width:900px;margin:0 auto}
+.bar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.bar .hint{font-size:11px;color:var(--ink40);flex:1}
+.sec{font-size:11px;color:var(--ink40);margin:26px 0 8px;letter-spacing:.03em}
+
+/* ── 控件规格：所有可点 = 28px ── */
+.ctl{height:28px;font-size:12px;font-family:inherit;display:inline-flex;align-items:center;
+  justify-content:center;gap:5px;cursor:pointer;box-sizing:border-box;white-space:nowrap;min-width:0;
+  transition:background var(--t-tap) var(--ease),border-color var(--t-tap) var(--ease),color var(--t-tap) var(--ease)}
+.ctl:disabled{cursor:not-allowed;opacity:.46}
+.btn{padding:0 12px;border-radius:var(--r-ctl);border:1px solid var(--lineS);background:var(--nomi-paper);color:var(--ink80);min-width:72px}
+.btn:hover{background:var(--ink05)}
+.btn.pri{border-color:transparent;background:var(--ink);color:#fff}
+.btn.pri:hover{background:var(--ac)}
+.btn.acc{color:var(--ac)}
+.btn.ico{width:28px;min-width:28px;padding:0}
+.pick{padding:0 8px 0 10px;border-radius:999px;border:1px solid var(--line);background:var(--nomi-paper);color:var(--ink80);gap:4px}
+.pick:hover{border-color:var(--ink20)}
+.pick.soft{background:var(--ink05);justify-content:space-between}
+.chip{padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--nomi-paper);color:var(--ink80)}
+.chip.on{border-color:var(--ac);background:var(--acS);color:var(--ac)}
+.grp{display:flex;gap:7px}
+.grp>.btn{flex:1}
+.lk{font-size:12px;color:var(--ink60);background:none;border:0;padding:0;font-family:inherit;cursor:pointer}
+.lk:hover{color:var(--ink);text-decoration:underline}
+.tag{font-size:11px;padding:1px 6px;border-radius:999px;line-height:1.5;white-space:nowrap}
+.tag.a{background:var(--acS);color:var(--ac)}
+.tag.n{background:var(--ink05);color:var(--ink60)}
+
+/* ── 标尺 ── */
+body.rule .ctl{outline:1px dashed var(--ac);outline-offset:1px}
+body.rule .lk{outline:1px dashed var(--warn);outline-offset:2px}
+body.rule .tag{outline:1px dotted var(--ink30);outline-offset:2px}
+
+/* ── 面板 ── */
+.g{display:grid;grid-template-columns:104px 1fr;gap:0 14px;align-items:start}
+.lb{font-size:11px;line-height:1.5;color:var(--ink40);text-align:right;padding:12px 0 0}
+.lb b{font-weight:500;color:var(--ink60);display:block}
+.c{background:var(--nomi-paper);padding:8px 13px;font-size:12px}
+.it{transition:opacity var(--t-enter) var(--ease),transform var(--t-enter) var(--ease)}
+.it.hid{opacity:0;transform:translateY(5px)}
+.row{display:flex;align-items:center;gap:8px}
+.mut{color:var(--ink40)}
+.card{border:1px solid var(--line);border-radius:var(--r-panel);padding:10px 11px}
+
+/* ── 动效 ── */
+.th{height:5px;background:var(--ink10);border-radius:999px;overflow:hidden;flex:1;position:relative}
+.tf{height:100%;background:var(--ac);width:0;border-radius:999px;transition:width .7s var(--ease)}
+.tf::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
+  background-size:38% 100%;background-repeat:no-repeat;animation:sweep 2.2s linear infinite}
+@keyframes sweep{0%{background-position:-42% 0}100%{background-position:142% 0}}
+.sq{aspect-ratio:16/10;background:var(--ink05);border:1px solid var(--lineS);border-radius:6px;
+  display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink40);
+  overflow:hidden;position:relative}
+.sq.w::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(0,0,0,.05),transparent);
+  background-size:45% 100%;background-repeat:no-repeat;animation:sweep 2.2s linear infinite}
+.sq.dv{filter:blur(7px);opacity:.5;transition:filter .9s ease-out,opacity .9s ease-out}
+.sq.dv.on{filter:blur(0);opacity:1}
+.sq .hv{position:absolute;inset:0;background:rgba(20,18,16,.42);display:flex;align-items:center;
+  justify-content:center;gap:5px;opacity:0;transition:opacity var(--t-tap) var(--ease)}
+.sq:hover .hv{opacity:1}
+.hb{width:24px;height:24px;border-radius:6px;background:rgba(255,255,255,.92);display:flex;
+  align-items:center;justify-content:center;color:var(--ink);cursor:pointer}
+.n{font-variant-numeric:tabular-nums;display:inline-block;transition:transform .2s,opacity .2s}
+.n.tk{transform:translateY(-3px);opacity:0}
+.ckp{stroke-dasharray:22;stroke-dashoffset:22;animation:ckd var(--t-settle) var(--ease) forwards}
+@keyframes ckd{to{stroke-dashoffset:0}}
+.ph{transition:opacity .3s,transform .3s}
+.ph.o{opacity:0;transform:translateY(-3px)}
+svg.ic *{transform-box:fill-box}
+.L1{animation:lw 1.9s ease-in-out infinite}.L2{animation:lw 1.9s ease-in-out .25s infinite}.L3{animation:lw 1.9s ease-in-out .5s infinite}
+@keyframes lw{0%,100%{opacity:.3}40%{opacity:1}}
+.B1{animation:bx 2.1s var(--ease) infinite}.B2{animation:bx 2.1s var(--ease) .22s infinite}.B3{animation:bx 2.1s var(--ease) .44s infinite}
+@keyframes bx{0%{opacity:.25;transform:translateX(-3px)}30%,80%{opacity:1;transform:translateX(0)}100%{opacity:.25;transform:translateX(-3px)}}
+.FC{animation:fz 2.4s ease-in-out infinite;transform-origin:center}
+@keyframes fz{0%,100%{transform:scale(1)}50%{transform:scale(.84)}}
+.CL{animation:cp 1.9s cubic-bezier(.3,.9,.4,1) infinite;transform-origin:left bottom}
+@keyframes cp{0%,58%{transform:rotate(0)}68%{transform:rotate(-19deg)}78%,100%{transform:rotate(0)}}
+.T1{animation:tk 2s linear infinite}.T2{animation:tk 2s linear .5s infinite}.T3{animation:tk 2s linear 1s infinite}
+@keyframes tk{0%{transform:translateX(7px);opacity:0}18%,82%{opacity:1}100%{transform:translateX(-8px);opacity:0}}
+
+/* ── 输入区增量：沿用原样张，只增加引用与单一 Agent 菜单 ── */
+.composer-cell{position:relative}
+.payload{display:flex;gap:6px;align-items:center;min-height:28px;margin-bottom:7px;overflow-x:auto;scrollbar-width:none}
+.payload:empty{display:none}.payload::-webkit-scrollbar{display:none}
+.ref{height:28px;max-width:240px;flex:none;border:1px solid var(--line);border-radius:999px;background:var(--ink05);color:var(--ink80);padding:0 7px;display:flex;align-items:center;gap:5px;font-family:inherit;font-size:11px}
+.ref span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ref .ti-photo{color:var(--ac)}.ref .ti-x{color:var(--ink40)}
+.attachment{height:48px;max-width:210px;flex:none;border:1px solid var(--line);border-radius:6px;background:var(--nomi-paper);padding:0 7px;display:flex;align-items:center;gap:7px;color:var(--ink80)}
+.attachment-thumb{width:32px;height:32px;border-radius:5px;background:var(--ink05);display:grid;place-items:center;color:var(--ink60);font-size:16px}
+.attachment-copy{min-width:0}.attachment-copy b,.attachment-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.attachment-copy b{font-size:11px;font-weight:500}.attachment-copy small{font-size:10px;color:var(--ink40)}
+.composer-box{position:relative;border:1px solid var(--line);border-radius:var(--r-panel);padding:7px 9px;background:var(--nomi-paper)}
+.composer-box:focus-within{border-color:color-mix(in srgb,var(--ac) 46%,var(--line))}
+.composer-prompt{min-height:34px;color:var(--ink80);padding:1px 1px 7px;outline:0}
+.pop{display:none;position:absolute;z-index:10;bottom:50px;width:258px;padding:4px;background:var(--nomi-paper);border:1px solid var(--line);border-radius:var(--r-panel);box-shadow:0 10px 34px rgba(24,22,18,.12)}
+.pop.open{display:block}.pop.left{left:13px}.pop.right{right:13px}
+.pop-title{min-height:28px;padding:0 7px;display:flex;align-items:center;gap:6px;font-size:10px;color:var(--ink40)}
+.pop-title>span:last-child{margin-left:auto}
+.pop-item{width:100%;min-height:42px;height:auto;border:0;border-radius:6px;background:transparent;color:var(--ink80);padding:5px 7px;display:flex;align-items:center;gap:8px;text-align:left;font-family:inherit;font-size:12px;cursor:pointer}
+.pop-item:hover,.pop-item.on{background:var(--ink05)}.pop-item>i:first-child{width:16px;text-align:center;color:var(--ink60)}
+.pop-item span{flex:1;min-width:0}.pop-item small{display:block;color:var(--ink40);font-size:10px}.pop-item .check{color:var(--ac)}
+.pop-sep{height:1px;background:var(--lineS);margin:4px 2px}
+.pop-back{color:var(--ink60)}
+.model-list{padding:2px 2px 4px}.model-row{position:relative;min-height:42px;display:flex;align-items:center;gap:10px;padding:5px}
+.model-name{min-width:0;flex:1;display:flex;align-items:center;gap:7px;color:var(--ink80)}.model-name>i{width:16px;text-align:center;color:var(--ink60)}
+.model-name small{display:block;color:var(--ink40);font-size:10px}
+.nomi-trigger{height:28px;max-width:132px;flex:none;border:1px solid var(--line);border-radius:999px;background:var(--nomi-paper);padding:0 8px 0 10px;display:inline-flex;align-items:center;gap:4px;color:var(--ink80);font-family:inherit;font-size:11px;cursor:pointer}
+.nomi-trigger:hover{border-color:var(--ink20)}.nomi-trigger span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nomi-dropdown{display:none;position:absolute;z-index:14;right:5px;top:38px;width:max-content;min-width:210px;max-width:280px;max-height:240px;overflow:auto;padding:4px;border:1px solid var(--line);border-radius:var(--r-panel);background:var(--nomi-paper);box-shadow:0 10px 34px rgba(24,22,18,.12)}
+.nomi-dropdown.open{display:block}.nomi-option{width:100%;min-height:30px;border:0;border-radius:6px;background:transparent;padding:0 8px 0 9px;display:flex;align-items:center;gap:8px;color:var(--ink80);font-family:inherit;font-size:11px;text-align:left;cursor:pointer}
+.nomi-option:hover,.nomi-option.on{background:var(--ink05)}.nomi-option b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:400}.nomi-option.on b{font-weight:600;color:var(--ink)}
+.nomi-option small{margin-left:auto;max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink40);font-size:10px}.nomi-option .ti-check{width:14px;color:var(--ac)}
+.model-trigger>i:first-child,.skill-trigger>i:first-child,.prompt-trigger>i:first-child{font-size:14px;color:var(--ink60)}.model-count{display:none;min-width:16px;height:16px;padding:0 5px;border-radius:999px;background:var(--ink05);color:var(--ink60);font-size:10px;align-items:center;justify-content:center}.model-count.on{display:inline-flex}
+#dockModelsSummary{min-width:0;height:auto;padding:0;background:transparent;color:var(--ac);font-size:9px}
+.skill-trigger.on,.prompt-trigger.on{border-color:color-mix(in srgb,var(--ac) 35%,var(--line));background:var(--acS);color:var(--ac)}
+.skill-trigger.on>i:first-child,.prompt-trigger.on>i:first-child{color:var(--ac)}
+
+/* ── 技能选择：先看产物；提示词保持独立 ── */
+.method-pop{width:548px;max-width:calc(100% - 26px);padding:4px}
+.method-shell{display:grid;grid-template-columns:242px minmax(0,1fr);gap:4px;align-items:stretch}
+.method-list-pane{min-width:0;max-height:min(390px,70vh);overflow:auto;scrollbar-width:thin}
+.method-search{height:28px;margin:0 4px 4px;border:1px solid var(--line);border-radius:6px;background:var(--nomi-paper);padding:0 8px;display:flex;align-items:center;gap:6px;color:var(--ink40)}
+.method-search:focus-within{border-color:var(--ac)}.method-search i{font-size:14px}.method-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font-family:inherit;font-size:11px}
+.method-search input::placeholder{color:var(--ink40)}
+.method-group{padding:4px 7px 2px;font-size:10px;color:var(--ink40)}
+.method-item{position:relative;align-items:flex-start}.method-item>i:first-child{margin-top:2px}.method-item .method-copy{display:block;min-width:0}
+.method-item .method-name{display:flex;align-items:center;gap:5px;line-height:1.4}.method-item .method-name b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.method-type{flex:none!important;padding:1px 5px;border-radius:999px;background:var(--ink05);color:var(--ink40);font-size:9px;line-height:1.45}
+.method-item.previewing{background:var(--ink05)}.method-item.on{background:var(--acS);color:var(--ac)}.method-item.on .method-type{background:rgba(255,255,255,.72);color:var(--ac)}
+.method-item .check{width:14px;flex:none;margin-top:2px}
+.method-empty{padding:18px 10px;text-align:center;color:var(--ink40);font-size:11px}
+.method-manage{min-height:30px;color:var(--ink60)}
+.method-preview{min-width:0;border-radius:6px;background:var(--ink05);padding:8px;display:flex;flex-direction:column}
+.method-media{position:relative;width:100%;aspect-ratio:16/9;flex:none;overflow:hidden;border:1px solid var(--lineS);border-radius:6px;background:var(--ink10)}
+.method-media img,.method-media video{display:block;width:100%;height:100%;object-fit:cover}
+.method-media-badge{position:absolute;left:6px;top:6px;height:20px;padding:0 7px;border-radius:999px;background:rgba(24,22,18,.72);color:#fff;display:flex;align-items:center;gap:4px;font-size:9px;backdrop-filter:blur(6px)}
+.method-media-badge i{font-size:10px}.method-media-empty{height:100%;display:grid;place-items:center;color:var(--ink30)}.method-media-empty i{font-size:28px}
+.method-preview-head{display:flex;align-items:flex-start;gap:7px;padding:9px 1px 6px}.method-preview-head>span:first-child{min-width:0;flex:1}.method-preview-head b{display:block;font-size:12px;font-weight:500;color:var(--ink)}.method-preview-head small{display:block;margin-top:1px;color:var(--ink40);font-size:10px}
+.method-preview-kind{flex:none;padding:1px 6px;border-radius:999px;background:var(--nomi-paper);border:1px solid var(--lineS);color:var(--ink60);font-size:9px}
+.method-summary{min-height:36px;padding:0 1px 7px;color:var(--ink80);font-size:11px;line-height:1.6}
+.method-flow{display:flex;align-items:center;gap:4px;min-height:24px;padding:5px 0;border-top:1px solid var(--lineS);border-bottom:1px solid var(--lineS);overflow:hidden}
+.method-step{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink60);font-size:9px}.method-flow>i{flex:none;color:var(--ink30);font-size:10px}
+.method-facts{padding:5px 1px 2px}.method-fact{min-height:23px;display:grid;grid-template-columns:38px minmax(0,1fr);gap:6px;align-items:center;font-size:10px}.method-fact span:first-child{color:var(--ink40)}.method-fact span:last-child{min-width:0;color:var(--ink80);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.method-ready{margin-top:auto;padding:6px 1px 1px;border-top:1px solid var(--lineS);display:flex;align-items:center;gap:5px;color:var(--ok);font-size:10px}.method-ready i{font-size:12px}.method-ready .method-scope{margin-left:auto;color:var(--ink40)}
+.prompt-pop{width:330px}.prompt-item{align-items:flex-start}.prompt-item>i:first-child{margin-top:2px}.prompt-copy{display:block!important;min-width:0}.prompt-copy b{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:var(--ink)}.prompt-copy small{margin-top:2px;line-height:1.5;white-space:normal}.prompt-chip{height:28px;max-width:240px;flex:none;border:1px solid var(--line);border-radius:999px;background:var(--ink05);padding:0 7px;display:flex;align-items:center;gap:5px;color:var(--ink80);font-family:inherit;font-size:11px}.prompt-chip span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.prompt-chip>i:first-child{color:var(--ac)}
+.drop-target::after{content:"松开即可添加到本轮";position:absolute;z-index:20;inset:4px;border:1px dashed var(--ac);border-radius:var(--r-ctl);background:color-mix(in srgb,var(--acS) 92%,var(--nomi-paper));color:var(--ac);display:grid;place-items:center;font-size:11px;font-weight:500;opacity:0;pointer-events:none;transition:opacity var(--t-tap) var(--ease)}.drop-target.drop-active::after{opacity:1}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::after{animation:none!important;transition:none!important}
+  .sq.dv{filter:none;opacity:1}
+}
+
+/* ── 规格速查 ── */
+.spec{background:var(--nomi-paper);border-radius:var(--r-panel);padding:11px 13px;margin-bottom:16px}
+.spec table{width:100%;border-collapse:collapse;font-size:11px;line-height:1.6}
+.spec td{padding:4px 8px 4px 0;vertical-align:middle;color:var(--ink60)}
+.spec td:first-child{width:104px;color:var(--ink80)}
+.spec b{font-weight:500;color:var(--ink)}
+.rules{background:var(--nomi-paper);border-radius:var(--r-panel);padding:11px 13px;font-size:12px;line-height:1.9;color:var(--ink80)}
+.rules b{font-weight:500;color:var(--ink)}
+
+/* ── 项目级统一 Agent：同一 Host，不同工作区投影 ── */
+.host-demo{position:relative;height:584px;border:1px solid var(--line);border-radius:var(--r-panel);overflow:hidden;background:var(--nomi-paper);box-shadow:0 16px 46px rgba(35,31,27,.08)}
+.host-topbar{height:40px;display:flex;align-items:center;gap:8px;padding:0 8px;border-bottom:1px solid var(--lineS);background:var(--nomi-paper)}
+.host-brand{width:31px;height:28px;border-right:1px solid var(--lineS);display:grid;place-items:center;font-weight:600;font-size:11px}
+.host-project{min-width:0;display:flex;align-items:center;gap:6px;color:var(--ink40);font-size:10px;white-space:nowrap}.host-project b{max-width:140px;overflow:hidden;text-overflow:ellipsis;color:var(--ink80);font-weight:500}
+.surface-tabs{position:absolute;left:50%;transform:translateX(-50%);height:32px;padding:2px;display:flex;align-items:center;gap:2px;min-width:0;border:1px solid var(--lineS);border-radius:999px;background:var(--ink05)}
+.surface-tab{height:28px;min-width:54px;padding:0 11px;border:0;border-radius:999px;background:transparent;color:var(--ink60);display:inline-flex;align-items:center;justify-content:center;font-family:inherit;font-size:11px;white-space:nowrap;cursor:pointer}
+.surface-tab:hover{color:var(--ink80)}.surface-tab.on{background:var(--nomi-paper);color:var(--ink);font-weight:500;box-shadow:0 1px 4px rgba(35,31,27,.08)}
+.browser-switch{height:28px;margin-left:auto;padding:0 7px;border:0;border-radius:var(--r-ctl);background:transparent;color:var(--ink60);display:flex;align-items:center;gap:4px;font-family:inherit;font-size:10px;cursor:pointer}.browser-switch:hover,.browser-switch.on{background:var(--ink05);color:var(--ink)}.browser-switch i{font-size:14px}
+.host-body{height:calc(100% - 40px);display:grid;grid-template-columns:minmax(0,1fr) 340px;position:relative}
+.host-body.dock-closed{grid-template-columns:minmax(0,1fr) 0}
+.host-stage{position:relative;min-width:0;overflow:hidden;background:var(--ink05)}
+.host-stage-inner{position:absolute;inset:0;transition:opacity var(--t-enter) var(--ease)}
+.surface-canvas{background-color:#f4f4f2;background-image:radial-gradient(circle,var(--ink20) .55px,transparent .65px);background-size:18px 18px}
+.stage-kicker{position:absolute;left:14px;top:12px;display:flex;align-items:center;gap:6px;color:var(--ink40);font-size:10px}.stage-kicker i{font-size:13px}
+.canvas-node{position:absolute;left:50%;top:48%;width:246px;transform:translate(-50%,-50%);border:2px solid var(--ac);border-radius:var(--r-ctl);background:var(--nomi-paper);box-shadow:0 7px 22px rgba(37,34,29,.10);overflow:visible}
+.canvas-node-media{height:138px;border-radius:5px 5px 0 0;background:#d9ddd8 url('../../../resources/onboarding-demo/shot-4.jpg') center/cover no-repeat}
+.canvas-node-copy{height:42px;padding:6px 8px;display:flex;align-items:center;gap:7px}.canvas-node-copy span{min-width:0;flex:1}.canvas-node-copy b,.canvas-node-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.canvas-node-copy b{font-size:11px;font-weight:500}.canvas-node-copy small{font-size:9px;color:var(--ink40)}
+.local-toolbar{position:absolute;left:50%;top:-42px;transform:translateX(-50%);height:34px;padding:2px 3px;display:flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.96);box-shadow:0 8px 24px rgba(35,31,27,.12)}
+.local-tool{height:28px;min-width:28px;border:0;border-radius:5px;background:transparent;color:var(--ink60);display:grid;place-items:center;font-family:inherit;font-size:10px;cursor:pointer}.local-tool:hover{background:var(--ink05);color:var(--ink)}.local-tool i{font-size:14px}.local-tool.agent-add{display:flex;grid-auto-flow:column;gap:4px;padding:0 7px;color:var(--ac)}
+.canvas-edge{position:absolute;height:1px;background:var(--ink20);transform-origin:left}.canvas-edge.e1{width:132px;left:10%;top:31%;transform:rotate(12deg)}.canvas-edge.e2{width:112px;right:8%;bottom:25%;transform:rotate(-17deg)}
+.ghost-node{position:absolute;width:94px;height:58px;border:1px solid var(--line);border-radius:var(--r-ctl);background:rgba(255,255,255,.76)}.ghost-node.g1{left:5%;top:18%}.ghost-node.g2{right:5%;bottom:14%}
+.surface-document{background:#f1f1ef;padding:30px 52px;overflow:auto}.doc-page{max-width:470px;min-height:620px;margin:0 auto;padding:38px 48px;background:var(--nomi-paper);box-shadow:0 5px 22px rgba(35,31,27,.07);color:var(--ink80);font-size:11px;line-height:1.9}.doc-page h3{font-size:17px;font-weight:500;margin:0 0 24px;color:var(--ink)}.doc-selected{position:relative;margin:2px -5px;padding:2px 5px;background:var(--acS);border-radius:3px;color:var(--ink)}.inline-agent{position:absolute;right:-38px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:1px solid var(--line);border-radius:var(--r-ctl);background:var(--nomi-paper);color:var(--ac);display:grid;place-items:center;box-shadow:0 5px 16px rgba(35,31,27,.10);cursor:pointer}.inline-agent i{font-size:15px}
+.surface-preview{background:var(--ink05);display:grid;grid-template-rows:minmax(0,1fr) 206px}.preview-upper{min-height:0;display:grid;grid-template-columns:96px minmax(0,1fr);border-bottom:1px solid var(--line);overflow:hidden}.preview-source{min-width:0;border-right:1px solid var(--line);background:var(--nomi-paper);padding:8px 6px}.preview-source-head{height:24px;color:var(--ink40);font-size:9px;padding:2px 3px}.source-thumb{height:54px;margin-bottom:6px;border:1px solid var(--lineS);border-radius:5px;background:#d5dad8 url('../../../resources/onboarding-demo/shot-4.jpg') center/cover no-repeat;position:relative}.source-thumb.on{border:2px solid var(--ac)}.source-thumb span{position:absolute;left:4px;bottom:3px;color:#fff;font-size:7px;text-shadow:0 1px 3px rgba(0,0,0,.8)}.preview-player{min-width:0;min-height:0;background:#1d1d1c;display:grid;place-items:center;padding:18px}.preview-frame{position:relative;width:min(94%,430px);aspect-ratio:16/9;background:#373a37 url('../../../resources/onboarding-demo/shot-4.jpg') center/cover no-repeat;box-shadow:0 12px 30px rgba(0,0,0,.24)}.preview-controls{position:absolute;left:0;right:0;bottom:0;height:32px;display:flex;align-items:center;gap:8px;padding:0 9px;background:rgba(16,16,15,.72);color:#fff;font-size:9px}.preview-controls i{font-size:14px}.preview-progress{height:2px;flex:1;background:rgba(255,255,255,.28)}.preview-progress span{display:block;width:38%;height:100%;background:#fff}.preview-ref{position:absolute;right:8px;top:8px;height:28px;padding:0 9px;border:1px solid rgba(255,255,255,.28);border-radius:var(--r-ctl);background:rgba(20,20,19,.68);color:#fff;display:flex;align-items:center;gap:5px;font-family:inherit;font-size:10px;cursor:pointer;backdrop-filter:blur(5px)}.edit-timeline{min-height:0;background:#f8f8f7;padding:0}.edit-timeline .timeline-head{border:0;border-bottom:1px solid var(--lineS);border-radius:0}.edit-timeline .timeline-board{height:171px;border:0}.edit-timeline .timeline-track{height:58px}.edit-timeline .timeline-range{top:24px}
+.surface-timeline{background:#ececea;padding:36px 14px 14px}.timeline-head{height:34px;display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-bottom:0;border-radius:var(--r-ctl) var(--r-ctl) 0 0;background:var(--nomi-paper);padding:0 8px}.timeline-head span{font-size:10px;color:var(--ink40)}.timeline-head b{font-size:11px;font-weight:500}.timeline-board{height:338px;border:1px solid var(--line);background:#f8f8f7;position:relative;overflow:hidden}.timeline-ruler{height:24px;margin-left:52px;border-bottom:1px solid var(--lineS);background:repeating-linear-gradient(90deg,transparent 0,transparent 43px,var(--line) 44px);color:var(--ink40);font-size:8px;display:flex;justify-content:space-around;padding-top:5px}.timeline-track{height:60px;border-bottom:1px solid var(--lineS);display:grid;grid-template-columns:52px 1fr}.track-name{padding:8px;color:var(--ink40);font-size:9px}.track-lane{position:relative;padding-top:8px}.clip{position:absolute;height:42px;border-radius:5px;border:1px solid var(--line);background:var(--nomi-paper);padding:5px 7px;font-size:9px;color:var(--ink60);overflow:hidden}.clip.c1{left:4%;width:29%}.clip.c2{left:34%;width:38%;background:var(--acS);border-color:color-mix(in oklch,var(--ac) 35%,var(--line))}.clip.c3{left:73%;width:22%}.timeline-range{position:absolute;left:35%;right:27%;top:24px;bottom:0;border-left:1px solid var(--ac);border-right:1px solid var(--ac);background:color-mix(in oklch,var(--acS) 38%,transparent);pointer-events:none}.timeline-agent{position:absolute;right:8px;top:8px;height:28px;padding:0 9px;border:1px solid var(--line);border-radius:var(--r-ctl);background:var(--nomi-paper);color:var(--ac);display:flex;align-items:center;gap:5px;font-family:inherit;font-size:10px;cursor:pointer;box-shadow:0 5px 16px rgba(35,31,27,.08)}
+.host-body.dock-closed .agent-dock{border-left:0}.host-body.timeline-layout{display:block;position:relative;--timeline-h:206px}.host-body.timeline-layout .host-stage{position:absolute;inset:0;width:auto;height:auto}.host-body.timeline-layout .agent-dock{position:absolute;z-index:12;right:0;top:0;bottom:var(--timeline-h);width:340px;border-left:1px solid var(--line);background:var(--nomi-paper)}.host-body.timeline-layout .surface-preview .preview-upper,.host-body.timeline-layout .surface-generation .generation-upper{margin-right:340px}.surface-generation{display:grid;grid-template-rows:minmax(0,1fr) var(--timeline-h);background:var(--ink05)}.surface-generation .generation-upper{position:relative;min-height:0;overflow:hidden}.timeline-splitter{position:absolute;z-index:6;left:0;right:0;top:-5px;height:10px;display:flex;align-items:center;justify-content:center;cursor:ns-resize}.timeline-splitter::before{content:"";width:44px;height:3px;border-radius:999px;background:var(--ink30);transition:background var(--t-tap) var(--ease),width var(--t-tap) var(--ease)}.timeline-splitter:hover::before,.timeline-splitter:focus-visible::before{width:64px;background:var(--ac)}.timeline-splitter:focus-visible{outline:2px solid var(--ac);outline-offset:1px}.timeline-resizing,.timeline-resizing *{cursor:ns-resize!important;user-select:none}.edit-timeline{position:relative}.edit-timeline .timeline-board{height:calc(var(--timeline-h,206px) - 35px);min-height:80px}.timeline-size-hint{margin-left:auto;font-size:9px!important;color:var(--ink40)}.host-body.timeline-layout .surface-preview,.host-body.timeline-layout .surface-generation{grid-template-rows:minmax(0,1fr) var(--timeline-h)}.host-body.timeline-layout .surface-preview .edit-timeline,.host-body.timeline-layout .surface-generation .edit-timeline{min-height:0}
+.surface-browser{background:var(--nomi-paper);padding-top:34px}.browser-chrome{position:absolute;left:0;right:0;top:0;height:34px;border-bottom:1px solid var(--line);background:#f3f3f1;display:flex;align-items:center;gap:6px;padding:0 8px}.browser-dot{width:7px;height:7px;border-radius:50%;background:var(--ink20)}.browser-url{height:22px;flex:1;border:1px solid var(--line);border-radius:var(--r-ctl);background:var(--nomi-paper);display:flex;align-items:center;padding:0 8px;color:var(--ink40);font-size:9px}.browser-context-badge{position:absolute;right:10px;top:46px;padding:4px 7px;border:1px solid var(--lineS);border-radius:var(--r-ctl);background:var(--ink05);color:var(--ink60);font-size:9px}.browser-page{padding:34px 44px;color:var(--ink80);font-size:11px;line-height:1.8}.browser-page h3{font-size:18px;font-weight:500;line-height:1.4;margin:0 0 10px;color:var(--ink)}.browser-image{height:140px;margin:18px 0;border-radius:var(--r-ctl);background:#d5dad8 url('../../../resources/onboarding-demo/shot-4.jpg') center/cover no-repeat}.browser-selection{position:relative;background:var(--acS);padding:2px 3px;border-radius:3px}.browser-agent{position:absolute;right:0;bottom:-34px;height:28px;padding:0 9px;border:1px solid var(--line);border-radius:var(--r-ctl);background:var(--nomi-paper);color:var(--ac);display:flex;align-items:center;gap:5px;font-family:inherit;font-size:10px;box-shadow:0 5px 16px rgba(35,31,27,.10);cursor:pointer}
+.agent-dock{position:relative;min-width:0;border-left:1px solid var(--line);background:var(--nomi-paper);display:flex;flex-direction:column;transition:transform var(--t-enter) var(--ease),opacity var(--t-enter) var(--ease)}
+.agent-dock.closed{transform:translateX(100%);opacity:0;pointer-events:none}.dock-head{height:42px;flex:none;display:flex;align-items:center;gap:8px;padding:0 8px 0 10px;border-bottom:1px solid var(--lineS)}
+.dock-mark{width:20px;height:20px;border-radius:6px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:10px;font-weight:600}.dock-title{min-width:0;flex:1}.dock-title b,.dock-title small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dock-title b{font-size:11px;font-weight:500}.dock-title small{font-size:9px;color:var(--ink40)}
+.thread-pop{display:none;position:absolute;z-index:22;right:8px;top:38px;width:252px;padding:4px;border:1px solid var(--line);border-radius:var(--r-panel);background:var(--nomi-paper);box-shadow:0 14px 36px rgba(24,22,18,.16)}.thread-pop.open{display:block}.thread-pop .pop-item{min-height:40px}.thread-status{width:6px;height:6px;border-radius:50%;background:var(--ink30);flex:none}.thread-status.run{background:var(--ac);box-shadow:0 0 0 3px var(--acS)}
+.dock-context{min-height:40px;flex:none;padding:6px 8px;border-bottom:1px solid var(--lineS);display:flex;align-items:center;gap:6px;background:var(--ink05);font-size:10px}.dock-context>i{font-size:13px;color:var(--ink40)}.dock-context span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink60)}.dock-context b{font-weight:500;color:var(--ink80)}.dock-context .lk{height:28px;display:inline-flex;align-items:center;flex:none}
+.dock-feed{min-height:0;flex:1;overflow:auto;padding:10px 10px 14px;scrollbar-width:thin}.dock-user{max-width:86%;margin:0 0 11px auto;padding:6px 8px;border-radius:9px 9px 3px 9px;background:var(--ink05);font-size:10px;line-height:1.55;color:var(--ink80)}
+.dock-thinking{display:flex;align-items:center;gap:6px;margin-bottom:9px;color:var(--ink40);font-size:10px}.dock-spinner{width:12px;height:12px;border:1.5px solid var(--ink20);border-top-color:var(--ac);border-radius:50%;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.dock-reply{font-size:10px;line-height:1.65;color:var(--ink80);margin-bottom:9px}.artifact-card{border:1px solid var(--line);border-radius:var(--r-panel);overflow:hidden;background:var(--nomi-paper)}.artifact-media{height:92px;background:#d9ddd8 url('../../../resources/onboarding-demo/shot-4.jpg') center/cover no-repeat;position:relative}.artifact-type{position:absolute;left:6px;top:6px;height:18px;padding:0 6px;border-radius:999px;background:rgba(20,20,19,.68);color:#fff;font-size:8px;display:flex;align-items:center;gap:4px}.artifact-copy{padding:7px 8px}.artifact-copy b{display:block;font-size:10px;font-weight:500}.artifact-copy small{display:block;color:var(--ink40);font-size:9px;margin:1px 0 6px}.artifact-actions{display:flex;gap:5px}.artifact-actions .btn{height:28px;min-width:0;padding:0 8px;font-size:11px;flex:1}
+.dock-task{margin-top:8px;padding:7px 8px;border:1px solid var(--lineS);border-radius:var(--r-ctl);background:var(--ink05)}.dock-task-head{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--ink40);margin-bottom:5px}.dock-task-head b{color:var(--ink80);font-weight:500}.dock-task-head span{margin-left:auto}.dock-task-progress{height:3px;border-radius:999px;background:var(--ink10);overflow:hidden}.dock-task-progress span{display:block;width:62%;height:100%;border-radius:999px;background:var(--ac)}
+.dock-composer{position:relative;flex:none;border-top:1px solid var(--lineS);padding:8px}.dock-compose-box{position:relative;border:1px solid var(--line);border-radius:var(--r-panel);padding:6px;background:var(--nomi-paper)}.dock-compose-box:focus-within{border-color:color-mix(in srgb,var(--ac) 46%,var(--line))}.dock-draft{min-height:35px;padding:1px 2px 6px;outline:0;color:var(--ink80);font-size:10px;line-height:1.45;white-space:pre-wrap}.dock-draft:empty::before{content:attr(data-placeholder);color:var(--ink40);pointer-events:none}.dock-actions{display:flex;align-items:center;gap:4px}.dock-actions .btn.ico{width:28px;min-width:28px;height:28px}.dock-actions .pick{height:28px;padding:0 6px;font-size:11px;flex:none}.dock-actions i{font-size:14px}.dock-actions .send{margin-left:0;border-radius:999px;background:var(--ink);color:#fff;border-color:transparent}.dock-actions .send:disabled{background:var(--ink10);color:var(--ink30);cursor:not-allowed}.dock-payload{display:none;align-items:center;gap:4px;overflow-x:auto;padding:0 0 5px;scrollbar-width:none}.dock-payload.has-items{display:flex}.dock-token{height:24px;max-width:210px;flex:none;border:1px solid var(--line);border-radius:999px;background:var(--ink05);padding:0 4px 0 7px;display:flex;align-items:center;gap:5px;color:var(--ink80);font-family:inherit;font-size:9px}.dock-token>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dock-token>i:first-child{color:var(--ac)}.dock-token-remove{width:16px;height:16px;flex:none;border:0;border-radius:50%;background:transparent;color:var(--ink40);display:grid;place-items:center;padding:0;cursor:pointer}.dock-token-remove:hover{background:var(--ink10);color:var(--ink80)}.dock-token-remove i{font-size:11px}
+.dock-quick-pop{display:none;position:absolute;z-index:20;right:8px;bottom:76px;width:286px;max-height:260px;overflow:auto;padding:4px;border:1px solid var(--line);border-radius:var(--r-panel);background:var(--nomi-paper);box-shadow:0 14px 36px rgba(24,22,18,.16)}.dock-quick-pop.open{display:block}.dock-quick-pop .pop-item{min-height:40px}.dock-quick-pop .pop-title kbd{margin-left:auto;border:1px solid var(--line);border-radius:4px;background:var(--ink05);padding:0 5px;color:var(--ink40);font-family:inherit;font-size:9px}
+.dock-skill-preview{display:none;position:absolute;z-index:19;right:302px;bottom:76px;width:244px;padding:8px;border:1px solid var(--line);border-radius:var(--r-panel);background:var(--nomi-paper);box-shadow:0 14px 36px rgba(24,22,18,.14)}.dock-skill-preview.open{display:block}.dock-skill-preview .method-media{margin-bottom:7px}.dock-skill-preview b{display:block;font-size:11px;font-weight:500}.dock-skill-preview p{margin:3px 0 6px;color:var(--ink60);font-size:9px;line-height:1.55}.dock-skill-meta{display:grid;grid-template-columns:30px minmax(0,1fr);gap:2px 5px;padding-top:6px;border-top:1px solid var(--lineS);font-size:9px}.dock-skill-meta span:nth-child(odd){color:var(--ink40)}.dock-skill-meta span:nth-child(even){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink80)}
+.agent-pill{position:absolute;z-index:5;right:12px;top:12px;height:36px;max-width:230px;padding:0 12px 0 10px;border:1px solid var(--line);border-radius:999px;background:var(--nomi-paper);box-shadow:0 5px 16px rgba(35,31,27,.10);display:none;align-items:center;gap:7px;color:var(--ink80);font-family:inherit;font-size:11px;cursor:pointer;transition:box-shadow var(--t-tap) var(--ease),transform var(--t-tap) var(--ease)}.agent-pill:hover{box-shadow:0 8px 22px rgba(35,31,27,.14);transform:translateY(-1px)}.agent-pill.show{display:flex}.pill-mark{width:18px;height:18px;border-radius:5px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:9px;font-weight:600;flex:none}.agent-pill span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pill-signal{width:6px;height:6px;border-radius:50%;background:var(--ink30);flex:none}.pill-signal.run{background:var(--ac);box-shadow:0 0 0 3px var(--acS)}.pill-signal.wait{background:var(--warn)}.pill-signal.fail{background:var(--dg)}.pill-signal.done{background:var(--ok)}.pill-count{min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:var(--ink05);display:grid;place-items:center;color:var(--ink60);font-size:9px;flex:none}
+.agent-pill{font-family:inherit;font-size:11px}.preview-ref,.timeline-agent,.browser-agent{font-family:inherit;font-size:10px}
+.pill-showcase{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.pill-case{min-width:0;height:58px;padding:10px;background:var(--nomi-paper);border-radius:var(--r-panel);display:flex;align-items:center;justify-content:center}.pill-case .agent-pill{position:static;display:flex;width:100%;max-width:250px}.pill-case .agent-pill:hover{transform:none}.pill-case .dock-spinner{width:10px;height:10px}
+.surface-contract{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--lineS);border-radius:var(--r-panel);overflow:hidden}.surface-contract>div{background:var(--nomi-paper);padding:10px 11px;min-height:76px}.surface-contract b{display:block;font-size:11px;font-weight:500;margin-bottom:3px}.surface-contract span{display:block;color:var(--ink60);font-size:10px;line-height:1.6}
+.dock-actions{flex-wrap:wrap;row-gap:4px}.dock-actions .pick{min-width:0;flex:1 1 58px;max-width:108px}.dock-actions .pick .trigger-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dock-actions .send{flex:0 0 28px}.payload,.dock-payload{min-width:0;flex-wrap:wrap;overflow:hidden}.payload{max-height:58px}.dock-payload{max-height:58px}.dock-token{max-width:100%}.queue-remove{width:22px;height:22px;flex:none;border:0;border-radius:var(--r-ctl);background:transparent;color:var(--ink40);display:grid;place-items:center;padding:0;cursor:pointer}.queue-remove:hover,.queue-remove:focus-visible{background:var(--ink10);color:var(--ink80)}.queue-remove i{font-size:13px}.host-stage.locating{box-shadow:inset 0 0 0 2px var(--ac)}.surface-locate-notice{position:absolute;z-index:18;right:10px;top:10px;max-width:240px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--r-ctl);background:var(--nomi-paper);color:var(--ac);font-size:10px;box-shadow:0 5px 16px rgba(35,31,27,.10)}.surface-locate-notice[hidden]{display:none}.demo-feedback{position:fixed;z-index:50;left:50%;bottom:18px;transform:translateX(-50%);max-width:min(520px,calc(100vw - 32px));padding:7px 11px;border:1px solid var(--line);border-radius:var(--r-ctl);background:var(--nomi-paper);color:var(--ink80);font-size:11px;box-shadow:0 8px 24px rgba(35,31,27,.14);opacity:0;pointer-events:none;transition:opacity var(--t-tap) var(--ease)}.demo-feedback.show{opacity:1}
+.turn-snapshot{display:block;margin-top:5px;color:var(--ink40);font-size:9px;line-height:1.5}
+.host-body{min-height:0;grid-template-rows:minmax(0,1fr)}.agent-dock,.host-stage{min-height:0}.agent-dock{overflow:hidden}
+.host-body.timeline-layout.dock-closed .surface-preview .preview-upper,.host-body.timeline-layout.dock-closed .surface-generation .generation-upper{margin-right:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Nomi Agent 对话词汇表 · 18 种反馈形态</h1>
+<p class="meta">
+2026-08-27 用户逐轮拍板 · 规格与理由见 <a href="../nomi-agent-interaction.md">nomi-agent-interaction.md</a><br>
+本页展示 18 种反馈形态；完整 21 种词汇见设计合同。下方统一 Agent 已按 Nomi 0.21.0 真机与当前 <code>WorkbenchShell / GenerationWorkspace / PreviewWorkspace / NomiSelect</code> 对账，生成画布、预览器与时间线保持同一工作区。
+</p>
+
+<div class="bar">
+  <span class="hint">所有可点控件 = 28px；同排动作按钮等宽均分，主次只用颜色分</span>
+  <button class="ctl btn" id="rl"><i class="ti ti-ruler" style="font-size:16px"></i> 标尺</button>
+  <button class="ctl btn" id="rp"><i class="ti ti-refresh" style="font-size:16px"></i> 重播</button>
+</div>
+
+<div class="sec">控件规格速查（全部出自 nomi-design-system.md，本样张不发明尺寸）</div>
+<div class="spec"><table>
+<tr><td><button class="ctl btn pri">批准</button></td><td>主按钮 · h28 · px12 · 12px · <b>圆角 6</b> · ink 底 · 最小宽 72</td></tr>
+<tr><td><button class="ctl btn">改一下</button></td><td>次按钮 · 同尺寸 · 描边 line-soft</td></tr>
+<tr><td><button class="ctl btn ico" aria-label="重跑"><i class="ti ti-refresh" style="font-size:16px"></i></button></td><td>图标钮 · 28×28 · 图标 <b>16 / stroke-2</b></td></tr>
+<tr><td><button class="ctl pick" style="max-width:96px"><span style="overflow:hidden;text-overflow:ellipsis">wan-3.0</span><i class="ti ti-chevron-down mut" style="font-size:13px;margin-left:auto"></i></button></td><td>选择器 · h28 · <b>药丸</b>（选择器用药丸，按钮用 6px 方角，不互串）</td></tr>
+<tr><td><span class="ctl chip on">16:9</span></td><td>选项 chip · h28 · 药丸 · 按内容定宽（它是内容不是动作）</td></tr>
+<tr><td><button class="lk">改提示词</button></td><td>文字链 · <b>无高度</b> · <b>不与按钮同排</b></td></tr>
+<tr><td><span class="tag a">等你确认</span></td><td>状态徽标 · 无高度 · 11px · 不可点</td></tr>
+<tr><td><i class="ti ti-coin" style="font-size:18px;color:var(--ac)"></i></td><td>卡头语义图标 · <b>18</b></td></tr>
+<tr><td><i class="ti ti-file-text" style="font-size:13px;color:var(--ink40)"></i></td><td>行内小图标 · <b>13 / stroke-1.8</b></td></tr>
+</table></div>
+
+<div class="sec">一条真实任务从头跑到尾 · 自动播放</div>
+
+<div class="g">
+<div class="lb" style="padding-top:11px"><b>① 上下文</b>面板顶</div>
+<div class="c" style="border-radius:var(--r-panel) var(--r-panel) 0 0;border-bottom:1px solid var(--lineS);display:flex;align-items:center;gap:8px;padding:9px 13px">
+  <div style="width:19px;height:19px;border-radius:6px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px">N</div>
+  <span style="font-weight:500">Nomi</span><span style="flex:1"></span>
+  <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink40)"><span style="width:24px;height:4px;background:var(--ink10);border-radius:999px;overflow:hidden;display:inline-block"><span id="cb" style="display:block;height:100%;width:12%;background:var(--ink40);transition:width 1.1s ease-out"></span></span><span class="n" id="cn">12</span>%</span>
+  <button class="ctl btn ico" aria-label="更多"><i class="ti ti-dots" style="font-size:16px"></i></button></div>
+
+<div class="lb"><b>② 压缩线</b>诚实</div>
+<div class="c it" data-s="0" style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:1px;background:var(--lineS)"></span><span style="font-size:11px;color:var(--ink40)">前面 24 轮已折叠</span><button class="lk" style="font-size:11px">展开</button><span style="flex:1;height:1px;background:var(--lineS)"></span></div>
+
+<div class="lb"><b>③ 用户</b>气泡</div>
+<div class="c it" data-s="1" style="display:flex;justify-content:flex-end"><div style="max-width:80%;background:var(--ink05);border-radius:10px 10px 3px 10px;padding:7px 10px;line-height:1.5">把第三章拆成镜头，先拍前 5 镜</div></div>
+
+<div class="lb"><b>④ 思考条</b>工序图示</div>
+<div class="c it" data-s="2"><div class="row"><span id="ti"></span><span class="ph" id="tt" style="color:var(--ink60)">正在通读第三章…</span><span style="flex:1"></span><span class="mut" style="font-size:11px">已等 <span id="te" style="font-variant-numeric:tabular-nums">0:03</span></span></div></div>
+
+<div class="lb"><b>⑤ 阶段线</b>一行</div>
+<div class="c it" data-s="3" style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:1px;background:var(--lineS)"></span><span style="font-size:11px;color:var(--ink40);letter-spacing:.04em">进入 · 生产段</span><span style="flex:1;height:1px;background:var(--lineS)"></span></div>
+
+<div class="lb"><b>⑥ 工具条</b>一行</div>
+<div class="c it" data-s="4"><div class="row"><i class="ti ti-file-text mut" style="font-size:13px"></i><span style="color:var(--ink80)">读了剧本 <span class="mut">第三章 · 2400 字</span></span><span id="k1"></span></div></div>
+
+<div class="lb"><b>⑦ 回复</b>纯文本</div>
+<div class="c it" data-s="5" style="line-height:1.6">拆出 5 个镜头，第 2、4 镜是双人对峙，加了站位参考。</div>
+
+<div class="lb" style="padding-top:15px"><b>⑧ 计划卡</b>批级参数</div>
+<div class="c it" data-s="6"><div class="card">
+  <div class="row" style="margin-bottom:8px"><i class="ti ti-list-check" style="font-size:18px;color:var(--ac)"></i><span style="font-weight:500;flex:1">拆 5 个镜头</span><span class="tag a">等你确认</span></div>
+  <div style="font-size:11px;color:var(--ink40);margin-bottom:4px">这批用</div>
+  <div class="row" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--lineS)">
+    <button class="ctl pick" style="flex:1"><span style="overflow:hidden;text-overflow:ellipsis">wan-3.0</span><i class="ti ti-chevron-down mut" style="font-size:13px;margin-left:auto"></i></button>
+    <button class="ctl pick soft" style="width:150px;flex:none"><span style="overflow:hidden;text-overflow:ellipsis">16:9 · 5s · 720p</span><i class="ti ti-chevron-down mut" style="font-size:13px"></i></button></div>
+  <div id="rw"></div>
+  <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--lineS)">
+    <div style="font-size:11px;color:var(--ink40);margin-bottom:8px">已选 <b style="color:var(--ink80);font-weight:500">5</b> 镜 · 1 镜改过参数</div>
+    <div class="grp"><button class="ctl btn">改一下</button><button class="ctl btn pri">批准</button></div></div></div></div>
+
+<div class="lb" style="padding-top:15px"><b>⑨ 付费卡</b>在对话里</div>
+<div class="c it" data-s="7"><div class="card" style="border-color:var(--ac)">
+  <div class="row" style="margin-bottom:8px"><i class="ti ti-coin" style="font-size:18px;color:var(--ac)"></i><span style="font-weight:500">这一步要花钱</span></div>
+  <div style="font-size:11px;line-height:1.95;color:var(--ink60);border-top:1px solid var(--lineS);border-bottom:1px solid var(--lineS);padding:6px 0;margin-bottom:8px">
+    <div style="display:flex"><span style="flex:1">4 镜 × wan-3.0 · 5s · 720p</span><span style="color:var(--ink80)">¥ 10.00</span></div>
+    <div style="display:flex"><span style="flex:1">1 镜 × wan-3.0 · 10s · 720p</span><span style="color:var(--ink80)">¥ 5.00</span></div>
+    <div style="display:flex;color:var(--ink);font-weight:500;padding-top:2px;font-size:12px"><span style="flex:1">合计</span><span>¥ <span class="n" id="pr">0.00</span></span></div></div>
+  <div style="display:flex;gap:6px;font-size:11px;color:var(--warn);line-height:1.55;margin-bottom:9px"><i class="ti ti-lock" style="font-size:13px;margin-top:1px;flex:none"></i><span>过闸后不能再改：镜头数、模型、时长、清晰度。提示词仍可改。</span></div>
+  <div class="grp"><button class="ctl btn">先不跑</button><button class="ctl btn pri">确认花 ¥15.00</button></div></div></div>
+
+<div class="lb"><b>⑩ 写入回执</b>带撤销</div>
+<div class="c it" data-s="8"><div class="row"><span id="k2"></span><span style="color:var(--ink80);flex:1">已在画布加 5 个节点 <span class="mut">· 分镜 01–05</span></span><button class="ctl btn">撤销</button></div></div>
+
+<div class="lb"><b>⑪ 排队</b>一行</div>
+<div class="c it" data-s="9"><div class="row"><i class="ti ti-hourglass mut" style="font-size:13px"></i><span class="mut">排队中 · 前面还有 <span class="n" id="qn" style="color:var(--ink80)">3</span> 个</span></div></div>
+
+<div class="lb" style="padding-top:13px"><b>⑫ 进度</b>原位更新</div>
+<div class="c it" data-s="10"><div class="row"><span id="pi"></span><span style="white-space:nowrap;color:var(--ink80)">生成镜头</span><div class="th"><div class="tf" id="bar"></div></div><span class="mut" style="font-size:11px"><span class="n" id="pn">0</span>/5</span><button class="ctl btn">停止</button></div></div>
+
+<div class="lb" style="padding-top:14px"><b>⑬ 产物</b>模糊转清晰</div>
+<div class="c it" data-s="11"><div class="card" style="padding:8px 9px">
+  <div style="display:flex;gap:6px;margin-bottom:8px" id="tb"></div>
+  <div class="row"><span style="font-size:11px;color:var(--ink40);flex:1" id="tc">生成中…</span><button class="ctl btn acc" style="min-width:96px">去画布 <i class="ti ti-arrow-right" style="font-size:16px"></i></button></div></div></div>
+
+<div class="lb" style="padding-top:14px"><b>⑭ 多候选</b>并排 ≤3</div>
+<div class="c it" data-s="12"><div class="card" style="padding:8px 9px"><div style="font-size:11px;color:var(--ink40);margin-bottom:6px">分镜 04 出了 3 版</div><div style="display:flex;gap:6px" id="cd"></div></div></div>
+
+<div class="lb" style="padding-top:14px"><b>⑮ 失败条</b>三个等宽</div>
+<div class="c it" data-s="13"><div class="card" style="border-color:var(--dg);background:var(--dgBg)">
+  <div class="row" style="margin-bottom:4px"><i class="ti ti-alert-triangle" style="font-size:18px;color:var(--dg)"></i><span style="font-weight:500;color:var(--dg)">分镜 05 没生成出来</span></div>
+  <div style="line-height:1.6;color:var(--ink80);margin-bottom:3px">wan-3.0 说这张参考图里有它不接受的内容，退回了。<b style="font-weight:500">这次没有扣费。</b></div>
+  <div style="font-size:11px;color:var(--ink40);margin-bottom:9px">只有这一镜失败，另外 4 镜正常。</div>
+  <div class="grp"><button class="ctl btn pri">换模型重试</button><button class="ctl btn">改提示词</button><button class="ctl btn">看日志</button></div></div></div>
+
+<div class="lb" style="padding-top:14px"><b>⑯ 有出入</b>我们独有</div>
+<div class="c it" data-s="14"><div class="card" style="border-color:var(--warn)">
+  <div class="row" style="margin-bottom:4px"><i class="ti ti-git-compare" style="font-size:18px;color:var(--warn)"></i><span style="font-weight:500">做出来的和你批的不一样</span></div>
+  <div style="line-height:1.6;color:var(--ink80);margin-bottom:9px">你批的 5s，实际按 6s 跑 —— wan-3.0 最短 6s。</div>
+  <div class="grp"><button class="ctl btn pri">撤销这笔</button><button class="ctl btn">让 AI 修</button><button class="ctl btn">知道了</button></div></div></div>
+
+<div class="lb" style="padding-top:14px"><b>⑰ 反问</b>≤3 问合并</div>
+<div class="c it" data-s="15"><div class="card">
+  <div class="row" style="margin-bottom:8px"><i class="ti ti-help-circle" style="font-size:18px;color:var(--ac)"></i><span style="font-weight:500">两个问题，一起问了</span></div>
+  <div style="font-size:11px;color:var(--ink40);margin-bottom:5px">1 · 第 4 镜的机位</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" data-q><span class="ctl chip">仰拍</span><span class="ctl chip">平视</span><span class="ctl chip">俯拍</span></div>
+  <div style="font-size:11px;color:var(--ink40);margin-bottom:5px">2 · 整段调子</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap" data-q><span class="ctl chip">冷 · 压抑</span><span class="ctl chip">暖 · 怀旧</span></div></div></div>
+
+<div class="lb" style="padding-top:12px"><b>⑱ 指令队列</b>框上方</div>
+<div class="c it" data-s="16" style="padding-bottom:0"><div style="background:var(--ink05);border:1px solid var(--lineS);border-radius:8px;padding:6px 9px">
+  <div style="font-size:11px;color:var(--ink40);margin-bottom:4px">agent 忙着 · 这些排在后面</div><div id="qb"></div></div></div>
+
+<div class="lb" style="padding-top:11px"><b>底</b>输入框</div>
+<div class="c composer-cell" style="border-radius:0 0 var(--r-panel) var(--r-panel);padding-top:8px">
+  <div class="payload" id="payload">
+    <button class="ref" id="canvasRef" title="画布选中对象 · 主体裁剪 24%"><i class="ti ti-photo"></i><span>角色定妆 · 阿青</span><i class="ti ti-x"></i></button>
+  </div>
+  <div class="composer-box drop-target" id="composerDropTarget">
+    <div class="composer-prompt" id="composerPrompt" contenteditable="true" role="textbox" aria-multiline="true" aria-label="给 Nomi 的消息">让这个镜头更有压迫感，保留阿青的定妆。</div>
+    <div class="row">
+      <button class="ctl btn ico" id="attachTrigger" aria-label="添加附件" title="添加附件" aria-haspopup="menu" aria-expanded="false"><i class="ti ti-paperclip" style="font-size:16px"></i></button>
+      <button class="ctl btn ico" id="mentionTrigger" aria-label="引用画布或网页" title="引用画布或网页" aria-haspopup="menu" aria-expanded="false"><i class="ti ti-at" style="font-size:16px"></i></button>
+      <span style="flex:1"></span>
+      <button class="ctl pick skill-trigger" id="methodsTrigger" aria-haspopup="dialog" aria-expanded="false" title="选择本轮技能"><i class="ti ti-sparkles" id="methodTriggerIcon"></i><span class="trigger-label" id="methodLabel">技能</span><i class="ti ti-chevron-down mut" style="font-size:13px"></i></button>
+      <button class="ctl pick prompt-trigger" id="promptsTrigger" aria-haspopup="menu" aria-expanded="false" title="选择内置提示词"><i class="ti ti-notes"></i><span class="trigger-label" id="promptLabel">提示词</span><i class="ti ti-chevron-down mut" style="font-size:13px"></i></button>
+      <button class="ctl pick" id="agentTrigger" aria-haspopup="menu" aria-expanded="false"><span id="agentLabel">平衡</span><i class="ti ti-chevron-down mut" style="font-size:13px"></i></button>
+      <button class="ctl pick model-trigger" id="modelsTrigger" aria-haspopup="menu" aria-expanded="false" title="Agent 与生成模型"><i class="ti ti-stack-2"></i><span class="trigger-label">模型</span><span class="model-count" id="modelsSummary"></span><i class="ti ti-chevron-down mut" style="font-size:13px"></i></button>
+      <button class="ctl btn pri ico" id="mainSend" style="border-radius:999px" aria-label="发送"><i class="ti ti-arrow-up" style="font-size:16px"></i></button>
+    </div>
+  </div>
+
+  <div class="pop left" id="attachMenu" role="menu">
+    <div class="pop-title">添加到本轮</div>
+    <button class="pop-item" data-attach="图片"><i class="ti ti-photo"></i><span>图片<small>PNG / JPG / WebP</small></span></button>
+    <button class="pop-item" data-attach="视频"><i class="ti ti-video"></i><span>视频<small>MP4 / MOV / WebM</small></span></button>
+    <button class="pop-item" data-attach="音频"><i class="ti ti-wave-sine"></i><span>音频<small>WAV / MP3 / M4A</small></span></button>
+    <button class="pop-item" data-attach="文档"><i class="ti ti-file-text"></i><span>文档<small>PDF / DOCX / TXT</small></span></button>
+    <div class="pop-sep"></div>
+    <button class="pop-item" id="voiceTrigger"><i class="ti ti-microphone"></i><span>语音输入<small>把讲话转成文字</small></span></button>
+  </div>
+
+  <div class="pop left" id="mentionMenu" role="menu">
+    <div class="pop-title">引用</div>
+    <button class="pop-item" data-ref="画布 · 镜头 03" data-icon="photo"><i class="ti ti-photo"></i><span>画布对象<small>镜头 03 · 雨夜巷口</small></span></button>
+    <button class="pop-item" data-ref="文本 · 第三章第 4 段" data-icon="file-text"><i class="ti ti-file-text"></i><span>文本选区<small>第三章第 4 段</small></span></button>
+    <button class="pop-item" data-ref="预览 · 00:08" data-icon="video"><i class="ti ti-video"></i><span>预览帧<small>当前帧 · 00:08</small></span></button>
+    <button class="pop-item" data-ref="时间线 · 00:06–00:14" data-icon="timeline-event"><i class="ti ti-timeline-event"></i><span>时间线区间<small>00:06–00:14</small></span></button>
+    <button class="pop-item" data-ref="当前网页选区" data-icon="world"><i class="ti ti-world"></i><span>网页选区<small>来源会随本轮冻结</small></span></button>
+  </div>
+
+  <div class="pop right method-pop" id="methodsMenu" role="dialog" aria-label="选择技能">
+    <div class="method-shell">
+      <div class="method-list-pane">
+        <div class="pop-title"><span>技能</span><span>默认自动匹配</span></div>
+        <label class="method-search"><i class="ti ti-search"></i><input id="methodSearch" type="search" placeholder="搜索技能、用途或产物" autocomplete="off"></label>
+        <div id="methodList"></div>
+        <div class="pop-sep"></div>
+        <button class="pop-item method-manage"><i class="ti ti-settings"></i><span>管理与新建技能</span><i class="ti ti-chevron-right mut"></i></button>
+      </div>
+      <aside class="method-preview" id="methodPreview" aria-live="polite"></aside>
+    </div>
+  </div>
+
+  <div class="pop right prompt-pop" id="promptsMenu" role="menu" aria-label="选择内置提示词">
+    <div class="pop-title"><span>提示词</span><span>只影响本轮表达</span></div>
+    <button class="pop-item prompt-item on" data-prompt="" data-prompt-label="提示词" data-prompt-icon="notes"><i class="ti ti-circle-dashed"></i><span class="prompt-copy"><b>不使用预设</b><small>按当前消息直接回答</small></span><i class="ti ti-check check"></i></button>
+    <button class="pop-item prompt-item" data-prompt="保留人物、机位和动作，只调整光线、景深与前景层次。" data-prompt-label="镜头强化" data-prompt-icon="aperture"><i class="ti ti-aperture"></i><span class="prompt-copy"><b>镜头强化 <span class="method-type">内置</span></b><small>保留人物、机位和动作，只调整光线、景深与前景层次。</small></span><i class="ti ti-check check" hidden></i></button>
+    <button class="pop-item prompt-item" data-prompt="先指出冲突与节奏问题，再给出尽量保留原意的改写。" data-prompt-label="剧本顾问" data-prompt-icon="file-pencil"><i class="ti ti-file-pencil"></i><span class="prompt-copy"><b>剧本顾问 <span class="method-type">内置</span></b><small>先指出冲突与节奏问题，再给出尽量保留原意的改写。</small></span><i class="ti ti-check check" hidden></i></button>
+    <button class="pop-item prompt-item" data-prompt="检查结构、逻辑和表达，逐条说明原因后再修订。" data-prompt-label="审校优化" data-prompt-icon="text-spellcheck"><i class="ti ti-text-spellcheck"></i><span class="prompt-copy"><b>审校优化 <span class="method-type">内置</span></b><small>检查结构、逻辑和表达，逐条说明原因后再修订。</small></span><i class="ti ti-check check" hidden></i></button>
+    <button class="pop-item prompt-item" data-prompt="只返回可追溯来源与明确授权状态的候选素材。" data-prompt-label="素材检索" data-prompt-icon="world-search"><i class="ti ti-world-search"></i><span class="prompt-copy"><b>素材检索 <span class="method-type">内置</span></b><small>只返回可追溯来源与明确授权状态的候选素材。</small></span><i class="ti ti-check check" hidden></i></button>
+  </div>
+
+  <div class="pop right" id="agentMenu" role="menu">
+    <div id="agentMain">
+      <div class="pop-title"><span>运行方式与操作授权</span><span>当前会话</span></div>
+      <button class="pop-item" data-work="Ask"><i class="ti ti-message-question"></i><span>Ask<small>只回答，不改画布</small></span><i class="ti ti-check check" hidden></i></button>
+      <button class="pop-item" data-work="引导"><i class="ti ti-route"></i><span>引导<small>每个关键阶段暂停确认</small></span><i class="ti ti-check check" hidden></i></button>
+      <button class="pop-item on" data-work="平衡"><i class="ti ti-adjustments-horizontal"></i><span>平衡<small>确认摘要后在预算内继续</small></span><i class="ti ti-check check"></i></button>
+      <button class="pop-item" data-work="策略自动"><i class="ti ti-bolt"></i><span>策略自动<small>已知成本与策略内自动继续</small></span><i class="ti ti-check check" hidden></i></button>
+    </div>
+  </div>
+
+  <div class="pop right" id="modelsMenu" role="menu">
+    <div class="pop-title">当前会话的模型默认</div>
+    <div class="model-list" id="modelList"></div>
+  </div>
+</div>
+</div>
+
+<div class="sec">同排按钮四条规则</div>
+<div class="rules">
+<div><b>1 ·</b> 同一排的动作按钮 <b>等宽均分</b>（flex:1），主次<b>只用颜色</b>分：深底=主，描边=次。层级不靠尺寸。</div>
+<div><b>2 ·</b> 一排最多 <b>3 个</b>；再多 → 主按钮 + 「更多」收起。</div>
+<div><b>3 ·</b> 文字链 <b>不与按钮同排</b> —— 要么单独一行，要么升级成按钮。</div>
+<div><b>4 ·</b> 选项 chip 例外：按内容定宽（它是<b>内容</b>不是动作），但同组高/圆角/字号必须一致。</div>
+<div style="color:var(--ink40);font-size:11px;margin-top:6px;line-height:1.7">派生纪律：<b>文案要为布局让步</b> —— 三等分时「换个模型重试」会挤，写「换模型重试」。实现时长文案撑破行 = 设计错误，不是内容问题。</div>
+</div>
+
+<div class="sec">设置 · 默认模型扩充分组（输入区只显示五类摘要）</div>
+<div class="spec"><table>
+<tr><td>Agent</td><td><b>Agent 文本</b> · 自动选择</td></tr>
+<tr><td>图片</td><td><b>文生图</b> · 自动选择　/　<b>图片编辑</b> · 自动选择</td></tr>
+<tr><td>视频</td><td><b>文生视频</b> · 自动选择　/　<b>图生视频</b> · 自动选择</td></tr>
+<tr><td>音频</td><td><b>配音</b> · 自动选择　/　<b>转写</b> · 自动选择</td></tr>
+<tr><td>3D</td><td><b>文生 3D</b> · 自动选择　/　<b>图生 3D</b> · 自动选择</td></tr>
+</table></div>
+
+<div class="sec">输入区 · 技能、提示词与快捷输入（默认不要求用户配置）</div>
+<div class="rules">
+<div><b>1 · 默认自动匹配技能。</b>用户直接描述任务即可；只有想锁定完整工作流时，才打开「技能」。</div>
+<div><b>2 · 技能先看结果。</b>悬停或键盘聚焦显示 16:9 图片/静音视频，同时列出输入、产物、步骤与能力依赖；无媒体时显示结构化说明，不造假封面。</div>
+<div><b>3 · 提示词独立。</b>提示词只改变本轮回答侧重，不调用工具；选择后以可移除引用显示，并能看到完整正文，不再藏进技能名称。</div>
+<div><b>4 · 四条入口只有一套语义。</b>拖入=添加文件，<code>@</code>=引用现场或对象，<code>/</code>=快速调用技能，按钮=可发现入口；最后都进入同一份发送快照。</div>
+<div><b>5 · 一次只固定一个技能和一个提示词。</b>多技能编排由 Agent 在计划里解释；缺少浏览器、模型或素材权限时，在选择前直接显示。</div>
+<div><b>6 · Connector 不做常驻按钮。</b>浏览器、图库、音乐库等由 Agent 调用、<code>@</code> 引用或技能依赖进入；生成参数继续在计划卡确认。</div>
+</div>
+
+<div class="sec">统一 Agent · 创作、生成、预览与浏览器共享同一 Thread（按真实应用结构）</div>
+<div class="host-demo" id="hostDemo">
+  <div class="host-topbar">
+    <div class="host-brand">N</div>
+    <div class="host-project"><span>项目库 ›</span><b>雨夜追逐</b></div>
+    <nav class="surface-tabs" aria-label="项目工作区">
+      <button class="surface-tab" data-surface="document">创作</button>
+      <button class="surface-tab on" data-surface="canvas">生成</button>
+      <button class="surface-tab" data-surface="preview">预览</button>
+    </nav>
+    <button class="browser-switch" data-surface="browser" aria-label="打开浏览器窗口" title="独立浏览器入口"><i class="ti ti-browser"></i><span>浏览器</span><i class="ti ti-external-link" style="font-size:11px"></i></button>
+  </div>
+  <div class="host-body">
+    <main class="host-stage" id="hostStage" aria-live="polite">
+      <div class="host-stage-inner surface-canvas" data-stage="canvas">
+        <div class="stage-kicker"><i class="ti ti-vector"></i>画布 · 已选择 1 个对象</div>
+        <span class="canvas-edge e1"></span><span class="canvas-edge e2"></span>
+        <span class="ghost-node g1"></span><span class="ghost-node g2"></span>
+        <div class="canvas-node">
+          <div class="local-toolbar" aria-label="选中对象工具">
+            <button class="local-tool" aria-label="替换画布对象" title="替换画布对象"><i class="ti ti-replace"></i></button>
+            <button class="local-tool" aria-label="裁剪画布对象" title="裁剪画布对象"><i class="ti ti-crop"></i></button>
+            <button class="local-tool agent-add" data-local-ref><i class="ti ti-at"></i><span>引用</span></button>
+          </div>
+          <div class="canvas-node-media"></div>
+          <div class="canvas-node-copy"><i class="ti ti-photo" style="font-size:14px;color:var(--ink40)"></i><span><b>镜头 03 · 雨夜巷口</b><small>图片 · 16:9 · v3</small></span><i class="ti ti-dots" style="font-size:14px;color:var(--ink40)"></i></div>
+        </div>
+      </div>
+
+      <button class="agent-pill" id="compactAgent" aria-label="展开 Nomi Agent" aria-controls="agentDock" aria-expanded="false">
+        <span class="pill-mark">N</span><span class="pill-signal run"></span><span id="compactAgentText">正在生成镜头 4/6</span><i class="ti ti-chevron-left" style="font-size:13px;color:var(--ink40)"></i>
+      </button>
+    </main>
+
+    <aside class="agent-dock" id="agentDock" aria-label="项目 Agent">
+      <div class="dock-head">
+        <span class="dock-mark">N</span>
+        <span class="dock-title"><b>Nomi</b><small>雨夜追逐 · <span id="dockThreadLabel">Thread 03</span></small></span>
+        <button class="ctl btn ico" id="threadTrigger" aria-label="会话列表" title="会话列表" aria-haspopup="menu" aria-expanded="false"><i class="ti ti-history" style="font-size:15px"></i></button>
+        <button class="ctl btn ico" id="collapseAgent" aria-label="收起 Agent" title="收起 Agent" aria-controls="agentDock" aria-expanded="true"><i class="ti ti-layout-sidebar-right-collapse" style="font-size:15px"></i></button>
+      </div>
+      <div class="thread-pop" id="threadMenu" role="menu" aria-label="会话列表">
+        <div class="pop-title"><span>会话</span><span>当前项目</span></div>
+        <button class="pop-item on" data-thread="Thread 03"><span class="thread-status run"></span><span><b>雨夜追逐</b><small>Thread 03 · 正在生成 4/6</small></span><i class="ti ti-check check"></i></button>
+        <button class="pop-item" data-thread="Thread 02"><span class="thread-status"></span><span><b>角色定妆</b><small>Thread 02 · 昨天</small></span><i class="ti ti-check check" hidden></i></button>
+        <button class="pop-item" data-thread="Thread 01"><span class="thread-status"></span><span><b>第三章拆镜</b><small>Thread 01 · 8 月 28 日</small></span><i class="ti ti-check check" hidden></i></button>
+      </div>
+      <div class="dock-context">
+        <i class="ti ti-current-location"></i>
+        <span>当前现场 · <b id="surfaceContext">画布 · 镜头 03</b></span>
+        <button class="lk" id="returnToSurface">回到现场</button>
+      </div>
+      <div class="dock-feed">
+        <div class="dock-user" id="surfaceQuestion">引用了「镜头 03」<br>让这个巷口更有压迫感，保留阿青的定妆。</div>
+        <div class="dock-thinking"><span class="dock-spinner"></span><span>正在生成第 4 镜 · 已用 1:18</span></div>
+        <div class="dock-reply">我保留了角色与机位，只把光源压低，并增加前景遮挡。完成的镜头会回到原画布位置。</div>
+        <div class="artifact-card">
+          <div class="artifact-media"><span class="artifact-type"><i class="ti ti-video"></i>视频</span></div>
+          <div class="artifact-copy">
+            <b>雨夜巷口 · v4</b><small>Seedance 2.5 · 6s · 720p</small>
+            <div class="artifact-actions"><button class="ctl btn" id="artifactPreview"><i class="ti ti-player-play"></i>播放</button><button class="ctl btn acc" id="artifactLocate"><i class="ti ti-current-location"></i>画布定位</button></div>
+          </div>
+        </div>
+        <div class="dock-task">
+          <div class="dock-task-head"><i class="ti ti-loader-2"></i><b>生成镜头</b><span>4 / 6</span></div>
+          <div class="dock-task-progress"><span></span></div>
+        </div>
+      </div>
+      <div class="dock-composer">
+        <div class="dock-compose-box drop-target" id="dockDropTarget">
+          <div class="dock-payload" id="dockPayload"></div>
+          <div class="dock-draft" id="dockDraft" contenteditable="true" role="textbox" aria-multiline="true" aria-label="给 Nomi 的消息" data-placeholder="继续告诉 Nomi 要改什么…"></div>
+          <div class="dock-actions">
+            <button class="ctl btn ico" id="dockAttachTrigger" aria-label="添加文件" title="添加文件，也可直接拖入"><i class="ti ti-paperclip"></i></button>
+            <button class="ctl btn ico" id="dockMentionTrigger" aria-label="引用现场或对象" title="@ 引用现场或对象" aria-haspopup="menu" aria-expanded="false"><i class="ti ti-at"></i></button>
+            <button class="ctl pick skill-trigger" id="dockSkillTrigger" aria-label="选择技能" title="技能 · 自动匹配" aria-haspopup="menu" aria-expanded="false"><span class="trigger-label">技能</span></button>
+            <button class="ctl pick prompt-trigger" id="dockPromptTrigger" aria-label="选择提示词" title="提示词 · 未选择" aria-haspopup="menu" aria-expanded="false"><span class="trigger-label">提示词</span></button>
+            <button class="ctl pick" id="dockModeTrigger" aria-label="选择工作方式与操作授权" title="工作方式与操作授权 · 平衡" aria-haspopup="menu" aria-expanded="false"><span id="dockModeLabel">平衡</span><i class="ti ti-chevron-down"></i></button>
+            <button class="ctl pick model-trigger" id="dockModelTrigger" aria-label="选择模型" title="模型 · 全部自动选择" aria-haspopup="menu" aria-expanded="false"><span class="trigger-label">模型</span><span class="model-count" id="dockModelsSummary"></span><i class="ti ti-chevron-down"></i></button>
+            <button class="ctl btn ico send" id="dockSend" aria-label="发送" title="输入消息或添加引用后发送" disabled><i class="ti ti-arrow-up"></i></button>
+          </div>
+        </div>
+        <input id="dockFileInput" type="file" hidden multiple>
+        <div class="dock-quick-pop" id="dockQuickMenu" role="menu">
+          <div class="pop-title"><span id="dockQuickTitle">技能</span><kbd id="dockQuickKey">/</kbd></div>
+          <div id="dockQuickList"></div>
+        </div>
+        <aside class="dock-skill-preview" id="dockSkillPreview" aria-live="polite"></aside>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="sec">36px 缩小药丸 · 它是同一 Agent 的状态投影，不是第二套入口</div>
+<div class="pill-showcase" id="pillShowcase">
+  <div class="pill-case"><button class="agent-pill" data-pill-state="idle"><span class="pill-mark">N</span><span class="pill-signal"></span><span>Nomi</span></button></div>
+  <div class="pill-case"><button class="agent-pill" data-pill-state="running"><span class="pill-mark">N</span><span class="dock-spinner"></span><span>正在生成镜头 4/6</span></button></div>
+  <div class="pill-case"><button class="agent-pill" data-pill-state="queued"><span class="pill-mark">N</span><span>正在生成</span><span class="pill-count">2</span></button></div>
+  <div class="pill-case"><button class="agent-pill" data-pill-state="confirm"><span class="pill-mark">N</span><span class="pill-signal wait"></span><span>需要确认 · ¥15</span></button></div>
+  <div class="pill-case"><button class="agent-pill" data-pill-state="failed"><span class="pill-mark">N</span><span class="pill-signal fail"></span><span>1 个镜头失败</span></button></div>
+  <div class="pill-case"><button class="agent-pill" data-pill-state="done"><span class="pill-mark">N</span><span class="pill-signal done"></span><span>6 个镜头已完成</span></button></div>
+</div>
+
+<div class="sec">跨工作区合同 · UI 可以不同，身份与状态不能断</div>
+<div class="surface-contract">
+  <div><b>一个 Host</b><span>项目只创建一个 Agent Host；Thread、队列、审批与产物不因切页重建。</span></div>
+  <div><b>四类入口，五种引用</b><span>创作引用段落，生成引用节点；预览页内可分别引用当前帧和时间区间；浏览器引用网页选区。</span></div>
+  <div><b>发送时冻结</b><span>本轮的模型、技能、提示词、授权、上下文、目标与来源一起冻结，避免切页后语义漂移。</span></div>
+  <div><b>来源不是权限</b><span>“来自浏览器/画布”只帮助解释和定位，不能暗中提高授权或改变产物落点。</span></div>
+  <div><b>专业界面仍专业</b><span>生成页与预览页都保持“上半工作面、下半通栏时间线”；生成画布或播放器随时间线向上扩展而让位，3D 继续使用专项界面。</span></div>
+  <div><b>结果可返回</b><span>聊天里显示轻量预览和状态；点击“定位/回到现场”回到真实可编辑对象。</span></div>
+</div>
+
+<div class="sec">官方手册转译 · 只取可验证的交互，不照搬界面</div>
+<div class="rules">
+  <div><b>MiniMax Design：</b>右侧 Agent、中间流程画布、左侧 Skill/资产，以及 3D/剪辑专项 Agent，证明“对话连续 + 专业子界面”可共存；Nomi 保留层级，但不把模型、Skill、自动模式平铺成一排。</div>
+  <div><b>TapNow：</b>作品可以打开“只读创作过程”并克隆项目，说明工作流应以真实节点和产物展示；因此 Nomi 的技能选择先看演示、输入和产物，再决定是否调用。</div>
+  <div><b>YouMind：</b>官方 Skill 广场按图片、视频、写作等产物分类，并明确步骤、输入和默认模型；因此 Skill 名称只是次级信息，用户先按结果发现技能。</div>
+  <div><b>小云雀：</b>长剧本、角色生命周期、统一风格与多集连续生成属于项目状态；因此不能把每次聊天当成孤立的一次生成。</div>
+  <div><b>AI SDK Elements：</b>Conversation、Attachments、Confirmation、Context、Plan、Queue、Reasoning、Sources、Task、Tool 与 Artifact 是按状态出现的反馈组件，不应全部常驻；Nomi 复用已有 18 种反馈，只补滚动回底、来源与输入快捷层。</div>
+  <div><b>Pi Agent Extensions：</b><code>/sessions</code>、<code>/workflow</code>、文件浏览、结构化提问、上下文仪表、旁路提问与后台通知证明命令可加速复杂 Agent；Nomi 用 <code>/</code> 调技能、<code>@</code> 引用、药丸承载后台状态，但不复制终端式界面。</div>
+</div>
+
+</div>
+
+<script>
+(function(){
+var D=document,T=[],tmr,pht;
+var SS='stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"';
+function ico(k){var c=' width="17" height="17" viewBox="0 0 24 24" class="ic" aria-hidden="true" style="flex:none;color:'+(k===3?'var(--ac)':'var(--ink60)')+'"';
+ if(k===0)return '<svg'+c+'><rect x="5" y="3" width="14" height="18" rx="2" '+SS+'/><path class="L1" d="M8.5 8h7" '+SS+'/><path class="L2" d="M8.5 12h7" '+SS+'/><path class="L3" d="M8.5 16h4" '+SS+'/></svg>';
+ if(k===1)return '<svg'+c+'><rect class="B1" x="4" y="4" width="16" height="4.2" rx="1.3" '+SS+'/><rect class="B2" x="4" y="9.9" width="16" height="4.2" rx="1.3" '+SS+'/><rect class="B3" x="4" y="15.8" width="16" height="4.2" rx="1.3" '+SS+'/></svg>';
+ if(k===2)return '<svg'+c+'><g class="FC"><path d="M4 9V5.8A1.8 1.8 0 0 1 5.8 4H9" '+SS+'/><path d="M15 4h3.2A1.8 1.8 0 0 1 20 5.8V9" '+SS+'/><path d="M20 15v3.2a1.8 1.8 0 0 1-1.8 1.8H15" '+SS+'/><path d="M9 20H5.8A1.8 1.8 0 0 1 4 18.2V15" '+SS+'/></g><circle cx="12" cy="12" r="2.4" '+SS+'/></svg>';
+ if(k===3)return '<svg'+c+'><rect x="3.5" y="9.5" width="17" height="10.5" rx="1.8" '+SS+'/><g class="CL"><rect x="3.5" y="4.6" width="17" height="4.9" rx="1.2" '+SS+'/><path d="M8.2 4.6 10.6 9.5M13 4.6 15.4 9.5" '+SS+'/></g></svg>';
+ return '<svg'+c+'><path d="M3 6.5h18M3 12h18M3 17.5h18" stroke="currentColor" stroke-width="1.4" opacity=".28" stroke-linecap="round"/><rect class="T1" x="9" y="4.7" width="6" height="3.6" rx="1.1" '+SS+'/><rect class="T2" x="9" y="10.2" width="6" height="3.6" rx="1.1" '+SS+'/><rect class="T3" x="9" y="15.7" width="6" height="3.6" rx="1.1" '+SS+'/></svg>'}
+function ck(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#248a3d" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="ckp" d="M4.5 12.5l5 5 10-10"/></svg>'}
+function $(s){return D.querySelector(s)}
+function at(m,f){T.push(setTimeout(f,m))}
+function tick(e,v){e.classList.add('tk');setTimeout(function(){e.textContent=v;e.classList.remove('tk')},190)}
+var PH=[["正在通读第三章","正在跟场记对本","正在圈重点"],["正在画分镜","正在排镜头顺序"],["正在架机位","正在调焦"],["正在打板","正在走位彩排","正在盯回放"],["正在压时间线"]];
+var SH=[['01','客栈外景 · 黄昏',1,0],['02','两人对峙 · 中景',1,0],['03','手部特写',0,0],['04','对峙反打',1,'10s'],['05','推门离开',0,0]];
+var q=['第 3 镜换成雨天','拆完排进时间轴'],pg=0,pi=0,sec=3;
+
+function dq(){$('#qb').innerHTML=q.length?q.map(function(t,i){return '<div style="display:flex;align-items:center;gap:7px;padding:2px 0;color:var(--ink80)"><span style="color:var(--ink40);font-size:11px">'+(i+1)+'</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+t+'</span><button class="queue-remove" type="button" data-q="'+i+'" aria-label="删除排队指令 '+(i+1)+'"><i class="ti ti-x" aria-hidden="true"></i></button></div>'}).join(''):'<div style="color:var(--ink40);padding:2px 0">都做完了</div>'}
+
+function play(){
+ T.forEach(clearTimeout);T=[];clearInterval(tmr);clearInterval(pht);
+ D.querySelectorAll('.it').forEach(function(e){e.classList.add('hid')});
+ $('#rw').innerHTML='';$('#tb').innerHTML='';$('#bar').style.width='0';$('#pn').textContent='0';
+ $('#pr').textContent='0.00';$('#qn').textContent='3';$('#k1').innerHTML='';$('#k2').innerHTML='';
+ $('#cb').style.width='12%';$('#cn').textContent='12';$('#tc').textContent='生成中…';$('#te').textContent='0:03';
+ pg=0;pi=0;sec=3;
+ $('#ti').innerHTML=ico(0);$('#pi').innerHTML=ico(3);
+ var t=$('#tt');t.textContent=PH[0][0]+'…';t.style.color='var(--ink60)';
+ $('#cd').innerHTML=[1,2,3].map(function(n,i){return '<div class="sq cd" style="flex:1;cursor:pointer;border-color:'+(i===0?'var(--ac)':'var(--lineS)')+';border-width:'+(i===0?'2px':'1px')+'">v'+n+(i===0?' ·生效':'')+'</div>'}).join('');
+ dq();
+
+ tmr=setInterval(function(){sec++;$('#te').textContent='0:'+String(sec).padStart(2,'0')},1000);
+ pht=setInterval(function(){var e=$('#tt');e.classList.add('o');setTimeout(function(){pi=(pi+1)%PH[pg].length;e.textContent=PH[pg][pi]+'…';e.classList.remove('o')},300)},2500);
+
+ function sh(i,d){at(d,function(){var e=D.querySelector('[data-s="'+i+'"]');if(e)e.classList.remove('hid')})}
+ sh(0,100);sh(1,300);sh(2,700);
+ at(2100,function(){clearInterval(pht);var e=$('#tt');e.textContent='想了 4 秒 · 5 镜，2 镜要站位参考';e.style.color='var(--ink40)';$('#ti').innerHTML=ico(1)});
+ sh(3,2400);sh(4,2700);at(3400,function(){$('#k1').innerHTML=ck()});
+ sh(5,3700);sh(6,4100);
+ SH.forEach(function(s,i){at(4300+i*120,function(){
+   var d=D.createElement('div');
+   d.style.cssText='display:flex;align-items:center;gap:8px;padding:4px 0;opacity:0;transform:translateY(4px);transition:'+ '260ms var(--ease)';
+   d.innerHTML='<input type="checkbox" checked style="width:13px;height:13px;margin:0;accent-color:oklch(0.55 0.13 250)"><span style="color:var(--ink40);font-variant-numeric:tabular-nums">'+s[0]+'</span><span style="flex:1;color:var(--ink80);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+s[1]+'</span>'+(s[2]?'<span class="tag a">站位参考</span>':'')+(s[3]?'<span class="tag a">已改 '+s[3]+'</span>':'<span style="font-size:11px;color:var(--ink40)">同上</span>')+'<i class="ti ti-chevron-down" style="font-size:13px;color:var(--ink40)"></i>';
+   $('#rw').appendChild(d);requestAnimationFrame(function(){d.style.opacity='1';d.style.transform='none'})})});
+ sh(7,5400);
+ for(var k=1;k<=15;k++){(function(k){at(5600+k*42,function(){$('#pr').textContent=(15*k/15).toFixed(2)})})(k)}
+ sh(8,6600);at(6800,function(){$('#k2').innerHTML=ck()});
+ sh(9,7200);at(7900,function(){tick($('#qn'),'2')});at(8500,function(){tick($('#qn'),'1')});
+ at(9100,function(){$('#ti').innerHTML=ico(3)});
+ sh(10,9200);sh(11,9400);
+ [0,1,2].forEach(function(i){at(9500+i*80,function(){var d=D.createElement('div');d.className='sq w';d.style.flex='1';d.textContent='分镜 0'+(i+1);$('#tb').appendChild(d)})});
+ [1,2,3,4,5].forEach(function(n,i){at(9600+i*850,function(){
+   $('#bar').style.width=Math.round(n/5*100)+'%';tick($('#pn'),String(n));
+   $('#cb').style.width=(12+n*9)+'%';$('#cn').textContent=String(12+n*9)})});
+ [0,1,2].forEach(function(i){at(10300+i*850,function(){var d=$('#tb').children[i];if(!d)return;
+   d.classList.remove('w');d.classList.add('dv');
+   d.style.background='oklch(0.9 0.03 '+(200+i*45)+')';d.style.color='oklch(0.4 0.06 '+(200+i*45)+')';
+   d.innerHTML='分镜 0'+(i+1)+'<div class="hv"><span class="hb" title="改这条"><i class="ti ti-pencil" style="font-size:14px"></i></span><span class="hb" title="重跑"><i class="ti ti-refresh" style="font-size:14px"></i></span></div>';
+   requestAnimationFrame(function(){d.classList.add('on')})})});
+ at(13100,function(){$('#tc').innerHTML='3 镜已出 · 1 镜失败 <span style="color:var(--ink20)">·</span> 悬停单张可改';clearInterval(tmr)});
+ sh(12,13300);sh(13,13700);sh(14,14100);sh(15,14500);sh(16,14900);
+}
+
+$('#qb').addEventListener('click',function(e){var i=e.target.getAttribute('data-q');if(i!=null){q.splice(+i,1);dq()}});
+$('#cd').addEventListener('click',function(e){var t=e.target.closest('.cd');if(!t)return;
+ D.querySelectorAll('#cd .cd').forEach(function(d,j){var on=d===t;d.style.borderColor=on?'var(--ac)':'var(--lineS)';d.style.borderWidth=on?'2px':'1px';d.textContent='v'+(j+1)+(on?' ·生效':'')})});
+D.querySelectorAll('[data-q]').forEach(function(g){g.addEventListener('click',function(e){if(!e.target.classList.contains('chip'))return;
+ g.querySelectorAll('.chip').forEach(function(c){c.classList.remove('on')});e.target.classList.add('on')})});
+
+var pops=['attachMenu','mentionMenu','methodsMenu','promptsMenu','agentMenu','modelsMenu'].map(function(id){return $('#'+id)}),lastPopTrigger=null;
+function syncExpanded(){[['attachTrigger','attachMenu'],['mentionTrigger','mentionMenu'],['methodsTrigger','methodsMenu'],['promptsTrigger','promptsMenu'],['agentTrigger','agentMenu'],['modelsTrigger','modelsMenu']].forEach(function(pair){$('#'+pair[0]).setAttribute('aria-expanded',$('#'+pair[1]).classList.contains('open')?'true':'false')})}
+function closePops(keep,restoreFocus){pops.forEach(function(pop){if(pop!==keep)pop.classList.remove('open')});syncExpanded();if(restoreFocus&&lastPopTrigger){lastPopTrigger.focus();lastPopTrigger=null}}
+function togglePop(pop){var opening=!pop.classList.contains('open');closePops(pop);pop.classList.toggle('open',opening);syncExpanded();if(opening)setTimeout(function(){var first=pop.querySelector('.pop-item, input');if(first)first.focus()},0)}
+[['attachTrigger','attachMenu'],['mentionTrigger','mentionMenu'],['methodsTrigger','methodsMenu'],['promptsTrigger','promptsMenu'],['agentTrigger','agentMenu'],['modelsTrigger','modelsMenu']].forEach(function(pair){
+  $('#'+pair[0]).addEventListener('click',function(e){e.stopPropagation();lastPopTrigger=this;togglePop($('#'+pair[1]))})
+});
+pops.forEach(function(pop){pop.addEventListener('click',function(e){e.stopPropagation()})});
+D.addEventListener('click',function(){closePops()});
+var feedbackTimer;
+function showFeedback(message){var node=$('#demoFeedback');if(!node){node=D.createElement('div');node.id='demoFeedback';node.className='demo-feedback';node.setAttribute('role','status');node.setAttribute('aria-live','polite');D.body.appendChild(node)}node.textContent=message;node.classList.add('show');clearTimeout(feedbackTimer);feedbackTimer=setTimeout(function(){node.classList.remove('show')},3600)}
+function announceDemo(label){showFeedback('样张演示 · '+label+'：该动作尚未进入生产实现。')}
+D.addEventListener('click',function(e){var button=e.target.closest('button');if(!button||button.id||button.closest('.pop,.thread-pop,.dock-quick-pop')||button.matches('[data-local-ref],[data-pill-state],[data-q],[data-attach],[data-ref],[data-prompt],[data-work],[data-model-picker],[data-model-option],[data-dock-kind],.queue-remove,.surface-tab,.browser-switch'))return;if(button.classList.contains('ctl')||button.classList.contains('lk')||button.classList.contains('local-tool'))announceDemo(button.getAttribute('aria-label')||button.textContent.trim()||button.title||'此动作')},true);
+
+$('#canvasRef').addEventListener('click',function(e){
+  if(e.target.closest('.ti-x')){this.remove();return}
+  renderSurface('canvas');$('#hostDemo').scrollIntoView({behavior:'smooth',block:'center'});flashSurface()
+});
+$('#mentionMenu').addEventListener('click',function(e){
+  var item=e.target.closest('[data-ref]');if(!item)return;
+  var text=item.dataset.ref;
+  var duplicate=[...$('#payload').querySelectorAll('.ref span')].some(function(span){return span.textContent===text});
+  if(!duplicate){
+    var ref=D.createElement('button');ref.className='ref';ref.title='本轮引用';
+    ref.innerHTML='<i class="ti ti-'+item.dataset.icon+'"></i><span>'+text+'</span><i class="ti ti-x"></i>';
+    ref.addEventListener('click',function(event){if(event.target.closest('.ti-x'))ref.remove();else togglePop($('#mentionMenu'))});$('#payload').appendChild(ref)
+  }
+  closePops()
+});
+$('#attachMenu').addEventListener('click',function(e){
+  var item=e.target.closest('[data-attach]');if(!item)return;
+  var names={图片:'character-ref.png',视频:'reference-take.mp4',音频:'temp-voice.wav',文档:'shot-notes.pdf'};
+  var icons={图片:'photo',视频:'video',音频:'wave-sine',文档:'file-text'};
+  addMainAttachment(names[item.dataset.attach],item.dataset.attach,icons[item.dataset.attach]);closePops()
+});
+$('#voiceTrigger').addEventListener('click',function(){
+  $('#composerPrompt').textContent='正在听…';closePops()
+});
+var activePrompt='';
+function resetPrompt(){
+  activePrompt='';$('#promptLabel').textContent='提示词';$('#promptsTrigger').classList.remove('on');var chip=$('#promptRef');if(chip)chip.remove();
+  D.querySelectorAll('[data-prompt]').forEach(function(item){var on=!item.dataset.prompt;item.classList.toggle('on',on);item.querySelector('.check').hidden=!on})
+}
+$('#promptsMenu').addEventListener('click',function(e){
+  var item=e.target.closest('[data-prompt]');if(!item)return;activePrompt=item.dataset.prompt||'';
+  D.querySelectorAll('[data-prompt]').forEach(function(option){var on=option===item;option.classList.toggle('on',on);option.querySelector('.check').hidden=!on});
+  $('#promptLabel').textContent=item.dataset.promptLabel;$('#promptsTrigger').classList.toggle('on',Boolean(activePrompt));var old=$('#promptRef');if(old)old.remove();
+  if(activePrompt){var chip=D.createElement('button');chip.className='prompt-chip';chip.id='promptRef';chip.title=activePrompt;chip.innerHTML='<i class="ti ti-'+item.dataset.promptIcon+'"></i><span></span><i class="ti ti-x"></i>';chip.querySelector('span').textContent='提示词 · '+item.dataset.promptLabel;chip.addEventListener('click',function(event){if(event.target.closest('.ti-x'))resetPrompt();else togglePop($('#promptsMenu'))});$('#payload').appendChild(chip)}
+  closePops()
+});
+var activeWorkMode='平衡';
+function setWorkMode(value){
+  activeWorkMode=value;$('#agentLabel').textContent=value;$('#dockModeLabel').textContent=value==='策略自动'?'自动':value;$('#dockModeTrigger').title='工作方式与操作授权 · '+value;
+  D.querySelectorAll('[data-work]').forEach(function(option){var on=option.dataset.work===value;option.classList.toggle('on',on);var check=option.querySelector('.check');if(check)check.hidden=!on})
+}
+D.querySelectorAll('[data-work]').forEach(function(item){item.addEventListener('click',function(){setWorkMode(item.dataset.work);closePops()})});
+function modelOverrideCount(){return typeof modelValues==='object'&&modelValues?Object.values(modelValues).filter(Boolean).length:0}
+function makeSnapshot(source,text,items){var method=typeof activeMethod==='string'?methodById(activeMethod):null;return {source:source,text:text||'',attachments:[...items].filter(function(item){return item.kind==='attachment'||item.kind==='file'}).map(function(item){return item.label}),references:[...items].filter(function(item){return item.kind==='reference'||item.kind==='mention'}).map(function(item){return item.label}),skill:method?method.label:'自动匹配',promptText:typeof activePrompt==='string'?activePrompt:'',promptLabel:$('#promptLabel')?$('#promptLabel').textContent:'提示词',workMode:typeof activeWorkMode==='string'?activeWorkMode:'平衡',modelOverrides:modelOverrideCount(),surface:$('#surfaceContext')?$('#surfaceContext').textContent:''}}
+function snapshotLine(snapshot){return '冻结 · '+snapshot.workMode+' · '+snapshot.skill+' · 模型 '+snapshot.modelOverrides+' 类覆盖 · '+(snapshot.attachments.length+snapshot.references.length)+' 个附件/引用'}
+function syncMainSend(){$('#mainSend').disabled=!$('#composerPrompt').textContent.trim()&&!$('#payload').children.length}
+$('#composerPrompt').addEventListener('input',syncMainSend);
+$('#mainSend').addEventListener('click',function(){
+  if(this.disabled)return;var text=$('#composerPrompt').textContent.trim();
+  var items=[...$('#payload').children].map(function(item){return {kind:item.classList.contains('attachment')?'attachment':item.classList.contains('ref')?'reference':item.classList.contains('prompt-chip')?'prompt':'item',label:item.textContent.trim()}}),snapshot=makeSnapshot('创作输入',text,items);
+  q.push((text||'使用当前引用继续')+' · '+snapshotLine(snapshot));dq();showFeedback('本轮已冻结 · '+snapshot.surface+' · 文本、附件/引用、技能、提示词、方式/授权与模型均已记录');$('#composerPrompt').textContent='';$('#payload').innerHTML='';syncMainSend();$('#qb').scrollIntoView({behavior:'smooth',block:'nearest'})
+});
+syncMainSend();
+
+var methodData=[
+  {id:'auto',group:'当前任务',label:'自动匹配',short:'技能',type:'自动',icon:'sparkles',desc:'根据请求决定是否调用技能',summary:'直接描述你要完成的事。Nomi 只在完整工作流有明确收益时调用技能，并在执行前说明产物、成本与需要的确认。',steps:['理解请求','选择技能','给出计划'],input:'自然语言、画布引用或附件',output:'与任务匹配的回答或可执行计划',needs:'无需预先配置',ready:'由当前任务决定'},
+  {id:'storyboard',group:'推荐给当前任务',label:'分镜导演',short:'分镜导演',type:'技能',icon:'movie',desc:'章节脚本 → 分镜卡 → 画面',summary:'读取章节和人物参考，拆出可拍摄镜头，确认后生成分镜图并放回画布。',steps:['读章节','拆镜头','确认','生成分镜'],input:'章节脚本、人物定妆',output:'分镜卡、分镜图与画布节点',needs:'图片模型 · 画布写入',ready:'能力已就绪',media:'image',src:'../../../resources/onboarding-demo/shot-4.jpg',alt:'章节分镜技能输出示例',author:'Nomi · v1.4'},
+  {id:'continuity',group:'更多可用技能',label:'角色一致性成片',short:'角色一致性',type:'技能',icon:'user-scan',desc:'定妆 → 多镜一致 → 视频成片',summary:'先锁定角色视觉锚点，再逐镜生成与检查；不一致的镜头单独返工，不重跑整批。',steps:['锁定角色','生成镜头','一致性检查','合成'],input:'角色定妆、镜头列表',output:'一致角色的镜头视频',needs:'图片模型 · 视频模型',ready:'能力已就绪',media:'video',src:'../../audit/2026-08-20-l3-f1-full-journey/12-video-1787217636990.mp4',poster:'../../audit/2026-08-20-l3-f1-full-journey/06-frame-first-f07255d6.png',alt:'角色一致性成片演示',author:'Nomi · v1.2'},
+  {id:'stage3d',group:'更多可用技能',label:'3D 镜头预演',short:'3D 预演',type:'技能',icon:'cube',desc:'站位 → 相机 → 关键帧参考',summary:'根据人物和场景搭建简化预演，输出机位、焦段和首尾帧，供后续视频生成使用。',steps:['摆站位','架相机','录轨迹','导出参考'],input:'角色、场景与镜头意图',output:'3D 预演、相机参数与关键帧',needs:'3D 舞台 · 画布写入',ready:'能力已就绪',media:'image',src:'../../research/2026-08-02-3d-director-stage/nomi/09-ai-staging-gray-result.png',alt:'3D 镜头预演输出示例',author:'Nomi · v1.1'},
+  {id:'research',group:'更多可用技能',label:'素材研究',short:'素材研究',type:'技能',icon:'world-search',desc:'网页搜索 → 筛选 → 带来源入画布',summary:'通过浏览器和素材库搜索图片、视频或音乐，保留来源与授权信息后再加入项目。',steps:['搜索','筛选','核对授权','加入画布'],input:'主题、风格与素材类型',output:'带来源的候选素材板',needs:'浏览器 · 素材 Connector',ready:'需连接浏览器',warning:true,author:'Nomi · v0.9'}
+];
+var activeMethod='auto',previewedMethod='storyboard';
+function methodById(id){return methodData.find(function(item){return item.id===id})||methodData[0]}
+function renderMethodPreview(item){
+  previewedMethod=item.id;
+  D.querySelectorAll('[data-method]').forEach(function(row){row.classList.toggle('previewing',row.dataset.method===item.id)});
+  var media=item.media==='video'?'<div class="method-media"><video id="methodPreviewVideo" src="'+item.src+'" poster="'+item.poster+'" muted playsinline loop preload="metadata" aria-label="'+item.alt+'"></video><span class="method-media-badge"><i class="ti ti-player-play-filled"></i>静音演示</span></div>':item.media==='image'?'<div class="method-media"><img src="'+item.src+'" alt="'+item.alt+'"><span class="method-media-badge"><i class="ti ti-photo"></i>产物示例</span></div>':'<div class="method-media"><div class="method-media-empty"><i class="ti ti-'+item.icon+'"></i></div><span class="method-media-badge"><i class="ti ti-notes"></i>能力说明</span></div>';
+  var flow=item.steps.map(function(step,index){return '<span class="method-step">'+step+'</span>'+(index<item.steps.length-1?'<i class="ti ti-chevron-right"></i>':'')}).join('');
+  $('#methodPreview').innerHTML=media+'<div class="method-preview-head"><span><b>'+item.label+'</b><small>'+(item.author||item.desc)+'</small></span><span class="method-preview-kind">'+item.type+'</span></div><div class="method-summary">'+item.summary+'</div><div class="method-flow">'+flow+'</div><div class="method-facts"><div class="method-fact"><span>输入</span><span>'+item.input+'</span></div><div class="method-fact"><span>产物</span><span>'+item.output+'</span></div><div class="method-fact"><span>需要</span><span>'+item.needs+'</span></div></div><div class="method-ready" style="color:'+(item.warning?'var(--warn)':'var(--ok)')+'"><i class="ti ti-'+(item.warning?'alert-circle':'circle-check')+'"></i><span>'+item.ready+'</span><span class="method-scope">当前会话 · 发送时冻结</span></div>';
+  var video=$('#methodPreviewVideo');if(video&&!matchMedia('(prefers-reduced-motion: reduce)').matches)video.play().catch(function(){});
+}
+function renderMethodList(query){
+  var needle=(query||'').trim().toLowerCase();
+  var visible=methodData.filter(function(item){return !needle||[item.label,item.desc,item.type,item.input,item.output].join(' ').toLowerCase().includes(needle)});
+  var groups=[];visible.forEach(function(item){if(!groups.includes(item.group))groups.push(item.group)});
+  $('#methodList').innerHTML=visible.length?groups.map(function(group){return '<div class="method-group">'+group+'</div>'+visible.filter(function(item){return item.group===group}).map(function(item){var on=item.id===activeMethod;return '<button class="pop-item method-item'+(on?' on':'')+'" data-method="'+item.id+'"><i class="ti ti-'+item.icon+'"></i><span class="method-copy"><span class="method-name"><b>'+item.label+'</b><span class="method-type">'+item.type+'</span></span><small>'+item.desc+'</small></span><i class="ti ti-check check" style="visibility:'+(on?'visible':'hidden')+'"></i></button>'}).join('')}).join(''):'<div class="method-empty">没有匹配的技能</div>';
+  renderMethodPreview(methodById(visible.some(function(item){return item.id===previewedMethod})?previewedMethod:(visible[0]&&visible[0].id)||'auto'));
+}
+function selectMethod(id){
+  var item=methodById(id);activeMethod=id;previewedMethod=id;
+  $('#methodLabel').textContent=item.short;$('#methodsTrigger').classList.toggle('on',id!=='auto');
+  $('#methodTriggerIcon').className='ti ti-'+(item.type==='技能'?item.icon:'sparkles');
+  renderMethodList($('#methodSearch').value);closePops()
+}
+$('#methodList').addEventListener('mouseover',function(e){var row=e.target.closest('[data-method]');if(row)renderMethodPreview(methodById(row.dataset.method))});
+$('#methodList').addEventListener('focusin',function(e){var row=e.target.closest('[data-method]');if(row)renderMethodPreview(methodById(row.dataset.method))});
+$('#methodList').addEventListener('click',function(e){var row=e.target.closest('[data-method]');if(row)selectMethod(row.dataset.method)});
+$('#methodSearch').addEventListener('input',function(){renderMethodList(this.value)});
+renderMethodList('');
+
+function fileKind(file){
+  var type=(file&&file.type)||'',name=(file&&file.name)||'未命名文件';
+  if(type.indexOf('image/')===0)return {label:'图片',icon:'photo',name:name};
+  if(type.indexOf('video/')===0)return {label:'视频',icon:'video',name:name};
+  if(type.indexOf('audio/')===0)return {label:'音频',icon:'wave-sine',name:name};
+  return {label:'文件',icon:'file-text',name:name}
+}
+function addMainAttachment(name,label,icon){
+  var attachments=$('#payload').querySelectorAll('.attachment');if(attachments.length>=3)attachments[0].remove();
+  var attachment=D.createElement('button');attachment.className='attachment';attachment.title='点击移除附件';attachment.setAttribute('aria-label','移除文件 '+name);
+  attachment.innerHTML='<span class="attachment-thumb"><i class="ti ti-'+icon+'"></i></span><span class="attachment-copy"><b></b><small>'+label+' · 已加入本轮</small></span><i class="ti ti-x mut"></i>';
+  attachment.querySelector('b').textContent=name;attachment.addEventListener('click',function(){attachment.remove()});$('#payload').appendChild(attachment)
+}
+function dockDraftText(){return $('#dockDraft').textContent.trim()}
+function syncDockSend(){$('#dockSend').disabled=!dockDraftText()&&!$('#dockPayload').children.length}
+function syncDockPayload(){var payload=$('#dockPayload');payload.classList.toggle('has-items',payload.children.length>0);syncDockSend()}
+function addDockToken(kind,label,icon,title){
+  var payload=$('#dockPayload');if(kind==='skill'||kind==='prompt'){var old=payload.querySelector('[data-dock-token="'+kind+'"]');if(old)old.remove()}
+  if(kind==='file'||kind==='mention'){var items=payload.querySelectorAll('[data-dock-token="'+kind+'"]');if(items.length>=3)items[0].remove()}
+  var token=D.createElement('span');token.className='dock-token';token.dataset.dockToken=kind;token.title=title||label;token.innerHTML='<i class="ti ti-'+icon+'"></i><span></span><button class="dock-token-remove" type="button"><i class="ti ti-x"></i></button>';token.querySelector(':scope>span').textContent=label;
+  var remove=token.querySelector('.dock-token-remove');remove.setAttribute('aria-label','移除 '+label);remove.addEventListener('click',function(){
+    if(kind==='skill'){selectMethod('auto');$('#dockSkillTrigger').title='技能 · 自动匹配'}
+    if(kind==='prompt'){resetPrompt();$('#dockPromptTrigger').title='提示词 · 未选择'}
+    token.remove();syncDockPayload()
+  });payload.appendChild(token);syncDockPayload()
+}
+function wireDropTarget(target,onFiles){
+  var depth=0;target.addEventListener('dragenter',function(e){e.preventDefault();depth++;target.classList.add('drop-active')});
+  target.addEventListener('dragover',function(e){e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='copy'});
+  target.addEventListener('dragleave',function(){depth=Math.max(0,depth-1);if(!depth)target.classList.remove('drop-active')});
+  target.addEventListener('drop',function(e){e.preventDefault();depth=0;target.classList.remove('drop-active');var files=[...(e.dataTransfer&&e.dataTransfer.files||[])].slice(0,3);if(files.length)onFiles(files)})
+}
+wireDropTarget($('#composerDropTarget'),function(files){files.forEach(function(file){var meta=fileKind(file);addMainAttachment(meta.name,meta.label,meta.icon)})});
+wireDropTarget($('#dockDropTarget'),function(files){files.forEach(function(file){var meta=fileKind(file);addDockToken('file',meta.name,meta.icon,meta.label+' · 点击移除')})});
+$('#dockAttachTrigger').addEventListener('click',function(e){e.stopPropagation();$('#dockFileInput').click()});
+$('#dockFileInput').addEventListener('change',function(){[...this.files].slice(0,3).forEach(function(file){var meta=fileKind(file);addDockToken('file',meta.name,meta.icon,meta.label+' · 点击移除')});this.value='' });
+
+function openMainShortcut(pop){var trigger=pop.id==='mentionMenu'?'mentionTrigger':'methodsTrigger';lastPopTrigger=$('#'+trigger);closePops(pop);pop.classList.add('open');syncExpanded();setTimeout(function(){var first=pop.querySelector('.pop-item, input');if(first)first.focus()},0)}
+$('#composerPrompt').addEventListener('keydown',function(e){if(e.key==='@')setTimeout(function(){openMainShortcut($('#mentionMenu'))},0);if(e.key==='/')setTimeout(function(){openMainShortcut($('#methodsMenu'));$('#methodSearch').focus()},0)});
+
+var dockQuick=$('#dockQuickMenu');
+var lastDockTrigger=null;
+var dockTriggerIds={mention:'dockMentionTrigger',skill:'dockSkillTrigger',prompt:'dockPromptTrigger',mode:'dockModeTrigger',model:'dockModelTrigger'};
+function dockQuickRows(kind){
+  if(kind==='mention')return [
+    {icon:'photo',label:'画布 · 镜头 03',desc:'画布选中对象',value:'canvas'},
+    {icon:'file-text',label:'文本 · 第三章第 4 段',desc:'文本选区',value:'text'},
+    {icon:'video',label:'预览 · 当前帧 00:08',desc:'预览帧',value:'frame'},
+    {icon:'timeline-event',label:'时间线 · 00:06–00:14',desc:'时间线区间',value:'timeline'},
+    {icon:'world',label:'当前网页选区',desc:'保留来源与授权状态',value:'browser'}
+  ];
+  if(kind==='prompt')return [...D.querySelectorAll('#promptsMenu [data-prompt]')].map(function(item){var value=item.dataset.prompt||'';return {icon:item.dataset.promptIcon||'circle-dashed',label:value?item.dataset.promptLabel:'不使用预设',desc:item.querySelector('small').textContent,value:value,selected:value===activePrompt}});
+  if(kind==='mode')return [...D.querySelectorAll('#agentMenu [data-work]')].map(function(item){return {icon:item.querySelector('i').className.replace('ti ti-',''),label:item.dataset.work,desc:item.querySelector('small').textContent,value:item.dataset.work,selected:item.dataset.work===activeWorkMode}});
+  if(kind==='model')return modelGroups.map(function(group){var selected=group.options.find(function(option){return option[0]===modelValues[group.key]})||group.options[0];return {icon:group.icon,label:group.label,desc:selected[1],value:group.key,selected:Boolean(selected[0])}});
+  return methodData.map(function(item){return {icon:item.icon,label:item.label,desc:item.desc,value:item.id,selected:item.id===activeMethod}})
+}
+function renderDockSkillPreview(item){
+  var media=item.media==='video'?'<div class="method-media"><img src="'+item.poster+'" alt="'+item.alt+'"><span class="method-media-badge"><i class="ti ti-player-play-filled"></i>视频演示</span></div>':item.media==='image'?'<div class="method-media"><img src="'+item.src+'" alt="'+item.alt+'"><span class="method-media-badge"><i class="ti ti-photo"></i>产物示例</span></div>':'<div class="method-media"><div class="method-media-empty"><i class="ti ti-'+item.icon+'"></i></div><span class="method-media-badge"><i class="ti ti-notes"></i>能力说明</span></div>';
+  $('#dockSkillPreview').innerHTML=media+'<b>'+item.label+'</b><p>'+item.summary+'</p><div class="dock-skill-meta"><span>输入</span><span>'+item.input+'</span><span>产物</span><span>'+item.output+'</span><span>需要</span><span>'+item.needs+'</span></div>'
+}
+function setDockExpanded(kind){Object.keys(dockTriggerIds).forEach(function(key){$('#'+dockTriggerIds[key]).setAttribute('aria-expanded',key===kind?'true':'false')})}
+function closeDockQuick(returnFocus){var wasOpen=dockQuick.classList.contains('open');dockQuick.classList.remove('open');dockQuick.dataset.kind='';$('#dockSkillPreview').classList.remove('open');setDockExpanded('');if(returnFocus&&wasOpen&&lastDockTrigger)lastDockTrigger.focus()}
+function renderDockQuickRows(kind){
+  $('#dockQuickList').innerHTML=dockQuickRows(kind).map(function(item){return '<button class="pop-item'+(item.selected?' on':'')+'" data-dock-kind="'+kind+'" data-dock-value="'+item.value+'"><i class="ti ti-'+item.icon+'"></i><span><b style="display:block;font-size:11px;font-weight:500">'+item.label+'</b><small>'+item.desc+'</small></span>'+(item.selected?'<i class="ti ti-check check"></i>':'')+'</button>'}).join('')
+}
+function openDockQuick(kind){
+  closePops();closeThreadMenu();lastDockTrigger=$('#'+dockTriggerIds[kind]);var labels={mention:['引用','@'],skill:['技能','/'],prompt:['提示词',''],mode:['工作方式与操作授权',''],model:['模型默认','']},meta=labels[kind];$('#dockQuickTitle').textContent=meta[0];$('#dockQuickKey').textContent=meta[1];$('#dockQuickKey').hidden=!meta[1];
+  renderDockQuickRows(kind);dockQuick.dataset.kind=kind;dockQuick.classList.add('open');setDockExpanded(kind);$('#dockSkillPreview').classList.toggle('open',kind==='skill');if(kind==='skill')renderDockSkillPreview(methodData.find(function(item){return item.id!=='auto'}));setTimeout(function(){var first=$('#dockQuickList .pop-item');if(first)first.focus()},0)
+}
+function toggleDockQuick(kind){if(dockQuick.classList.contains('open')&&dockQuick.dataset.kind===kind)closeDockQuick(true);else openDockQuick(kind)}
+$('#dockMentionTrigger').addEventListener('click',function(e){e.stopPropagation();toggleDockQuick('mention')});
+$('#dockSkillTrigger').addEventListener('click',function(e){e.stopPropagation();toggleDockQuick('skill')});
+$('#dockPromptTrigger').addEventListener('click',function(e){e.stopPropagation();toggleDockQuick('prompt')});
+$('#dockModeTrigger').addEventListener('click',function(e){e.stopPropagation();toggleDockQuick('mode')});
+$('#dockModelTrigger').addEventListener('click',function(e){e.stopPropagation();toggleDockQuick('model')});
+dockQuick.addEventListener('mouseover',function(e){var item=e.target.closest('[data-dock-kind="skill"]');if(item)renderDockSkillPreview(methodById(item.dataset.dockValue))});
+dockQuick.addEventListener('focusin',function(e){var item=e.target.closest('[data-dock-kind="skill"]');if(item)renderDockSkillPreview(methodById(item.dataset.dockValue))});
+dockQuick.addEventListener('click',function(e){e.stopPropagation();var item=e.target.closest('[data-dock-kind]');if(!item)return;var kind=item.dataset.dockKind,value=item.dataset.dockValue;
+  if(kind==='model'){renderDockModelOptions(value);return}
+  if(kind==='model-back'){openDockQuick('model');return}
+  if(kind==='model-option'){modelValues[item.dataset.modelGroup]=value;renderModelList();closeDockQuick(true);return}
+  var label=item.querySelector('b').textContent;
+  if(kind==='mention'){consumeDockShortcut('@');addDockToken('mention','引用 · '+label,'at','发送时冻结当前引用')}
+  if(kind==='skill'){var skill=methodById(value);selectMethod(value);var oldSkill=$('#dockPayload [data-dock-token="skill"]');if(oldSkill)oldSkill.remove();if(value!=='auto')addDockToken('skill','技能 · '+skill.label,skill.icon,skill.summary);$('#dockSkillTrigger').title=value==='auto'?'技能 · 自动匹配':'技能 · '+skill.label}
+  if(kind==='prompt'){var prompt=[...D.querySelectorAll('#promptsMenu [data-prompt]')].find(function(row){return (row.dataset.prompt||'')===value});if(prompt)prompt.click();var oldPrompt=$('#dockPayload [data-dock-token="prompt"]');if(oldPrompt)oldPrompt.remove();if(value)addDockToken('prompt','提示词 · '+label,'notes',value);$('#dockPromptTrigger').title=value?'提示词 · '+label:'提示词 · 未选择';syncDockPayload()}
+  if(kind==='mode')setWorkMode(value);
+  if(kind==='skill')consumeDockShortcut('/');closeDockQuick(true)
+});
+function consumeDockShortcut(character){var draft=$('#dockDraft'),text=draft.textContent;if(text.endsWith(character))draft.textContent=text.slice(0,-1);syncDockSend()}
+function renderDockModelOptions(groupKey){
+  var group=modelGroups.find(function(item){return item.key===groupKey});if(!group)return;var selected=modelValues[group.key];$('#dockQuickTitle').textContent=group.label+'模型';$('#dockQuickKey').hidden=true;
+  $('#dockQuickList').innerHTML='<button class="pop-item pop-back" data-dock-kind="model-back"><i class="ti ti-arrow-left"></i><span><b style="font-size:11px;font-weight:500">返回模型类别</b></span></button>'+group.options.map(function(option){var on=option[0]===selected;return '<button class="pop-item'+(on?' on':'')+'" data-dock-kind="model-option" data-model-group="'+group.key+'" data-dock-value="'+option[0]+'"><i class="ti ti-'+group.icon+'"></i><span><b style="display:block;font-size:11px;font-weight:500">'+option[1]+'</b><small>'+(option[2]||'使用 Nomi 内置路由')+'</small></span>'+(on?'<i class="ti ti-check check"></i>':'')+'</button>'}).join('');setTimeout(function(){$('#dockQuickList .pop-item').focus()},0)
+}
+dockQuick.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){e.preventDefault();closeDockQuick(true);return}
+  if(e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;var items=[...dockQuick.querySelectorAll('.pop-item')];if(!items.length)return;e.preventDefault();var index=Math.max(0,items.indexOf(D.activeElement)),next=e.key==='ArrowDown'?(index+1)%items.length:(index-1+items.length)%items.length;items[next].focus()
+});
+$('#dockDraft').addEventListener('input',syncDockSend);
+$('#dockDraft').addEventListener('keydown',function(e){if(e.key==='@')setTimeout(function(){openDockQuick('mention')},0);if(e.key==='/')setTimeout(function(){openDockQuick('skill')},0);if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#dockSend').click()}});
+D.addEventListener('click',function(){closeDockQuick();closeThreadMenu()});
+
+var modelValues={agent:'',image:'',video:'',audio:'',model3d:''};
+var modelGroups=[
+  {key:'agent',label:'Agent',hint:'规划与调用工具',icon:'brain',options:[['','自动选择',''],['sonnet','Claude Sonnet 4.6','Anthropic'],['gpt','GPT-5.4','OpenAI'],['gemini','Gemini 3.1 Pro','Google']]},
+  {key:'image',label:'图片',hint:'生成与编辑',icon:'photo',options:[['','自动选择',''],['seedream','Seedream 5.0 Lite','KIE'],['gpt-image','GPT Image 2','APIMart'],['banana','Nano Banana 2','RunningHub']]},
+  {key:'video',label:'视频',hint:'文生与图生',icon:'video',options:[['','自动选择',''],['seedance','Seedance 2.5','APIMart'],['kling','Kling 3.0 Pro','RunningHub'],['wan','Wan 3.0','KIE']]},
+  {key:'audio',label:'音频',hint:'配音与转写',icon:'wave-sine',options:[['','自动选择',''],['seed-tts','Seed TTS 2.0','Xcode'],['doubao-tts','豆包语音 2.0','火山'],['nomi-audio','Nomi Audio','APIMart']]},
+  {key:'model3d',label:'3D',hint:'文生与图生',icon:'cube',options:[['','自动选择',''],['hunyuan','混元 3D 3.1','RunningHub'],['meshy','Meshy 6','KIE'],['hitem','HiTem 3D','RunningHub']]}
+];
+function renderModelList(){
+  $('#modelList').innerHTML=modelGroups.map(function(group){
+    var selected=group.options.find(function(option){return option[0]===modelValues[group.key]})||group.options[0];
+    return '<div class="model-row"><span class="model-name"><i class="ti ti-'+group.icon+'"></i><span>'+group.label+'<small>'+group.hint+'</small></span></span>'+
+      '<button class="nomi-trigger" data-model-picker="'+group.key+'" aria-label="'+group.label+'默认模型" title="'+selected[1]+'"><span>'+selected[1]+'</span><i class="ti ti-chevron-down mut"></i></button>'+
+      '<div class="nomi-dropdown" data-model-menu="'+group.key+'">'+group.options.map(function(option){var on=option[0]===selected[0];return '<button class="nomi-option'+(on?' on':'')+'" data-model-option="'+group.key+'" data-model-value="'+option[0]+'"><b>'+option[1]+'</b>'+(option[2]?'<small>'+option[2]+'</small>':'<span style="margin-left:auto"></span>')+'<i class="ti ti-check" style="visibility:'+(on?'visible':'hidden')+'"></i></button>'}).join('')+'</div></div>'
+  }).join('');
+  var overrides=Object.values(modelValues).filter(Boolean).length;
+  ['modelsSummary','dockModelsSummary'].forEach(function(id){var summary=$('#'+id);summary.textContent=String(overrides);summary.classList.toggle('on',overrides>0)});
+  $('#dockModelTrigger').title=overrides?'模型 · '+overrides+' 类使用自定义默认':'模型 · 全部自动选择'
+}
+$('#modelList').addEventListener('click',function(e){
+  var picker=e.target.closest('[data-model-picker]');
+  if(picker){var menu=$('[data-model-menu="'+picker.dataset.modelPicker+'"]');D.querySelectorAll('.nomi-dropdown').forEach(function(other){if(other!==menu)other.classList.remove('open')});menu.classList.toggle('open');return}
+  var option=e.target.closest('[data-model-option]');if(!option)return;
+  modelValues[option.dataset.modelOption]=option.dataset.modelValue;renderModelList()
+});
+renderModelList();
+
+var initialCanvas=$('[data-stage="canvas"]').outerHTML;
+var timelineMarkup='<div class="edit-timeline"><div class="timeline-splitter" data-timeline-resize role="separator" aria-orientation="horizontal" aria-valuemin="140" aria-valuemax="300" aria-valuenow="206" aria-label="调整时间线高度" tabindex="0"></div><div class="timeline-head"><i class="ti ti-timeline-event"></i><b>主时间线</b><span>00:06–00:14</span><span class="timeline-size-hint">拖拽上沿调整高度</span></div><div class="timeline-board"><div class="timeline-ruler"><span>00:00</span><span>00:05</span><span>00:10</span><span>00:15</span></div><div class="timeline-track"><span class="track-name">视频 1</span><div class="track-lane"><span class="clip c1">镜头 01</span><span class="clip c2">镜头 03 · 雨夜</span><span class="clip c3">镜头 04</span></div></div><div class="timeline-track"><span class="track-name">音频 1</span><div class="track-lane"><span class="clip c1" style="width:68%;background:var(--ink05)">环境声 · 雨</span></div></div><div class="timeline-range"></div><button class="timeline-agent" data-local-ref data-ref-label="时间线 · 00:06–00:14" data-ref-title="时间线 00:06–00:14" data-ref-prompt="这一段压到 6 秒，不要破坏动作连续性。"><i class="ti ti-at"></i>引用区间</button></div></div>';
+var generationCanvas=initialCanvas.replace('class="host-stage-inner surface-canvas"','class="generation-upper surface-canvas"').replace(' data-stage="canvas"','');
+var surfaceTemplates={
+  canvas:'<div class="host-stage-inner surface-generation" data-stage="canvas">'+generationCanvas+timelineMarkup+'</div>',
+  document:'<div class="host-stage-inner surface-document" data-stage="document"><div class="stage-kicker"><i class="ti ti-file-text"></i>文本 · 第三章</div><article class="doc-page"><h3>第三章 · 雨落之后</h3><p>巷子里只剩脚步声。阿青没有回头，右手仍按在湿透的外套口袋上。</p><p class="doc-selected">路灯在她身后熄灭。她停了一秒，听见屋檐落水的节奏忽然变了。<button class="inline-agent" data-local-ref title="引用给 Nomi"><i class="ti ti-at"></i></button></p><p>对面二楼的窗帘动了一下。她继续往前，速度没有变快。</p><p>转角处停着一辆没有牌照的旧车，车灯没有亮。</p></article></div>',
+  preview:'<div class="host-stage-inner surface-preview" data-stage="preview"><div class="preview-upper"><aside class="preview-source"><div class="preview-source-head">镜头</div><div class="source-thumb on"><span>镜头 03</span></div><div class="source-thumb" style="opacity:.62"><span>镜头 04</span></div></aside><div class="preview-player"><div class="preview-frame"><button class="preview-ref" data-local-ref data-ref-label="预览 · 00:08" data-ref-title="预览 00:08" data-ref-prompt="从这里开始，把呼吸和脚步声拉近。"><i class="ti ti-at"></i>引用 00:08</button><div class="preview-controls"><i class="ti ti-player-pause"></i><span>00:08</span><div class="preview-progress"><span></span></div><span>00:21</span><i class="ti ti-volume"></i></div></div></div></div>'+timelineMarkup+'</div>',
+  browser:'<div class="host-stage-inner surface-browser" data-stage="browser"><div class="browser-chrome"><span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span><div class="browser-url"><i class="ti ti-lock" style="margin-right:5px"></i>unsplash.com/s/photos/rainy-alley</div></div><div class="browser-context-badge">独立浏览器上下文 · 仍在同一 Agent Thread</div><article class="browser-page"><h3>Rainy alley reference</h3><p>Reference collection · Editorial use</p><div class="browser-image"></div><p>Low-key lighting with wet pavement and a single practical source. <span class="browser-selection">Strong foreground occlusion creates a compressed, watched feeling.<button class="browser-agent" data-local-ref><i class="ti ti-at"></i>引用选区</button></span></p></article></div>'
+};
+var surfaceMeta={
+  canvas:{label:'画布 · 镜头 03',question:'引用了「镜头 03」<br>让这个巷口更有压迫感，保留阿青的定妆。'},
+  document:{label:'文本 · 第三章第 4 段',question:'引用了「第三章第 4 段」<br>这里的紧张感不够，动作再克制一点。'},
+  preview:{label:'预览 · 当前帧 00:08',question:'引用了「预览 00:08」<br>从这里开始，把呼吸和脚步声拉近。'},
+  browser:{label:'浏览器 · 网页选区',question:'引用了「Rainy alley reference」<br>把这种前景遮挡整理成三种可执行机位。'}
+};
+var timelineHeight=206,timelineMin=140,timelineMax=300,timelineResize=null;
+function syncTimelineHeight(value,announce){timelineHeight=Math.max(timelineMin,Math.min(timelineMax,Math.round(value)));var body=$('#hostDemo .host-body'),splitter=$('#hostStage [data-timeline-resize]');if(body)body.style.setProperty('--timeline-h',timelineHeight+'px');if(splitter){splitter.setAttribute('aria-valuenow',String(timelineHeight));splitter.setAttribute('aria-label','调整时间线高度，当前 '+timelineHeight+'px')}if(announce)showFeedback('时间线高度已调整为 '+timelineHeight+'px · 上方工作面同步缩放')}
+function renderSurface(key){
+  var old=$('#hostStage [data-stage]');if(old)old.remove();
+  $('#compactAgent').insertAdjacentHTML('beforebegin',surfaceTemplates[key]);
+  D.querySelectorAll('.surface-tab,.browser-switch').forEach(function(tab){tab.classList.toggle('on',tab.dataset.surface===key)});
+  var body=$('#hostDemo .host-body'),hasTimeline=key==='canvas'||key==='preview';body.classList.toggle('timeline-layout',hasTimeline);if(hasTimeline)syncTimelineHeight(timelineHeight,false);else {timelineHeight=206;body.style.removeProperty('--timeline-h')}$('#surfaceContext').textContent=surfaceMeta[key].label;$('#surfaceQuestion').innerHTML=surfaceMeta[key].question
+}
+function flashSurface(label){var view=$('#hostStage [data-stage]');if(view){view.classList.remove('locating');void view.offsetWidth;view.classList.add('locating');setTimeout(function(){view.classList.remove('locating')},1200);if(view.scrollIntoView)view.scrollIntoView({behavior:'smooth',block:'nearest'})}var notice=$('#surfaceLocateNotice');if(!notice){notice=D.createElement('div');notice.id='surfaceLocateNotice';notice.className='surface-locate-notice';notice.setAttribute('role','status');notice.setAttribute('aria-live','polite');$('#hostStage').appendChild(notice)}notice.textContent='已定位 · '+(label||$('#surfaceContext').textContent);notice.hidden=false;clearTimeout(notice._hideTimer);notice._hideTimer=setTimeout(function(){notice.hidden=true},2400);showFeedback('已定位到 '+(label||$('#surfaceContext').textContent))}
+D.querySelector('.host-topbar').addEventListener('click',function(e){var tab=e.target.closest('[data-surface]');if(tab){renderSurface(tab.dataset.surface);showFeedback(tab.dataset.surface==='browser'?'已打开独立浏览器上下文 · 同一 Agent Thread':'已切换到 '+surfaceMeta[tab.dataset.surface].label)}});
+D.addEventListener('pointerdown',function(e){var splitter=e.target.closest('[data-timeline-resize]');if(!splitter)return;e.preventDefault();timelineResize={startY:e.clientY,startHeight:timelineHeight};D.body.classList.add('timeline-resizing')});
+D.addEventListener('pointermove',function(e){if(!timelineResize)return;var body=$('#hostDemo .host-body'),rect=body&&body.getBoundingClientRect();if(!rect)return;syncTimelineHeight(timelineResize.startHeight+(timelineResize.startY-e.clientY),false)});
+D.addEventListener('pointerup',function(){if(!timelineResize)return;timelineResize=null;D.body.classList.remove('timeline-resizing');showFeedback('时间线高度已调整为 '+timelineHeight+'px · 上方工作面同步缩放')});
+D.addEventListener('dblclick',function(e){if(e.target.closest('[data-timeline-resize]'))syncTimelineHeight(206,true)});
+D.addEventListener('keydown',function(e){var splitter=e.target.closest('[data-timeline-resize]');if(!splitter)return;var next=timelineHeight;if(e.key==='ArrowUp')next+=16;else if(e.key==='ArrowDown')next-=16;else if(e.key==='Home')next=timelineMin;else if(e.key==='End')next=timelineMax;else return;e.preventDefault();syncTimelineHeight(next,true)});
+function closeThreadMenu(){$('#threadMenu').classList.remove('open');$('#threadTrigger').setAttribute('aria-expanded','false')}
+$('#threadTrigger').addEventListener('click',function(e){e.stopPropagation();closeDockQuick();var menu=$('#threadMenu'),opening=!menu.classList.contains('open');menu.classList.toggle('open',opening);this.setAttribute('aria-expanded',opening?'true':'false');if(opening)setTimeout(function(){$('#threadMenu .pop-item').focus()},0)});
+var threadData={'Thread 03':{surface:'canvas',context:'画布 · 镜头 03',question:'引用了「镜头 03」<br>让这个巷口更有压迫感，保留阿青的定妆。',reply:'拆出 5 个镜头，第 2、4 镜是双人对峙，加了站位参考。'},'Thread 02':{surface:'document',context:'创作 · 角色定妆',question:'引用了「第三章第 4 段」<br>把阿青的动作再克制一点，保留湿外套的连续性。',reply:'已恢复角色定妆与第三章第 4 段的工作上下文。'},'Thread 01':{surface:'preview',context:'预览 · 当前帧 00:08',question:'引用了「预览 00:08」<br>从这里开始，把呼吸和脚步声拉近。',reply:'已恢复预览帧与时间线区间的定位上下文。'}};
+$('#threadMenu').addEventListener('click',function(e){e.stopPropagation();var item=e.target.closest('[data-thread]');if(!item)return;var value=item.dataset.thread,data=threadData[value]||threadData['Thread 03'];$('#dockThreadLabel').textContent=value;D.querySelectorAll('#threadMenu [data-thread]').forEach(function(option){var on=option===item;option.classList.toggle('on',on);option.querySelector('.check').hidden=!on});renderSurface(data.surface);$('#surfaceContext').textContent=data.context;$('#surfaceQuestion').innerHTML=data.question;$('.dock-reply').textContent=data.reply;$('.dock-thinking span:last-child').textContent='已切换到 '+value+' · 消息、任务与产物上下文已恢复';$('#compactAgentText').textContent='已恢复 '+value;showFeedback(value+' 已恢复 · 消息、任务、队列与产物状态同步');closeThreadMenu()});
+$('#collapseAgent').addEventListener('click',function(){
+  $('#agentDock').classList.add('closed');$('#hostDemo .host-body').classList.add('dock-closed');$('#collapseAgent').setAttribute('aria-expanded','false');$('#compactAgent').setAttribute('aria-expanded','false');$('#compactAgent').classList.add('show')
+});
+$('#compactAgent').addEventListener('click',function(){
+  $('#agentDock').classList.remove('closed');$('#hostDemo .host-body').classList.remove('dock-closed');$('#collapseAgent').setAttribute('aria-expanded','true');$('#compactAgent').setAttribute('aria-expanded','false');$('#compactAgent').classList.remove('show')
+});
+$('#hostDemo').addEventListener('click',function(e){
+  var ref=e.target.closest('[data-local-ref]');if(ref){
+    var label=ref.dataset.refLabel||$('#surfaceContext').textContent,title=ref.dataset.refTitle||label;
+    if(ref.dataset.refLabel){$('#surfaceContext').textContent=label;$('#surfaceQuestion').innerHTML='引用了「'+title+'」<br>'+ref.dataset.refPrompt}
+    var stage=$('#hostStage [data-stage]'),icon=stage&&stage.dataset.stage==='preview'?'video':stage&&stage.dataset.stage==='browser'?'world':stage&&stage.dataset.stage==='document'?'file-text':'photo';addDockToken('mention','引用 · '+label,icon,'发送时冻结 '+title);if($('#agentDock').classList.contains('closed'))$('#compactAgent').click()
+  }
+});
+function sendDockTurn(){
+  if($('#dockSend').disabled)return;var text=dockDraftText(),tokens=[...D.querySelectorAll('#dockPayload .dock-token>span')].map(function(item){return item.textContent});
+  var items=[...D.querySelectorAll('#dockPayload .dock-token')].map(function(item){var kind=item.dataset.dockToken;return {kind:kind==='file'?'file':kind==='mention'?'mention':kind,label:item.querySelector(':scope>span').textContent}}),snapshot=makeSnapshot('Agent Dock',text,items);
+  var bubble=$('#surfaceQuestion');bubble.textContent='';if(tokens.length){var summary=D.createElement('span');summary.style.color='var(--ink40)';summary.textContent=tokens.join(' · ');bubble.appendChild(summary);bubble.appendChild(D.createElement('br'))}bubble.appendChild(D.createTextNode(text||'使用这些引用继续'));var freeze=D.createElement('span');freeze.className='turn-snapshot';freeze.dataset.snapshot=JSON.stringify(snapshot);freeze.title='本轮完整快照：'+(snapshot.promptText||'未使用提示词');freeze.textContent=snapshotLine(snapshot);bubble.appendChild(freeze);
+  $('.dock-thinking span:last-child').textContent='已加入队列 · 当前任务结束后继续';$('#compactAgentText').textContent='已排队 1 条';showFeedback('本轮已冻结 · '+snapshot.surface+' · Dock 输入与就近引用已记录');$('#dockDraft').textContent='';$('#dockPayload').innerHTML='';syncDockPayload()
+}
+$('#dockSend').addEventListener('click',sendDockTurn);
+$('#returnToSurface').addEventListener('click',function(){flashSurface($('#surfaceContext').textContent)});
+$('#artifactPreview').addEventListener('click',function(){renderSurface('preview');flashSurface()});
+$('#artifactLocate').addEventListener('click',function(){renderSurface('canvas');flashSurface()});
+D.addEventListener('keydown',function(e){if(e.key==='Escape'){closePops(null,true);closeDockQuick(true);closeThreadMenu()}});
+$('#pillShowcase').addEventListener('click',function(e){
+  var pill=e.target.closest('[data-pill-state]');if(!pill)return;
+  $('#compactAgentText').textContent=pill.innerText.replace(/^N\s*/,'').trim();
+  $('#collapseAgent').click()
+});
+$('#rl').addEventListener('click',function(){D.body.classList.toggle('rule')});
+$('#rp').addEventListener('click',play);
+syncDockSend();
+renderSurface('canvas');
+play();
+})();
+</script>
+</body>
+</html>

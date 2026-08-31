@@ -326,7 +326,7 @@ describe("APIMart observe-only generation provider", () => {
   it("reconcile returns not-found without a task id and never invents one", async () => {
     const fetchImpl = vi.fn();
     const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl });
-    await expect(provider.reconcile?.({ idempotencyKey: "stable-key" })).resolves.toEqual({ found: false });
+    await expect(provider.reconcile?.({ idempotencyKey: "stable-key" })).resolves.toEqual({ disposition: "indeterminate" });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 

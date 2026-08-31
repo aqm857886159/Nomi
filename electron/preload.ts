@@ -87,6 +87,10 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       get: () => ipcRenderer.invoke("nomi:settings:automation-policy-get"),
       set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:automation-policy-set", payload),
     },
+    assetRelay: {
+      get: () => ipcRenderer.invoke("nomi:settings:asset-relay-get"),
+      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:asset-relay-set", payload),
+    },
     systemPrompts: {
       get: () => ipcRenderer.invoke("nomi:settings:system-prompts-get"),
       set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:system-prompts-set", payload),

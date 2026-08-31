@@ -11,7 +11,7 @@
 //        header Authorization: Bearer <key>，可带 "Prefer: wait" 同步阻塞（实测 9-13s 出）
 //        body { input: { image, num_layers, description:"auto", output_format:"png", go_fast } }
 //   响应 { status:"succeeded"|..., output: string[] }（output 即 N 张图层直链，index0=背景，下→上）
-//   本地图吞入：POST /v1/files（multipart, field "content"）→ 取 urls.get 当可达 URL 喂模型（实测通）。
+//   本地图吞入：POST /v1/files（multipart, field "content"）→ 取 urls.get 当可达 URL 喂模型（图/视频/音频）。
 import type { AssetIngestion } from "./types";
 
 /** Replicate 供应商种子（裸 baseUrl 到 /v1 + bearer + 文件 API 吞本地图）。 */
@@ -28,7 +28,7 @@ export const REPLICATE_VENDOR_SEED = {
     fileField: "content",
     urlPath: "urls.get",
     authType: "bearer",
-    accepts: ["image"],
+    accepts: ["image", "video", "audio"],
   } as AssetIngestion,
 } as const;
 

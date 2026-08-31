@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   showSaveDialog: vi.fn(),
-  netFetch: vi.fn(),
+  hardenedFetch: vi.fn(),
   logCrash: vi.fn(),
   logBreadcrumb: vi.fn(),
   writeFile: vi.fn(),
@@ -20,8 +20,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock("electron", () => ({
   app: { getPath: () => "/tmp/dl" },
   dialog: { showSaveDialog: mocks.showSaveDialog },
-  net: { fetch: mocks.netFetch },
 }));
+vi.mock("../hardenedFetch", () => ({ hardenedFetch: mocks.hardenedFetch }));
 vi.mock("../crashLog", () => ({ logCrash: mocks.logCrash, logBreadcrumb: mocks.logBreadcrumb }));
 vi.mock("../projects/repository", () => ({ resolveProjectRelativePath: (p: string, r: string) => `/proj/${p}/${r}` }));
 vi.mock("./downloadPrefs", () => ({
@@ -39,7 +39,7 @@ import { downloadAssetToDisk } from "./downloadAsset";
 
 beforeEach(() => {
   Object.values(mocks).forEach((m) => m.mockReset());
-  mocks.netFetch.mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(4)) });
+  mocks.hardenedFetch.mockResolvedValue({ bytes: Buffer.from([1, 2, 3, 4]) });
   mocks.mkdir.mockResolvedValue(undefined);
   mocks.writeFile.mockResolvedValue(undefined);
 });

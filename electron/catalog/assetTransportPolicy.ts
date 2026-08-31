@@ -1,7 +1,7 @@
 import type { AssetIngestion, AssetMediaKind } from './types'
 
 export type AnonymousAssetConsent = 'ask' | 'allow' | 'deny'
-export type AssetTransportVisibility = 'provider-private' | 'public-anonymous'
+export type AssetTransportVisibility = 'provider-private' | 'public-provider' | 'public-anonymous'
 
 export function anonymousConsentFromUnknown(value: unknown): AnonymousAssetConsent {
   return value === 'allow' || value === 'deny' ? value : 'ask'

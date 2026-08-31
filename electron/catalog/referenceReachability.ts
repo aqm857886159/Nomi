@@ -65,7 +65,7 @@ export function modeSlotReach(slots: ReachSlot[], createBody: unknown, combineKe
   // 会把好端端的原生通道判死（reachNoOverNarrow.test 就是这么抓住我的）。认合并键即可。
   if (combineKey && referenced.has(combineKey.trim())) return slots.map(() => "full");
 
-  const reach: SlotReach[] = slots.map((slot) => {
+  const reach: SlotReach[] = slots.map((slot): SlotReach => {
     const key = inputKeyOf(slot);
     return key && referenced.has(key) ? "full" : "none";
   });
@@ -80,6 +80,16 @@ export function modeSlotReach(slots: ReachSlot[], createBody: unknown, combineKe
         break; // 名额用完——后面的槽仍是 none，这正是「首尾帧只过得去首帧」的真相。
       }
     }
+  }
+  // A provider may expose a multi-image array while its shared archetype calls
+  // the first item a first-frame slot (for example fal Gemini Omni's
+  // reference-to-video route). The canonical projection preserves the first
+  // frame as array[0], so count that channel as single rather than reporting a
+  // completely unusable mode. The second optional frame remains conservative.
+  const hasNoReach = reach.some((item) => item !== "none") === false;
+  if (hasNoReach && referenced.has("image_urls")) {
+    const idx = slots.findIndex((slot) => slot.kind === "first_frame" || slot.kind === "image_ref");
+    if (idx >= 0) reach[idx] = "single";
   }
   return reach;
 }

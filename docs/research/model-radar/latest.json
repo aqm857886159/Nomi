@@ -2,8 +2,16 @@
   "diffs": [
     {
       "vendor": "kie",
-      "total": 141,
-      "added": [],
+      "total": 142,
+      "added": [
+        {
+          "vendor": "kie",
+          "category": "video",
+          "slug": "google/gemini-omni-flash-1-1",
+          "title": "Gemini Omni 1.1 Flash",
+          "url": "https://docs.kie.ai/market/google/gemini-omni-flash-1-1.md"
+        }
+      ],
       "removed": [],
       "uncovered": [
         {
@@ -460,6 +468,13 @@
           "slug": "pixverse/extend",
           "title": "PixVerse V6 Video Extension",
           "url": "https://docs.kie.ai/market/pixverse/extend.md"
+        },
+        {
+          "vendor": "kie",
+          "category": "video",
+          "slug": "google/gemini-omni-flash-1-1",
+          "title": "Gemini Omni 1.1 Flash",
+          "url": "https://docs.kie.ai/market/google/gemini-omni-flash-1-1.md"
         },
         {
           "vendor": "kie",
@@ -1199,5 +1214,6 @@
         }
       ]
     }
-  ]
+  ],
+  "failures": []
 }

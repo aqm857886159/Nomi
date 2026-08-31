@@ -9,7 +9,7 @@ import { assertAndConsumeSpendGrant } from "../spendGrant";
 import { traceVendorCompleted, traceVendorRequested } from "../events/vendorCallTrace";
 import { assertLocalAssetTransportReady, localizeAssetsForVendor, resolveAssetIngestionWithFallback } from "./assetLocalization";
 import { decryptApiKeyRecord } from "./secrets";
-import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload } from "../assets/localAssetFile";
+import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload, putBinaryForAssetUpload } from "../assets/localAssetFile";
 import { unlocalizedTaskAsset } from "../tasks/activeProjectFallback";
 import { taskTemplateParams } from "./taskParams";
 import { CustomCallScriptError, runCustomCallScript } from "./customCallRunner";
@@ -86,6 +86,7 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
     postJsonForAssetUpload,
     postMultipartForAssetUpload,
     localizationOptions,
+    putBinaryForAssetUpload,
   );
   const effectiveRequest =
     localized.uploaded > 0 ? { ...request, extras: localized.value as TaskRequest["extras"] } : request;

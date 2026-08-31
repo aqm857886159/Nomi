@@ -58,6 +58,12 @@ export function AiModelsSection({
   const [catalogLoaded, setCatalogLoaded] = React.useState(false)
   // 「现在走哪条通道」问 main 的真解析器，渲染层不重算优先级（重算 = 第二个真相源，会和真实行为漂移）。
   const [channels, setChannels] = React.useState<AssetTransportChannelView[]>([])
+  const [relayEndpoint, setRelayEndpoint] = React.useState('')
+  const [relayToken, setRelayToken] = React.useState('')
+  const [relayHasToken, setRelayHasToken] = React.useState(false)
+  const [relayEnabled, setRelayEnabled] = React.useState(false)
+  const [relaySaving, setRelaySaving] = React.useState(false)
+  const [relayMessage, setRelayMessage] = React.useState('')
   const policySectionRef = React.useRef<HTMLElement>(null)
   const focusedRequirementRef = React.useRef<ProductionPolicyRequirement | null>(null)
 
@@ -68,6 +74,17 @@ export function AiModelsSection({
       setChannels(Array.isArray(described) ? described : [])
       const values = bridge?.modelCatalog.listVendors() as SettingsProviderInput[] | undefined
       setProviders(Array.isArray(values) ? values : [])
+      const relayApi = bridge?.settings?.assetRelay
+      if (relayApi) {
+        void relayApi.get()
+          .then((value) => {
+            if (!value) return
+            setRelayEndpoint(value.endpoint || '')
+            setRelayEnabled(Boolean(value.enabled))
+            setRelayHasToken(Boolean(value.hasToken))
+          })
+          .catch(() => undefined)
+      }
       void listWorkbenchModelCatalogModels({ enabled: true })
         .then((values) => setModels(Array.isArray(values) ? values : []))
         .catch(() => setModels([]))
@@ -89,6 +106,48 @@ export function AiModelsSection({
   const handleDefaultsChange = React.useCallback((next: GenerationModelDefaultMap) => {
     void saveGenerationModelDefaults(next)
   }, [])
+
+  const saveRelay = React.useCallback(async (): Promise<void> => {
+    const api = getDesktopBridge()?.settings?.assetRelay
+    if (!api) return
+    setRelaySaving(true)
+    setRelayMessage('')
+    try {
+      const value = await api.set({
+        enabled: Boolean(relayEndpoint.trim()),
+        endpoint: relayEndpoint.trim(),
+        ...(relayToken.trim() ? { token: relayToken.trim() } : {}),
+      })
+      setRelayEndpoint(value.endpoint || '')
+      setRelayEnabled(Boolean(value.enabled))
+      setRelayHasToken(Boolean(value.hasToken))
+      setRelayToken('')
+      setRelayMessage(t('settings.ai.upload.customRelay.saved'))
+    } catch {
+      setRelayMessage(t('settings.ai.upload.customRelay.failed'))
+    } finally {
+      setRelaySaving(false)
+    }
+  }, [relayEndpoint, relayToken, t])
+
+  const clearRelay = React.useCallback(async (): Promise<void> => {
+    const api = getDesktopBridge()?.settings?.assetRelay
+    if (!api) return
+    setRelaySaving(true)
+    setRelayMessage('')
+    try {
+      await api.set({ enabled: false, endpoint: '', clearToken: true })
+      setRelayEndpoint('')
+      setRelayToken('')
+      setRelayEnabled(false)
+      setRelayHasToken(false)
+      setRelayMessage(t('settings.ai.upload.customRelay.cleared'))
+    } catch {
+      setRelayMessage(t('settings.ai.upload.customRelay.failed'))
+    } finally {
+      setRelaySaving(false)
+    }
+  }, [t])
 
   const health = buildProviderHealthView(providers)
   // 「已接入」按**它是否真的在收文件**判，不按「key 存不存在」判——否则徽章说已接入、下面两行却写着
@@ -199,7 +258,7 @@ export function AiModelsSection({
                 >
                   <span className="w-8 shrink-0 text-nomi-ink-60">{t(`settings.ai.upload.channel.kind.${channel.kind}`)}</span>
                   <span className="min-w-28 text-nomi-ink">{channelHostLabel(channel, vendorNameOf, t)}</span>
-                  {channel.visibility === 'public-anonymous' ? (
+                  {channel.visibility === 'public-anonymous' || channel.visibility === 'public-provider' ? (
                     <span className="inline-flex items-center gap-1 rounded-nomi-sm bg-[color-mix(in_oklch,var(--nomi-warning)_12%,var(--nomi-paper))] px-1.5 py-0.5 text-[color:var(--nomi-warning)]">
                       <IconAlertTriangle size={12} stroke={2} aria-hidden="true" />
                       {t('settings.ai.upload.channel.publicLease', { lease: leaseLabel(channel.ttlSeconds, t) })}
@@ -216,6 +275,49 @@ export function AiModelsSection({
               {t(kieConnected ? 'settings.ai.upload.channel.settled' : 'settings.ai.upload.channel.upsell')}
             </div>
           </div>
+          <details className="border-t border-nomi-line-soft pt-2" data-settings-custom-relay>
+            <summary className="cursor-pointer text-caption font-medium text-nomi-ink-80">
+              {t('settings.ai.upload.customRelay.title')}
+            </summary>
+            <div className="mt-2 grid gap-2">
+              <div className="text-micro leading-relaxed text-nomi-ink-40">
+                {t('settings.ai.upload.customRelay.hint')}
+              </div>
+              <label className="grid gap-1">
+                <span className="text-micro text-nomi-ink-60">{t('settings.ai.upload.customRelay.endpoint')}</span>
+                <input
+                  data-settings-field="asset-relay-endpoint"
+                  type="url"
+                  value={relayEndpoint}
+                  onChange={(event) => setRelayEndpoint(event.currentTarget.value)}
+                  placeholder={t('settings.ai.upload.customRelay.endpointPlaceholder')}
+                  aria-label={t('settings.ai.upload.customRelay.endpoint')}
+                  className="h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 text-caption text-nomi-ink outline-none focus:border-nomi-accent"
+                />
+              </label>
+              <label className="grid gap-1">
+                <span className="text-micro text-nomi-ink-60">{t('settings.ai.upload.customRelay.token')}</span>
+                <input
+                  data-settings-field="asset-relay-token"
+                  type="password"
+                  value={relayToken}
+                  onChange={(event) => setRelayToken(event.currentTarget.value)}
+                  placeholder={relayHasToken ? t('settings.ai.upload.customRelay.tokenSaved') : t('settings.ai.upload.customRelay.tokenPlaceholder')}
+                  aria-label={t('settings.ai.upload.customRelay.token')}
+                  className="h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 text-caption text-nomi-ink outline-none focus:border-nomi-accent"
+                />
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <WorkbenchButton size="sm" disabled={relaySaving || !relayEndpoint.trim()} onClick={() => { void saveRelay() }}>
+                  {t('settings.ai.upload.customRelay.save')}
+                </WorkbenchButton>
+                <WorkbenchButton size="sm" disabled={relaySaving || (!relayEnabled && !relayHasToken)} onClick={() => { void clearRelay() }}>
+                  {t('settings.ai.upload.customRelay.clear')}
+                </WorkbenchButton>
+                {relayMessage ? <span className="text-micro text-nomi-ink-60" role="status">{relayMessage}</span> : null}
+              </div>
+            </div>
+          </details>
           <div className="flex min-h-10 items-center justify-between gap-4 border-t border-nomi-line-soft pt-2">
             <div className="min-w-0">
               <div className="text-body-sm text-nomi-ink">{t('settings.ai.upload.anonymousPrompt')}</div>

@@ -8,8 +8,15 @@
 //
 // 用法：
 //   pnpm run radar:models                    抓 + 对比 + 打摘要
-//   pnpm run radar:models -- --update-baseline   确认过之后更新快照
-//   pnpm run radar:models -- --offline <dir>     用本地样本跑（单测/离线复现，不打网络）
+//   pnpm run radar:models -- --update-baseline   确认过之后更新快照（只更新本轮查成的家）
+//   pnpm run radar:models -- --offline <dir>     用本地样本跑（单测/离线复现，不打网络；
+//                                                文件名 = offlineFileName(url)，一家可有多份）
+//
+// 失败语义（2026-08-31 apimart 改版把 kie 陪葬后定死，合同见
+// docs/fixes/2026-08-31-model-radar-vendor-isolation.root-cause.json）：
+//   单家采集失败（含解析 0 条）只把该家标成「没查成」——摘要打 ⚠️、latest.json 记 failures[]、
+//   该家快照不动，其余家照常出差异，退出码 0；**全部**家失败才红着退出（1）。
+//   「没查成」永远不许被读成「没有新模型」。
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -125,10 +132,94 @@ function dedupe(entries: RadarEntry[]): RadarEntry[] {
   });
 }
 
-export const VENDORS: Record<string, { indexUrl: string; parse: (text: string) => RadarEntry[] }> = {
-  kie: { indexUrl: "https://docs.kie.ai/llms.txt", parse: parseKie },
-  apimart: { indexUrl: "https://docs.apimart.ai/llms.txt", parse: parseApimart },
+// ---------------------------------------------------------------------------
+// 采集：一次「抓」可能是多个请求（apimart 2026-08-31 起是两级索引）
+// ---------------------------------------------------------------------------
+
+export type FetchText = (url: string) => Promise<string>;
+
+const KIE_INDEX_URL = "https://docs.kie.ai/llms.txt";
+const APIMART_INDEX_URL = "https://docs.apimart.ai/llms.txt";
+
+/** 索引跟进上限：现网只需 2 次（根 + en/api-manual）。超界 = 结构又大改，红着报，不无界爬。 */
+const APIMART_MAX_INDEX_FETCHES = 8;
+
+/**
+ * 从 apimart 索引文本里挑「要跟进的子索引」。2026-08-31 改版（实抓）后根 llms.txt 是
+ * 「索引的索引」：模型页全部搬进 `/_llms/en/api-manual.md`，根里自述「Follow each /_llms/
+ * index recursively until you reach documentation pages」。只跟**英文份**（`/_llms/en.md`
+ * 或 `/_llms/en/**`）：其余 9 份语言镜像与英文同册，跟了 = 每页抓 10 遍再靠去重扔掉。
+ */
+export function apimartSubIndexUrls(text: string): string[] {
+  const urls: string[] = [];
+  for (const line of text.split("\n")) {
+    const m = LINE_RE.exec(line.trim());
+    if (!m) continue;
+    const url = m[3];
+    const pathname = new URL(url).pathname;
+    if (!pathname.startsWith("/_llms/")) continue;
+    const rest = pathname.slice("/_llms/".length);
+    if (rest !== "en.md" && !rest.startsWith("en/")) continue;
+    if (!urls.includes(url)) urls.push(url);
+  }
+  return urls;
+}
+
+/**
+ * apimart 采集：从根索引出发，有界跟进英文子索引，把沿途文本合并后走同一个行解析器。
+ * 根里若直接列模型页（2026-08-31 之前的扁平结构）同一算法照收——这不是新旧两条
+ * fallback 分支，而是「解析一切可达页面」的单一算法。
+ */
+export async function collectApimart(fetchText: FetchText): Promise<RadarEntry[]> {
+  const queue: string[] = [APIMART_INDEX_URL];
+  const seen = new Set<string>();
+  const texts: string[] = [];
+  for (let i = 0; i < queue.length; i += 1) {
+    const url = queue[i];
+    if (!url || seen.has(url)) continue;
+    if (seen.size >= APIMART_MAX_INDEX_FETCHES) {
+      throw new Error(
+        `apimart 索引跟进超过 ${APIMART_MAX_INDEX_FETCHES} 个，结构可能又大改——实抓确认再适配，别放开上限硬爬`,
+      );
+    }
+    seen.add(url);
+    const text = await fetchText(url);
+    texts.push(text);
+    queue.push(...apimartSubIndexUrls(text));
+  }
+  return parseApimart(texts.join("\n"));
+}
+
+export type VendorAdapter = { collect: (fetchText: FetchText) => Promise<RadarEntry[]> };
+
+export const VENDORS: Record<string, VendorAdapter> = {
+  kie: { collect: async (fetchText) => parseKie(await fetchText(KIE_INDEX_URL)) },
+  apimart: { collect: collectApimart },
 };
+
+export type VendorFailure = { vendor: string; error: string };
+
+/**
+ * 逐家采集，**单家失败只标记该家、不打死整轮**（2026-08-31 apimart 改版把 kie 陪葬的教训）。
+ * 0 条守卫也住在这道边界里：解析出 0 条 = 该家「没查成」，永不静默等同「没有新模型」。
+ */
+export async function collectVendors(
+  vendors: Record<string, VendorAdapter>,
+  fetchText: FetchText,
+): Promise<{ entries: Record<string, RadarEntry[]>; failures: VendorFailure[] }> {
+  const entries: Record<string, RadarEntry[]> = {};
+  const failures: VendorFailure[] = [];
+  for (const [vendor, adapter] of Object.entries(vendors)) {
+    try {
+      const current = await adapter.collect(fetchText);
+      if (current.length === 0) throw new Error("解析出 0 条模型——索引结构可能变了，别当成「没新模型」");
+      entries[vendor] = current;
+    } catch (err) {
+      failures.push({ vendor, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return { entries, failures };
+}
 
 // ---------------------------------------------------------------------------
 // 覆盖集：我们到底接了哪些——**全部从代码 derive**
@@ -244,8 +335,21 @@ function writeSnapshot(vendor: string, entries: RadarEntry[]): void {
   fs.writeFileSync(snapshotPath(vendor), `${JSON.stringify({ vendor, entries: sorted }, null, 2)}\n`);
 }
 
+/** 离线样本文件名：URL 的 host+path 压平成一个安全文件名（`/`→`_`）。
+ *  两级索引意味着一家可能要多份样本文件，所以不能再用 `<vendor>.txt` 一对一命名。
+ *  例：https://docs.apimart.ai/_llms/en/api-manual.md → docs.apimart.ai__llms_en_api-manual.md */
+export function offlineFileName(url: string): string {
+  const u = new URL(url);
+  return `${u.host}${u.pathname}`.replace(/\//g, "_");
+}
+
+function offlineFetcher(dir: string): FetchText {
+  return async (url) => fs.readFileSync(path.join(dir, offlineFileName(url)), "utf8");
+}
+
 /** 抓索引。走 HTTPS_PROXY（本机 apimart/kie 需本地代理）。
- *  **失败必须抛**——静默当成「没有新模型」会让雷达永远绿，是最坏的坏法。 */
+ *  **失败必须抛**——collectVendors 会把抛错翻译成该家的显式「没查成」；
+ *  静默当成「没有新模型」会让雷达永远绿，是最坏的坏法。 */
 async function fetchIndex(url: string): Promise<string> {
   const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || "";
   let dispatcher: unknown;
@@ -267,14 +371,12 @@ async function main(): Promise<void> {
   const offlineIdx = args.indexOf("--offline");
   const offlineDir = offlineIdx >= 0 ? args[offlineIdx + 1] : "";
 
+  const { entries, failures } = await collectVendors(VENDORS, offlineDir ? offlineFetcher(offlineDir) : fetchIndex);
+
   const diffs: RadarDiff[] = [];
-  for (const [vendor, cfg] of Object.entries(VENDORS)) {
-    const text = offlineDir
-      ? fs.readFileSync(path.join(offlineDir, `${vendor}.txt`), "utf8")
-      : await fetchIndex(cfg.indexUrl);
-    const current = cfg.parse(text);
-    if (current.length === 0) throw new Error(`${vendor}: 解析出 0 条模型——索引结构可能变了，别当成「没新模型」`);
+  for (const [vendor, current] of Object.entries(entries)) {
     diffs.push(diffVendor(vendor, current, readSnapshot(vendor), coverageTokens(vendor)));
+    // 没查成的家不在 entries 里，快照自然不动：修好后重跑才有真差异，不会把断档吃成「全下架」。
     if (updateBaseline) writeSnapshot(vendor, current);
   }
 
@@ -288,15 +390,26 @@ async function main(): Promise<void> {
     for (const e of d.removed) console.log(`  🗑️  [${e.category}] ${e.slug}（上次有、这次没了）`);
     if (d.added.length === 0 && d.removed.length === 0) console.log("  （索引无变化）");
   }
+  for (const f of failures) {
+    console.log(`\n=== ${f.vendor} ===  ⚠️ 今天没查成：${f.error}`);
+    console.log("  （这不是「没有新模型」——该家快照未动，修好后重跑）");
+  }
 
   fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
-  fs.writeFileSync(path.join(SNAPSHOT_DIR, "latest.json"), `${JSON.stringify({ diffs }, null, 2)}\n`);
+  fs.writeFileSync(path.join(SNAPSHOT_DIR, "latest.json"), `${JSON.stringify({ diffs, failures }, null, 2)}\n`);
   const totalNew = diffs.reduce((n, d) => n + d.added.length, 0);
+  const failNote =
+    failures.length > 0 ? `；⚠️ ${failures.map((f) => f.vendor).join(" / ")} 没查成（见上，不是「没新模型」）` : "";
   console.log(
     `\n结果已写 docs/research/model-radar/latest.json。本轮新增 ${totalNew} 个；` +
-      `未接入存量 ${diffs.reduce((n, d) => n + d.uncovered.length, 0)} 个。` +
+      `未接入存量 ${diffs.reduce((n, d) => n + d.uncovered.length, 0)} 个${failNote}。` +
       (updateBaseline ? "（已更新快照）" : "（未更新快照，确认后跑 --update-baseline）"),
   );
+
+  if (diffs.length === 0) {
+    // 全部供应商都没查成 = 这一轮真没查成，红着退出（failures 已写进 latest.json 留档）。
+    throw new Error(`全部供应商都没查成：${failures.map((f) => `${f.vendor}: ${f.error}`).join("；")}`);
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

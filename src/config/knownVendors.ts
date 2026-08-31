@@ -133,6 +133,66 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     },
   },
   {
+    vendorKey: 'minimax',
+    logo: new URL('../assets/vendor-logos/minimax.png', import.meta.url).href,
+    glyph: 'M',
+    tagline: '官方原生 · M3 文本、H3 视频与 Speech 2.8',
+    credentialPlaceholder: '粘贴 MiniMax API Key',
+    promo: {
+      text: 'MiniMax 官方 API，提供 M3 文本与 Agent、H3 多模态视频和 Speech 2.8 高保真配音。',
+      ctaLabel: '打开 MiniMax 平台',
+      url: 'https://platform.minimax.io',
+    },
+  },
+  {
+    vendorKey: 'elevenlabs',
+    logo: new URL('../assets/vendor-logos/elevenlabs.png', import.meta.url).href,
+    glyph: 'E',
+    tagline: '官方原生 · 配音、音乐、音效与转写',
+    credentialPlaceholder: '粘贴 ElevenLabs API Key',
+    promo: {
+      text: 'ElevenLabs 官方 API，覆盖 Eleven v3、Music v2、Sound Effects v2 与 Scribe v2。',
+      ctaLabel: '打开 ElevenLabs',
+      url: 'https://elevenlabs.io/app/developers/api-keys',
+    },
+  },
+  {
+    vendorKey: 'meshy',
+    logo: new URL('../assets/vendor-logos/meshy.png', import.meta.url).href,
+    glyph: 'M',
+    tagline: '官方原生 · Meshy 7 单图生成带纹理 3D',
+    credentialPlaceholder: '粘贴 Meshy API Key',
+    promo: {
+      text: 'Meshy 官方 API，可从单张物体图生成带 PBR 材质的 GLB 资产。',
+      ctaLabel: '打开 Meshy 控制台',
+      url: 'https://www.meshy.ai/settings/api',
+    },
+  },
+  {
+    vendorKey: 'fal',
+    glyph: 'F',
+    tagline: '官方队列 · 图片、视频、音频与 3D 模型',
+    credentialPlaceholder: '粘贴 fal.ai API Key',
+    credentialHint: '在 fal.ai Dashboard 创建 API Key。不同模型的价格、限额和可用区域以当前账户为准。凭证本地加密存储。',
+    promo: {
+      text: 'fal.ai 官方队列，统一提交、状态和结果生命周期；本目录只保留已对账的旗舰模型。',
+      ctaLabel: '打开 fal.ai',
+      url: 'https://fal.ai/dashboard/keys',
+    },
+  },
+  {
+    vendorKey: 'runway',
+    glyph: 'R',
+    tagline: '官方原生 · Gen-4.5 与 Gen-4 Turbo 视频',
+    credentialPlaceholder: '粘贴 Runway API Key',
+    credentialHint: '在 Runway Dev 创建 API Key。生成会消耗 credits；凭证本地加密存储。',
+    promo: {
+      text: 'Runway Dev 官方 API，提供 Gen-4.5 文生/图生视频与 Gen-4 Turbo 图生视频。',
+      ctaLabel: '打开 Runway Dev',
+      url: 'https://dev.runwayml.com',
+    },
+  },
+  {
     // RunningHub 标准模型 API（openapi/v2）：一个 key 解锁 355+ 模型（Seedance/可灵/Veo/混元3D/Meshy…）。
     // ⚠️ 实测（2026-06-27）：标准模型 API **仅限 Enterprise-Shared（企业级-共享）key**，Consumer/个人 key
     // 会报错误码 1014「访问被拒绝」。故 credentialHint 明着标，免得用户拿个人 key 填进来被 1014 蒙（D4 诚实）。

@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { diffVendor, isCovered, normalizeToken, parseApimart, parseKie, stripLocale } from "./model-radar";
+import {
+  apimartSubIndexUrls,
+  collectApimart,
+  collectVendors,
+  diffVendor,
+  isCovered,
+  normalizeToken,
+  offlineFileName,
+  parseApimart,
+  parseKie,
+  stripLocale,
+} from "./model-radar";
 import type { RadarEntry } from "./model-radar";
 
 // 全部用内联样本，**不打网络**：雷达的解析逻辑要能在 CI 里回归，
@@ -153,5 +164,121 @@ describe("差分 diffVendor", () => {
   it("uncovered 走 isCovered，不是裸全等", () => {
     const d = diffVendor("kie", [e("google/nanobanana2")], [], new Set(["nanobanana2"]));
     expect(d.uncovered).toEqual([]);
+  });
+});
+
+// —— 2026-08-31 apimart 改版：根 llms.txt 变成「索引的索引」，模型页全部移入 /_llms/en/api-manual.md ——
+// 样本行的形状 100% 抄自 2026-08-31 实抓的根索引（71 行里抽有代表性的几类）。
+const APIMART_ROOT_20260831 = [
+  "# APIMart",
+  "",
+  "- [API Manual (144 pages)](https://docs.apimart.ai/_llms/en/api-manual.md): Documentation for API Manual.",
+  "",
+  "## Integrations",
+  "",
+  "- [Using APIMart in ChatBox](https://docs.apimart.ai/en/integrations/chat/chatbox.md): Detailed guide on how to configure and use APIMart API service in ChatBox desktop client.",
+  "- [Quick Start](https://docs.apimart.ai/en/quickstart.md): Quickly start using our API services",
+  "",
+  "## Indexes",
+  "",
+  "- [English / API Manual (144 pages)](https://docs.apimart.ai/_llms/en/api-manual.md): Documentation for English / API Manual.",
+  "- [Chinese (163 pages)](https://docs.apimart.ai/_llms/cn.md): Documentation for Chinese.",
+  "- [Chinese / API 手册 (144 pages)](https://docs.apimart.ai/_llms/cn/api.md): Documentation for Chinese / API 手册.",
+  "- [Japanese (163 pages)](https://docs.apimart.ai/_llms/ja.md): Documentation for Japanese.",
+].join("\n");
+
+describe("apimart 两级索引（2026-08-31 改版）", () => {
+  it("改版根索引本身 0 条模型页——当天整轮翻车的直接机制，必须走失败隔离而不是「没新模型」", () => {
+    expect(parseApimart(APIMART_ROOT_20260831)).toEqual([]);
+  });
+
+  it("apimartSubIndexUrls 只挑英文份 /_llms/ 子索引并去重（根里列了两遍），9 个语言镜像一个不跟", () => {
+    expect(apimartSubIndexUrls(APIMART_ROOT_20260831)).toEqual(["https://docs.apimart.ai/_llms/en/api-manual.md"]);
+  });
+
+  it("collectApimart 跟进英文子索引拿到模型页；语言镜像不抓", async () => {
+    const fetched: string[] = [];
+    const entries = await collectApimart(async (url) => {
+      fetched.push(url);
+      if (url === "https://docs.apimart.ai/llms.txt") return APIMART_ROOT_20260831;
+      if (url === "https://docs.apimart.ai/_llms/en/api-manual.md") return APIMART_SAMPLE;
+      throw new Error(`不该抓 ${url}`);
+    });
+    expect(fetched).toEqual([
+      "https://docs.apimart.ai/llms.txt",
+      "https://docs.apimart.ai/_llms/en/api-manual.md",
+    ]);
+    expect(entries.map((e) => e.slug)).toContain("gemini-3.1-flash");
+    expect(entries.find((e) => e.slug === "wan3.0-video")?.category).toBe("video");
+  });
+
+  it("旧扁平结构同一算法照收（根直接列模型页 → 一次抓取，无子索引可跟）", async () => {
+    const fetched: string[] = [];
+    const entries = await collectApimart(async (url) => {
+      fetched.push(url);
+      return APIMART_SAMPLE;
+    });
+    expect(fetched).toHaveLength(1);
+    expect(entries.map((e) => e.slug)).toContain("gemini-3.1-flash");
+  });
+
+  it("索引跟进有界：链条超上限红着报，不无界爬", async () => {
+    await expect(
+      collectApimart(async (url) => {
+        // 每个索引都再指向下一个新的英文子索引，构造无穷链。
+        const n = Number(/chain-(\d+)/.exec(url)?.[1] ?? 0) + 1;
+        return `- [next](https://docs.apimart.ai/_llms/en/chain-${n}.md): x`;
+      }),
+    ).rejects.toThrow(/超过/);
+  });
+});
+
+describe("供应商级失败隔离 collectVendors（类级不变量：单家失败不打死整轮）", () => {
+  const okEntry: RadarEntry = {
+    vendor: "ok",
+    category: "video",
+    slug: "fine-model",
+    title: "fine",
+    url: "https://x.example/fine.md",
+  };
+
+  it("单家抛错 → 该家进 failures，其余照常出结果（2026-08-31 kie 被 apimart 陪葬的回归）", async () => {
+    const { entries, failures } = await collectVendors(
+      {
+        boom: {
+          collect: async () => {
+            throw new Error("索引结构又变了");
+          },
+        },
+        ok: { collect: async () => [okEntry] },
+      },
+      async () => "",
+    );
+    expect(entries.ok).toEqual([okEntry]);
+    expect(entries.boom).toBeUndefined();
+    expect(failures).toEqual([{ vendor: "boom", error: "索引结构又变了" }]);
+  });
+
+  it("解析 0 条 = 该家「没查成」（不是「没有新模型」），别家不受影响", async () => {
+    const { entries, failures } = await collectVendors(
+      {
+        empty: { collect: async () => [] },
+        ok: { collect: async () => [okEntry] },
+      },
+      async () => "",
+    );
+    expect(entries.ok).toEqual([okEntry]);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]?.vendor).toBe("empty");
+    expect(failures[0]?.error).toContain("0 条");
+  });
+});
+
+describe("离线样本命名", () => {
+  it("URL 派生文件名：host+path 压平（两级索引要能放多份样本）", () => {
+    expect(offlineFileName("https://docs.kie.ai/llms.txt")).toBe("docs.kie.ai_llms.txt");
+    expect(offlineFileName("https://docs.apimart.ai/_llms/en/api-manual.md")).toBe(
+      "docs.apimart.ai__llms_en_api-manual.md",
+    );
   });
 });

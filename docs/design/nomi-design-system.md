@@ -69,8 +69,9 @@
 | 画布上的浮层/组框/工具栏 | `src/workbench/generationCanvas/components/` | 同目录 |
 | Sidebar 行 / 分类 | `src/workbench/sidebar/` | 同目录 |
 | 助手 composer（输入框/附件）| `src/workbench/ai/composer/` | 同目录 |
+| **agent 对话流里的任何东西**（工具条/计划卡/付费卡/进度/失败/反问/等待指示器…）| 规格看 **[nomi-agent-interaction.md](nomi-agent-interaction.md)**（Agent 专章：17 种形态 + 统一状态词表 + 动效 + 控件尺寸/等宽规则）| 同文档 §11 拆迁清单指定 |
 | Logo / 字标 / 加载标 / 步骤器 | `../../design`（全部出自 `src/design/identity.tsx`，§3.9）| **不新增**，复用 |
-| 图标 | `@tabler/icons-react`（§6）| 不自带 svg |
+| 图标 | `@tabler/icons-react`（§6）| 不自带 svg；**例外**：agent「工序指示器」是受管动效资产，见 agent 专章 §5.1 |
 
 ### 字号/间距/圆角 token 真相源
 
@@ -446,12 +447,18 @@ Tailwind 标准 spacing 已经是 4 的倍数（`p-1` = 4px、`gap-3` = 12px）�
 
 **破坏性操作确认**：一律用 `confirmDialog / alertDialog / promptDialog`（promise 风格，`src/design/confirmDialog.tsx`，宿主 `ConfirmDialogHost` 已挂 App 根部）。**禁用原生 `window.confirm/alert/prompt`**——脱设计系统、E2E 驱动自动 dismiss 测不到、Electron/macOS 有焦点丢失史（2026-06-13 审计 A7）。危险动作传 `danger: true`。
 
-**付费生成确认 `SpendConfirmDialog`**（`src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx`，挂一次于工作区根）：全仓**唯一**的付费确认 UI，三种来源共用这一个对话框（不另造并行卡，P1）：
-- **用户直发**（`light`）：金币图标（`IconCoin`），多一个「本会话不再提示」。
-- **agent 受理**：金币图标，每次必确认（不可 light 抑制）。
-- **外部 AI 助手（MCP）驱动**（`source: 'agent'`）：机器人图标（`IconRobot`）+ 副标「经 AI 助手（MCP）驱动」+ 明细行（节点/模型/产物）+ **60s 倒计时**（进度条 + 「N 秒后自动忽略」，到点自动按未确认返回——外部调用方那头在等，不死等）。
+**付费生成确认**：语义单一收口在 `SpendConfirmRequest`（`spend/spendConfirm.ts`），但**宿主按「用户此刻人在哪」分两个**（2026-08-27 用户裁定，解 master plan §4.4 与本节旧文「全仓唯一弹窗」的冲突）：
+
+| 用户此刻在哪 | 确认长在哪 | 状态 |
+|---|---|---|
+| 正在跟内嵌 agent 对话 | **对话流内的付费富卡**，对话暂停等回答（不弹居中窗——弹窗会打断「对话主驾」心流） | 🚧 待建，随 B5 落；规格见 [nomi-agent-interaction.md](nomi-agent-interaction.md) |
+| 画布上自己点生成（`light`） | `SpendConfirmDialog` 居中弹窗，金币图标 + 「本会话不再提示」 | ✅ 现役 |
+| 人不在 Nomi，外部 MCP 驱动（`source: 'agent'`） | `SpendConfirmDialog` 居中弹窗 —— 这是唯一该「召唤注意力」的场景 | ✅ 现役 |
+
+`SpendConfirmDialog`（`src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx`，挂一次于工作区根）= **非对话场景**的唯一付费确认 UI：
+- 外部 MCP 驱动额外带：机器人图标（`IconRobot`）+ 副标「经 AI 助手（MCP）驱动」+ 明细行（节点/模型/产物）+ **60s 倒计时**（进度条 + 「N 秒后自动忽略」，到点按未确认返回——外部调用方那头在等，不死等）。
 - 视觉：`w-[380px] rounded-nomi-lg border-nomi-line bg-nomi-paper shadow-nomi-md`；图标位 `w-8 h-8 rounded-nomi`（agent=`bg-nomi-ink text-nomi-paper`，user=`bg-nomi-accent-soft text-nomi-accent`）；明细行 `border-nomi-line-soft divide-y`；倒计时条 `bg-nomi-ink-05`，剩 ≤10s 转 `bg-nomi-accent`。
-- 新增确认来源/字段走 `SpendConfirmRequest`（`spend/spendConfirm.ts`，单一收口），不在别处复制确认弹窗。
+- 两个宿主**共用同一个 `SpendConfirmRequest` 与同一份明细内容组件**（一语义两投影，不是两套逻辑）。新增确认来源/字段只改 `spendConfirm.ts`，不在别处复制确认 UI。
 
 ### 3.6 导航 navigation
 

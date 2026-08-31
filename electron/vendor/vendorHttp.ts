@@ -14,7 +14,7 @@ import { describeIllegalHeader, findIllegalHeader, isJsonRecord, pickUpstreamMes
 import { fetchVendorWithBaseFallback } from "./vendorBaseFallback";
 import type { Vendor } from "../catalog/types";
 import { networkFailureDetails, redactNetworkMessage, safeNetworkUrl } from "../networkErrorDetails";
-import { BoundedResponseError, readBoundedResponseText } from "./boundedResponse";
+import { BoundedResponseError, readBoundedResponseBytes } from "./boundedResponse";
 
 export type VendorErrorCategory = "auth" | "balance" | "quota" | "input" | "server" | "network" | "timeout" | "unknown";
 
@@ -25,6 +25,11 @@ export type VendorErrorCategory = "auth" | "balance" | "quota" | "input" | "serv
 const DEFAULT_VENDOR_HTTP_TIMEOUT_MS = 120_000;
 export const DEFAULT_VENDOR_RESPONSE_MAX_BYTES = 8 * 1024 * 1024;
 export const MEDIA_VENDOR_RESPONSE_MAX_BYTES = Math.ceil((25 * 1024 * 1024 * 4) / 3) + 1024 * 1024;
+
+export type BinaryVendorResponse = {
+  bytes: Buffer;
+  contentType: string;
+};
 
 export function vendorResponseLimitForKind(kind: string): number {
   return kind === "image" || kind === "video" || kind === "audio" || kind === "model3d"
@@ -116,7 +121,8 @@ async function requestVendor(
   bodyInit: BodyInit | undefined,
   signal?: AbortSignal,
   maxResponseBytes = DEFAULT_VENDOR_RESPONSE_MAX_BYTES,
-): Promise<unknown> {
+  responseKind: "json" | "binary" = "json",
+): Promise<unknown | BinaryVendorResponse> {
   const requestAuthQuery = authQueryParams(vendor, apiKey);
   const finalUrl = appendQueryParams(url, { ...requestAuthQuery, ...query });
   const diagnosticUrl = safeNetworkUrl(url);
@@ -190,9 +196,9 @@ async function requestVendor(
     });
   }
   // 超时同样覆盖响应体读取（vendor 可能接了连接却 hang 在 body 上）；读完才清 timer。
-  let text: string;
+  let bytes: Buffer;
   try {
-    text = await readBoundedResponseText(response, { maxBytes: maxResponseBytes, signal: controller.signal });
+    bytes = await readBoundedResponseBytes(response, { maxBytes: maxResponseBytes, signal: controller.signal });
   } catch (error: unknown) {
     const cancellation = callerCancellation(signal);
     if (cancellation) throw cancellation;
@@ -235,11 +241,19 @@ async function requestVendor(
     clearTimeout(timer);
     signal?.removeEventListener("abort", relayAbort);
   }
-  let json: unknown;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = text;
+  const contentType = String(response.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase();
+  const looksJson = contentType === "application/json"
+    || contentType.endsWith("+json")
+    || /^[\s]*(?:\[|\{)/.test(bytes.subarray(0, 64).toString("utf8"));
+  const mustInspectText = responseKind === "json" || !response.ok || looksJson;
+  const text = mustInspectText ? bytes.toString("utf8") : "";
+  let json: unknown = null;
+  if (mustInspectText) {
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = text;
+    }
   }
   const record = isJsonRecord(json) ? json : {};
   // Many providers (kie.ai and other Java/Spring backends) return HTTP 200 with
@@ -266,7 +280,7 @@ async function requestVendor(
       retryable,
     });
   }
-  return json;
+  return responseKind === "binary" ? { bytes, contentType } : json;
 }
 
 /** URL-in-JSON 提交（现有主路）：非 GET/HEAD 且有 body 时序列化成 JSON 发。 */
@@ -284,7 +298,36 @@ export async function requestJson(
   const upperMethod = method.toUpperCase();
   const hasBody = upperMethod !== "GET" && upperMethod !== "HEAD" && body != null;
   const bodyInit = hasBody ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined;
-  return requestVendor(vendor, apiKey, upperMethod, url, headers, query, bodyInit, signal, options.maxResponseBytes);
+  return requestVendor(vendor, apiKey, upperMethod, url, headers, query, bodyInit, signal, options.maxResponseBytes, "json");
+}
+
+/** Byte-in-body submission for synchronous media endpoints, with the same error, redaction and timeout contract as JSON. */
+export async function requestBinary(
+  vendor: Vendor,
+  apiKey: string,
+  method: string,
+  url: string,
+  headers: Record<string, string>,
+  query: Record<string, unknown>,
+  body: unknown,
+  signal?: AbortSignal,
+  options: { maxResponseBytes?: number } = {},
+): Promise<BinaryVendorResponse> {
+  const upperMethod = method.toUpperCase();
+  const hasBody = upperMethod !== "GET" && upperMethod !== "HEAD" && body != null;
+  const bodyInit = hasBody ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined;
+  return requestVendor(
+    vendor,
+    apiKey,
+    upperMethod,
+    url,
+    headers,
+    query,
+    bodyInit,
+    signal,
+    options.maxResponseBytes,
+    "binary",
+  ) as Promise<BinaryVendorResponse>;
 }
 
 /**
@@ -305,5 +348,5 @@ export async function requestMultipart(
   const cleanHeaders = Object.fromEntries(
     Object.entries(headers).filter(([key]) => key.toLowerCase() !== "content-type"),
   );
-  return requestVendor(vendor, apiKey, "POST", url, cleanHeaders, query, form, signal, options.maxResponseBytes);
+  return requestVendor(vendor, apiKey, "POST", url, cleanHeaders, query, form, signal, options.maxResponseBytes, "json");
 }

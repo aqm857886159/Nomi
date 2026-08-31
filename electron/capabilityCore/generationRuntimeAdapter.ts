@@ -43,7 +43,7 @@ export type GenerationProviderCapabilities = {
 };
 
 export type GenerationProviderOutput = {
-  kind: "image" | "video" | "audio";
+  kind: "image" | "video" | "audio" | "model3d";
   url: string;
   contentType?: string;
   fileName?: string;
@@ -61,9 +61,9 @@ export type GenerationProvider = {
   buildRequest: (input: GenerationProviderRequestInputV1) => unknown;
   submit: (request: unknown, idempotencyKey: string) => Promise<{ providerTaskId: string; raw?: unknown }>;
   query?: (providerTaskId: string) => Promise<{ status: string; raw?: unknown }>;
-  reconcile?: (input: { idempotencyKey: string; providerTaskId?: string }) => Promise<{ found: boolean; providerTaskId?: string; raw?: unknown }>;
+  reconcile?: (input: { idempotencyKey: string; providerTaskId?: string }) => Promise<{ disposition: GenerationProviderReconcileDisposition; providerTaskId?: string; raw?: unknown }>;
   materialize?: (input: { providerTaskId: string; raw?: unknown }) => Promise<GenerationProviderMaterializationResult>;
-  cancel?: (providerTaskId: string) => Promise<{ status: "cancelled_remote" | "too_late" | "detached"; raw?: unknown }>;
+  cancel?: (providerTaskId: string) => Promise<{ disposition: Exclude<GenerationProviderCancelDisposition, "unsupported">; raw?: unknown }>;
 };
 
 /**
@@ -81,16 +81,28 @@ type ContextualGenerationProvider = GenerationProvider & {
   ) => Promise<{ providerTaskId: string; raw?: unknown }>;
 };
 
+export type GenerationProviderTaskState = "queued" | "running" | "succeeded" | "failed" | "cancelled" | "unknown";
+
 export type GenerationProviderQueryResult = {
-  status: string;
+  state: GenerationProviderTaskState;
+  providerStatus: string;
   raw?: unknown;
 };
 
+export type GenerationProviderReconcileDisposition = "found" | "not_found" | "indeterminate";
+
 export type GenerationProviderReconcileResult = {
-  found: boolean;
+  disposition: GenerationProviderReconcileDisposition;
   providerTaskId?: string;
   /** Provider could answer, but did not establish a terminal/known state. */
   status?: string;
+  raw?: unknown;
+};
+
+export type GenerationProviderCancelDisposition = "unsupported" | "requested" | "confirmed" | "already_terminal" | "too_late";
+
+export type GenerationProviderCancelResult = {
+  disposition: GenerationProviderCancelDisposition;
   raw?: unknown;
 };
 
@@ -128,6 +140,33 @@ export class GenerationProviderObservationError extends Error {
     super(`Provider ${providerId} does not expose ${operation} for recovery`);
     this.name = "GenerationProviderObservationError";
   }
+}
+
+const PROVIDER_TASK_STATE_BY_STATUS: Readonly<Record<string, GenerationProviderTaskState>> = {
+  queued: "queued",
+  pending: "queued",
+  submitted: "queued",
+  created: "queued",
+  waiting: "queued",
+  processing: "running",
+  running: "running",
+  in_progress: "running",
+  "in-progress": "running",
+  generating: "running",
+  succeeded: "succeeded",
+  success: "succeeded",
+  completed: "succeeded",
+  complete: "succeeded",
+  done: "succeeded",
+  failed: "failed",
+  error: "failed",
+  rejected: "failed",
+  cancelled: "cancelled",
+  canceled: "cancelled",
+};
+
+export function normalizeGenerationProviderTaskState(providerStatus: string): GenerationProviderTaskState {
+  return PROVIDER_TASK_STATE_BY_STATUS[providerStatus.trim().toLowerCase()] ?? "unknown";
 }
 
 export function assertGenerationProviderCapabilities(provider: GenerationProvider): void {
@@ -257,14 +296,43 @@ export function createGenerationRuntimeAdapter(deps: { providers: readonly Gener
     const provider = providers.get(input.providerId);
     if (!provider) throw new GenerationProviderCapabilityError(input.providerId, ["registered_provider"]);
     if (!provider.query || !provider.capabilities.query) throw new GenerationProviderObservationError(input.providerId, "query");
-    return provider.query(providerTaskId);
+    const result = await provider.query(providerTaskId);
+    const providerStatus = typeof result.status === "string" ? result.status.trim() : "";
+    if (!providerStatus) return { state: "unknown", providerStatus: "unknown", ...(result.raw === undefined ? {} : { raw: result.raw }) };
+    return {
+      state: normalizeGenerationProviderTaskState(providerStatus),
+      providerStatus,
+      ...(result.raw === undefined ? {} : { raw: result.raw }),
+    };
   }
 
   async function reconcile(input: { providerId: string; idempotencyKey: string; providerTaskId?: string }): Promise<GenerationProviderReconcileResult> {
     const provider = providers.get(input.providerId);
     if (!provider) throw new GenerationProviderCapabilityError(input.providerId, ["registered_provider"]);
     if (!provider.reconcile || !provider.capabilities.reconcile) throw new GenerationProviderObservationError(input.providerId, "reconcile");
-    return provider.reconcile({ idempotencyKey: input.idempotencyKey, ...(input.providerTaskId?.trim() ? { providerTaskId: input.providerTaskId.trim() } : {}) });
+    const existingProviderTaskId = input.providerTaskId?.trim();
+    const result = await provider.reconcile({ idempotencyKey: input.idempotencyKey, ...(existingProviderTaskId ? { providerTaskId: existingProviderTaskId } : {}) });
+    if (!["found", "not_found", "indeterminate"].includes(result.disposition)) throw new Error("Provider returned an invalid reconciliation disposition");
+    const providerTaskId = result.providerTaskId?.trim() || existingProviderTaskId;
+    if (result.disposition === "found" && !providerTaskId) throw new Error("Provider reconciliation found a task without returning its id");
+    return {
+      disposition: result.disposition,
+      ...(providerTaskId ? { providerTaskId } : {}),
+      ...(result.raw === undefined ? {} : { raw: result.raw }),
+    };
+  }
+
+  async function cancel(input: { providerId: string; providerTaskId: string }): Promise<GenerationProviderCancelResult> {
+    const providerTaskId = input.providerTaskId.trim();
+    if (!providerTaskId) throw new Error("Provider task id is required for cancellation");
+    const provider = providers.get(input.providerId);
+    if (!provider) throw new GenerationProviderCapabilityError(input.providerId, ["registered_provider"]);
+    if (!provider.cancel || !provider.capabilities.cancel) return { disposition: "unsupported" };
+    const result = await provider.cancel(providerTaskId);
+    if (!["requested", "confirmed", "already_terminal", "too_late"].includes(result.disposition)) {
+      throw new Error("Provider returned an invalid cancellation disposition");
+    }
+    return { disposition: result.disposition, ...(result.raw === undefined ? {} : { raw: result.raw }) };
   }
 
   async function materialize(input: { providerId: string; providerTaskId: string; raw?: unknown }): Promise<GenerationProviderMaterializationResult> {
@@ -276,12 +344,12 @@ export function createGenerationRuntimeAdapter(deps: { providers: readonly Gener
     const result = await provider.materialize({ providerTaskId, raw: input.raw });
     if (!Array.isArray(result.outputs)) throw new Error("Provider materialization returned invalid outputs");
     for (const output of result.outputs) {
-      if (!output || !["image", "video", "audio"].includes(output.kind) || typeof output.url !== "string" || !output.url.trim()) {
+      if (!output || !["image", "video", "audio", "model3d"].includes(output.kind) || typeof output.url !== "string" || !output.url.trim()) {
         throw new Error("Provider materialization returned an invalid output");
       }
     }
     return result;
   }
 
-  return { prepareAuthorization, prepare, submit, query, reconcile, materialize };
+  return { prepareAuthorization, prepare, submit, query, reconcile, cancel, materialize };
 }

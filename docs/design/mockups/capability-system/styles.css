@@ -1,0 +1,414 @@
+@font-face {
+  font-family: 'Nomi Inter';
+  src: url('../../../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2');
+  font-weight: 100 900;
+}
+
+@font-face {
+  font-family: 'Nomi Fraunces';
+  src: url('../../../../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2')
+    format('woff2');
+  font-weight: 100 900;
+}
+
+:root {
+  color-scheme: light;
+  --bg: #f7f7f4;
+  --paper: #ffffff;
+  --surface: #f1f1ed;
+  --surface-strong: #e9e9e4;
+  --ink: #292824;
+  --ink-80: #44423d;
+  --ink-60: #706e67;
+  --ink-40: #9d9a91;
+  --ink-20: #d8d6cf;
+  --line: #e3e1da;
+  --line-soft: #eeece7;
+  --accent: #5969b4;
+  --accent-soft: #edf0ff;
+  --accent-ink: #3f4f9b;
+  --green: #21835f;
+  --green-soft: #e9f6ef;
+  --amber: #9b6918;
+  --amber-soft: #fbf2df;
+  --red: #b54a43;
+  --red-soft: #faecea;
+  --video: #16856f;
+  --shadow-sm: 0 1px 2px rgba(33, 32, 28, 0.08);
+  --shadow-lg: 0 18px 45px rgba(33, 32, 28, 0.14);
+  --appbar: 56px;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  margin: 0;
+}
+body {
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Nomi Inter', 'Microsoft YaHei', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+button,
+input {
+  font: inherit;
+  letter-spacing: 0;
+}
+button {
+  color: inherit;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.icon-sprite {
+  position: fixed;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+[hidden] {
+  display: none !important;
+}
+
+.app-shell {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+.appbar {
+  position: relative;
+  z-index: 20;
+  height: var(--appbar);
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) auto minmax(230px, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(14px);
+}
+.brand {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.brand-mark {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--ink);
+  color: var(--paper);
+  font:
+    650 15px 'Nomi Fraunces',
+    serif;
+}
+.brand-word {
+  font:
+    650 18px 'Nomi Fraunces',
+    serif;
+}
+.project-context {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-40);
+  font-size: 11px;
+}
+.project-context strong {
+  max-width: 230px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-80);
+  font-weight: 600;
+}
+.project-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+.view-tabs {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 7px;
+  background: var(--surface);
+}
+.view-tabs button {
+  height: 30px;
+  border: 0;
+  border-radius: 5px;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--ink-60);
+  cursor: pointer;
+  font-size: 12px;
+}
+.view-tabs button:hover {
+  color: var(--ink);
+}
+.view-tabs button[aria-pressed='true'] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  font-weight: 620;
+}
+.app-actions {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.icon-button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  color: var(--ink-60);
+  cursor: pointer;
+}
+.icon-button:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+.icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+.avatar {
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink-80);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.view-stack {
+  height: calc(100vh - var(--appbar));
+}
+.product-view {
+  display: none;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+.product-view.is-active {
+  display: block;
+}
+.page-heading {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.page-heading > div {
+  min-width: 0;
+}
+.page-heading h1 {
+  margin: 0;
+  font:
+    650 22px/1.2 'Nomi Fraunces',
+    serif;
+}
+.page-heading p {
+  margin: 4px 0 0;
+  color: var(--ink-40);
+  font-size: 11px;
+}
+.page-heading > button {
+  margin-left: auto;
+}
+.quiet-button,
+.filter-button {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--paper);
+  color: var(--ink-60);
+  cursor: pointer;
+  font-size: 11px;
+}
+.quiet-button:hover,
+.filter-button:hover {
+  border-color: var(--ink-20);
+  background: var(--surface);
+  color: var(--ink);
+}
+.quiet-button svg,
+.filter-button svg {
+  width: 14px;
+  height: 14px;
+}
+.filter-button .chevron {
+  width: 12px;
+  height: 12px;
+}
+.primary-button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--ink);
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 620;
+}
+.primary-button:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.primary-button.full {
+  width: 100%;
+  min-height: 36px;
+}
+.search-field {
+  height: 34px;
+  min-width: 180px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--paper);
+  color: var(--ink-40);
+}
+.search-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.search-field svg {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+}
+.search-field input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 11px;
+}
+.search-field input::placeholder {
+  color: var(--ink-40);
+}
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--surface);
+}
+.segmented button {
+  min-height: 29px;
+  border: 0;
+  border-radius: 5px;
+  padding: 0 9px;
+  background: transparent;
+  color: var(--ink-60);
+  cursor: pointer;
+  font-size: 10px;
+}
+.segmented button.is-active {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+.section-label {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-60);
+  font-size: 11px;
+}
+.section-label b {
+  color: var(--ink-40);
+  font-weight: 500;
+}
+.status-badge,
+.meta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 21px;
+  border-radius: 999px;
+  padding: 0 7px;
+  background: var(--surface);
+  color: var(--ink-60);
+  font-size: 9px;
+  white-space: nowrap;
+}
+.status-badge.ok,
+.meta-badge.ok {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.status-badge.warn,
+.meta-badge.warn {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.status-badge.neutral {
+  background: var(--surface);
+  color: var(--ink-60);
+}

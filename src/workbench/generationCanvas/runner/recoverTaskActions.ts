@@ -17,8 +17,8 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => globalThis.setTimeout(resolve, ms))
 }
 
-/** 从一个 recoverable 节点重建续查所需的 {taskId, vendor, taskKind, modelKey}（全在节点上，taskId 已落盘）。 */
-function buildRecoverPayload(nodeId: string): { taskId: string; vendor: string; taskKind: ReturnType<typeof resolveTaskKind>; prompt: string; modelKey: string } | null {
+/** 从一个 recoverable 节点重建续查所需的身份（全在节点上，taskId 已落盘）。 */
+function buildRecoverPayload(nodeId: string): { taskId: string; vendor: string; taskKind: ReturnType<typeof resolveTaskKind>; prompt: string; modelKey: string; archetype?: { modeId: string } } | null {
   const state = useGenerationCanvasStore.getState()
   const node = state.nodes.find((candidate) => candidate.id === nodeId)
   if (!node) return null
@@ -28,12 +28,15 @@ function buildRecoverPayload(nodeId: string): { taskId: string; vendor: string; 
   // 用同一套 reference 解析还原原始 granular kind（image_to_video vs text_to_video…），
   // 让主进程 findTaskMapping 命中与首发同一个 query 桶。
   const references = resolveGenerationReferences(node, { nodes: state.nodes, edges: state.edges })
+  const archetype = node.meta?.archetype
+  const modeId = archetype && typeof archetype === 'object' ? asTrimmedString((archetype as { modeId?: unknown }).modeId) : ''
   return {
     taskId,
     vendor,
     taskKind: resolveTaskKind(node, references),
     prompt: asTrimmedString(node.prompt),
     modelKey: selectedModelKey(node) || '',
+    ...(modeId ? { archetype: { modeId } } : {}),
   }
 }
 
@@ -74,6 +77,7 @@ export async function recoverNodeResult(nodeId: string): Promise<void> {
         taskKind: payload.taskKind,
         prompt: payload.prompt || null,
         modelKey: payload.modelKey || null,
+        ...(payload.archetype ? { archetype: payload.archetype } : {}),
       })
       current = response.result
       if (TERMINAL_STATUSES.has(current.status)) break

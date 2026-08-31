@@ -477,6 +477,24 @@ export const zhOnboardingProviders = {
       promoText: '火山方舟（字节跳动）官方。需先在 Ark 控制台「开通管理」激活模型（Seedream/Seedance），再拿 API Key。',
       promoCta: '去火山方舟',
     },
+    minimax: {
+      tagline: '官方原生 · M3 文本、H3 视频与 Speech 2.8',
+      credentialPlaceholder: '粘贴 MiniMax API Key',
+      promoText: 'MiniMax 官方 API，提供 M3 文本与 Agent、H3 多模态视频和 Speech 2.8 高保真配音。',
+      promoCta: '打开 MiniMax 平台',
+    },
+    elevenlabs: {
+      tagline: '官方原生 · 配音、音乐、音效与转写',
+      credentialPlaceholder: '粘贴 ElevenLabs API Key',
+      promoText: 'ElevenLabs 官方 API，覆盖 Eleven v3、Music v2、Sound Effects v2 与 Scribe v2。',
+      promoCta: '打开 ElevenLabs',
+    },
+    meshy: {
+      tagline: '官方原生 · Meshy 7 单图生成带纹理 3D',
+      credentialPlaceholder: '粘贴 Meshy API Key',
+      promoText: 'Meshy 官方 API，可从单张物体图生成带 PBR 材质的 GLB 资产。',
+      promoCta: '打开 Meshy 控制台',
+    },
     runninghub: {
       tagline: '一个 key，解锁 355+ 标准模型（Seedance / 可灵 / 混元3D / Meshy…）',
       credentialPlaceholder: '粘贴 RunningHub API Key（32 位）',
@@ -505,6 +523,20 @@ export const zhOnboardingProviders = {
       promoText:
         'Replicate 托管 qwen-image-layered（开源 Apache 2.0），把一张图拆成前景/背景/元素多个可编辑图层。注册后在 Account 里拿 API token，按量付费。',
       promoCta: '去 Replicate 拿 token',
+    },
+    fal: {
+      tagline: '海外常用 · CDN 上传图片、视频和音频',
+      credentialPlaceholder: '粘贴 fal.ai Key',
+      credentialHint: '在 fal.ai Dashboard 创建 Key。上传走 fal CDN，URL 有生命周期；模型额度、可用区域和价格以当前账户为准。凭证本地加密存储。',
+      promoText: 'fal.ai 提供模型 API 与 CDN 文件上传。配置一个 Key 后，Nomi 可以把本地参考素材交给 fal 或其他支持公网 URL 的模型。',
+      promoCta: '去 fal.ai 创建 Key',
+    },
+    runway: {
+      tagline: '海外视频 · 临时素材上传（需账户额度）',
+      credentialPlaceholder: '粘贴 Runway API Key',
+      credentialHint: '在 Runway Developer 控制台创建 API Key。临时上传最多 200MB、有效期约 24 小时，并要求账户有可用 credits。凭证本地加密存储。',
+      promoText: 'Runway 的 ephemeral upload 直接返回 Runway 专用 URI，适合 Runway 自己的图像/视频生成链路；上传不等于模型额度免费。',
+      promoCta: '去 Runway Developer',
     },
   },
   vendorCard: {
@@ -1660,6 +1692,24 @@ export const enOnboardingProviders = {
         'Volcengine Ark is ByteDance’s official platform. Activate Seedream or Seedance in the Ark console before creating an API Key.',
       promoCta: 'Open Volcengine Ark',
     },
+    minimax: {
+      tagline: 'Official access · M3 text, H3 video, and Speech 2.8',
+      credentialPlaceholder: 'Paste your MiniMax API Key',
+      promoText: 'MiniMax official APIs for M3 text and agents, H3 multimodal video, and high-fidelity Speech 2.8 voice generation.',
+      promoCta: 'Open MiniMax platform',
+    },
+    elevenlabs: {
+      tagline: 'Official access · Voice, music, sound effects, and transcription',
+      credentialPlaceholder: 'Paste your ElevenLabs API Key',
+      promoText: 'ElevenLabs official APIs for Eleven v3, Music v2, Sound Effects v2, and Scribe v2.',
+      promoCta: 'Open ElevenLabs',
+    },
+    meshy: {
+      tagline: 'Official access · Meshy 7 textured 3D from one image',
+      credentialPlaceholder: 'Paste your Meshy API Key',
+      promoText: 'Meshy official API turns a single object image into a textured GLB asset with PBR materials.',
+      promoCta: 'Open Meshy console',
+    },
     runninghub: {
       tagline: 'One key unlocks 355+ models, including Seedance, Kling, Hunyuan 3D, and Meshy',
       credentialPlaceholder: 'Paste a 32-character RunningHub API Key',
@@ -1692,6 +1742,20 @@ export const enOnboardingProviders = {
       promoText:
         'Replicate hosts the Apache 2.0 qwen-image-layered model, which separates an image into editable foreground, background, and element layers. Get a pay-as-you-go token from Account.',
       promoCta: 'Get a Replicate token',
+    },
+    fal: {
+      tagline: 'Common overseas route · CDN upload for image, video, and audio',
+      credentialPlaceholder: 'Paste your fal.ai Key',
+      credentialHint: 'Create a Key in the fal.ai Dashboard. Uploads use fal CDN and have a lifecycle; model access, regions, and pricing depend on your account. Credentials are encrypted locally.',
+      promoText: 'fal.ai provides model APIs and CDN file uploads. With one Key, Nomi can make local reference media reachable to fal or another model that accepts public URLs.',
+      promoCta: 'Create a fal.ai Key',
+    },
+    runway: {
+      tagline: 'Overseas video · Ephemeral asset upload (credits required)',
+      credentialPlaceholder: 'Paste your Runway API Key',
+      credentialHint: 'Create an API Key in the Runway Developer console. Ephemeral uploads are limited to 200MB, last about 24 hours, and require available credits. Credentials are encrypted locally.',
+      promoText: 'Runway ephemeral uploads return a Runway-only URI for Runway image/video workflows; upload access does not make model generation free.',
+      promoCta: 'Open Runway Developer',
     },
   },
   vendorCard: {

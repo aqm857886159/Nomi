@@ -40,6 +40,38 @@
 - 视频统一入口 `POST /v1/videos/generations`，轮询 `GET /v1/tasks/{task_id}`
 - 密钥：https://apimart.ai/keys
 
+### fal.ai
+- CDN 上传说明：https://fal.ai/docs/documentation/model-apis/fal-cdn
+- 生命周期：https://fal.ai/docs/documentation/model-apis/media-expiration
+- 官方 JS client：https://github.com/fal-ai/fal-js
+- Nomi 只使用 fal CDN 的“本地字节 → 公网 URL”能力；不要把 fal `/data` 平台存储接口当成模型可访问 URL。
+- 认证是 `Authorization: Key <FAL_KEY>`；signed upload URL 不再携带该 key。fal 的 CDN URL 是公共可读且按生命周期清理。
+
+### Replicate
+- 输入文件：https://replicate.com/docs/topics/predictions/input-files
+- Files API：https://sdks.replicate.com/resources/files/methods/create/
+- 数据保留：https://replicate.com/docs/topics/predictions/data-retention/
+- Nomi 的文件入口是 `POST https://api.replicate.com/v1/files`，multipart 字段 `content`，读取响应 `urls.get`；文件 URL 的过期/签名以响应为准。
+
+### Runway
+- 临时上传：https://docs.dev.runwayml.com/assets/uploads/
+- 输入限制：https://docs.dev.runwayml.com/assets/inputs/
+- Nomi 使用 `POST https://api.dev.runwayml.com/v1/uploads` 初始化，再把返回的 fields + file 发到 signed `uploadUrl`，最终只把 `runwayUri` 交给 Runway。
+- `runway://` 不是跨供应商公网 URL；临时上传要求账户有可用 credits，最大 200MB，有效期约 24 小时。
+
+### RunningHub
+- 二进制上传（英文）：https://www.runninghub.cn/runninghub-api-doc-en/api-425761098
+- 二进制上传（中文）：https://www.runninghub.cn/runninghub-api-doc-cn/api-425749007
+- 错误码：https://www.runninghub.cn/runninghub-api-doc-cn/doc-8287338
+- Nomi 使用 `POST https://www.runninghub.cn/openapi/v2/media/upload/binary`，Bearer 鉴权、multipart 字段 `file`，读取 `data.download_url`；标准模型 key 的 Enterprise-Shared 限制仍由 RunningHub 账户决定。
+
+### Nomi asset relay / Cloudflare R2
+- R2 价格与免费额度：https://developers.cloudflare.com/r2/pricing/
+- 生命周期删除：https://developers.cloudflare.com/r2/buckets/object-lifecycles/
+- presigned URL：https://developers.cloudflare.com/r2/api/s3/presigned-urls/
+- Worker 源码与部署说明：`workers/nomi-asset-relay/README.md`
+- Electron 不持有 R2 S3 密钥；未配置 `NOMI_ASSET_RELAY_URL` 时不启用该通道。
+
 ### 火山方舟（volcengine）
 - 待补
 

@@ -1,7 +1,7 @@
 # 现在真正跑的是什么
 
 > 状态：🚧 长期维护（这份文件不描述计划，只描述**当下 main 上真实运行的东西**）
-> 最后核对：2026-08-27 · 核对基线：`origin/main` @ `8f9365ae`
+> 最后核对：2026-08-31 · 核对基线：任务分支 `codex/provider-model-expansion-20260830` + `origin/main`
 
 ## 这份文件为什么存在
 
@@ -44,6 +44,7 @@
 | **步数上限** | `storyboard`=24 步，其余=8 步，`single-shot`=1 步且零工具 | `electron/ai/agentChatV2.ts:102` | — |
 | **非 Agent 文本链** | 仍是 `ai@4` 的 `streamText`（**没有**跟着换 pi） | `electron/ai/streamTextTask.ts:8`、`package.json:132` | ❌ 以为换芯是全局的 |
 | **生成画布 renderer** | `@xyflow/react` 单内核，`GenerationCanvas` 是唯一稳定入口 | R21 · `src/workbench/generationCanvas/` | ❌ 以为还有第二 renderer / engine flag / fallback |
+| **本地资产上传路由** | 普通 mapping、自定义调用和 Replicate 拆解都在付费供应商请求前经过同一 `AssetIngestion` resolver；按图片/视频/音频能力排序为目标/已配置供应商上传 API → 用户自定义 Relay → Nomi 受限公共 Relay → 匿名链。支持 KIE、APIMart、fal、Replicate、Runway、RunningHub 的声明式上传协议；自定义 Relay Token 由主进程系统安全存储 | `electron/catalog/assetLocalization.ts:745`、`electron/catalog/assetRelayRuntimeConfig.ts:1`、`electron/settings/assetRelaySettings.ts:1`、`electron/runtime.ts:263`、`electron/catalog/customCallDispatch.ts:76`、`electron/image/decomposeLayers.ts:62` | ❌「只要有匿名图床就解决了」——匿名 host 仍是最后兜底；公共 Relay 有总量/过期/限流保护，供应商 key/额度/模型输入字段仍需分别验证 |
 | **时间轴数据模型** | 固定 **3 轨**（image/video/audio）+ 独立 `textClips[]` + `transitions[]`。video/audio clip 可选带 `audio`（-60..0 dB、mute、帧级 fade-in/out）；无任意图层、无变速 | `src/workbench/timeline/timelineTypes.ts`、`src/workbench/timeline/clipAudio.ts` | ❌ 以为片段音量只有预览全局滑杆——clip 音频参数已经落盘并进入导出 |
 | **分镜 → 时间轴** | `planStoryboardTimeline` 只按 `shotIndex` 排序选片；**落轴归采纳桥** `adoptStoryboardBatch`（整批一次写定、一层撤销、带 Proposal 幂等键 replay/stale/needs_attention） | `storyboardTimelinePlan.ts:58`、`adoptStoryboardBatch.ts` | ❌ 只读 planner 就断言「意图被丢掉了」——**字幕和转场是在采纳桥里落的**，planner 里看不到 |
 | **字幕/转场落轴** | **已实现**：`node.meta.subtitle\|dialogue` → `textClips`；`node.meta.transition` → `transitions[]` | `adoptStoryboardBatch.ts:79`（caption）、`:88`（transition）、`:199`、`:217` | ❌ 以为字幕只能手打 |
@@ -55,6 +56,8 @@
 | **MCP Skill 投影** | 仅显式 `audience: mcp` 的第一方 Skill 对外；用户导入永远 internal。list/read/resources/prompts 共用 origin-aware guard，resource URI 绑定 directory + `nomi-skill-v1` + 完整包 hash，过期或猜测 URI fail closed | `electron/skills/skillStore.ts`、`electron/capabilityCore/mcpProtocol.ts` | ❌ 用 `director-` / `writer-` 前缀授权，或让 Skill manifest 注册 MCP tool/schema |
 | **Skill 包导入** | 裸 `SKILL.md` / Nomi envelope 在 renderer 归一；ZIP 原始 bytes 经异步 IPC 交给 main。main 分别验证 central raw path 与 Unicode effective path，拒 traversal、duplicate/collision、symlink/特殊类型和 forbidden 目录；随后按 raw stream 解压，并核对压缩流实际消费字节、输出 size 与 CRC，最终只写有界纯文本知识文件 | `electron/skills/skillZipImport.ts`、`skillPackage.ts`、`skillIpc.ts` | ❌ 在 renderer 先解压成文件表，或只信 Unicode alias / inflater 输出——会丢失 raw identity、entry type、duplicate、压缩长度和 CRC 证据 |
 | **`canvas.read` 能力** | Pi、MCP、内部调用共用一份合同和 **main 进程唯一执行器**；各入口只把已经验证的项目/SurfacePort 权威翻译成 invocation，再交给同一 registry 执行。renderer 不审批、不执行 read；dispatcher 也没有 `canvas.read` 分支 | `electron/shared/agentCapabilities/canvasRead.ts`、`electron/capabilityCore/canvasReadTransportAdapters.ts`、`capabilityExecutorRegistry.ts` | ❌ 把 `gateway.readDoc` / `canvas.read-doc` 当第二个 Agent read 执行器——它只供 add/connect/set/delete/generate 的 read-modify-write 内部状态读取，不能从 canonical `canvas.read` 路由到达 |
+| **对话式模型接入** | MCP 只提交公开连接资料并驱动 `begin -> credentials -> discover -> select -> request_confirmation -> start`；密钥只在 Nomi 可信页面保存，付费认证由签名 challenge 和 opaque receipt 授权。只有 canonical certification 真调用与制品验真通过后，模型才发布进普通目录 | `electron/capabilityCore/mcpIntegrationTools.ts:5`、`electron/integrationCertification/integrationSession.ts:1239`、`src/ui/onboarding/IntegrationConfirmationPanel.tsx:21` | ❌「Agent 能直接拿 API key、自己确认花费或写一行 seed 就算接入」——三者都不成立；静态内置档案和用户对话接入共享执行/认证边界，但信任入口不同 |
+| **LocalAI 本地模型** | 只是 **external connector**：复用现有 OpenAI-compatible 添加供应商与认证流程，按 well-known/readiness/capabilities/models 证据增强发现。Nomi 不捆绑 LocalAI、不下载权重、不启动或监管 sidecar；发现到媒体能力也仍是 `uncertified`，通过对应 executor 认证前不会冒充可生成 | `electron/localRuntime/localAiExternalProbe.ts:278`、`electron/integrationCertification/httpConnector.ts:19`、`electron/integrationCertification/integrationSession.ts:515` | ❌「接 LocalAI 会让安装包多几个 GB」或「发现到 image/audio 就已经能用」——连接器代码很小，模型和进程始终由用户外部管理；发现证据不等于生产认证 |
 | **内部 Agent vs MCP** | **两套入口合同，一套领域实现**。两边各有自己的 schema/权限链，但最终调同一个领域函数 | `applyCanvasToolCall.ts:595` 与 `capabilityApplyHandler.ts:543` 都调 `sendStoryboardToTimeline.ts:77` | ❌ 以为有共享的工具定义层——**没有**，共享点在领域 helper |
 | **自动剪辑总纲** | 已有已批准方案：**E1 采纳桥（已实现）/ E2 结构化粗剪 / E3 理解式剪辑**，核心对象是 **EditPlan + 剪辑计划卡** | `docs/superpowers/plans/2026-08-24-unified-agent-master-plan.md` §5.1 | ❌ 另起炉灶重新发明（搜「自动剪辑」搜不到它，见 `docs/GLOSSARY.md`） |
 | **生产流程引擎** | `productionRun`（阶段机+门+预算账本+审批回执+幂等+制品+事件流）。playbook 阶段：brief→direction→script→storyboard→build→generate→qa→**assemble**→export | `electron/productionRun/productionPlaybooks.ts:33` | ❌ 以为自动剪辑要新建管线——`assemble` 阶段已存在，目前只有一行 |

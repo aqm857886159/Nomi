@@ -1,0 +1,137 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-31-asset-upload-capability-routing",
+  "problem_type": "local media public-reachability and provider upload capability routing",
+  "symptom": "A local reference image, video, or audio file can fail generation because the selected anonymous host or image-only upload endpoint is unavailable, rejects the media, or returns an expiring value the target provider cannot use.",
+  "direct_cause": "Multiple callers invoke asset localization with provider-specific or incomplete ingestion declarations, while the shared declaration type cannot represent two-stage uploads, raw PUTs, or non-Bearer provider keys.",
+  "class_root": "There is no single capability-driven upload contract that all generation entry points use to select a media-compatible, lifecycle-safe channel before the paid provider request.",
+  "affected_population": [
+    "Users sending local image, video, or audio references through ordinary HTTP mappings",
+    "Users using custom-call or multipart model mappings",
+    "Users using Replicate's independent image decomposition entry point",
+    "Domestic and overseas users whose preferred upload host has different reachability or account constraints"
+  ],
+  "scope_paths": [
+    "electron/catalog/types.ts",
+    "electron/catalog/assetLocalization.ts",
+    "electron/catalog/assetRelayRuntimeConfig.ts",
+    "electron/catalog/assetIngestionRegistry.ts",
+    "electron/assets/localAssetFile.ts",
+    "electron/catalog/assetTransportPolicy.ts",
+    "electron/catalog/assetTransportDescribe.ts",
+    "electron/runtime.ts",
+    "electron/settings/assetRelaySettings.ts",
+    "electron/settings/assetRelaySettingsIpc.ts",
+    "electron/settings/registerSettingsIpc.ts",
+    "electron/catalog/customCallDispatch.ts",
+    "electron/image/decomposeLayers.ts",
+    "electron/catalog/runninghub3d.ts",
+    "electron/catalog/replicate.ts",
+    "electron/catalog/fal.ts",
+    "electron/catalog/runway.ts",
+    "electron/catalog/builtinVendorSeeds.ts",
+    "src/config/knownVendors.ts",
+    "src/desktop/bridge.ts",
+    "src/desktop/settingsBridge.ts",
+    "src/workbench/settings/AiModelsSection.tsx",
+    "src/i18n/locales/onboardingProviders.ts",
+    "src/workbench/settings/settingsDialogStructure.test.ts",
+    "tests/asset-relay/worker.node-test.mjs",
+    "workers/nomi-asset-relay/wrangler.toml",
+    "workers/nomi-asset-relay/src/index.mjs"
+  ],
+  "entry_points": [
+    "runtime.runProfileOperation ordinary HTTP mapping",
+    "customCallDispatch preflight and dispatch",
+    "decomposeLayers Replicate file upload"
+  ],
+  "external_sources": [
+    { "kind": "official-doc", "url": "https://docs.kie.ai/file-upload-api/upload-file-stream/", "checked_at": "2026-08-31", "purpose": "KIE multipart stream upload and response contract" },
+    { "kind": "official-doc", "url": "https://docs.apimart.ai/cn/api-reference/uploads/images", "checked_at": "2026-08-31", "purpose": "APIMart image multipart upload and 72-hour URL contract" },
+    { "kind": "official-doc", "url": "https://fal.ai/docs/documentation/model-apis/fal-cdn", "checked_at": "2026-08-31", "purpose": "fal CDN local upload and public URL behavior" },
+    { "kind": "source-code", "url": "https://github.com/fal-ai/fal-js", "checked_at": "2026-08-31", "purpose": "fal official SDK upload implementation boundary" },
+    { "kind": "official-doc", "url": "https://replicate.com/docs/topics/predictions/input-files", "checked_at": "2026-08-31", "purpose": "Replicate local file and input-file support" },
+    { "kind": "official-doc", "url": "https://docs.dev.runwayml.com/assets/uploads/", "checked_at": "2026-08-31", "purpose": "Runway ephemeral upload initialization and multipart contract" },
+    { "kind": "official-doc", "url": "https://www.runninghub.cn/runninghub-api-doc-en/api-425761098", "checked_at": "2026-08-31", "purpose": "RunningHub binary upload endpoint and signed download URL" },
+    { "kind": "official-doc", "url": "https://developers.cloudflare.com/r2/pricing/", "checked_at": "2026-08-31", "purpose": "R2 free tier and storage cost boundary" },
+    { "kind": "official-doc", "url": "https://developers.cloudflare.com/r2/buckets/object-lifecycles/", "checked_at": "2026-08-31", "purpose": "R2 lifecycle expiration behavior" }
+  ],
+  "invariants": [
+    "Every local image, video, and audio reference is classified before upload and only sent to a declaration that accepts that media kind.",
+    "Every ordinary, custom-call, and independent Replicate entry point converges on the same asset localization resolver before paid generation submission.",
+    "A failed upload channel is retried only within the free upload boundary and then the next compatible channel is tried; paid generation submission is never wrapped by this retry.",
+    "Anonymous public hosting is never selected without the existing consent policy allowing it.",
+    "The target provider and other configured provider upload APIs are attempted before the optional Nomi relay; the relay is a controlled fallback, not the default storage destination.",
+    "R2 credentials stay in the optional server-side relay environment and are never embedded in renderer code or provider request bodies.",
+    "The relay refuses uploads that exceed its per-file, total-storage, or configured billable-storage budget; exact account operation charges remain visible in the Cloudflare billing dashboard."
+  ],
+  "generality_proof": "The resolver is called by ordinary runtime mappings, custom-call preflight/dispatch, and Replicate decomposition. Its candidate list is derived from media capability and declared upload protocol, so adding or removing a provider changes one declaration rather than creating another caller-specific fallback. The shared executor owns JSON, multipart, raw PUT, auth, response extraction, and retry semantics for all candidates.",
+  "shared_boundaries": [
+    { "path": "electron/catalog/assetLocalization.ts", "symbol": "resolveAssetIngestionWithFallback", "responsibility": "Select the compatible ordered channel list, including optional Nomi relay, configured providers, and consent-gated anonymous fallback." },
+    { "path": "electron/catalog/assetLocalization.ts", "symbol": "resolveLocalAsset", "responsibility": "Execute every declared upload strategy and reject invalid response URLs or provider-private values at the transport boundary." },
+    { "path": "electron/assets/localAssetFile.ts", "symbol": "postWithUploadRetry", "responsibility": "Apply bounded retry classification only to free upload requests and rebuild request bodies per attempt." }
+  ],
+  "same_class_entry_points": [
+    { "path": "electron/runtime.ts", "entry_point": "runProfileOperation", "disposition": "enforced", "evidence": "Ordinary HTTP mappings call localizeAssetsForVendor before buildProfileHttpRequest." },
+    { "path": "electron/catalog/customCallDispatch.ts", "entry_point": "dispatchCustomCall", "disposition": "enforced", "evidence": "Both custom-call preflight and dispatch use the same asset resolver and localization helper." },
+    { "path": "electron/image/decomposeLayers.ts", "entry_point": "decomposeLayers", "disposition": "enforced", "evidence": "Replicate's independent file upload now uses the shared resolver rather than a separate upload contract." },
+    { "path": "electron/capabilityCore/shotVerifyDeps.ts", "entry_point": "verifyShotDependencies", "disposition": "not-affected", "evidence": "This path validates local dependency existence and does not submit a provider request or upload a reference asset." }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same local-to-public transport failure can recur for every media type, provider, caller, network, and anonymous host; issue #237 already demonstrated a live anonymous-host outage.",
+    "same_class_scan": [
+      "rg -n 'resolveLocalAsset|localizeAssetsForVendor' electron found runtime.ts, customCallDispatch.ts, image/decomposeLayers.ts and the shared resolver.",
+      "rg -n 'postMultipartForAssetUpload|file-upload|assetIngestion' electron found the shared localAssetFile executor and curated declarations.",
+      "Checked ordinary HTTP mapping, custom-call/multipart dispatch, and Replicate decomposition independently; all now use the shared boundary."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/assetLocalization.ts",
+    "invariant": "Only media-compatible, lifecycle-safe declared channels may be attempted, in a single deterministic order, before a provider request.",
+    "failure_mode": "Unsupported media, missing relay configuration, expired/insufficient lease, invalid auth response, and exhausted channels fail with an actionable error and no paid submission.",
+    "exception_policy": "none",
+    "strategy": "Keep provider differences in AssetIngestion declarations and keep protocol execution in one resolver/executor; callers cannot invent a second upload fallback.",
+    "artifacts": [
+      "electron/catalog/types.ts",
+      "electron/catalog/assetLocalization.ts",
+      "electron/catalog/assetRelayRuntimeConfig.ts",
+      "electron/catalog/assetIngestionRegistry.ts",
+      "electron/assets/localAssetFile.ts",
+      "workers/nomi-asset-relay/src/index.mjs",
+      "electron/settings/assetRelaySettings.ts",
+      "electron/settings/assetRelaySettingsIpc.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/assetLocalization.test.ts",
+    "electron/catalog/assetTransportDescribe.test.ts",
+    "tests/asset-relay/worker.node-test.mjs",
+    "src/workbench/settings/settingsDialogStructure.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/assetLocalization.test.ts",
+    "tests/asset-relay/worker.node-test.mjs",
+    "src/workbench/settings/settingsDialogStructure.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/image/decomposeLayers.ts"
+    ],
+    "rationale": "The independent Replicate upload path is removed as a separate transport implementation; it now delegates to the shared resolver. Existing KIE/APIMart/anonymous declarations remain as declarations, not parallel caller implementations."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The implementation uses the existing fetch/FormData runtime and native Cloudflare Worker APIs; no new runtime dependency controls the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Existing stored vendors and API keys remain valid. New curated vendor seeds are additive and idempotent. Existing projects keep local source assets and sidecars; remote objects are temporary and are not migrated. When NOMI_ASSET_RELAY_URL or its token is absent, the resolver preserves the configured-provider and anonymous chain behavior; when present, configured provider uploads still precede the relay.",
+  "residual_risks": [
+    "The relay is live in the configured Cloudflare account; a custom public domain is not required for the current workers.dev deployment and remains a later presentation option.",
+    "Provider account eligibility, regional reachability, rate limits, and paid credits remain upstream conditions; the router can diagnose and move to the next channel but cannot grant eligibility.",
+    "The relay usage endpoint estimates storage cost only; Class A/Class B operation charges remain authoritative in the Cloudflare billing dashboard.",
+    "The provider model request contract still must declare the right input field/mode; upload success alone cannot prove a model mapping is correct."
+  ]
+}

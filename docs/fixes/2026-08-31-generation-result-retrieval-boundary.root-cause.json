@@ -1,0 +1,189 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-31-generation-result-retrieval-boundary",
+  "problem_type": "Provider result retrieval and generated-media validation use different transport and byte-stream assumptions across production, recovery, and asset-import entry points",
+  "symptom": "A provider task can succeed remotely but Nomi reports a failed generation, loses the task after restart, or cannot import/download the returned media. Proxy-routed hosts resolve to blocked fake IPs, seek-required MP4 containers fail when decoded from stdin, query errors are misclassified as tracking loss, and manual downloads can take a different network path from generation.",
+  "direct_cause": "The shared fetch boundary made a local DNS decision before the application proxy route was committed, media validation fed potentially non-seekable bytes to FFmpeg, the task-query rebuild path swallowed real transport errors, and the user-output downloader used Electron net.fetch instead of the hardened application route.",
+  "class_root": "Nomi did not enforce one provider-neutral result-retrieval boundary that preserves the application proxy decision, validates seek-sensitive media from an addressable file, keeps recoverable query failures observable, and uses the same bounded SSRF-safe transport for every remote result consumer.",
+  "affected_population": [
+    "Every provider whose CDN hostname is resolved through the application proxy",
+    "Every generated MP4 or other media container whose decoder requires seeking",
+    "Every asynchronous task queried after a process restart or cache rebuild",
+    "Every user who previews, auto-saves, or manually downloads a remote provider result",
+    "Every new catalog/provider adapter that reuses the shared localization and asset-import paths"
+  ],
+  "scope_paths": [
+    "electron/assets/**",
+    "electron/catalog/**",
+    "electron/comfyui/**",
+    "electron/export/**",
+    "electron/hardenedFetch.ts",
+    "electron/productionRun/**",
+    "electron/providerAdapter/**",
+    "electron/runtime.ts",
+    "electron/tasks/**",
+    "src/workbench/generationCanvas/runner/**"
+  ],
+  "entry_points": [
+    "Provider result localization and generated asset import",
+    "ProductionRun submit/query/reconcile/materialize lifecycle",
+    "Canvas task recovery and catalog asynchronous result polling",
+    "Manual download and automatic result persistence",
+    "Application-proxy and direct-route remote fetches"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://ffmpeg.org/ffmpeg.html",
+      "checked_at": "2026-08-31",
+      "purpose": "Confirms FFmpeg media input is a decoder boundary whose input protocol must match the container's seek and stream requirements."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://ffmpeg.org/ffprobe.html",
+      "checked_at": "2026-08-31",
+      "purpose": "Confirms metadata and stream validation must inspect the exact media artifact that will be persisted or played."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/aqm857886159/Nomi",
+      "checked_at": "2026-08-31",
+      "purpose": "Repository source is the contract for Nomi's hardened fetch, proxy routing, task recovery, and managed-asset boundaries."
+    }
+  ],
+  "invariants": [
+    "A committed application proxy route is authoritative; local DNS pinning is used only for direct routes and never overrides the proxy decision.",
+    "Seek-sensitive generated media is decoded from the exact bounded bytes at an addressable file path before managed-asset commit.",
+    "A rebuilt task query propagates recoverable transport/provider errors; only an unreconstructable task is classified as task_tracking_lost.",
+    "Every remote result consumer uses the same bounded hardenedFetch policy and the same nomi-local managed-asset read path.",
+    "Only media that passes metadata and decode validation can enter the managed asset journal or be returned as a local result."
+  ],
+  "generality_proof": "Provider adapters, catalog mappings, ProductionRun, canvas recovery, preview localization, auto-save, and manual download all converge on hardenedFetch, taskResultQuery, certificationMedia, projectAssetStore, or the shared asset localization path. The boundary is keyed by route and media transport shape rather than provider/model names, so a new provider with a different CDN, MP4 layout, restart timing, or result consumer receives the same protections without vendor-specific branches.",
+  "shared_boundaries": [
+    {
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "hardenedFetch",
+      "responsibility": "Choose the committed application-proxy or direct route, enforce SSRF policy and byte/time limits, and preserve redirect safety for all remote provider and asset fetches."
+    },
+    {
+      "path": "electron/export/mediaProbe.ts",
+      "symbol": "decodeMediaFile",
+      "responsibility": "Decode seek-sensitive media from the exact addressable artifact rather than assuming every container is a pipe-safe byte stream."
+    },
+    {
+      "path": "electron/providerAdapter/certificationMedia.ts",
+      "symbol": "certifyMediaArtifact",
+      "responsibility": "Validate provider result bytes and metadata before adapter certification and managed-asset promotion."
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "importGeneratedBytes",
+      "responsibility": "Persist generated bytes only after exact-byte media validation and commit them as a managed nomi-local asset."
+    },
+    {
+      "path": "electron/assets/downloadAsset.ts",
+      "symbol": "fetchAssetBytes",
+      "responsibility": "Use the same hardened bounded transport for manual and automatic remote-result downloads, while keeping nomi-local reads internal."
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "executeTaskQuery",
+      "responsibility": "Preserve recoverable query failures after cache rebuild and classify only genuinely unreconstructable receipts as tracking loss."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/assetLocalization.ts",
+      "entry_point": "Catalog remote result localization",
+      "disposition": "enforced",
+      "evidence": "Catalog result URLs converge on hardenedFetch and managed-asset import, so provider CDN routing and media validation are shared."
+    },
+    {
+      "path": "electron/providerAdapter/certificationMedia.ts",
+      "entry_point": "Provider adapter media certification",
+      "disposition": "enforced",
+      "evidence": "Certification validates the managed exact-byte artifact with metadata and decode checks before promotion."
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "Restarted asynchronous task query",
+      "disposition": "enforced",
+      "evidence": "Rebuilt receipts now preserve the original query error for the renderer's free recover/retry path instead of converting it to task_tracking_lost."
+    },
+    {
+      "path": "electron/assets/downloadAsset.ts",
+      "entry_point": "Manual or automatic remote result download",
+      "disposition": "enforced",
+      "evidence": "Remote downloads now call hardenedFetch with bounded limits; nomi-local assets use the internal managed store path."
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "Production generation result materialization",
+      "disposition": "enforced",
+      "evidence": "Production execution returns managed nomi-local assets after result localization and validation, preserving provider receipts separately."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every new provider, result mode, CDN, media container, restart/recovery path, or user-facing output action can otherwise reintroduce a split transport, decode, or error-classification boundary.",
+    "same_class_scan": [
+      "Searched every hardenedFetch caller and remote-result consumer, including catalog localization, provider certification, preview frame extraction, automatic save, and manual download.",
+      "Searched every FFmpeg media validation and decode caller for pipe:0 versus addressable-file input, including generated asset import and certification.",
+      "Searched taskResultQuery cache rebuild and renderer recovery callers for swallowed transport errors and terminal task_tracking_lost classification.",
+      "Searched provider and catalog production paths for direct Electron net.fetch usage that could bypass the application-owned proxy and SSRF boundary."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/hardenedFetch.ts",
+    "invariant": "Application-proxy selection, direct-route DNS pinning, bounded result transport, exact-byte media validation, and recoverable task errors cannot be bypassed by a provider-specific or user-output path.",
+    "failure_mode": "Proxy fake-IP responses are not rejected before the proxy route is committed, seek-sensitive media is not falsely rejected from stdin, recoverable query failures remain retryable, and manual/automatic downloads do not diverge from generation transport.",
+    "exception_policy": "none",
+    "strategy": "Make the application proxy decision explicit before DNS pinning, add an addressable-file decoder and use it for managed media, propagate rebuilt-query failures, and replace the remaining remote net.fetch consumer with hardenedFetch while preserving internal nomi-local reads.",
+    "artifacts": [
+      "electron/hardenedFetch.ts",
+      "electron/systemProxy.ts",
+      "electron/export/mediaProbe.ts",
+      "electron/providerAdapter/certificationMedia.ts",
+      "electron/assets/projectAssetStore.ts",
+      "electron/assets/downloadAsset.ts",
+      "electron/tasks/taskResultQuery.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/hardenedFetch.test.ts",
+    "electron/export/mediaProbe.test.ts",
+    "electron/providerAdapter/verifier.test.ts",
+    "electron/assets/projectAssetStore.test.ts",
+    "electron/assets/downloadAsset.behavior.test.ts",
+    "electron/runtime.fallback-path.test.ts",
+    "electron/tasks/unpollableTaskQuery.test.ts",
+    "electron/catalog/runwayLoopback.integration.test.ts",
+    "electron/catalog/falFaultMatrix.test.ts",
+    "electron/catalog/flagshipAudioVideoContracts.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/hardenedFetch.test.ts",
+    "electron/export/mediaProbe.test.ts",
+    "electron/assets/projectAssetStore.test.ts",
+    "electron/assets/downloadAsset.behavior.test.ts",
+    "electron/runtime.fallback-path.test.ts",
+    "electron/tasks/unpollableTaskQuery.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old paths were not retained as callable fallbacks; the repair unifies their boundaries in place and preserves only the intentional nomi-local internal read path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The failure is caused by Nomi's route, byte-stream, recovery, and persistence ownership. No dependency upgrade can enforce the required cross-entry-point invariants.",
+    "exit_criteria": []
+  },
+  "migration": "Existing provider receipts and managed assets remain readable. New and retried results use the committed proxy route, exact-byte file validation, and hardened download path; a previously misclassified task_tracking_lost receipt must be retried or reconciled because the original provider query cannot be reconstructed from that terminal state.",
+  "residual_risks": [
+    "A provider can still revoke or expire a CDN URL before localization; the result remains an honest recoverable failure rather than a fabricated local asset.",
+    "Provider account, callback, or quota failures remain provider-side blockers and require explicit documented, simulated, live-certified, or blocked status.",
+    "The app proxy route still depends on the local proxy being available; direct-route fallback remains subject to the hardened private-origin policy."
+  ]
+}

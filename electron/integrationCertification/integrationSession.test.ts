@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -107,6 +109,43 @@ describe("IntegrationSessionService", () => {
     expect(result.childRunRef?.runId).toBe("run-1");
     expect(cert.startHttp).toHaveBeenCalledTimes(1);
     expect(service).toBeDefined();
+  });
+
+  it("keeps an asynchronous HTTP child run certifying and converges through integration get", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-async-http-"));
+    let childStage = "queued" as "queued" | "testing" | "completed";
+    const childRun = () => ({
+      id: "run-async",
+      stage: childStage,
+      childRunRef: { runId: "run-async", revisionDigest: "e".repeat(64) },
+    });
+    const certification = {
+      startHttp: vi.fn(async () => childRun()),
+      get: vi.fn(() => childRun()),
+    };
+    const service = new IntegrationSessionService({
+      filePath: path.join(dir, "sessions.json"),
+      certification: certification as never,
+      credentialResolver: () => "secret",
+      save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
+      discoverHttp: () => [{ modelKey: "audio-flagship", kind: "audio", modes: ["text_to_audio"] }],
+    });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Audio Provider", baseUrl: "https://api.example" },
+      "codex",
+    );
+    const ready = service.markCredentialReady(session.id, "ref", "codex");
+    const discovered = await service.discover(session.id, ready.revision, "codex");
+    const selected = service.select(session.id, discovered.revision, "codex", [{ modelKey: "audio-flagship" }]);
+
+    const started = await service.start(session.id, selected.revision, "codex", "async-http", "receipt-1");
+    expect(started).toMatchObject({ stage: "certifying", childRunRef: { runId: "run-async" } });
+    childStage = "testing";
+    expect(service.get(session.id, "codex").stage).toBe("certifying");
+    childStage = "completed";
+    const completed = service.get(session.id, "codex");
+    expect(completed.stage).toBe("completed");
+    expect(completed.blockingReason).toBeUndefined();
   });
 
   it("returns the completed child run for a repeated idempotency key without a second create", async () => {
@@ -268,6 +307,124 @@ describe("IntegrationSessionService", () => {
     service.openCredentials(session.id, session.revision, "codex");
     expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({ sessionId: session.id, target: "credential" }));
     expect(authority.verifyReceipt).not.toHaveBeenCalled();
+  });
+
+  it("uses confirmed LocalAI discovery evidence without publishing unverified media capabilities", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-localai-"));
+    const probeExternalLocalRuntime = vi.fn(async () => ({
+      schemaVersion: 1 as const,
+      deployment: "external" as const,
+      runtimeId: "localai:test",
+      kind: "localai" as const,
+      origin: "http://127.0.0.1:9",
+      apiBaseUrl: "http://127.0.0.1:9/v1",
+      version: "4.9.0",
+      identity: "confirmed" as const,
+      auth: { mode: "none" as const, scope: "none" as const },
+      health: "ready" as const,
+      capabilities: [
+        {
+          modelId: "local-chat",
+          outputs: ["text" as const],
+          inputModes: ["text"],
+          supports: ["stream" as const],
+          evidence: { source: "discovery" as const, endpoint: "/v1/models/capabilities", checkedAt: "2026-08-30T00:00:00.000Z" },
+        },
+        {
+          modelId: "local-video",
+          outputs: ["video" as const],
+          inputModes: ["text"],
+          supports: ["submit" as const],
+          evidence: { source: "discovery" as const, endpoint: "/v1/models/capabilities", checkedAt: "2026-08-30T00:00:00.000Z" },
+        },
+      ],
+      certification: "uncertified" as const,
+      diagnostics: [],
+      checkedAt: "2026-08-30T00:00:00.000Z",
+    }));
+    const service = createRuntimeIntegrationSessionService({
+      filePath: path.join(dir, "sessions.json"),
+      certification: { probeExternalLocalRuntime } as never,
+      approvalReceiptAuthority: { resolveReceiptToken: vi.fn(), verifyReceipt: vi.fn() } as never,
+    });
+    const session = service.begin({
+      kind: "http-api-provider",
+      name: "LocalAI",
+      baseUrl: "http://127.0.0.1:9/v1",
+      authType: "none",
+      providerKind: "openai-compatible",
+    }, "codex");
+    const ready = service.markCredentialReady(session.id, "no-secret", "codex");
+    const discovered = await service.discover(session.id, ready.revision, "codex");
+
+    expect(discovered.candidates).toEqual([
+      expect.objectContaining({
+        modelKey: "local-chat",
+        kind: "text",
+        modes: ["chat"],
+        evidence: ["runtime"],
+        classification: "supported",
+      }),
+    ]);
+    expect(discovered.candidates).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ modelKey: "local-video" }),
+    ]));
+    expect(probeExternalLocalRuntime).toHaveBeenCalledWith(expect.objectContaining({
+      baseUrl: "http://127.0.0.1:9/v1",
+      authType: "none",
+      providerKind: "openai-compatible",
+    }));
+  });
+
+  it("falls back to the ordinary OpenAI-compatible model list when LocalAI identity is unconfirmed", async () => {
+    const requests: string[] = [];
+    const server = createServer((request, response) => {
+      requests.push(request.url || "");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ data: [{ id: "fallback-chat" }] }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-localai-fallback-"));
+      const probeExternalLocalRuntime = vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        deployment: "external" as const,
+        runtimeId: "localai:assumed",
+        kind: "localai" as const,
+        origin: `http://127.0.0.1:${port}`,
+        apiBaseUrl: `http://127.0.0.1:${port}/v1`,
+        identity: "assumed" as const,
+        auth: { mode: "none" as const, scope: "none" as const },
+        health: "ready" as const,
+        capabilities: [],
+        certification: "uncertified" as const,
+        diagnostics: [],
+        checkedAt: "2026-08-30T00:00:00.000Z",
+      }));
+      const service = createRuntimeIntegrationSessionService({
+        filePath: path.join(dir, "sessions.json"),
+        certification: { probeExternalLocalRuntime } as never,
+        approvalReceiptAuthority: { resolveReceiptToken: vi.fn(), verifyReceipt: vi.fn() } as never,
+      });
+      const session = service.begin({
+        kind: "http-api-provider",
+        name: "Local OpenAI API",
+        baseUrl: `http://127.0.0.1:${port}/v1`,
+        authType: "none",
+        providerKind: "openai-compatible",
+      }, "codex");
+      const ready = service.markCredentialReady(session.id, "no-secret", "codex");
+      const discovered = await service.discover(session.id, ready.revision, "codex");
+
+      expect(discovered.candidates).toEqual([
+        expect.objectContaining({ modelKey: "fallback-chat", kind: "text", evidence: ["remote"] }),
+      ]);
+      expect(requests).toContain("/v1/models");
+      expect(probeExternalLocalRuntime).toHaveBeenCalledTimes(1);
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
   });
 
   it("enqueues a safe credential handoff after opening the credential page", () => {

@@ -29,6 +29,44 @@ export interface DedupedModel {
   providers: ModelProviderRef[]
 }
 
+export type CatalogLifecycle = 'flagship' | 'value' | 'legacy' | 'companion'
+
+const CATALOG_LIFECYCLE_RANK: Record<CatalogLifecycle, number> = {
+  flagship: 0,
+  value: 1,
+  companion: 2,
+  legacy: 3,
+}
+
+function explicitCatalogLifecycle(option: ModelOption): CatalogLifecycle | null {
+  const value = readMeta(option).catalogLifecycle
+  return value === 'flagship' || value === 'value' || value === 'legacy' || value === 'companion' ? value : null
+}
+
+/** A merged model uses its strongest explicit curated route. Unknown/custom names are never classified heuristically. */
+export function modelCatalogLifecycle(model: DedupedModel): CatalogLifecycle | null {
+  let lifecycle: CatalogLifecycle | null = null
+  for (const provider of model.providers) {
+    const candidate = explicitCatalogLifecycle(provider.option)
+    if (candidate && (!lifecycle || CATALOG_LIFECYCLE_RANK[candidate] < CATALOG_LIFECYCLE_RANK[lifecycle])) {
+      lifecycle = candidate
+    }
+  }
+  return lifecycle
+}
+
+export function sortModelsByCatalogLifecycle(models: readonly DedupedModel[]): DedupedModel[] {
+  return models
+    .map((model, index) => ({ model, index, lifecycle: modelCatalogLifecycle(model) }))
+    .sort((left, right) => {
+      // Unclassified user models stay with companion routes. Stable index keeps their own order intact.
+      const leftRank = left.lifecycle ? CATALOG_LIFECYCLE_RANK[left.lifecycle] : CATALOG_LIFECYCLE_RANK.companion
+      const rightRank = right.lifecycle ? CATALOG_LIFECYCLE_RANK[right.lifecycle] : CATALOG_LIFECYCLE_RANK.companion
+      return leftRank - rightRank || left.index - right.index
+    })
+    .map(({ model }) => model)
+}
+
 // 能力后缀：kie 把 GPT Image 2 拆成「· 文生图」「· 图生图」两行——去掉后缀让它们与
 // apimart 的「GPT Image 2」合并成一个模型。
 const CAPABILITY_SUFFIX_RE = /\s*[·•・]\s*(文生图|图生图|改图|文生视频|图生视频|首尾帧|参考图?|编辑).*$/u
@@ -127,5 +165,5 @@ export function dedupeModelOptions(options: ModelOption[]): DedupedModel[] {
     })
     order.push(canonicalId)
   }
-  return order.map((id) => byId.get(id) as DedupedModel)
+  return sortModelsByCatalogLifecycle(order.map((id) => byId.get(id) as DedupedModel))
 }

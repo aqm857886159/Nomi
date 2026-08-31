@@ -146,6 +146,14 @@ class NonRetryableUploadError extends Error {
 }
 
 function uploadErrorDetail(json: unknown): string {
+  if (typeof json === "string") {
+    // Signed object stores (Runway's S3 upload) return XML rather than JSON.
+    // Preserve only the short error fields; never copy a signed URL or the
+    // complete untrusted response into the renderer error surface.
+    const code = /<Code>([^<]{1,120})<\/Code>/i.exec(json)?.[1]?.trim();
+    const message = /<Message>([^<]{1,240})<\/Message>/i.exec(json)?.[1]?.trim();
+    return [code, message].filter(Boolean).join(": ") || json.slice(0, 240);
+  }
   const record = json && typeof json === "object" ? (json as Record<string, unknown>) : {};
   return [record.msg, record.message, record.error].find((value): value is string => typeof value === "string" && value.length > 0) ?? "";
 }
@@ -218,9 +226,36 @@ export async function postMultipartForAssetUpload(
       // 每次重试重建 FormData/Blob：Blob 由 ArrayBuffer 支撑可重读，但重建最稳（不赌流是否已被消费）。
       wireUrl = rewriteVendorUrl(url);
       const form = new FormData();
-      form.append(fileField, new Blob([arrayBuffer], { type: contentType }), fileName);
       for (const [key, value] of Object.entries(extraFields ?? {})) form.append(key, value);
+      // S3-compatible signed POST policies (Runway) require policy fields to
+      // precede the file part.  Appending the file first yields a 400
+      // `Bucket POST must contain a field named key` even though every field is
+      // present.  Other multipart providers accept either order, so this shared
+      // ordering is safe and keeps the presigned path generic.
+      form.append(fileField, new Blob([arrayBuffer], { type: contentType }), fileName);
       return appFetch(wireUrl, { method: "POST", headers: restHeaders, body: form });
+    },
+    { onNetworkError: async (error) => { await maybeResolveVendorBase(wireUrl, error); } },
+  );
+}
+
+/** 两阶段上传的 signed PUT（例如 fal CDN）。signed URL 已经包含授权，不带供应商 key。 */
+export async function putBinaryForAssetUpload(
+  url: string,
+  headers: Record<string, string>,
+  file: Buffer,
+  contentType: string,
+): Promise<unknown> {
+  const arrayBuffer = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
+  let wireUrl = url;
+  return postWithUploadRetry(
+    () => {
+      wireUrl = rewriteVendorUrl(url);
+      return appFetch(wireUrl, {
+        method: "PUT",
+        headers: { "Content-Type": contentType, ...headers },
+        body: new Uint8Array(arrayBuffer),
+      });
     },
     { onNetworkError: async (error) => { await maybeResolveVendorBase(wireUrl, error); } },
   );

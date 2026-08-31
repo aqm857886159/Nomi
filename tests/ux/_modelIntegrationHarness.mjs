@@ -101,6 +101,7 @@ export function spawnModelIntegrationMcp({ dirs, client = 'codex', signed = true
     NOMI_E2E: '1',
     NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
     NOMI_MCP_STDIO: '1',
+    NOMI_APP_NAME: 'nomi',
     NOMI_SETTINGS_DIR: dirs.settingsDir,
     NOMI_ELECTRON_USER_DATA_DIR: dirs.userDataDir,
     NOMI_PROJECTS_DIR: dirs.projectsDir,

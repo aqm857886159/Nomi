@@ -99,4 +99,17 @@ describe('asset timeline actions', () => {
     expect(readVideoDuration).toHaveBeenCalledTimes(1)
     expect(readAudioDuration).toHaveBeenCalledTimes(1)
   })
+
+  it('does not materialize 3D assets as timeline clips', async () => {
+    const asset = {
+      id: 'mesh',
+      kind: 'model3d',
+      name: 'mesh.glb',
+      renderUrl: 'nomi-local://asset/project-a/assets/mesh.glb',
+      source: 'project',
+      origin: { source: 'project', projectId: 'project-a', relativePath: 'assets/mesh.glb' },
+    } as const
+
+    expect(await buildAssetTimelineClip(asset, { fps: 30, startFrame: 0 })).toBeNull()
+  })
 })

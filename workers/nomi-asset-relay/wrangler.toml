@@ -1,0 +1,30 @@
+name = "nomi-asset-relay"
+main = "src/index.mjs"
+compatibility_date = "2026-08-30"
+
+[vars]
+# Replace with the deployed Worker/custom-domain origin. Keep the token in `wrangler secret put RELAY_TOKEN`.
+PUBLIC_BASE_URL = "https://nomi-asset-relay.2373272608.workers.dev"
+ASSET_TTL_SECONDS = "86400"
+MAX_UPLOAD_BYTES = "209715200"
+# Keep the relay below Cloudflare's 10 GB free storage tier by default.
+MAX_STORAGE_BYTES = "8000000000"
+# 0 means this relay refuses uploads that would create billable storage.
+MAX_MONTHLY_BUDGET_USD = "0"
+R2_DASHBOARD_URL = "https://dash.cloudflare.com/5a0db6d9bfda5dde064189581aede130/r2/overview"
+PUBLIC_UPLOAD_ENABLED = "true"
+
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "nomi-assets"
+
+[[ratelimits]]
+name = "PUBLIC_UPLOAD_LIMITER"
+namespace_id = "6203181"
+
+[ratelimits.simple]
+limit = 30
+period = 60
+
+[triggers]
+crons = ["0 * * * *"]

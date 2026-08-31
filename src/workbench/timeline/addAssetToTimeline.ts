@@ -10,8 +10,10 @@ import { findAppendFrame } from './timelineMath'
 import type { TimelineClip, TimelineState, TimelineTrackType } from './timelineTypes'
 
 export type AssetDropResolution =
-  | { status: 'accept'; asset: AssetRef }
+  | { status: 'accept'; asset: TimelineAssetRef }
   | { status: 'reject'; expectedTrack: TimelineTrackType }
+
+type TimelineAssetRef = AssetRef & { kind: TimelineTrackType }
 
 type DurationProbes = {
   readVideoDuration: (url: string) => Promise<number | null>
@@ -24,7 +26,7 @@ const DEFAULT_PROBES: DurationProbes = {
 }
 
 /** Normalize the drag contract back to the shared AssetRef contract. */
-export function assetRefFromDragPayload(payload: AssetLibraryDragPayload): AssetRef | null {
+export function assetRefFromDragPayload(payload: AssetLibraryDragPayload): TimelineAssetRef | null {
   const renderUrl = typeof payload.renderUrl === 'string' ? payload.renderUrl.trim() : ''
   if (!renderUrl) return null
   if (payload.kind !== 'image' && payload.kind !== 'video' && payload.kind !== 'audio') return null
@@ -51,7 +53,7 @@ export function resolveAssetDrop(
     : { status: 'reject', expectedTrack: asset.kind }
 }
 
-export function findAssetAppendFrame(timeline: TimelineState, kind: AssetKind): number {
+export function findAssetAppendFrame(timeline: TimelineState, kind: TimelineTrackType): number {
   const track = timeline.tracks.find((candidate) => candidate.type === kind)
   return track ? findAppendFrame(track) : 0
 }
@@ -61,6 +63,7 @@ export async function buildAssetTimelineClip(
   options: { fps: number; startFrame: number },
   probes: DurationProbes = DEFAULT_PROBES,
 ): Promise<TimelineClip | null> {
+  if (asset.kind === 'model3d') return null
   const durationSeconds = asset.kind === 'video'
     ? await probes.readVideoDuration(asset.renderUrl)
     : asset.kind === 'audio'
@@ -76,7 +79,7 @@ export async function addAssetToTimeline(
 ): Promise<TimelineClip | null> {
   const clip = await buildAssetTimelineClip(asset, options)
   if (!clip) return null
-  useWorkbenchStore.getState().addTimelineClipAtFrame(clip, asset.kind, options.startFrame)
+  useWorkbenchStore.getState().addTimelineClipAtFrame(clip, clip.type, options.startFrame)
   return clip
 }
 
@@ -86,8 +89,8 @@ export async function addAssetToTimelineEnd(asset: AssetRef): Promise<void> {
   const clip = await buildAssetTimelineClip(asset, { fps: initialTimeline.fps, startFrame: 0 })
   if (!clip) return
   const store = useWorkbenchStore.getState()
-  const startFrame = findAssetAppendFrame(store.timeline, asset.kind)
-  store.addTimelineClipAtFrame(clip, asset.kind, startFrame)
+  const startFrame = findAssetAppendFrame(store.timeline, clip.type)
+  store.addTimelineClipAtFrame(clip, clip.type, startFrame)
   store.setTimelinePanelCollapsed(false)
   toast(i18n.t('timelineEditor.addedToEnd'), 'success')
 }

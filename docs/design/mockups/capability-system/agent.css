@@ -1,0 +1,488 @@
+/* Agent 调用 */
+.workbench-grid {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 220px minmax(360px, 1fr) 390px;
+  overflow: hidden;
+}
+.rail-heading {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+.rail-heading b {
+  font:
+    650 13px 'Nomi Fraunces',
+    serif;
+}
+.rail-heading button {
+  margin-left: auto;
+  font-size: 18px;
+}
+.document-row {
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 6px;
+  margin: 3px 8px 0;
+  padding: 6px 9px;
+  background: transparent;
+  color: var(--ink-60);
+  cursor: pointer;
+  text-align: left;
+}
+.document-row:hover {
+  background: var(--surface);
+}
+.document-row.is-active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.document-row svg {
+  width: 15px;
+  height: 15px;
+}
+.document-row b,
+.document-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.document-row b {
+  font-size: 10px;
+}
+.document-row small {
+  margin-top: 3px;
+  color: var(--ink-40);
+  font-size: 9px;
+}
+.rail-bottom {
+  margin-top: auto;
+  min-height: 45px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-40);
+  font-size: 9px;
+}
+.rail-bottom svg {
+  width: 14px;
+  height: 14px;
+}
+.document-surface {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 46px clamp(28px, 5vw, 74px);
+  background: var(--bg);
+}
+.document-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.document-head > div {
+  min-width: 0;
+}
+.document-head span:first-child {
+  color: var(--ink-40);
+  font-size: 9px;
+}
+.document-head h1 {
+  margin: 5px 0 0;
+  font:
+    650 25px/1.2 'Nomi Fraunces',
+    serif;
+}
+.document-head > .status-badge {
+  margin-left: auto;
+}
+.document-copy {
+  max-width: 670px;
+  margin: 28px auto 0;
+}
+.eyebrow {
+  margin: 22px 0 8px;
+  color: var(--ink-40);
+  font-size: 9px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+.lead {
+  margin: 0;
+  font:
+    420 16px/1.65 'Nomi Fraunces',
+    serif;
+}
+.spec-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 22px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--line);
+}
+.spec-grid div {
+  padding: 10px;
+  background: var(--paper);
+}
+.spec-grid span,
+.spec-grid b {
+  display: block;
+}
+.spec-grid span {
+  color: var(--ink-40);
+  font-size: 8px;
+}
+.spec-grid b {
+  margin-top: 4px;
+  font-size: 10px;
+}
+.document-copy ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-60);
+  font-size: 11px;
+  line-height: 1.8;
+}
+.document-empty {
+  min-height: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+  border: 1px dashed var(--ink-20);
+  border-radius: 7px;
+  color: var(--ink-40);
+  font-size: 10px;
+}
+.document-empty svg {
+  width: 16px;
+  height: 16px;
+}
+.document-empty.is-filled {
+  align-items: flex-start;
+  justify-content: flex-start;
+  border-style: solid;
+  border-color: var(--green);
+  padding: 12px;
+  background: var(--green-soft);
+  color: var(--green);
+  line-height: 1.6;
+}
+.agent-panel {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+  background: var(--paper);
+}
+.agent-head {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+.agent-head > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.agent-head > button {
+  margin-left: auto;
+}
+.agent-mark {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.agent-mark svg {
+  width: 16px;
+  height: 16px;
+}
+.agent-head b,
+.agent-head small {
+  display: block;
+}
+.agent-head b {
+  font-size: 11px;
+}
+.agent-head small {
+  margin-top: 2px;
+  color: var(--ink-40);
+  font-size: 8px;
+}
+.agent-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 14px 10px;
+}
+.message {
+  max-width: 92%;
+  margin-bottom: 10px;
+  padding: 9px 10px;
+  border-radius: 7px;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.message p {
+  margin: 0;
+}
+.user-message {
+  margin-left: auto;
+  background: var(--ink);
+  color: var(--paper);
+}
+.agent-message {
+  background: var(--surface);
+  color: var(--ink-80);
+}
+.elicitation-card {
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 11px;
+  background: var(--paper);
+  box-shadow: var(--shadow-sm);
+}
+.question-block + .question-block {
+  margin-top: 11px;
+}
+.question-block > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ink-60);
+  font-size: 9px;
+  font-weight: 620;
+}
+.option-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.option-row button {
+  min-height: 27px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 0 8px;
+  background: var(--paper);
+  color: var(--ink-60);
+  cursor: pointer;
+  font-size: 9px;
+}
+.option-row button:hover {
+  border-color: var(--ink-20);
+  background: var(--surface);
+  color: var(--ink);
+}
+.option-row button.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 620;
+}
+.elicitation-card > .primary-button {
+  margin-top: 12px;
+}
+.result-message {
+  border-left: 2px solid var(--green);
+  background: var(--green-soft);
+  color: var(--green);
+}
+.result-actions {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+.result-actions button {
+  min-height: 27px;
+  border: 1px solid rgba(33, 131, 95, 0.24);
+  border-radius: 5px;
+  padding: 0 8px;
+  background: var(--paper);
+  color: var(--green);
+  cursor: pointer;
+  font-size: 9px;
+}
+.run-context {
+  border-top: 1px solid var(--line);
+  padding: 9px 12px 8px;
+  background: var(--bg);
+}
+.run-context-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-40);
+  font-size: 9px;
+}
+.run-context-head button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 9px;
+}
+.active-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 7px;
+}
+.active-capabilities span {
+  min-height: 23px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 0 7px;
+  background: var(--paper);
+  color: var(--ink-60);
+  font-size: 8px;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.active-capabilities svg {
+  width: 11px;
+  height: 11px;
+  color: var(--accent);
+}
+.preflight {
+  display: none;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid var(--line);
+}
+.preflight.is-open {
+  display: grid;
+  gap: 6px;
+}
+.preflight > div {
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+.preflight > div > svg {
+  width: 13px;
+  height: 13px;
+}
+.preflight .ok {
+  color: var(--green);
+}
+.preflight .warn {
+  color: var(--amber);
+}
+.preflight b,
+.preflight small {
+  display: block;
+  font-size: 8px;
+}
+.preflight small {
+  margin-top: 1px;
+  color: var(--ink-40);
+}
+.preflight button {
+  min-height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 0 7px;
+  background: var(--paper);
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 8px;
+}
+.preflight p {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 3px 0 0;
+  color: var(--ink-40);
+  font-size: 8px;
+  line-height: 1.45;
+}
+.preflight p svg {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+}
+.composer {
+  padding: 9px 10px 10px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+.composer-input {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  padding: 9px;
+  color: var(--ink-40);
+  font-size: 10px;
+}
+.composer-tools {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
+  padding: 0 5px;
+}
+.mode-chip {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 7px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 8px;
+}
+.mode-chip svg {
+  width: 10px;
+  height: 10px;
+}
+.send-button {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  border: 0;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+}
+.send-button svg {
+  width: 13px;
+  height: 13px;
+}

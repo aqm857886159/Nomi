@@ -9,10 +9,10 @@ export class BoundedResponseError extends Error {
   }
 }
 
-export async function readBoundedResponseText(
+export async function readBoundedResponseBytes(
   response: Response,
   options: { maxBytes: number; signal?: AbortSignal },
-): Promise<string> {
+): Promise<Buffer> {
   if (!Number.isFinite(options.maxBytes) || options.maxBytes < 1) throw new BoundedResponseError("response_read_failed");
   const abortedCode = () => options.signal?.reason instanceof Error && options.signal.reason.name === "TimeoutError"
     ? "response_timeout" as const
@@ -51,5 +51,12 @@ export async function readBoundedResponseText(
   } finally {
     options.signal?.removeEventListener("abort", abort);
   }
-  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)), total).toString("utf8");
+  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)), total);
+}
+
+export async function readBoundedResponseText(
+  response: Response,
+  options: { maxBytes: number; signal?: AbortSignal },
+): Promise<string> {
+  return (await readBoundedResponseBytes(response, options)).toString("utf8");
 }

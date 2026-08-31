@@ -58,6 +58,10 @@ describe("modeSlotReach · 专用 codec 零收窄（修完不能反过来误伤�
     ]);
   });
 
+  it("多图数组也能承载首帧槽的第一个参考", () => {
+    expect(modeSlotReach([slot("first_frame"), slot("last_frame")], APIMART_OMNI)).toEqual(["single", "none"]);
+  });
+
   it("火山原生 i2v：声明了 volcengine_* 键的槽全 full", () => {
     const slots = [
       slot("first_frame", "volcengine_first_role_image_content"),

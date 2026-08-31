@@ -1,0 +1,210 @@
+@media (max-width: 1180px) {
+  .appbar {
+    grid-template-columns: auto 1fr auto;
+  }
+  .project-context {
+    display: none;
+  }
+  .catalog-shell,
+  .asset-shell {
+    grid-template-columns: 188px minmax(0, 1fr);
+  }
+  .capability-grid {
+    grid-template-columns: 1fr;
+  }
+  .catalog-layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+  .workbench-grid {
+    grid-template-columns: 190px minmax(330px, 1fr) 350px;
+  }
+  .asset-layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+  .asset-grid {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  body {
+    overflow: auto;
+  }
+  .app-shell {
+    min-height: 100vh;
+    height: auto;
+    overflow: visible;
+  }
+  .appbar {
+    position: sticky;
+    top: 0;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .brand-word,
+  .app-actions .icon-button {
+    display: none;
+  }
+  .view-tabs {
+    justify-self: stretch;
+    overflow-x: auto;
+  }
+  .view-tabs button {
+    flex: 1 0 auto;
+    padding: 0 8px;
+  }
+  .view-stack {
+    height: auto;
+  }
+  .product-view.is-active {
+    min-height: calc(100vh - var(--appbar));
+  }
+  .catalog-shell,
+  .asset-shell {
+    display: block;
+  }
+  .catalog-sidebar,
+  .asset-source-rail {
+    display: block;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .sidebar-title,
+  .capability-lock,
+  .sidebar-divider,
+  .mini-label,
+  .side-nav.secondary {
+    display: none;
+  }
+  .side-nav {
+    display: flex;
+    width: max-content;
+    padding: 7px 10px;
+  }
+  .side-nav button {
+    grid-template-columns: 18px auto auto;
+    min-height: 32px;
+  }
+  .catalog-main,
+  .asset-main {
+    min-height: calc(100vh - 104px);
+    padding: 0 12px 12px;
+    overflow: visible;
+  }
+  .catalog-toolbar,
+  .asset-toolbar {
+    grid-template-columns: 1fr auto;
+  }
+  .catalog-toolbar .segmented,
+  .asset-toolbar .segmented {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+  }
+  .segmented button {
+    flex: 1;
+  }
+  .catalog-layout,
+  .asset-layout {
+    display: block;
+    overflow: visible;
+  }
+  .catalog-layout > div,
+  .asset-grid-wrap {
+    overflow: visible;
+  }
+  .capability-grid,
+  .asset-grid {
+    grid-template-columns: 1fr;
+  }
+  .capability-detail,
+  .asset-detail {
+    margin-top: 14px;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    padding: 16px 0 72px;
+  }
+  .workbench-grid {
+    display: block;
+    overflow: visible;
+  }
+  .document-rail,
+  .document-surface {
+    display: none;
+  }
+  .agent-panel {
+    min-height: calc(100vh - var(--appbar));
+    border-left: 0;
+  }
+  .agent-scroll {
+    min-height: 420px;
+  }
+  .asset-source-rail .side-nav {
+    display: flex;
+  }
+  .asset-source-rail .side-nav.secondary {
+    display: none;
+  }
+  .export-check {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    margin: 0 -12px -12px;
+    padding: 8px 12px;
+  }
+  .export-status small,
+  .export-check .quiet-button {
+    display: none;
+  }
+}
+
+@media (max-width: 430px) {
+  .appbar {
+    height: 52px;
+  }
+  :root {
+    --appbar: 52px;
+  }
+  .avatar {
+    display: none;
+  }
+  .page-heading {
+    min-height: 62px;
+  }
+  .page-heading h1 {
+    font-size: 19px;
+  }
+  .quiet-button span,
+  .filter-button span {
+    display: none;
+  }
+  .catalog-toolbar,
+  .asset-toolbar {
+    grid-template-columns: minmax(0, 1fr) 34px;
+  }
+  .filter-button {
+    width: 34px;
+    padding: 0;
+  }
+  .filter-button .chevron {
+    display: none;
+  }
+  .capability-card {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+  .capability-cover {
+    width: 96px;
+  }
+  .io-grid,
+  .spec-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .export-status {
+    flex: 1;
+  }
+  .export-check .primary-button {
+    padding: 0 9px;
+  }
+}

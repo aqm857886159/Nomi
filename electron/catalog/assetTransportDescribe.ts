@@ -28,8 +28,8 @@ type DescribeCatalog = {
   getApiKey: (vendorKey: string) => string | null;
 };
 
-/** 描述的媒体类型：图片和视频各有独立路由（apimart 只收图，视频得另找家），音频与视频同路，不单列。 */
-const DESCRIBED_KINDS: ReadonlyArray<AssetMediaKind> = ["image", "video"];
+/** 描述三种真实输入：图片、视频、音频的通道能力可能不同，不能把音频藏在视频文案里。 */
+const DESCRIBED_KINDS: ReadonlyArray<AssetMediaKind> = ["image", "video", "audio"];
 
 function hostOf(ingestion: AssetIngestion): string | null {
   // anon-chain 自己没有端点，真正收文件的是链上第一跳（litterbox）——它失败才轮到第二跳，

@@ -8,6 +8,10 @@ describe("extractAssetUrl — 既有 images 端点口径（不回归）", () => 
   it("data[0].url", () => {
     expect(extractAssetUrl({ data: [{ url: "https://x/b.png" }] })).toBe("https://x/b.png");
   });
+  it("audio_url at the top level or inside result", () => {
+    expect(extractAssetUrl({ audio_url: "https://x/a.mp3" })).toBe("https://x/a.mp3");
+    expect(extractAssetUrl({ result: { audio_url: "https://x/b.wav" } })).toBe("https://x/b.wav");
+  });
   it("data[0].b64_json → data URL", () => {
     expect(extractAssetUrl({ data: [{ b64_json: "AAAA" }] })).toBe("data:image/png;base64,AAAA");
   });

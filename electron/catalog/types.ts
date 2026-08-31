@@ -31,6 +31,8 @@ export type AiSdkProviderKind = "openai-compatible" | "anthropic" | "openai-resp
  *  - upload-url   ：把字节传到 vendor 文件接口 → 拿回临时公网 URL → 填进 body。
  *  - upload-stream：multipart 流式上传(二进制,大文件高效)→ 拿回临时公网 URL。用于视频 mp4
  *                   (KIE file-stream-upload),base64 对 mp4 低效/受限。
+ *  - upload-presigned：先向 vendor 创建一次性上传声明，再把字节 multipart 传到返回的
+ *                      uploadUrl，最后使用 vendor 自己的 URI（如 runway://），不依赖公共图床。
  *  - none         ：vendor 只收公网 URL 且无上传通道 → 明确报错(不静默失败)。
  *
  * `accepts`：该通道接受的媒体类型(image/video/audio)。缺省视为 ['image']——今天的通道都面向图片
@@ -41,6 +43,33 @@ export type AssetMediaKind = "image" | "video" | "audio";
 export type AssetIngestion =
   | { strategy: "inline-base64"; accepts?: ReadonlyArray<AssetMediaKind>; visibility?: "provider-private"; ttlSeconds?: number }
   | { strategy: "none"; accepts?: ReadonlyArray<AssetMediaKind>; visibility?: "provider-private"; ttlSeconds?: number }
+  | {
+      /**
+       * 两步供应商自有上传：POST 初始化 JSON → POST 预签名 uploadUrl → 返回供应商 URI。
+       * 初始化与实际字节上传分开，故 uploadUrl 请求不携带 API key；只把初始化请求的
+       * Authorization 交给供应商。Runway Dev 的 POST /v1/uploads(type=ephemeral) 使用此形状。
+       */
+      strategy: "upload-presigned";
+      /** 初始化端点（完整 URL）。 */
+      endpoint: string;
+      /** 初始化响应里的实际上传 URL。 */
+      uploadUrlPath: string;
+      /** 初始化响应里的供应商 URI（如 runwayUri）。 */
+      uriPath: string;
+      /** 初始化响应里传给 multipart 的字段对象，默认 `fields`。 */
+      fieldsPath?: string;
+      /** 初始化请求的固定字段（动态文件名/type 会由解析器补上）。 */
+      initFields?: Record<string, string>;
+      /** 初始化请求的固定协议头（例如 Runway 的 X-Runway-Version）。 */
+      initHeaders?: Record<string, string>;
+      filenameField?: string;
+      typeField?: string;
+      uploadFileField?: string;
+      accepts?: ReadonlyArray<AssetMediaKind>;
+      visibility?: "provider-private";
+      ttlSeconds?: number;
+      requiresConsent?: false;
+    }
   | {
       strategy: "upload-stream";
       /** 上传端点(完整 URL)。multipart/form-data,file 字段为二进制,另带 uploadPath/fileName。 */
@@ -53,7 +82,7 @@ export type AssetIngestion =
       /** 响应里公网 URL 的点路径(如 KIE 的 "data.downloadUrl")。 */
       urlPath: string;
       /** 鉴权:复用 vendor 的 api key(默认 bearer)。 */
-      authType?: "bearer";
+      authType?: "bearer" | "key";
       /** 该通道接受的媒体类型;缺省 ['image']。 */
       accepts?: ReadonlyArray<AssetMediaKind>;
       visibility?: "provider-private";
@@ -78,7 +107,7 @@ export type AssetIngestion =
       /** 响应里公网 URL 的点路径(如 kie 的 "data.downloadUrl")。 */
       urlPath: string;
       /** 鉴权:复用 vendor 的 api key(默认 bearer)。 */
-      authType?: "bearer";
+      authType?: "bearer" | "key";
       visibility?: "provider-private";
       ttlSeconds?: number;
       requiresConsent?: false;
@@ -110,12 +139,49 @@ export type AssetIngestion =
        */
       urlTransform?: { search: string; replace: string };
       /** 鉴权:复用 vendor 的 api key(默认 bearer)。无 key 时不发 Authorization。 */
-      authType?: "bearer";
+      authType?: "bearer" | "key";
       /** 该通道接受的媒体类型;缺省 ['image']。 */
       accepts?: ReadonlyArray<AssetMediaKind>;
-      visibility?: "provider-private" | "public-anonymous";
+      visibility?: "provider-private" | "public-provider" | "public-anonymous";
       ttlSeconds?: number;
       requiresConsent?: boolean;
+    }
+  | {
+      /**
+       * 两阶段上传：先用 JSON 初始化，再把本地字节 PUT 到供应商返回的 signed URL。
+       * fal CDN 使用此形状；signed URL 本身不带供应商 API key。
+       */
+      strategy: "upload-initiate-put";
+      endpoint: string;
+      initFileNameField?: string;
+      initContentTypeField?: string;
+      uploadUrlPath: string;
+      urlPath: string;
+      authType?: "bearer" | "key";
+      accepts?: ReadonlyArray<AssetMediaKind>;
+      visibility?: "provider-private" | "public-provider";
+      ttlSeconds?: number;
+      requiresConsent?: false;
+    }
+  | {
+      /**
+       * 两阶段上传：先初始化 multipart 表单，再把初始化返回的 fields + file POST 到 signed URL。
+       * Runway ephemeral upload 使用此形状，并返回只能给 Runway 使用的 runway:// URI。
+       */
+      strategy: "upload-initiate-multipart";
+      endpoint: string;
+      uploadUrlPath: string;
+      fieldsPath: string;
+      uriPath: string;
+      fileField?: string;
+      initFileNameField?: string;
+      initTypeField?: string;
+      initType?: string;
+      authType?: "bearer" | "key";
+      accepts?: ReadonlyArray<AssetMediaKind>;
+      visibility?: "provider-private" | "public-provider";
+      ttlSeconds?: number;
+      requiresConsent?: false;
     }
   | {
       /**
@@ -294,7 +360,23 @@ export type HttpOperation = {
    *                           code===20000000 收尾）——豆包语音 /api/v3/tts/unidirectional。
    * 任何未来同形状的 vendor 声明此值即复用解码，无需碰 runtime（runTextToSpeech 按它分流）。
    */
-  audioResponse?: "binary" | "ndjson-base64";
+  audioResponse?:
+    | "binary"
+    | "ndjson-base64"
+    | {
+        /** The response body is the generated audio bytes. */
+        type: "binary";
+        contentType: string;
+        extension: string;
+      }
+    | {
+        /** The response is JSON and the declared dot path contains encoded audio bytes. */
+        type: "json";
+        dataPath: string;
+        encoding: "hex" | "base64";
+        contentType: string;
+        extension: string;
+      };
   /**
    * **进程型 transport 声明**（仅 processOperation 消费，P4 声明驱动不 hardcode vendor）。
    * 当一个 vendor 不是 HTTP 端点而是本地 CLI 二进制（如即梦官方 `dreamina`）时，create/query op
@@ -346,8 +428,13 @@ export type HttpOperation = {
    */
   multipart?: {
     fields?: Record<string, string>;
-    imageField: string;
-    imageSource: string;
+    /** Generic file declaration used by image, audio, and video upload endpoints. */
+    fileField?: string;
+    fileSource?: string;
+    fileKind?: "image" | "audio" | "video";
+    /** Legacy image-only aliases retained for existing catalog rows. */
+    imageField?: string;
+    imageSource?: string;
     multiple?: boolean;
     filename?: string;
   };
@@ -362,8 +449,9 @@ export type HttpOperation = {
 };
 
 /**
- * One (vendor, taskKind) → one mapping row. `create` is the synchronous POST
- * (or whatever initiates the task). `query` is the poll for async APIs.
+ * One (vendor, taskKind) → one mapping row. `create` initiates the task,
+ * `query` observes an async task, and optional `result` fetches endpoint-specific
+ * output after the observation reaches a successful terminal state.
  * Vendors that map their status strings to ours can use `statusMapping`
  * (e.g. `{ succeeded: ["completed", "done"] }`).
  */
@@ -380,10 +468,15 @@ export type Mapping = {
    * （不再「任意 enabled 兜底」静默套别的模型模板）。
    */
   modelKey?: string;
+  /** Optional archetype mode discriminator. A mapping may share one model row while
+   * exposing different transport contracts for its modes (for example Suno music,
+   * upload-extend and upload-cover). */
+  modeId?: string;
   name: string;
   enabled: boolean;
   create: HttpOperation;
   query?: HttpOperation;
+  result?: HttpOperation;
   statusMapping?: Record<string, string[]>;
   createdAt: string;
   updatedAt: string;
@@ -406,15 +499,28 @@ export function selectTaskMapping(
   vendorKey: string,
   taskKind: ProfileKind,
   modelKey?: string,
+  modeId?: string,
 ): Mapping | null {
   const inBucket = mappings.filter((m) => m.enabled && m.vendorKey === vendorKey && m.taskKind === taskKind);
   if (inBucket.length === 0) return null;
   const key = (modelKey || "").trim();
-  return (
-    (key ? inBucket.find((m) => (m.modelKey || "").trim() === key) : undefined) ||
-    inBucket.find((m) => !m.modelKey) ||
-    null
-  );
+  const exact = key ? inBucket.filter((m) => (m.modelKey || "").trim() === key) : [];
+  const generic = inBucket.filter((m) => !m.modelKey);
+  // Exact model bindings win. When there is no exact binding, retain the
+  // legacy generic template fallback; never borrow another model's wire shape.
+  const candidates = exact.length > 0 ? exact : generic;
+  if (candidates.length === 0) return null;
+  const requestedMode = (modeId || "").trim();
+  if (requestedMode) {
+    const exactMode = candidates.filter((m) => (m.modeId || "").trim() === requestedMode);
+    if (exactMode.length === 1) return exactMode[0];
+    // A single candidate can safely serve several UI modes when the provider
+    // exposes one shared wire shape (older rows may be mode-less).
+    return exactMode.length === 0 && candidates.length === 1 ? candidates[0] : null;
+  }
+  // Once a model has multiple mode-specific mappings, an omitted mode is
+  // ambiguous and must fail closed instead of silently selecting the first row.
+  return candidates.length === 1 ? candidates[0] : null;
 }
 
 /**

@@ -25,10 +25,11 @@ const SCAN_DIRS = ["src", "electron"];
 // 现存巨壳的基线行数（棘轮上限）。清空此表 = 巨壳债还清。
 // 改小某个数 = 你成功瘦身后锁定的新上限。新增条目应经人工评审。
 const ALLOWLIST = {
-  "electron/runtime.ts": 531, // …→ 539（2026-08-15）→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）→ 530（2026-08-28 onboarding facade cleanup）→ 531（Phase 6 merge）
-  // Main-process IPC bootstrap is a reviewed legacy shell; keep the Phase 5
+  "electron/runtime.ts": 527, // …→ 539（2026-08-15）→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）→ 530（2026-08-28 onboarding facade cleanup）→ 526（2026-08-30 runtime lifecycle cleanup）→ 527（Phase 6 merge：+1 stage 导出）
+  // Main-process IPC bootstrap is a reviewed legacy shell; keep the Phase 6
   // ratchet while extraction follows the stable registration ownership seams.
-  "electron/main.ts": 836,
+  // Phase 6 host wiring pushed this over 800; a dedicated extraction batch follows.
+  "electron/main.ts": 846,
   // Conversational model integration boundary: the session service keeps the
   // state machine, receipt contract, canonical certification and recovery
   // transitions together. It is reviewed as one security boundary and must

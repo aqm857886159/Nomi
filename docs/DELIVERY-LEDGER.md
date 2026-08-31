@@ -9,7 +9,7 @@
 
 ---
 
-## 现役欠账（7）
+## 现役欠账（8）
 
 | 状态 | 文档 | 标题 |
 |---|---|---|
@@ -18,16 +18,24 @@
 | 🚧 进行中 | [2026-08-28-editing-engine-uplift.md](plan/2026-08-28-editing-engine-uplift.md) | Nomi Editing Engine Uplift |
 | 🚧 进行中 | [2026-08-29-root-cause-contract-v2.md](plan/2026-08-29-root-cause-contract-v2.md) | 根因合同 v2 与规则收敛 |
 | 🚧 进行中 | [2026-08-30-issue-237-onboarding.md](plan/2026-08-30-issue-237-onboarding.md) | Issue #237: 接入请求与英文上手入口 |
+| 🚧 进行中 | [2026-08-30-unified-model-integration-certification.md](plan/2026-08-30-unified-model-integration-certification.md) | Unified Provider And Model Integration Certification |
 | 🚧 进行中 | [2026-08-27-release-media-pack-skill.md](superpowers/plans/2026-08-27-release-media-pack-skill.md) | Nomi Release Media Pack Skill Implementation Plan |
 | 🚧 进行中 | [2026-08-28-conversational-model-integration.md](superpowers/plans/2026-08-28-conversational-model-integration.md) | Conversational Model Integration Implementation Plan |
 
-## 远期 / 暂缓（0）
+## 远期 / 暂缓（6）
 
-_没有标记为远期的方案。_
+| 状态 | 文档 | 标题 |
+|---|---|---|
+| 🧊 暂缓/远期 | [2026-08-09-canvas-ux-feedback-round.md](plan/2026-08-09-canvas-ux-feedback-round.md) | 画布体验反馈第 1 轮迭代计划 |
+| 🧊 暂缓/远期 | [2026-08-14-community-qr-refresh.md](plan/2026-08-14-community-qr-refresh.md) | 2026-08-14 用户群二维码刷新 |
+| 🧊 暂缓/远期 | [2026-08-26-hyperframes-canvas-motion-node.md](plan/2026-08-26-hyperframes-canvas-motion-node.md) | HyperFrames 画布节点集成方案研究 |
+| 🧊 暂缓/远期 | [2026-08-14-clip-node-infinite-timeline.md](superpowers/plans/2026-08-14-clip-node-infinite-timeline.md) | 剪辑节点无限时间轴样章 Implementation Plan |
+| 🧊 暂缓/远期 | [2026-08-20-storyboard-execution-contract-v2.md](superpowers/plans/2026-08-20-storyboard-execution-contract-v2.md) | Storyboard Execution Contract v2 Implementation Plan |
+| 🧊 暂缓/远期 | [2026-08-21-agent-editor-workbench.md](superpowers/plans/2026-08-21-agent-editor-workbench.md) | Agent Editor Workbench Implementation Plan |
 
 ## 其余
 
-- **已结案**：24 篇（✅ 已交付 / ⛔ 已废弃 / 📎 交接日志）
+- **已结案**：31 篇（✅ 已交付 / ⛔ 已废弃 / 📎 交接日志）
 - **未登记存量**：423 篇。这些是历史文件，**有意不进现役区**——其中很多离得很远、或已经不需要做。
   想分诊就挑一篇加状态标记；不分诊也不会有人催。`check:doc-status` 只拦**新增**文档缺标记，不逼你清存量。
 
@@ -44,7 +52,7 @@ _没有标记为远期的方案。_
 
 </details>
 
-- 合计扫描：454 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
+- 合计扫描：468 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
 
 ---
 

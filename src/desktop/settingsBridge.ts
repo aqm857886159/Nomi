@@ -24,6 +24,11 @@ export type DesktopSettingsBridge = {
     get: () => Promise<import('../../electron/settings/automationPolicyContract').AutomationPolicySettings>
     set: (payload: unknown) => Promise<import('../../electron/settings/automationPolicyContract').AutomationPolicySettings>
   }
+  assetRelay: {
+    get: () => Promise<{ enabled: boolean; endpoint: string; hasToken: boolean }>
+    set: (payload: { enabled: boolean; endpoint: string; token?: string; clearToken?: boolean }) =>
+      Promise<{ enabled: boolean; endpoint: string; hasToken: boolean }>
+  }
   systemPrompts: {
     get: () => Promise<import('../../electron/settings/systemPromptsContract').SystemPromptOverrides>
     set: (payload: unknown) => Promise<import('../../electron/settings/systemPromptsContract').SystemPromptOverrides>

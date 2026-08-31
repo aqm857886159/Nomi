@@ -5,7 +5,7 @@ import { readCatalog } from "../catalog/catalogStore";
 import { decryptApiKeyRecord } from "../catalog/secrets";
 import { assertAndConsumeSpendGrant } from "../spendGrant";
 import { resolveLocalAsset } from "../catalog/assetLocalization";
-import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload } from "../assets/localAssetFile";
+import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload, putBinaryForAssetUpload } from "../assets/localAssetFile";
 import { requestJson } from "../vendor/vendorHttp";
 import { importRemoteAsset } from "../runtime";
 import {
@@ -67,6 +67,7 @@ export async function decomposeLayers(payload: DecomposeLayersPayload): Promise<
       readNomiLocalAsset,
       postJsonForAssetUpload,
       postMultipartForAssetUpload,
+      putBinaryForAssetUpload,
     );
   }
 

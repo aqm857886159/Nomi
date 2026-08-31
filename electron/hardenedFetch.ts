@@ -16,6 +16,7 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import { Agent, type Dispatcher } from "undici";
 import { isPrivateHost } from "./networkHostPolicy";
 import { appFetch } from "./appFetch";
+import { getAppDispatcher, isApplicationProxyActive } from "./systemProxy";
 export { isPrivateHost } from "./networkHostPolicy";
 
 export type HardenedFetchOptions = {
@@ -52,6 +53,10 @@ export type HardenedFetchDependencies = {
   resolveHost?: (hostname: string) => Promise<ResolvedHostAddress[]>;
   createPinnedDispatcher?: (hostname: string, addresses: ResolvedHostAddress[]) => Dispatcher;
   fetch?: (input: URL, init: RequestInit & { dispatcher?: Dispatcher }) => Promise<Response>;
+  /** Test seam for the already-committed application proxy route. */
+  isApplicationProxyActive?: () => boolean;
+  /** Test seam for waiting until the application route has been committed. */
+  waitForApplicationRoute?: (signal: AbortSignal, target: URL) => Promise<void>;
 };
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -166,6 +171,20 @@ export async function hardenedFetch(
   else options.signal?.addEventListener("abort", relayAbort, { once: true });
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const dispatchers: Dispatcher[] = [];
+  // When Nomi has committed an HTTP/SOCKS application proxy, resolving the
+  // provider hostname locally is both unnecessary and actively harmful: fake-IP
+  // proxies commonly answer with RFC 2544 (198.18/15), which must not be treated
+  // as the provider's real destination. The proxy performs the DNS resolution
+  // on its side. Direct routes retain the original DNS pinning/SSRF checks.
+  const applicationProxyActive = dependencies.isApplicationProxyActive ?? isApplicationProxyActive;
+  // The route can still be applying during app start. If we resolve DNS before
+  // that commit, a proxy's synthetic 198.18/15 answer is mistaken for a private
+  // destination and the request is rejected (or a pinned direct dispatcher
+  // bypasses the proxy entirely). Wait for the app-owned route only for the
+  // production fetch path; injected test transports keep their existing seam.
+  const usesApplicationFetch = !dependencies.fetch && !dependencies.isApplicationProxyActive;
+  const waitForApplicationRoute = dependencies.waitForApplicationRoute
+    ?? ((signal: AbortSignal, target: URL) => getAppDispatcher(signal, target).then(() => undefined));
 
   try {
     const method = (options.method || "GET").toUpperCase();
@@ -202,7 +221,10 @@ export async function hardenedFetch(
       const privateAllowed = isPrivateHost(currentUrl.hostname)
         && isExplicitlyAllowedPrivateOrigin(currentUrl, allowedPrivateOrigins);
       let dispatcher: Dispatcher | undefined;
-      if (!privateAllowed) {
+      if (!privateAllowed && (usesApplicationFetch || dependencies.waitForApplicationRoute)) {
+        await waitForApplicationRoute(controller.signal, currentUrl);
+      }
+      if (!privateAllowed && !applicationProxyActive()) {
         const hostname = connectionHostname(currentUrl.hostname);
         const addresses = await resolvePublicAddresses(hostname, resolveHost);
         dispatcher = makeDispatcher(hostname, addresses);

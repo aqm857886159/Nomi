@@ -23,6 +23,21 @@ import {
   unreachableAssetValueError,
 } from "./assetValueScheme";
 import { contentTypeFromMagicBytes } from "../assets/mediaTypes";
+import {
+  ingestionAccepts,
+  resolveAssetIngestionForKind,
+  ANON_UPLOAD_CHAIN,
+} from "./assetIngestionRegistry";
+import { readAssetRelayRuntimeConfig, readDefaultAssetRelayRuntimeConfig } from "./assetRelayRuntimeConfig";
+
+export {
+  ingestionAccepts,
+  resolveAssetIngestion,
+  resolveAssetIngestionForKind,
+  LITTERBOX_INGESTION,
+  TMPFILES_INGESTION,
+  ANON_UPLOAD_CHAIN,
+} from "./assetIngestionRegistry";
 
 export type LocalAsset = {
   bytes: Buffer;
@@ -79,6 +94,12 @@ export type HttpPostMultipart = (
   extraFields?: Record<string, string>,
   fileField?: string,
 ) => Promise<unknown>;
+export type HttpPutBinary = (
+  url: string,
+  headers: Record<string, string>,
+  file: Buffer,
+  contentType: string,
+) => Promise<unknown>;
 
 /**
  * 「这个值发送前必须先本地化」——即 `nomi-local://`（读盘）**或** `data:` 内联字节（就地解码）。
@@ -94,16 +115,6 @@ export function mediaKindFromContentType(contentType: string | undefined): Asset
   if (ct.startsWith("video/")) return "video";
   if (ct.startsWith("audio/")) return "audio";
   return "image";
-}
-
-/** 该通道接受哪些媒体类型;缺省视为 ['image']（今天的通道都面向图片）。none 通道不接受任何。 */
-export function ingestionAccepts(ingestion: AssetIngestion, kind: AssetMediaKind): boolean {
-  if (ingestion.strategy === "none") return false;
-  // 只有图片允许 base64 JSON；视频/音频必须走二进制 multipart/stream，避免把一个
-  // 几十 MB 的视频膨胀成 1.33× JSON 再撞上 413。
-  if (kind !== "image" && (ingestion.strategy === "inline-base64" || ingestion.strategy === "upload-url")) return false;
-  const accepts = ingestion.accepts ?? (["image"] as ReadonlyArray<AssetMediaKind>);
-  return accepts.includes(kind);
 }
 
 /** 递归收集任意 JSON 结构里所有待本地化素材值(nomi-local:// / data:,去重)。标量/数组元素/对象值都认。 */
@@ -254,6 +265,12 @@ function hostLabel(ingestion: AssetIngestion): string {
   }
 }
 
+function authorizationHeaders(ingestion: AssetIngestion, apiKey: string): Record<string, string> {
+  if (!apiKey) return {};
+  const scheme = "authType" in ingestion && ingestion.authType === "key" ? "Key" : "Bearer";
+  return { Authorization: `${scheme} ${apiKey}` };
+}
+
 /** 把一个本地素材按 vendor 声明的策略解析成可达值(data:URI 或上传后的公网 URL)。 */
 export async function resolveLocalAsset(
   localUrl: string,
@@ -262,6 +279,7 @@ export async function resolveLocalAsset(
   read: LocalAssetReader,
   postJson: HttpPostJson,
   postMultipart: HttpPostMultipart,
+  putBinary: HttpPutBinary = async () => { throw new Error("当前上传通道需要 raw PUT 执行器"); },
 ): Promise<string> {
   if (ingestion.strategy === "none") {
     throw new Error("当前供应商不支持本地素材上传，请改用公网图片 URL(或为该供应商声明 assetIngestion)");
@@ -271,7 +289,7 @@ export async function resolveLocalAsset(
     const errors: string[] = [];
     for (const host of ingestion.chain) {
       try {
-        const url = await resolveLocalAsset(localUrl, host, "", read, postJson, postMultipart);
+        const url = await resolveLocalAsset(localUrl, host, "", read, postJson, postMultipart, putBinary);
         if (/^https?:\/\//i.test(url)) return url;
         errors.push(`${hostLabel(host)}: 返回非 http URL`);
       } catch (err) {
@@ -311,10 +329,51 @@ export async function resolveLocalAsset(
   const base64Of = () => asset.bytes.toString("base64");
   if (ingestion.strategy === "inline-base64") return `data:${asset.contentType};base64,${base64Of()}`;
 
+  if (ingestion.strategy === "upload-presigned") {
+    // Vendor-owned two-step upload (Runway Dev): initialize with the API key,
+    // then send the bytes to the returned signed URL without forwarding the
+    // key. The resulting runway:// URI stays private to the vendor and avoids
+    // the anonymous-host fallback entirely.
+    const initHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(ingestion.initHeaders || {}),
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+    };
+    const initBody: Record<string, unknown> = {
+      ...(ingestion.initFields || {}),
+      [ingestion.filenameField || "filename"]: asset.fileName,
+      [ingestion.typeField || "type"]: "ephemeral",
+    };
+    const initialized = await postJson(ingestion.endpoint, initHeaders, initBody);
+    const uploadUrl = readNestedPath(initialized, ingestion.uploadUrlPath);
+    const uri = readNestedPath(initialized, ingestion.uriPath);
+    if (typeof uploadUrl !== "string" || !uploadUrl) {
+      throw new Error(`供应商上传初始化缺少 uploadUrl（期望路径 ${ingestion.uploadUrlPath}）`);
+    }
+    if (typeof uri !== "string" || !uri) {
+      throw new Error(`供应商上传初始化缺少资源 URI（期望路径 ${ingestion.uriPath}）`);
+    }
+    const rawFields = readNestedPath(initialized, ingestion.fieldsPath || "fields");
+    const fields = rawFields && typeof rawFields === "object"
+      ? Object.fromEntries(Object.entries(rawFields).map(([key, value]) => [key, String(value)]))
+      : undefined;
+    await postMultipart(
+      uploadUrl,
+      {}, // uploadUrl is signed; never forward the provider API key.
+      asset.bytes,
+      asset.fileName,
+      asset.contentType,
+      fields,
+      ingestion.uploadFileField || "file",
+    );
+    return uri;
+  }
+
   if (ingestion.strategy === "upload-multipart") {
     // multipart/form-data 上传（如 apimart POST /v1/uploads/images；litterbox 匿名临时托管）
-    // apiKey 为空时不发 Authorization（litterbox 匿名、nomi-relay 无鉴权中转端点）
-    const headers: Record<string, string> = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+    // apiKey 为空时不发 Authorization（litterbox/tmpfiles 匿名）；Nomi relay
+    // 只有 token 配置完整时才会进入候选列表。
+    const headers = authorizationHeaders(ingestion, apiKey);
     const response = await postMultipart(
       ingestion.endpoint,
       headers,
@@ -346,7 +405,7 @@ export async function resolveLocalAsset(
   if (ingestion.strategy === "upload-stream") {
     // multipart 流式上传二进制(大文件高效,如 KIE file-stream-upload 收 mp4)。
     // file=二进制 + uploadPath(目录) + fileName,响应公网 URL 在 urlPath。
-    const headers: Record<string, string> = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+    const headers = authorizationHeaders(ingestion, apiKey);
     const extraFields: Record<string, string> = {
       [ingestion.uploadPathField ?? "uploadPath"]: ingestion.uploadPath ?? "uploads",
       [ingestion.fileNameField ?? "fileName"]: asset.fileName,
@@ -359,6 +418,49 @@ export async function resolveLocalAsset(
     return url;
   }
 
+  if (ingestion.strategy === "upload-initiate-put") {
+    const initBody = {
+      [ingestion.initFileNameField ?? "file_name"]: asset.fileName,
+      [ingestion.initContentTypeField ?? "content_type"]: asset.contentType,
+    };
+    const response = await postJson(
+      ingestion.endpoint,
+      { "Content-Type": "application/json", ...authorizationHeaders(ingestion, apiKey) },
+      initBody,
+    );
+    const uploadUrl = readNestedPath(response, ingestion.uploadUrlPath);
+    const fileUrl = readNestedPath(response, ingestion.urlPath);
+    if (typeof uploadUrl !== "string" || !uploadUrl || typeof fileUrl !== "string" || !fileUrl) {
+      throw new Error(`上传初始化响应缺少 signed URL 或文件 URL(期望 ${ingestion.uploadUrlPath} / ${ingestion.urlPath})`);
+    }
+    await putBinary(uploadUrl, { "Content-Type": asset.contentType }, asset.bytes, asset.contentType);
+    return fileUrl;
+  }
+
+  if (ingestion.strategy === "upload-initiate-multipart") {
+    const response = await postJson(
+      ingestion.endpoint,
+      { "Content-Type": "application/json", ...authorizationHeaders(ingestion, apiKey) },
+      {
+        [ingestion.initFileNameField ?? "filename"]: asset.fileName,
+        [ingestion.initTypeField ?? "type"]: ingestion.initType ?? "ephemeral",
+      },
+    );
+    const uploadUrl = readNestedPath(response, ingestion.uploadUrlPath);
+    const fields = readNestedPath(response, ingestion.fieldsPath);
+    const uri = readNestedPath(response, ingestion.uriPath);
+    if (typeof uploadUrl !== "string" || !uploadUrl || !fields || typeof fields !== "object" || typeof uri !== "string" || !uri) {
+      throw new Error(`上传初始化响应缺少 signed 表单或 provider URI(期望 ${ingestion.uploadUrlPath} / ${ingestion.fieldsPath} / ${ingestion.uriPath})`);
+    }
+    const extraFields: Record<string, string> = {};
+    for (const [key, value] of Object.entries(fields)) {
+      if (typeof value !== "string") throw new Error(`上传初始化字段 ${key} 不是字符串`);
+      extraFields[key] = value;
+    }
+    await postMultipart(uploadUrl, {}, asset.bytes, asset.fileName, asset.contentType, extraFields, ingestion.fileField ?? "file");
+    return uri;
+  }
+
   // upload-url（base64 JSON，如 KIE）
   const base64 = base64Of();
   const body: Record<string, unknown> = {
@@ -366,7 +468,7 @@ export async function resolveLocalAsset(
   };
   if (ingestion.uploadPathField) body[ingestion.uploadPathField] = ingestion.uploadPath ?? "uploads";
   if (ingestion.fileNameField) body[ingestion.fileNameField] = asset.fileName;
-  const headers: Record<string, string> = { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` };
+  const headers: Record<string, string> = { "Content-Type": "application/json", ...authorizationHeaders(ingestion, apiKey) };
   const response = await postJson(ingestion.endpoint, headers, body);
   const url = readNestedPath(response, ingestion.urlPath);
   if (typeof url !== "string" || !url) {
@@ -462,6 +564,7 @@ export async function localizeAssetsForVendor(
   postJson: HttpPostJson,
   postMultipart: HttpPostMultipart,
   options: LocalizeAssetsOptions = {},
+  putBinary: HttpPutBinary = async () => { throw new Error("当前上传通道需要 raw PUT 执行器"); },
 ): Promise<{ value: unknown; uploaded: number }> {
   const effectiveValue = options.minimizeUploads && options.activeAssetUrls
     ? pruneInactiveLocalAssets(value, new Set(options.activeAssetUrls))
@@ -516,14 +619,19 @@ export async function localizeAssetsForVendor(
         continue;
       }
       try {
-        resolvedValue = await resolveLocalAsset(url, candidate.ingestion, candidate.uploadApiKey, read, postJson, postMultipart);
+        resolvedValue = await resolveLocalAsset(url, candidate.ingestion, candidate.uploadApiKey, read, postJson, postMultipart, putBinary);
         break;
       } catch (error) {
         failures.push(`${hostLabel(candidate.ingestion)}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
     if (resolvedValue === null) {
-      if (consentRequired) throw new AnonymousAssetConsentRequiredError();
+      // Do not hide a failed provider-owned upload behind the anonymous-hosting
+      // consent prompt.  That turned a concrete Runway/KIE 4xx into a generic
+      // privacy dialog, leaving users unable to repair the actual contract.
+      const privateFailures = failures.filter((line) => !line.includes("需要先确认公共临时托管"));
+      if (consentRequired && privateFailures.length === 0) throw new AnonymousAssetConsentRequiredError();
+      if (consentRequired && privateFailures.length > 0) throw allChannelsFailedError(asset, mediaKind, privateFailures);
       throw allChannelsFailedError(asset, mediaKind, failures);
     }
     urlMap.set(url, resolvedValue);
@@ -532,147 +640,51 @@ export async function localizeAssetsForVendor(
 }
 
 /**
- * Curated 供应商的吞入策略注册表(代码级单源,不依赖持久化目录——curated 传输塑形本就住代码,
- * 见 kieSeedance.ts)。onboarding 自接的 vendor 走 Vendor.assetIngestion(持久化)。
+ * 可选的 Nomi-owned relay。R2 credential 只放在 Worker，Electron 只拿部署者显式注入的
+ * endpoint/token；未配置时返回 null，设置页不会谎报「Nomi relay 已启用」。
  */
-const CURATED_ASSET_INGESTION: Record<string, AssetIngestion> = {
-  // KIE:免费通用文件托管 → 临时公网 URL。docs.kie.ai/file-upload-api
-  // 图片走 base64(file-base64-upload);视频/音频走 stream(见 CURATED_VIDEO_INGESTION,base64 对 mp4 低效)。
-  //
-  // ⚠️ 2026-08-24 真机实测(真 key、真文件、回链 GET 逐字节比对)推翻官方文档三处,以实测为准:
-  //   1. 响应 data 实际只有 {success,fileName,filePath,downloadUrl,fileSize,mimeType,uploadedAt};
-  //      文档宣称的 fileId/fileUrl/uploadPath/originalName/expiresAt **都不存在**。只读 downloadUrl 才安全。
-  //   2. downloadUrl 落在 tempfile.redpandaai.co/<path>,不是文档写的 kieai.redpandaai.co/download/<fileId>
-  //      —— 故只认字段、不硬编码回链域名。
-  //   3. 有效期无字段可读,文档自相矛盾(横幅 24h vs 特性列表 3 天);唯一硬证据是回链响应头
-  //      Cache-Control: max-age=86400 → ttlSeconds 取 24h(保守,取 3 天会在过期后静默拿到死链)。
-  kie: {
-    strategy: "upload-url",
-    endpoint: "https://kieai.redpandaai.co/api/file-base64-upload",
-    base64Field: "base64Data",
-    dataUrlPrefix: true,
-    uploadPathField: "uploadPath",
-    uploadPath: "images/nomi",
-    fileNameField: "fileName",
-    urlPath: "data.downloadUrl",
-    accepts: ["image"],
-    visibility: "provider-private",
-    ttlSeconds: 24 * 60 * 60,
-  },
-  // apimart:POST /v1/uploads/images（multipart/form-data），返回有效 72h 公网 URL（field: url）。
-  // 仅图片：该端点是 image-only（jpeg/png/webp/gif,20MB），收 mp4 会 HTTP 400。视频走 KIE/relay。
-  apimart: { strategy: "upload-multipart", endpoint: "https://api.apimart.ai/v1/uploads/images", urlPath: "url", accepts: ["image"], visibility: "provider-private", ttlSeconds: 72 * 60 * 60 },
-  // 魔搭：改图（Qwen-Image-Edit）的 image_url 直收 data URL（真实 E2E 验证 2026-06-19），无需上传端点。仅图片。
-  modelscope: { strategy: "inline-base64", accepts: ["image"] },
-};
-
-// 视频/音频专用上传通道(按 vendor)。KIE file-stream-upload:multipart 流式二进制,大文件高效(~33%),
-// 返回公网 downloadUrl。docs.kie.ai/file-upload-api/upload-file-stream
-const CURATED_VIDEO_INGESTION: Record<string, AssetIngestion> = {
-  kie: {
-    strategy: "upload-stream",
-    endpoint: "https://kieai.redpandaai.co/api/file-stream-upload",
-    uploadPathField: "uploadPath",
-    uploadPath: "videos/nomi",
-    fileNameField: "fileName",
-    urlPath: "data.downloadUrl",
-    accepts: ["image", "video", "audio"],
-    visibility: "provider-private",
-    ttlSeconds: 24 * 60 * 60,
-  },
-};
-
-/**
- * litterbox（catbox.moe 匿名临时文件托管）：零配置兜底通道——无 key、无账号、收任意文件。
- * POST https://litterbox.catbox.moe/resources/internals/api.php，multipart：
- *   reqtype=fileupload, time=<有效期>, fileToUpload=<二进制>。无 Authorization（匿名）。
- * 响应体是**纯文本直链**（非 JSON），如 "https://litter.catbox.moe/abc123.mp4"。
- * accepts 全媒体类型（它收任何文件）。用作视频上传的零配置兜底：目标 vendor 与 KIE 都没有
- * 视频通道时仍能"开箱即用"。
- *
- * `time` 官方允许 1h / 12h / 24h / 72h（litterbox.catbox.moe/tools.php 2026-07-31 核）。
- * **取 24h 而非最短的 1h**：厂商要求「URL 有效期覆盖完整的素材预处理和视频生成周期」，而视频
- * 排队 + 生成 + 我们这侧的轮询窗（慢道硬超时 20min）叠起来，1h 会在长队列里中途过期 —— 表现为
- * 提交成功、生成到一半厂商拉不到图。取 24h 不取 72h 是因为匿名上传**没有删除 API**（只能等过期），
- * 用户的参考图（常是角色定妆照）在公网多躺一天就多一分暴露，够用即止。
- */
-export const LITTERBOX_INGESTION: AssetIngestion = {
-  strategy: "upload-multipart",
-  endpoint: "https://litterbox.catbox.moe/resources/internals/api.php",
-  responseIsPlainTextUrl: true,
-  fileField: "fileToUpload",
-  extraFields: { reqtype: "fileupload", time: "24h" },
-  accepts: ["image", "video", "audio"],
-  visibility: "public-anonymous",
-  ttlSeconds: 24 * 60 * 60,
-  requiresConsent: true,
-};
-
-/**
- * tmpfiles.org：第二个零配置兜底 host——无 key、无账号、收任意文件。
- * POST https://tmpfiles.org/api/v1/upload，multipart：file=<二进制>。无 Authorization（匿名）。
- * 响应 JSON：{"status":"success","data":{"url":"https://tmpfiles.org/<id>/<name>"}}。
- * ⚠️ data.url 是**页面 URL**；vendor 必须 fetch 的是**直链**——host 后插 "/dl/"
- * (tmpfiles.org/<id>/<name> → tmpfiles.org/dl/<id>/<name>)。故 urlTransform 做这次替换。
- * accepts 全媒体类型（收任何文件）。
- */
-export const TMPFILES_INGESTION: AssetIngestion = {
-  strategy: "upload-multipart",
-  endpoint: "https://tmpfiles.org/api/v1/upload",
-  fileField: "file",
-  urlPath: "data.url",
-  urlTransform: { search: "tmpfiles.org/", replace: "tmpfiles.org/dl/" },
-  accepts: ["image", "video", "audio"],
-  visibility: "public-anonymous",
-  ttlSeconds: 60 * 60,
-  requiresConsent: true,
-};
-
-/**
- * 匿名上传 fallback 链(有序)：bake-in 的免 key 免账号公共托管。逐个试,谁先成功用谁。
- * litterbox(catbox)优先 → tmpfiles.org 兜底。单 host 限速/宕机/封禁时自动切下一个,
- * 全失败才抛诚实错误。两者都无 key、收任意文件(全媒体类型),故"开箱即用"永不要求用户配 key。
- */
-export const ANON_UPLOAD_CHAIN: AssetIngestion = {
-  strategy: "anon-chain",
-  chain: [LITTERBOX_INGESTION, TMPFILES_INGESTION],
-  accepts: ["image", "video", "audio"],
-  visibility: "public-anonymous",
-  ttlSeconds: 60 * 60,
-  requiresConsent: true,
-};
-
-/** 取某 vendor 的吞入策略:优先持久化声明,回退 curated 注册表。 */
-export function resolveAssetIngestion(vendor: { key?: string; assetIngestion?: AssetIngestion } | null | undefined): AssetIngestion | null {
-  if (!vendor) return null;
-  if (vendor.assetIngestion) return vendor.assetIngestion;
-  if (vendor.key && CURATED_ASSET_INGESTION[vendor.key]) return CURATED_ASSET_INGESTION[vendor.key];
-  return null;
+function relayCandidate(config: { endpoint: string; token: string }): IngestionCandidate | null {
+  const endpoint = config.endpoint;
+  const uploadApiKey = config.token;
+  try {
+    const url = new URL(endpoint);
+    if (url.protocol !== "https:" && !(url.hostname === "127.0.0.1" || url.hostname === "localhost")) return null;
+  } catch {
+    return null;
+  }
+  return {
+    ingestion: {
+      strategy: "upload-multipart",
+      endpoint,
+      fileField: "file",
+      urlPath: "url",
+      authType: "bearer",
+      accepts: ["image", "video", "audio"],
+      visibility: "public-provider",
+      ttlSeconds: 24 * 60 * 60,
+      ...(uploadApiKey ? { authType: "bearer" as const } : {}),
+    },
+    uploadApiKey,
+    vendorKey: "nomi-relay",
+  };
 }
 
-/**
- * 取某 vendor 接受给定媒体类型的吞入策略。图片走主声明;视频/音频优先取该 vendor 的专用视频通道
- * (如 KIE stream),再回退主声明(若它本身 accepts 该类型)。该类型无任何可接受通道时返回 null。
- */
-export function resolveAssetIngestionForKind(
-  vendor: { key?: string; assetIngestion?: AssetIngestion } | null | undefined,
-  kind: AssetMediaKind,
-): AssetIngestion | null {
-  if (!vendor) return null;
-  if (kind !== "image" && vendor.key && CURATED_VIDEO_INGESTION[vendor.key]) {
-    const video = CURATED_VIDEO_INGESTION[vendor.key];
-    if (ingestionAccepts(video, kind)) return video;
-  }
-  const primary = resolveAssetIngestion(vendor);
-  if (primary && ingestionAccepts(primary, kind)) return primary;
-  return null;
+/** 自定义/自部署 Relay：环境变量或设置页配置；没有自定义配置时返回 null。 */
+export function nomiAssetRelayCandidateFromEnvironment(): IngestionCandidate | null {
+  const config = readAssetRelayRuntimeConfig();
+  return config.source === "default" ? null : relayCandidate(config);
+}
+
+/** Nomi 官方受限公共 Relay：桌面端内置地址，不需要把 R2 Secret 发给用户。 */
+export function nomiPublicAssetRelayCandidate(): IngestionCandidate | null {
+  return relayCandidate(readDefaultAssetRelayRuntimeConfig());
 }
 
 /**
  * 通用素材上传策略解析（带跨供应商 fallback + 内容类型感知）。
  *
- * 返回**按优先级排好的候选通道列表**（不是单个）：目标 vendor 自身 → KIE（免费,通用文件托管,接图/
- * 视频/音频）→ apimart（免费 72h,仅图片）→ 其他接受该类型且有上传能力的供应商 → 匿名链（零配置兜底）。
+ * 返回**按优先级排好的候选通道列表**（不是单个）：目标 vendor 自身 → 其他已配置供应商的上传 API
+ *（包括 KIE/APIMart）→ Nomi relay（受控兜底）→ 匿名链（零配置兜底）。
  * 调用方从头试，一条挂了换下一条。
  *
  * 为什么必须是列表（2026-08-20 用户报 HTTP 413）：此前只返回**第一条**，那条一失败整个生成就死。
@@ -717,21 +729,30 @@ export function resolveAssetIngestionWithFallback(
     const key = targetVendor?.key ? (getApiKey(targetVendor.key) ?? "") : "";
     push(targetIngestion, key, targetVendor?.key ?? null);
   }
-  // 2. KIE：免费上传，通用文件托管（图/视频/音频），返回公网 URL，所有供应商均可用该 URL
-  const kieKey = getApiKey("kie");
-  if (kieKey) push(resolveAssetIngestionForKind({ key: "kie" }, mediaKind), kieKey, "kie");
-  // 3. apimart：免费上传（72h，仅图片），目标不是 apimart 本身时才用（避免 key 二选一歧义）
-  if (targetVendor?.key !== "apimart") {
-    const apimartKey = getApiKey("apimart");
-    if (apimartKey) push(resolveAssetIngestionForKind({ key: "apimart" }, mediaKind), apimartKey, "apimart");
-  }
-  // 4. 其他任意接受该类型且有上传能力（非 inline-base64）的已配供应商
+  // 2. 其他已配置供应商的上传 API。catalog 顺序是既有供应商选择顺序，
+  // 不因部署了 Nomi relay 而把所有素材先写入我们的 R2。
   for (const vendor of allVendors) {
     if (!vendor.key || vendor.key === targetVendor?.key) continue;
     const ing = resolveAssetIngestionForKind(vendor, mediaKind);
     if (!ing || ing.strategy === "none" || ing.strategy === "inline-base64") continue;
     const key = getApiKey(vendor.key);
     if (key) push(ing, key, vendor.key);
+  }
+  // 3. KIE/APIMart 可能未出现在旧存量 catalog；已配置时补入，push 去重。
+  const kieKey = getApiKey("kie");
+  if (kieKey) push(resolveAssetIngestionForKind({ key: "kie" }, mediaKind), kieKey, "kie");
+  if (targetVendor?.key !== "apimart") {
+    const apimartKey = getApiKey("apimart");
+    if (apimartKey) push(resolveAssetIngestionForKind({ key: "apimart" }, mediaKind), apimartKey, "apimart");
+  }
+  // 4. Nomi relay：用户自己的 Relay 优先于 Nomi 公共 Relay，二者均只作为受控兜底。
+  const nomiRelay = nomiAssetRelayCandidateFromEnvironment();
+  if (nomiRelay && ingestionAccepts(nomiRelay.ingestion, mediaKind)) {
+    push(nomiRelay.ingestion, nomiRelay.uploadApiKey, nomiRelay.vendorKey);
+  }
+  const nomiPublicRelay = nomiPublicAssetRelayCandidate();
+  if (nomiPublicRelay && ingestionAccepts(nomiPublicRelay.ingestion, mediaKind)) {
+    push(nomiPublicRelay.ingestion, nomiPublicRelay.uploadApiKey, nomiPublicRelay.vendorKey);
   }
   // 5. 匿名上传链：零配置兜底（无 key、收任意文件 → 临时公网直链）。多 host 有序 fallback
   //    (litterbox → tmpfiles)，单 host 限速/宕机时自动切下一个。走到这里说明上面更优的通道都没命中

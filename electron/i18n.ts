@@ -41,6 +41,8 @@ const translations = {
     // ⚠️ 长度纪律：错误卡大标题走 classifyError.truncateLine，**超 100 字会被截尾**（那正是
     // 「该怎么办」那半句）。这两条 key 因此写得短，完整上下文留在 raw / 上游原话里。
     "tasks.noQueryOperation": "这个模型没有配置「查询结果」接口，而本次创建也没有返回任何产物——没有第二次查询可发，已按失败处理。请检查该模型的接入配置。",
+    "tasks.completedWithoutOutput": "供应商报告任务完成，但没有返回可用产物；已按失败处理。请检查该模型的结果接口。",
+    "tasks.missingTaskId": "供应商没有返回任务编号，无法安全查询结果；已按失败处理。请检查该模型的创建接口。",
     "tasks.upstreamSaid": "（上游原话：{{detail}}）",
     "production.generationNoAdoptedShots": "没有已落地的生成镜头",
     "production.generationMissingCanvasNode": "生成任务 {{jobId}} 缺少画布节点",
@@ -78,6 +80,8 @@ const translations = {
     "tasks.unrecognizedStatus": "The provider returned an unrecognized task status: “{{status}}”. It stayed that way for {{polls}} polls over {{seconds}}s, so Nomi is treating the task as failed. It may still be running on the provider side — check your provider dashboard.",
     "tasks.pollTimedOut": "Timed out waiting for the result (waited {{seconds}}s, last status: {{status}}). The task may still be running on the provider side — check your provider dashboard or fetch the result again later.",
     "tasks.noQueryOperation": "This model has no result-query operation and the create call returned nothing. Check its setup.",
+    "tasks.completedWithoutOutput": "The provider reported completion but returned no usable output. Check this model's result endpoint.",
+    "tasks.missingTaskId": "The provider did not return a task ID, so Nomi cannot safely query the result. Check this model's create endpoint.",
     "tasks.upstreamSaid": " (Upstream said: {{detail}})",
     "production.generationNoAdoptedShots": "No generated shots have landed yet",
     "production.generationMissingCanvasNode": "Generation job {{jobId}} is missing its canvas node",

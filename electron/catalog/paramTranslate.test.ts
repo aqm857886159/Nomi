@@ -48,6 +48,10 @@ describe("applyParamMap", () => {
     const out = applyParamMap(map, { aspect_ratio: "16:9", resolution: "4K" });
     expect(out.size).toBe("3840x2160");
   });
+  it("值转换规则：duration <- toString(数字枚举)", () => {
+    const map: ParamMap = { rules: [{ wire: "duration", fromMany: ["duration"], transform: "toString" }] };
+    expect(applyParamMap(map, { duration: "4" }).duration).toBe("4");
+  });
   it("常量规则", () => {
     const out = applyParamMap({ rules: [{ wire: "quality", const: "high" }] }, {});
     expect(out.quality).toBe("high");

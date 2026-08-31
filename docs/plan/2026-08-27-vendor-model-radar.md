@@ -79,3 +79,29 @@
 1. 脚本单测：归一（横杠/大小写/语言镜像）、diff、覆盖集派生，全部用离线样本，不打网络。
 2. 真实跑一次两家，人眼核对：已接的模型不出现在 uncovered 里（抽查 Wan 3.0 / Nano Banana 2 / Seedream 5）。
 3. `pnpm run gates` 全过。
+
+## 八、2026-08-31 增补：apimart 索引改版适配 + 供应商级失败隔离
+
+**事发**：08-31 apimart 把根 llms.txt 改成「索引的索引」（71 行：集成指南 + FAQ + 9 个语言
+镜像子索引，0 模型页；自述「Follow each `/_llms/` index recursively until you reach
+documentation pages」），模型页全部移入 `/_llms/en/api-manual.md`（143 条 api-reference，
+行格式与旧根完全一致）。0 条守卫按设计抛错，但 main 串行循环无隔离 → kie 陪葬、
+latest.json 不写、整轮 abort。
+
+**改法**（同 commit 落地，无并行版；根因合同
+`docs/fixes/2026-08-31-model-radar-vendor-isolation.root-cause.json`）：
+
+1. **采集抽象**：`VENDORS[v].parse(text)`（单 URL 单文本）→ `VENDORS[v].collect(fetchText)`。
+   apimart 的 collect 从根索引出发**有界跟进**（≤8 次、visited 去重、只跟英文份 `/_llms/en*`
+   ——其余 9 份语言镜像是同册复本），沿途文本合并后走原行解析器；根里若直接列模型页
+   （旧扁平结构）同一算法照收，不是 fallback 分支。
+2. **失败隔离边界 `collectVendors`**：per-vendor try/catch + 0 条守卫。单家失败 = 该家显式
+   「没查成」（摘要 ⚠️ + latest.json `failures[]`），其余照常出差异；快照只在查成的家更新。
+   退出码：任一家查成 → 0；全部失败 → 1（failures 先写进 latest.json 留档）。
+   「没查成」永远不许被读成「没有新模型」。
+3. **`--offline` 命名**从 `<vendor>.txt` 改为 URL 派生（`offlineFileName(url)`，如
+   `docs.apimart.ai__llms_en_api-manual.md`）——两级索引下一家可能要多份样本。
+
+**验收（08-31 实跑）**：真网一轮 apimart 新增 0 · 下架 0（两级跟进还原出的 127 个 slug 与
+08-27 基线完全重合，证明改版纯属文档重组）、kie 正常报出真新增 1（gemini-omni-flash-1-1）；
+离线制造单家失败 → 该家标「没查成」、另一家照常、退出码 0；双家全失败 → 退出码 1。

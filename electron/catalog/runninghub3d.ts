@@ -7,8 +7,8 @@
 //   轮询 POST /openapi/v2/query，body {taskId}；鉴权 Bearer；完成 results:[{fileUrl,fileType:"glb"}]
 //   状态 SUCCESS / FAILED / CANCEL / RUNNING / QUEUED / CREATE
 // joinUrl 约定（避双前缀，见 kieSeedance 注释）：baseUrl 裸到 /openapi/v2，op.path = /{endpoint}。
-// 本地图（图生3D）经通用 ANON_UPLOAD_CHAIN 自动传公网（resolveAssetIngestionWithFallback 兜底，零配置）。
-import type { HttpOperation, ProfileKind } from "./types";
+// 本地图优先走 RunningHub 自己的 /media/upload/binary，失败才由共享 resolver 进入其它已配置通道/匿名链。
+import type { AssetIngestion, HttpOperation, ProfileKind } from "./types";
 
 /** RunningHub 供应商种子（裸 baseUrl 到 /openapi/v2 + bearer）。 */
 export const RUNNINGHUB_VENDOR_SEED = {
@@ -17,6 +17,16 @@ export const RUNNINGHUB_VENDOR_SEED = {
   baseUrl: "https://www.runninghub.cn/openapi/v2",
   authType: "bearer" as const,
   authHeader: "Authorization",
+  assetIngestion: {
+    strategy: "upload-multipart",
+    endpoint: "https://www.runninghub.cn/openapi/v2/media/upload/binary",
+    fileField: "file",
+    urlPath: "data.download_url",
+    authType: "bearer",
+    accepts: ["image", "video", "audio"],
+    visibility: "provider-private",
+    ttlSeconds: 24 * 60 * 60,
+  } as AssetIngestion,
 } as const;
 
 // 状态动词 → 我们三态。RunningHub 返大写；matcher 大小写不确定 → 大小写都列（防 casing，不脑补一种）。

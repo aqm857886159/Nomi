@@ -19,7 +19,10 @@
 | [2026-08-08-production-run-foundation.md](2026-08-08-production-run-foundation.md) | Production Run Foundation Implementation Plan | — |
 | [2026-08-13-canvas-clip-node.md](2026-08-13-canvas-clip-node.md) | 画布剪辑节点实施计划 | — |
 | [2026-08-13-ux-clarity-and-discoverability.md](2026-08-13-ux-clarity-and-discoverability.md) | 体验清晰度与可发现性实施计划 | — |
+| [2026-08-14-clip-node-infinite-timeline.md](2026-08-14-clip-node-infinite-timeline.md) | 剪辑节点无限时间轴样章 Implementation Plan | 🧊 暂缓/远期 |
 | [2026-08-14-clip-node-visual-alignment.md](2026-08-14-clip-node-visual-alignment.md) | 剪辑节点视觉对齐实施计划 | — |
+| [2026-08-20-storyboard-execution-contract-v2.md](2026-08-20-storyboard-execution-contract-v2.md) | Storyboard Execution Contract v2 Implementation Plan | 🧊 暂缓/远期 |
+| [2026-08-21-agent-editor-workbench.md](2026-08-21-agent-editor-workbench.md) | Agent Editor Workbench Implementation Plan | 🧊 暂缓/远期 |
 | [2026-08-21-agentic-production-draft-film.md](2026-08-21-agentic-production-draft-film.md) | Agentic Production 到真实 30 秒初稿 Implementation Plan | — |
 | [2026-08-21-apimart-deepseek-text-models.md](2026-08-21-apimart-deepseek-text-models.md) | APIMart DeepSeek Text Models Implementation Plan | — |
 | [2026-08-21-asset-transport-storage-hardening.md](2026-08-21-asset-transport-storage-hardening.md) | Asset Transport and Storage Hardening Implementation Plan | — |
@@ -49,3 +52,5 @@
 | [2026-08-28-quality-gate-parallel-orchestration.md](2026-08-28-quality-gate-parallel-orchestration.md) | Quality Gate Parallel Orchestration Implementation Plan | ✅ 已交付 |
 | [2026-08-27-canvas-read-capability-spine.md](2026-08-27-canvas-read-capability-spine.md) | `canvas.read` 单一能力脊梁实施计划 | 🚧 进行中 |
 | [2026-08-28-project-agent-host-handoff.md](2026-08-28-project-agent-host-handoff.md) | Nomi 项目级常驻 Agent 完整交接（历史文件） | ⛔ 历史 |
+| [2026-08-31-asset-relay-routing.md](2026-08-31-asset-relay-routing.md) | Asset Relay Routing Implementation Plan | ✅ 已交付 |
+| [2026-08-31-provider-model-expansion-certification.md](2026-08-31-provider-model-expansion-certification.md) | Provider and Flagship Model Expansion Certification Implementation Plan | ✅ 已交付 |

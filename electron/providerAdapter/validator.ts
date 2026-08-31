@@ -28,11 +28,51 @@ const allowedResponseMappingKeys = new Set([
   "assets",
   "image_url",
   "video_url",
+  "audio_url",
   "model_url",
   "text",
   "error_message",
 ]);
 const referenceTaskKinds = new Set<ProfileKind>(["image_edit", "image_to_video", "image_to_audio", "image_to_3d"]);
+
+const audioResponseSchema = z.union([
+  z.enum(["binary", "ndjson-base64"]),
+  z.object({
+    type: z.literal("binary"),
+    contentType: z.string().regex(/^audio\/[A-Za-z0-9.+-]+$/).max(128),
+    extension: z.string().regex(/^[A-Za-z0-9]{1,10}$/),
+  }).strict(),
+  z.object({
+    type: z.literal("json"),
+    dataPath: z.string().min(1).max(512),
+    encoding: z.enum(["hex", "base64"]),
+    contentType: z.string().regex(/^audio\/[A-Za-z0-9.+-]+$/).max(128),
+    extension: z.string().regex(/^[A-Za-z0-9]{1,10}$/),
+  }).strict(),
+]);
+
+const multipartSchema = z.object({
+  fields: z.record(z.string(), z.string()).optional(),
+  fileField: z.string().min(1).max(128).optional(),
+  fileSource: z.string().min(1).max(2_048).optional(),
+  fileKind: z.enum(["image", "audio", "video"]).optional(),
+  imageField: z.string().min(1).max(128).optional(),
+  imageSource: z.string().min(1).max(2_048).optional(),
+  multiple: z.boolean().optional(),
+  filename: z.string().min(1).max(128).optional(),
+}).strict().superRefine((value, context) => {
+  const generic = Boolean(value.fileField && value.fileSource);
+  const legacy = Boolean(value.imageField && value.imageSource);
+  if (!generic && !legacy) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "multipart requires fileField/fileSource" });
+  }
+  if ((value.fileField && !value.fileSource) || (!value.fileField && value.fileSource)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "multipart fileField and fileSource must be paired" });
+  }
+  if ((value.imageField && !value.imageSource) || (!value.imageField && value.imageSource)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "multipart imageField and imageSource must be paired" });
+  }
+});
 
 const httpOperationSchema = z
   .object({
@@ -45,6 +85,8 @@ const httpOperationSchema = z
     response_mapping: z.record(z.string(), z.unknown()).optional(),
     provider_meta_mapping: z.record(z.string(), z.unknown()).optional(),
     defaultParams: z.record(z.string(), z.unknown()).optional(),
+    audioResponse: audioResponseSchema.optional(),
+    multipart: multipartSchema.optional(),
   })
   .strict();
 
@@ -74,6 +116,7 @@ const adapterModesSchema = z
         taskKind: z.enum(profileKinds),
         create: httpOperationSchema,
         query: httpOperationSchema.optional(),
+        result: httpOperationSchema.optional(),
         statusMapping: z.record(z.string(), z.array(z.string().max(128)).max(32)).optional(),
         referenceParam: z.string().min(1).max(128).optional(),
         referenceShape: z.enum(["single", "array"]).optional(),
@@ -229,6 +272,19 @@ function assertOperation(operation: HttpOperation, providerBaseUrl: string, loca
   }
   assertJsonShape(operation.provider_meta_mapping, `${location}.provider_meta_mapping`);
   assertJsonShape(operation.defaultParams, `${location}.defaultParams`);
+  if (operation.audioResponse && typeof operation.audioResponse === "object") {
+    assertJsonShape(operation.audioResponse, `${location}.audioResponse`);
+    if (operation.audioResponse.type === "json") {
+      assertSafeResponsePath(operation.audioResponse.dataPath, `${location}.audioResponse.dataPath`);
+    }
+  }
+  if (operation.multipart) {
+    assertJsonShape(operation.multipart.fields, `${location}.multipart.fields`);
+    assertJsonShape(operation.multipart.fileSource || operation.multipart.imageSource, `${location}.multipart.fileSource`);
+    if (Object.keys(operation.headers || {}).some((key) => key.toLowerCase() === "content-type")) {
+      throw new Error(`${location}.multipart must not declare Content-Type; fetch supplies the boundary`);
+    }
+  }
   const serialized = JSON.stringify(operation);
   if (serialized.length > 64_000) throw new Error(`${location} exceeds the maximum serialized size`);
 }
@@ -269,10 +325,15 @@ export function validateProviderAdapterDraft(
       }
       assertOperation(mode.create, parsed.provider.baseUrl, `${model.modelKey}.${mode.taskKind}.create`);
       if (mode.query) assertOperation(mode.query, parsed.provider.baseUrl, `${model.modelKey}.${mode.taskKind}.query`);
+      if (mode.result && !mode.query) {
+        throw new Error(`Mode ${model.modelKey}/${mode.taskKind} declares result without query`);
+      }
+      if (mode.result) assertOperation(mode.result, parsed.provider.baseUrl, `${model.modelKey}.${mode.taskKind}.result`);
       if (model.kind !== "text") {
         const resultKeys = new Set([
           ...Object.keys(mode.create.response_mapping || {}),
           ...Object.keys(mode.query?.response_mapping || {}),
+          ...Object.keys(mode.result?.response_mapping || {}),
         ]);
         const accepted = model.kind === "image"
           ? ["assets", "image_url"]
@@ -280,8 +341,11 @@ export function validateProviderAdapterDraft(
             ? ["assets", "video_url"]
             : model.kind === "model3d"
               ? ["assets", "model_url"]
-              : ["assets"];
-        if (!accepted.some((key) => resultKeys.has(key))) {
+              : model.kind === "audio"
+                ? (mode.taskKind === "transcribe" ? ["text"] : ["assets", "audio_url"])
+                : ["assets"];
+        const declaredAudioBody = model.kind === "audio" && mode.taskKind !== "transcribe" && Boolean(mode.create.audioResponse);
+        if (!declaredAudioBody && !accepted.some((key) => resultKeys.has(key))) {
           throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires a media result mapping`);
         }
       }

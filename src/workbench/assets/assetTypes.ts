@@ -12,7 +12,7 @@ import { listNodeMediaResults, resultIdentity } from '../generationCanvas/model/
 import type { WorkspaceFileNode } from '../../../electron/workspace/workspaceFileIndex'
 import { buildWorkspaceFileUrl } from '../explorer/workspaceFileDrag'
 
-export type AssetKind = 'image' | 'video' | 'audio'
+export type AssetKind = 'image' | 'video' | 'audio' | 'model3d'
 export type AssetSource = 'canvas' | 'project'
 
 /** 发送时解析「传输地址」所需的来源线索（discriminated union，给 R1 解析器用）。 */
@@ -40,7 +40,7 @@ export type AssetRef = {
   origin: AssetOrigin
 }
 
-const ASSET_KINDS: ReadonlySet<string> = new Set<AssetKind>(['image', 'video', 'audio'])
+const ASSET_KINDS: ReadonlySet<string> = new Set<AssetKind>(['image', 'video', 'audio', 'model3d'])
 
 /** 画布节点 → 全部媒体 AssetRef；主结果与 history 去重展开，同一节点多图不再只露主图。 */
 export function canvasNodeToAssetRefs(node: GenerationCanvasNode): AssetRef[] {
@@ -66,10 +66,11 @@ export function canvasNodeToAssetRefs(node: GenerationCanvasNode): AssetRef[] {
 
 /** 项目文件节点 → AssetRef；非素材类（目录/文档/纯文本）返回 null。URL 现算（项目文件不存 url）。 */
 export function workspaceNodeToAssetRef(node: WorkspaceFileNode, projectId: string): AssetRef | null {
-  if (!ASSET_KINDS.has(node.kind)) return null
+  const kind = node.kind === 'file' && node.contentType === 'model/gltf-binary' ? 'model3d' : node.kind
+  if (!ASSET_KINDS.has(kind)) return null
   return {
     id: node.relativePath,
-    kind: node.kind as AssetKind,
+    kind: kind as AssetKind,
     name: node.name,
     updatedAt: node.updatedAt,
     renderUrl: buildWorkspaceFileUrl(projectId, node.relativePath),

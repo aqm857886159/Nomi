@@ -1,0 +1,211 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-30-flagship-provider-declaration-boundary",
+  "problem_type": "Flagship audio, video, transcription, and 3D providers require wire contracts that the shared catalog declaration boundary could not represent or validate",
+  "symptom": "Nomi exposed older media generations while current music, sound-effect, first-party speech, transcription, Gemini Omni 1.1, MiniMax H3, and Meshy 7 routes were absent; adding them as ad hoc mappings would either drift on existing installations or bypass conversational adapter validation.",
+  "direct_cause": "The catalog operation schema was image-oriented: multipart declarations only named image fields, synchronous audio body formats and audio_url were not validated adapter results, boolean/millisecond translations were absent, and built-in seed repair did not own these flagship mappings.",
+  "class_root": "Nomi lacked one declaration-driven model contract spanning curated seed identity, exact request/response operations, safe adapter compilation/validation, generic file upload, parameter translation, generated archetype defaults, and deterministic drift reconciliation.",
+  "affected_population": [
+    "New and existing installations receiving MiniMax, ElevenLabs, Meshy, KIE, or APIMart flagship catalog updates",
+    "Users connecting an audio or transcription provider through the PR #221 conversational integration flow",
+    "Maintainers adding future synchronous audio, multipart media, asynchronous audio, or model3d declarations"
+  ],
+  "scope_paths": [
+    "electron/catalog/apimartAudios.ts",
+    "electron/catalog/assetLocalization.ts",
+    "electron/catalog/archetypeIdentifiers.generated.ts",
+    "electron/catalog/archetypeModes.generated.ts",
+    "electron/catalog/archetypeWireDefaults.audio.generated.ts",
+    "electron/catalog/archetypeWireDefaults.image.generated.ts",
+    "electron/catalog/archetypeWireDefaults.model3d.generated.ts",
+    "electron/catalog/archetypeWireDefaults.video.generated.ts",
+    "electron/catalog/builtinVendorSeeds.ts",
+    "electron/catalog/catalogCommit.ts",
+    "electron/catalog/catalogStore.ts",
+    "electron/catalog/comfyuiCandidateLifecycle.ts",
+    "electron/catalog/elevenlabs.ts",
+    "electron/catalog/falOfficial.ts",
+    "electron/catalog/kieGeminiOmni11.ts",
+    "electron/catalog/kieSunoAudio.ts",
+    "electron/catalog/meshyOfficial.ts",
+    "electron/catalog/minimaxOfficial.ts",
+    "electron/catalog/multipartOperation.ts",
+    "electron/catalog/paramTranslate.ts",
+    "electron/catalog/seedBuiltins.ts",
+    "electron/catalog/runwayOfficial.ts",
+    "electron/catalog/referenceReachability.ts",
+    "electron/catalog/types.ts",
+    "electron/providerAdapter/compiler.ts",
+    "electron/providerAdapter/serviceCatalog.ts",
+    "electron/providerAdapter/types.ts",
+    "electron/providerAdapter/validator.ts"
+  ],
+  "entry_points": [
+    "Built-in provider/model/mapping seed and existing-installation reconciliation",
+    "Conversational provider adapter compilation and fail-closed validation",
+    "Production multipart media request assembly and canonical parameter translation",
+    "Provider service catalog/type declarations and local asset localization",
+    "Generated archetype identifier, mode, and wire-default lookup"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://platform.minimaxi.com/docs/api-reference/video-generation-v2-create",
+      "checked_at": "2026-08-30",
+      "purpose": "Defines MiniMax H3 content roles, endpoint, exact model id, and asynchronous creation contract."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://elevenlabs.io/docs/overview/models",
+      "checked_at": "2026-08-30",
+      "purpose": "Defines the current Eleven v3, Music v2, sound-effect, and Scribe model identities used by the curated catalog."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.meshy.ai/en/api/image-to-3d",
+      "checked_at": "2026-08-30",
+      "purpose": "Defines Meshy image-to-3D creation, task lifecycle, and model_urls.glb result contract."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.kie.ai/market/google/gemini-omni-flash-1-1.md",
+      "checked_at": "2026-08-30",
+      "purpose": "Proves Gemini Omni Flash 1.1 is a distinct KIE identity and wire contract, not APIMart's Preview model."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.kie.ai/suno-api/generate-sounds.md",
+      "checked_at": "2026-08-30",
+      "purpose": "Defines KIE Suno sound generation fields, including the boolean loop wire value."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/audios/flow-music/music-lyria-3-5",
+      "checked_at": "2026-08-30",
+      "purpose": "Defines APIMart Lyria 3.5 asynchronous creation, task query, and audio result shape."
+    }
+  ],
+  "invariants": [
+    "Every curated flagship model has one exact vendor/model identity and never aliases a preview, relay, or predecessor generation.",
+    "Every non-text mapping declares an executable request and an honest terminal result through canonical image_url, video_url, audio_url, model_url, text, assets, or a bounded audioResponse body contract.",
+    "Multipart media declarations pair field/source names, never set a manual Content-Type boundary, and share one file resolver across image, audio, and video.",
+    "Provider adapter compilation may emit only declarations accepted by the same fail-closed validator used before certification.",
+    "Re-running built-in seeds repairs code-owned flagship wire drift while preserving user-owned labels, enabled state, and credentials.",
+    "Generated archetype defaults are derived artifacts of the same checked-in model declarations and are regenerated rather than hand-edited."
+  ],
+  "generality_proof": "Both static built-ins and PR #221 conversational integrations converge on HttpOperation and ProfileKind declarations before execution. The seed reconciler owns code-defined flagship mappings, the adapter validator rejects unrepresentable or unsafe contracts, the multipart and parameter registries execute provider-neutral declarations, and generated archetype defaults expose the same canonical modes to renderer callers. This spans the checked MiniMax, ElevenLabs, Meshy, KIE, and APIMart entries without provider branches in shared execution code.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/types.ts",
+      "symbol": "HttpOperation",
+      "responsibility": "Define the closed declarative wire vocabulary for JSON, multipart media, synchronous audio bodies, response mappings, and asynchronous query operations."
+    },
+    {
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "validateProviderAdapterDraft",
+      "responsibility": "Fail closed on unsafe, incomplete, cross-kind, or non-materializable provider declarations before any paid certification."
+    },
+    {
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "applyBuiltinSeeds",
+      "responsibility": "Install and reconcile exact code-owned flagship identities and operations without overwriting user-owned catalog fields."
+    },
+    {
+      "path": "electron/catalog/multipartOperation.ts",
+      "symbol": "executeMultipartOperation",
+      "responsibility": "Resolve, bound, and upload declared image, audio, or video files while leaving multipart boundary construction to fetch."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/minimaxOfficial.ts",
+      "entry_point": "MiniMax M3, H3, and Speech 2.8 built-in declarations",
+      "disposition": "enforced",
+      "evidence": "The exact identities and operations are installed through applyBuiltinSeeds and use HttpOperation plus canonical archetype metadata."
+    },
+    {
+      "path": "electron/catalog/elevenlabs.ts",
+      "entry_point": "ElevenLabs TTS, music, sound-effect, and transcription declarations",
+      "disposition": "enforced",
+      "evidence": "Binary audio and generic multipart transcription use the shared HttpOperation, validator, and multipart executor contracts."
+    },
+    {
+      "path": "electron/catalog/apimartAudios.ts",
+      "entry_point": "APIMart Suno and Lyria asynchronous audio mappings",
+      "disposition": "enforced",
+      "evidence": "Create/query/status/audio_url fields use the same canonical mapping and seed reconciliation boundaries as other media kinds."
+    },
+    {
+      "path": "electron/providerAdapter/compiler.ts",
+      "entry_point": "Documentation-to-adapter compilation for a user-selected provider",
+      "disposition": "enforced",
+      "evidence": "The compiler can describe generic multipart and audio body contracts but its output must pass validateProviderAdapterDraft before execution or publication."
+    },
+    {
+      "path": "electron/catalog/archetypeWireDefaults.audio.generated.ts",
+      "entry_point": "Renderer and runtime lookup of generated audio wire defaults",
+      "disposition": "enforced",
+      "evidence": "The file is regenerated by gen:archetype-defaults from checked-in archetype declarations and is exercised by seed/archetype contract tests."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every new model generation or media provider can introduce a distinct identity, upload shape, body encoding, parameter unit, async lifecycle, or result location; existing installations can retain stale code-owned mappings indefinitely without shared reconciliation.",
+    "same_class_scan": [
+      "Inspected all changed MiniMax, ElevenLabs, Meshy, KIE, and APIMart provider declarations and compared create/query/result fields with their official sources.",
+      "Searched HttpOperation consumers, response_mapping keys, audioResponse declarations, multipart declarations, and PARAM_TRANSFORMS across catalog, runtime, and providerAdapter code.",
+      "Checked both applyBuiltinSeeds static publication and validateProviderAdapterDraft conversational publication entry points.",
+      "Regenerated and diffed every affected audio, video, and model3d archetype default artifact."
+    ]
+  },
+  "prevention": {
+    "kind": "schema-validation",
+    "enforcement_path": "electron/providerAdapter/validator.ts",
+    "invariant": "Every dynamically compiled provider mode is representable by the same closed, media-aware declaration vocabulary used by curated built-ins before it can perform certification or enter the catalog.",
+    "failure_mode": "Unknown result keys, cross-kind tasks, unsafe response paths, incomplete multipart pairs, manual multipart boundaries, or non-materializable media declarations are rejected before paid work and publication.",
+    "exception_policy": "none",
+    "strategy": "Expand the shared HttpOperation vocabulary once, enforce it at adapter validation, execute generic file/audio declarations through shared boundaries, and reconcile curated flagship mappings from exact official declarations on every seed pass.",
+    "artifacts": [
+      "electron/catalog/types.ts",
+      "electron/providerAdapter/compiler.ts",
+      "electron/providerAdapter/validator.ts",
+      "electron/catalog/seedBuiltins.ts",
+      "electron/catalog/multipartOperation.ts",
+      "electron/catalog/paramTranslate.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/flagshipAudioVideoContracts.test.ts",
+    "electron/catalog/referenceReachability.test.ts",
+    "electron/catalog/seedBuiltins.test.ts",
+    "electron/catalog/multipartOperation.test.ts",
+    "electron/providerAdapter/validator.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/flagshipAudioVideoContracts.test.ts",
+    "electron/catalog/referenceReachability.test.ts",
+    "electron/catalog/seedBuiltins.test.ts",
+    "electron/catalog/multipartOperation.test.ts",
+    "electron/providerAdapter/validator.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/multipartOperation.ts",
+      "electron/providerAdapter/validator.ts",
+      "electron/catalog/seedBuiltins.ts"
+    ],
+    "rationale": "The image-only multipart assumption, media-result validator gap, and insert-only flagship mapping behavior are replaced at their shared boundaries; legacy user models remain data, not callable fallback code."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "These identities and wire invariants are defined by external provider APIs but enforced by Nomi's own declarations, validator, seed reconciliation, and transport; no package upgrade can supply the catalog contract.",
+    "exit_criteria": []
+  },
+  "migration": "Existing catalog rows keep their vendorKey/modelKey and user-owned display/enabled state. On startup, code-owned mappings with known stable seed ids are reconciled to the current declared create/query/status contract; unknown user mappings, credentials, and custom labels are not rewritten. Generated archetype artifacts are rebuilt from source declarations.",
+  "residual_risks": [
+    "Official documentation proves request contracts, not model quality; flagship quality ordering still requires Nomi blind evaluation.",
+    "Credential-backed paid certification is provider/account specific and remains required before a dynamically connected model is marked usable.",
+    "Meshy alternative formats and two-stage text-to-3D, broader fal/Replicate catalogs, and unverified KIE/APIMart endpoints remain intentionally outside this contract."
+  ]
+}

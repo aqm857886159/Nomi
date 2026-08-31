@@ -39,6 +39,31 @@ describe("HttpProviderConnector", () => {
     expect(connector.list({ limit: 5 })).toEqual([{ id: "run-1" }]);
   });
 
+  it("exposes LocalAI discovery through the existing HTTP connector without probing other protocols", async () => {
+    const probe = vi.fn(async () => ({ kind: "localai", health: "ready" }));
+    const connector = new HttpProviderConnector({} as never, undefined, probe as never);
+
+    await expect(connector.probeExternalLocalRuntime({
+      baseUrl: "http://127.0.0.1:8080/v1",
+      providerKind: "openai-compatible",
+      authType: "bearer",
+      apiKey: "secret",
+    })).resolves.toMatchObject({ kind: "localai", health: "ready" });
+    expect(probe).toHaveBeenCalledWith(expect.objectContaining({
+      baseUrl: "http://127.0.0.1:8080/v1",
+      apiKey: "secret",
+      authHeader: "authorization",
+    }));
+
+    await expect(connector.probeExternalLocalRuntime({
+      baseUrl: "https://api.anthropic.com",
+      providerKind: "anthropic",
+      authType: "x-api-key",
+      apiKey: "secret",
+    })).resolves.toBeNull();
+    expect(probe).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     ["https://gateway.test/v1", "https://gateway.test/v1/models", "https://gateway.test/v1/images/generations"],
     ["https://gateway.test/api/v3", "https://gateway.test/api/v3/models", "https://gateway.test/api/v3/images/generations"],

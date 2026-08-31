@@ -4,6 +4,7 @@ import { Combobox, useCombobox } from '@mantine/core'
 import { IconCheck, IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../utils/cn'
 import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
+import { NomiIdentityIcon, type NomiIdentityIconSource } from './NomiIdentityIcon'
 
 /**
  * NomiSelect —— 全仓统一的「选择面板」通用组件（规则 1/5：一个来源，别散落原生 <select>）。
@@ -21,6 +22,8 @@ export type NomiSelectTone = 'accent' | 'muted' | 'danger'
 export type NomiSelectOption = {
   value: string
   label: string
+  /** Local model-brand or provider-route mark. Never fetches a remote favicon. */
+  icon?: NomiIdentityIconSource
   /** 选项右侧附加文字（如价格、模板/通用），在对勾左边。 */
   trailing?: string
   trailingTone?: NomiSelectTone
@@ -156,6 +159,7 @@ export function NomiSelect({
           {leadingLabel ? (
             <span className="shrink-0 text-micro leading-none text-nomi-ink-40">{leadingLabel}</span>
           ) : null}
+          {selected?.icon ? <NomiIdentityIcon icon={selected.icon} /> : null}
           <span
             className="min-w-0 truncate text-caption text-nomi-ink-80"
             style={triggerMaxWidth ? { maxWidth: triggerMaxWidth } : undefined}
@@ -196,6 +200,7 @@ export function NomiSelect({
                 {/* dimmed：整行减淡但仍可点（「能选、眼下不建议」）。不用 disabled——那是"点不了"，
                     两种语义别混（近期连败的模型仍允许手动选，是拍板过的原则）。 */}
                 <span className={cn('flex min-w-0 items-center gap-2 w-full', option.dimmed ? 'opacity-45' : '')}>
+                  {option.icon ? <NomiIdentityIcon icon={option.icon} size="md" /> : null}
                   <span className={cn('min-w-0 text-caption', searchable ? 'whitespace-normal break-all py-1' : 'truncate', isSel ? 'text-nomi-ink font-semibold' : 'text-nomi-ink-80')}>
                     {option.label}
                   </span>

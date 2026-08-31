@@ -123,4 +123,39 @@ describe("未登记动词的端到端轮询行为", () => {
       expect((await fetchTaskResult({ taskId: "task-recovers" })).result.status).toBe("queued");
     }
   });
+
+  it("完成状态后执行独立 result operation，并且只物化 result 返回的资产", async () => {
+    const { admitTask, taskCache } = await import("../runtime");
+    const { fetchTaskResult } = await import("./taskResultQuery");
+    const taskId = "task-three-stage";
+    taskCache.delete(taskId);
+    admitTask(taskId, {
+      vendor: "acme",
+      request: { kind: "text_to_video", prompt: "a cat", extras: { modelKey: "acme-video" } },
+      raw: {},
+      mapping: {
+        ...VIDEO_MAPPING,
+        result: {
+          method: "GET",
+          path: "/v1/video/{{providerMeta.task_id}}",
+          response_mapping: { video_url: "video.url" },
+        },
+      } as never,
+      model: { modelKey: "acme-video", kind: "video" } as never,
+      providerMeta: { task_id: taskId, query_id: taskId },
+      wantedKind: "video",
+    });
+    executeProfileOperation
+      .mockResolvedValueOnce({ response: { status: "COMPLETED" }, request: {} })
+      .mockResolvedValueOnce({ response: { video: { url: "https://cdn.test/out.mp4" } }, request: {} });
+
+    const terminal = await fetchTaskResult({ taskId });
+
+    expect(terminal.result).toMatchObject({
+      status: "succeeded",
+      assets: [{ type: "video", url: "https://cdn.test/out.mp4" }],
+    });
+    expect(executeProfileOperation.mock.calls.map(([input]) => input.stage)).toEqual(["query", "result"]);
+    expect(taskCache.get(taskId)).toBeUndefined();
+  });
 });

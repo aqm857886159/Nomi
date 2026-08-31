@@ -1,0 +1,135 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-30-synchronous-audio-certification-boundary",
+  "problem_type": "synchronous binary media executed through a JSON-only adapter path",
+  "symptom": "A conversationally connected OpenAI-compatible TTS model completed POST /v1/audio/speech but certification failed with 'Provider returned a pending task but the adapter has no query operation', so the model never appeared in the ordinary usable model list.",
+  "direct_cause": "The provider adapter verifier sent every non-text create operation through executeProfileOperation and buildProfileTaskResult; that path parses response bodies as JSON or text and can only materialize URL-bearing media, while synchronous TTS returns the audio bytes in the response body.",
+  "class_root": "Nomi had no shared synchronous-audio execution contract that preserved bounded response bytes and declared audio metadata for both production generation and adapter certification.",
+  "affected_population": [
+    "Users connecting OpenAI-compatible or vendor-native synchronous text-to-speech endpoints through the conversational integration flow",
+    "Users generating speech through built-in binary or JSON-encoded synchronous audio mappings",
+    "Maintainers adding another synchronous audio provider contract"
+  ],
+  "scope_paths": [
+    "electron/audio/synchronousAudioResponse.ts",
+    "electron/audioTaskRunner.ts",
+    "electron/catalog/newapiTransport.ts",
+    "electron/providerAdapter/verifier.ts",
+    "electron/vendor/boundedResponse.ts",
+    "electron/vendor/vendorHttp.ts"
+  ],
+  "entry_points": [
+    "runAudioTask production text-to-speech generation",
+    "verifyAdapterMode conversational provider certification"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The failure is an internal execution-contract mismatch between Nomi's existing binary audio runner and provider adapter verifier; external provider documentation cannot decide which Nomi boundary owns response bytes.",
+  "invariants": [
+    "A synchronous audio create response is read once as bounded bytes and is never passed through the JSON URL task normalizer.",
+    "Production generation and adapter certification decode binary and JSON-encoded audio through the same declaration-driven executor.",
+    "Adapter certification verifies the returned bytes directly before promotion and performs exactly one paid create request.",
+    "Asynchronous audio mappings with a query operation continue through the generic create and poll state machine."
+  ],
+  "generality_proof": "Both independently checked synchronous-audio consumers converge on one declaration-driven executor, while asynchronous audio remains explicitly outside the class. Binary response bodies, JSON hex/base64 bodies, authentication query parameters, response limits, and cancellation are therefore interpreted once for every supported synchronous provider rather than by provider-specific verifier branches.",
+  "shared_boundaries": [
+    {
+      "path": "electron/audio/synchronousAudioResponse.ts",
+      "symbol": "executeSynchronousAudioOperation",
+      "responsibility": "Build, submit, bound, decode, and type one synchronous audio operation for every production or certification caller."
+    },
+    {
+      "path": "electron/providerAdapter/verifier.ts",
+      "symbol": "verifyAdapterMode",
+      "responsibility": "Route synchronous audio to the shared byte executor and certify those bytes directly before promotion."
+    },
+    {
+      "path": "electron/vendor/boundedResponse.ts",
+      "symbol": "readBoundedResponseBytes",
+      "responsibility": "Reject declared or streamed response bodies above the byte limit and honor cancellation before buffering completes."
+    },
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "requestBinary",
+      "responsibility": "Apply the same authenticated vendor transport, timeout, redaction, logical-error, and structured failure contract to byte responses as JSON responses."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/audioTaskRunner.ts",
+      "entry_point": "runTextToSpeech",
+      "disposition": "enforced",
+      "evidence": "Production synchronous TTS already required response-body bytes and is changed to delegate request and decode ownership to the shared executor."
+    },
+    {
+      "path": "electron/providerAdapter/verifier.ts",
+      "entry_point": "verifyAdapterMode synchronous audio certification",
+      "disposition": "enforced",
+      "evidence": "The reported conversational onboarding path now consumes the same byte result and sends it directly to certifyMediaArtifact."
+    },
+    {
+      "path": "electron/providerAdapter/verifier.ts",
+      "entry_point": "verifyAdapterMode asynchronous music and sound-effect certification",
+      "disposition": "not-affected",
+      "evidence": "Mappings that declare query remain URL/task based and continue through create, poll, normalize, and remote asset certification."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every future synchronous audio model and every existing binary or JSON-encoded TTS provider can reach the same mismatch through either production generation or conversational certification.",
+    "same_class_scan": [
+      "Searched all audioResponse declarations and found binary APIMart/ElevenLabs, JSON-encoded MiniMax, NDJSON Doubao, and legacy OpenAI-compatible default-binary mappings.",
+      "Checked runAudioTask as the production response-body consumer and verifyAdapterMode as the certification consumer.",
+      "Checked buildProfileTaskResult and requestJson and confirmed they are URL/JSON task boundaries, not binary media boundaries.",
+      "Checked asynchronous audio mappings and confirmed query presence keeps them on the generic polling path."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/audio/synchronousAudioResponse.ts",
+    "invariant": "Every non-NDJSON synchronous audio response is requested and decoded exactly once through a byte-preserving, bounded, declaration-driven operation.",
+    "failure_mode": "Network, HTTP, size, empty-body, malformed encoding, or unsupported response declarations fail closed before asset import or adapter promotion.",
+    "exception_policy": "none",
+    "strategy": "Extract the production byte request and decode logic into one executor, make both production and certification call it, and retain the generic task normalizer only for URL-bearing or polled operations.",
+    "artifacts": [
+      "electron/audio/synchronousAudioResponse.ts",
+      "electron/audioTaskRunner.ts",
+      "electron/catalog/newapiTransport.ts",
+      "electron/providerAdapter/verifier.ts",
+      "electron/vendor/boundedResponse.ts",
+      "electron/vendor/vendorHttp.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/audioTaskRunner.test.ts",
+    "electron/catalog/newapiTransport.test.ts",
+    "electron/providerAdapter/verifier.test.ts",
+    "electron/vendor/boundedResponse.test.ts",
+    "electron/vendor/vendorHttp.test.ts",
+    "tests/ux/model-integration-trusted-audio.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/audioTaskRunner.test.ts",
+    "electron/catalog/newapiTransport.test.ts",
+    "electron/providerAdapter/verifier.test.ts",
+    "electron/vendor/boundedResponse.test.ts",
+    "electron/vendor/vendorHttp.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/audioTaskRunner.ts",
+      "electron/providerAdapter/verifier.ts"
+    ],
+    "rationale": "The private production-only byte decoder and the verifier's JSON-only handling of synchronous audio are removed; no callable fallback retains either interpretation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is owned by Nomi's request and certification code and does not depend on changing a third-party package version.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted catalog migration is required. Existing operations with no audioResponse declaration retain the established binary default; structured binary and JSON declarations remain wire-compatible and are interpreted by the shared executor on their next run.",
+  "residual_risks": [
+    "Doubao's NDJSON streaming response retains its specialized production codec and is not generated by the conversational adapter compiler.",
+    "Live paid-provider certification is not run in CI; deterministic HTTP fixtures cover the complete cross-process trusted journey."
+  ]
+}

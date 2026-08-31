@@ -82,7 +82,13 @@ function lifecycleArtifacts(candidate: ComfyStagedCandidate, mode: AdapterModeRe
       modelKey: candidate.model.modelKey,
       labelZh: candidate.model.labelZh,
       kind: candidate.model.kind,
-      modes: [{ taskKind: candidate.mapping.taskKind, create: candidate.mapping.create, ...(candidate.mapping.query ? { query: candidate.mapping.query } : {}), sourceUrls: [] }],
+      modes: [{
+        taskKind: candidate.mapping.taskKind,
+        create: candidate.mapping.create,
+        ...(candidate.mapping.query ? { query: candidate.mapping.query } : {}),
+        ...(candidate.mapping.result ? { result: candidate.mapping.result } : {}),
+        sourceUrls: [],
+      }],
     }],
   };
   const run: ProviderAdapterRun = {

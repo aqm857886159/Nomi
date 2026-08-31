@@ -13,22 +13,21 @@ import { readNomiLocalAsset } from "./assets/localAssetFile";
 import { parseDataUrl } from "./assets/assetBytes";
 import { hardenedFetch } from "./hardenedFetch";
 import { appFetch } from "./appFetch";
-import { type AuthType, authHeaders as buildAuthHeaders } from "./ai/requestPipeline";
+import { appendQueryParams } from "./ai/requestPipeline";
 import { firstString, isJsonRecord, trim, type JsonRecord } from "./jsonUtils";
 import { taskTemplateParams } from "./catalog/taskParams";
 import { buildDoubaoReqParams, decodeDoubaoNdjsonAudio, splitDoubaoCredential } from "./catalog/doubaoTtsCodec";
-import { buildProfileHttpRequest, type TaskRequest, type TaskResult } from "./runtime";
+import type { TaskRequest, TaskResult } from "./runtime";
 import { importLocalFile } from "./assets/localFileImport";
+import { executeMultipartOperation } from "./catalog/multipartOperation";
+import { buildProfileHttpRequest, templateContext } from "./catalog/profileHttpRequest";
+import { firstMappedString } from "./tasks/responseParsing";
 import type { HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./catalog/types";
+import { executeSynchronousAudioOperation } from "./audio/synchronousAudioResponse";
 
 const TTS_PATH = "/v1/audio/speech";
 const TRANSCRIBE_PATH = "/v1/audio/transcriptions";
 const MAX_AUDIO_BYTES = 30 * 1024 * 1024; // Whisper 侧上限 25MB，留余量
-
-// response_format → MIME（落盘扩展名 + <audio> 播放）。wav 默认（未压缩、Chromium 必播）。
-const AUDIO_CONTENT_TYPE: Record<string, string> = {
-  wav: "audio/wav", mp3: "audio/mpeg", opus: "audio/ogg", aac: "audio/aac", flac: "audio/flac", pcm: "audio/L16",
-};
 
 type AudioTaskInput = {
   vendor: Vendor;
@@ -59,33 +58,24 @@ async function runTextToSpeech(input: AudioTaskInput): Promise<TaskResult> {
   // 声明驱动分流（P4）：NDJSON+base64 形状（豆包语音 unidirectional）走专属手搓分支，
   // 其余（缺省/binary，OpenAI 兼容裸音频字节）走下方通用路径。
   if (op.audioResponse === "ndjson-base64") return runDoubaoUnidirectionalTts(input, op);
-  const built = buildProfileHttpRequest({ vendor, model, apiKey, request, operation: op });
-  let response: Response;
-  try {
-    response = await appFetch(built.url, {
-      method: built.method.toUpperCase(),
-      headers: built.headers,
-      body: typeof built.body === "string" ? built.body : JSON.stringify(built.body),
-    });
-  } catch (error: unknown) {
-    throw new Error(`配音生成失败（${vendor.key} 网络错误）：${(error instanceof Error ? error.message : String(error)).slice(0, 256)}`);
-  }
-  if (!response.ok) {
-    throw new Error(`配音生成失败（${vendor.key} HTTP ${response.status}）：${(await safeText(response)).slice(0, 300) || "(无详情)"}`);
-  }
-  const arrayBuffer = await response.arrayBuffer();
-  if (!arrayBuffer || arrayBuffer.byteLength === 0) throw new Error("配音生成失败：供应商返回空音频");
-  const fmt = firstString((isJsonRecord(built.body) ? built.body.response_format : undefined)) || "wav";
-  const contentType = AUDIO_CONTENT_TYPE[fmt] || "audio/wav";
+  const decoded = await executeSynchronousAudioOperation({ vendor, model, apiKey, request, operation: op });
+  const arrayBuffer = decoded.bytes.buffer.slice(
+    decoded.bytes.byteOffset,
+    decoded.bytes.byteOffset + decoded.bytes.byteLength,
+  ) as ArrayBuffer;
   const saved = (await importLocalFile({
-    projectId, bytes: arrayBuffer, contentType, fileName: `tts-${taskId}.${fmt}`, kind: "generated",
+    projectId,
+    bytes: arrayBuffer,
+    contentType: decoded.contentType,
+    fileName: `tts-${taskId}.${decoded.extension}`,
+    kind: "generated",
   })) as { id?: string; name?: string; data?: { url?: string } };
   const url = String(saved.data?.url || "");
   if (!url) throw new Error("配音生成失败：音频落盘异常");
   return {
     id: taskId, kind, status: "succeeded",
     assets: [{ type: "audio", url, thumbnailUrl: null, assetId: saved.id || null, assetName: saved.name || null }],
-    raw: { audio_url: url, response_format: fmt },
+    raw: { audio_url: url, response_format: decoded.extension, byte_length: decoded.bytes.byteLength },
   };
 }
 
@@ -150,32 +140,47 @@ async function runTranscribe(input: AudioTaskInput): Promise<TaskResult> {
   const audioUrl = resolveAudioSource(request, params);
   if (!audioUrl) throw new Error("转写失败：未提供音频（请先连接或上传一个音频）");
   const audio = await readAudioBytes(audioUrl);
-  const baseUrl = trim(vendor.baseUrlHint).replace(/\/$/, "");
-  const opPath = input.mapping?.create?.path || TRANSCRIBE_PATH;
-  const url = /^https?:/i.test(opPath) ? opPath : `${baseUrl}${opPath}`;
   const language = firstString(params.language);
-
-  const form = new FormData();
-  const ab = audio.bytes.buffer.slice(audio.bytes.byteOffset, audio.bytes.byteOffset + audio.bytes.byteLength) as ArrayBuffer;
-  form.append("file", new Blob([ab], { type: audio.contentType }), audio.fileName);
-  // 真实模型名来自档案当前模式的 modelEnum（注入 params.model），catalog 基模型(nomi-audio)只是入口。
-  form.append("model", firstString(params.model) || model.modelAlias || model.modelKey);
-  if (language) form.append("language", language);
-  form.append("response_format", "verbose_json");
-
-  // multipart 不能带 Content-Type（fetch 自动加 boundary）；其余鉴权头按 vendor 声明（通用 bearer）。
-  const { "Content-Type": _drop, ...auth } = buildAuthHeaders(vendor.authType as AuthType, apiKey, vendor.authHeader ?? undefined);
-  let response: Response;
-  try {
-    response = await appFetch(url, { method: "POST", headers: auth, body: form });
-  } catch (error: unknown) {
-    throw new Error(`转写失败（${vendor.key} 网络错误）：${(error instanceof Error ? error.message : String(error)).slice(0, 256)}`);
-  }
-  if (!response.ok) {
-    throw new Error(`转写失败（${vendor.key} HTTP ${response.status}）：${(await safeText(response)).slice(0, 300) || "(无详情)"}`);
-  }
-  const json = await safeJson(response);
-  const text = firstString(isJsonRecord(json) ? json.text : undefined);
+  const op: HttpOperation = input.mapping?.create ?? {
+    method: "POST",
+    path: TRANSCRIBE_PATH,
+    headers: { Authorization: "Bearer {{user_api_key}}" },
+  };
+  const multipart = op.multipart ?? {
+    fields: {
+      model: firstString(params.model) || model.modelAlias || model.modelKey,
+      language,
+      response_format: "verbose_json",
+    },
+    fileField: "file",
+    fileSource: audioUrl,
+    fileKind: "audio" as const,
+    multiple: false,
+    filename: "audio",
+  };
+  const built = buildProfileHttpRequest({ vendor, model, apiKey, request, operation: op });
+  const context = templateContext(request, model, apiKey, {}, op.paramMap);
+  const executed = await executeMultipartOperation({
+    multipart,
+    context,
+    resolveFile: async () => audio,
+    send: async (form) => {
+      const headers = Object.fromEntries(Object.entries(built.headers).filter(([key]) => key.toLowerCase() !== "content-type"));
+      let response: Response;
+      try {
+        response = await appFetch(appendQueryParams(built.url, built.query), { method: built.method, headers, body: form });
+      } catch (error: unknown) {
+        throw new Error(`转写失败（${vendor.key} 网络错误）：${(error instanceof Error ? error.message : String(error)).slice(0, 256)}`);
+      }
+      if (!response.ok) {
+        throw new Error(`转写失败（${vendor.key} HTTP ${response.status}）：${(await safeText(response)).slice(0, 300) || "(无详情)"}`);
+      }
+      return safeJson(response);
+    },
+  });
+  const json = executed.response;
+  const text = firstMappedString(json, (op.response_mapping || null) as JsonRecord | null, "text")
+    || firstString(isJsonRecord(json) ? json.text : undefined);
   if (!text) throw new Error("转写失败：供应商未返回文本");
   return { id: taskId, kind, status: "succeeded", assets: [], raw: json };
 }

@@ -56,7 +56,7 @@ export type AssetTransportChannelView = {
   vendorKey: string | null
   /** 真正收文件的主机名；无端点策略为 null。 */
   host: string | null
-  visibility: 'provider-private' | 'public-anonymous'
+  visibility: 'provider-private' | 'public-provider' | 'public-anonymous'
   ttlSeconds: number | null
 }
 

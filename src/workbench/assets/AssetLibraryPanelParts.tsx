@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconCheck, IconEye, IconEyeOff, IconFolder, IconMusic, IconPhoto, IconPlayerPlayFilled, IconTrash } from '@tabler/icons-react'
+import { Icon3dCubeSphere, IconCheck, IconEye, IconEyeOff, IconFolder, IconMusic, IconPhoto, IconPlayerPlayFilled, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { NomiImage } from '../../design/media'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../design'
@@ -14,12 +14,14 @@ const KIND_LABEL_KEY: Record<AssetKind, string> = {
   image: 'assetLibrary.image',
   video: 'assetLibrary.video',
   audio: 'assetLibrary.audio',
+  model3d: 'assetLibrary.model3d',
 }
 
 const KIND_ICON: Record<AssetKind, typeof IconPhoto> = {
   image: IconPhoto,
   video: IconPlayerPlayFilled,
   audio: IconMusic,
+  model3d: Icon3dCubeSphere,
 }
 
 function AssetKindBadge({ kind, compact = false }: { kind: AssetKind; compact?: boolean }): JSX.Element {
@@ -246,13 +248,14 @@ export const AssetGridCell = React.memo(function AssetGridCell({
   onDelete?: (asset: AssetRef) => void
 }): JSX.Element {
   const { t } = useTranslation()
+  const canDrag = draggable && asset.kind !== 'model3d'
   const handleDragStart = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    if (!draggable || !onDragStartAsset) {
+    if (!canDrag || !onDragStartAsset) {
       event.preventDefault()
       return
     }
     onDragStartAsset(asset, event)
-  }, [asset, draggable, onDragStartAsset])
+  }, [asset, canDrag, onDragStartAsset])
   const handleClick = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     onSelect?.(asset, event)
   }, [asset, onSelect])
@@ -270,9 +273,9 @@ export const AssetGridCell = React.memo(function AssetGridCell({
     event.stopPropagation()
     onPreview?.(asset)
   }, [asset, onPreview])
-  const dragHint = dragHintProp ?? (draggable
+  const dragHint = dragHintProp ?? (canDrag
     ? asset.kind === 'audio' ? t('assetLibrary.dragAudio') : t('assetLibrary.dragCanvas')
-    : t('assetLibrary.selectableProjectAsset'))
+    : asset.kind === 'model3d' ? t('assetLibrary.previewModel3d') : t('assetLibrary.selectableProjectAsset'))
   const check = selectable ? (
     <span
       className={cn(
@@ -312,7 +315,7 @@ export const AssetGridCell = React.memo(function AssetGridCell({
       <TooltipTrigger asChild>
         {compact ? (
           <div
-            draggable={draggable}
+            draggable={canDrag}
             onClick={onSelect ? handleClick : undefined}
             onKeyDown={onSelect ? handleKeyDown : undefined}
             onDoubleClick={onPreview ? handleDoubleClick : undefined}
@@ -321,7 +324,7 @@ export const AssetGridCell = React.memo(function AssetGridCell({
               'group relative mb-2.5 inline-block w-full overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper align-top',
               'shadow-nomi-sm transition-[border-color,box-shadow,transform] duration-[var(--nomi-transition-fast)]',
               'hover:border-nomi-ink-20 hover:shadow-nomi-md',
-              draggable ? 'cursor-grab active:cursor-grabbing' : selectable ? 'cursor-pointer' : 'cursor-default',
+              canDrag ? 'cursor-grab active:cursor-grabbing' : onPreview || selectable ? 'cursor-pointer' : 'cursor-default',
               selected && 'border-nomi-accent shadow-nomi-md ring-2 ring-nomi-accent ring-offset-1 ring-offset-nomi-paper',
             )}
             style={{ breakInside: 'avoid' }}
@@ -353,14 +356,14 @@ export const AssetGridCell = React.memo(function AssetGridCell({
           </div>
         ) : (
           <div
-            draggable={draggable}
+            draggable={canDrag}
             onClick={onSelect ? handleClick : undefined}
             onKeyDown={onSelect ? handleKeyDown : undefined}
             onDoubleClick={onPreview ? handleDoubleClick : undefined}
             onDragStart={handleDragStart}
             className={cn(
               'group relative flex aspect-square items-center justify-center overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-ink-05',
-              draggable ? 'cursor-grab active:cursor-grabbing' : selectable ? 'cursor-pointer' : 'cursor-default',
+              canDrag ? 'cursor-grab active:cursor-grabbing' : onPreview || selectable ? 'cursor-pointer' : 'cursor-default',
               selected && 'border-nomi-accent ring-2 ring-nomi-accent ring-offset-1 ring-offset-nomi-paper',
             )}
             role={onSelect ? 'button' : undefined}

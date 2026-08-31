@@ -184,6 +184,42 @@ describe("validateProviderAdapterDraft", () => {
     ).toThrow(/media result mapping/i);
   });
 
+  it("accepts a separate result operation after an async status query", () => {
+    const draft = baseDraft();
+    draft.models[0].modes[0].create.response_mapping = { task_id: "request_id" };
+    draft.models[0].modes[0].create.provider_meta_mapping = { task_id: "request_id" };
+    draft.models[0].modes[0].query = {
+      method: "GET",
+      path: "/requests/{{providerMeta.task_id}}/status",
+      response_mapping: { status: "status" },
+    };
+    draft.models[0].modes[0].result = {
+      method: "GET",
+      path: "/requests/{{providerMeta.task_id}}",
+      response_mapping: { image_url: "images.0.url" },
+    };
+    draft.models[0].modes[0].statusMapping = { succeeded: ["COMPLETED"] };
+
+    expect(() => validateProviderAdapterDraft(draft, {
+      providerBaseUrl: "https://api.example.com/v1",
+      selectedModelKeys: ["paint-v2"],
+    })).not.toThrow();
+  });
+
+  it("rejects a result operation without a status query", () => {
+    const draft = baseDraft();
+    draft.models[0].modes[0].result = {
+      method: "GET",
+      path: "/requests/{{providerMeta.task_id}}",
+      response_mapping: { image_url: "images.0.url" },
+    };
+
+    expect(() => validateProviderAdapterDraft(draft, {
+      providerBaseUrl: "https://api.example.com/v1",
+      selectedModelKeys: ["paint-v2"],
+    })).toThrow(/result without query/i);
+  });
+
   it("rejects mode evidence URLs that were not included in the discovered official sources", () => {
     const draft = baseDraft();
     draft.models[0].modes[0].sourceUrls = ["https://untrusted.invalid/fake-docs"];
@@ -230,6 +266,81 @@ describe("validateProviderAdapterDraft", () => {
         selectedModelKeys: ["paint-v2"],
       }),
     ).toThrow(/model kind/i);
+  });
+
+  it("accepts declared binary audio without inventing an audio URL", () => {
+    const draft = baseDraft();
+    draft.models[0].kind = "audio";
+    draft.models[0].modes[0] = {
+      taskKind: "text_to_audio",
+      create: {
+        method: "POST",
+        path: "/audio",
+        body: { text: "{{request.prompt}}" },
+        audioResponse: { type: "binary", contentType: "audio/mpeg", extension: "mp3" },
+      },
+      sourceUrls: ["https://docs.example.com/api/images"],
+    };
+
+    expect(validateProviderAdapterDraft(draft, {
+      providerBaseUrl: "https://api.example.com/v1",
+      selectedModelKeys: ["paint-v2"],
+    }).models[0].modes[0].create.audioResponse).toMatchObject({ type: "binary" });
+  });
+
+  it("accepts declaration-driven transcription multipart with a text result", () => {
+    const draft = baseDraft();
+    draft.models[0].kind = "audio";
+    draft.models[0].modes[0] = {
+      taskKind: "transcribe",
+      create: {
+        method: "POST",
+        path: "/speech-to-text",
+        multipart: {
+          fields: { model_id: "scribe_v2" },
+          fileField: "file",
+          fileSource: "{{request.params.file}}",
+          fileKind: "audio",
+        },
+        response_mapping: { text: "text" },
+      },
+      sourceUrls: ["https://docs.example.com/api/images"],
+    };
+
+    expect(() => validateProviderAdapterDraft(draft, {
+      providerBaseUrl: "https://api.example.com/v1",
+      selectedModelKeys: ["paint-v2"],
+    })).not.toThrow();
+  });
+
+  it("rejects unsafe JSON audio paths and manual multipart boundaries", () => {
+    const draft = baseDraft();
+    draft.models[0].kind = "audio";
+    draft.models[0].modes[0] = {
+      taskKind: "text_to_audio",
+      create: {
+        method: "POST",
+        path: "/audio",
+        audioResponse: { type: "json", dataPath: "data.constructor.audio", encoding: "hex", contentType: "audio/mpeg", extension: "mp3" },
+      },
+      sourceUrls: ["https://docs.example.com/api/images"],
+    };
+    expect(() => validateProviderAdapterDraft(draft, {
+      providerBaseUrl: "https://api.example.com/v1",
+      selectedModelKeys: ["paint-v2"],
+    })).toThrow(/audioResponse.*path/i);
+
+    draft.models[0].modes[0].create = {
+      method: "POST",
+      path: "/speech-to-text",
+      headers: { "Content-Type": "multipart/form-data" },
+      multipart: { fileField: "file", fileSource: "{{request.params.file}}", fileKind: "audio" },
+      response_mapping: { audio_url: "audio_url" },
+    };
+    expect(() => validateProviderAdapterDraft(draft, {
+      providerBaseUrl: "https://api.example.com/v1",
+      selectedModelKeys: ["paint-v2"],
+    })).toThrow(/boundary/i);
   });
 });
 

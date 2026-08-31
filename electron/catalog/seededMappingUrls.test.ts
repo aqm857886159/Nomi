@@ -60,7 +60,7 @@ describe("内置种子 mapping 的最终 URL", () => {
       const baseUrl = baseUrlByVendor.get(mapping.vendorKey) ?? "";
       // 本地/进程型 vendor（local://codex、ComfyUI 等）不走 http 拼接，跳过。
       if (!/^https?:\/\//i.test(baseUrl)) continue;
-      for (const [what, op] of [["create", mapping.create], ["query", mapping.query]] as const) {
+      for (const [what, op] of [["create", mapping.create], ["query", mapping.query], ["result", mapping.result]] as const) {
         if (!op?.path || /^https?:\/\//i.test(op.path)) continue;
         const url = resolveUrl(baseUrl, op);
         const repeat = repeatedSegmentRun(url);
@@ -78,7 +78,7 @@ describe("内置种子 mapping 的最终 URL", () => {
       const baseUrl = baseUrlByVendor.get(mapping.vendorKey) ?? "";
       if (!/^https?:\/\//i.test(baseUrl)) continue;
       const baseSegs = new Set(new URL(baseUrl).pathname.split("/").filter(Boolean));
-      for (const [what, op] of [["create", mapping.create], ["query", mapping.query]] as const) {
+      for (const [what, op] of [["create", mapping.create], ["query", mapping.query], ["result", mapping.result]] as const) {
         if (!op?.path || /^https?:\/\//i.test(op.path)) continue;
         const head = op.path.split("/").filter(Boolean)[0];
         if (head && baseSegs.has(head) && op.pathFrom !== "host-root") {

@@ -1,0 +1,113 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-31-model-radar-vendor-isolation",
+  "problem_type": "外部供应商文档索引结构漂移把多源采集整轮打死（单源失败未隔离）",
+  "symptom": "2026-08-31 `pnpm run radar:models` 整轮 abort：apimart 根 llms.txt 改版后解析出 0 条模型，守卫抛错终止 main()，kie 的差异也不产出、latest.json 不写，供应商模型雷达当天完全没查成",
+  "direct_cause": "apimart 将全部 /api-reference/{images,videos,audios}/ 模型页从根 llms.txt 移入二级子索引 /_llms/en/api-manual.md（根里只剩集成指南、FAQ 与 9 个语言镜像索引，0 模型页）；parseApimart 只解析根文本 → 0 条 → 0 条守卫按设计抛错，而 main() 的串行供应商循环没有隔离，异常直接冒泡终止整轮",
+  "class_root": "采集编排缺两个不变量：① 供应商目录源不是静态形状——采集层必须按索引自述语义（『Follow each /_llms/ index recursively』）跟进子索引，而不是假设单层扁平结构永远成立；② 单一供应商的失败必须被隔离成该家的显式「没查成」结果，不得放大为整轮失败，也不得静默等同「没有新模型」",
+  "affected_population": [
+    "radar:models 盯的全部供应商（本次 kie 被 apimart 的失败陪葬，未来新增供应商同样暴露）",
+    "每天 session 开工读雷达结论的使用者（整轮 abort 时拿不到任何一家的差异报告）"
+  ],
+  "scope_paths": [
+    "scripts/model-radar.ts"
+  ],
+  "entry_points": [
+    "pnpm run radar:models（每日 session 开工雷达 / 手动运行）",
+    "scripts/model-radar.test.ts 离线回归（--offline 与内联样本）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/llms.txt",
+      "checked_at": "2026-08-31",
+      "purpose": "实抓改版后的根索引：71 行、0 模型页、9 个语言镜像子索引，自述「Follow each /_llms/ index recursively until you reach documentation pages」"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/_llms/en/api-manual.md",
+      "checked_at": "2026-08-31",
+      "purpose": "实抓英文 API 手册子索引：324 行、143 条 api-reference 页（images 41 / videos 38 / audios 48 / texts 10 / tasks 2 / account 2），行格式与旧根索引完全一致"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.kie.ai/llms.txt",
+      "checked_at": "2026-08-31",
+      "purpose": "确认 kie 索引未漂移（525 行，/market/ 结构原样），kie 侧解析器不需要动"
+    }
+  ],
+  "invariants": [
+    "每家供应商的采集失败只标记该家为「没查成」，其余供应商照常产出差异报告与 latest.json",
+    "解析出 0 条 = 该家采集失败，永不静默等同「没有新模型」",
+    "apimart 采集按根索引自述跟进英文 /_llms/ 子索引：去重、只跟英文份、跟进次数有界，超界红着报而不是无界爬"
+  ],
+  "generality_proof": "所有供应商（现 kie/apimart，未来新增）都只经由 collectVendors 这一个编排边界采集：per-vendor try/catch 与 0 条守卫住在边界里而不是散在各家适配器里，任何一家适配器抛出的任何异常（网络、结构漂移、守卫）都收敛成 failures[] 里的显式记录，不可能再终止其他家的采集；新增供应商填进 VENDORS 即自动继承同一隔离语义，无需重复实现",
+  "shared_boundaries": [
+    {
+      "path": "scripts/model-radar.ts",
+      "symbol": "collectVendors",
+      "responsibility": "逐家采集的失败隔离与 0 条守卫：单家异常 → 该家进 failures 显式记录，其余家照常；「没查成」与「没有新模型」在结果结构上不可混淆"
+    },
+    {
+      "path": "scripts/model-radar.ts",
+      "symbol": "collectApimart",
+      "responsibility": "apimart 两级索引的有界跟进（只跟英文份 /_llms/en*、visited 去重、fetch 次数 ≤8），旧扁平结构与新嵌套结构由同一算法覆盖，不设 fallback 分支"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/model-radar.ts",
+      "entry_point": "VENDORS.kie.collect / VENDORS.apimart.collect",
+      "disposition": "enforced",
+      "evidence": "两家 collect 都只被 collectVendors 调用（main() 不再内联抓取/解析），隔离与 0 条守卫在编排边界统一生效，对两家及未来新增供应商同构"
+    },
+    {
+      "path": "scripts/feedback-radar.mjs",
+      "entry_point": "main() 渠道循环（github / bilibili / wechat 多源采集）",
+      "disposition": "not-affected",
+      "evidence": "仓内另一个多源采集器，已有 per-channel try/catch：单渠道失败写 metas[ch] = { error } 并 continue（scripts/feedback-radar.mjs 渠道循环），不具备本缺陷类的「单源失败打死整轮」机制"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "供应商文档站结构漂移是会反复发生的外部事件：apimart 2026-08-27 实抓定型后 08-31 即改版一次；kie 同样可能改版；每新增一家供应商就多一个同类失败面。隔离缺失会让任何一次漂移都把整轮打死",
+    "same_class_scan": [
+      "按数据形状扫多源采集编排：grep -n 'fetch' scripts/*.ts scripts/*.mjs → model-radar.ts（本缺陷，串行循环无隔离）与 feedback-radar.mjs（已有 per-channel try/catch，独立核实其渠道循环代码）",
+      "按契约扫索引源消费方：grep -rn 'llms.txt' 全仓 → 仅 scripts/model-radar.ts、其测试与 docs/plan/2026-08-27-vendor-model-radar.md 引用，无第三处需要同步适配"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/model-radar.ts",
+    "invariant": "供应商采集失败（含解析 0 条）被隔离为该家显式 failure 记录；编排继续其余供应商，摘要与 latest.json 在结构上区分「没查成」与「没有新模型」；快照只对查成的家可更新",
+    "failure_mode": "单家失败 → 摘要打 ⚠️「今天没查成」+ latest.json failures[] 留档、该家快照不动、退出码 0（报告可读）；全部供应商失败 → 写完 failures 后退出码 1（整轮没查成）",
+    "exception_policy": "none",
+    "strategy": "把「0 条守卫抛错 = 整轮终止」收敛成 collectVendors 边界的「失败即数据」：适配器只管抓与解析、可以任意抛错，编排边界统一把异常翻译成显式失败记录，供应商之间互不牵连",
+    "artifacts": [
+      "scripts/model-radar.ts"
+    ]
+  },
+  "regression_tests": [
+    "scripts/model-radar.test.ts"
+  ],
+  "class_regression_tests": [
+    "scripts/model-radar.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/model-radar.ts"
+    ],
+    "rationale": "旧「单 URL 单文本」的 VENDORS[].parse 接口、main() 内联抓取循环与 --offline 的 <vendor>.txt 命名在同一 commit 被 collect/collectVendors 与 URL 派生离线命名取代并删除，无并行版、无 fallback"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "缺陷由外部文档结构与本仓编排逻辑决定，没有第三方运行时依赖控制该不变量（undici ProxyAgent 仅作代理通道，版本与行为未变）",
+    "exit_criteria": []
+  },
+  "migration": "快照 docs/research/model-radar/{apimart,kie}.json 无需迁移：apimart 子索引里的页面 URL 与旧根同宇宙（/en/api-reference/... → slug 规则不变），与既有基线直接可比，差异即真实目录变化；latest.json 新增 failures 字段为增量扩展，原 diffs 字段原样保留",
+  "residual_risks": [
+    "kie 索引未来若同样改为多级结构，会被标「没查成」而不是自动适配——按纪律届时实抓再写解析，不预写想象中的结构",
+    "apimart 若更换英文份命名（如 en → english/），en-only 过滤会失配 → 0 条守卫把该家标失败并留档，需要再实抓适配一次"
+  ]
+}
