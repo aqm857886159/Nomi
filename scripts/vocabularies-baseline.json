@@ -1,5 +1,5 @@
 {
-  "debtCap": 80,
+  "debtCap": 78,
   "registered": [
     {
       "site": "electron/ai/antigravityProtocol.ts::type:AntigravityToolStep/property:state/type-union",

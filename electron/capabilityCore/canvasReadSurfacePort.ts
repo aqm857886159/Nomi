@@ -216,12 +216,27 @@ export function createCanvasReadSurfacePortRuntime(
     handleReply(SURFACE_TIMELINE_WRITE_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_ASSET_READ_REPLY_CHANNEL, (event, value) => {
+    try {
+      assertTrustedSender(event);
+    } catch {
+      return;
+    }
     handleReply(SURFACE_ASSET_READ_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_EXPORT_READ_REPLY_CHANNEL, (event, value) => {
+    try {
+      assertTrustedSender(event);
+    } catch {
+      return;
+    }
     handleReply(SURFACE_EXPORT_READ_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_EXPORT_WRITE_REPLY_CHANNEL, (event, value) => {
+    try {
+      assertTrustedSender(event);
+    } catch {
+      return;
+    }
     handleReply(SURFACE_EXPORT_WRITE_REPLY_CHANNEL, event, value);
   });
 
