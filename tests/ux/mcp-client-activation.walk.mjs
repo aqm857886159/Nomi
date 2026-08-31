@@ -137,7 +137,7 @@ async function installOrReconnect(win, panel, clientKey, label) {
   }
   const verified = await win.evaluate(async (key) => window.nomiDesktop?.capability?.verifyMcp?.(key), clientKey)
   assert(verified?.ok === true, `${label} did not pass a real handshake after reconnect (${verified?.reason || 'no result'})`)
-  assert(verified.toolCount === 13, `${label} exposed ${verified.toolCount ?? 'unknown'} tools instead of 13`)
+  assert(verified.toolCount === 15, `${label} exposed ${verified.toolCount ?? 'unknown'} tools instead of 15`)
   console.log(`${label}: verified ${verified.toolCount} tools`)
 }
 

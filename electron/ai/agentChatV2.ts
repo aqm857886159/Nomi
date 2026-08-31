@@ -107,9 +107,25 @@ function imageInputRank(model: Model): number {
   return modelSupportsImageInput(model.modelKey, model.modelAlias, model.meta) ? 1 : 0;
 }
 
+/**
+ * Some catalog text entries are asynchronous task profiles rather than
+ * chat-completions models (for example APIMart MiniMax H3 Context-IR). Keep
+ * those available to the workbench's prompt_refine mapping, but never let the
+ * generic Agent route them through /v1/chat/completions.
+ */
+function isPromptRefineOnlyModel(model: Model): boolean {
+  return Boolean(
+    model.meta &&
+      typeof model.meta === "object" &&
+      (model.meta as { promptRefineOnly?: unknown }).promptRefineOnly === true,
+  );
+}
+
 function chooseTextModel(prefModelKey?: string, preferImageInput = false): { vendor: Vendor; model: Model; apiKey: string } {
   const state = readCatalog();
-  const texts = state.models.filter((item) => item.kind === "text" && item.enabled);
+  const texts = state.models.filter(
+    (item) => item.kind === "text" && item.enabled && !isPromptRefineOnlyModel(item),
+  );
   // 有偏好：用户选的排第一（其余作回退）。
   // 无偏好且本轮带图：优先支持图片输入的 text 模型（gpt-4o/claude/gemini 既能看图又擅长 tool_use）。
   // 无偏好无图：不盲选第一个，按「是否像通用对话模型」稳定排序，vision/preview 降到末尾。

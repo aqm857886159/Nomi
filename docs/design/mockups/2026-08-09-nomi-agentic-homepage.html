@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Nomi Agentic Production 首页重设计交互方案" />
+  <title>Nomi — 一句话开工，逐镜头做完一部片</title>
+  <style>
+    :root {
+      --paper: #ffffff;
+      --paper-soft: #f7f7f4;
+      --paper-warm: #f1f0eb;
+      --ink: #181816;
+      --ink-72: #4b4a45;
+      --ink-48: #77766f;
+      --ink-28: #aaa9a1;
+      --line: #dcdcd5;
+      --line-soft: #eaeae5;
+      --coral: #ef6c5b;
+      --coral-dark: #cf5142;
+      --coral-soft: #fff0ed;
+      --green: #41735a;
+      --green-soft: #e8f1eb;
+      --amber: #9a6b1f;
+      --amber-soft: #f7efdd;
+      --dark: #191918;
+      --dark-2: #252523;
+      --dark-line: #3a3a36;
+      --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      --shell: min(1280px, calc(100% - 48px));
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); letter-spacing: 0; }
+    body, button, input, textarea { font-family: var(--sans); }
+    button, input, textarea { letter-spacing: 0; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible, textarea:focus-visible { outline: 2px solid var(--coral); outline-offset: 3px; }
+    a { color: inherit; text-decoration: none; }
+    button { color: inherit; }
+    img { display: block; max-width: 100%; }
+    .shell { width: var(--shell); margin-inline: auto; }
+    .mono { font-family: var(--mono); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+    .site-header { position: sticky; top: 0; z-index: 50; height: 64px; border-bottom: 1px solid rgba(220,220,213,.8); background: rgba(255,255,255,.94); backdrop-filter: blur(16px); }
+    .nav { height: 100%; display: flex; align-items: center; gap: 28px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; margin-right: auto; font-size: 20px; font-weight: 680; }
+    .brand img { width: 28px; height: 28px; }
+    .nav-link { color: var(--ink-72); font-size: 13px; transition: color .18s ease; }
+    .nav-link:hover { color: var(--ink); }
+    .nav-actions { display: flex; align-items: center; gap: 9px; }
+    .button { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; border: 1px solid var(--line); border-radius: 6px; padding: 0 16px; background: var(--paper); color: var(--ink); font-size: 13px; font-weight: 590; cursor: pointer; transition: transform .18s ease, background .18s ease, border-color .18s ease; }
+    .button:hover { transform: translateY(-1px); border-color: #b8b8b1; }
+    .button-primary { border-color: var(--ink); background: var(--ink); color: white; }
+    .button-primary:hover { background: #2b2b29; border-color: #2b2b29; }
+    .button-coral { border-color: var(--coral); background: var(--coral); color: white; }
+    .button-coral:hover { border-color: var(--coral-dark); background: var(--coral-dark); }
+    .button-quiet { background: transparent; }
+    .button-icon { width: 40px; padding: 0; font-size: 18px; }
+
+    .hero { min-height: 750px; padding: 42px 0 22px; overflow: hidden; }
+    .hero-copy { max-width: 850px; margin: 0 auto 24px; text-align: center; }
+    .eyebrow { margin: 0 0 18px; color: var(--coral-dark); font: 600 11px/1.4 var(--mono); }
+    .hero h1 { margin: 0; font-size: 62px; line-height: 1.05; font-weight: 660; }
+    .hero-lede { max-width: 650px; margin: 20px auto 0; color: var(--ink-72); font-size: 18px; line-height: 1.7; }
+    .hero-actions { margin-top: 24px; display: flex; justify-content: center; gap: 10px; }
+
+    .product-demo { position: relative; height: 420px; border: 1px solid #cbc9c2; border-radius: 8px; overflow: hidden; background: var(--paper-soft); box-shadow: 0 24px 70px rgba(30,29,25,.12); }
+    .demo-topbar { height: 46px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); padding: 0 12px; background: #fff; }
+    .window-title { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 11px; color: var(--ink-48); }
+    .mini-logo { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; background: var(--ink); color: white; font-size: 12px; font-weight: 700; }
+    .project-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .workspace-tabs { display: flex; gap: 3px; padding: 3px; border-radius: 6px; background: var(--paper-warm); }
+    .workspace-tabs span { padding: 6px 14px; border-radius: 4px; color: var(--ink-48); font-size: 10px; }
+    .workspace-tabs .active { background: white; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); font-weight: 650; }
+    .demo-top-actions { justify-self: end; display: flex; align-items: center; gap: 8px; }
+    .live-status { display: none; align-items: center; gap: 6px; color: var(--green); font-size: 10px; }
+    .live-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.6s ease-in-out infinite; }
+    .product-demo[data-stage="3"] .live-status { display: flex; }
+    .demo-export { height: 28px; border: 0; border-radius: 4px; padding: 0 11px; background: var(--ink); color: white; font-size: 10px; }
+    .demo-main { height: calc(100% - 94px); display: grid; grid-template-columns: 340px minmax(0,1fr); }
+
+    .director-panel { min-width: 0; position: relative; border-right: 1px solid var(--line); background: #fff; }
+    .director-head { height: 44px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line-soft); padding: 0 15px; }
+    .director-identity { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 650; }
+    .source-badge { border-radius: 4px; padding: 4px 6px; background: var(--coral-soft); color: var(--coral-dark); font-size: 9px; font-weight: 650; }
+    .director-skill { color: var(--ink-48); font: 9px var(--mono); }
+    .stage-pane { position: absolute; inset: 44px 0 0; display: flex; flex-direction: column; padding: 17px 16px; opacity: 0; pointer-events: none; transform: translateY(7px); transition: opacity .24s ease, transform .24s ease; }
+    .product-demo[data-stage="0"] .stage-0,
+    .product-demo[data-stage="1"] .stage-1,
+    .product-demo[data-stage="2"] .stage-2,
+    .product-demo[data-stage="3"] .stage-3,
+    .product-demo[data-stage="4"] .stage-4 { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .pane-kicker { margin: 0 0 8px; color: var(--ink-48); font-size: 10px; }
+    .pane-title { margin: 0; font-size: 18px; line-height: 1.35; }
+    .prompt-box { flex: 1; resize: none; min-height: 120px; border: 1px solid var(--line); border-radius: 6px; margin-top: 13px; padding: 13px; color: var(--ink); background: var(--paper-soft); font-size: 12px; line-height: 1.65; }
+    .prompt-footer { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .prompt-hint { color: var(--ink-48); font-size: 9px; }
+    .demo-command { min-height: 34px; border: 0; border-radius: 5px; padding: 0 12px; background: var(--coral); color: white; font-size: 11px; font-weight: 650; cursor: pointer; }
+    .intent-list { margin-top: 15px; display: grid; gap: 1px; border-top: 1px solid var(--line-soft); }
+    .intent-row { display: grid; grid-template-columns: 64px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 10px; line-height: 1.4; }
+    .intent-row span { color: var(--ink-48); }
+    .intent-row b { font-weight: 560; }
+    .thinking-line { margin-top: auto; display: flex; align-items: center; gap: 8px; color: var(--coral-dark); font: 9px var(--mono); }
+    .thinking-line::before { content: ""; width: 22px; height: 1px; background: var(--coral); animation: scan 1s ease-in-out infinite alternate; transform-origin: left; }
+    .plan-list { margin: 13px 0 0; padding: 0; list-style: none; counter-reset: plan; }
+    .plan-list li { counter-increment: plan; display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: start; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 10px; line-height: 1.45; }
+    .plan-list li::before { content: counter(plan, decimal-leading-zero); color: var(--ink-28); font: 9px var(--mono); }
+    .plan-list small { color: var(--ink-48); }
+    .skill-loaded { margin-top: auto; display: flex; justify-content: space-between; gap: 10px; color: var(--ink-48); font: 9px var(--mono); }
+    .stage-copy { margin: 10px 0 0; color: var(--ink-72); font-size: 11px; line-height: 1.6; }
+    .run-list { margin-top: 13px; display: grid; gap: 8px; }
+    .run-row { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; font-size: 10px; }
+    .run-icon { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: var(--green-soft); color: var(--green); font-size: 9px; }
+    .run-row.current .run-icon { background: var(--coral-soft); color: var(--coral-dark); }
+    .run-row span:last-child { color: var(--ink-48); font: 9px var(--mono); }
+    .edit-summary { margin-top: 15px; border-top: 1px solid var(--line); padding-top: 13px; display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .edit-summary div { min-width: 0; }
+    .edit-summary strong { display: block; font-size: 16px; }
+    .edit-summary span { color: var(--ink-48); font-size: 9px; }
+
+    .canvas-panel { position: relative; overflow: hidden; background-color: #f8f8f6; background-image: radial-gradient(#d9d9d3 .8px, transparent .8px); background-size: 18px 18px; }
+    .canvas-meta { position: absolute; z-index: 3; top: 13px; left: 15px; display: flex; align-items: center; gap: 7px; }
+    .canvas-meta span { border: 1px solid var(--line); border-radius: 4px; padding: 5px 7px; background: rgba(255,255,255,.92); color: var(--ink-48); font-size: 9px; }
+    .canvas-meta .active { border-color: #c1c1ba; color: var(--ink); }
+    .flow { position: absolute; inset: 58px 24px 62px; }
+    .flow-line { position: absolute; left: 10%; right: 9%; top: 49%; height: 1px; background: #b9b9b2; transform: scaleX(.1); transform-origin: left; transition: transform .65s cubic-bezier(.25,.72,.25,1); }
+    .product-demo[data-stage="1"] .flow-line { transform: scaleX(.46); }
+    .product-demo[data-stage="2"] .flow-line,
+    .product-demo[data-stage="3"] .flow-line,
+    .product-demo[data-stage="4"] .flow-line { transform: scaleX(1); }
+    .shot-node { position: absolute; top: 25%; width: 21%; min-width: 128px; border: 1px solid #cfcec7; border-radius: 6px; overflow: hidden; background: #fff; box-shadow: 0 7px 18px rgba(30,30,27,.08); opacity: .32; transform: translateY(8px); transition: opacity .3s ease, transform .3s ease, border-color .3s ease; }
+    .shot-node:nth-of-type(1) { left: 5%; }
+    .shot-node:nth-of-type(2) { left: 29%; }
+    .shot-node:nth-of-type(3) { left: 53%; }
+    .shot-node:nth-of-type(4) { left: 77%; }
+    .product-demo[data-stage="1"] .shot-node:nth-of-type(-n+3),
+    .product-demo[data-stage="2"] .shot-node,
+    .product-demo[data-stage="3"] .shot-node,
+    .product-demo[data-stage="4"] .shot-node { opacity: 1; transform: translateY(0); }
+    .product-demo[data-stage="3"] .shot-node:nth-of-type(3) { border-color: var(--coral); }
+    .shot-visual { height: 92px; position: relative; overflow: hidden; background: var(--dark); }
+    .shot-visual img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.08); transform: scale(1.45); transition: filter .35s ease, transform .7s ease; }
+    .shot-node:nth-of-type(1) img { object-position: 20% 50%; }
+    .shot-node:nth-of-type(2) img { object-position: 43% 45%; }
+    .shot-node:nth-of-type(3) img { object-position: 66% 50%; }
+    .shot-node:nth-of-type(4) img { object-position: 84% 50%; }
+    .product-demo[data-stage="3"] .shot-node:nth-of-type(-n+4) img,
+    .product-demo[data-stage="4"] .shot-node img { filter: grayscale(0); transform: scale(1.3); }
+    .shot-state { position: absolute; top: 6px; left: 6px; border-radius: 3px; padding: 3px 5px; background: rgba(20,20,18,.8); color: white; font: 8px var(--mono); }
+    .shot-body { padding: 8px 9px; }
+    .shot-body b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+    .shot-body span { display: block; margin-top: 3px; color: var(--ink-48); font: 8px var(--mono); }
+    .timeline-mini { position: absolute; z-index: 4; left: 15px; right: 15px; bottom: 12px; height: 48px; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.94); opacity: .28; transform: translateY(8px); transition: opacity .3s ease, transform .3s ease; }
+    .product-demo[data-stage="3"] .timeline-mini,
+    .product-demo[data-stage="4"] .timeline-mini { opacity: 1; transform: translateY(0); }
+    .timeline-track { position: absolute; left: 8px; right: 8px; top: 10px; height: 24px; display: grid; grid-template-columns: 1.1fr .8fr 1.3fr .9fr 1.1fr; gap: 2px; }
+    .timeline-track span { border-radius: 2px; background: #dadad4; }
+    .timeline-track span:nth-child(2), .timeline-track span:nth-child(4) { background: #f0b1a8; }
+    .playhead { position: absolute; left: 47%; top: 4px; bottom: 4px; width: 1px; background: var(--coral); }
+    .playhead::before { content: ""; position: absolute; top: -1px; left: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--coral); }
+
+    .approval { position: absolute; z-index: 10; inset: 46px 0 48px; display: grid; place-items: center; background: rgba(25,25,23,.52); opacity: 0; pointer-events: none; transition: opacity .22s ease; }
+    .product-demo[data-stage="2"] .approval { opacity: 1; pointer-events: auto; }
+    .approval-sheet { width: min(600px, calc(100% - 32px)); border-radius: 7px; overflow: hidden; background: #fff; box-shadow: 0 22px 60px rgba(0,0,0,.25); transform: translateY(10px); transition: transform .24s ease; }
+    .product-demo[data-stage="2"] .approval-sheet { transform: translateY(0); }
+    .approval-head { display: flex; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding: 14px 16px 12px; }
+    .approval-head h3 { margin: 0; font-size: 14px; }
+    .approval-head p { margin: 4px 0 0; color: var(--ink-48); font-size: 9px; }
+    .approval-cost { text-align: right; }
+    .approval-cost strong { display: block; font-size: 13px; }
+    .approval-cost span { color: var(--ink-48); font-size: 8px; }
+    .approval-specs { display: grid; grid-template-columns: repeat(4,1fr); border-bottom: 1px solid var(--line-soft); }
+    .approval-specs div { padding: 10px 13px; border-right: 1px solid var(--line-soft); }
+    .approval-specs div:last-child { border-right: 0; }
+    .approval-specs span { display: block; color: var(--ink-48); font-size: 8px; }
+    .approval-specs b { display: block; margin-top: 3px; font-size: 10px; }
+    .approval-boundary { padding: 11px 16px; font-size: 10px; line-height: 1.5; }
+    .approval-boundary b { color: var(--coral-dark); }
+    .approval-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; border-top: 1px solid var(--line); padding: 10px 12px 10px 16px; }
+    .approval-actions span { color: var(--ink-48); font-size: 8px; }
+    .approval-buttons { display: flex; gap: 7px; flex: none; }
+    .approval-buttons button { height: 32px; border: 1px solid var(--line); border-radius: 5px; padding: 0 11px; background: white; font-size: 10px; cursor: pointer; }
+    .approval-buttons .approve { border-color: var(--ink); background: var(--ink); color: white; }
+
+    .safety-popover { position: absolute; z-index: 12; right: 18px; top: 65px; width: 310px; border: 1px solid #d8c9a6; border-radius: 7px; padding: 14px; background: #fffdf7; box-shadow: 0 16px 38px rgba(41,32,16,.16); opacity: 0; pointer-events: none; transform: translateY(-5px); transition: opacity .2s ease, transform .2s ease; }
+    .product-demo.safety-open .safety-popover { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .safety-popover .safety-title { display: flex; align-items: center; gap: 7px; color: #74511b; font-size: 11px; font-weight: 680; }
+    .warning-dot { width: 8px; height: 8px; border-radius: 50%; background: #c79238; }
+    .safety-popover p { margin: 8px 0 10px; color: var(--ink-72); font-size: 9px; line-height: 1.55; }
+    .safety-facts { display: grid; gap: 5px; border-top: 1px solid #eadfc6; padding-top: 9px; font-size: 8px; }
+    .safety-facts span { display: flex; justify-content: space-between; gap: 10px; }
+    .safety-facts b { color: #74511b; }
+    .safety-close { width: 100%; height: 30px; border: 0; border-radius: 4px; margin-top: 10px; background: var(--ink); color: white; font-size: 9px; cursor: pointer; }
+
+    .demo-controls { position: absolute; z-index: 14; left: 0; right: 0; bottom: 0; height: 48px; display: grid; grid-template-columns: 200px minmax(0,1fr) 200px; align-items: center; gap: 12px; border-top: 1px solid var(--line); padding: 0 12px; background: #fff; }
+    .demo-label { color: var(--ink-48); font-size: 9px; }
+    .stepper { display: flex; align-items: center; justify-content: center; gap: 4px; }
+    .step-button { height: 26px; border: 0; border-radius: 4px; padding: 0 9px; background: transparent; color: var(--ink-48); font-size: 9px; cursor: pointer; transition: color .18s ease, background .18s ease; }
+    .step-button.active { background: var(--ink); color: white; }
+    .step-actions { justify-self: end; display: flex; gap: 6px; }
+    .step-actions button { height: 28px; border: 1px solid var(--line); border-radius: 4px; padding: 0 9px; background: #fff; font-size: 9px; cursor: pointer; }
+
+    section { scroll-margin-top: 64px; }
+    .section { padding: 124px 0; }
+    #workflow { padding-top: 34px; }
+    .section-rule { border-top: 1px solid var(--line); }
+    .section-head { display: grid; grid-template-columns: 170px minmax(0,760px); justify-content: space-between; gap: 40px; align-items: start; }
+    .section-index { color: var(--ink-48); font: 10px var(--mono); }
+    .section h2 { margin: 0; font-size: 48px; line-height: 1.15; font-weight: 630; }
+    .section-lede { max-width: 580px; margin: 20px 0 0; color: var(--ink-72); font-size: 16px; line-height: 1.8; }
+    .coral { color: var(--coral-dark); }
+
+    .process { margin-top: 72px; display: grid; grid-template-columns: repeat(6,1fr); border-top: 1px solid var(--ink); }
+    .process-step { min-height: 196px; padding: 18px 18px 20px 0; border-bottom: 1px solid var(--line); }
+    .process-step + .process-step { padding-left: 18px; border-left: 1px solid var(--line); }
+    .process-step .num { color: var(--ink-28); font: 9px var(--mono); }
+    .process-step h3 { margin: 42px 0 10px; font-size: 15px; }
+    .process-step p { margin: 0; color: var(--ink-48); font-size: 11px; line-height: 1.65; }
+    .process-step.active { border-top: 3px solid var(--coral); margin-top: -3px; }
+
+    .skill-section { background: var(--paper-soft); }
+    .skill-layout { margin-top: 72px; display: grid; grid-template-columns: 360px minmax(0,1fr); gap: 72px; align-items: start; }
+    .skill-tabs { border-top: 1px solid var(--ink); }
+    .skill-tab { width: 100%; min-height: 88px; display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 14px; border: 0; border-bottom: 1px solid var(--line); padding: 0; background: transparent; text-align: left; cursor: pointer; }
+    .skill-tab .tab-num { color: var(--ink-28); font: 9px var(--mono); }
+    .skill-tab b { display: block; font-size: 14px; }
+    .skill-tab small { display: block; margin-top: 5px; color: var(--ink-48); font-size: 10px; }
+    .skill-tab .tab-arrow { color: var(--ink-28); font-size: 18px; transition: transform .18s ease; }
+    .skill-tab.active .tab-arrow { color: var(--coral); }
+    .skill-tab.active b { color: var(--coral-dark); }
+    .skill-stage { position: relative; min-height: 470px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #fff; }
+    .skill-view { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr; opacity: 0; pointer-events: none; transform: translateX(8px); transition: opacity .28s ease, transform .28s ease; }
+    .skill-view.active { opacity: 1; pointer-events: auto; transform: translateX(0); }
+    .skill-view-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding: 16px 18px; }
+    .skill-view-head span { color: var(--ink-48); font: 9px var(--mono); }
+    .skill-view-head b { font-size: 12px; }
+    .skill-view-body { padding: 24px; overflow: hidden; }
+    .script-lines { display: grid; gap: 0; }
+    .script-line { display: grid; grid-template-columns: 62px 1fr 80px; gap: 14px; padding: 15px 0; border-bottom: 1px solid var(--line-soft); font-size: 11px; line-height: 1.5; }
+    .script-line span { color: var(--ink-48); font: 9px var(--mono); }
+    .script-line em { color: var(--green); font-style: normal; text-align: right; font-size: 9px; }
+    .board-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+    .board-shot { min-width: 0; }
+    .board-shot img { width: 100%; aspect-ratio: 16/10; object-fit: cover; border-radius: 4px; filter: saturate(.85); }
+    .board-shot b { display: block; margin-top: 8px; font-size: 9px; }
+    .board-shot span { display: block; margin-top: 3px; color: var(--ink-48); font: 8px var(--mono); }
+    .anchor-map { height: 100%; display: grid; grid-template-columns: 190px 1fr; gap: 32px; align-items: center; }
+    .anchor-card { border-right: 1px solid var(--line); padding-right: 24px; }
+    .anchor-thumb { aspect-ratio: 4/5; overflow: hidden; border-radius: 5px; background: var(--paper-warm); }
+    .anchor-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .anchor-card h4 { margin: 12px 0 3px; font-size: 12px; }
+    .anchor-card p { margin: 0; color: var(--ink-48); font-size: 9px; line-height: 1.5; }
+    .anchor-facts { display: grid; gap: 12px; }
+    .anchor-fact { display: grid; grid-template-columns: 90px 1fr auto; gap: 16px; border-bottom: 1px solid var(--line-soft); padding-bottom: 12px; font-size: 10px; }
+    .anchor-fact span { color: var(--ink-48); }
+    .anchor-fact b { font-weight: 560; }
+    .anchor-fact em { color: var(--green); font-style: normal; font-size: 9px; }
+
+    .real-section { padding: 124px 0; background: var(--dark); color: white; overflow: hidden; }
+    .real-section .section-index, .real-section .section-lede { color: #aaa9a2; }
+    .real-stage { width: min(1420px, calc(100% - 48px)); margin: 70px auto 0; position: relative; }
+    .real-frame { height: 620px; border: 1px solid var(--dark-line); border-radius: 8px; overflow: hidden; background: #111; }
+    .real-frame img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; opacity: .83; }
+    .real-caption { position: absolute; right: 26px; bottom: 26px; width: 310px; border-radius: 7px; padding: 18px; background: rgba(255,255,255,.95); color: var(--ink); box-shadow: 0 16px 44px rgba(0,0,0,.3); }
+    .real-caption .tiny { color: var(--coral-dark); font: 9px var(--mono); }
+    .real-caption h3 { margin: 12px 0 8px; font-size: 19px; }
+    .real-caption p { margin: 0; color: var(--ink-72); font-size: 11px; line-height: 1.65; }
+    .real-caption ul { margin: 14px 0 0; padding: 13px 0 0; border-top: 1px solid var(--line); list-style: none; }
+    .real-caption li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; font-size: 9px; }
+    .real-caption li span { color: var(--ink-48); }
+    .real-caption li b { color: var(--green); font-weight: 600; }
+
+    .continuity-layout { margin-top: 72px; display: grid; grid-template-columns: 280px minmax(0,1fr); gap: 48px; }
+    .anchor-legend { align-self: end; padding-bottom: 6px; }
+    .anchor-legend h3 { margin: 0 0 12px; font-size: 19px; }
+    .anchor-legend p { margin: 0; color: var(--ink-72); font-size: 12px; line-height: 1.7; }
+    .legend-list { margin-top: 30px; display: grid; gap: 10px; }
+    .legend-row { display: grid; grid-template-columns: 10px 72px 1fr; gap: 10px; align-items: center; font-size: 9px; }
+    .legend-row i { width: 7px; height: 7px; border-radius: 50%; background: var(--coral); }
+    .legend-row:nth-child(2) i { background: var(--green); }
+    .legend-row:nth-child(3) i { background: var(--ink); }
+    .legend-row span { color: var(--ink-48); }
+    .continuity-board { display: grid; grid-template-columns: 1.15fr repeat(3,1fr); gap: 8px; align-items: end; }
+    .continuity-item img { width: 100%; aspect-ratio: 4/5; object-fit: cover; border-radius: 5px; }
+    .continuity-item:first-child img { aspect-ratio: 4/5.55; object-fit: contain; background: var(--paper-warm); }
+    .continuity-item b { display: block; margin-top: 9px; font-size: 10px; }
+    .continuity-item span { display: block; margin-top: 3px; color: var(--ink-48); font: 8px var(--mono); }
+
+    .edit-band { padding: 0 0 124px; overflow: hidden; }
+    .edit-picture { width: min(1500px, calc(100% - 48px)); margin: 0 auto; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--paper-soft); }
+    .edit-picture img { width: 100%; aspect-ratio: 16/8.2; object-fit: cover; object-position: center; }
+    .edit-copy { margin-top: 42px; display: grid; grid-template-columns: 1fr 1fr; gap: 70px; align-items: end; }
+    .edit-copy h2 { margin: 0; max-width: 760px; font-size: 48px; line-height: 1.15; }
+    .edit-copy p { margin: 0; max-width: 500px; color: var(--ink-72); font-size: 14px; line-height: 1.8; }
+
+    .trust-section { background: #f3f1eb; }
+    .trust-demo { margin-top: 70px; display: grid; grid-template-columns: 330px minmax(0,1fr); border: 1px solid #d8d4c7; border-radius: 8px; overflow: hidden; background: white; }
+    .trust-tabs { padding: 18px; border-right: 1px solid var(--line); background: #fbfaf6; }
+    .trust-tabs h3 { margin: 0 0 20px; font-size: 13px; }
+    .trust-tab { width: 100%; min-height: 62px; display: flex; justify-content: space-between; align-items: center; gap: 14px; border: 0; border-top: 1px solid var(--line); padding: 0 4px; background: transparent; text-align: left; cursor: pointer; }
+    .trust-tab b { display: block; font-size: 11px; }
+    .trust-tab span { display: block; margin-top: 3px; color: var(--ink-48); font-size: 9px; }
+    .trust-tab em { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+    .trust-tab[data-trust="unknown"] em { background: #c79238; }
+    .trust-tab[data-trust="approval"] em { background: var(--coral); }
+    .trust-tab.active b { color: var(--coral-dark); }
+    .trust-output { min-height: 390px; position: relative; }
+    .trust-view { position: absolute; inset: 0; display: grid; grid-template-columns: 1.2fr .8fr; gap: 40px; align-items: center; padding: 44px; opacity: 0; pointer-events: none; transform: translateY(7px); transition: opacity .25s ease, transform .25s ease; }
+    .trust-view.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .status-kicker { display: flex; align-items: center; gap: 8px; color: var(--ink-48); font: 9px var(--mono); }
+    .status-kicker i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+    .trust-view[data-view="unknown"] .status-kicker i { background: #c79238; }
+    .trust-view[data-view="approval"] .status-kicker i { background: var(--coral); }
+    .trust-view h3 { margin: 14px 0 12px; font-size: 27px; line-height: 1.25; }
+    .trust-view p { margin: 0; color: var(--ink-72); font-size: 12px; line-height: 1.7; }
+    .trust-view .boundary-note { margin-top: 22px; border-left: 2px solid var(--coral); padding-left: 12px; color: var(--ink-48); font-size: 10px; }
+    .audit-list { border-top: 1px solid var(--line); }
+    .audit-row { display: flex; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding: 12px 0; font-size: 10px; }
+    .audit-row span { color: var(--ink-48); }
+    .audit-row b { font-weight: 600; text-align: right; }
+    .audit-row .ok { color: var(--green); }
+    .audit-row .warn { color: var(--amber); }
+
+    .principles { display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid var(--ink); }
+    .principle { min-height: 230px; padding: 22px 22px 24px 0; border-bottom: 1px solid var(--line); }
+    .principle + .principle { padding-left: 22px; border-left: 1px solid var(--line); }
+    .principle .symbol { font: 24px var(--mono); }
+    .principle h3 { margin: 65px 0 10px; font-size: 15px; }
+    .principle p { margin: 0; color: var(--ink-48); font-size: 11px; line-height: 1.65; }
+
+    .closing { padding: 132px 0 48px; background: var(--coral); color: #211d1a; }
+    .closing-grid { display: grid; grid-template-columns: 1fr 180px; gap: 70px; align-items: end; }
+    .closing h2 { margin: 0; max-width: 960px; font-size: 64px; line-height: 1.04; font-weight: 650; }
+    .closing p { max-width: 590px; margin: 24px 0 0; font-size: 16px; line-height: 1.7; }
+    .closing .mascot { width: 170px; mix-blend-mode: multiply; }
+    .closing-actions { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .closing .button-primary { border-color: #211d1a; background: #211d1a; }
+    .closing .button-quiet { border-color: rgba(33,29,26,.4); }
+    .site-footer { margin-top: 92px; display: flex; justify-content: space-between; gap: 28px; border-top: 1px solid rgba(33,29,26,.45); padding-top: 22px; font-size: 10px; }
+    .footer-links { display: flex; flex-wrap: wrap; gap: 22px; }
+
+    [data-reveal] { opacity: 0; transform: translateY(20px); transition: opacity .65s cubic-bezier(.2,.7,.3,1), transform .65s cubic-bezier(.2,.7,.3,1); }
+    [data-reveal].revealed { opacity: 1; transform: translateY(0); }
+    @keyframes pulse { 50% { opacity: .35; } }
+    @keyframes scan { from { transform: scaleX(.35); } to { transform: scaleX(1); } }
+
+    @media (max-width: 1050px) {
+      :root { --shell: min(920px, calc(100% - 36px)); }
+      .hero h1 { font-size: 58px; }
+      .demo-main { grid-template-columns: 300px minmax(0,1fr); }
+      .demo-controls { grid-template-columns: 130px 1fr 130px; }
+      .shot-node { min-width: 112px; }
+      .skill-layout { grid-template-columns: 300px minmax(0,1fr); gap: 36px; }
+      .real-frame { height: 540px; }
+      .continuity-layout { grid-template-columns: 220px minmax(0,1fr); }
+    }
+
+    @media (max-width: 760px) {
+      :root { --shell: calc(100% - 28px); }
+      .site-header { height: 60px; }
+      .nav { gap: 10px; }
+      .nav-link, .nav-actions .button-quiet { display: none; }
+      .brand { font-size: 18px; }
+      .nav-actions .button { min-height: 34px; padding: 0 11px; font-size: 11px; }
+      .hero { min-height: 690px; padding: 34px 0 22px; }
+      .hero-copy { margin-bottom: 24px; }
+      .eyebrow { margin-bottom: 12px; font-size: 9px; }
+      .hero h1 { font-size: 42px; line-height: 1.08; }
+      .hero-lede { margin-top: 14px; font-size: 14px; line-height: 1.6; }
+      .hero-actions { margin-top: 17px; }
+      .hero-actions .button { min-height: 37px; padding-inline: 12px; font-size: 11px; }
+      .product-demo { height: 400px; }
+      .demo-topbar { height: 40px; grid-template-columns: 1fr auto; }
+      .workspace-tabs { display: none; }
+      .demo-top-actions { grid-column: 2; }
+      .demo-main { height: calc(100% - 80px); grid-template-columns: 1fr; grid-template-rows: 56% 44%; }
+      .director-panel { border-right: 0; border-bottom: 1px solid var(--line); }
+      .director-head { height: 35px; padding-inline: 10px; }
+      .stage-pane { inset: 35px 0 0; padding: 9px 10px; }
+      .pane-kicker { margin-bottom: 4px; font-size: 8px; }
+      .pane-title { font-size: 13px; }
+      .prompt-box { min-height: 50px; margin-top: 6px; padding: 7px; font-size: 9px; line-height: 1.4; }
+      .prompt-footer { margin-top: 5px; }
+      .prompt-hint { display: none; }
+      .demo-command { min-height: 27px; font-size: 9px; }
+      .intent-list { margin-top: 5px; }
+      .intent-row { grid-template-columns: 46px 1fr; padding: 4px 0; font-size: 8px; }
+      .intent-row:nth-child(4) { display: none; }
+      .thinking-line { display: none; }
+      .plan-list { margin-top: 4px; }
+      .plan-list li { grid-template-columns: 17px 1fr auto; padding: 3px 0; font-size: 8px; }
+      .skill-loaded { font-size: 7px; }
+      .stage-copy { margin-top: 3px; font-size: 8px; line-height: 1.4; }
+      .run-list { margin-top: 5px; gap: 3px; }
+      .run-row { grid-template-columns: 16px 1fr auto; font-size: 8px; }
+      .run-icon { width: 14px; height: 14px; }
+      .edit-summary { margin-top: 6px; padding-top: 5px; }
+      .edit-summary strong { font-size: 12px; }
+      .edit-summary span { font-size: 7px; }
+      .flow { inset: 35px 9px 48px; }
+      .canvas-meta { top: 5px; left: 7px; }
+      .canvas-meta span { padding: 3px 5px; font-size: 7px; }
+      .shot-node { top: 17%; width: 26%; min-width: 0; }
+      .shot-node:nth-of-type(1) { left: 1%; }
+      .shot-node:nth-of-type(2) { left: 25%; }
+      .shot-node:nth-of-type(3) { left: 49%; }
+      .shot-node:nth-of-type(4) { left: 73%; }
+      .shot-visual { height: 54px; }
+      .shot-body { padding: 4px 5px; }
+      .shot-body b { font-size: 7px; }
+      .shot-body span { font-size: 6px; }
+      .shot-state { top: 3px; left: 3px; padding: 2px 3px; font-size: 6px; }
+      .timeline-mini { left: 7px; right: 7px; bottom: 5px; height: 34px; }
+      .timeline-track { top: 7px; height: 18px; }
+      .approval { inset: 40px 0; }
+      .approval-sheet { width: calc(100% - 18px); }
+      .approval-head { padding: 10px; }
+      .approval-head h3 { font-size: 12px; }
+      .approval-specs div { padding: 7px; }
+      .approval-boundary { padding: 8px 10px; font-size: 8px; }
+      .approval-actions { padding: 7px 8px; }
+      .approval-actions > span { display: none; }
+      .approval-buttons { width: 100%; }
+      .approval-buttons button { flex: 1; }
+      .safety-popover { top: 46px; right: 8px; width: calc(100% - 16px); }
+      .demo-controls { height: 40px; grid-template-columns: 1fr auto; padding: 0 7px; }
+      .demo-label { display: none; }
+      .stepper { justify-content: flex-start; overflow-x: auto; }
+      .step-button { height: 24px; padding: 0 7px; white-space: nowrap; font-size: 8px; }
+      .step-actions button:last-child { display: none; }
+      .section { padding: 86px 0; }
+      .section-head { grid-template-columns: 1fr; gap: 22px; }
+      .section h2, .edit-copy h2 { font-size: 36px; }
+      .section-lede { margin-top: 14px; font-size: 14px; }
+      .process { margin-top: 46px; grid-template-columns: repeat(2,1fr); }
+      .process-step { min-height: 158px; padding: 14px; border-left: 1px solid var(--line); }
+      .process-step + .process-step { padding-left: 14px; }
+      .process-step h3 { margin-top: 28px; }
+      .skill-layout { margin-top: 46px; grid-template-columns: 1fr; gap: 28px; }
+      .skill-tab { min-height: 70px; }
+      .skill-stage { min-height: 390px; }
+      .skill-view-body { padding: 15px; }
+      .board-grid { grid-template-columns: repeat(2,1fr); }
+      .anchor-map { grid-template-columns: 120px 1fr; gap: 18px; }
+      .anchor-fact { grid-template-columns: 1fr; gap: 4px; }
+      .real-section { padding: 86px 0; }
+      .real-stage { width: calc(100% - 28px); margin-top: 46px; }
+      .real-frame { height: 330px; }
+      .real-frame img { object-position: 50% 66%; }
+      .real-caption { position: static; width: 100%; margin-top: 12px; box-shadow: none; }
+      .continuity-layout { margin-top: 46px; grid-template-columns: 1fr; }
+      .continuity-board { grid-template-columns: repeat(2,1fr); }
+      .edit-band { padding-bottom: 86px; }
+      .edit-picture { width: calc(100% - 28px); }
+      .edit-picture img { aspect-ratio: 1/1; object-position: 52% center; }
+      .edit-copy { grid-template-columns: 1fr; gap: 20px; }
+      .trust-demo { margin-top: 46px; grid-template-columns: 1fr; }
+      .trust-tabs { border-right: 0; border-bottom: 1px solid var(--line); }
+      .trust-tab { min-height: 52px; }
+      .trust-output { min-height: 440px; }
+      .trust-view { grid-template-columns: 1fr; gap: 28px; padding: 26px 20px; }
+      .trust-view h3 { font-size: 23px; }
+      .principles { grid-template-columns: repeat(2,1fr); }
+      .principle { min-height: 190px; padding: 18px; }
+      .principle + .principle { padding-left: 18px; }
+      .principle h3 { margin-top: 44px; }
+      .closing { padding: 86px 0 34px; }
+      .closing-grid { grid-template-columns: 1fr; gap: 36px; }
+      .closing h2 { font-size: 42px; }
+      .closing .mascot { width: 116px; }
+      .site-footer { margin-top: 64px; flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      [data-reveal] { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav shell" aria-label="主导航">
+      <a class="brand" href="#top" aria-label="Nomi 首页">
+        <img src="../../../marketing/assets/nomi-logo.svg" alt="" />
+        <span>Nomi</span>
+      </a>
+      <a class="nav-link" href="#workflow">工作方式</a>
+      <a class="nav-link" href="#director">导演 Skill</a>
+      <a class="nav-link" href="#control">可控性</a>
+      <a class="nav-link" href="https://github.com/aqm857886159/Nomi" target="_blank" rel="noreferrer">GitHub</a>
+      <div class="nav-actions">
+        <a class="button button-quiet" href="../../../marketing/quickstart.html">文档</a>
+        <a class="button button-coral" href="https://github.com/aqm857886159/Nomi/releases/latest" target="_blank" rel="noreferrer">下载 Nomi <span aria-hidden="true">↓</span></a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero shell" aria-labelledby="hero-title">
+      <div class="hero-copy" data-reveal>
+        <p class="eyebrow">CODEX × MCP × NOMI</p>
+        <h1 id="hero-title">一句话开工，逐镜头做完一部片。</h1>
+        <p class="hero-lede">Codex 负责导演，Nomi 负责把每一步变成真实可检查的画面。</p>
+        <div class="hero-actions">
+          <button class="button button-primary" type="button" data-scroll-demo>看一次真实导演流程 <span aria-hidden="true">↓</span></button>
+          <a class="button" href="https://github.com/aqm857886159/Nomi/releases/latest" target="_blank" rel="noreferrer">下载 Nomi</a>
+        </div>
+      </div>
+
+      <section class="product-demo" aria-label="Nomi Agentic Production 可交互产品演示" data-stage="0" data-reveal>
+        <div class="demo-topbar">
+          <div class="window-title"><span class="mini-logo">N</span><span class="project-name">Nomi / Agentic Production</span></div>
+          <div class="workspace-tabs" aria-hidden="true"><span>创作</span><span class="active">生成</span><span>预览</span></div>
+          <div class="demo-top-actions"><span class="live-status">制作中 3/8</span><button class="demo-export" type="button">导出</button></div>
+        </div>
+
+        <div class="demo-main">
+          <aside class="director-panel" aria-live="polite">
+            <div class="director-head">
+              <div class="director-identity"><span>制作助手</span><span class="source-badge">来自 Codex</span></div>
+              <span class="director-skill">director.film@2.0</span>
+            </div>
+
+            <div class="stage-pane stage-0">
+              <p class="pane-kicker">告诉导演你想拍什么</p>
+              <h2 class="pane-title">从一句自然语言开始。</h2>
+              <textarea class="prompt-box" id="film-request" aria-label="影片需求">为 Nomi 做一支 45 秒的未来感发布片：克制、真实、有速度感。先给我导演方案，确认后再生成。</textarea>
+              <div class="prompt-footer"><span class="prompt-hint">不会直接调用付费模型</span><button class="demo-command" type="button" data-next-stage>生成导演方案 →</button></div>
+            </div>
+
+            <div class="stage-pane stage-1">
+              <p class="pane-kicker">Codex 正在理解意图</p>
+              <h2 class="pane-title">先把模糊期待变成可执行约束。</h2>
+              <div class="intent-list">
+                <div class="intent-row"><span>目标</span><b>产品发布片 / 45 秒</b></div>
+                <div class="intent-row"><span>气质</span><b>未来、克制、真实界面</b></div>
+                <div class="intent-row"><span>证据</span><b>本地画布、生成节点、时间线</b></div>
+                <div class="intent-row"><span>边界</span><b>确认方案后才开始付费生成</b></div>
+              </div>
+              <div class="thinking-line">DIRECTOR SKILL 已接管</div>
+            </div>
+
+            <div class="stage-pane stage-2">
+              <p class="pane-kicker">Director Skill / 方案已就绪</p>
+              <h2 class="pane-title">8 个镜头，3 个视觉锚。</h2>
+              <ol class="plan-list">
+                <li><b>开场建立世界</b><small>0–6s</small></li>
+                <li><b>真实界面证明工作流</b><small>6–24s</small></li>
+                <li><b>Agent 协作推进制作</b><small>24–38s</small></li>
+                <li><b>落到可编辑时间线</b><small>38–45s</small></li>
+              </ol>
+              <div class="skill-loaded"><span>3 SKILLS LOADED</span><span>预计 ¥42–56</span></div>
+            </div>
+
+            <div class="stage-pane stage-3">
+              <p class="pane-kicker">制作中 3/8</p>
+              <h2 class="pane-title">镜头 03 正在生成，其他结果保持可检查。</h2>
+              <p class="stage-copy">Nomi 按已批准方案推进。每个镜头都保留来源、锚点、模型和费用记录。</p>
+              <div class="run-list">
+                <div class="run-row"><span class="run-icon">✓</span><b>方向与制作摘要</b><span>已批准</span></div>
+                <div class="run-row"><span class="run-icon">✓</span><b>脚本、分镜、视觉锚</b><span>已完成</span></div>
+                <div class="run-row current"><span class="run-icon">3</span><b>生成镜头</b><span>2 完成 / 1 进行</span></div>
+              </div>
+            </div>
+
+            <div class="stage-pane stage-4">
+              <p class="pane-kicker">可编辑初稿已装配</p>
+              <h2 class="pane-title">不是一个黑盒成片，而是一条能继续改的时间线。</h2>
+              <p class="stage-copy">镜头、字幕、声音和版本关系都在项目里。换镜头、改节奏、重做局部，不必从头生成。</p>
+              <div class="edit-summary"><div><strong>8</strong><span>镜头</span></div><div><strong>45s</strong><span>初稿</span></div><div><strong>3</strong><span>可回溯 Skills</span></div></div>
+            </div>
+          </aside>
+
+          <div class="canvas-panel" aria-label="Nomi 生成画布">
+            <div class="canvas-meta"><span class="active">生成画布</span><span>3 个视觉锚</span><span>8 个镜头</span></div>
+            <div class="flow" aria-hidden="true">
+              <div class="flow-line"></div>
+              <article class="shot-node"><div class="shot-visual"><img src="../../../marketing/assets/demo-poster.jpg" alt="" /><span class="shot-state">READY</span></div><div class="shot-body"><b>01 · 世界建立</b><span>00:00–00:06</span></div></article>
+              <article class="shot-node"><div class="shot-visual"><img src="../../../marketing/assets/demo-poster.jpg" alt="" /><span class="shot-state">READY</span></div><div class="shot-body"><b>02 · 进入界面</b><span>00:06–00:12</span></div></article>
+              <article class="shot-node"><div class="shot-visual"><img src="../../../marketing/assets/demo-poster.jpg" alt="" /><span class="shot-state">RUNNING</span></div><div class="shot-body"><b>03 · Agent 协作</b><span>00:12–00:18</span></div></article>
+              <article class="shot-node"><div class="shot-visual"><img src="../../../marketing/assets/demo-poster.jpg" alt="" /><span class="shot-state">QUEUED</span></div><div class="shot-body"><b>04 · 镜头收束</b><span>00:18–00:24</span></div></article>
+            </div>
+            <div class="timeline-mini" aria-hidden="true"><div class="timeline-track"><span></span><span></span><span></span><span></span><span></span></div><div class="playhead"></div></div>
+          </div>
+        </div>
+
+        <div class="approval" role="dialog" aria-modal="true" aria-labelledby="approval-title">
+          <div class="approval-sheet">
+            <div class="approval-head"><div><h3 id="approval-title">确认制作摘要</h3><p>来自 Codex 的草稿；批准前不会调用付费生成。</p></div><div class="approval-cost"><strong>¥42–56</strong><span>支出上限 ¥60</span></div></div>
+            <div class="approval-specs"><div><span>片长</span><b>约 45 秒</b></div><div><span>画幅</span><b>16:9</b></div><div><span>语言</span><b>中文</b></div><div><span>镜头</span><b>8 个</b></div></div>
+            <div class="approval-boundary"><b>自动化边界：</b>预算内继续生成；换供应商、超预算、发布或覆盖文件时暂停。</div>
+            <div class="approval-actions"><span>批准只覆盖本摘要，后续高风险动作仍会再次确认。</span><div class="approval-buttons"><button type="button" data-revise>返回调整</button><button class="approve" type="button" data-approve>批准并开始制作</button></div></div>
+          </div>
+        </div>
+
+        <aside class="safety-popover" aria-live="polite">
+          <div class="safety-title"><span class="warning-dot"></span>提交结果不明</div>
+          <p>请求可能已经到达供应商。Nomi 已停止自动重试，避免重复扣费；后续镜头已暂停。</p>
+          <div class="safety-facts"><span><span>镜头 03</span><b>等待人工核对</b></span><span><span>后续 5 个镜头</span><b>已暂停</b></span><span><span>自动重试</span><b>未触发</b></span></div>
+          <button class="safety-close" type="button" data-close-safety>我知道了，返回制作状态</button>
+        </aside>
+
+        <div class="demo-controls">
+          <span class="demo-label">可交互产品演示 · 非视频</span>
+          <div class="stepper" role="tablist" aria-label="导演流程状态">
+            <button class="step-button active" type="button" role="tab" data-stage="0">输入</button>
+            <button class="step-button" type="button" role="tab" data-stage="1">理解</button>
+            <button class="step-button" type="button" role="tab" data-stage="2">确认</button>
+            <button class="step-button" type="button" role="tab" data-stage="3">制作</button>
+            <button class="step-button" type="button" role="tab" data-stage="4">初稿</button>
+          </div>
+          <div class="step-actions"><button type="button" data-safety>安全边界</button><button type="button" data-next-stage>下一步 →</button></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="section section-rule" id="workflow">
+      <div class="shell">
+        <div class="section-head" data-reveal>
+          <span class="section-index">01 / FROM INTENT TO FIRST CUT</span>
+          <div><h2>一句话不是终点，<br />而是制作过程的起点。</h2><p class="section-lede">好的 Agent 产品，不该用一个“生成中”遮住所有判断。Nomi 把导演决策、执行状态和人工边界分层展开，让你随时知道现在发生了什么。</p></div>
+        </div>
+        <div class="process" data-reveal>
+          <article class="process-step"><span class="num">01</span><h3>用户意图</h3><p>说目标、气质和边界，不必先学会节点。</p></article>
+          <article class="process-step"><span class="num">02</span><h3>Codex</h3><p>理解上下文，把一句话翻译成制作任务。</p></article>
+          <article class="process-step active"><span class="num">03</span><h3>Director Skill</h3><p>拆脚本、镜头、视觉锚与验收标准。</p></article>
+          <article class="process-step"><span class="num">04</span><h3>Nomi 画布</h3><p>将计划变成真实节点、素材和依赖关系。</p></article>
+          <article class="process-step"><span class="num">05</span><h3>人工确认</h3><p>在付费生成、换供应商与发布前暂停。</p></article>
+          <article class="process-step"><span class="num">06</span><h3>可编辑初稿</h3><p>得到能局部重做的时间线，不是封死的结果。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section skill-section" id="director">
+      <div class="shell">
+        <div class="section-head" data-reveal>
+          <span class="section-index">02 / DIRECTOR SKILL</span>
+          <div><h2>导演 Skill 不只是写提示词，<br /><span class="coral">它负责把判断摊开。</span></h2><p class="section-lede">同一份创作意图被拆成可检查的叙事节奏、镜头设计和连续性锚点。每个判断都有来源，也都可以在开拍前改。</p></div>
+        </div>
+        <div class="skill-layout" data-reveal>
+          <div class="skill-tabs" role="tablist" aria-label="导演 Skill 能力">
+            <button class="skill-tab active" type="button" data-skill="story"><span class="tab-num">01</span><span><b>叙事与节奏</b><small>主张、证据、时长与节拍</small></span><span class="tab-arrow">→</span></button>
+            <button class="skill-tab" type="button" data-skill="shots"><span class="tab-num">02</span><span><b>镜头与调度</b><small>景别、运动、承接与时长</small></span><span class="tab-arrow">→</span></button>
+            <button class="skill-tab" type="button" data-skill="anchors"><span class="tab-num">03</span><span><b>连续性锚点</b><small>角色、场景、光线与造型</small></span><span class="tab-arrow">→</span></button>
+          </div>
+          <div class="skill-stage">
+            <div class="skill-view active" data-skill-view="story"><div class="skill-view-head"><b>导演方案 / 叙事节奏</b><span>EVIDENCE RUBRIC FROZEN</span></div><div class="skill-view-body"><div class="script-lines"><div class="script-line"><span>00–06s</span><b>未来感不是装饰：先建立真实世界。</b><em>产品主张</em></div><div class="script-line"><span>06–18s</span><b>Codex 接收意图，Director Skill 公开计划。</b><em>流程证据</em></div><div class="script-line"><span>18–36s</span><b>Nomi 画布逐镜头执行，状态持续可见。</b><em>产品证据</em></div><div class="script-line"><span>36–45s</span><b>落在可编辑时间线，保留人的最后判断。</b><em>结果证据</em></div></div></div></div>
+            <div class="skill-view" data-skill-view="shots"><div class="skill-view-head"><b>导演方案 / 镜头调度</b><span>8 SHOTS · 45 SECONDS</span></div><div class="skill-view-body"><div class="board-grid"><figure class="board-shot"><img src="../../../marketing/assets/demo-poster.jpg" alt="镜头 1 分镜" /><b>01 · 全景建立</b><span>24mm / PUSH IN</span></figure><figure class="board-shot"><img src="../../../marketing/assets/screen-agentic.jpg" alt="镜头 2 分镜" /><b>02 · 接入 Codex</b><span>50mm / STATIC</span></figure><figure class="board-shot"><img src="../../../marketing/assets/screen-canvas.png" alt="镜头 3 分镜" /><b>03 · 画布展开</b><span>35mm / PAN</span></figure><figure class="board-shot"><img src="../../../marketing/assets/screen-timeline.png" alt="镜头 4 分镜" /><b>04 · 初稿装配</b><span>50mm / PULL OUT</span></figure></div></div></div>
+            <div class="skill-view" data-skill-view="anchors"><div class="skill-view-head"><b>导演方案 / 连续性锚点</b><span>3 ANCHORS LOCKED</span></div><div class="skill-view-body"><div class="anchor-map"><article class="anchor-card"><div class="anchor-thumb"><img src="../../../marketing/assets/mascot.png" alt="Nomi 角色视觉锚" /></div><h4>Nomi / 主体锚</h4><p>几何比例与珊瑚色识别点保持一致。</p></article><div class="anchor-facts"><div class="anchor-fact"><span>角色</span><b>体态、比例、识别色</b><em>LOCKED</em></div><div class="anchor-fact"><span>环境</span><b>冷灰太空、硬质结构</b><em>LOCKED</em></div><div class="anchor-fact"><span>镜头</span><b>克制运动、真实界面</b><em>LOCKED</em></div><div class="anchor-fact"><span>禁用</span><b>虚构 UI、无意义光效</b><em>CHECKED</em></div></div></div></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="real-section" aria-labelledby="real-title">
+      <div class="section-head shell" data-reveal>
+        <span class="section-index">03 / REAL PRODUCTION SURFACE</span>
+        <div><h2 id="real-title">真正的产品界面，<br />本身就是最有力的介绍。</h2><p class="section-lede">Nomi 不把能力包装成一段无法验证的视频。镜头、资产、依赖和时间线同时在场，用户看到的就是实际工作的地方。</p></div>
+      </div>
+      <div class="real-stage" data-reveal>
+        <div class="real-frame"><img src="../../../marketing/assets/screen-canvas.png" alt="Nomi 真实生成画布和时间线界面" /></div>
+        <aside class="real-caption"><span class="tiny">REAL NOMI INTERFACE</span><h3>一张画布，保留整条制作上下文。</h3><p>角色参考、场景锚、镜头节点与时间线彼此可见。Agent 不是替你藏起复杂度，而是帮你管理它。</p><ul><li><span>画布节点</span><b>可追溯</b></li><li><span>镜头状态</span><b>可观察</b></li><li><span>局部结果</span><b>可替换</b></li></ul></aside>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="continuity-title">
+      <div class="shell">
+        <div class="section-head" data-reveal><span class="section-index">04 / VISUAL CONTINUITY</span><div><h2 id="continuity-title">先锁住角色和世界，<br />再让每个镜头自由生长。</h2><p class="section-lede">真实的导演工作不是每一镜都重新猜。Nomi 把角色、场景和镜头语言变成明确锚点，续写时沿用，必要时再有意识地打破。</p></div></div>
+        <div class="continuity-layout" data-reveal>
+          <aside class="anchor-legend"><h3>同一个主体，跨镜头保持可认。</h3><p>角色卡不是漂亮附件，而是后续生成引用的生产资产。</p><div class="legend-list"><div class="legend-row"><i></i><span>主体锚</span><b>比例与识别点</b></div><div class="legend-row"><i></i><span>场景锚</span><b>材质与光线</b></div><div class="legend-row"><i></i><span>镜头锚</span><b>景别与运动</b></div></div></aside>
+          <div class="continuity-board"><figure class="continuity-item"><img src="../../../marketing/assets/mascot.png" alt="Nomi 角色锚参考" /><b>角色锚</b><span>IDENTITY / LOCKED</span></figure><figure class="continuity-item"><img src="../../../marketing/assets/demo-poster.jpg" alt="远景镜头" /><b>镜头 01 · 世界建立</b><span>WIDE / 24MM</span></figure><figure class="continuity-item"><img src="../../../marketing/assets/demo-poster.jpg" alt="中景镜头" style="object-position:36% 50%" /><b>镜头 03 · 主体进入</b><span>MEDIUM / 50MM</span></figure><figure class="continuity-item"><img src="../../../marketing/assets/demo-poster.jpg" alt="近景镜头" style="object-position:70% 50%" /><b>镜头 06 · 细节收束</b><span>CLOSE / 85MM</span></figure></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="edit-band" aria-labelledby="edit-title">
+      <div class="edit-picture" data-reveal><img src="../../../marketing/assets/screen-timeline.png" alt="Nomi 真实预览与可编辑时间线界面" /></div>
+      <div class="edit-copy shell" data-reveal><h2 id="edit-title">生成结束，<br />创作并没有结束。</h2><p>初稿自动进入时间线。你可以换一镜、改节奏、重做一个局部，也可以继续手工编辑。Nomi 交付的是项目，而不只是一次生成结果。</p></div>
+    </section>
+
+    <section class="section trust-section" id="control">
+      <div class="shell">
+        <div class="section-head" data-reveal><span class="section-index">05 / HUMAN CONTROL</span><div><h2>能自动继续，<br />也知道什么时候必须停。</h2><p class="section-lede">可信不是“永不出错”，而是状态不确定时不擅自替用户下注。点击下面三个状态，看 Nomi 如何处理正常推进、结果不明与高风险确认。</p></div></div>
+        <div class="trust-demo" data-reveal>
+          <div class="trust-tabs" role="tablist" aria-label="制作安全状态"><h3>制作运行状态</h3><button class="trust-tab active" type="button" data-trust="running"><span><b>正常推进</b><span>制作中 3/8</span></span><em></em></button><button class="trust-tab" type="button" data-trust="unknown"><span><b>提交结果不明</b><span>停止自动重试</span></span><em></em></button><button class="trust-tab" type="button" data-trust="approval"><span><b>需要人工确认</b><span>付费、发布、覆盖</span></span><em></em></button></div>
+          <div class="trust-output" aria-live="polite">
+            <article class="trust-view active" data-view="running"><div><div class="status-kicker"><i></i>制作中 · 刚刚查询</div><h3>镜头 03 / 08 正在生成。</h3><p>镜头 01–02 已通过技术检查，其他镜头按已批准的计划排队。期间不会自动发布或覆盖本地文件。</p><div class="boundary-note">状态、预算和最近产物始终可见。</div></div><div class="audit-list"><div class="audit-row"><span>制作摘要</span><b class="ok">已批准</b></div><div class="audit-row"><span>已完成</span><b>2 个镜头</b></div><div class="audit-row"><span>当前支出</span><b>¥18 / ¥60</b></div><div class="audit-row"><span>后续动作</span><b>预算内继续</b></div></div></article>
+            <article class="trust-view" data-view="unknown"><div><div class="status-kicker"><i></i>需要处理 · 1 分钟前</div><h3>提交结果不明，Nomi 已停止自动重试。</h3><p>请求可能已到达供应商。再次提交可能重复扣费，因此后续镜头也暂停在安全边界，等待人工核对。</p><div class="boundary-note">不把“查询失败”误判成“生成失败”。</div></div><div class="audit-list"><div class="audit-row"><span>提交意图</span><b class="ok">已持久化</b></div><div class="audit-row"><span>供应商回执</span><b class="warn">未收到</b></div><div class="audit-row"><span>自动重试</span><b class="warn">未触发</b></div><div class="audit-row"><span>后续 5 镜</span><b class="warn">已暂停</b></div></div></article>
+            <article class="trust-view" data-view="approval"><div><div class="status-kicker"><i></i>等待确认 · 高风险动作</div><h3>计划可以自动跑，权力边界不能含糊。</h3><p>首次付费、换供应商、超预算、对外发布与覆盖本地文件时，Nomi 会给出影响范围并等待当次确认。</p><div class="boundary-note">批准一次制作摘要，不等于永久授权。</div></div><div class="audit-list"><div class="audit-row"><span>预算内生成</span><b class="ok">按摘要继续</b></div><div class="audit-row"><span>更换供应商</span><b class="warn">需要确认</b></div><div class="audit-row"><span>对外发布</span><b class="warn">始终确认</b></div><div class="audit-row"><span>覆盖文件</span><b class="warn">始终确认</b></div></div></article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="foundation-title">
+      <div class="shell">
+        <div class="section-head" data-reveal><span class="section-index">06 / BUILT FOR OWNERSHIP</span><div><h2 id="foundation-title">工具可以替换，<br />你的项目不该被锁住。</h2><p class="section-lede">Nomi 将 Agent 能力建立在本地项目、开放协议和可替换模型之上。自动化越强，所有权越应该清楚。</p></div></div>
+        <div class="principles" style="margin-top:70px" data-reveal><article class="principle"><span class="symbol">⌂</span><h3>本地优先</h3><p>项目、素材和生成上下文优先留在你的电脑。</p></article><article class="principle"><span class="symbol">{ }</span><h3>开源工作台</h3><p>AGPL-3.0，关键实现和行为可以被检查。</p></article><article class="principle"><span class="symbol">↔</span><h3>模型可替换</h3><p>连接兼容 API 与本地工作流，不把项目焊死在一家供应商。</p></article><article class="principle"><span class="symbol">MCP</span><h3>Agent 可接入</h3><p>Codex 通过 MCP 发起草稿、读取状态并调用导演 Skills。</p></article></div>
+      </div>
+    </section>
+
+    <section class="closing" aria-labelledby="closing-title">
+      <div class="shell">
+        <div class="closing-grid" data-reveal><div><h2 id="closing-title">把一句想法，变成一部仍然属于你的片。</h2><p>从 Codex 的一句话，到 Nomi 里可确认、可追踪、可继续编辑的第一版。</p><div class="closing-actions"><a class="button button-primary" href="https://github.com/aqm857886159/Nomi/releases/latest" target="_blank" rel="noreferrer">下载 Nomi <span aria-hidden="true">↓</span></a><a class="button button-quiet" href="https://github.com/aqm857886159/Nomi" target="_blank" rel="noreferrer">查看 GitHub <span aria-hidden="true">↗</span></a><a class="button button-quiet" href="../../../marketing/quickstart.html">阅读文档</a></div></div><img class="mascot" src="../../../marketing/assets/mascot.png" alt="Nomi" /></div>
+        <footer class="site-footer"><span>NOMI · LOCAL-FIRST AI VIDEO WORKBENCH</span><div class="footer-links"><a href="https://github.com/aqm857886159/Nomi/discussions" target="_blank" rel="noreferrer">社区</a><a href="https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml" target="_blank" rel="noreferrer">团队合作</a><a href="https://github.com/aqm857886159/Nomi/blob/main/LICENSE" target="_blank" rel="noreferrer">AGPL-3.0</a></div></footer>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const demo = document.querySelector('.product-demo')
+    const stageButtons = [...document.querySelectorAll('.step-button')]
+
+    function setStage(stage) {
+      const next = Math.max(0, Math.min(4, Number(stage)))
+      demo.dataset.stage = String(next)
+      demo.classList.remove('safety-open')
+      stageButtons.forEach((button) => {
+        const active = Number(button.dataset.stage) === next
+        button.classList.toggle('active', active)
+        button.setAttribute('aria-selected', String(active))
+      })
+    }
+
+    stageButtons.forEach((button) => button.addEventListener('click', () => setStage(button.dataset.stage)))
+    document.querySelectorAll('[data-next-stage]').forEach((button) => button.addEventListener('click', () => setStage((Number(demo.dataset.stage) + 1) % 5)))
+    document.querySelector('[data-approve]').addEventListener('click', () => setStage(3))
+    document.querySelector('[data-revise]').addEventListener('click', () => setStage(0))
+    document.querySelector('[data-safety]').addEventListener('click', () => demo.classList.toggle('safety-open'))
+    document.querySelector('[data-close-safety]').addEventListener('click', () => demo.classList.remove('safety-open'))
+    document.querySelector('[data-scroll-demo]').addEventListener('click', () => {
+      demo.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' })
+      setStage(0)
+      window.setTimeout(() => document.querySelector('#film-request').focus({ preventScroll: true }), 450)
+    })
+
+    const skillTabs = [...document.querySelectorAll('.skill-tab')]
+    const skillViews = [...document.querySelectorAll('.skill-view')]
+    skillTabs.forEach((tab) => tab.addEventListener('click', () => {
+      skillTabs.forEach((item) => item.classList.toggle('active', item === tab))
+      skillViews.forEach((view) => view.classList.toggle('active', view.dataset.skillView === tab.dataset.skill))
+    }))
+
+    const trustTabs = [...document.querySelectorAll('.trust-tab')]
+    const trustViews = [...document.querySelectorAll('.trust-view')]
+    trustTabs.forEach((tab) => tab.addEventListener('click', () => {
+      trustTabs.forEach((item) => item.classList.toggle('active', item === tab))
+      trustViews.forEach((view) => view.classList.toggle('active', view.dataset.view === tab.dataset.trust))
+    }))
+
+    const reveals = [...document.querySelectorAll('[data-reveal]')]
+    if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+        entry.target.classList.add('revealed')
+        observer.unobserve(entry.target)
+      }), { threshold: .08 })
+      reveals.forEach((element) => observer.observe(element))
+    } else {
+      reveals.forEach((element) => element.classList.add('revealed'))
+    }
+  </script>
+</body>
+</html>

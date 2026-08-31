@@ -15,13 +15,75 @@
 // docs/plan/2026-06-19-text-brain-onboarding-gap.md 验收门 S2）。用户可在「模型设置」自行加别的
 // 文本模型（gpt-5 / claude-opus-4-8 等），chooseTextModel 会把用户启用的一并纳入选择池。
 
-/** 一个 apimart 文本模型的 curated 定义（无 archetype / 无 mapping；modelKey = chat model id）。 */
+import type { HttpOperation, ProfileKind } from "./types";
+import { APIMART_CREATE_TASK_ID_PATH, APIMART_STATUS_MAPPING } from "./apimartVendor";
+
+/** 一个 apimart 文本模型的 curated 定义（modelKey = chat 或专用异步模型 id）。 */
 export type ApimartTextModel = {
   modelKey: string;
   labelZh: string;
+  meta?: Record<string, unknown>;
 };
 
-/** apimart 的 curated 文本模型（单源）。当前只播一个默认大脑；多模型由用户在设置里自助添加。 */
+/** apimart 的 curated 文本模型（单源）。 */
 export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
   { modelKey: "deepseek-v4-pro", labelZh: "DeepSeek V4 Pro" },
+  // Context-IR 不是 chat/completions 模型，而是视频族的异步提示词增强端点；标记能力避免
+  // Agent 主控把它误当普通对话模型，仍可通过 prompt_refine profile 复用 Nomi 文本结果管线。
+  { modelKey: "MiniMax-H3-Context-IR", labelZh: "MiniMax H3 · Context-IR 提示词增强", meta: { promptRefineOnly: true } },
+];
+
+const CONTEXT_IR_CREATE_OP: HttpOperation = {
+  method: "POST",
+  path: "/v1/videos/generations",
+  headers: { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" },
+  body: {
+    model: "{{model.modelKey}}",
+    prompt: "{{request.prompt}}",
+    duration: "{{request.params.duration}}",
+    aspect_ratio: "{{request.params.aspect_ratio}}",
+    first_frame_image: "{{request.params.first_frame_image}}",
+    last_frame_image: "{{request.params.last_frame_image}}",
+    image_urls: "{{request.params.image_urls}}",
+    video_urls: "{{request.params.video_urls}}",
+    audio_urls: "{{request.params.audio_urls}}",
+  },
+  response_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
+  provider_meta_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
+  defaultParams: { duration: 5, aspect_ratio: "16:9" },
+};
+
+const CONTEXT_IR_QUERY_OP: HttpOperation = {
+  method: "GET",
+  path: "/v1/tasks/{{providerMeta.task_id}}",
+  headers: { Authorization: "Bearer {{user_api_key}}" },
+  response_mapping: {
+    task_id: "data.id",
+    status: "data.status",
+    text: "data.result.prompt",
+    error_message: "data.error.message",
+  },
+};
+
+export type ApimartTextMapping = {
+  id: string;
+  taskKind: ProfileKind;
+  modelKey: string;
+  name: string;
+  create: HttpOperation;
+  query: HttpOperation;
+  statusMapping: Record<string, string[]>;
+};
+
+/** 需要专用异步 profile 的文本模型 mapping；普通 chat 大脑不造死 mapping。 */
+export const APIMART_TEXT_MAPPINGS: ApimartTextMapping[] = [
+  {
+    id: "seed-apimart-minimax-h3-context-ir-prompt_refine",
+    taskKind: "prompt_refine",
+    modelKey: "MiniMax-H3-Context-IR",
+    name: "MiniMax H3 · Context-IR 提示词增强",
+    create: CONTEXT_IR_CREATE_OP,
+    query: CONTEXT_IR_QUERY_OP,
+    statusMapping: APIMART_STATUS_MAPPING,
+  },
 ];

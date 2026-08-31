@@ -9,7 +9,6 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/task-center')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -17,6 +16,11 @@ fs.mkdirSync(shotsDir, { recursive: true })
 
 const userData = path.join(repoRoot, '.tmp', 'nomi-taskcenter-userdata')
 fs.mkdirSync(userData, { recursive: true })
+
+function assert(condition, label) {
+  if (!condition) throw new Error(`TASK CENTER WALK FAIL: ${label}`)
+  console.log(`  ✓ ${label}`)
+}
 
 let n = 0
 async function snap(win, name) {
@@ -37,6 +41,8 @@ async function snap(win, name) {
 const { app, win } = await launchNomiApp({
   name: 'task-center',
   userDataDir: userData,
+  settingsDir: path.join(userData, 'settings'),
+  projectsDir: path.join(userData, 'projects'),
   args: ['--no-proxy-server'],
   settleMs: 0,
 })
@@ -155,6 +161,24 @@ await win.locator('[aria-label="任务"]').first().click({ timeout: 5000 })
 await win.waitForTimeout(700)
 await snap(win, 'panel-mid-batch')
 
+const ordinaryPanelContract = await win.evaluate(() => {
+  const panel = document.querySelector('[role="dialog"][aria-label="任务"]')
+  const appbar = document.querySelector('.nomi-appbar')
+  if (!panel || !appbar) return { found: false }
+  return {
+    found: true,
+    panelTop: panel.getBoundingClientRect().top,
+    appbarBottom: appbar.getBoundingClientRect().bottom,
+    decisionBars: panel.querySelectorAll('[data-task-center-decision]').length,
+  }
+})
+assert(ordinaryPanelContract.found, '普通任务面板已打开')
+assert(
+  ordinaryPanelContract.panelTop >= ordinaryPanelContract.appbarBottom,
+  `面板从任务按钮下方展开，不遮 AppBar（panel=${ordinaryPanelContract.panelTop}, appbar=${ordinaryPanelContract.appbarBottom}）`,
+)
+assert(ordinaryPanelContract.decisionBars === 0, '普通运行态不渲染重复 SummaryBar')
+
 // 画布上的「排队中」角标（第 2 波那些节点）。
 const queuedBadges = await win.locator('text=排队中').count()
 console.log('  → 画布/面板「排队中」出现次数:', queuedBadges)
@@ -170,19 +194,8 @@ const failColor = await win.evaluate(() => {
 })
 console.log('  → 失败行颜色:', JSON.stringify(failColor))
 
-// ② 点「取消排队的 N 个」。
-const cancelAll = win.locator('button', { hasText: /取消排队的/ }).first()
-if (await cancelAll.count()) {
-  await cancelAll.click({ timeout: 4000 })
-  await win.waitForTimeout(700)
-  await snap(win, 'panel-after-cancel-queued')
-  const remainingQueued = await win.evaluate(
-    () => window.__nomiQueueStore.getState().entries.filter((e) => e.state === 'queued').length,
-  )
-  console.log('  → 取消后仍排队:', remainingQueued, '(应为 0)')
-} else {
-  console.error('  ⚠️ 没找到「取消排队的 N 个」按钮')
-}
+// ② 普通运行态不再出现第二套汇总动作；取消仍逐行就近处理。
+assert((await win.locator('button', { hasText: /取消排队的|重试失败的/ }).count()) === 0, '无重复的批量汇总动作条')
 
 // ③ 刹车横幅。
 await win.evaluate((ids) => {
@@ -196,6 +209,7 @@ await win.evaluate((ids) => {
 }, nodeIds)
 await win.waitForTimeout(700)
 await snap(win, 'panel-brake-banner')
+assert((await win.locator('[data-task-center-decision="brake"]').count()) === 1, '连续失败暂停时保留决策横幅')
 
 // ④ 全部跑完 + 有失败（顶栏按钮转提醒色）。
 await win.evaluate((ids) => {
@@ -254,6 +268,7 @@ const geometry = await win.evaluate(() => {
   }
 })
 console.log('  → 面板几何:', JSON.stringify(geometry))
+assert(geometry.found && geometry.withinViewport && !geometry.overflowX, '任务面板保持在视口内且无横向溢出')
 
 await app.close()
 console.log(`\n✅ 走查截图已出：${shotsDir}（下一步必须自己 Read 每张图人眼判断）`)

@@ -2,7 +2,6 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import "./workbench.css";
 import "./workbench-ai.css";
-import { IconBrowser } from "@tabler/icons-react";
 import { NomiBrand, NomiLoadingMark } from "../design";
 import NomiAppBar from "../ui/app-shell/NomiAppBar";
 import {
@@ -15,7 +14,6 @@ import ProjectExplorerSidebar from "./explorer/ProjectExplorerSidebar";
 import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
 import { WindowControls } from "../ui/app-shell/WindowControls";
 import { handleWindowTitlebarDoubleClick } from "../ui/app-shell/windowTitlebarDoubleClick";
-import { OnboardingChecklist } from "./onboarding/OnboardingChecklist";
 
 // 工作区懒加载走容错域（审计 A5）：单个工作区 chunk 失败不拖死其余工作区。
 const CreationWorkspace = lazyWithChunkBoundary(
@@ -119,10 +117,6 @@ function writeWorkspaceModeToUrl(mode: WorkspaceMode): void {
     window.history.replaceState(null, "", url.toString());
 }
 
-function openBrowser(): void {
-    window.dispatchEvent(new CustomEvent("nomi-open-browser"));
-}
-
 export default function WorkbenchShell({
     generation,
     generationAi,
@@ -215,32 +209,6 @@ export default function WorkbenchShell({
                         data-window-drag-region="true"
                         aria-hidden="true"
                     />
-                    <div className="app-no-drag relative z-[2] inline-flex h-full items-center pt-0.5 pb-0.5">
-                        <OnboardingChecklist />
-                    </div>
-                    <div
-                        className={cn(
-                            "app-no-drag relative z-[2] inline-flex h-full items-center gap-1 pt-0.5 pb-0.5",
-                            "text-workbench-muted",
-                        )}
-                        role="toolbar"
-                        aria-label={t("appBar.projectQuickActions")}
-                    >
-                        <button
-                            type="button"
-                            className={cn(
-                                "inline-flex h-7 items-center gap-1.5 rounded-pill border-0 bg-transparent px-2",
-                                "cursor-pointer font-inherit text-caption text-workbench-muted",
-                                "transition-colors hover:text-workbench-ink",
-                            )}
-                            aria-label={t("appBar.openBrowser")}
-                            title={t("appBar.browser")}
-                            onClick={openBrowser}
-                        >
-                            <IconBrowser size={14} stroke={1.8} aria-hidden="true" />
-                            <span>{t("appBar.browser")}</span>
-                        </button>
-                    </div>
                     <WindowControls className="relative z-[2]" />
                 </div>
             ) : null}

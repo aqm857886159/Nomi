@@ -1,0 +1,190 @@
+{
+  "baseline": {
+    "label": "baseline-hot",
+    "commit": "62b1270493927161d0369f7eaf9fa3ce1a7919df"
+  },
+  "candidate": {
+    "label": "opt4-click",
+    "commit": "62b1270493927161d0369f7eaf9fa3ce1a7919df"
+  },
+  "thresholds": {
+    "maxRegression": 0.1,
+    "noiseFloor": 0.05
+  },
+  "pass": false,
+  "missingScenarios": [
+    "L/node-drag-image",
+    "L/node-drag-video",
+    "L/marquee-select",
+    "L/media-reveal"
+  ],
+  "hardFailures": [],
+  "regressions": [
+    {
+      "scenario": "L/click-select",
+      "metric": "longTaskP95Ms",
+      "statistic": "p95",
+      "before": 75,
+      "after": 85,
+      "changePct": 13.3,
+      "classification": "regression"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "rendererWorkingSetMB",
+      "statistic": "median",
+      "before": 294.4,
+      "after": 371.8,
+      "changePct": 26.3,
+      "classification": "regression"
+    }
+  ],
+  "improvements": [
+    {
+      "scenario": "L/click-select",
+      "metric": "fps",
+      "statistic": "median",
+      "before": 60.2,
+      "after": 70.4,
+      "changePct": -16.9,
+      "classification": "improvement"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "frameGapP95Ms",
+      "statistic": "p95",
+      "before": 82.8,
+      "after": 69,
+      "changePct": -16.7,
+      "classification": "improvement"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "maxFrameGapMs",
+      "statistic": "p95",
+      "before": 432.6,
+      "after": 137.1,
+      "changePct": -68.3,
+      "classification": "improvement"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "scriptDurationMs",
+      "statistic": "median",
+      "before": 466.2,
+      "after": 400.6,
+      "changePct": -14.1,
+      "classification": "improvement"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "jsHeapUsedMB",
+      "statistic": "median",
+      "before": 29.8,
+      "after": 24.8,
+      "changePct": -16.8,
+      "classification": "improvement"
+    }
+  ],
+  "comparisons": [
+    {
+      "scenario": "L/click-select",
+      "metric": "fps",
+      "statistic": "median",
+      "before": 60.2,
+      "after": 70.4,
+      "changePct": -16.9,
+      "classification": "improvement"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "frameGapP95Ms",
+      "statistic": "p95",
+      "before": 82.8,
+      "after": 69,
+      "changePct": -16.7,
+      "classification": "improvement"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "maxFrameGapMs",
+      "statistic": "p95",
+      "before": 432.6,
+      "after": 137.1,
+      "changePct": -68.3,
+      "classification": "improvement"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "longTaskMs",
+      "statistic": "p95",
+      "before": 325,
+      "after": 328,
+      "changePct": 0.9,
+      "classification": "noise"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "longTaskP95Ms",
+      "statistic": "p95",
+      "before": 75,
+      "after": 85,
+      "changePct": 13.3,
+      "classification": "regression"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "layoutCount",
+      "statistic": "median",
+      "before": 62,
+      "after": 66,
+      "changePct": 6.5,
+      "classification": "watch"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "recalcStyleCount",
+      "statistic": "median",
+      "before": 229,
+      "after": 245,
+      "changePct": 7,
+      "classification": "watch"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "scriptDurationMs",
+      "statistic": "median",
+      "before": 466.2,
+      "after": 400.6,
+      "changePct": -14.1,
+      "classification": "improvement"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "layoutDurationMs",
+      "statistic": "median",
+      "before": 24.1,
+      "after": 22.1,
+      "changePct": -8.3,
+      "classification": "watch"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "jsHeapUsedMB",
+      "statistic": "median",
+      "before": 29.8,
+      "after": 24.8,
+      "changePct": -16.8,
+      "classification": "improvement"
+    },
+    {
+      "scenario": "L/click-select",
+      "metric": "rendererWorkingSetMB",
+      "statistic": "median",
+      "before": 294.4,
+      "after": 371.8,
+      "changePct": 26.3,
+      "classification": "regression"
+    }
+  ]
+}

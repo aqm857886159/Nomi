@@ -1,5 +1,6 @@
 import { net, protocol } from "electron";
 import fs from "node:fs";
+import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { contentTypeFromPath } from "../assets/assetPaths";
 import { resolveProjectRelativePath } from "../projects/repository";
@@ -65,6 +66,34 @@ function assetPathFromUrl(rawUrl: string): string | null {
   return parseLocalAssetUrl(rawUrl)?.filePath ?? null;
 }
 
+function staticResourcePathFromUrl(rawUrl: string, staticResourceRoot?: string): string | null {
+  if (!staticResourceRoot) return null;
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "nomi-local:" || url.hostname !== "resource") return null;
+  const segments = url.pathname
+    .replace(/^\/+/, "")
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => {
+      try {
+        return decodeURIComponent(segment);
+      } catch {
+        return segment;
+      }
+    });
+  if (segments[0] !== "remove-background") return null;
+  const root = path.resolve(staticResourceRoot);
+  const filePath = path.resolve(root, ...segments);
+  const relative = path.relative(root, filePath);
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) return null;
+  return filePath;
+}
+
 type ByteRange = { start: number; end: number };
 
 function parseRangeHeader(rangeHeader: string, size: number): ByteRange | null {
@@ -103,9 +132,9 @@ function rangeNotSatisfiable(size: number): Response {
   });
 }
 
-export async function handleNomiLocalRequest(request: Request): Promise<Response> {
+export async function handleNomiLocalRequest(request: Request, staticResourceRoot?: string): Promise<Response> {
   try {
-    const filePath = assetPathFromUrl(request.url);
+    const filePath = staticResourcePathFromUrl(request.url, staticResourceRoot) ?? assetPathFromUrl(request.url);
     if (!filePath) {
       return new Response("Unsupported nomi-local host", { status: 404 });
     }
@@ -118,13 +147,16 @@ export async function handleNomiLocalRequest(request: Request): Promise<Response
     }
     const fileResponse = await net.fetch(pathToFileURL(filePath).toString());
     const corsHeaders = withLocalAssetHeaders(fileResponse.headers);
-    return new Response(request.method === "HEAD" ? null : fileResponse.body, { status: fileResponse.status, headers: corsHeaders });
+    return new Response(request.method === "HEAD" ? null : fileResponse.body, {
+      status: fileResponse.status,
+      headers: corsHeaders,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "local asset not found";
     return new Response(message, { status: 404 });
   }
 }
 
-export function registerLocalProtocol(): void {
-  protocol.handle("nomi-local", handleNomiLocalRequest);
+export function registerLocalProtocol(staticResourceRoot?: string): void {
+  protocol.handle("nomi-local", (request) => handleNomiLocalRequest(request, staticResourceRoot));
 }

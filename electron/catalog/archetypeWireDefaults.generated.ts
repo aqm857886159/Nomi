@@ -41,6 +41,24 @@ export const ARCHETYPE_WIRE_DEFAULTS: Record<string, Record<string, Record<strin
       }
     }
   },
+  "minimax-h3-apimart": {
+    "text_to_video": {
+      "*": {
+        "resolution": "2K",
+        "aspect_ratio": "16:9",
+        "duration": 5,
+        "watermark": false
+      }
+    },
+    "image_to_video": {
+      "*": {
+        "resolution": "2K",
+        "aspect_ratio": "adaptive",
+        "duration": 5,
+        "watermark": false
+      }
+    }
+  },
   "minimax-h3": {
     "text_to_video": {
       "*": {
@@ -302,6 +320,11 @@ export const ARCHETYPE_WIRE_DEFAULTS: Record<string, Record<string, Record<strin
         "resolution": "720p",
         "duration": 5,
         "generate_audio": true,
+<<<<<<< HEAD
+=======
+        "watermark": false,
+        "output_format": "mp4",
+>>>>>>> origin/codex/apimart-seedance-h3-20260811
         "return_last_frame": false
       }
     },
@@ -311,6 +334,11 @@ export const ARCHETYPE_WIRE_DEFAULTS: Record<string, Record<string, Record<strin
         "resolution": "720p",
         "duration": 5,
         "generate_audio": true,
+<<<<<<< HEAD
+=======
+        "watermark": false,
+        "output_format": "mp4",
+>>>>>>> origin/codex/apimart-seedance-h3-20260811
         "return_last_frame": false
       }
     }

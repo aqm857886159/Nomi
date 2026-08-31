@@ -12,6 +12,11 @@ export type SkillListItemDto = {
   label: string
   description: string | null
   author: string | null
+  provenance: {
+    source: 'builtin' | 'user'
+    version: string | null
+    contentHash: string
+  }
   stageLabels: string[]
   isPlaybook: boolean
   neededProviders: SkillProviderKind[]

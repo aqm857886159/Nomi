@@ -22,7 +22,6 @@ import {
   upsertModelCatalogVendor,
   upsertModelCatalogVendorApiKey,
 } from "./catalog/catalogStore";
-import { retypeModelCatalogModel } from "./catalog/modelRetype";
 import { runTaskWithIdempotency } from "./submissionLedger";
 import { runTaskIpcGuard } from "./tasks/taskIpcGuard";
 import { mintSpendGrant } from "./spendGrant";
@@ -53,12 +52,43 @@ import { verifyMcp } from "./capabilityCore/mcpVerify";
 import { registerLocalProtocol } from "./protocol/localProtocol";
 import { installMainWindowInteractions } from "./mainWindowInteractions";
 import { getMainWindow, setMainWindow } from "./mainWindowRegistry";
-import { createMainWindowGuard } from "./mainWindowPresence";
 import { registerScreenshotIpc } from "./screenshot/screenshotIpc";
 import { desktopT, registerI18nIpc, setDesktopLocale } from "./i18n";
 import { registerSettingsIpc } from "./settings/registerSettingsIpc";
 import { registerProductionRunIpc } from "./productionRun/productionRunIpc";
 import { installProductionRunDesktopLifecycle } from "./productionRun/productionRunDesktopLifecycle";
+
+// 主进程 stdout/stderr 在「启动终端已关闭 / 输出被管道接管后断开」时会变成坏管道，
+// 此时任何 console.* 写都会抛 EIO/EPIPE，经 Electron 默认 uncaughtException 弹出
+// 「Uncaught Exception」对话框并循环弹出，用户无法退出。把 write 包一层：写不进去就
+// 静默丢弃，从根因层杜绝「日志把进程搞崩」。落盘诊断仍走 crashLog（文件），不受影响。
+function installSafeStdio(): void {
+  const guard = (stream: { write: unknown }): void => {
+    const original = (stream.write as (...args: unknown[]) => boolean).bind(stream);
+    (stream as { write: (...args: unknown[]) => boolean }).write = function guardedWrite(
+      ...args: unknown[]
+    ): boolean {
+      try {
+        return (original as (...a: unknown[]) => boolean)(...args);
+      } catch {
+        // 坏管道：丢弃，绝不向上抛。返回 false 让调用方按「满/失败」处理，不重试。
+        return false;
+      }
+    };
+  };
+  try {
+    guard(process.stdout);
+  } catch {
+    /* noop */
+  }
+  try {
+    guard(process.stderr);
+  } catch {
+    /* noop */
+  }
+}
+installSafeStdio();
+
 installMainProcessLifecycle(app);
 const configuredUserDataDir = String(process.env.NOMI_ELECTRON_USER_DATA_DIR || "").trim();
 if (configuredUserDataDir) {
@@ -75,7 +105,7 @@ if (configuredUserDataDir) {
 const isMcpStdio = process.env.NOMI_MCP_STDIO === "1";
 const allowE2eMultiInstance = process.env.NOMI_E2E_ALLOW_MULTI_INSTANCE === "1";
 const hasSingleInstanceLock = isMcpStdio ? false : allowE2eMultiInstance ? true : app.requestSingleInstanceLock();
-const { ensureArtifactPreviewSecret, flushPendingProductionDeepLink } = installProductionRunDesktopLifecycle({ isMcpStdio, allowE2eMultiInstance, hasSingleInstanceLock, ensureMainWindow: () => ensureMainWindow() });
+const { ensureArtifactPreviewSecret, flushPendingProductionDeepLink } = installProductionRunDesktopLifecycle({ isMcpStdio, allowE2eMultiInstance, hasSingleInstanceLock });
 if (isMcpStdio) {
   void app
     .whenReady()
@@ -204,8 +234,9 @@ function registerDevDiagnostics(mainWindow: BrowserWindow, rendererUrl: string):
   mainWindow.webContents.on("dom-ready", () => {
     console.log("[nomi:desktop] renderer dom ready");
   });
-  // render-process-gone 不在这里挂：已由 installProcessGoneHandlers 装在 app 上（落盘 + console），
-  // 覆盖所有窗口而不只是主窗，且生产环境也留证。
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    console.error("[nomi:desktop] renderer process gone:", details);
+  });
   mainWindow.webContents.on("preload-error", (_event, preloadPath, error) => {
     console.error(`[nomi:desktop] preload failed: ${preloadPath}`, error);
   });
@@ -355,9 +386,6 @@ async function createWindow(
   return mainWindow;
 }
 
-// 零窗口自愈的唯一入口（issue #62）；activate / second-instance / 窗口重建失败都走它。
-const ensureMainWindow = createMainWindowGuard({ createWindow, onWindowReady: () => flushPendingProductionDeepLink() });
-
 function recreateMainWindowFromSender(sender: WebContents, options: { preserveRoute: boolean; reason: string }): void {
   if (isRecreatingMainWindow) return;
   const oldWindow = BrowserWindow.fromWebContents(sender);
@@ -379,7 +407,6 @@ function recreateMainWindowFromSender(sender: WebContents, options: { preserveRo
     })
     .finally(() => {
       isRecreatingMainWindow = false;
-      void ensureMainWindow(); // 重建失败会永久停在零窗口（window-all-closed 已被重建标记跳过）→ 补建兜底
     });
 }
 
@@ -450,9 +477,6 @@ function registerIpc(): void {
   registerSyncIpc("nomi:model-catalog:vendor-api-key:upsert", upsertModelCatalogVendorApiKey);
   registerSyncIpc("nomi:model-catalog:vendor-api-key:clear", clearModelCatalogVendorApiKey);
   registerSyncIpc("nomi:model-catalog:model:upsert", upsertModelCatalogModel);
-  // 改类型是**领域操作**不是字段 upsert：改 kind 的同时要按新 kind 重建调用通道，否则只是把
-  // 「类型错」换成「没有通道」（见 catalog/modelRetype.ts 文件头）。故走自己的 IPC，不复用 upsert。
-  registerSyncIpc("nomi:model-catalog:model:retype", retypeModelCatalogModel);
   registerSyncIpc("nomi:model-catalog:model:delete", deleteModelCatalogModel);
   registerSyncIpc("nomi:model-catalog:models:delete", deleteModelCatalogModels);
   registerSyncIpc("nomi:model-catalog:mapping:upsert", upsertModelCatalogMapping);
@@ -733,7 +757,7 @@ if (hasSingleInstanceLock)
       } catch {
         // Registration is best-effort in dev and on platforms that disallow it.
       }
-      registerLocalProtocol();
+      registerLocalProtocol(isDev ? path.join(process.cwd(), "public") : path.join(__dirname, "../dist"));
       installContentSecurityPolicy(session.defaultSession);
       // 写入内置模型种子（Seedance 等主流模型档案）；幂等、存在即跳过，不覆盖用户已有记录。
       // sync 且渲染层一进库就读 catalog → 须在 createWindow 前完成。
@@ -772,7 +796,13 @@ if (hasSingleInstanceLock)
         lowMemoryMode ? 15000 : 3000,
       );
 
-      app.on("activate", () => void ensureMainWindow()); // macOS 关窗后进程不退，点 Dock 靠这条把窗口建回来
+      app.on("activate", () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+          void createWindow().catch((error) => {
+            console.error("[nomi:desktop] failed to recreate window:", error);
+          }).then(() => flushPendingProductionDeepLink());
+        }
+      });
     })
     .catch((error) => {
       console.error("[nomi:desktop] failed to start:", error);

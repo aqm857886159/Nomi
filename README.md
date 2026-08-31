@@ -17,7 +17,7 @@ Your projects, prompts, and API keys stay on your machine. No account. No teleme
 ### Join the Nomi user group / 加入 Nomi 用户群
 
 <p align="center">
-  <a href="docs/media/nomi-canvas-group-wechat-2026-08-14.png"><img src="docs/media/nomi-canvas-group-wechat-2026-08-14.png" alt="Nomi 用户群微信二维码" width="220" /></a>
+  <a href="docs/media/nomi-canvas-group-wechat-2026-08-25.png"><img src="docs/media/nomi-canvas-group-wechat-2026-08-25.png" alt="Nomi 用户群微信二维码" width="220" /></a>
 </p>
 
 <p align="center">

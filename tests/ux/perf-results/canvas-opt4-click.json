@@ -1,0 +1,2791 @@
+{
+  "label": "opt4-click",
+  "commit": "62b1270493927161d0369f7eaf9fa3ce1a7919df",
+  "dirty": true,
+  "platform": "darwin",
+  "arch": "arm64",
+  "machine": {
+    "cpu": "Apple M5",
+    "logicalCpus": 10,
+    "totalMemoryGB": 24
+  },
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "sampleCount": 5,
+  "warmupCount": 1,
+  "scales": [
+    "L"
+  ],
+  "scenarios": [
+    "click-select"
+  ],
+  "results": [
+    {
+      "scale": "L",
+      "scenario": "click-select",
+      "runIndex": 1,
+      "fixture": {
+        "scale": "L",
+        "imageNodes": 96,
+        "videoNodes": 96,
+        "nodes": 192,
+        "edges": 384,
+        "clips": 48,
+        "imageBytes": [
+          54708,
+          210153
+        ],
+        "videoBytes": [
+          386990,
+          386940
+        ]
+      },
+      "probe": {
+        "elapsedMs": 1534,
+        "frames": 108,
+        "fps": 70.4,
+        "frameGapP50Ms": 8.7,
+        "frameGapP95Ms": 50.7,
+        "maxFrameGapMs": 92.4,
+        "longTasks": 3,
+        "longTaskMs": 166,
+        "longTaskP95Ms": 64,
+        "maxLoadingImages": 0,
+        "maxLoadingVideos": 0,
+        "maxActiveVideos": 0,
+        "firstMutationMs": 20.5,
+        "mutations": {
+          "stage": 0,
+          "edges": 88,
+          "labels": 30
+        }
+      },
+      "cdpBefore": {
+        "LayoutCount": 0,
+        "RecalcStyleCount": 2,
+        "ScriptDurationMs": 0,
+        "LayoutDurationMs": 0,
+        "TaskDurationMs": 2.2,
+        "JSHeapUsedMB": 20.2,
+        "domNodes": 2595,
+        "domDocuments": 8,
+        "jsEventListeners": 1171
+      },
+      "cdpAfter": {
+        "LayoutCount": 66,
+        "RecalcStyleCount": 244,
+        "ScriptDurationMs": 400.6,
+        "LayoutDurationMs": 22.6,
+        "TaskDurationMs": 771.1,
+        "JSHeapUsedMB": 27.7,
+        "domNodes": 3106,
+        "domDocuments": 8,
+        "jsEventListeners": 2401
+      },
+      "cdpDelta": {
+        "LayoutCount": 66,
+        "RecalcStyleCount": 242,
+        "ScriptDurationMs": 400.6,
+        "LayoutDurationMs": 22.6,
+        "TaskDurationMs": 768.9,
+        "JSHeapUsedMB": 7.5,
+        "domNodes": 511,
+        "domDocuments": 0,
+        "jsEventListeners": 1230
+      },
+      "beforePage": {
+        "domNodes": 1427,
+        "canvasNodes": 20,
+        "lightweightCanvasNodes": 0,
+        "imageElements": 6,
+        "videoElements": 6,
+        "visibleMedia": 12,
+        "loadedImages": 6,
+        "loadedVideos": 6,
+        "activeVideos": 0,
+        "resourceCount": 0,
+        "jsHeapUsedMB": 26.3,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      },
+      "page": {
+        "domNodes": 1412,
+        "canvasNodes": 20,
+        "lightweightCanvasNodes": 0,
+        "imageElements": 6,
+        "videoElements": 6,
+        "visibleMedia": 12,
+        "loadedImages": 6,
+        "loadedVideos": 6,
+        "activeVideos": 0,
+        "resourceCount": 0,
+        "jsHeapUsedMB": 26.3,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      },
+      "actionDetails": {
+        "selectedAfterClear": 0,
+        "blank": {
+          "x": 1354,
+          "y": 729
+        },
+        "blankHit": {
+          "tag": "DIV",
+          "className": "generation-canvas-v2__canvas absolute inset-0 origin-top-left will-change-transform",
+          "id": "",
+          "ancestors": [
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__canvas absolute inset-0 origin-top-left will-change-transform",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__stage group/canvas active:cursor-grabbing",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__main relative w-full h-full min-w-0 min-h-0",
+              "id": ""
+            },
+            {
+              "tag": "SECTION",
+              "className": "generation-canvas-v2 grid grid-rows-[minmax(0,1fr)] w-full h-full min-w-0 min-h-0 bg-workbench-bg text-workbench-ink",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "relative w-full h-full",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "workbench-generation__canvas min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)] relative",
+              "id": ""
+            }
+          ],
+          "stageRect": {
+            "x": 60,
+            "y": 56,
+            "width": 1540,
+            "height": 801,
+            "top": 56,
+            "right": 1600,
+            "bottom": 857,
+            "left": 60
+          },
+          "mediaRects": [
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-0",
+              "nodeRect": {
+                "x": 140,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 460,
+                "bottom": 316,
+                "left": 140
+              },
+              "x": 140,
+              "y": 136,
+              "right": 460,
+              "bottom": 316,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-0",
+              "nodeRect": {
+                "x": 530,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 850,
+                "bottom": 316,
+                "left": 530
+              },
+              "x": 530,
+              "y": 136,
+              "right": 850,
+              "bottom": 316,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-1",
+              "nodeRect": {
+                "x": 920,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 1240,
+                "bottom": 316,
+                "left": 920
+              },
+              "x": 920,
+              "y": 136,
+              "right": 1240,
+              "bottom": 316,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-1",
+              "nodeRect": {
+                "x": 1310,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 1630,
+                "bottom": 316,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 136,
+              "right": 1630,
+              "bottom": 316,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-6",
+              "nodeRect": {
+                "x": 140,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 460,
+                "bottom": 616,
+                "left": 140
+              },
+              "x": 140,
+              "y": 436,
+              "right": 460,
+              "bottom": 616,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-6",
+              "nodeRect": {
+                "x": 530,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 850,
+                "bottom": 616,
+                "left": 530
+              },
+              "x": 530,
+              "y": 436,
+              "right": 850,
+              "bottom": 616,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-7",
+              "nodeRect": {
+                "x": 920,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 1240,
+                "bottom": 616,
+                "left": 920
+              },
+              "x": 920,
+              "y": 436,
+              "right": 1240,
+              "bottom": 616,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-7",
+              "nodeRect": {
+                "x": 1310,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 1630,
+                "bottom": 616,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 436,
+              "right": 1630,
+              "bottom": 616,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-12",
+              "nodeRect": {
+                "x": 140,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 460,
+                "bottom": 916,
+                "left": 140
+              },
+              "x": 140,
+              "y": 736,
+              "right": 460,
+              "bottom": 916,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-12",
+              "nodeRect": {
+                "x": 530,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 850,
+                "bottom": 916,
+                "left": 530
+              },
+              "x": 530,
+              "y": 736,
+              "right": 850,
+              "bottom": 916,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-13",
+              "nodeRect": {
+                "x": 920,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 1240,
+                "bottom": 916,
+                "left": 920
+              },
+              "x": 920,
+              "y": 736,
+              "right": 1240,
+              "bottom": 916,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-13",
+              "nodeRect": {
+                "x": 1310,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 1630,
+                "bottom": 916,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 736,
+              "right": 1630,
+              "bottom": 916,
+              "pointerEvents": "auto"
+            }
+          ],
+          "nodeRects": [
+            {
+              "id": "canvas-perf-image-0",
+              "x": 140,
+              "y": 136,
+              "right": 460,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-video-0",
+              "x": 530,
+              "y": 136,
+              "right": 850,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-1",
+              "x": 920,
+              "y": 136,
+              "right": 1240,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-video-1",
+              "x": 1310,
+              "y": 136,
+              "right": 1630,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-2",
+              "x": 1700,
+              "y": 136,
+              "right": 2020,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-6",
+              "x": 140,
+              "y": 436,
+              "right": 460,
+              "bottom": 616
+            }
+          ]
+        }
+      },
+      "nodeIdentity": {
+        "before": 20,
+        "after": 20,
+        "common": 20,
+        "preserved": 20,
+        "commonIdentityPreserved": true,
+        "targetNodeId": null,
+        "targetIdentityPreserved": null
+      },
+      "appMetrics": {
+        "rendererWorkingSetMB": 312.3,
+        "gpuWorkingSetMB": 137.6,
+        "processCount": 5,
+        "processes": [
+          {
+            "type": "Browser",
+            "pid": 75703,
+            "workingSetMB": 154
+          },
+          {
+            "type": "GPU",
+            "pid": 75705,
+            "workingSetMB": 137.6
+          },
+          {
+            "type": "Utility",
+            "pid": 75706,
+            "workingSetMB": 30.2
+          },
+          {
+            "type": "Tab",
+            "pid": 75709,
+            "workingSetMB": 312.3
+          },
+          {
+            "type": "Utility",
+            "pid": 75712,
+            "workingSetMB": 32.5
+          }
+        ]
+      },
+      "runtimeVersions": {
+        "app": "0.19.0",
+        "electron": "31.7.7",
+        "chrome": "126.0.6478.234",
+        "node": "20.18.0",
+        "v8": "12.6.228.30-electron.0"
+      },
+      "pageErrors": [],
+      "consoleErrors": [],
+      "elapsedMs": 18595
+    },
+    {
+      "scale": "L",
+      "scenario": "click-select",
+      "runIndex": 2,
+      "fixture": {
+        "scale": "L",
+        "imageNodes": 96,
+        "videoNodes": 96,
+        "nodes": 192,
+        "edges": 384,
+        "clips": 48,
+        "imageBytes": [
+          54708,
+          210153
+        ],
+        "videoBytes": [
+          386990,
+          386940
+        ]
+      },
+      "probe": {
+        "elapsedMs": 1933,
+        "frames": 108,
+        "fps": 55.9,
+        "frameGapP50Ms": 8.7,
+        "frameGapP95Ms": 69,
+        "maxFrameGapMs": 137.1,
+        "longTasks": 5,
+        "longTaskMs": 328,
+        "longTaskP95Ms": 85,
+        "maxLoadingImages": 0,
+        "maxLoadingVideos": 0,
+        "maxActiveVideos": 1,
+        "firstMutationMs": 47.1,
+        "mutations": {
+          "stage": 0,
+          "edges": 88,
+          "labels": 30
+        }
+      },
+      "cdpBefore": {
+        "LayoutCount": 0,
+        "RecalcStyleCount": 3,
+        "ScriptDurationMs": 0,
+        "LayoutDurationMs": 0,
+        "TaskDurationMs": 2.5,
+        "JSHeapUsedMB": 27.1,
+        "domNodes": 2729,
+        "domDocuments": 10,
+        "jsEventListeners": 1259
+      },
+      "cdpAfter": {
+        "LayoutCount": 66,
+        "RecalcStyleCount": 248,
+        "ScriptDurationMs": 511.7,
+        "LayoutDurationMs": 25.3,
+        "TaskDurationMs": 1000.9,
+        "JSHeapUsedMB": 33.1,
+        "domNodes": 3585,
+        "domDocuments": 8,
+        "jsEventListeners": 3632
+      },
+      "cdpDelta": {
+        "LayoutCount": 66,
+        "RecalcStyleCount": 245,
+        "ScriptDurationMs": 511.7,
+        "LayoutDurationMs": 25.3,
+        "TaskDurationMs": 998.4,
+        "JSHeapUsedMB": 6,
+        "domNodes": 856,
+        "domDocuments": -2,
+        "jsEventListeners": 2373
+      },
+      "beforePage": {
+        "domNodes": 1427,
+        "canvasNodes": 20,
+        "lightweightCanvasNodes": 0,
+        "imageElements": 6,
+        "videoElements": 6,
+        "visibleMedia": 12,
+        "loadedImages": 6,
+        "loadedVideos": 6,
+        "activeVideos": 0,
+        "resourceCount": 0,
+        "jsHeapUsedMB": 33.5,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      },
+      "page": {
+        "domNodes": 1412,
+        "canvasNodes": 20,
+        "lightweightCanvasNodes": 0,
+        "imageElements": 6,
+        "videoElements": 6,
+        "visibleMedia": 12,
+        "loadedImages": 6,
+        "loadedVideos": 6,
+        "activeVideos": 0,
+        "resourceCount": 0,
+        "jsHeapUsedMB": 33.5,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      },
+      "actionDetails": {
+        "selectedAfterClear": 0,
+        "blank": {
+          "x": 1354,
+          "y": 727
+        },
+        "blankHit": {
+          "tag": "DIV",
+          "className": "generation-canvas-v2__canvas absolute inset-0 origin-top-left will-change-transform",
+          "id": "",
+          "ancestors": [
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__canvas absolute inset-0 origin-top-left will-change-transform",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__stage group/canvas active:cursor-grabbing",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__main relative w-full h-full min-w-0 min-h-0",
+              "id": ""
+            },
+            {
+              "tag": "SECTION",
+              "className": "generation-canvas-v2 grid grid-rows-[minmax(0,1fr)] w-full h-full min-w-0 min-h-0 bg-workbench-bg text-workbench-ink",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "relative w-full h-full",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "workbench-generation__canvas min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)] relative",
+              "id": ""
+            }
+          ],
+          "stageRect": {
+            "x": 60,
+            "y": 56,
+            "width": 1540,
+            "height": 799,
+            "top": 56,
+            "right": 1600,
+            "bottom": 855,
+            "left": 60
+          },
+          "mediaRects": [
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-0",
+              "nodeRect": {
+                "x": 140,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 460,
+                "bottom": 316,
+                "left": 140
+              },
+              "x": 140,
+              "y": 136,
+              "right": 460,
+              "bottom": 316,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-0",
+              "nodeRect": {
+                "x": 530,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 850,
+                "bottom": 316,
+                "left": 530
+              },
+              "x": 530,
+              "y": 136,
+              "right": 850,
+              "bottom": 316,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-1",
+              "nodeRect": {
+                "x": 920,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 1240,
+                "bottom": 316,
+                "left": 920
+              },
+              "x": 920,
+              "y": 136,
+              "right": 1240,
+              "bottom": 316,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-1",
+              "nodeRect": {
+                "x": 1310,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 1630,
+                "bottom": 316,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 136,
+              "right": 1630,
+              "bottom": 316,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-6",
+              "nodeRect": {
+                "x": 140,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 460,
+                "bottom": 616,
+                "left": 140
+              },
+              "x": 140,
+              "y": 436,
+              "right": 460,
+              "bottom": 616,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-6",
+              "nodeRect": {
+                "x": 530,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 850,
+                "bottom": 616,
+                "left": 530
+              },
+              "x": 530,
+              "y": 436,
+              "right": 850,
+              "bottom": 616,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-7",
+              "nodeRect": {
+                "x": 920,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 1240,
+                "bottom": 616,
+                "left": 920
+              },
+              "x": 920,
+              "y": 436,
+              "right": 1240,
+              "bottom": 616,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-7",
+              "nodeRect": {
+                "x": 1310,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 1630,
+                "bottom": 616,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 436,
+              "right": 1630,
+              "bottom": 616,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-12",
+              "nodeRect": {
+                "x": 140,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 460,
+                "bottom": 916,
+                "left": 140
+              },
+              "x": 140,
+              "y": 736,
+              "right": 460,
+              "bottom": 916,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-12",
+              "nodeRect": {
+                "x": 530,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 850,
+                "bottom": 916,
+                "left": 530
+              },
+              "x": 530,
+              "y": 736,
+              "right": 850,
+              "bottom": 916,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-13",
+              "nodeRect": {
+                "x": 920,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 1240,
+                "bottom": 916,
+                "left": 920
+              },
+              "x": 920,
+              "y": 736,
+              "right": 1240,
+              "bottom": 916,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-13",
+              "nodeRect": {
+                "x": 1310,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 1630,
+                "bottom": 916,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 736,
+              "right": 1630,
+              "bottom": 916,
+              "pointerEvents": "auto"
+            }
+          ],
+          "nodeRects": [
+            {
+              "id": "canvas-perf-image-0",
+              "x": 140,
+              "y": 136,
+              "right": 460,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-video-0",
+              "x": 530,
+              "y": 136,
+              "right": 850,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-1",
+              "x": 920,
+              "y": 136,
+              "right": 1240,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-video-1",
+              "x": 1310,
+              "y": 136,
+              "right": 1630,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-2",
+              "x": 1700,
+              "y": 136,
+              "right": 2020,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-6",
+              "x": 140,
+              "y": 436,
+              "right": 460,
+              "bottom": 616
+            }
+          ]
+        }
+      },
+      "nodeIdentity": {
+        "before": 20,
+        "after": 20,
+        "common": 20,
+        "preserved": 20,
+        "commonIdentityPreserved": true,
+        "targetNodeId": null,
+        "targetIdentityPreserved": null
+      },
+      "appMetrics": {
+        "rendererWorkingSetMB": 456.7,
+        "gpuWorkingSetMB": 136.7,
+        "processCount": 5,
+        "processes": [
+          {
+            "type": "Browser",
+            "pid": 75790,
+            "workingSetMB": 209
+          },
+          {
+            "type": "GPU",
+            "pid": 75792,
+            "workingSetMB": 136.7
+          },
+          {
+            "type": "Utility",
+            "pid": 75793,
+            "workingSetMB": 32.4
+          },
+          {
+            "type": "Tab",
+            "pid": 75796,
+            "workingSetMB": 456.7
+          },
+          {
+            "type": "Utility",
+            "pid": 75798,
+            "workingSetMB": 34.2
+          }
+        ]
+      },
+      "runtimeVersions": {
+        "app": "0.19.0",
+        "electron": "31.7.7",
+        "chrome": "126.0.6478.234",
+        "node": "20.18.0",
+        "v8": "12.6.228.30-electron.0"
+      },
+      "pageErrors": [],
+      "consoleErrors": [],
+      "elapsedMs": 19023
+    },
+    {
+      "scale": "L",
+      "scenario": "click-select",
+      "runIndex": 3,
+      "fixture": {
+        "scale": "L",
+        "imageNodes": 96,
+        "videoNodes": 96,
+        "nodes": 192,
+        "edges": 384,
+        "clips": 48,
+        "imageBytes": [
+          54708,
+          210153
+        ],
+        "videoBytes": [
+          386990,
+          386940
+        ]
+      },
+      "probe": {
+        "elapsedMs": 1488,
+        "frames": 110,
+        "fps": 73.9,
+        "frameGapP50Ms": 8.6,
+        "frameGapP95Ms": 50,
+        "maxFrameGapMs": 89.6,
+        "longTasks": 1,
+        "longTaskMs": 60,
+        "longTaskP95Ms": 60,
+        "maxLoadingImages": 0,
+        "maxLoadingVideos": 0,
+        "maxActiveVideos": 0,
+        "firstMutationMs": 27.3,
+        "mutations": {
+          "stage": 0,
+          "edges": 88,
+          "labels": 30
+        }
+      },
+      "cdpBefore": {
+        "LayoutCount": 0,
+        "RecalcStyleCount": 2,
+        "ScriptDurationMs": 0,
+        "LayoutDurationMs": 0,
+        "TaskDurationMs": 3.1,
+        "JSHeapUsedMB": 18.9,
+        "domNodes": 2591,
+        "domDocuments": 7,
+        "jsEventListeners": 1171
+      },
+      "cdpAfter": {
+        "LayoutCount": 66,
+        "RecalcStyleCount": 247,
+        "ScriptDurationMs": 366,
+        "LayoutDurationMs": 20.9,
+        "TaskDurationMs": 720.1,
+        "JSHeapUsedMB": 31.8,
+        "domNodes": 3576,
+        "domDocuments": 8,
+        "jsEventListeners": 3655
+      },
+      "cdpDelta": {
+        "LayoutCount": 66,
+        "RecalcStyleCount": 245,
+        "ScriptDurationMs": 366,
+        "LayoutDurationMs": 20.9,
+        "TaskDurationMs": 717,
+        "JSHeapUsedMB": 12.9,
+        "domNodes": 985,
+        "domDocuments": 1,
+        "jsEventListeners": 2484
+      },
+      "beforePage": {
+        "domNodes": 1427,
+        "canvasNodes": 20,
+        "lightweightCanvasNodes": 0,
+        "imageElements": 6,
+        "videoElements": 6,
+        "visibleMedia": 12,
+        "loadedImages": 6,
+        "loadedVideos": 6,
+        "activeVideos": 0,
+        "resourceCount": 0,
+        "jsHeapUsedMB": 24.8,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      },
+      "page": {
+        "domNodes": 1412,
+        "canvasNodes": 20,
+        "lightweightCanvasNodes": 0,
+        "imageElements": 6,
+        "videoElements": 6,
+        "visibleMedia": 12,
+        "loadedImages": 6,
+        "loadedVideos": 6,
+        "activeVideos": 0,
+        "resourceCount": 0,
+        "jsHeapUsedMB": 24.8,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      },
+      "actionDetails": {
+        "selectedAfterClear": 0,
+        "blank": {
+          "x": 1354,
+          "y": 727
+        },
+        "blankHit": {
+          "tag": "DIV",
+          "className": "generation-canvas-v2__canvas absolute inset-0 origin-top-left will-change-transform",
+          "id": "",
+          "ancestors": [
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__canvas absolute inset-0 origin-top-left will-change-transform",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__stage group/canvas active:cursor-grabbing",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__main relative w-full h-full min-w-0 min-h-0",
+              "id": ""
+            },
+            {
+              "tag": "SECTION",
+              "className": "generation-canvas-v2 grid grid-rows-[minmax(0,1fr)] w-full h-full min-w-0 min-h-0 bg-workbench-bg text-workbench-ink",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "relative w-full h-full",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "workbench-generation__canvas min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)] relative",
+              "id": ""
+            }
+          ],
+          "stageRect": {
+            "x": 60,
+            "y": 56,
+            "width": 1540,
+            "height": 799,
+            "top": 56,
+            "right": 1600,
+            "bottom": 855,
+            "left": 60
+          },
+          "mediaRects": [
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-0",
+              "nodeRect": {
+                "x": 140,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 460,
+                "bottom": 316,
+                "left": 140
+              },
+              "x": 140,
+              "y": 136,
+              "right": 460,
+              "bottom": 316,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-0",
+              "nodeRect": {
+                "x": 530,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 850,
+                "bottom": 316,
+                "left": 530
+              },
+              "x": 530,
+              "y": 136,
+              "right": 850,
+              "bottom": 316,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-1",
+              "nodeRect": {
+                "x": 920,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 1240,
+                "bottom": 316,
+                "left": 920
+              },
+              "x": 920,
+              "y": 136,
+              "right": 1240,
+              "bottom": 316,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-1",
+              "nodeRect": {
+                "x": 1310,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 1630,
+                "bottom": 316,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 136,
+              "right": 1630,
+              "bottom": 316,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-6",
+              "nodeRect": {
+                "x": 140,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 460,
+                "bottom": 616,
+                "left": 140
+              },
+              "x": 140,
+              "y": 436,
+              "right": 460,
+              "bottom": 616,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-6",
+              "nodeRect": {
+                "x": 530,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 850,
+                "bottom": 616,
+                "left": 530
+              },
+              "x": 530,
+              "y": 436,
+              "right": 850,
+              "bottom": 616,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-7",
+              "nodeRect": {
+                "x": 920,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 1240,
+                "bottom": 616,
+                "left": 920
+              },
+              "x": 920,
+              "y": 436,
+              "right": 1240,
+              "bottom": 616,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-7",
+              "nodeRect": {
+                "x": 1310,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 1630,
+                "bottom": 616,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 436,
+              "right": 1630,
+              "bottom": 616,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-12",
+              "nodeRect": {
+                "x": 140,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 460,
+                "bottom": 916,
+                "left": 140
+              },
+              "x": 140,
+              "y": 736,
+              "right": 460,
+              "bottom": 916,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-12",
+              "nodeRect": {
+                "x": 530,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 850,
+                "bottom": 916,
+                "left": 530
+              },
+              "x": 530,
+              "y": 736,
+              "right": 850,
+              "bottom": 916,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-13",
+              "nodeRect": {
+                "x": 920,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 1240,
+                "bottom": 916,
+                "left": 920
+              },
+              "x": 920,
+              "y": 736,
+              "right": 1240,
+              "bottom": 916,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-13",
+              "nodeRect": {
+                "x": 1310,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 1630,
+                "bottom": 916,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 736,
+              "right": 1630,
+              "bottom": 916,
+              "pointerEvents": "auto"
+            }
+          ],
+          "nodeRects": [
+            {
+              "id": "canvas-perf-image-0",
+              "x": 140,
+              "y": 136,
+              "right": 460,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-video-0",
+              "x": 530,
+              "y": 136,
+              "right": 850,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-1",
+              "x": 920,
+              "y": 136,
+              "right": 1240,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-video-1",
+              "x": 1310,
+              "y": 136,
+              "right": 1630,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-2",
+              "x": 1700,
+              "y": 136,
+              "right": 2020,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-6",
+              "x": 140,
+              "y": 436,
+              "right": 460,
+              "bottom": 616
+            }
+          ]
+        }
+      },
+      "nodeIdentity": {
+        "before": 20,
+        "after": 20,
+        "common": 20,
+        "preserved": 20,
+        "commonIdentityPreserved": true,
+        "targetNodeId": null,
+        "targetIdentityPreserved": null
+      },
+      "appMetrics": {
+        "rendererWorkingSetMB": 371.8,
+        "gpuWorkingSetMB": 138.5,
+        "processCount": 5,
+        "processes": [
+          {
+            "type": "Browser",
+            "pid": 75905,
+            "workingSetMB": 187.1
+          },
+          {
+            "type": "GPU",
+            "pid": 75906,
+            "workingSetMB": 138.5
+          },
+          {
+            "type": "Utility",
+            "pid": 75907,
+            "workingSetMB": 31.6
+          },
+          {
+            "type": "Tab",
+            "pid": 75908,
+            "workingSetMB": 371.8
+          },
+          {
+            "type": "Utility",
+            "pid": 75909,
+            "workingSetMB": 33.4
+          }
+        ]
+      },
+      "runtimeVersions": {
+        "app": "0.19.0",
+        "electron": "31.7.7",
+        "chrome": "126.0.6478.234",
+        "node": "20.18.0",
+        "v8": "12.6.228.30-electron.0"
+      },
+      "pageErrors": [],
+      "consoleErrors": [],
+      "elapsedMs": 18530
+    },
+    {
+      "scale": "L",
+      "scenario": "click-select",
+      "runIndex": 4,
+      "fixture": {
+        "scale": "L",
+        "imageNodes": 96,
+        "videoNodes": 96,
+        "nodes": 192,
+        "edges": 384,
+        "clips": 48,
+        "imageBytes": [
+          54708,
+          210153
+        ],
+        "videoBytes": [
+          386990,
+          386940
+        ]
+      },
+      "probe": {
+        "elapsedMs": 1551,
+        "frames": 108,
+        "fps": 69.7,
+        "frameGapP50Ms": 8.6,
+        "frameGapP95Ms": 53,
+        "maxFrameGapMs": 84.5,
+        "longTasks": 1,
+        "longTaskMs": 60,
+        "longTaskP95Ms": 60,
+        "maxLoadingImages": 0,
+        "maxLoadingVideos": 0,
+        "maxActiveVideos": 0,
+        "firstMutationMs": 19.1,
+        "mutations": {
+          "stage": 0,
+          "edges": 96,
+          "labels": 32
+        }
+      },
+      "cdpBefore": {
+        "LayoutCount": 0,
+        "RecalcStyleCount": 2,
+        "ScriptDurationMs": 0,
+        "LayoutDurationMs": 0,
+        "TaskDurationMs": 3.9,
+        "JSHeapUsedMB": 18.9,
+        "domNodes": 2591,
+        "domDocuments": 7,
+        "jsEventListeners": 1171
+      },
+      "cdpAfter": {
+        "LayoutCount": 71,
+        "RecalcStyleCount": 259,
+        "ScriptDurationMs": 428.2,
+        "LayoutDurationMs": 22.1,
+        "TaskDurationMs": 803.3,
+        "JSHeapUsedMB": 35.7,
+        "domNodes": 4039,
+        "domDocuments": 8,
+        "jsEventListeners": 4874
+      },
+      "cdpDelta": {
+        "LayoutCount": 71,
+        "RecalcStyleCount": 257,
+        "ScriptDurationMs": 428.2,
+        "LayoutDurationMs": 22.1,
+        "TaskDurationMs": 799.4,
+        "JSHeapUsedMB": 16.8,
+        "domNodes": 1448,
+        "domDocuments": 1,
+        "jsEventListeners": 3703
+      },
+      "beforePage": {
+        "domNodes": 1427,
+        "canvasNodes": 20,
+        "lightweightCanvasNodes": 0,
+        "imageElements": 6,
+        "videoElements": 6,
+        "visibleMedia": 12,
+        "loadedImages": 6,
+        "loadedVideos": 6,
+        "activeVideos": 0,
+        "resourceCount": 0,
+        "jsHeapUsedMB": 24.8,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      },
+      "page": {
+        "domNodes": 1412,
+        "canvasNodes": 20,
+        "lightweightCanvasNodes": 0,
+        "imageElements": 6,
+        "videoElements": 6,
+        "visibleMedia": 12,
+        "loadedImages": 6,
+        "loadedVideos": 6,
+        "activeVideos": 0,
+        "resourceCount": 0,
+        "jsHeapUsedMB": 24.8,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      },
+      "actionDetails": {
+        "selectedAfterClear": 0,
+        "blank": {
+          "x": 1354,
+          "y": 727
+        },
+        "blankHit": {
+          "tag": "DIV",
+          "className": "generation-canvas-v2__canvas absolute inset-0 origin-top-left will-change-transform",
+          "id": "",
+          "ancestors": [
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__canvas absolute inset-0 origin-top-left will-change-transform",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__stage group/canvas active:cursor-grabbing",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__main relative w-full h-full min-w-0 min-h-0",
+              "id": ""
+            },
+            {
+              "tag": "SECTION",
+              "className": "generation-canvas-v2 grid grid-rows-[minmax(0,1fr)] w-full h-full min-w-0 min-h-0 bg-workbench-bg text-workbench-ink",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "relative w-full h-full",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "workbench-generation__canvas min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)] relative",
+              "id": ""
+            }
+          ],
+          "stageRect": {
+            "x": 60,
+            "y": 56,
+            "width": 1540,
+            "height": 799,
+            "top": 56,
+            "right": 1600,
+            "bottom": 855,
+            "left": 60
+          },
+          "mediaRects": [
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-0",
+              "nodeRect": {
+                "x": 140,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 460,
+                "bottom": 316,
+                "left": 140
+              },
+              "x": 140,
+              "y": 136,
+              "right": 460,
+              "bottom": 316,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-0",
+              "nodeRect": {
+                "x": 530,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 850,
+                "bottom": 316,
+                "left": 530
+              },
+              "x": 530,
+              "y": 136,
+              "right": 850,
+              "bottom": 316,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-1",
+              "nodeRect": {
+                "x": 920,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 1240,
+                "bottom": 316,
+                "left": 920
+              },
+              "x": 920,
+              "y": 136,
+              "right": 1240,
+              "bottom": 316,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-1",
+              "nodeRect": {
+                "x": 1310,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 1630,
+                "bottom": 316,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 136,
+              "right": 1630,
+              "bottom": 316,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-6",
+              "nodeRect": {
+                "x": 140,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 460,
+                "bottom": 616,
+                "left": 140
+              },
+              "x": 140,
+              "y": 436,
+              "right": 460,
+              "bottom": 616,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-6",
+              "nodeRect": {
+                "x": 530,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 850,
+                "bottom": 616,
+                "left": 530
+              },
+              "x": 530,
+              "y": 436,
+              "right": 850,
+              "bottom": 616,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-7",
+              "nodeRect": {
+                "x": 920,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 1240,
+                "bottom": 616,
+                "left": 920
+              },
+              "x": 920,
+              "y": 436,
+              "right": 1240,
+              "bottom": 616,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-7",
+              "nodeRect": {
+                "x": 1310,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 1630,
+                "bottom": 616,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 436,
+              "right": 1630,
+              "bottom": 616,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-12",
+              "nodeRect": {
+                "x": 140,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 460,
+                "bottom": 916,
+                "left": 140
+              },
+              "x": 140,
+              "y": 736,
+              "right": 460,
+              "bottom": 916,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-12",
+              "nodeRect": {
+                "x": 530,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 850,
+                "bottom": 916,
+                "left": 530
+              },
+              "x": 530,
+              "y": 736,
+              "right": 850,
+              "bottom": 916,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-13",
+              "nodeRect": {
+                "x": 920,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 1240,
+                "bottom": 916,
+                "left": 920
+              },
+              "x": 920,
+              "y": 736,
+              "right": 1240,
+              "bottom": 916,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-13",
+              "nodeRect": {
+                "x": 1310,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 1630,
+                "bottom": 916,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 736,
+              "right": 1630,
+              "bottom": 916,
+              "pointerEvents": "auto"
+            }
+          ],
+          "nodeRects": [
+            {
+              "id": "canvas-perf-image-0",
+              "x": 140,
+              "y": 136,
+              "right": 460,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-video-0",
+              "x": 530,
+              "y": 136,
+              "right": 850,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-1",
+              "x": 920,
+              "y": 136,
+              "right": 1240,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-video-1",
+              "x": 1310,
+              "y": 136,
+              "right": 1630,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-2",
+              "x": 1700,
+              "y": 136,
+              "right": 2020,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-6",
+              "x": 140,
+              "y": 436,
+              "right": 460,
+              "bottom": 616
+            }
+          ]
+        }
+      },
+      "nodeIdentity": {
+        "before": 20,
+        "after": 20,
+        "common": 20,
+        "preserved": 20,
+        "commonIdentityPreserved": true,
+        "targetNodeId": null,
+        "targetIdentityPreserved": null
+      },
+      "appMetrics": {
+        "rendererWorkingSetMB": 537.1,
+        "gpuWorkingSetMB": 147.2,
+        "processCount": 5,
+        "processes": [
+          {
+            "type": "Browser",
+            "pid": 75932,
+            "workingSetMB": 265.9
+          },
+          {
+            "type": "GPU",
+            "pid": 75933,
+            "workingSetMB": 147.2
+          },
+          {
+            "type": "Utility",
+            "pid": 75934,
+            "workingSetMB": 42
+          },
+          {
+            "type": "Tab",
+            "pid": 75935,
+            "workingSetMB": 537.1
+          },
+          {
+            "type": "Utility",
+            "pid": 75936,
+            "workingSetMB": 38.8
+          }
+        ]
+      },
+      "runtimeVersions": {
+        "app": "0.19.0",
+        "electron": "31.7.7",
+        "chrome": "126.0.6478.234",
+        "node": "20.18.0",
+        "v8": "12.6.228.30-electron.0"
+      },
+      "pageErrors": [],
+      "consoleErrors": [],
+      "elapsedMs": 18519
+    },
+    {
+      "scale": "L",
+      "scenario": "click-select",
+      "runIndex": 5,
+      "fixture": {
+        "scale": "L",
+        "imageNodes": 96,
+        "videoNodes": 96,
+        "nodes": 192,
+        "edges": 384,
+        "clips": 48,
+        "imageBytes": [
+          54708,
+          210153
+        ],
+        "videoBytes": [
+          386990,
+          386940
+        ]
+      },
+      "probe": {
+        "elapsedMs": 1543,
+        "frames": 109,
+        "fps": 70.6,
+        "frameGapP50Ms": 8.5,
+        "frameGapP95Ms": 49.7,
+        "maxFrameGapMs": 85.9,
+        "longTasks": 1,
+        "longTaskMs": 61,
+        "longTaskP95Ms": 61,
+        "maxLoadingImages": 0,
+        "maxLoadingVideos": 0,
+        "maxActiveVideos": 0,
+        "firstMutationMs": 26.1,
+        "mutations": {
+          "stage": 0,
+          "edges": 88,
+          "labels": 30
+        }
+      },
+      "cdpBefore": {
+        "LayoutCount": 0,
+        "RecalcStyleCount": 2,
+        "ScriptDurationMs": 0,
+        "LayoutDurationMs": 0,
+        "TaskDurationMs": 3.1,
+        "JSHeapUsedMB": 18.9,
+        "domNodes": 2591,
+        "domDocuments": 7,
+        "jsEventListeners": 1171
+      },
+      "cdpAfter": {
+        "LayoutCount": 67,
+        "RecalcStyleCount": 246,
+        "ScriptDurationMs": 381.3,
+        "LayoutDurationMs": 21.6,
+        "TaskDurationMs": 764.1,
+        "JSHeapUsedMB": 32.5,
+        "domNodes": 3828,
+        "domDocuments": 8,
+        "jsEventListeners": 4390
+      },
+      "cdpDelta": {
+        "LayoutCount": 67,
+        "RecalcStyleCount": 244,
+        "ScriptDurationMs": 381.3,
+        "LayoutDurationMs": 21.6,
+        "TaskDurationMs": 761,
+        "JSHeapUsedMB": 13.6,
+        "domNodes": 1237,
+        "domDocuments": 1,
+        "jsEventListeners": 3219
+      },
+      "beforePage": {
+        "domNodes": 1427,
+        "canvasNodes": 20,
+        "lightweightCanvasNodes": 0,
+        "imageElements": 6,
+        "videoElements": 6,
+        "visibleMedia": 12,
+        "loadedImages": 6,
+        "loadedVideos": 6,
+        "activeVideos": 0,
+        "resourceCount": 0,
+        "jsHeapUsedMB": 24.8,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      },
+      "page": {
+        "domNodes": 1412,
+        "canvasNodes": 20,
+        "lightweightCanvasNodes": 0,
+        "imageElements": 6,
+        "videoElements": 6,
+        "visibleMedia": 12,
+        "loadedImages": 6,
+        "loadedVideos": 6,
+        "activeVideos": 0,
+        "resourceCount": 0,
+        "jsHeapUsedMB": 24.8,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      },
+      "actionDetails": {
+        "selectedAfterClear": 0,
+        "blank": {
+          "x": 1354,
+          "y": 727
+        },
+        "blankHit": {
+          "tag": "DIV",
+          "className": "generation-canvas-v2__canvas absolute inset-0 origin-top-left will-change-transform",
+          "id": "",
+          "ancestors": [
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__canvas absolute inset-0 origin-top-left will-change-transform",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__stage group/canvas active:cursor-grabbing",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "generation-canvas-v2__main relative w-full h-full min-w-0 min-h-0",
+              "id": ""
+            },
+            {
+              "tag": "SECTION",
+              "className": "generation-canvas-v2 grid grid-rows-[minmax(0,1fr)] w-full h-full min-w-0 min-h-0 bg-workbench-bg text-workbench-ink",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "relative w-full h-full",
+              "id": ""
+            },
+            {
+              "tag": "DIV",
+              "className": "workbench-generation__canvas min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)] relative",
+              "id": ""
+            }
+          ],
+          "stageRect": {
+            "x": 60,
+            "y": 56,
+            "width": 1540,
+            "height": 799,
+            "top": 56,
+            "right": 1600,
+            "bottom": 855,
+            "left": 60
+          },
+          "mediaRects": [
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-0",
+              "nodeRect": {
+                "x": 140,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 460,
+                "bottom": 316,
+                "left": 140
+              },
+              "x": 140,
+              "y": 136,
+              "right": 460,
+              "bottom": 316,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-0",
+              "nodeRect": {
+                "x": 530,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 850,
+                "bottom": 316,
+                "left": 530
+              },
+              "x": 530,
+              "y": 136,
+              "right": 850,
+              "bottom": 316,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-1",
+              "nodeRect": {
+                "x": 920,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 1240,
+                "bottom": 316,
+                "left": 920
+              },
+              "x": 920,
+              "y": 136,
+              "right": 1240,
+              "bottom": 316,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-1",
+              "nodeRect": {
+                "x": 1310,
+                "y": 136,
+                "width": 320,
+                "height": 180,
+                "top": 136,
+                "right": 1630,
+                "bottom": 316,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 136,
+              "right": 1630,
+              "bottom": 316,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-6",
+              "nodeRect": {
+                "x": 140,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 460,
+                "bottom": 616,
+                "left": 140
+              },
+              "x": 140,
+              "y": 436,
+              "right": 460,
+              "bottom": 616,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-6",
+              "nodeRect": {
+                "x": 530,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 850,
+                "bottom": 616,
+                "left": 530
+              },
+              "x": 530,
+              "y": 436,
+              "right": 850,
+              "bottom": 616,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-7",
+              "nodeRect": {
+                "x": 920,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 1240,
+                "bottom": 616,
+                "left": 920
+              },
+              "x": 920,
+              "y": 436,
+              "right": 1240,
+              "bottom": 616,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-7",
+              "nodeRect": {
+                "x": 1310,
+                "y": 436,
+                "width": 320,
+                "height": 180,
+                "top": 436,
+                "right": 1630,
+                "bottom": 616,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 436,
+              "right": 1630,
+              "bottom": 616,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-12",
+              "nodeRect": {
+                "x": 140,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 460,
+                "bottom": 916,
+                "left": 140
+              },
+              "x": 140,
+              "y": 736,
+              "right": 460,
+              "bottom": 916,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-12",
+              "nodeRect": {
+                "x": 530,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 850,
+                "bottom": 916,
+                "left": 530
+              },
+              "x": 530,
+              "y": 736,
+              "right": 850,
+              "bottom": 916,
+              "pointerEvents": "auto"
+            },
+            {
+              "tag": "IMG",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-none select-none",
+              "nodeId": "canvas-perf-image-13",
+              "nodeRect": {
+                "x": 920,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 1240,
+                "bottom": 916,
+                "left": 920
+              },
+              "x": 920,
+              "y": 736,
+              "right": 1240,
+              "bottom": 916,
+              "pointerEvents": "none"
+            },
+            {
+              "tag": "VIDEO",
+              "className": "w-full h-full min-h-0 object-contain pointer-events-auto bg-nomi-ink-05 select-none",
+              "nodeId": "canvas-perf-video-13",
+              "nodeRect": {
+                "x": 1310,
+                "y": 736,
+                "width": 320,
+                "height": 180,
+                "top": 736,
+                "right": 1630,
+                "bottom": 916,
+                "left": 1310
+              },
+              "x": 1310,
+              "y": 736,
+              "right": 1630,
+              "bottom": 916,
+              "pointerEvents": "auto"
+            }
+          ],
+          "nodeRects": [
+            {
+              "id": "canvas-perf-image-0",
+              "x": 140,
+              "y": 136,
+              "right": 460,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-video-0",
+              "x": 530,
+              "y": 136,
+              "right": 850,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-1",
+              "x": 920,
+              "y": 136,
+              "right": 1240,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-video-1",
+              "x": 1310,
+              "y": 136,
+              "right": 1630,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-2",
+              "x": 1700,
+              "y": 136,
+              "right": 2020,
+              "bottom": 316
+            },
+            {
+              "id": "canvas-perf-image-6",
+              "x": 140,
+              "y": 436,
+              "right": 460,
+              "bottom": 616
+            }
+          ]
+        }
+      },
+      "nodeIdentity": {
+        "before": 20,
+        "after": 20,
+        "common": 20,
+        "preserved": 20,
+        "commonIdentityPreserved": true,
+        "targetNodeId": null,
+        "targetIdentityPreserved": null
+      },
+      "appMetrics": {
+        "rendererWorkingSetMB": 346.7,
+        "gpuWorkingSetMB": 135.4,
+        "processCount": 5,
+        "processes": [
+          {
+            "type": "Browser",
+            "pid": 75961,
+            "workingSetMB": 178
+          },
+          {
+            "type": "GPU",
+            "pid": 75962,
+            "workingSetMB": 135.4
+          },
+          {
+            "type": "Utility",
+            "pid": 75963,
+            "workingSetMB": 30.5
+          },
+          {
+            "type": "Tab",
+            "pid": 75964,
+            "workingSetMB": 346.7
+          },
+          {
+            "type": "Utility",
+            "pid": 75965,
+            "workingSetMB": 33.2
+          }
+        ]
+      },
+      "runtimeVersions": {
+        "app": "0.19.0",
+        "electron": "31.7.7",
+        "chrome": "126.0.6478.234",
+        "node": "20.18.0",
+        "v8": "12.6.228.30-electron.0"
+      },
+      "pageErrors": [],
+      "consoleErrors": [],
+      "elapsedMs": 18541
+    }
+  ],
+  "summary": {
+    "L/click-select": {
+      "samples": 5,
+      "errors": 0,
+      "metrics": {
+        "coldFirstCanvasMs": null,
+        "coldMediaSettledMs": null,
+        "fps": {
+          "median": 70.4,
+          "p95": 73.9,
+          "samples": [
+            55.9,
+            69.7,
+            70.4,
+            70.6,
+            73.9
+          ]
+        },
+        "frameGapP95Ms": {
+          "median": 50.7,
+          "p95": 69,
+          "samples": [
+            49.7,
+            50,
+            50.7,
+            53,
+            69
+          ]
+        },
+        "maxFrameGapMs": {
+          "median": 89.6,
+          "p95": 137.1,
+          "samples": [
+            84.5,
+            85.9,
+            89.6,
+            92.4,
+            137.1
+          ]
+        },
+        "longTaskMs": {
+          "median": 61,
+          "p95": 328,
+          "samples": [
+            60,
+            60,
+            61,
+            166,
+            328
+          ]
+        },
+        "longTaskP95Ms": {
+          "median": 61,
+          "p95": 85,
+          "samples": [
+            60,
+            60,
+            61,
+            64,
+            85
+          ]
+        },
+        "maxLoadingImages": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "maxLoadingVideos": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "maxActiveVideos": {
+          "median": 0,
+          "p95": 1,
+          "samples": [
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "layoutCount": {
+          "median": 66,
+          "p95": 71,
+          "samples": [
+            66,
+            66,
+            66,
+            67,
+            71
+          ]
+        },
+        "recalcStyleCount": {
+          "median": 245,
+          "p95": 257,
+          "samples": [
+            242,
+            244,
+            245,
+            245,
+            257
+          ]
+        },
+        "scriptDurationMs": {
+          "median": 400.6,
+          "p95": 511.7,
+          "samples": [
+            366,
+            381.3,
+            400.6,
+            428.2,
+            511.7
+          ]
+        },
+        "layoutDurationMs": {
+          "median": 22.1,
+          "p95": 25.3,
+          "samples": [
+            20.9,
+            21.6,
+            22.1,
+            22.6,
+            25.3
+          ]
+        },
+        "jsHeapUsedMB": {
+          "median": 24.8,
+          "p95": 33.5,
+          "samples": [
+            24.8,
+            24.8,
+            24.8,
+            26.3,
+            33.5
+          ]
+        },
+        "visibleMedia": {
+          "median": 12,
+          "p95": 12,
+          "samples": [
+            12,
+            12,
+            12,
+            12,
+            12
+          ]
+        },
+        "loadedImages": {
+          "median": 6,
+          "p95": 6,
+          "samples": [
+            6,
+            6,
+            6,
+            6,
+            6
+          ]
+        },
+        "loadedVideos": {
+          "median": 6,
+          "p95": 6,
+          "samples": [
+            6,
+            6,
+            6,
+            6,
+            6
+          ]
+        },
+        "activeVideos": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "rendererWorkingSetMB": {
+          "median": 371.8,
+          "p95": 537.1,
+          "samples": [
+            312.3,
+            346.7,
+            371.8,
+            456.7,
+            537.1
+          ]
+        },
+        "reloadHeapDeltaMB": null,
+        "reloadDurationP95Ms": null
+      },
+      "verdict": {
+        "pass": false,
+        "hardFailures": [],
+        "budgetChecks": [
+          {
+            "metric": "frameGapP95Ms",
+            "actualP95": 69,
+            "max": 33,
+            "pass": false
+          },
+          {
+            "metric": "maxFrameGapMs",
+            "actualP95": 137.1,
+            "max": 100,
+            "pass": false
+          },
+          {
+            "metric": "longTaskP95Ms",
+            "actualP95": 85,
+            "max": 80,
+            "pass": false
+          },
+          {
+            "metric": "maxLoadingImages",
+            "actualP95": 0,
+            "max": 4,
+            "pass": true
+          },
+          {
+            "metric": "maxLoadingVideos",
+            "actualP95": 0,
+            "max": 1,
+            "pass": true
+          },
+          {
+            "metric": "maxActiveVideos",
+            "actualP95": 1,
+            "max": 1,
+            "pass": true
+          }
+        ]
+      }
+    }
+  },
+  "runtimeVersions": {
+    "app": "0.19.0",
+    "electron": "31.7.7",
+    "chrome": "126.0.6478.234",
+    "node": "20.18.0",
+    "v8": "12.6.228.30-electron.0"
+  },
+  "pass": false
+}

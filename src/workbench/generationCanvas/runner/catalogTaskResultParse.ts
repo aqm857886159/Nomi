@@ -22,6 +22,22 @@ const TEXT_TASK_KINDS = new Set<TaskKind>(['chat', 'prompt_refine', 'image_to_pr
 function extractTextFromChatRaw(raw: unknown): string {
   if (!raw || typeof raw !== 'object') return ''
   const record = raw as Record<string, unknown>
+  // APIMart MiniMax-H3 Context-IR 是异步 profile：完成态文本位于
+  // data.result.prompt（不是 OpenAI choices，也不是视频 assets）。保留通用 shape 读取，
+  // 让 prompt_refine mapping 与已有文本节点/优化器共用同一归一出口。
+  const data = record.data
+  if (data && typeof data === 'object') {
+    const result = (data as Record<string, unknown>).result
+    if (result && typeof result === 'object') {
+      const prompt = asTrimmedString((result as Record<string, unknown>).prompt)
+      if (prompt) return prompt
+    }
+  }
+  const directResult = record.result
+  if (directResult && typeof directResult === 'object') {
+    const prompt = asTrimmedString((directResult as Record<string, unknown>).prompt)
+    if (prompt) return prompt
+  }
   const choices = record.choices
   if (Array.isArray(choices) && choices.length) {
     const first = choices[0] as Record<string, unknown> | undefined

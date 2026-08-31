@@ -17,8 +17,7 @@ import { useGenerationCanvasStore } from '../../workbench/generationCanvas/store
 import { cn } from '../../utils/cn'
 import { APP_BAR_ACTION_GROUPS } from './appBarActionGroups'
 
-// 平台分流：win32 下品牌/关于 + 上手清单都让位给 WorkbenchShell 的自绘标题栏（windowbar），
-// 本栏不重复渲染；非 win32（mac/Linux）保持原生窗口，品牌与清单仍住这里——两平台都有家、不丢失、不重复。
+// win32 的品牌让位给 WorkbenchShell 自绘窗口栏；上手和浏览器属于产品动作，所有平台都留在本栏。
 const isWindows = window.nomiDesktop?.platform === 'win32'
 
 function openBrowser(): void {
@@ -225,7 +224,7 @@ export default function NomiAppBar({
           <span className={cn('nomi-appbar__divider', 'w-px h-[18px] bg-workbench-border')} aria-hidden="true" />
         </span>
 
-        {/* 创作辅助：上手与浏览器。win32 下二者住自绘窗口栏，这组自然隐藏。 */}
+        {/* 创作辅助：上手与浏览器统一归产品栏，平台间保持同一位置记忆。 */}
         <span
           data-actions={APP_BAR_ACTION_GROUPS.assist.join(' ')}
           className={cn(
@@ -235,29 +234,26 @@ export default function NomiAppBar({
           )}
         >
           <span className="inline-flex items-center gap-1">
-            {!isWindows ? <OnboardingChecklist /> : null}
-            {!isWindows ? (
-              <AppBarActionTooltip label={t('appBar.browser')}>
-                <WorkbenchButton
-                  className={cn(
-                    'nomi-appbar__ghost',
-                    'app-no-drag',
-                    'inline-flex items-center gap-1.5 h-[30px] px-2.5',
-                    'border border-transparent rounded-[var(--nomi-radius-sm)]',
-                    'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
-                    'transition-[background,color] duration-[var(--nomi-transition-fast)]',
-                    'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
-                    'max-[1400px]:w-[30px] max-[1400px]:h-[30px] max-[1400px]:justify-center max-[1400px]:p-0',
-                  )}
-                  aria-label={t('appBar.openBrowser')}
-                  onClick={openBrowser}
-                >
-                  {/* 顶栏操作按钮统一解剖：图标 15/1.8 + 文字，窄屏一起收成 30px 方块。 */}
-                  <IconBrowser size={15} stroke={1.8} />
-                  <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>{t('appBar.browser')}</span>
-                </WorkbenchButton>
-              </AppBarActionTooltip>
-            ) : null}
+            <OnboardingChecklist />
+            <AppBarActionTooltip label={t('appBar.browser')}>
+              <WorkbenchButton
+                className={cn(
+                  'nomi-appbar__ghost',
+                  'app-no-drag',
+                  'inline-flex items-center gap-1.5 h-[30px] px-2.5',
+                  'border border-transparent rounded-[var(--nomi-radius-sm)]',
+                  'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
+                  'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                  'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+                  'max-[1400px]:w-[30px] max-[1400px]:h-[30px] max-[1400px]:justify-center max-[1400px]:p-0',
+                )}
+                aria-label={t('appBar.openBrowser')}
+                onClick={openBrowser}
+              >
+                <IconBrowser size={15} stroke={1.8} />
+                <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>{t('appBar.browser')}</span>
+              </WorkbenchButton>
+            </AppBarActionTooltip>
           </span>
           <span className={cn('nomi-appbar__divider', 'w-px h-[18px] bg-workbench-border')} aria-hidden="true" />
         </span>

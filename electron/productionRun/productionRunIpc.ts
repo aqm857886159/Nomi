@@ -5,7 +5,15 @@ import { getProductionRunService } from "./productionRunRuntime";
 import type { ProductionRunService } from "./productionRunService";
 import type { CreateProductionRunInput, RunCommand } from "./productionRunTypes";
 
-const RENDERER_COMMAND_TYPES = new Set(["run.status", "run.control", "gate.decide", "artifact.adopt", "plan.attach", "policy.refresh", "job.reconcile"]);
+const RENDERER_COMMAND_TYPES = new Set([
+  "run.status",
+  "gate.decide",
+  "artifact.adopt",
+  "plan.attach",
+  "policy.refresh",
+  "job.reconcile",
+  "jobs.reassign",
+]);
 
 function identifier(value: unknown, label: string): string {
   const normalized = typeof value === "string" ? value.trim() : "";
@@ -24,13 +32,9 @@ function rendererCommandPayload(type: string, value: unknown): Record<string, un
     return { status: typeof raw.status === "string" ? raw.status.trim() : raw.status };
   }
   if (type === "gate.decide") {
-    // B1：方向门批准可带 choiceKey（用户选中的候选）。key 形状受限，非法则丢弃（reducer 再校验属不属该门）。
-    const rawChoice = typeof raw.choiceKey === "string" ? raw.choiceKey.trim() : "";
-    const choiceKey = /^[A-Za-z0-9._-]{1,40}$/.test(rawChoice) ? rawChoice : undefined;
     return {
       gateId: identifier(raw.gateId, "gate"),
       status: typeof raw.status === "string" ? raw.status.trim() : raw.status,
-      ...(choiceKey ? { choiceKey } : {}),
     };
   }
   if (type === "plan.attach") {
@@ -63,6 +67,15 @@ function rendererCommandPayload(type: string, value: unknown): Record<string, un
     const outcome = typeof raw.outcome === "string" ? raw.outcome.trim() : "";
     if (outcome !== "found" && outcome !== "not_found") throw new Error("Invalid production reconciliation outcome");
     return { jobId: identifier(raw.jobId, "job"), outcome };
+  }
+  if (type === "jobs.reassign") {
+    const rawJobIds = Array.isArray(raw.jobIds) ? raw.jobIds : [];
+    return {
+      jobIds: rawJobIds.map((jobId) => identifier(jobId, "job")),
+      provider: identifier(raw.provider, "provider"),
+      model: identifier(raw.model, "model"),
+      reason: typeof raw.reason === "string" ? raw.reason.trim() : raw.reason,
+    };
   }
   return { artifactId: identifier(raw.artifactId, "artifact") };
 }

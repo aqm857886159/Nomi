@@ -32,6 +32,7 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
   const batches = useGenerationQueueStore((state) => state.batches)
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const [productionRuns, setProductionRuns] = React.useState<ProductionRunSummary[]>([])
+  const triggerRef = React.useRef<HTMLSpanElement>(null)
 
   const refreshProductionRuns = React.useCallback(async (): Promise<void> => {
     if (!projectId) {
@@ -56,14 +57,6 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
 
   // 失焦提醒的订阅住这里：本按钮全程挂载（跟着顶栏），是最稳的宿主。
   useBatchFinishNotifier()
-
-  // 制作深链落点：外部 AI（MCP）深链进来 → 打开任务中心（制作任务的家），
-  // 沿用仓内既有的 window CustomEvent 约定（同 'nomi-open-settings'）。
-  React.useEffect(() => {
-    const handler = () => setOpened(true)
-    window.addEventListener('nomi-open-task-center', handler)
-    return () => window.removeEventListener('nomi-open-task-center', handler)
-  }, [])
 
   // E2E 专用桥（同 CameraMoveCaptureHost 的既有写法）：仅当 localStorage['__nomiE2E']==='1' 时把队列 store
   // 挂到 window，供 R13 走查在页面上下文里摆出各种队列状态截图取证。生产从不置该标志 → 永不暴露。
@@ -109,39 +102,41 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
 
   return (
     <>
-      <TooltipProvider delayDuration={250} disableHoverableContent>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <WorkbenchButton
-              className={cn(
-                'nomi-appbar__ghost',
-                'app-no-drag',
-                'inline-flex items-center gap-1.5 h-[30px] px-2.5',
-                'border border-transparent rounded-[var(--nomi-radius-sm)]',
-                'font-inherit text-body-sm',
-                'transition-[background,color] duration-[var(--nomi-transition-fast)]',
-                tone === 'busy'
-                  ? 'bg-nomi-accent text-nomi-paper hover:bg-nomi-accent'
-                  : tone === 'failed'
-                    ? 'bg-transparent text-nomi-danger hover:bg-nomi-ink-05'
-                    : 'bg-transparent text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink',
-              )}
-              aria-label={t('taskCenter.title')}
-              data-task-center-trigger="true"
-              onClick={() => setOpened((value) => !value)}
-            >
-              <IconListDetails size={15} stroke={1.8} />
-              <span className="max-[1400px]:hidden">{t('taskCenter.title')}</span>
-              {pending > 0 ? (
-                <span className="min-w-4 rounded-pill bg-nomi-paper px-1 text-center text-micro tabular-nums text-nomi-accent">
-                  {pending}
-                </span>
-              ) : null}
-            </WorkbenchButton>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">{t('taskCenter.title')}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <span ref={triggerRef} className="inline-flex">
+        <TooltipProvider delayDuration={250} disableHoverableContent>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <WorkbenchButton
+                className={cn(
+                  'nomi-appbar__ghost',
+                  'app-no-drag',
+                  'inline-flex items-center gap-1.5 h-[30px] px-2.5',
+                  'border border-transparent rounded-[var(--nomi-radius-sm)]',
+                  'font-inherit text-body-sm',
+                  'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                  tone === 'busy'
+                    ? 'bg-nomi-accent text-nomi-paper hover:bg-nomi-accent'
+                    : tone === 'failed'
+                      ? 'bg-transparent text-nomi-danger hover:bg-nomi-ink-05'
+                      : 'bg-transparent text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink',
+                )}
+                aria-label={t('taskCenter.title')}
+                data-task-center-trigger="true"
+                onClick={() => setOpened((value) => !value)}
+              >
+                <IconListDetails size={15} stroke={1.8} />
+                <span className="max-[1400px]:hidden">{t('taskCenter.title')}</span>
+                {pending > 0 ? (
+                  <span className="min-w-4 rounded-pill bg-nomi-paper px-1 text-center text-micro tabular-nums text-nomi-accent">
+                    {pending}
+                  </span>
+                ) : null}
+              </WorkbenchButton>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{t('taskCenter.title')}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </span>
       <TaskCenterPanel
         opened={opened}
         onClose={() => setOpened(false)}
@@ -151,6 +146,7 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
           useGenerationCanvasStore.getState().setGenerationAiCollapsed(false)
           void useProductionRunStore.getState().navigateTo(targetProjectId, runId)
         }}
+        anchorRef={triggerRef}
         {...(onRevealNode ? { onRevealNode } : {})}
       />
     </>

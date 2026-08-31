@@ -7,7 +7,7 @@ export const shared = Object.freeze({
   businessUrl: 'https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml',
   discussionUrl: 'https://github.com/aqm857886159/Nomi/discussions',
   wechatId: 'TZ857886159',
-  groupQr: '/assets/group-wechat-2026-08-14.png',
+  groupQr: '/assets/group-wechat-2026-08-25.png',
   authorQr: '/assets/qingyang-wechat.jpg',
   licenseName: 'AGPL-3.0-only',
   licenseUrl: 'https://www.gnu.org/licenses/agpl-3.0.html',

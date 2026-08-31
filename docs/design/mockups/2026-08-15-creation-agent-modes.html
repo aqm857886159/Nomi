@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nomi 创作助手模式选择样稿</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: oklch(1 0 0);
+      --ink: oklch(0.22 0.01 80);
+      --ink-80: oklch(0.32 0.01 80);
+      --ink-60: oklch(0.50 0.01 80);
+      --ink-40: oklch(0.68 0.01 80);
+      --ink-30: oklch(0.78 0.01 80);
+      --ink-20: oklch(0.88 0.005 80);
+      --ink-10: oklch(0.94 0.003 80);
+      --ink-05: oklch(0.97 0.003 80);
+      --line: oklch(0.91 0.004 80);
+      --line-soft: oklch(0.95 0.003 80);
+      --accent: oklch(0.55 0.13 250);
+      --accent-soft: color-mix(in srgb, var(--accent) 12%, var(--paper));
+      --success: oklch(0.55 0.12 155);
+      --shadow-sm: 0 1px 2px oklch(0 0 0 / .04), 0 1px 1px oklch(0 0 0 / .03);
+      --shadow-lg: 0 4px 8px oklch(0 0 0 / .05), 0 20px 50px oklch(0 0 0 / .08);
+      --font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+      --font-display: "Fraunces Variable", Fraunces, "Songti SC", serif;
+    }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --paper: oklch(0.235 0.007 80);
+      --ink: oklch(0.93 0.006 85);
+      --ink-80: oklch(0.84 0.006 85);
+      --ink-60: oklch(0.70 0.006 85);
+      --ink-40: oklch(0.62 0.006 85);
+      --ink-30: oklch(0.50 0.006 85);
+      --ink-20: oklch(0.42 0.006 85);
+      --ink-10: oklch(0.34 0.006 85);
+      --ink-05: oklch(0.30 0.006 85);
+      --line: oklch(0.36 0.007 80);
+      --line-soft: oklch(0.31 0.007 80);
+      --accent: oklch(0.70 0.13 250);
+      --accent-soft: color-mix(in srgb, var(--accent) 26%, var(--paper));
+      --success: oklch(0.72 0.12 155);
+      --shadow-sm: 0 1px 2px oklch(0 0 0 / .32);
+      --shadow-lg: 0 20px 50px oklch(0 0 0 / .42);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+
+    body {
+      background: var(--ink-10);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      letter-spacing: 0;
+    }
+
+    button, textarea { color: inherit; font: inherit; letter-spacing: 0; }
+    button { border: 0; }
+    button:not(:disabled) { cursor: pointer; }
+
+    button:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .app {
+      width: 100vw;
+      height: 100vh;
+      min-width: 900px;
+      display: grid;
+      grid-template-rows: 42px minmax(0, 1fr);
+      background: var(--paper);
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 210px 1fr 210px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+      padding: 0 12px;
+      -webkit-app-region: drag;
+    }
+
+    .brand, .project-name, .top-actions, .workspace-tabs, .toolbar-row,
+    .assistant-title, .assistant-actions, .composer-actions, .context-status {
+      display: flex;
+      align-items: center;
+    }
+
+    .brand { gap: 8px; font-weight: 650; }
+    .brand-mark {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 5px;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .project-name { justify-content: center; gap: 7px; color: var(--ink-80); font-weight: 550; }
+    .top-actions { justify-content: flex-end; gap: 4px; -webkit-app-region: no-drag; }
+
+    .icon-button {
+      width: 28px;
+      height: 28px;
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--ink-60);
+    }
+
+    .icon-button:hover { background: var(--ink-05); color: var(--ink); }
+    .icon-button.active { background: var(--accent-soft); color: var(--accent); }
+    .icon-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+    .shell {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr);
+    }
+
+    .rail {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 0;
+      border-right: 1px solid var(--line);
+      background: var(--ink-05);
+    }
+
+    .rail .icon-button.active { background: var(--paper); color: var(--ink); box-shadow: var(--shadow-sm); }
+    .rail-spacer { flex: 1; }
+
+    .workspace {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 46px minmax(0, 1fr);
+    }
+
+    .workspace-header {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+      align-items: center;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .workspace-tabs { justify-content: center; gap: 4px; height: 100%; }
+    .workspace-tab {
+      height: 32px;
+      padding: 0 13px;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--ink-60);
+      font-size: 12px;
+      font-weight: 550;
+    }
+    .workspace-tab.active { background: var(--ink-05); color: var(--ink); }
+    .workspace-meta { justify-self: end; color: var(--ink-40); font-size: 11px; }
+
+    .creation {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 212px minmax(0, 1fr) 300px;
+    }
+
+    .chapters {
+      min-height: 0;
+      border-right: 1px solid var(--line);
+      background: var(--paper);
+      padding: 12px 10px;
+    }
+
+    .panel-kicker {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 28px;
+      padding: 0 6px;
+      color: var(--ink-60);
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .chapter {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      align-items: center;
+      min-height: 38px;
+      padding: 5px 7px;
+      border-radius: 5px;
+      background: transparent;
+      text-align: left;
+    }
+    .chapter:hover { background: var(--ink-05); }
+    .chapter.active { background: var(--accent-soft); color: var(--accent); }
+    .chapter-number { color: var(--ink-40); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .chapter.active .chapter-number { color: var(--accent); }
+    .chapter-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 550; }
+
+    .editor-stage {
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+      background: var(--ink-05);
+      padding: 38px 5vw 72px;
+    }
+
+    .document {
+      width: min(680px, 100%);
+      min-height: 720px;
+      margin: 0 auto;
+      padding: 62px 72px 88px;
+      background: var(--paper);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .doc-overline { color: var(--ink-40); font-size: 11px; }
+    h1 { margin: 14px 0 34px; font-family: var(--font-display); font-size: 28px; font-weight: 560; letter-spacing: 0; }
+    .document p { margin: 0 0 18px; color: var(--ink-80); font-family: var(--font-display); font-size: 16px; line-height: 1.95; text-align: justify; }
+    .selection { background: var(--accent-soft); color: var(--ink); }
+
+    .assistant {
+      position: relative;
+      z-index: 3;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 44px minmax(0, 1fr) auto;
+      border-left: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .assistant-header {
+      position: relative;
+      z-index: 12;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 10px 0 12px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .assistant-title { min-width: 0; gap: 8px; font-size: 12px; font-weight: 650; }
+    .assistant-mark {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 4px;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--font-display);
+      font-size: 10px;
+    }
+    .assistant-actions { gap: 2px; }
+    .assistant-actions .icon-button { width: 24px; height: 24px; }
+
+    .skill-indicator {
+      position: absolute;
+      right: 2px;
+      bottom: 2px;
+      width: 6px;
+      height: 6px;
+      border: 1px solid var(--paper);
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .messages {
+      min-height: 0;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      padding: 14px 12px;
+    }
+
+    .empty-state {
+      width: 100%;
+      max-width: 248px;
+      margin: auto;
+      padding: 28px 0;
+    }
+    .empty-mark {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 14px;
+      border-radius: 6px;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .empty-mark svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .empty-title { margin: 0 0 7px; font-family: var(--font-display); font-size: 17px; font-weight: 560; }
+    .empty-copy { min-height: 38px; margin: 0 0 17px; color: var(--ink-60); font-size: 12px; line-height: 1.6; }
+    .suggestions { border-top: 1px solid var(--line-soft); }
+    .suggestion {
+      width: 100%;
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 2px;
+      border-bottom: 1px solid var(--line-soft);
+      background: transparent;
+      color: var(--ink-80);
+      text-align: left;
+      font-size: 12px;
+    }
+    .suggestion:hover { color: var(--accent); }
+    .suggestion svg { width: 14px; height: 14px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+    .conversation { display: none; gap: 13px; }
+    .conversation.visible { display: flex; flex-direction: column; }
+    .bubble { max-width: 92%; padding: 9px 10px; border-radius: 6px; font-size: 12px; line-height: 1.55; }
+    .bubble.user { align-self: flex-end; background: var(--ink-05); }
+    .bubble.assistant { align-self: flex-start; padding-left: 0; color: var(--ink-80); }
+
+    .run-summary {
+      padding: 9px 0;
+      border-top: 1px solid var(--line-soft);
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .run-title { margin-bottom: 7px; color: var(--ink-80); font-size: 11px; font-weight: 650; }
+    .run-step {
+      display: grid;
+      grid-template-columns: 14px 50px minmax(0, 1fr);
+      align-items: start;
+      gap: 5px;
+      min-height: 24px;
+      color: var(--ink-60);
+      font-size: 10px;
+      line-height: 1.45;
+    }
+    .run-step svg { width: 12px; height: 12px; margin-top: 1px; fill: none; stroke: var(--success); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .run-step-name { color: var(--ink-40); }
+    .run-step-value { min-width: 0; color: var(--ink-80); }
+
+    .proposal {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--paper);
+      overflow: hidden;
+    }
+    .proposal-head, .proposal-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 9px;
+    }
+    .proposal-head { border-bottom: 1px solid var(--line-soft); font-size: 11px; font-weight: 650; }
+    .proposal-status { color: var(--accent); font-size: 10px; font-weight: 550; }
+    .proposal-body { padding: 9px; color: var(--ink-60); font-size: 10px; line-height: 1.5; }
+    .proposal-preview { display: none; margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--line-soft); color: var(--ink-80); }
+    .proposal-preview.visible { display: block; }
+    .proposal-actions { justify-content: flex-end; padding-top: 0; }
+    .proposal-button {
+      min-height: 27px;
+      padding: 0 9px;
+      border-radius: 5px;
+      background: var(--ink-05);
+      color: var(--ink-80);
+      font-size: 10px;
+      font-weight: 550;
+    }
+    .proposal-button:hover { background: var(--ink-10); color: var(--ink); }
+    .proposal-button.primary { background: var(--ink); color: var(--paper); }
+    .proposal-button.primary:hover { background: var(--accent); }
+    .proposal-button:disabled { background: var(--ink-10); color: var(--ink-40); cursor: default; }
+
+    .composer {
+      position: relative;
+      z-index: 10;
+      margin: 0 10px 10px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--paper);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .context-status {
+      min-width: 0;
+      gap: 5px;
+      margin: 0 2px 6px;
+      color: var(--ink-40);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .context-status svg { width: 12px; height: 12px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .context-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .skill-label { display: none; min-width: 0; margin-left: auto; overflow: hidden; color: var(--accent); text-overflow: ellipsis; }
+    .skill-label.visible { display: inline; }
+
+    textarea {
+      width: 100%;
+      height: 60px;
+      max-height: 120px;
+      resize: none;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    textarea::placeholder { color: var(--ink-40); }
+    textarea:focus-visible { outline: 0; }
+
+    .composer-actions { min-width: 0; gap: 5px; }
+    .composer-actions .icon-button { width: 28px; height: 28px; }
+    .spacer { flex: 1; min-width: 4px; }
+
+    .select-wrap { position: relative; min-width: 0; }
+    .select-trigger {
+      max-width: 88px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 7px;
+      border-radius: 5px;
+      background: var(--ink-05);
+      color: var(--ink-80);
+      font-size: 11px;
+      font-weight: 550;
+    }
+    .select-trigger:hover, .select-trigger[aria-expanded="true"] { background: var(--ink-10); color: var(--ink); }
+    .select-trigger svg { width: 13px; height: 13px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #modelTrigger { max-width: 94px; }
+    #modeTrigger { max-width: 72px; }
+
+    .send-button {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--ink);
+      color: var(--paper);
+    }
+    .send-button:hover { background: var(--accent); }
+    .send-button:disabled { background: var(--ink-20); color: var(--ink-40); cursor: default; }
+    .send-button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    .popover {
+      display: none;
+      position: absolute;
+      z-index: 30;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--paper);
+      box-shadow: var(--shadow-lg);
+    }
+    .popover.open { display: block; }
+    .mode-menu { left: 0; bottom: calc(100% + 8px); width: 244px; padding: 6px; }
+    .skill-menu { top: 38px; right: 7px; width: 268px; padding: 6px; }
+    .popover-title { padding: 5px 8px 7px; color: var(--ink-60); font-size: 10px; font-weight: 650; }
+    .menu-option {
+      width: 100%;
+      min-height: 43px;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr) 16px;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 8px;
+      border-radius: 5px;
+      background: transparent;
+      text-align: left;
+    }
+    .menu-option:hover, .menu-option.focused { background: var(--ink-05); }
+    .menu-option.selected { background: var(--accent-soft); color: var(--accent); }
+    .menu-option > svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .option-main { min-width: 0; }
+    .option-name { display: block; font-size: 12px; font-weight: 600; }
+    .option-desc { display: block; margin-top: 2px; overflow: hidden; color: var(--ink-60); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .menu-option.selected .option-desc { color: color-mix(in srgb, var(--accent) 72%, var(--ink-60)); }
+    .check { width: 14px; height: 14px; visibility: hidden; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .selected .check { visibility: visible; }
+    .menu-separator { height: 1px; margin: 5px 4px; background: var(--line-soft); }
+
+    .toast {
+      position: fixed;
+      right: 316px;
+      bottom: 18px;
+      z-index: 50;
+      max-width: 330px;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--paper);
+      box-shadow: var(--shadow-lg);
+      color: var(--ink-80);
+      font-size: 11px;
+      line-height: 1.45;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(4px);
+      transition: opacity 140ms ease, transform 140ms ease;
+    }
+    .toast.visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 1120px) {
+      .creation { grid-template-columns: minmax(0, 1fr) 300px; }
+      .chapters { display: none; }
+      .editor-stage { padding-left: 4vw; padding-right: 4vw; }
+      .document { padding-left: 8vw; padding-right: 8vw; }
+    }
+
+    @media (max-height: 720px) {
+      .document { padding-top: 42px; }
+      .empty-state { padding: 14px 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-file-plus" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v4"/><path d="M12 18h6m-3-3v6"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+    <symbol id="i-canvas" viewBox="0 0 24 24"><path d="M3 3h18v18H3z"/><path d="M7 16l3-3 2 2 4-5 2 3"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24"><path d="M4 6h16v12H4zM8 6v12m8-12v12M4 10h4m8 0h4M4 14h4m8 0h4"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5m13 5h5v-5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2L12 3zM5 14l.8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8L5 14zm13-1 1 2.8 3 1.2-3 1.2L18 21l-1-2.8-3-1.2 3-1.2L18 13z"/></symbol>
+    <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="M15 7l-6.5 6.5a3 3 0 0 0 4.2 4.2L19 11.4a5 5 0 0 0-7.1-7.1L5.6 10.6a7 7 0 0 0 9.9 9.9L21 15"/></symbol>
+    <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9.5 4A3.5 3.5 0 0 0 6 7.5c0 .3 0 .6.1.9A3.5 3.5 0 0 0 5 15a3.5 3.5 0 0 0 4.5 3.4M14.5 4A3.5 3.5 0 0 1 18 7.5c0 .3 0 .6-.1.9A3.5 3.5 0 0 1 19 15a3.5 3.5 0 0 1-4.5 3.4M9.5 4v16m5-16v16M9.5 9H8m6.5 2H16m-6.5 4H8"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M8 10l4 4 4-4"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l4 4L19 6"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  </svg>
+
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">N</span><span>Nomi</span></div>
+      <div class="project-name"><span>雾港来信</span><span style="color:var(--ink-30)">/</span><span style="color:var(--ink-60);font-size:11px">创作</span></div>
+      <div class="top-actions">
+        <button class="icon-button" id="themeToggle" type="button" title="切换明暗模式" aria-label="切换明暗模式"><svg><use href="#i-sun"/></svg></button>
+      </div>
+    </header>
+
+    <div class="shell">
+      <nav class="rail" aria-label="主导航">
+        <button class="icon-button active" type="button" title="创作" aria-label="创作"><svg><use href="#i-book"/></svg></button>
+        <button class="icon-button" type="button" title="生成" aria-label="生成"><svg><use href="#i-canvas"/></svg></button>
+        <button class="icon-button" type="button" title="剪辑" aria-label="剪辑"><svg><use href="#i-film"/></svg></button>
+        <div class="rail-spacer"></div>
+        <button class="icon-button" type="button" title="新建" aria-label="新建"><svg><use href="#i-plus"/></svg></button>
+      </nav>
+
+      <main class="workspace">
+        <div class="workspace-header">
+          <div class="toolbar-row"><button class="icon-button" type="button" title="新建章节" aria-label="新建章节"><svg><use href="#i-file-plus"/></svg></button></div>
+          <nav class="workspace-tabs" aria-label="工作区">
+            <button class="workspace-tab active" type="button">创作</button>
+            <button class="workspace-tab" type="button">生成</button>
+            <button class="workspace-tab" type="button">剪辑</button>
+            <button class="workspace-tab" type="button">预览</button>
+          </nav>
+          <div class="workspace-meta">已保存</div>
+        </div>
+
+        <div class="creation">
+          <aside class="chapters" aria-label="章节列表">
+            <div class="panel-kicker"><span>章节</span><span>6</span></div>
+            <button class="chapter" type="button"><span class="chapter-number">01</span><span class="chapter-name">潮声以外</span></button>
+            <button class="chapter" type="button"><span class="chapter-number">02</span><span class="chapter-name">失踪的灯塔守夜人</span></button>
+            <button class="chapter active" type="button"><span class="chapter-number">03</span><span class="chapter-name">雨夜来客</span></button>
+            <button class="chapter" type="button"><span class="chapter-number">04</span><span class="chapter-name">旧船坞</span></button>
+            <button class="chapter" type="button"><span class="chapter-number">05</span><span class="chapter-name">没有寄出的信</span></button>
+            <button class="chapter" type="button"><span class="chapter-number">06</span><span class="chapter-name">退潮时分</span></button>
+          </aside>
+
+          <section class="editor-stage" aria-label="文稿编辑区">
+            <article class="document">
+              <div class="doc-overline">第三章 · 2,318 字</div>
+              <h1>雨夜来客</h1>
+              <p>雨是在傍晚六点后落下来的。最初只是细细一层，贴在仓库的铁皮屋顶上，像有人隔着很远的地方撒下一把盐。</p>
+              <p>周屿把最后一只木箱推到墙边，关掉叉车。海风从没合严的门缝里钻进来，带着柴油、湿绳和海藻腐烂后的味道。</p>
+              <p><span class="selection">门外传来三下敲击。停了两秒，又是两下。那不是码头工人惯用的节奏。</span></p>
+              <p>他没有应声，只伸手摸向工作台下方。那里藏着一把生锈的信号枪，是父亲失踪前留下的最后一样东西。</p>
+              <p>门被风推开一条缝。一个穿黑色雨衣的人站在雨幕里，手中举着一封已经被水浸透的信。</p>
+            </article>
+          </section>
+
+          <aside class="assistant" aria-label="创作助手">
+            <header class="assistant-header">
+              <div class="assistant-title"><span class="assistant-mark">N</span><span>创作助手</span></div>
+              <div class="assistant-actions">
+                <button class="icon-button" id="skillTrigger" type="button" title="技能：无额外技能" aria-label="技能：无额外技能" aria-expanded="false" aria-controls="skillMenu"><svg><use href="#i-sparkles"/></svg><span class="skill-indicator" id="skillIndicator" hidden></span></button>
+                <button class="icon-button" type="button" title="对话历史" aria-label="对话历史"><svg><use href="#i-history"/></svg></button>
+                <button class="icon-button" type="button" title="放大对话" aria-label="放大对话"><svg><use href="#i-expand"/></svg></button>
+                <button class="icon-button" type="button" title="收起助手" aria-label="收起助手"><svg><use href="#i-x"/></svg></button>
+              </div>
+
+              <div class="popover skill-menu" id="skillMenu" role="menu" aria-label="选择技能">
+                <div class="popover-title">额外技能</div>
+                <button class="menu-option selected" type="button" role="menuitemradio" aria-checked="true" data-skill="none" data-skill-label="无额外技能">
+                  <svg><use href="#i-sparkles"/></svg><span class="option-main"><span class="option-name">无额外技能</span><span class="option-desc">仅按当前写作模式</span></span><svg class="check"><use href="#i-check"/></svg>
+                </button>
+                <button class="menu-option" type="button" role="menuitemradio" aria-checked="false" data-skill="assets" data-skill-label="素材规划">
+                  <svg><use href="#i-eye"/></svg><span class="option-main"><span class="option-name">素材规划</span><span class="option-desc">提取角色、场景与关键道具</span></span><svg class="check"><use href="#i-check"/></svg>
+                </button>
+                <button class="menu-option" type="button" role="menuitemradio" aria-checked="false" data-skill="promo" data-skill-label="品牌宣传片">
+                  <svg><use href="#i-film"/></svg><span class="option-main"><span class="option-name">品牌宣传片</span><span class="option-desc">使用已安装的创作 playbook</span></span><svg class="check"><use href="#i-check"/></svg>
+                </button>
+                <div class="menu-separator"></div>
+                <button class="menu-option" type="button" role="menuitem" data-skill="author" data-skill-label="编写自定义技能">
+                  <svg><use href="#i-plus"/></svg><span class="option-main"><span class="option-name">编写自定义技能</span><span class="option-desc">让 AI 把方法整理成可复用技能</span></span><span></span>
+                </button>
+              </div>
+            </header>
+
+            <div class="messages" id="messages" aria-live="polite">
+              <div class="empty-state" id="emptyState">
+                <div class="empty-mark"><svg><use id="emptyIconUse" href="#i-sparkles"/></svg></div>
+                <h2 class="empty-title" id="emptyTitle">从当前内容开始</h2>
+                <p class="empty-copy" id="emptyCopy">基于当前选区或文稿，一起构思、整理和改写。</p>
+                <div class="suggestions" id="suggestions"></div>
+              </div>
+              <div class="conversation" id="conversation"></div>
+            </div>
+
+            <footer class="composer">
+              <div class="context-status">
+                <svg><use href="#i-eye"/></svg><span class="context-label" id="contextLabel">已加载：当前选区 · 84 字</span><span class="skill-label" id="skillLabel"></span>
+              </div>
+              <textarea id="prompt" aria-label="给创作助手发消息" placeholder="告诉我想怎么处理当前内容…"></textarea>
+              <div class="composer-actions">
+                <button class="icon-button" type="button" title="附加文件" aria-label="附加文件"><svg><use href="#i-paperclip"/></svg></button>
+
+                <div class="select-wrap">
+                  <button class="select-trigger" id="modelTrigger" type="button" title="模型：豆包 1.6" aria-label="模型：豆包 1.6"><svg><use href="#i-brain"/></svg><span class="select-value">豆包 1.6</span><svg><use href="#i-chevron"/></svg></button>
+                </div>
+
+                <div class="select-wrap">
+                  <button class="select-trigger" id="modeTrigger" type="button" title="写作模式：通用" aria-label="写作模式：通用" aria-haspopup="listbox" aria-expanded="false" aria-controls="modeMenu"><span class="select-value" id="modeValue">通用</span><svg><use href="#i-chevron"/></svg></button>
+                  <div class="popover mode-menu" id="modeMenu" role="listbox" aria-label="写作模式" tabindex="-1">
+                    <div class="popover-title">写作模式</div>
+                    <button class="menu-option selected" type="button" role="option" aria-selected="true" data-mode="general">
+                      <svg><use href="#i-sparkles"/></svg><span class="option-main"><span class="option-name">通用</span><span class="option-desc">构思、问答、整理与自由改写</span></span><svg class="check"><use href="#i-check"/></svg>
+                    </button>
+                    <button class="menu-option" type="button" role="option" aria-selected="false" data-mode="novel">
+                      <svg><use href="#i-book"/></svg><span class="option-main"><span class="option-name">小说</span><span class="option-desc">章节叙事、人物视角与连续性</span></span><svg class="check"><use href="#i-check"/></svg>
+                    </button>
+                    <button class="menu-option" type="button" role="option" aria-selected="false" data-mode="script">
+                      <svg><use href="#i-film"/></svg><span class="option-main"><span class="option-name">剧本</span><span class="option-desc">场次、动作与对白结构</span></span><svg class="check"><use href="#i-check"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <span class="spacer"></span>
+                <button class="send-button" id="sendButton" type="button" title="发送" aria-label="发送" disabled><svg><use href="#i-send"/></svg></button>
+              </div>
+            </footer>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const modeData = {
+      general: {
+        label: '通用',
+        icon: 'i-sparkles',
+        title: '从当前内容开始',
+        copy: '基于当前选区或文稿，一起构思、整理和改写。',
+        context: '已加载：当前选区 · 84 字',
+        placeholder: '告诉我想怎么处理当前内容…',
+        actions: ['梳理这段的核心想法', '改写选中内容', '拆成镜头方案'],
+        run: ['当前选区 · 84 字', '自主判断回答、整理或改写', '不预设作品格式'],
+        preview: '这一段的核心信息是：异常敲门打破平静，信号枪和湿透的信同时把父亲失踪的旧线索重新带回故事。',
+        proposal: '替换当前选区',
+        mutation: 'document'
+      },
+      novel: {
+        label: '小说',
+        icon: 'i-book',
+        title: '继续这一章',
+        copy: '基于已加载的当前章续写、改写或分析，不假装理解整本。',
+        context: '已加载：当前章 · 第三章 雨夜来客',
+        placeholder: '续写、改写，或分析当前章节…',
+        actions: ['续写当前章', '检查人物动机', '把选中段落改成一场戏'],
+        run: ['当前章 + 选区边界', '续写、改写、审校或局部改编', '保持叙事视角与人物状态'],
+        preview: '雨衣人没有进门，只把那封信从门缝里推了进来。信封上的蓝色邮戳已经晕开，周屿却仍认出了父亲的笔迹。',
+        proposal: '插入到当前光标',
+        mutation: 'document'
+      },
+      script: {
+        label: '剧本',
+        icon: 'i-film',
+        title: '把文字变成场景',
+        copy: '基于当前选区组织场次、动作与对白，再决定是否拆镜头。',
+        context: '已加载：当前选区 · 84 字',
+        placeholder: '写场景、改对白，或检查画面表达…',
+        actions: ['改写成一场戏', '增强动作与对白', '检查能否落成画面'],
+        run: ['当前选区 + 可用人物/地点', '生成场次、动作、对白或结构检查', '按标准剧本块输出，不直接拆镜头'],
+        preview: '3-2  内景  旧仓库  夜\n\n门外响起三下敲击。停顿。又是两下。\n\n周屿关掉叉车，手缓缓伸向工作台下方。',
+        proposal: '创建派生剧本草案',
+        mutation: 'derived'
+      }
+    }
+
+    const state = { mode: 'general', skill: 'none', modeFocus: 0 }
+    const modeTrigger = document.getElementById('modeTrigger')
+    const modeMenu = document.getElementById('modeMenu')
+    const modeOptions = Array.from(modeMenu.querySelectorAll('[data-mode]'))
+    const skillTrigger = document.getElementById('skillTrigger')
+    const skillMenu = document.getElementById('skillMenu')
+    const skillOptions = Array.from(skillMenu.querySelectorAll('[data-skill]'))
+    const prompt = document.getElementById('prompt')
+    const sendButton = document.getElementById('sendButton')
+    const toast = document.getElementById('toast')
+    let toastTimer
+
+    function iconUse(id) {
+      return `<svg aria-hidden="true"><use href="#${id}"/></svg>`
+    }
+
+    function renderSuggestions(actions) {
+      const suggestions = document.getElementById('suggestions')
+      suggestions.innerHTML = actions.map((action) => `<button class="suggestion" type="button" data-prompt="${action}"><span>${action}</span>${iconUse('i-arrow')}</button>`).join('')
+      suggestions.querySelectorAll('[data-prompt]').forEach((button) => {
+        button.addEventListener('click', () => {
+          prompt.value = button.dataset.prompt
+          prompt.dispatchEvent(new Event('input'))
+          prompt.focus()
+        })
+      })
+    }
+
+    function showToast(message) {
+      window.clearTimeout(toastTimer)
+      toast.textContent = message
+      toast.classList.add('visible')
+      toastTimer = window.setTimeout(() => toast.classList.remove('visible'), 3200)
+    }
+
+    function escapeHtml(value) {
+      return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
+    }
+
+    function runSummary(data, willWrite) {
+      const steps = [
+        ['上下文', data.run[0]],
+        ['判断任务', data.run[1]],
+        ['模式约束', data.run[2]],
+        ['交付方式', willWrite ? '先生成变更提案，确认后执行' : '直接回答，不调用写入工具']
+      ]
+      return `<div class="run-summary"><div class="run-title">本轮处理 · ${data.label}</div>${steps.map(([name, value]) => `<div class="run-step">${iconUse('i-check')}<span class="run-step-name">${name}</span><span class="run-step-value">${value}</span></div>`).join('')}</div>`
+    }
+
+    function proposalCard(data) {
+      const actionLabel = data.mutation === 'derived' ? '创建草案' : '应用'
+      return `<div class="proposal" data-proposal data-mutation="${data.mutation}"><div class="proposal-head"><span>文稿变更</span><span class="proposal-status">待确认</span></div><div class="proposal-body"><span>${data.proposal} · 本轮合同已冻结</span><div class="proposal-preview">${escapeHtml(data.preview).replaceAll('\n', '<br>')}</div></div><div class="proposal-actions"><button class="proposal-button" type="button" data-review>查看变更</button><button class="proposal-button primary" type="button" data-apply>${actionLabel}</button></div></div>`
+    }
+
+    function wireProposal(data) {
+      const card = document.querySelector('[data-proposal]')
+      if (!card) return
+      const preview = card.querySelector('.proposal-preview')
+      const reviewButton = card.querySelector('[data-review]')
+      const applyButton = card.querySelector('[data-apply]')
+      reviewButton.addEventListener('click', () => {
+        const visible = preview.classList.toggle('visible')
+        reviewButton.textContent = visible ? '收起变更' : '查看变更'
+      })
+      applyButton.addEventListener('click', () => {
+        const derived = card.dataset.mutation === 'derived'
+        if (!derived) {
+          const paragraph = document.createElement('p')
+          paragraph.dataset.applied = 'true'
+          paragraph.textContent = data.preview
+          document.querySelector('.document').appendChild(paragraph)
+        }
+        card.querySelector('.proposal-status').textContent = derived ? '已创建草案' : '已应用'
+        applyButton.textContent = derived ? '已创建' : '已应用'
+        applyButton.disabled = true
+        showToast(derived ? '已创建派生剧本草案，原小说未改动。' : '变更已应用到文稿。')
+      })
+    }
+
+    function setMode(mode, announce = true) {
+      const data = modeData[mode]
+      state.mode = mode
+      state.modeFocus = modeOptions.findIndex((option) => option.dataset.mode === mode)
+      document.getElementById('modeValue').textContent = data.label
+      document.getElementById('emptyTitle').textContent = data.title
+      document.getElementById('emptyCopy').textContent = data.copy
+      document.getElementById('emptyIconUse').setAttribute('href', `#${data.icon}`)
+      document.getElementById('contextLabel').textContent = data.context
+      prompt.placeholder = data.placeholder
+      modeTrigger.title = `写作模式：${data.label}`
+      modeTrigger.setAttribute('aria-label', `写作模式：${data.label}`)
+      modeOptions.forEach((option) => {
+        const selected = option.dataset.mode === mode
+        option.classList.toggle('selected', selected)
+        option.setAttribute('aria-selected', String(selected))
+      })
+      renderSuggestions(data.actions)
+      closeModeMenu()
+      if (announce) showToast(`已切换为${data.label}模式，仅影响后续回复，当前稿件不会转换。`)
+    }
+
+    function openModeMenu() {
+      skillMenu.classList.remove('open')
+      skillTrigger.setAttribute('aria-expanded', 'false')
+      modeMenu.classList.add('open')
+      modeTrigger.setAttribute('aria-expanded', 'true')
+      window.requestAnimationFrame(() => modeOptions[state.modeFocus].focus())
+    }
+
+    function closeModeMenu() {
+      modeMenu.classList.remove('open')
+      modeTrigger.setAttribute('aria-expanded', 'false')
+    }
+
+    modeTrigger.addEventListener('click', () => modeMenu.classList.contains('open') ? closeModeMenu() : openModeMenu())
+    modeTrigger.addEventListener('keydown', (event) => {
+      if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) {
+        event.preventDefault()
+        openModeMenu()
+      }
+    })
+    modeOptions.forEach((option, index) => {
+      option.addEventListener('click', () => setMode(option.dataset.mode))
+      option.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault()
+          state.modeFocus = (index + (event.key === 'ArrowDown' ? 1 : -1) + modeOptions.length) % modeOptions.length
+          modeOptions[state.modeFocus].focus()
+        } else if (event.key === 'Home' || event.key === 'End') {
+          event.preventDefault()
+          state.modeFocus = event.key === 'Home' ? 0 : modeOptions.length - 1
+          modeOptions[state.modeFocus].focus()
+        } else if (event.key === 'Escape') {
+          event.preventDefault()
+          closeModeMenu()
+          modeTrigger.focus()
+        }
+      })
+    })
+
+    skillTrigger.addEventListener('click', () => {
+      const open = !skillMenu.classList.contains('open')
+      closeModeMenu()
+      skillMenu.classList.toggle('open', open)
+      skillTrigger.setAttribute('aria-expanded', String(open))
+      if (open) window.requestAnimationFrame(() => skillOptions.find((option) => option.getAttribute('aria-checked') === 'true')?.focus())
+    })
+
+    skillOptions.forEach((option) => {
+      option.addEventListener('click', () => {
+        const skill = option.dataset.skill
+        const label = option.dataset.skillLabel
+        if (skill === 'author') {
+          prompt.value = '帮我把下面的方法整理成一个可复用技能：'
+          prompt.dispatchEvent(new Event('input'))
+          prompt.focus()
+        } else {
+          state.skill = skill
+          skillOptions.filter((item) => item.dataset.skill !== 'author').forEach((item) => {
+            const selected = item.dataset.skill === skill
+            item.classList.toggle('selected', selected)
+            item.setAttribute('aria-checked', String(selected))
+          })
+          const active = skill !== 'none'
+          skillTrigger.classList.toggle('active', active)
+          document.getElementById('skillIndicator').hidden = !active
+          document.getElementById('skillLabel').textContent = active ? `技能：${label}` : ''
+          document.getElementById('skillLabel').classList.toggle('visible', active)
+          skillTrigger.title = `技能：${label}`
+          skillTrigger.setAttribute('aria-label', `技能：${label}`)
+          showToast(active ? `已启用技能：${label}` : '已关闭额外技能')
+        }
+        skillMenu.classList.remove('open')
+        skillTrigger.setAttribute('aria-expanded', 'false')
+      })
+    })
+
+    prompt.addEventListener('input', () => { sendButton.disabled = !prompt.value.trim() })
+    prompt.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+        event.preventDefault()
+        sendButton.click()
+      }
+    })
+
+    sendButton.addEventListener('click', () => {
+      const text = prompt.value.trim()
+      if (!text) return
+      const runMode = state.mode
+      const data = modeData[runMode]
+      const willWrite = /续写|改写|写成|写一|插入|替换|追加|应用|改成|增强/.test(text)
+      document.getElementById('emptyState').style.display = 'none'
+      const conversation = document.getElementById('conversation')
+      conversation.classList.add('visible')
+      conversation.innerHTML = `<div class="bubble user">${escapeHtml(text)}</div>${runSummary(data, willWrite)}<div class="bubble assistant">${escapeHtml(data.preview).replaceAll('\n', '<br>')}</div>${willWrite ? proposalCard(data) : ''}`
+      wireProposal(data)
+      prompt.value = ''
+      sendButton.disabled = true
+    })
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const root = document.documentElement
+      root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark'
+    })
+
+    document.addEventListener('pointerdown', (event) => {
+      if (!modeMenu.contains(event.target) && !modeTrigger.contains(event.target)) closeModeMenu()
+      if (!skillMenu.contains(event.target) && !skillTrigger.contains(event.target)) {
+        skillMenu.classList.remove('open')
+        skillTrigger.setAttribute('aria-expanded', 'false')
+      }
+    })
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && skillMenu.classList.contains('open')) {
+        skillMenu.classList.remove('open')
+        skillTrigger.setAttribute('aria-expanded', 'false')
+        skillTrigger.focus()
+      }
+    })
+
+    setMode('general', false)
+  </script>
+</body>
+</html>

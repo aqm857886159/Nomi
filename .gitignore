@@ -1,6 +1,9 @@
 # Dependencies
+<<<<<<< HEAD
 # 不带斜杠：并行 worktree 按 CLAUDE.md 用 `ln -s` 复用主仓依赖，那是符号链接不是目录，
 # `node_modules/` 匹配不上，会以 untracked 冒出来等着被误提交。
+=======
+>>>>>>> origin/codex/apimart-seedance-h3-20260811
 node_modules
 .pnpm-store/
 .npm-cache/

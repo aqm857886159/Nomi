@@ -19,7 +19,10 @@ function invokeSync<T>(channel: string, ...args: unknown[]): T {
 }
 
 contextBridge.exposeInMainWorld("nomiDesktop", {
-  platform: process.platform,
+  platform:
+    process.env.NOMI_E2E === "1" && process.env.NOMI_E2E_PLATFORM
+      ? process.env.NOMI_E2E_PLATFORM
+      : process.platform,
   i18n: {
     setLocale: (locale: "zh-CN" | "en") => ipcRenderer.send("nomi:i18n:set-locale", locale),
     // 首启探测系统语言用；拿不到就返回 ""（渲染层据此回落默认语言，绝不抛断首帧）。
@@ -458,13 +461,6 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
         status?: number;
         error?: string;
       }>,
-    vendorHealth: (payload: unknown) =>
-      ipcRenderer.invoke("nomi:onboarding:vendor-health", payload) as Promise<{
-        vendorKey: string;
-        state: "reachable" | "unreachable" | "unsupported";
-        reason?: string;
-        checkedAt: number;
-      }>,
   },
   update: {
     appInfo: () => ipcRenderer.invoke("nomi:app:version"),
@@ -491,9 +487,6 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       invokeSync("nomi:model-catalog:vendor-api-key:upsert", vendorKey, payload),
     clearVendorApiKey: (vendorKey: string) => invokeSync("nomi:model-catalog:vendor-api-key:clear", vendorKey),
     upsertModel: (payload: unknown) => invokeSync("nomi:model-catalog:model:upsert", payload),
-    /** 改类型 = 改 kind + 按新 kind 重建调用通道（单事务）。见 catalog/modelRetype.ts。 */
-    retypeModel: (payload: { vendorKey: string; modelKey: string; kind: string }) =>
-      invokeSync("nomi:model-catalog:model:retype", payload),
     customCallContract: () => invokeSync("nomi:model-catalog:custom-call:contract"),
     customCallAiInstruction: (payload: unknown) => invokeSync("nomi:model-catalog:custom-call:ai-instruction", payload),
     customCallTestRun: (payload: unknown) => ipcRenderer.invoke("nomi:model-catalog:custom-call:test-run", payload),

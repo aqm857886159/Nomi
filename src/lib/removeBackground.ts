@@ -4,9 +4,7 @@ type RemoveBackgroundProgress = {
   total: number
 }
 
-type WorkerRequestInput =
-  | { type: 'preload' }
-  | { type: 'remove'; blob: Blob }
+type WorkerRequestInput = { type: 'preload'; publicPath: string } | { type: 'remove'; blob: Blob; publicPath: string }
 
 type WorkerResponse =
   | { id: number; type: 'done'; blob?: Blob }
@@ -22,6 +20,21 @@ type PendingRequest = {
 let removeBackgroundWorker: Worker | null = null
 let nextRequestId = 1
 const pendingRequests = new Map<number, PendingRequest>()
+
+export function resolveRemoveBackgroundPublicPath(baseUri: string): string {
+  const base = new URL(baseUri)
+  return base.protocol === 'file:'
+    ? 'nomi-local://resource/remove-background/'
+    : new URL('remove-background/', base).toString()
+}
+
+export function removeBackgroundNotificationId(nodeId: string): string {
+  return `remove-background:${nodeId}`
+}
+
+function removeBackgroundPublicPath(): string {
+  return resolveRemoveBackgroundPublicPath(document.baseURI)
+}
 
 function getRemoveBackgroundWorker(): Worker {
   if (removeBackgroundWorker) return removeBackgroundWorker
@@ -69,7 +82,7 @@ function postWorkerRequest(
 }
 
 export function preloadRemoveBackground(): void {
-  void postWorkerRequest({ type: 'preload' }).catch(() => undefined)
+  void postWorkerRequest({ type: 'preload', publicPath: removeBackgroundPublicPath() }).catch(() => undefined)
 }
 
 export async function removeBackgroundBlob(
@@ -77,7 +90,7 @@ export async function removeBackgroundBlob(
   onProgress?: (progress: RemoveBackgroundProgress) => void,
 ): Promise<Blob> {
   const blob = await toBlob(imageUrl)
-  const result = await postWorkerRequest({ type: 'remove', blob }, onProgress)
+  const result = await postWorkerRequest({ type: 'remove', blob, publicPath: removeBackgroundPublicPath() }, onProgress)
   if (!result) throw new Error('Remove background did not return an image')
   return result
 }

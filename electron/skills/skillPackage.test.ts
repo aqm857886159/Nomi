@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   SKILL_PACKAGE_VERSION,
   buildSkillPackage,
+  computeSkillContentHash,
   isSafeSkillFileName,
   readSkillDirFiles,
   resolveImportDirName,
@@ -33,6 +34,8 @@ const validManifest = JSON.stringify({
   stages: [{ id: "s", goal: "g", tools: [], modelPrefs: [{ kind: "video", family: "seedance" }] }],
 });
 
+const validFiles = { "SKILL.md": "# body", "skill.json": validManifest };
+
 describe("isSafeSkillFileName", () => {
   it("accepts SKILL.md / skill.json / *.md / *.txt basenames", () => {
     expect(isSafeSkillFileName("SKILL.md")).toBe(true);
@@ -54,7 +57,7 @@ describe("validateSkillPackage", () => {
     buildSkillPackage("brand-promo", files, 1700000000000);
 
   it("accepts a valid package with manifest", () => {
-    const result = validateSkillPackage(pkg({ "SKILL.md": "# body", "skill.json": validManifest }));
+    const result = validateSkillPackage(pkg(validFiles));
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.manifest?.name).toBe("brand.promo");
   });
@@ -137,5 +140,18 @@ describe("FS round-trip (export dir → package → import dir)", () => {
   it("uses the package version constant", () => {
     const built = buildSkillPackage("x", { "SKILL.md": "b" }, 0);
     expect(built.version).toBe(SKILL_PACKAGE_VERSION);
+  });
+
+  it("computes a stable content hash for identical package files", () => {
+    const left = computeSkillContentHash(validFiles);
+    const right = computeSkillContentHash({ "skill.json": validManifest, "SKILL.md": "# body" });
+    expect(left).toBe(right);
+    expect(left).toHaveLength(16);
+  });
+
+  it("changes the content hash when package content changes", () => {
+    const left = computeSkillContentHash(validFiles);
+    const right = computeSkillContentHash({ "SKILL.md": "# body", "skill.json": validManifest.replace("1.0.0", "1.0.1") });
+    expect(left).not.toBe(right);
   });
 });

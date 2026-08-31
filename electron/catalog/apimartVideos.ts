@@ -3,6 +3,7 @@
 // VEO 3.1 的别名/范围归一参考 R6 对标（Infinite-Canvas 的 apimart_veo31_* helper）。
 // 2026-07-29 增补（各自照 docs.apimart.ai 当日文档对账）：Vidu Q3（参考生，无 t2v）、可灵 3.0 Turbo、
 // HappyHorse 1.1（单 model 字段自动路由）、Wan 2.7 升级角色参考（wan2.7-r2v，per-mode modelEnum 通道）。
+// 2026-08-11 增补：doubao-seedance-2.5、MiniMax-H3、MiniMax-H3-Regeneration。
 //
 // apimart 视频创建是扁平 body：POST /v1/videos/generations { model, prompt, <按模型不同的字段> }
 //   → { code:200, data:[{ status:"submitted", task_id }] }。轮询/结果与图片同构（已验证视频结果
@@ -67,6 +68,18 @@ const IMAGE_WITH_ROLES = "{{request.params.image_with_roles}}";
 const SEEDANCE_T2V_BODY = { size: SIZE, resolution: RESOLUTION, duration: DURATION, seed: SEED, generate_audio: GEN_AUDIO };
 const SEEDANCE_I2V_BODY = { size: SIZE, resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS, image_with_roles: IMAGE_WITH_ROLES, seed: SEED, generate_audio: GEN_AUDIO };
 
+const H3_REGENERATION_CREATE_OP: HttpOperation = {
+  method: "POST",
+  path: "/v1/videos/generations",
+  headers: CREATE_HEADERS,
+  body: {
+    model: "{{model.modelKey}}",
+    source_task_id: "{{request.params.source_task_id}}",
+  },
+  response_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
+  provider_meta_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
+};
+
 export type ApimartVideoModel = {
   modelKey: string;
   labelZh: string;
@@ -99,7 +112,7 @@ function videoModel(p: {
   return { modelKey: p.modelKey, labelZh: p.labelZh, archetypeId: p.archetypeId, mappings };
 }
 
-/** 11 个 apimart 视频模型（单源）。 */
+/** APIMart curated 视频模型（单源）。 */
 export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   // Vidu Q3（2026-07-29）：参考生视频，1-7 张参考图必填、无纯文生 → 只种 i2v mapping。
   // 变体（标准 viduq3 / Mix viduq3-mix）→ body model 取 {{request.params.model}}。
@@ -156,6 +169,7 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   // body 形状一致（SEEDANCE_*_BODY 单源 P1）：i2vBody 一条覆盖 图生/全能参考/首尾帧 三模式——
   // image_urls + video_urls/audio_urls + image_with_roles(与 image_urls 互斥) + seed；空键由模板自动丢（M2）。
   videoModel({ modelKey: "doubao-seedance-2.0", labelZh: "Seedance 2.0", archetypeId: "seedance-2-apimart", modelRef: VARIANT_MODEL_REF, t2vBody: SEEDANCE_T2V_BODY, i2vBody: SEEDANCE_I2V_BODY }),
+<<<<<<< HEAD
   // Seedance 2.5（2026-08-12 接入，逐项对账 docs.apimart.ai/cn/api-reference/videos/doubao-seedance-2-5）。
   // 与 2.0 的通道差异：无变体（官方 model 固定 doubao-seedance-2.5，故用默认 {{model.modelKey}}）、
   // 多一个 return_last_frame（2.5 独有，返回尾帧图）。参考通道键名与 2.0 相同（image_urls /
@@ -165,6 +179,19 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     modelKey: "doubao-seedance-2.5", labelZh: "Seedance 2.5", archetypeId: "seedance-2.5-apimart",
     t2vBody: { ...SEEDANCE_T2V_BODY, return_last_frame: RETURN_LAST_FRAME },
     i2vBody: { ...SEEDANCE_I2V_BODY, return_last_frame: RETURN_LAST_FRAME },
+=======
+  // Seedance 2.5（2026-08-11）：480p/720p、4~30s；首尾帧必须用 image_with_roles，纯音频参考可用。
+  videoModel({
+    modelKey: "doubao-seedance-2.5", labelZh: "Seedance 2.5", archetypeId: "seedance-2.5-apimart",
+    t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, generate_audio: GEN_AUDIO, watermark: "{{request.params.watermark}}", output_format: "{{request.params.output_format}}", return_last_frame: "{{request.params.return_last_frame}}", seed: SEED },
+    i2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, generate_audio: GEN_AUDIO, watermark: "{{request.params.watermark}}", output_format: "{{request.params.output_format}}", return_last_frame: "{{request.params.return_last_frame}}", seed: SEED, image_urls: IMAGE_URLS, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS, image_with_roles: IMAGE_WITH_ROLES },
+  }),
+  // MiniMax-H3（2026-08-11）：首/尾帧与参考素材严格互斥，档案模式投影保证只发当前一组。
+  videoModel({
+    modelKey: "MiniMax-H3", labelZh: "MiniMax H3", archetypeId: "minimax-h3-apimart",
+    t2vBody: { duration: DURATION, resolution: RESOLUTION, aspect_ratio: ASPECT, watermark: "{{request.params.watermark}}", webhook: "{{request.params.webhook}}" },
+    i2vBody: { duration: DURATION, resolution: RESOLUTION, aspect_ratio: ASPECT, watermark: "{{request.params.watermark}}", webhook: "{{request.params.webhook}}", first_frame_image: "{{request.params.first_frame_image}}", last_frame_image: "{{request.params.last_frame_image}}", image_urls: IMAGE_URLS, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS },
+>>>>>>> origin/codex/apimart-seedance-h3-20260811
   }),
   // Wan 2.7（2026-07-29 升级角色参考）：三模式经 per-mode modelEnum 发不同 model（t2v/i2v=wan2.7、
   // 角色参考=wan2.7-r2v）→ body model 改取 {{request.params.model}}。i2v/ref 共用一条 i2v mapping：
@@ -188,6 +215,18 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION },
     i2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS, generation_type: GENERATION_TYPE },
   }),
+  // MiniMax-H3-Regeneration（2026-08-11）：不是通用超分，只接受本账号 H3 768P 成片 task_id。
+  {
+    modelKey: "MiniMax-H3-Regeneration",
+    labelZh: "MiniMax H3 再生成",
+    archetypeId: "minimax-h3-regeneration",
+    mappings: [{
+      id: "seed-apimart-minimax-h3-regeneration-text_to_video",
+      taskKind: "text_to_video",
+      name: "MiniMax H3 · 再生成（768P → 2K）",
+      create: H3_REGENERATION_CREATE_OP,
+    }],
+  },
 ];
 
 export const APIMART_VIDEO_QUERY = APIMART_VIDEO_QUERY_OP;

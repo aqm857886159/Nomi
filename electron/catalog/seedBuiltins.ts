@@ -42,7 +42,7 @@ import { APIMART_VENDOR_SEED } from "./apimartVendor";
 import { APIMART_IMAGE_MODELS, APIMART_IMAGE_QUERY, APIMART_IMAGE_STATUS } from "./apimartImages";
 import { APIMART_VIDEO_MODELS, APIMART_VIDEO_QUERY, APIMART_VIDEO_STATUS } from "./apimartVideos";
 import { APIMART_AUDIO_MODELS } from "./apimartAudios";
-import { APIMART_TEXT_MODELS } from "./apimartTexts";
+import { APIMART_TEXT_MAPPINGS, APIMART_TEXT_MODELS } from "./apimartTexts";
 import { AGNES_VENDOR_SEED, AGNES_VIDEO_QUERY_OP, AGNES_STATUS_MAPPING } from "./agnesVendor";
 import { AGNES_IMAGE_MODELS } from "./agnesImages";
 import { AGNES_VIDEO_MODELS } from "./agnesVideos";
@@ -134,12 +134,16 @@ const KIE_CURATED_MAPPINGS: CuratedMapping[] = [
 /** apimart 的 curated 模型 + mapping，从单源 APIMART_IMAGE_MODELS / APIMART_VIDEO_MODELS 派生。 */
 const APIMART_CURATED_MODELS: CuratedModel[] = [
   // 文本大脑（创作助手 / 拆镜头主控）：无 archetype / 无 mapping，走 buildLanguageModelForVendor 直连 chat。
-  ...APIMART_TEXT_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "text" as const })),
+  ...APIMART_TEXT_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "text" as const, ...(m.meta ? { meta: m.meta } : {}) })),
   ...APIMART_IMAGE_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "image" as const, archetypeId: m.archetypeId })),
   ...APIMART_VIDEO_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "video" as const, archetypeId: m.archetypeId })),
   ...APIMART_AUDIO_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: m.kind, archetypeId: m.archetypeId })),
 ];
 const APIMART_CURATED_MAPPINGS: CuratedMapping[] = [
+  ...APIMART_TEXT_MAPPINGS.map((mp) => ({
+    id: mp.id, taskKind: mp.taskKind, modelKey: mp.modelKey, name: mp.name,
+    create: mp.create, query: mp.query, statusMapping: mp.statusMapping,
+  })),
   ...APIMART_IMAGE_MODELS.flatMap((m) =>
     m.mappings.map((mp) => ({
       id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name,

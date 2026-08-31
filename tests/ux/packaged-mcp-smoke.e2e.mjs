@@ -108,8 +108,8 @@ async function smokeClient(client) {
     assert(initialized.result?.serverInfo?.name === 'nomi-capability-core', `${client} initialize handshake`)
 
     const tools = (await rpc('tools/list')).result?.tools || []
-    assert(tools.length === 13, `${client} expected 13 tools, got ${tools.length}`)
-    for (const name of ['nomi_start_playbook', 'nomi_get_run', 'nomi_subscribe_run', 'nomi_get_artifact']) {
+    assert(tools.length === 15, `${client} expected 15 tools, got ${tools.length}`)
+    for (const name of ['nomi_start_playbook', 'nomi_get_run', 'nomi_subscribe_run', 'nomi_get_artifact', 'nomi_control_run', 'nomi_decide_gate']) {
       assert(tools.some((tool) => tool.name === name), `${client} ${name} is missing`)
     }
 

@@ -1,5 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { IconX } from '@tabler/icons-react'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { cn } from '../../../utils/cn'
 
@@ -48,17 +49,20 @@ export default function ProvenancePanel({ node, open, onClose }: Props): JSX.Ele
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-title font-medium text-nomi-ink m-0">
-            {t('generationCommon.provenance.title', { name: node.title || node.kind })}
-          </h2>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 mb-4">
+          <div className="min-w-0">
+            <h2 className="text-title font-medium text-nomi-ink m-0">{t('generationCommon.provenance.title')}</h2>
+            <div className="mt-1 truncate text-caption text-nomi-ink-40" title={node.title || node.kind}>
+              {node.title || node.kind}
+            </div>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-nomi-ink-40 hover:text-nomi-ink text-h2 leading-none"
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink"
             aria-label={t('common.close')}
           >
-            ×
+            <IconX size={16} stroke={1.8} />
           </button>
         </div>
 

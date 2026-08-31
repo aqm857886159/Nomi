@@ -1,8 +1,8 @@
 import { preload, removeBackground as imglyRemoveBackground, type Config } from '@imgly/background-removal'
 
 type WorkerRequest =
-  | { id: number; type: 'preload' }
-  | { id: number; type: 'remove'; blob: Blob }
+  | { id: number; type: 'preload'; publicPath: string }
+  | { id: number; type: 'remove'; blob: Blob; publicPath: string }
 
 type WorkerResponse =
   | { id: number; type: 'done'; blob?: Blob }
@@ -10,10 +10,7 @@ type WorkerResponse =
   | { id: number; type: 'error'; error: string }
 
 const workerScope = self as unknown as {
-  addEventListener: (
-    type: 'message',
-    listener: (event: MessageEvent<WorkerRequest>) => void,
-  ) => void
+  addEventListener: (type: 'message', listener: (event: MessageEvent<WorkerRequest>) => void) => void
   postMessage: (message: WorkerResponse) => void
 }
 
@@ -26,9 +23,10 @@ const BASE_CONFIG: Config = {
   },
 }
 
-function configForRequest(id: number): Config {
+function configForRequest(id: number, publicPath: string): Config {
   return {
     ...BASE_CONFIG,
+    publicPath,
     progress: (key, current, total) => {
       workerScope.postMessage({ id, type: 'progress', key, current, total })
     },
@@ -37,7 +35,7 @@ function configForRequest(id: number): Config {
 
 async function handleRequest(request: WorkerRequest): Promise<void> {
   try {
-    const config = configForRequest(request.id)
+    const config = configForRequest(request.id, request.publicPath)
     if (request.type === 'preload') {
       await preload(config)
       workerScope.postMessage({ id: request.id, type: 'done' })

@@ -16,6 +16,7 @@ vi.mock("electron", () => ({
 
 let projectRoot = "";
 let assetPath = "";
+let staticResourceRoot = "";
 
 vi.mock("../projects/repository", () => ({
   resolveProjectRelativePath: vi.fn((_projectId: string, relativePath: string) => path.join(projectRoot, relativePath)),
@@ -29,10 +30,15 @@ beforeAll(() => {
   assetPath = path.join(projectRoot, "assets", "generated", "clip.mp4");
   fs.mkdirSync(path.dirname(assetPath), { recursive: true });
   fs.writeFileSync(assetPath, Buffer.from("0123456789"));
+  staticResourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-static-resource-"));
+  const resourcePath = path.join(staticResourceRoot, "remove-background", "resources.json");
+  fs.mkdirSync(path.dirname(resourcePath), { recursive: true });
+  fs.writeFileSync(resourcePath, JSON.stringify({ ready: true }));
 });
 
 afterAll(() => {
   if (projectRoot) fs.rmSync(projectRoot, { recursive: true, force: true });
+  if (staticResourceRoot) fs.rmSync(staticResourceRoot, { recursive: true, force: true });
 });
 
 function assetUrl(relativePath = "assets/generated/clip.mp4"): string {
@@ -103,5 +109,24 @@ describe("handleNomiLocalRequest", () => {
     expect(missing.status).toBe(404);
     const forged = await handleNomiLocalRequest(new Request("nomi-local://production-preview/project-a/run-a/artifact-a/assets/generated/clip.mp4?preview=forged"));
     expect(forged.status).toBe(404);
+  });
+
+  it("serves bundled background-removal resources through the fetch-capable protocol", async () => {
+    const response = await handleNomiLocalRequest(
+      new Request("nomi-local://resource/remove-background/resources.json"),
+      staticResourceRoot,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ready: true });
+  });
+
+  it("does not expose files outside the bundled background-removal directory", async () => {
+    const response = await handleNomiLocalRequest(
+      new Request("nomi-local://resource/remove-background/%2e%2e/secret.txt"),
+      staticResourceRoot,
+    );
+
+    expect(response.status).toBe(404);
   });
 });

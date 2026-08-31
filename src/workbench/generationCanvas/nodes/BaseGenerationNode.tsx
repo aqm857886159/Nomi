@@ -422,7 +422,7 @@ function BaseGenerationNodeImpl({
           onCrop={() => imageEditing.openEdit(1)}
           onTransform={(op) => void imageEditing.handleImageTransform(op)}
           onRemoveBackground={() => void imageEditing.handleRemoveBackground()}
-          removeBackgroundBusy={isRemoveBackgroundPending}
+          removeBackgroundBusy={imageEditing.removeBackgroundBusy || isRemoveBackgroundPending}
           onPreview={openMediaPreview}
           onOpenProvenance={() => setProvenanceOpen(true)}
         />

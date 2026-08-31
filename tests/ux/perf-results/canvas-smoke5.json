@@ -1,0 +1,270 @@
+{
+  "label": "smoke5",
+  "commit": null,
+  "platform": "darwin",
+  "arch": "arm64",
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "sampleCount": 1,
+  "warmupCount": 0,
+  "scales": [
+    "M"
+  ],
+  "scenarios": [
+    "blank-pan"
+  ],
+  "results": [
+    {
+      "scale": "M",
+      "scenario": "blank-pan",
+      "runIndex": 0,
+      "fixture": {
+        "scale": "M",
+        "imageNodes": 48,
+        "videoNodes": 48,
+        "nodes": 96,
+        "edges": 192,
+        "clips": 24,
+        "imageBytes": [
+          54708,
+          210153
+        ],
+        "videoBytes": [
+          386990,
+          386940
+        ]
+      },
+      "probe": {
+        "elapsedMs": 1955,
+        "frames": 231,
+        "fps": 118.2,
+        "frameGapP50Ms": 8.3,
+        "frameGapP95Ms": 9.5,
+        "maxFrameGapMs": 42.7,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "longTaskP95Ms": null,
+        "firstMutationMs": 50,
+        "mutations": {
+          "stage": 2,
+          "edges": 12,
+          "labels": 0
+        }
+      },
+      "cdpBefore": {
+        "LayoutCount": 0,
+        "RecalcStyleCount": 2,
+        "ScriptDurationMs": 0,
+        "LayoutDurationMs": 0,
+        "TaskDurationMs": 2.5,
+        "JSHeapUsedMB": 23.7,
+        "domNodes": 1762,
+        "domDocuments": 1,
+        "jsEventListeners": 1137
+      },
+      "cdpAfter": {
+        "LayoutCount": 28,
+        "RecalcStyleCount": 273,
+        "ScriptDurationMs": 95,
+        "LayoutDurationMs": 4.6,
+        "TaskDurationMs": 297.1,
+        "JSHeapUsedMB": 25.9,
+        "domNodes": 1957,
+        "domDocuments": 1,
+        "jsEventListeners": 1648
+      },
+      "cdpDelta": {
+        "LayoutCount": 28,
+        "RecalcStyleCount": 271,
+        "ScriptDurationMs": 95,
+        "LayoutDurationMs": 4.6,
+        "TaskDurationMs": 294.6,
+        "JSHeapUsedMB": 2.2,
+        "domNodes": 195,
+        "domDocuments": 0,
+        "jsEventListeners": 511
+      },
+      "beforePage": {
+        "domNodes": 1419,
+        "canvasNodes": 20,
+        "lightweightCanvasNodes": 0,
+        "imageElements": 12,
+        "videoElements": 0,
+        "visibleMedia": 12,
+        "loadedImages": 12,
+        "loadedVideos": 0,
+        "activeVideos": 0,
+        "resourceCount": 0,
+        "jsHeapUsedMB": 29.8,
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "zoom": 1
+        }
+      },
+      "page": {
+        "domNodes": 1543,
+        "canvasNodes": 24,
+        "lightweightCanvasNodes": 0,
+        "imageElements": 15,
+        "videoElements": 0,
+        "visibleMedia": 15,
+        "loadedImages": 15,
+        "loadedVideos": 0,
+        "activeVideos": 0,
+        "resourceCount": 0,
+        "jsHeapUsedMB": 29.8,
+        "transform": {
+          "x": -112.667,
+          "y": -60.6667,
+          "zoom": 1
+        }
+      },
+      "actionDetails": null,
+      "appMetrics": {
+        "rendererWorkingSetMB": 202.7,
+        "gpuWorkingSetMB": 103.3,
+        "processCount": 5,
+        "processes": [
+          {
+            "type": "Browser",
+            "pid": 63306,
+            "workingSetMB": 157.1
+          },
+          {
+            "type": "GPU",
+            "pid": 63310,
+            "workingSetMB": 103.3
+          },
+          {
+            "type": "Utility",
+            "pid": 63311,
+            "workingSetMB": 41.3
+          },
+          {
+            "type": "Tab",
+            "pid": 63312,
+            "workingSetMB": 202.7
+          },
+          {
+            "type": "Utility",
+            "pid": 63313,
+            "workingSetMB": 32.4
+          }
+        ]
+      },
+      "pageErrors": [],
+      "consoleErrors": [],
+      "elapsedMs": 20939
+    }
+  ],
+  "summary": {
+    "M/blank-pan": {
+      "samples": 1,
+      "errors": 0,
+      "metrics": {
+        "fps": {
+          "median": 118.2,
+          "p95": 118.2,
+          "samples": [
+            118.2
+          ]
+        },
+        "frameGapP95Ms": {
+          "median": 9.5,
+          "p95": 9.5,
+          "samples": [
+            9.5
+          ]
+        },
+        "maxFrameGapMs": {
+          "median": 42.7,
+          "p95": 42.7,
+          "samples": [
+            42.7
+          ]
+        },
+        "longTaskMs": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0
+          ]
+        },
+        "longTaskP95Ms": null,
+        "layoutCount": {
+          "median": 28,
+          "p95": 28,
+          "samples": [
+            28
+          ]
+        },
+        "recalcStyleCount": {
+          "median": 271,
+          "p95": 271,
+          "samples": [
+            271
+          ]
+        },
+        "scriptDurationMs": {
+          "median": 95,
+          "p95": 95,
+          "samples": [
+            95
+          ]
+        },
+        "layoutDurationMs": {
+          "median": 4.6,
+          "p95": 4.6,
+          "samples": [
+            4.6
+          ]
+        },
+        "jsHeapUsedMB": {
+          "median": 29.8,
+          "p95": 29.8,
+          "samples": [
+            29.8
+          ]
+        },
+        "visibleMedia": {
+          "median": 15,
+          "p95": 15,
+          "samples": [
+            15
+          ]
+        },
+        "loadedImages": {
+          "median": 15,
+          "p95": 15,
+          "samples": [
+            15
+          ]
+        },
+        "loadedVideos": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0
+          ]
+        },
+        "activeVideos": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0
+          ]
+        },
+        "rendererWorkingSetMB": {
+          "median": 202.7,
+          "p95": 202.7,
+          "samples": [
+            202.7
+          ]
+        }
+      }
+    }
+  }
+}

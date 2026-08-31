@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { getSkillsRoots, getUserSkillsRoot, readText } from "../runtimePaths";
+import { computeSkillContentHash } from "./skillPackage";
 import {
   parseSkillManifest,
   type SkillManifest,
@@ -24,6 +25,10 @@ export type SkillRecord = {
   body: string;
   /** skill.json 解析出的 manifest；缺失/非法 ⇒ null（legacy markdown-only）。 */
   manifest: SkillManifest | null;
+  /** 同内容同 hash；供 UI / MCP / 导入导出对账。 */
+  contentHash: string;
+  /** manifest version；缺失/非法 ⇒ null。 */
+  version: string | null;
   /** manifest 解析失败时的人话原因（用于加载期诊断；成功/缺失为 undefined）。 */
   manifestError?: string;
   /** 来源：'user' = 可写用户目录（可删/可导出）；'builtin' = 安装目录随附（只读）。 */
@@ -56,18 +61,19 @@ export function normalizeSkillLookupKey(value: unknown): string {
 }
 
 /** 读一个 skill 目录的 skill.json（若有）并校验。缺失 ⇒ {manifest:null}（不报错，走 legacy）。 */
-function readSkillManifest(skillDir: string): { manifest: SkillManifest | null; error?: string } {
+function readSkillManifest(skillDir: string): { manifest: SkillManifest | null; error?: string; rawText?: string } {
   const manifestPath = path.join(skillDir, "skill.json");
   if (!fs.existsSync(manifestPath)) return { manifest: null };
   let raw: unknown;
+  const rawText = readText(manifestPath);
   try {
-    raw = JSON.parse(readText(manifestPath));
+    raw = JSON.parse(rawText);
   } catch (err) {
-    return { manifest: null, error: `skill.json 不是合法 JSON：${(err as Error).message}` };
+    return { manifest: null, error: `skill.json 不是合法 JSON：${(err as Error).message}`, rawText };
   }
   const parsed = parseSkillManifest(raw);
-  if (parsed.ok) return { manifest: parsed.manifest };
-  return { manifest: null, error: parsed.error };
+  if (parsed.ok) return { manifest: parsed.manifest, rawText };
+  return { manifest: null, error: parsed.error, rawText };
 }
 
 /** 扫描所有 skills 根（内置 + 用户目录），读出每个 skill 的正文 + manifest。 */
@@ -85,10 +91,16 @@ export function readSkillRecords(): SkillRecord[] {
       if (seenDirs.has(entry.name)) continue;
       const filePath = path.join(skillDir, "SKILL.md");
       if (!fs.existsSync(filePath)) continue;
-      const body = readText(filePath).trim();
+      const rawBody = readText(filePath);
+      const body = rawBody.trim();
       if (!body) continue;
       seenDirs.add(entry.name);
-      const { manifest, error } = readSkillManifest(skillDir);
+      const { manifest, error, rawText } = readSkillManifest(skillDir);
+      const version = manifest?.version ?? null;
+      const contentHash = computeSkillContentHash({
+        "SKILL.md": rawBody,
+        ...(rawText ? { "skill.json": rawText } : {}),
+      });
       records.push({
         name: manifest?.name || parseSkillName(body, entry.name),
         directoryName: entry.name,
@@ -96,6 +108,8 @@ export function readSkillRecords(): SkillRecord[] {
         description: manifest?.description || parseSkillDescription(body),
         body,
         manifest,
+        contentHash,
+        version,
         manifestError: error,
         origin,
       });
@@ -138,6 +152,8 @@ export type SkillSummary = {
   name: string;
   directoryName: string;
   description: string;
+  version: string | null;
+  contentHash: string;
   origin: "builtin" | "user";
 };
 
@@ -158,6 +174,8 @@ export function listSkillSummaries(craftOnly = true): SkillSummary[] {
       name: record.name,
       directoryName: record.directoryName,
       description: record.description,
+      version: record.version,
+      contentHash: record.contentHash,
       origin: record.origin,
     }));
 }
@@ -165,7 +183,7 @@ export function listSkillSummaries(craftOnly = true): SkillSummary[] {
 /** 读一个技能的完整正文（按 name / directoryName 匹配）。找不到 ⇒ null。 */
 export function readSkillContent(
   key: string,
-): { name: string; directoryName: string; description: string; body: string } | null {
+): { name: string; directoryName: string; description: string; body: string; version: string | null; contentHash: string } | null {
   const record = findSkillRecord(key, key);
   if (!record) return null;
   return {
@@ -173,5 +191,7 @@ export function readSkillContent(
     directoryName: record.directoryName,
     description: record.description,
     body: record.body,
+    version: record.version,
+    contentHash: record.contentHash,
   };
 }

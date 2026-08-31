@@ -13,7 +13,13 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 const ICON = { size: 16, stroke: 1.6 } as const
 
 /** 浮条外壳：定位 + 反向缩放 + token 合规容器。 */
-export function FloatingToolbarShell({ ariaLabel, children }: { ariaLabel: string; children: React.ReactNode }): JSX.Element {
+export function FloatingToolbarShell({
+  ariaLabel,
+  children,
+}: {
+  ariaLabel: string
+  children: React.ReactNode
+}): JSX.Element {
   const canvasZoom = useGenerationCanvasStore((state) => state.canvasZoom)
   return (
     <div
@@ -45,7 +51,9 @@ const buttonBase = cn(
   'disabled:opacity-45 disabled:cursor-wait',
 )
 const variantClass = (accent?: boolean) =>
-  accent ? 'text-nomi-accent hover:bg-nomi-accent-soft' : 'bg-transparent text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink'
+  accent
+    ? 'text-nomi-accent hover:bg-nomi-accent-soft'
+    : 'bg-transparent text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink'
 
 type ToolbarButtonProps = {
   icon: React.ReactNode
@@ -59,7 +67,16 @@ type ToolbarButtonProps = {
 }
 
 /** 带文字的工具栏按钮（定妆 / 裁剪 / 下载 / 抽首帧…）。 */
-export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, ariaLabel, onClick }: ToolbarButtonProps): JSX.Element {
+export function ToolbarButton({
+  icon,
+  label,
+  accent,
+  disabled,
+  ariaBusy,
+  title,
+  ariaLabel,
+  onClick,
+}: ToolbarButtonProps): JSX.Element {
   return (
     <button
       type="button"
@@ -77,7 +94,13 @@ export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, 
 }
 
 /** 仅图标的工具栏按钮（方形）。 */
-export function ToolbarIconButton({ icon, disabled, title, ariaLabel, onClick }: Omit<ToolbarButtonProps, 'label' | 'accent'>): JSX.Element {
+export function ToolbarIconButton({
+  icon,
+  disabled,
+  title,
+  ariaLabel,
+  onClick,
+}: Omit<ToolbarButtonProps, 'label' | 'accent'>): JSX.Element {
   return (
     <button
       type="button"
@@ -97,15 +120,31 @@ export function ToolbarDivider(): JSX.Element {
   return <span className="w-px h-5 bg-nomi-line" aria-hidden />
 }
 
-export type ToolbarMenuItem = {
-  icon: React.ReactNode
-  label: string
-  disabled?: boolean
-  onClick: () => void
-}
+export type ToolbarMenuItem =
+  | {
+      kind?: 'action'
+      icon: React.ReactNode
+      label: string
+      disabled?: boolean
+      onClick: () => void
+    }
+  | {
+      kind: 'label'
+      label: string
+    }
 
 /** 分组下拉（切图▾ / 变换▾）：把低频同类动作收一处。向上展开（工具栏在节点上方，不挡节点），自带点外关闭。 */
-export function ToolbarMenu({ icon, label, items, disabled }: { icon: React.ReactNode; label: string; items: ToolbarMenuItem[]; disabled?: boolean }): JSX.Element {
+export function ToolbarMenu({
+  icon,
+  label,
+  items,
+  disabled,
+}: {
+  icon: React.ReactNode
+  label: string
+  items: ToolbarMenuItem[]
+  disabled?: boolean
+}): JSX.Element {
   const [open, setOpen] = React.useState(false)
   const ref = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
@@ -144,19 +183,32 @@ export function ToolbarMenu({ icon, label, items, disabled }: { icon: React.Reac
           role="menu"
           onPointerDown={(event) => event.stopPropagation()}
         >
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              className={cn(buttonBase, 'gap-2 px-2.5 justify-start w-full', variantClass(false))}
-              disabled={item.disabled}
-              onClick={() => { item.onClick(); setOpen(false) }}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {items.map((item) =>
+            item.kind === 'label' ? (
+              <div
+                key={`label:${item.label}`}
+                className="px-2.5 pb-0.5 pt-1.5 text-micro text-nomi-ink-40 first:pt-0.5"
+                role="presentation"
+              >
+                {item.label}
+              </div>
+            ) : (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                className={cn(buttonBase, 'gap-2 px-2.5 justify-start w-full', variantClass(false))}
+                disabled={item.disabled}
+                onClick={() => {
+                  item.onClick()
+                  setOpen(false)
+                }}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            ),
+          )}
         </div>
       ) : null}
     </div>

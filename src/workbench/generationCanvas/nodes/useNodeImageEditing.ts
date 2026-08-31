@@ -4,8 +4,13 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { dataUrlToFile, persistNodeImageFile } from '../adapters/persistNodeImage'
 import type { CropGridResult, CropGridSize } from './render/ImageCropGridOverlay'
 import { computeGridCells } from './render/cropGridGeometry'
-import { blobToDataUrl, removeBackgroundBlob } from '../../../lib/removeBackground'
+import {
+  blobToDataUrl,
+  removeBackgroundBlob,
+  removeBackgroundNotificationId,
+} from '../../../lib/removeBackground'
 import i18n from '../../../i18n'
+import { useToastStore } from '../../../ui/toast'
 
 // 裁切 / 旋转 / 网格切分都用 canvas.toDataURL 产出 PNG base64。先用 base64 给即时预览，
 // 紧接着把它落盘换成 nomi-local:// 替换掉对应 result —— 避免 PNG base64 永久挂在 store（图多即卡）。
@@ -174,6 +179,7 @@ export type NodeImageEditing = {
   openEdit: (gridSize: CropGridSize) => void
   cancelEdit: () => void
   imageOpBusy: boolean
+  removeBackgroundBusy: boolean
   handleEditConfirm: (result: CropGridResult) => Promise<void>
   handleImageTransform: (op: ImageTransformOp) => Promise<void>
   handleRemoveBackground: () => Promise<void>
@@ -186,6 +192,7 @@ export function useNodeImageEditing(
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const [editGrid, setEditGrid] = React.useState<CropGridSize | null>(null)
   const [imageOpBusy, setImageOpBusy] = React.useState(false)
+  const [removeBackgroundBusy, setRemoveBackgroundBusy] = React.useState(false)
   const openEdit = React.useCallback((gridSize: CropGridSize) => setEditGrid(gridSize), [])
   const cancelEdit = React.useCallback(() => setEditGrid(null), [])
 
@@ -195,6 +202,7 @@ export function useNodeImageEditing(
   const nodeHistory = node.history
   const nodeMeta = node.meta
   const nodeStatus = node.status
+  const retryRemoveBackgroundRef = React.useRef<() => void>(() => undefined)
 
   // 裁剪 / 切图统一走可调框确认：computeGridCells 把「外框 + 框内线」换算成 N 个 image 归一化
   // cell，逐 cell cropImageRegion 产出结果后写回当前节点 history。1 cell = 裁剪；N cell = 切图堆叠。
@@ -309,6 +317,9 @@ export function useNodeImageEditing(
     const imageUrl = nodeResult?.type === 'image' ? nodeResult.url : undefined
     if (!imageUrl || imageOpBusy) return
     setImageOpBusy(true)
+    setRemoveBackgroundBusy(true)
+    const toastId = removeBackgroundNotificationId(nodeId)
+    useToastStore.getState().remove(toastId)
     const createdAt = Date.now()
     const previousStatus = nodeStatus || 'success'
     updateNode(nodeId, {
@@ -317,7 +328,7 @@ export function useNodeImageEditing(
         runId: `remove-bg-${nodeId}-${createdAt}`,
         taskKind: 'asset',
         phase: 'remove-background',
-      message: i18n.t('generationCommon.imageToolbar.removingBackground'),
+        message: i18n.t('generationCommon.imageToolbar.removingBackground'),
         percent: 0,
         updatedAt: createdAt,
       },
@@ -366,24 +377,36 @@ export function useNodeImageEditing(
           uploadStatus: localUrl ? 'uploaded' : undefined,
         },
       })
-    } catch {
-      // removeBackground 失败（离线/CDN 不通）时静默报错 toast
+      useToastStore.getState().remove(toastId)
+    } catch (error) {
+      console.error('[remove-background] Failed to process image', error)
       updateNode(nodeId, {
         status: previousStatus,
         progress: undefined,
       })
-      const { toast } = await import('../../../ui/toast')
-      toast(i18n.t('generationCommon.whiteboard.removeBackgroundFailed'), 'error')
+      useToastStore.getState().push({
+        id: toastId,
+        type: 'error',
+        message: i18n.t('generationCommon.imageToolbar.removeBackgroundFailed'),
+        actionLabel: i18n.t('generationCommon.imageToolbar.retryRemoveBackground'),
+        onAction: () => retryRemoveBackgroundRef.current(),
+      })
     } finally {
+      setRemoveBackgroundBusy(false)
       setImageOpBusy(false)
     }
   }, [imageOpBusy, nodeHistory, nodeId, nodeMeta, nodeResult, nodeStatus, updateNode])
+
+  retryRemoveBackgroundRef.current = () => {
+    void handleRemoveBackground()
+  }
 
   return {
     editGrid,
     openEdit,
     cancelEdit,
     imageOpBusy,
+    removeBackgroundBusy,
     handleEditConfirm,
     handleImageTransform,
     handleRemoveBackground,

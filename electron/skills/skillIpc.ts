@@ -11,6 +11,11 @@ export type SkillListItem = {
   label: string;
   description: string | null;
   author: string | null;
+  provenance: {
+    source: "builtin" | "user";
+    version: string | null;
+    contentHash: string;
+  };
   /** 多段 playbook 的阶段标签（卡片/阶段条展示用；单段 skill 为空）。 */
   stageLabels: string[];
   /** 这个 skill 是不是多段 playbook（有 stages）。 */
@@ -41,6 +46,11 @@ export function listSkillsForRenderer(): SkillListItem[] {
       label: r.manifest?.label || r.name,
       description: r.manifest?.description ?? null,
       author: r.manifest?.author ?? null,
+      provenance: {
+        source: r.origin,
+        version: r.version,
+        contentHash: r.contentHash,
+      },
       stageLabels: (r.manifest?.stages ?? []).map((s) => s.goal),
       isPlaybook: (r.manifest?.stages ?? []).length > 0,
       neededProviders: needs?.providers ?? [],

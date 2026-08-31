@@ -89,7 +89,7 @@ async function auditStandardCase(browser, testCase) {
     community: Boolean(document.querySelector('#community')),
     communityNav: Boolean(document.querySelector('a.nav-link[href="#community"]')),
     communityCards: document.querySelectorAll('[data-community-card]').length,
-    groupQrLink: Boolean(document.querySelector('a[href="/assets/group-wechat-2026-08-14.png"]')),
+    groupQrLink: Boolean(document.querySelector('a[href="/assets/group-wechat-2026-08-25.png"]')),
     authorQrLink: Boolean(document.querySelector('a[href="/assets/qingyang-wechat.jpg"]')),
     businessLink: Boolean(document.querySelector('a[href*="business_inquiry.yml"]')),
     discussionsLink: Boolean(document.querySelector('a[href*="/discussions"]')),
@@ -123,16 +123,16 @@ async function auditStandardCase(browser, testCase) {
 
   if (testCase.name === 'zh-desktop') {
     const popupPromise = page.waitForEvent('popup')
-    await page.locator('a[href="/assets/group-wechat-2026-08-14.png"]').click()
+    await page.locator('a[href="/assets/group-wechat-2026-08-25.png"]').click()
     const qrPage = await popupPromise
     await qrPage.waitForLoadState('load')
     const dimensions = await qrPage.locator('img').evaluate((image) => ({
       width: image.naturalWidth,
       height: image.naturalHeight,
     }))
-    assert(qrPage.url() === `${baseUrl}/assets/group-wechat-2026-08-14.png`, 'group QR opens the versioned asset')
+    assert(qrPage.url() === `${baseUrl}/assets/group-wechat-2026-08-25.png`, 'group QR opens the versioned asset')
     assert(dimensions.width === 1050 && dimensions.height === 1566, 'group QR renders at its real dimensions')
-    await qrPage.screenshot({ path: path.join(shotsDir, 'group-qr-2026-08-14.png'), fullPage: true })
+    await qrPage.screenshot({ path: path.join(shotsDir, 'group-qr-2026-08-25.png'), fullPage: true })
     await qrPage.close()
   }
 

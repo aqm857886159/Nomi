@@ -53,7 +53,14 @@ export function readCatalog(): CatalogState {
     vendors: migrated.vendors.map((vendor) => ({
       ...vendor,
       providerKind: normalizeProviderKind(vendor.providerKind),
-      hasApiKey: Boolean(apiKeysByVendor[vendor.key]?.apiKey && apiKeysByVendor[vendor.key]?.enabled !== false),
+      // `apiKey` is encrypted when safeStorage is available.  A ciphertext
+      // record can survive a different Electron profile/keychain, so its
+      // presence alone is not proof that this process can actually use it.
+      // Derive the UI/routing flag from the same decryption path used at send
+      // time; otherwise an unusable vendor wins routing and only fails after
+      // a paid task has already been prepared.
+      hasApiKey: apiKeysByVendor[vendor.key]?.enabled !== false
+        && Boolean(decryptApiKeyRecord(apiKeysByVendor[vendor.key])),
     })),
     apiKeysByVendor,
   };
@@ -359,11 +366,12 @@ export function getModelCatalogHealth(): unknown {
   const state = readCatalog();
   const enabledVendors = state.vendors.filter((vendor) => vendor.enabled);
   const enabledModels = state.models.filter((model) => model.enabled);
-  const enabledApiKeys = Object.values(state.apiKeysByVendor).filter((key) => key.enabled && key.apiKey).length;
+  const enabledApiKeys = Object.values(state.apiKeysByVendor)
+    .filter((key) => key.enabled && Boolean(decryptApiKeyRecord(key))).length;
   const executableModels = enabledModels.filter((model) => {
     const vendor = state.vendors.find((item) => item.key === model.vendorKey);
     const apiKey = state.apiKeysByVendor[model.vendorKey];
-    return Boolean(vendor?.enabled && (vendor.authType === "none" || (apiKey?.enabled && apiKey.apiKey)));
+    return Boolean(vendor?.enabled && (vendor.authType === "none" || (apiKey?.enabled && decryptApiKeyRecord(apiKey))));
   });
   const byKind = (["text", "image", "video", "audio"] as BillingModelKind[]).map((kind) => ({
     kind,
@@ -377,9 +385,10 @@ export function getModelCatalogHealth(): unknown {
   for (const model of enabledModels) {
     const vendor = state.vendors.find((item) => item.key === model.vendorKey);
     const apiKey = state.apiKeysByVendor[model.vendorKey];
+    const hasApiKey = apiKey?.enabled !== false && Boolean(decryptApiKeyRecord(apiKey));
     if (!vendor?.enabled) {
       issues.push({ code: "vendor_disabled", severity: "error", message: `Vendor disabled: ${model.vendorKey}`, vendorKey: model.vendorKey, modelKey: model.modelKey, kind: model.kind });
-    } else if (vendor.authType !== "none" && !apiKey?.apiKey) {
+    } else if (vendor.authType !== "none" && !hasApiKey) {
       issues.push({ code: "vendor_api_key_missing", severity: "error", message: `API key missing: ${model.vendorKey}`, vendorKey: model.vendorKey, modelKey: model.modelKey, kind: model.kind });
     }
   }

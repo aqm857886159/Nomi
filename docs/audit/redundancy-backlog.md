@@ -82,6 +82,23 @@
 | ⚫D | CR-D1 | 截断/空响应无专门态 | ✅ finishReason 透到渲染层（DTO 加字段）；两 agent 在 finishReason=length+有正文时附「可能被截断·说继续」（空文本+length 仍由 backend 弱模型空响应词表处理）|
 | ⚫D | CR-D2 | `CanvasAssistantPanel`/`CreationAiPanel` 逼近 800 | ⬜ 评估：均在 800 门内（filesize 门把关），拆精密流式/事务闭包高风险低回报且非缺陷 → 监控不强拆 |
 
+## MCP / Agentic 制作面专项（第 4 轮 2026-08-09 · 用户点名“供应商不可靠、交互在上下两处、看不到发生了什么”）
+
+> 详细报告：`docs/audit/2026-08-09-mcp-agentic-experience-audit.md`。本轮不是重复扫普通画布，而是把 MCP、Production Run、宿主对话和设置当成一条真实旅程审计。
+
+| 档 | 项 | 问题 | 状态 |
+|---|---|---|---|
+| ⚫D1 | MCP-UX-1 | 批准前不可用、明确供应商拒绝、回执未知没有在外部宿主形成可执行分流；先清 PR #59 交接 §6.1–§6.3、§6.11 | 🔴 最高，阻塞合并 |
+| ⚫D2 | MCP-UX-2 | MCP widget 只有“在 Nomi 打开”，没有 `tools/call` / `ui/message`；宿主对话不能完成批准、换家、对账 | 🔴 最高，需单独设计/样张 |
+| ⚫D3 | MCP-UX-3 | `start/get/subscribe/artifact` 全部挂同一 UI resource，查询一次就可能追加一张 widget；应拆 data tools / render tool | 🔴 高，需与宿主走查一起做 |
+| ⚫D4 | MCP-UX-4 | 外部只看到最后一条事件和一个预览；没有持续 Run 时间线、预算变化和下一步动作 | 🔴 高，需补 projection + host 走查 |
+| 🔵B1 | MCP-UX-5 | `awaiting_*` / `paused` 被 widget 压成 `available`；Task Center 非终态全部 `running` | 高，修状态语义和文案 |
+| 🔵B2 | MCP-UX-6 | 供应商选择没有“本次 taskKind 可执行”的证据；健康检查只在设置层，没进入 Run 预检 | 高，修候选排序/预检卡 |
+| 🔵B3 | MCP-UX-7 | Nomi、widget、Task Center、Codex/Claude 各自只显示一部分状态，形成四个半真相源 | 高，需确定单一主卡与降级策略 |
+| 🟡C1 | MCP-UX-8 | 设置已有 AI/自动化两 tab，但缺少“测试当前 Run 绑定”“最近健康检查”“诊断事件” | 中，收进设置与 Run 详情 |
+| 🟢A1 | MCP-UX-9 | widget `postMessage('*')`、未校验 `event.source` | 低风险卫生清理 |
+| 🟢A2 | MCP-UX-10 | widget 与 tool invocation 文案硬编码中文且所有工具共用“生成中/已出图” | 低风险卫生清理 |
+
 ## 体检轮次
 - **第 1 轮 2026-06-22**：基线体检，五路并行扫出上述全部项，建 backlog。报告 `docs/audit/2026-06-22-app-wide-redundancy-audit.md`。
 - **第 2 轮 2026-06-23**：六路（五路 + 模型接入专项深扫），重点压用户点名的模型弹窗 + 模型接入。新增 **B7（模型弹窗 IA，真痛点）** + **A8-A12 死码/文案批**。回归看门狗：无并行版回潮；A4/A5 漏网的 `onModelIntegration` dead prop 补进 A10；模型接入主流程复核未回潮（71ff41c 保持）。报告 `docs/audit/2026-06-23-app-wide-redundancy-audit.md`。

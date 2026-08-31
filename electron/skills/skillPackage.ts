@@ -5,6 +5,7 @@
 // runtimePaths 薄包装见末尾。
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 
 import { getSkillsRoots, getUserSkillsRoot } from "../runtimePaths";
 import { parseSkillManifest, type SkillManifest } from "./skillManifestSchema";
@@ -16,11 +17,30 @@ export type SkillPackage = {
   version: string;
   /** 导出时间戳（调用方传入：脚本环境不可用 Date.now，由 IPC 层盖戳）。 */
   exportedAt: number;
+  /** 内容指纹（同内容同 hash；导入/导出/UI 共用）。 */
+  contentHash: string;
   /** 目标目录名建议（导入时按冲突规则可能改名）。 */
   dirName: string;
   /** basename → utf8 内容。必含 SKILL.md；可含 skill.json + 其它 .md/.txt 资源。 */
   files: Record<string, string>;
 };
+
+function normalizeSkillPackageFiles(files: Record<string, string>): Array<[string, string]> {
+  return Object.entries(files)
+    .filter(([name]) => isSafeSkillFileName(name))
+    .sort(([a], [b]) => a.localeCompare(b));
+}
+
+export function computeSkillContentHash(files: Record<string, string>): string {
+  const hash = crypto.createHash("sha256");
+  for (const [name, content] of normalizeSkillPackageFiles(files)) {
+    hash.update(name);
+    hash.update("\0");
+    hash.update(content);
+    hash.update("\0");
+  }
+  return hash.digest("hex").slice(0, 16);
+}
 
 /** 仅允许安全的纯文件名（无目录分隔/无 ..）+ 白名单扩展（防路径穿越、防写可执行）。 */
 export function isSafeSkillFileName(name: string): boolean {
@@ -36,7 +56,7 @@ export function buildSkillPackage(
   files: Record<string, string>,
   exportedAt: number,
 ): SkillPackage {
-  return { version: SKILL_PACKAGE_VERSION, exportedAt, dirName, files };
+  return { version: SKILL_PACKAGE_VERSION, exportedAt, contentHash: computeSkillContentHash(files), dirName, files };
 }
 
 export type ValidatedSkillPackage =
@@ -71,6 +91,12 @@ export function validateSkillPackage(raw: unknown): ValidatedSkillPackage {
   if (!fileMap["SKILL.md"] || !fileMap["SKILL.md"].trim()) {
     return { ok: false, error: "skill 包缺少 SKILL.md 正文" };
   }
+  const contentHash = typeof obj.contentHash === "string" && obj.contentHash.trim()
+    ? obj.contentHash.trim()
+    : computeSkillContentHash(fileMap);
+  if (typeof obj.contentHash === "string" && obj.contentHash.trim() && obj.contentHash.trim() !== contentHash) {
+    return { ok: false, error: "skill 包内容指纹不一致" };
+  }
   let manifest: SkillManifest | null = null;
   if (fileMap["skill.json"]) {
     let json: unknown;
@@ -84,7 +110,7 @@ export function validateSkillPackage(raw: unknown): ValidatedSkillPackage {
     manifest = parsed.manifest;
   }
   const exportedAt = typeof obj.exportedAt === "number" ? obj.exportedAt : 0;
-  return { ok: true, pkg: { version: SKILL_PACKAGE_VERSION, exportedAt, dirName, files: fileMap }, manifest };
+  return { ok: true, pkg: { version: SKILL_PACKAGE_VERSION, exportedAt, contentHash, dirName, files: fileMap }, manifest };
 }
 
 /** 目标目录名清洗 + 冲突避让（纯）：非法字符→-，已存在→加 -2/-3…（不覆盖现有/内置）。 */

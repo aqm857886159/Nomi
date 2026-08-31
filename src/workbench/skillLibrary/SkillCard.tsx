@@ -24,6 +24,11 @@ export function SkillCard({
     t(`libraries.skill.provider.${kind}` as 'libraries.skill.provider.text')
   const cap = skillCapabilityFor(skill, available)
   const isUser = skill.origin === 'user'
+  const versionLabel = skill.provenance.version ?? t('libraries.skill.legacyVersion')
+  const hashLabel = skill.provenance.contentHash.slice(0, 8)
+  const sourceLabel = skill.provenance.source === 'user'
+    ? t('libraries.skill.source.mine')
+    : t('libraries.skill.source.builtin')
 
   return (
     <div className={cn('flex flex-col gap-2 rounded-nomi border border-nomi-line bg-nomi-paper p-3')}>
@@ -46,6 +51,14 @@ export function SkillCard({
       ) : (
         <p className={cn('text-caption text-nomi-ink-40')}>{t('libraries.skill.noDescription')}</p>
       )}
+
+      <div className={cn('flex flex-wrap items-center gap-x-2 gap-y-1 text-micro text-nomi-ink-40')}>
+        <span>{sourceLabel}</span>
+        <span>·</span>
+        <span>{t('libraries.skill.version', { version: versionLabel })}</span>
+        <span>·</span>
+        <span title={skill.provenance.contentHash}>{t('libraries.skill.hash', { hash: hashLabel })}</span>
+      </div>
 
       {skill.neededProviders.length > 0 && (
         <div className={cn('flex flex-wrap items-center gap-2')}>

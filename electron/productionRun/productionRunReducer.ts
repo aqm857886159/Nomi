@@ -2,7 +2,6 @@ import { transitionJob, transitionRun } from "./productionRunState";
 import type {
   BudgetLedgerSummary,
   ProductionArtifact,
-  ProductionDirectionCandidate,
   ProductionGate,
   ProductionJob,
   ProductionJobStatus,
@@ -30,6 +29,16 @@ function text(payload: Record<string, unknown>, key: string): string {
   return value.trim();
 }
 
+function textList(payload: Record<string, unknown>, key: string): string[] {
+  const value = payload[key]
+  if (!Array.isArray(value)) throw new Error(`Missing ${key}`)
+  const result = value.filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+  if (!result.length) throw new Error(`Missing ${key}`)
+  return result
+}
+
 const ARTIFACT_STATUSES = new Set<ProductionArtifact["status"]>([
   "candidate",
   "ready",
@@ -44,23 +53,6 @@ function artifact(payload: Record<string, unknown>): ProductionArtifact {
     throw new Error("Invalid artifact status");
   }
   return value as ProductionArtifact;
-}
-
-/** B1：校验方向候选 —— 2-3 个、key 唯一且安全、title/oneLiner 非空且截断。别信 LLM 原样入库。 */
-function directionCandidates(value: unknown): ProductionDirectionCandidate[] {
-  if (!Array.isArray(value) || value.length < 2 || value.length > 3) throw new Error("Direction candidates must be 2 or 3 options");
-  const seen = new Set<string>();
-  return value.map((item, index) => {
-    if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error(`Invalid direction candidate ${index}`);
-    const raw = item as Record<string, unknown>;
-    const key = typeof raw.key === "string" ? raw.key.trim() : "";
-    const title = typeof raw.title === "string" ? raw.title.trim() : "";
-    const oneLiner = typeof raw.oneLiner === "string" ? raw.oneLiner.trim() : "";
-    if (!/^[A-Za-z0-9._-]{1,40}$/.test(key) || seen.has(key)) throw new Error(`Invalid direction candidate key ${index}`);
-    if (!title || !oneLiner) throw new Error(`Direction candidate ${index} needs a title and one-liner`);
-    seen.add(key);
-    return { key, title: title.slice(0, 80), oneLiner: oneLiner.slice(0, 200) };
-  });
 }
 
 function replaceById<T>(items: T[], id: string, readId: (item: T) => string, update: (item: T) => T): T[] {
@@ -130,24 +122,54 @@ export function applyProductionCommand(
       }));
       return { run: { ...current, jobs, updatedAt: now }, eventType: `job.${status}`, message: jobId };
     }
+    case "jobs.reassign": {
+      const jobIds = textList(command.payload, "jobIds");
+      const provider = text(command.payload, "provider");
+      const model = text(command.payload, "model");
+      const reason = text(command.payload, "reason");
+      if (reason !== "provider-unavailable-before-dispatch") {
+        throw new Error("Unsupported production provider reassignment reason");
+      }
+      if (current.policy.allowedProviders.length > 0 && !current.policy.allowedProviders.includes(provider)) {
+        throw new Error(`Provider is outside the production policy: ${provider}`);
+      }
+      if (current.policy.allowedModels.length > 0 && !current.policy.allowedModels.includes(model)) {
+        throw new Error(`Model is outside the production policy: ${model}`);
+      }
+      const ids = new Set(jobIds);
+      const selected = current.jobs.filter((job) => ids.has(job.jobId));
+      if (selected.length !== ids.size) throw new Error("Production job not found");
+      for (const job of selected) {
+        if (job.providerTaskId) throw new Error(`Production job already has a provider task: ${job.jobId}`);
+        if (job.status !== "authorized" && job.status !== "submission_unknown") {
+          throw new Error(`Production job cannot be reassigned from status: ${job.status}`);
+        }
+        if (job.provider === provider && job.model === model) {
+          throw new Error(`Production job already uses provider/model: ${job.jobId}`);
+        }
+      }
+      const jobs = current.jobs.map((job) => ids.has(job.jobId)
+        ? {
+            ...job,
+            status: "authorized" as const,
+            provider,
+            model,
+            providerTaskId: undefined,
+            errorCode: undefined,
+            errorMessage: undefined,
+            updatedAt: now,
+          }
+        : job);
+      const hasAttention = jobs.some((job) => ["submission_unknown", "reconciling", "needs_attention"].includes(job.status));
+      const run = !hasAttention && current.status === "needs_attention"
+        ? transitionRun({ ...current, jobs }, "running", now)
+        : { ...current, jobs, updatedAt: now };
+      return { run, eventType: "jobs.provider.reassigned", message: provider };
+    }
     case "gate.add": {
       const gate = record(command.payload, "gate") as ProductionGate;
       if (current.gates.some((item) => item.gateId === gate.gateId)) throw new Error(`Duplicate gate: ${gate.gateId}`);
       return { run: { ...current, gates: [...current.gates, gate], updatedAt: now }, eventType: "gate.waiting", message: gate.gateId };
-    }
-    case "gate.set_candidates": {
-      // B1：方向门候选挂到 waiting 的 gate 上（driver 拟好后调）。只允许方向门、只在 waiting 时设。
-      const gateId = text(command.payload, "gateId");
-      const candidates = directionCandidates(command.payload.candidates);
-      const currentGate = current.gates.find((gate) => gate.gateId === gateId);
-      if (!currentGate) throw new Error(`Production entity not found: ${gateId}`);
-      if (currentGate.scope !== "stage" || !gateId.startsWith("gate-direction-")) throw new Error("Direction candidates apply only to a direction gate");
-      if (currentGate.status !== "waiting") throw new Error(`Production gate is already decided: ${gateId}`);
-      const gates = replaceById(current.gates, gateId, (gate) => gate.gateId, (gate) => ({
-        ...gate,
-        directionCandidates: candidates,
-      }));
-      return { run: { ...current, gates, updatedAt: now }, eventType: "gate.candidates", message: gateId };
     }
     case "gate.decide": {
       const gateId = text(command.payload, "gateId");
@@ -156,16 +178,10 @@ export function applyProductionCommand(
       const currentGate = current.gates.find((gate) => gate.gateId === gateId);
       if (!currentGate) throw new Error(`Production entity not found: ${gateId}`);
       if (currentGate.status !== "waiting") throw new Error(`Production gate is already decided: ${gateId}`);
-      // B1：方向门批准可带 choiceKey（用户选中的候选）。校验它确属该门候选之一，留痕进 gate。
-      const rawChoice = typeof command.payload.choiceKey === "string" ? command.payload.choiceKey.trim() : "";
-      const choiceKey = status === "approved" && rawChoice && (currentGate.directionCandidates ?? []).some((candidate) => candidate.key === rawChoice)
-        ? rawChoice
-        : undefined;
       const gates = replaceById(current.gates, gateId, (gate) => gate.gateId, (gate) => ({
         ...gate,
         status,
         decidedAt: now,
-        ...(choiceKey ? { decidedChoiceKey: choiceKey } : {}),
       }));
       const jobs = status === "approved"
         ? current.jobs.map((job) => currentGate.jobIds.includes(job.jobId) && job.status === "authorization_required"

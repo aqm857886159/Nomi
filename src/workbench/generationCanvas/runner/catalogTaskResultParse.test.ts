@@ -47,4 +47,16 @@ describe('normalizeCatalogTaskResult 空产物报错', () => {
   it('键缺失会退化成键路径——这就是本测试要拦的形状', () => {
     expect(i18n.t('generationCommon.error.noText')).not.toContain('generationCommon.')
   })
+
+  it('APIMart MiniMax-H3 Context-IR：从异步 data.result.prompt 归一成文本结果', () => {
+    const result = normalizeCatalogTaskResult(
+      succeeded('prompt_refine', {
+        code: 200,
+        data: { status: 'completed', result: { prompt: 'integrated_multimodal_description: [Shot 1]...' } },
+      }),
+      { ...node, meta: { modelKey: 'MiniMax-H3-Context-IR' } } as GenerationCanvasNode,
+    )
+    expect(result.type).toBe('text')
+    expect(result.text).toContain('integrated_multimodal_description')
+  })
 })

@@ -17,7 +17,7 @@ Nomi 是一个开源的 AI 视频创作桌面工作台。接任何 OpenAI 兼容
 ### 加入 Nomi 用户群
 
 <p align="center">
-  <a href="docs/media/nomi-canvas-group-wechat-2026-08-14.png"><img src="docs/media/nomi-canvas-group-wechat-2026-08-14.png" alt="Nomi 用户群微信二维码" width="220" /></a>
+  <a href="docs/media/nomi-canvas-group-wechat-2026-08-25.png"><img src="docs/media/nomi-canvas-group-wechat-2026-08-25.png" alt="Nomi 用户群微信二维码" width="220" /></a>
 </p>
 
 <p align="center">
@@ -93,7 +93,7 @@ Nomi 是一个开源的 AI 视频创作桌面工作台。接任何 OpenAI 兼容
 
 欢迎加入“nomi 画布群”，反馈会直接进入产品迭代。
 
-群二维码已放在 README 首屏；也可以[打开群二维码原图](docs/media/nomi-canvas-group-wechat-2026-08-14.png)。二维码不可用时，添加作者微信 **TZ857886159** 拉你进群。
+群二维码已放在 README 首屏；也可以[打开群二维码原图](docs/media/nomi-canvas-group-wechat-2026-08-25.png)。二维码不可用时，添加作者微信 **TZ857886159** 拉你进群。
 
 ## 开发者
 

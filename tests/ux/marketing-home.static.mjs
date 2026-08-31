@@ -17,12 +17,12 @@ const expectMobileSafeConversion = (document, heading, boundary, language) => {
   const boundaryIndex = document.indexOf(boundary)
   expect(startIndex >= 0 && boundaryIndex > startIndex, `${language} conversion block is bounded`)
   const conversion = document.slice(startIndex, boundaryIndex)
-  const groupImage = conversion.match(/<img src="docs\/media\/nomi-canvas-group-wechat-2026-08-14\.png"[^>]*>/)?.[0]
+  const groupImage = conversion.match(/<img src="docs\/media\/nomi-canvas-group-wechat-2026-08-25\.png"[^>]*>/)?.[0]
   expect(groupImage && /width="2\d{2}"/.test(groupImage), `${language} group QR remains prominent on mobile`)
   expect(!conversion.includes('|:---'), `${language} conversion avoids a shrinking Markdown table`)
   expectBefore(
     conversion,
-    'docs/media/nomi-canvas-group-wechat-2026-08-14.png',
+    'docs/media/nomi-canvas-group-wechat-2026-08-25.png',
     'docs/media/qingyang-wechat.jpg',
     `${language} puts the user-group QR before maintainer contact`,
   )
@@ -44,9 +44,9 @@ const files = [
   'marketing/assets/social-preview-zh.jpg',
   'marketing/assets/social-preview-en.jpg',
   'marketing/assets/screen-agentic.jpg',
-  'marketing/assets/group-wechat-2026-08-14.png',
+  'marketing/assets/group-wechat-2026-08-25.png',
   'marketing/assets/qingyang-wechat.jpg',
-  'docs/media/nomi-canvas-group-wechat-2026-08-14.png',
+  'docs/media/nomi-canvas-group-wechat-2026-08-25.png',
   'docs/media/qingyang-wechat.jpg',
   '.github/ISSUE_TEMPLATE/business_inquiry.yml',
   'README.zh-CN.md',
@@ -61,7 +61,7 @@ expect(zh.includes('id="community"'), 'Chinese community section exists')
 expect(en.includes('id="community"'), 'English community section exists')
 expect(zh.includes('href="#community"') && zh.includes('>社群<'), 'Chinese community nav exists')
 expect(en.includes('href="#community"') && en.includes('>Community<'), 'English community nav exists')
-expect(zh.includes('/assets/group-wechat-2026-08-14.png'), 'Chinese group QR destination uses a cache-busting version')
+expect(zh.includes('/assets/group-wechat-2026-08-25.png'), 'Chinese group QR destination uses a cache-busting version')
 expect(zh.includes('/assets/qingyang-wechat.jpg'), 'Chinese maintainer QR destination exists')
 expect(zh.includes('TZ857886159'), 'Chinese direct WeChat ID exists')
 expect(en.includes('github.com/aqm857886159/Nomi/discussions'), 'English community uses Discussions')
@@ -87,8 +87,8 @@ for (const html of [zh, en]) {
 }
 for (const rel of files) expect(fs.existsSync(path.join(root, rel)), `${rel} exists`)
 expect(
-  fs.readFileSync(path.join(root, 'marketing/assets/group-wechat-2026-08-14.png')).equals(
-    fs.readFileSync(path.join(root, 'docs/media/nomi-canvas-group-wechat-2026-08-14.png')),
+  fs.readFileSync(path.join(root, 'marketing/assets/group-wechat-2026-08-25.png')).equals(
+    fs.readFileSync(path.join(root, 'docs/media/nomi-canvas-group-wechat-2026-08-25.png')),
   ),
   'website and README publish the identical group QR',
 )
@@ -109,7 +109,7 @@ expect(headers.includes('/assets/video/*') && headers.includes('max-age=3600, mu
 for (const label of ['加入用户群', '团队合作', '夸克网盘镜像', 'TZ857886159']) {
   expect(readmeZh.includes(label), `Chinese README conversion survives: ${label}`)
 }
-expect(readmeZh.includes('docs/media/nomi-canvas-group-wechat-2026-08-14.png'), 'Chinese README keeps versioned group QR')
+expect(readmeZh.includes('docs/media/nomi-canvas-group-wechat-2026-08-25.png'), 'Chinese README keeps versioned group QR')
 expect(readmeZh.includes('docs/media/qingyang-wechat.jpg'), 'Chinese README keeps maintainer QR')
 expect(readmeZh.includes('business_inquiry.yml'), 'Chinese README keeps business inquiry')
 for (const label of ['Community', 'For Teams', 'Custom builds', 'Integrations', 'White-label / commercial licenses', 'Ongoing iteration']) {
@@ -120,7 +120,7 @@ expect(readmeEn.includes('business_inquiry.yml'), 'English README keeps business
 const readmeHero = '[![Nomi director workflow]'
 const readmeZhHero = '[![Nomi 导演工作流]'
 for (const [token, label] of [
-  ['<img src="docs/media/nomi-canvas-group-wechat-2026-08-14.png"', 'group QR'],
+  ['<img src="docs/media/nomi-canvas-group-wechat-2026-08-25.png"', 'group QR'],
   ['<img src="docs/media/qingyang-wechat.jpg"', 'maintainer QR'],
   ['TZ857886159', 'textual WeChat fallback'],
 ]) {

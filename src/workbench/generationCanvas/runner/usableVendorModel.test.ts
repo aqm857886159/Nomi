@@ -57,4 +57,20 @@ describe('resolveUsableModelForNode — 断开 kie 连 apimart 后老节点的�
     const match = resolveUsableModelForNode({ modelKey: 'seedream', vendor: 'kie', meta: {}, models: apimartImages, usable: new Set() })
     expect(match).toBeNull()
   })
+
+  it('code-newcli-com 密钥不可用 → 同款 gpt-image-2 自动落到 apimart', () => {
+    const models = [
+      model('gpt-image-2', 'code-newcli-com', 'gpt-image-2'),
+      model('gpt-image-2', 'apimart', 'gpt-image-2'),
+    ]
+    const match = resolveUsableModelForNode({
+      modelKey: 'gpt-image-2',
+      vendor: 'code-newcli-com',
+      meta: { archetypeId: 'gpt-image-2' },
+      models,
+      usable: new Set(['apimart']),
+    })
+    expect(match?.vendorKey).toBe('apimart')
+    expect(match?.modelKey).toBe('gpt-image-2')
+  })
 })
