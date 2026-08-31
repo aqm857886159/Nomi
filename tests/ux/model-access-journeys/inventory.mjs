@@ -122,4 +122,3 @@ export function scanProductionInventory(repoRoot) {
     providerPresets: providerPresetClasses(presets),
   })
 }
-

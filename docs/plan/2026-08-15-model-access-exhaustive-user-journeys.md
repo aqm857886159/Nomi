@@ -1,7 +1,7 @@
 # 模型接入全集用户旅途测试
 
-日期：2026-08-15  
-基线：`origin/main@452df94d`  
+日期：2026-08-15
+基线：`origin/main@452df94d`
 分支：`codex/model-access-exhaustive-journeys-20260815`
 
 ## 目标

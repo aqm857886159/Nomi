@@ -62,4 +62,3 @@ describe('model access production inventory', () => {
     }
   })
 })
-

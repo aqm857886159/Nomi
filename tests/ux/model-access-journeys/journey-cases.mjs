@@ -434,4 +434,3 @@ export function assertCaseRegistry(journeys) {
   const extra = Object.keys(JOURNEY_CASES).filter((id) => !journeys.some((journey) => journey.id === id))
   if (extra.length) throw new Error(`Unknown journey cases: ${extra.join(', ')}`)
 }
-

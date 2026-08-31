@@ -113,4 +113,3 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (result.reports.some((report) => report.status === 'FAIL' || report.status === 'HARNESS_ERROR')) process.exitCode = 1
   console.log(`Report: ${path.relative(repoRoot, result.root)}`)
 }
-

@@ -151,4 +151,3 @@ export async function startFixtureServer({ repoRoot, fault = {} } = {}) {
     close: () => new Promise((resolve) => server.close(resolve)),
   }
 }
-
