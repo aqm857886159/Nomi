@@ -29,6 +29,10 @@ import type { ProjectLeaseV2 } from './projectLease'
 import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from './approvalReceipt'
 import type { McpConnectionContext } from './mcpConnectionContext'
 import type { ProjectSessionAuthority } from './projectSessionAuthority'
+import {
+  getIntegrationSessionService,
+  type IntegrationSessionService,
+} from '../integrationCertification/integrationSession'
 
 export function projectIdOf(params: Record<string, unknown>): string {
   return typeof params.projectId === 'string' ? params.projectId : ''
@@ -91,6 +95,8 @@ export type DispatchContext = {
    * 领域策略住 shotVerifyOrchestrate，传输层只注入 deps，core 只透传 outcome（三层干净，方案 §3/§9）。
    */
   makeVerifyDeps?: MakeVerifyDeps
+  /** Conversational model-integration session authority. External MCP clients drive begin→…→start here. */
+  integrationSessions?: IntegrationSessionService
 }
 
 const PROJECT_SESSION_RETRY = 'Open a new project session and retry'
@@ -502,6 +508,83 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         path: String(params.path || ''),
         ...(typeof params.title === 'string' && params.title.trim() ? { title: params.title.trim() } : {}),
       })
+    case 'integration.begin': {
+      return (ctx.integrationSessions || getIntegrationSessionService()).begin(
+        {
+          kind: params.kind as 'http-api-provider' | 'comfyui-workflow',
+          name: params.name as string,
+          ...(typeof params.baseUrl === 'string' ? { baseUrl: params.baseUrl } : {}),
+          ...(typeof params.docs === 'string' ? { docs: params.docs } : {}),
+          ...(typeof params.providerKind === 'string' ? { providerKind: params.providerKind } : {}),
+          ...(typeof params.authType === 'string' ? { authType: params.authType as import('../providerAdapter/types').AdapterAuthType } : {}),
+          ...(typeof params.authHeader === 'string' ? { authHeader: params.authHeader } : {}),
+          ...(typeof params.authQueryParam === 'string' ? { authQueryParam: params.authQueryParam } : {}),
+          ...(typeof params.clientRequestId === 'string' ? { clientRequestId: params.clientRequestId } : {}),
+        },
+        ctx.origin?.host || 'external',
+      )
+    }
+    case 'integration.open_credentials':
+      return (ctx.integrationSessions || getIntegrationSessionService()).openCredentials(
+        params.sessionId,
+        params.expectedRevision,
+        ctx.origin?.host || 'external',
+      )
+    case 'integration.discover':
+      return (ctx.integrationSessions || getIntegrationSessionService()).discover(
+        params.sessionId,
+        params.expectedRevision,
+        ctx.origin?.host || 'external',
+        typeof params.page === 'number' ? params.page : 0,
+        typeof params.search === 'string' ? params.search : undefined,
+      )
+    case 'integration.select':
+      return (ctx.integrationSessions || getIntegrationSessionService()).select(
+        params.sessionId,
+        params.expectedRevision,
+        ctx.origin?.host || 'external',
+        params.selections as Array<{ modelKey: string }>,
+      )
+    case 'integration.request_confirmation':
+      return (ctx.integrationSessions || getIntegrationSessionService()).requestConfirmation(
+        params.sessionId,
+        params.expectedRevision,
+        ctx.origin?.host || 'external',
+        params.idempotencyKey as string,
+      )
+    case 'integration.submit_workflow':
+      return (ctx.integrationSessions || getIntegrationSessionService()).submitWorkflow(
+        params.sessionId,
+        params.expectedRevision,
+        ctx.origin?.host || 'external',
+        params.workflow as string,
+      )
+    case 'integration.resolve_input':
+      return (ctx.integrationSessions || getIntegrationSessionService()).resolveInput(
+        params.sessionId,
+        params.expectedRevision,
+        ctx.origin?.host || 'external',
+        params.answers as Record<string, unknown>,
+      )
+    case 'integration.start':
+      return (ctx.integrationSessions || getIntegrationSessionService()).start(
+        params.sessionId,
+        params.expectedRevision,
+        ctx.origin?.host || 'external',
+        params.idempotencyKey as string,
+        params.receipt as string,
+      )
+    case 'integration.get':
+      return (ctx.integrationSessions || getIntegrationSessionService()).get(
+        params.sessionId,
+        ctx.origin?.host || 'external',
+      )
+    case 'integration.cancel':
+      return (ctx.integrationSessions || getIntegrationSessionService()).cancel(
+        params.sessionId,
+        params.expectedRevision,
+        ctx.origin?.host || 'external',
+      )
     default:
       throw new RpcError(`未知方法: ${method}`, 404)
   }

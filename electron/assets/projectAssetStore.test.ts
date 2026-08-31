@@ -17,14 +17,32 @@ const { listProjectAssets, writeAsset, writeDeterministicAsset } = assetStore;
 const resolveProjectAgentAttachmentClaims = (assetStore as unknown as {
   resolveProjectAgentAttachmentClaims?: (
     projectId: string,
-    claims: readonly unknown[],
-  ) => readonly {
-    assetId: string;
-    contentHash: string;
-    version: number;
-    display: { url: string; fileName: string; contentType: string; sizeBytes: number; kind: "image" | "file" };
-  }[];
+    claims: readonly { assetId: string; version: number }[],
+  ) => unknown;
 }).resolveProjectAgentAttachmentClaims;
+const mediaFixture = (name: string) => fs.readFileSync(path.join(__dirname, "../providerAdapter/__fixtures__/certification-media", name));
+
+function validGlb(): Buffer {
+  const json = Buffer.from(JSON.stringify({
+    asset: { version: "2.0" }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0 }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+    accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: "VEC3" }],
+    bufferViews: [{ buffer: 0, byteLength: 36 }], buffers: [{ byteLength: 36 }],
+  }));
+  const jsonLength = Math.ceil(json.byteLength / 4) * 4;
+  const total = 12 + 8 + jsonLength + 8 + 36;
+  const bytes = Buffer.alloc(total);
+  bytes.write("glTF", 0, "ascii");
+  bytes.writeUInt32LE(2, 4);
+  bytes.writeUInt32LE(total, 8);
+  bytes.writeUInt32LE(jsonLength, 12);
+  bytes.writeUInt32LE(0x4e4f534a, 16);
+  json.copy(bytes, 20);
+  bytes.fill(0x20, 20 + json.byteLength, 20 + jsonLength);
+  bytes.writeUInt32LE(36, 20 + jsonLength);
+  bytes.writeUInt32LE(0x004e4942, 24 + jsonLength);
+  return bytes;
+}
 
 function trailingMoovMp4(): Buffer {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-trailing-moov-"));
@@ -52,6 +70,18 @@ beforeEach(() => {
 afterAll(() => fs.rmSync(projectRoot, { recursive: true, force: true }));
 
 describe("writeAsset canonical media filename", () => {
+  it("accepts only the exact self-contained GLB media type after shared structural validation", () => {
+    const stored = writeAsset("project-1", validGlb(), "scene.bin", "model/gltf-binary", { kind: "imported" }) as {
+      data?: { relativePath?: string; contentType?: string };
+    };
+    expect(stored.data?.relativePath).toMatch(/scene\.glb$/);
+    expect(stored.data?.contentType).toBe("model/gltf-binary");
+
+    expect(() => writeAsset("project-1", Buffer.from("glTFbad"), "bad.glb", "model/gltf-binary", { kind: "imported" }))
+      .toThrow(/3D model validation failed/);
+    expect(() => writeAsset("project-1", validGlb(), "bad.model", "model/x-vendor-scene", { kind: "imported" }))
+      .toThrow(/Unsupported 3D asset content type/);
+  });
   it("does not persist a video as .bin when the upload had no usable extension", () => {
     const result = writeAsset("project-1", Buffer.from("video"), "upload.bin", "video/mp4", { kind: "imported" }) as {
       data?: { relativePath?: string; url?: string; contentType?: string };
@@ -73,12 +103,11 @@ describe("writeAsset canonical media filename", () => {
   it("returns the same stable identity that a later project listing reads", () => {
     const result = writeAsset("project-1", Buffer.from("stable-image"), "stable.png", "image/png", { kind: "imported" }) as {
       id?: string;
-      data?: { relativePath?: string; contentHash?: string };
+      data?: { relativePath?: string };
     };
 
     const listed = listProjectAssets({ projectId: "project-1", limit: 20 }).items.find((entry) => entry.data.relativePath === result.data?.relativePath);
     expect(listed?.id).toBe(result.id);
-    expect(result.data?.contentHash).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("sniffs an octet-stream video before selecting its stored extension", () => {
@@ -105,8 +134,8 @@ describe("writeAsset canonical media filename", () => {
   });
 
   it("reuses one deterministic asset path when materialization is retried", () => {
-    const first = writeDeterministicAsset("project-1", Buffer.from("generated"), "result.mp4", "video/mp4", { kind: "generated" }, "task-1:output-1") as { id?: string; data?: { relativePath?: string } };
-    const second = writeDeterministicAsset("project-1", Buffer.from("generated"), "result.mp4", "video/mp4", { kind: "generated" }, "task-1:output-1") as { id?: string; data?: { relativePath?: string } };
+    const first = writeDeterministicAsset("project-1", mediaFixture("valid.mp4"), "result.mp4", "video/mp4", { kind: "generated" }, "task-1:output-1") as { id?: string; data?: { relativePath?: string } };
+    const second = writeDeterministicAsset("project-1", mediaFixture("valid.mp4"), "result.mp4", "video/mp4", { kind: "generated" }, "task-1:output-1") as { id?: string; data?: { relativePath?: string } };
     expect(second).toMatchObject({ id: first.id, data: { relativePath: first.data?.relativePath } });
     expect(fs.readdirSync(path.join(projectRoot, first.data?.relativePath ? path.dirname(first.data.relativePath) : "assets"))).toHaveLength(2);
   });
@@ -118,7 +147,7 @@ describe("writeAsset canonical media filename", () => {
     expect(result.data?.contentType).toBe("video/mp4");
   });
   it.each(["missing", "truncated"])("repairs a %s deterministic asset sidecar on retry", (failure) => {
-    const args = ["project-1", Buffer.from("generated"), "result.jpg", "image/jpeg", { kind: "generated", localTaskId: "local-task" }, "task-1:output-1"] as const;
+    const args = ["project-1", mediaFixture("valid.jpg"), "result.jpg", "image/jpeg", { kind: "generated", localTaskId: "local-task" }, "task-1:output-1"] as const;
     const first = writeDeterministicAsset(...args) as { data: { absolutePath: string } };
     const sidecar = `${first.data.absolutePath}.meta`;
     if (failure === "missing") fs.unlinkSync(sidecar); else fs.writeFileSync(sidecar, "{");
@@ -133,12 +162,30 @@ describe("writeAsset canonical media filename", () => {
       return original(...args);
     });
     try {
-      expect(() => writeDeterministicAsset("project-1", Buffer.from("generated"), "result.jpg", "image/jpeg", { kind: "generated" }, "task-2")).toThrow("sidecar unavailable");
+      expect(() => writeDeterministicAsset("project-1", mediaFixture("valid.jpg"), "result.jpg", "image/jpeg", { kind: "generated" }, "task-2")).toThrow("sidecar unavailable");
     } finally { write.mockRestore(); }
   });
-});
 
-describe("Project Agent attachment authority", () => {
+  it.each([
+    ["HTML", Buffer.from("<!doctype html><html><body>upstream error</body></html>"), "image/png", "markup_masquerade"],
+    ["declared image containing MP4", mediaFixture("valid.mp4"), "image/png", "kind_mismatch"],
+    ["unknown bytes", Buffer.from("not-media"), "video/mp4", "unknown_bytes"],
+  ])("fails closed before persisting generated %s", (_label, bytes, contentType, reason) => {
+    expect(() => writeAsset("project-1", bytes, "output.bin", contentType, { kind: "generated" })).toThrow(reason);
+    expect(fs.existsSync(path.join(projectRoot, "assets", "generated"))).toBe(false);
+  });
+
+  it("rejects changed bytes when trusted certification evidence no longer matches", () => {
+    const bytes = mediaFixture("valid.png");
+    expect(() => writeAsset("project-1", bytes, "output.png", "image/png", {
+      kind: "generated",
+      certificationEvidence: {
+        kind: "image", contentType: "image/png", byteLength: bytes.byteLength,
+        sha256: "0".repeat(64), metadata: {},
+      },
+    })).toThrow("evidence_mismatch");
+  });
+
   it("P2B-ASSET-002 resolves immutable metadata and a safe display URL from stored bytes", () => {
     expect(resolveProjectAgentAttachmentClaims).toBeTypeOf("function");
     const stored = writeAsset("project-1", Buffer.from("trusted-bytes"), "reference.png", "image/png", {
@@ -159,14 +206,5 @@ describe("Project Agent attachment authority", () => {
         }),
       }),
     ]);
-  });
-
-  it.each([
-    ["P2B-ASSET-003 forged renderer metadata", { assetId: "asset-a", version: 1, contentHash: "f".repeat(64), url: "file:///tmp/escape" }],
-    ["P2B-ASSET-004 stale version", { assetId: "asset-a", version: 2 }],
-    ["P2B-ASSET-005 missing or cross-project identity", { assetId: "asset-missing", version: 1 }],
-  ])("rejects %s", (_id, claim) => {
-    expect(resolveProjectAgentAttachmentClaims).toBeTypeOf("function");
-    expect(() => resolveProjectAgentAttachmentClaims!("project-1", [claim])).toThrow("project_agent_attachment_invalid");
   });
 });

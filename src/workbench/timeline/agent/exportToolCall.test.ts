@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { ExportJobSnapshot } from '../../../../electron/export/exportJobManager'
+import type { ExportJobSnapshot, ExportJobVerification } from '../../../../electron/export/exportJobManager'
 import { createDefaultTimeline } from '../timelineMath'
 import { timelineRevision } from '../kernel/timelineKernel'
 import { applyExportToolCall, type ExportToolRuntime } from './exportToolCall'
@@ -14,10 +14,12 @@ function timeline() {
 
 function job(overrides: Partial<ExportJobSnapshot> = {}): ExportJobSnapshot {
   return {
-    id: 'job-1', projectId: 'project-1', projectDir: 'C:/private/project', jobDir: 'C:/private/job',
+    id: 'job-1', projectId: 'project-1', projectIdentity: null, projectDir: 'C:/private/project', jobDir: 'C:/private/job',
     manifest: { version: 1, projectId: 'project-1', createdAt: '2026-08-28T00:00:00.000Z',
       timeline: { fps: 30, durationFrames: 60, range: { startFrame: 0, endFrame: 60 }, tracks: [] },
-      profile: { preset: 'publish', container: 'mp4', quality: 'standard', width: 1920, height: 1080, fps: 30, videoCodec: 'h264', pixelFormat: 'yuv420p', audioCodec: 'none', audioMode: 'mute' }, assets: {} },
+      profile: { preset: 'publish', container: 'mp4', quality: 'standard', width: 1920, height: 1080, fps: 30, videoCodec: 'h264', pixelFormat: 'yuv420p', audioCodec: 'none', audioMode: 'mute' }, assets: {},
+      execution: { backend: 'filtergraph' } },
+    manifestIntegrity: 'canonical',
     status: 'encoding', progress: { ratio: 0.5, stage: 'encoding', message: 'Encoding MP4' }, cancelled: false,
     createdAt: '2026-08-28T00:00:00.000Z', updatedAt: '2026-08-28T00:00:01.000Z',
     ...overrides,
@@ -33,7 +35,7 @@ function runtime(overrides: Partial<ExportToolRuntime> = {}): ExportToolRuntime 
     readGenerationNodes: () => [],
     startExport: vi.fn(async () => ({ jobId: 'job-1', backend: 'filtergraph' as const })),
     getJob: vi.fn(async () => job()),
-    verifyJob: vi.fn(async () => ({
+    verifyJob: vi.fn(async (): Promise<ExportJobVerification> => ({
       jobId: 'job-1', verified: false, verificationLevel: 'export_job_output' as const, contentDecoded: false as const,
       status: 'encoding', manifestIntegrity: 'canonical' as const, code: 'export_encoding',
     })),
@@ -87,13 +89,13 @@ describe('project-scoped export Agent tools', () => {
   })
 
   it('does not rewrite terminal jobs when cancellation is requested', async () => {
-    const deps = runtime({ getJob: vi.fn(async () => job({ status: 'succeeded', progress: { ratio: 1, stage: 'succeeded', message: 'Succeeded' }, result: { outputPath: 'C:/private/out.mp4', bytes: 1234, durationMs: 2000 } })) })
+    const deps = runtime({ getJob: vi.fn(async () => job({ status: 'succeeded', progress: { ratio: 1, stage: 'succeeded', message: 'Succeeded' }, result: { outputPath: 'C:/private/out.mp4', bytes: 1234, durationMs: 2000, execution: { auditManifestDigest: 'a'.repeat(64), input: { kind: 'filtergraph' }, correlationDigest: 'c'.repeat(64) } } })) })
     await expect(applyExportToolCall('cancel_export_job', { jobId: 'job-1' }, deps)).resolves.toMatchObject({ cancelled: false, code: 'export_not_cancellable', status: 'succeeded' })
     expect(deps.cancelJob).not.toHaveBeenCalled()
   })
 
   it('labels receipt verification honestly without claiming media decode', async () => {
-    const success = runtime({ verifyJob: vi.fn(async () => ({
+    const success = runtime({ verifyJob: vi.fn(async (): Promise<ExportJobVerification> => ({
       jobId: 'job-1', verified: true, verificationLevel: 'export_job_output' as const, contentDecoded: false as const,
       status: 'succeeded', manifestIntegrity: 'canonical' as const, bytes: 4096, durationMs: 2000,
     })) })
@@ -102,7 +104,7 @@ describe('project-scoped export Agent tools', () => {
       jobId: 'job-1', verified: true, verificationLevel: 'export_job_output', contentDecoded: false,
       status: 'succeeded', manifestIntegrity: 'canonical', bytes: 4096, durationMs: 2000,
     })
-    const failed = runtime({ verifyJob: vi.fn(async () => ({
+    const failed = runtime({ verifyJob: vi.fn(async (): Promise<ExportJobVerification> => ({
       jobId: 'job-1', verified: false, verificationLevel: 'export_job_output' as const, contentDecoded: false as const,
       status: 'succeeded', manifestIntegrity: 'canonical' as const, code: 'missing_output',
     })) })

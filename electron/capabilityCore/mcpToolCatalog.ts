@@ -6,12 +6,14 @@
 import { listProductionPlaybookNames } from '../productionRun/productionPlaybooks'
 import { MCP_CAPABILITY_RESOLVER, immutableSchemaSnapshot } from './mcpCapabilityProjection'
 import { MCP_GENERATION_TOOL_CATALOG } from './mcpGenerationTools'
+import { MCP_INTEGRATION_TOOL_CATALOG } from './mcpIntegrationTools'
 import { MCP_PROJECT_SESSION_TOOL } from './mcpProjectSessionTool'
 
 // 工具定义：name → { description, inputSchema(JSON Schema), method(能力核方法), build(args→params) }。
 export const MCP_TOOL_CATALOG = [
   MCP_PROJECT_SESSION_TOOL,
   ...MCP_GENERATION_TOOL_CATALOG,
+  ...MCP_INTEGRATION_TOOL_CATALOG,
   {
     name: 'nomi_list_projects',
     description: '列出本机 Nomi 的所有项目（id / 名称 / 更新时间）。',

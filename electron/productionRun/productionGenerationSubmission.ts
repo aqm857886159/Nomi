@@ -504,7 +504,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     if (!job?.providerTaskId) throw new SubmissionReconciliationRequiredError("A provider task id is required before polling");
 
     const result = await adapter.query({ providerId: job.provider, providerTaskId: job.providerTaskId });
-    const providerStatus = result.status.trim();
+    const providerStatus = result.providerStatus.trim();
     if (!providerStatus) throw new Error("Provider returned an empty poll status");
     const statusClass = classifyProviderStatus(providerStatus);
     const envelopeStore = envelope(run.runId, job.jobId);

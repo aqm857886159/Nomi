@@ -97,6 +97,9 @@ function contentTypeFromStoredFile(absolutePath: string): string {
  */
 function effectiveContentType(fileName: string, declared: string, bytes?: Uint8Array): string {
   const normalized = String(declared || "").toLowerCase().split(";")[0].trim();
+  if (normalized.startsWith("model/") && normalized !== "model/gltf-binary") {
+    throw new Error("Unsupported 3D asset content type");
+  }
   // 声明本身没信息量（空 / octet-stream）：交给 resolveContentType（先文件头、再扩展名）。
   if (!normalized || normalized === "application/octet-stream") return resolveContentType(fileName, bytes);
   const sniffed = bytes ? contentTypeFromMagicBytes(bytes) : null;
@@ -247,8 +250,9 @@ export function writeAsset(
   rawMeta: JsonRecord,
 ): unknown {
   // 唯一 sidecar 写入者之一：capture 族 originalUrl 恒 null 的不变量在此收口（见 assetPaths）。
-  const meta = sanitizeAssetMetaForKind(rawMeta);
+  const meta = validatedGeneratedMeta(sanitizeAssetMetaForKind(rawMeta), contentType, bytes);
   const actualContentType = effectiveContentType(fileName, contentType, bytes);
+  validateStructuredAsset(actualContentType, bytes);
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));
   fs.writeFileSync(absolutePath, bytes);
@@ -288,8 +292,9 @@ export function writeDeterministicAsset(
   rawMeta: JsonRecord,
   materializationKey: string,
 ): unknown {
-  const meta = sanitizeAssetMetaForKind(rawMeta);
+  const meta = validatedGeneratedMeta(sanitizeAssetMetaForKind(rawMeta), contentType, bytes);
   const actualContentType = effectiveContentType(fileName, contentType, bytes);
+  validateStructuredAsset(actualContentType, bytes);
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const parsed = path.parse(sanitizeName(storageFileName, "asset"));
   const keyHash = crypto.createHash("sha256").update(materializationKey).digest("hex").slice(0, 24);
@@ -339,7 +344,7 @@ export async function copyAssetFile(
   contentType: string,
   rawMeta: JsonRecord,
 ): Promise<unknown> {
-  const meta = sanitizeAssetMetaForKind(rawMeta);
+  let meta = sanitizeAssetMetaForKind(rawMeta);
   // 文件头无条件读：声明对不对要靠字节验，只在 octet-stream 时读等于「只在声明已经认输时才查证」。
   const header = await (async () => {
     const handle = await fs.promises.open(sourcePath, "r");
@@ -390,7 +395,7 @@ export function moveAssetFile(
   rawMeta: JsonRecord,
 ): unknown {
   // 唯一 sidecar 写入者之二：与 writeAsset 同一道 capture 族隐私收口。
-  const meta = sanitizeAssetMetaForKind(rawMeta);
+  let meta = sanitizeAssetMetaForKind(rawMeta);
   // 同 copyAssetFile：无条件读文件头，否则撒谎的声明永远没人查证。
   const header = (() => {
     const handle = fs.openSync(sourcePath, "r");

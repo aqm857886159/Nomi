@@ -338,7 +338,7 @@ describe("APIMart observe-only generation provider", () => {
     const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl });
 
     await expect(provider.reconcile?.({ idempotencyKey: "stable-key", providerTaskId: "task-unknown" }))
-      .resolves.toMatchObject({ found: false, status: "mystery", providerTaskId: "task-unknown" });
+      .resolves.toMatchObject({ disposition: "indeterminate", providerTaskId: "task-unknown" });
   });
 
   it("extracts provider-specific image/video output shapes without making a second request", async () => {

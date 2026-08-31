@@ -22,6 +22,7 @@ function snapshot(overrides: Partial<ExportJobSnapshot> = {}): ExportJobSnapshot
       timeline: { fps: 30, durationFrames: 60, range: { startFrame: 0, endFrame: 60 }, tracks: [] },
       profile: { preset: 'publish', container: 'mp4', quality: 'standard', width: 1920, height: 1080, fps: 30, videoCodec: 'h264', pixelFormat: 'yuv420p', audioCodec: 'none', audioMode: 'mute' },
       assets: {},
+      execution: { backend: 'filtergraph' },
     },
     manifestIntegrity: 'canonical',
     outputName: 'final-cut',
