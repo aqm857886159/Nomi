@@ -133,6 +133,66 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     },
   },
   {
+    vendorKey: 'minimax',
+    logo: new URL('../assets/vendor-logos/minimax.png', import.meta.url).href,
+    glyph: 'M',
+    tagline: '官方原生 · M3 文本、H3 视频与 Speech 2.8',
+    credentialPlaceholder: '粘贴 MiniMax API Key',
+    promo: {
+      text: 'MiniMax 官方 API，提供 M3 文本与 Agent、H3 多模态视频和 Speech 2.8 高保真配音。',
+      ctaLabel: '打开 MiniMax 平台',
+      url: 'https://platform.minimax.io',
+    },
+  },
+  {
+    vendorKey: 'elevenlabs',
+    logo: new URL('../assets/vendor-logos/elevenlabs.png', import.meta.url).href,
+    glyph: 'E',
+    tagline: '官方原生 · 配音、音乐、音效与转写',
+    credentialPlaceholder: '粘贴 ElevenLabs API Key',
+    promo: {
+      text: 'ElevenLabs 官方 API，覆盖 Eleven v3、Music v2、Sound Effects v2 与 Scribe v2。',
+      ctaLabel: '打开 ElevenLabs',
+      url: 'https://elevenlabs.io/app/developers/api-keys',
+    },
+  },
+  {
+    vendorKey: 'meshy',
+    logo: new URL('../assets/vendor-logos/meshy.png', import.meta.url).href,
+    glyph: 'M',
+    tagline: '官方原生 · Meshy 7 单图生成带纹理 3D',
+    credentialPlaceholder: '粘贴 Meshy API Key',
+    promo: {
+      text: 'Meshy 官方 API，可从单张物体图生成带 PBR 材质的 GLB 资产。',
+      ctaLabel: '打开 Meshy 控制台',
+      url: 'https://www.meshy.ai/settings/api',
+    },
+  },
+  {
+    vendorKey: 'fal',
+    glyph: 'F',
+    tagline: '官方队列 · 图片、视频、音频与 3D 模型',
+    credentialPlaceholder: '粘贴 fal.ai API Key',
+    credentialHint: '在 fal.ai Dashboard 创建 API Key。不同模型的价格、限额和可用区域以当前账户为准。凭证本地加密存储。',
+    promo: {
+      text: 'fal.ai 官方队列，统一提交、状态和结果生命周期；本目录只保留已对账的旗舰模型。',
+      ctaLabel: '打开 fal.ai',
+      url: 'https://fal.ai/dashboard/keys',
+    },
+  },
+  {
+    vendorKey: 'runway',
+    glyph: 'R',
+    tagline: '官方原生 · Gen-4.5 与 Gen-4 Turbo 视频',
+    credentialPlaceholder: '粘贴 Runway API Key',
+    credentialHint: '在 Runway Dev 创建 API Key。生成会消耗 credits；凭证本地加密存储。',
+    promo: {
+      text: 'Runway Dev 官方 API，提供 Gen-4.5 文生/图生视频与 Gen-4 Turbo 图生视频。',
+      ctaLabel: '打开 Runway Dev',
+      url: 'https://dev.runwayml.com',
+    },
+  },
+  {
     // RunningHub 标准模型 API（openapi/v2）：一个 key 解锁 355+ 模型（Seedance/可灵/Veo/混元3D/Meshy…）。
     // ⚠️ 实测（2026-06-27）：标准模型 API **仅限 Enterprise-Shared（企业级-共享）key**，Consumer/个人 key
     // 会报错误码 1014「访问被拒绝」。故 credentialHint 明着标，免得用户拿个人 key 填进来被 1014 蒙（D4 诚实）。
@@ -193,34 +253,6 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
       text: 'Replicate 托管 qwen-image-layered（开源 Apache 2.0），把一张图拆成前景/背景/元素多个可编辑图层。注册后在 Account 里拿 API token，按量付费。',
       ctaLabel: '去 Replicate 拿 token',
       url: 'https://replicate.com/account/api-tokens',
-    },
-  },
-  {
-    // fal.ai：配置一个 Key 后，fal CDN 可直接接收本地图片/视频/音频；模型仍按用户自己的 endpoint 接入。
-    vendorKey: 'fal',
-    glyph: 'f',
-    tagline: '海外常用 · CDN 上传图片、视频和音频',
-    credentialPlaceholder: '粘贴 fal.ai Key',
-    credentialHint:
-      '在 fal.ai Dashboard 创建 Key。上传走 fal CDN，URL 有生命周期；模型额度、可用区域和价格以当前账户为准。凭证本地加密存储。',
-    promo: {
-      text: 'fal.ai 提供模型 API 与 CDN 文件上传。配置一个 Key 后，Nomi 可以把本地参考素材交给 fal 或其他支持公网 URL 的模型。',
-      ctaLabel: '去 fal.ai 创建 Key',
-      url: 'https://fal.ai/dashboard/keys',
-    },
-  },
-  {
-    // Runway：ephemeral upload 返回 runway://，只交给 Runway 自己，不当成通用图床。
-    vendorKey: 'runway',
-    glyph: 'R',
-    tagline: '海外视频 · 临时素材上传（需账户额度）',
-    credentialPlaceholder: '粘贴 Runway API Key',
-    credentialHint:
-      '在 Runway Developer 控制台创建 API Key。临时上传最多 200MB、有效期约 24 小时，并要求账户有可用 credits。凭证本地加密存储。',
-    promo: {
-      text: 'Runway 的 ephemeral upload 直接返回 Runway 专用 URI，适合 Runway 自己的图像/视频生成链路；上传不等于模型额度免费。',
-      ctaLabel: '去 Runway Developer',
-      url: 'https://dev.runwayml.com',
     },
   },
 ] as const

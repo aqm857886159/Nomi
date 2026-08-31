@@ -14,8 +14,13 @@ export function resultIdentity(result: GenerationNodeResult): string {
   )
 }
 
-function isMediaResult(result: GenerationNodeResult | undefined): result is GenerationNodeResult {
+function isVisualMediaResult(result: GenerationNodeResult | undefined): result is GenerationNodeResult {
   if (!result || (result.type !== 'image' && result.type !== 'video')) return false
+  return Boolean(String(result.url || result.thumbnailUrl || '').trim())
+}
+
+function isAssetResult(result: GenerationNodeResult | undefined): result is GenerationNodeResult {
+  if (!result || !['image', 'video', 'audio', 'model3d'].includes(result.type)) return false
   return Boolean(String(result.url || result.thumbnailUrl || '').trim())
 }
 
@@ -33,7 +38,7 @@ function listNodeResults(node: Pick<GenerationCanvasNode, 'result' | 'history'>)
 }
 
 export function listNodeMediaResults(node: Pick<GenerationCanvasNode, 'result' | 'history'>): GenerationNodeResult[] {
-  return listNodeResults(node).filter(isMediaResult)
+  return listNodeResults(node).filter(isAssetResult)
 }
 
 /**
@@ -41,11 +46,11 @@ export function listNodeMediaResults(node: Pick<GenerationCanvasNode, 'result' |
  * 极旧快照若 current 未进入 history，则把它补到最前；之后仍按 history 原序去重。
  */
 export function listStableNodeMediaResults(node: Pick<GenerationCanvasNode, 'result' | 'history'>): GenerationNodeResult[] {
-  const history = (node.history ?? []).filter(isMediaResult)
+  const history = (node.history ?? []).filter(isVisualMediaResult)
   const seen = new Set<string>()
   const stable: GenerationNodeResult[] = []
   const currentIdentity = node.result ? resultIdentity(node.result) : ''
-  if (isMediaResult(node.result) && !history.some((entry) => resultIdentity(entry) === currentIdentity)) {
+  if (isVisualMediaResult(node.result) && !history.some((entry) => resultIdentity(entry) === currentIdentity)) {
     stable.push(node.result)
     seen.add(currentIdentity)
   }
@@ -64,7 +69,7 @@ export function removeNodeResult(
 ): NodeResultLifecyclePatch | null {
   const results = listNodeResults(node)
   const target = results.find((result) => resultIdentity(result) === identity)
-  if (!target || !isMediaResult(target)) return null
+  if (!target || !isAssetResult(target)) return null
   const remaining = results.filter((result) => resultIdentity(result) !== identity)
   if (remaining.length === 0) {
     return { result: undefined, history: [], status: 'idle', error: undefined }
@@ -73,7 +78,7 @@ export function removeNodeResult(
   const currentResult = currentIdentity && currentIdentity !== identity
     ? remaining.find((result) => resultIdentity(result) === currentIdentity)
     : undefined
-  const nextResult = currentResult ?? remaining.find(isMediaResult)
+  const nextResult = currentResult ?? remaining.find(isAssetResult)
   if (!nextResult) {
     return { result: undefined, history: remaining, status: 'idle', error: undefined }
   }

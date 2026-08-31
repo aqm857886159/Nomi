@@ -7,7 +7,7 @@ import { guessModelKind } from "./modelKindHeuristic";
 import { builtinVendorKeyForHostname } from "./builtinVendorSeeds";
 import { hardenedFetchText } from "../hardenedFetch";
 import type { AiSdkProviderKind, BillingModelKind, HttpOperation, Model, ProfileKind, Vendor } from "./types";
-import type { TaskRequest } from "../runtime";
+import type { ProfileOperationStage, TaskRequest } from "../runtime";
 import { modelHasPublishedExecution } from "../shared/modelPublication";
 import {
   ADAPTER_CANDIDATE_MODEL_PREDECESSORS,
@@ -593,8 +593,8 @@ export async function testModelCatalogMapping(id: string, payload: unknown): Pro
       request: null,
     };
   }
-  const stage = raw?.stage === "result" || raw?.stage === "query" ? "query" : "create";
-  const operation: HttpOperation | undefined = stage === "create" ? mapping.create : mapping.query;
+  const stage: ProfileOperationStage = raw?.stage === "result" ? "result" : raw?.stage === "query" ? "query" : "create";
+  const operation: HttpOperation | undefined = stage === "create" ? mapping.create : stage === "query" ? mapping.query : mapping.result;
   if (!operation) {
     return {
       mappingId: id,

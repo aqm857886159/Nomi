@@ -16,6 +16,7 @@ import { HAPPYHORSE_1_1_ARCHETYPE } from "./happyhorse11";
 import { KLING_3_ARCHETYPE } from "./kling";
 import { KLING_3_TURBO_ARCHETYPE } from "./kling30Turbo";
 import { MINIMAX_H3_ARCHETYPE } from "./minimaxH3";
+import { MINIMAX_H3_MAX_ARCHETYPE } from "./minimaxH3Max";
 import { MINIMAX_H3_APIMART_ARCHETYPE } from "./minimaxH3Apimart";
 import { MINIMAX_H3_REGENERATION_ARCHETYPE } from "./minimaxH3Regeneration";
 import { OMNI_FLASH_EXT_ARCHETYPE } from "./omniFlashExt";
@@ -29,6 +30,10 @@ import { SEEDANCE_VOLCENGINE_ARCHETYPE } from "./seedanceVolcengine";
 import { SEEDANCE_VOLCENGINE_2_5_ARCHETYPE } from "./seedanceVolcengine25";
 import { SORA_2_ARCHETYPE } from "./sora2";
 import { VEO_3_1_ARCHETYPE } from "./veo31";
+import { GEMINI_OMNI_11_ARCHETYPE } from "./geminiOmni11";
+import { RUNWAY_GEN45_ARCHETYPE } from "./runwayGen45";
+import { RUNWAY_GEN4_TURBO_ARCHETYPE } from "./runwayGen4Turbo";
+import { RUNWAY_VIDEO_ARCHETYPE, RUNWAY_VIDEO_T2V_ARCHETYPE } from "./runwayVideo";
 import { VIDU_Q3_ARCHETYPE } from "./viduQ3";
 import { WAN_2_7_ARCHETYPE } from "./wan27";
 import { WAN_3_0_ARCHETYPE } from "./wan30";
@@ -57,6 +62,7 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   SEEDANCE_2_ARCHETYPE,
   SEEDANCE_2_5_ARCHETYPE,
   MINIMAX_H3_ARCHETYPE,
+  MINIMAX_H3_MAX_ARCHETYPE,
   HAPPYHORSE_ARCHETYPE,
   VIDU_Q3_ARCHETYPE,
   KLING_3_TURBO_ARCHETYPE,
@@ -64,6 +70,11 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   GROK_IMAGINE_1_5_VIDEO_ARCHETYPE,
   SORA_2_ARCHETYPE,
   VEO_3_1_ARCHETYPE,
+  GEMINI_OMNI_11_ARCHETYPE,
+  RUNWAY_GEN45_ARCHETYPE,
+  RUNWAY_GEN4_TURBO_ARCHETYPE,
+  RUNWAY_VIDEO_ARCHETYPE,
+  RUNWAY_VIDEO_T2V_ARCHETYPE,
   KLING_3_ARCHETYPE,
   SEEDANCE_2_APIMART_ARCHETYPE,
   SEEDANCE_2_5_APIMART_ARCHETYPE,

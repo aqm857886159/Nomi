@@ -69,6 +69,7 @@ export type AdapterModeDraft = {
   taskKind: ProfileKind;
   create: HttpOperation;
   query?: HttpOperation;
+  result?: HttpOperation;
   statusMapping?: Record<string, string[]>;
   /** request.params key that receives the local reference fixture during verification. */
   referenceParam?: string;
@@ -123,7 +124,7 @@ export type AdapterModeResult = {
   taskKind: ProfileKind;
   state: AdapterModeState;
   attempts: number;
-  stage?: "docs" | "compile" | "localize_reference" | "create" | "poll" | "verify_asset" | "promote";
+  stage?: "docs" | "compile" | "localize_reference" | "create" | "poll" | "result" | "verify_asset" | "promote";
   error?: string;
   /**
    * 失败归类，抛出点查表得来（vendorHttp：401/403→auth、402→balance、429→quota、400/422→input、5xx→server）。

@@ -46,6 +46,16 @@ describe('canvasNodeToAssetRefs', () => {
     const refs = canvasNodeToAssetRefs(canvasNode({ result: first, history: [first, second] }))
     expect(refs.map((ref) => ref.ownerResultId)).toEqual(['r1', 'r2'])
   })
+
+  it.each(['audio', 'model3d'] as const)('maps canvas %s results into the shared asset pool', (kind) => {
+    const ref = canvasNodeToAssetRefs(canvasNode({
+      id: `node-${kind}`,
+      title: kind,
+      result: { id: `result-${kind}`, type: kind, url: `nomi-local://asset/p/result.${kind === 'audio' ? 'mp3' : 'glb'}` } as never,
+    }))[0]
+
+    expect(ref).toMatchObject({ kind, source: 'canvas', ownerNodeId: `node-${kind}` })
+  })
 })
 
 describe('workspaceNodeToAssetRef', () => {
@@ -65,6 +75,17 @@ describe('workspaceNodeToAssetRef', () => {
   it('keeps audio and video', () => {
     expect(workspaceNodeToAssetRef(wsNode({ relativePath: 'a.mp3', kind: 'audio' }), 'p')?.kind).toBe('audio')
     expect(workspaceNodeToAssetRef(wsNode({ relativePath: 'a.mp4', kind: 'video' }), 'p')?.kind).toBe('video')
+  })
+
+  it('recognizes a GLB workspace file from its MIME contract', () => {
+    const ref = workspaceNodeToAssetRef(wsNode({
+      name: 'mesh.glb',
+      relativePath: 'assets/generated/mesh.glb',
+      kind: 'file',
+      contentType: 'model/gltf-binary',
+    }), 'p')
+
+    expect(ref).toMatchObject({ kind: 'model3d', name: 'mesh.glb', source: 'project' })
   })
 })
 

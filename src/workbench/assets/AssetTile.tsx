@@ -1,7 +1,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { IconPlayerPlayFilled, IconPlus } from '@tabler/icons-react'
+import { Icon3dCubeSphere, IconPlayerPlayFilled, IconPlus } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { NomiImage } from '../../design/media'
 import { AssetVideoCover } from './AssetVideoCover'
@@ -135,6 +135,9 @@ export function AssetThumb({ asset, playSize = 22 }: { asset: AssetRef; playSize
       </>
     )
   }
+  if (asset.kind === 'model3d') {
+    return <Icon3dCubeSphere size={playSize + 4} stroke={1.5} className="text-nomi-ink-45" aria-hidden="true" />
+  }
   return (
     <NomiImage
       className={cn('w-full h-full object-cover')}
@@ -152,7 +155,7 @@ export function AssetThumb({ asset, playSize = 22 }: { asset: AssetRef; playSize
 export default function AssetTile({ asset, index, onRemove, onClick, dragProps, className }: AssetTileProps): JSX.Element {
   const clickable = Boolean(onClick)
   // 图用原图、视频用首帧缩略图放大；音频无缩略图不弹。
-  const zoomSrc = asset.kind === 'audio' ? undefined : asset.kind === 'video' ? asset.thumbUrl : asset.renderUrl
+  const zoomSrc = asset.kind === 'audio' || asset.kind === 'model3d' ? undefined : asset.kind === 'video' ? asset.thumbUrl : asset.renderUrl
   const zoom = useHoverZoom(zoomSrc)
   return (
     <>

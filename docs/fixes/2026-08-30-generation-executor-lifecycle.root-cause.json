@@ -1,0 +1,183 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-30-generation-executor-lifecycle",
+  "problem_type": "Generation executors expose incompatible status, recovery, cancellation, and output lifecycles without one normalized control-plane contract",
+  "symptom": "Unknown provider statuses can enter materialization, lost submissions cannot actually reconcile, provider cancellation is unreachable, model3d outputs cannot use the shared materializer, and asynchronous audio mappings are forced through the synchronous TTS runner.",
+  "direct_cause": "The shared adapter passes arbitrary status strings and declares optional reconcile/cancel without executing them, while media routing and output unions encode historical image/video/audio assumptions.",
+  "class_root": "Nomi has no enforced provider-neutral lifecycle algebra at the earliest GenerationProvider and ProductionGenerationSubmission boundaries.",
+  "affected_population": [
+    "Every semantic GenerationProvider task with an unfamiliar vendor status",
+    "Every request whose provider accepted the task but whose local receipt was lost",
+    "Every provider task that a user attempts to cancel",
+    "Official Meshy and other model3d executor outputs",
+    "APIMart, KIE, and future asynchronous audio generation tasks"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/generationRuntimeAdapter.ts",
+    "electron/capabilityCore/generationOutputMaterializer.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/productionRunTypes.ts",
+    "electron/productionRun/productionRunState.ts",
+    "electron/runtime.ts",
+    "electron/catalog/comfyuiCandidateLifecycle.ts",
+    "electron/tasks/assetUrlExtract.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts"
+  ],
+  "entry_points": [
+    "Semantic GenerationProvider submit/query/reconcile/cancel/materialize",
+    "ProductionRun recovery and user cancellation",
+    "Canvas task recovery and staged ComfyUI candidate execution",
+    "Catalog async create/query for audio and model3d"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://platform.minimaxi.com/docs/api-reference/video-generation-v2-create",
+      "checked_at": "2026-08-30",
+      "purpose": "Proves queued/running/terminal status and cancellation dispositions cannot be reduced to HTTP success."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.meshy.ai/en/api/image-to-3d",
+      "checked_at": "2026-08-30",
+      "purpose": "Proves asynchronous model3d status, deletion, and GLB materialization requirements."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/audios/flow-music/music-lyria-3-5",
+      "checked_at": "2026-08-30",
+      "purpose": "Proves an audio billing kind can use asynchronous create/query/result semantics."
+    }
+  ],
+  "invariants": [
+    "Only normalized succeeded state may enter provider output materialization.",
+    "An unknown submission is reconciled before any new submit; indeterminate is never treated as not_found.",
+    "Cancellation distinguishes unsupported, requested, confirmed, already_terminal, and too_late; detached remains Nomi-owned.",
+    "Every declared GenerationProvider output kind is validated and committed through the same bounded asset boundary.",
+    "Audio execution is selected by lifecycle/transport shape, not billing kind alone."
+  ],
+  "generality_proof": "All semantic providers converge on GenerationRuntimeAdapter and ProductionGenerationSubmission, while all catalog mappings converge on runtime routing and the shared task result builder. Enforcing normalized lifecycle and media output rules there covers current APIMart/ComfyUI paths and future MiniMax, Meshy, ElevenLabs, LocalAI, and other executors without vendor branches.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "symbol": "createGenerationRuntimeAdapter",
+      "responsibility": "Normalize provider observation, reconciliation, cancellation, and output kinds."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionGenerationSubmission",
+      "responsibility": "Persist and transition honest provider lifecycle outcomes without duplicate submission."
+    },
+    {
+      "path": "electron/runtime.ts",
+      "symbol": "runTask",
+      "responsibility": "Route synchronous and asynchronous media from declared mapping lifecycle instead of modality assumptions."
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "createGenerationOutputMaterializer",
+      "responsibility": "Validate and commit every supported generated media kind, including GLB."
+    },
+    {
+      "path": "electron/tasks/assetUrlExtract.ts",
+      "symbol": "extractAssetUrl",
+      "responsibility": "Extract declared image, video, audio, and model3d URLs through one provider-neutral result boundary."
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "executeTaskQuery",
+      "responsibility": "Preserve the requested media kind when a terminal URL is materialized from a cached create or query response."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "entry_point": "APIMart query returning unknown when status is absent",
+      "disposition": "enforced",
+      "evidence": "Its arbitrary status string passes through GenerationRuntimeAdapter and ProductionGenerationSubmission."
+    },
+    {
+      "path": "electron/catalog/comfyuiLocal.ts",
+      "entry_point": "ComfyUI model3d query and GLB output",
+      "disposition": "enforced",
+      "evidence": "The catalog path already emits model_url and converges on shared media localization; semantic providers gain the same output invariant."
+    },
+    {
+      "path": "electron/audioTaskRunner.ts",
+      "entry_point": "Synchronous binary TTS and multipart transcription",
+      "disposition": "enforced",
+      "evidence": "Synchronous audio remains at the audio executor while mappings with query/lifecycle enter generic async execution."
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "Cached create response with a direct audio_url or model_url",
+      "disposition": "enforced",
+      "evidence": "Direct terminal URLs use extractAssetUrl and are localized with cached.wantedKind instead of falling back to image."
+    },
+    {
+      "path": "electron/productionRun/productionRunControl.ts",
+      "entry_point": "Run-level cancel",
+      "disposition": "enforced",
+      "evidence": "Run cancellation stays the control-plane command; provider cancellation outcomes are persisted per job and never redefine detached."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every new provider can introduce new status verbs, recovery limits, cancellation behavior, output kinds, or synchronous/asynchronous combinations.",
+    "same_class_scan": [
+      "Searched GenerationProvider declarations and every adapter query/reconcile/cancel/materialize caller.",
+      "Searched ProductionJob transitions for submission_unknown, reconciling, cancel_requested, cancelled_remote, detached, and too_late.",
+      "Searched catalog/runtime routing for audio, model3d, query operations, and output materialization."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/generationRuntimeAdapter.ts",
+    "invariant": "Provider-specific lifecycle evidence is normalized into a closed Nomi algebra before the control plane acts on it.",
+    "failure_mode": "Unknown or unsupported evidence remains non-terminal/attention-required and cannot materialize, resubmit, or claim confirmed cancellation.",
+    "exception_policy": "none",
+    "strategy": "Replace arbitrary provider strings and unreachable optional methods with normalized adapter results, then make ProductionGenerationSubmission and catalog runtime route only on those closed results.",
+    "artifacts": [
+      "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "electron/capabilityCore/generationOutputMaterializer.ts",
+      "electron/runtime.ts",
+      "electron/tasks/assetUrlExtract.ts",
+      "electron/tasks/taskResultQuery.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/generationRuntimeAdapter.test.ts",
+    "electron/productionRun/productionGenerationSubmission.test.ts",
+    "electron/capabilityCore/generationOutputMaterializer.test.ts",
+    "electron/runtime.asyncAudio.test.ts",
+    "electron/tasks/assetUrlExtract.test.ts",
+    "electron/tasks/unpollableTaskQuery.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/generationRuntimeAdapter.test.ts",
+    "electron/productionRun/productionGenerationSubmission.test.ts",
+    "electron/runtime.asyncAudio.test.ts",
+    "electron/tasks/assetUrlExtract.test.ts",
+    "electron/tasks/unpollableTaskQuery.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "electron/runtime.ts"
+    ],
+    "rationale": "Remove arbitrary-status success fallthrough and the billing-kind-only audio routing branch; there is no compatibility fallback."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "This is Nomi's domain lifecycle contract; no dependency version can supply or enforce its persistence semantics.",
+    "exit_criteria": []
+  },
+  "migration": "Existing jobs retain raw providerStatus. On first observation, missing or unfamiliar normalized evidence becomes unknown and requires another query/manual attention; it never becomes succeeded by migration. Existing artifacts and credentials are unchanged.",
+  "residual_risks": [
+    "Real provider cancellation and unknown-submit behavior still require credential-backed certification per provider.",
+    "Full audio/video decodability and H3 audio-track certification require the later media verification slice."
+  ]
+}

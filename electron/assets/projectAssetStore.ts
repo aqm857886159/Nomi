@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import crypto from "node:crypto";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { hardenedFetch } from "../hardenedFetch";
@@ -115,7 +116,7 @@ function generatedMediaKind(contentType: string): "image" | "video" | "audio" | 
 }
 
 /** Generated outputs are executable evidence, not ordinary user imports: fail closed before disk. */
-function validatedGeneratedMeta(meta: JsonRecord, declaredRaw: string, bytes: Uint8Array): JsonRecord {
+function validatedGeneratedMeta(meta: JsonRecord, declaredRaw: string, bytes: Uint8Array, sourcePath?: string): JsonRecord {
   if (String(meta.kind || "").toLowerCase() !== "generated") return meta;
   const prefix = Buffer.from(bytes.subarray(0, 4096)).toString("utf8").trimStart();
   if (/^(?:<!doctype\s+html|<html\b|<\?xml\b|<svg\b|<(?:error|response|message)\b)/i.test(prefix)) {
@@ -158,13 +159,28 @@ function validatedGeneratedMeta(meta: JsonRecord, declaredRaw: string, bytes: Ui
   }
   const map = expectedKind === "audio" ? "0:a:0" : "0:v:0";
   const decodeLimit = expectedKind === "video" ? ["-frames:v", "1"] : expectedKind === "audio" ? ["-t", "1"] : ["-frames:v", "1"];
-  const result = spawnSync(resolveFfmpegPath(), [
-    "-hide_banner", "-v", "error", "-xerror", "-err_detect", "explode",
-    "-protocol_whitelist", MEDIA_DECODER_PROTOCOL_WHITELIST,
-    "-i", "pipe:0", "-map", map, ...decodeLimit, "-f", "null", "-",
-  ], { input: Buffer.from(bytes), timeout: 12_000, maxBuffer: 64 * 1024, windowsHide: true });
-  if (result.error || result.status !== 0) throw new Error("Generated media validation failed (decode_failed)");
-  return cleanMeta;
+  // MP4/MOV commonly stores its index (moov atom) at the end of the file.
+  // Feeding such a container through stdin makes ffmpeg report "partial file"
+  // because a pipe cannot seek. Validate the exact bytes from a 0600 temporary
+  // file when the caller has not already got a Nomi-owned path.
+  let validationPath = sourcePath;
+  let validationDir = "";
+  if (!validationPath || !fs.existsSync(validationPath)) {
+    validationDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-generated-validation-"));
+    validationPath = path.join(validationDir, "artifact.media");
+    fs.writeFileSync(validationPath, Buffer.from(bytes), { mode: 0o600, flag: "wx" });
+  }
+  try {
+    const result = spawnSync(resolveFfmpegPath(), [
+      "-hide_banner", "-v", "error", "-xerror", "-err_detect", "explode",
+      "-protocol_whitelist", MEDIA_DECODER_PROTOCOL_WHITELIST,
+      "-i", validationPath, "-map", map, ...decodeLimit, "-f", "null", "-",
+    ], { timeout: 12_000, maxBuffer: 64 * 1024, windowsHide: true });
+    if (result.error || result.status !== 0) throw new Error("Generated media validation failed (decode_failed)");
+    return cleanMeta;
+  } finally {
+    if (validationDir) fs.rmSync(validationDir, { recursive: true, force: true });
+  }
 }
 
 async function writeAssetSidecarMetaAsync(absolutePath: string, meta: JsonRecord): Promise<void> {
@@ -329,7 +345,7 @@ export async function copyAssetFile(
     }
   })();
   const actualContentType = effectiveContentType(fileName, contentType, header);
-  if (String(meta.kind || "").toLowerCase() === "generated") meta = validatedGeneratedMeta(meta, contentType, await fs.promises.readFile(sourcePath));
+  if (String(meta.kind || "").toLowerCase() === "generated") meta = validatedGeneratedMeta(meta, contentType, await fs.promises.readFile(sourcePath), sourcePath);
   if (actualContentType === "model/gltf-binary") validateStructuredAsset(actualContentType, await fs.promises.readFile(sourcePath));
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));
@@ -378,7 +394,7 @@ export function moveAssetFile(
     }
   })();
   const actualContentType = effectiveContentType(fileName, contentType, header);
-  if (String(meta.kind || "").toLowerCase() === "generated") meta = validatedGeneratedMeta(meta, contentType, fs.readFileSync(sourcePath));
+  if (String(meta.kind || "").toLowerCase() === "generated") meta = validatedGeneratedMeta(meta, contentType, fs.readFileSync(sourcePath), sourcePath);
   if (actualContentType === "model/gltf-binary") validateStructuredAsset(actualContentType, fs.readFileSync(sourcePath));
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));

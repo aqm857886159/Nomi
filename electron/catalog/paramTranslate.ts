@@ -134,15 +134,40 @@ export function toUpperCase(values: Array<string | undefined>): string | undefin
   return value ? value.toUpperCase() : undefined;
 }
 
+/** Strict providers that declare a numeric-looking enum as a JSON string (KIE Gemini duration). */
+export function toString(values: Array<string | undefined>): string | undefined {
+  const value = values[0];
+  return value === undefined ? undefined : String(value);
+}
+
+/** Canonical sound type is a readable one-shot/loop enum; KIE's wire field is boolean. */
+export function soundTypeToLoop(values: Array<string | undefined>): boolean | undefined {
+  const value = values[0]?.trim().toLowerCase();
+  if (!value) return undefined;
+  if (value === "loop") return true;
+  if (value === "one-shot") return false;
+  return undefined;
+}
+
+/** Canonical duration is shown in seconds; Eleven Music accepts integer milliseconds. */
+export function secondsToMilliseconds(values: Array<string | undefined>): number | undefined {
+  const seconds = Number(values[0]);
+  if (!Number.isFinite(seconds) || seconds <= 0) return undefined;
+  return Math.round(seconds * 1000);
+}
+
 /** 命名转换注册表。新增一种转换在此登记，op 用其 id 引用。值转换可返回 string 或 number
  *  （number 用于严格类型的 wire 字段,如 AGNES Go 后端的 int width/height/num_frames）。 */
-export const PARAM_TRANSFORMS: Record<string, (values: Array<string | undefined>) => string | number | undefined> = {
+export const PARAM_TRANSFORMS: Record<string, (values: Array<string | undefined>) => string | number | boolean | undefined> = {
   ratioResToOpenAiSize,
   toLowerCase,
   toUpperCase,
+  toString,
   agnesVideoWidth,
   agnesVideoHeight,
   agnesVideoNumFrames,
+  soundTypeToLoop,
+  secondsToMilliseconds,
 };
 
 // ── 应用翻译：渲染 body 前把 canonical 参数翻译成 wire 字段注入 params ───────────────

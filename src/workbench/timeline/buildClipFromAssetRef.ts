@@ -1,14 +1,14 @@
-import type { AssetKind, AssetRef } from '../assets/assetTypes'
-import type { TimelineClip } from './timelineTypes'
+import type { AssetRef } from '../assets/assetTypes'
+import type { TimelineClip, TimelineTrackType } from './timelineTypes'
 import i18n from '../../i18n'
 
-const DEFAULT_DURATION_SECONDS: Record<AssetKind, number> = {
+const DEFAULT_DURATION_SECONDS: Record<TimelineTrackType, number> = {
   image: 3,
   video: 5,
   audio: 10,
 }
 
-function fallbackLabel(kind: AssetKind): string {
+function fallbackLabel(kind: TimelineTrackType): string {
   if (kind === 'image') return i18n.t('assetLibrary.image')
   if (kind === 'video') return i18n.t('assetLibrary.video')
   return i18n.t('assetLibrary.audio')

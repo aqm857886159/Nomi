@@ -2,7 +2,7 @@
 // 单一真相：缓存命中与无状态重建共用同一段 query。与 runtime 是调用时（函数体内）的循环依赖——
 // ESM/CJS 都按 live binding 在调用时取值，加载期不触碰，安全。
 import { trim, type JsonRecord } from "../jsonUtils";
-import type { Mapping, Model, ProfileKind } from "../catalog/types";
+import type { Model, ProfileKind } from "../catalog/types";
 import { readCatalog } from "../catalog/catalogStore";
 import { desktopT } from "../i18n";
 import { classifyTaskCacheMiss, wasTaskAdmitted } from "./taskAdmission";
@@ -80,6 +80,17 @@ export function unrecognizedStatusExhausted(streak: CachedTask["unrecognizedStat
 }
 
 /**
+ * A queue can report COMPLETED while its result endpoint contains no media.
+ * Treat that as a terminal failure for async media instead of persisting a
+ * misleading succeeded task with an empty asset list. Text tasks and the
+ * synchronous audio runner do not pass through this boundary.
+ */
+export function ensureAsyncMediaOutput(result: TaskResult, wantedKind: string): TaskResult {
+  if (result.status !== "succeeded" || !["image", "video", "audio", "model3d"].includes(wantedKind) || result.assets.length > 0) return result;
+  return { ...result, status: "failed", error: desktopT("tasks.completedWithoutOutput") };
+}
+
+/**
  * 无状态重建续查上下文（治本核心）：内存 taskCache 是 TTL 1h/上限 200/重启即空 的工作缓存，
  * 但续查其实只需 {vendor, modelKey, taskKind, taskId}——mapping/model 都是 catalog 的纯函数产物，
  * providerMeta.task_id 就是持久化的 taskId。渲染层超时找回(重启后也能)把这四个字段喂回来，
@@ -89,6 +100,7 @@ function rebuildCachedTaskFromPayload(taskId: string, raw: JsonRecord): CachedTa
   const vendorKey = trim(raw.vendor);
   const taskKind = trim(raw.taskKind) as ProfileKind;
   const modelKey = trim(raw.modelKey);
+  const modeId = trim(raw.modeId) || (raw.archetype && typeof raw.archetype === "object" ? trim((raw.archetype as JsonRecord).modeId) : "");
   if (!vendorKey || !taskKind || !modelKey) return null;
   const wantedKind = billingKindForTaskKind(taskKind);
   const certificationRevisionId = trim(raw.comfyCertificationRevisionId);
@@ -113,7 +125,7 @@ function rebuildCachedTaskFromPayload(taskId: string, raw: JsonRecord): CachedTa
   } catch {
     return null; // 模型已不可用/未配置 → 无法重建，落回诚实诊断
   }
-  const mapping = stagedCandidate?.mapping || findTaskMapping(vendorKey, taskKind, modelKey);
+  const mapping = stagedCandidate?.mapping || findTaskMapping(vendorKey, taskKind, modelKey, modeId || undefined);
   if (!mapping?.query) return null; // 同步模型无 query op，没法续查
   const projectId = trim(raw.projectId) || activeTaskProjectFallback();
   return {
@@ -123,6 +135,7 @@ function rebuildCachedTaskFromPayload(taskId: string, raw: JsonRecord): CachedTa
       prompt: trim(raw.prompt),
       extras: {
         modelKey,
+        ...(modeId ? { archetype: { modeId } } : {}),
         ...(certificationRevisionId ? { comfyCertificationRevisionId: certificationRevisionId, certifyOutput: true } : {}),
       },
     },
@@ -148,7 +161,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
     // staged revision instead of treating that disabled model as unavailable.
     const stagedCandidate = resolveComfyCandidateExecution(cached.request);
     const { vendor, model, apiKey } = stagedCandidate || findExecutableModel(cached.vendor, cached.model.modelKey, cached.wantedKind);
-    const executed = await executeProfileOperation({
+    let executed = await executeProfileOperation({
       vendor,
       model,
       apiKey,
@@ -161,7 +174,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
         task_id: cached.providerMeta?.task_id || taskId,
       },
     });
-    const normalized = await buildProfileTaskResult({
+    let normalized = await buildProfileTaskResult({
       response: executed.response,
       mapping: cached.mapping,
       operation: queryOperation,
@@ -173,6 +186,40 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
       vendor,
       model,
     });
+    if (normalized.result.status === "succeeded" && cached.mapping.result) {
+      const resultProviderMeta = {
+        ...(cached.providerMeta || {}),
+        ...normalized.providerMeta,
+        query_id: normalized.providerMeta.query_id || cached.providerMeta?.query_id || taskId,
+        task_id: normalized.providerMeta.task_id || cached.providerMeta?.task_id || taskId,
+      };
+      executed = await executeProfileOperation({
+        vendor,
+        model,
+        apiKey,
+        request: cached.request,
+        operation: cached.mapping.result,
+        stage: "result",
+        providerMeta: resultProviderMeta,
+      });
+      const resultNormalized = await buildProfileTaskResult({
+        response: executed.response,
+        mapping: cached.mapping,
+        operation: cached.mapping.result,
+        request: cached.request,
+        taskIdFallback: taskId,
+        wantedKind: cached.wantedKind || model.kind,
+        projectId: cached.projectId,
+        nodeId: cached.nodeId,
+        vendor,
+        model,
+      });
+      normalized = {
+        ...resultNormalized,
+        result: ensureAsyncMediaOutput(resultNormalized.result, cached.wantedKind || model.kind),
+        providerMeta: { ...resultProviderMeta, ...resultNormalized.providerMeta },
+      };
+    }
     // 未知动词的有界容忍：连击够久 → 把「假装排队」翻成诚实的失败，并如实带上原始动词。
     const now = Date.now();
     const streak = advanceUnrecognizedStatusStreak(cached.unrecognizedStatusStreak, normalized.unrecognizedStatus, now);
@@ -211,7 +258,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
 
   const assetUrl = extractAssetUrl(cached.raw);
   if (assetUrl) {
-    const type: "image" | "video" | "model3d" = cached.wantedKind === "video" ? "video" : cached.wantedKind === "model3d" ? "model3d" : "image";
+    const type: "image" | "video" | "audio" | "model3d" = cached.wantedKind === "video" ? "video" : cached.wantedKind === "audio" ? "audio" : cached.wantedKind === "model3d" ? "model3d" : "image";
     // vendor 提示必须带上：本地 ComfyUI 的产物 URL 是私网 /view，缺它 hardenedFetch 会按 SSRF 拒下载。
     const vendorHint = readCatalog().vendors.find((item) => item.key === cached.vendor);
     const asset = cached.projectId
@@ -273,11 +320,13 @@ export async function fetchTaskResult(payload: unknown): Promise<{ vendor: strin
   // 缓存 miss：先试无状态重建（重启/驱逐后仍能续查的治本点）。重建得了就走同一段 query。
   const rebuilt = rebuildCachedTaskFromPayload(taskId, raw);
   if (rebuilt) {
-    try {
-      return await executeTaskQuery(taskId, rebuilt);
-    } catch {
-      // 重建后查询失败(网络/上游) → 落回诚实诊断，别把可重试当未知 id。
-    }
+    // Never turn a real provider/retrieval error into task_tracking_lost. The
+    // renderer treats a thrown query error as recoverable and can retry it for
+    // free; converting it to a terminal cache-miss result made a valid task
+    // unrecoverable after restart (especially when localization hit a transient
+    // CDN/proxy failure). Only an actually unreconstructable task reaches the
+    // cache-miss classifier below.
+    return executeTaskQuery(taskId, rebuilt);
   }
 
   // 区分两种 miss：曾受理但被驱逐/过期(可能 vendor 侧已完成) vs 真·未知 id（修 P1）。

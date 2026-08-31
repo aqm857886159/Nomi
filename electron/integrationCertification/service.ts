@@ -144,6 +144,14 @@ export class ConnectionCertificationService {
     return this.http.configure(input);
   }
 
+  probeExternalLocalRuntime(input: Parameters<HttpProviderConnector["probeExternalLocalRuntime"]>[0]) {
+    return this.http.probeExternalLocalRuntime(input);
+  }
+
+  discoverHttpModels(input: Parameters<HttpProviderConnector["discoverModels"]>[0]) {
+    return this.http.discoverModels(input);
+  }
+
   async startHttp(input: HttpStartInput): Promise<CanonicalHttpCertificationRun> {
     const vendorKey =
       String(input.connection.catalogVendorKey || "").trim() || deriveVendorKeyFromBaseUrl(input.connection.baseUrl);

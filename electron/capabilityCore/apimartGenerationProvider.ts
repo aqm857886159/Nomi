@@ -173,9 +173,9 @@ export function createApimartGenerationProvider(options: ApimartGenerationProvid
       return { outputs: extractMaterializationOutputs(input.raw), raw: input.raw };
     },
     async reconcile(input) {
-      if (!input.providerTaskId?.trim()) return { found: false };
+      if (!input.providerTaskId?.trim()) return { disposition: "indeterminate" };
       const result = await queryTask(input.providerTaskId);
-      return { found: Boolean(result), providerTaskId: input.providerTaskId, raw: result?.raw };
+      return { disposition: "found", providerTaskId: input.providerTaskId, raw: result.raw };
     },
   };
 }

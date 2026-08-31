@@ -15,7 +15,7 @@ import { IconChevronLeft, IconFilter, IconFolderPlus, IconPhoto, IconPlus, IconT
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { useAssetPool } from './useAssetPool'
-import { useAllProjectAssets } from './useAllProjectAssets'
+import { mergeAssetRefs, useAllProjectAssets } from './useAllProjectAssets'
 import { assetsForFolderScope, folderCountsForAssets, useAssetFolderInteractions, useAssetFolders } from './useAssetFolders'
 import { filterAssets, type AssetKind, type AssetRef } from './assetTypes'
 import { ASSET_LIBRARY_DRAG_MIME, serializeAssetLibraryDrag } from './assetLibraryDrag'
@@ -34,7 +34,7 @@ import {
 } from './AssetLibraryPanelParts'
 import { AssetPreviewDialog } from './AssetPreviewDialog'
 import { ASSET_KIND_FILTER_VALUES, FILTER_OPTIONS, type FilterValue } from './assetLibraryPanelFilters'
-import { filterImageVideoAssets, filterPlayableAssets } from './assetLibrarySources'
+import { filterCanvasLibraryAssets, filterPlayableAssets } from './assetLibrarySources'
 import { deleteAssetResult } from './deleteAssetResult'
 import { addAssetToTimelineEnd } from '../timeline/addAssetToTimeline'
 import { useAssetLibraryLocalImport } from './assetLibraryLocalImport'
@@ -148,18 +148,23 @@ export function AssetLibraryContent({
 
   const {
     canvasAssets,
+    projectAssets: workspaceProjectAssets,
     refresh: refreshProjectAssets,
   } = useAssetPool(projectId)
   const { assets: allProjectAssets, refresh: refreshAllProjectAssets } = useAllProjectAssets()
   const localImport = useAssetLibraryLocalImport({ projectId, refreshProjectAssets, refreshAllProjectAssets })
   const folderApi = useAssetFolders(projectId)
   const allSourceAssets = React.useMemo(
-    () => (includeAudio ? filterPlayableAssets(allProjectAssets) : filterImageVideoAssets(allProjectAssets)),
+    () => (includeAudio ? filterPlayableAssets(allProjectAssets) : filterCanvasLibraryAssets(allProjectAssets)),
     [allProjectAssets, includeAudio],
   )
+  const currentProjectAssets = React.useMemo(
+    () => mergeAssetRefs(canvasAssets, workspaceProjectAssets),
+    [canvasAssets, workspaceProjectAssets],
+  )
   const projectSourceAssets = React.useMemo(
-    () => (includeAudio ? filterPlayableAssets(canvasAssets) : filterImageVideoAssets(canvasAssets)),
-    [canvasAssets, includeAudio],
+    () => (includeAudio ? filterPlayableAssets(currentProjectAssets) : filterCanvasLibraryAssets(currentProjectAssets)),
+    [currentProjectAssets, includeAudio],
   )
 
   const sourceFilteredAssets = React.useMemo(
@@ -732,7 +737,7 @@ export function AssetLibraryContent({
                   asset={asset}
                   compact
                   selectable={projectSelectionEnabled}
-                  draggable
+                  draggable={asset.kind !== 'model3d'}
                   selected={selectedIds.has(asset.id)}
                   dragHint={assetDragHint}
                   onSelect={activateAsset}
@@ -767,7 +772,7 @@ export function AssetLibraryContent({
                         key={asset.id}
                         asset={asset}
                         selectable={projectSelectionEnabled}
-                        draggable
+                        draggable={asset.kind !== 'model3d'}
                         selected={selectedIds.has(asset.id)}
                         dragHint={assetDragHint}
                         onSelect={activateAsset}

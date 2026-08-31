@@ -71,6 +71,13 @@ import { CODEX_LOCAL_VENDOR_SEED, CODEX_IMAGE_CURATED_MODELS, CODEX_IMAGE_CURATE
 import { VOLCENGINE_IMAGE_MODELS } from "./volcengineImages";
 import { VOLCENGINE_AUDIO_MODELS } from "./volcengineAudios";
 import { VOLCENGINE_SEEDANCE_QUERY_OP, VOLCENGINE_SEEDANCE_STATUS_MAPPING, VOLCENGINE_VIDEO_MODELS } from "./volcengineVideos";
+import { GEMINI_OMNI_11_MAPPINGS, GEMINI_OMNI_11_MODEL_SEED } from "./kieGeminiOmni11";
+import { KIE_SUNO_MUSIC_MAPPINGS, KIE_SUNO_MUSIC_MODEL_SEED, KIE_SUNO_SFX_MAPPING, KIE_SUNO_SFX_MODEL_SEED } from "./kieSunoAudio";
+import { MINIMAX_OFFICIAL_MODELS, MINIMAX_VENDOR_SEED } from "./minimaxOfficial";
+import { ELEVENLABS_MODELS, ELEVENLABS_VENDOR_SEED } from "./elevenlabs";
+import { MESHY_MODELS, MESHY_VENDOR_SEED } from "./meshyOfficial";
+import { FAL_OFFICIAL_MODELS, FAL_VENDOR_SEED } from "./falOfficial";
+import { RUNWAY_OFFICIAL_MODELS, RUNWAY_VENDOR_SEED } from "./runwayOfficial";
 
 /** curated 模型/mapping 的内部类型（reconcile 两函数的输入）。 */
 type CuratedModel = {
@@ -81,13 +88,16 @@ type CuratedModel = {
   /** 代码所有的额外 meta（如 ComfyUI 长尾 workflow 的 parameters 动态控件）；与 archetypeId 合并进 meta。 */
   meta?: Record<string, unknown>;
 };
+type CatalogLifecycle = "flagship" | "value" | "companion" | "legacy";
 type CuratedMapping = {
   id: string;
   taskKind: Mapping["taskKind"];
   modelKey?: string;
+  modeId?: string;
   name: string;
   create: HttpOperation;
   query?: HttpOperation;
+  result?: HttpOperation;
   statusMapping?: Mapping["statusMapping"];
 };
 
@@ -125,6 +135,9 @@ const KIE_CURATED_MODELS: CuratedModel[] = [
   { modelKey: WAN_3_0_MODEL_SEED.modelKey, labelZh: WAN_3_0_MODEL_SEED.labelZh, kind: WAN_3_0_MODEL_SEED.kind, archetypeId: "wan-3.0" },
   // 2026-08 代图像（表驱动单源，见 kieImages2026）：Nano Banana 2 / 2 Lite、Seedream 5.0 Pro / Lite、FLUX.2 Pro。
   ...KIE_IMAGE_MODELS_2026.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "image" as const, archetypeId: m.archetypeId })),
+  { ...GEMINI_OMNI_11_MODEL_SEED, archetypeId: "gemini-omni-1.1" },
+  { ...KIE_SUNO_MUSIC_MODEL_SEED, archetypeId: "suno-v5.5" },
+  { ...KIE_SUNO_SFX_MODEL_SEED, archetypeId: "suno-sfx-v5.5" },
 ];
 
 /** kie 的 curated mapping（单源；create/query/statusMapping = 代码所有，强制对账）。 */
@@ -154,6 +167,9 @@ const KIE_CURATED_MAPPINGS: CuratedMapping[] = [
       create: mp.create, query: KIE_IMAGE_2026_QUERY, statusMapping: KIE_IMAGE_2026_STATUS,
     })),
   ),
+  ...GEMINI_OMNI_11_MAPPINGS,
+  ...KIE_SUNO_MUSIC_MAPPINGS,
+  KIE_SUNO_SFX_MAPPING,
 ];
 
 /** apimart 的 curated 模型 + mapping，从单源 APIMART_IMAGE_MODELS / APIMART_VIDEO_MODELS 派生。 */
@@ -192,6 +208,7 @@ const APIMART_CURATED_MAPPINGS: CuratedMapping[] = [
   ...APIMART_AUDIO_MODELS.flatMap((m) =>
     m.mappings.map((mp) => ({
       id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name, create: mp.create,
+      query: mp.query, statusMapping: mp.statusMapping,
     })),
   ),
 ];
@@ -259,6 +276,26 @@ const VOLCENGINE_SPEECH_CURATED_MAPPINGS: CuratedMapping[] = VOLCENGINE_AUDIO_MO
   })),
 );
 
+const officialCuratedModels = <T extends CuratedModel & { mappings: unknown }>(models: readonly T[]): CuratedModel[] =>
+  models.map(({ modelKey, labelZh, kind, archetypeId, meta }) => ({ modelKey, labelZh, kind, archetypeId, meta }));
+
+const officialCuratedMappings = <T extends { modelKey: string; mappings: readonly CuratedMapping[] }>(
+  models: readonly T[],
+): CuratedMapping[] => models.flatMap((model) =>
+  model.mappings.map((mapping) => ({ ...mapping, modelKey: model.modelKey })),
+);
+
+const MINIMAX_OFFICIAL_CURATED_MODELS = officialCuratedModels(MINIMAX_OFFICIAL_MODELS);
+const MINIMAX_OFFICIAL_CURATED_MAPPINGS = officialCuratedMappings(MINIMAX_OFFICIAL_MODELS);
+const ELEVENLABS_CURATED_MODELS = officialCuratedModels(ELEVENLABS_MODELS);
+const ELEVENLABS_CURATED_MAPPINGS = officialCuratedMappings(ELEVENLABS_MODELS);
+const MESHY_CURATED_MODELS = officialCuratedModels(MESHY_MODELS);
+const MESHY_CURATED_MAPPINGS = officialCuratedMappings(MESHY_MODELS);
+const FAL_CURATED_MODELS = officialCuratedModels(FAL_OFFICIAL_MODELS);
+const FAL_CURATED_MAPPINGS = officialCuratedMappings(FAL_OFFICIAL_MODELS);
+const RUNWAY_CURATED_MODELS = officialCuratedModels(RUNWAY_OFFICIAL_MODELS);
+const RUNWAY_CURATED_MAPPINGS = officialCuratedMappings(RUNWAY_OFFICIAL_MODELS);
+
 /**
  * **退役的 curated 记录（变体合并迁移，2026-06-16）**：Seedance 一族原是 4 个独立 catalog 行
  * （标准/fast/face/fast-face），合并成 1 行后，老装机里残留 3 个变体模型 + 6 条 mapping 成孤儿
@@ -324,10 +361,19 @@ function pruneRetiredMappings(mappings: Mapping[], retiredIds: readonly string[]
   return changed;
 }
 
-/** 供应商种子（裸 baseUrl + bearer）。存在即跳过（用户配置不覆盖）。返回是否变更。
+/** 供应商种子（裸 baseUrl + bearer）。存在即跳过（用户配置不覆盖）；仅对账代码声明的旧官方 host。
  *  多数种子默认 enabled:true；无鉴权本地后端（ComfyUI）带 `enabled:false` → 默认关、用户显式启用（污染防护）。 */
 function seedVendor(vendors: Vendor[], seed: VendorSeed, now: string): boolean {
-  if (vendors.some((v) => v.key === seed.key)) return false;
+  const existingIndex = vendors.findIndex((v) => v.key === seed.key);
+  if (existingIndex >= 0) {
+    const existing = vendors[existingIndex];
+    // 只迁移仍指向我们旧默认值的记录。用户改成自建中转/代理时，绝不能因为升级而覆盖。
+    if (seed.legacyBaseUrls?.includes(String(existing.baseUrlHint ?? ""))) {
+      vendors[existingIndex] = { ...existing, baseUrlHint: seed.baseUrl, updatedAt: now };
+      return true;
+    }
+    return false;
+  }
   const enabled = seed.enabled === false ? false : true;
   vendors.push({
     key: seed.key, name: seed.name, enabled,
@@ -405,7 +451,146 @@ const CANONICAL_MODEL_IDS: Record<string, string> = {
   // Hailuo 2.3（apimart / RunningHub）
   "MiniMax-Hailuo-2.3": "hailuo 2.3",
   "rh-hailuo-2.3": "hailuo 2.3",
+  "suno-v5-5": "suno v5.5",
+  "suno-v5.5": "suno v5.5",
+  "suno-sounds-v5-5": "suno sounds v5.5",
+  "suno-sounds-v5.5": "suno sounds v5.5",
 };
+
+/**
+ * Curated lifecycle is an explicit product decision, never a version/name heuristic.
+ * Models omitted from these reviewed sets remain useful companion routes. Keeping the
+ * table keyed by exact upstream model id also makes a future radar update auditable.
+ */
+const FLAGSHIP_MODEL_KEYS = new Set([
+  // Current text and multimodal leaders.
+  "deepseek-v4-pro",
+  "gemini-3.5-flash",
+  // Current image leaders.
+  "gpt-image-2-text-to-image",
+  "gpt-image-2-image-to-image",
+  "gpt-image-2",
+  "nano-banana-2",
+  "gemini-3.1-flash-image-preview",
+  "seedream/5-pro-text-to-image",
+  "doubao-seedream-5-0-pro",
+  "doubao-seedream-5-0-pro-260628",
+  "flux-2/pro-text-to-image",
+  "qwen-image-3.0",
+  // Current video leaders.
+  "bytedance/seedance-2-5",
+  "doubao-seedance-2.5",
+  "doubao-seedance-2-5-260628",
+  "kling-3.0",
+  "kling-3.0-turbo",
+  "kling-v3",
+  "kling-v3.0-pro",
+  "minimax-h3",
+  "MiniMax-H3",
+  "MiniMax-M3",
+  "wan/3-0-video",
+  "wan3.0-video",
+  "viduq3",
+  "grok-imagine-1.5-video-apimart",
+  // Current 3D leader already available through the aggregate route.
+  "hunyuan3d-v3.1",
+  "google/gemini-omni-flash-1-1",
+  "suno-v5.5",
+  "suno-sounds-v5.5",
+  "suno-sounds-v5-5",
+  "flowmusic-lyria-3.5",
+  "speech-2.8-hd",
+  "eleven_v3",
+  "music_v2",
+  "eleven_text_to_sound_v2",
+  "scribe_v2",
+  "meshy-7",
+  "fal-ai/nano-banana-2",
+  "openai/gpt-image-2",
+  "bytedance/seedream/v5/pro",
+  "minimax/h3-max",
+  "bytedance/seedance-2.5",
+  "fal-ai/kling-video/v3/pro",
+  "google/gemini-omni-flash/v1.1",
+  "minimax/music-3",
+  "fal-ai/elevenlabs/sound-effects/v2",
+  "hitem3d/hi3d/v3.0",
+  // Runway Dev official catalog (video + image families; exact ids are from
+  // the 2024-11-06 OpenAPI discriminator, not name heuristics).
+  "gen4.5",
+  "gen4_turbo",
+  "seedance2_5",
+  "seedance2",
+  "seedance2_fast",
+  "seedance2_mini",
+  "wan3",
+  "grok_imagine_1_5",
+  "hailuo3",
+  "veo3.1",
+  "veo3.1_fast",
+  "gemini_omni_flash",
+  "muse_image",
+  "grok_imagine_image_2",
+  "seedream5_pro",
+  "seedream5_lite",
+  "gen4_image",
+  "gen4_image_turbo",
+  "gemini_image3_pro",
+  "gemini_image3.1_flash",
+  "gpt_image_2",
+  "gemini_2.5_flash",
+]);
+
+const VALUE_MODEL_KEYS = new Set([
+  "deepseek-v4-flash",
+  "nano-banana-2-lite",
+  "seedream/5-lite-text-to-image",
+  "doubao-seedream-5-0-260128",
+  "z-image-turbo",
+  "Tongyi-MAI/Z-Image-Turbo",
+  "Qwen/Qwen3-Next-80B-A3B-Instruct",
+  "Qwen/Qwen3-30B-A3B",
+  "Qwen/Qwen3-8B",
+  "agnes-2.5-flash",
+  "agnes-video-2.5-flash",
+  "speech-2.8-turbo",
+]);
+
+const LEGACY_MODEL_KEYS = new Set([
+  "happyhorse",
+  "seedream",
+  "doubao-seedream-4.5",
+  "doubao-seedream-4-5-251128",
+  "doubao-seedream-4-0-250828",
+  "seedream-v4.5",
+  "nano-banana",
+  "gemini-2.5-flash-image-preview",
+  "rhart-image-v1",
+  "bytedance/seedance-2",
+  "doubao-seedance-2.0",
+  "doubao-seedance-2-0-260128",
+  "bytedance/seedance-2.0-global",
+  "agnes-2.0-flash",
+  "agnes-image-2.0-flash",
+  "agnes-video-v2.0",
+  "meshy6",
+  "deepseek-v3.2",
+  "deepseek-v3.2-think",
+  "deepseek-v3.1-terminus",
+  "qwen-image-2.0",
+  "rh-qwen-image-2.0",
+  "wan2.7",
+  "rh-wan-2.7",
+  "Omni-Flash-Ext",
+  "nomi-audio",
+]);
+
+function curatedCatalogLifecycle(modelKey: string): CatalogLifecycle {
+  if (FLAGSHIP_MODEL_KEYS.has(modelKey)) return "flagship";
+  if (VALUE_MODEL_KEYS.has(modelKey)) return "value";
+  if (LEGACY_MODEL_KEYS.has(modelKey)) return "legacy";
+  return "companion";
+}
 
 function reconcileModels(models: Model[], vendorKey: string, curated: CuratedModel[], now: string): boolean {
   let changed = false;
@@ -416,6 +601,7 @@ function reconcileModels(models: Model[], vendorKey: string, curated: CuratedMod
       ...(c.archetypeId ? { archetypeId: c.archetypeId } : {}),
       ...(canonicalId ? { canonicalModelId: canonicalId } : {}),
       ...(c.meta || {}),
+      catalogLifecycle: curatedCatalogLifecycle(c.modelKey),
     };
     const i = models.findIndex((m) => m.modelKey === c.modelKey && m.vendorKey === vendorKey);
     if (i < 0) {
@@ -448,8 +634,8 @@ function reconcileModels(models: Model[], vendorKey: string, curated: CuratedMod
 
 /**
  * 某供应商的 curated mapping insert + 对账（供应商无关，根因修复见原注释）。
- *   · 已存在（按稳定 seed id）→ 强制对账 create/query/statusMapping/taskKind/modelKey（代码所有），老装机自愈；
- *   · 缺失 → 仅当同 (vendor, taskKind, modelKey) 身份未被用户/onboarding 记录占用时插入（不重复占槽）。
+ *   · 已存在（按稳定 seed id）→ 强制对账 create/query/result/statusMapping/taskKind/modelKey/modeId（代码所有），老装机自愈；
+ *   · 缺失 → 仅当同 (vendor, taskKind, modelKey, modeId) 身份未被用户/onboarding 记录占用时插入（不重复占槽）。
  * name/enabled/createdAt = 用户所有，保留。返回是否变更。
  */
 function reconcileMappings(mappings: Mapping[], vendorKey: string, curated: CuratedMapping[], now: string): boolean {
@@ -461,20 +647,23 @@ function reconcileMappings(mappings: Mapping[], vendorKey: string, curated: Cura
       const drift =
         ex.taskKind !== c.taskKind ||
         (ex.modelKey || undefined) !== (c.modelKey || undefined) ||
+        (ex.modeId || undefined) !== (c.modeId || undefined) ||
         JSON.stringify(ex.create) !== JSON.stringify(c.create) ||
         JSON.stringify(ex.query) !== JSON.stringify(c.query) ||
+        JSON.stringify(ex.result) !== JSON.stringify(c.result) ||
         JSON.stringify(ex.statusMapping) !== JSON.stringify(c.statusMapping);
       if (drift) {
-        mappings[i] = { ...ex, taskKind: c.taskKind, modelKey: c.modelKey, name: ex.name ?? c.name, create: c.create, query: c.query, statusMapping: c.statusMapping, updatedAt: now };
+        mappings[i] = { ...ex, taskKind: c.taskKind, modelKey: c.modelKey, modeId: c.modeId, name: ex.name ?? c.name, create: c.create, query: c.query, result: c.result, statusMapping: c.statusMapping, updatedAt: now };
         changed = true;
       }
       continue;
     }
-    if (mappings.some((m) => m.vendorKey === vendorKey && m.taskKind === c.taskKind && (m.modelKey || undefined) === (c.modelKey || undefined))) continue;
+    if (mappings.some((m) => m.vendorKey === vendorKey && m.taskKind === c.taskKind && (m.modelKey || undefined) === (c.modelKey || undefined) && (m.modeId || undefined) === (c.modeId || undefined))) continue;
     mappings.push({
       id: c.id, vendorKey, taskKind: c.taskKind,
       ...(c.modelKey ? { modelKey: c.modelKey } : {}),
-      name: c.name, enabled: true, create: c.create, query: c.query, statusMapping: c.statusMapping,
+      ...(c.modeId ? { modeId: c.modeId } : {}),
+      name: c.name, enabled: true, create: c.create, query: c.query, result: c.result, statusMapping: c.statusMapping,
       createdAt: now, updatedAt: now,
     });
     changed = true;
@@ -518,6 +707,11 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_IMAGE_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, COMFYUI_VENDOR_SEED.key, COMFYUI_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, CODEX_LOCAL_VENDOR_SEED.key, CODEX_IMAGE_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, MINIMAX_VENDOR_SEED.key, MINIMAX_OFFICIAL_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, ELEVENLABS_VENDOR_SEED.key, ELEVENLABS_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, MESHY_VENDOR_SEED.key, MESHY_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, FAL_VENDOR_SEED.key, FAL_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, RUNWAY_VENDOR_SEED.key, RUNWAY_CURATED_MODELS, now)) changed = true;
 
   // kie 历史包袱 repair：把视频形状的坏 (kie, text_to_image) 替换成正确的 GPT Image 2 文生图契约
   // （旧 onboarding 抽错留下的；契约见 kieGptImage2.ts 直连实测确认）。apimart 无此历史，不需要。
@@ -549,6 +743,11 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_IMAGE_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, COMFYUI_VENDOR_SEED.key, COMFYUI_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, CODEX_LOCAL_VENDOR_SEED.key, CODEX_IMAGE_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileMappings(mappings, MINIMAX_VENDOR_SEED.key, MINIMAX_OFFICIAL_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileMappings(mappings, ELEVENLABS_VENDOR_SEED.key, ELEVENLABS_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileMappings(mappings, MESHY_VENDOR_SEED.key, MESHY_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileMappings(mappings, FAL_VENDOR_SEED.key, FAL_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileMappings(mappings, RUNWAY_VENDOR_SEED.key, RUNWAY_CURATED_MAPPINGS, now)) changed = true;
 
   if (!changed) return { state, changed: false };
   return { state: { ...state, vendors, models, mappings }, changed: true };

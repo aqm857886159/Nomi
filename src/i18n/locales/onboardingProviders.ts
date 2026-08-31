@@ -472,6 +472,24 @@ export const zhOnboardingProviders = {
       promoText: '火山方舟（字节跳动）官方。需先在 Ark 控制台「开通管理」激活模型（Seedream/Seedance），再拿 API Key。',
       promoCta: '去火山方舟',
     },
+    minimax: {
+      tagline: '官方原生 · M3 文本、H3 视频与 Speech 2.8',
+      credentialPlaceholder: '粘贴 MiniMax API Key',
+      promoText: 'MiniMax 官方 API，提供 M3 文本与 Agent、H3 多模态视频和 Speech 2.8 高保真配音。',
+      promoCta: '打开 MiniMax 平台',
+    },
+    elevenlabs: {
+      tagline: '官方原生 · 配音、音乐、音效与转写',
+      credentialPlaceholder: '粘贴 ElevenLabs API Key',
+      promoText: 'ElevenLabs 官方 API，覆盖 Eleven v3、Music v2、Sound Effects v2 与 Scribe v2。',
+      promoCta: '打开 ElevenLabs',
+    },
+    meshy: {
+      tagline: '官方原生 · Meshy 7 单图生成带纹理 3D',
+      credentialPlaceholder: '粘贴 Meshy API Key',
+      promoText: 'Meshy 官方 API，可从单张物体图生成带 PBR 材质的 GLB 资产。',
+      promoCta: '打开 Meshy 控制台',
+    },
     runninghub: {
       tagline: '一个 key，解锁 355+ 标准模型（Seedance / 可灵 / 混元3D / Meshy…）',
       credentialPlaceholder: '粘贴 RunningHub API Key（32 位）',
@@ -1664,6 +1682,24 @@ export const enOnboardingProviders = {
       promoText:
         'Volcengine Ark is ByteDance’s official platform. Activate Seedream or Seedance in the Ark console before creating an API Key.',
       promoCta: 'Open Volcengine Ark',
+    },
+    minimax: {
+      tagline: 'Official access · M3 text, H3 video, and Speech 2.8',
+      credentialPlaceholder: 'Paste your MiniMax API Key',
+      promoText: 'MiniMax official APIs for M3 text and agents, H3 multimodal video, and high-fidelity Speech 2.8 voice generation.',
+      promoCta: 'Open MiniMax platform',
+    },
+    elevenlabs: {
+      tagline: 'Official access · Voice, music, sound effects, and transcription',
+      credentialPlaceholder: 'Paste your ElevenLabs API Key',
+      promoText: 'ElevenLabs official APIs for Eleven v3, Music v2, Sound Effects v2, and Scribe v2.',
+      promoCta: 'Open ElevenLabs',
+    },
+    meshy: {
+      tagline: 'Official access · Meshy 7 textured 3D from one image',
+      credentialPlaceholder: 'Paste your Meshy API Key',
+      promoText: 'Meshy official API turns a single object image into a textured GLB asset with PBR materials.',
+      promoCta: 'Open Meshy console',
     },
     runninghub: {
       tagline: 'One key unlocks 355+ models, including Seedance, Kling, Hunyuan 3D, and Meshy',

@@ -58,7 +58,7 @@ describe("参数一致性不变量：内置 (模型×模式) canonical 参数都
         const canonicalKeys = mode.params.map((p) => p.key);
         if (canonicalKeys.length === 0) continue;
         const taskKind = mode.transportTaskKind ?? archetype.transportTaskKind;
-        const mapping = selectTaskMapping(state.mappings, model.vendorKey, taskKind, model.modelKey);
+        const mapping = selectTaskMapping(state.mappings, model.vendorKey, taskKind, model.modelKey, mode.id);
         if (!mapping) continue; // 该 (vendor, mode) 没内置 codec —— 另一类问题，本不变量不管
 
         const covered = coveredWireKeys(mapping.create);

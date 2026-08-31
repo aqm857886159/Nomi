@@ -39,16 +39,25 @@ const SYNC_IMAGE_MAPPING = {
  * 受理一个「已经在轮询中」的任务。raw = create 当时的响应；mapping 省略即模拟 runtime.ts:505
  * 那条无 mapping 的 fallback 受理。
  */
-async function seedPendingTask(taskId: string, raw: unknown, mapping?: unknown) {
+async function seedPendingTask(
+  taskId: string,
+  raw: unknown,
+  mapping?: unknown,
+  wantedKind: "image" | "audio" = "image",
+) {
   const { admitTask, taskCache } = await import("../runtime");
   taskCache.delete(taskId);
   admitTask(taskId, {
     vendor: "relay",
-    request: { kind: "text_to_image", prompt: "a cat", extras: { modelKey: "relay-image" } },
+    request: {
+      kind: wantedKind === "audio" ? "text_to_audio" : "text_to_image",
+      prompt: wantedKind === "audio" ? "a short sting" : "a cat",
+      extras: { modelKey: wantedKind === "audio" ? "relay-audio" : "relay-image" },
+    },
     raw,
     ...(mapping ? { mapping: mapping as never } : {}),
-    model: { modelKey: "relay-image", kind: "image" } as never,
-    wantedKind: "image",
+    model: { modelKey: wantedKind === "audio" ? "relay-audio" : "relay-image", kind: wantedKind } as never,
+    wantedKind,
   });
 }
 
@@ -117,5 +126,27 @@ describe("无 query op 的任务：轮询立刻拿到诚实终态，不再永远
     expect(polled.result.status).toBe("succeeded");
     expect(polled.result.assets).toHaveLength(1);
     expect(polled.result.assets[0].url).toBe("https://cdn.example.com/out.png");
+  });
+
+  it("create 直接返回 audio_url 时保留音频资产类型", async () => {
+    const { fetchTaskResult } = await import("./taskResultQuery");
+    await seedPendingTask(
+      "task-sync-audio-asset",
+      { audio_url: "https://cdn.example.com/out.mp3" },
+      {
+        name: "relay audio",
+        enabled: true,
+        create: { method: "POST", path: "/v1/audio", response_mapping: { audio_url: "audio_url" } },
+      },
+      "audio",
+    );
+
+    const polled = await fetchTaskResult({ taskId: "task-sync-audio-asset" });
+
+    expect(polled.result.status).toBe("succeeded");
+    expect(polled.result.assets).toEqual([expect.objectContaining({
+      type: "audio",
+      url: "https://cdn.example.com/out.mp3",
+    })]);
   });
 });

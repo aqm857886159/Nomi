@@ -6,7 +6,7 @@ import { chmod, lstat, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { validateAntigravityImage } from "../ai/antigravityArtifacts";
 import { Model3DValidationError, validateGlbStructure } from "../assets/model3dValidation";
 import { contentTypeFromMagicBytes, extensionFromContentType, isCertifiableMediaContentType, MEDIA_TYPES } from "../assets/mediaTypes";
-import { decodeMediaBytes, probeMediaBytes, type MediaProbeMetadata } from "../export/mediaProbe";
+import { decodeMediaBytes, decodeMediaFile, probeMediaBytes, probeMediaMetadata, type MediaProbeMetadata } from "../export/mediaProbe";
 import { hardenedFetch, type HardenedFetchResult } from "../hardenedFetch";
 import {
   completeCertificationCleanupLease,
@@ -457,8 +457,10 @@ export async function certifyMediaArtifact(
       || (input.expectedKind === "model3d" ? "glb" : "bin");
     const managedPath = path.join(runDirectory, `artifact.${extension}`);
     await writeFile(managedPath, acquired.bytes, { flag: "wx", mode: 0o600 });
-    // This immutable in-memory copy is the single source for digest, probe and decode.
-    // The managed file is only a bounded Nomi-owned materialization, never a security oracle.
+    // This immutable in-memory copy is the single source for the digest. The
+    // managed file is a bounded Nomi-owned materialization of those exact bytes;
+    // ffprobe/ffmpeg read it so seek-required containers (notably MP4) are
+    // validated faithfully instead of being misread as truncated stdin.
     const managedBytes = Buffer.from(acquired.bytes);
     let metadata: CertificationMediaEvidence["metadata"] = Object.freeze({});
 
@@ -490,12 +492,19 @@ export async function certifyMediaArtifact(
       let probed: MediaProbeMetadata;
       try {
         probed = await runWithDecoderDeadline(
-          (signal) => probe(managedBytes, {
-            signal,
-            timeoutMs: limits.decoderTimeoutMs,
-            maxStdoutBytes: DEFAULT_PROCESS_STDOUT_LIMIT,
-            maxStderrBytes: DEFAULT_PROCESS_STDERR_LIMIT,
-          }),
+          (signal) => dependencies.probeMedia
+            ? probe(managedBytes, {
+                signal,
+                timeoutMs: limits.decoderTimeoutMs,
+                maxStdoutBytes: DEFAULT_PROCESS_STDOUT_LIMIT,
+                maxStderrBytes: DEFAULT_PROCESS_STDERR_LIMIT,
+              })
+            : probeMediaMetadata(managedPath, {
+                signal,
+                timeoutMs: limits.decoderTimeoutMs,
+                maxStdoutBytes: DEFAULT_PROCESS_STDOUT_LIMIT,
+                maxStderrBytes: DEFAULT_PROCESS_STDERR_LIMIT,
+              }),
           limits.decoderTimeoutMs,
           input.signal,
         );
@@ -534,12 +543,19 @@ export async function certifyMediaArtifact(
       }
       try {
         await runWithDecoderDeadline(
-          (signal) => decode(managedBytes, input.expectedKind as "video" | "audio", {
-            signal,
-            timeoutMs: limits.decoderTimeoutMs,
-            maxStdoutBytes: DEFAULT_PROCESS_STDOUT_LIMIT,
-            maxStderrBytes: DEFAULT_PROCESS_STDERR_LIMIT,
-          }),
+          (signal) => dependencies.decodeMedia
+            ? decode(managedBytes, input.expectedKind as "video" | "audio", {
+                signal,
+                timeoutMs: limits.decoderTimeoutMs,
+                maxStdoutBytes: DEFAULT_PROCESS_STDOUT_LIMIT,
+                maxStderrBytes: DEFAULT_PROCESS_STDERR_LIMIT,
+              })
+            : decodeMediaFile(managedPath, input.expectedKind as "video" | "audio", {
+                signal,
+                timeoutMs: limits.decoderTimeoutMs,
+                maxStdoutBytes: DEFAULT_PROCESS_STDOUT_LIMIT,
+                maxStderrBytes: DEFAULT_PROCESS_STDERR_LIMIT,
+              }),
           limits.decoderTimeoutMs,
           input.signal,
         );

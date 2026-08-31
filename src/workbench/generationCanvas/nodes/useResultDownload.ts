@@ -22,12 +22,16 @@ export function useResultDownload(node: GenerationCanvasNode, targetResult: Gene
     if (!url) return
     const bridge = getDesktopBridge()
     if (!bridge) return
-    const base =
-      (node.title || '').trim() ||
-      (type === 'video'
-        ? t('generationCommon.resultDownload.defaultVideoName')
-        : t('generationCommon.resultDownload.defaultImageName'))
-    const urlExt = /\.[a-z0-9]{1,5}(?:$|\?)/i.test(url) ? '' : type === 'video' ? '.mp4' : '.png'
+    const defaultName = type === 'video'
+      ? t('generationCommon.resultDownload.defaultVideoName')
+      : type === 'audio'
+        ? t('generationCommon.resultDownload.defaultAudioName')
+        : type === 'model3d'
+          ? t('generationCommon.resultDownload.defaultModel3dName')
+          : t('generationCommon.resultDownload.defaultImageName')
+    const base = (node.title || '').trim() || defaultName
+    const extension = type === 'video' ? '.mp4' : type === 'audio' ? '.mp3' : type === 'model3d' ? '.glb' : '.png'
+    const urlExt = /\.[a-z0-9]{1,5}(?:$|\?)/i.test(url) ? '' : extension
     setDownloading(true)
     void bridge.assets
       .download({ url, suggestedName: base + urlExt })

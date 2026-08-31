@@ -6,17 +6,16 @@ import { createApprovalReceiptAuthority } from "../capabilityCore/approvalReceip
 import { createProductionRunLock } from "../productionRun/productionRunLock";
 import { writeCertificationJsonAtomic } from "./certificationPersistence";
 import { ConnectionCertificationService, getConnectionCertificationService } from "./service";
-import type { AdapterAuthType, ProviderAdapterModelSelection } from "../providerAdapter/types";
+import { HttpProviderConnector, type HttpLocalRuntimeProbeInput } from "./httpConnector";
+import type { AdapterAuthType, ProviderAdapterModelSelection, ProviderAdapterRun } from "../providerAdapter/types";
 import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from "../capabilityCore/approvalReceipt";
 import type { IntegrationHandoff } from "./handoffQueue";
 import { enqueueIntegrationHandoff } from "./handoffQueue";
 import { mutateCatalog, readCatalog, extractVendorExtraHeaders, normalizeProviderKind } from "../catalog/catalogStore";
 import { decryptApiKeyRecord } from "../catalog/secrets";
 import { deriveVendorKeyFromBaseUrl } from "../catalog/catalogCommit";
-import { authHeaders, authQueryParams } from "../ai/requestPipeline";
-import { fetchModelList } from "../ai/onboarding/modelListProbe";
-import { guessModelKind } from "../catalog/modelKindHeuristic";
-import type { AiSdkProviderKind, BillingModelKind, ProfileKind } from "../catalog/types";
+import { authHeaders } from "../ai/requestPipeline";
+import type { ProfileKind } from "../catalog/types";
 import type { FetchTaskResultFn, RunTaskFn } from "../capabilityCore/core";
 import { runComfyCandidateTest } from "../tasks/comfyCandidateTest";
 import { isComfyuiVendor, COMFYUI_VENDOR_KEY } from "../catalog/types";
@@ -37,7 +36,6 @@ import {
   type IntegrationStage,
   type IntegrationStartReceiptStatus,
 } from "../shared/integrationContract";
-
 export type IntegrationKind = "http-api-provider" | "comfyui-workflow";
 export type { IntegrationStage } from "../shared/integrationContract";
 export type IntegrationUnresolvedField = { key: string; reasonCode: string; candidates?: unknown[] };
@@ -50,7 +48,6 @@ export type IntegrationCandidate = {
   classification?: "supported" | "unknown" | "unavailable";
   estimatedCalls?: number;
 };
-
 export type IntegrationSession = {
   schemaVersion: 1;
   id: string;
@@ -102,7 +99,6 @@ export type IntegrationSessionProjection = Omit<IntegrationSession, "config" | "
   };
   credentialRef?: { status: IntegrationSession["credentialStatus"]; scope: string };
 };
-
 type PersistedState = { version: 1; revision: number; sessions: IntegrationSession[] };
 type Dependencies = {
   filePath?: string;
@@ -148,7 +144,6 @@ type Dependencies = {
   /** Durable reservation for native ComfyUI certification submissions. */
   comfyOperationLedger?: OperationLedger;
 };
-
 /** Runtime wiring used by both GUI RPC and packaged stdio. Keeps secrets in main and
  * injects the same certification/receipt/handoff boundaries into every transport. */
 export function createRuntimeIntegrationSessionService(
@@ -166,6 +161,7 @@ export function createRuntimeIntegrationSessionService(
   } = {},
 ): IntegrationSessionService {
   const authority = input.approvalReceiptAuthority || defaultIntegrationReceiptAuthority();
+  const certification = input.certification || getConnectionCertificationService();
   // Construct one ledger instance for both the service and its Comfy callback.
   // Capturing the raw optional dependency here would silently disable the
   // submission callback whenever the runtime used the default ledger.
@@ -322,7 +318,6 @@ export function createRuntimeIntegrationSessionService(
     if (!runTask || !fetchTaskResult || !mintSpendGrant) throw new Error("comfy_certification_unavailable");
     const workflow = session.config.workflow;
     if (!workflow) throw new Error("comfy_workflow_missing");
-
     // The source vendor is selected from the frozen endpoint, never from an
     // agent-provided arbitrary catalog key. Existing ComfyUI instances are
     // reused; a new local instance gets a stable prefixed key and disabled
@@ -355,7 +350,6 @@ export function createRuntimeIntegrationSessionService(
         });
       });
     }
-
     const analyzed = await (input.certification || getConnectionCertificationService()).analyzeComfyWorkflow(
       workflow,
       sourceVendorKey,
@@ -393,7 +387,6 @@ export function createRuntimeIntegrationSessionService(
         mediaKind: slot.mediaKind,
       })),
     });
-
     const nodeId = `integration-${session.id}-${idempotencyKey}`;
     const grantId = mintSpendGrant([nodeId], 1);
     let operation = comfyOperationLedger.getByIdempotencyKey(`${session.id}:${idempotencyKey}`);
@@ -471,7 +464,7 @@ export function createRuntimeIntegrationSessionService(
   };
   return new IntegrationSessionService({
     filePath: input.filePath,
-    certification: input.certification || getConnectionCertificationService(),
+    certification,
     approvalReceiptAuthority: authority,
     enqueueHandoff: input.enqueueHandoff || enqueueIntegrationHandoff,
     save: input.save,
@@ -486,7 +479,7 @@ export function createRuntimeIntegrationSessionService(
     discoverHttp: async (session, _page, search) => {
       if (!session.config.baseUrl) return [];
       const apiKey = resolveCredential(session) || "";
-      const providerKind = normalizeProviderKind(session.config.providerKind) as AiSdkProviderKind;
+      const providerKind = normalizeProviderKind(session.config.providerKind) as "openai-compatible" | "openai-responses" | "anthropic";
       const authType = session.config.authType || (providerKind === "anthropic" ? "x-api-key" : "bearer");
       const catalog = readCatalog();
       const vendorKey = deriveVendorKeyFromBaseUrl(session.config.baseUrl);
@@ -497,48 +490,24 @@ export function createRuntimeIntegrationSessionService(
         ...authHeaders(authType, apiKey, session.config.authHeader),
         ...extraHeaders,
       };
-      const result = await fetchModelList(providerKind, session.config.baseUrl, headers, new AbortController().signal, {
-        query: authQueryParams(authType, apiKey, session.config.authQueryParam), ...(vendor?.network?.proxyUrl ? { proxyUrl: vendor.network.proxyUrl } : {}),
-      });
-      if (!result.ok) throw new Error(`model_discovery_${result.failureKind || "unknown"}`);
-      const all = result.models.map((modelKey) => {
-        const kind = guessModelKind(modelKey) as BillingModelKind;
-        const modes =
-          kind === "text"
-            ? ["chat"]
-            : kind === "image"
-              ? ["text_to_image"]
-              : kind === "video"
-                ? ["text_to_video"]
-                : kind === "audio"
-                  ? ["text_to_audio"]
-                  : [];
-        return {
-          modelKey,
-          label: modelKey,
-          kind,
-          modes,
-          evidence: ["remote" as const],
-          classification: modes.length ? ("supported" as const) : ("unavailable" as const),
-          estimatedCalls: Math.max(1, modes.length),
-        };
-      });
-      const filtered = search
-        ? all.filter((candidate) =>
-            `${candidate.modelKey} ${candidate.label}`.toLowerCase().includes(search.toLowerCase()),
-          )
-        : all;
-      return filtered;
+      const discovery = certification as unknown as {
+        discoverHttpModels?: (input: Record<string, unknown>) => Promise<IntegrationCandidate[]>;
+        probeExternalLocalRuntime?: (input: Record<string, unknown>) => Promise<unknown>;
+      };
+      const proxyUrl = vendor?.network?.proxyUrl;
+      if (discovery.discoverHttpModels) return discovery.discoverHttpModels({ baseUrl: session.config.baseUrl, providerKind, authType, apiKey, ...(session.config.authHeader ? { authHeader: session.config.authHeader } : {}), ...(session.config.authQueryParam ? { authQueryParam: session.config.authQueryParam } : {}), headers, ...(proxyUrl ? { proxyUrl } : {}), search });
+      const connector = new HttpProviderConnector(undefined, undefined, discovery.probeExternalLocalRuntime
+        ? ((probeInput: HttpLocalRuntimeProbeInput) => discovery.probeExternalLocalRuntime!({ ...probeInput, providerKind, authType })) as never
+        : undefined);
+      return connector.discoverModels({ baseUrl: session.config.baseUrl, providerKind, authType, apiKey, ...(session.config.authHeader ? { authHeader: session.config.authHeader } : {}), ...(session.config.authQueryParam ? { authQueryParam: session.config.authQueryParam } : {}), headers, ...(proxyUrl ? { proxyUrl } : {}), search });
     },
   });
 }
-
 /** Install the process-wide runtime instance used by RPC, stdio and trusted UI IPC. */
 export function installRuntimeIntegrationSessionService(service: IntegrationSessionService): IntegrationSessionService {
   singleton = service;
   return service;
 }
-
 let runtimeReceiptAuthority: ReturnType<typeof createApprovalReceiptAuthority> | null = null;
 function defaultIntegrationReceiptAuthority() {
   runtimeReceiptAuthority ||= createApprovalReceiptAuthority({
@@ -585,12 +554,10 @@ function id(value: unknown, name: string): string {
 function assertRecord(value: unknown): asserts value is Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid object");
 }
-
 function workflowString(value: unknown, name: string, max = 512): string {
   if (typeof value !== "string" || value.length === 0 || value.length > max) throw new Error(`Invalid ${name}`);
   return value;
 }
-
 function rejectWorkflowKeys(value: Record<string, unknown>, allowed: readonly string[], name: string): void {
   const allowedSet = new Set(allowed);
   const unknown = Object.keys(value).find(
@@ -598,7 +565,6 @@ function rejectWorkflowKeys(value: Record<string, unknown>, allowed: readonly st
   );
   if (unknown) throw new Error(`Unexpected ${name} field: ${unknown}`);
 }
-
 function sanitizeWorkflowBinding(value: unknown): WorkflowBinding | undefined {
   if (value === undefined) return undefined;
   assertRecord(value);
@@ -797,6 +763,21 @@ function safeCertificationFailureCode(error: unknown): string {
   if (/unavailable|runner/i.test(code)) return "certification_unavailable";
   return "provider_failed";
 }
+function integrationStageFromAdapterRun(stage: ProviderAdapterRun["stage"]): IntegrationStage {
+  if (stage === "completed" || stage === "partial") return stage;
+  if (["queued", "discovering_docs", "compiling", "testing", "repairing", "reconciling"].includes(stage))
+    return "certifying";
+  return "failed";
+}
+
+function adapterTerminalReasonCode(stage: ProviderAdapterRun["stage"]): string {
+  if (stage === "needs_ai") return "certification_needs_ai";
+  if (stage === "timed_out") return "certification_timed_out";
+  if (stage === "cancelled") return "certification_cancelled";
+  if (stage === "stale") return "certification_stale";
+  return "provider_failed";
+}
+
 function validateState(raw: unknown): PersistedState {
   assertRecord(raw);
   if (
@@ -998,9 +979,28 @@ export class IntegrationSessionService {
       ...(session.credentialRef ? { credentialRef: { status: session.credentialStatus, scope: "session" } } : {}),
     };
   }
+  private syncHttpCertification(session: IntegrationSession): void {
+    if (
+      session.kind !== "http-api-provider" ||
+      !session.childRunRef ||
+      (session.stage !== "certifying" && session.stage !== "committing")
+    )
+      return;
+    const run = this.certification.get(session.childRunRef.runId);
+    if (!run) return;
+    const nextStage = integrationStageFromAdapterRun(run.stage);
+    if (nextStage === session.stage) return;
+    session.stage = nextStage;
+    session.blockingReason = nextStage === "failed" ? { code: adapterTerminalReasonCode(run.stage) } : undefined;
+    session.revision += 1;
+    session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
+    this.state.revision += 1;
+    this.persist();
+  }
   get(sessionId: unknown, owner?: CapabilityOriginHost): IntegrationSessionProjection {
     const session = this.getOrThrow(sessionId);
     if (owner && session.ownerClientId !== owner) throw new Error("Integration session owner mismatch");
+    this.syncHttpCertification(session);
     return this.projection(session);
   }
   begin(
@@ -1440,9 +1440,8 @@ export class IntegrationSessionService {
     // consumption. A receipt is single-use, so a retried start must be able to
     // return the already-settled canonical run without asking the UI to mint or
     // consume a second receipt.
-    if (session.startIdempotencyKey === normalizedIdempotencyKey && session.childRunRef) {
-      return this.projection(session);
-    }
+    if (session.startIdempotencyKey === normalizedIdempotencyKey && session.childRunRef)
+      return this.get(session.id, owner);
     // A process can die after the durable reservation and before the session
     // terminal write. Reopen the reservation first, without asking for (or
     // consuming) a second receipt. A settled reservation is replayable; an
@@ -1624,7 +1623,8 @@ export class IntegrationSessionService {
           connection,
         });
         session.childRunRef = { runId: run.id, revisionDigest: run.childRunRef.revisionDigest };
-        session.stage = run.stage === "completed" ? "completed" : run.stage === "partial" ? "partial" : "failed";
+        session.stage = integrationStageFromAdapterRun(run.stage);
+        session.blockingReason = session.stage === "failed" ? { code: adapterTerminalReasonCode(run.stage) } : undefined;
       }
     } catch (error) {
       session.stage = "failed";

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { VendorRequestError, categorizeVendorFailure, requestJson } from "./vendorHttp";
+import { VendorRequestError, categorizeVendorFailure, requestBinary, requestJson } from "./vendorHttp";
 import type { Vendor } from "../catalog/types";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 
@@ -277,5 +277,39 @@ describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
     assert(error instanceof VendorRequestError);
     expect(error.structured).toMatchObject({ category: "input", retryable: false });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("requestBinary shared vendor transport", () => {
+  it("preserves binary bytes and response content type", async () => {
+    const bytes = Buffer.from([0, 255, 1, 254]);
+    stubFetch(() => new Response(bytes, { status: 200, headers: { "content-type": "audio/mpeg" } }));
+
+    await expect(requestBinary(vendor, "k", "POST", "https://x", {}, {}, { input: "hi" })).resolves.toEqual({
+      bytes,
+      contentType: "audio/mpeg",
+    });
+  });
+
+  it("keeps JSON logical errors structured and redacted on a byte-declared endpoint", async () => {
+    const secret = "binaryEndpointCredential987654";
+    stubFetch(() => new Response(JSON.stringify({ code: 402, message: `balance empty ${secret}` }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+
+    const error = await requestBinary(
+      vendor,
+      secret,
+      "POST",
+      "https://x",
+      { Authorization: `Bearer ${secret}` },
+      {},
+      { input: "hi" },
+    ).catch((caught) => caught);
+
+    assert(error instanceof VendorRequestError);
+    expect(error.structured).toMatchObject({ logicalCode: 402, category: "balance", retryable: false });
+    expect(`${error.message}${JSON.stringify(error.structured)}`).not.toContain(secret);
   });
 });

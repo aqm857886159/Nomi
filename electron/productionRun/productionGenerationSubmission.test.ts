@@ -242,6 +242,114 @@ describe("Run-owned semantic generation submission", () => {
     expect(JSON.parse(fs.readFileSync(envelopePath, "utf8"))).toMatchObject({ lastPoll: { status: "processing", raw: { progress: 42 } } });
   });
 
+  it("keeps an unfamiliar provider status out of materialization", async () => {
+    const { root, repository } = setup();
+    const runner = createProductionGenerationSubmission({
+      repository,
+      projectRoot: root,
+      immutableProjectUuid: "project-uuid-1",
+      projectGeneration: 1,
+      intentMacKey: "test-intent-key",
+      provider: {
+        providerId: "fixture-provider",
+        capabilities: { submitIdempotency: false, query: true, reconcile: false, cancel: false, materialize: true },
+        buildRequest: (input) => input,
+        submit: vi.fn(async () => ({ providerTaskId: "provider-task-unknown-status" })),
+        query: vi.fn(async () => ({ status: "brand_new_terminal_word", raw: { output: "opaque" } })),
+        materialize: vi.fn(async () => ({ outputs: [{ kind: "image" as const, url: "https://cdn.example/should-not-run.png" }] })),
+      },
+      materializeOutput: vi.fn(),
+      now: () => "2026-08-23T00:03:00.000Z",
+    });
+
+    await runner.start({ projectId: "project-1", operationId: "op-1" });
+    await expect(runner.poll({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({
+      providerState: "unknown",
+      providerStatus: "brand_new_terminal_word",
+      nextAction: "attention",
+    });
+    await expect(runner.materialize({ projectId: "project-1", operationId: "op-1" }))
+      .rejects.toMatchObject({ code: "materialization_failed" });
+    expect(repository.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "needs_attention" });
+  });
+
+  it("reconciles a lost receipt through the provider without submitting again", async () => {
+    const { root, repository } = setup();
+    const first = createProductionGenerationSubmission({
+      repository,
+      projectRoot: root,
+      immutableProjectUuid: "project-uuid-1",
+      projectGeneration: 1,
+      intentMacKey: "test-intent-key",
+      provider: {
+        providerId: "fixture-provider",
+        capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false },
+        buildRequest: (input) => input,
+        submit: vi.fn(async () => ({ providerTaskId: "provider-task-recovered" })),
+      },
+      afterProviderAcceptance: () => { throw new Error("receipt lost"); },
+      now: () => "2026-08-23T00:00:00.000Z",
+    });
+    await expect(first.start({ projectId: "project-1", operationId: "op-1" })).rejects.toBeInstanceOf(SubmissionReceiptUnknownError);
+
+    const submit = vi.fn(async () => ({ providerTaskId: "provider-task-duplicate" }));
+    const reconcile = vi.fn(async () => ({ disposition: "found" as const, providerTaskId: "provider-task-recovered" }));
+    const restarted = createProductionGenerationSubmission({
+      repository,
+      projectRoot: root,
+      immutableProjectUuid: "project-uuid-1",
+      projectGeneration: 1,
+      intentMacKey: "test-intent-key",
+      provider: {
+        providerId: "fixture-provider",
+        capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false },
+        buildRequest: (input) => input,
+        submit,
+        reconcile,
+      },
+      now: () => "2026-08-23T00:01:00.000Z",
+    });
+
+    await expect(restarted.reconcile({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({
+      disposition: "found",
+      providerTaskId: "provider-task-recovered",
+      nextAction: "poll",
+    });
+    expect(reconcile).toHaveBeenCalledWith(expect.objectContaining({ providerTaskId: "provider-task-recovered" }));
+    expect(submit).not.toHaveBeenCalled();
+    expect(repository.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: "provider_accepted", providerTaskId: "provider-task-recovered" });
+  });
+
+  it.each([
+    ["unsupported", "detached"],
+    ["requested", "cancel_requested"],
+    ["confirmed", "cancelled_remote"],
+    ["already_terminal", "too_late"],
+    ["too_late", "too_late"],
+  ] as const)("persists the %s cancellation disposition as %s", async (disposition, jobStatus) => {
+    const { root, repository } = setup();
+    const provider = {
+      providerId: "fixture-provider",
+      capabilities: { submitIdempotency: false, query: true, reconcile: false, cancel: disposition !== "unsupported" },
+      buildRequest: (input: unknown) => input,
+      submit: vi.fn(async () => ({ providerTaskId: `provider-task-${disposition}` })),
+      ...(disposition === "unsupported" ? {} : { cancel: vi.fn(async () => ({ disposition })) }),
+    };
+    const runner = createProductionGenerationSubmission({
+      repository,
+      projectRoot: root,
+      immutableProjectUuid: "project-uuid-1",
+      projectGeneration: 1,
+      intentMacKey: "test-intent-key",
+      provider,
+      now: () => "2026-08-23T00:03:00.000Z",
+    });
+
+    await runner.start({ projectId: "project-1", operationId: "op-1" });
+    await expect(runner.cancel({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ disposition, jobStatus });
+    expect(repository.read("project-1", "op-1")?.jobs[0]).toMatchObject({ status: jobStatus });
+  });
+
   it("materializes exactly one provider output through the Asset-owned receipt and is restart-idempotent", async () => {
     const { root, repository } = setup();
     const submit = vi.fn(async () => ({ providerTaskId: "provider-task-materialize" }));

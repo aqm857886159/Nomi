@@ -5,6 +5,7 @@ import type { ProviderKind } from '../../desktop/providerKind'
 import { PROVIDER_KIND_LABEL } from './onboardingProviderKindLabels'
 
 type TestModel = { id: string; kind: string }
+type ConnectionTestState = 'idle' | 'testing' | 'ok' | 'fail' | 'unsupported'
 
 export function useOnboardingConnectionTest({
   bridge,
@@ -31,13 +32,13 @@ export function useOnboardingConnectionTest({
   onDetectedKind: (kind: ProviderKind) => void
   onProtocolFallback: () => void
 }): {
-  testState: 'idle' | 'testing' | 'ok' | 'fail' | 'unsupported'
+  testState: ConnectionTestState
   testMessage: string
   handleTestConnection: () => Promise<void>
   resetTest: () => void
 } {
   const { t } = useTranslation()
-  const [testState, setTestState] = React.useState<'idle' | 'testing' | 'ok' | 'fail' | 'unsupported'>('idle')
+  const [testState, setTestState] = React.useState<ConnectionTestState>('idle')
   const [testMessage, setTestMessage] = React.useState('')
 
   const handleTestConnection = React.useCallback(async () => {

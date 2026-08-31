@@ -23,6 +23,10 @@ export default tseslint.config(
       '.tmp/**',
       'build/**',
       'public/**',
+      // TypeScript compiler spillover in the renderer tree (the source of truth is .ts/.tsx;
+      // these CommonJS files/maps are rebuildable and must not become product source or lint input).
+      'src/**/*.js',
+      'src/**/*.js.map',
       'marketing/**',
       'coverage/**',
       // 本地走查/探针输出目录（gitignored，含临时诊断 .mjs）——非源码，不 lint。

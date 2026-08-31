@@ -1,0 +1,201 @@
+{
+  "generatedAt": "2026-08-28T21:45:52.855Z",
+  "baselineKind": "ui-and-contract-readiness",
+  "environment": {
+    "platform": "win32",
+    "node": "v22.15.0",
+    "modelCatalog": { "present": true, "vendors": 0, "models": 0, "enabledTextModels": 0 },
+    "note": "无可用文本模型；未运行模型质量、agentTurns、token 或真实 time-to-outcome。"
+  },
+  "ui": {
+    "launched": true,
+    "projectCreated": true,
+    "probeMs": 4327,
+    "creationPromptPicker": true,
+    "creationPromptPickerRendered": false,
+    "browserEntry": true,
+    "browserEntryRendered": true,
+    "assetLibraryEntry": true,
+    "assetLibraryRendered": false,
+    "structuredElicitation": false,
+    "rightsFilter": false,
+    "capabilityLibrary": false
+  },
+  "summary": { "journeys": 10, "success": 0, "partial": 10, "blocked": 0, "p0Readiness": 0.25 },
+  "results": [
+    {
+      "id": "J1",
+      "title": "一句产品 brief 变成 30 秒竖屏规格",
+      "p0": true,
+      "status": "partial",
+      "score": 0.25,
+      "expectedArtifact": "CreativeBrief",
+      "contractEvidence": [
+        { "symbol": "CreativeBrief", "present": false, "files": [] },
+        { "symbol": "AgentElicitation", "present": false, "files": [] }
+      ],
+      "relatedSurface": true,
+      "timeToOutcomeMs": null,
+      "interactionCount": null,
+      "agentTurns": null,
+      "blockingReason": "缺少 CreativeBrief、AgentElicitation"
+    },
+    {
+      "id": "J2",
+      "title": "研究近 30 天某视觉趋势",
+      "p0": true,
+      "status": "partial",
+      "score": 0.25,
+      "expectedArtifact": "ResearchEvidence[]",
+      "contractEvidence": [{ "symbol": "ResearchEvidence", "present": false, "files": [] }],
+      "relatedSurface": true,
+      "timeToOutcomeMs": null,
+      "interactionCount": null,
+      "agentTurns": null,
+      "blockingReason": "缺少 ResearchEvidence"
+    },
+    {
+      "id": "J3",
+      "title": "拆解一条参考视频",
+      "p0": true,
+      "status": "partial",
+      "score": 0.25,
+      "expectedArtifact": "ShotBreakdown",
+      "contractEvidence": [
+        { "symbol": "ShotBreakdown", "present": false, "files": [] },
+        { "symbol": "MediaDigest", "present": false, "files": [] }
+      ],
+      "relatedSurface": true,
+      "timeToOutcomeMs": null,
+      "interactionCount": null,
+      "agentTurns": null,
+      "blockingReason": "缺少 ShotBreakdown、MediaDigest"
+    },
+    {
+      "id": "J4",
+      "title": "为三个镜头找 B-roll",
+      "p0": true,
+      "status": "partial",
+      "score": 0.25,
+      "expectedArtifact": "AssetSourceEvidence[]",
+      "contractEvidence": [
+        { "symbol": "AssetSourceEvidence", "present": false, "files": [] },
+        { "symbol": "Pexels", "present": false, "files": [] },
+        { "symbol": "Openverse", "present": false, "files": [] },
+        { "symbol": "Freesound", "present": false, "files": [] }
+      ],
+      "relatedSurface": true,
+      "timeToOutcomeMs": null,
+      "interactionCount": null,
+      "agentTurns": null,
+      "blockingReason": "缺少 AssetSourceEvidence、Pexels、Openverse、Freesound"
+    },
+    {
+      "id": "J5",
+      "title": "把一条镜头规格编译给两个视频模型",
+      "p0": false,
+      "status": "partial",
+      "score": 0.25,
+      "expectedArtifact": "PromptRecipe + provider compilation",
+      "contractEvidence": [
+        { "symbol": "PromptRecipe", "present": false, "files": [] },
+        { "symbol": "PromptCompiler", "present": false, "files": [] }
+      ],
+      "relatedSurface": true,
+      "timeToOutcomeMs": null,
+      "interactionCount": null,
+      "agentTurns": null,
+      "blockingReason": "缺少 PromptRecipe、PromptCompiler"
+    },
+    {
+      "id": "J6",
+      "title": "给 60 秒片做声音设计",
+      "p0": false,
+      "status": "partial",
+      "score": 0.25,
+      "expectedArtifact": "SoundCue[]",
+      "contractEvidence": [
+        { "symbol": "SoundCue", "present": false, "files": [] },
+        { "symbol": "Freesound", "present": false, "files": [] }
+      ],
+      "relatedSurface": true,
+      "timeToOutcomeMs": null,
+      "interactionCount": null,
+      "agentTurns": null,
+      "blockingReason": "缺少 SoundCue、Freesound"
+    },
+    {
+      "id": "J7",
+      "title": "用文本模型继续讨论之前的媒体",
+      "p0": false,
+      "status": "partial",
+      "score": 0.25,
+      "expectedArtifact": "MediaDigest",
+      "contractEvidence": [{ "symbol": "MediaDigest", "present": false, "files": [] }],
+      "relatedSurface": true,
+      "timeToOutcomeMs": null,
+      "interactionCount": null,
+      "agentTurns": null,
+      "blockingReason": "缺少 MediaDigest"
+    },
+    {
+      "id": "J8",
+      "title": "审片并修三个连续性问题",
+      "p0": false,
+      "status": "partial",
+      "score": 0.25,
+      "expectedArtifact": "QualityReport + EditPlan",
+      "contractEvidence": [
+        { "symbol": "QualityReport", "present": false, "files": [] },
+        {
+          "symbol": "EditPlan",
+          "present": true,
+          "files": [
+            "src/workbench/generationCanvas/components/AssistantTimeline.tsx",
+            "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx",
+            "src/workbench/generationCanvas/components/useTimelineAgentUi.ts"
+          ]
+        }
+      ],
+      "relatedSurface": true,
+      "timeToOutcomeMs": null,
+      "interactionCount": null,
+      "agentTurns": null,
+      "blockingReason": "缺少 QualityReport"
+    },
+    {
+      "id": "J9",
+      "title": "导出商业片",
+      "p0": true,
+      "status": "partial",
+      "score": 0.25,
+      "expectedArtifact": "RightsCheckReport",
+      "contractEvidence": [
+        { "symbol": "AssetSourceEvidence", "present": false, "files": [] },
+        { "symbol": "RightsCheckReport", "present": false, "files": [] }
+      ],
+      "relatedSurface": true,
+      "timeToOutcomeMs": null,
+      "interactionCount": null,
+      "agentTurns": null,
+      "blockingReason": "缺少 AssetSourceEvidence、RightsCheckReport"
+    },
+    {
+      "id": "J10",
+      "title": "三个月后打开旧项目",
+      "p0": true,
+      "status": "partial",
+      "score": 0.25,
+      "expectedArtifact": "CapabilityLock",
+      "contractEvidence": [
+        { "symbol": "CapabilityLock", "present": false, "files": [] },
+        { "symbol": "PromptRecipe", "present": false, "files": [] }
+      ],
+      "relatedSurface": true,
+      "timeToOutcomeMs": null,
+      "interactionCount": null,
+      "agentTurns": null,
+      "blockingReason": "缺少 CapabilityLock、PromptRecipe"
+    }
+  ]
+}

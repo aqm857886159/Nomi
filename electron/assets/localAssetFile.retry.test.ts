@@ -4,6 +4,9 @@ import { postWithUploadRetry } from "./localAssetFile";
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
+function textResponse(status: number, body: string): Response {
+  return new Response(body, { status, headers: { "content-type": "application/xml" } });
+}
 
 const NO_DELAY = { delayMs: 0 };
 
@@ -56,6 +59,12 @@ describe("postWithUploadRetry — 资产上传瞬态有界重试", () => {
     const doFetch = vi.fn(async () => jsonResponse(400, { message: "bad request" }));
     await expect(postWithUploadRetry(doFetch, NO_DELAY)).rejects.toThrow(/HTTP 400/);
     expect(doFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("保留签名对象存储 XML 的短错误码/消息", async () => {
+    const doFetch = vi.fn(async () => textResponse(400, '<?xml version="1.0"?><Error><Code>EntityTooSmall</Code><Message>minimum allowed size</Message><RequestId>secret-ish</RequestId></Error>'));
+    await expect(postWithUploadRetry(doFetch, NO_DELAY)).rejects.toThrow(/HTTP 400.*EntityTooSmall: minimum allowed size/);
+    await expect(postWithUploadRetry(doFetch, NO_DELAY)).rejects.not.toThrow(/RequestId/);
   });
 
   it("瞬态一直失败 → 耗尽 maxAttempts 后抛最后一次错误", async () => {

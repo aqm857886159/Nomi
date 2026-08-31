@@ -10,7 +10,7 @@ describe("newapiTransportFor", () => {
     const body = t.create.body as Record<string, unknown>;
     expect(body.input).toBe("{{request.prompt}}");
     expect(body.response_format).toBe("mp3"); // seed-tts-2.0 回 audio/mpeg；不能默认 wav 否则存错扩展名
-    expect(t.create.audioResponse).toBeUndefined(); // 缺省=裸二进制，非火山原生 ndjson-base64
+    expect(t.create.audioResponse).toEqual({ type: "binary", contentType: "audio/mpeg", extension: "mp3" });
     expect(t.query).toBeUndefined(); // TTS 同步出音频，无轮询
   });
 

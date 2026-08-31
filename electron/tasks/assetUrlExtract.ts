@@ -33,6 +33,7 @@ export function extractAssetUrl(raw: unknown): string {
     record.url,
     record.video_url,
     record.image_url,
+    record.audio_url,
     record.model_url,
     record.output,
     (record.data as JsonRecord[] | undefined)?.[0]?.url,
@@ -42,6 +43,7 @@ export function extractAssetUrl(raw: unknown): string {
     (record.result as JsonRecord | undefined)?.url,
     (record.result as JsonRecord | undefined)?.video_url,
     (record.result as JsonRecord | undefined)?.image_url,
+    (record.result as JsonRecord | undefined)?.audio_url,
     // chat/completions 多模态图片返回（gemini/nano-banana 系图生图走这条：图在 choices[0].message 里，
     // 不是 OpenAI images 端点的顶层 data[0]）。放最后兜底，不影响上面既有 images 端点口径。
     extractChatImageUrl(record),

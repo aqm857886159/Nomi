@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BoundedProcessError,
   decodeMediaBytes,
+  decodeMediaFile,
   MediaProbeError,
   parseFfprobeJson,
   probeMediaBytes,
@@ -255,6 +256,29 @@ describe("bounded media decode", () => {
     if (frames) expect(args).toEqual(expect.arrayContaining(["-frames:v", frames]));
     else expect(args).toEqual(expect.arrayContaining(["-t", "1"]));
     expect(options).toMatchObject({ input: bytes, timeoutMs: 3210 });
+  });
+
+  it("decodes seek-required containers from a controlled file path, not a non-seekable pipe", async () => {
+    const inputDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-seek-required-"));
+    const inputPath = path.join(inputDir, "input.mp4");
+    fs.writeFileSync(inputPath, Buffer.from("controlled media file"));
+    const runProcess = vi.fn<RunProbeProcess>().mockResolvedValue({ code: 0, stdout: "", stderr: "" });
+    try {
+      await decodeMediaFile(inputPath, "video", { ffmpegPath: "ffmpeg", runProcess, timeoutMs: 3210 });
+      const [, args, options] = runProcess.mock.calls[0]!;
+      expect(args).toEqual(expect.arrayContaining(["-i", inputPath, "-map", "0:v:0", "-frames:v", "1"]));
+      expect(args).not.toContain("pipe:0");
+      expect(options).not.toHaveProperty("input");
+    } finally { fs.rmSync(inputDir, { recursive: true, force: true }); }
+  });
+
+  it("fails with a stable decode error when the file path is missing or not regular", async () => {
+    const runProcess = vi.fn<RunProbeProcess>().mockResolvedValue({ code: 0, stdout: "", stderr: "" });
+    await expect(decodeMediaFile(path.join(os.tmpdir(), "nomi-media-does-not-exist.mp4"), "video", {
+      ffmpegPath: "ffmpeg",
+      runProcess,
+    })).rejects.toMatchObject({ code: "decode_failed" });
+    expect(runProcess).not.toHaveBeenCalled();
   });
 
   it("rejects a media payload that probes successfully but cannot decode a representative frame", async () => {

@@ -20,6 +20,7 @@ const SRC_ROOT = path.dirname(fileURLToPath(import.meta.url))
 /** 只渲染、不持久化 → 允许直接用构建产物 URL。键 = 相对 src/ 的路径。 */
 const RENDER_ONLY_ALLOWLIST: Record<string, string> = {
   'config/knownVendors.ts': '厂商 logo：只喂 <img src>，接入卡渲染完即弃，不进 catalog/项目文件。',
+  'config/modelProviderIdentity.ts': '模型/厂商 logo：仅用于现有选择器当场渲染，不写入 catalog 或项目文件。',
   'workbench/generationCanvas/nodes/scene3d/scene3dConstants.ts':
     '假人 GLB / 动画 GLB：只喂 three 的 loader，不进节点结果，也不落项目。',
   'workbench/generationCanvas/nodes/scene3d/ueSpike/ue4MannequinRig.ts':

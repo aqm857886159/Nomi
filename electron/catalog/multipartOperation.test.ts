@@ -104,4 +104,23 @@ describe("multipart 图生图（/v1/images/edits）请求装配", () => {
     expect((req.images as AnyRec[])[0]).toMatchObject({ fileName: "a.png", contentType: "image/png" });
     expect(JSON.stringify(req)).not.toContain("bytes:"); // 字节内容不进 preview
   });
+
+  it("generic file declaration supports audio multipart fields without image aliases", async () => {
+    let sent: FormData | null = null;
+    await executeMultipartOperation({
+      multipart: {
+        fields: { model_id: "scribe_v2", language_code: "en" },
+        fileField: "file",
+        fileSource: "data:audio/wav;base64,AAAA",
+        fileKind: "audio",
+      },
+      context: {},
+      resolveFile: async () => ({ bytes: Buffer.from([0, 1]), contentType: "audio/wav", fileName: "clip.wav" }),
+      send: async (form) => { sent = form; return { text: "ok" }; },
+    });
+
+    const { text, files } = await readForm(sent!);
+    expect(text).toEqual({ model_id: "scribe_v2", language_code: "en" });
+    expect(files).toEqual([{ field: "file", name: "clip.wav", size: 2, type: "audio/wav" }]);
+  });
 });

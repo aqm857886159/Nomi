@@ -9,13 +9,17 @@ Use Nomi's integration tools to turn a vendor endpoint or a native ComfyUI workf
 
 ## Order
 
-1. Start with `nomi_integration_begin` using public connection material only. Include the official documentation URL, pasted contract text, or a workflow reference when available.
-2. If credentials are needed, call `nomi_integration_open_credentials`. Never ask for, receive, echo, or place an API key in a tool argument, chat message, log, URL, or file.
-3. Call `nomi_integration_discover` repeatedly until the complete candidate set is covered. Use page and search fields. Preserve each candidate's exact model id, declared capability modes, evidence source, and classification state.
-4. Select exact candidates with `nomi_integration_select`. Select several at once when requested. If the tool returns `unresolvedFields`, ask every listed question in one message and submit all answers with `nomi_integration_resolve_input`.
-5. For ComfyUI, use `nomi_integration_submit_workflow`. API workflows and ordinary UI-saved workflows are both valid. Bind inputs by `nodeId`, `inputKey`, `paramKey`, and `mediaKind`; never zip `widgets_values` by position. Keep numeric inputs such as `frame_rate` numeric and each media slot distinct.
-6. Before any cost, call `nomi_integration_request_confirmation` to create the immutable contract and open Nomi's trusted confirmation UI. The user must confirm there; an agent cannot invent a receipt or confirm spend on the user's behalf. Then call `nomi_integration_start` with Nomi's opaque receipt handle.
-7. Poll `nomi_integration_get` and report the real result. A secure key, successful discovery, staged draft, or partial batch is not completion. Only verified modes promoted after a real production request, bounded artifact decode, journal commit, and fresh-process readback are usable.
+1. **Official contract first.** Start with `nomi_integration_begin` using only public material, and capture the official docs/OpenAPI URL for every `(vendor, model, mode)`. Never infer a field from a model name or a neighboring provider.
+2. **Use the existing identity graph.** Reuse the matching `modelArchetype`, `Catalog Mapping`, `HttpOperation`, `integrationCertification`, `GenerationRuntime`, `ProductionRun`, and managed assets. One logical model is one catalog row; use the mapping's generic `modeId` discriminator for same-kind modes instead of vendor-specific exceptions or duplicate rows.
+3. **Write the ledger before implementation.** Add a machine-checkable certification-ledger row with exact model/mode/mapping IDs, archetype path, official evidence, and one of `documented | simulated | live-certified | blocked`. A row without a precise blocker is invalid when status is `blocked`.
+4. **Build a canary matrix before network.** For each exact `(vendor, model, mode)` record the official endpoint, required fields, smallest valid parameters, expected output type, upper-bound cost, idempotency key, and one-attempt limit. A model without a complete row stays `documented` or `blocked`; do not infer a cheaper/default field from a neighboring model.
+5. **Static gate before network.** Run `pnpm run check:model-certification-coverage`, `pnpm run check:archetype-sources`, and the root-cause contract checker. The static gate must prove source URLs, mapping identity, generated archetype artifacts, and that no secret entered the ledger.
+6. **Generic mode discrimination is mandatory.** If one logical model exposes multiple same-task modes, each mapping must carry a generic `modeId` and the request must include it whenever selection is ambiguous. An omitted discriminator must fail closed; never add a provider-specific branch or duplicate model row to hide ambiguity.
+7. **Zero-cost loopback and failure matrix.** Exercise create → status/query → result against a local protocol simulator. Cover at least 401, 402/balance, 429, 5xx, timeout, malformed/truncated JSON, unknown status, missing request id, succeeded-without-output, oversized body, and media MIME/magic mismatch. A queued response without a provider request id must fail closed and never be resubmitted.
+8. **Provider-owned assets.** Prefer the provider's signed/ephemeral upload API for local references (for example Runway `POST /v1/uploads` → signed multipart → `runway://` URI). Small images may use an official data URI. Anonymous public image hosts are not a debugging strategy and must never be silently retried when the provider has its own upload path.
+9. **PR #221 MCP cost gate.** Run the MCP zero-cost journey through spend confirmation and verify `provider request count = 0` before any live canary. Confirmation is immutable and user-owned; an agent cannot invent a receipt or confirm spend.
+10. **Live is last and must use the production path.** Only with the user's provider key/credits and explicit canary scope, run one minimal request through Nomi's `GenerationRuntime`/`ProductionRun`, validate the bounded artifact, commit the managed-asset journal, and perform a fresh-process readback. A direct curl/SDK call, provider-only output URL, or loopback pass is not live certification. If managed localization, auth, credits, callback deployment, or network policy blocks the run, keep `status=blocked` with the exact evidence; never retry blindly.
+11. Poll `nomi_integration_get` and report the real result. A secure key, successful discovery, staged draft, or partial batch is not completion. Only modes with `live-certified` evidence are usable in a verified-live claim; `simulated` and `blocked` must remain visibly distinct.
 
 ## Evidence and failures
 
@@ -32,3 +36,37 @@ This skill covers the native ComfyUI Server routes (`/features`, `/models`, `/wo
 ## Safe wording
 
 Say “securely saved, not yet verified” after credential storage. Say “configured, awaiting certification” for a draft. Say “verified and available” only after the final run state says so. Never include credentials, Authorization values, signed URLs, absolute paths, connection fingerprints, or raw provider error pages in a response.
+
+## Certification record template
+
+For each mapping, keep this compact record (the repository ledger is the source of truth):
+
+```json
+{
+  "vendorKey": "runway",
+  "modelKey": "seedance2_5",
+  "archetypeId": "seedance-2.5",
+  "modeId": "omni",
+  "mappingId": "seed-runway-seedance2-5-omni",
+  "official": [{"url": "https://…", "checkedAt": "YYYY-MM-DD"}],
+  "evidence": {"static": "passed", "loopback": "passed", "failureMatrix": "passed", "mcpDryRun": "passed"},
+  "live": {"status": "blocked", "blocker": "Provider key/credits unavailable"},
+  "status": "simulated"
+}
+```
+
+Evaluation must reject guessed fields, missing mode discriminators, anonymous-upload fallbacks when a provider upload exists, a paid call before confirmation, or a `live-certified` claim without a production receipt and fresh-process readback. See `evals/model-integration/unified-certification.eval.json`.
+
+## Required canary record
+
+Keep one evidence row per mapping in the ledger. The row must make the cost and the stopping rule auditable without exposing a credential:
+
+```json
+{
+  "mappingId": "seed-runway-gen4-5-t2v",
+  "canary": {"attempts": 1, "maxCost": "2s minimum", "providerTaskId": "redacted-in-report-only"},
+  "live": {"status": "blocked", "blocker": "Exact external reason"}
+}
+```
+
+Never promote a whole model from a neighboring mode's receipt. Each mode is independently `documented`, `simulated`, `live-certified`, or `blocked`.

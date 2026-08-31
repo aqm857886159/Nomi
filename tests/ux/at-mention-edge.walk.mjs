@@ -123,7 +123,7 @@ await snap(win, 'library')
 // 打开构造的项目：多策略（继续创作 / 双击卡 / 文件夹图标），进画布判据=DOM 出现「生成方式/全能参考/导出」。
 const card = win.getByText('@候选连线图走查', { exact: false }).first()
 console.log('  project card count:', await card.count())
-const inCanvas = async () => win.evaluate(() => /生成方式|全能参考|导出|时间轴|预览/.test(document.body.innerText) && !/Nomi 项目库|新建空白项目/.test(document.body.innerText))
+const inCanvas = async () => win.locator('.generation-canvas-v2__stage').first().isVisible().catch(() => false)
 if (await card.count()) {
   // 项目名区域单击按设计只用于改名；从卡片 hover 层点「继续创作」才是稳定打开入口。
   const projectCard = win.locator('[data-project-card="true"]', { hasText: '@候选连线图走查' }).first()
@@ -133,12 +133,12 @@ if (await card.count()) {
   await win.waitForTimeout(2500)
   console.log(`  → 进画布 via 继续创作: ${await inCanvas()}`)
 }
-console.log('  body head:', (await win.evaluate(() => document.body.innerText.slice(0, 120))).replace(/\n/g, ' '))
+console.log('  current url:', win.url())
 await win.keyboard.press('Escape').catch(() => {})
 await snap(win, 'canvas-with-broken-and-good')
 
 // 验占位：DOM 里应出现「加载失败」（broken 图节点）
-const hasFailedPlaceholder = await win.evaluate(() => document.body.innerText.includes('加载失败'))
+const hasFailedPlaceholder = await win.getByText('加载失败', { exact: false }).first().isVisible().catch(() => false)
 check('坏图显示「加载失败」占位', hasFailedPlaceholder)
 
 // 选中 omni 视频节点（按坐标点几处覆盖标题区），等 composer 出现
@@ -147,7 +147,7 @@ let composerOpen = false
 for (const [fx, fy, name] of [[0.46, 0.30, 'a'], [0.52, 0.30, 'b'], [0.49, 0.34, 'c'], [0.55, 0.40, 'd']]) {
   await win.mouse.click(Math.round(vp.width * fx), Math.round(vp.height * fy)).catch(() => {})
   await win.waitForTimeout(700)
-  composerOpen = await win.evaluate(() => document.body.innerText.includes('全能参考') || document.body.innerText.includes('生成方式'))
+  composerOpen = await win.getByText(/全能参考|生成方式/).first().isVisible().catch(() => false)
   console.log(`  click ${name} → composer(含「全能参考/生成方式」)=${composerOpen}`)
   if (composerOpen) break
 }

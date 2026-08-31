@@ -19,6 +19,10 @@ import {
   type CertificationMediaReasonCode,
 } from "./certificationMedia";
 import type { CertificationSubmissionState } from "../integrationCertification/types";
+import {
+  executeSynchronousAudioOperation,
+  type SynchronousAudioOperationResult,
+} from "../audio/synchronousAudioResponse";
 
 // 文本探测的额度上限。**上限不是花费**——模型答完 "ready" 就停，实际只出几十 token，
 // 设大不多花一分钱；设小却会把整类思考型模型判死：DeepSeek V4 / R1 / o 系默认先思考，
@@ -46,7 +50,7 @@ export type AdapterVerificationResult =
   | {
       ok: false;
       taskKind: AdapterModeDraft["taskKind"];
-      stage: "localize_reference" | "create" | "poll" | "verify_asset";
+      stage: "localize_reference" | "create" | "poll" | "result" | "verify_asset";
       error: string;
       /**
        * 失败归类。**在抛出点就已查表定好**（vendorHttp：401/403→auth、402→balance、429→quota、
@@ -64,6 +68,8 @@ export type AdapterVerificationResult =
       submissionState?: Extract<CertificationSubmissionState, "unknown" | "settled">;
     };
 
+type AdapterVerificationStage = Extract<AdapterVerificationResult, { ok: false }>["stage"];
+
 type ExecuteInput = Parameters<typeof executeProfileOperation>[0];
 type NormalizeInput = Parameters<typeof buildProfileTaskResult>[0];
 
@@ -72,6 +78,7 @@ export type AdapterVerifierDependencies = {
   normalize?: (input: NormalizeInput) => Promise<{ result: TaskResult; providerMeta: Record<string, unknown> }>;
   fetchAsset?: CertificationMediaDependencies["fetch"];
   certifyMedia?: typeof certifyMediaArtifact;
+  executeSynchronousAudio?: (input: Parameters<typeof executeSynchronousAudioOperation>[0]) => Promise<SynchronousAudioOperationResult>;
   sleep?: (ms: number) => Promise<void>;
   maxPolls?: number;
   pollIntervalMs?: number;
@@ -125,6 +132,7 @@ function mappingFor(vendor: Vendor, model: Model, mode: AdapterModeDraft): Mappi
     enabled: false,
     create: mode.create,
     ...(mode.query ? { query: mode.query } : {}),
+    ...(mode.result ? { result: mode.result } : {}),
     ...(mode.statusMapping ? { statusMapping: mode.statusMapping } : {}),
     createdAt: now,
     updatedAt: now,
@@ -189,7 +197,7 @@ export async function verifyAdapterMode(
   const request = verificationRequest(input.model, input.mode);
   // 本次验证正在打的那个端点的 origin（用户刚亲手填的），产物 URL 与它同源才准下载。
   const verifiedOrigin = originOf(input.vendor.baseUrlHint);
-  let stage: "localize_reference" | "create" | "poll" | "verify_asset" = input.mode.referenceParam
+  let stage: AdapterVerificationStage = input.mode.referenceParam
     ? "localize_reference"
     : "create";
   let requestSummary: unknown;
@@ -228,6 +236,39 @@ export async function verifyAdapterMode(
       return { ok: true, taskKind: input.mode.taskKind, requestSummary };
     }
 
+    const audioResponse = input.mode.create.audioResponse;
+    const synchronousAudio = input.model.kind === "audio"
+      && input.mode.taskKind !== "transcribe"
+      && !input.mode.query
+      && Boolean(audioResponse)
+      && audioResponse !== "ndjson-base64";
+    if (synchronousAudio) {
+      const executeAudio = dependencies.executeSynchronousAudio || executeSynchronousAudioOperation;
+      stage = "create";
+      const audio = await executeAudio({
+        vendor: input.vendor,
+        model: input.model,
+        apiKey: input.apiKey,
+        request,
+        operation: input.mode.create,
+        ...(input.signal ? { signal: input.signal } : {}),
+      });
+      requestSummary = audio.request;
+      stage = "verify_asset";
+      const mediaEvidence = [await certifyMedia({
+        source: { bytes: audio.bytes, contentType: audio.contentType },
+        expectedKind: "audio",
+        ...(input.signal ? { signal: input.signal } : {}),
+      })];
+      return {
+        ok: true,
+        taskKind: input.mode.taskKind,
+        requestSummary,
+        mediaEvidence,
+        submissionState: "settled",
+      };
+    }
+
     let executed = await execute({
       vendor: input.vendor,
       model: input.model,
@@ -253,6 +294,7 @@ export async function verifyAdapterMode(
     });
     remoteTaskId = normalized.result.id;
     input.onRemoteTaskAccepted?.(remoteTaskId);
+    let providerMeta = normalized.providerMeta;
 
     if (normalized.result.status === "failed") throw new Error(normalized.result.error || "Provider returned a failed task");
     if (normalized.result.status !== "succeeded") {
@@ -268,7 +310,7 @@ export async function verifyAdapterMode(
           request,
           operation: input.mode.query,
           stage: "query",
-          providerMeta: normalized.providerMeta,
+          providerMeta,
           localAssetReader: defaultReadFixture,
           signal: input.signal,
         });
@@ -283,10 +325,38 @@ export async function verifyAdapterMode(
           vendor: input.vendor,
           model: input.model,
         });
+        providerMeta = { ...providerMeta, ...normalized.providerMeta };
         remoteTaskId = normalized.result.id;
         if (normalized.result.status === "failed") throw new Error(normalized.result.error || "Provider returned a failed task");
       }
       if (normalized.result.status !== "succeeded") throw new Error("Provider verification timed out while polling");
+    }
+
+    if (input.mode.result) {
+      stage = "result";
+      executed = await execute({
+        vendor: input.vendor,
+        model: input.model,
+        apiKey: input.apiKey,
+        request,
+        operation: input.mode.result,
+        stage: "result",
+        providerMeta,
+        localAssetReader: defaultReadFixture,
+        signal: input.signal,
+      });
+      requestSummary = executed.request;
+      normalized = await normalize({
+        response: executed.response,
+        mapping,
+        operation: input.mode.result,
+        request,
+        taskIdFallback: remoteTaskId || `adapter-${crypto.randomUUID()}`,
+        wantedKind: input.model.kind,
+        vendor: input.vendor,
+        model: input.model,
+      });
+      if (normalized.result.status === "failed") throw new Error(normalized.result.error || "Provider result request failed");
     }
 
     stage = "verify_asset";

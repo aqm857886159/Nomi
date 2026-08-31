@@ -26,6 +26,15 @@ describe('node result lifecycle', () => {
     expect(listNodeMediaResults(node(a, [a, b])).map(resultIdentity)).toEqual(['a', 'b'])
   })
 
+  it('publishes audio and 3D results to assets without adding them to the visual version tray', () => {
+    const audio = { id: 'audio', type: 'audio', url: 'audio.mp3', createdAt: 1 } as GenerationNodeResult
+    const model = { id: 'mesh', type: 'model3d', url: 'mesh.glb', createdAt: 2 } as GenerationNodeResult
+    const mixed = node(model, [audio, model])
+
+    expect(listNodeMediaResults(mixed).map(resultIdentity)).toEqual(['mesh', 'audio'])
+    expect(listStableNodeMediaResults(mixed)).toEqual([])
+  })
+
   it('keeps the tray order stable when the current result pointer changes', () => {
     const a = image('a', 'a.png')
     const b = image('b', 'b.png')

@@ -1,5 +1,5 @@
 // multipart/form-data transport 执行器（P4 声明驱动，与 processOperation 同构：runtime 建好 context +
-// 注入依赖，本模块只做「渲染 op.multipart → 取参考图字节 → 组 FormData → 发送」，不含 vendor 逻辑、
+// 注入依赖，本模块只做「渲染 op.multipart → 取参考媒体字节 → 组 FormData → 发送」，不含 vendor 逻辑、
 // 不 import runtime（避循环依赖）。为什么单开：Nomi 主路 requestJson 只发 JSON body，而 OpenAI 官方
 // /v1/images/edits 图生图收的是 image[] 二进制文件字段——两种 wire，声明式各走各的（见 types.HttpOperation.multipart）。
 
@@ -12,11 +12,12 @@ import type { TaskRequest } from "../runtime";
 
 type MultipartSpec = NonNullable<HttpOperation["multipart"]>;
 
-/** 参考图 URL → 字节（nomi-local 读本地零网络 / http/data 取字节）。null = 取不到（调用方抛人话错误）。 */
-export type MultipartImageResolver = (url: string) => Promise<{ bytes: Buffer; contentType: string; fileName: string } | null>;
+/** 参考媒体 URL → 字节（nomi-local 读本地零网络 / http/data 取字节）。null = 取不到。 */
+export type MultipartFileResolver = (url: string) => Promise<{ bytes: Buffer; contentType: string; fileName: string } | null>;
+export type MultipartImageResolver = MultipartFileResolver;
 
 /** 具体参考图取字节实现（runtime 注入 executeMultipartOperation）：nomi-local 直读本地字节；data: 解码；http(s) 取回。 */
-export const resolveReferenceImageBytes: MultipartImageResolver = async (url) => {
+export const resolveReferenceMediaBytes: MultipartFileResolver = async (url) => {
   const local = readNomiLocalAsset(url);
   if (local) return { bytes: local.bytes, contentType: local.contentType, fileName: local.fileName };
   if (/^data:/i.test(url)) {
@@ -36,19 +37,27 @@ export const resolveReferenceImageBytes: MultipartImageResolver = async (url) =>
   }
   return null;
 };
+export const resolveReferenceImageBytes = resolveReferenceMediaBytes;
 /** 把组好的 FormData 发出去（runtime 注入 requestMultipart 闭包，带 vendor/apiKey/url/headers）。 */
 export type MultipartSender = (form: FormData) => Promise<unknown>;
 
 const REF_URL_RE = /^(https?:\/\/|nomi-local:\/\/|data:|blob:|\/)/i;
 
-/** 渲染 multipart op → FormData → 发送。文本字段走模板；imageSource 解析出的参考图逐个取字节当文件上传。 */
+/** 渲染 multipart op → FormData → 发送。文本字段走模板；fileSource 解析出的参考媒体逐个上传。 */
 export async function executeMultipartOperation(input: {
   multipart: MultipartSpec;
   context: Record<string, unknown>;
-  resolveImage: MultipartImageResolver;
+  resolveFile?: MultipartFileResolver;
+  /** Compatibility alias for existing image-edit callers. */
+  resolveImage?: MultipartImageResolver;
   send: MultipartSender;
 }): Promise<{ response: unknown; request: unknown }> {
   const spec = input.multipart;
+  const fileField = spec.fileField || spec.imageField;
+  const fileSource = spec.fileSource || spec.imageSource;
+  const fileKind = spec.fileKind || "image";
+  const resolveFile = input.resolveFile || input.resolveImage;
+  if (!fileField || !fileSource || !resolveFile) throw new Error("multipart 文件声明不完整");
 
   // 1. 文本字段（与 body 同一套 renderTemplateValue；丢 undefined/null/空串——严格端点收到空字段会 400）。
   const rendered = renderTemplateValue(spec.fields || {}, input.context);
@@ -60,35 +69,36 @@ export async function executeMultipartOperation(input: {
     }
   }
 
-  // 2. 参考图 URL(s)。整 token 渲染 → string | string[]；只留 URL 形状的值。
-  const source = renderTemplateValue(spec.imageSource, input.context);
+  // 2. 参考媒体 URL(s)。整 token 渲染 → string | string[]；只留 URL 形状的值。
+  const source = renderTemplateValue(fileSource, input.context);
   const urls = (Array.isArray(source) ? source : [source]).filter(
     (u): u is string => typeof u === "string" && REF_URL_RE.test(u.trim()),
   );
   const picked = spec.multiple ? urls : urls.slice(0, 1);
   if (picked.length === 0) {
-    // 到这一步没参考图=上游护栏漏了（imageEditGuardError 本应在付费前拦），诚实抛而非发一个无图的 edits。
-    throw new Error("图生图缺参考图：/v1/images/edits 需要至少一张参考图");
+    throw new Error(`${fileKind === "image" ? "图生图缺参考图" : "缺少待上传媒体"}：multipart 端点需要至少一个文件`);
   }
 
   // 3. 逐个取字节（顺序取，量小；失败即抛人话，不静默丢图发半套）。
   const files: Array<{ bytes: Buffer; contentType: string; fileName: string }> = [];
   for (const url of picked) {
-    const asset = await input.resolveImage(url);
+    const asset = await resolveFile(url);
     if (!asset || !asset.bytes || asset.bytes.byteLength === 0) {
-      throw new Error(`图生图参考图取字节失败：${url.slice(0, 96)}`);
+      throw new Error(`${fileKind === "image" ? "图生图参考图" : "参考媒体"}取字节失败：${url.slice(0, 96)}`);
     }
     files.push(asset);
   }
 
   // 4. 组 FormData（文本字段 + 二进制文件；不设 Content-Type，requestMultipart 里已剥、fetch 自动加 boundary）。
-  const prefix = spec.filename || "image";
+  const prefix = spec.filename || fileKind;
   const form = new FormData();
   for (const [key, value] of Object.entries(textFields)) form.append(key, value);
   files.forEach((file, i) => {
     const ab = file.bytes.buffer.slice(file.bytes.byteOffset, file.bytes.byteOffset + file.bytes.byteLength) as ArrayBuffer;
-    const fileName = file.fileName || `${prefix}-${i}.png`;
-    form.append(spec.imageField, new Blob([ab], { type: file.contentType || "image/png" }), fileName);
+    const defaultExtension = fileKind === "audio" ? "mp3" : fileKind === "video" ? "mp4" : "png";
+    const defaultContentType = fileKind === "audio" ? "audio/mpeg" : fileKind === "video" ? "video/mp4" : "image/png";
+    const fileName = file.fileName || `${prefix}-${i}.${defaultExtension}`;
+    form.append(fileField, new Blob([ab], { type: file.contentType || defaultContentType }), fileName);
   });
 
   const response = await input.send(form);
@@ -98,8 +108,13 @@ export async function executeMultipartOperation(input: {
     request: {
       multipart: true,
       fields: textFields,
-      imageField: spec.imageField,
-      images: files.map((f, i) => ({ fileName: f.fileName || `${prefix}-${i}.png`, contentType: f.contentType, byteLength: f.bytes.byteLength })),
+      fileField,
+      fileKind,
+      files: files.map((f, i) => ({ fileName: f.fileName || `${prefix}-${i}`, contentType: f.contentType, byteLength: f.bytes.byteLength })),
+      ...(fileKind === "image" ? {
+        imageField: fileField,
+        images: files.map((f, i) => ({ fileName: f.fileName || `${prefix}-${i}.png`, contentType: f.contentType, byteLength: f.bytes.byteLength })),
+      } : {}),
     },
   };
 }
@@ -119,7 +134,7 @@ export async function runMultipartProfileOperation(
   return executeMultipartOperation({
     multipart: input.operation.multipart!,
     context,
-    resolveImage: resolveReferenceImageBytes,
+    resolveFile: resolveReferenceMediaBytes,
     send: (form) => sendMultipart(built.url, built.headers, built.query, form),
   });
 }

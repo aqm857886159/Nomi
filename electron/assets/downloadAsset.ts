@@ -1,11 +1,12 @@
 // 把生成结果（本地 nomi-local 资源 或 远端 http(s) 链接）另存到用户选定位置，默认落「下载」目录。
 // 统一一条下载路径：图片/视频/素材都走这里（按 url 协议取字节，不为不同类型分叉）。从 main.ts 抽出（规则 12 巨壳净减）。
-import { app, dialog, net } from "electron";
+import { app, dialog } from "electron";
 import path from "node:path";
 import { existsSync, statSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolveProjectRelativePath } from "../projects/repository";
 import { logBreadcrumb, logCrash } from "../crashLog";
+import { hardenedFetch } from "../hardenedFetch";
 import { getLastDownloadDir, pickDownloadDir, rememberDownloadDir } from "./downloadPrefs";
 
 function isDirectory(dir: string): boolean {
@@ -34,9 +35,17 @@ export async function fetchAssetBytes(rawUrl: string): Promise<Buffer> {
     return readFile(resolveProjectRelativePath(projectId, relativeParts.join("/")));
   }
   if (/^https?:/i.test(rawUrl)) {
-    const response = await net.fetch(rawUrl);
-    if (!response.ok) throw new Error(`下载失败（${response.status}）`);
-    return Buffer.from(await response.arrayBuffer());
+    // Provider result URLs must use the same proxy-aware, bounded, SSRF-safe
+    // route as generation localization. Electron's net.fetch follows the
+    // Chromium session, while production generation uses the app-owned
+    // undici route; splitting them made a result downloadable in one path but
+    // unreachable in auto-save/manual download when a fake-IP proxy was active.
+    // Keep the URL policy and byte limits identical for every remote asset.
+    const fetched = await hardenedFetch(rawUrl, {
+      timeoutMs: 60_000,
+      maxBytes: 200 * 1024 * 1024,
+    });
+    return fetched.bytes;
   }
   throw new Error("不支持的资源地址");
 }

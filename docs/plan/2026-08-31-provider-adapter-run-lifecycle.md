@@ -1,5 +1,7 @@
 # Provider adapter validation history lifecycle
 
+> 状态：✅ 已交付
+
 ## Feedback and root cause
 
 WeChat users reported that an API configuration error remains visible after the

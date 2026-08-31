@@ -1,5 +1,6 @@
 name = "nomi"
 compatibility_date = "2026-05-04"
+main = "./worker/index.ts"
 
 
 [assets]

@@ -116,6 +116,52 @@ describe("verifyAdapterMode", () => {
     if (verification.ok) expect(verification.mediaEvidence).toMatchObject([{ kind: "image", contentType: "image/png" }]);
   });
 
+  it("certifies synchronous audio bytes through the production audio executor without JSON task normalization", async () => {
+    const execute = vi.fn();
+    const normalize = vi.fn();
+    const audioBytes = mediaFixture("valid.wav");
+    const executeSynchronousAudio = vi.fn().mockResolvedValue({
+      bytes: audioBytes,
+      contentType: "audio/wav",
+      extension: "wav",
+      request: { method: "POST", path: "/v1/audio/speech" },
+    });
+    const certifyMedia = vi.fn().mockResolvedValue({
+      kind: "audio",
+      contentType: "audio/wav",
+      byteLength: audioBytes.byteLength,
+      sha256: "fixture",
+      metadata: { durationSeconds: 1 },
+    });
+    const audioModel = { ...model, modelKey: "tts-v1", labelZh: "TTS V1", kind: "audio" as const };
+    const audioMode = mode({
+      taskKind: "text_to_audio",
+      create: {
+        method: "POST",
+        path: "/v1/audio/speech",
+        audioResponse: { type: "binary", contentType: "audio/wav", extension: "wav" },
+      },
+    });
+
+    const verification = await verifyAdapterMode(
+      { vendor, model: audioModel, apiKey: "sk-test", mode: audioMode },
+      { execute, normalize, executeSynchronousAudio, certifyMedia },
+    );
+
+    expect(verification.ok).toBe(true);
+    expect(executeSynchronousAudio).toHaveBeenCalledTimes(1);
+    expect(execute).not.toHaveBeenCalled();
+    expect(normalize).not.toHaveBeenCalled();
+    expect(certifyMedia).toHaveBeenCalledWith(expect.objectContaining({
+      source: { bytes: audioBytes, contentType: "audio/wav" },
+      expectedKind: "audio",
+    }));
+    if (verification.ok) {
+      expect(verification.requestSummary).toEqual({ method: "POST", path: "/v1/audio/speech" });
+      expect(verification.mediaEvidence).toMatchObject([{ kind: "audio", contentType: "audio/wav" }]);
+    }
+  });
+
   it.each([
     ["HTML", "image/png", mediaFixture("http-200-html.txt"), "media_markup_masquerade"],
     ["oversize bytes", "image/png", Buffer.alloc(12 * 1024 * 1024 + 1), "media_too_large"],
@@ -191,6 +237,44 @@ describe("verifyAdapterMode", () => {
     expect(verification.ok).toBe(true);
     expect(execute).toHaveBeenCalledTimes(3);
     expect(execute.mock.calls[1]?.[0].providerMeta).toEqual({ task_id: "job-1" });
+  });
+
+  it("fetches endpoint output through result only after the status query completes", async () => {
+    const outputUrl = "https://cdn.example.com/out.png";
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce({ response: { request_id: "job-1" }, request: { stage: "create" } })
+      .mockResolvedValueOnce({ response: { status: "COMPLETED", request_id: "job-1" }, request: { stage: "query" } })
+      .mockResolvedValueOnce({ response: { images: [{ url: outputUrl }] }, request: { stage: "result" } });
+    const normalize = vi
+      .fn()
+      .mockResolvedValueOnce({ result: result("queued"), providerMeta: { task_id: "job-1" } })
+      .mockResolvedValueOnce({ result: result("succeeded"), providerMeta: { task_id: "job-1" } })
+      .mockResolvedValueOnce({
+        result: result("succeeded", [{ type: "image", url: outputUrl }]),
+        providerMeta: {},
+      });
+    const verification = await verifyAdapterMode(
+      {
+        vendor,
+        model,
+        apiKey: "sk-test",
+        mode: mode({
+          query: { method: "GET", path: "/requests/{{providerMeta.task_id}}/status" },
+          result: { method: "GET", path: "/requests/{{providerMeta.task_id}}" },
+        }),
+      },
+      {
+        execute,
+        normalize,
+        fetchAsset: vi.fn().mockResolvedValue({ contentType: "image/png", bytes: mediaFixture("valid.png") }),
+        sleep: async () => {},
+      },
+    );
+
+    expect(verification.ok).toBe(true);
+    expect(execute.mock.calls.map(([input]) => input.stage)).toEqual(["create", "query", "result"]);
+    expect(execute.mock.calls[2]?.[0].providerMeta).toEqual({ task_id: "job-1" });
   });
 
   it("injects a local reference fixture into the declared request parameter", async () => {

@@ -51,3 +51,4 @@
 | [2026-08-28-conversational-model-integration.md](2026-08-28-conversational-model-integration.md) | Conversational Model Integration Implementation Plan | 🚧 进行中 |
 | [2026-08-28-quality-gate-parallel-orchestration.md](2026-08-28-quality-gate-parallel-orchestration.md) | Quality Gate Parallel Orchestration Implementation Plan | ✅ 已交付 |
 | [2026-08-31-asset-relay-routing.md](2026-08-31-asset-relay-routing.md) | Asset Relay Routing Implementation Plan | ✅ 已交付 |
+| [2026-08-31-provider-model-expansion-certification.md](2026-08-31-provider-model-expansion-certification.md) | Provider and Flagship Model Expansion Certification Implementation Plan | ✅ 已交付 |

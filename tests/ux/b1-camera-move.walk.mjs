@@ -92,7 +92,7 @@ await snap(win, 'library')
 
 const card = win.getByText('B1 运镜芯片走查', { exact: false }).first()
 console.log('  project card count:', await card.count())
-const inCanvas = async () => win.evaluate(() => /生成方式|全能参考|导出|时间轴|预览/.test(document.body.innerText) && !/Nomi 项目库|新建空白项目/.test(document.body.innerText))
+const inCanvas = async () => win.locator('.generation-canvas-v2__stage').first().isVisible().catch(() => false)
 if (await card.count()) {
   await card.click({ timeout: 4000 }).catch(() => {})
   await win.waitForTimeout(400)
@@ -136,18 +136,16 @@ let popover = { ok: false }
 if (videoChip.present) {
   await win.locator('[aria-label="运镜"]').first().click({ timeout: 3000 }).catch((e) => console.log('  chip click err', e.message))
   await win.waitForTimeout(700)
-  popover = await win.evaluate(() => {
-    const t = document.body.innerText
-    const moves = ['推近', '拉远', '左环绕', '右环绕', '升镜', '降镜', '左横移', '右横移', '左弧', '右弧', '变焦推', '变焦拉', '希区柯克变焦']
-    return {
-      ok: t.includes('不用搭 3D 场景'),
-      moveCount: moves.filter((m) => t.includes(m)).length,
-      hasSpeed: t.includes('速度') && t.includes('慢') && t.includes('快'),
-      hasFraming: t.includes('景别') && t.includes('远') && t.includes('近'),
-      hasReadout: t.includes('灰模运镜片自动接入 video_ref'),
-      hasApply: t.includes('应用'),
-    }
-  })
+  const visibleText = async (text) => win.getByText(text, { exact: false }).first().isVisible().catch(() => false)
+  const moves = ['推近', '拉远', '左环绕', '右环绕', '升镜', '降镜', '左横移', '右横移', '左弧', '右弧', '变焦推', '变焦拉', '希区柯克变焦']
+  popover = {
+    ok: await visibleText('不用搭 3D 场景'),
+    moveCount: (await Promise.all(moves.map(visibleText))).filter(Boolean).length,
+    hasSpeed: (await visibleText('速度')) && (await visibleText('慢')) && (await visibleText('快')),
+    hasFraming: (await visibleText('景别')) && (await visibleText('远')) && (await visibleText('近')),
+    hasReadout: await visibleText('灰模运镜片自动接入 video_ref'),
+    hasApply: await win.getByRole('button', { name: /^应用$/ }).first().isVisible().catch(() => false),
+  }
   console.log('  ② 弹层:', JSON.stringify(popover))
 }
 await snap(win, 'popover-open')
@@ -158,10 +156,8 @@ if (popover.ok) {
   if (await orbit.count()) { await orbit.click({ timeout: 2000 }).catch(() => {}); await win.waitForTimeout(300) }
   const slow = win.locator('[role="group"][aria-label="速度"] button', { hasText: '慢' }).first()
   if (await slow.count()) { await slow.click({ timeout: 2000 }).catch(() => {}); await win.waitForTimeout(300) }
-  const readout = await win.evaluate(() => {
-    const t = document.body.innerText
-    return { hasOrbit8s: /左环绕 · 慢 · 8s/.test(t), raw: (t.match(/[左右]?环?绕?[^\n]*· 8s[^\n]*/) || [''])[0].slice(0, 40) }
-  })
+  const hasOrbit8s = await win.getByText('左环绕 · 慢 · 8s', { exact: false }).first().isVisible().catch(() => false)
+  const readout = { hasOrbit8s, raw: hasOrbit8s ? '左环绕 · 慢 · 8s' : '' }
   console.log('  ③ 读出更新:', JSON.stringify(readout))
   await snap(win, 'readout-updated')
 }
@@ -171,7 +167,7 @@ let applied = { node: false }
 if (popover.ok) {
   const applyBtn = win.locator('button', { hasText: /^应用$/ }).first()
   if (await applyBtn.count()) { await applyBtn.click({ timeout: 3000 }).catch((e) => console.log('  apply err', e.message)); await win.waitForTimeout(2500) }
-  applied = await win.evaluate(() => ({ node: document.body.innerText.includes('运镜参考') }))
+  applied = { node: await win.getByText('运镜参考', { exact: false }).first().isVisible().catch(() => false) }
   console.log(`  ④ 应用后出现「运镜参考」节点=${applied.node}`)
   await snap(win, 'after-apply')
 }

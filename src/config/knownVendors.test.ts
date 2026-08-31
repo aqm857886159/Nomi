@@ -7,31 +7,10 @@
  */
 import { describe, it, expect } from 'vitest'
 import { KNOWN_VENDORS } from './knownVendors'
-import { APIMART_VENDOR_SEED } from '../../electron/catalog/apimartVendor'
-import { AGNES_VENDOR_SEED } from '../../electron/catalog/agnesVendor'
-import { KIE_VENDOR_SEED } from '../../electron/catalog/kieSeedance'
-import { MODELSCOPE_VENDOR_SEED } from '../../electron/catalog/modelscopeVendor'
-import { VOLCENGINE_VENDOR_SEED, VOLCENGINE_SPEECH_VENDOR_SEED } from '../../electron/catalog/volcengineVendor'
-import { DREAMINA_VENDOR_SEED } from '../../electron/catalog/dreaminaVendor'
-import { RUNNINGHUB_VENDOR_SEED } from '../../electron/catalog/runninghub3d'
-import { REPLICATE_VENDOR_SEED } from '../../electron/catalog/replicate'
-import { FAL_VENDOR_SEED } from '../../electron/catalog/fal'
-import { RUNWAY_VENDOR_SEED } from '../../electron/catalog/runway'
+import { BUILTIN_VENDOR_SEEDS } from '../../electron/catalog/builtinVendorSeeds'
 
 // 单一来源：seedBuiltins.applyBuiltinSeeds 实际 seed 的内置 vendor（每个的 *_VENDOR_SEED.key）。
-const SEEDED_BUILTIN_KEYS = new Set<string>([
-  APIMART_VENDOR_SEED.key,
-  AGNES_VENDOR_SEED.key,
-  KIE_VENDOR_SEED.key,
-  MODELSCOPE_VENDOR_SEED.key,
-  VOLCENGINE_VENDOR_SEED.key,
-  VOLCENGINE_SPEECH_VENDOR_SEED.key,
-  DREAMINA_VENDOR_SEED.key,
-  RUNNINGHUB_VENDOR_SEED.key,
-  REPLICATE_VENDOR_SEED.key,
-  FAL_VENDOR_SEED.key,
-  RUNWAY_VENDOR_SEED.key,
-])
+const SEEDED_BUILTIN_KEYS = new Set<string>(BUILTIN_VENDOR_SEEDS.map((seed) => seed.key))
 
 describe('KNOWN_VENDORS × seed 身份键不变量', () => {
   it('每个展示卡的 vendorKey 都指向真实被 seed 的内置 vendor（防展示指向幽灵 vendor / 防 rename 漂移）', () => {

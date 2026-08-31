@@ -1,5 +1,5 @@
 {
-  "debtCap": 82,
+  "debtCap": 80,
   "registered": [
     {
       "site": "electron/ai/antigravityProtocol.ts::type:AntigravityToolStep/property:state/type-union",
@@ -22,9 +22,9 @@
       "reason": "GenerationRecoveryState 是跨 ProductionJob/Run 状态生成恢复提示的输入投影：submission_unknown、cancel_requested、cancelled 分别驱动 reconcile、observe 或 create_new_attempt；它描述恢复决策面，不是持久化的 ProductionJobStatus。"
     },
     {
-      "site": "electron/capabilityCore/generationRuntimeAdapter.ts::type:GenerationProvider/property:cancel/property:status/type-union",
-      "members": ["cancelled_remote", "detached", "too_late"],
-      "reason": "GenerationProvider.cancel.status 是供应商取消调用的 wire outcome：cancelled_remote 表示远端已取消，too_late 表示已无法取消，detached 表示本地停止等待；ProductionRun 可消费这些结果，但不能用整条 Run 生命周期替代。"
+      "site": "electron/capabilityCore/generationRuntimeAdapter.ts::type:GenerationProviderTaskState/type-union",
+      "members": ["cancelled", "failed", "queued", "running", "succeeded", "unknown"],
+      "reason": "GenerationProviderTaskState 是供应商无关的任务生命周期归一化词表，承接 create、query、result 适配器的状态投影；它必须覆盖不确定的 unknown 与取消态，不能复用 Codex 专属图片任务状态。"
     },
     {
       "site": "electron/capabilityCore/mcpAppWidget.ts::type:NomiDraftShot/property:status/type-union",
@@ -50,6 +50,11 @@
       "site": "electron/catalog/antigravityCatalog.ts::type:AntigravityProcessStage/type-union",
       "members": ["create", "query"],
       "reason": "AntigravityProcessStage 是 catalog 对 Antigravity 进程身份的命名协议：create 产生任务，query 查询任务；processOperation 与 runtime 都消费该导出类型，执行入口的局部 stage 必须复用它。"
+    },
+    {
+      "site": "electron/catalog/seedBuiltins.ts::type:CatalogLifecycle/type-union",
+      "members": ["companion", "flagship", "legacy", "value"],
+      "reason": "seedBuiltins 的 CatalogLifecycle 是主进程内置目录的产品分层标签：flagship、companion、legacy 与 value 决定种子发布和兼容策略，和 renderer 的排序投影保持边界分离。"
     },
     {
       "site": "electron/catalog/customCallSandbox.ts::class:CustomCallSandboxError/property:kind/type-union",
@@ -236,13 +241,23 @@
     },
     {
       "site": "electron/providerAdapter/types.ts::type:AdapterModeResult/property:stage/type-union",
-      "members": ["compile", "create", "docs", "localize_reference", "poll", "promote", "verify_asset"],
+      "members": ["compile", "create", "docs", "localize_reference", "poll", "promote", "result", "verify_asset"],
       "reason": "AdapterModeResult.stage 记录单个模型模式失败或停留的具体接入步骤：docs、compile、localize_reference、create、poll、verify_asset、promote；它用于定位 mode 级错误，边界不同于整次 AdapterRunStage。"
     },
     {
       "site": "electron/providerAdapter/verifier.ts::type:AdapterVerificationResult/property:stage/type-union",
-      "members": ["create", "localize_reference", "poll", "verify_asset"],
+      "members": ["create", "localize_reference", "poll", "result", "verify_asset"],
       "reason": "AdapterVerificationResult.stage 是真实请求验证器的失败步骤合同：localize_reference、create、poll、verify_asset 由 verifier 抛出点写入；verifyAdapterMode 的局部 stage 原样进入该导出结果，必须从失败 variant derive。"
+    },
+    {
+      "site": "electron/localRuntime/localRuntimeDescriptor.ts::type:LocalRuntimeDiagnostic/property:stage/type-union",
+      "members": ["capabilities", "discovery", "models", "readiness", "version"],
+      "reason": "LocalRuntimeDiagnostic.stage 描述本地运行时诊断的证据层级：version、discovery、models、capabilities、readiness 依次建立可用性事实；它不是供应商生成任务的生命周期。"
+    },
+    {
+      "site": "electron/localRuntime/localRuntimeDescriptor.ts::type:LocalRuntimeHealth/type-union",
+      "members": ["degraded", "offline", "ready", "unauthorized"],
+      "reason": "LocalRuntimeHealth 是本地运行时健康投影，区分 offline、unauthorized、degraded 与 ready 的用户可行动状态；该诊断词表不能与远端任务 succeeded/failed 混用。"
     },
     {
       "site": "electron/shared/antigravity.ts::type:AntigravityCheck/property:state/type-union",
@@ -278,6 +293,11 @@
       "site": "src/config/modelCatalogStatus.ts::type:ModelCatalogStatus/type-union",
       "members": ["api_unreachable", "catalog_empty", "incomplete", "kind_empty", "loading", "ready"],
       "reason": "模型目录/供应商调用域的结果词表（api_unreachable / catalog_empty / incomplete / kind_empty / loading / ready），成员由该供应商或调用协议定义。"
+    },
+    {
+      "site": "src/config/modelIdentity.ts::type:CatalogLifecycle/type-union",
+      "members": ["companion", "flagship", "legacy", "value"],
+      "reason": "modelIdentity 的 CatalogLifecycle 是 renderer 目录排序与展示使用的产品分层投影；它与主进程 seedBuiltins 的种子标签同构但跨进程独立，避免 renderer 依赖 Electron 实现。"
     },
     {
       "site": "src/design/status.tsx::type:StatusBadgeTone/type-union",
@@ -358,7 +378,7 @@
       "reason": "**网络连通性检测**结果，ok/partial/fail 是探测结论不是执行状态。"
     },
     {
-      "site": "src/ui/onboarding/OnboardingWizard.tsx::function:OnboardingWizard/variable:0/type-union",
+      "site": "src/ui/onboarding/useOnboardingConnectionTest.ts::type:ConnectionTestState/type-union",
       "members": ["fail", "idle", "ok", "testing", "unsupported"],
       "reason": "模型接入 UI 的视图状态/语气（fail / idle / ok / testing / unsupported），用于表达配置或检测结论，不直接承载任务事实。"
     },
@@ -747,16 +767,6 @@
       "site": "electron/providerAdapter/types.ts::type:AdapterModeState/type-union",
       "members": ["failed", "queued", "repairing", "testing", "verified"],
       "reason": "AdapterModeState 模型模式验证合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODE_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
-    },
-    {
-      "site": "electron/providerAdapter/verifier.ts::function:verifyAdapterMode/variable:stage/type-union",
-      "members": ["create", "localize_reference", "poll", "verify_asset"],
-      "reason": "Exact duplicate of electron/providerAdapter/verifier.ts::type:AdapterVerificationResult/property:stage/type-union; converge by importing or deriving the canonical members instead of maintaining this local literal set."
-    },
-    {
-      "site": "electron/runtime.ts::function:executeProfileOperation/parameter:input/property:stage/type-union",
-      "members": ["create", "query"],
-      "reason": "Exact duplicate of electron/catalog/antigravityCatalog.ts::type:AntigravityProcessStage/type-union; converge by importing or deriving the canonical members instead of maintaining this local literal set."
     },
     {
       "site": "electron/runtime.ts::function:runTask/property:status/type-union",

@@ -78,6 +78,8 @@ export type FetchWorkbenchTaskResultRequestDto = {
   taskKind?: TaskKind
   prompt?: string | null
   modelKey?: string | null
+  /** Persisted archetype mode discriminator for mode-specific mappings. */
+  archetype?: { modeId?: string | null } | null
   /** 续查所属项目：内存缓存 miss 后主进程无状态重建查询时，用它把找回的资产本地化进项目。 */
   projectId?: string | null
 }

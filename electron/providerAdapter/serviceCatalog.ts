@@ -417,6 +417,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
             enabled: passed,
             create: mode.create,
             ...(mode.query ? { query: mode.query } : {}),
+            ...(mode.result ? { result: mode.result } : {}),
             ...(mode.statusMapping ? { statusMapping: mode.statusMapping } : {}),
           });
         }

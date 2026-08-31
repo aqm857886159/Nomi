@@ -1,7 +1,7 @@
 # 现在真正跑的是什么
 
 > 状态：🚧 长期维护（这份文件不描述计划，只描述**当下 main 上真实运行的东西**）
-> 最后核对：2026-08-31 · 核对基线：任务分支 `codex/asset-upload-routing-20260830`
+> 最后核对：2026-08-31 · 核对基线：任务分支 `codex/provider-model-expansion-20260830` + `origin/main`
 
 ## 这份文件为什么存在
 
@@ -53,6 +53,8 @@
 | **Agent 媒体读取与输出** | `get_media` / `inspect_media` / `search_media` / `inspect_source_range` / `read_waveform`，以及项目绑定的 `export_timeline` / `inspect_export_job` / `verify_render` / `cancel_export_job` 已接入 `canvas-agent`。全部绑定 active project，只返回稳定 asset ID、白名单元数据或无路径的任务回执；本地 URL/相对路径/绝对路径不出工具结果。波形在 renderer 本地真实解码，导出验证明确是 receipt-level，不冒充逐帧/音频质量检查 | `src/workbench/timeline/agent/{mediaToolCall,exportToolCall}.ts`、`electron/harness/tools/timelineDescriptors.ts` | ⚠️ `inspect_media` 是技术元数据，不冒充视觉理解/ASR；语义镜头理解和 transcript 仍未实现 |
 | **导出** | ffmpeg filtergraph：视觉链（scale+overlay+时间窗）/ 音频链（atrim→asetpts→clip volume/afade→adelay→amix）/ 文字链（全画幅 PNG overlay，**接在最后一层**）。片段 gain/mute/fade 与预览共用同一帧语义；任一素材有音轨 → `aac/mixdown` | `electron/export/ffmpegFiltergraph.ts`、`src/workbench/timeline/clipAudio.ts`、`electron/export/exportJobs.ts` | ❌ 以为 clip 音频字段校验失败会静默回退 WebM——坏 manifest 现在明确报错；缺省字段才保持旧项目原行为 |
 | **对外 MCP** | 顶层目录是 `mcpToolCatalog.ts`；`mcpGenerationTools.ts` 只是**生成语义子目录**（11 个工具全是生成，无剪辑）。`tools/list` 广播的 JSON Schema 同时是唯一运行时校验边界 | `electron/capabilityCore/mcpToolCatalog.ts:12`、`mcpProtocol.ts:445` | ❌ 把非生成类工具塞进 `mcpGenerationTools.ts` |
+| **对话式模型接入** | MCP 只提交公开连接资料并驱动 `begin -> credentials -> discover -> select -> request_confirmation -> start`；密钥只在 Nomi 可信页面保存，付费认证由签名 challenge 和 opaque receipt 授权。只有 canonical certification 真调用与制品验真通过后，模型才发布进普通目录 | `electron/capabilityCore/mcpIntegrationTools.ts:5`、`electron/integrationCertification/integrationSession.ts:1239`、`src/ui/onboarding/IntegrationConfirmationPanel.tsx:21` | ❌「Agent 能直接拿 API key、自己确认花费或写一行 seed 就算接入」——三者都不成立；静态内置档案和用户对话接入共享执行/认证边界，但信任入口不同 |
+| **LocalAI 本地模型** | 只是 **external connector**：复用现有 OpenAI-compatible 添加供应商与认证流程，按 well-known/readiness/capabilities/models 证据增强发现。Nomi 不捆绑 LocalAI、不下载权重、不启动或监管 sidecar；发现到媒体能力也仍是 `uncertified`，通过对应 executor 认证前不会冒充可生成 | `electron/localRuntime/localAiExternalProbe.ts:278`、`electron/integrationCertification/httpConnector.ts:19`、`electron/integrationCertification/integrationSession.ts:515` | ❌「接 LocalAI 会让安装包多几个 GB」或「发现到 image/audio 就已经能用」——连接器代码很小，模型和进程始终由用户外部管理；发现证据不等于生产认证 |
 | **内部 Agent vs MCP** | **两套入口合同，一套领域实现**。两边各有自己的 schema/权限链，但最终调同一个领域函数 | `applyCanvasToolCall.ts:595` 与 `capabilityApplyHandler.ts:543` 都调 `sendStoryboardToTimeline.ts:77` | ❌ 以为有共享的工具定义层——**没有**，共享点在领域 helper |
 | **自动剪辑总纲** | 已有已批准方案：**E1 采纳桥（已实现）/ E2 结构化粗剪 / E3 理解式剪辑**，核心对象是 **EditPlan + 剪辑计划卡** | `docs/superpowers/plans/2026-08-24-unified-agent-master-plan.md` §5.1 | ❌ 另起炉灶重新发明（搜「自动剪辑」搜不到它，见 `docs/GLOSSARY.md`） |
 | **生产流程引擎** | `productionRun`（阶段机+门+预算账本+审批回执+幂等+制品+事件流）。playbook 阶段：brief→direction→script→storyboard→build→generate→qa→**assemble**→export | `electron/productionRun/productionPlaybooks.ts:33` | ❌ 以为自动剪辑要新建管线——`assemble` 阶段已存在，目前只有一行 |

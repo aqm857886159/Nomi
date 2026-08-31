@@ -1,7 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { resolveFfmpegPath } from "../export/ffmpegRunner";
 
 const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-asset-store-"));
 
@@ -33,6 +35,25 @@ function validGlb(): Buffer {
   bytes.writeUInt32LE(36, 20 + jsonLength);
   bytes.writeUInt32LE(0x004e4942, 24 + jsonLength);
   return bytes;
+}
+
+function trailingMoovMp4(): Buffer {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-trailing-moov-"));
+  const output = path.join(dir, "trailing-moov.mp4");
+  try {
+    const result = spawnSync(resolveFfmpegPath(), [
+      "-hide_banner", "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=32x32:d=0.25",
+      "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", output,
+    ], { timeout: 20_000, maxBuffer: 64 * 1024 });
+    if (result.status !== 0) throw new Error(`fixture ffmpeg failed: ${result.stderr?.toString() || "unknown"}`);
+    const bytes = fs.readFileSync(output);
+    const moov = bytes.indexOf(Buffer.from("moov", "ascii"));
+    const mdat = bytes.indexOf(Buffer.from("mdat", "ascii"));
+    if (moov < mdat) throw new Error("fixture did not place moov after mdat");
+    return bytes;
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 beforeEach(() => {
@@ -110,6 +131,13 @@ describe("writeAsset canonical media filename", () => {
     const second = writeDeterministicAsset("project-1", mediaFixture("valid.mp4"), "result.mp4", "video/mp4", { kind: "generated" }, "task-1:output-1") as { id?: string; data?: { relativePath?: string } };
     expect(second).toMatchObject({ id: first.id, data: { relativePath: first.data?.relativePath } });
     expect(fs.readdirSync(path.join(projectRoot, first.data?.relativePath ? path.dirname(first.data.relativePath) : "assets"))).toHaveLength(2);
+  });
+  it("accepts a generated MP4 whose moov index is at the end of the file", () => {
+    const result = writeAsset("project-1", trailingMoovMp4(), "runway.mp4", "video/mp4", { kind: "generated" }) as {
+      data?: { relativePath?: string; contentType?: string };
+    };
+    expect(result.data?.relativePath).toMatch(/runway\.mp4$/);
+    expect(result.data?.contentType).toBe("video/mp4");
   });
   it.each(["missing", "truncated"])("repairs a %s deterministic asset sidecar on retry", (failure) => {
     const args = ["project-1", mediaFixture("valid.jpg"), "result.jpg", "image/jpeg", { kind: "generated", localTaskId: "local-task" }, "task-1:output-1"] as const;

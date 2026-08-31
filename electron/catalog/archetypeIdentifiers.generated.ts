@@ -28,6 +28,85 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "hailuo-03",
     "hailuo3"
   ],
+  "minimax-h3-max": [
+    "minimax/h3-max",
+    "MiniMax-H3-Max"
+  ],
+  "minimax-music-3": [
+    "minimax/music-3",
+    "music-3"
+  ],
+  "minimax-speech-2.8": [
+    "speech-2.8-hd",
+    "speech-2.8-turbo"
+  ],
+  "eleven-v3": [
+    "eleven_v3",
+    "eleven-v3"
+  ],
+  "eleven-music-v2": [
+    "music_v2",
+    "eleven-music-v2"
+  ],
+  "eleven-sfx-v2": [
+    "eleven_text_to_sound_v2",
+    "eleven-sfx-v2"
+  ],
+  "eleven-scribe-v2": [
+    "scribe_v2",
+    "scribe-v2"
+  ],
+  "meshy-7": [
+    "meshy-7",
+    "meshy7"
+  ],
+  "runway-gen4.5": [
+    "gen4.5",
+    "runway-gen4.5",
+    "runway-gen-4.5"
+  ],
+  "runway-gen4-turbo": [
+    "gen4_turbo",
+    "runway-gen4-turbo",
+    "runway-gen-4-turbo"
+  ],
+  "runway-video": [
+    "seedance2",
+    "seedance2_fast",
+    "seedance2_mini",
+    "wan3",
+    "grok_imagine_1_5",
+    "hailuo3",
+    "veo3.1",
+    "veo3.1_fast",
+    "happyhorse_1_0",
+    "gemini_omni_flash"
+  ],
+  "runway-video-t2v": [
+    "happyhorse_1_0"
+  ],
+  "runway-image-reference": [
+    "gen4_image_turbo"
+  ],
+  "runway-image": [
+    "muse_image",
+    "grok_imagine_image_2",
+    "seedream5_pro",
+    "seedream5_lite",
+    "gen4_image",
+    "gen4_image_turbo",
+    "gemini_image3_pro",
+    "gemini_image3.1_flash",
+    "gpt_image_2",
+    "gemini_2.5_flash"
+  ],
+  "runway-audio": [
+    "seed_audio",
+    "eleven_text_to_sound_v2",
+    "eleven_multilingual_v2",
+    "eleven_v3",
+    "runway-audio"
+  ],
   "happyhorse": [
     "happyhorse",
     "happyhorse/text-to-video",
@@ -151,6 +230,10 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "grok-imagine-1.5-video",
     "grok-imagine-1.5"
   ],
+  "gemini-omni-1.1": [
+    "google/gemini-omni-flash-1-1",
+    "gemini-omni-flash-1-1"
+  ],
   "seedance-2-apimart": [
     "doubao-seedance-2.0",
     "doubao-seedance-2-0",
@@ -197,6 +280,17 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
   ],
   "nomi-audio": [
     "nomi-audio"
+  ],
+  "suno-v5.5": [
+    "suno-v5.5",
+    "suno-v5-5"
+  ],
+  "suno-sfx-v5.5": [
+    "suno-sounds-v5.5",
+    "suno-sounds-v5-5"
+  ],
+  "lyria-3.5": [
+    "flowmusic-lyria-3.5"
   ],
   "volcengine-doubao-tts": [
     "doubao-seed-tts-2.0",

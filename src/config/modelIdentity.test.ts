@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { deriveCanonicalModelId, normalizeModelLabel, dedupeModelOptions, resolveBestProvider, vendorTier } from './modelIdentity'
+import {
+  dedupeModelOptions,
+  deriveCanonicalModelId,
+  modelCatalogLifecycle,
+  normalizeModelLabel,
+  resolveBestProvider,
+  sortModelsByCatalogLifecycle,
+  vendorTier,
+} from './modelIdentity'
 import type { ModelOption } from './models'
 
 const opt = (o: Partial<ModelOption>): ModelOption => ({ value: '', label: '', ...o })
@@ -108,5 +116,48 @@ describe('modelIdentity · resolveBestProvider 自动选最优', () => {
       opt({ value: '2', label: 'X', vendor: 'kie', modelKey: '2' }),
     ])[0]
     expect(resolveBestProvider(m)?.vendor).toBe('apimart')
+  })
+})
+
+describe('modelIdentity · catalog lifecycle ordering', () => {
+  const lifecycleOption = (value: string, catalogLifecycle?: string): ModelOption => opt({
+    value,
+    label: value,
+    modelKey: value,
+    vendor: 'provider',
+    ...(catalogLifecycle ? { meta: { catalogLifecycle } } : {}),
+  })
+
+  it('显式旗舰/性价比在前、兼容旧款在后，同档保持目录顺序', () => {
+    const models = dedupeModelOptions([
+      lifecycleOption('custom-a'),
+      lifecycleOption('old', 'legacy'),
+      lifecycleOption('flagship-a', 'flagship'),
+      lifecycleOption('custom-b'),
+      lifecycleOption('value', 'value'),
+      lifecycleOption('flagship-b', 'flagship'),
+    ])
+    expect(models.map((model) => model.canonicalId)).toEqual([
+      'flagship-a',
+      'flagship-b',
+      'value',
+      'custom-a',
+      'custom-b',
+      'old',
+    ])
+  })
+
+  it('绝不从未知自建模型名称猜代际', () => {
+    const [model] = dedupeModelOptions([lifecycleOption('obviously-best-v99-ultra')])
+    expect(modelCatalogLifecycle(model)).toBeNull()
+    expect(sortModelsByCatalogLifecycle([model])).toEqual([model])
+  })
+
+  it('同一模型多条线路时采用最强的显式生命周期', () => {
+    const [model] = dedupeModelOptions([
+      { ...lifecycleOption('relay:model'), value: 'relay:model', label: 'Shared', vendor: 'relay', meta: { catalogLifecycle: 'legacy' } },
+      { ...lifecycleOption('official:model'), value: 'official:model', label: 'Shared', vendor: 'official', meta: { catalogLifecycle: 'flagship' } },
+    ])
+    expect(modelCatalogLifecycle(model)).toBe('flagship')
   })
 })

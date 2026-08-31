@@ -88,7 +88,7 @@ try {
   await snap(win, 'library')
 
   // 打开项目：hover 卡片 → 点「继续创作」按钮（悬停才露出；直接点卡片会命中标题进重命名态）
-  const inProject = async () => win.evaluate(() => !/Nomi 项目库|新建空白项目/.test(document.body.innerText))
+  const inProject = async () => win.locator('.generation-canvas-v2__stage').first().isVisible().catch(() => false)
   const card = win.getByText('拼成初稿·空态提示', { exact: false }).first()
   if (await card.count()) {
     await card.hover().catch(() => {})

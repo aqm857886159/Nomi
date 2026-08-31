@@ -32,6 +32,14 @@ export const SEEDANCE_2_MODEL_SEED = {
   kind: "video" as const,
 } as const;
 
+/** Stable catalog identities are kept beside the transport contract so the
+ * certification gate can prove both modes are covered without parsing the
+ * vendor-wide seed registry. */
+export const SEEDANCE_2_MAPPING_IDS = {
+  imageToVideo: "seed-kie-seedance2-image_to_video",
+  textToVideo: "seed-kie-seedance2-text_to_video",
+} as const;
+
 /**
  * createTask 操作（首帧 / image_to_video）。
  * body 是 kie 的 `{ model, input: {...} }` 嵌套形状；模板引擎对「整串就是一个 {{}}」

@@ -207,4 +207,17 @@ describe("fetchTaskResult — 缓存 miss 无状态重建续查（重启/驱逐�
     expect(miss.result.status).toBe("failed");
     expect((miss.result.raw as { code?: string }).code).toBe("task_unknown");
   });
+
+  it("重启后重建查询遇到网络/上游错误必须冒泡为可重试错误，不能伪装 task_tracking_lost", async () => {
+    await seedAsyncVideoVendorWithMapping();
+    const upstreamError = new Error("proxy connection reset");
+    stubFetch(() => Promise.reject(upstreamError));
+    const { fetchTaskResult } = await import("./runtime");
+    await expect(fetchTaskResult({
+      vendor: "asyncv",
+      taskId: "upstream-retryable-123",
+      taskKind: "text_to_video",
+      modelKey: "vid-model",
+    })).rejects.toThrow("proxy connection reset");
+  });
 });

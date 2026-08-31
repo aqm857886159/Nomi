@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nomi 创作能力系统样张</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./library.css" />
+    <link rel="stylesheet" href="./agent.css" />
+    <link rel="stylesheet" href="./assets.css" />
+    <link rel="stylesheet" href="./responsive.css" />
+  </head>
+  <body>
+    <svg class="icon-sprite" aria-hidden="true">
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-4-4" />
+      </symbol>
+      <symbol id="i-sparkles" viewBox="0 0 24 24">
+        <path d="m12 3-1.2 3.8L7 8l3.8 1.2L12 13l1.2-3.8L17 8l-3.8-1.2L12 3Z" />
+        <path
+          d="m5 15-.8 2.2L2 18l2.2.8L5 21l.8-2.2L8 18l-2.2-.8L5 15Zm14-2-.8 2.2-2.2.8 2.2.8L19 19l.8-2.2 2.2-.8-2.2-.8L19 13Z"
+        />
+      </symbol>
+      <symbol id="i-layout" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+      </symbol>
+      <symbol id="i-file" viewBox="0 0 24 24">
+        <path d="M6 3h8l4 4v14H6z" />
+        <path d="M14 3v5h5M9 13h6m-6 4h6" />
+      </symbol>
+      <symbol id="i-photo" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <circle cx="9" cy="10" r="2" />
+        <path d="m4 17 4-4 3 3 2-2 6 6" />
+      </symbol>
+      <symbol id="i-browser" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M3 9h18M7 6.5h.01M10 6.5h.01" />
+      </symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24">
+        <path d="M12 3 20 6v5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6z" />
+        <path d="m9 12 2 2 4-4" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24">
+        <path d="M12 3 2.8 20h18.4z" />
+        <path d="M12 9v4m0 3v.01" />
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="m10 8 6 4-6 4z" />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4" /></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24">
+        <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1" />
+        <path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1" />
+      </symbol>
+      <symbol id="i-external" viewBox="0 0 24 24">
+        <path d="M14 5h5v5M19 5l-8 8" />
+        <path d="M18 13v6H5V6h6" />
+      </symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </symbol>
+      <symbol id="i-history" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+        <path d="M3 3v5h5M12 7v5l3 2" />
+      </symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24">
+        <rect x="5" y="10" width="14" height="10" rx="2" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+      </symbol>
+      <symbol id="i-database" viewBox="0 0 24 24">
+        <ellipse cx="12" cy="5" rx="8" ry="3" />
+        <path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />
+      </symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.5 1a7 7 0 0 0-1.7-1L14.3 3h-4.6L9.3 6a7 7 0 0 0-1.7 1L5 6 3 9.5 5.1 11a7 7 0 0 0 0 2L3 14.5 5 18l2.6-1a7 7 0 0 0 1.7 1l.4 3h4.6l.4-3a7 7 0 0 0 1.7-1l2.6 1 2-3.5-2.1-1.5a7 7 0 0 0 .1-1Z"
+        />
+      </symbol>
+      <symbol id="i-send" viewBox="0 0 24 24">
+        <path d="m4 4 17 8-17 8 3-8z" />
+        <path d="M7 12h14" />
+      </symbol>
+      <symbol id="i-user" viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21a8 8 0 0 1 16 0" />
+      </symbol>
+      <symbol id="i-wand" viewBox="0 0 24 24">
+        <path d="m15 4 5 5L8 21l-5-5zM6 14l5 5" />
+        <path d="M6 4v3M4.5 5.5h3M18 15v4m-2 2h4" />
+      </symbol>
+      <symbol id="i-music" viewBox="0 0 24 24">
+        <path d="M9 18V5l10-2v13" />
+        <circle cx="6" cy="18" r="3" />
+        <circle cx="16" cy="16" r="3" />
+      </symbol>
+      <symbol id="i-tag" viewBox="0 0 24 24">
+        <path d="M3 12V4h8l10 10-7 7z" />
+        <circle cx="7.5" cy="8.5" r="1" />
+      </symbol>
+      <symbol id="i-dots" viewBox="0 0 24 24">
+        <circle cx="5" cy="12" r="1" />
+        <circle cx="12" cy="12" r="1" />
+        <circle cx="19" cy="12" r="1" />
+      </symbol>
+      <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10m-7 6h4" /></symbol>
+    </svg>
+
+    <div class="app-shell">
+      <header class="appbar">
+        <button class="brand" type="button" title="返回项目库" aria-label="返回项目库">
+          <span class="brand-mark">N</span><span class="brand-word">Nomi</span>
+        </button>
+        <div class="project-context">
+          <span class="project-dot"></span>
+          <strong>山野咖啡 · 秋季短片</strong>
+          <span>已保存</span>
+        </div>
+        <nav class="view-tabs" aria-label="样张工作面">
+          <button type="button" data-view-target="library" aria-pressed="true">能力库</button>
+          <button type="button" data-view-target="agent" aria-pressed="false">Agent 调用</button>
+          <button type="button" data-view-target="assets" aria-pressed="false">素材权利</button>
+        </nav>
+        <div class="app-actions">
+          <button class="icon-button" type="button" title="浏览器" aria-label="浏览器">
+            <svg><use href="#i-browser" /></svg>
+          </button>
+          <button class="icon-button" type="button" title="设置" aria-label="设置">
+            <svg><use href="#i-settings" /></svg>
+          </button>
+          <button class="avatar" type="button" title="账户" aria-label="账户">青</button>
+        </div>
+      </header>
+
+      <main class="view-stack">
+        <section class="product-view is-active" data-view="library" aria-labelledby="library-title">
+          <div class="catalog-shell">
+            <aside class="catalog-sidebar">
+              <div class="sidebar-title">创作能力</div>
+              <nav class="side-nav" aria-label="能力库分类">
+                <button class="is-active" type="button" data-stage="all">
+                  <svg><use href="#i-sparkles" /></svg><span>为你推荐</span><b>6</b>
+                </button>
+                <button type="button" data-stage="research">
+                  <svg><use href="#i-browser" /></svg><span>研究与素材</span><b>2</b>
+                </button>
+                <button type="button" data-stage="create">
+                  <svg><use href="#i-wand" /></svg><span>创作与生成</span><b>2</b>
+                </button>
+                <button type="button" data-stage="finish">
+                  <svg><use href="#i-shield" /></svg><span>审片与交付</span><b>2</b>
+                </button>
+              </nav>
+              <div class="sidebar-divider"></div>
+              <nav class="side-nav secondary" aria-label="能力库状态">
+                <button type="button" data-status="enabled">
+                  <svg><use href="#i-check" /></svg><span>当前项目</span><b>3</b>
+                </button>
+                <button type="button" data-status="update">
+                  <svg><use href="#i-history" /></svg><span>有更新</span><b>1</b>
+                </button>
+              </nav>
+              <div class="capability-lock">
+                <svg><use href="#i-lock" /></svg>
+                <span><b>项目能力已锁定</b><small>3 个版本可复现</small></span>
+              </div>
+            </aside>
+
+            <div class="catalog-main">
+              <div class="page-heading">
+                <div>
+                  <h1 id="library-title">能力库</h1>
+                  <p>当前项目 · 竖屏品牌短片</p>
+                </div>
+                <button class="quiet-button" type="button">
+                  <svg><use href="#i-history" /></svg>更新记录
+                </button>
+              </div>
+              <div class="catalog-toolbar">
+                <label class="search-field"
+                  ><svg><use href="#i-search" /></svg
+                  ><input id="capability-search" type="search" placeholder="搜索结果、阶段或能力"
+                /></label>
+                <div class="segmented" role="group" aria-label="能力类型">
+                  <button class="is-active" type="button" data-kind="all">全部</button>
+                  <button type="button" data-kind="prompt">Prompt</button>
+                  <button type="button" data-kind="skill">Skill</button>
+                  <button type="button" data-kind="workflow">Workflow</button>
+                </div>
+                <button class="filter-button" type="button" title="更多筛选">
+                  <svg><use href="#i-filter" /></svg><span>可用</span
+                  ><svg class="chevron"><use href="#i-chevron" /></svg>
+                </button>
+              </div>
+              <div class="catalog-layout">
+                <div>
+                  <div class="section-label"><span>适合下一步</span><b id="catalog-count">6 项</b></div>
+                  <div class="capability-grid" id="capability-grid"></div>
+                </div>
+                <aside class="capability-detail" id="capability-detail" aria-live="polite"></aside>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="product-view" data-view="agent" aria-labelledby="agent-title">
+          <div class="workbench-grid">
+            <aside class="document-rail">
+              <div class="rail-heading">
+                <b>项目文稿</b
+                ><button class="icon-button" type="button" title="新建文稿" aria-label="新建文稿">＋</button>
+              </div>
+              <button class="document-row is-active" type="button">
+                <svg><use href="#i-file" /></svg><span><b>品牌短片 Brief</b><small>刚刚编辑</small></span>
+              </button>
+              <button class="document-row" type="button">
+                <svg><use href="#i-file" /></svg><span><b>产品资料</b><small>856 字</small></span>
+              </button>
+              <button class="document-row" type="button">
+                <svg><use href="#i-photo" /></svg><span><b>参考与素材</b><small>8 项</small></span>
+              </button>
+              <div class="rail-bottom">
+                <svg><use href="#i-database" /></svg><span>本地项目</span><b>12.4 MB</b>
+              </div>
+            </aside>
+
+            <article class="document-surface">
+              <div class="document-head">
+                <div>
+                  <span>创作 Brief</span>
+                  <h1 id="agent-title">山野咖啡秋季短片</h1>
+                </div>
+                <span class="status-badge neutral">草稿</span>
+              </div>
+              <div class="document-copy">
+                <p class="eyebrow">目标</p>
+                <p class="lead">为便携浓缩咖啡机「云雀」制作一条社交平台短片，突出户外场景和一键萃取。</p>
+                <div class="spec-grid">
+                  <div><span>平台</span><b id="brief-platform">待确认</b></div>
+                  <div><span>时长</span><b>30 秒</b></div>
+                  <div><span>画幅</span><b>9:16</b></div>
+                  <div><span>受众</span><b id="brief-audience">待确认</b></div>
+                </div>
+                <p class="eyebrow">产品事实</p>
+                <ul>
+                  <li>钛灰色金属机身，680g</li>
+                  <li>一键萃取，兼容咖啡粉与胶囊</li>
+                  <li>不可表达为全自动奶咖机</li>
+                </ul>
+                <div class="document-empty" id="brief-output">
+                  <svg><use href="#i-sparkles" /></svg><span>Agent 完成补问后，创作方向会写入这里</span>
+                </div>
+              </div>
+            </article>
+
+            <aside class="agent-panel">
+              <div class="agent-head">
+                <div>
+                  <span class="agent-mark"
+                    ><svg><use href="#i-sparkles" /></svg></span
+                  ><span><b>Nomi Agent</b><small>创作区 · 可写当前文稿</small></span>
+                </div>
+                <button class="icon-button" type="button" title="会话记录" aria-label="会话记录">
+                  <svg><use href="#i-history" /></svg>
+                </button>
+              </div>
+              <div class="agent-scroll" id="agent-scroll">
+                <div class="message user-message">帮我把这款咖啡机做成 30 秒竖屏品牌短片，户外、克制、有质感。</div>
+                <div class="message agent-message"><p>还缺三个会明显改变成片的选择。</p></div>
+                <div class="elicitation-card" id="elicitation-card">
+                  <div class="question-block" data-question="platform">
+                    <span>首发平台</span>
+                    <div class="option-row">
+                      <button type="button" data-value="抖音">抖音</button
+                      ><button type="button" data-value="小红书">小红书</button
+                      ><button type="button" data-value="视频号">视频号</button>
+                    </div>
+                  </div>
+                  <div class="question-block" data-question="audience">
+                    <span>核心受众</span>
+                    <div class="option-row">
+                      <button type="button" data-value="露营新手">露营新手</button
+                      ><button type="button" data-value="咖啡爱好者">咖啡爱好者</button>
+                    </div>
+                  </div>
+                  <div class="question-block" data-question="tone">
+                    <span>表达重心</span>
+                    <div class="option-row">
+                      <button type="button" data-value="产品效率">产品效率</button
+                      ><button type="button" data-value="生活方式">生活方式</button
+                      ><button type="button" data-value="平衡">平衡</button>
+                    </div>
+                  </div>
+                  <button class="primary-button full" id="brief-continue" type="button" disabled>
+                    继续并生成 Brief
+                  </button>
+                </div>
+                <div class="message agent-message result-message" id="brief-result" hidden>
+                  <p><b>Brief 已写入文稿。</b>下一步可以研究近 30 天的户外咖啡视觉趋势，并为 4 个镜头找参考。</p>
+                  <div class="result-actions">
+                    <button type="button">查看改动</button><button type="button">进入研究</button>
+                  </div>
+                </div>
+              </div>
+              <div class="run-context">
+                <div class="run-context-head">
+                  <span>本轮能力</span><button type="button" id="preflight-toggle">查看预检</button>
+                </div>
+                <div class="active-capabilities">
+                  <span
+                    ><svg><use href="#i-wand" /></svg>创作 Brief</span
+                  ><span
+                    ><svg><use href="#i-browser" /></svg>研究证据</span
+                  ><span
+                    ><svg><use href="#i-shield" /></svg>权利检查</span
+                  >
+                </div>
+                <div class="preflight" id="preflight">
+                  <div>
+                    <svg class="ok"><use href="#i-check" /></svg><span><b>文稿写入</b><small>仅当前 Brief</small></span>
+                  </div>
+                  <div>
+                    <svg class="ok"><use href="#i-check" /></svg
+                    ><span><b>浏览器读取</b><small>当前页与用户选择</small></span>
+                  </div>
+                  <div id="connector-row">
+                    <svg class="warn"><use href="#i-alert" /></svg
+                    ><span><b>Freesound</b><small>找音效时需要，当前可跳过</small></span
+                    ><button type="button" id="connect-freesound">连接</button>
+                  </div>
+                  <p>
+                    <svg><use href="#i-lock" /></svg>外部页面只作为不可信证据，不会获得项目写入或付费权限。
+                  </p>
+                </div>
+              </div>
+              <div class="composer">
+                <div class="composer-input">继续描述你的创作目标…</div>
+                <div class="composer-tools">
+                  <button class="mode-chip" type="button">
+                    <svg><use href="#i-sparkles" /></svg>创作 Brief<svg><use href="#i-chevron" /></svg></button
+                  ><button class="send-button" type="button" title="发送" aria-label="发送">
+                    <svg><use href="#i-send" /></svg>
+                  </button>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="product-view" data-view="assets" aria-labelledby="assets-title">
+          <div class="asset-shell">
+            <aside class="asset-source-rail">
+              <div class="sidebar-title">素材库</div>
+              <nav class="side-nav">
+                <button class="is-active" type="button">
+                  <svg><use href="#i-layout" /></svg><span>全部素材</span><b>8</b>
+                </button>
+                <button type="button">
+                  <svg><use href="#i-photo" /></svg><span>项目素材</span><b>5</b>
+                </button>
+                <button type="button">
+                  <svg><use href="#i-browser" /></svg><span>浏览器导入</span><b>3</b>
+                </button>
+              </nav>
+              <div class="sidebar-divider"></div>
+              <div class="mini-label">智能视图</div>
+              <nav class="side-nav secondary">
+                <button type="button" data-right-filter="risk">
+                  <svg><use href="#i-alert" /></svg><span>待处理</span><b id="risk-side-count">2</b>
+                </button>
+                <button type="button">
+                  <svg><use href="#i-check" /></svg><span>已用于镜头</span><b>4</b>
+                </button>
+                <button type="button">
+                  <svg><use href="#i-tag" /></svg><span>仅作参考</span><b>2</b>
+                </button>
+              </nav>
+            </aside>
+
+            <div class="asset-main">
+              <div class="page-heading">
+                <div>
+                  <h1 id="assets-title">素材与权利</h1>
+                  <p>山野咖啡 · 秋季短片</p>
+                </div>
+                <button class="primary-button" type="button">＋ 导入素材</button>
+              </div>
+              <div class="asset-toolbar">
+                <label class="search-field"
+                  ><svg><use href="#i-search" /></svg
+                  ><input id="asset-search" type="search" placeholder="搜索素材、作者或用途"
+                /></label>
+                <div class="segmented" role="group" aria-label="权利状态">
+                  <button class="is-active" type="button" data-right-filter="all">全部 8</button>
+                  <button type="button" data-right-filter="ok">可用 6</button>
+                  <button type="button" data-right-filter="risk">待处理 <span id="risk-tab-count">2</span></button>
+                </div>
+                <button class="filter-button" type="button">
+                  <svg><use href="#i-filter" /></svg><span>用途</span
+                  ><svg class="chevron"><use href="#i-chevron" /></svg>
+                </button>
+              </div>
+              <div class="asset-layout">
+                <div class="asset-grid-wrap">
+                  <div class="section-label">
+                    <span id="asset-list-label">全部素材</span><b id="asset-count">8 项</b>
+                  </div>
+                  <div class="asset-grid" id="asset-grid"></div>
+                </div>
+                <aside class="asset-detail" id="asset-detail" aria-live="polite"></aside>
+              </div>
+              <div class="export-check" id="export-check">
+                <div class="export-status">
+                  <span class="status-icon"
+                    ><svg><use href="#i-alert" /></svg></span
+                  ><span
+                    ><b id="export-title">导出前有 2 项待处理</b><small>只处理异常，其他 6 项无需重复检查</small></span
+                  >
+                </div>
+                <button class="quiet-button" id="show-risks" type="button">查看异常</button>
+                <button class="primary-button" id="export-button" type="button" disabled>导出成片</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>

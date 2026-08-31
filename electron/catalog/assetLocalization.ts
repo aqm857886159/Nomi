@@ -329,6 +329,46 @@ export async function resolveLocalAsset(
   const base64Of = () => asset.bytes.toString("base64");
   if (ingestion.strategy === "inline-base64") return `data:${asset.contentType};base64,${base64Of()}`;
 
+  if (ingestion.strategy === "upload-presigned") {
+    // Vendor-owned two-step upload (Runway Dev): initialize with the API key,
+    // then send the bytes to the returned signed URL without forwarding the
+    // key. The resulting runway:// URI stays private to the vendor and avoids
+    // the anonymous-host fallback entirely.
+    const initHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(ingestion.initHeaders || {}),
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+    };
+    const initBody: Record<string, unknown> = {
+      ...(ingestion.initFields || {}),
+      [ingestion.filenameField || "filename"]: asset.fileName,
+      [ingestion.typeField || "type"]: "ephemeral",
+    };
+    const initialized = await postJson(ingestion.endpoint, initHeaders, initBody);
+    const uploadUrl = readNestedPath(initialized, ingestion.uploadUrlPath);
+    const uri = readNestedPath(initialized, ingestion.uriPath);
+    if (typeof uploadUrl !== "string" || !uploadUrl) {
+      throw new Error(`供应商上传初始化缺少 uploadUrl（期望路径 ${ingestion.uploadUrlPath}）`);
+    }
+    if (typeof uri !== "string" || !uri) {
+      throw new Error(`供应商上传初始化缺少资源 URI（期望路径 ${ingestion.uriPath}）`);
+    }
+    const rawFields = readNestedPath(initialized, ingestion.fieldsPath || "fields");
+    const fields = rawFields && typeof rawFields === "object"
+      ? Object.fromEntries(Object.entries(rawFields).map(([key, value]) => [key, String(value)]))
+      : undefined;
+    await postMultipart(
+      uploadUrl,
+      {}, // uploadUrl is signed; never forward the provider API key.
+      asset.bytes,
+      asset.fileName,
+      asset.contentType,
+      fields,
+      ingestion.uploadFileField || "file",
+    );
+    return uri;
+  }
+
   if (ingestion.strategy === "upload-multipart") {
     // multipart/form-data 上传（如 apimart POST /v1/uploads/images；litterbox 匿名临时托管）
     // apiKey 为空时不发 Authorization（litterbox/tmpfiles 匿名）；Nomi relay
@@ -586,7 +626,12 @@ export async function localizeAssetsForVendor(
       }
     }
     if (resolvedValue === null) {
-      if (consentRequired) throw new AnonymousAssetConsentRequiredError();
+      // Do not hide a failed provider-owned upload behind the anonymous-hosting
+      // consent prompt.  That turned a concrete Runway/KIE 4xx into a generic
+      // privacy dialog, leaving users unable to repair the actual contract.
+      const privateFailures = failures.filter((line) => !line.includes("需要先确认公共临时托管"));
+      if (consentRequired && privateFailures.length === 0) throw new AnonymousAssetConsentRequiredError();
+      if (consentRequired && privateFailures.length > 0) throw allChannelsFailedError(asset, mediaKind, privateFailures);
       throw allChannelsFailedError(asset, mediaKind, failures);
     }
     urlMap.set(url, resolvedValue);

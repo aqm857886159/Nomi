@@ -331,9 +331,10 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   // （建边或落上传槽，都过能力校验闸），见 useNodeMentionSource。
   const { assets: projectAssets } = useAllProjectAssets()
   const mentionLibraryAssets = React.useMemo(
-    () => projectAssets
-      .filter((asset) => (asset.kind === 'image' || asset.kind === 'video' || asset.kind === 'audio') && asset.renderUrl)
-      .map((asset) => ({ id: asset.id, name: asset.name, url: asset.renderUrl, kind: asset.kind })),
+    () => projectAssets.flatMap((asset) => {
+      if ((asset.kind !== 'image' && asset.kind !== 'video' && asset.kind !== 'audio') || !asset.renderUrl) return []
+      return [{ id: asset.id, name: asset.name, url: asset.renderUrl, kind: asset.kind }]
+    }),
     [projectAssets],
   )
   const { orderedReferenceUrls: mentionCandidates, orderedMediaReferences, mentionSearch, onMentionSelect } =

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { AssetRef } from './assetTypes'
 import {
+  filterCanvasLibraryAssets,
   filterImageVideoAssets,
+  filterPlayableAssets,
 } from './assetLibrarySources'
 import { buildNomiLocalAssetUrl, parseNomiLocalAssetUrl } from '../../media/nomiLocalAssetUrl'
 
@@ -31,6 +33,17 @@ describe('asset library sources', () => {
       projectAsset({ id: 'audio', projectId: 'b', relativePath: 'b.mp3', kind: 'audio' }),
     ]
     expect(filterImageVideoAssets(assets).map((asset) => asset.id)).toEqual(['image', 'video'])
+  })
+
+  it('includes 3D in the canvas library but keeps it out of timeline-playable assets', () => {
+    const assets = [
+      projectAsset({ id: 'image', projectId: 'a', relativePath: 'a.png' }),
+      projectAsset({ id: 'audio', projectId: 'a', relativePath: 'a.mp3', kind: 'audio' }),
+      projectAsset({ id: 'model3d', projectId: 'a', relativePath: 'a.glb', kind: 'model3d' }),
+    ]
+
+    expect(filterCanvasLibraryAssets(assets).map((asset) => asset.id)).toEqual(['image', 'model3d'])
+    expect(filterPlayableAssets(assets).map((asset) => asset.id)).toEqual(['image', 'audio'])
   })
 
   it('解析带编码的跨项目 nomi-local 素材地址', () => {

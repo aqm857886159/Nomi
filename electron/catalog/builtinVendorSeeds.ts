@@ -9,8 +9,11 @@ import { REPLICATE_VENDOR_SEED } from "./replicate";
 import { COMFYUI_VENDOR_SEED } from "./comfyuiLocal";
 import { CODEX_LOCAL_VENDOR_SEED } from "./codexImages";
 import { ANTIGRAVITY_VENDOR_SEED } from "./antigravityTexts";
-import { FAL_VENDOR_SEED } from "./fal";
-import { RUNWAY_VENDOR_SEED } from "./runway";
+import { MINIMAX_VENDOR_SEED } from "./minimaxOfficial";
+import { ELEVENLABS_VENDOR_SEED } from "./elevenlabs";
+import { MESHY_VENDOR_SEED } from "./meshyOfficial";
+import { FAL_VENDOR_SEED } from "./falOfficial";
+import { RUNWAY_VENDOR_SEED } from "./runwayOfficial";
 import type { Vendor } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -23,6 +26,8 @@ export type VendorSeed = {
   key: string;
   name: string;
   baseUrl: string;
+  /** 官方 host 迁移时仅修复仍指向旧内置 host 的存量记录；用户自定义 relay 永不覆盖。 */
+  legacyBaseUrls?: readonly string[];
   authType: Vendor["authType"];
   authHeader?: string | null;
   enabled?: boolean;
@@ -45,6 +50,9 @@ export const BUILTIN_VENDOR_SEEDS: readonly VendorSeed[] = [
   COMFYUI_VENDOR_SEED, // 本地 ComfyUI（无鉴权本地后端，默认关、用户显式启用）
   CODEX_LOCAL_VENDOR_SEED, // Codex 本地生图（实验，默认关）
   ANTIGRAVITY_VENDOR_SEED, // 官方本机 CLI；完整能力验证前默认关闭
+  MINIMAX_VENDOR_SEED,
+  ELEVENLABS_VENDOR_SEED,
+  MESHY_VENDOR_SEED,
 ];
 
 /**

@@ -22,16 +22,18 @@ function parseProjectIds(records: unknown): string[] {
   return [...ids]
 }
 
-function kindFromDesktopAsset(asset: DesktopAssetDto): AssetKind | null {
+export function kindFromDesktopAsset(asset: DesktopAssetDto): AssetKind | null {
   const mediaType = typeof asset.data.mediaType === 'string' ? asset.data.mediaType.toLowerCase() : ''
-  if (mediaType === 'image' || mediaType === 'video' || mediaType === 'audio') return mediaType
+  if (mediaType === 'image' || mediaType === 'video' || mediaType === 'audio' || mediaType === 'model3d') return mediaType
   const contentType = typeof asset.data.contentType === 'string' ? asset.data.contentType.toLowerCase() : ''
   if (contentType.startsWith('image/')) return 'image'
   if (contentType.startsWith('video/')) return 'video'
   if (contentType.startsWith('audio/')) return 'audio'
+  if (contentType === 'model/gltf-binary') return 'model3d'
   if (/\.(png|jpe?g|webp|gif|avif)$/i.test(asset.name)) return 'image'
   if (/\.(mp4|webm|mov|m4v)$/i.test(asset.name)) return 'video'
   if (/\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(asset.name)) return 'audio'
+  if (/\.glb$/i.test(asset.name)) return 'model3d'
   return null
 }
 

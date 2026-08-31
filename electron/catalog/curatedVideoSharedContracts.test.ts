@@ -25,7 +25,7 @@ describe("all curated video providers share their existing GUI capability contra
       const candidate = candidates[index]!;
       for (const mode of candidate.archetype.modes) {
         const taskKind = mode.transportTaskKind ?? candidate.archetype.transportTaskKind;
-        const mapping = selectTaskMapping(state.mappings, model.vendorKey, taskKind, model.modelKey);
+        const mapping = selectTaskMapping(state.mappings, model.vendorKey, taskKind, model.modelKey, mode.id);
         if (!mapping) {
           violations.push(`${model.vendorKey}/${model.modelKey}/${mode.id}: missing ${taskKind} mapping`);
           continue;

@@ -521,23 +521,26 @@ export class MediaDecodeError extends Error {
   }
 }
 
-export async function decodeMediaBytes(
-  bytes: Uint8Array,
+type MediaDecodeOptions = {
+  ffmpegPath?: string;
+  runProcess?: RunProbeProcess;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  maxStdoutBytes?: number;
+  maxStderrBytes?: number;
+};
+
+async function decodeMediaInput(
+  input: string,
   kind: "video" | "audio",
-  options: {
-    ffmpegPath?: string;
-    runProcess?: RunProbeProcess;
-    signal?: AbortSignal;
-    timeoutMs?: number;
-    maxStdoutBytes?: number;
-    maxStderrBytes?: number;
-  } = {},
+  options: MediaDecodeOptions = {},
+  inputBytes?: Uint8Array,
 ): Promise<void> {
   const ffmpegPath = resolveFfmpegPath(options.ffmpegPath);
   if (!ffmpegPath) throw new MediaDecodeError();
   const args = [
     "-hide_banner", "-v", "error", "-xerror", "-err_detect", "explode",
-    "-protocol_whitelist", MEDIA_DECODER_PROTOCOL_WHITELIST, "-i", "pipe:0",
+    "-protocol_whitelist", MEDIA_DECODER_PROTOCOL_WHITELIST, "-i", input,
     "-map", kind === "video" ? "0:v:0" : "0:a:0",
     ...(kind === "video" ? ["-frames:v", "1"] : ["-t", "1"]),
     "-f", "null", "-",
@@ -546,7 +549,7 @@ export async function decodeMediaBytes(
     timeoutMs: options.timeoutMs ?? 20_000,
     maxStdoutBytes: options.maxStdoutBytes ?? 16 * 1024,
     maxStderrBytes: options.maxStderrBytes ?? 64 * 1024,
-    input: bytes,
+    ...(inputBytes ? { input: inputBytes } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
   };
   try {
@@ -556,4 +559,30 @@ export async function decodeMediaBytes(
     if (error instanceof MediaDecodeError) throw error;
     throw new MediaDecodeError();
   }
+}
+
+/** Decode a bounded Nomi-owned file so containers with a trailing index (e.g. MP4) can seek. */
+export async function decodeMediaFile(
+  inputPath: string,
+  kind: "video" | "audio",
+  options: MediaDecodeOptions = {},
+): Promise<void> {
+  const absoluteInputPath = path.resolve(inputPath);
+  try {
+    if (!fs.existsSync(absoluteInputPath) || !fs.statSync(absoluteInputPath).isFile()) {
+      throw new Error("not a regular file");
+    }
+  } catch {
+    throw new MediaDecodeError();
+  }
+  return decodeMediaInput(absoluteInputPath, kind, options);
+}
+
+/** Decode immutable bytes over stdin. Kept for callers whose input is not yet file-backed. */
+export async function decodeMediaBytes(
+  bytes: Uint8Array,
+  kind: "video" | "audio",
+  options: MediaDecodeOptions = {},
+): Promise<void> {
+  return decodeMediaInput("pipe:0", kind, options, bytes);
 }

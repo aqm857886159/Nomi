@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { BoundedResponseError, readBoundedResponseText } from "./boundedResponse";
+import { BoundedResponseError, readBoundedResponseBytes, readBoundedResponseText } from "./boundedResponse";
 
 describe("readBoundedResponseText", () => {
   it("cancels a streaming response immediately after the hard byte limit", async () => {
@@ -54,5 +54,28 @@ describe("readBoundedResponseText", () => {
     const pending = readBoundedResponseText(response, { maxBytes: 32, signal: controller.signal });
     controller.abort(new DOMException("deadline", "TimeoutError"));
     await expect(pending).rejects.toMatchObject({ code: "response_timeout" });
+  });
+});
+
+describe("readBoundedResponseBytes", () => {
+  it("preserves binary bytes without UTF-8 coercion", async () => {
+    const expected = Buffer.from([0, 255, 1, 254, 2]);
+    const response = new Response(expected, { headers: { "content-type": "audio/mpeg" } });
+
+    await expect(readBoundedResponseBytes(response, { maxBytes: expected.length })).resolves.toEqual(expected);
+  });
+
+  it("rejects a chunked binary body as soon as its streamed size exceeds the limit", async () => {
+    const response = new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2, 3]));
+        controller.enqueue(new Uint8Array([4, 5, 6]));
+        controller.close();
+      },
+    }));
+
+    await expect(readBoundedResponseBytes(response, { maxBytes: 5 })).rejects.toMatchObject({
+      code: "response_too_large",
+    });
   });
 });

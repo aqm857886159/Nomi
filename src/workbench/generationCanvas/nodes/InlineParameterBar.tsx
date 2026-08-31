@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Slider } from '@mantine/core'
 import { IconAspectRatio, IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { DesignSwitch, NomiSegmented, NomiSelect, type NomiSegmentedOption } from '../../../design'
+import { DesignSwitch, NomiIdentityIcon, NomiSegmented, NomiSelect, type NomiIdentityIconSource, type NomiSegmentedOption } from '../../../design'
 import { formatVideoOptionLabel, type ModelParameterControl } from '../../../config/modelCatalogMeta'
 import type { ModelOption } from '../../../config/models'
 import {
@@ -300,7 +300,7 @@ export default function InlineParameterBar({
   const renderOptions = (
     label: string,
     value: string,
-    rawOptions: { value: string; text: string }[],
+    rawOptions: { value: string; text: string; icon?: NomiIdentityIconSource }[],
     onChange: (value: string) => void,
     requestedPurpose: ParameterOptionPurpose = 'generic',
   ): JSX.Element => {
@@ -313,6 +313,7 @@ export default function InlineParameterBar({
       )
       return {
         ...localized,
+        ...(option.icon ? { icon: option.icon } : {}),
         shape: purpose === 'aspect-ratio'
           ? ratioShape(localized.isAuto, localized.value, localized.text)
           : null,
@@ -323,7 +324,7 @@ export default function InlineParameterBar({
         <NomiSelect
           ariaLabel={label}
           value={value}
-          options={entries.map((entry) => ({ value: entry.value, label: entry.text }))}
+          options={entries.map((entry) => ({ value: entry.value, label: entry.text, icon: entry.icon }))}
           onChange={onChange}
           searchable
           portalTarget={panelRef}
@@ -338,7 +339,9 @@ export default function InlineParameterBar({
     }
     const options: NomiSegmentedOption[] = entries.map((o) => ({
       value: o.value,
-      label: anyShape ? shapedGroupLabel(o.text, o.shape) : o.text,
+      label: o.icon
+        ? <span className="inline-flex items-center gap-1.5"><NomiIdentityIcon icon={o.icon} />{o.text}</span>
+        : anyShape ? shapedGroupLabel(o.text, o.shape) : o.text,
       title: o.text,
     }))
     return (
@@ -529,7 +532,7 @@ export default function InlineParameterBar({
                       {renderOptions(
                         t('generationCommon.parameters.provider'),
                         modelSelect.providerValue,
-                        modelSelect.providerOptions.map((o) => ({ value: o.value, text: o.label })),
+                        modelSelect.providerOptions.map((o) => ({ value: o.value, text: o.label, icon: o.icon })),
                         modelSelect.onProviderPick,
                         'provider',
                       )}

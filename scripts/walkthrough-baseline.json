@@ -1,7 +1,7 @@
 {
   "absence-without-baseline": 65,
-  "whole-page-text": 29,
-  "sleep-as-done-signal": 111,
+  "whole-page-text": 22,
+  "sleep-as-done-signal": 110,
   "dead-selector": 0,
   "source-scan-without-strip": 9,
   "assertion-density-thin": {

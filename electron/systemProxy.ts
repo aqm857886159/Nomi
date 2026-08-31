@@ -35,6 +35,11 @@ function isActiveProxy(r: ProxyResolution): r is Extract<ProxyResolution, { kind
   return r.kind === "http" || r.kind === "socks";
 }
 
+/** Whether the app has a committed HTTP/SOCKS route for public destinations. */
+export function isApplicationProxyActive(): boolean {
+  return Boolean(activeRoute && isActiveProxy(activeRoute.resolution));
+}
+
 /** 面板要显示的「当前网络状态」（用户选了什么 × 实际生效什么，两者可能不同）。 */
 export type ProxyStatus = {
   mode: ProxyMode;
