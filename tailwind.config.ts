@@ -506,31 +506,6 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       width: '100%',
       'box-sizing': 'border-box',
     },
-    '.workbench-editor__scroll, .workbench-creation-ai__messages': {
-      'scrollbar-color': 'transparent transparent',
-      'scrollbar-width': 'thin',
-    },
-    '.workbench-editor__scroll:hover, .workbench-editor__scroll:focus-within, .workbench-editor__scroll.workbench-scrollbar-visible, .workbench-creation-ai__messages:hover, .workbench-creation-ai__messages:focus-within, .workbench-creation-ai__messages.workbench-scrollbar-visible': {
-      'scrollbar-color': 'color-mix(in srgb, var(--nomi-ink) 22%, transparent) transparent',
-    },
-    '.workbench-editor__scroll::-webkit-scrollbar, .workbench-creation-ai__messages::-webkit-scrollbar': {
-      width: '0',
-      height: '0',
-    },
-    '.workbench-editor__scroll:hover::-webkit-scrollbar, .workbench-editor__scroll:focus-within::-webkit-scrollbar, .workbench-editor__scroll.workbench-scrollbar-visible::-webkit-scrollbar, .workbench-creation-ai__messages:hover::-webkit-scrollbar, .workbench-creation-ai__messages:focus-within::-webkit-scrollbar, .workbench-creation-ai__messages.workbench-scrollbar-visible::-webkit-scrollbar': {
-      width: '6px',
-      height: '6px',
-    },
-    '.workbench-editor__scroll::-webkit-scrollbar-track, .workbench-creation-ai__messages::-webkit-scrollbar-track': {
-      background: 'transparent',
-    },
-    '.workbench-editor__scroll::-webkit-scrollbar-thumb, .workbench-creation-ai__messages::-webkit-scrollbar-thumb': {
-      'border-radius': '999px',
-      background: 'transparent',
-    },
-    '.workbench-editor__scroll:hover::-webkit-scrollbar-thumb, .workbench-editor__scroll:focus-within::-webkit-scrollbar-thumb, .workbench-editor__scroll.workbench-scrollbar-visible::-webkit-scrollbar-thumb, .workbench-creation-ai__messages:hover::-webkit-scrollbar-thumb, .workbench-creation-ai__messages:focus-within::-webkit-scrollbar-thumb, .workbench-creation-ai__messages.workbench-scrollbar-visible::-webkit-scrollbar-thumb': {
-      background: 'color-mix(in srgb, var(--nomi-ink) 18%, transparent)',
-    },
   })
 })
 

@@ -154,6 +154,30 @@ function assertUnique(values: readonly string[]): void {
   if (new Set(values).size !== values.length) stale();
 }
 
+/**
+ * Every canvas.write operation that names existing nodes must bind those ids
+ * into the captured snapshot.  Keeping this mapping in one helper prevents a
+ * newly added operation from silently receiving an empty target (the old
+ * failure mode for storyboard/staging/camera tools).
+ */
+function requestedReferenceIds(
+  input: Exclude<CanvasWriteInput, { operation: "set_node_prompt" }>,
+): string[] {
+  switch (input.operation) {
+    case "tidy_canvas":
+    case "propose_storyboard_plan":
+      return [];
+    case "arrange_storyboard_to_timeline":
+      return [...input.nodeIds];
+    case "create_staging_reference":
+    case "create_camera_move":
+      return input.shotClientId ? [input.shotClientId] : [];
+    case "connect_canvas_edges":
+    case "create_canvas_nodes":
+      return (input.edges ?? []).flatMap((edge) => [edge.sourceClientId, edge.targetClientId]);
+  }
+}
+
 export function buildCanvasWriteAdmission(value: unknown): CanvasWriteAdmission {
   const parsed = canvasWriteRawEvidenceSchema.safeParse(value);
   if (!parsed.success) throw new CanvasWriteEvidenceError("capability_input_invalid");
@@ -251,10 +275,7 @@ function buildBatchCanvasWriteAdmission(
     groups: evidence.groups,
     resolvedReferences: evidence.resolvedReferences,
   });
-  const inputReferenceIds =
-    input.operation === "tidy_canvas"
-      ? []
-      : (input.edges ?? []).flatMap((edge) => [edge.sourceClientId, edge.targetClientId]);
+  const inputReferenceIds = requestedReferenceIds(input);
   const targetNodeIds =
     input.operation === "tidy_canvas"
       ? evidence.nodes
@@ -264,8 +285,16 @@ function buildBatchCanvasWriteAdmission(
   const targetIdSet = new Set(targetNodeIds);
   if (input.operation === "tidy_canvas" && evidence.nodes.some((node) => targetIdSet.has(node.id) && node.locked))
     stale();
-  if (input.operation === "connect_canvas_edges" || input.operation === "create_canvas_nodes") {
-    const lockedTargets = new Set((input.edges ?? []).map((edge) => resolved.get(edge.targetClientId)).filter(Boolean));
+  if (
+    input.operation === "connect_canvas_edges" ||
+    input.operation === "create_canvas_nodes" ||
+    input.operation === "arrange_storyboard_to_timeline" ||
+    input.operation === "create_staging_reference" ||
+    input.operation === "create_camera_move"
+  ) {
+    const lockedTargets = new Set(
+      inputReferenceIds.map((id) => resolved.get(id)).filter((id): id is string => Boolean(id)),
+    );
     if (evidence.nodes.some((node) => lockedTargets.has(node.id) && node.locked)) stale();
   }
   const target = Object.freeze({ kind: "canvas" as const, nodeIds: Object.freeze(targetNodeIds) });

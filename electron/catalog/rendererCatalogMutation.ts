@@ -1,6 +1,8 @@
 import { importModelCatalogPackage, readCatalog, upsertModelCatalogMapping, upsertModelCatalogModel, upsertModelCatalogVendor, upsertModelCatalogVendorApiKey } from './catalogStore'
 import type { CatalogState, Model } from './types'
 import { derivePublishedExecution, modelHasPublishedExecution } from '../shared/modelPublication'
+import { builtinVendorScopeMatches, isBuiltinDirectKeyVendor } from './builtinVendorSeeds'
+import { hasBuiltinCuratedExecution } from './seedBuiltins'
 
 type Json = Record<string, unknown>
 
@@ -25,8 +27,28 @@ function certificationOwnedConnection(state: CatalogState, vendorKey: string): b
   return hasAdapter(vendor?.meta) || state.models.some((model) => model.vendorKey === vendorKey && hasAdapter(model.meta))
 }
 
+/**
+ * Direct-key promotion is deliberately narrower than "the key payload asked
+ * for enabled=true".  It is only valid for a shipped built-in connection whose
+ * endpoint/auth scope still matches the immutable seed and which already has a
+ * published execution contract.  A user-edited URL, imported model, or
+ * certification-owned adapter therefore stays behind the normal promotion
+ * boundary.  The key itself is still encrypted by catalogStore; this function
+ * only decides the enabled bit.
+ */
+export function canPromoteDirectKey(state: CatalogState, vendorKey: string): boolean {
+  if (!isBuiltinDirectKeyVendor(vendorKey)) return false
+  const vendor = state.vendors.find((item) => item.key === vendorKey)
+  if (!vendor || !vendor.enabled || !builtinVendorScopeMatches(vendor)) return false
+  if (certificationOwnedConnection(state, vendorKey)) return false
+  return hasBuiltinCuratedExecution(state, vendorKey)
+}
+
 function assertMutableConnectionScope(raw: Json, existing: CatalogState['vendors'][number] | undefined, state: CatalogState): void {
-  if (!existing || !certificationOwnedConnection(state, existing.key)) return
+  if (!existing) return
+  const immutableScope = certificationOwnedConnection(state, existing.key)
+    || isBuiltinDirectKeyVendor(existing.key)
+  if (!immutableScope) return
   const changed = SECURITY_SCOPE_FIELDS.some((key) =>
     Object.prototype.hasOwnProperty.call(raw, key)
       && normalizedScopeValue(key, raw[key]) !== normalizedScopeValue(key, existing[key]),
@@ -122,14 +144,25 @@ export function upsertRendererCatalogVendor(payload: unknown) {
   return upsertModelCatalogVendor(sanitizeRendererVendorMutation(payload, readCatalog()))
 }
 
-/** Renderer credential writes are configuration only.  A key can never promote
- * a vendor; certification owns the later enabled transition. */
+/** Renderer credential writes remain configuration-only by default.  The
+ * state-derived direct-key exception is limited to a shipped APIMart contract;
+ * certification still owns every custom/unverified connection. */
 export function upsertRendererCatalogVendorApiKey(vendorKey: string, payload: unknown) {
-  return upsertModelCatalogVendorApiKey(vendorKey, sanitizeRendererVendorApiKeyMutation(payload))
+  const state = readCatalog()
+  return upsertModelCatalogVendorApiKey(vendorKey, sanitizeRendererVendorApiKeyMutation(payload, {
+    allowDirectKey: canPromoteDirectKey(state, String(vendorKey || '').trim()),
+  }))
 }
 
-export function sanitizeRendererVendorApiKeyMutation(payload: unknown): Json {
-  return { ...record(payload), enabled: false }
+export function sanitizeRendererVendorApiKeyMutation(
+  payload: unknown,
+  options: { allowDirectKey?: boolean } = {},
+): Json {
+  const raw = record(payload)
+  // Certification remains the default.  A direct-key seed may preserve the
+  // caller's explicit enabled=true, but never upgrades an omitted/false bit.
+  const enabled = options.allowDirectKey === true && raw.enabled === true
+  return { ...raw, enabled }
 }
 
 export function upsertRendererCatalogModel(payload: unknown) {

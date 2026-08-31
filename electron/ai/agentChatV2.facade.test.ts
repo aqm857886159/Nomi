@@ -85,11 +85,11 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
   });
 
   it.each([
-    ['creation-editor', ['read_full_text', 'read_selection', 'insert_at_cursor', 'replace_selection', 'append_to_end', 'author_skill'], 8],
-    ['creation-chat', ['read_full_text', 'author_skill'], 8],
-    ['canvas-chat', [], 8],
-    ['canvas-refine', ['set_node_prompt'], 8],
-    ['storyboard', ['read_canvas_state', 'propose_storyboard_plan'], 24],
+    ['creation-editor', ['read_full_text', 'read_selection', 'insert_at_cursor', 'replace_selection', 'append_to_end', 'author_skill', 'load_skill'], 8],
+    ['creation-chat', ['read_full_text', 'author_skill', 'load_skill'], 8],
+    ['canvas-chat', ['load_skill'], 8],
+    ['canvas-refine', ['set_node_prompt', 'load_skill'], 8],
+    ['storyboard', ['read_canvas_state', 'propose_storyboard_plan', 'load_skill'], 24],
     ['single-shot', [], 1],
   ] as const)('%s is an explicit capability independent of skill naming', async (capability, names, maxSteps) => {
     await runAgentChatV2({ ...request(capability), ...(capability === 'single-shot' ? { history: { kind: 'ephemeral' as const } } : {}), selectedNodeIds: ['selected-a'] }, hooks());
@@ -100,13 +100,27 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
 
   it('canvas-agent receives only the goal profile required for timeline control', async () => {
     await runAgentChatV2({ ...request('canvas-agent'), prompt: '检查时间线并导出当前项目' }, hooks());
-    expect(state.request?.tools).toHaveLength(18);
+    expect(state.request?.tools).toHaveLength(19);
     expect(state.request?.tools.map((tool) => tool.name)).toEqual([
       'read_canvas_state', 'set_node_prompt', 'create_canvas_nodes', 'connect_canvas_edges',
       'get_media', 'inspect_media', 'search_media', 'inspect_source_range', 'read_waveform',
       'inspect_export_job', 'verify_render', 'export_timeline', 'cancel_export_job',
       'read_timeline', 'inspect_timeline_range', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit',
+      'load_skill',
     ]);
+  });
+
+  it('derives the long-form production step budget from the resolved profile', async () => {
+    await runAgentChatV2({
+      ...request('canvas-agent'),
+      prompt: '帮我做一个 5 分钟的品牌短片，写剧本、拆分镜、生成并导出',
+    }, hooks());
+
+    expect(state.request?.capability).toEqual({ maxSteps: 24 });
+    expect(state.request?.tools.map((tool) => tool.name)).toEqual(expect.arrayContaining([
+      'nomi_operation_create', 'nomi_preview_execution', 'nomi_request_generation_gate',
+      'start_production_run', 'export_timeline',
+    ]));
   });
 
   it('intersects the Host ceiling with the selected Skill canonical capability request', async () => {
@@ -134,7 +148,34 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
       ...request('canvas-agent'),
       chatContext: { skill: { key: 'craft.camera', name: 'Camera' } },
     }, hooks());
-    expect(state.request?.tools.map((tool) => tool.name)).toEqual(['read_canvas_state']);
+    expect(state.request?.tools.map((tool) => tool.name)).toEqual(['read_canvas_state', 'load_skill']);
+  });
+
+  it('delegates Skill loading to the owning transport without creating a renderer approval', async () => {
+    const eventHooks = hooks();
+    eventHooks.awaitToolConfirmation.mockImplementation(async (call) => {
+      if (call.toolName === 'load_skill' && (call.args as { name?: string }).name === 'missing.skill') {
+        return { ok: false as const, code: 'skill_not_found', message: 'Skill not found' };
+      }
+      return call.toolName === 'load_skill'
+        ? { ok: true as const, silent: true as const, result: {
+          name: 'brand.promo', description: 'Brand', body: 'brand.promo body',
+        } }
+        : { ok: true as const, result: { applied: true } };
+    });
+    await runAgentChatV2(request('canvas-chat'), eventHooks);
+    const runtimeHooks = state.hooks!;
+    const decision = await runtimeHooks.awaitToolConfirmation({
+      toolCallId: 'skill-1', toolName: 'load_skill', args: { name: 'brand.promo' },
+    }, runtimeHooks.signal ?? new AbortController().signal);
+    expect(decision).toMatchObject({ ok: true, silent: true, result: { name: 'brand.promo' } });
+    expect((decision as { result: { body: string } }).result.body).toContain('brand.promo');
+    expect(eventHooks.awaitToolConfirmation).toHaveBeenCalledWith(expect.objectContaining({ toolName: 'load_skill' }), expect.any(AbortSignal));
+    await expect(runtimeHooks.awaitToolConfirmation({
+      toolCallId: 'skill-2', toolName: 'load_skill', args: { name: 'missing.skill' },
+    }, runtimeHooks.signal ?? new AbortController().signal)).resolves.toMatchObject({
+      ok: false, code: 'skill_not_found',
+    });
   });
 
   it('rejects missing capability, missing history and cross-project binding before model selection', async () => {
@@ -183,6 +224,29 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
     expect(state.request?.model).toMatchObject({ providerId: 'vendor-a', modelId: 'alias', authType: 'none', maxOutputTokens: 4096, temperature: 0.7,
       headers: { 'X-Literal': '!do not execute ${TOKEN}' } });
     expect(state.choose).toHaveBeenCalledWith('chosen-model', false, 'chosen-vendor');
+  });
+
+  it('passes the resident ContextSnapshot as bounded transient context without polluting durable display text', async () => {
+    await runAgentChatV2({
+      ...request(),
+      contextSnapshot: {
+        version: 1,
+        handles: [{
+          id: 'canvas-node:node-a',
+          kind: 'canvasNode',
+          targetId: 'node-a',
+          revision: '7',
+          locator: { type: 'canvasSelection', nodeIds: ['node-a'] },
+          display: { title: '开场镜头' },
+          intentRole: 'subject',
+        }],
+      },
+    }, hooks());
+    expect(state.request?.user.durableText).toBe('short request');
+    expect(state.request?.user.currentContextText).toContain('targetId');
+    expect(state.request?.user.currentContextText).toContain('node-a');
+    expect(state.request?.user.currentContextText).toContain('revision');
+    expect(state.request?.user.currentContextText).toContain('subject');
   });
 
   it('rejects refine targets outside the immutable explicit selection without invoking the host', async () => {

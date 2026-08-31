@@ -1,0 +1,155 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-31-agent-visible-capability-execution-boundary",
+  "problem_type": "Agent-visible capability has no executable owner",
+  "symptom": "The Agent can be shown tools such as storyboard/timeline/staging/camera actions and author_skill, but invoking them can return no execution or leave the project and Skill library unchanged.",
+  "direct_cause": "Tool descriptors and policy projections were extended without registering every alias in the canonical capability registry and without routing every registered alias through a Host-owned transport adapter to its domain owner. Skill listing and reading also use different visibility predicates across Pi, MCP, and Agent surfaces.",
+  "class_root": "Nomi has no enforced invariant that every model-visible tool name resolves to exactly one canonical capability, one transport adapter, and one domain-owner effect, with the same visibility decision across all Skill consumers.",
+  "affected_population": [
+    "Users asking the Agent to create storyboards, arrange a timeline, create staging references, or set camera moves",
+    "Users asking the Agent to author or apply a Skill",
+    "Users whose repository or installed Skills are visible in one Agent surface but absent or unreadable in another",
+    "Future tools added to a descriptor or policy list without a corresponding registry and owner route"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/registry.ts",
+    "electron/shared/agentCapabilities/canvasWrite.ts",
+    "electron/capabilityCore/canvasWriteTransportAdapters.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "electron/shared/agentCapabilities/documentWrite.ts",
+    "electron/capabilityCore/documentWriteTransportAdapters.ts",
+    "electron/harness/tools/agentToolCatalog.ts",
+    "electron/harness/tools/canvasDescriptors.ts",
+    "electron/harness/agentChatPolicy.ts",
+    "electron/skills/skillStore.ts",
+    "electron/harness/runtime/pi/nomiSkillResources.mts",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/capabilityCore/mcpProtocol.ts"
+  ],
+  "entry_points": [
+    "Resident Host model tool projection",
+    "Pi Agent skill/tool loading",
+    "MCP tools/list and Skill resources/prompts",
+    "Canvas write transport and Host execution coordinator",
+    "Document/Skill authoring transport"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an internal Nomi capability registry, transport, Host ownership, and Skill visibility contract; no provider or third-party API decides whether a visible tool has a local domain owner.",
+  "invariants": [
+    "Every model-visible tool name maps to one canonical registry capability and one executable transport adapter; an unmapped descriptor cannot be advertised.",
+    "Every write-capable alias is admitted by the Host and performs its effect through the owning domain service; unknown aliases fail closed with a structured error and never return a false success.",
+    "Canvas storyboard, timeline, staging, and camera aliases preserve the existing domain owner and transaction/undo semantics rather than creating a second state store.",
+    "author_skill uses the Skill library owner and cannot mutate only a chat transcript or silently disappear.",
+    "Pi, Agent, and MCP Skill list/read/resource projections consume one origin-aware visibility/catalog decision and the same package version/content hash.",
+    "A capability or Skill manifest can only shrink the Host ceiling; it cannot register a new tool or widen authority."
+  ],
+  "generality_proof": "Descriptor, policy, registry, transport, and Host execution are shared boundaries for every current and future Agent tool. The registry-to-adapter coverage test enumerates all advertised aliases, while the visibility contract is consumed by Pi, Agent, and MCP projections. Therefore a new alias cannot become visible without either an executable owner route or a failing focused test, and an invocation cannot silently report success when no domain effect occurred.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/registry.ts",
+      "symbol": "CANONICAL_CAPABILITY_REGISTRY",
+      "responsibility": "Own the canonical capability IDs, aliases, schemas, and domain ownership used by every projection."
+    },
+    {
+      "path": "electron/capabilityCore/canvasWriteTransportAdapters.ts",
+      "symbol": "createCanvasWriteTransportAdapter",
+      "responsibility": "Resolve admitted Canvas aliases to the real canvas/timeline/staging owner and fail closed for unknown aliases."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "symbol": "executeToolCall",
+      "responsibility": "Make the ProjectAgentHost the sole admission and execution path for write effects, preserving one history and queue."
+    },
+    {
+      "path": "electron/skills/skillStore.ts",
+      "symbol": "listSkillSummaries/readSkillContent",
+      "responsibility": "Apply one origin-aware Skill visibility decision and immutable package identity to all list/read consumers."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/harness/tools/canvasDescriptors.ts",
+      "entry_point": "propose_storyboard_plan, arrange_storyboard_to_timeline, create_staging_reference, create_camera_move descriptors",
+      "disposition": "enforced",
+      "evidence": "These aliases are model-visible and now must be covered by the canonical registry and Canvas transport adapter coverage test."
+    },
+    {
+      "path": "electron/harness/agentChatPolicy.ts",
+      "entry_point": "author_skill policy projection",
+      "disposition": "enforced",
+      "evidence": "The alias is model-visible in creation/Agent policy and is routed through the Skill library owner rather than remaining an old Creation-only handler."
+    },
+    {
+      "path": "electron/harness/runtime/pi/nomiSkillResources.mts",
+      "entry_point": "Pi repository/user Skill loader",
+      "disposition": "enforced",
+      "evidence": "Pi and MCP/Agent consumers are checked against the shared visibility and package identity contract."
+    },
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "MCP skills.list/skills.read and capability dispatch",
+      "disposition": "enforced",
+      "evidence": "MCP metadata/content and write dispatch are required to use the same canonical registry/visibility boundaries."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future descriptor, policy, Skill, or transport alias can repeat the same visible-but-unexecutable failure unless coverage is enforced at the shared registry and adapter boundaries.",
+    "same_class_scan": [
+      "Enumerated all Agent tool descriptors and compared their names with the canonical capability registry and transport adapter switch.",
+      "Searched Host execution coordinator and every document/canvas/timeline write adapter for aliases that can return null or bypass the Host owner.",
+      "Compared Pi Skill roots, Agent load_skill, Skill store list/read, MCP skills.list/read, resources/list/read, and prompts/list/get for divergent origin/audience filters and identity fields."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/agentCapabilities/registry.ts -> electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "invariant": "An advertised write tool must have a canonical registry entry, an executable adapter, and a domain-owner effect; Skill visibility/read must use one origin-aware catalog decision.",
+    "failure_mode": "Missing registry/adapter coverage fails the focused contract test; an unknown runtime alias returns a structured capability error and performs no write; a mismatched Skill identity is rejected and requires relisting.",
+    "exception_policy": "none",
+    "strategy": "Make the registry and visibility catalog the earliest shared boundaries, derive all descriptors from them, and keep domain writes behind the Host-owned adapters. Remove old direct/fallback paths in the same change.",
+    "artifacts": [
+      "electron/shared/agentCapabilities/registry.ts",
+      "electron/capabilityCore/canvasWriteTransportAdapters.ts",
+      "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "electron/skills/skillStore.ts",
+      "electron/harness/runtime/pi/nomiSkillResources.mts"
+    ]
+  },
+  "regression_tests": [
+    "electron/harness/tools/agentToolCatalog.test.ts",
+    "electron/shared/agentCapabilities/canvasWrite.test.ts",
+    "electron/capabilityCore/canvasWriteTransportAdapters.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
+    "electron/skills/skillStore.test.ts",
+    "electron/skills/skillIpc.test.ts",
+    "electron/harness/runtime/pi/nomiSkillResources.test.ts",
+    "electron/capabilityCore/nomiMcpSkills.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/harness/tools/agentToolCatalog.test.ts",
+    "electron/capabilityCore/canvasWriteTransportAdapters.test.ts",
+    "electron/harness/runtime/pi/nomiSkillResources.test.ts",
+    "electron/capabilityCore/nomiMcpSkills.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "partially-retired",
+    "removed_paths": [
+      "electron/capabilityCore/canvasWriteTransportAdapters.ts (unknown-alias null fallback)"
+    ],
+    "retained_compatibility_paths": [
+      "src/workbench/creation/creationToolCalls.ts (compatibility/test-only; excluded from the production Host graph)"
+    ],
+    "rationale": "Silent unknown-alias fallbacks cannot remain after Host admission is authoritative. The legacy Creation helper remains only for compatibility/tests until its consumers are retired; it is not a second production owner."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the capability or Skill ownership invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Existing Skill packages retain their content and origin metadata; callers with stale MCP resource identities must relist. Existing tool calls continue through their canonical aliases, while removed direct/fallback paths fail visibly rather than being silently replayed.",
+  "residual_risks": [
+    "The final packaged Electron GUI journey still needs to exercise every newly wired alias and verify persisted domain effects; unit/contract coverage alone is not visual acceptance.",
+    "Third-party MCP clients may cache older Skill URIs and must handle the documented relist error."
+  ]
+}

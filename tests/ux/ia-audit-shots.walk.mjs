@@ -275,12 +275,12 @@ try {
   const nodeCount = await getWin().evaluate(() => document.querySelectorAll('[data-node-id]').length)
   note('画布真节点数', String(nodeCount))
 
-  // 打开右侧助手栏（launcher 用原生 DOM click，避免 actionability 抖动）
-  await getWin().evaluate(() => {
-    const btn = document.querySelector('.generation-canvas-v2-assistant__launcher')
-    if (btn) btn.click()
-  }).catch(() => {})
-  await getWin().waitForTimeout(1200)
+  // 统一 resident shell 可能已展开；收起时只点击真实状态胶囊。
+  const resident = getWin().locator('[data-agent-resident][data-agent-surface="generation"]').first()
+  await resident.waitFor({ state: 'visible', timeout: 10_000 })
+  const collapsedResident = resident.locator('[data-agent-resident-collapsed="true"]')
+  if (await collapsedResident.isVisible().catch(() => false)) await collapsedResident.click()
+  await resident.locator('[data-agent-composer]').waitFor({ state: 'visible', timeout: 10_000 })
   // 适应视图，让所有节点都进画面
   const fit = getWin().locator('[aria-label="适应视图"]').first()
   if (await fit.count()) { await fit.click({ timeout: 3000 }).catch(() => {}); await getWin().waitForTimeout(1200) }

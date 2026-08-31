@@ -1,121 +1,345 @@
 import React from 'react'
-import { useGenerationModelOptionsState, findModelOptionByIdentifier } from '../../generationCanvas/adapters/modelOptionsAdapter'
+import { IconMessage, IconPhoto, IconVideo } from '@tabler/icons-react'
+import { cn } from '../../../utils/cn'
+import InlineParameterBar from '../../generationCanvas/nodes/InlineParameterBar'
+import {
+  deriveGenerationModelCatalogStatus,
+  findModelOptionByIdentifier,
+  useGenerationModelOptionsState,
+} from '../../generationCanvas/adapters/modelOptionsAdapter'
 import { resolveArchetypeForOption, resolveRenderedControls } from '../../generationCanvas/nodes/nodeModelArchetype'
 import {
-  catalogControlInitialValue,
-  controlInitialValue,
+  archetypeModeChoices,
+  archetypeVariantChoices,
+  currentArchetypeMode,
+  currentArchetypeVariant,
+} from '../../generationCanvas/nodes/controls/archetypeMeta'
+import {
   defaultPatchForCatalogControl,
-  isParameterControl,
   parseControlInput,
-  type DynamicModelControl,
+  type DynamicCatalogControl,
 } from '../../generationCanvas/nodes/controls/parameterControlModel'
-import { archetypeModeChoices, currentArchetypeMode } from '../../generationCanvas/nodes/controls/archetypeMeta'
+import type { ModelParameterControl } from '../../../config/modelCatalogMeta'
+import { ResidentBatchStack } from './ResidentBatchStack'
 import {
   asGenerationProposalArgs,
+  asSemanticGenerationProposalArgs,
   updateGenerationProposalNode,
   updateGenerationProposalParams,
+  updateSemanticGenerationField,
+  updateSemanticGenerationParameters,
+  updateSemanticGenerationReferences,
+  updateSemanticGenerationShot,
   type GenerationProposalArgs,
   type GenerationProposalNode,
+  type SemanticGenerationProposalArgs,
 } from './generationProposalEditing'
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
+type ProposalKind = 'image' | 'video' | 'text'
 
-function fieldClass(): string {
-  return 'min-w-0 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1 text-micro text-nomi-ink outline-none focus:border-nomi-accent focus:ring-1 focus:ring-nomi-accent/20'
+function primitive(value: unknown): string {
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? String(value) : ''
 }
 
-function valueAsString(value: unknown): string {
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
-  return ''
+function proposalKind(value: unknown): ProposalKind {
+  const kind = String(value || '').toLowerCase()
+  return kind.includes('video') || kind.includes('motion') ? 'video' : kind.includes('text') ? 'text' : 'image'
 }
 
-function controlOptionValue(option: unknown): string {
-  if (typeof option === 'string' || typeof option === 'number' || typeof option === 'boolean') return String(option)
-  if (option && typeof option === 'object' && 'value' in option) return valueAsString((option as { value?: unknown }).value)
-  return ''
-}
-
-function controlOptionLabel(option: unknown): string {
-  if (option && typeof option === 'object' && 'label' in option) return String((option as { label?: unknown }).label ?? controlOptionValue(option))
-  return controlOptionValue(option)
-}
-
-function ProposalControl({
-  control,
-  meta,
-  onChange,
-}: {
-  control: DynamicModelControl
-  meta: Record<string, unknown>
-  onChange: (control: DynamicModelControl, value: string) => void
-}): JSX.Element {
-  const value = isParameterControl(control) ? controlInitialValue(control, meta) : catalogControlInitialValue(control, meta)
-  if (isParameterControl(control) && control.type === 'boolean') {
-    return <label data-agent-parameter-control={control.key} className="flex min-h-7 items-center justify-between gap-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1 text-micro text-nomi-ink-80"><span className="truncate">{control.label}</span><input type="checkbox" aria-label={control.label} checked={value === 'true'} onChange={(event) => onChange(control, event.currentTarget.checked ? 'true' : 'false')} /></label>
-  }
-  if (control.options.length > 0) {
-    return <select data-agent-parameter-control={control.key} className={fieldClass()} aria-label={control.label} value={value} onChange={(event) => onChange(control, event.currentTarget.value)}>{control.options.map((option) => <option key={controlOptionValue(option)} value={controlOptionValue(option)}>{controlOptionLabel(option)}</option>)}</select>
-  }
-  const type = isParameterControl(control) && control.type === 'number' ? 'number' : 'text'
-  return <input data-agent-parameter-control={control.key} className={fieldClass()} aria-label={control.label} type={type} value={value} min={isParameterControl(control) ? control.min : undefined} max={isParameterControl(control) ? control.max : undefined} step={isParameterControl(control) ? control.step : undefined} placeholder={isParameterControl(control) ? control.placeholder : undefined} onChange={(event) => onChange(control, event.currentTarget.value)} />
-}
-
-function ProposalNodeEditor({
-  args,
-  index,
-  node,
-  onChange,
-  t,
-}: {
-  args: GenerationProposalArgs
-  index: number
-  node: GenerationProposalNode
-  onChange: (next: GenerationProposalArgs) => void
-  t: Translate
-}): JSX.Element {
-  const nodeKind = node.kind === 'video' ? 'video' : node.kind === 'text' ? 'text' : 'image'
-  const modelState = useGenerationModelOptionsState(nodeKind)
-  const modelKey = typeof node.modelKey === 'string' ? node.modelKey : ''
-  const selectedModel = findModelOptionByIdentifier(modelState.options, modelKey)
-  const meta = React.useMemo(() => ({ ...(node.params || {}), ...(modelKey ? { modelKey } : {}), ...(node.modeId ? { archetype: { id: selectedModel?.modelKey || modelKey, modeId: node.modeId } } : {}) }), [modelKey, node.modeId, node.params, selectedModel?.modelKey])
-  const isImage = nodeKind === 'image'
-  const isVideo = nodeKind === 'video'
-  const archetype = resolveArchetypeForOption(selectedModel)
-  const controls = resolveRenderedControls(selectedModel, meta, isImage, isVideo)
-  const modes = archetype ? archetypeModeChoices(archetype) : []
-  const params = node.params || {}
-  const knownParamKeys = new Set(controls.map((control) => control.key))
-  const unsupportedParamCount = Object.keys(params).filter((key) => !knownParamKeys.has(key)).length
-
-  const updateNode = (patch: Partial<GenerationProposalNode>): void => onChange(updateGenerationProposalNode(args, index, patch))
-  const updateParam = (control: DynamicModelControl, value: string): void => {
-    if (isParameterControl(control)) {
-      updateParamValue(control.key, parseControlInput(control, value))
-      return
-    }
-    const patch = defaultPatchForCatalogControl({ ...control, defaultValue: value })
-    onChange(updateGenerationProposalParams(args, index, patch as Record<string, string | number | boolean | null>))
-  }
-  const updateParamValue = (key: string, value: string | number | boolean | null): void => onChange(updateGenerationProposalParams(args, index, { [key]: value }))
-
-  return <div className="grid gap-2 border-t border-nomi-line-soft pt-2" data-agent-proposal-node={node.clientId || String(index)}>
-    <div className="flex items-center gap-1.5"><span className="min-w-0 flex-1 truncate text-micro font-semibold text-nomi-ink">{node.title || t('agentResident.untitledShot')}</span><span className="rounded-pill bg-nomi-accent-soft px-1.5 py-0.5 text-micro text-nomi-accent">{nodeKind === 'video' ? t('agentResident.video') : nodeKind === 'text' ? t('agentResident.proposalText') : t('agentResident.image')}</span></div>
-    <label className="grid gap-1 text-micro text-nomi-ink-60"><span>{t('agentResident.proposalPrompt')}</span><textarea className={`${fieldClass()} min-h-12 resize-y`} value={typeof node.prompt === 'string' ? node.prompt : ''} onChange={(event) => updateNode({ prompt: event.currentTarget.value })} aria-label={t('agentResident.proposalPrompt')} /></label>
-    <div className="grid grid-cols-2 gap-1.5">
-      <label className="grid min-w-0 gap-1 text-micro text-nomi-ink-60"><span>{t('agentResident.proposalModel')}</span>{modelState.options.length ? <select className={fieldClass()} aria-label={t('agentResident.proposalModel')} value={modelKey} onChange={(event) => { const value = event.currentTarget.value; const { modeId: _modeId, params: _params, ...withoutModelSpecific } = node; updateNode({ ...withoutModelSpecific, modelKey: value }) }}>{modelState.options.map((option) => <option key={`${option.vendor || ''}:${option.value}`} value={option.value}>{option.label}</option>)}</select> : <input className={fieldClass()} aria-label={t('agentResident.proposalModel')} value={modelKey} onChange={(event) => updateNode({ modelKey: event.currentTarget.value })} />}</label>
-      <label className="grid min-w-0 gap-1 text-micro text-nomi-ink-60"><span>{t('agentResident.proposalMode')}</span>{modes.length ? <select className={fieldClass()} aria-label={t('agentResident.proposalMode')} value={node.modeId || (archetype ? currentArchetypeMode(archetype, meta).id : '')} onChange={(event) => updateNode({ modeId: event.currentTarget.value })}>{modes.map((mode) => <option key={mode.id} value={mode.id}>{mode.vendorTerm}</option>)}</select> : <input className={fieldClass()} aria-label={t('agentResident.proposalMode')} value={node.modeId || ''} onChange={(event) => updateNode({ modeId: event.currentTarget.value })} placeholder={t('agentResident.proposalModeHint')} />}</label>
+function ProposalPrompt({ value, onChange, t }: { value: string; onChange: (value: string) => void; t: Translate }): JSX.Element {
+  return (
+    <div className="flex min-w-0 items-start gap-1.5 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-2 py-1.5" data-agent-proposal-prompt="true">
+      <IconMessage size={14} className="mt-0.5 shrink-0 text-nomi-accent" aria-hidden="true" />
+      <textarea
+        className="min-h-10 max-h-16 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent text-caption leading-relaxed text-nomi-ink-80 outline-none placeholder:text-nomi-ink-40"
+        rows={2}
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        aria-label={t('agentResident.proposalPrompt')}
+        placeholder={t('agentResident.proposalPrompt')}
+      />
     </div>
-    {controls.length ? <div className="grid gap-1.5"><div className="text-micro font-medium text-nomi-ink-60">{t('agentResident.proposalParameters')}</div>{controls.map((control) => <ProposalControl key={control.key} control={control} meta={meta} onChange={updateParam} />)}</div> : null}
-    {unsupportedParamCount ? <p className="rounded-nomi-sm border border-nomi-warning/40 bg-nomi-warning-soft px-2 py-1 text-micro text-nomi-ink-70" role="status">{t('agentResident.proposalUnsupportedParameters', { count: unsupportedParamCount })}</p> : null}
-  </div>
+  )
+}
+
+type ProposalParameterBarProps = {
+  kind: ProposalKind
+  modelValue: string
+  vendor?: string
+  modeId?: string
+  variantId?: string
+  params: Record<string, string | number | boolean>
+  onModelChange: (value: string, vendor?: string) => void
+  onModeChange: (value: string) => void
+  onVariantChange: (value: string) => void
+  onCatalogControlChange: (control: DynamicCatalogControl, value: string) => void
+  onParameterControlChange: (control: ModelParameterControl, value: string) => void
+  t: Translate
+}
+
+/** Maps a Host-owned proposal draft to the same archive-driven controls as a canvas node. */
+function ProposalParameterBar({
+  kind,
+  modelValue,
+  vendor,
+  modeId,
+  variantId,
+  params,
+  onModelChange,
+  onModeChange,
+  onVariantChange,
+  onCatalogControlChange,
+  onParameterControlChange,
+  t,
+}: ProposalParameterBarProps): JSX.Element {
+  const modelState = useGenerationModelOptionsState(kind)
+  const selectedModel = findModelOptionByIdentifier(modelState.options, modelValue, vendor) || null
+  const archetype = resolveArchetypeForOption(selectedModel)
+  const meta = React.useMemo<Record<string, unknown>>(() => ({
+    ...params,
+    ...(modelValue ? { modelKey: modelValue } : {}),
+    ...(vendor ? { modelVendor: vendor, vendor } : {}),
+    ...(modeId ? { archetype: { id: selectedModel?.modelKey || modelValue, modeId, variantId } } : {}),
+    ...(variantId ? { variantId } : {}),
+  }), [modelValue, modeId, params, selectedModel?.modelKey, variantId, vendor])
+  const controls = resolveRenderedControls(selectedModel, meta, kind === 'image', kind === 'video')
+  const modes = archetype ? archetypeModeChoices(archetype) : []
+  const variants = archetype ? archetypeVariantChoices(archetype) : []
+  const activeMode = archetype ? currentArchetypeMode(archetype, meta).id : modeId || ''
+  const activeVariant = archetype ? currentArchetypeVariant(archetype, meta)?.id || variantId || '' : variantId || ''
+  const catalogStatus = deriveGenerationModelCatalogStatus(kind, modelState)
+
+  return (
+    <div data-agent-proposal-parameters="true" className="min-w-0">
+      <InlineParameterBar
+        layout="stacked"
+        panelMode="inline"
+        summaryWidth={150}
+        modelOptions={modelState.options}
+        modelCatalogStatus={catalogStatus}
+        renderedControls={controls}
+        selectedModelOption={selectedModel}
+        archetype={archetype}
+        meta={meta}
+        onModelChange={onModelChange}
+        onCatalogControlChange={onCatalogControlChange}
+        onParameterControlChange={onParameterControlChange}
+        modeChoices={modes.length > 1 ? modes.map((mode) => ({ id: mode.id, label: mode.vendorTerm })) : undefined}
+        activeModeId={activeMode}
+        modeLabel={t('generationCommon.parameters.generationMode')}
+        onModeSelect={modes.length > 1 ? onModeChange : undefined}
+        variantChoices={variants}
+        activeVariantId={activeVariant}
+        onVariantSelect={onVariantChange}
+      />
+    </div>
+  )
+}
+
+function ProposalItemHeader({ kind, title, index, total, t }: { kind: ProposalKind; title: string; index?: number; total?: number; t: Translate }): JSX.Element {
+  const MediaIcon = kind === 'video' ? IconVideo : kind === 'image' ? IconPhoto : IconMessage
+  return (
+    <div className="flex min-w-0 items-center gap-1.5 text-micro font-semibold text-nomi-ink">
+      <MediaIcon size={14} className="shrink-0 text-nomi-accent" aria-hidden="true" />
+      <span className="min-w-0 flex-1 truncate">{title || t('agentResident.untitledShot')}</span>
+      {index !== undefined && total !== undefined ? <span className="shrink-0 text-nomi-ink-40 tabular-nums">{index + 1}/{total}</span> : null}
+    </div>
+  )
+}
+
+function ProposalNodeEditor({ args, index, node, onChange, t, total, showHeader = true }: { args: GenerationProposalArgs; index: number; node: GenerationProposalNode; onChange: (next: GenerationProposalArgs) => void; t: Translate; total?: number; showHeader?: boolean }): JSX.Element {
+  const kind = proposalKind(node.kind)
+  const modelValue = primitive(node.modelKey)
+  const vendor = primitive(node.vendor || node.modelVendor || node.providerId)
+  const params = node.params || {}
+  const updateNode = (patch: Partial<GenerationProposalNode>): void => onChange(updateGenerationProposalNode(args, index, patch))
+  const updateParameter = (control: ModelParameterControl, value: string): void => {
+    onChange(updateGenerationProposalParams(args, index, { [control.key]: parseControlInput(control, value) }))
+  }
+  const updateCatalog = (control: DynamicCatalogControl, value: string): void => {
+    onChange(updateGenerationProposalParams(args, index, defaultPatchForCatalogControl({ ...control, defaultValue: value }) as Record<string, string | number | boolean | null>))
+  }
+  const updateModel = (value: string, nextVendor?: string): void => {
+    // A model switch starts a fresh effective-args draft; stale mode/params
+    // must not silently travel to an incompatible model.
+    updateNode({ modelKey: value, vendor: nextVendor, modelVendor: nextVendor, modeId: undefined, variantId: undefined, params: {} })
+  }
+  return (
+    <div className="grid min-w-0 gap-1.5" data-agent-proposal-node={node.clientId || String(index)}>
+      {showHeader ? <ProposalItemHeader kind={kind} title={primitive(node.title)} index={index} total={total} t={t} /> : null}
+      <ProposalPrompt value={primitive(node.prompt)} onChange={(value) => updateNode({ prompt: value })} t={t} />
+      <ProposalParameterBar
+        kind={kind}
+        modelValue={modelValue}
+        vendor={vendor}
+        modeId={primitive(node.modeId)}
+        variantId={primitive(node.variantId)}
+        params={params}
+        onModelChange={updateModel}
+        onModeChange={(value) => updateNode({ modeId: value })}
+        onVariantChange={(value) => updateNode({ variantId: value })}
+        onCatalogControlChange={updateCatalog}
+        onParameterControlChange={updateParameter}
+        t={t}
+      />
+    </div>
+  )
+}
+
+function semanticSource(args: SemanticGenerationProposalArgs): Record<string, unknown> {
+  if (args.patch && typeof args.patch === 'object' && !Array.isArray(args.patch)) return args.patch as Record<string, unknown>
+  if (args.candidate && typeof args.candidate === 'object' && !Array.isArray(args.candidate)) return args.candidate as Record<string, unknown>
+  return args
+}
+
+function primitiveParameters(value: unknown): Record<string, string | number | boolean> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([, item]) => typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean')) as Record<string, string | number | boolean>
+}
+
+function SemanticShotEditor({ args, index, shot, onChange, t, total }: { args: SemanticGenerationProposalArgs; index: number; shot: Record<string, unknown>; onChange: (next: SemanticGenerationProposalArgs) => void; t: Translate; total: number }): JSX.Element {
+  const nested = shot.candidate && typeof shot.candidate === 'object' && !Array.isArray(shot.candidate) ? shot.candidate as Record<string, unknown> : shot
+  const kind = proposalKind(nested.taskKind || nested.kind || shot.role)
+  const params = primitiveParameters(nested.parameters)
+  const update = (patch: Record<string, unknown>): void => onChange(updateSemanticGenerationShot(args, index, patch))
+  const modelValue = primitive(nested.modelId || nested.modelKey || nested.model)
+  const vendor = primitive(nested.providerId || nested.vendor)
+  const modeId = primitive(nested.modeId || nested.mode)
+  const variantId = primitive(nested.variantId)
+  const updateModel = (value: string, nextVendor?: string): void => update({ modelId: value, providerId: nextVendor, modeId: undefined, mode: undefined, variantId: undefined, parameters: {} })
+  const updateParameter = (control: ModelParameterControl, value: string): void => {
+    update({ parameters: { ...params, [control.key]: parseControlInput(control, value) } })
+  }
+  const updateCatalog = (control: DynamicCatalogControl, value: string): void => {
+    update({ parameters: { ...params, ...defaultPatchForCatalogControl({ ...control, defaultValue: value }) } })
+  }
+  return (
+    <div className="grid min-w-0 gap-1.5" data-agent-proposal-shot={primitive(shot.shotId) || String(index)}>
+      <ProposalItemHeader kind={kind} title={primitive(shot.shotId)} index={index} total={total} t={t} />
+      <ProposalPrompt value={primitive(nested.prompt || nested.scriptText)} onChange={(value) => update(Object.prototype.hasOwnProperty.call(nested, 'scriptText') && !Object.prototype.hasOwnProperty.call(nested, 'prompt') ? { scriptText: value } : { prompt: value })} t={t} />
+      <ProposalParameterBar
+        kind={kind}
+        modelValue={modelValue}
+        vendor={vendor}
+        modeId={modeId}
+        variantId={variantId}
+        params={params}
+        onModelChange={updateModel}
+        onModeChange={(value) => update({ modeId: value, mode: value })}
+        onVariantChange={(value) => update({ variantId: value })}
+        onCatalogControlChange={updateCatalog}
+        onParameterControlChange={updateParameter}
+        t={t}
+      />
+    </div>
+  )
+}
+
+function ReferencesDisclosure({ args, t, onChange }: { args: SemanticGenerationProposalArgs; t: Translate; onChange: (next: SemanticGenerationProposalArgs) => void }): JSX.Element | null {
+  const source = semanticSource(args)
+  const references = Array.isArray(source.references) ? source.references : []
+  if (!references.length) return null
+  return (
+    <details className="rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-2" data-agent-proposal-references="true">
+      <summary className="min-h-7 cursor-pointer list-none py-1 text-micro text-nomi-ink-60">{t('agentResident.referencesLabel')} · {references.length}</summary>
+      <div className="grid gap-1 border-t border-nomi-line-soft py-1">
+        {references.map((reference, index) => (
+          <div key={index} className="flex min-w-0 items-center gap-1 text-micro text-nomi-ink-70">
+            <span className="min-w-0 flex-1 truncate">{reference && typeof reference === 'object' && 'assetId' in reference ? primitive((reference as { assetId?: unknown }).assetId) : t('agentResident.referencesLabel')}</span>
+            <button type="button" className="grid size-6 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-10" aria-label={t('agentResident.removeReference')} onClick={() => onChange(updateSemanticGenerationReferences(args, references.filter((_, candidateIndex) => candidateIndex !== index)))}>×</button>
+          </div>
+        ))}
+      </div>
+    </details>
+  )
+}
+
+function SemanticProposalEditor({ args, onChange, t }: { args: SemanticGenerationProposalArgs; onChange: (next: Record<string, unknown>) => void; t: Translate }): JSX.Element {
+  const [activeShotIndex, setActiveShotIndex] = React.useState(0)
+  const source = semanticSource(args)
+  const shots = Array.isArray(args.shots) ? args.shots.filter((shot): shot is Record<string, unknown> => Boolean(shot && typeof shot === 'object' && !Array.isArray(shot))) : []
+  const kind = proposalKind(source.taskKind || source.mode)
+  const rootParams = primitiveParameters(source.parameters)
+  const rootPromptKey = Object.prototype.hasOwnProperty.call(source, 'scriptText') && !Object.prototype.hasOwnProperty.call(source, 'prompt') ? 'scriptText' : 'prompt'
+  const updateRoot = (value: string): void => onChange(updateSemanticGenerationField(args, rootPromptKey, value))
+  const updateRootParameter = (control: ModelParameterControl, value: string): void => {
+    onChange(updateSemanticGenerationParameters(args, { [control.key]: parseControlInput(control, value) }))
+  }
+  const updateRootCatalog = (control: DynamicCatalogControl, value: string): void => {
+    onChange(updateSemanticGenerationParameters(args, defaultPatchForCatalogControl({ ...control, defaultValue: value })))
+  }
+  const updateRootModel = (value: string, vendor?: string): void => {
+    let next = updateSemanticGenerationField(args, 'modelId', value)
+    next = updateSemanticGenerationField(next, 'providerId', vendor)
+    next = updateSemanticGenerationField(next, 'modeId', undefined)
+    next = updateSemanticGenerationField(next, 'mode', undefined)
+    next = updateSemanticGenerationField(next, 'variantId', undefined)
+    next = updateSemanticGenerationParameters(next, {})
+    onChange(next)
+  }
+  return (
+    <section className="grid min-w-0 gap-1.5" data-agent-semantic-proposal-editor="true">
+      {shots.length === 0 ? (
+        <>
+          <ProposalPrompt value={primitive(source.prompt || source.scriptText)} onChange={updateRoot} t={t} />
+          <ProposalParameterBar
+            kind={kind}
+            modelValue={primitive(source.modelId || source.modelKey || source.model)}
+            vendor={primitive(source.providerId || source.vendor)}
+            modeId={primitive(source.modeId || source.mode)}
+            variantId={primitive(source.variantId)}
+            params={rootParams}
+            onModelChange={updateRootModel}
+            onModeChange={(value) => onChange(updateSemanticGenerationField(updateSemanticGenerationField(args, 'modeId', value), 'mode', value))}
+            onVariantChange={(value) => onChange(updateSemanticGenerationField(args, 'variantId', value))}
+            onCatalogControlChange={updateRootCatalog}
+            onParameterControlChange={updateRootParameter}
+            t={t}
+          />
+        </>
+      ) : (
+        <ResidentBatchStack
+          items={shots}
+          activeIndex={activeShotIndex}
+          onSelect={setActiveShotIndex}
+          getKey={(shot, index) => primitive(shot.shotId) || String(index)}
+          getLabel={(shot, index) => primitive(shot.shotId) || `${t('agentResident.untitledShot')} ${index + 1}`}
+          stackLabel={t('agentResident.batchStack')}
+          previousLabel={t('agentResident.batchPrevious')}
+          nextLabel={t('agentResident.batchNext')}
+          renderActive={(shot, index) => <SemanticShotEditor args={args} index={index} shot={shot} onChange={onChange} t={t} total={shots.length} />}
+        />
+      )}
+      <ReferencesDisclosure args={args} t={t} onChange={onChange} />
+    </section>
+  )
 }
 
 export function GenerationProposalEditor({ args: rawArgs, onChange, t }: { args: unknown; onChange: (next: Record<string, unknown>) => void; t: Translate }): JSX.Element | null {
   const parsed = asGenerationProposalArgs(rawArgs)
-  const [open, setOpen] = React.useState(false)
-  if (!parsed) return null
-  const editableNodes = parsed.nodes
-  if (!editableNodes.length) return null
+  const semantic = asSemanticGenerationProposalArgs(rawArgs)
+  const [activeNodeIndex, setActiveNodeIndex] = React.useState(0)
+  if (!parsed && semantic) return <SemanticProposalEditor args={semantic} t={t} onChange={onChange} />
+  if (!parsed || !parsed.nodes.length) return null
   const update = (next: GenerationProposalArgs): void => onChange(next)
-  return <section className="grid gap-1.5" data-agent-proposal-editor="true"><button type="button" className="inline-flex min-h-7 w-fit items-center gap-1 rounded-nomi-sm px-1 text-micro font-medium text-nomi-ink-60 hover:bg-nomi-ink-05" aria-expanded={open} onClick={() => setOpen((value) => !value)}><span aria-hidden="true">{open ? '▾' : '▸'}</span>{t('agentResident.editParameters')}<span className="text-nomi-ink-40">{t('agentResident.proposalNodeCount', { count: editableNodes.length })}</span></button>{open ? <div className="grid gap-2">{parsed.nodes.map((node, index) => <ProposalNodeEditor key={node.clientId || String(index)} args={parsed} index={index} node={node} onChange={update} t={t} />)}</div> : null}</section>
+  return (
+    <section className="grid min-w-0 gap-1.5" data-agent-proposal-editor="true">
+      {parsed.nodes.length > 1 ? (
+        <ResidentBatchStack
+          items={parsed.nodes}
+          activeIndex={activeNodeIndex}
+          onSelect={setActiveNodeIndex}
+          getKey={(node, index) => primitive(node.clientId) || String(index)}
+          getLabel={(node, index) => primitive(node.title) || `${t('agentResident.untitledShot')} ${index + 1}`}
+          stackLabel={t('agentResident.batchStack')}
+          previousLabel={t('agentResident.batchPrevious')}
+          nextLabel={t('agentResident.batchNext')}
+          renderActive={(node, index) => <ProposalNodeEditor args={parsed} index={index} node={node} onChange={update} t={t} total={parsed.nodes.length} />}
+        />
+      ) : (
+        <ProposalNodeEditor args={parsed} index={0} node={parsed.nodes[0]!} onChange={update} t={t} showHeader={false} />
+      )}
+    </section>
+  )
 }

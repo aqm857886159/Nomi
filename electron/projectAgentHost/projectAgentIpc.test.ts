@@ -74,12 +74,23 @@ describe("ProjectAgent IPC wire boundary", () => {
       },
     };
     const surfaceCapture = { captureCanvasReadPort: vi.fn(() => Object.freeze({})) };
-    registerProjectAgentIpc({ runtime: runtime as never, surfaceCapture: surfaceCapture as never });
+    const skillRead = { tryExecute: vi.fn(async () => null), dispose: vi.fn() };
+    const captureSkillRead = vi.fn(() => skillRead);
+    registerProjectAgentIpc({
+      runtime: runtime as never,
+      surfaceCapture: surfaceCapture as never,
+      captureSkillRead,
+    });
     const event = {} as IpcMainInvokeEvent;
 
     const opened = await state.handlers.get(PROJECT_AGENT_OPEN_CHANNEL)!(event, { binding });
     expect(opened).toMatchObject({ ok: true, value: { subscriptionId: "subscription-a" } });
     expect(surfaceCapture.captureCanvasReadPort).toHaveBeenCalledWith(event, binding);
+    expect(captureSkillRead).toHaveBeenCalledWith(event, binding, "project-agent-open-project-a");
+    expect(runtime.executionCoordinator.open).toHaveBeenCalledWith(
+      binding,
+      expect.objectContaining({ skillRead }),
+    );
 
     const command = await state.handlers.get(PROJECT_AGENT_COMMAND_CHANNEL)!(event, {
       subscriptionId: "subscription-a",

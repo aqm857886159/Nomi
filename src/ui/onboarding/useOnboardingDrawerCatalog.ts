@@ -1,5 +1,6 @@
 import React from 'react'
 import type { Mapping } from '../../../electron/catalog/types'
+import type { ModelCatalogVendorCredentialMode } from '../../api/desktopClient'
 import { notifyModelOptionsRefresh } from '../../config/useModelOptions'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { DreaminaStatus } from './DreaminaMemberCard'
@@ -13,6 +14,8 @@ export type OnboardingVendorMeta = {
   enabled: boolean
   authType: string
   customCallOnly: boolean
+  /** Derived by the desktop catalog; absent for custom vendors (fail closed). */
+  credentialMode?: ModelCatalogVendorCredentialMode
 }
 
 const MAX_BRIDGE_RETRIES = 5
@@ -66,6 +69,10 @@ export function useOnboardingDrawerCatalog(): {
       const storedMappings = bridge.modelCatalog.listMappings() as Mapping[]
       const metaMap = new Map<string, OnboardingVendorMeta>()
       for (const vendor of storedVendors) {
+        const credentialMode: ModelCatalogVendorCredentialMode | undefined =
+          vendor.credentialMode === 'direct-key' || vendor.credentialMode === 'certification'
+            ? vendor.credentialMode
+            : undefined
         metaMap.set(String(vendor.key), {
           name: String(vendor.name || vendor.key),
           hasApiKey: Boolean(vendor.hasApiKey),
@@ -73,6 +80,7 @@ export function useOnboardingDrawerCatalog(): {
           enabled: vendor.enabled !== false,
           authType: String(vendor.authType || ''),
           customCallOnly: Boolean((vendor.meta as Record<string, unknown> | undefined)?.customCallOnly),
+          ...(credentialMode ? { credentialMode } : {}),
         })
       }
       const projectedCatalog = projectModelSettingsCatalog(storedModels)

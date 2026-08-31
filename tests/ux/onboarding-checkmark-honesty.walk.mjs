@@ -199,7 +199,7 @@ try {
 
   // 关键（正向锚定，别读空区域制造假绿）：从**实际渲染出来的那张卡**读文本——它必然非空、且必含人话，
   // 断言这段人话里**不含**英文原串（F5 根因就是这句被直通）。读卡本身而非「消息区容器」，
-  // 因为 recovery 卡不一定挂在 .workbench-creation-ai__messages 里（实测它挂在助手面板另一处）。
+  // recovery 卡不一定挂在对话流里（实测它挂在助手面板另一处）。
   const card = (await recovery.count()) > 0 ? recovery : errorCard
   const cardText = (await card.innerText()).replace(/\s+/g, ' ').trim()
   console.log('  [F5] 错误卡文本:', cardText.slice(0, 240))

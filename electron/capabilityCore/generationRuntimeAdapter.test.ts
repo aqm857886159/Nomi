@@ -204,6 +204,32 @@ describe("GenerationRuntimeAdapter", () => {
     expect(submit).toHaveBeenCalledTimes(1);
   });
 
+  it("passes the sealed semantic input to an optional contextual submit hook", async () => {
+    const contextualSubmit = vi.fn(async (_request: unknown, _idempotencyKey: string, input: { mode: string }) => ({
+      providerTaskId: `context-${input.mode}`,
+    }));
+    const submit = vi.fn();
+    const adapter = createGenerationRuntimeAdapter({ providers: [{
+      providerId: "provider.image",
+      capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false },
+      buildRequest: (input) => ({ model: input.modelId, prompt: input.prompt }),
+      submit,
+      submitWithContext: contextualSubmit,
+    }] });
+    const imageContract = contract("provider.image", "model.image.v1", "text-to-image", { aspectRatio: "1:1" });
+    const binding = bindingFor("provider.image", imageContract.contractHash);
+    const prepared = adapter.prepare({ contract: imageContract, binding });
+
+    await expect(adapter.submit({ contract: imageContract, binding, expectedProviderRequestHash: prepared.providerRequestHash }))
+      .resolves.toMatchObject({ providerTaskId: "context-text-to-image" });
+    expect(contextualSubmit).toHaveBeenCalledWith(
+      { model: "model.image.v1", prompt: "a red fox" },
+      binding.providerIdempotencyKey,
+      expect.objectContaining({ mode: "text-to-image", modelId: "model.image.v1" }),
+    );
+    expect(submit).not.toHaveBeenCalled();
+  });
+
   it("submits a submit-only provider without inventing recovery capabilities", async () => {
     const submit = vi.fn(async () => ({ providerTaskId: "provider-reference-1" }));
     const adapter = createGenerationRuntimeAdapter({ providers: [{

@@ -8,6 +8,7 @@ import {
   hasWorkspaceManifest,
   initializeWorkspace,
   readWorkspaceManifest,
+  readWorkspaceManifestSnapshot,
   withWorkspaceManifestMutationSync,
   writeWorkspaceManifest,
 } from "./workspaceManifest";
@@ -90,6 +91,23 @@ describe("workspace manifest", () => {
     });
     expect(raw.rootPath).toBeUndefined();
     expect(hasWorkspaceManifest(root)).toBe(true);
+  });
+
+  it("reads a valid manifest snapshot without contending for the write lock", () => {
+    const root = makeTempDir();
+    const record = initializeWorkspace(root, { name: "Concurrent reads" });
+    const held = tryAcquireWorkspaceManifestLock(root, {
+      ownerId: "simulated-writer",
+      randomId: () => "simulated-writer-nonce",
+    });
+
+    expect(readWorkspaceManifestSnapshot(root)).toMatchObject({
+      id: record.id,
+      name: "Concurrent reads",
+      revision: 0,
+    });
+
+    releaseWorkspaceManifestLock(held);
   });
 
   it("reuses an existing workspace manifest and does not overwrite its id", () => {

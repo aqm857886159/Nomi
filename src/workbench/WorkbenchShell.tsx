@@ -2,7 +2,6 @@ import React from "react";
 import { createPortal } from 'react-dom';
 import { useTranslation } from "react-i18next";
 import "./workbench.css";
-import "./workbench-ai.css";
 import { IconBrowser } from "@tabler/icons-react";
 import { NomiBrand, NomiLoadingMark } from "../design";
 import NomiAppBar from "../ui/app-shell/NomiAppBar";

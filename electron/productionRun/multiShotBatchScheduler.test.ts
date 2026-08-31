@@ -73,6 +73,7 @@ function setupBatch(shots: ProductionGenerationShot[], maxSpend: number | null):
     projectId: "project-1",
     origin: { host: "semantic-mcp" },
     candidate: shots[0].candidate,
+    shots,
     policy: { trustedHosts: ["semantic-mcp"], allowedProviders: ["apimart"], allowedModels: ["image-model", "video-model"], maxSpend, maxAttemptsPerJob: 2 },
   });
   const topContract = shots[0].contract!;
@@ -140,6 +141,36 @@ function scheduler(root: string, repository: ReturnType<typeof createProductionR
     perShotPrice: () => ({ known: true, amount: 6 }),
     now: () => NOW,
     options,
+  });
+}
+
+function schedulerWithCompletion(
+  root: string,
+  repository: ReturnType<typeof createProductionRunRepository>,
+  submit: ReturnType<typeof vi.fn>,
+  onBatchComplete: NonNullable<Parameters<typeof createMultiShotBatchScheduler>[0]["onBatchComplete"]>,
+  options: Parameters<typeof createMultiShotBatchScheduler>[0]["options"] = {},
+) {
+  const submission = createProductionGenerationSubmission({
+    repository,
+    projectRoot: root,
+    immutableProjectUuid: "project-uuid-1",
+    projectGeneration: 1,
+    projectRevision: 0,
+    intentMacKey: "test-intent-key",
+    provider: mockProvider(submit),
+    materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.png` }),
+    now: () => NOW,
+  });
+  return createMultiShotBatchScheduler({
+    repository,
+    submission,
+    projectId: "project-1",
+    runId: "op-batch",
+    perShotPrice: () => ({ known: true, amount: 6 }),
+    now: () => NOW,
+    options,
+    onBatchComplete,
   });
 }
 
@@ -278,6 +309,42 @@ describe("P4 S4 batch scheduler — crash recovery", () => {
     expect(run.jobs.filter((j) => j.metadata?.shotId).length + run.jobs.filter((j) => !j.metadata?.shotId).length).toBeGreaterThanOrEqual(3);
     const jobIds = run.jobs.map((j) => j.jobId);
     expect(new Set(jobIds).size).toBe(jobIds.length); // no duplicate jobs
+  });
+
+  it("notifies the ProductionRun owner exactly once when every shot is materialized", async () => {
+    const shots = [shotEntry("shot-a", "a"), shotEntry("shot-b", "b")];
+    const { root, repository } = setupBatch(shots, null);
+    const submit = vi.fn(async () => ({ providerTaskId: `task-${submit.mock.calls.length + 1}` }));
+    const completed = vi.fn();
+
+    const outcome = await schedulerWithCompletion(root, repository, submit, completed).runToQuiescence();
+    expect(outcome.quiescent).toBe(true);
+    expect(outcome.progress).toMatchObject({ total: 2, completed: 2, inFlight: 0 });
+    expect(completed).toHaveBeenCalledTimes(1);
+    expect(completed).toHaveBeenCalledWith({ progress: outcome.progress });
+
+    // A restart/re-kick sees the same durable ready jobs and must not notify a
+    // second provider submission (or duplicate completion side effects).
+    await schedulerWithCompletion(root, repository, submit, completed).runToQuiescence();
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect(completed).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not notify while a stop or bounded partial drive leaves work pending", async () => {
+    const shots = [shotEntry("shot-a", "a"), shotEntry("shot-b", "b")];
+    const { root, repository } = setupBatch(shots, null);
+    const submit = vi.fn(async () => ({ providerTaskId: `task-${submit.mock.calls.length + 1}` }));
+    const completed = vi.fn();
+
+    await schedulerWithCompletion(root, repository, submit, completed, { maxShotsPerRun: 1 }).runToQuiescence();
+    expect(completed).not.toHaveBeenCalled();
+
+    let run = repository.read("project-1", "op-batch")!;
+    repository.execute("project-1", "op-batch", { commandId: `pause:${run.revision}`, expectedRevision: run.revision, type: "run.status", payload: { status: "pausing" }, issuedAt: NOW });
+    run = repository.read("project-1", "op-batch")!;
+    if (run.status === "pausing") repository.execute("project-1", "op-batch", { commandId: `pause-settle:${run.revision}`, expectedRevision: run.revision, type: "run.status", payload: { status: "paused" }, issuedAt: NOW });
+    await schedulerWithCompletion(root, repository, submit, completed).runToQuiescence();
+    expect(completed).not.toHaveBeenCalled();
   });
 });
 

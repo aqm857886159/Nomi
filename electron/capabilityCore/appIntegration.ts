@@ -11,27 +11,24 @@
 //
 // 这里只做接线，不碰 main.ts 的其它职责（保持 main.ts 精简、单一关注点）。
 import { app } from 'electron'
-import path from 'node:path'
-import { startRpcServer, type RpcServerHandle, type RpcServerOptions } from './rpcServer'
-import { capabilityCoreDir, ensureCapabilitySigningKey, ensureToken } from './security'
+import { startRpcServer, type RpcServerHandle } from './rpcServer'
+import { ensureCapabilitySigningKey, ensureToken } from './security'
 import { clearInstanceAdvertisement, writeInstanceAdvertisement } from './lockfile'
 import { HEARTBEAT_INTERVAL_MS, type InstanceAdvertisement } from './instanceAdvert'
 import { getProjectLocationState, getWorkspaceRepositoryDeps } from '../runtimePaths'
 import type { FetchTaskResultFn, RunTaskFn } from './core'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
-import { createApprovalReceiptAuthority, type ApprovalReceiptAuthority } from './approvalReceipt'
-import { createProductionRunLock } from '../productionRun/productionRunLock'
+import type { ApprovalReceiptAuthority } from './approvalReceipt'
 import { readWorkspaceProject, resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { createRuntimeMcpGenerationPolicy, type McpGenerationPolicy } from './mcpGenerationPolicy'
 import type { DispatchContext } from './dispatcher'
-import { requestRenderer, rendererTargetIdentity } from './rendererBridge'
+import { requestRenderer } from './rendererBridge'
 import { createGenerationPlanningHandler } from './mcpGenerationTools'
+import { planStoryboardFromScript } from './mcpStoryboardPlanner'
 import { createProductionGenerationOperationStore } from '../productionRun/productionGenerationOperationStore'
 import { createProductionGenerationSubmission } from '../productionRun/productionGenerationSubmission'
 import {
   prepareProductionGenerationAuthorization,
-  prepareProductionGenerationContinuationAuthorization,
-  prepareProductionGenerationReauthorization,
 } from '../productionRun/prepareProductionGenerationAuthorization'
 import { createMultiShotBatchScheduler, type MultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
 import { registerBatchSchedulerKicker } from '../productionRun/batchSchedulerKick'
@@ -40,18 +37,31 @@ import { landCanvasForRun } from '../productionRun/multiShotCanvasLanding'
 import { createArtifactProjection, getArtifactPreviewSecret } from '../productionRun/artifactProjection'
 import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
 import type { ModuleRegistry } from './moduleRegistry'
-import { createCatalogModuleRegistry } from './moduleCatalogBootstrap'
-import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
+import { observeSingleShotGeneration } from '../productionRun/singleShotGenerationObserver'
+import { createSingleShotObservationLifecycle } from '../productionRun/singleShotObservationLifecycle'
+import {
+  markSingleShotAttention,
+  markSingleShotCompleted,
+  markSingleShotRunning,
+} from '../productionRun/singleShotRunLifecycle'
+import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
 import { readCatalog } from '../catalog/catalogStore'
 import { buildVideoModelCandidates, recommendVideoGeneration, videoArchetypeIdFromMeta } from '../shared/videoCapabilities'
-import { createProductionProjectSessionRuntime } from './projectSessionRuntime'
 import { canvasReadSurfaceRuntime } from './canvasReadSurfaceRuntime'
 import type { CanvasReadExecutionRuntime } from './canvasReadExecutionRuntime'
 import {
   createRunOwnedGenerationGateAuthority,
-  decideRunOwnedGenerationGate,
 } from './runOwnedGenerationGateAuthority'
+import { installResidentGenerationAdapter, type ResidentGenerationAdapterFactory } from './residentGenerationAdapterFactory'
+import {
+  hasGenerationOperationProviderReadiness,
+  type GenerationOperationProviderShape,
+} from './generationOperationProviderReadiness'
+import { createLiveGenerationRuntime } from './liveGenerationRuntime'
+import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
+import { createDefaultAuthorities } from './appIntegrationAuthorities'
+import { createProductionActionHooks } from './appIntegrationProductionActions'
 
 let handle: RpcServerHandle | null = null
 // P4 S5：打开/切换项目时的补齐钩子（startCapabilityCore 装配后设进来）——按 run.jobs[].nodeId × artifacts
@@ -62,94 +72,11 @@ let unsubscribeCommittedSurface: (() => void) | null = null
 // 单镜 gate 确认（confirmGenerationInNomi + 收据机构）+ 提交门面，这些都在闭包内。main.ts 的 IPC 转调这两个导出。
 let reworkProductionShotHook: ((input: { projectId: string; runId: string; shotId?: string }) => Promise<ProductionActionResult>) | null = null
 let resumeProductionBatchHook: ((input: { projectId: string; runId: string; reason: 'budget' | 'manual' }) => Promise<ProductionActionResult>) | null = null
+let disposeResidentGenerationAdapter: (() => void) | null = null
+let disposeSingleShotObservationLifecycle: (() => void) | null = null
 // 心跳定时器 + 当前广告所在库（退出时按同一命名空间文件名清理）。
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null
 let advertisedLibrary: { projectsRoot: string; isDefault: boolean } | null = null
-
-function createDefaultAuthorities(generationPolicy: McpGenerationPolicy, hooks: {
-  /**
-   * P4 S4 试拍首镜 (§6 T3): called when a multi-shot confirmation card resolves trialFirst. Narrows the
-   * plan to shot 1 and re-seals it durably, so the client's re-requested gate lists a single shot. The
-   * challenge's runId is the operationId. Failures are swallowed (the client still gets trialFirst and
-   * can re-request the gate; a failed narrow only means the re-gate still lists the full plan).
-   */
-  onTrialFirst?: (input: { projectId: string; operationId: string }) => void | Promise<void>
-} = {}): Pick<
-  DispatchContext,
-  'approvalReceiptAuthority' | 'projectRevisionResolver' | 'confirmGenerationInNomi'
-> & Pick<RpcServerOptions, 'projectSessionAuthority'> {
-  const authorityDir = capabilityCoreDir()
-  const sharedLock = createProductionRunLock({
-    filePath: path.join(authorityDir, 'semantic-authorities.lock'),
-    epochPath: path.join(authorityDir, 'semantic-authorities.epoch'),
-    ownerId: `capability-core-${process.pid}`,
-  })
-  const projectSession = createProductionProjectSessionRuntime({
-    generationPolicy,
-    getOpenProjectSelection: canvasReadSurfaceRuntime.getCommittedProjectSelection,
-    // Existing non-current projects are not implicitly authorized merely
-    // because they exist. A future allowlist must be an explicit policy.
-    isServerAllowlisted: () => false,
-  })
-  const receiptAuthority = createApprovalReceiptAuthority({
-    filePath: path.join(authorityDir, 'approval-receipts.json'),
-    macKey: ensureCapabilitySigningKey('approval-receipt'),
-    storeMacKey: ensureCapabilitySigningKey('approval-receipt-store'),
-    keyId: 'approval-receipt-v1',
-    lock: sharedLock,
-  })
-  const confirmGenerationInNomi = async ({ challengeToken }: { challengeToken: string }) => {
-    const challenge = receiptAuthority.verifyChallenge(challengeToken)
-    const target = rendererTargetIdentity()
-    if (!target || !challenge.display?.model) return { confirmed: false, challengeId: challenge.challengeId }
-    const result = await requestRenderer('generation.gate.confirm', {
-      challengeId: challenge.challengeId,
-      projectName: challenge.display.projectName,
-      shotSummary: challenge.display.shotSummary,
-      model: challenge.display.model,
-      referenceCount: challenge.display.referenceCount,
-      maximumCost: challenge.reservationPreview.maximum,
-      currency: challenge.reservationPreview.currency,
-      expiresAt: challenge.expiresAt,
-      // P4 S3a — forward the (MAC-signed) multi-shot projection when the challenge carries one; a
-      // single-shot challenge omits it and the renderer keeps rendering today's flat card unchanged.
-      ...(challenge.display.shots ? { shots: challenge.display.shots } : {}),
-    }, 60_000) as { confirmed?: unknown; trialFirst?: unknown } | null
-    // P4 S3a/S4 — 「先试拍第 1 镜」信号：渲染层回 { confirmed:false, trialFirst:true }。S4 在此把计划缩到
-    // 首镜 + 重封存（onTrialFirst），随后客户端重发 gate → 新卡只列 1 镜；narrow 失败只降级为「重发仍列全批」。
-    if (result?.confirmed !== true) {
-      if (result?.trialFirst === true && hooks.onTrialFirst && challenge.runId && challenge.projectId) {
-        try {
-          await hooks.onTrialFirst({ projectId: challenge.projectId, operationId: challenge.runId })
-        } catch (error) {
-          console.error('[nomi:capability-core] trial-first narrow failed:', error instanceof Error ? error.message : String(error))
-        }
-      }
-      return {
-        confirmed: false,
-        challengeId: challenge.challengeId,
-        ...(result?.trialFirst === true ? { trialFirst: true } : {}),
-      }
-    }
-    const attestation = receiptAuthority.createMainProcessGestureAttestation(challengeToken, {
-      ...target,
-      decision: 'accept',
-    })
-    const receipt = receiptAuthority.mintReceipt(challengeToken, attestation)
-    return {
-      confirmed: true,
-      challengeId: challenge.challengeId,
-      receiptId: receipt.receipt.receiptId,
-      receiptToken: receipt.token,
-    }
-  }
-  return {
-    projectSessionAuthority: projectSession.authority,
-    approvalReceiptAuthority: receiptAuthority,
-    confirmGenerationInNomi,
-    projectRevisionResolver: (projectId) => readWorkspaceProject(projectId, getWorkspaceRepositoryDeps())?.revision,
-  }
-}
 
 /** 当前进程 RPC 端口（未启动=null）。「接入助手卡」据此显示能力核就绪态。 */
 export function getCapabilityPort(): number | null {
@@ -203,25 +130,44 @@ export async function startCapabilityCore(
     generationModuleRegistry?: Pick<ModuleRegistry, 'resolve'>
     projectRevisionResolver?: (projectId: string) => number | undefined
     canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
+    onGenerationReady?: (factory: ResidentGenerationAdapterFactory['factory']) => void
   } = {},
 ): Promise<void> {
+  // A second core start must invalidate observers owned by the previous
+  // instance before any new provider/runtime wiring can begin. Otherwise a
+  // setup failure could leave the old poll loop alive against a replaced
+  // renderer.
+  disposeSingleShotObservationLifecycle?.();
+  disposeSingleShotObservationLifecycle = null;
+  // A resident adapter owns listeners/IPC bindings. Dispose the previous
+  // instance before reinstalling it on a capability-core restart so no stale
+  // adapter can keep writing into the new runtime.
+  disposeResidentGenerationAdapter?.();
+  disposeResidentGenerationAdapter = null;
   try {
     const token = ensureToken()
     const generationService = getProductionRunService()
     const operationStore = createProductionGenerationOperationStore(generationService)
     const generationPolicy = authorities.generationPolicy ?? createRuntimeMcpGenerationPolicy()
-    // P4 S4: wire the trial-first narrow into the confirmation seam. When a multi-shot card resolves
-    // trialFirst, narrow the durable plan to shot 1 (a fresh plan hash) so the re-requested gate lists 1
-    // shot. Guarded by the same operationId the challenge carries as runId.
+    // P4 S4: trialFirst narrows the durable plan to shot 1 and re-seals it.
     const defaults = createDefaultAuthorities(generationPolicy, {
       onTrialFirst: async ({ projectId, operationId }) => {
         if (!operationStore.trialNarrow) return
         await operationStore.trialNarrow(projectId, operationId, new Date().toISOString())
       },
     })
-    const providerBootstrap = createGenerationProviderBootstrap()
+    const fixtureBaseUrlOverride = process.env.NOMI_E2E_PRODUCTION_FIXTURE === '1'
+      ? process.env.NOMI_E2E_APIMART_BASE_URL
+      : undefined
+    const liveGenerationRuntime = createLiveGenerationRuntime({
+      bootstrap: (state, options) => createGenerationProviderBootstrap(state, {
+        ...options,
+        ...(fixtureBaseUrlOverride ? { fixtureBaseUrlOverride } : {}),
+      }),
+    })
+    const readProviderBootstrap = liveGenerationRuntime.readBootstrap
     const outputMaterializer = createGenerationOutputMaterializer()
-    const generationRegistry = authorities.generationModuleRegistry ?? createCatalogModuleRegistry(undefined, { readinessByProvider: providerBootstrap.readinessByProvider })
+    const generationRegistry = authorities.generationModuleRegistry ?? liveGenerationRuntime.registry
     const videoModelCandidates = buildVideoModelCandidates(readCatalog().models
       .filter((model) => model.enabled && model.kind === 'video')
       .map((model) => ({
@@ -244,7 +190,8 @@ export async function startCapabilityCore(
     const isProjectOpen = (id: string) => canvasReadSurfaceRuntime.getCommittedProjectSelection()?.projectId === id
     // P4 S5：把一个 Run 的镜尽力落成画布占位/组/回填 result，并把 shotId→nodeId 写回 Run（best-effort，永不抛）。
     // 确认即落与打开项目补齐（reconcileOpenProject）共用它——一个家（P1）。
-    const landCanvasBestEffort = async (projectId: string, runId: string): Promise<boolean> => {
+    const landCanvasBestEffort = async (projectId: string, runId: string, isCurrent?: () => boolean): Promise<boolean> => {
+      if (isCurrent && !isCurrent()) return false
       let run
       try {
         run = generationService.repository.read(projectId, runId)
@@ -258,6 +205,7 @@ export async function startCapabilityCore(
         projectRoot,
         previewSecret: getArtifactPreviewSecret(),
         planName: run.brief?.goal,
+        ...(isCurrent ? { isCurrent } : {}),
         bindShotNodes: async (boundProjectId, boundRunId, expectedRevision, bindings) => {
           await generationService.command(boundProjectId, boundRunId, {
             commandId: `canvas-landing:${boundRunId}:bind:${bindings.map((binding) => `${binding.shotId}=${binding.nodeId}`).join(',')}`.slice(0, 200),
@@ -305,14 +253,28 @@ export async function startCapabilityCore(
       }
     }
     // P4 S4/S5：构造一个 Run 的提交门面（submission）。lease 身份（immutableProjectUuid/projectGeneration）
-    // 从工作区记录读——**耐久 binding 已冻住这些值**，恢复时无需新 lease。provider 按 run 的合同 provider 解析。
-    // 返回 null = provider 未配置 / 工程根不可达（调用方跳过，不驱动）。start 与 reconcile 共用它（P1）。
-    const buildSubmissionForRun = (run: { projectId: string; generationPlan?: { candidate: { providerId: string } }; jobs: Array<{ provider: string }> }) => {
-      const providerId = run.generationPlan?.candidate.providerId ?? run.jobs[0]?.provider
-      const provider = providerId ? providerBootstrap.providers.find((candidate) => candidate.providerId === providerId) : undefined
+    // 从工作区记录读——**耐久 binding 已冻住这些值**，恢复时无需新 lease。provider 集合按所有镜头合同和已有 job 推导。
+    // 返回 null = provider 未配置 / 工程根不可达（调用方跳过，不驱动）。start 与恢复调度共用同一门槛（P1）。
+    const buildSubmissionForRun = (run: {
+      projectId: string
+      generationPlan?: GenerationOperationProviderShape & { candidate?: { providerId?: unknown } }
+      jobs: Array<{ provider: string }>
+    }) => {
+      // Recovery uses the same provider set as a live multi-shot start.  A
+      // durable job can outlive the provider that happened to be first in the
+      // top-level candidate, so include every shot contract and every already
+      // materialized job provider before deciding whether to resume.
+      const plan = run.generationPlan
+      const operationShape: GenerationOperationProviderShape = {
+        contract: plan?.contract ?? (plan?.candidate ? { providerId: plan.candidate.providerId } : undefined),
+        shots: plan?.shots,
+      }
+      const jobProviderIds = run.jobs.map((job) => job.provider)
       const projectRoot = resolveWorkspaceProjectDir(run.projectId, getWorkspaceRepositoryDeps())
       const record = readWorkspaceProject(run.projectId, getWorkspaceRepositoryDeps())
-      if (!provider || !projectRoot || !record?.immutableProjectUuid || !record.projectGeneration || !Number.isInteger(record.revision)) return null
+      const providerBootstrap = readProviderBootstrap()
+      if (!hasGenerationOperationProviderReadiness(operationShape, providerBootstrap.providers, jobProviderIds)
+        || !projectRoot || !record?.immutableProjectUuid || !record.projectGeneration || !Number.isInteger(record.revision)) return null
       return createProductionGenerationSubmission({
         repository: generationService.repository,
         projectRoot,
@@ -331,7 +293,7 @@ export async function startCapabilityCore(
     const buildSchedulerForRun = (
       projectId: string,
       runId: string,
-      run: { projectId: string; generationPlan?: { candidate: { providerId: string } }; jobs: Array<{ provider: string }> },
+      run: { projectId: string; generationPlan?: GenerationOperationProviderShape & { candidate?: { providerId?: unknown } }; jobs: Array<{ provider: string }> },
     ) => {
       const submission = buildSubmissionForRun(run)
       if (!submission) return null
@@ -342,17 +304,53 @@ export async function startCapabilityCore(
         runId,
         perShotPrice: (shot) => (shot.contract ? resolveShotPrice(shot.contract) : { known: false }),
         onShotMaterialized: (shotId) => pushShotResultToRenderer(projectId, runId, shotId),
+        onBatchComplete: () => generationService.advanceSemanticProduction(projectId, runId),
       })
     }
-    // 慢供应商续力（2026-08-25，S6.5 APIMart 真付费验收抓到的死锁）：一次 drive 只等到 pollHorizon；
-    // 没到静止点（quiescent:false = 还有可轮询的在飞 job / bounded-out）就定时再踢，直到批次真正落定。
-    // 重启安全：定时器丢了没关系，开项目 reconcile 的 kick 经派生 observe 一样推进在飞 job。每 run 至多
-    // 一个待踢定时器；kick 路径带在飞 dedupe（长跑 drive 存续期间 reconcile/timer 不叠踢——dedupe 只是
-    // 省资源，正确性本就由 Run lock + intent log + commandId 幂等保住，漏网的并发 drive 也无害）。
-    // rework/resume 语义路径不 dedupe：提额要立即落 ledger。
+    // 慢供应商未到静止点时定时重踢；Run lock、intent log 与 commandId 保证重启/并发幂等。
     const REKICK_DELAY_MS = 15_000
     const activeBatchDrives = new Set<string>()
     const batchRekickTimers = new Map<string, ReturnType<typeof setTimeout>>()
+    // Single-shot submissions intentionally return the durable provider receipt
+    // immediately. Keep observation outside the MCP turn, but dedupe it by Run
+    // so a replay/reconnect can never start two poll/materialize loops. The
+    // lifecycle advances an epoch on core shutdown/restart and aborts stale
+    // provider waits before they can materialize or touch the renderer.
+    const singleShotObservationLifecycle = createSingleShotObservationLifecycle()
+    disposeSingleShotObservationLifecycle = singleShotObservationLifecycle.stop
+    // Single-shot lifecycle status is owned by the same durable ProductionRun
+    // repository as the provider submission.  Keep these callbacks local to
+    // the capability-core instance so a stopped/replaced instance cannot write
+    // a stale status after its epoch is invalidated.
+    const settleSingleShotRunning = (projectId: string, runId: string): void => {
+      try {
+        markSingleShotRunning(generationService.repository, projectId, runId)
+      } catch (error) {
+        console.warn('[nomi:production] single-shot running status failed:', error instanceof Error ? error.name : 'unknown')
+      }
+    }
+    const settleSingleShotCompleted = (projectId: string, runId: string, options: { jobId?: string; artifactId?: string } = {}): void => {
+      try {
+        markSingleShotCompleted(generationService.repository, projectId, runId, options)
+      } catch (error) {
+        console.warn('[nomi:production] single-shot completion status failed:', error instanceof Error ? error.name : 'unknown')
+      }
+    }
+    const settleSingleShotAttention = (projectId: string, runId: string, jobId?: string): void => {
+      try {
+        markSingleShotAttention(generationService.repository, projectId, runId, jobId)
+      } catch (error) {
+        console.warn('[nomi:production] single-shot attention status failed:', error instanceof Error ? error.name : 'unknown')
+      }
+    }
+    const activeSingleShotJobId = (projectId: string, runId: string): string | undefined => {
+      try {
+        const run = generationService.repository.read(projectId, runId)
+        return run?.jobs.find((job) => Boolean(job.providerTaskId) && !['adopted', 'cancelled_remote', 'detached', 'too_late'].includes(job.status))?.jobId
+      } catch {
+        return undefined
+      }
+    }
     const scheduleBatchRekick = (projectId: string, runId: string): void => {
       const key = `${projectId}:${runId}`
       if (batchRekickTimers.has(key)) return
@@ -363,7 +361,12 @@ export async function startCapabilityCore(
       timer.unref?.()
       batchRekickTimers.set(key, timer)
     }
-    const driveScheduler = (projectId: string, runId: string, scheduler: MultiShotBatchScheduler, label: string): void => {
+    const driveScheduler = (
+      projectId: string,
+      runId: string,
+      scheduler: Pick<MultiShotBatchScheduler, 'runToQuiescence'>,
+      label: string,
+    ): void => {
       const key = `${projectId}:${runId}`
       activeBatchDrives.add(key)
       void scheduler.runToQuiescence()
@@ -390,18 +393,71 @@ export async function startCapabilityCore(
       if (!scheduler) return
       driveScheduler(projectId, runId, scheduler, 'batch resume tick')
     }
-    // P4 §3.2：注册进 service 的 post-decide 重踢插槽——任何入口（MCP dispatcher / 渲染层 IPC / 未来的
-    // 检查点卡）批完锚定妆照检查点，批次自动续跑，入口自己不用记得踢（batchSchedulerKick.ts 有为什么）。
+    const observeSingleShotRun = (
+      submission: ReturnType<typeof createProductionGenerationSubmission>,
+      projectId: string,
+      runId: string,
+    ): void => {
+      const key = `${projectId}:${runId}`
+      void singleShotObservationLifecycle.run(key, async ({ signal, isCurrent }) => {
+        try {
+          const result = await observeSingleShotGeneration({
+            submission,
+            input: { projectId, operationId: runId },
+            signal,
+            isCurrent,
+            // The Run/artifact store remains the only result owner. Reusing the
+            // existing landing operation makes single-shot completion idempotent
+            // and lets the renderer attach the local artifact to its placeholder.
+            onMaterialized: async () => {
+              if (!isCurrent()) return
+              await landCanvasBestEffort(projectId, runId, isCurrent)
+            },
+          })
+          // An owner stop is expected lifecycle control, not a provider failure;
+          // leave the durable Run untouched for the next restart/open recovery.
+          if (result.aborted) return
+          if (result.nextAction === 'completed') {
+            settleSingleShotCompleted(projectId, runId, {
+              ...(result.materialized?.jobId ? { jobId: result.materialized.jobId } : {}),
+              ...(result.materialized?.artifactId ? { artifactId: result.materialized.artifactId } : {}),
+            })
+          } else if (result.nextAction === 'attention') {
+            settleSingleShotAttention(projectId, runId, result.lastPoll?.jobId ?? activeSingleShotJobId(projectId, runId))
+          }
+        } catch (error) {
+          // Poll/materialization failures are durable attention, not a silent
+          // promise rejection that causes the same provider task to be retried
+          // forever on the next project reopen. Never submit from this path.
+          if (isCurrent()) settleSingleShotAttention(projectId, runId, activeSingleShotJobId(projectId, runId))
+          console.warn('[nomi:production] single-shot observation failed:', error instanceof Error ? error.name : 'unknown')
+        }
+      }).catch((error) => {
+        // The inner try/catch handles provider/materialization errors. A final
+        // lifecycle rejection (for example, a duplicate observer) must not
+        // write attention: by this point the worker may belong to an older
+        // capability-core epoch and the current Run could be unrelated.
+        console.warn('[nomi:production] single-shot observation failed:', error instanceof Error ? error.name : 'unknown')
+      })
+    }
+    // P4 §3.2：所有 gate 入口共用 post-decide 重踢。
     registerBatchSchedulerKicker(kickSchedulerForRun)
     const generationPlanning = authorities.generationPlanning
       ?? createGenerationPlanningHandler({
         registry: generationRegistry,
         operations: operationStore,
         videoModelCandidates,
+        // ScriptText uses the Workbench defaults lazily (single preference source).
+        defaultModelForTaskKind: (taskKind) => readGenerationDefaultModelResolver()(taskKind),
+        planStoryboard: planStoryboardFromScript,
         recommendVideoGeneration,
         resolveModelPricing,
-        providerReadiness: ({ providerId }) => providerBootstrap.readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ['configured_provider'] },
+        providerReadiness: ({ providerId }) => {
+          const providerBootstrap = readProviderBootstrap()
+          return providerBootstrap.readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ['configured_provider'] }
+        },
         prepareAuthorization: ({ lease, operation, contract, multiShot }) => {
+          const providerBootstrap = readProviderBootstrap()
           const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
           if (!projectRecord || !Number.isInteger(projectRecord.revision)) throw new Error('Generation authorization requires the current project revision')
           const authorizationRun = generationService.repository.read(lease.projectId, operation.operationId)
@@ -418,10 +474,20 @@ export async function startCapabilityCore(
           })
         },
         start: async (operation, lease) => {
-          const provider = providerBootstrap.providers.find((candidate) => candidate.providerId === operation.contract?.providerId)
+          // Settings can save APIMart while this process is already running.
+          // Read the executable provider set at this operation boundary rather
+          // than using the startup snapshot.
+          const providerBootstrap = readProviderBootstrap()
           const projectRoot = resolveWorkspaceProjectDir(lease.projectId, getWorkspaceRepositoryDeps())
           const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
-          if (!provider || !projectRoot || !operation.contract || !projectRecord || !Number.isInteger(projectRecord.revision)) return { operationId: operation.operationId, state: operation.state, nextAction: 'provider_not_configured' }
+          // A multi-shot plan may put an image anchor in the top-level
+          // contract while its video shots use another provider.  Readiness
+          // must be derived from every included shot (the scheduler's real
+          // submission set), not just operation.contract.providerId.
+          if (!hasGenerationOperationProviderReadiness(operation, providerBootstrap.providers)
+            || !projectRoot || !operation.contract || !projectRecord || !Number.isInteger(projectRecord.revision)) {
+            return { operationId: operation.operationId, state: operation.state, nextAction: 'provider_not_configured' }
+          }
           const submission = createProductionGenerationSubmission({
             repository: generationService.repository,
             projectRoot,
@@ -464,16 +530,28 @@ export async function startCapabilityCore(
               runId: operation.operationId,
               perShotPrice: (shot) => (shot.contract ? resolveShotPrice(shot.contract) : { known: false }),
               onShotMaterialized: (shotId) => pushShotResultToRenderer(lease.projectId, operation.operationId, shotId),
+              onBatchComplete: () => generationService.advanceSemanticProduction(lease.projectId, operation.operationId),
             })
-            // Kick the batch off the request path (durable + restart-safe): the scheduler runs to its next
-            // resting point (anchors done + checkpoint waiting, or halt, or completion) without blocking.
-            // 慢供应商没到静止点 → driveScheduler 定时再踢直到批次落定。
+            // Durable, restart-safe kick; slow providers are re-kicked until quiescent.
             driveScheduler(lease.projectId, operation.operationId, scheduler, 'batch scheduler tick')
             return { operationId: operation.operationId, state: operation.state, nextAction: 'observe' }
           }
-          return submission.start({ projectId: lease.projectId, operationId: operation.operationId })
+          const started = await submission.start({ projectId: lease.projectId, operationId: operation.operationId })
+          settleSingleShotRunning(lease.projectId, operation.operationId)
+          // Single-shot semantic plans keep their candidate at the plan root,
+          // but they still belong to the same canvas materialization owner as
+          // multi-shot runs. Land the real placeholder after the durable
+          // provider acceptance so the node carries the run/job provenance.
+          // The semantic operation was initiated by the active resident
+          // surface; requestRenderer itself enforces the committed target
+          // identity. Do not gate this call on a transient surface snapshot
+          // (surface switches can lag the main-process selection by a tick).
+          await landCanvasBestEffort(lease.projectId, operation.operationId)
+          if (started.nextAction === 'observe') observeSingleShotRun(submission, lease.projectId, operation.operationId)
+          return started
         },
         reconcile: async (operation, outcome, lease) => {
+          const providerBootstrap = readProviderBootstrap()
           if (outcome === 'not_found') return { operationId: operation.operationId, outcome, nextAction: 'manual_review' }
           const provider = providerBootstrap.providers.find((candidate) => candidate.providerId === operation.contract?.providerId)
           const projectRoot = resolveWorkspaceProjectDir(lease.projectId, getWorkspaceRepositoryDeps())
@@ -508,9 +586,17 @@ export async function startCapabilityCore(
       planning: generationPlanning,
       receipts: defaults.approvalReceiptAuthority!,
     })
+    try {
+      const requestGenerationGate = authorities.requestGenerationGate ?? runOwnedGenerationAuthority.requestGenerationGate
+      const authorizeGeneration = authorities.authorizeGeneration ?? runOwnedGenerationAuthority.authorizeGeneration
+      const confirmGenerationInNomi = authorities.confirmGenerationInNomi ?? defaults.confirmGenerationInNomi
+      disposeResidentGenerationAdapter = installResidentGenerationAdapter({ planning: generationPlanning, requestGenerationGate, authorizeGeneration, confirmGenerationInNomi, approvalReceiptAuthority: defaults.approvalReceiptAuthority!, projectSessionAuthority: defaults.projectSessionAuthority, owner: generationService }, authorities.onGenerationReady)
+    } catch (error) {
+      console.error('[nomi:capability-core] resident generation adapter install failed:', error instanceof Error ? error.message : String(error))
+    }
     // P4 S5：打开/切换项目时的补齐钩子（§3.4）。对该项目所有活跃 run：① landCanvasBestEffort 幂等补落缺失
-    // 节点/组 + 回填已完成 result（materializationOperationId + 组章去重，跑两次不重复）；② resumeUnfinishedRuns
-    // 恢复未完批次调度（S4 遗留的接上启动触发）。best-effort：异步、逐 run try/catch，不阻塞项目打开。
+    // 节点/组 + 回填已完成 result（materializationOperationId + 组章去重，跑两次不重复）；② single-shot 只 poll→materialize
+    // 恢复，不重新 start；③ resumeUnfinishedRuns 恢复 legacy/多镜调度。best-effort：异步、逐 run try/catch，不阻塞项目打开。
     reconcileOpenProjectHook = (projectId: string) => {
       void (async () => {
         try {
@@ -522,8 +608,44 @@ export async function startCapabilityCore(
             } catch {
               continue
             }
-            // 只补语义多镜 run（有 generationPlan.shots）且未终结的；单镜/legacy 不在此列。
             if (!run || ['completed', 'cancelled'].includes(run.status)) continue
+            const isSemanticSingleShot = run.playbook.name === 'generation.single-shot'
+              && run.generationPlan?.operationId === run.runId
+              && !run.generationPlan.shots?.length
+            if (isSemanticSingleShot) {
+              // A single-shot may have been accepted while no project surface
+              // was committed (or while the app was restarting). Re-land its
+              // durable placeholder/result now that the project is open. If a
+              // provider task is still in flight, resume by query only: this
+              // path must never call start or create a second paid job.
+              await landCanvasBestEffort(projectId, run.runId)
+              const refreshed = generationService.repository.read(projectId, run.runId) ?? run
+              const readyJob = refreshed.jobs.find((job) => ['ready', 'adopted'].includes(job.status))
+              const readyArtifact = readyJob
+                ? refreshed.artifacts.find((artifact) => artifact.jobId === readyJob.jobId
+                  && ['ready', 'adopted'].includes(artifact.status)
+                  && Boolean(artifact.contentHash)
+                  && Boolean(artifact.projectRelativePath || artifact.thumbnailRelativePath))
+                : undefined
+              if (readyJob && readyArtifact) {
+                settleSingleShotCompleted(projectId, run.runId, { jobId: readyJob.jobId, artifactId: readyArtifact.artifactId })
+                continue
+              }
+              const attentionJob = refreshed.jobs.find((job) => job.status === 'needs_attention')
+              if (attentionJob || refreshed.status === 'needs_attention') {
+                settleSingleShotAttention(projectId, run.runId, attentionJob?.jobId)
+                continue
+              }
+              const observable = refreshed.jobs.some((job) =>
+                ['provider_accepted', 'polling'].includes(job.status) && Boolean(job.providerTaskId),
+              )
+              if (observable) {
+                const submission = buildSubmissionForRun(refreshed)
+                if (submission) observeSingleShotRun(submission, projectId, run.runId)
+              }
+              continue
+            }
+            // 只补语义多镜 run（有 generationPlan.shots）且未终结的；legacy 不在此列。
             if (!run.generationPlan?.shots || run.generationPlan.shots.length === 0) continue
             // ① 幂等补落节点/组 + 回填已完成 result（materializationOperationId + 组章去重）。
             await landCanvasBestEffort(projectId, run.runId)
@@ -533,8 +655,8 @@ export async function startCapabilityCore(
         } catch (error) {
           console.warn('[nomi:production] open-project canvas reconcile failed:', error instanceof Error ? error.message : String(error))
         }
-        // 顺带把 S4 遗留的 resumeUnfinishedRuns 接上启动触发（legacy driver / 单镜链的崩溃恢复；语义多镜批次
-        // 由上面 kickSchedulerForRun 驱动，resumeUnfinishedRuns 内部会跳过 semantic-single-shot 不重复动它们）。
+        // 顺带把 S4 遗留的 resumeUnfinishedRuns 接上启动触发（legacy driver / 多镜批次的崩溃恢复；
+        // semantic single-shot 已在上面走只读 observer，service 内部仍跳过它们，避免任何隐式 start）。
         try {
           await generationService.resumeUnfinishedRuns(projectId)
         } catch (error) {
@@ -548,191 +670,17 @@ export async function startCapabilityCore(
     unsubscribeCommittedSurface = canvasReadSurfaceRuntime.subscribeCommittedProject((selection) => {
       if (selection && reconcileOpenProjectHook) reconcileOpenProjectHook(selection.projectId)
     })
-    // 返工使用与首次生成相同的 Run-owned authority：先冻结 provider payload + 新 attempt identity，
-    // 原子写 authorization_required Job/等待 gate，真人确认后只由 gate.decide 写 Approval 和预算授权。
-    const reworkProductionShot = async (input: { projectId: string; runId: string; shotId?: string }): Promise<ProductionActionResult> => {
-      const { projectId, runId, shotId } = input
-      if (!isProjectOpen(projectId)) return { ok: false, code: 'run_not_open' }
-      let run
-      try {
-        run = generationService.repository.read(projectId, runId)
-      } catch {
-        return { ok: false, code: 'failed', message: 'run read failed' }
-      }
-      if (!run || !run.generationPlan?.shots || run.generationPlan.shots.length === 0) return { ok: false, code: 'not_multishot' }
-      const receiptAuthority = defaults.approvalReceiptAuthority
-      const confirm = defaults.confirmGenerationInNomi
-      const record = readWorkspaceProject(projectId, getWorkspaceRepositoryDeps())
-      const projectRevision = record?.revision
-      if (!receiptAuthority || !confirm || !record?.immutableProjectUuid || !record.projectGeneration || !Number.isInteger(projectRevision)) {
-        return { ok: false, code: 'unavailable' }
-      }
-      const projectIdentity = {
-        projectId,
-        immutableProjectUuid: record.immutableProjectUuid,
-        projectGeneration: record.projectGeneration,
-        revocationEpoch: 0,
-      }
-      let authorization
-      try {
-        authorization = prepareProductionGenerationReauthorization({
-          lease: projectIdentity,
-          projectRevision: projectRevision as number,
-          run,
-          ...(shotId ? { shotId } : {}),
-          providers: providerBootstrap.providers,
-          resolveShotPrice,
-          now: new Date().toISOString(),
-        })
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        if (/previous generation attempt|previously authorized generation plan/.test(message)) return { ok: false, code: 'no_prior_attempt' }
-        return { ok: false, code: 'failed', message }
-      }
-      try {
-        run = (await generationService.command(projectId, runId, {
-          commandId: `production-rework-authorize:${authorization.envelope.gateId}`,
-          expectedRevision: run.revision,
-          type: 'generation.reauthorize',
-          payload: { authorization, ...(shotId ? { shotId } : {}) },
-          issuedAt: new Date().toISOString(),
-        })).run
-      } catch (error) {
-        return { ok: false, code: 'failed', message: error instanceof Error ? error.message : String(error) }
-      }
-      const shot = shotId ? (run.generationPlan?.shots ?? []).find((candidate) => candidate.shotId === shotId) : undefined
-      const shotContract = shot?.contract ?? run.generationPlan?.contract
-      const modelLabel = shotContract?.modelId ?? run.generationPlan?.candidate.modelId ?? ''
-      const shotSummary = typeof shot?.candidate.prompt === 'string' && shot.candidate.prompt.trim()
-        ? shot.candidate.prompt.trim().slice(0, 80)
-        : undefined
-      try {
-        const decision = await decideRunOwnedGenerationGate({
-          owner: generationService,
-          receipts: receiptAuthority,
-          confirm,
-          lease: projectIdentity,
-          operationId: runId,
-          authorization,
-          commandPrefix: 'production-rework',
-          display: {
-            model: modelLabel,
-            ...(shotSummary ? { shotSummary } : {}),
-            ...(shotContract?.references?.length ? { referenceCount: shotContract.references.length } : {}),
-          },
-        })
-        if (!decision.approved) return { ok: false, code: 'rework_declined' }
-        const submitting = generationService.repository.read(projectId, runId)
-        if (submitting?.generationPlan?.state !== 'submitted') {
-          await generationService.command(projectId, runId, {
-            commandId: `production-rework-submit:${authorization.envelope.gateId}`,
-            expectedRevision: submitting!.revision,
-            type: 'generation.submit',
-            payload: {},
-            issuedAt: new Date().toISOString(),
-          })
-        }
-      } catch (error) {
-        return { ok: false, code: 'failed', message: error instanceof Error ? error.message : String(error) }
-      }
-      const kicking = generationService.repository.read(projectId, runId)
-      if (kicking) {
-        const scheduler = buildSchedulerForRun(projectId, runId, kicking)
-        if (scheduler) {
-          driveScheduler(projectId, runId, scheduler, 'rework dispatch tick')
-        }
-      }
-      return { ok: true, code: 'reworked' }
-    }
-    // Resume can consume existing gate authority only. A budget-short Run must be re-planned and pass a
-    // fresh spend gate; this UI action cannot raise the ledger or turn the scheduler into an authority.
-    const resumeProductionBatch = async (input: { projectId: string; runId: string; reason: 'budget' | 'manual' }): Promise<ProductionActionResult> => {
-      const { projectId, runId, reason } = input
-      if (!isProjectOpen(projectId)) return { ok: false, code: 'run_not_open' }
-      let run
-      try {
-        run = generationService.repository.read(projectId, runId)
-      } catch {
-        return { ok: false, code: 'failed', message: 'run read failed' }
-      }
-      if (!run || !run.generationPlan?.shots || run.generationPlan.shots.length === 0) return { ok: false, code: 'not_multishot' }
-      if (run.generationPlan.state !== 'submitted') return { ok: false, code: 'failed', message: 'plan not submitted' }
-      if (reason === 'budget') {
-        const receiptAuthority = defaults.approvalReceiptAuthority
-        const confirm = defaults.confirmGenerationInNomi
-        const record = readWorkspaceProject(projectId, getWorkspaceRepositoryDeps())
-        const projectRevision = record?.revision
-        if (!receiptAuthority || !confirm || !record?.immutableProjectUuid || !record.projectGeneration || !Number.isInteger(projectRevision)) {
-          return { ok: false, code: 'unavailable' }
-        }
-        const projectIdentity = {
-          projectId,
-          immutableProjectUuid: record.immutableProjectUuid,
-          projectGeneration: record.projectGeneration,
-          revocationEpoch: 0,
-        }
-        let authorization
-        try {
-          authorization = prepareProductionGenerationContinuationAuthorization({
-            lease: projectIdentity,
-            projectRevision: projectRevision as number,
-            run,
-            providers: providerBootstrap.providers,
-            resolveShotPrice,
-            now: new Date().toISOString(),
-          })
-          run = (await generationService.command(projectId, runId, {
-            commandId: `production-continuation-authorize:${authorization.envelope.gateId}`,
-            expectedRevision: run.revision,
-            type: 'generation.continue_authorization',
-            payload: { authorization },
-            issuedAt: new Date().toISOString(),
-          })).run
-        } catch (error) {
-          return { ok: false, code: 'failed', message: error instanceof Error ? error.message : String(error) }
-        }
-        const modelLabel = [...new Set(authorization.envelope.jobs.map((job) => job.modelId))].join(', ')
-        try {
-          const decision = await decideRunOwnedGenerationGate({
-            owner: generationService,
-            receipts: receiptAuthority,
-            confirm,
-            lease: projectIdentity,
-            operationId: runId,
-            authorization,
-            commandPrefix: 'production-continuation',
-            display: { model: modelLabel },
-          })
-          if (!decision.approved) return { ok: false, code: 'resume_declined' }
-          run = decision.run
-        } catch (error) {
-          return { ok: false, code: 'failed', message: error instanceof Error ? error.message : String(error) }
-        }
-      }
-      // 只从「可续拍的停态」转回 running（paused=急停、needs_attention=预算 halt）。其它态（running/completed/cancelled）
-      // 不是待续拍——running 已在跑、completed/cancelled 是终态。pausing 是瞬态（等它落到 paused 再续）。
-      if (run.status === 'paused' || run.status === 'needs_attention') {
-        try {
-          await generationService.command(projectId, runId, {
-            commandId: `production-resume:${runId}:${run.revision}`,
-            expectedRevision: run.revision,
-            type: 'run.status',
-            payload: { status: 'running' },
-            issuedAt: new Date().toISOString(),
-          })
-        } catch (error) {
-          return { ok: false, code: 'failed', message: error instanceof Error ? error.message : String(error) }
-        }
-      } else if (run.status !== 'running') {
-        return { ok: false, code: 'failed', message: `run status ${run.status} is not resumable` }
-      }
-      const running = generationService.repository.read(projectId, runId)
-      if (!running) return { ok: false, code: 'failed', message: 'run gone after resume' }
-      const scheduler = buildSchedulerForRun(projectId, runId, running)
-      if (!scheduler) return { ok: false, code: 'unavailable' }
-      driveScheduler(projectId, runId, scheduler, 'batch resume tick')
-      return { ok: true, code: 'resumed' }
-    }
+    const { reworkProductionShot, resumeProductionBatch } = createProductionActionHooks({
+      generationService,
+      isProjectOpen,
+      readProviderBootstrap,
+      readProject: (projectId) => readWorkspaceProject(projectId, getWorkspaceRepositoryDeps()),
+      resolveShotPrice,
+      buildSchedulerForRun,
+      driveScheduler,
+      receiptAuthority: defaults.approvalReceiptAuthority,
+      confirmGenerationInNomi: defaults.confirmGenerationInNomi,
+    })
     reworkProductionShotHook = reworkProductionShot
     resumeProductionBatchHook = resumeProductionBatch
     handle = await startRpcServer({
@@ -786,4 +734,6 @@ export function stopCapabilityCore(): void {
   unsubscribeCommittedSurface = null
   reworkProductionShotHook = null
   resumeProductionBatchHook = null
+  disposeSingleShotObservationLifecycle?.(); disposeSingleShotObservationLifecycle = null
+  disposeResidentGenerationAdapter?.(); disposeResidentGenerationAdapter = null
 }

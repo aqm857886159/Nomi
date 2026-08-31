@@ -3,7 +3,7 @@ import type { ZodType } from "zod";
 export type CapabilityEffect = "read" | "reversible_write" | "destructive" | "paid";
 export type CapabilityApproval = "none" | "proposal" | "human_receipt";
 export type CapabilityExposure = "internal_only" | "mcp_safe" | "legacy_unverified";
-export type CapabilityPortKind = "document" | "canvas" | "timeline" | "production-run" | "asset" | "export";
+export type CapabilityPortKind = "document" | "canvas" | "timeline" | "production-run" | "asset" | "export" | "skills";
 export type CapabilityAvailability = "main_only" | "renderer_required" | "main_or_renderer";
 export type CapabilityProjectionSurface = "pi" | "mcp" | "ui";
 

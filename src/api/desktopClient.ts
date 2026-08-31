@@ -35,6 +35,8 @@ export type ProfileKind =
   | 'image_to_3d'
 
 export type ModelCatalogVendorAuthType = 'none' | 'bearer' | 'x-api-key' | 'query'
+/** Renderer projection of the code-owned credential flow. Custom vendors omit it. */
+export type ModelCatalogVendorCredentialMode = 'direct-key' | 'certification'
 export type ModelCatalogVendorProviderKind = ProviderKind
 
 export type ModelCatalogIntegrationChannelKind =
@@ -53,6 +55,7 @@ export type ModelCatalogVendorDto = {
   authType?: ModelCatalogVendorAuthType
   authHeader?: string | null
   authQueryParam?: string | null
+  credentialMode?: ModelCatalogVendorCredentialMode
   providerKind?: ModelCatalogVendorProviderKind
   meta?: unknown
   createdAt: string

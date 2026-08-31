@@ -13,7 +13,7 @@ import {
   type MakeVerifyDeps,
   type RunTaskFn,
 } from './core'
-import { listSkillSummaries, readSkillContent } from '../skills/skillStore'
+import { listSkillSummariesForMcp, readSkillContentForMcp, type SkillMcpAccess } from '../skills/skillStore'
 import type { ProductionRunService } from '../productionRun/productionRunService'
 import type { ProductionBrief } from '../productionRun/productionRunTypes'
 import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
@@ -94,6 +94,15 @@ export type DispatchContext = {
 }
 
 const PROJECT_SESSION_RETRY = 'Open a new project session and retry'
+
+function mcpSkillAccess(origin: DispatchContext['origin']): SkillMcpAccess {
+  // `origin.host` is populated only after the MCP client proof has been
+  // verified by the transport.  Treat every other caller as public; never
+  // trust an audience field supplied in tool params.
+  return origin?.host === 'claude' || origin?.host === 'codex' || origin?.host === 'cursor'
+    ? 'local-authenticated'
+    : 'public'
+}
 
 function errorCodeOf(error: unknown): string | undefined {
   return error && typeof error === 'object' && 'code' in error
@@ -314,14 +323,14 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       return { models: listAvailableModels() }
     case 'skills.list':
       // 导演/编剧技能库元数据（渐进披露，不含正文）。供 MCP 脊柱 resources/prompts 列表。
-      return { skills: listSkillSummaries('mcp') }
+      return { skills: listSkillSummariesForMcp(mcpSkillAccess(ctx.origin)) }
     case 'skills.read': {
       // 按 name/directoryName 读一个技能正文。找不到 ⇒ null（协议层转 error）。
       const packageVersion = typeof params.packageVersion === 'string' ? params.packageVersion : ''
       const contentHash = typeof params.contentHash === 'string' ? params.contentHash : ''
-      return readSkillContent(
+      return readSkillContentForMcp(
         String(params.name || params.directoryName || ''),
-        'mcp',
+        mcpSkillAccess(ctx.origin),
         undefined,
         packageVersion && contentHash ? { packageVersion, contentHash } : undefined,
       )

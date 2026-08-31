@@ -183,12 +183,48 @@ function envelopeRefFor(runId: string, jobId: string): string {
   return `.nomi/runs/${runId}/jobs/${jobId}/runtime-envelope.json`;
 }
 
+type ProviderPollStatusClass = "pending" | "succeeded" | "failed" | "unknown";
+
+/**
+ * Provider adapters expose their native status verbatim.  The submission seam
+ * must only advance a job for a status that is explicitly known to be pending,
+ * successful, or failed.  Treating an unrecognised verb as success is unsafe
+ * (it can materialize an incomplete output); treating it as pending is worse
+ * (the observer can spin forever).  Keep this allow-list broad enough for the
+ * shipped provider mappings, but fail closed for anything new.
+ */
+const PROVIDER_STATUS_CLASSES: Readonly<Record<ProviderPollStatusClass, ReadonlySet<string>>> = {
+  pending: new Set([
+    "submitted", "waiting", "queuing", "queued", "pending", "create", "created",
+    "processing", "generating", "running", "in_progress", "in-progress", "in_queue",
+    "queueing", "not_start", "notstart", "starting", "started", "downloading", "validating",
+  ]),
+  succeeded: new Set(["completed", "complete", "succeeded", "succeed", "success", "done"]),
+  failed: new Set([
+    "failed", "fail", "failure", "error", "cancelled", "canceled", "cancel", "rejected",
+    "refused", "expired", "aborted", "timeout", "timed_out", "revoked",
+  ]),
+  unknown: new Set(),
+};
+
+function classifyProviderStatus(status: string): ProviderPollStatusClass {
+  const normalized = status.trim().toLowerCase();
+  if (PROVIDER_STATUS_CLASSES.pending.has(normalized)) return "pending";
+  if (PROVIDER_STATUS_CLASSES.succeeded.has(normalized)) return "succeeded";
+  if (PROVIDER_STATUS_CLASSES.failed.has(normalized)) return "failed";
+  return "unknown";
+}
+
 function isPendingProviderStatus(status: string): boolean {
-  return ["queued", "pending", "processing", "running", "in_progress"].includes(status.trim().toLowerCase());
+  return classifyProviderStatus(status) === "pending";
+}
+
+function isSuccessfulProviderStatus(status: string): boolean {
+  return classifyProviderStatus(status) === "succeeded";
 }
 
 function isFailedProviderStatus(status: string): boolean {
-  return ["failed", "error", "cancelled", "canceled", "rejected"].includes(status.trim().toLowerCase());
+  return classifyProviderStatus(status) === "failed";
 }
 
 /**
@@ -470,16 +506,25 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     const result = await adapter.query({ providerId: job.provider, providerTaskId: job.providerTaskId });
     const providerStatus = result.status.trim();
     if (!providerStatus) throw new Error("Provider returned an empty poll status");
+    const statusClass = classifyProviderStatus(providerStatus);
     const envelopeStore = envelope(run.runId, job.jobId);
     envelopeStore.markPolled({ status: providerStatus, raw: result.raw });
     const observedAt = now();
     const statusChanged = job.providerStatus !== providerStatus;
-    const nextStatus = isPendingProviderStatus(providerStatus) ? "polling" : isFailedProviderStatus(providerStatus) ? "needs_attention" : job.status;
+    const nextStatus = statusClass === "pending"
+      ? "polling"
+      : statusClass === "failed" || statusClass === "unknown"
+        ? "needs_attention"
+        : job.status;
     const patch = {
       providerStatus,
       lastPollAt: observedAt,
       ...(statusChanged ? { lastVendorStateChangeAt: observedAt } : {}),
-      ...(isFailedProviderStatus(providerStatus) ? { errorCode: "provider_task_failed", errorMessage: "供应商任务已返回失败状态" } : {}),
+      ...(statusClass === "failed"
+        ? { errorCode: "provider_task_failed", errorMessage: "供应商任务已返回失败状态" }
+        : statusClass === "unknown"
+          ? { errorCode: "provider_status_unknown", errorMessage: "供应商返回了未识别的任务状态，需要人工核对" }
+          : {}),
     };
     command(run, nextStatus === job.status ? "job.patch" : "job.status", {
       jobId: job.jobId,
@@ -491,7 +536,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       jobId: job.jobId,
       providerTaskId: job.providerTaskId,
       providerStatus,
-      nextAction: isPendingProviderStatus(providerStatus) ? "poll" : isFailedProviderStatus(providerStatus) ? "attention" : "materialize",
+      nextAction: statusClass === "pending" ? "poll" : statusClass === "succeeded" ? "materialize" : "attention",
     };
   }
 
@@ -516,6 +561,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     const polled = currentEnvelope.lastPoll;
     if (!polled || isPendingProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider task is still processing");
     if (isFailedProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider task did not complete successfully");
+    if (!isSuccessfulProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider returned an unknown status; reconcile before materialization");
     let extracted: { outputs: readonly GenerationProviderOutput[] };
     try {
       extracted = await adapter.materialize({ providerId: job.provider, providerTaskId: job.providerTaskId, raw: polled.raw });

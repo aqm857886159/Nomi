@@ -100,7 +100,7 @@ test('auth:none has no Authorization header on the real HTTP request', async (t)
   assert.deepEqual(await controlled.modelRuntime.listCredentials(), []);
 });
 
-test('no disk instructions, settings, credentials, models, skills or extensions are loaded', async (t) => {
+test('only the repository skill catalog is loaded; cwd/agentDir instructions, credentials and extensions stay isolated', async (t) => {
   const paths = await sandbox(t);
   const marker = join(paths.root, 'extension-was-loaded');
   for (const directory of [paths.cwd, paths.agentDir, join(paths.cwd, '.pi')]) {
@@ -129,7 +129,9 @@ test('no disk instructions, settings, credentials, models, skills or extensions 
   await controlled.session.prompt('Hello.');
   assert.deepEqual(controlled.session.getActiveToolNames(), []);
   assert.deepEqual(controlled.session.resourceLoader.getAgentsFiles().agentsFiles, []);
-  assert.deepEqual(controlled.session.resourceLoader.getSkills().skills, []);
+  const loadedSkills = controlled.session.resourceLoader.getSkills().skills;
+  assert.ok(loadedSkills.some((skill) => skill.name === 'brand.promo'), 'repository skills must be discoverable');
+  assert.equal(loadedSkills.some((skill) => skill.name === 'injected'), false, 'sandbox skills must not leak into the loader');
   assert.deepEqual(controlled.session.resourceLoader.getExtensions().extensions, []);
   assert.equal(JSON.stringify(http.requests).includes('DISK_'), false);
   assert.equal(http.requests[0].headers.authorization, 'Bearer explicit-key');

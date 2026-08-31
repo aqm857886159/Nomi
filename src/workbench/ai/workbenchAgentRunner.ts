@@ -13,12 +13,15 @@ import type {
   ProjectAgentHostState,
   ProjectAgentStatus,
   ProjectAgentOriginSurfaceRef,
+  ProjectAgentApprovalPolicy,
+  ProjectAgentWorkMode,
 } from '../../../electron/shared/projectAgentContracts'
 import type { PreconditionSet, TargetRef } from '../../../electron/shared/capabilityTargeting'
 import type {
   CapturedCanvasReadSnapshotHandleWire,
   SurfacePortBindingWire,
 } from '../../../electron/shared/surfacePortBinding'
+import { freezeAgentContextSnapshot, type AgentContextSnapshot } from '../../../electron/shared/agentContextSnapshot'
 import { getAssistantModelPref } from './assistantModelPref'
 import {
   decideProjectAgentTool,
@@ -68,7 +71,13 @@ export type RunWorkbenchAgentInput = {
   surfaceBinding?: SurfacePortBindingWire
   capturedCanvasReadSnapshot?: CapturedCanvasReadSnapshotHandleWire
   mode?: 'auto' | 'chat'
+  /** User-facing execution posture; independent from approval/spend policy. */
+  workMode?: ProjectAgentWorkMode
+  /** Explicit Host approval/spend snapshot; omitted values remain safe-default. */
+  approvalPolicy?: ProjectAgentApprovalPolicy
   attachments?: AgentAttachmentPayload[]
+  /** Immutable current document/node/clip selection captured immediately before enqueue. */
+  contextSnapshot?: AgentContextSnapshot
   attachmentClaims?: readonly ProjectAgentAttachmentClaim[]
   onContent?: (delta: string, text: string) => void
   onToolCall?: (event: ToolCallEvent) => void | Promise<void>
@@ -109,6 +118,12 @@ function responseStatus(status: ProjectAgentStatus): AgentsChatResponseDto['stat
 
 function buildRequest(input: RunWorkbenchAgentInput): AgentChatRequest {
   const pref = getAssistantModelPref()
+  // The Host context resolver intentionally reads the canonical nested skill
+  // identity (`chatContext.skill`).  Keep the renderer-facing convenience
+  // fields (`skillKey`/`skillName`) for attribution and queue snapshots, but
+  // bridge them into that one runtime contract here so selecting a Skill in
+  // the resident composer actually loads its body instead of merely drawing a
+  // chip.  This is projection data, not a second Skill owner.
   return {
     prompt: input.prompt,
     ...(input.systemPrompt ? { systemPrompt: input.systemPrompt } : {}),
@@ -120,10 +135,18 @@ function buildRequest(input: RunWorkbenchAgentInput): AgentChatRequest {
     ...(input.projectId ? { projectId: input.projectId } : {}),
     skillKey: input.skillKey,
     skillName: input.skillName,
+    chatContext: {
+      skill: {
+        key: input.skillKey,
+        name: input.skillName,
+      },
+    },
     mode: input.mode ?? 'auto',
+    ...(input.workMode ? { workMode: input.workMode } : {}),
     ...(input.toolProfile ? { toolProfile: input.toolProfile } : {}),
     ...(pref ? { agentModelKey: pref.modelKey, agentVendorKey: pref.vendorKey } : {}),
     ...(input.attachments?.length ? { attachments: input.attachments.map((item) => ({ ...item })) } : {}),
+    ...(input.contextSnapshot ? { contextSnapshot: freezeAgentContextSnapshot(input.contextSnapshot) } : {}),
   }
 }
 
@@ -275,6 +298,8 @@ export async function runWorkbenchAgent(input: RunWorkbenchAgentInput): Promise<
         ? { capturedCanvasReadSnapshot: input.capturedCanvasReadSnapshot }
         : {}),
       ...(input.attachmentClaims?.length ? { attachmentClaims: input.attachmentClaims } : {}),
+      ...(input.workMode ? { workMode: input.workMode } : {}),
+      ...(input.approvalPolicy ? { approvalPolicy: input.approvalPolicy } : {}),
       ...turnTarget(input),
     })
     input.onCancelReady?.(() => {

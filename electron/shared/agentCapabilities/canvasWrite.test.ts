@@ -19,7 +19,15 @@ describe("canvas.write canonical contract", () => {
       version: 1,
       aliases: { pi: "set_node_prompt" },
       additionalAliases: {
-        pi: ["create_canvas_nodes", "connect_canvas_edges", "tidy_canvas"],
+        pi: [
+          "create_canvas_nodes",
+          "connect_canvas_edges",
+          "tidy_canvas",
+          "propose_storyboard_plan",
+          "arrange_storyboard_to_timeline",
+          "create_staging_reference",
+          "create_camera_move",
+        ],
       },
       inputSchema: canvasWriteSemanticInputSchema,
       outputSchema: canvasWriteResultSchema,
@@ -120,6 +128,22 @@ describe("canvas.write canonical contract", () => {
         edges: Array.from({ length: 49 }, (_, i) => ({ sourceClientId: `s${i}`, targetClientId: `t${i}` })),
       }).success,
     ).toBe(false);
+    // The resident generation editor returns the explicit model identity that
+    // the user selected. These are capability fields (not renderer-only
+    // decoration): re-preparing an approved proposal must accept them so the
+    // selected vendor/variant can reach the canvas domain owner.
+    expect(
+      createSchema?.safeParse({
+        summary: "Use the selected generation model",
+        nodes: [{ ...node, vendor: "apimart", variantId: "mini" }],
+      }).success,
+    ).toBe(true);
+    expect(
+      createSchema?.safeParse({
+        summary: "Reject contradictory provider aliases",
+        nodes: [{ ...node, vendor: "apimart", modelVendor: "kie" }],
+      }).success,
+    ).toBe(false);
 
     const wire = JSON.parse(JSON.stringify(zodToJsonSchema(createSchema!, { $refStrategy: "none" }))) as {
       required?: string[];
@@ -157,5 +181,22 @@ describe("canvas.write canonical contract", () => {
     );
     expect(canvasWriteOperationForAlias(CANVAS_WRITE_OPERATION_ALIASES.tidyCanvas)).toBe("tidy_canvas");
     expect(canvasWriteOperationForAlias("nomi_set_node_prompt")).toBeUndefined();
+  });
+
+  it("keeps storyboard-side tools inside the canonical executable capability", () => {
+    const plan = canvasWritePiInputSchemaForAlias("propose_storyboard_plan");
+    const arrange = canvasWritePiInputSchemaForAlias("arrange_storyboard_to_timeline");
+    const staging = canvasWritePiInputSchemaForAlias("create_staging_reference");
+    const camera = canvasWritePiInputSchemaForAlias("create_camera_move");
+    expect(plan?.safeParse({ title: "猫", anchors: [], shots: [{ index: 1 }] }).success).toBe(true);
+    expect(arrange?.safeParse({ nodeIds: ["shot-1"] }).success).toBe(true);
+    expect(staging?.safeParse({ characters: [{ name: "猫" }] }).success).toBe(true);
+    expect(camera?.safeParse({ shotClientId: "shot-1", move: "push_in" }).success).toBe(true);
+    expect(canvasWriteOperationForAlias("propose_storyboard_plan")).toBe("propose_storyboard_plan");
+    expect(canvasWriteOperationForAlias("arrange_storyboard_to_timeline")).toBe("arrange_storyboard_to_timeline");
+    expect(canvasWriteOperationForAlias("create_staging_reference")).toBe("create_staging_reference");
+    expect(canvasWriteOperationForAlias("create_camera_move")).toBe("create_camera_move");
+    expect(plan?.safeParse({ title: "猫", anchors: [], shots: [{ index: 1 }], extra: true }).success).toBe(false);
+    expect(camera?.safeParse({ shotClientId: "shot-1" }).success).toBe(false);
   });
 });

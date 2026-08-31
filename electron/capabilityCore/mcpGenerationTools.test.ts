@@ -142,6 +142,131 @@ describe("semantic MCP generation tools", () => {
     expect(preview).toMatchObject({ operationId, candidateRevision: 2, nextAction: "request_gate", contract: { mode: "image-to-image", contractHash: expect.any(String) } });
   });
 
+  it("creates a real draft from a natural prompt using the configured default model", async () => {
+    const operations = createInMemoryGenerationOperationStore();
+    const defaultModelForTaskKind = vi.fn((taskKind: "text_to_image" | "image_edit" | "text_to_video" | "image_to_video") => ({
+      moduleId: "generation.single-shot",
+      providerId: "fixture-provider",
+      modelId: "fixture-model",
+      mode: taskKind === "image_edit" ? "image-to-image" : "text-to-image",
+    }));
+    const handler = createGenerationPlanningHandler({ registry, operations, defaultModelForTaskKind, now: () => "2026-08-23T00:00:00.000Z" });
+
+    const created = await handler({ capability: "create", params: { operationId: "op-natural-cat", prompt: "帮我生成一个小猫头像" }, lease }) as {
+      operation: GenerationOperation;
+      nextAction: string;
+    };
+
+    expect(created.nextAction).toBe("preview");
+    expect(created.operation.candidate).toMatchObject({
+      candidateId: "cand-op-natural-cat",
+      providerId: "fixture-provider",
+      modelId: "fixture-model",
+      mode: "text-to-image",
+      prompt: "帮我生成一个小猫头像",
+      revision: 1,
+    });
+    expect(defaultModelForTaskKind).toHaveBeenCalledWith("text_to_image");
+  });
+
+  it("infers video intent and preserves explicit model parameters on the short create path", async () => {
+    const operations = createInMemoryGenerationOperationStore();
+    const defaultModelForTaskKind = vi.fn((taskKind: "text_to_image" | "image_edit" | "text_to_video" | "image_to_video") => ({
+      moduleId: "generation.single-shot",
+      providerId: "video-provider",
+      modelId: "video-model",
+      mode: taskKind === "image_to_video" ? "image-to-video" : "text-to-video",
+    }));
+    const handler = createGenerationPlanningHandler({ registry: videoRegistry, operations, defaultModelForTaskKind, now: () => "2026-08-23T00:00:00.000Z" });
+
+    const created = await handler({ capability: "create", params: {
+      operationId: "op-natural-video",
+      prompt: "生成一段夜晚城市街道视频",
+      parameters: { duration: 5 },
+    }, lease }) as { operation: GenerationOperation };
+
+    expect(created.operation.candidate).toMatchObject({ providerId: "video-provider", modelId: "video-model", mode: "text-to-video", parameters: { duration: 5 } });
+    expect(defaultModelForTaskKind).toHaveBeenCalledWith("text_to_video");
+  });
+
+  it("promotes a prompt-only minute-scale video goal to the storyboard/multi-shot path", async () => {
+    const operations = createInMemoryGenerationOperationStore();
+    const planStoryboard = vi.fn((input: { projectId: string; scriptText: string; minimumShots?: number; targetDurationSeconds?: number }) => ({
+      shots: Array.from({ length: 20 }, (_, index) => ({
+        shotId: `shot-${index + 1}`,
+        role: "shot" as const,
+        prompt: `${input.scriptText}（镜头${index + 1}）`,
+        durationSeconds: 15,
+      })),
+      targetDurationSeconds: input.targetDurationSeconds,
+    }));
+    const defaultModelForTaskKind = vi.fn((taskKind: "text_to_image" | "image_edit" | "text_to_video" | "image_to_video") => ({
+      moduleId: "generation.single-shot",
+      providerId: "video-provider",
+      modelId: "video-model",
+      mode: taskKind === "image_to_video" ? "image-to-video" : "text-to-video",
+    }));
+    const handler = createGenerationPlanningHandler({
+      registry: videoRegistry,
+      operations,
+      planStoryboard,
+      defaultModelForTaskKind,
+      now: () => "2026-08-23T00:00:00.000Z",
+    });
+
+    const created = await handler({
+      capability: "create",
+      params: {
+        operationId: "op-long-natural",
+        prompt: "帮我做一个5分钟品牌视频",
+        // This is one provider clip's duration, not the total movie length.
+        parameters: { duration: 5 },
+      },
+      lease,
+    }) as { operation: GenerationOperation; nextAction: string };
+
+    expect(created.nextAction).toBe("preview");
+    expect(planStoryboard).toHaveBeenCalledWith({
+      projectId: "project-1",
+      scriptText: "帮我做一个5分钟品牌视频",
+      minimumShots: 2,
+      targetDurationSeconds: 300,
+    });
+    expect(created.operation.shots).toHaveLength(20);
+    expect(created.operation.shots?.reduce((sum, shot) => sum + Number(shot.candidate.parameters.duration || 0), 0)).toBe(300);
+    expect(created.operation.shots?.[0]?.candidate.prompt).toBe("帮我做一个5分钟品牌视频（镜头1）");
+    expect(defaultModelForTaskKind).toHaveBeenCalledTimes(20);
+  });
+
+  it("fails closed when a long-form planner omits per-shot durations", async () => {
+    const operations = createInMemoryGenerationOperationStore();
+    const planStoryboard = vi.fn(() => ({
+      shots: [
+        { shotId: "shot-1", role: "shot" as const, prompt: "开场" },
+        { shotId: "shot-2", role: "shot" as const, prompt: "收束" },
+      ],
+    }));
+    const handler = createGenerationPlanningHandler({
+      registry: videoRegistry,
+      operations,
+      planStoryboard,
+      defaultModelForTaskKind: () => ({
+        moduleId: "generation.single-shot",
+        providerId: "video-provider",
+        modelId: "video-model",
+        mode: "text-to-video",
+      }),
+      now: () => "2026-08-23T00:00:00.000Z",
+    });
+
+    await expect(handler({
+      capability: "create",
+      params: { operationId: "op-long-missing-duration", prompt: "帮我做一个5分钟品牌视频" },
+      lease,
+    })).rejects.toThrow(/未覆盖目标时长/);
+    expect(operations.read("project-1", "op-long-missing-duration")).toBeNull();
+  });
+
   it("keeps reference kind and role when an MCP draft is created", async () => {
     const operations = createInMemoryGenerationOperationStore();
     const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" });
@@ -268,7 +393,18 @@ describe("semantic MCP generation tools", () => {
   });
 
   it("returns explicit provider-not-configured status and never falls back to legacy generation", async () => {
-    const operations = createInMemoryGenerationOperationStore();
+    const baseOperations = createInMemoryGenerationOperationStore();
+    // Approval is intentionally owned by the Run/gate seam in production. This
+    // fixture only projects the result of that seam back through `read`; it
+    // must not add an `approve` method to the production operation store.
+    let approvedReceiptId: string | undefined;
+    const operations = {
+      ...baseOperations,
+      read(projectId: string, operationId: string) {
+        const operation = baseOperations.read(projectId, operationId);
+        return operation && approvedReceiptId ? { ...operation, approvedReceiptId } : operation;
+      },
+    };
     const start = async (operation: GenerationOperation) => ({
       operationId: operation.operationId,
       state: "sealed",
@@ -279,13 +415,18 @@ describe("semantic MCP generation tools", () => {
     const operationId = (created as { operation: { operationId: string } }).operation.operationId;
     const preview = await handler({ capability: "preview", params: { operationId }, lease });
     operations.seal("project-1", operationId, (preview as { contract: never }).contract, "2026-08-23T00:00:00.000Z");
-    operations.approve("project-1", operationId, "receipt-1", "2026-08-23T00:00:00.000Z");
+    approvedReceiptId = "receipt-1";
     await expect(handler({ capability: "start", params: { operationId }, lease })).resolves.toMatchObject({ nextAction: "provider_not_configured" });
   });
 
   it("allows a submit-only provider while making recovery limits explicit", async () => {
     const operations = createInMemoryGenerationOperationStore();
-    const handler = createGenerationPlanningHandler({ registry: blockedRegistry, operations, now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler({
+      registry: blockedRegistry,
+      operations,
+      resolveModelPricing: () => ({ cost: 0, enabled: true, specCosts: [] }),
+      now: () => "2026-08-23T00:00:00.000Z",
+    });
     const created = await handler({ capability: "create", params: { candidate: candidate({ providerId: "blocked-provider", modelId: "blocked-model" }) }, lease });
     const operationId = (created as { operation: { operationId: string } }).operation.operationId;
     await expect(handler({ capability: "preview", params: { operationId }, lease })).resolves.toMatchObject({ providerReady: true, providerCapabilityProfile: "submit_only", nextAction: "request_gate", providerCapabilitiesMissing: expect.arrayContaining(["query", "reconcile"]) });
@@ -328,6 +469,37 @@ describe("semantic MCP generation tools", () => {
       expect(preview.pricing.total).toEqual({ knownSubtotal: 0, unknownShotCount: 1, currency: "CNY" });
     });
 
+    it("projects every included video shot in a multi-shot preview before the gate", async () => {
+      const operations = createInMemoryGenerationOperationStore();
+      const handler = createGenerationPlanningHandler({
+        registry,
+        operations,
+        resolveModelPricing,
+        now: () => "2026-08-23T00:00:00.000Z",
+      });
+      await handler({
+        capability: "create",
+        params: {
+          operationId: "op-preview-multi",
+          shots: [
+            { shotId: "shot-a", role: "shot", candidate: candidate({ candidateId: "cand-a", prompt: "雨夜推门" }) },
+            { shotId: "shot-b", role: "shot", candidate: candidate({ candidateId: "cand-b", prompt: "货架对视" }) },
+            { shotId: "shot-excluded", role: "shot", included: false, candidate: candidate({ candidateId: "cand-excluded", prompt: "不参与试拍" }) },
+          ],
+        },
+        lease,
+      });
+
+      const preview = await handler({ capability: "preview", params: { operationId: "op-preview-multi" }, lease }) as {
+        pricing: { shots: Array<{ shotId: string }>; total: unknown };
+        nextAction: string;
+      };
+
+      expect(preview.pricing.shots.map((shot) => shot.shotId)).toEqual(["shot-a", "shot-b"]);
+      expect(preview.pricing.total).toEqual({ knownSubtotal: 28, unknownShotCount: 0, currency: "CNY" });
+      expect(preview.nextAction).toBe("request_gate");
+    });
+
     it("puts the derived price into the receipt's maximumCost (no longer ¥0) with costKnown=true", async () => {
       const operations = createInMemoryGenerationOperationStore();
       const handler = createGenerationPlanningHandler({ registry, operations, resolveModelPricing, now: () => "2026-08-23T00:00:00.000Z" });
@@ -337,13 +509,14 @@ describe("semantic MCP generation tools", () => {
         .resolves.toMatchObject({ maximumCost: 14, costKnown: true, currency: "CNY", nextAction: "confirm" });
     });
 
-    it("keeps maximumCost 0 + costKnown=false for an unpriced model (unbounded, like today)", async () => {
+    it("fails closed instead of authorizing an unpriced model", async () => {
       const operations = createInMemoryGenerationOperationStore();
       const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-08-23T00:00:00.000Z" });
       const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
       const operationId = (created as { operation: { operationId: string } }).operation.operationId;
       await expect(handler({ capability: "gate_request", params: { operationId }, lease }))
-        .resolves.toMatchObject({ maximumCost: 0, costKnown: false, nextAction: "confirm" });
+        .rejects.toMatchObject({ code: "generation_pricing_unknown", shotId: "candidate-1" });
+      expect((await operations.read("project-1", operationId))?.state).toBe("draft");
     });
   });
 
@@ -361,8 +534,8 @@ describe("semantic MCP generation tools", () => {
       const shotContract = (id: string, hash: string, prompt: string) => ({ ...sealedContract, candidateId: id, prompt, contractHash: hash });
       const shots = [
         { shotId: "anchor-1", role: "anchor" as const, candidate: { ...candidate({ candidateId: "cand-anchor", prompt: "主角 阿雨 定妆" }) }, contract: shotContract("cand-anchor", "hash-anchor", "主角 阿雨 定妆") },
-        { shotId: "shot-a", candidate: { ...candidate({ candidateId: "cand-a", prompt: "雨夜推门" }) }, contract: shotContract("cand-a", "hash-a", "雨夜推门") },
-        { shotId: "shot-b", candidate: { ...candidate({ candidateId: "cand-b", prompt: "货架对视" }) }, contract: shotContract("cand-b", "hash-b", "货架对视") },
+        { shotId: "shot-a", candidate: { ...candidate({ candidateId: "cand-a", prompt: "雨夜推门", parameters: { aspectRatio: "1:1", duration: 15 } }) }, contract: shotContract("cand-a", "hash-a", "雨夜推门") },
+        { shotId: "shot-b", candidate: { ...candidate({ candidateId: "cand-b", prompt: "货架对视", parameters: { aspectRatio: "1:1", duration: 15 } }) }, contract: shotContract("cand-b", "hash-b", "货架对视") },
       ];
       const operation = { operationId: "op-multi", projectId: "project-1", candidate: candidate(), state: "sealed" as const, contract: sealedContract, shots, planHash: "plan-hash-x", planVersion: 3, updatedAt: "2026-08-23T00:00:00.000Z" };
       return {
@@ -387,6 +560,7 @@ describe("semantic MCP generation tools", () => {
       // Two video shots on the card (the anchor rides as a chip, not a row).
       expect(result.shots?.shots.map((s) => s.shotId)).toEqual(["shot-a", "shot-b"]);
       expect(result.shots?.shots[0]).toMatchObject({ index: 1, price: { known: true, amount: 6 } });
+      expect(result.shots?.specs).toMatchObject({ shotCount: 2, durationSeconds: 30 });
       expect(result.shots?.anchorChips).toHaveLength(1);
       // Plan-level cost = 2 video shots (¥6 each) + 1 anchor (¥6) = ¥18; receipt keyed on the plan hash.
       expect(result.maximumCost).toBe(18);
@@ -450,6 +624,31 @@ describe("semantic MCP generation tools", () => {
       expect(gate.maximumCost).toBe(6); // one included shot's price
       const sealed = await operations.read("project-1", "op-x") as { shots?: Array<{ shotId: string; contract?: unknown }> };
       expect(sealed.shots?.find((s) => s.shotId === "shot-b")?.contract).toBeUndefined();
+    });
+
+    it("scriptText uses the persisted task default when the planner omits model fields", async () => {
+      const operations = createInMemoryGenerationOperationStore();
+      const planStoryboard = vi.fn(() => ({
+        shots: [{ shotId: "shot-default", role: "shot" as const, prompt: "按设置的默认模型生成" }],
+      }));
+      const defaultModelForTaskKind = vi.fn((taskKind: "text_to_video" | "image_to_video" | "text_to_image" | "image_edit") => ({
+        moduleId: "generation.single-shot",
+        providerId: "video-provider",
+        modelId: "video-model",
+        mode: taskKind === "image_to_video" ? "image-to-video" : "text-to-video",
+      }));
+      const handler = createGenerationPlanningHandler({
+        registry: videoRegistry,
+        operations,
+        planStoryboard,
+        defaultModelForTaskKind,
+        now: () => "2026-08-23T00:00:00.000Z",
+      });
+      const created = await handler({ capability: "create", params: { operationId: "op-default", scriptText: "一个短镜头" }, lease }) as {
+        operation: { shots: Array<{ candidate: { providerId: string; modelId: string; mode: string } }> };
+      };
+      expect(defaultModelForTaskKind).toHaveBeenCalledWith("text_to_video");
+      expect(created.operation.shots[0]?.candidate).toMatchObject({ providerId: "video-provider", modelId: "video-model", mode: "text-to-video" });
     });
   });
 });

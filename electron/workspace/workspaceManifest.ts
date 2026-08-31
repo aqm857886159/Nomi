@@ -507,6 +507,56 @@ export function readWorkspaceManifest(rootPath: string): WorkspaceProjectRecordV
   }
 }
 
+/**
+ * Read a stable manifest snapshot without acquiring the write transaction lock.
+ *
+ * Project-root resolution and task-center polling are read-only hot paths. They
+ * used to call `readWorkspaceManifest`, which deliberately acquires the
+ * manifest transaction lock because it may localize embedded media. When the
+ * GUI and an MCP/Agent process touched the same project at the same time, a
+ * harmless poll could therefore block a real review/write and surface
+ * "manifest is being changed" to the user. This fast path is only used for a
+ * fully valid, already-localized manifest; callers fall back to the transactional
+ * reader when migration/slimming or identity repair is required.
+ */
+export function readWorkspaceManifestSnapshot(rootPath: string): WorkspaceProjectRecordV2 | null {
+  try {
+    const canonicalRootPath = fs.realpathSync(rootPath);
+    const raw = readJsonFile(workspaceProjectFile(canonicalRootPath));
+    const rawRecord = toProjectRecordObject(raw);
+    if (!rawRecord) return null;
+    const parsed = workspaceProjectRecordSchema.safeParse(rawRecord);
+    if (!parsed.success || manifestIdentity(rawRecord).state === "partial") return null;
+
+    // A backup with a conflicting complete identity must still go through the
+    // locked reader so it can raise the canonical identity error instead of
+    // silently returning a potentially unsafe projection.
+    const backupPath = workspaceProjectBackupFile(canonicalRootPath);
+    if (fs.existsSync(backupPath)) {
+      const backupRaw = toProjectRecordObject(readJsonFile(backupPath));
+      if (!backupRaw) return null;
+      const backupIdentity = manifestIdentity(backupRaw);
+      if (backupIdentity.state === "partial") return null;
+      const mainIdentity = manifestIdentity(rawRecord);
+      if (
+        mainIdentity.state === "complete" &&
+        backupIdentity.state === "complete" &&
+        !sameCompleteIdentity(mainIdentity, backupIdentity)
+      ) return null;
+    }
+
+    // Embedded data URLs need the transactional reader's slimming side effect.
+    // Keep this check conservative: any data URL sends the caller to the safe
+    // locked path rather than returning a snapshot that would never be
+    // localized.
+    if (JSON.stringify(rawRecord).includes('"data:')) return null;
+    return normalizeWorkspaceProjectRecord(rawRecord);
+  } catch (error) {
+    if (error instanceof WorkspaceProjectIdentityUnavailableError) throw error;
+    return null;
+  }
+}
+
 export function readWorkspaceManifestSummary(rootPath: string): Omit<WorkspaceProjectRecordV2, "payload"> | null {
   const manifest = readWorkspaceManifest(rootPath);
   if (!manifest) return null;

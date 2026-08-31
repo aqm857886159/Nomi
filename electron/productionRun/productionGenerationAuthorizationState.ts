@@ -319,6 +319,12 @@ export function deriveGenerationReauthorizationState(input: Readonly<{
   }
 
   const nodeId = shot?.nodeId ?? parent.nodeId;
+  // Keep retry lineage on the explicit reauthorization path identical to the
+  // automatic QA retry path.  Without this field the durable job still had
+  // attempt=2, but projections/evidence could not tell it was the first retry
+  // (and a subsequent recovery pass could schedule it again).
+  const previousRetryCount = Math.max(0, Math.floor(Number(parent.retryCount ?? parent.metadata?.retryCount) || 0));
+  const retryCount = previousRetryCount + 1;
   const job: ProductionJob = {
     jobId: expectedJobId,
     stageId: "generate",
@@ -331,9 +337,16 @@ export function deriveGenerationReauthorizationState(input: Readonly<{
     authorizationDigest,
     taskKind: authorized.mode,
     parentJobId,
+    retryCount,
     retryReason: "rework",
     ...(nodeId ? { nodeId } : {}),
-    ...(input.shotId ? { metadata: { shotId: input.shotId } } : {}),
+    metadata: {
+      ...(parent.metadata ?? {}),
+      ...(input.shotId ? { shotId: input.shotId } : {}),
+      retryCount,
+      retryReason: "rework",
+      parentJobId,
+    },
     createdAt: input.now,
     updatedAt: input.now,
   };

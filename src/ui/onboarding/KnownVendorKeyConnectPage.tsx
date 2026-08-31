@@ -7,11 +7,17 @@ import { DesignButton } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { cn } from '../../utils/cn'
 import { ModelSettingsPageSurface } from './ModelSettingsPageSurface'
+import {
+  resolveKeyOnlySaveOutcome,
+  type KeyOnlyCredentialMode,
+  type KeyOnlySaveOutcome,
+} from './keyOnlyConnectionPolicy'
 
 export function KnownVendorKeyConnectPage({
   directory,
   vendorName,
   modelCount,
+  credentialMode = 'certification',
   onBack,
   onSaved,
   onContinueVerification,
@@ -19,14 +25,17 @@ export function KnownVendorKeyConnectPage({
   directory: KnownVendor
   vendorName: string
   modelCount: number
+  /** Derived from the desktop catalog; unknown/custom rows fail closed to certification. */
+  credentialMode?: KeyOnlyCredentialMode
   onBack: () => void
   onSaved: () => void
-  onContinueVerification: () => void
+  onContinueVerification?: () => void
 }): JSX.Element {
   const { t } = useTranslation()
   const [apiKey, setApiKey] = React.useState('')
   const [busy, setBusy] = React.useState(false)
   const [saved, setSaved] = React.useState(false)
+  const [saveOutcome, setSaveOutcome] = React.useState<KeyOnlySaveOutcome | null>(null)
   const [error, setError] = React.useState('')
   const inputRef = React.useRef<HTMLInputElement>(null)
   const errorId = React.useId()
@@ -46,21 +55,48 @@ export function KnownVendorKeyConnectPage({
     setBusy(true)
     setError('')
     try {
-      // A credential edit invalidates the active certification. Keep the
-      // seeded vendor disabled until the canonical run promotes verified modes.
-      catalog.upsertVendor({ key: directory.vendorKey, enabled: false })
-      catalog.upsertVendorApiKey(directory.vendorKey, { apiKey: cleanKey, enabled: false })
+      // The main-process mutation boundary decides whether this is a curated
+      // direct-key connection (currently the shipped APIMart contract) or a
+      // certification-owned/custom connection. Never duplicate that policy in
+      // the renderer.
+      const directKey = credentialMode === 'direct-key'
+      // Certification-owned rows stay disabled while a new key is staged.
+      // The curated direct-key contract must be enabled before the main
+      // process can grant its state-derived promotion bit; failures below
+      // roll that temporary enablement back.
+      catalog.upsertVendor({ key: directory.vendorKey, enabled: directKey })
+      const saved = catalog.upsertVendorApiKey(directory.vendorKey, { apiKey: cleanKey, enabled: true }) as {
+        enabled?: boolean
+      }
+      // Certification remains fail-closed even if an older backend ever
+      // echoes enabled=true unexpectedly; only the explicit direct-key mode
+      // may consume that bit for promotion.
+      const enabled = credentialMode === 'direct-key' && saved?.enabled === true
+      const outcome = resolveKeyOnlySaveOutcome(credentialMode, enabled)
+      catalog.upsertVendor({ key: directory.vendorKey, enabled })
+      setSaveOutcome(outcome)
+      onSaved()
+      if (outcome === 'rejected') {
+        // The key may be encrypted and stored, but a direct-key vendor is not
+        // connected until the backend explicitly returns enabled=true.
+        setError(t('onboardingProviders.keyOnly.directKeyUnavailable'))
+        return
+      }
       setSaved(true)
       setApiKey('')
-      onSaved()
     } catch (reason) {
+      // Do not leave a direct-key row enabled when encryption/validation fails
+      // after the preflight upsert. The key write itself is still main-owned.
+      if (credentialMode === 'direct-key') {
+        try { catalog?.upsertVendor({ key: directory.vendorKey, enabled: false }) } catch { /* best effort rollback */ }
+      }
       setError(t('onboardingProviders.keyOnly.saveFailed', {
         message: reason instanceof Error ? reason.message : String(reason),
       }))
     } finally {
       setBusy(false)
     }
-  }, [apiKey, directory.vendorKey, onSaved, t])
+  }, [apiKey, credentialMode, directory.vendorKey, onSaved, t])
 
   const openRegistration = React.useCallback(() => {
     if (directory.promo) window.open(directory.promo.url, '_blank', 'noopener')
@@ -144,30 +180,46 @@ export function KnownVendorKeyConnectPage({
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <DesignButton variant="light" onClick={onBack}>{t('common.back')}</DesignButton>
               <DesignButton variant="filled" loading={busy} onClick={save}>
-                {t('onboardingProviders.keyOnly.save')}
+                {t(credentialMode === 'direct-key'
+                  ? 'onboardingProviders.keyOnly.saveDirect'
+                  : 'onboardingProviders.keyOnly.save')}
               </DesignButton>
             </div>
           ) : null}
         </div>
 
         {saved ? (
-          <div className="mt-5" data-key-only-success role="status">
+          <div
+            className="mt-5"
+            data-key-only-success
+            data-key-only-outcome={saveOutcome ?? undefined}
+            role="status"
+          >
             <div className="flex items-start gap-3 rounded-nomi-sm bg-nomi-ink-05 p-3">
               <span className="grid size-7 shrink-0 place-items-center rounded-nomi-sm bg-nomi-accent-soft text-nomi-accent">
                 <IconCheck size={16} stroke={2} aria-hidden="true" />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-body-sm font-semibold text-nomi-ink">
-                  {t('onboardingProviders.keyOnly.savedTitle', { name: vendorName })}
+                  {t(saveOutcome === 'connected'
+                    ? 'onboardingProviders.keyOnly.connectedTitle'
+                    : 'onboardingProviders.keyOnly.savedTitle', { name: vendorName })}
                 </div>
                 <p className="mt-1 text-caption leading-relaxed text-nomi-ink-60">
-                  {t('onboardingProviders.keyOnly.savedHint')}
+                  {t(saveOutcome === 'connected'
+                    ? 'onboardingProviders.keyOnly.connectedHint'
+                    : 'onboardingProviders.keyOnly.savedHint', { count: modelCount })}
                 </p>
               </div>
             </div>
             <div className="mt-4 flex justify-end">
-              <DesignButton variant="filled" onClick={onContinueVerification}>
-                {t('onboardingProviders.keyOnly.save')}
+              <DesignButton
+                variant="filled"
+                onClick={saveOutcome === 'connected' ? onBack : (onContinueVerification ?? onBack)}
+              >
+                {t(saveOutcome === 'connected'
+                  ? 'onboardingProviders.keyOnly.done'
+                  : 'onboardingProviders.keyOnly.continueVerification')}
               </DesignButton>
             </div>
           </div>

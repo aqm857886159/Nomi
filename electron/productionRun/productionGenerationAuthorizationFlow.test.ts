@@ -322,13 +322,17 @@ describe("Run-owned paid generation authorization", () => {
       payload: { authorization: reauthorization },
       issuedAt: "2026-08-23T00:01:00.000Z",
     }).run;
-    expect(run.jobs).toContainEqual(expect.objectContaining({
+    const reworkedJob = run.jobs.find((job) => job.jobId === reauthorization.envelope.jobs[0].jobId);
+    expect(reworkedJob).toBeDefined();
+    expect(reworkedJob).toMatchObject({
       jobId: reauthorization.envelope.jobs[0].jobId,
       status: "authorization_required",
       attempt: 2,
       parentJobId: firstJob.jobId,
+      retryCount: 1,
+      metadata: expect.objectContaining({ retryCount: 1, retryReason: "rework", parentJobId: firstJob.jobId }),
       authorizationDigest: reauthorization.authorizationDigest,
-    }));
+    });
     expect(submit).toHaveBeenCalledTimes(1);
 
     run = repository.execute("project-1", "op-1", {

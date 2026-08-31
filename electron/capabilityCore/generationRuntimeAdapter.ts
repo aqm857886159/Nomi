@@ -11,6 +11,8 @@ export type ResolvedTaskRequestV1 = {
   providerId: string;
   modelId: string;
   variantId?: string;
+  modeId?: string;
+  transportModelId?: string;
   mode: string;
   prompt: string;
   parameters: Record<string, unknown>;
@@ -64,6 +66,21 @@ export type GenerationProvider = {
   cancel?: (providerTaskId: string) => Promise<{ status: "cancelled_remote" | "too_late" | "detached"; raw?: unknown }>;
 };
 
+/**
+ * Optional provider-local submission hook.  The public `submit` contract stays
+ * intentionally narrow (it receives only the approved wire payload), while a
+ * provider that has endpoint semantics not representable in that payload can
+ * also consume the sealed semantic input.  This is a structural/duck-typed
+ * extension so existing providers do not need to change their implementation.
+ */
+type ContextualGenerationProvider = GenerationProvider & {
+  submitWithContext?: (
+    request: unknown,
+    idempotencyKey: string,
+    input: GenerationProviderRequestInputV1,
+  ) => Promise<{ providerTaskId: string; raw?: unknown }>;
+};
+
 export type GenerationProviderQueryResult = {
   status: string;
   raw?: unknown;
@@ -72,6 +89,8 @@ export type GenerationProviderQueryResult = {
 export type GenerationProviderReconcileResult = {
   found: boolean;
   providerTaskId?: string;
+  /** Provider could answer, but did not establish a terminal/known state. */
+  status?: string;
   raw?: unknown;
 };
 
@@ -125,6 +144,8 @@ export function resolveExecutionContract(contract: ExecutionContractV1, binding:
     providerId: contract.providerId,
     modelId: contract.modelId,
     ...(contract.variantId ? { variantId: contract.variantId } : {}),
+    ...(contract.modeId ? { modeId: contract.modeId } : {}),
+    ...(contract.transportModelId ? { transportModelId: contract.transportModelId } : {}),
     mode: contract.mode,
     prompt: contract.prompt,
     parameters: structuredClone(contract.parameters),
@@ -152,6 +173,8 @@ function stableRequestFor(
     providerId: contract.providerId,
     modelId: contract.modelId,
     ...(contract.variantId ? { variantId: contract.variantId } : {}),
+    ...(contract.modeId ? { modeId: contract.modeId } : {}),
+    ...(contract.transportModelId ? { transportModelId: contract.transportModelId } : {}),
     mode: contract.mode,
     prompt: contract.prompt,
     parameters: structuredClone(contract.parameters),
@@ -216,7 +239,14 @@ export function createGenerationRuntimeAdapter(deps: { providers: readonly Gener
       ? provider.buildRequest(structuredClone(providerInput(request)))
       : structuredClone(input.preparedProviderRequest);
     assertProductionGenerationPayloadHash(providerRequest, input.expectedProviderRequestHash);
-    const result = await provider.submit(providerRequest, request.idempotencyKey);
+    const contextualProvider = provider as ContextualGenerationProvider;
+    const result = contextualProvider.submitWithContext
+      ? await contextualProvider.submitWithContext(
+        providerRequest,
+        request.idempotencyKey,
+        structuredClone(providerInput(request)),
+      )
+      : await provider.submit(providerRequest, request.idempotencyKey);
     if (!result.providerTaskId.trim()) throw new Error("Provider returned an empty task id");
     return { ...result, request, providerRequestHash: productionGenerationPayloadHash(providerRequest) };
   }

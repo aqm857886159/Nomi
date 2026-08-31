@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import type { AgentChatRequest, AgentChatResponse, AgentChatToolDecision, AgentToolProfile } from "../harness/agentChatContracts";
 import type { AgentChatV2Hooks } from "../ai/agentChatV2";
-import type { RuntimeToolCall } from "../harness/runtime/runtimePort";
 import { captureAgentChatRequest, mergeAgentToolProfiles, resolveAgentToolProfile } from "../harness/agentChatPolicy";
 import type {
   ProjectAgentExecutionEvent,
@@ -36,8 +35,14 @@ import type {
   PiPhase4SurfaceTransportAdapter,
   PreparedExportWrite,
 } from "../capabilityCore/phase4SurfaceTransportAdapters";
+import type {
+  PiSkillWriteTransportAdapter,
+  PreparedSkillWrite,
+} from "../capabilityCore/skillWriteTransportAdapters";
+import type { PiSkillReadTransportAdapter } from "../capabilityCore/skillReadTransportAdapters";
 import type { PiProductionRunTransportAdapter } from "../capabilityCore/productionRunTransportAdapters";
-import { callWithEffectiveArgs, executeProductionApproval, reprepareEffectiveCall } from "./projectAgentApprovalHelpers";
+import { isPiGenerationToolName, type PiGenerationTransportAdapter } from "../capabilityCore/generationTransportAdapters";
+import { executeProductionApproval, reprepareEffectiveCall } from "./projectAgentApprovalHelpers";
 import { resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
 import { DOCUMENT_READ_CAPABILITY } from "../shared/agentCapabilities/documentRead";
 import { CANVAS_DELETE_CAPABILITY } from "../shared/agentCapabilities/canvasDelete";
@@ -46,6 +51,8 @@ import { TIMELINE_READ_CAPABILITY } from "../shared/agentCapabilities/timelineRe
 import { TIMELINE_WRITE_CAPABILITY } from "../shared/agentCapabilities/timelineWrite";
 import { ASSET_READ_CAPABILITY } from "../shared/agentCapabilities/assetRead";
 import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "../shared/agentCapabilities/exportCapabilities";
+import { SKILL_WRITE_CAPABILITY } from "../shared/agentCapabilities/skillWrite";
+import { SKILL_READ_CAPABILITY } from "../shared/agentCapabilities/skillRead";
 import type { ProjectAgentProposalReceiptView } from "../shared/projectAgentProposalReceipt";
 import { committedProjectAgentReceiptMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
 import {
@@ -57,6 +64,8 @@ import {
   statusForResponse,
   toolItem,
 } from "./projectAgentExecutionHelpers";
+import { projectAgentWorkModeOf } from "../shared/projectAgentContracts";
+import { projectAgentExecutionRisk, projectAgentMayReuseSafeApproval } from "./projectAgentExecutionPolicy";
 export type ProjectAgentSubscription = Readonly<{
   subscriptionId: string;
   subscriptionEpoch: number;
@@ -72,6 +81,8 @@ export type ProjectAgentExecutionOpenOptions = Readonly<{
   timelineRead?: PiTimelineReadTransportAdapter;
   timelineWrite?: PiTimelineWriteTransportAdapter;
   phase4Surface?: PiPhase4SurfaceTransportAdapter;
+  skillRead?: PiSkillReadTransportAdapter;
+  skillWrite?: PiSkillWriteTransportAdapter;
   proposalReceipt?: ProjectAgentProposalReceiptReader;
 }>;
 export type ProjectAgentExecutionCoordinatorDeps = Readonly<{
@@ -82,6 +93,7 @@ export type ProjectAgentExecutionCoordinatorDeps = Readonly<{
     context: Readonly<{ phase: "start" | "terminalize-runtime-failure"; turnId: string; message: string }>,
   ) => void;
   productionRun?: (binding: ProjectBinding) => PiProductionRunTransportAdapter;
+  generation?: (binding: ProjectBinding) => PiGenerationTransportAdapter;
 }>;
 function readProposalReceiptSafely(
   reader: ProjectAgentProposalReceiptReader | undefined,
@@ -98,12 +110,10 @@ type ProjectAgentExecutionEnqueue = Readonly<{
   canvasRead?: PiCanvasReadTransportAdapter;
 }>;
 type ProjectAgentExecutionListener = (event: ProjectAgentExecutionEvent) => void;
-
 type Deferred<T> = {
   promise: Promise<T>;
   resolve: (value: T) => void;
 };
-
 type PendingToolDecision = Readonly<{
   turnId: string;
   toolCallId: string;
@@ -113,7 +123,6 @@ type PendingToolDecision = Readonly<{
   resolve: (decision: AgentChatToolDecision) => void;
   signal: AbortSignal;
 }>;
-
 type ActiveExecution = {
   turn: ProjectAgentTurn;
   queueItem: ProjectAgentQueueItem;
@@ -125,6 +134,8 @@ type ActiveExecution = {
   proposalSettlementStatuses?: Map<string, ProjectAgentStatus>;
   capabilityOutcome?: CanvasWriteCapabilityOutcome;
   blockedCanvasWriteDecision?: AgentChatToolDecision;
+  /** Latched only after the user approves one reversible write in this turn. */
+  safeApprovalGranted?: boolean;
   canvasRead?: PiCanvasReadTransportAdapter;
 };
 
@@ -188,10 +199,19 @@ const CANVAS_WRITE_OUTCOMES = Object.freeze({
     retryable: false,
     nextAction: "review the canvas and submit a new proposal; do not retry automatically",
   },
+  capability_execution_failed: {
+    status: "failed",
+    retryable: true,
+    nextAction: "review the error and submit the capability again",
+  },
+  capability_authority_invalid: {
+    status: "failed",
+    retryable: false,
+    nextAction: "start a new approved proposal",
+  },
 } as const);
 
 type CanvasWriteCapabilityOutcomeCode = keyof typeof CANVAS_WRITE_OUTCOMES;
-
 type CanvasWriteCapabilityOutcome = Readonly<{
   toolCallId: string;
   code: CanvasWriteCapabilityOutcomeCode;
@@ -200,7 +220,6 @@ type CanvasWriteCapabilityOutcome = Readonly<{
   status: ProjectAgentStatus;
   retryable: boolean;
 }>;
-
 function normalizeCanvasWriteOutcomeCode(
   code: string | undefined,
   fallback: CanvasWriteCapabilityOutcomeCode,
@@ -214,7 +233,6 @@ function normalizeCanvasWriteOutcomeCode(
   }
   return fallback;
 }
-
 function rememberCanvasWriteOutcome(
   execution: ActiveExecution,
   toolCallId: string,
@@ -239,20 +257,17 @@ function rememberCanvasWriteOutcome(
     ...(denied ? { denied: true } : {}),
   };
 }
-
 type FrozenExecutionRequest = Readonly<{
   request: AgentChatRequest;
   requestDigest: string;
   preferredSubscriptionId: string;
   canvasRead?: PiCanvasReadTransportAdapter;
 }>;
-
 type SubscriptionDelivery = {
   phase: "pre-live" | "activating" | "live";
   listeners: Set<ProjectAgentExecutionListener>;
   buffered: ProjectAgentExecutionEvent[];
 };
-
 type ExecutionPartition = {
   partitionKey: string;
   binding: ProjectBinding;
@@ -265,7 +280,6 @@ type ExecutionPartition = {
   initialization: Promise<void>;
   drain?: Promise<void>;
 };
-
 function deferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((next) => {
@@ -294,15 +308,14 @@ export type ProjectAgentExecutionCoordinator = Readonly<{
   ) => Promise<void>;
   waitForTurn: (subscriptionId: string, turnId: string) => Promise<ProjectAgentHostState>;
   release: (subscriptionId: string) => void;
+  setGenerationAdapterFactory: (factory: ((binding: ProjectBinding) => PiGenerationTransportAdapter) | undefined) => void;
   subscriptionCount: () => number;
 }>;
 
 export class ProjectAgentSubscriptionError extends Error {
   readonly code = "project_agent_subscription_invalid" as const;
 }
-
 type SubscriptionRecord = ProjectAgentSubscription & Readonly<{ partitionKey: string }>;
-
 export function createProjectAgentExecutionCoordinator(
   router: ProjectAgentRepositoryRouter,
   randomId: () => string = () => crypto.randomUUID(),
@@ -320,7 +333,10 @@ export function createProjectAgentExecutionCoordinator(
   const timelineReads = new Map<string, PiTimelineReadTransportAdapter | undefined>();
   const timelineWrites = new Map<string, PiTimelineWriteTransportAdapter | undefined>();
   const phase4Surfaces = new Map<string, PiPhase4SurfaceTransportAdapter | undefined>();
+  const skillReads = new Map<string, PiSkillReadTransportAdapter | undefined>();
+  const skillWrites = new Map<string, PiSkillWriteTransportAdapter | undefined>();
   const productionRuns = new Map<string, PiProductionRunTransportAdapter | undefined>();
+  const generationAdapters = new Map<string, PiGenerationTransportAdapter | undefined>(); let generationAdapterFactory = deps.generation;
   const proposalReceiptReaders = new Map<string, ProjectAgentProposalReceiptReader | undefined>();
   const runAgent =
     deps.runAgent ?? (async (request, hooks) => (await import("../ai/agentChatV2")).runAgentChatV2(request, hooks));
@@ -468,7 +484,12 @@ export function createProjectAgentExecutionCoordinator(
   ): Promise<void> {
     while (true) {
       const state = partition.host.getSnapshot(partition.binding);
-      const turn = state.turns.find((candidate) => ["queued", "running", "proposed"].includes(candidate.status));
+      const turn = state.turns.find((candidate) => {
+        if (!["queued", "running", "proposed"].includes(candidate.status)) return false;
+        if (candidate.status !== "queued") return true;
+        const queueItem = state.queue.find((item) => item.turnId === candidate.turnId);
+        return queueItem?.paused !== true;
+      });
       if (!turn) return;
       if (await recoverClaimedCanvasExecution(partition, state, turn, readProposalReceipt)) continue;
       const recoveredAt = now();
@@ -550,6 +571,8 @@ export function createProjectAgentExecutionCoordinator(
     timelineReads.set(subscription.subscriptionId, options.timelineRead);
     timelineWrites.set(subscription.subscriptionId, options.timelineWrite);
     phase4Surfaces.set(subscription.subscriptionId, options.phase4Surface);
+    skillReads.set(subscription.subscriptionId, options.skillRead);
+    skillWrites.set(subscription.subscriptionId, options.skillWrite);
     proposalReceiptReaders.set(subscription.subscriptionId, options.proposalReceipt);
     return subscription;
   }
@@ -586,8 +609,20 @@ export function createProjectAgentExecutionCoordinator(
         }
       }
       if (reduction.patch && !reduction.replayed) publishPatch(partition, reduction.patch);
+      if (mutation.type === "queue.delete" && reduction.patch && !reduction.replayed) {
+        const removedTurnId = reduction.patch.changes.find((change) => change.kind === "turn-removed")?.turnId;
+        if (removedTurnId) {
+          const reserved = partition.requests.get(removedTurnId);
+          partition.requests.delete(removedTurnId);
+          reserved?.canvasRead?.dispose();
+        }
+      }
       const terminalTurnId =
-        mutation.type === "turn.transition" || mutation.type === "execution.recover" ? mutation.payload.turnId : "";
+        mutation.type === "turn.transition" || mutation.type === "execution.recover"
+          ? mutation.payload.turnId
+          : mutation.type === "queue.delete"
+            ? reduction.patch?.changes.find((change) => change.kind === "turn-removed")?.turnId ?? ""
+            : "";
       complete(partition, terminalTurnId);
       scheduleDrain(partition);
       return reduction;
@@ -619,6 +654,10 @@ export function createProjectAgentExecutionCoordinator(
     const stickyProfile = mergeAgentToolProfiles(partition.toolProfiles.get(input.mutation.payload.turn.threadId), requestedProfile);
     const request = captureAgentChatRequest({
       ...input.request,
+      // The Host turn is the immutable source for execution posture.  Do not
+      // let an untrusted/replayed renderer request drift from the queued
+      // record; approval/spend remains Host-only and is never copied here.
+      workMode: projectAgentWorkModeOf(input.mutation.payload.turn.workMode),
       toolProfile: stickyProfile,
       history: { kind: "ephemeral" },
       projectId: record.binding.projectId,
@@ -703,7 +742,11 @@ export function createProjectAgentExecutionCoordinator(
       actionHash: string;
     }>,
   ): Promise<ProposalApprovalRef | undefined> {
-    if (!decision.ok || decision.silent) return;
+    // A silent decision means the current Host-turn policy reused a prior
+    // explicit approval. It still needs its own durable receipt/action hash;
+    // only the renderer prompt is skipped. Persist it as an ordinary
+    // proposal so recovery and audit never lose the write.
+    if (!decision.ok) return;
     const occurredAt = now();
     const expiresAt = new Date(new Date(occurredAt).getTime() + 10 * 60_000).toISOString();
     const approvalId = verified?.approvalId
@@ -804,6 +847,11 @@ export function createProjectAgentExecutionCoordinator(
       return { ok: false, denied: true, message: "Agent request cancelled" };
     const existing = execution.pending.get(call.toolCallId);
     if (existing) return Promise.reject(new Error("Duplicate pending Project Agent tool call"));
+    const policy = execution.turn.approvalPolicy;
+    if (projectAgentMayReuseSafeApproval(policy, call.toolName, call.args, execution.safeApprovalGranted === true)) {
+      return { ok: true, silent: true };
+    }
+    const safeReversible = projectAgentExecutionRisk(call.toolName, call.args) === "safe-reversible";
     const assistant = partition.host
       .getSnapshot(partition.binding)
       .items.find((item) => item.kind === "assistant" && item.turnId === execution.turn.turnId);
@@ -816,6 +864,7 @@ export function createProjectAgentExecutionCoordinator(
         if (execution.pending.get(call.toolCallId)?.resolve !== settleResolve) return;
         execution.pending.delete(call.toolCallId);
         signal.removeEventListener("abort", abort);
+        if (decision.ok && !decision.silent && safeReversible) execution.safeApprovalGranted = true;
         resolve(decision);
       };
       const settleResolve = (decision: AgentChatToolDecision): void => {
@@ -975,11 +1024,46 @@ export function createProjectAgentExecutionCoordinator(
     }
     return selected;
   }
+  function skillReadFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
+    const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
+      ? skillReads.get(preferredSubscriptionId)
+      : undefined;
+    if (currentPreferred) return currentPreferred;
+    let selected: PiSkillReadTransportAdapter | undefined;
+    let selectedEpoch = -1;
+    for (const subscriptionId of partition.subscriptionIds) {
+      const subscription = subscriptions.get(subscriptionId);
+      const adapter = skillReads.get(subscriptionId);
+      if (subscription && adapter && subscription.subscriptionEpoch > selectedEpoch) {
+        selected = adapter;
+        selectedEpoch = subscription.subscriptionEpoch;
+      }
+    }
+    return selected;
+  }
+  function skillWriteFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
+    const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
+      ? skillWrites.get(preferredSubscriptionId)
+      : undefined;
+    if (currentPreferred) return currentPreferred;
+    let selected: PiSkillWriteTransportAdapter | undefined;
+    let selectedEpoch = -1;
+    for (const subscriptionId of partition.subscriptionIds) {
+      const subscription = subscriptions.get(subscriptionId);
+      const adapter = skillWrites.get(subscriptionId);
+      if (subscription && adapter && subscription.subscriptionEpoch > selectedEpoch) {
+        selected = adapter;
+        selectedEpoch = subscription.subscriptionEpoch;
+      }
+    }
+    return selected;
+  }
   function productionRunFor(partition: ExecutionPartition): PiProductionRunTransportAdapter | undefined {
     const existing = productionRuns.get(partition.partitionKey);
     if (existing || !deps.productionRun) return existing;
     const adapter = deps.productionRun(partition.binding); productionRuns.set(partition.partitionKey, adapter); return adapter;
   }
+  function generationFor(partition: ExecutionPartition): PiGenerationTransportAdapter | undefined { const existing = generationAdapters.get(partition.partitionKey); if (existing || !generationAdapterFactory) return existing; const adapter = generationAdapterFactory(partition.binding); generationAdapters.set(partition.partitionKey, adapter); return adapter; }
   function proposalReceiptReaderFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
     const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
       ? proposalReceiptReaders.get(preferredSubscriptionId)
@@ -1122,6 +1206,7 @@ export function createProjectAgentExecutionCoordinator(
           ) {
             return { ok: false, code: "surface_port_unavailable", message: "surface_port_unavailable" };
           }
+          if (isPiGenerationToolName(call.toolName)) return (await generationFor(partition)?.tryExecute(call, signal)) ?? { ok: false, code: "generation_surface_unavailable", message: "generation_surface_unavailable" };
           const productionRun = productionRunFor(partition);
           const productionRead = await productionRun?.tryExecute(call, signal);
           if (productionRead) return productionRead;
@@ -1131,6 +1216,115 @@ export function createProjectAgentExecutionCoordinator(
           }
           if (resolveCapabilityAlias(call.toolName)?.contract?.execution.port === "production-run") {
             return rememberCanvasWriteOutcome(execution, call.toolCallId, "capability_surface_unavailable", "capability_surface_unavailable");
+          }
+          // Skill loading is a canonical read capability.  It must be handled
+          // by the same main-process catalog owner as MCP/Workbench reads;
+          // never turn it into a renderer approval request or let the model
+          // receive a synthetic success from the generic confirmation path.
+          const skillReadAdapter = skillReadFor(partition, frozen?.preferredSubscriptionId ?? "");
+          const skillRead = await skillReadAdapter?.tryExecute(call, signal);
+          if (skillRead) return skillRead;
+          if (canonicalCapability?.id === SKILL_READ_CAPABILITY.id) {
+            return rememberCanvasWriteOutcome(
+              execution,
+              call.toolCallId,
+              "capability_surface_unavailable",
+              "capability_surface_unavailable",
+            );
+          }
+          const skillWriteAdapter = skillWriteFor(partition, frozen?.preferredSubscriptionId ?? "");
+          if (skillWriteAdapter) {
+            let prepared: PreparedSkillWrite | null;
+            try {
+              prepared = await skillWriteAdapter.prepare(call, {
+                target: execution.queueItem.target,
+                preconditions: execution.queueItem.preconditions,
+              }, signal);
+            } catch (error) {
+              const code = error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string"
+                ? (error as { code: string }).code
+                : error instanceof Error ? error.message : "capability_execution_failed";
+              return rememberCanvasWriteOutcome(execution, call.toolCallId, code, "capability_execution_failed");
+            }
+            if (prepared) {
+              const decision = await awaitToolDecision(partition, execution, call, signal);
+              if (!decision.ok) {
+                return rememberCanvasWriteOutcome(
+                  execution,
+                  call.toolCallId,
+                  decision.code,
+                  signal.aborted ? "capability_cancelled" : "capability_declined",
+                  decision.denied,
+                );
+              }
+              const effective = await reprepareEffectiveCall(
+                call,
+                decision,
+                prepared,
+                (effectiveCall) => skillWriteAdapter.prepare(effectiveCall, {
+                  target: execution.queueItem.target,
+                  preconditions: execution.queueItem.preconditions,
+                }, signal),
+              );
+              if (!effective.ok) {
+                return rememberCanvasWriteOutcome(execution, call.toolCallId, effective.code, effective.code);
+              }
+              let persisted: ProposalApprovalRef;
+              try {
+                persisted = await persistPreparedProposal(
+                  partition,
+                  execution,
+                  effective.call,
+                  decision,
+                  effective.prepared,
+                );
+              } catch {
+                return rememberCanvasWriteOutcome(
+                  execution,
+                  call.toolCallId,
+                  "capability_execution_failed",
+                  "capability_execution_failed",
+                );
+              }
+              let executed: AgentChatToolDecision;
+              try {
+                executed = await skillWriteAdapter.execute(effective.prepared, {
+                  receiptProposalId: persisted.receiptProposalId,
+                  approvalId: persisted.approvalId,
+                  actionHash: persisted.actionHash,
+                }, signal);
+              } catch {
+                executed = { ok: false, code: "capability_execution_failed", message: "capability_execution_failed" };
+              }
+              if (!executed.ok) {
+                recordProposalSettlement(execution, persisted.approvalId, "failed");
+                return rememberCanvasWriteOutcome(
+                  execution,
+                  call.toolCallId,
+                  executed.code,
+                  signal.aborted ? "capability_cancelled" : "capability_execution_failed",
+                );
+              }
+              if (executed.proposalId !== persisted.receiptProposalId) {
+                recordProposalSettlement(execution, persisted.approvalId, "failed");
+                return rememberCanvasWriteOutcome(
+                  execution,
+                  call.toolCallId,
+                  "capability_receipt_unresolved",
+                  "capability_receipt_unresolved",
+                );
+              }
+              recordProposalSettlement(execution, persisted.approvalId, "done");
+              return executed;
+            }
+          }
+          if (canonicalCapability?.id === SKILL_WRITE_CAPABILITY.id) {
+            return rememberCanvasWriteOutcome(
+              execution,
+              call.toolCallId,
+              "capability_surface_unavailable",
+              "capability_surface_unavailable",
+            );
           }
           const canvasWriteAdapter = canvasWriteFor(partition, frozen?.preferredSubscriptionId ?? "");
           if (canvasWriteAdapter) {
@@ -1570,7 +1764,9 @@ export function createProjectAgentExecutionCoordinator(
         while (true) {
           if (partition.active.size) return;
           const state = partition.host.getSnapshot(partition.binding);
-          const head = state.queue.find((item) => ["queued", "proposed", "running"].includes(item.status));
+          const head = state.queue.find(
+            (item) => ["queued", "proposed", "running"].includes(item.status) && item.paused !== true,
+          );
           if (!head || head.status !== "queued") return;
           const frozenRequest = partition.requests.get(head.turnId);
           if (!frozenRequest) return;
@@ -1697,11 +1893,16 @@ export function createProjectAgentExecutionCoordinator(
       timelineReads.delete(subscriptionId);
       timelineWrites.get(subscriptionId)?.dispose();
       timelineWrites.delete(subscriptionId);
-      if (![...subscriptions.values()].some((candidate) => candidate.partitionKey === subscription.partitionKey)) { productionRuns.get(subscription.partitionKey)?.dispose(); productionRuns.delete(subscription.partitionKey); }
+      skillWrites.get(subscriptionId)?.dispose();
+      skillWrites.delete(subscriptionId);
+      if (![...subscriptions.values()].some((candidate) => candidate.partitionKey === subscription.partitionKey)) { productionRuns.get(subscription.partitionKey)?.dispose(); productionRuns.delete(subscription.partitionKey); generationAdapters.get(subscription.partitionKey)?.dispose(); generationAdapters.delete(subscription.partitionKey); }
       phase4Surfaces.get(subscriptionId)?.dispose();
       phase4Surfaces.delete(subscriptionId);
+      skillReads.get(subscriptionId)?.dispose();
+      skillReads.delete(subscriptionId);
       proposalReceiptReaders.delete(subscriptionId);
     },
+    setGenerationAdapterFactory: (factory) => { generationAdapterFactory = factory; for (const [partitionKey, adapter] of generationAdapters) { adapter?.dispose(); generationAdapters.delete(partitionKey); } },
     subscriptionCount: () => subscriptions.size,
   });
 }

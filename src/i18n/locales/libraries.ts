@@ -106,6 +106,7 @@ export const zhLibraries = {
     builtinReadonlyAria: '内置技能，只读',
     builtinReadonly: '内置技能 · 只读',
     provider: { text: '文本', image: '图像', video: '视频' },
+    identity: '版本 {{version}} · #{{hash}}',
   },
   sidebar: {
     builtinCategory: {
@@ -263,6 +264,7 @@ export const enLibraries = {
     builtinReadonlyAria: 'Built-in skill, read-only',
     builtinReadonly: 'Built-in skill · Read-only',
     provider: { text: 'Text', image: 'Image', video: 'Video' },
+    identity: 'Version {{version}} · #{{hash}}',
   },
   sidebar: {
     builtinCategory: {

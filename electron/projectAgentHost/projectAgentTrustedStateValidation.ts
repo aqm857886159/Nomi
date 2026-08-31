@@ -1,5 +1,6 @@
 import type { ProjectBinding } from "../shared/projectBinding";
 import type { ProjectAgentChange, ProjectAgentHostState, ProjectAgentThread } from "../shared/projectAgentContracts";
+import { projectAgentApprovalPolicyOf, projectAgentWorkModeOf } from "../shared/projectAgentContracts";
 import { assertProjectAgentAssistantLifecycle } from "./projectAgentAssistantStateInvariant";
 import { stableProjectAgentJson } from "./projectAgentSnapshot";
 import { ProjectAgentStateError } from "./projectAgentStateError";
@@ -104,6 +105,14 @@ export function assertTrustedProjectAgentDelta(
           throw new ProjectAgentStateError("invalid_state");
         }
         continue;
+      case "queue-reordered":
+        if (
+          change.queueItemIds.length !== next.queue.length ||
+          change.queueItemIds.some((queueItemId, index) => next.queue[index]?.queueItemId !== queueItemId)
+        ) {
+          throw new ProjectAgentStateError("invalid_state");
+        }
+        continue;
       case "proposal-upserted":
         actual = next.proposalApprovals.find((approval) => approval.ref.approvalId === change.approval.ref.approvalId);
         described = change.approval;
@@ -155,8 +164,11 @@ export function assertTrustedProjectAgentDelta(
       queueItem.retryable !== turn.retryable ||
       queueItem.deviated !== turn.deviated ||
       queueItem.updatedAt !== turn.updatedAt ||
+      stableProjectAgentJson(projectAgentApprovalPolicyOf(queueItem.approvalPolicy)) !==
+        stableProjectAgentJson(projectAgentApprovalPolicyOf(turn.approvalPolicy)) ||
       stableProjectAgentJson(queueItem.contextRef) !== stableProjectAgentJson(turn.contextRef) ||
       stableProjectAgentJson(queueItem.model) !== stableProjectAgentJson(turn.model) ||
+      projectAgentWorkModeOf(queueItem.workMode) !== projectAgentWorkModeOf(turn.workMode) ||
       stableProjectAgentJson(queueItem.skillVersions) !== stableProjectAgentJson(turn.skillVersions) ||
       stableProjectAgentJson(queueItem.capabilityVersions) !== stableProjectAgentJson(turn.capabilityVersions)
     ) {

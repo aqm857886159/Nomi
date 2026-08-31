@@ -145,6 +145,17 @@ describe('storyboardPlanToCreateNodesArgs', () => {
     expect(shots[2]).toMatchObject({ modelKey: 'seedance-2', modeId: 'seedance-i2v' }) // 没选 → 默认模型+默认模式
   })
 
+  it('未指定模型且调用方没有 Nomi 默认值 → 保持未选择，不擅自套测试最低价模型', () => {
+    const plan: StoryboardPlan = {
+      title: '用户目标',
+      anchors: [],
+      shots: [{ index: 1, durationSec: 5, anchorIds: [], prompt: '镜一', shotKind: 'video' }],
+    }
+    const { nodes } = storyboardPlanToCreateNodesArgs(plan)
+    expect(nodes[0]).not.toHaveProperty('modelKey')
+    expect(nodes[0]).not.toHaveProperty('modeId')
+  })
+
   it('文本锚描述拼进引用它的镜头 prompt（不建边）', () => {
     const { nodes } = storyboardPlanToCreateNodesArgs(PLAN)
     const shot1 = nodes.find((n) => n.clientId === 'shot-1')!

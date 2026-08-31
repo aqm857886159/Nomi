@@ -254,6 +254,49 @@ describe("Run-owned semantic generation submission", () => {
     expect(JSON.parse(fs.readFileSync(envelopePath, "utf8"))).toMatchObject({ lastPoll: { status: "processing", raw: { progress: 42 } } });
   });
 
+  it("fails closed when a provider returns an unknown poll status", async () => {
+    const { root, repository } = setup();
+    const materialize = vi.fn(async () => ({ outputs: [{ kind: "image" as const, url: "https://cdn.example/image.png" }] }));
+    const materializeOutput = vi.fn(async () => ({
+      artifactId: "asset-unknown-status",
+      kind: "image" as const,
+      contentHash: "d".repeat(64),
+      projectRelativePath: "assets/generated/unknown-status.png",
+    }));
+    const runner = createProductionGenerationSubmission({
+      repository,
+      projectRoot: root,
+      immutableProjectUuid: "project-uuid-1",
+      projectGeneration: 1,
+      projectRevision: 0,
+      intentMacKey: "test-intent-key",
+      provider: {
+        providerId: "fixture-provider",
+        capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false, materialize: true },
+        buildRequest: (input) => input,
+        submit: vi.fn(async () => ({ providerTaskId: "provider-task-unknown-status" })),
+        query: vi.fn(async () => ({ status: "mystery_state", raw: { status: "mystery_state" } })),
+        materialize,
+      },
+      materializeOutput,
+      now: () => "2026-08-23T00:03:30.000Z",
+    });
+
+    await runner.start({ projectId: "project-1", operationId: "op-1" });
+    await expect(runner.poll({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({
+      providerStatus: "mystery_state",
+      nextAction: "attention",
+    });
+    expect(repository.read("project-1", "op-1")).toMatchObject({
+      jobs: [{ status: "needs_attention", providerStatus: "mystery_state", errorCode: "provider_status_unknown" }],
+    });
+    await expect(runner.materialize({ projectId: "project-1", operationId: "op-1" })).rejects.toMatchObject({
+      code: "materialization_failed",
+    });
+    expect(materialize).not.toHaveBeenCalled();
+    expect(materializeOutput).not.toHaveBeenCalled();
+  });
+
   it("materializes exactly one provider output through the Asset-owned receipt and is restart-idempotent", async () => {
     const { root, repository } = setup();
     const submit = vi.fn(async () => ({ providerTaskId: "provider-task-materialize" }));

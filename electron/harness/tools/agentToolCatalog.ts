@@ -23,6 +23,8 @@ import { canvasToolDescriptors } from "./canvasDescriptors";
 import { documentToolDescriptors } from "./documentDescriptors";
 import { productionRunToolDescriptors } from "./productionRunDescriptors";
 import { timelineToolDescriptors } from "./timelineDescriptors";
+import { skillToolDescriptors } from "./skillDescriptors";
+import { generationToolDescriptors } from "./generationDescriptors";
 
 export type AgentToolDescriptor = Readonly<{
   name: string;
@@ -54,7 +56,19 @@ const canvasWriteDescriptors = registryDescriptors(
   canvasWritePiDescriptionForAlias,
   canvasWritePiInputSchemaForAlias,
 );
-if (canvasWriteDescriptors.length !== 4) throw new Error("Missing canvas.write Pi Registry projections");
+const CANVAS_DOMAIN_DESCRIPTOR_NAMES = new Set<string>([
+  "propose_storyboard_plan",
+  "arrange_storyboard_to_timeline",
+  "create_staging_reference",
+  "create_camera_move",
+]);
+// These four descriptors retain their richer domain schemas/descriptions in
+// canvasDescriptors.ts.  The registry still owns their executable alias, but
+// the catalog must not expose duplicate names with a looser schema.
+const canvasWriteCoreDescriptors = canvasWriteDescriptors.filter(
+  ({ name }) => !CANVAS_DOMAIN_DESCRIPTOR_NAMES.has(name),
+);
+if (canvasWriteCoreDescriptors.length !== 4) throw new Error("Missing canvas.write Pi Registry projections");
 
 const canvasDeleteDescriptor: AgentToolDescriptor = {
   name: CANVAS_DELETE_CAPABILITY.aliases.pi,
@@ -65,7 +79,7 @@ const canvasDeleteDescriptor: AgentToolDescriptor = {
 };
 
 function canvasWriteDescriptorFor(name: string): AgentToolDescriptor {
-  const descriptor = canvasWriteDescriptors.find((candidate) => candidate.name === name);
+  const descriptor = canvasWriteCoreDescriptors.find((candidate) => candidate.name === name);
   if (!descriptor) throw new Error(`Missing canvas.write descriptor for ${name}`);
   return descriptor;
 }
@@ -95,11 +109,13 @@ export const agentToolCatalog = Object.freeze({
   ]),
   canvas: Object.freeze([
     ...Object.values(canvasToolDescriptors),
-    ...canvasWriteDescriptors,
+    ...canvasWriteCoreDescriptors,
     canvasDeleteDescriptor,
   ]),
   timeline: Object.freeze(Object.values(timelineToolDescriptors)),
   production: Object.freeze(Object.values(productionRunToolDescriptors)),
+  skills: Object.freeze(Object.values(skillToolDescriptors)),
+  generation: Object.freeze(Object.values(generationToolDescriptors)),
 });
 
 export const agentToolNames = Object.freeze({
@@ -107,6 +123,8 @@ export const agentToolNames = Object.freeze({
   canvas: Object.freeze(agentToolCatalog.canvas.map(({ name }) => name)),
   timeline: Object.freeze(agentToolCatalog.timeline.map(({ name }) => name)),
   production: Object.freeze(agentToolCatalog.production.map(({ name }) => name)),
+  skills: Object.freeze(agentToolCatalog.skills.map(({ name }) => name)),
+  generation: Object.freeze(agentToolCatalog.generation.map(({ name }) => name)),
 });
 
 export const agentToolProjection = Object.freeze({
@@ -119,6 +137,8 @@ export const agentToolProjection = Object.freeze({
   canvasAll: Object.freeze(agentToolCatalog.canvas.map(runtimeDescriptor)),
   timelineAll: Object.freeze(agentToolCatalog.timeline.map(runtimeDescriptor)),
   productionAll: Object.freeze(agentToolCatalog.production.map(runtimeDescriptor)),
+  skills: Object.freeze(agentToolCatalog.skills.map(runtimeDescriptor)),
+  generationAll: Object.freeze(agentToolCatalog.generation.map(runtimeDescriptor)),
 });
 
 export const productionCapabilityContracts = Object.freeze([

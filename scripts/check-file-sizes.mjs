@@ -46,7 +46,7 @@ const ALLOWLIST = {
   // shell as the sole UI owner while future work lowers these baselines.
   "electron/capabilityCore/verifiedCapabilityInvocation.ts": 1257,
   "electron/productionRun/productionRunService.ts": 806,
-  "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1707,
+  "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1702,
   "electron/projectAgentHost/projectAgentReducer.ts": 919,
   "src/workbench/NomiStudioApp.tsx": 908,
   // PR#21 白板节点引入（2026-06-25）：WhiteboardDrawingTool（1032）与 WhiteboardLeaferCanvas（3406）两巨壳

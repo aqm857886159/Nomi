@@ -13,7 +13,7 @@ import {
   productionGenerationProviderIdempotencyKey,
   type ProductionGenerationAuthorizationEnvelopeV1,
 } from "./productionGenerationAuthorization";
-import type { ShotPrice } from "./shotPricing";
+import { assertKnownShotPrice, type ShotPrice } from "./shotPricing";
 import type { ProductionGenerationShot, ProductionJob, ProductionRun } from "./productionRunTypes";
 
 type AuthorizationOperation = Readonly<{
@@ -114,9 +114,7 @@ export function prepareProductionGenerationAuthorization(input: Readonly<{
   const currency = "CNY";
   const jobs = units.map((unit) => {
     const price = input.resolveShotPrice(unit.contract);
-    if (!price.known) {
-      throw new Error(`Cannot authorize paid generation without a known price: ${unit.shotId}`);
-    }
+    assertKnownShotPrice(price, unit.shotId);
     const jobId = productionGenerationJobId(
       input.operation.operationId,
       unit.contract.contractHash,
@@ -245,7 +243,7 @@ export function prepareProductionGenerationReauthorization(input: Readonly<{
     throw new Error("Generation rework exceeds the Run attempt limit");
   }
   const price = input.resolveShotPrice(unit.contract);
-  if (!price.known) throw new Error("Cannot authorize paid generation without a known price");
+  assertKnownShotPrice(price, input.shotId ?? unit.contract.candidateId);
 
   const jobId = productionGenerationJobId(input.run.runId, unit.contract.contractHash, attempt, input.shotId);
   const providerIdempotencyKey = productionGenerationProviderIdempotencyKey(
@@ -343,7 +341,7 @@ export function prepareProductionGenerationContinuationAuthorization(input: Read
       const existing = input.run.jobs.find((job) => job.jobId === jobId);
       if (!existing || existing.status !== "authorized" || existing.providerTaskId) return [];
       const price = input.resolveShotPrice(contract);
-      if (!price.known) throw new Error(`Cannot authorize paid generation without a known price: ${shot.shotId}`);
+      assertKnownShotPrice(price, shot.shotId);
       const providerIdempotencyKey = productionGenerationProviderIdempotencyKey(
         input.run.runId,
         contract.contractHash,

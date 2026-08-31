@@ -8,7 +8,7 @@
 | 我要找… | 去这里 |
 |---|---|
 | **某个功能的方案/执行计划** | [`plan/`](plan/) → 先读 [`plan/INDEX.md`](plan/INDEX.md)（按主题分组的查找表）|
-| **跨阶段总纲 / master plan** | [`superpowers/plans/`](superpowers/plans/) → 先读 [Nomi 统一 Agent 总体方案](superpowers/plans/2026-08-24-unified-agent-master-plan.md)；Project Agent Host 续跑见 [Phase 6 handoff](superpowers/plans/2026-08-30-project-agent-host-phase6-handoff.md)，阶段状态以其链接的唯一路线图为准 |
+| **跨阶段总纲 / master plan** | [`superpowers/plans/`](superpowers/plans/) → 先读 [Nomi 统一 Agent 总体方案](superpowers/plans/2026-08-24-unified-agent-master-plan.md)；Project Agent Host 续跑见 [Phase 6 handoff](superpowers/plans/2026-08-30-project-agent-host-phase6-handoff.md)，当前暂停 checkpoint 见 [Phase 6 progress handoff](superpowers/plans/2026-08-31-project-agent-host-phase6-progress-handoff.md)，阶段状态以其链接的唯一路线图为准 |
 | **每个子系统现在真正跑的是什么**（防止把三个月前的方案当现状） | [`ARCHITECTURE-NOW.md`](ARCHITECTURE-NOW.md) |
 | **术语表：同一个东西的多个叫法（搜不到时先查这里）** | [`GLOSSARY.md`](GLOSSARY.md) |
 | **已拍板但还没交付的，都欠着什么** | [`DELIVERY-LEDGER.md`](DELIVERY-LEDGER.md)（生成物；`pnpm run ledger:brief` 看一行摘要）|

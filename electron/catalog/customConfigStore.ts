@@ -4,6 +4,7 @@ import {
   encryptCustomSecretValue,
   isSafeStorageAvailable,
 } from "./secrets";
+import { credentialModeForVendor, type CredentialMode } from "./builtinVendorSeeds";
 import type { CatalogState, Vendor } from "./types";
 
 export type CustomCallConfigPublicEntry = { name: string; hasValue: true };
@@ -67,8 +68,23 @@ export function applyPlainCustomConfig(
   }
 }
 
-export function publicVendor(vendor: Vendor): Vendor {
-  return { ...vendor, meta: withoutLegacyCustomConfig(vendor.meta) };
+export type PublicVendor = Vendor & { credentialMode?: CredentialMode };
+
+/**
+ * Renderer-safe vendor projection. Credential flow is derived from the
+ * immutable built-in seed rather than persisted/renderer metadata, so a
+ * catalog import cannot self-authorize a direct-key connection.
+ */
+export function publicVendor(vendor: Vendor): PublicVendor {
+  const credentialMode = credentialModeForVendor(vendor.key);
+  // A catalog file can predate this field (or be imported from an older
+  // renderer). Strip any persisted value before adding the code-derived one;
+  // otherwise a forged `credentialMode: direct-key` could cross IPC.
+  const projected = { ...vendor } as PublicVendor;
+  delete projected.credentialMode;
+  projected.meta = withoutLegacyCustomConfig(vendor.meta);
+  if (credentialMode) projected.credentialMode = credentialMode;
+  return projected;
 }
 
 /** Returns null while OS safe storage is unavailable so an explicit write can fail without touching disk. */

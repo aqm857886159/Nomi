@@ -32,13 +32,16 @@ import type { ApprovalReceiptAuthority } from './approvalReceipt'
 import { createRuntimeMcpGenerationPolicy, type McpGenerationPolicy } from './mcpGenerationPolicy'
 import type { DispatchContext } from './dispatcher'
 import { createGenerationPlanningHandler } from './mcpGenerationTools'
+import { planStoryboardFromScript } from './mcpStoryboardPlanner'
 import { createProductionGenerationOperationStore } from '../productionRun/productionGenerationOperationStore'
 import { createProductionGenerationSubmission } from '../productionRun/productionGenerationSubmission'
+import { createMultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
 import { prepareProductionGenerationAuthorization } from '../productionRun/prepareProductionGenerationAuthorization'
 import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
 import type { ModuleRegistry } from './moduleRegistry'
-import { createCatalogModuleRegistry } from './moduleCatalogBootstrap'
+import { createLiveGenerationRuntime } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
+import { markSingleShotAttention, markSingleShotCompleted, markSingleShotRunning } from '../productionRun/singleShotRunLifecycle'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
 import { readCatalog } from '../catalog/catalogStore'
 import { buildVideoModelCandidates, recommendVideoGeneration, videoArchetypeIdFromMeta } from '../shared/videoCapabilities'
@@ -50,6 +53,9 @@ import { createHeadlessCanvasReadExecutionRuntime, type CanvasReadExecutionRunti
 import { createMcpCanvasReadTransportAdapter } from './canvasReadTransportAdapters'
 import type { VerifiedProjectSessionBinding } from './projectSessionRuntime'
 import { createRunOwnedGenerationGateAuthority } from './runOwnedGenerationGateAuthority'
+import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
+import { startSemanticMultiShotBatch } from './mcpSemanticBatchStart'
+import { hasGenerationOperationProviderReadiness } from './generationOperationProviderReadiness'
 
 const productionRuns = getProductionRunService()
 
@@ -213,9 +219,18 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     /* 取不到系统 locale → 保持 zh-CN 缺省 */
   }
 
-  const providerBootstrap = createGenerationProviderBootstrap()
+  const fixtureBaseUrlOverride = process.env.NOMI_E2E_PRODUCTION_FIXTURE === '1'
+    ? process.env.NOMI_E2E_APIMART_BASE_URL
+    : undefined
+  const liveGenerationRuntime = createLiveGenerationRuntime({
+    bootstrap: (state, options) => createGenerationProviderBootstrap(state, {
+      ...options,
+      ...(fixtureBaseUrlOverride ? { fixtureBaseUrlOverride } : {}),
+    }),
+  })
+  const readProviderBootstrap = liveGenerationRuntime.readBootstrap
   const outputMaterializer = createGenerationOutputMaterializer()
-  const generationRegistry = authorities.generationModuleRegistry ?? createCatalogModuleRegistry(undefined, { readinessByProvider: providerBootstrap.readinessByProvider })
+  const generationRegistry = authorities.generationModuleRegistry ?? liveGenerationRuntime.registry
   const videoModelCandidates = buildVideoModelCandidates(readCatalog().models
     .filter((model) => model.enabled && model.kind === 'video')
     .map((model) => ({
@@ -242,10 +257,16 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
       registry: generationRegistry,
       operations: operationStore,
       videoModelCandidates,
+      defaultModelForTaskKind: (taskKind) => readGenerationDefaultModelResolver()(taskKind),
+      planStoryboard: planStoryboardFromScript,
       recommendVideoGeneration,
       resolveModelPricing,
-      providerReadiness: ({ providerId }) => providerBootstrap.readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ['configured_provider'] },
+      providerReadiness: ({ providerId }) => {
+        const providerBootstrap = readProviderBootstrap()
+        return providerBootstrap.readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ['configured_provider'] }
+      },
       prepareAuthorization: ({ lease, operation, contract, multiShot }) => {
+        const providerBootstrap = readProviderBootstrap()
         const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
         if (!projectRecord || !Number.isInteger(projectRecord.revision)) throw new Error('Generation authorization requires the current project revision')
         const authorizationRun = productionRuns.repository.read(lease.projectId, operation.operationId)
@@ -262,11 +283,18 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         })
       },
       start: async (operation, lease) => {
-        const provider = providerBootstrap.providers.find((candidate) => candidate.providerId === operation.contract?.providerId)
+        const providerBootstrap = readProviderBootstrap()
         const projectRoot = resolveWorkspaceProjectDir(lease.projectId, getWorkspaceRepositoryDeps())
         const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
-        if (!provider || !projectRoot || !operation.contract || !projectRecord || !Number.isInteger(projectRecord.revision)) return { operationId: operation.operationId, state: operation.state, nextAction: 'provider_not_configured' }
-        return createProductionGenerationSubmission({
+        // The first shot can be an image anchor while the actual video shots
+        // use a different provider.  Check the complete included plan before
+        // starting the scheduler so a missing video provider is never hidden
+        // by operation.contract.providerId.
+        if (!hasGenerationOperationProviderReadiness(operation, providerBootstrap.providers)
+          || !projectRoot || !operation.contract || !projectRecord || !Number.isInteger(projectRecord.revision)) {
+          return { operationId: operation.operationId, state: operation.state, nextAction: 'provider_not_configured' }
+        }
+        const submission = createProductionGenerationSubmission({
           repository: productionRuns.repository,
           projectRoot,
           immutableProjectUuid: lease.immutableProjectUuid,
@@ -275,9 +303,50 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
           intentMacKey: ensureCapabilitySigningKey('generation-intent'),
           providers: providerBootstrap.providers,
           materializeOutput: ({ projectId, providerTaskId, output }) => outputMaterializer.materialize({ projectId, providerTaskId, output }),
-        }).start({ projectId: lease.projectId, operationId: operation.operationId })
+        })
+        // A semantic multi-shot operation must enter the durable batch
+        // scheduler. Calling submission.start() without shotId would submit
+        // only the top-level contract while falsely reporting the whole plan
+        // as running (the old stdio-only gap). The helper persists the
+        // sealed→submitted transition before any per-shot provider call.
+        if (operation.shots && operation.shots.length > 0) {
+          return startSemanticMultiShotBatch(operation, {
+            readRun: (projectId, runId) => productionRuns.repository.read(projectId, runId),
+            submitPlan: (run) => productionRuns.command(lease.projectId, operation.operationId, {
+              commandId: `generation.submit:${operation.operationId}:${run.generationPlan?.planHash ?? run.generationPlan?.contract?.contractHash ?? 'plan'}`,
+              expectedRevision: run.revision,
+              type: 'generation.submit',
+              payload: {},
+              issuedAt: new Date().toISOString(),
+            }),
+            createScheduler: (run) => {
+              void run
+              return createMultiShotBatchScheduler({
+                repository: productionRuns.repository,
+                submission,
+                projectId: lease.projectId,
+                runId: operation.operationId,
+                perShotPrice: (shot) => (shot.contract ? resolveShotPrice(shot.contract) : { known: false }),
+                onBatchComplete: () => productionRuns.advanceSemanticProduction(lease.projectId, operation.operationId),
+              })
+            },
+            driveScheduler: (scheduler) => {
+              void scheduler.runToQuiescence().catch((error) => {
+                console.warn('[nomi:production] stdio semantic batch scheduler failed:', error instanceof Error ? error.message : String(error))
+              })
+            },
+          })
+        }
+        const started = await submission.start({ projectId: lease.projectId, operationId: operation.operationId })
+        // Keep the stdio transport on the same durable lifecycle as the GUI:
+        // accepting a provider task is an active Run, not a still-ready draft.
+        if (!operation.shots || operation.shots.length === 0) {
+          markSingleShotRunning(productionRuns.repository, lease.projectId, operation.operationId)
+        }
+        return started
       },
       reconcile: async (operation, outcome, lease) => {
+        const providerBootstrap = readProviderBootstrap()
         if (outcome === 'not_found') return { operationId: operation.operationId, outcome, nextAction: 'manual_review' }
         const provider = providerBootstrap.providers.find((candidate) => candidate.providerId === operation.contract?.providerId)
         const projectRoot = resolveWorkspaceProjectDir(lease.projectId, getWorkspaceRepositoryDeps())
@@ -296,9 +365,18 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         })
         try {
           const polled = await submission.poll({ projectId: lease.projectId, operationId: operation.operationId })
-          return polled.nextAction === 'materialize'
-            ? await submission.materialize({ projectId: lease.projectId, operationId: operation.operationId })
-            : polled
+          if (polled.nextAction === 'materialize') {
+            const materialized = await submission.materialize({ projectId: lease.projectId, operationId: operation.operationId })
+            markSingleShotCompleted(productionRuns.repository, lease.projectId, operation.operationId, {
+              jobId: materialized.jobId,
+              artifactId: materialized.artifactId,
+            })
+            return materialized
+          }
+          if (polled.nextAction === 'attention') {
+            markSingleShotAttention(productionRuns.repository, lease.projectId, operation.operationId, polled.jobId)
+          }
+          return polled
         } catch (error) {
           const code = (error as { code?: unknown })?.code
           if (code === 'provider_materialization_unsupported' || code === 'materialization_failed') return { operationId: operation.operationId, outcome, nextAction: 'manual_review', recoveryNotice: '供应商任务已完成，但结果还没有安全落到 Nomi 项目；请到供应商核对或稍后重试。' }

@@ -18,6 +18,8 @@ export type SkillListItemDto = {
   manifestError: string | null
   /** 'user'=可写用户目录（可删/可导出）；'builtin'=安装随附（只读、禁删）。 */
   origin: 'builtin' | 'user'
+  packageVersion: string
+  contentHash: string
 }
 
 export type SkillImportResultDto = {

@@ -5,6 +5,7 @@ import {
   type AgentChatHistory,
   type AgentToolProfile,
 } from "./agentChatContracts";
+import { PROJECT_AGENT_WORK_MODES } from "../shared/projectAgentContracts";
 import { assertAgentContextBinding } from "./context/contextBinding";
 import { projectIdFromSessionKey } from "../events/eventLogRepository";
 import {
@@ -16,6 +17,7 @@ import {
 import type { RuntimeToolCall, RuntimeToolDescriptor } from "./runtime/runtimePort";
 import { capabilityAliasesFor, capabilityOperationAliasesFor } from "../shared/agentCapabilities/registry";
 import { restrictToolsToSkillCapabilities } from "../skills/skillCapability";
+import { freezeAgentContextSnapshot } from "../shared/agentContextSnapshot";
 
 export function captureAgentHistory(history: AgentChatHistory): AgentChatHistory {
   if (!history || typeof history !== "object") throw new Error("Explicit Agent history scope is required");
@@ -30,6 +32,12 @@ export function captureAgentChatRequest(input: AgentChatRequest): AgentChatReque
   if (!input || !AGENT_CHAT_CAPABILITIES.includes(input.capability))
     throw new Error("Explicit valid Agent capability is required");
   if (typeof input.prompt !== "string") throw new Error("Agent prompt must be text");
+  if (
+    input.workMode !== undefined &&
+    (typeof input.workMode !== "string" || !(PROJECT_AGENT_WORK_MODES as readonly string[]).includes(input.workMode))
+  ) {
+    throw new Error("Invalid Agent work mode");
+  }
   if (input.toolProfile !== undefined && !AGENT_TOOL_PROFILES.includes(input.toolProfile))
     throw new Error("Invalid Agent tool profile");
   const history = captureAgentHistory(input.history);
@@ -38,10 +46,7 @@ export function captureAgentChatRequest(input: AgentChatRequest): AgentChatReque
   const knownProjects = [input.projectId, input.canvasProjectId].filter((id): id is string => id !== undefined);
   if (knownProjects.some((id) => typeof id !== "string" || !id.trim() || id !== id.trim()))
     throw new Error("Invalid explicit Agent project");
-  if (
-    agentToolsForCapability(input.capability).some((tool) => CANVAS_TOOL_NAMES.has(tool.name)) &&
-    knownProjects.length === 0
-  ) {
+  if (agentToolsForRequest(input).some((tool) => CANVAS_TOOL_NAMES.has(tool.name)) && knownProjects.length === 0) {
     throw new Error("Explicit Agent project is required for canvas tools");
   }
   if (knownProjects.some((id) => id !== knownProjects[0])) throw new Error("Agent project bindings disagree");
@@ -57,11 +62,20 @@ export function captureAgentChatRequest(input: AgentChatRequest): AgentChatReque
   ) {
     throw new Error("Agent selectedNodeIds must be explicit node identifiers");
   }
+  // Approval/spend is a Host-owned policy snapshot.  A renderer/runtime
+  // request must never smuggle a same-named field into Pi as if it were an
+  // authority grant; the canonical turn/queue records carry that state.
+  const { approvalPolicy: _ignoredApprovalPolicy, ...requestWithoutHostPolicy } = input as AgentChatRequest & {
+    approvalPolicy?: unknown;
+  };
   return {
-    ...input,
+    ...requestWithoutHostPolicy,
     history,
     selectedNodeIds: [...(input.selectedNodeIds ?? [])],
     attachments: input.attachments?.map((attachment) => ({ ...attachment })),
+    contextSnapshot: input.contextSnapshot
+      ? freezeAgentContextSnapshot(input.contextSnapshot)
+      : undefined,
   };
 }
 
@@ -73,8 +87,8 @@ export function agentToolsForCapability(capability: AgentChatRequest["capability
         ? agentToolProjection.documentRead.concat(agentToolProjection.documentAll.find(({ name }) => name === "author_skill")
           ? [agentToolProjection.documentAll.find(({ name }) => name === "author_skill")!]
           : [])
-        : capability === "canvas-agent"
-          ? [...agentToolProjection.canvasAll, ...agentToolProjection.timelineAll]
+      : capability === "canvas-agent"
+          ? [...agentToolProjection.canvasAll, ...agentToolProjection.timelineAll, ...agentToolProjection.generationAll]
           : capability === "canvas-refine"
             ? agentToolProjection.canvasCore.filter(({ name }) => name === "set_node_prompt")
             : capability === "storyboard"
@@ -119,12 +133,14 @@ const TIMELINE_TOOL_NAMES = new Set([
   "undo_timeline_edit",
 ]);
 const PRODUCTION_TOOL_NAMES = new Set<string>(agentToolNames.production);
+const GENERATION_TOOL_NAMES = new Set<string>(agentToolNames.generation);
 
 const DESTRUCTIVE_INTENT = /删除|移除|清理|整理|delete|remove|tidy|clean\s+up/i;
 const STORYBOARD_INTENT = /分镜|镜头卡|镜头设计|站位|姿势|运镜|storyboard|shot\s*card|blocking|camera\s*move/i;
 const TIMELINE_INTENT = /时间线|时间轴|剪辑|裁剪|片段|轨道|重排|导出|预览|timeline|trim|split|track|export|preview/i;
 const PRODUCTION_INTENT = /\d+\s*(?:分钟|分|min(?:ute)?s?)|成片|短片|广告片|制作|剧本|长任务|production|feature\s*video/i;
 const MEDIA_INSPECTION_INTENT = /素材|媒体|音频|波形|时长|编码|查找|搜索|media|asset|waveform|duration|codec|search/i;
+const GENERATION_INTENT = /生成|生图|生视频|图片|头像|视频|动画|重生成|generate|image|avatar|video|animate|render/i;
 
 /**
  * Select a small, stable tool profile from the user's goal before the model sees a turn.
@@ -136,7 +152,13 @@ export function resolveAgentToolProfile(input: Readonly<{
   toolProfile?: AgentToolProfile;
 }>): AgentToolProfile {
   if (input.toolProfile) return input.toolProfile;
-  if (input.capability === "creation-editor" || input.capability === "creation-chat") return "creation";
+  if (input.capability === "creation-editor" || input.capability === "creation-chat") {
+    if (PRODUCTION_INTENT.test(input.prompt)) return "production";
+    if (TIMELINE_INTENT.test(input.prompt)) return "timeline";
+    if (STORYBOARD_INTENT.test(input.prompt)) return "storyboard";
+    if (GENERATION_INTENT.test(input.prompt)) return "generation";
+    return "creation";
+  }
   if (input.capability !== "canvas-agent") return "generation";
   if (PRODUCTION_INTENT.test(input.prompt)) return "production";
   if (TIMELINE_INTENT.test(input.prompt)) return "timeline";
@@ -172,18 +194,44 @@ export function agentToolsForRequest(
   request: AgentChatRequest,
   requestedCapabilities?: readonly string[],
 ): RuntimeToolDescriptor[] {
-  const tools = agentToolsForCapabilityAndSkill(request.capability, requestedCapabilities);
-  if (request.capability !== "canvas-agent") return tools;
+  const baseTools = agentToolsForCapabilityAndSkill(request.capability, requestedCapabilities);
+  const skillTools = request.capability === "single-shot" ? [] : agentToolProjection.skills;
+  const profile = resolveAgentToolProfile(request);
+  // Creation remains the document owner, but a natural-language generation or
+  // production goal must still receive the semantic Host vocabulary. This is
+  // a projection only: execution continues through the same project lease and
+  // domain adapters, so no second document/canvas history is created.
+  if (request.capability !== "canvas-agent") {
+    if (request.capability === "creation-editor" || request.capability === "creation-chat") {
+      const profileTools: RuntimeToolDescriptor[] = [];
+      if (["generation", "storyboard", "timeline", "production"].includes(profile)) profileTools.push(...agentToolProjection.generationAll);
+      if (["storyboard", "production"].includes(profile)) profileTools.push(...agentToolProjection.canvasCore);
+      if (["timeline", "production"].includes(profile)) profileTools.push(...agentToolProjection.timelineAll);
+      if (profile === "production") profileTools.push(...agentToolProjection.productionAll);
+      const projectedProfileTools = requestedCapabilities === undefined
+        ? profileTools
+        : restrictToolsToSkillCapabilities(profileTools, requestedCapabilities);
+      // `load_skill` is the explicit resource loader, not a capability that a
+      // Skill may grant. Keep it visible so the model can load the selected
+      // resource while the requested capability list still shrinks writes.
+      return [...baseTools, ...projectedProfileTools, ...skillTools];
+    }
+    return [...baseTools, ...skillTools];
+  }
   const productionTools = agentToolCatalog.production
     .filter((descriptor) => requestedCapabilities === undefined || productionCapabilityContracts.some((contract) =>
       requestedCapabilities.includes(contract.id)
       && [...capabilityAliasesFor(contract.id, "pi"), ...capabilityOperationAliasesFor(contract.id, "pi")].includes(descriptor.name),
     ))
     .map(({ name, description, parameters }) => ({ name, description, schema: parameters }));
-  const allTools = [...tools, ...productionTools];
-  const profile = resolveAgentToolProfile(request);
+  const allTools = [...baseTools, ...productionTools, ...skillTools];
   const names = new Set<string>(CANVAS_CORE_TOOL_NAMES);
+  for (const name of agentToolNames.skills) names.add(name);
   if (profile === "generation" || profile === "storyboard" || profile === "production") {
+    // Generation is a semantic Host surface, not a canvas side effect. Keep
+    // the full planning vocabulary together so a natural-language goal can
+    // progress from context → draft → preview → one confirmation card → run.
+    for (const name of GENERATION_TOOL_NAMES) names.add(name);
     if (MEDIA_INSPECTION_INTENT.test(request.prompt)) for (const name of MEDIA_READ_TOOL_NAMES) names.add(name);
     if (DESTRUCTIVE_INTENT.test(request.prompt)) for (const name of CANVAS_DESTRUCTIVE_TOOL_NAMES) names.add(name);
   }

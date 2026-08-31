@@ -8,6 +8,7 @@
 
 import crypto from 'node:crypto'
 
+import { desktopT } from '../i18n'
 import { settlePauseIfQuiet } from './productionRunControl'
 import { adoptedGenerationShotNodeIds, buildQaRetryPlans, buildQaStageOutcome, type QaVerifyResponse } from './productionQaVerdict'
 import type { ProductionRunRepository } from './productionRunRepository'
@@ -97,11 +98,45 @@ export function isShotGate(gate: Pick<ProductionRun['gates'][number], 'gateId' |
   return gate.scope === 'job_set' && gate.gateId.startsWith('gate-shot-')
 }
 
+/**
+ * Semantic multi-shot runs are the only runs that may continue from the batch
+ * scheduler into QA/assembly.  The legacy playbook writer never creates a
+ * generation plan with `shots[]`; keeping this predicate explicit prevents a
+ * future legacy job from accidentally entering the semantic continuation.
+ */
+export function isSemanticMultiShotRun(run: Pick<ProductionRun, 'playbook' | 'generationPlan'>): boolean {
+  return run.playbook.name === 'generation.single-shot' && (run.generationPlan?.shots?.length ?? 0) > 0
+}
+
+/**
+ * A scheduler job can reach `adopted` even when the renderer failed to land
+ * its generated node/artifact.  Assembly must never proceed from that partial
+ * projection (otherwise we export an empty timeline while claiming success).
+ */
+export function semanticGenerationReadiness(run: Pick<ProductionRun, 'jobs' | 'artifacts'>): { ready: true } | { ready: false; reason: string } {
+  const jobs = run.jobs.filter((job) => job.stageId === 'generate' && job.status === 'adopted')
+  if (jobs.length === 0) return { ready: false, reason: desktopT('production.generationNoAdoptedShots') }
+  for (const job of jobs) {
+    if (!job.nodeId?.trim()) return { ready: false, reason: desktopT('production.generationMissingCanvasNode', { jobId: job.jobId }) }
+    const artifact = run.artifacts.find((candidate) =>
+      candidate.stageId === 'generate'
+      && candidate.jobId === job.jobId
+      && (candidate.status === 'ready' || candidate.status === 'adopted')
+      && typeof candidate.projectRelativePath === 'string'
+      && candidate.projectRelativePath.trim().length > 0,
+    )
+    if (!artifact) return { ready: false, reason: desktopT('production.generationMissingArtifact', { jobId: job.jobId }) }
+  }
+  return { ready: true }
+}
+
 export type DriverOps = {
   proposeDirections: (run: ProductionRun) => Promise<void>
   proposeScript: (run: ProductionRun) => Promise<void>
   proposeStoryboard: (run: ProductionRun) => Promise<void>
   driveGeneration: (run: ProductionRun) => Promise<void>
+  /** Continue a completed semantic batch through the owning QA/assembly pipeline. */
+  advanceSemanticProduction: (projectId: string, runId: string) => Promise<void>
   driveExport: (run: ProductionRun) => Promise<void>
   driveReconciliation: (projectId: string, runId: string, jobId: string) => Promise<void>
 }
@@ -117,21 +152,33 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
   /**
    * W1.5 qa 阶段：对本次已 adopted 的生成镜头发 production.verify-shots 给渲染层（复用现成
    * verifyShotsAndReport 判分+对账闭环），把 per-shot 判决落成 qa.verdict 事件 + qa 阶段摘要。
-   * qa 是「生成后判分呈现」不是新门：不弹确认、不改状态机、绝不阻断 run——渲染层不可达 / 判分失败 →
-   * 诚实降级为一条「审片跳过」事件，qa 仍标 completed 继续走 assemble（同 direction 拟案失败的降级策略）。
+   * qa 是「生成后判分呈现」不是新门：不弹确认、不改状态机。旧
+   * direction/legacy 流程在渲染层不可达时可记录「审片跳过」；语义多镜
+   * 交付则必须拿到验证结果，失败进入 needs_attention，禁止假装完成。
    */
   async function runQaStage(projectId: string, runId: string, incoming: ProductionRun): Promise<ProductionRun> {
     let current = incoming
     const shotNodeIds = adoptedGenerationShotNodeIds(current)
     let response: QaVerifyResponse | null = null
+    let verificationFailed = false
     if (shotNodeIds.length > 0) {
       try {
         response = await requestRenderer('production.verify-shots', { projectId, runId, shotNodeIds }, 10 * 60_000) as QaVerifyResponse
       } catch (error) {
-        // 渲染层不可达 / 判分异常 → 不抛、不阻断，落「审片跳过」（buildQaStageOutcome 对 null 的降级）。
+        verificationFailed = true
         console.error('[nomi:production] shot verify failed (qa skipped):', error instanceof Error ? error.message : String(error))
         response = null
       }
+    }
+    if (verificationFailed && isSemanticMultiShotRun(current)) {
+      current = requireRun(projectId, runId)
+      current = executeInternal(projectId, runId, current, 'stage.upsert', {
+        stage: stageValue(current, 'qa', { status: 'needs_attention', qaSummary: '审片服务不可用，未继续组装；请重试审片' }),
+      }, `driver-${runId}-qa-attention-${current.revision}`).run
+      if (current.status === 'running') {
+        current = executeInternal(projectId, runId, current, 'run.status', { status: 'needs_attention' }, `driver-${runId}-qa-attention-run-${current.revision}`).run
+      }
+      return current
     }
     const outcome = buildQaStageOutcome(shotNodeIds.length === 0 ? { skipped: true, skipReason: '本次没有可审片的已生成镜头' } : response)
     current = requireRun(projectId, runId)
@@ -354,10 +401,17 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
     inFlight.add(run.runId)
     try {
       let current = requireRun(run.projectId, run.runId)
+      const semanticMultiShot = isSemanticMultiShotRun(current)
       if (current.status === 'ready') {
         current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'running' }, `driver-${run.runId}-generation-start`).run
       }
-      const retiredWriterJobs = current.jobs.filter((job) => job.status === 'authorized' || job.status === 'submit_intent_persisted')
+      // `authorized`/`submit_intent_persisted` are retired only on the old
+      // production.* writer path.  Semantic scheduler jobs are intentionally
+      // in those states immediately before dispatch and must be allowed to
+      // reach the provider.
+      const retiredWriterJobs = semanticMultiShot
+        ? []
+        : current.jobs.filter((job) => job.status === 'authorized' || job.status === 'submit_intent_persisted')
       if (retiredWriterJobs.length > 0) {
         for (const job of retiredWriterJobs) {
           current = executeInternal(run.projectId, run.runId, current, 'job.status', {
@@ -376,13 +430,47 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
       }
       current = settlePauseIfQuiet(repository, run.projectId, run.runId, requireRun(run.projectId, run.runId))
       if (current.status !== 'running') return
-      if (current.jobs.some((job) => !['adopted', 'cancelled_remote', 'detached'].includes(job.status))) return
+      if (semanticMultiShot) {
+        // Materialization deliberately leaves a job `ready`: the artifact is
+        // durable, while adoption is the ProductionRun owner's explicit
+        // acknowledgement that the result is eligible for QA/assembly.  Do
+        // this transition here (never in the provider adapter) so a repeated
+        // callback is harmless and no second ledger/provider write occurs.
+        for (const job of current.jobs.filter((candidate) => candidate.stageId === 'generate' && candidate.status === 'ready')) {
+          current = executeInternal(run.projectId, run.runId, current, 'job.status', {
+            jobId: job.jobId,
+            status: 'adopted',
+          }, `driver-${run.runId}-adopt-${job.jobId}`).run
+        }
+      }
+      const generationJobs = semanticMultiShot
+        ? current.jobs.filter((job) => job.stageId === 'generate')
+        : current.jobs
+      if (generationJobs.some((job) => !['adopted', 'cancelled_remote', 'detached'].includes(job.status))) return
+      if (semanticMultiShot) {
+        const readiness = semanticGenerationReadiness(current)
+        if (!readiness.ready) {
+          current = executeInternal(run.projectId, run.runId, current, 'stage.upsert', {
+            stage: stageValue(current, 'generate', {
+              status: 'needs_attention',
+              qaSummary: `生成未完成：${readiness.reason}`,
+            }),
+          }, `driver-${run.runId}-generation-incomplete-${current.revision}`).run
+          if (current.status !== 'needs_attention') {
+            executeInternal(run.projectId, run.runId, current, 'run.status', {
+              status: 'needs_attention',
+            }, `driver-${run.runId}-generation-incomplete-run-${current.revision}`)
+          }
+          return
+        }
+      }
       current = executeInternal(run.projectId, run.runId, current, 'stage.upsert', { stage: stageValue(current, 'generate', { status: 'completed', completedAt: new Date().toISOString() }) }, `driver-${run.runId}-stage-generate-${current.revision}`).run
       const qaWasCompleted = current.stages.find((stage) => stage.stageId === 'qa')?.status === 'completed'
       if (!qaWasCompleted) {
         current = executeInternal(run.projectId, run.runId, current, 'run.stage', { stageId: 'qa' }, `driver-${run.runId}-stage-qa-start-${current.revision}`).run
         current = executeInternal(run.projectId, run.runId, current, 'stage.upsert', { stage: stageValue(current, 'qa', { status: 'running', startedAt: new Date().toISOString() }) }, `driver-${run.runId}-stage-qa-running-${current.revision}`).run
         current = await runQaStage(run.projectId, run.runId, current)
+        if (current.status !== 'running') return
       }
       if (current.jobs.some((job) => job.status === 'authorized' && job.retryCount !== undefined)) {
         // The current driver is single-flight. Ask its finally block to re-enter once the
@@ -414,6 +502,18 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
         if (latest) void driveGeneration(latest)
       }
     }
+  }
+
+  /**
+   * Scheduler completion callback target.  It is intentionally narrow and
+   * semantic-only: legacy production.* runs keep their retired-writer
+   * behavior, while a semantic batch re-enters the same driver that owns QA,
+   * timeline assembly, and the export approval gate.
+   */
+  async function advanceSemanticProduction(projectId: string, runId: string): Promise<void> {
+    const current = requireRun(projectId, runId)
+    if (!isSemanticMultiShotRun(current)) return
+    await driveGeneration(current)
   }
 
   async function driveExport(run: ProductionRun): Promise<void> {
@@ -516,5 +616,5 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
     }
   }
 
-  return { proposeDirections, proposeScript, proposeStoryboard, driveGeneration, driveExport, driveReconciliation }
+  return { proposeDirections, proposeScript, proposeStoryboard, driveGeneration, advanceSemanticProduction, driveExport, driveReconciliation }
 }

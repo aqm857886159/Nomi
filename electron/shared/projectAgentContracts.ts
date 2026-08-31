@@ -18,6 +18,51 @@ export const PROJECT_AGENT_STATUSES = [
 
 export type ProjectAgentStatus = (typeof PROJECT_AGENT_STATUSES)[number];
 
+/**
+ * User-facing execution posture. This axis describes how much initiative the
+ * Agent should take while shaping a task; it is intentionally independent
+ * from approval/spend policy, which remains an explicit Host-owned snapshot.
+ */
+export const PROJECT_AGENT_WORK_MODES = ["ask", "guided", "balanced", "auto"] as const;
+export type ProjectAgentWorkMode = (typeof PROJECT_AGENT_WORK_MODES)[number];
+
+/** Safe default for legacy turns that predate the resident work-mode picker. */
+export const DEFAULT_PROJECT_AGENT_WORK_MODE: ProjectAgentWorkMode = "balanced";
+
+export function projectAgentWorkModeOf(value: ProjectAgentWorkMode | undefined): ProjectAgentWorkMode {
+  return value ?? DEFAULT_PROJECT_AGENT_WORK_MODE;
+}
+
+/**
+ * Host-owned approval choices for a queued turn.  The two axes are kept
+ * independent deliberately: `mode` controls how much of the workflow pauses
+ * for review, while `spend` controls whether a known in-budget cost may pass
+ * without another spend prompt.  This is a snapshot of the user's choice,
+ * not an authority grant; the domain/ProductionRun gate remains authoritative.
+ */
+export const PROJECT_AGENT_APPROVAL_MODES = ["step", "safe-auto", "project"] as const;
+export type ProjectAgentApprovalMode = (typeof PROJECT_AGENT_APPROVAL_MODES)[number];
+
+export const PROJECT_AGENT_SPEND_POLICIES = ["confirm", "within-budget"] as const;
+export type ProjectAgentSpendPolicy = (typeof PROJECT_AGENT_SPEND_POLICIES)[number];
+
+export type ProjectAgentApprovalPolicy = Readonly<{
+  mode: ProjectAgentApprovalMode;
+  spend: ProjectAgentSpendPolicy;
+}>;
+
+/** Safe, backwards-compatible default for records written before this field existed. */
+export const DEFAULT_PROJECT_AGENT_APPROVAL_POLICY: ProjectAgentApprovalPolicy = Object.freeze({
+  mode: "step",
+  spend: "confirm",
+});
+
+export function projectAgentApprovalPolicyOf(
+  value: ProjectAgentApprovalPolicy | undefined,
+): ProjectAgentApprovalPolicy {
+  return value ?? DEFAULT_PROJECT_AGENT_APPROVAL_POLICY;
+}
+
 export function isProjectAgentLiveStatus(status: ProjectAgentStatus): boolean {
   return status === "drafting" || status === "proposed" || status === "queued" || status === "running";
 }
@@ -57,6 +102,11 @@ export const PROJECT_AGENT_MUTATION_TYPES = [
   "thread.activate",
   "turn.enqueue",
   "queue.edit",
+  "queue.delete",
+  "queue.move_up",
+  "queue.move_down",
+  "queue.pause",
+  "queue.resume",
   "turn.start",
   "assistant.append",
   "turn.transition",
@@ -160,6 +210,10 @@ export type ProjectAgentTurn = ProjectAgentRecordBase &
     threadId: string;
     executionToken: string;
     model: ProjectAgentVersionRef;
+    /** Optional for legacy snapshots; defaults to the balanced resident posture. */
+    workMode?: ProjectAgentWorkMode;
+    /** Optional for legacy snapshots; new turns freeze both approval axes. */
+    approvalPolicy?: ProjectAgentApprovalPolicy;
     skillVersions: readonly ProjectAgentVersionRef[];
     capabilityVersions: readonly ProjectAgentVersionRef[];
     contextRef: ProjectAgentContextRef;
@@ -251,12 +305,18 @@ export type ProjectAgentQueueItem = Omit<ProjectAgentRecordBase, "createdAt"> &
     preconditions: PreconditionSet;
     contextRef: ProjectAgentContextRef;
     model: ProjectAgentVersionRef;
+    /** Optional for legacy snapshots; mirrors the paired Turn work mode. */
+    workMode?: ProjectAgentWorkMode;
+    /** Optional for legacy snapshots; when absent it means the safe default. */
+    approvalPolicy?: ProjectAgentApprovalPolicy;
     skillVersions: readonly ProjectAgentVersionRef[];
     capabilityVersions: readonly ProjectAgentVersionRef[];
     policyRevision: number;
     attachmentRefs: readonly ProjectAgentAttachmentRef[];
     originSurface: ProjectAgentOriginSurfaceRef;
     enqueuedAt: string;
+    /** Pausing a queued item does not alter its Turn status or execute/cancel it. */
+    paused?: boolean;
   }>;
 
 export type ProjectAgentProposalApproval = Readonly<{
@@ -276,6 +336,7 @@ export type ProjectAgentChange =
   | Readonly<{ kind: "item-removed"; itemId: string }>
   | Readonly<{ kind: "queue-upserted"; queueItem: ProjectAgentQueueItem }>
   | Readonly<{ kind: "queue-removed"; queueItemId: string }>
+  | Readonly<{ kind: "queue-reordered"; queueItemIds: readonly string[] }>
   | Readonly<{ kind: "proposal-upserted"; approval: ProjectAgentProposalApproval }>
   | Readonly<{ kind: "proposal-removed"; approvalId: string }>;
 
@@ -426,6 +487,41 @@ export type ProjectAgentMutation =
         queueItemId: string;
         userItemId: string;
         text: string;
+        occurredAt: string;
+      }>
+    >
+  | ProjectAgentMutationEnvelope<
+      "queue.delete",
+      Readonly<{
+        queueItemId: string;
+        occurredAt: string;
+      }>
+    >
+  | ProjectAgentMutationEnvelope<
+      "queue.move_up",
+      Readonly<{
+        queueItemId: string;
+        occurredAt: string;
+      }>
+    >
+  | ProjectAgentMutationEnvelope<
+      "queue.move_down",
+      Readonly<{
+        queueItemId: string;
+        occurredAt: string;
+      }>
+    >
+  | ProjectAgentMutationEnvelope<
+      "queue.pause",
+      Readonly<{
+        queueItemId: string;
+        occurredAt: string;
+      }>
+    >
+  | ProjectAgentMutationEnvelope<
+      "queue.resume",
+      Readonly<{
+        queueItemId: string;
         occurredAt: string;
       }>
     >

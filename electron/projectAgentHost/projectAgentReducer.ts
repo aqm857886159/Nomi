@@ -12,6 +12,7 @@ import type {
   ProjectAgentThread,
   ProjectAgentTurn,
 } from "../shared/projectAgentContracts";
+import { projectAgentApprovalPolicyOf, projectAgentWorkModeOf } from "../shared/projectAgentContracts";
 import { ProjectAgentReducerError, type ProjectAgentReducerErrorCode } from "./projectAgentReducerContract";
 import { assertCanAppendProjectAgentItem } from "./projectAgentItemSemantics";
 import {
@@ -48,6 +49,7 @@ import {
   reduceProjectAgentAssistantTerminal,
 } from "./projectAgentAssistantFinalReduction";
 import { reduceProjectAgentQueueEdit } from "./projectAgentQueueEditReduction";
+import { reduceProjectAgentQueueMutation } from "./projectAgentQueueMutationReduction";
 import { reduceProjectAgentThreadActivation } from "./projectAgentThreadActivation";
 import { reduceProjectAgentTurnStart } from "./projectAgentTurnStartReduction";
 import {
@@ -283,6 +285,9 @@ export function reduceProjectAgentMutation(
           queueItem.updatedAt !== turn.updatedAt ||
           stableProjectAgentJson(queueItem.contextRef) !== stableProjectAgentJson(turn.contextRef) ||
           stableProjectAgentJson(queueItem.model) !== stableProjectAgentJson(turn.model) ||
+          projectAgentWorkModeOf(queueItem.workMode) !== projectAgentWorkModeOf(turn.workMode) ||
+          stableProjectAgentJson(projectAgentApprovalPolicyOf(queueItem.approvalPolicy)) !==
+            stableProjectAgentJson(projectAgentApprovalPolicyOf(turn.approvalPolicy)) ||
           stableProjectAgentJson(queueItem.skillVersions) !== stableProjectAgentJson(turn.skillVersions) ||
           stableProjectAgentJson(queueItem.capabilityVersions) !== stableProjectAgentJson(turn.capabilityVersions) ||
           turns.some((value) => value.turnId === turn.turnId) ||
@@ -325,6 +330,18 @@ export function reduceProjectAgentMutation(
         items = edited.items;
         queue = edited.queue;
         changes.push(...edited.changes);
+        break;
+      }
+      case "queue.delete":
+      case "queue.move_up":
+      case "queue.move_down":
+      case "queue.pause":
+      case "queue.resume": {
+        const reduced = reduceProjectAgentQueueMutation(current, mutation);
+        turns = reduced.turns;
+        items = reduced.items;
+        queue = reduced.queue;
+        changes.push(...reduced.changes);
         break;
       }
       case "turn.start": {

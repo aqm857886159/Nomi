@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { CatalogState } from "./types";
+import { applyBuiltinSeeds } from "./seedBuiltins";
 import {
   sanitizeRendererMappingMutation,
   sanitizeRendererModelMutation,
   sanitizeRendererVendorMutation,
   sanitizeRendererVendorApiKeyMutation,
+  canPromoteDirectKey,
   sanitizeRendererCatalogImport,
 } from "./rendererCatalogMutation";
 
@@ -89,6 +91,48 @@ describe("renderer Catalog mutation boundary", () => {
       apiKey: "sk-test",
       enabled: false,
     });
+  });
+
+  it("lets the shipped APIMart contract unlock from Settings, but only when the main policy grants it", () => {
+    const catalog = applyBuiltinSeeds({
+      version: 1,
+      revision: 1,
+      vendors: [],
+      models: [],
+      mappings: [],
+      apiKeysByVendor: {},
+    } as CatalogState, "now").state;
+
+    expect(canPromoteDirectKey(catalog, "apimart")).toBe(true);
+    expect(sanitizeRendererVendorApiKeyMutation(
+      { apiKey: "sk-test", enabled: true },
+      { allowDirectKey: true },
+    )).toEqual({ apiKey: "sk-test", enabled: true });
+    // The sanitizer is fail-closed without the state-derived policy bit; a
+    // renderer cannot self-authorize by merely adding enabled=true.
+    expect(sanitizeRendererVendorApiKeyMutation({ apiKey: "sk-test", enabled: true })).toEqual({
+      apiKey: "sk-test",
+      enabled: false,
+    });
+    const apimartVendor = catalog.vendors.find((vendor) => vendor.key === "apimart");
+    const apimartModel = catalog.models.find((model) => model.vendorKey === "apimart");
+    expect(apimartVendor?.baseUrlHint).toBe("https://api.apimart.ai");
+    expect(apimartModel).toBeDefined();
+    apimartVendor!.providerKind = "openai-compatible";
+    expect(canPromoteDirectKey(catalog, "apimart")).toBe(true);
+
+    apimartModel!.meta = { adapter: { state: "verified", activeRevision: "r1" } };
+    expect(canPromoteDirectKey(catalog, "apimart")).toBe(false);
+    apimartModel!.meta = undefined;
+    apimartVendor!.baseUrlHint = "https://proxy.example";
+    expect(canPromoteDirectKey(catalog, "apimart")).toBe(false);
+  });
+
+  it("keeps an APIMart row behind certification when its adapter ownership exists", () => {
+    expect(sanitizeRendererVendorApiKeyMutation(
+      { apiKey: "sk-test", enabled: true },
+      { allowDirectKey: false },
+    ).enabled).toBe(false);
   });
 
   it("imports renderer packages as unverified drafts instead of trusting serialized publication state", () => {

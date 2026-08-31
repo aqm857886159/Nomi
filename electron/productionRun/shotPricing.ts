@@ -57,6 +57,27 @@ export type PricingResolver = (providerId: string, modelId: string) => ModelPric
 /** A derived per-shot price: an honest known amount, or explicitly unknown. Never a fabricated 0. */
 export type ShotPrice = { known: true; amount: number } | { known: false };
 
+/**
+ * A paid gate cannot be issued when the catalog cannot prove a price.  Keep
+ * this error at the pricing boundary so preview may still surface an honest
+ * `{ known: false }`, while every authorization caller shares the same
+ * fail-closed code/message instead of silently treating unknown as zero.
+ */
+export class GenerationPricingUnavailableError extends Error {
+  readonly code = "generation_pricing_unknown" as const;
+  readonly shotId: string;
+
+  constructor(shotId: string) {
+    super(`Cannot authorize paid generation without a known price: ${shotId}`);
+    this.name = "GenerationPricingUnavailableError";
+    this.shotId = shotId;
+  }
+}
+
+export function assertKnownShotPrice(price: ShotPrice, shotId: string): asserts price is { known: true; amount: number } {
+  if (!price.known) throw new GenerationPricingUnavailableError(shotId);
+}
+
 export type ShotPriceInput = {
   candidate: Pick<PlanCandidate, "providerId" | "modelId" | "parameters">;
   resolvePricing: PricingResolver;

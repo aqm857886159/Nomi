@@ -64,7 +64,7 @@ export default function CreationPromptPicker({
 
   const refresh = React.useCallback(() => {
     try {
-      setSkills(listWorkbenchSkills().filter((s) => s.isPlaybook))
+      setSkills(listWorkbenchSkills())
     } catch {
       setSkills([])
     }

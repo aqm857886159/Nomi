@@ -6,6 +6,7 @@ import { captureAgentChatRequest, captureAgentHistory } from '../harness/agentCh
 import type { AgentChatErrorCode, AgentChatHistoryRequest, AgentChatResponse, AgentChatStartRequest, AgentChatToolDecision, AgentChatWireEvent } from '../harness/agentChatContracts';
 import type { RuntimeToolCall } from '../harness/runtime/runtimePort';
 import type { PiCanvasReadIpcCapture, PiCanvasReadTransportAdapter } from '../capabilityCore/canvasReadTransportAdapters';
+import { createPiSkillReadTransportAdapter, type PiSkillReadTransportAdapter } from '../capabilityCore/skillReadTransportAdapters';
 import { projectIdFromSessionKey } from '../events/eventLogRepository';
 import { SurfacePortWireError } from '../shared/surfacePortBinding';
 
@@ -13,7 +14,7 @@ const CONFIRM_TIMEOUT_MS = 10 * 60_000;
 type Owner = { contents: WebContents; frame: WebFrameMain; webContentsId: number; processId: number; routingId: number; origin: string };
 type Pending = { settle(decision: AgentChatToolDecision): void };
 type Session = { id: string; owner: Owner; controller: AbortController; pending: Map<string, Pending>;
-  canvasRead: PiCanvasReadTransportAdapter; documentAlive: boolean; cleanup(): void };
+  canvasRead: PiCanvasReadTransportAdapter; skillRead: PiSkillReadTransportAdapter; documentAlive: boolean; cleanup(): void };
 const sessions = new Map<string, Session>();
 const usedIds = new WeakMap<WebContents, Set<string>>();
 let modulePromise: Promise<typeof import('./agentChatV2')> | undefined;
@@ -57,6 +58,7 @@ function send(session: Session, event: AgentChatWireEvent): void {
 function cancel(session: Session): void {
   session.controller.abort();
   session.canvasRead.dispose();
+  session.skillRead.dispose();
   for (const pending of session.pending.values()) pending.settle({ ok: false, message: 'Agent request cancelled' });
 }
 
@@ -80,12 +82,15 @@ function bindLifecycle(session: Session): void {
     contents.removeListener('destroyed', gone);
     for (const pending of session.pending.values()) pending.settle({ ok: false, message: 'Agent request settled' });
     session.canvasRead.dispose();
+    session.skillRead.dispose();
   };
 }
 
 async function awaitConfirmation(session: Session, call: RuntimeToolCall, signal: AbortSignal): Promise<AgentChatToolDecision> {
   if (signal.aborted || session.controller.signal.aborted || !session.documentAlive) return Promise.resolve({ ok: false, message: 'Agent request cancelled' });
   try {
+    const skillDecision = await session.skillRead.tryExecute(call, signal);
+    if (skillDecision) return skillDecision;
     const capabilityDecision = await session.canvasRead.tryExecute(call, signal);
     if (capabilityDecision) return capabilityDecision;
   } catch {
@@ -216,7 +221,7 @@ export function registerAgentChatV2Ipc(deps: Readonly<{ canvasRead: PiCanvasRead
       projectId: requestProjectId,
     }, id);
     ids.add(id); usedIds.set(owner.contents, ids);
-    const session: Session = { id, owner, controller: new AbortController(), pending: new Map(), canvasRead, documentAlive: true, cleanup: () => {} };
+    const session: Session = { id, owner, controller: new AbortController(), pending: new Map(), canvasRead, skillRead: createPiSkillReadTransportAdapter(), documentAlive: true, cleanup: () => {} };
     sessions.set(id, session);
     bindLifecycle(session);
     observe(() => beginTurnTrace(id, request as unknown as Record<string, unknown>));

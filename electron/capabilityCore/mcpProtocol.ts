@@ -675,14 +675,39 @@ export function createMcpProtocol(transport: McpTransport) {
     }
     if (method === 'prompts/list') {
       const res = (await invokeForRequest('skills.list', {})) as { skills?: SkillSummaryFrame[] } | null
-      // name 用 directoryName（斜杠命令友好，如 CodeBuddy 会转成 /director-cinematography）；无参数。
-      const prompts = (res?.skills || []).map((s) => ({ name: s.directoryName, title: s.name, description: s.description }))
+      // name 用 directoryName（斜杠命令友好，如 CodeBuddy 会转成 /director-cinematography）。
+      // 版本/hash 一并返回：客户端可以把 prompt 绑定到与 resources 相同的内容快照，避免
+      //「列表看到 A、get 却加载了后来写入的 B」的漂移。旧客户端仍可只传 name，get 会在
+      // 同一次请求内解析当前元数据；显式传入身份时则严格校验。
+      const prompts = (res?.skills || []).map((s) => ({
+        name: s.directoryName,
+        title: s.name,
+        description: s.description,
+        packageVersion: s.packageVersion,
+        contentHash: s.contentHash,
+      }))
       reply(id, { prompts })
       return
     }
     if (method === 'prompts/get') {
       const name = String(params?.name || '')
-      const content = (await invokeForRequest('skills.read', { name })) as SkillContentFrame | null
+      const listed = (await invokeForRequest('skills.list', {})) as { skills?: SkillSummaryFrame[] } | null
+      const meta = (listed?.skills || []).find((skill) => skill.directoryName === name || skill.name === name)
+      if (!meta) {
+        replyError(id, -32602, `未找到技能提示词: ${name}`)
+        return
+      }
+      const requestedVersion = typeof params?.packageVersion === 'string' ? params.packageVersion : ''
+      const requestedHash = typeof params?.contentHash === 'string' ? params.contentHash : ''
+      if ((requestedVersion && requestedVersion !== meta.packageVersion) || (requestedHash && requestedHash !== meta.contentHash)) {
+        replyError(id, -32602, `技能提示词已变化，请刷新列表后重试: ${name}`)
+        return
+      }
+      const content = (await invokeForRequest('skills.read', {
+        directoryName: meta.directoryName,
+        packageVersion: meta.packageVersion,
+        contentHash: meta.contentHash,
+      })) as SkillContentFrame | null
       if (!content?.body) {
         replyError(id, -32602, `未找到技能提示词: ${name}`)
         return

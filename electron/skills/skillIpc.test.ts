@@ -6,12 +6,16 @@ const state = vi.hoisted(() => ({
   importPackage: vi.fn(),
   inspectZip: vi.fn(),
   parseZip: vi.fn(),
+  readRecords: vi.fn(),
 }));
 
 vi.mock("electron", () => ({ ipcMain: { handle: state.handle } }));
 vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: state.assertTrustedSender }));
 vi.mock("./skillCapability", () => ({ deriveSkillNeeds: vi.fn(() => ({ providers: [] })) }));
-vi.mock("./skillStore", () => ({ readSkillRecords: vi.fn(() => []) }));
+vi.mock("./skillStore", () => ({
+  readSkillRecords: state.readRecords,
+  isSkillSelectableInWorkbench: vi.fn(() => true),
+}));
 vi.mock("./skillPackage", () => ({
   deleteUserSkill: vi.fn(),
   exportSkillPackageByName: vi.fn(),
@@ -22,10 +26,11 @@ vi.mock("./skillZipImport", () => ({
   parseSkillZipPackage: state.parseZip,
 }));
 
-import { registerSkillIpc } from "./skillIpc";
+import { listSkillsForRenderer, registerSkillIpc } from "./skillIpc";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  state.readRecords.mockReturnValue([]);
   state.inspectZip.mockReturnValue({ kind: "not_zip" });
   state.importPackage.mockReturnValue({ ok: true, dirName: "skill", skillName: "skill", manifest: null });
 });
@@ -54,5 +59,24 @@ describe("Skill import IPC authority", () => {
     await expect(handler({ sender: "foreign" }, { kind: "zip" })).rejects.toThrow("untrusted");
     expect(state.inspectZip).not.toHaveBeenCalled();
     expect(state.importPackage).not.toHaveBeenCalled();
+  });
+
+  it("projects discoverable Skills with source and content identity", () => {
+    state.readRecords.mockReturnValue([{
+      name: "brand.promo",
+      directoryName: "brand-promo",
+      description: "品牌视频",
+      manifest: { label: "品牌视频", author: "Nomi", stages: [] },
+      manifestError: undefined,
+      origin: "builtin",
+      packageVersion: "nomi-skill-v1",
+      contentHash: "a".repeat(64),
+    }]);
+    expect(listSkillsForRenderer()).toEqual([expect.objectContaining({
+      name: "brand.promo",
+      origin: "builtin",
+      packageVersion: "nomi-skill-v1",
+      contentHash: "a".repeat(64),
+    })]);
   });
 });

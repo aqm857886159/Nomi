@@ -79,10 +79,14 @@ export function captureCanvasWriteBatchRawEvidence(
   snapshot: GenerationCanvasSnapshot,
   input?: Exclude<CanvasWriteInput, { operation: 'set_node_prompt' }>,
 ): CanvasWriteBatchRawEvidence {
-  const requestedIds =
-    input?.operation === 'tidy_canvas'
-      ? []
-      : (input?.edges ?? []).flatMap((edge) => [edge.sourceClientId, edge.targetClientId])
+  const requestedIds = (() => {
+    if (!input || input.operation === 'tidy_canvas' || input.operation === 'propose_storyboard_plan') return []
+    if (input.operation === 'arrange_storyboard_to_timeline') return [...input.nodeIds]
+    if (input.operation === 'create_staging_reference' || input.operation === 'create_camera_move') {
+      return input.shotClientId ? [input.shotClientId] : []
+    }
+    return (input.edges ?? []).flatMap((edge) => [edge.sourceClientId, edge.targetClientId])
+  })()
   const knownNodeIds = new Set(snapshot.nodes.map((node) => node.id))
   const resolvedReferences = Array.from(new Set(requestedIds)).flatMap((requestedId) => {
     const nodeId = resolveCanvasToolNodeId(requestedId)
@@ -339,6 +343,25 @@ export async function executeCanvasWriteTarget(
       affectedEdgeIds: createdEdgeIds,
       connectedCount: typeof result.connectedCount === 'number' ? result.connectedCount : createdEdgeIds.length,
       skippedEdges: Array.isArray(result.skippedEdges) ? result.skippedEdges : [],
+    } satisfies CanvasWriteResult
+  }
+  // Storyboard/staging/camera actions are domain-owned by applyCanvasToolCall,
+  // but they still travel through the same canvas.write proposal/receipt
+  // boundary.  Return the domain result inside a small canonical envelope so
+  // the main executor can validate it instead of treating an approved call as
+  // a generic no-op.
+  if (
+    input.operation === 'propose_storyboard_plan' ||
+    input.operation === 'arrange_storyboard_to_timeline' ||
+    input.operation === 'create_staging_reference' ||
+    input.operation === 'create_camera_move'
+  ) {
+    return {
+      applied: true,
+      proposalId: outcome.proposalId,
+      operation: input.operation,
+      result: outcome.results[0] ?? null,
+      reconciliation,
     } satisfies CanvasWriteResult
   }
   const categoryId = input.categoryId ?? 'shots'

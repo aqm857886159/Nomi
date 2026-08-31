@@ -5,6 +5,8 @@ import type {
   CapturedCanvasReadSnapshotHandleWire,
   SurfacePortBindingWire,
 } from '../shared/surfacePortBinding';
+import type { AgentContextSnapshot } from '../shared/agentContextSnapshot';
+import type { ProjectAgentWorkMode } from '../shared/projectAgentContracts';
 
 /** One SDK-free wire contract shared by main, preload and renderer. */
 export const AGENT_CHAT_CAPABILITIES = [
@@ -41,10 +43,14 @@ export interface AgentChatRequest {
   skillName?: string;
   chatContext?: unknown;
   mode?: string;
+  /** User-facing execution posture; never grants authority or replaces Host policy. */
+  workMode?: ProjectAgentWorkMode;
   temperature?: number;
   agentModelKey?: string;
   agentVendorKey?: string;
   attachments?: AgentChatAttachment[];
+  /** Immutable resident selection captured at send time; never inferred by the runtime. */
+  contextSnapshot?: AgentContextSnapshot;
   /** Host-captured tool projection; renderer input cannot grant capabilities. */
   toolProfile?: AgentToolProfile;
 }

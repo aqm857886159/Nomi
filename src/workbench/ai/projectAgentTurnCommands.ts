@@ -7,12 +7,18 @@ import type {
   ProjectAgentThread,
   ProjectAgentTurn,
   ProjectAgentUserItem,
+  ProjectAgentApprovalPolicy,
+  ProjectAgentWorkMode,
   ProjectBinding,
   TargetRef,
   PreconditionSet,
 } from '../../../electron/shared/projectAgentContracts'
 import type { CapturedCanvasReadSnapshotHandleWire } from '../../../electron/shared/surfacePortBinding'
-import { isProjectAgentLiveStatus } from '../../../electron/shared/projectAgentContracts'
+import {
+  DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
+  DEFAULT_PROJECT_AGENT_WORK_MODE,
+  isProjectAgentLiveStatus,
+} from '../../../electron/shared/projectAgentContracts'
 import { createProjectAgentContextBinding } from '../../../electron/projectAgentHost/projectAgentContextBinding'
 import { projectAgentClient } from './projectAgentClient'
 import { projectAgentProjectionStore } from './projectAgentProjectionStore'
@@ -32,6 +38,10 @@ export type ProjectAgentTurnCommandInput = ProjectAgentTurnTarget &
     threadTitle?: string
     turnId?: string
     attachmentClaims?: readonly ProjectAgentAttachmentClaim[]
+    /** User-facing execution posture; approval/spend policy remains independent. */
+    workMode?: ProjectAgentWorkMode
+    /** Explicit Host approval/spend snapshot; omitted values keep the safe default. */
+    approvalPolicy?: ProjectAgentApprovalPolicy
     /** Main-sealed production canvas read admission; consumed once by Host IPC. */
     capturedCanvasReadSnapshot?: CapturedCanvasReadSnapshotHandleWire
   }>
@@ -98,6 +108,10 @@ function buildRecords(
     ? Object.freeze([{ id: input.request.skillKey, version: 1 }])
     : Object.freeze([])
   const capabilityVersions = Object.freeze([{ id: input.request.capability, version: 1 }])
+  const workMode = input.workMode ?? DEFAULT_PROJECT_AGENT_WORK_MODE
+  const approvalPolicy = input.approvalPolicy
+    ? Object.freeze({ mode: input.approvalPolicy.mode, spend: input.approvalPolicy.spend })
+    : DEFAULT_PROJECT_AGENT_APPROVAL_POLICY
   const userItem = Object.freeze({
     itemId: id('item-user'),
     threadId: thread.threadId,
@@ -115,6 +129,8 @@ function buildRecords(
     threadId: thread.threadId,
     executionToken,
     model,
+    workMode,
+    approvalPolicy,
     skillVersions,
     capabilityVersions,
     contextRef,
@@ -133,6 +149,8 @@ function buildRecords(
     preconditions: input.preconditions ?? {},
     contextRef,
     model,
+    workMode,
+    approvalPolicy,
     skillVersions,
     capabilityVersions,
     policyRevision: 1,
@@ -142,6 +160,7 @@ function buildRecords(
     status: 'queued' as const,
     retryable: false,
     deviated: false,
+    paused: false,
     updatedAt: now,
   })
   return Object.freeze({ thread, turn, userItem, queueItem })
@@ -154,6 +173,12 @@ export async function enqueueProjectAgentTurn(
   const subscriptionId = projectAgentProjectionStore.getState().subscriptionId
   if (!snapshot || !subscriptionId) throw new Error('project_agent_unavailable')
   const records = buildRecords(input, snapshot)
+  // Approval/spend belongs to the Host turn/queue snapshot.  Keep the
+  // renderer request projection incapable of carrying a second authority
+  // field, even when a stale caller sends one at runtime.
+  const { approvalPolicy: _ignoredApprovalPolicy, ...requestWithoutHostPolicy } = input.request as AgentChatRequest & {
+    approvalPolicy?: unknown
+  }
   const result = await projectAgentClient.command({
     subscriptionId,
     clientCommandId: id('ui-enqueue'),
@@ -161,7 +186,11 @@ export async function enqueueProjectAgentTurn(
     type: 'turn.enqueue',
     payload: {
       ...records,
-      request: { ...input.request, history: { kind: 'ephemeral' as const } },
+      request: {
+        ...requestWithoutHostPolicy,
+        history: { kind: 'ephemeral' as const },
+        workMode: records.turn.workMode,
+      },
       ...(input.capturedCanvasReadSnapshot
         ? { capturedCanvasReadSnapshot: { ...input.capturedCanvasReadSnapshot } }
         : {}),

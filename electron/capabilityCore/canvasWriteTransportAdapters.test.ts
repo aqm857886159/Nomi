@@ -8,6 +8,7 @@ import type {
 import { createMainCapabilityExecutorRegistry, type CanvasWritePort } from "./capabilityExecutorRegistry";
 import { createCanvasReadSurfaceRegistry, createSurfaceOwnerAuthority } from "./canvasReadSurfaceRegistry";
 import { createPiCanvasWriteTransportAdapter } from "./canvasWriteTransportAdapters";
+import { reprepareEffectiveCall } from "../projectAgentHost/projectAgentApprovalHelpers";
 
 const RAW_EVIDENCE: CanvasWriteRawEvidence = {
   node: {
@@ -51,8 +52,23 @@ async function setup(rawEvidence: unknown = RAW_EVIDENCE) {
   const binding = await registry.commitCanvasRead(owner, { projectId: "project-a", suspension });
   const capturedPort = registry.captureCanvasReadPort(owner, binding);
   const capture = vi.fn(async () => structuredClone(rawEvidence));
-  const write = vi.fn<CanvasWritePort["write"]>(async ({ input, receiptProposalId }) =>
-    (input as { operation?: string }).operation === "tidy_canvas"
+  const write = vi.fn<CanvasWritePort["write"]>(async ({ input, receiptProposalId }) => {
+    const operation = (input as { operation?: string }).operation;
+    if (
+      operation === "propose_storyboard_plan" ||
+      operation === "arrange_storyboard_to_timeline" ||
+      operation === "create_staging_reference" ||
+      operation === "create_camera_move"
+    ) {
+      return {
+        applied: true,
+        proposalId: receiptProposalId,
+        operation,
+        result: { persisted: true, operation },
+        reconciliation: { ok: true, deviationCount: 0 },
+      };
+    }
+    return operation === "tidy_canvas"
       ? {
           applied: true,
           proposalId: receiptProposalId,
@@ -68,8 +84,8 @@ async function setup(rawEvidence: unknown = RAW_EVIDENCE) {
           operation: "set_node_prompt",
           affectedNodeIds: ["node-real"],
           reconciliation: { ok: true, deviationCount: 0 },
-        },
-  );
+        };
+  });
   const port: CanvasWritePort = { capture, write };
   const executor = createMainCapabilityExecutorRegistry({
     resolveCanvasReadPort: async () => ({ read: async () => ({}) }),
@@ -182,6 +198,118 @@ describe("canvas.write Pi transport", () => {
       ...approval,
       signal: expect.any(AbortSignal),
     });
+  });
+
+  it("routes storyboard-side aliases through the canonical approved write path", async () => {
+    const batchEvidence: CanvasWriteBatchRawEvidence = {
+      nodes: [
+        {
+          id: "node-real",
+          kind: "video",
+          title: "Shot",
+          prompt: "old",
+          locked: false,
+          categoryId: "shots",
+          groupId: null,
+          position: { x: 0, y: 0 },
+          model: RAW_EVIDENCE.node.model,
+          currentResult: null,
+        },
+      ],
+      edges: [],
+      groups: [],
+      resolvedReferences: [{ requestedId: "node-real", nodeId: "node-real" }],
+    };
+    const test = await setup(batchEvidence);
+    const signal = new AbortController().signal;
+    const prepared = await test.adapter.prepare(
+      {
+        toolCallId: "tool-camera",
+        toolName: "create_camera_move",
+        args: { shotClientId: "node-real", move: "push_in" },
+      },
+      signal,
+    );
+    expect(prepared?.invocation.target).toEqual({ kind: "canvas", nodeIds: ["node-real"] });
+    const approval = {
+      receiptProposalId: "receipt-camera",
+      approvalId: "approval-camera",
+      actionHash: prepared!.invocation.actionHash,
+    };
+    await expect(test.adapter.execute(prepared!, approval, signal)).resolves.toMatchObject({
+      ok: true,
+      result: {
+        applied: true,
+        operation: "create_camera_move",
+        result: { persisted: true, operation: "create_camera_move" },
+      },
+    });
+    expect(test.write).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-prepares an approved generation card with vendor and variant fields", async () => {
+    const batchEvidence: CanvasWriteBatchRawEvidence = {
+      nodes: [
+        {
+          id: "node-real",
+          kind: "video",
+          title: "Shot",
+          prompt: "old",
+          locked: false,
+          categoryId: "shots",
+          groupId: null,
+          position: { x: 0, y: 0 },
+          model: { modelKey: null, vendorKey: null, archetypeId: null, modeId: null, variantId: null },
+          currentResult: null,
+        },
+      ],
+      edges: [],
+      groups: [],
+      resolvedReferences: [],
+    };
+    const test = await setup(batchEvidence);
+    const signal = new AbortController().signal;
+    const originalCall = {
+      toolCallId: "tool-generation-card",
+      toolName: "create_canvas_nodes",
+      args: {
+        summary: "Create a generation card",
+        nodes: [{
+          clientId: "video-1",
+          kind: "video",
+          title: "Shot",
+          prompt: "original prompt",
+          modelKey: "seedance-2",
+          vendor: "kie",
+          modelVendor: "kie",
+          modeId: "t2v",
+          variantId: "standard",
+          params: { resolution: "720p" },
+        }],
+      },
+    };
+    const prepared = await test.adapter.prepare(originalCall, signal);
+    expect(prepared).not.toBeNull();
+
+    const editedArgs = {
+      ...originalCall.args,
+      nodes: [{ ...originalCall.args.nodes[0], prompt: "edited prompt", variantId: "fast" }],
+    };
+    const effective = await reprepareEffectiveCall(
+      originalCall,
+      { ok: true, effectiveArgs: editedArgs, overridesDelta: { nodes: editedArgs.nodes } },
+      prepared!,
+      (call) => test.adapter.prepare(call, signal),
+    );
+
+    expect(effective.ok).toBe(true);
+    if (!effective.ok) return;
+    expect(effective.call.args).toEqual(editedArgs);
+    expect(effective.prepared.invocation.input).toMatchObject({
+      operation: "create_canvas_nodes",
+      nodes: editedArgs.nodes,
+    });
+    expect(test.capture).toHaveBeenCalledTimes(2);
   });
 
   it("rejects malformed raw evidence and mismatched approval authority before execute dispatch", async () => {

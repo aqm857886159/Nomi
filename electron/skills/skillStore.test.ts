@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   findSkillRecord,
+  isSkillSelectableInWorkbench,
   isSkillVisibleTo,
+  isSkillVisibleToMcp,
   listSkillSummaries,
+  listSkillSummariesForMcp,
   normalizeSkillLookupKey,
   readSkillContent,
+  readSkillContentForMcp,
   type SkillRecord,
 } from "./skillStore";
 
@@ -87,9 +91,31 @@ describe("Skill audience visibility", () => {
     expect(readSkillContent(publicBuiltin.directoryName, "mcp", records)?.body).toContain("craft.camera");
     expect(readSkillContent(hiddenPrefixed.directoryName, "mcp", records)).toBeNull();
     expect(readSkillContent(userClaimingMcp.name, "mcp", records)).toBeNull();
+    expect(readSkillContent("craft-camera", "mcp", records)?.name).toBe("craft.camera");
   });
 
   it("does not let external reads use the internal fuzzy-prefix lookup", () => {
     expect(readSkillContent(`${publicBuiltin.name}.extra`, "mcp", records)).toBeNull();
+  });
+
+  it("exposes the same user/private records only to a verified local MCP connection", () => {
+    expect(isSkillVisibleToMcp(userClaimingMcp, "public")).toBe(false);
+    expect(isSkillVisibleToMcp(userClaimingMcp, "local-authenticated")).toBe(true);
+    expect(listSkillSummariesForMcp("local-authenticated", records)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: userClaimingMcp.name, contentHash: userClaimingMcp.contentHash }),
+      ]),
+    );
+    expect(readSkillContentForMcp(userClaimingMcp.name, "local-authenticated", records)?.body).toContain("user.claim");
+  });
+});
+
+describe("Workbench skill picker visibility", () => {
+  it("shows creative built-ins and user skills while hiding implementation routing skills", () => {
+    expect(isSkillSelectableInWorkbench(record("director.action", "director-action"))).toBe(true);
+    expect(isSkillSelectableInWorkbench(record("writer.screenwriter", "writer-screenwriter"))).toBe(true);
+    expect(isSkillSelectableInWorkbench(record("workbench.generation", "workbench-generation"))).toBe(false);
+    expect(isSkillSelectableInWorkbench(record("creation-edit", "creation-edit"))).toBe(false);
+    expect(isSkillSelectableInWorkbench(record("user.private", "user-private", { origin: "user" }))).toBe(true);
   });
 });

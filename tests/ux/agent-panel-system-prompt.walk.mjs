@@ -142,12 +142,13 @@ try {
   // 不睡固定时长——等舞台真的挂上来（expectVisible 自带轮询/超时）。
   await expectVisible(win.locator('.generation-canvas-v2__stage').first(), '生成画布舞台')
 
-  // ② 打开右侧助手栏（launcher 用原生 DOM click，避开 actionability 抖动）
-  await win.evaluate(() => {
-    const btn = document.querySelector('.generation-canvas-v2-assistant__launcher')
-    if (btn) btn.click()
-  })
-  const composer = win.locator('[aria-label="给生成助手发送消息"]').first()
+  // ② 进入统一 resident shell。它可能按用户偏好已经展开，也可能显示
+  // 收起胶囊；两种状态都从同一个 data contract 进入，旧画布 launcher 已删除。
+  const resident = win.locator('[data-agent-resident][data-agent-surface="generation"]').first()
+  await expectVisible(resident, '生成区 resident Agent')
+  const collapsed = resident.locator('[data-agent-resident-collapsed="true"]')
+  if (await collapsed.isVisible().catch(() => false)) await clickOrFail(collapsed, '展开生成区 Agent')
+  const composer = resident.locator('[data-agent-composer] textarea').first()
   // 同上：等输入框真的出现，别拿 sleep 当「面板已展开」的信号。
   await expectVisible(composer, '助手输入框')
   await snap(win, 'assistant-open')

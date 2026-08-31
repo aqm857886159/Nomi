@@ -22,6 +22,10 @@ export const APIMART_VENDOR_SEED = {
   baseUrl: "https://api.apimart.ai",
   authType: "bearer" as const,
   authHeader: "Authorization",
+  // APIMart is a curated, code-owned connection: its published model/mapping
+  // contracts are already shipped with Nomi, so Settings → APIMart only needs
+  // an encrypted key.  This does not apply to user-created/custom adapters.
+  credentialMode: "direct-key" as const,
 } as const;
 
 /** apimart 的 status 动词 → 我们的归一态（与 kie 不同：apimart 用 pending/processing/completed/...）。 */

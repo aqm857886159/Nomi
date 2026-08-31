@@ -11,6 +11,7 @@ function assertCollectionDelta<T extends object>(
   upserts: readonly T[],
   removedIds: readonly string[],
   readId: (value: T) => string,
+  options: Readonly<{ allowReorder?: boolean }> = {},
 ): void {
   const previousById = new Map(previous.map((value) => [readId(value), value]));
   const nextById = new Map(next.map((value) => [readId(value), value]));
@@ -35,7 +36,11 @@ function assertCollectionDelta<T extends object>(
     const id = readId(value);
     if (!previousById.has(id)) expectedIds.push(id);
   }
-  if (expectedIds.length !== next.length || expectedIds.some((id, index) => readId(next[index]!) !== id)) {
+  if (expectedIds.length !== next.length) invalid();
+  if (options.allowReorder) {
+    const expectedSet = new Set(expectedIds);
+    if (expectedSet.size !== next.length || next.some((value) => !expectedSet.has(readId(value)))) invalid();
+  } else if (expectedIds.some((id, index) => readId(next[index]!) !== id)) {
     invalid();
   }
   for (const value of next) {
@@ -57,12 +62,26 @@ export function assertTrustedProjectAgentDeltaCoverage(
   const removedItems = changes.flatMap((change) => (change.kind === "item-removed" ? [change.itemId] : []));
   const queue = changes.flatMap((change) => (change.kind === "queue-upserted" ? [change.queueItem] : []));
   const removedQueue = changes.flatMap((change) => (change.kind === "queue-removed" ? [change.queueItemId] : []));
+  const queueReorders = changes.flatMap((change) => (change.kind === "queue-reordered" ? [change.queueItemIds] : []));
   const proposals = changes.flatMap((change) => (change.kind === "proposal-upserted" ? [change.approval] : []));
   const removedProposals = changes.flatMap((change) => (change.kind === "proposal-removed" ? [change.approvalId] : []));
   assertCollectionDelta(previous.threads, next.threads, threads, removedThreads, (value) => value.threadId);
   assertCollectionDelta(previous.turns, next.turns, turns, removedTurns, (value) => value.turnId);
   assertCollectionDelta(previous.items, next.items, items, removedItems, (value) => value.itemId);
-  assertCollectionDelta(previous.queue, next.queue, queue, removedQueue, (value) => value.queueItemId);
+  if (queueReorders.length > 1) invalid();
+  if (queueReorders.length === 1) {
+    const ids = queueReorders[0]!;
+    if (
+      ids.length !== next.queue.length ||
+      new Set(ids).size !== ids.length ||
+      ids.some((id, index) => next.queue[index]?.queueItemId !== id)
+    ) {
+      invalid();
+    }
+  }
+  assertCollectionDelta(previous.queue, next.queue, queue, removedQueue, (value) => value.queueItemId, {
+    allowReorder: queueReorders.length === 1,
+  });
   assertCollectionDelta(
     previous.proposalApprovals,
     next.proposalApprovals,

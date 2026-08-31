@@ -22,7 +22,15 @@ describe("Agent tool catalog", () => {
   it("maps projected tools back to a canonical capability when one exists", () => {
     for (const descriptor of Object.values(agentToolCatalog).flat()) {
       const canonical = resolveCapabilityAlias(descriptor.name);
-      if (canonical) expect(canonical.contract.id).toMatch(/\./);
+      expect(canonical, `missing canonical capability for ${descriptor.name}`).toBeDefined();
+      expect(canonical?.contract.id).toMatch(/\./);
     }
+  });
+
+  it("marks the legacy production draft as non-generating and points concrete goals to semantic create", () => {
+    const legacyStart = agentToolCatalog.production.find(({ name }) => name === "start_production_run");
+    expect(legacyStart?.description).toContain("never generates media");
+    expect(legacyStart?.description).toContain("nomi_operation_create");
+    expect(legacyStart?.description).toContain("scriptText/shots");
   });
 });

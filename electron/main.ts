@@ -14,15 +14,11 @@ import {
   ensureBuiltinModelSeeds,
   exportModelCatalogPackage,
   getModelCatalogHealth,
-  importModelCatalogPackage,
   listModelCatalogMappings,
   listModelCatalogModels,
   listModelCatalogVendors,
-  upsertModelCatalogMapping,
-  upsertModelCatalogModel,
-  upsertModelCatalogVendor,
-  upsertModelCatalogVendorApiKey,
 } from "./catalog/catalogStore";
+import { importRendererCatalogPackage, upsertRendererCatalogMapping, upsertRendererCatalogModel, upsertRendererCatalogVendor, upsertRendererCatalogVendorApiKey } from "./catalog/rendererCatalogMutation";
 import { registerAssetTransportIpc } from "./assetTransportIpc";
 import { retypeModelCatalogModel } from "./catalog/modelRetype";
 import { registerTaskIpcHandlers } from "./tasks/taskIpcHandlers";
@@ -71,10 +67,12 @@ import {
   createPiTimelineWriteTransportAdapter,
 } from "./capabilityCore/timelineTransportAdapters";
 import { createPiPhase4SurfaceTransportAdapter } from "./capabilityCore/phase4SurfaceTransportAdapters";
+import { createPiSkillWriteTransportAdapter } from "./capabilityCore/skillWriteTransportAdapters";
+import { createPiSkillReadTransportAdapter } from "./capabilityCore/skillReadTransportAdapters";
 import { createPiProductionRunTransportAdapter } from "./capabilityCore/productionRunTransportAdapters";
 import { getProductionRunService } from "./productionRun/productionRunRuntime";
 import { getSettingsRoot } from "./runtimePaths";
-import { installProductionProjectAgentHost } from "./projectAgentHost/projectAgentProductionRuntime";
+import { getInstalledProductionProjectAgentHost, installProductionProjectAgentHost } from "./projectAgentHost/projectAgentProductionRuntime";
 import { createProjectAgentRepositoryRouter } from "./projectAgentHost/projectAgentRepositoryRouter";
 import { registerProjectAgentIpc } from "./projectAgentHost/projectAgentIpc";
 import { migrateProjectAgentLegacy } from "./projectAgentHost/projectAgentMigration";
@@ -170,7 +168,7 @@ async function startDesktopCapabilityCore(): Promise<void> {
       const { fetchTaskResult } = await loadRuntimeModule();
       return fetchTaskResult(payload);
     },
-    { canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime },
+    { canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime, onGenerationReady: (factory) => getInstalledProductionProjectAgentHost()?.setGenerationAdapterFactory(factory) },
   );
   capabilityPortCache = core.getCapabilityPort();
 }
@@ -407,7 +405,7 @@ function registerSyncIpc<TArgs extends unknown[], TResult>(
 ): void {
   ipcMain.on(channel, (event, ...args: TArgs) => {
     try {
-      event.returnValue = { ok: true, value: handler(...args) };
+      assertTrustedSender(event); event.returnValue = { ok: true, value: handler(...args) };
     } catch (error) {
       event.returnValue = {
         ok: false,
@@ -494,6 +492,14 @@ function registerIpc(): void {
         requestId,
         executor: canvasReadExecutionRuntime.executor,
       }),
+      captureSkillWrite: (_event, binding) => createPiSkillWriteTransportAdapter({
+        // The package importer is main-process owned.  Binding remains part
+        // of the Host approval/queue envelope; no renderer data is trusted by
+        // this adapter.
+        binding,
+        now: () => Date.now(),
+      }),
+      captureSkillRead: (_event, _binding) => createPiSkillReadTransportAdapter(),
       prepareProject: async (binding) => {
         const root = resolveWorkspaceProjectDir(binding.projectId, getWorkspaceRepositoryDeps());
         if (!root) throw new Error("project_identity_unavailable");
@@ -557,20 +563,20 @@ function registerIpc(): void {
   });
   registerSyncIpc("nomi:model-catalog:mappings:list", listModelCatalogMappings);
   registerSyncIpc("nomi:model-catalog:health", getModelCatalogHealth);
-  registerSyncIpc("nomi:model-catalog:vendor:upsert", upsertModelCatalogVendor);
+  registerSyncIpc("nomi:model-catalog:vendor:upsert", upsertRendererCatalogVendor);
   registerSyncIpc("nomi:model-catalog:vendor:delete", deleteModelCatalogVendor);
-  registerSyncIpc("nomi:model-catalog:vendor-api-key:upsert", upsertModelCatalogVendorApiKey);
+  registerSyncIpc("nomi:model-catalog:vendor-api-key:upsert", upsertRendererCatalogVendorApiKey);
   registerSyncIpc("nomi:model-catalog:vendor-api-key:clear", clearModelCatalogVendorApiKey);
-  registerSyncIpc("nomi:model-catalog:model:upsert", upsertModelCatalogModel);
+  registerSyncIpc("nomi:model-catalog:model:upsert", upsertRendererCatalogModel);
   // 改类型是**领域操作**不是字段 upsert：改 kind 的同时要按新 kind 重建调用通道，否则只是把
   // 「类型错」换成「没有通道」（见 catalog/modelRetype.ts 文件头）。故走自己的 IPC，不复用 upsert。
   registerSyncIpc("nomi:model-catalog:model:retype", retypeModelCatalogModel);
   registerSyncIpc("nomi:model-catalog:model:delete", deleteModelCatalogModel);
   registerSyncIpc("nomi:model-catalog:models:delete", deleteModelCatalogModels);
-  registerSyncIpc("nomi:model-catalog:mapping:upsert", upsertModelCatalogMapping);
+  registerSyncIpc("nomi:model-catalog:mapping:upsert", upsertRendererCatalogMapping);
   registerSyncIpc("nomi:model-catalog:mapping:delete", deleteModelCatalogMapping);
   registerSyncIpc("nomi:model-catalog:export", exportModelCatalogPackage);
-  registerSyncIpc("nomi:model-catalog:import", importModelCatalogPackage);
+  registerSyncIpc("nomi:model-catalog:import", importRendererCatalogPackage);
   // 域 IPC 各住各的模块（给 main.ts 800 行门腾空间；新通道加到对应模块，别回填这里）。comfy 那棵树重 → 惰性 require；素材通道薄 → 顶部静态 import。
   (require("./comfyuiIpc") as typeof import("./comfyuiIpc")).registerComfyuiIpc(registerSyncIpc);
   registerAssetTransportIpc(registerSyncIpc);

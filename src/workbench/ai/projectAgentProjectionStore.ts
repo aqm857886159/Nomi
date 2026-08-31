@@ -73,6 +73,14 @@ function applyChange(state: ProjectAgentHostState, change: ProjectAgentChange): 
       }
     case 'queue-removed':
       return { ...state, queue: removeById(state.queue, change.queueItemId, (value) => value.queueItemId) }
+    case 'queue-reordered': {
+      const byId = new Map(state.queue.map((item) => [item.queueItemId, item]))
+      if (new Set(change.queueItemIds).size !== state.queue.length) return state
+      const reordered = change.queueItemIds
+        .map((queueItemId) => byId.get(queueItemId))
+        .filter((item) => item !== undefined)
+      return reordered.length === state.queue.length ? { ...state, queue: reordered } : state
+    }
     case 'proposal-upserted':
       return {
         ...state,

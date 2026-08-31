@@ -2,7 +2,7 @@
 // This deliberately does not submit a provider request. It verifies every composer control,
 // cross-surface session state, and the preserved right-dock/timeline geometry without spending.
 import { launchNomiApp } from './_launchApp.mjs'
-import { screenshotSettled } from './_assert.mjs'
+import { expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -75,19 +75,26 @@ try {
   await win.waitForTimeout(150)
   await threadTrigger.click()
   check('creating a thread adds a removable project conversation', await win.locator('[data-agent-thread-menu] [aria-label="删除对话"]').count() >= 1)
+  const threadMenuProof = await proveProbe(win.locator('[data-agent-thread-menu]'), 'thread history menu is mounted before Escape')
   await win.locator('[data-agent-thread-menu]').focus()
   await win.locator('[data-agent-thread-menu]').press('Escape')
-  check('Escape closes thread history menu', await win.locator('[data-agent-thread-menu]').count() === 0)
+  await expectAbsent(win.locator('[data-agent-thread-menu]'), { provenBy: threadMenuProof, message: 'Escape closes thread history menu' })
+  check('Escape closes thread history menu', true)
 
   await win.evaluate(() => {
     window.__residentContextFocused = false
     window.addEventListener('nomi-agent-context-focus', () => { window.__residentContextFocused = true }, { once: true })
   })
   const contextButton = win.locator('[data-agent-context] button[data-agent-context-focus="true"]').first()
-  await contextButton.waitFor({ state: 'visible', timeout: 7000 })
-  await contextButton.click()
-  check('back to scene dispatches a focus request to the active work surface', await win.evaluate(() => window.__residentContextFocused === true))
-  check('context focus gives visible feedback', await win.locator('[data-agent-context][data-agent-context-focused="true"]').count() === 1)
+  if (await contextButton.count() && await visible(contextButton)) {
+    await contextButton.click()
+    check('back to scene dispatches a focus request to the active work surface', await win.evaluate(() => window.__residentContextFocused === true))
+    check('context focus gives visible feedback', await win.locator('[data-agent-context][data-agent-context-focused="true"]').count() === 1)
+  } else {
+    const contextProof = await proveProbe(win.locator('[data-agent-context]'), 'context controls are mounted before absence check')
+    await expectAbsent(win.locator('[data-agent-context-focus="true"]'), { provenBy: contextProof, message: 'back to scene is hidden when there is no stable locator' })
+    check('back to scene is hidden when there is no stable locator', true)
+  }
   await screenshotSettled(win, { path: path.join(shotsDir, '02-resident-context-focused.png') })
 
   const collapseButton = win.getByRole('button', { name: '收起 Agent' }).first()
@@ -122,29 +129,41 @@ try {
   await attach.click()
   check('attachment menu has five PR194 entries', await win.locator('[data-agent-menu-item]').count() === 5)
   const voice = win.locator('[data-agent-menu-item="voice"]')
+  const voiceMenuProof = await proveProbe(win.locator('[data-agent-menu-item]'), 'attachment menu is mounted before voice action')
   await voice.click()
-  check('voice input action closes the attachment menu', await win.locator('[data-agent-menu-item]').count() === 0)
+  await expectAbsent(win.locator('[data-agent-menu-item]'), { provenBy: voiceMenuProof, message: 'voice input action closes the attachment menu' })
+  check('voice input action closes the attachment menu', true)
   await win.locator('[data-agent-composer] input[type="file"]').setInputFiles(attachmentFixture)
   await win.locator('[data-attachment-status]').first().waitFor({ state: 'visible', timeout: 5000 })
   check('file selection creates an attachment rail item', await win.locator('[data-agent-composer] [data-attachment-status]').count() === 1)
-  await win.locator('[data-agent-composer] [data-attachment-status] button[aria-label="移除附件"]').click()
-  check('attachment remove action clears the rail item', await win.locator('[data-agent-composer] [data-attachment-status]').count() === 0)
+  const attachmentStatus = win.locator('[data-agent-composer] [data-attachment-status]')
+  const attachmentStatusProof = await proveProbe(attachmentStatus, 'attachment status is mounted before removal')
+  await attachmentStatus.locator('button[aria-label="移除附件"]').click()
+  await expectAbsent(attachmentStatus, { provenBy: attachmentStatusProof, message: 'attachment remove action clears the rail item' })
+  check('attachment remove action clears the rail item', true)
+  await attach.click()
+  const attachmentMenuEscapeProof = await proveProbe(win.locator('[data-agent-menu-item]'), 'attachment menu is mounted before Escape')
   await win.keyboard.press('Escape')
-  check('Escape closes attachment menu', await win.locator('[data-agent-menu-item]').count() === 0)
+  await expectAbsent(win.locator('[data-agent-menu-item]'), { provenBy: attachmentMenuEscapeProof, message: 'Escape closes attachment menu' })
+  check('Escape closes attachment menu', true)
 
   await win.locator('[data-agent-mention-trigger]').click()
   check('reference menu exposes document/canvas/preview/timeline/browser', await win.locator('[data-agent-menu-item]').count() === 5)
   await win.locator('[data-agent-menu-item="canvas"]').click()
   check('canvas reference creates a removable composer chip', await win.locator('[data-agent-reference="canvas:selection"]').count() === 1)
-  for (const [kind, ref] of [['document', 'document:resident-doc'], ['preview', 'preview:frame'], ['timeline', 'timeline:range'], ['browser', 'browser:selection']]) {
+  for (const [kind, ref] of [['document', 'document:resident-doc'], ['preview', 'preview:selection'], ['timeline', 'timeline:selection'], ['browser', 'browser:selection']]) {
     await win.locator('[data-agent-mention-trigger]').click()
     await win.locator(`[data-agent-menu-item="${kind}"]`).click()
     check(`${kind} reference creates a removable composer chip`, await win.locator(`[data-agent-reference="${ref}"]`).count() === 1)
   }
+  check('document reference carries a non-visual ContextSnapshot handle', await win.locator('[data-agent-reference="document:resident-doc"]').getAttribute('data-agent-reference-context-bound') === 'true')
   const referenceChips = win.locator('[data-agent-reference] button[aria-label="移除引用"]')
   check('every reference chip exposes a remove action', await referenceChips.count() === 5)
+  const canvasReference = win.locator('[data-agent-reference="canvas:selection"]')
+  const canvasReferenceProof = await proveProbe(canvasReference, 'canvas reference is mounted before removal')
   await referenceChips.first().click()
-  check('reference remove action updates the composer state', await win.locator('[data-agent-reference="canvas:selection"]').count() === 0)
+  await expectAbsent(canvasReference, { provenBy: canvasReferenceProof, message: 'reference remove action updates the composer state' })
+  check('reference remove action updates the composer state', true)
 
   await win.locator('[data-agent-skill-trigger]').click()
   check('Skill opens as a searchable dialog', await win.getByRole('dialog', { name: '技能' }).count() === 1)
@@ -175,8 +194,17 @@ try {
   check('Prompt selection keeps the icon trigger label and adds a removable prompt chip', (await win.locator('[data-agent-prompt-trigger]').getAttribute('aria-label')) === '选择提示词' && await win.locator('[data-agent-prompt-trigger]').getAttribute('title') === '提示词 · 镜头强化' && await win.locator('[data-agent-reference^="prompt:"]').count() === 1)
   for (const preset of ['script', 'review', 'assets', 'general']) {
     await win.locator('[data-agent-prompt-trigger]').click()
+    const promptReferenceBeforeSelection = preset === 'general' ? win.locator('[data-agent-reference^="prompt:"]') : null
+    const promptReferenceProof = promptReferenceBeforeSelection
+      ? await proveProbe(promptReferenceBeforeSelection, 'selected prompt reference is mounted before clearing')
+      : null
     await win.locator(`[data-agent-menu-item="${preset}"]`).click()
-    check(`prompt preset ${preset} updates the selected session context`, preset === 'general' ? await win.locator('[data-agent-reference^="prompt:"]').count() === 0 : await win.locator(`[data-agent-reference="prompt:${preset}"]`).count() === 1)
+    if (promptReferenceBeforeSelection && promptReferenceProof) {
+      await expectAbsent(promptReferenceBeforeSelection, { provenBy: promptReferenceProof, message: `prompt preset ${preset} clears the previous selection` })
+    } else {
+      await expectVisible(win.locator(`[data-agent-reference="prompt:${preset}"]`), `prompt preset ${preset} creates a selected context chip`)
+    }
+    check(`prompt preset ${preset} updates the selected session context`, true)
   }
 
   const creationResident = win.locator('[data-agent-resident][data-agent-surface="creation"]:visible')
@@ -232,6 +260,77 @@ try {
   check('same resident shell projection appears on generation', await win.locator('[data-agent-resident][data-agent-surface="generation"]').count() === 1)
   check('draft and reference survive Creation → Generation', (await win.locator('[data-agent-composer] textarea').inputValue()).includes('RESIDENT_DRAFT') && await win.locator('[data-agent-reference="document:resident-doc"]').count() === 1)
   check('mode survives Creation → Generation', (await win.locator('[data-agent-resident][data-agent-surface="generation"]:visible [data-agent-mode-trigger]').getAttribute('title')) === '模式 · Ask')
+  const generationTimeline = win.locator('.workbench-generation [role="separator"][aria-orientation="horizontal"]').first()
+  await generationTimeline.waitFor({ state: 'visible', timeout: 7000 })
+  const generationTimelineContract = await win.evaluate(() => {
+    const workspace = document.querySelector('.workbench-generation')
+    const timeline = document.querySelector('.workbench-generation__timeline')
+    const handle = document.querySelector('.workbench-generation [role="separator"][aria-orientation="horizontal"]')
+    if (!(workspace instanceof HTMLElement) || !(timeline instanceof HTMLElement) || !(handle instanceof HTMLElement)) return null
+    const workspaceRect = workspace.getBoundingClientRect()
+    const timelineRect = timeline.getBoundingClientRect()
+    return {
+      workspaceWidth: workspaceRect.width,
+      timelineWidth: timelineRect.width,
+      timelineHeight: timelineRect.height,
+      value: handle.getAttribute('aria-valuenow'),
+      min: handle.getAttribute('aria-valuemin'),
+      max: handle.getAttribute('aria-valuemax'),
+      tabIndex: handle.getAttribute('tabindex'),
+    }
+  })
+  check('generation timeline exposes the shared horizontal separator contract', Boolean(
+    generationTimelineContract &&
+    generationTimelineContract.min === '140' &&
+    generationTimelineContract.max === '300' &&
+    generationTimelineContract.value === '206' &&
+    generationTimelineContract.tabIndex === '0',
+  ))
+  check('generation timeline spans the full workbench width', Boolean(
+    generationTimelineContract && Math.abs(generationTimelineContract.workspaceWidth - generationTimelineContract.timelineWidth) <= 1,
+  ))
+  check('generation timeline starts at the shared default height', Boolean(
+    generationTimelineContract && Math.abs(generationTimelineContract.timelineHeight - 206) <= 1,
+  ))
+  await generationTimeline.focus()
+  await generationTimeline.press('ArrowUp')
+  await generationTimeline.press('ArrowUp')
+  await generationTimeline.press('ArrowUp')
+  check('timeline keyboard ArrowUp grows in the shared 16px step', await generationTimeline.getAttribute('aria-valuenow') === '254')
+  await generationTimeline.press('End')
+  check('timeline keyboard End clamps to the shared maximum', await generationTimeline.getAttribute('aria-valuenow') === '300')
+  await generationTimeline.press('Home')
+  check('timeline keyboard Home clamps to the shared minimum', await generationTimeline.getAttribute('aria-valuenow') === '140')
+  await generationTimeline.dblclick()
+  check('timeline double-click restores the shared default', await generationTimeline.getAttribute('aria-valuenow') === '206')
+  const generationTimelineBox = await generationTimeline.boundingBox()
+  check('timeline resize handle has a pointer target', Boolean(generationTimelineBox && generationTimelineBox.width > 0 && generationTimelineBox.height > 0))
+  if (generationTimelineBox) {
+    const pointerX = generationTimelineBox.x + generationTimelineBox.width / 2
+    const pointerY = generationTimelineBox.y + generationTimelineBox.height / 2
+    await win.mouse.move(pointerX, pointerY)
+    await win.mouse.down()
+    await win.mouse.move(pointerX, pointerY - 24, { steps: 2 })
+    await win.mouse.up()
+    check('timeline pointer drag grows the shared height', await generationTimeline.getAttribute('aria-valuenow') === '230')
+    await generationTimeline.dblclick()
+  }
+  const generationWorkspace = win.locator('.workbench-generation')
+  const collapseTimelineButton = generationWorkspace.getByRole('button', { name: /收起时间轴/ }).first()
+  await collapseTimelineButton.waitFor({ state: 'visible', timeout: 7000 })
+  const generationWidthBeforeTimelineCollapse = await generationWorkspace.evaluate((element) => element.getBoundingClientRect().width)
+  await collapseTimelineButton.click()
+  const expandTimelineButton = generationWorkspace.getByRole('button', { name: /展开.*时间轴/ }).first()
+  await expandTimelineButton.waitFor({ state: 'visible', timeout: 5000 })
+  check('generation timeline collapse exposes a compact expand affordance', await win.locator('.workbench-generation__timeline-handle:visible').count() === 1)
+  check('collapsing the timeline keeps the workbench width stable', await generationWorkspace.evaluate((element, before) => Math.abs(element.getBoundingClientRect().width - before) <= 1, generationWidthBeforeTimelineCollapse))
+  await expandTimelineButton.click()
+  await generationTimeline.waitFor({ state: 'visible', timeout: 5000 })
+  check('expanding the timeline restores the shared separator', await generationTimeline.getAttribute('aria-valuenow') === '206')
+  const generationTimelineBeforeCollapse = await win.evaluate(() => {
+    const timeline = document.querySelector('.workbench-generation__timeline')?.getBoundingClientRect()
+    return timeline ? { width: timeline.width, height: timeline.height } : null
+  })
   await win.locator('[data-agent-resident][data-agent-surface="generation"]:visible').getByRole('button', { name: '收起 Agent' }).click()
   await win.locator('[data-agent-resident-collapsed="true"]:visible').waitFor({ state: 'visible', timeout: 5000 })
   check('generation keeps the same rounded collapsed status pill', await win.evaluate(() => {
@@ -252,12 +351,43 @@ try {
     return { position: getComputedStyle(assistant).position, width: workspaceStyle.getPropertyValue('--generation-assistant-width').trim(), grid: workspaceStyle.gridTemplateColumns, canvasRight: canvasRect.right, workspaceRight: workspaceRect.right }
   })
   check('generation collapse overlays without reserving a side rail', Boolean(generationCollapseLayout && generationCollapseLayout.position === 'absolute' && generationCollapseLayout.width === '0px' && Math.abs(generationCollapseLayout.canvasRight - generationCollapseLayout.workspaceRight) <= 1))
+  check('generation Agent collapse leaves timeline geometry unchanged', Boolean(await win.evaluate((before) => {
+    const timeline = document.querySelector('.workbench-generation__timeline')?.getBoundingClientRect()
+    return Boolean(before && timeline && Math.abs(timeline.width - before.width) <= 1 && Math.abs(timeline.height - before.height) <= 1)
+  }, generationTimelineBeforeCollapse)))
   await win.locator('[data-agent-resident-collapsed="true"]:visible').click()
   await screenshotSettled(win, { path: path.join(shotsDir, '02-resident-generation.png') })
 
   await clickSurface('preview')
   check('same resident shell projection appears on preview', await win.locator('[data-agent-resident][data-agent-surface="preview"]').count() === 1)
   check('draft survives Generation → Preview', (await win.locator('[data-agent-composer] textarea').inputValue()).includes('RESIDENT_DRAFT'))
+  const previewTimeline = win.locator('.workbench-preview [role="separator"][aria-orientation="horizontal"]').first()
+  await previewTimeline.waitFor({ state: 'visible', timeout: 7000 })
+  const previewTimelineContract = await win.evaluate(() => {
+    const workspace = document.querySelector('.workbench-preview')
+    const handle = document.querySelector('.workbench-preview [role="separator"][aria-orientation="horizontal"]')
+    const timeline = handle?.parentElement
+    if (!(workspace instanceof HTMLElement) || !(timeline instanceof HTMLElement) || !(handle instanceof HTMLElement)) return null
+    const workspaceRect = workspace.getBoundingClientRect()
+    const timelineRect = timeline.getBoundingClientRect()
+    return {
+      workspaceWidth: workspaceRect.width,
+      timelineWidth: timelineRect.width,
+      timelineHeight: timelineRect.height,
+      value: handle.getAttribute('aria-valuenow'),
+    }
+  })
+  check('preview shares the generation timeline height', Boolean(previewTimelineContract && previewTimelineContract.value === '206' && Math.abs(previewTimelineContract.timelineHeight - 206) <= 1))
+  check('preview timeline also spans the full workbench width', Boolean(
+    previewTimelineContract && Math.abs(previewTimelineContract.workspaceWidth - previewTimelineContract.timelineWidth) <= 1,
+  ))
+  await previewTimeline.focus()
+  await previewTimeline.press('ArrowUp')
+  check('preview keyboard resize updates the shared height', await previewTimeline.getAttribute('aria-valuenow') === '222')
+  await clickSurface('generation')
+  const returnedGenerationTimeline = win.locator('.workbench-generation [role="separator"][aria-orientation="horizontal"]').first()
+  check('generation reads the height last set from preview', await returnedGenerationTimeline.getAttribute('aria-valuenow') === '222')
+  await clickSurface('preview')
   await win.locator('[data-agent-resident][data-agent-surface="preview"]:visible').getByRole('button', { name: '收起 Agent' }).click()
   await win.locator('[data-agent-resident-collapsed="true"]:visible').waitFor({ state: 'visible', timeout: 5000 })
   check('preview keeps the same rounded collapsed status pill', await win.evaluate(() => {
@@ -286,7 +416,7 @@ try {
   await screenshotSettled(win, { path: path.join(shotsDir, '03-resident-preview-narrow.png') })
 
   if (failures.length) throw new Error(`resident journey failures: ${failures.join('; ')}`)
-  console.log(JSON.stringify({ ok: true, geometry, screenshots: 4 }))
+  console.log(JSON.stringify({ ok: true, geometry, screenshots: 5 }))
   await app.close().catch(() => {})
   process.exit(0)
 } catch (error) {

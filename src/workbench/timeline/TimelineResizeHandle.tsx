@@ -1,7 +1,20 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
-import { useWorkbenchStore } from '../workbenchStore'
+import {
+  TIMELINE_PANEL_DEFAULT,
+  TIMELINE_PANEL_MAX,
+  TIMELINE_PANEL_MIN,
+  useWorkbenchStore,
+} from '../workbenchStore'
+
+export function timelineResizeKeyboardHeight(current: number, key: string): number | null {
+  if (key === 'ArrowUp') return current + 16
+  if (key === 'ArrowDown') return current - 16
+  if (key === 'Home') return TIMELINE_PANEL_MIN
+  if (key === 'End') return TIMELINE_PANEL_MAX
+  return null
+}
 
 /** One shared splitter for the generation and preview timeline projection. */
 export default function TimelineResizeHandle(): JSX.Element {
@@ -24,10 +37,10 @@ export default function TimelineResizeHandle(): JSX.Element {
     try { event.currentTarget.releasePointerCapture(event.pointerId) } catch { /* noop */ }
   }, [])
   const onKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'ArrowUp') { event.preventDefault(); adjust(height + 16) }
-    if (event.key === 'ArrowDown') { event.preventDefault(); adjust(height - 16) }
-    if (event.key === 'Home') { event.preventDefault(); adjust(140) }
-    if (event.key === 'End') { event.preventDefault(); adjust(300) }
+    const next = timelineResizeKeyboardHeight(height, event.key)
+    if (next === null) return
+    event.preventDefault()
+    adjust(next)
   }, [adjust, height])
 
   return (
@@ -35,8 +48,8 @@ export default function TimelineResizeHandle(): JSX.Element {
       role="separator"
       aria-orientation="horizontal"
       aria-label={t('agentResident.timelineResize')}
-      aria-valuemin={140}
-      aria-valuemax={300}
+      aria-valuemin={TIMELINE_PANEL_MIN}
+      aria-valuemax={TIMELINE_PANEL_MAX}
       aria-valuenow={height}
       tabIndex={0}
       className={cn(
@@ -48,7 +61,7 @@ export default function TimelineResizeHandle(): JSX.Element {
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
-      onDoubleClick={() => adjust(206)}
+      onDoubleClick={() => adjust(TIMELINE_PANEL_DEFAULT)}
       onKeyDown={onKeyDown}
       title={t('agentResident.timelineHeight', { height })}
     >

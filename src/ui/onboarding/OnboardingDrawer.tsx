@@ -402,6 +402,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       vendorName={translateModelDisplayText(card.meta.name)}
       baseUrl={card.meta.baseUrl}
       hasApiKey={card.meta.hasApiKey}
+      enabled={card.meta.enabled} credentialMode={card.meta.credentialMode}
       models={card.vendorModels}
       onToggleModel={(model, enabled) => handleSetEnabled([model], enabled)}
       onChanged={refresh}
@@ -470,10 +471,9 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       <KnownVendorKeyConnectPage
         directory={card.directory}
         vendorName={translateModelDisplayText(card.meta.name)}
-        modelCount={card.vendorModels.length}
-        onBack={goBack}
-        onSaved={refresh}
-        onContinueVerification={() => openWizard(undefined, card.directory.vendorKey)}
+        modelCount={card.vendorModels.length} credentialMode={card.meta.credentialMode}
+        onBack={goBack} onSaved={refresh}
+        onContinueVerification={card.meta.credentialMode === 'direct-key' ? undefined : () => openWizard(undefined, card.directory.vendorKey)}
       />
     )
   }

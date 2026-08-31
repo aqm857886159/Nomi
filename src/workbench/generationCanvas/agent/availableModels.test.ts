@@ -37,6 +37,21 @@ describe("buildAgentModelEntries", () => {
     expect(entries[0].modes.every((m) => m.slots.length === 0)).toBe(true);
   });
 
+  it("保留目录中已发布的文本模型并声明 chat 模式（显式模型不能静默回退）", () => {
+    // 文本模型没有媒体 archetype；catalog kind 仍然是唯一足够的能力证据。
+    // 暂用结构扩展夹具，待实现把 kind 纳入 ModelOption 的正式类型。
+    const entries = buildAgentModelEntries([
+      { value: "agent-runtime-text", label: "Fixture 文本", vendor: "loopback", kind: "text" } as ModelOption & { kind: "text" },
+    ]);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ modelKey: "agent-runtime-text", kind: "text", vendor: "loopback" });
+    expect(entries[0].archetypeId).toBeUndefined();
+    expect(entries[0].defaultModeId).toBe("chat");
+    expect(entries[0].modes).toEqual([
+      expect.objectContaining({ modeId: "chat", slots: [] }),
+    ]);
+  });
+
   it("无档案的模型被跳过", () => {
     const entries = buildAgentModelEntries([
       opt({ value: "some-unknown-model-xyz", label: "未知", vendor: "x" }),

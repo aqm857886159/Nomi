@@ -72,6 +72,29 @@ export async function editProjectAgentQueueItem(input: Readonly<{
   return dispatch('queue.edit', { ...input, occurredAt: new Date().toISOString() })
 }
 
+/** Queue controls remain Host mutations; the resident shell only projects them. */
+export async function deleteProjectAgentQueueItem(queueItemId: string): Promise<ProjectAgentHostState> {
+  return dispatch('queue.delete', { queueItemId, occurredAt: new Date().toISOString() })
+}
+
+export async function moveProjectAgentQueueItem(
+  queueItemId: string,
+  direction: 'up' | 'down',
+): Promise<ProjectAgentHostState> {
+  return dispatch(direction === 'up' ? 'queue.move_up' : 'queue.move_down', {
+    queueItemId,
+    occurredAt: new Date().toISOString(),
+  })
+}
+
+export async function pauseProjectAgentQueueItem(queueItemId: string): Promise<ProjectAgentHostState> {
+  return dispatch('queue.pause', { queueItemId, occurredAt: new Date().toISOString() })
+}
+
+export async function resumeProjectAgentQueueItem(queueItemId: string): Promise<ProjectAgentHostState> {
+  return dispatch('queue.resume', { queueItemId, occurredAt: new Date().toISOString() })
+}
+
 export function projectAgentIsReady(): boolean {
   return Boolean(
     projectAgentProjectionStore.getState().snapshot && projectAgentProjectionStore.getState().subscriptionId,

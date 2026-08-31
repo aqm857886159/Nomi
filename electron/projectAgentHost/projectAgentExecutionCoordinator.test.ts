@@ -41,9 +41,84 @@ import type {
   PiPhase4SurfaceTransportAdapter,
   PreparedExportWrite,
 } from "../capabilityCore/phase4SurfaceTransportAdapters";
+import type {
+  PiSkillWriteTransportAdapter,
+  PreparedSkillWrite,
+} from "../capabilityCore/skillWriteTransportAdapters";
+import type { PiSkillReadTransportAdapter } from "../capabilityCore/skillReadTransportAdapters";
 import type { PiProductionRunTransportAdapter } from "../capabilityCore/productionRunTransportAdapters";
 import type { PreconditionSet, TargetRef } from "../shared/capabilityTargeting";
 import type { ProjectAgentProposalReceiptView } from "../shared/projectAgentProposalReceipt";
+
+function skillWriteAdapter(): PiSkillWriteTransportAdapter & {
+  prepare: ReturnType<typeof vi.fn>;
+  execute: ReturnType<typeof vi.fn>;
+  dispose: ReturnType<typeof vi.fn>;
+} {
+  const prepare = vi.fn(async (
+    call: RuntimeToolCall,
+    context: Readonly<{ target: TargetRef; preconditions: PreconditionSet }>,
+    _signal: AbortSignal,
+  ): Promise<PreparedSkillWrite | null> => {
+    if (call.toolName !== "author_skill") return null;
+    return Object.freeze({
+      call,
+      args: { operation: "author_skill", ...(call.args as Record<string, unknown>) } as PreparedSkillWrite["args"],
+      pkg: {
+        version: "nomi-skill-v1",
+        exportedAt: 1,
+        dirName: "test-skill",
+        files: { "SKILL.md": "body", "skill.json": "{}" },
+      },
+      invocation: {
+        target: context.target,
+        preconditions: context.preconditions,
+        policyRevision: 1,
+        inputHash: "a".repeat(64),
+        actionHash: "b".repeat(64),
+      },
+    } as PreparedSkillWrite);
+  });
+  const execute = vi.fn(async (_prepared: PreparedSkillWrite, approval: { receiptProposalId: string }) => ({
+    ok: true as const,
+    result: { applied: true, skillName: "test.skill", dirName: "test-skill", packageVersion: "nomi-skill-v1", contentHash: "c".repeat(64), created: true },
+    proposalId: approval.receiptProposalId,
+    silent: true as const,
+  }));
+  const dispose = vi.fn();
+  return { prepare, execute, dispose } as unknown as PiSkillWriteTransportAdapter & {
+    prepare: ReturnType<typeof vi.fn>;
+    execute: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+  };
+}
+
+function skillReadAdapter(): PiSkillReadTransportAdapter & {
+  tryExecute: ReturnType<typeof vi.fn>;
+  dispose: ReturnType<typeof vi.fn>;
+} {
+  const tryExecute = vi.fn(async (call: RuntimeToolCall) => call.toolName === "load_skill"
+    ? {
+        ok: true as const,
+        silent: true as const,
+        result: {
+          loaded: true,
+          name: "brand.promo",
+          directoryName: "brand-promo",
+          description: "Brand workflow",
+          body: "Use the brand workflow.",
+          origin: "user" as const,
+          packageVersion: "nomi-skill-v1",
+          contentHash: "a".repeat(64),
+        },
+      }
+    : null);
+  const dispose = vi.fn();
+  return { tryExecute, dispose } as unknown as PiSkillReadTransportAdapter & {
+    tryExecute: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+  };
+}
 
 const binding = {
   projectId: "project-a",
@@ -501,6 +576,103 @@ afterEach(() => {
 });
 
 describe("ProjectAgentExecutionCoordinator", () => {
+  it("uses the Host turn work mode when freezing the runtime request", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-work-mode-freeze-"));
+    const router = createProjectAgentRepositoryRouter({ rootDir: root });
+    let observedRequest: AgentChatRequest | undefined;
+    const coordinator = createProjectAgentExecutionCoordinator(router, () => "subscription-work-mode-freeze", {
+      runAgent: async (request) => {
+        observedRequest = request;
+        return {
+          id: "result-work-mode-freeze",
+          status: "finished",
+          text: "done",
+          finishReason: "stop",
+          artifacts: [],
+          toolCalls: [],
+          usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+        } satisfies AgentChatResponse;
+      },
+    });
+    const opened = await coordinator.open(binding);
+    const base = executionInput("work-mode-freeze", 0);
+    const input: ExecutionInput = {
+      ...base,
+      mutation: {
+        ...base.mutation,
+        payload: {
+          ...base.mutation.payload,
+          turn: { ...base.mutation.payload.turn, workMode: "guided" },
+          queueItem: { ...base.mutation.payload.queueItem, workMode: "guided" },
+        },
+      },
+      request: {
+        ...base.request,
+        workMode: "auto",
+        approvalPolicy: { mode: "project", spend: "within-budget" },
+      } as AgentChatRequest,
+    };
+
+    await coordinator.enqueue(opened.subscriptionId, input);
+    await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(observedRequest?.workMode).toBe("guided");
+    expect((observedRequest as AgentChatRequest & { approvalPolicy?: unknown }).approvalPolicy).toBeUndefined();
+  });
+
+  it("reuses one approval for reversible edits while preserving a receipt per write", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-safe-auto-"));
+    const documentAdapter = documentWriteAdapter();
+    const calls = [
+      { toolCallId: "tool-safe-1", toolName: "append_to_end", args: { content: "first" } },
+      { toolCallId: "tool-safe-2", toolName: "append_to_end", args: { content: "second" } },
+    ];
+    const decisions: AgentChatToolDecision[] = [];
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-safe-auto",
+      {
+        runAgent: async (_request, hooks) => {
+          for (const call of calls) decisions.push(await hooks.awaitToolConfirmation(call, hooks.abortSignal!));
+          return {
+            id: "result-safe-auto",
+            status: "finished",
+            text: "done",
+            finishReason: "stop",
+            artifacts: [],
+            toolCalls: calls.map((call, index) => ({ ...call, status: decisions[index]?.ok ? "ok" as const : "denied" as const, decision: decisions[index]! })),
+            usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+          } satisfies AgentChatResponse;
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { documentWrite: documentAdapter });
+    let toolEvents = 0;
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type !== "tool-call") return;
+      toolEvents += 1;
+      void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, { ok: true, result: { approved: true } });
+    });
+    const base = executionInput("safe-auto", 0);
+    const input: ExecutionInput = {
+      ...base,
+      mutation: { ...base.mutation, payload: {
+        ...base.mutation.payload,
+        turn: { ...base.mutation.payload.turn, approvalPolicy: { mode: "safe-auto", spend: "confirm" } },
+        queueItem: { ...base.mutation.payload.queueItem, approvalPolicy: { mode: "safe-auto", spend: "confirm" } },
+      } },
+    };
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+    expect(toolEvents).toBe(1);
+    expect(decisions).toHaveLength(2);
+    expect(decisions[0]).toMatchObject({ ok: true });
+    expect(decisions[1]).toMatchObject({ ok: true, silent: true });
+    expect(documentAdapter.execute).toHaveBeenCalledTimes(2);
+    expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(2);
+    coordinator.release(opened.subscriptionId);
+  });
+
   it("reserves the first frozen request while a same-turn enqueue is still dispatching", async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-request-reservation-"));
     const backingRouter = createProjectAgentRepositoryRouter({ rootDir: root });
@@ -1695,6 +1867,156 @@ describe("ProjectAgentExecutionCoordinator", () => {
         preconditions,
       },
     });
+  });
+
+  it("executes author_skill through the Host and settles its Skill-library proposal", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-skill-write-approved-"));
+    const adapter = skillWriteAdapter();
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-skill-write-approved",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "tool-skill-write-approved",
+            toolName: "author_skill",
+            args: {
+              dirName: "test-skill",
+              manifest: { name: "test.skill" },
+              skillMarkdown: "body",
+            },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          expect(decision).toMatchObject({ ok: true, result: { applied: true } });
+          return documentWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { skillWrite: adapter });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: true,
+          result: { approved: true },
+        });
+      }
+    });
+    const input = executionInput("skill-write-approved", 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(adapter.prepare).toHaveBeenCalledOnce();
+    expect(adapter.execute).toHaveBeenCalledOnce();
+    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({
+      capability: { id: "skill.write", version: 1 },
+      status: "done",
+    });
+    expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "done" });
+    expect(final.proposalApprovals[0]).toMatchObject({ lifecycle: "claimed" });
+    coordinator.release(opened.subscriptionId);
+    expect(adapter.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("loads load_skill through the Host read port without creating a proposal or approval", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-skill-read-"));
+    const adapter = skillReadAdapter();
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-skill-read",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "tool-skill-read",
+            toolName: "load_skill",
+            args: { name: "brand.promo", expectedContentHash: "a".repeat(64) },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          expect(decision).toMatchObject({ ok: true, silent: true, result: { loaded: true, name: "brand.promo" } });
+          return documentWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { skillRead: adapter });
+    const input = executionInput("skill-read", 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(adapter.tryExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ toolName: "load_skill" }),
+      expect.any(AbortSignal),
+    );
+    expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(0);
+    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({
+      capability: { id: "skill.read", version: 1 },
+      status: "done",
+    });
+    coordinator.release(opened.subscriptionId);
+    expect(adapter.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("does not execute author_skill when the user denies the proposal", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-skill-write-denied-"));
+    const adapter = skillWriteAdapter();
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-skill-write-denied",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "tool-skill-write-denied",
+            toolName: "author_skill",
+            args: { dirName: "test-skill", manifest: { name: "test.skill" }, skillMarkdown: "body" },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          return documentWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { skillWrite: adapter });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: false,
+          denied: true,
+          message: "User denied Skill write",
+        });
+      }
+    });
+    const input = executionInput("skill-write-denied", 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+    expect(adapter.execute).not.toHaveBeenCalled();
+    expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(0);
+    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({ status: "failed" });
+    coordinator.release(opened.subscriptionId);
+  });
+
+  it("fails closed when author_skill is visible but its main-process owner is unavailable", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-skill-write-unavailable-"));
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-skill-write-unavailable",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "tool-skill-write-unavailable",
+            toolName: "author_skill",
+            args: { dirName: "test-skill", manifest: { name: "test.skill" }, skillMarkdown: "body" },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          return documentWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding);
+    const input = executionInput("skill-write-unavailable", 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+    expect(final.items.find((item) => item.kind === "failure")).toMatchObject({
+      code: "capability_surface_unavailable",
+      status: "failed",
+    });
+    coordinator.release(opened.subscriptionId);
   });
 
   it("persists and reads back Canvas approval identity before Surface execute", async () => {

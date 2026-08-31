@@ -46,9 +46,26 @@ import {
   type ProjectCategory,
 } from './project/projectCategories'
 import { useGenerationCanvasStore } from './generationCanvas/store/generationCanvasStore'
+import type { AgentContextHandle } from '../../electron/shared/agentContextSnapshot'
+import {
+  DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
+  DEFAULT_PROJECT_AGENT_WORK_MODE,
+  type ProjectAgentApprovalPolicy,
+  type ProjectAgentWorkMode,
+} from '../../electron/shared/projectAgentContracts'
 
 /** 拖动中临时吸附辅助线（非持久化）。 */
 export type TimelineSnapGuide = { frame: number; label: string }
+
+/** Shared timeline layout bounds; this is UI state, not timeline data. */
+export const TIMELINE_PANEL_MIN = 140
+export const TIMELINE_PANEL_MAX = 300
+export const TIMELINE_PANEL_DEFAULT = 206
+
+export function clampTimelinePanelHeight(value: number): number {
+  if (!Number.isFinite(value)) return TIMELINE_PANEL_DEFAULT
+  return Math.max(TIMELINE_PANEL_MIN, Math.min(TIMELINE_PANEL_MAX, Math.round(value)))
+}
 
 // 时间轴撤销栈封顶（防无限增长）。
 const TIMELINE_UNDO_LIMIT = 30
@@ -69,9 +86,14 @@ export type ProjectAgentReference = Readonly<{
   id: string
   label: string
   kind: 'document' | 'canvas' | 'preview' | 'timeline' | 'browser'
+  /** Stable domain identity captured at send time (never a UI-only label). */
+  value?: string
+  /** Immutable selection handle captured when the user added this reference. */
+  contextHandle?: AgentContextHandle
 }>
 
-export type ProjectAgentRunMode = 'ask' | 'guided' | 'balanced' | 'auto'
+/** Renderer alias; the canonical work-mode vocabulary lives in shared contracts. */
+export type ProjectAgentRunMode = ProjectAgentWorkMode
 
 type WorkbenchState = WorkbenchDocumentSlice & {
   persistRevision: number
@@ -160,11 +182,14 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   /** Composer-only references. Host remains the sole owner of durable context/history. */
   projectAgentReferences: ProjectAgentReference[]
   projectAgentRunMode: ProjectAgentRunMode
+  /** Approval and spend are a separate axis from work mode; this snapshot is copied into each Host turn. */
+  projectAgentApprovalPolicy: ProjectAgentApprovalPolicy
   projectAgentDockCollapsed: boolean
   setProjectAgentDraft: (draft: string) => void
   setProjectAgentAttachments: (attachments: ComposerAttachment[] | ((attachments: ComposerAttachment[]) => ComposerAttachment[])) => void
   setProjectAgentReferences: (references: ProjectAgentReference[] | ((references: ProjectAgentReference[]) => ProjectAgentReference[])) => void
   setProjectAgentRunMode: (mode: ProjectAgentRunMode) => void
+  setProjectAgentApprovalPolicy: (policy: ProjectAgentApprovalPolicy) => void
   setProjectAgentDockCollapsed: (collapsed: boolean) => void
   setTimeline: (timeline: TimelineState) => void
   restoreProjectWorkbenchState: (payload: { workbenchDocument: WorkbenchDocument; timeline: TimelineState }) => void
@@ -298,7 +323,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   projectAgentDraft: '',
   projectAgentAttachments: [],
   projectAgentReferences: [],
-  projectAgentRunMode: 'balanced',
+  projectAgentRunMode: DEFAULT_PROJECT_AGENT_WORK_MODE,
+  projectAgentApprovalPolicy: DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
   projectAgentDockCollapsed: false,
   setProjectAgentDraft: (projectAgentDraft) => set({ projectAgentDraft }),
   setProjectAgentAttachments: (attachments) => set((state) => ({
@@ -308,6 +334,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     projectAgentReferences: typeof references === 'function' ? references(state.projectAgentReferences) : references,
   })),
   setProjectAgentRunMode: (projectAgentRunMode) => set({ projectAgentRunMode }),
+  setProjectAgentApprovalPolicy: (projectAgentApprovalPolicy) => set({ projectAgentApprovalPolicy: Object.freeze({ mode: projectAgentApprovalPolicy.mode, spend: projectAgentApprovalPolicy.spend }) }),
   setProjectAgentDockCollapsed: (projectAgentDockCollapsed) => set({ projectAgentDockCollapsed: Boolean(projectAgentDockCollapsed) }),
   timeline: createDefaultTimeline(),
   timelinePlaying: false,
@@ -318,8 +345,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   timelineSplitMode: false,
   timelinePanelCollapsed: false,
   setTimelinePanelCollapsed: (collapsed) => set({ timelinePanelCollapsed: Boolean(collapsed) }),
-  timelinePanelHeight: 206,
-  setTimelinePanelHeight: (height) => set({ timelinePanelHeight: Math.max(140, Math.min(300, Math.round(height))) }),
+  timelinePanelHeight: TIMELINE_PANEL_DEFAULT,
+  setTimelinePanelHeight: (height) => set({ timelinePanelHeight: clampTimelinePanelHeight(height) }),
   previewSourcePanelCollapsed: readPreviewSourceCollapsed(),
   setPreviewSourcePanelCollapsed: (collapsed) => {
     writePreviewSourceCollapsed(Boolean(collapsed))

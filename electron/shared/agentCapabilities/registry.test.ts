@@ -14,6 +14,15 @@ import {
   PRODUCTION_RUN_READ_CAPABILITY,
   PRODUCTION_RUN_WRITE_CAPABILITY,
 } from "./productionRun";
+import {
+  GENERATION_CONTEXT_READ_CAPABILITY,
+  GENERATION_PLAN_CAPABILITY,
+  GENERATION_GATE_CAPABILITY,
+  GENERATION_RUN_READ_CAPABILITY,
+  GENERATION_CONTROL_CAPABILITY,
+} from "./generation";
+import { SKILL_WRITE_CAPABILITY } from "./skillWrite";
+import { SKILL_READ_CAPABILITY } from "./skillRead";
 import { CAPABILITY_CONTRACTS, capabilityOperationAliasesFor, resolveCapabilityAlias } from "./registry";
 import type { ContractOnlyRegistry } from "./registry";
 
@@ -44,6 +53,13 @@ describe("capability contract registry", () => {
       PRODUCTION_RUN_READ_CAPABILITY,
       PRODUCTION_RUN_WRITE_CAPABILITY,
       PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
+      SKILL_READ_CAPABILITY,
+      SKILL_WRITE_CAPABILITY,
+      GENERATION_CONTEXT_READ_CAPABILITY,
+      GENERATION_PLAN_CAPABILITY,
+      GENERATION_GATE_CAPABILITY,
+      GENERATION_RUN_READ_CAPABILITY,
+      GENERATION_CONTROL_CAPABILITY,
     ]);
 
     const ids = CAPABILITY_CONTRACTS.map((contract) => contract.id);
@@ -65,6 +81,13 @@ describe("capability contract registry", () => {
       "production.run.read",
       "production.run.write",
       "production.artifact.write",
+      "skill.read",
+      "skill.write",
+      "generation.context.read",
+      "generation.plan",
+      "generation.gate",
+      "generation.run.read",
+      "generation.control",
     ]);
     expect(aliases).toEqual([
       "get_media",
@@ -81,6 +104,13 @@ describe("capability contract registry", () => {
       "get_production_run",
       "start_production_run",
       "revise_production_artifact",
+      "load_skill",
+      "author_skill",
+      "nomi_get_generation_context",
+      "nomi_operation_create",
+      "nomi_request_generation_gate",
+      "nomi_operation_read",
+      "nomi_cancel_generation",
     ]);
     expect(CAPABILITY_CONTRACTS.find((contract) => contract.id === "canvas.read")?.exposure).toBe("mcp_safe");
     expect(resolveCapabilityAlias(CANVAS_WRITE_CAPABILITY.aliases.pi)?.contract).toBe(CANVAS_WRITE_CAPABILITY);
@@ -88,6 +118,10 @@ describe("capability contract registry", () => {
       "create_canvas_nodes",
       "connect_canvas_edges",
       "tidy_canvas",
+      "propose_storyboard_plan",
+      "arrange_storyboard_to_timeline",
+      "create_staging_reference",
+      "create_camera_move",
     ]);
     expect(resolveCapabilityAlias("nomi_set_node_prompt")).toBeUndefined();
     expect(resolveCapabilityAlias(DOCUMENT_READ_ALIASES.selection)?.contract).toBe(DOCUMENT_READ_CAPABILITY);
@@ -99,6 +133,10 @@ describe("capability contract registry", () => {
     expect(resolveCapabilityAlias("delete_canvas_nodes")?.contract).toBe(CANVAS_DELETE_CAPABILITY);
     expect(resolveCapabilityAlias("verify_render")?.contract).toBe(EXPORT_READ_CAPABILITY);
     expect(resolveCapabilityAlias("cancel_export_job")?.contract).toBe(EXPORT_WRITE_CAPABILITY);
+    expect(resolveCapabilityAlias("author_skill")?.contract).toBe(SKILL_WRITE_CAPABILITY);
+    expect(resolveCapabilityAlias("load_skill")?.contract).toBe(SKILL_READ_CAPABILITY);
+    expect(SKILL_READ_CAPABILITY.execution).toEqual({ port: "skills", availability: "main_only" });
+    expect(SKILL_WRITE_CAPABILITY.execution).toEqual({ port: "skills", availability: "main_only" });
   });
 
   it("rejects adapter, port, and executor objects at compile time", () => {

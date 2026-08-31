@@ -474,12 +474,14 @@ describe("capabilityCore/rpcServer", () => {
     await portAborted;
   });
 
-  it("generate 经 RPC 走注入 runTask 落结果", async () => {
+  it("retired generate route → 404 且不触发 runTask", async () => {
     const created = await rpc("project.create", { name: "gen" });
     const projectId = (created.body.result as { id: string }).id;
     const gen = await rpc("generate", { projectId, intent: "image", prompt: "cat", vendor: "v", modelKey: "m" });
-    expect(gen.body.ok).toBe(true);
-    expect((gen.body.result as { status: string }).status).toBe("succeeded");
+    expect(gen.status).toBe(404);
+    expect(gen.body).toMatchObject({ ok: false, error: "未知方法: generate" });
+    expect(lastRunTaskReq).toBeNull();
+    expect(rendererOps).toEqual([]);
   });
 
   it("A 模式无渲染层（测试环境）：改打开中的项目 → 降级磁盘网关，照常落盘（不再硬 409）", async () => {
@@ -501,28 +503,24 @@ describe("capabilityCore/rpcServer", () => {
     expect(generationCanvas?.nodes).toHaveLength(1);
   });
 
-  it("hybrid：窗口在线但项目没在前台 → 付费确认弹全局卡(经渲染层)，确认后铸令牌随 runTask 下传", async () => {
-    // 治根：外部 MCP 生成到「非当前打开的项目」时，旧逻辑走磁盘网关 env 闸 → 秒退未确认(静默黑洞)。
-    // 新逻辑：窗口在线 + 项目没在前台 → hybrid 网关 → confirmSpend 走渲染层弹卡。
+  it("retired generate route → 不因 hybrid 窗口状态绕过语义生成入口", async () => {
+    // `generate` 已从 dispatcher retirement；窗口状态和网关选择不能把它复活成旧付费路径。
     rendererUp = true;
     spendReply = { confirmed: true };
     const created = await rpc("project.create", { name: "后台项目" });
     const projectId = (created.body.result as { id: string }).id;
-    // 注意:不设 openProjectId → 该项目不在前台。
+    // 不设 openProjectId → 目标项目不在前台，命中 hybrid 条件。
     const gen = await rpc("generate", { projectId, intent: "image", prompt: "robot", vendor: "v", modelKey: "m" });
-    expect(gen.body.ok).toBe(true);
-    // 付费确认确实经渲染层(全局卡)路由,canvas 读写没走渲染层(hybrid 读写走盘)。
-    expect(rendererOps).toContain("spend.confirm");
-    expect(rendererOps.filter((op) => op.startsWith("canvas"))).toHaveLength(0);
-    // 真人(模拟)确认 → 铸了令牌随请求下传 runTask(主进程硬闸据此核验消费)。
-    expect(lastRunTaskReq?.extras?.grantId).toBeTruthy();
+    expect(gen.status).toBe(404);
+    expect(gen.body).toMatchObject({ ok: false, error: "未知方法: generate" });
+    expect(rendererOps).toEqual([]);
+    expect(lastRunTaskReq).toBeNull();
   });
 
-  it("spendConfirmed 过线：已在调用方客户端确认过 → App 不再弹第二张卡，直接铸令牌下传", async () => {
-    // 2026-08-18 修双问：协议层已在 Claude/Codex 侧经 elicitation 拿到真人 accept。若这个信号不过 RPC 线，
-    // 渲染层会再弹一次 spend.confirm → 用户点两次（比修之前更糟）。锁死：不弹卡 + 仍有令牌。
+  it("retired generate route → spendConfirmed 也不能复活旧付费入口", async () => {
+    // 客户端预确认只作用于仍存在的 canonical route；不能把 retired alias 变成静默付费调用。
     rendererUp = true;
-    spendReply = { confirmed: false }; // 卡真被弹到就会拒 → grantId 缺失,双重保险坐实「没走弹卡这条」
+    spendReply = { confirmed: false };
     const created = await rpc("project.create", { name: "已在客户端确认" });
     const projectId = (created.body.result as { id: string }).id;
     const gen = await rpcRaw({
@@ -530,10 +528,10 @@ describe("capabilityCore/rpcServer", () => {
       params: { projectId, intent: "image", prompt: "robot", vendor: "v", modelKey: "m" },
       spendConfirmed: true,
     });
-    expect(gen.body.ok).toBe(true);
+    expect(gen.status).toBe(404);
+    expect(gen.body).toMatchObject({ ok: false, error: "未知方法: generate" });
     expect(rendererOps).not.toContain("spend.confirm");
-    // 付费硬闸不松：仍必须有令牌随请求下传,runTask 侧 assertAndConsumeSpendGrant 照常逐次核验。
-    expect(lastRunTaskReq?.extras?.grantId).toBeTruthy();
+    expect(lastRunTaskReq).toBeNull();
   });
 
   it("安全：spendConfirmed 只预批付费,不顺手预批方案门(confirmPlan 仍要真人)", async () => {
@@ -558,14 +556,16 @@ describe("capabilityCore/rpcServer", () => {
     expect(rendererOps).toContain("plan.confirm");
   });
 
-  it("安全：付费确认被拒(confirmed:false) → 不铸令牌,请求不带 grantId(runTask 硬闸会拦)", async () => {
+  it("retired generate route → 即使付费确认被拒也不触发旧网关", async () => {
     rendererUp = true;
     spendReply = { confirmed: false };
     const created = await rpc("project.create", { name: "后台项目-拒绝" });
     const projectId = (created.body.result as { id: string }).id;
-    await rpc("generate", { projectId, intent: "image", prompt: "robot", vendor: "v", modelKey: "m" });
-    expect(rendererOps).toContain("spend.confirm");
-    expect(lastRunTaskReq?.extras?.grantId).toBeUndefined();
+    const gen = await rpc("generate", { projectId, intent: "image", prompt: "robot", vendor: "v", modelKey: "m" });
+    expect(gen.status).toBe(404);
+    expect(gen.body).toMatchObject({ ok: false, error: "未知方法: generate" });
+    expect(rendererOps).toEqual([]);
+    expect(lastRunTaskReq).toBeNull();
   });
 
   it("未知方法 → 404", async () => {

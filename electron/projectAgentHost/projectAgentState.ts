@@ -2,6 +2,7 @@ import type { ProjectBinding } from "../shared/projectBinding";
 import type {
   HumanApprovalRef,
   ProjectAgentAppliedCommand,
+  ProjectAgentApprovalPolicy,
   ProjectAgentChange,
   ProjectAgentHostState,
   ProjectAgentItem,
@@ -14,6 +15,11 @@ import type {
 } from "../shared/projectAgentContracts";
 import {
   PROJECT_AGENT_ITEM_KINDS,
+  PROJECT_AGENT_WORK_MODES,
+  PROJECT_AGENT_APPROVAL_MODES,
+  PROJECT_AGENT_SPEND_POLICIES,
+  projectAgentApprovalPolicyOf,
+  projectAgentWorkModeOf,
   PROJECT_AGENT_ORIGIN_SURFACE_KINDS,
   PROJECT_AGENT_PROPOSAL_LIFECYCLES,
   PROJECT_AGENT_RECENT_COMMAND_LIMIT,
@@ -54,12 +60,27 @@ export { ProjectAgentStateError } from "./projectAgentStateError";
 export { isProjectAgentStatus } from "./projectAgentStateValidationPrimitives";
 
 const ITEM_KIND_SET = new Set<string>(PROJECT_AGENT_ITEM_KINDS);
+const WORK_MODE_SET = new Set<string>(PROJECT_AGENT_WORK_MODES);
 const ORIGIN_SURFACE_KIND_SET = new Set<string>(PROJECT_AGENT_ORIGIN_SURFACE_KINDS);
 const PROPOSAL_LIFECYCLE_SET = new Set<string>(PROJECT_AGENT_PROPOSAL_LIFECYCLES);
+const APPROVAL_MODE_SET = new Set<string>(PROJECT_AGENT_APPROVAL_MODES);
+const SPEND_POLICY_SET = new Set<string>(PROJECT_AGENT_SPEND_POLICIES);
 type TrustedCommandIndex = Map<string, ProjectAgentAppliedCommand>;
 const trustedStates = new WeakSet<object>();
 const trustedCommandIndexes = new WeakMap<object, TrustedCommandIndex>();
 let fullValidationCount = 0;
+
+function assertApprovalPolicy(value: unknown): asserts value is ProjectAgentApprovalPolicy {
+  const policy = asRecord(value);
+  assertAllowedKeys(policy, ["mode", "spend"]);
+  if (!APPROVAL_MODE_SET.has(String(policy.mode)) || !SPEND_POLICY_SET.has(String(policy.spend))) {
+    throw new ProjectAgentStateError("invalid_state");
+  }
+}
+
+function assertWorkMode(value: unknown): void {
+  if (!WORK_MODE_SET.has(String(value))) throw new ProjectAgentStateError("invalid_state");
+}
 
 function assertThread(value: unknown): asserts value is ProjectAgentThread {
   const thread = asRecord(value);
@@ -85,6 +106,8 @@ function assertTurn(
     "deviated",
     "executionToken",
     "model",
+    "workMode",
+    "approvalPolicy",
     "skillVersions",
     "capabilityVersions",
     "contextRef",
@@ -97,6 +120,8 @@ function assertTurn(
   assertStatusRecord(turn);
   assertCanonicalId(turn.executionToken);
   assertVersionRef(turn.model);
+  if (turn.workMode !== undefined) assertWorkMode(turn.workMode);
+  if (turn.approvalPolicy !== undefined) assertApprovalPolicy(turn.approvalPolicy);
   assertVersionRefs(turn.skillVersions);
   assertVersionRefs(turn.capabilityVersions);
   assertContextRef(turn.contextRef, binding, turn.threadId);
@@ -280,6 +305,8 @@ function assertQueueItem(
     "preconditions",
     "contextRef",
     "model",
+    "workMode",
+    "approvalPolicy",
     "skillVersions",
     "capabilityVersions",
     "policyRevision",
@@ -287,6 +314,7 @@ function assertQueueItem(
     "originSurface",
     "enqueuedAt",
     "updatedAt",
+    "paused",
   ]);
   assertCanonicalId(item.queueItemId);
   assertCanonicalId(item.threadId);
@@ -303,6 +331,8 @@ function assertQueueItem(
   assertPreconditions(item.preconditions);
   assertContextRef(item.contextRef, binding, item.threadId);
   assertVersionRef(item.model);
+  if (item.workMode !== undefined) assertWorkMode(item.workMode);
+  if (item.approvalPolicy !== undefined) assertApprovalPolicy(item.approvalPolicy);
   assertVersionRefs(item.skillVersions);
   assertVersionRefs(item.capabilityVersions);
   assertSafeInteger(item.policyRevision);
@@ -333,6 +363,12 @@ function assertQueueItem(
   }
   assertCanonicalTimestamp(item.enqueuedAt);
   assertCanonicalTimestamp(item.updatedAt);
+  if (item.paused !== undefined && typeof item.paused !== "boolean") {
+    throw new ProjectAgentStateError("invalid_state");
+  }
+  if (item.paused === true && item.status !== "queued") {
+    throw new ProjectAgentStateError("invalid_state");
+  }
   assertTimestampOrder(item.enqueuedAt, item.updatedAt);
 }
 
@@ -437,6 +473,15 @@ function assertPatchChange(
       assertAllowedKeys(change, ["kind", "queueItemId"]);
       assertCanonicalId(change.queueItemId);
       break;
+    case "queue-reordered": {
+      assertAllowedKeys(change, ["kind", "queueItemIds"]);
+      if (!Array.isArray(change.queueItemIds)) throw new ProjectAgentStateError("invalid_state");
+      assertUniqueIds(change.queueItemIds, (entry) => {
+        assertCanonicalId(entry);
+        return entry as string;
+      });
+      break;
+    }
     case "proposal-upserted":
       assertAllowedKeys(change, ["kind", "approval"]);
       assertProposalApproval(change.approval, threadIds, turnIds);
@@ -584,6 +629,9 @@ export function assertProjectAgentHostState(value: unknown): asserts value is Pr
       item.updatedAt !== turn.updatedAt ||
       stableProjectAgentJson(item.contextRef) !== stableProjectAgentJson(turn.contextRef) ||
       stableProjectAgentJson(item.model) !== stableProjectAgentJson(turn.model) ||
+      projectAgentWorkModeOf(item.workMode) !== projectAgentWorkModeOf(turn.workMode) ||
+      stableProjectAgentJson(projectAgentApprovalPolicyOf(item.approvalPolicy)) !==
+        stableProjectAgentJson(projectAgentApprovalPolicyOf(turn.approvalPolicy)) ||
       stableProjectAgentJson(item.skillVersions) !== stableProjectAgentJson(turn.skillVersions) ||
       stableProjectAgentJson(item.capabilityVersions) !== stableProjectAgentJson(turn.capabilityVersions)
     ) {

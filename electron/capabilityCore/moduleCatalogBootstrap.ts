@@ -2,8 +2,8 @@ import { createModuleRegistry } from "./moduleRegistry";
 import type { ModuleManifest } from "./moduleManifest";
 import type { GenerationProviderCapabilities } from "./generationRuntimeAdapter";
 import { readCatalog } from "../catalog/catalogStore";
-import type { CatalogState, Mapping, Model } from "../catalog/types";
-import { modelHasPublishedExecution } from "../shared/modelPublication";
+import type { CatalogState, Mapping, Model, ProfileKind } from "../catalog/types";
+import { derivePublishedExecution } from "../shared/modelPublication";
 
 /**
  * Built-ins are passed in by the application bootstrap. This keeps provider/model
@@ -22,18 +22,6 @@ export type GenerationProviderReadiness = {
 };
 
 export type GenerationProviderReadinessMap = Readonly<Record<string, GenerationProviderReadiness>>;
-
-function modeForKind(kind: Model["kind"]): string {
-  return kind === "text"
-    ? "chat"
-    : kind === "image"
-      ? "text_to_image"
-      : kind === "video"
-        ? "text_to_video"
-        : kind === "audio"
-          ? "text_to_audio"
-          : "text_to_3d";
-}
 
 function parameterType(field: NonNullable<Model["onboarding"]>["fields"][number]): "string" | "number" | "boolean" | "enum" {
   if (field.type === "number") return "number";
@@ -64,25 +52,36 @@ function modelParameterSchema(model: Model, mappings: readonly Mapping[]) {
 }
 
 function manifestFromCatalog(state: CatalogState, readinessByProvider: GenerationProviderReadinessMap = {}): ModuleManifest | null {
-  const enabledModels = state.models.filter((model) => modelHasPublishedExecution(model, { mappings: state.mappings }));
+  // The semantic registry is the source used by natural-language fallback
+  // selection.  Keep it in lock-step with the executable catalog: a model is
+  // visible only when its vendor is enabled and at least one *specific mode*
+  // is published.  The previous model-level boolean admitted disabled vendors
+  // and disabled task mappings, so a short request could select a mode that
+  // preview accepted but the provider could never execute.
+  const publishedModesFor = (model: Model): ProfileKind[] =>
+    derivePublishedExecution(model, { mappings: state.mappings }).publishedModes;
+  const enabledModels = state.models.filter((model) =>
+    model.enabled === true
+      && publishedModesFor(model).length > 0
+      && state.vendors.some((vendor) => vendor.key === model.vendorKey && vendor.enabled),
+  );
   if (!enabledModels.length) return null;
   const enabledModelKeys = new Set(enabledModels.map((model) => `${model.vendorKey}\u0000${model.modelKey}`));
   const mappingsFor = (model: Model) => state.mappings.filter((mapping) =>
     mapping.vendorKey === model.vendorKey
+    && mapping.enabled
+    && publishedModesFor(model).includes(mapping.taskKind)
     && enabledModelKeys.has(`${model.vendorKey}\u0000${model.modelKey}`)
     && (mapping.modelKey === undefined || mapping.modelKey === "" || mapping.modelKey === model.modelKey || mapping.modelKey === model.modelAlias),
   );
-  const modes = [...new Set(enabledModels.flatMap((model) => {
-    const declared = mappingsFor(model).map((mapping) => mapping.taskKind).filter(Boolean);
-    return declared.length ? declared : [modeForKind(model.kind)];
-  }))];
+  const modes = [...new Set(enabledModels.flatMap((model) => publishedModesFor(model)))];
   const providers = [...new Map(enabledModels.map((model) => {
     const models = enabledModels.filter((candidate) => candidate.vendorKey === model.vendorKey).map((candidate) => {
       const mappings = mappingsFor(candidate);
-      const declaredModes = [...new Set(mappings.map((mapping) => mapping.taskKind).filter(Boolean))];
+      const declaredModes = publishedModesFor(candidate);
       return {
         modelId: candidate.modelKey,
-        modes: declaredModes.length ? declaredModes : [modeForKind(candidate.kind)],
+        modes: declaredModes,
         parameterSchema: modelParameterSchema(candidate, mappings),
         // Catalog mappings describe wire shape, not proof of native recovery.
         // A bootstrap adapter may prove a subset; absent proof stays false while

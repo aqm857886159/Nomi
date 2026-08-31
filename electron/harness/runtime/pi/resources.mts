@@ -1,11 +1,13 @@
 import { createExtensionRuntime, type ResourceLoader } from '@earendil-works/pi-coding-agent';
+import { createNomiSkillResourceCatalog } from './nomiSkillResources.mjs';
 
-/** No discovery: cwd/agentDir never become sources of instructions or executable resources. */
+/** Nomi owns resource discovery; the SDK-provided session cwd/agentDir never become sources of instructions or executable resources. */
 export function createNomiResourceLoader(systemPrompt: string): ResourceLoader {
   const extensions = { extensions: [], errors: [], runtime: createExtensionRuntime() };
+  const skills = createNomiSkillResourceCatalog();
   return {
     getExtensions: () => extensions,
-    getSkills: () => ({ skills: [], diagnostics: [] }),
+    getSkills: () => skills.list(),
     getPrompts: () => ({ prompts: [], diagnostics: [] }),
     getThemes: () => ({ themes: [], diagnostics: [] }),
     getAgentsFiles: () => ({ agentsFiles: [] }),
@@ -14,6 +16,6 @@ export function createNomiResourceLoader(systemPrompt: string): ResourceLoader {
     getAppendSystemPrompt: () => [],
     getAppendSystemPromptSources: () => [],
     extendResources: () => {},
-    reload: async () => {},
+    reload: () => skills.reload(),
   };
 }

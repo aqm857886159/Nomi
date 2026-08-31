@@ -267,29 +267,32 @@ try {
   await win.keyboard.press("Escape").catch(() => {});
   await win.waitForTimeout(300);
 
-  // ── 本会话回归点 #C(生成区)：助手默认折叠；展开后 aside 是 flex 非 grid；模型选择器显具体名 ──
+  // ── 本会话回归点 #C(生成区)：收起胶囊与 resident aside 几何；模型选择器显具体名 ──
+  const residentShell = win.locator('[data-agent-resident][data-agent-surface="generation"]').first()
+  const collapseResident = residentShell.getByRole('button', { name: '收起 Agent', exact: true })
+  if (await collapseResident.isVisible().catch(() => false)) await collapseResident.click()
+  await win.locator('[data-agent-resident-collapsed="true"]:visible').waitFor({ state: 'visible', timeout: 5_000 })
   const collapsed = await win.evaluate(() => {
-    const launcherEl = Array.from(document.querySelectorAll('[aria-label="生成区 AI 启动器"]')).find((el) => el.getClientRects().length > 0);
-    const btn = launcherEl?.querySelector('.generation-canvas-v2-assistant__launcher');
+    const btn = document.querySelector('[data-agent-resident-collapsed="true"]');
     const r = btn ? btn.getBoundingClientRect() : null;
     const radius = btn ? parseFloat(getComputedStyle(btn).borderTopLeftRadius) : 0;
     return {
-      launcher: Boolean(launcherEl),
-      asideMounted: Array.from(document.querySelectorAll('[aria-label="生成区 AI 助手"]')).some((el) => el.getClientRects().length > 0),
+      launcher: Boolean(btn),
+      asideMounted: Array.from(document.querySelectorAll('[data-agent-resident][data-agent-surface="generation"] [data-agent-composer]')).some((el) => el.getClientRects().length > 0),
       // 收起胶囊应为整圆角（半径 ≥ 半高）；这锁住 cn() twMerge 让 rounded-full 压过组件基类
       // rounded-workbench-control 的修复——否则创作/生成胶囊外圆角会不一致。
       launcherFullPill: r ? radius >= r.height / 2 - 1 : false,
     };
   });
-  console.log("\n── 生成助手(#C：默认折叠 → 启动器在、面板未挂载、整圆角) ──");
-  assert(collapsed.launcher && !collapsed.asideMounted, "生成助手默认折叠（启动器在、aside 未挂载）", JSON.stringify(collapsed));
+  console.log("\n── 生成助手(#C：收起胶囊 → resident 不占侧栏、整圆角) ──");
+  assert(collapsed.launcher && !collapsed.asideMounted, "生成助手收起后显示胶囊且不挂载 composer", JSON.stringify(collapsed));
   assert(collapsed.launcherFullPill, "收起胶囊为整圆角 rounded-full（cn twMerge 压过基类圆角）", `fullPill=${collapsed.launcherFullPill}`);
 
-  await win.locator('[aria-label="生成区 AI 启动器"]:visible button').click();
-  await win.waitForSelector('[aria-label="生成区 AI 助手"]', { state: "visible", timeout: 3_000 });
+  await win.locator('[data-agent-resident-collapsed="true"]:visible').click();
+  await win.locator('[data-agent-resident][data-agent-surface="generation"] [data-agent-composer]').waitFor({ state: 'visible', timeout: 3_000 });
   const asst = await win.evaluate(() => {
-    const aside = document.querySelector('[aria-label="生成区 AI 助手"]');
-    const picker = document.querySelector('[aria-label="助手模型"]');
+    const aside = document.querySelector('[data-agent-resident][data-agent-surface="generation"]');
+    const picker = document.querySelector('[data-agent-model-trigger]');
     return {
       asideDisplay: aside ? getComputedStyle(aside).display : "?",
       pickerText: picker ? (picker.textContent || "").trim() : "?",

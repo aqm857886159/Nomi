@@ -9,6 +9,7 @@ import type {
 import { createInitialProjectAgentState } from '../../../electron/projectAgentHost/projectAgentState'
 import { createProjectAgentContextBinding } from '../../../electron/projectAgentHost/projectAgentContextBinding'
 import type { ToolCallEvent } from './workbenchAgentRunner'
+import { buildResidentContextSnapshot } from './resident/residentContextSnapshot'
 
 const deps = vi.hoisted(() => ({
   enqueue: vi.fn(),
@@ -393,5 +394,39 @@ describe('Project Agent workbench compatibility runner', () => {
     })
     finish(turnId, 'done', response())
     await running
+    })
   })
-})
+
+  it('bridges the selected Skill into the canonical nested runtime context', async () => {
+    const running = runWorkbenchAgent({
+      ...baseInput,
+      skillKey: 'craft.camera',
+      skillName: 'Camera craft',
+      selectedNodeIds: ['node-a'],
+    })
+    const command = deps.enqueue.mock.calls[0][0]
+    expect(command.request).toMatchObject({
+      skillKey: 'craft.camera',
+      skillName: 'Camera craft',
+      chatContext: { skill: { key: 'craft.camera', name: 'Camera craft' } },
+    })
+    finish(command.turnId, 'done', response())
+    await expect(running).resolves.toMatchObject({ status: 'finished' })
+  })
+
+  it('bridges a frozen resident ContextSnapshot into the Host request', async () => {
+    const contextSnapshot = buildResidentContextSnapshot({
+      canvas: {
+        revision: 4,
+        nodes: [{ id: 'node-a', title: '开场', kind: 'image' }],
+        selectedNodeIds: ['node-a'],
+      },
+    })
+    const running = runWorkbenchAgent({ ...baseInput, contextSnapshot })
+    const command = deps.enqueue.mock.calls[0][0]
+    expect(command.request.contextSnapshot).toEqual(contextSnapshot)
+    expect(Object.isFrozen(command.request.contextSnapshot)).toBe(true)
+    expect(Object.isFrozen(command.request.contextSnapshot.handles[0])).toBe(true)
+    finish(command.turnId, 'done', response())
+    await expect(running).resolves.toMatchObject({ status: 'finished' })
+  })

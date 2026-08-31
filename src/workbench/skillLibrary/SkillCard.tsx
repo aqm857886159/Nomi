@@ -47,6 +47,14 @@ export function SkillCard({
         <p className={cn('text-caption text-nomi-ink-40')}>{t('libraries.skill.noDescription')}</p>
       )}
 
+      <span
+        className={cn('w-fit max-w-full truncate text-micro text-nomi-ink-40')}
+        title={`${skill.packageVersion} · ${skill.contentHash}`}
+        aria-label={t('libraries.skill.identity', { version: skill.packageVersion, hash: skill.contentHash })}
+      >
+        {t('libraries.skill.identity', { version: skill.packageVersion, hash: skill.contentHash.slice(0, 8) })}
+      </span>
+
       {skill.neededProviders.length > 0 && (
         <div className={cn('flex flex-wrap items-center gap-2')}>
           {skill.neededProviders.map((kind) => {

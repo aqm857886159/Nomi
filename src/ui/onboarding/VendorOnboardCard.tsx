@@ -22,6 +22,10 @@ import { useVendorHealth } from './useVendorHealth'
 import { vendorConnectionPill } from './vendorConnectionView'
 import { VendorConnectionNotice } from './VendorConnectionNotice'
 import type { ModelSettingsConnectionFocus } from './modelSettingsNavigation'
+import {
+  resolveKeyOnlySaveOutcome,
+  type KeyOnlyCredentialMode,
+} from './keyOnlyConnectionPolicy'
 
 type VendorOnboardCardProps = {
   directory: KnownVendor
@@ -31,8 +35,12 @@ type VendorOnboardCardProps = {
   baseUrl: string
   /** 该供应商是否已绑定 key（catalog vendor.hasApiKey）。 */
   hasApiKey: boolean
+  /** catalog vendor.enabled；direct-key 连接只有 key + enabled 才算可用。 */
+  enabled?: boolean
   /** 该供应商的预置模型（从 catalog 派生）。 */
   models: ChipModel[]
+  /** 后端 public vendor DTO 派生的凭证流程；缺省认证，避免 renderer 自授权。 */
+  credentialMode?: KeyOnlyCredentialMode
   /** 模型启停（选中=进节点模型列表；取消=隐藏）。传入则 chip 可点选。 */
   onToggleModel?: (model: ChipModel, enabled: boolean) => void
   /** key 绑定/清除后刷新外层。 */
@@ -48,7 +56,9 @@ export function VendorOnboardCard({
   vendorName,
   baseUrl,
   hasApiKey,
+  enabled = true,
   models,
+  credentialMode = 'certification',
   onToggleModel,
   onChanged,
   onOpenDetails,
@@ -57,8 +67,12 @@ export function VendorOnboardCard({
   focus,
 }: VendorOnboardCardProps): JSX.Element {
   const { t } = useTranslation()
+  // Certification rows preserve their historical staged-key presentation;
+  // direct-key rows additionally require the backend's enabled bit. This
+  // keeps a denied APIMart promotion editable after the outer catalog refresh.
+  const usableKey = hasApiKey && (credentialMode !== 'direct-key' || enabled)
   // 已连通默认折叠 key 输入（显「已保存」）；点「更换」展开输入。
-  const [editing, setEditing] = React.useState(!hasApiKey)
+  const [editing, setEditing] = React.useState(!usableKey)
   // 多段凭证（如火山语音 App ID + Access Token）的草稿，按字段 key 存；单段家只有一个字段。
   const [drafts, setDrafts] = React.useState<Record<string, string>>({})
   const [busy, setBusy] = React.useState(false)
@@ -67,11 +81,11 @@ export function VendorOnboardCard({
   const handledFocusRequestRef = React.useRef<number | null>(null)
   // 连接状态的唯一来源（主进程自取凭证探测）。地址一改 fingerprint 就变，effect 自动重探；
   // 换 key 不改地址，所以解锁后要显式 recheck()。
-  const { connection, recheck } = useVendorHealth(directory.vendorKey, { hasApiKey, baseUrl })
+  const { connection, recheck } = useVendorHealth(directory.vendorKey, { hasApiKey: usableKey, baseUrl })
 
   React.useEffect(() => {
-    setEditing(!hasApiKey)
-  }, [hasApiKey])
+    setEditing(!usableKey)
+  }, [usableKey])
 
   // 只管 apiKey 那一路；baseUrl 的聚焦请求由 VendorBaseUrlField 自己认（它持有那个 input）。
   React.useEffect(() => {
@@ -124,11 +138,23 @@ export function VendorOnboardCard({
     setBusy(true)
     setError('')
     try {
-      // Saving a new key invalidates any previous certification. The vendor
-      // remains hidden from executable model selection until a canonical run
-      // verifies the selected modes.
-      bridge.modelCatalog.upsertVendor({ key: directory.vendorKey, enabled: false })
-      bridge.modelCatalog.upsertVendorApiKey(directory.vendorKey, { apiKey, enabled: false })
+      // Ask the main-process policy to activate this connection. Certification
+      // rows stay disabled while a key is staged; only a code-owned direct-key
+      // contract is pre-enabled so the backend can evaluate its promotion bit.
+      bridge.modelCatalog.upsertVendor({ key: directory.vendorKey, enabled: credentialMode === 'direct-key' })
+      const saved = bridge.modelCatalog.upsertVendorApiKey(directory.vendorKey, { apiKey, enabled: true }) as {
+        enabled?: boolean
+      }
+      // Even if an older backend echoes enabled=true, certification mode must
+      // remain fail-closed in the renderer.
+      const enabled = credentialMode === 'direct-key' && saved?.enabled === true
+      const outcome = resolveKeyOnlySaveOutcome(credentialMode, enabled)
+      bridge.modelCatalog.upsertVendor({ key: directory.vendorKey, enabled })
+      if (outcome === 'rejected') {
+        setError(t('onboardingProviders.keyOnly.directKeyUnavailable'))
+        onChanged()
+        return
+      }
       setDrafts({})
       setEditing(false)
       onChanged()
@@ -136,13 +162,16 @@ export function VendorOnboardCard({
       // 换 key 不改地址（fingerprint 不变），所以这里显式重探一次。
       recheck()
     } catch (e) {
+      if (credentialMode === 'direct-key') {
+        try { bridge?.modelCatalog.upsertVendor({ key: directory.vendorKey, enabled: false }) } catch { /* best effort rollback */ }
+      }
       setError(
         t('onboardingProviders.vendorCard.unlockFailed', { message: e instanceof Error ? e.message : String(e) }),
       )
     } finally {
       setBusy(false)
     }
-  }, [fields, drafts, isMulti, directory.vendorKey, directory.credentialJoin, onChanged, recheck, t])
+  }, [fields, drafts, isMulti, credentialMode, directory.vendorKey, directory.credentialJoin, onChanged, recheck, t])
 
   const handleDisconnect = React.useCallback(async () => {
     const bridge = getDesktopBridge()
@@ -181,11 +210,11 @@ export function VendorOnboardCard({
       }
       glyphTone={directory.logo ? 'logo' : 'ink'}
       name={vendorName}
-      subtitle={hasApiKey ? t('onboardingProviders.vendorCard.modelsAvailable', { count: total }) : directory.tagline}
+      subtitle={usableKey ? t('onboardingProviders.vendorCard.modelsAvailable', { count: total }) : directory.tagline}
       status={pill?.status ?? 'todo'}
       statusLabel={pill ? t(pill.labelKey) : undefined}
       badge={
-        !hasApiKey && directory.recommended ? (
+        !usableKey && directory.recommended ? (
           <span className="text-micro font-semibold text-nomi-accent bg-nomi-accent-soft rounded-full px-2 py-[2px] whitespace-nowrap">
             {t('onboardingProviders.vendorCard.recommended')}
           </span>
@@ -245,7 +274,7 @@ export function VendorOnboardCard({
                   <IconKey size={14} stroke={1.6} />
                   {t('onboardingProviders.vendorCard.unlock')}
                 </button>
-                {hasApiKey ? (
+                {usableKey ? (
                   <button
                     type="button"
                     onClick={() => setEditing(false)}
@@ -293,7 +322,7 @@ export function VendorOnboardCard({
                   {t('onboardingProviders.vendorCard.unlock')}
                 </button>
               </div>
-              {hasApiKey ? (
+              {usableKey ? (
                 <button
                   type="button"
                   onClick={() => setEditing(false)}
@@ -352,8 +381,8 @@ export function VendorOnboardCard({
 
       <ModelChipGroups
         models={models}
-        connected={hasApiKey}
-        onToggle={hasApiKey ? onToggleModel : undefined}
+        connected={usableKey}
+        onToggle={usableKey ? onToggleModel : undefined}
         onOpenModel={onOpenModel}
       />
 

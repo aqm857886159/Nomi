@@ -2,29 +2,52 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const resident = fs.readFileSync(
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+}
+
+function readSource(file: string): string {
+  return stripComments(fs.readFileSync(file, 'utf8'))
+}
+
+const resident = readSource(
   path.join(process.cwd(), 'src/workbench/ai/ProjectAgentResidentShell.tsx'),
-  'utf8',
 )
-const residentPrimitives = fs.readFileSync(
+const residentPrimitives = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/ResidentUiPrimitives.tsx'),
-  'utf8',
 )
-const shell = fs.readFileSync(
+const residentProjection = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/residentToolProjection.ts'),
+)
+const residentDisplay = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/residentToolDisplay.ts'),
+)
+const residentReference = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/ResidentReferenceChip.tsx'),
+)
+const residentGenerationEditor = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/GenerationProposalEditor.tsx'),
+)
+const residentBatchStack = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/ResidentBatchStack.tsx'),
+)
+const residentTiming = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/residentToolTiming.ts'),
+)
+const agentContracts = readSource(
+  path.join(process.cwd(), 'electron/shared/projectAgentContracts.ts'),
+)
+const shell = readSource(
   path.join(process.cwd(), 'src/workbench/WorkbenchShell.tsx'),
-  'utf8',
 )
-const creation = fs.readFileSync(
+const creation = readSource(
   path.join(process.cwd(), 'src/workbench/creation/CreationWorkspace.tsx'),
-  'utf8',
 )
-const generation = fs.readFileSync(
+const generation = readSource(
   path.join(process.cwd(), 'src/workbench/generation/GenerationWorkspace.tsx'),
-  'utf8',
 )
-const preview = fs.readFileSync(
+const preview = readSource(
   path.join(process.cwd(), 'src/workbench/preview/PreviewWorkspace.tsx'),
-  'utf8',
 )
 
 describe('ProjectAgentResidentShell production contract', () => {
@@ -65,6 +88,7 @@ describe('ProjectAgentResidentShell production contract', () => {
       'data-agent-mode-trigger',
       'data-agent-model-trigger',
       'data-agent-send',
+      'data-agent-stop',
       'data-agent-context',
       'data-agent-context-focus',
     ]) expect(resident).toContain(control)
@@ -77,7 +101,7 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('pending.call.confirm')
     expect(resident).toContain('setAssistantModelPref')
     expect(resident).toContain('projectAgentReferences')
-    for (const icon of ['IconPaperclip', 'IconAt', 'IconTool', 'IconPencil', 'IconAdjustmentsHorizontal', 'IconRobot', 'IconArrowUp', 'IconChevronLeft', 'IconFocusCentered']) {
+    for (const icon of ['IconPaperclip', 'IconAt', 'IconTool', 'IconPencil', 'IconAdjustmentsHorizontal', 'IconRobot', 'IconArrowUp', 'IconPlayerStopFilled', 'IconChevronLeft', 'IconFocusCentered']) {
       expect(resident).toContain(icon)
     }
     expect(resident).not.toContain('IconSparkles')
@@ -90,11 +114,108 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).not.toContain('data-agent-action="approve-plan"')
     expect(resident).toContain('title={t(\'agentResident.attachTitle\')}')
     expect(resident).toContain('aria-haspopup="menu"')
+    expect(resident).toContain('BodyPortal')
+    expect(resident).toContain('anchorRef')
     expect(resident).toContain('data-agent-resident-collapsed="true"')
     expect(resident).toContain('rounded-pill border border-nomi-line')
     expect(resident).not.toContain('CreationPromptPicker')
     expect(resident).not.toContain('AssistantModelPicker')
     expect(resident).not.toContain('<select')
+  })
+
+  it('keeps the capability picker complete and tool history progressively disclosed', () => {
+    expect(resident).toContain('setSkills(listWorkbenchSkills())')
+    expect(resident).not.toContain('listWorkbenchSkills().filter((item) => item.isPlaybook)')
+    expect(resident).toContain('item.name} ${item.directoryName} ${item.label}')
+    expect(residentPrimitives).toContain("normalized.includes('load_skill')")
+    expect(residentPrimitives).toContain('<IconRobot size={13}')
+    expect(residentPrimitives).toContain('items.length <= 1 || hasRunningItem')
+    expect(residentPrimitives).toContain('if (!nextOpen) setOpenId(null)')
+  })
+
+  it('keeps review cards actionable and progressively discloses technical detail', () => {
+    expect(resident).toContain('hasContextLocator')
+    expect(resident).toContain('data-agent-proposal')
+    expect(resident).toContain('proposal={')
+    expect(residentDisplay).toContain('readableProposalModel')
+    expect(residentDisplay).toContain("replace(/16:9/g")
+    expect(residentPrimitives).toContain('data-agent-tool-effect')
+    expect(residentPrimitives).toContain('data-agent-tool-target')
+    expect(residentPrimitives).toContain('data-agent-tool-result')
+    expect(residentPrimitives).toContain('technicalDetails')
+    expect(residentPrimitives).toContain('data-agent-proposal-compact')
+    expect(residentPrimitives).toContain('data-agent-proposal-estimate')
+    expect(residentPrimitives).toContain('data-agent-proposal-details')
+    expect(residentPrimitives).toContain('data-agent-proposal-editor-slot')
+    expect(residentPrimitives).toContain('data-agent-approval-variant="generation"')
+    expect(residentPrimitives).toContain('compactGeneration')
+    expect(resident).toContain('isGenerationProposalTool')
+    expect(resident).toContain('compactGeneration={compactGeneration}')
+    expect(residentPrimitives).toContain('partitionResidentProposalFields')
+    expect(residentPrimitives).toContain('queueSummaryLabel')
+    expect(residentPrimitives).toContain('queueHiddenLabel')
+    expect(residentPrimitives).toContain('whitespace-nowrap')
+    expect(residentPrimitives).toContain('aria-label={stopLabel}')
+    expect(resident).toContain('ResidentReferenceChip')
+    expect(resident).toContain('contextHandleForResidentReference')
+    expect(resident).toContain('mergeResidentContextHandles')
+    expect(resident).toContain('contextSnapshot,')
+    expect(residentReference).toContain('data-agent-reference-role')
+    expect(residentReference).toContain('data-agent-reference-kind')
+    expect(residentReference).toContain('data-agent-reference-context-bound')
+    expect(residentReference).toContain('title={presentation.accessibleLabel}')
+    expect(residentPrimitives).toContain('data-agent-tool-active')
+    expect(residentPrimitives).toContain('data-agent-tool-elapsed')
+    expect(residentTiming).toContain('residentToolElapsedMs')
+    expect(resident).toContain("status === 'declined' ? 'declined'")
+    expect(residentPrimitives).toContain('data-agent-proposal-prompt')
+    expect(residentPrimitives).toContain('<IconMessage')
+    expect(residentGenerationEditor).toContain('ResidentBatchStack')
+    expect(residentGenerationEditor).toContain('InlineParameterBar')
+    expect(residentGenerationEditor).toContain('panelMode="inline"')
+    expect(residentGenerationEditor).not.toContain('<select')
+    expect(residentBatchStack).toContain('data-agent-batch-stack-peek')
+    expect(residentBatchStack).toContain('Math.min(3')
+  })
+
+  it('keeps completed tool receipts useful without persisting raw arguments', () => {
+    expect(resident).toContain('readResidentToolProjections')
+    expect(resident).toContain('writeResidentToolProjections')
+    expect(resident).toContain('residentToolProjectionForCall')
+    expect(resident).toContain('residentToolProjectionKey')
+    expect(residentProjection).toContain('redactResidentSensitiveText')
+    expect(residentProjection).toContain('MAX_ENTRIES')
+    expect(residentProjection).toContain('MAX_TEXT_LENGTH')
+    expect(residentProjection).toContain('Object.fromEntries(entries.map')
+    expect(residentProjection).not.toContain('apiKey')
+  })
+
+  it('keeps completed proposal receipts compact and locator-aware', () => {
+    expect(resident).toContain('data-agent-proposal-receipt')
+    expect(resident).toContain("item.status === 'done' ? t('agentResident.approved')")
+    expect(resident).toContain('data-agent-action="focus-receipt"')
+    expect(resident).toContain('hasContextLocator ?')
+  })
+
+  it('keeps queue mutations Host-owned while exposing the typed mutation seam', () => {
+    for (const mutation of [
+      '"queue.delete"',
+      '"queue.move_up"',
+      '"queue.move_down"',
+      '"queue.pause"',
+      '"queue.resume"',
+    ]) {
+      expect(agentContracts).toContain(mutation)
+    }
+    expect(resident).not.toContain('projectAgentClient.command')
+  })
+
+  it('surfaces generation plan patches only in the disclosed detail layer', () => {
+    expect(residentDisplay).toContain('const patch = asRecord(record.patch)')
+    expect(residentDisplay).toContain('patch?.prompt')
+    expect(residentDisplay).toContain('patch?.modelId')
+    expect(residentDisplay).toContain('nestedParameterRecords')
+    expect(residentDisplay).toContain('Array.isArray(record.shots)')
   })
 
   it('overlays the collapsed affordance without reserving a sidebar column', () => {

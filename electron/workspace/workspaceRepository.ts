@@ -5,6 +5,7 @@ import { migrateLegacyProjectFolder } from "./legacyProjectMigration";
 import {
   initializeWorkspace,
   readWorkspaceManifest,
+  readWorkspaceManifestSnapshot,
   recoverWorkspaceManifest,
   withWorkspaceManifestMutationSync,
 } from "./workspaceManifest";
@@ -221,7 +222,7 @@ function findRecentEntry(projectId: string, deps: WorkspaceRepositoryDeps) {
 }
 
 function readManifestOrMigrateLegacy(rootPath: string): WorkspaceProjectRecordV2 | null {
-  const manifest = readWorkspaceManifest(rootPath);
+  const manifest = readWorkspaceManifestSnapshot(rootPath) ?? readWorkspaceManifest(rootPath);
   if (manifest) return manifest;
   if (!hasLegacyProjectFile(rootPath)) return null;
   return migrateLegacyProjectFolder(rootPath);
@@ -271,7 +272,7 @@ export function listWorkspaceProjects(deps: WorkspaceRepositoryDeps): WorkspaceP
         source,
       );
     }
-    const manifest = readWorkspaceManifest(entry.rootPath);
+    const manifest = readWorkspaceManifestSnapshot(entry.rootPath) ?? readWorkspaceManifest(entry.rootPath);
     if (!manifest || manifest.id !== entry.id) {
       if (hasLegacyProjectFile(entry.rootPath)) {
         return withoutPayload(

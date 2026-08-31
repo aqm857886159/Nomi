@@ -50,11 +50,14 @@ export function reduceProjectAgentTurnStart(
   if (current.turns.some((candidate) => candidate.status === "running")) {
     throw new ProjectAgentReducerError("running_turn_exists");
   }
-  const head = current.queue.find((candidate) => isProjectAgentQueueBlockingStatus(candidate.status));
+  const head = current.queue.find(
+    (candidate) => isProjectAgentQueueBlockingStatus(candidate.status) && candidate.paused !== true,
+  );
   if (!head || head.queueItemId !== queueItemId) fail("queue_order_violation");
   if (
     turn.status !== "queued" ||
     queueItem.status !== "queued" ||
+    queueItem.paused === true ||
     queueItem.turnId !== turn.turnId ||
     queueItem.threadId !== turn.threadId ||
     assistantItem.kind !== "assistant" ||

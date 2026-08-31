@@ -31,6 +31,7 @@ import {
   replaceCustomCallConfig,
   withoutLegacyCustomConfig,
   type CustomCallConfigPublicEntry,
+  type PublicVendor,
 } from "./customConfigStore";
 
 export type { CustomCallConfigPatchEntry, CustomCallConfigPublicEntry } from "./customConfigStore";
@@ -249,7 +250,7 @@ function filterByParams<
   });
 }
 
-export function listModelCatalogVendors(): Vendor[] {
+export function listModelCatalogVendors(): PublicVendor[] {
   return readCatalog().vendors.map(publicVendor);
 }
 export function listModelCatalogModels(params?: unknown): Array<Model & { published: boolean; publishedModes: ProfileKind[] }> {
@@ -391,7 +392,7 @@ function applyVendorUpsert(state: CatalogState, payload: unknown): Vendor {
   return vendor;
 }
 
-export function upsertModelCatalogVendor(payload: unknown): Vendor {
+export function upsertModelCatalogVendor(payload: unknown): PublicVendor {
   const state = readCatalog();
   const vendor = applyVendorUpsert(state, payload);
   writeCatalog(state);

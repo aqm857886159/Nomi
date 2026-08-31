@@ -5,17 +5,20 @@ import { describe, expect, it } from 'vitest'
 const read = (file: string) => fs.readFileSync(path.join(process.cwd(), file), 'utf8')
 
 describe('manual onboarding certification boundary', () => {
-  it('never enables an HTTP vendor while saving a credential', () => {
+  it('delegates credential activation to the main-process policy', () => {
     for (const file of [
       'src/ui/onboarding/KnownVendorKeyConnectPage.tsx',
       'src/ui/onboarding/VendorOnboardCard.tsx',
-      'src/ui/onboarding/CustomVendorManage.tsx',
     ]) {
       const source = read(file)
       expect(source).toContain('upsertVendorApiKey')
-      expect(source).toContain('enabled: false')
-      expect(source).not.toMatch(/upsertVendorApiKey\([\s\S]{0,180}enabled:\s*true/)
+      expect(source).toContain('enabled: true')
+      expect(source).toContain('saved?.enabled === true')
     }
+    const custom = read('src/ui/onboarding/CustomVendorManage.tsx')
+    expect(custom).toContain('upsertVendorApiKey')
+    expect(custom).toContain('enabled: false')
+    expect(custom).not.toMatch(/upsertVendorApiKey\([\s\S]{0,180}enabled:\s*true/)
   })
 
   it('creates ComfyUI instances as disabled candidates and routes workflow import to handoff', () => {

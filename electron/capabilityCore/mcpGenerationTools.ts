@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-
 import {
   applyPlanCandidatePatch,
   compileExecutionContract,
@@ -9,10 +8,9 @@ import {
 import {
   buildMultiShotGateProjection,
   deriveShotPrice,
-  projectMultiShotPreview,
+  assertKnownShotPrice,
   type ModelPricing,
   type MultiShotGateProjection,
-  type MultiShotPreviewProjection,
   type ShotPrice,
 } from "../productionRun/shotPricing";
 import {
@@ -47,7 +45,9 @@ import type {
   VideoModelCandidate,
 } from "../shared/videoCapabilities/recommendation";
 import { effectiveVideoModes } from "../shared/videoCapabilities/recommendation";
-
+import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
+import { semanticCandidateFromParams } from "./semanticGenerationCandidate";
+import { projectGenerationOperationPreview } from "./mcpGenerationPreview";
 /**
  * The semantic MCP surface is deliberately data-only.  These tools are the
  * same vocabulary a GUI adapter uses; neither the catalog nor this handler
@@ -70,12 +70,22 @@ export const MCP_GENERATION_TOOL_CATALOG = [
     name: "nomi_operation_create",
     // P4 S6.5: 单镜给 candidate；多镜给 shots（逐镜计划：每项 {shotId?, role?(anchor/shot), included?, candidate}）
     // 或 scriptText（剧本文本，服务端拟镜出镜表）。三者给其一。仍不提交、不花额度。
-    description: "创建一份可编辑的生成草稿；此时不提交、不花额度。单镜传 candidate；多镜传 shots（逐镜计划）或 scriptText（剧本，自动拟镜）。",
+    description: "创建一份可编辑的生成草稿；此时不提交、不花额度。普通 prompt 走单镜；分钟级/成片 prompt 自动先拟剧本和分镜，多镜也可显式传 shots 或 scriptText。",
     inputSchema: {
       type: "object",
       properties: {
         projectId: { type: "string" },
         leaseHandle: { type: "string" },
+        prompt: { type: "string", description: "自然语言目标；省略 candidate 时由设置中的默认模型创建草稿。" },
+        taskKind: { type: "string", enum: ["text_to_image", "image_edit", "text_to_video", "image_to_video"] },
+        moduleId: { type: "string" },
+        providerId: { type: "string" },
+        modelId: { type: "string" },
+        mode: { type: "string" },
+        modeId: { type: "string" },
+        variantId: { type: "string" },
+        parameters: { type: "object" },
+        references: { type: "array" },
         candidate: { type: "object", description: "单镜：一份完整的生成 candidate。" },
         shots: {
           type: "array",
@@ -101,6 +111,16 @@ export const MCP_GENERATION_TOOL_CATALOG = [
     build: (args: Record<string, unknown>) => ({
       projectId: args.projectId,
       leaseHandle: args.leaseHandle,
+      ...(typeof args.prompt === "string" ? { prompt: args.prompt } : {}),
+      ...(typeof args.taskKind === "string" ? { taskKind: args.taskKind } : {}),
+      ...(typeof args.moduleId === "string" ? { moduleId: args.moduleId } : {}),
+      ...(typeof args.providerId === "string" ? { providerId: args.providerId } : {}),
+      ...(typeof args.modelId === "string" ? { modelId: args.modelId } : {}),
+      ...(typeof args.mode === "string" ? { mode: args.mode } : {}),
+      ...(typeof args.modeId === "string" ? { modeId: args.modeId } : {}),
+      ...(typeof args.variantId === "string" ? { variantId: args.variantId } : {}),
+      ...(args.parameters && typeof args.parameters === "object" && !Array.isArray(args.parameters) ? { parameters: args.parameters } : {}),
+      ...(Array.isArray(args.references) ? { references: args.references } : {}),
       ...(args.candidate !== undefined ? { candidate: args.candidate } : {}),
       ...(Array.isArray(args.shots) ? { shots: args.shots } : {}),
       ...(typeof args.scriptText === "string" ? { scriptText: args.scriptText } : {}),
@@ -353,6 +373,13 @@ export type GenerationPlanningHandlerDependencies = {
     mode: string;
   }) => { providerReady: boolean; missingForSubmit?: string[] };
   videoModelCandidates?: readonly VideoModelCandidate[];
+  /** Catalog-backed saved defaults used when scriptText leaves model fields unset. */
+  defaultModelForTaskKind?: (taskKind: GenerationDefaultTaskKind) => {
+    moduleId: string;
+    providerId: string;
+    modelId: string;
+    mode: string;
+  } | undefined;
   recommendVideoGeneration?: (
     input: VideoGenerationRecommendationInput,
     candidates: readonly VideoModelCandidate[],
@@ -361,7 +388,8 @@ export type GenerationPlanningHandlerDependencies = {
    * P4 S2: resolve the catalog pricing row for a provider/model identity (candidate.providerId maps
    * to the catalog vendorKey). preview derives per-shot single prices from it; gate_request feeds the
    * derived amount into the receipt's maximumCost (replacing the ¥0 placeholder). Omitted → preview
-   * reports the price as unknown and gate_request keeps maximumCost 0 (unpriced, unbounded like today).
+   * reports the price as unknown and gate_request blocks until a catalog price
+   * is available; an unknown price is never represented as a zero ceiling.
    */
   resolveModelPricing?: (providerId: string, modelId: string) => ModelPricing | undefined;
   /**
@@ -370,7 +398,12 @@ export type GenerationPlanningHandlerDependencies = {
    * maps into draft shots. Omitted → the `scriptText` entrance is unavailable (throws a human error). Kept
    * as a seam (not inlined) so the zero-credit E2E stubs a fixed board and only the `plan` entrance runs真.
    */
-  planStoryboard?: (input: { projectId: string; scriptText: string }) => StoryboardPlanResult | Promise<StoryboardPlanResult>;
+  planStoryboard?: (input: {
+    projectId: string;
+    scriptText: string;
+    minimumShots?: number;
+    targetDurationSeconds?: number;
+  }) => StoryboardPlanResult | Promise<StoryboardPlanResult>;
   /**
    * P4 §5.1.4 锚复用授权面: 校验 create 里引用的参考素材（复用锚 = 已有资产作 character 参考）存在且属于本项目。
    * 单镜与多镜 create 都过它（一个入口两路都堵，P2 通用性）。抛人话 Error 即拒。Omitted → 不校验（向后兼容）。
@@ -399,8 +432,9 @@ function candidateFrom(value: unknown): PlanCandidate {
   if (typeof raw.prompt !== "string") throw new Error("Candidate prompt is required");
   if (!Number.isInteger(raw.revision) || Number(raw.revision) < 1) throw new Error("Candidate revision must be a positive integer");
   if (raw.variantId !== undefined && (typeof raw.variantId !== "string" || !raw.variantId.trim())) throw new Error("Candidate variant id must be a non-empty string");
+  if (raw.modeId !== undefined && (typeof raw.modeId !== "string" || !raw.modeId.trim())) throw new Error("Candidate mode id must be a non-empty string");
   return {
-    candidateId: raw.candidateId.trim(), revision: Number(raw.revision), moduleId: raw.moduleId.trim(), providerId: raw.providerId.trim(), modelId: raw.modelId.trim(), ...(typeof raw.variantId === "string" ? { variantId: raw.variantId.trim() } : {}), mode: raw.mode.trim(), prompt: raw.prompt,
+    candidateId: raw.candidateId.trim(), revision: Number(raw.revision), moduleId: raw.moduleId.trim(), providerId: raw.providerId.trim(), modelId: raw.modelId.trim(), ...(typeof raw.variantId === "string" ? { variantId: raw.variantId.trim() } : {}), ...(typeof raw.modeId === "string" ? { modeId: raw.modeId.trim() } : {}), mode: raw.mode.trim(), prompt: raw.prompt,
     parameters: record(raw.parameters ?? {}, "candidate parameters"),
     references: references.map((reference, index) => {
       const item = record(reference, `candidate reference ${index}`);
@@ -482,6 +516,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     videoParameterSchema: (candidate) => videoParameterSchema(candidate, deps.videoModelCandidates),
     priceForCandidate,
     effectiveVideoModes,
+    ...(deps.defaultModelForTaskKind ? { defaultModelForTaskKind: deps.defaultModelForTaskKind } : {}),
     ...(deps.assertReferencesResolvable ? { assertReferencesResolvable: deps.assertReferencesResolvable } : {}),
   });
 
@@ -497,6 +532,10 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     const anchors = operation.shots.filter((shot) => shot.role === "anchor" && shot.included !== false);
     if (includedVideo.length === 0) return undefined;
     const normalized = (candidate: PlanCandidate) => normalizeVideoCandidate(candidate, deps.videoModelCandidates);
+    const durationValues = includedVideo.map((shot) => shotDurationSeconds(normalized(shot.candidate)));
+    const totalDurationSeconds = durationValues.every((value): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0)
+      ? durationValues.reduce((sum, value) => sum + value, 0)
+      : undefined;
     return buildMultiShotGateProjection({
       shots: includedVideo.map((shot) => {
         const candidate = normalized(shot.candidate);
@@ -514,10 +553,14 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       currency: "CNY",
       ...(operation.planVersion !== undefined ? { planVersion: operation.planVersion } : {}),
       ...(operation.planHash ? { planHash: operation.planHash } : {}),
-      specs: { shotCount: includedVideo.length },
+      specs: {
+        shotCount: includedVideo.length,
+        ...(totalDurationSeconds === undefined ? {} : { durationSeconds: totalDurationSeconds }),
+      },
       anchorChips: anchors.map((anchor) => ({ label: normalized(anchor.candidate).prompt.slice(0, 40), price: priceForCandidate(normalized(anchor.candidate)) })),
     });
   };
+
   return async (input: { capability: string; params: Record<string, unknown>; lease?: ProjectLeaseV2; origin?: { host: string; actorId?: string } }): Promise<unknown> => {
     if (!input.lease) throw new Error("A verified project lease is required");
     const params = input.params;
@@ -571,7 +614,17 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
         const operation = await deps.operations.create({ operationId, projectId: input.lease.projectId, candidate: normalizedShots[0].candidate, shots: normalizedShots, now: now(), origin: input.origin });
         return { operation, nextAction: "preview" };
       }
-      const singleCandidate = candidateFrom(params.candidate);
+      // A natural-language create request only needs `prompt`.  Keep the
+      // explicit candidate path intact, but compile the short path at this
+      // boundary so the model never has to invent internal candidate IDs or
+      // provider wiring (the previous behavior surfaced as a false refusal).
+      const singleCandidate = semanticCandidateFromParams({
+        operationId,
+        params,
+        candidateFrom,
+        ...(deps.defaultModelForTaskKind ? { defaultModelForTaskKind: deps.defaultModelForTaskKind } : {}),
+        ...(deps.registry.snapshot ? { registry: deps.registry } : {}),
+      });
       // P4 §5.1.4 锚复用授权面（单镜同守，P2 通用性）：单镜引用外来/不存在资产也当场拒——references 有三个入口，
       // 单镜 candidate 是其一，不能只堵多镜。多镜路已在 resolveCreateShots 内校验过。
       if (deps.assertReferencesResolvable && singleCandidate.references.length > 0) {
@@ -584,21 +637,27 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     if (!current) throw new Error(`Generation operation not found: ${operationId}`);
     if (input.capability === "plan") {
       const rawPatch = record(params.patch, "generation patch") as Partial<Omit<PlanCandidate, "candidateId" | "revision">>;
-      const nextProviderId = typeof rawPatch.providerId === "string" ? rawPatch.providerId : current.candidate.providerId;
-      const nextModelId = typeof rawPatch.modelId === "string" ? rawPatch.modelId : current.candidate.modelId;
+      // The wire model is a derived projection. Never accept it from an MCP
+      // caller; it is recomputed from the selected archetype mode/variant.
+      const { transportModelId: _ignoredTransportModelId, ...userPatch } = rawPatch;
+      const nextProviderId = typeof userPatch.providerId === "string" ? userPatch.providerId : current.candidate.providerId;
+      const nextModelId = typeof userPatch.modelId === "string" ? userPatch.modelId : current.candidate.modelId;
       const modelChanged = normalizedModelIdentity(nextProviderId) !== normalizedModelIdentity(current.candidate.providerId)
         || normalizedModelIdentity(nextModelId) !== normalizedModelIdentity(current.candidate.modelId);
+      const modeChanged = typeof userPatch.mode === "string" && normalizedModelIdentity(userPatch.mode) !== normalizedModelIdentity(current.candidate.mode);
       const mergedCandidate = {
         ...current.candidate,
-        ...rawPatch,
-        ...(modelChanged && rawPatch.variantId === undefined ? { variantId: undefined } : {}),
-        parameters: rawPatch.parameters ?? current.candidate.parameters,
-        references: rawPatch.references ?? current.candidate.references,
+        ...userPatch,
+        ...(modelChanged && userPatch.variantId === undefined ? { variantId: undefined } : {}),
+        ...((modelChanged || modeChanged) && userPatch.modeId === undefined ? { modeId: undefined } : {}),
+        parameters: userPatch.parameters ?? current.candidate.parameters,
+        references: userPatch.references ?? current.candidate.references,
       } as PlanCandidate;
       const normalizedCandidate = normalizeVideoCandidate(mergedCandidate, deps.videoModelCandidates);
       const normalizedPatch = {
-        ...rawPatch,
+        ...userPatch,
         ...(normalizedCandidate.variantId ? { variantId: normalizedCandidate.variantId } : { variantId: undefined }),
+        ...(normalizedCandidate.modeId ? { modeId: normalizedCandidate.modeId } : { modeId: undefined }),
       };
       const operation = await deps.operations.patch(input.lease.projectId, operationId, normalizedPatch, now());
       return { operation, nextAction: "preview" };
@@ -619,21 +678,9 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       const recommendation = recommendationInput && deps.recommendVideoGeneration && deps.videoModelCandidates
         ? deps.recommendVideoGeneration(recommendationInput, candidatesForCurrentVideoModel(candidate, deps.videoModelCandidates))
         : undefined;
-      // P4 S2: per-shot pricing/duration/degradation projection. The mcp operation is single-candidate
-      // today, so this is a 1-shot projection; it uses the shared multi-shot projector so the same
-      // (single source of truth) function scales once shots[] is threaded through the operation.
-      // Still zero provider calls — pure derive over the catalog pricing (preview invariant).
-      const projection: MultiShotPreviewProjection = projectMultiShotPreview({
-        shots: [{
-          shotId: candidate.candidateId,
-          candidate,
-          hasCharacter: candidateHasCharacterReference(candidate),
-          supportsReferenceImage: modelSupportsReferenceImage(candidate, deps.videoModelCandidates),
-        }],
-        resolvePricing: (providerId, modelId) => deps.resolveModelPricing?.(providerId, modelId),
-        durationSeconds: (shotCandidate) => shotDurationSeconds(shotCandidate),
-        currency: "CNY",
-      });
+      // P4 S2: this is a pure, provider-free projection; multi-shot plans use
+      // every included video row and single-shot keeps the legacy one-row shape.
+      const projection = projectGenerationOperationPreview(current, candidate, deps);
       return {
         operationId,
         candidateRevision: current.candidate.revision,
@@ -644,6 +691,9 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
         providerCapabilityProfile: readiness.providerCapabilityProfile,
         recoveryNotice: readiness.recoveryNotice,
         ...(readiness.providerCapabilitiesMissing.length ? { providerCapabilitiesMissing: readiness.providerCapabilitiesMissing } : {}),
+        // Keep the established action vocabulary for renderer/MCP clients;
+        // an unknown price remains visible in `pricing.total` and the gate
+        // itself fails closed with `generation_pricing_unknown`.
         ...(readiness.providerReady ? { nextAction: "request_gate" } : { nextAction: "provider_configure" }),
       };
     }
@@ -658,15 +708,25 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       // single-shot draft passes no bundle (byte-identical to today). Top contract = shots[0]'s contract
       // (顶层 candidate = shots[0].candidate), so the reducer's top-level match holds.
       const multiShotSeal = current.state === "draft" ? sealMultiShotFor(current) : undefined;
+      // Preview may honestly show an unknown price, but a paid gate may never
+      // turn that unknown into a zero ceiling or an approval prompt. Check all
+      // included shots before any durable seal/authorization write so the
+      // failure is atomic and the user receives an actionable pricing error.
+      if (multiShotSeal) {
+        for (const shot of multiShotSeal.shotPrices ?? []) {
+          assertKnownShotPrice(shot.price, shot.shotId);
+        }
+      }
+      const price = priceForCandidate(candidate);
+      if (!multiShotSeal) assertKnownShotPrice(price, candidate.candidateId);
       const authorization = current.state === "draft" && deps.prepareAuthorization
         ? await deps.prepareAuthorization({ lease: input.lease, operation: current, contract, ...(multiShotSeal ? { multiShot: multiShotSeal } : {}) })
         : undefined;
       const sealed = current.state === "draft"
         ? await deps.operations.seal(input.lease.projectId, operationId, contract, now(), multiShotSeal, authorization)
         : current;
-      // P4 S2: the receipt's cost ceiling is this shot's derived price. Unknown (no resolver / no
-      // catalog pricing) → 0, meaning unbounded exactly as before (an unpriced model still confirms).
-      const price = priceForCandidate(candidate);
+      // P4 S2: the receipt's cost ceiling is the known derived price. Unknown
+      // pricing was rejected above and can never become a fabricated ¥0.
       const expiresAt = new Date(Date.parse(now()) + 10 * 60 * 1000).toISOString();
       // P4 S4: for a multi-shot operation, build the real display.shots (the S3a card's data) and use the
       // PLAN-LEVEL cost as the receipt ceiling. A single-shot op omits `shots` → flat card, unchanged.
@@ -723,6 +783,11 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       throw new Error("Generation gate decisions must use the Run-owned authorization seam");
     }
     if (input.capability === "start") {
+      // The Host gate adapter starts immediately after the verified receipt is
+      // committed. A model may still issue its explicit start tool on the next
+      // turn; treat that replay as an observation instead of attempting a
+      // second provider submission.
+      if (current.state === "submitted") return { operation: current, operationId, nextAction: "observe" };
       if (current.state !== "sealed" || !current.contract || !current.approvedReceiptId) throw new Error("Confirm the generation plan before starting");
       return deps.start?.(current, input.lease) ?? { operationId, state: current.state, nextAction: "provider_not_configured" };
     }

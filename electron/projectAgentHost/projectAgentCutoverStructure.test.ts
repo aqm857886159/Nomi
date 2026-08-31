@@ -67,6 +67,19 @@ describe("Project Agent production cutover structure", () => {
     expect(canvasTypes).not.toContain("generationAiDraft");
   });
 
+  it("removes the retired chat stylesheet without regressing live workbench scrolling", () => {
+    const shell = source("src/workbench/WorkbenchShell.tsx");
+    const workbenchCss = source("src/workbench/workbench.css");
+    const animationsCss = source("src/styles/animations.css");
+
+    expect(exists("src/workbench/workbench-ai.css")).toBe(false);
+    expect(shell).not.toContain("workbench-ai.css");
+    expect(workbenchCss).toContain(".workbench-editor__scroll");
+    expect(workbenchCss).toContain(".workbench-autogrow");
+    expect(workbenchCss).not.toContain("tc-ai-chat");
+    expect(animationsCss).not.toContain("tc-ai-chat");
+  });
+
   it("keeps retired area turn controllers out of the production import graph", () => {
     const productionFiles = [
       "src/workbench/creation/creationToolCalls.ts",

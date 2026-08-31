@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { applyRequestTransform, registerRequestTransform } from "./requestTransforms";
+import { describe, expect, it, vi } from "vitest";
+import {
+  applyRequestTransform,
+  applyRequestTransformSync,
+  registerRequestTransform,
+  validateRequestTransformSync,
+} from "./requestTransforms";
 
 describe("requestTransforms 注册表", () => {
   it("未声明 / 未注册 → 原样返回（对现有 vendor 零影响）", async () => {
@@ -18,5 +23,40 @@ describe("requestTransforms 注册表", () => {
       throw new Error("确定性人话错误");
     });
     await expect(applyRequestTransform("test-throw", {}, { baseUrl: "" })).rejects.toThrow("确定性人话错误");
+  });
+
+  it("同步预检复用同一注册表，并运行同步 validator 与 transform", () => {
+    const validate = vi.fn();
+    registerRequestTransform("test-sync", (body, { baseUrl }) => ({ body, baseUrl, checked: true }), validate);
+    const body = { x: 1 };
+    validateRequestTransformSync("test-sync", body, { baseUrl: "https://sync.example" });
+    expect(validate).toHaveBeenCalledWith(body, { baseUrl: "https://sync.example" });
+    expect(applyRequestTransformSync("test-sync", body, { baseUrl: "https://sync.example" })).toEqual({
+      body,
+      baseUrl: "https://sync.example",
+      checked: true,
+    });
+  });
+
+  it("同步预检遇到未知或异步 transform 时 fail-closed", () => {
+    expect(() => applyRequestTransformSync("missing-sync-transform", {}, { baseUrl: "" }))
+      .toThrow(/未注册|not registered/i);
+    expect(() => validateRequestTransformSync("missing-sync-transform", {}, { baseUrl: "" }))
+      .toThrow(/未注册|not registered/i);
+
+    let asyncInvoked = false;
+    let asyncValidatorInvoked = false;
+    registerRequestTransform("test-async-sync-boundary", async (body) => {
+      asyncInvoked = true;
+      return body;
+    }, async () => {
+      asyncValidatorInvoked = true;
+    });
+    expect(() => validateRequestTransformSync("test-async-sync-boundary", {}, { baseUrl: "" }))
+      .toThrow(/同步|synchronous/i);
+    expect(() => applyRequestTransformSync("test-async-sync-boundary", {}, { baseUrl: "" }))
+      .toThrow(/同步|synchronous/i);
+    expect(asyncInvoked).toBe(false);
+    expect(asyncValidatorInvoked).toBe(false);
   });
 });

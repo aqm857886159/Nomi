@@ -2,6 +2,46 @@
 
 > 状态：🚧 进行中
 
+## 已确认的 Phase 6 执行增量（2026-08-31）
+
+本计划已获用户确认，新增两条不可绕过的交付约束：
+
+1. **PR #194 竞品/交互设计是本批第一顺位证据**，不是实现完成后的装饰性参考。每个可见交互先登记来源、用户摩擦、`adopt / adapt / reject` 决策、Nomi 组件落点和可观察测试；不直接 cherry-pick 竞品代码或引入第二套视觉基础设施。对账依据为 [PR #194](https://github.com/aqm857886159/Nomi/pull/194) 的 [Agent 交互专章](https://raw.githubusercontent.com/aqm857886159/Nomi/claude/youthful-buck-fe0def/docs/design/nomi-agent-interaction.md) 与 [精准实现合同](https://raw.githubusercontent.com/aqm857886159/Nomi/claude/youthful-buck-fe0def/docs/design/nomi-agent-interaction-implementation-contract.md)。
+2. **高内聚、低耦合是实现硬门**：能力契约、模型工具投影、领域 Adapter、Host 编排、Skill 资源和 UI 投影各自成模块；跨层只通过稳定类型/事件接口，禁止在 resident、Skill、provider 或测试脚本中复制另一层的状态/参数/权限。
+
+### PR #194 设计模式 → Nomi 落点 → 硬测试
+
+| PR #194 模式 | Nomi 适配 | 必须通过的证据 |
+|---|---|---|
+| 单一 resident Dock、原来的右侧位置与收起圆角胶囊 | 保留 Workbench 几何和时间线 owner，Creation/Generation/Preview 只投影同一 Host | 三面切换保持同一 Thread、queue、artifact ref；收起不遮挡工作面 |
+| 8 个互斥状态 + `retryable` / `deviated` 标志 | Host Item 状态作为唯一 UI 状态源；不再由消息/节点/审批各自拼状态 | drafting→proposed→queued→running→done/failed/stopped 每条原位更新；未知回执不得转 done |
+| 三个视觉层级：过程一行、可展开一行、决策/产物卡 | 工具/思考/排队/用量默认摘要；计划、付费、失败、产物才升级卡片 | 默认不展示 raw schema；展开后字段可读且与实际参数一致；窄栏无横向溢出 |
+| 上下文架、`@` 引用、发送即冻结 | ContextSnapshot 保存 target/revision/locator/附件/Skill/模型 | 对象变更显示“引用后已变化”；改用最新版生成新快照，不改历史 |
+| 队列保存完整 `TurnDraft`、可编辑/删除/重排/暂停 | Host queue 持有文本、附件、上下文、模式、批准策略和时间戳 | Agent 忙时输入不丢；编辑后只执行最终草稿；取消不产生副作用 |
+| 计划卡 + 同一 `InlineParameterBar` 批级/单镜参数 | 复用真实节点档案控件，审批以 `effectiveArgs` 重新 prepare/hash/execute | prompt、模型、模式、已声明参数、引用、预计费用逐字段可编辑并在回执中对账 |
+| 付费卡明示单价/合计/冻结项，确认次数最少 | 一次批量安全确认；付费/不可逆仍单次确认；未知价格阻断而非猜测 | 每项单价、合计、冻结项可见；拒绝/停止/未知 receipt 均无重复提交 |
+| Skill 列表→预览→载入→常驻标记 | 从仓库 `skills/` 与用户技能目录读取 metadata；选中后才注入正文，能力仍由 Host 交集裁剪 | UI 可见名称/说明/来源/缺失 provider；Agent 首轮可发现，匹配任务时真实加载，后续回执显示版本/hash |
+| 工序图示、低对比等待、reduced-motion、暗色单独校验 | 只用 `src/design` 受管资产、Tabler 图标和 Nomi tokens；同屏最多一处扫光 | 标准/窄窗口、light/dark、`prefers-reduced-motion` 截图和键盘/ARIA 走查 |
+
+### 费用与模型选择合同
+
+- **真实创作**不套用最低价策略：用户明确指定模型/参数时尊重其意图；未指定时使用 Nomi 设置中已保存的默认 image/video 模型（没有默认值才阻断并要求选择），确认卡仍显示真实价格、供应商、模型、输入、引用和冻结项。
+- **只有测试/评测 job**为了控制额度才使用 ApiMart 最低成本档（最短时长/最低清晰度）；该选择器属于测试 harness，不得被 ProductionRun、composer 或默认模型解析调用。测试 key 不写入仓库、日志或截图。
+- ApiMart key 只允许通过现有加密 catalog 或一次性环境注入读取；任何脚本不得把明文 key 落盘。最终候选最多一个新的付费 provider job，复用其 job/receipt/artifact 完成人工旅程；`submission_unknown`、重复 receipt 或第二 job 立即停止并 reconciliation。
+
+### Skill 资源加载合同
+
+- Pi `ResourceLoader` 只加载 Nomi 明确允许的仓库 `skills/` 和用户技能根，不读取 cwd/agentDir 中的任意 `AGENTS.md`、扩展、设置或凭据；保留现有 sandbox 隔离测试。
+- 资源 catalog 由单一 `electron/harness/runtime/pi` 模块提供：`list` 只返回 metadata，`load` 才读取正文；Skill 不能授权新工具，MCP 不能复制 Host 历史。
+- resident Skill 菜单、MCP `skills.list/read`、Pi 可发现资源和 Host `skillVersions` 必须来自同一记录/哈希；任一路径缺失或版本漂移都返回可行动错误，不能静默按未加载继续。
+
+### 模块边界与交付顺序
+
+1. **证据与 RED 测试**：先写 PR #194 对账 ledger、测试 harness 的 ApiMart 最低价选择合同、默认模型优先级合同、仓库 Skill 发现/加载测试和真实用户任务测试；确认旧实现对这些测试失败。
+2. **最小闭环实现**：新增/调整单一资源 catalog、测试专用价格选择器和 profile 接线；修复默认模型→composer/ProductionRun 与 Skill metadata→Pi loader→Host evidence 的链路；不在 UI 或 provider 目录复制逻辑。
+3. **真实任务与 UI**：从 UI 自然语言输入跑小猫头像、5 分钟视频、指定模型、只规划、改镜重生成、Skill/Prompt、时间线/导出、队列/Stop/恢复、未知回执等任务；截图对账 PR #194 几何、层级、文案、图标、密度和无障碍。
+4. **交付门**：只重跑受影响 focused 单测/集成/Electron/Playwright 证据；确认无 P0/P1 后提交并 push 当前任务分支。不得整合 main、rebase、force-push 或启动全量 release/第二个付费任务。
+
 ## 目标
 
 在合并前证明一个真实用户可以通过同一个 resident Agent 完成“理解现场 → 修改内容 → 生成/引用素材 → 检查时间线 → 复核结果”的闭环。验收不只看按钮存在，而要同时证明：UI 操作进入 Host、Host 只产生一份 Thread/Turn/Item/queue 历史、领域 owner 持久化真实结果、失败可解释且可恢复。

@@ -39,7 +39,11 @@ const RUN_TRANSITIONS: Record<ProductionRunStatus, readonly ProductionRunStatus[
   awaiting_storyboard_review: ["awaiting_script_review", "awaiting_contract", "cancelled"],
   awaiting_contract: ["ready", "cancelled"],
   ready: ["running", "cancelled"],
-  running: ["pausing", "needs_attention", "awaiting_script_review", "awaiting_storyboard_review", "awaiting_rough_cut_review", "awaiting_export", "cancelled"],
+  // A semantic single-shot has no separate assemble/export stages: once its
+  // one durable artifact is materialized it can truthfully settle from
+  // running straight to completed. Multi-stage playbooks still use their
+  // existing QA/assemble/export transitions.
+  running: ["pausing", "needs_attention", "awaiting_script_review", "awaiting_storyboard_review", "awaiting_rough_cut_review", "awaiting_export", "completed", "cancelled"],
   pausing: ["paused", "needs_attention"],
   paused: ["running", "cancelled"],
   needs_attention: ["running", "paused", "cancelled"],

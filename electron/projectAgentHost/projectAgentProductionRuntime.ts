@@ -6,6 +6,7 @@ import {
 } from "./projectAgentExecutionCoordinator";
 import type { ProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 import type { PiProductionRunTransportAdapter } from "../capabilityCore/productionRunTransportAdapters";
+import type { PiGenerationTransportAdapter } from "../capabilityCore/generationTransportAdapters";
 
 export class ProjectAgentOwnerConflictError extends Error {
   readonly code = "project_agent_owner_conflict" as const;
@@ -22,6 +23,7 @@ export type ProjectAgentProductionRuntime = Readonly<{
   attachProject: (binding: ProjectBinding) => unknown;
   repositoryRouter: ProjectAgentProductionRepositoryRouter;
   executionCoordinator: ProjectAgentExecutionCoordinator;
+  setGenerationAdapterFactory: (factory: ((binding: ProjectBinding) => PiGenerationTransportAdapter) | undefined) => void;
 }>;
 
 export type ProjectAgentProductionRuntimeDeps = Readonly<{
@@ -29,6 +31,7 @@ export type ProjectAgentProductionRuntimeDeps = Readonly<{
   subscribeSurface: () => () => void;
   registerIpc: (runtime: ProjectAgentProductionRuntime) => void;
   productionRun?: (binding: ProjectBinding) => PiProductionRunTransportAdapter;
+  generation?: (binding: ProjectBinding) => PiGenerationTransportAdapter;
 }>;
 
 let installed: ProjectAgentProductionRuntime | null = null;
@@ -50,6 +53,7 @@ export function installProductionProjectAgentHost(
     unsubscribeSurface = deps.subscribeSurface();
     const executionCoordinator = createProjectAgentExecutionCoordinator(repositoryRouter, undefined, {
       productionRun: deps.productionRun,
+      generation: deps.generation,
     });
     const runtime: ProjectAgentProductionRuntime = Object.freeze({
       repositoryRouter,
@@ -57,6 +61,9 @@ export function installProductionProjectAgentHost(
       attachProject(binding: ProjectBinding): unknown {
         assertProjectAgentBinding(binding);
         return repositoryRouter.attach(binding);
+      },
+      setGenerationAdapterFactory(factory) {
+        executionCoordinator.setGenerationAdapterFactory(factory);
       },
     });
     deps.registerIpc(runtime);

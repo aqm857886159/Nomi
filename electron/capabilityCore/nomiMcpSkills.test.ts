@@ -145,9 +145,10 @@ describe('nomi-mcp · 技能库经 resources + prompts 暴露（渐进披露）'
   it('prompts/list 用 directoryName 当命令名（斜杠友好）', async () => {
     harness = new SkillsHarness()
     const res = await harness.call(9, 'prompts/list')
-    const prompts = (res.result as { prompts: Array<{ name: string; title: string }> }).prompts
+    const prompts = (res.result as { prompts: Array<{ name: string; title: string; packageVersion: string; contentHash: string }> }).prompts
     expect(prompts.map((p) => p.name)).toEqual(['director-cinematography', 'writer-dialogue'])
     expect(prompts[0].title).toBe('director.cinematography')
+    expect(prompts[0]).toMatchObject({ packageVersion: PACKAGE_VERSION, contentHash: DIRECTOR_HASH })
   })
 
   it('prompts/get 返回技能正文作为 user 消息', async () => {
@@ -156,6 +157,20 @@ describe('nomi-mcp · 技能库经 resources + prompts 暴露（渐进披露）'
     const result = res.result as { description: string; messages: Array<{ role: string; content: { type: string; text: string } }> }
     expect(result.messages[0].role).toBe('user')
     expect(result.messages[0].content.text).toContain('景别体系')
+    expect(harness.invoke).toHaveBeenCalledWith('skills.read', {
+      directoryName: 'director-cinematography',
+      packageVersion: PACKAGE_VERSION,
+      contentHash: DIRECTOR_HASH,
+    })
+  })
+
+  it('prompts/get rejects an explicitly stale content identity', async () => {
+    harness = new SkillsHarness()
+    const stale = await harness.call(12, 'prompts/get', {
+      name: 'director-cinematography', packageVersion: PACKAGE_VERSION, contentHash: 'c'.repeat(64),
+    })
+    expect((stale.error as { message: string }).message).toContain('已变化')
+    expect(harness.invoke).not.toHaveBeenCalledWith('skills.read', expect.anything())
   })
 
   it('prompts/get 未知 name → error', async () => {

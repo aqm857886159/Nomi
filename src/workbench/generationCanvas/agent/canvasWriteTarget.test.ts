@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildCanvasWriteAdmission } from "../../../../electron/shared/agentCapabilities/canvasWriteEvidence";
+import { buildCanvasWriteAdmission, buildCanvasWriteAdmissionForOperation } from "../../../../electron/shared/agentCapabilities/canvasWriteEvidence";
+import type { CanvasWriteInput } from "../../../../electron/shared/agentCapabilities/canvasWrite";
 import type { GenerationCanvasSnapshot } from "../model/generationCanvasTypes";
 
 const deps = vi.hoisted(() => ({
@@ -154,6 +155,44 @@ describe("canvas.write renderer evidence capture", () => {
       hostApprovalId: "approval-host-a",
       hostActionHash: "a".repeat(64),
     }));
+  });
+
+  it("returns a committed domain result for storyboard-side aliases", async () => {
+    const snapshot = writableSnapshot();
+    const input: CanvasWriteInput = {
+      operation: "create_camera_move",
+      shotClientId: "node-real",
+      move: "push_in",
+    };
+    const evidence = captureCanvasWriteRawEvidence(snapshot, { operation: input.operation, input });
+    const admission = buildCanvasWriteAdmissionForOperation(evidence, input);
+    deps.applyProposalBatch.mockImplementation(async (_steps, _turn, _coordinator, batchAdmission) => {
+      batchAdmission.beforePrepare();
+      return {
+        status: "committed",
+        proposalId: batchAdmission.proposalId,
+        results: [{ cameraMoveNodeId: "camera-reference-1", targetNodeId: "node-real" }],
+        clientIdToNodeId: {},
+        reconciliation: { ok: true, deviations: [] },
+        compensation: [],
+        watchNodes: [],
+      };
+    });
+
+    await expect(executeCanvasWriteTarget({
+      input,
+      ...admission,
+      receiptProposalId: "receipt-camera",
+      approvalId: "approval-camera",
+      actionHash: "b".repeat(64),
+      ...executionGuard,
+    }, () => snapshot)).resolves.toEqual({
+      applied: true,
+      proposalId: "receipt-camera",
+      operation: "create_camera_move",
+      result: { cameraMoveNodeId: "camera-reference-1", targetNodeId: "node-real" },
+      reconciliation: { ok: true, deviationCount: 0 },
+    });
   });
 
   it.each([

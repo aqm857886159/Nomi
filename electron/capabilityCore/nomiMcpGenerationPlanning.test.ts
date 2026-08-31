@@ -553,7 +553,14 @@ describe("MCP semantic generation planning journey", () => {
     const repository = createProductionRunRepository({ projectDirResolver: () => root, now: () => "2026-08-23T00:00:00.000Z" });
     const service = createProductionRunService({ repository, projectRootResolver: () => root, sleep: async () => {} });
     const operations = createProductionGenerationOperationStore(service);
-    const handler = createGenerationPlanningHandler({ registry: degradedRegistry, operations, now: () => "2026-08-23T00:00:00.000Z" });
+    const handler = createGenerationPlanningHandler({
+      registry: degradedRegistry,
+      operations,
+      // Recovery capability is the subject of this test; a zero-cost catalog
+      // row is still a known price and therefore may pass the paid gate.
+      resolveModelPricing: () => ({ cost: 0, enabled: true, specCosts: [] }),
+      now: () => "2026-08-23T00:00:00.000Z",
+    });
     const authority = makeAuthority(root);
     const lease = (await makeLease(authority, ["generation:create", "generation:preview", "generation:gate"])).lease;
     const candidate = {

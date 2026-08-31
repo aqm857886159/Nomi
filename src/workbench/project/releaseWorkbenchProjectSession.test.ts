@@ -12,6 +12,7 @@ import {
 } from '../generationCanvas/agent/proposalUndo'
 import { projectAgentProjectionStore } from '../ai/projectAgentProjectionStore'
 import { createInitialProjectAgentState } from '../../../electron/projectAgentHost/projectAgentState'
+import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY } from '../../../electron/shared/projectAgentContracts'
 
 function node(id: string): GenerationCanvasNode {
   return {
@@ -85,6 +86,14 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
     expect(verify.status).toBe('idle')
     expect(verify.deviations).toEqual([])
     expect(verify.requestId).toBeGreaterThan(verifyRequest.requestId)
+  })
+
+  it('resets the resident approval and spend policy when switching projects', () => {
+    useWorkbenchStore.getState().setProjectAgentApprovalPolicy({ mode: 'project', spend: 'within-budget' })
+
+    releaseWorkbenchProjectRuntimeState()
+
+    expect(useWorkbenchStore.getState().projectAgentApprovalPolicy).toEqual(DEFAULT_PROJECT_AGENT_APPROVAL_POLICY)
   })
 
   it('clears only the in-memory proposal receipt view on project release', () => {

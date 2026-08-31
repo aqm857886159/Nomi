@@ -104,24 +104,28 @@ export async function chooseCreationMode(win, mode) {
 export async function openCanvas(win) {
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '生成工作区')
   await expect(win.locator('.generation-canvas-v2__stage')).toBeVisible()
-  const launcher = win.locator('.generation-canvas-v2-assistant__launcher')
+  const resident = win.locator(CANVAS_PANEL).first()
+  await expect(resident).toBeVisible()
+  const collapsed = resident.locator('[data-agent-resident-collapsed="true"]')
   // This is a genuine two-state UI (persisted expanded/collapsed preference).
-  if (await launcher.isVisible()) await clickOrFail(launcher, '展开画布助手')
-  await expect(win.locator(`${CANVAS_PANEL} [aria-label="给生成助手发送消息"]`)).toBeVisible()
+  // The resident shell is the only owner; never reach back into the removed
+  // canvas-specific launcher class.
+  if (await collapsed.isVisible().catch(() => false)) await clickOrFail(collapsed, '展开画布助手')
+  await expect(resident.locator('[data-agent-composer] textarea')).toBeVisible()
 }
 
 export async function sendCreation(win, text) {
-  const input = win.getByRole('textbox', { name: '创作 AI 输入', exact: true })
+  const input = win.locator(`${CREATION_PANEL} [data-agent-composer] textarea`).first()
   await expect(input).toBeVisible()
   await input.fill(text)
-  await clickOrFail(win.getByRole('button', { name: '创作 AI 发送', exact: true }), '发送创作指令')
+  await clickOrFail(win.locator(`${CREATION_PANEL} [data-agent-send]`), '发送创作指令')
 }
 
 export async function sendCanvas(win, text) {
-  const input = win.getByRole('textbox', { name: '给生成助手发送消息', exact: true })
+  const input = win.locator(`${CANVAS_PANEL} [data-agent-composer] textarea`).first()
   await expect(input).toBeVisible()
   await input.fill(text)
-  await clickOrFail(win.getByRole('button', { name: '生成 AI 发送', exact: true }), '发送画布指令')
+  await clickOrFail(win.locator(`${CANVAS_PANEL} [data-agent-send]`), '发送画布指令')
 }
 
 export async function newConversation(win, panel) {
@@ -134,7 +138,18 @@ export async function selectConversation(win, panel, title) {
   await clickOrFail(win.locator('li').filter({ has: win.getByText(title, { exact: true }) }), `恢复会话 ${title}`)
 }
 
-export async function createRuntimeWalk(name) {
+export async function createRuntimeWalk(name, options = {}) {
+  const {
+    // Only fixtures that explicitly opt in use Electron's isolated synthetic
+    // safeStorage backend.  Production and the older walks keep their launch
+    // contract unchanged.
+    syntheticCredentialStorage = false,
+    // Explicitly opt an isolated walk into the production-only APIMart
+    // loopback seam.  The seam keeps the catalog vendor on the canonical
+    // direct-key scope while routing requests to the in-process fixture; no
+    // normal launch can retarget APIMart this way.
+    apimartLoopback = false,
+  } = options
   const args = process.argv.slice(2)
   if (args.length && (args.length !== 2 || args[0] !== '--packaged' || !path.isAbsolute(args[1]))) {
     throw new Error('Usage: node <walk.mjs> [--packaged /absolute/Nomi.app/Contents/MacOS/Nomi]')
@@ -155,8 +170,13 @@ export async function createRuntimeWalk(name) {
     current = await launchNomiApp({
       name: `pi-${name}`, tempRoot, settingsDir, settleMs: 0,
       ...(executablePath ? { executablePath } : {}),
-      env: { NOMI_RENDERER_URL: '', VITE_DEV_SERVER_URL: '', NOMI_DESKTOP_DEV: '', NOMI_E2E_PRODUCTION_FIXTURE: '0', NOMI_DISABLE_AUTO_UPDATE: '1' },
+      env: {
+        NOMI_RENDERER_URL: '', VITE_DEV_SERVER_URL: '', NOMI_DESKTOP_DEV: '',
+        NOMI_E2E_PRODUCTION_FIXTURE: apimartLoopback ? '1' : '0', NOMI_DISABLE_AUTO_UPDATE: '1',
+        NOMI_E2E_APIMART_BASE_URL: apimartLoopback ? fixture.baseURL : '',
+      },
       args: ['--no-proxy-server'],
+      syntheticCredentialStorage,
     })
     const { win, app } = current
     win.setDefaultTimeout(30_000)

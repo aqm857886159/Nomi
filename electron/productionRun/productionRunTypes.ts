@@ -238,6 +238,15 @@ export type ProductionGenerationPlan = {
   shots?: ProductionGenerationShot[];
   /** Plan-level hash freezing the whole multi-shot operation (anchor + included shots) at seal time. */
   planHash?: string;
+  /**
+   * Single-shot canvas landing binding. Multi-shot plans keep this identity on
+   * each `shots[]` entry; the top-level field preserves the legacy single-shot
+   * shape while still giving the real result a durable node owner.
+   */
+  nodeId?: string;
+  /** A user deletion/undo of the single-shot placeholder must not be silently
+   * resurrected by the next reconciliation pass. */
+  canvasDetached?: boolean;
   /** Immutable paid submission authority prepared before the human gate. */
   authorizationEnvelope?: ProductionGenerationAuthorizationEnvelopeV1;
   authorizationDigest?: string;

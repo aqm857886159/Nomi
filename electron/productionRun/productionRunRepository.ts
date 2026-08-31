@@ -320,7 +320,17 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
       budget: { currency: input.currency || "CNY", authorized: 0, reserved: 0, actual: 0, unsettled: 0 },
       planVersion: 1,
       snapshotCursor: 1,
-      stages: [{ stageId: "generate", title: "Generate", status: "pending", order: 0 }],
+      // A semantic multi-shot generation is one durable production pipeline.  Seed the
+      // downstream stages at draft creation so the owner can advance the same Run after
+      // the scheduler materializes its jobs; single-shot drafts keep the historical shape.
+      stages: input.shots && input.shots.length > 0
+        ? [
+            { stageId: "generate", title: "Generate", status: "pending", order: 0 },
+            { stageId: "qa", title: "QA", status: "pending", order: 1 },
+            { stageId: "assemble", title: "Assemble", status: "pending", order: 2 },
+            { stageId: "export", title: "Export", status: "pending", order: 3 },
+          ]
+        : [{ stageId: "generate", title: "Generate", status: "pending", order: 0 }],
       gates: [],
       jobs: [],
       artifacts: [],

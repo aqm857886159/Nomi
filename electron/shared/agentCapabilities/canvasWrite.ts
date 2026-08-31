@@ -41,7 +41,28 @@ export const plannedNodeSchema = z
     position: z.object({ x: z.number().finite(), y: z.number().finite() }).optional(),
     categoryId: z.string().trim().min(1).optional(),
     modelKey: z.string().trim().min(1).optional(),
+    vendor: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .describe("Catalog vendor key paired with modelKey. Keep it only when it comes from the available-models list."),
+    // Kept as a wire-compatible alias for older proposals. The renderer and
+    // execution path normalize both names to the same canonical node meta;
+    // callers must not provide conflicting values.
+    modelVendor: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .describe("Legacy alias of vendor; if both are present they must identify the same catalog vendor."),
     modeId: z.string().trim().min(1).optional(),
+    variantId: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .describe("Optional model-archetype variant (for example standard, fast, or mini), paired with modelKey."),
     params: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
     referenceSheet: z.boolean().optional(),
     storyboardKeyframe: z.boolean().optional(),
@@ -49,7 +70,16 @@ export const plannedNodeSchema = z
     dynamicFeatures: z.string().optional(),
     metadata: z.record(z.unknown()).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((node, context) => {
+    if (node.vendor && node.modelVendor && node.vendor !== node.modelVendor) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["modelVendor"],
+        message: "vendor and modelVendor must match when both are provided",
+      });
+    }
+  });
 
 export const plannedEdgeSchema = z
   .object({
@@ -99,14 +129,79 @@ const tidyCanvasInputSchema = z
   })
   .strict();
 
-export const canvasWriteSemanticInputSchema = z.discriminatedUnion("operation", [
+// Storyboard-side canvas actions already have renderer/domain owners (the
+// creation store, timeline adoption bridge, and scene3d builders).  Keep
+// their model-facing envelopes in the same canonical capability so a visible
+// tool cannot fall through to an unverified generic approval.  The nested
+// domain records are validated again by the renderer's authoritative parser;
+// the main-process boundary still enforces required top-level shape and
+// rejects unknown top-level fields.
+const storyboardPlanActionInputSchema = z
+  .object({
+    operation: z.literal("propose_storyboard_plan"),
+    title: z.string().trim().min(1),
+    anchors: z.array(z.record(z.unknown())).max(24),
+    shots: z.array(z.record(z.unknown())).min(1).max(24),
+  })
+  .strict();
+
+const arrangeStoryboardActionInputSchema = z
+  .object({
+    operation: z.literal("arrange_storyboard_to_timeline"),
+    nodeIds: z.array(canonicalIdSchema).min(1).max(48),
+  })
+  .strict();
+
+const stagingReferenceActionInputSchema = z
+  .object({
+    operation: z.literal("create_staging_reference"),
+    shotClientId: canonicalIdSchema.optional(),
+    characters: z.array(z.record(z.unknown())).max(6).optional(),
+    layout: z.string().trim().min(1).optional(),
+    camera: z.record(z.unknown()).optional(),
+    environment: z.string().trim().min(1).optional(),
+    crowd: z.record(z.unknown()).optional(),
+    sceneTemplate: z.string().trim().min(1).optional(),
+    props: z.array(z.record(z.unknown())).max(12).optional(),
+    customBlocking: z.string().trim().min(1).optional(),
+  })
+  .strict();
+
+const cameraMoveActionInputSchema = z
+  .object({
+    operation: z.literal("create_camera_move"),
+    shotClientId: canonicalIdSchema,
+    move: z.string().trim().min(1).optional(),
+    customMove: z.string().trim().min(1).optional(),
+    speed: z.string().trim().min(1).optional(),
+    shot: z.string().trim().min(1).optional(),
+    subjectPose: z.string().trim().min(1).optional(),
+    sceneTemplate: z.string().trim().min(1).optional(),
+    props: z.array(z.record(z.unknown())).max(12).optional(),
+  })
+  .strict();
+
+const canvasWriteSemanticInputUnion = z.discriminatedUnion("operation", [
   z
     .object({ operation: z.literal("set_node_prompt"), nodeId: canonicalIdSchema, prompt: nonBlankPromptSchema })
     .strict(),
   createCanvasNodesInputSchema,
   connectCanvasEdgesInputSchema,
   tidyCanvasInputSchema,
+  storyboardPlanActionInputSchema,
+  arrangeStoryboardActionInputSchema,
+  stagingReferenceActionInputSchema,
+  cameraMoveActionInputSchema,
 ]);
+
+export const canvasWriteSemanticInputSchema = canvasWriteSemanticInputUnion.superRefine((value, context) => {
+  if (value.operation === "create_staging_reference" && (value.characters?.length ?? 0) === 0 && !value.customBlocking) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "characters or customBlocking is required" });
+  }
+  if (value.operation === "create_camera_move" && !value.move && !value.customMove) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "move or customMove is required" });
+  }
+});
 
 /** Pi derives the operation from the Registry alias; callers provide only semantic arguments. */
 export const canvasWritePiInputSchema = z
@@ -118,6 +213,22 @@ export const canvasWritePiInputSchema = z
 const createCanvasNodesPiInputSchema = createCanvasNodesInputSchema.omit({ operation: true });
 const connectCanvasEdgesPiInputSchema = connectCanvasEdgesInputSchema.omit({ operation: true });
 const tidyCanvasPiInputSchema = tidyCanvasInputSchema.omit({ operation: true });
+const storyboardPlanActionPiInputSchema = storyboardPlanActionInputSchema.omit({ operation: true });
+const arrangeStoryboardActionPiInputSchema = arrangeStoryboardActionInputSchema.omit({ operation: true });
+const stagingReferenceActionPiInputSchema = stagingReferenceActionInputSchema
+  .omit({ operation: true })
+  .superRefine((value, context) => {
+    if ((value.characters?.length ?? 0) === 0 && !value.customBlocking) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "characters or customBlocking is required" });
+    }
+  });
+const cameraMoveActionPiInputSchema = cameraMoveActionInputSchema
+  .omit({ operation: true })
+  .superRefine((value, context) => {
+    if (!value.move && !value.customMove) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "move or customMove is required" });
+    }
+  });
 
 export type CanvasWriteInput = z.infer<typeof canvasWriteSemanticInputSchema>;
 export type CanvasWriteOperation = CanvasWriteInput["operation"];
@@ -132,6 +243,14 @@ export function canvasWritePiInputSchemaForAlias(alias: string): z.ZodTypeAny | 
       return connectCanvasEdgesPiInputSchema;
     case "tidy_canvas":
       return tidyCanvasPiInputSchema;
+    case "propose_storyboard_plan":
+      return storyboardPlanActionPiInputSchema;
+    case "arrange_storyboard_to_timeline":
+      return arrangeStoryboardActionPiInputSchema;
+    case "create_staging_reference":
+      return stagingReferenceActionPiInputSchema;
+    case "create_camera_move":
+      return cameraMoveActionPiInputSchema;
     default:
       return undefined;
   }
@@ -147,6 +266,14 @@ export function canvasWritePiDescriptionForAlias(alias: string): string | undefi
       return "Propose reversible reference edges between existing canvas nodes.";
     case "tidy_canvas":
       return "Propose an undoable layout cleanup for one canvas category.";
+    case "propose_storyboard_plan":
+      return "Save a structured storyboard plan for review in the creation area.";
+    case "arrange_storyboard_to_timeline":
+      return "Arrange the selected storyboard shots into the timeline in story order.";
+    case "create_staging_reference":
+      return "Create a staging reference and attach it to the selected shot.";
+    case "create_camera_move":
+      return "Create a camera-move reference and attach it to the selected video shot.";
     default:
       return undefined;
   }
@@ -203,6 +330,42 @@ export const canvasWriteResultSchema = z.discriminatedUnion("operation", [
       reconciliation: reconciliationSchema,
     })
     .strict(),
+  z
+    .object({
+      applied: z.literal(true),
+      proposalId: canonicalIdSchema,
+      operation: z.literal("propose_storyboard_plan"),
+      result: z.unknown(),
+      reconciliation: reconciliationSchema,
+    })
+    .strict(),
+  z
+    .object({
+      applied: z.literal(true),
+      proposalId: canonicalIdSchema,
+      operation: z.literal("arrange_storyboard_to_timeline"),
+      result: z.unknown(),
+      reconciliation: reconciliationSchema,
+    })
+    .strict(),
+  z
+    .object({
+      applied: z.literal(true),
+      proposalId: canonicalIdSchema,
+      operation: z.literal("create_staging_reference"),
+      result: z.unknown(),
+      reconciliation: reconciliationSchema,
+    })
+    .strict(),
+  z
+    .object({
+      applied: z.literal(true),
+      proposalId: canonicalIdSchema,
+      operation: z.literal("create_camera_move"),
+      result: z.unknown(),
+      reconciliation: reconciliationSchema,
+    })
+    .strict(),
 ]);
 
 export type CanvasWriteResult = z.infer<typeof canvasWriteResultSchema>;
@@ -215,6 +378,10 @@ export const CANVAS_WRITE_OPERATION_ALIASES = Object.freeze({
   createCanvasNodes: "create_canvas_nodes",
   connectCanvasEdges: "connect_canvas_edges",
   tidyCanvas: "tidy_canvas",
+  proposeStoryboardPlan: "propose_storyboard_plan",
+  arrangeStoryboardToTimeline: "arrange_storyboard_to_timeline",
+  createStagingReference: "create_staging_reference",
+  createCameraMove: "create_camera_move",
 });
 
 export function canvasWriteOperationForAlias(alias: string): CanvasWriteOperation | undefined {
@@ -222,6 +389,10 @@ export function canvasWriteOperationForAlias(alias: string): CanvasWriteOperatio
   if (alias === CANVAS_WRITE_OPERATION_ALIASES.createCanvasNodes) return "create_canvas_nodes";
   if (alias === CANVAS_WRITE_OPERATION_ALIASES.connectCanvasEdges) return "connect_canvas_edges";
   if (alias === CANVAS_WRITE_OPERATION_ALIASES.tidyCanvas) return "tidy_canvas";
+  if (alias === CANVAS_WRITE_OPERATION_ALIASES.proposeStoryboardPlan) return "propose_storyboard_plan";
+  if (alias === CANVAS_WRITE_OPERATION_ALIASES.arrangeStoryboardToTimeline) return "arrange_storyboard_to_timeline";
+  if (alias === CANVAS_WRITE_OPERATION_ALIASES.createStagingReference) return "create_staging_reference";
+  if (alias === CANVAS_WRITE_OPERATION_ALIASES.createCameraMove) return "create_camera_move";
   return undefined;
 }
 

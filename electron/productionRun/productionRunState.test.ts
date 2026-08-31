@@ -114,6 +114,10 @@ describe("production run state", () => {
     expect(transitionRun(run("draft"), "running", NOW).status).toBe("running");
   });
 
+  it("lets a semantic single-shot settle directly after its durable artifact is ready", () => {
+    expect(transitionRun(run("running"), "completed", NOW).status).toBe("completed");
+  });
+
   it("still rejects other illegal draft jumps (e.g. straight to paused or exporting)", () => {
     expect(() => transitionRun(run("draft"), "paused", NOW)).toThrow("Illegal run transition draft -> paused");
     expect(() => transitionRun(run("draft"), "exporting", NOW)).toThrow("Illegal run transition draft -> exporting");

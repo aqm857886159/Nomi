@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import {
   createAgentRuntimeFixture,
   flattenRequestText,
+  APIMART_IMAGE_MODEL,
   FIXTURE_API_KEY,
   FIXTURE_IMAGE_MODEL,
   FIXTURE_TEXT_MODEL,
@@ -110,7 +111,9 @@ describe('agent runtime loopback fixture', () => {
     const chunks = await sse(await chat(fixture, messages))
     const record = await pending.received
     expect(record).toMatchObject({
-      path: '/v1/chat/completions', authorization: `Bearer ${FIXTURE_API_KEY}`,
+      method: 'POST', path: '/v1/chat/completions', statusCode: 200,
+      responseBody: expect.objectContaining({ stream: true, usage: FIXTURE_USAGE }),
+      authorization: `Bearer ${FIXTURE_API_KEY}`,
       headers: { 'content-type': 'application/json', authorization: `Bearer ${FIXTURE_API_KEY}` },
       body: { model: FIXTURE_TEXT_MODEL, stream: true, messages },
     })
@@ -269,21 +272,54 @@ describe('agent runtime loopback fixture', () => {
     const fixture = await startFixture()
     const catalog = JSON.parse(await readFile(path.join(fixture.settingsDir, 'model-catalog.json'), 'utf8'))
     expect(catalog.version).toBe(8)
-    expect(catalog.vendors).toEqual([expect.objectContaining({
+    expect(catalog.vendors).toEqual(expect.arrayContaining([expect.objectContaining({
       key: FIXTURE_VENDOR, enabled: true, baseUrlHint: fixture.baseURL,
       authType: 'bearer', providerKind: 'openai-compatible',
-    })])
-    expect(catalog.models).toEqual([
+    }), expect.objectContaining({
+      key: 'apimart', enabled: true, baseUrlHint: fixture.baseURL,
+      authType: 'bearer', providerKind: 'apimart',
+    })]))
+    expect(catalog.models).toEqual(expect.arrayContaining([
       expect.objectContaining({ modelKey: FIXTURE_TEXT_MODEL, kind: 'text', vendorKey: FIXTURE_VENDOR, enabled: true, meta: { supportsImageInput: true } }),
       expect.objectContaining({ modelKey: FIXTURE_IMAGE_MODEL, kind: 'image', vendorKey: FIXTURE_VENDOR, enabled: true, meta: { archetypeId: 'agnes-image' } }),
       expect.objectContaining({ modelKey: FIXTURE_VIDEO_MODEL, kind: 'video', vendorKey: FIXTURE_VENDOR, enabled: true, meta: { archetypeId: 'agnes-video' } }),
-    ])
-    expect(catalog.apiKeysByVendor).toEqual({
+      expect.objectContaining({ modelKey: APIMART_IMAGE_MODEL, kind: 'image', vendorKey: 'apimart', enabled: true, meta: { archetypeId: APIMART_IMAGE_MODEL } }),
+    ]))
+    expect(catalog.apiKeysByVendor).toEqual(expect.objectContaining({
       [FIXTURE_VENDOR]: expect.objectContaining({ apiKey: FIXTURE_API_KEY, vendorKey: FIXTURE_VENDOR, enabled: true, enc: 'plain' }),
-    })
+      apimart: expect.objectContaining({ apiKey: FIXTURE_API_KEY, vendorKey: 'apimart', enabled: true, enc: 'plain' }),
+    }))
     expect(FIXTURE_API_KEY).toBe('sk-agent-runtime-fixture')
-    expect(catalog.mappings).toHaveLength(4)
-    expect(catalog.mappings.map((mapping) => mapping.taskKind)).toEqual(['text_to_image', 'image_edit', 'text_to_video', 'image_to_video'])
+    expect(catalog.mappings.length).toBeGreaterThanOrEqual(8)
+    expect(catalog.mappings.map((mapping) => mapping.taskKind)).toEqual(expect.arrayContaining(['text_to_image', 'image_edit', 'text_to_video', 'image_to_video']))
+    const curatedApimartMappings = catalog.mappings.filter((mapping) => mapping.vendorKey === 'apimart' && mapping.modelKey === APIMART_IMAGE_MODEL)
+    expect(curatedApimartMappings.map((mapping) => mapping.id).sort()).toEqual([
+      `seed-apimart-${APIMART_IMAGE_MODEL}-image_edit`,
+      `seed-apimart-${APIMART_IMAGE_MODEL}-text_to_image`,
+    ])
+    for (const mapping of curatedApimartMappings) {
+      expect(mapping.create).toMatchObject({
+        method: 'POST', path: '/v1/images/generations',
+        body: {
+          model: '{{model.modelKey}}', prompt: '{{request.prompt}}',
+          size: '{{request.params.size}}', resolution: '{{request.params.resolution}}',
+        },
+        response_mapping: { task_id: 'data.0.task_id' },
+        provider_meta_mapping: { task_id: 'data.0.task_id' },
+        paramMap: { rules: [
+          { wire: 'size', from: 'aspect_ratio' },
+          { wire: 'resolution', fromMany: ['resolution'], transform: 'toLowerCase' },
+        ] },
+      })
+      expect(mapping.create.body.extra_body).toBeUndefined()
+      expect(mapping.query.path).toBe('/v1/tasks/{{providerMeta.task_id}}')
+      expect(mapping.statusMapping).toEqual({
+        queued: ['submitted', 'pending', 'queued'], running: ['processing', 'running'],
+        succeeded: ['completed', 'succeeded', 'success'], failed: ['failed', 'cancelled', 'error'],
+      })
+    }
+    expect(curatedApimartMappings.find((mapping) => mapping.taskKind === 'image_edit').create.body.image_urls)
+      .toBe('{{request.params.input_urls}}')
     for (const mapping of catalog.mappings.filter((mapping) => mapping.modelKey === FIXTURE_IMAGE_MODEL)) {
       expect(mapping).toMatchObject({
         vendorKey: FIXTURE_VENDOR, modelKey: FIXTURE_IMAGE_MODEL, enabled: true,
@@ -317,6 +353,38 @@ describe('agent runtime loopback fixture', () => {
     expect(videoResult.url).toMatch(/^data:video\/mp4;base64,/)
     expect(fixture.videos).toEqual([expect.objectContaining({ path: '/v1/videos', body: videoBody, authorization: `Bearer ${FIXTURE_API_KEY}` })])
     expect(fixture.requests).toEqual([])
+    fixture.assertClean()
+  })
+
+  test('keeps APIMart semantic media on the real async create→poll contract', async () => {
+    const fixture = await startFixture()
+    const createBody = { model: 'gpt-image-2', prompt: '小猫头像' }
+    const createResponse = await fetch(`${fixture.baseURL}/v1/images/generations`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${FIXTURE_API_KEY}` },
+      body: JSON.stringify(createBody),
+    })
+    expect(createResponse.status).toBe(200)
+    const accepted = await createResponse.json()
+    expect(accepted).toMatchObject({ code: 200, data: [{ status: 'submitted', task_id: 'fixture-image-0' }] })
+
+    const pollResponse = await fetch(`${fixture.baseURL}/v1/tasks/fixture-image-0`, {
+      headers: { Authorization: `Bearer ${FIXTURE_API_KEY}` },
+    })
+    expect(pollResponse.status).toBe(200)
+    expect(await pollResponse.json()).toMatchObject({
+      code: 200, data: { id: 'fixture-image-0', status: 'completed', result: { images: [{ url: [expect.stringMatching(/^data:image\/jpeg;base64,/) ] }] } },
+    })
+    expect(fixture.images).toHaveLength(1)
+    expect(fixture.images[0]).toMatchObject({
+      method: 'POST', statusCode: 200,
+      responseBody: { code: 200, data: [{ status: 'submitted', task_id: 'fixture-image-0' }] },
+    })
+    expect(fixture.taskQueries).toHaveLength(1)
+    expect(fixture.taskQueries[0]).toMatchObject({
+      method: 'GET', path: '/v1/tasks/fixture-image-0', statusCode: 200,
+      responseBody: { code: 200, data: { id: 'fixture-image-0', status: 'completed' } },
+    })
+    expect(JSON.stringify(fixture.taskQueries[0].responseBody)).not.toContain('base64,')
     fixture.assertClean()
   })
 
