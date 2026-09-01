@@ -48,14 +48,14 @@ try {
   if ((await genTab.count()) > 0) await genTab.click()
   await win.waitForTimeout(1500)
 
-  // 加 3D 场景节点
+  // 加 3D 场景节点。
+  // 菜单真实文案是 runtime.scene3d.menu = 「3D 场景」(**中间有空格**);此处原先写的是无空格的
+  // 「3D场景」,匹配不上,于是落到下面 [title*="3D"] 兜底、**点中了「3D 模型」节点**——
+  // 编辑器压根没开,后面每一步都跟着假红。死选择器就是这么同时造假红和假绿的,故锚点写死到真实文案。
   let added = false
-  const byName = win.getByRole('button', { name: '3D场景', exact: false })
+  const byName = win.getByRole('button', { name: '3D 场景', exact: false })
   if ((await byName.count()) > 0) { await byName.first().click(); added = true }
-  if (!added) {
-    const cube = win.locator('[title*="3D"], [aria-label*="3D"]')
-    if ((await cube.count()) > 0) { await cube.first().click(); added = true }
-  }
+  if (!added) throw new Error('没找到「3D 场景」节点菜单项——锚点可能又漂了,别用模糊兜底掩盖')
   await win.waitForTimeout(2000)
   await screenshotSettled(win, { path: path.join(outDir, 'walk-01-node-added.png') })
   log(`  ✓ 3D 节点已添加 (added=${added})`)

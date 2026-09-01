@@ -88,6 +88,7 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'timelineEditor.agent.edges', why: '动态: 时间线 agent 边操作;枚举来源: timelineEditPlanModel 的 operation.edge(agent.edges.* 词条)' },
   { prefix: 'timelineEditor.transition.types', why: '动态: 转场类型;枚举来源: 时间线转场 type 集(transition.types.* 词条)' },
   // ── scene3d ──
+  { prefix: 'scene3d.inspector.posePreset', why: '动态: 人偶姿势预设名;枚举来源: scene3dConstants 的 MANNEQUIN_POSE_PRESETS[].id(id 与词条同名,故键由 id 派生,不另存一份 labelKey)' },
   { prefix: 'scene3d.taskFlow.taskLabel', why: '动态: 3D 任务流任务标签;枚举来源: scene3dTaskMode 的 task(taskFlow.taskLabel.* 词条)' },
   { prefix: 'scene3d.taskFlow.taskShortLabel', why: '动态: 3D 任务流任务短标签;枚举来源: scene3dTaskMode 的 task(taskFlow.taskShortLabel.* 词条)' },
   // ── settings ──

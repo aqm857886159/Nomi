@@ -270,17 +270,33 @@ async function main(): Promise<void> {
   }
 
   // --prune:把 A 档(且仅 A 档)从 zh/en 两棵树里删掉。B 档存疑、绝不自动删。
+  // **基线里已登记的也不删**——基线 = 「已知没人引用、但主动留着」的存量(典型:译文是对的、
+  // 只是代码没接上,删掉等于把正确翻译扔掉并把 bug 坐实)。要清这部分债,先把条目从基线摘掉再 prune。
   // 删完必须重跑 check:i18n 全链 + typecheck 复核。
   if (prune) {
-    if (deadKeys.length === 0) {
-      console.log('没有 A 档死键,无需清理。')
+    const parked = new Set(
+      fs.existsSync(BASELINE_PATH) ? (JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')) as Baseline).deadKeys : [],
+    )
+    const prunable = deadKeys.filter((key) => !parked.has(key))
+    if (parked.size > 0) console.log(`基线登记的 ${parked.size} 条按约定跳过(主动留存,不删)。`)
+    if (prunable.length === 0) {
+      console.log('没有可删的 A 档死键。')
       return
     }
     const { pruneDictionaryKeys } = await import('./lib/i18nDictionaryEditor')
-    const results = pruneDictionaryKeys(ROOT, deadKeys)
-    console.log(`已删除 ${deadKeys.length} 条 A 档死键(zh + en 同删):`)
+    const { results, unresolved } = pruneDictionaryKeys(ROOT, prunable)
+    console.log(`已删除 ${prunable.length - unresolved.length}/${prunable.length} 条 A 档死键(zh + en 同删):`)
     for (const result of results) {
       console.log(`  ${path.relative(ROOT, result.file)} [${result.identifier}] -${result.removed}`)
+    }
+    if (unresolved.length > 0) {
+      // 一处都没删到 = 词典拼装出现了本编辑器不认识的形状。报红而不是当作删成功——
+      // 静默跳过会让人以为清理完了,实际键还在(scene3d 的展开合并就这么漏过一次)。
+      console.error(`\n有 ${unresolved.length} 条键没能定位到定义处,一条都没删:`)
+      for (const key of unresolved) console.error(`- ${key}`)
+      console.error('  → 多半是 resources.ts 用了新的拼装写法,需要扩展 scripts/lib/i18nDictionaryEditor.ts 的归属解析。')
+      process.exitCode = 1
+      return
     }
     console.log('\n→ 复核: pnpm run check:i18n && pnpm run typecheck')
     return

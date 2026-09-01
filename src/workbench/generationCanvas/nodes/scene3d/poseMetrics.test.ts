@@ -180,7 +180,7 @@ describe('假人度量（GLB 直载，零渲染）', () => {
         neck: report.angles.neckPitchFwd.toFixed(1),
         contacts: report.contacts.join('|'),
       })
-      console.log(`\n── ${preset.id}(${preset.label})`)
+      console.log(`\n── ${preset.id}`)
       console.log(describePoseFindings(findings))
     }
     console.table(rows)

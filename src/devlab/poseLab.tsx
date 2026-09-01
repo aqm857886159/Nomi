@@ -82,7 +82,8 @@ function CameraRig(): null {
 }
 
 function PosedFigure({ offset, label }: { offset: number; label: string }): JSX.Element {
-  const preset = MANNEQUIN_POSE_PRESETS.find((item) => item.label === label || item.id === label)
+  // 预设的显示名现在由 i18n 键(posePreset.*)提供,常量上只剩 id;devlab 是开发工具,按 id 找即可。
+  const preset = MANNEQUIN_POSE_PRESETS.find((item) => item.id === label)
   const position: [number, number, number] = [spreadDir[0] * offset, 0, spreadDir[2] * offset]
   return (
     <group position={position}>
@@ -100,7 +101,7 @@ function PosedFigure({ offset, label }: { offset: number; label: string }): JSX.
             borderRadius: '4px',
           }}
         >
-          {`${preset?.id ?? '?'} · ${preset?.label ?? label}`}
+          {`${preset?.id ?? '?'} · ${label}`}
         </div>
       </Html>
     </group>
