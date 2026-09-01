@@ -1,0 +1,47 @@
+// 跨设备继续编辑真实旅程：两个隔离 profile 共享同一份项目镜像。
+// 运行：pnpm run build && node tests/ux/cross-device-continuation.e2e.mjs
+import { launchNomiApp } from './_launchApp.mjs'
+import { mkdirSync, mkdtempSync, writeFileSync, cpSync, existsSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
+const root = mkdtempSync(path.join(os.tmpdir(), 'nomi-cross-device-e2e-'))
+const shared = path.join(root, 'shared')
+const machineA = path.join(root, 'machine-a')
+const machineB = path.join(root, 'machine-b')
+const evidence = path.resolve('outputs/cross-device-continuation')
+mkdirSync(path.join(shared, 'Film One', '.nomi'), { recursive: true })
+mkdirSync(path.join(shared, 'Film One', 'assets', 'imported'), { recursive: true })
+mkdirSync(evidence, { recursive: true })
+writeFileSync(path.join(shared, 'Film One', 'assets', 'imported', 'hero.png'), 'synthetic-image', 'utf8')
+writeFileSync(path.join(shared, 'Film One', '.nomi', 'project.json'), JSON.stringify({
+  id: 'cross-device-project', name: 'Film One', version: 2, createdAt: 100, updatedAt: 200, savedAt: 200, revision: 1,
+  payload: { generationCanvas: { nodes: [{ id: 'hero', type: 'image', result: { type: 'image', url: 'nomi-local://asset/cross-device-project/assets/imported/hero.png' } }] } },
+}, null, 2))
+cpSync(shared, machineA, { recursive: true })
+cpSync(shared, machineB, { recursive: true })
+
+let passed = 0
+const assert = (condition, label) => {
+  if (!condition) throw new Error(`CROSS-DEVICE FAIL: ${label}`)
+  passed += 1
+  console.log(`  ✓ ${label}`)
+}
+
+const a = await launchNomiApp({ name: 'cross-device-a', userDataDir: path.join(root, 'a-user'), settingsDir: path.join(root, 'a-settings'), projectsDir: machineA })
+const b = await launchNomiApp({ name: 'cross-device-b', userDataDir: path.join(root, 'b-user'), settingsDir: path.join(root, 'b-settings'), projectsDir: machineB })
+try {
+  await a.win.getByText('Film One', { exact: true }).first().waitFor({ timeout: 10000 })
+  await b.win.getByText('Film One', { exact: true }).first().waitFor({ timeout: 10000 })
+  assert(await a.win.getByText('可在另一台电脑继续', { exact: true }).count() > 0, '机器 A 显示项目可跨设备继续')
+  assert(await b.win.getByText('可在另一台电脑继续', { exact: true }).count() > 0, '机器 B 显示项目可跨设备继续')
+  await b.win.getByText('Film One', { exact: true }).first().click()
+  await b.win.waitForTimeout(1200)
+  console.log(`  URL after open: ${b.win.url()}`)
+  assert(await b.win.getByRole('button', { name: '创作', exact: false }).first().isVisible(), '机器 B 已进入工作台')
+  assert(await b.win.getByRole('button', { name: '预览', exact: false }).first().isVisible(), '机器 B 工作台预览入口可见')
+  await b.win.screenshot({ path: path.join(evidence, 'machine-b-project-open.png'), fullPage: true })
+  console.log(`\nCROSS-DEVICE PASS: ${passed} assertions`)
+} finally {
+  await Promise.all([a.close(), b.close()])
+}

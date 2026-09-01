@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nomi · 跨设备继续编辑样张</title>
+  <style>
+    :root {
+      --nomi-bg: #f5f3ef;
+      --nomi-paper: #fffdf9;
+      --nomi-ink: #292722;
+      --nomi-ink-60: #706b63;
+      --nomi-ink-40: #9a9489;
+      --nomi-line: #e4dfd6;
+      --nomi-accent: #c95f3f;
+      --nomi-accent-soft: #f8e7df;
+      --nomi-success: #39745b;
+      --nomi-success-soft: #e5f1ea;
+      --nomi-warning: #986c2e;
+      --nomi-warning-soft: #f8efd9;
+      --nomi-radius: 12px;
+      --nomi-shadow: 0 18px 50px rgb(45 38 28 / 10%);
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--nomi-bg); color: var(--nomi-ink); }
+    .shell { width: min(1120px, calc(100vw - 48px)); margin: 48px auto; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .brand { font-weight: 720; letter-spacing: -.02em; font-size: 22px; }
+    .caption { color: var(--nomi-ink-60); font-size: 13px; }
+    .panel { background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); box-shadow: var(--nomi-shadow); overflow: hidden; }
+    .panel-head { padding: 28px 32px 22px; border-bottom: 1px solid var(--nomi-line); }
+    .eyebrow { color: var(--nomi-accent); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { margin: 8px 0 6px; font-size: 28px; letter-spacing: -.035em; }
+    .lead { margin: 0; color: var(--nomi-ink-60); line-height: 1.6; max-width: 720px; }
+    .body { display: grid; grid-template-columns: 1.08fr .92fr; gap: 0; }
+    .section { padding: 28px 32px; }
+    .section + .section { border-left: 1px solid var(--nomi-line); }
+    .section h2 { margin: 0 0 16px; font-size: 16px; }
+    .path { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--nomi-line); border-radius: 9px; background: #fbfaf7; }
+    .path-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: var(--nomi-accent-soft); color: var(--nomi-accent); font-weight: 700; }
+    .path code { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .path small { color: var(--nomi-ink-40); }
+    .status { display: flex; align-items: flex-start; gap: 12px; margin-top: 16px; padding: 14px; border-radius: 9px; background: var(--nomi-success-soft); color: var(--nomi-success); }
+    .status strong { display: block; margin-bottom: 3px; }
+    .status span { color: #4c6e5c; font-size: 13px; line-height: 1.45; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--nomi-success); margin-top: 5px; flex: 0 0 auto; }
+    .files { margin: 18px 0 0; padding: 0; list-style: none; }
+    .files li { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #eeeae3; font-size: 13px; }
+    .files li:last-child { border-bottom: 0; }
+    .files span:last-child { color: var(--nomi-ink-40); }
+    .notice { padding: 14px; border-radius: 9px; background: var(--nomi-warning-soft); color: var(--nomi-warning); font-size: 13px; line-height: 1.5; margin-bottom: 18px; }
+    .notice strong { display: block; margin-bottom: 3px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    button { border: 0; border-radius: 8px; padding: 10px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+    .primary { background: var(--nomi-accent); color: white; }
+    .secondary { background: transparent; color: var(--nomi-ink); border: 1px solid var(--nomi-line); }
+    .subtle { background: transparent; color: var(--nomi-ink-60); padding-left: 0; }
+    .config { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--nomi-line); }
+    .config-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .config-row p { margin: 4px 0 0; color: var(--nomi-ink-60); font-size: 13px; line-height: 1.45; }
+    .badge { flex: 0 0 auto; padding: 4px 8px; border-radius: 999px; color: var(--nomi-ink-60); background: #f1eee8; font-size: 11px; }
+    .footer { margin-top: 18px; display: flex; justify-content: space-between; color: var(--nomi-ink-40); font-size: 12px; }
+    @media (max-width: 760px) { .shell { width: min(100% - 24px, 560px); margin: 24px auto; } .body { grid-template-columns: 1fr; } .section + .section { border-left: 0; border-top: 1px solid var(--nomi-line); } .panel-head, .section { padding: 22px; } h1 { font-size: 24px; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><div class="brand">Nomi</div><div class="caption">设置 · 文件与保存</div></div>
+    <section class="panel" aria-label="跨设备继续编辑">
+      <header class="panel-head">
+        <div class="eyebrow">Workspace continuity</div>
+        <h1>跨设备继续编辑</h1>
+        <p class="lead">把项目放进 VerySync、坚果云或其他同步文件夹。关闭这台电脑上的 Nomi，等同步完成后，就可以在另一台电脑打开同一个项目。</p>
+      </header>
+      <div class="body">
+        <section class="section">
+          <h2>项目文件夹</h2>
+          <div class="path"><div class="path-icon">↗</div><div><code>/Users/you/VerySync/Nomi Projects/Film One</code><small>当前项目根目录</small></div></div>
+          <div class="status"><div class="dot"></div><div><strong>可以在另一台电脑继续</strong><span>最后检查：刚刚 · 项目清单和素材引用完整</span></div></div>
+          <ul class="files"><li><span>项目清单与备份</span><span>2 个文件</span></li><li><span>生成和导入素材</span><span>38 个文件</span></li><li><span>导出文件</span><span>4 个文件</span></li></ul>
+          <div class="actions"><button class="primary">打开项目文件夹</button><button class="secondary">重新检查</button></div>
+        </section>
+        <section class="section">
+          <h2>换机前请做这三步</h2>
+          <div class="notice"><strong>不要同时在两台电脑编辑同一个项目</strong>同时保存会产生冲突。Nomi 会保留冲突副本，但不会自动替你合并两次修改。</div>
+          <ol class="caption" style="padding-left: 18px; line-height: 1.8; margin: 0;"><li>保存并完全退出 Nomi</li><li>等待同步工具显示完成</li><li>在另一台电脑打开项目文件夹</li></ol>
+          <div class="config"><div class="config-row"><div><strong>迁移模型和偏好</strong><p>导出公开配置；API Key 不会同步，换机后重新填写。</p></div><span class="badge">不含密钥</span></div><div class="actions" style="margin-top: 14px;"><button class="secondary">导出配置</button><button class="subtle">导入配置</button></div></div>
+        </section>
+      </div>
+    </section>
+    <div class="footer"><span>第一版支持：单设备编辑后换机</span><span>暂不支持：同时编辑 / 实时协作</span></div>
+  </main>
+</body>
+</html>

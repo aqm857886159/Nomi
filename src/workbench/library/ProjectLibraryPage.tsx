@@ -22,6 +22,8 @@ import type { ProjectTemplateId } from './projectTemplates'
 import { markLibraryUsed, sortByLibraryUsage, useLibraryUsageVersion } from './libraryDiscovery'
 import { filterProjectLibraryItems } from './libraryAdapters'
 import { LibraryDiscoveryToolbar } from './LibraryDiscoveryToolbar'
+import { getDesktopBridge } from '../../desktop/bridge'
+import type { WorkspaceSyncInspection } from '../../../electron/workspace/workspaceSync'
 
 type Props = {
   onOpenProject: (projectId: string) => void
@@ -124,6 +126,7 @@ export default function ProjectLibraryPage({
   // 双击项目名进入 inline 编辑：editingId 记哪张卡在编辑、editValue 是输入中的名字。
   const [editingId, setEditingId] = React.useState('')
   const [editValue, setEditValue] = React.useState('')
+  const [syncStatusByProject, setSyncStatusByProject] = React.useState<Record<string, WorkspaceSyncInspection['status']>>({})
   const beginRename = (project: LocalProjectSummary): void => {
     if (!onRenameProject || project.missing) return
     setEditingId(project.id)
@@ -160,6 +163,24 @@ export default function ProjectLibraryPage({
       : searchedProjects.filter((project) =>
           sourceFilter === 'folder' ? project.source === 'folder' : project.source !== 'folder',
         )
+  React.useEffect(() => {
+    const api = getDesktopBridge()?.workspace?.syncInspect
+    if (!api) return
+    let active = true
+    void Promise.all(
+      projects.filter((project) => Boolean(project.rootPath)).map(async (project) => {
+        try {
+          const inspection = await api(project.id)
+          return [project.id, inspection.status] as const
+        } catch {
+          return [project.id, 'unavailable'] as const
+        }
+      }),
+    ).then((entries) => {
+      if (active) setSyncStatusByProject(Object.fromEntries(entries) as Record<string, WorkspaceSyncInspection['status']>)
+    })
+    return () => { active = false }
+  }, [projects])
   const sourceOptions: Array<{ id: 'all' | 'native' | 'folder'; label: string; count: number }> = [
     { id: 'all', label: t('library.all'), count: sourceCounts.all },
     { id: 'native', label: t('library.local'), count: sourceCounts.native },
@@ -489,7 +510,25 @@ export default function ProjectLibraryPage({
                           {project.name}
                         </div>
                       )}
-                      <div className="text-micro text-nomi-ink-40">{formatUpdatedAt(project.updatedAt)}</div>
+                      <div className="flex items-center gap-2 text-micro text-nomi-ink-40">
+                        <span>{formatUpdatedAt(project.updatedAt)}</span>
+                        {project.rootPath && syncStatusByProject[project.id] ? (
+                          <span
+                            className={cn(
+                              'truncate max-w-[12rem]',
+                              syncStatusByProject[project.id] === 'ready' ? 'text-workbench-success' : 'text-workbench-danger',
+                            )}
+                          >
+                            {syncStatusByProject[project.id] === 'ready'
+                              ? t('library.syncReady')
+                              : syncStatusByProject[project.id] === 'external-change'
+                                ? t('library.syncExternalChange')
+                                : syncStatusByProject[project.id] === 'missing-assets'
+                                  ? t('library.syncMissingAssets', { count: 1 })
+                                  : t('library.syncUnavailable')}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                     {onRevealProjectFolder && project.rootPath ? (
                       <button
