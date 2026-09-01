@@ -9,6 +9,7 @@ function stripComments(source: string): string {
 }
 const readCode = (file: string): string => stripComments(fs.readFileSync(file, 'utf8'))
 const settingsSource = readCode(path.join(process.cwd(), 'src/workbench/settings/SettingsDialog.tsx'))
+const projectLocationSource = readCode(path.join(process.cwd(), 'src/workbench/settings/ProjectLocationSection.tsx'))
 const aiModelsSource = readCode(path.join(process.cwd(), 'src/workbench/settings/AiModelsSection.tsx'))
 const taskCenterSource = readCode(path.join(process.cwd(), 'src/workbench/taskCenter/TaskCenterPanel.tsx'))
 const studioSource = readCode(path.join(process.cwd(), 'src/workbench/NomiStudioApp.tsx'))
@@ -30,7 +31,8 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 //             用户反馈「点开变成独立框」）。AboutSection 现在切内嵌视图并渲染 FeedbackShareContent，
 //             故再次更新其基线；对应正向断言见下方 embeds feedback and sharing inside the About section。
 const MAIN_NON_MODEL_SECTION_SHA256 = {
-  'ProjectLocationSection.tsx': 'ad37c2f07c403b60cf42385f4d93fce8e2ff494c934467c670a7ae4b8c8d5523',
+  // 2026-09-02：文件与保存页新增跨设备目录状态与检查入口，保持项目位置仍由该区唯一拥有。
+  'ProjectLocationSection.tsx': 'd4922263552dfdb659d031e128c8baee47df22ab548621e933714c7a9d8b8df1',
   'AiModelsSection.tsx': '50e253177108dfda44128f7b002d22d5d769fbc4ac12eeeb3e376fc0757e64b7',
   'AutomationPermissionsSection.tsx': 'a0ea704afb1a31c33ffa3e00821658d8696cc15d5069e6361032b194e638b352',
   'CanvasGestureSection.tsx': '3cf19ee35f686e76b54497ff668bb91245b00a6593bc5d5d6162a0d30c476c95',
@@ -63,6 +65,15 @@ describe('settings dialog structure', () => {
     expect(taskCenterSource).not.toContain('PrefToggle')
     expect(taskCenterSource).not.toContain('writeTaskCenterPrefs')
     expect(settingsSource).toContain('automationPolicy')
+  })
+
+  it('keeps cross-device folder setup inside File & saving', () => {
+    expect(settingsSource).toContain('<ProjectLocationSection />')
+    expect(projectLocationSource).toContain('data-settings-project-sync')
+    expect(projectLocationSource).toContain("settings.file.projectLocationConfigured")
+    expect(projectLocationSource).toContain("settings.file.projectLocationCheck")
+    expect(projectLocationSource).toContain("settings.file.projectLocationSyncHint")
+    expect(projectLocationSource).not.toContain('VerySync')
   })
 
   it('keeps model management in one settings host', () => {
