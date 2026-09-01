@@ -81,11 +81,14 @@ checkedAt: `2026-09-02`（Asia/Shanghai）。官方索引：<https://docs.apimar
 
 Seedance 2.0/2.5：`image_urls` 与 `image_with_roles` 互斥；帧角色不能与 video/audio reference 混用；2.5 首尾帧的 `size` 必须 `adaptive`，并允许 `return_last_frame`。Omni：`generation_type=frame` 只接受 1 图，`reference` 接受 1 或 3 图，2 图明确 400；视频参考与 duration 互斥。Sora/Veo/Kling 等 i2v 显式 drop 比例，避免把无效控件值发给上游。现有档案和 `dropParamMap` 已把这些组合表达为模式合同。
 
-## 本次免费探针证据
+## 本次免费探针证据（2026-09-02）
 
-- `/v1/balance`：HTTP 200，`unlimited_quota:true`；未写入 key。
+- `/v1/balance`：带 key HTTP 200，`success:true, unlimited_quota:true, used_balance=176.813288`；不带 key HTTP 401（`API key is required`）。未写入 key。
+- `/v1/models`：带 key HTTP 200，`object=list, success:true`，返回当前模型列表并包含本审计涉及的 Seedance 2.5、Vidu Q3、Kling v3、Omni、Wan、Hailuo 等 ID；未把列表中的兼容别名直接当 canonical 合同。
 - 使用极端 duration 做非计费校验时，绝大多数入口返回 400/402/403；Veo 与旧/新 Omni 入口因服务端忽略该字段返回 200 并创建任务，属于本次探针的副作用，不作为付费封印证据。之后只使用文档明确的同步 400 校验或余额阻断探针。
 - 余额阻断返回 APIMart `balance=18319038`、Kling/Vidu 需要数十亿 credits；精确余额来自服务响应，不据此推断模型契约。
+
+本班最小付费封印：Seedance 2.5 i2v/reference，`480p/4s/1 image`，HTTP 200 → 下载 `/tmp/matrix/artifacts/docaudit-apimart-seedance25-ref.mp4`；余额 `used_balance` 从 `176.813288` 增至 `177.201588`，`credits_cost=3.883`，折算实际花销 `¥0.3883`。抽帧同时确认红色机器人参考特征与挥手提示词；完整台账追加在 <https://github.com/aqm857886159/Nomi/blob/audit/vendor-docs-kie-apimart-20260902/docs/research/2026-09-02-model-acceptance-matrix.md>（本地 acceptance matrix）。
 
 ## 关键原文摘录
 
