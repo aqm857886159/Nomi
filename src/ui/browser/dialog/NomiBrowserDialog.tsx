@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   getDesktopBridge,
   type DesktopBrowserAssetOverlayCaptureRequest,
@@ -40,6 +41,7 @@ import {
   type NomiBrowserDialogProps,
 } from './NomiBrowserDialogModel'
 export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): JSX.Element | null {
+  const { t } = useTranslation()
   const browserBridge = getDesktopBridge()?.browser
   const [tabs, setTabs] = React.useState<BrowserTab[]>(() => {
     const tab = createBlankTab()
@@ -441,8 +443,8 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
       if (!event.ok) {
         setLastError(
           event.reason === 'empty'
-            ? '先将鼠标悬停在图片或视频上，再按 Ctrl+C 保存。'
-            : event.message || '网页素材捕捞失败',
+            ? t('browserAssets.hoverBeforeCapture')
+            : event.message || t('browserAssets.captureFailed'),
         )
         return
       }
@@ -459,7 +461,7 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
         fileName: event.fileName || undefined,
       })
     })
-  }, [browserBridge, openNativeAssetPopover, startCaptureFlyout])
+  }, [browserBridge, openNativeAssetPopover, startCaptureFlyout, t])
 
   React.useEffect(() => {
     const viewId =

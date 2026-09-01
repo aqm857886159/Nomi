@@ -17,6 +17,17 @@ export const zhBrowserAssets = {
   saving: '保存中...',
   saveFailed: '保存失败',
   localImport: '本地导入',
+  // 素材来源标签(webCapture/webDrop)与项目素材标题兜底(projectImage/projectVideo)——
+  // 原先各有一份写死中文在 useBrowserAssetCaptureImport / browserAssetPopoverUtils 里,
+  // 同时 runtime.browser.* 还存了一份没人引用的副本。2026-09-02 归位到本命名空间(唯一 owner),
+  // runtime.browser 整棵删掉(P1/R14.1:同一语义不许两份定义)。
+  webCapture: '网页捕捞',
+  webExtraction: '网页提取',
+  webDrop: '网页拖拽',
+  projectImage: '项目图片',
+  projectVideo: '项目视频',
+  hoverBeforeCapture: '先将鼠标悬停在图片或视频上，再按 Ctrl+C 保存。',
+  captureFailed: '网页素材捕捞失败',
   imagePromptCategory: '图片提示词',
   switchLayout: '切换素材布局',
   oldestFirst: '最早优先',
@@ -201,6 +212,17 @@ export const enBrowserAssets = {
   saving: 'Saving...',
   saveFailed: 'Save failed',
   localImport: 'Local import',
+  // Asset-source tags (webCapture/webDrop) and the project-asset title fallback
+  // (projectImage/projectVideo). These used to be hardcoded Chinese in
+  // useBrowserAssetCaptureImport / browserAssetPopoverUtils while runtime.browser.* held an
+  // unreferenced duplicate copy. Relocated here (single owner) 2026-09-02; runtime.browser deleted.
+  webCapture: 'Web capture',
+  webExtraction: 'Web extraction',
+  webDrop: 'Web drag and drop',
+  projectImage: 'Project image',
+  projectVideo: 'Project video',
+  hoverBeforeCapture: 'Hover over an image or video, then press Ctrl+C to save it.',
+  captureFailed: 'Web asset capture failed',
   imagePromptCategory: 'Image prompts',
   switchLayout: 'Switch asset layout',
   oldestFirst: 'Oldest first',

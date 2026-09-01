@@ -47,20 +47,6 @@ export const zhRuntime = {
     model3d: { menu: '3D 模型', title: '3D 模型', placeholder: '描述要生成的 3D 模型（外形、材质、风格）...' },
     asset: { menu: '素材', title: '素材', placeholder: '描述素材内容...' },
   },
-  browser: {
-    webImage: '网页图片',
-    webVideo: '网页视频',
-    webCapture: '网页捕捞',
-    webDrop: '网页拖拽',
-    hoverBeforeCapture: '先将鼠标悬停在图片或视频上，再按 Ctrl+C 保存。',
-    captureFailed: '网页素材捕捞失败',
-    localImport: '本地导入',
-    projectVideo: '项目视频',
-    projectImage: '项目图片',
-    errors: {
-      sourceSessionExpired: '来源页面会话已失效，请回到原网页重新拖入',
-    },
-  },
   project: {
     untitled: '未命名项目',
     untitledWithTime: '未命名项目 {{time}}',
@@ -210,20 +196,6 @@ export const enRuntime = {
     },
     asset: { menu: 'Asset', title: 'Asset', placeholder: 'Describe the asset...' },
     clip: { menu: 'Clip', title: 'Clip', placeholder: 'Add image or video to start editing...' },
-  },
-  browser: {
-    webImage: 'Web image',
-    webVideo: 'Web video',
-    webCapture: 'Web capture',
-    webDrop: 'Web drag and drop',
-    hoverBeforeCapture: 'Hover over an image or video, then press Ctrl+C to save it.',
-    captureFailed: 'Web asset capture failed',
-    localImport: 'Local import',
-    projectVideo: 'Project video',
-    projectImage: 'Project image',
-    errors: {
-      sourceSessionExpired: 'The source page session expired. Return to the original page and drag the asset again.',
-    },
   },
   project: {
     untitled: 'Untitled project',

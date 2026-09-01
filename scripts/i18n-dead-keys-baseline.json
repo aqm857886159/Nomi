@@ -1,30 +1,4 @@
 {
-  "note": "i18n 死键棘轮:A 档(高置信死键)存量,只减不增。新增死键必须在同一 PR 里删掉词条或补上引用,而不是加进这份基线。--prune 会跳过这里登记的键(主动留存),要清这部分债得先把条目摘掉。当前存量全部是同一类:浏览器素材子系统的词条译文(zh+en)都是对的,但代码里仍写死中文、没走 t()。删掉等于把正确翻译扔掉、并把「英文界面显示中文」坐实,故留存待接线。不在本轮直接接线的原因有两条:① browserAssets.* 与 runtime.browser.* 对同一批文案各存了一份(webImage/webVideo/sourceSessionExpired 三处重复),接线前得先定哪个命名空间是 owner(R14.1);② 其中若干是素材来源标签(网页图片/项目图片/本地导入…),代码可能按字面串比对,直接转 t() 有引入语言脆弱匹配的风险——check:i18n-fragile-match 正是为这一族存在的。",
-  "deadKeys": [
-    "browserAssets.extraction.replicate",
-    "browserAssets.promptEntryFailed",
-    "browserAssets.promptImageMissing",
-    "browserAssets.promptModelEmpty",
-    "browserAssets.promptModelInvalid",
-    "browserAssets.promptReferenceMissing",
-    "browserAssets.promptVisionModelMissing",
-    "browserAssets.renameBookmark",
-    "browserAssets.screenshotFailed",
-    "browserAssets.screenshotUnsupported",
-    "browserAssets.selectedPrompt",
-    "browserAssets.selectedStyle",
-    "browserAssets.sourceSessionExpired",
-    "browserAssets.webImage",
-    "browserAssets.webVideo",
-    "runtime.browser.captureFailed",
-    "runtime.browser.errors.sourceSessionExpired",
-    "runtime.browser.hoverBeforeCapture",
-    "runtime.browser.localImport",
-    "runtime.browser.projectImage",
-    "runtime.browser.projectVideo",
-    "runtime.browser.webCapture",
-    "runtime.browser.webDrop",
-    "runtime.browser.webImage",
-    "runtime.browser.webVideo"
-  ]
+  "note": "i18n 死键棘轮:A 档(高置信死键)存量,只减不增。当前**干净归零**——没有任何词条是没人引用的。新增死键必须在同一 PR 里删掉词条或补上引用,而不是加进这份基线。--prune 会跳过这里登记的键(用于「已知没人引用、但主动留存待接线」的存量),生成: pnpm run check:i18n-dead-keys -- --update-baseline",
+  "deadKeys": []
 }

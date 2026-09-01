@@ -96,7 +96,7 @@ export function useBrowserAssetActions({
         title: file.name || t('browserAssets.unnamedAsset'),
         subtitle: persistImport ? t('browserAssets.saving') : t('browserAssets.localImport'),
         previewUrl,
-        tags: ['本地导入'],
+        tags: [t('browserAssets.localImport')],
         status: persistImport ? 'loading' : undefined,
         createdAt: now,
         updatedAt: now,

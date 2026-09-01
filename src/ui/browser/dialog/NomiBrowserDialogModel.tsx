@@ -4,7 +4,7 @@ import i18n from '../../../i18n'
 import { IconBrowser, IconBrush, IconPalette, IconWorld } from '../../../vendor/tablerIcons'
 import type { DesktopBrowserAssetOverlayCaptureRequest, DesktopBrowserPromptCaptureEvent, DesktopBrowserResourceCaptureEvent, DesktopBrowserViewBounds } from '../../../desktop/bridge'
 import { cn } from '../../../utils/cn'
-import { BROWSER_PROMPT_EXTRACTION_MODE_LABELS, type BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
+import { BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS, type BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
 import type { BrowserAssetPromptCaptureRequest } from '../popover/NomiBrowserAssetPopover'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
 
@@ -456,7 +456,7 @@ export function PromptModeOption({
       </span>
       <span className="min-w-0 flex-1">
         <span className="block font-semibold leading-[1.25] text-nomi-ink">
-          {BROWSER_PROMPT_EXTRACTION_MODE_LABELS[mode]}
+          {i18n.t(BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS[mode])}
         </span>
         <span className="mt-0.5 block text-micro leading-snug text-nomi-ink-40">
           {styleMode
