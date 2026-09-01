@@ -732,6 +732,13 @@
     {
       "vendor": "apimart",
       "category": "video",
+      "slug": "minimax-h3/max",
+      "title": "MiniMax-H3-Max Video Generation",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max.md"
+    },
+    {
+      "vendor": "apimart",
+      "category": "video",
       "slug": "minimax-h3/regeneration",
       "title": "MiniMax-H3 Regeneration",
       "url": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/regeneration.md"
@@ -754,7 +761,7 @@
       "vendor": "apimart",
       "category": "video",
       "slug": "omni-flash-ext",
-      "title": "Omni-Flash-Ext Video Generation",
+      "title": "gemini-omni-1.1-flash-ext Video Generation",
       "url": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation.md"
     },
     {

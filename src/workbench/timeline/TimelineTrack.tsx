@@ -28,12 +28,14 @@ type TimelineTrackProps = {
 
 function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: TimelineTrackProps): JSX.Element {
   const { t } = useTranslation()
+  // 轨道标签列宽度固定（--workbench-timeline-label-width=112px，标尺/播放头都按它对齐），用短的 rail*Label，
+  // 别用描述名 *Label（英文 'Image track' 会被这列截成 'Image t…'）。句子里的轨道名仍用 *Label（见下 wrongType）。
   const displayTrackLabel =
     track.type === 'image'
-      ? t('timelineEditor.track.imageLabel')
+      ? t('timelineEditor.track.railImageLabel')
       : track.type === 'video'
-        ? t('timelineEditor.track.videoLabel')
-        : t('timelineEditor.track.audioLabel')
+        ? t('timelineEditor.track.railVideoLabel')
+        : t('timelineEditor.track.railAudioLabel')
   const secondary = variant === 'secondary'
   const transitionRowsAtBoundary = new Map<number, number>()
   const laidOutTransitionFeedback = transitionFeedback.map((feedback) => {

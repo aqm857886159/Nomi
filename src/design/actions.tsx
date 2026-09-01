@@ -184,7 +184,10 @@ export const ActionCard = forwardRef<HTMLButtonElement, ActionCardProps>(functio
         {icon}
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-body font-semibold truncate">{title}</span>
+        {/* 标题允许 2 行（line-clamp-2），不按最长中文标题定死单行截断——EN 标题（如
+            "See how Nomi creates a video"）比中文长得多，单行 truncate 会截成「…a v…」。
+            2 行 clamp 各 locale 通吃：短标题仍单行，长标题换行不外溢，卡片高度 88px 兜得住。 */}
+        <span className="block text-body font-semibold line-clamp-2 leading-snug">{title}</span>
         <span
           className={cn(
             'block mt-0.5 text-caption truncate',

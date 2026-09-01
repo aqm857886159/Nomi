@@ -121,6 +121,16 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   魔搭图像: 'ModelScope Image',
   魔搭: 'ModelScope',
   魔搭社区: 'ModelScope',
+  // Vendor display names. The catalog seeds carry Chinese vendor names (electron/catalog/*Vendor.ts);
+  // the settings UI localizes them here via translateModelDisplayText, same as 魔搭社区→ModelScope.
+  // Any vendor whose seed `name` is Chinese needs an entry here, or it renders Chinese in the EN UI.
+  // 火山方舟 = Volcengine's Ark model-service platform. Official English brand "Volcengine Ark"
+  //   (console self-brands as "Volcano Engine Ark Console — Volcengine Console",
+  //    https://console.volcengine.com/ark ; matches existing 'Volcengine Seedream' labels below).
+  火山方舟: 'Volcengine Ark',
+  火山豆包语音: 'Volcengine Voice',
+  '即梦会员（本地 CLI）': 'Dreamina membership (local CLI)',
+  'Codex 本地生图（实验）': 'Codex local image (experimental)',
   即梦: 'Dreamina',
   本地: 'Local',
   '本地 ComfyUI': 'Local ComfyUI',
