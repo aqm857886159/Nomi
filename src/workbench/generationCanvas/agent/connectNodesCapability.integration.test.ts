@@ -11,7 +11,7 @@ import type { ModelOption } from '../../../config/models'
 const REAL_OPTIONS: ModelOption[] = [
   { value: 'imagen-4', label: 'Imagen 4', modelKey: 'imagen-4', meta: { archetypeId: 'imagen-4' } }, // 纯文生，无参考槽
   { value: 'seedream', label: 'Seedream', modelKey: 'seedream', meta: { archetypeId: 'seedream' } }, // t2i(无槽)+edit(image_ref)
-  { value: 'seedance-2', label: 'Seedance 2', modelKey: 'seedance-2', meta: { archetypeId: 'seedance-2' } }, // 视频 omni image_ref/video_ref
+  { value: 'seedance-2', label: 'Seedance 2', modelKey: 'seedance-2', vendor: 'kie', meta: { archetypeId: 'seedance-2' } }, // 视频 omni image_ref/video_ref
 ]
 
 vi.mock('./availableModels', async (importOriginal) => {
@@ -49,6 +49,34 @@ describe('T8 集成：connect_nodes 按目标模型能力校验参考边（真�
     expect(imagen.modes.every((m) => m.slots.length === 0)).toBe(true)
     const seedream = ENTRIES.find((e) => e.modelKey === 'seedream')!
     expect(seedream.modes.some((m) => m.slots.some((s) => s.kind === 'image_ref'))).toBe(true)
+  })
+
+  it('批准卡编辑的 vendor/model/variant 会沿真实写入链落到节点 meta', async () => {
+    const result = (await applyCanvasToolCall('create_canvas_nodes', {
+      nodes: [{
+        clientId: 'selected-model',
+        kind: 'video',
+        title: '用户选定的镜头',
+        prompt: '一只猫在窗边回头',
+        modelKey: 'seedance-2',
+        vendor: 'kie',
+        modelVendor: 'kie',
+        modeId: 't2v',
+        variantId: 'fast',
+        // fast 变体只允许 480p/720p；写入边界应与编辑器的档案收窄规则一致。
+        params: { resolution: '4k', duration: 5 },
+      }],
+    })) as CreateResult
+    const nodeId = result.clientIdToNodeId['selected-model']
+    const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
+    expect(node?.meta).toMatchObject({
+      modelKey: 'seedance-2',
+      modelVendor: 'kie',
+      vendor: 'kie',
+      archetype: { id: 'seedance-2', modeId: 't2v', variantId: 'fast' },
+      resolution: '720p',
+      duration: 5,
+    })
   })
 
   it('① 文本节点→图片节点：作为 prompt 上下文边放行，入 store', async () => {

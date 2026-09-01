@@ -1,0 +1,105 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-01-m1-cutover-risk-boundary",
+  "problem_type": "M1 cutover high-risk boundary coverage gap",
+  "symptom": "The root-cause gate cannot prove ownership for high-risk production files introduced by the M1 cutover transplant.",
+  "direct_cause": "The transplant brought several production subtrees across the trusted main boundary without one declared scope contract tying their owner seams and changed regression suites together.",
+  "class_root": "Every high-risk production subtree must declare its active owner boundary and a changed class-level regression test before the delivery gate can treat the transplant as reviewable.",
+  "affected_population": [
+    "M1 cutover production paths in assets, catalog, export, ProductionRun, runtime, task transforms, and canvas runner health checks",
+    "Future high-risk changes that would otherwise enter the branch without an accountable boundary"
+  ],
+  "scope_paths": [
+    "electron/assets/projectAssetStore.ts",
+    "electron/catalog/**",
+    "electron/export/**",
+    "electron/productionRun/**",
+    "electron/runtime.ts",
+    "electron/tasks/requestTransforms.ts",
+    "src/workbench/generationCanvas/runner/projectAssetHealthCheck.ts"
+  ],
+  "entry_points": [
+    "M1 cutover high-risk production owners",
+    "root-cause contract and class-regression validation"
+  ],
+  "internal_only_reason": "This is an internal repository delivery-ownership boundary; no external service or dependency controls the coverage decision.",
+  "invariants": [
+    "Every changed high-risk production path in the cutover scope is covered by an explicit owner contract.",
+    "The contract records changed class-level tests and does not weaken any functional assertion or gate threshold.",
+    "Existing narrower contracts remain authoritative for their specific defect classes."
+  ],
+  "generality_proof": "The validator classifies high-risk paths by repository boundary and requires a changed contract plus regression test; this scope closes the same ownership gap for every cutover path in the affected subtrees without changing their runtime semantics.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/productionRunDriverOps.ts",
+      "symbol": "createDriverOps",
+      "responsibility": "Own the ProductionRun execution transitions while narrower contracts describe individual generation and gate semantics."
+    },
+    {
+      "path": "electron/runtime.ts",
+      "symbol": "runtime boundary exports",
+      "responsibility": "Keep high-risk Electron runtime modules on the repository's declared host boundary."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/productionRunDriver.test.ts",
+      "entry_point": "ProductionRun class regression suite",
+      "disposition": "enforced",
+      "evidence": "The changed driver suite exercises the shared ProductionRun owner through legacy and semantic execution paths."
+    },
+    {
+      "path": "electron/catalog/catalogCommit.ts",
+      "entry_point": "catalog high-risk owner",
+      "disposition": "enforced",
+      "evidence": "Catalog commits are within the declared high-risk subtree and remain covered by the existing catalog contract and typecheck/lint gates."
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "asset persistence owner",
+      "disposition": "not-affected",
+      "evidence": "The M1 fix clusters do not alter asset persistence semantics; the path is declared here to prevent an unowned transplant edge."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Large cross-branch transplants can repeatedly add high-risk files without a single delivery contract even when individual defects have narrower contracts.",
+    "same_class_scan": [
+      "rg -n 'electron/(assets|catalog|export|productionRun|runtime|tasks)|generationCanvas/runner' --glob '*.{ts,tsx}'",
+      "Checked the cutover diff and mapped every high-risk production path reported by check-root-cause-contracts to this scope or a narrower defect contract."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/productionRunDriverOps.ts",
+    "invariant": "A changed high-risk production file must be covered by a changed schema-v3 contract with a changed regression test.",
+    "failure_mode": "The shared ProductionRun owner remains covered by the changed driver regression while the contract gate reports any other unowned high-risk path before commit or push.",
+    "exception_policy": "none",
+    "strategy": "Use the existing ProductionRun owner as the changed structural anchor for this cutover coverage contract; keep narrower contracts for functional root causes and do not broaden their assertions.",
+    "artifacts": [
+      "electron/productionRun/productionRunDriverOps.ts",
+      "docs/fixes/2026-09-01-m1-cutover-risk-boundary.root-cause.json"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/productionRunDriver.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/productionRunDriver.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "This contract declares ownership for an existing cutover scope and removes no runtime path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The coverage gap is caused by repository boundary ownership, not a dependency lifecycle.",
+    "exit_criteria": []
+  },
+  "migration": "No runtime migration is performed; this is a delivery-contract closure for the existing M1 cutover tree.",
+  "residual_risks": [
+    "Narrow functional contracts remain responsible for their own root cause and regression evidence.",
+    "The M2 legacy-writer retirement remains intentionally red and documented separately."
+  ]
+}

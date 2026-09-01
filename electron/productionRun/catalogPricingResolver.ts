@@ -44,9 +44,11 @@ export function createCatalogModelPricingResolver(models: readonly Model[]): (pr
 }
 
 /**
- * Build a `resolveShotPrice(contract)` for the submission seam: derive the sealed sub-contract's real
- * per-shot price from the same catalog snapshot. Unknown → the submission keeps its backward-compatible
- * 0 ledger amount (an unpriced model still submits).
+ * Build a `resolveShotPrice(contract)` for the authorization seam: derive the
+ * sealed sub-contract's real per-shot price from the same catalog snapshot.
+ * Unknown remains `{ known: false }`; the paid gate rejects it before a Run is
+ * sealed or submitted, so an unknown price cannot become a fabricated zero
+ * liability.
  */
 export function createCatalogShotPriceResolver(models: readonly Model[]): (contract: ExecutionContractV1) => ShotPrice {
   const resolvePricing = createCatalogModelPricingResolver(models);

@@ -20,6 +20,13 @@ export type PlanCandidate = {
   providerId: string;
   modelId: string;
   variantId?: string;
+  /** Stable source-archetype mode id (for example `firstlast` or `omni`).
+   * The transport `mode` remains the catalog task kind; keeping both prevents
+   * several modes that share one task kind from being silently conflated. */
+  modeId?: string;
+  /** Provider wire model derived from the selected variant/mode. This is an
+   * internal, validated projection; callers must not invent it. */
+  transportModelId?: string;
   mode: string;
   prompt: string;
   parameters: Record<string, unknown>;
@@ -38,6 +45,8 @@ export type ExecutionContractV1 = {
   providerId: string;
   modelId: string;
   variantId?: string;
+  modeId?: string;
+  transportModelId?: string;
   mode: string;
   prompt: string;
   parameters: Record<string, unknown>;
@@ -135,6 +144,8 @@ export function compileExecutionContract(
   if (!Number.isInteger(candidate.revision) || candidate.revision < 1) throw new ContractCompilationError("Candidate revision must be a positive integer");
   if (!candidate.prompt.trim()) throw new ContractCompilationError("Prompt is required");
   if (candidate.variantId !== undefined && !candidate.variantId.trim()) throw new ContractCompilationError("Variant id must not be empty");
+  if (candidate.modeId !== undefined && !candidate.modeId.trim()) throw new ContractCompilationError("Mode id must not be empty");
+  if (candidate.transportModelId !== undefined && !candidate.transportModelId.trim()) throw new ContractCompilationError("Transport model id must not be empty");
   if (candidate.sealedContractHash) throw new NewDraftRequiredError();
   const module = registry.resolve({ moduleId: candidate.moduleId, providerId: candidate.providerId, modelId: candidate.modelId, mode: candidate.mode });
   if (candidate.references.length > (module.assetInputSchema.references?.max ?? Number.MAX_SAFE_INTEGER)) {
@@ -151,6 +162,8 @@ export function compileExecutionContract(
     providerId: module.providerId,
     modelId: module.modelId,
     ...(candidate.variantId ? { variantId: candidate.variantId.trim() } : {}),
+    ...(candidate.modeId ? { modeId: candidate.modeId.trim() } : {}),
+    ...(candidate.transportModelId ? { transportModelId: candidate.transportModelId.trim() } : {}),
     mode: module.mode,
     prompt: candidate.prompt,
     parameters,
@@ -161,11 +174,23 @@ export function compileExecutionContract(
 
 export function applyPlanCandidatePatch(candidate: PlanCandidate, patch: Partial<Omit<PlanCandidate, "candidateId" | "revision">>): PlanCandidate {
   if (candidate.sealedContractHash) throw new NewDraftRequiredError();
-  return {
+  const next = {
     ...structuredClone(candidate),
     ...structuredClone(patch),
     revision: candidate.revision + 1,
     parameters: patch.parameters ? structuredClone(patch.parameters) : structuredClone(candidate.parameters),
     references: patch.references ? structuredClone(patch.references) : structuredClone(candidate.references),
   };
+  // `transportModelId` is a derived wire projection, never a user-editable
+  // field. A provider/model/mode/variant edit invalidates the old projection;
+  // the semantic normalizer will derive a fresh value before sealing.
+  const identityChanged = patch.providerId !== undefined
+    || patch.modelId !== undefined
+    || patch.variantId !== undefined
+    || patch.mode !== undefined
+    || patch.modeId !== undefined;
+  if (identityChanged) delete next.transportModelId;
+  else if (candidate.transportModelId) next.transportModelId = candidate.transportModelId;
+  else delete next.transportModelId;
+  return next;
 }

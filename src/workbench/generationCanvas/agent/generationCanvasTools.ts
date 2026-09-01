@@ -1,12 +1,8 @@
 import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
-import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import { collectNodeContext } from '../model/nodeContext'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { validateReferenceEdge, type EdgeSkipReason } from './referenceEdgeCapability'
-import {
-  sendGenerationNodeToTimeline,
-  type SendGenerationNodeToTimelineOptions,
-} from './sendGenerationNodeToTimeline'
+import { sendGenerationNodeToTimeline, type SendGenerationNodeToTimelineOptions } from './sendGenerationNodeToTimeline'
 
 export type CreateGenerationNodeToolInput = {
   kind: GenerationNodeKind
@@ -30,7 +26,6 @@ export type GenerationCanvasToolResult<T = unknown> = {
 }
 
 export type GenerationCanvasToolAction =
-  | { tool: 'read_canvas' }
   | { tool: 'read_selected_nodes' }
   | { tool: 'read_node_context'; nodeId: string }
   | { tool: 'create_nodes'; nodes: CreateGenerationNodeToolInput[] }
@@ -56,10 +51,12 @@ function findNode(nodeId: string): GenerationCanvasNode | null {
   return useGenerationCanvasStore.getState().nodes.find((node) => node.id === id) || null
 }
 
+/** Renderer-owned document snapshot primitive for local planning and write RMW. */
+export function readGenerationCanvasSnapshot() {
+  return useGenerationCanvasStore.getState().readSnapshot()
+}
+
 export const generationCanvasTools = {
-  read_canvas() {
-    return useGenerationCanvasStore.getState().readSnapshot()
-  },
   read_selected_nodes(): GenerationCanvasNode[] {
     const state = useGenerationCanvasStore.getState()
     const selected = new Set(state.selectedNodeIds)
@@ -106,7 +103,9 @@ export const generationCanvasTools = {
   },
   delete_nodes(nodeIds: string[]): string[] {
     const existing = new Set(useGenerationCanvasStore.getState().nodes.map((node) => node.id))
-    const deleted = Array.from(new Set(nodeIds.map((id) => String(id || '').trim()).filter((id) => id && existing.has(id))))
+    const deleted = Array.from(
+      new Set(nodeIds.map((id) => String(id || '').trim()).filter((id) => id && existing.has(id))),
+    )
     deleted.forEach((id) => useGenerationCanvasStore.getState().deleteNode(id))
     return deleted
   },
@@ -129,10 +128,6 @@ export const generationCanvasTools = {
     return sendGenerationNodeToTimeline(nodeId, options)
   },
   async execute(action: GenerationCanvasToolAction): Promise<GenerationCanvasToolResult> {
-    if (action.tool === 'read_canvas') {
-      const snapshot = generationCanvasTools.read_canvas()
-      return toolResult({ ok: true, tool: action.tool, message: `读取画布：${snapshot.nodes.length} 个节点`, data: snapshot })
-    }
     if (action.tool === 'read_selected_nodes') {
       const nodes = generationCanvasTools.read_selected_nodes()
       return toolResult({ ok: true, tool: action.tool, message: `读取选中节点：${nodes.length} 个`, data: nodes })
@@ -153,7 +148,12 @@ export const generationCanvasTools = {
     }
     if (action.tool === 'connect_nodes') {
       const result = generationCanvasTools.connect_nodes(action.edges)
-      return toolResult({ ok: true, tool: action.tool, message: `连接节点：${result.connected} 条`, data: result.edges })
+      return toolResult({
+        ok: true,
+        tool: action.tool,
+        message: `连接节点：${result.connected} 条`,
+        data: result.edges,
+      })
     }
     if (action.tool === 'delete_nodes') {
       const deleted = generationCanvasTools.delete_nodes(action.nodeIds)

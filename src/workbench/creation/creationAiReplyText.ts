@@ -1,10 +1,10 @@
-// 创作面板的两个纯工具函数（从 CreationAiPanel.tsx 抽出，R9 防巨壳）：
+// 创作区回复的两个纯工具函数（由旧 Agent shell 抽出，R9 防巨壳）：
 // 都不依赖组件状态，纯输入→输出，单独成模块便于单测、也让面板壳只留交互逻辑。
-import type { WriteToolName } from './creationTurnController'
+import type { WriteToolName } from './creationToolContracts'
 
 // The creation agent's write tools map 1:1 to the editor's document mutations.
 // Read tools auto-confirm without a card; write tools queue a confirmation card.
-// 写工具名/类型/守卫/待批卡形态已收口到 creationTurnController（turn 控制器单一真相源）。
+// 写工具名/类型/守卫/待批卡形态已收口到无状态 creationToolContracts，避免把旧 turn store 带入生产图。
 export function writeToolLabelKey(
   name: WriteToolName,
 ): 'creationAi.writeTool.insert' | 'creationAi.writeTool.replace' | 'creationAi.writeTool.append' {

@@ -3,6 +3,7 @@ import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
 import { useTranslation } from 'react-i18next'
+import { toast } from '../../../ui/toast'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { detectLostUserEdits, runProposalUndo, type CommittedProposalRecord } from '../agent/proposalUndo'
 
@@ -30,14 +31,18 @@ export default function CommittedProposalCard({
   // 否则跨分类产物(定妆卡等)对停在分镜视图的用户等于凭空消失。
   const jumpTargets = (record.categoryCounts ?? []).filter((item) => item.count > 0)
 
-  const handleUndo = () => {
+  const handleUndo = async () => {
     const lost = detectLostUserEdits(record)
     if (lost.length && lostEdits === null) {
       setLostEdits(lost) // 先列明将丢失的修改,等第二次确认
       return
     }
-    runProposalUndo(record)
-    onUndone?.()
+    try {
+      await runProposalUndo(record)
+      onUndone?.()
+    } catch (error: unknown) {
+      toast(error instanceof Error ? error.message : String(error), 'error')
+    }
   }
 
   return (

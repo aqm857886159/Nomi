@@ -211,7 +211,8 @@ describe('buildContentFixMessage', () => {
     const msg = buildContentFixMessage([content('镜头5'), content('镜头7'), { where: 'x', field: '边', expected: '', actual: '', kind: 'structure' }])
     expect(msg).toContain('镜头5')
     expect(msg).toContain('镜头7')
-    expect(msg).toContain('run_generation_batch')
+    expect(msg).toContain('新付费生成提案')
+    expect(msg).not.toContain('run_generation_batch')
     expect(msg).toContain('不要动其它已经正常的镜头')
     expect(msg).not.toContain('· x（边）') // 结构偏差不进内容修复消息
   })

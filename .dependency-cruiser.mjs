@@ -16,14 +16,14 @@ export default {
   forbidden: [
     // R-B1 渲染层不得直捅主进程。
     // 存量 131 条（62 type-only + 51 value）先由 baseline 冻结、只减不增。
-    // 预留豁免：中立契约层 electron/shared/contracts/（第二期建成后，renderer+main 都可合法 import）。
+    // 中立契约层 electron/shared/（renderer+main 都可合法 import；实现型主进程模块仍禁止直捅）。
     {
       name: 'src-no-import-electron',
       comment:
         '渲染层（src/）不得直接 import 主进程（electron/）。走 desktop bridge 或中立契约层。存量见 boundaries-baseline.json，只减不增。',
       severity: 'error',
       from: { path: '^src/' },
-      to: { path: '^electron/', pathNot: '^electron/shared/contracts/' },
+      to: { path: '^electron/', pathNot: '^electron/shared/' },
     },
 
     // R-B2 主进程不得反向 import 渲染层（当前 0，硬零，无 baseline）。

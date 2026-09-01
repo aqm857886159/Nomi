@@ -1,11 +1,10 @@
 import { describe, it, expect } from "vitest";
 
-// 交付3 · 端到端：MCP nomi_generate 的 aspect_ratio 一路走到**真实渲染出的 wire body**，压过 apimart
-// seedream 的 "1:1" 默认；不传时 body 与旧默认逐字节相同。链路（复刻 core.generateOnProject 的 extras 装配）：
-//   caller args → buildGenerateParams → 铺进 request.extras → applyHeadlessParamDefaults(caller-wins) →
+// Provider request extras 到真实 wire body 的端到端回归：显式画幅压过 apimart seedream 的 "1:1"
+// 默认；不传时 body 与旧默认逐字节相同。链路：
+//   frozen request.extras → applyHeadlessParamDefaults(caller-wins) →
 //   taskTemplateParams → buildHttpRequest(真 apimart seedream create op) → body.size。
 // 全程纯逻辑、零 electron、零额度。
-import { buildGenerateParams } from "./mcpGenerateParams";
 import { applyHeadlessParamDefaults, taskTemplateParams } from "../catalog/taskParams";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 import { applyParamMap } from "../catalog/paramTranslate";
@@ -30,11 +29,14 @@ const APIMART_SEEDREAM = t2iProfile(SEEDREAM, "apimart", "https://api.apimart.ai
 const VOLCENGINE_SEEDREAM = t2iProfile(VOLCENGINE_IMAGE_MODELS.find((m) => m.archetypeId === "volcengine-seedream")!, "volcengine", "https://ark.cn-beijing.volces.com");
 const MODELSCOPE_IMAGE = t2iProfile(MODELSCOPE_IMAGE_MODELS.find((m) => m.archetypeId === "modelscope-image")!, "modelscope", "https://api-inference.modelscope.cn");
 
-// core.generateOnProject 装配 extras 的等价：{...params, modelKey, projectId, nodeId, ...}。此处只关心 params
-// 那部分（画幅经它下沉）；其余固定字段不影响 size 的争夺。modelKey 用具体档案的键。
+// Canonical provider request 在 authorization gate 前已冻结归一化 extras；这里直接构造该 seam 的输入。
 function extrasFromCaller(callerArgs: Record<string, unknown>, modelKey = SEEDREAM.modelKey): Record<string, unknown> {
-  const params = buildGenerateParams(callerArgs);
-  return { ...params, modelKey };
+  const aspectRatio = typeof callerArgs.aspect_ratio === "string" ? callerArgs.aspect_ratio.trim() : "";
+  return {
+    ...callerArgs,
+    ...(aspectRatio ? { aspect_ratio: aspectRatio, size: aspectRatio, aspectRatio } : {}),
+    modelKey,
+  };
 }
 
 /** 一个模型某个 taskKind 的 create op + 归一化身份（视频档案复用同一渲染路径）。 */
@@ -97,7 +99,7 @@ describe("交付3 · aspect_ratio 端到端覆盖 apimart seedream 的 1:1 默�
   it("不传画幅时整个 body 与旧默认逐字节相同（新参数不改变缺省行为）", () => {
     // 旧行为基线：extras 只有 modelKey，没有任何 params。
     const legacy = renderSeedreamBody({ modelKey: "doubao-seedream-4.5" });
-    const withEmptyParams = renderSeedreamBody(extrasFromCaller({})); // buildGenerateParams({}) = {} → 无新增键
+    const withEmptyParams = renderSeedreamBody(extrasFromCaller({}));
     expect(JSON.stringify(withEmptyParams)).toBe(JSON.stringify(legacy));
     // 且 legacy 就是档案默认那套（size 1:1 / resolution 2K / model enum）。
     expect(legacy).toMatchObject({ size: "1:1", resolution: "2K" });
@@ -150,21 +152,5 @@ describe("Fix 1 · 比例族默认（adaptive）的 size 键仍是比例语义�
     const withEmptyParams = renderBody(SEEDANCE_25_T2V, extrasFromCaller({}, SEEDANCE_25.modelKey));
     expect(JSON.stringify(withEmptyParams)).toBe(JSON.stringify(legacy));
     expect(legacy).toMatchObject({ size: "adaptive" });
-  });
-});
-
-describe("buildGenerateParams — 画幅/时长归一（纯函数）", () => {
-  it("aspect_ratio 铺进 aspect_ratio/size/aspectRatio 三别名（覆盖不同 archetype 读的键）", () => {
-    expect(buildGenerateParams({ aspect_ratio: "16:9" })).toEqual({ aspect_ratio: "16:9", size: "16:9", aspectRatio: "16:9" });
-  });
-  it("resolution/duration 原样铺；duration 数字保留", () => {
-    expect(buildGenerateParams({ resolution: "1080p", duration: 8 })).toEqual({ resolution: "1080p", duration: 8 });
-  });
-  it("空/缺省不凭空造字段（不传时逐字节等同旧默认的前提）", () => {
-    expect(buildGenerateParams({})).toEqual({});
-    expect(buildGenerateParams({ aspect_ratio: "  ", resolution: "", duration: Number.NaN })).toEqual({});
-  });
-  it("非字符串比例/非有限时长被忽略（不把脏值塞进 wire）", () => {
-    expect(buildGenerateParams({ aspect_ratio: 169 as unknown as string, duration: "8" as unknown as number })).toEqual({});
   });
 });

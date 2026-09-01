@@ -13,6 +13,12 @@ import { compileExecutionContract, type ExecutionContractV1, type PlanCandidate 
 import type { ModuleRegistry } from "./moduleRegistry";
 import type { ParameterField } from "./moduleManifest";
 import type { VideoModelCandidate } from "../shared/videoCapabilities/recommendation";
+import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
+import {
+  isLongFormGenerationRequest,
+  requestedVideoDurationSeconds,
+} from "./semanticGenerationCandidate";
+import type { ShotPrice } from "../productionRun/shotPricing";
 
 /**
  * P4 S6.5 生产入口: a draft shot the multi-shot `create` entrance persists (candidate/role/included;
@@ -42,8 +48,10 @@ export type SealedMultiShotEntry = Readonly<{
 export type GenerationSealMultiShot = Readonly<{
   shots: ReadonlyArray<SealedMultiShotEntry>;
   planHash: string;
-  // Shape matches the reducer's shotPricesFrom: [{ shotId, price: { known, amount? } }].
-  shotPrices?: ReadonlyArray<{ shotId: string; price: { known: boolean; amount?: number } }>;
+  // Shape matches the reducer's shotPricesFrom: [{ shotId, price: ShotPrice }].
+  // ShotPrice is the canonical honest-unknown union (never a fabricated 0), shared with the
+  // paid-gate precheck so assertKnownShotPrice can narrow it at the seal boundary.
+  shotPrices?: ReadonlyArray<{ shotId: string; price: ShotPrice }>;
 }>;
 
 /**
@@ -55,16 +63,25 @@ export type StoryboardShotDraft = Readonly<{
   role?: "anchor" | "shot";
   included?: boolean;
   prompt: string;
+  /** Planned duration for this provider clip (seconds). A long-form planner
+   * must carry this through to the sealed candidate instead of pretending a
+   * single provider clip can represent the whole requested movie. */
+  durationSeconds?: number;
   moduleId?: string;
   providerId?: string;
   modelId?: string;
   mode?: string;
+  modeId?: string;
   variantId?: string;
   parameters?: Record<string, unknown>;
   references?: ReadonlyArray<{ assetId: string; contentHash: string; version: number; kind?: "image" | "video" | "audio"; role?: "character" | "first_frame" | "last_frame" | "reference" | "audio" }>;
 }>;
 
-export type StoryboardPlanResult = Readonly<{ shots: ReadonlyArray<StoryboardShotDraft> }>;
+export type StoryboardPlanResult = Readonly<{
+  shots: ReadonlyArray<StoryboardShotDraft>;
+  /** Echo the requested total when the planner was given one. */
+  targetDurationSeconds?: number;
+}>;
 
 const SHOT_ROLES = new Set(["anchor", "shot"]);
 
@@ -112,24 +129,39 @@ export function draftShotFromPlan(value: unknown, index: number, parsers: MultiS
  * (+ optional model/mode/refs); the handler fills module/provider/model defaults from the first configured
  * video candidate (single-provider v1 = APIMart). candidateId/revision are synthesized (draft-stable).
  */
-export function draftShotFromStoryboard(draft: StoryboardShotDraft, index: number, defaults: () => { moduleId: string; providerId: string; modelId: string; mode: string }, parsers: MultiShotCandidateParsers): GenerationOperationDraftShot {
+export function draftShotFromStoryboard(draft: StoryboardShotDraft, index: number, defaults: () => { moduleId: string; providerId: string; modelId: string; mode: string; modeId?: string }, parsers: MultiShotCandidateParsers): GenerationOperationDraftShot {
   const raw = draft as Record<string, unknown>;
   const env = shotEnvelope(raw, index, `shot-${index + 1}`);
   if (typeof draft.prompt !== "string" || !draft.prompt.trim()) throw new Error(`Storyboard shot ${index} needs a prompt`);
+  if (draft.durationSeconds !== undefined
+    && (!Number.isFinite(draft.durationSeconds) || draft.durationSeconds <= 0)) {
+    throw new Error(`Storyboard shot ${index} has an invalid duration`);
+  }
   // Resolve module/provider/model/mode defaults lazily — only when the planner left a field unset, so a
   // fully-specified board never requires a configured video model just to build defaults it won't use.
-  const needsDefaults = draft.moduleId === undefined || draft.providerId === undefined || draft.modelId === undefined || (draft.mode === undefined && env.role !== "anchor");
+  const needsDefaults = draft.moduleId === undefined || draft.providerId === undefined || draft.modelId === undefined || draft.mode === undefined;
   const fallback = needsDefaults ? defaults() : { moduleId: "", providerId: "", modelId: "", mode: "" };
+  const selectedModeId = draft.modeId ?? fallback.modeId;
   const candidate = parsers.candidateFrom({
     candidateId: `cand-${env.shotId}`,
     revision: 1,
     moduleId: draft.moduleId ?? fallback.moduleId,
     providerId: draft.providerId ?? fallback.providerId,
     modelId: draft.modelId ?? fallback.modelId,
+    ...(selectedModeId ? { modeId: selectedModeId } : {}),
     ...(draft.variantId ? { variantId: draft.variantId } : {}),
-    mode: draft.mode ?? (env.role === "anchor" ? "text-to-image" : fallback.mode),
+    mode: draft.mode ?? fallback.mode,
     prompt: draft.prompt,
-    parameters: draft.parameters ?? {},
+    parameters: {
+      ...(draft.parameters ?? {}),
+      // `durationSeconds` is a planner-level name; provider contracts use the
+      // canonical `duration` field. An explicitly supplied parameter remains
+      // authoritative and is validated by the selected model schema at seal.
+      ...(draft.durationSeconds !== undefined
+        && (draft.parameters?.duration === undefined && draft.parameters?.durationSeconds === undefined)
+        ? { duration: draft.durationSeconds }
+        : {}),
+    },
     references: draft.references ?? [],
   });
   return { ...env, candidate };
@@ -139,12 +171,34 @@ export function draftShotFromStoryboard(draft: StoryboardShotDraft, index: numbe
 export type MultiShotHelperDeps = {
   registry: Pick<ModuleRegistry, "resolve">;
   videoModelCandidates?: readonly VideoModelCandidate[];
-  planStoryboard?: (input: { projectId: string; scriptText: string }) => StoryboardPlanResult | Promise<StoryboardPlanResult>;
+  planStoryboard?: (input: {
+    projectId: string;
+    scriptText: string;
+    /** Present when a natural-language goal was promoted to a long-form plan. */
+    minimumShots?: number;
+    /** Total duration parsed from the user's goal, when it was explicit. */
+    targetDurationSeconds?: number;
+  }) => StoryboardPlanResult | Promise<StoryboardPlanResult>;
   parsers: MultiShotCandidateParsers;
   normalizeVideoCandidate: (candidate: PlanCandidate) => PlanCandidate;
   videoParameterSchema: (candidate: PlanCandidate) => Record<string, ParameterField> | undefined;
-  priceForCandidate: (candidate: PlanCandidate) => { known: boolean; amount?: number };
-  effectiveVideoModes: (candidate: VideoModelCandidate) => Array<{ transportTaskKind?: string }>;
+  priceForCandidate: (candidate: PlanCandidate) => ShotPrice;
+  effectiveVideoModes: (candidate: VideoModelCandidate) => Array<{ id?: string; transportTaskKind?: string }>;
+  /**
+   * Saved Workbench model preferences projected into the semantic planner.
+   * Optional for isolated legacy fixtures; production wiring always supplies
+   * the catalog-backed resolver so scriptText never silently picks row zero.
+   */
+  defaultModelForTaskKind?: (taskKind: GenerationDefaultTaskKind) => {
+    moduleId: string;
+    providerId: string;
+    modelId: string;
+    mode: string;
+    modeId?: string;
+  } | undefined;
+  /** Unit-fixture escape hatch only; production requires a saved default or
+   * explicit per-shot model identity. */
+  allowRegistryFallback?: boolean;
   /** P4 §5.1.4: 校验复用锚（references）存在且属于本项目。未注入 = 不校验（向后兼容）。 */
   assertReferencesResolvable?: AssertReferencesResolvable;
 };
@@ -158,11 +212,18 @@ type OperationWithShots = { shots?: ReadonlyArray<GenerationOperationDraftShot> 
  * Extracted from the handler closure to keep mcpGenerationTools.ts under the 800-line shell gate (R9).
  */
 export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
-  const storyboardDefaults = (): { moduleId: string; providerId: string; modelId: string; mode: string } => {
+  const storyboardDefaults = (taskKind: GenerationDefaultTaskKind): { moduleId: string; providerId: string; modelId: string; mode: string; modeId?: string } => {
+    const configured = deps.defaultModelForTaskKind?.(taskKind);
+    if (configured) return configured;
+    if (!deps.allowRegistryFallback) {
+      throw new Error("没有配置该任务的默认视频模型，请先在设置中选择模型或在计划中指定模型");
+    }
     const first = deps.videoModelCandidates?.[0];
     if (!first) throw new Error("没有可用的视频模型，无法从剧本自动拟镜（请先在 Nomi 配置一个视频模型）");
-    const mode = deps.effectiveVideoModes(first)[0]?.transportTaskKind ?? "image-to-video";
-    return { moduleId: "generation.single-shot", providerId: first.provider, modelId: first.modelKey, mode };
+    const selectedMode = deps.effectiveVideoModes(first).find((item) => item.transportTaskKind === taskKind)
+      ?? deps.effectiveVideoModes(first)[0];
+    const mode = selectedMode?.transportTaskKind ?? "image-to-video";
+    return { moduleId: "generation.single-shot", providerId: first.provider, modelId: first.modelKey, mode, ...(selectedMode?.id ? { modeId: selectedMode.id } : {}) };
   };
 
   /**
@@ -175,13 +236,83 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
     if (Array.isArray(params.shots)) {
       if (params.shots.length === 0) throw new Error("多镜生成需要至少一个镜头");
       shots = params.shots.map((shot, index) => draftShotFromPlan(shot, index, deps.parsers));
-    } else if (typeof params.scriptText === "string") {
-      const scriptText = params.scriptText.trim();
+    } else if (typeof params.scriptText === "string" || isLongFormGenerationRequest(params)) {
+      // A minute-scale natural-language request must not silently collapse to
+      // one provider clip. Promote it to the same storyboard seam as an
+      // explicit scriptText request; the planner is still the sole owner of
+      // script→shot semantics and model selection.
+      const scriptText = typeof params.scriptText === "string"
+        ? params.scriptText.trim()
+        : typeof params.prompt === "string" ? params.prompt.trim() : "";
       if (!scriptText) throw new Error("剧本文本为空，无法拟镜");
       if (!deps.planStoryboard) throw new Error("当前未启用「剧本自动拟镜」，请改为直接提供逐镜计划（shots）");
-      const board = await deps.planStoryboard({ projectId, scriptText });
+      const longForm = typeof params.scriptText !== "string" && isLongFormGenerationRequest(params);
+      const targetDurationSeconds = requestedVideoDurationSeconds(params);
+      const board = await deps.planStoryboard({
+        projectId,
+        scriptText,
+        ...(longForm ? { minimumShots: 2 } : {}),
+        ...(targetDurationSeconds !== undefined ? { targetDurationSeconds } : {}),
+      });
       if (!board || !Array.isArray(board.shots) || board.shots.length === 0) throw new Error("拟镜没有产出任何镜头，请检查剧本内容");
-      shots = board.shots.map((shot, index) => draftShotFromStoryboard(shot, index, storyboardDefaults, deps.parsers));
+      if (longForm && board.shots.length < 2) {
+        throw new Error("长视频请求必须先拆成至少两个镜头；请让 Agent 重新拟定剧本和分镜");
+      }
+      if (targetDurationSeconds !== undefined) {
+        const durations = board.shots
+          .filter((shot) => shot.role !== "anchor" && shot.included !== false)
+          .map((shot) => shot.durationSeconds ?? shot.parameters?.duration ?? shot.parameters?.durationSeconds);
+        const plannedDuration = durations.reduce((sum, value) => sum + (typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0), 0);
+        if (durations.length === 0 || durations.some((value) => typeof value !== "number" || !Number.isFinite(value) || value <= 0) || plannedDuration < targetDurationSeconds) {
+          throw new Error(`拟镜未覆盖目标时长 ${targetDurationSeconds} 秒；每个视频镜头必须带有效 duration`);
+        }
+      }
+      // A natural-language multi-shot request can still carry the same model,
+      // mode, references, and parameter choices as an explicit candidate. Keep
+      // those user choices when expanding the request into shot drafts; the
+      // planner only owns shot text/duration, while catalog normalization and
+      // sealing continue to validate the inherited identity. Total-duration
+      // fields are deliberately omitted from per-shot parameters once a target
+      // was parsed: `duration: 5` in "5 minutes" is a clip hint, not permission
+      // to shrink every planned shot back to five seconds.
+      const explicit = {
+        ...(typeof params.moduleId === "string" && params.moduleId.trim() ? { moduleId: params.moduleId.trim() } : {}),
+        ...(typeof params.providerId === "string" && params.providerId.trim() ? { providerId: params.providerId.trim() } : {}),
+        ...(typeof params.modelId === "string" && params.modelId.trim() ? { modelId: params.modelId.trim() } : {}),
+        ...(typeof params.mode === "string" && params.mode.trim() ? { mode: params.mode.trim() } : {}),
+        ...(typeof params.modeId === "string" && params.modeId.trim() ? { modeId: params.modeId.trim() } : {}),
+        ...(typeof params.variantId === "string" && params.variantId.trim() ? { variantId: params.variantId.trim() } : {}),
+      };
+      const sharedParameters = params.parameters === undefined
+        ? {}
+        : deps.parsers.record(params.parameters, "generation parameters");
+      const sharedReferences = params.references === undefined
+        ? undefined
+        : (() => {
+          if (!Array.isArray(params.references)) throw new Error("references must be an array");
+          return params.references;
+        })();
+      const inheritedParameters = targetDurationSeconds === undefined
+        ? sharedParameters
+        : Object.fromEntries(Object.entries(sharedParameters).filter(([key]) => key !== "duration" && key !== "durationSeconds"));
+      shots = board.shots.map((shot, index) => {
+        const hasReferences = (shot.references ?? sharedReferences)?.length > 0;
+        const requestedTaskKind = typeof params.taskKind === "string" ? params.taskKind.trim() : "";
+        const taskKind: GenerationDefaultTaskKind = shot.role === "anchor"
+          ? "text_to_image"
+          : (requestedTaskKind === "image_to_video" || requestedTaskKind === "text_to_video"
+            ? requestedTaskKind
+            : (hasReferences ? "image_to_video" : "text_to_video"));
+        const inherited = {
+          ...shot,
+          ...Object.fromEntries(Object.entries(explicit).filter(([key]) => shot[key as keyof StoryboardShotDraft] === undefined)),
+          ...(shot.parameters || Object.keys(inheritedParameters).length > 0
+            ? { parameters: { ...inheritedParameters, ...(shot.parameters ?? {}) } }
+            : {}),
+          ...(shot.references === undefined && sharedReferences !== undefined ? { references: sharedReferences } : {}),
+        } as StoryboardShotDraft;
+        return draftShotFromStoryboard(inherited, index, () => storyboardDefaults(taskKind), deps.parsers);
+      });
     } else {
       return undefined;
     }

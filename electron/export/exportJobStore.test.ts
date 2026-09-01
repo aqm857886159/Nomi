@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { ExportJobStore } from "./exportJobStore";
-import type { NomiRenderManifestV1 } from "./exportManifest";
+import type { ExportAuditManifestV1 } from "./exportAuditManifest";
 import type { ExportJobSnapshot } from "./exportJobManager";
 
 const tempRoots: string[] = [];
@@ -20,7 +20,7 @@ afterEach(() => {
   }
 });
 
-function makeManifest(projectId = "project-1"): NomiRenderManifestV1 {
+function makeManifest(projectId = "project-1"): ExportAuditManifestV1 {
   return {
     version: 1,
     projectId,
@@ -44,6 +44,7 @@ function makeManifest(projectId = "project-1"): NomiRenderManifestV1 {
       quality: "standard",
     },
     assets: {},
+    execution: { backend: "webm" },
   };
 }
 
@@ -51,9 +52,16 @@ function makeSnapshot(projectDir: string, overrides: Partial<ExportJobSnapshot> 
   return {
     id: "job-1",
     projectId: "project-1",
+    projectIdentity: {
+      projectId: "project-1",
+      immutableProjectUuid: "project-1-immutable-uuid",
+      projectGeneration: 1,
+      canonicalRootDigest: "project-1-root-digest",
+    },
     projectDir,
     jobDir: path.join(projectDir, ".nomi", "jobs", "job-1"),
     manifest: makeManifest(),
+    manifestIntegrity: "canonical",
     status: "queued",
     progress: { ratio: 0, stage: "queued", message: "Queued" },
     cancelled: false,
@@ -74,7 +82,15 @@ describe("ExportJobStore", () => {
       ...snapshot,
       status: "succeeded",
       updatedAt: "2026-05-24T01:01:00.000Z",
-      result: { outputPath: path.join(projectDir, "exports", "video.mp4"), relativeOutputPath: "exports/video.mp4" },
+      result: {
+        outputPath: path.join(projectDir, "exports", "video.mp4"),
+        relativeOutputPath: "exports/video.mp4",
+        execution: {
+          auditManifestDigest: "sha256:audit",
+          input: { kind: "filtergraph" },
+          correlationDigest: "sha256:correlation",
+        },
+      },
     });
 
     expect(fs.existsSync(path.join(snapshot.jobDir, "manifest.json"))).toBe(true);
@@ -102,5 +118,20 @@ describe("ExportJobStore", () => {
     expect(loaded).toEqual(failed);
     expect(recent).toEqual([failed]);
     expect(JSON.parse(fs.readFileSync(path.join(failed.jobDir, "error.json"), "utf8"))).toEqual(failed.error);
+  });
+
+  it("rejects any attempt to rewrite canonical audit evidence during a status save", () => {
+    const projectDir = makeTempDir();
+    const store = new ExportJobStore();
+    const snapshot = makeSnapshot(projectDir);
+    store.create(snapshot);
+    const changedManifest = {
+      ...snapshot.manifest,
+      timeline: { ...snapshot.manifest.timeline, tracks: [] },
+    };
+
+    expect(() => store.save({ ...snapshot, status: "failed", manifest: changedManifest })).toThrow(/manifest.*immutable|audit.*change/i);
+    expect(JSON.parse(fs.readFileSync(path.join(snapshot.jobDir, "manifest.json"), "utf8"))).toEqual(snapshot.manifest);
+    expect(JSON.parse(fs.readFileSync(path.join(snapshot.jobDir, "job.json"), "utf8")).manifest).toEqual(snapshot.manifest);
   });
 });

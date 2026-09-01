@@ -201,7 +201,7 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
       }
     } catch (error: unknown) {
       if (!targetCanStillLand()) return
-      // 人话化：别把服务端/内部原串直贴进对话框（2026-08-25 走查同类：CreationAiPanel 拆镜头也曾直通英文串）。
+      // 人话化：别把服务端/内部原串直贴进对话框（2026-08-25 走查同类问题）。
       // 走 classifyGenerationError 拿分类后的 reason（+ 缺 key 时的一句指引），与错误卡同一真相源（P1）。
       const raw = error instanceof Error && error.message ? error.message : ''
       const report = raw ? classifyGenerationError(raw) : null

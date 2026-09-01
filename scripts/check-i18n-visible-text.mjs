@@ -83,6 +83,7 @@ const EXCLUDED_FILES = new Set([
   'electron/catalog/comfyuiLocal.ts', // translated by renderer model display-text boundary
   'electron/catalog/newapiTransport.ts', // translated by renderer model display-text boundary
   'electron/harness/tools/canvasDescriptors.ts', // tool schemas and multilingual examples are agent-facing protocol text
+  'electron/harness/tools/generationDescriptors.ts', // agent-facing generation tool schemas/descriptions (LLM protocol text, not UI copy)
   'electron/promptLibrary/promptSources.ts', // external curated source names
 ])
 

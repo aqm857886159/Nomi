@@ -15,6 +15,7 @@ import { enCreationAi, zhCreationAi } from './locales/creationAi'
 import { enStoryboardEditor, zhStoryboardEditor } from './locales/storyboardEditor'
 import { enGenerationCommon, zhGenerationCommon } from './locales/generationCommon'
 import { enRuntime, zhRuntime } from './locales/runtime'
+import { enAgentResident, zhAgentResident } from './locales/agentResident'
 import { enCommunity, zhCommunity } from './locales/community'
 
 export const zhCN = {
@@ -125,6 +126,14 @@ export const zhCN = {
         awaitingContract: '等待确认制作与预算', ready: '准备生成', running: '正在生成', pausing: '正在暂停',
         paused: '已暂停', needsAttention: '需要处理', awaitingRoughCutReview: '等待审核粗剪',
         awaitingExport: '等待确认导出', exporting: '正在导出', completed: '制作完成', cancelled: '已取消',
+      },
+    },
+    exportJob: {
+      title: '导出成片',
+      failed: '导出失败',
+      statuses: {
+        queued: '等待导出', preparing: '准备素材', planning: '规划导出', rendering: '渲染画面', encoding: '编码成片',
+        muxing: '合成音视频', finalizing: '完成导出', succeeded: '导出完成', failed: '导出失败', cancelled: '已取消',
       },
     },
     empty: {
@@ -391,6 +400,7 @@ export const zhCN = {
   storyboardEditor: zhStoryboardEditor,
   generationCommon: zhGenerationCommon,
   runtime: zhRuntime,
+  agentResident: zhAgentResident,
   community: zhCommunity,
 } as const
 
@@ -507,6 +517,14 @@ export const en = {
         awaitingContract: 'Production and budget approval required', ready: 'Ready to generate', running: 'Generating', pausing: 'Pausing',
         paused: 'Paused', needsAttention: 'Needs attention', awaitingRoughCutReview: 'Rough-cut review required',
         awaitingExport: 'Export approval required', exporting: 'Exporting', completed: 'Production complete', cancelled: 'Cancelled',
+      },
+    },
+    exportJob: {
+      title: 'Export',
+      failed: 'Export failed',
+      statuses: {
+        queued: 'Queued', preparing: 'Preparing media', planning: 'Planning export', rendering: 'Rendering', encoding: 'Encoding',
+        muxing: 'Muxing audio and video', finalizing: 'Finalizing', succeeded: 'Export complete', failed: 'Export failed', cancelled: 'Cancelled',
       },
     },
     empty: {
@@ -777,6 +795,7 @@ export const en = {
   storyboardEditor: enStoryboardEditor,
   generationCommon: enGenerationCommon,
   runtime: enRuntime,
+  agentResident: enAgentResident,
   community: enCommunity,
 } satisfies TranslationShape<typeof zhCN>
 

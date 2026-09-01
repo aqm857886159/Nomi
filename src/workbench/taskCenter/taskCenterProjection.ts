@@ -40,6 +40,17 @@ export type ProductionRunTaskCenterProjection = TaskCenterProjectionBase & {
   action: null
 }
 
+export type ExportJobTaskCenterProjection = TaskCenterProjectionBase & {
+  kind: 'export_job'
+  jobId: string
+  target: {
+    kind: 'export_job'
+    jobId: string
+  }
+  action: { kind: 'cancel_export_job'; jobId: string } | null
+}
+
 export type TaskCenterProjection =
   | GenerationTaskCenterProjection
   | ProductionRunTaskCenterProjection
+  | ExportJobTaskCenterProjection

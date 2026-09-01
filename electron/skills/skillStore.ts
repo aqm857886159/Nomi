@@ -1,48 +1,113 @@
-// Skill 加载/查找的单一真相源（P1）。原先散在 agentChatV2.ts 里只读 SKILL.md 正文、
-// 从不读 skill.json（manifest 是死代码）。本模块收口加载逻辑，并**第一次把 skill.json
-// 解析成 manifest 暴露出来**——playbook 的 stages / requiredProviders / tools / description
-// 都从这里读。向后兼容：skill.json 缺失或不合法 ⇒ manifest=null，照旧只用 markdown 正文。
 import fs from "node:fs";
 import path from "node:path";
 
-import { getSkillsRoots, getUserSkillsRoot, readText } from "../runtimePaths";
+import { getSkillsRoots, getUserSkillsRoot } from "../runtimePaths";
+import { computeSkillContentHash, readSkillDirFiles, SKILL_PACKAGE_VERSION } from "./skillPackage";
 import {
   parseSkillManifest,
+  type SkillAudience,
   type SkillManifest,
 } from "./skillManifestSchema";
 
 export type SkillRecord = {
-  /** SKILL.md frontmatter / manifest 里的稳定 name（如 workbench.storyboard.planner）。 */
   name: string;
-  /** 磁盘目录名（回退匹配键）。 */
   directoryName: string;
-  /** SKILL.md 绝对路径。 */
   filePath: string;
-  /** SKILL.md frontmatter / manifest 里的一句话描述（用于技能库卡片、MCP 资源/提示词元数据）。 */
   description: string;
-  /** SKILL.md 正文（去掉首尾空白）。 */
   body: string;
-  /** skill.json 解析出的 manifest；缺失/非法 ⇒ null（legacy markdown-only）。 */
   manifest: SkillManifest | null;
-  /** manifest 解析失败时的人话原因（用于加载期诊断；成功/缺失为 undefined）。 */
   manifestError?: string;
-  /** 来源：'user' = 可写用户目录（可删/可导出）；'builtin' = 安装目录随附（只读）。 */
+  /** Pi uses the same flag when deciding whether a Skill may enter its prompt. */
+  disableModelInvocation?: boolean;
   origin: "builtin" | "user";
+  audience: SkillAudience;
+  packageVersion: typeof SKILL_PACKAGE_VERSION;
+  contentHash: string;
 };
 
-function parseSkillName(markdown: string, directoryName: string): string {
-  const match = markdown.match(/^---\s*\n([\s\S]*?)\n---/);
-  const frontmatter = match?.[1] || "";
-  const nameMatch = frontmatter.match(/^name:\s*["']?(.+?)["']?\s*$/m);
-  return String(nameMatch?.[1] || directoryName).trim();
+/**
+ * A root is the only input to canonical Skill discovery.  Keeping this small
+ * type here (instead of teaching each transport how to walk the filesystem)
+ * makes the desktop Agent, Pi and MCP read the same package set and the same
+ * precedence order.
+ */
+export type SkillDiscoveryRoot = {
+  path: string;
+  origin: SkillRecord["origin"];
+};
+
+export type SkillDiscoveryDiagnostic = {
+  type: "warning" | "error";
+  message: string;
+  path?: string;
+};
+
+export type SkillDiscoveryResult = {
+  records: SkillRecord[];
+  diagnostics: SkillDiscoveryDiagnostic[];
+};
+
+/** Resolve the process-wide ordered roots once for every transport. */
+export function getSkillDiscoveryRoots(): SkillDiscoveryRoot[] {
+  // The compiled Pi runtime is also exercised by a plain Node process (for
+  // example the zero-quota agent-runtime suite). In that process Electron's
+  // CommonJS entry is an executable path string, so `app.getPath()` is not
+  // available. Keep the same ordered roots and package contract there while
+  // avoiding a hard dependency on a live Electron app; the real desktop path
+  // still always comes from runtimePaths.
+  let roots: string[];
+  try {
+    roots = getSkillsRoots();
+  } catch {
+    const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
+    const appPath = String(process.env.NOMI_APP_PATH || "").trim();
+    roots = Array.from(new Set([
+      String(process.env.NOMI_SKILLS_DIR || "").trim(),
+      path.join(process.cwd(), "skills"),
+      path.isAbsolute(appPath) ? path.join(appPath, "skills") : "",
+      path.join(__dirname, "../skills"),
+      path.isAbsolute(resourcesPath || "") ? path.join(resourcesPath!, "skills") : "",
+    ].filter(Boolean).map((root) => path.resolve(root))));
+  }
+  let userRoot: string | undefined;
+  try {
+    userRoot = path.resolve(getUserSkillsRoot());
+  } catch {
+    const configured = [process.env.NOMI_SETTINGS_DIR, process.env.NOMI_ELECTRON_USER_DATA_DIR]
+      .map((value) => String(value || "").trim())
+      .find((value) => path.isAbsolute(value));
+    if (configured) userRoot = path.resolve(configured, "skills");
+  }
+  return roots.map((root) => ({
+    path: root,
+    origin: (userRoot && path.resolve(root) === userRoot ? "user" : "builtin") as SkillRecord["origin"],
+  })).concat(userRoot && !roots.some((root) => path.resolve(root) === userRoot)
+    ? [{ path: userRoot, origin: "user" as const }]
+    : []);
 }
 
-/** 从 SKILL.md frontmatter 取 `description:`（单行）。缺失 ⇒ ""。 */
-function parseSkillDescription(markdown: string): string {
+function frontmatterValue(markdown: string, key: string): string {
   const match = markdown.match(/^---\s*\n([\s\S]*?)\n---/);
-  const frontmatter = match?.[1] || "";
-  const descMatch = frontmatter.match(/^description:\s*["']?(.+?)["']?\s*$/m);
-  return String(descMatch?.[1] || "").trim();
+  const value = match?.[1].match(new RegExp(`^${key}:\\s*["']?(.+?)["']?\\s*$`, "m"));
+  return String(value?.[1] || "").trim();
+}
+
+function parseSkillName(markdown: string, directoryName: string): string {
+  return frontmatterValue(markdown, "name") || directoryName;
+}
+
+function parseSkillDescription(markdown: string): string {
+  return frontmatterValue(markdown, "description");
+}
+
+function parseDisableModelInvocation(markdown: string): boolean {
+  return /^---\s*\n([\s\S]*?)\n---/.exec(markdown)?.[1]
+    ?.match(/^disable-model-invocation:\s*(["']?)(true|false)\1\s*$/im)?.[2]
+    ?.toLowerCase() === "true";
+}
+
+function parseSkillAudience(markdown: string): SkillAudience {
+  return frontmatterValue(markdown, "audience") === "mcp" ? "mcp" : "internal";
 }
 
 export function normalizeSkillLookupKey(value: unknown): string {
@@ -55,56 +120,109 @@ export function normalizeSkillLookupKey(value: unknown): string {
     .toLowerCase();
 }
 
-/** 读一个 skill 目录的 skill.json（若有）并校验。缺失 ⇒ {manifest:null}（不报错，走 legacy）。 */
-function readSkillManifest(skillDir: string): { manifest: SkillManifest | null; error?: string } {
-  const manifestPath = path.join(skillDir, "skill.json");
-  if (!fs.existsSync(manifestPath)) return { manifest: null };
+function readSkillManifest(files: Record<string, string>): { manifest: SkillManifest | null; error?: string } {
+  const rawManifest = files["skill.json"];
+  if (!rawManifest) return { manifest: null };
   let raw: unknown;
   try {
-    raw = JSON.parse(readText(manifestPath));
-  } catch (err) {
-    return { manifest: null, error: `skill.json 不是合法 JSON：${(err as Error).message}` };
+    raw = JSON.parse(rawManifest);
+  } catch (error) {
+    return { manifest: null, error: `skill.json 不是合法 JSON：${(error as Error).message}` };
   }
   const parsed = parseSkillManifest(raw);
-  if (parsed.ok) return { manifest: parsed.manifest };
-  return { manifest: null, error: parsed.error };
+  return parsed.ok ? { manifest: parsed.manifest } : { manifest: null, error: parsed.error };
 }
 
-/** 扫描所有 skills 根（内置 + 用户目录），读出每个 skill 的正文 + manifest。 */
-export function readSkillRecords(): SkillRecord[] {
+/**
+ * Discover only direct Skill packages (`root/<dir>/SKILL.md`).  Pi's generic
+ * loader also accepts loose markdown files and recursively discovers nested
+ * roots; that is useful for a generic coding agent but is not Nomi's package
+ * contract.  All transports call this function so metadata, hash and
+ * directory precedence cannot drift.
+ */
+export function discoverSkillRecordsFromRoots(
+  roots: readonly SkillDiscoveryRoot[],
+): SkillDiscoveryResult {
   const records: SkillRecord[] = [];
+  const diagnostics: SkillDiscoveryDiagnostic[] = [];
   const seenDirs = new Set<string>();
-  const userRoot = path.resolve(getUserSkillsRoot());
-  for (const root of getSkillsRoots()) {
-    if (!fs.existsSync(root)) continue;
-    const origin: SkillRecord["origin"] = path.resolve(root) === userRoot ? "user" : "builtin";
-    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const skillDir = path.join(root, entry.name);
-      // 多根去重：同名目录以**先出现的根**为准（用户目录通常排后；保持现有内置优先语义）。
-      if (seenDirs.has(entry.name)) continue;
-      const filePath = path.join(skillDir, "SKILL.md");
-      if (!fs.existsSync(filePath)) continue;
-      const body = readText(filePath).trim();
+  const normalizedRoots = roots
+    .filter((root) => typeof root?.path === "string" && path.isAbsolute(root.path))
+    .map((root) => ({
+      path: path.resolve(root.path),
+      origin: root.origin === "user" ? "user" as const : "builtin" as const,
+    }));
+  for (const root of normalizedRoots) {
+    if (!fs.existsSync(root.path)) continue;
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(root.path, { withFileTypes: true })
+        .sort((left, right) => left.name.localeCompare(right.name));
+    } catch (error) {
+      diagnostics.push({
+        type: "warning",
+        message: `Could not read Skill root: ${(error as Error).message}`,
+        path: root.path,
+      });
+      continue;
+    }
+    for (const entry of entries) {
+      const directoryKey = entry.name.normalize("NFC").toLowerCase();
+      if (!entry.isDirectory() || seenDirs.has(directoryKey)) continue;
+      const skillDir = path.join(root.path, entry.name);
+      if (!fs.existsSync(path.join(skillDir, "SKILL.md"))) continue;
+      let files: Record<string, string>;
+      try {
+        files = readSkillDirFiles(skillDir);
+      } catch (error) {
+        diagnostics.push({
+          type: "warning",
+          message: `Skill package could not be read, skipped: ${(error as Error).message}`,
+          path: skillDir,
+        });
+        continue;
+      }
+      const body = files["SKILL.md"].trim();
       if (!body) continue;
-      seenDirs.add(entry.name);
-      const { manifest, error } = readSkillManifest(skillDir);
+      // 损坏包（正文含 NUL 等 C0 控制字符 = 二进制/截断/写坏）不许「占坑遮蔽」：若它优先级更高，
+      // 加进 seenDirs 就会把同目录名下一个合法包（如 user 覆盖）挡掉。故这里当损坏处理——记一条 warning
+      // 且**不**加 seenDirs，让后续 root 里同名的合法包顶上（nomiSkillResources 的 shadow 优先级测试钉死）。
+      // 只拦真正的控制字符（放行 \t\n\r，它们在 markdown 里合法）。字符类里的控制字符是刻意的。
+      // eslint-disable-next-line no-control-regex
+      if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(body)) {
+        diagnostics.push({
+          type: "warning",
+          message: "Skill package SKILL.md contains control characters, skipped as corrupt",
+          path: skillDir,
+        });
+        continue;
+      }
+      seenDirs.add(directoryKey);
+      const { manifest, error } = readSkillManifest(files);
       records.push({
         name: manifest?.name || parseSkillName(body, entry.name),
         directoryName: entry.name,
-        filePath,
+        filePath: path.join(skillDir, "SKILL.md"),
         description: manifest?.description || parseSkillDescription(body),
         body,
         manifest,
         manifestError: error,
-        origin,
+        disableModelInvocation: parseDisableModelInvocation(body),
+        origin: root.origin,
+        // Imported Skills cannot publish themselves through package metadata.
+        audience: root.origin === "user" ? "internal" : (manifest?.audience ?? parseSkillAudience(body)),
+        packageVersion: SKILL_PACKAGE_VERSION,
+        contentHash: computeSkillContentHash(files),
       });
     }
   }
-  return records;
+  return { records, diagnostics };
 }
 
-/** 按 LLM/前端传来的 key/name 在已加载 skill 里找匹配（精确 → 前缀 → 归一化模糊）。 */
+export function readSkillRecords(): SkillRecord[] {
+  return discoverSkillRecordsFromRoots(getSkillDiscoveryRoots()).records;
+}
+
 export function findSkillRecord(
   skillKey: string,
   skillName: string,
@@ -113,85 +231,138 @@ export function findSkillRecord(
   if (!records.length) return null;
   const normalizedKey = normalizeSkillLookupKey(skillKey);
   const normalizedName = normalizeSkillLookupKey(skillName);
-
   const exact = records.find((skill) => skill.name === skillKey);
   if (exact) return exact;
-
-  const prefix = records
-    .filter((skill) => skillKey.startsWith(`${skill.name}.`))
+  const prefix = records.filter((skill) => skillKey.startsWith(`${skill.name}.`))
     .sort((a, b) => b.name.length - a.name.length)[0];
   if (prefix) return prefix;
-
-  return (
-    records.find(
-      (skill) =>
-        normalizeSkillLookupKey(skill.name) === normalizedKey ||
-        normalizeSkillLookupKey(skill.directoryName) === normalizedKey ||
-        (normalizedName && normalizeSkillLookupKey(skill.name) === normalizedName) ||
-        (normalizedName && normalizeSkillLookupKey(skill.directoryName) === normalizedName),
-    ) || null
-  );
+  return records.find((skill) =>
+    normalizeSkillLookupKey(skill.name) === normalizedKey ||
+    normalizeSkillLookupKey(skill.directoryName) === normalizedKey ||
+    (normalizedName && normalizeSkillLookupKey(skill.name) === normalizedName) ||
+    (normalizedName && normalizeSkillLookupKey(skill.directoryName) === normalizedName)) ?? null;
 }
 
-/** 技能元数据（不含正文）——MCP 脊柱 resources/prompts 列表用，渐进披露。 */
+export function isSkillVisibleTo(record: SkillRecord, audience: SkillAudience): boolean {
+  if (audience === "internal") return true;
+  return record.origin === "builtin" && record.audience === "mcp";
+}
+
+/**
+ * MCP has two deliberately different audiences.  Public/unauthenticated
+ * protocol consumers receive only built-in Skills that explicitly opt in to
+ * MCP.  A locally authenticated Codex/Claude/Cursor connection has already
+ * proved that Nomi installed it, so it may use the same private catalog as
+ * the desktop Agent and Workbench.  Keeping this decision here prevents the
+ * dispatcher, Pi loader, and renderer from growing three divergent filters.
+ */
+export type SkillMcpAccess = "public" | "local-authenticated";
+
+export function isSkillVisibleToMcp(record: SkillRecord, access: SkillMcpAccess = "public"): boolean {
+  return access === "local-authenticated" || isSkillVisibleTo(record, "mcp");
+}
+
+/**
+ * Workbench picker visibility is separate from MCP audience visibility. Creative
+ * built-ins and every user skill are selectable; workbench implementation skills
+ * remain internal routing resources and must not clutter the picker.
+ */
+export function isSkillSelectableInWorkbench(record: Pick<SkillRecord, "name" | "origin">): boolean {
+  if (record.origin === "user") return true;
+  return !record.name.startsWith("workbench.") && record.name !== "creation-edit";
+}
+
 export type SkillSummary = {
   name: string;
   directoryName: string;
   description: string;
   origin: "builtin" | "user";
+  packageVersion: typeof SKILL_PACKAGE_VERSION;
+  contentHash: string;
 };
 
-/**
- * 面向 MCP 脊柱暴露的「导演 / 编剧技能库」= directoryName 以 director- / writer- 开头
- * **且随安装包分发的内置技能**（外加显式白名单的运营技能 model-integration）。这是从阿泽导演台
- * 整过来、供内外 agent 按需调用的电影方法论库；workbench.* 等内部编排技能不外暴露。
- *
- * **`origin === 'builtin'` 这个条件是安全边界，不是优化**（2026-08-27 补）：
- * 此前只判目录名前缀 —— 而同一天我们刚把技能导入放开（裸 SKILL.md / zip 都能进），
- * 于是「用户随手导入一本叫 `director-xxx` 的技能」= **自动暴露给外部 Claude Code / Codex，
- * 用户全程不知情**。让导入变容易的同时必须让暴露变难，两者要解耦。
- *
- * 默认收紧：**用户导入的技能一律只在本机内部可见**，与它叫什么名字无关。
- * 将来由技能自己的 `audience` 字段显式声明才对外（见
- * docs/plan/2026-08-27-skills-knowledge-distribution.md §2.3 Phase 1b）——
- * 在那之前，宁可漏给外部少几本，也不能替用户做「把他的私有方法论发出去」的决定。
+/** Exact identity lookup shared by every read transport.  Deliberately does
+ * not use findSkillRecord's internal prefix fallback: a caller must name one
+ * concrete Skill, otherwise similarly-prefixed resources could be confused.
  */
-const CRAFT_SKILL_PREFIXES = ["director-", "writer-"] as const;
-/** Explicitly shipped operational skill. Unlike craft packs it is safe for every external MCP host. */
-const EXTERNAL_SKILL_DIRECTORIES = new Set(["model-integration"]);
-export function isCraftSkill(record: Pick<SkillRecord, "directoryName" | "origin">): boolean {
-  if (record.origin !== "builtin") return false;
-  return CRAFT_SKILL_PREFIXES.some((prefix) => record.directoryName.startsWith(prefix))
-    || EXTERNAL_SKILL_DIRECTORIES.has(record.directoryName);
+export function findExactSkillRecord(key: string, records: readonly SkillRecord[]): SkillRecord | undefined {
+  const normalized = normalizeSkillLookupKey(key);
+  if (!normalized) return undefined;
+  return records.find((candidate) => candidate.name === key || candidate.directoryName === key
+    || normalizeSkillLookupKey(candidate.name) === normalized
+    || normalizeSkillLookupKey(candidate.directoryName) === normalized);
 }
 
-/** 技能元数据清单（渐进披露：只给 name+描述，不含正文）。默认只列导演/编剧技能库。 */
-export function listSkillSummaries(craftOnly = true): SkillSummary[] {
-  return readSkillRecords()
-    .filter((record) => (craftOnly ? isCraftSkill(record) : true))
-    .map((record) => ({
-      name: record.name,
-      directoryName: record.directoryName,
-      description: record.description,
-      origin: record.origin,
-    }));
+export function listSkillSummaries(
+  audience: SkillAudience,
+  records: SkillRecord[] = readSkillRecords(),
+): SkillSummary[] {
+  return records.filter((record) => isSkillVisibleTo(record, audience)).map((record) => ({
+    name: record.name,
+    directoryName: record.directoryName,
+    description: record.description,
+    origin: record.origin,
+    packageVersion: record.packageVersion,
+    contentHash: record.contentHash,
+  }));
 }
 
-/** 读一个技能的完整正文（按 name / directoryName 匹配）。找不到 ⇒ null。 */
+export function listSkillSummariesForMcp(
+  access: SkillMcpAccess = "public",
+  records: SkillRecord[] = readSkillRecords(),
+): SkillSummary[] {
+  return records.filter((record) => isSkillVisibleToMcp(record, access)).map((record) => ({
+    name: record.name,
+    directoryName: record.directoryName,
+    description: record.description,
+    origin: record.origin,
+    packageVersion: record.packageVersion,
+    contentHash: record.contentHash,
+  }));
+}
+
+export type SkillContent = SkillSummary & { body: string };
+
 export function readSkillContent(
   key: string,
-): { name: string; directoryName: string; description: string; body: string } | null {
-  const record = findSkillRecord(key, key);
-  if (!record) return null;
-  // 唯一调用方是能力核 dispatcher 的 `skills.read`（= 外部 MCP 客户端）。**读必须与列同一把尺子**：
-  // 此前只有 listSkillSummaries 过滤、这里不过滤 —— 于是过滤只挡住了「看见」，没挡住「拿到」：
-  // 外部 agent 报个目录名就能取走任意一本的全文，包括用户导入的私有方法论（2026-08-27 补）。
-  // 内嵌 agent 不走这条路（它直接用 findSkillRecord），所以这里收紧不影响内部功能。
-  if (!isCraftSkill(record)) return null;
+  audience: SkillAudience,
+  records: SkillRecord[] = readSkillRecords(),
+  expected?: Readonly<{ packageVersion: string; contentHash: string }>,
+): SkillContent | null {
+  const record = findExactSkillRecord(key, records);
+  if (!record || !isSkillVisibleTo(record, audience)) return null;
+  if (expected && (record.packageVersion !== expected.packageVersion || record.contentHash !== expected.contentHash)) {
+    return null;
+  }
   return {
     name: record.name,
     directoryName: record.directoryName,
     description: record.description,
     body: record.body,
+    origin: record.origin,
+    packageVersion: record.packageVersion,
+    contentHash: record.contentHash,
+  };
+}
+
+export function readSkillContentForMcp(
+  key: string,
+  access: SkillMcpAccess = "public",
+  records: SkillRecord[] = readSkillRecords(),
+  expected?: Readonly<{ packageVersion: string; contentHash: string }>,
+): SkillContent | null {
+  const record = findExactSkillRecord(key, records);
+  if (!record || !isSkillVisibleToMcp(record, access)) return null;
+  if (expected && (record.packageVersion !== expected.packageVersion || record.contentHash !== expected.contentHash)) {
+    return null;
+  }
+  return {
+    name: record.name,
+    directoryName: record.directoryName,
+    description: record.description,
+    body: record.body,
+    origin: record.origin,
+    packageVersion: record.packageVersion,
+    contentHash: record.contentHash,
   };
 }

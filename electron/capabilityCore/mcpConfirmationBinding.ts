@@ -1,25 +1,15 @@
-// 能力核 · 「一个确认面绑一个 key」的并发绑定（从 mcpGateConfirmation.ts 提取，两处共用）。
+// 能力核 · 「一个确认面绑一个 authority key」的并发绑定。
 //
-// 治的是真金 bug（审计 2026-08-25）：**两个首次付费请求可能同时进确认路径**。
-// nomi_generate 的付费路只有一个项目级布尔信任（mcpSpendTrust），并发窗口 = 「第一次 elicit 发出」
-// 到「trust 落账」之间——两个请求同时发现 isTrusted=false，于是双双弹确认、双双放行 = 用户看见两张卡，
-// 或更糟：他点了一张，另一张的生成也跟着跑了。
-//
-// 为什么提取而不是新写一套（P1 不造第二套）：生成门（mcpGateConfirmation）早就有这个模式——同 challengeId
-// 的并发确认共享一个 in-flight promise，让「客户端超时/重连铸不出第二张提示或 nonce」。付费路要的是同一件事，
-// 只是 key 从 challengeId 换成 projectId。两处共用一份实现，语义不会各写各的、漂移开。
-//
-// ⚠️ 边界（别读成「一次确认放行两笔生成」）：排队者复用的是**确认结果**，不是**授权令牌**。
-// 第二个请求即便因排队而免弹卡，它仍要逐笔经主进程 assertAndConsumeSpendGrant 铸/校验自己的令牌——
-// 硬闸一步没少。语义是「一次确认建立一段会话信任，信任内每笔仍逐笔铸令牌」，与确认卡上写明的授权范围一致
-// （见 mcpSpendTrust.spendConfirmElicit 的 scope 文案）。
+// 同一服务端 challenge 的并发确认共享一个 in-flight promise，让客户端超时、重连或重复调用
+// 不会铸出第二张提示或 nonce。这个绑定只复用同一 challenge 的确认结果；它不签发授权，
+// 不建立项目级会话信任，也不能把一次确认扩张到另一笔付费操作。
 
 /**
  * 建一个按 key 去重的确认绑定器。每条 MCP 连接/协议实例各持一个（闭包生命周期，连接断即亡）。
  *
  * 语义：同一个 key 上有确认在飞 → 后来者**排队**等同一个 promise，不另开一个确认面。
  * 结果为「未确认」（decline / 超时 / 异常）→ 摘掉记录，下次重新问（否则一次 decline 会永久毒化这个 key）。
- * 结果为「已确认」→ 由调用方决定要不要落成更长命的信任（如 spendTrust），本模块不替它记。
+   * 结果为「已确认」→ 保留到 authority 完成 durable consumption 后显式 release。
  */
 export function createConfirmationBinding<T>(options: {
   /** 拿到结果后判断「这次算确认成功吗」——决定要不要保留 in-flight 记录。 */
@@ -53,7 +43,7 @@ export function createConfirmationBinding<T>(options: {
       }
     },
 
-    /** 确认已落成更长命的信任后，调用方摘掉 in-flight 记录（如 spendTrust.trust 之后）。 */
+    /** authority 已 durable consume 这次确认后，摘掉 in-flight 记录。 */
     release(key: string): void {
       if (key) inFlight.delete(key);
     },

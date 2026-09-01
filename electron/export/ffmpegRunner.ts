@@ -6,9 +6,9 @@ import { renameSyncWithRetry } from "../jsonFile";
 import { ensureExecutable } from "./ensureExecutable";
 import { buildWebmToMp4Args } from "./ffmpegCommandBuilder";
 import { parseFfmpegProgressChunk, progressFromOutTime } from "./ffmpegProgress";
+import { desktopT } from "../i18n";
 import type { ExportProfile } from "./exportTypes";
 import type { FfmpegFiltergraphPlan } from "./ffmpegFiltergraph";
-import { desktopT } from "../i18n";
 
 export type FfmpegProcessResult = {
   code: number | null;

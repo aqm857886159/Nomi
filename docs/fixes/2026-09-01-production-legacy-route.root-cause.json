@@ -1,0 +1,100 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-01-production-legacy-route",
+  "problem_type": "ProductionRun legacy-playbook driver contract regression",
+  "symptom": "The shipped ProductionRun driver tests fail because legacy jobs are treated as retired instead of progressing through sample-gate, pause, QA, and trust contracts.",
+  "direct_cause": "The cutover driver intercepts submit_intent_persisted legacy jobs with a retirement needs_attention result and no longer follows the main-branch legacy progression semantics.",
+  "class_root": "Legacy-playbook generation remains an active product contract until the M2 replacement is shipped; route ownership must distinguish active legacy execution from the future retirement assertion without changing its current behavior.",
+  "affected_population": [
+    "Existing projects with persisted legacy ProductionRun jobs",
+    "ProductionRun sample-gate, pause/resume, QA verification, and trust-level flows"
+  ],
+  "scope_paths": [
+    "electron/productionRun/productionRunDriverOps.ts",
+    "electron/productionRun/productionRunDriver.test.ts",
+    "docs/qa/2026-09-01-agent-m0-red-lights.md"
+  ],
+  "entry_points": [
+    "driveGeneration legacy-playbook jobs",
+    "production sample-gate, pause/resume, QA, and trust-level callers"
+  ],
+  "internal_only_reason": "The failure is an application route-ownership invariant; no third-party dependency controls it.",
+  "invariants": [
+    "Persisted legacy-playbook jobs continue through the shipped driver state machine.",
+    "Retirement assertions are tracked as an M2 red light and do not silently alter M1 legacy behavior."
+  ],
+  "generality_proof": "All checked legacy callers converge on driveGeneration and its shared state transitions; restoring that boundary covers persisted jobs regardless of which gate or trust policy caused the next transition.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/productionRunDriverOps.ts",
+      "symbol": "driveGeneration",
+      "responsibility": "Own the active legacy-playbook state machine and its sample, pause, QA, and authorization transitions."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/productionSampleGate.test.ts",
+      "entry_point": "production sample gate",
+      "disposition": "enforced",
+      "evidence": "The sample-gate suite drives the shared driver with persisted legacy jobs and observes its next state."
+    },
+    {
+      "path": "electron/productionRun/productionRunPauseSemantics.test.ts",
+      "entry_point": "production pause/resume",
+      "disposition": "enforced",
+      "evidence": "The pause suite reaches the same driver boundary through a different lifecycle state and requires resumable legacy behavior."
+    },
+    {
+      "path": "electron/productionRun/productionQaVerify.test.ts",
+      "entry_point": "production QA verification",
+      "disposition": "enforced",
+      "evidence": "QA approval is another shared-driver transition after legacy generation."
+    },
+    {
+      "path": "electron/productionRun/productionTrustLevel.test.ts",
+      "entry_point": "production trust-level policy",
+      "disposition": "enforced",
+      "evidence": "Trust policy changes authorization state but still enters the same legacy driver."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any persisted legacy job, gate state, trust policy, or future caller can encounter the cutover retirement interception.",
+    "same_class_scan": [
+      "rg -n 'driveGeneration|submit_intent_persisted|productionSampleGate|productionRunPauseSemantics|productionQaVerify' electron/productionRun",
+      "Checked productionRunDriver, productionSampleGate, productionRunPauseSemantics, productionQaVerify, and productionTrustLevel suites."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/productionRunDriverOps.ts",
+    "invariant": "The active legacy route must not emit a retirement result before the M2 replacement owns that route.",
+    "failure_mode": "Invalid state still follows the existing visible gate/error contract; it is never silently treated as retired.",
+    "exception_policy": "none",
+    "strategy": "Keep route ownership at the shared driver and record retirement expectations separately as an M2 red light until the replacement is ready.",
+    "artifacts": [
+      "electron/productionRun/productionRunDriverOps.ts",
+      "docs/qa/2026-09-01-agent-m0-red-lights.md"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/productionRunDriver.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/productionRunDriver.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The legacy route is intentionally retained as active product behavior; only its retired assertions move to M2 documentation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls the ProductionRun state-machine contract.",
+    "exit_criteria": []
+  },
+  "migration": "No runtime migration is performed in M1. The retired assertions and their expected future completion criteria move to the M2 red-light section.",
+  "residual_risks": [
+    "M2 must ship the replacement generation route and then satisfy the documented retirement assertions."
+  ]
+}

@@ -66,6 +66,7 @@ export type {
 export {
   startExportJob,
   getExportJobStatus,
+  listExportJobs,
   cancelExportJob,
   writeExportTempInput,
   finishExportTempInput,
@@ -144,7 +145,6 @@ export type TaskResult = {
     timestamp: number;
   };
 };
-
 // TTL(1h) + LRU(200) 上限，防异步任务条目无界驻留（P0-7）。不再缓存明文 apiKey。
 export const taskCache = new TtlLruCache<CachedTask>({ maxEntries: 200, ttlMs: 60 * 60 * 1000 });
 

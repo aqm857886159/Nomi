@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
 import type { AgentChatActivity, AgentChatRequest, AgentChatResponse, AgentChatHistoryRequest } from '../harness/agentChatContracts';
-import { agentToolsForCapability, agentToolIsInScope, captureAgentChatRequest, captureAgentHistory } from '../harness/agentChatPolicy';
+import { agentToolsForRequest, agentToolIsInScope, captureAgentChatRequest, captureAgentHistory, resolveAgentToolProfile } from '../harness/agentChatPolicy';
 import { agentContextHost, withAgentRuntimePaths } from '../harness/context/agentContextHost';
-import { NOMI_AGENT_IDENTITY, buildSkillSystemPrompt, composeAgentSystemPrompt } from '../harness/context/agentContext';
+import { NOMI_AGENT_IDENTITY, buildSkillSystemPrompt, composeAgentSystemPrompt, resolveRequestedSkill } from '../harness/context/agentContext';
 import type { RuntimeTurnHooks, NomiModelConfig } from '../harness/runtime/runtimePort';
 import { projectIdFromSessionKey } from '../events/eventLogRepository';
 import { getProjectMemory, formatMemoryForPrompt } from '../memory/projectMemory';
@@ -16,6 +16,9 @@ import { trim, type JsonRecord } from '../jsonUtils';
 import { readNomiLocalAsset } from '../assets/localAssetFile';
 import { extractTextFromLocalAsset } from '../files/extractText';
 import { buildAgentUserContent, modelSupportsImageInput, modelSupportsPdfInput } from './agentUserContent';
+import { formatNomiSkillIndex, listNomiSkillIndexEntries } from '../harness/skillIndex.js';
+import { formatAgentContextSnapshot } from '../shared/agentContextSnapshot';
+import { workModeInstruction } from './agentWorkModePolicy';
 
 export type RunAgentChatV2Payload = AgentChatRequest;
 export type AgentChatV2Event = AgentChatActivity;
@@ -43,13 +46,20 @@ export async function seedAgentChatV2History(input: AgentChatHistoryRequest): Pr
 /** Nomi supplies policy, model identity and host tools; pi alone advances the conversation. */
 export async function runAgentChatV2(input: AgentChatRequest, hooks: AgentChatV2Hooks): Promise<AgentChatResponse> {
   const payload = captureAgentChatRequest(input);
+  const requestedSkill = resolveRequestedSkill(payload as unknown as JsonRecord);
+  const requestedCapabilities = requestedSkill?.manifestError
+    ? []
+    : requestedSkill?.manifest?.requestedCapabilities;
+  const runtimeTools = agentToolsForRequest(payload, requestedCapabilities);
+  const resolvedToolProfile = resolveAgentToolProfile(payload);
+  const maxSteps = payload.capability === 'storyboard' || resolvedToolProfile === 'production' ? 24 as const : 8 as const;
   let selectedModel: { id: string; label: string; vendorKey: string } | undefined;
   const runtimeHooks: RuntimeTurnHooks = {
     signal: hooks.abortSignal,
     emit: hooks.emit,
     awaitToolConfirmation: (call, signal) => {
       signal.throwIfAborted();
-      if (!agentToolIsInScope(payload, call)) return Promise.resolve({ ok: false, denied: true, message: 'Tool target is outside this request capability' });
+      if (!agentToolIsInScope(payload, call, requestedCapabilities)) return Promise.resolve({ ok: false, denied: true, message: 'Tool target is outside this request capability' });
       return hooks.awaitToolConfirmation(call, signal);
     },
   };
@@ -80,8 +90,15 @@ export async function runAgentChatV2(input: AgentChatRequest, hooks: AgentChatV2
         ?? (payload.history.kind === 'persistent' ? projectIdFromSessionKey(payload.history.binding.sessionKey) : null);
       if (projectId) memoryBlock = formatMemoryForPrompt(getProjectMemory(projectId).facts);
     } catch { /* Project facts remain best-effort; conversation persistence is not. */ }
+    const skillSystemPrompt = [
+      // Keep the per-turn prompt/KV prefix stable and bounded; the full
+      // repository/user catalog remains available through the Workbench and
+      // exact-name load_skill calls.
+      formatNomiSkillIndex(listNomiSkillIndexEntries(), { limit: 24 }),
+      buildSkillSystemPrompt(payload as unknown as JsonRecord, requestedSkill),
+    ].filter(Boolean).join('\n\n');
     const systemPrompt = composeAgentSystemPrompt({ identity: NOMI_AGENT_IDENTITY,
-      panelSystemPrompt: trim(payload.systemPrompt), skillSystemPrompt: buildSkillSystemPrompt(payload as unknown as JsonRecord), memoryBlock })!;
+      panelSystemPrompt: [trim(payload.systemPrompt), workModeInstruction(payload.workMode)].filter(Boolean).join('\n\n'), skillSystemPrompt, memoryBlock })!;
     const display = sanitizeForBroadCompat(trim(payload.displayPrompt) || trim(payload.prompt));
     const content = await buildAgentUserContent({ prompt: display, attachments,
       supportsImageInput: modelSupportsImageInput(model.modelKey, model.modelAlias, model.meta),
@@ -91,16 +108,19 @@ export async function runAgentChatV2(input: AgentChatRequest, hooks: AgentChatV2
     });
     signal.throwIfAborted();
     const parts = typeof content === 'string' ? [{ type: 'text' as const, text: content }] : content;
-    const fullContext = sanitizeForBroadCompat(trim(payload.prompt));
+    const fullContext = sanitizeForBroadCompat([
+      trim(payload.prompt),
+      formatAgentContextSnapshot(payload.contextSnapshot),
+    ].filter(Boolean).join('\n\n'));
     return { ...paths, model: modelConfig, systemPrompt,
       user: { durableText: parts.filter((part) => part.type === 'text').map((part) => part.text).join('\n'),
         ...(fullContext && fullContext !== display ? { currentContextText: fullContext } : {}),
         images: parts.filter((part) => part.type === 'image').map((part) => ({ mimeType: part.mimeType || 'image/png', data: part.image })),
         pdfs: parts.filter((part) => part.type === 'file').map((part) => ({ fileName: part.fileName, data: part.data })),
       },
-      tools: agentToolsForCapability(payload.capability),
+      tools: runtimeTools,
       capability: payload.capability === 'single-shot' ? { singleShot: true as const, maxSteps: 1 as const }
-        : { maxSteps: payload.capability === 'storyboard' ? 24 as const : 8 as const },
+        : { maxSteps },
       compaction: { enabled: true },
     };
   }, runtimeHooks));

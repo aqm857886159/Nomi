@@ -2,7 +2,16 @@ import path from "node:path";
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { findSkillRecord, type SkillRecord } from "../../skills/skillStore";
+import { SKILL_PACKAGE_VERSION } from "../../skills/skillPackage";
 import * as context from "./agentContext";
+
+// Post-cutover SkillRecord gained required audience/packageVersion/contentHash fields;
+// these inline fixtures declare them so the record type-checks (contentHash is any 64-hex placeholder — the prompt-composition assertions never read it).
+const FIXTURE_SKILL_META = {
+  audience: "internal",
+  packageVersion: SKILL_PACKAGE_VERSION,
+  contentHash: "0".repeat(64),
+} as const satisfies Pick<SkillRecord, "audience" | "packageVersion" | "contentHash">;
 
 const FORBIDDEN_OWNER_IMPORT = /(?:from|import\s*\()\s*["'](?:ai|@ai-sdk\/[^"']*|@mariozechner\/[^"']*|@earendil-works\/pi-[^"']*|[^"']*(?:agentChatV2|agentSession|projectMemory|catalogStore))['"]/;
 
@@ -64,6 +73,7 @@ describe("Nomi agent context ownership", () => {
     const skill: SkillRecord = {
       name: "story-method", directoryName: "story", filePath: path.join(process.cwd(), "skills/story/SKILL.md"),
       description: "Story method", body: "# Method\nWrite, review, revise.", manifest: null, origin: "user",
+      ...FIXTURE_SKILL_META,
     };
     vi.mocked(findSkillRecord).mockReturnValue(skill);
     expect(context.buildSkillSystemPrompt({ chatContext: { skill: { key: "workbench.creation.story", name: "Story" } } })).toBe([
@@ -78,6 +88,7 @@ describe("Nomi agent context ownership", () => {
     vi.mocked(findSkillRecord).mockReturnValue({
       name: "story-method", directoryName: "story", filePath: path.join(process.cwd(), "skills/story/SKILL.md"),
       description: "Story method", body: "Method", manifest: null, origin: "builtin",
+      ...FIXTURE_SKILL_META,
     });
     const prompt = context.buildSkillSystemPrompt({ chatContext: { skill: { name: "Story" } } });
     expect(prompt).toContain("skillKey: story-method\nskillName: Story");

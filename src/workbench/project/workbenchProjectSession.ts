@@ -4,8 +4,8 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { emitCanvasGesture, getCanvasEventLastSeq, seedCanvasEventLastSeq } from '../generationCanvas/events/canvasEventEmitter'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { setDesktopActiveProjectId } from '../../desktop/activeProject'
-import { resetTimelineAgentState } from '../timeline/agent/timelineToolCall'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
+import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
 
 export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
   const workbench = useWorkbenchStore.getState()
@@ -32,8 +32,7 @@ export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload)
   )
   useWorkbenchStore.getState().setTimeline(payload.timeline)
   useWorkbenchStore.getState().setCategories(payload.categories)
-  // P4:恢复整套分镜方案映射。restore 在 hydrate 里先于 swapCreationAiProject 跑。
-  // 用 hydrateStoryboardPlans(非 setStoryboardPlan):载入不标脏。
+  // P4：恢复整套分镜方案映射。用 hydrateStoryboardDesigns（非 setStoryboardPlan）载入不标脏。
   const store = useWorkbenchStore.getState()
   store.hydrateStoryboardDesigns(
     payload.storyboardDesignsByDocumentId ?? {},
@@ -50,23 +49,34 @@ export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload)
 export async function replayCanvasEventTailAndSealGenesis(
   projectId: string,
   payload: WorkbenchProjectPayload,
+  guard: ProjectHydrationGuard,
 ): Promise<void> {
+  guard.assertCurrent()
   const lastSeq = Number(payload.generationCanvasLastSeq) || 0
   seedCanvasEventLastSeq(lastSeq)
   const api = getDesktopBridge()?.events
   if (api && projectId && payload.generationCanvasLastSeq != null && lastSeq > 0) {
+    let events: Awaited<ReturnType<typeof api.read>>['events'] = []
     try {
-      const { events } = await api.read(projectId, lastSeq)
+      const reply = await api.read(projectId, lastSeq)
+      guard.assertCurrent()
+      events = reply.events
+    } catch {
+      // A stale epoch is not an event-log fallback. Re-assert outside the
+      // catch so supersession is never swallowed as an ordinary read error.
+      guard.assertCurrent()
+    }
+    if (events.length) {
       const canvasTail = (events as { type?: string; payload?: Record<string, unknown>; seq?: number }[])
         .filter((event) => typeof event?.type === 'string' && event.type.startsWith('canvas.') && event.payload)
       if (canvasTail.length) {
+        guard.assertCurrent()
         useGenerationCanvasStore.getState().applyEventTail(canvasTail as { type: string; payload: Record<string, unknown> }[])
         seedCanvasEventLastSeq(Math.max(lastSeq, ...canvasTail.map((event) => Number(event.seq) || 0)))
       }
-    } catch {
-      /* 旁路:读尾巴失败退回纯快照,不影响打开项目 */
     }
   }
+  guard.assertCurrent()
   const post = useGenerationCanvasStore.getState()
   emitCanvasGesture([
     { type: 'canvas.snapshot.restored', payload: { snapshot: { nodes: post.nodes, edges: post.edges, groups: post.groups } } },
@@ -98,15 +108,11 @@ type ActiveWorkbenchProjectSaveTarget = {
 let activeWorkbenchProjectSaveTarget: ActiveWorkbenchProjectSaveTarget | null = null
 
 export function setActiveWorkbenchProjectSaveTarget(target: ActiveWorkbenchProjectSaveTarget | null): void {
-  if (activeWorkbenchProjectSaveTarget?.projectId !== target?.projectId) resetTimelineAgentState()
   activeWorkbenchProjectSaveTarget = target
   setDesktopActiveProjectId(target?.projectId ?? '')
   // 当前工作台项目是审片结果的所有权边界。绑定新项目时同步切换 shot verify scope；
   // activateProject 对同 id 幂等，不会因保存订阅重绑而误清本项目预算。
   useShotVerifyStore.getState().activateProject(target?.projectId)
-  // 能力核 A/B 守卫：把「当前窗口打开的项目」上报主进程——外部 CLI/MCP 据此拒绝直写正在编辑的工程
-  // （防内存 store 防抖回盘覆盖外部改动）。可选口（老 preload 无 capability 即 no-op）。
-  getDesktopBridge()?.capability?.setActiveProject(target?.projectId ?? '')
 }
 
 export function clearActiveWorkbenchProjectSaveTarget(projectId?: string): void {

@@ -13,7 +13,7 @@
 1. [唯一 owner map](../architecture/agent-m0-owner-map.md)：三种状态逐项指定 owner，并记录 Host、Pi runtime、ProductionRun、Artifact 的精确 ref。
 2. [50 项工具映射](../architecture/agent-m0-tool-mapping.md)：`keep / merge / host-only / delete` 去向、理由和 15 个语义目标对照；49 个当前 catalog descriptor 加 1 个 wire-level gate 计数差异显式标注。
 3. [旧路径清单](../architecture/agent-m0-legacy-paths.md)：按 M1–M5 里程碑列出删除时点和不得保留的 fallback。
-4. [schema-v3 根因合同草案](../fixes/2026-09-01-rc-01-durable-owner.root-cause.draft.json)、[RC-02](../fixes/2026-09-01-rc-02-semantic-tool-surface.root-cause.draft.json)、[RC-05](../fixes/2026-09-01-rc-05-typed-output-projection.root-cause.draft.json)、[RC-06](../fixes/2026-09-01-rc-06-settlement-barrier.root-cause.draft.json)。四份以 `.root-cause.draft.json` 命名（而非 `.root-cause.json`）：它们是 M0 草案，其 `prevention.enforcement_path` 等指向的 `#223` 生产路径不在当前工作树、本 PR 也不写生产代码，因此还不是可执行合同；`check:root-cause-contracts` 门岗只认 `docs/fixes/*.root-cause.json`（非递归、按后缀），草案后缀让门岗正确略过它们。M1–M4 各切片把对应生产路径带回 changed diff 时，再把草案重命名为 `.root-cause.json` 并使其可执行。
+4. 四份 schema-v3 根因合同已在 M1 带回生产路径并正式启用：[RC-01](../fixes/2026-09-01-rc-01-durable-owner.root-cause.json)、[RC-02](../fixes/2026-09-01-rc-02-semantic-tool-surface.root-cause.json)、[RC-05](../fixes/2026-09-01-rc-05-typed-output-projection.root-cause.json)、[RC-06](../fixes/2026-09-01-rc-06-settlement-barrier.root-cause.json)。
 5. [M1 测试红灯清单](../qa/2026-09-01-agent-m0-red-lights.md)：门编排 18 测、canvas snapshot 挂起、`deviated` 恒 false 均有复现命令/当前状态/验收断言。
 6. [PR #223 切片方案](../architecture/agent-m0-pr-slices.md)：Host/runtime → semantic projection → context/compaction → UI/真实旅程。
 
@@ -34,4 +34,4 @@ Codex 本轮两次尝试 `gh pr view 272 --comments`（代理与无代理）均�
 - `pnpm run check:docs-index`：通过（无新增未收录方案）。
 - `pnpm run check:doc-status`：通过（无新增状态违规）。
 - `pnpm run typecheck`：通过（收尾班装好依赖后实跑，三个 tsconfig 全绿）。
-- `pnpm run check:root-cause-contracts`：内置 18 项 checker tests 通过（checker 自身逻辑健全）。四份合同以 `.root-cause.draft.json` 命名，门岗按后缀正确略过它们——因为其 `prevention.enforcement_path` 等指向的 #223 Host/runtime/测试路径不在当前 `c1f6b385` 工作树、本 PR 也不写生产代码，此时它们是草案而非可执行合同。M1–M4 各切片把对应生产路径带回 changed diff 时，再改回 `.root-cause.json` 后缀并使其可执行。
+- `pnpm run check:root-cause-contracts`：内置 18 项 checker tests 通过，四份 M1 schema-v3 合同均通过正式校验。

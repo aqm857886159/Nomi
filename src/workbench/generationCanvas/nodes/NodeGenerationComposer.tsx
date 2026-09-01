@@ -558,6 +558,12 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
           // 宽度内容驱动（w-max）：按底栏一行(锁+参数+生成钮)的真实宽长开，参数少则窄、多则宽，不塌不爆、不换行。
           // max-w-[880px] 兜底：现有最宽是 apimart Seedance 7 控件(model+变体+比例+清晰度+时长+seed+生成音频)
           // ≈810px，880 留头不触发截断；纯防极端（防 omni 模式参考槽行等异常撑爆）。实测 2026-06-16 校准。
+          // 卡片本身 overflow-hidden（非 overflow-y-auto）：底栏靠 shrink-0 mt-auto 恒贴卡底可见、
+          // 提示词只在内层 flex-1 滚动壳里滚（见下）。cutover 曾把这里改成 overflow-y-auto 想让「视口窄时
+          // body 滚、底栏可达」，但那会解除对内层 flex 列「必须塞进卡片固定高」的压力 → flex-1 min-h-0 滚动壳
+          // 塌成 0、72px 编辑器溢出到底栏上方与「生成参数」重叠、提示词区一个点都点不到（2026-09-01 smoke
+          // click 恒被拦、本机 elementFromPoint 复现命中「生成参数」）。origin/main 的 overflow-hidden 本就
+          // 让底栏恒可见 + 提示词内层滚，无此病，故恢复。
           'border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md',
           'transition-[outline-color] duration-150',
           isDragOver && 'outline-2 outline-dashed outline-nomi-accent outline-offset-[-2px]',

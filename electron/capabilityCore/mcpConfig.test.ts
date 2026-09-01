@@ -193,7 +193,7 @@ describe('capabilityCore/mcpConfig', () => {
     const text = fs.readFileSync(codexPath, 'utf8')
     expect(Number(text.match(/^startup_timeout_sec = (\d+)$/m)![1])).toBeGreaterThan(10)
     expect(Number(text.match(/^tool_timeout_sec = (\d+)$/m)![1])).toBeGreaterThan(60)
-    // "writes" = 只对没标 readOnlyHint 的工具弹确认 → 花钱的 nomi_generate 仍每次问，不可改成 "auto"。
+    // "writes" = 只对没标 readOnlyHint 的工具弹确认；不可改成 "auto" 绕过写入确认。
     expect(text).toContain('default_tools_approval_mode = "writes"')
   })
 

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -36,8 +37,16 @@ function makeJob(): ExportJobSnapshot {
       timeline: { fps: 30, durationFrames: 30, range: { startFrame: 0, endFrame: 30 }, tracks: [] },
       profile: { preset: "publish", container: "mp4", videoCodec: "h264", audioCodec: "none", audioMode: "mute", width: 1920, height: 1080, fps: 30, pixelFormat: "yuv420p", quality: "standard" },
       assets: {},
+      execution: { backend: "filtergraph" },
     },
     status: "queued",
+    projectIdentity: {
+      projectId: "project-1",
+      immutableProjectUuid: "project-uuid-1",
+      projectGeneration: 1,
+      canonicalRootDigest: "sha256:root",
+    },
+    manifestIntegrity: "canonical",
     progress: { ratio: 0, stage: "queued", message: "Queued" },
     cancelled: false,
     createdAt: "2026-05-24T00:00:00.000Z",
@@ -56,6 +65,7 @@ describe("export temp input", () => {
     expect(first).toEqual({ ok: true, size: 3 });
     expect(second).toEqual({ ok: true, size: 5 });
     expect(finished.size).toBe(5);
+    expect(finished.sha256).toBe(createHash("sha256").update(Buffer.from([1, 2, 3, 4, 5])).digest("hex"));
     expect(finished.inputPath).toBe(resolveExportTempInputPath(job));
     expect(path.resolve(finished.inputPath).startsWith(`${path.resolve(job.jobDir)}${path.sep}`)).toBe(true);
     expect([...fs.readFileSync(finished.inputPath)]).toEqual([1, 2, 3, 4, 5]);
@@ -80,7 +90,8 @@ describe("export temp input", () => {
     const job = makeJob();
     const escapePath = path.join(job.projectDir, "escaped.webm");
 
-    appendExportTempInputChunk(job, { chunk: [9, 8, 7], inputPath: escapePath });
+    // Deliberately smuggle an extra inputPath to prove it is ignored (no escape write).
+    appendExportTempInputChunk(job, { chunk: [9, 8, 7], inputPath: escapePath } as { chunk: number[] });
 
     expect(fs.existsSync(escapePath)).toBe(false);
     expect([...fs.readFileSync(resolveExportTempInputPath(job))]).toEqual([9, 8, 7]);

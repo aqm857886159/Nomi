@@ -29,10 +29,20 @@ export type WorkspaceProjectRecordV2 = z.infer<typeof workspaceProjectRecordSche
   revision: number;
 };
 
+export class WorkspaceProjectIdentityUnavailableError extends Error {
+  readonly code = "project_identity_unavailable";
+
+  constructor(message = "Workspace project identity is unavailable", options?: { cause?: unknown }) {
+    super(message);
+    this.name = "WorkspaceProjectIdentityUnavailableError";
+    if (options && Object.prototype.hasOwnProperty.call(options, "cause")) {
+      Object.defineProperty(this, "cause", { configurable: true, value: options.cause });
+    }
+  }
+}
+
 export type WorkspaceProjectSource = "native" | "folder";
-export type WorkspaceOrigin =
-  | { source: "native"; nativeRootPath: string }
-  | { source: "folder" };
+export type WorkspaceOrigin = { source: "native"; nativeRootPath: string } | { source: "folder" };
 
 export const recentWorkspaceEntrySchema = z.object({
   id: z.string().min(1),

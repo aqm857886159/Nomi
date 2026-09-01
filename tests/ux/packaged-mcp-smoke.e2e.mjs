@@ -143,10 +143,24 @@ async function smokeClient(client, { signed = true } = {}) {
     }
 
     const resources = (await rpc('resources/list')).result?.resources || []
-    const director = resources.find((resource) => resource.uri === 'nomi-skill://director-cinematography')
-    assert(director, `${client} director cinematography resource is missing`)
-    const body = (await rpc('resources/read', { uri: director.uri })).result?.contents?.[0]?.text || ''
-    assert(body.includes('镜头语言') && body.length > 1_000, `${client} director cinematography body is incomplete`)
+    // Host cutover content-addresses skill resources: nomi-skill://<dir>/<packageVersion>/<contentHash>
+    // (integrity contract asserted in electron/capabilityCore/nomiMcpSkills.test.ts). Match by the
+    // directory-name prefix and read via the returned uri rather than the pre-cutover bare uri.
+    const director = resources.find((resource) => resource.uri.startsWith('nomi-skill://director-cinematography/'))
+    let body = ''
+    if (signed) {
+      // Signed clients (proof-verified claude/codex/cursor) get local-authenticated MCP access →
+      // the full creative catalog including director.cinematography (electron/capabilityCore/
+      // dispatcher.ts::mcpSkillAccess + skillDispatcher.test.ts). Read via the returned uri.
+      assert(director, `${client} director cinematography resource is missing`)
+      body = (await rpc('resources/read', { uri: director.uri })).result?.contents?.[0]?.text || ''
+      assert(body.includes('镜头语言') && body.length > 1_000, `${client} director cinematography body is incomplete`)
+    } else {
+      // Unsigned/generic hosts get only "public" access = skills marked audience:"mcp"; the cutover
+      // deliberately withholds the internal creative catalog from unverified callers (never trust a
+      // caller-supplied audience). director.cinematography is not audience:"mcp", so it must be absent.
+      assert(!director, `${client} internal creative skill must not leak to an unsigned host`)
+    }
 
     if (!signed) {
       const begin = await rpc('tools/call', {

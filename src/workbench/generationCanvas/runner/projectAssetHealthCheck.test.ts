@@ -23,6 +23,10 @@ function urlOf(nodeId: string): string | undefined {
   return useGenerationCanvasStore.getState().nodes.find((node) => node.id === nodeId)?.result?.url
 }
 
+function currentGuard() {
+  return { signal: new AbortController().signal, assertCurrent: vi.fn() }
+}
+
 describe('runProjectAssetHealthCheck — 开项目抢救漏落的厂商临时 URL', () => {
   beforeEach(() => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
@@ -38,7 +42,7 @@ describe('runProjectAssetHealthCheck — 开项目抢救漏落的厂商临时 UR
     const staleNode = seedVideoNode('https://cdn.vendor/v.mp4')
     const healthyNode = seedVideoNode('nomi-local://asset/proj-1/assets/generated/ok.mp4')
 
-    await runProjectAssetHealthCheck('proj-1')
+    await runProjectAssetHealthCheck('proj-1', currentGuard())
 
     expect(urlOf(staleNode)).toBe('nomi-local://asset/proj-1/assets/generated/v.mp4')
     expect(urlOf(healthyNode)).toBe('nomi-local://asset/proj-1/assets/generated/ok.mp4')
@@ -52,7 +56,7 @@ describe('runProjectAssetHealthCheck — 开项目抢救漏落的厂商临时 UR
     mockedBridge.mockReturnValue(bridgeWithImport(importRemoteUrl))
     const node = seedVideoNode('https://cdn.vendor/expired.mp4')
 
-    await runProjectAssetHealthCheck('proj-1')
+    await runProjectAssetHealthCheck('proj-1', currentGuard())
 
     expect(urlOf(node)).toBe('https://cdn.vendor/expired.mp4')
   })
@@ -62,7 +66,7 @@ describe('runProjectAssetHealthCheck — 开项目抢救漏落的厂商临时 UR
     mockedBridge.mockReturnValue(bridgeWithImport(importRemoteUrl))
     seedVideoNode('https://cdn.vendor/v.mp4')
 
-    await runProjectAssetHealthCheck('')
+    await runProjectAssetHealthCheck('', currentGuard())
 
     expect(importRemoteUrl).not.toHaveBeenCalled()
   })
@@ -75,7 +79,7 @@ describe('runProjectAssetHealthCheck — 开项目抢救漏落的厂商临时 UR
     mockedBridge.mockReturnValue(bridgeWithImport(importRemoteUrl))
     const node = seedVideoNode('https://cdn.vendor/v.mp4')
 
-    const check = runProjectAssetHealthCheck('proj-1')
+    const check = runProjectAssetHealthCheck('proj-1', currentGuard())
     // 下载在途时，用户重生成把该节点换成了新的本地结果
     useGenerationCanvasStore.getState().updateNode(node, {
       result: { id: 'fresh', type: 'video', url: 'nomi-local://asset/proj-1/assets/generated/fresh.mp4', createdAt: 2 },
@@ -85,5 +89,28 @@ describe('runProjectAssetHealthCheck — 开项目抢救漏落的厂商临时 UR
 
     // 新结果不被过期体检的旧本地化覆盖
     expect(urlOf(node)).toBe('nomi-local://asset/proj-1/assets/generated/fresh.mp4')
+  })
+
+  it('does not write a localized result after the hydration epoch is superseded', async () => {
+    let resolveImport: (value: unknown) => void = () => {}
+    const importRemoteUrl = vi.fn().mockImplementation(
+      () => new Promise((resolve) => { resolveImport = resolve }),
+    )
+    mockedBridge.mockReturnValue(bridgeWithImport(importRemoteUrl))
+    const node = seedVideoNode('https://cdn.vendor/v.mp4')
+    let current = true
+    const guard = {
+      signal: new AbortController().signal,
+      assertCurrent: vi.fn(() => {
+        if (!current) throw new Error('project_hydration_superseded')
+      }),
+    }
+
+    const check = runProjectAssetHealthCheck('proj-1', guard)
+    current = false
+    resolveImport({ data: { url: 'nomi-local://asset/proj-1/assets/generated/late.mp4' } })
+
+    await expect(check).rejects.toThrow('project_hydration_superseded')
+    expect(urlOf(node)).toBe('https://cdn.vendor/v.mp4')
   })
 })

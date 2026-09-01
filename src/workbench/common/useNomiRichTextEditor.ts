@@ -46,6 +46,8 @@ export type RichTextApplyMode = 'insert' | 'replace' | 'append'
 export type NomiRichTextTools = {
   readFullText: () => string
   readSelectionText: () => string
+  /** Apply markdown at an explicit ProseMirror range captured by the caller. */
+  applyAtRange: (content: string, range: { from: number; to: number }) => void
   insertAtCursor: (content: string) => void
   replaceSelection: (content: string) => void
   appendToEnd: (content: string) => void
@@ -167,9 +169,18 @@ export function useNomiRichTextEditor(options: {
       }
       chain.insertContent(tiptapContent).run()
     }
+    const applyAtRange = (text: string, range: { from: number; to: number }) => {
+      if (!isEditorReady(editor)) return
+      const tiptapContent = markdownToTiptapContent(text)
+      if (!tiptapContent.length) return
+      const chain = editor.chain().focus().setTextSelection(range)
+      if (range.from !== range.to) chain.deleteSelection()
+      chain.insertContent(tiptapContent).run()
+    }
     return {
       readFullText: () => (isEditorReady(editor) ? editor.getText({ blockSeparator: '\n' }).trim() : ''),
       readSelectionText: () => (isEditorReady(editor) ? readSelectedText(editor) : ''),
+      applyAtRange,
       insertAtCursor: (content) => apply(content, 'insert'),
       replaceSelection: (content) => apply(content, 'replace'),
       appendToEnd: (content) => apply(content, 'append'),

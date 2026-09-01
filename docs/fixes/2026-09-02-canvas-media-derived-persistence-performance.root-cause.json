@@ -1,0 +1,98 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-canvas-media-derived-persistence-performance",
+  "problem_type": "Runtime media measurement schedules durable canvas work during viewport reveal",
+  "symptom": "M/media-reveal emits renderer long tasks and frame gaps when image/video nodes enter the viewport.",
+  "direct_cause": "BaseGenerationNode routes onLoad/onLoadedMetadata dimension patches through updateNode defaults, bumping persistRevision and emitting a canvas event for each derived measurement.",
+  "class_root": "Derived renderer observations share the user-edit mutation default because the mutation boundary has no named non-durable option set for media measurement.",
+  "affected_population": [
+    "Image nodes whose result loads while mounted",
+    "Video nodes whose metadata loads while mounted",
+    "Any dense canvas reveal that mounts several media nodes"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+    "src/workbench/generationCanvas/store/generationCanvasStore.test.ts"
+  ],
+  "entry_points": [
+    "BaseGenerationNode image onLoad",
+    "BaseGenerationNode video onLoadedMetadata"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The regression is in the renderer mutation and persistence boundary; media dimensions come from the already loaded local or provider result.",
+  "invariants": [
+    "Loaded media dimensions update the in-memory node so geometry remains correct.",
+    "Derived media measurement does not create an undo step, persist revision, or canvas event.",
+    "Explicit user edits retain the normal durable updateNode behavior."
+  ],
+  "generality_proof": "Both image load and video metadata load converge on updateMediaDimensions and therefore receive one named option set; future media renderers can reuse the same boundary contract.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "updateMediaDimensions",
+      "responsibility": "Apply measured media geometry in memory using the non-durable mutation contract."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+      "symbol": "MEDIA_DIMENSION_UPDATE_OPTIONS",
+      "responsibility": "Centralize the distinction between renderer-derived measurement and durable user mutation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "entry_point": "image onLoad -> updateMediaDimensions",
+      "disposition": "enforced",
+      "evidence": "The shared helper passes MEDIA_DIMENSION_UPDATE_OPTIONS."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "entry_point": "video onLoadedMetadata -> updateMediaDimensions",
+      "disposition": "enforced",
+      "evidence": "The shared helper passes MEDIA_DIMENSION_UPDATE_OPTIONS."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every mounted media result can load after the canvas action and reintroduce save/event work unless the shared derived-mutation boundary remains explicit.",
+    "same_class_scan": [
+      "Searched computeMediaMetaPatch callers and both media DOM load handlers.",
+      "Searched updateNode mutation options for existing non-durable renderer updates.",
+      "Checked generationCanvasStore updateNode revision and event behavior."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+    "invariant": "Renderer-derived media measurements update memory only; durable revisions/events are reserved for user or durable domain mutations.",
+    "failure_mode": "The store regression test fails if the option contract stops suppressing persistence or events; the benchmark exposes long-task recurrence.",
+    "exception_policy": "none",
+    "strategy": "Name and reuse one immutable option set at the shared media measurement caller, then assert the store boundary behavior.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+      "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "src/workbench/generationCanvas/store/generationCanvasStore.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/generationCanvasStore.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/store/generationCanvasStore.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No alternate media-dimension writer is retained; the ordinary durable update remains for explicit edits."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The fix is an internal renderer/store mutation contract and does not depend on a library upgrade.",
+    "exit_criteria": []
+  },
+  "migration": "No project schema migration is required. Existing persisted dimensions remain readable; future loads refresh them in memory without appending durable bookkeeping.",
+  "residual_risks": [
+    "A media result whose dimensions change after load is intentionally refreshed in memory and will be persisted only by a later durable edit or explicit project save."
+  ]
+}

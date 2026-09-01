@@ -23,7 +23,6 @@ import {
   addNodes,
   connectNodes,
   deleteNodes,
-  readCanvas,
   setNodePrompt,
   type CanvasSnapshot,
   type ConnectionSpec,
@@ -141,8 +140,8 @@ function defaultKindForIntent(intent: GenerateIntent, hasReferences: boolean): s
   switch (intent) {
     case 'image':
       // 带了参考图 = 图生图（改图），与下面 video 那支对称。
-      // 曾经这里无条件回 text_to_image：外部助手（Claude Code / Codex / Cursor）经 MCP 带着参考图调
-      // nomi_generate，一律被当**纯文生图**跑 —— 参考图静默丢弃、出一张跟原图毫无关系的新图。
+      // 曾经这里无条件回 text_to_image：旧的单次生成调用带着参考图时会被当**纯文生图**跑，
+      // 参考图静默丢弃、出一张跟原图毫无关系的新图。
       // 真生成实测抓到（火山 Seedream 与 apimart 两条路都中招）：喂一张「橘猫戴红围巾坐雪景窗台」的
       // 照片说「把围巾改成蓝色」，出来的是另一只白猫的插画。
       return hasReferences ? 'image_edit' : 'text_to_image'
@@ -218,8 +217,7 @@ function writeResultToSnapshot(snapshot: CanvasSnapshot, nodeId: string, result:
  * 把**本机文件**导入项目当素材，返回 `nomi-local://` URL（MCP 清单 M2）。
  *
  * 为什么必须有：agent 想拿手绘帧/截图/用户给的参考图当 references，此前只能靠人先在 GUI 里拖进去——
- * 「让 Agent 端到端跑完」在素材侧是断的。导入后返回的 URL 可直接进 nomi_generate 的 references
- * 或当画布节点的源。
+ * 「让 Agent 端到端跑完」在素材侧是断的。导入后返回的 URL 可进入语义生成提案或当画布节点的源。
  *
  * 安全：判据全在 importAssetGuard（纯函数、逐条单测）——这是「远端 agent 读本机文件」的口子，
  * deny 优先于白名单、且对 realpath 再查一遍（软链逃逸在此断掉）。落盘复用既有 copyAssetFile
@@ -287,11 +285,7 @@ export function listAvailableModels(): ModelListingEntry[] {
   return deriveModelListing(readCatalog())
 }
 
-// ── 画布级（经 ProjectGateway：A 模式转发渲染层 / B 模式直写盘，统一逻辑）──────
-
-export async function readProjectCanvas(gateway: ProjectGateway): Promise<ReturnType<typeof readCanvas>> {
-  return readCanvas(await gateway.readDoc())
-}
+// ── 画布写操作（经 ProjectGateway：A 模式转发渲染层 / B 模式直写盘，统一逻辑）────
 
 export async function addProjectNodes(gateway: ProjectGateway, specs: NodeSpec[], projectId = ''): Promise<{ ids: string[]; cancelled?: boolean }> {
   // 方案门（Phase B）：≥2 节点 = 一套「方案」→ 落画布前弹应用内确认卡（app 开着时；headless 直放行）。

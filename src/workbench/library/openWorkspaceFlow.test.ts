@@ -17,9 +17,8 @@ function desktopBridge(overrides: Partial<DesktopBridge['workspace']>): DesktopB
     assets: {} as DesktopBridge['assets'],
     exports: {} as DesktopBridge['exports'],
     tasks: {} as DesktopBridge['tasks'],
-    agents: {} as DesktopBridge['agents'],
     modelCatalog: {} as DesktopBridge['modelCatalog'],
-  } as DesktopBridge
+  } as unknown as DesktopBridge
 }
 
 describe('openWorkspaceFromLibrary', () => {

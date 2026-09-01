@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { createMcpProtocol, type McpTransport } from './mcpProtocol'
 
 // 交付5 · locale 接线：协议层的结果/进度文案跟 transport.getLocale() 走（缺省 zh-CN）。

@@ -1,9 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
+import {
+  GENERATION_NODE_STATUSES,
+  generationNodeStatusSchema as sharedGenerationNodeStatusSchema,
+  type GenerationNodeStatus as SharedGenerationNodeStatus,
+} from '../../../../electron/shared/canvas/generationNodeStatus'
 import {
   generationCanvasNodeSchema,
   generationCanvasSnapshotSchema,
+  generationNodeRunStatusSchema,
+  generationNodeStatusSchema,
   nodeGroupSchema,
 } from './generationCanvasSchema'
+import type { GenerationNodeStatus } from './generationCanvasTypes'
 import { normalizeGenerationCanvasSnapshot } from '../../workbenchPersistence'
 
 const legacySnapshot = {
@@ -21,6 +29,21 @@ const legacySnapshot = {
 }
 
 describe('generationCanvasSchema Phase E.2 groups', () => {
+  it('projects the neutral shared generation status contract without copying its members', () => {
+    expect(generationNodeStatusSchema).toBe(sharedGenerationNodeStatusSchema)
+    expectTypeOf<GenerationNodeStatus>().toEqualTypeOf<SharedGenerationNodeStatus>()
+
+    for (const status of GENERATION_NODE_STATUSES) {
+      expect(generationCanvasNodeSchema.parse({ ...legacySnapshot.nodes[0], status }).status).toBe(status)
+    }
+
+    const runStatuses = GENERATION_NODE_STATUSES.filter((status) => status !== 'idle')
+    for (const status of [...runStatuses, 'cancelled'] as const) {
+      expect(generationNodeRunStatusSchema.parse(status)).toBe(status)
+    }
+    expect(generationNodeRunStatusSchema.safeParse('idle').success).toBe(false)
+  })
+
   it('defaults missing groups to an empty array for legacy snapshots', () => {
     expect(generationCanvasSnapshotSchema.parse(legacySnapshot).groups).toEqual([])
     expect(normalizeGenerationCanvasSnapshot(legacySnapshot).groups).toEqual([])

@@ -1,4 +1,4 @@
-import type { ExportJobSnapshot } from '../../../../electron/export/exportJobManager'
+import type { ExportJobSnapshot, ExportJobVerification } from '../../../../electron/export/exportJobManager'
 import { EXPORT_STAGES, type ExportQuality, type ExportStage } from '../../../../electron/export/exportTypes'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { getDesktopBridge } from '../../../desktop/bridge'
@@ -34,6 +34,7 @@ export type ExportToolRuntime = {
     profile: ExportProfileInput
   }): Promise<{ jobId: string; backend: 'filtergraph' | 'webm' }>
   getJob(jobId: string): Promise<ExportJobSnapshot>
+  verifyJob(jobId: string): Promise<ExportJobVerification>
   cancelJob(jobId: string): Promise<{ ok: boolean }>
 }
 
@@ -91,7 +92,6 @@ function compactJob(snapshot: ExportJobSnapshot): Record<string, unknown> {
     progress: {
       ratio: Math.max(0, Math.min(1, snapshot.progress.ratio)),
       stage: snapshot.progress.stage,
-      message: snapshot.progress.message,
     },
     cancellable: isActiveStatus(snapshot.status),
     createdAt: snapshot.createdAt,
@@ -103,6 +103,7 @@ function compactJob(snapshot: ExportJobSnapshot): Record<string, unknown> {
       ...(typeof snapshot.result?.durationMs === 'number' ? { durationMs: snapshot.result.durationMs } : {}),
     },
     warningCount: snapshot.manifest.diagnostics?.warnings.length ?? 0,
+    ...(snapshot.manifestIntegrity ? { manifestIntegrity: snapshot.manifestIntegrity } : {}),
     ...(failureCategory(snapshot) ? { failure: { category: failureCategory(snapshot) } } : {}),
   }
 }
@@ -153,6 +154,11 @@ function defaultRuntime(): ExportToolRuntime {
       if (!bridge?.exports?.status) throw new Error('export_status_unavailable: desktop export status is unavailable')
       return bridge.exports.status(jobId)
     },
+    verifyJob: async (jobId: string) => {
+      const bridge = getDesktopBridge()
+      if (!bridge?.exports?.verify) throw new Error('export_verify_unavailable: desktop export verification is unavailable')
+      return bridge.exports.verify(jobId)
+    },
     cancelJob: async (jobId: string) => {
       const bridge = getDesktopBridge()
       if (!bridge?.exports?.cancel) throw new Error('export_cancel_unavailable: desktop export cancellation is unavailable')
@@ -174,13 +180,14 @@ export async function applyExportToolCall(
     const timeline = normalizeKernelTimeline(runtime.readTimeline())
     const currentRevision = timelineRevision(timeline)
     if (expectedRevision !== currentRevision) {
-      return { accepted: false, code: 'stale_revision', expectedRevision, currentRevision }
+      return { operation: toolName, accepted: false, code: 'stale_revision', expectedRevision, currentRevision }
     }
     const durationFrames = Math.max(0, ...timeline.tracks.flatMap((track) => track.clips.map((clip) => clip.endFrame)), ...timeline.textClips.map((clip) => clip.endFrame))
-    if (durationFrames === 0) return { accepted: false, code: 'empty_timeline', currentRevision }
+    if (durationFrames === 0) return { operation: toolName, accepted: false, code: 'empty_timeline', currentRevision }
     const profile = exportProfile(input)
     const started = await runtime.startExport({ projectId, timeline, expectedRevision, profile })
     return {
+      operation: toolName,
       accepted: true,
       jobId: started.jobId,
       backend: started.backend,
@@ -195,28 +202,18 @@ export async function applyExportToolCall(
   }
 
   const jobId = requiredString(input.jobId, 'jobId', 160)
-  const snapshot = await scopedJob(runtime, jobId)
-  if (toolName === 'inspect_export_job') return compactJob(snapshot)
   if (toolName === 'verify_render') {
-    const bytes = snapshot.result?.bytes
-    const verified = snapshot.status === 'succeeded' && typeof bytes === 'number' && bytes > 0
-    return {
-      jobId,
-      verified,
-      verificationLevel: 'export_job_receipt',
-      contentDecoded: false,
-      status: snapshot.status,
-      ...(verified
-        ? { bytes, durationMs: snapshot.result?.durationMs ?? null }
-        : { code: snapshot.status === 'succeeded' ? 'empty_output_receipt' : `export_${snapshot.status}`, failure: failureCategory(snapshot) }),
-    }
+    const verification = await runtime.verifyJob(jobId)
+    return { operation: toolName, ...verification }
   }
+  const snapshot = await scopedJob(runtime, jobId)
+  if (toolName === 'inspect_export_job') return { operation: toolName, ...compactJob(snapshot) }
   if (toolName === 'cancel_export_job') {
     if (!isActiveStatus(snapshot.status)) {
-      return { jobId, cancelled: false, status: snapshot.status, code: 'export_not_cancellable' }
+      return { operation: toolName, jobId, cancelled: false, status: snapshot.status, code: 'export_not_cancellable' }
     }
     await runtime.cancelJob(jobId)
-    return { jobId, cancelled: true, status: 'cancelled' }
+    return { operation: toolName, jobId, cancelled: true, status: 'cancelled' }
   }
   throw new Error(`unknown export tool ${toolName}`)
 }

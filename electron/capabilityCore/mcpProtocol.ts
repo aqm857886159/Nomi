@@ -8,15 +8,12 @@
 // 传输经 McpTransport 注入：send（服务端→客户端帧）/ invoke（调能力核）/ isAppOpen（Nomi 开着没 = 还有没有
 // 应用内确认卡这条兜底问法；**不用来猜用户注意力在哪**）。本模块不 import electron → 协议握手可纯逻辑单测。
 //
-// MCP Apps（GUI 宿主内嵌活 widget，扩展 id io.modelcontextprotocol/ui，Stable 2026-01-26）：
-// nomi_generate 挂 _meta.ui.resourceUri → 指向 ui:// 资源（widget HTML，经 resources/read 取）；
-// 生成结果回 structuredContent.nomiDraft，宿主注入 iframe 渲染活生成面板。mcpAppWidget.ts 是纯字符串，
-// import 它不破「本模块不碰 electron」的纯逻辑单测边界。宿主不支持时 tool 仍回文本兜底（不裸奔）。
+// MCP Apps（GUI 宿主内嵌活 widget，扩展 id io.modelcontextprotocol/ui，Stable 2026-01-26）。
+// ProductionRun 结果可携带同一个 ui:// 资源；宿主不支持时仍回文本兜底。
 import {
   NOMI_LIVE_DRAFT_UI_URI,
   MCP_APP_MIME_TYPE,
   NOMI_LIVE_DRAFT_WIDGET_HTML,
-  buildNomiDraftFromGenerate,
   buildNomiRunFromProjection,
 } from './mcpAppWidget'
 import { buildToolErrorOutcome, buildProgressStartMessage, sanitizeArtifactResource, type ResultLocale } from './mcpToolResults'
@@ -24,12 +21,10 @@ import { assembleToolResultContent } from './mcpResultPayload'
 import { stripInternalEnrichFields } from './mcpResultEnrich'
 import { createProgressReporter } from './mcpProgress'
 import { createMcpRequestRegistry } from './mcpRequestRegistry'
-import { createConfirmationBinding } from './mcpConfirmationBinding'
 import { validateToolArguments } from './mcpArgValidation'
 import { handleSemanticGenerationGate } from './mcpSemanticGenerationFlow'
 import { createPlanTrustStore, planConfirmElicit } from './mcpPlanTrust'
 import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
-import { createSpendTrustStore, spendConfirmElicit } from './mcpSpendTrust'
 import { buildIntakeMessage, buildIntakeQuestions, buildIntakeSchema, resolveIntake, summarizeIntake } from './mcpBriefIntake'
 import type { AuthenticatedMcpClient } from './security'
 
@@ -53,7 +48,6 @@ import type { GenerationGateChallengeProjection, GenerationGateVerificationResul
 export type { GenerationGateChallengeProjection, GenerationGateConfirmation, GenerationGateVerificationResult } from './mcpGateConfirmation'
 
 const TOOL_UI_RESOURCE: Record<string, string> = {
-  nomi_generate: NOMI_LIVE_DRAFT_UI_URI,
   nomi_start_playbook: NOMI_LIVE_DRAFT_UI_URI,
   nomi_get_run: NOMI_LIVE_DRAFT_UI_URI,
   nomi_subscribe_run: NOMI_LIVE_DRAFT_UI_URI,
@@ -80,24 +74,19 @@ const PROTOCOL_VERSION = '2025-11-25'
 /** 服务端支持的协议版本，降序排列。 */
 export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'] as const
 
-// MCP 工具契约目录抽出到 mcpToolCatalog.ts（壳到 800/800 的 headroom 提取）；此处只 import 这份数据契约。
-import { MCP_TOOL_CATALOG } from './mcpToolCatalog'
+// tools/list 与 tools/call 共用同一份过滤后目录 resolver，避免“看不见但能调”。
+import { MCP_TOOL_RESOLVER } from './mcpToolCatalog'
 
-export const MCP_TOOL_NAMES = MCP_TOOL_CATALOG.map((tool) => tool.name)
-
-type ToolDef = (typeof MCP_TOOL_CATALOG)[number]
-const TOOL_BY_NAME = new Map<string, ToolDef>(MCP_TOOL_CATALOG.map((tool) => [tool.name, tool]))
-
+export const MCP_TOOL_NAMES = MCP_TOOL_RESOLVER.list().map((tool) => tool.name)
 /**
  * 只读工具（annotations.readOnlyHint）——**只查不改不花钱**的那几个。
  * 为什么必须标：宿主按它决定要不要每次弹确认（Codex 的 `default_tools_approval_mode = "writes"`
  * 就是「没标 read-only 的才问」）。不标 → 连「列一下项目」都要用户点一次同意，助手基本没法用；
- * 标错（把 nomi_generate 也标上）→ 花钱的生成被静默放行。只列查询类，其余一律按会改/会花钱对待。
+ * 标错 → 写能力可能被静默放行。只列查询类，其余一律按会改对待。
  */
 const READ_ONLY_TOOLS = new Set([
   'nomi_list_projects',
   'nomi_list_models',
-  'nomi_read_canvas',
   'nomi_get_generation_context',
   'nomi_operation_read',
   'nomi_get_run',
@@ -106,22 +95,17 @@ const READ_ONLY_TOOLS = new Set([
   'nomi_read_artifact',
 ])
 
-const INTENT_LABEL: Record<string, string> = { image: '一张画面', video: '一段视频', audio: '一段音频', text: '一段文本' }
-
-/** 人话花费提示（给确认对话框看）：产物类型 + 模型 + 提示词截断。不显金额（守卫不依赖金额）。 */
-function describeSpend(args: Record<string, unknown>): string {
-  const what = INTENT_LABEL[String(args?.intent || '')] || '一个素材'
-  const model = [args?.vendor, args?.modelKey].filter(Boolean).join(' · ') || '默认模型'
-  const promptStr = typeof args?.prompt === 'string' ? args.prompt : ''
-  const prompt = promptStr.trim() ? `「${promptStr.trim().slice(0, 50)}${promptStr.length > 50 ? '…' : ''}」` : ''
-  return `即将用 ${model} 生成${what}${prompt ? ' ' + prompt : ''}，将消耗模型额度。`
-}
-
 type RpcMessage = { jsonrpc?: string; id?: unknown; method?: string; params?: Record<string, unknown>; result?: unknown; error?: { code?: number; message?: string } }
 
 // 能力核 skills.list / skills.read 返回的形状（协议层据此把技能映射成 MCP resources/prompts）。
-type SkillSummaryFrame = { name: string; directoryName: string; description: string }
-type SkillContentFrame = { name: string; directoryName: string; description: string; body: string }
+type SkillSummaryFrame = {
+  name: string
+  directoryName: string
+  description: string
+  packageVersion: string
+  contentHash: string
+}
+type SkillContentFrame = SkillSummaryFrame & { body: string }
 
 /**
  * 建一个 MCP 协议处理器。喂入客户端发来的每一帧（handleIncoming），它经 transport.send 回响应；
@@ -134,16 +118,8 @@ export function createMcpProtocol(transport: McpTransport) {
   // 画布方案确认的会话级信任：某项目首次批量方案在聊天里批准过 → 本会话该项目后续批量直接放行。
   // 挂闭包 = 随这条 MCP 连接/会话存活，连接断即亡，不持久化（见 mcpPlanTrust.ts）。
   const planTrust = createPlanTrustStore()
-  // 付费的会话级信任（治「反复去软件确认」）：某项目批准一次 → 本会话该项目后续生成免问，
-  // 用满 SPEND_TRUST_REASK_AFTER 次再问一次。同样挂闭包 = 随这条连接存活，断即亡（见 mcpSpendTrust.ts）。
-  const spendTrust = createSpendTrustStore()
   // 在飞请求账本：取消（notifications/cancelled）与 stdio 断连都挂在它上面（见 mcpRequestRegistry.ts）。
   const requests = createMcpRequestRegistry()
-  // 付费确认的并发绑定（按 projectId）：两个首次付费请求同时进来时，第二个排队等第一个的确认结果，
-  // 而不是各弹各的卡。与生成门共用同一份并发语义（mcpConfirmationBinding.ts，P1 不造第二套）。
-  const spendConfirmBinding = createConfirmationBinding<{ supported: boolean; confirmed?: boolean }>({
-    isConfirmed: (result) => result.confirmed === true,
-  })
   let serverReqSeq = 0
   const pendingServerReqs = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout>; cleanup?: () => void }>()
 
@@ -165,10 +141,12 @@ export function createMcpProtocol(transport: McpTransport) {
 
   // tool result 载荷：文本兜底（宿主无 UI 时也看得到）+ structuredContent.nomiOutcome（模型稳定字段，
   // A2 收口在 mcpToolResults.ts——文本=转述原材料+参数回显，双语）。挂 widget 的工具额外带
-  // nomiDraft / nomiRun（宿主注入 iframe/window.openai 渲活面板）+ _meta.ui.resourceUri（标准）与
+  // nomiRun（宿主注入 iframe/window.openai 渲活面板）+ _meta.ui.resourceUri（标准）与
   // openai/outputTemplate（ChatGPT 别名）。always 附——宿主不支持则忽略这些附加字段（spec 设计），
   // 跨 Claude/ChatGPT/参考宿主通用（P4）；不 gate on 客户端声明，否则 ChatGPT 不声明该扩展就拿不到 widget。
   function buildToolResultPayload(toolName: string, args: Record<string, unknown>, result: unknown): Record<string, unknown> {
+    const resolvedTool = MCP_TOOL_RESOLVER.resolve(toolName)
+    if (resolvedTool && 'presentResult' in resolvedTool) return resolvedTool.presentResult(result)
     // content 块装配（text + 可选缩略图 image）抽到 mcpResultPayload（0c：壳文件不破 800 行）。
     const { content, outcome } = assembleToolResultContent(toolName, args, result, locale())
     const payload: Record<string, unknown> = { content }
@@ -187,16 +165,6 @@ export function createMcpProtocol(transport: McpTransport) {
       // base64 / _nomiPreviewUrl 签名链）各有去处（image block / widget），这里剥掉——否则 base64
       // 会在 nomiRunData 里重复一份大 payload（nomi_get_artifact 补图后尤甚）。
       structured.nomiRunData = stripInternalEnrichFields(result)
-      payload._meta = { ui: { resourceUri: uiUri }, 'openai/outputTemplate': uiUri }
-    } else if (toolName === 'nomi_generate' && uiUri) {
-      structured.nomiDraft = buildNomiDraftFromGenerate({
-        intent: typeof args.intent === 'string' ? args.intent : undefined,
-        prompt: typeof args.prompt === 'string' ? args.prompt : undefined,
-        projectId: typeof args.projectId === 'string' ? args.projectId : undefined,
-        vendor: typeof args.vendor === 'string' ? args.vendor : undefined,
-        modelKey: typeof args.modelKey === 'string' ? args.modelKey : undefined,
-        result,
-      })
       payload._meta = { ui: { resourceUri: uiUri }, 'openai/outputTemplate': uiUri }
     }
     if (Object.keys(structured).length) payload.structuredContent = structured
@@ -406,7 +374,7 @@ export function createMcpProtocol(transport: McpTransport) {
         capabilities: { tools: {}, resources: {}, prompts: {} },
         serverInfo: { name: 'nomi-capability-core', version: '0.1.0' },
         instructions:
-          '用 nomi_* 工具在本机驱动 Nomi：可安全发起制作草稿、读取 Run/事件/产物并深链回 Nomi；低层画布与单次生成工具继续兼容。' +
+          '用 nomi_* 工具在本机驱动 Nomi：可安全发起制作草稿、读取 Run/事件/产物并深链回 Nomi；付费生成只走 Run-owned 生成门。' +
           '另经 resources/prompts 暴露 Nomi 的「导演/编剧技能库」（从阿泽导演台整过来的电影方法论：拆镜头/运镜/一致性/摄影/对白/结构等）——' +
           '做视频/剧本前先 resources/list 看有哪些、resources/read 或 prompts/get 载入相关技能，再据其方法论写提示词、组装画布、驱动生成，产出质量更专业。',
       })
@@ -414,12 +382,15 @@ export function createMcpProtocol(transport: McpTransport) {
     }
     if (method === 'tools/list') {
       reply(id, {
-        tools: MCP_TOOL_CATALOG.map(({ name, description, inputSchema }) => {
+        tools: MCP_TOOL_RESOLVER.list().map((tool) => {
+          const { name, description, inputSchema } = tool
           // 挂活 widget 的工具：预声明 _meta.ui.resourceUri（MCP Apps 标准）+ openai/outputTemplate（ChatGPT 别名）
           // + 调用状态文案。always 广告（宿主不支持则忽略 _meta，spec 设计）→ 跨 Claude/ChatGPT 通用（P4）。
           const uiUri = TOOL_UI_RESOURCE[name]
           // 只读标注对所有宿主 always 广告（不支持的按 spec 忽略未知字段）→ Claude/Codex/Cursor 通用（P4）。
-          const annotations = READ_ONLY_TOOLS.has(name) ? { annotations: { readOnlyHint: true } } : {}
+          const projectedAnnotations = 'annotations' in tool ? tool.annotations : undefined
+          const annotations = projectedAnnotations ? { annotations: projectedAnnotations }
+            : READ_ONLY_TOOLS.has(name) ? { annotations: { readOnlyHint: true } } : {}
           return uiUri
             ? {
                 name, description, inputSchema, ...annotations,
@@ -437,7 +408,7 @@ export function createMcpProtocol(transport: McpTransport) {
     }
     if (method === 'tools/call') {
       const name = params?.name as string | undefined
-      const tool = name ? TOOL_BY_NAME.get(name) : undefined
+      const tool = name ? MCP_TOOL_RESOLVER.resolve(name) : undefined
       if (!tool) {
         replyError(id, -32602, `未知工具: ${name}`)
         return
@@ -461,8 +432,7 @@ export function createMcpProtocol(transport: McpTransport) {
         ? params._meta as Record<string, unknown>
         : {}
       const rawToken = meta.progressToken
-      const isLongTool = tool.name === 'nomi_generate'
-        || tool.name === 'nomi_start_playbook'
+      const isLongTool = tool.name === 'nomi_start_playbook'
         || tool.name === 'nomi_start_generation'
       const progress = createProgressReporter({
         send,
@@ -560,74 +530,6 @@ export function createMcpProtocol(transport: McpTransport) {
           }))
           return
         }
-        // 付费生成必须有真人确认。**判据是「谁能替我们问到真人」，不是「Nomi 窗口开着没」**：
-        // 请求经 MCP 进来，本身就证明人正坐在调用方那头（Claude/Codex/Cursor）；窗口开着 ≠ 注意力在 Nomi
-        // （用户桌面上常年挂着 Nomi）。按窗口路由 → 只要 Nomi 开着就把人赶去 App 点一下，白跑一趟。
-        //  ① 客户端声明 elicitation → 就地弹在调用方（**不管 App 开没开**），真人 accept 才带 spendConfirmed 放行；
-        //  ② 客户端问不了、App 开着 → 落到下面原样 invoke，由应用内确认卡兜底（唯一还能问到人的地方）；
-        //  ③ 两者都没有 → 无处问真人 → 诚实报错，绝不静默花钱。
-        // elicitSpendConfirm 在客户端没声明 elicitation 时返回 supported:false，故它就是①/②的唯一判据
-        // （不另读 clientSupportsElicitation，免两处能力判断漂移）。enforcement 仍在主进程硬闸。
-        if (tool.name === 'nomi_generate') {
-          const spendProjectId = typeof built.projectId === 'string' ? built.projectId : ''
-          // 会话级信任命中 → 这次不问（治「反复确认」，见 mcpSpendTrust.ts）。硬闸不受影响：
-          // 下游照旧逐次铸 node-bound 令牌、assertAndConsumeSpendGrant 逐次校验。
-          if (spendTrust.isTrusted(spendProjectId)) {
-            spendTrust.countPass(spendProjectId)
-            const result = await invokeForRequest(tool.method, built, { spendConfirmed: true })
-            reply(id, buildToolResultPayload(tool.name, args, result))
-            return
-          }
-          const reask = spendTrust.hasApprovedBefore(spendProjectId)
-          // 并发绑定（按 projectId）：两个首次付费请求同时到这里时，只有第一个真弹确认，第二个排队等
-          // 同一个结果——旧行为是两个都发现 isTrusted=false 于是各弹各的、各自放行（重复扣费风险）。
-          // 排队者复用的是**确认结果**不是**授权令牌**：它仍逐笔经主进程 assertAndConsumeSpendGrant
-          // 铸/校验自己的令牌，硬闸一步没少（见 mcpConfirmationBinding.ts 的边界注释）。
-          const confirm = await spendConfirmBinding.run(
-            spendProjectId,
-            () => elicitBooleanConfirm(spendConfirmElicit(describeSpend(args), reask), requestSignal),
-          )
-          if (confirm.supported) {
-            if (!confirm.confirmed) {
-              reply(id, { content: [{ type: 'text', text: '已取消：你未确认这次付费生成，未生成、未消耗额度。' }], isError: true })
-              return
-            }
-            try {
-              const result = await invokeForRequest(tool.method, built, { spendConfirmed: true })
-              // 只在真跑成功后记信任：invoke 抛错（无令牌/供应商失败）不该换来一段免问期。
-              spendTrust.trust(spendProjectId)
-              reply(id, buildToolResultPayload(tool.name, args, result))
-              return
-            } finally {
-              // 无论成败都摘掉确认绑定：成功 → 后续走 spendTrust 快路；失败 → 下次重新问真人，
-              // 别让一颗「已确认但没跑成」的 promise 永久挂在这个 projectId 上（那会让后续请求
-              // 复用一次早已过期的确认 = 没问就花钱）。
-              spendConfirmBinding.release(spendProjectId)
-            }
-          }
-          if (!transport.isAppOpen()) {
-            reply(id, {
-              content: [{ type: 'text', text: '已暂停：当前客户端不支持弹确认，Nomi 也没打开——没有地方能确认这次付费生成。请打开 Nomi 后再触发生成。节点/提示词若已通过其它工具写入则已保存。' }],
-              isError: true,
-            })
-            return
-          }
-          // App 开着但客户端问不了 → 走应用内确认卡。**invoke 成功即等于真人点了卡**：没点 → 无令牌 →
-          // 主进程 assertAndConsumeSpendGrant 抛错 → invoke 失败。故成功后同样记信任（这条路也要免掉
-          // 「反复」，否则 Claude Code 这类不声明 elicitation 的客户端一点好处都拿不到）。
-          // grantsSessionTrust 让那张卡把授权范围写在脸上——用户以为批的是「这一张」，别让他不知情地批掉一段。
-          built.grantsSessionTrust = true
-          // ⚠️ 这条路（App 内确认卡）**不能**把 invoke 塞进并发绑定里：那颗 promise 的值是「这一次生成的
-          // 结果」，让第二个请求复用它 = 两个请求拿同一张图、第二笔生成根本没发生。绑定只该共享「确认」，
-          // 不该共享「生成」。而这条路的确认与生成是**同一次 invoke**（invoke 成功即等于真人点了卡，
-          // 没点 → 无令牌 → assertAndConsumeSpendGrant 抛错），拆不开。
-          // 故这里的并发保护交给下游硬闸：每个请求各自铸/校验自己的令牌，真人点几张卡就放行几笔——
-          // 不会出现「一次确认放行两笔」，最坏情况只是用户看见两张卡（诚实，且每张都要单独点）。
-          const cardResult = await invokeForRequest(tool.method, built)
-          spendTrust.trust(spendProjectId)
-          reply(id, buildToolResultPayload(tool.name, args, cardResult))
-          return
-        }
         if (tool.name === 'nomi_request_generation_gate') {
           await handleSemanticGenerationGate(id, tool.name, args, built, {
             invoke: (method, params, signal) => invokeForRequest(method, params, { signal }),
@@ -658,6 +560,34 @@ export function createMcpProtocol(transport: McpTransport) {
     const SKILL_URI_PREFIX = 'nomi-skill://'
     const PRODUCTION_ARTIFACT_URI_PREFIX = 'nomi://project/'
 
+    function skillResourceUri(skill: SkillSummaryFrame): string | null {
+      if (!/^[A-Za-z0-9._-]{1,160}$/.test(skill.directoryName)) return null
+      if (!/^[A-Za-z0-9._-]{1,80}$/.test(skill.packageVersion)) return null
+      if (!/^[a-f0-9]{64}$/.test(skill.contentHash)) return null
+      return `${SKILL_URI_PREFIX}${encodeURIComponent(skill.directoryName)}/${encodeURIComponent(skill.packageVersion)}/${skill.contentHash}`
+    }
+
+    function parseSkillResourceUri(uri: string): {
+      directoryName: string
+      packageVersion: string
+      contentHash: string
+    } {
+      const match = /^nomi-skill:\/\/([^/]+)\/([^/]+)\/([a-f0-9]{64})$/.exec(uri)
+      if (!match) throw new Error(`技能资源 uri 无效: ${uri}`)
+      let directoryName: string
+      let packageVersion: string
+      try {
+        directoryName = decodeURIComponent(match[1])
+        packageVersion = decodeURIComponent(match[2])
+      } catch {
+        throw new Error(`技能资源 uri 编码无效: ${uri}`)
+      }
+      if (!/^[A-Za-z0-9._-]{1,160}$/.test(directoryName) || !/^[A-Za-z0-9._-]{1,80}$/.test(packageVersion)) {
+        throw new Error(`技能资源 uri 标识无效: ${uri}`)
+      }
+      return { directoryName, packageVersion, contentHash: match[3] }
+    }
+
     /** Parse the only production artifact resource shape we expose. IDs are validated again in dispatch/service. */
     function productionArtifactResource(uri: string): Record<string, string> | null {
       if (!uri.startsWith(PRODUCTION_ARTIFACT_URI_PREFIX)) return null
@@ -681,12 +611,10 @@ export function createMcpProtocol(transport: McpTransport) {
 
     if (method === 'resources/list') {
       const res = (await invokeForRequest('skills.list', {})) as { skills?: SkillSummaryFrame[] } | null
-      const skillResources = (res?.skills || []).map((s) => ({
-        uri: `${SKILL_URI_PREFIX}${s.directoryName}`,
-        name: s.name,
-        description: s.description,
-        mimeType: 'text/markdown',
-      }))
+      const skillResources = (res?.skills || []).flatMap((skill) => {
+        const uri = skillResourceUri(skill)
+        return uri ? [{ uri, name: skill.name, description: skill.description, mimeType: 'text/markdown' }] : []
+      })
       // 活 widget 资源（MCP Apps）：宿主预取渲染生成结果与 production Run 投影的活面板。
       const uiResources = [{
         uri: NOMI_LIVE_DRAFT_UI_URI,
@@ -732,25 +660,54 @@ export function createMcpProtocol(transport: McpTransport) {
         replyError(id, -32602, `未知资源 uri: ${uri}`)
         return
       }
-      const key = uri.slice(SKILL_URI_PREFIX.length)
-      const content = (await invokeForRequest('skills.read', { name: key })) as SkillContentFrame | null
-      if (!content?.body) {
-        replyError(id, -32602, `未找到技能资源: ${uri}`)
-        return
+      try {
+        const identity = parseSkillResourceUri(uri)
+        const content = (await invokeForRequest('skills.read', identity)) as SkillContentFrame | null
+        if (!content?.body) {
+          replyError(id, -32602, `未找到技能资源: ${uri}`)
+          return
+        }
+        reply(id, { contents: [{ uri, mimeType: 'text/markdown', text: content.body }] })
+      } catch (error) {
+        replyError(id, -32602, error instanceof Error ? error.message : String(error))
       }
-      reply(id, { contents: [{ uri, mimeType: 'text/markdown', text: content.body }] })
       return
     }
     if (method === 'prompts/list') {
       const res = (await invokeForRequest('skills.list', {})) as { skills?: SkillSummaryFrame[] } | null
-      // name 用 directoryName（斜杠命令友好，如 CodeBuddy 会转成 /director-cinematography）；无参数。
-      const prompts = (res?.skills || []).map((s) => ({ name: s.directoryName, title: s.name, description: s.description }))
+      // name 用 directoryName（斜杠命令友好，如 CodeBuddy 会转成 /director-cinematography）。
+      // 版本/hash 一并返回：客户端可以把 prompt 绑定到与 resources 相同的内容快照，避免
+      //「列表看到 A、get 却加载了后来写入的 B」的漂移。旧客户端仍可只传 name，get 会在
+      // 同一次请求内解析当前元数据；显式传入身份时则严格校验。
+      const prompts = (res?.skills || []).map((s) => ({
+        name: s.directoryName,
+        title: s.name,
+        description: s.description,
+        packageVersion: s.packageVersion,
+        contentHash: s.contentHash,
+      }))
       reply(id, { prompts })
       return
     }
     if (method === 'prompts/get') {
       const name = String(params?.name || '')
-      const content = (await invokeForRequest('skills.read', { name })) as SkillContentFrame | null
+      const listed = (await invokeForRequest('skills.list', {})) as { skills?: SkillSummaryFrame[] } | null
+      const meta = (listed?.skills || []).find((skill) => skill.directoryName === name || skill.name === name)
+      if (!meta) {
+        replyError(id, -32602, `未找到技能提示词: ${name}`)
+        return
+      }
+      const requestedVersion = typeof params?.packageVersion === 'string' ? params.packageVersion : ''
+      const requestedHash = typeof params?.contentHash === 'string' ? params.contentHash : ''
+      if ((requestedVersion && requestedVersion !== meta.packageVersion) || (requestedHash && requestedHash !== meta.contentHash)) {
+        replyError(id, -32602, `技能提示词已变化，请刷新列表后重试: ${name}`)
+        return
+      }
+      const content = (await invokeForRequest('skills.read', {
+        directoryName: meta.directoryName,
+        packageVersion: meta.packageVersion,
+        contentHash: meta.contentHash,
+      })) as SkillContentFrame | null
       if (!content?.body) {
         replyError(id, -32602, `未找到技能提示词: ${name}`)
         return

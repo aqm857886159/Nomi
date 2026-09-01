@@ -9,7 +9,7 @@
 //   - cameraMoveAutoCapture：{ targetNodeId?, fps, frameCount, move } —— 常驻 CameraMoveCaptureHost
 //     扫到它就离屏采帧拼 mp4 + 喂目标镜头 video_ref（下游共享 sink，两条产路同一契约）。
 // 见 docs/plan/2026-06-22-ai-camera-move-tool.md。
-import { generationCanvasTools } from '../../agent/generationCanvasTools'
+import { generationCanvasTools, readGenerationCanvasSnapshot } from '../../agent/generationCanvasTools'
 import { layoutPlannedNodes } from '../../agent/trajectoryLayout'
 import { getDefaultCategoryForNodeKind } from '../../model/generationNodeKinds'
 import { buildCameraMoveScene, type CameraMoveSpec } from './cameraMoveBuilder'
@@ -47,11 +47,11 @@ export function createCameraMoveReferenceNode(
   args: CreateCameraMoveReferenceNodeArgs,
 ): CreateCameraMoveReferenceNodeResult {
   const { spec, targetNodeId } = args
-  const inCtx = args.inCtx ?? (<T,>(fn: () => T): T => fn())
+  const inCtx = args.inCtx ?? (<T>(fn: () => T): T => fn())
   const state = buildCameraMoveScene(spec)
   const fps = CAMERA_MOVE_CAPTURE_FPS
   const frameCount = cameraMoveFrameCount(spec, fps)
-  const existing = generationCanvasTools.read_canvas().nodes
+  const existing = readGenerationCanvasSnapshot().nodes
   const position = layoutPlannedNodes(['image'], existing)[0]
   const created = inCtx(() =>
     generationCanvasTools.create_nodes([

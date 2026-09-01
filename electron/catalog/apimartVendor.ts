@@ -22,6 +22,10 @@ export const APIMART_VENDOR_SEED = {
   baseUrl: "https://api.apimart.ai",
   authType: "bearer" as const,
   authHeader: "Authorization",
+  // APIMart 是唯一 code-owned、已发布契约的直连 vendor（见 builtinVendorSeeds.ts VendorSeed.credentialMode
+  // 注释）——凭据经内置 Settings 卡直接生效，不走认证晋升。缺此字段则 isBuiltinDirectKeyVendor 恒 false、
+  // assertDirectKeyContract 早退，认证占用守卫（cert-owned 连接必须走其认证传输）就哑火。
+  credentialMode: "direct-key" as const,
 } as const;
 
 /** apimart 的 status 动词 → 我们的归一态（与 kie 不同：apimart 用 pending/processing/completed/...）。 */

@@ -51,7 +51,7 @@ function buildProfiledFetch(modelId: string, proxyUrl?: string): typeof fetch {
   const debug = process.env.LAB_DEBUG_REQUESTS === "1";
   const dispatcher = proxyUrl ? createExplicitProxyDispatcher(proxyUrl) : undefined;
 
-  return (async (url: any, init?: any) => {
+  return (async (url: RequestInfo | URL, init?: RequestInit) => {
     if (init?.body && typeof init.body === "string") {
       try {
         const body = JSON.parse(init.body) as Record<string, unknown>;
@@ -72,7 +72,7 @@ function buildProfiledFetch(modelId: string, proxyUrl?: string): typeof fetch {
     // 见 docs/workflow/2026-06-06-real-generation-e2e-loop.md「主进程埋点」）。成功不打，避免噪音。
     const urlStr = typeof url === "string" ? url : ((url as { url?: string })?.url || String(url));
     try {
-      const res = await appFetch(url as any, { ...init, ...(dispatcher ? { dispatcher } : {}) });
+      const res = await appFetch(url, { ...init, ...(dispatcher ? { dispatcher } : {}) });
       if (!res.ok) {
         let snippet = "";
         try { snippet = (await res.clone().text()).replace(/\s+/g, " ").slice(0, 300); } catch { /* body unreadable */ }

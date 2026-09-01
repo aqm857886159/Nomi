@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useGenerationCanvasStore } from './generationCanvasStore'
 import { setCanvasEventSinkForTests, type CanvasShadowEvent } from '../events/canvasEventEmitter'
 import type { GenerationCanvasNode, GenerationNodeResult, NodeGroup } from '../model/generationCanvasTypes'
+import { MEDIA_DIMENSION_UPDATE_OPTIONS } from '../nodes/nodeSizing'
 
 function node(id: string, categoryId: GenerationCanvasNode['categoryId'], groupId?: string): GenerationCanvasNode {
   return {
@@ -752,6 +753,30 @@ describe('selectNodesInRect (框选 AABB)', () => {
 })
 
 describe('updateNodes', () => {
+  it('keeps derived media measurements out of durable revisions and events', () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [node('media', 'shots')],
+      edges: [],
+      selectedNodeIds: [],
+      groups: [],
+    })
+    const beforeRevision = useGenerationCanvasStore.getState().persistRevision
+    const captured: CanvasShadowEvent[] = []
+    setCanvasEventSinkForTests((events) => captured.push(...events))
+    try {
+      useGenerationCanvasStore.getState().updateNode(
+        'media',
+        { meta: { imageWidth: 640, imageHeight: 360, imageAspectRatio: 16 / 9, previewHeight: 180 } },
+        MEDIA_DIMENSION_UPDATE_OPTIONS,
+      )
+      expect(useGenerationCanvasStore.getState().persistRevision).toBe(beforeRevision)
+      expect(captured).toEqual([])
+      expect(useGenerationCanvasStore.getState().nodes[0]?.meta?.imageWidth).toBe(640)
+    } finally {
+      setCanvasEventSinkForTests(null)
+    }
+  })
+
   it('applies a bulk edit with one persist revision and one undo step', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({
       nodes: [node('a', 'shots'), node('b', 'shots')],

@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { createApprovalReceiptAuthority } from "./approvalReceipt";
 import { createModuleRegistry } from "./moduleRegistry";
 import { createGenerationRuntimeAdapter, type GenerationProvider } from "./generationRuntimeAdapter";
 import type { PlanAssetReference } from "./executionContract";
@@ -12,9 +13,11 @@ import {
   type GenerationOperation,
   type GenerationOperationStore,
 } from "./mcpGenerationTools";
-import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV1 } from "./projectLease";
+import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
+import { createRunOwnedGenerationGateAuthority } from "./runOwnedGenerationGateAuthority";
 import { createProductionGenerationOperationStore } from "../productionRun/productionGenerationOperationStore";
 import { createProductionGenerationSubmission } from "../productionRun/productionGenerationSubmission";
+import { prepareProductionGenerationAuthorization } from "../productionRun/prepareProductionGenerationAuthorization";
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
 import { createMultiShotBatchScheduler } from "../productionRun/multiShotBatchScheduler";
 import { anchorCheckpointGateId } from "../productionRun/anchorCheckpoint";
@@ -53,7 +56,7 @@ const registry = createModuleRegistry([{
   }],
 }]);
 
-const lease: ProjectLeaseV1 = {
+const lease: ProjectLeaseV2 = {
   version: PROJECT_LEASE_VERSION,
   keyId: "key-1",
   algorithm: PROJECT_LEASE_ALGORITHM,
@@ -69,7 +72,7 @@ const lease: ProjectLeaseV1 = {
   issuedAt: "2026-08-25T00:00:00.000Z",
   expiresAt: "2026-08-25T01:00:00.000Z",
   audience: PROJECT_LEASE_AUDIENCE,
-  leasePrincipal: "mcp:test",
+  leasePrincipal: "mcp:codex",
   sessionId: "session-1",
   connectionNonce: "connection-1",
   revocationEpoch: 0,
@@ -157,8 +160,7 @@ function harness(vendorOrigin: string, submits: string[]) {
   createGenerationRuntimeAdapter({ providers: [provider] }); // sanity: the real adapter accepts this provider
   const submission = createProductionGenerationSubmission({
     repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
-    intentMacKey: "test-intent-key", provider,
-    resolveShotPrice: () => ({ known: true, amount: 6 }),
+    projectRevision: 0, intentMacKey: "test-intent-key", providers: [provider],
     materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.png` }),
     now,
   });
@@ -170,6 +172,16 @@ function harness(vendorOrigin: string, submits: string[]) {
     // The ownership guard under test — wired exactly the way the app would inject it.
     assertReferencesResolvable,
     now,
+    prepareAuthorization: ({ lease: projectLease, operation, contract, multiShot }) => prepareProductionGenerationAuthorization({
+      lease: projectLease,
+      projectRevision: 0,
+      operation,
+      contract,
+      ...(multiShot ? { multiShot } : {}),
+      providers: [provider],
+      resolveShotPrice: () => ({ known: true, amount: 6 }),
+      now: now(),
+    }),
     start: async (operation: GenerationOperation) => {
       const run = repository.read("project-1", operation.operationId)!;
       if (run.generationPlan?.state === "sealed") {
@@ -179,7 +191,35 @@ function harness(vendorOrigin: string, submits: string[]) {
       return { operationId: operation.operationId, nextAction: "observe" };
     },
   });
-  return { root, repository, handler, buildScheduler };
+  let receiptSequence = 0;
+  const receipts = createApprovalReceiptAuthority({
+    filePath: path.join(root, "approval-receipts.json"),
+    macKey: "test-receipt-key",
+    storeMacKey: "test-receipt-store-key",
+    keyId: "test-receipt-v1",
+    now,
+    randomId: () => `receipt-sequence-${++receiptSequence}`,
+  });
+  const generationAuthority = createRunOwnedGenerationGateAuthority({ owner: owner as never, operations, planning: handler, receipts, now });
+  return { root, repository, handler, buildScheduler, generationAuthority, receipts };
+}
+
+async function approveGenerationGate(
+  generationAuthority: ReturnType<typeof createRunOwnedGenerationGateAuthority>,
+  receipts: ReturnType<typeof createApprovalReceiptAuthority>,
+  operationId: string,
+  challengeToken: string,
+) {
+  const gesture = receipts.createMainProcessGestureAttestation(challengeToken, {
+    webContentsId: 1,
+    frameId: 0,
+    origin: "app://nomi",
+    decision: "accept",
+  });
+  const minted = receipts.mintReceipt(challengeToken, gesture);
+  const decided = await generationAuthority.authorizeGeneration({ params: { operationId }, lease, receipt: minted.receipt });
+  receipts.consumeReceipt(minted.token);
+  return decided;
 }
 
 afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }); clock = NOW_BASE; });
@@ -188,7 +228,7 @@ describe("P4 §5.1.4 — 用已有锚开新计划 (跨集同脸) over a real loo
   it("reused anchor = existing asset ref on every shot → 锚 0 提交; total submits = 视频镜数; no checkpoint; each shot's sub-contract carries the reused asset", async () => {
     const vendor = await startLoopbackVendor();
     const submits: string[] = [];
-    const { repository, handler } = harness(vendor.origin, submits);
+    const { repository, handler, generationAuthority, receipts } = harness(vendor.origin, submits);
     try {
       // 1. Open a NEW plan whose anchor is REUSED (an existing定妆照 asset). No role:"anchor" shot — the
       // reused asset rides as a `character` reference on each of the 2 video shots (nothing to generate for it).
@@ -205,9 +245,10 @@ describe("P4 §5.1.4 — 用已有锚开新计划 (跨集同脸) over a real loo
 
       // 2. Preview (zero provider calls) then gate_request → the REAL multi-shot gate projection.
       await handler({ capability: "preview", lease, params: { operationId } });
-      const gate = await handler({ capability: "gate_request", lease, params: { operationId } }) as {
+      const gate = await generationAuthority.requestGenerationGate({ lease, params: { operationId } }) as {
         shots?: { shots: Array<{ shotId: string }>; anchorChips?: unknown[] };
         maximumCost: number; costScope: string; nextAction: string;
+        handoff: { challengeToken: string };
       };
       expect(gate.nextAction).toBe("confirm");
       // Both video shots are included; NO anchor chip (the anchor is reused, not a generated anchor-role shot).
@@ -220,7 +261,7 @@ describe("P4 §5.1.4 — 用已有锚开新计划 (跨集同脸) over a real loo
       expect(gate.costScope).toBe(`generation.multi-shot:${operationId}`);
 
       // 3. Decide the gate → approve the whole batch.
-      const decided = await handler({ capability: "gate_decide", lease, params: { operationId, receiptId: "receipt-reuse" } }) as { nextAction: string };
+      const decided = await approveGenerationGate(generationAuthority, receipts, operationId, gate.handoff.challengeToken) as { nextAction: string };
       expect(decided.nextAction).toBe("start");
 
       let run = repository.read("project-1", operationId)!;
@@ -261,7 +302,7 @@ describe("P4 §5.1.4 — 用已有锚开新计划 (跨集同脸) over a real loo
   it("反向对照: 锚声明为『新生成』时 submits = 锚数 + 镜数 且停锚检查点 (vs 复用锚不停、少一次提交)", async () => {
     const vendor = await startLoopbackVendor();
     const submits: string[] = [];
-    const { repository, handler } = harness(vendor.origin, submits);
+    const { repository, handler, generationAuthority, receipts } = harness(vendor.origin, submits);
     try {
       // Same 2 video shots, but the anchor is FRESHLY GENERATED (a role:"anchor" image shot).
       const created = await handler({ capability: "create", lease, params: { operationId: "op-reuse", shots: [
@@ -271,8 +312,8 @@ describe("P4 §5.1.4 — 用已有锚开新计划 (跨集同脸) over a real loo
       ] } }) as { operation: { operationId: string } };
       const operationId = created.operation.operationId;
       await handler({ capability: "preview", lease, params: { operationId } });
-      await handler({ capability: "gate_request", lease, params: { operationId } });
-      await handler({ capability: "gate_decide", lease, params: { operationId, receiptId: "receipt-fresh" } });
+      const gate = await generationAuthority.requestGenerationGate({ lease, params: { operationId } }) as { handoff: { challengeToken: string } };
+      await approveGenerationGate(generationAuthority, receipts, operationId, gate.handoff.challengeToken);
       await handler({ capability: "start", lease, params: { operationId } });
 
       const run = repository.read("project-1", operationId)!;

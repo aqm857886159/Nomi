@@ -31,9 +31,9 @@
 
 三件逐条：
 
-1. **I-1｜productionRun 门编排破坏**（`budget-approval → shot-gates-never-open`，18 测受影响，实测 `pr223-finish@46066ed0`）。收编到 [RC-06 settlement barrier](../fixes/2026-09-01-rc-06-settlement-barrier.root-cause.draft.json) 的 `same_class_entry_points` 与 `class_regression_tests`；门状态必须持久化、approval/receipt/预算无副作用重复，18 测恢复后再扩类级并发/重启测试。
+1. **I-1｜productionRun 门编排破坏**（`budget-approval → shot-gates-never-open`，18 测受影响，实测 `pr223-finish@46066ed0`）。收编到 [RC-06 settlement barrier](../fixes/2026-09-01-rc-06-settlement-barrier.root-cause.json) 的 `same_class_entry_points` 与 `class_regression_tests`；门状态必须持久化、approval/receipt/预算无副作用重复，18 测恢复后再扩类级并发/重启测试。
 2. **I-2｜canvasRead 挂死**（`canvasReadCapturedSnapshotFlow.test.ts:467` 挂起）。定位等待/快照 release 生命周期的共享根因，禁止用延长超时掩盖；`pending` 在 release 后必 settle，切 project B 不污染 sealed A。
-3. **`deviated` 收编**（coordinator + helpers 共 9 处硬编码 `false`，只读不置真——维护者交叉验证实测 `pr223-finish@46066ed0` 上 `projectAgentExecutionCoordinator.ts` 6 处 + `projectAgentExecutionHelpers.ts` 3 处 = 正好 9 处，且全仓无任何置 `true` 的写入点，`projectAgentContracts.ts:256/267` 甚至把类型钉成字面量 `false`）。由 reducer/ledger 取得唯一 owner；报告案例与另一同类入口都能置真、重启恢复、UI projection 一致。收编到 [RC-01 durable owner](../fixes/2026-09-01-rc-01-durable-owner.root-cause.draft.json) 的偏差写入边界。
+3. **`deviated` 收编**（coordinator + helpers 共 9 处硬编码 `false`，只读不置真——维护者交叉验证实测 `pr223-finish@46066ed0` 上 `projectAgentExecutionCoordinator.ts` 6 处 + `projectAgentExecutionHelpers.ts` 3 处 = 正好 9 处，且全仓无任何置 `true` 的写入点，`projectAgentContracts.ts:256/267` 甚至把类型钉成字面量 `false`）。由 reducer/ledger 取得唯一 owner；报告案例与另一同类入口都能置真、重启恢复、UI projection 一致。收编到 [RC-01 durable owner](../fixes/2026-09-01-rc-01-durable-owner.root-cause.json) 的偏差写入边界。
 
 **附 I-3（维护者评审补条）**：L1 回放测试在 PR 描述如实标 **written-not-wired**、并补 wiring；不得把“已写测试”当“已接线跑通”。维护者交叉验证实测本机 `test:agent-system:l1` = 3/3、`test:agent-system:m0-m1` = 8/8（NodeNext 编译岛 `tests/agent-system/tsconfig.json` 生效）。
 
@@ -55,9 +55,9 @@
 
 出处：ClawArena（arXiv:2606.31174）、OrchBench（arXiv:2607.25656）。三条教训：
 
-1. **多模态回合不坍缩**：一个动作产出多个产物（图/视频/多候选）时，回合结构不能塌成单条文本；每个产物保持可寻址（threadId + seq + itemId），投影层不得把多产物压平成一段 modelText。对应 [RC-05 typed output projection](../fixes/2026-09-01-rc-05-typed-output-projection.root-cause.draft.json)。
+1. **多模态回合不坍缩**：一个动作产出多个产物（图/视频/多候选）时，回合结构不能塌成单条文本；每个产物保持可寻址（threadId + seq + itemId），投影层不得把多产物压平成一段 modelText。对应 [RC-05 typed output projection](../fixes/2026-09-01-rc-05-typed-output-projection.root-cause.json)。
 2. **阶段更新后旧信念复查**：script→storyboard→generate→review 阶段边界推进后，必须复查上一阶段写下的信念/摘要是否仍成立，不能把过期 summary 当现状；handoff 校验 ID/hash/budget 后才递增 contextRevision。对应执行计划 §4 RC-04（SummaryV1 + HandoffArtifact）。
-3. **保关键信息优于堆并行度**：宁可少并行、也要保住关键 ID / receipt / 预算态 100% 不丢；并行度是手段不是目标，长任务里“信息完整”优先于“同时跑更多”。对应 [RC-06 settlement barrier](../fixes/2026-09-01-rc-06-settlement-barrier.root-cause.draft.json) 的 unknown→reconcile 与 receipt 持久化。
+3. **保关键信息优于堆并行度**：宁可少并行、也要保住关键 ID / receipt / 预算态 100% 不丢；并行度是手段不是目标，长任务里“信息完整”优先于“同时跑更多”。对应 [RC-06 settlement barrier](../fixes/2026-09-01-rc-06-settlement-barrier.root-cause.json) 的 unknown→reconcile 与 receipt 持久化。
 
 **自查落法**：每层 PR body 的验收段新增一行“ClawArena/OrchBench 三条编排自查：多模态不坍缩 / 旧信念复查 / 保关键信息”，逐条给证据或标 N/A 并说明为何本层不涉及。
 

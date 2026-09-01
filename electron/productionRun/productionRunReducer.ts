@@ -15,61 +15,16 @@ import type {
   RunCommand,
 } from "./productionRunTypes";
 import { validateProductionExecutionBinding } from "./productionExecutionBinding";
-import { checkSealAffordability, type ShotPrice } from "./shotPricing";
+import {
+  applyGenerationAuthorizationGateDecision,
+  deriveGenerationContinuationAuthorizationState,
+  deriveGenerationReauthorizationState,
+  deriveSealedGenerationAuthorizationState,
+} from "./productionGenerationAuthorizationState";
+import { generationSealShotPrices, SealBudgetExceededError } from "./productionGenerationSeal";
+import { checkSealAffordability } from "./shotPricing";
 
-/**
- * P4 S2: raised when a seal is requested with a hard spend ceiling that cannot cover the known-price
- * subtotal of the included shots. Carries the structured "最多只能完成前 N 镜" signal (plan §3.1/§4) so
- * the caller can tell the user to change the checkbox selection or raise the cap and re-seal.
- */
-export class SealBudgetExceededError extends Error {
-  readonly code = "seal_budget_exceeded" as const;
-
-  constructor(
-    readonly maxAffordableShots: number,
-    readonly knownSubtotal: number,
-    readonly maxSpend: number,
-  ) {
-    super(`seal_budget_exceeded: hard spend ceiling ${maxSpend} covers only the first ${maxAffordableShots} shot(s)`);
-    this.name = "SealBudgetExceededError";
-  }
-}
-
-/**
- * P4 S2: parse the optional per-shot prices a caller derived from the catalog for the seal precheck.
- * Prices are keyed by shotId (order is taken from the included shots, i.e. checkbox order). A missing
- * entry for an included shot → that shot is unknown-priced (contributes 0 to the cap, flags certainty).
- */
-function shotPricesFrom(raw: unknown): Map<string, ShotPrice> | undefined {
-  if (raw === undefined) return undefined;
-  if (!Array.isArray(raw)) throw new Error("Generation seal shotPrices must be an array");
-  const prices = new Map<string, ShotPrice>();
-  for (const [index, value] of raw.entries()) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Invalid seal shot price at ${index}`);
-    const entry = value as { shotId?: unknown; price?: unknown };
-    const shotId = typeof entry.shotId === "string" ? entry.shotId.trim() : "";
-    if (!shotId) throw new Error(`Invalid seal shot price id at ${index}`);
-    const price = entry.price as ShotPrice | undefined;
-    if (!price || typeof price !== "object" || typeof (price as { known?: unknown }).known !== "boolean") {
-      throw new Error(`Invalid seal shot price value at ${index}`);
-    }
-    if (price.known && !(Number.isFinite(price.amount) && price.amount >= 0)) {
-      throw new Error(`Invalid seal shot price amount at ${index}`);
-    }
-    prices.set(shotId, price.known ? { known: true, amount: price.amount } : { known: false });
-  }
-  return prices;
-}
-
-/**
- * P4 S1 shot 谱系 = 一个 job 归属哪一镜。多镜 job 把 shotId 写进 `metadata.shotId`（子合同派生时带上）；
- * 单镜/legacy job 无此字段 → 归属默认镜（返回 undefined，等价于「不参与 shot 分组」）。
- * attempt 单调性、new_attempt 连坐豁免都按这个谱系键分组，绝不跨镜比较。
- */
-function jobShotLineage(job: Pick<ProductionJob, "metadata">): string | undefined {
-  const shotId = job.metadata?.shotId;
-  return typeof shotId === "string" && shotId.trim() ? shotId : undefined;
-}
+export { SealBudgetExceededError } from "./productionGenerationSeal";
 
 /** Update one shot inside a plan by id; throws if the plan has no such shot. */
 function replaceShot(
@@ -151,7 +106,8 @@ const ARTIFACT_STATUSES = new Set<ProductionArtifact["status"]>([
 ]);
 const GATE_STATUSES = new Set<ProductionGate["status"]>(["waiting", "approved", "rejected", "expired", "revoked"]);
 
-type ArtifactReviewDecision = "approved" | "changes_requested" | "rejected";
+export const ARTIFACT_REVIEW_DECISIONS = ["approved", "changes_requested", "rejected"] as const;
+export type ArtifactReviewDecision = (typeof ARTIFACT_REVIEW_DECISIONS)[number];
 
 function artifactVersion(value: ProductionArtifact): number {
   return Number.isInteger(value.version) && (value.version as number) > 0 ? value.version as number : 1;
@@ -345,7 +301,7 @@ export function applyProductionCommand(
       // P4 S2 seal precheck: when the caller supplies per-shot prices (derived from the catalog), the
       // reducer enforces the hard spend ceiling at the single source of truth. Absent shotPrices →
       // byte-identical to today (no precheck, no costCertainty) so the single-shot chain is untouched.
-      const shotPrices = shotPricesFrom(command.payload.shotPrices);
+      const shotPrices = generationSealShotPrices(command.payload.shotPrices);
       let costCertainty: ProductionGenerationPlan["costCertainty"];
       if (shotPrices) {
         // Precheck order = included shots in their declared order (checkbox order), single default shot
@@ -357,15 +313,40 @@ export function applyProductionCommand(
         if (!affordability.ok) throw new SealBudgetExceededError(affordability.maxAffordableShots, affordability.knownSubtotal, affordability.maxSpend);
         costCertainty = affordability.hasUnknownPrice ? "partial" : "known";
       }
+      const authorization = command.payload.authorization === undefined
+        ? undefined
+        : deriveSealedGenerationAuthorizationState({
+            run: current,
+            plan: currentPlan,
+            topLevelContract: contract,
+            ...(sealedShots ? { sealedShots } : {}),
+            preparation: command.payload.authorization,
+            now,
+          });
       return {
         run: {
           ...current,
+          ...(authorization
+            ? {
+                policy: { ...current.policy, maxSpend: authorization.envelope.budget.ledgerCeiling },
+                gates: [...current.gates, authorization.gate],
+                jobs: [...current.jobs, ...authorization.jobs],
+              }
+            : {}),
           generationPlan: {
             ...currentPlan,
             candidate: { ...currentPlan.candidate, sealedContractHash: contract.contractHash },
             contract,
             state: "sealed",
-            ...(sealedShots ? { shots: sealedShots, planHash: rawPlanHash } : {}),
+            ...(sealedShots ? { shots: sealedShots, planHash: authorization?.authorizationDigest ?? rawPlanHash } : {}),
+            ...(authorization
+              ? {
+                  authorizationEnvelope: authorization.envelope,
+                  authorizationDigest: authorization.authorizationDigest,
+                  authorizationGateId: authorization.envelope.gateId,
+                  planHash: authorization.authorizationDigest,
+                }
+              : {}),
             ...(costCertainty ? { costCertainty } : {}),
             updatedAt: now,
           },
@@ -376,34 +357,58 @@ export function applyProductionCommand(
       };
     }
     case "generation.trial_narrow": {
-      // P4 S4 试拍首镜 (§6 T3): narrow a SEALED multi-shot plan to only its first included video shot,
-      // clearing the plan-level receipt (a trial re-gate must re-confirm the smaller scope). Anchors stay
-      // included (the trial still needs the identity image). Idempotent: re-narrowing an already-narrowed
-      // plan is a no-op. This is a controlled reshape (not a user edit) so it operates on a sealed plan.
+      // Trial-first changes the provider payload and spend scope. Revoke the unapproved authority,
+      // return to draft, and force the normal prepare -> seal -> gate path to create a new digest.
       const currentPlan = current.generationPlan;
-      if (!currentPlan || currentPlan.state !== "sealed" || !currentPlan.shots) throw new Error("A sealed multi-shot plan is required to narrow to a trial shot");
+      if (!currentPlan || currentPlan.state !== "sealed" || !currentPlan.shots || !currentPlan.authorizationDigest || !currentPlan.authorizationGateId) {
+        throw new Error("A waiting authorized multi-shot plan is required to narrow to a trial shot");
+      }
+      const authorizationGate = current.gates.find((gate) => gate.gateId === currentPlan.authorizationGateId);
+      if (!authorizationGate || authorizationGate.status !== "waiting") {
+        throw new Error("Trial-first is available only before the spend gate is decided");
+      }
+      const abandonedJobs = current.jobs.filter((job) => job.authorizationDigest === currentPlan.authorizationDigest);
+      if (abandonedJobs.some((job) => job.status !== "authorization_required")) {
+        throw new Error("Trial-first cannot replace an authorization that has begun execution");
+      }
       const videoShots = currentPlan.shots.filter((shot) => shot.role !== "anchor");
       const firstIncludedVideo = videoShots.find((shot) => isShotIncluded(shot));
       if (!firstIncludedVideo) throw new Error("No included video shot to trial");
-      const alreadyNarrowed = videoShots.every((shot) => (shot.shotId === firstIncludedVideo.shotId) === isShotIncluded(shot));
-      if (alreadyNarrowed) return { run: current, eventType: "generation.plan.updated", message: currentPlan.operationId };
-      const rawPlanHash = typeof command.payload.planHash === "string" ? command.payload.planHash.trim() : "";
-      if (!rawPlanHash) throw new Error("A trial narrow requires a new plan hash");
       const shots = currentPlan.shots.map((shot) => {
-        if (shot.role === "anchor") return { ...shot, updatedAt: now };
-        const keep = shot.shotId === firstIncludedVideo.shotId;
-        return { ...shot, included: keep, approvedReceiptId: undefined, approvedAt: undefined, approvedAttempt: undefined, updatedAt: now };
+        const included = shot.role === "anchor" || shot.shotId === firstIncludedVideo.shotId;
+        return {
+          ...shot,
+          included,
+          candidate: { ...shot.candidate, sealedContractHash: undefined },
+          contract: undefined,
+          approvedReceiptId: undefined,
+          approvedAt: undefined,
+          approvedAttempt: undefined,
+          updatedAt: now,
+        };
       });
       return {
         run: {
           ...current,
+          planVersion: current.planVersion + 1,
+          gates: current.gates.map((gate) => gate.gateId === authorizationGate.gateId
+            ? { ...gate, status: "revoked", decidedAt: now }
+            : gate),
+          jobs: current.jobs.filter((job) => job.authorizationDigest !== currentPlan.authorizationDigest),
           generationPlan: {
             ...currentPlan,
+            state: "draft",
+            candidate: { ...currentPlan.candidate, sealedContractHash: undefined },
+            contract: undefined,
             shots,
-            planHash: rawPlanHash,
+            planHash: undefined,
+            authorizationEnvelope: undefined,
+            authorizationDigest: undefined,
+            authorizationGateId: undefined,
             approvedReceiptId: undefined,
             approvedAt: undefined,
             approvedAttempt: undefined,
+            costCertainty: undefined,
             updatedAt: now,
           },
           updatedAt: now,
@@ -465,59 +470,44 @@ export function applyProductionCommand(
         message: currentPlan.operationId,
       };
     }
-    case "generation.new_attempt": {
-      const currentPlan = current.generationPlan;
-      if (!currentPlan || !currentPlan.contract || (currentPlan.state !== "sealed" && currentPlan.state !== "submitted")) throw new Error("A submitted generation is required before a new attempt");
-      const job = record(command.payload, "job") as ProductionJob;
-      if (current.jobs.some((item) => item.jobId === job.jobId)) throw new Error(`Duplicate job: ${job.jobId}`);
-      // P4 S1: a per-shot attempt addresses one shot lineage. Absent shotId = single-shot (today's chain).
+    case "generation.reauthorize": {
       const rawShotId = typeof command.payload.shotId === "string" ? command.payload.shotId.trim() : "";
-      const shotId = rawShotId || undefined;
-      if (shotId && !(currentPlan.shots ?? []).some((shot) => shot.shotId === shotId)) throw new Error(`Generation shot not found: ${shotId}`);
-      // Attempt monotonicity is scoped to the SAME shot lineage — a sibling shot's attempt N must not
-      // block this shot's attempt N. For single-shot plans the lineage is "the default shot" (undefined),
-      // which keeps the original provider/model/stage comparison across the whole plan's default jobs.
-      const jobLineage = shotId ?? jobShotLineage(job);
-      const lineageConflict = current.jobs.some((item) =>
-        item.attempt >= job.attempt
-        && item.provider === job.provider
-        && item.model === job.model
-        && item.stageId === job.stageId
-        && (jobShotLineage(item) ?? undefined) === (jobLineage ?? undefined));
-      if (!Number.isInteger(job.attempt) || job.attempt < 1 || lineageConflict) {
-        throw new Error("Generation attempt must be newer than the previous attempt");
-      }
-      if (job.executionBinding) {
-        const binding = validateProductionExecutionBinding(job.executionBinding);
-        if (binding.runId !== current.runId || binding.providerNamespace !== job.provider || binding.providerIdempotencyKey !== job.idempotencyKey) throw new Error("Invalid execution binding for new generation attempt");
-      }
-      // Multi-shot: keep the plan-level receipt, reset ONLY this shot's per-shot approval + bump its
-      // attemptCount — never clear plan-level approval, never touch sibling shots (§3.3).
-      // Single-shot: keep today's behavior (the plan-level receipt IS the shot's, so it must be cleared).
-      const nextPlan: ProductionGenerationPlan = shotId
-        ? {
-            ...currentPlan,
-            state: "sealed",
-            shots: replaceShot(currentPlan, shotId, (shot) => ({
-              ...shot,
-              approvedReceiptId: undefined,
-              approvedAt: undefined,
-              approvedAttempt: undefined,
-              attemptCount: job.attempt,
-              updatedAt: now,
-            })),
-            updatedAt: now,
-          }
-        : { ...currentPlan, state: "sealed", approvedReceiptId: undefined, approvedAt: undefined, approvedAttempt: undefined, updatedAt: now };
+      const reauthorized = deriveGenerationReauthorizationState({
+        run: current,
+        ...(rawShotId ? { shotId: rawShotId } : {}),
+        preparation: command.payload.authorization,
+        now,
+      });
       return {
         run: {
           ...current,
-          generationPlan: nextPlan,
-          jobs: [...current.jobs, job],
+          policy: { ...current.policy, maxSpend: reauthorized.policyMaxSpend },
+          generationPlan: reauthorized.generationPlan,
+          gates: [...current.gates, reauthorized.gate],
+          jobs: [...current.jobs, reauthorized.job],
           updatedAt: now,
         },
-        eventType: "generation.attempt.created",
-        message: job.jobId,
+        eventType: "generation.attempt.authorization_requested",
+        message: reauthorized.job.jobId,
+      };
+    }
+    case "generation.continue_authorization": {
+      const continued = deriveGenerationContinuationAuthorizationState({
+        run: current,
+        preparation: command.payload.authorization,
+        now,
+      });
+      return {
+        run: {
+          ...current,
+          policy: { ...current.policy, maxSpend: continued.policyMaxSpend },
+          generationPlan: continued.generationPlan,
+          gates: [...current.gates, continued.gate],
+          jobs: [...continued.jobs],
+          updatedAt: now,
+        },
+        eventType: "generation.continuation.authorization_requested",
+        message: continued.gate.gateId,
       };
     }
     case "stage.upsert": {
@@ -610,11 +600,19 @@ export function applyProductionCommand(
       const choiceKey = status === "approved" && rawChoice && (currentGate.directionCandidates ?? []).some((candidate) => candidate.key === rawChoice)
         ? rawChoice
         : undefined;
+      const authorizationDecision = applyGenerationAuthorizationGateDecision({
+        run: current,
+        gate: currentGate,
+        status,
+        ...(typeof command.payload.receiptId === "string" ? { receiptId: command.payload.receiptId } : {}),
+        now,
+      });
       const gates = replaceById(current.gates, gateId, (gate) => gate.gateId, (gate) => ({
         ...gate,
         status,
         decidedAt: now,
         ...(choiceKey ? { decidedChoiceKey: choiceKey } : {}),
+        ...(authorizationDecision.receiptId ? { receiptId: authorizationDecision.receiptId } : {}),
       }));
       const jobs = status === "approved"
         ? current.jobs.map((job) => currentGate.jobIds.includes(job.jobId) && job.status === "authorization_required"
@@ -634,13 +632,15 @@ export function applyProductionCommand(
         }
         return stage;
       });
+      const generationPlan = authorizationDecision.generationPlan;
+      const decided = { ...current, gates, jobs, stages, ...(generationPlan ? { generationPlan } : {}) };
       const run = status === "approved" && current.status === "awaiting_contract"
-        ? transitionRun({ ...current, gates, jobs, stages }, "ready", now)
+        ? transitionRun(decided, "ready", now)
         : status === "approved" && current.status === "awaiting_direction"
-          ? transitionRun({ ...current, gates, jobs, stages }, "running", now)
+          ? transitionRun(decided, "running", now)
         : status === "approved" && current.status === "awaiting_rough_cut_review"
-          ? transitionRun({ ...current, gates, jobs, stages }, "awaiting_export", now)
-        : { ...current, gates, jobs, stages, updatedAt: now };
+          ? transitionRun(decided, "awaiting_export", now)
+        : { ...decided, updatedAt: now };
       return { run, eventType: "gate.decided", message: gateId };
     }
     case "plan.proposed": {

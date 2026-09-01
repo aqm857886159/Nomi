@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { importNativeFileFromPreload } from "./assets/nativeFileBridge";
-import type { AgentChatStartRequest, AgentChatHistoryRequest, AgentChatToolDecision, AgentChatWireEvent } from './harness/agentChatContracts';
+import { createCanvasReadSurfacePreloadBridge } from './surfacePortPreloadBridge';
+import type { ProjectAgentExecutionEvent, ProjectAgentPatch } from './shared/projectAgentContracts';
 
 type SyncResult<T> = { ok: true; value: T } | { ok: false; error: string };
 type ProductionDeepLinkPayload = { projectId: string; runId?: string; nodeId?: string; artifactId?: string };
@@ -339,9 +340,11 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   },
   exports: {
     startJob: (payload: unknown) => ipcRenderer.invoke("nomi:exports:start-job", payload),
+    list: () => ipcRenderer.invoke("nomi:exports:list"),
     writeTempInput: (payload: unknown) => ipcRenderer.invoke("nomi:exports:write-temp-input", payload),
     finishTempInput: (payload: unknown) => ipcRenderer.invoke("nomi:exports:finish-temp-input", payload),
     status: (jobId: string) => ipcRenderer.invoke("nomi:exports:status", jobId),
+    verify: (jobId: string) => ipcRenderer.invoke("nomi:exports:verify", jobId),
     cancel: (jobId: string) => ipcRenderer.invoke("nomi:exports:cancel", jobId),
     onEvent: (callback: (event: unknown) => void) => {
       const listener = (_event: unknown, payload: unknown) => callback(payload);
@@ -448,31 +451,6 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       const listener = (_event: unknown, payload: unknown) => callback(payload);
       ipcRenderer.on("nomi:review:event", listener as never);
       return () => ipcRenderer.removeListener("nomi:review:event", listener as never);
-    },
-  },
-  conversations: {
-    read: (projectId: string) => ipcRenderer.invoke("nomi:conversations:read", { projectId }),
-    write: (projectId: string, payload: { creation: unknown; generation: unknown; committedProposal?: unknown }) =>
-      ipcRenderer.invoke("nomi:conversations:write", { projectId, ...payload }),
-  },
-  agents: {
-    chatV2Start: (payload: AgentChatStartRequest) =>
-      ipcRenderer.invoke("nomi:agents:chatV2:start", payload) as Promise<{ sessionId: string }>,
-    confirmTool: (sessionId: string, toolCallId: string, decision: AgentChatToolDecision) =>
-      ipcRenderer.invoke("nomi:agents:chatV2:confirmTool", { sessionId, toolCallId, decision }),
-    cancelChatV2: (sessionId: string) => ipcRenderer.invoke("nomi:agents:chatV2:cancel", { sessionId }),
-    clearChatV2Session: (request: AgentChatHistoryRequest) => ipcRenderer.invoke("nomi:agents:chatV2:clearSession", request),
-    seedChatV2Session: (request: AgentChatHistoryRequest) => ipcRenderer.invoke("nomi:agents:chatV2:seedSession", request),
-    chatV2SessionAlive: (request: AgentChatHistoryRequest) =>
-      ipcRenderer.invoke("nomi:agents:chatV2:sessionAlive", request) as Promise<{ alive: boolean }>,
-    onChatV2Event: (sessionId: string, callback: (event: AgentChatWireEvent) => void) => {
-      const listener = (_event: unknown, payload: { sessionId: string; event: AgentChatWireEvent }) => {
-        if (payload && payload.sessionId === sessionId) callback(payload.event);
-      };
-      ipcRenderer.on("nomi:agents:chatV2:event", listener as never);
-      return () => {
-        ipcRenderer.removeListener("nomi:agents:chatV2:event", listener as never);
-      };
     },
   },
   onboarding: {
@@ -618,12 +596,10 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   skill: {
     list: () => invokeSync("nomi:skill:list"),
     exportPackage: (dirName: string) => invokeSync("nomi:skill:export", dirName),
-    importPackage: (payload: unknown) => invokeSync("nomi:skill:import", payload),
+    importPackage: (payload: unknown) => ipcRenderer.invoke("nomi:skill:import", payload),
     deleteByDir: (dirName: string) => invokeSync("nomi:skill:delete", dirName),
   },
-  // 能力核：上报当前窗口打开的项目，供外部调用的 A/B 路由（决定走渲染层网关还是磁盘网关）。
   capability: {
-    setActiveProject: (projectId: string) => ipcRenderer.send("nomi:capability:active-project", projectId),
     // 「接入 AI 编程助手」卡：读状态/配置 + 一键写入/撤销 ~/.claude.json。
     mcpInfo: () => invokeSync("nomi:capability:mcp-info"),
     installMcp: (client?: string) => invokeSync("nomi:capability:mcp-install", client),
@@ -649,6 +625,58 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       };
       ipcRenderer.on("nomi:capability:apply", listener);
       return () => ipcRenderer.removeListener("nomi:capability:apply", listener);
+    },
+  },
+  surface: createCanvasReadSurfacePreloadBridge(
+    (channel, payload) => ipcRenderer.invoke(channel, payload),
+    {
+      subscribe: (channel, listener) => {
+        const wrapped = (_event: unknown, payload: unknown) => listener(payload);
+        ipcRenderer.on(channel, wrapped);
+        return () => ipcRenderer.removeListener(channel, wrapped);
+      },
+      send: (channel, payload) => ipcRenderer.send(channel, payload),
+    },
+  ),
+  projectAgent: {
+    open: (binding: unknown) => ipcRenderer.invoke('nomi:projectAgent:open', { binding }),
+    snapshot: (subscriptionId: string) => ipcRenderer.invoke('nomi:projectAgent:snapshot', { subscriptionId }),
+    command: (command: unknown) => ipcRenderer.invoke('nomi:projectAgent:command', command),
+    release: (subscriptionId: string) => ipcRenderer.invoke('nomi:projectAgent:release', { subscriptionId }),
+    readProposalReceipt: (subscriptionId: string) =>
+      ipcRenderer.invoke('nomi:projectAgent:proposalReceipt:read', { subscriptionId }),
+    writeProposalReceipt: (subscriptionId: string, input: { expectedRevision: number; proposalId: string; operationId: string; lifecycle: string; proposal: unknown }) =>
+      ipcRenderer.invoke('nomi:projectAgent:proposalReceipt:write', {
+        subscriptionId,
+        expectedRevision: input.expectedRevision,
+        proposalId: input.proposalId,
+        operationId: input.operationId,
+        lifecycle: input.lifecycle,
+        proposal: input.proposal,
+      }),
+    transitionProposalReceipt: (subscriptionId: string, input: { expectedRevision: number; proposalId: string; operationId: string; lifecycle: string }) =>
+      ipcRenderer.invoke('nomi:projectAgent:proposalReceipt:transition', {
+        subscriptionId,
+        expectedRevision: input.expectedRevision,
+        proposalId: input.proposalId,
+        operationId: input.operationId,
+        lifecycle: input.lifecycle,
+      }),
+    clearProposalReceipt: (subscriptionId: string, input: { expectedRevision: number; proposalId: string; operationId: string }) =>
+      ipcRenderer.invoke('nomi:projectAgent:proposalReceipt:clear', { subscriptionId, ...input }),
+    onPatch: (handler: (patch: ProjectAgentPatch) => void) => {
+      const listener = (_event: unknown, payload: unknown) => {
+        if (payload && typeof payload === 'object' && !Array.isArray(payload)) handler(payload as ProjectAgentPatch);
+      };
+      ipcRenderer.on('nomi:projectAgent:patch', listener as never);
+      return () => ipcRenderer.removeListener('nomi:projectAgent:patch', listener as never);
+    },
+    onEvent: (handler: (event: ProjectAgentExecutionEvent) => void) => {
+      const listener = (_event: unknown, payload: unknown) => {
+        if (payload && typeof payload === 'object' && !Array.isArray(payload)) handler(payload as ProjectAgentExecutionEvent);
+      };
+      ipcRenderer.on('nomi:projectAgent:event', listener as never);
+      return () => ipcRenderer.removeListener('nomi:projectAgent:event', listener as never);
     },
   },
 });

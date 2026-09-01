@@ -11,7 +11,7 @@ import {
 // composer 附件入口可接受的类型（点击上传 / 拖拽 / 粘贴共用）。
 // 传输层格式无关（nomi-local），这里只做友好筛选 + 体验提示。
 export const COMPOSER_ATTACHMENT_ACCEPT =
-  'image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.markdown'
+  'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.markdown'
 
 type SetAttachments = (updater: (prev: ComposerAttachment[]) => ComposerAttachment[]) => void
 
@@ -24,6 +24,11 @@ function nextAttachmentId(): string {
 function readAssetUrl(asset: { data?: Record<string, unknown> }): string {
   const url = asset?.data?.url
   return typeof url === 'string' ? url : ''
+}
+
+function readAssetContentHash(asset: { data?: Record<string, unknown> }): string {
+  const contentHash = asset?.data?.contentHash
+  return typeof contentHash === 'string' ? contentHash : ''
 }
 
 export type UseComposerAttachments = {
@@ -59,14 +64,22 @@ export function useComposerAttachments(opts: {
     try {
       const asset = await importWorkbenchLocalAssetFile(file)
       const url = readAssetUrl(asset)
-      if (!url) throw new Error(i18n.t('runtime.attachments.uploadNoUrl'))
+      const contentHash = readAssetContentHash(asset)
+      if (!asset.id || !url || !contentHash) throw new Error(i18n.t('runtime.attachments.uploadNoUrl'))
       setAttachments((prev) =>
         prev.map((item) => {
           if (item.id !== id) return item
           if (item.previewUrl) {
             try { URL.revokeObjectURL(item.previewUrl) } catch { /* noop */ }
           }
-          return { ...item, status: 'ready', url, previewUrl: undefined }
+          return {
+            ...item,
+            status: 'ready',
+            assetId: asset.id,
+            contentHash,
+            url,
+            previewUrl: undefined,
+          }
         }),
       )
     } catch (caught: unknown) {

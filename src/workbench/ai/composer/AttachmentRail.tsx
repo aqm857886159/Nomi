@@ -80,7 +80,7 @@ function AttachmentChip({
             <NomiLoadingMark size={15} />
           </span>
         ) : null}
-        {readOnly ? null : <RemoveButton onRemove={onRemove} className="absolute -right-1 -top-1" />}
+        {readOnly ? null : <RemoveButton onRemove={onRemove} className="absolute right-0 top-0" />}
       </div>
     )
   }

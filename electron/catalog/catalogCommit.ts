@@ -2,11 +2,10 @@ import { firstString, isJsonRecord, nowIso, trim, type JsonRecord } from "../jso
 import { humanizeModelKey } from "./modelLabel";
 import { newapiImageEditProfileForModel, newapiTransportFor, type NewapiImageEditProtocol } from "./newapiTransport";
 import { consumedCanonicalKeys } from "./paramTranslate";
-import { nativeWireProfileForArchetype, type NativeWireProfile } from "./nativeWireProfiles";
-import { guessModelKind } from "./modelKindHeuristic";
 import { builtinVendorKeyForHostname } from "./builtinVendorSeeds";
+import type { NativeWireProfile } from "./nativeWireProfiles";
 import { hardenedFetchText } from "../hardenedFetch";
-import type { AiSdkProviderKind, BillingModelKind, HttpOperation, Model, ProfileKind, Vendor } from "./types";
+import type { BillingModelKind, HttpOperation, Model, ProfileKind, Vendor } from "./types";
 import type { ProfileOperationStage, TaskRequest } from "../runtime";
 import { modelHasPublishedExecution } from "../shared/modelPublication";
 import {
@@ -18,7 +17,6 @@ import {
 } from "./stagedVendorIdentity";
 import {
   mutateCatalog,
-  normalizeProviderKind,
   readCatalog,
   type CatalogMutation,
 } from "./catalogStore";

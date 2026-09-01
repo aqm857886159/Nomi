@@ -1,4 +1,4 @@
-import type { ExportJobEvent, ExportJobSnapshot } from '../../electron/export/exportJobManager'
+import type { ExportJobEvent, ExportJobSnapshot, ExportJobVerification } from '../../electron/export/exportJobManager'
 import type { WorkspaceFileListResult } from '../../electron/workspace/workspaceFileIndex'
 import type { ProviderKind } from './providerKind'
 import type { DesktopMediaBridge } from './bridgeMedia'
@@ -8,11 +8,14 @@ import type { DesktopSettingsBridge } from './settingsBridge'
 import type { DesktopOnboardingBridge } from './onboardingBridgeTypes'
 import type { DesktopProductionRunBridge } from './productionRunBridgeTypes'
 import type { CustomCallBridge } from './modelCatalogBridgeTypes'
-import type { AgentChatStartRequest, AgentChatHistoryRequest, AgentChatToolDecision, AgentChatWireEvent } from '../../electron/harness/agentChatContracts'
 import type { ComfyCandidateTestPayload, ComfyCandidateTestResult, ComfyWorkflowMutationResult } from './comfyCandidateContracts'
+import type { CanvasReadSurfaceBridge } from '../../electron/shared/surfacePortBinding'
+import type { ProjectAgentBridge } from './projectAgentBridgeTypes'
+export type { ProjectAgentBridge, ProjectAgentCommandWire } from './projectAgentBridgeTypes'
 export type { ProviderKind }
 export type { DesktopAdapterModeResult, DesktopProviderAdapterRun, DesktopProviderRegistration } from './onboardingBridgeTypes'
 export type { ScreenshotHotkeyStatus } from './bridgeMedia'
+
 /** 落盘的对话消息(conversation 域;draft/附件是 session 域不落盘)。 */
 export type PersistedAiMessage = {
   id: string
@@ -130,7 +133,7 @@ export type DesktopExportTempInputWriteResult = {
   size: number
 }
 
-export type { ExportJobEvent, ExportJobSnapshot }
+export type { ExportJobEvent, ExportJobSnapshot, ExportJobVerification }
 
 /** 应用信息（功能需求1 查看版本号）。canAutoInstall：未签名 mac 无法就地装，走手动下载兜底（真相源在主进程）。 */
 export type DesktopAppInfo = {
@@ -531,9 +534,11 @@ export type DesktopBridge = DesktopMediaBridge & DesktopConnectorBridge & {
   }
   exports: {
     startJob: (payload: DesktopExportJobStartPayload) => Promise<DesktopExportJobStartResult>
+    list: () => Promise<ExportJobSnapshot[]>
     writeTempInput: (payload: DesktopExportTempInputWritePayload) => Promise<DesktopExportTempInputWriteResult>
     finishTempInput: (payload: { jobId: string }) => Promise<DesktopMp4ExportResult>
     status: (jobId: string) => Promise<ExportJobSnapshot>
+    verify: (jobId: string) => Promise<ExportJobVerification>
     cancel: (jobId: string) => Promise<{ ok: boolean }>
     onEvent: (callback: (event: ExportJobEvent) => void) => () => void
     showInFolder: (payload: { projectId: string; relativePath: string }) => Promise<{ ok: boolean }>
@@ -553,21 +558,6 @@ export type DesktopBridge = DesktopMediaBridge & DesktopConnectorBridge & {
     comfyuiUnwatch?: (promptId: string) => Promise<void>
     comfyuiInterrupt?: (promptId: string) => Promise<{ ok: boolean; mode: 'targeted' | 'queue-only' | 'failed' }>
     onComfyuiProgress?: (callback: (event: unknown) => void) => () => void
-  }
-  agents: {
-    chatV2Start: (payload: AgentChatStartRequest) => Promise<{ sessionId: string }>
-    confirmTool: (
-      sessionId: string,
-      toolCallId: string,
-      decision: AgentChatToolDecision,
-    ) => Promise<{ ok: boolean; error?: string }>
-    cancelChatV2: (sessionId: string) => Promise<{ ok: boolean; error?: string }>
-    clearChatV2Session: (request: AgentChatHistoryRequest) => Promise<{ ok: boolean; error?: string }>
-    /** Ensure only: an existing full snapshot or cleared tombstone always wins. */
-    seedChatV2Session: (request: AgentChatHistoryRequest) => Promise<{ ok: boolean }>
-    /** S1b 诚实探针:LLM 是否还记得这个会话(气泡在而记忆空 → 必须画「新会话」分隔线)。 */
-    chatV2SessionAlive: (request: AgentChatHistoryRequest) => Promise<{ alive: boolean }>
-    onChatV2Event: (sessionId: string, callback: (event: AgentChatWireEvent) => void) => () => void
   }
   /** S5-a/b 画布事件 → 单写者日志仓库(seq/脱敏/截断在主进程单点);read 供 hydrate 尾部重放与轨迹。 */
   events?: {
@@ -608,18 +598,6 @@ export type DesktopBridge = DesktopMediaBridge & DesktopConnectorBridge & {
   /** S4-2b 技术自检结果广播(主进程异步旁路 → 节点 ⚠ 投影)。 */
   review?: {
     onEvent: (callback: (payload: unknown) => void) => () => void
-  }
-  /** S1b-3 对话持久化(conversation 域独立文件,不混画布 payload)。committedProposal=S6-5 事务回执(审计 A6),形状由画布层校验。 */
-  conversations?: {
-    read: (projectId: string) => Promise<{ ok: boolean; conversations: PersistedConversationsV2 | null }>
-    write: (
-      projectId: string,
-      payload: {
-        creation: PersistedConversationArea
-        generation: PersistedConversationArea
-        committedProposal?: unknown
-      },
-    ) => Promise<{ ok: boolean }>
   }
   onboarding: DesktopOnboardingBridge
   /** 版本号 + 检查更新 + 一键更新（功能需求1/2/3）。check/download/install 用户显式触发，进度/状态走 onEvent。 */
@@ -779,6 +757,10 @@ export type DesktopBridge = DesktopMediaBridge & DesktopConnectorBridge & {
     /** A 模式实时桥：注册处理器，接主进程转发来的外部 MCP 画布读/写/付费确认。返回反注册函数。 */
     onApply?: (handler: (op: string, payload: unknown) => unknown | Promise<unknown>) => () => void
   }
+  /** Main-issued read-only project Surface lifecycle; independent from capability.onApply. */
+  surface?: CanvasReadSurfaceBridge
+  /** The sole renderer transport for the app-process ProjectAgentHost. */
+  projectAgent?: ProjectAgentBridge
 }
 
 declare global {

@@ -15,6 +15,8 @@ function feedbackFor(result: ProductionActionResult): { messageKey: string; kind
       return { messageKey: 'generationCommon.production.canvasLanding.rework.resumed', kind: 'success' }
     case 'rework_declined':
       return { messageKey: 'generationCommon.production.canvasLanding.rework.reworkDeclined', kind: 'info' }
+    case 'resume_declined':
+      return { messageKey: 'generationCommon.production.canvasLanding.rework.resumeDeclined', kind: 'info' }
     case 'no_prior_attempt':
       return { messageKey: 'generationCommon.production.canvasLanding.rework.noPriorAttempt', kind: 'warning' }
     case 'unavailable':

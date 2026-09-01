@@ -84,7 +84,10 @@ const composer = () => win.locator('footer textarea').first()
  * 所谓「连续几次不变」在模型还没吐第一个字时就满足了，于是拿着 4 个字的作者名当产出去做判定，
  * 四条断言全红，看起来像功能坏了，其实是等待写错了。判定源只此一处，全仓复用。
  */
-const messages = () => win.locator('.workbench-creation-ai__messages')
+// Host cutover retired the creation-AI panel; the transcript now lives in the ResidentShell dock
+// (default-off agentHost flag, #194) as role="log" [data-agent-transcript], each turn an
+// [data-agent-item-kind] article.
+const messages = () => win.locator('[data-agent-transcript="true"]')
 
 async function ask(text, tag) {
   await composer().fill(text)

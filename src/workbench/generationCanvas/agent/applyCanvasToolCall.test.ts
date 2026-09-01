@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { CANVAS_READ_CAPABILITY } from '../../../../electron/shared/agentCapabilities/canvasRead'
 
 // availableModels 链路走 window.nomiDesktop IPC,node 测试环境不存在——mock 掉
 // (本测试的 case 不带 modelKey,真实代码路径也不会调它)。
@@ -68,6 +69,13 @@ describe('applyCanvasToolCall clientId 翻译', () => {
     resetClientIdRegistry()
     expect(resolveCanvasToolNodeId('n1')).toBe('n1')
   })
+
+  it.each([CANVAS_READ_CAPABILITY.id, CANVAS_READ_CAPABILITY.aliases.pi, CANVAS_READ_CAPABILITY.aliases.mcp])(
+    'rejects read route %s because reads belong to the main capability executor',
+    async (toolName) => {
+      await expect(applyCanvasToolCall(toolName, {})).rejects.toThrow(`unknown tool ${toolName}`)
+    },
+  )
 
   it('connect_canvas_edges 用 clientId 连边 → store 里是真实节点 id', async () => {
     const created = (await applyCanvasToolCall('create_canvas_nodes', {

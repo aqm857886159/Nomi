@@ -2,7 +2,7 @@
 // driver 侧 proposeDirections 停在 awaiting_direction 时，会让渲染层拟 2-3 个「创意方向」候选，
 // 供用户在方向门三选一（每个候选：短标题 + 一句话描述）。
 //
-// 通道选型：走**无工具**的一次性文本链路（sendWorkbenchAiMessage + mode:'chat'），
+// 通道选型：走**无工具**的一次性文本链路（single-shot text capability），
 // 不用 storyboard 那套画布 agent 工具循环——方向候选是纯文本产出，不碰画布、不花生成额度。
 // 参照 shotVerifyJudge.ts 的轻量判断通道（独立会话键 + 助手模型偏好 + mode:'chat'）。
 //

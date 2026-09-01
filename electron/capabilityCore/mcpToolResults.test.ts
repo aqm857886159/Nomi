@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { buildToolOutcome, buildToolErrorOutcome, buildProgressStartMessage } from './mcpToolResults'
+import { canvasReadResultSchema, projectCanvasRead } from '../shared/agentCapabilities/canvasRead'
+import {
+  buildCanonicalMcpToolResult,
+  buildToolOutcome,
+  buildToolErrorOutcome,
+  buildProgressStartMessage,
+} from './mcpToolResults'
 
 describe('buildToolOutcome (A2 结果重写：转述原材料 + 参数回显)', () => {
   it('start_playbook：状态首行 + 参数回显 + 下一步；结构化字段齐 runId/nextActions', () => {
@@ -41,158 +47,23 @@ describe('buildToolOutcome (A2 结果重写：转述原材料 + 参数回显)', 
     expect(some.outcome).toMatchObject({ eventCount: 1, nextCursor: 6 })
   })
 
-  it('generate：参数回显（模型/意图/参考数/截断提示词）+ 结构化 params + 工程级深链（数据+文本）', () => {
-    const { text, outcome } = buildToolOutcome(
-      'nomi_generate',
-      { projectId: 'p1', vendor: 'kling', modelKey: 'v2', intent: 'video', prompt: 'x'.repeat(60), references: ['a', 'b'] },
-      { assetId: 'a1' },
-    )
-    expect(text).toContain('已生成一段视频')
-    expect(text).toContain('kling · v2')
-    expect(text).toContain('参考 2')
-    expect(text).toContain('…') // 提示词截断
-    // 交付③：工程级深链既进结构化字段、也现于文本（纯文本宿主可点）。
-    expect(outcome).toMatchObject({ kind: 'generation', params: { vendor: 'kling', modelKey: 'v2', intent: 'video', references: 2 } })
-    expect(outcome!.openInNomi).toBe('nomi://project/p1')
-    expect(text).toContain('nomi://project/p1')
-  })
+  it('canvas.read text + structuredContent accept only the canonical safe result', () => {
+    const canonical = projectCanvasRead({
+      nodes: [{
+        id: 'node-a', kind: 'image', title: 'A', position: { x: 1, y: 2 },
+        result: { id: 'result-a', url: 'https://provider.invalid/a.png', providerTaskId: 'secret' },
+      }],
+      edges: [], groups: [], selectedNodeIds: ['node-a'],
+    })
+    const payload = buildCanonicalMcpToolResult(canvasReadResultSchema, canonical)
 
-  it('generate：openInNomi 优先用 result 里已有的深链（若上游给了 run 级链）', () => {
-    const { outcome } = buildToolOutcome(
-      'nomi_generate',
-      { projectId: 'p1', vendor: 'v', modelKey: 'm', intent: 'image', prompt: 'hi' },
-      { assetId: 'a1', openInNomi: 'nomi://project/p1/run/r9?artifact=a1' },
-    )
-    expect(outcome!.openInNomi).toBe('nomi://project/p1/run/r9?artifact=a1')
-  })
-
-  it('generate：无 projectId 时不编深链（openInNomi=null，文本不含链接行）', () => {
-    const { text, outcome } = buildToolOutcome(
-      'nomi_generate',
-      { vendor: 'v', modelKey: 'm', intent: 'image', prompt: 'hi' },
-      { assetId: 'a1' },
-    )
-    expect(outcome!.openInNomi).toBeNull()
-    expect(text).not.toContain('nomi://')
-  })
-
-  // ── W1 审片环交付标注（方案 T7）：result.verify → 文本审片行 + 结构化 outcome.verify ──
-
-  it('generate 无审片字段（默认路径）→ 文本无审片行、outcome 无 verify（转述与今天一致）', () => {
-    const { text, outcome } = buildToolOutcome(
-      'nomi_generate',
-      { projectId: 'p1', vendor: 'v', modelKey: 'm', intent: 'image', prompt: 'hi' },
-      { assetId: 'a1' }, // 无 verify
-    )
-    expect(text).not.toContain('审片')
-    expect('verify' in (outcome as Record<string, unknown>)).toBe(false)
-  })
-
-  it('generate 审片通过（含重试次数）→ 文本一句通过行 + outcome.verify.passed', () => {
-    const { text, outcome } = buildToolOutcome(
-      'nomi_generate',
-      { projectId: 'p1', vendor: 'v', modelKey: 'm', intent: 'image', prompt: 'hi' },
-      { assetId: 'a1', verify: { evaluated: true, passed: true, retries: 1, scores: { identity: 5, composition: 4, continuity: 5 }, flagged: [], suggestion: null } },
-    )
-    expect(text).toContain('审片')
-    expect(text).toContain('重试 1 次后通过')
-    expect(outcome).toMatchObject({ verify: { passed: true, retries: 1 } })
-    expect((outcome!.verify as { flagged: unknown[] }).flagged).toEqual([])
-  })
-
-  it('generate 审片一次过（retries=0）→ 文本「一次通过」', () => {
-    const { text } = buildToolOutcome(
-      'nomi_generate',
-      { projectId: 'p1', vendor: 'v', modelKey: 'm', intent: 'image', prompt: 'hi' },
-      { assetId: 'a1', verify: { evaluated: true, passed: true, retries: 0, scores: { identity: 5 }, flagged: [], suggestion: null } },
-    )
-    expect(text).toContain('一次通过')
-  })
-
-  it('generate 审片红标（重试用尽仍不达标）→ 文本逐轴点名 + 建议 + outcome.verify.flagged（诚实不藏）', () => {
-    const { text, outcome } = buildToolOutcome(
-      'nomi_generate',
-      { projectId: 'p1', vendor: 'v', modelKey: 'm', intent: 'image', prompt: 'hi' },
-      {
-        assetId: 'a1',
-        verify: {
-          evaluated: true, passed: false, retries: 2,
-          scores: { identity: 1, composition: 5, continuity: 5 },
-          flagged: [{ dimension: 'identity', dimensionName: '身份', score: 1, reason: '张冠李戴' }],
-          suggestion: '建议在 Nomi 里重滚这一镜',
-        },
-      },
-    )
-    expect(text).toContain('⚠️')
-    expect(text).toContain('身份第 1 档')
-    expect(text).toContain('张冠李戴')
-    expect(text).toContain('建议')
-    expect(outcome).toMatchObject({ verify: { passed: false, retries: 2 } })
-    expect((outcome!.verify as { flagged: Array<{ dimension: string }> }).flagged[0].dimension).toBe('identity')
-  })
-
-  it('generate 审片红标 · en locale → 英文审片行', () => {
-    const { text } = buildToolOutcome(
-      'nomi_generate',
-      { projectId: 'p1', vendor: 'v', modelKey: 'm', intent: 'image', prompt: 'hi' },
-      {
-        assetId: 'a1',
-        verify: {
-          evaluated: true, passed: false, retries: 2, scores: { identity: 1 },
-          flagged: [{ dimension: 'identity', dimensionName: 'identity', score: 1, reason: 'wrong subject' }],
-          suggestion: 're-roll this shot in Nomi',
-        },
-      },
-      'en',
-    )
-    expect(text).toContain('Review:')
-    expect(text).toContain('below bar')
-    expect(text).toContain('Suggestion:')
-  })
-
-  it('generate 审片 evaluated:false 无 reason（静默跳过）→ 不显审片行、outcome 无 verify', () => {
-    const { text, outcome } = buildToolOutcome(
-      'nomi_generate',
-      { projectId: 'p1', vendor: 'v', modelKey: 'm', intent: 'image', prompt: 'hi' },
-      { assetId: 'a1', verify: { evaluated: false, passed: true, retries: 0, scores: {}, flagged: [], suggestion: null } },
-    )
-    expect(text).not.toContain('审片')
-    expect('verify' in (outcome as Record<string, unknown>)).toBe(false)
-  })
-
-  // L3 韧性缺陷修复（2026-08-19）：判分挂起/连续 500 → orchestrate 硬界收成 skipped(reason)，
-  // 生成结果照常交付；交付文案要诚实标「审片：跳过（原因）」，结构化字段带 skipped/reason（D4 不藏）。
-  it('generate 审片 skipped(reason)（判分超时/失败）→ 文本「审片：跳过（原因）」+ outcome.verify.skipped/reason', () => {
-    const { text, outcome } = buildToolOutcome(
-      'nomi_generate',
-      { projectId: 'p1', vendor: 'v', modelKey: 'm', intent: 'image', prompt: 'hi' },
-      { assetId: 'a1', verify: { evaluated: false, skipped: true, reason: '判分模型无响应（已超时跳过，不影响生成）', passed: false, retries: 0, scores: {}, flagged: [], suggestion: null } },
-    )
-    expect(text).toContain('审片')
-    expect(text).toContain('跳过')
-    expect(text).toContain('判分模型无响应')
-    const v = (outcome as Record<string, unknown>).verify as { skipped?: boolean; reason?: string } | undefined
-    expect(v).toBeTruthy()
-    expect(v!.skipped).toBe(true)
-    expect(v!.reason).toContain('判分模型无响应')
-  })
-
-  it('generate 审片 skipped · en locale → 英文跳过行', () => {
-    const { text } = buildToolOutcome(
-      'nomi_generate',
-      { projectId: 'p1', vendor: 'v', modelKey: 'm', intent: 'image', prompt: 'hi' },
-      { assetId: 'a1', verify: { evaluated: false, skipped: true, reason: 'judge model unavailable', passed: true, retries: 0, scores: {}, flagged: [], suggestion: null } },
-      'en',
-    )
-    expect(text).toContain('Review')
-    expect(text.toLowerCase()).toContain('skipped')
-    expect(text).toContain('judge model unavailable')
-  })
-
-  it('画布低层工具维持 JSON 直出（text=null 不接管）', () => {
-    const { text, outcome } = buildToolOutcome('nomi_read_canvas', { projectId: 'p1' }, { nodes: [] })
-    expect(text).toBeNull()
-    expect(outcome).toBeNull()
+    expect(JSON.parse(payload.content[0]!.text)).toEqual(canonical)
+    expect(payload.structuredContent).toEqual(canonical)
+    expect(payload.content[0]!.text).not.toContain('provider.invalid')
+    expect(() => buildCanonicalMcpToolResult(canvasReadResultSchema, {
+      ...canonical,
+      nodes: [{ ...canonical.nodes[0], url: 'https://provider.invalid/leak.png' }],
+    })).toThrow()
   })
 })
 
@@ -283,7 +154,7 @@ describe('nomi_control_run 诚实敞口（中转已提交≈收不回）', () =>
 
 describe('buildToolErrorOutcome (A6 错误契约)', () => {
   it('已知错误码：人话原因 + 诊断码 + 恢复动作编号列表', () => {
-    const { text, outcome } = buildToolErrorOutcome('nomi_generate', new Error('generate failed: renderer_or_provider_unknown'))
+    const { text, outcome } = buildToolErrorOutcome('nomi_start_generation', new Error('generate failed: renderer_or_provider_unknown'))
     expect(text).toContain('✗')
     expect(text).toContain('找不到能执行这次生成的渲染器或供应商配置')
     expect(text).toContain('诊断 renderer_or_provider_unknown')
@@ -292,10 +163,9 @@ describe('buildToolErrorOutcome (A6 错误契约)', () => {
     expect((outcome.recoveryActions as string[]).length).toBeGreaterThan(0)
   })
 
-  it('未知错误：原样透传 message，不编造原因；generate 附「已完成内容安全」提示', () => {
-    const { text, outcome } = buildToolErrorOutcome('nomi_generate', new Error('ECONNRESET boom'))
+  it('未知错误：原样透传 message，不编造原因', () => {
+    const { text, outcome } = buildToolErrorOutcome('nomi_start_generation', new Error('ECONNRESET boom'))
     expect(text).toContain('ECONNRESET boom')
-    expect(text).toContain('已完成的内容安全')
     expect(outcome).toMatchObject({ errorCode: null, message: 'ECONNRESET boom' })
   })
 
@@ -306,6 +176,46 @@ describe('buildToolErrorOutcome (A6 错误契约)', () => {
     const { outcome } = buildToolErrorOutcome('nomi_start_generation', error)
     expect(outcome).toMatchObject({
       kind: 'error', errorCode: 'phase_not_ready', nextAction: 'finish P0', phase: 'schema_only', capability: 'start',
+    })
+  })
+
+  it.each([
+    'capability_invocation_unverified',
+    'capability_authority_invalid',
+    'capability_input_invalid',
+    'capability_policy_stale',
+    'capability_output_invalid',
+    'capability_timeout',
+    'capability_cancelled',
+    'capability_execution_failed',
+    'project_identity_unavailable',
+    'project_binding_stale',
+    'surface_port_suspended',
+    'surface_port_unavailable',
+    'surface_port_stale',
+    'surface_owner_mismatch',
+  ])('preserves canonical canvas-read code %s without leaking a raw cause', (code) => {
+    const privateCause = `/Users/private/${code}/provider-secret`
+    const error = Object.assign(new Error(privateCause), { code })
+    const { text, outcome } = buildToolErrorOutcome('nomi_read_canvas', error)
+
+    expect(outcome).toMatchObject({ kind: 'error', errorCode: code, message: code })
+    expect(text).not.toContain(privateCause)
+    expect(JSON.stringify(outcome)).not.toContain(privateCause)
+  })
+
+  it('keeps established lease recovery projection unchanged', () => {
+    const error = Object.assign(new Error('lease expired on this connection'), {
+      code: 'lease_expired', nextAction: 'open a new project session', capability: 'project.session',
+    })
+    const { text, outcome } = buildToolErrorOutcome('nomi_read_canvas', error)
+
+    expect(text).toContain('项目连接已过期，请重新选择当前项目')
+    expect(outcome).toMatchObject({
+      errorCode: 'lease_expired',
+      message: 'lease expired on this connection',
+      nextAction: 'open a new project session',
+      nextActions: ['reselect_project'],
     })
   })
 
@@ -341,9 +251,7 @@ describe('buildToolErrorOutcome (A6 错误契约)', () => {
 })
 
 describe('buildProgressStartMessage (A1 起始帧参数回显)', () => {
-  it('generate：已受理 + 模型 + 意图；start_playbook：草稿 + playbook；其它工具 null', () => {
-    expect(buildProgressStartMessage('nomi_generate', { vendor: 'kling', modelKey: 'v2', intent: 'video' }))
-      .toBe('已受理 · kling · v2 · video')
+  it('start_playbook：草稿 + playbook；其它工具 null', () => {
     expect(buildProgressStartMessage('nomi_start_playbook', { playbook: 'brand.promo' }))
       .toBe('正在创建制作草稿 · brand.promo')
     expect(buildProgressStartMessage('nomi_read_canvas', {})).toBeNull()

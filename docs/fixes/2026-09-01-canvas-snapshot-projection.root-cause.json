@@ -1,0 +1,86 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-01-canvas-snapshot-projection",
+  "problem_type": "Project Agent projection stale-snapshot overwrite",
+  "symptom": "The captured canvas snapshot flow hangs after execution because the renderer remains queued instead of observing the terminal result.",
+  "direct_cause": "A stale full snapshot returned by enqueue is applied after newer host patches have already advanced the renderer projection.",
+  "class_root": "Projection snapshots must be monotonic by hostRevision so asynchronous command responses cannot roll state backward over newer patches.",
+  "affected_population": [
+    "Project Agent canvas and non-canvas surfaces using command snapshots",
+    "Any enqueue, approval, stop, or future command racing with host patch delivery"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/projectAgentProjectionStore.ts",
+    "src/workbench/ai/projectAgentProjectionStore.test.ts"
+  ],
+  "entry_points": [
+    "projectAgentTurnCommands enqueue/decision/stop snapshot responses",
+    "Project Agent host patch subscription"
+  ],
+  "internal_only_reason": "The invariant is Nomi's renderer projection ordering contract; no third-party dependency controls it.",
+  "invariants": [
+    "A snapshot with a lower hostRevision than the installed projection is ignored.",
+    "Only snapshots with the current project binding can update the projection."
+  ],
+  "generality_proof": "Every command response that calls applySnapshot shares the projection store, while patches advance hostRevision through applyPatch; a monotonic guard at applySnapshot covers all command types and surfaces.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/projectAgentProjectionStore.ts",
+      "symbol": "createProjectAgentProjectionStore.applySnapshot",
+      "responsibility": "Reject stale or foreign full snapshots before they can overwrite the renderer projection."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/projectAgentProjectionStore.ts",
+      "entry_point": "applyPatch",
+      "disposition": "enforced",
+      "evidence": "applyPatch is the newer-state producer and advances hostRevision used by the snapshot ordering guard."
+    },
+    {
+      "path": "src/workbench/ai/projectAgentProjectionStore.ts",
+      "entry_point": "applySnapshot callers in projectAgentTurnCommands",
+      "disposition": "enforced",
+      "evidence": "enqueue, proposal decision, and stop command responses all converge on applySnapshot."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The asynchronous command/patch race is independent of surface identity and can recur for every command returning an older snapshot.",
+    "same_class_scan": [
+      "rg -n 'applySnapshot|applyPatch' src/workbench electron/projectAgentHost",
+      "Checked projectAgentTurnCommands enqueue/decide/stop callers and the host patch publication path."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/projectAgentProjectionStore.ts",
+    "invariant": "Full snapshots may not decrease the installed hostRevision for the same binding.",
+    "failure_mode": "Stale snapshots are ignored and the current projection remains available for the caller to observe or refresh.",
+    "exception_policy": "none",
+    "strategy": "Enforce revision ordering at the first shared renderer write boundary instead of adding timing assumptions to individual surfaces or tests.",
+    "artifacts": [
+      "src/workbench/ai/projectAgentProjectionStore.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/projectAgentProjectionStore.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/projectAgentProjectionStore.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No obsolete projection path is being removed; all existing callers remain on the canonical store."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The race is caused by application event ordering, not a dependency version.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration is needed; the guard applies to live renderer snapshots.",
+  "residual_risks": [
+    "A binding reset still requires the existing subscription lifecycle to install a fresh snapshot."
+  ]
+}

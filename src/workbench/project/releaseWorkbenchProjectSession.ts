@@ -9,10 +9,10 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { cloneBuiltinCategories, DEFAULT_CATEGORY_ID } from './projectCategories'
 import { createDefaultTimeline } from '../timeline/timelineMath'
 import { createDefaultWorkbenchDocument } from '../workbenchTypes'
-import { abandonCreationTurn } from '../creation/creationTurnController'
-import { abandonCanvasTurn } from '../generationCanvas/agent/canvasTurnController'
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
-import { resetTimelineAgentState } from '../timeline/agent/timelineToolCall'
+import { abandonPendingCanvasWrite } from '../generationCanvas/events/canvasWriteBoundary'
+import { invalidateAgentTurnStates } from '../ai/agentTurnLifecycle'
+import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY, DEFAULT_PROJECT_AGENT_WORK_MODE } from '../../../electron/shared/projectAgentContracts'
 
 /**
  * Release the currently opened project's heavy renderer-only state after it has
@@ -20,9 +20,8 @@ import { resetTimelineAgentState } from '../timeline/agent/timelineToolCall'
  * project library should not bump persistRevision or write an empty project.
  */
 export function releaseWorkbenchProjectRuntimeState(): void {
-  resetTimelineAgentState()
-  abandonCreationTurn()
-  abandonCanvasTurn()
+  invalidateAgentTurnStates()
+  abandonPendingCanvasWrite()
   // 审片结果和在途 judge 都是项目态；离开项目必须清掉并递增 requestId，旧回执随后到达也不能复活。
   useShotVerifyStore.getState().clear()
   clearCommittedProposal()
@@ -64,10 +63,12 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     creationSelectionText: '',
     creationAiModeId: 'general',
     creationActiveSkill: null,
-    creationAiDraft: '',
-    creationAiMessages: [],
-    creationAiAttachments: [],
-    creationAiError: '',
+    projectAgentDraft: '',
+    projectAgentAttachments: [],
+    projectAgentReferences: [],
+    projectAgentRunMode: DEFAULT_PROJECT_AGENT_WORK_MODE,
+    projectAgentApprovalPolicy: DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
+    projectAgentDockCollapsed: false,
     storyboardPlans: {},
     storyboardDesignsByDocumentId: {},
     activeStoryboardId: null,
@@ -80,6 +81,5 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     timelineSplitMode: false,
     timelineUndoStack: [],
     timelineRedoStack: [],
-    creationAssistantAutoOpen: false,
   })
 }

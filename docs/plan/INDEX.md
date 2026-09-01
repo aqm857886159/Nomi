@@ -26,6 +26,7 @@
 | [2026-09-01-pr258-derived-directions-eval.md](2026-09-01-pr258-derived-directions-eval.md) | #258 拆项评估定稿：①provider proxy 🟢（已随 #282 落地）②即梦 CLI 模型面 🟡（后被 v1.4.17 对齐 #291 取代其结论）③onboarding 加固 🟢（已随 #282 落地） | 📎 |
 | [2026-09-01-pr271-feedback-share-center-eval.md](2026-09-01-pr271-feedback-share-center-eval.md) | #271 反馈分享中心拆项评估：三方向全 🟢、外发面克制可辩护；按四步收口后已合入（provider 泄露路径证实并修复） | 📎 |
 | [2026-09-01-video-deconstruction-v1.md](2026-09-01-video-deconstruction-v1.md) | 拆解视频 v1 面板方案：一条参考视频→结构化分镜表→勾选镜头逐个落画布+自动编组→用这套结构起稿；含与 Agent 面板的右槽共存契约（③合流终局+过渡期互斥 R-C-1~7） | 🚧 |
+| [2026-09-02-canvas-media-derived-persistence-performance.md](2026-09-02-canvas-media-derived-persistence-performance.md) | 画布媒体派生尺寸回填性能回归修复：隔离运行时测量，避免视口揭示触发项目持久化 | ✅ |
 | [2026-09-01-tikhub-connector-v1.md](2026-09-01-tikhub-connector-v1.md) | TikHub 数据 connector v1：分享链接→无水印直链→喂现有拆解引擎（native-api / BYO-key / effect=spend / AssetSourceEvidence） | 🚧 |
 | [2026-06-07-apimart-curated-onboarding.md](2026-06-07-apimart-curated-onboarding.md) | 策展两家(kie+apimart)一键接入；战略从「通用接入」转向 | ✅ |
 | [2026-06-06-universal-model-onboarding.md](2026-06-06-universal-model-onboarding.md) | 「描述符+通用解释器接长尾」研究稿 | ⛔ |
@@ -87,6 +88,8 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-09-01-agent-m0-baseline-freeze.md](2026-09-01-agent-m0-baseline-freeze.md) | M0 基线冻结：owner map、50 项工具映射、旧路径、schema-v3 草案、红灯与 PR 切片 | ⏳ |
+| [2026-09-01-m1-round2-host-runtime.md](2026-09-01-m1-round2-host-runtime.md) | M1 round-2：Host/runtime 切片移植计划（Project Agent 执行协调器 + 常驻壳 transport） | ⏳ |
+| [2026-09-01-m1-final-assembly-closure.md](2026-09-01-m1-final-assembly-closure.md) | M1 终装收口：ProductionRun legacy 保留、RL2 投影修复、Pi 岛边界、lint 与全量 gates | ✅ |
 | [2026-08-29-agpl-only-no-cla.md](2026-08-29-agpl-only-no-cla.md) | **只发布 AGPL-3.0-only，不要求 CLA**：统一贡献、分发和 AGPL 合规服务边界 | ✅ |
 | [2026-08-29-cla-signature-ledger.md](2026-08-29-cla-signature-ledger.md) | CLA 签名账本与受保护主分支解耦（历史方案，已废弃） | ⛔ |
 | [2026-08-29-creation-selection-persistence.md](2026-08-29-creation-selection-persistence.md) | 创作区失焦后保留待替换文本的视觉选区 | ✅ |

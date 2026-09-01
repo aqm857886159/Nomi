@@ -4,13 +4,10 @@ import { IconHistory } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { ConversationHistoryPopover } from './ConversationHistoryPopover'
 import { ConversationHistoryList } from './ConversationHistoryList'
-import type { ConvArea } from './conversationThreads'
 
 export type WorkbenchAiHeaderActionsProps = {
   className?: string
   actionClassName?: string
-  /** 哪个面板:决定历史弹层操作的 area。 */
-  area: ConvArea
   /** 「新对话」处理器(归档当前线程 + 面板清理);由历史弹层顶部触发。 */
   onNewConversation: () => void
 }
@@ -20,7 +17,6 @@ export type WorkbenchAiHeaderActionsProps = {
 export function WorkbenchAiHeaderActions({
   className,
   actionClassName,
-  area,
   onNewConversation,
 }: WorkbenchAiHeaderActionsProps): JSX.Element {
   const { t } = useTranslation()
@@ -46,7 +42,7 @@ export function WorkbenchAiHeaderActions({
       </button>
       {open ? (
         <ConversationHistoryPopover anchorRef={anchorRef} onClose={() => setOpen(false)}>
-          <ConversationHistoryList area={area} onNewConversation={onNewConversation} onClose={() => setOpen(false)} />
+          <ConversationHistoryList onNewConversation={onNewConversation} onClose={() => setOpen(false)} />
         </ConversationHistoryPopover>
       ) : null}
     </div>

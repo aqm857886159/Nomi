@@ -1,14 +1,12 @@
-import type { CreationDocumentTools } from '../workbenchTypes'
 import type { ToolCallEvent } from '../ai/workbenchAgentRunner'
 import { importWorkbenchSkill, getAvailableSkillProviders, skillCapabilityFor, type SkillProviderKind } from '../api/skillApi'
-import { isWriteTool, type PendingDocToolCall, type TurnHandle } from './creationTurnController'
+import { isWriteTool, type PendingDocToolCall, type TurnHandle } from './creationToolContracts'
 
 /** Document executor shared by the Creation panel's stream callbacks. The
  * skill importer remains automatic; editor writes still wait for the same card. */
 export function createCreationToolHandler(input: {
   turn: TurnHandle
   allowsWrite: boolean
-  readTools: () => CreationDocumentTools | null
   enqueue: (call: PendingDocToolCall) => void
   skillSaveFailed: () => string
 }): (event: ToolCallEvent) => Promise<void> {
@@ -17,22 +15,20 @@ export function createCreationToolHandler(input: {
       await event.confirm({ ok: false, denied: true, message: 'creation turn abandoned' })
       return
     }
-    if (event.toolName === 'read_full_text' || event.toolName === 'read_selection') {
-      const tools = input.readTools()
-      const text = event.toolName === 'read_full_text' ? tools?.readFullText() : tools?.readSelectionText()
-      await event.confirm({ ok: true, result: { text: text ?? '' }, silent: true })
-      return
-    }
     if (event.toolName === 'author_skill') {
       const args = event.args && typeof event.args === 'object' ? event.args as Record<string, unknown> : {}
       const manifest = args.manifest
-      const result = importWorkbenchSkill({
+      const result = await importWorkbenchSkill({
         version: 'nomi-skill-v1', exportedAt: Date.now(),
         dirName: typeof args.dirName === 'string' && args.dirName.trim() ? args.dirName : 'imported-skill',
         files: { 'SKILL.md': typeof args.skillMarkdown === 'string' ? args.skillMarkdown : '', 'skill.json': JSON.stringify(manifest ?? {}, null, 2) },
       })
       if (!result.ok) {
         await event.confirm({ ok: false, message: result.error ?? input.skillSaveFailed() })
+        return
+      }
+      if (!input.turn.canWrite()) {
+        await event.confirm({ ok: false, denied: true, message: 'creation turn ended after skill save' })
         return
       }
       const needed = manifest && typeof manifest === 'object' && Array.isArray((manifest as Record<string, unknown>).requiredProviders)
