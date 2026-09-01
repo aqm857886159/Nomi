@@ -70,3 +70,31 @@
 - `seed_audio`：`/v1/sound_effect` 与 `/v1/text_to_speech`；Runway Eleven Sound Effects v2：`/v1/sound_effect`；Runway Eleven multilingual v2/v3：`/v1/text_to_speech`。都用 `/v1/tasks/{id}` 轮询，结果为 `output`。官方 OpenAPI 目前未给这些音频 mapping 一个新的本地直连旁路。
 
 **零额度结果：** 4 个合同文件共 47 项聚焦测试全绿；`check:model-certification-coverage` 报 66 entries，Runway reference identity 与实际生成集合一致。Runway live 只在未封印模型且预算记录齐全时执行，不能用 schema 通过替代产物检查。
+
+## 4. MiniMax 官方直连（H3 / Speech / M3）
+
+### 4.1 H3 视频
+
+- 当前 host 是 `https://api.minimaxi.com`，`Authorization: Bearer <key>`；旧 `api.minimax.io` 只作为历史 fallback 保留，不能作为当前合同真源。创建 `POST /v2/video_generation`，查询 `GET /v2/query/video_generation/{task_id}`。
+- `MiniMax-H3` t2v 使用 `prompt`、`resolution`、`duration`、`ratio`；图生/首尾帧与多模态参考共用创建端点但不是同一模式：首尾帧由 `first_frame_url/last_frame_url` 归一为 content roles，参考图/视频/音频归一为 `content` 中对应 `image_url/video_url/audio_url` + role。首尾帧和参考素材同时出现必须在本地拒绝。
+- 现有档案声明 H3-Max 为 480P/768P、5–15 秒，t2v 的 ratio 为 `16:9/9:16/1:1/4:3/3:4`；i2v 不伪造 ratio。映射体保留 `model=MiniMax-H3`，不能把 `MiniMax-M3`（chat）误当成异步视频模型。
+- 状态 `queued/running/succeeded/failed/cancelled/canceled` 统一到任务生命周期，成功取 `task.content.url`，失败取 `task.error.message`。全量字段干跑覆盖 t2v、首帧、首尾帧、图/视频/音频参考和冲突拒绝；本轮没有为直连 H3 增加新的付费调用。
+- 旧来源 `https://platform.minimaxi.com/docs/api-reference/video-generation-v2` 本次返回 404，已改为现行 [Video generation guide](https://platform.minimaxi.com/docs/guides/video-generation)，并由 `minimaxOfficial.test.ts` 钉住。
+
+### 4.2 Speech 与 M3
+
+- Speech 2.8 HD/Turbo 共用 `POST /v1/t2a_v2`，body 是 `model,text,stream=false,voice_setting{voice_id,speed,vol,pitch},audio_setting{sample_rate,bitrate,format,channel},language_boost,output_format=hex`；hex 结果解码为 mp3。官方当前 [Speech HTTP API](https://platform.minimaxi.com/docs/api-reference/speech-t2a-http) 可达；旧 `speech-t2a-v2` 路径 404。
+- `MiniMax-M3` 是 OpenAI-compatible chat brain，不能生成媒体 mapping；它维持无 async mapping 的 catalog 形状，避免把对话模型伪装成视频任务。
+
+## 5. ElevenLabs 官方直连（4 mappings）
+
+| mapping | endpoint | 字段逐项对账 | 证据/限制 |
+|---|---|---|---|
+| `eleven_v3` / TTS | `POST /v1/text-to-speech/{voice_id}` | text、model_id=`eleven_v3`、language_code、voice_settings stability/similarity_boost/style/speed/use_speaker_boost；query `output_format=mp3_44100_128` | [TTS reference](https://elevenlabs.io/docs/api-reference/text-to-speech)；结果 binary mp3 |
+| `music_v2` / music | `POST /v1/music` | prompt、model_id=`music_v2`、music_length_ms、force_instrumental；query `mp3_48000_192` | [Music compose](https://elevenlabs.io/docs/api-reference/music/compose)；`music_length_ms` 3000–600000，秒数在 mapping boundary 转毫秒 |
+| `eleven_text_to_sound_v2` / sfx | `POST /v1/sound-generation` | text、model_id、loop、duration_seconds、prompt_influence；query `mp3_44100_128` | [Sound effects](https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert)；`duration_seconds` 0.5–30，30 正常，31 本地拒绝 |
+| `scribe_v2` / transcribe | `POST /v1/speech-to-text` multipart | model_id、language_code、diarize、tag_audio_events、timestamps_granularity、file | [Speech-to-text](https://elevenlabs.io/docs/api-reference/speech-to-text)；本地 audio reference 作为 file，不伪造异步 query |
+
+鉴权统一为 `xi-api-key`，host `https://api.elevenlabs.io`。B2 遗产保留了 22→30 秒修正，新增 v3 合同和 9 项测试；本轮 key 仅用于后续明确列入“未封印”台账的最小探针，绝不写入源码或报告。
+
+**MiniMax/ElevenLabs 零额度结果：** MiniMax 9 项官方合同测试全绿；ElevenLabs 4 mapping 的静态 identity、参数转换和 SFX 上下界测试全绿。页面抓取只证明文档可达，账号资格与产物仍需单独探针/封印记录。

@@ -12,7 +12,6 @@
   "scope_paths": [
     "electron/catalog/runwayOfficial.ts",
     "electron/shared/videoCapabilities/runwayVideo.ts",
-    "electron/shared/videoCapabilities/seedance25.ts",
     "electron/catalog/vendorWireDriftFixes.test.ts",
     "electron/catalog/flagshipAudioVideoContracts.test.ts"
   ],
@@ -54,7 +53,7 @@
     "failure_mode": "A reference mapping cannot silently use image_to_video; the structural tests fail if its path, task kind, or promptImage shape drifts.",
     "exception_policy": "none",
     "strategy": "Replace boolean image inference with mode-driven construction and delete the old reference-as-image path in the same change.",
-    "artifacts": ["electron/catalog/runwayOfficial.ts", "electron/shared/videoCapabilities/runwayVideo.ts", "electron/shared/videoCapabilities/seedance25.ts"]
+    "artifacts": ["electron/catalog/runwayOfficial.ts", "electron/shared/videoCapabilities/runwayVideo.ts"]
   },
   "regression_tests": ["electron/catalog/vendorWireDriftFixes.test.ts", "electron/catalog/flagshipAudioVideoContracts.test.ts"],
   "class_regression_tests": ["electron/catalog/vendorWireDriftFixes.test.ts"],
