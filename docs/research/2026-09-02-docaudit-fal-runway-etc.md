@@ -124,3 +124,26 @@
 | Suno / Music | 本辖区无 Suno mapping；ElevenLabs `music_v2` 与 fal MiniMax Music 3 是不同模型 | 不把 KIE/APIMart Suno 入口复制到本班 |
 
 这张交叉索引是“模型族→provider adapter”的单一归属说明，不新增第二套模型 UI。能力是否可用由当前 provider mapping 决定；缺少官方 union 的模式保持 fail-closed。
+
+## 9. DOCAUDIT-B 付费封印台账
+
+> 只执行 acceptance matrix 中未标 ✅ 的入口；历史 matrix 的 ¥20.29 不计入本轮。哈希是当前 mapping JSON 的 SHA-256，不含 key。路径均在 `/tmp/docaudit-b/`，不进仓库。
+
+| 模型 × 封印模式 | mapping SHA-256 | 日期 | 产物 / 亲验 | 花销 |
+|---|---|---|---|---:|
+| `fal minimax/h3-max` × i2v（参考图） | `9344a55b8c788e708cfaa046edfb30fc342cc5d6ac347af1141bc5131afd7998` | 2026-09-02 | [fal_minimax_h3_max_reference_lime_20260902.mp4](/tmp/docaudit-b/artifacts/fal_minimax_h3_max_reference_lime_20260902.mp4)；抽帧同时看到 red robot、blue hat、lime square，ffprobe 5.184s/H.264/AAC | fal API 未返回单请求 cost |
+| `Eleven v3` × TTS | `34fcce7f970c941294fa2588e5b12947736c25d9985b793f294050316569c2ac` | 2026-09-02 | [elevenlabs_eleven_v3_20260902.mp3](/tmp/docaudit-b/artifacts/elevenlabs_eleven_v3_20260902.mp3)；ffprobe 1.840s/mp3 | ElevenLabs API 未返回单请求 cost |
+| `Eleven Sound Effects v2` × SFX | `10f1bd7e97c3b6685612f91be40e1efbf12e0c0ffe2d9ee59ded6dd04b54ddc6` | 2026-09-02 | [elevenlabs_eleven_text_to_sound_v2_20260902.mp3](/tmp/docaudit-b/artifacts/elevenlabs_eleven_text_to_sound_v2_20260902.mp3)；0.480s/mp3，duration_seconds=0.5 合同通过 | ElevenLabs API 未返回单请求 cost |
+| `Eleven Music v2` × music | `e27b5365ef1e1826de0852d73a258f37d3b34b05c61a566a70dc75693dd532f7` | 2026-09-02 | [elevenlabs_music_v2_20260902.mp3](/tmp/docaudit-b/artifacts/elevenlabs_music_v2_20260902.mp3)；3.024s/mp3，music_length_ms=3000 | ElevenLabs API 未返回单请求 cost |
+| `Scribe v2` × transcribe | `85f280b9a63b764fb38f28aea1cb4693eee570304b907865671c0fdc8f7c4f` | 2026-09-02 | [elevenlabs_scribe_v2_20260902.json](/tmp/docaudit-b/artifacts/elevenlabs_scribe_v2_20260902.json)；新产出的 Eleven v3 音频识别为 `这是红色机器人。` | ElevenLabs API 未返回单请求 cost |
+
+### 9.1 额度阻断与探针事故收据
+
+- Runway `seedance2_5`、`seedance2`、`veo3.1` 的最小 t2v 请求（4–5 秒、最小 ratio、audio=false）均 HTTP 400：`You do not have enough credits to run this task.` 服务端仅返回错误和官方 API 文档 URL，**没有 current/required credits，因此精确差额不可得**；无 task id、无产物、无封印，不重试。
+- fal 前置空体探针的三个 request id 都进入 `COMPLETED`，结果分别 HTTP 422 缺少 `prompt`（H3 另含 duration 超上限），无产物；取消已来不及，fal API 未返回 cost/charge 字段，故台账将它们标为“探针失败、非封印”，不编造金额。
+- ElevenLabs `GET /v1/user` 返回 `payg` 且账户可用；四个 mapping 的最小请求均 HTTP 200。该 API 只回账户计数/限制，不回本次美元或人民币扣费；本轮账面花销按**供应商未披露**记录，不能声称一个未经账单确认的精确人民币总额。已停止继续付费，预算上限为 ¥35，待 provider billing 明细才能把“未披露”换成精确数。
+
+## 10. 本轮验证边界
+
+- 本地 dry-run 展开 91 个现存 non-KIE/non-APIMart mappings（fal 17、Runway 56、MiniMax 4、ElevenLabs 4、Agnes 6、Volcengine 4），每个都有 POST/path；参考/首尾帧槽均参与了模式清单检查。
+- `check:model-certification-coverage`、`check:root-cause-contracts`、相关 contract/loopback 共 47 项已绿；官方页面、静态 contract、网关探针、真实产物四种证据分开记录。未把“页面 200”“队列 202”“账户可达”升级成“产物封印”。
