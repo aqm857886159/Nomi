@@ -57,6 +57,7 @@
     "check:docs-index": "node ./scripts/check-docs-index.mjs",
     "check:doc-status": "node ./scripts/check-doc-status.mjs",
     "check:ledger": "node ./scripts/build-delivery-ledger.mjs --check",
+    "check:handoff": "node ./scripts/check-handoff.mjs",
     "gen:ledger": "node ./scripts/build-delivery-ledger.mjs",
     "ledger:brief": "node ./scripts/build-delivery-ledger.mjs --brief",
     "check:i18n": "node ./scripts/check-i18n-visible-text.mjs && tsx ./scripts/check-i18n-key-parity.ts && tsx ./scripts/check-i18n-key-refs.ts && node ./scripts/check-i18n-fragile-match.mjs",

@@ -1,6 +1,7 @@
 import { extensionFromContentType } from "../assets/mediaTypes";
 import { buildProfileHttpRequest } from "../catalog/profileHttpRequest";
 import type { HttpOperation, Model, Vendor } from "../catalog/types";
+import { desktopT } from "../i18n";
 import { firstString } from "../jsonUtils";
 import type { TaskRequest } from "../runtime";
 import { pathValues } from "../tasks/responseParsing";
@@ -35,17 +36,17 @@ function audioFormatFromWire(body: unknown, query: Record<string, unknown>): str
 
 function decodeEncodedAudio(value: unknown, encoding: "hex" | "base64"): Buffer {
   if (typeof value !== "string" || !value.trim()) {
-    throw new Error("配音生成失败：供应商未返回声明的音频数据");
+    throw new Error(desktopT("syncAudio.missingDeclaredData"));
   }
   const encoded = value.replace(/\s+/g, "");
   if (encoding === "hex") {
     if (encoded.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(encoded)) {
-      throw new Error("配音生成失败：供应商返回无效的十六进制音频");
+      throw new Error(desktopT("syncAudio.invalidHex"));
     }
     return Buffer.from(encoded, "hex");
   }
   if (!/^[A-Za-z0-9+/_-]*={0,2}$/.test(encoded)) {
-    throw new Error("配音生成失败：供应商返回无效的 Base64 音频");
+    throw new Error(desktopT("syncAudio.invalidBase64"));
   }
   return Buffer.from(encoded.replace(/-/g, "+").replace(/_/g, "/"), "base64");
 }
@@ -66,10 +67,10 @@ function decodeAudioBody(
     try {
       json = JSON.parse(responseBytes.toString("utf8"));
     } catch {
-      throw new Error("配音生成失败：供应商返回无效的 JSON 音频响应");
+      throw new Error(desktopT("syncAudio.invalidJson"));
     }
     const bytes = decodeEncodedAudio(pathValues(json, declared.dataPath)[0], declared.encoding);
-    if (bytes.byteLength === 0) throw new Error("配音生成失败：供应商返回空音频");
+    if (bytes.byteLength === 0) throw new Error(desktopT("syncAudio.empty"));
     return {
       bytes,
       contentType: declared.contentType,
@@ -77,7 +78,7 @@ function decodeAudioBody(
     };
   }
 
-  if (responseBytes.byteLength === 0) throw new Error("配音生成失败：供应商返回空音频");
+  if (responseBytes.byteLength === 0) throw new Error(desktopT("syncAudio.empty"));
   if (declared && typeof declared === "object") {
     const upstreamType = responseContentType.startsWith("audio/") ? responseContentType : "";
     return {

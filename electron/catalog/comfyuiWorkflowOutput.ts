@@ -1,4 +1,5 @@
 import type { ComfyGraph, OutputNodeCandidate, WorkflowBinding } from './comfyuiWorkflowImport'
+import { desktopT } from '../i18n'
 
 type OutputKind = NonNullable<WorkflowBinding['outputKind']>
 type ResolvedOutput = { outputNodeId: string; outputKind: OutputKind }
@@ -52,20 +53,20 @@ export function resolveComfyWorkflowOutput(graph: ComfyGraph, binding: WorkflowB
   if (!nodeId) {
     const suggested = suggestedComfyOutput(comfyOutputCandidates(graph))
     if (suggested) return suggested
-    throw new Error('工作流没有可用的成品输出，请添加保存图片或视频的输出节点。')
+    throw new Error(desktopT('comfyWorkflow.noOutput'))
   }
   const node = graph[nodeId]
-  if (!node) throw new Error(`成品输出节点 #${nodeId} 不存在，请重新选择输出节点。`)
+  if (!node) throw new Error(desktopT('comfyWorkflow.outputNodeMissing', { id: nodeId }))
   const classType = node.class_type ?? ''
   if (/^CreateVideo$/i.test(classType)) {
     const outputs = downstreamVideoOutputs(graph, nodeId)
     if (outputs.length === 1) return { outputNodeId: outputs[0].nodeId, outputKind: 'video' }
-    throw new Error('CreateVideo 不是成品输出，请选择下游保存视频的节点。')
+    throw new Error(desktopT('comfyWorkflow.createVideoNotOutput'))
   }
   const kind = comfyOutputKind(classType)
-  if (kind === 'unsupported') throw new Error(`暂不支持 ${classType} 的成品输出类型。`)
+  if (kind === 'unsupported') throw new Error(desktopT('comfyWorkflow.unsupportedOutput', { classType }))
   // Explicit declarations remain available for custom nodes; absence is never guessed as image.
   const outputKind = kind ?? binding.outputKind
-  if (!outputKind) throw new Error(`无法识别 ${classType} 的成品类型，请明确指定输出类型。`)
+  if (!outputKind) throw new Error(desktopT('comfyWorkflow.unknownOutput', { classType }))
   return { outputNodeId: nodeId, outputKind }
 }

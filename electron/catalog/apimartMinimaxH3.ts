@@ -4,6 +4,7 @@
 // undefined，但存量节点/旧 mapping 仍可能把两组值都带到渲染后的 body；这里在扣费与
 // HTTP 发送前做模型专属且可审计的校验，并在真正发送前保留同一校验作纵深防御。
 import { registerRequestTransform, type RequestTransformContext } from "../tasks/requestTransforms";
+import { desktopT } from "../i18n";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -33,7 +34,7 @@ function flatRequestHasMixedFrameAndReference(request: unknown): boolean {
 /** Pure contract guard. It must stay free of localization, uploads, spend, and network effects. */
 export function validateMinimaxH3Body(body: unknown, context?: RequestTransformContext): void {
   if (flatRequestHasMixedFrameAndReference(context?.request)) {
-    throw new Error("MiniMax H3 请求参数冲突：首尾帧与参考素材不能同时使用，请只保留一组输入。");
+    throw new Error(desktopT("minimaxH3.mixedReferences"));
   }
   if (!isRecord(body)) return;
 
@@ -44,10 +45,10 @@ export function validateMinimaxH3Body(body: unknown, context?: RequestTransformC
   const hasReference = hasImageReference || hasVideoReference || hasAudioReference;
 
   if (hasFrame && hasReference) {
-    throw new Error("MiniMax H3 请求参数冲突：首尾帧与参考素材不能同时使用，请只保留一组输入。");
+    throw new Error(desktopT("minimaxH3.mixedReferences"));
   }
   if (!hasFrame && hasAudioReference && !hasImageReference && !hasVideoReference) {
-    throw new Error("MiniMax H3 多模态参考中音频不能单独输入，请至少提供参考图或参考视频。");
+    throw new Error(desktopT("minimaxH3.audioOnly"));
   }
 }
 

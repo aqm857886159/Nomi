@@ -11,6 +11,7 @@ import { isJsonRecord, type JsonRecord } from "../jsonUtils";
 import { requestJson, requestMultipart, vendorResponseLimitForKind, VendorRequestError } from "../vendor/vendorHttp";
 import { CustomCallSandboxError, runCustomCallSandbox } from "./customCallSandbox";
 import type { Model, ProfileKind, Vendor } from "./types";
+import { desktopT } from "../i18n";
 
 export type CustomCallTranscriptEntry = {
   method: string;
@@ -37,7 +38,7 @@ const PREVIEW_LIMIT = 2000;
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 
 function customCallTimeoutReason(timeoutMs: number): Error {
-  const error = new Error(`自定义调用脚本超时（${Math.round(timeoutMs / 1000)}s）`);
+  const error = new Error(desktopT("customCall.timeout", { seconds: Math.round(timeoutMs / 1000) }));
   error.name = "TimeoutError";
   return error;
 }
@@ -132,17 +133,17 @@ function restoreSandboxFormData(value: unknown): FormData | null {
   const form = new FormData();
   for (const rawEntry of value.entries) {
     if (!isJsonRecord(rawEntry) || typeof rawEntry.name !== "string" || !isJsonRecord(rawEntry.value)) {
-      throw new Error("FormData 条目无效");
+      throw new Error(desktopT("customCall.formDataEntry"));
     }
     const filename = typeof rawEntry.filename === "string" ? rawEntry.filename : undefined;
     if (rawEntry.value.kind === "bytes") {
       if (!Array.isArray(rawEntry.value.bytes) || !rawEntry.value.bytes.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255)) {
-        throw new Error(`FormData 字段 ${rawEntry.name} 的二进制内容无效`);
+        throw new Error(desktopT("customCall.formDataBytes", { name: rawEntry.name }));
       }
       form.append(rawEntry.name, new Blob([Uint8Array.from(rawEntry.value.bytes as number[])]), filename || "file.bin");
       continue;
     }
-    if (rawEntry.value.kind !== "string") throw new Error(`FormData 字段 ${rawEntry.name} 的值无效`);
+    if (rawEntry.value.kind !== "string") throw new Error(desktopT("customCall.formDataValue", { name: rawEntry.name }));
     form.append(rawEntry.name, String(rawEntry.value.value ?? ""));
   }
   return form;
@@ -270,7 +271,7 @@ export async function runCustomCallScript(input: {
       request: (init) => doRequest(init as Parameters<typeof doRequest>[0]),
       saveFile: async ({ bytes, ext, contentType }) => {
         if (!input.saveFile) {
-          throw new Error("saveFile 在这里不可用（试跑不落盘）——先 return 一个 URL 或 dataURL 验证脚本能跑通");
+          throw new Error(desktopT("customCall.saveFileUnavailable"));
         }
         return input.saveFile(Buffer.from(bytes), ext.replace(/^\./, "") || "bin", contentType || "application/octet-stream");
       },
@@ -281,7 +282,7 @@ export async function runCustomCallScript(input: {
     if (text) return { assets: [], text, transcript };
     const assets = collectCustomCallAssets(raw);
     if (assets.length === 0)
-      throw new Error("自定义调用脚本没有返回产物（资产请 return URL / dataURL / 它们的数组；文本模型请 return { text: '…' }）");
+      throw new Error(desktopT("customCall.noOutput"));
     return { assets, transcript };
   } catch (error) {
     const rawMessage = redact(error instanceof Error ? error.message : String(error));

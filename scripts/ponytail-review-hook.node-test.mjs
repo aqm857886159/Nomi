@@ -341,6 +341,7 @@ test('installer emits one Ponytail runner for commit and push and preserves secu
   assert.match(preCommit, /exec node "\$ROOT\/scripts\/ponytail-review-hook\.mjs" "--scope" "staged"/)
 
   const prePush = installer.renderHookContent(hook('pre-push'))
+  assert.match(prePush, /\[ -f "\$ROOT\/scripts\/ponytail-review-hook\.mjs" \] \|\| exit 0/)
   assert.match(prePush, /exec node "\$ROOT\/scripts\/ponytail-review-hook\.mjs" "--scope" "push" "\$@"/)
   assert.doesNotMatch(prePush, /check-no-secrets\.mjs/)
 
@@ -352,6 +353,15 @@ test('installer emits one Ponytail runner for commit and push and preserves secu
     assert.equal(fs.readFileSync(filePath, 'utf8'), installer.renderHookContent(hook(name)))
     assert.notEqual(fs.statSync(filePath).mode & 0o111, 0, `${name} must be executable`)
   }
+})
+
+test('generated pre-push exits safely when the optional runner is absent', (t) => {
+  const root = makeRepository(t)
+  const hookPath = path.join(root, '.git', 'hooks', 'pre-push')
+  fs.writeFileSync(hookPath, installer.renderHookContent(hook('pre-push')))
+  fs.chmodSync(hookPath, 0o755)
+  const result = spawnSync(hookPath, [], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+  assert.equal(result.status, 0, result.stderr)
 })
 
 test('generated runner executes against a real staged diff with a fake Codex binary', (t) => {
