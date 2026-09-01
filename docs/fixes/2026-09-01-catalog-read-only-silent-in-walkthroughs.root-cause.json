@@ -19,14 +19,16 @@
     "src/ui/onboarding/useOnboardingDrawerCatalog.ts",
     "src/ui/onboarding/ModelSettingsHome.tsx",
     "src/ui/onboarding/OnboardingDrawer.tsx",
-    "src/i18n/locales/onboardingProviders.ts"
+    "src/i18n/locales/onboardingProviders.ts",
+    "evals/lib/isoApp.mjs"
   ],
   "entry_points": [
     "Walkthrough launch: tests/ux/_launchApp.mjs launchNomiApp (every isolated walkthrough and eval funnels through it)",
     "Generation canvas node model/mode picker reading catalog status",
     "Model settings controls that write the catalog while it is version-skewed read-only",
     "Main-process catalog health IPC nomi:model-catalog:health",
-    "模型设置页首页（设置 → 模型）——用户「改模型」的总入口"
+    "模型设置页首页（设置 → 模型）——用户「改模型」的总入口",
+    "隔离走查种子准备：evals/lib/isoApp.mjs prepareIsolation（拷真实档案的那一刻）"
   ],
   "internal_only_reason": "The catalog schema version guard, its health contract, and the walkthrough isolation seeding are entirely Nomi-internal persistence and test-harness contracts; no third-party runtime or provider decides this behavior.",
   "invariants": [
@@ -57,6 +59,11 @@
       "path": "src/ui/onboarding/useOnboardingDrawerCatalog.ts",
       "symbol": "useOnboardingDrawerCatalog",
       "responsibility": "Own the settings panel's read of catalog writability. Derives catalogReadOnly from the main-process health payload in a try isolated from the main catalog read, so a health failure can never blank the model list, and hands both schema versions to the panel instead of letting the renderer recompute the comparison."
+    },
+    {
+      "path": "evals/lib/isoApp.mjs",
+      "symbol": "assertSeedUnderstoodByBuild",
+      "responsibility": "Own the seed-time version gate. Compares the real-profile seed's schema version against the version compiled into the build under test (dist-electron/catalog/types.js) at the moment of copying, and refuses with the same three escape routes before Electron is even launched. Never rewrites the seed's version — silently downgrading is the exact failure writeCatalog exists to prevent."
     }
   ],
   "same_class_entry_points": [
@@ -95,6 +102,18 @@
       "entry_point": "模型设置页首页 — 启用/停用连接、保存密钥、改接入地址、增删模型的总入口",
       "disposition": "enforced",
       "evidence": "The page now renders a read-only notice ahead of the bridgeMissing branch (so it survives the loading phase), carrying both schema versions and the recovery action. Verified on a real Electron launch seeded with the user's real 22-vendor/151-model catalog at a raised schema version; a positive control at the matching version renders no notice."
+    },
+    {
+      "path": "evals/lib/isoApp.mjs",
+      "entry_point": "prepareIsolation — 13 个走查/评测调用方共用的种子准备边界",
+      "disposition": "enforced",
+      "evidence": "prepareIsolation now calls assertSeedUnderstoodByBuild before copyFileSync, so the skew is caught at the earliest possible point rather than after a ~30s launch. Live-checked that the real 151-model v12 seed still passes against the v12 build (no false red)."
+    },
+    {
+      "path": "evals/verify-shot-smoke.mjs",
+      "entry_point": "waitForWindow: false 的无窗口主进程脚本 — 假绿闸的唯一盲区",
+      "disposition": "not-affected",
+      "evidence": "Windowless scripts have no renderer, so assertCatalogWritable cannot query health. This is now bounded by an assertion rather than inspection: tests/ux/_launchApp.test.mjs fails if any waitForWindow:false script starts seeding the catalog or asserting the model picker. Positive-controlled — injecting an upsertVendor call names this file and turns the test red."
     }
   ],
   "recurrence": {
@@ -115,7 +134,7 @@
     "invariant": "Catalog read-only version skew is emitted as structured, versioned state from the single catalog-health derivation, and both consumer classes fail loudly on it: the product renders a localized actionable status, and the walkthrough launcher aborts the run.",
     "failure_mode": "The write is still refused with no data loss. The user sees a localized explanation naming both schema versions and the recovery action instead of a dead control or raw English text, and a walkthrough aborts at launch with an actionable message instead of producing screenshots whose model assertions are untrustworthy.",
     "exception_policy": "none",
-    "strategy": "Make the fail-closed state observable at the point it is derived rather than requiring each of roughly twenty call sites to attempt a write and catch. deriveModelCatalogHealth gains writable/diskVersion/appVersion and the catalog_read_only_version_skew issue; deriveModelCatalogStatus reports catalog_read_only ahead of every other status so the read-only cause outranks its downstream symptoms (empty/incomplete); launchNomiApp calls assertCatalogWritable before handing any walkthrough its window. Walkthroughs that genuinely target the read-only state opt in explicitly via allowReadOnlyCatalog.",
+    "strategy": "Make the fail-closed state observable at the point it is derived rather than requiring each of roughly twenty call sites to attempt a write and catch. deriveModelCatalogHealth gains writable/diskVersion/appVersion and the catalog_read_only_version_skew issue; deriveModelCatalogStatus reports catalog_read_only ahead of every other status so the read-only cause outranks its downstream symptoms (empty/incomplete); launchNomiApp calls assertCatalogWritable before handing any walkthrough its window. Walkthroughs that genuinely target the read-only state opt in explicitly via allowReadOnlyCatalog. A second, earlier gate runs at seed time (assertSeedUnderstoodByBuild in prepareIsolation) so the skew is refused before launch; the windowless blind spot is bounded by a static assertion instead of human inspection.",
     "artifacts": [
       "electron/catalog/catalogHealth.ts",
       "src/config/modelCatalogStatus.ts",
@@ -124,20 +143,23 @@
       "tests/ux/_launchApp.mjs",
       "src/ui/onboarding/useOnboardingDrawerCatalog.ts",
       "src/ui/onboarding/ModelSettingsHome.tsx",
-      "src/i18n/locales/onboardingProviders.ts"
+      "src/i18n/locales/onboardingProviders.ts",
+      "evals/lib/isoApp.mjs"
     ]
   },
   "regression_tests": [
     "electron/catalog/catalogReadOnly.test.ts",
     "src/config/modelCatalogStatus.test.ts",
     "tests/ux/_launchApp.test.mjs",
-    "src/ui/onboarding/catalogReadOnlyNotice.test.ts"
+    "src/ui/onboarding/catalogReadOnlyNotice.test.ts",
+    "evals/lib/isoApp.test.ts"
   ],
   "class_regression_tests": [
     "electron/catalog/catalogReadOnly.test.ts",
     "src/config/modelCatalogStatus.test.ts",
     "tests/ux/_launchApp.test.mjs",
-    "src/ui/onboarding/catalogReadOnlyNotice.test.ts"
+    "src/ui/onboarding/catalogReadOnlyNotice.test.ts",
+    "evals/lib/isoApp.test.ts"
   ],
   "legacy_paths": {
     "status": "not-applicable",
@@ -152,8 +174,8 @@
   "migration": "No data migration is performed or needed; on-disk catalogs are untouched by this change and the read path already returns newer-versioned files verbatim. Users whose installed build is older than their catalog must still update the app to make changes — that requirement is unchanged and is now stated to them in their own language. Walkthroughs that seeded from the real profile purely for convenience should prefer prepareIsolation(dir, { requireCatalog: false }) with a synthetic catalog; the launcher now names that option in its abort message rather than requiring the author to already know it.",
   "residual_risks": [
     "assertCatalogWritable returns without asserting when window.nomiDesktop.modelCatalog.health is unreachable (very early splash states, packaged-origin differences). Unreadable health is treated as unknown rather than read-only to avoid manufacturing false reds, so a walkthrough could in principle still start unguarded if the bridge never becomes readable at settle time. Detection of the positive case is unaffected.",
-    "Walkthroughs launched with waitForWindow: false (main-process-only scripts such as evals/verify-shot-smoke.mjs) have no renderer to query and are therefore not gated; they also do not make model-picker assertions, but this is asserted by inspection rather than by a test.",
-    "prepareIsolation still copies the live user catalog by default, so the skew condition itself is not eliminated — only made loud. Converting the remaining real-catalog-seeded walkthroughs to synthetic seeds is follow-up work and is not claimed here.",
-    "The settings-panel notice is proven on macOS in a development build. It has not been observed on a packaged build or on Windows/Linux; the strip reuses the existing bridgeMissing warning form on the same page, so platform-specific layout drift is considered unlikely but is not proven."
+    "The settings-panel notice is proven on macOS in a development build. It has not been observed on a packaged build or on Windows/Linux; the strip reuses the existing bridgeMissing warning form on the same page, so platform-specific layout drift is considered unlikely but is not proven.",
+    "prepareIsolation still copies the live user catalog by design (paid journeys need the real safeStorage-encrypted keys). The skew condition therefore still occurs; it is now refused at seed time and at launch rather than silently degrading, but a walkthrough that genuinely needs real keys on an older build remains blocked until that build is rebuilt — by design, since the alternative is downgrading the user's catalog.",
+    "The seed-time gate reads the version out of dist-electron/catalog/types.js by regex. For packaged-bundle walkthroughs (executablePath pointing at an installed .app) that file is not the build under test, so the seed gate returns null and only the launch-time runtime gate applies. That fallback is intentional and tested, but it means packaged runs get one gate, not two."
   ]
 }

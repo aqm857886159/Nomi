@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildNomiLaunchEnv, launchNomiApp } from "../../tests/ux/_launchApp.mjs";
+import { buildNomiLaunchEnv, launchNomiApp, repoRoot } from "../../tests/ux/_launchApp.mjs";
 
 /** 今天全部 5 个画布工具都免额度;将来出现 costy 工具(如 run_generation_batch)默认就被拒。 */
 export const TOOL_WHITELIST = new Set([
@@ -18,8 +18,54 @@ export const TOOL_WHITELIST = new Set([
   "delete_canvas_nodes",
 ]);
 
+/**
+ * 种子期版本闸(比启动期那道更早):用户真实档案总被这台机器上**最新**的构建升级,
+ * 而走查常跑更旧的 worktree —— 拷进去就注定只读、注定所有播种失败、注定假绿。
+ * 在拷贝这一刻拦住,报错里直接给出路,别等起完 app 才发现(那要多花几十秒且更难看懂)。
+ *
+ * 注意这里**不降级种子版本**:那正是 writeCatalog 拼命防的静默降级。只报错,不代劳。
+ */
+export function assertSeedUnderstoodByBuild(seedPath, buildVersion = builtCatalogVersion()) {
+  if (buildVersion == null) return null; // 读不到被测构建版本 → 不判断(启动期运行时闸仍在)
+  let seedVersion = null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(seedPath, "utf8"));
+    seedVersion = typeof parsed?.version === "number" ? parsed.version : null;
+  } catch {
+    return null; // 种子读不动/不是 JSON 不归这道闸管
+  }
+  if (seedVersion == null || seedVersion <= buildVersion) return seedVersion;
+  throw new Error(
+    [
+      `隔离走查的 catalog 种子比被测构建新，拷进去必然只读——已在拷贝前中止。`,
+      `  种子(你的真实档案) = v${seedVersion}，被测构建只认到 v${buildVersion}。`,
+      `  真拷进去会发生：writeCatalog fail-closed 拒写 → 走查播种的 vendor/key/model 全写不进去`,
+      `  → 模型选择器没有对应选项 → 「切换模型」点了不生效且不报错 → 假绿。`,
+      `  怎么办（任选其一）：`,
+      `    ① 本 worktree 先 pnpm build，让它的 CURRENT_CATALOG_VERSION 追上 v${seedVersion}；`,
+      `    ② 这条走查其实不需要真实 key → prepareIsolation(dir, { requireCatalog: false })，自己写合成 catalog；`,
+      `    ③ 确实要验只读态本身 → 自行拷贝种子并给 launchNomiApp 传 allowReadOnlyCatalog: true。`,
+    ].join("\n"),
+  );
+}
+
 export function realCatalogPath() {
   return path.join(os.homedir(), "Library", "Application Support", "Nomi", "model-catalog.json");
+}
+
+/**
+ * 被测 dev 构建**自己**认识的 catalog schema 版本(读它的编译产物,不是读源码常量——
+ * 走查跑的就是 dist-electron)。打包产物走查读不到这里,由启动期的运行时闸兜住。
+ * 读不到一律返回 null = 不做判断,绝不臆断出一个版本号来拦人。
+ */
+function builtCatalogVersion() {
+  try {
+    const compiled = fs.readFileSync(path.join(repoRoot, "dist-electron", "catalog", "types.js"), "utf8");
+    const matched = compiled.match(/CURRENT_CATALOG_VERSION\s*=\s*(\d+)/);
+    return matched ? Number(matched[1]) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** 建一套全新隔离环境;requireCatalog=true 时拷入真实 catalog(safeStorage 加密 key 同机可解)。 */
@@ -30,7 +76,10 @@ export function prepareIsolation(isoDir, { requireCatalog = true } = {}) {
   if (requireCatalog && !fs.existsSync(catalog)) {
     throw new Error(`真实 model-catalog.json 不存在(${catalog})——被测 agent 需要已配置的模型与 key`);
   }
-  if (fs.existsSync(catalog)) fs.copyFileSync(catalog, path.join(isoDir, "settings", "model-catalog.json"));
+  if (fs.existsSync(catalog)) {
+    assertSeedUnderstoodByBuild(catalog);
+    fs.copyFileSync(catalog, path.join(isoDir, "settings", "model-catalog.json"));
+  }
   return {
     projectsDir: path.join(isoDir, "projects"),
     settingsDir: path.join(isoDir, "settings"),

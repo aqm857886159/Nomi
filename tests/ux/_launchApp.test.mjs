@@ -214,3 +214,33 @@ describe('assertCatalogWritable（走查假绿闸）', () => {
     ).resolves.toBe(null)
   })
 })
+
+// 无窗口脚本（waitForWindow: false）拿不到渲染层，assertCatalogWritable 无从查起 ——
+// 它们是假绿闸唯一的盲区。原先「它们反正不做模型断言」只是看代码看出来的推断，
+// 这条把推断变成断言：盲区里的脚本一旦开始播种目录或断言模型选择器，就必须红。
+describe('假绿闸的盲区必须保持为空', () => {
+  test('waitForWindow:false 的脚本不许播种模型目录或断言模型选择器', () => {
+    const roots = ['tests/ux', 'evals', 'scripts']
+    const files = roots.flatMap((dir) => {
+      const abs = path.join(repoRoot, dir)
+      if (!fs.existsSync(abs)) return []
+      return fs.readdirSync(abs, { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile() && /\.(mjs|ts)$/.test(entry.name))
+        .map((entry) => path.join(entry.parentPath, entry.name))
+    })
+
+    const offenders = files
+      .filter((file) => path.basename(file) !== '_launchApp.mjs') // 选项的定义方自己不算用它
+      .filter((file) => !/\.(test|node-test)\.(mjs|ts)$/.test(file)) // 测试文件不是走查脚本（含本文件自指）
+      .filter((file) => {
+        const source = fs.readFileSync(file, 'utf8')
+        if (!/waitForWindow:\s*false/.test(source)) return false
+        // 这两类正是只读目录会静默毁掉的东西。
+        return /upsertVendorApiKey|upsertVendor\(|upsertModel\(|upsertMapping\(/.test(source) ||
+          /onModelPick|模型选择器/.test(source)
+      })
+      .map((file) => path.relative(repoRoot, file))
+
+    expect(offenders).toEqual([])
+  })
+})

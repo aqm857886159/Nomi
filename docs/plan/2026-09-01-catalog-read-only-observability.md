@@ -35,6 +35,12 @@
 | 产品消费处 | `src/config/modelCatalogStatus.ts` | 新增 `catalog_read_only` 状态，**排在所有其他判定之前**；文案走 i18n（`runtime.modelCatalog.readOnlyVersionSkew`，zh-CN + en） |
 | 走查消费处 | `tests/ux/_launchApp.mjs` | `assertCatalogWritable`，由 `launchNomiApp` 在交出窗口前调用；命中即关 app 抛错 |
 | 设置页消费处 | `useOnboardingDrawerCatalog.ts` → `ModelSettingsHome.tsx` | 「设置 → 模型」页顶部只读横幅，排在 `bridgeMissing` 之前（否则 loading 阶段被吞，而那正是用户最早动手的时刻）|
+| 种子准备处 | `evals/lib/isoApp.mjs` | `assertSeedUnderstoodByBuild`，在 `copyFileSync` **之前**比对种子版本与被测构建编译产物里的版本；13 个调用方共用 |
+
+**两道走查闸为什么都要**：种子期那道读 `dist-electron/catalog/types.js`（dev 构建的真值），
+能在起 app 之前就拦下、省几十秒且报错点离病因最近；但打包产物走查的被测构建不是 dist-electron，
+那道会自觉返回 null 不判断——所以启动期那道运行时闸（问运行中构建自己的 health）仍然必要。
+**两道都不代劳降级种子版本**——那正是 `writeCatalog` 拼命防的静默降级。
 
 **为什么必须单独做设置页那条**：画布侧的 `catalog_read_only` 只在「模型选择器没东西可选」时才走到，
 而真实用户目录里有 22 家 / 151 个模型，选择器满的，那条路**永远不触发**。用户真正会撞墙的地方是
@@ -67,6 +73,11 @@
 - `src/ui/onboarding/catalogReadOnlyNotice.test.ts` — 设置页必须渲染只读条、排在 `bridgeMissing` 之前、
   文案走 i18n 且不外泄主进程英文、版本号由 health 传入。**已验它会红**：整块删掉 → 3 条红；
   挪到 `bridgeMissing` 之后 → 1 条红；还原 → 全绿。
+- `evals/lib/isoApp.test.ts` — 种子期闸：偏移必抛且带两个版本号与三条出路；同版本/更旧放行；
+  读不到构建版本不判断；种子损坏不误报；**绝不代劳降级种子版本**。
+  （文件名必须 `.test.ts`——`vitest.config` 的 `evals/**` 只收 `.ts`，写 `.mjs` 会静静躺着不跑。）
+- `tests/ux/_launchApp.test.mjs` 盲区闸 — `waitForWindow:false` 的脚本不许播种目录/断言模型选择器。
+  已验会红：往 `verify-shot-smoke.mjs` 塞一处 `upsertVendor` → 精确指名报红；还原即绿。
 - **真机核验（带阳性对照）**：
   - 走查闸：真起 Electron，v99 种子 → 抛错中止；v12 同版本种子 → 照常放行。
   - 设置页：拿**真实 catalog**（22 家 / 151 个模型）抬高版本号起真 app，走「项目库 → 模型 → 设置面板」，
@@ -82,8 +93,13 @@
 ## 已登记的残余风险（不算完成的部分）
 
 1. `assertCatalogWritable` 读不到 bridge 时**放行**（不制造假红）。读不到 ≠ 只读，但确实留了一条不设防的缝。
-2. `waitForWindow: false` 的主进程脚本（如 `evals/verify-shot-smoke.mjs`）没有渲染层可问，不受闸门保护；
-   它们也不做模型选择器断言——但这是**看代码看出来的**，没有测试钉住。
-3. 偏移本身仍在：把剩余「拷真实档案当种子」的走查改成合成 catalog 是后续工作，本次不声称已做。
+2. 种子仍照旧拷用户真实档案——这是**设计选择**：付费旅程需要真实 safeStorage 密文 key，
+   合成种子给不了。所以偏移条件依然存在，只是从「静默退化」变成「种子期 + 启动期两道明确拒绝」。
+   旧构建上确实需要真 key 的走查仍会被拦住，直到它重新 build——这是对的，替代方案是降级用户目录。
+3. 种子期那道闸用正则读 `dist-electron/catalog/types.js`。打包产物走查的被测构建不是它，
+   那道会自觉不判断 → **打包运行只有一道闸，不是两道**。这个 fallback 是刻意的且有测试，但要知道。
 4. 设置页横幅只在 **macOS 开发构建**上肉眼验过；打包产物与 Windows/Linux 未验。
    横幅复用同页既有 `bridgeMissing` 形态，平台漂移风险判断为低——但这是推断，不是证据。
+
+（原第 2 条「无窗口脚本靠人肉推断」已收掉：现由 `_launchApp.test.mjs` 的盲区闸静态钉死，
+带阳性对照——往 `verify-shot-smoke.mjs` 里塞一处播种即精确指名报红。）
