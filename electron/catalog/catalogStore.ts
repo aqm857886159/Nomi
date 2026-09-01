@@ -17,6 +17,7 @@ import { CURRENT_CATALOG_VERSION } from "./types";
 import { normalizeCustomCall } from "./customCallMode";
 import { derivePublishedExecution, modelHasPublishedExecution } from "../shared/modelPublication";
 import { deriveModelCatalogHealth } from "./catalogHealth";
+import { depublishVendorForDisabledCredential } from "./credentialPublication";
 import { deleteVendorLineageAndRestore, removeVendorLineage } from "./vendorLineageLifecycle";
 import { guardAntigravityMappingWrite, guardAntigravityModelWrite, guardAntigravityVendorWrite } from "./antigravityWriteGuard";
 import { antigravityConnection } from "../ai/antigravityConnection";
@@ -461,16 +462,13 @@ function applyApiKeyUpsert(state: CatalogState, vendorKey: string, payload: unkn
   }
   const t = nowIso();
   const existing = state.apiKeysByVendor[key];
+  const enabled = normalizeEnabled((payload as JsonRecord)?.enabled, true);
   state.apiKeysByVendor[key] = {
-    ...makeApiKeyRecordFromPlain(
-      apiKey,
-      key,
-      normalizeEnabled((payload as JsonRecord)?.enabled, true),
-      existing?.createdAt || t,
-      t,
-    ),
+    ...makeApiKeyRecordFromPlain(apiKey, key, enabled, existing?.createdAt || t, t),
     ...(existing?.customConfig ? { customConfig: existing.customConfig } : {}),
   };
+  // 名实一致：停用凭据 = 该 vendor 退出「已接入/可用」投影，与凭据写入同一次落盘。见 credentialPublication。
+  if (!enabled) depublishVendorForDisabledCredential(state, key, t);
 }
 
 export function upsertModelCatalogVendorApiKey(vendorKey: string, payload: unknown): unknown {

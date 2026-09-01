@@ -123,34 +123,11 @@ export function upsertRendererCatalogVendor(payload: unknown) {
 }
 
 /** Renderer credential writes are configuration only.  A key can never promote
- * a vendor; certification owns the later enabled transition.
- *
- * The credential is written disabled-pending-certification, and the vendor is
- * de-published in the SAME operation. This keeps the "shown as 已接入 ⟺ actually
- * usable" invariant true at the one shared boundary every renderer credential
- * edit funnels through — instead of trusting each UI caller to remember the
- * paired `upsertVendor({ enabled: false })`. A bare credential write that forgot
- * that pairing used to leave `vendor.enabled === true` while the credential was
- * disabled, so the model settings home listed the vendor under 已接入 with
- * "N 个可使用" even though `resolveTextBrainKeys` (which requires an enabled
- * credential) returned null — a green "connected" state that generation could
- * not use. Editing a credential also invalidates any prior certification, so
- * dropping the vendor back out of the executable projection is the correct
- * fail-closed effect; the next canonical certification run re-promotes it. */
+ * a vendor; certification owns the later enabled transition.  The paired vendor
+ * de-publish is inherited from the store, not done here — see
+ * `credentialPublication.ts`. */
 export function upsertRendererCatalogVendorApiKey(vendorKey: string, payload: unknown) {
-  const result = upsertModelCatalogVendorApiKey(vendorKey, sanitizeRendererVendorApiKeyMutation(payload))
-  const key = String(vendorKey || '').trim()
-  if (key && vendorIsPublished(readCatalog(), key)) {
-    upsertModelCatalogVendor(sanitizeRendererVendorMutation({ key, enabled: false }, readCatalog()))
-  }
-  return result
-}
-
-/** A vendor is "published" (shown/usable) when its row is enabled. Only touch an
- * enabled vendor so an already-disabled staging vendor is not rewritten on every
- * key edit (avoids needless writes / updatedAt churn). */
-function vendorIsPublished(state: CatalogState, vendorKey: string): boolean {
-  return state.vendors.some((vendor) => vendor.key === vendorKey && vendor.enabled)
+  return upsertModelCatalogVendorApiKey(vendorKey, sanitizeRendererVendorApiKeyMutation(payload))
 }
 
 export function sanitizeRendererVendorApiKeyMutation(payload: unknown): Json {

@@ -132,25 +132,15 @@ describe("renderer Catalog mutation boundary", () => {
     });
   });
 
-  it("de-publishes an enabled vendor in the same operation as a renderer credential write", () => {
-    // The reported honesty gap: a bare credential write left vendor.enabled === true while the
-    // credential landed disabled-pending-certification, so the model home showed the vendor as
-    // 已接入 / N 个可使用 even though resolveTextBrainKeys (needs an enabled credential) returned null.
+  it("writes the credential disabled-pending-certification and delegates the vendor de-publish to the store", () => {
+    // The reported honesty gap — a credential written disabled-pending-certification beside an
+    // enabled vendor, which the model home reads as 已接入 / N 个可使用 while resolveTextBrainKeys
+    // (needs an enabled credential) returns null — is prevented one layer down, inside
+    // applyApiKeyUpsert (see credentialPublication.ts + credentialPublication.test.ts). That is the
+    // innermost boundary every credential writer shares, and it de-publishes in the SAME
+    // writeCatalog. This boundary must therefore NOT issue a second vendor write of its own.
     const catalog = state();
     catalog.vendors[0] = { ...catalog.vendors[0], enabled: true } as never;
-    vi.mocked(store.readCatalog).mockReturnValue(catalog);
-
-    upsertRendererCatalogVendorApiKey("relay", { apiKey: "sk-test", enabled: true });
-
-    // credential written disabled-pending-certification …
-    expect(store.upsertModelCatalogVendorApiKey).toHaveBeenCalledWith("relay", { apiKey: "sk-test", enabled: false });
-    // … and the vendor dropped out of the executable/connected projection atomically.
-    expect(store.upsertModelCatalogVendor).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(store.upsertModelCatalogVendor).mock.calls[0][0]).toMatchObject({ key: "relay", enabled: false });
-  });
-
-  it("does not rewrite an already-disabled staging vendor on a renderer credential write", () => {
-    const catalog = state(); // relay seeded enabled:false
     vi.mocked(store.readCatalog).mockReturnValue(catalog);
 
     upsertRendererCatalogVendorApiKey("relay", { apiKey: "sk-test", enabled: true });
