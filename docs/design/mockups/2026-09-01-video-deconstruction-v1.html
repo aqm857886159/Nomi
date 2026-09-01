@@ -39,6 +39,11 @@
   --nomi-font-display: "Fraunces Variable", Fraunces, "Inter Variable", Inter, Georgia, serif;
   --nomi-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
   --grid-dot: oklch(0.91 0.004 80);
+  /* 右侧停靠栏宽度 —— 单一真相源，沿用现役 AI 栏宽度，不自立第二个数字。
+     现役来源：workbenchStore.ts:233 assistantWidth 默认 340（clamp 300–600，:332），
+     经 GenerationWorkspace.tsx:76-82 → CSS var --generation-assistant-target-width，
+     CanvasAssistantPanel.tsx:582 面板本体按此排版。拆解面板与 Agent 面板共用一个槽 = 共用这一个宽度。 */
+  --nomi-assistant-width: 340px;
 }
 .theme-dark {
   --nomi-bg: oklch(0.19 0.006 80);
@@ -171,9 +176,49 @@ body { padding: 28px 20px 56px; display: flex; flex-direction: column; align-ite
 .ai-capsule .dot { width: 18px; height: 18px; border-radius: 5px; background: var(--nomi-ink); color: var(--nomi-paper); display: grid; place-items: center; font-size: 10px; font-family: var(--nomi-font-display); font-weight: 700; }
 
 /* ============================================================
+   右槽互斥 —— 顶栏 Agent 收起角标（复刻 NomiAppBar 右簇 ghost 钮 + TaskCenter 数字徽标的语法）
+   真实落点：src/ui/app-shell/NomiAppBar.tsx:199-349 右簇 role="toolbar"；
+   徽标样式复刻 TaskCenterButton.tsx:143-147（min-w-4 rounded-pill bg-nomi-paper text-micro text-accent）。
+   ============================================================ */
+.appbar__chip { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: var(--nomi-radius-field); border: 1px solid transparent; background: transparent; color: var(--nomi-ink-80); font: inherit; font-size: 12.5px; cursor: pointer; }
+.appbar__chip:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+.appbar__chip .dot { width: 18px; height: 18px; border-radius: 5px; background: var(--nomi-ink); color: var(--nomi-paper); display: grid; place-items: center; font-size: 10px; font-family: var(--nomi-font-display); font-weight: 700; }
+/* 「有新动静」示意：accent 小圆点角标，右上贴边（保留可见性，非静默收起） */
+.appbar__chip .nudge { position: absolute; top: 2px; right: 2px; min-width: 8px; height: 8px; border-radius: 999px; background: var(--nomi-accent); box-shadow: 0 0 0 2px var(--nomi-paper); }
+.appbar__chip .nudge.count { top: -3px; right: -3px; min-width: 16px; height: 16px; padding: 0 4px; display: grid; place-items: center; font-size: 10px; line-height: 1; color: oklch(1 0 0); font-variant-numeric: tabular-nums; }
+.appbar__divider { width: 1px; height: 18px; background: var(--nomi-line); }
+
+/* 拆解「收起为节点角标/浮条」态（右槽让位给 Agent 时，拆解不销毁、缩成节点上的可点回条） */
+.decon-stub { position: absolute; z-index: 22; display: inline-flex; align-items: center; gap: 8px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: 999px; padding: 5px 6px 5px 11px; box-shadow: var(--nomi-shadow-md); font-size: 11.5px; color: var(--nomi-ink-80); cursor: pointer; }
+.decon-stub:hover { box-shadow: var(--nomi-shadow-lg); }
+.decon-stub .ic { width: 18px; height: 18px; border-radius: 5px; background: var(--nomi-accent-soft); color: var(--nomi-accent); display: grid; place-items: center; }
+.decon-stub b { font-weight: 600; color: var(--nomi-ink); }
+.decon-stub .stub-count { display: inline-flex; align-items: center; height: 18px; padding: 0 7px; border-radius: 999px; background: var(--nomi-accent); color: oklch(1 0 0); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.decon-stub .reopen { width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center; color: var(--nomi-ink-40); }
+/* 收起时源节点上挂一枚「已拆解」小角标，节点级可见性锚点 */
+.node__result-badge { position: absolute; top: -11px; right: 12px; z-index: 3; display: inline-flex; align-items: center; gap: 5px; background: var(--nomi-accent); color: oklch(1 0 0); border-radius: 999px; padding: 2px 9px; font-size: 10.5px; font-weight: 500; box-shadow: var(--nomi-shadow-sm); }
+
+/* 展开态 Agent 面板（右停靠，仅用于 07 视图示意 Agent 住户；沿用右栏宽度真相源） */
+.agent { position: absolute; inset: 0 0 0 auto; width: var(--nomi-assistant-width); z-index: 88; background: var(--nomi-paper); box-shadow: var(--nomi-shadow-lg); border-left: 1px solid var(--nomi-line); display: flex; flex-direction: column; }
+.agent__hd { flex-shrink: 0; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--nomi-line-soft); padding: 10px 14px; }
+.agent__hd .mk { width: 18px; height: 18px; border-radius: 5px; background: var(--nomi-ink); color: var(--nomi-paper); display: grid; place-items: center; font-size: 10px; font-family: var(--nomi-font-display); font-weight: 700; }
+.agent__hd b { flex: 1; font-size: 13px; font-weight: 600; color: var(--nomi-ink); }
+.agent__hd .x { width: 24px; height: 24px; border: 0; background: transparent; border-radius: var(--nomi-radius-field); color: var(--nomi-ink-60); display: grid; place-items: center; cursor: pointer; }
+.agent__body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.agent__msg { font-size: 12.5px; line-height: 1.55; color: var(--nomi-ink-80); }
+.agent__msg.me { align-self: flex-end; max-width: 82%; background: var(--nomi-accent-soft); color: var(--nomi-ink); padding: 8px 11px; border-radius: var(--nomi-radius-panel); }
+.agent__toolcard { border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-panel); padding: 10px 11px; background: var(--nomi-ink-05); }
+.agent__toolcard .tc-hd { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--nomi-ink-60); }
+.agent__toolcard .tc-hd .tick { width: 15px; height: 15px; border-radius: 999px; background: var(--nomi-track-video); color: oklch(1 0 0); display: grid; place-items: center; flex-shrink: 0; }
+.agent__toolcard .tc-body { margin-top: 7px; font-size: 12px; color: var(--nomi-ink-80); line-height: 1.5; }
+.agent__toolcard .tc-link { margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--nomi-accent); cursor: pointer; }
+.agent__composer { flex-shrink: 0; border-top: 1px solid var(--nomi-line); padding: 10px 12px; }
+.agent__composer .box { border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-panel); padding: 8px 10px; font-size: 12.5px; color: var(--nomi-ink-40); display: flex; align-items: center; }
+
+/* ============================================================
    拆解面板（VideoDeconstructionPanel）—— 就近停靠 dialog
    ============================================================ */
-.decon { position: absolute; inset: 0 0 0 auto; width: 520px; z-index: 90; background: var(--nomi-paper); box-shadow: var(--nomi-shadow-lg); border-left: 1px solid var(--nomi-line); display: flex; flex-direction: column; }
+.decon { position: absolute; inset: 0 0 0 auto; width: var(--nomi-assistant-width); z-index: 90; background: var(--nomi-paper); box-shadow: var(--nomi-shadow-lg); border-left: 1px solid var(--nomi-line); display: flex; flex-direction: column; }
 .decon__hd { flex-shrink: 0; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--nomi-line); padding: 12px 16px; }
 .decon__hd .ic { width: 34px; height: 34px; border-radius: var(--nomi-radius-panel); background: var(--nomi-ink-05); color: var(--nomi-ink-60); display: grid; place-items: center; flex-shrink: 0; }
 .decon__hd .ttl { flex: 1; min-width: 0; }
@@ -267,6 +312,7 @@ body { padding: 28px 20px 56px; display: flex; flex-direction: column; align-ite
 <div class="sheet-head">
   <h1>拆解视频 v1 · 面板样张</h1>
   <p>一条参考视频 → 结构化分镜表 → 勾选镜头逐个落成画布节点并自动编组 → 用这套结构起稿。真实外壳复刻（NomiAppBar 创作/生成/预览 · 生成区左侧 镜头/素材 · 画布网格 · 底部时间轴 · 右侧 AI 栏）+ 拆解面板画在真实位置（视频节点浮条唤起、右侧就近停靠）。所有颜色取自 Nomi 设计 token，光/暗双模式。</p>
+  <p style="margin-top:8px; padding:8px 11px; background:var(--nomi-accent-soft); border-radius:8px; color:oklch(0.32 0.01 80);"><b>右槽互斥（本轮补的窟窿）</b>：右侧同一时刻只住一个住户 —— 今天是「生成」AI 栏、M 线后是完整 Agent 面板。从视频节点点「拆解」时 Agent/AI 栏<b>收成顶栏角标</b>（有新动静在角标上示意，见 06）；反向打开 Agent 时拆解<b>收成节点上的「拆解结果」浮条</b>随时点回（见 07）。互斥不丢状态、两边都是收起不是销毁；面板宽度沿用现役右栏宽度真相源（<code>--nomi-assistant-width</code> = <code>assistantWidth</code> 默认 340px），不自立第二个数字。</p>
 </div>
 
 <!-- ============ 布局 A（推荐）：右侧就近停靠 · 结果态 ============ -->
@@ -419,12 +465,184 @@ body { padding: 28px 20px 56px; display: flex; flex-direction: column; align-ite
   </div>
 </div>
 
+<!-- ============ 06 · 右槽互斥：拆解开 + Agent 收为顶栏角标 ============ -->
+<div class="sheet-label">
+  <span class="tag rec">布局 A · 右槽互斥 06</span>
+  <span class="txt">从视频节点点「拆解」→ 面板占住右槽，原来住这里的「生成」AI 栏<b>收成顶栏右区一枚角标</b>（「Nomi 生成」+ N 标，位置照真实 NomiAppBar 右簇 role="toolbar"，紧挨设置/接入模型组）。有新动静时角标上冒 accent 小圆点/数字（这里示意 1 条新回复），保留可见性、不静默消失。点它即还原 AI 栏、拆解让位收回顶栏。画布上收起胶囊也随之撤走 —— 右侧只有一个住户。</span>
+</div>
+
+<div class="app" id="app-agent-collapsed">
+  <div class="appbar">
+    <div class="appbar__left">
+      <span class="brand"><span class="brand__mark">N</span><span class="brand__word">Nomi</span></span>
+      <span class="crumb">/ <b>咖啡馆短片</b></span>
+    </div>
+    <div class="appbar__center"><div class="stepper"><button>创作</button><button class="active">生成</button><button>预览</button></div></div>
+    <div class="appbar__right">
+      <!-- 收起的 AI 栏 → 顶栏角标（本轮新增住户），带「有新动静」示意 -->
+      <button class="appbar__chip" title="生成 · 收起中（点开还原右栏）"><span class="dot">N</span>生成<span class="nudge count">1</span></button>
+      <span class="appbar__divider"></span>
+      <button class="abtn" title="接入模型"><svg class="svg-icon s14" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5h-4l-.4 2.5a7 7 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.5-2-1.5a7 7 0 0 0 .1-1z"/></svg>接入模型</button>
+      <button class="abtn abtn--primary">去出片</button>
+    </div>
+  </div>
+  <div class="body">
+    <div class="explorer">
+      <div class="explorer__tabs"><button class="active">镜头</button><button>素材</button></div>
+      <div class="explorer__hd"><span>当前项目</span><span>1</span></div>
+      <div class="explorer__item sel"><div class="explorer__thumb frame-a"></div><div class="meta"><b>咖啡馆人物镜头</b><span>00:15 · 竖屏</span></div></div>
+    </div>
+    <div class="canvasarea">
+      <div class="canvas">
+        <div class="canvas__toolbar">
+          <button><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.5L11 19z"/></svg></button>
+          <button><svg class="svg-icon s14" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 2"/></svg></button>
+        </div>
+        <!-- 源视频节点：拆解开着，浮条上「拆解」保持高亮态 -->
+        <div class="node sel" style="left:44px; top:150px; width:210px;">
+          <div class="node__title"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16"/></svg>咖啡馆人物镜头</div>
+          <div class="node__floatbar">
+            <button title="抽首帧">首帧</button>
+            <button title="抽尾帧">尾帧</button>
+            <span class="div"></span>
+            <button class="hot"><svg class="svg-icon s14" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 15.5M14.5 15.5L20 20"/></svg>拆解</button>
+          </div>
+          <div class="node__media frame-a" style="height:280px;"><div class="node__badge">00:15</div></div>
+        </div>
+        <!-- 注意：AI 收起胶囊此处不出现（已让位收进顶栏角标）——右侧只有拆解一个住户 -->
+        <div class="timeline-handle">
+          <svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>时间轴 <span>1 段 · 0:15</span>
+          <svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>
+        </div>
+      </div>
+      <!-- 拆解面板占住右槽（结果态精简，宽度=共用真相源） -->
+      <div class="decon">
+        <div class="decon__hd">
+          <div class="ic"><svg class="svg-icon s18" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 15.5M14.5 15.5L20 20M8.5 8.5L11 11"/></svg></div>
+          <div class="ttl"><b>视频拆解</b><span>咖啡馆人物镜头 · 00:15</span></div>
+          <button class="decon__x"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <div class="metabar">
+          <span class="lead">这条视频拆成 5 个镜头 —— 勾选你想学着做的，加进画布成一组。</span>
+          <span class="chip local"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg>本地取证据</span>
+          <span class="chip">有对白</span>
+        </div>
+        <div class="decon__body">
+          <div class="shot">
+            <div class="shot__check on"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div class="shot__frame"><div class="thumb frame-a"></div><div class="idx"><span>镜 1</span><span>0.0–2.1s</span></div></div>
+            <div class="shot__main">
+              <div class="shot__row1"><span class="shot__num">1</span><span class="tag-size">特写</span><span class="tag-mood">温暖</span><span class="shot__time">2.1s</span></div>
+              <div class="shot__visual">咖啡杯从暗处缓缓推入画面中心，暖色顶光打在瓶身与热气上。</div>
+              <div class="field"><span class="k">字幕</span><span class="v">熬夜救星</span></div>
+            </div>
+          </div>
+          <div class="shot">
+            <div class="shot__check on"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div class="shot__frame"><div class="thumb frame-b"></div><div class="idx"><span>镜 2</span><span>2.1–4.8s</span></div></div>
+            <div class="shot__main">
+              <div class="shot__row1"><span class="shot__num">2</span><span class="tag-size">中景</span><span class="tag-mood">明快</span><span class="shot__time">2.7s</span></div>
+              <div class="shot__visual">女主窗边持杯微笑，自然侧光，街景轻微移动，构图偏左留白。</div>
+              <div class="field"><span class="k">对白</span><span class="v">"忙到现在，就想喝口热的"</span></div>
+            </div>
+          </div>
+          <div class="shot">
+            <div class="shot__check"></div>
+            <div class="shot__frame"><div class="thumb frame-c"></div><div class="idx"><span>镜 3</span><span>4.8–7.0s</span></div></div>
+            <div class="shot__main">
+              <div class="shot__row1"><span class="shot__num">3</span><span class="tag-size">近景</span><span class="tag-mood">轻松</span><span class="carry"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h11a4 4 0 0 1 0 8h-1"/></svg>承接上镜</span><span class="shot__time">2.2s</span></div>
+              <div class="shot__visual">手部近景，指尖搅动拉花，奶泡纹路清晰。</div>
+            </div>
+          </div>
+        </div>
+        <div class="decon__ft">
+          <button class="btn btn--ghost"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M12 20V10M8 14l4-4 4 4M4 4h16"/></svg>用这套结构起稿</button>
+          <span class="ft-count" style="margin-left:auto;">已选 3 / 5 镜</span>
+          <button class="btn btn--primary">加入画布（3）</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 07 · 右槽互斥：Agent 展开 + 拆解收为节点浮条 ============ -->
+<div class="sheet-label">
+  <span class="tag rec">布局 A · 右槽互斥 07</span>
+  <span class="txt">反向：拆解面板开着时用户点开 Agent（M 线后的完整对话面板）→ Agent 占住右槽，拆解<b>收成源节点上的一枚「拆解结果 · 5 镜」浮条</b>（节点头挂「已拆解」小角标做锚点），随时点浮条把面板叫回、状态不丢。此图 Agent 里正演示「M 线后拆解可成为 Agent 工具」——Agent 调用拆解、结果仍<b>落回本拆解面板</b>（不新开第二个结果视图），点「查看拆解结果」即展开右槽那张表。</span>
+</div>
+
+<div class="app" id="app-decon-collapsed">
+  <div class="appbar">
+    <div class="appbar__left">
+      <span class="brand"><span class="brand__mark">N</span><span class="brand__word">Nomi</span></span>
+      <span class="crumb">/ <b>咖啡馆短片</b></span>
+    </div>
+    <div class="appbar__center"><div class="stepper"><button>创作</button><button class="active">生成</button><button>预览</button></div></div>
+    <div class="appbar__right">
+      <button class="abtn" title="接入模型"><svg class="svg-icon s14" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5h-4l-.4 2.5a7 7 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.5-2-1.5a7 7 0 0 0 .1-1z"/></svg>接入模型</button>
+      <button class="abtn abtn--primary">去出片</button>
+    </div>
+  </div>
+  <div class="body">
+    <div class="explorer">
+      <div class="explorer__tabs"><button class="active">镜头</button><button>素材</button></div>
+      <div class="explorer__hd"><span>当前项目</span><span>1</span></div>
+      <div class="explorer__item sel"><div class="explorer__thumb frame-a"></div><div class="meta"><b>咖啡馆人物镜头</b><span>00:15 · 竖屏</span></div></div>
+    </div>
+    <div class="canvasarea">
+      <div class="canvas">
+        <div class="canvas__toolbar">
+          <button><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.5L11 19z"/></svg></button>
+          <button><svg class="svg-icon s14" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 2"/></svg></button>
+        </div>
+        <!-- 源节点：拆解已收起 → 节点头挂「已拆解」角标 + 底部挂可点回浮条 -->
+        <div class="node sel" style="left:44px; top:150px; width:210px;">
+          <div class="node__title"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16"/></svg>咖啡馆人物镜头</div>
+          <div class="node__result-badge"><svg class="svg-icon s14" viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;"><path d="M5 13l4 4L19 7"/></svg>已拆解 · 5 镜</div>
+          <div class="node__media frame-a" style="height:280px;"><div class="node__badge">00:15</div></div>
+          <!-- 收起为节点浮条：随时点回，状态不丢 -->
+          <div class="decon-stub" style="left:12px; bottom:12px;">
+            <span class="ic"><svg class="svg-icon s14" viewBox="0 0 24 24" style="width:12px;height:12px;"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 15.5"/></svg></span>
+            <b>拆解结果</b><span class="stub-count">5 镜</span>
+            <span class="reopen"><svg class="svg-icon s14" viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M9 6l6 6-6 6"/></svg></span>
+          </div>
+        </div>
+        <!-- Agent 占住右槽时，画布上不再出现 AI 收起胶囊 -->
+        <div class="timeline-handle">
+          <svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>时间轴 <span>1 段 · 0:15</span>
+          <svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>
+        </div>
+      </div>
+      <!-- Agent 面板占住右槽（宽度=同一真相源） -->
+      <div class="agent">
+        <div class="agent__hd">
+          <span class="mk">N</span><b>生成</b>
+          <button class="x"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <div class="agent__body">
+          <div class="agent__msg me">帮我把这条咖啡馆视频拆成分镜，我想照着做一版。</div>
+          <div class="agent__msg">好的，我来拆这条 00:15 的视频，本地找切点再逐镜读画面。</div>
+          <div class="agent__toolcard">
+            <div class="tc-hd"><span class="tick"><svg class="svg-icon s14" viewBox="0 0 24 24" style="width:11px;height:11px;"><path d="M5 13l4 4L19 7"/></svg></span>调用工具 · 视频拆解（M 线后）</div>
+            <div class="tc-body">拆出 <b>5 个镜头</b>，其中 1 镜画面未读出（对白仍可用）。结果已写回这条视频的拆解面板。</div>
+            <div class="tc-link"><svg class="svg-icon s14" viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M9 6l6 6-6 6"/></svg>查看拆解结果（展开右槽那张表）</div>
+          </div>
+          <div class="agent__msg">你想让我先按这 5 镜起一版草稿，还是你先勾选要保留的镜头？</div>
+        </div>
+        <div class="agent__composer">
+          <div class="box">继续对话，或让 Nomi 接着做…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ 布局 A · 空态 + 进行中（两小图并排说明四态） ============ -->
 <div class="sheet-label">
   <span class="tag rec">布局 A · 状态</span>
   <span class="txt">面板四态里的两态：① 空态（可拆但还没拆，含隐私披露）② 进行中（诚实阶段文案 + 可安全关闭后台继续）。结果态见上、失败在结果内逐镜标。</span>
 </div>
-<div style="width:1280px; max-width:100%; display:flex; gap:14px;">
+<div id="states-row" style="width:1280px; max-width:100%; display:flex; gap:14px;">
   <!-- 空态 -->
   <div class="app" style="width:632px; height:420px; position:relative;">
     <div class="decon" style="width:100%; border-left:0;">
@@ -487,7 +705,7 @@ body { padding: 28px 20px 56px; display: flex; flex-direction: column; align-ite
   <span class="tag rec">布局 A · 闭环收尾</span>
   <span class="txt">勾选的 3 个镜头逐个冒出来落在画布上、落完自动编成一组「咖啡馆人物镜头 · 镜头组」——整组可一起选/拖/喂参考/生成，整批一个 Cmd+Z。对齐既有「批量产出逐步冒出+自动编组」拍板。</span>
 </div>
-<div class="app" style="height:520px;">
+<div class="app" id="app-canvas-group" style="height:520px;">
   <div class="appbar">
     <div class="appbar__left"><span class="brand"><span class="brand__mark">N</span><span class="brand__word">Nomi</span></span><span class="crumb">/ <b>咖啡馆短片</b></span></div>
     <div class="appbar__center"><div class="stepper"><button>创作</button><button class="active">生成</button><button>预览</button></div></div>
@@ -542,7 +760,7 @@ body { padding: 28px 20px 56px; display: flex; flex-direction: column; align-ite
   <span class="tag b">布局 B · 备选</span>
   <span class="txt">底部全宽抽屉 —— 分镜表横向铺开、每镜一张卡，源视频仍在画布上方。适合宽屏「像看一条胶片」地横扫结构；代价：占掉时间轴那条底部黄金位、和时间轴争地盘，且窄屏卡片会挤。不推荐做主版。</span>
 </div>
-<div class="app" style="height:600px;">
+<div class="app" id="app-layout-b" style="height:600px;">
   <div class="appbar">
     <div class="appbar__left"><span class="brand"><span class="brand__mark">N</span><span class="brand__word">Nomi</span></span><span class="crumb">/ <b>咖啡馆短片</b></span></div>
     <div class="appbar__center"><div class="stepper"><button>创作</button><button class="active">生成</button><button>预览</button></div></div>

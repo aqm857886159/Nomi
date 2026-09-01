@@ -34,7 +34,7 @@
 
 ### 3.1 v1 范围（做什么）
 - **入口**：给画布**视频节点**的现有浮动工具栏（`NodeVideoFrameToolbar`，L2 情境浮条）加**一颗「拆解」按钮**（图标 `IconCut`）。不加任何 L1 常驻工具栏按钮、不加新模式切换器、不新建工作区。
-- **面板**：右侧就近停靠面板（≥1200px 宽时 520px 停靠、窄屏铺满，`dialog` `aria-modal=false`，不接管全 App）。四态：空态（可拆但还没拆）→ 进行中（诚实阶段文案 + 「可安全关闭/后台继续」）→ 需要处理（失败/部分失败，可单独重试）→ 结果（镜头结构表）。
+- **面板**：右侧就近停靠面板（宽度=现役右栏宽度真相源 `--generation-assistant-target-width`，默认 340px、可拖 300–600、窄屏铺满，`dialog` `aria-modal=false`，不接管全 App）。与「生成」AI 栏/Agent 面板**互斥共占同一右槽**（见 §4.1）。四态：空态（可拆但还没拆）→ 进行中（诚实阶段文案 + 「可安全关闭/后台继续」）→ 需要处理（失败/部分失败，可单独重试）→ 结果（镜头结构表）。
 - **结果=镜头结构表**：逐镜一行，字段直接投影引擎 `DeconstructShot`（景别/情绪/画面/字幕/对白/图片提示词/运镜提示词 + 自定义列）；`carriedOver` 标「承接上镜」；`visionFailed` 那一镜诚实标「这镜没读出来·可单独重试」，不假装成功；`sourceFrameUrl` 作只读对照缩略图。
 - **产出到画布（既有拍板闭环）**：勾选镜头 → 「加入画布」→ **逐个抽帧落成图片节点、逐个冒出来、落完自动编成一组、整批一个 Cmd+Z**（严格复用 `extractShotCutsToNodes.ts` 的 `exactPosition`+紧凑排布+`createGroup`+`selectNodes`+`persist` 现役实现，对齐 [[batch-output-appears-progressively-and-grouped]] 拍板）。每个节点带 `meta.videoAnalysis`（图片/运镜提示词随节点走）。
 - **接后续创作**：一颗「用这套结构起稿」→ 把镜头表整理成草稿推进现有生成 AI composer（复用 `setGenerationAiDraft`）。这是「拆完能用于创作」的桥。
@@ -67,12 +67,51 @@
 | 事 | 真实落点（现役 main） | 说明 |
 |---|---|---|
 | 拆解入口住哪 | `src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx` | 视频节点的**浮动工具栏**（`FloatingToolbarShell`，选中/hover 出的 L2 浮条，现有 抽首帧/抽尾帧/全屏/下载/生成记录）。v1 = 加一颗「拆解」。⚠️ 现役 main 上此浮条**还没有**拆解钮（`openVideoDeconstruction` 只在 #251 分支存在）。 |
-| 面板住哪 | 挂在 `GenerationWorkspace` 画布层（`src/workbench/generation/GenerationWorkspace.tsx:105` 的 `workbench-generation__canvas`）之上的就近 `dialog` | 与右侧 AI sidebar、底部时间轴共存，不占它们的位；参考 #251 `VideoDeconstructionPanel` 的右停靠 520px 布局 |
+| 面板住哪 | 挂在 `GenerationWorkspace` 画布层（`src/workbench/generation/GenerationWorkspace.tsx:105` 的 `workbench-generation__canvas`）之上的就近 `dialog` | 与右侧 AI sidebar、底部时间轴**互斥共占同一右槽**（见 §4.1），不占时间轴的位 |
+| 右栏宽度真相源 | `assistantWidth`（`src/workbench/workbenchStore.ts:233` 默认 **340**，clamp 300–600 `:332`）→ CSS var `--generation-assistant-target-width`（`GenerationWorkspace.tsx:76-82`，`CanvasAssistantPanel.tsx:582`） | 拆解面板**沿用这个宽度**，不自立第二个数字（#251 的 520px 已废弃，不再引用）|
 | 落节点+编组 | `src/workbench/generationCanvas/nodes/extractShotCutsToNodes.ts`（#251 零件，现役画布 store API） | `addNode({exactPosition:true})` 逐个落 → `createGroup`+`moveNodeToGroup` → `selectNodes` → `persistActiveWorkbenchProjectNow`，整批一个 undo barrier |
 | 引擎契约 | `electron/video/deconstructVideo.ts`（#259，另一班在重建） | 输入 `DeconstructVideoPayload`、输出 `DeconstructVideoResult{shots[],hasAudio,failedShotIndexes}`；面板只消费，不改引擎 |
 | 设计 token | `docs/design/nomi-design-system.md` §2（`nomi-paper`/`nomi-ink*`/`nomi-line*`/`nomi-accent*`/`nomi-warning`），§1.5 控件层级 | 样张 token-only、光/暗双模式 |
 
 真实 chrome（样张须复刻）：顶栏 `NomiAppBar` = 品牌 + 项目名 + **创作/生成/预览** 三段 stepper（分镜折进创作，`src/i18n/resources.ts:179-182`）+ 右簇（浏览器/设置/接入模型/去出片）；生成区左侧 `ProjectExplorerSidebar`（镜头/素材双 Tab）；画布网格 + 底部时间轴 + 右侧可停靠 AI 栏。
+
+---
+
+## 4.1 与 Agent 面板的共存契约（右槽互斥）
+
+> **这一段补的窟窿**：用户看样张时问「右侧万一有 Agent 呢」。右侧那个槽位**今天住着「生成」AI 栏**（`GenerationWorkspace.tsx:143-176` 的 `workbench-generation__ai`），**M 线落地后会住完整 Agent 面板**（同一个 `aiSidebar` 槽）。拆解面板若也停右侧就近，就会和这个住户撞车。解法不是给拆解另找地方（那会把「拆」和「用」割开，违背 §2 就近取舍），而是**让右槽在同一时刻只住一个住户**。样张见 `docs/design/mockups/2026-09-01-video-deconstruction-v1.html` 视图 06/07。
+
+**背后逻辑（为什么这么设计）**：右侧就近停靠是 Nomi 已拍板的创作辅助位——AI 栏、参数面板、拆解面板都想贴着画布右缘。但画布右缘只有一条，三个都常驻会互相挤、布局抖（§1.5「情境控件不许挤常驻条」栽过的坑）。所以把右缘定义成**单槽（single dock slot）**：谁被唤起谁进驻，另一个**收起让位**（不是销毁）。这样用户任一时刻只面对一个右侧上下文，不用在两块并排面板间分心。
+
+### R-C-1 互斥规则（谁进驻，谁让位）
+- 右侧**同一时刻只有一个住户**：`{ 生成/Agent 栏 | 拆解面板 }` 二选一占据右槽。
+- 从视频节点浮条点「拆解」打开面板 → 面板进驻右槽，**Agent/AI 栏收成顶栏右区角标**（视图 06）。
+- 拆解面板开着时用户点开 Agent → **Agent 进驻右槽，拆解收成源节点上的浮条**（视图 07）。
+- 关闭进驻的那个 → 上一个住户**还位**（不是重新初始化）。
+
+### R-C-2 收起形态（保留可见性，不静默消失）
+- **AI/Agent 栏收起 → 顶栏角标**：落 `NomiAppBar` 右簇（`src/ui/app-shell/NomiAppBar.tsx:199-349` 的 `role="toolbar"`），紧挨「配置」组（设置/接入模型）左侧，形态复刻现役 ghost 钮（`h-[30px]` + `IconX size=15 stroke=1.8` 档）。**有新动静**（新回复/工具跑完）时角标上冒 accent 小圆点或数字，语法复刻 `TaskCenterButton.tsx:143-147`（`min-w-4 rounded-pill bg-nomi-paper text-micro tabular-nums text-nomi-accent`）。点角标 = 还原右栏。
+  - *为什么落顶栏*：顶栏是唯一跨创作/生成/预览三区常驻的 chrome，正是「切走了还能瞥见 Agent 有没有新动静」的锚点（同 TaskCenter 落顶栏的理由，`TaskCenterButton.tsx:1-2`）。
+- **拆解收起 → 节点浮条 + 节点角标**：源视频节点头挂「已拆解 · N 镜」角标（`.node__result-badge`，复用 §4.3 节点副本角标的视觉档），节点内挂可点回的「拆解结果 · N 镜」浮条（`.decon-stub`）。点浮条 = 展开右槽那张表。
+  - *为什么落节点*：拆解结果本就属于那条源视频，收起态挂回它身上是最自然的家（一功能一个家，`nomi-design-system.md` §1.5）。
+
+### R-C-3 状态保持（互斥 ≠ 丢状态）
+- 两个住户都是**收起（collapse）不是卸载（unmount）**：勾选进度、滚动位置、进行中的拆解 Run、Agent 对话上下文，收起后再点回时**原样还在**。
+- 现役已有可复用的收起真相源：AI 栏的 `generationAiCollapsed`（`CanvasAssistantPanel.tsx:158/164`，`setGenerationAiCollapsed`）。拆解面板引入平行的收起标志（如 `videoDeconstructionCollapsed`），**两个标志互斥**：一个从 `false→true` 时把另一个从 `true→false`（在同一 store 事务里翻，避免两个都展开的中间态）。
+- 收起态**不暂停后台任务**：拆解进行中被收起，引擎继续跑（对齐现有「可安全关闭 · 后台继续」的进行中态文案），跑完在节点浮条/顶栏角标上示意。
+
+### R-C-4 宽度单一真相源（不自立第二个 520px）
+- 拆解面板占右槽时，**宽度沿用现役 AI 栏宽度**：`assistantWidth`（`src/workbench/workbenchStore.ts:233` 默认 **340**，clamp 300–600 `:332`）→ `--generation-assistant-target-width`（`GenerationWorkspace.tsx:76-82`，`CanvasAssistantPanel.tsx:582`）。样张用 `--nomi-assistant-width: 340px` 复刻这一个数字。
+- **#251 的 520px 作废**，不引用、不并存——同一个槽只有一个宽度真相源，用户拖宽 AI 栏后拆解面板也跟着这个宽度（互斥住户共享槽宽，体验一致）。
+
+### R-C-5 M 线落地后的前向兼容（设计已为此让路）
+- M 线（Project Agent Host）落地后，**拆解可注册成 Agent 的一个工具**：用户在 Agent 对话里说「把这条视频拆成分镜」，Agent 调 `deconstructVideo` 工具，**结果仍落回本拆解面板**（视图 07 的 tool-card「结果已写回…拆解面板」+「查看拆解结果」链接演示了这条）。
+- 关键约束：**不新开第二个拆解结果视图**——Agent 触发的拆解和节点浮条触发的拆解，产出**同一个** `DeconstructVideoResult`、渲染进**同一块**面板（右槽那张镜头结构表）。Agent 只是拆解的另一个**调用者**（对齐 P4 通用第一 + #232 吸收第 6 条「集成不绕面板/预算」）。
+- 因此 v1 的面板 API 从一开始就设计成「**结果驱动、调用者无关**」：面板订阅「这条源视频的拆解结果」这个状态，而不是订阅「谁点了拆解按钮」。节点浮条入口是第一个调用者，Agent 工具是第二个，二者共用同一结果槽——**现在就把这个接缝留对，M 线接线时不用返工**。
+
+### R-C-6 验收补充（并入 §3.4 验收门）
+- 走查须覆盖互斥两向：① 拆解开→Agent 收顶栏角标、角标示意新动静、点回还原；② Agent 开→拆解收节点浮条、点回还原且勾选/进度不丢。截图人眼判断（R13）。
+- 断言「不丢状态」：收起再展开后，已勾选镜头数、滚动位置、进行中 Run 的进度条都与收起前一致（不是重置为初始态）。
 
 ---
 
