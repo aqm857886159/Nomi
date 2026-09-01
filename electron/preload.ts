@@ -116,6 +116,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     revealFile: (payload: unknown) => ipcRenderer.invoke("nomi:workspace:reveal-file", payload),
     deleteFiles: (payload: unknown) => ipcRenderer.invoke("nomi:workspace:delete-files", payload),
     revealProjectFolder: (payload: unknown) => ipcRenderer.invoke("nomi:workspace:reveal-project-folder", payload),
+    syncInspect: (projectId: string) => ipcRenderer.invoke("nomi:workspace:sync-inspect", projectId),
+    syncReveal: (projectId: string) => ipcRenderer.invoke("nomi:workspace:sync-reveal", projectId),
+    syncCopyConflict: (payload: unknown) => ipcRenderer.invoke("nomi:workspace:sync-copy-conflict", payload),
   },
   // 系统通知：任务跑完且窗口失焦时才发（判失焦在渲染层，主进程只负责发+点击拉回窗口）。
   notifications: {

@@ -677,7 +677,7 @@ function registerIpc(): void {
     shell.showItemInFolder(absolutePath);
     return { ok: true };
   });
-  registerWorkspaceFileDeleteIpc({ readProject });
+  registerWorkspaceFileDeleteIpc({ readProject }); require("./workspace/workspaceSyncIpc").registerWorkspaceSyncIpc({ readProject });
   ipcMain.handle("nomi:workspace:reveal-project-folder", (event, payload) => {
     assertTrustedSender(event);
     const projectId = String((payload as { projectId?: unknown } | null)?.projectId || "").trim();
