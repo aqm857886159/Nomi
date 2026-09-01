@@ -9,7 +9,7 @@
 
 ---
 
-## 现役欠账（23）
+## 现役欠账（24）
 
 | 状态 | 文档 | 标题 |
 |---|---|---|
@@ -31,6 +31,7 @@
 | 🚧 进行中 | [2026-09-01-credential-config-at-rest-encryption.md](plan/2026-09-01-credential-config-at-rest-encryption.md) | Credential-bearing connection config → encrypted at rest (P2 class fix) |
 | 🚧 进行中 | [2026-09-01-provider-proxy-and-onboarding-hardening.md](plan/2026-09-01-provider-proxy-and-onboarding-hardening.md) | 计划：per-connection provider proxy + onboarding 加固（#258 拆项①③） |
 | 🚧 进行中 | [2026-09-01-tikhub-connector-v1.md](plan/2026-09-01-tikhub-connector-v1.md) | 2026-09-01 TikHub 数据 connector v1（分享链接 → 无水印直链 → 拆解） |
+| 🚧 进行中 | [2026-09-02-docaudit-b.md](plan/2026-09-02-docaudit-b.md) | DOCAUDIT-B：非 KIE/APIMart 官方文档对账与封印 |
 | 🚧 进行中 | [2026-08-25-generation-credit-estimation.md](superpowers/plans/2026-08-25-generation-credit-estimation.md) | 生成积分估算与实际记录实施计划 |
 | 🚧 进行中 | [2026-08-27-release-media-pack-skill.md](superpowers/plans/2026-08-27-release-media-pack-skill.md) | Nomi Release Media Pack Skill Implementation Plan |
 | 🚧 进行中 | [2026-08-28-conversational-model-integration.md](superpowers/plans/2026-08-28-conversational-model-integration.md) | Conversational Model Integration Implementation Plan |
@@ -67,7 +68,7 @@
 
 </details>
 
-- 合计扫描：487 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
+- 合计扫描：488 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
 
 ---
 
