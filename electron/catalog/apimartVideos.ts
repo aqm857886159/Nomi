@@ -18,6 +18,7 @@ import type { HttpOperation, ProfileKind } from "./types";
 import type { ParamMap } from "./paramTranslate";
 import { APIMART_CREATE_TASK_ID_PATH, APIMART_STATUS_MAPPING, APIMART_VIDEO_QUERY_OP } from "./apimartVendor";
 import "./apimartMinimaxH3";
+import "./apimartModelIds";
 
 const CREATE_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 
@@ -142,6 +143,7 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   // Grok Imagine 1.5：文生/图生共用标准视频端点。图生最多 7 图，比例自动跟随参考图，故不发 size。
   videoModel({
     modelKey: "grok-imagine-1.5-video-apimart", labelZh: "Grok Imagine 1.5", archetypeId: "grok-imagine-1.5-video",
+    requestTransform: "apimart-canonical-model-id",
     t2vBody: { size: SIZE, quality: QUALITY, duration: DURATION },
     i2vBody: { quality: QUALITY, duration: DURATION, image_urls: IMAGE_URLS },
   }),
@@ -172,7 +174,7 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   // {{request.params.model}}（= 档案当前变体的 modelKey，如 doubao-seedance-2.0-fast），同 happyhorse 通道。
   // body 形状一致（SEEDANCE_*_BODY 单源 P1）：i2vBody 一条覆盖 图生/全能参考/首尾帧 三模式——
   // image_urls + video_urls/audio_urls + image_with_roles(与 image_urls 互斥) + seed；空键由模板自动丢（M2）。
-  videoModel({ modelKey: "doubao-seedance-2.0", labelZh: "Seedance 2.0", archetypeId: "seedance-2-apimart", modelRef: VARIANT_MODEL_REF, t2vBody: SEEDANCE_T2V_BODY, i2vBody: SEEDANCE_I2V_BODY }),
+  videoModel({ modelKey: "doubao-seedance-2.0", labelZh: "Seedance 2.0", archetypeId: "seedance-2-apimart", modelRef: VARIANT_MODEL_REF, requestTransform: "apimart-canonical-model-id", t2vBody: SEEDANCE_T2V_BODY, i2vBody: SEEDANCE_I2V_BODY }),
   // Seedance 2.5（2026-08-12 接入，逐项对账 docs.apimart.ai/cn/api-reference/videos/doubao-seedance-2-5）。
   // 与 2.0 的通道差异：无变体（官方 model 固定 doubao-seedance-2.5，故用默认 {{model.modelKey}}）、
   // 多一个 return_last_frame（2.5 独有，返回尾帧图）。参考通道键名与 2.0 相同（image_urls /
@@ -180,6 +182,7 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   // size 在首尾帧模式由档案 fixedParams 钉成 adaptive（官方硬约束），不在这里 drop —— 值照发即可。
   videoModel({
     modelKey: "doubao-seedance-2.5", labelZh: "Seedance 2.5", archetypeId: "seedance-2.5-apimart",
+    requestTransform: "apimart-canonical-model-id",
     t2vBody: { ...SEEDANCE_T2V_BODY, return_last_frame: RETURN_LAST_FRAME },
     i2vBody: { ...SEEDANCE_I2V_BODY, return_last_frame: RETURN_LAST_FRAME },
   }),
@@ -220,6 +223,7 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   // generation_type:reference（mode.fixedParams 注入，否则 3 图被拒）。
   videoModel({
     modelKey: "Omni-Flash-Ext", labelZh: "Omni-Flash-Ext", archetypeId: "omni-flash-ext",
+    requestTransform: "apimart-omni-flash-ext-contract",
     t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION },
     i2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS, generation_type: GENERATION_TYPE },
   }),
