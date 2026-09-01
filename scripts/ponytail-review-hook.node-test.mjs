@@ -110,6 +110,12 @@ test('review input is bounded and rejects excessive push updates', () => {
   assert.throws(() => parsePushInput(updates), /update count exceeds/)
 })
 
+test('a bounded multi-megabyte text diff remains reviewable without ENOBUFS', () => {
+  const diff = 'x'.repeat(7_500_000)
+  const collected = collectReviewDiff({ repoRoot: '/repo', scope: 'staged', runGit: () => diff })
+  assert.equal(collected.diff, diff)
+})
+
 test('staged binary diff omits base85 payload and carries a byte summary', (t) => {
   const root = makeRepository(t)
   fs.writeFileSync(path.join(root, 'poster.png'), pngBytes(823 * 1024))

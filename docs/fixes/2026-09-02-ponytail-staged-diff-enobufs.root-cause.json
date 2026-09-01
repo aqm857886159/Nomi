@@ -1,0 +1,89 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-ponytail-staged-diff-enobufs",
+  "problem_type": "bounded staged-diff review buffer failure",
+  "symptom": "A required merge commit was blocked with spawnSync git ENOBUFS before the Ponytail review could inspect its staged diff.",
+  "direct_cause": "The hook used execFileSync with a 1.5 MB maxBuffer while a legitimate refreshed-main merge produced a 7.25 MB text diff.",
+  "class_root": "The shared Git review boundary sized its subprocess buffer to a small ordinary-commit case instead of the documented bounded diff ceiling, so it failed with an infrastructure error rather than its explicit size guard.",
+  "affected_population": [
+    "mainline merges with several megabytes of text changes",
+    "any staged or outgoing review whose exact text diff is below the new bounded ceiling"
+  ],
+  "scope_paths": [
+    "scripts/ponytail-review-hook.mjs",
+    "scripts/ponytail-review-hook.node-test.mjs"
+  ],
+  "entry_points": [
+    "pre-commit staged diff collection",
+    "pre-push outgoing range diff collection"
+  ],
+  "internal_only_reason": "This is an internal Git-hook subprocess invariant; the failure and fix are determined by the repository hook implementation and its regression tests.",
+  "invariants": [
+    "The subprocess maxBuffer must exceed the explicit exact-diff ceiling.",
+    "Text diffs at or below the bounded ceiling remain exact and reviewable.",
+    "Text diffs over the ceiling fail through the explicit review-size guard, not an incidental subprocess buffer error.",
+    "Binary payloads remain summarized rather than expanding the text review input."
+  ],
+  "generality_proof": "Both commit and push paths converge on collectReviewDiff and runGit; sizing the shared buffer above the shared ceiling fixes the class for staged and outgoing reviews without weakening the fail-closed ceiling.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/ponytail-review-hook.mjs",
+      "symbol": "runGit / collectReviewDiff",
+      "responsibility": "Collect the exact staged or outgoing diff with a subprocess buffer larger than the explicit review ceiling, then reject only genuinely oversized text."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/ponytail-review-hook.mjs",
+      "entry_point": "collectReviewDiff({ scope: 'staged' })",
+      "disposition": "enforced",
+      "evidence": "The reproduced merge failure occurred while collecting the staged merge tree."
+    },
+    {
+      "path": "scripts/ponytail-review-hook.mjs",
+      "entry_point": "collectReviewDiff({ scope: 'push' })",
+      "disposition": "enforced",
+      "evidence": "Push ranges use the same runGit helper and the same explicit MAX_REVIEW_DIFF_BYTES assertion."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same size mismatch can recur for any future merge or large text change, independent of vendor or feature.",
+    "same_class_scan": [
+      "Checked both staged and push branches of collectReviewDiff; both call runGit and assert the shared ceiling.",
+      "Checked the existing binary-summary path; binary bytes are already excluded and therefore are not the cause of this text-buffer failure.",
+      "Added a 7.5 MB staged text regression to exercise the previously failing class below the new 8 MB ceiling, while retaining the over-ceiling rejection test."
+    ]
+  },
+  "prevention": {
+    "kind": "runtime-assertion",
+    "enforcement_path": "scripts/ponytail-review-hook.mjs",
+    "invariant": "runGit maxBuffer is MAX_REVIEW_DIFF_BYTES + 64 KB, so the explicit review ceiling is reached before subprocess buffering fails.",
+    "failure_mode": "A diff over MAX_REVIEW_DIFF_BYTES is rejected with a review-size error; subprocess collection remains bounded.",
+    "exception_policy": "none",
+    "strategy": "Keep one shared finite ceiling and allocate the subprocess buffer above it for both Git-hook entry points.",
+    "artifacts": [
+      "scripts/ponytail-review-hook.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/ponytail-review-hook.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/ponytail-review-hook.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No obsolete review path exists; the same staged and push collection boundary is retained and strengthened."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The failure is in the repository's Node subprocess configuration, not a third-party runtime.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data or user state is affected.",
+  "residual_risks": [
+    "An exact text diff above 8 MB remains intentionally blocked and must be split into smaller commits or reviewed through a future bounded adapter design."
+  ]
+}

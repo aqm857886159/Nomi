@@ -17,7 +17,11 @@ import { pathToFileURL } from 'node:url'
 
 export const REVIEW_TIMEOUT_MS = 180_000
 export const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
-export const MAX_REVIEW_DIFF_BYTES = 1_500_000
+// Mainline merges can legitimately carry several megabytes of text while the
+// review must still receive the exact staged diff. Keep a finite ceiling, but
+// leave room for a bounded merge review instead of letting execFileSync fail
+// first with ENOBUFS at its default-sized buffer.
+export const MAX_REVIEW_DIFF_BYTES = 8_000_000
 export const MAX_REVIEW_REPORT_BYTES = 256_000
 export const MAX_PUSH_RANGES = 32
 export const MAX_PUSH_INPUT_BYTES = 256_000
