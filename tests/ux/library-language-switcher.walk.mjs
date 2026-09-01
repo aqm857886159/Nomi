@@ -42,13 +42,13 @@ try {
 
   // 起始页（未建任何项目）应默认中文，且改语言的入口在这一屏就够得着
   const onLibrary = await win.getByText('新建空白项目', { exact: false }).count()
-  const settingsEntry = await win.locator('[aria-label="设置"]').count()
+  const settingsEntry = await win.locator('[data-open-settings]').count()
   check('停在项目库起始页（未建项目）', onLibrary > 0, `新建空白项目=${onLibrary}`)
   check('起始页顶栏够得着设置入口（语言归位后的唯一入口）', settingsEntry > 0, `齿轮=${settingsEntry}`)
   await screenshotSettled(win, { path: path.join(shotsDir, '01-library-zh.png') })
 
   // 起始页 → 齿轮 → 设置「通用」
-  await win.locator('[aria-label="设置"]').first().click({ timeout: 8000 })
+  await win.locator('[data-open-settings]').first().click({ timeout: 8000 })
   await win.waitForTimeout(1000)
   const generalTab = win.locator('[data-settings-tab-id="general"]')
   check('设置里有「通用」分区', (await generalTab.count()) > 0)

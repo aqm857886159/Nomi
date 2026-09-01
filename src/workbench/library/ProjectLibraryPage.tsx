@@ -214,6 +214,7 @@ export default function ProjectLibraryPage({
         <button
           type="button"
           onClick={onOpenSettings}
+          data-open-settings
           aria-label={t('settings.title')}
           title={t('settings.title')}
           className={cn(

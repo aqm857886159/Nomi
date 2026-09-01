@@ -296,6 +296,7 @@ export default function NomiAppBar({
                     'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
                     'max-[1600px]:w-[30px] max-[1600px]:h-[30px] max-[1600px]:justify-center max-[1600px]:p-0',
                   )}
+                  data-open-settings
                   aria-label={t('settings.title')}
                   onClick={onOpenSettings}
                 >

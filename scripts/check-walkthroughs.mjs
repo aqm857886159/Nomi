@@ -153,6 +153,41 @@ const RULES = [
     },
   },
   {
+    id: 'mockup-overwrite',
+    label: '走查把截图写进 docs/design/mockups —— 跑一遍就把获批样张重写成当前 UI',
+    appliesTo: (file) => file.includes(`${path.sep}tests${path.sep}ux${path.sep}`),
+    scan(code, file) {
+      // 样张的全部价值在于「它是拍板那一刻的样子」，R8 要求实现后与样张逐项对账。
+      // 基准被当前 UI 覆盖之后，对账就成了拿现状比现状——永远一致，是设计验收环节的假绿。
+      // 2026-09-02 实测：跑完 111 条走查后 `git add -A`，14 个获批样张被静默覆盖。
+      // 走查产出应写进已 gitignore 的目录（tests/ux/shots/<walk-name>/）。
+      const hits = []
+      code.split('\n').forEach((line, i) => {
+        if (/docs\/design\/mockups/.test(line)) hits.push({ line: i + 1, text: line.trim().slice(0, 120), file })
+      })
+      return hits
+    },
+  },
+  {
+    id: 'i18n-text-as-locator',
+    label: '用 i18n 文案（中文 aria-label）定位控件 —— 文案改了或控件搬家就成死锚点',
+    appliesTo: (file) => file.includes(`${path.sep}tests${path.sep}ux${path.sep}`),
+    scan(code, file) {
+      // 死选择器**两个方向都骗人**：存在型断言变假红（会被发现，只是浪费一个月），
+      // 不存在型断言变假绿（永远通过，没人会去查一条绿的走查）。
+      // 2026-08-03 feeb575b 按 §1.5 把语言钮归位设置并删组件，两条走查 5 处锚点当场失效，
+      // 红了一个月无人知晓。定位请用 data-* 测试契约（如 data-settings-locale），
+      // 它不随 i18n 与控件层级调整漂移；中文文案只用来断言「用户看到了什么」，不用来导航。
+      const hits = []
+      code.split('\n').forEach((line, i) => {
+        for (const m of line.matchAll(/\[aria-label[*^$~|]?=\s*["']([^"']*[\u4e00-\u9fa5][^"']*)["']\]/g)) {
+          hits.push({ line: i + 1, text: `[aria-label="${m[1]}"] —— 改用 data-* 测试契约`, file })
+        }
+      })
+      return hits
+    },
+  },
+  {
     id: 'source-scan-without-strip',
     label: '扫源码的结构测试没剥注释（会反噬文档：记录该 bug 的注释本身把门岗打红）',
     appliesTo: (file) => file.endsWith('.ts'),

@@ -61,7 +61,7 @@ async function skipOnboarding(win) {
 // 切语言的唯一入口：齿轮 → 设置「通用」→ 语言分段控件（feeb575b 按设计系统 §1.5 把语言
 // 归位到设置，同 commit P1 删掉了原先的 LanguageMenuButton，所以别再找 [aria-label="语言"]）。
 async function switchToEnglish(win) {
-  await win.locator('[aria-label="设置"]').first().click({ timeout: 8000 })
+  await win.locator('[data-open-settings]').first().click({ timeout: 8000 })
   await win.waitForTimeout(800)
   await win.locator('[data-settings-tab-id="general"]').first().click({ timeout: 6000 })
   await win.waitForTimeout(600)
