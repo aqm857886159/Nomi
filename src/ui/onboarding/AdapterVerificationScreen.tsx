@@ -15,6 +15,7 @@ import {
   shouldShowAdapterModelRecovery,
 } from './adapterVerificationViewModel'
 import { adapterFailureAdvice } from './adapterFailureAdvice'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 
 const MODE_LABEL_KEYS: Record<string, string> = {
   chat: 'chat',
@@ -154,7 +155,7 @@ export function AdapterVerificationScreen({
             <div key={model.modelKey} className="rounded-nomi border border-nomi-line bg-nomi-paper px-3 py-2.5">
               <Group justify="space-between" wrap="nowrap" align="center" gap={8}>
                 <div className="min-w-0 flex-1">
-                  <Text size="sm" fw={600} c="var(--nomi-ink)" truncate>{model.labelZh}</Text>
+                  <Text size="sm" fw={600} c="var(--nomi-ink)" truncate>{translateModelDisplayText(model.labelZh)}</Text>
                   <Text size="xs" c="var(--nomi-ink-40)" truncate>{model.modelKey}</Text>
                 </div>
                 <span
