@@ -145,6 +145,8 @@ export async function launchNomiApp(options = {}) {
     executablePath = require('electron'),
     waitForWindow = true,
     syntheticCredentialStorage = false,
+    // 只有「刻意验证只读目录本身」的走查才该置 true。默认 false = 起飞点拦死（见 assertCatalogWritable）。
+    allowReadOnlyCatalog = false,
   } = options
 
   const isolate = options.isolate !== false
@@ -237,6 +239,15 @@ export async function launchNomiApp(options = {}) {
     throw error
   }
 
+  if (win && !allowReadOnlyCatalog) {
+    try {
+      await assertCatalogWritable(win, name)
+    } catch (error) {
+      await app.close().catch(() => undefined)
+      throw error
+    }
+  }
+
   return {
     app,
     win,
@@ -247,6 +258,49 @@ export async function launchNomiApp(options = {}) {
     capabilityDir,
     close: () => closeNomiApp(app),
   }
+}
+
+/**
+ * 走查假绿闸：**目录只读绝不许是静默的**。
+ *
+ * 为什么这条闸非有不可：隔离走查的 catalog 种子是从用户**真实档案**整份拷过来的
+ * （evals/lib/isoApp.mjs prepareIsolation），它的 schema 版本跟被测构建完全解耦——
+ * 这台机器上二十几个 worktree 各在不同版本，用户真实档案又总是被最新的那个升上去。
+ * 种子比被测构建新时，catalogStore.writeCatalog 会 fail-closed 拒绝写回（防降级，行为正确），
+ * 于是走查里所有 catalog 播种（upsertVendorApiKey / upsertModel …）全部失败，
+ * 模型压根进不了目录 → 「切换节点模型」点了没有可选项 → 节点保持原样 → 截图一切正常。
+ * 这种假绿和真绿长得一模一样，比红灯危险得多。
+ *
+ * 所以判定读的是**运行中那个构建自己报的** health（不是仓库源码里的常量），
+ * 在起飞点一次性拦死，而不是等某条断言碰巧撞上。
+ */
+export async function assertCatalogWritable(win, name = 'nomi-walk') {
+  let health = null
+  try {
+    health = await win.evaluate(() => window.nomiDesktop?.modelCatalog?.health?.() ?? null)
+  } catch {
+    // 读不到 bridge（开屏早期形态/打包 origin 差异）≠ 只读。不在这里制造假红；
+    // 真正的只读态由下面的结构化 issue 判定，读不到时留作已登记的残余风险。
+    return null
+  }
+  if (!health || typeof health !== 'object') return null
+
+  const skew = (health.issues || []).find((issue) => issue?.code === 'catalog_read_only_version_skew')
+  if (!skew) return health
+
+  throw new Error(
+    [
+      `[${name}] 走查中止：模型目录处于**只读**状态，本次走查的模型相关断言全部不可信。`,
+      `  盘上 catalog schema = v${skew.diskVersion}，被测构建只认到 v${skew.appVersion}。`,
+      '  机制：种子 catalog 比被测构建新 → writeCatalog fail-closed 拒写（防静默降级，行为正确）',
+      '        → 走查往目录里播种的 vendor/key/model 全部写不进去',
+      '        → 模型选择器没有对应选项，「切换模型」点了不生效，且**不报错**（假绿）。',
+      '  怎么办（任选其一）：',
+      `    ① 用同版本构建跑：本 worktree 先 pnpm build，确认它的 CURRENT_CATALOG_VERSION ≥ v${skew.diskVersion}；`,
+      '    ② 别拷真实档案当种子：prepareIsolation(dir, { requireCatalog: false })，改用走查自己写的合成 catalog；',
+      '    ③ 确实要验只读态本身：给 launchNomiApp 传 allowReadOnlyCatalog: true，并显式断言只读行为。',
+    ].join('\n'),
+  )
 }
 
 /**

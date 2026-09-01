@@ -171,6 +171,9 @@ test('repository credential and catalog health vocabularies preserve fail-closed
   assert.match(credential?.reason ?? '', /needs_resave.*legacy plaintext.*不可执行/i)
   assert.deepEqual(health?.members, [
     'catalog_empty',
+    // 目录 schema 偏移导致写保护生效：与凭据三态并列的 fail-closed 态，必须留在词表里。
+    // 它是「只读」这件事的**唯一结构化来源**——被删掉就退回「只能 catch 写异常才知道」的静默世界。
+    'catalog_read_only_version_skew',
     'model_mapping_missing',
     'vendor_api_key_locked',
     'vendor_api_key_missing',
@@ -178,6 +181,8 @@ test('repository credential and catalog health vocabularies preserve fail-closed
     'vendor_disabled',
   ])
   assert.match(health?.reason ?? '', /safeStorage.*锁定.*legacy plaintext.*重存/i)
+  // 只读那条必须带出两个版本号，否则文案与走查只能 hardcode 版本，漂移就看不出来。
+  assert.match(health?.reason ?? '', /diskVersion.*appVersion/i)
 })
 
 test('repository helper subsets and incomplete projections remain debt', () => {

@@ -11,6 +11,8 @@ export const zhRuntime = {
     loadFailedWithMessage: '模型目录加载失败：{{message}}',
     healthFailed: '模型目录健康检查失败：{{message}}',
     empty: '模型目录为空',
+    readOnlyVersionSkew:
+      '模型目录已锁为只读：这份目录由更新版本的 Nomi 写入（数据格式 v{{diskVersion}}），当前版本只认到 v{{appVersion}}。为避免覆盖掉新版数据，现在可以正常使用已有模型，但改不了——启用供应商、保存 API Key、增删模型都不会生效。请把 Nomi 更新到最新版本后再修改。',
     incomplete: '模型目录配置不完整',
     ready: '模型目录可用',
     noKind: '没有可用{{kind}}模型',
@@ -202,6 +204,8 @@ export const enRuntime = {
     loadFailedWithMessage: 'Failed to load model catalog: {{message}}',
     healthFailed: 'Model catalog health check failed: {{message}}',
     empty: 'The model catalog is empty',
+    readOnlyVersionSkew:
+      'The model catalog is locked read-only: it was written by a newer version of Nomi (data format v{{diskVersion}}), and this version only understands v{{appVersion}}. To avoid overwriting the newer data, your existing models still work, but nothing can be changed — enabling a vendor, saving an API key, and adding or removing models will not take effect. Update Nomi to the latest version to make changes.',
     incomplete: 'The model catalog configuration is incomplete',
     ready: 'Model catalog is available',
     noKind: 'No {{kind}} models are available',

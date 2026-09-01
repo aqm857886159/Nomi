@@ -1,0 +1,138 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-01-catalog-read-only-silent-in-walkthroughs",
+  "problem_type": "Fail-closed persistence state is unobservable, so every downstream consumer silently degrades instead of reporting it",
+  "symptom": "In a Playwright-over-Electron walkthrough running an isolated profile, the generation-canvas walkthrough kept taking normal-looking screenshots while '切换节点模型/模式' had no effect and raised no error. The app reported '[catalog] refusing to write: on-disk version 12 > app version 11 (read-only to avoid silent downgrade). Update the app to edit' as raw English error text. The run's model-related assertions were indistinguishable from a genuinely passing run (a false green).",
+  "direct_cause": "evals/lib/isoApp.mjs prepareIsolation seeds the isolated walkthrough profile by copying the user's live model-catalog.json verbatim. That seed's schema version tracks whatever build last upgraded the real profile (currently v12), not the build under test (v11 in the failing run). electron/catalog/catalogStore.ts writeCatalog then correctly refuses every write, so the walkthrough's catalog seeding (upsertVendorApiKey / upsertModel / upsertVendor) failed, the intended vendors and models never entered the catalog, the node model picker had no matching option, and the node kept its original model.",
+  "class_root": "The catalog's read-only version-skew state had no observable representation. writeCatalog fails closed correctly, but the fact 'this catalog is currently read-only' existed only as a thrown Error at each individual mutation call site. Neither the product's catalog-health contract nor the walkthrough launch boundary could see it, so every consumer had to rediscover it by catching an exception — and any consumer that did not catch (or caught without surfacing) degraded silently.",
+  "affected_population": [
+    "Every isolated walkthrough and eval that seeds the model catalog while running a build older than the user's live profile — the default on a machine carrying many worktrees at different catalog versions",
+    "Real users whose installed Nomi is older than their on-disk catalog, on every catalog-writing settings control",
+    "Any future catalog schema migration, which makes some installed build older than some on-disk catalog by construction"
+  ],
+  "scope_paths": [
+    "electron/catalog/catalogHealth.ts",
+    "src/config/modelCatalogStatus.ts",
+    "src/workbench/api/modelCatalogApi.ts",
+    "src/i18n/locales/runtime.ts",
+    "tests/ux/_launchApp.mjs"
+  ],
+  "entry_points": [
+    "Walkthrough launch: tests/ux/_launchApp.mjs launchNomiApp (every isolated walkthrough and eval funnels through it)",
+    "Generation canvas node model/mode picker reading catalog status",
+    "Model settings controls that write the catalog while it is version-skewed read-only",
+    "Main-process catalog health IPC nomi:model-catalog:health"
+  ],
+  "internal_only_reason": "The catalog schema version guard, its health contract, and the walkthrough isolation seeding are entirely Nomi-internal persistence and test-harness contracts; no third-party runtime or provider decides this behavior.",
+  "invariants": [
+    "An app must never overwrite a catalog whose schema version is newer than the app understands (pre-existing, retained unchanged).",
+    "Whether the catalog is currently writable must be readable as structured state from the catalog health contract, not only discoverable by catching a write exception.",
+    "A walkthrough must not proceed past launch with a read-only catalog unless it explicitly opts in, because its model-related assertions cannot be trusted.",
+    "A user-visible catalog read-only condition must be reported in the user's language with the reason and the concrete recovery action, never as a raw main-process English Error message.",
+    "Version numbers shown to users or tests are derived from the running build's health payload, never hardcoded at the consumer."
+  ],
+  "generality_proof": "The invariant is enforced where it is produced, not where it is observed. deriveModelCatalogHealth is the single derivation of catalog health and is reached by exactly one main-process export (getModelCatalogHealth) behind one IPC channel (nomi:model-catalog:health), which is the only way any renderer or test reads catalog health; adding the writable/diskVersion/appVersion fields plus the catalog_read_only_version_skew issue there makes the state visible to every present and future consumer at once. The two consumer classes then each converge on one boundary: all product surfaces route catalog health through src/config/modelCatalogStatus.ts deriveModelCatalogStatus (used by useModelOptions and, for the canvas node picker specifically, via generationCanvas/adapters/modelOptionsAdapter.ts deriveGenerationModelCatalogStatus), and all walkthroughs/evals launch through tests/ux/_launchApp.mjs launchNomiApp (evals/lib/isoApp.mjs launchIsolatedApp delegates to it). No per-call-site catch is added or required, which is precisely why this supersedes the 2026-08-31 attempt.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/catalogHealth.ts",
+      "symbol": "deriveModelCatalogHealth",
+      "responsibility": "Own the single derivation of catalog read-only state. Emits writable/diskVersion/appVersion and a catalog_read_only_version_skew error issue whenever the on-disk schema exceeds CURRENT_CATALOG_VERSION, so the condition is structured data rather than an exception message."
+    },
+    {
+      "path": "src/config/modelCatalogStatus.ts",
+      "symbol": "deriveModelCatalogStatus",
+      "responsibility": "Own the product-side translation of catalog health into user-facing status. Reports catalog_read_only ahead of every other status and renders a localized message carrying both schema versions and the recovery action."
+    },
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "assertCatalogWritable",
+      "responsibility": "Own the walkthrough fail-fast. Called from launchNomiApp before any walkthrough receives the window, it aborts the run when the build under test reports the read-only skew, so no walkthrough can produce screenshots whose model assertions are untrustworthy."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "entry_point": "launchNomiApp — every isolated walkthrough and eval",
+      "disposition": "enforced",
+      "evidence": "launchNomiApp now calls assertCatalogWritable after the window settles and closes the app and throws on a positive detection. evals/lib/isoApp.mjs launchIsolatedApp delegates to launchNomiApp, so the eval runners inherit the gate without their own check."
+    },
+    {
+      "path": "src/workbench/generationCanvas/adapters/modelOptionsAdapter.ts",
+      "entry_point": "deriveGenerationModelCatalogStatus — canvas node model/mode picker (the reported surface)",
+      "disposition": "enforced",
+      "evidence": "modelOptionsAdapter.ts:44 delegates to deriveModelCatalogStatus, and NodeParameterControls.tsx:129 consumes it for the node parameter bar, so the reported surface now renders the localized read-only status instead of a generic 'configuration incomplete' message."
+    },
+    {
+      "path": "src/config/useModelOptions.ts",
+      "entry_point": "useModelOptions — shared model-option hook for all model pickers",
+      "disposition": "enforced",
+      "evidence": "useModelOptions.ts:107 calls deriveModelCatalogStatus with the health payload, so every model selector in the product reports the read-only status from the same boundary."
+    },
+    {
+      "path": "src/ui/onboarding/CodexLocalImageCard.tsx",
+      "entry_point": "Codex local image enable/disable toggle",
+      "disposition": "enforced",
+      "evidence": "The 2026-08-31 contract added a per-call-site catch here for this exact failure class. That catch remains valid and unchanged, but it is no longer the mechanism this class depends on: the state is now visible up front through catalog health, so controls do not have to attempt a write and catch in order to learn the catalog is read-only."
+    },
+    {
+      "path": "electron/catalog/catalogStore.ts",
+      "entry_point": "writeCatalog version guard",
+      "disposition": "not-affected",
+      "evidence": "The fail-closed guard itself was correct and is deliberately unchanged. The defect was never that it refused the write; it was that refusal was unobservable. Weakening or bypassing this guard would reintroduce silent downgrade, so it is explicitly out of the fix's scope."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Catalog schema upgrades are a routine release event, so some installed build is older than some on-disk catalog by construction after every migration. On the development machine the same mechanism fires continuously because many worktrees sit at different CURRENT_CATALOG_VERSION values while prepareIsolation always seeds from the single live user profile, which the newest build keeps upgrading. This class was already observed once on 2026-08-31 through a different entry point and recurred here through a new one, which is direct evidence that the per-call-site remedy did not close it.",
+    "same_class_scan": [
+      "Grepped the repository for 'refusing to write', 'on-disk version', and CURRENT_CATALOG_VERSION; confirmed electron/catalog/catalogStore.ts writeCatalog is the sole write choke point and electron/catalog/types.ts:588 is the sole version constant.",
+      "Read the live user profile: ~/Library/Application Support/Nomi/model-catalog.json and the lowercase nomi sibling are both version 12, while the failing run reported app version 11 — confirming the seed/build decoupling rather than a corrupted file.",
+      "Traced evals/lib/isoApp.mjs prepareIsolation:33 copying the real catalog into the isolated settings dir, and confirmed every isolated walkthrough obtains its window through tests/ux/_launchApp.mjs launchNomiApp.",
+      "Enumerated renderer catalog mutation call sites across src/ui/onboarding/**, src/api/desktopClient.ts, and src/workbench/**: roughly half have no catch at all (desktopClient.ts catalog mutation exports, AddComfyuiInstanceButton.tsx, antigravityCardModel.ts, ComfyuiWorkflowSettingsPage.tsx) and those that do catch surface the raw English Error.message — establishing that a per-call-site strategy cannot close this class.",
+      "Traced the canvas node model switch path (InlineParameterBar → useDedupedModelSelect → NodeParameterControls → canvasNodeActions.updateNode) and confirmed it writes only project/node state; the reported no-op therefore comes from the failed catalog seeding upstream starving the picker of options, not from a failed write on the switch itself.",
+      "Reviewed docs/fixes/2026-08-31-codex-local-toggle-version-skew.root-cause.json, whose prevention.enforcement_path was a single renderer component (src/ui/onboarding/CodexLocalImageCard.tsx) despite a 'recurring' classification and a 'centralized-boundary' kind."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/catalogHealth.ts",
+    "invariant": "Catalog read-only version skew is emitted as structured, versioned state from the single catalog-health derivation, and both consumer classes fail loudly on it: the product renders a localized actionable status, and the walkthrough launcher aborts the run.",
+    "failure_mode": "The write is still refused with no data loss. The user sees a localized explanation naming both schema versions and the recovery action instead of a dead control or raw English text, and a walkthrough aborts at launch with an actionable message instead of producing screenshots whose model assertions are untrustworthy.",
+    "exception_policy": "none",
+    "strategy": "Make the fail-closed state observable at the point it is derived rather than requiring each of roughly twenty call sites to attempt a write and catch. deriveModelCatalogHealth gains writable/diskVersion/appVersion and the catalog_read_only_version_skew issue; deriveModelCatalogStatus reports catalog_read_only ahead of every other status so the read-only cause outranks its downstream symptoms (empty/incomplete); launchNomiApp calls assertCatalogWritable before handing any walkthrough its window. Walkthroughs that genuinely target the read-only state opt in explicitly via allowReadOnlyCatalog.",
+    "artifacts": [
+      "electron/catalog/catalogHealth.ts",
+      "src/config/modelCatalogStatus.ts",
+      "src/workbench/api/modelCatalogApi.ts",
+      "src/i18n/locales/runtime.ts",
+      "tests/ux/_launchApp.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/catalogReadOnly.test.ts",
+    "src/config/modelCatalogStatus.test.ts",
+    "tests/ux/_launchApp.test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/catalogReadOnly.test.ts",
+    "src/config/modelCatalogStatus.test.ts",
+    "tests/ux/_launchApp.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No parallel implementation is introduced and no old path is left callable as a fallback. The writeCatalog version guard is deliberately retained unchanged because it is correct; this change adds observability of the state it produces rather than a second way to persist. The per-call-site catch added on 2026-08-31 in CodexLocalImageCard.tsx is left in place as ordinary local error handling, not as a duplicate of the new boundary."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is owned entirely by Nomi's own persistence schema, catalog health contract, and Playwright-over-Electron harness. No third-party runtime version controls whether the catalog is writable.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration is performed or needed; on-disk catalogs are untouched by this change and the read path already returns newer-versioned files verbatim. Users whose installed build is older than their catalog must still update the app to make changes — that requirement is unchanged and is now stated to them in their own language. Walkthroughs that seeded from the real profile purely for convenience should prefer prepareIsolation(dir, { requireCatalog: false }) with a synthetic catalog; the launcher now names that option in its abort message rather than requiring the author to already know it.",
+  "residual_risks": [
+    "assertCatalogWritable returns without asserting when window.nomiDesktop.modelCatalog.health is unreachable (very early splash states, packaged-origin differences). Unreadable health is treated as unknown rather than read-only to avoid manufacturing false reds, so a walkthrough could in principle still start unguarded if the bridge never becomes readable at settle time. Detection of the positive case is unaffected.",
+    "Walkthroughs launched with waitForWindow: false (main-process-only scripts such as evals/verify-shot-smoke.mjs) have no renderer to query and are therefore not gated; they also do not make model-picker assertions, but this is asserted by inspection rather than by a test.",
+    "prepareIsolation still copies the live user catalog by default, so the skew condition itself is not eliminated — only made loud. Converting the remaining real-catalog-seeded walkthroughs to synthetic seeds is follow-up work and is not claimed here.",
+    "The product-side read-only status is proven by unit tests over deriveModelCatalogStatus; it has not been observed on screen in a real skewed build, because reproducing it requires running a build whose CURRENT_CATALOG_VERSION is lower than the live profile's."
+  ]
+}

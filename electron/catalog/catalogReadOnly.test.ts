@@ -93,6 +93,41 @@ describe("catalog 高版本只读保护（拒绝降级写回）", () => {
     expect(onDisk.vendors).toEqual([]);
   });
 
+  it("磁盘版本高于应用时，health 必须把只读状态报成结构化 issue（不能只在抛错里说）", async () => {
+    writeRawCatalog({ version: 99, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
+
+    const { getModelCatalogHealth } = await import("./catalogStore");
+    const { CURRENT_CATALOG_VERSION } = await import("./types");
+    const health = getModelCatalogHealth() as {
+      ok: boolean;
+      writable: boolean;
+      issues: Array<{ code: string; severity: string; diskVersion?: number; appVersion?: number }>;
+    };
+
+    // 只读是一个**可观测状态**，不是只能靠 catch 写操作异常才知道的隐藏事实。
+    expect(health.writable).toBe(false);
+    expect(health.ok).toBe(false);
+    const skew = health.issues.find((issue) => issue.code === "catalog_read_only_version_skew");
+    expect(skew).toBeDefined();
+    expect(skew?.severity).toBe("error");
+    // 版本号必须带出来：走查 fail-fast 与产品文案都要 derive 它，不许各自 hardcode。
+    expect(skew?.diskVersion).toBe(99);
+    expect(skew?.appVersion).toBe(CURRENT_CATALOG_VERSION);
+  });
+
+  it("版本未超前时 health 报 writable 且不含只读 issue（保护不误伤正常路径）", async () => {
+    const { CURRENT_CATALOG_VERSION } = await import("./types");
+    writeRawCatalog({ version: CURRENT_CATALOG_VERSION, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
+
+    const { getModelCatalogHealth } = await import("./catalogStore");
+    const health = getModelCatalogHealth() as {
+      writable: boolean;
+      issues: Array<{ code: string }>;
+    };
+    expect(health.writable).toBe(true);
+    expect(health.issues.some((issue) => issue.code === "catalog_read_only_version_skew")).toBe(false);
+  });
+
   it("等于当前版本时写盘照常工作（保护只在更高版本触发，不误伤正常路径）", async () => {
     const { CURRENT_CATALOG_VERSION } = await import("./types");
     writeRawCatalog({ version: CURRENT_CATALOG_VERSION, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });

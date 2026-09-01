@@ -301,8 +301,8 @@
     },
     {
       "site": "src/config/modelCatalogStatus.ts::type:ModelCatalogStatus/type-union",
-      "members": ["api_unreachable", "catalog_empty", "incomplete", "kind_empty", "loading", "ready"],
-      "reason": "模型目录/供应商调用域的结果词表（api_unreachable / catalog_empty / incomplete / kind_empty / loading / ready），成员由该供应商或调用协议定义。"
+      "members": ["api_unreachable", "catalog_empty", "catalog_read_only", "incomplete", "kind_empty", "loading", "ready"],
+      "reason": "模型目录/供应商调用域的结果词表（api_unreachable / catalog_empty / catalog_read_only / incomplete / kind_empty / loading / ready），成员由该供应商或调用协议定义。catalog_read_only 是「目录写保护已生效」这一独立态：盘上 schema 比本构建新时主进程拒绝写回，目录可读不可改；它排在 catalog_empty / incomplete 之前，因为「空」「不完整」都是它的下游表现，报那两个会把用户引去「再配一次」而配了也存不上。"
     },
     {
       "site": "src/config/modelIdentity.ts::type:CatalogLifecycle/type-union",
@@ -424,8 +424,8 @@
     },
     {
       "site": "src/workbench/api/modelCatalogApi.ts::type:ModelCatalogHealthIssueCode/type-union",
-      "members": ["catalog_empty", "model_mapping_missing", "vendor_api_key_locked", "vendor_api_key_missing", "vendor_api_key_needs_resave", "vendor_disabled"],
-      "reason": "ModelCatalogHealthIssueCode 是模型目录健康 DTO 的结构化问题码，区分目录为空、供应商禁用、缺 API key、safeStorage 密文锁定、legacy plaintext 需重存与缺模型映射；renderer 据此定位安全且可执行的配置缺口，它不是连接探测或任务状态。"
+      "members": ["catalog_empty", "catalog_read_only_version_skew", "model_mapping_missing", "vendor_api_key_locked", "vendor_api_key_missing", "vendor_api_key_needs_resave", "vendor_disabled"],
+      "reason": "ModelCatalogHealthIssueCode 是模型目录健康 DTO 的结构化问题码，区分目录为空、供应商禁用、缺 API key、safeStorage 密文锁定、legacy plaintext 需重存、缺模型映射与目录版本偏移只读；renderer 据此定位安全且可执行的配置缺口，它不是连接探测或任务状态。catalog_read_only_version_skew 表示盘上 catalog schema 高于本构建、写入已被 fail-closed 拒绝，并随 issue 带出 diskVersion / appVersion 供文案与走查 derive——让「只读」成为可观测状态，而不是只能靠 catch 写异常才知道的隐藏事实。"
     },
     {
       "site": "src/workbench/export/exportApi.ts::type:ExportTimelineToMp4Options/property:onProgress/parameter:progress/property:status/type-union",

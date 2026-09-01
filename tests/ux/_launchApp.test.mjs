@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, test } from 'vitest'
 import {
+  assertCatalogWritable,
   buildNomiLaunchEnv,
   configureSyntheticCredentialStorage,
   diagnoseLaunchFailure,
@@ -170,5 +171,46 @@ describe('diagnoseLaunchFailure', () => {
 
     expect(report).toContain('启动器未捕获到主进程输出')
     expect(report).not.toContain('压根没起来')
+  })
+})
+
+// 假绿闸的类级回归：只读目录**必须**在起飞点炸，不许让走查带着只读目录继续拍截图。
+// 这一类的危险不在「红」，而在「绿得跟真绿一样」——所以断言的是「会不会炸 + 说不说得清」。
+describe('assertCatalogWritable（走查假绿闸）', () => {
+  const winWithHealth = (health) => ({ evaluate: async () => health })
+
+  test('盘上 schema 比被测构建新时抛错，并带出两个版本号与可执行的出路', async () => {
+    const win = winWithHealth({
+      ok: false,
+      writable: false,
+      issues: [{ code: 'catalog_read_only_version_skew', severity: 'error', diskVersion: 12, appVersion: 11 }],
+    })
+
+    await expect(assertCatalogWritable(win, 'canvas-walk')).rejects.toThrow(/只读/)
+    const error = await assertCatalogWritable(win, 'canvas-walk').catch((e) => e)
+    // 版本号 derive 自 health，不在走查侧 hardcode。
+    expect(error.message).toContain('v12')
+    expect(error.message).toContain('v11')
+    // 报错要说清「为什么模型断言不可信」，否则下一个人还是会去改断言绕过它。
+    expect(error.message).toContain('假绿')
+    expect(error.message).toContain('requireCatalog: false')
+    expect(error.message).toContain('allowReadOnlyCatalog: true')
+  })
+
+  test('目录可写时放行（返回 health，不制造假红）', async () => {
+    const health = { ok: true, writable: true, issues: [] }
+    await expect(assertCatalogWritable(winWithHealth(health))).resolves.toBe(health)
+  })
+
+  test('空目录等无关 issue 不误伤——只认版本偏移那一条', async () => {
+    const health = { ok: false, writable: true, issues: [{ code: 'catalog_empty', severity: 'error' }] }
+    await expect(assertCatalogWritable(winWithHealth(health))).resolves.toBe(health)
+  })
+
+  test('读不到 bridge 时放行（读不到 ≠ 只读，不制造假红）', async () => {
+    await expect(assertCatalogWritable({ evaluate: async () => null })).resolves.toBe(null)
+    await expect(
+      assertCatalogWritable({ evaluate: async () => { throw new Error('no bridge') } }),
+    ).resolves.toBe(null)
   })
 })

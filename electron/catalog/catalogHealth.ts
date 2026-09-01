@@ -1,8 +1,13 @@
 import { apiKeyDecryptStatus } from "./secrets";
-import type { BillingModelKind, CatalogState } from "./types";
+import { CURRENT_CATALOG_VERSION, type BillingModelKind, type CatalogState } from "./types";
 import { modelHasPublishedExecution } from "../shared/modelPublication";
 
 export function deriveModelCatalogHealth(state: CatalogState): unknown {
+  // 只读版本偏移是**可观测状态**，不是只能从 writeCatalog 抛的异常里捞的隐藏事实。
+  // writeCatalog 的 fail-closed 守卫保证不降级；这里让「守卫已生效」有唯一一处可读来源，
+  // 产品横幅与走查 fail-fast 都从它 derive，不各自重算版本比较（避免第二份真相源）。
+  const diskVersion = state.version as number;
+  const writable = diskVersion <= CURRENT_CATALOG_VERSION;
   const enabledVendors = state.vendors.filter((vendor) => vendor.enabled);
   const enabledModels = state.models.filter((model) => model.enabled);
   const credentialStatus = new Map(
@@ -24,6 +29,15 @@ export function deriveModelCatalogHealth(state: CatalogState): unknown {
     executableModels: executableModels.filter((model) => model.kind === kind).length,
   }));
   const issues = [];
+  if (!writable) {
+    issues.push({
+      code: "catalog_read_only_version_skew",
+      severity: "error",
+      message: `Catalog is read-only: on-disk version ${diskVersion} > app version ${CURRENT_CATALOG_VERSION}`,
+      diskVersion,
+      appVersion: CURRENT_CATALOG_VERSION,
+    });
+  }
   if (state.vendors.length === 0 || state.models.length === 0) {
     issues.push({ code: "catalog_empty", severity: "error", message: "Local model catalog is empty" });
   }
@@ -65,6 +79,9 @@ export function deriveModelCatalogHealth(state: CatalogState): unknown {
   }
   return {
     ok: issues.every((issue) => issue.severity !== "error"),
+    writable,
+    diskVersion,
+    appVersion: CURRENT_CATALOG_VERSION,
     counts: {
       vendors: state.vendors.length,
       enabledVendors: enabledVendors.length,

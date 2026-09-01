@@ -31,7 +31,14 @@ export function normalizeCatalogLoadError(caught: unknown): Error {
   return new Error(i18n.t('runtime.modelCatalog.loadFailed'))
 }
 
-export type ModelCatalogStatus = 'loading' | 'api_unreachable' | 'catalog_empty' | 'kind_empty' | 'incomplete' | 'ready'
+export type ModelCatalogStatus =
+  | 'loading'
+  | 'api_unreachable'
+  | 'catalog_read_only'
+  | 'catalog_empty'
+  | 'kind_empty'
+  | 'incomplete'
+  | 'ready'
 
 export function deriveModelCatalogStatus(input: {
   kind?: NodeKind
@@ -58,6 +65,20 @@ export function deriveModelCatalogStatus(input: {
   }
   const catalogKind = resolveCatalogKind(input.kind)
   const health = input.health
+  // 只读排在所有其他判定之前：目录写不进去时，「空 / 不完整 / 没有某类模型」全都是它的下游表现，
+  // 报那些只会把用户引去「再配一次」——而配了也存不上。必须先说清真正的因，并给出唯一的出路。
+  const readOnly = health?.issues.find(
+    (issue) => issue.code === 'catalog_read_only_version_skew' && issue.severity === 'error',
+  )
+  if (readOnly) {
+    return {
+      status: 'catalog_read_only',
+      message: i18n.t('runtime.modelCatalog.readOnlyVersionSkew', {
+        diskVersion: readOnly.diskVersion ?? health?.diskVersion,
+        appVersion: readOnly.appVersion ?? health?.appVersion,
+      }),
+    }
+  }
   if (health?.issues.some((issue) => issue.code === 'catalog_empty' && issue.severity === 'error')) {
     return { status: 'catalog_empty', message: i18n.t('runtime.modelCatalog.empty') }
   }

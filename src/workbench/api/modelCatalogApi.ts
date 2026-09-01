@@ -8,6 +8,7 @@ export type { ProfileKind }
 export type ModelCatalogVendorAuthType = 'none' | 'bearer' | 'x-api-key' | 'query'
 
 export type ModelCatalogHealthIssueCode =
+  | 'catalog_read_only_version_skew'
   | 'catalog_empty'
   | 'vendor_disabled'
   | 'vendor_api_key_missing'
@@ -22,10 +23,20 @@ export type ModelCatalogHealthIssueDto = {
   vendorKey?: string
   modelKey?: string
   kind?: BillingModelKind
+  /** 仅 catalog_read_only_version_skew 带：盘上/本构建的 schema 版本，供文案 derive，不在 UI 侧 hardcode。 */
+  diskVersion?: number
+  appVersion?: number
 }
 
 export type ModelCatalogHealthDto = {
   ok: boolean
+  /**
+   * false = 盘上 catalog schema 比本构建新，主进程已进入只读保护（拒绝写回以防静默降级）。
+   * 此时任何「启用供应商 / 存 key / 改模型」都写不进去，UI 必须明说，不能表现成点了没反应。
+   */
+  writable: boolean
+  diskVersion: number
+  appVersion: number
   counts: {
     vendors: number
     enabledVendors: number
