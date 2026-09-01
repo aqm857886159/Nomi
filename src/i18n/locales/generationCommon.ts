@@ -520,6 +520,8 @@ export const zhGenerationCommon = {
     deconstruct: {
       title: '视频拆解',
       close: '关闭',
+      // 入口守卫：缺桌面端拆解桥 / 没打开项目 / 没有源视频时的失败提示。
+      desktopOnly: '视频拆解需要桌面端，且要先打开项目、选好源视频',
       // 头部/取证
       resultLead: '这条视频拆成 {{count}} 个镜头 —— 勾选你想学着做的，加进画布成一组。',
       chipLocalEvidence: '本地取证据',
@@ -2108,6 +2110,8 @@ export const enGenerationCommon = {
     deconstruct: {
       title: 'Video deconstruction',
       close: 'Close',
+      // Entry guard: shown when the desktop deconstruction bridge is missing, or no project / source video is set.
+      desktopOnly: 'Video deconstruction needs the desktop app, with a project open and a source video selected',
       // Header / provenance
       resultLead: 'This video breaks into {{count}} shots — tick the ones you want to learn from and add them to the canvas as a group.',
       chipLocalEvidence: 'Local evidence',

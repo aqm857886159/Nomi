@@ -318,8 +318,9 @@ CSS 文件分工与「只可减不可增」规则详见 R1 最后一节。
 3. 两种语言必须在同一个改动中补齐，同名 key 保持结构一致；插值使用命名参数，不拼接可翻译句子。
 4. 不翻译用户内容、模型原始输出、AI/系统提示词、协议字段、事件名、模型/供应商官方名称、文件路径和日志诊断信息。
 5. `pnpm run check:i18n` 是零遗留门岗：扫描 JSX、常见可见对象字段和 Electron 原生界面，发现用户可见字面量即失败。协议、提示词和稳定元数据只能使用脚本内带原因的窄豁免，不允许用基线接受国际化债务。
+6. **键引用解析门岗** `check:i18n-key-refs`（`scripts/check-i18n-key-refs.ts`，已挂进 `check:i18n` 链）：静态提取 `src/` 全部翻译引用（`t('...')` / `i18n.t('...')` / `'i18n:...'` chunk 标签字面量），逐个对照 `resources.ts` 的**真实合并键树**验证可解析；解析不到 = 红，输出 file:line。补的是 parity/可见硬零/tsc **三道都漏**的洞——组件引用了一个**两边词典都没有**的键时，i18next 会把 key 字符串本身渲染到界面（`sidebar.workflows` 长得像英文、中文界面里一眼看不出），而 parity 查的是 zh↔en 对称、两边同缺恰是平衡，tsc 对未知点分键回落 `string` 不报错。模板拼接的**动态键**走脚本内 `DYNAMIC_KEY_PREFIXES` 显式前缀注册表（每条写明「为什么动态 + 枚举来源」；`concat` 形态枚举后缀逐个验叶子），裸动态键/失效注册 = 红。运行时另有 `tests/ux/_assert.mjs` 的 `expectNoRawI18nKeysInDom`（raw-key 网，zh+en 都跑）从界面这头兜底。
 
-**验收**：涉及界面文案的改动必须在 `zh-CN` 与 `en` 各走查一次，并验证刷新后语言保持。
+**验收**：涉及界面文案的改动必须在 `zh-CN` 与 `en` 各走查一次，并验证刷新后语言保持。全 App 双语真机扫查见 `tests/ux/i18n-sweep.walk.mjs`（逐面 raw-key + EN-DOM CJK 断言，截图存 `tests/ux/shots/i18n-sweep/{zh-CN,en}/`）。
 
 ---
 

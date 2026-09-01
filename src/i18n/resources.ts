@@ -334,6 +334,8 @@ export const zhCN = {
     prompts: '提示词',
     skillLibrary: '技能库',
     skills: '技能',
+    // ProjectExplorerSidebar 的流程库导轨/面板标题——与同组 assetLibrary/promptLibrary/skillLibrary
+    // 同住顶层 sidebar 命名空间(此前误引 libraries.sidebar.* 的死副本,渲染出原始 key,2026-09-01 归位)。
     workflowLibrary: '流程库',
     workflows: '流程',
     expand: '展开侧栏',
@@ -720,6 +722,9 @@ export const en = {
     prompts: 'Prompts',
     skillLibrary: 'Skill library',
     skills: 'Skills',
+    // ProjectExplorerSidebar workflow-library rail/panel titles — they live in the top-level sidebar
+    // namespace alongside assetLibrary/promptLibrary/skillLibrary (previously mis-referenced the dead
+    // libraries.sidebar.* copies and rendered the raw key; relocated 2026-09-01).
     workflowLibrary: 'Workflow library',
     workflows: 'Workflows',
     expand: 'Expand sidebar',
