@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>拆解视频 v1 · 面板样张</title>
+<style>
+/* ============================================================
+   Nomi 设计 token（复刻 src/theme/nomi-tokens.css 光/暗两套）
+   token-only —— 样张里所有颜色都取自这些变量，不写裸 hex/rgb。
+   真相源：docs/design/nomi-design-system.md §2
+   ============================================================ */
+:root {
+  --nomi-bg: oklch(0.985 0.003 90);
+  --nomi-paper: oklch(1 0 0);
+  --nomi-ink: oklch(0.22 0.01 80);
+  --nomi-ink-80: oklch(0.32 0.01 80);
+  --nomi-ink-60: oklch(0.50 0.01 80);
+  --nomi-ink-40: oklch(0.68 0.01 80);
+  --nomi-ink-30: oklch(0.78 0.01 80);
+  --nomi-ink-20: oklch(0.88 0.005 80);
+  --nomi-ink-10: oklch(0.94 0.003 80);
+  --nomi-ink-05: oklch(0.97 0.003 80);
+  --nomi-line: oklch(0.91 0.004 80);
+  --nomi-line-soft: oklch(0.95 0.003 80);
+  --nomi-accent: oklch(0.55 0.13 250);
+  --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+  --nomi-warning: oklch(0.62 0.14 75);
+  --nomi-warning-soft: color-mix(in oklch, var(--nomi-warning) 14%, var(--nomi-paper));
+  --nomi-track-image: oklch(0.7 0.13 200);
+  --nomi-track-video: oklch(0.65 0.13 150);
+  --nomi-shadow-sm: 0 1px 2px oklch(0.22 0.01 80 / 0.06), 0 1px 3px oklch(0.22 0.01 80 / 0.08);
+  --nomi-shadow-md: 0 4px 12px oklch(0.22 0.01 80 / 0.10), 0 2px 4px oklch(0.22 0.01 80 / 0.06);
+  --nomi-shadow-lg: 0 12px 32px oklch(0.22 0.01 80 / 0.14), 0 4px 8px oklch(0.22 0.01 80 / 0.08);
+  --nomi-radius-field: 6px;
+  --nomi-radius-panel: 10px;
+  --nomi-radius-modal: 14px;
+  --nomi-font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --nomi-font-display: "Fraunces Variable", Fraunces, "Inter Variable", Inter, Georgia, serif;
+  --nomi-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --grid-dot: oklch(0.91 0.004 80);
+}
+.theme-dark {
+  --nomi-bg: oklch(0.19 0.006 80);
+  --nomi-paper: oklch(0.24 0.008 80);
+  --nomi-ink: oklch(0.95 0.004 90);
+  --nomi-ink-80: oklch(0.86 0.006 90);
+  --nomi-ink-60: oklch(0.70 0.008 85);
+  --nomi-ink-40: oklch(0.56 0.008 85);
+  --nomi-ink-30: oklch(0.46 0.008 85);
+  --nomi-ink-20: oklch(0.36 0.008 80);
+  --nomi-ink-10: oklch(0.30 0.008 80);
+  --nomi-ink-05: oklch(0.27 0.008 80);
+  --nomi-line: oklch(0.34 0.008 80);
+  --nomi-line-soft: oklch(0.30 0.008 80);
+  --nomi-accent: oklch(0.68 0.12 255);
+  --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 22%, var(--nomi-paper));
+  --nomi-warning: oklch(0.78 0.13 75);
+  --nomi-warning-soft: color-mix(in oklch, var(--nomi-warning) 20%, var(--nomi-paper));
+  --nomi-track-image: oklch(0.7 0.13 200);
+  --nomi-track-video: oklch(0.65 0.13 150);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.30), 0 1px 3px oklch(0 0 0 / 0.36);
+  --nomi-shadow-md: 0 4px 12px oklch(0 0 0 / 0.40), 0 2px 4px oklch(0 0 0 / 0.30);
+  --nomi-shadow-lg: 0 12px 32px oklch(0 0 0 / 0.50), 0 4px 8px oklch(0 0 0 / 0.34);
+  --grid-dot: oklch(0.32 0.008 80);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: oklch(0.90 0.004 80); font-family: var(--nomi-font-sans); -webkit-font-smoothing: antialiased; }
+body { padding: 28px 20px 56px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.theme-dark ~ .caption, body.page-dark { background: oklch(0.14 0.006 80); }
+
+/* 样张标注（非产品 UI） */
+.sheet-head { width: 1280px; max-width: 100%; }
+.sheet-head h1 { font-family: var(--nomi-font-display); font-size: 24px; font-weight: 600; color: oklch(0.24 0.01 80); letter-spacing: -0.01em; }
+.sheet-head p { font-size: 13px; color: oklch(0.42 0.01 80); margin-top: 4px; line-height: 1.55; }
+.sheet-label { width: 1280px; max-width: 100%; display: flex; align-items: baseline; gap: 10px; margin-top: 10px; }
+.sheet-label .tag { font-family: var(--nomi-font-mono); font-size: 11px; font-weight: 600; color: oklch(1 0 0); background: oklch(0.55 0.13 250); padding: 2px 8px; border-radius: 999px; letter-spacing: 0.02em; }
+.sheet-label .tag.b { background: oklch(0.62 0.14 75); }
+.sheet-label .tag.rec { background: oklch(0.55 0.13 150); }
+.sheet-label .txt { font-size: 12.5px; color: oklch(0.42 0.01 80); font-weight: 500; }
+
+/* ============================================================
+   App 外壳（复刻 WorkbenchShell + NomiAppBar + GenerationWorkspace）
+   ============================================================ */
+.app {
+  width: 1280px; max-width: 100%; height: 760px;
+  background: var(--nomi-bg); color: var(--nomi-ink);
+  border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-modal);
+  box-shadow: var(--nomi-shadow-lg); overflow: hidden;
+  display: flex; flex-direction: column;
+  font-size: 14px;
+}
+
+/* 顶栏 NomiAppBar */
+.appbar { height: 48px; flex-shrink: 0; display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--nomi-line); background: var(--nomi-paper); gap: 12px; }
+.appbar__left { display: flex; align-items: center; gap: 10px; min-width: 220px; }
+.brand { display: inline-flex; align-items: center; gap: 6px; }
+.brand__mark { width: 20px; height: 20px; border-radius: 6px; background: var(--nomi-ink); color: var(--nomi-paper); display: grid; place-items: center; font-family: var(--nomi-font-display); font-weight: 700; font-size: 13px; }
+.brand__word { font-family: var(--nomi-font-display); font-weight: 600; font-size: 15px; color: var(--nomi-ink); letter-spacing: -0.01em; }
+.crumb { color: var(--nomi-ink-40); font-size: 12px; }
+.crumb b { color: var(--nomi-ink-80); font-weight: 500; }
+.appbar__center { flex: 1; display: flex; justify-content: center; }
+.stepper { display: inline-flex; background: var(--nomi-ink-05); border-radius: 999px; padding: 3px; gap: 2px; }
+.stepper button { border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--nomi-ink-60); padding: 5px 16px; border-radius: 999px; cursor: pointer; }
+.stepper button.active { background: var(--nomi-paper); color: var(--nomi-ink); box-shadow: var(--nomi-shadow-sm); font-weight: 500; }
+.appbar__right { display: flex; align-items: center; gap: 4px; min-width: 220px; justify-content: flex-end; color: var(--nomi-ink-60); }
+.abtn { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border-radius: 999px; border: 0; background: transparent; color: var(--nomi-ink-60); font: inherit; font-size: 12px; cursor: pointer; }
+.abtn:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+.abtn--primary { background: var(--nomi-ink); color: var(--nomi-paper); padding: 0 14px; }
+.abtn--primary:hover { background: var(--nomi-accent); color: oklch(1 0 0); }
+
+/* body: explorer | canvas-area */
+.body { flex: 1; display: flex; min-height: 0; }
+
+/* 左 explorer */
+.explorer { width: 176px; flex-shrink: 0; border-right: 1px solid var(--nomi-line); background: var(--nomi-paper); display: flex; flex-direction: column; }
+.explorer__tabs { display: flex; gap: 2px; padding: 8px 8px 4px; }
+.explorer__tabs button { flex: 1; border: 0; background: transparent; font: inherit; font-size: 12px; color: var(--nomi-ink-60); padding: 5px 0; border-radius: var(--nomi-radius-field); cursor: pointer; }
+.explorer__tabs button.active { background: var(--nomi-ink-05); color: var(--nomi-ink); font-weight: 500; }
+.explorer__hd { font-size: 11px; color: var(--nomi-ink-40); padding: 6px 12px 2px; display: flex; justify-content: space-between; }
+.explorer__item { margin: 2px 8px; padding: 6px 8px; border-radius: var(--nomi-radius-field); display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.explorer__item.sel { background: var(--nomi-accent-soft); box-shadow: inset 0 0 0 1px var(--nomi-accent); }
+.explorer__item:hover:not(.sel) { background: var(--nomi-ink-05); }
+.explorer__thumb { width: 34px; height: 24px; border-radius: 4px; flex-shrink: 0; overflow: hidden; }
+.explorer__item .meta { min-width: 0; }
+.explorer__item .meta b { font-size: 12px; font-weight: 500; color: var(--nomi-ink); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.explorer__item .meta span { font-size: 10.5px; color: var(--nomi-ink-40); }
+
+/* 画布区（canvas 顶 + 时间轴底） */
+.canvasarea { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
+.canvas { flex: 1; min-height: 0; position: relative; overflow: hidden;
+  background-color: var(--nomi-bg);
+  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+  background-size: 22px 22px; }
+.canvas__toolbar { position: absolute; top: 12px; left: 12px; z-index: 6; display: inline-flex; gap: 2px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: 999px; padding: 3px; box-shadow: var(--nomi-shadow-sm); }
+.canvas__toolbar button { width: 28px; height: 28px; border: 0; background: transparent; border-radius: 999px; color: var(--nomi-ink-60); display: grid; place-items: center; cursor: pointer; }
+.canvas__toolbar button:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+
+/* 视频源节点 */
+.node { position: absolute; border-radius: var(--nomi-radius-panel); background: var(--nomi-paper); border: 1px solid var(--nomi-line); box-shadow: var(--nomi-shadow-sm); }
+.node.sel { border-color: var(--nomi-accent); box-shadow: var(--nomi-shadow-md), 0 0 0 1px var(--nomi-accent); }
+.node__title { position: absolute; top: -11px; left: 12px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: 999px; padding: 2px 10px; font-size: 11px; color: var(--nomi-ink-80); display: inline-flex; gap: 5px; align-items: center; z-index: 3; }
+.node__media { border-radius: var(--nomi-radius-panel); overflow: hidden; position: relative; }
+.node__badge { position: absolute; right: 8px; bottom: 8px; background: oklch(0 0 0 / 0.55); color: oklch(1 0 0); font-size: 10.5px; padding: 2px 7px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+/* 浮动工具栏（NodeVideoFrameToolbar，选中/hover 才出，L2） */
+.node__floatbar { position: absolute; top: -42px; left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 1px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: 999px; padding: 3px; box-shadow: var(--nomi-shadow-md); white-space: nowrap; z-index: 4; }
+.node__floatbar button { height: 28px; padding: 0 9px; border: 0; background: transparent; border-radius: 999px; color: var(--nomi-ink-60); display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 11.5px; cursor: pointer; }
+.node__floatbar button:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+.node__floatbar button.hot { background: var(--nomi-accent-soft); color: var(--nomi-accent); font-weight: 600; box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--nomi-accent) 40%, transparent); }
+.node__floatbar .div { width: 1px; height: 16px; background: var(--nomi-line); margin: 0 3px; }
+
+/* 组框 GroupFrame */
+.groupframe { position: absolute; border: 1.5px dashed color-mix(in oklch, var(--nomi-accent) 55%, transparent); border-radius: var(--nomi-radius-modal); background: color-mix(in oklch, var(--nomi-accent) 5%, transparent); }
+.groupframe__label { position: absolute; top: -11px; left: 14px; background: var(--nomi-accent); color: oklch(1 0 0); border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 500; display: inline-flex; gap: 5px; align-items: center; }
+.shotnode { position: absolute; width: 128px; border-radius: var(--nomi-radius-panel); background: var(--nomi-paper); border: 1px solid var(--nomi-line); box-shadow: var(--nomi-shadow-sm); overflow: hidden; }
+.shotnode.sel { border-color: var(--nomi-accent); box-shadow: 0 0 0 1px var(--nomi-accent), var(--nomi-shadow-sm); }
+.shotnode__img { height: 74px; }
+.shotnode__cap { padding: 5px 7px; font-size: 10px; color: var(--nomi-ink-60); }
+.shotnode__cap b { color: var(--nomi-ink); font-weight: 500; font-size: 10.5px; display: block; }
+.shotnode.ghost { opacity: 0; }
+.shotnode.appearing { animation: pop 0.32s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes pop { from { opacity: 0; transform: scale(0.94) translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* 底部时间轴（复刻 collapsed handle） */
+.timeline-handle { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 8; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--nomi-line); background: var(--nomi-paper); box-shadow: var(--nomi-shadow-md); border-radius: 999px; padding: 6px 14px; font-size: 13px; color: var(--nomi-ink); }
+.timeline-handle span { color: var(--nomi-ink-60); font-size: 12px; }
+
+/* 右侧 AI 停靠栏（overlay 收起胶囊） */
+.ai-capsule { position: absolute; top: 16px; right: 16px; z-index: 20; display: inline-flex; align-items: center; gap: 7px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: 999px; padding: 7px 13px; box-shadow: var(--nomi-shadow-md); font-size: 12.5px; color: var(--nomi-ink-80); }
+.ai-capsule .dot { width: 18px; height: 18px; border-radius: 5px; background: var(--nomi-ink); color: var(--nomi-paper); display: grid; place-items: center; font-size: 10px; font-family: var(--nomi-font-display); font-weight: 700; }
+
+/* ============================================================
+   拆解面板（VideoDeconstructionPanel）—— 就近停靠 dialog
+   ============================================================ */
+.decon { position: absolute; inset: 0 0 0 auto; width: 520px; z-index: 90; background: var(--nomi-paper); box-shadow: var(--nomi-shadow-lg); border-left: 1px solid var(--nomi-line); display: flex; flex-direction: column; }
+.decon__hd { flex-shrink: 0; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--nomi-line); padding: 12px 16px; }
+.decon__hd .ic { width: 34px; height: 34px; border-radius: var(--nomi-radius-panel); background: var(--nomi-ink-05); color: var(--nomi-ink-60); display: grid; place-items: center; flex-shrink: 0; }
+.decon__hd .ttl { flex: 1; min-width: 0; }
+.decon__hd .ttl b { font-size: 16px; font-weight: 600; color: var(--nomi-ink); display: block; }
+.decon__hd .ttl span { font-size: 11px; color: var(--nomi-ink-40); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seg { display: inline-flex; background: var(--nomi-ink-05); border-radius: var(--nomi-radius-field); padding: 2px; }
+.seg button { border: 0; background: transparent; font: inherit; font-size: 12px; color: var(--nomi-ink-60); padding: 5px 12px; border-radius: 4px; cursor: pointer; }
+.seg button.active { background: var(--nomi-paper); color: var(--nomi-ink); box-shadow: var(--nomi-shadow-sm); font-weight: 500; }
+.decon__x { width: 32px; height: 32px; border: 0; background: transparent; border-radius: var(--nomi-radius-field); color: var(--nomi-ink-60); display: grid; place-items: center; cursor: pointer; }
+.decon__x:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+.decon__body { flex: 1; min-height: 0; overflow-y: auto; }
+.decon__ft { flex-shrink: 0; border-top: 1px solid var(--nomi-line); padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
+
+.metabar { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 10px 16px; border-bottom: 1px solid var(--nomi-line-soft); font-size: 11px; color: var(--nomi-ink-60); align-items: center; }
+.metabar .lead { color: var(--nomi-ink-80); font-size: 12.5px; width: 100%; margin-bottom: 2px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--nomi-ink-05); font-size: 11px; color: var(--nomi-ink-60); }
+.chip.local { background: var(--nomi-accent-soft); color: var(--nomi-accent); }
+
+/* 镜头行 */
+.shot { border-bottom: 1px solid var(--nomi-line-soft); padding: 14px 16px; display: flex; gap: 12px; }
+.shot:hover { background: var(--nomi-ink-05); }
+.shot.focus { background: var(--nomi-accent-soft); }
+.shot__check { margin-top: 2px; width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--nomi-ink-30); flex-shrink: 0; display: grid; place-items: center; cursor: pointer; }
+.shot__check.on { background: var(--nomi-accent); border-color: var(--nomi-accent); color: oklch(1 0 0); }
+.shot__frame { width: 92px; flex-shrink: 0; }
+.shot__frame .thumb { width: 92px; height: 60px; border-radius: var(--nomi-radius-field); overflow: hidden; position: relative; }
+.shot__frame .idx { margin-top: 5px; font-size: 10px; color: var(--nomi-ink-40); display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.shot__main { flex: 1; min-width: 0; }
+.shot__row1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.shot__num { font-family: var(--nomi-font-display); font-size: 15px; font-weight: 600; color: var(--nomi-ink); }
+.tag-size { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: color-mix(in oklch, var(--nomi-track-image) 16%, var(--nomi-paper)); color: color-mix(in oklch, var(--nomi-track-image) 60%, var(--nomi-ink)); font-weight: 500; }
+.tag-mood { font-size: 11px; color: var(--nomi-ink-60); padding: 1px 8px; border-radius: 999px; background: var(--nomi-ink-05); }
+.shot__time { font-size: 11px; color: var(--nomi-ink-40); font-variant-numeric: tabular-nums; margin-left: auto; }
+.shot__visual { font-size: 12.5px; color: var(--nomi-ink-80); line-height: 1.5; margin-top: 6px; }
+.field { margin-top: 6px; display: flex; gap: 7px; font-size: 11.5px; line-height: 1.5; }
+.field .k { color: var(--nomi-ink-40); flex-shrink: 0; width: 40px; }
+.field .v { color: var(--nomi-ink-80); min-width: 0; }
+.field .v.prompt { color: var(--nomi-ink-60); font-family: var(--nomi-font-mono); font-size: 11px; background: var(--nomi-ink-05); padding: 3px 7px; border-radius: 4px; }
+.carry { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; color: var(--nomi-warning); background: var(--nomi-warning-soft); padding: 1px 6px; border-radius: 999px; }
+.shot.failed .shot__frame .thumb { filter: grayscale(1) opacity(0.5); }
+.fail-note { margin-top: 8px; display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--nomi-ink-60); background: var(--nomi-warning-soft); border-radius: var(--nomi-radius-field); padding: 6px 9px; }
+.fail-note button { margin-left: auto; border: 1px solid var(--nomi-line); background: var(--nomi-paper); color: var(--nomi-ink); font: inherit; font-size: 11px; padding: 3px 9px; border-radius: 999px; cursor: pointer; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; font: inherit; font-size: 13px; cursor: pointer; border: 1px solid var(--nomi-line); background: var(--nomi-paper); color: var(--nomi-ink); font-weight: 500; }
+.btn:hover { background: var(--nomi-ink-05); }
+.btn--primary { border: 0; background: var(--nomi-ink); color: var(--nomi-paper); }
+.btn--primary:hover { background: var(--nomi-accent); color: oklch(1 0 0); }
+.btn--primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn--ghost { border: 0; background: transparent; color: var(--nomi-ink-60); }
+.btn--ghost:hover { background: var(--nomi-ink-05); color: var(--nomi-ink); }
+.ft-count { font-size: 11.5px; color: var(--nomi-ink-40); }
+
+/* 空态 / 进行中 */
+.pad { padding: 24px 20px; }
+.center-state { height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 32px 24px; }
+.center-state .badge { width: 40px; height: 40px; border-radius: var(--nomi-radius-panel); background: var(--nomi-ink-05); color: var(--nomi-ink-60); display: grid; place-items: center; margin-bottom: 14px; }
+.center-state .badge.busy { background: var(--nomi-accent-soft); color: var(--nomi-accent); }
+.center-state h3 { font-size: 14px; font-weight: 600; color: var(--nomi-ink); }
+.center-state p { font-size: 12.5px; color: var(--nomi-ink-60); line-height: 1.6; margin-top: 4px; max-width: 380px; }
+.disclosure { margin-top: 16px; border-left: 2px solid var(--nomi-line); padding-left: 12px; max-width: 380px; }
+.disclosure b { font-size: 12.5px; color: var(--nomi-ink); display: block; }
+.disclosure p { font-size: 12px; color: var(--nomi-ink-60); margin-top: 2px; }
+.disclosure a { color: var(--nomi-accent); font-size: 11px; text-decoration: none; cursor: pointer; }
+.disclosure a:hover { text-decoration: underline; }
+.progress-list { margin-top: 18px; max-width: 400px; display: flex; flex-direction: column; gap: 7px; }
+.progress-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--nomi-ink-60); }
+.progress-row .st { width: 16px; height: 16px; border-radius: 999px; flex-shrink: 0; display: grid; place-items: center; }
+.progress-row .st.done { background: var(--nomi-track-video); color: oklch(1 0 0); }
+.progress-row .st.now { border: 2px solid var(--nomi-accent); }
+.progress-row .st.wait { border: 1.5px solid var(--nomi-ink-20); }
+.progress-row.active { color: var(--nomi-ink); font-weight: 500; }
+.progress-bar { margin-top: 16px; height: 5px; border-radius: 999px; background: var(--nomi-ink-10); overflow: hidden; max-width: 400px; }
+.progress-bar i { display: block; height: 100%; background: var(--nomi-accent); border-radius: 999px; }
+
+/* SVG frame helper 背景（模拟视频帧，纯 token 渐变） */
+.frame-a { background: linear-gradient(135deg, oklch(0.45 0.09 30), oklch(0.62 0.11 55), oklch(0.32 0.05 265)); }
+.frame-b { background: linear-gradient(160deg, oklch(0.30 0.05 260), oklch(0.55 0.10 210), oklch(0.42 0.07 160)); }
+.frame-c { background: linear-gradient(120deg, oklch(0.58 0.10 70), oklch(0.40 0.08 35), oklch(0.28 0.04 300)); }
+.frame-d { background: linear-gradient(200deg, oklch(0.36 0.06 200), oklch(0.52 0.10 250), oklch(0.30 0.05 320)); }
+.frame-e { background: linear-gradient(140deg, oklch(0.60 0.11 45), oklch(0.44 0.09 20), oklch(0.34 0.05 280)); }
+
+.svg-icon { width: 16px; height: 16px; display: inline-block; stroke: currentColor; fill: none; stroke-width: 1.8; vertical-align: middle; }
+.svg-icon.s14 { width: 14px; height: 14px; }
+.svg-icon.s18 { width: 18px; height: 18px; }
+.spin { animation: sp 1s linear infinite; transform-origin: center; }
+@keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="sheet-head">
+  <h1>拆解视频 v1 · 面板样张</h1>
+  <p>一条参考视频 → 结构化分镜表 → 勾选镜头逐个落成画布节点并自动编组 → 用这套结构起稿。真实外壳复刻（NomiAppBar 创作/生成/预览 · 生成区左侧 镜头/素材 · 画布网格 · 底部时间轴 · 右侧 AI 栏）+ 拆解面板画在真实位置（视频节点浮条唤起、右侧就近停靠）。所有颜色取自 Nomi 设计 token，光/暗双模式。</p>
+</div>
+
+<!-- ============ 布局 A（推荐）：右侧就近停靠 · 结果态 ============ -->
+<div class="sheet-label">
+  <span class="tag rec">布局 A · 推荐</span>
+  <span class="txt">右侧就近停靠面板 · 结果态（镜头结构表）——源视频节点仍在画布左侧可见，拆出的结构表在右侧就近展开，两者同屏。这一版是主推。</span>
+</div>
+
+<div class="app" id="app-a">
+  <!-- appbar -->
+  <div class="appbar">
+    <div class="appbar__left">
+      <span class="brand"><span class="brand__mark">N</span><span class="brand__word">Nomi</span></span>
+      <span class="crumb">/ <b>咖啡馆短片</b></span>
+    </div>
+    <div class="appbar__center">
+      <div class="stepper">
+        <button>创作</button>
+        <button class="active">生成</button>
+        <button>预览</button>
+      </div>
+    </div>
+    <div class="appbar__right">
+      <button class="abtn" title="浏览器"><svg class="svg-icon s14" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>浏览器</button>
+      <button class="abtn" title="设置"><svg class="svg-icon s14" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a7 7 0 0 0-1.7-1l-.4-2.5h-4l-.4 2.5a7 7 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.5-2-1.5a7 7 0 0 0 .1-1z"/></svg>接入模型</button>
+      <button class="abtn abtn--primary">去出片</button>
+    </div>
+  </div>
+  <!-- body -->
+  <div class="body">
+    <!-- explorer -->
+    <div class="explorer">
+      <div class="explorer__tabs"><button class="active">镜头</button><button>素材</button></div>
+      <div class="explorer__hd"><span>当前项目</span><span>1</span></div>
+      <div class="explorer__item sel">
+        <div class="explorer__thumb frame-a"></div>
+        <div class="meta"><b>咖啡馆人物镜头</b><span>00:15 · 竖屏</span></div>
+      </div>
+    </div>
+    <!-- canvas area -->
+    <div class="canvasarea">
+      <div class="canvas">
+        <div class="canvas__toolbar">
+          <button title="选择"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.5L11 19z"/></svg></button>
+          <button title="框选"><svg class="svg-icon s14" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 2"/></svg></button>
+          <button title="适应画布"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg></button>
+        </div>
+        <!-- 源视频节点（选中态 + 浮动工具栏，拆解按钮高亮） -->
+        <div class="node sel" style="left:48px; top:118px; width:240px;">
+          <div class="node__title"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16M9 5v4"/></svg>咖啡馆人物镜头</div>
+          <div class="node__floatbar">
+            <button title="抽首帧"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M19 5v14l-9-7zM6 5v14"/></svg>首帧</button>
+            <button title="抽尾帧"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 5v14l9-7zM18 5v14"/></svg>尾帧</button>
+            <span class="div"></span>
+            <button class="hot" title="把这条视频拆成镜头结构表"><svg class="svg-icon s14" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 15.5M14.5 15.5L20 20M8.5 8.5L11 11"/></svg>拆解</button>
+            <span class="div"></span>
+            <button title="全屏"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+            <button title="下载"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg></button>
+          </div>
+          <div class="node__media frame-a" style="height:340px;">
+            <div class="node__badge">00:15</div>
+          </div>
+        </div>
+        <div class="ai-capsule"><span class="dot">N</span>Nomi Agent</div>
+        <div class="timeline-handle">
+          <svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>时间轴 <span>1 段 · 0:15</span>
+          <svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>
+        </div>
+      </div>
+
+      <!-- 拆解面板：结果态 -->
+      <div class="decon">
+        <div class="decon__hd">
+          <div class="ic"><svg class="svg-icon s18" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 15.5M14.5 15.5L20 20M8.5 8.5L11 11"/></svg></div>
+          <div class="ttl"><b>视频拆解</b><span>咖啡馆人物镜头 · 00:15</span></div>
+          <div class="seg"><button class="active">结构</button><button>切点</button></div>
+          <button class="decon__x"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <div class="metabar">
+          <span class="lead">这条视频拆成 5 个镜头 —— 勾选你想学着做的，加进画布成一组。</span>
+          <span class="chip local"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg>本地取证据</span>
+          <span class="chip">Gemini 3.5 Flash</span>
+          <span class="chip">有对白</span>
+        </div>
+        <div class="decon__body">
+          <!-- 镜 1 -->
+          <div class="shot">
+            <div class="shot__check on"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div class="shot__frame"><div class="thumb frame-a"></div><div class="idx"><span>镜 1</span><span>0.0–2.1s</span></div></div>
+            <div class="shot__main">
+              <div class="shot__row1"><span class="shot__num">1</span><span class="tag-size">特写</span><span class="tag-mood">温暖</span><span class="shot__time">2.1s</span></div>
+              <div class="shot__visual">咖啡杯从暗处缓缓推入画面中心，暖色顶光打在瓶身与蒸腾的热气上，背景虚化成琥珀色光斑。</div>
+              <div class="field"><span class="k">字幕</span><span class="v">熬夜救星</span></div>
+              <div class="field"><span class="k">图片</span><span class="v prompt">特写咖啡杯，暖光顶光，琥珀色背景虚化，热气升腾，胶片质感</span></div>
+              <div class="field"><span class="k">运镜</span><span class="v prompt">缓慢推近，从暗到亮，聚焦杯口热气</span></div>
+            </div>
+          </div>
+          <!-- 镜 2 -->
+          <div class="shot">
+            <div class="shot__check on"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div class="shot__frame"><div class="thumb frame-b"></div><div class="idx"><span>镜 2</span><span>2.1–4.8s</span></div></div>
+            <div class="shot__main">
+              <div class="shot__row1"><span class="shot__num">2</span><span class="tag-size">中景</span><span class="tag-mood">明快</span><span class="shot__time">2.7s</span></div>
+              <div class="shot__visual">女主坐在窗边捧起咖啡，侧脸迎着自然光微笑，窗外街景轻微移动，构图偏左留白。</div>
+              <div class="field"><span class="k">对白</span><span class="v">"忙到现在，就想喝口热的"</span></div>
+              <div class="field"><span class="k">字幕</span><span class="v">限时 3 折 <span style="color:var(--nomi-ink-40)">（第 3 秒跳出）</span></span></div>
+              <div class="field"><span class="k">图片</span><span class="v prompt">中景，女性窗边持杯微笑，自然侧光，街景虚化，左留白</span></div>
+            </div>
+          </div>
+          <!-- 镜 3 · 承接上镜 -->
+          <div class="shot">
+            <div class="shot__check"></div>
+            <div class="shot__frame"><div class="thumb frame-c"></div><div class="idx"><span>镜 3</span><span>4.8–7.0s</span></div></div>
+            <div class="shot__main">
+              <div class="shot__row1"><span class="shot__num">3</span><span class="tag-size">近景</span><span class="tag-mood">轻松</span><span class="carry"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h11a4 4 0 0 1 0 8h-1"/></svg>承接上镜</span><span class="shot__time">2.2s</span></div>
+              <div class="shot__visual">手部近景，指尖搅动拉花，奶泡纹路清晰，暖调桌面上散落几粒咖啡豆。</div>
+              <div class="field"><span class="k">对白</span><span class="v" style="color:var(--nomi-ink-60)">…这一杯值了（上一句说到这镜）</span></div>
+              <div class="field"><span class="k">图片</span><span class="v prompt">手部近景搅动拿铁拉花，奶泡纹理，暖调桌面，散落咖啡豆</span></div>
+            </div>
+          </div>
+          <!-- 镜 4 · vision 失败 -->
+          <div class="shot failed">
+            <div class="shot__check"></div>
+            <div class="shot__frame"><div class="thumb frame-d"></div><div class="idx"><span>镜 4</span><span>7.0–9.3s</span></div></div>
+            <div class="shot__main">
+              <div class="shot__row1"><span class="shot__num">4</span><span class="tag-mood">—</span><span class="shot__time">2.3s</span></div>
+              <div class="field"><span class="k">对白</span><span class="v">"现在下单立减 20"</span></div>
+              <div class="fail-note"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>这镜的画面没读出来，对白仍可用。<button>单独重拆</button></div>
+            </div>
+          </div>
+          <!-- 镜 5 -->
+          <div class="shot">
+            <div class="shot__check on"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div class="shot__frame"><div class="thumb frame-e"></div><div class="idx"><span>镜 5</span><span>9.3–15.0s</span></div></div>
+            <div class="shot__main">
+              <div class="shot__row1"><span class="shot__num">5</span><span class="tag-size">全景</span><span class="tag-mood">收束</span><span class="shot__time">5.7s</span></div>
+              <div class="shot__visual">拉远至咖啡馆全景，品牌 logo 与门店招牌入画，暖黄灯光，人物走向门口，画面渐暗收尾。</div>
+              <div class="field"><span class="k">字幕</span><span class="v">XX 咖啡 · 就在你楼下</span></div>
+              <div class="field"><span class="k">图片</span><span class="v prompt">咖啡馆全景，暖黄灯光，门店招牌，人物走向门口，电影感收尾</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="decon__ft">
+          <button class="btn btn--ghost"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M12 20V10M12 10L8 14M12 10l4 4M4 4h16"/></svg>用这套结构起稿</button>
+          <span class="ft-count" style="margin-left:auto;">已选 3 / 5 镜</span>
+          <button class="btn btn--primary"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>加入画布（3）</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 布局 A · 空态 + 进行中（两小图并排说明四态） ============ -->
+<div class="sheet-label">
+  <span class="tag rec">布局 A · 状态</span>
+  <span class="txt">面板四态里的两态：① 空态（可拆但还没拆，含隐私披露）② 进行中（诚实阶段文案 + 可安全关闭后台继续）。结果态见上、失败在结果内逐镜标。</span>
+</div>
+<div style="width:1280px; max-width:100%; display:flex; gap:14px;">
+  <!-- 空态 -->
+  <div class="app" style="width:632px; height:420px; position:relative;">
+    <div class="decon" style="width:100%; border-left:0;">
+      <div class="decon__hd">
+        <div class="ic"><svg class="svg-icon s18" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 15.5M14.5 15.5L20 20M8.5 8.5L11 11"/></svg></div>
+        <div class="ttl"><b>视频拆解</b><span>咖啡馆人物镜头 · 00:15</span></div>
+        <div class="seg"><button class="active">结构</button><button>切点</button></div>
+        <button class="decon__x"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div class="decon__body">
+        <div class="center-state">
+          <div class="badge"><svg class="svg-icon s18" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></div>
+          <h3>把这条视频拆成镜头结构</h3>
+          <p>Nomi 会本地找切点、逐镜读画面、把对白按时间归到每个镜头，产出一张可勾选的分镜表。看懂结构后就能勾选镜头加进画布，学着做自己的版本。</p>
+          <div class="disclosure">
+            <b>本地取证据</b>
+            <p>切点和抽帧在你电脑上完成（零额度）；只有读画面/对白这步会把精确帧发给已接入的模型。</p>
+            <a>换成外部提交模式 →</a>
+          </div>
+        </div>
+      </div>
+      <div class="decon__ft">
+        <span class="ft-count">约 15 秒 · 取决于镜头数</span>
+        <button class="btn btn--primary" style="margin-left:auto;">开始拆解<svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+    </div>
+  </div>
+  <!-- 进行中 -->
+  <div class="app" style="width:632px; height:420px; position:relative;">
+    <div class="decon" style="width:100%; border-left:0;">
+      <div class="decon__hd">
+        <div class="ic"><svg class="svg-icon s18" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 15.5M14.5 15.5L20 20M8.5 8.5L11 11"/></svg></div>
+        <div class="ttl"><b>视频拆解</b><span>咖啡馆人物镜头 · 00:15</span></div>
+        <div class="seg"><button class="active">结构</button><button>切点</button></div>
+        <button class="decon__x"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div class="decon__body">
+        <div class="center-state" style="justify-content:flex-start; padding-top:26px;">
+          <div class="badge busy"><svg class="svg-icon s18 spin" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round"/></svg></div>
+          <h3>正在读第 3 / 5 个镜头</h3>
+          <p>切点已找好，正在逐镜读画面和归对白。可以关掉这个面板去干别的，拆完会在这里等你。</p>
+          <div class="progress-list">
+            <div class="progress-row active"><span class="st done"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span>本地找切点 · 切出 5 镜</div>
+            <div class="progress-row active"><span class="st now"></span>逐镜读画面（3/5）</div>
+            <div class="progress-row"><span class="st wait"></span>对白按时间归到镜头</div>
+          </div>
+          <div class="progress-bar"><i style="width:58%"></i></div>
+        </div>
+      </div>
+      <div class="decon__ft">
+        <span class="ft-count">可安全关闭 · 后台继续</span>
+        <button class="btn" style="margin-left:auto;">后台运行</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 布局 A · 落画布结果（编组） ============ -->
+<div class="sheet-label">
+  <span class="tag rec">布局 A · 闭环收尾</span>
+  <span class="txt">勾选的 3 个镜头逐个冒出来落在画布上、落完自动编成一组「咖啡馆人物镜头 · 镜头组」——整组可一起选/拖/喂参考/生成，整批一个 Cmd+Z。对齐既有「批量产出逐步冒出+自动编组」拍板。</span>
+</div>
+<div class="app" style="height:520px;">
+  <div class="appbar">
+    <div class="appbar__left"><span class="brand"><span class="brand__mark">N</span><span class="brand__word">Nomi</span></span><span class="crumb">/ <b>咖啡馆短片</b></span></div>
+    <div class="appbar__center"><div class="stepper"><button>创作</button><button class="active">生成</button><button>预览</button></div></div>
+    <div class="appbar__right"><button class="abtn">接入模型</button><button class="abtn abtn--primary">去出片</button></div>
+  </div>
+  <div class="body">
+    <div class="explorer">
+      <div class="explorer__tabs"><button class="active">镜头</button><button>素材</button></div>
+      <div class="explorer__hd"><span>当前项目</span><span>4</span></div>
+      <div class="explorer__item"><div class="explorer__thumb frame-a"></div><div class="meta"><b>咖啡馆人物镜头</b><span>00:15 · 源</span></div></div>
+      <div class="explorer__item sel"><div class="explorer__thumb frame-a"></div><div class="meta"><b>镜头组（3）</b><span>刚从拆解加入</span></div></div>
+    </div>
+    <div class="canvasarea">
+      <div class="canvas">
+        <div class="canvas__toolbar">
+          <button><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.5L11 19z"/></svg></button>
+          <button><svg class="svg-icon s14" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 2"/></svg></button>
+        </div>
+        <!-- 源视频节点缩到左侧 -->
+        <div class="node" style="left:40px; top:150px; width:150px;">
+          <div class="node__title"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16"/></svg>源视频</div>
+          <div class="node__media frame-a" style="height:210px;"><div class="node__badge">00:15</div></div>
+        </div>
+        <!-- 组框 + 3 个镜头节点 -->
+        <div class="groupframe" style="left:250px; top:96px; width:452px; height:330px;">
+          <div class="groupframe__label"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>咖啡馆人物镜头 · 镜头组</div>
+        </div>
+        <div class="shotnode sel appearing" style="left:274px; top:128px;" data-delay="0">
+          <div class="shotnode__img frame-a"></div>
+          <div class="shotnode__cap"><b>镜 1 · 特写</b>0.0–2.1s</div>
+        </div>
+        <div class="shotnode sel appearing" style="left:274px; top:250px;" data-delay="1">
+          <div class="shotnode__img frame-b"></div>
+          <div class="shotnode__cap"><b>镜 2 · 中景</b>2.1–4.8s</div>
+        </div>
+        <div class="shotnode sel appearing" style="left:420px; top:128px;" data-delay="2">
+          <div class="shotnode__img frame-e"></div>
+          <div class="shotnode__cap"><b>镜 5 · 全景</b>9.3–15.0s</div>
+        </div>
+        <!-- 组上的一键动作提示 -->
+        <div class="node__floatbar" style="left:476px; top:100px; transform:none;">
+          <button class="hot"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>整组喂参考生成</button>
+        </div>
+        <div class="ai-capsule"><span class="dot">N</span>已加入 3 个镜头 · 可整组生成</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 布局 B（备选）：底部抽屉 ============ -->
+<div class="sheet-label">
+  <span class="tag b">布局 B · 备选</span>
+  <span class="txt">底部全宽抽屉 —— 分镜表横向铺开、每镜一张卡，源视频仍在画布上方。适合宽屏「像看一条胶片」地横扫结构；代价：占掉时间轴那条底部黄金位、和时间轴争地盘，且窄屏卡片会挤。不推荐做主版。</span>
+</div>
+<div class="app" style="height:600px;">
+  <div class="appbar">
+    <div class="appbar__left"><span class="brand"><span class="brand__mark">N</span><span class="brand__word">Nomi</span></span><span class="crumb">/ <b>咖啡馆短片</b></span></div>
+    <div class="appbar__center"><div class="stepper"><button>创作</button><button class="active">生成</button><button>预览</button></div></div>
+    <div class="appbar__right"><button class="abtn">接入模型</button><button class="abtn abtn--primary">去出片</button></div>
+  </div>
+  <div class="body">
+    <div class="explorer">
+      <div class="explorer__tabs"><button class="active">镜头</button><button>素材</button></div>
+      <div class="explorer__hd"><span>当前项目</span><span>1</span></div>
+      <div class="explorer__item sel"><div class="explorer__thumb frame-a"></div><div class="meta"><b>咖啡馆人物镜头</b><span>00:15 · 竖屏</span></div></div>
+    </div>
+    <div class="canvasarea">
+      <div class="canvas" style="flex:0 0 268px;">
+        <div class="node sel" style="left:48px; top:64px; width:190px;">
+          <div class="node__title"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16"/></svg>咖啡馆人物镜头</div>
+          <div class="node__media frame-a" style="height:190px;"><div class="node__badge">00:15</div></div>
+        </div>
+        <div class="ai-capsule"><span class="dot">N</span>Nomi Agent</div>
+      </div>
+      <!-- 底部抽屉 -->
+      <div style="flex:1; min-height:0; border-top:1px solid var(--nomi-line); background:var(--nomi-paper); display:flex; flex-direction:column;">
+        <div class="decon__hd" style="border-bottom:1px solid var(--nomi-line-soft);">
+          <div class="ic"><svg class="svg-icon s18" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 15.5M14.5 15.5L20 20M8.5 8.5L11 11"/></svg></div>
+          <div class="ttl"><b>视频拆解 · 5 个镜头</b><span>勾选想学着做的镜头，加进画布成一组</span></div>
+          <div class="seg"><button class="active">结构</button><button>切点</button></div>
+          <button class="btn btn--ghost" style="height:32px;">用这套结构起稿</button>
+          <button class="btn btn--primary" style="height:32px;">加入画布（3）</button>
+          <button class="decon__x"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+        </div>
+        <div style="flex:1; min-height:0; overflow-x:auto; overflow-y:hidden; display:flex; gap:12px; padding:14px 16px; align-items:stretch;">
+          <!-- 横向镜头卡 -->
+          <div style="width:196px; flex-shrink:0; border:1px solid var(--nomi-accent); box-shadow:0 0 0 1px var(--nomi-accent); border-radius:var(--nomi-radius-panel); overflow:hidden; display:flex; flex-direction:column;">
+            <div class="frame-a" style="height:104px; position:relative;"><div class="shot__check on" style="position:absolute; top:8px; left:8px;"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><span style="position:absolute; bottom:6px; left:8px; font-size:10px; color:oklch(1 0 0); background:oklch(0 0 0/.5); padding:1px 6px; border-radius:999px;">镜 1 · 0.0–2.1s</span></div>
+            <div style="padding:8px 10px;">
+              <div style="display:flex; gap:6px; align-items:center;"><span class="tag-size">特写</span><span class="tag-mood">温暖</span></div>
+              <div style="font-size:11.5px; color:var(--nomi-ink-80); line-height:1.5; margin-top:6px;">咖啡杯从暗处推入，暖顶光打在瓶身与热气上。</div>
+              <div style="font-size:10.5px; color:var(--nomi-ink-40); margin-top:6px;">字幕 · 熬夜救星</div>
+            </div>
+          </div>
+          <div style="width:196px; flex-shrink:0; border:1px solid var(--nomi-accent); box-shadow:0 0 0 1px var(--nomi-accent); border-radius:var(--nomi-radius-panel); overflow:hidden; display:flex; flex-direction:column;">
+            <div class="frame-b" style="height:104px; position:relative;"><div class="shot__check on" style="position:absolute; top:8px; left:8px;"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><span style="position:absolute; bottom:6px; left:8px; font-size:10px; color:oklch(1 0 0); background:oklch(0 0 0/.5); padding:1px 6px; border-radius:999px;">镜 2 · 2.1–4.8s</span></div>
+            <div style="padding:8px 10px;">
+              <div style="display:flex; gap:6px; align-items:center;"><span class="tag-size">中景</span><span class="tag-mood">明快</span></div>
+              <div style="font-size:11.5px; color:var(--nomi-ink-80); line-height:1.5; margin-top:6px;">女主窗边持杯微笑，自然侧光，街景虚化。</div>
+              <div style="font-size:10.5px; color:var(--nomi-ink-40); margin-top:6px;">对白 · "就想喝口热的"</div>
+            </div>
+          </div>
+          <div style="width:196px; flex-shrink:0; border:1px solid var(--nomi-line); border-radius:var(--nomi-radius-panel); overflow:hidden; display:flex; flex-direction:column;">
+            <div class="frame-c" style="height:104px; position:relative;"><div class="shot__check" style="position:absolute; top:8px; left:8px; background:oklch(1 0 0/.85);"></div><span style="position:absolute; top:8px; right:8px;" class="carry"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h11a4 4 0 0 1 0 8h-1"/></svg>承接</span><span style="position:absolute; bottom:6px; left:8px; font-size:10px; color:oklch(1 0 0); background:oklch(0 0 0/.5); padding:1px 6px; border-radius:999px;">镜 3 · 4.8–7.0s</span></div>
+            <div style="padding:8px 10px;">
+              <div style="display:flex; gap:6px; align-items:center;"><span class="tag-size">近景</span><span class="tag-mood">轻松</span></div>
+              <div style="font-size:11.5px; color:var(--nomi-ink-80); line-height:1.5; margin-top:6px;">手部近景搅动拉花，奶泡纹路清晰。</div>
+            </div>
+          </div>
+          <div style="width:196px; flex-shrink:0; border:1px solid var(--nomi-line); border-radius:var(--nomi-radius-panel); overflow:hidden; display:flex; flex-direction:column; opacity:.9;">
+            <div class="frame-d" style="height:104px; position:relative; filter:grayscale(1) opacity(.55);"><span style="position:absolute; bottom:6px; left:8px; font-size:10px; color:oklch(1 0 0); background:oklch(0 0 0/.5); padding:1px 6px; border-radius:999px;">镜 4 · 7.0–9.3s</span></div>
+            <div style="padding:8px 10px;">
+              <div class="fail-note" style="margin-top:0;"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>没读出画面<button>重拆</button></div>
+            </div>
+          </div>
+          <div style="width:196px; flex-shrink:0; border:1px solid var(--nomi-accent); box-shadow:0 0 0 1px var(--nomi-accent); border-radius:var(--nomi-radius-panel); overflow:hidden; display:flex; flex-direction:column;">
+            <div class="frame-e" style="height:104px; position:relative;"><div class="shot__check on" style="position:absolute; top:8px; left:8px;"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><span style="position:absolute; bottom:6px; left:8px; font-size:10px; color:oklch(1 0 0); background:oklch(0 0 0/.5); padding:1px 6px; border-radius:999px;">镜 5 · 9.3–15.0s</span></div>
+            <div style="padding:8px 10px;">
+              <div style="display:flex; gap:6px; align-items:center;"><span class="tag-size">全景</span><span class="tag-mood">收束</span></div>
+              <div style="font-size:11.5px; color:var(--nomi-ink-80); line-height:1.5; margin-top:6px;">拉远至咖啡馆全景，招牌入画，渐暗收尾。</div>
+              <div style="font-size:10.5px; color:var(--nomi-ink-40); margin-top:6px;">字幕 · 就在你楼下</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 暗色：布局 A 结果态 ============ -->
+<div class="sheet-label">
+  <span class="tag rec">布局 A · 暗色</span>
+  <span class="txt">同一版（推荐布局 A · 结果态）在暗色 token 下 —— 验证 token 翻转后对比度/语义色都成立（天黑自动暗）。</span>
+</div>
+
+<div class="app theme-dark" id="app-dark">
+  <div class="appbar">
+    <div class="appbar__left"><span class="brand"><span class="brand__mark">N</span><span class="brand__word">Nomi</span></span><span class="crumb">/ <b>咖啡馆短片</b></span></div>
+    <div class="appbar__center"><div class="stepper"><button>创作</button><button class="active">生成</button><button>预览</button></div></div>
+    <div class="appbar__right"><button class="abtn">接入模型</button><button class="abtn abtn--primary">去出片</button></div>
+  </div>
+  <div class="body">
+    <div class="explorer">
+      <div class="explorer__tabs"><button class="active">镜头</button><button>素材</button></div>
+      <div class="explorer__hd"><span>当前项目</span><span>1</span></div>
+      <div class="explorer__item sel"><div class="explorer__thumb frame-a"></div><div class="meta"><b>咖啡馆人物镜头</b><span>00:15 · 竖屏</span></div></div>
+    </div>
+    <div class="canvasarea">
+      <div class="canvas">
+        <div class="canvas__toolbar">
+          <button><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.5L11 19z"/></svg></button>
+          <button><svg class="svg-icon s14" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 2"/></svg></button>
+        </div>
+        <div class="node sel" style="left:48px; top:130px; width:220px;">
+          <div class="node__title"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16"/></svg>咖啡馆人物镜头</div>
+          <div class="node__floatbar">
+            <button title="抽首帧">首帧</button>
+            <button title="抽尾帧">尾帧</button>
+            <span class="div"></span>
+            <button class="hot"><svg class="svg-icon s14" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 15.5M14.5 15.5L20 20"/></svg>拆解</button>
+            <span class="div"></span>
+            <button><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+          </div>
+          <div class="node__media frame-a" style="height:300px;"><div class="node__badge">00:15</div></div>
+        </div>
+        <div class="ai-capsule"><span class="dot">N</span>Nomi Agent</div>
+      </div>
+      <div class="decon">
+        <div class="decon__hd">
+          <div class="ic"><svg class="svg-icon s18" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 15.5M14.5 15.5L20 20M8.5 8.5L11 11"/></svg></div>
+          <div class="ttl"><b>视频拆解</b><span>咖啡馆人物镜头 · 00:15</span></div>
+          <div class="seg"><button class="active">结构</button><button>切点</button></div>
+          <button class="decon__x"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <div class="metabar">
+          <span class="lead">这条视频拆成 5 个镜头 —— 勾选你想学着做的，加进画布成一组。</span>
+          <span class="chip local"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg>本地取证据</span>
+          <span class="chip">Gemini 3.5 Flash</span>
+          <span class="chip">有对白</span>
+        </div>
+        <div class="decon__body">
+          <div class="shot">
+            <div class="shot__check on"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div class="shot__frame"><div class="thumb frame-a"></div><div class="idx"><span>镜 1</span><span>0.0–2.1s</span></div></div>
+            <div class="shot__main">
+              <div class="shot__row1"><span class="shot__num">1</span><span class="tag-size">特写</span><span class="tag-mood">温暖</span><span class="shot__time">2.1s</span></div>
+              <div class="shot__visual">咖啡杯从暗处缓缓推入画面中心，暖色顶光打在瓶身与热气上。</div>
+              <div class="field"><span class="k">字幕</span><span class="v">熬夜救星</span></div>
+              <div class="field"><span class="k">运镜</span><span class="v prompt">缓慢推近，从暗到亮，聚焦杯口热气</span></div>
+            </div>
+          </div>
+          <div class="shot">
+            <div class="shot__check on"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div class="shot__frame"><div class="thumb frame-b"></div><div class="idx"><span>镜 2</span><span>2.1–4.8s</span></div></div>
+            <div class="shot__main">
+              <div class="shot__row1"><span class="shot__num">2</span><span class="tag-size">中景</span><span class="tag-mood">明快</span><span class="shot__time">2.7s</span></div>
+              <div class="shot__visual">女主窗边持杯微笑，自然侧光，街景轻微移动，构图偏左留白。</div>
+              <div class="field"><span class="k">对白</span><span class="v">"忙到现在，就想喝口热的"</span></div>
+            </div>
+          </div>
+          <div class="shot failed">
+            <div class="shot__check"></div>
+            <div class="shot__frame"><div class="thumb frame-d"></div><div class="idx"><span>镜 4</span><span>7.0–9.3s</span></div></div>
+            <div class="shot__main">
+              <div class="shot__row1"><span class="shot__num">4</span><span class="tag-mood">—</span><span class="shot__time">2.3s</span></div>
+              <div class="field"><span class="k">对白</span><span class="v">"现在下单立减 20"</span></div>
+              <div class="fail-note"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>这镜的画面没读出来，对白仍可用。<button>单独重拆</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="decon__ft">
+          <button class="btn btn--ghost"><svg class="svg-icon s14" viewBox="0 0 24 24"><path d="M12 20V10M8 14l4-4 4 4M4 4h16"/></svg>用这套结构起稿</button>
+          <span class="ft-count" style="margin-left:auto;">已选 3 / 5 镜</span>
+          <button class="btn btn--primary">加入画布（3）</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 逐个冒出动画（对齐「逐步冒出」拍板）：给编组节点按 data-delay 分步显现。
+document.querySelectorAll('.shotnode.appearing').forEach((el) => {
+  const d = Number(el.getAttribute('data-delay') || 0);
+  el.style.animationDelay = (d * 0.22) + 's';
+});
+</script>
+</body>
+</html>
