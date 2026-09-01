@@ -5,6 +5,7 @@ import { IconChevronRight, IconDotsVertical, IconFolder, IconTrash } from '@tabl
 import { cn } from '../../../../utils/cn'
 import { FULLSCREEN_Z_INDEX } from './scene3dConstants'
 import type { Scene3DTrajectory, Scene3DTrajectoryGroup } from './scene3dTypes'
+import { scene3dTrajectoryDisplayName, scene3dTrajectoryGroupDisplayName } from './scene3dObjectNames'
 
 type TrajectoryListPanelProps = {
   activeTrajectoryId: string | null
@@ -30,7 +31,7 @@ export const TrajectoryListPanel = React.memo(function TrajectoryListPanel({
   const groupNameByTrajectoryId = React.useMemo(() => {
     const map = new Map<string, string>()
     groups.forEach((group) => {
-      group.trajectoryIds.forEach((trajectoryId) => map.set(trajectoryId, group.name))
+      group.trajectoryIds.forEach((trajectoryId) => map.set(trajectoryId, scene3dTrajectoryGroupDisplayName(group, groups)))
     })
     return map
   }, [groups])
@@ -99,7 +100,7 @@ export const TrajectoryListPanel = React.memo(function TrajectoryListPanel({
                         }}
                       >
                         <IconFolder size={14} stroke={1.9} />
-                        <span className="min-w-0 flex-1 truncate">{group.name}</span>
+                        <span className="min-w-0 flex-1 truncate">{scene3dTrajectoryGroupDisplayName(group, groups)}</span>
                       </button>
                     ))}
                   </div>
@@ -160,7 +161,7 @@ export const TrajectoryListPanel = React.memo(function TrajectoryListPanel({
                   type="button"
                   onClick={() => onSelectTrajectory(trajectory.id)}
                 >
-                  <span className="min-w-0 truncate text-caption font-medium">{trajectory.name}</span>
+                  <span className="min-w-0 truncate text-caption font-medium">{scene3dTrajectoryDisplayName(trajectory, trajectories)}</span>
                   <span className="min-w-0 truncate text-micro text-[var(--nomi-ink-40)]">
                     {groupName || t('scene3d.trajectory.list.ungrouped')} ·{' '}
                     {t('scene3d.trajectory.list.points', { count: trajectory.points.length })}

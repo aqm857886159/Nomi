@@ -14,6 +14,7 @@ import { cn } from '../../../../../utils/cn'
 import type { Scene3DTrajectory, Scene3DTrajectoryBinding, Scene3DTrajectoryGroup, Scene3DTrajectoryPoint } from '../scene3dTypes'
 import { trajectoryPointTimeRatio } from './trajectoryUtils'
 import { useScene3DTrajectoryRuntimeStore, setScene3DPlayheadSeconds } from './trajectoryRuntimeStore'
+import { scene3dTrajectoryDisplayName, scene3dTrajectoryGroupDisplayName } from '../scene3dObjectNames'
 
 type TrajectoryTimelineProps = {
   visible: boolean
@@ -125,7 +126,7 @@ function buildTimelineRows({
       id: group.id,
       selectionGroupId: group.id,
       group,
-      name: group.name,
+      name: scene3dTrajectoryGroupDisplayName(group, groups),
       trajectoryCount: groupTrajectories.length,
       collapsible: true,
     })
@@ -188,6 +189,7 @@ function GroupNameEditor({
       autoFocus
       className="h-6 min-w-0 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-1.5 text-micro text-[var(--nomi-ink)] outline-none"
       defaultValue={group.name}
+      placeholder={scene3dTrajectoryGroupDisplayName(group, [group])}
       onBlur={(event) => commit(event.currentTarget.value)}
       onKeyDown={(event) => {
         if (event.key === 'Enter') event.currentTarget.blur()
@@ -344,7 +346,7 @@ export function TrajectoryTimeline({
                     onClick={() => onSelectTrajectory(row.trajectory.id)}
                   >
                     <span className="size-2.5 rounded-full" style={{ backgroundColor: row.trajectory.color }} />
-                    <span className="min-w-0 truncate text-micro">{row.trajectory.name}</span>
+                    <span className="min-w-0 truncate text-micro">{scene3dTrajectoryDisplayName(row.trajectory, trajectories)}</span>
                     <span className="justify-self-end text-micro text-[var(--nomi-ink-40)]">{row.binding ? t('scene3d.trajectory.bound') : t('scene3d.trajectory.unbound')}</span>
                   </button>
                 )
@@ -610,7 +612,7 @@ function TimelineBindingBar({
         width: `${Math.max(1, (end - start) * 100)}%`,
         backgroundColor: trajectory.color,
       }}
-      title={`${trajectory.name} ${formatSeconds(binding.startTime)} - ${formatSeconds(binding.endTime)}`}
+      title={`${scene3dTrajectoryDisplayName(trajectory, [trajectory])} ${formatSeconds(binding.startTime)} - ${formatSeconds(binding.endTime)}`}
       onPointerDown={(event) => startDrag(event, 'move')}
     >
       {!readOnly ? (

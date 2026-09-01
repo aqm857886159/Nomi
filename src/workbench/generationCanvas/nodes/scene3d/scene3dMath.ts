@@ -559,7 +559,7 @@ export function makeObject(kind: Scene3DGeometry | 'mannequin' | 'light', roleIn
   if (kind === 'light') {
     return {
       id,
-      name: '点光源',
+      name: '',
       type: 'light',
       visible: true,
       position: [2.5, 3.5, 2.5],

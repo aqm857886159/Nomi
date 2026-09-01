@@ -168,7 +168,7 @@ function buildStagingCamera(objects: Scene3DObject[], camera: StagingSpec['camer
   const target: Scene3DVector3 = [centerX, heightPose.targetY, centerZ]
   return {
     id: createScene3DCameraId(),
-    name: '机位',
+    name: '',
     visible: true,
     position,
     rotation: cameraLookAtRotation(position, target),

@@ -19,7 +19,7 @@ import i18n from '../../../../i18n'
 import {
   crowdCount,
 } from './scene3dConstants'
-import type { Scene3DCamera, Scene3DObject } from './scene3dTypes'
+import type { Scene3DCamera, Scene3DObject, Scene3DTrajectory, Scene3DTrajectoryGroup } from './scene3dTypes'
 
 /** 用户起过名吗。空/纯空白 = 没起过,显示时现算默认名。 */
 export function hasUserGivenName(name: string | undefined): boolean {
@@ -87,4 +87,34 @@ export function scene3dCopiedName(sourceName: string): string {
 export function mannequinRoleLabel(index: number): string {
   if (index < 26) return i18n.t('scene3d.mannequinName', { letter: String.fromCharCode(65 + index) })
   return i18n.t('scene3d.mannequinNameOverflow', { index: index - 25 })
+}
+
+/** 轨迹显示名:和对象/相机同一套——没起名就按它在轨迹列表里的位置现算「轨迹N」。 */
+export function scene3dTrajectoryDisplayName(
+  trajectory: Scene3DTrajectory,
+  trajectories: readonly Scene3DTrajectory[],
+): string {
+  if (hasUserGivenName(trajectory.name)) return trajectory.name
+  const index = trajectories.findIndex((candidate) => candidate.id === trajectory.id)
+  return i18n.t('scene3d.objectName.trajectory', { index: (index < 0 ? trajectories.length : index) + 1 })
+}
+
+/** 轨迹分组显示名,同上。 */
+export function scene3dTrajectoryGroupDisplayName(
+  group: Scene3DTrajectoryGroup,
+  groups: readonly Scene3DTrajectoryGroup[],
+): string {
+  if (hasUserGivenName(group.name)) return group.name
+  const index = groups.findIndex((candidate) => candidate.id === group.id)
+  return i18n.t('scene3d.objectName.group', { index: (index < 0 ? groups.length : index) + 1 })
+}
+
+/**
+ * 录 take 生成的轨迹名(「角色A 走位」)。
+ * 这条**故意在创建时就合成**、与上面几个派生显示名不同:它带的是「属于哪个角色」这层关系,
+ * 而轨迹列表/时间线面板拿不到 trajectoryBindings,显示时反查不出来。
+ * 代价写在词条注释里:这一条会把创建时的语言写进项目文件。面板能拿到 bindings 后应改为显示时派生。
+ */
+export function scene3dCharacterMovementName(characterDisplayName: string): string {
+  return i18n.t('scene3d.objectName.characterMovement', { name: characterDisplayName })
 }

@@ -284,7 +284,7 @@ function normalizeTrajectory(value: unknown, index: number): Scene3DTrajectory |
     : []
   return {
     id,
-    name: stringValue(raw.name, `轨迹${index + 1}`),
+    name: stringValue(raw.name, ''),
     points,
     curveControls,
     tension: Math.min(1, Math.max(0, finiteNumber(raw.tension, 0.5))),
@@ -343,7 +343,7 @@ function normalizeTrajectoryGroup(value: unknown, index: number, trajectoryIds: 
     : []
   return {
     id,
-    name: stringValue(raw.name, `组${index + 1}`),
+    name: stringValue(raw.name, ''),
     trajectoryIds: groupTrajectoryIds,
   }
 }

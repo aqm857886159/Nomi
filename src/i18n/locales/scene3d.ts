@@ -9,6 +9,12 @@ export const zhScene3d = {
     camera: '相机{{index}}',
     fallback: '对象{{index}}',
     copy: '{{name}} 副本',
+    trajectory: '轨迹{{index}}',
+    group: '组{{index}}',
+    // 录 take 生成的轨迹名。与上面几条不同:它不是纯占位,而是带「哪个角色」这层关系,
+    // 而轨迹列表/时间线两个面板拿不到 trajectoryBindings,现阶段在创建时合成。
+    // 代价是这一条会把创建时的语言写进项目文件;正解是显示时从 binding 反查角色,待面板拿得到 bindings 再改。
+    characterMovement: '{{name}} 走位',
   },
   mannequinNameOverflow: '角色A{{index}}',
   referenceTargetNotConnected: '未连接视频镜头',
@@ -416,6 +422,13 @@ export const enScene3d = {
     camera: 'Camera {{index}}',
     fallback: 'Object {{index}}',
     copy: '{{name}} copy',
+    trajectory: 'Trajectory {{index}}',
+    group: 'Group {{index}}',
+    // Name for the trajectory produced by recording a take. Unlike the entries above this is not a pure
+    // placeholder — it carries which character it belongs to, and the trajectory list/timeline panels have no
+    // access to trajectoryBindings, so it is composed at creation time. Cost: this one string freezes the
+    // authoring language into the project file; the proper fix is deriving it from the binding at display time.
+    characterMovement: '{{name}} movement',
   },
   mannequinNameOverflow: 'Character A{{index}}',
   referenceTargetNotConnected: 'No video shot connected',

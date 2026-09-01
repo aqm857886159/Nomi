@@ -26,6 +26,7 @@ import { cameraWithPlaybackPosition, objectWithPlaybackPose, playbackCameraAtPla
 import { clampRatio, useScene3DTrajectoryRuntimeStore } from './trajectory'
 import { crowdCount } from './scene3dConstants'
 import { scene3dCameraDisplayName } from './scene3dObjectNames'
+import { scene3dTrajectoryDisplayName } from './scene3dObjectNames'
 
 export function cameraPreviewViewportStyle(aspectRatio: Scene3DAspectRatio): React.CSSProperties {
   const ratio = SCENE3D_ASPECT_RATIOS[aspectRatio]
@@ -363,7 +364,7 @@ export const PlaybackCameraMonitor = React.memo(function PlaybackCameraMonitor({
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="min-w-0 truncate text-caption font-medium">
-          {scene3dCameraDisplayName(activeCamera.camera, state.cameras)} · {activeCamera.trajectory.name}
+          {scene3dCameraDisplayName(activeCamera.camera, state.cameras)} · {scene3dTrajectoryDisplayName(activeCamera.trajectory, state.trajectories)}
         </div>
         <div className="shrink-0 text-micro tabular-nums text-[var(--nomi-ink-40)]">{Math.round(progress * 100)}%</div>
       </div>

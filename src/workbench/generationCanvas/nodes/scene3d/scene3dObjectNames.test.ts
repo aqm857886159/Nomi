@@ -17,8 +17,11 @@ import { makeCamera, makeObject } from './scene3dMath'
 import {
   hasUserGivenName,
   scene3dCameraDisplayName,
+  scene3dCharacterMovementName,
   scene3dCopiedName,
   scene3dObjectDisplayName,
+  scene3dTrajectoryDisplayName,
+  scene3dTrajectoryGroupDisplayName,
 } from './scene3dObjectNames'
 
 const HAN = /[一-鿿]/
@@ -79,5 +82,35 @@ describe('场景对象显示名', () => {
     expect(scene3dCopiedName('女主')).toBe('女主 副本')
     await i18n.changeLanguage('en')
     expect(scene3dCopiedName('Hero')).toBe('Hero copy')
+  })
+
+  it('轨迹/分组同一套:没起名现算、起过名原样、老项目存量不动', async () => {
+    const path1 = { id: 'p1', name: '', points: [], tension: 0, closed: false, color: '#fff' }
+    const path2 = { id: 'p2', name: '', points: [], tension: 0, closed: false, color: '#fff' }
+    const legacyPath = { ...path1, id: 'p3', name: '轨迹1' } // 改动前落盘的中文名
+    const g1 = { id: 'g1', name: '', trajectoryIds: [] }
+    const legacyGroup = { id: 'g2', name: '组1', trajectoryIds: [] }
+
+    await i18n.changeLanguage('zh-CN')
+    expect(scene3dTrajectoryDisplayName(path1, [path1, path2])).toBe('轨迹1')
+    expect(scene3dTrajectoryDisplayName(path2, [path1, path2])).toBe('轨迹2')
+    expect(scene3dTrajectoryGroupDisplayName(g1, [g1])).toBe('组1')
+
+    await i18n.changeLanguage('en')
+    expect(scene3dTrajectoryDisplayName(path1, [path1, path2])).toBe('Trajectory 1')
+    expect(scene3dTrajectoryGroupDisplayName(g1, [g1])).toBe('Group 1')
+    // 存量名两种语言下都原样,不被翻译也不被默认名盖掉
+    for (const locale of ['zh-CN', 'en']) {
+      await i18n.changeLanguage(locale)
+      expect(scene3dTrajectoryDisplayName(legacyPath, [legacyPath])).toBe('轨迹1')
+      expect(scene3dTrajectoryGroupDisplayName(legacyGroup, [legacyGroup])).toBe('组1')
+    }
+  })
+
+  it('录 take 的轨迹名随语言合成(这条**故意**在创建时定,见 scene3dObjectNames 注释)', async () => {
+    await i18n.changeLanguage('zh-CN')
+    expect(scene3dCharacterMovementName('角色A')).toBe('角色A 走位')
+    await i18n.changeLanguage('en')
+    expect(scene3dCharacterMovementName('Character A')).toBe('Character A movement')
   })
 })

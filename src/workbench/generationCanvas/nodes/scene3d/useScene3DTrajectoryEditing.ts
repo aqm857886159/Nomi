@@ -115,7 +115,7 @@ function nextTrajectoryColor(count: number): string {
 function makeTrajectory(id: string, index: number, firstPosition: Scene3DVector3): Scene3DTrajectory {
   return {
     id,
-    name: `轨迹${index + 1}`,
+    name: '',
     points: [
       { id: createScene3DTrajectoryPointId(), position: [...firstPosition] },
       {
@@ -458,7 +458,7 @@ export function useScene3DTrajectoryEditing({
       ...current,
       trajectoryGroups: [
         ...current.trajectoryGroups,
-        { id: groupId, name: `组${current.trajectoryGroups.length + 1}`, trajectoryIds: [] },
+        { id: groupId, name: '', trajectoryIds: [] },
       ],
     }))
     setActiveGroupId(groupId)
