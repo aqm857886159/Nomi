@@ -591,9 +591,9 @@ export const RUNWAY_VIDEO_MAPPING_IDS = [
   "seed-runway-wan3-t2v", "seed-runway-wan3-i2v", "seed-runway-wan3-reference",
   "seed-runway-grok_imagine_1_5-t2v", "seed-runway-grok_imagine_1_5-i2v", "seed-runway-grok_imagine_1_5-reference",
   "seed-runway-hailuo3-t2v", "seed-runway-hailuo3-i2v", "seed-runway-hailuo3-reference",
-  "seed-runway-veo3-1-t2v", "seed-runway-veo3-1-i2v", "seed-runway-veo3-1-reference",
-  "seed-runway-veo3-1_fast-t2v", "seed-runway-veo3-1_fast-i2v", "seed-runway-veo3-1_fast-reference",
-  "seed-runway-happyhorse_1_0-t2v", "seed-runway-gemini_omni_flash-t2v", "seed-runway-gemini_omni_flash-i2v", "seed-runway-gemini_omni_flash-reference",
+  "seed-runway-veo3-1-t2v", "seed-runway-veo3-1-i2v",
+  "seed-runway-veo3-1_fast-t2v", "seed-runway-veo3-1_fast-i2v",
+  "seed-runway-happyhorse_1_0-t2v", "seed-runway-gemini_omni_flash-t2v", "seed-runway-gemini_omni_flash-i2v",
 ] as const;
 
 export const RUNWAY_IMAGE_MAPPING_IDS = [
@@ -622,22 +622,26 @@ const RUNWAY_VIDEO_SPECS: RunwayVideoSpec[] = [
   { modelKey: "wan3", labelZh: "Runway Wan 3", archetypeId: "runway-video", fields: "wan" },
   { modelKey: "grok_imagine_1_5", labelZh: "Runway Grok Imagine 1.5", archetypeId: "runway-video", fields: "grok" },
   { modelKey: "hailuo3", labelZh: "Runway Hailuo 3", archetypeId: "runway-video", fields: "hailuo" },
-  { modelKey: "veo3.1", labelZh: "Runway Veo 3.1", archetypeId: "runway-video", fields: "veo" },
-  { modelKey: "veo3.1_fast", labelZh: "Runway Veo 3.1 Fast", archetypeId: "runway-video", fields: "veo" },
+  { modelKey: "veo3.1", labelZh: "Runway Veo 3.1", archetypeId: "runway-video", fields: "veo", modes: ["t2v", "i2v"] },
+  { modelKey: "veo3.1_fast", labelZh: "Runway Veo 3.1 Fast", archetypeId: "runway-video", fields: "veo", modes: ["t2v", "i2v"] },
   { modelKey: "happyhorse_1_0", labelZh: "Runway HappyHorse 1.0", archetypeId: "runway-video", fields: "happyhorse", modes: ["t2v", "i2v"] },
-  { modelKey: "gemini_omni_flash", labelZh: "Runway Gemini Omni Flash", archetypeId: "runway-video", fields: "gemini" },
+  { modelKey: "gemini_omni_flash", labelZh: "Runway Gemini Omni Flash", archetypeId: "runway-video", fields: "gemini", modes: ["t2v", "i2v"] },
 ];
 
-function runwayVideoCreate(spec: RunwayVideoSpec, withImage: boolean, withReferences: boolean): HttpOperation {
+type RunwayVideoMode = "t2v" | "i2v" | "reference";
+
+function runwayVideoCreate(spec: RunwayVideoSpec, modeId: RunwayVideoMode): HttpOperation {
+  const withImage = modeId === "i2v";
+  const withReferences = modeId === "reference";
   const body: Record<string, unknown> = {
     promptText: "{{request.prompt}}",
-    ...(withImage ? { promptImage: withReferences ? "{{request.params.reference_image_urls}}" : "{{request.params.image_url}}" } : {}),
+    ...(withImage ? { promptImage: "{{request.params.image_url}}" } : {}),
     model: spec.modelKey,
   };
   if (spec.fields === "seedance") Object.assign(body, { audio: "{{request.params.generate_audio}}", duration: "{{request.params.duration}}", ratio: "{{request.params.aspect_ratio}}" });
   if (spec.fields === "wan") Object.assign(body, { audio: "{{request.params.generate_audio}}", duration: "{{request.params.duration}}", ratio: "{{request.params.aspect_ratio}}" });
   if (spec.fields === "hailuo") Object.assign(body, { duration: "{{request.params.duration}}", resolution: "{{request.params.resolution}}", ratio: "{{request.params.aspect_ratio}}" });
-  if (spec.fields === "grok") Object.assign(body, { duration: "{{request.params.duration}}", resolution: "{{request.params.resolution}}" });
+  if (spec.fields === "grok") Object.assign(body, { duration: "{{request.params.duration}}", resolution: "{{request.params.resolution}}", ...(!withImage ? { ratio: "{{request.params.aspect_ratio}}" } : {}) });
   if (spec.fields === "veo") Object.assign(body, { audio: "{{request.params.generate_audio}}", duration: "{{request.params.duration}}", ratio: "{{request.params.aspect_ratio}}" });
   if (spec.fields === "happyhorse") Object.assign(body, { duration: "{{request.params.duration}}", ...(withImage ? {} : { ratio: "{{request.params.aspect_ratio}}" }) });
   if (spec.fields === "gemini") Object.assign(body, { ratio: "{{request.params.aspect_ratio}}", duration: "{{request.params.duration}}" });
@@ -651,7 +655,7 @@ function runwayVideoCreate(spec: RunwayVideoSpec, withImage: boolean, withRefere
     }
   }
   const drops = spec.fields === "grok"
-    ? ["aspect_ratio", "generate_audio"]
+    ? [...(withImage ? ["aspect_ratio"] : []), "generate_audio"]
     : spec.fields === "happyhorse" && withImage
       ? ["generate_audio", "aspect_ratio"]
       : spec.fields === "hailuo" || spec.fields === "happyhorse" || spec.fields === "gemini"
@@ -677,9 +681,8 @@ function runwayVideoModel(spec: RunwayVideoSpec): RunwayModel {
     kind: "video",
     archetypeId: spec.archetypeId,
     mappings: modes.map((modeId) => {
-      const taskKind: ProfileKind = modeId === "t2v" ? "text_to_video" : "image_to_video";
-      const withReferences = modeId === "reference";
-      const op = runwayVideoCreate(spec, taskKind === "image_to_video", withReferences);
+      const taskKind: ProfileKind = modeId === "i2v" ? "image_to_video" : "text_to_video";
+      const op = runwayVideoCreate(spec, modeId);
       return mapping(`seed-runway-${spec.modelKey.replace(/\./g, "-")}-${modeId}`, modeId, taskKind, `${spec.labelZh} · ${modeId === "t2v" ? "文生视频" : modeId === "reference" ? "多图参考" : "图生视频"}`, op);
     }),
   };
@@ -761,7 +764,7 @@ export const RUNWAY_OFFICIAL_MODELS: RunwayModel[] = [
       mapping(SEEDANCE25_T2V_ID, "t2v", "text_to_video", "Runway Seedance 2.5 · 文生视频", SEEDANCE25_T2V),
       mapping(SEEDANCE25_FIRST_ID, "first", "image_to_video", "Runway Seedance 2.5 · 首帧", SEEDANCE25_FIRST),
       mapping(SEEDANCE25_FIRSTLAST_ID, "firstlast", "image_to_video", "Runway Seedance 2.5 · 首尾帧", SEEDANCE25_FIRSTLAST),
-      mapping(SEEDANCE25_OMNI_ID, "omni", "image_to_video", "Runway Seedance 2.5 · 全能参考", SEEDANCE25_OMNI),
+      mapping(SEEDANCE25_OMNI_ID, "omni", "text_to_video", "Runway Seedance 2.5 · 全能参考", SEEDANCE25_OMNI),
     ],
   },
   RUNWAY_AUDIO_MODEL,

@@ -132,6 +132,33 @@ describe("BUG-3: runway image ratio must be per-model; shared default 1024:1024 
   });
 });
 
+describe("Runway reference modes use the text-to-video reference union", () => {
+  it("does not construct a promptImage or image_to_video mapping for multi-reference modes", () => {
+    const referenceMappings = RUNWAY_OFFICIAL_MODELS
+      .flatMap((model) => model.mappings.filter((mapping) => mapping.modeId === "reference"));
+    expect(referenceMappings.length).toBeGreaterThan(0);
+    for (const mapping of referenceMappings) {
+      expect(mapping.taskKind).toBe("text_to_video");
+      expect(mapping.create.path).toBe("/v1/text_to_video");
+      expect(mapping.create.body).not.toHaveProperty("promptImage");
+      expect(mapping.create.body).toHaveProperty("reference_image_urls");
+    }
+  });
+
+  it("keeps Seedance 2.5 omni aligned with its text-to-video operation", () => {
+    const mapping = RUNWAY_OFFICIAL_MODELS
+      .find((model) => model.modelKey === "seedance2_5")?.mappings.find((item) => item.modeId === "omni");
+    expect(mapping).toMatchObject({ taskKind: "text_to_video", create: { path: "/v1/text_to_video" } });
+  });
+
+  it("does not publish reference mappings for Runway variants without a reference union", () => {
+    for (const modelKey of ["veo3.1", "veo3.1_fast", "gemini_omni_flash"]) {
+      const model = RUNWAY_OFFICIAL_MODELS.find((item) => item.modelKey === modelKey);
+      expect(model?.mappings.some((mapping) => mapping.modeId === "reference")).toBe(false);
+    }
+  });
+});
+
 describe("BUG-4: KIE kling-3.0/video requires an explicit multi_shots boolean", () => {
   // Live KIE (2026-09-01): omitting multi_shots → 422 `multi_shots cannot be empty`; sending an
   // array → 500 `must be a boolean`; sending `false` → validates. Official docs

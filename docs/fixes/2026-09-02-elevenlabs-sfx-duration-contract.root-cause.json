@@ -1,0 +1,97 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-elevenlabs-sfx-duration-contract",
+  "problem_type": "ElevenLabs sound-effect duration contract drift",
+  "symptom": "The ElevenLabs sound-effect catalog capped duration_seconds at 22 seconds although the current official endpoint permits up to 30 seconds, making the UI and request contract narrower than the provider contract.",
+  "direct_cause": "The catalog limit was retained from an older assumption and was not rechecked against the current official request schema before the vendor mapping was inherited.",
+  "class_root": "Vendor parameter limits were maintained as local constants without a required current-source comparison at the mapping boundary, so a provider expansion could remain hidden behind an unnecessarily narrow control.",
+  "affected_population": [
+    "Users selecting the ElevenLabs sound-effect mapping through the official ElevenLabs vendor catalog.",
+    "Future vendor mappings whose local parameter limits are copied without checking the provider's current official contract."
+  ],
+  "scope_paths": [
+    "electron/catalog/elevenlabs.ts",
+    "electron/catalog/elevenlabs.test.ts"
+  ],
+  "entry_points": [
+    "ElevenLabs sound-effect duration parameter mapping and validation",
+    "ElevenLabs sound-effect contract tests"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert",
+      "checked_at": "2026-09-02",
+      "purpose": "Confirms duration_seconds is optional and must be at least 0.5 and at most 30 seconds."
+    }
+  ],
+  "invariants": [
+    "The ElevenLabs sound-effect duration control accepts values through 30 seconds and rejects values above the official maximum.",
+    "The mapping sends the provider's duration_seconds field without silently narrowing a valid official value.",
+    "The contract test covers both the official upper bound and the first invalid value."
+  ],
+  "generality_proof": "The correction is anchored at the single ElevenLabs sound-effect mapping and its contract test; the source-backed upper bound is explicit, so later catalog edits can be compared against the same provider field rather than a copied local limit.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/elevenlabs.ts",
+      "symbol": "ELEVENLABS_SOUND_EFFECT_CREATE",
+      "responsibility": "Own the ElevenLabs sound-effect request body and its official duration_seconds parameter mapping."
+    },
+    {
+      "path": "electron/catalog/elevenlabs.ts",
+      "symbol": "ElevenLabs sound-effect parameter controls",
+      "responsibility": "Expose the provider-backed duration range at the catalog boundary."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/elevenlabs.ts",
+      "entry_point": "Sound-effect duration_seconds control",
+      "disposition": "enforced",
+      "evidence": "The upper bound is 30 seconds and the create mapping uses duration_seconds."
+    },
+    {
+      "path": "electron/catalog/elevenlabs.test.ts",
+      "entry_point": "Sound-effect duration boundary tests",
+      "disposition": "enforced",
+      "evidence": "Tests allow exactly 30 seconds and reject 31 seconds."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Provider parameter limits can change independently of the local catalog; the same stale-limit class can recur on another ElevenLabs operation or vendor mapping without source-backed checks.",
+    "same_class_scan": [
+      "Compared ElevenLabs sound effects, text-to-speech, music, and speech-to-text catalog fields against the current official API reference pages.",
+      "Searched the non-KIE/non-APIMart catalog for adjacent ElevenLabs duration controls and retained only source-backed limits in this correction."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/elevenlabs.ts",
+    "invariant": "Every ElevenLabs sound-effect duration limit is declared once at the mapping boundary and is checked against the current official duration_seconds contract.",
+    "failure_mode": "A stale local maximum hides valid provider capacity and causes users to receive a narrower control than the official API supports.",
+    "exception_policy": "none",
+    "strategy": "Replace the stale 22-second maximum with the official 30-second maximum and pin the boundary with exact upper-bound tests; no parallel fallback is retained.",
+    "artifacts": [
+      "electron/catalog/elevenlabs.ts",
+      "electron/catalog/elevenlabs.test.ts"
+    ]
+  },
+  "regression_tests": ["electron/catalog/elevenlabs.test.ts"],
+  "class_regression_tests": ["electron/catalog/elevenlabs.test.ts"],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": ["electron/catalog/elevenlabs.ts"],
+    "rationale": "The stale 22-second parameter declaration is removed; the official 30-second declaration is the only active path.",
+    "removal_evidence": "The test suite rejects 31 seconds and accepts 30 seconds against the retained mapping."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is being introduced or retained for this parameter correction.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration is required; the mapping identity and request field remain unchanged.",
+  "residual_risks": [
+    "The official ElevenLabs account key and quota are required for a live audio probe; contract tests do not certify account eligibility or output quality."
+  ]
+}
