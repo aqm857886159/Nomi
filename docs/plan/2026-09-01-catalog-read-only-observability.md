@@ -34,6 +34,12 @@
 | 状态产生处 | `electron/catalog/catalogHealth.ts` | health 新增 `writable` / `diskVersion` / `appVersion` 与 `catalog_read_only_version_skew` issue。只读从「异常」变成「可读状态」 |
 | 产品消费处 | `src/config/modelCatalogStatus.ts` | 新增 `catalog_read_only` 状态，**排在所有其他判定之前**；文案走 i18n（`runtime.modelCatalog.readOnlyVersionSkew`，zh-CN + en） |
 | 走查消费处 | `tests/ux/_launchApp.mjs` | `assertCatalogWritable`，由 `launchNomiApp` 在交出窗口前调用；命中即关 app 抛错 |
+| 设置页消费处 | `useOnboardingDrawerCatalog.ts` → `ModelSettingsHome.tsx` | 「设置 → 模型」页顶部只读横幅，排在 `bridgeMissing` 之前（否则 loading 阶段被吞，而那正是用户最早动手的时刻）|
+
+**为什么必须单独做设置页那条**：画布侧的 `catalog_read_only` 只在「模型选择器没东西可选」时才走到，
+而真实用户目录里有 22 家 / 151 个模型，选择器满的，那条路**永远不触发**。用户真正会撞墙的地方是
+「设置 → 模型」里点启用/存密钥/改地址——第一版漏了这一面，等于白加（真机截图证实：整页零提示）。
+横幅形态复用同页既有的 `bridgeMissing` 警告条，不新造样式。
 
 配套类型：`src/workbench/api/modelCatalogApi.ts`（DTO + issue code union）。
 
@@ -58,7 +64,13 @@
 - `src/config/modelCatalogStatus.test.ts` — 报 `catalog_read_only` 而非 `incomplete`；文案带版本号、含「更新」、
   **不含** `refusing to write`；只读判定压过 `catalog_empty`。
 - `tests/ux/_launchApp.test.mjs` — 偏移必抛且报错说得清出路；可写/无关 issue/读不到 bridge 均放行（不造假红）。
-- **真机核验（带阳性对照）**：真起 Electron，v99 种子 → 抛错中止；v12 同版本种子 → 照常放行。两边都实跑过。
+- `src/ui/onboarding/catalogReadOnlyNotice.test.ts` — 设置页必须渲染只读条、排在 `bridgeMissing` 之前、
+  文案走 i18n 且不外泄主进程英文、版本号由 health 传入。**已验它会红**：整块删掉 → 3 条红；
+  挪到 `bridgeMissing` 之后 → 1 条红；还原 → 全绿。
+- **真机核验（带阳性对照）**：
+  - 走查闸：真起 Electron，v99 种子 → 抛错中止；v12 同版本种子 → 照常放行。
+  - 设置页：拿**真实 catalog**（22 家 / 151 个模型）抬高版本号起真 app，走「项目库 → 模型 → 设置面板」，
+    截图肉眼确认横幅在位、版本号正确、文案完整；同版本对照组面板无横幅、与改前一致。两张图都亲眼看过。
 
 ## 回滚
 
@@ -73,5 +85,5 @@
 2. `waitForWindow: false` 的主进程脚本（如 `evals/verify-shot-smoke.mjs`）没有渲染层可问，不受闸门保护；
    它们也不做模型选择器断言——但这是**看代码看出来的**，没有测试钉住。
 3. 偏移本身仍在：把剩余「拷真实档案当种子」的走查改成合成 catalog 是后续工作，本次不声称已做。
-4. 产品侧只读文案由单测证明，**没有在真实偏移构建上肉眼看过**——要复现得跑一个
-   `CURRENT_CATALOG_VERSION` 低于真实档案的构建。这条按 P3 明说：不算「走查过」。
+4. 设置页横幅只在 **macOS 开发构建**上肉眼验过；打包产物与 Windows/Linux 未验。
+   横幅复用同页既有 `bridgeMissing` 形态，平台漂移风险判断为低——但这是推断，不是证据。

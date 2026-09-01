@@ -108,6 +108,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     dreaminaStatus,
     loaded,
     bridgeMissing,
+    catalogReadOnly,
     reloadFromError,
     refresh,
   } = useOnboardingDrawerCatalog()
@@ -778,6 +779,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       mappings={mappings}
       loaded={loaded}
       bridgeMissing={bridgeMissing}
+      catalogReadOnly={catalogReadOnly}
       taskCount={visibleAdapterTaskRuns.length}
       taskContent={
         <AdapterTaskList
@@ -792,9 +794,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
         kindGuessGap ? (
           <div data-drawer-kind-gap className="border-l-2 border-nomi-warning bg-nomi-ink-05 px-3 py-2">
             <div className="text-caption font-medium text-nomi-ink">
-              {t('onboardingProviders.drawer.kindGapTitle', {
-                kinds: kindGuessGap.missing.map((key) => t(key)).join(' / '),
-              })}
+              {t('onboardingProviders.drawer.kindGapTitle', { kinds: kindGuessGap.missing.map((key) => t(key)).join(' / ') })}
             </div>
             <div className="mt-0.5 text-micro leading-relaxed text-nomi-ink-60">
               {t('onboardingProviders.drawer.kindGapBody', {

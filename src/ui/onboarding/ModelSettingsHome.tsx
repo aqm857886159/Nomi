@@ -309,6 +309,7 @@ export function ModelSettingsHome({
   mappings,
   loaded,
   bridgeMissing,
+  catalogReadOnly,
   taskCount,
   taskContent,
   diagnostic,
@@ -323,6 +324,8 @@ export function ModelSettingsHome({
   mappings: readonly Mapping[]
   loaded: boolean
   bridgeMissing: boolean
+  /** 非 null = 目录只读，本页所有「改」的动作都不会生效；必须在用户动手前说清。 */
+  catalogReadOnly?: { diskVersion: number; appVersion: number } | null
   taskCount: number
   taskContent?: React.ReactNode
   diagnostic?: React.ReactNode
@@ -504,6 +507,28 @@ export function ModelSettingsHome({
               ariaLabel={t('onboardingProviders.drawer.home.search')}
               className="w-full"
             />
+          </div>
+        ) : null}
+
+        {/*
+          目录只读条：排在一切之前、且不进 bridgeMissing 的 if/else 链——因为它在 loading
+          阶段也成立，而且它解释的是「你等下点什么都不会生效」，必须赶在用户动手之前出现。
+          形态复用同页 bridgeMissing 警告条，不新造样式。
+        */}
+        {catalogReadOnly ? (
+          <div
+            className="mt-4 border-l-2 border-nomi-warning bg-nomi-ink-05 px-3 py-3"
+            data-model-home-catalog-read-only
+          >
+            <div className="text-body-sm font-semibold text-nomi-ink">
+              {t('onboardingProviders.drawer.catalogReadOnlyTitle')}
+            </div>
+            <p className="mt-1 text-caption leading-relaxed text-nomi-ink-60">
+              {t('onboardingProviders.drawer.catalogReadOnlyBody', {
+                diskVersion: catalogReadOnly.diskVersion,
+                appVersion: catalogReadOnly.appVersion,
+              })}
+            </p>
           </div>
         ) : null}
 

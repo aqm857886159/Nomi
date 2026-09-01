@@ -33,6 +33,12 @@ export function useOnboardingDrawerCatalog(): {
   dreaminaStatus: DreaminaStatus | null
   loaded: boolean
   bridgeMissing: boolean
+  /**
+   * 非 null = 盘上目录格式比本构建新，主进程已拒绝一切写回（防静默降级）。
+   * 此时「启用供应商 / 存 key / 改地址 / 增删模型」全都不会生效，设置页必须明说，
+   * 否则用户只看到点了没反应——这正是 2026-09-01 修的那类哑控件。
+   */
+  catalogReadOnly: { diskVersion: number; appVersion: number } | null
   reloadFromError: () => void
   refresh: () => void
 } {
@@ -43,6 +49,7 @@ export function useOnboardingDrawerCatalog(): {
   const [dreaminaStatus, setDreaminaStatus] = React.useState<DreaminaStatus | null>(null)
   const [loaded, setLoaded] = React.useState(false)
   const [bridgeMissing, setBridgeMissing] = React.useState(false)
+  const [catalogReadOnly, setCatalogReadOnly] = React.useState<{ diskVersion: number; appVersion: number } | null>(null)
   const bridgeRetries = React.useRef(0)
   const [version, setVersion] = React.useState(0)
 
@@ -60,6 +67,22 @@ export function useOnboardingDrawerCatalog(): {
     }
     bridgeRetries.current = 0
     setBridgeMissing(false)
+    // 只读态单独一个 try：它失败绝不能连累主目录读取（否则整页模型清空 = 比没提示更糟）。
+    // 版本号从主进程 health derive，不在渲染层重算版本比较——避免第二份真相源。
+    try {
+      const health = bridge.modelCatalog.health() as {
+        writable?: boolean
+        diskVersion?: number
+        appVersion?: number
+      } | null
+      setCatalogReadOnly(
+        health && health.writable === false
+          ? { diskVersion: Number(health.diskVersion), appVersion: Number(health.appVersion) }
+          : null,
+      )
+    } catch {
+      setCatalogReadOnly(null)
+    }
     try {
       const storedModels = bridge.modelCatalog.listModels() as Array<Record<string, unknown>>
       const storedVendors = bridge.modelCatalog.listVendors() as Array<Record<string, unknown>>
@@ -120,6 +143,7 @@ export function useOnboardingDrawerCatalog(): {
     dreaminaStatus,
     loaded,
     bridgeMissing,
+    catalogReadOnly,
     reloadFromError,
     refresh,
   }

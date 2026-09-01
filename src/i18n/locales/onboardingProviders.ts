@@ -427,6 +427,9 @@ export const zhOnboardingProviders = {
     loading: '加载中…',
     bridgeMissingTitle: '暂时连不上 Nomi 后台',
     bridgeMissingBody: '应用后台可能还在启动。点下面重试；若多次无效，请重启 Nomi。',
+    catalogReadOnlyTitle: '当前版本改不了模型设置',
+    catalogReadOnlyBody:
+      '这份模型清单由更新版本的 Nomi 保存（格式 v{{diskVersion}}），当前版本只认到 v{{appVersion}}。为免覆盖掉新版数据，已接入的模型仍可正常使用，但这一页的修改都存不上——启用/停用连接、保存密钥、改接入地址、增删模型都不会生效。把 Nomi 更新到最新版本后即可修改。',
   },
   keyOnly: {
     title: '接入 {{name}}',
@@ -1666,6 +1669,9 @@ export const enOnboardingProviders = {
     loading: 'Loading…',
     bridgeMissingTitle: 'Cannot reach the Nomi backend yet',
     bridgeMissingBody: 'The app backend may still be starting. Retry below; if it keeps failing, restart Nomi.',
+    catalogReadOnlyTitle: 'This version cannot change model settings',
+    catalogReadOnlyBody:
+      'This model list was saved by a newer version of Nomi (format v{{diskVersion}}), and this version only understands v{{appVersion}}. To avoid overwriting the newer data, your connected models still work, but changes on this page will not be saved — enabling or disabling a connection, saving a key, editing an endpoint, and adding or removing models will all have no effect. Update Nomi to the latest version to make changes.',
   },
   keyOnly: {
     title: 'Connect {{name}}',

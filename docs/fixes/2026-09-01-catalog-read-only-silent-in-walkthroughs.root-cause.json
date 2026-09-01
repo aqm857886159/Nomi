@@ -15,13 +15,18 @@
     "src/config/modelCatalogStatus.ts",
     "src/workbench/api/modelCatalogApi.ts",
     "src/i18n/locales/runtime.ts",
-    "tests/ux/_launchApp.mjs"
+    "tests/ux/_launchApp.mjs",
+    "src/ui/onboarding/useOnboardingDrawerCatalog.ts",
+    "src/ui/onboarding/ModelSettingsHome.tsx",
+    "src/ui/onboarding/OnboardingDrawer.tsx",
+    "src/i18n/locales/onboardingProviders.ts"
   ],
   "entry_points": [
     "Walkthrough launch: tests/ux/_launchApp.mjs launchNomiApp (every isolated walkthrough and eval funnels through it)",
     "Generation canvas node model/mode picker reading catalog status",
     "Model settings controls that write the catalog while it is version-skewed read-only",
-    "Main-process catalog health IPC nomi:model-catalog:health"
+    "Main-process catalog health IPC nomi:model-catalog:health",
+    "模型设置页首页（设置 → 模型）——用户「改模型」的总入口"
   ],
   "internal_only_reason": "The catalog schema version guard, its health contract, and the walkthrough isolation seeding are entirely Nomi-internal persistence and test-harness contracts; no third-party runtime or provider decides this behavior.",
   "invariants": [
@@ -47,6 +52,11 @@
       "path": "tests/ux/_launchApp.mjs",
       "symbol": "assertCatalogWritable",
       "responsibility": "Own the walkthrough fail-fast. Called from launchNomiApp before any walkthrough receives the window, it aborts the run when the build under test reports the read-only skew, so no walkthrough can produce screenshots whose model assertions are untrustworthy."
+    },
+    {
+      "path": "src/ui/onboarding/useOnboardingDrawerCatalog.ts",
+      "symbol": "useOnboardingDrawerCatalog",
+      "responsibility": "Own the settings panel's read of catalog writability. Derives catalogReadOnly from the main-process health payload in a try isolated from the main catalog read, so a health failure can never blank the model list, and hands both schema versions to the panel instead of letting the renderer recompute the comparison."
     }
   ],
   "same_class_entry_points": [
@@ -79,6 +89,12 @@
       "entry_point": "writeCatalog version guard",
       "disposition": "not-affected",
       "evidence": "The fail-closed guard itself was correct and is deliberately unchanged. The defect was never that it refused the write; it was that refusal was unobservable. Weakening or bypassing this guard would reintroduce silent downgrade, so it is explicitly out of the fix's scope."
+    },
+    {
+      "path": "src/ui/onboarding/ModelSettingsHome.tsx",
+      "entry_point": "模型设置页首页 — 启用/停用连接、保存密钥、改接入地址、增删模型的总入口",
+      "disposition": "enforced",
+      "evidence": "The page now renders a read-only notice ahead of the bridgeMissing branch (so it survives the loading phase), carrying both schema versions and the recovery action. Verified on a real Electron launch seeded with the user's real 22-vendor/151-model catalog at a raised schema version; a positive control at the matching version renders no notice."
     }
   ],
   "recurrence": {
@@ -105,18 +121,23 @@
       "src/config/modelCatalogStatus.ts",
       "src/workbench/api/modelCatalogApi.ts",
       "src/i18n/locales/runtime.ts",
-      "tests/ux/_launchApp.mjs"
+      "tests/ux/_launchApp.mjs",
+      "src/ui/onboarding/useOnboardingDrawerCatalog.ts",
+      "src/ui/onboarding/ModelSettingsHome.tsx",
+      "src/i18n/locales/onboardingProviders.ts"
     ]
   },
   "regression_tests": [
     "electron/catalog/catalogReadOnly.test.ts",
     "src/config/modelCatalogStatus.test.ts",
-    "tests/ux/_launchApp.test.mjs"
+    "tests/ux/_launchApp.test.mjs",
+    "src/ui/onboarding/catalogReadOnlyNotice.test.ts"
   ],
   "class_regression_tests": [
     "electron/catalog/catalogReadOnly.test.ts",
     "src/config/modelCatalogStatus.test.ts",
-    "tests/ux/_launchApp.test.mjs"
+    "tests/ux/_launchApp.test.mjs",
+    "src/ui/onboarding/catalogReadOnlyNotice.test.ts"
   ],
   "legacy_paths": {
     "status": "not-applicable",
@@ -133,6 +154,6 @@
     "assertCatalogWritable returns without asserting when window.nomiDesktop.modelCatalog.health is unreachable (very early splash states, packaged-origin differences). Unreadable health is treated as unknown rather than read-only to avoid manufacturing false reds, so a walkthrough could in principle still start unguarded if the bridge never becomes readable at settle time. Detection of the positive case is unaffected.",
     "Walkthroughs launched with waitForWindow: false (main-process-only scripts such as evals/verify-shot-smoke.mjs) have no renderer to query and are therefore not gated; they also do not make model-picker assertions, but this is asserted by inspection rather than by a test.",
     "prepareIsolation still copies the live user catalog by default, so the skew condition itself is not eliminated — only made loud. Converting the remaining real-catalog-seeded walkthroughs to synthetic seeds is follow-up work and is not claimed here.",
-    "The product-side read-only status is proven by unit tests over deriveModelCatalogStatus; it has not been observed on screen in a real skewed build, because reproducing it requires running a build whose CURRENT_CATALOG_VERSION is lower than the live profile's."
+    "The settings-panel notice is proven on macOS in a development build. It has not been observed on a packaged build or on Windows/Linux; the strip reuses the existing bridgeMissing warning form on the same page, so platform-specific layout drift is considered unlikely but is not proven."
   ]
 }
