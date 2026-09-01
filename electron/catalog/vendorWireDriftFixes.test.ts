@@ -136,12 +136,12 @@ describe("BUG-4: KIE Kling 3 uses the current Omni wire contract", () => {
   // customize_multi_shots/prefer_multi_shots and separate text/image model IDs.
   it("uses the documented model and fields for each mode", async () => {
     const { KLING_3_I2V_CREATE_OP, KLING_3_T2V_CREATE_OP } = await import("./kieKling");
-    const textBody = KLING_3_T2V_CREATE_OP.body as { model: string; input: Record<string, unknown> };
-    const imageBody = KLING_3_I2V_CREATE_OP.body as { model: string; input: Record<string, unknown> };
+    const textBody = KLING_3_T2V_CREATE_OP as { body: { model: string; input: Record<string, unknown> }; paramMap?: { drops?: string[] } };
+    const imageBody = KLING_3_I2V_CREATE_OP as { body: { model: string; input: Record<string, unknown> }; paramMap?: { drops?: string[] } };
 
-    expect(textBody.model).toBe("kling-3.0-omni/text-to-video");
-    expect(imageBody.model).toBe("kling-3.0-omni/image-to-video");
-    expect(textBody.input).toMatchObject({
+    expect(textBody.body.model).toBe("kling-3.0-omni/text-to-video");
+    expect(imageBody.body.model).toBe("kling-3.0-omni/image-to-video");
+    expect(textBody.body.input).toMatchObject({
       prompt: "{{request.prompt}}",
       audio: "{{request.params.sound}}",
       customize_multi_shots: false,
@@ -149,7 +149,7 @@ describe("BUG-4: KIE Kling 3 uses the current Omni wire contract", () => {
       resolution: "720p",
       aspect_ratio: "{{request.params.aspect_ratio}}",
     });
-    expect(imageBody.input).toMatchObject({
+    expect(imageBody.body.input).toMatchObject({
       prompt: "{{request.prompt}}",
       image_urls: "{{request.params.image_urls}}",
       audio: "{{request.params.sound}}",
@@ -158,8 +158,10 @@ describe("BUG-4: KIE Kling 3 uses the current Omni wire contract", () => {
       resolution: "720p",
       aspect_ratio: "auto",
     });
+    expect(textBody.paramMap?.drops).toEqual(["mode"]);
+    expect(imageBody.paramMap?.drops).toEqual(["mode", "aspect_ratio"]);
 
-    for (const input of [textBody.input, imageBody.input]) {
+    for (const input of [textBody.body.input, imageBody.body.input]) {
       expect(input).not.toHaveProperty("mode");
       expect(input).not.toHaveProperty("sound");
       expect(input).not.toHaveProperty("multi_shots");

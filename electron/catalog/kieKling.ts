@@ -49,6 +49,10 @@ function createKling3Operation(mode: "text-to-video" | "image-to-video"): HttpOp
         prefer_multi_shots: false,
       },
     },
+    paramMap: {
+      drops: isImage ? ["mode", "aspect_ratio"] : ["mode"],
+      rules: [],
+    },
   };
 }
 
