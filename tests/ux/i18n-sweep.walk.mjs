@@ -53,12 +53,6 @@ const USER_CONTENT_ALLOW = [
   // 显示是国际惯例(endonym):英文界面里中文选项就该写「简体中文」,否则用户在看不懂的界面里找不到
   // 自己的语言。这不是漏译,是对的——en 词典里 resources.ts:404 `chinese: '简体中文'` 是刻意的。
   '[data-settings-locale]',
-  // 系统提示词编辑器的正文(SettingsDialog→AI)。里面是**发给模型的提示词本体**
-  // (src/workbench/creation/creationAiModes.ts 的 mode.prompt),不是界面文案:提示词是按中文调的,
-  // 翻译它会直接改变模型行为。所以它出现在 en 界面里不算漏译。
-  // ⚠️ 但英文用户看到一整段中文提示词仍然是个真实毛边——「默认提示词要不要出英文版」是产品决定
-  // (会改生成效果),不在本次 i18n 门岗修复的范围里,另开任务。
-  '#settings-system-prompt-editor',
 ]
 
 /** 把 raw-key + (en 时)CJK 两道网在当前这一屏都跑一遍。allowSelectors 传用户内容豁免。 */

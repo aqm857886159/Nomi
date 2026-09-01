@@ -19,7 +19,12 @@ import {
   CUSTOM_PROMPT_NAME_MAX_LENGTH,
   type CustomSystemPrompt,
 } from '../../../electron/settings/systemPromptsContract'
-import { CREATION_AI_MODES, listCreationAiModes, type CreationAiMode } from '../creation/creationAiModes'
+import {
+  CREATION_AI_MODES,
+  defaultCreationAiPrompt,
+  listCreationAiModes,
+  type CreationAiMode,
+} from '../creation/creationAiModes'
 import {
   hasPromptOverride,
   newCustomPromptId,
@@ -47,10 +52,17 @@ import { SystemPromptCustomFooter, SystemPromptResetFooter } from './SystemPromp
 // 打字时不要每敲一个字就打一次 IPC：停顿 400ms 才写盘。
 const WRITE_DEBOUNCE_MS = 400
 
-const DEFAULT_PROMPT_BY_MODE = new Map<string, string>(CREATION_AI_MODES.map((mode) => [mode.id, mode.prompt]))
-
+/**
+ * 「这个模式的默认正文」一律问 defaultCreationAiPrompt()，不在这儿自己建表。
+ *
+ * 原来这里是个**模块级** Map（`CREATION_AI_MODES.map((m) => [m.id, m.prompt])`），在 import 那一刻
+ * 就把中文源值定死了。于是 2026-09-02 加英文版提示词时，creationAiModes 那三个出口都按语言解析了，
+ * 唯独这一处还在发中文——英文界面里编辑框照样显示整段中文，而所有单测都是绿的
+ * （测的是 creationAiModes 的出口，测不到这张私建的表）。是 EN 真机走查照出来的。
+ * 这就是 P1 说的并行读方：同一个「默认正文」有两个真相源，改了一个另一个不会跟。
+ */
 function defaultPromptOf(modeId: string): string | undefined {
-  return DEFAULT_PROMPT_BY_MODE.get(modeId)
+  return defaultCreationAiPrompt(modeId)
 }
 
 const TEXTAREA_ID = 'settings-system-prompt-editor'
