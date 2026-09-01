@@ -60,6 +60,10 @@ const files = [
 
 expect(/<html lang="zh-CN">/.test(zh), 'Chinese lang is static')
 expect(/<html lang="en">/.test(en), 'English lang is static')
+expect(
+  en.includes('<title>Nomi Video — Open-Source, Local-First AI Video Workbench</title>'),
+  'English title names the searchable product category',
+)
 expect(zh.includes('把 AI 视频的成本，') && zh.includes('打下来。'), 'Chinese cost claim exists')
 expect(en.includes('Bring the cost of AI video') && en.includes('down.'), 'English cost claim exists')
 expect(!zh.includes('把镜头讲清楚') && !en.includes('Direct the shot.'), 'old hero claim is removed')

@@ -103,7 +103,7 @@ Nomi 是我一个人在做，迭代很快——功能上得快，偶尔也带点
 
 微信群与作者二维码在 README 首屏（[群二维码](docs/media/nomi-canvas-group-wechat-2026-09-01.jpg) · [作者二维码](docs/media/qingyang-wechat.jpg)，或直接加微信 **TZ857886159**）。
 
-[参与 GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) · [提交商务咨询](https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml) · 邮箱：**2373272608@qq.com** · [入门讲解视频（YouTube，中文）](https://www.youtube.com/watch?v=NugvKQjN22A) · [X/Twitter](https://x.com/sdf297417627618)
+[参与 GitHub Issues](https://github.com/aqm857886159/Nomi/issues) · [提交商务咨询](https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml) · 邮箱：**2373272608@qq.com** · [入门讲解视频（YouTube，中文）](https://www.youtube.com/watch?v=NugvKQjN22A) · [X/Twitter](https://x.com/sdf297417627618)
 
 ## 团队服务
 
@@ -124,7 +124,7 @@ Nomi 是我一个人在做，迭代很快——功能上得快，偶尔也带点
 
 ## 开发者
 
-需要 Node.js 20+ 与 pnpm，无需 Docker 或数据库。
+需要 Node.js 22.19+ 与 pnpm，无需 Docker 或数据库。
 
 ```bash
 git clone https://github.com/aqm857886159/Nomi.git

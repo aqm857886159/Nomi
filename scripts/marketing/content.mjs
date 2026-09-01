@@ -247,7 +247,7 @@ const english = {
   htmlLang: 'en',
   ogLocale: 'en_US',
   meta: {
-    title: 'Nomi — Bring the cost of AI video down',
+    title: 'Nomi Video — Open-Source, Local-First AI Video Workbench',
     description: 'Open-source, local-first AI video workbench. Bring your own models, APIs, or ComfyUI to script, storyboard, generate, edit, and export with less waste.',
     imageAlt: 'Nomi, an open-source local-first workbench for lower-cost AI video production',
   },

@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const HISTORY_PATH = path.join(ROOT, "docs", "stats", "downloads-history.json");
 const HTML_PATH = path.join(ROOT, "docs", "stats", "dashboard.html");
+const TIME_ZONE = "Asia/Shanghai";
 
 /** 从 GITHUB_REPOSITORY（Action 注入）或 git remote 推断 owner/repo。 */
 function resolveRepo() {
@@ -79,7 +80,12 @@ function aggregate(releases) {
   return { total, byPlatform, byVersion };
 }
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = (now = new Date()) => new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(now);
 
 function readHistory() {
   if (!fs.existsSync(HISTORY_PATH)) return { snapshots: [] };

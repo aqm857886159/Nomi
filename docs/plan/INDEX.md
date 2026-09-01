@@ -167,6 +167,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-02-growth-operations-loop.md](2026-09-02-growth-operations-loop.md) | SEO、内容分发与公开增长数据的统一观测和周复盘闭环 | 🚧 |
 | [marketing-gsap-seo.md](marketing-gsap-seo.md) | 落地页 GSAP 轻量动画 + SEO 修补 | 🚧 |
 | [2026-08-14-community-qr-refresh.md](2026-08-14-community-qr-refresh.md) | 用户群二维码刷新（版本化缓存文件名，同步 README 与中英文官网） | |
 

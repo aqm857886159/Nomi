@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Questions and ideas
-    url: https://github.com/aqm857886159/Nomi/discussions
-    about: Ask usage questions or share ideas in GitHub Discussions.
+    url: https://github.com/aqm857886159/Nomi/issues/new?template=feature_request.yml
+    about: Ask a usage question or share an idea through the public issue form.
   - name: Private security report
     url: https://github.com/aqm857886159/Nomi/security/advisories/new
     about: Do not disclose vulnerabilities in a public issue.

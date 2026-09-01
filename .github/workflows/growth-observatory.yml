@@ -1,0 +1,81 @@
+name: Growth Observatory
+
+# Public repository and website signals only. No app telemetry or creator data.
+on:
+  schedule:
+    - cron: '17 0 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: growth-observatory
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Prepare rolling data branch
+        id: branch
+        run: |
+          if git ls-remote --exit-code --heads origin automation/growth-data >/dev/null 2>&1; then
+            git fetch origin automation/growth-data
+            git switch --create automation/growth-data --track origin/automation/growth-data
+            git merge --no-edit "$GITHUB_SHA"
+          else
+            git switch --create automation/growth-data
+          fi
+
+      - name: Record daily download snapshot
+        id: downloads
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node ./scripts/stats-downloads.mjs --snapshot
+
+      - name: Record daily repository growth snapshot
+        id: growth
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node ./scripts/growth-observatory.mjs --snapshot
+
+      - name: Record weekly SEO snapshot
+        id: seo
+        continue-on-error: true
+        env:
+          PAGESPEED_API_KEY: ${{ secrets.PAGESPEED_API_KEY }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$(date -u +%u)" = "1" ]; then
+            node ./scripts/seo/seo-audit.mjs \
+              --base-url https://nomiaqm.com \
+              --out-dir docs/seo/data \
+              --reports-dir docs/seo/reports
+          fi
+
+      - name: Persist data outside protected main
+        if: always() && steps.branch.outcome == 'success'
+        run: |
+          git add docs/stats/downloads-history.json docs/stats/growth-history.json docs/seo/data docs/seo/reports
+          if git diff --cached --quiet; then
+            echo "No observatory data changed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(growth): observatory snapshot $(TZ=Asia/Shanghai date +%Y-%m-%d)"
+          git push --set-upstream origin automation/growth-data
+
+      - name: Preserve collector failure status
+        if: always() && (steps.downloads.outcome == 'failure' || steps.growth.outcome == 'failure' || steps.seo.outcome == 'failure')
+        run: exit 1

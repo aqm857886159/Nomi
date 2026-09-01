@@ -1,0 +1,98 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-growth-observatory-persistence",
+  "problem_type": "Scheduled public-growth collectors cannot persist rolling data under protected-default-branch policy",
+  "symptom": "The download snapshot failed every day after collection and the SEO radar generated reports that never reached a persistent repository branch.",
+  "direct_cause": "The download workflow committed and pushed directly to protected main, while the SEO workflow required GitHub Actions to create a pull request even though repository policy disables that capability.",
+  "class_root": "Each observability producer owned its own persistence mechanism, so there was no shared invariant requiring automation data to use a writable, non-default branch without privileged PR creation or default-branch pushes.",
+  "affected_population": [
+    "Daily GitHub Release download snapshots",
+    "Daily repository traffic and referral snapshots",
+    "Weekly public-site SEO reports",
+    "Future public growth signals added to scheduled automation"
+  ],
+  "scope_paths": [
+    ".github/workflows/"
+  ],
+  "entry_points": [
+    "Growth Observatory daily schedule and manual dispatch",
+    "Growth Observatory weekly SEO condition",
+    "Growth Observatory rolling-data persistence step"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The failure is determined by this repository's branch protection, Actions permission policy, and workflow persistence topology; no third-party library behavior controls the invariant.",
+  "invariants": [
+    "Scheduled observability never pushes or opens a pull request against protected main.",
+    "All daily and weekly public-growth snapshots converge on automation/growth-data.",
+    "Existing rolling data is retained before a new same-day idempotent snapshot is committed.",
+    "The data branch advances with a normal push and never rewrites remote history."
+  ],
+  "generality_proof": "Download, repository traffic, referrals, paths, and SEO all run inside one workflow and commit through one persistence step. The workflow contract rejects main pushes, force pushes, and PR creation, so every current producer and future producer added to this job inherits the same branch-safe persistence boundary.",
+  "shared_boundaries": [
+    {
+      "path": ".github/workflows/growth-observatory.yml",
+      "symbol": "snapshot / Persist data outside protected main",
+      "responsibility": "Prepare automation/growth-data, retain its rolling history, merge the current default-branch code, and persist all observatory outputs with a normal push."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/growth-observatory.yml",
+      "entry_point": "Record daily public growth snapshot",
+      "disposition": "enforced",
+      "evidence": "Download and GitHub traffic collectors run as independent failure-visible steps before the single dedicated-branch persistence step."
+    },
+    {
+      "path": ".github/workflows/growth-observatory.yml",
+      "entry_point": "Record weekly SEO snapshot",
+      "disposition": "enforced",
+      "evidence": "Manual and Monday SEO reports are staged by the same persistence step without requesting pull-request permissions; a failed SEO request does not discard successful daily snapshots."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every scheduled metric producer needs durable history, and independent workflows would repeatedly choose an incompatible main push or privileged PR unless persistence ownership remains centralized.",
+    "same_class_scan": [
+      "Inspected every file under .github/workflows for scheduled data collection and write permissions.",
+      "Inspected scripts/stats-downloads.mjs and scripts/seo/seo-audit.mjs as independent producers of rolling files.",
+      "Checked failed Actions evidence for the protected-main push and disabled Actions PR creation paths."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": ".github/workflows/growth-observatory.yml",
+    "invariant": "Every scheduled public-growth producer persists only through a normal push to automation/growth-data.",
+    "failure_mode": "Workflow contract tests fail if main push, force push, PR creation, or the dedicated data branch invariant is removed; runtime push failures remain visible as failed Actions runs.",
+    "exception_policy": "none",
+    "strategy": "Replace the two incompatible workflows with one producer job and one persistence owner, then statically lock the branch and permission contract.",
+    "artifacts": [
+      ".github/workflows/growth-observatory.yml"
+    ]
+  },
+  "regression_tests": [
+    "tests/growth/github-growth.node.mjs",
+    "tests/seo/workflow-contract.node.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/growth/github-growth.node.mjs",
+    "tests/seo/workflow-contract.node.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      ".github/workflows/download-stats.yml",
+      ".github/workflows/seo-radar.yml"
+    ],
+    "rationale": "Both independent persistence owners were deleted in the same change so they cannot remain callable as fallback paths."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The remediation uses Git and GitHub Actions capabilities already present in the repository and does not retain or upgrade a third-party runtime dependency.",
+    "exit_criteria": []
+  },
+  "migration": "The first run creates automation/growth-data from the current default-branch commit. Later runs switch to the existing data branch, merge the triggering default-branch commit, preserve rolling JSON and SEO files, and advance the branch normally. Existing main-branch snapshots seed the first run without a separate data migration.",
+  "residual_risks": [
+    "A future repository ruleset could also block writes to automation/growth-data; the first live manual dispatch must verify branch creation and persistence.",
+    "GitHub Traffic remains available only to authorized repository tokens; the collector records unavailable instead of fabricating zero when access is removed."
+  ]
+}

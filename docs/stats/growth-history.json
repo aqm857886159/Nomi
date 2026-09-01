@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "snapshots": [
+    {
+      "date": "2026-09-02",
+      "observedAt": "2026-09-01T19:35:52.212Z",
+      "repo": "aqm857886159/Nomi",
+      "repository": {
+        "stars": 475,
+        "forks": 100,
+        "watchers": 2,
+        "openIssues": 15
+      },
+      "traffic": {
+        "status": "ok",
+        "windowDays": 14,
+        "views": {
+          "count": 2926,
+          "uniques": 607
+        },
+        "clones": {
+          "count": 5988,
+          "uniques": 675
+        },
+        "referrers": [
+          {
+            "referrer": "github.com",
+            "count": 340,
+            "uniques": 117
+          },
+          {
+            "referrer": "Google",
+            "count": 93,
+            "uniques": 34
+          },
+          {
+            "referrer": "Bing",
+            "count": 50,
+            "uniques": 27
+          },
+          {
+            "referrer": "chatgpt.com",
+            "count": 24,
+            "uniques": 16
+          },
+          {
+            "referrer": "nomiaqm.com",
+            "count": 4,
+            "uniques": 3
+          },
+          {
+            "referrer": "DuckDuckGo",
+            "count": 3,
+            "uniques": 3
+          },
+          {
+            "referrer": "mcp.film",
+            "count": 3,
+            "uniques": 1
+          },
+          {
+            "referrer": "kaiyuanbang.cn",
+            "count": 2,
+            "uniques": 2
+          },
+          {
+            "referrer": "Baidu",
+            "count": 2,
+            "uniques": 1
+          },
+          {
+            "referrer": "aizhibei.cn",
+            "count": 1,
+            "uniques": 1
+          }
+        ],
+        "paths": [
+          {
+            "path": "/aqm857886159/Nomi",
+            "title": "Overview",
+            "count": 1481,
+            "uniques": 509
+          },
+          {
+            "path": "/aqm857886159/Nomi/pulls",
+            "title": "/pulls",
+            "count": 277,
+            "uniques": 23
+          },
+          {
+            "path": "/aqm857886159/Nomi/blob/main/README.zh-CN.md",
+            "title": "/blob/main/README.zh-CN.md",
+            "count": 126,
+            "uniques": 88
+          },
+          {
+            "path": "/aqm857886159/Nomi/issues",
+            "title": "/issues",
+            "count": 71,
+            "uniques": 24
+          },
+          {
+            "path": "/aqm857886159/Nomi/releases",
+            "title": "/releases",
+            "count": 51,
+            "uniques": 36
+          },
+          {
+            "path": "/aqm857886159/Nomi/blob/main/docs/guide/capability-core-cli-mcp.md",
+            "title": "/blob/main/docs/guide/capability-core-cli-mcp.md",
+            "count": 50,
+            "uniques": 39
+          },
+          {
+            "path": "/aqm857886159/Nomi/releases/tag/v0.20.0",
+            "title": "/releases/tag/v0.20.0",
+            "count": 49,
+            "uniques": 33
+          },
+          {
+            "path": "/aqm857886159/Nomi/releases/tag/v0.21.0",
+            "title": "/releases/tag/v0.21.0",
+            "count": 43,
+            "uniques": 31
+          },
+          {
+            "path": "/aqm857886159/Nomi/pull/223",
+            "title": "/pull/223",
+            "count": 42,
+            "uniques": 1
+          },
+          {
+            "path": "/aqm857886159/Nomi/releases/tag/v0.20.1",
+            "title": "/releases/tag/v0.20.1",
+            "count": 39,
+            "uniques": 29
+          }
+        ]
+      },
+      "downloads": {
+        "status": "ok",
+        "snapshotDate": "2026-09-02",
+        "total": 4339,
+        "byPlatform": {
+          "windows": 3107,
+          "macArm": 809,
+          "macIntel": 423
+        }
+      }
+    }
+  ]
+}

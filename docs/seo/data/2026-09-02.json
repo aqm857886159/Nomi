@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-01T19:35:53.522Z",
+  "baseUrl": "https://nomiaqm.com",
+  "pages": [
+    {
+      "url": "https://nomiaqm.com/",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/en/",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/quickstart.html",
+      "checked": 10,
+      "failures": []
+    },
+    {
+      "url": "https://nomiaqm.com/handbook.html",
+      "checked": 10,
+      "failures": []
+    }
+  ],
+  "sitemap": {
+    "checked": 4,
+    "entries": [
+      {
+        "url": "https://nomiaqm.com/",
+        "lastmod": "2026-08-23"
+      },
+      {
+        "url": "https://nomiaqm.com/en/",
+        "lastmod": "2026-08-23"
+      },
+      {
+        "url": "https://nomiaqm.com/quickstart.html",
+        "lastmod": "2026-08-23"
+      },
+      {
+        "url": "https://nomiaqm.com/handbook.html",
+        "lastmod": "2026-08-23"
+      }
+    ],
+    "failures": []
+  },
+  "robots": {
+    "checked": 2,
+    "failures": []
+  },
+  "performance": {
+    "status": "not_configured"
+  },
+  "summary": {
+    "pages": 4,
+    "checks": 46,
+    "failures": 0,
+    "networkFailures": 0,
+    "errors": 0
+  },
+  "failures": []
+}

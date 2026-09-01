@@ -124,8 +124,12 @@ describe('production run MCP tools', () => {
   it('keeps the current README count and guide table aligned with the exported catalog', () => {
     const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8')
     const guide = fs.readFileSync(path.join(process.cwd(), 'docs/guide/capability-core-cli-mcp.md'), 'utf8')
+    const copyKit = fs.readFileSync(path.join(process.cwd(), 'docs/marketing/2026-08-02-intro-copy-kit.md'), 'utf8')
+    const posterShotlist = fs.readFileSync(path.join(process.cwd(), 'docs/marketing/poster-shotlist.json'), 'utf8')
     expect(readme).toContain('Thirty-three MCP tools')
     expect(guide).toContain('33 个工具')
+    expect(copyKit).not.toMatch(/\b\d+\s+MCP tools|\d+\s*个 MCP 工具/)
+    expect(posterShotlist).not.toMatch(/\b\d+\s+MCP tools|\d+\s*个 MCP 工具/)
     // The public guide is updated in the release-docs task; this contract test only
     // requires the pre-existing catalog entries to remain documented while Task 4
     // adds the versioned artifact business tools.

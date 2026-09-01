@@ -8,7 +8,7 @@
 
 Nomi is an open-source, local-first desktop workbench for AI video. Use the models, membership credits, APIs, or local ComfyUI you already have to run the whole pipeline — script, storyboard, generation, and editing — with your footage, generated takes, and workflows all on your own machine. No account. No telemetry.
 
-[简体中文](README.zh-CN.md) · [Website](https://nomiaqm.com/en/) · [Download](#download) · [Video tutorial (Bilibili)](https://www.bilibili.com/video/BV1Lf8b6nEjf/) · [Let your AI connect it](docs/integrate-with-your-agent-en.md) · [Community](https://github.com/aqm857886159/Nomi/discussions) · [For Teams](https://nomiaqm.com/en/#teams) · [Watch the 60s film](https://nomiaqm.com/assets/video/launch-film-en.mp4) · [X/Twitter](https://x.com/sdf297417627618)
+[简体中文](README.zh-CN.md) · [Website](https://nomiaqm.com/en/) · [Download](#download) · [Video tutorial (Bilibili)](https://www.bilibili.com/video/BV1Lf8b6nEjf/) · [Let your AI connect it](docs/integrate-with-your-agent-en.md) · [Community](https://github.com/aqm857886159/Nomi/issues) · [For Teams](https://nomiaqm.com/en/#teams) · [Watch the 60s film](https://nomiaqm.com/assets/video/launch-film-en.mp4) · [X/Twitter](https://x.com/sdf297417627618)
 
 [![Latest release](https://img.shields.io/github/v/release/aqm857886159/Nomi?label=release)](https://github.com/aqm857886159/Nomi/releases/latest)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-1a1816)
@@ -94,12 +94,12 @@ Read [Let your AI connect Nomi](docs/integrate-with-your-agent-en.md), the [Engl
 Nomi is built by one person, and it moves fast — features land quickly, sometimes a little rough around the edges, but it's genuinely moving forward and the commits never stop.
 
 - **Hit a problem? Let your AI fix it first.** The code is open source — send the error along with the [Codex issue-fix prompt](docs/guide/codex-issue-fix-prompt-en.md) to your Codex / Claude Code, and it can patch many issues for you directly.
-- **Tell me the general ones and I'll iterate them away.** Say so in the [community](https://github.com/aqm857886159/Nomi/discussions) or open an [Issue](https://github.com/aqm857886159/Nomi/issues); anything everyone runs into, I fold into the mainline.
+- **Tell me the general ones and I'll iterate them away.** Open an [Issue](https://github.com/aqm857886159/Nomi/issues); anything everyone runs into, I fold into the mainline.
 - Bug reports, feature proposals, docs, and code are all welcome — see [Contributing](#contributing) below.
 
 ## Community
 
-Use [GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) to ask questions, share workflows, and follow what is being built next, and [GitHub Issues](https://github.com/aqm857886159/Nomi/issues) to report bugs and request features. Follow the project on [X / Twitter](https://x.com/sdf297417627618) for release notes and short demos; workflow support is available at **2373272608@qq.com**. There is also a [getting-started walkthrough on YouTube](https://www.youtube.com/watch?v=NugvKQjN22A) (in Chinese). WeChat users can use the group and maintainer QR codes in the [Chinese README](README.zh-CN.md#微信联系).
+Use [GitHub Issues](https://github.com/aqm857886159/Nomi/issues) to ask questions, share workflows, report bugs, and request features. Follow the project on [X / Twitter](https://x.com/sdf297417627618) for release notes and short demos; workflow support is available at **2373272608@qq.com**. There is also a [getting-started walkthrough on YouTube](https://www.youtube.com/watch?v=NugvKQjN22A) (in Chinese). WeChat users can use the group and maintainer QR codes in the [Chinese README](README.zh-CN.md#微信联系).
 
 ## For Teams
 
@@ -109,7 +109,7 @@ Nomi is open source for creators. We also provide **Custom builds**, **Integrati
 
 ## Developers
 
-Requires Node.js 20+ and pnpm.
+Requires Node.js 22.19+ and pnpm.
 
 ```bash
 git clone https://github.com/aqm857886159/Nomi.git
@@ -139,7 +139,7 @@ Bug reports, feature proposals, documentation, and code contributions are welcom
 
 - [Report a bug](https://github.com/aqm857886159/Nomi/issues/new?template=bug_report.yml)
 - [Request a feature](https://github.com/aqm857886159/Nomi/issues/new?template=feature_request.yml)
-- [Ask a question or share an idea](https://github.com/aqm857886159/Nomi/discussions)
+- [Ask a question or share an idea](https://github.com/aqm857886159/Nomi/issues)
 
 ## License
 

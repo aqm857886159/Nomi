@@ -5,6 +5,14 @@ import { marketingPages } from '../marketing/site-manifest.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const DEFAULT_BASE_URL = 'https://nomiaqm.com'
+const REPORT_TIME_ZONE = 'Asia/Shanghai'
+
+const dateInTimeZone = (value) => new Intl.DateTimeFormat('en-CA', {
+  timeZone: REPORT_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+}).format(new Date(value))
 
 const parseAttributes = (tag) => Object.fromEntries(
   [...tag.matchAll(/([\w:-]+)\s*=\s*["']([^"']*)["']/g)].map((match) => [match[1].toLowerCase(), match[2]]),
@@ -233,7 +241,7 @@ export async function runAudit({
 
 export function renderMarkdown(report) {
   const lines = [
-    `# Nomi SEO Observatory — ${report.observedAt.slice(0, 10)}`,
+    `# Nomi SEO Observatory — ${dateInTimeZone(report.observedAt)}`,
     '',
     `- Origin: ${report.baseUrl}`,
     `- Pages checked: ${report.summary.pages}`,
@@ -266,7 +274,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
   const report = await runAudit({ baseUrl, now })
   fs.mkdirSync(outDir, { recursive: true })
   fs.mkdirSync(reportsDir, { recursive: true })
-  const stamp = now.slice(0, 10)
+  const stamp = dateInTimeZone(now)
   fs.writeFileSync(path.join(outDir, `${stamp}.json`), `${JSON.stringify(report, null, 2)}\n`)
   fs.writeFileSync(path.join(reportsDir, `${stamp}.md`), renderMarkdown(report))
   console.log(`SEO audit saved ${path.relative(root, path.join(outDir, `${stamp}.json`))}`)
