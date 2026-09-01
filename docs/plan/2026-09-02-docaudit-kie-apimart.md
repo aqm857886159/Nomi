@@ -1,5 +1,7 @@
 # DOCAUDIT-A：KIE + APIMart
 
+> 状态：✅ 已交付
+
 ## 范围
 
 - 只核对 `electron/catalog/kie*`、`electron/catalog/apimart*` 以及其已有共享能力档案/合同测试。
