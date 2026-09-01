@@ -31,12 +31,37 @@ function normalizeFalKlingV3Body(body: unknown, _context?: RequestTransformConte
 
 registerRequestTransform("fal-kling-v3-image-slots", normalizeFalKlingV3Body, (body) => { normalizeFalKlingV3Body(body); });
 
+/**
+ * fal 的 queue **提交**用完整子路径端点（`owner/app[/sub/path]`），但**状态/结果**只挂在
+ * `owner/app`（app 根，前两段）上——深子路径的 status/result URL 会 405。
+ *
+ * ⚠️ **官方文档与实际网关行为不一致，此处以实测为准（诚实标注）**：
+ *   docs.fal.ai 的 Async/Queue 页（2026-09-01 抓 https://docs.fal.ai/model-endpoints/queue，页面 JS 渲染，
+ *   CDP 取文）示例用 `fal-ai/flux/schnell`，明示提交响应回的
+ *     `status_url = https://queue.fal.run/fal-ai/flux/schnell/requests/{id}/status`（result 为 `.../requests/{id}/response`），
+ *   即文档说「status/result **保留完整端点路径**」。但**真发实测证伪**——fal 网关自己就把 app 路径收敛到前两段：
+ *   2026-09-01 用真 key 对 3 个端点提交后读回 `status_url`（提交即取消，见 /tmp/fal-queue-probe.mjs）：
+ *     `bytedance/seedance-2.5/text-to-video` → 回 `bytedance/seedance-2.5/requests/{id}/status`(202)；完整路径 GET 405
+ *     `fal-ai/kling-video/v3/pro/text-to-video` → 回 `fal-ai/kling-video/…`(202)；完整路径 405
+ *     `fal-ai/flux/schnell`（**即文档那个例子**）→ 回 `fal-ai/flux/…`(202)；文档写的 `fal-ai/flux/schnell/…` 反而 405
+ *   （result 端点回的是**裸** `.../requests/{id}`，无 `/response` 后缀——故下方 result path 不拼 `/response`，
+ *    job 未完成时该裸路径返 400=结果未就绪、不是 405，证明端点对。）
+ *   结论：文档此点已陈旧（还印 flux/schnell 全路径），fal 现役网关一律按前两段。以前 query/result 直接拼完整端点
+ *   → 凡端点 > 2 段（Seedance 2.5 / Kling V3 Pro / Gemini Omni / H3-Max / Seedream 5 Pro）轮询恒 405、永远拿不到
+ *   状态（BUG-2）。loopback 测试用 `pathname.includes("/requests/")` 宽松匹配，遮住了这个漂移，本地看不出。
+ */
+function falAppRoot(endpoint: string): string {
+  const segments = endpoint.split("/").filter(Boolean);
+  return segments.slice(0, 2).join("/");
+}
+
 function queueOperations(endpoint: string, body: Body, assetPath: string): { create: HttpOperation; query: HttpOperation; result: HttpOperation } {
   const root = `/${endpoint}`;
+  const statusRoot = `/${falAppRoot(endpoint)}`;
   return {
     create: { method: "POST", path: root, headers: FAL_HEADERS, body, response_mapping: { task_id: "request_id", status: "status" }, provider_meta_mapping: { task_id: "request_id" } },
-    query: { method: "GET", path: `${root}/requests/{{providerMeta.task_id}}/status`, headers: { Authorization: "Key {{user_api_key}}" }, response_mapping: { task_id: "request_id", status: "status" } },
-    result: { method: "GET", path: `${root}/requests/{{providerMeta.task_id}}`, headers: { Authorization: "Key {{user_api_key}}" }, response_mapping: { assets: assetPath } },
+    query: { method: "GET", path: `${statusRoot}/requests/{{providerMeta.task_id}}/status`, headers: { Authorization: "Key {{user_api_key}}" }, response_mapping: { task_id: "request_id", status: "status" } },
+    result: { method: "GET", path: `${statusRoot}/requests/{{providerMeta.task_id}}`, headers: { Authorization: "Key {{user_api_key}}" }, response_mapping: { assets: assetPath } },
   };
 }
 
@@ -62,8 +87,8 @@ export const FAL_OFFICIAL_MODELS: FalModel[] = [
   {
     modelKey: "openai/gpt-image-2", labelZh: "GPT Image 2 · fal", kind: "image", archetypeId: "gpt-image-2",
     mappings: [
-      withCreateOptions(mapping("openai/gpt-image-2", "text_to_image", "t2i", "GPT Image 2 · 文生图", "openai/gpt-image-2", { prompt: "{{request.prompt}}", image_size: p("image_size"), background: p("background"), quality: p("quality"), num_images: p("num_images"), output_format: p("output_format") }, "images[*]"), { paramMap: { rules: [{ wire: "image_size", fromMany: ["aspect_ratio", "resolution"], transform: "ratioResToOpenAiSize" }] } }),
-      withCreateOptions(mapping("openai/gpt-image-2", "image_edit", "edit", "GPT Image 2 · 改图", "openai/gpt-image-2/edit", { prompt: "{{request.prompt}}", image_urls: p("image_urls"), image_size: p("image_size"), background: p("background"), quality: p("quality"), num_images: p("num_images"), output_format: p("output_format"), mask_url: p("mask_url") }, "images[*]"), { paramMap: { rules: [{ wire: "image_size", fromMany: ["aspect_ratio", "resolution"], transform: "ratioResToOpenAiSize" }] } }),
+      withCreateOptions(mapping("openai/gpt-image-2", "text_to_image", "t2i", "GPT Image 2 · 文生图", "openai/gpt-image-2", { prompt: "{{request.prompt}}", image_size: p("image_size"), background: p("background"), quality: p("quality"), num_images: p("num_images"), output_format: p("output_format") }, "images[*]"), { paramMap: { rules: [{ wire: "image_size", fromMany: ["aspect_ratio", "resolution"], transform: "ratioResToFalImageSize" }] } }),
+      withCreateOptions(mapping("openai/gpt-image-2", "image_edit", "edit", "GPT Image 2 · 改图", "openai/gpt-image-2/edit", { prompt: "{{request.prompt}}", image_urls: p("image_urls"), image_size: p("image_size"), background: p("background"), quality: p("quality"), num_images: p("num_images"), output_format: p("output_format"), mask_url: p("mask_url") }, "images[*]"), { paramMap: { rules: [{ wire: "image_size", fromMany: ["aspect_ratio", "resolution"], transform: "ratioResToFalImageSize" }] } }),
     ],
   },
   {

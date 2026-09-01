@@ -92,8 +92,9 @@ export const ARCHETYPE_WIRE_DEFAULTS_AUDIO: Record<string, Record<string, Record
     "text_to_audio": {
       "*": {
         "callBackUrl": "https://nomiaqm.com/api/vendor-callbacks/kie/suno/ack",
+        "instrumental": false,
         "customMode": false,
-        "instrumental": false
+        "duration": 30
       }
     }
   },

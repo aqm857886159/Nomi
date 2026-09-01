@@ -215,6 +215,45 @@ registerRequestTransform("runway-video-contract", normalizeRunwayVideoContract, 
   normalizeRunwayVideoContract(body);
 });
 
+/**
+ * Runway 的 `/v1/text_to_image` 是**按模型判别的 union**：每个 image 模型有各自的 `ratio` 枚举，
+ * 共享 archetype 的比例列表（1024:1024 / 1280:720 / …）**只是其中一部分模型的合法值**。
+ * 依据 = Runway 官方 OpenAPI 规范（一手、机读，2026-09-01 照
+ *   https://raw.githubusercontent.com/runwayml/openapi/main/openapi.json 对账；`/v1/text_to_image` 为 10-变体
+ *   `oneOf`，discriminator=`model`，各变体 `properties.ratio.enum` 逐一列出）：
+ *     muse_image  → ["2352:1008","2016:1152","1920:1280","1792:1344","1600:1600","1344:1792","1280:1920","1152:2016","auto"]（**无 1024:1024**）
+ *     gpt_image_2 → ["2048:880","1920:1088",…,"1920:1920",…,"2560:1440",…,"1440:2560",…,"auto"]（**无 1024:1024**，2048 系起）
+ *     seedream5_lite → ["2048:2048","2304:1728","1728:2304","2848:1600","1600:2848","2496:1664","1664:2496",…]（**无 1024:1024**，全 ≥ 400 万像素）
+ *   （反例：seedream5_pro / grok_imagine_image_2 / gen4_image 的 enum **含** 1024:1024 → 不 remap，原样透传。）
+ * 2026-09-01 真发 t2i 实测复核（提交即 DELETE，见 /tmp/runway-ratio-probe.mjs）：这三个模型发共享默认 `1024:1024`
+ * 全 400 `Validation of body failed`；发下方各自映射值全 ACCEPTED（含 seedream5_pro/grok/gen4 发 1024:1024 仍 ACCEPTED，
+ * 证明只该动这三个）。视频侧同类问题早已由 normalizeRunwayVideoContract 的 ratioFamilies 解，图像侧一直漏了。
+ * 这里按**朝向**把共享比例映射到各模型 enum 里的合法值（视频侧 ratioFamilies 的图像对偶）。
+ *
+ * 注·seedream5_lite「freeform」：OpenAPI 把它的 ratio 标成**严格 enum**（上列），但 2026-09-01 实测该模型
+ *   **也接受 enum 外的自由 `<w>:<h>`**（如 `2720:1530` 亦 ACCEPTED，只要满足 ~3.68M–16.7M 像素窗）——即活网关比
+ *   spec 宽松。**此处仍取 spec 列出的 `2848:1600`/`1600:2848`**（既在 enum、又实测通过），对未来收严 fail-safe，
+ *   不押注未文档化的宽松行为。
+ */
+const RUNWAY_IMAGE_RATIO_REMAP: Record<string, { square: string; landscape: string; portrait: string }> = {
+  // muse_image enum：方=1600:1600、横=2016:1152、竖=1152:2016（均 spec 列出 + 实测 ACCEPTED）。
+  muse_image: { square: "1600:1600", landscape: "2016:1152", portrait: "1152:2016" },
+  // gpt_image_2 enum（2048 系起）：方=1920:1920、横=2560:1440、竖=1440:2560（均 spec 列出 + 实测 ACCEPTED）。
+  gpt_image_2: { square: "1920:1920", landscape: "2560:1440", portrait: "1440:2560" },
+  // seedream5_lite enum（全 ≥3.68M px）：方=2048:2048、横=2848:1600、竖=1600:2848（均 spec 列出 + 实测 ACCEPTED）。
+  seedream5_lite: { square: "2048:2048", landscape: "2848:1600", portrait: "1600:2848" },
+};
+
+/** 从共享 ratio（"1024:1024" / "1280:720" / "auto_1k"…）判朝向。auto_* 视为方形。 */
+function runwayRatioOrientation(ratio: string): "square" | "landscape" | "portrait" {
+  const m = ratio.match(/^(\d+)\s*[:x]\s*(\d+)$/);
+  if (!m) return "square"; // auto_1k / auto_2k / 未知 → 方
+  const w = Number(m[1]);
+  const h = Number(m[2]);
+  if (!w || !h || w === h) return "square";
+  return w > h ? "landscape" : "portrait";
+}
+
 function normalizeRunwayImageReferences(body: unknown): unknown {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Runway 图像请求体必须是 JSON 对象");
   const input = body as Record<string, unknown>;
@@ -225,6 +264,11 @@ function normalizeRunwayImageReferences(body: unknown): unknown {
   if (images.length > 3) throw new Error("Runway 图像模型最多 3 张参考图");
   delete input.reference_image_urls;
   if (images.length) input.referenceImages = images.map((uri) => ({ uri }));
+
+  // 按模型判别把共享比例映射到该模型合法的 ratio（只对枚举不含共享默认的模型动手）。
+  const remap = RUNWAY_IMAGE_RATIO_REMAP[String(input.model || "")];
+  const ratio = typeof input.ratio === "string" ? input.ratio.trim() : "";
+  if (remap && ratio) input.ratio = remap[runwayRatioOrientation(ratio)];
   return input;
 }
 
@@ -581,7 +625,9 @@ function runwayImageModel(spec: RunwayImageSpec): RunwayModel {
       ...(withReferences || spec.requiresReferences ? { reference_image_urls: "{{request.params.reference_image_urls}}" } : {}),
       model: spec.modelKey,
     },
-    ...((withReferences || spec.requiresReferences) ? { request_transform: "runway-image-references" } : {}),
+    // 始终挂 runway-image-references：它现在同时承载**按模型判别的 ratio 重映射**（muse/gpt/seedream5_lite
+    // 的枚举不含共享默认比例 → 不映射就恒 400）。纯 t2i（无参考）过去不挂它，正是这三个模型文生图挂掉的原因。
+    request_transform: "runway-image-references",
     ...(!spec.outputCount ? { paramMap: { drops: ["output_count"], rules: [] } } : {}),
     response_mapping: { task_id: "id" },
     provider_meta_mapping: { task_id: "id" },

@@ -45,9 +45,9 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     "text_to_video": {
       "*": {
         "resolution": "2K",
-        "aspect_ratio": "adaptive",
+        "aspect_ratio": "16:9",
         "duration": 6,
-        "model": "minimax-h3/reference-to-video"
+        "model": "minimax-h3/text-to-video"
       }
     }
   },
@@ -120,8 +120,9 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     "text_to_video": {
       "*": {
         "resolution": "1080p",
-        "audio_setting": "auto",
-        "model": "happyhorse/video-edit"
+        "aspect_ratio": "16:9",
+        "duration": 5,
+        "model": "happyhorse/text-to-video"
       }
     }
   },
@@ -187,7 +188,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     },
     "image_to_video": {
       "*": {
-        "generation_type": "frame",
+        "generation_type": "reference",
         "aspect_ratio": "16:9",
         "resolution": "720p",
         "model": "veo3.1-fast"
@@ -205,10 +206,9 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     },
     "image_to_video": {
       "*": {
-        "size": "16:9",
         "resolution": "1080P",
         "duration": 5,
-        "model": "wan2.7-r2v"
+        "model": "wan2.7"
       }
     }
   },
@@ -224,7 +224,6 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     },
     "image_to_video": {
       "*": {
-        "aspect_ratio": "adaptive",
         "resolution": "1080P",
         "duration": 5,
         "audio": true,
@@ -244,8 +243,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     },
     "image_to_video": {
       "*": {
-        "generation_type": "reference",
-        "size": "adaptive",
+        "generation_type": "frame",
         "resolution": "1080P",
         "duration": 5,
         "audio": true,
@@ -352,7 +350,6 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     "image_to_video": {
       "*": {
         "resolution": "2K",
-        "aspect_ratio": "adaptive",
         "duration": 5,
         "watermark": false
       }
@@ -394,7 +391,6 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     "image_to_video": {
       "*": {
         "resolution": "1080P",
-        "size": "16:9",
         "duration": 5
       }
     }
@@ -468,8 +464,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     },
     "image_to_video": {
       "*": {
-        "dreamina_cmd": "multimodal2video",
-        "ratio": "16:9",
+        "dreamina_cmd": "image2video",
         "video_resolution": "720p",
         "duration": 5,
         "model": "seedance2.0fast"

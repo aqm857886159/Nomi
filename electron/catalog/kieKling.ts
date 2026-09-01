@@ -28,6 +28,10 @@ export const KLING_3_QUERY_OP: HttpOperation = {
 
 // 一条 body 覆盖文生/图生视频：image_urls 取档案图生视频模式的有序帧数组（slot inputKey=image_urls）；
 // 文生视频模式无该槽 → 投影为 undefined → 整键被模板引擎丢弃（不发空 image_urls）。
+// multi_shots：kie 现在**要求显式传**这个 bool（2026-09-01 实测：不传 → 422 `multi_shots cannot be empty`；
+// 传数组 → 500 `multi_shots it must be a boolean`；传 `false` → 通过校验）。官方文档（docs.kie.ai/market/kling）：
+// multi_shots 是**布尔开关**——true 时改走 multi_prompt[] 多镜头（每镜头各自 prompt/时长，总 ≤15s、音频恒开），
+// false=单镜头走 prompt。我们当前单镜头，恒发 false；多镜头作后续增强（连上 multi_prompt 时再让它可变）。
 export const KLING_3_CREATE_OP: HttpOperation = {
   method: "POST",
   path: "/api/v1/jobs/createTask",
@@ -41,6 +45,7 @@ export const KLING_3_CREATE_OP: HttpOperation = {
       duration: "{{request.params.duration}}",
       aspect_ratio: "{{request.params.aspect_ratio}}",
       sound: "{{request.params.sound}}",
+      multi_shots: false,
     },
   },
 };

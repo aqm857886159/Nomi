@@ -65,6 +65,37 @@ export function ratioResToOpenAiSize(values: Array<string | undefined>): string 
   return `${width}x${height}`;
 }
 
+/**
+ * 中性比例 → fal `openai/gpt-image-2` 的 `image_size` **枚举**。
+ * 官方文档（2026-09-01 照 https://fal.ai/models/openai/gpt-image-2/api 对账，即目录实际发的那个端点；
+ * `fal-ai/gpt-image-2` 同 schema）：`image_size` 类型是 **`ImageSize | Enum`**——原文
+ *   「one of the presets, `{width, height}`, or 'auto' … Default value: landscape_4_3.
+ *    Possible enum values: square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9, auto.
+ *    Note: For custom image sizes, you can pass the width and height as an object.」
+ *   （自定义档还须 dims 为 16 的倍数、max edge 3840、aspect ≤ 3:1、总像素 655,360–8,294,400。）
+ * 即：枚举名或 `{width,height}` 对象**皆可**，但**不认** `"1024x1024"` 这种 WxH 串——2026-09-01 真发实测 422
+ * `model_attributes_type`（BUG-1）。我们走「枚举名」这条：清晰度由 `quality` 参数单独承载，故只按**朝向**取
+ * 枚举、不编码像素档位。fal 枚举比 16 档 canonical 粗 → 按长短边归到最近的横/竖/方：
+ *   a==b → square；宽幅按长短比 ≥ 1.5 归 16:9 否则 4:3；竖幅同理。
+ *   auto/空 → undefined（省略字段，由 fal 落到文档默认 landscape_4_3；若要「模型自选」得显式发 "auto"，此处不发）。
+ * ⚠️ **fal 专用**：OpenAI/new-api 的 `size` 字段要的是 WxH 串（用 ratioResToOpenAiSize），别混用。
+ */
+export function ratioResToFalImageSize(values: Array<string | undefined>): string | undefined {
+  const ratio = (values[0] || "").trim().toLowerCase();
+  if (!ratio || ratio === "auto") return undefined;
+  const m = ratio.match(/^(\d+)\s*[:x]\s*(\d+)$/);
+  if (!m) return undefined;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  if (!a || !b) return undefined;
+  if (a === b) return "square";
+  const longOverShort = Math.max(a, b) / Math.min(a, b);
+  const wide = a > b;
+  const tall = longOverShort >= 1.5; // ≥3:2 走 16:9 档，否则 4:3 档
+  if (wide) return tall ? "landscape_16_9" : "landscape_4_3";
+  return tall ? "portrait_16_9" : "portrait_4_3";
+}
+
 /** 小写归一（某站字段值要小写，如 apimart 历史用 1k/2k/4k；中性 canonical 用 1K/2K/4K）。 */
 export function toLowerCase(values: Array<string | undefined>): string | undefined {
   const v = (values[0] || "").trim();
@@ -160,6 +191,7 @@ export function secondsToMilliseconds(values: Array<string | undefined>): number
  *  （number 用于严格类型的 wire 字段,如 AGNES Go 后端的 int width/height/num_frames）。 */
 export const PARAM_TRANSFORMS: Record<string, (values: Array<string | undefined>) => string | number | boolean | undefined> = {
   ratioResToOpenAiSize,
+  ratioResToFalImageSize,
   toLowerCase,
   toUpperCase,
   toString,

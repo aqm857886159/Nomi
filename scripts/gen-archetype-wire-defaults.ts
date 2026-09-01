@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MODEL_ARCHETYPES } from "../src/config/modelArchetypes/index.ts";
+import type { ModelArchetype } from "../src/config/modelArchetypes/types.ts";
 
 type WireDefaults = Record<string, Record<string, Record<string, Record<string, unknown>>>>;
 type ModeManifest = Record<string, {
@@ -24,14 +25,42 @@ const RATIO_OPTION_RE = /^\d+\s*:\s*\d+$/;
 // 同一档案同一 taskKind 在不同 vendor 下参数枚举不同（vendorParams，B 分层，如 apimart Kling duration=number
 // vs kie=string "5"）→ 必须按 vendor 分桶，否则会把 kie 的字符串默认喂给 apimart 触发「string≠int」。
 // runtime 取 perKind[vendorKey] ?? perKind["*"]。
-export function buildArchetypeWireDefaults(): WireDefaults {
+//
+// ⚠️ 同一 taskKind 多模式的「主模式」收口（2026-09-01 修 minimax-h3 text_to_video 被 ref 模式盖住的 bug）：
+// 一个档案可以有多个模式共享同一 transportTaskKind（minimax-h3 的 t2v/i2v/ref 都是 text_to_video 档案级默认；
+// seedance 系的 first/firstlast/omni 都落 image_to_video）。消费侧（taskParams.applyHeadlessParamDefaults）
+// 只按 (archetypeId, taskKind, vendorKey) 取兜底、**拿不到 modeId**（headless 缺参路正是「没选具体模式」那条），
+// 所以这里必须为每个 (archetypeId, taskKind) **确定性地选一个主模式**写默认——而不是旧的「遍历顺序里最后一个模式胜」
+// （那让 ref 的 adaptive + reference-to-video 覆盖了 t2v 的真实默认 16:9 + text-to-video，把 adaptive 当纯文生
+// 默认发给 MiniMax /v2/video_generation → 400「t2va 必须显式 ratio 且不能 adaptive」）。
+// 主模式判据（诚实、稳定、与运行时语义一致）：
+//   ① 档案 defaultModeId 若落在这个 taskKind → 用它（它就是这条 taskKind 的规范/首选模式：
+//      minimax-h3/happyhorse 的 t2v、runway-audio 的 sfx、suno 的 music）。
+//   ② 否则（默认模式在别的 taskKind，如各 i2v 族档案默认是 t2v 文生）→ 用该 taskKind **首个声明**的模式
+//      （档案作者把最基础的变体排前：i2v/first/keyframe 在 ref/omni 之前），保序、确定。
+// 形状不变（仍 {taskKind:{vendorKey:{...}}}），消费侧零改动（P1：不加并行读方、不迁键形）。
+//
+// 纯函数（吃传入档案数组）：核心收口逻辑与全局目录解耦，回归测试可注入合成的「多模式同 taskKind」假档案
+// 断言各模式默认互不污染（见 gen-archetype-wire-defaults.test.ts），不依赖真实目录。
+export function buildWireDefaultsFor(archetypes: readonly ModelArchetype[]): WireDefaults {
   const out: WireDefaults = {};
-  for (const arch of MODEL_ARCHETYPES) {
+  for (const arch of archetypes) {
     const defaultVariant =
       arch.variants && arch.defaultVariantId ? arch.variants.find((v) => v.id === arch.defaultVariantId) : undefined;
+    // taskKind → 该 taskKind 下选中的主模式（见上「主模式判据」）。同 taskKind 后续模式不再覆盖它。
+    const primaryModeByTaskKind = new Map<string, (typeof arch.modes)[number]>();
     for (const mode of arch.modes) {
       const taskKind = mode.transportTaskKind ?? arch.transportTaskKind;
       if (!taskKind) continue;
+      const current = primaryModeByTaskKind.get(taskKind);
+      if (!current) {
+        primaryModeByTaskKind.set(taskKind, mode); // 首个声明的模式 = 默认候选（判据②）。
+        continue;
+      }
+      // 判据①覆盖判据②：defaultModeId 模式一旦出现，抢占主模式（哪怕它不是首个声明的）。
+      if (mode.id === arch.defaultModeId) primaryModeByTaskKind.set(taskKind, mode);
+    }
+    for (const [taskKind, mode] of primaryModeByTaskKind) {
       // body 的 model 字段：mode.modelEnum 优先，否则档案默认变体的 modelKey（headless 不选变体=默认变体）。
       const model = mode.modelEnum ?? defaultVariant?.modelKey;
       // 通用 params 落 "*"；每个有 vendorParams 覆盖的 vendor 落各自桶（覆盖=整组替换，与 resolveArchetypeForModel 一致）。
@@ -53,6 +82,11 @@ export function buildArchetypeWireDefaults(): WireDefaults {
     }
   }
   return out;
+}
+
+/** 生产入口：吃全局目录。逻辑收口在纯函数 buildWireDefaultsFor（可注入合成档案回归测试）。 */
+export function buildArchetypeWireDefaults(): WireDefaults {
+  return buildWireDefaultsFor(MODEL_ARCHETYPES);
 }
 
 /**

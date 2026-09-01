@@ -1,0 +1,160 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-01-vendor-wire-drift-live-matrix",
+  "problem_type": "HTTP 供应商（fal/Runway/KIE）的 wire 契约悄然漂移：本地测试全绿、真实 API 必 4xx（「本地绿线上炸」族）",
+  "symptom": "2026-09-01 全目录 93 模型真测矩阵（¥20.29）暴露 4 类线上必炸：(1) fal openai/gpt-image-2 的 image_size 发 \"1024x1024\" 字符串 → 422（fal 只认枚举名或 {width,height} 对象）；(2) fal 队列轮询用完整子路径端点，但网关只在 owner/app 根挂 status/result → 深路径恒 405，连坐 Seedance 2.5/Kling V3 Pro/Gemini Omni/H3-Max/Seedream 5 Pro/ElevenLabs SFX 六个模型；(3) Runway 文生图 ratio 未按模型判别：muse_image/gpt_image_2 的枚举不含共享默认 1024:1024、seedream5_lite 的合法值是独立枚举 → 三个 t2i 恒 400；(4) KIE kling-3.0/video 新要求显式布尔 multi_shots（缺省 422/数组 500/false 通过）。",
+  "direct_cause": "wire 参数值与端点路径由经验/旧探测写成，未逐字段对账官方现役文档；本地 loopback 假服务器不校验字段格式与路径形态，宽松断言（如 includes(\"/requests/\")）把错误路径也放行；Runway 的 per-model ratio 差异未建模（纯 t2i mapping 没挂归一化）。",
+  "class_root": "在「档案声明」与「供应商接受」之间缺一层零成本 wire 一致性验证：loopback fixture 什么都收，唯一能暴露格式漂移的是付费真调用，而真调用此前从未全目录跑过；同时出处门岗只查「有没有挂 SOURCE URL」不查「参数内容与文档一致且 checkedAt 未过期」，供应商演进（kling 新增必填、fal 网关路径收敛）即静默脱钩。",
+  "affected_population": [
+    "选 fal openai/gpt-image-2 生图的用户：每次提交 422（修复前现役）",
+    "选 fal 队列族六模型（seedance-2.5/kling-video-v3-pro/gemini-omni/minimax-h3-max/seedream-5-pro/elevenlabs-sfx）的用户：提交后轮询恒 405 拿不到结果（修复前现役）",
+    "选 Runway muse_image/gpt_image_2/seedream5_lite 文生图的用户：每次提交 400（修复前现役）",
+    "选 KIE kling-3.0 视频的用户：每次提交 422（修复前现役）",
+    "未来任何一家供应商演进 wire 契约（新增必填/收敛路径/改枚举）后的同类静默脱钩"
+  ],
+  "scope_paths": [
+    "electron/catalog/paramTranslate.ts",
+    "electron/catalog/falOfficial.ts",
+    "electron/catalog/runwayOfficial.ts",
+    "electron/catalog/kieKling.ts",
+    "electron/catalog/vendorWireDriftFixes.test.ts",
+    "docs/research/2026-09-02-model-acceptance-matrix.md"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://fal.ai/models/openai/gpt-image-2/api",
+      "checked_at": "2026-09-01",
+      "purpose": "fal image_size 合法形态裁决：枚举名（square_hd/square/portrait_4_3/portrait_16_9/landscape_4_3/landscape_16_9/auto）或 {width,height} 对象；WxH 字符串非法。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.fal.ai/model-endpoints/queue",
+      "checked_at": "2026-09-01",
+      "purpose": "fal 队列 status/result 端点形态对账——文档印全路径但真实网关只认 owner/app 根（2026-09-01 三端点实测 405/202 对照），代码注释以实测为准并记录差异。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://raw.githubusercontent.com/runwayml/openapi/main/openapi.json",
+      "checked_at": "2026-09-01",
+      "purpose": "Runway 官方机读 spec：逐模型 text_to_image ratio.enum 裁决（含纠正 seedream5_lite 用了 pro 枚举的错修——正确值 2848:1600/1600:2848）。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.kie.ai/market/kling",
+      "checked_at": "2026-09-01",
+      "purpose": "KIE kling-3.0 新必填 multi_shots 为布尔的官方依据（缺省 422/数组 500/false 通过的实测与文档一致）。"
+    }
+  ],
+  "entry_points": [
+    "生成画布 → fal 图片模型 composer（gpt-image-2 等）→ createTask wire 构造",
+    "生成画布 → fal 队列族视频/音频模型 → 提交后 status/result 轮询",
+    "生成画布 → Runway 文生图（muse_image/gpt_image_2/seedream5_lite）→ text_to_image wire 构造",
+    "生成画布 → KIE kling-3.0 视频 → jobs/createTask wire 构造"
+  ],
+  "invariants": [
+    "fal 图片请求的 image_size 只以官方枚举名或 {width,height} 对象出线，绝不以 WxH 字符串出线（官方 fal.ai/models/openai/gpt-image-2/api，checkedAt 2026-09-01）。",
+    "fal 队列 status/result 请求只打 queue.fal.run/{owner}/{app} 根路径（falAppRoot 收敛前两段）；此点官方 docs.fal.ai/model-endpoints/queue 印全路径但真实网关拒收（3 端点实测 405，根路径 202）——以实测为准并在代码注释诚实标注差异与日期。",
+    "Runway 每条图像 mapping 出线前必经 normalizeRunwayImageReferences 按模型 ratio 重映射：muse_image/gpt_image_2 落各自枚举、seedream5_lite 落官方 openapi.json 列出的 2848:1600/1600:2848（此前探测值 2720:1530 实为 seedream5_pro 的枚举——探测能过≠用对了，文档对账才裁决）。",
+    "KIE kling-3.0 create 请求恒携带布尔 multi_shots（官方 docs.kie.ai/market/kling，checkedAt 2026-09-01）。"
+  ],
+  "generality_proof": "四类修复各收敛在单一共享边界：fal 尺寸映射只有 ratioResToFalImageSize 一个出口（newapi 方言保留独立的 ratioResToOpenAiSize——两方言两映射是按供应商方言分治，不是并行版）；fal 队列路径只有 falAppRoot 一个构造点；Runway 图像 ratio 只有 normalizeRunwayImageReferences 一个归一化点且挂满每条图像 mapping（此前纯 t2i 不挂正是根因）；kling 只有 KLING_3_CREATE_OP 一个 create 模板。vendorWireDriftFixes.test.ts 16 例逐边界锁死合法/非法形态。DOCCHECK 复审把三处出处补齐并纠正 seedream5_lite 枚举（真 API 复测 SUCCEEDED）。",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/falOfficial.ts",
+      "symbol": "falAppRoot / queueOperations",
+      "responsibility": "fal 队列 status/result 端点的唯一构造点：把任意模型子路径收敛到 owner/app 前两段，使六个队列族模型的轮询不可能再打出被网关 405 的深路径。"
+    },
+    {
+      "path": "electron/catalog/paramTranslate.ts",
+      "symbol": "ratioResToFalImageSize",
+      "responsibility": "fal 方言 image_size 的唯一映射出口：比例×分辨率 → 官方枚举名，WxH 字符串形态在构造层即不可产生。"
+    },
+    {
+      "path": "electron/catalog/runwayOfficial.ts",
+      "symbol": "normalizeRunwayImageReferences",
+      "responsibility": "Runway 图像请求 ratio 的唯一按模型归一化点，挂在每条图像 mapping 上；模型专属枚举/约束集中在此，一处更新全线生效。"
+    },
+    {
+      "path": "electron/catalog/kieKling.ts",
+      "symbol": "KLING_3_CREATE_OP",
+      "responsibility": "kling-3.0 create 请求体的唯一模板：显式携带官方新必填 multi_shots:false，缺省形态不可再出线。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/falOfficial.ts",
+      "entry_point": "全部 fal 队列族模型的提交/轮询 mapping",
+      "disposition": "enforced",
+      "evidence": "queueOperations 统一改走 falAppRoot；矩阵真测 fal 10 模型全通过；vendorWireDriftFixes.test.ts 断言深路径不再产生。"
+    },
+    {
+      "path": "electron/catalog/runwayOfficial.ts",
+      "entry_point": "Runway 全部图像 mapping（含此前未挂归一化的纯 t2i）",
+      "disposition": "enforced",
+      "evidence": "normalizeRunwayImageReferences 挂满每条图像 mapping；seedream5_lite 按官方 openapi.json 枚举改正后真 API 复测出图。"
+    },
+    {
+      "path": "electron/catalog/paramTranslate.ts",
+      "entry_point": "newapi 方言的 ratioResToOpenAiSize 调用方",
+      "disposition": "not-affected",
+      "evidence": "newapi 方言接受 WxH 字符串（其官方形态），保留独立映射；两方言各自对账各自文档，互不复用错误形态。"
+    },
+    {
+      "path": "electron/catalog/kieKling.ts",
+      "entry_point": "kling-3.0 之外的 KIE 模型 create 模板",
+      "disposition": "not-affected",
+      "evidence": "矩阵真测 KIE 18 模型：仅 kling-3.0 要求 multi_shots（官方文档仅该模型列此字段）；其余模型 create 真测通过无此必填。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "供应商按自己的节奏演进 wire 契约（kling 新增必填、fal 网关收敛路径、Runway 按模型分化枚举），每次演进都可能让任意 mapping 静默脱钩；且本地 loopback 层结构上无法暴露此类漂移，必须由「文档对账+零额度干跑+付费封印」三段流程与周期性真测矩阵托底。",
+    "same_class_scan": [
+      "全目录 93 模型真实 API 矩阵（¥20.29，docs/research/2026-09-02-model-acceptance-matrix.md）：45 真跑通/30 同族契约在架/0 下线/11 账户额度受限——除本契约四类外无其他线上炸点。",
+      "DOCCHECK 复审三处无出处修复：fal image_size 官方文档证实、fal 队列路径官方文档与实测不符（以实测为准并注明日期证据）、seedream5_lite 枚举经官方 openapi.json 纠正并真 API 复测。",
+      "同日姊妹契约 2026-09-01-dreamina-cli-v1417-alignment 覆盖本地 CLI 传输的同类漂移（v1.4.14 必填参数族）；HTTP 与 CLI 两条传输线的同类病一并入册。",
+      "全目录 230 mapping 的逐条文档大对账（DOCAUDIT 双班）已排定为后续批，按三段核心流程作业并为每条 mapping 补构造干跑测试。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/falOfficial.ts",
+    "invariant": "fal 队列 status/result 只能经 falAppRoot 产生 owner/app 根路径；image_size 只能经 ratioResToFalImageSize 产生枚举/对象形态；Runway 图像 ratio 只能经 normalizeRunwayImageReferences 按模型落枚举；kling-3.0 create 只能经 KLING_3_CREATE_OP 携带 multi_shots——四个唯一出口使已知非法形态在构造层不可达。",
+    "failure_mode": "任何调用方绕不开这四个出口：深路径轮询、WxH 字符串、跨模型 ratio、缺 multi_shots 的请求在单元层即被 vendorWireDriftFixes.test.ts 拦截，无法到达供应商。",
+    "exception_policy": "none",
+    "strategy": "每供应商每形态只留一个 wire 构造出口，合法性集中于出口并以官方现役文档为据（出处+checkedAt 注释）；文档与实测冲突时以实测为准并在代码注明日期与证据；周期性真测矩阵作为付费封印层兜底。",
+    "artifacts": [
+      "electron/catalog/falOfficial.ts",
+      "electron/catalog/paramTranslate.ts",
+      "electron/catalog/runwayOfficial.ts",
+      "electron/catalog/kieKling.ts",
+      "electron/catalog/vendorWireDriftFixes.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/vendorWireDriftFixes.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/vendorWireDriftFixes.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/falOfficial.ts"
+    ],
+    "rationale": "falOfficial.ts 内旧的深路径 status/result 构造逻辑与 runwayOfficial.ts 内共享默认 ratio 直传路径已在本 diff 中被唯一出口替换（P1 同 diff 删旧，无 fallback 保留）；文件本体保留并在本 diff 修改。paramTranslate.ts 的 ratioResToOpenAiSize 非旧路径而是 newapi 方言的正确映射，保留。",
+    "removal_evidence": "vendorWireDriftFixes.test.ts 断言深路径与 WxH 字符串形态不再可产生；git diff 中旧构造分支已删除。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "未引入新依赖；仅修正既有供应商 HTTP wire 构造与其官方现役契约的对账。",
+    "exit_criteria": []
+  },
+  "migration": "无用户数据迁移。既有节点选中的模型不变；修复后同一操作路径直接产出合法请求。",
+  "residual_risks": [
+    "fal 队列路径以实测为准（官方文档印全路径但网关拒收）——若 fal 未来把网关行为改回文档形态，vendorWireDriftFixes.test.ts 会因真实调用失败在矩阵复跑中暴露，届时以当日实测重裁；已在代码注释记录 2026-09-01 三端点证据。",
+    "11 个模型因账户额度（APIMart 高价视频、KIE seedance-2.5、Runway seedance/veo 系）未做付费封印，标注于矩阵文档；充值后按三段流程第三段补封印。",
+    "全目录 230 mapping 的逐字段文档对账与构造干跑测试尚未铺满（DOCAUDIT 双班排定）；铺满前，本契约四出口之外的 mapping 仍依赖既有出处注释与周期矩阵兜底。"
+  ]
+}
