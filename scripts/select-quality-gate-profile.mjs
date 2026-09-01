@@ -38,7 +38,7 @@ if (process.argv[1] && process.argv[1].endsWith('select-quality-gate-profile.mjs
     const result = resolveProfileFromEnvironment()
     writeGithubOutput(result)
     console.log(
-      `quality-gate policy: unit=${result.unit}, desktop=${result.desktop}, journeys=${result.journeys}, canvas=${result.canvas}, performance=${result.performance}, package=${result.package} (${result.reason}; ${result.files.length} changed files)`,
+      `quality-gate policy: unit=${result.unit}, desktop=${result.desktop}, walkthroughs=${result.walkthroughs}, journeys=${result.journeys}, canvas=${result.canvas}, performance=${result.performance}, package=${result.package} (${result.reason}; ${result.files.length} changed files)`,
     )
   } catch (error) {
     const result = classifyValidationPolicy([], { requestedMode: 'full' })

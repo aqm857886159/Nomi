@@ -36,6 +36,7 @@ jobs:
     outputs:
       unit: ${{ steps.profile.outputs.unit }}
       desktop: ${{ steps.profile.outputs.desktop }}
+      walkthroughs: ${{ steps.profile.outputs.walkthroughs }}
       journeys: ${{ steps.profile.outputs.journeys }}
       canvas: ${{ steps.profile.outputs.canvas }}
       performance: ${{ steps.profile.outputs.performance }}
@@ -111,6 +112,7 @@ jobs:
     needs: scope
     if: >-
       needs.scope.outputs.desktop == 'true' ||
+      needs.scope.outputs.walkthroughs == 'true' ||
       needs.scope.outputs.journeys == 'true' ||
       needs.scope.outputs.canvas != 'none' ||
       needs.scope.outputs.performance == 'true'
@@ -140,7 +142,7 @@ jobs:
       # 才被偶然发现（2026-06 的 j3/j5、2026-08 的语言钮 5 处死锚点红了一个月）。
       # 清单与准入门槛见 tests/ux/ci-roster.mjs：只收零额度 + 确定性 + 已实测跑绿的走查。
       - name: CI-safe walkthrough roster
-        if: needs.scope.outputs.desktop == 'true'
+        if: needs.scope.outputs.walkthroughs == 'true'
         run: xvfb-run -a pnpm run test:walkthroughs:ci
       - name: Critical canvas acceptance
         if: needs.scope.outputs.canvas == 'critical'
