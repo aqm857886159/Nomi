@@ -3,6 +3,7 @@
 // shared request boundary. This module also owns the model-specific Omni
 // reference-cardinality guard used both before spend and immediately before HTTP.
 import { registerRequestTransform, type RequestTransformContext } from "../tasks/requestTransforms";
+import { desktopT } from "../i18n";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -37,7 +38,7 @@ export function normalizeApimartCanonicalModelId(body: unknown): unknown {
 
 function imageCount(body: JsonRecord): number {
   if (body.image_urls == null) return 0;
-  if (!Array.isArray(body.image_urls)) throw new Error("Omni 参考图必须是数组。");
+  if (!Array.isArray(body.image_urls)) throw new Error(desktopT("vendor.apimartOmni.imageUrlsArray"));
   return body.image_urls.length;
 }
 
@@ -45,10 +46,10 @@ export function validateOmniFlashExtBody(body: unknown, _context?: RequestTransf
   if (!isRecord(body)) return;
   const count = imageCount(body);
   if (count !== 0 && count !== 1 && count !== 3) {
-    throw new Error("Omni 参考图只支持 1 或 3 张，2 张及其他数量会被官方拒绝。");
+    throw new Error(desktopT("vendor.apimartOmni.imageCount"));
   }
   if (count > 0 && body.generation_type !== "reference") {
-    throw new Error("Omni 参考图必须显式声明 generation_type=reference。");
+    throw new Error(desktopT("vendor.apimartOmni.generationType"));
   }
 }
 
