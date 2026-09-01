@@ -122,3 +122,15 @@ APIMart 视频：**全 15 模型识别探测确认在架，0 下线**。族代�
 ## 复跑方法
 
 测试脚本在 `/tmp/matrix/`（`lib.mjs` 读 key + 记账，`t-*.mjs` 各 vendor tier，`probe-*.mjs` 识别探测）。矩阵盘点：`applyBuiltinSeeds()` 空目录种子（`/tmp/dump-catalog.mts`）。回归测试：`electron/catalog/vendorWireDriftFixes.test.ts`（16 例，锁 4 处修复）。
+
+## DOCAUDIT-A 追加封印（2026-09-02）
+
+本班新增预算上限 `¥45`；已知新增花销 `¥0.3216`。封印优先采用参考图模式、最短合法时长、最低可用分辨率/模式、1 个样本。`mapping content hash` 是 `sha256(JSON.stringify({create,query,statusMapping}))`，按当前代码在封印时计算；密钥未写入本文件。
+
+| 模型 × 封印模式 | mapping content hash | 日期 | 产物路径 | 单笔花销 | 结果/人工核验 |
+|---|---|---|---|---:|---|
+| KIE `bytedance/seedance-2-5` × reference image (`image_to_video`，480p/4s/1 图) | `4bd65019833c26ade209206ada2d2d32cf9ddbddccd8478a65d9143f54a91f3b` | 2026-09-02 | — | ¥0 | ⛔ HTTP 402；余额 12.5 credits，响应未披露本次 required credits，无法计算数值差额；未创建任务 |
+| APIMart `viduq3` × image-to-video reference (540p/3s/1 图) | `fe33fcf3e0578606a97bd7e1ea531b371e4e2402e7677924fb2e07f10fa0901a` | 2026-09-02 | `/tmp/matrix/artifacts/docaudit-apimart-viduq3-ref.mp4` | ¥0.12 | ✅ 3.04s H.264/AAC；抽帧确认红色机器人参考特征与挥手提示词 |
+| APIMart `kling-v3` × image-to-video reference (`std`/3s/1 图) | `b62ac560f8a29ec5983857b9cf4342a2c9ef03b8a2d568a7368e26f75236d4d6` | 2026-09-02 | `/tmp/matrix/artifacts/docaudit-apimart-kling-v3-ref.mp4` | ¥0.2016 | ✅ 3.04s H.264；抽帧确认红色机器人参考特征与挥手提示词 |
+
+附注：本班早先的免费探针曾让 APIMart Veo/Omni 入口返回 200 并创建任务，但 `/v1/balance` 的 `used_balance` 从 `173.221924` 增至 `173.543524`，增量正好 `¥0.3216`，说明两笔探针未产生额外花销；二者未作为封印证据。Kling 首次错误地发送 `mode=standard`，异步失败且 cost=0，之后用官方 `std` 参数完成上述封印。
