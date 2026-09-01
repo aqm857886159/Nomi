@@ -107,6 +107,22 @@ export const zhSettings = {
       replace: '更换',
       disconnect: '断开',
       honestNote: 'TikHub 是第三方抓取型接口（非平台官方授权），解析出的直链短时有效、可能随平台风控波动。按次计费，费用发生在你自己的 TikHub 账户。',
+      route: {
+        label: '线路',
+        // 收起态状态胶囊：一眼看到「现在实际走哪条线」。
+        pillAuto: '自动选路',
+        pillAutoActive: '自动 · 走 {{host}}',
+        pillIo: '主线路',
+        pillDev: '大陆加速',
+        modeAuto: '自动',
+        modeIo: '主线路',
+        modeDev: '大陆加速',
+        // 展开态说明：为什么有两条线、自动在做什么。
+        hintAuto: '连接时自动测两条线路，哪条快用哪条，连不上会自动切换。大陆网络通常走加速线路。',
+        hintAutoActive: '当前生效：{{host}}（自动测速选出，连不上会自动切另一条）。',
+        hintIo: '强制走主线路 api.tikhub.io。海外网络更稳；大陆可能连不上。',
+        hintDev: '强制走大陆加速线路 api.tikhub.dev。大陆直连、无需代理。',
+      },
     },
   },
   automation: {
@@ -309,6 +325,20 @@ export const enSettings = {
       replace: 'Replace',
       disconnect: 'Disconnect',
       honestNote: 'TikHub is a third-party scraping API (not official platform access). Resolved URLs are short-lived and can fluctuate with platform anti-bot changes. It bills per request against your own TikHub account.',
+      route: {
+        label: 'Route',
+        pillAuto: 'Auto route',
+        pillAutoActive: 'Auto · via {{host}}',
+        pillIo: 'Primary',
+        pillDev: 'China accel',
+        modeAuto: 'Auto',
+        modeIo: 'Primary',
+        modeDev: 'China accel',
+        hintAuto: 'On connect, Nomi tests both routes and picks the faster one, switching automatically if one goes down. Mainland-China networks usually take the accelerated route.',
+        hintAutoActive: 'Active: {{host}} (chosen by speed test; switches automatically if unreachable).',
+        hintIo: 'Force the primary route api.tikhub.io. More stable overseas; may be unreachable in mainland China.',
+        hintDev: 'Force the mainland-China accelerated route api.tikhub.dev. Direct access, no proxy needed.',
+      },
     },
   },
   automation: {

@@ -1,7 +1,9 @@
-// R13 真页面走查（零额度、无 key）：TikHub 数据 connector 的两处 UI 最小面亲验：
+// R13 真页面走查（零额度）：TikHub 数据 connector 的三处 UI 最小面亲验：
 //   ① 设置 → AI → TikHub 数据源 卡（key 配置入口，照 vendor 卡先例）；
+//   ①b 连接后出现的「线路」折叠行（双域名全球化：自动/主线路/大陆加速 + 当前生效线路）；
 //   ② 素材库工具行「贴链接导入」入口 + 点开后的分享链接输入弹窗。
-// 只截图给人眼看（P3/R13：截图人眼判断，不是 expect 断言真实性）。不调任何付费接口。
+// 只截图给人眼看（P3/R13：截图人眼判断，不是 expect 断言真实性）。
+// 保存 key 只落 safeStorage（不发网络、不计费），故用真实 UI 保存来翻出线路行——不调任何付费接口。
 import { expectVisible } from './_assert.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
@@ -93,10 +95,39 @@ try {
   check('卡片给了 key 输入框', await tikhubCard.locator('input[type="password"]').count() === 1)
   check('卡片带第三方抓取诚实提示', /第三方|抓取|风控/.test(cardText), cardText)
   await tikhubCard.screenshot({ path: path.join(shotsDir, '01-settings-tikhub-card.png') })
-  // 输入一个假 key 看输入态（不保存、不发请求）。
-  await tikhubCard.locator('input[type="password"]').fill('demo-key-not-saved')
+  // 输入一个假 key 看输入态（保存只落 safeStorage，不发请求、不计费）。
+  await tikhubCard.locator('input[type="password"]').fill('demo-key-not-a-real-token')
   await win.waitForTimeout(200)
   await tikhubCard.screenshot({ path: path.join(shotsDir, '02-settings-tikhub-card-typed.png') })
+
+  // ── ①b 保存 key（翻到「已连接」态）→ 线路折叠行出现 ──
+  await tikhubCard.getByRole('button', { name: /保存|Save/ }).first().click({ timeout: 5000 })
+  await win.waitForTimeout(1000)
+  const routeRow = tikhubCard.locator('button[aria-expanded]').filter({ hasText: /线路|Route/ }).first()
+  await expectVisible(routeRow, '保存 key 后「线路」折叠行没出现')
+  check('线路行收起态显示状态胶囊（自动选路）', /自动|Auto/.test(await routeRow.innerText()))
+  await tikhubCard.screenshot({ path: path.join(shotsDir, '05-route-row-collapsed.png') })
+
+  // 展开线路行：分段选择器（自动/主线路/大陆加速）+ 当前生效线路说明。
+  await routeRow.click({ timeout: 5000 })
+  await win.waitForTimeout(500)
+  const routeGroup = tikhubCard.locator('[role="group"][aria-label*="线路"], [role="group"][aria-label*="Route"]').first()
+  await expectVisible(routeGroup, '展开后没看到线路分段选择器')
+  const groupText = await routeGroup.innerText()
+  check('分段含 自动/主线路/大陆加速 三档', /自动|Auto/.test(groupText) && /主线路|Primary/.test(groupText) && /加速|accel/i.test(groupText), groupText.slice(0, 120))
+  await tikhubCard.screenshot({ path: path.join(shotsDir, '06-route-row-expanded.png') })
+
+  // 切到「大陆加速」看强制态 + 生效线路显示。
+  await routeGroup.getByRole('button', { name: /大陆加速|China accel/ }).first().click({ timeout: 5000 })
+  await win.waitForTimeout(700)
+  check('切到大陆加速后说明含 api.tikhub.dev', /api\.tikhub\.dev/.test(await tikhubCard.innerText()))
+  await tikhubCard.screenshot({ path: path.join(shotsDir, '07-route-forced-dev.png') })
+
+  // 收尾：断开这个假 key（别把 demo key 留在隔离库里；也顺便验断开路径）。
+  await routeRow.click({ timeout: 3000 }).catch(() => {}) // 收起线路行
+  await win.waitForTimeout(200)
+  await tikhubCard.getByRole('button', { name: /断开|Disconnect/ }).first().click({ timeout: 5000 }).catch(() => {})
+  await win.waitForTimeout(500)
   await win.keyboard.press('Escape')
   await win.waitForTimeout(400)
 
@@ -136,8 +167,8 @@ try {
   await getWin().screenshot({ path: path.join(shotsDir, '04-paste-no-key-guides-to-settings.png') })
 
   console.log(`\n📸 截图已存到 ${path.relative(repoRoot, shotsDir)}/`)
-  console.log('  01-settings-tikhub-card.png / 02-...-typed.png / 03-asset-library-paste-entry.png / 04-paste-no-key-guides-to-settings.png')
-  console.log('✅ TikHub connector 两处 UI 走查通过（截图待人眼亲验）')
+  console.log('  01-settings-tikhub-card / 02-typed / 05-route-row-collapsed / 06-route-row-expanded / 07-route-forced-dev / 03-asset-library-paste-entry / 04-paste-no-key-guides-to-settings')
+  console.log('✅ TikHub connector 三处 UI 走查通过（含双域名线路行；截图待人眼亲验）')
 } finally {
   if (app) await app.close().catch(() => {})
   fs.rmSync(tempRoot, { recursive: true, force: true })

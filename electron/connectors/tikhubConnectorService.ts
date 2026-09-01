@@ -13,6 +13,7 @@ import {
   resolveShareVideo,
   type ResolvedShareVideo,
 } from "./tikhubConnector";
+import { getTikhubRouteStatus, setTikhubRouteMode, type TikhubRouteStatus } from "./tikhubRoute";
 
 /** 读 TikHub 明文 key（仅主进程内部用于出站；绝不跨 IPC 回渲染层）。 */
 function readTikhubApiKey(): string {
@@ -45,6 +46,17 @@ export function saveTikhubApiKey(payload: unknown): TikhubKeyStatus {
 export function clearTikhubApiKey(): TikhubKeyStatus {
   clearModelCatalogVendorApiKey(TIKHUB_CONNECTOR_ID);
   return getTikhubKeyStatus();
+}
+
+/** 线路状态（高级设置「线路」行读它：当前 mode + 生效域 + 候选域）。永不触网。 */
+export function getTikhubRoute(): TikhubRouteStatus {
+  return getTikhubRouteStatus();
+}
+
+/** 存手动线路模式（auto / 强制 io / 强制 dev）；回自动会清 sticky 让下次重新实测。 */
+export function setTikhubRoute(payload: unknown): TikhubRouteStatus {
+  setTikhubRouteMode((payload as JsonRecord)?.mode);
+  return getTikhubRouteStatus();
 }
 
 /** 只解析（不落盘）——返回直链 + 平台 + 计费提示，供 UI 在落素材/拆解前展示费用确认。 */

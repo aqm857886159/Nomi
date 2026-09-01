@@ -21,6 +21,18 @@ export function registerTikhubConnectorIpc(): void {
     const { clearTikhubApiKey } = await import("./tikhubConnectorService");
     return clearTikhubApiKey();
   });
+  // 线路状态（高级设置「线路」行）：当前 mode + 生效域 + 候选域。永不触网。
+  ipcMain.handle("nomi:connector:tikhub:route-status", async (event) => {
+    assertTrustedSender(event);
+    const { getTikhubRoute } = await import("./tikhubConnectorService");
+    return getTikhubRoute();
+  });
+  // 手动指定线路（auto / 强制 io / 强制 dev）。
+  ipcMain.handle("nomi:connector:tikhub:set-route", async (event, payload) => {
+    assertTrustedSender(event);
+    const { setTikhubRoute } = await import("./tikhubConnectorService");
+    return setTikhubRoute(payload);
+  });
   // 只解析（不落盘）——供 UI 在落素材/拆解前展示费用确认。
   ipcMain.handle("nomi:connector:tikhub:resolve-share-url", async (event, payload) => {
     assertTrustedSender(event);

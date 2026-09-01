@@ -14,11 +14,14 @@
 import { hardenedFetch } from "../hardenedFetch";
 import { firstString, isJsonRecord, trim, type JsonRecord } from "../jsonUtils";
 import type { ConnectorDefinition } from "./connectorDefinition";
+import { TIKHUB_CONNECTOR_ID, TIKHUB_HOST_PRIMARY, TIKHUB_HOSTS } from "./tikhubHosts";
+import { resolveTikhubHost, failoverTikhubHost } from "./tikhubRoute";
 
-export const TIKHUB_BASE_URL = "https://api.tikhub.io";
-export const TIKHUB_HOST = "api.tikhub.io";
-/** 凭据 vendorKey：复用 catalog apiKeysByVendor 的 safeStorage 存储，不另起加密管线（P1）。 */
-export const TIKHUB_CONNECTOR_ID = "tikhub";
+/** 主域基址（sticky 未定/兜底时用；实际出站 host 由 tikhubRoute 实测选路决定）。 */
+export const TIKHUB_BASE_URL = `https://${TIKHUB_HOST_PRIMARY}`;
+/** @deprecated 单域名遗留常量，保留仅为兼容既有 import；候选域清单以 TIKHUB_HOSTS 为准。 */
+export const TIKHUB_HOST = TIKHUB_HOST_PRIMARY;
+export { TIKHUB_CONNECTOR_ID, TIKHUB_HOSTS } from "./tikhubHosts";
 
 /** connector 形态定义（§5.5 ConnectorDefinition）。 */
 export const TIKHUB_CONNECTOR: ConnectorDefinition = {
@@ -28,7 +31,8 @@ export const TIKHUB_CONNECTOR: ConnectorDefinition = {
   baseUrl: TIKHUB_BASE_URL,
   transport: "native-api",
   auth: { kind: "api-key", secretOwner: "nomi-settings" },
-  network: { allowedOrigins: [TIKHUB_HOST], redirectPolicy: "same-origin" },
+  // 候选域清单覆盖两域：主域 api.tikhub.io + 大陆加速域 api.tikhub.dev（实测选路在两者间挑）。
+  network: { allowedOrigins: [...TIKHUB_HOSTS], redirectPolicy: "same-origin" },
   tools: [
     {
       externalName: "fetch_video_high_quality_play_url",
@@ -70,6 +74,7 @@ export type TikhubErrorKind =
   | "unsupported-platform" // 不是抖音/TikTok 链接
   | "no-play-url" // 拿到作品但抽不出直链
   | "upstream" // 5xx / 风控波动 / 网络
+  | "no-route" // 两个候选域（主 api.tikhub.io + 加速 api.tikhub.dev）都探测不通
   | "bad-response"; // 非 JSON / 信封异常
 
 export class TikhubConnectorError extends Error {
@@ -113,9 +118,18 @@ export type ResolvedShareVideo = {
 };
 
 type TikhubDeps = {
-  /** 出站发送器（默认 hardenedFetch）。测试注入。 */
-  fetchJson?: (path: string, query: Record<string, string>, apiKey: string) => Promise<JsonRecord>;
+  /** 出站发送器（默认 hardenedFetch）。host 由选路给定。测试注入。 */
+  fetchJson?: (path: string, query: Record<string, string>, apiKey: string, host: string) => Promise<JsonRecord>;
+  /** 选路：连接时/首次调用前挑生效 host（默认 tikhubRoute.resolveTikhubHost，实测赛跑 + sticky）。测试注入。 */
+  resolveHost?: () => Promise<string | null>;
+  /** 失败自动切换：主选 host 出站失败后换备域（默认 tikhubRoute.failoverTikhubHost）。测试注入。 */
+  failover?: (failedHost: string) => Promise<string | null>;
 };
+
+/** 判「像是线路层网络问题」——据此触发一次自动切换（区别于 401/404 这类业务错，切域没意义）。 */
+function isRoutableFailure(error: unknown): boolean {
+  return error instanceof TikhubConnectorError && error.kind === "upstream";
+}
 
 /** 拼 query string（跳过空值）。 */
 function buildQuery(params: Record<string, string | undefined>): Record<string, string> {
@@ -128,15 +142,20 @@ function buildQuery(params: Record<string, string | undefined>): Record<string, 
 }
 
 /**
- * 真出站：GET {base}{path}?{query}，Bearer 鉴权，全过 hardenedFetch（allowedOrigins=api.tikhub.io，
+ * 真出站：GET https://{host}{path}?{query}，Bearer 鉴权，全过 hardenedFetch（allowedOrigins 覆盖两候选域，
  * 禁重定向出域，Authorization 作敏感头跨域剥离）。非 2xx 不抛（throwOnNon2xx:false），
- * 由本函数读 status 分类。
+ * 由本函数读 status 分类。host 由 tikhubRoute 实测选路给定；此处硬校验它是候选域之一（防被改打到别处）。
  */
-async function fetchTikhubJson(path: string, query: Record<string, string>, apiKey: string): Promise<JsonRecord> {
-  const url = new URL(path, TIKHUB_BASE_URL);
+async function fetchTikhubJson(
+  path: string,
+  query: Record<string, string>,
+  apiKey: string,
+  host: string,
+): Promise<JsonRecord> {
+  const url = new URL(path, `https://${host}`);
   for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v);
-  // allowedOrigins 硬校验：只允许 api.tikhub.io（防被改 path 打到别处）。
-  if (url.hostname.toLowerCase() !== TIKHUB_HOST) {
+  // allowedOrigins 硬校验：只允许候选域清单里的域（防被改 host/path 打到别处）。
+  if (!(TIKHUB_HOSTS as readonly string[]).includes(url.hostname.toLowerCase())) {
     throw new TikhubConnectorError("bad-response", `TikHub 出站目标非法：${url.hostname}`);
   }
 
@@ -228,10 +247,68 @@ function extractVideoId(data: unknown): string | undefined {
 }
 
 /**
- * 解析一条分享链接 → 无水印直链。
- * 抖音：先 fetch_video_high_quality_play_url(share_url)（一步拿 data.original_video_url）；
- *       取不到再兜底 fetch_one_video_by_share_url 抽 aweme。
- * TikTok：fetch_one_video_by_share_url(share_url) 抽 aweme。
+ * 单个 host 上跑完整解析（抖音首选高画质端点、兜底 aweme；TikTok 抽 aweme）。
+ * 抽成内部函数，让「主选 host」与「failover 后的备域」复用同一套逻辑。
+ */
+async function resolveOnHost(
+  platform: ShareUrlPlatform,
+  shareUrl: string,
+  apiKey: string,
+  host: string,
+  fetchJson: NonNullable<TikhubDeps["fetchJson"]>,
+): Promise<ResolvedShareVideo> {
+  if (platform === "douyin") {
+    // 首选：一步拿高画质无水印直链。region=CN 让抖音返回国内 CDN（下载更快）。
+    const hq = await fetchJson(
+      "/api/v1/douyin/web/fetch_video_high_quality_play_url",
+      buildQuery({ share_url: shareUrl, region: "CN" }),
+      apiKey,
+      host,
+    );
+    const hqData = hq.data;
+    const originalUrl = isJsonRecord(hqData) ? trim(hqData.original_video_url) : "";
+    if (/^https?:\/\//i.test(originalUrl)) {
+      return {
+        platform,
+        playUrl: originalUrl,
+        videoId: isJsonRecord(hqData) ? trim(hqData.video_id) || undefined : undefined,
+        unitPriceUsd: 0.005,
+      };
+    }
+    // 兜底：原始 aweme 抽直链。
+    const detail = await fetchJson(
+      "/api/v1/douyin/web/fetch_one_video_by_share_url",
+      buildQuery({ share_url: shareUrl }),
+      apiKey,
+      host,
+    );
+    const playUrl = extractPlayUrlFromAweme(detail.data);
+    if (!playUrl) {
+      throw new TikhubConnectorError("no-play-url", "解析到作品，但取不到可下载的视频直链。");
+    }
+    return { platform, playUrl, videoId: extractVideoId(detail.data) };
+  }
+
+  // TikTok
+  const detail = await fetchJson(
+    "/api/v1/tiktok/app/v3/fetch_one_video_by_share_url",
+    buildQuery({ share_url: shareUrl }),
+    apiKey,
+    host,
+  );
+  const playUrl = extractPlayUrlFromAweme(detail.data);
+  if (!playUrl) {
+    throw new TikhubConnectorError("no-play-url", "解析到作品，但取不到可下载的视频直链。");
+  }
+  return { platform, playUrl, videoId: extractVideoId(detail.data) };
+}
+
+/**
+ * 解析一条分享链接 → 无水印直链（双域名全球化）。
+ * 流程：① 实测选路挑生效 host（tikhubRoute：手动锁定 / sticky / locale 序探测两域，谁健康用谁）；
+ *       ② 在该 host 上解析；③ 若像线路层网络失败（upstream）→ 自动切换到备域重试一次（更新 sticky）；
+ *       ④ 两域都拿不到 host → no-route（三段式「换个网络或在高级设置手动指定线路」）。
+ * locale 只影响探测顺序，绝不决定结果。
  */
 export async function resolveShareVideo(
   shareText: string,
@@ -250,46 +327,29 @@ export async function resolveShareVideo(
   }
   const shareUrl = extractShareUrl(shareText);
   const fetchJson = deps.fetchJson || fetchTikhubJson;
+  const resolveHost = deps.resolveHost || resolveTikhubHost;
+  const failover = deps.failover || failoverTikhubHost;
 
-  if (platform === "douyin") {
-    // 首选：一步拿高画质无水印直链。region=CN 让抖音返回国内 CDN（下载更快）。
-    const hq = await fetchJson(
-      "/api/v1/douyin/web/fetch_video_high_quality_play_url",
-      buildQuery({ share_url: shareUrl, region: "CN" }),
-      apiKey,
+  const host = await resolveHost();
+  if (!host) {
+    throw new TikhubConnectorError(
+      "no-route",
+      "连不上 TikHub：主线路和大陆加速线路都探测不通。请换个网络或代理后重试；也可在高级设置里手动指定线路。",
     );
-    const hqData = hq.data;
-    const originalUrl = isJsonRecord(hqData) ? trim(hqData.original_video_url) : "";
-    if (/^https?:\/\//i.test(originalUrl)) {
-      return {
-        platform,
-        playUrl: originalUrl,
-        videoId: isJsonRecord(hqData) ? trim(hqData.video_id) || undefined : undefined,
-        unitPriceUsd: 0.005,
-      };
-    }
-    // 兜底：原始 aweme 抽直链。
-    const detail = await fetchJson(
-      "/api/v1/douyin/web/fetch_one_video_by_share_url",
-      buildQuery({ share_url: shareUrl }),
-      apiKey,
-    );
-    const playUrl = extractPlayUrlFromAweme(detail.data);
-    if (!playUrl) {
-      throw new TikhubConnectorError("no-play-url", "解析到作品，但取不到可下载的视频直链。");
-    }
-    return { platform, playUrl, videoId: extractVideoId(detail.data) };
   }
 
-  // TikTok
-  const detail = await fetchJson(
-    "/api/v1/tiktok/app/v3/fetch_one_video_by_share_url",
-    buildQuery({ share_url: shareUrl }),
-    apiKey,
-  );
-  const playUrl = extractPlayUrlFromAweme(detail.data);
-  if (!playUrl) {
-    throw new TikhubConnectorError("no-play-url", "解析到作品，但取不到可下载的视频直链。");
+  try {
+    return await resolveOnHost(platform, shareUrl, apiKey, host, fetchJson);
+  } catch (error) {
+    // 只有「像线路层网络问题」才值得切域重试（401/404 这类业务错切域没意义，原样冒泡）。
+    if (!isRoutableFailure(error)) throw error;
+    const alternate = await failover(host);
+    if (!alternate) {
+      throw new TikhubConnectorError(
+        "no-route",
+        "连不上 TikHub：主线路和大陆加速线路都探测不通。请换个网络或代理后重试；也可在高级设置里手动指定线路。",
+      );
+    }
+    return await resolveOnHost(platform, shareUrl, apiKey, alternate, fetchJson);
   }
-  return { platform, playUrl, videoId: extractVideoId(detail.data) };
 }

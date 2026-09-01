@@ -2,7 +2,7 @@
   "schema_version": 3,
   "id": "2026-09-01-tikhub-connector-ingest-boundary",
   "problem_type": "new high-risk-path code (external data connector ingesting third-party scraped media) that could reintroduce four known risk classes: unbound IPC surface, plaintext BYO-key at rest, unrestricted outbound SSRF, and provenance loss on ingested media",
-  "symptom": "This is a preventive structural contract for net-new code, not a corrective fix for an observed failure. The TikHub connector (v1) adds a code path where a user-supplied share link is resolved to a third-party media URL and the bytes are ingested into a project. Three of the touched files sit on high-risk prefixes (electron/catalog/ for the credential store, electron/assets/ for the media store, and an electron *Ipc.ts registration), so without an explicit boundary the change could silently (a) register an unguarded IPC channel, (b) persist the BYO API key as plaintext, (c) fetch an attacker-influenced URL without SSRF/allowlist protection, or (d) land scraped media with no source evidence so it is later treated as commercially usable.",
+  "symptom": "This is a preventive structural contract for net-new code, not a corrective fix for an observed failure. The TikHub connector (v1) adds a code path where a user-supplied share link is resolved to a third-party media URL and the bytes are ingested into a project. Several touched files sit on high-risk prefixes/patterns (electron/catalog/ for the credential store, electron/assets/ for the media store, an electron *Ipc.ts registration, and — with v1.1 — a new *store.ts connector-prefs persistence file), so without an explicit boundary the change could silently (a) register an unguarded IPC channel, (b) persist the BYO API key as plaintext, (c) fetch an attacker-influenced URL without SSRF/allowlist protection, or (d) land scraped media with no source evidence so it is later treated as commercially usable. The v1.1 dual-domain globalization widens the outbound surface: the connector now reaches TikHub over two candidate hosts (api.tikhub.io primary + api.tikhub.dev mainland-China accelerator) with a measured route race, sticky selection, and automatic failover. This adds two new obligations of the SAME classes: (e) every new health probe AND the failover-retried request must go through the SAME hardenedFetch boundary under an allowlist that now covers BOTH hosts (never a bare fetch to the picked host, and the probe must never carry the Authorization/BYO key so it stays free and unauthenticated), and (f) the sticky route preference must persist as a NON-credential value in a plain connector-prefs store — never the credential store — and the resolved host is hard-checked to be one of the two candidates so a poisoned preference can never redirect outbound traffic off-allowlist.",
   "direct_cause": "Introducing a data connector requires new surface in exactly the places the ratchet marks high-risk: a preload/main IPC pair (tikhubConnectorIpc.ts), reuse of the credential-at-rest store (secrets.ts / apiKeysByVendor), an outbound HTTP client, and a write into projectAssetStore. Each of these is an entry point for a class of regression the codebase already guards elsewhere; the connector must route through the existing shared boundaries rather than open a parallel unprotected path.",
   "class_root": "External-source ingestion is a class, not a one-off: any connector that turns a user/agent-supplied reference into fetched bytes has the same four obligations (sender-bound IPC, encrypted-only credential write, hardenedFetch+origin allowlist for every outbound call, and AssetSourceEvidence with rightsStatus:'unknown' for every landed media). The failure mode of doing it per-connector is that one connector forgets one obligation and reintroduces a plaintext key, an SSRF hole, or unattributed media. The remedy is to make each obligation a single shared boundary that every ingestion path is forced through, and to prove the new connector routes through them.",
   "affected_population": [
@@ -14,12 +14,19 @@
     "electron/connectors/tikhubConnector.ts",
     "electron/connectors/tikhubConnectorService.ts",
     "electron/connectors/tikhubConnectorIpc.ts",
+    "electron/connectors/tikhubRoute.ts",
+    "electron/connectors/tikhubHosts.ts",
+    "electron/connectors/connectorPrefsStore.ts",
+    "electron/shared/contracts/tikhubRoute.ts",
     "electron/assets/projectAssetStore.ts",
     "electron/catalog/secrets.ts"
   ],
   "entry_points": [
-    "registerTikhubConnectorIpc (electron/connectors/tikhubConnectorIpc.ts) — the five IPC handlers (key-status/save-key/clear-key/resolve-share-url/import-to-project); every one calls assertTrustedSender before touching credentials or the network",
-    "fetchTikhubJson (electron/connectors/tikhubConnector.ts) — the only outbound path; goes through hardenedFetch with a hard api.tikhub.io host check, redirects disabled, Authorization declared sensitive",
+    "registerTikhubConnectorIpc (electron/connectors/tikhubConnectorIpc.ts) — the seven IPC handlers (key-status/save-key/clear-key/route-status/set-route/resolve-share-url/import-to-project); every one calls assertTrustedSender before touching credentials, preferences, or the network",
+    "fetchTikhubJson (electron/connectors/tikhubConnector.ts) — the resolve/import outbound path; goes through hardenedFetch with a hard allowlist check that the resolved host is one of the two candidates (api.tikhub.io | api.tikhub.dev), redirects disabled, Authorization declared sensitive",
+    "probeTikhubHost (electron/connectors/tikhubRoute.ts) — the route-race health probe (GET /api/v1/health/check per host); goes through the SAME hardenedFetch boundary, carries NO Authorization (free/unauthenticated, so it can never bill or leak the key), redirects disabled",
+    "resolveTikhubHost / failoverTikhubHost (electron/connectors/tikhubRoute.ts) — pick/switch the outbound host; only ever return a host from the TIKHUB_HOSTS candidate list, and persist the sticky choice via the connector-prefs store, never the credential store",
+    "readConnectorPrefs / writeConnectorPrefs (electron/connectors/connectorPrefsStore.ts) — the non-credential connector-preferences store; holds only the route mode + sticky host (both normalized against the candidate list), never any secret; the BYO key stays exclusively in the safeStorage credential store",
     "saveTikhubApiKey (electron/connectors/tikhubConnectorService.ts) — writes the BYO key only via the catalog credential upsert, which is safeStorage-encrypted and fail-closed; no plaintext side path",
     "importTikhubShareUrl → importRemoteAsset (electron/assets/projectAssetStore.ts) — lands the resolved media with a sanitized AssetSourceEvidence pinned to rightsStatus:'unknown'"
   ],
@@ -32,9 +39,10 @@
     }
   ],
   "invariants": [
-    "Every connector IPC handler binds its sender: no registration reaches credentials or the network without assertTrustedSender (held by check:ipc-sender-binding).",
-    "The connector's BYO key is written only through the catalog credential store, which is safeStorage-encrypted and fail-closed; no code path persists the key as plaintext.",
-    "Every outbound connector request goes through hardenedFetch with an api.tikhub.io origin allowlist and redirects disabled; there is no bare fetch, and the Authorization header is declared sensitive so it is stripped on cross-origin redirects.",
+    "Every connector IPC handler binds its sender: no registration reaches credentials, preferences, or the network without assertTrustedSender (held by check:ipc-sender-binding).",
+    "The connector's BYO key is written only through the catalog credential store, which is safeStorage-encrypted and fail-closed; no code path persists the key as plaintext, and the non-credential connector-prefs store never holds any secret (only route mode + sticky host).",
+    "Every outbound connector request — the resolve/import calls AND the route-race health probes — goes through hardenedFetch with an origin allowlist covering BOTH candidate hosts (api.tikhub.io | api.tikhub.dev) and redirects disabled; there is no bare fetch. The Authorization header is declared sensitive on the resolve/import calls (stripped on cross-origin redirects), and the free health probe carries NO Authorization at all.",
+    "The outbound host is always one of the two TIKHUB_HOSTS candidates: resolveTikhubHost/failoverTikhubHost only ever return a candidate host, the sticky preference is normalized against the candidate list on read, and fetchTikhubJson hard-rejects any host outside it — so a poisoned connector-prefs value can never redirect traffic off-allowlist.",
     "Every media landed through importRemoteAsset from a connector carries AssetSourceEvidence sanitized to source='connector' with rightsStatus pinned to 'unknown'; commercial usability is never inferred from scraped provenance."
   ],
   "generality_proof": "The four invariants are enforced by shared boundaries that all ingestion paths pass through, not by connector-local checks. sanitizeSourceEvidence in projectAssetStore.ts is the single write choke point that pins rightsStatus:'unknown' for any caller supplying source evidence (browser capture, future connectors, and TikHub alike); it whitelists fields so an untrusted payload cannot smuggle a different rightsStatus. The credential write goes through the same applyApiKeyUpsert path as every vendor key (safeStorage-only, fail-closed, non-header-safe-char guarded). Outbound goes through hardenedFetch, the same SSRF/DoS boundary importRemoteAsset and extractVideoFrame already use. IPC binding is enforced generically by check:ipc-sender-binding over all electron *Ipc.ts registrations. A second connector added tomorrow inherits all four without new per-connector code.",
@@ -56,13 +64,25 @@
       "path": "electron/connectors/tikhubConnector.ts",
       "entry_point": "fetchTikhubJson outbound via hardenedFetch",
       "disposition": "enforced",
-      "evidence": "The only outbound path hard-checks url.hostname === api.tikhub.io, disables redirects, and declares Authorization sensitive. tikhubTransport.test.ts pins the Bearer header, sensitiveHeaders, allowRedirect:false, throwOnNon2xx:false, and the status→kind error classification."
+      "evidence": "The resolve/import outbound path hard-checks that url.hostname is one of the two TIKHUB_HOSTS candidates (api.tikhub.io | api.tikhub.dev), disables redirects, and declares Authorization sensitive. tikhubTransport.test.ts pins the Bearer header, sensitiveHeaders, allowRedirect:false, throwOnNon2xx:false, and the status→kind error classification (with the route layer stubbed to a fixed host so this suite isolates the outbound contract)."
+    },
+    {
+      "path": "electron/connectors/tikhubRoute.ts",
+      "entry_point": "probeTikhubHost + resolveTikhubHost/failoverTikhubHost outbound via hardenedFetch",
+      "disposition": "enforced",
+      "evidence": "The route-race health probe goes through the SAME hardenedFetch boundary (GET /api/v1/health/check), carries NO Authorization header (free/unauthenticated), and disables redirects; the resolved/failover host is always a TIKHUB_HOSTS candidate and the sticky choice is normalized against that list on read. tikhubRoute.test.ts pins: the probe URL + absence of Authorization + allowRedirect:false, the locale-only ordering, the race-then-sticky write, primary-down→next-host, both-down→null, manual io/dev forcing (no probe), failover to the alternate, and mode persistence clearing sticky on return to auto."
+    },
+    {
+      "path": "electron/connectors/connectorPrefsStore.ts",
+      "entry_point": "readConnectorPrefs / writeConnectorPrefs (non-credential connector-prefs persistence)",
+      "disposition": "enforced",
+      "evidence": "A plain settings-root JSON store partitioned by connectorId that holds only non-secret preferences (route mode + sticky host). The BYO key never touches it — it stays exclusively in the safeStorage credential store via applyApiKeyUpsert. tikhubRoute.test.ts drives it through an in-memory fake and asserts only route mode + candidate-list-normalized host are ever written."
     },
     {
       "path": "electron/connectors/tikhubConnectorIpc.ts",
       "entry_point": "registerTikhubConnectorIpc handlers via assertTrustedSender",
       "disposition": "enforced",
-      "evidence": "All five handlers call assertTrustedSender before importing the service; check:ipc-sender-binding scans every electron *Ipc.ts registration and reports 0 new unguarded (the new handlers are guarded, so they never enter the unguarded baseline)."
+      "evidence": "All seven handlers (key-status/save-key/clear-key/route-status/set-route/resolve-share-url/import-to-project) call assertTrustedSender before importing the service; check:ipc-sender-binding scans every electron *Ipc.ts registration and reports 0 new unguarded (the new handlers are guarded, so they never enter the unguarded baseline)."
     }
   ],
   "prevention": {
@@ -80,22 +100,24 @@
   "class_regression_tests": [
     "electron/assets/projectAssetStore.sourceEvidence.test.ts",
     "electron/connectors/tikhubConnector.test.ts",
-    "electron/connectors/tikhubTransport.test.ts"
+    "electron/connectors/tikhubTransport.test.ts",
+    "electron/connectors/tikhubRoute.test.ts"
   ],
   "recurrence": {
     "classification": "recurring",
-    "reason": "External-source ingestion is a recurring class: every data connector that turns a user/agent-supplied reference into fetched bytes carries the same four obligations. Rather than re-checking them per connector, the change routes each obligation through an existing shared boundary (sanitizeSourceEvidence for provenance, applyApiKeyUpsert for credentials, hardenedFetch for outbound, assertTrustedSender for IPC) and proves the TikHub connector goes through them.",
+    "reason": "External-source ingestion is a recurring class: every data connector that turns a user/agent-supplied reference into fetched bytes carries the same obligations, and dual-domain reach adds one more instance of the outbound obligation (health probes + failover retries) plus a non-credential-persistence obligation. Rather than re-checking them per connector or per host, the change routes each obligation through an existing shared boundary (sanitizeSourceEvidence for provenance, applyApiKeyUpsert for credentials, hardenedFetch for ALL outbound — resolve/import AND probes — assertTrustedSender for IPC) and keeps the sticky route in a separate non-secret store, then proves the TikHub connector goes through them.",
     "same_class_scan": [
       "Enumerated every path that lands remote media into a project via importRemoteAsset: browser capture / browser-upload, generation outputs, decomposeLayers, and now the TikHub connector — all now pass through the single sanitizeSourceEvidence choke point when they supply source evidence, and none writes rightsStatus directly.",
-      "Enumerated every BYO-credential write: all vendor keys and the TikHub connector key go through applyApiKeyUpsert (safeStorage-only, fail-closed, non-header-safe-char guarded); confirmed no connector code opens a plaintext side path (secrets.ts only re-exports the status type owner; the encrypt/decrypt primitives are unchanged).",
-      "Enumerated every connector outbound call: fetchTikhubJson is the only one and it goes through hardenedFetch with an api.tikhub.io host check and redirects disabled — same SSRF/DoS boundary importRemoteAsset and extractVideoFrame already use; grepped the connectors directory for bare fetch( and found none.",
-      "Enumerated every electron *Ipc.ts registration via check:ipc-sender-binding: the five new TikHub handlers all call assertTrustedSender and therefore never enter the unguarded baseline, which stays at its prior count."
+      "Enumerated every BYO-credential write: all vendor keys and the TikHub connector key go through applyApiKeyUpsert (safeStorage-only, fail-closed, non-header-safe-char guarded); confirmed the new connector-prefs store (connectorPrefsStore.ts) holds ONLY non-secret preferences (route mode + sticky host) and never the key; secrets.ts still only re-exports the status type owner and the encrypt/decrypt primitives are unchanged.",
+      "Enumerated every connector outbound call: fetchTikhubJson (resolve/import) AND probeTikhubHost (route race) — both go through hardenedFetch, now with an allowlist covering BOTH candidate hosts (api.tikhub.io | api.tikhub.dev) and redirects disabled; the probe carries no Authorization, and the resolved/failover host is always a candidate (normalized on read, hard-checked before fetch) so a poisoned sticky value cannot go off-allowlist. Same SSRF/DoS boundary importRemoteAsset and extractVideoFrame already use; grepped the connectors directory for bare fetch( and found none.",
+      "Enumerated every electron *Ipc.ts registration via check:ipc-sender-binding: the seven TikHub handlers (including the two new route-status/set-route) all call assertTrustedSender and therefore never enter the unguarded baseline, which stays at its prior count."
     ]
   },
   "regression_tests": [
     "electron/assets/projectAssetStore.sourceEvidence.test.ts",
     "electron/connectors/tikhubConnector.test.ts",
-    "electron/connectors/tikhubTransport.test.ts"
+    "electron/connectors/tikhubTransport.test.ts",
+    "electron/connectors/tikhubRoute.test.ts"
   ],
   "legacy_paths": {
     "status": "not-applicable",

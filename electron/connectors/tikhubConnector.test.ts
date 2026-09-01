@@ -5,9 +5,15 @@ import {
   extractPlayUrlFromAweme,
   resolveShareVideo,
   TIKHUB_CONNECTOR,
-  TIKHUB_HOST,
+  TIKHUB_HOSTS,
   TikhubConnectorError,
 } from "./tikhubConnector";
+
+/**
+ * 隔离选路层：resolve 类用例注入 fetchJson 桩，故也把 resolveHost 桩到主域（否则会走真实
+ * tikhubRoute→读盘/探测）。双域名选路本身在 tikhubRoute.test.ts 单独锁。
+ */
+const routeToPrimary = { resolveHost: async () => "api.tikhub.io" };
 
 // ---------------------------------------------------------------------------
 // 合同测试：锁 TikHub OpenAPI 形状（一手 api.tikhub.io/openapi.json，openapi 3.1.0，
@@ -30,11 +36,13 @@ function envelope(data: unknown, code = 200): Record<string, unknown> {
 }
 
 describe("ConnectorDefinition 形态（§5.5）", () => {
-  it("是 native-api / api-key / allowedOrigins=api.tikhub.io / dataEgress 声明齐全", () => {
+  it("是 native-api / api-key / allowedOrigins 覆盖两候选域 / dataEgress 声明齐全", () => {
     expect(TIKHUB_CONNECTOR.kind).toBe("connector");
     expect(TIKHUB_CONNECTOR.transport).toBe("native-api");
     expect(TIKHUB_CONNECTOR.auth).toEqual({ kind: "api-key", secretOwner: "nomi-settings" });
-    expect(TIKHUB_CONNECTOR.network.allowedOrigins).toEqual([TIKHUB_HOST]);
+    // 双域名全球化：allowedOrigins 覆盖主域 + 大陆加速域。
+    expect(TIKHUB_CONNECTOR.network.allowedOrigins).toEqual([...TIKHUB_HOSTS]);
+    expect([...TIKHUB_HOSTS]).toEqual(["api.tikhub.io", "api.tikhub.dev"]);
     expect(TIKHUB_CONNECTOR.dataEgress.categories).toContain("share-link");
     // 按次计费端点必须标 effect='spend'（接既有费用确认流）。
     expect(TIKHUB_CONNECTOR.tools.every((t) => t.effect === "spend")).toBe(true);
@@ -63,6 +71,7 @@ describe("resolveShareVideo — 抖音（首选高画质端点）", () => {
       "复制打开抖音 https://v.douyin.com/e3x2fjE/",
       "key-abc",
       {
+        ...routeToPrimary,
         fetchJson: async (path, query) => {
           calls.push({ path, query });
           return envelope({ video_id: "123", original_video_url: "https://aweme.snssdk.com/hq.mp4" });
@@ -81,6 +90,7 @@ describe("resolveShareVideo — 抖音（首选高画质端点）", () => {
   it("高画质端点无直链时兜底 fetch_one_video_by_share_url 抽 aweme", async () => {
     const paths: string[] = [];
     const resolved = await resolveShareVideo("https://v.douyin.com/e3x2fjE/", "key", {
+      ...routeToPrimary,
       fetchJson: async (path) => {
         paths.push(path);
         if (path.includes("high_quality_play_url")) return envelope({ original_video_url: "" });
@@ -105,6 +115,7 @@ describe("resolveShareVideo — TikTok（share_url → aweme）", () => {
   it("构造 share_url 参数命中 tiktok 端点并抽直链", async () => {
     const calls: Array<{ path: string; query: Record<string, string> }> = [];
     const resolved = await resolveShareVideo("https://www.tiktok.com/t/ZTFNEj8Hk/", "key", {
+      ...routeToPrimary,
       fetchJson: async (path, query) => {
         calls.push({ path, query });
         return envelope({
@@ -149,17 +160,26 @@ describe("错误分类（三段式失败态的 kind 源）", () => {
   it("解析到作品但无直链 = no-play-url", async () => {
     await expect(
       resolveShareVideo("https://www.tiktok.com/t/x/", "key", {
+        ...routeToPrimary,
         fetchJson: async () => envelope({ aweme_detail: { desc: "image post" } }),
       }),
     ).rejects.toMatchObject({ kind: "no-play-url" });
   });
-  it("connector 错误从 fetchJson 原样冒泡（如 401→auth）", async () => {
+  it("connector 业务错（401→auth）不切域、原样冒泡", async () => {
+    // auth 不是线路层问题：不该触发 failover（切域没意义），原样冒泡。
+    let failoverCalls = 0;
     await expect(
       resolveShareVideo("https://www.tiktok.com/t/x/", "key", {
+        ...routeToPrimary,
+        failover: async () => {
+          failoverCalls += 1;
+          return null;
+        },
         fetchJson: async () => {
           throw new TikhubConnectorError("auth", "invalid key", 401);
         },
       }),
     ).rejects.toMatchObject({ kind: "auth", status: 401 });
+    expect(failoverCalls).toBe(0);
   });
 });

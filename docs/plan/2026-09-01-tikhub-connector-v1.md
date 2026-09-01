@@ -86,3 +86,18 @@
 3. 文稿继续 whisper 主路、v1 不接外部文稿 ✅
 4. key 用户自带 · `spend` 接费用确认 · 素材落 `AssetSourceEvidence(rightsStatus:'unknown')` ✅
 5. 失败态三段式 + 第三方抓取诚实边界 ✅
+
+## v1.1 双域名全球化（2026-09-01 追加）
+
+**真实摩擦（D1）**：TikHub 官方两域——`api.tikhub.io`（主）与 `api.tikhub.dev`（大陆加速，主域在大陆被墙，用户实战研究事实）。全球化 = 让所有人都好用、按**最优线路自动选**，而不是按语言猜。
+
+**机制（实测选路，不按语言猜）**：
+1. **候选域清单**进 connector：`TIKHUB_HOSTS=['api.tikhub.io','api.tikhub.dev']`（单一 owner `electron/connectors/tikhubHosts.ts`），`allowedOrigins` 覆盖两者。
+2. **连接时赛跑**：对两域各发一次**免费健康探测** `GET /api/v1/health/check`（R5 一手 openapi.json 确认：无鉴权、无计费依赖、返回 `{"status":"ok"}`），谁先健康用谁；探测走同一条 `hardenedFetch` 边界、**不带 Authorization**（保持免费、不泄 key）。
+3. **sticky**：结果存**非凭据**连接偏好层 `connector-prefs.json`（`electron/connectors/connectorPrefsStore.ts`，只存 `routeMode`+`stickyHost`，绝不存 key）。
+4. **失败自动切换**：主选域出站失败（`upstream` 类）→ 探测另一域，健康则更新 sticky 并重试一次；两域全失败 → `no-route` 三段式（含「高级设置手动指定线路」指引）。
+5. **locale 只影响探测顺序**（zh 系先探 `.dev`），绝不决定结果（`orderedCandidateHosts`）。
+6. **高级设置「线路」行**（自动=默认 / 强制 `.io` / 强制 `.dev` + 显示当前生效线路）：照 #282 `NetworkSection` 折叠先例，收起态一行 + 状态胶囊，展开态分段选择器。手动锁定压过 sticky/赛跑，且不触发自动切换。
+7. **与 per-connection 代理自然组合**：探测/出站都过 `hardenedFetch` → `getAppDispatcher`，代理路由在 dispatch 时决议，两域探测自动继承当前代理。
+
+**边界**：`resolveTikhubHost`/`failoverTikhubHost` 只返回候选域之一；sticky 读取时按候选清单归一；`fetchTikhubJson` 出站前硬校验 host ∈ 候选清单——被投毒的偏好也无法把流量导出 allowlist。手动线路模式单一 owner 在中立契约层 `electron/shared/contracts/tikhubRoute.ts`（跨进程共用）。根因合同 `docs/fixes/2026-09-01-tikhub-connector-ingest-boundary.root-cause.json` 的 scope 已扩展覆盖新增高风险文件（`connectorPrefsStore.ts` 等）。
