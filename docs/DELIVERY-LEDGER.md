@@ -9,7 +9,7 @@
 
 ---
 
-## 现役欠账（26）
+## 现役欠账（27）
 
 | 状态 | 文档 | 标题 |
 |---|---|---|
@@ -71,7 +71,7 @@
 
 </details>
 
-- 合计扫描：492 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
+- 合计扫描：493 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
 
 ---
 
