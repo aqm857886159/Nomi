@@ -1,5 +1,7 @@
 # DOCAUDIT-B：非 KIE/APIMart 官方文档对账与封印
 
+状态：🚧 进行中
+
 ## 范围
 
 - 对账并覆盖 `electron/catalog/` 与 `electron/shared/videoCapabilities/` 中 fal、Runway、MiniMax、ElevenLabs、Wan、Suno、Veo、Gemini、Agnes、Volcengine、HappyHorse 等非 KIE/APIMart 入口。
@@ -24,3 +26,6 @@
 
 - 映射修复可按单个 commit 回滚；不改用户数据迁移、不改 KIE/APIMart、不合并或 push `main`。
 - 预算上限 ¥35；只使用现有本机凭证，任何 key 不进入仓库、日志或报告。
+# DOCAUDIT-B 执行计划
+
+状态：🚧 进行中
