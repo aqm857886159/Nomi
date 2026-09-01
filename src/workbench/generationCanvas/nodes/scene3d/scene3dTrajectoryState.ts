@@ -8,6 +8,7 @@ import type { Scene3DState, Scene3DVector3 } from './scene3dTypes'
 import { setScene3DObjectRuntimeRefsVisible } from './trajectory/trajectoryRuntimeStore'
 import { findObjectTrajectoryBinding, sceneObjectTrajectorySample } from './scene3dPlayback'
 import type { TrajectoryBindTarget } from './trajectory/trajectoryRendererShared'
+import { scene3dCameraDisplayName, scene3dObjectDisplayName } from './scene3dObjectNames'
 
 export function removeTrajectoryBindingsForNode(state: Scene3DState, objectId: string): Scene3DState {
   let changed = false
@@ -86,14 +87,14 @@ export function trajectoryBindTargetsFromState(state: Scene3DState): TrajectoryB
       ))
       .map((object) => ({
         id: object.id,
-        name: object.name,
+        name: scene3dObjectDisplayName(object, state.objects),
         type: 'mannequin' as const,
       })),
     ...state.cameras
       .filter((camera) => !boundObjectIds.has(camera.id))
       .map((camera) => ({
         id: camera.id,
-        name: camera.name,
+        name: scene3dCameraDisplayName(camera, state.cameras),
         type: 'camera' as const,
       })),
   ]

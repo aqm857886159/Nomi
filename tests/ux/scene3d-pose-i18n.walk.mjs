@@ -66,13 +66,11 @@ try {
   await expectVisible(editor, '英文界面下 3D 编辑器应打开', 30_000)
   check('英文界面能打开 3D 编辑器', true)
 
-  // 选中假人 → 姿势 tab。
-  // 场景对象行的名字是**创建时写死的中文**（'假人' / '相机1'），属于「持久化数据里的默认名」
-  // 而非渲染期文案，是与本次不同的一档问题（写时本地化会把语言烤进项目文件），另行跟进。
-  // 这里就按真实文案点，不假装它已经英文了。
-  const mannequinRow = win.getByRole('button', { name: '假人', exact: true }).first()
-  await expectVisible(mannequinRow, '场景对象列表应有假人行', 20_000)
-  await clickOrFail(mannequinRow, '假人行')
+  // 选中假人 → 姿势 tab。对象行按**英文默认名**点：默认名不再落盘，
+  // 空名由 scene3dObjectNames 在显示时按「类型 + 序号」现算，英文界面就是 Character A。
+  const mannequinRow = win.getByRole('button', { name: 'Character A', exact: true }).first()
+  await expectVisible(mannequinRow, '场景对象列表应有英文默认名「Character A」', 20_000)
+  await clickOrFail(mannequinRow, 'Character A 行')
 
   const poseTab = win.getByRole('button', { name: 'Pose', exact: true }).first()
   await expectVisible(poseTab, '选中假人后应出现「Pose」页签', 20_000)
@@ -85,8 +83,9 @@ try {
   await screenshotSettled(win, { path: path.join(outDir, 'pose-i18n-en-panel.png') })
 
   // ── 量 DOM：这两条是截图之外、人眼容易放过的 ──
-  // ① **姿势面板这一片**不该残留汉字（这正是当年的 bug）。范围锁到「Pose presets」所在的属性面板，
-  //    不含左侧对象树——那里的 '假人'/'相机1' 是数据默认名，见上。
+  // ① **姿势面板这一片**不该残留汉字（这正是当年的 bug）。范围锁到「Pose presets」所在的属性面板。
+  //    （左侧对象树的默认名 2026-09-02 起也已本地化，见 scene3dObjectNames；这里仍只量属性面板，
+  //     对象树另有 scene3dObjectNames.test.ts 从数据层钉住。）
   const panelHan = await win.evaluate(() => {
     const anchor = [...document.querySelectorAll('div')].find((el) => el.textContent?.trim() === 'Pose presets')
     const panel = anchor?.closest('.grid')?.parentElement ?? anchor?.parentElement?.parentElement

@@ -8,7 +8,6 @@ import {
   eulerToArray,
   cameraLookAtRotation,
   cameraAimSpherical,
-  mannequinRoleLabel,
   tagEditorOnlySubtree,
 } from './scene3dMath'
 import { pointerCaptureTarget } from './scene3dInput'
@@ -44,6 +43,7 @@ import {
   crowdLabelPositions,
 } from './scene3dObjects'
 import { objectGroundFootprint, objectTransformAnchorPosition, objectVisualHalfHeight } from './scene3dCrowd'
+import { mannequinRoleLabel } from './scene3dObjectNames'
 
 export function CameraFrustumLines({
   cameraData,

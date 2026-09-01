@@ -73,8 +73,10 @@ try {
   const addMan = win.locator('[aria-label="添加假人"]')
   if ((await addMan.count()) > 0) { await addMan.first().click(); await win.waitForTimeout(1200) }
 
-  // 选第一个假人 → 姿势 tab → 套「坐姿」
-  const firstMan = win.getByText('假人', { exact: true }).first()
+  // 选第一个假人 → 姿势 tab → 套「坐姿」。
+  // 场景树里的默认名 2026-09-02 起不再落盘写死的「假人」,而是显示时按序号现算的角色号
+  // (中文「角色A」/ 英文 "Character A",与 3D 视口里那个角色徽标同名),故锚点改成角色A。
+  const firstMan = win.getByText('角色A', { exact: true }).first()
   if ((await firstMan.count()) > 0) { await firstMan.click(); await win.waitForTimeout(700) }
   const poseTab = win.getByRole('button', { name: '姿势', exact: true })
   if ((await poseTab.count()) > 0) { await poseTab.first().click(); await win.waitForTimeout(700) }

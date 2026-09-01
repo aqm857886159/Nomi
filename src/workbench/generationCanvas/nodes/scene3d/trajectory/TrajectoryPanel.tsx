@@ -11,6 +11,7 @@ import type {
   Scene3DTrajectoryPoint,
   Scene3DVector3,
 } from '../scene3dTypes'
+import { scene3dCameraDisplayName, scene3dObjectDisplayName } from '../scene3dObjectNames'
 
 type TrajectoryPanelProps = {
   state: Scene3DState
@@ -55,9 +56,11 @@ const POSITION_AXIS_META = [
 ] as const
 
 function nodeName(state: Scene3DState, objectId: string): string {
-  return state.objects.find((object) => object.id === objectId)?.name ||
-    state.cameras.find((camera) => camera.id === objectId)?.name ||
-    objectId
+  const object = state.objects.find((candidate) => candidate.id === objectId)
+  if (object) return scene3dObjectDisplayName(object, state.objects)
+  const camera = state.cameras.find((candidate) => candidate.id === objectId)
+  if (camera) return scene3dCameraDisplayName(camera, state.cameras)
+  return objectId
 }
 
 function globallyBoundObjectIds(bindings: Scene3DTrajectoryBinding[]): Set<string> {
@@ -313,10 +316,10 @@ export function TrajectoryPanel({
   const availableNodes = React.useMemo<TrajectoryBindableNode[]>(() => [
     ...state.objects
       .filter((object) => object.type !== 'light' && !allBoundObjectIds.has(object.id))
-      .map((object) => ({ id: object.id, name: object.name })),
+      .map((object) => ({ id: object.id, name: scene3dObjectDisplayName(object, state.objects) })),
     ...state.cameras
       .filter((camera) => !allBoundObjectIds.has(camera.id))
-      .map((camera) => ({ id: camera.id, name: camera.name })),
+      .map((camera) => ({ id: camera.id, name: scene3dCameraDisplayName(camera, state.cameras) })),
   ], [allBoundObjectIds, state.cameras, state.objects])
 
   return (

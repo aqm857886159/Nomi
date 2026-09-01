@@ -1,13 +1,14 @@
 import React from 'react'
 import { Grid } from '@react-three/drei'
-import { crowdCount, mannequinRoleLabel } from './scene3dMath'
+
 import {
-  SCENE3D_GRID_FLAG,
-  SCENE3D_EDITOR_ONLY_FLAG,
-  GRID_CELL_COLOR,
-  GRID_SECTION_COLOR,
   DARK_GRID_CELL_COLOR,
   DARK_GRID_SECTION_COLOR,
+  GRID_CELL_COLOR,
+  GRID_SECTION_COLOR,
+  SCENE3D_EDITOR_ONLY_FLAG,
+  SCENE3D_GRID_FLAG,
+  crowdCount,
 } from './scene3dConstants'
 import { Scene3DEnvironmentLayer } from './scene3dEnvironment'
 import type {
@@ -34,6 +35,7 @@ import { CameraStateRecorder } from './CameraStateRecorder'
 import { CharacterDriveController } from './scene3dCharacterDriveController'
 import { Scene3DPossessPrompt, Scene3DCameraPossessPrompt } from './scene3dPossessPrompt'
 import { TrajectoryRenderer } from './trajectory'
+import { mannequinRoleLabel } from './scene3dObjectNames'
 
 export function SceneContent({
   state,

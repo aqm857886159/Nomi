@@ -14,8 +14,14 @@ import {
   scene3dViewIdentityLabel,
   type Scene3DTaskMode,
 } from './scene3dTaskMode'
-import type { Scene3DCamera, Scene3DSelection, Scene3DState } from './scene3dTypes'
+import type {
+  Scene3DCamera,
+  Scene3DObject,
+  Scene3DSelection,
+  Scene3DState,
+} from './scene3dTypes'
 import type { useScene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
+import { scene3dCameraDisplayName, scene3dObjectDisplayName } from './scene3dObjectNames'
 
 export function useScene3DTaskFlow({
   stateRef,
@@ -26,8 +32,8 @@ export function useScene3DTaskFlow({
   trajectory,
   trajectoryMode,
   takeRecorder,
-  possessedObjectName,
-  possessedCameraName,
+  possessedObject,
+  possessedCamera,
   hasPossessTarget,
   enterPossess,
   setSelection,
@@ -47,8 +53,9 @@ export function useScene3DTaskFlow({
   trajectory: ReturnType<typeof useScene3DTrajectoryEditing>
   trajectoryMode: boolean
   takeRecorder: { isRecording: boolean; elapsedSeconds: number; startRecording: () => void; stopRecording: () => void }
-  possessedObjectName: string | null
-  possessedCameraName: string | null
+  // 收对象本身而不是名字:显示名要按「在同类里的序号」现算,这里有 stateRef 能算,调用方没有。
+  possessedObject: Scene3DObject | undefined
+  possessedCamera: Scene3DCamera | undefined
   hasPossessTarget: boolean
   enterPossess: (objectId: string) => void
   setSelection: React.Dispatch<React.SetStateAction<Scene3DSelection>>
@@ -206,19 +213,25 @@ export function useScene3DTaskFlow({
     : taskMode === 'act'
       ? (takeRecorder.isRecording ? t('scene3d.taskFlow.actCtaRecordingTitle') : t('scene3d.taskFlow.actCtaTitle'))
       : t('scene3d.taskFlow.moveCtaTitle')
-  const viewIdentity = scene3dViewIdentityLabel(cameraViewEditCamera?.name ?? null, cameraViewEditCamera?.aspectRatio ?? null)
+  const viewIdentity = scene3dViewIdentityLabel(
+    cameraViewEditCamera ? scene3dCameraDisplayName(cameraViewEditCamera, stateRef.current.cameras) : null,
+    cameraViewEditCamera?.aspectRatio ?? null,
+  )
   const statusSentence = scene3dStatusSentence({
     recording: takeRecorder.isRecording,
     recordingSeconds: takeRecorder.elapsedSeconds,
     countdownRemaining: recordCountdown,
-    possessedName: possessedObjectName,
-    possessedCameraName: possessedCameraName,
-    cameraViewEditName: cameraViewEditCamera?.name ?? null,
+    possessedName: possessedObject ? scene3dObjectDisplayName(possessedObject, stateRef.current.objects) : null,
+    possessedCameraName: possessedCamera ? scene3dCameraDisplayName(possessedCamera, stateRef.current.cameras) : null,
+    cameraViewEditName: cameraViewEditCamera ? scene3dCameraDisplayName(cameraViewEditCamera, stateRef.current.cameras) : null,
     trajectoryMode,
     isPlaying: trajectory.isPlaying,
     selectionName: selection?.type === 'object'
-      ? stateRef.current.objects.find((object) => object.id === selection.id)?.name ?? null
-      : selectedCamera?.name ?? null,
+      ? (() => {
+          const found = stateRef.current.objects.find((object) => object.id === selection.id)
+          return found ? scene3dObjectDisplayName(found, stateRef.current.objects) : null
+        })()
+      : selectedCamera ? scene3dCameraDisplayName(selectedCamera, stateRef.current.cameras) : null,
     selectionKind: selection?.type ?? null,
   })
 

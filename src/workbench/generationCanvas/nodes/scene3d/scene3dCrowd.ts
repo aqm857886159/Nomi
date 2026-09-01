@@ -3,8 +3,17 @@
 // （2026-08-04 曾在 scene3dObjects.tsx 抄出分叉：prop 分支只补了一份，导出采样把道具错抬半高）。
 import * as THREE from 'three'
 import type { Scene3DObject, Scene3DVector3 } from './scene3dTypes'
-import { MANNEQUIN_LABEL_BASE_HEIGHT } from './scene3dConstants'
-import { crowdColumns, crowdCount, crowdRows, crowdSpacing, vectorFromArray, vectorToArray } from './scene3dMath'
+import {
+  MANNEQUIN_LABEL_BASE_HEIGHT,
+  crowdColumns,
+  crowdCount,
+  crowdRows,
+} from './scene3dConstants'
+import {
+  crowdSpacing,
+  vectorFromArray,
+  vectorToArray,
+} from './scene3dMath'
 import { propGroundFootprint } from './scene3dPropSpecs'
 
 export function mannequinFootRingRadius(object: Scene3DObject): number {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildStagingScene, resolveStagingPose, auditStagingSpec, buildStagingSceneAudited } from './stagingBuilder'
 import { normalizeScene3DState } from './scene3dSerializer'
+import { scene3dObjectDisplayName } from './scene3dObjectNames'
 
 describe('buildStagingScene', () => {
   it('solo: 1 个 mannequin + 1 机位，落地高度正确，normalize 不丢', () => {
@@ -55,13 +56,21 @@ describe('buildStagingScene', () => {
     expect(studio.environment.showGrid).toBe(false)
   })
 
-  it('facing 标签缺省自动编号 角色A/B，facing override 生效', () => {
+  it('facing 标签缺省不落名(留给显示层现算 角色A/B)，facing override 生效', () => {
     const state = buildStagingScene({
       characters: [{ facing: 'camera' }, { facing: 'away' }],
       layout: 'facing',
     })
-    expect(state.objects[0].name).toBe('角色A')
-    expect(state.objects[1].name).toBe('角色B')
+    // 没给名字就**不落盘**:name 是会写进项目文件的用户数据,写死中文既翻不了、
+    // 按当前语言翻又会把作者的语言烤进文件。语言中立的空名 + 显示层现算,见 scene3dObjectNames.ts。
+    expect(state.objects[0].name).toBe('')
+    expect(state.objects[1].name).toBe('')
+    expect(scene3dObjectDisplayName(state.objects[0], state.objects)).toBe('角色A')
+    expect(scene3dObjectDisplayName(state.objects[1], state.objects)).toBe('角色B')
+    // 用户起过的名原样保留,不被默认名盖掉。
+    const named = buildStagingScene({ characters: [{ name: '女主' }], layout: 'facing' })
+    expect(named.objects[0].name).toBe('女主')
+    expect(scene3dObjectDisplayName(named.objects[0], named.objects)).toBe('女主')
     expect(state.objects[0].rotation[1]).toBeCloseTo(0, 5) // camera = 朝 +Z
     expect(Math.abs(state.objects[1].rotation[1])).toBeCloseTo(Math.PI, 5) // away = 180°
   })

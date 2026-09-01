@@ -15,14 +15,17 @@ import {
   type Scene3DTransformMode,
   type Scene3DVector3,
 } from './scene3dTypes'
-import { OBJECT_LIMIT, type CrowdAddOptions } from './scene3dConstants'
+import {
+  OBJECT_LIMIT,
+  crowdCount,
+  type CrowdAddOptions,
+} from './scene3dConstants'
 import { isEditableKeyboardTarget } from './scene3dInput'
 import {
   cloneObjectForClipboard,
   cloneCameraForClipboard,
   makePastedObject,
   makePastedCamera,
-  crowdCount,
   makeObject,
   makeCrowdObject,
   makeCamera,
@@ -37,6 +40,7 @@ import { CAMERA_MOVE_LABEL } from './cameraMoveVocab'
 import { isCameraMoveReady } from './scene3dPlayback'
 import { makePropObject } from './scene3dPropSpecs'
 import { buildSceneTemplateObjects, SCENE_TEMPLATE_LABEL, type Scene3DSceneTemplate } from './scene3dSceneTemplates'
+import { scene3dCameraDisplayName } from './scene3dObjectNames'
 
 // 对象上限文案单源（4 个加对象入口共用）；数字随 OBJECT_LIMIT derive，不各自硬编码。
 // 用函数取（不是模块级 const）——否则切换语言后旧值不更新。
@@ -51,7 +55,7 @@ export function toastPickCameraFirst(
     useToastStore.getState().push({
       message: i18n.t('scene3d.fullscreen.selectCameraForScreenshot'),
       type: 'warning',
-      actionLabel: i18n.t('scene3d.fullscreen.selectNamedCamera', { camera: firstCamera.name }),
+      actionLabel: i18n.t('scene3d.fullscreen.selectNamedCamera', { camera: scene3dCameraDisplayName(firstCamera, [firstCamera]) }),
       onAction: () => onPickCamera(firstCamera.id),
     })
   } else {
@@ -471,12 +475,12 @@ export function useScene3DAddActions({
 
   const addCamera = React.useCallback(() => {
     if (readOnly) return
-    const camera = makeCamera(stateRef.current.cameras.length)
+    const camera = makeCamera()
     setState((current) => ({ ...current, cameras: [...current.cameras, camera] }))
     setSelection({ type: 'camera', id: camera.id })
     exitTrajectoryMode()
     setViewLocked(false)
-  }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
+  }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked])
 
   const addCrowd = React.useCallback((options: CrowdAddOptions) => {
     if (readOnly) return

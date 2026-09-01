@@ -16,19 +16,19 @@ import {
   mannequinLabelHeight,
 } from './scene3dCrowd'
 import {
-  SCENE3D_EDITOR_ONLY_FLAG,
-  OBJECT_GROUND_GUIDE_ELEVATION,
-  MANNEQUIN_FOOT_RING_COLOR,
   CROWD_DETAILED_MODEL_LIMIT,
-  CROWD_INSTANCED_GEOMETRY_SEGMENTS,
   CROWD_FOOT_RING_SEGMENTS,
-  MANNEQUIN_MODEL_URL,
+  CROWD_INSTANCED_GEOMETRY_SEGMENTS,
   MANNEQUIN_ANIMATION_URL,
+  MANNEQUIN_FOOT_RING_COLOR,
+  MANNEQUIN_MODEL_URL,
+  OBJECT_GROUND_GUIDE_ELEVATION,
+  SCENE3D_EDITOR_ONLY_FLAG,
+  crowdCount,
 } from './scene3dConstants'
 import {
   vectorFromArray,
   vectorToArray,
-  crowdCount,
   rememberMannequinRestPose,
   applyMannequinSkeletonPose,
   captureMannequinGroundReference,

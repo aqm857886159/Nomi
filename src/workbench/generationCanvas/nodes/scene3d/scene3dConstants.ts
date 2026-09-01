@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { Scene3DVector3 } from './scene3dTypes'
+import type { Scene3DObject, Scene3DVector3 } from './scene3dTypes'
 
 export type CrowdAddOptions = {
   rows: number
@@ -493,3 +493,18 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
     }),
   },
 ]
+
+// 群众方阵的行/列/人数——对 CROWD_MAX_AXIS 做钳制的读取器,住在常量这层。
+// (原先在 scene3dMath;搬过来是为了让 scene3dObjectNames 能用它又不必反向依赖 scene3dMath,
+//  否则 scene3dMath ⇄ scene3dObjectNames 成静态循环,check:boundaries 当场报红。)
+export function crowdRows(object: Scene3DObject): number {
+  return Math.min(CROWD_MAX_AXIS, Math.max(1, Math.round(object.crowdRows || 1)))
+}
+
+export function crowdColumns(object: Scene3DObject): number {
+  return Math.min(CROWD_MAX_AXIS, Math.max(1, Math.round(object.crowdColumns || 1)))
+}
+
+export function crowdCount(object: Scene3DObject): number {
+  return object.type === 'mannequinCrowd' ? crowdRows(object) * crowdColumns(object) : 1
+}

@@ -26,28 +26,29 @@ import {
   type Scene3DVector3,
 } from './scene3dTypes'
 import {
-  radiansToDegrees,
-  degreesToRadians,
   CROWD_MAX_AXIS,
-  MANNEQUIN_POSE_SECTIONS,
-  MANNEQUIN_POSE_MIN_DEG,
   MANNEQUIN_POSE_MAX_DEG,
+  MANNEQUIN_POSE_MIN_DEG,
   MANNEQUIN_POSE_PRESETS,
+  MANNEQUIN_POSE_SECTIONS,
+  crowdCount,
+  degreesToRadians,
+  radiansToDegrees,
   type MannequinPoseControl,
   type MannequinPosePreset,
 } from './scene3dConstants'
 import {
-  crowdCount,
   clonePoseValue,
   poseMatchesPreset,
   cameraLookAtRotation,
   fovToFocalMm,
   roleColorForIndex,
-  mannequinRoleLabel,
   updateVectorValue,
   numberInputValue,
 } from './scene3dMath'
 import { Scene3DEnvironmentPanel } from './scene3dEnvironmentPanel'
+import { mannequinRoleLabel } from './scene3dObjectNames'
+import { scene3dCameraDisplayName, scene3dObjectDisplayName } from './scene3dObjectNames'
 
 function VectorInputs({
   label,
@@ -164,7 +165,7 @@ export function SceneObjectList({
       return {
         id: object.id,
         type: 'object' as const,
-        name: object.name,
+        name: scene3dObjectDisplayName(object, objects),
         visible: object.visible,
         object,
         camera: undefined,
@@ -174,7 +175,7 @@ export function SceneObjectList({
     const cameraRows = cameras.map((camera) => ({
       id: camera.id,
       type: 'camera' as const,
-      name: camera.name,
+      name: scene3dCameraDisplayName(camera, cameras),
       visible: camera.visible,
       object: undefined,
       camera,
@@ -557,6 +558,7 @@ export function PropertyPanel({
               className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)] disabled:opacity-50"
               disabled={readOnly}
               value={selectedObject.name}
+              placeholder={scene3dObjectDisplayName(selectedObject, state.objects)}
               onChange={(event) => onObjectPatch(selectedObject.id, { name: event.currentTarget.value })}
             />
           </label>
@@ -638,6 +640,7 @@ export function PropertyPanel({
               className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)] disabled:opacity-50"
               disabled={readOnly}
               value={selectedCamera.name}
+              placeholder={scene3dCameraDisplayName(selectedCamera, state.cameras)}
               onChange={(event) => onCameraPatch(selectedCamera.id, { name: event.currentTarget.value })}
             />
           </label>

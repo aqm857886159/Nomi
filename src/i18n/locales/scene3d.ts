@@ -1,6 +1,15 @@
 export const zhScene3d = {
   // 没命名的角色自动编号:A-Z,超过 26 个走 A1/A2…(纯展示名,不是 id)。
   mannequinName: '角色{{letter}}',
+  // 场景对象/相机**没被用户起过名**时现算的默认显示名(派生,不落盘 —— 见 scene3dObjectNames.ts)。
+  // 假人不在这里:它复用上面的 mannequinName(角色A/B),场景树与视口徽标同名。
+  objectName: {
+    crowd: '群众({{rows}}x{{columns}})',
+    light: '灯光{{index}}',
+    camera: '相机{{index}}',
+    fallback: '对象{{index}}',
+    copy: '{{name}} 副本',
+  },
   mannequinNameOverflow: '角色A{{index}}',
   referenceTargetNotConnected: '未连接视频镜头',
   toolbar: {
@@ -398,6 +407,16 @@ type TranslationShape<T> = {
 
 export const enScene3d = {
   mannequinName: 'Character {{letter}}',
+  // Derived display names for scene objects/cameras the user has never renamed (never persisted —
+  // see scene3dObjectNames.ts). Mannequins are absent on purpose: they reuse mannequinName above,
+  // so the scene tree and the viewport badge agree.
+  objectName: {
+    crowd: 'Crowd ({{rows}}x{{columns}})',
+    light: 'Light {{index}}',
+    camera: 'Camera {{index}}',
+    fallback: 'Object {{index}}',
+    copy: '{{name}} copy',
+  },
   mannequinNameOverflow: 'Character A{{index}}',
   referenceTargetNotConnected: 'No video shot connected',
   toolbar: {
