@@ -98,3 +98,29 @@
 鉴权统一为 `xi-api-key`，host `https://api.elevenlabs.io`。B2 遗产保留了 22→30 秒修正，新增 v3 合同和 9 项测试；本轮 key 仅用于后续明确列入“未封印”台账的最小探针，绝不写入源码或报告。
 
 **MiniMax/ElevenLabs 零额度结果：** MiniMax 9 项官方合同测试全绿；ElevenLabs 4 mapping 的静态 identity、参数转换和 SFX 上下界测试全绿。页面抓取只证明文档可达，账号资格与产物仍需单独探针/封印记录。
+
+## 6. Agnes AI（6 video mappings）
+
+- 公共 host 为 `https://apihub.agnes-ai.com`，Bearer 鉴权；V2.0 与 2.5 都创建 `POST /v1/videos`，返回 `video_id`，通过 `GET /agnesapi?video_id=...` 查询。2.5 查询额外带 `model_name`；状态归一覆盖 `queued/pending/submitted`、`in_progress/processing/running`、`completed/succeeded/success`、`failed/error/cancelled`。
+- V2.0 t2v body：`model,prompt,width,height,num_frames,frame_rate,negative_prompt,seed,num_inference_steps`；i2v 追加 `image` 与 `extra_body.image/mode`，关键帧另走 `extra_body.keyframe_images`。共享 UI 的 aspect_ratio/resolution 只在 `agnesVideoWidth/Height` transform 处转换，duration/frame_rate 只在 `agnesVideoNumFrames` 处转换，避免把推荐值误称为原始 API 字段。
+- V2.5/2.5 Flash 的 t2v、keyframe、reference 共用 `model,prompt,mode,seconds,size,aspect_ratio,seed,n=1`；首尾帧字段为 `first_frame/last_frame`，参考通道为 `images/audios`，完整 2.5 增加 `videos/video_start_seconds/video_require_audio`。Flash 按官方页面只开放 720P、最多 5 张图片且不声明 videos；普通 2.5 保留 720P/960P/2K 与视频参考。文档未发布的数量上限不写入档案。
+- **模式干跑：** V2.0 t2v/i2v/keyframes、2.5 text/keyframe/reference、Flash text/keyframe/reference 均能在本地展开到正确 endpoint/body；错误的参考通道不静默丢弃。未配置 Agnes key，故无付费封印；不把 HTTP 结构干跑升级为 live。
+
+## 7. 火山方舟 Seedance（4 mappings）
+
+- host 由连接配置提供；官方创建 `POST /api/v3/contents/generations/tasks`，查询 `GET /api/v3/contents/generations/tasks/{id}`，Bearer 鉴权。mapping 使用 `pathFrom: host-root`，防止把 host 已带 `/api/v3` 时拼成 `/api/v3/api/v3/...`。
+- 2.0 标准/fast/mini 与 2.5 共有 `model,content,resolution,ratio,duration,generate_audio,watermark=false`；content 以 `type` + `role` 表达 text、首帧/尾帧、参考图/视频/音频。2.0 是 4–15 秒、标准可 4K、参考上限 9/3/3 且纯音频不允许；fast/mini 只 480p/720p。2.5 是 4–30 秒、480p/720p/1080p、参考上限 30/10/10、可纯音频，并额外发送 `output_format=mp4|mov`。
+- 首帧/首尾帧的 `ratio` 在 2.5 档案收窄为 `adaptive`；2.5 的 edit/extend 仍未接入，因为官方约束是 duration=-1 且 ratio=adaptive，需要独立样张和验收，不在本轮假装覆盖。2.0 的 `seed/camera_fixed` 已删除：官方参数表只把它们列给 1.5/1.0 系列。
+- 状态 `queued/running/cancelled/succeeded/failed/expired`；成功取 `content.video_url`，错误取 `error.code/message`。4 个 mapping 的 t2v/i2v、首尾帧、全模态参考 body 均通过静态 contract/loopback 展开；未配置火山 key，未付费。
+
+## 8. 托管模型交叉索引（避免重复接入）
+
+| 用户看到的模型族 | 本辖区现役入口 | 参考输入结论 |
+|---|---|---|
+| Wan 3 | Runway `wan3` | t2v/i2v/reference 均在 Runway text/video union；reference 不是 `promptImage` |
+| Veo 3.1 / Fast | Runway `veo3.1` / `veo3.1_fast` | 只 t2v/i2v；OpenAPI 无 reference union，不能显示/发送多图 reference |
+| Gemini Omni Flash | fal `google/gemini-omni-flash/v1.1` 与 Runway `gemini_omni_flash` | fal 是独立 `reference-to-video`；Runway 只 t2v/i2v，两个 provider 合同不混用 |
+| HappyHorse 1.0 | Runway `happyhorse_1_0` | t2v/i2v；i2v 不发 ratio/audio |
+| Suno / Music | 本辖区无 Suno mapping；ElevenLabs `music_v2` 与 fal MiniMax Music 3 是不同模型 | 不把 KIE/APIMart Suno 入口复制到本班 |
+
+这张交叉索引是“模型族→provider adapter”的单一归属说明，不新增第二套模型 UI。能力是否可用由当前 provider mapping 决定；缺少官方 union 的模式保持 fail-closed。
