@@ -55,3 +55,4 @@
 | [2026-08-31-asset-relay-routing.md](2026-08-31-asset-relay-routing.md) | Asset Relay Routing Implementation Plan | ✅ 已交付 |
 | [2026-08-31-provider-model-expansion-certification.md](2026-08-31-provider-model-expansion-certification.md) | Provider and Flagship Model Expansion Certification Implementation Plan | ✅ 已交付 |
 | [2026-09-01-agent-architecture-test-system.md](2026-09-01-agent-architecture-test-system.md) | Agent Architecture Test System Implementation Plan | 🚧 进行中 |
+| [2026-09-02-verified-experience-loop.md](2026-09-02-verified-experience-loop.md) | Verified Experience Loop 实现计划 | ✅ 已交付 |

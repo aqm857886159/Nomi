@@ -53,6 +53,12 @@ export type MemoryEventType =
   | "memory.fact.corrected" // { factId, text, origin } —— 用户改文本=纠正(origin:user,自动提炼永不静默覆盖)
   | "memory.fact.removed"; //  { factId } —— 用户删除(墓碑:删除点之前的旧事件不再重提炼它)
 
+/** experience 域 —— 对话闭环的候选/复用/状态投影；正文经过本地脱敏和长度限制。 */
+export type ExperienceEventType =
+  | "experience.candidate.created" // { candidate }
+  | "experience.candidate.updated" // { candidate }
+  | "experience.reuse.recorded"; // { candidate, reuse }
+
 /** canvas / vendor / review / undo 域在 S4/S5/S6 落地;类型占位见总方案 §1.1。 */
 
 /** 截断信息:被截断字段统一替换为该形状,sidecarRef 指向全文文件(events/sidecar/<seq>-<field>.json)。 */
