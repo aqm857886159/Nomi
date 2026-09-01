@@ -136,6 +136,12 @@ jobs:
       - name: CI-safe user journeys
         if: needs.scope.outputs.journeys == 'true'
         run: xvfb-run -a pnpm run test:journeys
+      # 走查过去是「写完没人跑」的资产：产品按 §1.5 搬家后它们静默腐烂，两次都是红了很久
+      # 才被偶然发现（2026-06 的 j3/j5、2026-08 的语言钮 5 处死锚点红了一个月）。
+      # 清单与准入门槛见 tests/ux/ci-roster.mjs：只收零额度 + 确定性 + 已实测跑绿的走查。
+      - name: CI-safe walkthrough roster
+        if: needs.scope.outputs.desktop == 'true'
+        run: xvfb-run -a pnpm run test:walkthroughs:ci
       - name: Critical canvas acceptance
         if: needs.scope.outputs.canvas == 'critical'
         run: xvfb-run -a pnpm run test:canvas:critical
