@@ -278,7 +278,7 @@ export async function expectNoCjkInEnglishDom(win, { message, allowSelectors = [
       }
       // 去重(同一段中文可能被多个祖先命中)。
       const seen = new Set()
-      return hits.filter((h) => { const k = `${h.where} ${h.text}`; if (seen.has(k)) return false; seen.add(k); return true })
+      return hits.filter((h) => { const k = `${h.where}\0${h.text}`; if (seen.has(k)) return false; seen.add(k); return true })
     },
     { cjkSource: CJK_RE.source, allow: allowSelectors },
   )
