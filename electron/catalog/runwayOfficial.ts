@@ -82,11 +82,107 @@ function typedReferences(value: unknown, type?: "video" | "audio"): Array<Record
   });
 }
 
+/**
+ * Runway 的 `/v1/text_to_video`·`/v1/image_to_video` 是**按模型判别的 union**，每个视频模型有**自己的
+ * `ratio` 枚举**（一手机读 spec：raw.githubusercontent.com/runwayml/openapi/main/openapi.json，2026-09-02 对账）。
+ * 共享 archetype 暴露的友好比例（`adaptive`/`16:9`/`1920:1080`…）**不是每个变体的合法值**：
+ *   - seedance2_5 的 t2v/i2v 枚举是**纯像素比例**（`992:432`/`854:480`/`1280:720`/`960:960`/…/`1080:1920`），
+ *     **不含** `adaptive`/`16:9`/`1:1` 等友好串；而 seedance-2.5 archetype 的默认 `aspect_ratio` 恰是 `adaptive`。
+ *   - seedance2_fast / seedance2_mini 的枚举是 seedance2 全集的**子集**（12 值，止于 `720:1280`），**不含**
+ *     `1920:1080`/`1080:1920`/`3840:*`——而 runway-video archetype 把 `1920:1080`/`1080:1920` 作为可选项暴露。
+ * 2026-09-02 真发实测（提交即 DELETE，见 /tmp/docaudit-b/probe-runway-*.mjs）：Runway seedance2_5 发 `adaptive`/`16:9`/
+ *   `9:16`/`1:1` 全 400 `Validation of body failed`，发 `1280:720`/`720:1280`/`960:960`/`1920:1080`/`854:480` 全
+ *   WIRE-OK（余额不足=校验通过）；seedance2_fast/mini 发 `1920:1080`/`1080:1920` 400，发 `1280:720` WIRE-OK；
+ *   对照 seedance2（全枚举）发 `1920:1080` WIRE-OK。
+ * 故此处建**单一按模型判别的 ratio 归一化点**：把任意共享/友好比例收敛到「该模型 spec 枚举内、按朝向最接近的合法值」，
+ * 枚举外且无法归一 → 丢弃（让 Runway 用默认）。视频图像两侧的 per-model ratio 归一从此都只有这一个出口。
+ */
+const RUNWAY_VIDEO_RATIO_ENUMS: Record<string, readonly string[]> = {
+  // 像素比例族（seedance）：full=seedance2/2.5，subset=fast/mini。2.5 用 854:480/480:854（非 864:496）。
+  seedance2: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280", "2206:946", "1920:1080", "1664:1248", "1440:1440", "1248:1664", "1080:1920", "3840:1646", "3840:2160", "3840:2880", "3840:3840", "2880:3840", "2160:3840"],
+  seedance2_fast: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280"],
+  seedance2_mini: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280"],
+  seedance2_5: ["992:432", "854:480", "752:560", "640:640", "560:752", "480:854", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280", "2206:946", "1920:1080", "1664:1248", "1440:1440", "1248:1664", "1080:1920"],
+  // 友好比例族（透传型）：spec 直接列友好串。
+  hailuo3: ["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"],
+  grok_imagine_1_5: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"],
+  // 像素窄枚举族。
+  wan3: ["832:480", "640:480", "480:480", "480:640", "480:832", "1280:720", "960:720", "720:720", "720:960", "720:1280", "1920:1080", "1440:1080", "1080:1080", "1080:1440", "1080:1920", "auto_480p", "auto_720p", "auto_1080p"],
+  "veo3.1": ["1280:720", "720:1280", "1080:1920", "1920:1080"],
+  "veo3.1_fast": ["1280:720", "720:1280", "1080:1920", "1920:1080"],
+  happyhorse_1_0: ["1280:720", "720:1280", "960:960", "1108:832", "832:1108", "1920:1080", "1080:1920", "1440:1440", "1662:1248", "1248:1662"],
+  gemini_omni_flash: ["1280:720", "720:1280"],
+};
+
+/**
+ * 从任意 Runway ratio 值（像素 `<w>:<h>` 或友好 `16:9`/`1:1` 或 `auto_720p`）判朝向。
+ * `adaptive`/`auto*`/未知 → 方形。像素与友好都走同一个 `<a>:<b>` 解析（`16:9` 也命中）。
+ */
+function runwayVideoRatioOrientation(ratio: string): "square" | "landscape" | "portrait" {
+  const m = ratio.match(/^(\d+)\s*[:x]\s*(\d+)$/);
+  if (!m) return "square";
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  if (!a || !b || a === b) return "square";
+  return a > b ? "landscape" : "portrait";
+}
+
+/**
+ * 在某模型的合法枚举里挑一个与目标朝向匹配的比例。枚举里既可能是像素比例（`1280:720`），也可能是友好比例
+ * （`16:9`）——两者都用 `<a>:<b>` 判朝向。像素值在同朝向内取面积最接近 targetArea 的；友好值（无面积）作兜底：
+ * 同朝向友好值优先取最"常规"的（宽高比最接近 16:9 / 9:16 / 1:1）。枚举里非 `<a>:<b>` 值（`adaptive`/`auto_*`）不参与。
+ */
+function pickRatioForOrientation(enumValues: readonly string[], orientation: "square" | "landscape" | "portrait", targetArea: number): string | undefined {
+  let bestPixel: string | undefined;
+  let bestPixelScore = Infinity;
+  let bestFriendly: string | undefined;
+  let bestFriendlyScore = Infinity;
+  const idealAspect = orientation === "square" ? 1 : orientation === "landscape" ? 16 / 9 : 9 / 16;
+  for (const value of enumValues) {
+    const m = value.match(/^(\d+)\s*[:x]\s*(\d+)$/);
+    if (!m) continue; // adaptive/auto_* 不参与朝向匹配
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    const o = a === b ? "square" : a > b ? "landscape" : "portrait";
+    if (o !== orientation) continue;
+    if (a >= 100 || b >= 100) {
+      // 像素比例：取面积最接近 targetArea 的。
+      const score = Math.abs(a * b - targetArea);
+      if (score < bestPixelScore) { bestPixelScore = score; bestPixel = value; }
+    } else {
+      // 友好比例（如 16:9）：取宽高比最接近该朝向理想值的。
+      const score = Math.abs(a / b - idealAspect);
+      if (score < bestFriendlyScore) { bestFriendlyScore = score; bestFriendly = value; }
+    }
+  }
+  return bestPixel ?? bestFriendly;
+}
+
+/**
+ * 单一 per-model Runway 视频 ratio 归一化点。ratio 已是该模型合法枚举成员 → 原样返回；否则按朝向映射到枚举内
+ * 面积最接近 1280×720 的合法像素值；连朝向都无匹配 → 返回 undefined（调用方据此 delete，让 Runway 用默认）。
+ * `adaptive`（对含 adaptive 的族如 hailuo 是合法值 → 直接保留；对不含的族按方形归一）。
+ */
+export function normalizeRunwayVideoRatio(model: string, ratio: string): string | undefined {
+  const enumValues = RUNWAY_VIDEO_RATIO_ENUMS[model];
+  if (!enumValues) return ratio || undefined; // 未建模的模型不动
+  const trimmed = ratio.trim();
+  if (!trimmed) return undefined;
+  if (enumValues.includes(trimmed)) return trimmed; // 已合法
+  const orientation = runwayVideoRatioOrientation(trimmed);
+  return pickRatioForOrientation(enumValues, orientation, 1280 * 720);
+}
+
 function normalizeRunwaySeedance25Body(body: unknown, _context?: RequestTransformContext): unknown {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     throw new Error("Runway Seedance 2.5 请求体必须是 JSON 对象");
   }
   const input = body as Record<string, unknown>;
+  // Seedance 2.5 的 ratio 枚举是纯像素值（无 adaptive/友好串）；把共享默认（adaptive/16:9…）收敛到合法像素比例。
+  if (typeof input.ratio === "string") {
+    const mapped = normalizeRunwayVideoRatio("seedance2_5", input.ratio);
+    if (mapped) input.ratio = mapped; else delete input.ratio;
+  }
   const images = uriArray(input.reference_image_urls);
   const videos = uriArray(input.reference_video_urls);
   const audios = uriArray(input.reference_audio_urls);
@@ -150,18 +246,12 @@ function normalizeRunwayVideoContract(body: unknown, _context?: RequestTransform
   const model = String(input.model || "");
   const hasPromptImage = Object.prototype.hasOwnProperty.call(input, "promptImage");
 
-  // The current shared ratio defaults are intentionally friendly strings;
-  // map them to the official discriminator enums at the transport boundary.
+  // The shared archetype ratio defaults (friendly strings, or high-res pixel values not in every
+  // variant's enum) are collapsed to each model's official discriminator enum via the single
+  // per-model normalizer. This closes two live drifts (2026-09-02): seedance2_fast/mini reject the
+  // high-res 1920:1080/1080:1920 that the shared control exposes (only in seedance2's full enum),
+  // and every family's friendly default is mapped to a member of its own spec enum by orientation.
   const ratio = String(input.ratio || "").trim();
-  const ratioFamilies: Record<string, readonly string[]> = {
-    seedance: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280", "2206:946", "1920:1080", "1664:1248", "1440:1440", "1248:1664", "1080:1920", "3840:1646", "3840:2160", "3840:2880", "3840:3840", "2880:3840", "2160:3840"],
-    wan: ["832:480", "640:480", "480:480", "480:640", "480:832", "1280:720", "960:720", "720:720", "720:960", "720:1280", "1920:1080", "1440:1080", "1080:1080", "1080:1440", "1080:1920", "auto_480p", "auto_720p", "auto_1080p"],
-    hailuo: ["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"],
-    grok: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"],
-    veo: ["1280:720", "720:1280", "1080:1920", "1920:1080"],
-    happyhorse: ["1280:720", "720:1280", "960:960", "1108:832", "832:1108", "1920:1080", "1080:1920", "1440:1440", "1662:1248", "1248:1662"],
-    gemini: ["1280:720", "720:1280"],
-  };
   const family = model.startsWith("seedance2") ? "seedance"
     : model === "wan3" ? "wan"
       : model === "hailuo3" ? "hailuo"
@@ -170,13 +260,9 @@ function normalizeRunwayVideoContract(body: unknown, _context?: RequestTransform
             : model === "happyhorse_1_0" ? "happyhorse"
               : model === "gemini_omni_flash" ? "gemini"
                 : null;
-  if (family && ratio && !ratioFamilies[family].includes(ratio)) {
-    const normalized = ratio === "16:9" || (ratio === "1280:720" && (family === "hailuo" || family === "grok"))
-      ? (family === "hailuo" || family === "grok" ? "16:9" : "1280:720")
-      : ratio === "9:16" || (ratio === "720:1280" && (family === "hailuo" || family === "grok"))
-        ? (family === "hailuo" || family === "grok" ? "9:16" : "720:1280")
-        : undefined;
-    if (normalized) input.ratio = normalized;
+  if (family && ratio) {
+    const mapped = normalizeRunwayVideoRatio(model, ratio);
+    if (mapped) input.ratio = mapped;
     else delete input.ratio;
   }
 
