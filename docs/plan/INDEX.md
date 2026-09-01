@@ -174,3 +174,4 @@
 | [v0.8-execution-token-opt-and-phase-b.md](v0.8-execution-token-opt-and-phase-b.md) | v0.8 Token 优化 + Phase B 接入 | 📎 |
 | [v0.8-handoff-2026-05-30.md](v0.8-handoff-2026-05-30.md) | v0.8 用户旅程交接 | 📎 |
 | [2026-06-07-backlog-handoff.md](2026-06-07-backlog-handoff.md) | 剩余 backlog 冷启动交接 | 📎 |
+| [2026-09-02-english-system-prompts.md](2026-09-02-english-system-prompts.md) | 英文版 AI 系统提示词（含 assets 大条·产物也英文·须真实生成 A/B） | 🚧 |
