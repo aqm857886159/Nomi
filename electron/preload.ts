@@ -288,6 +288,15 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     deconstruct: (payload: unknown) =>
       ipcRenderer.invoke("nomi:video:deconstruct", payload) as Promise<unknown>,
   },
+  connector: {
+    tikhub: {
+      keyStatus: () => ipcRenderer.invoke("nomi:connector:tikhub:key-status") as Promise<unknown>,
+      saveKey: (payload: unknown) => ipcRenderer.invoke("nomi:connector:tikhub:save-key", payload) as Promise<unknown>,
+      clearKey: () => ipcRenderer.invoke("nomi:connector:tikhub:clear-key") as Promise<unknown>,
+      resolveShareUrl: (payload: unknown) => ipcRenderer.invoke("nomi:connector:tikhub:resolve-share-url", payload) as Promise<unknown>,
+      importToProject: (payload: unknown) => ipcRenderer.invoke("nomi:connector:tikhub:import-to-project", payload) as Promise<unknown>,
+    },
+  },
   screenshot: {
     get: () => ipcRenderer.invoke("nomi:screenshot:get") as Promise<unknown>,
     set: (payload: unknown) => ipcRenderer.invoke("nomi:screenshot:set", payload) as Promise<unknown>,

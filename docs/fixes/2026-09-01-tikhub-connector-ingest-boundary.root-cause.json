@@ -1,0 +1,116 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-01-tikhub-connector-ingest-boundary",
+  "problem_type": "new high-risk-path code (external data connector ingesting third-party scraped media) that could reintroduce four known risk classes: unbound IPC surface, plaintext BYO-key at rest, unrestricted outbound SSRF, and provenance loss on ingested media",
+  "symptom": "This is a preventive structural contract for net-new code, not a corrective fix for an observed failure. The TikHub connector (v1) adds a code path where a user-supplied share link is resolved to a third-party media URL and the bytes are ingested into a project. Three of the touched files sit on high-risk prefixes (electron/catalog/ for the credential store, electron/assets/ for the media store, and an electron *Ipc.ts registration), so without an explicit boundary the change could silently (a) register an unguarded IPC channel, (b) persist the BYO API key as plaintext, (c) fetch an attacker-influenced URL without SSRF/allowlist protection, or (d) land scraped media with no source evidence so it is later treated as commercially usable.",
+  "direct_cause": "Introducing a data connector requires new surface in exactly the places the ratchet marks high-risk: a preload/main IPC pair (tikhubConnectorIpc.ts), reuse of the credential-at-rest store (secrets.ts / apiKeysByVendor), an outbound HTTP client, and a write into projectAssetStore. Each of these is an entry point for a class of regression the codebase already guards elsewhere; the connector must route through the existing shared boundaries rather than open a parallel unprotected path.",
+  "class_root": "External-source ingestion is a class, not a one-off: any connector that turns a user/agent-supplied reference into fetched bytes has the same four obligations (sender-bound IPC, encrypted-only credential write, hardenedFetch+origin allowlist for every outbound call, and AssetSourceEvidence with rightsStatus:'unknown' for every landed media). The failure mode of doing it per-connector is that one connector forgets one obligation and reintroduces a plaintext key, an SSRF hole, or unattributed media. The remedy is to make each obligation a single shared boundary that every ingestion path is forced through, and to prove the new connector routes through them.",
+  "affected_population": [
+    "Every user who configures the TikHub connector and pastes a Douyin/TikTok share link: their BYO key must never land as plaintext, and the resolved third-party URL must be fetched only under SSRF/allowlist protection",
+    "Every project video asset ingested via a connector: it must carry AssetSourceEvidence with rightsStatus:'unknown' so downstream delivery never infers it is licensed for commercial use",
+    "Any future data connector added on the same high-risk paths: it inherits the identical four obligations and must reuse these boundaries rather than open a parallel unprotected path"
+  ],
+  "scope_paths": [
+    "electron/connectors/tikhubConnector.ts",
+    "electron/connectors/tikhubConnectorService.ts",
+    "electron/connectors/tikhubConnectorIpc.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/catalog/secrets.ts"
+  ],
+  "entry_points": [
+    "registerTikhubConnectorIpc (electron/connectors/tikhubConnectorIpc.ts) — the five IPC handlers (key-status/save-key/clear-key/resolve-share-url/import-to-project); every one calls assertTrustedSender before touching credentials or the network",
+    "fetchTikhubJson (electron/connectors/tikhubConnector.ts) — the only outbound path; goes through hardenedFetch with a hard api.tikhub.io host check, redirects disabled, Authorization declared sensitive",
+    "saveTikhubApiKey (electron/connectors/tikhubConnectorService.ts) — writes the BYO key only via the catalog credential upsert, which is safeStorage-encrypted and fail-closed; no plaintext side path",
+    "importTikhubShareUrl → importRemoteAsset (electron/assets/projectAssetStore.ts) — lands the resolved media with a sanitized AssetSourceEvidence pinned to rightsStatus:'unknown'"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://api.tikhub.io/openapi.json",
+      "checked_at": "2026-09-01",
+      "purpose": "Reconcile the exact endpoints, query params, auth scheme, and response envelope this connector exposes. Confirmed Authorization: Bearer {token}; ResponseModel envelope {code,message,message_zh,request_id,data} with data typed anyOf:[{},null] (untyped platform passthrough); the only OpenAPI-documented clean direct-URL field is data.original_video_url on fetch_video_high_quality_play_url (per its endpoint description, $0.005/call)."
+    }
+  ],
+  "invariants": [
+    "Every connector IPC handler binds its sender: no registration reaches credentials or the network without assertTrustedSender (held by check:ipc-sender-binding).",
+    "The connector's BYO key is written only through the catalog credential store, which is safeStorage-encrypted and fail-closed; no code path persists the key as plaintext.",
+    "Every outbound connector request goes through hardenedFetch with an api.tikhub.io origin allowlist and redirects disabled; there is no bare fetch, and the Authorization header is declared sensitive so it is stripped on cross-origin redirects.",
+    "Every media landed through importRemoteAsset from a connector carries AssetSourceEvidence sanitized to source='connector' with rightsStatus pinned to 'unknown'; commercial usability is never inferred from scraped provenance."
+  ],
+  "generality_proof": "The four invariants are enforced by shared boundaries that all ingestion paths pass through, not by connector-local checks. sanitizeSourceEvidence in projectAssetStore.ts is the single write choke point that pins rightsStatus:'unknown' for any caller supplying source evidence (browser capture, future connectors, and TikHub alike); it whitelists fields so an untrusted payload cannot smuggle a different rightsStatus. The credential write goes through the same applyApiKeyUpsert path as every vendor key (safeStorage-only, fail-closed, non-header-safe-char guarded). Outbound goes through hardenedFetch, the same SSRF/DoS boundary importRemoteAsset and extractVideoFrame already use. IPC binding is enforced generically by check:ipc-sender-binding over all electron *Ipc.ts registrations. A second connector added tomorrow inherits all four without new per-connector code.",
+  "shared_boundaries": [
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "sanitizeSourceEvidence",
+      "responsibility": "Single write choke point that normalizes any caller-supplied source evidence into the connector provenance shape and pins rightsStatus:'unknown'; whitelists fields so no untrusted payload can assert a different rights status or smuggle arbitrary metadata into the asset sidecar. Every media landed via importRemoteAsset (browser capture, TikHub, any future connector) passes through it."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "importRemoteAsset (http + data-url branches) via sanitizeSourceEvidence",
+      "disposition": "enforced",
+      "evidence": "Both the http and data-url branches thread the sanitized sourceEvidence into writeAsset metadata; sanitizeSourceEvidence hard-pins rightsStatus:'unknown' and whitelists fields. projectAssetStore.sourceEvidence.test.ts asserts a payload claiming rightsStatus:'commercial' is coerced to 'unknown' and unknown fields are dropped."
+    },
+    {
+      "path": "electron/connectors/tikhubConnector.ts",
+      "entry_point": "fetchTikhubJson outbound via hardenedFetch",
+      "disposition": "enforced",
+      "evidence": "The only outbound path hard-checks url.hostname === api.tikhub.io, disables redirects, and declares Authorization sensitive. tikhubTransport.test.ts pins the Bearer header, sensitiveHeaders, allowRedirect:false, throwOnNon2xx:false, and the status→kind error classification."
+    },
+    {
+      "path": "electron/connectors/tikhubConnectorIpc.ts",
+      "entry_point": "registerTikhubConnectorIpc handlers via assertTrustedSender",
+      "disposition": "enforced",
+      "evidence": "All five handlers call assertTrustedSender before importing the service; check:ipc-sender-binding scans every electron *Ipc.ts registration and reports 0 new unguarded (the new handlers are guarded, so they never enter the unguarded baseline)."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/assets/projectAssetStore.ts",
+    "invariant": "Any media ingested through importRemoteAsset with source evidence lands with rightsStatus pinned to 'unknown'; the rights status can never be raised by a caller-supplied payload.",
+    "failure_mode": "Without the single sanitizer, a connector (or a compromised renderer payload) could attach source evidence asserting rightsStatus:'commercial' or 'licensed', and scraped third-party media would later be treated as safe for commercial delivery.",
+    "exception_policy": "none",
+    "strategy": "Route all source-evidence attachment through one sanitizeSourceEvidence choke point in projectAssetStore that whitelists fields and hard-codes rightsStatus:'unknown', so every current and future ingestion path is forced through it rather than writing evidence directly.",
+    "artifacts": [
+      "electron/assets/projectAssetStore.ts",
+      "electron/assets/projectAssetStore.sourceEvidence.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/assets/projectAssetStore.sourceEvidence.test.ts",
+    "electron/connectors/tikhubConnector.test.ts",
+    "electron/connectors/tikhubTransport.test.ts"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "External-source ingestion is a recurring class: every data connector that turns a user/agent-supplied reference into fetched bytes carries the same four obligations. Rather than re-checking them per connector, the change routes each obligation through an existing shared boundary (sanitizeSourceEvidence for provenance, applyApiKeyUpsert for credentials, hardenedFetch for outbound, assertTrustedSender for IPC) and proves the TikHub connector goes through them.",
+    "same_class_scan": [
+      "Enumerated every path that lands remote media into a project via importRemoteAsset: browser capture / browser-upload, generation outputs, decomposeLayers, and now the TikHub connector — all now pass through the single sanitizeSourceEvidence choke point when they supply source evidence, and none writes rightsStatus directly.",
+      "Enumerated every BYO-credential write: all vendor keys and the TikHub connector key go through applyApiKeyUpsert (safeStorage-only, fail-closed, non-header-safe-char guarded); confirmed no connector code opens a plaintext side path (secrets.ts only re-exports the status type owner; the encrypt/decrypt primitives are unchanged).",
+      "Enumerated every connector outbound call: fetchTikhubJson is the only one and it goes through hardenedFetch with an api.tikhub.io host check and redirects disabled — same SSRF/DoS boundary importRemoteAsset and extractVideoFrame already use; grepped the connectors directory for bare fetch( and found none.",
+      "Enumerated every electron *Ipc.ts registration via check:ipc-sender-binding: the five new TikHub handlers all call assertTrustedSender and therefore never enter the unguarded baseline, which stays at its prior count."
+    ]
+  },
+  "regression_tests": [
+    "electron/assets/projectAssetStore.sourceEvidence.test.ts",
+    "electron/connectors/tikhubConnector.test.ts",
+    "electron/connectors/tikhubTransport.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "This is net-new connector code with no prior implementation to remove; there is no parallel or legacy ingestion path being replaced. secrets.ts changes only relocate the ApiKeyDecryptStatus owner to the neutral contract layer and re-export it, leaving all existing import sites and behavior intact."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency is added, upgraded, or retained by this change. TikHub is reached over plain HTTPS through the existing hardenedFetch client; there is no SDK or new package.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data is rewritten and no existing behavior changes. secrets.ts relocates the ApiKeyDecryptStatus members to electron/shared/contracts/apiKeyStatus.ts and re-exports the type so every existing import path keeps working unchanged. projectAssetStore gains a sourceEvidence passthrough that is inert unless a caller supplies connector source evidence, so all prior importRemoteAsset callers are unaffected. The TikHub key rides the same apiKeysByVendor safeStorage store as every vendor key with no schema change.",
+  "residual_risks": [
+    "TikHub is a third-party scraping API (not official platform access). Resolved direct URLs are short-lived and can break as platform anti-bot measures change; the connector surfaces this honestly in its failure messages but cannot prevent upstream fluctuation.",
+    "The OpenAPI types ResponseModel.data as an untyped passthrough, so the aweme play-URL field paths for fetch_one_video_by_share_url are not machine-documented; the parser walks defensive candidate paths and the fixtures are synthetic, to be confirmed by the gated TIKHUB_E2E=1 smoke against a real key after delivery.",
+    "rightsStatus is pinned to 'unknown', which is correct but conservative: legitimately reusable content is also marked unknown, so downstream commercial-use gating must treat 'unknown' as 'do not assume licensed' rather than blocking outright."
+  ]
+}

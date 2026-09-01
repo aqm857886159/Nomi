@@ -477,12 +477,35 @@ type RemoteAssetImportOptions = {
   certificationEvidence?: CertificationMediaEvidence;
 };
 
+/**
+ * Sanitize a caller-supplied source-evidence record into the connector provenance
+ * shape (docs/plan/2026-09-01-tikhub-connector-v1.md). Only whitelisted fields
+ * survive so an untrusted payload cannot smuggle arbitrary metadata into the
+ * sidecar. rightsStatus is pinned to 'unknown': connector-ingested media is never
+ * inferred to be commercially usable.
+ */
+export function sanitizeSourceEvidence(raw: unknown): JsonRecord | undefined {
+  if (!isJsonRecord(raw) || raw.source !== "connector") return undefined;
+  const connectorId = String(raw.connectorId || "").trim();
+  if (!connectorId) return undefined;
+  return {
+    source: "connector",
+    connectorId,
+    originalUrl: String(raw.originalUrl || "").trim(),
+    resolvedUrl: String(raw.resolvedUrl || "").trim(),
+    platform: String(raw.platform || "").trim(),
+    rightsStatus: "unknown",
+    fetchedAt: String(raw.fetchedAt || "").trim() || nowIso(),
+  };
+}
+
 export async function importRemoteAsset(payload: unknown, options: RemoteAssetImportOptions = {}): Promise<unknown> {
   const raw = payload as JsonRecord;
   const projectId = String(raw.projectId || "").trim();
   const url = String(raw.url || "").trim();
   if (!projectId) throw new Error("projectId is required");
   if (!url) throw new Error("url is required");
+  const sourceEvidence = sanitizeSourceEvidence(raw.sourceEvidence);
   if (url.startsWith("nomi-local://")) {
     return {
       id: stableLocalReferenceId(projectId, url),
@@ -502,7 +525,7 @@ export async function importRemoteAsset(payload: unknown, options: RemoteAssetIm
       parsed.bytes,
       String(raw.fileName || `asset-${Date.now()}.${ext}`),
       options.certificationEvidence?.contentType || parsed.contentType,
-      { kind: raw.kind || "generated", originalUrl: null, ...(options.certificationEvidence ? { certificationEvidence: options.certificationEvidence } : {}) },
+      { kind: raw.kind || "generated", originalUrl: null, ...(sourceEvidence ? { sourceEvidence } : {}), ...(options.certificationEvidence ? { certificationEvidence: options.certificationEvidence } : {}) },
     );
   }
   if (!/^https?:\/\//i.test(url)) throw new Error("Only http(s), data, and nomi-local assets are supported");
@@ -524,6 +547,7 @@ export async function importRemoteAsset(payload: unknown, options: RemoteAssetIm
     kind: raw.kind || "generated",
     originalUrl: url,
     ownerNodeId: raw.ownerNodeId || null,
+    ...(sourceEvidence ? { sourceEvidence } : {}),
     ...(options.certificationEvidence ? { certificationEvidence: options.certificationEvidence } : {}),
   });
 }

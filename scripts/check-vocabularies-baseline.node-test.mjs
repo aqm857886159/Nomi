@@ -161,7 +161,7 @@ test('repository credential and catalog health vocabularies preserve fail-closed
   const baseline = JSON.parse(fs.readFileSync(repositoryBaselinePath, 'utf8'))
   const registeredBySite = new Map(baseline.registered.map((entry) => [entry.site, entry]))
   const credential = registeredBySite.get(
-    'electron/catalog/secrets.ts::type:ApiKeyDecryptStatus/type-union',
+    'electron/shared/contracts/apiKeyStatus.ts::variable:API_KEY_DECRYPT_STATUSES/as-const',
   )
   const health = registeredBySite.get(
     'src/workbench/api/modelCatalogApi.ts::type:ModelCatalogHealthIssueCode/type-union',

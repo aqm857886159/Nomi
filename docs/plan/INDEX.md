@@ -22,6 +22,7 @@
 | [2026-08-31-asset-upload-routing.md](2026-08-31-asset-upload-routing.md) | 本地图片/视频/音频统一上传路由、供应商上传 API 与可选 R2 relay | 🚧 |
 | [2026-09-01-provider-proxy-and-onboarding-hardening.md](2026-09-01-provider-proxy-and-onboarding-hardening.md) | #258 拆项①③：per-connection provider proxy（全局默认+单点覆盖，私网 bypass+凭据脱敏）+ onboarding 加固（抽 useOnboardingConnectionTest、CodexLocalImageCard 静默失败修复） | 🚧 |
 | [2026-09-01-credential-config-at-rest-encryption.md](2026-09-01-credential-config-at-rest-encryption.md) | 可携带凭据的连接配置（proxyUrl 的 user:pass、extraHeaders 的 Authorization）升到与 API key 同级的 safeStorage 加密落盘层 + 字段分级守卫（P2 类级修） | 🚧 |
+| [2026-09-01-tikhub-connector-v1.md](2026-09-01-tikhub-connector-v1.md) | TikHub 数据 connector v1：分享链接→无水印直链→喂现有拆解引擎（native-api / BYO-key / effect=spend / AssetSourceEvidence） | 🚧 |
 | [2026-06-07-apimart-curated-onboarding.md](2026-06-07-apimart-curated-onboarding.md) | 策展两家(kie+apimart)一键接入；战略从「通用接入」转向 | ✅ |
 | [2026-06-06-universal-model-onboarding.md](2026-06-06-universal-model-onboarding.md) | 「描述符+通用解释器接长尾」研究稿 | ⛔ |
 | [2026-05-30-onboarding-schema-first-extraction.md](2026-05-30-onboarding-schema-first-extraction.md) | 参数抽取从 curl-only 升级为 schema-first | 🚧 |

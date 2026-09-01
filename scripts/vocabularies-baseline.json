@@ -72,9 +72,9 @@
       "reason": "模型目录/供应商调用域的结果词表（ / fail / querying / success），成员由该供应商或调用协议定义。"
     },
     {
-      "site": "electron/catalog/secrets.ts::type:ApiKeyDecryptStatus/type-union",
+      "site": "electron/shared/contracts/apiKeyStatus.ts::variable:API_KEY_DECRYPT_STATUSES/as-const",
       "members": ["locked", "missing", "needs_resave", "ok"],
-      "reason": "ApiKeyDecryptStatus 是首次真实执行时的凭据可解密性合同：missing 表示没有可用记录，needs_resave 表示 legacy plaintext 仅可用于迁移提示且不可执行，locked 表示 safeStorage 密文存在但宿主无法解密，ok 表示取得可用明文；它会触碰解密能力，与零解密的 textBrain metadata readiness 正交。"
+      "reason": "ApiKeyDecryptStatus 是首次真实执行时的凭据可解密性合同：missing 表示没有可用记录，needs_resave 表示 legacy plaintext 仅可用于迁移提示且不可执行，locked 表示 safeStorage 密文存在但宿主无法解密，ok 表示取得可用明文；它会触碰解密能力，与零解密的 textBrain metadata readiness 正交。owner 已上移到中立契约层 electron/shared/contracts/apiKeyStatus.ts（renderer connector DTO 与主进程凭据层都从此 derive，跨进程不各写一份）；secrets.ts 只再导出，成员唯一定义在此 as-const tuple。"
     },
     {
       "site": "electron/export/exportTypes.ts::type:ExportJobStatus/type-union",

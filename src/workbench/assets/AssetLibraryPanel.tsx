@@ -23,7 +23,7 @@ import { importAudioFilesToLibrary, type AudioImportResult } from './importAudio
 import type { GenerationAssetImportResult } from '../generationCanvas/adapters/assetImportAdapter'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
-import { confirmDialog, DesignEmptyState, NomiLoadingMark, TooltipProvider } from '../../design'
+import { confirmDialog, DesignEmptyState, NomiLoadingMark, promptDialog, TooltipProvider } from '../../design'
 import { acceptAttrForKinds, mediaKindFromExtension } from '../../../electron/assets/mediaTypes'
 import { toast } from '../../ui/toast'
 import {
@@ -50,6 +50,7 @@ import {
   type AssetGridActivationEvent,
 } from './assetLibraryUsage'
 import { markLibraryUsed, sortByLibraryUsage, useLibraryUsageVersion } from '../library/libraryDiscovery'
+import { runPasteShareLinkImport } from './pasteShareLinkImport'
 
 const DEFAULT_GRID_COLS = 3
 const ESTIMATED_ROW_HEIGHT = 121
@@ -304,6 +305,23 @@ export function AssetLibraryContent({
     if (unsupported.length) {
       toast(t('assetLibrary.skippedUnsupported', { count: unsupported.length }), 'warning')
     }
+  }, [projectId, refreshAllProjectAssets, refreshProjectAssets, t])
+
+  // 贴链接导入（TikHub）：分享链接 → 无水印直链 → 落成项目视频素材。落库后回流刷新，
+  // 素材即出现在库里供用户用现有节点拆解。失败态三段式在 pasteShareLinkImport 里。
+  const handlePasteLink = React.useCallback(() => {
+    void runPasteShareLinkImport(projectId, {
+      prompt: promptDialog,
+      toast,
+      t,
+      onImported: () => {
+        refreshProjectAssets()
+        refreshAllProjectAssets()
+      },
+      onNeedKey: () => {
+        window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'ai', section: 'tikhub-connector' } }))
+      },
+    })
   }, [projectId, refreshAllProjectAssets, refreshProjectAssets, t])
 
   const isEmpty = scopedAssets.length === 0 && visibleFolders.length === 0
@@ -564,6 +582,7 @@ export function AssetLibraryContent({
         <AssetLibraryToolbar
           compact={compact}
           uploadInputRef={uploadInputRef}
+          onPasteLink={handlePasteLink}
           sourceOptions={sourceOptions}
           sourceFilter={sourceFilter}
           onSourceFilterChange={setSourceFilter}

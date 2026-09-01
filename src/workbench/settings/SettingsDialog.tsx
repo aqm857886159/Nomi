@@ -19,6 +19,7 @@ import { AboutSection } from './AboutSection'
 import { ProjectLocationSection } from './ProjectLocationSection'
 import { AiModelsSection } from './AiModelsSection'
 import { SystemPromptSection } from './SystemPromptSection'
+import { TikhubConnectorCard } from './TikhubConnectorCard'
 import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
 import { AutomationPermissionsSection } from './AutomationPermissionsSection'
 import { defaultAutomationPolicySettings } from './settingsAutomationView'
@@ -49,7 +50,7 @@ const LOCALE_LABEL_KEY: Record<AppLocale, string> = { 'zh-CN': 'common.chinese',
 // 手法按 §1.5.3 取代价最低的那档：**分组**（代价 0），不是把东西收进 ▾。
 // plan: docs/plan/2026-08-12-model-settings-home-and-comfyui-workflow-page.md
 export type SettingsTab = 'file' | 'models' | 'ai' | 'automation' | 'general' | 'about'
-export type SettingsInitialSection = 'automation' | 'cursor-host' | 'ai-models' | 'production-policy' | null
+export type SettingsInitialSection = 'automation' | 'cursor-host' | 'ai-models' | 'production-policy' | 'tikhub-connector' | null
 
 const TABS: { id: SettingsTab; icon: typeof IconFolder; labelKey: string }[] = [
   { id: 'file', icon: IconFolder, labelKey: 'settings.tab.file' },
@@ -395,6 +396,9 @@ export function SettingsDialog({
                 {/* 系统提示词的家（用户 2026-08-17 拍板）：过去只能在创作面板 popover 的 64px 只读小框里看。
                     它是「AI 怎么干活」的设置，和本 tab 的模型策略同源，故归位到这里而不是新开 tab（§1.5 归位）。 */}
                 <SystemPromptSection />
+                {/* TikHub 数据源（分享链接直拆）：BYO-key 数据 connector，与本 tab 的上传通道/模型策略同为
+                    「模型数据管路」，故归位到这里而不是新开入口（§1.5 归位）。见 2026-09-01-tikhub-connector-v1.md。 */}
+                <TikhubConnectorCard />
               </fieldset>
             ) : tab === 'automation' ? (
               <fieldset

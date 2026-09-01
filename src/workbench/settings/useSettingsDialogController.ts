@@ -23,6 +23,7 @@ function normalizeInitialSection(section: string | undefined): SettingsInitialSe
     || section === 'automation'
     || section === 'ai-models'
     || section === 'production-policy'
+    || section === 'tikhub-connector'
     ? section
     : null
 }

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconChevronLeft, IconFilter, IconFolderPlus, IconPlus, IconTrash } from '@tabler/icons-react'
+import { IconChevronLeft, IconFilter, IconFolderPlus, IconLink, IconPlus, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { DesignSearchInput } from '../../design'
 import { AssetKindFilterMenu, NewFolderInput } from './AssetLibraryPanelParts'
@@ -16,6 +16,8 @@ type SourceOption = {
 export type AssetLibraryToolbarProps = {
   compact: boolean
   uploadInputRef: React.RefObject<HTMLInputElement | null>
+  /** 贴分享链接导入（TikHub 解析无水印直链 → 落项目视频素材）。 */
+  onPasteLink: () => void
   sourceOptions: readonly SourceOption[]
   sourceFilter: AssetLibrarySourceFilter
   onSourceFilterChange: (value: AssetLibrarySourceFilter) => void
@@ -57,6 +59,7 @@ export type AssetLibraryToolbarProps = {
 export function AssetLibraryToolbar({
   compact,
   uploadInputRef,
+  onPasteLink,
   sourceOptions,
   sourceFilter,
   onSourceFilterChange,
@@ -105,6 +108,23 @@ export function AssetLibraryToolbar({
     >
       <IconPlus size={compact ? 12 : 13} stroke={2} />
       {t('assetLibrary.upload')}
+    </button>
+  )
+
+  const pasteLinkButton = (
+    <button
+      type="button"
+      className={cn(
+        'inline-flex shrink-0 items-center justify-center rounded-full border border-nomi-line bg-nomi-paper',
+        'cursor-pointer text-nomi-ink-65 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
+        'hover:border-nomi-ink-20 hover:bg-nomi-ink-05 hover:text-nomi-ink',
+        compact ? 'h-[30px] w-[30px]' : 'h-7 w-7',
+      )}
+      aria-label={t('assetLibrary.pasteLink.button')}
+      title={t('assetLibrary.pasteLink.button')}
+      onClick={onPasteLink}
+    >
+      <IconLink size={compact ? 14 : 15} stroke={1.8} aria-hidden="true" />
     </button>
   )
 
@@ -211,6 +231,7 @@ export function AssetLibraryToolbar({
     <div className={cn('grid gap-2', compact ? 'px-3 py-3' : 'px-3 py-2.5')}>
       <div className={cn('flex min-w-0 items-center gap-2')}>
         {sourceTabs}
+        {pasteLinkButton}
         {uploadButton}
       </div>
       <div className="flex min-w-0 items-center gap-2">

@@ -5,6 +5,7 @@
 // 不可用时（如无 keyring 的 rootless Linux）新写入 fail-closed；legacy 明文只保留迁移识别。
 // 目录读取不触碰钥匙串，只有明确的凭据写操作才尝试加密。
 import { safeStorage } from "electron";
+import type { ApiKeyDecryptStatus } from "../shared/contracts/apiKeyStatus";
 
 export type ApiKeyRecord = {
   vendorKey: string;
@@ -164,8 +165,11 @@ export function decryptApiKeyRecord(rec: ApiKeyRecord | undefined): string {
  *
  * 注意「密文非空 vs 明文非空」的分野：只有 safeStorage 记录才会落进 `ok` / `locked`；plain/legacy
  * 非空统一落进 `needs_resave`，空值仍是 `missing`。
+ *
+ * 成员定义已上移到中立契约单一 owner electron/shared/contracts/apiKeyStatus.ts（renderer 侧 connector DTO
+ * 也从那里 derive，跨进程不再各写一份）；此处 import 后再导出，保持既有 import 路径不变（P1）。
  */
-export type ApiKeyDecryptStatus = "ok" | "missing" | "locked" | "needs_resave";
+export type { ApiKeyDecryptStatus };
 
 export function apiKeyDecryptStatus(rec: ApiKeyRecord | undefined): ApiKeyDecryptStatus {
   if (!rec || !rec.apiKey) return "missing";

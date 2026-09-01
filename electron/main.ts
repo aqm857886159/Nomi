@@ -55,6 +55,7 @@ import { assertTrustedSender } from "./ipcSenderGuard";
 import { registerTrustedSyncIpc } from "./trustedSyncIpc";
 import { registerScreenshotIpc } from "./screenshot/screenshotIpc";
 import { registerVideoIpc } from "./video/videoIpc";
+import { registerTikhubConnectorIpc } from "./connectors/tikhubConnectorIpc";
 import { desktopT, registerI18nIpc, setDesktopLocale } from "./i18n";
 import { registerSettingsIpc } from "./settings/registerSettingsIpc";
 import { registerIntegrationHandoffIpc } from "./integrationCertification/handoffQueue";
@@ -593,6 +594,7 @@ function registerIpc(): void {
   registerSettingsIpc();
   registerVideoIpc();
   registerScreenshotIpc();
+  registerTikhubConnectorIpc();
   ipcMain.handle("nomi:image:decompose-layers", async (event, payload) => {
     assertTrustedSender(event);
     const { decomposeLayers } = await import("./image/decomposeLayers");
