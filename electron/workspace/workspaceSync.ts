@@ -3,13 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { readJsonFile, writeJsonFileAtomic } from "../jsonFile";
 import { resolveWorkspaceRelativePath, workspaceNomiDir, workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
-
-export type WorkspaceSyncStatus =
-  | "ready"
-  | "external-change"
-  | "conflict"
-  | "missing-assets"
-  | "corrupt-manifest";
+import type { WorkspaceSyncInspection } from "../shared/workspaceSyncContracts";
+export type { WorkspaceSyncInspection, WorkspaceSyncStatus } from "../shared/workspaceSyncContracts";
 
 export type WorkspaceSyncState = {
   schemaVersion: 1;
@@ -18,17 +13,6 @@ export type WorkspaceSyncState = {
   contentHash: string;
   writerId: string;
   writtenAt: string;
-};
-
-export type WorkspaceSyncInspection = {
-  status: WorkspaceSyncStatus;
-  manifestExists: boolean;
-  backupExists: boolean;
-  referencedAssetCount: number;
-  missingAssetCount: number;
-  observedRevision: number | null;
-  lastWriterId: string | null;
-  contentHash: string | null;
 };
 
 const LOCAL_ASSET_RE = /nomi-local:\/\/asset\/[^/]+\/([^"'\s]+)/g;

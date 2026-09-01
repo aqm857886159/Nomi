@@ -1,6 +1,6 @@
 import type { ExportJobEvent, ExportJobSnapshot, ExportJobVerification } from '../../electron/export/exportJobManager'
 import type { WorkspaceFileListResult } from '../../electron/workspace/workspaceFileIndex'
-import type { WorkspaceSyncInspection } from '../../electron/workspace/workspaceSync'
+import type { WorkspaceSyncInspection } from '../../electron/shared/workspaceSyncContracts'
 import type { ProviderKind } from './providerKind'
 import type { DesktopMediaBridge } from './bridgeMedia'
 import type { DesktopConnectorBridge } from './bridgeConnector'
@@ -360,7 +360,7 @@ export type DesktopBridge = DesktopMediaBridge & DesktopConnectorBridge & {
       relativePaths: string[]
     }) => Promise<{ ok: boolean; deletedCount: number; failedCount: number }>
     revealProjectFolder: (payload: { projectId: string }) => Promise<{ ok: boolean }>
-    syncInspect?: (projectId: string) => Promise<WorkspaceSyncInspection>
+    syncInspect?: (payload: string | { projectId: string; adopt?: boolean }) => Promise<WorkspaceSyncInspection>
     syncReveal?: (projectId: string) => Promise<{ ok: boolean }>
     syncCopyConflict?: (payload: { projectId: string; source?: 'local' | 'remote' }) => Promise<{ path: string }>
   }

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconFolderOpen, IconRefresh, IconSettings } from '@tabler/icons-react'
+import { IconCircleCheck, IconFolderOpen, IconRefresh, IconSettings } from '@tabler/icons-react'
 import { DesignButton } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type {
@@ -22,6 +22,7 @@ export function ProjectLocationSection(): JSX.Element {
   const [location, setLocation] = React.useState<DesktopProjectLocation | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [busy, setBusy] = React.useState(false)
+  const [checking, setChecking] = React.useState(false)
 
   React.useEffect(() => {
     let active = true
@@ -62,6 +63,24 @@ export function ProjectLocationSection(): JSX.Element {
   const api = getDesktopBridge()?.settings?.projectLocation
   const managed = location?.source === 'environment'
   const unavailable = loading || busy || !api
+
+  const checkDirectory = async (): Promise<void> => {
+    if (!api) return
+    setChecking(true)
+    try {
+      const result = await api.get()
+      if (result.ok) {
+        setLocation(result.location)
+        toast(t('settings.file.projectLocationCheckSuccess'), 'success')
+      } else {
+        toast(t(ERROR_KEY[result.error]), 'error')
+      }
+    } catch {
+      toast(t('settings.file.projectLocationErrorUnknown'), 'error')
+    } finally {
+      setChecking(false)
+    }
+  }
 
   return (
     <div className="border-t border-nomi-line pt-4" data-settings-project-location aria-busy={loading || busy}>
@@ -108,6 +127,27 @@ export function ProjectLocationSection(): JSX.Element {
 
       <div className="mt-2 text-caption leading-relaxed text-nomi-ink-40">
         {managed ? t('settings.file.projectLocationManaged') : t('settings.file.projectLocationHint')}
+      </div>
+      <div
+        className="mt-3 flex items-center justify-between gap-3 rounded-nomi-sm bg-workbench-success-soft px-2.5 py-2"
+        data-settings-project-sync
+        aria-live="polite"
+      >
+        <div className="flex min-w-0 items-center gap-1.5 text-caption text-workbench-success">
+          <IconCircleCheck size={14} stroke={1.8} aria-hidden="true" />
+          <span className="truncate">{t('settings.file.projectLocationConfigured')}</span>
+        </div>
+        <button
+          type="button"
+          className="shrink-0 border-0 bg-transparent p-0 text-caption text-workbench-success cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={unavailable || checking}
+          onClick={() => { void checkDirectory() }}
+        >
+          {checking ? t('settings.file.projectLocationChecking') : t('settings.file.projectLocationCheck')}
+        </button>
+      </div>
+      <div className="mt-1.5 text-micro leading-relaxed text-nomi-ink-40">
+        {t('settings.file.projectLocationSyncHint')}
       </div>
     </div>
   )

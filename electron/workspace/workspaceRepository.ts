@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import crypto from "node:crypto";
 import path from "node:path";
 import { readJsonFile } from "../jsonFile";
 import { migrateLegacyProjectFolder } from "./legacyProjectMigration";
@@ -25,6 +26,7 @@ import {
   type WorkspaceProjectRecordV2,
 } from "./workspaceTypes";
 import { workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
+import { writeWorkspaceSyncBaseline } from "./workspaceSyncBaseline";
 
 export type WorkspaceRepositoryDeps = {
   settingsRoot: string;
@@ -248,6 +250,11 @@ export function createWorkspaceProject(
       ? { source: "native", nativeRootPath: defaultRoot }
       : { source: "folder" };
   rememberWorkspace(deps.settingsRoot, record, input.origin ?? fallbackOrigin);
+  const manifestPath = workspaceProjectFile(rootPath);
+  if (fs.existsSync(manifestPath)) {
+    const contentHash = crypto.createHash("sha256").update(fs.readFileSync(manifestPath)).digest("hex");
+    writeWorkspaceSyncBaseline(deps.settingsRoot, record.id, { rootPath, revision: record.revision, contentHash });
+  }
   return record;
 }
 
@@ -372,6 +379,9 @@ export function saveWorkspaceProject(
     return context.replace(next);
   });
   rememberWorkspace(deps.settingsRoot, written);
+  const manifestPath = workspaceProjectFile(entry.rootPath);
+  const contentHash = crypto.createHash("sha256").update(fs.readFileSync(manifestPath)).digest("hex");
+  writeWorkspaceSyncBaseline(deps.settingsRoot, written.id, { rootPath: entry.rootPath, revision: written.revision, contentHash });
   return written;
 }
 
