@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { DesignSwitch, WorkbenchButton } from '../../design'
 import { getDesktopBridge, type AssetTransportChannelView } from '../../desktop/bridge'
 import type { AutomationPolicySettings } from '../../../electron/settings/automationPolicyContract'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { buildProviderHealthView, type SettingsProviderInput } from './settingsAutomationView'
 import { listWorkbenchModelCatalogModels, type ModelCatalogModelDto } from '../api/modelCatalogApi'
 import type { ProductionPolicyRequirement } from '../production/productionPolicyRecovery'
@@ -420,7 +421,7 @@ export function AiModelsSection({
                       onChange({ allowedProviders: [...next] })
                     }}
                   />
-                  <span className="truncate">{provider.name}</span>
+                  <span className="truncate">{translateModelDisplayText(provider.name)}</span>
                   {required ? <span className="shrink-0 text-micro text-nomi-accent">{t('settings.ai.policy.requiredForRun')}</span> : null}
                 </label>
                 )
@@ -433,7 +434,9 @@ export function AiModelsSection({
             <div className="grid max-h-36 gap-1 overflow-y-auto sm:grid-cols-2">
               {orderedModels.map((model) => {
                 const required = isRequiredModel(model)
-                const providerName = health.find((provider) => provider.key === model.vendorKey)?.name || model.vendorKey
+                const providerName = translateModelDisplayText(
+                  health.find((provider) => provider.key === model.vendorKey)?.name || model.vendorKey,
+                )
                 return (
                 <label
                   key={`${model.vendorKey}:${model.modelKey}`}
@@ -452,7 +455,7 @@ export function AiModelsSection({
                       onChange({ allowedModels: [...next] })
                     }}
                   />
-                  <span className="min-w-0 truncate">{model.labelZh || model.modelKey} · {providerName}</span>
+                  <span className="min-w-0 truncate">{translateModelDisplayText(model.labelZh || model.modelKey)} · {providerName}</span>
                   {required ? <span className="shrink-0 text-micro text-nomi-accent">{t('settings.ai.policy.requiredForRun')}</span> : null}
                 </label>
                 )

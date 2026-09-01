@@ -10,6 +10,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconCheck, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { groupModelsByKind, isKnownModelChipKind, sortEnabledFirst, type ModelChipKind } from './modelChipGrouping'
 
 export type ChipModel = {
@@ -79,13 +80,13 @@ export function ModelChipGroups({ models, connected, onToggle, onDelete, onOpenM
                     ) : (
                       <span className={cn('w-1.5 h-1.5 rounded-full', connected && m.enabled ? 'bg-nomi-accent' : 'bg-nomi-ink-20')} />
                     )}
-                    {m.labelZh}
+                    {translateModelDisplayText(m.labelZh)}
                     {onDelete ? (
                       // span role=button 而非 <button>：chip 在 toggle 模式下本身是 button，嵌套 button 非法。
                       <span
                         role="button"
                         tabIndex={0}
-                        aria-label={t('onboardingProviders.modelControls.removeModelAria', { name: m.labelZh })}
+                        aria-label={t('onboardingProviders.modelControls.removeModelAria', { name: translateModelDisplayText(m.labelZh) })}
                         onClick={(event) => {
                           event.stopPropagation()
                           onDelete(m)
