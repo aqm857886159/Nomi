@@ -1,5 +1,6 @@
 import type { HttpOperation, ProfileKind } from "./types";
 import { registerRequestTransform, type RequestTransformContext } from "../tasks/requestTransforms";
+import { desktopT } from "../i18n";
 
 /** Runway Dev official API (OpenAPI v2024-11-06, checked 2026-08-30). */
 export const RUNWAY_VENDOR_SEED = {
@@ -84,15 +85,15 @@ function typedReferences(value: unknown, type?: "video" | "audio"): Array<Record
 
 function normalizeRunwaySeedance25Body(body: unknown, _context?: RequestTransformContext): unknown {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    throw new Error("Runway Seedance 2.5 请求体必须是 JSON 对象");
+    throw new Error(desktopT("runway.seedanceBody"));
   }
   const input = body as Record<string, unknown>;
   const images = uriArray(input.reference_image_urls);
   const videos = uriArray(input.reference_video_urls);
   const audios = uriArray(input.reference_audio_urls);
-  if (images.length > 30) throw new Error("Runway Seedance 2.5 最多 30 张参考图");
-  if (videos.length > 10) throw new Error("Runway Seedance 2.5 最多 10 个参考视频");
-  if (audios.length > 10) throw new Error("Runway Seedance 2.5 最多 10 个参考音频");
+  if (images.length > 30) throw new Error(desktopT("runway.seedanceMaxImages", { count: 30 }));
+  if (videos.length > 10) throw new Error(desktopT("runway.seedanceMaxVideos", { count: 10 }));
+  if (audios.length > 10) throw new Error(desktopT("runway.seedanceMaxAudios", { count: 10 }));
 
   delete input.reference_image_urls;
   delete input.reference_video_urls;
@@ -114,10 +115,10 @@ function normalizeRunwaySeedance25Body(body: unknown, _context?: RequestTransfor
       }
       return [];
     });
-    if (!promptImages.length) throw new Error("Runway Seedance 2.5 参考图不能为空");
+    if (!promptImages.length) throw new Error(desktopT("runway.seedanceEmptyImage"));
     const keyframes = promptImages.some((item) => item.position === "first" || item.position === "last");
     if (keyframes && (promptImages.length !== 2 || promptImages.some((item) => item.position !== "first" && item.position !== "last"))) {
-      throw new Error("Runway Seedance 2.5 首尾帧必须同时提供");
+      throw new Error(desktopT("runway.seedanceKeyframes"));
     }
     input.promptImage = promptImages;
   } else if (typeof input.promptImage === "string") {
@@ -145,7 +146,7 @@ registerRequestTransform("runway-video-references", normalizeRunwaySeedance25Bod
  * branch or provider-specific mode is introduced.
  */
 function normalizeRunwayVideoContract(body: unknown, _context?: RequestTransformContext): unknown {
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Runway 视频请求体必须是 JSON 对象");
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(desktopT("runway.videoBody"));
   const input = body as Record<string, unknown>;
   const model = String(input.model || "");
   const hasPromptImage = Object.prototype.hasOwnProperty.call(input, "promptImage");
@@ -255,13 +256,13 @@ function runwayRatioOrientation(ratio: string): "square" | "landscape" | "portra
 }
 
 function normalizeRunwayImageReferences(body: unknown): unknown {
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Runway 图像请求体必须是 JSON 对象");
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(desktopT("runway.imageBody"));
   const input = body as Record<string, unknown>;
   const images = uriArray(input.reference_image_urls);
   if (input.model === "gen4_image_turbo" && images.length === 0) {
-    throw new Error("Runway Gen-4 Image Turbo 必须提供至少一张参考图");
+    throw new Error(desktopT("runway.gen4ReferenceRequired"));
   }
-  if (images.length > 3) throw new Error("Runway 图像模型最多 3 张参考图");
+  if (images.length > 3) throw new Error(desktopT("runway.maxImageReferences", { count: 3 }));
   delete input.reference_image_urls;
   if (images.length) input.referenceImages = images.map((uri) => ({ uri }));
 
@@ -278,10 +279,10 @@ registerRequestTransform("runway-image-references", normalizeRunwayImageReferenc
 
 /** seed_audio accepts referenceAudios as plain provider URI strings (max 3). */
 function normalizeRunwayAudioReferences(body: unknown): unknown {
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Runway 音频请求体必须是 JSON 对象");
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(desktopT("runway.audioBody"));
   const input = body as Record<string, unknown>;
   const refs = uriArray(input.reference_audio_urls);
-  if (refs.length > 3) throw new Error("Runway seed_audio 最多 3 个参考音频");
+  if (refs.length > 3) throw new Error(desktopT("runway.maxAudioReferences", { count: 3 }));
   delete input.reference_audio_urls;
   if (refs.length) input.referenceAudios = refs;
   return input;
