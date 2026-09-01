@@ -1,0 +1,155 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-experience-learning-loop",
+  "problem_type": "unverified conversational learning entering durable product knowledge",
+  "symptom": "A completed Agent conversation could be remembered only as an informal transcript, with no shared evidence gate, no destination policy, and no automatic rollback when a reused rule became wrong.",
+  "direct_cause": "Conversation completion had an EventLog trace and a separate project-memory projection, but no shared boundary converted a problem/action/outcome/verification trajectory into an idempotent candidate with risk-aware activation and lifecycle state.",
+  "class_root": "Evidence, destination, and activation state were implicit in individual consumers. Without one typed policy boundary, a future extractor could silently promote a plausible answer to Skill, memory, training data, or engineering code without independent verification or a reversible audit trail.",
+  "affected_population": [
+    "Users whose local project facts or reusable workflows are derived from Agent conversations",
+    "Maintainers reviewing candidate Skills, Runbooks, Gates, ADRs, or training examples",
+    "Future extractor implementations that consume the existing Agent EventLog"
+  ],
+  "scope_paths": [
+    "electron/experience/experienceTypes.ts",
+    "electron/experience/experienceExtractor.ts",
+    "electron/experience/experiencePolicy.ts",
+    "electron/experience/experienceRepository.ts",
+    "electron/events/agentChatTrace.ts",
+    "electron/events/types.ts",
+    "electron/memory/projectMemory.ts"
+  ],
+  "entry_points": [
+    "experienceExtractor.normalizeTrajectory and extractExperienceCandidates — local redaction, bounded trajectory, explicit envelope parsing",
+    "experiencePolicy.buildExperienceCandidate — evidence completeness, destination, risk, scope, and initial activation",
+    "experiencePolicy.recordExperienceReuse/expireExperience — promotion, demotion, contradiction, and expiry",
+    "experienceRepository.complete/list/recordReuse — EventLog-backed projection, idempotency, and replay",
+    "agentChatTrace.completeTrace — result-to-trajectory completion hook isolated from the Agent response path",
+    "projectMemory.distillEvent — green fact adapter into the existing memory projection"
+  ],
+  "internal_only_reason": "The evidence boundary and local projection lifecycle are Nomi-specific invariants. External memory research informs the design, but cannot decide Nomi's project scope, EventLog, or prompt eligibility contracts.",
+  "invariants": [
+    "No durable candidate is created from ordinary prose; an extractor must provide an explicit structured envelope.",
+    "A candidate is eligible for prompt or Skill reuse only when problem, action, outcome, verification, and a source EventLog sequence are present.",
+    "Green project facts may enter the existing memory projection; yellow knowledge starts in shadow; red engineering or training knowledge remains quarantined.",
+    "Two independent verified reuses or one verified regression pass are required to promote yellow knowledge.",
+    "Three failures, contradiction, or expiry demotes a candidate without deleting its original evidence.",
+    "Repeated completion of the same trajectory/content hash is idempotent and rebuilding a deleted projection from EventLog is equivalent.",
+    "A projection or completion-handler failure never changes the user-visible Agent result/done path."
+  ],
+  "generality_proof": "Every post-conversation extractor and every candidate destination flows through the same typed candidate schema and policy before persistence. The repository is the only writer of experience events, while projectMemory is the only green-fact adapter, so alternate callers cannot bypass redaction, scope, lifecycle, or replay semantics.",
+  "shared_boundaries": [
+    {
+      "path": "electron/experience/experienceExtractor.ts",
+      "symbol": "normalizeTrajectory/extractExperienceCandidates",
+      "responsibility": "Bound and redact the trajectory, and reject unstructured or incomplete model output before policy evaluation."
+    },
+    {
+      "path": "electron/experience/experiencePolicy.ts",
+      "symbol": "buildExperienceCandidate/recordExperienceReuse",
+      "responsibility": "Own the single destination, risk, activation, promotion, demotion, and expiry decision for every candidate."
+    },
+    {
+      "path": "electron/experience/experienceRepository.ts",
+      "symbol": "createExperienceRepository",
+      "responsibility": "Own idempotent EventLog writes and disposable projection replay for all candidate state changes."
+    },
+    {
+      "path": "electron/events/agentChatTrace.ts",
+      "symbol": "completeTrace",
+      "responsibility": "Trigger the experience loop as a failure-isolated side effect after the Agent result."
+    },
+    {
+      "path": "electron/memory/projectMemory.ts",
+      "symbol": "distillEvent",
+      "responsibility": "Project only active green fact candidates through the existing memory truth source."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/experience/experienceExtractor.ts",
+      "entry_point": "extractExperienceCandidates",
+      "disposition": "enforced",
+      "evidence": "The extractor returns no candidate for ordinary prose and validates all four evidence fields plus source sequence before policy."
+    },
+    {
+      "path": "electron/experience/experiencePolicy.ts",
+      "entry_point": "buildExperienceCandidate",
+      "disposition": "enforced",
+      "evidence": "All destination and initial status choices are derived from one kind/risk table and incomplete evidence is converted to a non-prompt incident."
+    },
+    {
+      "path": "electron/experience/experienceRepository.ts",
+      "entry_point": "complete and recordReuse",
+      "disposition": "enforced",
+      "evidence": "The repository is the sole experience event writer, merges content hashes, and replays candidate snapshots when index.json is corrupt."
+    },
+    {
+      "path": "electron/events/agentChatTrace.ts",
+      "entry_point": "completeTrace",
+      "disposition": "enforced",
+      "evidence": "The result hook is guarded once-per-trace and catches both synchronous and asynchronous completion failures."
+    },
+    {
+      "path": "electron/memory/projectMemory.ts",
+      "entry_point": "experience.candidate.created distillation",
+      "disposition": "enforced",
+      "evidence": "Only active, project-scoped, eligible green facts are translated to existing memory facts; shadow/red candidates are excluded."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future post-conversation extractor, model provider, or candidate destination could reintroduce unverified promotion or non-reversible state unless it passes the same shared schema and policy.",
+    "same_class_scan": [
+      "Searched Agent completion and EventLog writers; the new completeTrace hook is the only experience trigger and experienceRepository is the only experience event writer.",
+      "Enumerated all candidate kinds and destinations in experienceTypes and verified each has one policy mapping and an explicit initial status.",
+      "Checked projectMemory's existing distillEvent rules and added one green-fact adapter rather than a second memory store or prompt injection path.",
+      "Added tests for ordinary prose, missing evidence, scope, reuse promotion, failures, contradiction, expiry, projection corruption, and result-path failure isolation."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/experience/experiencePolicy.ts",
+    "invariant": "No experience candidate can become prompt-eligible unless the shared policy has accepted complete evidence, project scope, and an allowed lifecycle state.",
+    "failure_mode": "Malformed envelopes, missing evidence, global scope, red risk, duplicate trajectories, repeated failures, contradiction, expiry, or projection errors fail closed to no-op/quarantine/demotion while preserving EventLog evidence.",
+    "exception_policy": "none",
+    "strategy": "Keep EventLog as evidence, make JSON a disposable projection, centralize routing/lifecycle decisions, and let only the existing project-memory distiller consume active green facts.",
+    "artifacts": [
+      "electron/experience/experienceTypes.ts",
+      "electron/experience/experienceExtractor.ts",
+      "electron/experience/experiencePolicy.ts",
+      "electron/experience/experienceRepository.ts",
+      "electron/events/agentChatTrace.ts",
+      "electron/memory/projectMemory.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/experience/experienceTypes.test.ts",
+    "electron/experience/experienceExtractor.test.ts",
+    "electron/experience/experiencePolicy.test.ts",
+    "electron/experience/experienceRepository.test.ts",
+    "electron/events/agentChatTrace.experience.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/experience/experienceExtractor.test.ts",
+    "electron/experience/experiencePolicy.test.ts",
+    "electron/experience/experienceRepository.test.ts",
+    "electron/events/agentChatTrace.experience.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "This is a new shared boundary. Existing conversation persistence and memory projection remain supported; no parallel experience writer or legacy activation path is retained."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The implementation uses existing zod, EventLog, and Node filesystem primitives; no new dependency controls the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No existing project data is rewritten. New experience projections are created lazily under .nomi/experience and can be deleted and rebuilt from the append-only EventLog. Existing memory facts retain their current IDs and precedence.",
+  "residual_risks": [
+    "The default extractor accepts only an explicit structured learning envelope; a future model-backed extractor still needs its own model-quality evaluation before being enabled.",
+    "Red candidates are quarantined locally; this PR does not automatically create or merge Git branches/PRs, so engineering review remains an explicit delivery step.",
+    "The trace stores bounded response text and event summaries rather than full raw conversation history; full-history semantic extraction requires a later local-only provider that obeys the same envelope contract."
+  ]
+}
