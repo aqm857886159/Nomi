@@ -28,7 +28,8 @@
     "src/config/modelArchetypes/index.ts",
     "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
     "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
-    "src/workbench/generationCanvas/runner/usableVendorModel.ts"
+    "src/workbench/generationCanvas/runner/usableVendorModel.ts",
+    "electron/catalog/runwayRatio.ts"
   ],
   "entry_points": [
     "electron/catalog/types.ts::selectTaskMapping —— 单候选回落收紧为「只有 modeId 为空的候选才可服务多个模式」。带着明确且不同 modeId 的行不再被借出，fail-closed 返回 null。这是掩盖整族缺陷的那道闸。",
@@ -36,7 +37,8 @@
     "electron/shared/videoCapabilities/runwayWireFacts.ts —— Runway 每族合法 ratio 枚举 / veo 时长枚举 / 参考数组允许名单的唯一真相源。两个消费者：runwayOfficial.ts 的传输边界校验（headless/MCP 防线）与 6 个档案的 vendorParams.runway（UI 只给得出合法值）。此前这些字面量只活在传输层，UI 给非法值、传输层再悄悄改写或删字段。",
     "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts::archetypeModeIsVisible —— 模式栏收窄判据（(a) 无自己的 mapping、(b) 全部参考槽 reach=none）。fail-open：拿不到 body 一律不收窄。判据复用 referenceReachability，与第三闸同一把尺子。",
     "electron/shared/videoCapabilities/registry.ts::modelProfileMatchScore —— 子串档加版本边界守卫 substringHitIsVersionSafe：pattern 以数字结尾时，key 若继续该版本（.5 / -5 / _5 / 5）就不是它。",
-    "src/config/modelArchetypes/index.ts::resolveBaseArchetype —— legacyIds 迁移承接存量 \"runway-video\" 节点；LEGACY_RESOLUTION_ORDER_PINS 随撞串消失而删除。"
+    "src/config/modelArchetypes/index.ts::resolveBaseArchetype —— legacyIds 迁移承接存量 \"runway-video\" 节点；LEGACY_RESOLUTION_ORDER_PINS 随撞串消失而删除。",
+    "electron/catalog/runwayRatio.ts::normalizeRunwayVideoRatio —— 与 main（PR #342）并线时消掉的并行实现：它原本自带一份 Runway 每族比例枚举与 model→family 判别链，与本合同的 runwayWireFacts.ts 重复（P1）。现改为从 runwayWireFacts import，单一真相源落在 electron/shared/（结构性依据：per-model 档案住 shared，分层规则禁止 shared import catalog，所以事实必须在 shared 一侧）。其图像侧导出（RUNWAY_IMAGE_RATIO_REMAP / runwayRatioOrientation）与本轮无重叠，原样保留。"
   ],
   "invariants": [
     "每个模型只有一个档案主人：不存在跨模型共享的「平台档案」；runway-video / runway-video-t2v 已删除且不得重建。",
@@ -69,11 +71,11 @@
   "migration": "无存储写入迁移。画布节点持久化的是 meta.archetype.id；存量 \"runway-video\" 节点由 resolveBaseArchetype 的 legacyIds 分支在**读时**映射到各自的真模型档案（按模型身份匹配决定映射到哪一个），不改写项目文件。回滚只需恢复两个平台档案与 10 行 archetypeId，无残留数据。四个 .generated.ts 桥接文件按新档案集合重新生成，消费侧均按 archetypeId 键取。",
   "residual_risks": [
     "hailuo3 经 Runway 的 i2v 模式仍不显示 resolution/aspect_ratio 两个控件：minimax-h3 档案按 kie 官方示例有意只放 duration（注释在案），而 Runway 的 hailuo wire 确实携带这两个字段。这是**收窄偏保守**（少给控件，不会发非法值），不是错误；要放开需要 kie/Runway 双方文档实证，本轮不猜。",
-    "Runway 的 reference 模式当前仍 POST 到 /v1/image_to_video（main 的既有形状）。官方 OpenAPI 说多图参考应走 /v1/text_to_video；该端点修正属开放 PR #342 的交付内容，本次刻意不重复实现以避免冲突。两者合并后须复核 seedance2/wan3/hailuo3/grok 的 omni/ref 模式端点。",
     "veo / gemini 经 Runway 的参考图能力：2026-09-02 曾有「上传参考图 wire 校验通过」的观察，但 schema 未拒 ≠ 参考生效，产物级封印因 Runway 余额不足未做。本次按官方 union 保守处理（不发布 reference 模式）。若日后拿到产物证据，只需给 mapping 补真正的数组键，模式会自动重新出现——不必改档案。",
     "模式栏收窄对自建中转是 fail-open 的：那条路拿不到 mapping body，因此仍可能显示该中转发不出的模式，由第三闸在生成时拦下。这是有意的取舍（宁可多显示也不藏用户的能力），不是遗漏。",
     "变体轴（第四条轴）尚未按供应商收窄：Runway 的 veo3.1 节点仍显示「变体 快速」下拉，而 Runway 把 veo3.1 与 veo3.1_fast 建成两个独立目录行，veo-3.1 档案的 quality/lite 变体在 Runway 根本不存在。已实证该控件在 Runway 上**完全惰性**（切变体只写 variantId 不动 modelKey，Runway mapping 的 model 字段是字面量 veo3.1，且 veo-3.1 的变体无 paramOverrides）——不会发出非法请求，但它让用户以为有得选。这与本轮修的是同一族「能力面对该供应商不诚实」，只是落在变体轴上；修它先要裁一个设计问题：Runway 的 veo3.1/veo3.1_fast 该继续是两行，还是收成一行加变体轴。R13 走查截图 01 可见，已另立单跟进。",
-    "同类第二入口尚未收窄：src/workbench/ai/resident/GenerationProposalEditor.tsx:106 仍以 archetypeModeChoices(archetype) 单参数调用，即 Agent 提案面板的模式选择器会显示该供应商发不出的模式，用户仍要到生成时才被第三闸拒。本轮不改它是因为交付次序（用户 2026-09-02 拍板：先落地已验证的这一块），不是因为它不属于本类。修法已定：复用 archetypeModeIsVisible + useChannelCreateBodies，禁止另写第二份判据。"
+    "同类第二入口尚未收窄：src/workbench/ai/resident/GenerationProposalEditor.tsx:106 仍以 archetypeModeChoices(archetype) 单参数调用，即 Agent 提案面板的模式选择器会显示该供应商发不出的模式，用户仍要到生成时才被第三闸拒。本轮不改它是因为交付次序（用户 2026-09-02 拍板：先落地已验证的这一块），不是因为它不属于本类。修法已定：复用 archetypeModeIsVisible + useChannelCreateBodies，禁止另写第二份判据。",
+    "【并线后已解除】原记「Runway 的 reference 模式仍 POST 到 /v1/image_to_video、端点修正属 #342」——#342 已合入 main 并于本分支并线，多图参考现走 /v1/text_to_video，两侧改动均保留。并线时另发现：本合同的 family 级比例表比 #342 的**每模型**表粗——seedance2_fast/_mini 官方只有 12 个比例、seedance2 有 24 个。直接用 family 表会把 1920:1080 重新放给 fast/mini（#342 记录为实测 400）。已在 runwayWireFacts 增 RUNWAY_VIDEO_RATIO_ENUMS_BY_MODEL 逐模型覆盖层保住该精度。"
   ],
   "external_sources": [
     {
