@@ -23,7 +23,12 @@ import {
 } from '../../../../config/modelArchetypes'
 import type { ImageUrlSlot } from '../../model/parameterReferenceSlots'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
-import { DEFAULT_SLOT_INPUT_KEY, modeSlotReach, type SlotReach } from '../../../../../electron/catalog/referenceReachability'
+import {
+  DEFAULT_SLOT_INPUT_KEY,
+  modeSlotReach,
+  wireReferencedParamKeys,
+  type SlotReach,
+} from '../../../../../electron/catalog/referenceReachability'
 
 export { resolveArchetypeForModel }
 export type { ModelArchetype, ArchetypeMode, ModelArchetypeVariant }
@@ -32,7 +37,7 @@ export type { ModelArchetype, ArchetypeMode, ModelArchetypeVariant }
 // 为什么从这里转、而不是让它各自 import electron/：`src-no-import-electron` 是棘轮门岗，本文件那条越界
 // 已登记在 boundaries-baseline 里；新开一个文件直连 electron/ 会被判成**新增**违规（棘轮只减不增，绝不
 // 许把新违规追加进基线）。转出一次 = 渲染层对 electron/ 的入口仍只有这一处，基线不涨。
-export { modeSlotReach }
+export { modeSlotReach, wireReferencedParamKeys }
 export type { SlotReach }
 
 /**

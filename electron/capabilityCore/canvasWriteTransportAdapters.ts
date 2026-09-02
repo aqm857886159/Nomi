@@ -93,21 +93,23 @@ export function createPiCanvasWriteTransportAdapter(
   let disposed = false;
   return Object.freeze({
     async prepare(call, signal) {
-      const operation = canvasWriteOperationForAlias(call.toolName);
-      const isDelete = call.toolName === CANVAS_DELETE_ALIAS;
-      if (!operation && !isDelete) return null;
-      if (disposed) throw Object.assign(new Error("surface_port_unavailable"), { code: "surface_port_unavailable" });
-      if (signal.aborted) throw Object.assign(new Error("capability_cancelled"), { code: "capability_cancelled" });
       const args =
         call.args && typeof call.args === "object" && !Array.isArray(call.args)
           ? (call.args as Record<string, unknown>)
           : {};
+      const semanticTool = call.toolName === "nomi_canvas_plan" || call.toolName === "nomi_canvas_edit";
+      const operation = canvasWriteOperationForAlias(call.toolName)
+        ?? (semanticTool && typeof args.operation === "string" ? args.operation as ReturnType<typeof canvasWriteOperationForAlias> : undefined);
+      const isDelete = call.toolName === CANVAS_DELETE_ALIAS;
+      if (!operation && !isDelete) return null;
+      if (disposed) throw Object.assign(new Error("surface_port_unavailable"), { code: "surface_port_unavailable" });
+      if (signal.aborted) throw Object.assign(new Error("capability_cancelled"), { code: "capability_cancelled" });
       let semanticInput: CanvasMutationInput;
       try {
         if (isDelete) {
           semanticInput = canvasDeleteInputForAlias(call.toolName, args)!;
         } else {
-          const parsed = canvasWritePiInputSchemaForAlias(call.toolName)?.parse(args);
+          const parsed = semanticTool ? args : canvasWritePiInputSchemaForAlias(call.toolName)?.parse(args);
           semanticInput = canvasWriteSemanticInputSchema.parse({ operation, ...parsed });
         }
       } catch {

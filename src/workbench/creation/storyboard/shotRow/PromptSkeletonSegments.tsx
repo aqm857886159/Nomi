@@ -27,6 +27,14 @@ export default function PromptSkeletonSegments({
   const [open, setOpen] = React.useState<{ segment: PromptSkeletonViewSegment; rect: DOMRect } | null>(null)
   const shellRef = React.useRef<HTMLDivElement>(null)
   const segments = validPromptSkeletonSegments(prompt, profile, ranges)
+  // 装饰段是可点元素（role=button），必须带可访问名——返工把旧胶囊按钮的 aria-label 弄丢了，这里补回。
+  const decoratedSegments = React.useMemo(
+    () => segments.map((segment) => ({
+      ...segment,
+      ariaLabel: t('storyboardEditor.promptSkeleton.segmentAria', { label: t(segment.label), value: segment.value }),
+    })),
+    [segments, t],
+  )
 
   return (
     <div ref={shellRef} className="relative" data-storyboard-prompt-skeleton={segments.length > 0 ? 'true' : undefined}>
@@ -34,7 +42,7 @@ export default function PromptSkeletonSegments({
         {...editorProps}
         value={prompt}
         onChange={(next) => onChange({ prompt: next, ranges: [] })}
-        promptSegments={segments}
+        promptSegments={decoratedSegments}
         onPromptSegmentClick={(segment, rect) => {
           const found = segments.find((candidate) => candidate.key === segment.key && candidate.start === segment.start && candidate.end === segment.end)
           if (found) setOpen({ segment: found, rect })

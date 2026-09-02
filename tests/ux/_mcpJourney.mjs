@@ -1,5 +1,5 @@
 // Shared infra for real-process MCP journeys — the ONE spawn/framing/teardown/mock-vendor implementation
-// (P1: no copy-paste) driven by BOTH J-MCP1 (mcp-journey.e2e.mjs) and production-mcp-journey.e2e.mjs, plus
+// (P1: no copy-paste) driven by the L1/L2 MCP journeys and production-mcp-journey.e2e.mjs, plus
 // any future real-transport MCP test. Client-specific differences (initialize capabilities, clientInfo,
 // extra env) are options on spawnMcpStdioClient; error semantics come in two shapes — callTool (returns
 // raw, isError inspectable) and callToolOrThrow (throws on isError) — so both call sites stay clean.
@@ -13,7 +13,7 @@
 // Transport under test = the REAL in-Electron MCP stdio server: `electron <repoRoot>` with
 // NOMI_MCP_STDIO=1. That process is genuinely headless (no window, app.dock.hide, disk gateway) and
 // speaks real newline-delimited JSON-RPC 2.0 over stdio — the exact framing mcpProtocol.ts implements.
-// It is the same real-process transport production-mcp-journey uses; see mcp-journey.e2e.mjs header for
+// It is the same real-process transport production-mcp-journey uses; see the journey headers for
 // why this (not the bare-Node mcpNodeLauncher wrapper) is the faithful path for a zero-dialog headless
 // spend: the launcher always ensures a *GUI* app instance whose unopened-project spend routes through
 // the renderer confirm card (createHybridGateway) and cannot complete without a human click, whereas the
@@ -26,7 +26,7 @@ import path from 'node:path'
 import readline from 'node:readline'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { withLinuxNoSandbox } from './_launchApp.mjs'
+import { withLinuxNoSandbox, withLinuxSyntheticCredentialStorage } from './_launchApp.mjs'
 
 const require = createRequire(import.meta.url)
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -278,8 +278,11 @@ export function seedMcpClientIdentityEnv(capabilityDir, client = 'claude') {
  */
 export function spawnMcpStdioClient({
   settingsDir, userDataDir, projectsDir, capabilityDir, clientInfo, capabilities, env, captureStderr = false,
+  tracePath, elicitationAction = 'accept', syntheticCredentialStorage = false,
 }) {
-  const child = spawn(require('electron'), withLinuxNoSandbox([repoRoot, '--disable-gpu']), {
+  const child = spawn(require('electron'), withLinuxSyntheticCredentialStorage(
+    withLinuxNoSandbox([repoRoot, '--disable-gpu']), syntheticCredentialStorage,
+  ), {
     cwd: repoRoot,
     env: {
       ...process.env,
@@ -290,6 +293,7 @@ export function spawnMcpStdioClient({
       NOMI_ELECTRON_USER_DATA_DIR: userDataDir,
       NOMI_PROJECTS_DIR: projectsDir,
       NOMI_CAPABILITY_DIR: capabilityDir,
+      ...(syntheticCredentialStorage ? { NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE: '1' } : {}),
       ...seedMcpClientIdentityEnv(capabilityDir),
       ...(env || {}),
     },
@@ -304,6 +308,14 @@ export function spawnMcpStdioClient({
   let childExit = null
   let stderrText = ''
   const messages = []
+  if (tracePath) {
+    fs.mkdirSync(path.dirname(tracePath), { recursive: true })
+    fs.writeFileSync(tracePath, '', 'utf8')
+  }
+  function trace(direction, frame) {
+    if (!tracePath) return
+    fs.appendFileSync(tracePath, `${JSON.stringify({ at: new Date().toISOString(), direction, frame })}\n`, 'utf8')
+  }
 
   // Transport died (spawn error or the child exited) → reject every in-flight RPC instead of leaving it to
   // time out. This is why pending stores `reject` alongside `resolve`/`timer`.
@@ -327,10 +339,16 @@ export function spawnMcpStdioClient({
     let msg
     try { msg = JSON.parse(text) } catch { return }
     messages.push(msg)
+    trace('in', msg)
     // Server→client request: elicitation/create → auto-accept (headless test authorization).
     if (msg.method === 'elicitation/create' && msg.id != null) {
       elicitationCount += 1
-      child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { action: 'accept', content: { confirm: true } } }) + '\n')
+      const result = elicitationAction === 'decline'
+        ? { action: 'decline', content: { confirm: false } }
+        : { action: 'accept', content: { confirm: true } }
+      const frame = { jsonrpc: '2.0', id: msg.id, result }
+      trace('out', frame)
+      child.stdin.write(JSON.stringify(frame) + '\n')
       return
     }
     // Server→client notification: progress frame → tally per token.
@@ -353,12 +371,16 @@ export function spawnMcpStdioClient({
       const timer = setTimeout(() => { pending.delete(id); reject(new Error(`RPC timeout: ${method}`)) }, timeoutMs)
       pending.set(id, { resolve, reject, timer })
       const outParams = meta ? { ...params, _meta: meta } : params
-      child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params: outParams }) + '\n')
+      const frame = { jsonrpc: '2.0', id, method, params: outParams }
+      trace('out', frame)
+      child.stdin.write(JSON.stringify(frame) + '\n')
     })
   }
 
   function notify(method, params = {}) {
-    child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method, params })}\n`)
+    const frame = { jsonrpc: '2.0', method, params }
+    trace('out', frame)
+    child.stdin.write(`${JSON.stringify(frame)}\n`)
   }
 
   function nextRequestId() { return seq + 1 }
@@ -417,6 +439,14 @@ export function spawnMcpStdioClient({
     }
   }
 
+  // Drop only the transport pipe so the server's stdin-close cancellation path
+  // is exercised; terminate() additionally sends SIGTERM.
+  function disconnect() {
+    try { child.stdin.end() } catch { /* already closed */ }
+    if (childExit) return Promise.resolve(childExit)
+    return new Promise((resolve) => child.once('exit', (code, signal) => resolve({ code, signal })))
+  }
+
   return {
     child,
     initialize,
@@ -426,6 +456,7 @@ export function spawnMcpStdioClient({
     callTool,
     callToolOrThrow,
     terminate,
+    disconnect,
     progressForToken: (token) => progressByToken.get(String(token)) || 0,
     elicitationCount: () => elicitationCount,
     childExited: () => childExit,

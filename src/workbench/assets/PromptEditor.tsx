@@ -65,6 +65,9 @@ function createPromptSkeletonPlugin(options: {
         const runs = promptRunsFromDocument(state.doc)
         const decorations = options.getSegments().flatMap((segment) => promptRangeToDocRanges(segment, runs).map(({ from, to }) => Decoration.inline(from, to, {
           class: 'storyboard-prompt-segment',
+          role: 'button',
+          tabindex: '0',
+          ...(segment.ariaLabel ? { 'aria-label': segment.ariaLabel } : {}),
           'data-prompt-segment-key': segment.key,
           'data-storyboard-prompt-segment': segment.key,
           'data-prompt-segment-start': String(segment.start),

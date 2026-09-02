@@ -12,6 +12,7 @@
 // 不再靠 mcpProtocol.ts 的 name 集合旁挂）。
 //
 import { listProductionPlaybookNames } from '../productionRun/productionPlaybooks'
+import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead'
 import { MCP_CAPABILITY_RESOLVER, immutableSchemaSnapshot } from './mcpCapabilityProjection'
 import { MCP_GENERATION_TOOL_CATALOG } from './mcpGenerationTools'
 import { MCP_INTEGRATION_TOOL, INTEGRATION_METHOD_BY_ACTION } from './mcpIntegrationTools'
@@ -19,20 +20,38 @@ import { MCP_PROJECT_SESSION_TOOL } from './mcpProjectSessionTool'
 
 const str = (value: unknown): string => (typeof value === 'string' ? value : '')
 
-// 画布只读投影（nomi_read_canvas capability adapter）——收进 nomi_read target=canvas 时借它的 method/canonical 投影。
-const CANVAS_READ_ADAPTER_TOOL = MCP_CAPABILITY_RESOLVER.list().find((tool) => tool.name === 'nomi_read_canvas')
+// 画布只读投影（canvas.read capability adapter；别名由能力契约声明，M2 语义面把它改叫 nomi_canvas_read）——
+// 收进 nomi_read target=canvas 时借它的 method/canonical 投影（读侧统一，形状约束1：不另留第二个画布读名）。
+const CANVAS_READ_ALIAS = CANVAS_READ_CAPABILITY.aliases.mcp
+const CANVAS_READ_ADAPTER_TOOL = MCP_CAPABILITY_RESOLVER.list().find((tool) => tool.name === CANVAS_READ_ALIAS)
 if (!CANVAS_READ_ADAPTER_TOOL) throw new Error('canvas.read MCP adapter is not registered')
 /** target=canvas 的内部路由键（= CANVAS_READ_CAPABILITY.id）；nomi_read 借它走 canvas.read 传输适配器。 */
 export const CANVAS_READ_METHOD = CANVAS_READ_ADAPTER_TOOL.method
 
-// M2 语义编辑工具（main #16290f6e：nomi_timeline_read/edit · nomi_export_job · nomi_media_query）——
-// 独立能力投影（timeline/export/asset 端口，走 MCP_EDITING_METHODS + rpcServer 分派，非本次 42→15 收敛的一员）。
-// 面收敛只塌了拉分支时存在的 42 个「一动词一工具」；这 4 个是收敛后 main 新增的独立对象，此处**原样保留**其
-// main 已发布形态（读工具带 annotations.readOnlyHint），不替它们发明 nomi_read target/collapse 归并——那是
-// 未经设计稿裁定的新面设计，留给编排者续裁（见 PR body「main 已长到 46 面」段）。canvas.read 已进 nomi_read
-// (target=canvas)，故从投影里排除以免与 nomi_read 撞名。
-const SEMANTIC_EDITING_TOOLS = MCP_CAPABILITY_RESOLVER.list().filter((tool) => tool.name !== 'nomi_read_canvas')
+// ── T3 · nomi_canvas_edit：画布写=语义租约面（M2 canvas/document 根因契约） ─────────────────────
+// 并线裁定（2026-09-02）：42→15 收敛期的 action→canvas.addNodes/... 薄路由与 M2 语义面同名相撞。语义面
+//（leaseHandle 必填、operation 枚举、canvas.write 能力路由、fail-closed 图校验）是根因修复
+//（docs/fixes/2026-09-02-m2-canvas-document-semantic-surface.root-cause.json），薄路由正是它要杀的
+//「目录直投遗留画布操作、裸 projectId 可写」——同 commit 删净（P1），画布写只此一面；删除/撤销走
+// nomi_canvas_maintenance（destructiveHint + confirmation + undoToken）。
+// title 回归修复（slice-3）：T3 把旧薄路由替换成 M2 语义面时 title 随旧对象一起丢了；
+// 此处包装补回，措辞按新语义面（lease-scoped / semantic operation 枚举），不照抄旧分支枚举说明。
+const _CANVAS_EDIT_ADAPTER = MCP_CAPABILITY_RESOLVER.resolve('nomi_canvas_edit')
+if (!_CANVAS_EDIT_ADAPTER) throw new Error('canvas.write MCP adapter is not registered')
+const CANVAS_EDIT_TOOL = {
+  ..._CANVAS_EDIT_ADAPTER,
+  title: '在租约内对画布做语义写操作：create_canvas_nodes 加节点 / connect_canvas_edges 连线 / set_node_prompt 改提示词 / tidy_canvas 整理布局。每次操作原子落账，支持 undo。',
+}
+
+// M2 语义编辑工具（timeline_read/edit · export_job · media_query + M2 canvas/document 语义面）——
+// 独立能力投影，非本次 42→15 收敛的一员，此处**原样保留**其已发布形态（读工具带 annotations.readOnlyHint），
+// 不替它们发明 nomi_read target/collapse 归并——那是未经设计稿裁定的新面设计，留给编排者续裁。
+// canvas.read 已进 nomi_read（target=canvas）、canvas 写已是 T3 本体，这两个从透传里排除以免撞名/并行版。
+const SEMANTIC_EDITING_TOOLS = MCP_CAPABILITY_RESOLVER.list().filter((tool) => tool.name !== CANVAS_READ_ALIAS && tool.name !== CANVAS_EDIT_TOOL.name)
 if (SEMANTIC_EDITING_TOOLS.length === 0) throw new Error('M2 semantic editing MCP adapters are not registered')
+/** M2 语义编辑工具名单（真相源），供测试派生 collapsedTitled 范围而非手抄排除规则。
+ *  这些工具来自 MCP_CAPABILITY_RESOLVER（capability 层），暂无 title——续裁时统一补（A 线任务）。 */
+export const SEMANTIC_EDITING_TOOL_NAMES = Object.freeze(SEMANTIC_EDITING_TOOLS.map((t) => t.name))
 
 // ── T2 · nomi_read：读侧统一入口（多态只读，整体 readOnlyHint） ───────────────────────────────
 // 每个旧读工具 = 一个 target 值；get/read 双读（get_artifact vs read_artifact）= artifact vs artifact_content
@@ -103,73 +122,6 @@ const READ_TOOL = {
         return { sessionId: a.sessionId }
       default:
         return {}
-    }
-  },
-} as const
-
-// ── T3 · nomi_canvas_edit：批量画布写（4 action 一批 undo） ────────────────────────────────
-const CANVAS_EDIT_METHOD_BY_ACTION: Record<string, string> = {
-  add_nodes: 'canvas.addNodes',
-  connect: 'canvas.connect',
-  set_prompt: 'canvas.setPrompt',
-  delete_nodes: 'canvas.deleteNodes',
-}
-const CANVAS_EDIT_TOOL = {
-  name: 'nomi_canvas_edit',
-  title: '批量改画布：add_nodes 加节点 / connect 连线 / set_prompt 改提示词 / delete_nodes 删节点。一个动作一批 undo。',
-  description: '按 action 改项目画布；与在 App 里手动建的节点完全同款。',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      projectId: { type: 'string' },
-      action: { type: 'string', enum: ['add_nodes', 'connect', 'set_prompt', 'delete_nodes'] },
-      // action=add_nodes
-      nodes: {
-        type: 'array',
-        description: 'action=add_nodes：要建的节点。自动分层排布。',
-        items: {
-          type: 'object',
-          properties: {
-            kind: { type: 'string', description: '节点类型：video/image/text/audio=可生成；shot=分镜描述(纯文本不生成)；character/scene=参考锚。缺省 text。' },
-            title: { type: 'string' },
-            prompt: { type: 'string' },
-            vendor: { type: 'string', description: '可选：模型供应商（如 apimart）。与 modelKey 一起绑定该节点默认模型。' },
-            modelKey: { type: 'string', description: '可选：模型标识。与 vendor 一起给；不给则打开节点时自动选默认模型。' },
-            x: { type: 'number', description: '可选：显式落点 x（给了则优先于自动布局）。' },
-            y: { type: 'number', description: '可选：显式落点 y（给了则优先于自动布局）。' },
-          },
-        },
-      },
-      // action=connect
-      connections: {
-        type: 'array',
-        description: 'action=connect：连线（参考关系）。mode 缺省 reference。',
-        items: { type: 'object', properties: { source: { type: 'string' }, target: { type: 'string' }, mode: { type: 'string' } }, required: ['source', 'target'] },
-      },
-      // action=set_prompt
-      nodeId: { type: 'string', description: 'action=set_prompt：目标节点。' },
-      prompt: { type: 'string', description: 'action=set_prompt：新提示词。' },
-      title: { type: 'string', description: 'action=set_prompt：可选改标题。' },
-      // action=delete_nodes
-      nodeIds: { type: 'array', items: { type: 'string' }, description: 'action=delete_nodes：删除的节点（及其关联连线）。' },
-    },
-    required: ['projectId', 'action'],
-    additionalProperties: false,
-  },
-  method: 'canvas.addNodes',
-  resolveMethod: (a: Record<string, unknown>): string => CANVAS_EDIT_METHOD_BY_ACTION[str(a.action)] ?? 'canvas.addNodes',
-  build: (a: Record<string, unknown>): Record<string, unknown> => {
-    switch (str(a.action)) {
-      case 'add_nodes':
-        return { projectId: a.projectId, nodes: a.nodes || [] }
-      case 'connect':
-        return { projectId: a.projectId, connections: a.connections || [] }
-      case 'set_prompt':
-        return { projectId: a.projectId, nodeId: a.nodeId, prompt: a.prompt, title: a.title }
-      case 'delete_nodes':
-        return { projectId: a.projectId, nodeIds: a.nodeIds || [] }
-      default:
-        return { projectId: a.projectId }
     }
   },
 } as const
@@ -338,7 +290,7 @@ const PROJECT_CREATE_TOOL = {
 export const MCP_TOOL_CATALOG = [
   MCP_PROJECT_SESSION_TOOL, // T1
   READ_TOOL, // T2（吸收 10 读）
-  CANVAS_EDIT_TOOL, // T3（吸收 4 画布写）
+  CANVAS_EDIT_TOOL, // T3（画布写=M2 语义租约面，吸收 4 画布写；删除/撤销在 nomi_canvas_maintenance）
   ASSET_IMPORT_TOOL, // T4
   ...MCP_GENERATION_TOOL_CATALOG, // T5/T6/T7/T8/T9（operation 族）
   RUN_START_TOOL, // T10
@@ -347,7 +299,7 @@ export const MCP_TOOL_CATALOG = [
   RUN_GATE_TOOL, // T13（吸收 decide_gate + materialize）
   MCP_INTEGRATION_TOOL, // T14（接入状态机 9→5 action）
   PROJECT_CREATE_TOOL, // T15
-  ...SEMANTIC_EDITING_TOOLS, // M2 语义编辑（timeline_read/edit · export_job · media_query）——main 新增，原样保留待续裁
+  ...SEMANTIC_EDITING_TOOLS, // M2 语义编辑（canvas_plan/maintenance · document_read/edit · timeline_read/edit · export_job · media_query）——原样保留待续裁
 ] as const
 
 export type McpToolDefinition = (typeof MCP_TOOL_CATALOG)[number] & {
@@ -358,7 +310,7 @@ export type McpToolDefinition = (typeof MCP_TOOL_CATALOG)[number] & {
 }
 
 // 再导出整族路由映射，供测试逐条 assert 「旧 name 的 method+params ≡ 新 name 某枚举分支的 build 输出」。
-export { READ_METHOD_BY_TARGET, CANVAS_EDIT_METHOD_BY_ACTION, INTEGRATION_METHOD_BY_ACTION }
+export { READ_METHOD_BY_TARGET, INTEGRATION_METHOD_BY_ACTION }
 
 const MCP_TOOL_SNAPSHOT = Object.freeze(MCP_TOOL_CATALOG.map((tool) => {
   const annotations = 'annotations' in tool && tool.annotations

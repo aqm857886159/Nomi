@@ -40,6 +40,7 @@ import {
   type Scene3DState,
   type Scene3DVector3,
 } from './scene3dTypes'
+import { scene3dCameraDisplayName } from './scene3dObjectNames'
 
 const FOCUS_VIEW_DIRECTION = new THREE.Vector3(1, 0.62, 1).normalize()
 
@@ -556,7 +557,7 @@ export function CaptureBinder({
           captureCamera,
           dimensions.width,
           dimensions.height,
-          t('scene3d.capture.cameraTitle', { name: sceneCamera.name }),
+          t('scene3d.capture.cameraTitle', { name: scene3dCameraDisplayName(sceneCamera, cameras) }),
           'scene3d-camera',
           true,
         )

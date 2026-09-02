@@ -47,7 +47,7 @@ import {
   assertCanonicalTimestamp,
   assertCanonicalId,
   assertNonEmpty,
-  assertSafeInteger,
+  assertSafeInteger, assertSkillLoadReference,
   assertStatusRecord,
   assertTimestampOrder,
   assertVersionRef,
@@ -218,7 +218,7 @@ function assertItem(
   const extraKeys: Record<string, readonly string[]> = {
     user: ["text"],
     assistant: ["text", "textRevision"],
-    tool: ["toolCallId", "invocationId", "text", "capability", "resultRef"],
+    tool: ["toolCallId", "invocationId", "text", "capability", "resultRef", "skillLoad"],
     proposal: ["approval", "humanApproval"],
     task: ["task"],
     artifact: ["artifact"],
@@ -248,9 +248,9 @@ function assertItem(
     case "tool":
       assertNonEmpty(item.toolCallId);
       assertNonEmpty(item.invocationId);
-      if (item.text !== undefined && typeof item.text !== "string") throw new ProjectAgentStateError("invalid_state");
-      assertVersionRef(item.capability);
+      if (item.text !== undefined && typeof item.text !== "string") throw new ProjectAgentStateError("invalid_state"); assertVersionRef(item.capability);
       if (item.resultRef !== undefined) assertNonEmpty(item.resultRef);
+      if (item.skillLoad !== undefined) { if ((item.capability as { id?: unknown }).id !== "skill.read") throw new ProjectAgentStateError("invalid_state"); assertSkillLoadReference(item.skillLoad); }
       break;
     case "proposal":
       if ((item.approval === undefined) === (item.humanApproval === undefined)) {

@@ -93,10 +93,12 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-09-02-mcp-testnet-l1-handshake.md](2026-09-02-mcp-testnet-l1-handshake.md) | MCP 测试网第 1 片：真实 stdio L1 握手六条回归、tools/list payload 棘轮与 listChanged A1 | 🚧 |
+| [2026-09-02-mcp-l2-journeys.md](2026-09-02-mcp-l2-journeys.md) | MCP 测试网第 2 片：C7-C12 真实语义生成、断连回收、产物审片与导出对账 | ✅ |
 | [2026-08-25-p4-anchor-checkpoint-approval-card.md](2026-08-25-p4-anchor-checkpoint-approval-card.md) | P4 锚定妆照检查点的渲染层审批卡（#155 §8.5 两条腿之二；样张已拍板、方案未入库）| 📋 |
 | [2026-09-01-agent-m0-baseline-freeze.md](2026-09-01-agent-m0-baseline-freeze.md) | M0 基线冻结：owner map、50 项工具映射、旧路径、schema-v3 草案、红灯与 PR 切片 | ⏳ |
 | [2026-09-02-m2-generation-semantic-slice-1.md](2026-09-02-m2-generation-semantic-slice-1.md) | M2 第一片：generation plan/status 语义模型面与 Host-only 闸门排除 | 🚧 |
 | [2026-09-02-m2-editing-semantic-slices.md](2026-09-02-m2-editing-semantic-slices.md) | M2 第二片：timeline/media/export 语义面、MCP 可达性与 Host 审批 | 🚧 |
+| [2026-09-02-m2-canvas-vertical-slice-3.md](2026-09-02-m2-canvas-vertical-slice-3.md) | M2 第三片：canvas + document 语义 MCP 面、租约边界与 ProductionRun 退役收口 | 🚧 |
 | [2026-09-01-m1-round2-host-runtime.md](2026-09-01-m1-round2-host-runtime.md) | M1 round-2：Host/runtime 切片移植计划（Project Agent 执行协调器 + 常驻壳 transport） | ⏳ |
 | [2026-09-01-m1-final-assembly-closure.md](2026-09-01-m1-final-assembly-closure.md) | M1 终装收口：ProductionRun legacy 保留、RL2 投影修复、Pi 岛边界、lint 与全量 gates | ✅ |
 | [2026-08-29-agpl-only-no-cla.md](2026-08-29-agpl-only-no-cla.md) | **只发布 AGPL-3.0-only，不要求 CLA**：统一贡献、分发和 AGPL 合规服务边界 | ✅ |

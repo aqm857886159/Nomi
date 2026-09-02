@@ -476,6 +476,20 @@ export function createMcpProtocol(transport: McpTransport) {
           reply(id, buildToolResultPayload(tool.name, args, result))
           return
         }
+        if (tool.name === 'nomi_canvas_maintenance') {
+          const nodeIds = Array.isArray(built.nodeIds) ? built.nodeIds.length : 0
+          const confirm = await elicitBooleanConfirm({
+            message: `Delete ${nodeIds} Canvas node(s). This is destructive but undoable; confirm the exact maintenance request.`,
+            title: 'Confirm Canvas deletion',
+            description: 'Nomi will delete only the listed nodes after the verified project lease is checked.',
+          }, requestSignal)
+          if (!confirm.supported || !confirm.confirmed) {
+            throw Object.assign(new Error('Human confirmation is required before deleting Canvas nodes'), { code: 'human_approval_required' })
+          }
+          const result = await invokeForRequest(tool.method, { ...built, confirmation: true })
+          reply(id, buildToolResultPayload(tool.name, args, result))
+          return
+        }
         // 画布方案确认 elicitation-first（免费可撤，见 mcpPlanTrust.ts）：批量加节点（≥2）当声明 elicitation
         // 且 App 开着时，把确认递进聊天问一次而非让人跑去 App 点弹窗；批准记会话级信任、同项目后续不再问。
         // 不满足（单节点 / 不声明 elicitation / headless）→ 落到下面原样 invoke，走既有 gateway.confirmPlan
@@ -485,13 +499,13 @@ export function createMcpProtocol(transport: McpTransport) {
         // Nomi 边上」（错的，已改判据）；这里它问的是「不这么做的话，会不会弹出一张应用内方案卡」——
         // 本分支的价值就是把那张卡搬进聊天。App 关着时 confirmPlan 恒 true（免费可撤、无人值守自动放行，
         // 见 createDiskGateway），没有卡可替代，去掉这个条件只会凭空多问一次 → 与「少让用户点」正相反。
-        // 面收敛：批量加节点并入 nomi_canvas_edit（action=add_nodes）——只有加节点走 elicitation-first 方案确认，
-        // 其余 action（connect/set_prompt/delete_nodes）走下面原样 invoke。
+        // 面收敛：批量加节点并入 nomi_canvas_edit（operation=create_canvas_nodes，M2 语义面）——只有加节点走
+        // elicitation-first 方案确认，其余 operation（set_node_prompt/connect_canvas_edges/tidy_canvas）走下面原样 invoke。
         if (
           tool.name === 'nomi_canvas_edit'
-          && args.action === 'add_nodes'
           && clientSupportsElicitation
           && transport.isAppOpen()
+          && built.operation === 'create_canvas_nodes'
           && Array.isArray(built.nodes)
           && built.nodes.length >= 2 // 单节点不算「方案」→ 落到下面原样 invoke（与 core.ts 的 ≥2 门对齐）
         ) {
@@ -500,8 +514,9 @@ export function createMcpProtocol(transport: McpTransport) {
           if (!planTrust.isTrusted(projectId)) {
             const confirm = await elicitPlanConfirm(nodeCount, requestSignal)
             if (!confirm.confirmed) {
-              // decline / 超时 → 与既有取消同形（{ids:[],cancelled:true}），不落节点；文案走同一 outcome 漏斗。
-              reply(id, buildToolResultPayload(tool.name, args, { ids: [], cancelled: true }))
+              // decline / 超时 → 不落节点，但把可机读的原因留在结果里；旧形状只有
+              // cancelled=true，调用方无法区分用户拒绝与传输/超时取消（J02）。
+              reply(id, buildToolResultPayload(tool.name, args, { operation: 'create_canvas_nodes', ids: [], cancelled: true, reason: 'declined' }))
               return
             }
             planTrust.trust(projectId)

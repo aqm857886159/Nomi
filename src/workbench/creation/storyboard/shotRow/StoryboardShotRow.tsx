@@ -345,6 +345,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           ranges={shot.promptSegments}
           onChange={({ prompt, ranges }) => onUpdate({ prompt, promptSegments: ranges as PromptSegmentRange[] })}
           editorProps={{
+            'aria-label': t('storyboardEditor.promptAria', { index: shot.index }),
             placeholder: isImageShot ? t('storyboardEditor.imagePromptPlaceholder') : t('storyboardEditor.videoPromptPlaceholder'),
             className: cn(
               'flex-1 px-2.5 py-2 rounded-nomi-sm border bg-nomi-paper',
