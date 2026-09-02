@@ -142,23 +142,19 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   魔搭图像: 'ModelScope Image',
   魔搭: 'ModelScope',
   魔搭社区: 'ModelScope',
-  // Vendor display names. The catalog seeds carry Chinese vendor names (electron/catalog/*Vendor.ts);
-  // the settings UI localizes them here via translateModelDisplayText, same as 魔搭社区→ModelScope.
-  // Any vendor whose seed `name` is Chinese needs an entry here, or it renders Chinese in the EN UI.
-  // 火山方舟 = Volcengine's Ark model-service platform. Official English brand "Volcengine Ark"
-  //   (console self-brands as "Volcano Engine Ark Console — Volcengine Console",
-  //    https://console.volcengine.com/ark ; matches existing 'Volcengine Seedream' labels below).
-  火山方舟: 'Volcengine Ark',
-  火山豆包语音: 'Volcengine Voice',
-  '即梦会员（本地 CLI）': 'Dreamina membership (local CLI)',
-  'Codex 本地生图（实验）': 'Codex local image (experimental)',
   即梦: 'Dreamina',
   本地: 'Local',
   '本地 ComfyUI': 'Local ComfyUI',
   // 内置供应商种子(electron/catalog/builtinVendorSeeds.ts)的展示名——设置→模型 / 设置→AI 里那行标题。
   // 每个种子名都必须在这儿有译名或登记成语言中立品牌名,由 check:i18n 的 vendor-seed-name 门岗兜底。
-  // 译法沿用仓内既有英文文案:火山→Volcengine(onboardingProviders.ts:1750 "Volcengine Speech is
-  // separate from the Ark console")、豆包→Doubao Speech(本文件 '豆包语音 2.0': 'Doubao Speech 2.0')。
+  //
+  // 译法沿用仓内既有英文文案,不另起一套:
+  //  · 火山→Volcengine：与 onboardingProviders.ts 的英文句 "Volcengine Speech is separate from the
+  //    Ark console" 及本文件既有的 'Volcengine Seedream …' 一致；方舟官方英文品牌是 Ark
+  //    (console.volcengine.com/ark 自称 "Volcano Engine Ark Console")。
+  //  · 豆包→Doubao Speech：与本文件 '豆包语音 2.0': 'Doubao Speech 2.0' 一致。
+  //    这条**刻意不用** 'Volcengine Voice'——同一个抽屉里既写 Voice 又写 "Volcengine Speech"
+  //    自相矛盾，读的人会以为是两家。
   火山方舟: 'Volcengine Ark',
   火山豆包语音: 'Volcengine Doubao Speech',
   '即梦会员（本地 CLI）': 'Dreamina membership (local CLI)',
