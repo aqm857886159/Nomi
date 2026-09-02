@@ -41,11 +41,17 @@ describe("跨档案同串的存量赢家（同趟多命中的顺序决胜，逐�
   // happyhorse_1_0 这些串不再有第二个声明者——撞串本身消失了，连同它的 LEGACY_RESOLUTION_ORDER_PINS
   // 一起清掉（PR #310 合同 residual_risks 第三条指明的处置）。下面只剩仍然真实存在的撞串。
   const LOCKED_WINNERS: Record<string, string> = {
-    // Runway image 家族内的遮蔽（前者档案先声明）
-    gen4_image_turbo: "runway-image-reference",
-    // 归属 runway-audio，专属音频档案赢
+    // ⚠️ image 侧同理已不在此列：2026-09-02 把 Runway 十行 image 也改挂各自**真模型**档案，
+    // 平台档案 runway-image / runway-image-reference 同 commit 删除。`gen4_image_turbo`
+    // 此后只有 runway-gen4-image-turbo 一个声明者，撞串本身消失（不再是「谁遮蔽谁」）。
+    // ⚠️ audio 侧同理已不在「撞串」之列：2026-09-02 把 Runway 四行 audio 也改挂各自**真模型**
+    // 档案（seed_audio 建新档、三个 Eleven 复用/新建各自的模型档案），平台档案 runway-audio
+    // 同 commit 删除。eleven_text_to_sound_v2 / eleven_v3 此后各只有一个声明者——它们仍锁在
+    // 这里是因为「解析回自己」这件事本身值得钉死，但已不再是「谁遮蔽谁」。
     eleven_text_to_sound_v2: "eleven-sfx-v2",
     eleven_v3: "eleven-v3",
+    eleven_multilingual_v2: "eleven-multilingual-v2",
+    seed_audio: "runway-seed-audio",
     // 大小写归一后同串（apimart 官方 key 是 MiniMax-H3、kie 是 minimax-h3）：
     // 原大小写各自 tier-0 精确命中（顺序无关）；全大写落 tier-1 时 kie 档案在前。
     "MiniMax-H3": "minimax-h3-apimart",
@@ -77,11 +83,11 @@ describe("pattern 自解析不变量（除已登记例外，每个 pattern 解�
   // pattern 抢走（新的同串且自己没赢），这里会红——逼着新档案作者显式处理撞串而不是静默吞。
   // video 侧的四条旧例外（seedance2 / hailuo3 / happyhorse_1_0 / veo3.1）已随平台档案 runway-video
   // 一起消失：这些串现在各自只有真模型档案一个声明者，pattern 自解析回自己，不再是「损失」。
-  const KNOWN_LOSSES: Record<string, string> = {
-    gen4_image_turbo: "runway-image-reference", // owner runway-image
-    eleven_text_to_sound_v2: "eleven-sfx-v2", // owner runway-audio
-    eleven_v3: "eleven-v3", // owner runway-audio
-  };
+  // image 侧的 gen4_image_turbo 同样已随平台档案 runway-image / runway-image-reference 消失。
+  // audio 侧的 eleven_text_to_sound_v2 / eleven_v3 两条旧例外已随平台档案 runway-audio 消失：
+  // 这两个串此前被 runway-audio 也声明（owner 输给专属档案 = 一条「损失」），现在
+  // runway-audio 已删，它们各自只有一个声明者，pattern 自解析回自己 —— 例外表就此清空。
+  const KNOWN_LOSSES: Record<string, string> = {};
 
   it("全目录逐 pattern 扫描", () => {
     const violations: string[] = [];

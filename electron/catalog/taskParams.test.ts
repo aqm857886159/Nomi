@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hasImageEditReferences, taskTemplateParams, firstReferenceImage, projectReferencesOntoBodyKeys, unreachableReferenceLabels, imageEditGuardError } from "./taskParams";
+import { hasImageEditReferences, taskTemplateParams, firstReferenceImage, projectReferencesOntoBodyKeys, unreachableReferenceLabels, imageEditGuardError, NO_MAPPING_FALLBACK_BODY } from "./taskParams";
 
 // 「接入即验证」的零额度一环：在不真跑、不花额度的前提下，核对"摊平给模板的参数"是否完整、类型对。
 // 这些坑都只在真实参数构建里暴露（实测）：① duration 是数字被 firstString 吞成 ""；
@@ -515,5 +515,68 @@ describe("投影不变量：全体内置 mapping 都不许同时发出帧键与�
     // 前提坐实：真有这个形状的 mapping 存在，否则这条测试等于没测（空跑绿）。
     expect(covered).toBeGreaterThan(0);
     expect(violations).toEqual([]);
+  });
+});
+
+// ── 无 mapping 兜底路的静默退化（自建中转最吃亏的那一族）─────────────────────────────
+//
+// 场景：用户把模型接在自己的中转上，模型经 Provider Adapter 认证发布（meta.adapter.publicationModes），
+// 但**一条 mapping 都没有**。runtime 找不到 mapping → 走 /v1/{images,videos}/generations 兜底，
+// 那条 body 写死 {model,prompt,size,seed,n,response_format}，**没有任何参考位**。
+// 修复前：第三闸只在 createBody 有值时才跑，而这条路 createBody 是 undefined，于是
+// text_to_image / text_to_video 带着参考图长驱直入 → 生成成功、扣费成功、和参考图毫无关系。
+// （image_edit / image_to_video 早被下方 !hasMapping 分支拦住，所以这个洞只在纯文生两个 kind 上现形。）
+describe("无 mapping 兜底：参考素材不得静默丢弃", () => {
+  const refs = { referenceImages: ["https://cdn.example.com/ref.png"] };
+
+  it.each(["text_to_image", "text_to_video"] as const)(
+    "%s 带参考图但没有任何 mapping → 拒发（而不是走兜底把参考丢掉）",
+    (kind) => {
+      const error = imageEditGuardError(kind, { extras: refs }, false, "我的中转模型");
+      expect(error).toContain("发不出");
+      expect(error).toContain("参考图");
+    },
+  );
+
+  it("首帧图同样受保护（不同参考族，同一条兜底 wire）", () => {
+    const error = imageEditGuardError(
+      "text_to_video",
+      { extras: { firstFrameUrl: "https://cdn.example.com/f.png" } },
+      false,
+      "我的中转模型",
+    );
+    expect(error).toContain("首帧");
+  });
+
+  it("没带参考时兜底路照常放行——纯文生是它的正当用途，不许误伤", () => {
+    expect(imageEditGuardError("text_to_image", { extras: {} }, false, "我的中转模型")).toBeNull();
+    expect(imageEditGuardError("text_to_video", { extras: {} }, false, "我的中转模型")).toBeNull();
+    // 配音走同步 TTS runner，也在「无 mapping」形状里，不能被这条闸误伤。
+    expect(imageEditGuardError("text_to_audio", { extras: {} }, false, "我的中转模型")).toBeNull();
+  });
+
+  it("image_edit / image_to_video 无 mapping 时仍用更具体的「没有通道」文案（本闸不抢答）", () => {
+    // 两条路都是拒发 + 零扣费，效果相同；但「没有『图生图（改图）』通道」点名了缺什么、该怎么办，
+    // 比通用的「发不出：参考图」更会说话。故补兜底 body 只补下方没管的那些 kind。
+    expect(imageEditGuardError("image_edit", { extras: refs }, false, "我的中转模型"))
+      .toMatch(/没有「图生图（改图）」通道/);
+    expect(imageEditGuardError("image_to_video", { extras: refs }, false, "我的中转模型"))
+      .toMatch(/没有「图生视频」通道/);
+  });
+
+  it("有 mapping、只是调用方没传 body（customCall 走脚本）→ 无证据，不收窄", () => {
+    // hasMapping=true + createBody=undefined 是「查不到」，不是「确知发不出」。
+    // 把它也拦掉就会把脚本渠道的参考能力冤杀（fail-open 纪律）。
+    expect(imageEditGuardError("text_to_image", { extras: refs }, true, "脚本模型")).toBeNull();
+  });
+
+  it("兜底 body 形状与 runtime 实际发出的键一致（防两处漂移）", () => {
+    // runtime.ts 兜底分支发的就是这几个键。任何一边加了参考位而另一边没跟上，
+    // 闸门与真实 wire 就会分家——这条断言把对应关系钉死。
+    expect(Object.keys(NO_MAPPING_FALLBACK_BODY).sort()).toEqual(
+      ["model", "n", "prompt", "response_format", "seed", "size"],
+    );
+    // 关键不变量：这条 wire 一个参考族的位置都没有。
+    expect(unreachableReferenceLabels({ extras: refs }, NO_MAPPING_FALLBACK_BODY)).toEqual(["参考图"]);
   });
 });

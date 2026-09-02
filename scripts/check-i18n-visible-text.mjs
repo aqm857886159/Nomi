@@ -96,6 +96,7 @@ const EXCLUDED_FILES = new Set([
 const MODEL_SPEC_PREFIXES = [
   'src/config/modelArchetypes/',
   'electron/shared/videoCapabilities/',
+  'electron/shared/audioCapabilities/', // 音频侧的 wire 事实表(档案 params 由它构建),同走 model-display 边界
   'electron/catalog/', // 供应商目录里的档案标签,与 modelArchetypes 同走 model-display 边界
 ]
 function isModelSpecDir(relative) {
@@ -388,6 +389,7 @@ function collectUntranslatedModelLabels() {
     path.join(SRC_ROOT, 'config', 'modelArchetypes'),
     path.join(ELECTRON_ROOT, 'catalog'),
     path.join(ELECTRON_ROOT, 'shared', 'videoCapabilities'),
+    path.join(ELECTRON_ROOT, 'shared', 'audioCapabilities'),
   ]
   const sourceLabels = new Set()
   const propAlt = MODEL_DISPLAY_SOURCE_PROPERTIES.join('|')
