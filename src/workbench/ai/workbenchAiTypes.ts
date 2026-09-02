@@ -2,6 +2,8 @@ import type { ComposerAttachment } from './composer/composerAttachmentTypes'
 
 export type WorkbenchAiMessage = {
   id: string
+  /** Canonical Host turn identity used only for non-owning UI annotations/cards. */
+  turnId?: string
   role: 'user' | 'assistant' | 'tool'
   content: string
   /** assistant 消息生命周期状态。undefined 兼容旧 session 消息，视为 done。

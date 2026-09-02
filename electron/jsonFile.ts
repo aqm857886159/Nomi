@@ -46,25 +46,49 @@ export function renameSyncWithRetry(from: string, to: string): void {
   }
 }
 
-export function writeJsonFileAtomic(filePath: string, value: unknown): void {
+export type WriteJsonFileAtomicOptions = Readonly<{
+  mode?: number;
+}>;
+
+export function writeJsonFileAtomic(filePath: string, value: unknown, options: WriteJsonFileAtomicOptions = {}): void {
   const dir = path.dirname(filePath);
   fs.mkdirSync(dir, { recursive: true });
   const tempPath = path.join(dir, `.${path.basename(filePath)}.${crypto.randomUUID()}.tmp`);
-  const fd = fs.openSync(tempPath, "w");
+  const removeTemp = (): void => {
+    try {
+      fs.rmSync(tempPath, { force: true });
+    } catch {
+      // Preserve the originating write, close, or rename error.
+    }
+  };
+  let fd: number;
   try {
+    fd = fs.openSync(tempPath, "w", options.mode);
+  } catch (error) {
+    removeTemp();
+    throw error;
+  }
+  let fileError: unknown;
+  try {
+    if (options.mode !== undefined) fs.fchmodSync(fd, options.mode);
     fs.writeFileSync(fd, `${JSON.stringify(value, null, 2)}\n`, "utf8");
     fsyncIfDurable(fd);
-  } finally {
+  } catch (error) {
+    fileError = error;
+  }
+  try {
     fs.closeSync(fd);
+  } catch (error) {
+    fileError ??= error;
+  }
+  if (fileError !== undefined) {
+    removeTemp();
+    throw fileError;
   }
   try {
     renameSyncWithRetry(tempPath, filePath);
   } catch (error) {
-    try {
-      fs.rmSync(tempPath, { force: true });
-    } catch {
-      // best-effort cleanup; surface the original rename error below
-    }
+    removeTemp();
     throw error;
   }
 }

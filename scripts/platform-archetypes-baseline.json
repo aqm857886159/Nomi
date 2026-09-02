@@ -1,0 +1,27 @@
+{
+  "_comment": [
+    "平台档案棘轮基线（P4）：只减不增。",
+    "「平台档案」= 一个档案罩住同一供应商的多个**不同产品**，其声明的能力面因此是并集，对每个模型都在撒谎。",
+    "注意：一个档案服务多行目录不是缺陷——同一模型多供应商（gpt-image-2）、同一模型多变体（seedance-2）都是正确形状。",
+    "判据与已知盲区见 scripts/check-platform-archetypes.mjs 顶部注释。",
+    "拆掉一个档案必须同步删这里对应一行；新增平台档案当场报红，绝不允许追加到本文件抬高基线。",
+    "",
+    "modelscope-image 留在基线里是**经过分析的裁决**，不是还没干（2026-09-02，与 runway-audio 同轮）：",
+    "词干判据把它判成 6 个产品，但『平台档案』的**危害**是能力面取并集、对每个成员撒谎。逐项验完，",
+    "这里没有那个危害：6 行的 wire body **逐字相同**（同一个 /v1/images/generations 端点，只有",
+    "model/prompt/size 三个键，model 还是 {{model.modelKey}} 变量），档案只声明 1 个模式、5 个 size 值，",
+    "实测 DEAD_PARAMS=0、UNMAPPED_MODES=0 —— 没有任何一个模型收到了别人的能力。",
+    "复用既有档案（z-image-turbo / qwen-image / qwen-image-3 / flux-2-pro）**会制造**新缺陷：那四个是",
+    "apimart/kie 渠道的档案，size 用**比例串**（1:1/16:9）且带 resolution 字段；魔搭要求**像素 WxH**",
+    "（实测传 16:9 报 size format should be WxH），照搬过去等于给 wire 发非法值——正是本门岗要防的病。",
+    "逐模型分档同样无据可依：魔搭是模型**托管**平台，官方 api-inference 文档不发布任何 per-model 参数表",
+    "（size 由托管层统一收，不是每个模型一个 enum）；上游模型卡确有原生分辨率差异（Qwen-Image 原生",
+    "1328x1328、FLUX.2-klein 支持到 4MP），但那是**权重的**性质、不是这条 API 的契约，按它拆档就是拿",
+    "推断当依据（R5 禁止）。故此处是『长尾社区模型共享通用托管档案』这个**正确形状**，与 runway-audio",
+    "那种『四个不同产品硬凑一套并集参数』有本质区别。若日后魔搭发布 per-model 参数表、或某个模型需要",
+    "自己的槽/模式（如 FLUX.2-klein 的多参考图编辑能力要在这条线缆上开），再按本轮同构手法拆。"
+  ],
+  "platformArchetypes": [
+    "modelscope-image"
+  ]
+}

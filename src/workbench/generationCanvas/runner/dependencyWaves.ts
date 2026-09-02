@@ -20,7 +20,8 @@ export type DependencyWavePlan = {
   edgesUsed: GenerationCanvasEdge[]
 }
 
-function hasUsableResult(node: GenerationCanvasNode | undefined): boolean {
+/** 「有可用结果」的唯一判据（分镜表行状态 derive 复用同一函数，镜像批量放行口径）。 */
+export function hasUsableResult(node: GenerationCanvasNode | undefined | null): boolean {
   if (!node) return false
   const url = node.result?.url || node.result?.thumbnailUrl
   return typeof url === 'string' && url.length > 0

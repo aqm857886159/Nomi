@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import crypto from 'node:crypto'
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -17,6 +18,19 @@ const tsxCli = require.resolve('tsx/cli')
 const roots: string[] = []
 const children = new Set<ChildProcessWithoutNullStreams>()
 const fakeServers: import('node:http').Server[] = []
+
+function installedClientIdentity(capabilityDir: string) {
+  fs.mkdirSync(capabilityDir, { recursive: true })
+  const tokenPath = path.join(capabilityDir, 'token')
+  const token = fs.existsSync(tokenPath)
+    ? fs.readFileSync(tokenPath, 'utf8').trim()
+    : crypto.randomBytes(32).toString('base64url')
+  if (!fs.existsSync(tokenPath)) fs.writeFileSync(tokenPath, token, { encoding: 'utf8', mode: 0o600 })
+  return {
+    client: 'codex',
+    proof: crypto.createHmac('sha256', token).update('nomi-mcp-client:v1:codex').digest('base64url'),
+  }
+}
 
 function fakeNomiScript(root: string): string {
   const target = path.join(root, 'fake-nomi.mjs')
@@ -79,6 +93,7 @@ setTimeout(() => {
 }
 
 function startLauncher(capabilityDir: string, fakeApp: string) {
+  const identity = installedClientIdentity(capabilityDir)
   const child = spawn(process.execPath, [tsxCli, launcherSource], {
     env: {
       ...process.env,
@@ -86,6 +101,8 @@ function startLauncher(capabilityDir: string, fakeApp: string) {
       NOMI_MCP_APP_COMMAND: process.execPath,
       NOMI_MCP_APP_ARGS: JSON.stringify([fakeApp, capabilityDir]),
       NOMI_MCP_EXIT_BOOTSTRAPPED_APP: '1',
+      NOMI_MCP_CLIENT: identity.client,
+      NOMI_MCP_CLIENT_PROOF: identity.proof,
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   })
@@ -144,9 +161,11 @@ function spawnSleeper(): ChildProcessWithoutNullStreams {
  * 起一个假 RPC HTTP server：project.list 返回带 marker 的项目列表；写一个 v2 广告到指定文件名指向它。
  * 用来证明「若 launcher 连了它，就会拿到 marker 项目」——从而反证隔离/快速失败时**从未**连它。
  */
-async function startFakeRpc(marker: string): Promise<{ port: number }> {
+async function startFakeRpc(marker: string): Promise<{ port: number; requests: Array<Record<string, string | string[] | undefined>> }> {
   const http = await import('node:http')
+  const requests: Array<Record<string, string | string[] | undefined>> = []
   const server = http.createServer((request, response) => {
+    requests.push({ ...request.headers })
     let body = ''
     request.setEncoding('utf8')
     request.on('data', (chunk) => { body += chunk })
@@ -161,7 +180,56 @@ async function startFakeRpc(marker: string): Promise<{ port: number }> {
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()))
   const port = (server.address() as { port: number }).port
   fakeServers.push(server)
+  return { port, requests }
+}
+
+async function startFakeRpcFailure(error: Record<string, unknown>): Promise<{ port: number }> {
+  const http = await import('node:http')
+  const server = http.createServer((request, response) => {
+    request.resume()
+    request.on('end', () => {
+      const payload = JSON.stringify({ ok: false, error })
+      response.writeHead(403, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(payload) })
+      response.end(payload)
+    })
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()))
+  const port = (server.address() as { port: number }).port
+  fakeServers.push(server)
   return { port }
+}
+
+async function startRedirectingRpc(): Promise<{
+  port: number
+  sourceRequests: Array<Record<string, string | string[] | undefined>>
+  targetRequests: Array<Record<string, string | string[] | undefined>>
+}> {
+  const http = await import('node:http')
+  const targetRequests: Array<Record<string, string | string[] | undefined>> = []
+  const target = http.createServer((request, response) => {
+    targetRequests.push({ ...request.headers })
+    request.resume()
+    request.on('end', () => {
+      const payload = JSON.stringify({ ok: true, result: { projects: [{ id: 'redirect-leak' }] } })
+      response.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(payload) })
+      response.end(payload)
+    })
+  })
+  await new Promise<void>((resolve) => target.listen(0, '127.0.0.1', () => resolve()))
+  fakeServers.push(target)
+  const targetPort = (target.address() as { port: number }).port
+  const sourceRequests: Array<Record<string, string | string[] | undefined>> = []
+  const source = http.createServer((request, response) => {
+    sourceRequests.push({ ...request.headers })
+    request.resume()
+    request.on('end', () => {
+      response.writeHead(307, { location: `http://127.0.0.1:${targetPort}/stolen` })
+      response.end()
+    })
+  })
+  await new Promise<void>((resolve) => source.listen(0, '127.0.0.1', () => resolve()))
+  fakeServers.push(source)
+  return { port: (source.address() as { port: number }).port, sourceRequests, targetRequests }
 }
 
 /** 写一份 v2 广告 JSON 到 capabilityDir 下指定文件名。 */
@@ -177,12 +245,15 @@ function startLauncherWith(opts: {
   appCommand?: string
   appArgs?: string[]
 }) {
+  const identity = installedClientIdentity(opts.capabilityDir)
   const env: Record<string, string> = {
     ...process.env,
     NOMI_CAPABILITY_DIR: opts.capabilityDir,
     // 默认 app 命令 = 立即退出的 no-op：冷启路走到它会「兄弟进程正常退出」，不会误产生一个真广告。
     NOMI_MCP_APP_COMMAND: opts.appCommand ?? process.execPath,
     NOMI_MCP_APP_ARGS: JSON.stringify(opts.appArgs ?? ['-e', 'process.exit(0)']),
+    NOMI_MCP_CLIENT: identity.client,
+    NOMI_MCP_CLIENT_PROOF: identity.proof,
   }
   if (opts.projectsDir) env.NOMI_PROJECTS_DIR = opts.projectsDir
   const child = spawn(process.execPath, [tsxCli, launcherSource], { env, stdio: ['pipe', 'pipe', 'pipe'] })
@@ -214,6 +285,126 @@ function startLauncherWith(opts: {
 }
 
 describe('mcpNodeLauncher library fingerprint handshake', () => {
+  it('never forwards client proof or connection attestation across a loopback redirect', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-redirect-'))
+    roots.push(root)
+    const capabilityDir = path.join(root, 'capability')
+    const projectsDir = path.join(root, 'projects')
+    const redirect = await startRedirectingRpc()
+    writeAdvert(capabilityDir, instanceAdvertFileName(projectsDir, false), {
+      version: 2,
+      pid: process.pid,
+      port: redirect.port,
+      token: 'redirect-source-token',
+      startedAt: Date.now(),
+      projectsRoot: projectsDir,
+      heartbeatAt: Date.now(),
+      appVersion: 'test',
+    })
+    const launcher = startLauncherWith({ capabilityDir, projectsDir })
+    await launcher.rpc('initialize', {
+      protocolVersion: '2025-11-25',
+      capabilities: {},
+      clientInfo: { name: 'redirect-test', version: '1' },
+    })
+
+    const response = await launcher.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
+
+    expect(redirect.sourceRequests).toHaveLength(1)
+    expect(redirect.targetRequests).toEqual([])
+    expect(redirect.targetRequests.flatMap((headers) => [
+      headers['x-nomi-mcp-client-proof'],
+      headers['x-nomi-mcp-connection-attestation'],
+    ].filter(Boolean))).toEqual([])
+    expect(response.result?.isError).toBe(true)
+  })
+
+  it.each([
+    ['lease_expired', 'Project session lease has expired'],
+    ['lease_revoked', 'Project session lease has been revoked'],
+  ])('preserves typed %s RPC failures through the whole MCP frame', async (code, message) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-mcp-${code}-`))
+    roots.push(root)
+    const capabilityDir = path.join(root, 'capability')
+    const projectsDir = path.join(root, 'projects')
+    const fake = await startFakeRpcFailure({
+      code,
+      message,
+      nextAction: 'Open a new project session and retry',
+      capability: 'canvas.read',
+    })
+    writeAdvert(capabilityDir, instanceAdvertFileName(projectsDir, false), {
+      version: 2,
+      pid: process.pid,
+      port: fake.port,
+      token: 'typed-error-token',
+      startedAt: Date.now(),
+      projectsRoot: projectsDir,
+      heartbeatAt: Date.now(),
+      appVersion: 'test',
+    })
+    const launcher = startLauncherWith({ capabilityDir, projectsDir })
+    await launcher.rpc('initialize', {
+      protocolVersion: '2025-11-25',
+      capabilities: {},
+      clientInfo: { name: 'typed-error-test', version: '1' },
+    })
+
+    const response = await launcher.rpc('tools/call', {
+      name: 'nomi_read',
+      arguments: { target: 'canvas', projectId: 'project-1', leaseHandle: 'opaque-project-lease' },
+    })
+    const serialized = JSON.stringify(response)
+    const outcome = response.result?.structuredContent as { nomiOutcome?: Record<string, unknown> } | undefined
+
+    expect(response.result?.isError).toBe(true)
+    expect(outcome?.nomiOutcome).toMatchObject({
+      errorCode: code,
+      message,
+      nextAction: 'Open a new project session and retry',
+      capability: 'canvas.read',
+    })
+    expect(serialized).not.toContain('[object Object]')
+  })
+
+  it('keeps one private transport attestation stable within a launcher and distinct across launcher connections', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-connection-headers-'))
+    roots.push(root)
+    const capabilityDir = path.join(root, 'capability')
+    const projectsDir = path.join(root, 'projects')
+    const fake = await startFakeRpc('CONNECTION-HEADERS')
+    writeAdvert(capabilityDir, instanceAdvertFileName(projectsDir, false), {
+      version: 2,
+      pid: process.pid,
+      port: fake.port,
+      token: 'connection-header-token',
+      startedAt: Date.now(),
+      projectsRoot: projectsDir,
+      heartbeatAt: Date.now(),
+      appVersion: 'test',
+    })
+    const first = startLauncherWith({ capabilityDir, projectsDir })
+    const second = startLauncherWith({ capabilityDir, projectsDir })
+    for (const launcher of [first, second]) {
+      await launcher.rpc('initialize', {
+        protocolVersion: '2025-11-25',
+        capabilities: {},
+        clientInfo: { name: 'connection-header-test', version: '1' },
+      })
+    }
+
+    await first.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
+    await first.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
+    await second.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
+
+    const [firstCall, firstAgain, secondCall] = fake.requests
+    expect(firstCall?.['x-nomi-mcp-connection-attestation']).toBe(firstAgain?.['x-nomi-mcp-connection-attestation'])
+    expect(firstCall?.['x-nomi-mcp-connection-attestation']).not.toBe(secondCall?.['x-nomi-mcp-connection-attestation'])
+    expect(firstCall?.['x-nomi-mcp-session-id']).toBeUndefined()
+    expect(firstCall?.['x-nomi-mcp-connection-nonce']).toBeUndefined()
+    expect(firstCall).toMatchObject({ 'x-nomi-mcp-client': 'codex' })
+  })
+
   it('fast-fails (≤10s) with BOTH library roots when a hijacker advertises a different library, and never returns its projects', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-hijack-'))
     roots.push(root)
@@ -235,7 +426,7 @@ describe('mcpNodeLauncher library fingerprint handshake', () => {
     await launcher.rpc('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'hijack-test', version: '1' } })
 
     const startedAt = Date.now()
-    const response = await launcher.rpc('tools/call', { name: 'nomi_list_projects', arguments: {} })
+    const response = await launcher.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
     const elapsed = Date.now() - startedAt
 
     expect(elapsed).toBeLessThan(FAST_FAIL_BUDGET_MS)
@@ -294,7 +485,7 @@ setTimeout(() => process.exit(0), 5_000)
       appArgs: [fallbackApp, capabilityDir, String(defaultRpc.port)],
     })
     await launcher.rpc('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'namespace-test', version: '1' } })
-    const response = await launcher.rpc('tools/call', { name: 'nomi_list_projects', arguments: {} })
+    const response = await launcher.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
 
     const serialized = JSON.stringify(response)
     expect(serialized).not.toContain('CUSTOM-only') // 自定义库广告被无视
@@ -315,7 +506,7 @@ describe('mcpNodeLauncher cold start', () => {
       protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'launcher-race-test', version: '1' },
     })))
     const responses = await Promise.all([first, second].map(({ rpc }) => rpc('tools/call', {
-      name: 'nomi_list_projects', arguments: {},
+      name: 'nomi_read', arguments: { target: 'projects' },
     })))
 
     for (const response of responses) {

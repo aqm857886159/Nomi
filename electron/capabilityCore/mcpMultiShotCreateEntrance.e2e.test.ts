@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { createApprovalReceiptAuthority } from "./approvalReceipt";
 import { createModuleRegistry } from "./moduleRegistry";
 import { createGenerationRuntimeAdapter, type GenerationProvider } from "./generationRuntimeAdapter";
 import {
@@ -12,9 +13,11 @@ import {
   type GenerationOperationStore,
   type StoryboardPlanResult,
 } from "./mcpGenerationTools";
-import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV1 } from "./projectLease";
+import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
+import { createRunOwnedGenerationGateAuthority } from "./runOwnedGenerationGateAuthority";
 import { createProductionGenerationOperationStore } from "../productionRun/productionGenerationOperationStore";
 import { createProductionGenerationSubmission } from "../productionRun/productionGenerationSubmission";
+import { prepareProductionGenerationAuthorization } from "../productionRun/prepareProductionGenerationAuthorization";
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
 import { createProductionRunService } from "../productionRun/productionRunService";
 import { createMultiShotBatchScheduler } from "../productionRun/multiShotBatchScheduler";
@@ -48,7 +51,7 @@ const registry = createModuleRegistry([{
   }],
 }]);
 
-const lease: ProjectLeaseV1 = {
+const lease: ProjectLeaseV2 = {
   version: PROJECT_LEASE_VERSION,
   keyId: "key-1",
   algorithm: PROJECT_LEASE_ALGORITHM,
@@ -64,7 +67,7 @@ const lease: ProjectLeaseV1 = {
   issuedAt: "2026-08-25T00:00:00.000Z",
   expiresAt: "2026-08-25T01:00:00.000Z",
   audience: PROJECT_LEASE_AUDIENCE,
-  leasePrincipal: "mcp:test",
+  leasePrincipal: "mcp:codex",
   sessionId: "session-1",
   connectionNonce: "connection-1",
   revocationEpoch: 0,
@@ -129,8 +132,7 @@ function harness(vendorOrigin: string, submits: string[], planStoryboard?: (inpu
   createGenerationRuntimeAdapter({ providers: [provider] }); // sanity: the real adapter accepts this provider
   const submission = createProductionGenerationSubmission({
     repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
-    intentMacKey: "test-intent-key", provider,
-    resolveShotPrice: () => ({ known: true, amount: 6 }),
+    projectRevision: 0, intentMacKey: "test-intent-key", providers: [provider],
     materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.png` }),
     now,
   });
@@ -144,6 +146,16 @@ function harness(vendorOrigin: string, submits: string[], planStoryboard?: (inpu
     resolveModelPricing: () => ({ cost: 6, enabled: true, specCosts: [] }),
     ...(planStoryboard ? { planStoryboard } : {}),
     now,
+    prepareAuthorization: ({ lease: projectLease, operation, contract, multiShot }) => prepareProductionGenerationAuthorization({
+      lease: projectLease,
+      projectRevision: 0,
+      operation,
+      contract,
+      ...(multiShot ? { multiShot } : {}),
+      providers: [provider],
+      resolveShotPrice: () => ({ known: true, amount: 6 }),
+      now: now(),
+    }),
     start: async (operation: GenerationOperation) => {
       const run = repository.read("project-1", operation.operationId)!;
       if (run.generationPlan?.state === "sealed") {
@@ -153,7 +165,35 @@ function harness(vendorOrigin: string, submits: string[], planStoryboard?: (inpu
       return { operationId: operation.operationId, nextAction: "observe" };
     },
   });
-  return { root, repository, handler, buildScheduler };
+  let receiptSequence = 0;
+  const receipts = createApprovalReceiptAuthority({
+    filePath: path.join(root, "approval-receipts.json"),
+    macKey: "test-receipt-key",
+    storeMacKey: "test-receipt-store-key",
+    keyId: "test-receipt-v1",
+    now,
+    randomId: () => `receipt-sequence-${++receiptSequence}`,
+  });
+  const generationAuthority = createRunOwnedGenerationGateAuthority({ owner: owner as never, operations, planning: handler, receipts, now });
+  return { root, repository, handler, buildScheduler, generationAuthority, receipts };
+}
+
+async function approveGenerationGate(
+  generationAuthority: ReturnType<typeof createRunOwnedGenerationGateAuthority>,
+  receipts: ReturnType<typeof createApprovalReceiptAuthority>,
+  operationId: string,
+  challengeToken: string,
+) {
+  const gesture = receipts.createMainProcessGestureAttestation(challengeToken, {
+    webContentsId: 1,
+    frameId: 0,
+    origin: "app://nomi",
+    decision: "accept",
+  });
+  const minted = receipts.mintReceipt(challengeToken, gesture);
+  const decided = await generationAuthority.authorizeGeneration({ params: { operationId }, lease, receipt: minted.receipt });
+  receipts.consumeReceipt(minted.token);
+  return decided;
 }
 
 afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }); clock = NOW_BASE; });
@@ -162,7 +202,7 @@ describe("P4 S6.5 — semantic multi-shot create entrance (plan) over a real loo
   it("create({shots}) → seal(shots) → gate multi-shot projection → decide → start → anchor checkpoint → shot batch; total requests = anchors + shots", async () => {
     const vendor = await startLoopbackVendor();
     const submits: string[] = [];
-    const { root, repository, handler, buildScheduler } = harness(vendor.origin, submits);
+    const { root, repository, handler, buildScheduler, generationAuthority, receipts } = harness(vendor.origin, submits);
     try {
       // 1. REAL create with a multi-shot plan (1 anchor + 2 video shots) — the production entrance.
       // operationId fixed to op-entrance so the harness scheduler (runId: op-entrance) drives THIS run.
@@ -179,9 +219,10 @@ describe("P4 S6.5 — semantic multi-shot create entrance (plan) over a real loo
 
       // 2. Preview (zero provider calls) then gate_request → the REAL multi-shot gate projection.
       await handler({ capability: "preview", lease, params: { operationId } });
-      const gate = await handler({ capability: "gate_request", lease, params: { operationId } }) as {
+      const gate = await generationAuthority.requestGenerationGate({ lease, params: { operationId } }) as {
         shots?: { shots: Array<{ shotId: string; sceneOneLiner: string }>; anchorChips?: unknown[]; hardLimit: number };
         maximumCost: number; costScope: string; contractHash: string; nextAction: string;
+        handoff: { challengeToken: string };
       };
       expect(gate.nextAction).toBe("confirm");
       // display.shots holds the 2 INCLUDED video shots; the anchor rides as a chip (§3.2).
@@ -192,7 +233,7 @@ describe("P4 S6.5 — semantic multi-shot create entrance (plan) over a real loo
       expect(gate.costScope).toBe(`generation.multi-shot:${operationId}`);
 
       // 3. Decide the gate (a verified receipt) → approve the whole batch.
-      const decided = await handler({ capability: "gate_decide", lease, params: { operationId, receiptId: "receipt-plan" } }) as { nextAction: string };
+      const decided = await approveGenerationGate(generationAuthority, receipts, operationId, gate.handoff.challengeToken) as { nextAction: string };
       expect(decided.nextAction).toBe("start");
 
       // Plan is sealed + approved; the scheduler needs 'submitted' (the S6.5 start-branch fix).
@@ -210,7 +251,9 @@ describe("P4 S6.5 — semantic multi-shot create entrance (plan) over a real loo
       const checkpoint = run.gates.find((g) => g.gateId === anchorCheckpointGateId(operationId))!;
       expect(checkpoint.status).toBe("waiting");
       expect(run.artifacts.filter((a) => a.kind === "video" && a.status === "ready")).toHaveLength(1); // anchor
-      expect(run.jobs.some((j) => j.metadata?.shotId === "shot-1")).toBe(false); // checkpoint blocks shots
+      const blockedShotJob = run.jobs.find((job) => job.metadata?.shotId === "shot-1");
+      expect(blockedShotJob).toMatchObject({ status: "authorized" });
+      expect(blockedShotJob?.providerTaskId).toBeUndefined();
 
       // 5. Approve the anchor checkpoint + manually re-kick (test mechanics for THIS file's concern = the
       // create entrance). The REAL production approval entrance (dispatcher `production.decide-gate` →
@@ -270,14 +313,14 @@ describe("P4 S6.5 — semantic multi-shot create entrance (plan) over a real loo
 
   it("keeps single-shot create byte-identical (no shots persisted, flat gate card, single-shot cost scope)", async () => {
     const vendor = await startLoopbackVendor();
-    const { handler, repository } = harness(vendor.origin, []);
+      const { handler, repository, generationAuthority } = harness(vendor.origin, []);
     try {
       const created = await handler({ capability: "create", lease, params: { candidate: shotCandidate("solo", "单镜", "shot") } }) as { operation: { operationId: string; shots?: unknown[] } };
       const operationId = created.operation.operationId;
       expect(created.operation.shots).toBeUndefined(); // single-shot draft has no shots
       expect(repository.read("project-1", operationId)!.generationPlan?.shots).toBeUndefined();
       await handler({ capability: "preview", lease, params: { operationId } });
-      const gate = await handler({ capability: "gate_request", lease, params: { operationId } }) as { shots?: unknown; costScope: string; maximumCost: number };
+      const gate = await generationAuthority.requestGenerationGate({ lease, params: { operationId } }) as { shots?: unknown; costScope: string; maximumCost: number };
       expect(gate.shots).toBeUndefined(); // flat single-shot card (no display.shots)
       expect(gate.costScope).toBe(`generation.single-shot:${operationId}`);
       expect(gate.maximumCost).toBe(6); // one shot's derived price
@@ -297,7 +340,7 @@ describe("P4 S6.5 — scriptText create entrance (stubbed planner)", () => {
       { shotId: "shot-1", role: "shot", prompt: "雨夜推门", moduleId: "generation.single-shot", providerId: "apimart", modelId: "video-model", mode: "image-to-video" },
       { shotId: "shot-2", role: "shot", prompt: "货架对视", moduleId: "generation.single-shot", providerId: "apimart", modelId: "video-model", mode: "image-to-video" },
     ] }));
-    const { handler } = harness(vendor.origin, submits, planStoryboard);
+    const { handler, generationAuthority } = harness(vendor.origin, submits, planStoryboard);
     try {
       const created = await handler({ capability: "create", lease, params: { scriptText: "雨夜便利店，两角色相遇。" } }) as {
         operation: { operationId: string; shots?: Array<{ shotId: string; role?: string; candidate: { prompt: string } }> };
@@ -313,7 +356,7 @@ describe("P4 S6.5 — scriptText create entrance (stubbed planner)", () => {
 
       // The scriptText draft seals a real multi-shot gate exactly like the plan entrance.
       await handler({ capability: "preview", lease, params: { operationId } });
-      const gate = await handler({ capability: "gate_request", lease, params: { operationId } }) as { shots?: { shots: unknown[]; anchorChips?: unknown[] }; costScope: string };
+      const gate = await generationAuthority.requestGenerationGate({ lease, params: { operationId } }) as { shots?: { shots: unknown[]; anchorChips?: unknown[] }; costScope: string };
       expect(gate.shots?.shots).toHaveLength(2); // 2 video shots
       expect(gate.shots?.anchorChips).toHaveLength(1); // 1 anchor chip
       expect(gate.costScope).toBe(`generation.multi-shot:${operationId}`);

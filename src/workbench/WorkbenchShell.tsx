@@ -1,7 +1,7 @@
 import React from "react";
+import { createPortal } from 'react-dom';
 import { useTranslation } from "react-i18next";
 import "./workbench.css";
-import "./workbench-ai.css";
 import { IconBrowser } from "@tabler/icons-react";
 import { NomiBrand, NomiLoadingMark } from "../design";
 import NomiAppBar from "../ui/app-shell/NomiAppBar";
@@ -16,11 +16,19 @@ import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
 import { WindowControls } from "../ui/app-shell/WindowControls";
 import { handleWindowTitlebarDoubleClick } from "../ui/app-shell/windowTitlebarDoubleClick";
 import { OnboardingChecklist } from "./onboarding/OnboardingChecklist";
+import ProjectAgentResidentShell from './ai/ProjectAgentResidentShell';
+import { useAgentHostEnabled } from '../utils/agentHostPreference';
 
 // 工作区懒加载走容错域（审计 A5）：单个工作区 chunk 失败不拖死其余工作区。
 const CreationWorkspace = lazyWithChunkBoundary(
     "创作区",
     () => import("./creation/CreationWorkspace"),
+);
+// 分镜独立工作区（v5 C3）：storyboard 模式不再共用 CreationWorkspace，
+// 单独懒挂载全宽 StoryboardWorkspace（无文档侧栏、无 AI 栏）。
+const StoryboardWorkspace = lazyWithChunkBoundary(
+    "i18n:workspace.storyboard",
+    () => import("./creation/storyboard/StoryboardWorkspace"),
 );
 const GenerationWorkspace = lazyWithChunkBoundary(
     "生成区",
@@ -30,8 +38,6 @@ const PreviewWorkspace = lazyWithChunkBoundary("预览区", () => import("./prev
 
 type WorkbenchShellProps = {
     generation: React.ReactNode;
-    generationAi?: React.ReactNode;
-    generationAiLayout?: "sidebar" | "overlay";
     projectId?: string | null;
     projectName?: string;
     onBackToLibrary?: () => void;
@@ -127,8 +133,6 @@ function openBrowser(): void {
 
 export default function WorkbenchShell({
     generation,
-    generationAi,
-    generationAiLayout = "sidebar",
     projectId,
     projectName,
     onBackToLibrary,
@@ -141,7 +145,26 @@ export default function WorkbenchShell({
     const setWorkspaceMode = useWorkbenchStore(
         (state) => state.setWorkspaceMode,
     );
+    const setTimelineSelection = useWorkbenchStore(
+        (state) => state.setTimelineSelection,
+    );
     const categories = useWorkbenchStore((state) => state.categories);
+    const agentDockCollapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed);
+    // 发布闸（默认关，见 agentHostPreference）：关闭时常驻 Agent 整套 UI 一概不渲染——
+    // 不挂 portal、不给工作区传 dock ref（于是也不预留助手列 / 折叠药丸 / 入口），不只是折叠态。
+    // 开闸即删此闸的默认值歧义（P1）。
+    const agentHostEnabled = useAgentHostEnabled();
+    const [agentDockTargets, setAgentDockTargets] = React.useState<Record<'creation' | 'generation' | 'preview', HTMLDivElement | null>>({ creation: null, generation: null, preview: null });
+    const setAgentDockTarget = React.useCallback((surface: 'creation' | 'generation' | 'preview') => (node: HTMLDivElement | null) => {
+        setAgentDockTargets((current) => current[surface] === node ? current : { ...current, [surface]: node });
+    }, []);
+    const agentDockRefs = React.useMemo(() => agentHostEnabled ? {
+        creation: setAgentDockTarget('creation'),
+        generation: setAgentDockTarget('generation'),
+        preview: setAgentDockTarget('preview'),
+    } : { creation: undefined, generation: undefined, preview: undefined }, [agentHostEnabled, setAgentDockTarget]);
+    const agentSurface = workspaceMode === 'generation' ? 'generation' : workspaceMode === 'preview' ? 'preview' : 'creation';
+    const agentDock = agentHostEnabled ? agentDockTargets[agentSurface] : null;
     const [mountedWorkspaceModes, setMountedWorkspaceModes] = React.useState<
         WorkspaceMode[]
     >(() => [workspaceMode]);
@@ -171,6 +194,51 @@ export default function WorkbenchShell({
                 : [...current, workspaceMode],
         );
     }, [workspaceMode]);
+
+    React.useEffect(() => {
+        const onAgentContextFocus = (event: Event) => {
+            const detail = (event as CustomEvent<{ surface?: string; nodeIds?: unknown; clipIds?: unknown }>).detail;
+            const surface = detail?.surface;
+            if (surface !== "creation" && surface !== "generation" && surface !== "preview") return;
+            const nextMode: WorkspaceMode = surface === "creation" ? "creation" : surface;
+            const nodeIds = Array.isArray(detail?.nodeIds)
+                ? detail.nodeIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+                : [];
+            const clipIds = Array.isArray(detail?.clipIds)
+                ? detail.clipIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+                : [];
+            if (surface === "preview" && clipIds.length > 0) setTimelineSelection(clipIds);
+            if (workspaceMode !== nextMode) {
+                setWorkspaceMode(nextMode);
+                writeWorkspaceModeToUrl(nextMode);
+            }
+            requestAnimationFrame(() => {
+                document.querySelector<HTMLElement>(`.workbench-${surface}`)?.scrollIntoView({
+                    block: "nearest",
+                    inline: "nearest",
+                });
+                if (surface === "generation" && nodeIds.length > 0) {
+                    window.dispatchEvent(new CustomEvent("nomi-focus-generation-node", {
+                        detail: { nodeId: nodeIds[0] },
+                    }));
+                }
+            });
+        };
+        window.addEventListener("nomi-agent-context-focus", onAgentContextFocus);
+        return () => window.removeEventListener("nomi-agent-context-focus", onAgentContextFocus);
+    }, [setTimelineSelection, setWorkspaceMode, workspaceMode]);
+
+    React.useEffect(() => {
+        const onOpenSkillLibrary = () => {
+            if (workspaceMode !== "generation") {
+                setWorkspaceMode("generation");
+                writeWorkspaceModeToUrl("generation");
+            }
+            window.setTimeout(() => window.dispatchEvent(new Event("nomi-open-skill-library")), 0);
+        };
+        window.addEventListener("nomi-focus-skill-library", onOpenSkillLibrary);
+        return () => window.removeEventListener("nomi-focus-skill-library", onOpenSkillLibrary);
+    }, [setWorkspaceMode, workspaceMode]);
 
     const handleWorkspaceModeChange = React.useCallback(
         (mode: WorkspaceMode) => {
@@ -269,11 +337,18 @@ export default function WorkbenchShell({
                     <ProjectExplorerSidebar projectId={projectId ?? null} categories={categories} />
                 ) : null}
                 <div className='flex-1 min-w-0 min-h-0 relative'>
-                    {mountedWorkspaceModes.includes("creation") || mountedWorkspaceModes.includes("storyboard") ? (
+                    {mountedWorkspaceModes.includes("creation") ? (
                         <WorkspaceSlot
-                            active={workspaceMode === "creation" || workspaceMode === "storyboard"}
+                            active={workspaceMode === "creation"}
                             label={t("workspace.creation")}>
-                            <CreationWorkspace />
+                            <CreationWorkspace aiCollapsed={agentDockCollapsed} agentDockRef={agentDockRefs.creation} />
+                        </WorkspaceSlot>
+                    ) : null}
+                    {mountedWorkspaceModes.includes("storyboard") ? (
+                        <WorkspaceSlot
+                            active={workspaceMode === "storyboard"}
+                            label={t("workspace.storyboard")}>
+                            <StoryboardWorkspace />
                         </WorkspaceSlot>
                     ) : null}
                     {mountedWorkspaceModes.includes("generation") ? (
@@ -282,8 +357,8 @@ export default function WorkbenchShell({
                             label={t("workspace.generation")}>
                             <GenerationWorkspace
                                 canvas={generation}
-                                aiSidebar={generationAi}
-                                aiLayout={generationAiLayout}
+                                aiCollapsed={agentDockCollapsed}
+                                agentDockRef={agentDockRefs.generation}
                             />
                         </WorkspaceSlot>
                     ) : null}
@@ -291,10 +366,14 @@ export default function WorkbenchShell({
                         <WorkspaceSlot
                             active={workspaceMode === "preview"}
                             label={t("workspace.preview")}>
-                            <PreviewWorkspace />
+                            <PreviewWorkspace
+                                aiCollapsed={agentDockCollapsed}
+                                agentDockRef={agentDockRefs.preview}
+                            />
                         </WorkspaceSlot>
                     ) : null}
                 </div>
+                {agentDock ? createPortal(<ProjectAgentResidentShell surface={agentSurface} />, agentDock) : null}
             </main>
         </div>
     );

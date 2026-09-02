@@ -36,12 +36,47 @@
       "detail": ""
     },
     {
-      "name": "复制变体新增一个节点",
+      "name": "历史图片预览载入原图",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "历史图片提供下载入口",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "历史图片下载文件非空",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "删除历史结果后其他版本保留",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "复制变体新增一个节点且用户立即看得到",
       "ok": true,
       "detail": ""
     },
     {
       "name": "复制变体可一次撤销",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "版本托盘避开画布视口边缘",
+      "ok": true,
+      "detail": "left"
+    },
+    {
+      "name": "悬停历史视频真实播放元素可见",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "历史视频默认静音",
       "ok": true,
       "detail": ""
     },
@@ -58,7 +93,22 @@
     {
       "name": "键盘左键精确回退一秒",
       "ok": true,
-      "detail": "45.071999999999996 -> 44.073891"
+      "detail": "45.071999999999996 -> 44.080852"
+    },
+    {
+      "name": "离开历史视频后播放暂停并回到起点",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "历史视频预览挂载视频元素",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "历史视频预览提供原生控制条",
+      "ok": true,
+      "detail": ""
     },
     {
       "name": "收起后只剩一个组卡",
@@ -76,7 +126,27 @@
       "detail": ""
     },
     {
+      "name": "收起编组保留可交互的左右悬浮加号",
+      "ok": true,
+      "detail": "[{\"side\":\"left\",\"rendered\":true,\"hasPlusIcon\":true},{\"side\":\"right\",\"rendered\":true,\"hasPlusIcon\":true}]"
+    },
+    {
       "name": "三条成员输入聚合为一条编组线",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "返回项目库仍能看到两个项目",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "重新打开后节点与聚合连接仍在",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "重新打开后历史结果仍保留",
       "ok": true,
       "detail": ""
     },
@@ -104,7 +174,17 @@
       "name": "断开的编组声明不再持久化",
       "ok": true,
       "detail": ""
+    },
+    {
+      "name": "展开后素材库面板可见",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "切换项目后左侧栏自动收起",
+      "ok": true,
+      "detail": ""
     }
   ],
-  "projectRoot": "/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-card-stack-walk-LH3GJz/projects/canvas-card-stack-walk"
+  "projectRoot": "/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-card-stack-walk-BuC2Mk/projects/canvas-card-stack-walk"
 }

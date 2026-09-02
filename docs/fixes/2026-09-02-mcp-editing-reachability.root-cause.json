@@ -1,0 +1,47 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-mcp-editing-reachability",
+  "problem_type": "Semantic editing capabilities are registered only on the internal Pi surface",
+  "symptom": "An MCP client cannot discover or invoke timeline, media, or export inspection tools even though the renderer capability targets already exist.",
+  "direct_cause": "MCP capability projection registers only the canvas.read adapter and the MCP protocol routes only canvas.read through verified project-session transport.",
+  "class_root": "Capability contracts do not have a single explicit, verified surface adapter for each externally reachable intent.",
+  "affected_population": ["MCP clients using an open Nomi project", "timeline/media/export read and edit operations"],
+  "scope_paths": [
+    "electron/capabilityCore/mcpCapabilityProjection.ts",
+    "electron/capabilityCore/rpcServer.ts",
+    "electron/capabilityCore/localProjectSessionTransportPolicy.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "electron/harness/tools/modelToolSurfaceManifest.ts"
+  ],
+  "entry_points": [
+    "MCP tools/list and tools/call",
+    "MCP stdio loopback RPC when the GUI is open",
+    "Pi model catalog projection"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an application-owned capability projection and lease routing rule.",
+  "invariants": [
+    "Every MCP editing call has a transport-minted leaseHandle and is verified against the requested project and required scope before renderer execution.",
+    "Only explicit module-owned adapters can appear in MCP tools/list.",
+    "Paid export start/cancel remain host-only; status and verify are read-only projections.",
+    "Model-facing descriptors contain semantic intent names and never the retired editing aliases."
+  ],
+  "generality_proof": "All editing callers converge on the capability contract registry and the MCP adapter resolver; enforcing explicit adapter identity, lease verification, and operation-level exposure there prevents another alias or future surface from bypassing the same boundary.",
+  "shared_boundaries": [
+    {"path": "electron/capabilityCore/mcpCapabilityProjection.ts", "symbol": "createMcpCapabilityResolver", "responsibility": "Allow-list explicit semantic MCP adapters and derive schemas/results from canonical contracts."},
+    {"path": "electron/capabilityCore/rpcServer.ts", "symbol": "startRpcServer", "responsibility": "Verify project-session transport claims before forwarding an MCP editing request to the renderer."},
+    {"path": "electron/capabilityCore/localProjectSessionTransportPolicy.ts", "symbol": "assertLocalBearerProjectSessionRoute", "responsibility": "Reject unbound bearer access to session-bound editing methods."}
+  ],
+  "same_class_entry_points": [
+    {"path": "electron/capabilityCore/mcpStdioServer.ts", "entry_point": "invoke", "disposition": "enforced", "evidence": "GUI and headless routes share the MCP resolver and the project-session binding."},
+    {"path": "electron/capabilityCore/mcpProtocol.ts", "entry_point": "tools/call", "disposition": "enforced", "evidence": "Tool discovery and argument validation are centralized before invokeForRequest."}
+  ],
+  "recurrence": {"classification": "recurring", "reason": "Adding a new capability contract alone does not expose it to MCP; another contract can repeat the same silent absence.", "same_class_scan": ["rg MCP_CAPABILITY_RESOLVER electron/capabilityCore", "rg aliases.mcp electron/shared/agentCapabilities electron/capabilityCore", "rg timeline|media|export electron/capabilityCore/mcpCapabilityProjection.ts"]},
+  "prevention": {"kind": "centralized-boundary", "enforcement_path": "electron/capabilityCore/mcpCapabilityProjection.ts", "invariant": "Only frozen, module-owned adapters with explicit projection metadata are listed.", "failure_mode": "Unregistered, internal-only, or malformed adapters remain undiscoverable and cannot be invoked.", "exception_policy": "none", "strategy": "Keep the MCP resolver as the single allow-list and make the RPC route accept only its session-bound capability methods.", "artifacts": ["electron/capabilityCore/mcpCapabilityProjection.ts", "electron/capabilityCore/mcpCapabilityProjection.test.ts"]},
+  "regression_tests": ["electron/capabilityCore/mcpCapabilityProjection.test.ts", "electron/capabilityCore/mcpEditingSurface.test.ts"],
+  "class_regression_tests": ["electron/capabilityCore/mcpCapabilityProjection.test.ts", "electron/capabilityCore/mcpEditingSurface.test.ts"],
+  "legacy_paths": {"status": "removed", "removed_paths": ["electron/harness/tools/timelineDescriptors.ts"], "rationale": "The model surface uses the semantic editing manifest; old descriptors remain only as internal capability aliases until their adapter migration is complete."},
+  "dependency_lifecycle": {"decision": "not-applicable", "rationale": "No third-party dependency controls the reachability invariant.", "exit_criteria": []},
+  "migration": "Existing Pi aliases continue through internal capability adapters; MCP clients migrate by discovering the four semantic names from tools/list.",
+  "residual_risks": ["Renderer reachability and real GUI approval walkthrough remain required after the unit contract is green.", "Host-only export start/cancel are intentionally not model-authored MCP operations."]
+}

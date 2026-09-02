@@ -7,12 +7,51 @@ import { describe, expect, it } from 'vitest'
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
 import { approveLatestScript, approveLatestStoryboard, waitForProduction as waitFor } from './productionRunTestHelpers'
+import { compileExecutionContract, type PlanCandidate } from '../capabilityCore/executionContract'
+import { createModuleRegistry } from '../capabilityCore/moduleRegistry'
+import { sealAndApproveProductionGeneration } from './productionGenerationAuthorizationTestUtils'
+import { isRetiredLegacyWriterState, semanticGenerationReadiness } from './productionRunDriverOps'
 
 function makeRoot(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-production-driver-'))
 }
 
+const semanticRegistry = createModuleRegistry([{
+  moduleId: 'generation.single-shot',
+  version: '1.0.0',
+  inputKinds: ['text'],
+  outputKinds: ['video'],
+  modes: ['text-to-video'],
+  parameterSchema: {},
+  assetInputSchema: { references: { kind: 'image', max: 4 } },
+  providers: [{
+    providerId: 'fixture-provider',
+    models: [{ modelId: 'fixture-video', modes: ['text-to-video'], parameterSchema: {}, capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true } }],
+  }],
+}])
+
+function semanticCandidate(id: string, prompt: string): PlanCandidate {
+  return {
+    candidateId: id,
+    revision: 1,
+    moduleId: 'generation.single-shot',
+    providerId: 'fixture-provider',
+    modelId: 'fixture-video',
+    mode: 'text-to-video',
+    prompt,
+    parameters: {},
+    references: [],
+  }
+}
+
 describe('ProductionRunService driver round 1', () => {
+  it('keeps the retired legacy writer guard limited to durable submit states', () => {
+    expect(isRetiredLegacyWriterState('submit_intent_persisted')).toBe(true)
+    expect(isRetiredLegacyWriterState('submitting')).toBe(true)
+    expect(isRetiredLegacyWriterState('authorized')).toBe(false)
+    expect(isRetiredLegacyWriterState('adopted')).toBe(false)
+  })
+
   it('initializes direction gate with zero paid work at draft time, safe even if direction planning cannot run', () => {
     const root = makeRoot()
     const repository = createProductionRunRepository({ projectDirResolver: () => root })
@@ -382,5 +421,154 @@ describe('ProductionRunService driver round 1', () => {
     await waitFor(() => service.readFull('project-1', 'run-driver-recovery').jobs[0].status === 'adopted')
     expect(service.readFull('project-1', 'run-driver-recovery').artifacts.some((artifact) => artifact.kind === 'video')).toBe(true)
     expect(rendererCalls).not.toContain('production.generate-node')
+  })
+  it('blocks semantic assembly when adopted jobs have no landed artifacts', () => {
+    const result = semanticGenerationReadiness({
+      jobs: [{
+        jobId: 'job-shot-a', stageId: 'generate', status: 'adopted', attempt: 1,
+        provider: 'fixture-provider', model: 'fixture-video', idempotencyKey: 'idem-a',
+        nodeId: 'node-shot-a', createdAt: '2026-08-31T00:00:00.000Z', updatedAt: '2026-08-31T00:00:00.000Z',
+      }],
+      artifacts: [],
+    })
+
+    expect(result).toMatchObject({ ready: false })
+    expect((result as { reason: string }).reason).toContain('缺少已落地产物')
+  })
+
+  it('continues a semantic multi-shot batch from ready jobs through QA, timeline, and one export', async () => {
+    const root = makeRoot()
+    fs.mkdirSync(path.join(root, '.nomi/out'), { recursive: true })
+    fs.mkdirSync(path.join(root, 'exports'), { recursive: true })
+    const repository = createProductionRunRepository({ projectDirResolver: () => root, now: () => '2026-08-31T00:00:00.000Z' })
+    const candidates = [semanticCandidate('shot-a', 'a quiet sunrise'), semanticCandidate('shot-b', 'the camera follows the boat')]
+    const contracts = candidates.map((item) => compileExecutionContract(item, semanticRegistry))
+    const shots = candidates.map((item, index) => ({
+      shotId: item.candidateId,
+      role: 'shot' as const,
+      candidate: { ...item, sealedContractHash: contracts[index].contractHash },
+      contract: contracts[index],
+      approvedReceiptId: 'receipt-semantic',
+      updatedAt: '2026-08-31T00:00:00.000Z',
+    }))
+    repository.createGenerationDraft({
+      operationId: 'semantic-driver-run',
+      projectId: 'project-1',
+      origin: { host: 'codex' },
+      candidate: candidates[0],
+      shots: shots.map(({ shotId, role, candidate }) => ({ shotId, role, candidate })),
+      policy: { trustedHosts: ['codex'], allowedProviders: ['fixture-provider'], allowedModels: ['fixture-video'], maxSpend: 10, maxAttemptsPerJob: 1 },
+    })
+    const authorization = sealAndApproveProductionGeneration({
+      repository,
+      projectId: 'project-1',
+      operationId: 'semantic-driver-run',
+      immutableProjectUuid: 'project-uuid',
+      projectGeneration: 1,
+      projectRevision: 0,
+      candidate: candidates[0],
+      contract: contracts[0],
+      providers: [{
+        providerId: 'fixture-provider',
+        capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true, materialize: true },
+        buildRequest: (input) => input,
+        submit: async () => ({ providerTaskId: 'unused' }),
+      }],
+      multiShot: { shots, planHash: 'semantic-plan-hash' },
+      resolveShotPrice: () => ({ known: true, amount: 1 }),
+      maximumSpend: 10,
+      receiptId: 'receipt-semantic',
+      now: '2026-08-31T00:00:00.000Z',
+    })
+    let run = authorization.run
+    run = repository.execute('project-1', run.runId, {
+      commandId: 'semantic-submit', expectedRevision: run.revision, type: 'generation.submit', payload: {}, issuedAt: run.updatedAt,
+    }).run
+    run = repository.execute('project-1', run.runId, {
+      commandId: 'semantic-running', expectedRevision: run.revision, type: 'run.status', payload: { status: 'running' }, issuedAt: run.updatedAt,
+    }).run
+
+    // Model the scheduler's durable hand-off: each provider result is already
+    // materialized as a ready artifact/job. The continuation driver, rather
+    // than the adapter, owns ready -> adopted and the downstream stages.
+    for (const [index, job] of run.jobs.entries()) {
+      const shotId = shots[index].shotId
+      run = repository.execute('project-1', run.runId, {
+        commandId: `semantic-bind-${shotId}`, expectedRevision: run.revision, type: 'job.patch',
+        payload: { jobId: job.jobId, patch: { nodeId: `node-${shotId}`, metadata: { shotId }, providerTaskId: `provider-${shotId}` } }, issuedAt: run.updatedAt,
+      }).run
+      for (const status of ['submit_intent_persisted', 'submitting', 'provider_accepted', 'ready'] as const) {
+        run = repository.execute('project-1', run.runId, {
+          commandId: `semantic-${shotId}-${status}`, expectedRevision: run.revision, type: 'job.status', payload: { jobId: job.jobId, status }, issuedAt: run.updatedAt,
+        }).run
+      }
+      fs.writeFileSync(path.join(root, `.nomi/out/${shotId}.mp4`), `fixture-${shotId}`)
+      run = repository.execute('project-1', run.runId, {
+        commandId: `semantic-artifact-${shotId}`, expectedRevision: run.revision, type: 'artifact.add',
+        payload: { artifact: { artifactId: `artifact-${shotId}`, stageId: 'generate', jobId: job.jobId, kind: 'video', status: 'ready', projectRelativePath: `.nomi/out/${shotId}.mp4`, contentHash: `hash-${shotId}`, createdAt: run.updatedAt } }, issuedAt: run.updatedAt,
+      }).run
+    }
+
+    const rendererCalls: Array<{ op: string; payload: unknown }> = []
+    let exportCalls = 0
+    const service = createProductionRunService({
+      repository,
+      projectRootResolver: () => root,
+      requestRenderer: async (op, payload) => {
+        rendererCalls.push({ op, payload })
+        if (op === 'production.verify-shots') {
+          const ids = (payload as { shotNodeIds: string[] }).shotNodeIds
+          return { reviewedShotIds: ids, verdicts: ids.map((shotNodeId) => ({ shotNodeId, passed: true })) }
+        }
+        if (op === 'production.arrange') {
+          return { arranged: 2, total: 2, timelineContract: { version: 1, clips: ['node-shot-a', 'node-shot-b'] } }
+        }
+        throw new Error(`unexpected renderer operation ${op}`)
+      },
+      executeProductionExport: async ({ outputName }) => {
+        exportCalls += 1
+        fs.writeFileSync(path.join(root, 'exports', outputName), 'fixture-export')
+        return { relativePath: `exports/${outputName}`, size: 14 }
+      },
+    })
+
+    await service.advanceSemanticProduction('project-1', 'semantic-driver-run')
+    const roughCut = service.readFull('project-1', 'semantic-driver-run')
+    expect(roughCut.status).toBe('awaiting_rough_cut_review')
+    expect(roughCut.jobs.every((job) => job.status === 'adopted')).toBe(true)
+    expect(roughCut.stages.find((stage) => stage.stageId === 'qa')?.status).toBe('completed')
+    expect(roughCut.stages.find((stage) => stage.stageId === 'assemble')?.status).toBe('completed')
+    expect(roughCut.artifacts.some((artifact) => artifact.kind === 'timeline')).toBe(true)
+    expect(rendererCalls.map((call) => call.op)).toEqual(['production.verify-shots', 'production.arrange'])
+
+    // Re-entering after the callback is safe: the status guard leaves the
+    // durable revision and provider side effects unchanged.
+    const roughCutRevision = roughCut.revision
+    await service.advanceSemanticProduction('project-1', 'semantic-driver-run')
+    expect(service.readFull('project-1', 'semantic-driver-run').revision).toBe(roughCutRevision)
+
+    const exportGate = roughCut.gates.find((gate) => gate.scope === 'export')!
+    const exportReady = await service.command('project-1', 'semantic-driver-run', {
+      commandId: 'semantic-rough-cut-accept', expectedRevision: roughCut.revision, type: 'run.status',
+      payload: { status: 'awaiting_export' }, issuedAt: new Date().toISOString(),
+    })
+    expect(exportReady.run.status).toBe('awaiting_export')
+    await service.command('project-1', 'semantic-driver-run', {
+      commandId: 'semantic-export-approve', expectedRevision: exportReady.run.revision, type: 'gate.decide',
+      payload: { gateId: exportGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
+    })
+    await waitFor(() => service.readFull('project-1', 'semantic-driver-run').status === 'completed')
+    expect(exportCalls).toBe(1)
+    const completed = service.readFull('project-1', 'semantic-driver-run')
+    expect(completed.stages.find((stage) => stage.stageId === 'export')?.status).toBe('completed')
+    expect(completed.artifacts.some((artifact) => artifact.kind === 'export' && artifact.projectRelativePath === 'exports/nomi-semantic-driver-run.mp4')).toBe(true)
+
+    // Same gate decision is service-idempotent and cannot launch a second export.
+    const replay = await service.command('project-1', 'semantic-driver-run', {
+      commandId: 'semantic-export-approve-replay', expectedRevision: completed.revision, type: 'gate.decide',
+      payload: { gateId: exportGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
+    })
+    expect(replay.run.revision).toBe(completed.revision)
+    expect(exportCalls).toBe(1)
   })
 })

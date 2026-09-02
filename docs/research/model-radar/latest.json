@@ -543,15 +543,7 @@
     {
       "vendor": "apimart",
       "total": 128,
-      "added": [
-        {
-          "vendor": "apimart",
-          "category": "video",
-          "slug": "minimax-h3/max",
-          "title": "MiniMax-H3-Max Video Generation",
-          "url": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max.md"
-        }
-      ],
+      "added": [],
       "removed": [],
       "uncovered": [
         {

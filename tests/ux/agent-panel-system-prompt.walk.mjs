@@ -143,11 +143,13 @@ try {
   await expectVisible(win.locator('.generation-canvas-v2__stage').first(), '生成画布舞台')
 
   // ② 打开右侧助手栏（launcher 用原生 DOM click，避开 actionability 抖动）
+  // Host cutover: 画布内旧助手已退役，Agent 现居 ResidentShell dock（default-off agentHost flag, #194）。
+  // 折叠态 launcher 是 [data-agent-resident-collapsed] 药丸；展开后输入框在 [data-agent-composer] 内。
   await win.evaluate(() => {
-    const btn = document.querySelector('.generation-canvas-v2-assistant__launcher')
+    const btn = document.querySelector('[data-agent-resident-collapsed="true"]')
     if (btn) btn.click()
   })
-  const composer = win.locator('[aria-label="给生成助手发送消息"]').first()
+  const composer = win.locator('[data-agent-composer="true"] textarea').first()
   // 同上：等输入框真的出现，别拿 sleep 当「面板已展开」的信号。
   await expectVisible(composer, '助手输入框')
   await snap(win, 'assistant-open')

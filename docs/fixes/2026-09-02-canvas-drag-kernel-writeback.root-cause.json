@@ -1,0 +1,179 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-canvas-drag-kernel-writeback",
+  "problem_type": "React Flow 内核与业务投影边界缺失",
+  "symptom": "React Flow 画布拖动节点时，每个 pointer move 都触发业务 store 更新和全量投影，生产 node-drag-image 的 layout/move 为 2.40、script drag/pan 比值为 5.14x，4x throttle 的 frameGapP95 为 49.3ms；同时 mount 后新增节点、结果缩略图和状态投影不会进入画布，空白项目添加图片节点保持白屏。",
+  "direct_cause": "GenerationCanvasReactFlow.handleNodesChange 对每个 position change 调用 moveNode，Zustand 每 tick 替换 nodes 数组并触发投影、边和画布外订阅者重算；S4 将 ReactFlow 的 nodes prop 改成 defaultNodes 后，又没有把后续 flowNodes 投影同步回 React Flow 内部 store。",
+  "class_root": "React Flow 交互/变换内核与 Zustand 业务持久化真相源之间没有同时建立两条必要边界：拖动瞬态位置必须留在内核，任何非受控化的业务投影变化必须按节点身份单向同步回内核。",
+  "affected_population": [
+    "单节点、多选节点、低缩放和高边密度区域的 React Flow 拖动用户",
+    "生产构建、开发 StrictMode 和 4x CPU throttle 评测腿",
+    "拖动期间所有依赖画布节点业务状态的画布内外消费者"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+    "src/workbench/generationCanvas/reactFlow/canvasNodeProjectionSync.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasNodeProjectionSync.test.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasDragDraft.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+    "tests/ux/smoke.e2e.mjs"
+  ],
+  "entry_points": [
+    "业务节点投影变化（新增、删除、data/结果/状态变更）",
+    "React Flow 节点拖动的 onNodesChange position 事件",
+    "React Flow 节点拖动结束的 onNodeDragStop 批量写回",
+    "组框拖动的 moveGroupNodes 路径（同一类高频几何但由独立手势边界负责）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/api-reference/react-flow",
+      "checked_at": "2026-09-02",
+      "purpose": "确认 nodes 是受控节点数组、defaultNodes 只用于非受控初始节点。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/api-reference/types/react-flow-instance",
+      "checked_at": "2026-09-02",
+      "purpose": "确认 ReactFlowInstance.setNodes 可在非受控 React Flow 中更新内部节点数组。"
+    }
+  ],
+  "invariants": [
+    "节点拖动 position tick 只能更新 React Flow draft 几何，不能调用 moveNode 或替换 Zustand nodes 引用。",
+    "drag stop 才按最终 draggedNodes 位置调用现有 moveNode 写回，并只调用一次 commitPersistedChange。",
+    "拖动 draft 只替换被拖节点的 Flow node 对象，未被拖节点保持投影对象身份不变。",
+    "React Flow 使用非受控 defaultNodes 时，所有 mount 后业务投影变化必须经唯一同步边界按 id+引用推进内部 nodes store。",
+    "投影同步不得在拖动期间覆盖已有节点的内核 position；drag stop 写回后业务投影才重新接管最终位置。",
+    "投影未变化的节点不得调用 setNodes；新增、删除和 data/状态/结果引用变化必须可见。",
+    "拖动中 Agent、MCP 和画布外读者继续读取未提交的旧业务位置；事件与持久化仍只在 stop 发生。",
+    "拖动内核为避免二次 apply 位移而关闭的 hasDefaultNodes，必须在 drag stop 还原为 true：否则 React Flow 的 triggerNodeChanges 与 BatchProvider 的 useReactFlow().setNodes 都会因该标志为 false 停止自应用变更，令投影同步（含选择/primarySelection）在此后每次拖动后静默变空操作。"
+  ],
+  "generality_proof": "所有业务节点增删和 data/结果/状态投影都汇入 GenerationCanvasReactFlow 的 flowNodes，再由唯一的 ReactFlow 子树同步边界进入非受控内核；所有 React Flow 节点拖动 position change 都汇入 handleNodesChange，draft 层承接瞬态位置，stop 再统一走 moveNode。因此单节点、多选节点、结果异步更新和空白项目新增节点都覆盖同一类边界，组框拖动也作为独立手势入口核查。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "symbol": "CanvasNodeProjectionSync",
+      "responsibility": "在 React Flow 子树内调用 setNodes，把非受控内核的 mount 后业务投影变化同步到内部 store，并把拖动位置保护交给同步 helper。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasNodeProjectionSync.ts",
+      "symbol": "syncCanvasNodeProjection",
+      "responsibility": "按 id+引用 diff 投影，短路未变节点；新增、删除和 data 变化进入内核，拖动中保留已有节点的 RF position。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "handleNodesChange / handleNodeDragStop",
+      "responsibility": "把 React Flow 的瞬态位置变更留在 draft，把最终位置和事件/持久化收尾集中到 drag stop，并在 stop 调用 restoreCanvasDragKernelOwnership 还原 hasDefaultNodes，让内核恢复自应用选择/投影变更。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragDraft.ts",
+      "symbol": "applyCanvasDragPositionChanges / overlayCanvasDragDraft / restoreCanvasDragKernelOwnership",
+      "responsibility": "以 applyNodeChanges 产生只替换被拖节点的局部 Flow 几何并叠加在最新业务投影上；配对的 restoreCanvasDragKernelOwnership 在 stop 把 hasDefaultNodes 还原为 true，保证「关闭内核自应用」与「还原」成对出现，不留永久冻结。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "symbol": "commitCanvasNodeDragStop",
+      "responsibility": "集中处理 drag stop 的批量 moveNode、事件发射和持久化收尾，保证瞬态 tick 不进入业务写入。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "entry_point": "CanvasNodeProjectionSync",
+      "disposition": "enforced",
+      "evidence": "React Flow 的非受控子树唯一挂载点在此；该组件用 useReactFlow().setNodes 接收 flowNodes 的新增、删除和 data/状态变化。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasNodeProjectionSync.ts",
+      "entry_point": "syncCanvasNodeProjection",
+      "disposition": "enforced",
+      "evidence": "同步 helper 对每个投影 id+引用做 diff，未变投影零 setNodes；拖动时保留已有内核 position，且完整数组自然删除消失节点。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "handleNodesChange",
+      "disposition": "enforced",
+      "evidence": "React Flow 所有节点 position tick 均由该 handler 收到；结构测试禁止其中出现 moveNode 调用并要求 applyNodeChanges draft。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "handleNodeDragStop",
+      "disposition": "enforced",
+      "evidence": "同一节点拖动的最终 draggedNodes 位置在 stop 委托给 commitCanvasNodeDragStop，统一调用 moveNode，再复用 commitPersistedChange 和 emitCanvasGesture。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "entry_point": "commitCanvasNodeDragStop",
+      "disposition": "enforced",
+      "evidence": "唯一 stop 写回实现按 dragStart 快照批量调用 moveNode，并在一次 emitCanvasGesture 后调用一次 commitPersistedChange。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "entry_point": "moveNode",
+      "disposition": "not-affected",
+      "evidence": "moveNode 是通用业务写入边界，仍服务调整大小、回放和其他非 React Flow 拖动调用者；本修复不改变其语义，只移除节点拖动 tick 对它的调用。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "entry_point": "handleGroupFramePointerDown",
+      "disposition": "not-affected",
+      "evidence": "组框拖动使用独立 moveGroupNodes 手势，并非 React Flow onNodesChange position 入口；其既有高频语义和 commit 边界不由本次改动承接。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何 React Flow 节点拖动、单选或多选拖动都会产生相同的 position tick；只修单一节点或提高节流不能阻止该类瞬态状态广播再次出现。",
+    "same_class_scan": [
+      "rg -n 'defaultNodes|nodes=|setNodes\\(' src/workbench/generationCanvas/reactFlow：核对受控/非受控声明与所有投影回推路径。",
+      "检查 GenerationCanvasReactFlowViewport.tsx：确认唯一非受控 ReactFlow 挂载点包含 CanvasNodeProjectionSync。",
+      "检查 useGenerationCanvasReactFlowProjection.ts 与 GenerationCanvasReactFlow.tsx：确认新增、删除、结果/状态变化都只能先形成 flowNodes 投影。",
+      "rg -n 'moveNode\\(|onNodesChange|collectFlowPositionChanges' src/workbench/generationCanvas：核对 React Flow tick、stop 收尾、通用 moveNode 消费者。",
+      "检查 GenerationCanvasReactFlow.tsx 的 handleNodesChange：当前旧路径逐 tick 调 moveNode，新边界改为 draft。",
+      "检查 useCanvasSelectionDrag.ts 的 moveGroupNodes：确认组框是独立入口，不伪装成 React Flow 节点拖动路径。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/canvasNodeProjectionSync.ts",
+    "invariant": "React Flow position tick 不得进入 Zustand；非受控化后的每个 mount 后业务投影变化必须按 id+引用经 setNodes 同步，拖动中不得覆盖已有 RF position。",
+    "failure_mode": "结构测试在 handleNodesChange 恢复 moveNode、移除 draft/applyNodeChanges 或移除 projection sync 时失败；运行时不提供旧的逐 tick fallback，也不允许 defaultNodes 静默吞掉后续投影。",
+    "exception_policy": "none",
+    "strategy": "在唯一 React Flow 子树建立业务投影到非受控内核的单向同步，同时在唯一节点拖动适配边界隔离瞬态几何；所有投影变更与单节点/多选拖动共享明确边界，避免调用方自行选择是否同步或写业务 store。",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "src/workbench/generationCanvas/reactFlow/canvasNodeProjectionSync.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "src/workbench/generationCanvas/reactFlow/canvasDragDraft.ts",
+      "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasDragDraft.test.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasNodeProjectionSync.test.ts",
+    "tests/ux/smoke.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasDragDraft.test.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasNodeProjectionSync.test.ts",
+    "tests/ux/smoke.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本次修复补齐非受控内核的投影同步，不引入或保留第二套 renderer、flag 或 fallback；已有 S4 拖动逐 tick 写回的删除由同一 v3 合同继续约束。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "@xyflow/react 的 applyNodeChanges 是已安装依赖提供的纯变换工具；本次不依赖版本缺陷，也不改变依赖版本。",
+    "exit_criteria": []
+  },
+  "migration": "无需数据迁移；业务节点 position 结构不变，拖动中继续读取旧业务位置，drag stop 使用现有 moveNode 写回最终位置。",
+  "residual_risks": [
+    "真实 Electron 与 benchmark 仍需证明边几何、多选、组框/选择工具条语义以及性能三腿没有回归。",
+    "drag stop 依赖 React Flow 提供的 draggedNodes 最终位置，需由生产构建验收确认受控 nodes 下单节点和多选均完整回写。"
+  ]
+}

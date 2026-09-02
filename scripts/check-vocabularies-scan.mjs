@@ -93,6 +93,122 @@ function scriptKind(file) {
   return file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
 }
 
+export function unwrapStaticExpression(node) {
+  let current = node
+  while (
+    current &&
+    (ts.isParenthesizedExpression(current) ||
+      ts.isAsExpression(current) ||
+      ts.isTypeAssertionExpression(current) ||
+      ts.isSatisfiesExpression(current))
+  ) {
+    current = current.expression
+  }
+  return current
+}
+
+export function staticStringExpression(node) {
+  const current = unwrapStaticExpression(node)
+  if (!current) return null
+  if (ts.isStringLiteralLike(current) || ts.isNoSubstitutionTemplateLiteral(current)) return current.text
+  if (ts.isBinaryExpression(current) && current.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const left = staticStringExpression(current.left)
+    const right = staticStringExpression(current.right)
+    return left === null || right === null ? null : left + right
+  }
+  if (ts.isTemplateExpression(current)) {
+    let value = current.head.text
+    for (const span of current.templateSpans) {
+      const expression = staticStringExpression(span.expression)
+      if (expression === null) return null
+      value += expression + span.literal.text
+    }
+    return value
+  }
+  return null
+}
+
+export function createStaticResolver(sourceFile) {
+  const bindings = new Map()
+
+  function collect(node) {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      ts.isVariableDeclarationList(node.parent) &&
+      (node.parent.flags & ts.NodeFlags.Const) !== 0
+    ) {
+      bindings.set(node.name.text, node.initializer)
+    }
+    ts.forEachChild(node, collect)
+  }
+  collect(sourceFile)
+
+  function expression(node, seen = new Set()) {
+    const current = unwrapStaticExpression(node)
+    if (!current || !ts.isIdentifier(current)) return current
+    const initializer = bindings.get(current.text)
+    if (!initializer || seen.has(current.text)) return current
+    const nextSeen = new Set(seen)
+    nextSeen.add(current.text)
+    return expression(initializer, nextSeen)
+  }
+
+  function value(node, seen = new Set()) {
+    const current = unwrapStaticExpression(node)
+    if (!current) return null
+    if (ts.isIdentifier(current)) {
+      const initializer = bindings.get(current.text)
+      if (!initializer || seen.has(current.text)) return null
+      const nextSeen = new Set(seen)
+      nextSeen.add(current.text)
+      return value(initializer, nextSeen)
+    }
+    if (ts.isStringLiteralLike(current) || ts.isNoSubstitutionTemplateLiteral(current)) return current.text
+    if (ts.isBinaryExpression(current) && current.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      const left = value(current.left, seen)
+      const right = value(current.right, seen)
+      return typeof left === 'string' && typeof right === 'string' ? left + right : null
+    }
+    if (ts.isTemplateExpression(current)) {
+      let result = current.head.text
+      for (const span of current.templateSpans) {
+        const resolved = value(span.expression, seen)
+        if (typeof resolved !== 'string') return null
+        result += resolved + span.literal.text
+      }
+      return result
+    }
+    if (ts.isArrayLiteralExpression(current)) {
+      const items = current.elements.map((item) => value(item, seen))
+      return items.every((item) => typeof item === 'string') ? items : null
+    }
+    if (
+      ts.isCallExpression(current) &&
+      ts.isPropertyAccessExpression(current.expression) &&
+      current.expression.name.text === 'join'
+    ) {
+      const items = value(current.expression.expression, seen)
+      const separator = current.arguments.length === 0 ? ',' : value(current.arguments[0], seen)
+      return Array.isArray(items) && typeof separator === 'string' ? items.join(separator) : null
+    }
+    return null
+  }
+
+  return {
+    expression,
+    string(node) {
+      const resolved = value(node)
+      return typeof resolved === 'string' ? resolved : null
+    },
+    strings(node) {
+      const resolved = value(node)
+      return Array.isArray(resolved) ? [...resolved].sort() : null
+    },
+  }
+}
+
 function propertyNameText(name, sourceFile) {
   if (!name) return null
   if (ts.isIdentifier(name) || ts.isStringLiteralLike(name) || ts.isNumericLiteral(name)) {

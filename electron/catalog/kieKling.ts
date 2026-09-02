@@ -1,7 +1,8 @@
-// Kling 3.0（可灵）视频档案的**传输塑形**（curated 单源）。kie 文档（2026-06 实时核对）：
-//   model `kling-3.0/video`（唯一值）；input {prompt, image_urls[首/尾帧，单镜头 len1=首 / len2=[首,尾]],
-//   sound(bool), duration(string "3".."15" 默认 "5"), aspect_ratio(16:9/9:16/1:1), mode(std/pro/4K 默认 pro),
-//   multi_shots, multi_prompt[], kling_elements[@元素 ≤3]}。
+// Kling 3.0（可灵）视频档案的**传输塑形**（curated 单源）。
+// 2026-09-02 官方 `.md` 合同按模式区分 model：
+//   text-to-video = kling-3.0-omni/text-to-video；image-to-video = kling-3.0-omni/image-to-video。
+//   单镜头 input 使用 prompt、duration、resolution、aspect_ratio、audio、
+//   customize_multi_shots=false、prefer_multi_shots=false；i2v 另带 image_urls。
 // 本期从简：文生视频 + 图生视频（首/尾帧走一个有序 image_urls 数组槽，≤2）。多镜头 / @元素引用作后续增强。
 // 结果路径 data.resultJson.resultUrls.0（kie 统一）。
 // 注：与用户机器上残留的旧「Kling 3.0」generic text_to_video mapping 共存——本档案 mapping 带 modelKey=kling-3.0
@@ -26,29 +27,37 @@ export const KLING_3_QUERY_OP: HttpOperation = {
   },
 };
 
-// 一条 body 覆盖文生/图生视频：image_urls 取档案图生视频模式的有序帧数组（slot inputKey=image_urls）；
-// 文生视频模式无该槽 → 投影为 undefined → 整键被模板引擎丢弃（不发空 image_urls）。
-// multi_shots：kie 现在**要求显式传**这个 bool（2026-09-01 实测：不传 → 422 `multi_shots cannot be empty`；
-// 传数组 → 500 `multi_shots it must be a boolean`；传 `false` → 通过校验）。官方文档（docs.kie.ai/market/kling）：
-// multi_shots 是**布尔开关**——true 时改走 multi_prompt[] 多镜头（每镜头各自 prompt/时长，总 ≤15s、音频恒开），
-// false=单镜头走 prompt。我们当前单镜头，恒发 false；多镜头作后续增强（连上 multi_prompt 时再让它可变）。
-export const KLING_3_CREATE_OP: HttpOperation = {
-  method: "POST",
-  path: "/api/v1/jobs/createTask",
-  headers: { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" },
-  body: {
-    model: "{{request.params.model}}",
-    input: {
-      prompt: "{{request.prompt}}",
-      image_urls: "{{request.params.image_urls}}",
-      mode: "{{request.params.mode}}",
-      duration: "{{request.params.duration}}",
-      aspect_ratio: "{{request.params.aspect_ratio}}",
-      sound: "{{request.params.sound}}",
-      multi_shots: false,
+// The generic archetype still contains historical mode/sound/model defaults for other
+// providers sharing this family. This factory owns the KIE projection and removes those
+// stale generic fields at the provider request boundary.
+function createKling3Operation(mode: "text-to-video" | "image-to-video"): HttpOperation {
+  const isImage = mode === "image-to-video";
+  return {
+    method: "POST",
+    path: "/api/v1/jobs/createTask",
+    headers: { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" },
+    body: {
+      model: `kling-3.0-omni/${mode}`,
+      input: {
+        prompt: "{{request.prompt}}",
+        ...(isImage ? { image_urls: "{{request.params.image_urls}}" } : {}),
+        duration: "{{request.params.duration}}",
+        resolution: "720p",
+        aspect_ratio: isImage ? "auto" : "{{request.params.aspect_ratio}}",
+        audio: "{{request.params.sound}}",
+        customize_multi_shots: false,
+        prefer_multi_shots: false,
+      },
     },
-  },
-};
+    paramMap: {
+      drops: isImage ? ["mode", "aspect_ratio"] : ["mode"],
+      rules: [],
+    },
+  };
+}
+
+export const KLING_3_T2V_CREATE_OP = createKling3Operation("text-to-video");
+export const KLING_3_I2V_CREATE_OP = createKling3Operation("image-to-video");
 
 export const KLING_3_MODEL_SEED = {
   modelKey: "kling-3.0",
@@ -61,7 +70,7 @@ export const KLING_3_T2V_MAPPING = {
   taskKind: "text_to_video" as ProfileKind,
   modelKey: "kling-3.0",
   name: "可灵 3.0 · 文生视频",
-  create: KLING_3_CREATE_OP,
+  create: KLING_3_T2V_CREATE_OP,
   query: KLING_3_QUERY_OP,
 };
 
@@ -70,6 +79,6 @@ export const KLING_3_I2V_MAPPING = {
   taskKind: "image_to_video" as ProfileKind,
   modelKey: "kling-3.0",
   name: "可灵 3.0 · 图生视频",
-  create: KLING_3_CREATE_OP,
+  create: KLING_3_I2V_CREATE_OP,
   query: KLING_3_QUERY_OP,
 };

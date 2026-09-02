@@ -14,6 +14,7 @@ import { createProductionRunService } from "../productionRun/productionRunServic
 import { createMultiShotBatchScheduler, type BatchOutcome } from "../productionRun/multiShotBatchScheduler";
 import { anchorCheckpointGateId } from "../productionRun/anchorCheckpoint";
 import { registerBatchSchedulerKicker } from "../productionRun/batchSchedulerKick";
+import { sealAndApproveProductionGeneration } from "../productionRun/productionGenerationAuthorizationTestUtils";
 import type { ProductionGenerationShot } from "../productionRun/productionRunTypes";
 
 // P4 §3.2 — 锚定妆照检查点的**生产审批入口** E2E（修 §8.5 停死 gap 的验收）。此前所有测试都用
@@ -87,28 +88,39 @@ function shotEntry(shotId: string, prompt: string, role: "anchor" | "shot"): Pro
   const mode = role === "anchor" ? "text-to-image" : "image-to-video";
   const cand = candidate(`cand-${shotId}`, prompt, modelId, mode);
   const contract = compileExecutionContract(cand, registry);
-  return { shotId, ...(role === "anchor" ? { role } : {}), candidate: { ...cand, sealedContractHash: contract.contractHash }, contract, approvedReceiptId: "receipt-plan", updatedAt: now() };
+  return { shotId, ...(role === "anchor" ? { role } : {}), candidate: { ...cand, sealedContractHash: contract.contractHash }, contract, updatedAt: now() };
 }
 
-function setup(shots: ProductionGenerationShot[]) {
+function setup(shots: ProductionGenerationShot[], provider: GenerationProvider) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-checkpoint-e2e-"));
   roots.push(root);
   const repository = createProductionRunRepository({ projectDirResolver: (p) => (p === "project-1" ? root : null), now });
   repository.createGenerationDraft({ operationId: "op-batch", projectId: "project-1", origin: { host: "semantic-mcp" }, candidate: shots[0].candidate, policy: { trustedHosts: ["semantic-mcp"], allowedProviders: ["apimart"], allowedModels: ["image-model", "video-model"], maxSpend: null, maxAttemptsPerJob: 2 } });
   const top = shots[0].contract!;
-  repository.execute("project-1", "op-batch", { commandId: "seal", expectedRevision: 0, type: "generation.seal", payload: { contract: top, shots, planHash: "plan-hash-batch" }, issuedAt: now() });
-  repository.execute("project-1", "op-batch", { commandId: "approve", expectedRevision: 1, type: "generation.approve", payload: { receiptId: "receipt-plan", contractHash: "plan-hash-batch" }, issuedAt: now() });
-  repository.execute("project-1", "op-batch", { commandId: "submit", expectedRevision: 2, type: "generation.submit", payload: {}, issuedAt: now() });
+  const approved = sealAndApproveProductionGeneration({
+    repository,
+    projectId: "project-1",
+    operationId: "op-batch",
+    immutableProjectUuid: "project-uuid-1",
+    projectGeneration: 1,
+    projectRevision: 0,
+    candidate: shots[0].candidate,
+    contract: top,
+    providers: [provider],
+    multiShot: { shots, planHash: "plan-hash-batch" },
+    resolveShotPrice: () => ({ known: true, amount: 6 }),
+    receiptId: "receipt-plan",
+    now: now(),
+  });
+  repository.execute("project-1", "op-batch", { commandId: "submit", expectedRevision: approved.run.revision, type: "generation.submit", payload: {}, issuedAt: now() });
   return { root, repository };
 }
 
-function buildScheduler(root: string, repository: ReturnType<typeof createProductionRunRepository>, origin: string, submits: string[]) {
-  const provider = loopbackProvider(origin, submits);
+function buildScheduler(root: string, repository: ReturnType<typeof createProductionRunRepository>, provider: GenerationProvider) {
   createGenerationRuntimeAdapter({ providers: [provider] });
   const submission = createProductionGenerationSubmission({
     repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
-    intentMacKey: "test-intent-key", provider,
-    resolveShotPrice: () => ({ known: true, amount: 6 }),
+    projectRevision: 0, intentMacKey: "test-intent-key", providers: [provider],
     materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.png` }),
     now,
   });
@@ -134,16 +146,19 @@ afterEach(() => {
 describe("P4 §3.2 — anchor checkpoint approval through the REAL production entrance", () => {
   it("create → anchor → checkpoint → dispatcher approve → hook re-kicks → shot batch completes (no manual scheduler call)", async () => {
     const shots = [shotEntry("anchor-1", "阿雨 定妆照", "anchor"), shotEntry("shot-1", "雨夜推门", "shot"), shotEntry("shot-2", "货架对视", "shot")];
-    const { root, repository } = setup(shots);
     const vendor = await startLoopbackVendor();
     try {
       const submits: string[] = [];
+      const provider = loopbackProvider(vendor.origin, submits);
+      const { root, repository } = setup(shots, provider);
       // Phase A: the batch generates the anchor and parks at the checkpoint (production sets no auto-release).
-      const phaseA = await buildScheduler(root, repository, vendor.origin, submits).runToQuiescence();
+      const phaseA = await buildScheduler(root, repository, provider).runToQuiescence();
       expect(phaseA.checkpoint.status).toBe("waiting");
       expect(submits).toHaveLength(1);
       let run = repository.read("project-1", "op-batch")!;
-      expect(run.jobs.some((j) => j.metadata?.shotId === "shot-1")).toBe(false); // shots really blocked
+      const blockedShotJob = run.jobs.find((job) => job.metadata?.shotId === "shot-1");
+      expect(blockedShotJob).toMatchObject({ status: "authorized" });
+      expect(blockedShotJob?.providerTaskId).toBeUndefined();
 
       // Production wiring: the service owns the decide path; the slot holds the scheduler re-kick
       // (in the app, appIntegration registers kickSchedulerForRun; here the same-shape test kicker).
@@ -152,7 +167,7 @@ describe("P4 §3.2 — anchor checkpoint approval through the REAL production en
       registerBatchSchedulerKicker((projectId, runId) => {
         expect(projectId).toBe("project-1");
         expect(runId).toBe("op-batch");
-        kicked.push(buildScheduler(root, repository, vendor.origin, submits).runToQuiescence());
+        kicked.push(buildScheduler(root, repository, provider).runToQuiescence());
       });
 
       // The REAL approval entrance: dispatcher `production.decide-gate` (nomi_decide_gate's method layer).
@@ -181,17 +196,18 @@ describe("P4 §3.2 — anchor checkpoint approval through the REAL production en
 
   it("dispatcher reject parks the batch at the checkpoint: gate rejected, zero new submits, stills kept", async () => {
     const shots = [shotEntry("anchor-1", "阿雨 定妆照", "anchor"), shotEntry("shot-1", "雨夜推门", "shot")];
-    const { root, repository } = setup(shots);
     const vendor = await startLoopbackVendor();
     try {
       const submits: string[] = [];
-      await buildScheduler(root, repository, vendor.origin, submits).runToQuiescence();
+      const provider = loopbackProvider(vendor.origin, submits);
+      const { root, repository } = setup(shots, provider);
+      await buildScheduler(root, repository, provider).runToQuiescence();
       expect(submits).toHaveLength(1);
 
       const service = createProductionRunService({ repository, projectRootResolver: (p) => (p === "project-1" ? root : null) });
       const kicked: Array<Promise<BatchOutcome>> = [];
       registerBatchSchedulerKicker(() => {
-        kicked.push(buildScheduler(root, repository, vendor.origin, submits).runToQuiescence());
+        kicked.push(buildScheduler(root, repository, provider).runToQuiescence());
       });
 
       tickClock();
@@ -208,7 +224,9 @@ describe("P4 §3.2 — anchor checkpoint approval through the REAL production en
       expect(submits).toHaveLength(1); // nothing new paid for
       const run = repository.read("project-1", "op-batch")!;
       expect(run.gates.find((g) => g.gateId === anchorCheckpointGateId("op-batch"))?.status).toBe("rejected");
-      expect(run.jobs.some((j) => j.metadata?.shotId === "shot-1")).toBe(false); // shots never dispatched
+      const blockedShotJob = run.jobs.find((job) => job.metadata?.shotId === "shot-1");
+      expect(blockedShotJob).toMatchObject({ status: "authorized" });
+      expect(blockedShotJob?.providerTaskId).toBeUndefined();
       expect(run.artifacts.filter((a) => a.status === "ready")).toHaveLength(1); // the anchor still is kept
     } finally {
       await vendor.close();

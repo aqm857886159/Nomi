@@ -20,6 +20,7 @@ import {
 import { resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { CanvasMutationOptions } from '../store/canvasGuards'
+import { whenCanvasWriteBoundarySettled } from '../events/canvasWriteBoundary'
 import { remapArchetypeMode } from '../runner/usableVendorModel'
 import { showInfoToast } from '../../../utils/showInfoToast'
 import { chooseDefaultModelOption, resolveArchetypeForOption } from './nodeModelArchetype'
@@ -61,6 +62,25 @@ export function useNodeModelAutoSelect({
   updateNode,
 }: UseNodeModelAutoSelectArgs): void {
   const { t } = useTranslation()
+  const deferredWrites = React.useRef(new Set<string>())
+  const writeDerivedMeta = React.useCallback((nodeId: string, patch: Partial<GenerationCanvasNode>): void => {
+    const options = { history: false } as const
+    try {
+      updateNode(nodeId, patch, options)
+    } catch (error) {
+      const name = typeof error === 'object' && error !== null && 'name' in error ? String(error.name) : ''
+      const message = typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : ''
+      if (name !== 'AbortError' || message !== 'Canvas proposal receipt commit is in progress') throw error
+      const key = `${nodeId}:${JSON.stringify(patch)}`
+      if (deferredWrites.current.has(key)) return
+      deferredWrites.current.add(key)
+      void whenCanvasWriteBoundarySettled().then(() => {
+        deferredWrites.current.delete(key)
+        if (!useGenerationCanvasStore.getState().nodes.some((candidate) => candidate.id === nodeId)) return
+        try { updateNode(nodeId, patch, options) } catch { /* the node may have been removed during the commit */ }
+      })
+    }
+  }, [updateNode])
   // 「新建卡片默认模型」偏好装好没有。装好前**不能**挑模型：此刻偏好是空的，
   // 挑出来的是「自动选择」的结果并会写进节点 meta，偏好随后才到——
   // 用户看到的就是「我明明设了默认模型，新建的卡还是别的」。装好后订阅会触发重跑。
@@ -89,7 +109,7 @@ export function useNodeModelAutoSelect({
     if (!firstOption?.value) return
     const defaultPatch = defaultPatchForControls(buildModelControls(firstOption.meta, isImageLike, isVideoLike))
     const modelMeta = replaceCustomCapabilityContractMeta(node.meta || {}, firstOption.meta)
-    updateNode(node.id, {
+    writeDerivedMeta(node.id, {
       meta: projectParameterReferenceSlots({
         ...modelMeta,
         modelKey: firstOption.modelKey || firstOption.value,
@@ -102,8 +122,8 @@ export function useNodeModelAutoSelect({
           ? { videoModel: firstOption.value, videoModelVendor: firstOption.vendor || null }
           : { imageModel: firstOption.value, imageModelVendor: firstOption.vendor || null }),
       }, firstOption.meta),
-    }, { history: false })
-  }, [defaultsReady, isGenerationNode, isImageLike, isVideoLike, modelOptions, node.id, node.meta, selectedModelValue, updateNode])
+    })
+  }, [defaultsReady, isGenerationNode, isImageLike, isVideoLike, modelOptions, node.id, node.meta, selectedModelValue, writeDerivedMeta])
 
   React.useEffect(() => {
     if (!isGenerationNode || !selectedModelOption) return
@@ -129,8 +149,8 @@ export function useNodeModelAutoSelect({
     }, selectedModelOption.meta)
     const declarationsChanged = JSON.stringify(node.meta?.parameterReferenceSlots) !== JSON.stringify(nextMeta.parameterReferenceSlots)
     if (currentVendor === optionVendor && !contractChanged && !declarationsChanged) return
-    updateNode(node.id, { meta: nextMeta }, { history: false })
-  }, [isGenerationNode, isVideoLike, meta, node.id, node.meta, selectedModelOption, updateNode])
+    writeDerivedMeta(node.id, { meta: nextMeta })
+  }, [isGenerationNode, isVideoLike, meta, node.id, node.meta, selectedModelOption, writeDerivedMeta])
 
   // ★变体合并迁移（2026-06-16，最大风险点）：旧项目 node.meta.modelKey 钉的是具体变体串
   // （如 doubao-seedance-2.0-fast），合并后 picker 只剩基础 modelKey。把旧变体 modelKey 归一成
@@ -140,6 +160,13 @@ export function useNodeModelAutoSelect({
   // 据 selectedModelValue 解析档案（此时旧 modelKey 仍命中基础档案的 identifierPatterns）。
   React.useEffect(() => {
     if (!isGenerationNode || !selectedModelValue) return
+    // ⚠️ 迁移只针对**已经解析不到**的旧串。一个在当前目录里活着的 (vendor, modelKey) 绝不能被改写：
+    // 变体的 identifierPatterns 是**供应商无关**的裸串，而不同供应商可以用同一个裸串命名不同的行——
+    // Runway 的真实 modelKey `veo3.1` 正好等于 veo-3.1 档案 fast 变体的 pattern，`seedance2` 同理。
+    // 少了这道闸，迁移会把活着的 Runway 节点改写成 APIMart 的基础串（veo3.1-fast / bytedance/seedance-2），
+    // 供应商却还留在 runway：轻则模式栏/参数显示成另一家的样子，重则 (runway, bytedance/seedance-2)
+    // 这个组合在目录里根本不存在 → 生成面板直接报「加载失败」。R13 真机走查抓到的就是这个。
+    if (selectedModelOption) return
     const sourceArchetype = resolveArchetypeForModel({
       modelKey: selectedModelValue,
       modelAlias: readMeta(meta, 'modelAlias'),
@@ -149,15 +176,15 @@ export function useNodeModelAutoSelect({
     if (!sourceArchetype?.variants?.length) return
     const patch = normalizeArchetypeVariantMeta(node.meta || {}, sourceArchetype)
     if (!patch) return
-    updateNode(node.id, {
+    writeDerivedMeta(node.id, {
       meta: {
         ...(node.meta || {}),
         ...patch,
         modelAlias: patch.modelKey,
         ...(isVideoLike ? { videoModel: patch.modelKey } : { imageModel: patch.modelKey }),
       },
-    }, { history: false })
-  }, [isGenerationNode, isVideoLike, meta, node.id, node.meta, selectedModelValue, updateNode])
+    })
+  }, [isGenerationNode, isVideoLike, meta, node.id, node.meta, selectedModelOption, selectedModelValue, writeDerivedMeta])
 
   // 供应商断开后，节点钉死的旧模型已从下拉移除（selectedModelOption===null，但 selectedModelValue 仍在）。
   // 按 archetype 在当前可用 options 里找同款，自动改选并写回 meta —— 否则节点会卡在选不中的死供应商上，
@@ -182,9 +209,11 @@ export function useNodeModelAutoSelect({
           sourceArchetype,
           (meta.archetype as { modeId?: string } | undefined)?.modeId,
           targetArchetype,
+          readMeta(meta, 'modelVendor') || readMeta(meta, 'vendor'),
+          optionVendor,
         )
       : null
-    updateNode(node.id, {
+    writeDerivedMeta(node.id, {
       meta: {
         ...replaceCustomCapabilityContractMeta(node.meta || {}, target.meta),
         modelKey: target.modelKey || target.value,
@@ -197,7 +226,7 @@ export function useNodeModelAutoSelect({
           ? { videoModel: target.value, videoModelVendor: optionVendor }
           : { imageModel: target.value, imageModelVendor: optionVendor }),
       },
-    }, { history: false })
+    })
     showInfoToast(t('generationCommon.node.providerDisconnectedSwitched', { model: target.label }))
   }, [
     isGenerationNode,
@@ -209,7 +238,7 @@ export function useNodeModelAutoSelect({
     selectedModelOption,
     selectedModelValue,
     t,
-    updateNode,
+    writeDerivedMeta,
   ])
 
   // 选到一个有内置档案的模型、还没有命名空间 meta 时，初始化 node.meta.archetype（落到默认模式）。
@@ -224,10 +253,9 @@ export function useNodeModelAutoSelect({
     if (!patch) return
     const state = useGenerationCanvasStore.getState()
     const promotedModeId = resolveModeForConnectedReferences({ ...node, meta: patch }, state.nodes, state.edges)
-    updateNode(
+    writeDerivedMeta(
       node.id,
       { meta: promotedModeId ? applyArchetypeModeSwitch(patch, archetype, promotedModeId) : patch },
-      { history: false },
     )
-  }, [isGenerationNode, archetype, node, node.id, node.meta, updateNode])
+  }, [isGenerationNode, archetype, node, node.id, node.meta, writeDerivedMeta])
 }

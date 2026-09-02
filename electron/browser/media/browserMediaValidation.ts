@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { desktopT } from "../../i18n";
 
 export const BROWSER_MEDIA_MAX_BYTES = 200 * 1024 * 1024;
 
@@ -103,19 +104,19 @@ export function resolveBrowserMediaContentType(
   const sniffedMediaType = sniffed ? mediaTypeFromContentType(sniffed) : null;
   if (reportedMediaType) {
     if (requestedMediaType && reportedMediaType !== requestedMediaType) {
-      throw new Error(`网页返回的媒体类型不匹配（${reported}）`);
+      throw new Error(desktopT("browserMedia.typeMismatch", { type: reported }));
     }
     if (!sniffed || !sniffedMediaType || sniffedMediaType !== reportedMediaType) {
-      throw new Error(`网页响应头声称是媒体，但内容无法识别（${reported}）`);
+      throw new Error(desktopT("browserMedia.claimedButUnreadable", { type: reported }));
     }
     // 同属图片/视频时以魔数为准，避免 `image/jpeg` + PNG 正文被落成错误扩展。
     return { contentType: sniffed, mediaType: sniffedMediaType };
   }
   if (reported && reported !== "application/octet-stream") {
-    throw new Error(`网页返回的不是图片或视频（${reported}）`);
+    throw new Error(desktopT("browserMedia.notMedia", { type: reported }));
   }
   if (!sniffed || !sniffedMediaType || (requestedMediaType && sniffedMediaType !== requestedMediaType)) {
-    throw new Error("网页返回的不是可识别的图片或视频");
+    throw new Error(desktopT("browserMedia.unrecognized"));
   }
   return { contentType: sniffed, mediaType: sniffedMediaType };
 }

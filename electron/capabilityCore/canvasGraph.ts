@@ -1,7 +1,7 @@
 // 能力核 · 纯图操作领域层（见 docs/plan/2026-06-20-capability-core-headless-exposure.md）。
 //
 // 这是「外部 agent / CLI / MCP 驱动 Nomi 画布」的最底层：把对画布工程的语义操作
-// （建节点 / 连线 / 改提示词 / 删节点 / 读画布）实现成**纯函数**——输入一份
+// （建节点 / 连线 / 改提示词 / 删节点）实现成**纯函数**——输入一份
 // GenerationCanvasSnapshot（即 project.json 的 payload.generationCanvas，纯 JSON），
 // 输出新的 snapshot + 受影响的 id。零 electron、零 store、零副作用，故可在纯 Node 单测。
 //
@@ -20,6 +20,7 @@ import {
   nodeKindFootprint,
   nodeKindIsShotNumbered,
   nodeKindNextShotIndex,
+  isNodeKind,
 } from './nodeKindDomain'
 
 /** 画布快照（project.json payload.generationCanvas 的纯 JSON 形状）。 */
@@ -71,7 +72,7 @@ export type ConnectionSpec = {
   mode?: string
 }
 
-const VALID_EDGE_MODES = new Set([
+export const VALID_EDGE_MODES = new Set([
   'reference',
   'first_frame',
   'last_frame',
@@ -79,6 +80,17 @@ const VALID_EDGE_MODES = new Set([
   'character_ref',
   'composition_ref',
 ])
+
+export class CanvasGraphError extends Error {
+  readonly code: 'unknown_node_kind' | 'invalid_edge_mode' | 'node_not_found'
+  readonly recovery = 'Refresh the canvas and retry with a current node kind, edge mode, or node id.'
+
+  constructor(code: CanvasGraphError['code'], message: string) {
+    super(message)
+    this.name = 'CanvasGraphError'
+    this.code = code
+  }
+}
 
 let idCounter = 0
 
@@ -106,41 +118,27 @@ export function emptyCanvasSnapshot(): CanvasSnapshot {
   return { nodes: [], edges: [], groups: [], selectedNodeIds: [] }
 }
 
-/** 把任意 unknown（来自 project.json）规整成可操作的 CanvasSnapshot，坏数据降级为空。 */
+/** 读取持久化快照的唯一边界：未知 kind/mode 必须失败，不能被读面静默丢弃。 */
 export function normalizeSnapshot(value: unknown): CanvasSnapshot {
   if (!value || typeof value !== 'object') return emptyCanvasSnapshot()
   const raw = value as Record<string, unknown>
   const nodes = Array.isArray(raw.nodes) ? (raw.nodes as CanvasNode[]) : []
   const edges = Array.isArray(raw.edges) ? (raw.edges as CanvasEdge[]) : []
+  for (const node of nodes) {
+    if (!node || typeof node !== 'object' || typeof node.id !== 'string' || !isNodeKind(node.kind)) {
+      throw new CanvasGraphError('unknown_node_kind', 'Canvas snapshot contains an unknown node kind')
+    }
+  }
+  for (const edge of edges) {
+    if (!edge || typeof edge !== 'object' || (edge.mode !== undefined && !VALID_EDGE_MODES.has(edge.mode))) {
+      throw new CanvasGraphError('invalid_edge_mode', 'Canvas snapshot contains an unknown edge mode')
+    }
+  }
   return {
-    nodes: nodes.filter((node) => node && typeof node.id === 'string'),
+    nodes,
     edges: edges.filter((edge) => edge && typeof edge.id === 'string' && typeof edge.source === 'string' && typeof edge.target === 'string'),
     groups: Array.isArray(raw.groups) ? (raw.groups as unknown[]) : [],
     selectedNodeIds: Array.isArray(raw.selectedNodeIds) ? (raw.selectedNodeIds as string[]) : [],
-  }
-}
-
-/** 读画布：返回精简到「外部 agent 需要据此决策」的字段，不灌完整 raw（R2 极简）。 */
-export function readCanvas(snapshot: CanvasSnapshot): {
-  nodes: Array<{ id: string; kind: string; title: string; prompt: string; status: string; position: { x: number; y: number }; hasResult: boolean }>
-  edges: Array<{ id: string; source: string; target: string; mode: string }>
-} {
-  return {
-    nodes: snapshot.nodes.map((node) => ({
-      id: node.id,
-      kind: node.kind,
-      title: node.title || '',
-      prompt: typeof node.prompt === 'string' ? node.prompt : '',
-      status: typeof node.status === 'string' ? node.status : 'idle',
-      position: node.position || { x: 0, y: 0 },
-      hasResult: Boolean(node.result),
-    })),
-    edges: snapshot.edges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      mode: edge.mode || 'reference',
-    })),
   }
 }
 
@@ -173,6 +171,11 @@ export function addNodes(
 ): { snapshot: CanvasSnapshot; ids: string[] } {
   const next = cloneSnapshot(snapshot)
   if (!specs.length) return { snapshot: next, ids: [] }
+  for (const spec of specs) {
+    if (spec.kind !== undefined && !isNodeKind(spec.kind.trim())) {
+      throw new CanvasGraphError('unknown_node_kind', `Unknown canvas node kind: ${spec.kind}`)
+    }
+  }
 
   const factorySpecs: CanvasNodeFactorySpec[] = specs.map((spec) => ({
     kind: (spec.kind && spec.kind.trim()) || 'text',
@@ -225,7 +228,10 @@ export function connectNodes(
   const edgeIds: string[] = []
   const skipped: Array<{ connection: ConnectionSpec; reason: string }> = []
   for (const connection of connections) {
-    const mode = connection.mode && VALID_EDGE_MODES.has(connection.mode) ? connection.mode : 'reference'
+    if (connection.mode !== undefined && !VALID_EDGE_MODES.has(connection.mode)) {
+      throw new CanvasGraphError('invalid_edge_mode', `Unknown canvas edge mode: ${connection.mode}`)
+    }
+    const mode = connection.mode || 'reference'
     if (!nodeIds.has(connection.source) || !nodeIds.has(connection.target)) {
       skipped.push({ connection, reason: '端点节点不存在' })
       continue
@@ -249,7 +255,7 @@ export function connectNodes(
   return { snapshot: next, edgeIds, skipped }
 }
 
-/** 改节点提示词（可选改标题）。节点不存在则原样返回（changed=false）。 */
+/** 改节点提示词（可选改标题）。幽灵节点必须是可恢复的显式失败。 */
 export function setNodePrompt(
   snapshot: CanvasSnapshot,
   nodeId: string,
@@ -257,7 +263,7 @@ export function setNodePrompt(
   title?: string,
 ): { snapshot: CanvasSnapshot; changed: boolean } {
   const index = snapshot.nodes.findIndex((node) => node.id === nodeId)
-  if (index < 0) return { snapshot, changed: false }
+  if (index < 0) throw new CanvasGraphError('node_not_found', `Canvas node not found: ${nodeId}`)
   const next = cloneSnapshot(snapshot)
   next.nodes[index] = {
     ...next.nodes[index],
@@ -274,7 +280,9 @@ export function deleteNodes(
 ): { snapshot: CanvasSnapshot; deleted: string[] } {
   const targetSet = new Set(nodeIds)
   const deleted = snapshot.nodes.filter((node) => targetSet.has(node.id)).map((node) => node.id)
-  if (!deleted.length) return { snapshot, deleted: [] }
+  if (!deleted.length || deleted.length !== targetSet.size) {
+    throw new CanvasGraphError('node_not_found', 'One or more canvas nodes were not found')
+  }
   const next = cloneSnapshot(snapshot)
   next.nodes = next.nodes.filter((node) => !targetSet.has(node.id))
   next.edges = next.edges.filter((edge) => !targetSet.has(edge.source) && !targetSet.has(edge.target))

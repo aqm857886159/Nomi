@@ -3,6 +3,7 @@ import { getDesktopBridge } from '../../../desktop/bridge'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { workbenchAdoptionPorts } from '../../adoption/adoptionStorePorts'
 import type { TimelineClip, TimelineState } from '../timelineTypes'
+import { ASSET_SOURCE_USAGE_LIMIT } from '../../../../electron/shared/agentCapabilities/assetRead'
 
 export type MediaToolCallName =
   | 'get_media'
@@ -137,7 +138,7 @@ function compactMedia(asset: ProjectMediaAsset): JsonRecord {
     createdAt: asset.dto.createdAt,
     updatedAt: asset.dto.updatedAt,
     ...(typeof data.contentType === 'string' && data.contentType.trim() ? { contentType: data.contentType.trim() } : {}),
-    ...(finitePositive(data.size) !== undefined ? { sizeBytes: finitePositive(data.size) } : {}),
+    ...(finitePositive(data.size) !== undefined ? { sizeBytes: Math.round(finitePositive(data.size)!) } : {}),
     ...(typeof data.ownerNodeId === 'string' && data.ownerNodeId.trim() ? { ownerNodeId: data.ownerNodeId.trim() } : {}),
   }
 }
@@ -364,11 +365,12 @@ export async function applyMediaToolCall(
   const input = asRecord(args)
   switch (toolName as MediaToolCallName) {
     case 'get_media': {
-      return { media: compactMedia(await requireMedia(stringArg(input, 'assetId'), runtime)) }
+      return { operation: toolName, media: compactMedia(await requireMedia(stringArg(input, 'assetId'), runtime)) }
     }
     case 'inspect_media': {
       const asset = await requireMedia(stringArg(input, 'assetId'), runtime)
       return {
+        operation: toolName,
         media: compactMedia(asset),
         technical: await runtime.inspectAsset(asset),
         semanticInspection: 'not_performed',
@@ -384,7 +386,13 @@ export async function applyMediaToolCall(
         .filter((asset) => !kinds || kinds.size === 0 || kinds.has(asset.kind))
         .filter((asset) => !query || asset.name.toLocaleLowerCase().includes(query))
         .sort((left, right) => Date.parse(right.dto.updatedAt) - Date.parse(left.dto.updatedAt) || left.id.localeCompare(right.id))
-      return { query, total: results.length, media: results.slice(0, limit).map(compactMedia) }
+      return {
+        operation: toolName,
+        query,
+        total: results.length,
+        truncated: results.length > limit,
+        media: results.slice(0, limit).map(compactMedia),
+      }
     }
     case 'inspect_source_range': {
       const asset = await requireMedia(stringArg(input, 'assetId'), runtime)
@@ -396,13 +404,17 @@ export async function applyMediaToolCall(
       const knownSourceFrames = technical.durationSeconds
         ? Math.max(1, Math.round(technical.durationSeconds * timeline.fps))
         : undefined
+      const usages = sourceRangeUsages(timeline, asset, startFrame, endFrame)
       return {
+        operation: toolName,
         assetId: asset.id,
         timelineFps: timeline.fps,
         sourceRange: { startFrame, endFrame },
         valid: knownSourceFrames === undefined || endFrame <= knownSourceFrames,
         ...(knownSourceFrames !== undefined ? { knownSourceFrames } : {}),
-        usages: sourceRangeUsages(timeline, asset, startFrame, endFrame),
+        totalUsageCount: usages.length,
+        truncated: usages.length > ASSET_SOURCE_USAGE_LIMIT,
+        usages: usages.slice(0, ASSET_SOURCE_USAGE_LIMIT),
         semanticInspection: 'not_performed',
       }
     }
@@ -412,7 +424,11 @@ export async function applyMediaToolCall(
       const endSeconds = input.endSeconds === undefined ? undefined : finiteNonNegative(input.endSeconds, 'endSeconds')
       if (endSeconds !== undefined && endSeconds <= startSeconds) throw new Error('endSeconds must be greater than startSeconds')
       const buckets = input.buckets === undefined ? 64 : positiveInteger(input.buckets, 'buckets', 256)
-      return { assetId: asset.id, ...(await runtime.readWaveform(asset, { startSeconds, endSeconds, buckets })) }
+      return {
+        operation: toolName,
+        assetId: asset.id,
+        ...(await runtime.readWaveform(asset, { startSeconds, endSeconds, buckets })),
+      }
     }
     default: return null
   }

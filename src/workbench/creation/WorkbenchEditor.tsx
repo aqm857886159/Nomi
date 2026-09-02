@@ -9,6 +9,15 @@ import { normalizeWorkbenchContentJson, type CreationDocumentTools } from '../wo
 import { useTransientScrollingClass } from './useTransientScrollingClass'
 import { useNomiRichTextEditor, RICH_TEXT_FEATURE_EXTENSIONS } from '../common/useNomiRichTextEditor'
 import { buildRichTextActions, type RichTextAction } from '../common/richTextActions'
+import { SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
+import type { DocumentAnchorRef, PreconditionSet, TargetRef } from '../../../electron/shared/capabilityTargeting'
+import {
+  assertDocumentWritePreconditions,
+  captureDocumentAnchor,
+  documentContentHash,
+  resolveDocumentWriteRange,
+  type DocumentTextReader,
+} from './documentWriteTarget'
 
 // 工具栏分组：格式按语义分 4 簇（文字 / 标题段落 / 列表 / 插入）靠左，历史（撤销/重做）推到右端。
 // 之前用一个 flex-1 spacer 把 9 个按钮全挤到左侧、右边 ~570px 浪费 —— 这里按语义两端锚定。
@@ -106,9 +115,15 @@ export default function WorkbenchEditor(): JSX.Element {
     [workbenchDocuments, activeDocumentId],
   )
   const workbenchDocumentRef = React.useRef(workbenchDocument)
+  const documentRevisionRef = React.useRef(0)
+  const revisionDocumentIdRef = React.useRef(workbenchDocument.id)
 
   React.useEffect(() => {
     workbenchDocumentRef.current = workbenchDocument
+    if (revisionDocumentIdRef.current !== workbenchDocument.id) {
+      revisionDocumentIdRef.current = workbenchDocument.id
+      documentRevisionRef.current = 0
+    }
   }, [workbenchDocument])
 
   const editorContent = React.useMemo(
@@ -124,6 +139,7 @@ export default function WorkbenchEditor(): JSX.Element {
       // unchanged. Opening a draft must not mutate its source revision or mark
       // every attached storyboard as needing synchronization.
       if (JSON.stringify(currentContent) === JSON.stringify(contentJson)) return
+      documentRevisionRef.current += 1
       setWorkbenchDocument({ ...currentDocument, contentJson, updatedAt: Date.now() })
     },
     [setWorkbenchDocument],
@@ -160,9 +176,30 @@ export default function WorkbenchEditor(): JSX.Element {
   const creationDocumentToolsRef = React.useRef<CreationDocumentTools | null>(null)
   React.useEffect(() => {
     if (!editor) return
+    const documentReader = (): DocumentTextReader => ({
+      contentSize: editor.state.doc.content.size,
+      textBetween: (from, to, blockSeparator) => editor.state.doc.textBetween(from, to, blockSeparator),
+    })
     const toolsApi: CreationDocumentTools = {
       readFullText: tools.readFullText,
       readSelectionText: tools.readSelectionText,
+      readState: () => {
+        const text = tools.readFullText()
+        const anchor: DocumentAnchorRef = captureDocumentAnchor(documentReader(), editor.state.selection)
+        return Object.freeze({ revision: documentRevisionRef.current, contentHash: documentContentHash(text), anchor })
+      },
+      applyDocumentWrite: (input: Readonly<{ operation: 'insert' | 'replace' | 'append'; content: string; target: TargetRef; preconditions: PreconditionSet }>) => {
+        if (input.target.kind !== 'document' || input.target.documentId !== workbenchDocumentRef.current.id) {
+          throw new SurfacePortWireError('surface_port_stale')
+        }
+        const expected = input.preconditions.document
+        const current = toolsApi.readState()
+        assertDocumentWritePreconditions(expected, current)
+        const range = resolveDocumentWriteRange(documentReader(), input.target.anchor, input.operation)
+        tools.applyAtRange(input.content, range)
+        const next = toolsApi.readState()
+        return Object.freeze({ applied: true as const, revision: next.revision, contentHash: next.contentHash })
+      },
       insertAtCursor: tools.insertAtCursor,
       replaceSelection: tools.replaceSelection,
       appendToEnd: tools.appendToEnd,

@@ -1,11 +1,10 @@
 import i18n from '../../../i18n'
+import type { CanvasAssistantTimelineAnchor } from '../agent/canvasAssistantTimelineAnchor'
 
-export type PendingToolCallLike = {
+export type PendingToolCallLike = Partial<CanvasAssistantTimelineAnchor> & {
   toolCallId: string
   toolName: string
   args: unknown
-  /** 时序内联:这张卡跟在哪条消息后(=入队时的「卡前气泡」或用户消息 id)。 */
-  anchorMessageId?: string
 }
 
 export type PlannedNode = {

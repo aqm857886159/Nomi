@@ -6,6 +6,7 @@ import type { ResolvedTimelineTransition } from '../timeline/timelineTransition'
 import { resolveClipFraming } from '../timeline/clipFraming'
 import { resolveTimelineClipPlaybackUrl } from '../timeline/timelinePlaybackUrl'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { selectStableCanvasNodes } from '../generationCanvas/store/canvasNodeProjection'
 import { useVideoPlaybackHeal } from '../../media/useVideoPlaybackHeal'
 import { cn } from '../../utils/cn'
 import { resolvePreviewMediaVolume } from '../timeline/clipAudio'
@@ -42,7 +43,8 @@ function TransitionFrame({
   onPlaybackStop,
 }: TransitionFrameProps): JSX.Element {
   const { t } = useTranslation()
-  const generationNodes = useGenerationCanvasStore((state) => state.nodes)
+  // 转场层同 TimelinePreview：只按 sourceNodeId 解析回放 URL，不读 position → 位置稳定投影（suspect #1）。
+  const generationNodes = useGenerationCanvasStore(selectStableCanvasNodes)
   const videoRef = React.useRef<HTMLVideoElement | null>(null)
   const rawVideoUrl = clip.type === 'video' ? resolveTimelineClipPlaybackUrl(clip, generationNodes) : ''
   const heal = useVideoPlaybackHeal({ rawUrl: rawVideoUrl })

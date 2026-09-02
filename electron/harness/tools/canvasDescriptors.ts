@@ -1,68 +1,17 @@
 import { z } from "zod";
+import { CANVAS_READ_CAPABILITY } from "../../shared/agentCapabilities/canvasRead";
+import { plannedEdgeSchema, plannedNodeSchema } from "../../shared/agentCapabilities/canvasWrite";
 
 /** Pure Nomi-owned canvas metadata; confirmation and effects belong to the runtime adapter. */
-
-export const canvasNodeKindSchema = z.enum([
-  "text",
-  "character",
-  "scene",
-  "image",
-  "keyframe",
-  "video",
-  "shot",
-  "output",
-  "panorama",
-]);
-
-export const plannedNodeSchema = z.object({
-  clientId: z.string().min(1),
-  kind: canvasNodeKindSchema,
-  title: z.string().min(1),
-  // ⑤ 结构化骨架（唯一真相源；系统提示/skill 只放指向这里的指针，不重写，避免三处漂移）。
-  // 文本须稳定、不含动态值（进 tools 块前缀，一次性 byte 变更后命中缓存）。
-  prompt: z
-    .string()
-    .describe(
-      "High-quality generation prompt, in the SAME language as the user (Chinese user → Chinese prompt). Write it as a STRUCTURED skeleton, not a run-on sentence:\n" +
-        "- character/scene reference card: stable appearance/environment description + unified style keywords (neutral full-body pose for a character, empty wide establishing shot for a scene; no plot action).\n" +
-        "- image / keyframe shot: scene·time·light → subject·action·expression → shot language (wide / close-up / low-angle…) → style keywords.\n" +
-        "- video shot: camera move (push / pull / pan / track…) → on-screen action progression → rhythm & duration feel; do NOT restate the static keyframe description.\n" +
-        "Keep the same subject's appearance description consistent across shots.",
-    ),
-  // 可省略：批量布局由渲染层 derive 成紧凑网格（applyCanvasToolCall.gridPosition），
-  // 不再信任 LLM 手写的像素坐标（硬编码单行会溢出视口）。
-  position: z
-    .object({
-      x: z.number(),
-      y: z.number(),
-    })
-    .optional(),
-  // bug①：agent 为节点建议模型 + 模式 + 标量参数（比例/清晰度…），用户在计划卡可改可确认。
-  // modelKey/modeId 必须取自系统提示词给出的「可用模型清单」；params 是宽松键值（schema 不按
-  // 单个模型严格——一次 batch 可含多模型），合法性在写入时按档案逐字段校验（单字段，跨字段留二期）。
-  modelKey: z.string().optional(),
-  modeId: z.string().optional(),
-  params: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
-});
-
-export const plannedEdgeSchema = z.object({
-  sourceClientId: z.string().min(1),
-  targetClientId: z.string().min(1),
-  // T1 轨迹语义：边的参考槽语义。character_ref=角色定妆参考、style_ref=场景/风格参考、
-  // composition_ref=构图参考、first_frame=源图像作为目标视频首帧（源为视频节点时＝
-  // 用源视频尾帧接力，须用户在计划卡单独勾选）、last_frame=尾帧约束、reference=通用参考。
-  mode: z
-    .enum(["reference", "first_frame", "last_frame", "style_ref", "character_ref", "composition_ref"])
-    .optional()
-    .describe(
-      "Reference-slot semantics: character_ref (cast sheet feeds keyframe), style_ref (scene/style feeds keyframe), composition_ref, first_frame (keyframe image feeds the video's first frame; when the source is a VIDEO node this means last-frame relay and must be opted-in by the user), last_frame, reference (generic). Omit for a generic reference edge. Only connect a reference the TARGET model actually supports — see each model's per-mode reference slots in the available-models list; text/shot/output nodes cannot be a reference source. Unsupported edges are skipped and reported back in skippedEdges.",
-    ),
-});
+export { canvasNodeKindSchema, plannedEdgeSchema, plannedNodeSchema } from "../../shared/agentCapabilities/canvasWrite";
 
 // ── 分镜方案 schema（propose_storyboard_plan 的参数；镜像渲染层 StoryboardPlan，
 // electron/renderer 进程隔离故两处各一份，与 plannedNodeSchema 同例）。──
 const storyboardAnchorSchema = z.object({
-  id: z.string().min(1).describe("Stable id; used as the clientId when the plan lands on the canvas (e.g. 'anchor-1')."),
+  id: z
+    .string()
+    .min(1)
+    .describe("Stable id; used as the clientId when the plan lands on the canvas (e.g. 'anchor-1')."),
   kind: z.enum(["character", "scene", "prop", "style"]),
   name: z.string().describe("Display name & shot-reference key ('林夏' / '天台' / '红书包' / '全片风格')."),
   description: z
@@ -75,36 +24,117 @@ const storyboardAnchorSchema = z.object({
     .describe(
       "visual = generate a reference image and hang it on the shot's reference slot (faces / specific scenes / props that prompt words can't pin down). text = describe in words only, folded into shot prompts (tone / brand color / wardrobe words). character/scene/prop default visual; style defaults text.",
     ),
-  scope: z.enum(["all", "selective"]).optional().describe("all = every shot (style/brand); selective = only named shots."),
-})
+  scope: z
+    .enum(["all", "selective"])
+    .optional()
+    .describe("all = every shot (style/brand); selective = only named shots."),
+});
 
 const storyboardShotSchema = z.object({
   index: z.number().int().describe("1-based shot number in script order."),
+  sceneId: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Scene/group id this shot belongs to (e.g. 'scene-1'). Shots of the same scene must be contiguous and share the id; omit when the story has no scene grouping.",
+    ),
   shotKind: z
     .enum(["image", "video"])
     .optional()
     .describe(
       "Shot kind: 'image' = still image-storyboard frame (image-to-image, no duration, no camera move / transition / dialogue), 'video' = video shot (has duration + camera motion). Match ALL shots to the storyboard mode requested by the user; default to 'image' unless the user explicitly wants video.",
     ),
-  durationSec: z.number().describe("Shot duration in seconds (video shots only; for image shots emit 0). Clamped to the chosen model's max when it lands."),
-  anchorIds: z.array(z.string()).describe("Which anchors this shot uses (by anchor.id) → visual anchors become reference edges, text anchors fold into the prompt."),
-  prompt: z.string().describe("Directly-generatable prompt: camera move + action progression; do NOT restate the anchors' static descriptions."),
+  durationSec: z
+    .number()
+    .describe(
+      "Shot duration in seconds (video shots only; for image shots emit 0). Clamped to the chosen model's max when it lands.",
+    ),
+  anchorIds: z
+    .array(z.string())
+    .describe(
+      "Which anchors this shot uses (by anchor.id) → visual anchors become reference edges, text anchors fold into the prompt.",
+    ),
+  prompt: z
+    .string()
+    .describe(
+      "Directly-generatable prompt: camera move + action progression; do NOT restate the anchors' static descriptions.",
+    ),
   // P0-9:让 AI 一并产出每镜的模型/模式/参数(含负面词)。取值必须来自用户消息里的「可用模型」清单,
   // 不要编不存在的 modelKey/参数名;不确定就留空,落画布时系统用默认视频模型兜底。
-  modelKey: z.string().optional().describe("Video model key for this shot, chosen from the 「可用模型」 list in the user message. Omit to use the default video model."),
-  modeId: z.string().optional().describe("Model mode/variant id (paired with modelKey), from the same list. Omit to use the model's default mode."),
-  params: z.record(z.unknown()).optional().describe("Per-shot generation params keyed exactly as the chosen model exposes them in the 「可用模型」 list (e.g. aspect_ratio, resolution, and negative_prompt where the model supports it). Only use param keys that model actually lists; omit unknowns."),
-  keyframe: z
+  modelKey: z
+    .string()
+    .optional()
+    .describe(
+      "Video model key for this shot, chosen from the 「可用模型」 list in the user message. Omit to use the default video model.",
+    ),
+  modeId: z
+    .string()
+    .optional()
+    .describe(
+      "Model mode/variant id (paired with modelKey), from the same list. Omit to use the model's default mode.",
+    ),
+  params: z
+    .record(z.unknown())
+    .optional()
+    .describe(
+      "Per-shot generation params keyed exactly as the chosen model exposes them in the 「可用模型」 list (e.g. aspect_ratio, resolution, and negative_prompt where the model supports it). Only use param keys that model actually lists; omit unknowns.",
+    ),
+  subtitle: z
+    .string()
+    .optional()
+    .describe(
+      "On-screen caption/subtitle text for this shot, carried verbatim to canvas metadata and timeline assembly.",
+    ),
+  dialogue: z
+    .string()
+    .optional()
+    .describe(
+      "Spoken dialogue for this shot (speaker + line), carried verbatim to canvas metadata and timeline assembly.",
+    ),
+  transition: z
     .object({
-      enabled: z.boolean().optional().describe("Set true only for 图片+视频 mode: create a first-frame image before the video."),
-      prompt: z.string().optional().describe("Static first-frame image prompt: composition, shot size, light, character pose/expression, environment. No camera movement, action progression, dialogue, subtitles, or sound."),
-      modelKey: z.string().optional().describe("Image model key for the first-frame image, chosen from the available image models. Omit to use the default image model."),
-      modeId: z.string().optional().describe("Image model mode id for the first-frame image. Prefer an image_ref/edit mode when this shot references visual anchors."),
-      params: z.record(z.unknown()).optional().describe("First-frame image params, using only keys supported by the chosen image model/mode."),
+      type: z.enum(["cut", "dissolve", "fade", "match_cut", "whip_pan"]),
+      durationFrames: z.number().int().positive().optional(),
     })
     .optional()
-    .describe("Optional first-frame plan. In 图片+视频 mode keep this as part of the same logical shot instead of emitting a separate image shot."),
-})
+    .describe(
+      "Explicit editorial transition into the next shot; emit cut for an intentional hard cut, omit when no transition is authored.",
+    ),
+  keyframe: z
+    .object({
+      enabled: z
+        .boolean()
+        .optional()
+        .describe("Set true only for 图片+视频 mode: create a first-frame image before the video."),
+      prompt: z
+        .string()
+        .optional()
+        .describe(
+          "Static first-frame image prompt: composition, shot size, light, character pose/expression, environment. No camera movement, action progression, dialogue, subtitles, or sound.",
+        ),
+      modelKey: z
+        .string()
+        .optional()
+        .describe(
+          "Image model key for the first-frame image, chosen from the available image models. Omit to use the default image model.",
+        ),
+      modeId: z
+        .string()
+        .optional()
+        .describe(
+          "Image model mode id for the first-frame image. Prefer an image_ref/edit mode when this shot references visual anchors.",
+        ),
+      params: z
+        .record(z.unknown())
+        .optional()
+        .describe("First-frame image params, using only keys supported by the chosen image model/mode."),
+    })
+    .optional()
+    .describe(
+      "Optional first-frame plan. In 图片+视频 mode keep this as part of the same logical shot instead of emitting a separate image shot.",
+    ),
+});
 
 function parseJsonArrayString(value: unknown): unknown {
   if (typeof value !== "string") return value;
@@ -122,7 +152,7 @@ export const storyboardPlanParamsSchema = z.object({
   title: z.string().describe("Short plan title in the user's language."),
   anchors: z.array(storyboardAnchorSchema).max(24),
   shots: z.preprocess(parseJsonArrayString, z.array(storyboardShotSchema).min(1).max(24)),
-})
+});
 
 // ── 站位参考 schema（create_staging_reference 的参数；镜像渲染层 stagingBuilder 的 StagingSpec，
 // 进程隔离故两处各一份，与 storyboardPlan 同例。pose 枚举=已校准的预设 id）。──
@@ -139,11 +169,24 @@ export const stagingReferenceParamsSchema = z.object({
         name: z.string().optional().describe("Character label, e.g. '林夏' / '角色A'."),
         pose: z
           .enum([
-            "standing", "t-pose", "walk", "run", "sit", "squat", "crouch",
-            "single-knee", "double-knee", "hands-on-hips", "point", "wave", "cheer",
+            "standing",
+            "t-pose",
+            "walk",
+            "run",
+            "sit",
+            "squat",
+            "crouch",
+            "single-knee",
+            "double-knee",
+            "hands-on-hips",
+            "point",
+            "wave",
+            "cheer",
           ])
           .optional()
-          .describe("Body pose preset (default standing). squat=deep squat, crouch=upright half-crouch, single-knee=proposal kneel, hands-on-hips, point, wave, cheer=arms up."),
+          .describe(
+            "Body pose preset (default standing). squat=deep squat, crouch=upright half-crouch, single-knee=proposal kneel, hands-on-hips, point, wave, cheer=arms up.",
+          ),
         facing: z
           .enum(["toward", "away", "camera", "left", "right"])
           .optional()
@@ -156,11 +199,16 @@ export const stagingReferenceParamsSchema = z.object({
   layout: z
     .enum(["solo", "facing", "side-by-side", "line", "behind", "circle"])
     .optional()
-    .describe("Spatial arrangement. side-by-side = shoulder-to-shoulder in a row (并排/一排/一字排开, e.g. a lineup or saluting row); line = a single-file queue front-to-back (纵队/列队前后排); facing = two face each other (对峙/对坐/对话); behind = one in front of another (一前一后/跟踪); circle = around a center (围绕/环绕)."),
+    .describe(
+      "Spatial arrangement. side-by-side = shoulder-to-shoulder in a row (并排/一排/一字排开, e.g. a lineup or saluting row); line = a single-file queue front-to-back (纵队/列队前后排); facing = two face each other (对峙/对坐/对话); behind = one in front of another (一前一后/跟踪); circle = around a center (围绕/环绕).",
+    ),
   camera: z
     .object({
       angle: z.enum(["front", "three-quarter", "side", "back"]).optional(),
-      height: z.enum(["eye", "low", "high", "overhead"]).optional().describe("low = low-angle look up; high = high-angle look down; overhead = top-down."),
+      height: z
+        .enum(["eye", "low", "high", "overhead"])
+        .optional()
+        .describe("low = low-angle look up; high = high-angle look down; overhead = top-down."),
       shot: z.enum(["wide", "medium", "close"]).optional(),
     })
     .optional(),
@@ -173,19 +221,46 @@ export const stagingReferenceParamsSchema = z.object({
   sceneTemplate: z
     .enum(["street", "room"])
     .optional()
-    .describe("Optional gray-model backdrop laid under the characters: street = city street (road/lane-lines/sidewalk/buildings/trees/streetlamps/cars), room = interior (three walls/bed/table/sofa/ceiling light). Use when the shot needs a legible environment + scale reference. Set environment=day for street (sky) if you want it lit."),
+    .describe(
+      "Optional gray-model backdrop laid under the characters: street = city street (road/lane-lines/sidewalk/buildings/trees/streetlamps/cars), room = interior (three walls/bed/table/sofa/ceiling light). Use when the shot needs a legible environment + scale reference. Set environment=day for street (sky) if you want it lit.",
+    ),
   props: z
     .array(
       z.object({
-        kind: z.enum(["car", "building", "tree", "streetlamp", "wall", "suv", "bus", "bicycle", "scooter", "sofa", "diningTable", "fridge", "washingMachine", "trashBins", "atm", "backpack"]),
-        position: z.array(z.number()).length(2).optional().describe("[x, z] ground position in meters. Character(s) are at origin; omit to auto-spread props to the character's right."),
+        kind: z.enum([
+          "car",
+          "building",
+          "tree",
+          "streetlamp",
+          "wall",
+          "suv",
+          "bus",
+          "bicycle",
+          "scooter",
+          "sofa",
+          "diningTable",
+          "fridge",
+          "washingMachine",
+          "trashBins",
+          "atm",
+          "backpack",
+        ]),
+        position: z
+          .array(z.number())
+          .length(2)
+          .optional()
+          .describe(
+            "[x, z] ground position in meters. Character(s) are at origin; omit to auto-spread props to the character's right.",
+          ),
         rotationY: z.number().optional().describe("Yaw in degrees."),
         scale: z.number().optional().describe("Uniform scale (0.1–10, default 1)."),
       }),
     )
     .max(12)
     .optional()
-    .describe("Optional individual gray-model props (a car beside the character, a tree behind, etc.). Prefer sceneTemplate for a full backdrop; use props for a few specific placed objects."),
+    .describe(
+      "Optional individual gray-model props (a car beside the character, a tree behind, etc.). Prefer sceneTemplate for a full backdrop; use props for a few specific placed objects.",
+    ),
   // 词表外逃生口（站位）：词表(layout/pose/facing…)是精确首选，但站位/构图意图不在词表里时
   // 不要硬塞最近的词——填自由文本，执行器不渲站位图、把它当 composition 指令追加进关键帧图 prompt。
   customBlocking: z
@@ -206,9 +281,19 @@ const cameraMoveParamsObjectSchema = z.object({
     ),
   move: z
     .enum([
-      "orbit_left", "orbit_right", "push_in", "pull_out", "crane_up", "crane_down",
-      "track_left", "track_right", "arc_left", "arc_right",
-      "zoom_in", "zoom_out", "dolly_zoom",
+      "orbit_left",
+      "orbit_right",
+      "push_in",
+      "pull_out",
+      "crane_up",
+      "crane_down",
+      "track_left",
+      "track_right",
+      "arc_left",
+      "arc_right",
+      "zoom_in",
+      "zoom_out",
+      "dolly_zoom",
     ])
     .optional()
     .describe(
@@ -235,28 +320,66 @@ const cameraMoveParamsObjectSchema = z.object({
     .describe("Framing of the move (wide / medium / close). Default medium."),
   subjectPose: z
     .enum([
-      "standing", "t-pose", "walk", "run", "sit", "squat", "crouch",
-      "single-knee", "double-knee", "hands-on-hips", "point", "wave", "cheer",
+      "standing",
+      "t-pose",
+      "walk",
+      "run",
+      "sit",
+      "squat",
+      "crouch",
+      "single-knee",
+      "double-knee",
+      "hands-on-hips",
+      "point",
+      "wave",
+      "cheer",
     ])
     .optional()
-    .describe("Optional body-pose preset id for the subject mannequin the camera moves around (e.g. standing / sit / walk). Default standing."),
+    .describe(
+      "Optional body-pose preset id for the subject mannequin the camera moves around (e.g. standing / sit / walk). Default standing.",
+    ),
   // 灰模布景（走站位/UI 同一套 builder）：让运镜小片的参考里带上环境/尺度背景。相机仍绕主体运镜。
   sceneTemplate: z
     .enum(["street", "room"])
     .optional()
-    .describe("Optional gray-model backdrop under the subject: street (road/buildings/trees/cars) or room (walls/furniture). Use when the camera move should read as happening in an environment (e.g. 'push in on a person standing on a street'). The camera still orbits/pushes the subject at origin."),
+    .describe(
+      "Optional gray-model backdrop under the subject: street (road/buildings/trees/cars) or room (walls/furniture). Use when the camera move should read as happening in an environment (e.g. 'push in on a person standing on a street'). The camera still orbits/pushes the subject at origin.",
+    ),
   props: z
     .array(
       z.object({
-        kind: z.enum(["car", "building", "tree", "streetlamp", "wall", "suv", "bus", "bicycle", "scooter", "sofa", "diningTable", "fridge", "washingMachine", "trashBins", "atm", "backpack"]),
-        position: z.array(z.number()).length(2).optional().describe("[x, z] ground position in meters. Subject is at origin; omit to auto-spread props to its right."),
+        kind: z.enum([
+          "car",
+          "building",
+          "tree",
+          "streetlamp",
+          "wall",
+          "suv",
+          "bus",
+          "bicycle",
+          "scooter",
+          "sofa",
+          "diningTable",
+          "fridge",
+          "washingMachine",
+          "trashBins",
+          "atm",
+          "backpack",
+        ]),
+        position: z
+          .array(z.number())
+          .length(2)
+          .optional()
+          .describe("[x, z] ground position in meters. Subject is at origin; omit to auto-spread props to its right."),
         rotationY: z.number().optional().describe("Yaw in degrees."),
         scale: z.number().optional().describe("Uniform scale (0.1–10, default 1)."),
       }),
     )
     .max(12)
     .optional()
-    .describe("Optional individual gray-model props placed in the move's scene (a car beside the subject, a tree behind). Prefer sceneTemplate for a full backdrop."),
+    .describe(
+      "Optional individual gray-model props placed in the move's scene (a car beside the subject, a tree behind). Prefer sceneTemplate for a full backdrop.",
+    ),
 });
 
 type CameraMoveParams = z.infer<typeof cameraMoveParamsObjectSchema>;
@@ -308,79 +431,35 @@ export function normalizeCameraMoveParams(params: CameraMoveParams): CameraMoveP
 export const cameraMoveParamsSchema = cameraMoveParamsObjectSchema.transform(normalizeCameraMoveParams);
 
 export const canvasToolDescriptors = {
-  read_canvas_state: {
-    name: "read_canvas_state",
-    description: "Read the current generation canvas (nodes + edges).",
-    parameters: z.object({}),
+  [CANVAS_READ_CAPABILITY.aliases.pi]: {
+    name: CANVAS_READ_CAPABILITY.aliases.pi,
+    description: CANVAS_READ_CAPABILITY.projections.pi.description,
+    parameters: CANVAS_READ_CAPABILITY.inputSchema,
   },
   propose_storyboard_plan: {
     name: "propose_storyboard_plan",
-    description: "Produce a structured storyboard plan (cross-shot anchors + shots) for the user to review/edit in the creation area before anything lands on the canvas. Does not touch the canvas and costs nothing. Emit exactly one call.",
+    description:
+      "Produce a structured storyboard plan (cross-shot anchors + shots) for the user to review/edit in the creation area before anything lands on the canvas. Does not touch the canvas and costs nothing. Emit exactly one call.",
     parameters: storyboardPlanParamsSchema,
-  },
-  create_canvas_nodes: {
-    name: "create_canvas_nodes",
-    description: "Propose a batch of new canvas nodes AND their reference edges in this one call (never split edges into a separate connect_canvas_edges call).",
-    parameters: z.object({
-      summary: z.string().describe("One-sentence summary of the plan, shown to the user before confirmation."),
-      nodes: z.array(plannedNodeSchema).min(1).max(24),
-      edges: z.array(plannedEdgeSchema).max(48).optional().describe(
-        "Reference edges between this plan's nodes (use their clientId) and/or existing real node ids. Submit together with nodes in this same call.",
-      ),
-    }),
-  },
-  connect_canvas_edges: {
-    name: "connect_canvas_edges",
-    description: "Connect EXISTING nodes with reference edges (follow-up edits only; new plans carry edges inside create_canvas_nodes).",
-    parameters: z.object({
-      edges: z.array(plannedEdgeSchema).min(1).max(48),
-    }),
-  },
-  set_node_prompt: {
-    name: "set_node_prompt",
-    description: "Rewrite the prompt of an existing node.",
-    parameters: z.object({
-      nodeId: z.string().min(1),
-      prompt: z.string().min(1),
-    }),
-  },
-  delete_canvas_nodes: {
-    name: "delete_canvas_nodes",
-    description: "Delete one or more existing canvas nodes (destructive).",
-    parameters: z.object({
-      nodeIds: z.array(z.string().min(1)).min(1).max(24),
-      // Keep a hint slot so the model can surface its rationale to the user
-      // before destructive confirmation.
-      reason: z.string().optional(),
-    }),
-  },
-  run_generation_batch: {
-    name: "run_generation_batch",
-    description: "Start real generation for existing canvas nodes (costs credits; user must confirm). Returns an acceptance receipt.",
-    parameters: z.object({
-      nodeIds: z.array(z.string().min(1)).min(1).max(24),
-    }),
   },
   arrange_storyboard_to_timeline: {
     name: "arrange_storyboard_to_timeline",
-    description: "Arrange one explicit storyboard node subset onto the timeline in stored shot order. Read the canvas first and pass nodeIds from exactly one storyboard design; never mix designs. Ungenerated videos fall back to their keyframe image and clips append to the end.",
+    description:
+      "Arrange one explicit storyboard node subset onto the timeline in stored shot order. Read the canvas first and pass nodeIds from exactly one storyboard design; never mix designs. Ungenerated videos fall back to their keyframe image and clips append to the end.",
     parameters: z.object({
       nodeIds: z.array(z.string().min(1)).min(1).max(48),
     }),
   },
-  tidy_canvas: {
-    name: "tidy_canvas",
-    description: "Tidy the canvas: re-layout one category's nodes into an organized grid in script/shot order. Non-destructive, free, undoable. Use when the user says the canvas is messy or asks to arrange/sort the nodes. Omit categoryId to tidy the category the user is viewing.",
-    parameters: z.object({ categoryId: z.string().optional() }),
-  },
   create_staging_reference: {
     name: "create_staging_reference",
-    description: "Create a 3D staging reference image locking character blocking + poses + camera for a shot (auto-connects to shotClientId as composition_ref). Use when ≥2 characters have a spatial relationship, a specific physical action is needed, or a director-specified camera angle. Not for simple single talking-head shots. Tiered rule: the vocab (characters/layout/pose/camera) is the precise first choice (3D staging render); if the blocking is OUTSIDE the vocab, do NOT force a wrong value — use customBlocking (prompt-guided into the keyframe image prompt, honest about lower fidelity).",
+    description:
+      "Create a 3D staging reference image locking character blocking + poses + camera for a shot (auto-connects to shotClientId as composition_ref). Use when ≥2 characters have a spatial relationship, a specific physical action is needed, or a director-specified camera angle. Not for simple single talking-head shots. Tiered rule: the vocab (characters/layout/pose/camera) is the precise first choice (3D staging render); if the blocking is OUTSIDE the vocab, do NOT force a wrong value — use customBlocking (prompt-guided into the keyframe image prompt, honest about lower fidelity).",
     parameters: stagingReferenceParamsSchema,
   },
   create_camera_move: {
     name: "create_camera_move",
-    description: "Create a 3D camera-move reference clip locking a shot's camera motion (orbit / push-in / pull-out / crane / track / arc / dolly-zoom), fed to the shot's VIDEO node as a reference video (or degraded to a camera-move prompt directive on models without a video_ref slot). Call ONLY when a shot has a specific camera-move intent; do NOT call for a static / locked-off shot or a simple talking-head. Tiered rule: the `move` enum is the precise first choice (3D camera-path render); if the intended move is OUTSIDE the enum (whip-pan, handheld follow, compound/sequenced moves, 'match this reference video'), do NOT force a wrong enum — leave move empty and use customMove (prompt-guided into the video prompt, honest about lower fidelity). shotClientId MUST point to the shot's VIDEO node — not its keyframe image; if none exists yet, create the video node first.",
+    description:
+      "Create a 3D camera-move reference clip locking a shot's camera motion (orbit / push-in / pull-out / crane / track / arc / dolly-zoom), fed to the shot's VIDEO node as a reference video (or degraded to a camera-move prompt directive on models without a video_ref slot). Call ONLY when a shot has a specific camera-move intent; do NOT call for a static / locked-off shot or a simple talking-head. Tiered rule: the `move` enum is the precise first choice (3D camera-path render); if the intended move is OUTSIDE the enum (whip-pan, handheld follow, compound/sequenced moves, 'match this reference video'), do NOT force a wrong enum — leave move empty and use customMove (prompt-guided into the video prompt, honest about lower fidelity). shotClientId MUST point to the shot's VIDEO node — not its keyframe image; if none exists yet, create the video node first.",
     parameters: cameraMoveParamsSchema,
   },
 } as const;

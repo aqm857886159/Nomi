@@ -1,0 +1,32 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-mcp-catalog-change-notification",
+  "problem_type": "MCP catalog source changes are invisible to connected clients",
+  "symptom": "A connected MCP client cannot know that the playbook or capability projection catalog changed because initialize advertises no tools/list_changed support and no server notification is emitted.",
+  "direct_cause": "The protocol hardcodes an empty tools capability and the catalog source registration paths have no shared change-notification boundary.",
+  "class_root": "MCP catalog source registrations do not converge on a session-aware notification bus.",
+  "affected_population": ["Connected MCP clients using stdio", "Playbook and explicit MCP capability adapter registrations"],
+  "scope_paths": ["electron/capabilityCore/mcpToolCatalogChanges.ts", "electron/capabilityCore/mcpProtocol.ts", "electron/capabilityCore/mcpStdioServer.ts", "electron/capabilityCore/mcpCapabilityProjection.ts", "electron/productionRun/productionPlaybooks.ts", ".github/workflows/quality-gate.yml", "tests/ux/mcp-l1-handshake.e2e.mjs", "electron/capabilityCore/mcpProtocol.test.ts"],
+  "entry_points": ["production playbook registration", "MCP capability projection resolver registration", "MCP protocol session subscription"],
+  "external_sources": [],
+  "internal_only_reason": "The notification bus and CI ownership are Nomi's internal transport contract; the protocol method name is directly exercised by the L1 contract.",
+  "invariants": ["Every accepted catalog source registration emits one shared change event.", "Only initialized sessions emit notifications/tools/list_changed.", "stdio session teardown unsubscribes the listener."],
+  "generality_proof": "Playbook and capability projection registrations are the two current catalog source paths identified by the five-way mcpToolCatalog assembly; both call the same emitter, and every protocol session subscribes through createMcpProtocol.",
+  "shared_boundaries": [
+    {"path": "electron/capabilityCore/mcpToolCatalogChanges.ts", "symbol": "emitMcpToolCatalogChanged", "responsibility": "Fan out the single catalog-change event to active sessions."},
+    {"path": "electron/capabilityCore/mcpProtocol.ts", "symbol": "createMcpProtocol", "responsibility": "Gate catalog notifications on successful initialize and dispose the subscription."}
+  ],
+  "same_class_entry_points": [
+    {"path": "electron/productionRun/productionPlaybooks.ts", "entry_point": "registerProductionPlaybook", "disposition": "enforced", "evidence": "A newly validated playbook emits through the shared catalog-change boundary."},
+    {"path": "electron/capabilityCore/mcpCapabilityProjection.ts", "entry_point": "createMcpCapabilityResolver", "disposition": "enforced", "evidence": "Explicit capability adapter resolver registration emits through the same boundary."},
+    {"path": ".github/workflows/quality-gate.yml", "entry_point": "MCP L1 handshake journey step", "disposition": "enforced", "evidence": "The journey is attached to the existing journeys risk surface rather than creating a second classifier."}
+  ],
+  "recurrence": {"classification": "recurring", "reason": "Future catalog sources can otherwise register successfully while every already connected host remains on a stale tools/list view.", "same_class_scan": ["rg MCP_TOOL_CATALOG/MCP_CAPABILITY_RESOLVER in electron/capabilityCore", "rg register/listProductionPlaybookNames in electron/productionRun", "Checked both source registration paths and the protocol/session teardown path."]},
+  "prevention": {"kind": "centralized-boundary", "enforcement_path": "electron/capabilityCore/mcpToolCatalogChanges.ts", "invariant": "All catalog source changes fan out to initialized protocol sessions as notifications/tools/list_changed.", "failure_mode": "A stale session is observable by the L1 test and the registration path cannot silently bypass the shared emitter.", "exception_policy": "none", "strategy": "Use one small process-local event bus and a session lifecycle subscription; do not duplicate source-specific notification logic in the protocol.", "artifacts": ["electron/capabilityCore/mcpToolCatalogChanges.ts", "electron/capabilityCore/mcpProtocol.ts"]},
+  "regression_tests": ["electron/capabilityCore/mcpProtocol.test.ts", "tests/ux/mcp-l1-handshake.e2e.mjs"],
+  "class_regression_tests": ["electron/capabilityCore/mcpProtocol.test.ts"],
+  "legacy_paths": {"status": "not-applicable", "removed_paths": [], "rationale": "No prior notification path existed; the empty capabilities declaration is replaced in place and no fallback is retained."},
+  "dependency_lifecycle": {"decision": "not-applicable", "rationale": "The invariant is internal to Nomi's hand-written MCP protocol and registry lifecycle.", "exit_criteria": []},
+  "migration": "No persisted state changes; existing clients simply re-list after the standard notification.",
+  "residual_risks": ["The current catalog remains explicit and 42-tool scoped; future source registration must continue to use the validated registration paths."]
+}

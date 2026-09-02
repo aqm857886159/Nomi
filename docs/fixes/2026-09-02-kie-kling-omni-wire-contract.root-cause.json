@@ -1,0 +1,116 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-kie-kling-omni-wire-contract",
+  "problem_type": "KIE Kling 3 Omni model and input-field drift",
+  "symptom": "KIE Kling 3 mappings sent the historical kling-3.0/video model and legacy mode, sound, and multi_shots fields instead of the current documented text-to-video and image-to-video contracts.",
+  "direct_cause": "The shared KIE Kling operation was retained after the provider split the model identifier by mode and renamed the audio and multi-shot controls, while the generated archetype defaults were treated as the provider wire contract.",
+  "class_root": "KIE provider-specific model identity and field ownership were not enforced at the KIE Kling operation boundary, so both modes could inherit stale generic defaults while local construction remained type-valid.",
+  "affected_population": [
+    "KIE Kling 3 text-to-video mapping",
+    "KIE Kling 3 image-to-video mapping",
+    "Existing projects routed through the kling-3.0 archetype"
+  ],
+  "scope_paths": [
+    "electron/catalog/kieKling.ts",
+    "electron/catalog/vendorWireDriftFixes.test.ts",
+    "docs/research/2026-09-02-docaudit-kie.md"
+  ],
+  "entry_points": [
+    "seed-kie-kling-3-text_to_video",
+    "seed-kie-kling-3-image_to_video",
+    "The shared KIE Kling create operation used by both mappings"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.kie.ai/market/kling/v3-omni-text-to-video.md",
+      "checked_at": "2026-09-02",
+      "purpose": "Defines the text-to-video model ID and current audio and multi-shot input fields."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.kie.ai/market/kling/v3-omni-image-to-video.md",
+      "checked_at": "2026-09-02",
+      "purpose": "Defines the image-to-video model ID, image_urls cardinality, auto aspect ratio, and current audio and multi-shot input fields."
+    }
+  ],
+  "invariants": [
+    "KIE Kling text-to-video always sends model kling-3.0-omni/text-to-video.",
+    "KIE Kling image-to-video always sends model kling-3.0-omni/image-to-video and an ordered image_urls slot.",
+    "Both modes send only documented Kling input names; single-shot mode sends customize_multi_shots=false and prefer_multi_shots=false, with no multi_prompt.",
+    "Image-to-video single-shot mode sends aspect_ratio=auto because the official page restricts fixed ratios to custom multi-shot mode."
+  ],
+  "generality_proof": "Both KIE Kling modes converge on the same catalog boundary and were affected by the same stale operation. A mode-specific shared factory now owns the provider model identity and the complete documented field projection, preventing either entry point from inheriting the other mode's contract.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/kieKling.ts",
+      "symbol": "createKling3Operation",
+      "responsibility": "Build the mode-specific KIE Kling Omni model and documented input shape for both mappings."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/kieKling.ts",
+      "entry_point": "KLING_3_T2V_MAPPING",
+      "disposition": "enforced",
+      "evidence": "The official text-to-video page specifies kling-3.0-omni/text-to-video and customize_multi_shots, prefer_multi_shots, audio, resolution, aspect_ratio, and duration."
+    },
+    {
+      "path": "electron/catalog/kieKling.ts",
+      "entry_point": "KLING_3_I2V_MAPPING",
+      "disposition": "enforced",
+      "evidence": "The official image-to-video page specifies kling-3.0-omni/image-to-video, exactly one or two image_urls, auto aspect ratio for non-custom shots, and the same current control names."
+    },
+    {
+      "path": "electron/catalog/kieSeedance.ts",
+      "entry_point": "KIE video request family",
+      "disposition": "not-affected",
+      "evidence": "Seedance uses a separate official model/input contract and remains covered by the all-mapping dry-run; no Kling legacy field is shared with its operation."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Provider model IDs and field names can change independently of generic archetype defaults, and both KIE Kling modes inherited the same stale operation.",
+    "same_class_scan": [
+      "Searched all KIE catalog operations for multi_shots, customize_multi_shots, prefer_multi_shots, mode, sound, and Kling model literals.",
+      "Compared all 32 KIE mappings in the zero-network vendorDocAuditWire suite; only the two Kling mappings had the affected legacy field family.",
+      "Checked APIMart Kling separately; it uses a different endpoint and audio contract and is not routed through the KIE operation."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/kieKling.ts",
+    "invariant": "The only KIE Kling create operations are mode-specific factories that emit the current official model and field names.",
+    "failure_mode": "A regression in either mode's model or field projection fails the structural contract test before network use.",
+    "exception_policy": "none",
+    "strategy": "Keep provider-specific ownership in one small KIE factory and remove the stale shared operation rather than adding a compatibility fallback.",
+    "artifacts": [
+      "electron/catalog/kieKling.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/vendorWireDriftFixes.test.ts",
+    "electron/catalog/vendorDocAuditWire.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/vendorWireDriftFixes.test.ts",
+    "electron/catalog/vendorDocAuditWire.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/kieKling.ts"
+    ],
+    "rationale": "The stale shared operation was deleted; both mappings now use the mode-specific current-contract operations with no fallback."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The drift is in the provider HTTP contract, not a dependency runtime.",
+    "exit_criteria": []
+  },
+  "migration": "Persisted model identity remains kling-3.0 for routing compatibility; only the outgoing KIE model and input fields are corrected at the request boundary.",
+  "residual_risks": [
+    "KIE's current docs still conflict with previously accepted live response, callback-domain, and URL-expiry behavior; those remain explicitly double-sourced in the audit report and are not changed by this request-body fix.",
+    "The UI's historical mode control remains available in the shared archetype, but KIE no longer emits it because the current official Kling page does not define it."
+  ]
+}

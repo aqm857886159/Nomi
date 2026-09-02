@@ -17,6 +17,7 @@ import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { toast } from '../toast'
 import { resolvePrecheckGateAction } from './precheckGate'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 
 type Preset = {
   key: string; labelZh: string; descZh: string; workflowText: string; binding: unknown
@@ -113,8 +114,8 @@ export function ComfyuiPresetSection({ vendorKey, modelLabels, onImported, onVer
             >
               <IconMovie size={16} className="text-nomi-ink-60 shrink-0" />
               <span className="flex-1 min-w-0">
-                <span className="block text-body-sm text-nomi-ink truncate">{preset.labelZh}</span>
-                <span className="block text-micro text-nomi-ink-30 truncate">{preset.descZh}</span>
+                <span className="block text-body-sm text-nomi-ink truncate">{translateModelDisplayText(preset.labelZh)}</span>
+                <span className="block text-micro text-nomi-ink-30 truncate">{translateModelDisplayText(preset.descZh)}</span>
               </span>
               {alreadyEnabled ? (
                 <span className="text-micro text-nomi-accent bg-nomi-accent-soft px-2 py-0.5 rounded-full shrink-0">{t('onboardingProviders.comfyPreset.chipEnabled')}</span>

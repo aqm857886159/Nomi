@@ -1,0 +1,4 @@
+{
+  "maxBytes": 20016,
+  "reason": "Merged surface: 15 collapsed tools (nomi_canvas_edit slot now backed by the M2 semantic canvas.write adapter) + 8 preserved M2 semantic editing tools (canvas_plan/maintenance, document read/edit, timeline read/edit, export_job, media_query); recalibrated to the measured tools/list payload on the merge of surface-16-collapse and the canvas/document semantic surface."
+}

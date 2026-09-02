@@ -1,0 +1,81 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-runway-ratio-module-split",
+  "problem_type": "R9 体积门触发的供应商壳文件拆分（runwayOfficial.ts 801>800）",
+  "symptom": "audit/vendor-docs-fal-runway-etc 分支在最新 main 上重建后，runwayOfficial.ts 达到 801 行，check:filesize 门岗红（上限 800，新巨型文件禁止入白名单）。",
+  "direct_cause": "Runway 比例几何（per-model ratio 枚举表、朝向判定、视频/图像两侧的归一化对偶）随文档对账逐步增生在供应商壳文件内，与 op 构造/模型清单同文件。",
+  "class_root": "供应商壳文件同时承载「wire 操作构造」与「可分离的几何归一化」两个关注点，任一侧增长都推着单文件逼近体积门。",
+  "affected_population": [
+    "仅开发侧：门岗拦截导致分支无法交付；用户侧行为零变化（纯移动，无逻辑改动）"
+  ],
+  "scope_paths": [
+    "electron/catalog/runwayOfficial.ts",
+    "electron/catalog/runwayRatio.ts",
+    "electron/catalog/vendorWireDriftFixes.test.ts"
+  ],
+  "entry_points": [
+    "生成画布 → Runway 视频/图像模型 → wire 构造中的 ratio 归一化调用"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "纯模块拆分重构，不改任何 wire 契约语义；比例枚举与归一化逻辑的官方出处已在姊妹合同 2026-09-01-vendor-wire-drift-live-matrix 与 2026-09-02-runway-reference-endpoint-drift 中带 URL+checkedAt 登记，本合同不重复也不新增对外主张。",
+  "invariants": [
+    "runwayRatio.ts 是 Runway 比例几何的唯一所有者：per-model 枚举表、朝向判定、normalizeRunwayVideoRatio 与 RUNWAY_IMAGE_RATIO_REMAP 只在此定义。",
+    "runwayOfficial.ts 只通过显式 import 消费上述三个导出符号，不再内联任何比例表或朝向逻辑。"
+  ],
+  "generality_proof": "拆分前 grep 全仓（electron/ src/）证明比例符号零外部引用，唯一消费者是 runwayOfficial.ts 本体；拆分只移动定义、导出三个符号、原位改为 import，出口数量与调用点不变，vendorWireDriftFixes.test.ts 32 例与 flagshipAudioVideoContracts 全绿证明行为等价。",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/runwayRatio.ts",
+      "symbol": "normalizeRunwayVideoRatio / RUNWAY_IMAGE_RATIO_REMAP / runwayRatioOrientation",
+      "responsibility": "Runway 比例几何的唯一定义与导出点：视频侧按模型枚举归一化、图像侧按朝向 remap，供 runwayOfficial.ts 的 wire 构造消费。"
+    },
+    {
+      "path": "electron/catalog/runwayOfficial.ts",
+      "symbol": "normalizeRunwaySeedance25Body / normalizeRunwayVideoContract / normalizeRunwayImageReferences",
+      "responsibility": "wire 构造侧继续持有归一化的挂载点，比例几何一律经 import 取自 runwayRatio.ts。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/runwayOfficial.ts",
+      "entry_point": "视频侧 normalizeRunwayVideoContract / Seedance25Body 对 normalizeRunwayVideoRatio 的调用",
+      "disposition": "enforced",
+      "evidence": "拆分后经 import 调用同名函数，vendorWireDriftFixes.test.ts 视频 ratio 断言全绿。"
+    },
+    {
+      "path": "electron/catalog/runwayOfficial.ts",
+      "entry_point": "图像侧 normalizeRunwayImageReferences 对 RUNWAY_IMAGE_RATIO_REMAP/runwayRatioOrientation 的调用",
+      "disposition": "enforced",
+      "evidence": "同一 remap 表经 import 消费，muse_image/gpt_image_2/seedream5_lite 断言全绿。"
+    }
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "体积门触发的一次性关注点分离；比例几何已收敛到独立模块，同一壳文件再次逼近门限时应拆其他关注点（如音频 op 组）而非回并本模块。",
+    "same_class_scan": [
+      "grep 全仓确认 normalizeRunwayVideoRatio/RUNWAY_IMAGE_RATIO_REMAP/RUNWAY_VIDEO_RATIO_ENUMS/runwayRatioOrientation/pickRatioForOrientation 在拆分前除 runwayOfficial.ts 外零引用。",
+      "check:filesize 全仓扫描本分支仅 runwayOfficial.ts 一处超限，无其他文件同批逼近门限需要拆分。"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/vendorWireDriftFixes.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/vendorWireDriftFixes.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": ["electron/catalog/runwayOfficial.ts"],
+    "rationale": "壳文件内联的比例枚举表与归一化函数定义已整块移除，无副本、无转发壳（P1：搬家不留壳）。",
+    "removal_evidence": "runwayOfficial.ts 684 行（拆前 801），比例符号仅剩 import 一行；grep 无重复定义。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯仓内模块拆分，不涉及外部依赖生命周期。",
+    "exit_criteria": []
+  },
+  "migration": "无持久化数据迁移；模型 ID、mapping 身份与用户可见行为不变。",
+  "residual_risks": [
+    "无新增风险；比例值本身的正确性主张仍由姊妹合同（live-matrix / reference-endpoint-drift）的官方出处与真测封印承担。"
+  ]
+}

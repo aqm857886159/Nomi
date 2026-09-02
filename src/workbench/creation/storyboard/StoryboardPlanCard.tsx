@@ -4,12 +4,14 @@ import { IconArrowRight, IconCircleCheck, IconMovie } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton, confirmDialog } from '../../../design'
 import { useWorkbenchStore } from '../../workbenchStore'
+import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
+import { totalDurationSec } from '../../generationCanvas/agent/storyboardPlanEdits'
+import { materializedShotIds } from './exec/storyboardNodeBinding'
 
 /**
- * 分镜方案卡片（回看链路）：拆镜头的产出在创作区对话流里的可收起/可重开卡片。
- * 纯视图——数据全读单一真相源 storyboardPlan，状态从 committed/editorOpen 派生：
- *   editorOpen → 编辑中｜!committed → 草稿｜committed → 已落画布。
- * 编辑仍走主列全宽 StoryboardPlanEditor（卡片只做摘要+状态+入口）。
+ * 分镜方案卡片：拆镜头产出的摘要+状态+入口。住两处（同一实现）：创作区对话流的回看卡，
+ * 与激活方案时创作中列的摘要卡（v5 C3：中列不再 mount 编辑器）。
+ * 纯视图——数据全读单一真相源 storyboardPlan；「打开分镜」跳 storyboard 工作区（编辑器唯一的家）。
  */
 type StoryboardPlanCardProps = {
   documentId?: string
@@ -25,7 +27,7 @@ export default function StoryboardPlanCard({ documentId, storyboardId }: Storybo
     ? s.storyboardDesignsByDocumentId[targetDocumentId]?.find((design) => design.id === storyboardId)
     : undefined)
   const plan = exactDesign?.plan ?? (storyboardId ? null : entry?.plan ?? null)
-  const committed = exactDesign?.committed ?? (storyboardId ? false : entry?.committed ?? false)
+  const storedCommitted = exactDesign?.committed ?? (storyboardId ? false : entry?.committed ?? false)
   const deleteStoryboardDesign = useWorkbenchStore((s) => s.deleteStoryboardDesign)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
   const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
@@ -35,18 +37,24 @@ export default function StoryboardPlanCard({ documentId, storyboardId }: Storybo
     return designs.find((design) => design.plan === currentEntry?.plan)?.id ?? designs[0]?.id
   })
   const resolvedStoryboardId = exactDesign?.id ?? projectedStoryboardId
+  // v5 committed 语义 derive：至少一镜已建节点（表是节点的投影；节点删光即回草稿）。
+  // 旧项目（确认落画布时代，节点 meta 无 designId）回退存量 committed 标记。
+  const builtCount = useGenerationCanvasStore((s) => (
+    resolvedStoryboardId ? materializedShotIds(s.nodes, resolvedStoryboardId).size : 0
+  ))
+  const committed = builtCount > 0 || storedCommitted
 
   if (!plan) return null
 
   const title = plan.title.trim() || t('storyboardEditor.planCard.defaultTitle')
   const shotCount = plan.shots.length
   const anchorCount = plan.anchors.length
-  // 图片分镜（全镜 durationSec=0）没有总时长——只报「图片分镜」，别显示误导的「约 0s」。
-  const totalSec = Math.round(plan.shots.reduce((sum, shot) => sum + (shot.shotKind === 'image' ? 0 : shot.durationSec || 0), 0))
+  // 合计时长：图片镜按停留时长计入（v5，effectiveShotDurationSec 单源）——与场组头小结同口径。
+  const totalSec = totalDurationSec(plan.shots)
   const meta = t('storyboardEditor.planCard.meta', {
     shots: shotCount,
     anchors: anchorCount,
-    duration: totalSec > 0 ? t('storyboardEditor.planCard.duration', { seconds: totalSec }) : t('storyboardEditor.planCard.imageStoryboard'),
+    duration: t('storyboardEditor.planCard.duration', { seconds: totalSec }),
   })
 
   const onDiscard = async () => {
@@ -59,9 +67,10 @@ export default function StoryboardPlanCard({ documentId, storyboardId }: Storybo
     if (ok && resolvedStoryboardId) deleteStoryboardDesign(resolvedStoryboardId, targetDocumentId)
   }
 
-  const openEditor = () => {
+  // v5 C3：编辑器搬进分镜工作区后，「打开」= 激活该方案 + 跳分镜页（不再切回 creation 主列）。
+  const openStoryboard = () => {
     if (resolvedStoryboardId) setActiveStoryboardId(resolvedStoryboardId, targetDocumentId)
-    setWorkspaceMode('creation')
+    setWorkspaceMode('storyboard')
   }
 
   // 状态徽标用 Nomi 品牌色(草稿=暖 accent、已落=success)。StatusBadge 是 Mantine
@@ -85,9 +94,9 @@ export default function StoryboardPlanCard({ documentId, storyboardId }: Storybo
 
       {committed ? (
         <>
-          <span className="text-caption text-nomi-ink-60">{t('storyboardEditor.planCard.committedSummary', { count: shotCount })}</span>
+          <span className="text-caption text-nomi-ink-60">{t('storyboardEditor.planCard.committedSummary', { count: builtCount > 0 ? builtCount : shotCount })}</span>
           <div className="flex items-center gap-2">
-            <WorkbenchButton variant="default" size="sm" onClick={openEditor}>{t('storyboardEditor.planCard.editAgain')}</WorkbenchButton>
+            <WorkbenchButton variant="default" size="sm" onClick={openStoryboard}>{t('storyboardEditor.planCard.editAgain')}</WorkbenchButton>
             <WorkbenchButton variant="default" size="sm" className="ml-auto" onClick={() => setWorkspaceMode('generation')}>
               {t('storyboardEditor.planCard.goGeneration')}<IconArrowRight size={13} stroke={1.6} />
             </WorkbenchButton>
@@ -110,7 +119,7 @@ export default function StoryboardPlanCard({ documentId, storyboardId }: Storybo
             ) : null}
           </div>
           <div className="flex items-center gap-2">
-            <WorkbenchButton variant="primary" size="sm" onClick={openEditor}>{t('storyboardEditor.planCard.openEditor')}</WorkbenchButton>
+            <WorkbenchButton variant="primary" size="sm" onClick={openStoryboard}>{t('storyboardEditor.planCard.openStoryboard')}</WorkbenchButton>
             <button
               type="button"
               onClick={onDiscard}

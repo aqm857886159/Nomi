@@ -5,9 +5,8 @@ import {
   hasWorkspaceManifest,
   readProjectJsonFileWithEmbeddedMediaSlimming,
   readProjectJsonTopLevelFields,
-  readWorkspaceManifest,
   readWorkspaceManifestSummary,
-  writeWorkspaceManifest,
+  withWorkspaceManifestMutationSync,
 } from "./workspaceManifest";
 import { workspaceNomiDir } from "./workspacePaths";
 import { normalizeWorkspaceProjectRecord, type WorkspaceProjectRecordV2 } from "./workspaceTypes";
@@ -98,17 +97,25 @@ export function migrateLegacyProjectFolder(rootPath: string): WorkspaceProjectRe
   if (isLegacyProjectSuppressed(rootPath)) {
     return null;
   }
-  if (hasWorkspaceManifest(rootPath)) {
-    return readWorkspaceManifest(rootPath);
-  }
-
-  const legacy = readLegacyProject(rootPath);
-  if (!legacy) {
+  const initialLegacyPath = legacyProjectFile(rootPath);
+  if (!fs.existsSync(initialLegacyPath) && !hasWorkspaceManifest(rootPath)) {
     return null;
   }
 
   ensureWorkspaceFolders(rootPath);
-  return writeWorkspaceManifest(rootPath, toWorkspaceRecord(rootPath, legacy));
+  try {
+    return withWorkspaceManifestMutationSync(rootPath, (context) => {
+      if (context.current) return context.current;
+      const canonicalLegacyPath = legacyProjectFile(context.canonicalRootPath);
+      if (!fs.existsSync(canonicalLegacyPath)) return null;
+      const raw = context.readProjectJsonWithEmbeddedMediaSlimming(canonicalLegacyPath);
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+      return context.replace(toWorkspaceRecord(rootPath, raw as LegacyProjectRecord));
+    });
+  } catch (error) {
+    if (error instanceof SyntaxError) return null;
+    throw error;
+  }
 }
 
 export function discoverLegacyProjects(defaultProjectsRoot: string): WorkspaceProjectRecordV2[] {

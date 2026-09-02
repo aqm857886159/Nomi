@@ -6,6 +6,7 @@
 import { spawn } from "node:child_process";
 import { resolveFfmpegPath } from "../export/ffmpegRunner";
 import { probeMediaMetadata } from "../export/mediaProbe";
+import { desktopT } from "../i18n";
 
 export type TechnicalCheckItem = {
   id: "black-frames" | "silent-audio" | "zero-duration" | "undecodable";
@@ -50,14 +51,14 @@ export async function runTechnicalCheck(absolutePath: string, type: "image" | "v
       checks.push({
         id: "undecodable",
         suspect: !decodable,
-        detail: decodable ? `${meta.width}×${meta.height}` : "图片无法解码或尺寸为 0",
+        detail: decodable ? `${meta.width}×${meta.height}` : desktopT("review.imageUndecodable"),
       });
     } else {
       const duration = meta.durationSeconds ?? 0;
       checks.push({
         id: "zero-duration",
         suspect: duration <= 0.1,
-        detail: duration > 0.1 ? `时长 ${duration.toFixed(1)}s` : "视频时长为 0",
+        detail: duration > 0.1 ? desktopT("review.duration", { seconds: duration.toFixed(1) }) : desktopT("review.zeroDuration"),
       });
       if (duration > 0.1) {
         const blackStderr = await runFfmpegStderr(["-i", absolutePath, "-vf", "blackdetect=d=0.5:pix_th=0.10", "-an", "-f", "null", "-"]);
@@ -66,7 +67,9 @@ export async function runTechnicalCheck(absolutePath: string, type: "image" | "v
         checks.push({
           id: "black-frames",
           suspect: blackRatio > BLACK_RATIO_THRESHOLD,
-          detail: blackRatio > BLACK_RATIO_THRESHOLD ? `约 ${Math.round(blackRatio * 100)}% 画面是黑的` : `黑帧占比 ${Math.round(blackRatio * 100)}%`,
+          detail: blackRatio > BLACK_RATIO_THRESHOLD
+            ? desktopT("review.blackRatio", { percent: Math.round(blackRatio * 100) })
+            : desktopT("review.blackFrames", { percent: Math.round(blackRatio * 100) }),
         });
         if (meta.hasAudio) {
           const silenceStderr = await runFfmpegStderr(["-i", absolutePath, "-af", "silencedetect=n=-50dB:d=2", "-vn", "-f", "null", "-"]);
@@ -75,7 +78,9 @@ export async function runTechnicalCheck(absolutePath: string, type: "image" | "v
           checks.push({
             id: "silent-audio",
             suspect: silenceRatio > SILENCE_RATIO_THRESHOLD,
-            detail: silenceRatio > SILENCE_RATIO_THRESHOLD ? "音轨几乎全程静音" : `静音占比 ${Math.round(silenceRatio * 100)}%`,
+          detail: silenceRatio > SILENCE_RATIO_THRESHOLD
+            ? desktopT("review.silentAudio")
+            : desktopT("review.silenceRatio", { percent: Math.round(silenceRatio * 100) }),
           });
         }
       }
@@ -85,7 +90,7 @@ export async function runTechnicalCheck(absolutePath: string, type: "image" | "v
     checks.push({
       id: "undecodable",
       suspect: true,
-      detail: `媒体探测失败:${error instanceof Error ? error.message.slice(0, 120) : String(error).slice(0, 120)}`,
+      detail: desktopT("review.probeFailed", { detail: error instanceof Error ? error.message.slice(0, 120) : String(error).slice(0, 120) }),
     });
   }
   return { suspect: checks.some((check) => check.suspect), checks };

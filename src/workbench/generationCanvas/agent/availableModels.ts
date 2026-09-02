@@ -11,9 +11,11 @@
 // （resolveArchetypeForModel 内部已按 vendor 特化）。agent 必须同时选 modelKey + modeId。
 import type { ModelOption } from "../../../config/models";
 import type { ModelParameterControl } from "../../../config/modelCatalogMeta";
+import { parseModelParameterControls } from "../../../config/modelCatalogMeta";
 import type { ArchetypeReferenceSlotKind } from "../../../config/modelArchetypes";
 import { resolveArchetypeForModel } from "../../../config/modelArchetypes";
 import { preloadModelOptions } from "../../../config/modelCatalogCache";
+import i18n from "../../../i18n";
 
 /** 该模式声明的一个参考槽——agent 据此知道这个模式吃哪些参考、各能吃几张，从而只连模型真支持的边。 */
 export type AgentModelSlot = {
@@ -41,8 +43,9 @@ export type AgentModelEntry = {
   modelAlias: string | null;
   vendor: string | null;
   label: string;
-  kind: "image" | "video" | "audio" | "model3d";
-  archetypeId: string;
+  kind: "text" | "image" | "video" | "audio" | "model3d";
+  /** Media models have a stable archetype; chat models are catalog-defined and need none. */
+  archetypeId?: string;
   defaultModeId: string;
   modes: AgentModelMode[];
 };
@@ -63,29 +66,44 @@ export function buildAgentModelEntries(options: readonly ModelOption[]): AgentMo
       vendorKey: option.vendor,
       meta: option.meta,
     });
-    if (!archetype) continue;
+    // Text/chat models deliberately have no media archetype. Their catalog kind
+    // plus the published `chat` mode is sufficient to preserve an explicit
+    // user/agent selection; dropping them here silently changes the request to
+    // whatever default model happens to be mounted on the node.
+    const kind = archetype?.kind ?? option.kind;
+    if (!kind || (!archetype && kind !== "text")) continue;
+    const modes = archetype
+      ? archetype.modes.map((mode) => ({
+          modeId: mode.id,
+          vendorTerm: mode.vendorTerm,
+          intent: mode.intent,
+          hint: mode.hint,
+          params: mode.params,
+          slots: mode.slots.map((slot) => ({
+            kind: slot.kind,
+            label: slot.label,
+            max: slot.max,
+            ...(slot.characterIndexed ? { characterIndexed: true as const } : {}),
+          })),
+        }))
+      : [{
+          modeId: "chat",
+          vendorTerm: "对话",
+          intent: "生成或改写文本",
+          hint: i18n.t("generationCommon.agentRuntime.textModelHint"),
+          params: parseModelParameterControls(option.meta),
+          slots: [],
+        }];
     seen.add(modelKey);
     entries.push({
       modelKey,
       modelAlias: option.modelAlias ?? null,
       vendor: option.vendor ?? null,
       label: option.label,
-      kind: archetype.kind,
-      archetypeId: archetype.id,
-      defaultModeId: archetype.defaultModeId,
-      modes: archetype.modes.map((mode) => ({
-        modeId: mode.id,
-        vendorTerm: mode.vendorTerm,
-        intent: mode.intent,
-        hint: mode.hint,
-        params: mode.params,
-        slots: mode.slots.map((slot) => ({
-          kind: slot.kind,
-          label: slot.label,
-          max: slot.max,
-          ...(slot.characterIndexed ? { characterIndexed: true as const } : {}),
-        })),
-      })),
+      kind,
+      ...(archetype ? { archetypeId: archetype.id } : {}),
+      defaultModeId: archetype?.defaultModeId ?? "chat",
+      modes,
     });
   }
   return entries;
@@ -93,11 +111,14 @@ export function buildAgentModelEntries(options: readonly ModelOption[]): AgentMo
 
 /** 拉取 image+video 两类真实可用模型，join 档案生成 agent 可选清单（渲染层，走 catalog IPC）。 */
 export async function listAvailableModelsForAgent(): Promise<AgentModelEntry[]> {
-  const [imageOptions, videoOptions] = await Promise.all([
+  const [textOptions, imageOptions, videoOptions] = await Promise.all([
+    // Text nodes are real generation nodes too. Keep their catalog identity in
+    // the same model block so an explicit chat model survives planning.
+    preloadModelOptions("text", "chat"),
     preloadModelOptions("image"),
     preloadModelOptions("video"),
   ]);
-  return buildAgentModelEntries([...imageOptions, ...videoOptions]);
+  return buildAgentModelEntries([...textOptions, ...imageOptions, ...videoOptions]);
 }
 
 /**

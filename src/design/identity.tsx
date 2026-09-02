@@ -57,20 +57,38 @@ export function NomiWordmark({ fontSize, className, ...rest }: NomiWordmarkProps
   )
 }
 
+/**
+ * 品牌标记的**唯一几何真相源**(P1):圆角方底 + 双竖 + 斜杠,viewBox 恒 28×28。
+ *
+ * 圆角 rx **恒为 7**(= 边长 25%),与 public/nomi-logo.svg、build/icon.png 同一形状。
+ * **千万别按渲染尺寸再算一次 rx**:rx 是 viewBox 单位,缩放本来就由 viewBox 负责,
+ * 乘 markSize 等于双重缩放——markSize≥56 时 rx 超过半边长(14),被 SVG 截断成**正圆**。
+ * 2026-09-02 实测:开屏标版 markSize=75 → rx=19 → 屏幕上是个圆,而 README/系统图标是圆角方。
+ * 两个组件共用这一份,就是为了这个 bug 不会再从另一个调用方回来。
+ */
+const NOMI_MARK_VIEWBOX = '0 0 28 28'
+
+function NomiMarkShapes(): JSX.Element {
+  return (
+    <>
+      <rect width="28" height="28" rx="7" fill="var(--nomi-logo-ground)" />
+      <rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
+      <rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
+      <polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white" />
+    </>
+  )
+}
+
 export function NomiBrand({ markSize = 26, wordSize = 17, className }: NomiBrandProps): JSX.Element {
   const { t } = useTranslation()
-  const rx = Math.round((markSize / 28) * 7)
 
   return (
     <div
       className={cn('nomi-brand', 'inline-flex items-center gap-2 shrink-0', className)}
       aria-label={t('brand.name')}
     >
-      <svg width={markSize} height={markSize} viewBox="0 0 28 28" fill="none" aria-hidden="true" className="shrink-0">
-        <rect width="28" height="28" rx={rx} fill="var(--nomi-logo-ground)" />
-        <rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
-        <rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
-        <polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white" />
+      <svg width={markSize} height={markSize} viewBox={NOMI_MARK_VIEWBOX} fill="none" aria-hidden="true" className="shrink-0">
+        <NomiMarkShapes />
       </svg>
       <NomiWordmark fontSize={wordSize} className="nomi-brand__word text-nomi-ink" aria-hidden="true" />
     </div>
@@ -82,15 +100,12 @@ export function NomiLogoMark({ size = 24, className }: NomiLogoMarkProps): JSX.E
     <svg
       width={size}
       height={size}
-      viewBox="0 0 28 28"
+      viewBox={NOMI_MARK_VIEWBOX}
       fill="none"
       aria-hidden="true"
       className={cn('nomi-logo-mark', 'block shrink-0', className)}
     >
-      <rect width="28" height="28" rx="7" fill="var(--nomi-logo-ground)" />
-      <rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
-      <rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
-      <polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white" />
+      <NomiMarkShapes />
     </svg>
   )
 }

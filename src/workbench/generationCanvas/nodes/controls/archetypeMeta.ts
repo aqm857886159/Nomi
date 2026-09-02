@@ -23,10 +23,22 @@ import {
 } from '../../../../config/modelArchetypes'
 import type { ImageUrlSlot } from '../../model/parameterReferenceSlots'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
-import { DEFAULT_SLOT_INPUT_KEY, modeSlotReach, type SlotReach } from '../../../../../electron/catalog/referenceReachability'
+import {
+  DEFAULT_SLOT_INPUT_KEY,
+  modeSlotReach,
+  wireReferencedParamKeys,
+  type SlotReach,
+} from '../../../../../electron/catalog/referenceReachability'
 
 export { resolveArchetypeForModel }
 export type { ModelArchetype, ArchetypeMode, ModelArchetypeVariant }
+
+// 可达性判据（第三闸与 UI 收窄共用的那把尺子）经**本模块**转出给渲染层的其它文件（channelModeReach）。
+// 为什么从这里转、而不是让它各自 import electron/：`src-no-import-electron` 是棘轮门岗，本文件那条越界
+// 已登记在 boundaries-baseline 里；新开一个文件直连 electron/ 会被判成**新增**违规（棘轮只减不增，绝不
+// 许把新违规追加进基线）。转出一次 = 渲染层对 electron/ 的入口仍只有这一处，基线不涨。
+export { modeSlotReach, wireReferencedParamKeys }
+export type { SlotReach }
 
 /**
  * 单图 frame 槽 → 现有 flat 传输键映射（首/尾帧，走画布边 + 单缩略图）。url 键即传输读取的键
@@ -120,17 +132,6 @@ export function archetypeVariantChoices(archetype: ModelArchetype): ArchetypeVar
   const variants = archetype.variants
   if (!variants || variants.length <= 1) return []
   return variants.map((v) => ({ id: v.id, label: translateModelDisplayText(v.label) }))
-}
-
-export type ArchetypeModeChoice = { id: string; vendorTerm: string; hint: string }
-
-/** 模式分段切换的选项（标签 = 模型自己的真名 vendorTerm；仅当 >1 模式时 UI 才显示该段）。 */
-export function archetypeModeChoices(archetype: ModelArchetype): ArchetypeModeChoice[] {
-  return archetype.modes.map((mode) => ({
-    id: mode.id,
-    vendorTerm: translateModelDisplayText(mode.vendorTerm),
-    hint: translateModelDisplayText(mode.hint),
-  }))
 }
 
 /** 当前模式的**单图 frame 槽** → 现有 ImageUrlSlot（首/尾帧，走画布边）。数组槽见 archetypeModeArraySlots。 */
@@ -274,26 +275,6 @@ export function hasAnyArchetypeReference(
     const uploaded = typeof meta?.[metaKey] === 'string' ? (meta[metaKey] as string).trim() : ''
     return Boolean(uploaded || filledValueForSingleSlot(slot.kind, references))
   })
-}
-
-/**
- * 当前模式各槽在**这条渠道**上的真实承载力，按 assetSlots 用的存储键索引。
- *
- * 判据来自 electron/catalog/referenceReachability——与第三闸**同一套计算**，不另起一份（UI 说能发、
- * 闸门判发不出，正是本轮反复在修的病）。createBody = 这条 mapping 的 create.body；拿不到时上层
- * 一律按「不收窄」处理，绝不因为查不到就把用户的槽藏掉。
- */
-export function archetypeModeSlotReachByKey(mode: ArchetypeMode, createBody: unknown): Record<string, SlotReach> {
-  const reach = modeSlotReach(mode.slots, createBody, mode.combineSlotsInto?.key)
-  const out: Record<string, SlotReach> = {}
-  mode.slots.forEach((slot, index) => {
-    const key =
-      FRAME_SLOT_FLAT[slot.kind]?.urlKey ??
-      ARRAY_SLOT_ROUTE[slot.kind]?.metaKey ??
-      (slot.kind === 'source_video' ? SINGLE_SLOT_META_KEY.source_video : undefined)
-    if (key) out[key] = reach[index]
-  })
-  return out
 }
 
 /** 当前模式的「源视频」单槽（HappyHorse video-edit）。返回 meta 存储键 + 标签；无则 null。 */

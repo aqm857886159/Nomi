@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildNomiLaunchEnv, launchNomiApp } from "../../tests/ux/_launchApp.mjs";
+import { buildNomiLaunchEnv, launchNomiApp, prepareIsolatedCatalog } from "../../tests/ux/_launchApp.mjs";
 
 /** 今天全部 5 个画布工具都免额度;将来出现 costy 工具(如 run_generation_batch)默认就被拒。 */
 export const TOOL_WHITELIST = new Set([
@@ -25,16 +25,24 @@ export function realCatalogPath() {
 /** 建一套全新隔离环境;requireCatalog=true 时拷入真实 catalog(safeStorage 加密 key 同机可解)。 */
 export function prepareIsolation(isoDir, { requireCatalog = true } = {}) {
   fs.rmSync(isoDir, { recursive: true, force: true });
-  for (const d of ["settings", "projects", "chromium"]) fs.mkdirSync(path.join(isoDir, d), { recursive: true });
+  for (const d of ["settings", "projects", "chromium", "capability"]) fs.mkdirSync(path.join(isoDir, d), { recursive: true });
   const catalog = realCatalogPath();
   if (requireCatalog && !fs.existsSync(catalog)) {
     throw new Error(`真实 model-catalog.json 不存在(${catalog})——被测 agent 需要已配置的模型与 key`);
   }
-  if (fs.existsSync(catalog)) fs.copyFileSync(catalog, path.join(isoDir, "settings", "model-catalog.json"));
+  if (fs.existsSync(catalog)) {
+    const isolatedCatalog = path.join(isoDir, "settings", "model-catalog.json");
+    fs.copyFileSync(catalog, isolatedCatalog);
+    const prepared = prepareIsolatedCatalog(path.join(isoDir, "settings"));
+    if (prepared.status === "quarantined" && requireCatalog) {
+      throw new Error(`真实 model-catalog.json 版本 ${prepared.diskVersion} 高于被测 app 版本 ${prepared.testedCatalogVersion}，已隔离到 ${prepared.quarantinePath}；需要兼容 catalog 才能继续`);
+    }
+  }
   return {
     projectsDir: path.join(isoDir, "projects"),
     settingsDir: path.join(isoDir, "settings"),
     chromiumDir: path.join(isoDir, "chromium"),
+    capabilityDir: path.join(isoDir, "capability"),
   };
 }
 
@@ -45,6 +53,7 @@ export function isolatedAppEnv(iso, baseEnv = process.env) {
     userDataDir: iso.chromiumDir,
     projectsDir: iso.projectsDir,
     settingsDir: iso.settingsDir,
+    capabilityDir: iso.capabilityDir,
   });
 }
 
@@ -55,6 +64,7 @@ export async function launchIsolatedApp(repoRoot, iso) {
     userDataDir: iso.chromiumDir,
     projectsDir: iso.projectsDir,
     settingsDir: iso.settingsDir,
+    capabilityDir: iso.capabilityDir,
   });
   return { app, win };
 }

@@ -7,6 +7,7 @@ import type {
   ProductionRunStatus,
 } from "./productionRunTypes";
 import type { ShotPrice } from "./shotPricing";
+import { productionGenerationJobId } from "./productionGenerationAuthorization";
 
 /**
  * P4 S4 — the pure batch derivation. This is the heart of "调度器无自有持久状态" (plan §1).
@@ -19,7 +20,7 @@ import type { ShotPrice } from "./shotPricing";
  * reloaded Run and gets THE SAME answer, because:
  *
  *   - "has this unit been dispatched?" = does `jobs[]` contain a job for `(shotId, currentAttempt)`?
- *     The jobId is derived deterministically (`jobIdFor`, mirroring productionGenerationSubmission.ts),
+ *     The jobId is derived by the shared ProductionRun authorization identity helper,
  *     so the durable job list IS the ledger of what was submitted. We never keep a private set.
  *   - "how much have we spent?" = the budget summary (reserved + actual + unsettled). The ledger is an
  *     append-only replay — itself a single source of truth. Halt is judged against `authorized`.
@@ -149,12 +150,6 @@ const TERMINAL_DONE = new Set<ProductionJob["status"]>(["ready", "adopted"]);
  */
 const OBSERVABLE = new Set<ProductionJob["status"]>(["provider_accepted", "polling"]);
 
-/** Mirror productionGenerationSubmission.jobIdFor exactly — the deterministic durable identity. */
-function jobIdFor(runId: string, contractHash: string, attempt: number, shotId?: string): string {
-  const shotSegment = shotId ? `-${shotId}` : "";
-  return `generation-${runId}${shotSegment}-${contractHash.slice(0, 16)}${attempt > 1 ? `-attempt-${attempt}` : ""}`;
-}
-
 /** A shot is included in the sealed contract unless explicitly unchecked (试拍/分批). */
 function isIncluded(shot: Pick<ProductionGenerationShot, "included">): boolean {
   return shot.included !== false;
@@ -169,7 +164,7 @@ function currentAttemptOf(shot: ProductionGenerationShot): number {
 function jobForShot(runId: string, shot: ProductionGenerationShot, jobs: ProductionJob[]): ProductionJob | undefined {
   const hash = shot.contract?.contractHash;
   if (!hash) return undefined;
-  const jobId = jobIdFor(runId, hash, currentAttemptOf(shot), shot.shotId);
+  const jobId = productionGenerationJobId(runId, hash, currentAttemptOf(shot), shot.shotId);
   return jobs.find((candidate) => candidate.jobId === jobId);
 }
 
@@ -180,24 +175,24 @@ function shotFinished(runId: string, shot: ProductionGenerationShot, jobs: Produ
 
 function shotInFlight(runId: string, shot: ProductionGenerationShot, jobs: ProductionJob[]): boolean {
   const job = jobForShot(runId, shot, jobs);
-  // 「在飞」= 有 job 且既没完成、也不是「待派发」（authorized/submit_intent_persisted 归 needsDispatch，
-  // 不算在飞——它还没提交给 provider）。否则一个待派发的返工/崩溃残留 job 会被误当在飞，永不派发。
-  return Boolean(job && !TERMINAL_DONE.has(job.status) && !PRE_SUBMISSION.has(job.status));
+  // authorization_required is still waiting for a human; authorized/intent-persisted is dispatchable.
+  // Neither is provider work in flight.
+  return Boolean(job
+    && job.status !== "authorization_required"
+    && !TERMINAL_DONE.has(job.status)
+    && !DISPATCHABLE.has(job.status));
 }
 
 /**
- * A unit needs dispatch when it has NO durable job for its current attempt, OR its current-attempt job is
- * still **pre-submission** (`authorized`/`submit_intent_persisted`) — i.e. approved but not yet handed to the
- * provider. Two callers rely on this: ① P4 S6 返工 pre-creates an `authorized` new-attempt job (parentJobId
- * 谱系), then the scheduler submits it; ② crash-during-dispatch recovery (job.add persisted but the outbox
- * dispatch had not run) — a fresh scheduler must resubmit. `start` is idempotent (reuses the existing job via
- * `prepare`, and the outbox intent log guarantees ≤1 real submit), so re-dispatching a pre-submission job is safe.
+ * Only a gate-authorized durable job can dispatch. A missing job belongs to a legacy/read-only Run; an
+ * authorization_required job is still waiting for the human gate. submit_intent_persisted remains
+ * dispatchable for crash recovery because the outbox intent log proves at-most-once provider submission.
  */
-const PRE_SUBMISSION = new Set<ProductionJob["status"]>(["authorized", "submit_intent_persisted"]);
+const DISPATCHABLE = new Set<ProductionJob["status"]>(["authorized", "submit_intent_persisted"]);
 function needsDispatch(runId: string, shot: ProductionGenerationShot, jobs: ProductionJob[]): boolean {
   if (!shot.contract?.contractHash) return false;
   const job = jobForShot(runId, shot, jobs);
-  return job === undefined || PRE_SUBMISSION.has(job.status);
+  return Boolean(job && DISPATCHABLE.has(job.status));
 }
 
 function priceAmount(price: ShotPrice): number {

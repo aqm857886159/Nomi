@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { createMcpProtocol, type McpTransport } from './mcpProtocol'
 
 // 交付5 · locale 接线：协议层的结果/进度文案跟 transport.getLocale() 走（缺省 zh-CN）。
@@ -24,7 +24,7 @@ async function flush() {
 }
 
 function callListModels(protocol: ReturnType<typeof createMcpProtocol>) {
-  protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'nomi_list_models', arguments: {} } } as never)
+  protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'nomi_read', arguments: { target: 'models' } } } as never)
 }
 
 describe('locale 接线（transport.getLocale 贯穿到 tool-result 文本）', () => {

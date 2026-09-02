@@ -1,0 +1,153 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-canvas-3d-dispatch-kind-boundary",
+  "problem_type": "Kind-classification boundary omits a registered executionKind, silently disabling a whole capability plane",
+  "symptom": "Canvas model3d nodes can never dispatch generation: the generate button stays disabled and the runner throws 暂不支持 model3d, even with model, prompt and parameters fully set (PR #320 J11 probe, docs/qa/2026-09-02-journey-debt-product-gaps.md gap 2).",
+  "direct_cause": "canRunGenerationNode enumerated image/text/audio/video and fell through to return false for model3d; resolveTaskKind additionally excluded model3d from the archetype transport bucket and had no model3d fallback, so even an opened gate would hit the bottom throw.",
+  "class_root": "Per-kind branch chains are copied at every consumer of the kind classification with a closed-world default (return false / throw / wrong copy). The registry can declare a new executionKind without any structural signal forcing those chains to acknowledge it — the same class root as PR #286 (parameter bar missing for model3d).",
+  "affected_population": [
+    "Canvas model3d nodes for every direct 3D vendor (RunningHub hunyuan3d / hitem3d / meshy6, meshy-7)",
+    "Spend confirmation copy for 3D runs (previously described as one image)",
+    "Composer reference controls and disabled-reason copy for image-to-3D",
+    "Text nodes wired into model3d nodes as prompt context",
+    "Any future kind added to the registry with a new executionKind"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+    "src/workbench/generationCanvas/runner/connectedTextPrompt.ts",
+    "src/workbench/generationCanvas/runner/generationNodeExecutor.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+    "src/workbench/generationCanvas/runner/canRunGenerationNode.test.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.test.ts",
+    "src/workbench/generationCanvas/model/generationNodeKinds.test.ts"
+  ],
+  "entry_points": [
+    "Composer generate button gate (NodeGenerationComposer -> canRunGenerationNode)",
+    "runGenerationNode dispatch throat (generationRunController:runGenerationNode)",
+    "Task bucket resolution (catalogTaskResolve:resolveTaskKind)",
+    "Spend confirmation (generationRunController:spendCostKind -> describeGenerationCost)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The defect is entirely in our renderer kind-classification chains; the vendor wire (RunningHub-style create-poll seed mappings for text_to_3d/image_to_3d) already existed and is exercised unchanged by the J11 fixture.",
+  "invariants": [
+    "Every kind the registry declares with an executionKind is dispatchable by canRunGenerationNode for a bare no-archetype node; kinds without executionKind are never dispatchable.",
+    "resolveTaskKind resolves a TaskKind for every registered executionKind and never reaches the bottom throw for them; model3d honors the archetype mode transportTaskKind (text_to_3d / image_to_3d).",
+    "video and model3d share one archetype-slot-declared runnability branch (no parallel copy).",
+    "isTextPromptEdge and collectConnectedTextPromptParts agree on which execution kinds accept text prompt-context edges."
+  ],
+  "generality_proof": "The fix widens the two shared boundaries (canRunGenerationNode tail branch now serves video+model3d from one slot-declared implementation; resolveTaskKind archetype bucket keyed on executionKind membership) instead of adding a 3D-only path, and the class regression matrices iterate GENERATION_NODE_KINDS and MODEL_ARCHETYPES, so any future kind or 3D archetype is asserted automatically without editing the tests.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "canRunGenerationNode",
+      "responsibility": "Single dispatch gate: decide runnability for every registered executionKind from the archetype slot declarations; composer button and runner throat consume the same verdict."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+      "symbol": "resolveTaskKind",
+      "responsibility": "Map every registered executionKind to a transport TaskKind, honoring archetype mode transportTaskKind before heuristics."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "canRunGenerationNode kind fallthrough",
+      "disposition": "enforced",
+      "evidence": "video/model3d now share the slot-declared branch; registry exhaustive matrix in canRunGenerationNode.test.ts goes red for any unclaimed executionKind (red-checked: reverting the branch fails 10 tests)."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+      "entry_point": "resolveTaskKind archetype bucket + bottom fallback",
+      "disposition": "enforced",
+      "evidence": "model3d joined the archetype transport bucket plus a text_to_3d/image_to_3d fallback; resolveTaskKind matrix in catalogTaskActions.test.ts red-checked (2 failures when reverted)."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "spendCostKind bucket",
+      "disposition": "enforced",
+      "evidence": "model3d passes through to its own GenerationCostKind with honest unit copy (zh/en) instead of collapsing into image."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "entry_point": "hasReferenceControls union and disabledReason chain",
+      "disposition": "enforced",
+      "evidence": "isModel3dLikeGenerationNodeKind joined the union and model3d gets model3dReferenceRequired copy instead of unsupportedKind; predicate coverage matrix in generationNodeKinds.test.ts asserts every executionKind is claimed."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "entry_point": "isTextPromptEdge target execution kinds",
+      "disposition": "enforced",
+      "evidence": "model3d added on both the classification side and the consumption side (collectConnectedTextPromptParts + executor withConnectedTextPrompts) in the same change."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "entry_point": "production scope executionKind filter",
+      "disposition": "not-affected",
+      "evidence": "Already open-world: includes any node with a defined executionKind, so model3d was never excluded here (line 78)."
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/buildClipFromGenerationNode.ts",
+      "entry_point": "resolveClipType kind mapping",
+      "disposition": "not-affected",
+      "evidence": "Timeline clips are image/video/audio by design; GLB artifacts render in the node card viewer and are not timeline material."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardTimelinePlan.ts",
+      "entry_point": "storyboard image/video predicates",
+      "disposition": "not-affected",
+      "evidence": "Storyboard shots are an image/video domain by definition; 3D assets are not shot material."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Second same-class outbreak: PR #286 fixed the same omission in NodeParameterControls/resolveCatalogKind, and the dispatch chain still regressed because nothing structural forced kind chains to acknowledge new executionKinds.",
+    "same_class_scan": [
+      "Grepped every consumer of getGenerationNodeExecutionKind / is*LikeGenerationNodeKind across src (17 files) and dispositioned each: 5 fixed (generationRunController, catalogTaskResolve, NodeGenerationComposer, connectedTextPrompt+referenceEdgeCapability pair, spendCostKind), rest confirmed open-world or by-design image/video domains (canvasProductionScope:78, useCanvasProductionActions, buildClipFromGenerationNode:48, SelectionPromptSaveController:52, storyboardTimelinePlan:55, gatherShotVerifyInputs:41, referenceAssetKindForNode:36, parameterReferenceSlots:116, BaseGenerationNode:253).",
+      "Checked executor and archetypes: generationNodeExecutor already had the model3d branch (#286) and all four model3d archetypes declare text_to_3d/image_to_3d transportTaskKinds, confirming the gate and bucket were the only dispatch blockers.",
+      "Red-verified both matrices catch the original defect: reverting the canRunGenerationNode branch fails 10 tests, reverting the resolveTaskKind bucket fails 2."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "invariant": "canRunGenerationNode claims every registry-declared executionKind (bare no-archetype nodes runnable, no-executionKind kinds never runnable), with video and model3d served by one shared slot-declared branch.",
+    "failure_mode": "Adding a kind with a new executionKind without extending the gate makes the registry exhaustive matrix in canRunGenerationNode.test.ts and the predicate coverage matrix in generationNodeKinds.test.ts fail immediately; resolveTaskKind omissions fail the taskKind matrix in catalogTaskActions.test.ts.",
+    "exception_policy": "none",
+    "strategy": "Keep one slot-declared runnability implementation shared across kinds and pin the closed-world fallthroughs with registry-driven exhaustive matrices so the next executionKind cannot ship half-wired.",
+    "artifacts": [
+      "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+      "src/workbench/generationCanvas/runner/canRunGenerationNode.test.ts",
+      "src/workbench/generationCanvas/runner/catalogTaskActions.test.ts",
+      "src/workbench/generationCanvas/model/generationNodeKinds.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/runner/canRunGenerationNode.test.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.test.ts",
+    "src/workbench/generationCanvas/model/generationNodeKinds.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/runner/canRunGenerationNode.test.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.test.ts",
+    "src/workbench/generationCanvas/model/generationNodeKinds.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No parallel implementation existed or was added; the missing branches joined the existing shared implementations (video slot branch, archetype transport bucket) instead of forking 3D-only paths."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Pure renderer classification-boundary fix; no dependency is introduced or upgraded.",
+    "exit_criteria": []
+  },
+  "migration": "No data or schema migration: existing model3d nodes become dispatchable as-is, and previously impossible runs mean no stored artifacts depend on the old behavior.",
+  "residual_risks": [
+    "Non-archetype custom 3D vendors rely on the image_to_3d/text_to_3d reference heuristic fallback (same tier as image/video heuristics) until they declare archetypes.",
+    "The J11 acceptance exercises the RunningHub-style seeded wire; other direct 3D vendors reuse the same catalog mapping path but were not individually wired in this change."
+  ]
+}

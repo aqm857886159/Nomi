@@ -1,6 +1,6 @@
 import path from "node:path";
 import { readNestedRecord, trim, type JsonRecord } from "../../jsonUtils";
-import { findSkillRecord } from "../../skills/skillStore";
+import { findSkillRecord, type SkillRecord } from "../../skills/skillStore";
 import { sanitizeForBroadCompat } from "../../ai/promptSanitize";
 import { getDesktopLocale } from "../../desktopLocale";
 
@@ -50,7 +50,7 @@ export const NOMI_AGENT_IDENTITY = [
  * 只在这里定义一次（P1：一条规则一个家），由 composeAgentSystemPrompt 殿后追加；
  * locale 从 electron-free 的 desktopLocale 读，与判官 prompt 的做法一致。
  */
-function buildLanguageRule(): string {
+export function buildLanguageRule(): string {
   return getDesktopLocale() === "en"
     ? [
         "Response-language rule (highest priority):",
@@ -67,10 +67,17 @@ function buildLanguageRule(): string {
       ].join("\n");
 }
 
-export function buildSkillSystemPrompt(payload: JsonRecord): string {
+export function resolveRequestedSkill(payload: JsonRecord): SkillRecord | null {
+  const requested = readRequestedSkill(payload);
+  return requested.key || requested.name ? findSkillRecord(requested.key, requested.name) : null;
+}
+
+export function buildSkillSystemPrompt(
+  payload: JsonRecord,
+  skill: SkillRecord | null = resolveRequestedSkill(payload),
+): string {
   const requested = readRequestedSkill(payload);
   if (!requested.key && !requested.name) return "";
-  const skill = findSkillRecord(requested.key, requested.name);
   if (!skill) {
     return [
       "Nomi 桌面 Agent skill 提示：",

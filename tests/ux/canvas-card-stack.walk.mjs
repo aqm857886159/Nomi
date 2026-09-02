@@ -192,7 +192,7 @@ try {
   const imageDownloadButton = tray.locator('[data-result-stack-item="image-v1"] button[aria-label="下载这一版"]')
   check('历史图片提供下载入口', await imageDownloadButton.isEnabled())
   await clickOrFail(imageDownloadButton, '下载历史图片')
-  await expect.poll(() => fs.existsSync(downloadPath), { message: '下载桥接应写出历史图片文件', timeout: 10_000 }).toBe(true)
+  await expect.poll(() => fs.existsSync(downloadPath) && fs.statSync(downloadPath).size > 0, { message: '下载桥接应写出非空历史图片文件', timeout: 10_000 }).toBe(true)
   check('历史图片下载文件非空', fs.statSync(downloadPath).size > 0)
 
   const deleteRow = tray.locator('[data-result-stack-item="image-v2"]')

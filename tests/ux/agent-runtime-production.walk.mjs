@@ -79,8 +79,8 @@ try {
     && flattenRequestText({ messages: [message] }) === PARENT),
   'Planning must retain a separate native parent message, not copy its words into a new prompt').toBe(true)
   await recorded(plannerDone.received, 'inline planner result')
-  await expect(win.locator('[data-storyboard-card="editing"]')).toBeVisible()
-  await expect(win.getByRole('textbox', { name: '方案标题', exact: true })).toHaveValue('F镜头')
+  // v5：方案落成中列摘要卡（完整编辑器只住分镜页），先卡后审。
+  await expect(win.locator('[data-storyboard-card="draft"]')).toBeVisible()
   await expect(win.locator('[data-workspace-mode="creation"]')).toBeVisible()
   await expect.poll(async () => (await readProject(win, projectId)).payload.storyboardPlan?.title,
     { timeout: 30_000 }).toBe('F镜头')
@@ -100,25 +100,9 @@ try {
   expect((await readConversations(win, projectId)).creation.activeId).toBe(parentThreadId)
   await walk.snap('inline-plan-awaits-human')
 
-  await clickOrFail(win.getByRole('button', { name: '确认落画布', exact: true }), '把已审阅方案落到画布')
-  await expect(win.locator('[data-workspace-mode="generation"]')).toBeVisible()
-  await expect.poll(async () => (await readProject(win, projectId)).payload.storyboardPlanCommitted,
-    { timeout: 30_000 }).toBe(true)
-  const canvas = (await readProject(win, projectId)).payload.generationCanvas
-  expect(canvas.nodes).toHaveLength(1)
-  const shot = canvas.nodes[0]
-  expect(shot.kind).toBe('image')
-  expect(shot.shotIndex).toBe(1)
-  expect(shot.meta.modelKey).toBe(FIXTURE_IMAGE_MODEL)
-  await openCanvas(win)
-  // The reviewed shot is selected on adoption. The existing all-scope dock is
-  // intentionally hidden while a node is selected; click real empty canvas first.
-  const stage = win.locator('.generation-canvas-v2__stage')
-  // Top-left empty grid stays within the stage while the side panel animates;
-  // a pre-animation width would place a right-edge click under that panel.
-  await clickOrFail(stage, '点击画布空白，退出单镜编辑并显示批量入口',
-    { position: { x: 80, y: 80 } })
-  await expect(win.locator('[data-batch-scope="all"]')).toBeVisible()
+  // v5 执行面：没有「确认落画布」——进分镜页，footer「生成未生成的 N 镜」按需 materialize + 批量。
+  await clickOrFail(win.getByRole('button', { name: '打开分镜', exact: true }), '从方案卡进入分镜页')
+  await expect(win.getByRole('textbox', { name: '方案标题', exact: true })).toHaveValue('F镜头')
   const beforeJudge = snapshots(projectRoot, settingsRoot)
   const judge = walk.fixture.expectText({
     label: 'batch completion invokes the actual image judge',
@@ -127,7 +111,15 @@ try {
       reason: 'F_VERIFY_LOW：杯子偏到画面边缘。', scores: { identity: 5, composition: 1 },
     }) },
   })
-  await clickOrFail(win.locator('[data-batch-scope="all"]'), '生成全部待制作镜头')
+  await clickOrFail(win.locator('[data-storyboard-batch="true"]'), '生成未生成的镜头')
+  // materialize 是免费副作用：节点先建（零 vendor 调用），确认卡再守花钱那一步。
+  await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length,
+    { timeout: 30_000 }).toBe(1)
+  const canvas = (await readProject(win, projectId)).payload.generationCanvas
+  const shot = canvas.nodes[0]
+  expect(shot.kind).toBe('image')
+  expect(shot.shotIndex).toBe(1)
+  expect(shot.meta.modelKey).toBe(FIXTURE_IMAGE_MODEL)
   const spendDialog = win.locator('div.fixed.inset-0').filter({ hasText: '开始生成' }).last()
   const spendProof = await proveProbe(spendDialog, 'Real batch generation asks for approval')
   expect(walk.fixture.images).toHaveLength(0)
@@ -135,6 +127,7 @@ try {
   await clickOrFail(spendDialog.getByRole('button', { name: '生成', exact: true }), '批准本机图片生成')
   await expectAbsent(spendDialog, { provenBy: spendProof, message: 'Generation confirmation is consumed' })
   const judgeWire = await recorded(judge.received, 'real renderer image-judge request')
+  await openCanvas(win)
   expect(toolNames(judgeWire.body)).toEqual([])
   const imageParts = judgeWire.body.messages.flatMap((message) => Array.isArray(message.content) ? message.content : [])
     .filter((part) => part.type === 'image_url')

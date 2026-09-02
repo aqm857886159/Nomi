@@ -1,0 +1,122 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-01-data-url-media-type-parameter-parse",
+  "problem_type": "data URL parser rejects standard media-type parameters",
+  "symptom": "Opening a project whose canvas nodes carry an inline `data:image/svg+xml;utf8,<percent-encoded>` thumbnail failed hydration: parseDataUrl threw \"Invalid data URL\", the error escaped the nomi:projects:read-async IPC handler, and the workbench showed \"项目暂时无法打开\" instead of the canvas. It surfaced as the E2E-Linux selection-toolbar walk red.",
+  "direct_cause": "parseDataUrl matched only an optional `;base64` parameter before the comma (/^data:([^;,]+)?(;base64)?,.../). A media type carrying any other RFC 2397 parameter — `;utf8`, `;charset=utf-8` — did not match, so the function threw before the embedded-media localizer could slim the URL.",
+  "class_root": "The single shared data-URL decoder used by every embedded-media and asset ingestion path did not implement the RFC 2397 media-type parameter grammar; it recognized exactly one parameter (`;base64`) and treated every other well-formed data URL as invalid, so any caller that received a parameterized non-base64 data URL failed identically.",
+  "affected_population": [
+    "Users whose projects contain inline SVG or text data URLs written as data:<mime>;utf8,... or data:<mime>;charset=...,... (common for seeded or hand-authored thumbnails)",
+    "Users opening older or externally-authored projects that embed such data URLs, which now route through the M1 cutover embedded-media localization on hydrate",
+    "Any asset, audio, or generation-output ingestion path that decodes a parameterized non-base64 data URL through the shared parseDataUrl"
+  ],
+  "scope_paths": [
+    "electron/assets/assetBytes.ts",
+    "electron/workspace/workspaceManifest.ts",
+    "electron/audioTaskRunner.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/capabilityCore/generationOutputMaterializer.ts"
+  ],
+  "entry_points": [
+    "parseDataUrl in electron/assets/assetBytes.ts (the shared decoder)",
+    "localizeEmbeddedDataUrl via localizeEmbeddedMediaUrls during workspace manifest read/slimming",
+    "audioTaskRunner data-URL ingestion",
+    "projectAssetStore data-URL persistence",
+    "generationOutputMaterializer data-URL output capture"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.rfc-editor.org/rfc/rfc2397",
+      "checked_at": "2026-09-01",
+      "purpose": "Confirm the data URL grammar is data:[<mediatype>][;base64],<data> where <mediatype> may include one or more `;parameter=value` segments, and only a `;base64` token selects base64 decoding."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data",
+      "checked_at": "2026-09-01",
+      "purpose": "Confirm non-base64 data payloads are percent-encoded text (charset/utf8 parameters are permitted) and are decoded by URL-decoding the data portion."
+    }
+  ],
+  "invariants": [
+    "parseDataUrl accepts any RFC 2397 data URL whose media type carries zero or more parameters, and selects base64 decoding only when a `;base64` parameter is present.",
+    "A non-base64 payload is percent-decoded; a payload that is not valid percent-encoding is preserved verbatim rather than throwing.",
+    "Every embedded-media and asset ingestion path decodes data URLs through this one shared decoder, so a parameterized non-base64 data URL never aborts hydration, slimming, or asset capture."
+  ],
+  "generality_proof": "A repository-wide search for parseDataUrl callers converges on the single decoder in electron/assets/assetBytes.ts (workspaceManifest, audioTaskRunner, projectAssetStore, generationOutputMaterializer). Fixing the grammar at that shared boundary repairs every caller at once; the added unit test enumerates the base64, `;utf8`, `;charset`, bare, default-media-type, malformed-percent, and non-data-URL cases so the boundary contract is pinned for all consumers.",
+  "shared_boundaries": [
+    {
+      "path": "electron/assets/assetBytes.ts",
+      "symbol": "parseDataUrl",
+      "responsibility": "Decode any RFC 2397 data URL into bytes plus content type for every embedded-media and asset ingestion caller."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/workspace/workspaceManifest.ts",
+      "entry_point": "localizeEmbeddedDataUrl via parseDataUrl during manifest read/slimming",
+      "disposition": "enforced",
+      "evidence": "The failing hydrate path decodes the inline SVG data URL through the shared parseDataUrl; with the parameter grammar fixed the selection-toolbar project opens to the canvas instead of the repair dialog."
+    },
+    {
+      "path": "electron/audioTaskRunner.ts",
+      "entry_point": "parseDataUrl at audioTaskRunner.ts inline audio ingestion",
+      "disposition": "enforced",
+      "evidence": "Audio ingestion calls the same shared decoder, so a data:audio/...;charset payload now decodes through the same corrected grammar rather than throwing."
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "parseDataUrl at projectAssetStore.ts asset persistence",
+      "disposition": "enforced",
+      "evidence": "Asset persistence localizes data URLs via the shared decoder and inherits the fix for parameterized non-base64 inputs."
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "entry_point": "parseDataUrl at generationOutputMaterializer.ts output capture",
+      "disposition": "enforced",
+      "evidence": "Generation output capture decodes returned data URLs through the same boundary and inherits the corrected parameter handling."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every current and future embedded-media or asset path decodes data URLs through this single function; any parameterized non-base64 data URL from real project data, generated output, or imported assets would reproduce the throw at every one of these call sites.",
+    "same_class_scan": [
+      "Searched electron/ and src/ for parseDataUrl and confirmed all consumers import the one decoder in electron/assets/assetBytes.ts.",
+      "Confirmed electron/catalog/assetValueScheme.ts uses its own parseDataUrlHeader (a separate parser) and is out of this boundary's scope.",
+      "Checked the workspace-manifest slimming, audio ingestion, project-asset persistence, and generation-output capture call sites independently."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/assets/assetBytes.ts",
+    "invariant": "The shared data-URL decoder implements the full RFC 2397 media-type parameter grammar and base64 selection, so no caller re-implements or bypasses data-URL parsing.",
+    "failure_mode": "A data URL with any parameter run parses to the correct bytes and content type; only a genuinely malformed data URL throws, and a non-percent-encoded payload is preserved verbatim. Regression tests fail if the `;utf8`/`;charset` forms ever regress to throwing.",
+    "exception_policy": "none",
+    "strategy": "Match the entire parameter run up to the comma, detect base64 by the presence of a `;base64` token, percent-decode otherwise with a verbatim fallback, and pin the grammar with an enumerated unit test at the shared boundary.",
+    "artifacts": [
+      "electron/assets/assetBytes.ts",
+      "electron/assets/assetBytes.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/assets/assetBytes.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/assets/assetBytes.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The shared decoder was corrected in place; there is no parallel legacy data-URL parser to remove. electron/catalog/assetValueScheme.ts keeps its own header parser by design and is unaffected."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The defect is in Nomi's own data-URL decoding, not in a third-party package version; RFC 2397 is a stable standard, not a dependency to upgrade.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data is rewritten. Projects whose payloads already contain parameterized non-base64 data URLs now hydrate: the same embedded-media localization runs, decoding those URLs into localized asset files on read exactly as base64 URLs already were.",
+  "residual_risks": [
+    "Payloads declared as non-base64 that are neither valid percent-encoding nor plain text are stored as their raw bytes rather than rejected, mirroring prior lenient behavior for base64-less data URLs.",
+    "electron/catalog/assetValueScheme.ts intentionally retains a separate header parser; a future consolidation onto parseDataUrl would need its own contract."
+  ]
+}

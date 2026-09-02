@@ -17,7 +17,11 @@ import { pathToFileURL } from 'node:url'
 
 export const REVIEW_TIMEOUT_MS = 180_000
 export const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
-export const MAX_REVIEW_DIFF_BYTES = 1_500_000
+// Mainline merges can legitimately carry several megabytes of text while the
+// review must still receive the exact staged diff. Keep a finite ceiling, but
+// leave room for a bounded merge review instead of letting execFileSync fail
+// first with ENOBUFS at its default-sized buffer.
+export const MAX_REVIEW_DIFF_BYTES = 8_000_000
 export const MAX_REVIEW_REPORT_BYTES = 256_000
 export const MAX_PUSH_RANGES = 32
 export const MAX_PUSH_INPUT_BYTES = 256_000
@@ -95,12 +99,12 @@ function tryRunGit(git, repoRoot, args) {
 }
 
 /**
- * A newly-created remote ref has no old SHA in Git's pre-push protocol. Do
- * not diff it against the empty tree (that would submit the whole repository
- * and can hit the review cap). Resolve the remote's advertised default branch
- * and use its merge-base as the outgoing baseline instead.
+ * Merge-base between the remote's advertised default branch and `localSha`,
+ * i.e. "where this work left the mainline". Returns null when no remote HEAD is
+ * advertised (fresh clone, detached remote) so callers can decide whether that
+ * is fatal.
  */
-function resolveNewRefBase({ repoRoot, remoteName = '', localSha, runGit: git = runGit }) {
+function mainlineBase({ repoRoot, remoteName = '', localSha, runGit: git = runGit }) {
   const remotes = [...new Set([remoteName, 'origin'].map((value) => String(value || '').trim()).filter(Boolean))]
   for (const remote of remotes) {
     if (!/^[A-Za-z0-9._-]+$/.test(remote)) continue
@@ -109,7 +113,94 @@ function resolveNewRefBase({ repoRoot, remoteName = '', localSha, runGit: git = 
     const base = tryRunGit(git, repoRoot, ['merge-base', symbolic, localSha])
     if (SHA.test(base)) return { base, symbolic }
   }
+  return null
+}
+
+/**
+ * A newly-created remote ref has no old SHA in Git's pre-push protocol. Do
+ * not diff it against the empty tree (that would submit the whole repository
+ * and can hit the review cap).
+ */
+function resolveNewRefBase({ repoRoot, remoteName = '', localSha, runGit: git = runGit }) {
+  const resolved = mainlineBase({ repoRoot, remoteName, localSha, runGit: git })
+  if (resolved) return resolved
   throw new Error('cannot determine a remote tracking base for a new ref; refusing an unbounded whole-repository review')
+}
+
+/**
+ * Commits this push actually introduces: reachable from `localSha`, reachable
+ * from neither the remote tip nor the mainline. Oldest first.
+ */
+function authoredCommits({ repoRoot, excludes, localSha, runGit: git = runGit }) {
+  const args = ['rev-list', '--reverse', '--topo-order', localSha]
+  const valid = excludes.filter((sha) => SHA.test(String(sha || '')) && !ZERO_SHA.test(sha))
+  if (valid.length > 0) args.push('--not', ...valid)
+  const out = tryRunGit(git, repoRoot, args)
+  return out ? out.split('\n').map((line) => line.trim()).filter((line) => SHA.test(line)) : []
+}
+
+/**
+ * One commit's *authored* patch. For a merge that is the combined diff — only
+ * the hunks differing from every parent, i.e. exactly the conflict resolutions,
+ * never the thousands of lines the merged-in branch carries for free.
+ */
+function commitPatch({ repoRoot, commit, runGit: git = runGit }) {
+  const parents = tryRunGit(git, repoRoot, ['rev-list', '--parents', '-n', '1', commit]).split(/\s+/).filter(Boolean)
+  const isMerge = parents.length > 2
+  const args = ['show', '--no-ext-diff', '--unified=80', '--format=', commit]
+  if (isMerge) args.splice(1, 0, '--cc')
+  return git(repoRoot, args)
+}
+
+/**
+ * The baseline an *existing* ref should be reviewed against.
+ *
+ * The review unit must be «what this operation authors», not «what this
+ * operation carries». `remoteSha..localSha` is only the former while the branch
+ * is a plain fast-forward. The moment the base moves under it — a catch-up
+ * merge, or a rebase followed by force-push — that endpoint range silently
+ * swells to include everything the mainline advanced by: thousands of lines
+ * nobody here wrote, which this very gate already reviewed when they landed on
+ * the mainline.
+ *
+ * That is not a hypothetical. 2026-09-02 a task branch behind the mainline was
+ * blocked three times running: first ENOBUFS (cap was 1.5 MB, the endpoint diff
+ * was 2.85 MB), then — after the cap was raised to 8 MB — a Codex-side
+ * `runner_failed`, because 2.85 MB is far past any model's context. Raising the
+ * cap only moved the failure from Git's buffer to the model's window. Measured
+ * on that same merge: endpoint diff 2.85 MB, actually-authored content 0.37 MB.
+ * Worse, the mis-scoping hid the only human decisions in the merge (the
+ * conflict resolutions) — two of which were wrong: one silently dropped a gate
+ * from the `gates:contracts` chain, the other swallowed two closing braces and
+ * left a whole test file executing zero tests.
+ *
+ * A single baseline cannot express this. Two were tried and both leak:
+ *   · `remoteSha` drags mainline content whenever the push carries a catch-up
+ *     merge — that merge is a *descendant* of the remote tip, so no
+ *     fast-forward or ancestry test catches it;
+ *   · the mainline merge-base drags our own already-pushed commits after a
+ *     rebase, and measured on the real incident it was the *larger* of the two.
+ * Picking whichever is smaller keeps the size bounded but still ships the wrong
+ * content — in the real merge it would have re-sent mainline and still hidden
+ * the conflict resolutions, which is the failure this fix exists to remove.
+ *
+ * So express the set directly instead of approximating it with a baseline:
+ * the commits reachable from `localSha` but from neither exclusion, each
+ * rendered as its own patch — and a merge rendered as its *combined* diff, so
+ * only the conflict resolutions survive. Push nothing new and the review is
+ * legitimately empty.
+ */
+function collectAuthoredPatch({ repoRoot, remoteName = '', remoteSha, localSha, runGit: git = runGit }) {
+  const resolved = mainlineBase({ repoRoot, remoteName, localSha, runGit: git })
+  const excludes = [remoteSha, resolved?.base].filter(Boolean)
+  const commits = authoredCommits({ repoRoot, excludes, localSha, runGit: git })
+  const patch = commits.map((commit) => commitPatch({ repoRoot, commit, runGit: git })).filter(Boolean).join('\n')
+  const mainlineNote = resolved ? ` and ${resolved.symbolic} (${resolved.base})` : ''
+  return {
+    patch,
+    description: `; ${commits.length} commit(s) not already on the remote tip${mainlineNote}`
+      + '; merges contribute only their combined diff (conflict resolutions)',
+  }
 }
 
 function formatBinaryBytes(bytes) {
@@ -178,11 +269,21 @@ function withBinarySummary(diff, binarySummary) {
  */
 export function collectReviewDiff({ repoRoot, scope, pushInput = '', remoteName = '', runGit: git = runGit }) {
   if (scope === 'staged') {
-    const textDiff = git(repoRoot, ['diff', '--cached', '--no-ext-diff', '--unified=80', '--'])
-    const binarySummary = summarizeBinaryChanges({ repoRoot, git, selector: ['--cached'] })
+    // Committing a merge: `git diff --cached` compares the index against HEAD
+    // (our side), so everything the merged-in branch brings lands in the review
+    // even though nobody here wrote it and this gate already saw it upstream.
+    // Diff against MERGE_HEAD instead — what remains is our own commits plus the
+    // conflict resolutions, which are the only decisions a human made here.
+    const mergeHead = tryRunGit(git, repoRoot, ['rev-parse', '--verify', '--quiet', 'MERGE_HEAD'])
+    const selector = SHA.test(mergeHead) ? ['--cached', mergeHead] : ['--cached']
+    const textDiff = git(repoRoot, ['diff', ...selector, '--no-ext-diff', '--unified=80', '--'])
+    const binarySummary = summarizeBinaryChanges({ repoRoot, git, selector })
     const diff = withBinarySummary(textDiff, binarySummary)
     assertReviewDiffSize(diff)
-    return { diff, ranges: [], description: 'staged changes (`git diff --cached`)' }
+    const description = SHA.test(mergeHead)
+      ? `merge resolution (\`git diff --cached ${mergeHead}\`, excludes what MERGE_HEAD already carries)`
+      : 'staged changes (`git diff --cached`)'
+    return { diff, ranges: [], description }
   }
 
   if (scope !== 'push') throw new Error(`Unknown Ponytail review scope: ${scope}`)
@@ -192,14 +293,23 @@ export function collectReviewDiff({ repoRoot, scope, pushInput = '', remoteName 
   const chunks = ranges.map(({ localRef, localSha, remoteRef, remoteSha }) => {
     let from = remoteSha
     let baselineDescription = ''
+    let authoredPatch = null
     if (ZERO_SHA.test(remoteSha) && !ZERO_SHA.test(localSha)) {
       const resolved = resolveNewRefBase({ repoRoot, remoteName, localSha, runGit: git })
       from = resolved.base
       baselineDescription = `; new ref baseline ${resolved.symbolic} (${resolved.base})`
+    } else if (!ZERO_SHA.test(remoteSha) && !ZERO_SHA.test(localSha)) {
+      const collected = collectAuthoredPatch({ repoRoot, remoteName, remoteSha, localSha, runGit: git })
+      authoredPatch = collected.patch
+      baselineDescription = collected.description
     }
     const to = ZERO_SHA.test(localSha) ? EMPTY_TREE_SHA : localSha
     const range = `${from}..${to}`
-    const textDiff = git(repoRoot, ['diff', '--no-ext-diff', '--unified=80', range, '--'])
+    // The binary summary stays range-based: it is one bounded line per file, so
+    // slight over-inclusion is harmless and it must still flag repository weight.
+    const textDiff = authoredPatch === null
+      ? git(repoRoot, ['diff', '--no-ext-diff', '--unified=80', range, '--'])
+      : authoredPatch
     const binarySummary = summarizeBinaryChanges({ repoRoot, git, selector: [range] })
     const diff = withBinarySummary(textDiff, binarySummary)
     assertReviewDiffSize(diff)

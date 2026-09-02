@@ -2,7 +2,7 @@
 // 方案:docs/plan/2026-06-28-storyboard-closed-loop-verify.md（Stage 1 实时编排 + Stage 2 半自动封顶）。
 //
 // 数据流:生成完成 → verifyShotsAndReport(读画布快照→gather→调模型)→ 写本 store →
-//   CanvasAssistantPanel 订阅 → 内容偏差卡 → 「让 AI 修」发 agent 消息(走现成付费确认闸,不另建付费 loop)。
+//   resident Agent 订阅 → 内容偏差卡 → 「让 AI 修」发 agent 消息（走现成付费确认闸，不另建付费 loop）。
 // 半自动封顶(Stage 2 §6 用户拍板「半自动·每轮确认」):每点一次「让 AI 修」消耗一轮(consumeRound),
 //   预算耗尽(decideNext→exhausted)→ 卡片不再给「让 AI 修」、落「已尽力」态,绝不无限回灌。
 
@@ -204,7 +204,7 @@ export function buildContentFixMessage(deviations: readonly ReconcileDeviation[]
     ...lines,
     '',
     '请读画布，针对这几镜：先判断是提示词没写清还是分镜本身要调；',
-    '能靠改这几镜的提示词修好的就改提示词，再用 run_generation_batch 只重新生成这几镜（会让我确认花费）。',
+    '能靠改这几镜的提示词修好的就改提示词，再提交一个只包含这几镜的新付费生成提案（会让我确认花费）。',
     '不要动其它已经正常的镜头。',
   ].join('\n')
 }

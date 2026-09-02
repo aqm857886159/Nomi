@@ -60,7 +60,7 @@ export type GenerationGateConfirmationDependencies = {
 
 export function createGenerationGateConfirmation({ transport, clientSupportsElicitation, elicitBooleanConfirm }: GenerationGateConfirmationDependencies) {
   // 同 challengeId 的并发确认共享一个 in-flight promise（客户端超时/重连铸不出第二张提示或 nonce）。
-  // 实现住 mcpConfirmationBinding.ts——与 nomi_generate 付费路共用同一份并发语义（P1 不造第二套）。
+  // 实现住 mcpConfirmationBinding.ts，确认去重与生成门保持单一语义。
   const confirmationBinding = createConfirmationBinding<GenerationGateConfirmation>({
     isConfirmed: (result) => result.confirmed,
   })

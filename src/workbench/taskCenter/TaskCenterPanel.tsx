@@ -6,7 +6,10 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
 import { IconAlertTriangle, IconCheck, IconClock, IconProgress, IconLoader2, IconLock, IconX } from '@tabler/icons-react'
+import type { ExportJobSnapshot } from '../../../electron/shared/contracts/exportJobManager'
+import { getDesktopBridge } from '../../desktop/bridge'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { selectStableCanvasNodes } from '../generationCanvas/store/canvasNodeProjection'
 import { useGenerationQueueStore } from '../generationCanvas/runner/generationQueueStore'
 import { requestTaskCancel } from '../generationCanvas/runner/localTaskControl'
 // 重试复用既有链路（单发 confirmAndRunNode / 批量 confirmAndRunPlan），不另起一套付费路径。
@@ -18,6 +21,7 @@ import { currentWorkbenchFloatingTopOffset } from '../../ui/app-shell/windowChro
 import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
 import type { TaskCenterProjection } from './taskCenterProjection'
 import { buildProductionRunTaskRows } from './productionRunTaskCenter'
+import { buildExportJobTaskRows } from './exportJobTaskCenter'
 import { ProductionRunTaskCard } from '../production/ProductionRunTaskCard'
 import { useProductionStatus } from '../production/useProductionStatus'
 
@@ -30,12 +34,13 @@ type Props = {
   opened: boolean
   onClose: () => void
   productionRuns: readonly ProductionRunSummary[]
+  exportJobs: readonly ExportJobSnapshot[]
   onRevealProductionRun?: (projectId: string, runId: string) => void
   /** 点某一行 → 切到生成区并选中该节点。 */
   onRevealNode?: (nodeId: string) => void
 }
 
-export function TaskCenterPanel({ opened, onClose, productionRuns, onRevealProductionRun, onRevealNode }: Props): JSX.Element | null {
+export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, onRevealProductionRun, onRevealNode }: Props): JSX.Element | null {
   const { t } = useTranslation()
   const panelRef = React.useRef<HTMLDivElement>(null)
   // 渲染时现算，别提到模块作用域：模块常量在 import 那一刻定死，拿不到 platform 就悄悄
@@ -43,7 +48,10 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, onRevealProdu
   const topOffset = currentWorkbenchFloatingTopOffset()
   const entries = useGenerationQueueStore((state) => state.entries)
   const batches = useGenerationQueueStore((state) => state.batches)
-  const nodes = useGenerationCanvasStore((state) => state.nodes)
+  // 面板全程挂载（关着也订阅，见 TaskCenterButton）；只按 id 取任务行数据、不读 position
+  // → 位置稳定投影，拖动期这个常挂订阅者不再每帧重渲（suspect #1）。cancel/retry 处理器仍走
+  // getState().nodes 拿真节点，不受投影影响。
+  const nodes = useGenerationCanvasStore(selectStableCanvasNodes)
   const [now, setNow] = React.useState(() => Date.now())
   // N1：制作任务的家搬到这里（原先在画布助手面板里，见 plan 2026-08-11-nomi-side-viewer-and-fallback）。
   // 只在面板打开时加载/轮询完整 run——关着时徽标由 TaskCenterButton 的 summary 轮询维持。
@@ -105,18 +113,35 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, onRevealProdu
       cancelled: t('taskCenter.productionRun.statuses.cancelled'),
     },
   }), [productionRuns, t])
+  const exportRows = React.useMemo(() => buildExportJobTaskRows(exportJobs, {
+    title: t('taskCenter.exportJob.title'),
+    failed: t('taskCenter.exportJob.failed'),
+    statuses: {
+      queued: t('taskCenter.exportJob.statuses.queued'),
+      preparing: t('taskCenter.exportJob.statuses.preparing'),
+      planning: t('taskCenter.exportJob.statuses.planning'),
+      rendering: t('taskCenter.exportJob.statuses.rendering'),
+      encoding: t('taskCenter.exportJob.statuses.encoding'),
+      muxing: t('taskCenter.exportJob.statuses.muxing'),
+      finalizing: t('taskCenter.exportJob.statuses.finalizing'),
+      succeeded: t('taskCenter.exportJob.statuses.succeeded'),
+      failed: t('taskCenter.exportJob.statuses.failed'),
+      cancelled: t('taskCenter.exportJob.statuses.cancelled'),
+    },
+  }), [exportJobs, t])
 
   if (!opened) return null
 
   const generationRows = view.rows
-  const rows: TaskCenterProjection[] = [...generationRows, ...productionRows].sort((left, right) => {
+  const rows: TaskCenterProjection[] = [...generationRows, ...productionRows, ...exportRows].sort((left, right) => {
     const order = { running: 0, queued: 1, done: 2 }
     return order[left.group] - order[right.group]
   })
   const summary = {
     ...view.summary,
-    running: view.summary.running + productionRows.filter((row) => row.group === 'running').length,
-    queued: view.summary.queued + productionRows.filter((row) => row.group === 'queued').length,
+    running: view.summary.running + productionRows.filter((row) => row.group === 'running').length + exportRows.filter((row) => row.group === 'running').length,
+    queued: view.summary.queued + productionRows.filter((row) => row.group === 'queued').length + exportRows.filter((row) => row.group === 'queued').length,
+    failed: view.summary.failed + exportRows.filter((row) => row.outcome === 'error').length,
   }
   const running = rows.filter((row) => row.group === 'running')
   const queued = rows.filter((row) => row.group === 'queued')
@@ -183,6 +208,7 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, onRevealProdu
     if (action.kind === 'cancel_generation_queue') cancelQueued(row as TaskCenterRow)
     else if (action.kind === 'interrupt_generation') interruptRunning(row as TaskCenterRow)
     else if (action.kind === 'retry_generation') await confirmAndRunNode(action.nodeId)
+    else if (action.kind === 'cancel_export_job') await getDesktopBridge()?.exports.cancel(action.jobId)
   }
 
   return (
@@ -352,15 +378,16 @@ function TaskRow({
 }): JSX.Element {
   const { t } = useTranslation()
   const failed = row.outcome === 'error' && !row.recoverable
+  const revealable = row.kind !== 'export_job' && Boolean(onReveal)
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onReveal?.(row)}
+      role={revealable ? 'button' : undefined}
+      tabIndex={revealable ? 0 : undefined}
+      onClick={() => { if (revealable) onReveal?.(row) }}
       onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') onReveal?.(row)
+        if (revealable && (event.key === 'Enter' || event.key === ' ')) onReveal?.(row)
       }}
-      className="flex gap-2.5 px-3.5 py-2 items-start cursor-pointer hover:bg-nomi-ink-05 transition-[background] duration-[var(--nomi-transition-fast)]"
+      className={`flex gap-2.5 px-3.5 py-2 items-start transition-[background] duration-[var(--nomi-transition-fast)] ${revealable ? 'cursor-pointer hover:bg-nomi-ink-05' : ''}`}
     >
       <div className="flex-1 min-w-0">
         <div className={['text-body-sm truncate', failed ? 'text-nomi-ink' : 'text-nomi-ink-80'].join(' ')}>{row.title}</div>
@@ -375,7 +402,7 @@ function TaskRow({
               ? [row.phaseText, row.elapsedMs !== undefined ? t('taskCenter.row.elapsed', { time: formatElapsed(row.elapsedMs) }) : '']
                   .filter(Boolean)
                   .join(' · ')
-              : row.kind === 'production_run'
+              : row.kind !== 'generation'
                 ? row.phaseText
               : row.outcome === 'cancelled'
                 ? t('taskCenter.row.cancelled')

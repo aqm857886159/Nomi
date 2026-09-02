@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DOCUMENT_READ_ALIASES, DOCUMENT_READ_CAPABILITY } from "../../shared/agentCapabilities/documentRead";
 
 /** Pure Nomi-owned document metadata; the host owns editor reads, writes, and approval. */
 
@@ -36,13 +37,13 @@ const contentParam = z.object({
 
 export const documentToolDescriptors = {
   read_full_text: {
-    name: "read_full_text",
+    name: DOCUMENT_READ_ALIASES.full,
     description:
       "Read the full plain text of the user's current creation document. Call this when you need the existing draft as context before writing or rewriting.",
     parameters: z.object({}),
   },
   read_selection: {
-    name: "read_selection",
+    name: DOCUMENT_READ_ALIASES.selection,
     description:
       "Read the text the user has currently selected in the editor. Returns an empty string if nothing is selected.",
     parameters: z.object({}),
@@ -79,3 +80,7 @@ export const documentToolDescriptors = {
 
 export type DocumentToolName = keyof typeof documentToolDescriptors;
 export const documentToolNames = Object.keys(documentToolDescriptors) as DocumentToolName[];
+
+export function documentReadDescriptorForScope(scope: "full" | "selection") {
+  return scope === "full" ? documentToolDescriptors[DOCUMENT_READ_CAPABILITY.aliases.pi] : documentToolDescriptors[DOCUMENT_READ_ALIASES.selection];
+}

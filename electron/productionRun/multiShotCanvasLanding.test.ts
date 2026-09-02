@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { buildMaterializeShotsPayload, canvasLandingOperationId } from './multiShotCanvasLanding'
+import { buildMaterializeShotsPayload, canvasLandingOperationId, landCanvasForRun } from './multiShotCanvasLanding'
 import type { ProductionRun, ProductionJob, ProductionGenerationShot, ProductionArtifact } from './productionRunTypes'
 
 // P4 S5 — 从 Run 投影出 materialize-shots 载荷（确认即落只投占位；打开项目补齐带上已完成 result）。
@@ -64,10 +64,65 @@ describe('buildMaterializeShotsPayload', () => {
     fs.rmSync(projectRoot, { recursive: true, force: true })
   })
 
-  it('无 shots / 全未勾选 → null（不落地）', () => {
+  it('单镜 semantic plan 没有 shots[] 时仍投影一个真实图片占位', () => {
     expect(buildMaterializeShotsPayload(run([shot('s1', { included: false })]), { projectRoot: '/tmp/x', previewSecret: 's' })).toBeNull()
-    const noPlan = run([shot('s1')])
-    noPlan.generationPlan = undefined
-    expect(buildMaterializeShotsPayload(noPlan, { projectRoot: '/tmp/x', previewSecret: 's' })).toBeNull()
+    const catCandidate = { ...shot('cat').candidate, mode: 'text_to_image', prompt: '一只可爱的橘色小猫头像' }
+    const noShots = run([shot('cat', { candidate: catCandidate })])
+    noShots.generationPlan = { ...noShots.generationPlan!, shots: undefined }
+    const payload = buildMaterializeShotsPayload(noShots, { projectRoot: '/tmp/x', previewSecret: 's' })
+    expect(payload?.shots).toHaveLength(1)
+    expect(payload?.shots[0]).toMatchObject({ shotId: 'cat', kind: 'image', title: '一只可爱的橘色小猫头像' })
+  })
+
+  it('单镜默认 job 没有 shot metadata 时仍把已物化结果带回同一个占位', () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-s5-single-landing-'))
+    const rel = '.nomi/runs/run-1/single.png'
+    fs.mkdirSync(path.dirname(path.join(projectRoot, rel)), { recursive: true })
+    fs.writeFileSync(path.join(projectRoot, rel), 'fake-png')
+    const catCandidate = { ...shot('cat').candidate, mode: 'text_to_image', prompt: '一只可爱的橘色小猫头像' }
+    const single = run([shot('cat', { candidate: catCandidate })])
+    single.generationPlan = { ...single.generationPlan!, shots: undefined }
+    single.jobs = [{ jobId: 'job-single', stageId: 'generate', status: 'ready', attempt: 1, provider: 'apimart', model: 'image', idempotencyKey: 'k', createdAt: NOW, updatedAt: NOW }]
+    single.artifacts = [{ artifactId: 'art-single', stageId: 'generate', jobId: 'job-single', kind: 'image', status: 'ready', version: 1, projectRelativePath: rel, createdAt: NOW }]
+
+    const payload = buildMaterializeShotsPayload(single, { projectRoot, previewSecret: 'secret' })
+    expect(payload?.shots[0]?.shotId).toBe('cat')
+    expect(payload?.shots[0]?.result?.url.startsWith('nomi-local://')).toBe(true)
+    fs.rmSync(projectRoot, { recursive: true, force: true })
+  })
+})
+
+describe('landCanvasForRun lifecycle guard', () => {
+  it('does not touch the renderer when an observer has become stale', async () => {
+    const requestRenderer = vi.fn()
+    const bindShotNodes = vi.fn()
+    const result = await landCanvasForRun(run([shot('s1')]), {
+      requestRenderer,
+      bindShotNodes,
+      projectRoot: null,
+      previewSecret: 'secret',
+      isCurrent: () => false,
+    })
+    expect(result).toBe(false)
+    expect(requestRenderer).not.toHaveBeenCalled()
+    expect(bindShotNodes).not.toHaveBeenCalled()
+  })
+
+  it('does not persist a stale node binding after the renderer response', async () => {
+    let current = true
+    const requestRenderer = vi.fn(async () => {
+      current = false
+      return { bindings: [{ shotId: 's1', nodeId: 'node-1' }] }
+    })
+    const bindShotNodes = vi.fn()
+    const result = await landCanvasForRun(run([shot('s1')]), {
+      requestRenderer,
+      bindShotNodes,
+      projectRoot: null,
+      previewSecret: 'secret',
+      isCurrent: () => current,
+    })
+    expect(result).toBe(false)
+    expect(bindShotNodes).not.toHaveBeenCalled()
   })
 })

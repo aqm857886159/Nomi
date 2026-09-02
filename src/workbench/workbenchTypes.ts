@@ -7,6 +7,8 @@ export type WorkbenchDocument = {
   updatedAt: number
 }
 
+import type { DocumentAnchorRef, PreconditionSet, TargetRef } from '../../electron/shared/capabilityTargeting'
+
 /** A storyboard design belongs to one draft, while a draft may keep many designs. */
 export const STORYBOARD_DESIGN_STATUSES = ['draft', 'committed', 'stale'] as const
 export type StoryboardDesignStatus = typeof STORYBOARD_DESIGN_STATUSES[number]
@@ -212,6 +214,13 @@ export function mintStoryboardDesignId(): string {
 export type CreationDocumentTools = {
   readFullText: () => string
   readSelectionText: () => string
+  readState: () => Readonly<{ revision: number; contentHash: string; anchor: DocumentAnchorRef }>
+  applyDocumentWrite: (input: Readonly<{
+    operation: 'insert' | 'replace' | 'append'
+    content: string
+    target: TargetRef
+    preconditions: PreconditionSet
+  }>) => Readonly<{ applied: true; revision: number; contentHash: string }>
   insertAtCursor: (content: string) => void
   replaceSelection: (content: string) => void
   appendToEnd: (content: string) => void

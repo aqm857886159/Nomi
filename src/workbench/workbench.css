@@ -2,6 +2,56 @@
    曾住这里、限定 .workbench-shell 作用域 → portal/库页浮层解析不到 + 与 tailwind 副本漂移（208 vs 222），
    2026-08-24 收口（docs/plan/2026-08-24-workbench-token-root-scope.md）。本文件只剩组件样式。 */
 
+/* Scroll affordances shared by the editor and resident composer.  These were
+   previously bundled with the retired chat stylesheet; keep the live editor
+   behavior in the stylesheet that owns the workbench surface. */
+.workbench-editor__scroll {
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
+}
+
+.workbench-editor__scroll:hover,
+.workbench-editor__scroll:focus-within,
+.workbench-editor__scroll.workbench-scrollbar-visible {
+  scrollbar-color: color-mix(in srgb, var(--nomi-ink) 22%, transparent) transparent;
+}
+
+.workbench-editor__scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.workbench-editor__scroll:hover::-webkit-scrollbar,
+.workbench-editor__scroll:focus-within::-webkit-scrollbar,
+.workbench-editor__scroll.workbench-scrollbar-visible::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.workbench-editor__scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.workbench-editor__scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: transparent;
+}
+
+.workbench-editor__scroll:hover::-webkit-scrollbar-thumb,
+.workbench-editor__scroll:focus-within::-webkit-scrollbar-thumb,
+.workbench-editor__scroll.workbench-scrollbar-visible::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--nomi-ink) 18%, transparent);
+}
+
+/* 自增高 composer：到上限后仍可滚轮/键盘滚动，但不显示滚动条滑块。 */
+.workbench-autogrow {
+  scrollbar-width: none;
+}
+
+.workbench-autogrow::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── TipTap / ProseMirror editor content typography ── */
 .workbench-editor__content {
   min-height: 100%;

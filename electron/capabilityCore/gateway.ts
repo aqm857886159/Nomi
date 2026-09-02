@@ -22,10 +22,7 @@ export type SpendConfirmInfo = {
   vendor: string
   modelKey: string
   prompt: string
-  /**
-   * 这次确认同时会换来「本会话该项目后续生成免问」（MCP 付费会话级信任，见 mcpSpendTrust.ts）。
-   * 卡上必须据它多写一句授权范围——用户以为批的是「这一张」，不写明就是骗同意（D4）。
-   */
+  /** Legacy renderer card metadata. Canonical paid generation never grants session-wide trust. */
   grantsSessionTrust?: boolean
 }
 

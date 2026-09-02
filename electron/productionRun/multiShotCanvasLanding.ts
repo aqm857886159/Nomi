@@ -44,6 +44,7 @@ function shotTitle(shot: ProductionGenerationShot, index: number): string {
 /** 镜的执行模态 → 画布节点 kind（anchor 恒 image；镜按 transportTaskKind 猜，缺省 video）。 */
 function shotKind(shot: ProductionGenerationShot): "image" | "video" {
   if (shot.role === "anchor") return "image";
+  if (/image/i.test(shot.candidate?.mode ?? "")) return "image";
   return "video";
 }
 
@@ -57,15 +58,28 @@ export function buildMaterializeShotsPayload(
   deps: { projectRoot: string | null; previewSecret: string; planName?: string; nowMs?: number },
 ): MaterializeShotsWirePayload | null {
   const plan = run.generationPlan;
-  if (!plan?.shots || plan.shots.length === 0) return null;
-  const included = plan.shots.filter((shot) => shot.included !== false);
+  if (!plan) return null;
+  // A deleted single-shot placeholder is an explicit user decision. Keep the
+  // durable artifact in the Run/asset owner, but do not recreate the canvas
+  // node on every reconciliation pass.
+  if ((!plan.shots || plan.shots.length === 0) && plan.canvasDetached) return null;
+  // A single-shot semantic operation keeps its candidate at plan.candidate for
+  // backwards compatibility (shots[] is intentionally absent). Project it
+  // through the same materialize-shots owner so the resident flow gets one
+  // real canvas node instead of an answer-only receipt.
+  const sourceShots = plan.shots && plan.shots.length > 0
+    ? plan.shots
+    : [{ shotId: plan.candidate.candidateId, candidate: plan.candidate, updatedAt: plan.updatedAt }]
+  const included = sourceShots.filter((shot) => shot.included !== false);
   if (included.length === 0) return null;
 
   // shotId → 已完成镜的本地 result（从 artifacts 投影）。job 谱系：job.metadata.shotId → job → artifact.jobId。
   const jobByShot = new Map<string, string>();
+  const singleShotId = !plan.shots || plan.shots.length === 0 ? plan.candidate.candidateId : undefined;
   for (const job of run.jobs) {
     const shotId = typeof job.metadata?.shotId === "string" ? job.metadata.shotId : undefined;
-    if (shotId && (job.status === "ready" || job.status === "adopted")) jobByShot.set(shotId, job.jobId);
+    const resolvedShotId = shotId || singleShotId;
+    if (resolvedShotId && (job.status === "ready" || job.status === "adopted")) jobByShot.set(resolvedShotId, job.jobId);
   }
   const resultByShot = new Map<string, MaterializeShotWire["result"]>();
   if (deps.projectRoot) {
@@ -95,7 +109,9 @@ export function buildMaterializeShotsPayload(
       shotId: shot.shotId,
       ...(shot.role ? { role: shot.role } : {}),
       kind: shotKind(shot),
-      title: shotTitle(shot, index),
+      title: shot.role === undefined && /image/i.test(shot.candidate.mode)
+        ? (shot.candidate.prompt.trim().slice(0, 24) || shotTitle(shot, index))
+        : shotTitle(shot, index),
       prompt: shot.candidate?.prompt ?? "",
       ...(result ? { result } : {}),
     };
@@ -118,6 +134,9 @@ export type CanvasLandingDeps = {
   previewSecret: string;
   planName?: string;
   nowMs?: number;
+  /** Optional lifecycle guard for detached observers.  It is checked before
+   * touching the renderer and again before the durable Run bind. */
+  isCurrent?: () => boolean;
 };
 
 /**
@@ -125,9 +144,11 @@ export type CanvasLandingDeps = {
  * 渲染层不可用 / 落地失败 → 返回 false（调用方继续生成）。确认即落与打开项目补齐共用它（P1 一个家）。
  */
 export async function landCanvasForRun(run: ProductionRun, deps: CanvasLandingDeps): Promise<boolean> {
+  if (deps.isCurrent && !deps.isCurrent()) return false;
   const payload = buildMaterializeShotsPayload(run, { projectRoot: deps.projectRoot, previewSecret: deps.previewSecret, planName: deps.planName, nowMs: deps.nowMs });
   if (!payload) return false;
   try {
+    if (deps.isCurrent && !deps.isCurrent()) return false;
     const rendered = (await deps.requestRenderer("production.materialize-shots", payload, 60_000)) as { bindings?: unknown } | null;
     const rawBindings = Array.isArray(rendered?.bindings) ? rendered!.bindings : [];
     const bindings = rawBindings
@@ -135,6 +156,7 @@ export async function landCanvasForRun(run: ProductionRun, deps: CanvasLandingDe
       .map((entry) => ({ shotId: typeof entry.shotId === "string" ? entry.shotId.trim() : "", nodeId: typeof entry.nodeId === "string" ? entry.nodeId.trim() : "" }))
       .filter((binding) => binding.shotId && binding.nodeId);
     if (bindings.length > 0) {
+      if (deps.isCurrent && !deps.isCurrent()) return false;
       await deps.bindShotNodes(run.projectId, run.runId, run.revision, bindings);
     }
     return true;

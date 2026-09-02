@@ -70,6 +70,7 @@ export function toCatalogModelOptions(items: ModelCatalogModelDto[]): ModelOptio
       vendor,
       modelKey: modelKey || value,
       modelAlias: alias || null,
+      kind: item.kind,
       meta,
       pricing: toCatalogModelPricing(item?.pricing),
       ...(variant ? { variant } : {}),

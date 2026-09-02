@@ -6,20 +6,16 @@
 //
 // A/B 模式路由（所见即所得 + 不静默损坏）：app 开着且改的正是**正在打开的项目** → 走渲染层网关
 // （A 模式：实时应用进 store，画布即时刷新、需要确认时弹卡）；否则 → 磁盘网关（B 模式：直写盘）。
-// 注入 isProjectOpen()（renderer 经 IPC 上报）。headless host 里 isProjectOpen 恒 false → 全走磁盘网关。
+// 注入 isProjectOpen()（main-owned Surface committed identity 的只读投影）。headless host 里
+// isProjectOpen 恒 false → 全走磁盘网关；B4 会删除这里尚未 verified 的 legacy 选路。
 import http from 'node:http'
+import crypto from 'node:crypto'
 import type { AddressInfo } from 'node:net'
 
 import type { FetchTaskResultFn, RunTaskFn } from './core'
 import { RpcError } from './dispatcher'
-import {
-  createDiskGateway,
-  createHybridGateway,
-  createRendererGateway,
-  withPreApprovedSpend,
-  type ProjectGateway,
-} from './gateway'
-import { isRendererAvailable } from './rendererBridge'
+import { createDiskGateway, createHybridGateway, createRendererGateway, withPreApprovedSpend, type ProjectGateway } from './gateway'
+import { isRendererAvailable, requestRenderer } from './rendererBridge'
 import { resolveMcpOrigin, verifyToken } from './security'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { handleArtifactPreviewHttpRequest, withAssetPreview } from '../productionRun/artifactPreviewHttpServer'
@@ -29,10 +25,22 @@ import { getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { dispatchAndEnrich } from './mcpResultEnrichLive'
 import { makeShotVerifyDeps } from './shotVerifyDeps'
 import { rpcErrorWirePayload } from './mcpRpcError'
-import type { ProjectLeaseAuthority } from './projectLease'
 import type { ApprovalReceiptAuthority } from './approvalReceipt'
 import type { McpGenerationPolicy } from './mcpGenerationPolicy'
-import type { IntegrationSessionService } from '../integrationCertification/integrationSession'
+import { bindMcpConnectionContext, McpConnectionAuthenticationError } from './mcpConnectionContext'
+import type { ProjectSessionAuthority } from './projectSessionAuthority'
+import { assertLocalBearerProjectSessionRoute } from './localProjectSessionTransportPolicy'
+import type { CanvasReadExecutionRuntime } from './canvasReadExecutionRuntime'
+import { resolveProductionCanvasReadProjectIdentity } from './canvasReadExecutionRuntime'
+import {
+  createInternalCanvasReadTransportAdapter,
+  isCanvasReadTransportMethod,
+  createMcpCanvasReadTransportAdapter,
+} from './canvasReadTransportAdapters'
+import { createInternalCanvasReadVerifiedInvocationFactory } from './verifiedCapabilityInvocation'
+import { createVerifiedProjectSessionBindingFromAuthority } from './projectSessionRuntime'
+import { canvasReadLeaseRequiredRpcError, canvasReadRpcError } from './canvasReadPublicError'
+import { isMcpEditingMethod } from './mcpCapabilityProjection'
 
 export type RpcServerOptions = {
   /** 真实生成入口（runtime.runTask）。注入式：headless host 与 app 各自传同一份。 */
@@ -42,10 +50,8 @@ export type RpcServerOptions = {
   /** 该 projectId 是否正在某个 app 窗口里打开（命中则拒绝直写图变更）。headless: ()=>false。 */
   isProjectOpen?: (projectId: string) => boolean
   productionRuns?: ReturnType<typeof getProductionRunService>
-  integrationSessions?: IntegrationSessionService
-  /** Optional main-process lease/receipt authorities. Omitted callers remain fail-closed for semantic routes. */
-  projectLeaseAuthority?: ProjectLeaseAuthority
-  resolveCurrentProject?: import('./dispatcher').DispatchContext['resolveCurrentProject']
+  /** One project-session authority; each request adds its freshly verified transport connection. */
+  projectSessionAuthority?: ProjectSessionAuthority
   approvalReceiptAuthority?: ApprovalReceiptAuthority
   requestGenerationGate?: import('./dispatcher').DispatchContext['requestGenerationGate']
   authorizeGeneration?: import('./dispatcher').DispatchContext['authorizeGeneration']
@@ -55,6 +61,8 @@ export type RpcServerOptions = {
   generationContext?: (params: Record<string, unknown>) => unknown | Promise<unknown>
   generationPlanning?: import('./dispatcher').DispatchContext['generationPlanning']
   projectRevisionResolver?: (projectId: string) => number | undefined
+  /** B4 main-only executor. When absent canvas.read is denied, never routed to legacy dispatch. */
+  canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
 }
 
 function readBody(req: http.IncomingMessage): Promise<string> {
@@ -83,7 +91,7 @@ function bearerToken(req: http.IncomingMessage): string {
 }
 
 function firstHeader(value: string | string[] | undefined): string {
-  return Array.isArray(value) ? (value[0] ?? '') : (value ?? '')
+  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
 }
 
 export type RpcServerHandle = {
@@ -104,13 +112,26 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
     return isProjectOpen(projectId) ? createRendererGateway(projectId) : createHybridGateway(projectId)
   }
   // 交付④：同一预览 server 兼解 canvas-asset token（生成结果缩略图给非 Electron 宿主）。
-  const previewService = withAssetPreview(productionRuns, (projectId) =>
-    resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps()),
-  )
+  const previewService = withAssetPreview(productionRuns, (projectId) => resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps()))
+  const internalCanvasRead = options.canvasReadExecutionRuntime
+    ? createInternalCanvasReadTransportAdapter({
+        factory: createInternalCanvasReadVerifiedInvocationFactory({
+          verifyBearer: (bearer) => verifyToken(bearer),
+          resolveProjectIdentity: resolveProductionCanvasReadProjectIdentity,
+        }),
+        executor: options.canvasReadExecutionRuntime.executor,
+      })
+    : null
 
   const server = http.createServer((req, res) => {
     void (async () => {
+      const requestController = new AbortController()
+      const abortRequest = () => requestController.abort()
+      const abortOnClosedReply = () => { if (!res.writableEnded) abortRequest() }
+      req.once('aborted', abortRequest)
+      res.once('close', abortOnClosedReply)
       const send = (status: number, payload: unknown) => {
+        if (res.destroyed || res.writableEnded) return
         const body = JSON.stringify(payload)
         res.writeHead(status, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) })
         res.end(body)
@@ -127,22 +148,103 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           throw new RpcError('请求体非合法 JSON', 400)
         }
         const method = String(parsed.method || '')
-        const params = (parsed.params && typeof parsed.params === 'object' ? parsed.params : {}) as Record<
-          string,
-          unknown
-        >
-        const origin = resolveMcpOrigin(
-          firstHeader(req.headers['x-nomi-mcp-client']),
-          firstHeader(req.headers['x-nomi-mcp-client-proof']),
-        )
+        const isCanvasRead = isCanvasReadTransportMethod(method)
+        const isEditing = isMcpEditingMethod(method)
+        const params = (parsed.params && typeof parsed.params === 'object' ? parsed.params : {}) as Record<string, unknown>
+        const client = firstHeader(req.headers['x-nomi-mcp-client'])
+        const clientProof = firstHeader(req.headers['x-nomi-mcp-client-proof'])
+        const connectionAttestation = firstHeader(req.headers['x-nomi-mcp-connection-attestation'])
+        const origin = resolveMcpOrigin(client, clientProof)
+        const hasMcpTransportClaims = Boolean(client || clientProof || connectionAttestation)
+        let projectSessionConnection
+        if (connectionAttestation) {
+          try {
+            projectSessionConnection = bindMcpConnectionContext({
+              client,
+              proof: clientProof,
+              connectionAttestation,
+            })
+          } catch (error) {
+            if (error instanceof McpConnectionAuthenticationError) throw new RpcError(error.message, 403)
+            throw error
+          }
+        }
+        if (!projectSessionConnection && !isCanvasRead && !isEditing) assertLocalBearerProjectSessionRoute(method)
         if (method === 'nomi_confirm_generation_gate') {
-          if (origin === 'external' || origin === 'nomi')
-            throw new RpcError('Registered MCP client proof is required', 403)
+          if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
           const challengeToken = typeof params.challengeToken === 'string' ? params.challengeToken.trim() : ''
           if (!challengeToken) throw new RpcError('Generation challenge is required', 400)
-          if (typeof options.confirmGenerationInNomi !== 'function')
-            throw new RpcError('Nomi confirmation is unavailable', 501)
+          if (typeof options.confirmGenerationInNomi !== 'function') throw new RpcError('Nomi confirmation is unavailable', 501)
           const result = await options.confirmGenerationInNomi({ challengeToken })
+          send(200, { ok: true, result })
+          return
+        }
+        if (isCanvasRead) {
+          try {
+            let result: unknown
+            if (hasMcpTransportClaims) {
+              if (!projectSessionConnection || !options.projectSessionAuthority) {
+                throw canvasReadLeaseRequiredRpcError()
+              }
+              if (!options.canvasReadExecutionRuntime) throw new Error('canvas read executor unavailable')
+              const projectSession = createVerifiedProjectSessionBindingFromAuthority(
+                options.projectSessionAuthority,
+                projectSessionConnection,
+              )
+              const routed = await createMcpCanvasReadTransportAdapter({
+                projectSession,
+                executor: options.canvasReadExecutionRuntime.executor,
+              }).tryExecute(method, params, { signal: requestController.signal })
+              if (!routed.handled) throw new Error('canvas read route unavailable')
+              result = routed.result
+            } else {
+              if (!internalCanvasRead) throw new Error('canvas read executor unavailable')
+              const routed = await internalCanvasRead.tryExecute(method, {
+                bearer: bearerToken(req),
+                requestBody: params,
+              }, { signal: requestController.signal })
+              if (!routed.handled) throw new Error('canvas read route unavailable')
+              result = routed.result
+            }
+            send(200, { ok: true, result })
+            return
+          } catch (error) {
+            throw error instanceof RpcError ? error : canvasReadRpcError(error)
+          }
+        }
+        if (isEditing) {
+          if (!hasMcpTransportClaims || !projectSessionConnection || !options.projectSessionAuthority) {
+            throw new RpcError('A verified project-session transport is required for editing tools', 403)
+          }
+          const leaseHandle = typeof params.leaseHandle === 'string' ? params.leaseHandle.trim() : ''
+          if (!leaseHandle) throw new RpcError('A project-session lease is required', 403)
+          const projectHint = typeof params.projectId === 'string' ? params.projectId.trim() || undefined : undefined
+          const operation = typeof params.operation === 'string' ? params.operation : ''
+          const scope = method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
+            ? 'timeline:write'
+            : method === 'timeline.write' ? 'timeline:read'
+              : method === 'asset.read' ? 'asset:read' : 'export:read'
+          const lease = await options.projectSessionAuthority.verifyLease(leaseHandle, {
+            connection: projectSessionConnection,
+            ...(projectHint ? { projectHint } : {}),
+            scope,
+          })
+          if (method === 'timeline.write' && (operation === 'apply' || operation === 'undo') && parsed.planConfirmed !== true) {
+            throw new RpcError('Host approval is required before applying a timeline edit', 403)
+          }
+          const rendererOp = method === 'timeline.read'
+            ? 'timeline.read'
+            : method === 'timeline.write'
+              ? 'timeline.write'
+              : method === 'asset.read' ? 'asset.read' : 'export.read'
+          const result = await requestRenderer(rendererOp, {
+            ...params,
+            projectId: lease.projectId,
+            // These values are minted only after the verified lease and (for writes) Host approval.
+            ...(method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
+              ? { receiptProposalId: `mcp-edit:${crypto.randomUUID()}`, approvalId: `mcp-host:${crypto.randomUUID()}`, actionHash: crypto.randomUUID() }
+              : {}),
+          }, 30_000)
           send(200, { ok: true, result })
           return
         }
@@ -166,18 +268,16 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         const result = await dispatchAndEnrich(method, params, {
           runTask: options.runTask,
           fetchTaskResult: options.fetchTaskResult,
-          makeGateway: preApprovedSpend
-            ? (projectId: string) => withPreApprovedSpend(makeGateway(projectId))
-            : makeGateway,
+          makeGateway: preApprovedSpend ? (projectId: string) => withPreApprovedSpend(makeGateway(projectId)) : makeGateway,
           productionRuns,
-          integrationSessions: options.integrationSessions,
           origin: { host: origin },
           generationPolicy: options.generationPolicy,
           generationContext: options.generationContext,
           generationPlanning: options.generationPlanning,
           projectRevisionResolver: options.projectRevisionResolver,
-          projectLeaseAuthority: options.projectLeaseAuthority,
-          resolveCurrentProject: options.resolveCurrentProject,
+          ...(options.projectSessionAuthority && projectSessionConnection
+            ? { projectSession: { authority: options.projectSessionAuthority, connection: projectSessionConnection } }
+            : {}),
           approvalReceiptAuthority: options.approvalReceiptAuthority,
           requestGenerationGate: options.requestGenerationGate,
           authorizeGeneration: options.authorizeGeneration,
@@ -198,6 +298,9 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         // Keep ordinary errors as legacy strings; policy errors preserve their
         // typed recovery contract for local RPC clients.
         send(status, { ok: false, error: rpcErrorWirePayload(error) })
+      } finally {
+        req.removeListener('aborted', abortRequest)
+        res.removeListener('close', abortOnClosedReply)
       }
     })()
   })

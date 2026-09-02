@@ -1,0 +1,99 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-01-rc-06-settlement-barrier",
+  "problem_type": "Agent loop completion is published before effects, approvals, receipts, and ledger writes settle",
+  "symptom": "UI can show completed while a provider effect, approval, budget, artifact, or receipt remains pending; retries can duplicate paid work.",
+  "direct_cause": "Pi agent_end/stream close and provider responses are observable loop events but are not a shared business settlement barrier.",
+  "class_root": "No single Host reducer defines execution_settled as the only completed transition after all effects are classified and durable writes flush.",
+  "affected_population": [
+    "Paid generation and ProductionRun effects",
+    "Approval-bearing canvas/document/timeline writes",
+    "Provider timeout, disconnect, restart, and reconcile paths"
+  ],
+  "scope_paths": [
+    "electron/projectAgentHost/projectAgentHost.ts",
+    "electron/projectAgentHost/hostLifecycle.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts"
+  ],
+  "entry_points": [
+    "Pi agent_end/turn_end events",
+    "ProductionRun effect executor",
+    "Host/UI completion projection"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Settlement is a Nomi ledger/effect invariant; the M0 plan defines the barrier and exact #223 paths are the evidence baseline.",
+  "invariants": [
+    "All items are terminal before execution_settled.",
+    "Approval, budget, receipt, artifact, and context snapshot writes are durable before completed.",
+    "Unknown external effects enter reconcile and are never blindly resubmitted."
+  ],
+  "generality_proof": "Every effect-bearing capability converges on Host preflight, domain adapter effect, receipt append, and reducer settlement; making the barrier mandatory covers provider, renderer, retry, and restart callers.",
+  "shared_boundaries": [
+    {
+      "path": "electron/projectAgentHost/projectAgentHost.ts",
+      "symbol": "settleTurn",
+      "responsibility": "Only typed, durable effect/item state can reach execution_settled."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projectAgentHost/projectAgentHost.ts",
+      "entry_point": "settleTurn",
+      "disposition": "enforced",
+      "evidence": "Low-level completion remains settling until barrier prerequisites are terminal."
+    },
+    {
+      "path": "electron/projectAgentHost/hostLifecycle.test.ts",
+      "entry_point": "settlement-regression",
+      "disposition": "enforced",
+      "evidence": "Pending effect test proves early completion is rejected."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every effect provider, retry, reconnect, or UI projection can reintroduce early completion without one shared barrier.",
+    "same_class_scan": [
+      "Searched Pi end/close events and Host completion publication.",
+      "Searched ProductionRun effect/receipt/reconcile transitions.",
+      "Checked renderer IPC completion projections and restart/retry callers."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/projectAgentHost/projectAgentHost.ts",
+    "invariant": "Only execution_settled can transition a turn to completed; all effect/approval/ledger prerequisites must be terminal or explicitly unknown/reconcile.",
+    "failure_mode": "Turn remains settling/awaiting_input/failed while any prerequisite is pending; unknown external state is visible and retry is blocked until reconcile.",
+    "exception_policy": "none",
+    "strategy": "Add a reducer barrier that verifies terminal items, queue drain, approval resolution, effect classification, receipt/budget/artifact/context flush, and publishes one settlement event.",
+    "artifacts": [
+      "electron/projectAgentHost/projectAgentHost.ts",
+      "electron/projectAgentHost/hostLifecycle.test.ts",
+      "electron/projectAgentHost/projectAgentExecutionCoordinator.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/projectAgentHost/hostLifecycle.test.ts",
+    "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/projectAgentHost/hostLifecycle.test.ts",
+    "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/projectAgentHost/projectAgentHost.ts"
+    ],
+    "rationale": "Completion is emitted only as execution_settled after effect/item flush."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The barrier is an internal Host/domain transaction contract; no dependency upgrade provides Nomi receipt semantics.",
+    "exit_criteria": []
+  },
+  "migration": "Existing in-flight runs resume from durable operation/receipt state. If external status is unknown, preserve unknown and require reconcile; do not infer success from a closed stream.",
+  "residual_risks": [
+    "The 18 productionRun gate tests remain red until the shared barrier and gate wiring are implemented.",
+    "Maintainer PR #272 comments are unavailable and may add a release-specific settlement constraint."
+  ]
+}

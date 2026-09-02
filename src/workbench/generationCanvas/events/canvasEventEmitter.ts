@@ -26,7 +26,7 @@ let buffer: CanvasShadowEvent[] = []
 let timer: ReturnType<typeof setTimeout> | null = null
 let testSink: ((events: readonly CanvasShadowEvent[]) => void) | null = null
 
-/** NomiStudioApp 在 hydrate 时注入(flush 时刻取值,防切换期错绑——同 conversationPersistence 教训)。 */
+/** NomiStudioApp 在 hydrate 时注入(flush 时刻取值,防切换期错绑)。 */
 export function setCanvasEventProjectIdProvider(provider: () => string | null): void {
   projectIdProvider = provider
 }

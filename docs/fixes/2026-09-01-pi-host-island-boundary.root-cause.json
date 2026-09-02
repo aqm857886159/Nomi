@@ -1,0 +1,100 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-01-pi-host-island-boundary",
+  "problem_type": "CommonJS host importing private Pi NodeNext island",
+  "symptom": "The agent-runtime-wiring gate detects that electron/ai/agentChatV2.ts directly imports a Pi island .mjs module, pulling the island into the CommonJS host graph.",
+  "direct_cause": "The host imports the Pi implementation path instead of consuming a host-safe boundary for skill-index construction.",
+  "class_root": "The CommonJS Electron host and strict NodeNext Pi runtime must have an explicit one-way boundary; host modules cannot import private Pi island implementation paths.",
+  "affected_population": [
+    "Electron host builds and dev compilation",
+    "Agent chat turns that construct the skill catalog"
+  ],
+  "scope_paths": [
+    "electron/ai/agentChatV2.ts",
+    "electron/harness/skillIndex.ts",
+    "electron/harness/runtime/pi/nomiSkillResources.mts",
+    "scripts/agent-runtime-wiring.test.mjs"
+  ],
+  "entry_points": [
+    "runAgentChatV2 host skill-index construction",
+    "Pi resources runtime catalog construction"
+  ],
+  "internal_only_reason": "The host/island direction is an internal build and runtime boundary; the installed Pi dependency is not the defect.",
+  "invariants": [
+    "The CommonJS host source graph contains no import of electron/harness/runtime/pi implementation modules.",
+    "Pi runtime files remain compiled only by electron/tsconfig.pi.json and retain their strict NodeNext checks."
+  ],
+  "generality_proof": "The static wiring gate checks the complete host program and the Pi include boundary; moving the host consumer behind a non-Pi module prevents this class for all future host imports while leaving Pi's own internal imports intact.",
+  "shared_boundaries": [
+    {
+      "path": "electron/ai/agentChatV2.ts",
+      "symbol": "runAgentChatV2",
+      "responsibility": "Build the host prompt from a host-safe skill catalog boundary without importing Pi implementation code."
+    },
+    {
+      "path": "scripts/agent-runtime-wiring.test.mjs",
+      "symbol": "private pi build and test wiring",
+      "responsibility": "Fail closed when the host program includes private Pi island modules."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/ai/agentChatV2.ts",
+      "entry_point": "host skill catalog import",
+      "disposition": "enforced",
+      "evidence": "This is the failing host consumer and is covered by the static program graph assertion."
+    },
+    {
+      "path": "electron/harness/runtime/pi/resources.mts",
+      "entry_point": "Pi extension resource loader",
+      "disposition": "not-affected",
+      "evidence": "This module is inside the declared Pi include and its relative .mjs import is valid within the NodeNext island."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future host module can accidentally import the Pi island and break the same compile/package boundary.",
+    "same_class_scan": [
+      "rg -n 'harness/runtime/pi|@earendil-works/pi-' electron --glob '*.{ts,tsx,cts,mts}'",
+      "Checked agentChatV2.ts as the host consumer and resources.mts as an in-island consumer."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/agent-runtime-wiring.test.mjs",
+    "invariant": "The CommonJS host's parsed program must contain zero Pi island source files.",
+    "failure_mode": "The wiring test fails before build delivery when a host import crosses into the island.",
+    "exception_policy": "none",
+    "strategy": "Keep the host consumer on a host-safe boundary and retain the strict graph assertion as a structural guard.",
+    "artifacts": [
+      "scripts/agent-runtime-wiring.test.mjs",
+      "electron/ai/agentChatV2.ts",
+      "electron/harness/skillIndex.ts"
+    ]
+  },
+  "regression_tests": [
+    "scripts/agent-runtime-wiring.test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/agent-runtime-wiring.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The Pi implementation remains active for the private runtime; only the illegal host import edge is removed."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "Pi 0.84.3 is the verified pinned runtime for M1; retain it while the application boundary prevents host leakage.",
+    "current": "@earendil-works/pi-agent-core, pi-ai, and pi-coding-agent 0.84.3",
+    "target": "A future verified Pi upgrade evaluated against the same NodeNext island and native suites",
+    "exit_criteria": [
+      "Re-run the native agent-runtime suites and host graph gate for the candidate version.",
+      "Update the pinned dependency graph only after packaging and typecheck evidence passes."
+    ]
+  },
+  "migration": "No runtime data migration is needed; the host import edge changes at compile time and Pi remains the active runtime implementation.",
+  "residual_risks": [
+    "Future host consumers must use the host-safe catalog boundary and remain covered by the graph gate."
+  ]
+}

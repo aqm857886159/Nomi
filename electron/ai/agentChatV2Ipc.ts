@@ -5,11 +5,16 @@ import { assertTrustedSender } from '../ipcSenderGuard';
 import { captureAgentChatRequest, captureAgentHistory } from '../harness/agentChatPolicy';
 import type { AgentChatErrorCode, AgentChatHistoryRequest, AgentChatResponse, AgentChatStartRequest, AgentChatToolDecision, AgentChatWireEvent } from '../harness/agentChatContracts';
 import type { RuntimeToolCall } from '../harness/runtime/runtimePort';
+import type { PiCanvasReadIpcCapture, PiCanvasReadTransportAdapter } from '../capabilityCore/canvasReadTransportAdapters';
+import { createPiSkillReadTransportAdapter, type PiSkillReadTransportAdapter } from '../capabilityCore/skillReadTransportAdapters';
+import { projectIdFromSessionKey } from '../events/eventLogRepository';
+import { SurfacePortWireError } from '../shared/surfacePortBinding';
 
 const CONFIRM_TIMEOUT_MS = 10 * 60_000;
 type Owner = { contents: WebContents; frame: WebFrameMain; webContentsId: number; processId: number; routingId: number; origin: string };
 type Pending = { settle(decision: AgentChatToolDecision): void };
-type Session = { id: string; owner: Owner; controller: AbortController; pending: Map<string, Pending>; documentAlive: boolean; cleanup(): void };
+type Session = { id: string; owner: Owner; controller: AbortController; pending: Map<string, Pending>;
+  canvasRead: PiCanvasReadTransportAdapter; skillRead: PiSkillReadTransportAdapter; documentAlive: boolean; cleanup(): void };
 const sessions = new Map<string, Session>();
 const usedIds = new WeakMap<WebContents, Set<string>>();
 let modulePromise: Promise<typeof import('./agentChatV2')> | undefined;
@@ -52,6 +57,8 @@ function send(session: Session, event: AgentChatWireEvent): void {
 
 function cancel(session: Session): void {
   session.controller.abort();
+  session.canvasRead.dispose();
+  session.skillRead.dispose();
   for (const pending of session.pending.values()) pending.settle({ ok: false, message: 'Agent request cancelled' });
 }
 
@@ -74,11 +81,21 @@ function bindLifecycle(session: Session): void {
     contents.removeListener('render-process-gone', gone);
     contents.removeListener('destroyed', gone);
     for (const pending of session.pending.values()) pending.settle({ ok: false, message: 'Agent request settled' });
+    session.canvasRead.dispose();
+    session.skillRead.dispose();
   };
 }
 
-function awaitConfirmation(session: Session, call: RuntimeToolCall, signal: AbortSignal): Promise<AgentChatToolDecision> {
+async function awaitConfirmation(session: Session, call: RuntimeToolCall, signal: AbortSignal): Promise<AgentChatToolDecision> {
   if (signal.aborted || session.controller.signal.aborted || !session.documentAlive) return Promise.resolve({ ok: false, message: 'Agent request cancelled' });
+  try {
+    const skillDecision = await session.skillRead.tryExecute(call, signal);
+    if (skillDecision) return skillDecision;
+    const capabilityDecision = await session.canvasRead.tryExecute(call, signal);
+    if (capabilityDecision) return capabilityDecision;
+  } catch {
+    return { ok: false, code: 'capability_execution_failed', message: 'capability_execution_failed' };
+  }
   if (session.pending.has(call.toolCallId)) return Promise.reject(new Error('Duplicate pending Agent tool call'));
   return new Promise((resolve) => {
     const abort = () => pending.settle({ ok: false, message: 'Agent request cancelled' });
@@ -142,10 +159,38 @@ function validDecision(value: unknown): value is AgentChatToolDecision {
   if (record.ok) return (record.silent === undefined || typeof record.silent === 'boolean')
     && (record.proposalId === undefined || typeof record.proposalId === 'string')
     && ['effectiveArgs', 'overridesDelta'].every((key) => record[key] === undefined || Boolean(record[key] && typeof record[key] === 'object' && !Array.isArray(record[key])));
-  return (record.message === undefined || typeof record.message === 'string') && (record.denied === undefined || typeof record.denied === 'boolean');
+  return (record.message === undefined || typeof record.message === 'string')
+    && (record.code === undefined || typeof record.code === 'string')
+    && (record.denied === undefined || typeof record.denied === 'boolean');
 }
 
-export function registerAgentChatV2Ipc(): void {
+function assertSurfaceMatchesRequest(
+  request: AgentChatStartRequest['request'],
+  surfaceBinding: unknown,
+): void {
+  if (surfaceBinding === undefined) return;
+  const surface = surfaceBinding && typeof surfaceBinding === 'object' && !Array.isArray(surfaceBinding)
+    ? surfaceBinding as Record<string, unknown> : null;
+  const binding = surface?.binding && typeof surface.binding === 'object' && !Array.isArray(surface.binding)
+    ? surface.binding as Record<string, unknown> : null;
+  const boundProjectId = typeof binding?.projectId === 'string' ? binding.projectId : null;
+  const requestProjectId = canvasReadRequestProjectId(request)
+  if (!requestProjectId || boundProjectId !== requestProjectId) {
+    throw new SurfacePortWireError('surface_port_stale');
+  }
+  if (request.history.kind === 'persistent'
+    && boundProjectId !== projectIdFromSessionKey(request.history.binding.sessionKey)) {
+    throw new SurfacePortWireError('surface_port_stale');
+  }
+}
+
+function canvasReadRequestProjectId(request: AgentChatStartRequest['request']): string {
+  const value = request.projectId ?? request.canvasProjectId
+    ?? (request.history.kind === 'persistent' ? projectIdFromSessionKey(request.history.binding.sessionKey) : '')
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+export function registerAgentChatV2Ipc(deps: Readonly<{ canvasRead: PiCanvasReadIpcCapture }>): void {
   ipcMain.handle('nomi:agents:chatV2:start', (event, input: AgentChatStartRequest) => {
     assertTrustedSender(event);
     const owner = captureOwner(event); // Never read event.senderFrame after an await.
@@ -154,8 +199,29 @@ export function registerAgentChatV2Ipc(): void {
     const ids = usedIds.get(owner.contents) ?? new Set<string>();
     if (ids.has(id) || sessions.has(id)) throw new Error('Duplicate Agent request id');
     const request = captureAgentChatRequest(input.request);
+    if (input.surfaceBinding !== undefined && input.capturedCanvasReadSnapshot !== undefined) {
+      throw new SurfacePortWireError('surface_port_stale')
+    }
+    if (input.capturedCanvasReadSnapshot !== undefined
+      && (request.capability !== 'storyboard' || request.history.kind !== 'ephemeral')) {
+      throw new SurfacePortWireError('surface_port_stale')
+    }
+    assertSurfaceMatchesRequest(request, input.surfaceBinding);
+    const requestProjectId = canvasReadRequestProjectId(request)
+    if (input.capturedCanvasReadSnapshot !== undefined && !requestProjectId) {
+      throw new SurfacePortWireError('surface_port_stale')
+    }
+    // Exchange the renderer wire for B3's exact captured handle while the event
+    // frame is still current, before queueMicrotask, dynamic import, or model IO.
+    const canvasRead = deps.canvasRead.capture(event, {
+      ...(input.surfaceBinding !== undefined ? { surfaceBinding: input.surfaceBinding } : {}),
+      ...(input.capturedCanvasReadSnapshot !== undefined
+        ? { capturedCanvasReadSnapshot: input.capturedCanvasReadSnapshot }
+        : {}),
+      projectId: requestProjectId,
+    }, id);
     ids.add(id); usedIds.set(owner.contents, ids);
-    const session: Session = { id, owner, controller: new AbortController(), pending: new Map(), documentAlive: true, cleanup: () => {} };
+    const session: Session = { id, owner, controller: new AbortController(), pending: new Map(), canvasRead, skillRead: createPiSkillReadTransportAdapter(), documentAlive: true, cleanup: () => {} };
     sessions.set(id, session);
     bindLifecycle(session);
     observe(() => beginTurnTrace(id, request as unknown as Record<string, unknown>));

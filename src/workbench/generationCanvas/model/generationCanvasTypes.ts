@@ -1,5 +1,6 @@
 import type { GenerationNodeKind } from './generationNodeKinds'
 import type { NodeRenderKind } from '../../project/projectCategories'
+import type { GenerationNodeStatus as SharedGenerationNodeStatus } from '../../../../electron/shared/canvas/generationNodeStatus'
 import type { CanvasPluginNodeState } from '../plugins/canvasPluginTypes'
 import type { CanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
 
@@ -7,7 +8,7 @@ export type { GenerationNodeKind } from './generationNodeKinds'
 
 // recoverable：异步任务超时但上游可能仍在跑/已出片——可「重新拉取结果」找回，不是失败。
 // 刻意独立于 error：① 不进红色错误桶误导用户 ② 批量/下游逻辑不把它当真失败传染。
-export type GenerationNodeStatus = 'idle' | 'queued' | 'running' | 'success' | 'error' | 'recoverable'
+export type GenerationNodeStatus = SharedGenerationNodeStatus
 
 export type GenerationResultType = 'image' | 'video' | 'text' | 'audio' | 'model3d'
 

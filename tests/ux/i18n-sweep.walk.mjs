@@ -49,6 +49,10 @@ const USER_CONTENT_ALLOW = [
   '.workbench-timeline-clip', // 时间轴 clip 标签 = 镜头标题(用户命名的内容,TimelineClip.tsx)
   '[data-testid="timeline-clip"]',
   '[data-testid="preview-source-shot"]', // 预览源面板 shot 卡:title/aria-label = t(itemHint,{name:用户镜头标题});译文正确、只有插值 name 是用户内容
+  // 语言切换器的选项按钮(SettingsDialog.tsx:427 data-settings-locale)。每个语言按**它自己的写法**
+  // 显示是国际惯例(endonym):英文界面里中文选项就该写「简体中文」,否则用户在看不懂的界面里找不到
+  // 自己的语言。这不是漏译,是对的——en 词典里 resources.ts:404 `chinese: '简体中文'` 是刻意的。
+  '[data-settings-locale]',
 ]
 
 /** 把 raw-key + (en 时)CJK 两道网在当前这一屏都跑一遍。allowSelectors 传用户内容豁免。 */

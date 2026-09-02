@@ -1,5 +1,5 @@
 /** Structured error boundary shared by the local RPC client and MCP transport. */
-import { RpcError } from './dispatcher'
+import { RpcError } from './rpcError'
 
 export type RpcErrorWireDetails = Readonly<{
   message?: string
