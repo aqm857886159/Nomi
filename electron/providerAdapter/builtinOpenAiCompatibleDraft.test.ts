@@ -54,6 +54,45 @@ describe("buildOpenAiCompatibleDraft", () => {
     expect(draftFor("image").modes.map((mode) => mode.taskKind)).toEqual(["text_to_image", "image_edit"]);
   });
 
+  // 类级锁（2026-09-03 自建中转 gpt-image-2 实测）：改图协议必须**按模型族 derive**，与落库路径
+  // （catalogCommit → newapiImageEditProfileForModel）同源。此前这里恒用不分族的
+  // newapiTransportFor('image').edit（chat/completions），gpt-image 系发过去被上游 400
+  // 「This model is not supported on the Chat Completions endpoint」→ image_edit 认证必败
+  // → 落库缺 mapping → 用户连参考图被拒发「该模型没有图生图通道」，而这家中转其实支持改图。
+  const editModeFor = (modelKey: string) =>
+    buildOpenAiCompatibleDraft({
+      baseUrl: "http://192.168.18.254:3000",
+      authType: "bearer",
+      models: [{ modelKey, labelZh: modelKey, kind: "image" }],
+    }).models[0].modes.find((mode) => mode.taskKind === "image_edit");
+
+  it("gpt-image 系改图走 multipart /v1/images/edits，不塞进 chat/completions", () => {
+    const edit = editModeFor("gpt-image-2");
+    expect(edit?.create.path).toBe("/v1/images/edits");
+    expect(edit?.create.multipart).toBeDefined();
+  });
+
+  it("非 multipart 族改图仍回落 chat 多模态（不误伤 gemini/nano-banana 系）", () => {
+    const edit = editModeFor("nano-banana");
+    expect(edit?.create.path).toBe("/v1/chat/completions");
+    expect(edit?.create.multipart).toBeUndefined();
+  });
+
+  // 参考类模式必须声明参考输入契约：认证探针据此注入参考图（verifier.ts:144）。不声明 = 拿「零参考图」
+  // 去验一条改图通道，multipart 端点直接抛「缺参考图」。键必须是该 op 真实读的那个——改图读聚合的
+  // reference_images（数组），图生视频读首帧 image_url（单值，见 newapiTransport.ts:211）。
+  it("改图声明 reference_images/array —— 探针据此注参考图，否则 multipart 端点必报缺图", () => {
+    const edit = editModeFor("gpt-image-2");
+    expect(edit?.referenceParam).toBe("reference_images");
+    expect(edit?.referenceShape).toBe("array");
+  });
+
+  it("图生视频声明首帧 image_url/single —— 与改图不同键，写错等于参考进不了报文", () => {
+    const i2v = draftFor("video").modes.find((mode) => mode.taskKind === "image_to_video");
+    expect(i2v?.referenceParam).toBe("image_url");
+    expect(i2v?.referenceShape).toBe("single");
+  });
+
   it("视频同时给出文生视频与图生视频通道，并带轮询", () => {
     const video = draftFor("video");
     expect(video.modes.map((mode) => mode.taskKind)).toEqual(["text_to_video", "image_to_video"]);
