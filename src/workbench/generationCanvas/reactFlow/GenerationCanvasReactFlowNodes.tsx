@@ -7,6 +7,7 @@ import {
   Position,
   getBezierPath,
   useStore,
+  useStoreApi,
   useViewport,
   type EdgeProps,
   type NodeProps,
@@ -30,6 +31,7 @@ import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasR
 import { GenerationFlowNodeScope } from './generationFlowNodeContext'
 import { resolveGenerationFlowConnectionAffordance } from './generationCanvasReactFlowVisualContract'
 import type { CanvasPluginNodeState } from '../plugins/canvasPluginTypes'
+import { syncCanvasNodeSelection } from './canvasNodeSelectionSync'
 
 const MAGNETIC_HANDLE_ICON_RADIUS = 14.5
 
@@ -128,20 +130,36 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
   const nodeCount = useGenerationCanvasStore((state) => state.nodes.length)
   const pendingConnectionSourceId = useGenerationCanvasStore((state) => state.pendingConnectionSourceId)
+  const selectNodes = useGenerationCanvasStore((state) => state.selectNodes)
+  const flowStore = useStoreApi<GenerationFlowNode, GenerationFlowEdge>()
+  const isSelected = useStore((state) => Boolean(state.nodeLookup.get(node.id)?.selected)) || selected
   const multiSelectionActive = useStore((state) => state.multiSelectionActive && data.primarySelection)
   const { zoom } = useViewport()
   const primarySelection = data.primarySelection && !multiSelectionActive
+  const handleNodeClick = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (data.readOnly) return
+    const target = event.target as HTMLElement
+    if (target.closest('button, input, textarea, select, [contenteditable="true"], .ProseMirror')) return
+    const currentSelection = useGenerationCanvasStore.getState().selectedNodeIds
+    const nextSelection = event.shiftKey
+      ? currentSelection.includes(node.id)
+        ? currentSelection.filter((nodeId) => nodeId !== node.id)
+        : [...currentSelection, node.id]
+      : [node.id]
+    selectNodes(nextSelection)
+    syncCanvasNodeSelection(flowStore, nextSelection)
+  }, [data.readOnly, flowStore, node.id, selectNodes])
   const retainedLightweightRef = React.useRef(false)
   retainedLightweightRef.current = retainLargeCanvasLightweightRendering({
     retained: retainedLightweightRef.current,
     nodeCount,
-    selected,
+    selected: isSelected,
     primarySelection,
   })
   const lightweightMode = retainedLightweightRef.current || shouldUseLightweightNodeRenderingForSelection({
     nodeCount,
     zoom,
-    selected,
+    selected: isSelected,
     primarySelection,
   })
   const connectionAffordance = collapsedGroupProxy
@@ -173,9 +191,10 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
         '--generation-flow-node-height': `${size.height}px`,
       } as React.CSSProperties}
       aria-hidden={collapsedGroupProxy || undefined}
+      onClick={handleNodeClick}
     >
       <NodeResizer
-        isVisible={selected && !data.readOnly}
+        isVisible={isSelected && !data.readOnly}
         minWidth={bounds.minWidth}
         minHeight={bounds.minHeight}
         maxWidth={bounds.maxWidth}
@@ -222,7 +241,7 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
           {shouldRenderFullNodeContent({ lightweightMode, selected: primarySelection, focusFlash: data.focusFlash }) ? (
             <NodeComponent
               node={node}
-              selected={selected}
+              selected={isSelected}
               readOnly={data.readOnly}
               focusFlash={data.focusFlash}
               appear={data.appear}
@@ -232,7 +251,7 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
             <LightweightGenerationNode
               node={node}
               appear={data.appear}
-              selected={selected}
+              selected={isSelected}
               readOnly={data.readOnly}
             />
           )}

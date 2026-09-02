@@ -8,7 +8,6 @@ import {
   type OnConnectStart,
   type OnConnectEnd,
   type OnNodesChange,
-  type OnSelectionChangeFunc,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import './generationCanvasReactFlow.css'
@@ -53,6 +52,7 @@ import {
 } from '../components/canvasStageDrop'
 import {
   collectFlowPositionChanges,
+  collectFlowSelectionChanges,
   flowViewportFromCanvas,
   type GenerationFlowEdge,
   type GenerationFlowNode,
@@ -462,16 +462,23 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       applyCanvasDragKernelPositionChanges(flowStore, changes)
     }
 
-  }, [flowNodes, flowStore])
-
-  // RF owns click/marquee selected CSS and emits the stable business projection
-  // separately. External actions are mirrored by the effect below through one
-  // narrow RF selection sync boundary.
-  const handleSelectionChange: OnSelectionChangeFunc<GenerationFlowNode, GenerationFlowEdge> = React.useCallback(({ nodes: selectedNodes }) => {
-    const nextSelection = selectedNodes.map((node) => node.id)
+    const selectionChanges = collectFlowSelectionChanges(changes)
+    if (selectionChanges.length === 0) return
+    const selected = new Set(useGenerationCanvasStore.getState().selectedNodeIds)
+    for (const change of selectionChanges) {
+      if (change.selected) selected.add(change.nodeId)
+      else selected.delete(change.nodeId)
+    }
+    const nextSelection = [...selected]
+    const currentSelection = useGenerationCanvasStore.getState().selectedNodeIds
+    if (
+      nextSelection.length === currentSelection.length &&
+      nextSelection.every((nodeId, index) => nodeId === currentSelection[index])
+    ) return
     selectNodes(nextSelection)
     syncCanvasNodeSelection(flowStore, nextSelection)
-  }, [flowStore, selectNodes])
+
+  }, [flowNodes, flowStore, selectNodes])
 
   React.useEffect(() => {
     syncCanvasNodeSelection(flowStore, selectedNodeIds)
@@ -701,7 +708,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         onNodesChange={handleNodesChange}
         onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={handleNodeDragStop}
-        onSelectionChange={handleSelectionChange}
         onEdgeClick={handleEdgeClick}
         onEdgesDelete={handleEdgesDelete}
         onNodeContextMenu={handleFlowContextMenu}
