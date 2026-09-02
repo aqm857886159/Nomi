@@ -10,6 +10,7 @@
 // 加新 playbook = 这里加一条 + 让 driver 认得它的阶段，不用再回去改 create。
 
 import type { ProductionStage } from "./productionRunTypes";
+import { emitMcpToolCatalogChanged } from "../capabilityCore/mcpToolCatalogChanges";
 
 export type ProductionPlaybookStageTemplate = {
   readonly stageId: string;
@@ -59,7 +60,19 @@ function validated(definition: ProductionPlaybookDefinition): ProductionPlaybook
   return definition;
 }
 
-const REGISTRY: readonly ProductionPlaybookDefinition[] = [BRAND_PROMO].map(validated);
+let REGISTRY: readonly ProductionPlaybookDefinition[] = [BRAND_PROMO].map(validated);
+
+/** Register a playbook and wake active MCP clients so they refresh tools/list. */
+export function registerProductionPlaybook(definition: ProductionPlaybookDefinition): void {
+  const next = validated(definition);
+  if (REGISTRY.some((entry) => entry.name === next.name)) {
+    throw Object.assign(new Error("production_playbook_already_registered"), {
+      code: "production_playbook_already_registered",
+    });
+  }
+  REGISTRY = [...REGISTRY, next];
+  emitMcpToolCatalogChanged();
+}
 
 /** 可用 playbook 名单（MCP 工具 enum / 错误提示都从这里 derive，不另写一份）。 */
 export function listProductionPlaybookNames(): string[] {

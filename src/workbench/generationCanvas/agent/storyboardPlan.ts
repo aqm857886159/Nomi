@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { BuiltinCanvasCategoryId, GenerationCanvasEdgeMode } from '../model/generationCanvasTypes'
+import { DEFAULT_IMAGE_SECONDS } from '../model/buildClipFromGenerationNode'
 import i18n from '../../../i18n'
 
 /**
@@ -52,12 +53,23 @@ export type PlanShot = {
   /** Stable story-order identifier. Legacy plans may omit it; the converter derives `shot-${index}`. */
   shotId?: string
   /**
+   * 所属场 id（分镜表 v5 场分组）。同场镜头在 shots[] 里应连续；缺省（旧 plan/无场故事）=
+   * 单一隐式场（表不显组头，行为等同没有分场）。场的标题/顺序在 `StoryboardPlan.scenes`；
+   * 引用了 scenes 里不存在的 id 时表层按出现顺序补隐式组头，不丢镜头。
+   */
+  sceneId?: string
+  /**
    * 该镜种类：'image'=图片分镜（落 image 节点、无时长、绑图片模型）；'video'=视频分镜（落 video 节点、带时长）。
    * 缺省（旧草稿无此字段）按 'video' 兜底以保持既有行为；新计划由拆镜头开关/planner 显式标注
    * （用户拍板：拆镜头默认出图片分镜）。图片镜头满意后可经「转视频」升成视频镜头（S2）。
    */
   shotKind?: 'image' | 'video'
-  /** 该镜时长(秒)；仅视频镜头用——落画布写进视频节点 duration 参数，按所选模型控件钳值。图片镜头忽略。 */
+  /**
+   * 该镜时长(秒)。视频镜头 = 生成时长——落画布写进视频节点 duration 参数，按所选模型控件钳值。
+   * 图片镜头 = **停留时长**（分镜 v5：进时间轴/顺播时这张图停几秒）——默认 3 = `DEFAULT_IMAGE_SECONDS`
+   * 单一真相源（buildClipFromGenerationNode.ts）；≤0（旧 planner 对图片镜吐 0）经
+   * `effectiveShotDurationSec` 回落到默认，别在展示/合计处再写字面量 3。
+   */
   durationSec: number
   /** 这镜用到哪些锚（按 anchor.id 引用）→ 视觉锚连参考边、文本锚拼 prompt。 */
   anchorIds: string[]
@@ -124,10 +136,29 @@ export type StoryboardPlan = {
   title: string
   anchors: PlanAnchor[]
   shots: PlanShot[]
+  /**
+   * 场清单（v5 场分组）：id 被 `PlanShot.sceneId` 引用，title 是组头显示名，数组序=场序。
+   * 缺省 = 无分场（表按单一隐式场渲染，不显组头）。
+   */
+  scenes?: { id: string; title: string }[]
+  /** 片种模板 key（如 'genre.short-drama'）；缺省 = 自由格式。骨架段/画幅默认按它 derive（C 阶段接管）。 */
+  profileKey?: string
   /** The exact approved script this plan was derived from. */
   sourceScriptArtifactId?: string
   sourceScriptVersion?: number
   sourceScriptHash?: string
+}
+
+/**
+ * 该镜计入合计/顺播/时间轴的**有效时长**（秒）——图片镜的停留语义唯一换算点。
+ * 图片镜：durationSec>0 用它，否则回落 `DEFAULT_IMAGE_SECONDS`（旧 planner 对图片镜吐 0 的向后兼容）；
+ * 视频镜：durationSec 原值。方案卡合计、场组头小结、行角标全走这里（P1 单一真相源）。
+ */
+export function effectiveShotDurationSec(shot: PlanShot): number {
+  if (shot.shotKind === 'image') {
+    return Number.isFinite(shot.durationSec) && shot.durationSec > 0 ? shot.durationSec : DEFAULT_IMAGE_SECONDS
+  }
+  return Number.isFinite(shot.durationSec) && shot.durationSec > 0 ? shot.durationSec : 0
 }
 
 // ── 校验 schema：planner 产出/落库前的运行时守卫（也是 S3 激活时交给 LLM 的工具参数 schema）──
@@ -162,6 +193,7 @@ export const planAnchorSchema = z.object({
 export const planShotSchema = z.object({
   index: z.number().int(),
   shotId: z.string().min(1).optional().describe('稳定镜头 ID；缺省时由系统按镜号生成。'),
+  sceneId: z.string().min(1).optional().describe('所属场 id（同场镜头连续、共用一个 id）；无分场故事省略。'),
   shotKind: z
     .enum(['image', 'video'])
     .optional()
@@ -215,6 +247,11 @@ export const storyboardPlanSchema = z.object({
   title: z.string(),
   anchors: z.array(planAnchorSchema),
   shots: z.preprocess(parseJsonArrayString, z.array(planShotSchema)),
+  scenes: z
+    .array(z.object({ id: z.string().min(1), title: z.string() }))
+    .optional()
+    .describe('场清单（数组序=场序）；id 被 shots[].sceneId 引用。无分场省略。'),
+  profileKey: z.string().min(1).optional().describe('片种模板 key；缺省=自由格式。'),
   sourceScriptArtifactId: z.string().min(1).optional(),
   sourceScriptVersion: z.number().int().positive().optional(),
   sourceScriptHash: z.string().min(1).optional(),
@@ -565,14 +602,19 @@ export function storyboardPlanToCreateNodesArgs(
         ...(shot.params || {}),
         ...(!isImageShot && Number.isFinite(shot.durationSec) ? { duration: shot.durationSec } : {}),
       },
-      metadata: storyboardShotMetadata(
-        plan,
-        shot,
-        options.materializationOperationId,
-        id,
-        options.creationDocumentId,
-        options.storyboardDesignId,
-      ),
+      metadata: {
+        ...storyboardShotMetadata(
+          plan,
+          shot,
+          options.materializationOperationId,
+          id,
+          options.creationDocumentId,
+          options.storyboardDesignId,
+        ),
+        // 图片镜停留时长（v5）：写进节点 meta 供时间轴/顺播读取。本阶段只写入，
+        // buildClipFromGenerationNode 的读取接线在 B（默认值同源 DEFAULT_IMAGE_SECONDS）。
+        ...(isImageShot ? { imageDurationSec: effectiveShotDurationSec(shot) } : {}),
+      },
     })
     // 定妆卡 → 这一镜参考边（角色 character_ref / 场景·风格 style_ref / 道具 reference）。图片/视频镜头都连。
     for (const anchorId of visualAnchorIds) {

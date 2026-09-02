@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildAnchorSheetPrompt, parseStoryboardPlan, storyboardPlanSchema, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
+import { buildAnchorSheetPrompt, effectiveShotDurationSec, parseStoryboardPlan, storyboardPlanSchema, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
 
 const PLAN: StoryboardPlan = {
   title: '雨夜追凶',
@@ -485,5 +485,54 @@ describe('W2 圣经字段（static/dynamic 落 meta + 卡片 prompt 分区）', 
   it('parseStoryboardPlan 接受带 static/dynamic 的方案（schema 同步）', () => {
     expect(() => parseStoryboardPlan(BIBLE_PLAN)).not.toThrow()
     expect(parseStoryboardPlan(BIBLE_PLAN).anchors[0].staticFeatures).toBe('鹅蛋脸、左眉一颗痣、单眼皮、身高约 165')
+  })
+})
+
+describe('v5 IR 扩展（sceneId / scenes / profileKey / 图片镜停留时长）', () => {
+  const V5_PLAN: StoryboardPlan = {
+    title: '夜风',
+    profileKey: 'genre.short-drama',
+    scenes: [
+      { id: 'scene-1', title: '天台 · 夜' },
+      { id: 'scene-2', title: '天台 · 雨后' },
+    ],
+    anchors: [],
+    shots: [
+      { index: 1, sceneId: 'scene-1', shotKind: 'video', durationSec: 5, anchorIds: [], prompt: '远景缓推' },
+      { index: 2, sceneId: 'scene-2', shotKind: 'image', durationSec: 0, anchorIds: [], prompt: '旧照定格' },
+      { index: 3, sceneId: 'scene-2', shotKind: 'image', durationSec: 6, anchorIds: [], prompt: '空镜收尾' },
+    ],
+  }
+
+  it('parseStoryboardPlan 接受并保留 sceneId/scenes/profileKey（schema 同步、不剥字段）', () => {
+    const parsed = parseStoryboardPlan(V5_PLAN)
+    expect(parsed.profileKey).toBe('genre.short-drama')
+    expect(parsed.scenes).toEqual(V5_PLAN.scenes)
+    expect(parsed.shots.map((s) => s.sceneId)).toEqual(['scene-1', 'scene-2', 'scene-2'])
+  })
+
+  it('全可选=向后兼容：旧 plan（无新字段）照常通过', () => {
+    expect(() => parseStoryboardPlan(PLAN)).not.toThrow()
+    const parsed = parseStoryboardPlan(PLAN)
+    expect(parsed.scenes).toBeUndefined()
+    expect(parsed.profileKey).toBeUndefined()
+  })
+
+  it('effectiveShotDurationSec：图片镜停留（0 → 默认 3、显式值原样）；视频镜原值', () => {
+    expect(effectiveShotDurationSec(V5_PLAN.shots[1])).toBe(3)
+    expect(effectiveShotDurationSec(V5_PLAN.shots[2])).toBe(6)
+    expect(effectiveShotDurationSec(V5_PLAN.shots[0])).toBe(5)
+  })
+
+  it('落画布：图片镜把停留时长写进 metadata.imageDurationSec（只写入；视频镜不写）', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(V5_PLAN)
+    const image1 = nodes.find((n) => n.clientId === 'shot-2')!
+    expect(image1.metadata?.imageDurationSec).toBe(3) // 旧 planner 的 0 → 默认停留
+    expect(image1.params?.duration).toBeUndefined() // 停留不是生成参数
+    const image2 = nodes.find((n) => n.clientId === 'shot-3')!
+    expect(image2.metadata?.imageDurationSec).toBe(6)
+    const video = nodes.find((n) => n.clientId === 'shot-1')!
+    expect(video.metadata).not.toHaveProperty('imageDurationSec')
+    expect(video.params?.duration).toBe(5)
   })
 })

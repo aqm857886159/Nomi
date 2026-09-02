@@ -1,10 +1,14 @@
 import type { HttpOperation, ProfileKind } from "./types";
 import { registerRequestTransform, type RequestTransformContext } from "../tasks/requestTransforms";
 
+// Official cap for eleven_text_to_sound_v2 is 0.5–30s (elevenlabs.io/docs/api-reference/
+// text-to-sound-effects/convert, checked 2026-09-02: "Must be at least 0.5 and at most 30").
+// The prior 22s ceiling was the v1 limit and rejected valid 22–30s v2 requests locally before
+// they could reach the API. Enforce the real v2 bound so a legal request is never pre-empted.
 function enforceElevenSfxDurationCap(body: unknown, _context?: RequestTransformContext): unknown {
   if (!body || typeof body !== "object") return body;
   const value = Number((body as Record<string, unknown>).duration_seconds);
-  if (Number.isFinite(value) && value > 22) throw new Error("Eleven Sound Effects v2 单次时长上限为 22 秒。");
+  if (Number.isFinite(value) && value > 30) throw new Error("Eleven Sound Effects v2 单次时长上限为 30 秒。");
   return body;
 }
 registerRequestTransform("eleven-sfx-v2-duration-cap", enforceElevenSfxDurationCap, (body) => { enforceElevenSfxDurationCap(body); });

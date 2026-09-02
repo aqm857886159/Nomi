@@ -60,7 +60,9 @@ export const generationNodeExecutor: GenerationNodeExecutor = async (node, conte
   }
   if (executionKind === 'model3d') {
     const references = resolveGenerationReferences(node, context)
-    return generate3D(node, { references, ...gate, ...(onProgress ? { onProgress } : {}) })
+    // 连线文本节点同样并入 prompt（与 image/video 同口径）——isTextPromptEdge 已把 text→3D 归类为 prompt 上下文边。
+    const promptNode = withConnectedTextPrompts(node, context)
+    return generate3D(promptNode, { references, ...gate, ...(onProgress ? { onProgress } : {}) })
   }
   throw new Error(`${node.kind} generation is not implemented yet`)
 }

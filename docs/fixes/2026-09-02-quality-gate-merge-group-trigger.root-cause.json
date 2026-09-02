@@ -1,0 +1,100 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-quality-gate-merge-group-trigger",
+  "problem_type": "CI reachability gap for queued merges",
+  "symptom": "With a GitHub merge queue enabled, queued PRs would wait forever: the required Quality Gate / Mac Package checks never start on merge_group refs, so no merge group can ever turn green.",
+  "direct_cause": "quality-gate.yml only listened to push/pull_request/workflow_dispatch; merge queue builds fire the merge_group event, which matched no trigger.",
+  "class_root": "The workflow's event surface and its diff-anchored gates (ratchet/vocab/root-cause base refs) were designed around exactly two delivery paths (PR round, main push) and hard-coded their payload shapes; any new GitHub delivery event class silently falls outside both the trigger list and every base-sha fallback chain.",
+  "affected_population": [
+    "every PR merged through the merge queue once the ruleset is active",
+    "any future GitHub event class added to the delivery path without a matching trigger and base-sha fallback"
+  ],
+  "scope_paths": [
+    ".github/workflows/quality-gate.yml",
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "entry_points": [
+    "merge queue merge_group CI builds",
+    "pull request rounds and main pushes (unchanged behaviour)"
+  ],
+  "internal_only_reason": "CI configuration invariant; behaviour is fully determined by the workflow file and its shape-guard test, with no product code involved.",
+  "structural_guarantee": "scripts/check-quality-gate-workflow.node-test.mjs pins the exact trigger set including merge_group and the full base-sha fallback expressions (pull_request.base.sha || merge_group.base_sha || event.before || fallback); any future edit to the event surface or diff anchors fails the Contracts job until the guard is consciously co-updated.",
+  "verification": [
+    "node --test scripts/check-quality-gate-workflow.node-test.mjs passes 9/9 with the new shape",
+    "first queued merge group after ruleset activation shows a merge_group-event Quality Gate run in gh run list --event merge_group"
+  ],
+  "regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "residual_risks": [
+    "Other workflows (win-gate, desktop-preview) do not run on merge_group; acceptable while only Quality Gate / Mac Package are required checks — revisit if the required set grows."
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new GitHub delivery event class (as merge_group was) again falls outside hard-coded trigger lists and base-sha fallbacks unless the shape guard forces conscious co-update.",
+    "same_class_scan": [
+      "grep 'pull_request' .github/workflows/*.yml (2026-09-02): quality-gate.yml is the only workflow producing required checks Quality Gate / Mac Package.",
+      "desktop-preview.yml and win-gate.yml are optional surfaces, PR-only by design, and are not in the required-check set.",
+      "All four base-sha consumers in quality-gate.yml (NOMI_BASE_SHA, VOCAB_BASE_REF, ROOT_CAUSE_BASE_REF, NOMI_CHANGED_BASE) received the merge_group fallback in this change."
+    ]
+  },
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Additive trigger + fallback expressions; no legacy delivery path existed for merge_group, nothing to remove."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency added, upgraded, or removed; change is confined to workflow YAML and its shape-guard test.",
+    "exit_criteria": []
+  },
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "merge_group event builds",
+      "disposition": "enforced",
+      "evidence": "Trigger added and all four base-sha fallback chains extended with github.event.merge_group.base_sha; guard test asserts both."
+    },
+    {
+      "path": ".github/workflows/desktop-preview.yml",
+      "entry_point": "labeled preview builds",
+      "disposition": "not-affected",
+      "evidence": "Optional surface, not in the required-check set; PR-only by design, queue merges never wait on it."
+    },
+    {
+      "path": ".github/workflows/win-gate.yml",
+      "entry_point": "windows gate builds",
+      "disposition": "not-affected",
+      "evidence": "Optional surface, not in the required-check set; queue merges never wait on it."
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-quality-gate-workflow.node-test.mjs",
+    "invariant": "The quality-gate workflow's trigger set (push/pull_request/merge_group/workflow_dispatch) and every base-sha fallback expression are pinned byte-for-byte, so required checks start for every delivery event class in the set.",
+    "failure_mode": "Any edit to the event surface or diff anchors fails the Contracts job until the guard is consciously co-updated; a new event class cannot be half-wired silently.",
+    "exception_policy": "none",
+    "strategy": "Extend trigger list, fallback chains, and the shape guard together in one commit whenever GitHub adds a delivery event to the merge path.",
+    "artifacts": [
+      ".github/workflows/quality-gate.yml",
+      "scripts/check-quality-gate-workflow.node-test.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "generality_proof": "Class = 'GitHub delivery event reaches the merge path without a matching workflow trigger/diff anchor'. Scanned all 8 workflows: only quality-gate.yml produces the required checks (Quality Gate, Mac Package); its four base-sha consumers (NOMI_BASE_SHA, VOCAB_BASE_REF, ROOT_CAUSE_BASE_REF, NOMI_CHANGED_BASE) all gained the merge_group fallback in this change, and the shape guard pins the full set so the next event class cannot be half-wired.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-quality-gate-workflow.node-test.mjs",
+      "symbol": "quality gate workflow shape guard (node --test)",
+      "responsibility": "Pins the workflow trigger set and every diff-anchor expression byte-for-byte; the Contracts job fails on any unconscious edit."
+    }
+  ],
+  "migration": "No persisted data or workflow-state migration needed. The merge_group trigger is additive; existing pull_request and push rounds keep identical behaviour, and the base-sha fallback chains only gain a new middle term that is empty for those events.",
+  "invariants": [
+    "Required checks (Quality Gate, Mac Package) start for every delivery event class in the workflow trigger set, including merge_group.",
+    "Every diff-anchored gate (ratchet, vocab, root-cause) resolves a non-empty base SHA on pull_request, push, merge_group, and workflow_dispatch events.",
+    "The shape guard and the workflow file change together or the Contracts job fails."
+  ]
+}

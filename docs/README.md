@@ -21,6 +21,7 @@
 | **工作流方法论（如何走查/E2E/自主测试）** | [`workflow/`](workflow/) |
 | **多智能体编排（如何派工/收货/接力多个 Codex/Opus 执行体）** | [`engineering/agent-orchestration-playbook.md`](engineering/agent-orchestration-playbook.md)（CLAUDE.md R27 的 L2 详解）|
 | **当前哪些战线在途 / 哪些文件面被占道（动共享面前必查必登）** | [`engineering/active-lanes.md`](engineering/active-lanes.md) |
+| **本仓踩过的坑（走查假绿 / CI 红绿判读 / 分支合并 / 平台故障 / 产品判断）** | [`lessons/INDEX.md`](lessons/INDEX.md) — 按触发场景查，别通读 |
 | **模型接入实测产物（mapping/试验记录）** | [`onboarding-trials/`](onboarding-trials/) → 见其 `README.md` |
 | **QA / 测试记录** | [`qa/`](qa/) |
 | **架构定义** | [`architecture/`](architecture/) ｜ Agent Harness 架构在 `plan/2026-06-09-agent-harness-architecture.md` |
@@ -42,11 +43,12 @@
 | `qa/` | 测试记录 |
 | `workflow/` | 工作流方法论 |
 | `engineering/` | 工程手册（多智能体编排等，CLAUDE.md 规则索引的 L2 详解）|
+| `lessons/` | 教训库：踩过且还会再踩的坑，一条一个文件（**有 INDEX.md，新增必挂号**）|
 | `handoff/` | 会话交接 |
 | `architecture/` `marketing/` `media/` `product/` `ui-designs/` | 其它专题目录 |
 
 ## 相关索引（非 docs/）
 
-- **会话记忆索引**：`~/.claude/.../memory/MEMORY.md`（跨会话事实，每行一条）
+- **会话记忆索引**：`~/.claude/.../memory/MEMORY.md`（跨会话事实，每行一条）。**踩坑教训的真相源已迁入 [`lessons/`](lessons/INDEX.md)**（2026-09-02），本机记忆里对应文件只剩一行指针；那边现在只留本机环境与在途战况。
 - **生成画布代码入口图**：[`../src/workbench/generationCanvas/ENTRY.md`](../src/workbench/generationCanvas/ENTRY.md)
 - **工程纪律**：`../CLAUDE.md`（速览 + R1–R14）

@@ -459,6 +459,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     closing = true
     const cancelled = protocol.cancelAllInFlight('stdio disconnected')
     if (cancelled > 0) console.warn(`[nomi-mcp] cancelled ${cancelled} in-flight request(s) on disconnect`)
+    protocol.dispose()
     void previewServer.close().finally(() => app.exit(0))
   }
   rl.on('close', close)

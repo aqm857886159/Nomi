@@ -7,15 +7,27 @@ import { useWorkbenchStore } from '../../workbenchStore'
 import StoryboardPlanEditor from './StoryboardPlanEditor'
 
 /**
- * 分镜独立工作区（P3）：顶栏第 4 个一级页面，级别与创作/生成/预览等同。
- * 有方案 → 渲染 StoryboardPlanEditor（复用创作页原有的审/改/落画布流程）；
- * 无方案 → 空态引导回创作页拆镜头。返回原稿 = 切回 creation。
+ * 分镜独立工作区（v5 C3）：storyboard 模式的唯一挂载点，全宽（§3.7 删 1264 上限）、
+ * 无文档侧栏无 AI 栏——完整编辑器只住这里（P1 一个实现一个家）。
+ * 有方案 → StoryboardPlanEditor；无方案 → 空态引导回创作页拆镜头。返回原稿 = 切回 creation。
  */
 export default function StoryboardWorkspace(): JSX.Element {
   const { t } = useTranslation()
   const entry = useWorkbenchStore((state) => (state.activeDocumentId ? state.storyboardPlans[state.activeDocumentId] : undefined))
   const plan = entry?.plan ?? null
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
+  const workspaceMode = useWorkbenchStore((state) => state.workspaceMode)
+  const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
+  const activeStoryboardId = useWorkbenchStore((state) => state.activeStoryboardId)
+  const designsForActiveDocument = useWorkbenchStore((state) => state.storyboardDesignsByDocumentId[state.activeDocumentId] ?? [])
+  const setActiveStoryboardId = useWorkbenchStore((state) => state.setActiveStoryboardId)
+  // 直接进分镜页（URL/前进后退）没有激活方案时自动选该稿第一个（原住 CreationWorkspace，随挂载点搬家）。
+  // workspaceMode 闸必须保留：本组件在切走后仍隐藏挂载，去掉闸会把「返回原稿」刚置空的激活又抢回来。
+  React.useEffect(() => {
+    if (workspaceMode === 'storyboard' && !activeStoryboardId && designsForActiveDocument[0]) {
+      setActiveStoryboardId(designsForActiveDocument[0].id, activeDocumentId)
+    }
+  }, [activeDocumentId, activeStoryboardId, designsForActiveDocument, setActiveStoryboardId, workspaceMode])
 
   if (plan) {
     return (
@@ -23,7 +35,7 @@ export default function StoryboardWorkspace(): JSX.Element {
         className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'pt-[22px] px-6 pb-6 bg-workbench-bg')}
         aria-label={t('workspace.storyboard')}
       >
-        <div className="h-full min-h-0 grid grid-cols-[minmax(0,1fr)] max-w-[1264px] mx-auto">
+        <div className="h-full min-h-0">
           <StoryboardPlanEditor />
         </div>
       </section>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { SEEDANCE_2_APIMART_ARCHETYPE } from "./seedanceApimart";
-import { SEEDANCE_2_5_APIMART_ARCHETYPE } from "./seedance25Apimart";
+import {
+  SEEDANCE_2_APIMART_ARCHETYPE,
+  SEEDANCE_2_5_APIMART_ARCHETYPE,
+} from "../../../electron/shared/videoCapabilities";
 
 describe("model capability facts", () => {
   it("declares Seedance expression channels without inventing a native camera control", () => {

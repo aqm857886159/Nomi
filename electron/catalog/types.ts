@@ -3,6 +3,7 @@
 // 渲染层不消费这些（electron 专用；渲染层有自己的 DTO，经 desktopClient 单源）。
 import type { ApiKeyRecord } from "./secrets";
 import type { ParamMap } from "./paramTranslate";
+import catalogVersion from "./catalogVersion.json";
 import {
   AI_SDK_PROVIDER_KINDS,
   ASSET_MEDIA_KINDS,
@@ -585,7 +586,7 @@ export function billingKindForTaskKind(kind: ProfileKind): BillingModelKind {
  *  safeStorage-backed vendor credential record. Legacy plaintext stays readable until an explicit
  *  vendor write migrates every secret atomically (mirrors the v8→v9 customConfig deferral). */
 export type CatalogVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
-export const CURRENT_CATALOG_VERSION: CatalogVersion = 12;
+export const CURRENT_CATALOG_VERSION: CatalogVersion = catalogVersion.current as CatalogVersion;
 
 export type CatalogState = {
   version: CatalogVersion;

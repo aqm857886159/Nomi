@@ -5,6 +5,9 @@ on:
     branches:
       - main
   pull_request:
+  # Merge queue builds run required checks on the speculative merge result;
+  # without this trigger a queued PR waits forever for checks that never start.
+  merge_group:
   workflow_dispatch:
     inputs:
       base_ref:
@@ -53,7 +56,7 @@ jobs:
         env:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           NOMI_VALIDATION_MODE: ${{ inputs.validation_mode || '' }}
-          NOMI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          NOMI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || '' }}
           NOMI_HEAD_SHA: ${{ github.sha }}
         run: node scripts/select-quality-gate-profile.mjs
 
@@ -61,8 +64,8 @@ jobs:
     name: Contracts
     runs-on: ubuntu-latest
     env:
-      VOCAB_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
-      ROOT_CAUSE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
+      VOCAB_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
+      ROOT_CAUSE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -102,7 +105,7 @@ jobs:
       - name: Changed and related tests (fast lane)
         if: needs.scope.outputs.unit == 'focused'
         env:
-          NOMI_CHANGED_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'origin/main' }}
+          NOMI_CHANGED_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || 'origin/main' }}
           NOMI_CHANGED_HEAD: ${{ github.sha }}
         run: pnpm run test:system:focused
 
@@ -136,6 +139,9 @@ jobs:
       - name: CI-safe user journeys
         if: needs.scope.outputs.journeys == 'true'
         run: xvfb-run -a pnpm run test:journeys
+      - name: MCP L1 handshake journey
+        if: needs.scope.outputs.journeys == 'true'
+        run: xvfb-run -a pnpm run test:mcp-journey
       - name: Critical canvas acceptance
         if: needs.scope.outputs.canvas == 'critical'
         run: xvfb-run -a pnpm run test:canvas:critical

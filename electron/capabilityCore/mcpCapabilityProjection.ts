@@ -9,6 +9,7 @@ import { TIMELINE_READ_CAPABILITY, timelineEditPlanSchema } from "../shared/agen
 import { TIMELINE_WRITE_CAPABILITY } from "../shared/agentCapabilities/timelineWrite";
 import { findUnsupportedSchemaFeatures, type SchemaLike } from "./mcpArgValidation";
 import { buildCanonicalMcpToolResult, type CanonicalMcpToolResult } from "./mcpCanonicalToolResult";
+import { emitMcpToolCatalogChanged } from "./mcpToolCatalogChanges";
 
 type AnyCapabilityContract = CapabilityContract<unknown, unknown>;
 const convertZodToJsonSchema = zodToJsonSchema as unknown as (
@@ -258,10 +259,12 @@ export function createMcpCapabilityResolver(registrations: readonly McpCapabilit
     if (byAlias.has(tool.name)) throw new Error(`Duplicate explicit MCP capability alias: ${tool.name}`);
     byAlias.set(tool.name, tool);
   }
-  return Object.freeze({
+  const resolver = Object.freeze({
     list: () => tools,
-    resolve: (alias) => byAlias.get(alias),
+    resolve: (alias: string) => byAlias.get(alias),
   });
+  emitMcpToolCatalogChanged();
+  return resolver;
 }
 
 const canvasReadSemanticInputJsonSchema = immutableSchemaSnapshot(jsonSchemaFromCanonicalInput(CANVAS_READ_CAPABILITY));

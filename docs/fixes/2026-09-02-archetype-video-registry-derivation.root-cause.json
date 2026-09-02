@@ -1,0 +1,52 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-archetype-video-registry-derivation",
+  "problem_type": "模型档案二期归一（架构重组单元 2）：video 档案在 electron/shared/videoCapabilities/registry.ts（SOURCE_BACKED_PROFILES）与渲染层 src/config/modelArchetypes/index.ts（MODEL_ARCHETYPES 手列 35 项 + 35 个具名 import）双登记——同一信息写两份，接一个 video 模型要在两个家各登记一次（外加 barrel 具名导出一行），触达面虚高且两份清单随时间漂移即认档分裂",
+  "symptom": "接入一个新 video 模型（以 Wan 3.0 实测 commit 4881ccce 为例）需要手改 6 个非生成/非测试文件：档案文件、videoCapabilities/index.ts barrel 导出、registry.ts 登记、src/config/modelArchetypes/index.ts 的 import + 数组两处、catalog 侧文件；其中渲染层 index.ts 的 35 项 video 手列与 registry 的 SOURCE_BACKED_PROFILES 完全同集（引用级验证 39=39，含 RUNNINGHUB spread），是纯粹的第二份登记。",
+  "direct_cause": "一期把 video 档案的 canonical 家定在 electron/shared/videoCapabilities 后，渲染层 MODEL_ARCHETYPES 仍按历史习惯逐个具名 import + 手列进数组，没有从 canonical 家的 registry 派生；数组顺序又是三趟身份匹配（resolveBaseArchetype 同趟多命中按数组序决胜）的行为载体，导致「随手改成派生」有翻转解析赢家的风险，一直没人动。",
+  "class_root": "登记点没有跟着 canonical 家走：video 档案的「集合」真相源已经是 registry.ts 的 SOURCE_BACKED_PROFILES，渲染层却还持有第二份手工副本。正确形状 = 渲染层 MODEL_ARCHETYPES 的 video 块整块从 sourceBackedVideoProfiles() 派生（barrel 唯一公共面），非 video（image/audio/3D，canonical 家在 src/config/modelArchetypes）继续在渲染层登记。顺序敏感性用证据处理而非回避：搬迁探针把全部 identifierPatterns/variant modelKey/legacyIds × raw/lower/upper/models 前缀/裸末段/带前缀末段共 1042 条语料，在新旧两个数组序上跑同一套三趟匹配逐一对比赢家——唯一翻转点是 \"veo3.1\"（同串同时是 Runway 平台判别串与 Veo 家族键、且渲染层与 registry 历史顺序相反），用 LEGACY_RESOLUTION_ORDER_PINS 把渲染层存量赢家（runway-video）钉住后 1042 条全一致；legacyIds 迁移 find 顺序同样全一致；主进程侧 archetypeIdForModel 吃的生成身份表（含 variant modelKey）用新旧两版生成表再证一遍 1042 条语料 diffs=0。",
+  "affected_population": [
+    "接入新 video 模型的开发者：登记从「渲染层 index.ts import+数组 + barrel 导出 + registry」三处收敛为 registry.ts 一行（加档案文件本身），渲染层与 barrel 不再触碰。",
+    "resolveArchetypeForModel 的全部调用方（渲染层 UI/发送路）与主进程 archetypeIdForModel 的调用方（中转接入选原生报文/启动自愈）：解析行为零变化（全语料探针证据，见 class_root），数组顺序变化仅是内部表示。",
+    "electron/catalog 下四个 .generated.ts 的消费者：taskParams.ts 与 capabilityModeManifest.ts 均按 archetypeId 键取（顺序无关），archetypeIdentity.ts 按表序遍历但已单独证等价；生成表数据经键序归一深比较逐键相等，仅键序随数组序变化。"
+  ],
+  "scope_paths": [
+    "src/config/modelArchetypes/index.ts",
+    "src/config/modelArchetypes/resolutionOrder.test.ts",
+    "electron/catalog/archetypeIdentifiers.generated.ts",
+    "electron/catalog/archetypeModes.generated.ts",
+    "electron/catalog/archetypeWireDefaults.generated.ts",
+    "electron/catalog/archetypeWireDefaults.video.generated.ts"
+  ],
+  "entry_points": [
+    "src/config/modelArchetypes/index.ts — MODEL_ARCHETYPES：video 块改为 ...withLegacyResolutionPins(sourceBackedVideoProfiles())，非 video 保持原相对顺序手列；LEGACY_RESOLUTION_ORDER_PINS 仅一条 [runway-video, veo-3.1]，注释写明 registry 侧平局判据与渲染层对同串 \"veo3.1\" 的解析本就分裂（存量问题，修复属行为变更须单独立项）。",
+    "electron/catalog/archetypeIdentity.ts — archetypeIdForModel（本次未改代码）：按生成身份表 Object.entries 序做三趟首中即胜，表序随 MODEL_ARCHETYPES 变化；新旧两版表全语料对比 diffs=0，行为不变。",
+    "electron/catalog/archetypeWireDefaults*.generated.ts / archetypeModes.generated.ts / archetypeIdentifiers.generated.ts — pnpm gen:archetype-defaults 再生产物：数据逐键深相等（键序归一比较），仅键序变化；消费侧 taskParams.ts:104,134 与 capabilityModeManifest.ts:80-82 均键取。"
+  ],
+  "internal_only_reason": "不接触任何外部供应商 API 契约：本次纯粹是仓库内部登记结构搬迁（渲染层 video 档案清单改为从 canonical registry 派生），不新增/修改任何端点、鉴权、参数取值；所有档案对象本体一字未动，生成桥接文件数据深相等仅键序变化。",
+  "invariants": [
+    "video 档案集合的唯一登记点是 electron/shared/videoCapabilities/registry.ts 的 SOURCE_BACKED_PROFILES；渲染层 MODEL_ARCHETYPES 的 video 子集与之引用级同集（resolutionOrder.test.ts 断言），不再存在第二份手列。",
+    "MODEL_ARCHETYPES 数组顺序 = 三趟身份匹配的同趟决胜顺序，属行为而非表示：所有已知跨档案同串（Runway 平台判别串族 + MiniMax-H3 大小写族 + z-image 末段族 + veo3.1）的存量赢家由 resolutionOrder.test.ts 逐条锁死，重排/新增翻转任一赢家即红。",
+    "\"veo3.1\" 的渲染层赢家保持 runway-video（LEGACY_RESOLUTION_ORDER_PINS 钉住）；渲染层与 registry 对该串的分裂是被记录的存量问题，在单独立项修复前不许静默改变任何一侧。",
+    "档案 id 全局唯一（getArchetypeById 与生成表键取顺序无关的前提，测试断言）。"
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "这是档案归一分期重组的一次性搬迁（登记点从双份收敛为单份），不是会反复出现的缺陷类：搬迁完成后「第二份手列」已不存在，无同类活跃入口可再中招；顺序翻转风险由 resolutionOrder.test.ts 永久锁住（该测试同时覆盖未来新增档案抢串的场景，属搬迁交付的一部分而非另一个可复用边界）。",
+    "same_class_scan": [
+      "渲染层与 registry 双登记仅 video 一处：image/audio/3D 档案的 canonical 家本就在 src/config/modelArchetypes（docs/architecture/module-ownership-map.md），electron 侧无第二份手列（生成桥接是 derive 不是登记）；grep MODEL_ARCHETYPES 全仓仅 scripts/gen-archetype-wire-defaults.ts 与 scripts/model-radar.ts 两个脚本消费者，均按元素/键消费不依赖跨档案顺序。",
+      "顺序敏感消费点全数排查：渲染层 resolveBaseArchetype（探针 1042 条语料新旧序 diffs=0，含 legacyIds find 顺序）；主进程 archetypeIdentity.archetypeIdForModel（新旧生成表同语料 diffs=0）；taskParams.ts / capabilityModeManifest.ts 键取顺序无关；registry.ts 本身未改（profileFor 平局判据不受影响）。",
+      "生成产物语义核对：四个变更的 .generated.ts 用「对象键排序归一后 stringify」深比较，新旧数据逐键相等，合并 barrel 的 spread 集合相同（分片按 kind 键互斥，合并结果与顺序无关）。",
+      "新构造与探针已证等价序列的逐位引用比对（85 项全同）：确认落地代码就是被证明过的那个序列，不是「证明一个、实现另一个」。"
+    ]
+  },
+  "regression_tests": [
+    "src/config/modelArchetypes/resolutionOrder.test.ts"
+  ],
+  "migration": "无存储数据迁移：档案对象本体、id、patterns、params 全部未动；持久化的节点/项目引用的是 archetypeId（键取，顺序无关）。生成桥接文件数据深相等，headless 兜底与主进程认档行为逐语料一致。用户可见行为零变化。",
+  "residual_risks": [
+    "\"veo3.1\" 裸串的渲染层（runway-video）与 registry（veo-3.1）分裂是存量问题，本次如实保留并测试锁死两处现状；后续若有人只改一侧会被 resolutionOrder.test.ts 或 registry 侧契约测试拦下，但分裂本身待单独立项裁决（涉及行为变更与用户可见的认档差异）。",
+    "resolutionOrder.test.ts 的锁表基于当前档案集合的探针输出；未来新增档案引入新的跨档案同串时，自解析不变量会红并逼作者显式登记赢家——这是有意的摩擦，不是误报。",
+    "LEGACY_RESOLUTION_ORDER_PINS 是渲染层的顺序补丁：若未来 registry 把 runway-video 移到 veo-3.1 之前（或撞串被根治删除其一），pin 变为 no-op（withLegacyResolutionPins 对已满足的 pin 原样返回），届时应连同测试锁一起清理。"
+  ]
+}

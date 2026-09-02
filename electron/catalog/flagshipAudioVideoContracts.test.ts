@@ -184,7 +184,7 @@ describe("2026-08 flagship media contracts", () => {
     expect(selectTaskMapping(state.mappings, "runway", "image_to_video", "gen4.5")?.id).toBe("seed-runway-gen4-5-i2v");
     const seedance = state.mappings.filter((item) => item.vendorKey === "runway" && item.modelKey === "seedance2_5");
     expect(seedance.map((item) => item.modeId).sort()).toEqual(["first", "firstlast", "omni", "t2v"]);
-    expect(seedance.find((item) => item.modeId === "omni")?.create.request_transform).toBe("runway-seedance2-5");
+    expect(seedance.find((item) => item.modeId === "omni")).toMatchObject({ taskKind: "text_to_video", create: { path: "/v1/text_to_video", request_transform: "runway-seedance2-5" } });
     const audio = state.mappings.filter((item) => item.vendorKey === "runway" && ["seed_audio", "eleven_text_to_sound_v2", "eleven_multilingual_v2", "eleven_v3"].includes(item.modelKey || ""));
     expect(audio.map((item) => item.modeId).sort()).toEqual(["sfx", "sfx", "speech", "speech", "speech"]);
     expect(audio.every((item) => item.query?.path === "/v1/tasks/{{providerMeta.task_id}}" && item.result?.response_mapping?.assets === "output")).toBe(true);
@@ -225,21 +225,21 @@ describe("2026-08 flagship media contracts", () => {
     });
   });
 
-  it("keeps Runway reference uploads provider-native and shapes typed image objects at the mapping boundary", async () => {
+  it("keeps Runway reference uploads provider-native and shapes typed image objects at the text-to-video boundary", async () => {
     const state = applyBuiltinSeeds(emptyCatalog(), "2026-08-30T00:00:00.000Z").state;
     const runwayReference = state.mappings.find((item) => item.id === "seed-runway-seedance2-reference");
     expect(runwayReference).toBeTruthy();
+    expect(runwayReference).toMatchObject({ taskKind: "text_to_video", create: { path: "/v1/text_to_video" } });
     const transformed = await applyRequestTransform(runwayReference?.create.request_transform, {
       model: "seedance2",
       promptText: "keep the character consistent",
-      promptImage: ["runway://character", "runway://set"],
       reference_image_urls: ["runway://character", "runway://set"],
     }, { baseUrl: "https://api.dev.runwayml.com" });
     expect(transformed).toMatchObject({
       model: "seedance2",
-      promptImage: ["runway://character", "runway://set"],
       references: [{ uri: "runway://character" }, { uri: "runway://set" }],
     });
+    expect(transformed).not.toHaveProperty("promptImage");
     expect(transformed).not.toHaveProperty("reference_image_urls");
     expect(RUNWAY_VENDOR_SEED.assetIngestion).toMatchObject({
       strategy: "upload-presigned",

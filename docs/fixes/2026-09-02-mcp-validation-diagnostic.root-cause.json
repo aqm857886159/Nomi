@@ -1,0 +1,28 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-mcp-validation-diagnostic",
+  "problem_type": "MCP tool argument validation loses its typed diagnostic code",
+  "symptom": "A malformed nomi_add_nodes call returns isError but structuredContent.nomiOutcome.errorCode is null, so a client cannot classify the recoverable input failure.",
+  "direct_cause": "validateToolArguments returns an untyped Error and buildToolErrorOutcome only preserves an error code found on the error object.",
+  "class_root": "The shared MCP schema-validation boundary does not attach the canonical capability_input_invalid code before all tool callers enter the result projection.",
+  "affected_population": ["Every MCP tools/call invocation rejected by the shared JSON Schema validator", "All stdio and injected MCP transports using mcpProtocol"],
+  "scope_paths": ["electron/capabilityCore/mcpArgValidation.ts", "electron/capabilityCore/mcpProtocol.test.ts"],
+  "entry_points": ["mcpProtocol tools/call validation", "validateToolArguments callers across the MCP catalog"],
+  "external_sources": [],
+  "internal_only_reason": "This is Nomi's internal typed error contract between the shared schema validator and MCP result projection.",
+  "invariants": ["Every schema validation failure carries code capability_input_invalid before result projection."],
+  "generality_proof": "All MCP tools/call requests pass through validateToolArguments before tool.build or transport.invoke, so the code is attached once for every schema rejection rather than added per tool.",
+  "shared_boundaries": [{"path": "electron/capabilityCore/mcpArgValidation.ts", "symbol": "validateToolArguments", "responsibility": "Validate the broadcast JSON Schema and attach the canonical recoverable input error code."}],
+  "same_class_entry_points": [
+    {"path": "electron/capabilityCore/mcpProtocol.ts", "entry_point": "handle tools/call", "disposition": "enforced", "evidence": "The protocol invokes validateToolArguments for every resolved MCP tool before dispatch."},
+    {"path": "electron/capabilityCore/mcpArgValidation.test.ts", "entry_point": "validator contract tests", "disposition": "enforced", "evidence": "The shared validator test suite exercises missing, wrong-typed, unknown, and ranged values."}
+  ],
+  "recurrence": {"classification": "recurring", "reason": "Any current or future MCP tool whose advertised schema rejects input would otherwise lose the same machine-readable code.", "same_class_scan": ["rg validateToolArguments electron/capabilityCore", "rg buildToolErrorOutcome electron/capabilityCore", "Checked mcpProtocol.ts and mcpArgValidation.test.ts as independent caller and class-test paths."]},
+  "prevention": {"kind": "schema-validation", "enforcement_path": "electron/capabilityCore/mcpArgValidation.ts", "invariant": "Schema failures always carry capability_input_invalid.", "failure_mode": "The protocol returns an MCP Tool Execution Error with isError:true and nomiOutcome.errorCode capability_input_invalid.", "exception_policy": "none", "strategy": "Annotate the single shared validator error at the earliest boundary before result formatting.", "artifacts": ["electron/capabilityCore/mcpArgValidation.ts"]},
+  "regression_tests": ["electron/capabilityCore/mcpProtocol.test.ts"],
+  "class_regression_tests": ["electron/capabilityCore/mcpProtocol.test.ts"],
+  "legacy_paths": {"status": "not-applicable", "removed_paths": [], "rationale": "No obsolete validation path exists; the existing shared path is strengthened."},
+  "dependency_lifecycle": {"decision": "not-applicable", "rationale": "The invariant is owned by Nomi's own JSON Schema validator and result projection; no third-party runtime controls it.", "exit_criteria": []},
+  "migration": "No persisted data or caller migration is needed; the wire error gains a typed field while retaining existing text and isError semantics.",
+  "residual_risks": ["Provider-side failures are outside this schema-validation class and retain their existing error contracts."]
+}

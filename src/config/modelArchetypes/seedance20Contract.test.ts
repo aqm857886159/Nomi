@@ -19,12 +19,14 @@
 // 方舟文档白纸黑字说还能加 3 段音频，我们却在第 12 个拦死。所以本文件也把这条**否定结论**钉住，
 // 免得下一个人看到 fal 页面又来加一遍。
 import { describe, expect, it } from 'vitest'
-import { SEEDANCE_2_APIMART_ARCHETYPE } from './seedanceApimart'
-import { SEEDANCE_VOLCENGINE_ARCHETYPE } from './seedanceVolcengine'
-import { DREAMINA_SEEDANCE_ARCHETYPE } from './dreaminaSeedance'
-import { SEEDANCE_2_ARCHETYPE } from './seedance'
-import { SEEDANCE_2_5_ARCHETYPE } from './seedance25'
-import { SEEDANCE_2_5_APIMART_ARCHETYPE } from './seedance25Apimart'
+import {
+  DREAMINA_SEEDANCE_ARCHETYPE,
+  SEEDANCE_2_ARCHETYPE,
+  SEEDANCE_2_5_ARCHETYPE,
+  SEEDANCE_2_5_APIMART_ARCHETYPE,
+  SEEDANCE_2_APIMART_ARCHETYPE,
+  SEEDANCE_VOLCENGINE_ARCHETYPE,
+} from '../../../electron/shared/videoCapabilities'
 import type { ModelArchetype } from './types'
 
 /**

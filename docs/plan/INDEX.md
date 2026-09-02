@@ -22,6 +22,7 @@
 | [2026-08-30-issue-237-onboarding.md](2026-08-30-issue-237-onboarding.md) | Issue #237：OpenAI-compatible 图片请求根因修复、匿名上传分诊与英文接入入口 | 🚧 |
 | [2026-08-31-asset-upload-routing.md](2026-08-31-asset-upload-routing.md) | 本地图片/视频/音频统一上传路由、供应商上传 API 与可选 R2 relay | 🚧 |
 | [2026-09-01-provider-proxy-and-onboarding-hardening.md](2026-09-01-provider-proxy-and-onboarding-hardening.md) | #258 拆项①③：per-connection provider proxy（全局默认+单点覆盖，私网 bypass+凭据脱敏）+ onboarding 加固（抽 useOnboardingConnectionTest、CodexLocalImageCard 静默失败修复） | 🚧 |
+| [2026-09-02-docaudit-b.md](2026-09-02-docaudit-b.md) | DOCAUDIT-B：fal/Runway/MiniMax/ElevenLabs 等非 KIE/APIMart 官方合同、零成本模式干跑与付费封印 | 🚧 |
 | [2026-09-01-credential-config-at-rest-encryption.md](2026-09-01-credential-config-at-rest-encryption.md) | 可携带凭据的连接配置（proxyUrl 的 user:pass、extraHeaders 的 Authorization）升到与 API key 同级的 safeStorage 加密落盘层 + 字段分级守卫（P2 类级修） | 🚧 |
 | [2026-08-31-agent-material-channels-and-local-endpoints.md](2026-08-31-agent-material-channels-and-local-endpoints.md) | A+B 计划：素材获取三通道分工 + 本地文本模型通用端点（P0 本地模型卡已随 #281 落地；#223 前提已被 M 线取代，见文首现状标注） | 📋 |
 | [2026-09-01-pr258-derived-directions-eval.md](2026-09-01-pr258-derived-directions-eval.md) | #258 拆项评估定稿：①provider proxy 🟢（已随 #282 落地）②即梦 CLI 模型面 🟡（后被 v1.4.17 对齐 #291 取代其结论）③onboarding 加固 🟢（已随 #282 落地） | 📎 |
@@ -88,6 +89,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-02-mcp-testnet-l1-handshake.md](2026-09-02-mcp-testnet-l1-handshake.md) | MCP 测试网第 1 片：真实 stdio L1 握手六条回归、tools/list payload 棘轮与 listChanged A1 | 🚧 |
 | [2026-09-01-agent-m0-baseline-freeze.md](2026-09-01-agent-m0-baseline-freeze.md) | M0 基线冻结：owner map、50 项工具映射、旧路径、schema-v3 草案、红灯与 PR 切片 | ⏳ |
 | [2026-09-02-m2-generation-semantic-slice-1.md](2026-09-02-m2-generation-semantic-slice-1.md) | M2 第一片：generation plan/status 语义模型面与 Host-only 闸门排除 | 🚧 |
 | [2026-09-02-m2-editing-semantic-slices.md](2026-09-02-m2-editing-semantic-slices.md) | M2 第二片：timeline/media/export 语义面、MCP 可达性与 Host 审批 | 🚧 |
@@ -147,6 +149,7 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-09-01-feedback-share-center.md](2026-09-01-feedback-share-center.md) | v0.21 低摩擦反馈与分享中心：私密 Tally 表单、公开 GitHub、自动带入安全运行时上下文 | 🚧 |
+| [2026-09-02-walkthrough-catalog-seed-version.md](2026-09-02-walkthrough-catalog-seed-version.md) | 隔离走查 catalog 种子按被测 app 版本校验：future seed quarantine + 版本真源单一化，终结「切模型静默失效」假绿 | ✅ |
 
 ## 性能 / 技术地基 / 巨壳拆分 / 管线
 

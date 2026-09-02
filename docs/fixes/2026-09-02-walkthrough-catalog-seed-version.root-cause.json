@@ -1,0 +1,116 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-walkthrough-catalog-seed-version",
+  "problem_type": "isolated walkthrough catalog seed can be newer than the tested app build",
+  "symptom": "隔离走查主进程出现 [catalog] refusing to write: on-disk version 12 > app version 11，模型/模式切换静默失效，参考槽形态走查因此假绿。",
+  "direct_cause": "tests/ux 与 evals 的隔离准备逻辑把真实用户或旧快照 model-catalog.json 原样复制到隔离 settings；启动边界没有验证 seed 版本是否高于被测构建。",
+  "class_root": "隔离 catalog seed 没有在进入被测 Electron 进程前满足 diskVersion <= testedAppCatalogVersion；因此任意来源的 future seed 都能触发 app 的正确只读保护。",
+  "affected_population": [
+    "所有使用真实 catalog 或外部快照的 tests/ux 走查、evals 和 scripts",
+    "使用旧版/打包版 Electron 构建读取新版 catalog 的隔离 profile",
+    "任何手工预置高版本 model-catalog.json 的未来走查入口"
+  ],
+  "scope_paths": [
+    "electron/catalog/catalogVersion.json",
+    "electron/catalog/types.ts",
+    "tests/ux/_launchApp.mjs",
+    "tests/ux/_launchApp.test.mjs",
+    "evals/lib/isoApp.mjs",
+    "evals/lib/isoAppEnv.test.ts",
+    "evals/lib/isoApp.test.mjs",
+    "tests/ux/catalog-seed-version-repro.mjs"
+  ],
+  "entry_points": [
+    "tests/ux/_launchApp.mjs launchNomiApp（所有 Playwright Electron 走查的共享启动边界）",
+    "evals/lib/isoApp.mjs prepareIsolation/launchIsolatedApp（eval/journey 隔离准备边界）",
+    "tests/ux 与 scripts 中直接写入或复制 model-catalog.json 后调用 launchNomiApp 的 fixture 入口"
+  ],
+  "internal_only_reason": "这是 Nomi 走查隔离与自身 catalog 版本合同的内部边界；不涉及第三方 API 或依赖行为。",
+  "invariants": [
+    "隔离 settings 中进入 Electron 的 model-catalog.json 的 version 必须小于或等于被测构建声明的 catalog version。",
+    "高版本 seed 不得被降级、重写或进入 app；它必须在隔离目录内 quarantine，并让 app 首启自建当前版本 catalog。",
+    "当前版本与低版本 seed 保持原路径，低版本迁移仍由 app catalog migration 负责。",
+    "每个隔离 Electron 实例使用自己的 settings、projects、user-data 和 capability 目录。"
+  ],
+  "generality_proof": "所有受影响的 Playwright/eval 入口最终通过 launchNomiApp 启动，prepareIsolation 也复用该启动器；在启动器写入/读取被测 app 前统一检查 settings/model-catalog.json，任何来源、版本、脚本或构建的 future seed 都在同一边界被 quarantine，等价入口不能绕过该规则。",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "prepareIsolatedCatalog / launchNomiApp",
+      "responsibility": "在 Electron spawn 前按 canonical catalog version 检查隔离 settings 的 catalog，quarantine future seed，并保持其余 seed 不变。"
+    },
+    {
+      "path": "evals/lib/isoApp.mjs",
+      "symbol": "prepareIsolation / isolatedAppEnv",
+      "responsibility": "创建 eval 的四重隔离目录，复制前检查 catalog，向 app 与 MCP 传播同一 capability 目录。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "evals/lib/isoApp.mjs",
+      "entry_point": "prepareIsolation copies realCatalogPath()",
+      "disposition": "enforced",
+      "evidence": "该入口改为调用共享 catalog seed guard；随后 launchIsolatedApp 仍调用 launchNomiApp，future seed 在两个边界都被拒绝进入 app。"
+    },
+    {
+      "path": "tests/ux/param-bar-models.walk.mjs",
+      "entry_point": "direct real catalog copy followed by launchNomiApp",
+      "disposition": "enforced",
+      "evidence": "该代表性入口直接复制真实 catalog；启动器在 spawn 前检查最终 settings 文件，其他同类 tests/ux 与 scripts 入口共享同一边界，局部 fixture 不需各自维护版本判断。"
+    },
+    {
+      "path": "electron/catalog/catalogStore.ts",
+      "entry_point": "writeCatalog",
+      "disposition": "not-affected",
+      "evidence": "这是 app 内部保护边界，拒绝高版本写回是正确的 fail-closed 行为；本修复不削弱它。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "走查脚本持续新增，且真实用户 catalog、旧快照和手写 fixture 都是可变来源；只修当前触发脚本会让另一个入口或未来构建再次制造同类版本倒挂。",
+    "same_class_scan": [
+      "搜索 [catalog] refusing to write 定位 electron/catalog/catalogStore.ts:245-252 的唯一写入保护。",
+      "扫描 tests/ux、evals、scripts 中 model-catalog.json 的 copy/write 与 launchNomiApp/prepareIsolation 调用，确认真实 catalog 复制入口和手写旧版本 fixture 两类来源。",
+      "扫描 NOMI_CAPABILITY_DIR 与 capabilityDir，确认能力核隔离是独立于 settings catalog 的另一条路径，prepareIsolation 原先没有完整传播它。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/_launchApp.mjs",
+    "invariant": "Electron spawn 前，最终隔离 catalog 的 version 不得大于 canonical tested app catalog version。",
+    "failure_mode": "future seed 被移到同一隔离目录内的 quarantine 文件并记录可见诊断；app 无盘上 catalog 启动，由自身首启逻辑创建当前版本 catalog。",
+    "exception_policy": "none",
+    "strategy": "把版本判断与 future-seed quarantine 放到所有走查共享的启动边界；prepareIsolation 在复制真实 catalog 前复用同一判断，避免 caller-side 版本分叉。",
+    "artifacts": [
+      "electron/catalog/catalogVersion.json",
+      "electron/catalog/types.ts",
+      "tests/ux/_launchApp.mjs",
+      "evals/lib/isoApp.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/_launchApp.test.mjs",
+    "evals/lib/isoApp.test.mjs",
+    "tests/ux/catalog-seed-version-repro.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/_launchApp.test.mjs",
+    "evals/lib/isoApp.test.mjs",
+    "tests/ux/catalog-seed-version-repro.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有保留旧的可写实现；catalogStore 的只读保护继续存在，旧版本 seed 的迁移路径也不是 obsolete path。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "修复只调整仓库内走查隔离边界和 catalog 版本合同，不涉及第三方运行时。",
+    "exit_criteria": []
+  },
+  "migration": "高版本 seed 不在 app 内迁移，而是在隔离准备阶段 quarantine；app 首启自建当前版本 catalog。低版本/当前版本 seed 仍按既有 catalog migration 或正常读写路径处理。quarantine 只位于本次隔离目录，不改真实用户数据。",
+  "residual_risks": [
+    "使用自定义 executablePath 且其 catalog 版本与当前源码构建不一致时，仍需让走查调用方使用同一构建生成的 canonical catalog manifest；相关边界由测试覆盖，真实打包旧版本的运行时体验仍需在该打包产物上走查。",
+    "需要真实用户 API key 的走查在 future seed 被 quarantine 后会诚实缺少凭据并失败/跳过，不应伪装成已配置模型可用。"
+  ]
+}
