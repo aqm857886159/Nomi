@@ -9,7 +9,7 @@
 | 子目录 | 文件 | 管什么 | 关键入口 |
 |---|---|---|---|
 | **components/** | 10 | 画布外壳与非节点 UI（工具栏、分组与选择覆盖层） | `GenerationCanvas.tsx`（React Flow 唯一入口）· `AgentPlanCard.tsx`（计划清单卡）；Agent 统一壳位于 `workbench/ai/ProjectAgentResidentShell.tsx` |
-| **reactFlow/** | 10 | React Flow 适配器、节点/边渲染器与画布交互容器 | `GenerationCanvasReactFlow.tsx` · `GenerationCanvasReactFlowNodes.tsx` · `generationCanvasReactFlowAdapter.ts` |
+| **reactFlow/** | 12 | React Flow 适配器、节点/边渲染器与画布交互容器 | `GenerationCanvasReactFlow.tsx` · `GenerationCanvasReactFlowNodes.tsx` · `generationCanvasReactFlowAdapter.ts` · `canvasDragDraft.ts` · `canvasDragWriteback.ts` |
 | **nodes/** | 42 | 节点渲染与节点内交互（最大子目录）| `BaseGenerationNode.tsx`（节点基座 952 行）· `NodeParameterControls.tsx` · `NodeGenerationComposer.tsx` · `Scene3DEditor.tsx` · `aspectRatio.ts`（比例） |
 | **runner/** | 15 | 执行层：能不能跑、怎么发、错误分类、结果解析 | `generationNodeExecutor.ts` · `generationRunController.ts` · `catalogTask*.ts` · `classifyGenerationError.ts` · `usableVendorModel.ts` |
 | **model/** | 13 | 领域模型：图结构、类型、schema、节点元数据 | `generationCanvasTypes.ts` · `generationCanvasSchema.ts` · `graphOps.ts` · `nodeMetaFields.ts` · `generationNodeKinds.ts` |

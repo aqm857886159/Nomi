@@ -12,7 +12,7 @@
   "scope_paths": [
     "electron/catalog/runwayOfficial.ts",
     "electron/catalog/archetypeModes.generated.ts",
-    "electron/shared/videoCapabilities/runwayVideo.ts",
+    "electron/shared/videoCapabilities/runwayWireFacts.ts",
     "electron/catalog/vendorWireDriftFixes.test.ts",
     "electron/catalog/flagshipAudioVideoContracts.test.ts",
     "electron/shared/videoCapabilities/seedance25Runway.ts",
@@ -57,12 +57,13 @@
     "failure_mode": "A reference mapping cannot silently use image_to_video; the structural tests fail if its path, task kind, or promptImage shape drifts.",
     "exception_policy": "none",
     "strategy": "Replace boolean image inference with mode-driven construction and delete the old reference-as-image path in the same change.",
-    "artifacts": ["electron/catalog/runwayOfficial.ts", "electron/shared/videoCapabilities/runwayVideo.ts", "electron/catalog/archetypeModes.generated.ts"]
+    "artifacts": ["electron/catalog/runwayOfficial.ts", "electron/shared/videoCapabilities/runwayWireFacts.ts", "electron/catalog/archetypeModes.generated.ts"]
   },
   "regression_tests": ["electron/catalog/vendorWireDriftFixes.test.ts", "electron/catalog/flagshipAudioVideoContracts.test.ts"],
   "class_regression_tests": ["electron/catalog/vendorWireDriftFixes.test.ts"],
   "legacy_paths": { "status": "removed", "removed_paths": ["electron/catalog/runwayOfficial.ts"], "rationale": "The old boolean-driven reference image_to_video construction is removed; no fallback remains.", "removal_evidence": "The factory is mode-driven and tests assert no promptImage on reference mappings." },
   "dependency_lifecycle": { "decision": "not-applicable", "rationale": "No dependency controls the endpoint discriminator; the invariant is owned by the catalog mapping boundary.", "exit_criteria": [] },
   "migration": "No persisted data migration is required; mapping IDs and user-selected model identities remain unchanged.",
-  "residual_risks": ["Live reference generation remains subject to Runway account credits and asset reachability; zero-cost contract tests do not certify provider output quality."]
+  "residual_risks": ["Live reference generation remains subject to Runway account credits and asset reachability; zero-cost contract tests do not certify provider output quality."],
+  "scope_path_notes": "electron/shared/videoCapabilities/runwayVideo.ts held the platform archetype runway-video and was deleted by the one-model-one-archetype identity split (PR #351). The capability side of this fix now lives in the per-model archetypes (veo31.ts / geminiOmni11.ts / seedance.ts / happyhorse.ts / minimaxH3.ts / wan30.ts / grokImagine15Video.ts) with Runway's per-family wire facts in runwayWireFacts.ts, which replaces it in scope_paths. The transport-side invariant is unchanged: the reference wire role still posts to /v1/text_to_video."
 }

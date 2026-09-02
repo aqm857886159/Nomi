@@ -277,7 +277,7 @@ export function seedMcpClientIdentityEnv(capabilityDir, client = 'claude') {
  * proving the headless zero-dialog spend path (mcpStdioServer.ts:99), not an env escape hatch.
  */
 export function spawnMcpStdioClient({
-  settingsDir, userDataDir, projectsDir, capabilityDir, clientInfo, capabilities, env,
+  settingsDir, userDataDir, projectsDir, capabilityDir, clientInfo, capabilities, env, captureStderr = false,
 }) {
   const child = spawn(require('electron'), withLinuxNoSandbox([repoRoot, '--disable-gpu']), {
     cwd: repoRoot,
@@ -293,7 +293,7 @@ export function spawnMcpStdioClient({
       ...seedMcpClientIdentityEnv(capabilityDir),
       ...(env || {}),
     },
-    stdio: ['pipe', 'pipe', 'inherit'],
+    stdio: ['pipe', 'pipe', captureStderr ? 'pipe' : 'inherit'],
   })
 
   const pending = new Map()
@@ -302,6 +302,8 @@ export function spawnMcpStdioClient({
   const progressByToken = new Map()
   let elicitationCount = 0
   let childExit = null
+  let stderrText = ''
+  const messages = []
 
   // Transport died (spawn error or the child exited) → reject every in-flight RPC instead of leaving it to
   // time out. This is why pending stores `reject` alongside `resolve`/`timer`.
@@ -317,12 +319,14 @@ export function spawnMcpStdioClient({
     childExit = { code, signal }
     failPending(new Error(`MCP stdio server exited: code=${code} signal=${signal}`))
   })
+  if (captureStderr) child.stderr.on('data', (chunk) => { stderrText += String(chunk) })
 
   readline.createInterface({ input: child.stdout }).on('line', (line) => {
     const text = line.trim()
     if (!text.startsWith('{')) return
     let msg
     try { msg = JSON.parse(text) } catch { return }
+    messages.push(msg)
     // Server→client request: elicitation/create → auto-accept (headless test authorization).
     if (msg.method === 'elicitation/create' && msg.id != null) {
       elicitationCount += 1
@@ -352,6 +356,12 @@ export function spawnMcpStdioClient({
       child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params: outParams }) + '\n')
     })
   }
+
+  function notify(method, params = {}) {
+    child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method, params })}\n`)
+  }
+
+  function nextRequestId() { return seq + 1 }
 
   /**
    * Call a tool. If progressToken given, attach it under _meta so the server emits notifications/progress.
@@ -411,12 +421,16 @@ export function spawnMcpStdioClient({
     child,
     initialize,
     rpc,
+    notify,
+    nextRequestId,
     callTool,
     callToolOrThrow,
     terminate,
     progressForToken: (token) => progressByToken.get(String(token)) || 0,
     elicitationCount: () => elicitationCount,
     childExited: () => childExit,
+    stderrText: () => stderrText,
+    messages: () => messages.slice(),
   }
 }
 

@@ -95,7 +95,7 @@ describe('sample gate (B2 · 首镜停门 + 窗口化)', () => {
 
     // MCP 转述：nomi_get_run 把「样片就绪、先过目再批量」摊给模型（终端看不了图，走深链）。
     const runProjection = service.readProjection('project-1', runId)
-    const getRunNarration = buildToolOutcome('nomi_get_run', { projectId: 'project-1', runId }, runProjection, 'zh-CN')
+    const getRunNarration = buildToolOutcome('nomi_read', { target: 'run', projectId: 'project-1', runId }, runProjection, 'zh-CN')
     expect(getRunNarration.text).toContain('样片就绪')
     expect(getRunNarration.outcome).toMatchObject({ sampleGateId: 'gate-sample-v1', nextActions: ['review_sample'] })
 
@@ -132,7 +132,7 @@ describe('sample gate (B2 · 首镜停门 + 窗口化)', () => {
     expect(paused.artifacts.filter((a) => a.kind === 'video')).toHaveLength(1)
 
     // MCP 转述：样片打回 → 「已暂停 + 样片保留 + 改提示词后可继续」，别让用户以为全废了。
-    const rejectNarration = buildToolOutcome('nomi_decide_gate', { projectId: 'project-1', runId, gateId: 'gate-sample-v1', decision: 'rejected' }, service.readProjection('project-1', runId), 'zh-CN')
+    const rejectNarration = buildToolOutcome('nomi_run_gate', { action: 'decide', projectId: 'project-1', runId, gateId: 'gate-sample-v1', decision: 'rejected' }, service.readProjection('project-1', runId), 'zh-CN')
     expect(rejectNarration.text).toContain('样片打回')
     expect(rejectNarration.text).toContain('保留')
   })

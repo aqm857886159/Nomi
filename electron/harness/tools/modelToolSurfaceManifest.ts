@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ZodTypeAny } from "zod";
 import { GENERATION_RECONCILE_OUTCOMES } from "../../capabilityCore/mcpGenerationTools";
+import { timelineEditPlanSchema } from "../../shared/agentCapabilities/timelineRead";
 
 export type SemanticToolDescriptor = Readonly<{
   name: `nomi_${string}`;
@@ -116,6 +117,68 @@ const generationDescriptors = [
   },
 ] as const satisfies readonly SemanticToolDescriptor[];
 
+const editingDescriptors = [
+  {
+    version: 1,
+    name: "nomi_timeline_read" as const,
+    intent: "Read the current timeline or a bounded frame range without changing the project.",
+    capabilityRefs: ["timeline.read"],
+    inputSchema: z.discriminatedUnion("operation", [
+      z.object({ operation: z.literal("read") }).strict(),
+      z.object({ operation: z.literal("range"), startFrame: z.number().int().nonnegative(), endFrame: z.number().int().positive() }).strict(),
+    ]),
+    outputSchema: z.unknown(),
+    sideEffect: "none" as const,
+    execution: "parallel" as const,
+    risk: "read" as const,
+    disclosure: "eager" as const,
+    availability: { phases: ["editing"], requiredScopes: ["timeline:read"] },
+  },
+  {
+    version: 1,
+    name: "nomi_timeline_edit" as const,
+    intent: "Preview, apply, or undo one revision-guarded timeline edit plan through Host approval.",
+    capabilityRefs: ["timeline.read", "timeline.write"],
+    inputSchema: z.discriminatedUnion("operation", [
+      z.object({ operation: z.literal("preview"), plan: timelineEditPlanSchema }).strict(),
+      z.object({ operation: z.literal("apply"), plan: timelineEditPlanSchema }).strict(),
+      z.object({ operation: z.literal("undo"), undoToken: z.string().trim().min(1), expectedRevision: z.string().trim().min(1), reason: z.string().trim().max(300).optional() }).strict(),
+    ]),
+    outputSchema: z.unknown(),
+    sideEffect: "proposal" as const,
+    execution: "sequential" as const,
+    risk: "project_write" as const,
+    disclosure: "eager" as const,
+    availability: { phases: ["editing"], requiredScopes: ["timeline:read", "timeline:write"] },
+  },
+  {
+    version: 1,
+    name: "nomi_export_job" as const,
+    intent: "Inspect or verify an export job receipt; starting and cancelling exports remain Host-only.",
+    capabilityRefs: ["export.read", "export.write"],
+    inputSchema: z.object({ operation: z.enum(["status", "verify"]), jobId: z.string().trim().min(1) }).strict(),
+    outputSchema: z.unknown(),
+    sideEffect: "none" as const,
+    execution: "parallel" as const,
+    risk: "read" as const,
+    disclosure: "eager" as const,
+    availability: { phases: ["editing"], requiredScopes: ["export:read"] },
+  },
+  {
+    version: 1,
+    name: "nomi_media_query" as const,
+    intent: "Query project media, technical metadata, source usage, or waveform data without changing the project.",
+    capabilityRefs: ["asset.read"],
+    inputSchema: z.object({ operation: z.enum(["list", "get", "inspect", "search", "source_range", "waveform"]), assetId: z.string().trim().min(1).optional(), query: z.string().max(200).optional(), kinds: z.array(z.enum(["image", "video", "audio"])).max(3).optional(), limit: z.number().int().min(1).max(100).optional() }).strict(),
+    outputSchema: z.unknown(),
+    sideEffect: "none" as const,
+    execution: "parallel" as const,
+    risk: "read" as const,
+    disclosure: "deferred" as const,
+    availability: { phases: ["editing"], requiredScopes: ["asset:read"] },
+  },
+] as const satisfies readonly SemanticToolDescriptor[];
+
 /** Host/UI transitions are wire contracts, never model-authored tools. */
 export const GENERATION_HOST_ONLY_TRANSITIONS: readonly HostOnlyTransition[] = Object.freeze([
   { name: "nomi_request_generation_gate", capabilityRefs: ["generation.gate"], reason: "Host policy creates the user confirmation card." },
@@ -124,12 +187,14 @@ export const GENERATION_HOST_ONLY_TRANSITIONS: readonly HostOnlyTransition[] = O
 ]);
 
 export const modelToolSurfaceManifest = Object.freeze({
-  version: "m2-generation-v1",
+  version: "m2-generation-editing-v1",
   generation: Object.freeze(generationDescriptors),
+  editing: Object.freeze(editingDescriptors),
 });
 
-const modelNames = new Set<string>(modelToolSurfaceManifest.generation.map(({ name }) => name));
-if (modelNames.size !== modelToolSurfaceManifest.generation.length) throw new Error("Duplicate semantic model tool");
+const modelSurface = [...modelToolSurfaceManifest.generation, ...modelToolSurfaceManifest.editing];
+const modelNames = new Set<string>(modelSurface.map(({ name }) => name));
+if (modelNames.size !== modelSurface.length) throw new Error("Duplicate semantic model tool");
 for (const transition of GENERATION_HOST_ONLY_TRANSITIONS) {
   if (modelNames.has(transition.name)) throw new Error(`Host-only transition leaked into model surface: ${transition.name}`);
 }

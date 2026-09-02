@@ -3,6 +3,10 @@ import { RpcError } from './dispatcher'
 
 const PROJECT_SESSION_ONLY_METHODS = new Set([
   CANVAS_READ_CAPABILITY.id,
+  'timeline.read',
+  'timeline.write',
+  'asset.read',
+  'export.read',
   'nomi_session_open',
 ])
 

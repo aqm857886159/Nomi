@@ -3,7 +3,9 @@
 > **本文件由 `scripts/build-delivery-ledger.mjs` 生成，禁止手改**；加了文档就跑 `pnpm run gen:ledger`。
 > 跨阶段总纲 / master plan 住这里；功能级方案在 [`docs/plan/`](../../plan/INDEX.md)。
 > **当前主文档**：[Nomi 统一 Agent 总体方案](2026-08-24-unified-agent-master-plan.md)（含 §5.1「AI 剪辑三步」E1/E2/E3）。
-> 「标题」取自各文件 H1，未二次概括；状态为「—」表示尚未登记（见 [交付账本](../../DELIVERY-LEDGER.md)）。
+> 「标题」取自各文件 H1，未二次概括；状态为「—」表示尚未登记。
+> 想看「已拍板但没交付」的全量欠账：跑 `pnpm run ledger:brief`（一行摘要）或 `pnpm run gen:ledger`
+> 生成本地 `docs/DELIVERY-LEDGER.md`——它是本地视图、**不进 git**（含全局计数，commit 了会造成人工解不对的合并冲突）。
 
 | 文件 | 标题 | 状态 |
 |---|---|---|

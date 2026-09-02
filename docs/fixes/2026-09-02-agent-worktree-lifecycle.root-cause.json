@@ -1,0 +1,99 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-agent-worktree-lifecycle",
+  "problem_type": "agent worktree and dependency lifecycle leak",
+  "symptom": "Nomi accumulates stopped worktrees and repeated node_modules trees, consuming disk space after agent tasks finish.",
+  "direct_cause": "Worktree creation and dependency installation have an enforced start path, but task stop has no shared lease marker or safe reclaim path; the existing Stop hook checks delivery evidence only.",
+  "class_root": "Agent task lifecycle has no shared stop boundary that records ownership and separates rebuildable dependencies from user code and branch state.",
+  "affected_population": [
+    "Nomi Claude linked worktrees",
+    "Nomi Codex full clones",
+    "Any future agent task that installs dependencies in an isolated Nomi checkout"
+  ],
+  "scope_paths": [
+    "scripts/agent-worktree-janitor.mjs",
+    "scripts/install-agent-worktree-janitor.mjs",
+    "scripts/agent-worktree-janitor.node-test.mjs",
+    "docs/engineering/agent-worktree-lifecycle.md"
+  ],
+  "entry_points": [
+    "Claude Stop hook invoking scripts/agent-worktree-janitor.mjs stop",
+    "Manual or scheduled scripts/agent-worktree-janitor.mjs reap",
+    "scripts/install-agent-worktree-janitor.mjs installing the shared Stop hook"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This change enforces an internal repository and local-agent lifecycle invariant; no third-party API contract decides whether a worktree's code or dependencies are disposable.",
+  "invariants": [
+    "Only a stopped, inactive, grace-period-expired worktree may be reclaimed.",
+    "Dirty or detached code is never removed automatically.",
+    "Full clones are never removed automatically; only rebuildable dependency directories may be pruned.",
+    "Unmanaged worktrees without a stop marker are left untouched."
+  ],
+  "generality_proof": "All supported agent checkouts converge on the repository-provided Stop hook and janitor policy. The policy classifies linked worktrees, detached worktrees, and full clones before any filesystem mutation, so equivalent task endings cannot bypass the code-versus-dependency safety boundary.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/agent-worktree-janitor.mjs",
+      "symbol": "decideAction and stop/reap commands",
+      "responsibility": "Record the stopped lease, check activity and grace period, and select only safe dependency pruning or linked-worktree removal."
+    },
+    {
+      "path": "scripts/install-agent-worktree-janitor.mjs",
+      "symbol": "installStopHook",
+      "responsibility": "Install one idempotent repository-relative Stop hook on a developer machine without embedding a machine-specific checkout path."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/agent-worktree-janitor.mjs",
+      "entry_point": "stop",
+      "disposition": "enforced",
+      "evidence": "The stop command writes the lease marker before reaping the repository's registered worktrees and sibling full clones."
+    },
+    {
+      "path": "scripts/agent-worktree-janitor.mjs",
+      "entry_point": "reap",
+      "disposition": "enforced",
+      "evidence": "The reap command uses the same decision policy for explicit/manual cleanup, so it cannot bypass active, grace, dirty, detached, or full-clone protections."
+    },
+    {
+      "path": "scripts/install-agent-worktree-janitor.mjs",
+      "entry_point": "installStopHook",
+      "disposition": "enforced",
+      "evidence": "The installer is the shared setup path for Claude Stop integration and emits a repository-relative command that works in each checkout."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every parallel agent run can create the same disposable dependency tree, and the existing stop path has no cleanup ownership or expiry signal.",
+    "same_class_scan": [
+      "CLAUDE.md worktree and pnpm install rules: independent worktrees are created repeatedly without a disposal step.",
+      "docs/engineering/agent-orchestration-playbook.md lifecycle guidance: liveness is judged but no repository cleanup callback is enforced.",
+      "scripts/agent-worktree-janitor.mjs stop and reap: both converge on the new policy boundary."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/agent-worktree-janitor.mjs",
+    "invariant": "No worktree is removed or dependency directory is pruned unless it has a stopped lease, has passed the grace period, and is not active; code and full-clone boundaries remain protected.",
+    "failure_mode": "Missing, malformed, fresh, active, dirty-code, detached, or full-clone state fails closed to skip or dependency-only pruning.",
+    "exception_policy": "none",
+    "strategy": "Make stop ownership explicit, then reuse one classifier for automatic Stop-hook cleanup and manual reap so equivalent entry points cannot invent different deletion rules.",
+    "artifacts": ["scripts/agent-worktree-janitor.mjs", "scripts/install-agent-worktree-janitor.mjs"]
+  },
+  "regression_tests": ["scripts/agent-worktree-janitor.node-test.mjs"],
+  "class_regression_tests": ["scripts/agent-worktree-janitor.node-test.mjs"],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The existing machine-local hook remains a local installation detail; this change adds the versioned repository implementation and installer without removing unrelated project hooks."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is implemented with Node.js standard-library and Git/lsof commands already required by the local workflow; no third-party runtime controls the lifecycle decision.",
+    "exit_criteria": []
+  },
+  "migration": "Developers run pnpm run install:agent-worktree-janitor once per checkout. Existing unmanaged worktrees are not retroactively deleted; only future stops create leases, preserving unknown user work.",
+  "residual_risks": [
+    "Codex does not expose a repository task-stop callback in this environment, so full clones require the shared installer or an explicit reap invocation to create/use a lease; the janitor still never deletes their code."
+  ]
+}

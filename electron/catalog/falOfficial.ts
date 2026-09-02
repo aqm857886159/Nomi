@@ -109,7 +109,25 @@ export const FAL_OFFICIAL_MODELS: FalModel[] = [
     modelKey: "bytedance/seedance-2.5", labelZh: "Seedance 2.5 · fal", kind: "video", archetypeId: "seedance-2.5",
     mappings: [
       withCreateOptions(mapping("bytedance/seedance-2.5", "text_to_video", "t2v", "Seedance 2.5 · 文生视频", "bytedance/seedance-2.5/text-to-video", { prompt: "{{request.prompt}}", resolution: p("resolution"), duration: p("duration"), aspect_ratio: p("aspect_ratio"), generate_audio: p("generate_audio"), bitrate_mode: p("bitrate_mode"), end_user_id: p("end_user_id") }, "video.url"), { paramMap: { drops: ["return_last_frame"], rules: [] } }),
-      withCreateOptions(mapping("bytedance/seedance-2.5", "image_to_video", "i2v", "Seedance 2.5 · 图生视频", "bytedance/seedance-2.5/image-to-video", { prompt: "{{request.prompt}}", image_url: p("image_url"), end_image_url: p("end_image_url"), resolution: p("resolution"), duration: p("duration"), aspect_ratio: p("aspect_ratio"), generate_audio: p("generate_audio"), bitrate_mode: p("bitrate_mode"), end_user_id: p("end_user_id") }, "video.url"), { paramMap: { drops: ["return_last_frame"], rules: [] } }),
+      // 档案 `seedance-2.5` 的 first / firstlast / omni 三个图模式，在 fal 上落到**两个不同端点**
+      // （image-to-video 与 reference-to-video）。此前只有一条 `modeId:"i2v"`，三个模式全靠
+      // selectTaskMapping 的单候选回落借它——U1 收紧后暴露为「无 mapping」。这里按官方 schema
+      // 逐字段补齐各模式**自己的**线缆，modeId 与档案模式 id 严格同名，杜绝再被借用。
+      //
+      // 官方来源（2026-09-02 抓，逐字段对账）：
+      //   image-to-video     https://fal.ai/models/bytedance/seedance-2.5/image-to-video/api
+      //     prompt(必填) · image_url(必填,首帧) · end_image_url(选,尾帧) · resolution=720p ·
+      //     duration=auto · aspect_ratio=auto · generate_audio=true · bitrate_mode=standard · end_user_id
+      //   reference-to-video https://fal.ai/models/bytedance/seedance-2.5/reference-to-video/api
+      //     prompt(必填) · image_urls≤30 · video_urls≤10 · audio_urls≤10（跨模态合计≤50）· 其余同上
+      //
+      // **wire 键 ← canonical 键的桥接走 body 模板本身，不写 paramMap 改名规则**：模板取值
+      // `{{request.params.first_frame_url}}` 已经是「读 canonical、落 wire 位」，值经 ...extras 直达
+      // （types.ts:445「改名/identity 透传不必写」）。再加一条 `{wire:"image_url",from:"first_frame_url"}`
+      // 是同一件事的第二份真相，删掉它测试逐字节不变（已用变异实验验证）——按 P1 不留并行实现。
+      withCreateOptions(mapping("bytedance/seedance-2.5", "image_to_video", "first", "Seedance 2.5 · 首帧", "bytedance/seedance-2.5/image-to-video", { prompt: "{{request.prompt}}", image_url: p("first_frame_url"), resolution: p("resolution"), duration: p("duration"), aspect_ratio: p("aspect_ratio"), generate_audio: p("generate_audio"), bitrate_mode: p("bitrate_mode"), end_user_id: p("end_user_id") }, "video.url"), { paramMap: { drops: ["return_last_frame"], rules: [] } }),
+      withCreateOptions(mapping("bytedance/seedance-2.5", "image_to_video", "firstlast", "Seedance 2.5 · 首尾帧", "bytedance/seedance-2.5/image-to-video", { prompt: "{{request.prompt}}", image_url: p("first_frame_url"), end_image_url: p("last_frame_url"), resolution: p("resolution"), duration: p("duration"), aspect_ratio: p("aspect_ratio"), generate_audio: p("generate_audio"), bitrate_mode: p("bitrate_mode"), end_user_id: p("end_user_id") }, "video.url"), { paramMap: { drops: ["return_last_frame"], rules: [] } }),
+      withCreateOptions(mapping("bytedance/seedance-2.5", "image_to_video", "omni", "Seedance 2.5 · 全能参考", "bytedance/seedance-2.5/reference-to-video", { prompt: "{{request.prompt}}", image_urls: p("reference_image_urls"), video_urls: p("reference_video_urls"), audio_urls: p("reference_audio_urls"), resolution: p("resolution"), duration: p("duration"), aspect_ratio: p("aspect_ratio"), generate_audio: p("generate_audio"), bitrate_mode: p("bitrate_mode"), end_user_id: p("end_user_id") }, "video.url"), { paramMap: { drops: ["return_last_frame"], rules: [] } }),
     ],
   },
   {
@@ -124,6 +142,18 @@ export const FAL_OFFICIAL_MODELS: FalModel[] = [
     mappings: [
       withCreateOptions(mapping("google/gemini-omni-flash/v1.1", "text_to_video", "t2v", "Gemini Omni 1.1 · 文生视频", "google/gemini-omni-flash/v1.1/text-to-video", { prompt: "{{request.prompt}}", aspect_ratio: p("aspect_ratio"), resolution: p("resolution"), duration: p("duration") }, "video.url"), { paramMap: { drops: ["seed"], rules: [] } }),
       withCreateOptions(mapping("google/gemini-omni-flash/v1.1", "image_to_video", "reference", "Gemini Omni 1.1 · 参考生视频", "google/gemini-omni-flash/v1.1/reference-to-video", { prompt: "{{request.prompt}}", image_urls: p("image_urls"), reference_video_urls: p("reference_video_urls"), aspect_ratio: p("aspect_ratio"), resolution: p("resolution"), duration: p("duration") }, "video.url"), { paramMap: { drops: ["seed"], rules: [] } }),
+      // 档案 `gemini-omni-1.1` 的 firstlast（首帧必填 + 尾帧可选）此前无自己的 mapping，靠单候选
+      // 回落借了上面 `modeId:"reference"` 那条——borrow 之后尾帧根本没有落点（reference 端点没有
+      // 尾帧键），「首尾帧」实为「单参考图」。fal 有**独立的** image-to-video 端点正好表达这件事。
+      //
+      // 官方来源（2026-09-02 抓 https://fal.ai/models/google/gemini-omni-flash/v1.1/image-to-video/api）：
+      //   prompt(必填) · image_url(必填,"URL of the first frame to animate") ·
+      //   end_image_url(选,"interpolated into the optional end image") ·
+      //   aspect_ratio=16:9(16:9|9:16) · resolution=720p(360p|720p|1080p|4k) · duration=8(整数)
+      //   —— 无 image_urls / reference_video_urls / first_frame_url / last_frame_url。
+      // 档案该模式的槽已显式声明 inputKey first_frame_url / last_frame_url；body 模板直接读这两个
+      // canonical 键并落在 fal 的 image_url / end_image_url 位上，无需再写 paramMap 改名（同上）。
+      withCreateOptions(mapping("google/gemini-omni-flash/v1.1", "image_to_video", "firstlast", "Gemini Omni 1.1 · 首尾帧", "google/gemini-omni-flash/v1.1/image-to-video", { prompt: "{{request.prompt}}", image_url: p("first_frame_url"), end_image_url: p("last_frame_url"), aspect_ratio: p("aspect_ratio"), resolution: p("resolution"), duration: p("duration") }, "video.url"), { paramMap: { drops: ["seed"], rules: [] } }),
     ],
   },
   {

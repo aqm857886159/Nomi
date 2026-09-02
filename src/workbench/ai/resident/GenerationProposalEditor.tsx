@@ -1,7 +1,7 @@
 import React from 'react'
 import { IconMessage, IconPhoto, IconVideo } from '@tabler/icons-react'
-import { cn } from '../../../utils/cn'
 import InlineParameterBar from '../../generationCanvas/nodes/InlineParameterBar'
+import { archetypeModeChoices } from '../../generationCanvas/nodes/controls/channelModeReach'
 import {
   deriveGenerationModelCatalogStatus,
   findModelOptionByIdentifier,
@@ -9,7 +9,6 @@ import {
 } from '../../generationCanvas/adapters/modelOptionsAdapter'
 import { resolveArchetypeForOption, resolveRenderedControls } from '../../generationCanvas/nodes/nodeModelArchetype'
 import {
-  archetypeModeChoices,
   archetypeVariantChoices,
   currentArchetypeMode,
   currentArchetypeVariant,

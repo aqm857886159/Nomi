@@ -8,9 +8,9 @@ import {
 } from './mcpToolResults'
 
 describe('buildToolOutcome (A2 结果重写：转述原材料 + 参数回显)', () => {
-  it('start_playbook：状态首行 + 参数回显 + 下一步；结构化字段齐 runId/nextActions', () => {
+  it('run_start：状态首行 + 参数回显 + 下一步；结构化字段齐 runId/nextActions', () => {
     const { text, outcome } = buildToolOutcome(
-      'nomi_start_playbook',
+      'nomi_run_start',
       { projectId: 'p1', playbook: 'brand.promo', brief: { goal: '一条 60 秒品牌宣传片，主角小满', durationSeconds: 60 } },
       { runId: 'run_7f32', openInNomi: 'nomi://open/run_7f32' },
     )
@@ -23,10 +23,10 @@ describe('buildToolOutcome (A2 结果重写：转述原材料 + 参数回显)', 
     expect(outcome).toMatchObject({ kind: 'run_draft', runId: 'run_7f32', projectId: 'p1', nextActions: ['pick_direction'] })
   })
 
-  it('get_run：状态翻成人话 + 预算行 + 下一步（en locale 全英文）', () => {
+  it('read target=run：状态翻成人话 + 预算行 + 下一步（en locale 全英文）', () => {
     const { text, outcome } = buildToolOutcome(
-      'nomi_get_run',
-      { projectId: 'p1', runId: 'run_1' },
+      'nomi_read',
+      { target: 'run', projectId: 'p1', runId: 'run_1' },
       { runId: 'run_1', status: 'awaiting_contract', stageId: 'contract', budget: { authorized: 99.74, actual: 0 } },
       'en',
     )
@@ -36,11 +36,11 @@ describe('buildToolOutcome (A2 结果重写：转述原材料 + 参数回显)', 
     expect(outcome).toMatchObject({ kind: 'run_status', status: 'awaiting_contract', nextActions: ['approve_contract'] })
   })
 
-  it('subscribe_run 空事件：明说「暂无」+ cursor；有事件逐行透出', () => {
-    const empty = buildToolOutcome('nomi_subscribe_run', { runId: 'r' }, { events: [], nextCursor: 5 })
+  it('read target=run_events 空事件：明说「暂无」+ cursor；有事件逐行透出', () => {
+    const empty = buildToolOutcome('nomi_read', { target: 'run_events', runId: 'r' }, { events: [], nextCursor: 5 })
     expect(empty.text).toContain('暂无新的重要事件')
     expect(empty.text).toContain('next cursor 5')
-    const some = buildToolOutcome('nomi_subscribe_run', { runId: 'r' }, {
+    const some = buildToolOutcome('nomi_read', { target: 'run_events', runId: 'r' }, {
       events: [{ type: 'gate.waiting', message: '等待预算批准' }], nextCursor: 6,
     })
     expect(some.text).toContain('gate.waiting · 等待预算批准')
@@ -67,7 +67,7 @@ describe('buildToolOutcome (A2 结果重写：转述原材料 + 参数回显)', 
   })
 })
 
-describe('nomi_list_models 转述（交付1：只有 keyStatus=ok 说可用 + 参考能力 + locale）', () => {
+describe('nomi_read target=models 转述（交付1：只有 keyStatus=ok 说可用 + 参考能力 + locale）', () => {
   const modelsResult = {
     models: [
       { vendor: 'apimart', modelKey: 'seedream', label: 'Seedream', kind: 'image', keyStatus: 'ok', statusReason: '已接入且可用', references: { image: true, video: false, audio: false, multiImage: true, referenceModes: ['image_edit'] } },
@@ -77,7 +77,7 @@ describe('nomi_list_models 转述（交付1：只有 keyStatus=ok 说可用 + �
   }
 
   it('分组：可用（ok）与「已列出但不可用」（missing/locked）分开；只 ok 打 ✓', () => {
-    const { text, outcome } = buildToolOutcome('nomi_list_models', {}, modelsResult)
+    const { text, outcome } = buildToolOutcome('nomi_read', { target: 'models' }, modelsResult)
     expect(text).toContain('可用模型 1 个')
     expect(text).toContain('apimart · seedream')
     expect(text).toContain('✓ 可用')
@@ -96,7 +96,7 @@ describe('nomi_list_models 转述（交付1：只有 keyStatus=ok 说可用 + �
   })
 
   it('en locale：分组标题与状态标签全英文（走 L(ctx,zh,en) 机制）', () => {
-    const { text } = buildToolOutcome('nomi_list_models', {}, modelsResult, 'en')
+    const { text } = buildToolOutcome('nomi_read', { target: 'models' }, modelsResult, 'en')
     expect(text).toContain('1 usable model(s)')
     expect(text).toContain('usable')
     expect(text).toContain('listed but not usable')
@@ -108,7 +108,7 @@ describe('nomi_list_models 转述（交付1：只有 keyStatus=ok 说可用 + �
   })
 
   it('全部无 key：明说去配 + nextActions=configure_api_key', () => {
-    const { text, outcome } = buildToolOutcome('nomi_list_models', {}, {
+    const { text, outcome } = buildToolOutcome('nomi_read', { target: 'models' }, {
       models: [{ vendor: 'kie', modelKey: 'x', label: 'X', kind: 'image', keyStatus: 'missing', statusReason: '未配置', references: { image: false, video: false, audio: false, multiImage: false, referenceModes: [] } }],
     })
     expect(text).toContain('无——请先配置 API Key')
@@ -116,16 +116,16 @@ describe('nomi_list_models 转述（交付1：只有 keyStatus=ok 说可用 + �
   })
 
   it('空清单：明说没有已启用模型', () => {
-    const { text, outcome } = buildToolOutcome('nomi_list_models', {}, { models: [] })
+    const { text, outcome } = buildToolOutcome('nomi_read', { target: 'models' }, { models: [] })
     expect(text).toContain('没有已启用的模型')
     expect(outcome).toMatchObject({ kind: 'model_list', total: 0, usable: 0 })
   })
 })
 
-describe('nomi_control_run 诚实敞口（中转已提交≈收不回）', () => {
+describe('nomi_run_control 诚实敞口（中转已提交≈收不回）', () => {
   it('pausing 且有在途任务：⚠ 报数量 + 会跑完并计费 + 自动落停；outcome 带 inFlightJobs', () => {
     const { text, outcome } = buildToolOutcome(
-      'nomi_control_run',
+      'nomi_run_control',
       { projectId: 'p1', runId: 'run_1', action: 'pause' },
       { runId: 'run_1', status: 'pausing', jobs: [
         { jobId: 'j1', status: 'polling' },
@@ -141,10 +141,10 @@ describe('nomi_control_run 诚实敞口（中转已提交≈收不回）', () =>
   })
 
   it('paused 无在途：不出 ⚠ 行；cancel 有在途：⚠ 仍会计费', () => {
-    const clean = buildToolOutcome('nomi_control_run', { runId: 'r', action: 'pause' }, { runId: 'r', status: 'paused', jobs: [] })
+    const clean = buildToolOutcome('nomi_run_control', { runId: 'r', action: 'pause' }, { runId: 'r', status: 'paused', jobs: [] })
     expect(clean.text).toContain('✓ 已暂停')
     expect(clean.text).not.toContain('⚠')
-    const cancelled = buildToolOutcome('nomi_control_run', { runId: 'r', action: 'cancel' }, {
+    const cancelled = buildToolOutcome('nomi_run_control', { runId: 'r', action: 'cancel' }, {
       runId: 'r', status: 'cancelled', jobs: [{ jobId: 'j1', status: 'downloading' }],
     })
     expect(cancelled.text).toContain('⚠ 1 个已提交的任务无法撤回，会跑完并计费')
@@ -230,7 +230,7 @@ describe('buildToolErrorOutcome (A6 错误契约)', () => {
   })
 
   it('turns submission_unknown into reconcile-only user language', () => {
-    const { text, outcome } = buildToolOutcome('nomi_get_run', { projectId: 'p1', runId: 'run-1' }, {
+    const { text, outcome } = buildToolOutcome('nomi_read', { target: 'run', projectId: 'p1', runId: 'run-1' }, {
       runId: 'run-1', status: 'needs_attention', stageId: 'generate',
       budget: { authorized: 5, actual: 0 }, jobs: [{ jobId: 'job-1', status: 'submission_unknown' }],
     })
@@ -241,7 +241,7 @@ describe('buildToolErrorOutcome (A6 错误契约)', () => {
   })
 
   it('keeps the recovery message in the requested locale', () => {
-    const { text, outcome } = buildToolOutcome('nomi_get_run', { projectId: 'p1', runId: 'run-1' }, {
+    const { text, outcome } = buildToolOutcome('nomi_read', { target: 'run', projectId: 'p1', runId: 'run-1' }, {
       runId: 'run-1', status: 'needs_attention', stageId: 'generate',
       budget: {}, jobs: [{ jobId: 'job-1', status: 'submission_unknown' }],
     }, 'en')
@@ -252,8 +252,8 @@ describe('buildToolErrorOutcome (A6 错误契约)', () => {
 
 describe('buildProgressStartMessage (A1 起始帧参数回显)', () => {
   it('start_playbook：草稿 + playbook；其它工具 null', () => {
-    expect(buildProgressStartMessage('nomi_start_playbook', { playbook: 'brand.promo' }))
+    expect(buildProgressStartMessage('nomi_run_start', { playbook: 'brand.promo' }))
       .toBe('正在创建制作草稿 · brand.promo')
-    expect(buildProgressStartMessage('nomi_read_canvas', {})).toBeNull()
+    expect(buildProgressStartMessage('nomi_read', { target: 'canvas' })).toBeNull()
   })
 })

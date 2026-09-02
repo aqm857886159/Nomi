@@ -56,8 +56,8 @@ function stalledDraftHint(value: Record<string, unknown>): (typeof RUN_STATUS_HI
   return {
     zh: '起不来的草稿',
     en: 'stalled draft',
-    nextZh: '这个制作没建起任何阶段（起草时用的 playbook 未实现），不会自己往前走。用 nomi_control_run 取消它，再用受支持的 playbook 重新发起。',
-    nextEn: 'This run has no stages (its playbook was never implemented), so it will never progress. Cancel it with nomi_control_run, then start again with a supported playbook.',
+    nextZh: '这个制作没建起任何阶段（起草时用的 playbook 未实现），不会自己往前走。用 nomi_run_control（action=cancel）取消它，再用受支持的 playbook 重新发起。',
+    nextEn: 'This run has no stages (its playbook was never implemented), so it will never progress. Cancel it with nomi_run_control (action=cancel), then start again with a supported playbook.',
     action: 'cancel_run',
   }
 }
@@ -123,12 +123,13 @@ function buildArtifactBodyOutcome(
   const bodyText = content === undefined ? null : JSON.stringify(content, null, 2)
   const preview = rec(value.preview)
   const previewUrl = str(preview.url)
-  const isRevision = toolName === 'nomi_request_script_revision' || toolName === 'nomi_request_storyboard_revision'
-  const isReview = toolName === 'nomi_review_artifact'
+  // 面收敛：修订/审阅并入 nomi_artifact_review（action=revise / approve|request_changes|reject）；读全文=nomi_read target=artifact_content。
+  const isRevision = toolName === 'nomi_artifact_review' && str(args.action) === 'revise'
+  const isReview = toolName === 'nomi_artifact_review' && (str(args.action) === 'approve' || str(args.action) === 'request_changes' || str(args.action) === 'reject')
   const head = isRevision
     ? L(ctx, '✓ 修订候选已创建', '✓ Revision candidate created')
     : isReview
-      ? (status === 'adopted' || str(args.decision) === 'approved'
+      ? (status === 'adopted' || str(args.action) === 'approve'
           ? L(ctx, '✓ 产物版本已批准', '✓ Artifact version approved')
           : L(ctx, '✓ 产物审阅决定已记录', '✓ Artifact review decision recorded'))
       : `[Nomi] ${kind} · ${status}`
@@ -319,13 +320,15 @@ export function buildToolOutcome(
   const projectId = str(value.projectId) || str(args.projectId)
   const openLine = openInNomi ? `\n${L(ctx, '在 Nomi 打开', 'Open in Nomi')} ${openInNomi}` : ''
 
-  if (toolName === 'nomi_list_models') {
+  // 面收敛：读侧全部并入 nomi_read（target 区分）；模型清单 = target=models。
+  const readTarget = toolName === 'nomi_read' ? str(args.target) : ''
+  if (toolName === 'nomi_read' && readTarget === 'models') {
     // 交付1：模型清单转述——**只把 keyStatus=ok 的说成"可用"**，missing/locked 各带缺口一句话（R15 双语）。
     // 参考能力也点出来（能带图/视频/音频/多图 + 哪个模式），让选型不必再猜。结构化字段原样透传给模型精确读。
     return buildListModelsOutcome(ctx, value)
   }
 
-  if (toolName === 'nomi_start_playbook') {
+  if (toolName === 'nomi_run_start') {
     const brief = rec(args.brief)
     const goal = str(brief.goal)
     const duration = typeof brief.durationSeconds === 'number' ? `${brief.durationSeconds}s` : null
@@ -355,7 +358,7 @@ export function buildToolOutcome(
     }
   }
 
-  if (toolName === 'nomi_get_run') {
+  if (toolName === 'nomi_read' && readTarget === 'run') {
     const status = str(value.status) || 'unknown'
     const hint = stalledDraftHint(value) ?? RUN_STATUS_HINT[status]
     const artifacts = Array.isArray(value.artifacts) ? (value.artifacts as Array<Record<string, unknown>>) : []
@@ -379,11 +382,11 @@ export function buildToolOutcome(
     const checkpoint = waitingAnchorCheckpointGate(value)
     const checkpointLines = checkpoint ? [
       L(ctx,
-        '定妆照就绪：先过目再开拍。用 nomi_get_artifact 逐张预览本门 jobIds 对应的 artifacts，展示给用户看。',
-        'Character stills ready: review before shooting. Preview the artifacts matching this gate\'s jobIds via nomi_get_artifact and show them to the user.'),
+        '定妆照就绪：先过目再开拍。用 nomi_read（target=artifact）逐张预览本门 jobIds 对应的 artifacts，展示给用户看。',
+        'Character stills ready: review before shooting. Preview the artifacts matching this gate\'s jobIds via nomi_read (target=artifact) and show them to the user.'),
       L(ctx,
-        `  满意 → nomi_decide_gate approved 开拍剩余镜头（在已批预算内，不新增授权）；不满意 → rejected 停在检查点，可重出形象。门 id：${checkpoint.gateId}`,
-        `  Happy → nomi_decide_gate approved starts the remaining shots (within the approved budget, no new authorization); otherwise rejected keeps the batch parked for a re-shoot. Gate id: ${checkpoint.gateId}`),
+        `  满意 → nomi_run_gate（action=decide, decision=approved）开拍剩余镜头（在已批预算内，不新增授权）；不满意 → rejected 停在检查点，可重出形象。门 id：${checkpoint.gateId}`,
+        `  Happy → nomi_run_gate (action=decide, decision=approved) starts the remaining shots (within the approved budget, no new authorization); otherwise rejected keeps the batch parked for a re-shoot. Gate id: ${checkpoint.gateId}`),
     ] : []
     const shotGate = waitingShotGate(value)
     const shotTarget = shotGate ? [shotGate.provider, shotGate.model].filter(Boolean).join(' · ') : ''
@@ -453,7 +456,7 @@ export function buildToolOutcome(
     }
   }
 
-  if (toolName === 'nomi_subscribe_run') {
+  if (toolName === 'nomi_read' && readTarget === 'run_events') {
     const events = Array.isArray(value.events) ? (value.events as Array<Record<string, unknown>>) : []
     const lines = events.map((event) => `[Nomi] ${str(event.type) || 'event'} · ${str(event.message)}`)
     const text = `${lines.length ? lines.join('\n') : `[Nomi] ${L(ctx, '暂无新的重要事件', 'no new meaningful events')}`}\nnext cursor ${String(value.nextCursor ?? 0)}`
@@ -467,7 +470,7 @@ export function buildToolOutcome(
     }
   }
 
-  if (toolName === 'nomi_get_artifact') {
+  if (toolName === 'nomi_read' && readTarget === 'artifact') {
     const preview = rec(value.preview)
     const nomiUri = str(value.nomiUri)
     const artifactOpenInNomi = safeNomiDeepLink(openInNomi)
@@ -488,14 +491,13 @@ export function buildToolOutcome(
     }
   }
 
-  if (toolName === 'nomi_read_artifact'
-    || toolName === 'nomi_request_script_revision'
-    || toolName === 'nomi_request_storyboard_revision'
-    || toolName === 'nomi_review_artifact') {
+  // 面收敛：读全文（target=artifact_content）与审阅/修订（nomi_artifact_review 任意 action）共用 body 转述。
+  if ((toolName === 'nomi_read' && readTarget === 'artifact_content') || toolName === 'nomi_artifact_review') {
     return buildArtifactBodyOutcome(ctx, toolName, args, value, safeNomiDeepLink(openInNomi), runId, projectId)
   }
 
-  if (toolName === 'nomi_materialize_storyboard') {
+  // 面收敛：物化落地并入 nomi_run_gate（action=materialize）。
+  if (toolName === 'nomi_run_gate' && str(args.action) === 'materialize') {
     const artifactId = str(value.artifactId) || str(args.artifactId)
     const rawArtifactVersion = value.artifactVersion
     const version = artifactVersionValue(value)
@@ -524,7 +526,7 @@ export function buildToolOutcome(
     }
   }
 
-  if (toolName === 'nomi_control_run' && str(args.action) === 'set_trust') {
+  if (toolName === 'nomi_run_control' && str(args.action) === 'set_trust') {
     // B3 改档转述：报新档位 + 它意味着什么（budget_only=接下来创意/样片门不再打扰；预算门仍在）。
     const trustLevel = str(args.trustLevel) || 'key_confirm'
     const text = [
@@ -544,7 +546,7 @@ export function buildToolOutcome(
     }
   }
 
-  if (toolName === 'nomi_control_run') {
+  if (toolName === 'nomi_run_control') {
     const action = str(args.action)
     const status = str(value.status)
     const hint = RUN_STATUS_HINT[status]
@@ -585,7 +587,8 @@ export function buildToolOutcome(
     }
   }
 
-  if (toolName === 'nomi_decide_gate') {
+  // 面收敛：可逆创意门表态并入 nomi_run_gate（action=decide）。
+  if (toolName === 'nomi_run_gate' && str(args.action) === 'decide') {
     // B1：门决议回执。方向门批准 → 报选中方向 + 下一步（拟分镜）；否决 → 报「不变、可重来」。
     const decision = str(args.decision)
     const gateId = str(args.gateId)
@@ -618,7 +621,7 @@ export function buildToolOutcome(
       chosen ? `  ${chosen.title} —— ${chosen.oneLiner}` : null,
       decision === 'rejected' && isDirection ? L(ctx, '方向未变，可重新给方案或让用户自己描述。', 'Direction unchanged; propose again or let the user describe their own.') : null,
       decision === 'rejected' && isSample ? L(ctx, '已生成的样片保留；改提示词后从这里继续，不重付已花的。', 'The generated sample is kept; adjust the prompt and resume — no double charge.') : null,
-      decision === 'approved' && isCheckpoint ? L(ctx, '剩余镜头已自动开拍（已批预算内），用 nomi_get_run 看进度。', 'The remaining shots are already generating (within the approved budget); track with nomi_get_run.') : null,
+      decision === 'approved' && isCheckpoint ? L(ctx, '剩余镜头已自动开拍（已批预算内），用 nomi_read（target=run）看进度。', 'The remaining shots are already generating (within the approved budget); track with nomi_read (target=run).') : null,
       decision === 'rejected' && isCheckpoint ? L(ctx, '定妆照保留、镜头不开拍不扣费；重出形象后会再开一道检查点。', 'The stills are kept; no shot generates or charges. Re-shoot the look and a fresh checkpoint opens.') : null,
       hint ? L(ctx, hint.nextZh, hint.nextEn) : null,
     ].filter(Boolean).join('\n') + openLine
@@ -644,7 +647,7 @@ export function buildProgressStartMessage(
   locale: ResultLocale = 'zh-CN',
 ): string | null {
   const ctx: Ctx = { locale }
-  if (toolName === 'nomi_start_playbook') {
+  if (toolName === 'nomi_run_start') {
     return [L(ctx, '正在创建制作草稿', 'creating production draft'), str(args.playbook) || null]
       .filter(Boolean).join(' · ')
   }
