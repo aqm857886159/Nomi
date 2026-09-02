@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
-import { buildVideoModelCandidates } from "../shared/videoCapabilities";
+import { buildVideoModelCandidates, modeTransportFor } from "../shared/videoCapabilities";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 import { applyParamMap } from "./paramTranslate";
 import { modeSlotReach } from "./referenceReachability";
@@ -20,7 +20,7 @@ describe("APIMart curated video profiles stay aligned across shared planning and
     for (const [index, model] of APIMART_VIDEO_MODELS.entries()) {
       const candidate = candidates[index]!;
       for (const mode of candidate.archetype.modes) {
-        const taskKind = mode.transportTaskKind ?? candidate.archetype.transportTaskKind;
+        const taskKind = modeTransportFor(mode, candidate.archetype, "apimart");
         const mapping = model.mappings.find((item) => item.taskKind === taskKind);
         if (!mapping) {
           violations.push(`${model.modelKey}/${mode.id}: missing ${taskKind} mapping`);
@@ -43,7 +43,7 @@ describe("APIMart curated video profiles stay aligned across shared planning and
     for (const [index, model] of APIMART_VIDEO_MODELS.entries()) {
       const candidate = candidates[index]!;
       for (const mode of candidate.archetype.modes) {
-        const taskKind = mode.transportTaskKind ?? candidate.archetype.transportTaskKind;
+        const taskKind = modeTransportFor(mode, candidate.archetype, "apimart");
         const mapping = model.mappings.find((item) => item.taskKind === taskKind);
         if (!mapping) continue;
         const extras = applyHeadlessParamDefaults(

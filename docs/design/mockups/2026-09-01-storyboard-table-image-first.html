@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>分镜页 · 图优先 + 结构化提示词 + 场分组（1:1 样张 2026-09-01 v5）</title>
+<style>
+  /* 真实 token 值（src/theme/nomi-tokens.css + tailwind.config.ts，光模式）。字号=§2.3 token 档 */
+  :root {
+    --bg: oklch(0.985 0.003 90);
+    --paper: oklch(1 0 0);
+    --ink: oklch(0.22 0.01 80);
+    --ink-80: oklch(0.35 0.01 80);
+    --ink-60: oklch(0.50 0.008 80);
+    --ink-40: oklch(0.65 0.006 80);
+    --ink-30: oklch(0.74 0.005 80);
+    --ink-20: oklch(0.83 0.004 80);
+    --ink-10: oklch(0.90 0.003 80);
+    --ink-05: oklch(0.955 0.002 80);
+    --line: oklch(0.91 0.004 80);
+    --line-soft: oklch(0.95 0.003 80);
+    --accent: oklch(0.55 0.13 250);
+    --accent-soft: color-mix(in srgb, oklch(0.55 0.13 250) 12%, white);
+    --success: #34c759; --success-ink: #248a3d; --success-soft: rgba(52,199,89,.12);
+    --danger: #ff3b30; --danger-soft: rgba(255,59,48,.1);
+    --r-sm: 6px; --r: 10px; --r-lg: 16px;
+    --sh-sm: 0 1px 2px rgba(28,25,20,.05);
+    --sh-md: 0 2px 8px rgba(28,25,20,.07), 0 1px 2px rgba(28,25,20,.05);
+    --sh-lg: 0 8px 28px rgba(28,25,20,.14);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#e8e6e0; font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif; padding:28px; display:flex; flex-direction:column; align-items:center; gap:20px; }
+  .frame { width:1680px; background:var(--bg); border-radius:12px; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,.18); }
+
+  .appbar { height:44px; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:0 14px; background:var(--bg); border-bottom:1px solid var(--line-soft); }
+  .appbar .left { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--ink-80); }
+  .logo { font-weight:700; font-size:15px; color:var(--ink); letter-spacing:.02em; }
+  .crumb { display:flex; align-items:center; gap:4px; color:var(--ink-60); }
+  .crumb b { color:var(--ink-80); font-weight:500; }
+  .stepper { display:flex; gap:2px; background:var(--ink-05); border-radius:999px; padding:3px; }
+  .step { padding:4px 16px; border-radius:999px; font-size:13px; color:var(--ink-60); }
+  .step.on { background:var(--paper); color:var(--ink); font-weight:500; box-shadow:var(--sh-sm); }
+  .appbar .right { display:flex; align-items:center; gap:10px; justify-self:end; font-size:13px; color:var(--ink-80); }
+  .abtn { display:flex; align-items:center; gap:5px; height:30px; padding:0 10px; border-radius:var(--r-sm); }
+  .primary-cta { background:var(--ink); color:#fff; border-radius:999px; padding:6px 14px; font-size:13px; }
+  .vdiv { width:1px; height:18px; background:var(--line); }
+
+  /* 分镜页 v5：全宽（弃 1264 居中——图优先工作面，同生成区） */
+  .page { padding:22px 24px 24px; }
+  .card { width:100%; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh-md); overflow:visible; display:flex; flex-direction:column; position:relative; }
+
+  .ed-head { height:48px; display:flex; align-items:center; justify-content:space-between; padding:0 16px; border-bottom:1px solid var(--line); }
+  .ed-head .l { display:flex; align-items:center; gap:8px; }
+  .ed-title { font-size:16px; font-weight:500; color:var(--ink); }
+  .pill { font-size:11px; color:var(--ink-40); background:var(--ink-05); padding:2px 8px; border-radius:999px; }
+  .ghost { height:30px; padding:0 12px; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--paper); font-size:13px; color:var(--ink-80); display:inline-flex; align-items:center; gap:5px; cursor:pointer; }
+
+  .ed-hint { display:flex; align-items:center; gap:6px; padding:6px 16px; border-bottom:1px solid var(--line-soft); font-size:12px; color:var(--ink-40); }
+  .ed-hint b { color:var(--ink-60); font-weight:500; }
+
+  .bulk { display:flex; align-items:center; gap:8px; padding:8px 16px; border-bottom:1px solid var(--line-soft); background:var(--ink-05); }
+  .bulk .scope { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:500; color:var(--ink-80); }
+  .xsel { display:flex; align-items:center; gap:5px; height:26px; padding:0 8px; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-sm); font-size:12px; color:var(--ink); }
+  .xsel .lead { color:var(--ink-40); }
+  .xsel .car { color:var(--ink-30); font-size:9px; }
+  .bulk .hint { margin-left:auto; font-size:11px; color:var(--ink-40); }
+
+  /* 反查过滤态（点参考卡出现） */
+  .filterbar { display:none; align-items:center; gap:8px; padding:6px 16px; border-bottom:1px solid var(--line-soft); background:var(--accent-soft); font-size:12px; color:var(--accent); }
+  .filterbar.on { display:flex; }
+  .filterbar .x { cursor:pointer; font-size:13px; }
+
+  .ed-body { padding:16px; display:flex; flex-direction:column; gap:18px; }
+  .sec-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .sec-title { font-size:13px; font-weight:500; color:var(--ink-80); }
+  .sec-hint { font-size:11px; color:var(--ink-40); }
+  .sec-head .right { margin-left:auto; font-size:12px; color:var(--ink-60); display:flex; gap:10px; align-items:center; }
+
+  .anchors { display:flex; gap:12px; flex-wrap:wrap; }
+  .acard { width:108px; }
+  .aimg { position:relative; width:108px; height:144px; border-radius:var(--r); overflow:hidden; border:1px solid var(--line); }
+  .aimg .ph { position:absolute; inset:0; display:grid; place-items:center; font-size:34px; color:rgba(255,255,255,.85); font-weight:500; }
+  .badge-lock { position:absolute; top:6px; right:6px; background:rgba(0,0,0,.55); color:#fff; font-size:10px; padding:2px 6px; border-radius:999px; display:flex; gap:3px; align-items:center; }
+  .aimg.empty { border-style:dashed; border-color:var(--ink-20); background:var(--ink-05); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
+  .btn-sm { height:26px; padding:0 12px; border-radius:var(--r-sm); background:var(--ink); color:#fff; font-size:12px; border:none; display:inline-flex; align-items:center; gap:4px; cursor:pointer; }
+  .gen-ov { position:absolute; inset:0; background:rgba(20,20,24,.45); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:#fff; font-size:11px; }
+  .prog { width:72px; height:4px; border-radius:2px; background:rgba(255,255,255,.25); overflow:hidden; }
+  .prog i { display:block; height:100%; background:#fff; }
+  .aname { display:flex; align-items:center; gap:5px; margin-top:6px; font-size:13px; color:var(--ink); font-weight:500; }
+  .aname .k { font-size:10px; color:var(--ink-40); font-weight:400; }
+  .astat { font-size:11px; margin-top:2px; }
+  .astat .refq { color:var(--accent); cursor:pointer; }
+  .textcard { width:108px; height:144px; border-radius:var(--r); background:var(--ink-05); border:1px solid var(--line-soft); padding:10px; font-size:11px; color:var(--ink-60); line-height:1.5; overflow:hidden; }
+  .textcard .tag { font-size:10px; color:var(--ink-40); background:var(--paper); border:1px solid var(--line); padding:1px 6px; border-radius:999px; }
+  .addcard { width:108px; height:144px; border-radius:var(--r); border:1px dashed var(--ink-20); display:grid; place-items:center; font-size:24px; color:var(--ink-30); cursor:pointer; }
+
+  /* ── 分镜表 v5：场分组 + 行=[grip|画面|参考区|提示词块] ── */
+  .shots { border:1px solid var(--line); border-radius:var(--r); }
+  .scene-head { display:flex; align-items:center; gap:8px; padding:7px 12px; background:var(--ink-05); border-bottom:1px solid var(--line-soft); font-size:12px; cursor:pointer; }
+  .scene-head:not(:first-child) { border-top:1px solid var(--line); }
+  .scene-head .tri { color:var(--ink-40); font-size:10px; width:12px; }
+  .scene-head .sname { font-weight:500; color:var(--ink-80); }
+  .scene-head .ssum { margin-left:auto; color:var(--ink-40); font-size:11px; display:flex; gap:10px; }
+  .scene-head .ssum .bad { color:var(--danger); }
+  .srows.folded { display:none; }
+
+  .row { display:grid; grid-template-columns:14px 84px 136px minmax(0,1fr); gap:12px; padding:12px 12px 12px 6px; align-items:start; position:relative; }
+  .row + .row { border-top:1px solid var(--line-soft); }
+  .row.selected { background:color-mix(in srgb, var(--accent) 5%, white); box-shadow:inset 2px 0 0 var(--accent); }
+  .grip { align-self:center; color:var(--ink-20); font-size:12px; letter-spacing:1px; writing-mode:vertical-lr; text-align:center; cursor:grab; }
+  /* 行间插入线（悬停两行交界出现；样张固定显示一条作示例） */
+  .insertline { position:absolute; left:6px; right:12px; top:-1px; height:2px; background:var(--accent); border-radius:1px; z-index:4; }
+  .insertline .plus { position:absolute; left:50%; top:-9px; transform:translateX(-50%); width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff; font-size:13px; display:grid; place-items:center; box-shadow:var(--sh-sm); cursor:pointer; }
+
+  .slotwrap { position:relative; width:76px; }
+  .slot { position:relative; width:76px; height:132px; border-radius:8px; overflow:hidden; border:1px solid var(--line); background:var(--ink-05); }
+  .slot .no { position:absolute; top:5px; left:5px; z-index:2; background:rgba(0,0,0,.5); color:#fff; font-size:10px; padding:1px 5px; border-radius:4px; }
+  .slot .dur { position:absolute; bottom:5px; right:5px; z-index:2; background:rgba(0,0,0,.5); color:#fff; font-size:10px; padding:1px 5px; border-radius:4px; }
+  .slot.empty { border-style:dashed; border-color:var(--ink-20); display:flex; align-items:center; justify-content:center; }
+  .slot.empty .no, .slot.wait .no, .slot.block .no { background:var(--ink-10); color:var(--ink-60); }
+  .slot.wait, .slot.block { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:8px; text-align:center; }
+  .slot.wait { color:var(--ink-40); font-size:11px; line-height:1.5; }
+  .slot.block { color:var(--danger); font-size:11px; line-height:1.5; background:var(--danger-soft); border-color:var(--danger); border-style:dashed; }
+  .slot .link { text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+  .badge-warn { position:absolute; top:5px; right:5px; z-index:2; background:var(--danger); color:#fff; font-size:10px; padding:1px 6px; border-radius:999px; }
+  .badge-locked { position:absolute; top:5px; right:5px; z-index:2; background:rgba(0,0,0,.55); color:#fff; font-size:10px; padding:1px 6px; border-radius:999px; }
+  /* 动作浮条：悬停时出现在画面格中央（瞬时覆盖≠常驻遮挡，§1.5 禁的是常驻压图；常驻角标只有镜号/时长/锁） */
+  .actbar { position:absolute; inset:0; z-index:6; display:grid; place-items:center; background:rgba(20,20,24,.32); }
+  .actbar .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+  .actbar button { width:32px; height:26px; background:rgba(28,26,22,.92); border:none; border-radius:var(--r-sm); color:#fff; font-size:11px; cursor:pointer; }
+  /* ⤴ 结果即收菜单（悬停态示例，锚在画面格右侧下方的空区） */
+  .harvest { position:absolute; top:70px; left:84px; z-index:7; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-sm); box-shadow:var(--sh-lg); font-size:12px; color:var(--ink-80); min-width:116px; }
+  .harvest div { padding:6px 10px; cursor:pointer; }
+  .harvest div:hover { background:var(--ink-05); }
+  .harvest div + div { border-top:1px solid var(--line-soft); }
+  /* grip 菜单（悬停态示例） */
+  .gripmenu { position:absolute; top:34px; left:16px; z-index:7; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-sm); box-shadow:var(--sh-lg); font-size:12px; color:var(--ink-80); min-width:110px; }
+  .gripmenu div { padding:7px 12px; cursor:pointer; }
+  .gripmenu div:hover { background:var(--ink-05); }
+  .gripmenu div + div { border-top:1px solid var(--line-soft); }
+  .gripmenu .danger { color:var(--danger); }
+
+  .mid { display:flex; flex-direction:column; gap:6px; min-width:0; min-height:132px; }
+  .mid .pbox { flex:1; }
+  .meta-line { display:flex; align-items:center; gap:8px; }
+  .field { display:flex; align-items:center; gap:5px; height:24px; padding:0 8px; border:1px solid var(--line); border-radius:var(--r-sm); font-size:12px; color:var(--ink); background:var(--paper); cursor:pointer; }
+  .field .lead { color:var(--ink-40); font-size:11px; }
+  .pbox { border:1px solid var(--line); border-radius:var(--r-sm); background:var(--paper); padding:8px 10px; font-size:13px; line-height:1.8; color:var(--ink-80); }
+  .pbox .seg { border-bottom:1px dashed var(--ink-30); cursor:pointer; }
+  .pbox .seg:hover { border-bottom-color:var(--accent); color:var(--ink); }
+  .chip { display:inline-flex; align-items:center; gap:4px; height:20px; padding:0 7px 0 3px; border-radius:999px; background:var(--accent-soft); color:var(--accent); font-size:12px; vertical-align:-4px; cursor:pointer; }
+  .chip .dot { width:14px; height:14px; border-radius:50%; display:grid; place-items:center; font-size:8px; color:rgba(255,255,255,.9); }
+  .chip.warn { outline:1px solid var(--danger); }
+  .pbox .auto { display:block; font-size:11px; color:var(--ink-30); margin-top:2px; }
+  .subline { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--ink-40); min-width:0; }
+  .subline .quiet { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .subline .chev { flex:none; color:var(--ink-30); cursor:pointer; }
+  .subline .warnline { color:var(--danger); }
+  .btn-mini { height:22px; padding:0 9px; border-radius:var(--r-sm); border:1px solid var(--danger); background:var(--paper); color:var(--danger); font-size:11px; cursor:pointer; flex:none; }
+
+  /* 参考区：56px tile（认得出人脸）+ 悬停浮层 + 双击全屏（素材库 lightbox 同款） */
+  .refzone { min-height:132px; display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+  .refzone .frow { display:flex; gap:8px; }
+  .refzone .noref2 { margin:auto 0; font-size:11px; color:var(--ink-30); line-height:1.7; }
+  .funit { display:flex; flex-direction:column; align-items:center; gap:2px; flex:none; position:relative; }
+  .tile { position:relative; width:56px; height:56px; border-radius:var(--r-sm); border:1px solid var(--line); overflow:hidden; flex:none; cursor:pointer; }
+  .tile .ph { position:absolute; inset:0; display:grid; place-items:center; font-size:19px; color:rgba(255,255,255,.9); }
+  .tile.add { border-style:dashed; border-color:var(--ink-20); background:none; display:grid; place-items:center; color:var(--ink-40); font-size:19px; }
+  .tile.ghostwait { border-style:dashed; background:var(--ink-05); display:grid; place-items:center; color:var(--ink-30); font-size:10px; text-align:center; line-height:1.3; }
+  .tile.need { border-style:dashed; border-color:var(--danger); background:var(--danger-soft); display:grid; place-items:center; color:var(--danger); font-size:10px; text-align:center; line-height:1.3; }
+  .tile-cap { font-size:10px; color:var(--ink-40); }
+  /* 悬停浮动放大（示例常显在镜 08 首帧 tile 旁） */
+  .floatprev { position:absolute; left:62px; bottom:64px; z-index:8; width:104px; height:140px; border-radius:var(--r-sm); overflow:hidden; border:1px solid var(--line); box-shadow:var(--sh-lg); }
+  .floatprev .ph { position:absolute; inset:0; display:grid; place-items:center; font-size:32px; color:rgba(255,255,255,.85); }
+  .floatprev .cap { position:absolute; left:0; right:0; bottom:0; background:rgba(0,0,0,.55); color:#fff; font-size:9px; padding:2px 6px; line-height:1.4; }
+
+  .expand { grid-column:2 / 5; background:var(--ink-05); border-radius:var(--r-sm); padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+  .expand .prow { display:flex; gap:8px; align-items:center; font-size:11px; color:var(--ink-40); flex-wrap:wrap; }
+  .expand .lab { font-size:11px; color:var(--ink-60); }
+  .exfield { flex:1; min-width:200px; height:26px; padding:0 8px; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--paper); font-size:12px; color:var(--ink-80); display:flex; align-items:center; }
+
+  /* 多选浮条（画布多选浮条同款语义；作用域=已选，与顶部批量条「全部」分开） */
+  .selbar { position:absolute; left:50%; bottom:64px; transform:translateX(-50%); z-index:9; display:flex; align-items:center; gap:2px; background:rgba(28,26,22,.94); border-radius:999px; box-shadow:var(--sh-lg); padding:4px 6px; color:#fff; font-size:12px; }
+  .selbar .cnt { padding:0 10px; color:rgba(255,255,255,.75); }
+  .selbar button { background:none; border:none; color:#fff; font-size:12px; padding:6px 12px; border-radius:999px; cursor:pointer; }
+  .selbar button:hover { background:rgba(255,255,255,.12); }
+  .selbar .sep { width:1px; height:16px; background:rgba(255,255,255,.2); }
+
+  .ed-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 16px; border-top:1px solid var(--line); background:var(--paper); border-radius:0 0 var(--r-lg) var(--r-lg); }
+  .foot-l { display:flex; align-items:center; gap:10px; font-size:12px; }
+  .ok { color:var(--success-ink); } .warn { color:var(--danger); }
+  .spend { font-size:11px; color:var(--ink-40); }
+  .btn-primary { height:34px; padding:0 18px; border:none; border-radius:var(--r-sm); background:var(--ink); color:#fff; font-size:13px; font-weight:500; display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+
+  /* 顺播全屏（素材库 body-portal lightbox 同款容器） */
+  .playov { display:none; position:fixed; inset:0; z-index:50; background:rgba(12,11,10,.88); }
+  .playov.on { display:grid; place-items:center; }
+  .playstage { width:300px; height:533px; border-radius:var(--r); overflow:hidden; position:relative; background:#000; }
+  .playstage .ph { position:absolute; inset:0; display:grid; place-items:center; color:rgba(255,255,255,.65); font-size:14px; }
+  .playcap { position:absolute; top:16px; left:50%; transform:translateX(-50%); color:#fff; font-size:13px; background:rgba(0,0,0,.4); padding:4px 12px; border-radius:999px; }
+  .playbar { position:absolute; bottom:-28px; left:0; right:0; height:4px; border-radius:2px; background:rgba(255,255,255,.2); overflow:hidden; }
+  .playbar i { display:block; height:100%; background:#fff; width:0; }
+  .playx { position:absolute; top:14px; right:18px; color:#fff; font-size:20px; cursor:pointer; }
+
+  .landcard { width:1632px; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh-md); padding:14px 16px; }
+  .landcard h3 { font-size:13px; font-weight:500; color:var(--ink-80); margin-bottom:10px; }
+  .row.land { grid-template-columns:14px 176px 136px minmax(0,1fr); }
+  .row.land .mid, .row.land .refzone { min-height:95px; }
+  .slot.land { width:168px; height:95px; }
+  .pillar { position:absolute; top:0; bottom:0; left:50%; transform:translateX(-50%); width:53px; }
+
+  .notes { width:1632px; font-size:13px; color:#444; line-height:1.8; }
+  .notes b { font-weight:600; }
+  .dot { display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; background:#1a73e8; color:#fff; font-size:11px; margin-right:6px; flex:none; }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <div class="appbar">
+    <div class="left">
+      <span class="logo">Nomi</span>
+      <span class="vdiv"></span>
+      <span class="crumb">项目库 › <b>夜风（都市短剧）</b></span>
+    </div>
+    <div class="stepper">
+      <span class="step on">创作</span><span class="step">生成</span><span class="step">预览</span>
+    </div>
+    <div class="right">
+      <span class="abtn">任务</span><span class="vdiv"></span>
+      <span class="abtn">上手 2/4</span><span class="abtn">浏览器</span><span class="vdiv"></span>
+      <span class="abtn">设置</span><span class="abtn">模型</span>
+      <span class="primary-cta">去出片</span>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="card">
+
+      <div class="ed-head">
+        <div class="l">
+          <span style="color:var(--ink-60)">🎬</span>
+          <span class="ed-title">夜风 · 分镜</span>
+          <span class="pill">2 场 · 8 镜 · 31 s</span>
+        </div>
+        <div class="l">
+          <span class="ghost">在画布查看</span>
+          <span class="ghost">丢弃方案</span>
+        </div>
+      </div>
+
+      <div class="ed-hint">
+        🔓 <b>AI 草拟，随便改</b> · 先生成参考卡锁住长相，再生成镜头 · 每次生成前确认花费
+      </div>
+
+      <div class="bulk">
+        <span class="scope">⧉ 全部镜头</span>
+        <span class="vdiv"></span>
+        <span class="xsel"><span class="lead">类型</span>视频<span class="car">▼</span></span>
+        <span class="xsel"><span class="lead">模型</span>统一模型<span class="car">▼</span></span>
+        <span class="xsel"><span class="lead">时长</span>5 秒<span class="car">▼</span></span>
+        <span class="xsel"><span class="lead">画幅</span>9:16<span class="car">▼</span></span>
+        <span class="hint">改这里 = 8 个镜头一起改</span>
+      </div>
+
+      <div class="filterbar" id="filterbar">
+        只看引用「林薇」的 5 镜
+        <span class="x" id="filterx">✕</span>
+      </div>
+
+      <div class="ed-body">
+
+        <section>
+          <div class="sec-head">
+            <span class="dot">2</span>
+            <span class="sec-title">跨镜头要一致的</span>
+            <span class="sec-hint">生成参考图=锁长相 · 仅提示词=写进 prompt</span>
+            <span class="right"><span style="color:var(--success-ink)">2 张就绪</span>·<span>1 张生成中</span>·<span>1 张待生成</span></span>
+          </div>
+          <div class="anchors">
+            <div class="acard">
+              <div class="aimg">
+                <div class="ph" style="background:oklch(0.45 0.06 40)">薇</div>
+                <span class="badge-lock">🔒 已锁定</span>
+              </div>
+              <div class="aname">林薇 <span class="k">角色</span></div>
+              <div class="astat"><span class="refq" id="refq">被 5 镜引用 ›</span></div>
+            </div>
+            <div class="acard">
+              <div class="aimg">
+                <div class="ph" style="background:oklch(0.38 0.04 260)">默</div>
+                <div class="gen-ov"><div class="prog"><i style="width:40%"></i></div>生成中 40%</div>
+              </div>
+              <div class="aname">陈默 <span class="k">角色</span></div>
+              <div class="astat" style="color:var(--ink-40)">2 镜在等它</div>
+            </div>
+            <div class="acard">
+              <div class="aimg empty">
+                <button class="btn-sm" id="genScene">生成</button>
+                <span style="font-size:10px;color:var(--ink-30)">先写好描述</span>
+              </div>
+              <div class="aname">天台夜景 <span class="k">场景</span></div>
+              <div class="astat" style="color:var(--ink-40)">未生成</div>
+            </div>
+            <div class="acard">
+              <div class="aimg">
+                <div class="ph" style="background:oklch(0.5 0.05 90)">表</div>
+              </div>
+              <div class="aname">老式怀表 <span class="k">道具</span></div>
+              <div class="astat" style="color:var(--ink-40)">未锁定</div>
+            </div>
+            <div class="acard">
+              <div class="textcard">
+                <span class="tag">仅提示词</span>
+                <div style="margin-top:8px">赛博霓虹夜色，雨后反光街面，冷蓝 + 洋红点缀…</div>
+              </div>
+              <div class="aname">全片风格 <span class="k">风格</span></div>
+              <div class="astat" style="color:var(--ink-30)">不生成图</div>
+            </div>
+            <div class="addcard" title="添加参考卡">+</div>
+          </div>
+        </section>
+
+        <section>
+          <div class="sec-head">
+            <span class="dot">1</span>
+            <span class="sec-title">分镜 · 2 场 8 镜</span>
+            <span class="right">
+              <span style="color:var(--success-ink)">已生成 3</span>·<span>生成中 1</span>·<span>就绪 2</span>·<span style="color:var(--ink-40)">等参考卡 1 · 缺参考 1 · 已锁 1</span>
+              <span class="ghost" id="playBtn" style="height:26px">▶ 顺播 31 s</span>
+            </span>
+          </div>
+
+          <div class="shots">
+
+            <div class="scene-head" data-scene="s1">
+              <span class="tri">▼</span>
+              <span class="sname">场 1 · 天台 · 夜</span>
+              <span class="ssum"><span>4 镜 · 18 s</span><span class="bad">1 缺参考</span></span>
+            </div>
+            <div class="srows" id="s1">
+
+            <div class="row" data-ref="w">
+              <span class="grip">⋮⋮</span>
+              <div class="slotwrap">
+                <div class="harvest"><div>存为参考卡</div><div>设为镜 02 首帧</div></div>
+                <div class="slot">
+                  <span class="no">01</span><span class="dur">5s</span>
+                  <div class="ph" style="position:absolute;inset:0;background:oklch(0.32 0.04 250);display:grid;place-items:center;color:rgba(255,255,255,.6);font-size:11px">天台·夜</div>
+                  <div class="actbar"><div class="grid2"><button title="重生成">↻</button><button title="再出 3 版">×3</button><button title="放大">⛶</button><button title="用作…">⤴</button></div></div>
+                </div>
+              </div>
+              <div class="refzone">
+                <div class="frow">
+                  <div class="funit"><div class="tile"><div class="ph" style="background:oklch(0.45 0.06 40)">薇</div></div><span class="tile-cap">首帧</span></div>
+                  <div class="funit"><div class="tile add">+</div><span class="tile-cap">尾帧</span></div>
+                </div>
+              </div>
+              <div class="mid">
+                <div class="meta-line">
+                  <span class="field"><span class="lead">模型</span>Seedance 1.5 Pro · 首尾帧<span class="car" style="color:var(--ink-30);font-size:9px">▼</span></span>
+                  <span class="field"><span class="lead">画幅</span>9:16</span>
+                  <span class="field"><span class="lead">时长</span>5 s</span>
+                </div>
+                <div class="pbox">
+                  <span class="seg">远景，缓推</span>。<span class="chip"><span class="dot" style="background:oklch(0.45 0.06 40);margin:0">薇</span>@林薇</span> 独立天台边缘，风吹动长发，城市灯海在脚下铺开，<span class="seg">孤独感</span>
+                  <span class="auto">已带入：全片风格「赛博霓虹」</span>
+                </div>
+                <div class="subline">
+                  <span class="chev" style="margin-left:auto">▾</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="row" data-ref="w" style="position:relative">
+              <div class="insertline"><span class="plus">+</span></div>
+              <span class="grip">⋮⋮</span>
+              <div class="slotwrap">
+                <div class="slot">
+                  <span class="no">02</span><span class="dur">5s</span>
+                  <div class="ph" style="position:absolute;inset:0;background:oklch(0.35 0.05 20);display:grid;place-items:center;color:rgba(255,255,255,.6);font-size:11px">对峙</div>
+                  <span class="badge-warn">参考已变</span>
+                </div>
+              </div>
+              <div class="refzone">
+                <div class="funit"><div class="tile add">@</div><span class="tile-cap">加参考</span></div>
+              </div>
+              <div class="mid">
+                <div class="meta-line">
+                  <span class="field"><span class="lead">模型</span>Seedance 1.5 Pro · 全能参考<span class="car" style="color:var(--ink-30);font-size:9px">▼</span></span>
+                  <span class="field"><span class="lead">画幅</span>9:16</span>
+                  <span class="field"><span class="lead">时长</span>5 s</span>
+                </div>
+                <div class="pbox">
+                  <span class="seg">中景，手持</span>。接上镜：<span class="chip warn"><span class="dot" style="background:oklch(0.45 0.06 40);margin:0">薇</span>@林薇</span> 转身，<span class="chip"><span class="dot" style="background:oklch(0.38 0.04 260);margin:0">默</span>@陈默</span> 从 <span class="chip"><span class="dot" style="background:oklch(0.32 0.04 250);margin:0">台</span>@天台夜景</span> 楼梯间阴影走出，两人对峙，雨点开始落下，<span class="seg">紧张</span>
+                  <span class="auto">已带入：全片风格「赛博霓虹」 · 对白将随出声模型生成</span>
+                </div>
+                <div class="subline">
+                  <span class="warnline">@林薇 已重生成 → 此镜用的还是旧图</span>
+                  <button class="btn-mini">用新图重跑</button>
+                  <span class="quiet" style="margin-left:auto">台词 陈默：「你不该回来的。」</span>
+                  <span class="chev">▾</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <span class="grip">⋮⋮</span>
+              <div class="slotwrap">
+                <div class="slot">
+                  <span class="no">03</span><span class="dur">5s</span>
+                  <div class="gen-ov" style="background:rgba(20,20,24,.35)"><div class="prog"><i style="width:62%"></i></div>生成中 62%</div>
+                </div>
+              </div>
+              <div class="refzone">
+                <span class="noref2">此模型<br>不吃参考<br>@ 不可用</span>
+              </div>
+              <div class="mid">
+                <div class="meta-line">
+                  <span class="field"><span class="lead">模型</span>Kling 2.5 Turbo · 文生视频<span class="car" style="color:var(--ink-30);font-size:9px">▼</span></span>
+                  <span class="field"><span class="lead">画幅</span>9:16</span>
+                  <span class="field"><span class="lead">时长</span>5 s</span>
+                </div>
+                <div class="pbox">
+                  <span class="seg">特写，固定机位</span>。老式怀表表盖溅起雨滴，秒针停在 11:47，<span class="seg">压抑</span>，冷蓝色调
+                  <span class="auto">已带入：全片风格「赛博霓虹」</span>
+                </div>
+                <div class="subline">
+                  <span class="chev" style="margin-left:auto">▾</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="row" data-ref="w">
+              <span class="grip">⋮⋮</span>
+              <div class="slotwrap">
+                <div class="slot empty">
+                  <span class="no">04</span>
+                  <button class="btn-sm" id="genRow4">生成</button>
+                </div>
+              </div>
+              <div class="refzone" id="row4zone">
+                <div class="funit"><div class="tile add">@</div><span class="tile-cap">加参考</span></div>
+              </div>
+              <div class="mid">
+                <div class="meta-line">
+                  <span class="field"><span class="lead">模型</span>GPT Image 2 · 图生图<span class="car" style="color:var(--ink-30);font-size:9px">▼</span></span>
+                  <span class="field"><span class="lead">画幅</span>9:16</span>
+                  <span class="field"><span class="lead">时长</span>3 s</span>
+                  <span class="pill" style="background:var(--accent-soft);color:var(--accent)">图片镜 · 停留</span>
+                </div>
+                <div class="pbox">
+                  <span class="seg">近景</span>。闪回定格：做旧照片质感，<span class="chip"><span class="dot" style="background:oklch(0.45 0.06 40);margin:0">薇</span>@林薇</span> 与 <span class="chip"><span class="dot" style="background:oklch(0.38 0.04 260);margin:0">默</span>@陈默</span> 并肩靠栏杆微笑，暖黄褪色，<span class="seg">回忆感</span><span style="display:inline-block;width:1px;height:15px;background:var(--accent);vertical-align:-3px;margin-left:1px"></span>
+                  <span class="auto">敲 @ 引用参考卡 / 上传 / 某镜结果 · 点虚线段换预设 · 整段随便改</span>
+                </div>
+                <div class="subline">
+                  <span class="chev" style="margin-left:auto;color:var(--accent)">▴</span>
+                </div>
+              </div>
+              <div class="expand">
+                <div class="prow">
+                  <span class="lab">台词</span><span class="exfield">（无——这一镜没有对白）</span>
+                  <span class="lab">转场</span><span class="xsel" style="height:24px">闪回 <span class="car">▼</span></span>
+                </div>
+                <div class="prow">
+                  <span class="lab">参数</span>
+                  <span class="xsel" style="height:22px"><span class="lead">分辨率</span>1080p</span>
+                  <span style="margin-left:auto;color:var(--accent);cursor:pointer">把这一镜的参数套用到全部</span>
+                </div>
+              </div>
+            </div>
+
+            </div>
+
+            <div class="scene-head" data-scene="s2">
+              <span class="tri">▼</span>
+              <span class="sname">场 2 · 天台 · 雨后</span>
+              <span class="ssum"><span>4 镜 · 13 s</span><span>1 已锁</span></span>
+            </div>
+            <div class="srows" id="s2">
+
+            <div class="row selected" data-ref="w">
+              <span class="grip">⋮⋮</span>
+              <div class="slotwrap">
+                <div class="slot wait">
+                  <span class="no">05</span>
+                  <span>⏳</span>
+                  <span>等「<span class="link">陈默</span>」参考图</span>
+                </div>
+              </div>
+              <div class="refzone">
+                <div class="frow">
+                  <div class="funit"><div class="tile ghostwait">等陈默</div><span class="tile-cap">首帧</span></div>
+                  <div class="funit"><div class="tile add">+</div><span class="tile-cap">尾帧</span></div>
+                </div>
+              </div>
+              <div class="mid">
+                <div class="meta-line">
+                  <span class="field"><span class="lead">模型</span>Seedance 1.5 Pro · 首尾帧<span class="car" style="color:var(--ink-30);font-size:9px">▼</span></span>
+                  <span class="field"><span class="lead">画幅</span>9:16</span>
+                  <span class="field"><span class="lead">时长</span>5 s</span>
+                </div>
+                <div class="pbox">
+                  <span class="seg">中近景，跟随</span>。<span class="chip" style="opacity:.55"><span class="dot" style="background:oklch(0.38 0.04 260);margin:0">默</span>@陈默</span> 逼近一步，<span class="chip"><span class="dot" style="background:oklch(0.45 0.06 40);margin:0">薇</span>@林薇</span> 后退半步扶住栏杆，雨中对视，<span class="seg">决绝</span>
+                  <span class="auto">已带入：全片风格「赛博霓虹」 · 对白将随出声模型生成</span>
+                </div>
+                <div class="subline">
+                  <span class="quiet">台词 林薇：「三年了，我要一个答案。」</span>
+                  <span class="chev" style="margin-left:auto">▾</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="row selected">
+              <span class="grip">⋮⋮</span>
+              <div class="slotwrap">
+                <div class="slot block">
+                  <span class="no">06</span>
+                  <span>缺首帧参考</span>
+                  <span class="link" style="font-size:10px">补首帧 →</span>
+                </div>
+              </div>
+              <div class="refzone">
+                <div class="funit"><div class="tile need">必填</div><span class="tile-cap" style="color:var(--danger)">首帧</span></div>
+              </div>
+              <div class="mid">
+                <div class="meta-line">
+                  <span class="field"><span class="lead">模型</span>Vidu Q2 · 首帧参考<span class="car" style="color:var(--ink-30);font-size:9px">▼</span></span>
+                  <span class="field"><span class="lead">画幅</span>9:16</span>
+                  <span class="field"><span class="lead">时长</span>4 s</span>
+                </div>
+                <div class="pbox">
+                  <span class="seg">大远景，升降</span>。无人机视角拉升：整栋楼在雨夜中缩小，两人成为天台上的两个点，<span class="seg">宿命感</span>
+                  <span class="auto">已带入：全片风格「赛博霓虹」</span>
+                </div>
+                <div class="subline">
+                  <span class="chev" style="margin-left:auto">▾</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="row" data-ref="w" style="position:relative">
+              <span class="grip">⋮⋮</span>
+              <div class="gripmenu"><div>复制镜头</div><div>移到场…</div><div class="danger">删除</div></div>
+              <div class="slotwrap">
+                <div class="slot empty">
+                  <span class="no">07</span>
+                  <button class="btn-sm">生成</button>
+                </div>
+              </div>
+              <div class="refzone">
+                <div class="funit"><div class="tile add">@</div><span class="tile-cap">加参考</span></div>
+              </div>
+              <div class="mid">
+                <div class="meta-line">
+                  <span class="field"><span class="lead">模型</span>Hailuo 02 · 图生视频<span class="car" style="color:var(--ink-30);font-size:9px">▼</span></span>
+                  <span class="field"><span class="lead">画幅</span>9:16</span>
+                  <span class="field"><span class="lead">时长</span>6 s</span>
+                </div>
+                <div class="pbox">
+                  <span class="seg">中景，环绕</span>。雨停。<span class="chip"><span class="dot" style="background:oklch(0.45 0.06 40);margin:0">薇</span>@林薇</span> 松开栏杆，第一次露出笑意，转身走向 <span class="chip"><span class="dot" style="background:oklch(0.32 0.04 250);margin:0">台</span>@天台夜景</span> 楼梯间，<span class="seg">释然</span>
+                  <span class="auto">已带入：全片风格「赛博霓虹」 · 对白将随出声模型生成</span>
+                </div>
+                <div class="subline">
+                  <span class="quiet">台词 林薇：「原来答案一直在我这。」</span>
+                  <span class="chev" style="margin-left:auto">▾</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <span class="grip">⋮⋮</span>
+              <div class="slotwrap">
+                <div class="slot">
+                  <span class="no">08</span><span class="dur">3s</span>
+                  <div class="ph" style="position:absolute;inset:0;background:oklch(0.28 0.03 280);display:grid;place-items:center;color:rgba(255,255,255,.6);font-size:11px">尾镜</div>
+                  <span class="badge-locked">🔒</span>
+                </div>
+              </div>
+              <div class="refzone">
+                <div class="frow">
+                  <div class="funit">
+                    <div class="tile"><div class="ph" style="background:oklch(0.32 0.04 250)">台</div></div><span class="tile-cap">首帧</span>
+                    <div class="floatprev"><div class="ph" style="background:oklch(0.32 0.04 250)">台</div><div class="cap">天台夜景 · 参考卡 · 双击看全屏</div></div>
+                  </div>
+                  <div class="funit"><div class="tile"><div class="ph" style="background:oklch(0.28 0.03 280)">暗</div></div><span class="tile-cap">尾帧</span></div>
+                </div>
+              </div>
+              <div class="mid">
+                <div class="meta-line">
+                  <span class="field"><span class="lead">模型</span>Seedance 1.5 Pro · 首尾帧<span class="car" style="color:var(--ink-30);font-size:9px">▼</span></span>
+                  <span class="field"><span class="lead">画幅</span>9:16</span>
+                  <span class="field"><span class="lead">时长</span>3 s</span>
+                </div>
+                <div class="pbox">
+                  <span class="seg">远景，固定</span>。空镜收尾：无人的天台，雨后积水倒映城市灯光渐次熄灭，<span class="seg">余韵</span>
+                  <span class="auto">已带入：全片风格「赛博霓虹」</span>
+                </div>
+                <div class="subline">
+                  <span class="quiet">台词 （片尾字幕起） · 已锁定：不进批量、不被重跑</span>
+                  <span class="chev" style="margin-left:auto">▾</span>
+                </div>
+              </div>
+            </div>
+
+            </div>
+          </div>
+          <button class="ghost" style="margin-top:10px; width:34px; justify-content:center; padding:0; font-size:16px; color:var(--ink-40); border-style:dashed" title="添加镜头" aria-label="添加镜头">+</button>
+        </section>
+
+      </div>
+
+      <div class="selbar">
+        <span class="cnt">已选 2 镜</span>
+        <span class="sep"></span>
+        <button>生成</button>
+        <button>移到场…</button>
+        <button>统一模型</button>
+        <span class="sep"></span>
+        <button style="color:#ff8f88">删除</button>
+        <button title="取消选择">✕</button>
+      </div>
+
+      <div class="ed-foot">
+        <div class="foot-l">
+          <span class="ghost">返回原稿</span>
+          <span class="ok">✓ 参考卡 2/4 就绪</span>
+          <span style="color:var(--ink-40)">已生成 3/8 镜 · 1 在等参考卡，1 缺首帧，1 已锁（都不进批量）</span>
+        </div>
+        <div class="foot-l">
+          <span class="spend">将跑 2 镜 · 预计 ¥0.6，点击后确认</span>
+          <button class="btn-primary" id="batchBtn">▶ 生成未生成的 2 镜</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="landcard">
+  <h3>同一张表在 16:9 项目下的身材（横格 168×95，行更矮；混画幅镜在格内留边）</h3>
+  <div class="shots">
+    <div class="row land">
+      <span class="grip">⋮⋮</span>
+      <div class="slotwrap" style="width:168px">
+        <div class="slot land">
+          <span class="no">01</span><span class="dur">5s</span>
+          <div class="ph" style="position:absolute;inset:0;background:oklch(0.4 0.04 140);display:grid;place-items:center;color:rgba(255,255,255,.6);font-size:11px">16:9 铺满</div>
+        </div>
+      </div>
+      <div class="refzone">
+        <div class="funit"><div class="tile add">+</div><span class="tile-cap">首帧</span></div>
+      </div>
+      <div class="mid">
+        <div class="meta-line">
+          <span class="field"><span class="lead">模型</span>Seedance 1.5 Pro · 首尾帧<span class="car" style="color:var(--ink-30);font-size:9px">▼</span></span>
+          <span class="field"><span class="lead">画幅</span>16:9</span>
+          <span class="field"><span class="lead">时长</span>5 s</span>
+        </div>
+        <div class="pbox" style="min-height:34px">
+          <span class="seg">远景，横移</span>。晨雾中的山谷公路，一辆车驶向镜头深处，<span class="seg">辽阔</span>
+        </div>
+      </div>
+    </div>
+    <div class="row land">
+      <span class="grip">⋮⋮</span>
+      <div class="slotwrap" style="width:168px">
+        <div class="slot land">
+          <span class="no">02</span>
+          <div class="pillar" style="background:oklch(0.35 0.05 20);display:grid;place-items:center;color:rgba(255,255,255,.6);font-size:10px">9:16</div>
+        </div>
+      </div>
+      <div class="refzone">
+        <div class="funit"><div class="tile add">@</div><span class="tile-cap">加参考</span></div>
+      </div>
+      <div class="mid">
+        <div class="meta-line">
+          <span class="field"><span class="lead">模型</span>GPT Image 2 · 图生图<span class="car" style="color:var(--ink-30);font-size:9px">▼</span></span>
+          <span class="field"><span class="lead">画幅</span>9:16</span>
+          <span class="field"><span class="lead">时长</span>3 s</span>
+          <span class="pill" style="background:var(--accent-soft);color:var(--accent)">图片镜 · 停留</span>
+        </div>
+        <div class="pbox" style="min-height:34px">
+          <span class="seg">竖构图</span>。手机屏幕视角的插入镜头——留边即信号：这镜和全片画幅不同
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="notes">
+  <p><span class="dot">1</span><b>场分组</b>：AI 拆镜头带出场；组头=折叠三角 + 场名 + 小结（N 镜·合计时长·异常计数），点组头折叠整场。镜号跨场连续、拖动后自动重编（单人工具走 Boords 档，不锁号）。图片镜按停留时长（默认 3s，与时间轴 DEFAULT_IMAGE_SECONDS 同源）计入合计。</p>
+  <p><span class="dot">2</span><b>参考卡反查</b>：「被 5 镜引用 ›」点击 = 表只显示引用它的镜（顶部出现过滤条，✕ 退出）。配合「参考已变 → 用新图重跑」是同一条链。</p>
+  <p><b>行操作</b>（镜 01/02/07 上有三个悬停态示例）：① 悬停时动作浮条出现在<b>画面格中央</b>（瞬时覆盖、移开即散——§1.5 禁的是常驻压图，悬停态不算）：↻ 重生成 · ×3 变体 · ⛶ 放大 · ⤴ 用作…（存为参考卡 / 设为下一镜首帧）；② 两行交界悬停出<b>插入线</b>，点 + 就地插镜（继承上一镜的模型/画幅/时长）；③ grip 菜单：复制 / 移到场… / 删除（已生成的删除过确认，Cmd+Z 可撤销=画布同一套 undo）；④ 多选：点镜号选行、Shift 连选 → 底部<b>多选浮条</b>（画布同款）：生成 / 移到场 / 统一模型 / 删除——作用域=已选，与顶部批量条「全部」分开（C3）；⑤ 键盘：↑↓ 走焦点、⌥↑↓ 挪镜、Enter 进提示词、⌘Enter 生成本镜。</p>
+  <p><span class="dot">3</span><b>参考区三层看大</b>（镜 08 首帧 tile 上是悬停态示例）：tile 56px 认得出人；悬停 ≈0.3s 浮出预览卡；双击 = 全屏预览（复用素材库 body-portal lightbox——画布那个预览挂画布容器，分镜页看不见，注释里自己写了）。@ 胶囊与画面格悬停同款浮层。</p>
+  <p><b>顺播</b>：表头 ▶ 顺播 31s——已生成结果按镜序连播，视频播真实时长、图片停留其时长；全屏容器即素材库 lightbox。只是播放模式，不是第二条时间轴（剪辑去预览区）。</p>
+  <p><b>镜级锁定</b>（镜 08）：和参考卡同一颗锁、同一个语义——锁了不进批量、不被重跑；底栏「将跑 N 镜」把等待/缺料/已锁都排除并写明原因。</p>
+  <p style="margin-top:6px;color:#888">交互试玩：点「林薇」的「被 5 镜引用」过滤 / 点场头折叠 / 点 ▶ 顺播 / 点「天台夜景」生成 / 镜 04 生成与模型胶囊循环 / 底部批量按钮。</p>
+</div>
+
+<div class="playov" id="playov">
+  <span class="playx" id="playx">✕</span>
+  <div class="playstage">
+    <div class="ph" id="playph">镜 01</div>
+    <div class="playcap" id="playcap">镜 01 · 5 s</div>
+    <div class="playbar"><i id="playbar"></i></div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.scene-head').forEach((h) => {
+    h.addEventListener('click', () => {
+      const rows = document.getElementById(h.dataset.scene);
+      const folded = rows.classList.toggle('folded');
+      h.querySelector('.tri').textContent = folded ? '▶' : '▼';
+    });
+  });
+
+  const refq = document.getElementById('refq');
+  const filterbar = document.getElementById('filterbar');
+  const applyFilter = (on) => {
+    filterbar.classList.toggle('on', on);
+    document.querySelectorAll('.shots .row').forEach((r) => {
+      r.style.display = on && !r.dataset.ref ? 'none' : '';
+    });
+  };
+  if (refq) refq.addEventListener('click', () => applyFilter(true));
+  document.getElementById('filterx').addEventListener('click', () => applyFilter(false));
+
+  const PLAY = [
+    { cap: '镜 01 · 5 s', bg: 'oklch(0.32 0.04 250)', label: '天台·夜' },
+    { cap: '镜 02 · 5 s', bg: 'oklch(0.35 0.05 20)', label: '对峙' },
+    { cap: '镜 04 · 停留 3 s', bg: 'oklch(0.55 0.06 80)', label: '旧照（图片镜）' },
+    { cap: '镜 08 · 3 s', bg: 'oklch(0.28 0.03 280)', label: '尾镜' },
+  ];
+  const playov = document.getElementById('playov');
+  let playTimer = null;
+  const stopPlay = () => { playov.classList.remove('on'); if (playTimer) clearInterval(playTimer); };
+  document.getElementById('playBtn').addEventListener('click', () => {
+    playov.classList.add('on');
+    let i = 0, t = 0;
+    const show = () => {
+      const s = PLAY[i];
+      document.getElementById('playph').textContent = s.label;
+      document.getElementById('playph').parentElement.style.background = s.bg;
+      document.getElementById('playcap').textContent = s.cap + '（未生成的镜自动跳过）';
+    };
+    show();
+    playTimer = setInterval(() => {
+      t += 5;
+      document.getElementById('playbar').style.width = Math.min(100, t) + '%';
+      if (t >= 100) { t = 0; i = (i + 1) % PLAY.length; show(); }
+    }, 90);
+  });
+  document.getElementById('playx').addEventListener('click', stopPlay);
+  playov.addEventListener('click', (e) => { if (e.target === playov) stopPlay(); });
+
+  const sceneBtn = document.getElementById('genScene');
+  if (sceneBtn) sceneBtn.addEventListener('click', () => {
+    const img = sceneBtn.closest('.aimg');
+    img.classList.remove('empty');
+    img.innerHTML = '<div class="ph" style="background:oklch(0.32 0.04 250)">台</div><div class="gen-ov"><div class="prog"><i style="width:15%"></i></div>生成中</div>';
+    let w = 15;
+    const t = setInterval(() => {
+      w += 17;
+      const bar = img.querySelector('.prog i');
+      if (!bar) return clearInterval(t);
+      if (w >= 100) {
+        clearInterval(t);
+        img.innerHTML = '<div class="ph" style="background:oklch(0.32 0.04 250)">台</div>';
+        img.closest('.acard').querySelector('.astat').textContent = '刚生成 · 满意就锁定';
+      } else bar.style.width = w + '%';
+    }, 450);
+  });
+
+  const R4 = [
+    { name: 'GPT Image 2 · 图生图', zone: '<div class="funit"><div class="tile add">@</div><span class="tile-cap">加参考</span></div>' },
+    { name: 'Seedream 5 · 文生图', zone: '<span class="noref2">此模型<br>不吃参考<br>@ 不可用</span>' },
+    { name: 'Seedance 1.5 · 首尾帧', zone: '<div class="frow"><div class="funit"><div class="tile"><div class="ph" style="background:oklch(0.45 0.06 40)">薇</div></div><span class="tile-cap">首帧</span></div><div class="funit"><div class="tile add">+</div><span class="tile-cap">尾帧</span></div></div>' },
+  ];
+  let mi = 0;
+  const row4 = document.getElementById('genRow4') ? document.getElementById('genRow4').closest('.row') : null;
+  if (row4) {
+    const modelField = row4.querySelector('.field');
+    const zone = document.getElementById('row4zone');
+    modelField.addEventListener('click', () => {
+      mi = (mi + 1) % R4.length;
+      modelField.innerHTML = '<span class="lead">模型</span>' + R4[mi].name + '<span class="car" style="color:var(--ink-30);font-size:9px">▼</span>';
+      zone.innerHTML = R4[mi].zone;
+    });
+  }
+
+  function runSlot(slot, label, bg) {
+    slot.classList.remove('empty');
+    const no = slot.querySelector('.no') ? slot.querySelector('.no').outerHTML : '';
+    slot.innerHTML = no + '<div class="gen-ov" style="background:rgba(20,20,24,.35)"><div class="prog"><i style="width:10%"></i></div>生成中</div>';
+    let w = 10;
+    const t = setInterval(() => {
+      w += 15;
+      const bar = slot.querySelector('.prog i');
+      if (!bar) return clearInterval(t);
+      if (w >= 100) {
+        clearInterval(t);
+        slot.innerHTML = no + '<span class="dur">5s</span><div class="ph" style="position:absolute;inset:0;background:' + bg + ';display:grid;place-items:center;color:rgba(255,255,255,.6);font-size:11px">' + label + '</div>';
+      } else bar.style.width = w + '%';
+    }, 400);
+  }
+  const g4 = document.getElementById('genRow4');
+  if (g4) g4.addEventListener('click', (e) => { e.stopPropagation(); runSlot(g4.closest('.slot'), '旧照', 'oklch(0.55 0.06 80)'); });
+  const batch = document.getElementById('batchBtn');
+  if (batch) batch.addEventListener('click', () => {
+    batch.textContent = '批量生成中…（等待/缺料/已锁的 3 镜没进批次）';
+    document.querySelectorAll('.card .slot.empty').forEach((s, i) => {
+      setTimeout(() => runSlot(s, '新镜', 'oklch(' + (0.3 + i * 0.08) + ' 0.05 ' + (200 + i * 40) + ')'), i * 700);
+    });
+  });
+</script>
+</body>
+</html>

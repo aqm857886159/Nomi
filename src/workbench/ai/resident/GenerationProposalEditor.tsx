@@ -1,7 +1,13 @@
 import React from 'react'
 import { IconMessage, IconPhoto, IconVideo } from '@tabler/icons-react'
-import { cn } from '../../../utils/cn'
 import InlineParameterBar from '../../generationCanvas/nodes/InlineParameterBar'
+import {
+  archetypeModeChoices,
+  archetypeModeIsVisible,
+  archetypeVariantAxisIsLive,
+  fallbackVisibleModeId,
+} from '../../generationCanvas/nodes/controls/channelModeReach'
+import { useChannelCreateBodies } from '../../generationCanvas/nodes/controls/useChannelCreateBody'
 import {
   deriveGenerationModelCatalogStatus,
   findModelOptionByIdentifier,
@@ -9,11 +15,11 @@ import {
 } from '../../generationCanvas/adapters/modelOptionsAdapter'
 import { resolveArchetypeForOption, resolveRenderedControls } from '../../generationCanvas/nodes/nodeModelArchetype'
 import {
-  archetypeModeChoices,
   archetypeVariantChoices,
   currentArchetypeMode,
   currentArchetypeVariant,
 } from '../../generationCanvas/nodes/controls/archetypeMeta'
+import { modeTransportFor } from '../../../config/modelArchetypes'
 import {
   defaultPatchForCatalogControl,
   parseControlInput,
@@ -104,9 +110,39 @@ function ProposalParameterBar({
     ...(variantId ? { variantId } : {}),
   }), [modelValue, modeId, params, selectedModel?.modelKey, variantId, vendor])
   const controls = resolveRenderedControls(selectedModel, meta, kind === 'image', kind === 'video')
-  const modes = archetype ? archetypeModeChoices(archetype) : []
-  const variants = archetype ? archetypeVariantChoices(archetype) : []
+  // 模式栏收窄（与画布节点**同一套机制**，见 NodeParameterControls 的 modeBodySpecs）：档案的模式集是
+  // 供应商无关的，能不能发得出去由这家的 mapping 决定。逐模式问 body，taskKind 走唯一入口 modeTransportFor。
+  // 不收窄的话，提案面板会把这家发不出的模式照样列出来，用户要到点生成被第三闸拒才知道。
+  const modeBodySpecs = React.useMemo(
+    () =>
+      (archetype?.modes ?? []).map((mode) => ({
+        key: mode.id,
+        taskKind: (modeTransportFor(mode, archetype, vendor) ?? '') as string,
+        modeId: mode.id,
+      })),
+    [archetype, vendor],
+  )
+  const modeBodies = useChannelCreateBodies(vendor || '', selectedModel?.value ?? modelValue ?? '', modeBodySpecs)
+  const modes = archetype ? archetypeModeChoices(archetype, (mode) => modeBodies[mode.id]) : []
   const activeMode = archetype ? currentArchetypeMode(archetype, meta).id : modeId || ''
+  // 变体轴收窄（与画布节点同一判据）：渠道没把 model 参数化，切变体什么也不会发生 → 整条不显示。
+  const variants =
+    archetype && archetypeVariantAxisIsLive(modeBodies[activeMode]) ? archetypeVariantChoices(archetype) : []
+
+  // 选择安全：提案草稿钉在一个被收窄掉的模式上时，模式栏一个都不高亮、而发送路径仍按那个看不见的
+  // 模式投影槽。落回默认/第一个可见模式并写回草稿，让 UI 与发送口径一致（与画布节点同一处置）。
+  // 与画布不同的是这里没有 store，改动经 onModeChange 回给 Host —— 它就是用户手点模式时走的同一条路。
+  const visibleModeIdSignature = archetype
+    ? archetype.modes.filter((mode) => archetypeModeIsVisible(mode, modeBodies[mode.id])).map((m) => m.id).join('|')
+    : ''
+  React.useEffect(() => {
+    if (!archetype) return
+    const visibleIds = visibleModeIdSignature ? visibleModeIdSignature.split('|') : []
+    const next = fallbackVisibleModeId(archetype, meta, visibleIds)
+    if (next) onModeChange(next)
+    // meta/onModeChange 每渲染重建；触发时机只需「可见模式集 / 档案」变化。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleModeIdSignature, archetype?.id])
   const activeVariant = archetype ? currentArchetypeVariant(archetype, meta)?.id || variantId || '' : variantId || ''
   const catalogStatus = deriveGenerationModelCatalogStatus(kind, modelState)
 

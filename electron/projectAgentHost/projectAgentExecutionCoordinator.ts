@@ -64,7 +64,7 @@ import {
   productionRunTaskItems,
   stableJson,
   statusForResponse,
-  toolItem,
+  toolItem, hostPromptLedgerForTurn,
 } from "./projectAgentExecutionHelpers";
 import { projectAgentWorkModeOf } from "../shared/projectAgentContracts";
 import { projectAgentExecutionRisk, projectAgentMayReuseSafeApproval } from "./projectAgentExecutionPolicy";
@@ -1059,7 +1059,7 @@ export function createProjectAgentExecutionCoordinator(
         history: { kind: "ephemeral" as const },
         projectId: execution.request.projectId ?? partition.binding.projectId,
         canvasProjectId: execution.request.canvasProjectId ?? partition.binding.projectId,
-        prompt: steeredExecutionPrompt(partition.host.getSnapshot(partition.binding), execution.turn.turnId, execution.request, execution.steering),
+        prompt: steeredExecutionPrompt(partition.host.getSnapshot(partition.binding), execution.turn.turnId, execution.request, execution.steering), hostPromptLedger: hostPromptLedgerForTurn(partition.host.getSnapshot(partition.binding), execution.turn.threadId),
       };
       const response = await runAgent(request, {
         abortSignal: execution.controller.signal,
@@ -1069,8 +1069,7 @@ export function createProjectAgentExecutionCoordinator(
         awaitToolConfirmation: async (call, signal) => {
           const frozen = partition.requests.get(execution.turn.turnId);
           const canonicalCapability = resolveCapabilityAlias(call.toolName)?.contract;
-          const isCanvasMutation = canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id
-            || canonicalCapability?.id === CANVAS_DELETE_CAPABILITY.id;
+          const isCanvasMutation = canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id || canonicalCapability?.id === CANVAS_DELETE_CAPABILITY.id || ["nomi_canvas_plan", "nomi_canvas_edit", "nomi_canvas_maintenance"].includes(call.toolName);
           const isRendererHandledStoryboardProposal =
             canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id && call.toolName === "propose_storyboard_plan";
           if (isCanvasMutation && execution.blockedCanvasWriteDecision) {

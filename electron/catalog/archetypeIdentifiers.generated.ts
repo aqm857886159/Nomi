@@ -10,7 +10,9 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "seedance2fast",
     "bytedance/seedance-2-mini",
     "seedance-2-mini",
-    "seedance2mini"
+    "seedance2mini",
+    "seedance2_fast",
+    "seedance2_mini"
   ],
   "seedance-2.5": [
     "bytedance/seedance-2-5",
@@ -37,7 +39,8 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "happyhorse/text-to-video",
     "happyhorse/image-to-video",
     "happyhorse/reference-to-video",
-    "happyhorse/video-edit"
+    "happyhorse/video-edit",
+    "happyhorse_1_0"
   ],
   "vidu-q3": [
     "viduq3",
@@ -57,7 +60,8 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "grok-imagine-1.5-video-apimart",
     "grok-imagine-1.5-video-ext",
     "grok-imagine-1.5-video",
-    "grok-imagine-1.5"
+    "grok-imagine-1.5",
+    "grok_imagine_1_5"
   ],
   "sora-2": [
     "sora-2",
@@ -69,11 +73,13 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "veo3.1",
     "veo3.1-fast",
     "veo3.1-quality",
-    "veo3.1-lite"
+    "veo3.1-lite",
+    "veo3.1_fast"
   ],
   "gemini-omni-1.1": [
     "google/gemini-omni-flash-1-1",
-    "gemini-omni-flash-1-1"
+    "gemini-omni-flash-1-1",
+    "gemini_omni_flash"
   ],
   "runway-gen4.5": [
     "gen4.5",
@@ -84,21 +90,6 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "gen4_turbo",
     "runway-gen4-turbo",
     "runway-gen-4-turbo"
-  ],
-  "runway-video": [
-    "seedance2",
-    "seedance2_fast",
-    "seedance2_mini",
-    "wan3",
-    "grok_imagine_1_5",
-    "hailuo3",
-    "veo3.1",
-    "veo3.1_fast",
-    "happyhorse_1_0",
-    "gemini_omni_flash"
-  ],
-  "runway-video-t2v": [
-    "happyhorse_1_0"
   ],
   "kling-3.0": [
     "kling-3.0",
@@ -140,7 +131,8 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "wan/3-0-video",
     "wan/3-0-video-prime",
     "wan-3.0",
-    "wan3.0"
+    "wan3.0",
+    "wan3"
   ],
   "wan-3.0-apimart": [
     "wan3.0-video",
@@ -226,6 +218,10 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "eleven_v3",
     "eleven-v3"
   ],
+  "eleven-multilingual-v2": [
+    "eleven_multilingual_v2",
+    "eleven-multilingual-v2"
+  ],
   "eleven-music-v2": [
     "music_v2",
     "eleven-music-v2"
@@ -242,33 +238,33 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "meshy-7",
     "meshy7"
   ],
-  "runway-image-reference": [
+  "runway-gen4-image": [
+    "gen4_image"
+  ],
+  "runway-gen4-image-turbo": [
     "gen4_image_turbo"
   ],
-  "runway-image": [
-    "muse_image",
-    "grok_imagine_image_2",
-    "seedream5_pro",
-    "seedream5_lite",
-    "gen4_image",
-    "gen4_image_turbo",
-    "gemini_image3_pro",
-    "gemini_image3.1_flash",
-    "gpt_image_2",
-    "gemini_2.5_flash"
+  "runway-muse-image": [
+    "muse_image"
   ],
-  "runway-audio": [
-    "seed_audio",
-    "eleven_text_to_sound_v2",
-    "eleven_multilingual_v2",
-    "eleven_v3",
-    "runway-audio"
+  "grok-imagine-image-2": [
+    "grok_imagine_image_2"
+  ],
+  "gemini-image-3-pro": [
+    "gemini_image3_pro"
+  ],
+  "gemini-image-3.1-flash": [
+    "gemini_image3.1_flash"
+  ],
+  "runway-seed-audio": [
+    "seed_audio"
   ],
   "gpt-image-2": [
     "gpt-image-2",
     "gpt-image-2-text-to-image",
     "gpt-image-2-image-to-image",
-    "gpt-4o-image"
+    "gpt-4o-image",
+    "gpt_image_2"
   ],
   "seedream": [
     "seedream",
@@ -286,7 +282,8 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
   ],
   "kie-seedream-5-lite": [
     "seedream/5-lite-text-to-image",
-    "seedream/5-lite-image-to-image"
+    "seedream/5-lite-image-to-image",
+    "seedream5_lite"
   ],
   "nano-banana-2": [
     "nano-banana-2",
@@ -302,7 +299,8 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "google/nano-banana",
     "google/nano-banana-edit",
     "nano-banana-pro",
-    "gemini-2.5-flash-image-preview"
+    "gemini-2.5-flash-image-preview",
+    "gemini_2.5_flash"
   ],
   "flux-2-pro": [
     "flux-2/pro-text-to-image",
@@ -333,7 +331,8 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
   "seedream-5-pro": [
     "doubao-seedream-5-0-pro",
     "seedream-5-0-pro",
-    "seedream-5.0-pro"
+    "seedream-5.0-pro",
+    "seedream5_pro"
   ],
   "nomi-audio": [
     "nomi-audio"

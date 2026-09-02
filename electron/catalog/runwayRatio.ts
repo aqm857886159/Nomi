@@ -1,26 +1,18 @@
 /**
- * Runway ratio geometry — per-model ratio enums and orientation-based normalization,
- * split from runwayOfficial.ts (R9 size gate). Video + image duals live together here.
+ * Runway ratio geometry — orientation-based normalization, split from runwayOfficial.ts
+ * (R9 size gate). Video + image duals live together here.
+ *
+ * **视频侧的枚举与判别不住在这里**：它们是「Runway union 的线缆事实」，唯一真相源在
+ * `electron/shared/videoCapabilities/runwayWireFacts.ts`——因为**能力面**（各档案的
+ * `vendorParams.runway`，住 shared/）与**传输侧归一器**（本文件的消费者 runwayOfficial.ts）
+ * 说的必须是同一组值：UI 选得到的就得是发得出去的。分层纪律 R26 规定 `electron/shared/` 不得
+ * import `electron/catalog/`，所以那张表只能住 shared，本文件**消费**它而不再自持副本。
+ * （此前两处各有一份 = 一个事实两个作者，正是本轮合并要消掉的 P1 并行实现。）
+ *
+ * 图像侧的 `RUNWAY_IMAGE_RATIO_REMAP` / `runwayRatioOrientation` 与视频侧无重叠，继续住这里。
+ * 字段对账见 docs/research/2026-09-02-docaudit-fal-runway-etc.md。
  */
-
-/**
- * Runway's current OpenAPI is a per-model discriminator union. Shared UI ratios
- * are normalized once to each model's legal enum; unknown values are dropped.
- * See docs/research/2026-09-02-docaudit-fal-runway-etc.md for the field audit.
- */
-const RUNWAY_VIDEO_RATIO_ENUMS: Record<string, readonly string[]> = {
-  seedance2: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280", "2206:946", "1920:1080", "1664:1248", "1440:1440", "1248:1664", "1080:1920", "3840:1646", "3840:2160", "3840:2880", "3840:3840", "2880:3840", "2160:3840"],
-  seedance2_fast: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280"],
-  seedance2_mini: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280"],
-  seedance2_5: ["992:432", "854:480", "752:560", "640:640", "560:752", "480:854", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280", "2206:946", "1920:1080", "1664:1248", "1440:1440", "1248:1664", "1080:1920"],
-  hailuo3: ["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"],
-  grok_imagine_1_5: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"],
-  wan3: ["832:480", "640:480", "480:480", "480:640", "480:832", "1280:720", "960:720", "720:720", "720:960", "720:1280", "1920:1080", "1440:1080", "1080:1080", "1080:1440", "1080:1920", "auto_480p", "auto_720p", "auto_1080p"],
-  "veo3.1": ["1280:720", "720:1280", "1080:1920", "1920:1080"],
-  "veo3.1_fast": ["1280:720", "720:1280", "1080:1920", "1920:1080"],
-  happyhorse_1_0: ["1280:720", "720:1280", "960:960", "1108:832", "832:1108", "1920:1080", "1080:1920", "1440:1440", "1662:1248", "1248:1662"],
-  gemini_omni_flash: ["1280:720", "720:1280"],
-};
+import { runwayVideoRatioEnumForModel } from "../shared/videoCapabilities/runwayWireFacts";
 
 /**
  * 从任意 Runway ratio 值（像素 `<w>:<h>` 或友好 `16:9`/`1:1` 或 `auto_720p`）判朝向。
@@ -72,7 +64,7 @@ function pickRatioForOrientation(enumValues: readonly string[], orientation: "sq
  * `adaptive`（对含 adaptive 的族如 hailuo 是合法值 → 直接保留；对不含的族按方形归一）。
  */
 export function normalizeRunwayVideoRatio(model: string, ratio: string): string | undefined {
-  const enumValues = RUNWAY_VIDEO_RATIO_ENUMS[model];
+  const enumValues = runwayVideoRatioEnumForModel(model);
   if (!enumValues) return ratio || undefined; // 未建模的模型不动
   const trimmed = ratio.trim();
   if (!trimmed) return undefined;
@@ -82,33 +74,52 @@ export function normalizeRunwayVideoRatio(model: string, ratio: string): string 
 }
 
 /**
- * Runway 的 `/v1/text_to_image` 是**按模型判别的 union**：每个 image 模型有各自的 `ratio` 枚举，
- * 共享 archetype 的比例列表（1024:1024 / 1280:720 / …）**只是其中一部分模型的合法值**。
- * 依据 = Runway 官方 OpenAPI 规范（一手、机读，2026-09-01 照
- *   https://raw.githubusercontent.com/runwayml/openapi/main/openapi.json 对账；`/v1/text_to_image` 为 10-变体
- *   `oneOf`，discriminator=`model`，各变体 `properties.ratio.enum` 逐一列出）：
- *     muse_image  → ["2352:1008","2016:1152","1920:1280","1792:1344","1600:1600","1344:1792","1280:1920","1152:2016","auto"]（**无 1024:1024**）
- *     gpt_image_2 → ["2048:880","1920:1088",…,"1920:1920",…,"2560:1440",…,"1440:2560",…,"auto"]（**无 1024:1024**，2048 系起）
- *     seedream5_lite → ["2048:2048","2304:1728","1728:2304","2848:1600","1600:2848","2496:1664","1664:2496",…]（**无 1024:1024**，全 ≥ 400 万像素）
- *   （反例：seedream5_pro / grok_imagine_image_2 / gen4_image 的 enum **含** 1024:1024 → 不 remap，原样透传。）
- * 2026-09-01 真发 t2i 实测复核（提交即 DELETE，见 /tmp/runway-ratio-probe.mjs）：这三个模型发共享默认 `1024:1024`
- * 全 400 `Validation of body failed`；发下方各自映射值全 ACCEPTED（含 seedream5_pro/grok/gen4 发 1024:1024 仍 ACCEPTED，
- * 证明只该动这三个）。视频侧同类问题早已由 normalizeRunwayVideoContract 的 ratioFamilies 解，图像侧一直漏了。
- * 这里按**朝向**把共享比例映射到各模型 enum 里的合法值（视频侧 ratioFamilies 的图像对偶）。
+ * 图像侧：在某模型的**官方 ratio 枚举**里挑一个与目标朝向匹配的合法值（视频侧 `pickRatioForOrientation`
+ * 的图像出口）。枚举本身不在这里——唯一真相源是
+ * `electron/shared/imageCapabilities/runwayImageWireFacts.ts`（与档案的 `vendorParams.runway` 同源）。
  *
- * 注·seedream5_lite「freeform」：OpenAPI 把它的 ratio 标成**严格 enum**（上列），但 2026-09-01 实测该模型
- *   **也接受 enum 外的自由 `<w>:<h>`**（如 `2720:1530` 亦 ACCEPTED，只要满足 ~3.68M–16.7M 像素窗）——即活网关比
- *   spec 宽松。**此处仍取 spec 列出的 `2848:1600`/`1600:2848`**（既在 enum、又实测通过），对未来收严 fail-safe，
- *   不押注未文档化的宽松行为。
+ * **这个函数取代了原先的 `RUNWAY_IMAGE_RATIO_REMAP`**（2026-09-02 拆平台档案时删）。那张表是
+ * 「平台档案 `runway-image` 给全部 9 个产品发同一套比例」的**打补丁**：能力面给非法值 → 传输层
+ * 按朝向偷偷改写三个模型（muse / gpt_image_2 / seedream5_lite）。补丁本身还漏——照官方 spec 逐模型
+ * 对账，**10 个变体里 10 个**都至少有一个非法值（`1360:768`/`768:1360` 全员不收），只补三个远远不够。
+ * 现在能力面（各模型档案的 `vendorParams.runway`）只给得出该模型 enum 内的值，这里退化为
+ * **纵深防御**：只有绕过 UI 的 headless / MCP 手写参数才会走到落点逻辑。
+ *
+ * **落点判据是「形状最接近」，不是视频侧的「面积最接近」**——这个差别是有意的，别照抄视频侧。
+ * 图像模型的 enum 常常同时提供 16:9(1.78) 与 21:9(2.33) 这类同朝向但画幅迥异的档，且各档面积
+ * 跨度极大（gpt_image_2 从 1.8M 到 6.3M 像素）。按面积挑会把用户要的 `1280:720`(16:9) 落到
+ * `2048:880`(2.33)——朝向"对"了，画幅整个变形。按**宽高比**挑则落到 `2560:1440`，正好是 16:9。
+ * （这也正是被删的手工表 `RUNWAY_IMAGE_RATIO_REMAP` 当初挑的那三个值：它编码的就是"保形状"。）
+ * 同宽高比多档时取**面积最接近 1280×720** 的那个作次级判据，避免无谓地跳到 4K 档。
  */
-export const RUNWAY_IMAGE_RATIO_REMAP: Record<string, { square: string; landscape: string; portrait: string }> = {
-  // muse_image enum：方=1600:1600、横=2016:1152、竖=1152:2016（均 spec 列出 + 实测 ACCEPTED）。
-  muse_image: { square: "1600:1600", landscape: "2016:1152", portrait: "1152:2016" },
-  // gpt_image_2 enum（2048 系起）：方=1920:1920、横=2560:1440、竖=1440:2560（均 spec 列出 + 实测 ACCEPTED）。
-  gpt_image_2: { square: "1920:1920", landscape: "2560:1440", portrait: "1440:2560" },
-  // seedream5_lite enum（全 ≥3.68M px）：方=2048:2048、横=2848:1600、竖=1600:2848（均 spec 列出 + 实测 ACCEPTED）。
-  seedream5_lite: { square: "2048:2048", landscape: "2848:1600", portrait: "1600:2848" },
-};
+export function pickRunwayImageRatioForOrientation(
+  enumValues: readonly string[],
+  orientation: "square" | "landscape" | "portrait",
+  targetAspect?: number,
+): string | undefined {
+  const ideal = targetAspect ?? (orientation === "square" ? 1 : orientation === "landscape" ? 16 / 9 : 9 / 16);
+  let best: string | undefined;
+  let bestAspectScore = Infinity;
+  let bestAreaScore = Infinity;
+  for (const value of enumValues) {
+    const m = value.match(/^(\d+)\s*[:x]\s*(\d+)$/);
+    if (!m) continue; // auto / auto_1k / auto_2k 不参与形状匹配
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (!a || !b) continue;
+    const o = a === b ? "square" : a > b ? "landscape" : "portrait";
+    if (o !== orientation) continue;
+    const aspectScore = Math.abs(a / b - ideal);
+    const areaScore = Math.abs(a * b - 1280 * 720);
+    // 先比形状；形状实质相同（差 <0.01）时再比面积。
+    if (aspectScore < bestAspectScore - 0.01 || (Math.abs(aspectScore - bestAspectScore) <= 0.01 && areaScore < bestAreaScore)) {
+      best = value;
+      bestAspectScore = Math.min(aspectScore, bestAspectScore);
+      bestAreaScore = areaScore;
+    }
+  }
+  return best;
+}
 
 /** 从共享 ratio（"1024:1024" / "1280:720" / "auto_1k"…）判朝向。auto_* 视为方形。 */
 export function runwayRatioOrientation(ratio: string): "square" | "landscape" | "portrait" {

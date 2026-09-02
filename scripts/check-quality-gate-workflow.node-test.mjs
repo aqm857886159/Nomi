@@ -37,7 +37,7 @@ test('quality gate runs for pull requests and real main before/after pushes', ()
     },
   })
   assert.deepEqual(workflow.concurrency, {
-    group: 'quality-gate-${{ github.event.pull_request.number || github.ref }}',
+    group: 'quality-gate-${{ github.event.pull_request.number || github.sha }}',
     'cancel-in-progress': true,
   })
   assert.deepEqual(workflow.permissions, { actions: 'read', checks: 'read', contents: 'read' })
@@ -255,4 +255,41 @@ test('Quality Gate requires mandatory jobs and every risk-selected optional surf
   assert.match(command, /needs\['canvas-acceptance'\]\.result/)
   assert.match(command, /needs\['canvas-performance'\]\.result/)
   assert.match(command, /needs\['mac-package'\]\.result/)
+})
+
+/**
+ * 类级不变量：**取消式并发组不能按「多个提交共用的 ref」分组**。
+ *
+ * 2026-09-02 实测（docs/fixes/2026-09-02-main-push-concurrency-cancels-evidence.root-cause.json）：
+ * quality-gate 对 push 事件回落到 `github.ref`，而 main 的 ref 恒为 refs/heads/main——于是每个新
+ * merge 都取消上一个 merge 还在跑的班。实测 10:51–10:55 连续四班里三班被取消，`delivery:verify-merged`
+ * 因此在那些 merge SHA 上发不出 exact-SHA 收据（工具正确拒绝把 cancelled 当成功）。
+ *
+ * 判据落在「push 触发 + cancel-in-progress」这个组合上，而不是只盯 quality-gate 一个文件：
+ * 谁将来给某个取消式 workflow 加上 push 触发，这里就会红。
+ */
+test('取消式并发组不得按共用 ref 分组：push 触发的 workflow 必须按 commit 区分', () => {
+  const workflowDir = path.join(repoRoot, '.github/workflows')
+  const files = fs.readdirSync(workflowDir).filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
+  assert.ok(files.length > 0, '应当扫到 workflow 文件')
+
+  const offenders = []
+  for (const name of files) {
+    const definition = load(fs.readFileSync(path.join(workflowDir, name), 'utf8'))
+    const triggers = definition?.on ?? {}
+    const hasPushTrigger = Object.prototype.hasOwnProperty.call(triggers, 'push')
+    const cancels = definition?.concurrency?.['cancel-in-progress'] === true
+    if (!hasPushTrigger || !cancels) continue
+    const group = String(definition?.concurrency?.group ?? '')
+    // push 事件下必须落到 github.sha；否则同一分支的相邻 push 会互相取消。
+    if (!group.includes('github.sha')) offenders.push(`${name}: ${group}`)
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    '下列 workflow 由 push 触发且会取消在跑的班，但并发组里没有 github.sha —— '
+      + '同一分支的相邻 push 会互相取消，被取消的班留不下任何证据，exact-SHA 收据也发不出：\n  '
+      + offenders.join('\n  '),
+  )
 })

@@ -197,7 +197,7 @@ describe('buildToolErrorOutcome (A6 错误契约)', () => {
   ])('preserves canonical canvas-read code %s without leaking a raw cause', (code) => {
     const privateCause = `/Users/private/${code}/provider-secret`
     const error = Object.assign(new Error(privateCause), { code })
-    const { text, outcome } = buildToolErrorOutcome('nomi_read_canvas', error)
+    const { text, outcome } = buildToolErrorOutcome('nomi_canvas_read', error)
 
     expect(outcome).toMatchObject({ kind: 'error', errorCode: code, message: code })
     expect(text).not.toContain(privateCause)
@@ -208,7 +208,7 @@ describe('buildToolErrorOutcome (A6 错误契约)', () => {
     const error = Object.assign(new Error('lease expired on this connection'), {
       code: 'lease_expired', nextAction: 'open a new project session', capability: 'project.session',
     })
-    const { text, outcome } = buildToolErrorOutcome('nomi_read_canvas', error)
+    const { text, outcome } = buildToolErrorOutcome('nomi_canvas_read', error)
 
     expect(text).toContain('项目连接已过期，请重新选择当前项目')
     expect(outcome).toMatchObject({

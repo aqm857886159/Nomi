@@ -516,9 +516,16 @@ export function selectTaskMapping(
   if (requestedMode) {
     const exactMode = candidates.filter((m) => (m.modeId || "").trim() === requestedMode);
     if (exactMode.length === 1) return exactMode[0];
-    // A single candidate can safely serve several UI modes when the provider
-    // exposes one shared wire shape (older rows may be mode-less).
-    return exactMode.length === 0 && candidates.length === 1 ? candidates[0] : null;
+    // A single **mode-less** candidate can safely serve several UI modes: that is the
+    // designed shared-wire case (one vendor endpoint behind several UI modes, and older
+    // rows predate modeId entirely). A single candidate that declares a **different**
+    // mode must never be borrowed — its body is that other mode's contract, so the
+    // requested mode's reference keys are simply absent and the request silently
+    // degrades to the other mode's shape. That is how `runway/happyhorse_1_0/reference`
+    // (declares 10 reference images) quietly became "one promptImage", and how three fal
+    // modes borrowed a sibling's wire. Fail closed instead; the caller surfaces the gap.
+    const onlyCandidateIsModeless = candidates.length === 1 && !(candidates[0].modeId || "").trim();
+    return exactMode.length === 0 && onlyCandidateIsModeless ? candidates[0] : null;
   }
   // Once a model has multiple mode-specific mappings, an omitted mode is
   // ambiguous and must fail closed instead of silently selecting the first row.

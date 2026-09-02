@@ -3,6 +3,7 @@ import {
   type ModelParameterControl,
 } from '../../config/modelCatalogMeta'
 import {
+  modeTransportFor,
   resolveArchetypeForModel,
   type ArchetypeIntent,
   type ArchetypeReferenceSlotKind,
@@ -138,7 +139,7 @@ function mediaKindForSlot(kind: ArchetypeReferenceSlotKind): CapabilityInputProj
   return 'image'
 }
 
-function capabilityModes(archetype: ModelArchetype): CapabilityModeProjection[] {
+function capabilityModes(archetype: ModelArchetype, vendorKey: string | null | undefined): CapabilityModeProjection[] {
   return archetype.modes.map((mode) => {
     const inputs = mode.slots.map((slot): CapabilityInputProjection => ({
       kind: slot.kind,
@@ -154,7 +155,7 @@ function capabilityModes(archetype: ModelArchetype): CapabilityModeProjection[] 
       label: mode.vendorTerm,
       hint: mode.hint,
       intent: mode.intent,
-      taskKind: mode.transportTaskKind ?? archetype.transportTaskKind,
+      taskKind: modeTransportFor(mode, archetype, vendorKey),
       promptRequired: mode.promptRequired,
       requiredInputs: inputs.filter((input) => input.min > 0),
       optionalInputs: inputs.filter((input) => input.min === 0),
@@ -178,7 +179,7 @@ export function projectModelCapability(input: ProjectModelCapabilityInput): Mode
   return {
     source: archetype ? 'archetype' : 'transport-only',
     inputContract: archetype ? 'known' : 'unknown',
-    modes: archetype ? capabilityModes(archetype) : [],
+    modes: archetype ? capabilityModes(archetype, model.vendorKey) : [],
     parameters: parseModelParameterControls(model.meta),
     transport: {
       mappings: applicableMappings(model, input.mappings ?? []),
