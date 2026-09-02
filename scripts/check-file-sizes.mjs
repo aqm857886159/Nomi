@@ -45,7 +45,7 @@ const ALLOWLIST = {
   "electron/capabilityCore/mcpGenerationTools.ts": 803,
   "electron/capabilityCore/verifiedCapabilityInvocation.ts": 1257,
   "electron/productionRun/productionRunService.ts": 816,
-  "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1840,
+  "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1839, // 2026-09-02 M3: ledger extraction kept the coordinator below its prior ratchet.
   "electron/projectAgentHost/projectAgentReducer.ts": 936,
   "electron/projectAgentHost/projectAgentState.ts": 809,
   // Phase 6 常驻壳成为唯一 Agent UI 后的应用外壳（pr223 评审基线曾为 908；并 origin/main 拆解面板宿主后

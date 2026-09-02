@@ -247,6 +247,8 @@ export type ProjectAgentToolItem = ProjectAgentItemBase &
     text?: string;
     capability: ProjectAgentVersionRef;
     resultRef?: string;
+    /** Ref-only canonical Skill evidence; the body is re-read and hash-checked on the next turn. */
+    skillLoad?: Readonly<{ name: string; packageVersion: string; contentHash: string }>;
   }>;
 
 export type ProjectAgentProposalItem =
