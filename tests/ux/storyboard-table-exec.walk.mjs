@@ -304,9 +304,9 @@ try {
   await expectVisible(intake, '结果即收菜单缺目标镜选择器')
   if ((await intake.inputValue()) !== '6') failures.push(`镜 6 的结果即收默认目标应为下一镜位置 6，实为 ${await intake.inputValue()}`)
   await snap('17-result-intake-target-selector.png')
-  await intake.selectOption({ label: '镜 8' })
-  await clickOrFail(win.locator('[data-storyboard-row="6"]').getByRole('button', { name: '设为首帧' }), '把镜 6 结果设为镜 8 首帧')
-  await expectCount(win.locator('[data-storyboard-row="8"] [data-storyboard-ref-tile="anchor"]'), 2, '设为镜 8 首帧没有把结果参考挂到目标镜')
+  await intake.selectOption({ label: '镜 1' })
+  await clickOrFail(win.locator('[data-storyboard-row="6"]').getByRole('button', { name: '设为首帧' }), '把镜 6 结果设为镜 1 首帧')
+  await expectCount(win.locator('[data-storyboard-row="1"] [data-storyboard-ref-tile="anchor"]'), 2, '设为镜 1 首帧没有把结果参考挂到目标镜')
 
   // ── D2. 参考 tile / @ 胶囊三层预览：悬停克制浮层，双击走同一 body-portal 全屏。 ──
   const heroFace = win.locator('[data-anchor-card="hero"] [data-anchor-face="locked"]').first()
@@ -344,7 +344,7 @@ try {
   await clickOrFail(gripMenu.getByRole('button', { name: '镜头操作' }).last(), '打开镜头 grip 菜单')
   await expectVisible(gripMenu.getByRole('button', { name: '复制镜头' }), 'grip 菜单缺复制镜头')
   await expectVisible(gripMenu.getByRole('button', { name: '第二场 · 巷口追逐' }), 'grip 菜单缺移到场选项')
-  await expectVisible(gripMenu.getByRole('button', { name: '删除镜头' }), 'grip 菜单缺删除镜头')
+  await expectVisible(gripMenu.locator('div.absolute').getByRole('button', { name: '删除镜头' }), 'grip 菜单缺删除镜头')
   await snap('23-grip-menu.png')
   await win.keyboard.press('Escape')
 
