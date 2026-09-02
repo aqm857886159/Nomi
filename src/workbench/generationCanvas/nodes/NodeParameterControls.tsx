@@ -59,6 +59,7 @@ import {
   archetypeModeChoices,
   archetypeModeIsVisible,
   archetypeModeSlotReachByKey,
+  archetypeVariantAxisIsLive,
   fallbackVisibleModeId,
 } from './controls/channelModeReach'
 import { resolveReferenceSlots, decideArrayReferenceRemoval } from '../runner/referenceSlots'
@@ -141,7 +142,7 @@ export default function NodeParameterControls({
   const archetype = resolveArchetypeForOption(selectedModelOption)
   // 变体特化：选中变体可能收窄某 mode 的参数（如 Seedance fast 的 resolution 仅 480/720）——
   // 槽/参数全由特化后的档案派生，保证 UI 选项与发送一致。无 variants → 原样（零开销）。
-  const variantChoices = archetype ? archetypeVariantChoices(archetype) : []
+  const declaredVariantChoices = archetype ? archetypeVariantChoices(archetype) : []
   const activeVariantId = archetype ? currentArchetypeVariant(archetype, meta)?.id || '' : ''
   const effectiveArchetype = archetype ? specializeArchetypeForVariant(archetype, activeVariantId) : null
   const archMode = effectiveArchetype ? currentArchetypeMode(effectiveArchetype, meta) : null
@@ -172,6 +173,9 @@ export default function NodeParameterControls({
     selectedModelOption?.value ?? '',
     modeBodySpecs,
   )
+  // 变体轴收窄：变体的意义是换一个真发出去的 model 串，渠道没把 model 参数化就什么也不会发生
+  // （Runway 把 model 写死、且 veo3.1 / veo3.1_fast 本就是两个目录行）。惰性时整条不显示，别骗用户。
+  const variantChoices = archMode && !archetypeVariantAxisIsLive(modeBodies[archMode.id]) ? [] : declaredVariantChoices
   // 槽级收窄仍只看**当前**模式的 body（口径不变）。三态里的 undefined/null 都落到「拿不到 body」→ 不收窄。
   const channelCreateBody = archMode ? (modeBodies[archMode.id]?.body ?? null) : null
   const slotReachByKey = React.useMemo(
