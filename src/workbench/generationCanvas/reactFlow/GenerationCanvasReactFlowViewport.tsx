@@ -8,6 +8,7 @@ import {
   type OnEdgesDelete,
   type OnNodeDrag,
   type OnNodesChange,
+  type OnSelectionChangeFunc,
   type Viewport,
   useReactFlow,
 } from '@xyflow/react'
@@ -34,7 +35,7 @@ type GenerationCanvasReactFlowViewportProps = {
   onNodesChange: OnNodesChange<GenerationFlowNode>
   onNodeDragStart: OnNodeDrag<GenerationFlowNode>
   onNodeDragStop: OnNodeDrag<GenerationFlowNode>
-  onSelectionEnd: () => void
+  onSelectionChange: OnSelectionChangeFunc<GenerationFlowNode, GenerationFlowEdge>
   onEdgeClick: (event: React.MouseEvent, edge: GenerationFlowEdge) => void
   onEdgesDelete: OnEdgesDelete<GenerationFlowEdge>
   onNodeContextMenu: (event: React.MouseEvent, node: GenerationFlowNode) => void
@@ -96,7 +97,7 @@ export function GenerationCanvasReactFlowViewport({
   onNodesChange,
   onNodeDragStart,
   onNodeDragStop,
-  onSelectionEnd,
+  onSelectionChange,
   onEdgeClick,
   onEdgesDelete,
   onNodeContextMenu,
@@ -159,7 +160,7 @@ export function GenerationCanvasReactFlowViewport({
       onNodesChange={onNodesChange}
       onNodeDragStart={onNodeDragStart}
       onNodeDragStop={onNodeDragStop}
-      onSelectionEnd={onSelectionEnd}
+      onSelectionChange={onSelectionChange}
       onEdgeClick={onEdgeClick}
       onEdgesDelete={onEdgesDelete}
       onNodeContextMenu={onNodeContextMenu}

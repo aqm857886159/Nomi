@@ -1,0 +1,124 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-canvas-select-path",
+  "problem_type": "High-frequency React Flow selection state is round-tripped through the business canvas projection",
+  "symptom": "S-scale click-select frameGapP95 remains at 32.8ms, close to the 33ms interaction budget.",
+  "direct_cause": "React Flow selection changes call the controlled canvas onNodesChange adapter, which writes selectedNodeIds to Zustand and rebuilds the full node projection before synchronizing it back into the uncontrolled React Flow store.",
+  "class_root": "Transient selection presentation has no shared ownership boundary separating React Flow interaction state from the business selected-id projection consumed by canvas actions.",
+  "affected_population": [
+    "Continuous single-node clicks on dense generation canvases",
+    "Shift additive and toggle selection changes",
+    "Marquee selection and pane clear selection paths that update the same selection projection"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.ts",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowProjection.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasNodeSelectionSync.ts",
+    "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.test.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasNodeSelectionSync.test.ts"
+  ],
+  "entry_points": [
+    "React Flow node click and Shift selection",
+    "React Flow marquee selection",
+    "Nomi pane/context/keyboard selection actions"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an application ownership boundary between the installed React Flow kernel and Nomi's session-only selected-id consumers; no dependency behavior or API upgrade is required.",
+  "invariants": [
+    "React Flow owns transient node selected presentation and applies its native selected CSS class without a business projection round-trip.",
+    "Business selectedNodeIds changes are committed once per actual ordered selection change and remain available to toolbar, batch, group, Agent, undo, and read-snapshot consumers.",
+    "Selection-only changes do not rebuild or replace the full generation node projection; only changed React Flow node selection metadata may update.",
+    "Selection remains session-only and does not bump persistRevision, append canvas events, or alter durable node geometry."
+  ],
+  "generality_proof": "All checked selection entry points converge on the React Flow selection callbacks and the single selectedNodeIds store action. Keeping selection rendering in the React Flow kernel while retaining one guarded selected-id projection covers click, Shift, marquee, pane clear, context, keyboard, and batch consumers without a caller-specific exception.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "handleSelectionChange / handleNodesChange",
+      "responsibility": "Route React Flow selection notifications to the business selected-id projection while leaving selection NodeChange application to the React Flow kernel."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasNodeSelectionSync.ts",
+      "symbol": "syncCanvasNodeSelection",
+      "responsibility": "Synchronize only externally requested selected and primary-selection metadata into the React Flow interaction store."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "symbol": "selectNodes",
+      "responsibility": "Guard the session selected-id projection against duplicate ordered writes."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "React Flow click selection notification",
+      "disposition": "enforced",
+      "evidence": "The selection callback updates the guarded business projection and the native RF node state remains the visual owner."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "entry_point": "React Flow marquee selection end/change notification",
+      "disposition": "enforced",
+      "evidence": "The same selection callback is passed to the one React Flow instance; no second selection renderer or fallback remains."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "entry_point": "pane clear, context, keyboard, group and batch selected-id actions",
+      "disposition": "enforced",
+      "evidence": "They converge on selectNodes/clearSelection and the guarded action preserves the existing session semantics."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future high-frequency selection entry point using the shared React Flow onNodesChange path can recreate the same business-store round trip and full projection amplification.",
+    "same_class_scan": [
+      "Searched generationCanvas for onNodesChange, collectFlowSelectionChanges, selectedNodeIds, selectNodes, clearSelection, and onSelectionEnd.",
+      "Checked node click, Shift multi-select, marquee selection, pane click, context selection, keyboard selection, group selection, batch actions, readSnapshot, and readDocumentSnapshot consumers.",
+      "Checked React Flow's installed BatchProvider, selection handlers, hasDefaultNodes gate, applyNodeChanges, and custom node selected/primary-selection consumers."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/canvasNodeSelectionSync.ts",
+    "invariant": "Selection-only business updates never enter the full domain-to-React-Flow projection; native RF selected flags and CSS own transient presentation, while selectedNodeIds is a guarded session projection.",
+    "failure_mode": "The structural adapter test fails if a selection-only change rebuilds the node projection, and the selection-sync test fails if repeated selection synchronization writes the RF store or changes unrelated node identity.",
+    "exception_policy": "none",
+    "strategy": "Move selection rendering ownership to the installed React Flow kernel, synchronize external selection changes through one narrow helper, and delete the old selection-controlled node projection dependency and onNodesChange write path.",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowProjection.ts",
+      "src/workbench/generationCanvas/reactFlow/canvasNodeSelectionSync.ts",
+      "src/workbench/generationCanvas/store/canvasNodeActions.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.test.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasNodeSelectionSync.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.test.ts",
+    "src/workbench/generationCanvas/reactFlow/canvasNodeSelectionSync.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowProjection.ts"
+    ],
+    "rationale": "The old selection round-trip and selection-controlled full node projection are deleted; the single React Flow kernel and one guarded business selected-id projection remain."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The installed React Flow version already provides the required native selection store and CSS class behavior; this change uses its existing public callbacks and store semantics.",
+    "exit_criteria": []
+  },
+  "migration": "No durable migration is required because selectedNodeIds is session-only and readDocumentSnapshot already excludes it. Existing canvas nodes continue through the same domain projection; external selection is synchronized into RF after projection changes.",
+  "residual_risks": [
+    "The benchmark must confirm that custom edge incident-label rendering remains visually equivalent after node selection becomes RF-owned.",
+    "Real Electron walkthrough must confirm post-drag hasDefaultNodes restoration still permits click, Shift, marquee, blank-pane clear, and 29px magnetic handle timing."
+  ]
+}

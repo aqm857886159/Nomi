@@ -8,6 +8,7 @@ import {
   type OnConnectStart,
   type OnConnectEnd,
   type OnNodesChange,
+  type OnSelectionChangeFunc,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import './generationCanvasReactFlow.css'
@@ -52,7 +53,6 @@ import {
 } from '../components/canvasStageDrop'
 import {
   collectFlowPositionChanges,
-  collectFlowSelectionChanges,
   flowViewportFromCanvas,
   type GenerationFlowEdge,
   type GenerationFlowNode,
@@ -68,6 +68,7 @@ import { GenerationCanvasReactFlowOverlays } from './GenerationCanvasReactFlowOv
 import { GenerationCanvasReactFlowViewport } from './GenerationCanvasReactFlowViewport'
 import { useGenerationCanvasReactFlowPointer } from './useGenerationCanvasReactFlowPointer'
 import { useGenerationCanvasReactFlowProjection } from './useGenerationCanvasReactFlowProjection'
+import { syncCanvasNodeSelection } from './canvasNodeSelectionSync'
 import {
   useBrowserAssetImportEffects,
   useGenerationCanvasReactFlowHostEffects,
@@ -461,31 +462,20 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       applyCanvasDragKernelPositionChanges(flowStore, changes)
     }
 
-    const selectionChanges = collectFlowSelectionChanges(changes)
-    if (selectionChanges.length === 0) return
-    const selected = new Set(useGenerationCanvasStore.getState().selectedNodeIds)
-    for (const change of selectionChanges) {
-      if (change.selected) selected.add(change.nodeId)
-      else selected.delete(change.nodeId)
-    }
-    const nextSelection = [...selected]
-    const currentSelection = useGenerationCanvasStore.getState().selectedNodeIds
-    if (
-      nextSelection.length === currentSelection.length &&
-      nextSelection.every((nodeId, index) => nodeId === currentSelection[index])
-    ) return
-    selectNodes(nextSelection)
-  }, [flowNodes, flowStore, selectNodes])
+  }, [flowNodes, flowStore])
 
-  // React Flow's selection store is internal while the persisted selection lives
-  // in Zustand. Syncing on every internal selection notification causes a
-  // feedback loop when controlled node props are replaced after insertion.
-  // Clicks are handled explicitly above; marquee selection is committed once at
-  // the end of the gesture.
-  const handleSelectionEnd = React.useCallback(() => {
-    if (readOnly) return
-    selectNodes(flow.getNodes().filter((node) => node.selected).map((node) => node.id))
-  }, [flow, readOnly, selectNodes])
+  // RF owns click/marquee selected CSS and emits the stable business projection
+  // separately. External actions are mirrored by the effect below through one
+  // narrow RF selection sync boundary.
+  const handleSelectionChange: OnSelectionChangeFunc<GenerationFlowNode, GenerationFlowEdge> = React.useCallback(({ nodes: selectedNodes }) => {
+    const nextSelection = selectedNodes.map((node) => node.id)
+    selectNodes(nextSelection)
+    syncCanvasNodeSelection(flowStore, nextSelection)
+  }, [flowStore, selectNodes])
+
+  React.useEffect(() => {
+    syncCanvasNodeSelection(flowStore, selectedNodeIds)
+  }, [flowStore, selectedNodeIds])
 
   const handleEdgeClick = React.useCallback((_event: React.MouseEvent, edge: GenerationFlowEdge) => {
     if (readOnly) return
@@ -711,7 +701,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         onNodesChange={handleNodesChange}
         onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={handleNodeDragStop}
-        onSelectionEnd={handleSelectionEnd}
+        onSelectionChange={handleSelectionChange}
         onEdgeClick={handleEdgeClick}
         onEdgesDelete={handleEdgesDelete}
         onNodeContextMenu={handleFlowContextMenu}

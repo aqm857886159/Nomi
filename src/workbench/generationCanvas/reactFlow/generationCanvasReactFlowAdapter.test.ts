@@ -54,26 +54,22 @@ describe('generation canvas React Flow adapter', () => {
     expect(mapped.data.generationNode.pluginState?.state).toEqual({ checked: false })
   })
 
-  it('maps read-only nodes and selected state for a collection', () => {
-    const mapped = toGenerationFlowNodes([node('a', 0), node('b', 200)], new Set(['b']), true)
+  it('maps read-only nodes with neutral interaction selection', () => {
+    const mapped = toGenerationFlowNodes([node('a', 0), node('b', 200)], true)
     expect(mapped.map((item) => [item.id, item.selected, item.draggable, item.connectable])).toEqual([
       ['a', false, false, false],
-      ['b', true, false, false],
+      ['b', false, false, false],
     ])
     expect(mapped.every((item) => item.selectable === false && item.focusable === false)).toBe(true)
-    expect(mapped.map((item) => item.data.primarySelection)).toEqual([false, true])
+    expect(mapped.map((item) => item.data.primarySelection)).toEqual([false, false])
   })
 
-  it('keeps large-canvas multi-selection lightweight while preserving selected state', () => {
-    const mapped = toGenerationFlowNodes(
-      [node('a', 0), node('b', 200), node('c', 400)],
-      new Set(['a', 'b']),
-      false,
-    )
+  it('keeps large-canvas nodes lightweight without projecting selection state', () => {
+    const mapped = toGenerationFlowNodes([node('a', 0), node('b', 200), node('c', 400)], false)
 
     expect(mapped.map((item) => [item.selected, item.data.primarySelection])).toEqual([
-      [true, false],
-      [true, false],
+      [false, false],
+      [false, false],
       [false, false],
     ])
   })
@@ -131,13 +127,11 @@ describe('generation canvas React Flow adapter', () => {
     const a = node('a', 0)
     const b = node('b', 300)
     const c = node('c', 600)
-    const firstNodes = toGenerationFlowNodes([a, b, c], new Set(), false)
-    expect(toGenerationFlowNodes([a, b, c], new Set(), false, firstNodes)).toBe(firstNodes)
-    const nextNodes = toGenerationFlowNodes([a, b, c], new Set(['b']), false, firstNodes)
+    const firstNodes = toGenerationFlowNodes([a, b, c], false)
+    expect(toGenerationFlowNodes([a, b, c], false, firstNodes)).toBe(firstNodes)
+    const nextNodes = toGenerationFlowNodes([a, b, c], false, firstNodes)
 
-    expect(nextNodes[0]).toBe(firstNodes[0])
-    expect(nextNodes[1]).not.toBe(firstNodes[1])
-    expect(nextNodes[2]).toBe(firstNodes[2])
+    expect(nextNodes).toBe(firstNodes)
 
     const edges: GenerationCanvasEdge[] = [
       { id: 'ab', source: 'a', target: 'b' },
@@ -167,11 +161,22 @@ describe('generation canvas React Flow adapter', () => {
     })).toBe(multiSelectedEdges)
   })
 
+  it('keeps the node projection reference stable for selection-only changes', () => {
+    const a = node('a', 0)
+    const b = node('b', 300)
+    const first = toGenerationFlowNodes([a, b], false)
+
+    // Selection is a React Flow interaction concern. Business consumers still
+    // receive the selected-id projection, but the canvas node list must not be
+    // rebuilt just to paint the native `.react-flow__node.selected` class.
+    expect(toGenerationFlowNodes([a, b], false, first)).toBe(first)
+  })
+
   it('updates only nodes whose transient visual state changed', () => {
     const a = node('a', 0)
     const b = node('b', 300)
-    const first = toGenerationFlowNodes([a, b], new Set(), false)
-    const appearing = toGenerationFlowNodes([a, b], new Set(), false, first, {
+    const first = toGenerationFlowNodes([a, b], false)
+    const appearing = toGenerationFlowNodes([a, b], false, first, {
       appearingNodeIds: new Set(['b']),
     })
 
@@ -179,7 +184,7 @@ describe('generation canvas React Flow adapter', () => {
     expect(appearing[1]).not.toBe(first[1])
     expect(appearing[1].data).toMatchObject({ appear: true, focusFlash: false })
 
-    const focused = toGenerationFlowNodes([a, b], new Set(['a']), false, appearing, {
+    const focused = toGenerationFlowNodes([a, b], false, appearing, {
       focusFlashNodeId: 'a',
     })
     expect(focused[0].data).toMatchObject({ appear: false, focusFlash: true })

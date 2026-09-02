@@ -273,15 +273,19 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     })
   },
   selectNodes: (nodeIds) => {
-    set((state) => {
-      const existing = new Set(state.nodes.map((node) => node.id))
-      const seen = new Set<string>()
-      state.selectedNodeIds = nodeIds.filter((nodeId) => {
-        if (!existing.has(nodeId) || seen.has(nodeId)) return false
-        seen.add(nodeId)
-        return true
-      })
+    const state = get()
+    const existing = new Set(state.nodes.map((node) => node.id))
+    const seen = new Set<string>()
+    const nextSelection = nodeIds.filter((nodeId) => {
+      if (!existing.has(nodeId) || seen.has(nodeId)) return false
+      seen.add(nodeId)
+      return true
     })
+    if (
+      nextSelection.length === state.selectedNodeIds.length &&
+      nextSelection.every((nodeId, index) => nodeId === state.selectedNodeIds[index])
+    ) return
+    set({ selectedNodeIds: nextSelection })
   },
   clearSelection: () => {
     // 已经是「空选区 + 无待连」时直接返回：点空白是高频动作（现在拖画布也走这条路），

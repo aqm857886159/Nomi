@@ -41,13 +41,13 @@ export function useGenerationCanvasReactFlowProjection({
   const edgeNodes = edgeNodeById ?? nodeById
   const previousFlowNodesRef = React.useRef<GenerationFlowNode[]>([])
   const flowNodes = React.useMemo(() => {
-    const next = toGenerationFlowNodes(nodes, selectedSet, readOnly, previousFlowNodesRef.current, {
+    const next = toGenerationFlowNodes(nodes, readOnly, previousFlowNodesRef.current, {
       appearingNodeIds,
       focusFlashNodeId,
     })
     previousFlowNodesRef.current = next
     return next
-  }, [appearingNodeIds, focusFlashNodeId, nodes, readOnly, selectedSet])
+  }, [appearingNodeIds, focusFlashNodeId, nodes, readOnly])
   const previousFlowEdgesRef = React.useRef<GenerationFlowEdge[]>([])
   const flowEdges = React.useMemo(() => {
     const next = toGenerationFlowEdges(edges, edgeNodes, {

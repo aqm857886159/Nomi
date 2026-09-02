@@ -80,7 +80,6 @@ export function toGenerationFlowNode(
 
 export function toGenerationFlowNodes(
   nodes: readonly GenerationCanvasNode[],
-  selectedNodeIds: ReadonlySet<string>,
   readOnly: boolean,
   previousNodes: readonly GenerationFlowNode[] = [],
   visualState: {
@@ -90,8 +89,11 @@ export function toGenerationFlowNodes(
 ): GenerationFlowNode[] {
   const previousById = new Map(previousNodes.map((node) => [node.id, node]))
   const nextNodes = nodes.map((node) => {
-    const selected = selectedNodeIds.has(node.id)
-    const primarySelection = selected && selectedNodeIds.size === 1
+    // Selection belongs to React Flow's interaction store. Keeping the domain
+    // projection neutral lets RF apply `.react-flow__node.selected` without
+    // rebuilding every projected node on each click.
+    const selected = false
+    const primarySelection = false
     const appear = Boolean(visualState.appearingNodeIds?.has(node.id))
     const focusFlash = visualState.focusFlashNodeId === node.id
     const previous = previousById.get(node.id)
