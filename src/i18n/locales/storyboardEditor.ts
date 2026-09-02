@@ -85,7 +85,6 @@ export const zhStoryboardEditor = {
     atRefTitle: '在提示词里插入参考（@ 符号弹出选择器）',
     atRefDisabledTitle: '此模型不吃参考，无法用 @ 引用',
     copy: '复制镜头',
-    moveToScene: '移到场…',
     delete: '删除镜头',
     selectAria: '选择镜 {{index}}',
   },
@@ -106,7 +105,6 @@ export const zhStoryboardEditor = {
     firstFrame: '设为首帧',
     targetShot: '目标镜头',
     nextShot: '下一镜（镜 {{index}}）',
-    noNextShot: '没有下一镜',
     shot: '镜 {{index}}',
   },
   selection: {
@@ -338,7 +336,6 @@ export const enStoryboardEditor = {
     atRefTitle: 'Insert a reference into the prompt (@ opens the picker)',
     atRefDisabledTitle: 'This model takes no references — @ is disabled',
     copy: 'Duplicate shot',
-    moveToScene: 'Move to scene…',
     delete: 'Delete shot',
     selectAria: 'Select shot {{index}}',
   },
@@ -359,7 +356,6 @@ export const enStoryboardEditor = {
     firstFrame: 'Set as first frame',
     targetShot: 'Target shot',
     nextShot: 'Next shot ({{index}})',
-    noNextShot: 'No next shot',
     shot: 'Shot {{index}}',
   },
   selection: {
