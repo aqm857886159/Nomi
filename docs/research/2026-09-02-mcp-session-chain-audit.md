@@ -1,7 +1,7 @@
 # MCP 项目会话链真走查审计（#202 式）
 
-日期：2026-09-02 · 基线：`origin/main@e8477aa2`  
-性质：M3 施工前审计，先审计后实现；本片只记录，不修生产代码。  
+日期：2026-09-02 · 基线：`origin/main@e8477aa2`
+性质：M3 施工前审计，先审计后实现；本片只记录，不修生产代码。
 方法：真 Electron（`electron <repoRoot> + NOMI_MCP_STDIO=1`）+ 真 MCP stdio JSON-RPC 客户端，凭据由 `tests/ux/_mcpJourney.mjs:279-295` 的 `seedMcpClientIdentityEnv` 注入；隔离 settings/userData/projects/capability 四目录。调用链覆盖 session_open、租约重开、项目切换、并发打开、第二进程、SIGKILL、持久化项目恢复和真实 5 分钟过期。
 
 ## 0. 诚实记分
