@@ -78,7 +78,8 @@ describe('nomi-mcp · MCP Apps ProductionRun widget serving', () => {
     const res = await h.call(2, 'tools/list')
     const tools = (res.result as { tools: Array<{ name: string; _meta?: Record<string, unknown> }> }).tools
     expect(tools.some((tool) => tool.name === 'nomi_generate')).toBe(false)
-    for (const name of ['nomi_start_playbook', 'nomi_get_run', 'nomi_subscribe_run', 'nomi_get_artifact']) {
+    // 面收敛：挂活 widget 的工具 = nomi_run_start（建 Run）+ nomi_read（run/run_events/artifact target 运行时挂 frame，name 级预声明 _meta）。
+    for (const name of ['nomi_run_start', 'nomi_read']) {
       const meta = tools.find((tool) => tool.name === name)?._meta as {
         ui?: { resourceUri?: string }
         'openai/outputTemplate'?: string
@@ -86,8 +87,9 @@ describe('nomi-mcp · MCP Apps ProductionRun widget serving', () => {
       expect(meta?.ui?.resourceUri).toBe(NOMI_LIVE_DRAFT_UI_URI)
       expect(meta?.['openai/outputTemplate']).toBe(NOMI_LIVE_DRAFT_UI_URI)
     }
-    const listProjects = tools.find((t) => t.name === 'nomi_list_projects')
-    expect(listProjects?._meta).toBeUndefined()
+    // 非 widget 的写工具不预声明 _meta。
+    const canvasEdit = tools.find((t) => t.name === 'nomi_canvas_edit')
+    expect(canvasEdit?._meta).toBeUndefined()
   })
 
   // 宿主按 readOnlyHint 决定要不要每次弹确认。标漏会让查询反复确认，标多会静默放行写入。
@@ -97,18 +99,13 @@ describe('nomi-mcp · MCP Apps ProductionRun widget serving', () => {
     const res = await h.call(2, 'tools/list')
     const tools = (res.result as { tools: Array<{ name: string; annotations?: { readOnlyHint?: boolean } }> }).tools
     const readOnly = tools.filter((t) => t.annotations?.readOnlyHint === true).map((t) => t.name).sort()
+    // 面收敛：读侧全部并入 nomi_read（整体只读）；nomi_operation_preview 编译预演无状态写，也只读。
+    // 并线 main 后 + 3 个 M2 只读语义编辑工具（export_job / media_query / timeline_read）。sorted。
     expect(readOnly).toEqual([
       'nomi_export_job',
-      'nomi_get_artifact',
-      'nomi_get_generation_context',
-      'nomi_get_run',
-      'nomi_list_models',
-      'nomi_list_projects',
       'nomi_media_query',
-      'nomi_operation_read',
-      'nomi_read_artifact',
-      'nomi_read_canvas',
-      'nomi_subscribe_run',
+      'nomi_operation_preview',
+      'nomi_read',
       'nomi_timeline_read',
     ])
     expect(tools.some((tool) => tool.name === 'nomi_generate')).toBe(false)
@@ -267,7 +264,7 @@ describe('buildNomiRunFromProjection · B6 gate 卡映射', () => {
   })
   it('widget HTML 含 gate 容器与卡内决议通道（nomi_decide_gate via tools/call），钱门只读提示在', () => {
     expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('id="gate"')
-    expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('nomi_decide_gate')
+    expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('nomi_run_gate')
     expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('批准并继续')
     expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('满意，继续批量')
     expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('金额不做卡内一键批')

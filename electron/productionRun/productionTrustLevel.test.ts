@@ -184,12 +184,12 @@ describe('set_trust 对话改档 (B3 · 降档留痕 + 立即生效)', () => {
       policy: { trustLevel: 'budget_only' },
     })
     const projection = service.readProjection('project-1', runId)
-    const outcome = buildToolOutcome('nomi_control_run', { projectId: 'project-1', runId, action: 'set_trust', trustLevel: 'budget_only' }, projection, 'zh-CN')
+    const outcome = buildToolOutcome('nomi_run_control', { projectId: 'project-1', runId, action: 'set_trust', trustLevel: 'budget_only' }, projection, 'zh-CN')
     expect(outcome.text).toContain('信任档位已改为')
     expect(outcome.text).toContain('预算门仍会请示')
     expect(outcome.outcome).toMatchObject({ action: 'set_trust', trustLevel: 'budget_only' })
     // 英文侧同样双语可用。
-    const outcomeEn = buildToolOutcome('nomi_control_run', { projectId: 'project-1', runId, action: 'set_trust', trustLevel: 'budget_only' }, projection, 'en')
+    const outcomeEn = buildToolOutcome('nomi_run_control', { projectId: 'project-1', runId, action: 'set_trust', trustLevel: 'budget_only' }, projection, 'en')
     expect(outcomeEn.text).toContain('Trust level set to')
     expect(outcomeEn.text).toContain('budget gate still asks')
   })

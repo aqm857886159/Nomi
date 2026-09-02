@@ -36,12 +36,14 @@ describe('external storyboard materialization MCP seam', () => {
     protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
     await new Promise((resolve) => setTimeout(resolve, 0))
     const tools = (response(frames, 1).result as { tools: Array<{ name: string; annotations?: { readOnlyHint?: boolean } }> }).tools
-    expect(MCP_TOOL_NAMES).toContain('nomi_materialize_storyboard')
-    expect(tools.find((tool) => tool.name === 'nomi_materialize_storyboard')?.annotations?.readOnlyHint).toBeUndefined()
+    // 面收敛：物化落地并入 nomi_run_gate（action=materialize），是写门（不标 readOnlyHint）。
+    expect(MCP_TOOL_NAMES).toContain('nomi_run_gate')
+    expect(tools.find((tool) => tool.name === 'nomi_run_gate')?.annotations?.readOnlyHint).toBeUndefined()
 
     protocol.handleIncoming({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'nomi_materialize_storyboard', arguments: {
+      params: { name: 'nomi_run_gate', arguments: {
+        action: 'materialize',
         projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-storyboard-v1', expectedVersion: 1,
       } },
     })

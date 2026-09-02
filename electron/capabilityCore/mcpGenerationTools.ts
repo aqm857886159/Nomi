@@ -49,135 +49,146 @@ import type { GenerationDefaultTaskKind } from "../settings/generationModelDefau
 import { semanticCandidateFromParams } from "./semanticGenerationCandidate";
 import { projectGenerationOperationPreview } from "./mcpGenerationPreview";
 export const GENERATION_RECONCILE_OUTCOMES = ["found", "not_found"] as const;
+
+const gstr = (value: unknown): string => (typeof value === "string" ? value : "");
+
 /**
  * The semantic MCP surface is deliberately data-only.  These tools are the
  * same vocabulary a GUI adapter uses; neither the catalog nor this handler
  * knows a vendor-specific parameter or calls a provider.
+ *
+ * 面收敛（surface-16-collapse）：generation-operation 的 8 步 CRUD + get_context 塌成 5 个贴生命周期的工具。
+ * get_context 收进 nomi_read（target=generation_context）不在此。收敛只在 catalog 层：build 按 phase/action 分派
+ * 到**原 method 字面量**（能力核 handler 的 capability 分支逐字不动，付费 seam 一行不碰）；多态工具带
+ * resolveMethod(args)→内部路由键（SEMANTIC_GENERATION_ROUTES 据此选 capability）。
  */
+
+// —— 生成草稿三入口字段（prompt 单镜 / shots 逐镜 / scriptText 剧本），create 与 patch 共用形状 ——
+const OPERATION_PLAN_SHARED_FIELDS = {
+  projectId: { type: "string" },
+  prompt: { type: "string", description: "单镜自然语言目标；省略 candidate 时由设置中的默认模型创建草稿。" },
+  taskKind: { type: "string", enum: ["text_to_image", "image_edit", "text_to_video", "image_to_video"] },
+  moduleId: { type: "string" },
+  providerId: { type: "string" },
+  modelId: { type: "string" },
+  mode: { type: "string" },
+  modeId: { type: "string" },
+  variantId: { type: "string" },
+  parameters: { type: "object" },
+  references: { type: "array" },
+  candidate: { type: "object", description: "单镜：一份完整的生成 candidate。" },
+  shots: {
+    type: "array",
+    description: "多镜：逐镜计划。每项含可选 shotId/role(anchor 形象参考|shot 视频镜)/included(试拍/分批)，与一份完整 candidate。",
+    items: {
+      type: "object",
+      properties: {
+        shotId: { type: "string" },
+        role: { type: "string", enum: ["anchor", "shot"] },
+        included: { type: "boolean" },
+        candidate: { type: "object" },
+      },
+      required: ["candidate"],
+      additionalProperties: false,
+    },
+  },
+  scriptText: { type: "string", description: "多镜：剧本/分镜文本，服务端拟镜出镜表（每镜提示词 + 建议模型/模式 + 锚声明）。" },
+} as const;
+
+/** create（无 operationId）用的 candidate/shots/scriptText 字段拷贝（build 里透传）。 */
+function buildOperationCreateParams(args: Record<string, unknown>): Record<string, unknown> {
+  return {
+    projectId: args.projectId,
+    leaseHandle: args.leaseHandle,
+    ...(typeof args.prompt === "string" ? { prompt: args.prompt } : {}),
+    ...(typeof args.taskKind === "string" ? { taskKind: args.taskKind } : {}),
+    ...(typeof args.moduleId === "string" ? { moduleId: args.moduleId } : {}),
+    ...(typeof args.providerId === "string" ? { providerId: args.providerId } : {}),
+    ...(typeof args.modelId === "string" ? { modelId: args.modelId } : {}),
+    ...(typeof args.mode === "string" ? { mode: args.mode } : {}),
+    ...(typeof args.modeId === "string" ? { modeId: args.modeId } : {}),
+    ...(typeof args.variantId === "string" ? { variantId: args.variantId } : {}),
+    ...(args.parameters && typeof args.parameters === "object" && !Array.isArray(args.parameters) ? { parameters: args.parameters } : {}),
+    ...(Array.isArray(args.references) ? { references: args.references } : {}),
+    ...(args.candidate !== undefined ? { candidate: args.candidate } : {}),
+    ...(Array.isArray(args.shots) ? { shots: args.shots } : {}),
+    ...(typeof args.scriptText === "string" ? { scriptText: args.scriptText } : {}),
+  };
+}
+
 export const MCP_GENERATION_TOOL_CATALOG = [
   {
-    name: "nomi_get_generation_context",
-    description: "读取当前项目可用的生成模块、模型、模式和参考素材；不调用模型。",
+    // T5 · 起/改一份可编辑的生成草稿（不提交、不花额度）。无 operationId=新建(create)；有 operationId+patch=改(plan)。
+    name: "nomi_operation_plan",
+    title: "起/改一份可编辑的生成草稿（单镜 prompt / 多镜 shots / 剧本 scriptText 三选一）；不提交、不花额度。",
+    description: "创建或编辑一份生成草稿；不提交、不花额度。无 operationId=新建（普通 prompt 单镜，分钟级/成片自动拟剧本分镜）；给 operationId+patch=改现有草稿。",
     inputSchema: {
       type: "object",
-      properties: { projectId: { type: "string" }, leaseHandle: { type: "string" } },
+      properties: {
+        leaseHandle: { type: "string" },
+        operationId: { type: "string", description: "缺省=新建草稿；给了则连同 patch 改现有草稿。" },
+        ...OPERATION_PLAN_SHARED_FIELDS,
+        patch: { type: "object", description: "给了 operationId 时：对现有草稿的定点修改。" },
+      },
       required: ["leaseHandle"],
       additionalProperties: false,
     },
-    method: "nomi_get_generation_context",
-    build: (args: Record<string, unknown>) => ({ projectId: args.projectId, leaseHandle: args.leaseHandle }),
+    // create（无 operationId）→ nomi_operation_create；patch（有 operationId）→ nomi_submit_generation_plan。
+    method: "nomi_operation_create",
+    resolveMethod: (args: Record<string, unknown>): string =>
+      gstr(args.operationId) ? "nomi_submit_generation_plan" : "nomi_operation_create",
+    build: (args: Record<string, unknown>) =>
+      gstr(args.operationId)
+        ? { projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId, patch: args.patch }
+        : buildOperationCreateParams(args),
   },
   {
-    name: "nomi_operation_create",
-    // P4 S6.5: 单镜给 candidate；多镜给 shots（逐镜计划：每项 {shotId?, role?(anchor/shot), included?, candidate}）
-    // 或 scriptText（剧本文本，服务端拟镜出镜表）。三者给其一。仍不提交、不花额度。
-    description: "创建一份可编辑的生成草稿；此时不提交、不花额度。普通 prompt 走单镜；分钟级/成片 prompt 自动先拟剧本和分镜，多镜也可显式传 shots 或 scriptText。",
+    // T6 · 预览草稿将用的模型/模式/参数/参考 + 定价；不调用模型、不封存（RO，编译预演相位）。
+    name: "nomi_operation_preview",
+    title: "预览草稿将用的模型/模式/参数/参考与不支持字段 + 定价；不调用模型、不封存。",
+    description: "预览将使用的模型、模式、参数和参考素材，并显示不支持字段与定价；不调用模型。未知价诚实显示，不伪造 0。",
+    inputSchema: {
+      type: "object",
+      properties: { projectId: { type: "string" }, leaseHandle: { type: "string" }, operationId: { type: "string" } },
+      required: ["leaseHandle", "operationId"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true as const },
+    method: "nomi_preview_execution",
+    build: (args: Record<string, unknown>) => ({ projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId }),
+  },
+  {
+    // T7 · 单次生成付费确认门（两相，phase 参数）。request 发起真人确认挑战 / decide 提交客户端已完成的凭据。
+    // 付费 seam（assertKnownShotPrice fail-closed / receipt MAC / gate_decide 抛错走 Run-owned seam）原地不动在 handler。
+    name: "nomi_operation_gate",
+    title: "单次生成的付费确认门：request 发起真人确认挑战 / decide 提交客户端已完成的确认凭据。",
+    description: "按 phase 处理单次生成付费门：request 封存计划并算 maximumCost、发确认挑战（不提交模型）；decide 提交客户端确认凭据（裸 confirm/approved 不被接受）。",
     inputSchema: {
       type: "object",
       properties: {
         projectId: { type: "string" },
         leaseHandle: { type: "string" },
-        prompt: { type: "string", description: "自然语言目标；省略 candidate 时由设置中的默认模型创建草稿。" },
-        taskKind: { type: "string", enum: ["text_to_image", "image_edit", "text_to_video", "image_to_video"] },
-        moduleId: { type: "string" },
-        providerId: { type: "string" },
-        modelId: { type: "string" },
-        mode: { type: "string" },
-        modeId: { type: "string" },
-        variantId: { type: "string" },
-        parameters: { type: "object" },
-        references: { type: "array" },
-        candidate: { type: "object", description: "单镜：一份完整的生成 candidate。" },
-        shots: {
-          type: "array",
-          description: "多镜：逐镜计划。每项含可选 shotId/role(anchor 形象参考|shot 视频镜)/included(试拍/分批)，与一份完整 candidate。",
-          items: {
-            type: "object",
-            properties: {
-              shotId: { type: "string" },
-              role: { type: "string", enum: ["anchor", "shot"] },
-              included: { type: "boolean" },
-              candidate: { type: "object" },
-            },
-            required: ["candidate"],
-            additionalProperties: false,
-          },
-        },
-        scriptText: { type: "string", description: "多镜：剧本/分镜文本，服务端拟镜出镜表（每镜提示词 + 建议模型/模式 + 锚声明）。" },
+        operationId: { type: "string" },
+        phase: { type: "string", enum: ["request", "decide"], description: "request 发起确认挑战；decide 提交收据。" },
+        attempt: { type: "integer", minimum: 1, description: "phase=decide：确认尝试序号。" },
+        receiptId: { type: "string", description: "phase=decide：确认收据 id。" },
+        receiptToken: { type: "string", description: "phase=decide：确认收据 token。" },
       },
-      required: ["leaseHandle"],
-      additionalProperties: false,
-    },
-    method: "nomi_operation_create",
-    build: (args: Record<string, unknown>) => ({
-      projectId: args.projectId,
-      leaseHandle: args.leaseHandle,
-      ...(typeof args.prompt === "string" ? { prompt: args.prompt } : {}),
-      ...(typeof args.taskKind === "string" ? { taskKind: args.taskKind } : {}),
-      ...(typeof args.moduleId === "string" ? { moduleId: args.moduleId } : {}),
-      ...(typeof args.providerId === "string" ? { providerId: args.providerId } : {}),
-      ...(typeof args.modelId === "string" ? { modelId: args.modelId } : {}),
-      ...(typeof args.mode === "string" ? { mode: args.mode } : {}),
-      ...(typeof args.modeId === "string" ? { modeId: args.modeId } : {}),
-      ...(typeof args.variantId === "string" ? { variantId: args.variantId } : {}),
-      ...(args.parameters && typeof args.parameters === "object" && !Array.isArray(args.parameters) ? { parameters: args.parameters } : {}),
-      ...(Array.isArray(args.references) ? { references: args.references } : {}),
-      ...(args.candidate !== undefined ? { candidate: args.candidate } : {}),
-      ...(Array.isArray(args.shots) ? { shots: args.shots } : {}),
-      ...(typeof args.scriptText === "string" ? { scriptText: args.scriptText } : {}),
-    }),
-  },
-  {
-    name: "nomi_submit_generation_plan",
-    description: "保存当前草稿的编辑结果；仍不调用模型，返回最新草稿版本。",
-    inputSchema: {
-      type: "object",
-      properties: { projectId: { type: "string" }, leaseHandle: { type: "string" }, operationId: { type: "string" }, patch: { type: "object" } },
-      required: ["leaseHandle", "operationId", "patch"],
-      additionalProperties: false,
-    },
-    method: "nomi_submit_generation_plan",
-    build: (args: Record<string, unknown>) => ({ projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId, patch: args.patch }),
-  },
-  {
-    name: "nomi_preview_execution",
-    description: "预览将使用的模型、模式、参数和参考素材，并显示不支持字段；不调用模型。",
-    inputSchema: {
-      type: "object",
-      properties: { projectId: { type: "string" }, leaseHandle: { type: "string" }, operationId: { type: "string" } },
-      required: ["leaseHandle", "operationId"],
-      additionalProperties: false,
-    },
-    method: "nomi_preview_execution",
-    build: (args: Record<string, unknown>) => ({ projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId }),
-  },
-  {
-    name: "nomi_request_generation_gate",
-    description: "请求一次简短的真人确认预览；确认前不会提交模型。",
-    inputSchema: {
-      type: "object",
-      properties: { projectId: { type: "string" }, leaseHandle: { type: "string" }, operationId: { type: "string" } },
-      required: ["leaseHandle", "operationId"],
+      required: ["leaseHandle", "operationId", "phase"],
       additionalProperties: false,
     },
     method: "nomi_request_generation_gate",
-    build: (args: Record<string, unknown>) => ({ projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId }),
+    resolveMethod: (args: Record<string, unknown>): string => (gstr(args.phase) === "decide" ? "nomi_decide_generation_gate" : "nomi_request_generation_gate"),
+    build: (args: Record<string, unknown>) =>
+      gstr(args.phase) === "decide"
+        ? { projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId, attempt: args.attempt, receiptId: args.receiptId, receiptToken: args.receiptToken }
+        : { projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId },
   },
   {
-    name: "nomi_decide_generation_gate",
-    description: "提交当前客户端已完成的真人确认凭据；裸 confirm/approved 不被接受。",
-    inputSchema: {
-      type: "object",
-      properties: { projectId: { type: "string" }, leaseHandle: { type: "string" }, operationId: { type: "string" }, attempt: { type: "integer", minimum: 1 }, receiptId: { type: "string" }, receiptToken: { type: "string" } },
-      required: ["leaseHandle", "operationId"],
-      additionalProperties: false,
-    },
-    method: "nomi_decide_generation_gate",
-    build: (args: Record<string, unknown>) => ({ projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId, attempt: args.attempt, receiptId: args.receiptId, receiptToken: args.receiptToken }),
-  },
-  {
-    name: "nomi_start_generation",
-    description: "在计划已封存且确认有效后开始生成；提交只走统一 Runtime Adapter。",
+    // T8 · 在计划已封存且确认有效后开始单次生成（$ 提交）。前置 approvedReceiptId 有效，与 T7 分家（形状约束3）。
+    name: "nomi_operation_execute",
+    title: "在计划已封存且确认有效后开始单次生成；提交只走统一 Runtime Adapter。",
+    description: "在计划已封存且确认有效后开始生成；提交只走统一 Runtime Adapter（replay 幂等）。",
     inputSchema: {
       type: "object",
       properties: { projectId: { type: "string" }, leaseHandle: { type: "string" }, operationId: { type: "string" }, receiptId: { type: "string" }, receiptToken: { type: "string" } },
@@ -188,40 +199,29 @@ export const MCP_GENERATION_TOOL_CATALOG = [
     build: (args: Record<string, unknown>) => ({ projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId, receiptId: args.receiptId, receiptToken: args.receiptToken }),
   },
   {
-    name: "nomi_operation_read",
-    description: "读取生成草稿或 Run 的当前状态。",
+    // T9 · 控制单次生成：cancel 取消草稿 / reconcile 核对提交状态（未知结果不盲目重提）。
+    name: "nomi_operation_control",
+    title: "控制单次生成：cancel 取消草稿 / reconcile 核对提交状态（未知结果不盲目重提）。",
+    description: "按 action 控制单次生成：cancel 取消尚未提交的草稿（已提交只进入可核账取消流程）；reconcile 核对提交状态（配 outcome，未知结果不盲目重提）。",
     inputSchema: {
       type: "object",
-      properties: { projectId: { type: "string" }, leaseHandle: { type: "string" }, operationId: { type: "string" } },
-      required: ["leaseHandle", "operationId"],
-      additionalProperties: false,
-    },
-    method: "nomi_operation_read",
-    build: (args: Record<string, unknown>) => ({ projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId }),
-  },
-  {
-    name: "nomi_cancel_generation",
-    description: "取消尚未提交的生成草稿；已提交任务只进入可核账的取消流程。",
-    inputSchema: {
-      type: "object",
-      properties: { projectId: { type: "string" }, leaseHandle: { type: "string" }, operationId: { type: "string" } },
-      required: ["leaseHandle", "operationId"],
+      properties: {
+        projectId: { type: "string" },
+        leaseHandle: { type: "string" },
+        operationId: { type: "string" },
+        action: { type: "string", enum: ["cancel", "reconcile"] },
+        outcome: { type: "string", enum: [...GENERATION_RECONCILE_OUTCOMES], description: "action=reconcile 必填：found 供应商侧查到提交 / not_found 没查到。" },
+      },
+      required: ["leaseHandle", "operationId", "action"],
       additionalProperties: false,
     },
     method: "nomi_cancel_generation",
-    build: (args: Record<string, unknown>) => ({ projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId }),
-  },
-  {
-    name: "nomi_reconcile_generation",
-    description: "核对提交状态；未知结果不会盲目再次提交。",
-    inputSchema: {
-      type: "object",
-      properties: { projectId: { type: "string" }, leaseHandle: { type: "string" }, operationId: { type: "string" }, outcome: { type: "string", enum: [...GENERATION_RECONCILE_OUTCOMES] } },
-      required: ["leaseHandle", "operationId", "outcome"],
-      additionalProperties: false,
-    },
-    method: "nomi_reconcile_generation",
-    build: (args: Record<string, unknown>) => ({ projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId, outcome: args.outcome }),
+    resolveMethod: (args: Record<string, unknown>): string =>
+      gstr(args.action) === "reconcile" ? "nomi_reconcile_generation" : "nomi_cancel_generation",
+    build: (args: Record<string, unknown>) =>
+      gstr(args.action) === "reconcile"
+        ? { projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId, outcome: args.outcome }
+        : { projectId: args.projectId, leaseHandle: args.leaseHandle, operationId: args.operationId },
   },
 ] as const;
 export type GenerationOperationState = "draft" | "sealed" | "cancelled" | "submitted";

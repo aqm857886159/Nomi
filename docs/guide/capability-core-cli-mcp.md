@@ -130,16 +130,16 @@ node scripts/nomi.mjs generate workspace-xxxx modelscope "Tongyi-MAI/Z-Image-Tur
 
 **② 完成两侧权限并重启对应客户端**：
 
-- Claude Code / Codex：卡片真实握手成功后，确认 `nomi` 的 33 个工具出现。
+- Claude Code / Codex：卡片真实握手成功后，确认 `nomi` 的 15 个工具出现。
 - Cursor：先在 Nomi「设置 → 自动化与权限」允许 Cursor 发起草稿；首次在 Cursor 调用 Nomi 时，Cursor 自己仍可能要求你批准本地 MCP。Nomi 不会代替你静默批准 Cursor。
 
-33 个工具包括 `nomi_list_models`、`nomi_create_project`、`nomi_intake_brief`、`nomi_import_asset`、`nomi_generate`、`nomi_start_playbook`、`nomi_materialize_storyboard`、`nomi_control_run` 和 `nomi_decide_gate`。另外 11 个 `generation.single-shot` 语义工具是同一套可编辑流程的零额度入口：`nomi_session_open`、`nomi_get_generation_context`、`nomi_operation_create`、`nomi_submit_generation_plan`、`nomi_preview_execution`、`nomi_request_generation_gate`、`nomi_decide_generation_gate`、`nomi_start_generation`、`nomi_operation_read`、`nomi_cancel_generation`、`nomi_reconcile_generation`。它们先展示/编辑计划，再由 rollout policy 决定何时可提交；未通过阶段检查时会明确返回下一步，不会回退到旧生成器。
+15 个工具按对象归并：`nomi_read`（读侧统一入口，整体只读）、`nomi_canvas_edit`（画布批量写）、`nomi_asset_import`、`nomi_project_create`、`nomi_session_open`、`nomi_run_start` / `nomi_run_control` / `nomi_run_gate`（持久制作 Run）、`nomi_artifact_review`（剧本/分镜审阅+修订）、`nomi_integration`（模型/ComfyUI 接入状态机）。单次生成的可编辑流程是 `nomi_operation_plan` → `nomi_operation_preview` → `nomi_operation_gate`（付费两相）→ `nomi_operation_execute` → `nomi_operation_control`：先展示/编辑计划，再由 rollout policy 决定何时可提交；未通过阶段检查时会明确返回下一步，不会回退到旧生成器。
 
 **③ 直接说人话**，它自己挑工具完成：
 
 > 「在 Nomi 里新建一个项目叫『咖啡广告』，先列一下我有哪些图模型；然后拆 3 个咖啡主题的镜头加到画布，每个写好提示词；最后用其中的图模型把第一个镜头生成出来。」
 
-Claude Code 会依次调 `nomi_create_project` → `nomi_list_models` → `nomi_add_nodes` → `nomi_generate`，把结果回给你。
+Claude Code 会依次调 `nomi_project_create` → `nomi_read`（target=models）→ `nomi_canvas_edit`（action=add_nodes）→ 单次生成流程（`nomi_operation_plan` → … → `nomi_operation_execute`），把结果回给你。
 
 ### 典型体验 1：快速初稿
 
@@ -189,40 +189,29 @@ Claude Code 会依次调 `nomi_create_project` → `nomi_list_models` → `nomi_
 
 ### MCP 工具
 
+面收敛（2026-09-02，surface-16-collapse）：拉分支时存在的 42 个「一动词一工具」的 API 镜像塌成 15 个按对象归并、贴任务的工具。读侧全收进 `nomi_read`（整体只读，宿主免确认），写侧按对象 + action/phase 枚举归并；付费两相（确认/执行）保留分家，不合成一步。并线 main 后另有 4 个 M2 语义编辑工具（timeline/export/media）为收敛后新增的独立对象，原样保留、暂未并入 `nomi_read`（续裁），合计 15+4=19。
+
 | 工具 | 对应 |
 |---|---|
-| `nomi_list_projects` / `nomi_create_project` | 列 / 建项目 |
-| `nomi_list_models` | 列可用模型 |
-| `nomi_read_canvas` | 读画布 |
-| `nomi_add_nodes` / `nomi_connect_nodes` | 加节点 / 连线 |
-| `nomi_set_node_prompt` / `nomi_delete_nodes` | 改提示词 / 删节点 |
-| `nomi_intake_brief` | 开拍前一次性方向收敛（一屏 ≤3 题：基调/画幅/风格，每题带「按你判断」）——整局只调一次 |
-| `nomi_import_asset` | 把本机文件（手绘帧/截图/参考图）导入项目当素材，返回可直接引用的 `nomi-local://` 地址 |
-| `nomi_generate` | 真生成（含参考图 references、指定 nodeId、可选 seed 复现） |
-| `nomi_start_playbook` | 创建不花钱、可恢复的制作草稿；当前完整流程为 `brand.promo` |
-| `nomi_get_run` / `nomi_subscribe_run` | 读取制作状态 / 按游标等待持久事件 |
-| `nomi_get_artifact` | 取得指定 Run 产物的安全投影、精确 Nomi 深链和限时预览 |
-| `nomi_materialize_storyboard` | 将已批准且来源新鲜的分镜一次性落到 Nomi 画布并登记制作合同（不批准预算、不调用付费模型） |
-| `nomi_control_run` | 暂停、继续、取消 Run，或切换信任档位；预算门仍不会被跳过 |
-| `nomi_decide_gate` | 决定方向/样片等可逆创意门；服务端会再次向真人确认，不能决定预算、逐镜头付费、导出或发布 |
-| `nomi_session_open` / `nomi_get_generation_context` | 打开项目安全会话 / 读取通用模块、模型、模式与素材能力（不花额度） |
-| `nomi_operation_create` / `nomi_submit_generation_plan` | 创建并编辑单镜生成草稿；模型、供应商、模式、参数、参考素材均可替换（不花额度） |
-| `nomi_preview_execution` | 预览封存合同、字段警告与合同 hash（不花额度） |
- | `nomi_request_generation_gate` / `nomi_decide_generation_gate` | 请求并提交一次真人确认凭据；裸 boolean 不算确认 |
- | `nomi_start_generation` | 在 rollout 与确认均满足后进入统一 Runtime Adapter；未满足时 fail-closed |
- | `nomi_operation_read` / `nomi_cancel_generation` / `nomi_reconcile_generation` | 读取、取消或核对语义 Run；未知结果不盲目重提 |
- | `nomi_timeline_read` | 读取时间轴快照或指定范围（只读） |
- | `nomi_timeline_edit` | 预览、申请或撤销时间轴编辑；apply/undo 必须回到 Nomi 宿主确认 |
- | `nomi_export_job` | 查询导出状态或验证渲染结果；启动/取消导出仍是宿主专属 |
- | `nomi_media_query` | 查询项目媒体、素材范围或波形信息（只读） |
- | `nomi_integration_begin` | 创建模型或 ComfyUI 接入会话，只接收公开连接资料 |
-| `nomi_integration_open_credentials` | 打开 Nomi 安全凭据页面；密钥不会经过 Agent |
-| `nomi_integration_discover` | 分页、搜索并返回带证据来源的模型候选 |
-| `nomi_integration_select` | 一次选择多个精确模型，进入支出合同确认 |
-| `nomi_integration_request_confirmation` | 请求 Nomi 安全 UI 展示不可变认证合同并等待用户确认；Agent 不能铸造 receipt |
-| `nomi_integration_submit_workflow` / `nomi_integration_resolve_input` | 提交 ComfyUI workflow，并一次回答全部未决绑定字段 |
-| `nomi_integration_start` | 用不可变 receipt 启动唯一认证 run；重复幂等键不会重复提交 |
-| `nomi_integration_get` / `nomi_integration_cancel` | 读取脱敏会话或取消尚未提交的会话 |
+| `nomi_session_open` | 打开当前项目的安全会话，拿一个短期项目句柄（写副作用） |
+| `nomi_read` | 读任意只读投影（`target`=canvas/projects/models/generation_context/operation/run/run_events/artifact/artifact_content/integration）；整体只读、免确认 |
+| `nomi_canvas_edit` | 批量改画布（`action`=add_nodes/connect/set_prompt/delete_nodes），一个动作一批 undo |
+| `nomi_asset_import` | 把本机文件（手绘帧/截图/参考图）导入项目当素材，返回可直接引用的 `nomi-local://` 地址 |
+| `nomi_operation_plan` | 起/改一份可编辑的生成草稿（单镜 prompt / 多镜 shots / 剧本 scriptText 三选一）；不提交、不花额度 |
+| `nomi_operation_preview` | 预览草稿将用的模型/模式/参数/参考与不支持字段 + 定价（只读，不封存、不调用模型） |
+| `nomi_operation_gate` | 单次生成付费门（`phase`=request 发确认挑战 / decide 提交客户端确认凭据；裸 boolean 不算确认） |
+| `nomi_operation_execute` | 在计划已封存且确认有效后开始单次生成；提交只走统一 Runtime Adapter，未满足时 fail-closed |
+| `nomi_operation_control` | 控制单次生成（`action`=cancel 取消草稿 / reconcile 核对提交状态；未知结果不盲目重提） |
+| `nomi_run_start` | 创建不花钱、可恢复的持久制作草稿；只记 brief + playbook（当前完整流程为 `brand.promo`） |
+| `nomi_run_control` | 控制持久制作 Run（`action`=pause/resume/cancel/set_trust）；预算门仍不会被跳过 |
+| `nomi_artifact_review` | 审阅/修订版本化剧本或分镜（`action`=approve/request_changes/reject/revise，revise 配 `kind`=script/storyboard） |
+| `nomi_run_gate` | Run 的确认门（`action`=decide 表态可逆创意门 / materialize 把已批分镜落画布并登记 jobs+预算）；服务端会再次向真人确认，不能决定预算、逐镜头付费、导出或发布 |
+| `nomi_integration` | 模型 / ComfyUI 接入会话状态机（`action`=begin/open_credentials/discover/select/confirm/submit_workflow/resolve_input/start/cancel；只接收公开连接资料，密钥不经 Agent，confirm/start 是付费两相不合成一步） |
+| `nomi_project_create` | 新建一个空白 Nomi 项目，返回项目 id |
+| `nomi_timeline_read` | 读取时间轴快照或指定范围（只读） |
+| `nomi_timeline_edit` | 预览、申请或撤销时间轴编辑；apply/undo 必须回到 Nomi 宿主确认 |
+| `nomi_export_job` | 查询导出状态或验证渲染结果；启动/取消导出仍是宿主专属 |
+| `nomi_media_query` | 查询项目媒体、素材范围或波形信息（只读） |
 
 ---
 

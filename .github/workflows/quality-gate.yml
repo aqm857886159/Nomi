@@ -110,6 +110,10 @@ jobs:
           NOMI_CHANGED_HEAD: ${{ github.sha }}
         run: pnpm run test:system:focused
 
+  # 2026-09-02 拆班：此前 smoke/journeys/canvas-full/perf 全串在这一个 job 里（实测 ~22.5 分钟，
+  # 整条 PR 轮的关键路径）。现在按风险面拆成三个并行 job：本 job 只留 smoke + journeys + canvas
+  # critical（~5 分钟），canvas full 走 canvas-acceptance 两片 matrix，perf 走 canvas-performance。
+  # 覆盖一条不少：canvas=='full' 时 full 套件本就是 critical 的超集，由 canvas-acceptance 全量跑。
   desktop-linux:
     name: E2E Walkthroughs (Linux)
     needs: scope
@@ -117,8 +121,7 @@ jobs:
       needs.scope.outputs.desktop == 'true' ||
       needs.scope.outputs.walkthroughs == 'true' ||
       needs.scope.outputs.journeys == 'true' ||
-      needs.scope.outputs.canvas != 'none' ||
-      needs.scope.outputs.performance == 'true'
+      needs.scope.outputs.canvas == 'critical'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -153,12 +156,6 @@ jobs:
       - name: Critical canvas acceptance
         if: needs.scope.outputs.canvas == 'critical'
         run: xvfb-run -a pnpm run test:canvas:critical
-      - name: Full functional canvas acceptance
-        if: needs.scope.outputs.canvas == 'full'
-        run: xvfb-run -a pnpm run test:canvas:acceptance
-      - name: Canvas performance budget
-        if: needs.scope.outputs.performance == 'true'
-        run: xvfb-run -a pnpm run test:canvas:performance
 
       # 走查证据（截图 + output.jsonl）。win-gate.yml 一直有这步，本 job 却没有——
       # 结果是 ubuntu 这边走查一红就只剩一行「✗ 某某检查」，几何类失败隔着 CI 根本判不了因
@@ -168,6 +165,98 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: linux-walkthrough-evidence
+          path: |
+            evals/runs/**/screenshots/**
+            evals/runs/**/output.jsonl
+            outputs/canvas-acceptance/**
+            outputs/canvas-smoke/**
+            outputs/canvas-card-stack-20260827/**
+            tests/system/runs/**/report.md
+            tests/system/runs/**/summary.json
+            tests/ux/shots/canvas-drag-pan-gestures/**
+            tests/ux/shots/group-ports/**
+            tests/ux/shots/react-flow-read-only/**
+            tests/ux/perf-results/canvas-*.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  # full 功能走查 13 个场景按实测耗时装箱成两片并行跑（分桶清单在 tests/ux/canvas-real-suite.mjs
+  # 的 FULL_CANVAS_SHARDS，漏分/重分/幽灵场景会让两片当场 fail-closed 抛错，场景不可能被静默漏跑）。
+  canvas-acceptance:
+    name: Canvas Acceptance (Linux)
+    needs: scope
+    if: needs.scope.outputs.canvas == 'full'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build selected desktop surfaces once
+        run: pnpm run build
+      - name: Full functional canvas acceptance
+        run: xvfb-run -a pnpm run test:canvas:acceptance -- --shard ${{ matrix.shard }}/2
+      - name: Upload walkthrough evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: canvas-acceptance-evidence-${{ matrix.shard }}
+          path: |
+            evals/runs/**/screenshots/**
+            evals/runs/**/output.jsonl
+            outputs/canvas-acceptance/**
+            outputs/canvas-smoke/**
+            outputs/canvas-card-stack-20260827/**
+            tests/system/runs/**/report.md
+            tests/system/runs/**/summary.json
+            tests/ux/shots/canvas-drag-pan-gestures/**
+            tests/ux/shots/group-ports/**
+            tests/ux/shots/react-flow-read-only/**
+            tests/ux/perf-results/canvas-*.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  # perf 预算单场景实测 ~763s，是全流水线最长的一根；独立成 job 后它只拖自己，
+  # 不再把 smoke/journeys/canvas 走查压在同一根串行棒上。预算与校准（仪器）一字未动。
+  canvas-performance:
+    name: Canvas Performance (Linux)
+    needs: scope
+    if: needs.scope.outputs.performance == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build selected desktop surfaces once
+        run: pnpm run build
+      - name: Canvas performance budget
+        run: xvfb-run -a pnpm run test:canvas:performance
+      - name: Upload walkthrough evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: canvas-performance-evidence
           path: |
             evals/runs/**/screenshots/**
             evals/runs/**/output.jsonl
@@ -207,7 +296,7 @@ jobs:
 
   quality:
     name: Quality Gate
-    needs: [scope, contracts, unit, desktop-linux, mac-package]
+    needs: [scope, contracts, unit, desktop-linux, canvas-acceptance, canvas-performance, mac-package]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -238,9 +327,14 @@ jobs:
           test "${{ needs.unit.result }}" = "success"
           if [ "${{ needs.scope.outputs.desktop }}" = "true" ] || \
              [ "${{ needs.scope.outputs.journeys }}" = "true" ] || \
-             [ "${{ needs.scope.outputs.canvas }}" != "none" ] || \
-             [ "${{ needs.scope.outputs.performance }}" = "true" ]; then
+             [ "${{ needs.scope.outputs.canvas }}" = "critical" ]; then
             test "${{ needs['desktop-linux'].result }}" = "success"
+          fi
+          if [ "${{ needs.scope.outputs.canvas }}" = "full" ]; then
+            test "${{ needs['canvas-acceptance'].result }}" = "success"
+          fi
+          if [ "${{ needs.scope.outputs.performance }}" = "true" ]; then
+            test "${{ needs['canvas-performance'].result }}" = "success"
           fi
           if [ "${{ needs.scope.outputs.package }}" = "true" ]; then
             test "${{ needs['mac-package'].result }}" = "success"

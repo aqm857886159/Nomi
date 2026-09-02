@@ -5,7 +5,7 @@
 > 跨阶段总纲另见 [`docs/superpowers/plans/`](../superpowers/plans/)；当前主文档是 [Nomi 统一 Agent 总体方案](../superpowers/plans/2026-08-24-unified-agent-master-plan.md)。
 > 新增 plan 时**顺手在本表对应主题下加一行**。
 > 状态图例：✅ 已交付 ｜ 🚧 进行中 ｜ ⏳ 已拍板·未开工 ｜ 🧊 暂缓/远期 ｜ 📋 方案待拍板 ｜ ⛔ 已废弃 ｜ 📎 交接/日志
-> 📋/⏳/🚧 会进 [交付账本](../DELIVERY-LEDGER.md) 现役区并被每日提醒；🧊 列出但不催；无标记 = 未登记存量，不打扰。
+> 📋/⏳/🚧 会进交付账本现役区并被每日提醒（`pnpm run ledger:brief`；账本是本地视图，不进 git）；🧊 列出但不催；无标记 = 未登记存量，不打扰。
 
 ## 模型接入 / Onboarding（最大簇）
 

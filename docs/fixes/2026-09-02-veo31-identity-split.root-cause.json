@@ -1,0 +1,54 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-veo31-identity-split",
+  "problem_type": "同串双身份（存量真 bug，架构二期 2026-09-02-archetype-video-registry-derivation 挖出并锁现状，本单独立项修复=行为变更）：裸字符串 \"veo3.1\" 在渲染层三趟解析（resolveArchetypeForModel）解析到 runway-video，在 registry 平局判据（profileFor 稳定排序）解析到 veo-3.1——推荐/规划层许诺一个档案，UI/发送路按另一个档案组报文",
+  "symptom": "无显式 archetypeId 的模型行（用户自加中转/自定义 video 条目、主进程中转接入选原生报文路径）若 modelKey 为 veo3.1 族裸串：推荐层（buildVideoModelCandidates）按 veo-3.1 给出能力面（参考图≤3/首尾帧/8s/720p-4k），发送路却按 runway-video 组 Runway 原生形状（image_url 单键/ratio \"1280:720\"/duration 1-30/generate_audio）——同一节点两套契约，对非 Runway 端点必错。全语料跨侧对拍（1051 条，两侧都认领 474 条）实测同串双身份共 5 串两案：veo3.1 族 4 串（veo3.1/VEO3.1/models/veo3.1/somevendor/veo3.1）+ models/MiniMax-H3 1 串。",
+  "direct_cause": "渲染层历史手列序把 runway-video 排在 veo-3.1 前（二期搬迁时用 LEGACY_RESOLUTION_ORDER_PINS 如实钉住存量赢家），registry 声明序 veo-3.1（idx 10）在 runway-video（idx 14）前——两侧平局决胜序相反。第二案（models/MiniMax-H3）：registry 的 modelProfileMatchScore 不剥 \"models/\" 前缀，精确档全 miss、掉进忽略大小写的 includes 档，把 APIMart 靠大小写区分的官方 key（MiniMax-H3）认成 kie 档案（minimax-h3）；渲染层与主进程 archetypeIdentity 均先剥前缀再精确匹配。",
+  "class_root": "同一身份判定被两份决胜逻辑各自实现：平局序（渲染层数组序 vs registry 声明序）与归一化规则（models/ 前缀剥离）各有一份，任一不一致即同串双身份。正确形状 = 两侧共用同一份决胜序与同一套归一化：① 删 LEGACY pin（P1 加新删旧），渲染层 video 块直接取 registry 声明序——registry 声明序成为唯一平局真相源；② registry modelProfileMatchScore 采用与渲染层 rawIdentifier 相同的 models/ 前缀剥离。语义裁决：裸 \"veo3.1\" 的正确身份 = veo-3.1（Google Veo 3.1）——APIMart 官方 model 枚举就是 veo3.1 族（veo31.ts sources/variants），专属档案携带该模型真实报文契约（image_urls/generation_type/固定 8s）；Runway 平台仅是判别串宿主，其自家目录行显式 pin archetypeId: runway-video（runwayOfficial.ts:496-497）从不走身份匹配，Runway 专属判别串 veo3.1_fast（下划线）不撞串、仍归 runway-video。修复后「专属档案赢平台判别串」规则无例外。",
+  "affected_population": [
+    "无显式 archetypeId、modelKey 为 veo3.1 族裸串的模型行（用户自加中转/自定义 video 条目）：解析赢家由 runway-video 纠正为 veo-3.1，发送契约与推荐层许诺的能力面自此一致（此前对非 Runway 端点发 Runway 原生形状=必错，纠正即修复）。",
+    "主进程 archetypeIdForModel 消费者（relayNativeWireUpgrade / customCallDraft / capabilityModeManifest）：veo3.1 裸串认档同步翻转到 veo-3.1，三个解析器（渲染层/registry/主进程生成表）首次全体一致（逐串实测）。",
+    "Runway 官方目录行与 APIMart 目录行：零变化——两者都显式携带 archetypeId（runway-video / veo-3.1），从不走身份匹配；veo3.1_fast（Runway 下划线判别串）无撞串、赢家不变。",
+    "存量画布节点：零静默改写——持久化节点带 meta.archetype.id，显式路径优先于身份匹配；veo-3.1 未声明 legacyIds 含 runway-video，显式 runway-video 节点永不被迁移。",
+    "models/MiniMax-H3 形态串的 registry 消费者：赢家由 minimax-h3 纠正为 minimax-h3-apimart（大小写信号不再被 includes 档吞掉）；真实目录无 models/ 前缀 video key（全仓 grep 证实），实际影响面≈0。"
+  ],
+  "scope_paths": [
+    "src/config/modelArchetypes/index.ts",
+    "src/config/modelArchetypes/resolutionOrder.test.ts",
+    "electron/shared/videoCapabilities/registry.ts",
+    "electron/catalog/archetypeIdentifiers.generated.ts",
+    "electron/catalog/archetypeModes.generated.ts",
+    "electron/catalog/archetypeWireDefaults.video.generated.ts"
+  ],
+  "entry_points": [
+    "src/config/modelArchetypes/index.ts — MODEL_ARCHETYPES：video 块改为 ...sourceBackedVideoProfiles() 直取 registry 声明序；LEGACY_RESOLUTION_ORDER_PINS 与 withLegacyResolutionPins 整体删除（pin 是为钉住分裂现状而生，根因修掉后即死代码，P1 同 commit 删旧）。",
+    "electron/shared/videoCapabilities/registry.ts — modelProfileMatchScore：比分前先 stripModelsPrefix（与渲染层 rawIdentifier 同规则），三档评分本身与 includes 宽容档保持不变（认领面差异是刻意设计，分裂的只许是身份判定）。",
+    "electron/catalog/archetypeIdentifiers.generated.ts 等三个生成表 — pnpm gen:archetype-defaults 再生：表序随 MODEL_ARCHETYPES 去 pin 后翻转（veo-3.1 条目先于 runway-video），主进程 archetypeIdForModel 对 veo3.1 族的赢家随之与另两侧一致；数据本体未动。"
+  ],
+  "internal_only_reason": "不接触任何外部供应商 API 契约：改动只是仓库内部「身份串 → 档案」的决胜序与归一化统一，不新增/修改任何端点、鉴权、参数、报文形状；所有档案对象本体（identifierPatterns/modes/params/sources）一字未动。语义裁决依据的是仓内既有实证（veo31.ts 的 APIMart sources、runwayVideo.ts 的 Runway OpenAPI sources、runwayOfficial.ts 的显式 pin），无需新抓外部文档。",
+  "invariants": [
+    "同串双身份禁令：对全语料（全部 identifierPatterns + variant modelKey + legacyIds × raw/lower/UPPER/models 前缀/裸末段/vendor 前缀末段），凡渲染层与 registry 两侧都认领的串，赢家必须相同（resolutionOrder.test.ts 对拍测试永久锁死；认领面允许不同——registry includes 宽容档给推荐兜底、渲染层刻意只认相等）。",
+    "裸 \"veo3.1\" 两侧同判 veo-3.1（曾经的分裂原案，双向显式断言锁死）。",
+    "平台判别串让位专属档案，无例外（seedance2/hailuo3/veo3.1/eleven_v3… 全部由 LOCKED_WINNERS 逐条锁死）；Runway 自家目录行靠显式 archetypeId，不依赖身份匹配。",
+    "渲染层 video 块顺序 = registry 声明序（唯一平局真相源，无任何 pin/重排层）；归一化规则（models/ 前缀剥离）渲染层、主进程 archetypeIdentity、registry 三处一致。"
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "这是被完整枚举过的存量分裂的一次性纠正：跨侧对拍探针把全语料 1051 条在两侧逐串对比，同串双身份仅两案（veo3.1 族、models/MiniMax-H3），本次全部修复且根子（双份决胜序、双份归一化）已删——不存在会再中招的活跃入口；未来新增档案若引入新的同串且两侧赢家不同，resolutionOrder.test.ts 的对拍不变量当场红（该测试是本次交付的一部分，不是另立的可复用边界）。",
+    "same_class_scan": [
+      "跨侧对拍全扫（扫，不猜）：修复前实测同串双身份 5 串两案——veo3.1/VEO3.1/models/veo3.1/somevendor/veo3.1（renderer→runway-video vs registry→veo-3.1）+ models/MiniMax-H3（renderer→minimax-h3-apimart vs registry→minimax-h3）；修复后同语料 diffs=0。",
+      "单侧认领面差异按类甄别：rendererOnly 528 条 = 渲染层还解析 image/audio/3D 档案（registry 只管 video，非分裂）；registryOnly 20 条 = 全部 seedance2.0* 形态走 registry includes 宽容档（推荐兜底的刻意设计，渲染层「只认相等不认前缀」同样是刻意设计，index.ts:127 注释）——认领面不对称不属本类，身份判定分裂才是病。",
+      "第三解析器（主进程 archetypeIdForModel）逐串实测：veo3.1/somevendor/veo3.1/models/veo3.1/VEO3.1→veo-3.1、veo3.1_fast→runway-video、MiniMax-H3 与 models/MiniMax-H3→minimax-h3-apimart，与另两侧全体一致。",
+      "存量数据入口核查：runwayOfficial.ts:496-497 与 apimartVideos.ts:160 目录行均显式 pin archetypeId（不走身份匹配）；持久化节点 meta.archetype.id 显式路径优先且 veo-3.1 无 runway-video legacyId（不迁移）——无任何静默改写历史行为的入口。"
+    ]
+  },
+  "regression_tests": [
+    "src/config/modelArchetypes/resolutionOrder.test.ts"
+  ],
+  "migration": "无存储数据迁移：解析是逐次派生计算、不落盘，纠正即刻生效且只作用于「无显式 archetypeId 的裸串行」——这类行此前的解析本就是错的（对非 Runway 端点组 Runway 形状），不存在值得保全的旧行为；显式 pin 的目录行与带 meta.archetype.id 的存量节点走显式路径，行为零变化。生成表数据本体未动、仅条目序翻转（消费侧 taskParams/capabilityModeManifest 按 id 键取，顺序无关；archetypeIdForModel 的表序翻转正是本修复的交付物之一）。",
+  "residual_risks": [
+    "认领面不对称仍然存在（registry includes 宽容档 vs 渲染层严格相等，如 seedance2.0* 20 串仅 registry 认领）：这是两侧各自刻意的设计（推荐兜底 vs 防误吞），不是身份分裂；若未来要统一认领面属另一个行为变更，需单独立项与自己的语料证据。",
+    "resolutionOrder.test.ts 的对拍语料由档案声明派生；未来新增档案引入新同串且两侧赢家不同时测试会红并逼作者显式裁决——这是有意的摩擦，不是误报。",
+    "若某中转真实存在「modelKey 恰为裸 veo3.1 且端点说 Runway 原生方言」的行，需显式给该行 pin archetypeId: runway-video（与 Runway 官方目录行同法）；身份匹配层面不再为平台方言保留裸串赢家。"
+  ]
+}
