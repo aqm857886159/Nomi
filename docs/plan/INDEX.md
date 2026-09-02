@@ -12,6 +12,7 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-06-07-model-onboarding-final-plan.md](2026-06-07-model-onboarding-final-plan.md) | **模型接入最终方案**（R7 定稿，审计+设计+计划）— 本簇主文档 | ✅ |
+| [2026-08-30-runway-seedance25-onboarding.md](2026-08-30-runway-seedance25-onboarding.md) | Runway Seedance 2.5 接入与分镜设置（源分支只含文档、未合并；配套指南带「未发布」横幅）| 📋 |
 | [2026-08-15-model-integration-no-dead-end-master-plan.md](2026-08-15-model-integration-no-dead-end-master-plan.md) | 模型接入「不留死路」总纲：事实源 manifest + 能力契约 + 旅程矩阵 | 🚧 |
 | [2026-09-02-docaudit-kie-apimart.md](2026-09-02-docaudit-kie-apimart.md) | KIE + APIMart 官方文档全量对账、映射合同覆盖与未封印模型验收 | ✅ |
 | [2026-09-02-runway-model-identity-workflow.md](2026-09-02-runway-model-identity-workflow.md) | **一个模型一个档案主人**（PR #310 挂起的「单独立项裁决」）：删平台档案 runway-video，10 个 Runway 模型改挂真模型档案；补齐供应商特化三轴（参数/transport/模式可见性）；selectTaskMapping 停止借用别的模式的线缆 | ✅ |
@@ -92,6 +93,7 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-09-02-mcp-testnet-l1-handshake.md](2026-09-02-mcp-testnet-l1-handshake.md) | MCP 测试网第 1 片：真实 stdio L1 握手六条回归、tools/list payload 棘轮与 listChanged A1 | 🚧 |
+| [2026-08-25-p4-anchor-checkpoint-approval-card.md](2026-08-25-p4-anchor-checkpoint-approval-card.md) | P4 锚定妆照检查点的渲染层审批卡（#155 §8.5 两条腿之二；样张已拍板、方案未入库）| 📋 |
 | [2026-09-01-agent-m0-baseline-freeze.md](2026-09-01-agent-m0-baseline-freeze.md) | M0 基线冻结：owner map、50 项工具映射、旧路径、schema-v3 草案、红灯与 PR 切片 | ⏳ |
 | [2026-09-02-m2-generation-semantic-slice-1.md](2026-09-02-m2-generation-semantic-slice-1.md) | M2 第一片：generation plan/status 语义模型面与 Host-only 闸门排除 | 🚧 |
 | [2026-09-02-m2-editing-semantic-slices.md](2026-09-02-m2-editing-semantic-slices.md) | M2 第二片：timeline/media/export 语义面、MCP 可达性与 Host 审批 | 🚧 |
