@@ -23,6 +23,7 @@ import { useGenerationCanvasStore } from '../../../generationCanvas/store/genera
 import { buildDependencyWaves, hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
 import { confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace } from '../../../generationCanvas/runner/generationRunController'
 import { confirmAndRunPlan } from '../../../generationCanvas/components/batchPlanPreview'
+import i18n from '../../../../i18n'
 import { buildPlannedNodeMeta } from '../../../generationCanvas/agent/plannedNodeMeta'
 import { ANCHOR_META_KEYS, isAnchorFrozen, type AnchorFrozenMark } from '../../../generationCanvas/model/anchorBibleKeys'
 import { findAnchorNode, findShotKeyframeNode, findShotNode } from './storyboardNodeBinding'
@@ -192,9 +193,14 @@ export async function generateShotRow(
 }
 
 /** 悬停浮条 ↻：写回行编辑 + 原地重生成（同节点、不换 id、时间轴回填闸沿用）。 */
-export async function regenerateShotRow(ctx: RowActionContext, shot: PlanShot, node: GenerationCanvasNode): Promise<void> {
+export async function regenerateShotRow(
+  ctx: RowActionContext,
+  shot: PlanShot,
+  node: GenerationCanvasNode,
+  confirmOpts?: { title?: string; confirmLabel?: string },
+): Promise<void> {
   await syncShotNodeWithRow(ctx, shot, node, 'shot')
-  await regenerateNodeInPlace(node.id)
+  await regenerateNodeInPlace(node.id, confirmOpts)
 }
 
 /**
@@ -209,7 +215,10 @@ export async function rerunShotRowWithFreshRefs(
 ): Promise<void> {
   if (!exec.node) return
   if (!exec.keyframeNode) {
-    await regenerateShotRow(ctx, shot, exec.node)
+    // 确认卡回声按钮文案「用新图重跑」——警示行刚说完「此镜用的还是旧图」，通用「重新生成」
+    // 卡会让人迟疑这一下到底用没用新图（图+视频分支走批量波次卡，卡上列出首帧+视频，语义自明）。
+    const rerunLabel = i18n.t('storyboardEditor.row.rerunFreshRefs')
+    await regenerateShotRow(ctx, shot, exec.node, { title: rerunLabel, confirmLabel: rerunLabel })
     return
   }
   await syncShotNodeWithRow(ctx, shot, exec.keyframeNode, 'keyframe')

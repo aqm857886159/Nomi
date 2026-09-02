@@ -663,16 +663,22 @@ export async function confirmAndRunNodeVariants(
  * 与「基于此生成变体」(confirmAndRunNode{rerun} = duplicate) 分流，
  * 别共用一个口子（一个改这一镜、一个长出新镜）。
  */
-export async function regenerateNodeInPlace(nodeId: string): Promise<void> {
+export async function regenerateNodeInPlace(
+  nodeId: string,
+  // 确认卡可带调用方的动作名（如分镜表「用新图重跑」）：用户点的是什么，卡上就回声什么，
+  // 不让一张通用「重新生成」卡吃掉刚建立的语境（R16 情绪走查：小白在这一步会迟疑
+  // 「到底用没用新图」）。缺省仍是「重新生成」，画布 composer 等既有调用方零变化。
+  opts?: { title?: string; confirmLabel?: string },
+): Promise<void> {
   const id = String(nodeId || '').trim()
   if (!id) return
   const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)
   const hosting = await resolveHostingDisclosure(node)
   if (!hosting.allowed) return
   const ok = await confirmGenerationSpend([node], {
-    title: i18n.t('generationCommon.composer.regenerate'),
+    title: opts?.title || i18n.t('generationCommon.composer.regenerate'),
     message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image'),
-    confirmLabel: i18n.t('generationCommon.composer.regenerate'),
+    confirmLabel: opts?.confirmLabel || i18n.t('generationCommon.composer.regenerate'),
     light: true,
     ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
