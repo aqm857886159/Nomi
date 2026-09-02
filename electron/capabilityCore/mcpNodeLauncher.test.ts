@@ -351,7 +351,7 @@ describe('mcpNodeLauncher library fingerprint handshake', () => {
     })
 
     const response = await launcher.rpc('tools/call', {
-      name: 'nomi_read_canvas',
+      name: 'nomi_canvas_read',
       arguments: { projectId: 'project-1', leaseHandle: 'opaque-project-lease' },
     })
     const serialized = JSON.stringify(response)

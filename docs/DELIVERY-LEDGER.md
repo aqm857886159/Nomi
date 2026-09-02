@@ -9,7 +9,7 @@
 
 ---
 
-## 现役欠账（30）
+## 现役欠账（31）
 
 | 状态 | 文档 | 标题 |
 |---|---|---|
@@ -35,6 +35,7 @@
 | 🚧 进行中 | [2026-09-01-tail-batch.md](plan/2026-09-01-tail-batch.md) | 尾巴批交付计划（2026-09-01） |
 | 🚧 进行中 | [2026-09-01-tikhub-connector-v1.md](plan/2026-09-01-tikhub-connector-v1.md) | 2026-09-01 TikHub 数据 connector v1（分享链接 → 无水印直链 → 拆解） |
 | 🚧 进行中 | [2026-09-02-docaudit-b.md](plan/2026-09-02-docaudit-b.md) | DOCAUDIT-B：非 KIE/APIMart 官方文档对账与封印 |
+| 🚧 进行中 | [2026-09-02-m2-canvas-vertical-slice-3.md](plan/2026-09-02-m2-canvas-vertical-slice-3.md) | M2 slice-3：画布与文档语义工具纵切 |
 | 🚧 进行中 | [2026-09-02-m2-editing-semantic-slices.md](plan/2026-09-02-m2-editing-semantic-slices.md) | M2 slice-2：剪辑语义纵切 |
 | 🚧 进行中 | [2026-09-02-m2-generation-semantic-slice-1.md](plan/2026-09-02-m2-generation-semantic-slice-1.md) | M2 generation semantic slice 1 |
 | 🚧 进行中 | [2026-09-02-mcp-testnet-l1-handshake.md](plan/2026-09-02-mcp-testnet-l1-handshake.md) | MCP 测试网第 1 片：L1 协议握手层 |
@@ -74,7 +75,7 @@
 
 </details>
 
-- 合计扫描：499 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
+- 合计扫描：500 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
 
 ---
 

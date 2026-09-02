@@ -5,6 +5,26 @@ const L = (ctx: Ctx, zh: string, en: string): string => (ctx.locale === 'en' ? e
 
 /** A6 已知错误码 → 人话原因 + 恢复动作（只登记确证的码，不编造；未知码原样透传）。 */
 const ERROR_HINT: Record<string, { zh: string; en: string; recover: Array<{ zh: string; en: string }> }> = {
+  node_not_found: {
+    zh: '目标画布节点已不存在或不在当前项目',
+    en: 'The target canvas node is missing from the current project',
+    recover: [{ zh: '先调用 canvas_read 刷新节点 id，再重试', en: 'Call canvas_read to refresh node ids, then retry' }],
+  },
+  unknown_node_kind: {
+    zh: '画布快照含有 Nomi 当前不认识的节点类型，未写入',
+    en: 'The canvas snapshot contains an unsupported node kind and was not written',
+    recover: [{ zh: '修复或删除该节点后再保存', en: 'Repair or remove the node, then save again' }],
+  },
+  invalid_edge_mode: {
+    zh: '连线模式无效，Nomi 没有静默改成普通引用',
+    en: 'The edge mode is invalid; Nomi did not silently downgrade it',
+    recover: [{ zh: '改用当前支持的 reference 模式重试', en: 'Retry with a supported reference mode' }],
+  },
+  document_not_found: {
+    zh: '找不到目标剧本文档',
+    en: 'The target creation document was not found',
+    recover: [{ zh: '先重新读取项目文档列表后重试', en: 'Refresh the project documents, then retry' }],
+  },
   asset_not_localized: {
     zh: '参考素材还没落到本地，生成端拿不到它',
     en: 'A referenced asset is not localized yet, so the generator cannot read it',
@@ -46,6 +66,7 @@ const POLICY_CODES = new Set([
   'human_approval_required', 'receipt_invalid', 'receipt_expired',
   'lease_required', 'lease_invalid', 'project_scope_changed', 'project_binding_stale', 'lease_expired', 'lease_revoked',
   'surface_port_suspended', 'surface_port_unavailable', 'surface_port_stale', 'surface_owner_mismatch',
+  'node_not_found', 'unknown_node_kind', 'invalid_edge_mode', 'document_not_found', 'project_not_found',
 ])
 
 /** These typed failures may wrap private disk/provider causes; the code is their whole public message. */
@@ -55,6 +76,7 @@ const SAFE_CANVAS_READ_CODES = new Set([
   'capability_cancelled', 'capability_execution_failed',
   'project_identity_unavailable', 'project_binding_stale',
   'surface_port_suspended', 'surface_port_unavailable', 'surface_port_stale', 'surface_owner_mismatch',
+  'node_not_found', 'unknown_node_kind', 'invalid_edge_mode', 'document_not_found', 'project_not_found',
 ])
 
 /** A6 · 错误 → 人话原因 + 恢复动作 + 诊断信息（未知错误不编内容，原样透传 message）。 */

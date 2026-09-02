@@ -124,8 +124,8 @@ describe('production run MCP tools', () => {
   it('keeps the current README count and guide table aligned with the exported catalog', () => {
     const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8')
     const guide = fs.readFileSync(path.join(process.cwd(), 'docs/guide/capability-core-cli-mcp.md'), 'utf8')
-    expect(readme).toContain('Thirty-three MCP tools')
-    expect(guide).toContain('33 个工具')
+    expect(readme).toContain('Forty-seven MCP tools')
+    expect(guide).toContain('47 个工具')
     // Keep the public guide aligned with the live catalog so a newly reachable
     // semantic surface cannot be omitted from the user-facing MCP contract.
     for (const name of MCP_TOOL_NAMES.filter((name) => ![

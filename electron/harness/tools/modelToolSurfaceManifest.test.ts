@@ -16,7 +16,13 @@ describe("M2 generation model tool surface", () => {
       "nomi_generation_plan",
       "nomi_generation_status",
     ]);
-    expect(Object.values(agentToolCatalog).flat()).toHaveLength(43);
+    expect(Object.values(agentToolCatalog).flat()).toHaveLength(33);
+    expect(modelToolSurfaceManifest.canvas.map(({ name }) => name)).toEqual([
+      "nomi_canvas_read", "nomi_canvas_plan", "nomi_canvas_edit", "nomi_canvas_maintenance",
+    ]);
+    expect(modelToolSurfaceManifest.document.map(({ name }) => name)).toEqual([
+      "nomi_document_read", "nomi_document_edit",
+    ]);
   });
 
   it("requires metadata and keeps Host-only transitions out of the model", () => {

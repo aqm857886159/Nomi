@@ -1,3 +1,4 @@
 {
-  "maxBytes": 25341
+  "maxBytes": 26906,
+  "reason": "M2 semantic canvas plan/edit/maintenance and document read/edit tools are now explicit MCP discovery entries; recalibrated to the measured tools/list payload after replacing the five direct canvas descriptors."
 }

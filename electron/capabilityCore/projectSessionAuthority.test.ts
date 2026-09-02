@@ -5,6 +5,9 @@ import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead'
+import { CANVAS_WRITE_CAPABILITY } from '../shared/agentCapabilities/canvasWrite'
+import { DOCUMENT_READ_CAPABILITY } from '../shared/agentCapabilities/documentRead'
+import { DOCUMENT_WRITE_CAPABILITY } from '../shared/agentCapabilities/documentWrite'
 import type { McpConnectionContext } from './mcpConnectionContext'
 import { createMcpGenerationPolicy } from './mcpGenerationPolicy'
 import { createProjectLeaseAuthority } from './projectLease'
@@ -99,7 +102,12 @@ describe('ProjectSessionAuthority', () => {
       protocolVersion: 2,
       projectId: 'project-1',
       sessionId: connection.sessionId,
-      effectiveScope: [CANVAS_READ_CAPABILITY.requiredScope],
+      effectiveScope: expect.arrayContaining([
+        CANVAS_READ_CAPABILITY.requiredScope,
+        CANVAS_WRITE_CAPABILITY.requiredScope,
+        DOCUMENT_READ_CAPABILITY.requiredScope,
+        DOCUMENT_WRITE_CAPABILITY.requiredScope,
+      ]),
     })
     await expect(session.verifyLease(opened.leaseHandle, {
       connection,
@@ -171,7 +179,12 @@ describe('ProjectSessionAuthority', () => {
     expect(opened).toMatchObject({
       projectId: 'project-1',
       sessionId: connection.sessionId,
-      effectiveScope: [CANVAS_READ_CAPABILITY.requiredScope],
+      effectiveScope: expect.arrayContaining([
+        CANVAS_READ_CAPABILITY.requiredScope,
+        CANVAS_WRITE_CAPABILITY.requiredScope,
+        DOCUMENT_READ_CAPABILITY.requiredScope,
+        DOCUMENT_WRITE_CAPABILITY.requiredScope,
+      ]),
     })
     expect(resolveProjectSelection).toHaveBeenCalledTimes(1)
   })

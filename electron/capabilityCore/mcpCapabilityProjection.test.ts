@@ -172,7 +172,7 @@ describe("canvas.read MCP capability projection", () => {
   });
 
   it("registers only the explicitly project-session-authorized canvas.read adapter", () => {
-    expect(MCP_CAPABILITY_RESOLVER.list()).toHaveLength(5);
+    expect(MCP_CAPABILITY_RESOLVER.list()).toHaveLength(10);
     const [tool] = MCP_CAPABILITY_RESOLVER.list();
     expect(tool).toMatchObject({
       name: CANVAS_READ_CAPABILITY.aliases.mcp,
@@ -332,7 +332,7 @@ describe("canvas.read MCP wire requires a verified project session lease", () =>
     const harness = new ProtocolHarness();
     const listed = await harness.call(1, "tools/list");
     const tools = (listed.result as { tools: Array<Record<string, unknown>> }).tools;
-    expect(tools.find((tool) => tool.name === "nomi_read_canvas")).toMatchObject({
+    expect(tools.find((tool) => tool.name === "nomi_canvas_read")).toMatchObject({
       description: CANVAS_READ_CAPABILITY.projections.mcp?.description,
       inputSchema: CANVAS_READ_MCP_ADAPTER.transportInputSchema,
       annotations: { readOnlyHint: true },
@@ -342,7 +342,7 @@ describe("canvas.read MCP wire requires a verified project session lease", () =>
     );
 
     const called = await harness.call(2, "tools/call", {
-      name: "nomi_read_canvas",
+      name: "nomi_canvas_read",
       arguments: { leaseHandle: "lease-a", projectId: "project-a" },
     });
     expect(harness.invoke).toHaveBeenCalledWith("canvas.read", { leaseHandle: "lease-a", projectId: "project-a" });
@@ -362,7 +362,7 @@ describe("canvas.read MCP wire requires a verified project session lease", () =>
   it("rejects model-supplied target metadata before the verified adapter is called", async () => {
     const harness = new ProtocolHarness();
     const response = await harness.call(1, "tools/call", {
-      name: "nomi_read_canvas",
+      name: "nomi_canvas_read",
       arguments: { projectId: "project-a", leaseHandle: "lease-a", target: { projectId: "project-b" } },
     });
 
@@ -392,7 +392,7 @@ describe("canvas.read MCP wire requires a verified project session lease", () =>
     const harness = new ProtocolHarness();
     harness.invoke.mockResolvedValueOnce(unsafe);
     const response = await harness.call(3, "tools/call", {
-      name: "nomi_read_canvas",
+      name: "nomi_canvas_read",
       arguments: { leaseHandle: "lease-a", projectId: "project-a" },
     });
     const result = response.result as {
@@ -427,7 +427,7 @@ describe("canvas.read MCP wire requires a verified project session lease", () =>
     harness.invoke.mockRejectedValueOnce(error);
 
     const response = await harness.call(31, "tools/call", {
-      name: "nomi_read_canvas",
+      name: "nomi_canvas_read",
       arguments: { leaseHandle: "lease-a", projectId: "project-a" },
     });
     const result = response.result as {

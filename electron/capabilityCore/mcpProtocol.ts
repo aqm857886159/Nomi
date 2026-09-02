@@ -483,6 +483,20 @@ export function createMcpProtocol(transport: McpTransport) {
           reply(id, buildToolResultPayload(tool.name, args, result))
           return
         }
+        if (tool.name === 'nomi_canvas_maintenance') {
+          const nodeIds = Array.isArray(built.nodeIds) ? built.nodeIds.length : 0
+          const confirm = await elicitBooleanConfirm({
+            message: `Delete ${nodeIds} Canvas node(s). This is destructive but undoable; confirm the exact maintenance request.`,
+            title: 'Confirm Canvas deletion',
+            description: 'Nomi will delete only the listed nodes after the verified project lease is checked.',
+          }, requestSignal)
+          if (!confirm.supported || !confirm.confirmed) {
+            throw Object.assign(new Error('Human confirmation is required before deleting Canvas nodes'), { code: 'human_approval_required' })
+          }
+          const result = await invokeForRequest(tool.method, { ...built, confirmation: true })
+          reply(id, buildToolResultPayload(tool.name, args, result))
+          return
+        }
         // 画布方案确认 elicitation-first（免费可撤，见 mcpPlanTrust.ts）：批量加节点（≥2）当声明 elicitation
         // 且 App 开着时，把确认递进聊天问一次而非让人跑去 App 点弹窗；批准记会话级信任、同项目后续不再问。
         // 不满足（单节点 / 不声明 elicitation / headless）→ 落到下面原样 invoke，走既有 gateway.confirmPlan
@@ -493,9 +507,10 @@ export function createMcpProtocol(transport: McpTransport) {
         // 本分支的价值就是把那张卡搬进聊天。App 关着时 confirmPlan 恒 true（免费可撤、无人值守自动放行，
         // 见 createDiskGateway），没有卡可替代，去掉这个条件只会凭空多问一次 → 与「少让用户点」正相反。
         if (
-          tool.name === 'nomi_add_nodes'
+          tool.name === 'nomi_canvas_edit'
           && clientSupportsElicitation
           && transport.isAppOpen()
+          && built.operation === 'create_canvas_nodes'
           && Array.isArray(built.nodes)
           && built.nodes.length >= 2 // 单节点不算「方案」→ 落到下面原样 invoke（与 core.ts 的 ≥2 门对齐）
         ) {

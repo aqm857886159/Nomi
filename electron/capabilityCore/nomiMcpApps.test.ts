@@ -98,6 +98,7 @@ describe('nomi-mcp · MCP Apps ProductionRun widget serving', () => {
     const tools = (res.result as { tools: Array<{ name: string; annotations?: { readOnlyHint?: boolean } }> }).tools
     const readOnly = tools.filter((t) => t.annotations?.readOnlyHint === true).map((t) => t.name).sort()
     expect(readOnly).toEqual([
+      'nomi_canvas_read',
       'nomi_export_job',
       'nomi_get_artifact',
       'nomi_get_generation_context',
@@ -107,7 +108,6 @@ describe('nomi-mcp · MCP Apps ProductionRun widget serving', () => {
       'nomi_media_query',
       'nomi_operation_read',
       'nomi_read_artifact',
-      'nomi_read_canvas',
       'nomi_subscribe_run',
       'nomi_timeline_read',
     ])

@@ -130,16 +130,16 @@ node scripts/nomi.mjs generate workspace-xxxx modelscope "Tongyi-MAI/Z-Image-Tur
 
 **② 完成两侧权限并重启对应客户端**：
 
-- Claude Code / Codex：卡片真实握手成功后，确认 `nomi` 的 33 个工具出现。
+- Claude Code / Codex：卡片真实握手成功后，确认 `nomi` 的 47 个工具出现。
 - Cursor：先在 Nomi「设置 → 自动化与权限」允许 Cursor 发起草稿；首次在 Cursor 调用 Nomi 时，Cursor 自己仍可能要求你批准本地 MCP。Nomi 不会代替你静默批准 Cursor。
 
-33 个工具包括 `nomi_list_models`、`nomi_create_project`、`nomi_intake_brief`、`nomi_import_asset`、`nomi_generate`、`nomi_start_playbook`、`nomi_materialize_storyboard`、`nomi_control_run` 和 `nomi_decide_gate`。另外 11 个 `generation.single-shot` 语义工具是同一套可编辑流程的零额度入口：`nomi_session_open`、`nomi_get_generation_context`、`nomi_operation_create`、`nomi_submit_generation_plan`、`nomi_preview_execution`、`nomi_request_generation_gate`、`nomi_decide_generation_gate`、`nomi_start_generation`、`nomi_operation_read`、`nomi_cancel_generation`、`nomi_reconcile_generation`。它们先展示/编辑计划，再由 rollout policy 决定何时可提交；未通过阶段检查时会明确返回下一步，不会回退到旧生成器。
+47 个工具包括 `nomi_list_models`、`nomi_create_project`、`nomi_intake_brief`、`nomi_import_asset`、`nomi_start_playbook`、`nomi_materialize_storyboard`、`nomi_control_run`、`nomi_decide_gate`、`nomi_canvas_read`、`nomi_canvas_plan`、`nomi_canvas_edit`、`nomi_canvas_maintenance`、`nomi_document_read` 和 `nomi_document_edit`。另外 11 个 `generation.single-shot` 语义工具是同一套可编辑流程的零额度入口：`nomi_session_open`、`nomi_get_generation_context`、`nomi_operation_create`、`nomi_submit_generation_plan`、`nomi_preview_execution`、`nomi_request_generation_gate`、`nomi_decide_generation_gate`、`nomi_start_generation`、`nomi_operation_read`、`nomi_cancel_generation`、`nomi_reconcile_generation`。它们先展示/编辑计划，再由 rollout policy 决定何时可提交；未通过阶段检查时会明确返回下一步，不会回退到旧生成器。
 
 **③ 直接说人话**，它自己挑工具完成：
 
 > 「在 Nomi 里新建一个项目叫『咖啡广告』，先列一下我有哪些图模型；然后拆 3 个咖啡主题的镜头加到画布，每个写好提示词；最后用其中的图模型把第一个镜头生成出来。」
 
-Claude Code 会依次调 `nomi_create_project` → `nomi_list_models` → `nomi_add_nodes` → `nomi_generate`，把结果回给你。
+Claude Code 会依次调 `nomi_create_project` → `nomi_list_models` → `nomi_canvas_edit` → `nomi_start_generation`，把结果回给你。
 
 ### 典型体验 1：快速初稿
 
@@ -193,9 +193,10 @@ Claude Code 会依次调 `nomi_create_project` → `nomi_list_models` → `nomi_
 |---|---|
 | `nomi_list_projects` / `nomi_create_project` | 列 / 建项目 |
 | `nomi_list_models` | 列可用模型 |
-| `nomi_read_canvas` | 读画布 |
-| `nomi_add_nodes` / `nomi_connect_nodes` | 加节点 / 连线 |
-| `nomi_set_node_prompt` / `nomi_delete_nodes` | 改提示词 / 删节点 |
+| `nomi_canvas_read` | 读画布 |
+| `nomi_canvas_plan` / `nomi_canvas_edit` | 规划 / 编辑画布 |
+| `nomi_canvas_maintenance` | 删除节点或撤销删除（破坏性操作需确认） |
+| `nomi_document_read` / `nomi_document_edit` | 读 / 编辑项目文档 |
 | `nomi_intake_brief` | 开拍前一次性方向收敛（一屏 ≤3 题：基调/画幅/风格，每题带「按你判断」）——整局只调一次 |
 | `nomi_import_asset` | 把本机文件（手绘帧/截图/参考图）导入项目当素材，返回可直接引用的 `nomi-local://` 地址 |
 | `nomi_generate` | 真生成（含参考图 references、指定 nodeId、可选 seed 复现） |
