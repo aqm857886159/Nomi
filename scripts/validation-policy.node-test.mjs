@@ -91,6 +91,32 @@ test('packaging and native runtime identity paths select package without forcing
   })
 })
 
+test('packaged MCP surface truth sources select the package lane on the PR path', () => {
+  // 2026-09-02 escape: surface-16-collapse rewrote the capability-core catalog, the PR round
+  // never selected the package lane, and the packaged smoke only burned on the next main push.
+  // The catalog/collapse/stdio-server/launcher dir, the harness tool-surface manifest, and the
+  // smoke instrument itself must each pull mac-package forward onto the PR path.
+  assert.deepEqual(surfaces(classifyValidationPolicy(['electron/capabilityCore/mcpToolCatalog.ts'])), {
+    ...focusedOnly,
+    unit: 'full',
+    desktop: true,
+    journeys: true,
+    package: true,
+  })
+  assert.deepEqual(surfaces(classifyValidationPolicy(['electron/harness/tools/modelToolSurfaceManifest.ts'])), {
+    ...focusedOnly,
+    unit: 'full',
+    desktop: true,
+    package: true,
+  })
+  assert.deepEqual(surfaces(classifyValidationPolicy(['tests/ux/packaged-mcp-smoke.e2e.mjs'])), {
+    ...focusedOnly,
+    unit: 'full',
+    desktop: true,
+    package: true,
+  })
+})
+
 test('canvas group/reference walkthroughs belong to functional canvas without forcing performance', () => {
   assert.deepEqual(surfaces(classifyValidationPolicy(['tests/ux/group-reference-direction.walk.mjs'])), {
     ...focusedOnly,
