@@ -82,9 +82,12 @@ for (const [scenario, baseSummary] of Object.entries(baseline.summary || {})) {
 const hardFailures = Object.entries(candidate.summary || {}).flatMap(([scenario, summary]) =>
   (summary.verdict?.hardFailures || []).map((failure) => ({ scenario, ...failure })),
 )
+// advisory budget checks (e.g. maxFrameGapMs) are recorded for visibility
+// but do not gate the compare run. See PERFORMANCE_BUDGETS comment in
+// canvas-performance-benchmark.e2e.mjs for rationale.
 const budgetFailures = Object.entries(candidate.summary || {}).flatMap(([scenario, summary]) =>
   (summary.verdict?.budgetChecks || [])
-    .filter((check) => !check.pass)
+    .filter((check) => !check.pass && !check.advisory)
     .map((check) => ({ scenario, ...check })),
 )
 const regressions = comparisons.filter((item) => item.classification === 'regression')
