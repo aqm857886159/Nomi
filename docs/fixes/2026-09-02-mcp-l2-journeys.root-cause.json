@@ -72,7 +72,6 @@
     "artifacts": ["electron/capabilityCore/mcpProtocol.ts", "electron/productionRun/shotPricing.ts", "electron/capabilityCore/generationOutputMaterializer.ts", "electron/productionRun/artifactProjection.ts", "electron/export/exportJobs.ts"]
   },
   "regression_tests": [
-    "electron/capabilityCore/mcpPlanConfirm.test.ts",
     "electron/productionRun/productionRunE2eFixture.test.ts",
     "tests/ux/mcp-l2-journeys.e2e.mjs"
   ],
