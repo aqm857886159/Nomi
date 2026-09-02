@@ -7,6 +7,7 @@ import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
+import { resolveResultTargetShotIndex } from '../storyboardDInteractions'
 
 /**
  * 画面格（行内最大元素，图是主角）——行状态机的脸（样张 2026-09-01 v5）：
@@ -43,7 +44,15 @@ type Props = {
 }
 
 /** 浮条按钮（mockup .actbar button：32×26 深底白字，悬停瞬时覆盖）。 */
-function BarButton({ label, onClick, children }: { label: string; onClick?: (() => void) | undefined; children: React.ReactNode }): JSX.Element {
+function BarButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string
+  onClick?: (() => void) | undefined
+  children: React.ReactNode
+}): JSX.Element {
   return (
     <button
       type="button"
@@ -57,52 +66,118 @@ function BarButton({ label, onClick, children }: { label: string; onClick?: (() 
   )
 }
 
-function ResultIntakeMenu({ shot, targetShots, onSaveAsReference, onSetAsFirstFrame }: {
+function ResultIntakeMenu({
+  shot,
+  targetShots,
+  onSaveAsReference,
+  onSetAsFirstFrame,
+}: {
   shot: PlanShot
   targetShots: readonly PlanShot[]
+  allShots: readonly PlanShot[]
+  sourcePosition: number
   onSaveAsReference: () => void
-  onSetAsFirstFrame: (targetIndex: number) => void
+  onSetAsFirstFrame?: (targetPosition: number) => void
 }): JSX.Element {
   const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
-  const [targetIndex, setTargetIndex] = React.useState(targetShots[0]?.index ?? -1)
+  const [targetPosition, setTargetPosition] = React.useState(() => resolveResultTargetShotIndex(allShots, sourcePosition) ?? -1)
+  const targetPositionOf = (target: PlanShot): number => allShots.findIndex((candidate) => (
+    (candidate.shotId ?? `index:${candidate.index}`) === (target.shotId ?? `index:${target.index}`)
+  ))
   return (
     <div className="relative">
       <BarButton label={t('storyboardEditor.resultIntake.useAs')} onClick={() => setOpen((value) => !value)}>
         <IconArrowUpRight size={13} stroke={1.8} />
       </BarButton>
       {open ? (
-        <div className="absolute left-1/2 top-full z-20 mt-1.5 flex min-w-40 -translate-x-1/2 flex-col gap-1 rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1.5 shadow-nomi-md" onPointerDown={(event) => event.stopPropagation()}>
-          <button type="button" className="rounded-nomi-sm px-2 py-1 text-left text-micro text-nomi-ink-80 hover:bg-nomi-ink-05" onClick={onSaveAsReference}>
+        <div
+          className="absolute left-1/2 top-full z-20 mt-1.5 flex min-w-40 -translate-x-1/2 flex-col gap-1 rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1.5 shadow-nomi-md"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="rounded-nomi-sm px-2 py-1 text-left text-micro text-nomi-ink-80 hover:bg-nomi-ink-05"
+            onClick={onSaveAsReference}
+          >
             {t('storyboardEditor.resultIntake.reference')}
           </button>
-          <span className="px-2 pt-1 text-micro text-nomi-ink-40">{t('storyboardEditor.resultIntake.targetShot')}</span>
-          <select
-            value={targetIndex}
-            onChange={(event) => setTargetIndex(Number(event.target.value))}
-            aria-label={t('storyboardEditor.resultIntake.targetShot')}
-            className="h-7 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-1.5 text-micro text-nomi-ink-80"
-          >
-            {targetShots.map((target) => <option key={target.shotId ?? target.index} value={target.index}>{target.index === shot.index + 1 ? t('storyboardEditor.resultIntake.nextShot', { index: target.index }) : t('storyboardEditor.resultIntake.shot', { index: target.index })}</option>)}
-          </select>
-          <button type="button" disabled={targetIndex < 0} className="rounded-nomi-sm px-2 py-1 text-left text-micro text-nomi-ink-80 hover:bg-nomi-ink-05 disabled:opacity-40" onClick={() => onSetAsFirstFrame(targetIndex)}>
-            {t('storyboardEditor.resultIntake.firstFrame')}
-          </button>
+          {targetShots.length > 0 && onSetAsFirstFrame ? (
+            <>
+              <span className="px-2 pt-1 text-micro text-nomi-ink-40">
+                {t('storyboardEditor.resultIntake.targetShot')}
+              </span>
+              <select
+                value={targetPosition}
+                onChange={(event) => setTargetPosition(Number(event.target.value))}
+                aria-label={t('storyboardEditor.resultIntake.targetShot')}
+                className="h-7 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-1.5 text-micro text-nomi-ink-80"
+              >
+                {targetShots.map((target) => (
+                  <option key={target.shotId ?? target.index} value={targetPositionOf(target)}>
+                    {target.index === shot.index + 1
+                      ? t('storyboardEditor.resultIntake.nextShot', { index: target.index })
+                      : t('storyboardEditor.resultIntake.shot', { index: target.index })}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={targetPosition < 0}
+                className="rounded-nomi-sm px-2 py-1 text-left text-micro text-nomi-ink-80 hover:bg-nomi-ink-05 disabled:opacity-40"
+                onClick={() => onSetAsFirstFrame(targetPosition)}
+              >
+                {t('storyboardEditor.resultIntake.firstFrame')}
+              </button>
+            </>
+          ) : null}
         </div>
       ) : null}
     </div>
   )
 }
 
-export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, targetShots = [], onSaveAsReference, onSetAsFirstFrame, selected, onSelect }: Props): JSX.Element {
+export default function StoryboardShotFrame({
+  shot,
+  exec,
+  onGenerate,
+  onJumpToAnchor,
+  onOpenPreview,
+  onRegenerate,
+  onVariants,
+  onToggleLock,
+  targetShots = [],
+  allShots = [],
+  sourcePosition = -1,
+  onSaveAsReference,
+  onSetAsFirstFrame,
+  selected,
+  onSelect,
+}: Props): JSX.Element {
   const { t } = useTranslation()
   const indexBadge = (
-    <button type="button" onClick={onSelect} aria-label={t('storyboardEditor.row.selectAria', { index: shot.index })} className={cn('absolute top-1 left-1 z-[4] px-1 rounded-nomi-sm text-micro text-nomi-paper tabular-nums', selected ? 'bg-nomi-accent' : 'bg-nomi-overlay-chip')}>
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-label={t('storyboardEditor.row.selectAria', { index: shot.index })}
+      className={cn(
+        'absolute top-1 left-1 z-[4] px-1 rounded-nomi-sm text-micro text-nomi-paper tabular-nums',
+        selected ? 'bg-nomi-accent' : 'bg-nomi-overlay-chip',
+      )}
+    >
       {String(shot.index).padStart(2, '0')}
     </button>
   )
   const quietIndexBadge = (
-    <button type="button" onClick={onSelect} aria-label={t('storyboardEditor.row.selectAria', { index: shot.index })} className={cn('absolute top-1 left-1 z-[4] px-1 rounded-nomi-sm text-micro tabular-nums', selected ? 'bg-nomi-accent text-nomi-paper' : 'bg-nomi-ink-10 text-nomi-ink-60')}>
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-label={t('storyboardEditor.row.selectAria', { index: shot.index })}
+      className={cn(
+        'absolute top-1 left-1 z-[4] px-1 rounded-nomi-sm text-micro tabular-nums',
+        selected ? 'bg-nomi-accent text-nomi-paper' : 'bg-nomi-ink-10 text-nomi-ink-60',
+      )}
+    >
       {String(shot.index).padStart(2, '0')}
     </button>
   )
@@ -121,7 +196,11 @@ export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAn
         onDoubleClick={onOpenPreview}
         data-storyboard-frame={exec.status}
       >
-        <NomiImage src={exec.resultUrl} alt={t('storyboardEditor.frame.resultAlt', { index: shot.index })} className="absolute inset-0 w-full h-full object-cover" />
+        <NomiImage
+          src={exec.resultUrl}
+          alt={t('storyboardEditor.frame.resultAlt', { index: shot.index })}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
         {indexBadge}
         {durationBadge}
         {locked ? (
@@ -129,23 +208,50 @@ export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAn
             <IconLock size={10} stroke={2} aria-label={t('storyboardEditor.frame.lockedBadge')} />
           </span>
         ) : exec.changedRefs.length > 0 ? (
-          <span className="absolute top-1 right-1 z-[2] px-1.5 py-0.5 rounded-pill bg-workbench-danger text-nomi-paper text-micro" data-storyboard-ref-changed="true">
+          <span
+            className="absolute top-1 right-1 z-[2] px-1.5 py-0.5 rounded-pill bg-workbench-danger text-nomi-paper text-micro"
+            data-storyboard-ref-changed="true"
+          >
             {t('storyboardEditor.frame.refChangedBadge')}
           </span>
         ) : null}
-        <div className="absolute inset-0 z-[3] hidden group-hover/frame:grid place-items-center bg-nomi-scrim" data-storyboard-actbar="true">
+        <div
+          className="absolute inset-0 z-[3] hidden group-hover/frame:grid place-items-center bg-nomi-scrim"
+          data-storyboard-actbar="true"
+        >
           {locked ? (
             <div className="grid grid-cols-2 gap-1">
-              <BarButton label={t('storyboardEditor.frame.unlock')} onClick={onToggleLock}><IconLockOpen size={13} stroke={1.8} /></BarButton>
-              <BarButton label={t('storyboardEditor.frame.zoom')} onClick={onOpenPreview}><IconMaximize size={13} stroke={1.8} /></BarButton>
+              <BarButton label={t('storyboardEditor.frame.unlock')} onClick={onToggleLock}>
+                <IconLockOpen size={13} stroke={1.8} />
+              </BarButton>
+              <BarButton label={t('storyboardEditor.frame.zoom')} onClick={onOpenPreview}>
+                <IconMaximize size={13} stroke={1.8} />
+              </BarButton>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-1">
-              <BarButton label={t('storyboardEditor.frame.regenerate')} onClick={onRegenerate}><IconRefresh size={13} stroke={1.8} /></BarButton>
-              <BarButton label={t('storyboardEditor.frame.variants3')} onClick={onVariants}>×3</BarButton>
-              <BarButton label={t('storyboardEditor.frame.zoom')} onClick={onOpenPreview}><IconMaximize size={13} stroke={1.8} /></BarButton>
-              <BarButton label={t('storyboardEditor.frame.lock')} onClick={onToggleLock}><IconLock size={13} stroke={1.8} /></BarButton>
-              {onSaveAsReference && onSetAsFirstFrame && targetShots.length > 0 ? <ResultIntakeMenu shot={shot} targetShots={targetShots} onSaveAsReference={onSaveAsReference} onSetAsFirstFrame={onSetAsFirstFrame} /> : null}
+              <BarButton label={t('storyboardEditor.frame.regenerate')} onClick={onRegenerate}>
+                <IconRefresh size={13} stroke={1.8} />
+              </BarButton>
+              <BarButton label={t('storyboardEditor.frame.variants3')} onClick={onVariants}>
+                ×3
+              </BarButton>
+              <BarButton label={t('storyboardEditor.frame.zoom')} onClick={onOpenPreview}>
+                <IconMaximize size={13} stroke={1.8} />
+              </BarButton>
+              <BarButton label={t('storyboardEditor.frame.lock')} onClick={onToggleLock}>
+                <IconLock size={13} stroke={1.8} />
+              </BarButton>
+              {onSaveAsReference ? (
+                <ResultIntakeMenu
+                  shot={shot}
+                  targetShots={targetShots}
+                  allShots={allShots}
+                  sourcePosition={sourcePosition}
+                  onSaveAsReference={onSaveAsReference}
+                  onSetAsFirstFrame={onSetAsFirstFrame}
+                />
+              ) : null}
             </div>
           )}
         </div>
@@ -155,7 +261,10 @@ export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAn
 
   if (exec.status === 'generating') {
     return (
-      <div className="relative w-[76px] h-[132px] rounded-nomi overflow-hidden border border-nomi-line bg-nomi-ink-05" data-storyboard-frame="generating">
+      <div
+        className="relative w-[76px] h-[132px] rounded-nomi overflow-hidden border border-nomi-line bg-nomi-ink-05"
+        data-storyboard-frame="generating"
+      >
         {exec.resultUrl ? (
           <NomiImage src={exec.resultUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-50" />
         ) : null}
@@ -179,13 +288,19 @@ export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAn
 
   if (exec.status === 'failed') {
     return (
-      <div className="relative w-[76px] h-[132px] rounded-nomi overflow-hidden border border-workbench-danger bg-workbench-danger-soft" data-storyboard-frame="failed">
+      <div
+        className="relative w-[76px] h-[132px] rounded-nomi overflow-hidden border border-workbench-danger bg-workbench-danger-soft"
+        data-storyboard-frame="failed"
+      >
         {exec.resultUrl ? (
           <NomiImage src={exec.resultUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
         ) : null}
         {quietIndexBadge}
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-1.5 text-center">
-          <span className="text-micro text-workbench-danger leading-tight line-clamp-3" title={exec.errorMessage ?? undefined}>
+          <span
+            className="text-micro text-workbench-danger leading-tight line-clamp-3"
+            title={exec.errorMessage ?? undefined}
+          >
             {t('storyboardEditor.frame.failed')}
           </span>
           {onGenerate ? (
@@ -212,7 +327,9 @@ export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAn
       >
         {quietIndexBadge}
         <span className="text-micro text-workbench-danger leading-normal">
-          {t('storyboardEditor.row.missingRequired', { slot: translateModelDisplayText(exec.missingSlots[0]?.label ?? '') })}
+          {t('storyboardEditor.row.missingRequired', {
+            slot: translateModelDisplayText(exec.missingSlots[0]?.label ?? ''),
+          })}
         </span>
       </div>
     )
@@ -227,7 +344,9 @@ export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAn
         data-storyboard-frame="waiting-refs"
       >
         {quietIndexBadge}
-        <span aria-hidden className="text-body-sm text-nomi-ink-40">⏳</span>
+        <span aria-hidden className="text-body-sm text-nomi-ink-40">
+          ⏳
+        </span>
         <span className="text-micro text-nomi-ink-40 leading-normal">
           {first && onJumpToAnchor ? (
             <button

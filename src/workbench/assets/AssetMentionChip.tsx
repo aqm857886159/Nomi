@@ -51,7 +51,7 @@ export default function AssetMentionChip({ node }: NodeViewProps): JSX.Element {
       data-asset-mention=""
       data-storyboard-mention-chip="true"
       aria-label={label}
-      className={cn('inline-flex align-[-5px] h-[22px] items-center gap-[4px] mx-[2px] pr-[6px] rounded-nomi-sm border border-nomi-line bg-nomi-ink-05 overflow-hidden cursor-pointer hover:outline hover:outline-2 hover:outline-offset-1 hover:outline-nomi-accent')}
+      className={cn('relative inline-flex align-[-5px] h-[22px] items-center gap-[4px] mx-[2px] pr-[6px] rounded-nomi-sm border border-nomi-line bg-nomi-ink-05 overflow-hidden cursor-pointer hover:outline hover:outline-2 hover:outline-offset-1 hover:outline-nomi-accent')}
       contentEditable={false}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
@@ -62,7 +62,7 @@ export default function AssetMentionChip({ node }: NodeViewProps): JSX.Element {
       </span>
       <span className={cn('text-micro font-medium leading-none text-nomi-ink-70 whitespace-nowrap')}>{label}</span>
       {hoverPreview ? (
-        <span className="pointer-events-none absolute left-0 top-full z-30 mt-1.5 w-40 overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1 shadow-nomi-md">
+        <span className="pointer-events-none absolute left-0 top-full z-30 mt-1.5 w-40 overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1 shadow-nomi-md" data-storyboard-mention-preview="true">
           <AssetThumb asset={asset} playSize={12} />
         </span>
       ) : null}

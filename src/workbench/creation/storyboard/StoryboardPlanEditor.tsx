@@ -70,6 +70,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const [filterAnchorId, setFilterAnchorId] = React.useState<string | null>(null)
   const [playbackOpen, setPlaybackOpen] = React.useState(false)
   const [mentionPreviewAsset, setMentionPreviewAsset] = React.useState<AssetRef | null>(null)
+  const deletedPlanUndoRef = React.useRef<{ plan: NonNullable<typeof plan>; canvasSteps: number } | null>(null)
 
   const firstIssueLabel = (issue: PlanIssue): string => {
     switch (issue.kind) {
@@ -111,6 +112,19 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     window.addEventListener('nomi:asset-mention-preview', onMentionPreview)
     return () => window.removeEventListener('nomi:asset-mention-preview', onMentionPreview)
   }, [canvasNodes])
+
+  React.useEffect(() => {
+    const onUndo = (event: KeyboardEvent): void => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z' || !deletedPlanUndoRef.current) return
+      event.preventDefault()
+      const undo = deletedPlanUndoRef.current
+      deletedPlanUndoRef.current = null
+      for (let index = 0; index < undo.canvasSteps; index += 1) useGenerationCanvasStore.getState().undo()
+      setStoryboardPlan(undo.plan)
+    }
+    window.addEventListener('keydown', onUndo)
+    return () => window.removeEventListener('keydown', onUndo)
+  }, [setStoryboardPlan])
 
   const visiblePositions = React.useMemo(() => positionsForAnchorFilter(plan ?? { title: '', anchors: [], shots: [] }, filterAnchorId), [filterAnchorId, plan])
   const visibleRows = React.useMemo(
@@ -215,15 +229,14 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     const result = resultReference(runtime)
     if (result) setStoryboardPlan(result.plan)
   }
-  const onSetResultAsFirstFrame = (runtime: StoryboardRowRuntime, targetIndex: number): void => {
+  const onSetResultAsFirstFrame = (runtime: StoryboardRowRuntime, targetPosition: number): void => {
     const result = resultReference(runtime)
     if (!result) return
-    const targetPos = result.plan.shots.findIndex((shot) => shot.index === targetIndex)
-    if (targetPos < 0) return
-    const target = result.plan.shots[targetPos]
+    const target = result.plan.shots[targetPosition]
+    if (!target) return
     const anchorIds = target.anchorIds.includes(result.anchorId) ? target.anchorIds : [...target.anchorIds, result.anchorId]
     const keyframe = target.shotKind !== 'image' ? { ...(target.keyframe ?? {}), enabled: true } : target.keyframe
-    setStoryboardPlan({ ...result.plan, shots: result.plan.shots.map((shot, position) => position === targetPos ? { ...shot, anchorIds, ...(keyframe ? { keyframe } : {}) } : shot) })
+    setStoryboardPlan({ ...result.plan, shots: result.plan.shots.map((shot, position) => position === targetPosition ? { ...shot, anchorIds, ...(keyframe ? { keyframe } : {}) } : shot) })
   }
   const onStartPlayback = (): void => {
     if (playbackSequence.length === 0) return
@@ -391,6 +404,14 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               onJumpToAnchor={onJumpToAnchor}
               onSaveResultAsReference={onSaveResultAsReference}
               onSetResultAsFirstFrame={onSetResultAsFirstFrame}
+              onGenerateSelected={(selected) => void runAction(() => runStoryboardBatch(execCtx, selected))}
+              onDeleteSelected={(selected) => {
+                const ids = selected.flatMap((runtime) => [runtime.exec.node?.id, runtime.exec.keyframeNode?.id]).filter((id): id is string => Boolean(id))
+                deletedPlanUndoRef.current = { plan, canvasSteps: ids.length }
+                ids.forEach((id) => useGenerationCanvasStore.getState().deleteNode(id))
+                const selectedIds = new Set(selected.map((runtime) => runtime.shot.shotId ?? `index:${runtime.shot.index}`))
+                setStoryboardPlan({ ...plan, shots: plan.shots.filter((shot) => !selectedIds.has(shot.shotId ?? `index:${shot.index}`)).map((shot, index) => ({ ...shot, index: index + 1 })) })
+              }}
               filterAnchorId={filterAnchorId}
             />
             <button

@@ -301,6 +301,8 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     onVariants: runtime ? () => onVariantsRow(runtime) : undefined,
                     onToggleLock: runtime ? () => onToggleLockRow(runtime) : undefined,
                     targetShots: plan.shots.filter((candidate) => candidate.shotId !== shot.shotId && candidate.index !== shot.index),
+                    allShots: plan.shots,
+                    sourcePosition: pos,
                     onSaveAsReference: runtime ? () => onSaveResultAsReference(runtime) : undefined,
                     onSetAsFirstFrame: runtime ? (targetIndex: number) => onSetResultAsFirstFrame(runtime, targetIndex) : undefined,
                     selected: selectedShotIds.has(selectKeyOf(shot)),

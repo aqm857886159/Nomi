@@ -69,6 +69,8 @@ type Props = {
   /** 浮条 🔒/🔓 镜级锁定开关。 */
   onToggleLock?: (() => void) | undefined
   targetShots?: readonly PlanShot[]
+  allShots?: readonly PlanShot[]
+  sourcePosition?: number
   onSaveAsReference?: (() => void) | undefined
   onSetAsFirstFrame?: ((targetIndex: number) => void) | undefined
   selected?: boolean
@@ -97,7 +99,7 @@ type Props = {
 
 export default function StoryboardShotRow(props: Props): JSX.Element {
   const { t } = useTranslation()
-  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, targetShots, onSaveAsReference, onSetAsFirstFrame, onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll, mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile } = props
+  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, targetShots, allShots, sourcePosition, onSaveAsReference, onSetAsFirstFrame, onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll, mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile } = props
   const [expanded, setExpanded] = React.useState(false)
   const [actionsOpen, setActionsOpen] = React.useState(false)
   // C1：PromptEditor ref——参考区「@」入口点击时触发 mention（一个实现两个入口）。
@@ -165,7 +167,8 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           onGenerate?.()
         } else if (event.key === 'Enter' && !(event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]'))) {
           event.preventDefault()
-          setExpanded(true)
+          const prompt = event.currentTarget.querySelector<HTMLElement>('[data-prompt-box="true"] [contenteditable="true"]')
+          prompt?.focus()
         } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
           props.onKeyboardFocus?.(event.key === 'ArrowUp' ? -1 : 1)
         }
@@ -213,6 +216,8 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           onVariants={onVariants}
           onToggleLock={onToggleLock}
           targetShots={targetShots}
+          allShots={allShots}
+          sourcePosition={sourcePosition}
           onSaveAsReference={onSaveAsReference}
           onSetAsFirstFrame={onSetAsFirstFrame}
           selected={props.selected}

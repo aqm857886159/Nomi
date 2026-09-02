@@ -23,7 +23,7 @@ export default function StoryboardHoverPreview({ url, alt, children }: {
   }
   React.useEffect(() => clearTimer, [])
   return (
-    <span className="relative inline-flex" onMouseEnter={onEnter} onMouseLeave={onLeave}>
+    <span className="relative inline-flex" data-storyboard-hover-preview="true" onMouseEnter={onEnter} onMouseLeave={onLeave}>
       {children}
       {open ? (
         <span className="pointer-events-none absolute left-0 top-full z-30 mt-1.5 w-40 overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1 shadow-nomi-md">
@@ -33,4 +33,3 @@ export default function StoryboardHoverPreview({ url, alt, children }: {
     </span>
   )
 }
-
