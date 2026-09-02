@@ -61,6 +61,7 @@
 - [harness 的 catch 会把自己的 bug 洗成产品结论](harness-catch-launders-bugs-into-verdicts.md) — 报某腿失败前先分清是断言红的还是 catch 编的
 - [A/B 两版提示词：确认关卡会污染两臂](prompt-ab-gating-question-confounds-arms.md) — 量到的是服从度不是质量
 - [门岗断言不许手抄真相源的派生值，且必须与真相源同触发面](gate-assertions-must-not-copy-derived-values.md) — 看到 `>= N` 先问「N 是抄谁的」；决定落后与否的是触发面不是细心；死名字既造假红也造假绿
+- [有界性/复杂度不变量要用「计数」证，别用墙钟跑量](complexity-invariants-need-counters-not-wall-clock.md) — 「跑 1000 次看结果」= 把机器负载写进判据；顺带：`fs.readFileSync(fd)` 让按路径过滤的 spy 断言恒真
 
 ## C. Git 交付、分支与文档改动
 

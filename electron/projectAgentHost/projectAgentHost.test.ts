@@ -13,6 +13,7 @@ import type {
   ProjectAgentTurn,
   ProjectBinding,
 } from "../shared/projectAgentContracts";
+import { PROJECT_AGENT_RECENT_COMMAND_LIMIT } from "../shared/projectAgentContracts";
 import { createOfflineProjectAgentHost } from "./projectAgentHost";
 import { reduceProjectAgentMutation } from "./projectAgentReducer";
 import { createProjectAgentRepository } from "./projectAgentRepository";
@@ -352,29 +353,90 @@ describe("offline ProjectAgentHost orchestration", () => {
     });
   });
 
-  it("keeps a 1,000-command same-entity snapshot bounded without steady-state ledger rescans", async () => {
+  it("keeps a same-entity snapshot bounded without steady-state ledger rescans", async () => {
+    // The sibling "acknowledged-byte fsync" test flips durability to "durable".
+    // afterEach restores it, but pin it here so a regression there cannot quietly
+    // turn this test into a per-command fsync storm.
     setDurabilityMode("ephemeral");
     const durableRepository = repository();
     const paths = durableRepository.pathsFor(binding);
-    const ledgerReadSpy = vi.spyOn(fs, "readFileSync");
     const host = createOfflineProjectAgentHost({ repository: durableRepository });
-    let sizeAtWindowLimit = 0;
 
-    for (let revision = 0; revision < 1_000; revision += 1) {
-      await host.dispatch(threadMutation(`bounded-command-${revision + 1}`, revision, "thread-a"));
-      if (revision === 63) sizeAtWindowLimit = fs.statSync(paths.snapshot).size;
+    // A ledger rescan is exactly one thing: readRegular() opening the ledger
+    // read-only and parsing it whole. Spying on fs.readFileSync cannot see that
+    // — readRegular passes a numeric fd, so a `String(arg) === paths.ledger`
+    // filter never matches anything. The previous version of this test asserted
+    // exactly that, which made its headline claim vacuous: re-run with the
+    // ledger cache force-disabled, it observed 597 real rescans and still
+    // asserted zero. Watch open() instead, which is the actual mechanism.
+    const ACCESS_MODE = fs.constants.O_RDONLY | fs.constants.O_WRONLY | fs.constants.O_RDWR;
+    const openSpy = vi.spyOn(fs, "openSync");
+    const partitionOpens = (): number =>
+      openSpy.mock.calls.filter(([target]) => String(target).startsWith(paths.dir)).length;
+    const ledgerRescans = (): number =>
+      openSpy.mock.calls.filter(
+        ([target, flags]) =>
+          String(target) === paths.ledger &&
+          typeof flags === "number" &&
+          (flags & ACCESS_MODE) === fs.constants.O_RDONLY,
+      ).length;
+
+    const windowLimit = PROJECT_AGENT_RECENT_COMMAND_LIMIT;
+    const sample = Math.floor(windowLimit / 2);
+    let revision = 0;
+    async function runCommands(count: number): Promise<void> {
+      for (let index = 0; index < count; index += 1) {
+        // Fixed-width ids keep per-command snapshot bytes comparable across samples.
+        const commandId = `bounded-command-${String(revision + 1).padStart(4, "0")}`;
+        await host.dispatch(threadMutation(commandId, revision, "thread-a"));
+        revision += 1;
+      }
+    }
+    function measure() {
+      return {
+        opens: partitionOpens(),
+        rescans: ledgerRescans(),
+        snapshot: fs.statSync(paths.snapshot).size,
+        ledger: fs.statSync(paths.ledger).size,
+      };
     }
 
+    // Warm-up fills the recent-command window; everything after it is steady state.
+    await runCommands(windowLimit);
+    const warm = measure();
+    await runCommands(sample);
+    const first = measure();
+    await runCommands(sample);
+    const second = measure();
+
     const snapshot = host.getSnapshot(binding);
-    const finalSize = fs.statSync(paths.snapshot).size;
-    const ledgerReads = ledgerReadSpy.mock.calls.filter(([filePath]) => String(filePath) === paths.ledger);
-    expect(snapshot).toMatchObject({
-      hostRevision: 1_000,
-      commandLedgerHighWater: 1_000,
-    });
-    expect(snapshot.recentAppliedCommands).toHaveLength(64);
-    expect(finalSize).toBeLessThan(sizeAtWindowLimit + 10_000);
-    expect(ledgerReads).toHaveLength(0);
+    expect(snapshot).toMatchObject({ hostRevision: revision, commandLedgerHighWater: revision });
+    // Derived from the declared limit rather than a copied 64.
+    expect(snapshot.recentAppliedCommands).toHaveLength(windowLimit);
+
+    // No steady-state rescans. A one-time warm-up scan would be legitimate, so
+    // this is scoped to the two post-warm-up samples, not to the whole run.
+    expect(second.rescans - warm.rescans).toBe(0);
+
+    // Per-command work is constant: two disjoint equal-size samples open exactly
+    // the same number of files. This is the inductive step that makes a small
+    // command count sufficient — work per command that is flat across two
+    // windows after warm-up stays flat, so dispatching 1,000 only samples the
+    // same line further out. The 1,000-command version cost 14s-37s of wall
+    // clock depending on machine load (measured on the same commit) against a
+    // 30s testTimeout, and proved nothing this does not.
+    expect(second.opens - first.opens).toBe(first.opens - warm.opens);
+
+    // The snapshot stays bounded while the append-only ledger genuinely grows.
+    // Ledger growth is the positive control: it proves the samples did real
+    // durable work, so "zero rescans" cannot pass by doing nothing at all.
+    // A snapshot that accumulated history instead of a bounded window would grow
+    // by roughly the ledger delta (one receipt per command); a bounded one grows
+    // only by a few dozen bytes of revision counters.
+    const ledgerGrowth = second.ledger - first.ledger;
+    const snapshotGrowth = second.snapshot - first.snapshot;
+    expect(ledgerGrowth).toBeGreaterThan(0);
+    expect(snapshotGrowth * 10).toBeLessThan(ledgerGrowth);
   });
 
   it("round-trips an enqueued and running turn through the durable repository", async () => {
