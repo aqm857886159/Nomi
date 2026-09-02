@@ -1,5 +1,7 @@
 # MCP 测试网第 2 片：C7-C12
 
+状态：🚧 进行中
+
 ## 目标
 
 在真实 Electron MCP stdio、真实 catalog/runtime、真实项目落盘和真实 GUI 确认边界上跑 C7-C12。测试供应商只替换 APIMart HTTP origin 为 loopback fixture；catalog 模型、mapping、加密凭据、provider、job、materializer、Run ledger 仍走生产实现。
