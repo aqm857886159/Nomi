@@ -37,6 +37,7 @@
   ],
   "residual_risks": [
     "换判据后，**常数因子**的 CPU 退化（例如把热路径拆成跨模块调用）不再有任何单测守——那种退化只有墙钟测得出，而墙钟在共享并行套件里就是本次的病根。已知案例：把 projectAgentState.ts 的断言层拆成独立模块曾让该用例 9.1s → 47s，算法完全没变。这类守卫应当拆去 performance 风险面用显式预算跑；本 PR 不新建该风险面（现有 ci-performance 是 canvas/Electron 专用、按 reactFlow/ 路径触发，塞进去等于给它挂一个不相干的触发面），缺口明标于此",
+    "**姊妹亚族「在共享并行单测面里干重 I/O」目前没有静态防线。**同一轮全量 gates 里另有 5 条测试被负载饿死（四个真进程的 projectLeaseStore、全仓 secrets 扫描、全仓 i18n 扫描、antigravity 真子进程、providerAdapter 跨进程 fixture），已在本分支逐条修到根因（这 5 个文件隔离耗时合计 99.75s → 17.22s），但「测试在并行单测面里 spawn 子进程扫全仓」这一形状无法用行级正则可靠识别——它的正解是 R22 的风险面拆分，不是门岗。其中只有墙钟汇合点那一条被新增的 wallclock-rendezvous-spin 规则覆盖住了",
     "`wallclock-budget-assertion` 规则按行正则匹配，只认 `expect(...).toBeLessThan(...)` 与从 `Date.now()/performance.now()` 差值赋值出来的变量名；把耗时先绕一层函数返回、或用 toBeLessThanOrEqual 之外的比较器（如 `toSatisfy`）仍会漏",
     "WALLCLOCK_BUDGET_BASELINE 按文件计数、不按行锚定：同一文件内把一处合法的超时断言替换成一处非法的性能断言，数量不变，门岗不会报红",
     "两个等长窗口的 fs 调用相等，证的是「每条命令工作量恒定」；周期长于窗口长度的行为（例如每 512 条命令才重扫一次）不在该判据覆盖内——这一面由 scan 计数器在整段稳态内必须为 0 兜住"
@@ -93,6 +94,12 @@
       "evidence": "门岗扫到 1 处（:432，`expect(elapsed).toBeLessThan(FAST_FAIL_BUDGET_MS)`）——这处是人工 grep 漏掉、门岗扫出来的。判读为第二类：量的是 launcher 的 FAST_FAIL_BUDGET_MS 生产超时是否生效；已登记 1 处，新增会报红"
     },
     {
+      "path": "electron/capabilityCore/projectLeaseStore.test.ts",
+      "entry_point": "publishes all unique leases across four real processes without treating a renamed candidate as corruption",
+      "disposition": "enforced",
+      "evidence": "同族的第三种形态：墙钟**汇合点**。父进程取 `Date.now() + 1_000` 当起跑线发给 4 个子进程，worker 侧 `while (Date.now() < startAt)` 自旋等到那一刻——机器一忙 node 子进程来不及在窗口内启动，既悄悄削弱了它要测的竞态（测试仍绿），又把耗时顶穿 20s 超时。改成 ready/release 真握手，实测起跑离散度 3ms 且在 8 路 CPU 争抢下不变。新增门岗规则 wallclock-rendezvous-spin 覆盖这一形状；红检已跑：把旧 barrier 放回 → exit 1 并点名 :95，还原 → exit 0"
+    },
+    {
       "path": "electron/projectAgentHost/projectAgentCommandLedger.test.ts",
       "entry_point": "reuses the exact cached view and advances a 1,000-command index in O(1) per append",
       "disposition": "not-affected",
@@ -102,7 +109,7 @@
   "prevention": {
     "kind": "static-gate",
     "enforcement_path": "scripts/check-test-waits.mjs",
-    "invariant": "任何 *.test.* 文件里不得新增以墙钟耗时为通过条件的断言；量生产硬超时的既有断言按文件登记于 WALLCLOCK_BUDGET_BASELINE，且该基线只减不增",
+    "invariant": "任何 *.test.* 文件里不得新增以墙钟为判据的写法，覆盖三种形态：① 用墙钟等（既有 private-waitfor / wallclock-deadline-poll）；② 用墙钟判分（新增 wallclock-budget-assertion，量生产硬超时的既有断言按文件登记于只减不增的 WALLCLOCK_BUDGET_BASELINE）；③ 用墙钟当跨进程/跨线程汇合点（新增 wallclock-rendezvous-spin，硬零）",
     "failure_mode": "`pnpm run check:test-waits`（在 gates:contracts 链中）非零退出，逐处打印 `<文件>:<行号> [wallclock-budget-assertion] <代码>`，并按「量机器速度 → 换计数器/工作量不变量或拆去 performance 风险面」「量生产硬超时 → 登记基线写明理由」给出处置指引；基线登记数大于实际命中数时同样报红，提示降基线",
     "exception_policy": "none",
     "strategy": "把「不许拿墙钟判分」从人工审阅变成机器强制，并覆盖孪生形态（用墙钟等）此前没管到的另一半；同时用只减不增的按文件基线把存量的合法超时断言与新增的性能断言分开，避免一刀切误伤真正需要时钟的超时契约测试",
