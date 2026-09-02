@@ -273,6 +273,7 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
             <StoryboardShotTable
               plan={plan}
               rows={rows}
+              anchorCards={anchorCards}
               imageModelOptions={imageModelOptions}
               videoModelOptions={videoModelOptions}
               emptyPromptShots={emptyPromptShots}

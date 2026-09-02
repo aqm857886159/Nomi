@@ -79,6 +79,10 @@ export const zhStoryboardEditor = {
       match_cut: '匹配剪辑',
       whip_pan: '甩镜',
     },
+    /** C1：参考区「@」入口（mention 触发按钮）。 */
+    atRefAria: '输入 @ 选择参考',
+    atRefTitle: '在提示词里插入参考（@ 符号弹出选择器）',
+    atRefDisabledTitle: '此模型不吃参考，无法用 @ 引用',
   },
   bulk: {
     scope: '全部镜头',
@@ -295,6 +299,9 @@ export const enStoryboardEditor = {
       match_cut: 'Match cut',
       whip_pan: 'Whip pan',
     },
+    atRefAria: 'Type @ to select a reference',
+    atRefTitle: 'Insert a reference into the prompt (@ opens the picker)',
+    atRefDisabledTitle: 'This model takes no references — @ is disabled',
   },
   bulk: {
     scope: 'All shots',

@@ -13,7 +13,8 @@ import {
   updateShotAt,
   type SceneGroup,
 } from '../../generationCanvas/agent/storyboardPlanEdits'
-import type { StoryboardRowRuntime } from './exec/storyboardRowStatus'
+import type { AnchorCardRuntime, StoryboardRowRuntime } from './exec/storyboardRowStatus'
+import { useShotMentionSource } from './shotRow/useShotMentionSource'
 import StoryboardShotRow from './shotRow/StoryboardShotRow'
 
 /**
@@ -27,6 +28,8 @@ type Props = {
   plan: StoryboardPlan
   /** 行执行 runtime（与 plan.shots 同序；exec/storyboardRowStatus 单源 derive）。 */
   rows: StoryboardRowRuntime[]
+  /** C1：参考卡 runtime（供行级 @ 候选）。缺省 = 不开 @ 面板。 */
+  anchorCards?: AnchorCardRuntime[]
   imageModelOptions: ModelOption[]
   videoModelOptions: ModelOption[]
   /** 提示词为空的镜号（validatePlan 的 empty-shot-prompt 投影，行红边用）。 */
@@ -48,7 +51,77 @@ type Props = {
   onJumpToAnchor: (anchorId: string) => void
 }
 
-export default function StoryboardShotTable({ plan, rows, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor }: Props): JSX.Element {
+/**
+ * 行级 @ mention 适配层（C1）：useShotMentionSource 需要 shot 作为参数，所以必须在行级调用。
+ * 此组件负责把 anchorCards 下发给每行的 ShotRow，但 hook 在行级子组件 ShotRowWrapper 里调用。
+ */
+function ShotRowWithMention(props: {
+  shot: Parameters<typeof StoryboardShotRow>[0]['shot']
+  anchors: Parameters<typeof StoryboardShotRow>[0]['anchors']
+  anchorCards: AnchorCardRuntime[]
+  modelOptions: Parameters<typeof StoryboardShotRow>[0]['modelOptions']
+  danglingIds: string[]
+  promptInvalid: boolean
+  exec: Parameters<typeof StoryboardShotRow>[0]['exec']
+  onGenerate: (() => void) | undefined
+  onRegenerate: (() => void) | undefined
+  onVariants: (() => void) | undefined
+  onToggleLock: (() => void) | undefined
+  onOpenPreview: (() => void) | undefined
+  onRerunFreshRefs: (() => void) | undefined
+  onJumpToAnchor: (anchorId: string) => void
+  draggable: boolean
+  isDragOver: boolean
+  onDragStart: () => void
+  onDragOver: (event: React.DragEvent) => void
+  onDrop: () => void
+  onDragEnd: () => void
+  onUpdate: (patch: Partial<Parameters<typeof StoryboardShotRow>[0]['shot']>) => void
+  onToggleAnchor: (anchorId: string) => void
+  onRemove: () => void
+  onApplyParamsToAll: () => void
+}): JSX.Element {
+  const { shot, anchors, anchorCards, onToggleAnchor } = props
+  // C1：useShotMentionSource 在行级调用（每行 shot 不同），复用 owner 见 useShotMentionSource.ts。
+  const { mentionSearch, onMentionSelect, currentReferenceUrls } = useShotMentionSource(
+    shot,
+    anchors,
+    anchorCards,
+    onToggleAnchor,
+  )
+  return (
+    <StoryboardShotRow
+      shot={props.shot}
+      anchors={props.anchors}
+      modelOptions={props.modelOptions}
+      danglingIds={props.danglingIds}
+      promptInvalid={props.promptInvalid}
+      exec={props.exec}
+      onGenerate={props.onGenerate}
+      onRegenerate={props.onRegenerate}
+      onVariants={props.onVariants}
+      onToggleLock={props.onToggleLock}
+      onOpenPreview={props.onOpenPreview}
+      onRerunFreshRefs={props.onRerunFreshRefs}
+      onJumpToAnchor={props.onJumpToAnchor}
+      draggable={props.draggable}
+      isDragOver={props.isDragOver}
+      onDragStart={props.onDragStart}
+      onDragOver={props.onDragOver}
+      onDrop={props.onDrop}
+      onDragEnd={props.onDragEnd}
+      onUpdate={props.onUpdate as (patch: Partial<Parameters<typeof StoryboardShotRow>[0]['shot']>) => void}
+      onToggleAnchor={props.onToggleAnchor}
+      onRemove={props.onRemove}
+      onApplyParamsToAll={props.onApplyParamsToAll}
+      mentionSearch={mentionSearch}
+      onMentionSelect={onMentionSelect}
+      currentRefUrls={currentReferenceUrls}
+    />
+  )
+}
+
+export default function StoryboardShotTable({ plan, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -119,49 +192,42 @@ export default function StoryboardShotTable({ plan, rows, imageModelOptions, vid
               ? group.shots.map((shot, indexInGroup) => {
                   const pos = group.startPos + indexInGroup
                   const runtime = rows[pos]
-                  return (
-                    <StoryboardShotRow
-                      key={shot.shotId ?? shot.index}
-                      shot={shot}
-                      anchors={plan.anchors}
-                      modelOptions={shot.shotKind === 'image' ? imageModelOptions : videoModelOptions}
-                      danglingIds={danglingAnchorIdsForShot(plan, shot)}
-                      promptInvalid={emptyPromptShots.has(shot.index)}
-                      exec={runtime?.exec}
-                      onGenerate={runtime ? () => onGenerateRow(runtime) : undefined}
-                      onRegenerate={runtime ? () => onRegenerateRow(runtime) : undefined}
-                      onVariants={runtime ? () => onVariantsRow(runtime) : undefined}
-                      onToggleLock={runtime ? () => onToggleLockRow(runtime) : undefined}
-                      onOpenPreview={runtime ? () => onOpenPreviewRow(runtime) : undefined}
-                      onRerunFreshRefs={runtime ? () => onRerunFreshRefsRow(runtime) : undefined}
-                      onJumpToAnchor={onJumpToAnchor}
-                      draggable
-                      isDragOver={overIndex === pos && dragIndex !== null && dragIndex !== pos}
-                      onDragStart={() => setDragIndex(pos)}
-                      onDragOver={(event) => {
-                        event.preventDefault()
-                        setOverIndex(pos)
-                      }}
-                      onDrop={() => {
-                        if (dragIndex !== null && dragIndex !== pos) onChange(moveShot(plan, dragIndex, pos))
-                        setDragIndex(null)
-                        setOverIndex(null)
-                      }}
-                      onDragEnd={() => {
-                        setDragIndex(null)
-                        setOverIndex(null)
-                      }}
-                      onUpdate={(patch) => onChange(updateShotAt(plan, pos, patch))}
-                      onToggleAnchor={(anchorId) => onChange(toggleShotAnchor(plan, pos, anchorId))}
-                      onRemove={() => onChange(removeShotAt(plan, pos))}
-                      // 只套 params：模型/模式归「全部镜头」批量条管（一功能一个家，§1.5.2）——
-                      // 这里再复制 modelKey/modeId 就是第二个改整片模型的入口。
-                      onApplyParamsToAll={() => onChange({
-                        ...plan,
-                        shots: plan.shots.map((s) => ({ ...s, params: shot.params })),
-                      })}
-                    />
-                  )
+                  // C1：anchorCards 有时用 ShotRowWithMention（含 useShotMentionSource），
+                  // 缺省（编辑器没提供 anchorCards）退回 StoryboardShotRow（无 @ 面板）。
+                  const RowComponent = anchorCards ? ShotRowWithMention : null
+                  const commonRowProps = {
+                    key: shot.shotId ?? shot.index,
+                    shot,
+                    anchors: plan.anchors,
+                    modelOptions: shot.shotKind === 'image' ? imageModelOptions : videoModelOptions,
+                    danglingIds: danglingAnchorIdsForShot(plan, shot),
+                    promptInvalid: emptyPromptShots.has(shot.index),
+                    exec: runtime?.exec,
+                    onGenerate: runtime ? () => onGenerateRow(runtime) : undefined,
+                    onRegenerate: runtime ? () => onRegenerateRow(runtime) : undefined,
+                    onVariants: runtime ? () => onVariantsRow(runtime) : undefined,
+                    onToggleLock: runtime ? () => onToggleLockRow(runtime) : undefined,
+                    onOpenPreview: runtime ? () => onOpenPreviewRow(runtime) : undefined,
+                    onRerunFreshRefs: runtime ? () => onRerunFreshRefsRow(runtime) : undefined,
+                    onJumpToAnchor,
+                    draggable: true as const,
+                    isDragOver: overIndex === pos && dragIndex !== null && dragIndex !== pos,
+                    onDragStart: () => setDragIndex(pos),
+                    onDragOver: (event: React.DragEvent) => { event.preventDefault(); setOverIndex(pos) },
+                    onDrop: () => {
+                      if (dragIndex !== null && dragIndex !== pos) onChange(moveShot(plan, dragIndex, pos))
+                      setDragIndex(null); setOverIndex(null)
+                    },
+                    onDragEnd: () => { setDragIndex(null); setOverIndex(null) },
+                    onUpdate: (patch: Partial<typeof shot>) => onChange(updateShotAt(plan, pos, patch)),
+                    onToggleAnchor: (anchorId: string) => onChange(toggleShotAnchor(plan, pos, anchorId)),
+                    onRemove: () => onChange(removeShotAt(plan, pos)),
+                    // 只套 params：模型/模式归「全部镜头」批量条管（一功能一个家，§1.5.2）
+                    onApplyParamsToAll: () => onChange({ ...plan, shots: plan.shots.map((s) => ({ ...s, params: shot.params })) }),
+                  }
+                  return RowComponent && anchorCards
+                    ? <RowComponent {...commonRowProps} anchorCards={anchorCards} />
+                    : <StoryboardShotRow {...commonRowProps} />
                 })
               : null}
           </React.Fragment>
