@@ -26,7 +26,7 @@
 | 我要改… | 去 |
 |---|---|
 | 画布整体布局 / 缩放 / 自动 fit | `components/GenerationCanvas.tsx` · `reactFlow/GenerationCanvasReactFlow.tsx` · `components/useAutoFitOnLoad.ts` · `components/generationCanvasGeometry.ts` |
-| 画布手势（拖=平移·Shift=框选·滚轮锚光标）/ 平移性能 | `components/canvasPointerGestureModel.ts`（仲裁真值表）· `useCanvasPointerInteractions.ts`（唯一仲裁点）· `useCanvasViewportGestures.ts` · `useMarqueeSelection.ts` · `useCanvasTransformStoreSync.ts`（变换→store 的节流闸）|
+| 画布手势（拖=平移·Shift=框选·滚轮锚光标）/ 平移性能 | `components/canvasPointerGestureModel.ts`（仲裁真值表）· `useCanvasPointerInteractions.ts`（唯一仲裁点）· `useCanvasViewportGestures.ts` · `useMarqueeSelection.ts` |
 | 节点卡片长相 / 节点内参数控件 | `nodes/BaseGenerationNode.tsx` · `nodes/NodeParameterControls.tsx` · `nodes/InlineParameterBar.tsx` |
 | 比例 / 变形 | `nodes/aspectRatio.ts` |
 | 连线 / 拖入参考 | `reactFlow/GenerationCanvasReactFlowNodes.tsx` · `nodes/completeNodeConnection.ts` · `model/nodeAssetDrop.ts` |
