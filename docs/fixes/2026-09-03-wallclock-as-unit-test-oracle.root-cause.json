@@ -1,0 +1,128 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-wallclock-as-unit-test-oracle",
+  "problem_type": "单测拿墙钟耗时当判据——预算在空闲机器上校准、在满载并行套件里执行，按机器负载报红而不是按代码报红",
+  "symptom": "2026-09-03 同一天，`electron/projectAgentHost` 的两条用例在**与它们零相关**的分支上各自翻红：`feat/design-conformance-intent-20260903` 与 `feat/storyboard-v5-phase-c`（两者都没有任何 electron 改动）。单独跑必过。本机复现：`keeps a 1,000-command same-entity snapshot bounded without steady-state ledger rescans` 单文件跑 29,668ms / 30,000ms testTimeout——只剩 332ms 余量；同一轮全量 gates（1122 个测试文件并行）里 `keeps queued-turn invariant validation out of the cubic growth path` 实测 8145ms 红，只超它 8,000ms 预算的 1.8%。",
+  "direct_cause": "两条用例都把「跑得够快」当成了通过条件。第一条没有显式耗时断言，但它用 1,000 次真实落盘往返（实测每条命令 4 次 readFileSync + 2 次 writeFileSync + 7 次 openSync）去证明一个 O(1) 不变量，于是被 vitest 的 30s testTimeout **隐式**判分；第二条是显式的 `expect(performance.now() - startedAt).toBeLessThan(8_000)`，而这个预算此前已经因为同样的原因从 2s 放宽过一次。两者的耗时都由机器调度决定：本机 load average 76（另有 Codex agent 在跑）时，同样的代码耗时 3 倍于空闲态。",
+  "class_root": "「用墙钟耗时给单测判分」这一类写法，在共享的并行套件里必然间歇假红——判据量的是机器有多忙，不是代码对不对。本仓已经为它的孪生形态（用墙钟**等**：私有 waitFor / Date.now() 截止轮询）立过门岗 `check:test-waits`（R18，2026-08-25），但那道门只管「等」不管「判分」，于是同一个病从另一半复发。更深一层：第一条用例连它招牌上写的那件事都没在测——它的核心断言是**死选择器**（见 invariants 与 same_class_scan），所以它付出了全部的墙钟代价，却换不到任何保护。",
+  "migration": "同 diff 换判据、不放宽阈值：① 给账本加 `__projectAgentCommandLedgerScanCountForTests()`（在唯一的全量重扫入口 `scan()` 自增），把「稳态有没有重扫」变成直接可观测的计数，替掉那个永远为 0 的路径过滤器；② `projectAgentHost.test.ts` 改成「两个等长稳态窗口的 fs 调用逐项相等」+「稳态 scan 计数为 0」，命令数从 1,000 降到跨过回执窗口即可，实测 29,668ms → 4,740ms；③ `projectAgentReducerPerformance.test.ts` 把 8s 墙钟预算换成 `__projectAgentFullValidationCountForTests()` 必须为 0（cubic 的确切机制就是全量校验被拉进每条命令的热路径），实测 8,150ms → 154ms；④ 两条新用例各自内建阳性对照，保证换上的计数器不会像上一版那样悄悄失效；⑤ 把这一类写法交给 `check:test-waits` 新增的 `wallclock-budget-assertion` 规则机器强制。旧的耗时判据同 commit 删净，不留并行版。",
+  "affected_population": [
+    "所有在共享并行 vitest 套件里以墙钟耗时（显式 expect 预算，或隐式顶到 testTimeout）作为通过条件的单测——这台机器常有 20+ worktree 并行跑 gates，负载放大 3 倍是常态而非例外",
+    "本次直接受害者：projectAgentHost 的两条用例，以及所有把它们当门岗的分支（2026-09-03 已知两条零相关分支各红一次）",
+    "把这类测试当性能预言机的重构工作流——例如正在进行的 800 行拆分任务，就是拿这两个文件的 Duration 做 before/after 判据",
+    "潜在同类：任何未来新写的「这段计算应该跑得够快」断言，若无门岗一律会以相同方式复发"
+  ],
+  "scope_paths": [
+    "scripts/check-test-waits.mjs",
+    "electron/projectAgentHost/projectAgentCommandLedger.ts",
+    "electron/projectAgentHost/projectAgentHost.test.ts",
+    "electron/projectAgentHost/projectAgentReducerPerformance.test.ts"
+  ],
+  "entry_points": [
+    "electron/projectAgentHost/projectAgentHost.test.ts（隐式墙钟判据：1,000 次真实落盘往返顶到 30s testTimeout）",
+    "electron/projectAgentHost/projectAgentReducerPerformance.test.ts（显式墙钟判据：performance.now() 差值 < 8_000）",
+    "electron/projectAgentHost/hostLifecycle.test.ts（`import './projectAgentHost.test'` 的兼容入口，同一份用例的第二个触发面）",
+    "scripts/check-test-waits.mjs（本类问题唯一的机器强制边界）"
+  ],
+  "invariants": [
+    "单测的通过条件不得由墙钟耗时决定；要证的语义必须换成与机器速度无关的判据（计数器、两个等长窗口的工作量逐项相等、直接观测被测机制）",
+    "「稳态不重扫账本」由 scan() 计数器直接观测，不再经由 fs.readFileSync 的参数形状间接推断——重扫走 readRegular() → fs.readFileSync(fd)，传的是 fd 数字而非路径，按路径过滤的探针**永远匹配不到**（阳性对照实测：强制一次冷缓存全量重扫 25,742 字节账本，旧探针数出 0 条，旧断言照常通过）",
+    "「入队热路径不触发全量状态校验」由 fullValidationCount 直接观测——cubic 的确切机制是 assertProjectAgentHostState 内部 `for (const approval of state.proposalApprovals)` 循环体里的 `state.queue.find` + `state.turns.find`（projectAgentState.ts:660-682），单次全量校验本身即 O(队列×审批)，被拉进每条命令即成 cubic",
+    "任何「不应发生」型断言（计数为 0、集合为空）必须配阳性对照，证明该信号在真的发生时会涨——否则它与永远为真无法区分",
+    "耗时断言若量的是生产代码自己的硬超时是否生效（而非机器算得快不快），须在 WALLCLOCK_BUDGET_BASELINE 登记并写明理由；该基线只减不增"
+  ],
+  "regression_tests": [
+    "electron/projectAgentHost/projectAgentHost.test.ts",
+    "electron/projectAgentHost/projectAgentReducerPerformance.test.ts"
+  ],
+  "residual_risks": [
+    "换判据后，**常数因子**的 CPU 退化（例如把热路径拆成跨模块调用）不再有任何单测守——那种退化只有墙钟测得出，而墙钟在共享并行套件里就是本次的病根。已知案例：把 projectAgentState.ts 的断言层拆成独立模块曾让该用例 9.1s → 47s，算法完全没变。这类守卫应当拆去 performance 风险面用显式预算跑；本 PR 不新建该风险面（现有 ci-performance 是 canvas/Electron 专用、按 reactFlow/ 路径触发，塞进去等于给它挂一个不相干的触发面），缺口明标于此",
+    "`wallclock-budget-assertion` 规则按行正则匹配，只认 `expect(...).toBeLessThan(...)` 与从 `Date.now()/performance.now()` 差值赋值出来的变量名；把耗时先绕一层函数返回、或用 toBeLessThanOrEqual 之外的比较器（如 `toSatisfy`）仍会漏",
+    "WALLCLOCK_BUDGET_BASELINE 按文件计数、不按行锚定：同一文件内把一处合法的超时断言替换成一处非法的性能断言，数量不变，门岗不会报红",
+    "两个等长窗口的 fs 调用相等，证的是「每条命令工作量恒定」；周期长于窗口长度的行为（例如每 512 条命令才重扫一次）不在该判据覆盖内——这一面由 scan 计数器在整段稳态内必须为 0 兜住"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "纯仓内测试判据设计问题：vitest 的 testTimeout 语义与本仓自有的账本/状态校验热路径，无第三方 API 或版本语义需要查证。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一天内同一族问题触发三次（两条零相关分支上的假红 + 本轮全量 gates 里 8145ms 的显式预算红），且第二条用例的预算此前已经因为完全相同的原因从 2s 放宽到 8s——说明「靠写的人自觉不拿墙钟判分」这个流程已经失败过至少两轮。孪生形态（用墙钟等）早在 2026-08-25 就不得不立门岗 check:test-waits 才根治，本次是同一个病的另一半从没被门岗覆盖的那一侧复发。只要判据合法性仍依赖人工审阅，新写的性能断言就会以相同方式回来。",
+    "same_class_scan": [
+      "全仓实扫墙钟判据：`grep -rnE 'performance\\.now\\(\\)' electron src scripts tests evals | grep '\\.test\\.'` 修复前 2 命中（均在 projectAgentReducerPerformance.test.ts），修复后 0 命中",
+      "全仓实扫数值预算：`grep -rnE 'toBeLessThan\\(_?[0-9][0-9_]{2,}\\)' ... | grep '\\.test\\.'` 得 13 命中，逐条判读后 10 条量的是长度/字节数/坐标（非耗时），2 条是 shotVerifyOrchestrate 的生产硬超时断言，1 条是本次修掉的 8s 预算",
+      "上述两个 grep 都**漏掉**了 mcpNodeLauncher.test.ts:432 的 `expect(elapsed).toBeLessThan(FAST_FAIL_BUDGET_MS)`（预算是命名常量、耗时藏在变量里）——是新加的 wallclock-budget-assertion 规则扫出来的。这正是把同类扫描从人工 grep 提升为门岗的直接理由：人写的正则会漏，门岗按语义收集墙钟差变量名不会",
+      "题面指定的同族 grep `grep -rn '1,000-command\\|steady-state' electron/` 得 2 命中：本次修的 projectAgentHost.test.ts，以及 projectAgentCommandLedger.test.ts:48。后者实测单文件 231ms（无任何 flake 面），且它的 `expect(readSpy).not.toHaveBeenCalled()` 未按路径过滤、能看见 fd 形态的读，是活信号——判定 not-affected，不动",
+      "死选择器同类扫描：按 `dead-selector-lies-both-ways` 的教训，对本次涉及的所有「不应发生」断言做阳性对照。projectAgentHost.test.ts 的路径过滤探针证伪（321 次真实重扫、探针数出 0、断言仍通过）；projectAgentCommandLedger.test.ts 的无过滤 spy 证实为活信号"
+    ]
+  },
+  "generality_proof": "把「不许拿墙钟给单测判分」从人工审阅提升为 gates 链上的静态门岗后，任何新写的耗时预算断言都会在改动者本机 `pnpm run gates` 与 PR 的 Contracts 面当场报红，并逐处点名 file:line 与「你是哪一类」的处置指引。门岗整片遍历 src/electron/evals/scripts/tests 下全部 *.test.* 文件而非白名单，故新增测试文件自动纳入；它同时收集从墙钟差赋值出来的变量名，因此 `const elapsed = Date.now() - t0; expect(elapsed).toBeLessThan(N)` 这种把时间藏进变量的写法一样跑不掉（本次正是靠这一点扫出人工 grep 漏掉的 mcpNodeLauncher 那处）。基线按文件计数且**只减不增**：删掉一处合法的超时断言而忘记降基线也会报红，防止基线变成只涨不落的免死金牌。三向阳性对照已实跑：当前全仓 exit 0（3 处已登记）；新增一处性能断言 exit 1 并点名；删掉一处已登记断言 exit 1 提示降基线。配套地，两条被修用例各自内建阳性对照，使「换上的计数器本身失效」这一二阶失败模式也会当场暴露而非静默放行。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-test-waits.mjs",
+      "symbol": "RULES.wallclock-budget-assertion",
+      "responsibility": "在 gates 链上统一裁决「单测是否拿墙钟耗时当判据」，是本类问题唯一的强制执行边界；并区分「量机器速度」（禁止）与「量生产硬超时」（登记基线）两种语义"
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentCommandLedger.ts",
+      "symbol": "__projectAgentCommandLedgerScanCountForTests",
+      "responsibility": "把「稳态有没有全量重扫账本」从经 fs 间接层推断改为直接观测，是替换掉死选择器判据的唯一真相源"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projectAgentHost/projectAgentHost.test.ts",
+      "entry_point": "keeps a same-entity snapshot bounded with constant per-command work and no steady-state ledger rescan",
+      "disposition": "enforced",
+      "evidence": "判据换成 scan 计数器 + 两窗 fs 调用相等，实测 29,668ms → 4,740ms。两向红检已跑：注入稳态重扫（关掉 validate() 缓存短路）→ 报「expected 512 to be +0」exit 1；注入随 revision 增长的每命令 fs 工作 → 报「readFileSync 10528 vs 6432」exit 1。同一注入下旧探针数出 0 且旧断言通过（阳性对照证伪）"
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentReducerPerformance.test.ts",
+      "entry_point": "keeps queued-turn invariant validation out of the cubic growth path",
+      "disposition": "enforced",
+      "evidence": "8s 墙钟预算换成 fullValidationCount 必须为 0，实测 8,150ms → 154ms。红检已跑：关掉 snapshotProjectAgentHostState 的 trustedStates 快路径 → 报「expected 256 to be +0」exit 1"
+    },
+    {
+      "path": "electron/capabilityCore/shotVerifyOrchestrate.test.ts",
+      "entry_point": "verifyAndMaybeRetry 总时长硬界（判分失败绝不拖垮生成）",
+      "disposition": "enforced",
+      "evidence": "门岗扫到 2 处（:163 与 :201）。判读为第二类：量的是生产代码 deadlineMs=40 的硬界是否生效（对照 300s 客户端超时），不是机器算得快不快；已在 WALLCLOCK_BUDGET_BASELINE 登记 2 处并写明理由，新增第 3 处会报红"
+    },
+    {
+      "path": "electron/capabilityCore/mcpNodeLauncher.test.ts",
+      "entry_point": "fast-fails (≤10s) with BOTH library roots when a hijacker advertises a different library",
+      "disposition": "enforced",
+      "evidence": "门岗扫到 1 处（:432，`expect(elapsed).toBeLessThan(FAST_FAIL_BUDGET_MS)`）——这处是人工 grep 漏掉、门岗扫出来的。判读为第二类：量的是 launcher 的 FAST_FAIL_BUDGET_MS 生产超时是否生效；已登记 1 处，新增会报红"
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentCommandLedger.test.ts",
+      "entry_point": "reuses the exact cached view and advances a 1,000-command index in O(1) per append",
+      "disposition": "not-affected",
+      "evidence": "题面同族 grep 的第二个命中。实测单文件 231ms（1,000 次纯 append，无落盘往返），距任何 timeout 都有两个数量级余量，无 flake 面；其 `expect(readSpy).not.toHaveBeenCalled()` 未按路径过滤，能看见 fd 形态的读，非死选择器。不改"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-test-waits.mjs",
+    "invariant": "任何 *.test.* 文件里不得新增以墙钟耗时为通过条件的断言；量生产硬超时的既有断言按文件登记于 WALLCLOCK_BUDGET_BASELINE，且该基线只减不增",
+    "failure_mode": "`pnpm run check:test-waits`（在 gates:contracts 链中）非零退出，逐处打印 `<文件>:<行号> [wallclock-budget-assertion] <代码>`，并按「量机器速度 → 换计数器/工作量不变量或拆去 performance 风险面」「量生产硬超时 → 登记基线写明理由」给出处置指引；基线登记数大于实际命中数时同样报红，提示降基线",
+    "exception_policy": "none",
+    "strategy": "把「不许拿墙钟判分」从人工审阅变成机器强制，并覆盖孪生形态（用墙钟等）此前没管到的另一半；同时用只减不增的按文件基线把存量的合法超时断言与新增的性能断言分开，避免一刀切误伤真正需要时钟的超时契约测试",
+    "artifacts": [
+      "scripts/check-test-waits.mjs",
+      "electron/projectAgentHost/projectAgentCommandLedger.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/projectAgentHost/projectAgentHost.test.ts",
+    "electron/projectAgentHost/projectAgentReducerPerformance.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本次没有删除文件级的旧实现，删的是同一文件内的旧判据本身：那个永远匹配不到的 `ledgerReads` 路径过滤断言、以及 `performance.now() - startedAt < 8_000` 的墙钟预算，均在同 commit 被新判据替换、不留并行版（P1）。新加的 scan 计数器是补上的观测点，不是旧观测点的第二份实现——旧观测点已被删净。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯仓内测试判据与门岗改动，不涉及任何第三方依赖的版本或生命周期决策。",
+    "exit_criteria": []
+  }
+}
