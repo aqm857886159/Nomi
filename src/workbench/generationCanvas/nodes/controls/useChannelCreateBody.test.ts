@@ -32,9 +32,14 @@ beforeEach(() => {
 })
 
 describe('readModeChannelBody — 什么算「这家发不出这个模式」的证据', () => {
-  it('桶里有这个模式的线缆 → 返回 body', () => {
+  it('桶里有这个模式的线缆 → 返回 body + 这条 op 引用的 canonical 键', () => {
     listMappings.mockReturnValue([T2I, EDIT])
-    expect(readModeChannelBody('v', 'nano-banana', 'image_edit', 'edit')).toEqual({ body: EDIT.create.body })
+    // wireParamKeys 在这里算（唯一拿得到整条 create op 的地方）：渲染层只收到 body 的话，
+    // 进程型渠道（无 body、参数在 CLI args）会被误判成什么都发不出。见变体轴收窄。
+    expect(readModeChannelBody('v', 'nano-banana', 'image_edit', 'edit')).toEqual({
+      body: EDIT.create.body,
+      wireParamKeys: ['image_urls'],
+    })
   })
 
   it('这家有 mapping，但没有这个模式的 → null（判据 (a)：真发不出）', () => {

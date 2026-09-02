@@ -27,7 +27,7 @@ import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
  * - `undefined`：**查不出来**（老 preload / 拿不到 bridge / 未知 vendor / 自建中转）→ **fail-open**，
  *   一律不收窄。绝不因为查不到就藏用户的模式，与槽级收窄同一条纪律。
  */
-export type ModeChannelBody = { body: unknown } | null | undefined
+export type ModeChannelBody = { body: unknown; wireParamKeys: readonly string[] } | null | undefined
 
 /**
  * **模式栏收窄的唯一判据**（U4）——这个模式在这条渠道上到底立不立得住。
@@ -58,6 +58,28 @@ export function archetypeModeIsVisible(mode: ArchetypeMode, bodyResult: ModeChan
   if (mode.slots.length === 0) return true // 纯文生模式永不隐藏。
   const reach = modeSlotReach(mode.slots, bodyResult.body, mode.combineSlotsInto?.key)
   return !reach.every((r) => r === 'none') // (b) 声明了槽却一个都发不出。
+}
+
+/**
+ * **变体轴在这条渠道上活不活**——变体选择器该不该出现。
+ *
+ * 变体的意义是「换一个真正发出去的 model 串」（档案里 `variant.modelKey` 就是那个串）。它要生效，
+ * 渠道的 create op 必须**参数化** model 字段（`{{request.params.model}}`）；写死字面量的渠道，切变体
+ * 什么也不会发生 —— 控件在那儿只是骗用户。
+ *
+ * 实测（全目录 15 个带变体的 (vendor, model)）：apimart / kie / volcengine / 即梦共 9 个参数化=活；
+ * Runway 的 6 个把 model 写成字面量=惰性。Runway 之所以惰性，是因为它把 veo3.1 与 veo3.1_fast 建成
+ * **两个目录行**，本就不需要变体轴。
+ *
+ * 判据故意**不是**「变体的 modelKey 在目录里有没有对应行」：apimart 的 veo 只有 `veo3.1-fast` 一行、
+ * quality/lite 根本不是独立行，按那个判据会把 apimart 活着的变体轴也一起藏掉。
+ *
+ * 三态与模式收窄同口径：`undefined`（查不到）与 `null`（这个模式没有自己的线缆）都 **fail-open 不收窄**，
+ * 绝不因为查不到就把用户的变体藏掉。
+ */
+export function archetypeVariantAxisIsLive(bodyResult: ModeChannelBody): boolean {
+  if (!bodyResult) return true // undefined=查不到 / null=无该模式线缆 → 一律不收窄。
+  return bodyResult.wireParamKeys.includes('model')
 }
 
 export type ArchetypeModeChoice = { id: string; vendorTerm: string; hint: string }
