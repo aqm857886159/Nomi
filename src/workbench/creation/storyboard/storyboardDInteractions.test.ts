@@ -3,6 +3,7 @@ import { DEFAULT_IMAGE_SECONDS } from '../../generationCanvas/model/buildClipFro
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import type { StoryboardRowRuntime } from './exec/storyboardRowStatus'
 import { buildStoryboardPlaybackQueue, filterPlanByAnchor, hiddenGeneratingCount, positionsForAnchorFilter, resolveResultTargetShotIndex } from './storyboardDInteractions'
+import { duplicateShotAt, insertShotAt } from '../../generationCanvas/agent/storyboardPlanEdits'
 
 const plan: StoryboardPlan = {
   title: 'test',
@@ -58,5 +59,14 @@ describe('storyboard D interaction pure functions', () => {
     expect(resolveResultTargetShotIndex(plan.shots, 0)).toBe(1)
     expect(resolveResultTargetShotIndex(plan.shots, 0, 2)).toBe(2)
     expect(resolveResultTargetShotIndex(plan.shots, 2)).toBeNull()
+  })
+
+  it('inserts a blank shot with the previous shot generation settings and duplicates content with a new identity', () => {
+    const inserted = insertShotAt(plan, 1)
+    expect(inserted.shots[1]).toMatchObject({ shotKind: 'image', durationSec: DEFAULT_IMAGE_SECONDS, sceneId: 'scene-1', prompt: '' })
+    expect(inserted.shots).toHaveLength(4)
+    const duplicated = duplicateShotAt(plan, 0)
+    expect(duplicated.shots[1]).toMatchObject({ prompt: 'one', anchorIds: ['hero'] })
+    expect(duplicated.shots[1].shotId).toBeUndefined()
   })
 })

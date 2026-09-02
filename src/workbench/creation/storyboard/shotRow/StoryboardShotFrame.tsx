@@ -7,7 +7,6 @@ import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
-import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 
 /**
  * 画面格（行内最大元素，图是主角）——行状态机的脸（样张 2026-09-01 v5）：
@@ -39,6 +38,8 @@ type Props = {
   targetShots?: readonly PlanShot[]
   onSaveAsReference?: (() => void) | undefined
   onSetAsFirstFrame?: ((targetIndex: number) => void) | undefined
+  selected?: boolean
+  onSelect?: ((event: React.MouseEvent) => void) | undefined
 }
 
 /** 浮条按钮（mockup .actbar button：32×26 深底白字，悬停瞬时覆盖）。 */
@@ -93,17 +94,17 @@ function ResultIntakeMenu({ shot, targetShots, onSaveAsReference, onSetAsFirstFr
   )
 }
 
-export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, targetShots = [], onSaveAsReference, onSetAsFirstFrame }: Props): JSX.Element {
+export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, targetShots = [], onSaveAsReference, onSetAsFirstFrame, selected, onSelect }: Props): JSX.Element {
   const { t } = useTranslation()
   const indexBadge = (
-    <span className="absolute top-1 left-1 z-[2] px-1 rounded-nomi-sm bg-nomi-overlay-chip text-micro text-nomi-paper tabular-nums">
+    <button type="button" onClick={onSelect} aria-label={t('storyboardEditor.row.selectAria', { index: shot.index })} className={cn('absolute top-1 left-1 z-[4] px-1 rounded-nomi-sm text-micro text-nomi-paper tabular-nums', selected ? 'bg-nomi-accent' : 'bg-nomi-overlay-chip')}>
       {String(shot.index).padStart(2, '0')}
-    </span>
+    </button>
   )
   const quietIndexBadge = (
-    <span className="absolute top-1 left-1 z-[2] px-1 rounded-nomi-sm bg-nomi-ink-10 text-micro text-nomi-ink-60 tabular-nums">
+    <button type="button" onClick={onSelect} aria-label={t('storyboardEditor.row.selectAria', { index: shot.index })} className={cn('absolute top-1 left-1 z-[4] px-1 rounded-nomi-sm text-micro tabular-nums', selected ? 'bg-nomi-accent text-nomi-paper' : 'bg-nomi-ink-10 text-nomi-ink-60')}>
       {String(shot.index).padStart(2, '0')}
-    </span>
+    </button>
   )
   const durationBadge = (
     <span className="absolute bottom-1 right-1 z-[2] px-1 rounded-nomi-sm bg-nomi-overlay-chip text-micro text-nomi-paper tabular-nums">
