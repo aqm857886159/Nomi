@@ -68,6 +68,10 @@ export const PromptCard = React.memo(function PromptCard({ prompt, onSelect }: P
           </span>
 
           <span
+            // 远端策展内容（标题/来源名都来自公共提示词库，不是应用 UI 文案）——
+            // 用户 2026-09-02 拍板不翻译，这个标记让 i18n EN-DOM 网跳过它。
+            // 标在这层而不是整个面板：面板自己的文案（标题/tab/搜索/空状态）必须继续被抓。
+            data-remote-content
             className={cn(
               // 遮罩加高（pt-3→pt-6）并加中段停靠色，确保标题+来源两行始终坐在足够深的 scrim 上；
               // 卡底若是亮区（白衬衫）白字才不会糊掉（用户反馈「标题与背景融合」）。
