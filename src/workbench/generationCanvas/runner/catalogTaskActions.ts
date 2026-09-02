@@ -46,6 +46,7 @@ import { RecoverableTimeoutError } from './recoverableTimeout'
 import { parseVendorErrorFromMessage } from './vendorErrorIpc'
 import { collectLocalAssetUrls } from '../../../../electron/catalog/assetLocalization'
 import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
+import { modeGeneratesDialogue } from '../agent/storyboardDialogue'
 
 // 重导出：实现已拆到 catalogTaskResolve（节点→vendor/model/kind 选择）与
 // catalogTaskResultParse（raw/asset/failure/provenance 解析），但 catalogTaskActions
@@ -312,6 +313,11 @@ export function buildCatalogTaskRequest(
   // only to this submission so a retry fixes the flagged axis without rewriting the storyboard.
   const promptSuffix = asTrimmedString(options.promptSuffix)
   const finalPrompt = promptSuffix ? `${renderedPrompt}\n\n${promptSuffix}` : renderedPrompt
+  const dialogue = asTrimmedString(node.meta?.dialogue)
+  const currentMode = promptRefArchetype ? currentArchetypeMode(promptRefArchetype, meta) : null
+  const promptWithDialogue = dialogue && modeGeneratesDialogue(currentMode, meta)
+    ? `${finalPrompt}\n\n对白：${dialogue}`
+    : finalPrompt
   const width = asFiniteNumber(meta.width)
   const height = asFiniteNumber(meta.height)
   const steps = asFiniteNumber(meta.steps)
@@ -344,7 +350,7 @@ export function buildCatalogTaskRequest(
     vendor,
     request: {
       kind,
-      prompt: finalPrompt,
+      prompt: promptWithDialogue,
       ...(typeof seed === 'number' ? { seed } : {}),
       ...(typeof width === 'number' ? { width } : {}),
       ...(typeof height === 'number' ? { height } : {}),

@@ -23,6 +23,7 @@ import type { Editor } from '@tiptap/react'
 import StoryboardShotFrame from './StoryboardShotFrame'
 import StoryboardShotRowExpand from './StoryboardShotRowExpand'
 import PromptSkeletonSegments from './PromptSkeletonSegments'
+import { modeGeneratesDialogue } from '../../../generationCanvas/agent/storyboardDialogue'
 
 /**
  * 分镜表 v5 的一行：`[grip | 画面格 76×132 | 参考区 136 | 提示词块 1fr]`（样张
@@ -138,6 +139,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   })()
 
   const dialogueText = shot.dialogue?.trim() || shot.subtitle?.trim() || ''
+  const dialogueWillGenerate = Boolean(dialogueText && modeGeneratesDialogue(resolvedMode, shot.params))
 
   return (
     <div
@@ -360,6 +362,11 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           ranges={shot.promptSegments}
           onChange={({ prompt, ranges }) => onUpdate({ prompt, promptSegments: ranges as PromptSegmentRange[] })}
         />
+        {dialogueWillGenerate ? (
+          <div className="text-micro text-nomi-ink-40" data-storyboard-dialogue-hint="true">
+            {t('storyboardEditor.row.dialogueAudioHint')}
+          </div>
+        ) : null}
 
         {/* 参考已变警示行（v5 §v3-3）：只报事实 + 给一键补跑，绝不自动跑。 */}
         {exec && exec.changedRefs.length > 0 ? (
@@ -381,7 +388,11 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           </div>
         ) : null}
 
-        <div className="flex items-center gap-2 min-w-0">
+        <div
+          className="flex items-center gap-2 min-w-0 cursor-pointer"
+          data-storyboard-subline="true"
+          onClick={() => setExpanded(true)}
+        >
           {dialogueText ? (
             <span className="min-w-0 truncate text-micro text-nomi-ink-40">
               {t('storyboardEditor.row.dialogueQuiet', { text: dialogueText })}
@@ -390,6 +401,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           <button
             type="button"
             onClick={() => setExpanded((open) => !open)}
+            onClickCapture={(event) => event.stopPropagation()}
             aria-expanded={expanded}
             aria-label={expanded ? t('storyboardEditor.row.collapse') : t('storyboardEditor.row.expand')}
             className="ml-auto shrink-0 size-6 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink-60"
