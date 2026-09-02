@@ -3,10 +3,28 @@
 import { spawn } from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import readline from 'node:readline'
+import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+
+// Expected catalog = the SAME compiled truth source electron-builder packs into app.asar
+// (electron/capabilityCore/mcpToolCatalog.ts → dist-electron/capabilityCore/mcpToolCatalog.js;
+// the mac-package job builds dist-electron before packaging). Deriving the expectation kills the
+// stale-hand-copy class for good: 2026-09-02 the surface-16-collapse (a0091dec, 42→15 object-grouped
+// tools + 4 M2 semantic editing tools = 19) landed on main while this file still hand-required the
+// pre-M2 names and a `>= 22` floor — green on the PR fast path (no package lane), red on the next
+// main push. Set equality against the built catalog can never drift, and still catches a packaging
+// drop: the packaged server's tools/list comes from the asar, the expectation from dist-electron.
+const require = createRequire(import.meta.url)
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const compiledCatalogPath = path.join(repoRoot, 'dist-electron', 'capabilityCore', 'mcpToolCatalog.js')
+if (!fs.existsSync(compiledCatalogPath)) {
+  throw new Error(`Compiled MCP tool catalog missing: ${compiledCatalogPath}\n→ the expected-catalog truth source is the dist-electron build, run: pnpm run build`)
+}
+const EXPECTED_TOOL_NAMES = require(compiledCatalogPath).MCP_TOOL_RESOLVER.list().map((tool) => tool.name).sort()
 
 const bundlePath = path.resolve(process.argv[2] || '')
 const executablePath = process.platform === 'darwin'
@@ -128,19 +146,18 @@ async function smokeClient(client, { signed = true } = {}) {
     assert(initialized.result?.serverInfo?.name === 'nomi-capability-core', `${client} initialize handshake`)
 
     const tools = (await rpc('tools/list')).result?.tools || []
-    // The catalog is intentionally extensible: semantic generation tools are additive
-    // and provider/model declarations must not turn this smoke test into a fixed count.
-    assert(tools.length >= 22, `${client} expected the legacy catalog baseline, got ${tools.length}`)
-    const requiredTools = [
-      'nomi_start_playbook', 'nomi_get_run', 'nomi_subscribe_run', 'nomi_get_artifact', 'nomi_control_run', 'nomi_decide_gate',
-      'nomi_session_open', 'nomi_operation_create', 'nomi_submit_generation_plan', 'nomi_preview_execution',
-      'nomi_request_generation_gate', 'nomi_decide_generation_gate', 'nomi_start_generation', 'nomi_operation_read',
-      'nomi_cancel_generation', 'nomi_reconcile_generation',
-    ]
-    assert(new Set(tools.map((tool) => tool.name)).size === tools.length, `${client} tools/list contains duplicate names`)
-    for (const name of requiredTools) {
-      assert(tools.some((tool) => tool.name === name), `${client} ${name} is missing`)
-    }
+    const actualNames = tools.map((tool) => tool.name).sort()
+    assert(new Set(actualNames).size === actualNames.length, `${client} tools/list contains duplicate names`)
+    // tools/list serves the one unfiltered catalog to every client (mcpProtocol.ts tools/list →
+    // MCP_TOOL_RESOLVER.list(); signed vs unsigned differs at call/resource time, not list time),
+    // so signed and generic hosts alike must match the built catalog exactly — no floor, no
+    // hand-required subset, no drift.
+    const missing = EXPECTED_TOOL_NAMES.filter((name) => !actualNames.includes(name))
+    const extra = actualNames.filter((name) => !EXPECTED_TOOL_NAMES.includes(name))
+    assert(
+      missing.length === 0 && extra.length === 0,
+      `${client} packaged catalog drifted from the dist-electron truth source (missing: ${missing.join(', ') || 'none'}; unexpected: ${extra.join(', ') || 'none'})`,
+    )
 
     const resources = (await rpc('resources/list')).result?.resources || []
     // Host cutover content-addresses skill resources: nomi-skill://<dir>/<packageVersion>/<contentHash>
@@ -163,9 +180,13 @@ async function smokeClient(client, { signed = true } = {}) {
     }
 
     if (!signed) {
+      // Surface-16-collapse folded the integration_* FSM tools into one nomi_integration action
+      // enum (mcpIntegrationTools.ts); the write boundary under test is unchanged — every action
+      // routes to the original integration.* method literal.
       const begin = await rpc('tools/call', {
-        name: 'nomi_integration_begin',
+        name: 'nomi_integration',
         arguments: {
+          action: 'begin',
           kind: 'http-api-provider',
           name: 'Unsigned generic host',
           baseUrl: 'https://example.invalid/v1',
@@ -173,13 +194,14 @@ async function smokeClient(client, { signed = true } = {}) {
       })
       assert(begin.result?.isError === true, `${client} unsigned integration.begin is rejected`)
       const openCredentials = await rpc('tools/call', {
-        name: 'nomi_integration_open_credentials',
-        arguments: { sessionId: 'unsigned-session', expectedRevision: 1 },
+        name: 'nomi_integration',
+        arguments: { action: 'open_credentials', sessionId: 'unsigned-session', expectedRevision: 1 },
       })
       assert(openCredentials.result?.isError === true, `${client} unsigned credential handoff is rejected`)
       const start = await rpc('tools/call', {
-        name: 'nomi_integration_start',
+        name: 'nomi_integration',
         arguments: {
+          action: 'start',
           sessionId: 'unsigned-session',
           expectedRevision: 1,
           idempotencyKey: 'unsigned-start',
@@ -195,8 +217,9 @@ async function smokeClient(client, { signed = true } = {}) {
     // provider request. The companion external branch above proves that the
     // exact same write boundary remains closed to an unsigned generic host.
     const integrationBegin = await rpc('tools/call', {
-      name: 'nomi_integration_begin',
+      name: 'nomi_integration',
       arguments: {
+        action: 'begin',
         kind: 'http-api-provider',
         name: `Packaged MCP integration draft - ${client}`,
         baseUrl: 'https://example.invalid/v1',
@@ -211,13 +234,13 @@ async function smokeClient(client, { signed = true } = {}) {
     assert(!JSON.stringify(integration).match(/authorization|api.?key|credentialRef/i), `${client} integration draft exposes no credential-shaped value`)
 
     const created = await rpc('tools/call', {
-      name: 'nomi_create_project',
+      name: 'nomi_project_create',
       arguments: { name: `Packaged MCP origin smoke - ${client}` },
     })
     const project = JSON.parse(created.result?.content?.[0]?.text || '{}')
     assert(project.id, `${client} isolated project creation`)
     const started = await rpc('tools/call', {
-      name: 'nomi_start_playbook',
+      name: 'nomi_run_start',
       arguments: {
         projectId: project.id,
         playbook: 'brand.promo',
