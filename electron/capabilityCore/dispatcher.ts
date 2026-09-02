@@ -39,7 +39,7 @@ import {
   getIntegrationSessionService,
   type IntegrationSessionService,
 } from '../integrationCertification/integrationSession'
-import { manageModelCatalogConnection } from '../catalog/catalogStore'
+import { manageModelCatalogConnection } from '../catalog/catalogManagement'
 
 export function projectIdOf(params: Record<string, unknown>): string {
   return typeof params.projectId === 'string' ? params.projectId : ''

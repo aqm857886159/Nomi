@@ -1169,11 +1169,6 @@ export class IntegrationSessionService {
     this.persist();
     return this.projection(session);
   }
-  /**
-   * The sole MCP persistence gate for provider-shaped work. Agents may do
-   * discovery, pagination and translation outside Nomi; this method only
-   * accepts a complete public proposal and mutates behind the shared CAS.
-   */
   async propose(
     sessionId: unknown,
     expectedRevision: unknown,

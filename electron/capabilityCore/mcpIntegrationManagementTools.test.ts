@@ -36,7 +36,8 @@ describe("MCP integration management contract", () => {
   });
 
   it("updates the connection, makes the proxy effective, and deletes model/vendor lineage", async () => {
-    const { manageModelCatalogConnection, readCatalog } = await import("../catalog/catalogStore");
+    const { manageModelCatalogConnection } = await import("../catalog/catalogManagement");
+    const { readCatalog } = await import("../catalog/catalogStore");
     const { providerProxyUrl } = await import("../providerNetwork");
     manageModelCatalogConnection({ action: "update_vendor", vendorKey: "relay", baseUrl: "https://new.example/v1", authType: "x-api-key" });
     expect(readCatalog().vendors[0].baseUrlHint).toBe("https://new.example/v1");

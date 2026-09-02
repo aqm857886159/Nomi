@@ -402,11 +402,7 @@ function applyVendorUpsert(state: CatalogState, payload: unknown): Vendor {
         }
       : { customConfig: existingMeta?.customConfig };
   }
-  // Credential-bearing network config (proxyUrl / extraHeaders) is encrypted into the
-  // vendor's ApiKeyRecord and never persisted as plaintext on the vendor. A field the
-  // upsert actually supplies is encrypted; a field it omits falls back to the existing
-  // vendor's legacy plaintext so a re-save migrates (never drops) pre-v12 secrets. The
-  // plaintext is stripped off the meta/network written to the vendor row below.
+  // Credential-bearing network config is encrypted into ApiKeyRecord; omitted fields migrate legacy plaintext.
   const networkIncoming = resolveNetworkConfigForWrite(raw, incomingMeta, existing, state.apiKeysByVendor[key]);
   if (networkIncoming.proxyUrl !== undefined || networkIncoming.extraHeaders !== undefined) {
     applyPlainNetworkConfig(state, key, networkIncoming);
@@ -583,45 +579,6 @@ export function deleteModelCatalogModel(vendorKey: string, modelKey: string): vo
     (mapping) => !(mapping.vendorKey === vendorKey && mapping.modelKey === modelKey),
   );
   writeCatalog(state);
-}
-
-/** MCP management boundary: public connection edits and per-vendor proxy toggle.
- * Keys are deliberately absent; credential writes remain trusted-UI only. */
-export function manageModelCatalogConnection(input: unknown): unknown {
-  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Invalid integration management request");
-  const raw = input as JsonRecord;
-  const action = String(raw.action || "");
-  const vendorKey = String(raw.vendorKey || "").trim();
-  if (!vendorKey) throw new Error("vendorKey is required");
-  const catalog = readCatalog();
-  const vendor = catalog.vendors.find((item) => item.key === vendorKey);
-  if (!vendor) throw new Error(`Integration vendor not found: ${vendorKey}`);
-  if (action === "update_vendor") {
-    const patch: JsonRecord = { key: vendorKey };
-    for (const key of ["name", "baseUrl", "authType", "authHeader", "authQueryParam", "providerKind"] as const) {
-      if (raw[key] !== undefined) patch[key === "baseUrl" ? "baseUrlHint" : key] = raw[key];
-    }
-    return { action, vendor: upsertModelCatalogVendor(patch) };
-  }
-  if (action === "delete_vendor") {
-    deleteModelCatalogVendor(vendorKey);
-    return { action, vendorKey, deleted: true };
-  }
-  if (action === "delete_model") {
-    const modelKey = String(raw.modelKey || "").trim();
-    if (!modelKey) throw new Error("modelKey is required for delete_model");
-    if (!catalog.models.some((model) => model.vendorKey === vendorKey && model.modelKey === modelKey))
-      throw new Error(`Integration model not found: ${vendorKey}/${modelKey}`);
-    deleteModelCatalogModel(vendorKey, modelKey);
-    return { action, vendorKey, modelKey, deleted: true };
-  }
-  if (action === "set_proxy") {
-    if (typeof raw.enabled !== "boolean") throw new Error("enabled is required for set_proxy");
-    if (raw.enabled && !vendor.network?.proxyUrl) throw new Error("No secure proxy is configured for this connection");
-    const updated = upsertModelCatalogVendor({ key: vendorKey, network: { proxyEnabled: raw.enabled } });
-    return { action, vendorKey, enabled: raw.enabled, vendor: updated };
-  }
-  throw new Error(`Unknown integration management action: ${action}`);
 }
 
 /**

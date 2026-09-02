@@ -18,6 +18,7 @@
     "electron/capabilityCore/dispatcher.ts",
     "electron/integrationCertification/integrationSession.ts",
     "electron/catalog/catalogStore.ts",
+    "electron/catalog/catalogManagement.ts",
     "electron/catalog/networkConfigStore.ts",
     "electron/catalog/types.ts",
     "electron/providerNetwork.ts"
