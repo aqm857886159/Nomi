@@ -596,7 +596,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   skill: {
     list: () => invokeSync("nomi:skill:list"),
     exportPackage: (dirName: string) => invokeSync("nomi:skill:export", dirName),
-    importPackage: (payload: unknown) => ipcRenderer.invoke("nomi:skill:import", payload),
+    importPackage: (payload: unknown) => invokeSync("nomi:skill:import", payload),
     deleteByDir: (dirName: string) => invokeSync("nomi:skill:delete", dirName),
   },
   capability: {
