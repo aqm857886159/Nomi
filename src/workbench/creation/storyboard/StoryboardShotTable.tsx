@@ -83,6 +83,8 @@ function ShotRowWithMention(props: {
   onVariants: (() => void) | undefined
   onToggleLock: (() => void) | undefined
   targetShots: Parameters<typeof StoryboardShotRow>[0]['targetShots']
+  allShots: Parameters<typeof StoryboardShotRow>[0]['allShots']
+  sourcePosition: Parameters<typeof StoryboardShotRow>[0]['sourcePosition']
   onSaveAsReference: (() => void) | undefined
   onSetAsFirstFrame: Parameters<typeof StoryboardShotRow>[0]['onSetAsFirstFrame']
   selected: boolean
@@ -134,6 +136,8 @@ function ShotRowWithMention(props: {
       onVariants={props.onVariants}
       onToggleLock={props.onToggleLock}
       targetShots={props.targetShots}
+      allShots={props.allShots}
+      sourcePosition={props.sourcePosition}
       onSaveAsReference={props.onSaveAsReference}
       onSetAsFirstFrame={props.onSetAsFirstFrame}
       selected={props.selected}

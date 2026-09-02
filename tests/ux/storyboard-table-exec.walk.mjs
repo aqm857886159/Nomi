@@ -286,10 +286,13 @@ try {
   await expectCount(win.locator('[data-storyboard-editor="true"] [data-storyboard-row]'), 8, '退出过滤后应恢复 8 镜')
 
   // ── D1. 顺播：未生成镜自动跳过并提示，结果进入同一个 body-portal AssetPreviewDialog。 ──
+  const sequenceFrameCount = await win.locator('[data-storyboard-frame]').count()
+  const sequenceReadyCount = await win.locator('[data-storyboard-frame="done"], [data-storyboard-frame="locked"]').count()
+  const sequenceSkippedCount = sequenceFrameCount - sequenceReadyCount
   await clickOrFail(win.getByRole('button', { name: '按镜序顺播已生成结果' }), '开始按镜序顺播')
   const playbackDialog = win.locator('[role="dialog"][aria-modal="true"]').last()
   await expectVisible(playbackDialog, '顺播没有打开全屏预览')
-  await expectText(win.locator('body'), /已跳过 3 个未生成镜头/, '顺播没有提示被跳过的未生成镜头')
+  await expectText(win.locator('body'), new RegExp(`已跳过 ${sequenceSkippedCount} 个未生成镜头`), '顺播没有提示被跳过的未生成镜头')
   await snap('16-sequence-playback-skipped.png')
   await win.keyboard.press('Escape')
   await expect(playbackDialog).toBeHidden({ timeout: 5000 })
