@@ -488,6 +488,70 @@ describe('W2 圣经字段（static/dynamic 落 meta + 卡片 prompt 分区）', 
   })
 })
 
+// 定妆卡的身份文字下发给镜头（2026-09-02 实测后加，见 anchorPromptBits 注释里的 0/4 vs 3/4）。
+describe('视觉锚的身份特征拼进镜头 prompt', () => {
+  const planWithBible = {
+    title: '身份下发',
+    anchors: [
+      {
+        id: 'a-maren', kind: 'character' as const, name: 'Maren', description: '灯塔看守人的女儿',
+        carrier: 'visual' as const,
+        staticFeatures: '12 岁女孩、鹅蛋脸、灰蓝色杏眼、左眉尾一道浅疤',
+        dynamicFeatures: '黄色油布外套、深蓝裙、黑胶靴',
+      },
+      { id: 'a-noBible', kind: 'prop' as const, name: '火柴盒', description: '黄铜防水火柴盒', carrier: 'visual' as const },
+    ],
+    shots: [
+      { index: 1, durationSec: 5, anchorIds: ['a-maren'], prompt: '她在灯塔廊道划亮火柴，脸部特写', ffDesc: '静态首帧：火柴刚亮' },
+      { index: 2, durationSec: 5, anchorIds: ['a-noBible'], prompt: '火柴盒静物' },
+    ],
+  }
+
+  const shotPromptOf = (index: number): string => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(parseStoryboardPlan(planWithBible))
+    return nodes.filter((n) => n.clientId.startsWith('shot-'))[index]?.prompt ?? ''
+  }
+
+  it('身份 DNA（staticFeatures）拼进引用它的镜头', () => {
+    const prompt = shotPromptOf(0)
+    expect(prompt).toContain('她在灯塔廊道划亮火柴，脸部特写')
+    expect(prompt).toContain('12 岁女孩、鹅蛋脸、灰蓝色杏眼、左眉尾一道浅疤')
+  })
+
+  // 这条是本次最容易被后人「顺手也拼上」的一条，拼了就会跟画面打架：卡上写着穿黄油布外套，
+  // 而这一镜她可能刚从水里爬出来。static=跨镜不变的身份，dynamic=跨镜本来就该变的服装状态。
+  it('服装与状态（dynamicFeatures）**不**拼进镜头', () => {
+    const prompt = shotPromptOf(0)
+    expect(prompt).not.toContain('黄色油布外套')
+    expect(prompt).not.toContain('黑胶靴')
+  })
+
+  // 首帧节点只在「视频镜头 + keyframe.enabled」时才建（storyboardPlan.ts:541）。
+  // 第一版这条测试没开 enabled，于是一个首帧节点都没匹配到、for 循环零次迭代**空转通过**——
+  // 先断言「确实建出了首帧节点」（阳性对照），再断言它的内容，否则这条测试永远绿。
+  it('首帧提示词同样拿到身份 DNA（视频镜头的首帧图也得是同一个人）', () => {
+    const videoPlan = {
+      ...planWithBible,
+      shots: [{
+        index: 1, durationSec: 5, anchorIds: ['a-maren'], shotKind: 'video' as const,
+        prompt: '她划亮火柴，镜头缓推',
+        keyframe: { enabled: true, prompt: '静态首帧：火柴刚亮' },
+      }],
+    }
+    const { nodes } = storyboardPlanToCreateNodesArgs(parseStoryboardPlan(videoPlan))
+    const keyframes = nodes.filter((n) => typeof n.prompt === 'string' && n.prompt.includes('静态首帧：火柴刚亮'))
+    expect(keyframes.length, '没建出首帧节点——这条断言会空转，先修夹具再谈内容').toBeGreaterThan(0)
+    for (const kf of keyframes) {
+      expect(kf.prompt).toContain('12 岁女孩、鹅蛋脸、灰蓝色杏眼、左眉尾一道浅疤')
+      expect(kf.prompt).not.toContain('黄色油布外套')
+    }
+  })
+
+  it('没有身份 DNA 的视觉锚 → 镜头 prompt 一个字不变（旧方案向后兼容）', () => {
+    expect(shotPromptOf(1)).toBe('火柴盒静物')
+  })
+})
+
 describe('v5 IR 扩展（sceneId / scenes / profileKey / 图片镜停留时长）', () => {
   const V5_PLAN: StoryboardPlan = {
     title: '夜风',

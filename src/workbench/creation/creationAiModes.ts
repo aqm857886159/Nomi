@@ -1,5 +1,7 @@
 import type { WorkbenchDocument } from '../workbenchTypes'
+import i18n from '../../i18n'
 import { ASSET_MASTER_PROMPT } from './assetMasterPrompt'
+import { ASSET_MASTER_PROMPT_EN } from './assetMasterPrompt.en'
 import {
   getCustomSystemPrompts,
   getSystemPromptOverrides,
@@ -34,6 +36,19 @@ export type CreationAiMode = {
    * 统一注入（单一真相源），各模式不再各自声明「你是 X 助手」。
    */
   prompt: string
+  /**
+   * 同一条专长层的英文正文。**中文那份是档案源值、永不随语言变**（`prompt` 字段），
+   * 英文界面下由 builtinPromptFor() 换成这一份。
+   *
+   * 为什么正文也要翻（2026-08-02 用户拍板，见 docs/plan/2026-09-02-english-system-prompts.md）：
+   * 设置→AI 那个编辑框是**邀请用户改**的（可编辑/可覆盖/可重置/可自建），模式名早就翻了、
+   * 正文没翻，于是英文用户面对一个「请你来定制」的框、里面是他读不懂更不敢动的中文——
+   * 这个功能对他等于关闭。
+   *
+   * 缺省（undefined）时退回中文正文：这不是 fallback 逃生口，而是「这条还没出英文版」的
+   * 诚实表达；7 个内置模式必须全部有值，由 creationAiModes.test.ts 钉死。
+   */
+  promptEn?: string
   /** 纯问答模式：不套创作任务框定、不注入 documentTools 写文档协议。 */
   chatOnly?: boolean
   /**
@@ -54,6 +69,8 @@ export const CREATION_AI_MODES: CreationAiMode[] = [
     title: '通用助手',
     description: '像普通 AI 一样直接回答，不强制套创作模板、不写入文稿。',
     prompt: '本轮是通用问答：直接、简洁地回答用户的问题或请求。不要强行套用任何创作模板，也不要主动改写文稿。',
+    promptEn:
+      'This turn is open Q&A: answer the user’s question or request directly and concisely. Do not force any creative template onto it, and do not rewrite the document unprompted.',
     chatOnly: true,
   },
   {
@@ -65,6 +82,10 @@ export const CREATION_AI_MODES: CreationAiMode[] = [
     prompt: [
       '本轮任务：故事开发。基于用户输入、当前文稿和选区，产出可继续制作的视频故事方案。',
       '输出包括：核心梗、故事梗概、主角画像、核心冲突、情绪曲线、一句话卖点。',
+    ].join('\n'),
+    promptEn: [
+      'This turn: story development. Using the user input, the current document and any selection, produce a video story plan that can be taken into production.',
+      'Deliver: core hook, story synopsis, protagonist profile, central conflict, emotional arc, and a one-line pitch.',
     ].join('\n'),
   },
   {
@@ -79,6 +100,14 @@ export const CREATION_AI_MODES: CreationAiMode[] = [
       '对白使用“角色名（情绪/OS/VO）：内容”。需要字幕时使用“【字幕：xxx】”。',
       '输出优先给可直接粘贴进创作区的剧本正文。',
     ].join('\n'),
+    // “△ ”与“【字幕：xxx】”是**格式标记**，创作区按它们解析，故英文版保留同样的标记形状，
+    // 只把标记里的字换成英文（Subtitle）。改标记本身会让已有文稿解析不出来。
+    promptEn: [
+      'This turn: screenwriting. Rewrite the material into a standard screenplay.',
+      'The screenplay body must use shot format: begin every shot with “△ ”, and cover shot size, camera movement, lighting, mood, action and sound.',
+      'Write dialogue as “CharacterName (emotion/OS/VO): line”. When a subtitle is needed, use “【Subtitle: xxx】”.',
+      'Prioritise returning screenplay body text that can be pasted straight into the editor.',
+    ].join('\n'),
   },
   {
     id: 'assets',
@@ -89,6 +118,7 @@ export const CREATION_AI_MODES: CreationAiMode[] = [
     // 领域规范住 assetMasterPrompt.ts（全资产大师 V3.0，用户 2026-08-12 提供）：
     // 场景七层递进 / 角色概念表 / 道具小资产卡，各带必填字段与自检清单。
     prompt: ASSET_MASTER_PROMPT,
+    promptEn: ASSET_MASTER_PROMPT_EN,
     dedicatedJob: true,
   },
   {
@@ -105,6 +135,12 @@ export const CREATION_AI_MODES: CreationAiMode[] = [
       '15秒分镜按 0-3秒、3-6秒、6-9秒、9-12秒、12-15秒 拆分。',
       '每段写清楚主体、动作、镜头运动、情绪、光线、转场和声音。',
     ].join('\n'),
+    promptEn: [
+      'This turn: shot list. Break the current story or screenplay into a shot list that can drive video generation.',
+      'Each episode covers: asset upload checklist, Seedance prompt, and end-frame description.',
+      'Split a 15-second episode into 0-3s, 3-6s, 6-9s, 9-12s and 12-15s.',
+      'For each segment state the subject, action, camera movement, mood, lighting, transition and sound.',
+    ].join('\n'),
     dedicatedJob: true,
   },
   {
@@ -120,6 +156,16 @@ export const CREATION_AI_MODES: CreationAiMode[] = [
       '如果是续集，保留“将@视频1延长15s”的开头，并说明 @图片/@视频 引用用途。',
       '避免过长堆砌，优先清晰可执行。',
     ].join('\n'),
+    // ⚠️ 这条和 assets 一样属于「产物也英文」的高风险项，A/B 验收必须覆盖它（见 docs/plan）：
+    // 运镜词是喂给 Seedance 的**受控词表**，「将@视频1延长15s」更是续集的固定起手式。
+    // Seedance 是中文调优模型，换成英文词表/起手式有可能不被识别——实测不行就退回中文词表。
+    promptEn: [
+      'This turn: Seedance 2.0 prompt. Output a timeline prompt that can be used directly for video generation.',
+      'Format: style description, 15 seconds, aspect ratio, overall mood; then describe the frame for 0-3s / 3-6s / 6-9s / 9-12s / 12-15s.',
+      'Use explicit camera-move terms: push in, pull out, pan, track, follow, orbit, crane up/down, dolly zoom, one-take, handheld shake.',
+      'For a sequel, keep the opening “Extend @video1 by 15s” and state what each @image/@video reference is used for.',
+      'Avoid bloated stacking; prefer clear and executable.',
+    ].join('\n'),
     dedicatedJob: true,
   },
   {
@@ -133,13 +179,35 @@ export const CREATION_AI_MODES: CreationAiMode[] = [
       '重点检查：资产引用是否对应、15秒时间轴是否完整、剧集尾帧和下一集开场是否连续、镜头语言是否具体、情绪弧是否成立、提示词是否过长或可能触发敏感风险。',
       '先列问题，再给修订版。不要输出泛泛建议。',
     ].join('\n'),
+    promptEn: [
+      'This turn: continuity review. Find the problems in the current document and return results that can be applied directly.',
+      'Focus on: whether asset references line up, whether the 15-second timeline is complete, whether each episode’s end frame connects to the next episode’s opening, whether the camera language is concrete, whether the emotional arc holds, and whether any prompt is over-long or likely to trip content-safety filters.',
+      'List the problems first, then give the revised version. Do not output vague advice.',
+    ].join('\n'),
     dedicatedJob: true,
   },
 ]
 
+/**
+ * 内置模式在**当前界面语言**下的默认正文。
+ *
+ * 为什么解析落在这一处：全仓读 `mode.prompt` 的只有三个出口——defaultCreationAiPrompt、
+ * listCreationAiModes、getCreationAiMode——它们都经过这里，于是「一处生效、处处生效」，
+ * 不会出现某个出口还在发中文而另一个已经发英文（P1 不留并行读方）。
+ *
+ * 必须**同步**：getCreationAiMode() 在渲染期被调用（CreationAiPanel.tsx:133），
+ * i18n.resolvedLanguage 是同步的，与 translateModelDisplayText 同构。
+ * `|| ''` 是给测试环境兜底：单测里 i18n 可能没初始化，两个字段都 undefined 时不能让它抛。
+ */
+function builtinPromptFor(mode: CreationAiMode): string {
+  const language = i18n.resolvedLanguage || i18n.language || ''
+  return language.startsWith('en') && mode.promptEn ? mode.promptEn : mode.prompt
+}
+
 /** 内置默认提示词（不含用户覆盖）——「恢复默认」和「是否已自定义」的比对基准。 */
 export function defaultCreationAiPrompt(modeId: unknown): string | undefined {
-  return CREATION_AI_MODES.find((mode) => mode.id === modeId)?.prompt
+  const mode = CREATION_AI_MODES.find((item) => item.id === modeId)
+  return mode ? builtinPromptFor(mode) : undefined
 }
 
 /**
@@ -181,7 +249,7 @@ function customToMode(custom: CustomSystemPrompt): CreationAiMode {
 export function listCreationAiModes(): CreationAiMode[] {
   const overrides = getSystemPromptOverrides()
   const builtin = CREATION_AI_MODES.map((mode) => {
-    const prompt = resolveEffectivePrompt(mode.prompt, readOverride(overrides, mode.id))
+    const prompt = resolveEffectivePrompt(builtinPromptFor(mode), readOverride(overrides, mode.id))
     return prompt === mode.prompt ? mode : { ...mode, prompt }
   })
   return [...builtin, ...getCustomSystemPrompts().map(customToMode)]
@@ -196,7 +264,7 @@ export function getCreationAiMode(modeId: unknown): CreationAiMode {
   if (custom) return customToMode(custom)
   const mode = CREATION_AI_MODES.find((item) => item.id === modeId) || CREATION_AI_MODES[0]
   const override = readOverride(getSystemPromptOverrides(), mode.id)
-  const prompt = resolveEffectivePrompt(mode.prompt, override)
+  const prompt = resolveEffectivePrompt(builtinPromptFor(mode), override)
   return prompt === mode.prompt ? mode : { ...mode, prompt }
 }
 
