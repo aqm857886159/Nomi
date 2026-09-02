@@ -33,6 +33,36 @@ set +e
 
 INPUT="$(cat)"
 
+# ── push 绕口留痕（2026-09-03）───────────────────────────────────────────────
+# 检测 `git -c core.hooksPath=...` 或 `git --no-pager -c core.hooksPath=...` 等变体。
+# 目的：留痕而非禁止——绕口被写进 .claude/push-bypass.log，`check:push-bypass` 门岗审计。
+# 只读 INPUT 一次，不影响下面的词法分析流程。
+_raw_cmd="$(printf '%s' "$INPUT" | python3 -c '
+import sys,json
+try: print(json.load(sys.stdin).get("tool_input",{}).get("command",""))
+except: print("")
+' 2>/dev/null)"
+
+if printf '%s' "$_raw_cmd" | grep -q 'push' && printf '%s' "$_raw_cmd" | grep -qE 'core\.hooksPath|--no-verify'; then
+  _ts="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date +%Y-%m-%dT%H:%M:%SZ)"
+  _log_root="${CLAUDE_PROJECT_DIR:-$(git -C "${HOOK_CWD:-$PWD}" rev-parse --show-toplevel 2>/dev/null)}"
+  if [ -n "$_log_root" ]; then
+    mkdir -p "$_log_root/.claude"
+    _bypass_log="$_log_root/.claude/push-bypass.log"
+    # 尽力抓分支和 SHA（失败只是字段空，不影响主流程）
+    _br="$(git -C "${HOOK_CWD:-$PWD}" branch --show-current 2>/dev/null || echo '')"
+    _sha="$(git -C "${HOOK_CWD:-$PWD}" rev-parse HEAD 2>/dev/null || echo '')"
+    _wt="$(git -C "${HOOK_CWD:-$PWD}" rev-parse --show-toplevel 2>/dev/null || echo '')"
+    # 命令截断（避免超长行）
+    _cmd_short="$(printf '%s' "$_raw_cmd" | head -c 200)"
+    printf '%s|bypass|branch=%s|sha=%s|worktree=%s|cmd=%s|confirmed=no\n' \
+      "$_ts" "$_br" "$_sha" "$_wt" "$_cmd_short" >> "$_bypass_log"
+    printf '⚠️  push 绕口已记录（%s）。本次 push 将照常执行，但 check:push-bypass 门岗会要求解释。\n' \
+      "$_bypass_log" >&2
+  fi
+fi
+# ─────────────────────────────────────────────────────────────────────────────
+
 # 命令怎么理解，交给两个 Bash 闸门共用的那一层（见 _bash-command-analysis.sh 的抬头注释：
 # 此前两个闸门各用一套正则，犯的是同一类错）。这段**每条 Bash 命令都要跑**，
 # 所以进程数是所有命令共担的交互延迟：保持恰好一次 python3。
