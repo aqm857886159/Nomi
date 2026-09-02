@@ -11,6 +11,7 @@ import {
   capabilityAliasesFor,
   capabilityOperationAliasesFor,
 } from "../shared/agentCapabilities/registry";
+import { modelToolSurfaceManifest } from "../harness/tools/modelToolSurfaceManifest";
 
 export type SkillCapabilityNeeds = {
   /** 这个 skill 端到端需要的 provider 模态（去重）。 */
@@ -86,5 +87,20 @@ export function restrictToolsToSkillCapabilities(
     for (const alias of capabilityAliasesFor(capabilityId, "pi")) allowedPiAliases.add(alias);
     for (const alias of capabilityOperationAliasesFor(capabilityId, "pi")) allowedPiAliases.add(alias);
   }
-  return hostTools.filter((tool) => allowedPiAliases.has(tool.name));
+  const semanticNamesByCapability = new Map<string, Set<string>>();
+  for (const descriptor of [
+    ...modelToolSurfaceManifest.canvas,
+    ...modelToolSurfaceManifest.document,
+    ...modelToolSurfaceManifest.generation,
+  ]) {
+    for (const capability of descriptor.capabilityRefs) {
+      const names = semanticNamesByCapability.get(capability) ?? new Set<string>();
+      names.add(descriptor.name);
+      semanticNamesByCapability.set(capability, names);
+    }
+  }
+  const allowedSemanticNames = new Set<string>(requestedCapabilities.flatMap((capability) => [
+    ...(semanticNamesByCapability.get(capability) ?? []),
+  ]));
+  return hostTools.filter((tool) => allowedPiAliases.has(tool.name) || allowedSemanticNames.has(tool.name));
 }

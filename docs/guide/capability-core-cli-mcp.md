@@ -130,16 +130,16 @@ node scripts/nomi.mjs generate workspace-xxxx modelscope "Tongyi-MAI/Z-Image-Tur
 
 **② 完成两侧权限并重启对应客户端**：
 
-- Claude Code / Codex：卡片真实握手成功后，确认 `nomi` 的 15 个工具出现。
+- Claude Code / Codex：卡片真实握手成功后，确认 `nomi` 的 23 个工具出现。
 - Cursor：先在 Nomi「设置 → 自动化与权限」允许 Cursor 发起草稿；首次在 Cursor 调用 Nomi 时，Cursor 自己仍可能要求你批准本地 MCP。Nomi 不会代替你静默批准 Cursor。
 
-15 个工具按对象归并：`nomi_read`（读侧统一入口，整体只读）、`nomi_canvas_edit`（画布批量写）、`nomi_asset_import`、`nomi_project_create`、`nomi_session_open`、`nomi_run_start` / `nomi_run_control` / `nomi_run_gate`（持久制作 Run）、`nomi_artifact_review`（剧本/分镜审阅+修订）、`nomi_integration`（模型/ComfyUI 接入状态机）。单次生成的可编辑流程是 `nomi_operation_plan` → `nomi_operation_preview` → `nomi_operation_gate`（付费两相）→ `nomi_operation_execute` → `nomi_operation_control`：先展示/编辑计划，再由 rollout policy 决定何时可提交；未通过阶段检查时会明确返回下一步，不会回退到旧生成器。
+23 个工具（15+8=23）。15 个按对象归并：`nomi_read`（读侧统一入口，整体只读）、`nomi_canvas_edit`（画布语义写，`operation`=set_node_prompt/create_canvas_nodes/connect_canvas_edges/tidy_canvas，须持项目租约）、`nomi_asset_import`、`nomi_project_create`、`nomi_session_open`、`nomi_run_start` / `nomi_run_control` / `nomi_run_gate`（持久制作 Run）、`nomi_artifact_review`（剧本/分镜审阅+修订）、`nomi_integration`（模型/ComfyUI 接入状态机）。单次生成的可编辑流程是 `nomi_operation_plan` → `nomi_operation_preview` → `nomi_operation_gate`（付费两相）→ `nomi_operation_execute` → `nomi_operation_control`：先展示/编辑计划，再由 rollout policy 决定何时可提交；未通过阶段检查时会明确返回下一步，不会回退到旧生成器。另外 8 个 M2 语义编辑工具：`nomi_canvas_plan`、`nomi_canvas_maintenance`、`nomi_document_read`、`nomi_document_edit`、`nomi_timeline_read`、`nomi_timeline_edit`、`nomi_export_job`、`nomi_media_query`。
 
 **③ 直接说人话**，它自己挑工具完成：
 
 > 「在 Nomi 里新建一个项目叫『咖啡广告』，先列一下我有哪些图模型；然后拆 3 个咖啡主题的镜头加到画布，每个写好提示词；最后用其中的图模型把第一个镜头生成出来。」
 
-Claude Code 会依次调 `nomi_project_create` → `nomi_read`（target=models）→ `nomi_canvas_edit`（action=add_nodes）→ 单次生成流程（`nomi_operation_plan` → … → `nomi_operation_execute`），把结果回给你。
+Claude Code 会依次调 `nomi_project_create` → `nomi_read`（target=models）→ `nomi_canvas_edit`（operation=create_canvas_nodes）→ 单次生成流程（`nomi_operation_plan` → … → `nomi_operation_execute`），把结果回给你。
 
 ### 典型体验 1：快速初稿
 
@@ -195,7 +195,11 @@ Claude Code 会依次调 `nomi_project_create` → `nomi_read`（target=models�
 |---|---|
 | `nomi_session_open` | 打开当前项目的安全会话，拿一个短期项目句柄（写副作用） |
 | `nomi_read` | 读任意只读投影（`target`=canvas/projects/models/generation_context/operation/run/run_events/artifact/artifact_content/integration）；整体只读、免确认 |
-| `nomi_canvas_edit` | 批量改画布（`action`=add_nodes/connect/set_prompt/delete_nodes），一个动作一批 undo |
+| `nomi_canvas_edit` | 画布语义写（`operation`=set_node_prompt/create_canvas_nodes/connect_canvas_edges/tidy_canvas；须持项目租约，一批一个 undo） |
+| `nomi_canvas_plan` | 画布规划写（分镜方案/排布/站位参考/运镜等 `operation`；须持项目租约） |
+| `nomi_canvas_maintenance` | 删除节点或撤销删除（破坏性操作需确认，undoToken 可撤销） |
+| `nomi_document_read` | 读项目创作文档（只读） |
+| `nomi_document_edit` | 编辑项目创作文档（`operation`=insert/replace/append） |
 | `nomi_asset_import` | 把本机文件（手绘帧/截图/参考图）导入项目当素材，返回可直接引用的 `nomi-local://` 地址 |
 | `nomi_operation_plan` | 起/改一份可编辑的生成草稿（单镜 prompt / 多镜 shots / 剧本 scriptText 三选一）；不提交、不花额度 |
 | `nomi_operation_preview` | 预览草稿将用的模型/模式/参数/参考与不支持字段 + 定价（只读，不封存、不调用模型） |

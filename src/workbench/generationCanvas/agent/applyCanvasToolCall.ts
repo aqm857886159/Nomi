@@ -265,7 +265,7 @@ export async function applyCanvasToolCall(
       status: 'applied',
       documentId: targetDocumentId,
       storyboardDesignId: design.id,
-      message: `已生成分镜方案「${plan.title || '未命名'}」：${plan.anchors.length} 个锚 · ${plan.shots.length} 个镜头，已放到创作页，待你审阅/修改后确认落画布。`,
+      message: `已生成分镜方案「${plan.title || '未命名'}」：${plan.anchors.length} 个锚 · ${plan.shots.length} 个镜头，已放到分镜页，待你审阅/修改后在行内或底部批量生成。`,
     } satisfies StoryboardPlanApplicationResult
   }
 

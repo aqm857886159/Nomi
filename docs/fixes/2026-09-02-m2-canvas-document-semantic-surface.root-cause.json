@@ -1,0 +1,117 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-m2-canvas-document-semantic-surface",
+  "problem_type": "Canvas and document capability boundaries expose unsafe legacy aliases and incomplete shared invariants",
+  "symptom": "External MCP clients can mutate a project canvas with only a bare projectId, can persist unknown node kinds or silently degraded edges, cannot reach the creation document, and receive prose-only or non-recoverable mutation results.",
+  "direct_cause": "The MCP catalog directly projects legacy canvas operations; document/canvas write contracts are internal-only; session bootstrap and dispatch do not enforce write scope; canvasGraph normalizes unknown kinds and invalid modes instead of rejecting them; mutation result and error presenters have no shared typed projection for these routes.",
+  "class_root": "The shared capability boundary does not own one versioned semantic canvas/document surface with connection-bound lease scope, domain-derived enums, fail-closed graph validation, canonical typed outcomes, and reversible destructive-operation semantics.",
+  "affected_population": [
+    "All external MCP clients using canvas or document tools",
+    "All projects and stored canvas snapshots containing unknown node kinds or invalid edges",
+    "All lease sessions whose write requests currently bypass scope verification",
+    "All Pi and MCP callers that consume canvas/document mutation receipts"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/canvasRead.ts",
+    "electron/shared/agentCapabilities/canvasWrite.ts",
+    "electron/shared/agentCapabilities/canvasDelete.ts",
+    "electron/shared/agentCapabilities/documentRead.ts",
+    "electron/shared/agentCapabilities/documentWrite.ts",
+    "electron/capabilityCore/nodeKindDomain.ts",
+    "electron/capabilityCore/canvasGraph.ts",
+    "electron/capabilityCore/mcpCapabilityProjection.ts",
+    "electron/capabilityCore/mcpToolCatalog.ts",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/capabilityCore/projectSessionAuthority.ts",
+    "electron/capabilityCore/localProjectSessionTransportPolicy.ts",
+    "electron/harness/tools/modelToolSurfaceManifest.ts",
+    "electron/harness/tools/agentToolCatalog.ts",
+    "electron/skills/skillCapability.ts",
+    "electron/productionRun/productionRunDriverOps.ts"
+  ],
+  "entry_points": [
+    "MCP tools/list and tools/call",
+    "MCP stdio direct and GUI loopback session routers",
+    "Pi agentToolCatalog canvas/document projections",
+    "canonical canvas/document capability registry and renderer ports",
+    "ProductionRun legacy-playbook driver"
+  ],
+  "internal_only_reason": "The semantic grouping and retirement policy are application contracts frozen in the M0 tool mapping, M-line rulings, and 2026-09-02 canvas-chain audit; no third-party source controls these invariants.",
+  "invariants": [
+    "Every exposed canvas/document mutation is a semantic tool and carries a verified connection-bound project lease with the matching write scope.",
+    "Canvas node kinds and reference edge modes are derived from one domain registry and unknown values fail before persistence.",
+    "Every successful semantic mutation uses one canonical structured result for both text and structuredContent.",
+    "Destructive canvas mutation requires the Host/MCP confirmation boundary and returns reversible recovery information.",
+    "Production legacy-playbook writer retirement is enforced in the driver and covered by changed class-level tests."
+  ],
+  "generality_proof": "All checked MCP canvas/document callers converge on the resolver and session router, while Pi callers converge on the canonical registry and Host adapters. The shared lease verifier, domain kind/mode validators, and canonical result presenter therefore apply regardless of caller, transport, project, or stored snapshot; no raw projectId-only route remains exposed.",
+  "shared_boundaries": [
+    { "path": "electron/capabilityCore/mcpCapabilityProjection.ts", "symbol": "createMcpCapabilityResolver", "responsibility": "Expose only explicit semantic adapters and derive safe schemas/results from canonical contracts." },
+    { "path": "electron/capabilityCore/projectSessionAuthority.ts", "symbol": "deriveProjectSessionScopes", "responsibility": "Grant and verify the project-session scope ceiling for canvas/document read and write." },
+    { "path": "electron/capabilityCore/canvasGraph.ts", "symbol": "normalizeSnapshot/addNodes/connectNodes/deleteNodes", "responsibility": "Validate the persisted canvas graph before mutation and preserve recovery semantics." },
+    { "path": "electron/productionRun/productionRunDriverOps.ts", "symbol": "createDriverOps", "responsibility": "Prevent retired legacy writer dispatch and persist the explicit needs_attention outcome." }
+  ],
+  "same_class_entry_points": [
+    { "path": "electron/capabilityCore/mcpToolCatalog.ts", "entry_point": "MCP legacy canvas descriptors", "disposition": "enforced", "evidence": "The old direct names are removed from the catalog and replaced by explicit semantic resolver adapters." },
+    { "path": "electron/capabilityCore/mcpStdioServer.ts", "entry_point": "direct and loopback MCP invoke routes", "disposition": "enforced", "evidence": "Both routes retain one verified project-session binding and dispatch semantic methods through the same guarded boundary." },
+    { "path": "electron/harness/tools/agentToolCatalog.ts", "entry_point": "Pi canvas/document catalog groups", "disposition": "enforced", "evidence": "Pi model projection consumes the semantic manifest; legacy aliases remain only in canonical Host compatibility adapters." },
+    { "path": "electron/capabilityCore/dispatcher.ts", "entry_point": "legacy canvas dispatcher methods", "disposition": "not-affected", "evidence": "They remain internal gateway implementation seams and are unreachable from the public semantic catalog without the session guard." }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future alias, caller, stored kind, or transport can recreate the same authorization, data-loss, or opaque-receipt failure unless the shared boundaries fail closed.",
+    "same_class_scan": [
+      "Searched MCP catalog/protocol/resolver for nomi_add_nodes, nomi_connect_nodes, nomi_set_node_prompt, nomi_delete_nodes, nomi_read_canvas and verified all public names converge on the semantic catalog.",
+      "Searched capability contracts, session scope derivation, RPC editing routes, stdio direct routing, and Pi adapters for canvas:write/document:write lease enforcement.",
+      "Searched canvasGraph, nodeKindDomain, renderer registry, snapshot normalizers, and edge mode consumers for independent kind/mode fallback paths.",
+      "Searched all ProductionRun driver tests and production.generate-node call sites for legacy writer retirement behavior."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+    "invariant": "Only explicit semantic adapters with matching canonical exposure, project-session authority, and typed output can enter the public MCP catalog; graph/domain validators and driver retirement guard all equivalent inputs.",
+    "failure_mode": "Missing lease/scope, unknown kind/mode, stale target, destructive denial, or retired writer route fails closed with a stable errorCode and recovery action; invalid snapshots are not silently persisted or projected as valid state.",
+    "exception_policy": "none",
+    "strategy": "Move ownership to the earliest shared contract/resolver/session/graph/driver boundaries, delete the old public projection in the same change, and use class regression tests to prevent alias or fallback reintroduction.",
+    "artifacts": [
+      "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "electron/capabilityCore/projectSessionAuthority.ts",
+      "electron/capabilityCore/canvasGraph.ts",
+      "electron/productionRun/productionRunDriverOps.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpCanvasDocumentSurface.test.ts",
+    "electron/capabilityCore/mcpCapabilityProjection.test.ts",
+    "electron/capabilityCore/canvasGraph.test.ts",
+    "electron/capabilityCore/projectSessionAuthority.test.ts",
+    "electron/harness/tools/modelToolSurfaceManifest.test.ts",
+    "electron/productionRun/productionRunDriver.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpCanvasDocumentSurface.test.ts",
+    "electron/capabilityCore/canvasGraph.test.ts",
+    "electron/capabilityCore/projectSessionAuthority.test.ts",
+    "electron/productionRun/productionRunDriver.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpToolCatalog.ts",
+      "electron/harness/tools/agentToolCatalog.ts"
+    ],
+    "rationale": "The direct model/MCP projections are replaced by semantic tools in the same slice; internal canonical aliases remain only where existing Host adapters require them and are not public fallback tools."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The missing invariants are owned by Nomi contracts, session authority, graph validation, and the ProductionRun driver; no third-party dependency controls them.",
+    "exit_criteria": []
+  },
+  "migration": "No silent rewrite is permitted. Existing valid snapshots remain readable; legacy public names are removed from discovery and callers must use the semantic tools. Stored unknown kinds or invalid edges fail at the persistence boundary and require explicit repair rather than being dropped.",
+  "residual_risks": [
+    "The full A-mode GUI elicitation journey remains bounded by existing renderer surface tests unless a live Electron walk is run in the final gate.",
+    "ProductionRun replacement pipeline parity must be evidenced by the existing semantic generation journey; retirement itself must not claim parity without that receipt."
+  ]
+}

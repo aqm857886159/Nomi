@@ -13,7 +13,7 @@ import { applyBuiltinSeeds } from "./seedBuiltins";
 import { selectTaskMapping } from "./types";
 import { resolveArchetypeForModel } from "../../src/config/modelArchetypes";
 import { modeTransportFor } from "../shared/videoCapabilities";
-import { applyParamMap, bodyReferencedParamKeys, consumedCanonicalKeys } from "./paramTranslate";
+import { applyParamMap, consumedCanonicalKeys, wireReferencedParamKeys } from "./paramTranslate";
 import { NEWAPI_IMAGE_CREATE_OP, NEWAPI_VIDEO_CREATE_OP } from "./newapiTransport";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 import type { CatalogState } from "./types";
@@ -26,10 +26,10 @@ function seededState(): CatalogState {
 function coveredWireKeys(create: { body?: unknown; process?: { args?: string[]; build?: string }; paramMap?: { drops?: string[] } | undefined } & Record<string, unknown>): Set<string> {
   const map = (create as { paramMap?: Parameters<typeof consumedCanonicalKeys>[0] }).paramMap;
   return new Set([
-    ...bodyReferencedParamKeys(create.body),
-    // 进程型 transport（即梦 dreamina）的参数在 CLI args 里读（{{request.params.X}}），同样算「真覆盖」
-    // ——它们确实经 argv 发出去，不是静默丢弃。bodyReferencedParamKeys 能直接扫字符串数组。
-    ...bodyReferencedParamKeys(create.process?.args),
+    // body + 进程型 transport（即梦 dreamina）的 CLI args 一起算「真覆盖」——后者确实经 argv 发出去，
+    // 不是静默丢弃。两者的并集由 wireReferencedParamKeys 单点提供；变体轴收窄读的是同一个函数，
+    // 不各写一份扫描（此前这里是内联的第二份，差点让变体收窄照抄出第三份）。
+    ...wireReferencedParamKeys(create),
     // 多帧（build="multiframe"）的 args 由 buildMultiframeArgs 按图数变形构建（非模板），它确实消费 duration
     // （2 图档发 --duration）与 video_resolution（v1.4.14 起 required，任何图数都发 --video_resolution）——
     // 声明在此，让不变量认它们是真覆盖而非静默丢弃。
