@@ -197,6 +197,27 @@ export async function regenerateShotRow(ctx: RowActionContext, shot: PlanShot, n
   await regenerateNodeInPlace(node.id)
 }
 
+/**
+ * 「用新图重跑」（参考已变链，B3）：参考直接连在本体上 → 原地重生成即用新图；
+ * 锚边连在首帧图上（图片+视频镜）→ 首帧、本体按波次连跑（首帧先出新图、视频再用它），
+ * 一次花钱确认。提交时 runner 重新打 refSnapshot 戳 → 亮标自然消。
+ */
+export async function rerunShotRowWithFreshRefs(
+  ctx: RowActionContext,
+  shot: PlanShot,
+  exec: { node: GenerationCanvasNode | null; keyframeNode: GenerationCanvasNode | null },
+): Promise<void> {
+  if (!exec.node) return
+  if (!exec.keyframeNode) {
+    await regenerateShotRow(ctx, shot, exec.node)
+    return
+  }
+  await syncShotNodeWithRow(ctx, shot, exec.keyframeNode, 'keyframe')
+  await syncShotNodeWithRow(ctx, shot, exec.node, 'shot')
+  const { nodes, edges } = canvasState()
+  await confirmAndRunPlan(buildDependencyWaves([exec.keyframeNode.id, exec.node.id], { nodes, edges }))
+}
+
 /** 悬停浮条 ×3：写回行编辑 + 同镜连出 3 版（结果堆叠进历史，失败即停不连烧）。 */
 export async function generateShotRowVariants(ctx: RowActionContext, shot: PlanShot, node: GenerationCanvasNode): Promise<void> {
   await syncShotNodeWithRow(ctx, shot, node, 'shot')
@@ -204,10 +225,10 @@ export async function generateShotRowVariants(ctx: RowActionContext, shot: PlanS
 }
 
 /**
- * 镜级锁定开关（B2）：与参考卡定妆**同一把锁**（meta.frozen 同键同形，anchorBibleKeys 单源）。
- * 锁 = 满意了别动它：不进批量、不被表内重跑。只有已生成的行可锁（锁空行无意义）。
+ * 节点锁定开关（B2 镜行 / B3 参考卡共用）：与画布定妆**同一把锁**（meta.frozen 同键同形，
+ * anchorBibleKeys 单源）。锁 = 满意了别动它：不进批量、不被表内重跑。只有已生成的可锁。
  */
-export function toggleShotRowLock(nodeId: string): void {
+export function toggleNodeLock(nodeId: string): void {
   const store = useGenerationCanvasStore.getState()
   const node = store.nodes.find((candidate) => candidate.id === nodeId)
   if (!node) return

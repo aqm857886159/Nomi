@@ -86,6 +86,10 @@ export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAn
           <span className="absolute top-1 right-1 z-[2] px-1 py-0.5 rounded-pill bg-nomi-overlay-chip-strong text-nomi-paper inline-flex items-center gap-0.5">
             <IconLock size={10} stroke={2} aria-label={t('storyboardEditor.frame.lockedBadge')} />
           </span>
+        ) : exec.changedRefs.length > 0 ? (
+          <span className="absolute top-1 right-1 z-[2] px-1.5 py-0.5 rounded-pill bg-workbench-danger text-nomi-paper text-micro" data-storyboard-ref-changed="true">
+            {t('storyboardEditor.frame.refChangedBadge')}
+          </span>
         ) : null}
         <div className="absolute inset-0 z-[3] hidden group-hover/frame:grid place-items-center bg-nomi-scrim" data-storyboard-actbar="true">
           {locked ? (

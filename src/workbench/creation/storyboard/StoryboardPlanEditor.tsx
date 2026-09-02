@@ -20,16 +20,21 @@ import StoryboardAnchorCard from './StoryboardAnchorCard'
 import StoryboardBulkBar from './StoryboardBulkBar'
 import StoryboardShotTable from './StoryboardShotTable'
 import {
+  deriveAnchorCardRuntimes,
   deriveStoryboardBatch,
   deriveStoryboardRowRuntimes,
+  type AnchorCardRuntime,
   type StoryboardRowRuntime,
 } from './exec/storyboardRowStatus'
 import {
+  generateAnchorCard,
   generateShotRow,
   generateShotRowVariants,
+  regenerateAnchorCard,
   regenerateShotRow,
+  rerunShotRowWithFreshRefs,
   runStoryboardBatch,
-  toggleShotRowLock,
+  toggleNodeLock,
 } from './exec/storyboardRowActions'
 import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
 import { AssetPreviewDialog } from '../../assets/AssetPreviewDialog'
@@ -57,6 +62,8 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
   const imageModelOptions = useModelOptionsState('image').options
   // 行内/批量生成的重入闸（生成本身异步、确认卡在别处；按钮点两下不重复 materialize）。
   const [busy, setBusy] = React.useState(false)
+  // 放大预览：存 nodeId（不存快照），渲染时从画布节点现取结果——重生成后再开永远是最新图。
+  const [previewNodeId, setPreviewNodeId] = React.useState<string | null>(null)
 
   const firstIssueLabel = (issue: PlanIssue): string => {
     switch (issue.kind) {
@@ -74,6 +81,11 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
     [plan, designId, imageModelOptions, videoModelOptions, canvasNodes],
   )
   const batch = React.useMemo(() => deriveStoryboardBatch(rows), [rows])
+  // 参考卡执行态（B3 图卡）：与行同一份 derive（「N 镜在等它」直接聚合 rows 的 waitingRefs）。
+  const anchorCards = React.useMemo(
+    () => (plan ? deriveAnchorCardRuntimes({ plan, designId, nodes: canvasNodes, rows }) : []),
+    [plan, designId, canvasNodes, rows],
+  )
 
   if (!plan) return null
 
@@ -124,10 +136,24 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
   }
   // 锁定开关：同步写 meta（不花钱不确认）；状态经 derive 立刻回流行/组头/footer。
   const onToggleLockRow = (runtime: StoryboardRowRuntime): void => {
-    if (runtime.exec.node) toggleShotRowLock(runtime.exec.node.id)
+    if (runtime.exec.node) toggleNodeLock(runtime.exec.node.id)
   }
-  // 放大预览：存 nodeId（不存快照），渲染时从画布节点现取结果——重生成后再开永远是最新图。
-  const [previewNodeId, setPreviewNodeId] = React.useState<string | null>(null)
+  // 参考已变「用新图重跑」：一键补跑（花钱确认照过；首帧行按波次连跑），绝不自动跑。
+  const onRerunFreshRefsRow = (runtime: StoryboardRowRuntime): void => {
+    void runAction(() => rerunShotRowWithFreshRefs(execCtx, runtime.shot, runtime.exec))
+  }
+  // 参考卡就地生成/重生成/锁定（B3）：同一执行通路；重生成后引用镜经「参考已变」提示补跑。
+  const onGenerateAnchor = (runtime: AnchorCardRuntime): void => {
+    void runAction(() => generateAnchorCard(execCtx, runtime.anchor))
+  }
+  const onRegenerateAnchor = (runtime: AnchorCardRuntime): void => {
+    const node = runtime.node
+    if (node) void runAction(() => regenerateAnchorCard(execCtx, runtime.anchor, node))
+    else void runAction(() => generateAnchorCard(execCtx, runtime.anchor))
+  }
+  const onToggleLockAnchor = (runtime: AnchorCardRuntime): void => {
+    if (runtime.node) toggleNodeLock(runtime.node.id)
+  }
   const onOpenPreviewRow = (runtime: StoryboardRowRuntime): void => {
     if (runtime.exec.node && runtime.exec.resultUrl) setPreviewNodeId(runtime.exec.node.id)
   }
@@ -194,28 +220,49 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
           <div className="flex items-baseline gap-2 mb-2">
             <span className="text-body-sm font-medium text-nomi-ink-80">{t('storyboardEditor.consistencyTitle')}</span>
             <span className="text-micro text-nomi-ink-40">{t('storyboardEditor.consistencyHint')}</span>
+            {/* 区头小结（样张 sec-head right）：就绪/生成中/待生成——与卡面同一份 derive（F2）。 */}
+            {(() => {
+              const visual = anchorCards.filter((card) => card.visual)
+              if (visual.length === 0) return null
+              const ready = visual.filter((card) => card.locked || (card.resultUrl && !card.generating && !card.failed)).length
+              const generating = visual.filter((card) => card.generating).length
+              const pending = visual.length - ready - generating
+              return (
+                <span className="ml-auto shrink-0 text-micro text-nomi-ink-40 flex items-center gap-1.5">
+                  {ready > 0 ? <span className="text-workbench-success">{t('storyboardEditor.anchor.headReady', { count: ready })}</span> : null}
+                  {generating > 0 ? <span>{t('storyboardEditor.anchor.headGenerating', { count: generating })}</span> : null}
+                  {pending > 0 ? <span>{t('storyboardEditor.anchor.headPending', { count: pending })}</span> : null}
+                </span>
+              )
+            })()}
           </div>
-          <div className="border border-nomi-line rounded-nomi divide-y divide-nomi-line-soft overflow-hidden">
+          {/* v5 图卡网格（样张 .anchors）：图是审阅对象，必须大到能审（§3.9 拍板）。 */}
+          <div className="flex flex-wrap gap-3 items-start">
             {plan.anchors.length === 0 && (
-              <div className="text-caption text-nomi-ink-40 px-2.5 py-2">{t('storyboardEditor.noAnchors')}</div>
+              <div className="text-caption text-nomi-ink-40 py-2">{t('storyboardEditor.noAnchors')}</div>
             )}
-            {plan.anchors.map((anchor) => (
+            {anchorCards.map((runtime) => (
               <StoryboardAnchorCard
-                key={anchor.id}
-                anchor={anchor}
-                nameInvalid={noNameAnchorIds.has(anchor.id)}
-                onUpdate={(patch) => setStoryboardPlan(updateAnchor(plan, anchor.id, patch))}
-                onChangeKind={(kind) => setStoryboardPlan(changeAnchorKind(plan, anchor.id, kind))}
-                onRemove={() => setStoryboardPlan(removeAnchor(plan, anchor.id))}
+                key={runtime.anchor.id}
+                anchor={runtime.anchor}
+                runtime={runtime}
+                nameInvalid={noNameAnchorIds.has(runtime.anchor.id)}
+                onUpdate={(patch) => setStoryboardPlan(updateAnchor(plan, runtime.anchor.id, patch))}
+                onChangeKind={(kind) => setStoryboardPlan(changeAnchorKind(plan, runtime.anchor.id, kind))}
+                onRemove={() => setStoryboardPlan(removeAnchor(plan, runtime.anchor.id))}
+                onGenerate={() => onGenerateAnchor(runtime)}
+                onRegenerate={() => onRegenerateAnchor(runtime)}
+                onToggleLock={() => onToggleLockAnchor(runtime)}
               />
             ))}
             <button
               type="button"
               onClick={() => setStoryboardPlan(addAnchor(plan))}
-              className="w-full flex items-center gap-1.5 px-2.5 py-2 bg-nomi-ink-05 text-caption text-nomi-ink-40 hover:text-nomi-ink-60 hover:bg-nomi-ink-10"
+              aria-label={t('storyboardEditor.addAnchor')}
+              title={t('storyboardEditor.addAnchor')}
+              className="w-[108px] h-[144px] rounded-nomi border border-dashed border-nomi-ink-20 grid place-items-center text-nomi-ink-30 hover:text-nomi-ink-60 hover:border-nomi-ink-40"
             >
-              <IconPlus size={13} stroke={1.8} />
-              {t('storyboardEditor.addAnchor')}
+              <IconPlus size={20} stroke={1.6} />
             </button>
           </div>
         </section>
@@ -235,6 +282,7 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
               onVariantsRow={onVariantsRow}
               onToggleLockRow={onToggleLockRow}
               onOpenPreviewRow={onOpenPreviewRow}
+              onRerunFreshRefsRow={onRerunFreshRefsRow}
               onJumpToAnchor={onJumpToAnchor}
             />
             <button

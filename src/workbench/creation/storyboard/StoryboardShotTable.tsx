@@ -42,11 +42,13 @@ type Props = {
   onToggleLockRow: (runtime: StoryboardRowRuntime) => void
   /** 结果态双击 / 浮条 ⛶ 放大预览。 */
   onOpenPreviewRow: (runtime: StoryboardRowRuntime) => void
+  /** 参考已变「用新图重跑」。 */
+  onRerunFreshRefsRow: (runtime: StoryboardRowRuntime) => void
   /** ⏳ 态点参考卡名 → 滚动定位参考卡。 */
   onJumpToAnchor: (anchorId: string) => void
 }
 
-export default function StoryboardShotTable({ plan, rows, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onJumpToAnchor }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, rows, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -131,6 +133,7 @@ export default function StoryboardShotTable({ plan, rows, imageModelOptions, vid
                       onVariants={runtime ? () => onVariantsRow(runtime) : undefined}
                       onToggleLock={runtime ? () => onToggleLockRow(runtime) : undefined}
                       onOpenPreview={runtime ? () => onOpenPreviewRow(runtime) : undefined}
+                      onRerunFreshRefs={runtime ? () => onRerunFreshRefsRow(runtime) : undefined}
                       onJumpToAnchor={onJumpToAnchor}
                       draggable
                       isDragOver={overIndex === pos && dragIndex !== null && dragIndex !== pos}

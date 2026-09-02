@@ -24,6 +24,7 @@ import {
 export { classifyGenerationError, type GenerationErrorReport } from '../../observability/classifyError'
 import type { DependencyWavePlan } from './dependencyWaves'
 import { resolveGenerationReferences } from './generationReferenceResolver'
+import { stampUpstreamRefSnapshot } from './refSnapshotStamp'
 import { archetypeForNode, resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
 import {
   applyArchetypeModeSwitch,
@@ -263,6 +264,8 @@ export async function runGenerationNode(
   // resolveAutonomousUploadConsent）。这一层不再问、也不再有能问的东西——它只把已决的答案
   // 往下透传给 executor。F16b 之前这里会自己弹第二张卡，那张卡现已删除，见 assetUploadConsent.ts。
   const resolvedReferences = resolveGenerationReferences(initialNode, { nodes: initialState.nodes, edges: initialState.edges })
+  // 提交时打上游版本戳（refSnapshot）：参考图后来重生成 → diff 即知「这次产物用的是旧图」。
+  stampUpstreamRefSnapshot(id, { nodes: initialState.nodes, edges: initialState.edges })
   const hasLocalReference = hasLocalAssetReference({
     ...initialNode,
     references: [

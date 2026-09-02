@@ -7,7 +7,14 @@ import {
   storyboardShotToCreateNodesArgs,
 } from '../../../generationCanvas/agent/storyboardPlan'
 import { designCommittedNow, findAnchorNode, findShotKeyframeNode, findShotNode, materializedShotIds } from './storyboardNodeBinding'
-import { deriveShotRowExec, deriveStoryboardBatch, SHOT_ROW_STATUSES, type StoryboardRowRuntime } from './storyboardRowStatus'
+import {
+  deriveAnchorCardRuntimes,
+  deriveShotRowExec,
+  deriveStoryboardBatch,
+  deriveStoryboardRowRuntimes,
+  SHOT_ROW_STATUSES,
+  type StoryboardRowRuntime,
+} from './storyboardRowStatus'
 
 // 锁分镜表 v5 B 的执行地基：单行 materialize 转换、表↔节点绑定、行状态 derive、批量分桶。
 
@@ -199,6 +206,48 @@ describe('deriveShotRowExec（行状态机）', () => {
     })
     expect(derive([readyAnchor, kfRunning], i2vMode, shot).status).toBe('generating')
   })
+
+  it('参考已变（B3）：跑时快照 vs 锚当前 result 不一致 → changedRefs 亮；重跑后（快照=当前）消', () => {
+    const base = { storyboardDesignId: DESIGN, shotId: 'shot-a' }
+    const doneWithOldRef = nodeOf({
+      id: 'n1',
+      result: { id: 'r9', type: 'video', url: 'nomi-local://v.mp4', createdAt: 1 },
+      meta: { ...base, refSnapshot: { 'n-hero': 'r0' } }, // 跑时用的是 r0；锚现在是 r1
+    })
+    expect(derive([readyAnchor, doneWithOldRef]).changedRefs.map((anchor) => anchor.id)).toEqual(['hero'])
+
+    const doneWithFreshRef = nodeOf({ ...doneWithOldRef, meta: { ...base, refSnapshot: { 'n-hero': 'r1' } } })
+    expect(derive([readyAnchor, doneWithFreshRef]).changedRefs).toEqual([])
+  })
+
+  it('参考已变：无快照的旧产物不报（只有确知用了旧版才亮）；locked 定稿不闹', () => {
+    const base = { storyboardDesignId: DESIGN, shotId: 'shot-a' }
+    const legacyDone = nodeOf({ id: 'n1', result: { id: 'r9', type: 'video', url: 'nomi-local://v.mp4', createdAt: 1 }, meta: base })
+    expect(derive([readyAnchor, legacyDone]).changedRefs).toEqual([])
+
+    const lockedStale = nodeOf({
+      id: 'n1',
+      result: { id: 'r9', type: 'video', url: 'nomi-local://v.mp4', createdAt: 1 },
+      meta: { ...base, refSnapshot: { 'n-hero': 'r0' }, frozen: { at: 2, by: 'user' } },
+    })
+    expect(derive([readyAnchor, lockedStale]).status).toBe('locked')
+    expect(derive([readyAnchor, lockedStale]).changedRefs).toEqual([])
+  })
+
+  it('参考已变（首帧行）：锚边连在首帧图上 → diff 首帧图的快照', () => {
+    const shot = shotOf({ keyframe: { enabled: true, prompt: '首帧' } })
+    const kfDone = nodeOf({
+      id: 'n-kf', kind: 'image',
+      result: { id: 'rk', type: 'image', url: 'nomi-local://k.png', createdAt: 1 },
+      meta: { storyboardDesignId: DESIGN, shotId: 'shot-a', storyboardKeyframe: true, refSnapshot: { 'n-hero': 'r0' } },
+    })
+    const videoDone = nodeOf({
+      id: 'n1',
+      result: { id: 'r9', type: 'video', url: 'nomi-local://v.mp4', createdAt: 1 },
+      meta: { storyboardDesignId: DESIGN, shotId: 'shot-a' },
+    })
+    expect(derive([readyAnchor, kfDone, videoDone], i2vMode, shot).changedRefs.map((anchor) => anchor.id)).toEqual(['hero'])
+  })
 })
 
 describe('deriveStoryboardBatch（批量分桶 = footer 同一份）', () => {
@@ -212,6 +261,7 @@ describe('deriveStoryboardBatch（批量分桶 = footer 同一份）', () => {
       waitingRefs: [],
       unlockedRefs: unlocked ? [hero] : [],
       missingSlots: [],
+      changedRefs: [],
       resultUrl: null,
       progressPercent: null,
       progressMessage: null,
@@ -229,5 +279,43 @@ describe('deriveStoryboardBatch（批量分桶 = footer 同一份）', () => {
     expect(view.excluded).toEqual({ waitingRefs: 1, unlockedRefs: 1, missingRequired: 1, locked: 1, generating: 1 })
     expect(view.doneCount).toBe(1)
     expect(view.countByStatus.ready).toBe(2)
+  })
+})
+
+describe('deriveAnchorCardRuntimes（参考卡执行态 = 节点投影，B3）', () => {
+  it('视觉锚按节点投影分态；文本锚恒文字卡；「N 镜在等它」与行 derive 同一份', () => {
+    const plan = planOf([shotOf(), shotOf({ index: 2, shotId: 'shot-b' })])
+    const rows = deriveStoryboardRowRuntimes({
+      plan, designId: DESIGN, imageModelOptions: [], videoModelOptions: [], nodes: [],
+    })
+    const [heroCard, styleCard] = deriveAnchorCardRuntimes({ plan, designId: DESIGN, nodes: [], rows })
+    expect(heroCard.visual).toBe(true)
+    expect(heroCard.node).toBeNull()
+    expect(heroCard.resultUrl).toBeNull()
+    expect(heroCard.waitingShotCount).toBe(2) // 两镜都在等它——与行的 waitingRefs 同一份
+    expect(heroCard.referencedByCount).toBe(2)
+    expect(styleCard.visual).toBe(false) // 文本锚不生成图
+  })
+
+  it('已生成未锁 → resultUrl + locked=false；锁定 → locked=true；生成中带进度', () => {
+    const plan = planOf([shotOf()])
+    const doneNode = nodeOf({
+      id: 'n-hero',
+      result: { id: 'r1', type: 'image', url: 'nomi-local://a.png', createdAt: 1 },
+      meta: { storyboardDesignId: DESIGN, anchorId: 'hero', referenceSheet: true },
+    })
+    const rows = deriveStoryboardRowRuntimes({ plan, designId: DESIGN, imageModelOptions: [], videoModelOptions: [], nodes: [doneNode] })
+    const [done] = deriveAnchorCardRuntimes({ plan, designId: DESIGN, nodes: [doneNode], rows })
+    expect(done.resultUrl).toBe('nomi-local://a.png')
+    expect(done.locked).toBe(false)
+
+    const lockedNode = nodeOf({ ...doneNode, meta: { ...(doneNode.meta || {}), frozen: { at: 1, by: 'user' } } })
+    const [locked] = deriveAnchorCardRuntimes({ plan, designId: DESIGN, nodes: [lockedNode], rows })
+    expect(locked.locked).toBe(true)
+
+    const runningNode = nodeOf({ id: 'n-hero', status: 'running', progress: { percent: 55, updatedAt: 1 }, meta: { storyboardDesignId: DESIGN, anchorId: 'hero', referenceSheet: true } })
+    const [running] = deriveAnchorCardRuntimes({ plan, designId: DESIGN, nodes: [runningNode], rows })
+    expect(running.generating).toBe(true)
+    expect(running.progressPercent).toBe(55)
   })
 })

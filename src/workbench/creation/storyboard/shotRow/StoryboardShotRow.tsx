@@ -51,6 +51,8 @@ type Props = {
   onVariants?: (() => void) | undefined
   /** 浮条 🔒/🔓 镜级锁定开关。 */
   onToggleLock?: (() => void) | undefined
+  /** 参考已变警示行「用新图重跑」（B3）。 */
+  onRerunFreshRefs?: (() => void) | undefined
   onUpdate: (patch: Partial<PlanShot>) => void
   onToggleAnchor: (anchorId: string) => void
   onRemove: () => void
@@ -68,7 +70,7 @@ type Props = {
 
 export default function StoryboardShotRow(props: Props): JSX.Element {
   const { t } = useTranslation()
-  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll } = props
+  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll } = props
   const [expanded, setExpanded] = React.useState(false)
 
   const shotTypeValue = shotTypeOf(shot)
@@ -143,6 +145,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           onToggleLock={onToggleLock}
         />
       ) : (
+        /* exec 缺省（测试/降级）：纯占位格 */
         <div className="relative w-[76px] h-[132px] rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05">
           <span className="absolute top-1 left-1 px-1 rounded-nomi-sm bg-nomi-ink-10 text-micro text-nomi-ink-60 tabular-nums">
             {String(shot.index).padStart(2, '0')}
@@ -293,6 +296,26 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             promptInvalid ? 'border-workbench-danger' : 'border-nomi-line',
           )}
         />
+
+        {/* 参考已变警示行（v5 §v3-3）：只报事实 + 给一键补跑，绝不自动跑。 */}
+        {exec && exec.changedRefs.length > 0 ? (
+          <div className="flex items-center gap-2 min-w-0" data-storyboard-ref-warnline={shot.index}>
+            <span className="min-w-0 truncate text-micro text-workbench-danger">
+              {exec.changedRefs.length > 1
+                ? t('storyboardEditor.row.refChangedLineMore', { name: exec.changedRefs[0].name.trim() || t('storyboardEditor.unnamed'), count: exec.changedRefs.length })
+                : t('storyboardEditor.row.refChangedLine', { name: exec.changedRefs[0].name.trim() || t('storyboardEditor.unnamed') })}
+            </span>
+            {onRerunFreshRefs ? (
+              <button
+                type="button"
+                onClick={onRerunFreshRefs}
+                className="shrink-0 h-6 px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-micro text-nomi-ink-80 hover:border-nomi-accent hover:text-nomi-accent"
+              >
+                {t('storyboardEditor.row.rerunFreshRefs')}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="flex items-center gap-2 min-w-0">
           {dialogueText ? (

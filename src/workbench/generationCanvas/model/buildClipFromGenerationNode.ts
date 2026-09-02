@@ -61,8 +61,11 @@ function resolveFrameCount(
   result: GenerationNodeResult | null,
   fps: number,
   metaDurationSeconds?: number | null,
+  imageDurationSeconds?: number | null,
 ): number {
-  if (type === 'image') return DEFAULT_IMAGE_SECONDS * fps
+  // 图片停留时长（分镜 v5）：镜行「时长」写进 node.meta.imageDurationSec，落轨/顺播同口径；
+  // 无标记（画布手建图片节点等）回落 DEFAULT_IMAGE_SECONDS 单源默认。
+  if (type === 'image') return Math.max(1, Math.round((imageDurationSeconds ?? DEFAULT_IMAGE_SECONDS) * fps))
   // 时长真相序：生成参数 result.durationSeconds > 文件真实时长 meta.videoDuration（拖入/上传的视频
   // 渲染/导入时离屏测得，见 readVideoDurationSeconds）> 默认 5 秒。修「拖入视频一律 5 秒」的根因。
   const seconds = readPositiveNumber(result?.durationSeconds)
@@ -98,8 +101,10 @@ export function buildClipFromGenerationNode(node: GenerationCanvasNode, options?
   // v0.7.1: image / video / audio 都要求有 url（生成或上传后才允许拖）
   if (!url) return null
 
-  const metaDurationSeconds = readPositiveNumber((node.meta as Record<string, unknown> | undefined)?.videoDuration)
-  const frameCount = resolveFrameCount(type, result, fps, metaDurationSeconds)
+  const meta = node.meta as Record<string, unknown> | undefined
+  const metaDurationSeconds = readPositiveNumber(meta?.videoDuration)
+  const imageDurationSeconds = readPositiveNumber(meta?.imageDurationSec)
+  const frameCount = resolveFrameCount(type, result, fps, metaDurationSeconds, imageDurationSeconds)
 
   return {
     id: buildClipId(node.id, type, startFrame, result),

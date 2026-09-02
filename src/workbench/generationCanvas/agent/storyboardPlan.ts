@@ -347,6 +347,15 @@ export type StoryboardPlanToArgsOptions = {
 
 const VISUAL_KINDS: ReadonlySet<PlanAnchorKind> = new Set(['character', 'scene', 'prop'])
 
+/**
+ * 「这把锚会生成参考图卡」的唯一谓词（materialize / 连边 / 分镜表卡面与等待判定共用）：
+ * carrier=visual 且 kind 在可出图集合（style 恒文本语义，即使 carrier 被手动翻成 visual
+ * 也不建节点——materialize 同一判定，卡面「生成」按钮与等待判定不得与它分裂）。
+ */
+export function isVisualAnchor(anchor: Pick<PlanAnchor, 'carrier' | 'kind'>): boolean {
+  return anchor.carrier === 'visual' && VISUAL_KINDS.has(anchor.kind)
+}
+
 /** 锚类型 → 该锚连到镜头的参考边语义。 */
 function edgeModeForAnchor(kind: PlanAnchorKind): GenerationCanvasEdgeMode {
   if (kind === 'character') return 'character_ref'
@@ -565,7 +574,7 @@ function buildShotRowNodes(
   // 视频镜头：图→视频 i2v 参考；图片镜头：图→图 参考（同样锁角色/场景身份，图片模型的参考槽）。
   const visualAnchorIds = shot.anchorIds.filter((anchorId) => {
     const anchor = anchorById.get(anchorId)
-    return Boolean(anchor) && anchor!.carrier === 'visual' && VISUAL_KINDS.has(anchor!.kind)
+    return Boolean(anchor) && isVisualAnchor(anchor!)
   })
   // 图片镜头绑图片模型默认、视频镜头绑视频模型默认；用户在编辑器为该镜选的 modelKey 永远优先。
   const defaultModelKey = isImageShot ? options.defaultImageModelKey : options.defaultVideoModelKey
@@ -666,7 +675,7 @@ export function storyboardPlanToCreateNodesArgs(
 
   // 视觉锚 → 定妆卡/场景卡节点。prompt 用「卡片大图」构造器：多视图+多变体集中一张图、整张喂参考（用户拍板）。
   for (const anchor of plan.anchors) {
-    if (anchor.carrier !== 'visual' || !VISUAL_KINDS.has(anchor.kind)) continue
+    if (!isVisualAnchor(anchor)) continue
     nodes.push(buildAnchorCardNode(anchor, options))
   }
 
@@ -718,7 +727,7 @@ export function storyboardShotToCreateNodesArgs(
   if (!options.omitAnchorReferenceEdges) {
     for (const anchorId of shot.anchorIds) {
       const anchor = anchorById.get(anchorId)
-      if (!anchor || anchor.carrier !== 'visual' || !VISUAL_KINDS.has(anchor.kind)) continue
+      if (!anchor || !isVisualAnchor(anchor)) continue
       if (existing[anchorId]) continue
       nodes.push(buildAnchorCardNode(anchor, options))
     }
@@ -744,7 +753,7 @@ export function storyboardAnchorToCreateNodesArgs(
   anchor: PlanAnchor,
   options: StoryboardPlanToArgsOptions = {},
 ): PlanCreateNodesArgs | null {
-  if (anchor.carrier !== 'visual' || !VISUAL_KINDS.has(anchor.kind)) return null
+  if (!isVisualAnchor(anchor)) return null
   return {
     summary: `${plan.title.trim() || '分镜方案'} · ${anchor.name || anchor.id}`,
     nodes: [buildAnchorCardNode(anchor, options)],

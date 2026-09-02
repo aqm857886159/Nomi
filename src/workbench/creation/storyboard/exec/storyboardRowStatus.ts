@@ -2,6 +2,7 @@ import type { GenerationCanvasNode } from '../../../generationCanvas/model/gener
 import type { ArchetypeMode, ArchetypeReferenceSlot } from '../../../../config/modelArchetypes/types'
 import type { ModelOption } from '../../../../config/models'
 import type { PlanAnchor, PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
+import { isVisualAnchor } from '../../../generationCanvas/agent/storyboardPlan'
 import { isAnchorFrozen } from '../../../generationCanvas/model/anchorBibleKeys'
 import { hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
 import { missingRequiredSlots, referencedVisualAnchors, resolveShotArchetypeMode } from '../shotRow/shotRowModel'
@@ -45,6 +46,12 @@ export type ShotRowExec = {
   unlockedRefs: PlanAnchor[]
   /** 缺必填参考的槽（红态文案用第一个）。 */
   missingSlots: ArchetypeReferenceSlot[]
+  /**
+   * 参考已变（v5 §v3-3）：本行产物生成时用的参考图版本（吃参考节点的 meta.refSnapshot，
+   * 提交时由 runner 打戳）与锚节点**当前** result 不一致的锚。done 态才亮
+   * （locked=用户定稿不闹；重跑本就会用新图）。亮标+「用新图重跑」，绝不自动跑。
+   */
+  changedRefs: PlanAnchor[]
   /** 已生成态的可显结果（缩略图优先）。 */
   resultUrl: string | null
   /** 生成中的进度（0-100；无 percent 回报时 null，仅显示转圈文案）。 */
@@ -90,7 +97,9 @@ export function deriveShotRowExec(input: {
   const waitingRefs: WaitingRef[] = []
   const unlockedRefs: PlanAnchor[] = []
   if (rowConsumesReferences(mode)) {
-    for (const anchor of referencedVisualAnchors(shot, plan.anchors)) {
+    // isVisualAnchor 再过一道：与 materialize 连边同一谓词——不给「永远等一张不会生成的卡」留缝
+    // （如 carrier 被手动翻成 visual 的 style 锚，materialize 不建节点也不连边）。
+    for (const anchor of referencedVisualAnchors(shot, plan.anchors).filter(isVisualAnchor)) {
       const anchorNode = findAnchorNode(nodes, designId, anchor)
       if (!anchorNode || !hasUsableResult(anchorNode)) {
         waitingRefs.push({ anchor, node: anchorNode })
@@ -120,6 +129,31 @@ export function deriveShotRowExec(input: {
               ? 'waiting-refs'
               : 'ready'
 
+  // 参考已变：diff「吃参考节点」（有首帧则锚边连在首帧图上）的提交时快照 vs 锚节点当前 result。
+  // 快照里没这把锚（旧产物/后加的引用）不亮——只有确知「跑时用的是旧版」才报，不造假警报。
+  const changedRefs: PlanAnchor[] = []
+  if (status === 'done') {
+    const refConsumer = keyframeNode ?? node
+    const rawSnapshot = (refConsumer?.meta as Record<string, unknown> | undefined)?.refSnapshot
+    const snapshot = rawSnapshot && typeof rawSnapshot === 'object' && !Array.isArray(rawSnapshot)
+      ? (rawSnapshot as Record<string, unknown>)
+      : null
+    if (snapshot) {
+      for (const anchor of referencedVisualAnchors(shot, plan.anchors)) {
+        const anchorNode = findAnchorNode(nodes, designId, anchor)
+        const currentResultId = anchorNode?.result?.id
+        const usedResultId = anchorNode ? snapshot[anchorNode.id] : undefined
+        if (
+          typeof usedResultId === 'string' && usedResultId
+          && typeof currentResultId === 'string' && currentResultId
+          && currentResultId !== usedResultId
+        ) {
+          changedRefs.push(anchor)
+        }
+      }
+    }
+  }
+
   const activeNode = isNodeActive(node) ? node : isNodeActive(keyframeNode) ? keyframeNode : null
   const percent = activeNode?.progress?.percent
   return {
@@ -129,6 +163,7 @@ export function deriveShotRowExec(input: {
     waitingRefs,
     unlockedRefs,
     missingSlots,
+    changedRefs,
     resultUrl: resultDisplayUrl(node),
     progressPercent: typeof percent === 'number' && Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : null,
     progressMessage: activeNode?.progress?.message || null,
@@ -160,6 +195,59 @@ export function deriveStoryboardRowRuntimes(input: {
     const modelOption = options.find((option) => option.value === shot.modelKey) ?? null
     const mode = resolveShotArchetypeMode(modelOption, shot.modeId)?.mode ?? null
     return { shot, mode, exec: deriveShotRowExec({ plan, shot, designId, nodes, mode }) }
+  })
+}
+
+// ── 参考卡（锚）执行态：节点投影（B3 图卡）。刻意**无独立状态词表**——卡面语义全是
+// node.status（generating/failed）+ frozen（锁）+ result（有无图）既有 owner 的投影，
+// 「N 镜在等它 / 被 N 镜引用」从行 derive 聚合（同一份，F2）。──
+
+export type AnchorCardRuntime = {
+  anchor: PlanAnchor
+  node: GenerationCanvasNode | null
+  /** 视觉锚才生成图；文本锚（仅提示词）恒 false → 文字卡。 */
+  visual: boolean
+  resultUrl: string | null
+  generating: boolean
+  failed: boolean
+  errorMessage: string | null
+  progressPercent: number | null
+  locked: boolean
+  /** 引用此锚的镜数（visual 反查计数；文本锚=写进提示词的镜数）。 */
+  referencedByCount: number
+  /** 其中还没出图、正等这张卡的镜数（astat「N 镜在等它」）。 */
+  waitingShotCount: number
+}
+
+export function deriveAnchorCardRuntimes(input: {
+  plan: StoryboardPlan
+  designId: string
+  nodes: readonly GenerationCanvasNode[]
+  /** 行 runtime（deriveStoryboardRowRuntimes 的输出；等待计数与行状态同一份）。 */
+  rows: readonly StoryboardRowRuntime[]
+}): AnchorCardRuntime[] {
+  const { plan, designId, nodes, rows } = input
+  return plan.anchors.map((anchor) => {
+    const visual = isVisualAnchor(anchor)
+    const node = visual ? findAnchorNode(nodes, designId, anchor) : null
+    const generating = isNodeActive(node)
+    const failed = !generating && isNodeFailed(node)
+    const percent = node?.progress?.percent
+    return {
+      anchor,
+      node,
+      visual,
+      resultUrl: resultDisplayUrl(node),
+      generating,
+      failed,
+      errorMessage: failed ? node?.error || null : null,
+      progressPercent: generating && typeof percent === 'number' && Number.isFinite(percent)
+        ? Math.max(0, Math.min(100, percent))
+        : null,
+      locked: Boolean(node && isAnchorFrozen(node) && hasUsableResult(node)),
+      referencedByCount: plan.shots.filter((shot) => shot.anchorIds.includes(anchor.id)).length,
+      waitingShotCount: rows.filter((row) => row.exec.waitingRefs.some((ref) => ref.anchor.id === anchor.id)).length,
+    }
   })
 }
 
