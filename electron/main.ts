@@ -26,6 +26,7 @@ import { registerNotificationIpc } from "./notificationIpc";
 import { openWorkspaceFolder, selectWorkspaceFolder } from "./workspace/workspaceIpc";
 import { listWorkspaceFiles, resolveWorkspaceFilePath } from "./workspace/workspaceFileIndex";
 import { registerWorkspaceFileDeleteIpc } from "./workspace/workspaceFileDelete";
+import { registerWorkspaceSyncIpc } from "./workspace/workspaceSyncIpc";
 import { logCrash } from "./crashLog";
 import { installMainProcessLifecycle } from "./mainProcessLifecycle";
 import { registerExportJobIpc } from "./export/exportJobIpc";
@@ -677,7 +678,8 @@ function registerIpc(): void {
     shell.showItemInFolder(absolutePath);
     return { ok: true };
   });
-  registerWorkspaceFileDeleteIpc({ readProject }); require("./workspace/workspaceSyncIpc").registerWorkspaceSyncIpc({ readProject });
+  registerWorkspaceFileDeleteIpc({ readProject });
+  registerWorkspaceSyncIpc({ readProject });
   ipcMain.handle("nomi:workspace:reveal-project-folder", (event, payload) => {
     assertTrustedSender(event);
     const projectId = String((payload as { projectId?: unknown } | null)?.projectId || "").trim();
