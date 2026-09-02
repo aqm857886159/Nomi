@@ -84,7 +84,7 @@ pnpm exec vitest run src/config/modelArchetypes electron/catalog --reporter=dot
 # 87 files / 833 tests passed
 pnpm run test
 # 699 files passed, 1 skipped / 6175 tests passed, 1 skipped
-pnpm run test:mcp
+pnpm run test:mcp-journey
 # real Electron stdio journey passed: 45 assertions / 10 steps; 6 mock-vendor requests, zero provider quota
 pnpm run typecheck
 pnpm run build
@@ -95,7 +95,7 @@ pnpm run check:archetype-sources
 pnpm run lint:ci
 ```
 
-本轮完整门岗结果：`check:filesize`、`check:tokens`、`check:i18n`、`check:archetype-sources`、`lint:ci`（95 warnings，低于 98 棘轮）、`typecheck`、`test`、`test:mcp`、`build` 和 `git diff --check` 均通过。结构性验证没有新增 APIMart/provider/spend/Canvas/Timeline 副作用；真实 MCP 旅程仅使用本地 mock vendor。
+本轮完整门岗结果：`check:filesize`、`check:tokens`、`check:i18n`、`check:archetype-sources`、`lint:ci`（95 warnings，低于 98 棘轮）、`typecheck`、`test`、`test:mcp-journey`、`build` 和 `git diff --check` 均通过。结构性验证没有新增 APIMart/provider/spend/Canvas/Timeline 副作用；真实 MCP 旅程仅使用本地 mock vendor。
 
 本轮随后补齐了离散数值/布尔下拉的合同约束：例如 Hailuo `duration` 的 `[6, 10]` 会保持为数值 enum，`7` 会在 provider 之前被拒绝；这不改变已有字符串 enum，也不要求用户额外学习新格式。
 

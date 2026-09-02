@@ -399,8 +399,8 @@ export default function Scene3DFullscreen({
     trajectory,
     trajectoryMode,
     takeRecorder,
-    possessedObjectName: characterDrive.possessedObject?.name ?? null,
-    possessedCameraName: characterDrive.possessedCamera?.name ?? null,
+    possessedObject: characterDrive.possessedObject,
+    possessedCamera: characterDrive.possessedCamera,
     hasPossessTarget: Boolean(characterDrive.possessedObject || characterDrive.possessedCamera),
     enterPossess: characterDrive.enterPossess,
     setSelection,
@@ -712,6 +712,7 @@ export default function Scene3DFullscreen({
           />
           <Scene3DBottomBar
             readOnly={readOnly}
+            scene={state}
             possessedObject={characterDrive.possessedObject}
             possessedCamera={characterDrive.possessedCamera}
             activePresetId={characterDrive.activePresetId}

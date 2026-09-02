@@ -28,6 +28,8 @@ export type ArtifactProjection = Omit<ProductionArtifact, 'projectRelativePath' 
   projectRelativePath?: string
   nomiUri: string
   preview?: ArtifactPreview
+  /** For video artifacts this is the same signed, thumbnail-first preview under an explicit poster name. */
+  poster?: ArtifactPreview
   openInNomi: string
 }
 
@@ -261,7 +263,7 @@ export function createArtifactProjection(args: {
     ...(args.artifact.adoptedAt ? { adoptedAt: args.artifact.adoptedAt } : {}),
     ...(artifactPath ? { projectRelativePath: artifactPath } : {}),
     nomiUri: `nomi://project/${encodeURIComponent(projectId)}/run/${encodeURIComponent(runId)}/artifact/${encodeURIComponent(artifactId)}`,
-    ...(preview ? { preview } : {}),
+    ...(preview ? { preview, ...(args.artifact.kind === 'video' && args.artifact.thumbnailRelativePath ? { poster: preview } : {}) } : {}),
     openInNomi: `nomi://project/${encodeURIComponent(projectId)}/run/${encodeURIComponent(runId)}?artifact=${encodeURIComponent(artifactId)}`,
   }
 }

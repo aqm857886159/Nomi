@@ -1,7 +1,7 @@
-# J-MCP1 real-process MCP journey — measured metrics vs 2026-08-17 baseline
+# Legacy real-process MCP journey — measured metrics vs 2026-08-17 baseline
 
 日期：2026-08-18 ｜ 交付：T5（R16 真实任务测试系统）｜ 分支：`claude/wonderful-bhabha-205252`
-Harness：`tests/ux/mcp-journey.e2e.mjs`（+ 共享设施 `tests/ux/_mcpJourney.mjs`）｜ 运行：`pnpm run test:mcp`
+Harness：已退役的早期 MCP 旅程（+ 共享设施 `tests/ux/_mcpJourney.mjs`）｜当前回归入口：`pnpm run test:mcp-journey`
 指标产物（每步一行 JSONL）：`test-results/mcp-journey-metrics.jsonl`
 
 这份报告把 **J-MCP1 实测跑**（真进程、真 stdio、mock vendor 零额度）与 2026-08-17 那次真实拍片的
@@ -76,9 +76,9 @@ makeConfirmedGateway 铸令牌**（`mcpStdioServer.ts:99`），证明「聊天�
 
 ```bash
 pnpm run build          # harness 跑 dist-electron 产物
-pnpm run test:mcp       # = node tests/ux/mcp-journey.e2e.mjs
+pnpm run test:mcp-journey
 cat test-results/mcp-journey-metrics.jsonl   # 每步一行指标
 ```
 
 CI：已挂进 `.github/workflows/desktop-rc.yml` 的「Release-critical feature journeys」，紧随
-`production-mcp-journey.e2e.mjs`（`xvfb-run -a pnpm run test:mcp`，零额度、确定性）。
+`production-mcp-journey.e2e.mjs`（零额度、确定性；当前由独立生产旅程命令触发）。

@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { IconCheck, IconFolderPlus, IconTrash, IconX } from '../../../vendor/tablerIcons'
 import { cn } from '../../../utils/cn'
-import { BROWSER_PROMPT_EXTRACTION_MODE_LABELS, type BrowserPromptExtractionMode } from './browserPromptExtraction'
+import { BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS, type BrowserPromptExtractionMode } from './browserPromptExtraction'
 import { TOOL_BUTTON_CLASS } from '../popover/browserAssetPopoverConstants'
 import type { BrowserPromptExtractionTemplate, BrowserPromptExtractionTemplateSettings } from '../popover/browserAssetPopoverTypes'
 import {
@@ -82,7 +82,7 @@ export function BrowserPromptExtractionSettingsModal({
     const id = `custom:${mode}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const template: BrowserPromptExtractionTemplate = {
       id,
-      title: t('browserAssets.extraction.customTemplate', { mode: BROWSER_PROMPT_EXTRACTION_MODE_LABELS[mode] }),
+      title: t('browserAssets.extraction.customTemplate', { mode: t(BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS[mode]) }),
       prompt: selectedTemplate.prompt,
       createdAt: now,
       updatedAt: now,
@@ -134,7 +134,7 @@ export function BrowserPromptExtractionSettingsModal({
             <div className="grid grid-cols-2 gap-1 rounded-nomi bg-nomi-ink-05 p-1">
               {(['replicate', 'style'] as const).map((item) => (
                 <button key={item} type="button" className={cn('h-8 rounded-nomi-sm border-0 bg-transparent px-2 text-caption font-semibold', 'cursor-pointer transition-colors duration-[var(--nomi-transition-fast)]', mode === item ? 'bg-nomi-paper text-nomi-ink shadow-nomi-sm' : 'text-nomi-ink-55 hover:text-nomi-ink')} onClick={() => setMode(item)}>
-                  {BROWSER_PROMPT_EXTRACTION_MODE_LABELS[item]}
+                  {t(BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS[item])}
                 </button>
               ))}
             </div>
