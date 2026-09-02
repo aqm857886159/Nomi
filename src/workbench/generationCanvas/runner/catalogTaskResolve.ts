@@ -20,6 +20,7 @@ import {
 } from '../model/generationNodeKinds'
 import type { ResolvedGenerationReferences } from './generationReferenceResolver'
 import {
+  modeTransportFor,
   replaceCustomCapabilityContractMeta,
   resolveArchetypeForModel,
 } from '../../../config/modelArchetypes'
@@ -197,7 +198,7 @@ export async function resolveExecutableNodeFromCatalog(
   const sourceArchetype = resolveArchetypeForModel({ modelKey, modelAlias, vendorKey: vendor, meta })
   const targetArchetype = resolveArchetypeForModel({ modelKey: match.modelKey, modelAlias: match.modelAlias, vendorKey: resolvedVendor, meta: match.meta })
   const remappedArchetype = targetArchetype
-    ? remapArchetypeMode(sourceArchetype, asTrimmedString((meta.archetype as { modeId?: unknown } | undefined)?.modeId) || undefined, targetArchetype)
+    ? remapArchetypeMode(sourceArchetype, asTrimmedString((meta.archetype as { modeId?: unknown } | undefined)?.modeId) || undefined, targetArchetype, vendor, resolvedVendor)
     : null
   const migratedMeta = replaceCustomCapabilityContractMeta(meta, match.meta)
 
@@ -221,14 +222,19 @@ export async function resolveExecutableNodeFromCatalog(
 export function resolveTaskKind(node: GenerationCanvasNode, references: Partial<ResolvedGenerationReferences>): TaskKind {
   const executionKind = getGenerationNodeExecutionKind(node.kind)
   const meta = node.meta || {}
-  // 认得档案的模型（视频**或图像**）：mapping 桶**显式**由档案声明（当前模式 transportTaskKind 覆盖 > 档案级），
-  // 不靠参考启发式猜——否则 Seedance omni（无首帧）会被误判 text_to_video 撞到别的模型；图像档案的文生图/改图
-  // taskKind 也得各走各的桶。modelKey 精确路由（findTaskMapping）再保证打到本模型的 mapping。
+  // 认得档案的模型（视频**或图像**）：mapping 桶**显式**由档案声明（供应商特化 > 当前模式 > 档案级，
+  // 收口在 modeTransportFor），不靠参考启发式猜——否则 Seedance omni（无首帧）会被误判 text_to_video
+  // 撞到别的模型；图像档案的文生图/改图 taskKind 也得各走各的桶。供应商这一档是必要的：同一模型身份
+  // 在 kie 是单端点（text_to_video）、在 Runway 图模式走 /v1/image_to_video，桶不同。
+  // modelKey 精确路由（findTaskMapping）再保证打到本模型的 mapping。
   // model3d 同走档案声明桶（text_to_3d / image_to_3d 由模式 transportTaskKind 决定）。此前这里漏 3D →
   // RunningHub 混元/Meshy（带档案、非 comfy）直接砸到底部 throw「not implemented yet」（同族 kind 边界漏 3D）。
   if (executionKind === 'video' || executionKind === 'image' || executionKind === 'audio' || executionKind === 'model3d') {
     const archetype = resolveTaskArchetype(meta)
-    if (archetype) return currentArchetypeMode(archetype, meta).transportTaskKind ?? archetype.transportTaskKind
+    if (archetype) {
+      const transport = modeTransportFor(currentArchetypeMode(archetype, meta), archetype, selectedVendor(node))
+      if (transport) return transport
+    }
   }
   const parameterContract = readParameterReferenceContract(meta)
   if (isComfyuiVendorKey(selectedVendor(node)) && parameterContract && isComfyuiVendorKey(parameterContract.vendorKey)

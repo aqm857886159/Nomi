@@ -1,5 +1,6 @@
 import type { ModelParameterControl } from "./types";
 import type { ModelArchetype } from "./types";
+import { RUNWAY_GENERATE_AUDIO_CONTROL, runwayRatioControl } from "./runwayWireFacts";
 
 // ---------------------------------------------------------------------------
 // Wan 3.0 视频档案（kie.ai）。契约来自官方文档实查（2026-08-27，R5）：
@@ -66,6 +67,19 @@ const BASE_PARAMS: ModelParameterControl[] = [ASPECT_RATIO, RESOLUTION, DURATION
 // 少发一个字段比发一个我们自己钉死的值更诚实——将来官方改默认，我们跟着走而不是钉在旧值上。
 const FRAME_PARAMS: ModelParameterControl[] = BASE_PARAMS.filter((p) => p.key !== "aspect_ratio");
 
+// Runway 转售的 wan3：Runway union 的 wan 变体只有 ratio / duration / audio——**没有 resolution，
+// 也没有 seed**；而它的音频开关在线缆上叫 `generate_audio`（kie 侧叫 `audio`）。档案原样声明的
+// resolution / seed / audio 三个键在 Runway 上全部发不出去（audio 是键名不同，另两个是压根没有）。
+// 比例枚举同样是 Runway 自己的像素式一套，从 shared 的同一张表 derive。
+const RUNWAY_PARAMS: ModelParameterControl[] = [
+  runwayRatioControl("wan"),
+  DURATION,
+  RUNWAY_GENERATE_AUDIO_CONTROL,
+];
+
+// 首/尾帧模式：Runway 的 image_to_video 仍收 ratio（与 happyhorse 不同），故沿用同一组。
+const RUNWAY_FRAME_PARAMS: ModelParameterControl[] = RUNWAY_PARAMS;
+
 const KIE_SOURCE_COVERS =
   "POST /api/v1/jobs/createTask，参数全部嵌在 input 下；first_frame_url / last_frame_url 为裸字符串 URL；" +
   "reference_image_urls 最多 10、reference_video_urls 最多 5（每段 1-15s、合计 ≤15s）、reference_audio_urls 最多 5；" +
@@ -74,13 +88,16 @@ const KIE_SOURCE_COVERS =
   "首/尾帧与 reference_* 互斥；结果 data.resultJson 是 JSON 字符串，取 resultUrls[0]";
 
 export const WAN_3_0_ARCHETYPE: ModelArchetype = {
+  // Runway 的 wan3 行原挂平台档案 runway-video（已删）；存量节点靠 legacyIds + 模型身份匹配迁到这里。
+  legacyIds: ["runway-video"],
   id: "wan-3.0",
   family: "wan",
   label: "Wan 3.0",
   kind: "video",
   defaultModeId: "t2v",
   transportTaskKind: "text_to_video",
-  identifierPatterns: ["wan/3-0-video", "wan/3-0-video-prime", "wan-3.0", "wan3.0"],
+  // "wan3" 是 Runway 的判别串：裸串接入同名模型也认到本档案。
+  identifierPatterns: ["wan/3-0-video", "wan/3-0-video-prime", "wan-3.0", "wan3.0", "wan3"],
   catalogModelKey: "wan/3-0-video",
   variants: [
     { id: "standard", label: "Wan 3.0", modelKey: "wan/3-0-video" },
@@ -112,6 +129,7 @@ export const WAN_3_0_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "text_to_video",
       slots: [],
       params: BASE_PARAMS,
+      vendorParams: { runway: RUNWAY_PARAMS },
     },
     {
       id: "first",
@@ -122,6 +140,7 @@ export const WAN_3_0_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "image_to_video",
       slots: [{ kind: "first_frame", label: "首帧", min: 1, max: 1, inputKey: "first_frame_url" }],
       params: FRAME_PARAMS,
+      vendorParams: { runway: RUNWAY_FRAME_PARAMS },
     },
     {
       id: "firstlast",
@@ -135,6 +154,7 @@ export const WAN_3_0_ARCHETYPE: ModelArchetype = {
         { kind: "last_frame", label: "尾帧", min: 0, max: 1, inputKey: "last_frame_url" },
       ],
       params: FRAME_PARAMS,
+      vendorParams: { runway: RUNWAY_FRAME_PARAMS },
     },
     {
       // 全能参考：官方上限 10 图 / 5 视频 / 5 音频。与首/尾帧互斥（故各自成模式）。
@@ -151,6 +171,7 @@ export const WAN_3_0_ARCHETYPE: ModelArchetype = {
         { kind: "audio_ref", label: "参考音频", min: 0, max: 5, inputKey: "reference_audio_urls" },
       ],
       params: BASE_PARAMS,
+      vendorParams: { runway: RUNWAY_PARAMS },
     },
   ],
 };

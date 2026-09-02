@@ -83,6 +83,18 @@ export type ArchetypeMode = {
   promptRequired: boolean;
   modelEnum?: string;
   transportTaskKind?: ArchetypeTransportTaskKind;
+  /**
+   * Vendor-specialized transport bucket (second vendor specialization axis, sibling of
+   * `vendorParams`). One model identity can be routed to different mapping buckets per vendor:
+   * kie funnels every minimax-h3 / happyhorse scenario through one createTask endpoint, while
+   * Runway posts the same models' image modes to `/v1/image_to_video`.
+   *
+   * Precedence: `vendorTransportTaskKind[vendor]` > mode `transportTaskKind` > archetype
+   * `transportTaskKind`. Read it **only** through `modeTransportFor()` (./modeTransport) —
+   * a hand-written `mode.transportTaskKind ?? archetype.transportTaskKind` re-creates the
+   * second source of truth this field exists to remove.
+   */
+  vendorTransportTaskKind?: Record<string, ArchetypeTransportTaskKind>;
   combineSlotsInto?: { key: string; flat?: boolean };
   fixedParams?: Record<string, string>;
 };

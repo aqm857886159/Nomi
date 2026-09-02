@@ -61,13 +61,15 @@ export function createPiDocumentWriteTransportAdapter(input: Readonly<{
   let disposed = false;
   return Object.freeze({
     async prepare(call, context, signal) {
-      const operation = documentWriteOperationForAlias(call.toolName);
+      const args = call.args && typeof call.args === "object" ? call.args as Record<string, unknown> : {};
+      const operation = documentWriteOperationForAlias(call.toolName)
+        ?? (call.toolName === "nomi_document_edit" && typeof args.operation === "string"
+          && ["insert", "replace", "append"].includes(args.operation) ? args.operation as "insert" | "replace" | "append" : undefined);
       if (!operation) return null;
       if (disposed) throw new Error("surface_port_unavailable");
       signal.throwIfAborted();
       const target = documentTarget(context.target);
       if (!target || target.documentId !== context.documentId) throw new Error("document_target_stale");
-      const args = call.args && typeof call.args === "object" ? call.args as Record<string, unknown> : {};
       const content = typeof args.content === "string" ? args.content : "";
       const invocation = await factory.mint({
         toolCallId: call.toolCallId,

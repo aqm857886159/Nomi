@@ -4,7 +4,9 @@ import { IconArrowRight, IconCircleCheck, IconMovie } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton, confirmDialog } from '../../../design'
 import { useWorkbenchStore } from '../../workbenchStore'
+import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { totalDurationSec } from '../../generationCanvas/agent/storyboardPlanEdits'
+import { materializedShotIds } from './exec/storyboardNodeBinding'
 
 /**
  * 分镜方案卡片：拆镜头产出的摘要+状态+入口。住两处（同一实现）：创作区对话流的回看卡，
@@ -25,7 +27,7 @@ export default function StoryboardPlanCard({ documentId, storyboardId }: Storybo
     ? s.storyboardDesignsByDocumentId[targetDocumentId]?.find((design) => design.id === storyboardId)
     : undefined)
   const plan = exactDesign?.plan ?? (storyboardId ? null : entry?.plan ?? null)
-  const committed = exactDesign?.committed ?? (storyboardId ? false : entry?.committed ?? false)
+  const storedCommitted = exactDesign?.committed ?? (storyboardId ? false : entry?.committed ?? false)
   const deleteStoryboardDesign = useWorkbenchStore((s) => s.deleteStoryboardDesign)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
   const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
@@ -35,6 +37,12 @@ export default function StoryboardPlanCard({ documentId, storyboardId }: Storybo
     return designs.find((design) => design.plan === currentEntry?.plan)?.id ?? designs[0]?.id
   })
   const resolvedStoryboardId = exactDesign?.id ?? projectedStoryboardId
+  // v5 committed 语义 derive：至少一镜已建节点（表是节点的投影；节点删光即回草稿）。
+  // 旧项目（确认落画布时代，节点 meta 无 designId）回退存量 committed 标记。
+  const builtCount = useGenerationCanvasStore((s) => (
+    resolvedStoryboardId ? materializedShotIds(s.nodes, resolvedStoryboardId).size : 0
+  ))
+  const committed = builtCount > 0 || storedCommitted
 
   if (!plan) return null
 
@@ -86,7 +94,7 @@ export default function StoryboardPlanCard({ documentId, storyboardId }: Storybo
 
       {committed ? (
         <>
-          <span className="text-caption text-nomi-ink-60">{t('storyboardEditor.planCard.committedSummary', { count: shotCount })}</span>
+          <span className="text-caption text-nomi-ink-60">{t('storyboardEditor.planCard.committedSummary', { count: builtCount > 0 ? builtCount : shotCount })}</span>
           <div className="flex items-center gap-2">
             <WorkbenchButton variant="default" size="sm" onClick={openStoryboard}>{t('storyboardEditor.planCard.editAgain')}</WorkbenchButton>
             <WorkbenchButton variant="default" size="sm" className="ml-auto" onClick={() => setWorkspaceMode('generation')}>

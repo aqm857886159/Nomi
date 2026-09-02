@@ -1,5 +1,6 @@
 import type { ModelParameterControl } from "../modelCatalogMeta";
 import type { ModelArchetype } from "./types";
+import { runwayImageParams } from "../../../electron/shared/imageCapabilities/runwayImageWireFacts";
 
 // ---------------------------------------------------------------------------
 // kie 渠道的 Seedream 5.0（pro / lite 两档）图像档案。
@@ -60,6 +61,12 @@ const LITE_PARAMS: ModelParameterControl[] = [
   OUTPUT_FORMAT_PARAM,
 ];
 
+// Runway 专属参数（B 分层 vendorParams）：Runway 也提供 Seedream 5 Lite，但它的 union 变体收的是
+// **像素串** ratio（2048:2048 起、全部 ≥3.68M 像素，共 16 值），上面 kie 的朝向式 `1:1`/`16:9`
+// 在 Runway 上一个都不合法（实测发共享默认恒 400，见 runwayRatio.ts 的实测记录）；
+// 也没有 quality / output_format 字段，但有 outputCount（1–4）。取值由官方 OpenAPI 逐字表 derive。
+const LITE_RUNWAY_PARAMS: ModelParameterControl[] = runwayImageParams("seedream5_lite");
+
 export const KIE_SEEDREAM_5_PRO_ARCHETYPE: ModelArchetype = {
   id: "kie-seedream-5-pro",
   family: "seedream",
@@ -118,7 +125,10 @@ export const KIE_SEEDREAM_5_LITE_ARCHETYPE: ModelArchetype = {
   kind: "image",
   defaultModeId: "t2i",
   transportTaskKind: "text_to_image",
-  identifierPatterns: ["seedream/5-lite-text-to-image", "seedream/5-lite-image-to-image"],
+  // `seedream5_lite` 是 Runway 侧的判别串（同一个产品的第二家接入，P4：档案 = 模型身份，供应商无关）。
+  identifierPatterns: ["seedream/5-lite-text-to-image", "seedream/5-lite-image-to-image", "seedream5_lite"],
+  // Runway 的这一行原挂平台档案 runway-image（已删）；存量节点靠 legacyIds + 模型身份匹配迁到这里。
+  legacyIds: ["runway-image"],
   sources: [
     {
       url: "https://docs.kie.ai/market/seedream/5-lite-text-to-image.md",
@@ -146,6 +156,7 @@ export const KIE_SEEDREAM_5_LITE_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "text_to_image",
       slots: [],
       params: LITE_PARAMS,
+      vendorParams: { runway: LITE_RUNWAY_PARAMS },
     },
     {
       id: "edit",
@@ -157,6 +168,7 @@ export const KIE_SEEDREAM_5_LITE_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "image_edit",
       slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 14, inputKey: "image_urls" }],
       params: LITE_PARAMS,
+      vendorParams: { runway: LITE_RUNWAY_PARAMS },
     },
   ],
 };

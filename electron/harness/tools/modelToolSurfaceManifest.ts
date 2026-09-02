@@ -2,6 +2,11 @@ import { z } from "zod";
 import type { ZodTypeAny } from "zod";
 import { GENERATION_RECONCILE_OUTCOMES } from "../../capabilityCore/mcpGenerationTools";
 import { timelineEditPlanSchema } from "../../shared/agentCapabilities/timelineRead";
+import { canvasReadSemanticInputSchema, canvasReadResultSchema } from "../../shared/agentCapabilities/canvasRead";
+import { canvasWriteSemanticInputSchema, canvasWriteResultSchema } from "../../shared/agentCapabilities/canvasWrite";
+import { canvasDeleteSemanticInputSchema, canvasDeleteResultSchema } from "../../shared/agentCapabilities/canvasDelete";
+import { documentReadSemanticInputSchema, documentReadResultSchema } from "../../shared/agentCapabilities/documentRead";
+import { documentWriteSemanticInputSchema, documentWriteResultSchema } from "../../shared/agentCapabilities/documentWrite";
 
 export type SemanticToolDescriptor = Readonly<{
   name: `nomi_${string}`;
@@ -179,6 +184,54 @@ const editingDescriptors = [
   },
 ] as const satisfies readonly SemanticToolDescriptor[];
 
+const canvasDescriptors = [
+  {
+    version: 1, name: "nomi_canvas_read" as const,
+    intent: "Read the current generation canvas as bounded, safe nodes and reference edges.",
+    capabilityRefs: ["canvas.read"], inputSchema: canvasReadSemanticInputSchema, outputSchema: canvasReadResultSchema,
+    sideEffect: "none" as const, execution: "parallel" as const, risk: "read" as const, disclosure: "eager" as const,
+    availability: { phases: ["canvas", "storyboard"], requiredScopes: ["canvas:read"] },
+  },
+  {
+    version: 1, name: "nomi_canvas_plan" as const,
+    intent: "Propose storyboard, staging, camera, or timeline landing intent for review before changing the canvas.",
+    capabilityRefs: ["canvas.write"], inputSchema: canvasWriteSemanticInputSchema, outputSchema: canvasWriteResultSchema,
+    sideEffect: "proposal" as const, execution: "sequential" as const, risk: "project_write" as const, disclosure: "eager" as const,
+    availability: { phases: ["canvas", "storyboard"], requiredScopes: ["canvas:write"] },
+  },
+  {
+    version: 1, name: "nomi_canvas_edit" as const,
+    intent: "Propose a validated reversible edit to canvas nodes or reference edges.",
+    capabilityRefs: ["canvas.write"], inputSchema: canvasWriteSemanticInputSchema, outputSchema: canvasWriteResultSchema,
+    sideEffect: "proposal" as const, execution: "sequential" as const, risk: "project_write" as const, disclosure: "eager" as const,
+    availability: { phases: ["canvas"], requiredScopes: ["canvas:write"] },
+  },
+  {
+    version: 1, name: "nomi_canvas_maintenance" as const,
+    intent: "Request confirmed destructive canvas maintenance with an explicit recovery receipt.",
+    capabilityRefs: ["canvas.delete"], inputSchema: canvasDeleteSemanticInputSchema, outputSchema: canvasDeleteResultSchema,
+    sideEffect: "proposal" as const, execution: "sequential" as const, risk: "project_write" as const, disclosure: "eager" as const,
+    availability: { phases: ["canvas"], requiredScopes: ["canvas:write"] },
+  },
+] as const satisfies readonly SemanticToolDescriptor[];
+
+const documentDescriptors = [
+  {
+    version: 1, name: "nomi_document_read" as const,
+    intent: "Read the current creation document or its selected text as plain text.",
+    capabilityRefs: ["document.read"], inputSchema: documentReadSemanticInputSchema, outputSchema: documentReadResultSchema,
+    sideEffect: "none" as const, execution: "parallel" as const, risk: "read" as const, disclosure: "eager" as const,
+    availability: { phases: ["creation", "storyboard"], requiredScopes: ["document:read"] },
+  },
+  {
+    version: 1, name: "nomi_document_edit" as const,
+    intent: "Propose an insert, selection replacement, or append to the creation document.",
+    capabilityRefs: ["document.write"], inputSchema: documentWriteSemanticInputSchema, outputSchema: documentWriteResultSchema,
+    sideEffect: "proposal" as const, execution: "sequential" as const, risk: "project_write" as const, disclosure: "eager" as const,
+    availability: { phases: ["creation"], requiredScopes: ["document:write"] },
+  },
+] as const satisfies readonly SemanticToolDescriptor[];
+
 /** Host/UI transitions are wire contracts, never model-authored tools. */
 export const GENERATION_HOST_ONLY_TRANSITIONS: readonly HostOnlyTransition[] = Object.freeze([
   { name: "nomi_request_generation_gate", capabilityRefs: ["generation.gate"], reason: "Host policy creates the user confirmation card." },
@@ -187,12 +240,14 @@ export const GENERATION_HOST_ONLY_TRANSITIONS: readonly HostOnlyTransition[] = O
 ]);
 
 export const modelToolSurfaceManifest = Object.freeze({
-  version: "m2-generation-editing-v1",
+  version: "m2-canvas-document-v1",
   generation: Object.freeze(generationDescriptors),
   editing: Object.freeze(editingDescriptors),
+  canvas: Object.freeze(canvasDescriptors),
+  document: Object.freeze(documentDescriptors),
 });
 
-const modelSurface = [...modelToolSurfaceManifest.generation, ...modelToolSurfaceManifest.editing];
+const modelSurface = [...modelToolSurfaceManifest.generation, ...modelToolSurfaceManifest.editing, ...modelToolSurfaceManifest.canvas, ...modelToolSurfaceManifest.document];
 const modelNames = new Set<string>(modelSurface.map(({ name }) => name));
 if (modelNames.size !== modelSurface.length) throw new Error("Duplicate semantic model tool");
 for (const transition of GENERATION_HOST_ONLY_TRANSITIONS) {

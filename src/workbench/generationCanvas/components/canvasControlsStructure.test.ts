@@ -42,6 +42,26 @@ describe('generation canvas control structure', () => {
     }
   })
 
+  it('synchronizes business projections into the uncontrolled React Flow kernel', () => {
+    const renderer = source('../reactFlow/GenerationCanvasReactFlowViewport.tsx')
+    const sync = source('../reactFlow/canvasNodeProjectionSync.ts')
+
+    expect(renderer).toContain('defaultNodes={flowNodes}')
+    expect(renderer).toContain('<CanvasNodeProjectionSync')
+    expect(sync).toContain('flow.setNodes((current) =>')
+    expect(sync).toContain('isDragging')
+  })
+
+  it('keeps node drag ticks in React Flow draft geometry until drag stop', () => {
+    const generationCanvas = source('../reactFlow/GenerationCanvasReactFlow.tsx')
+    const dragDraft = source('../reactFlow/canvasDragDraft.ts')
+    const dragHandler = generationCanvas.match(/const handleNodesChange:[\s\S]*?\n\x20\x20}, \[[^\n]+\]\)/)?.[0] || ''
+
+    expect(dragDraft).toContain('applyNodeChanges')
+    expect(dragHandler).toContain('dragDraft')
+    expect(dragHandler).not.toContain('moveNode(')
+  })
+
   it('lets React Flow exclusively own mounted node placement and interaction controls', () => {
     const baseNode = source('../nodes/BaseGenerationNode.tsx')
     const dragResize = source('../nodes/useNodeDragResize.ts')

@@ -107,20 +107,6 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "i2v": "image_to_video"
     }
   },
-  "runway-video": {
-    "defaultModeId": "t2v",
-    "modes": {
-      "t2v": "text_to_video",
-      "i2v": "image_to_video",
-      "reference": "text_to_video"
-    }
-  },
-  "runway-video-t2v": {
-    "defaultModeId": "t2v",
-    "modes": {
-      "t2v": "text_to_video"
-    }
-  },
   "kling-3.0": {
     "defaultModeId": "t2v",
     "modes": {
@@ -327,6 +313,12 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "speech": "text_to_audio"
     }
   },
+  "eleven-multilingual-v2": {
+    "defaultModeId": "speech",
+    "modes": {
+      "speech": "text_to_audio"
+    }
+  },
   "eleven-music-v2": {
     "defaultModeId": "music",
     "modes": {
@@ -351,20 +343,48 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "i2m": "image_to_3d"
     }
   },
-  "runway-image-reference": {
-    "defaultModeId": "i2i",
-    "modes": {
-      "i2i": "image_edit"
-    }
-  },
-  "runway-image": {
+  "runway-gen4-image": {
     "defaultModeId": "t2i",
     "modes": {
       "t2i": "text_to_image",
       "i2i": "image_edit"
     }
   },
-  "runway-audio": {
+  "runway-gen4-image-turbo": {
+    "defaultModeId": "i2i",
+    "modes": {
+      "i2i": "image_edit"
+    }
+  },
+  "runway-muse-image": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "grok-imagine-image-2": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "gemini-image-3-pro": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "gemini-image-3.1-flash": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "runway-seed-audio": {
     "defaultModeId": "sfx",
     "modes": {
       "sfx": "text_to_audio",

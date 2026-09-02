@@ -101,6 +101,17 @@ tests/system/runs/
 # 下载量可视化看板：派生产物（pnpm stats:html 按需生成），数据每次都变故不提交
 docs/stats/dashboard.html
 
+# 本机跑评测/走查/调研攒下的媒体产物。2026-09-02 实测主仓这一坨 966MB / 793 个文件
+# （platform-research 234M · research-20260824-agent-workbench 341M · promo-runs 180M ·
+# reference-libTV 158M · generated-clips-review 3M · release-0.19.0-screenshots 156K），
+# 此前**完全没被忽略**——任何一次 `git add -A` 都会把近 1GB 二进制永久写进这个公开仓库的历史，
+# 且不可逆。产物随时可重跑，源不在这里。
+outputs/
+
+# @imgly 抠图模型的运行时缓存（首次调用 removeBackgroundBlob 时从 CDN 拉，见
+# tests/ux/remove-background.walk.mjs）。54MB 的内容寻址分片，不是源码，不进 git。
+public/remove-background/
+
 # 交付账本：本地视图（pnpm run gen:ledger 按需生成）。
 # 不提交的原因是它含全局聚合量（现役欠账 N / 按月分桶 / 合计篇数）——两个分支各加一篇方案文档、
 # 各自重生成，两边门岗都绿；合并时计数行两边都是 30→31，git 无冲突地取 31，而真值是 32。

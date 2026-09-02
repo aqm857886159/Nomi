@@ -1,0 +1,159 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-runway-image-identity",
+  "problem_type": "模型身份↔档案归属分裂（图像侧）：一个平台形状的档案（runway-image）蹲在 9 个不同图像产品的身份上，而它下面的 wire 层（Runway /v1/text_to_image 的 10 变体 oneOf）本来就是按模型判别的，导致能力面（UI 给得出什么比例/张数/参考数）与 wire（真发得出什么）由两个作者维护、必然漂移",
+  "symptom": "① runway-image 声明一套共享比例（1024:1024 / 1280:720 / 720:1280 / 1360:768 / 768:1360 / auto_1k / auto_2k）喂给全部 9 个产品；照官方 OpenAPI 逐模型对账，**10 个变体里 10 个**都至少收到一个非法值——`1360:768` 与 `768:1360` 在**全部 10 个变体**的 enum 里都不存在，muse_image / gpt_image_2 / seedream5_lite / gemini_2.5_flash 连 `1024:1024` 都不收。② 传输层因此长出一张手工补丁表 RUNWAY_IMAGE_RATIO_REMAP，按朝向**静默改写** muse/gpt_image_2/seedream5_lite 三个模型的 ratio：用户在 UI 选了 1280:720，真正发出去的是 2560:1440，用户毫不知情；而补丁只覆盖 3 个模型，其余 7 个的非法值仍原样发出（恒 400）。③ 参考图上限一刀切 3 张，而官方 gpt_image_2 收 16 张、gemini_image3_pro/3.1_flash/seedream5_lite 收 14 张、muse/seedream5_pro 收 10 张——用户第 4 张起被我们自己的护栏拒掉，官方明明收得下。④ 张数控件对全部模型一律 1–10，而官方只有 gpt_image_2/muse_image 是 10，seedream5_pro/lite 与 grok 是 4，gen4_image 与 gemini_2.5_flash **根本没有 outputCount 字段**（发过去是未知字段）。",
+  "direct_cause": "RUNWAY_IMAGE_SPECS 的 10 行全部写 archetypeId: \"runway-image\"（gen4_image_turbo 写 \"runway-image-reference\"），而 runway-image 只声明一套通用的 t2i/i2i 两模式与一套通用参数（PARAMS 常量），且把 10 个模型的判别串全列进自己的 identifierPatterns。能力面是这 9 个产品能力的**并集**（对每个具体模型都过宽），wire 侧只好用 request_transform 事后补救。",
+  "class_root": "与 2026-09-02-runway-model-identity（视频侧）**完全同一个类根因**：档案的归属粒度错了。档案必须是**模型身份**（供应商无关），供应商差异由「供应商特化」轴吸收；而 runway-image 是按**供应商平台**建的档案。视频侧那轮已把三条轴补齐并删掉平台档案 runway-video / runway-video-t2v，但当时明确把 image/audio kind 记为「不在本次范围，记入后续」（见该合同 same_class_scan 第二条）——本轮就是那一项。图像侧不需要新增任何轴：vendorParams 这一条轴（2026-06-07 已存在）足够表达「同一个模型在 Runway 上的合法取值不同」，缺的只是**把事实集中到一个作者**。",
+  "affected_population": [
+    "Runway 全部 10 个图像模型的用户：比例控件此后只列该模型官方 enum 内的值（默认值也必在 enum 内），张数控件只在官方发布了 outputCount 的 7 个模型上出现，参考图上限按官方逐模型给（3/10/14/16）。",
+    "画布上已存在、meta.archetype.id === \"runway-image\" 或 \"runway-image-reference\" 的存量节点：经 legacyIds + 模型身份匹配在**读时**迁移到各自的真模型档案，不改写项目文件。",
+    "gpt_image_2 / seedream5_pro / seedream5_lite / gemini_2.5_flash 经 Runway 的用户：这四个产品此后与经 kie/apimart 的同一产品**共用同一个档案**（gpt-image-2 / seedream-5-pro / kie-seedream-5-lite / nano-banana），模式集与槽语义一致，只有参数取值按 vendorParams 分家。",
+    "headless / MCP 等绕过 UI 的调用方：归一器仍按同一张官方表校验并落到该模型 enum 内**形状最接近**的合法值（此前是按朝向落到手工表的三个值，且只覆盖 3 个模型）。"
+  ],
+  "scope_paths": [
+    "electron/shared/imageCapabilities/runwayImageWireFacts.ts",
+    "electron/catalog/runwayOfficial.ts",
+    "electron/catalog/runwayImage.ts",
+    "electron/catalog/runwayShared.ts",
+    "electron/catalog/runwayRatio.ts",
+    "electron/catalog/runwayImageIdentity.test.ts",
+    "electron/catalog/archetypeIdentifiers.generated.ts",
+    "electron/catalog/archetypeModes.generated.ts",
+    "electron/catalog/archetypeWireDefaults.image.generated.ts",
+    "src/config/modelArchetypes/runwayNativeImage.ts",
+    "src/config/modelArchetypes/gptImage2.ts",
+    "src/config/modelArchetypes/seedream5Pro.ts",
+    "src/config/modelArchetypes/kieSeedream5.ts",
+    "src/config/modelArchetypes/nanoBanana.ts",
+    "src/config/modelArchetypes/index.ts",
+    "scripts/platform-archetypes-baseline.json",
+    "docs/integration-certification/model-certification-ledger.json",
+    "scripts/check-platform-archetypes.mjs",
+    "src/config/modelArchetypes/resolutionOrder.test.ts"
+  ],
+  "entry_points": [
+    "electron/shared/imageCapabilities/runwayImageWireFacts.ts —— Runway 每模型合法 ratio 枚举 / referenceImages 上限 / outputCount 有无及上限的唯一真相源，逐字抄自官方 OpenAPI 的 10 变体 oneOf。两个消费者：各图像档案的 vendorParams.runway（由 runwayImageParams() **构建**，不重打字面量）与 runwayOfficial.ts 的传输边界校验。此前这些事实只活在传输层的手工补丁表里，UI 给非法值、传输层再悄悄改写。",
+    "electron/catalog/runwayImage.ts::RUNWAY_IMAGE_SPECS —— 10 行改挂各自的真模型档案；新增 archetypeId / editModeId / referenceKey 三个字段，让「接收方档案的模式 id 与槽 inputKey」成为这一行的显式契约（复用既有档案时必须照抄它的命名，否则模式取不到 mapping、参考槽 reach=none）。",
+    "electron/catalog/runwayImage.ts::normalizeRunwayImageReferences —— 从「按朝向静默改写 3 个模型」改为「按同一张官方表逐模型校验 + 逐模型参考上限」；参考键在三个候选键里认（跟着接收方档案的槽 inputKey 走），统一整形成官方 referenceImages: [{uri}]。",
+    "electron/catalog/runwayRatio.ts::pickRunwayImageRatioForOrientation —— 取代被删的 RUNWAY_IMAGE_RATIO_REMAP。落点判据是**形状最接近**（同宽高比多档时次级比面积），不是视频侧的面积最接近：图像 enum 常同时提供 16:9 与 21:9，按面积挑会把 1280:720 落到 2048:880（2.33，画幅变形）。该规则从官方 enum 复现出的三个落点值与旧手工表**逐字相同**（那张表当初就是实测 ACCEPTED 的），故行为不回退。",
+    "src/config/modelArchetypes/index.ts::resolveBaseArchetype —— legacyIds 迁移承接存量 \"runway-image\" / \"runway-image-reference\" 节点。"
+  ],
+  "invariants": [
+    "每个模型只有一个档案主人：不存在跨产品共享的「平台档案」；runway-image / runway-image-reference 已删除且不得重建（check:platform-archetypes 棘轮 + runwayImageIdentity.test.ts 双重拦截）。",
+    "UI 在 Runway 上给得出的每一个 aspect_ratio 值（含 defaultValue）必须是该模型官方 enum 的成员——传输层不需要改写任何一个 UI 给出的值。",
+    "Runway 的 ratio / referenceImages 上限 / outputCount 合法集只有一份（runwayImageWireFacts.ts），UI 侧 vendorParams 与传输侧校验同源。",
+    "参考槽在其 mapping 的 create.body 上必须可达（reach ≠ none）：body 读的参考键跟着**接收方档案的槽 inputKey** 走，不是写死一个键。",
+    "官方未发布 outputCount 的模型（gen4_image / gen4_image_turbo / gemini_2.5_flash）不得出现「张数」控件。",
+    "复用既有模型档案时，Runway 行的 modeId 必须是该档案里真实存在的模式 id（seedream/nano-banana 系是 edit，gpt-image-2 与 Runway 一手档案是 i2i）。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「平台型供应商把多个模型塞进一个共享档案」是会反复发生的接入捷径：任何一家中转/平台新接一批模型时，建一个平台档案都比逐模型建档省事，而能力面与 wire 的漂移要等用户点生成被拒（或更糟——被静默改写后拿到不是自己要的画幅）才暴露。同一个类根因在**同一天**先后于 video 与 image 两个 kind 上各暴露一次，本身就是复发性的实证。防复发必须是结构性的（棘轮门岗 + 全量契约断言），不能靠这次把 Runway 图像修对。",
+    "same_class_scan": [
+      "平台型共享档案全仓普查（check:platform-archetypes 的判据：identifierPatterns 归一成产品词干后聚类 > 2 簇）：修复前 3 个（runway-image / modelscope-image / runway-audio），本轮拆掉 runway-image，基线 3 → 2。剩余两个：modelscope-image 与 runway-audio，均属本类，尚未拆（见 residual_risks）。",
+      "Runway 图像 10 行逐行扫描（探针 tmp-probe/runwayImageIdentity.probe.ts，交付前删）：修复前 9 行共用 runway-image、1 行 runway-image-reference；修复后 10 行各自独占一个档案，平台档案 0。",
+      "能力面 × wire 逐值对账（同一探针）：修复前 10 个模型全部至少提供 1 个 wire 拒收的比例值；修复后 10 个模型的**全部** ratio 选项（9~56 个不等）与 defaultValue 均 ⊆ 官方 enum，越界 0。",
+      "参考槽可达性逐模式扫描：复用既有档案会引入一类**新**的静默失败——档案的槽 inputKey（input_urls / image_urls）与 Runway body 写死的 reference_image_urls 对不上时 modeSlotReach 判 none，即「UI 显示连上了、请求里一张都没有」。已实测确认该风险真实存在（三个候选键各测一次），并以 spec.referenceKey 让 body 跟着接收方档案走；修复后 10 行全部 reach=full。",
+      "视频侧同类（runway-video / runway-video-t2v）已由 2026-09-02-runway-model-identity 合同处置完毕，本轮不重复。"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/runwayImageIdentity.test.ts",
+    "electron/catalog/flagshipAudioVideoContracts.test.ts",
+    "src/config/modelArchetypes/resolutionOrder.test.ts"
+  ],
+  "migration": "无存储写入迁移。画布节点持久化的是 meta.archetype.id；存量 \"runway-image\" / \"runway-image-reference\" 节点由 resolveBaseArchetype 的 legacyIds 分支在**读时**按模型身份匹配映射到各自的真模型档案，不改写项目文件。回滚只需恢复被删的 runwayImage.ts 与 10 行 archetypeId，无残留数据。三个 .generated.ts 桥接文件按新档案集合重新生成（pnpm run gen:archetype-defaults），消费侧均按 archetypeId 键取。 另：为容纳新增的逐模型注释，图像目录从 runwayOfficial.ts 拆成 runwayImage.ts（R9 巨壳门岗 839>800），共享原语依赖反转进 runwayShared.ts 以避免静态硬环（check:boundaries）。纯搬运，无行为变化。",
+  "residual_risks": [
+    "**参考图上限在复用档案上是「档案宽、Runway 严」**：nano-banana 档案声明 10 张（kie 的合同），而 Runway 的 gemini_2.5_flash 变体官方只收 3 张；同理 gpt-image-2 档案 16 张对 Runway 的 16 张（一致）、seedream-5-pro 10 张对 10 张（一致）、kie-seedream-5-lite 14 张对 14 张（一致）——**只有 nano-banana 一处不一致**。当前处置：归一器按官方逐模型上限 fail-closed 报错（不静默截断，截断会悄悄丢用户的图）。这意味着 Runway 上用 Gemini 2.5 Flash 连第 4 张参考图，要到点生成才被拦。**没有就地修**是因为仓里尚无「按供应商收窄槽上限」这条轴，新增第四条轴属结构变更、应单独立项裁决（沿用视频侧「模式可见性按可达性 derive、不新增声明字段」的克制）。",
+    "gemini_image3_pro 与 gemini_image3.1_flash 的 outputCount 上限**官方 spec 未给 min/max**（properties.outputCount 是空对象）。本轮按「属性存在即支持」处理、上限取 Runway 图像侧通用的 10，并在 runwayImageWireFacts.ts 显式标注这是全文件唯一一处没有死数字出处的值。若日后实测发现更严，只改那张表一处。",
+    "seedream5_lite 的「freeform」宽松行为未采纳：2026-09-01 实测该模型也接受 enum 外的自由 <w>:<h>（满足像素窗即可），但 OpenAPI 把 ratio 标成严格 enum。仍只发 spec 列出的值，对未来收严 fail-safe，不押注未文档化的宽松行为（沿用被删那张表的原注记）。",
+    "本轮**未做付费封印**（R5 第三段）：全部依据来自官方 OpenAPI（第一段）+ 零额度的结构/契约测试与干跑探针（第二段）。10 个模型的真实生成产物双验未做——Runway 余额与最小花费预算未在本轮授权范围内。ledger 里这些行的 live 状态保持原样（blocked/simulated），未假称已封印。",
+    "剩余两个平台档案 modelscope-image 与 runway-audio 仍在基线里（本轮基线 3 → 2）。它们属同一类根因，拆法与本轮同构（逐产品建档 + wire 事实集中 + legacyIds 迁移），但各自的官方文档对账未做，本轮不猜。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://raw.githubusercontent.com/runwayml/openapi/main/openapi.json",
+      "checked_at": "2026-09-02",
+      "purpose": "Runway OpenAPI v2024-11-06 的 /v1/text_to_image：10 变体 oneOf、discriminator=model。逐变体取 properties.ratio.enum（9~56 值不等）、referenceImages.maxItems（3/10/14/16）、referenceImages 是否在 required 里（仅 gen4_image_turbo）、outputCount 有无及 min/max（gpt_image_2 与 muse_image 1–10；seedream5_pro/lite 与 grok_imagine_image_2 1–4；gemini_image3_pro 与 gemini_image3.1_flash 属性存在无约束；gen4_image / gen4_image_turbo / gemini_2.5_flash 无此属性）。本合同全部数值均逐字抄自此处，无一处凭记忆。"
+    }
+  ],
+  "generality_proof": "缺陷不是「Runway 图像配错了一行」，而是「档案按供应商平台建、能力面与 wire 分两个作者」这一形状必然产生的漂移。证据有三：① **同一个类根因在同一天于 video 与 image 两个 kind 上各独立暴露一次**（video 侧 10 个模型、image 侧 9 个），两侧没有共享代码，说明成因与 kind 无关、与「平台档案」这个形状有关；② 逐值对账显示越界是**普遍的而非个别的**——10 个变体里 10 个都至少收到一个非法值，且传输层的手工补丁只覆盖其中 3 个，剩下 7 个长期在发恒 400 的值，这不是配置疏忽而是「并集必然对每个成员过宽」的结构后果；③ 拆解后新增的风险（复用档案时槽 inputKey 与 body 键对不上导致参考静默丢失）同样是结构性的，已用 spec.referenceKey 把它变成一行显式契约并由测试锁住。因此防复发落在共享边界（wire 事实单一真相源 + 平台档案棘轮门岗 + 全量逐值契约断言），任何只改 Runway 图像配置的修法都会让下一家平台型供应商原样复发。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/imageCapabilities/runwayImageWireFacts.ts",
+      "symbol": "RUNWAY_IMAGE_RATIO_ENUMS",
+      "responsibility": "Runway 每模型合法 ratio / referenceImages 上限 / outputCount 的唯一真相源，同时供 UI 侧 vendorParams 与传输侧校验消费，杜绝「UI 给非法值、传输层再悄悄改写」。住 electron/shared/ 是分层纪律的必然结果：图像档案住 src/、归一器住 electron/catalog/，两侧唯一都够得着的中立地就是 shared（且 shared 禁 import catalog）。"
+    },
+    {
+      "path": "scripts/check-platform-archetypes.mjs",
+      "symbol": "platformArchetypes 棘轮",
+      "responsibility": "「一个档案罩多个不同产品」的机器闸，基线只减不增。本轮 3 → 2（runway-image 拆除）。新建平台档案当场报红且不允许追加进基线。"
+    },
+    {
+      "path": "electron/catalog/runwayImageIdentity.test.ts",
+      "symbol": "Runway 图像身份三条不变量",
+      "responsibility": "逐行断言：档案是模型专属（无跨产品共享）、UI 给得出的每个比例值 ⊆ 官方 enum、参考槽在该 mapping 上真正可达。让「能力面对该供应商撒谎」在测试期就红，而不是等用户点生成。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/runwayImage.ts",
+      "entry_point": "RUNWAY_IMAGE_SPECS",
+      "disposition": "enforced",
+      "evidence": "10 行全部由平台档案改挂各自的真模型档案（4 行复用既有模型档案、6 行新建单产品档案）；平台档案 runway-image / runway-image-reference 同 commit 删除，无 re-export 壳。探针复扫：平台档案 0、比例越界 0、参考槽不可达 0。 该文件由 runwayOfficial.ts 拆出（R9 巨壳门岗：原文件加注释后 839 行 > 800）。"
+    },
+    {
+      "path": "electron/catalog/runwayRatio.ts",
+      "entry_point": "RUNWAY_IMAGE_RATIO_REMAP",
+      "disposition": "enforced",
+      "evidence": "手工补丁表整体删除（P1 加新必删旧），改由 pickRunwayImageRatioForOrientation 从官方 enum 按形状 derive。实测该规则复现出的三个落点值与旧表逐字相同（1600:1600 / 1920:1920 / 2048:2048 及各自横竖档），行为不回退。"
+    },
+    {
+      "path": "src/config/modelArchetypes/modelscopeImage.ts",
+      "entry_point": "modelscope-image",
+      "disposition": "not-affected",
+      "evidence": "同类平台档案（仍在棘轮基线里），但不经 Runway 的任何代码路径，本轮零改动、行为零变化。拆法与本轮同构，待其官方文档对账后单独立项——记在 residual_risks，不假称已覆盖。"
+    },
+    {
+      "path": "src/config/modelArchetypes/runwaySeedAudio.ts",
+      "entry_point": "runway-audio",
+      "disposition": "enforced",
+      "evidence": "同类平台档案 runway-audio（4 个不同音频产品共用）。本合同交付时它仍在棘轮基线里、本轮零改动；**紧接着的同分支下一轮已把它拆掉**——4 行各自归位（seed_audio → 本文件的新档案 runway-seed-audio；eleven 三行复用/新建各自的 ElevenLabs 档案），runwayAudio.ts 已删除。因此这里指向承接它的新档案，不再指向已不存在的路径。详见 docs/fixes/2026-09-02-audio-modelscope-identity.root-cause.json。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/imageCapabilities/runwayImageWireFacts.ts",
+    "invariant": "Runway 图像的合法取值只有一份，能力面与传输侧都从它 derive；UI 给得出的每一个值都必须是该模型官方 enum 的成员。",
+    "failure_mode": "此前能力面（平台档案的共享 PARAMS）与 wire 事实（传输层的手工补丁表）是两个作者：UI 提供 wire 拒收的值，传输层要么静默改写（用户拿到不是自己选的画幅）、要么放行（恒 400）。两种失败都不会在测试里变红。",
+    "exception_policy": "none",
+    "strategy": "把事实收进唯一真相源并让两个消费者都**构建**而非重抄；再由平台档案棘轮门岗（禁止「一个档案罩多个产品」这个成因）与逐值契约测试（禁止越界这个后果）双向锁死。",
+    "artifacts": [
+      "electron/shared/imageCapabilities/runwayImageWireFacts.ts",
+      "scripts/check-platform-archetypes.mjs",
+      "scripts/platform-archetypes-baseline.json",
+      "electron/catalog/runwayImageIdentity.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/catalog/runwayImageIdentity.test.ts",
+    "electron/catalog/flagshipAudioVideoContracts.test.ts",
+    "src/config/modelArchetypes/resolutionOrder.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/config/modelArchetypes/runwayImage.ts",
+      "electron/catalog/runwayRatio.ts"
+    ],
+    "rationale": "平台档案 RUNWAY_IMAGE_ARCHETYPE / RUNWAY_IMAGE_REFERENCE_ARCHETYPE 连同其文件整体删除（P1 加新必删旧，无 re-export 壳、无并行版）；runwayRatio.ts 里的手工补丁表 RUNWAY_IMAGE_RATIO_REMAP 一并删除（它只为给平台档案的非法值打补丁而存在，档案拆掉后即为死代码）。resolutionOrder.test.ts 里为 gen4_image_turbo 撞串而设的 LOCKED_WINNERS / KNOWN_LOSSES 两条登记也随撞串消失而删除。存量画布节点由 legacyIds 读时迁移承接，不留双写路径。",
+    "verification": "git grep 'runway-image' 在 src/ 与 electron/ 下零命中（仅 docs/ 的历史合同与研究记录保留叙述性引用）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次不新增、不升级、不保留任何第三方依赖：全部改动是仓库内部的档案归属结构与 wire 事实集中，外部供应商契约只做「按官方 OpenAPI 对账后收窄」，未引入新 SDK 或版本约束。",
+    "exit_criteria": []
+  }
+}
