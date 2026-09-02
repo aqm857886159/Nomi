@@ -27,10 +27,8 @@ export const GENERATION_CONTEXT_READ_CAPABILITY = {
 export const GENERATION_PLAN_CAPABILITY = {
   id: "generation.plan",
   version: 1,
-  aliases: { pi: "nomi_operation_create" },
-  additionalAliases: {
-    pi: Object.freeze(["nomi_submit_generation_plan", "nomi_preview_execution"]),
-  },
+  aliases: { pi: "nomi_generation_plan" },
+  additionalAliases: Object.freeze({ pi: Object.freeze(["nomi_operation_create", "nomi_submit_generation_plan", "nomi_preview_execution"]) }),
   inputSchema: input,
   outputSchema: output,
   effect: "reversible_write",
@@ -61,7 +59,8 @@ export const GENERATION_GATE_CAPABILITY = {
 export const GENERATION_RUN_READ_CAPABILITY = {
   id: "generation.run.read",
   version: 1,
-  aliases: { pi: "nomi_operation_read" },
+  aliases: { pi: "nomi_generation_status" },
+  additionalAliases: Object.freeze({ pi: Object.freeze(["nomi_operation_read"]) }),
   inputSchema: input,
   outputSchema: output,
   effect: "read",

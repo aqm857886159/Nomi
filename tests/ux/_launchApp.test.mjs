@@ -6,7 +6,9 @@ import { describe, expect, test } from 'vitest'
 import {
   buildNomiLaunchEnv,
   configureSyntheticCredentialStorage,
+  currentCatalogVersion,
   diagnoseLaunchFailure,
+  prepareIsolatedCatalog,
   repoRoot,
   withLinuxNoSandbox,
   withLinuxSyntheticCredentialStorage,
@@ -14,6 +16,33 @@ import {
 } from './_launchApp.mjs'
 
 const dirs = { userDataDir: '/tmp/case/user-data', settingsDir: '/tmp/case/settings', projectsDir: '/tmp/case/projects' }
+
+describe('prepareIsolatedCatalog', () => {
+  test('quarantines a seed newer than the tested app instead of letting it enter Electron', () => {
+    const root = fs.mkdtempSync('/tmp/nomi-catalog-seed-red-')
+    const catalog = path.join(root, 'model-catalog.json')
+    const future = { version: 12, futureOnlyField: 'preserve-me', vendors: [], models: [], mappings: [], apiKeysByVendor: {} }
+    fs.writeFileSync(catalog, JSON.stringify(future))
+
+    const result = prepareIsolatedCatalog(root, { testedCatalogVersion: 11 })
+
+    expect(result.status).toBe('quarantined')
+    expect(fs.existsSync(catalog)).toBe(false)
+    expect(JSON.parse(fs.readFileSync(result.quarantinePath, 'utf8'))).toEqual(future)
+  })
+
+  test('keeps current and older seeds for the app migration chain', () => {
+    for (const diskVersion of [currentCatalogVersion(), currentCatalogVersion() - 1]) {
+      const root = fs.mkdtempSync('/tmp/nomi-catalog-seed-compatible-')
+      const catalog = path.join(root, 'model-catalog.json')
+      fs.writeFileSync(catalog, JSON.stringify({ version: diskVersion, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }))
+
+      expect(prepareIsolatedCatalog(root)).toMatchObject({ status: 'compatible', diskVersion })
+      expect(JSON.parse(fs.readFileSync(catalog, 'utf8')).version).toBe(diskVersion)
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
 
 describe('buildNomiLaunchEnv', () => {
   test('钉死必需 env 并隔离每个可写路径', () => {
@@ -42,6 +71,12 @@ describe('buildNomiLaunchEnv', () => {
     const env = buildNomiLaunchEnv({ ...dirs, baseEnv: { PATH: '/usr/bin' }, extraEnv: { NOMI_TEST_SYSTEM_LOCALE: '1' } })
     expect(env.NOMI_TEST_SYSTEM_LOCALE).toBe('1')
     expect(env.PATH).toBe('/usr/bin')
+  })
+
+  test('隔离能力核目录也随 env 传入且不与 settings 混用', () => {
+    const env = buildNomiLaunchEnv({ ...dirs, capabilityDir: '/tmp/case/capability', baseEnv: {} })
+    expect(env.NOMI_CAPABILITY_DIR).toBe('/tmp/case/capability')
+    expect(env.NOMI_SETTINGS_DIR).toBe(dirs.settingsDir)
   })
 })
 

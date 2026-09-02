@@ -258,9 +258,9 @@ describe("APIMart observe-only generation provider", () => {
       transportModelId: "doubao-seedance-2.0-fast",
       mode: "text_to_video",
       parameters: { duration: 5, size: "16:9", resolution: "720p" },
-    }))).toMatchObject({ model: "doubao-seedance-2.0-fast", duration: 5 });
+    }))).toMatchObject({ model: "seedance-2.0-fast", duration: 5 });
     expect(provider.buildRequest(input({ modelId: "doubao-seedance-2.0", mode: "text_to_video", parameters: {} })) )
-      .toMatchObject({ model: "doubao-seedance-2.0-fast" });
+      .toMatchObject({ model: "seedance-2.0-fast" });
   });
 
   it("fails closed when a catalog default accepts a reference but create.body drops it", () => {
@@ -438,7 +438,7 @@ describe("APIMart observe-only generation provider", () => {
         imageWithRoles: [{ url: "https://cdn.example/character.png", role: "reference_image" }],
       },
     }))).toEqual({
-      model: "doubao-seedance-2.0-fast",
+      model: "seedance-2.0-fast",
       prompt: "a red paper crane",
       duration: 5,
       resolution: "720p",

@@ -340,6 +340,46 @@ describe("canvas descriptor schemas", () => {
       }));
       expect(storyboardPlanParamsSchema.safeParse({ title: "too many", anchors: [], shots }).success).toBe(false);
     });
+
+    // v5：sceneId + 台词/字幕/转场进 propose schema（原 §3.10 登记缺口）——zod 默认剥未知键，
+    // 不进 schema 的字段会在这里被静默吃掉、渲染层永远拿不到。
+    it("accepts and keeps sceneId/subtitle/dialogue/transition (v5 additions)", () => {
+      const parsed = storyboardPlanParamsSchema.safeParse({
+        title: "带场与台词",
+        anchors: [],
+        shots: [
+          {
+            index: 1,
+            sceneId: "scene-1",
+            shotKind: "video",
+            durationSec: 5,
+            anchorIds: [],
+            prompt: "中景，手持",
+            subtitle: "三年了",
+            dialogue: "陈默：「你不该回来的。」",
+            transition: { type: "dissolve", durationFrames: 12 },
+          },
+        ],
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.shots[0]).toMatchObject({
+          sceneId: "scene-1",
+          subtitle: "三年了",
+          dialogue: "陈默：「你不该回来的。」",
+          transition: { type: "dissolve", durationFrames: 12 },
+        });
+      }
+    });
+
+    it("rejects an unknown transition type instead of guessing", () => {
+      const parsed = storyboardPlanParamsSchema.safeParse({
+        title: "坏转场",
+        anchors: [],
+        shots: [{ index: 1, shotKind: "video", durationSec: 5, anchorIds: [], prompt: "p", transition: { type: "explode" } }],
+      });
+      expect(parsed.success).toBe(false);
+    });
   });
 
   describe("read_canvas_state parameters", () => {

@@ -123,7 +123,7 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
 
     expect(state.request?.capability).toEqual({ maxSteps: 24 });
     expect(state.request?.tools.map((tool) => tool.name)).toEqual(expect.arrayContaining([
-      'nomi_operation_create', 'nomi_preview_execution', 'nomi_request_generation_gate',
+      'nomi_generation_plan', 'nomi_generation_status',
       'start_production_run', 'export_timeline',
     ]));
   });

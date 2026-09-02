@@ -17,7 +17,7 @@ export const RUNWAY_VIDEO_ARCHETYPE: ModelArchetype = {
   modes: [
     { id: "t2v", intent: "text", vendorTerm: "文生视频", hint: "用文字生成视频", promptRequired: true, transportTaskKind: "text_to_video", slots: [], params: PARAMS },
     { id: "i2v", intent: "single", vendorTerm: "图生视频", hint: "用首帧或参考图生成视频", promptRequired: true, transportTaskKind: "image_to_video", slots: [{ kind: "image_ref", label: "首帧/参考图", min: 1, max: 10, inputKey: "image_url", asArray: false }], params: PARAMS },
-    { id: "reference", intent: "character", vendorTerm: "多图参考", hint: "用多张角色或环境参考图生成视频", promptRequired: true, transportTaskKind: "image_to_video", slots: [{ kind: "image_ref", label: "角色/环境参考", min: 1, max: 10, inputKey: "reference_image_urls", characterIndexed: true }], params: PARAMS },
+    { id: "reference", intent: "character", vendorTerm: "多图参考", hint: "用多张角色或环境参考图生成视频", promptRequired: true, transportTaskKind: "text_to_video", slots: [{ kind: "image_ref", label: "角色/环境参考", min: 1, max: 10, inputKey: "reference_image_urls", characterIndexed: true }], params: PARAMS },
   ],
 };
 

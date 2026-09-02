@@ -79,7 +79,12 @@ test('review diff is restricted to staged changes or outgoing ranges', () => {
   }
   const staged = collectReviewDiff({ repoRoot: '/repo', scope: 'staged', runGit: fakeGit })
   assert.equal(staged.diff, 'staged patch')
-  assert.match(calls[0].join(' '), /--cached/)
+  // 按意图断言而不是按调用下标：staged 侧现在会先探一次 MERGE_HEAD（判断这是不是一次合并
+  // 提交），`calls[0]` 因此不再是 diff 本身。要钉的不变量是「取的是索引、不是工作区」。
+  assert.ok(
+    calls.some((args) => args[0] === 'diff' && args.includes('--cached')),
+    'staged review must read the index (`git diff --cached`), never the worktree',
+  )
   assert.ok(!calls.some((args) => args.includes('--binary')), 'binary payloads must not be requested')
 
   const pushed = collectReviewDiff({
@@ -108,6 +113,12 @@ test('review input is bounded and rejects excessive push updates', () => {
     `refs/heads/task-${index} ${SHA_A} refs/heads/task-${index} ${ZERO}`,
   ).join('\n')
   assert.throws(() => parsePushInput(updates), /update count exceeds/)
+})
+
+test('a bounded multi-megabyte text diff remains reviewable without ENOBUFS', () => {
+  const diff = 'x'.repeat(7_500_000)
+  const collected = collectReviewDiff({ repoRoot: '/repo', scope: 'staged', runGit: () => diff })
+  assert.equal(collected.diff, diff)
 })
 
 test('staged binary diff omits base85 payload and carries a byte summary', (t) => {
@@ -407,4 +418,157 @@ test('linked worktrees get isolated hook paths without touching the base worktre
   assert.equal(result.hookDir, expectedHookDir)
   assert.equal(git(linked, ['config', '--worktree', '--get', 'core.hooksPath']), expectedHookDir)
   assert.equal(fs.existsSync(path.join(root, '.git', 'hooks', 'pre-push')), false)
+})
+
+// ── 评审单元 = 「本次作者写的」，不是「本次携带的」（2026-09-02 根因修复）────────────────
+//
+// 起因：一条落后主线的任务分支追平 main 时，钩子连着三次挡下交付——
+// 先是 ENOBUFS（当时上限 1.5MB，端点 diff 2.85MB），上限提到 8MB 后改成 Codex 侧
+// runner_failed（2.85MB ≈ 七八十万 token，模型吃不下）。提上限只是把失败点从 git 的
+// 缓冲区挪到模型的上下文窗口，没碰到根因。
+//
+// 根因：评审范围用**端点差**算——push 用 `remoteSha..localSha`、staged 用 index↔HEAD。
+// base 一动（rebase / 追平 merge / force-push），端点差就把 base 漂移的全部内容卷进来；
+// 那些不是本次作者写的，而且**已经在主线上被同一道闸审过一次**。实测同一次合并：
+// 端点差 2.85MB，其中真正该审的只有 0.37MB。
+//
+// 更糟的是它顺带放过了最该抓的东西：那次合并里真正由人做的决定是冲突解析
+// （门岗链取并集、测试文件括号），而我在这两处**都写错了**——一处静默吞掉一个门岗、
+// 一处吞掉两层收尾括号让整个测试文件零执行。scope 错了，于是既跑不动又抓不到。
+
+/** 造一个「分支落后主线，主线上堆了大量与我无关的改动」的真实仓库。 */
+function makeDivergedRepository(t) {
+  const root = makeRepository(t)
+  const base = git(root, ['rev-parse', 'HEAD'])
+  // 主线：一堆别人的改动（体量刻意做大，代表 base 漂移）。
+  git(root, ['checkout', '--quiet', '-b', 'mainline'])
+  fs.writeFileSync(path.join(root, 'mainline-drift.txt'), 'MAINLINE-DRIFT\n'.repeat(4000))
+  git(root, ['add', 'mainline-drift.txt'])
+  git(root, ['commit', '--quiet', '--no-verify', '-m', 'mainline drift'])
+  const mainlineTip = git(root, ['rev-parse', 'HEAD'])
+  // 让 resolveNewRefBase / 新逻辑找得到「远端默认分支」。
+  git(root, ['update-ref', 'refs/remotes/origin/mainline', mainlineTip])
+  git(root, ['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/mainline'])
+  // 我的分支：从 base 岔出去，只写一行。
+  git(root, ['checkout', '--quiet', '-b', 'task', base])
+  fs.writeFileSync(path.join(root, 'mine.txt'), 'MY-OWN-WORK\n')
+  git(root, ['add', 'mine.txt'])
+  git(root, ['commit', '--quiet', '--no-verify', '-m', 'my work'])
+  return { root, base, mainlineTip, taskTip: git(root, ['rev-parse', 'HEAD']) }
+}
+
+test('追平 merge 后推送：只审我写的，不把主线漂移卷进来', (t) => {
+  const { root, taskTip } = makeDivergedRepository(t)
+  const pushedTip = taskTip // 远端已有的 tip
+  // 真实场景：本地又写了一个新提交，然后为了追平主线做了一次 merge，最后一起推。
+  fs.writeFileSync(path.join(root, 'later.txt'), 'LATER-WORK\n')
+  git(root, ['add', 'later.txt'])
+  git(root, ['commit', '--quiet', '--no-verify', '-m', 'later work'])
+  git(root, ['merge', '--quiet', '--no-verify', '--no-edit', 'mainline'])
+  const merged = git(root, ['rev-parse', 'HEAD'])
+
+  const collected = collectReviewDiff({
+    repoRoot: root,
+    scope: 'push',
+    pushInput: `refs/heads/task ${merged} refs/heads/task ${pushedTip}`,
+    remoteName: 'origin',
+  })
+
+  assert.match(collected.diff, /LATER-WORK/, '本次新写的提交必须在评审范围里')
+  assert.doesNotMatch(
+    collected.diff,
+    /MAINLINE-DRIFT/,
+    '主线漂移不该进评审范围：它不是本次作者写的，且已在主线上审过一次',
+  )
+})
+
+test('rebase 后 force-push：只审我写的，不把主线漂移卷进来', (t) => {
+  const { root } = makeDivergedRepository(t)
+  const oldRemoteTip = git(root, ['rev-parse', 'HEAD']) // 远端上那个基于旧 base 的 tip
+  git(root, ['rebase', '--quiet', 'mainline'])
+  const rebasedTip = git(root, ['rev-parse', 'HEAD'])
+  assert.notEqual(rebasedTip, oldRemoteTip, 'rebase 应当重写了历史，否则这条测试没测到东西')
+
+  const collected = collectReviewDiff({
+    repoRoot: root,
+    scope: 'push',
+    pushInput: `refs/heads/task ${rebasedTip} refs/heads/task ${oldRemoteTip}`,
+    remoteName: 'origin',
+  })
+
+  assert.match(collected.diff, /MY-OWN-WORK/, '我自己写的必须在评审范围里')
+  assert.doesNotMatch(collected.diff, /MAINLINE-DRIFT/, 'force-push 的端点差会卷进整段主线漂移')
+})
+
+test('普通快进推送不受影响：范围仍是远端 tip → 本地 tip（不因修复而变宽）', (t) => {
+  const { root, mainlineTip } = makeDivergedRepository(t)
+  git(root, ['checkout', '--quiet', 'task'])
+  const pushedTip = git(root, ['rev-parse', 'HEAD'])
+  fs.writeFileSync(path.join(root, 'second.txt'), 'SECOND-COMMIT\n')
+  git(root, ['add', 'second.txt'])
+  git(root, ['commit', '--quiet', '--no-verify', '-m', 'second'])
+  const head = git(root, ['rev-parse', 'HEAD'])
+
+  const collected = collectReviewDiff({
+    repoRoot: root,
+    scope: 'push',
+    pushInput: `refs/heads/task ${head} refs/heads/task ${pushedTip}`,
+    remoteName: 'origin',
+  })
+
+  assert.match(collected.diff, /SECOND-COMMIT/, '新提交要审')
+  assert.doesNotMatch(collected.diff, /MY-OWN-WORK/, '已推送过的提交不该被重审——范围不许因修复而变宽')
+  assert.ok(mainlineTip, 'fixture sanity')
+})
+
+test('合并提交的 staged 评审：只剩冲突解析与我的改动，不含被合入分支带来的内容', (t) => {
+  const { root } = makeDivergedRepository(t)
+  // 制造一次真冲突：两边都动 tracked.txt。
+  git(root, ['checkout', '--quiet', 'mainline'])
+  fs.writeFileSync(path.join(root, 'tracked.txt'), 'MAINLINE-SIDE\n')
+  git(root, ['commit', '--quiet', '--no-verify', '-am', 'mainline edits tracked'])
+  const mainlineTip = git(root, ['rev-parse', 'HEAD'])
+  git(root, ['update-ref', 'refs/remotes/origin/mainline', mainlineTip])
+  git(root, ['checkout', '--quiet', 'task'])
+  fs.writeFileSync(path.join(root, 'tracked.txt'), 'TASK-SIDE\n')
+  git(root, ['commit', '--quiet', '--no-verify', '-am', 'task edits tracked'])
+
+  const merge = spawnSync('git', ['merge', '--no-commit', '--no-ff', 'mainline'], { cwd: root, encoding: 'utf8' })
+  assert.notEqual(merge.status, 0, '这条测试的前提是真冲突；没冲突就没测到东西')
+  fs.writeFileSync(path.join(root, 'tracked.txt'), 'RESOLVED-BY-HAND\n')
+  git(root, ['add', 'tracked.txt'])
+
+  const collected = collectReviewDiff({ repoRoot: root, scope: 'staged' })
+  assert.match(collected.diff, /RESOLVED-BY-HAND/, '冲突解析是本次唯一由人做的决定，必须审')
+  assert.doesNotMatch(collected.diff, /MAINLINE-DRIFT/, '被合入分支带来的内容不该进评审范围')
+})
+
+test('追平 merge 的冲突解析必须进评审——它是这次合并里唯一由人做的决定', (t) => {
+  const { root, taskTip } = makeDivergedRepository(t)
+  const pushedTip = taskTip
+  // 两边都改同一行 → 制造真冲突，然后手工解析成第三种内容。
+  git(root, ['checkout', '--quiet', 'mainline'])
+  fs.writeFileSync(path.join(root, 'tracked.txt'), 'MAINLINE-SIDE\n')
+  git(root, ['commit', '--quiet', '--no-verify', '-am', 'mainline edits tracked'])
+  git(root, ['update-ref', 'refs/remotes/origin/mainline', git(root, ['rev-parse', 'HEAD'])])
+  git(root, ['checkout', '--quiet', 'task'])
+  fs.writeFileSync(path.join(root, 'tracked.txt'), 'TASK-SIDE\n')
+  git(root, ['commit', '--quiet', '--no-verify', '-am', 'task edits tracked'])
+
+  const merge = spawnSync('git', ['merge', '--no-commit', '--no-ff', 'mainline'], { cwd: root, encoding: 'utf8' })
+  assert.notEqual(merge.status, 0, '前提是真冲突；没冲突这条就没测到东西')
+  fs.writeFileSync(path.join(root, 'tracked.txt'), 'RESOLVED-BY-HAND\n')
+  git(root, ['add', 'tracked.txt'])
+  git(root, ['commit', '--quiet', '--no-verify', '--no-edit'])
+  const merged = git(root, ['rev-parse', 'HEAD'])
+
+  const collected = collectReviewDiff({
+    repoRoot: root,
+    scope: 'push',
+    pushInput: `refs/heads/task ${merged} refs/heads/task ${pushedTip}`,
+    remoteName: 'origin',
+  })
+
+  assert.match(collected.diff, /RESOLVED-BY-HAND/, '冲突解析是这次合并唯一由人做的决定，漏了它这道闸就白设')
+  assert.doesNotMatch(collected.diff, /MAINLINE-DRIFT/, '被合入的主线内容不该进评审')
 })

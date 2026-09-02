@@ -27,6 +27,7 @@ import { createPlanTrustStore, planConfirmElicit } from './mcpPlanTrust'
 import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
 import { buildIntakeMessage, buildIntakeQuestions, buildIntakeSchema, resolveIntake, summarizeIntake } from './mcpBriefIntake'
 import type { AuthenticatedMcpClient } from './security'
+import { subscribeMcpToolCatalogChanges } from './mcpToolCatalogChanges'
 
 export type McpInvokeOptions = { spendConfirmed?: boolean; planConfirmed?: boolean; signal?: AbortSignal }
 export const MCP_REQUEST_SIGNAL = Symbol('nomi.mcp.request-signal')
@@ -115,6 +116,10 @@ export function createMcpProtocol(transport: McpTransport) {
   // 客户端能力（initialize 时捕获）。elicitation = 客户端能代我们向真人弹确认对话框（MCP 规范 2025-06-18）。
   let clientSupportsElicitation = false
   let clientHost = 'external'
+  let initialized = false
+  const unsubscribeCatalogChanges = subscribeMcpToolCatalogChanges(() => {
+    if (initialized) send({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' })
+  })
   // 画布方案确认的会话级信任：某项目首次批量方案在聊天里批准过 → 本会话该项目后续批量直接放行。
   // 挂闭包 = 随这条 MCP 连接/会话存活，连接断即亡，不持久化（见 mcpPlanTrust.ts）。
   const planTrust = createPlanTrustStore()
@@ -371,13 +376,14 @@ export function createMcpProtocol(transport: McpTransport) {
       }
       reply(id, {
         protocolVersion: negotiatedVersion,
-        capabilities: { tools: {}, resources: {}, prompts: {} },
+        capabilities: { tools: { listChanged: true }, resources: {}, prompts: {} },
         serverInfo: { name: 'nomi-capability-core', version: '0.1.0' },
         instructions:
           '用 nomi_* 工具在本机驱动 Nomi：可安全发起制作草稿、读取 Run/事件/产物并深链回 Nomi；付费生成只走 Run-owned 生成门。' +
           '另经 resources/prompts 暴露 Nomi 的「导演/编剧技能库」（从阿泽导演台整过来的电影方法论：拆镜头/运镜/一致性/摄影/对白/结构等）——' +
           '做视频/剧本前先 resources/list 看有哪些、resources/read 或 prompts/get 载入相关技能，再据其方法论写提示词、组装画布、驱动生成，产出质量更专业。',
       })
+      initialized = true
       return
     }
     if (method === 'tools/list') {
@@ -752,6 +758,9 @@ export function createMcpProtocol(transport: McpTransport) {
     /** stdio 断连/进程退出：中止全部在飞工作，别把付费生成留在后台跑。 */
     cancelAllInFlight(reason: string): number {
       return requests.cancelAll(reason)
+    },
+    dispose(): void {
+      unsubscribeCatalogChanges()
     },
   }
 }

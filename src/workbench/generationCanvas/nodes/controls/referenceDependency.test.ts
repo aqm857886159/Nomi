@@ -3,8 +3,7 @@
 // 判定可生成 → 发出去被服务商拒（方舟「不支持"纯音频"输入」）。
 import { describe, expect, it } from 'vitest'
 import { filledReferenceKinds, nodeUnmetReferenceDependency, unmetReferenceDependency } from './referenceDependency'
-import { SEEDANCE_2_APIMART_ARCHETYPE } from '../../../../config/modelArchetypes/seedanceApimart'
-import { SEEDANCE_2_5_ARCHETYPE } from '../../../../config/modelArchetypes/seedance25'
+import { SEEDANCE_2_APIMART_ARCHETYPE, SEEDANCE_2_5_ARCHETYPE } from '../../../../../electron/shared/videoCapabilities'
 import type { ArchetypeMode, ArchetypeReferenceSlotKind } from '../../../../config/modelArchetypes'
 
 const omniOf = (archetype: { modes: ArchetypeMode[] }, id: string) =>

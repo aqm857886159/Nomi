@@ -1,5 +1,11 @@
+import { z } from "zod";
 import type { RuntimeToolCall, RuntimeToolDecision } from "../harness/runtime/runtimePort";
-import { generationToolDescriptors } from "../harness/tools/generationDescriptors";
+import {
+  generationPlanInputSchema,
+  generationStatusInputSchema,
+  modelToolSurfaceManifest,
+} from "../harness/tools/modelToolSurfaceManifest";
+import { GENERATION_RECONCILE_OUTCOMES } from "./mcpGenerationTools";
 import type { ProjectBinding } from "../shared/projectBinding";
 import type { ProjectLeaseV2 } from "./projectLease";
 import type { DispatchContext } from "./dispatcher";
@@ -30,7 +36,19 @@ export type GenerationTransportAdapterDependencies = Readonly<{
   leaseFor: GenerationLeaseFactory;
 }>;
 
-const GENERATION_TOOL_NAMES = new Set(Object.keys(generationToolDescriptors));
+const MODEL_GENERATION_TOOL_NAMES = new Set(modelToolSurfaceManifest.generation.map(({ name }) => name));
+const INTERNAL_GENERATION_TOOL_NAMES = new Set([
+  "nomi_get_generation_context",
+  "nomi_operation_create",
+  "nomi_submit_generation_plan",
+  "nomi_preview_execution",
+  "nomi_request_generation_gate",
+  "nomi_start_generation",
+  "nomi_operation_read",
+  "nomi_cancel_generation",
+  "nomi_reconcile_generation",
+]);
+const GENERATION_TOOL_NAMES = new Set([...MODEL_GENERATION_TOOL_NAMES, ...INTERNAL_GENERATION_TOOL_NAMES]);
 const GATE_TOOL = "nomi_request_generation_gate";
 const START_TOOL = "nomi_start_generation";
 
@@ -51,11 +69,49 @@ function safeFailure(error: unknown): Extract<RuntimeToolDecision, { ok: false }
 }
 
 function parsedArgs(call: RuntimeToolCall): Record<string, unknown> {
-  const descriptor = generationToolDescriptors[call.toolName];
-  if (!descriptor) throw Object.assign(new Error("generation_tool_unknown"), { code: "generation_tool_unknown" });
-  const parsed = descriptor.parameters.safeParse(call.args);
+  const semanticSchema = call.toolName === "nomi_generation_plan"
+    ? generationPlanInputSchema
+    : call.toolName === "nomi_generation_status"
+      ? generationStatusInputSchema
+      : undefined;
+  const schema = semanticSchema
+    ?? (call.toolName === "nomi_reconcile_generation"
+      ? z.object({ operationId: z.string().trim().min(1), outcome: z.enum(GENERATION_RECONCILE_OUTCOMES) }).strict()
+      : call.toolName === "nomi_operation_create"
+        ? z.object({ prompt: z.string().trim().min(1).optional(), candidate: z.record(z.unknown()).optional(), shots: z.array(z.unknown()).optional(), scriptText: z.string().trim().min(1).optional() }).strict()
+        : call.toolName === "nomi_submit_generation_plan"
+          ? z.object({ operationId: z.string().trim().min(1), patch: z.record(z.unknown()) }).strict()
+          : z.object({ operationId: z.string().trim().min(1) }).strict());
+  const parsed = schema.safeParse(call.args);
   if (!parsed.success) throw Object.assign(new Error("generation_input_invalid"), { code: "generation_input_invalid" });
   return parsed.data as Record<string, unknown>;
+}
+
+function canonicalGenerationCall(call: RuntimeToolCall, args: Record<string, unknown>): RuntimeToolCall {
+  if (call.toolName === "nomi_generation_plan") {
+    const operation = args.operation;
+    if (operation === "context") return { ...call, toolName: "nomi_get_generation_context", args: {} };
+    if (operation === "create") {
+      const { operation: _operation, ...createArgs } = args;
+      return { ...call, toolName: "nomi_operation_create", args: createArgs };
+    }
+    if (operation === "patch") {
+      const { operation: _operation, ...patchArgs } = args;
+      return { ...call, toolName: "nomi_submit_generation_plan", args: patchArgs };
+    }
+    const { operation: _operation, ...previewArgs } = args;
+    return { ...call, toolName: "nomi_preview_execution", args: previewArgs };
+  }
+  if (call.toolName === "nomi_generation_status") {
+    const operation = args.operation;
+    const { operation: _operation, ...statusArgs } = args;
+    return {
+      ...call,
+      toolName: operation === "read" ? "nomi_operation_read" : operation === "cancel" ? "nomi_cancel_generation" : "nomi_reconcile_generation",
+      args: statusArgs,
+    };
+  }
+  return call;
 }
 
 function operationId(args: Record<string, unknown>): string {
@@ -208,28 +264,30 @@ export function createPiGenerationTransportAdapter(
       if (disposed) return { ok: false, code: "surface_port_unavailable", message: "surface_port_unavailable" };
       if (signal.aborted) return { ok: false, code: "generation_cancelled", message: "generation_cancelled", denied: true };
       try {
-        const args = parsedArgs(call);
+        const parsed = parsedArgs(call);
+        const canonicalCall = canonicalGenerationCall(call, parsed);
+        const args = canonicalCall.args as Record<string, unknown>;
         const currentLease = await lease(signal);
-        if (call.toolName === GATE_TOOL) {
+        if (canonicalCall.toolName === GATE_TOOL) {
           const result = await requestGate(args, currentLease, signal);
           const denied = result && typeof result === "object" && (result as { nextAction?: unknown }).nextAction === "revise";
           return denied
             ? { ok: false, code: "generation_declined", message: "Generation was not started", denied: true }
             : { ok: true, result, silent: true };
         }
-        const capability = call.toolName === START_TOOL
+        const capability = canonicalCall.toolName === START_TOOL
           ? "start"
-          : call.toolName === "nomi_get_generation_context"
+          : canonicalCall.toolName === "nomi_get_generation_context"
             ? "context"
-            : call.toolName === "nomi_operation_create"
+            : canonicalCall.toolName === "nomi_operation_create"
               ? "create"
-              : call.toolName === "nomi_submit_generation_plan"
+              : canonicalCall.toolName === "nomi_submit_generation_plan"
                 ? "plan"
-                : call.toolName === "nomi_preview_execution"
+                : canonicalCall.toolName === "nomi_preview_execution"
                   ? "preview"
-                  : call.toolName === "nomi_operation_read"
+                  : canonicalCall.toolName === "nomi_operation_read"
                     ? "read"
-                    : call.toolName === "nomi_cancel_generation"
+                    : canonicalCall.toolName === "nomi_cancel_generation"
                       ? "cancel"
                       : "reconcile";
         // operationId is required by every non-create descriptor. Parsing it

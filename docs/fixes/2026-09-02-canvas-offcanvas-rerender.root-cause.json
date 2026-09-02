@@ -1,0 +1,49 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-canvas-offcanvas-rerender",
+  "problem_type": "off-canvas「安静渲染」量具读脏值：探针把 fiber 子树包含且跨 bailout 长期驻留的 actualDuration 当「本次渲染」计数，稳定超计 ~17-40×，导致 eval v2 dev 腿把「投影修复没生效」当成结论——测量仪器的假信号被洗成体验/回归结论",
+  "symptom": "S3 收尾班在 cc338341（画布外订阅收口到 selectStableCanvasNodes 的修复 commit）上跑 eval v2 dev 腿，off-canvas 中位 node-drag-image 584、blank-pan 192「修复后不降、且不低于修复前基线」，据此判定投影修复没生效或不充分、要求继续 debug 生产代码。真因不在生产代码：tests/ux/canvas-perf/offCanvasRenderProbe.mjs 的 walkRoot 每次 commit 走 root.current，凡 `fiber.actualDuration && fiber.actualDuration > 0` 且名字命中 OFF_CANVAS_RENDER_TARGETS 即计一次「渲染」。但 React 的 actualDuration 是**子树包含**（completeWork 把每个子 fiber 的 actualDuration 折进父 fiber），且在 committed 树上**跨 bailout 长期驻留**（只有 createWorkInProgress 在 fiber 真正被 work 时才清零）。于是该走法把（a）任何渲染物的所有祖先、（b）任何「早年渲染过一次、此后一直 bailout」的组件全部误计为每 commit 一次。用组件级 useRef 地面真值核实：拖一张图节点期间 OnboardingChecklist 自身函数体执行 0 次、TaskCenterButton 仅 4-6 次（全部来自其 1.5s productionRuns 轮询，与拖动无关）、CategoryTree 0 次——投影修复本就生效；但旧探针报 OnboardingChecklist 69/261、TaskCenterButton 69/261。self-time（actualDuration 减直接子）细化与 fiber-vs-alternate 同 commit 比对都因读同一批驻留脏值而同样超计（各腿实测仍 ~65-266）。",
+  "direct_cause": "walkRoot 用 `fiber.actualDuration > 0` 作『本 commit 本 fiber 渲染了』的判据。该判据在 committed 树上不成立：actualDuration 子树包含（祖先被连坐）+ 跨 bailout 不清零（bailout 的 fiber 保留上次真实渲染的值），所以对『渲染一次后长期 bailout』的组件恒为正、每 commit 都被计。这是量具的判据错误，不是任何生产组件的渲染行为异常。",
+  "class_root": "『off-canvas 安静渲染』这个 advisory + U4 阳性对照指标的可信度，取决于探针能否只在『某目标组件本次 commit 真的重跑了自己的函数体』时计一次。它是 DevTools 全局钩子在浏览器 realm 里跨 commit 遍历 committed fiber 树，唯一能拿到的稳定信号是每个 fiber 的 (memoizedProps, memoizedState) 身份。任何『单 commit 内』的判据（actualDuration>0、self-time>0、fiber 与其 alternate 同 commit 比对）都会被 committed 树上驻留/冻结的脏值骗过——因为探针每 commit 重走 root.current，而 bailout 的子树 fiber 及其 alternate 关系跨多个 commit 原样驻留。修在最早共享边界（探针计数规则本身）：把规则收敛成跨 commit 差分——记住每个目标实例上次的 (memoizedProps, memoizedState)，仅当这对在两次 commit 间变化才计一次真渲染，bailout 冻结不计；抽成单一导出纯函数 createOffCanvasRenderTracker（既被单测钉死、又以 .toString() 原样注入浏览器 init script，单一真相源）。修好后 dev 腿 off-canvas 从假的 584/192 变成真实 ~10/4，恢复其作为可信 advisory + 阳性对照的资格。这不是修某个组件的渲染，而是修量具『怎么判定一次真渲染』。",
+  "affected_population": [
+    "eval v2 dev 腿（--dev-server）的 off-canvas 安静渲染 advisory 与 U4 阳性对照：此前对每一个 OFF_CANVAS_RENDER_TARGETS 组件（CategoryTree/AssetLibraryPanel/AssetPicker/TaskCenterButton/TaskCenterPanel/TimelinePreview/PreviewSourcePanel/OnboardingChecklist）都可能报出与真实渲染次数相差 ~17-40× 的数，任何据此对『画布外重渲染是否被抑制』下的结论都不可信。",
+    "读该指标做判断的人/流程：S3 前班据假数判定 cc338341 投影修复没生效（实为已生效），险些在已正确的生产代码上继续『修根因』；未来任何看 off-canvas 数评估画布外静默性的开发者同样会被误导。",
+    "复用 offCanvasRenderProbe 计数的新目标组件：只要沿用旧的 actualDuration>0 判据就会继承同一超计缺陷。"
+  ],
+  "scope_paths": [
+    "tests/ux/canvas-perf/offCanvasRenderProbe.mjs",
+    "tests/ux/canvas-perf/offCanvasRenderProbe.test.mjs"
+  ],
+  "entry_points": [
+    "tests/ux/canvas-perf/offCanvasRenderProbe.mjs — createOffCanvasRenderTracker()（新导出纯函数）：探针的唯一计数规则，跨 commit 记 (memoizedProps, memoizedState)、变化才计一次真渲染；buildInitScript 通过 .toString() 把它原样注入浏览器 realm，walkRoot 每 fiber 调 tracker.detect(fiber)。",
+    "tests/ux/canvas-perf/offCanvasRenderProbe.mjs — walkRoot / onCommitFiberRoot：DevTools 钩子每次 commit 走 committed 树，命中目标名的 fiber 交给 tracker.detect 决定是否计数（不再用 actualDuration>0）。",
+    "tests/ux/canvas-performance-benchmark.e2e.mjs — startOffCanvasRenderWindow/stopOffCanvasRenderWindow（消费者，本次不改）：dev 腿在每个动作窗口前后开合探针窗口、把 perComponent/total 记进结果 JSON 的 offCanvasRender（advisory，不 gate）；它拿到的每组数现在是真渲染数而非驻留脏值。"
+  ],
+  "internal_only_reason": "本次不接入、不改任何外部供应商 API，也不改任何生产运行时代码。改动全部落在 dev-only 测试量具（offCanvasRenderProbe.mjs 的计数判据 + 其单测）——探针仅在 --dev-server 腿由 installOffCanvasRenderProbe 注入（prod 腿被 useDevServer 门控不装、生产构建名字被 mangle 也读不到目标名），故对生产行为零影响、对 prod/CI gated 预算零影响。React fiber 语义（actualDuration 子树包含、createWorkInProgress 清零、bailout 不清零、memoizedProps/State 跨 bailout 冻结）已对准 node_modules/react-dom/cjs/react-dom.development.js 实读核对（createWorkInProgress 第 28222 行 actualDuration=0、completeWork 第 21948-21953 行子树累加），并用组件级 useRef 地面真值 + 反向阳性对照（把某目标临时切回订 raw s.nodes）双向验证：投影路径 OnboardingChecklist 0=0 精确吻合、raw 对照下探针与真值一起飙升。",
+  "invariants": [
+    "探针只在目标实例 (memoizedProps, memoizedState) 跨 commit 变化时计一次真渲染；bailout（两者冻结）不计。",
+    "计数规则单一 owner = createOffCanvasRenderTracker；浏览器 realm 经其 .toString() 注入同一函数，禁止第二份实现或改用 actualDuration/self-time/单 commit alternate 比对等读驻留脏值的判据。",
+    "该探针 dev-only：仅 --dev-server 腿注入，prod/CI gated 预算不装、不受影响；本次不改任何生产运行时代码。",
+    "生产侧画布外订阅收口不变（selectStableCanvasNodes 由 cc338341 交付，且经本次地面真值 + 阳性对照证明生效）；本合同不改这些订阅面，只修量具。"
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "生产侧的类根因『高频瞬态值广播进 React 重渲』已由 cc338341 在最早共享边界（selectStableCanvasNodes）收口并经本次地面真值证明生效——它不是本次要修的东西。本次要修的是一个**单点、局部**的量具判据缺陷：整仓只有 offCanvasRenderProbe 这一处用『单 commit 内读 committed 树驻留值』判定渲染，没有第二个生产入口、没有跨供应商/平台/旧数据回流路径。就地把计数规则收敛成跨 commit 差分即彻底修掉，不构成需要在生产边界结构收口的『可复发类』。故分类 one_off、按门禁要求省略 prevention（不为单点缺陷制造可复用边界）。",
+    "same_class_scan": [
+      "枚举探针里所有『判定一次渲染』的候选判据并逐一证伪：① fiber.actualDuration>0（子树包含 + 跨 bailout 驻留 → OnboardingChecklist 真值0 报69/261）；② self-time=actualDuration−Σ子（同因读驻留值，实测仍 65/266）；③ 单 commit 内 fiber vs alternate 比 memoizedProps/State/ref（bailout 子树 fiber 与其 alternate 关系跨 commit 冻结 → 仍 65/266）。三者全废，只有跨 commit 差分成立——已在 offCanvasRenderProbe.test.mjs 用合成 fiber 钉住，并含一条对照断言：对同一 bailout 序列复算旧的 actualDuration>0 判据误计 60、新规则计 0。",
+      "地面真值 + 双向阳性对照锁定真相：在 3 个目标组件（TaskCenterButton/OnboardingChecklist/CategoryTree）临时植入组件级 useRef 渲染计数器，投影路径下 OnboardingChecklist=0/CategoryTree=0/TaskCenterButton=4-8；把 TaskCenterButton 临时切回订 raw s.nodes 作反向对照，node-drag 真值飙到 122-154、切回投影即回落，证明 selectStableCanvasNodes 生效且探针修好后随真值同向变化（所有临时植入已回滚，仅保留 dev2 验收 JSON）。",
+      "确认整仓只有 offCanvasRenderProbe 一处做这种『按 fiber 计画布外渲染』的量具（grep actualDuration / __REACT_DEVTOOLS_GLOBAL_HOOK__ / onCommitFiberRoot：仅此文件用于计数），无第二处同类量具会复发；OFF_CANVAS_RENDER_TARGETS 8 个目标全部经同一 tracker、无组件被特判；消费侧 canvas-performance-benchmark.e2e.mjs 只读 perComponent/total 作 advisory、键形不变、无第二消费点会因量具变真而漏改。",
+      "确认修复只触及 dev-only 探针：prod 腿 useDevServer 门控不装探针，dev2 复跑显示既有 gated 场景与节点身份不受影响、frameGapP95 无恶化；prod 腿一次 node-drag-image maxFrameGap 258ms 的 gated 失败经查是并行 worktree（S4 s4-verify-prod 同时跑 + 本机 load 84）的跨套件争用首样本 GC 停顿，非本改动（探针 dev-only 不进 prod 腿），与 prod-darwin 基线该场景 clean 一致。"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/canvas-perf/offCanvasRenderProbe.test.mjs"
+  ],
+  "migration": "无存储数据被改写、无用户可见行为变化。off-canvas 探针是 dev-only 测量代码，既不入生产构建、也不进 prod/CI gated 预算；本次只把它的计数判据从『读 committed 树驻留脏值』改为『跨 commit 差分』，使 dev 腿 advisory 数从失真（584/192）变为真实（~10/4）。既有项目/节点/持久化零影响。",
+  "residual_risks": [
+    "虽分类 one_off，实质防线仍在：计数规则已收敛到单一纯函数 createOffCanvasRenderTracker，并由 offCanvasRenderProbe.test.mjs（7 例，含旧 actualDuration>0 判据误计 60/新规则 0 的对照护栏）钉死；浏览器 realm 用其 .toString() 注入保证同源。若未来有人回退成读驻留脏值的判据，该测试会红（R17 精神）。",
+    "跨 commit tracker 用 WeakMap 挂 fiber 与其 alternate 两个 buffer 记忆上次 (props,state)；React 双缓冲下覆盖正常翻转，但若未来升级 React 改 fiber 双缓冲/内部字段语义（actualDuration 清零点、memoizedProps/State 冻结行为），需重验判据——已在文件头与本合同写明依据的 react-dom 18.3.1 行为与行号，升级 React 时应回看。",
+    "探针把首次见到的目标实例计为一次渲染（mount 即渲染，正确），该 +1 发生在录制窗口 resetWindow 之前（挂载早于动作窗口），不污染窗口内计数；若未来有目标组件在动作窗口内首次挂载，其 mount 会被正当计入该窗口一次（语义正确，非误计）。",
+    "prod 腿本次一次 node-drag-image gated 失败（maxFrameGap 258ms/longTaskP95 256ms 仅首样本）是并行 worktree 基准争用（load 84）导致的一次性 GC 停顿，非回归；须在机器空闲、无其它 worktree 跑基准时以一字不改的 prod 锚命令复跑取干净收据。本合同不改预算/平台校准（红线）。"
+  ]
+}

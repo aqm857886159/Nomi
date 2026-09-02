@@ -32,6 +32,188 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "minimax/h3-max",
     "MiniMax-H3-Max"
   ],
+  "happyhorse": [
+    "happyhorse",
+    "happyhorse/text-to-video",
+    "happyhorse/image-to-video",
+    "happyhorse/reference-to-video",
+    "happyhorse/video-edit"
+  ],
+  "vidu-q3": [
+    "viduq3",
+    "viduq3-mix",
+    "vidu-q3"
+  ],
+  "kling-3.0-turbo": [
+    "kling-3.0-turbo",
+    "kling-3-0-turbo",
+    "kling3.0-turbo"
+  ],
+  "happyhorse-1.1": [
+    "happyhorse-1.1",
+    "happyhorse-1-1"
+  ],
+  "grok-imagine-1.5-video": [
+    "grok-imagine-1.5-video-apimart",
+    "grok-imagine-1.5-video-ext",
+    "grok-imagine-1.5-video",
+    "grok-imagine-1.5"
+  ],
+  "sora-2": [
+    "sora-2",
+    "sora-2-pro",
+    "sora2"
+  ],
+  "runway-video": [
+    "seedance2",
+    "seedance2_fast",
+    "seedance2_mini",
+    "wan3",
+    "grok_imagine_1_5",
+    "hailuo3",
+    "veo3.1",
+    "veo3.1_fast",
+    "happyhorse_1_0",
+    "gemini_omni_flash"
+  ],
+  "veo-3.1": [
+    "veo-3.1",
+    "veo3.1",
+    "veo3.1-fast",
+    "veo3.1-quality",
+    "veo3.1-lite"
+  ],
+  "gemini-omni-1.1": [
+    "google/gemini-omni-flash-1-1",
+    "gemini-omni-flash-1-1"
+  ],
+  "runway-gen4.5": [
+    "gen4.5",
+    "runway-gen4.5",
+    "runway-gen-4.5"
+  ],
+  "runway-gen4-turbo": [
+    "gen4_turbo",
+    "runway-gen4-turbo",
+    "runway-gen-4-turbo"
+  ],
+  "runway-video-t2v": [
+    "happyhorse_1_0"
+  ],
+  "kling-3.0": [
+    "kling-3.0",
+    "kling-3.0/video",
+    "kling-3",
+    "kling3",
+    "kling-v3"
+  ],
+  "seedance-2-apimart": [
+    "doubao-seedance-2.0",
+    "doubao-seedance-2-0",
+    "doubao-seedance-2.0-fast",
+    "doubao-seedance-2-0-fast",
+    "doubao-seedance-2.0-face",
+    "doubao-seedance-2-0-face",
+    "doubao-seedance-2.0-fast-face",
+    "doubao-seedance-2-0-fast-face",
+    "doubao-seedance-2.0-mini",
+    "doubao-seedance-2-0-mini"
+  ],
+  "seedance-2.5-apimart": [
+    "doubao-seedance-2.5",
+    "doubao-seedance-2-5"
+  ],
+  "seedance-2.5-runway": [
+    "seedance2_5"
+  ],
+  "minimax-h3-apimart": [
+    "MiniMax-H3"
+  ],
+  "wan-2.7": [
+    "wan-2.7",
+    "wan2.7",
+    "wan-2-7",
+    "wan2.7-r2v",
+    "wan-2-7-r2v"
+  ],
+  "wan-3.0": [
+    "wan/3-0-video",
+    "wan/3-0-video-prime",
+    "wan-3.0",
+    "wan3.0"
+  ],
+  "wan-3.0-apimart": [
+    "wan3.0-video",
+    "wan3-0-video"
+  ],
+  "hailuo-2.3": [
+    "hailuo-2.3",
+    "minimax-hailuo-2.3",
+    "hailuo-2-3",
+    "minimax-hailuo-2.3-fast",
+    "MiniMax-Hailuo-2.3",
+    "MiniMax-Hailuo-2.3-Fast"
+  ],
+  "omni-flash-ext": [
+    "omni-flash-ext"
+  ],
+  "minimax-h3-regeneration": [
+    "MiniMax-H3-Regeneration"
+  ],
+  "volcengine-seedance-2": [
+    "doubao-seedance-2-0-260128",
+    "doubao-seedance-2-0-fast-260128",
+    "doubao-seedance-2-0-mini-260615"
+  ],
+  "volcengine-seedance-2-5": [
+    "doubao-seedance-2-5-260628"
+  ],
+  "dreamina-seedance-2": [
+    "dreamina-seedance-2.0",
+    "dreamina-seedance",
+    "seedance2.0fast",
+    "seedance2.0",
+    "seedance2.0_vip",
+    "seedance2.0fast_vip",
+    "seedance2.0mini",
+    "seedance2.5"
+  ],
+  "dreamina-multiframe": [
+    "dreamina-multiframe"
+  ],
+  "runninghub-seedance": [
+    "bytedance/seedance-2.0-global",
+    "seedance-2.0-global"
+  ],
+  "rh-veo-3.1": [
+    "rhart-video-v3.1-pro-official",
+    "veo3.1-rh"
+  ],
+  "rh-kling-3.0": [
+    "kling-v3.0-pro",
+    "kling-v3.0-rh"
+  ],
+  "rh-wan-2.7": [
+    "rh-wan-2.7"
+  ],
+  "rh-hailuo-2.3": [
+    "rh-hailuo-2.3"
+  ],
+  "rh-sora-2": [
+    "rhart-video-s-official",
+    "sora-2-rh"
+  ],
+  "agnes-video": [
+    "agnes-video",
+    "agnes-video-v2.0",
+    "agnes-video-v2"
+  ],
+  "agnes-video-2.5": [
+    "agnes-video-2.5"
+  ],
+  "agnes-video-2.5-flash": [
+    "agnes-video-2.5-flash"
+  ],
   "minimax-music-3": [
     "minimax/music-3",
     "music-3"
@@ -60,31 +242,6 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "meshy-7",
     "meshy7"
   ],
-  "runway-gen4.5": [
-    "gen4.5",
-    "runway-gen4.5",
-    "runway-gen-4.5"
-  ],
-  "runway-gen4-turbo": [
-    "gen4_turbo",
-    "runway-gen4-turbo",
-    "runway-gen-4-turbo"
-  ],
-  "runway-video": [
-    "seedance2",
-    "seedance2_fast",
-    "seedance2_mini",
-    "wan3",
-    "grok_imagine_1_5",
-    "hailuo3",
-    "veo3.1",
-    "veo3.1_fast",
-    "happyhorse_1_0",
-    "gemini_omni_flash"
-  ],
-  "runway-video-t2v": [
-    "happyhorse_1_0"
-  ],
   "runway-image-reference": [
     "gen4_image_turbo"
   ],
@@ -106,13 +263,6 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "eleven_multilingual_v2",
     "eleven_v3",
     "runway-audio"
-  ],
-  "happyhorse": [
-    "happyhorse",
-    "happyhorse/text-to-video",
-    "happyhorse/image-to-video",
-    "happyhorse/reference-to-video",
-    "happyhorse/video-edit"
   ],
   "gpt-image-2": [
     "gpt-image-2",
@@ -158,13 +308,6 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "flux-2/pro-text-to-image",
     "flux-2/pro-image-to-image"
   ],
-  "kling-3.0": [
-    "kling-3.0",
-    "kling-3.0/video",
-    "kling-3",
-    "kling3",
-    "kling-v3"
-  ],
   "qwen-image-3": [
     "qwen-image-3.0",
     "qwen-image-3-0",
@@ -187,96 +330,10 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "z-image-turbo",
     "z-image"
   ],
-  "sora-2": [
-    "sora-2",
-    "sora-2-pro",
-    "sora2"
-  ],
-  "veo-3.1": [
-    "veo-3.1",
-    "veo3.1",
-    "veo3.1-fast",
-    "veo3.1-quality",
-    "veo3.1-lite"
-  ],
-  "wan-2.7": [
-    "wan-2.7",
-    "wan2.7",
-    "wan-2-7",
-    "wan2.7-r2v",
-    "wan-2-7-r2v"
-  ],
-  "wan-3.0": [
-    "wan/3-0-video",
-    "wan/3-0-video-prime",
-    "wan-3.0",
-    "wan3.0"
-  ],
-  "wan-3.0-apimart": [
-    "wan3.0-video",
-    "wan3-0-video"
-  ],
-  "hailuo-2.3": [
-    "hailuo-2.3",
-    "minimax-hailuo-2.3",
-    "hailuo-2-3",
-    "minimax-hailuo-2.3-fast",
-    "MiniMax-Hailuo-2.3",
-    "MiniMax-Hailuo-2.3-Fast"
-  ],
-  "grok-imagine-1.5-video": [
-    "grok-imagine-1.5-video-apimart",
-    "grok-imagine-1.5-video-ext",
-    "grok-imagine-1.5-video",
-    "grok-imagine-1.5"
-  ],
-  "gemini-omni-1.1": [
-    "google/gemini-omni-flash-1-1",
-    "gemini-omni-flash-1-1"
-  ],
-  "seedance-2-apimart": [
-    "doubao-seedance-2.0",
-    "doubao-seedance-2-0",
-    "doubao-seedance-2.0-fast",
-    "doubao-seedance-2-0-fast",
-    "doubao-seedance-2.0-face",
-    "doubao-seedance-2-0-face",
-    "doubao-seedance-2.0-fast-face",
-    "doubao-seedance-2-0-fast-face",
-    "doubao-seedance-2.0-mini",
-    "doubao-seedance-2-0-mini"
-  ],
-  "seedance-2.5-apimart": [
-    "doubao-seedance-2.5",
-    "doubao-seedance-2-5"
-  ],
-  "minimax-h3-apimart": [
-    "MiniMax-H3"
-  ],
-  "minimax-h3-regeneration": [
-    "MiniMax-H3-Regeneration"
-  ],
-  "vidu-q3": [
-    "viduq3",
-    "viduq3-mix",
-    "vidu-q3"
-  ],
-  "kling-3.0-turbo": [
-    "kling-3.0-turbo",
-    "kling-3-0-turbo",
-    "kling3.0-turbo"
-  ],
-  "happyhorse-1.1": [
-    "happyhorse-1.1",
-    "happyhorse-1-1"
-  ],
   "seedream-5-pro": [
     "doubao-seedream-5-0-pro",
     "seedream-5-0-pro",
     "seedream-5.0-pro"
-  ],
-  "omni-flash-ext": [
-    "omni-flash-ext"
   ],
   "nomi-audio": [
     "nomi-audio"
@@ -325,24 +382,6 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
   "volcengine-seedream-5-pro": [
     "doubao-seedream-5-0-pro-260628"
   ],
-  "volcengine-seedance-2": [
-    "doubao-seedance-2-0-260128",
-    "doubao-seedance-2-0-fast-260128",
-    "doubao-seedance-2-0-mini-260615"
-  ],
-  "volcengine-seedance-2-5": [
-    "doubao-seedance-2-5-260628"
-  ],
-  "dreamina-seedance-2": [
-    "dreamina-seedance-2.0",
-    "dreamina-seedance",
-    "seedance2.0fast",
-    "seedance2.0",
-    "seedance2.0_vip",
-    "seedance2.0fast_vip",
-    "seedance2.0mini",
-    "seedance2.5"
-  ],
   "dreamina-image": [
     "dreamina-image",
     "5.0Pro",
@@ -357,9 +396,6 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
   ],
   "dreamina-upscale": [
     "dreamina-upscale"
-  ],
-  "dreamina-multiframe": [
-    "dreamina-multiframe"
   ],
   "codex-imagegen": [
     "codex-imagegen"
@@ -382,28 +418,6 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "meshy-6",
     "meshy"
   ],
-  "runninghub-seedance": [
-    "bytedance/seedance-2.0-global",
-    "seedance-2.0-global"
-  ],
-  "rh-veo-3.1": [
-    "rhart-video-v3.1-pro-official",
-    "veo3.1-rh"
-  ],
-  "rh-kling-3.0": [
-    "kling-v3.0-pro",
-    "kling-v3.0-rh"
-  ],
-  "rh-wan-2.7": [
-    "rh-wan-2.7"
-  ],
-  "rh-hailuo-2.3": [
-    "rh-hailuo-2.3"
-  ],
-  "rh-sora-2": [
-    "rhart-video-s-official",
-    "sora-2-rh"
-  ],
   "rh-seedream-4.5": [
     "seedream-v4.5",
     "seedream-4.5-rh"
@@ -425,16 +439,5 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
   ],
   "agnes-image-2.1": [
     "agnes-image-2.1-flash"
-  ],
-  "agnes-video": [
-    "agnes-video",
-    "agnes-video-v2.0",
-    "agnes-video-v2"
-  ],
-  "agnes-video-2.5": [
-    "agnes-video-2.5"
-  ],
-  "agnes-video-2.5-flash": [
-    "agnes-video-2.5-flash"
   ]
 };

@@ -7,7 +7,6 @@
 import { describe, expect, it } from "vitest";
 import { FAL_OFFICIAL_MODELS } from "./falOfficial";
 import { RUNWAY_OFFICIAL_MODELS } from "./runwayOfficial";
-import { KLING_3_CREATE_OP } from "./kieKling";
 import { ratioResToFalImageSize, ratioResToOpenAiSize } from "./paramTranslate";
 import { applyRequestTransform } from "../tasks/requestTransforms";
 
@@ -132,15 +131,61 @@ describe("BUG-3: runway image ratio must be per-model; shared default 1024:1024 
   });
 });
 
-describe("BUG-4: KIE kling-3.0/video requires an explicit multi_shots boolean", () => {
-  // Live KIE (2026-09-01): omitting multi_shots → 422 `multi_shots cannot be empty`; sending an
-  // array → 500 `must be a boolean`; sending `false` → validates. Official docs
-  // (docs.kie.ai/market/kling) confirm multi_shots is a boolean (true switches to multi_prompt[]).
-  it("kling create op sends multi_shots as a literal boolean false (single-shot)", () => {
-    const input = (KLING_3_CREATE_OP.body as { input: Record<string, unknown> }).input;
-    expect(input).toHaveProperty("multi_shots");
-    expect(input.multi_shots).toBe(false);
-    // still carries the single-shot prompt path
-    expect(input.prompt).toBe("{{request.prompt}}");
+describe("BUG-4: KIE Kling 3 uses the current Omni wire contract", () => {
+  // The 2026-09-02 official pages replaced the earlier multi_shots contract with
+  // customize_multi_shots/prefer_multi_shots and separate text/image model IDs.
+  it("uses the documented model and fields for each mode", async () => {
+    const { KLING_3_I2V_CREATE_OP, KLING_3_T2V_CREATE_OP } = await import("./kieKling");
+    const textBody = KLING_3_T2V_CREATE_OP as { body: { model: string; input: Record<string, unknown> }; paramMap?: { drops?: string[] } };
+    const imageBody = KLING_3_I2V_CREATE_OP as { body: { model: string; input: Record<string, unknown> }; paramMap?: { drops?: string[] } };
+
+    expect(textBody.body.model).toBe("kling-3.0-omni/text-to-video");
+    expect(imageBody.body.model).toBe("kling-3.0-omni/image-to-video");
+    expect(textBody.body.input).toMatchObject({
+      prompt: "{{request.prompt}}",
+      audio: "{{request.params.sound}}",
+      customize_multi_shots: false,
+      prefer_multi_shots: false,
+      resolution: "720p",
+      aspect_ratio: "{{request.params.aspect_ratio}}",
+    });
+    expect(imageBody.body.input).toMatchObject({
+      prompt: "{{request.prompt}}",
+      image_urls: "{{request.params.image_urls}}",
+      audio: "{{request.params.sound}}",
+      customize_multi_shots: false,
+      prefer_multi_shots: false,
+      resolution: "720p",
+      aspect_ratio: "auto",
+    });
+    expect(textBody.paramMap?.drops).toEqual(["mode"]);
+    expect(imageBody.paramMap?.drops).toEqual(["mode", "aspect_ratio"]);
+
+    for (const input of [textBody.body.input, imageBody.body.input]) {
+      expect(input).not.toHaveProperty("mode");
+      expect(input).not.toHaveProperty("sound");
+      expect(input).not.toHaveProperty("multi_shots");
+    }
   });
+});
+
+describe("Runway reference modes use the text-to-video reference union", () => {
+  it("does not construct a promptImage or image_to_video mapping for multi-reference modes", () => {
+    const referenceMappings = RUNWAY_OFFICIAL_MODELS
+      .flatMap((model) => model.mappings.filter((mapping) => mapping.modeId === "reference"));
+    expect(referenceMappings.length).toBeGreaterThan(0);
+    for (const mapping of referenceMappings) {
+      expect(mapping.taskKind).toBe("text_to_video");
+      expect(mapping.create.path).toBe("/v1/text_to_video");
+      expect(mapping.create.body).not.toHaveProperty("promptImage");
+      expect(mapping.create.body).toHaveProperty("reference_image_urls");
+    }
+  });
+
+  it("keeps Seedance 2.5 omni aligned with its text-to-video operation", () => {
+    const mapping = RUNWAY_OFFICIAL_MODELS
+      .find((model) => model.modelKey === "seedance2_5")?.mappings.find((item) => item.modeId === "omni");
+    expect(mapping).toMatchObject({ taskKind: "text_to_video", create: { path: "/v1/text_to_video" } });
+  });
+
 });

@@ -13,6 +13,7 @@ import { NomiSelect } from '../../design'
 import type { ChipModel } from './ModelChipGroups'
 import { groupModelsByKind, isKnownModelChipKind, MODEL_CHIP_KINDS } from './modelChipGrouping'
 import { bulkToggleTargets, enabledCount, filterModelsByQuery, modelRowKey, selectedModelRows } from './modelEnableEditing'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { isAdapterModelLocked } from './adapterVerificationViewModel'
 
 type ModelEnableEditorProps = {
@@ -190,7 +191,7 @@ export function ModelEnableEditor({ models, onToggle, onDelete, onCustomCall, on
                         <IconCheck size={12} stroke={2.4} />
                       </span>
                       <span className={cn('flex-1 min-w-0 text-body-sm truncate', m.enabled ? 'text-nomi-ink' : 'text-nomi-ink-60')}>
-                        {m.labelZh}
+                        {translateModelDisplayText(m.labelZh)}
                       </span>
                     </button>
                   )
@@ -233,7 +234,7 @@ export function ModelEnableEditor({ models, onToggle, onDelete, onCustomCall, on
                         !onOpenModel && adapterLocked ? 'cursor-not-allowed text-nomi-ink-40' : m.enabled ? 'text-nomi-ink' : 'text-nomi-ink-60',
                       )}
                     >
-                      {m.labelZh}
+                      {translateModelDisplayText(m.labelZh)}
                     </button>
                     {m.customCallDraft ? (
                       <span className="shrink-0 rounded-nomi-sm bg-nomi-accent-soft px-1.5 py-0.5 text-micro text-nomi-accent">

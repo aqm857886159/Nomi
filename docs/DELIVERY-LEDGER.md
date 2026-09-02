@@ -9,7 +9,7 @@
 
 ---
 
-## 现役欠账（26）
+## 现役欠账（30）
 
 | 状态 | 文档 | 标题 |
 |---|---|---|
@@ -34,6 +34,10 @@
 | 🚧 进行中 | [2026-09-01-provider-proxy-and-onboarding-hardening.md](plan/2026-09-01-provider-proxy-and-onboarding-hardening.md) | 计划：per-connection provider proxy + onboarding 加固（#258 拆项①③） |
 | 🚧 进行中 | [2026-09-01-tail-batch.md](plan/2026-09-01-tail-batch.md) | 尾巴批交付计划（2026-09-01） |
 | 🚧 进行中 | [2026-09-01-tikhub-connector-v1.md](plan/2026-09-01-tikhub-connector-v1.md) | 2026-09-01 TikHub 数据 connector v1（分享链接 → 无水印直链 → 拆解） |
+| 🚧 进行中 | [2026-09-02-docaudit-b.md](plan/2026-09-02-docaudit-b.md) | DOCAUDIT-B：非 KIE/APIMart 官方文档对账与封印 |
+| 🚧 进行中 | [2026-09-02-m2-editing-semantic-slices.md](plan/2026-09-02-m2-editing-semantic-slices.md) | M2 slice-2：剪辑语义纵切 |
+| 🚧 进行中 | [2026-09-02-m2-generation-semantic-slice-1.md](plan/2026-09-02-m2-generation-semantic-slice-1.md) | M2 generation semantic slice 1 |
+| 🚧 进行中 | [2026-09-02-mcp-testnet-l1-handshake.md](plan/2026-09-02-mcp-testnet-l1-handshake.md) | MCP 测试网第 1 片：L1 协议握手层 |
 | 🚧 进行中 | [2026-08-25-generation-credit-estimation.md](superpowers/plans/2026-08-25-generation-credit-estimation.md) | 生成积分估算与实际记录实施计划 |
 | 🚧 进行中 | [2026-08-27-release-media-pack-skill.md](superpowers/plans/2026-08-27-release-media-pack-skill.md) | Nomi Release Media Pack Skill Implementation Plan |
 | 🚧 进行中 | [2026-08-28-conversational-model-integration.md](superpowers/plans/2026-08-28-conversational-model-integration.md) | Conversational Model Integration Implementation Plan |
@@ -53,7 +57,7 @@
 
 ## 其余
 
-- **已结案**：37 篇（✅ 已交付 / ⛔ 已废弃 / 📎 交接日志）
+- **已结案**：40 篇（✅ 已交付 / ⛔ 已废弃 / 📎 交接日志）
 - **未登记存量**：423 篇。这些是历史文件，**有意不进现役区**——其中很多离得很远、或已经不需要做。
   想分诊就挑一篇加状态标记；不分诊也不会有人催。`check:doc-status` 只拦**新增**文档缺标记，不逼你清存量。
 
@@ -70,7 +74,7 @@
 
 </details>
 
-- 合计扫描：492 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
+- 合计扫描：499 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
 
 ---
 

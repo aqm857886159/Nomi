@@ -15,6 +15,7 @@ const runCommands = (job) => job.steps?.flatMap((step) => (typeof step.run === '
 test('quality gate runs for pull requests and real main before/after pushes', () => {
   assert.deepEqual(workflow.on, {
     push: { branches: ['main'] },
+    merge_group: null,
     pull_request: null,
     workflow_dispatch: {
       inputs: {
@@ -41,7 +42,7 @@ test('quality gate runs for pull requests and real main before/after pushes', ()
   assert.deepEqual(workflow.permissions, { actions: 'read', checks: 'read', contents: 'read' })
 
   const scopeEnvironment = workflow.jobs.scope.steps.find((step) => step.id === 'profile').env
-  assert.equal(scopeEnvironment.NOMI_BASE_SHA, "${{ github.event.pull_request.base.sha || github.event.before || '' }}")
+  assert.equal(scopeEnvironment.NOMI_BASE_SHA, "${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || '' }}")
   assert.equal(scopeEnvironment.NOMI_HEAD_SHA, '${{ github.sha }}')
 })
 
@@ -88,7 +89,7 @@ test('contracts always run and unit alone chooses focused or full coverage', () 
   assert.ok(runCommands(contracts).includes('pnpm run test:system:contracts'))
   assert.equal(
     contracts.env.ROOT_CAUSE_BASE_REF,
-    '${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}',
+    '${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}',
   )
 
   const unit = workflow.jobs.unit
@@ -114,6 +115,7 @@ test('Linux builds once and runs only selected desktop, journey, canvas, and per
     [
       selectedSteps['Electron smoke'].run,
       selectedSteps['CI-safe user journeys'].run,
+      selectedSteps['MCP L1 handshake journey'].run,
       selectedSteps['Critical canvas acceptance'].run,
       selectedSteps['Full functional canvas acceptance'].run,
       selectedSteps['Canvas performance budget'].run,
@@ -121,6 +123,7 @@ test('Linux builds once and runs only selected desktop, journey, canvas, and per
     [
       'xvfb-run -a pnpm run test:e2e',
       'xvfb-run -a pnpm run test:journeys',
+      'xvfb-run -a pnpm run test:mcp-journey',
       'xvfb-run -a pnpm run test:canvas:critical',
       'xvfb-run -a pnpm run test:canvas:acceptance',
       'xvfb-run -a pnpm run test:canvas:performance',

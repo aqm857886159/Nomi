@@ -29,6 +29,8 @@ import {
   type CapturedCanvasReadSnapshotHandleWire,
 } from '../../../electron/shared/surfacePortBinding'
 import { handleMultiShotCanvasLandingOp } from './multiShotCanvasLanding'
+import { executeTimelineReadTarget, executeTimelineWriteTarget } from '../timeline/agent/timelineCapabilityTarget'
+import { executeAssetReadTarget, executeExportReadTarget } from '../timeline/agent/phase4CapabilityTargets'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。
@@ -375,6 +377,53 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       return confirmGenerationGateForAgent(data as GenerationGateConfirmPayload)
     case 'plan.confirm':
       return confirmPlanForAgent(data as PlanConfirmPayload)
+    case 'timeline.read': {
+      const operation = data.operation === 'range' ? 'inspect_timeline_range' : 'read_timeline'
+      return executeTimelineReadTarget(
+        operation === 'read_timeline'
+          ? { operation }
+          : {
+              operation,
+              startFrame: data.startFrame,
+              endFrame: data.endFrame,
+            } as Parameters<typeof executeTimelineReadTarget>[0],
+      )
+    }
+    case 'timeline.write': {
+      if (data.operation === 'preview') {
+        const plan = data.plan && typeof data.plan === 'object' && !Array.isArray(data.plan) ? data.plan as Record<string, unknown> : {}
+        return executeTimelineReadTarget({ operation: 'propose_edit_plan', ...plan } as Parameters<typeof executeTimelineReadTarget>[0])
+      }
+      const signal = new AbortController().signal
+      const plan = data.plan && typeof data.plan === 'object' && !Array.isArray(data.plan) ? data.plan as Record<string, unknown> : {}
+      const input = data.operation === 'undo'
+        ? { operation: 'undo_timeline_edit', undoToken: data.undoToken, expectedRevision: data.expectedRevision, ...(typeof data.reason === 'string' ? { reason: data.reason } : {}) }
+        : { operation: 'apply_edit_plan', ...plan }
+      const revision = data.operation === 'undo' && typeof data.expectedRevision === 'string'
+        ? data.expectedRevision
+        : typeof plan.baseRevision === 'string' ? plan.baseRevision : ''
+      return executeTimelineWriteTarget({
+        input: input as Parameters<typeof executeTimelineWriteTarget>[0]['input'],
+        target: { kind: 'timeline', clipIds: [] },
+        preconditions: { timeline: { revision } },
+        receiptProposalId: typeof data.receiptProposalId === 'string' ? data.receiptProposalId : 'mcp-edit:renderer',
+        approvalId: typeof data.approvalId === 'string' ? data.approvalId : 'mcp-host:renderer',
+        actionHash: typeof data.actionHash === 'string' ? data.actionHash : 'mcp-action:renderer',
+        signal,
+        assertCurrent: () => undefined,
+      })
+    }
+    case 'asset.read': {
+      const operation = data.operation === 'list' ? 'search_media' : data.operation === 'get' ? 'get_media' : data.operation === 'inspect' ? 'inspect_media' : data.operation === 'source_range' ? 'inspect_source_range' : data.operation === 'waveform' ? 'read_waveform' : 'search_media'
+      return executeAssetReadTarget({
+        input: { operation, ...data, ...(operation === 'search_media' && !data.query ? { query: '' } : {}) },
+        target: { kind: 'asset', assetIds: typeof data.assetId === 'string' ? [data.assetId] : [] },
+      })
+    }
+    case 'export.read': {
+      const operation = data.operation === 'verify' ? 'verify_render' : 'inspect_export_job'
+      return executeExportReadTarget({ input: { operation, jobId: data.jobId }, target: { kind: 'export', jobId: data.jobId } })
+    }
     case 'production.plan-directions': {
       // B1 方向门：driver 停在 awaiting_direction 时让渲染层拟 2-3 个「创意方向」候选（三选一）。
       // 走无工具的一次性文本链路（runDirectionPlanner），语言跟随 brief。失败冒泡给 driver 走

@@ -32,6 +32,13 @@ const storyboardAnchorSchema = z.object({
 
 const storyboardShotSchema = z.object({
   index: z.number().int().describe("1-based shot number in script order."),
+  sceneId: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Scene/group id this shot belongs to (e.g. 'scene-1'). Shots of the same scene must be contiguous and share the id; omit when the story has no scene grouping.",
+    ),
   shotKind: z
     .enum(["image", "video"])
     .optional()
@@ -72,6 +79,27 @@ const storyboardShotSchema = z.object({
     .optional()
     .describe(
       "Per-shot generation params keyed exactly as the chosen model exposes them in the 「可用模型」 list (e.g. aspect_ratio, resolution, and negative_prompt where the model supports it). Only use param keys that model actually lists; omit unknowns.",
+    ),
+  subtitle: z
+    .string()
+    .optional()
+    .describe(
+      "On-screen caption/subtitle text for this shot, carried verbatim to canvas metadata and timeline assembly.",
+    ),
+  dialogue: z
+    .string()
+    .optional()
+    .describe(
+      "Spoken dialogue for this shot (speaker + line), carried verbatim to canvas metadata and timeline assembly.",
+    ),
+  transition: z
+    .object({
+      type: z.enum(["cut", "dissolve", "fade", "match_cut", "whip_pan"]),
+      durationFrames: z.number().int().positive().optional(),
+    })
+    .optional()
+    .describe(
+      "Explicit editorial transition into the next shot; emit cut for an intentional hard cut, omit when no transition is authored.",
     ),
   keyframe: z
     .object({

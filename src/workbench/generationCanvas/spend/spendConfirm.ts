@@ -187,12 +187,13 @@ export async function confirmGenerationSpend(
   })
 }
 
-export type GenerationCostKind = 'text' | 'image' | 'video' | 'audio' | 'mixed'
+export type GenerationCostKind = 'text' | 'image' | 'video' | 'audio' | 'model3d' | 'mixed'
 
 /** 件数 + 额度提示；文本耗时无可靠估计，不沿用媒体的固定时长。 */
 export function describeGenerationCost(count: number, kind: GenerationCostKind = 'image'): string {
   if (kind === 'text') return i18n.t('generationCommon.spend.cost.text', { count })
-  const perItemSec = kind === 'video' ? 40 : kind === 'audio' ? 20 : 12
+  // 3D 单件预估 120s：RunningHub 混元/Meshy 真实产出以分钟计（create→poll），不沿用图片的 12s。
+  const perItemSec = kind === 'video' ? 40 : kind === 'audio' ? 20 : kind === 'model3d' ? 120 : 12
   const minutes = Math.max(1, Math.round((count * perItemSec) / 60))
   const unit = i18n.t(`generationCommon.spend.cost.units.${kind}`, { count })
   return i18n.t('generationCommon.spend.cost.media', { count, unit, minutes })

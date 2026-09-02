@@ -6,11 +6,19 @@ import {
   MINIMAX_VENDOR_SEED,
   normalizeMinimaxH3OfficialBody,
 } from "./minimaxOfficial";
+import { MINIMAX_H3_MAX_ARCHETYPE } from "../shared/videoCapabilities/minimaxH3Max";
 
 describe("MiniMax 官方合同", () => {
   it("uses the Open Platform .com host accepted by the scoped API key", () => {
     expect(MINIMAX_VENDOR_SEED.baseUrl).toBe("https://api.minimaxi.com");
     expect(MINIMAX_VENDOR_SEED.authHeader).toBe("Authorization");
+  });
+
+  it("points H3-Max at the current official video guide", () => {
+    expect(MINIMAX_H3_MAX_ARCHETYPE.sources?.[0]).toMatchObject({
+      url: "https://platform.minimaxi.com/docs/guides/video-generation",
+      checkedAt: "2026-09-02",
+    });
   });
 
   it("serializes H3 multimodal content and rejects mixed frame/reference inputs", () => {

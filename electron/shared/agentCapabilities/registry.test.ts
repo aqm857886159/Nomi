@@ -91,6 +91,7 @@ describe("capability contract registry", () => {
     ]);
     expect(aliases).toEqual([
       "get_media",
+      "nomi_media_query",
       "delete_canvas_nodes",
       "read_canvas_state",
       "nomi_read_canvas",
@@ -98,18 +99,21 @@ describe("capability contract registry", () => {
       "read_full_text",
       "insert_at_cursor",
       "inspect_export_job",
+      "nomi_export_job",
       "export_timeline",
       "read_timeline",
+      "nomi_timeline_read",
       "apply_edit_plan",
+      "nomi_timeline_edit",
       "get_production_run",
       "start_production_run",
       "revise_production_artifact",
       "load_skill",
       "author_skill",
       "nomi_get_generation_context",
-      "nomi_operation_create",
+      "nomi_generation_plan",
       "nomi_request_generation_gate",
-      "nomi_operation_read",
+      "nomi_generation_status",
       "nomi_cancel_generation",
     ]);
     expect(CAPABILITY_CONTRACTS.find((contract) => contract.id === "canvas.read")?.exposure).toBe("mcp_safe");

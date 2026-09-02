@@ -1,0 +1,118 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-m2-generation-semantic-surface",
+  "problem_type": "Generation capability aliases are projected one-for-one to the model",
+  "symptom": "A normal generation request exposes nine internal generation descriptors, including separate context/create/patch/preview/read/cancel/reconcile names and gate/start transitions.",
+  "direct_cause": "agentToolCatalog projects generationDescriptors directly, while generationTransportAdapters and capability registry use the same internal aliases as the model-facing vocabulary.",
+  "class_root": "The model surface has no versioned semantic manifest that groups generation intent and excludes Host-only approval/effect transitions.",
+  "affected_population": [
+    "All Pi model turns routed to generation",
+    "All generation aliases added to the capability registry",
+    "Approval-bearing generation requests and their Host projection"
+  ],
+  "scope_paths": [
+    "electron/harness/tools/modelToolSurfaceManifest.ts",
+    "electron/harness/tools/agentToolCatalog.ts",
+    "electron/harness/tools/productionRunDescriptors.ts",
+    "electron/capabilityCore/generationTransportAdapters.ts",
+    "electron/shared/agentCapabilities/generation.ts",
+    "electron/harness/tools/modelToolSurfaceManifest.test.ts"
+  ],
+  "entry_points": [
+    "Pi agentToolCatalog generation projection",
+    "Project Agent generation transport adapter",
+    "canonical generation capability registry"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The semantic grouping, Host-only transition policy, and 50-tool count are application contracts frozen in the M0 mapping and M-line rulings.",
+  "invariants": [
+    "The generation model surface contains exactly the versioned semantic plan and status intents for this slice.",
+    "Host-only request-gate, start, and decide-gate transitions never enter the model projection.",
+    "Every semantic generation operation maps to the existing canonical capability and one Host planning/effect boundary.",
+    "Legacy Pi aliases are not model-visible even when retained for internal or MCP compatibility parsing."
+  ],
+  "generality_proof": "The manifest is the shared model projection boundary for the generation group; alias additions cannot become model-visible without an explicit semantic descriptor, and every checked generation caller is either translated through the manifest or remains an internal/MCP wire caller outside the Pi model surface.",
+  "shared_boundaries": [
+    {
+      "path": "electron/harness/tools/modelToolSurfaceManifest.ts",
+      "symbol": "modelToolSurfaceManifest",
+      "responsibility": "Own versioned semantic descriptors, capability references, risk metadata, schemas, and Host-only exclusions before runtime projection."
+    },
+    {
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "createPiGenerationTransportAdapter",
+      "responsibility": "Translate semantic model calls to the existing lease-bound canonical generation planning seam without creating a second provider or persistence path."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/harness/tools/agentToolCatalog.ts",
+      "entry_point": "agentToolCatalog.generation",
+      "disposition": "enforced",
+      "evidence": "The model-facing catalog is the only Pi descriptor projection and will consume the generation manifest instead of the old descriptor map."
+    },
+    {
+      "path": "electron/shared/agentCapabilities/generation.ts",
+      "entry_point": "generation capability Pi aliases",
+      "disposition": "enforced",
+      "evidence": "The canonical contracts retain internal aliases as additional compatibility entries while their primary Pi aliases identify the two semantic intents."
+    },
+    {
+      "path": "electron/capabilityCore/generationDispatcher.ts",
+      "entry_point": "MCP semantic generation routes",
+      "disposition": "not-affected",
+      "evidence": "MCP wire routes are an external compatibility/protocol surface and are not used to enumerate Pi model descriptors; they continue to resolve through the existing dispatcher."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future generation alias or Host transition can recreate model overload or approval leakage unless the model projection is forced through the manifest.",
+    "same_class_scan": [
+      "Counted the six agentToolCatalog groups: document 6, canvas 10, timeline 14, production 10, skill 1, generation 9.",
+      "Searched all consumers of generationDescriptors, agentToolCatalog, capabilityAliasesFor, and capabilityOperationAliasesFor.",
+      "Checked nomi_request_generation_gate, nomi_start_generation, and nomi_decide_generation_gate in the Pi catalog, Host policy, generation adapter, and MCP dispatcher."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/harness/tools/modelToolSurfaceManifest.ts",
+    "invariant": "Only manifest descriptors are projected to Pi; Host-only generation transitions and unregistered aliases are omitted.",
+    "failure_mode": "Duplicate semantic names, missing capability references, or overlap with Host-only names fail during manifest construction/tests; a legacy alias is not silently re-exposed.",
+    "exception_policy": "none",
+    "strategy": "Define one semantic descriptor per user intent, project only the manifest into agentToolCatalog, and keep internal wire compatibility below the model boundary.",
+    "artifacts": [
+      "electron/harness/tools/modelToolSurfaceManifest.ts",
+      "electron/harness/tools/agentToolCatalog.ts",
+      "electron/capabilityCore/generationTransportAdapters.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/harness/tools/modelToolSurfaceManifest.test.ts",
+    "electron/harness/tools/agentToolCatalog.test.ts",
+    "electron/harness/agentChatPolicy.test.ts",
+    "electron/capabilityCore/generationTransportAdapters.test.ts",
+    "electron/capabilityCore/residentProductionJourney.contract.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/harness/tools/modelToolSurfaceManifest.test.ts",
+    "electron/harness/agentChatPolicy.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/harness/tools/generationDescriptors.ts"
+    ],
+    "rationale": "The old generation descriptor module is removed from the model projection in the same slice; internal/MCP aliases are retained only below the model boundary and are not a second model projection."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is an application-level projection and Host policy contract; no third-party runtime controls alias grouping or approval ownership.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration is needed. Existing operation, receipt, provider task, and MCP wire identifiers remain unchanged; only new Pi turns use the semantic names and the adapter translates them to the existing canonical seam.",
+  "residual_risks": [
+    "The full document/canvas/timeline/production surface remains on legacy descriptors until later M2 slices.",
+    "C9 generationAi* store-field deletion remains intentionally blocked by the deconstruction handoff red light.",
+    "ProductionRun legacy-playbook writer retirement remains an M2 red-light target and is not changed by this projection slice."
+  ]
+}

@@ -9,12 +9,13 @@
 // 注入 isProjectOpen()（main-owned Surface committed identity 的只读投影）。headless host 里
 // isProjectOpen 恒 false → 全走磁盘网关；B4 会删除这里尚未 verified 的 legacy 选路。
 import http from 'node:http'
+import crypto from 'node:crypto'
 import type { AddressInfo } from 'node:net'
 
 import type { FetchTaskResultFn, RunTaskFn } from './core'
 import { RpcError } from './dispatcher'
 import { createDiskGateway, createHybridGateway, createRendererGateway, withPreApprovedSpend, type ProjectGateway } from './gateway'
-import { isRendererAvailable } from './rendererBridge'
+import { isRendererAvailable, requestRenderer } from './rendererBridge'
 import { resolveMcpOrigin, verifyToken } from './security'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { handleArtifactPreviewHttpRequest, withAssetPreview } from '../productionRun/artifactPreviewHttpServer'
@@ -39,6 +40,7 @@ import {
 import { createInternalCanvasReadVerifiedInvocationFactory } from './verifiedCapabilityInvocation'
 import { createVerifiedProjectSessionBindingFromAuthority } from './projectSessionRuntime'
 import { canvasReadLeaseRequiredRpcError, canvasReadRpcError } from './canvasReadPublicError'
+import { isMcpEditingMethod } from './mcpCapabilityProjection'
 
 export type RpcServerOptions = {
   /** 真实生成入口（runtime.runTask）。注入式：headless host 与 app 各自传同一份。 */
@@ -147,6 +149,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         }
         const method = String(parsed.method || '')
         const isCanvasRead = isCanvasReadTransportMethod(method)
+        const isEditing = isMcpEditingMethod(method)
         const params = (parsed.params && typeof parsed.params === 'object' ? parsed.params : {}) as Record<string, unknown>
         const client = firstHeader(req.headers['x-nomi-mcp-client'])
         const clientProof = firstHeader(req.headers['x-nomi-mcp-client-proof'])
@@ -166,7 +169,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
             throw error
           }
         }
-        if (!projectSessionConnection && !isCanvasRead) assertLocalBearerProjectSessionRoute(method)
+        if (!projectSessionConnection && !isCanvasRead && !isEditing) assertLocalBearerProjectSessionRoute(method)
         if (method === 'nomi_confirm_generation_gate') {
           if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
           const challengeToken = typeof params.challengeToken === 'string' ? params.challengeToken.trim() : ''
@@ -208,6 +211,42 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           } catch (error) {
             throw error instanceof RpcError ? error : canvasReadRpcError(error)
           }
+        }
+        if (isEditing) {
+          if (!hasMcpTransportClaims || !projectSessionConnection || !options.projectSessionAuthority) {
+            throw new RpcError('A verified project-session transport is required for editing tools', 403)
+          }
+          const leaseHandle = typeof params.leaseHandle === 'string' ? params.leaseHandle.trim() : ''
+          if (!leaseHandle) throw new RpcError('A project-session lease is required', 403)
+          const projectHint = typeof params.projectId === 'string' ? params.projectId.trim() || undefined : undefined
+          const operation = typeof params.operation === 'string' ? params.operation : ''
+          const scope = method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
+            ? 'timeline:write'
+            : method === 'timeline.write' ? 'timeline:read'
+              : method === 'asset.read' ? 'asset:read' : 'export:read'
+          const lease = await options.projectSessionAuthority.verifyLease(leaseHandle, {
+            connection: projectSessionConnection,
+            ...(projectHint ? { projectHint } : {}),
+            scope,
+          })
+          if (method === 'timeline.write' && (operation === 'apply' || operation === 'undo') && parsed.planConfirmed !== true) {
+            throw new RpcError('Host approval is required before applying a timeline edit', 403)
+          }
+          const rendererOp = method === 'timeline.read'
+            ? 'timeline.read'
+            : method === 'timeline.write'
+              ? 'timeline.write'
+              : method === 'asset.read' ? 'asset.read' : 'export.read'
+          const result = await requestRenderer(rendererOp, {
+            ...params,
+            projectId: lease.projectId,
+            // These values are minted only after the verified lease and (for writes) Host approval.
+            ...(method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
+              ? { receiptProposalId: `mcp-edit:${crypto.randomUUID()}`, approvalId: `mcp-host:${crypto.randomUUID()}`, actionHash: crypto.randomUUID() }
+              : {}),
+          }, 30_000)
+          send(200, { ok: true, result })
+          return
         }
         // 付费已在**调用方客户端**经 elicitation 被真人确认（协议层 mcpProtocol.ts 只在收到
         // `action:'accept' + confirm:true` 后才置位）→ 预批准付费门，App 不再弹第二张确认卡。

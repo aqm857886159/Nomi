@@ -49,6 +49,10 @@ const USER_CONTENT_ALLOW = [
   '.workbench-timeline-clip', // 时间轴 clip 标签 = 镜头标题(用户命名的内容,TimelineClip.tsx)
   '[data-testid="timeline-clip"]',
   '[data-testid="preview-source-shot"]', // 预览源面板 shot 卡:title/aria-label = t(itemHint,{name:用户镜头标题});译文正确、只有插值 name 是用户内容
+  // 语言切换器的选项按钮(SettingsDialog.tsx data-settings-locale)。每个语言按**它自己的写法**
+  // 显示是国际惯例(endonym):英文界面里中文选项就该写「简体中文」,否则用户在看不懂的界面里找不到
+  // 自己的语言。这不是漏译,是对的——en 词典里 resources.ts `chinese: '简体中文'` 是刻意的。
+  '[data-settings-locale]',
   // 远端策展内容(公共提示词库的来源名与卡片标题):2026-09-02 用户拍板不翻译。
   // 标记打在渲染这些字的那两层(PromptCard 的标题/来源块、非「全部来源」的来源 chip),
   // **不是**整个面板——面板自己的 UI 文案(标题/tab/搜索占位/空状态)必须继续被这张网抓。

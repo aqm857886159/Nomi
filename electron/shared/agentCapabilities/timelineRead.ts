@@ -286,7 +286,7 @@ export function timelineReadPiDescriptionForAlias(alias: string): string | undef
 export const TIMELINE_READ_CAPABILITY = {
   id: "timeline.read",
   version: 1,
-  aliases: { pi: TIMELINE_READ_ALIASES.read },
+  aliases: { pi: TIMELINE_READ_ALIASES.read, mcp: "nomi_timeline_read" },
   additionalAliases: {
     pi: Object.freeze([TIMELINE_READ_ALIASES.inspectRange, TIMELINE_READ_ALIASES.proposePlan]),
   },
@@ -294,9 +294,12 @@ export const TIMELINE_READ_CAPABILITY = {
   outputSchema: timelineReadResultSchema,
   effect: "read",
   execution: { port: "timeline", availability: "renderer_required" },
-  exposure: "internal_only",
+  exposure: "mcp_safe",
   requiredScope: "timeline:read",
   targetKind: "timeline",
   approval: "none",
-  projections: { pi: { description: "Read and preview the current project timeline." } },
+  projections: {
+    pi: { description: "Read and preview the current project timeline." },
+    mcp: { description: "Read the current project timeline or a bounded frame range without changing it." },
+  },
 } as const satisfies CapabilityContract<TimelineReadInput, TimelineReadResult>;

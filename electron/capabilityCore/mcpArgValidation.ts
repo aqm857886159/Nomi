@@ -176,7 +176,7 @@ export function validateToolArguments(toolName: string, schema: unknown, args: u
   const detail = issues
     .map((issue) => (issue.path ? `${issue.path}：${issue.message}` : issue.message))
     .join('；')
-  return new Error(`参数不符合 ${toolName} 的契约 —— ${detail}`)
+  return Object.assign(new Error(`参数不符合 ${toolName} 的契约 —— ${detail}`), { code: 'capability_input_invalid' })
 }
 
 /**

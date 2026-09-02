@@ -74,6 +74,7 @@ type BoundaryProps = {
 type ChunkTranslationKey =
   | 'router.mainInterface'
   | 'workspace.creation'
+  | 'workspace.storyboard'
   | 'workspace.generation'
   | 'workspace.preview'
   | 'studio.workbench'

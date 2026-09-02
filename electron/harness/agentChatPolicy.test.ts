@@ -116,9 +116,10 @@ describe("Project Agent Pi capability projection", () => {
     // as the canvas projection. Keep this assertion capability-focused rather
     // than coupling it to the exact number/order of future generation tools.
     expect(generationNames).toEqual(expect.arrayContaining([
-      "nomi_get_generation_context", "nomi_operation_create", "nomi_submit_generation_plan",
-      "nomi_preview_execution", "nomi_request_generation_gate", "nomi_start_generation",
-      "nomi_operation_read", "nomi_cancel_generation", "nomi_reconcile_generation", "load_skill",
+      "nomi_generation_plan", "nomi_generation_status", "load_skill",
+    ]));
+    expect(generationNames).not.toEqual(expect.arrayContaining([
+      "nomi_request_generation_gate", "nomi_start_generation", "nomi_decide_generation_gate",
     ]));
     expect(generationNames).not.toContain("export_timeline");
     expect(generationNames).not.toContain("start_production_run");
@@ -161,11 +162,10 @@ describe("Project Agent Pi capability projection", () => {
     expect(resolveAgentToolProfile({ capability: "creation-editor", prompt: "帮我生成一个小猫头像" })).toBe("generation");
     const names = agentToolsForRequest({ capability: "creation-editor", prompt: "帮我生成一个小猫头像" } as never).map(({ name }) => name);
     expect(names).toEqual(expect.arrayContaining([
-      "nomi_get_generation_context",
-      "nomi_operation_create",
-      "nomi_preview_execution",
-      "nomi_request_generation_gate",
+      "nomi_generation_plan",
+      "nomi_generation_status",
     ]));
+    expect(names).not.toContain("nomi_request_generation_gate");
     expect(names).toContain("read_full_text");
   });
 

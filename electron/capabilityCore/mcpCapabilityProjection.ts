@@ -1,10 +1,15 @@
-import { z } from "zod";
+import { z, type ZodTypeAny } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 import type { CapabilityContract } from "../shared/agentCapabilities/capabilityContract";
 import { CANVAS_READ_CAPABILITY } from "../shared/agentCapabilities/canvasRead";
+import { ASSET_READ_CAPABILITY } from "../shared/agentCapabilities/assetRead";
+import { EXPORT_READ_CAPABILITY } from "../shared/agentCapabilities/exportCapabilities";
+import { TIMELINE_READ_CAPABILITY, timelineEditPlanSchema } from "../shared/agentCapabilities/timelineRead";
+import { TIMELINE_WRITE_CAPABILITY } from "../shared/agentCapabilities/timelineWrite";
 import { findUnsupportedSchemaFeatures, type SchemaLike } from "./mcpArgValidation";
 import { buildCanonicalMcpToolResult, type CanonicalMcpToolResult } from "./mcpCanonicalToolResult";
+import { emitMcpToolCatalogChanged } from "./mcpToolCatalogChanges";
 
 type AnyCapabilityContract = CapabilityContract<unknown, unknown>;
 const convertZodToJsonSchema = zodToJsonSchema as unknown as (
@@ -19,7 +24,7 @@ const convertZodToJsonSchema = zodToJsonSchema as unknown as (
 
 export type McpCapabilityAuthority = {
   readonly kind: "project_session";
-  readonly requiredScope: typeof CANVAS_READ_CAPABILITY.requiredScope;
+  readonly requiredScope: string;
 };
 
 export type McpCapabilityPortBinding = {
@@ -45,6 +50,8 @@ export type McpCapabilityAdapter = {
   readonly semanticInputJsonSchema: SchemaLike;
   readonly transportInputSchema: SchemaLike;
   readonly parseCall: (args: Record<string, unknown>) => McpCapabilityCall;
+  /** Composite semantic tools can return a read/approval projection rather than one legacy output union. */
+  readonly outputSchema?: ZodTypeAny;
 };
 
 export type McpCapabilityTool = {
@@ -95,25 +102,134 @@ function isMcpExposable(adapter: McpCapabilityAdapter): boolean {
   if (!adapter.contract.aliases.mcp || !adapter.contract.projections.mcp) return false;
   if (adapter.contract.exposure === "internal_only") return false;
   // Generic self-asserted mcp_safe registrations remain hidden. The exact
-  // module-owned adapter identity is the unforgeable registration brand.
-  return (
-    adapter === CANVAS_READ_MCP_ADAPTER &&
-    Object.isFrozen(adapter) &&
-    adapter.contract === CANVAS_READ_CAPABILITY &&
-    adapter.contract.exposure === "mcp_safe" &&
-    adapter.authority.kind === "project_session" &&
-    adapter.authority.requiredScope === CANVAS_READ_CAPABILITY.requiredScope
-  );
+  // module-owned adapter identity is the registration brand.
+  return Object.isFrozen(adapter) && MCP_SAFE_ADAPTERS.has(adapter);
 }
 
 function readOnlyAnnotations(adapter: McpCapabilityAdapter): McpCapabilityTool["annotations"] {
-  return adapter === CANVAS_READ_MCP_ADAPTER &&
-    adapter.contract === CANVAS_READ_CAPABILITY &&
+  return MCP_READ_ONLY_ADAPTERS.has(adapter) &&
     adapter.contract.effect === "read" &&
     adapter.port.access === "read" &&
     adapter.port.kind === adapter.contract.execution.port
     ? Object.freeze({ readOnlyHint: true as const })
     : undefined;
+}
+
+const leaseField = { leaseHandle: z.string().trim().min(1), projectId: z.string().trim().min(1).optional() };
+const timelineReadMcpInput = z.discriminatedUnion("operation", [
+  z.object({ ...leaseField, operation: z.literal("read") }).strict(),
+  z.object({ ...leaseField, operation: z.literal("range"), startFrame: z.number().int().safe().nonnegative(), endFrame: z.number().int().safe().positive() }).strict(),
+]).refine((v) => v.operation !== "range" || v.endFrame > v.startFrame, "endFrame must be greater than startFrame");
+const timelineEditMcpInput = z.discriminatedUnion("operation", [
+  z.object({ ...leaseField, operation: z.literal("preview"), plan: z.object({}).passthrough() }).strict(),
+  z.object({ ...leaseField, operation: z.literal("apply"), plan: z.object({}).passthrough() }).strict(),
+  z.object({ ...leaseField, operation: z.literal("undo"), undoToken: z.string().trim().min(1), expectedRevision: z.string().trim().min(1), reason: z.string().trim().max(300).optional() }).strict(),
+]);
+const exportJobMcpInput = z.object({ ...leaseField, operation: z.enum(["status", "verify"]), jobId: z.string().trim().min(1) }).strict();
+const mediaQueryMcpInput = z.object({
+  ...leaseField,
+  operation: z.enum(["list", "get", "inspect", "search", "source_range", "waveform"]),
+  assetId: z.string().trim().min(1).optional(), query: z.string().trim().max(200).optional(),
+  kinds: z.array(z.enum(["image", "video", "audio"])).max(3).optional(), limit: z.number().int().min(1).max(100).optional(),
+  startFrame: z.number().int().safe().nonnegative().optional(), endFrame: z.number().int().safe().positive().optional(),
+  startSeconds: z.number().finite().nonnegative().optional(), endSeconds: z.number().finite().positive().optional(), buckets: z.number().int().min(1).max(256).optional(),
+}).strict();
+
+// Keep the broadcast schema in the small validator subset. The Zod schemas
+// above remain the execution boundary; this projection intentionally avoids
+// anyOf/exclusiveMinimum, which the shared MCP validator does not implement.
+const timelineReadTransportSchema = immutableSchemaSnapshot({
+  type: "object", properties: { leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["read", "range"] }, startFrame: { type: "integer", minimum: 0 }, endFrame: { type: "integer", minimum: 1 } },
+  required: ["leaseHandle", "operation"], additionalProperties: false,
+});
+const timelineEditTransportSchema = immutableSchemaSnapshot({
+  type: "object", properties: { leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["preview", "apply", "undo"] }, plan: { type: "object", additionalProperties: true }, undoToken: { type: "string", minLength: 1 }, expectedRevision: { type: "string", minLength: 1 }, reason: { type: "string", maxLength: 300 } },
+  required: ["leaseHandle", "operation"], additionalProperties: false,
+});
+const exportJobTransportSchema = immutableSchemaSnapshot({
+  type: "object", properties: { leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["status", "verify"] }, jobId: { type: "string", minLength: 1 } },
+  required: ["leaseHandle", "operation", "jobId"], additionalProperties: false,
+});
+const mediaQueryTransportSchema = immutableSchemaSnapshot({
+  type: "object", properties: { leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["list", "get", "inspect", "search", "source_range", "waveform"] }, assetId: { type: "string", minLength: 1 }, query: { type: "string", maxLength: 200 }, kinds: { type: "array", maxItems: 3, items: { type: "string", enum: ["image", "video", "audio"] } }, limit: { type: "integer", minimum: 1, maximum: 100 }, startFrame: { type: "integer", minimum: 0 }, endFrame: { type: "integer", minimum: 1 }, startSeconds: { type: "number", minimum: 0 }, endSeconds: { type: "number", minimum: 0 }, buckets: { type: "integer", minimum: 1, maximum: 256 } },
+  required: ["leaseHandle", "operation"], additionalProperties: false,
+});
+
+export const TIMELINE_READ_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+  contract: TIMELINE_READ_CAPABILITY,
+  authority: Object.freeze({ kind: "project_session", requiredScope: "timeline:read" }),
+  port: Object.freeze({ kind: "timeline", access: "read" }),
+  semanticInputJsonSchema: timelineReadTransportSchema,
+  transportInputSchema: timelineReadTransportSchema,
+  outputSchema: z.unknown(),
+  parseCall(args) {
+    const input = timelineReadMcpInput.parse(args);
+    return { semanticInput: input.operation === "read" ? { operation: "read_timeline" } : { operation: "inspect_timeline_range", startFrame: input.startFrame, endFrame: input.endFrame }, transport: input };
+  },
+});
+
+export const TIMELINE_EDIT_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+  contract: TIMELINE_WRITE_CAPABILITY,
+  authority: Object.freeze({ kind: "project_session", requiredScope: "timeline:write" }),
+  port: Object.freeze({ kind: "timeline", access: "write" }),
+  semanticInputJsonSchema: timelineEditTransportSchema,
+  transportInputSchema: timelineEditTransportSchema,
+  outputSchema: z.unknown(),
+  parseCall(args) {
+    const input = timelineEditMcpInput.parse(args);
+    const { leaseHandle, projectId, operation } = input;
+    if (operation === "preview" || operation === "apply") {
+      const plan = timelineEditPlanSchema.parse(input.plan);
+      return {
+        semanticInput: { operation: operation === "preview" ? "propose_edit_plan" : "apply_edit_plan", ...plan },
+        transport: { leaseHandle, ...(projectId ? { projectId } : {}), operation, plan },
+      };
+    }
+    return {
+      semanticInput: { operation: "undo_timeline_edit", undoToken: input.undoToken, expectedRevision: input.expectedRevision, ...(input.reason ? { reason: input.reason } : {}) },
+      transport: input,
+    };
+  },
+});
+
+export const EXPORT_JOB_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+  contract: EXPORT_READ_CAPABILITY,
+  authority: Object.freeze({ kind: "project_session", requiredScope: "export:read" }),
+  port: Object.freeze({ kind: "export", access: "read" }),
+  semanticInputJsonSchema: exportJobTransportSchema,
+  transportInputSchema: exportJobTransportSchema,
+  outputSchema: z.unknown(),
+  parseCall(args) {
+    const input = exportJobMcpInput.parse(args);
+    return { semanticInput: { operation: input.operation === "status" ? "inspect_export_job" : "verify_render", jobId: input.jobId }, transport: input };
+  },
+});
+
+export const MEDIA_QUERY_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+  contract: ASSET_READ_CAPABILITY,
+  authority: Object.freeze({ kind: "project_session", requiredScope: "asset:read" }),
+  port: Object.freeze({ kind: "asset", access: "read" }),
+  semanticInputJsonSchema: mediaQueryTransportSchema,
+  transportInputSchema: mediaQueryTransportSchema,
+  outputSchema: z.unknown(),
+  parseCall(args) {
+    const input = mediaQueryMcpInput.parse(args);
+    const { leaseHandle, projectId, operation, ...rest } = input;
+    const semanticOperation = operation === "list" ? "search_media" : operation === "get" ? "get_media" : operation === "inspect" ? "inspect_media" : operation === "source_range" ? "inspect_source_range" : operation === "waveform" ? "read_waveform" : "search_media";
+    const semanticInput = { operation: semanticOperation, ...rest, ...(operation === "list" && !rest.query ? { query: "" } : {}) };
+    return { semanticInput, transport: { leaseHandle, ...(projectId ? { projectId } : {}), operation, ...rest } };
+  },
+});
+
+export const MCP_EDITING_METHODS = Object.freeze(new Set([
+  TIMELINE_READ_CAPABILITY.id,
+  TIMELINE_WRITE_CAPABILITY.id,
+  EXPORT_READ_CAPABILITY.id,
+  ASSET_READ_CAPABILITY.id,
+]));
+
+export function isMcpEditingMethod(method: string): boolean {
+  return MCP_EDITING_METHODS.has(method as typeof TIMELINE_READ_CAPABILITY.id);
 }
 
 export function createMcpCapabilityResolver(registrations: readonly McpCapabilityAdapter[]): McpCapabilityResolver {
@@ -126,7 +242,7 @@ export function createMcpCapabilityResolver(registrations: readonly McpCapabilit
       const inputSchema = immutableSchemaSnapshot(adapter.transportInputSchema);
       const method = adapter.contract.id;
       const parseCall = adapter.parseCall;
-      const outputSchema = adapter.contract.outputSchema;
+      const outputSchema = adapter.outputSchema ?? adapter.contract.outputSchema;
       return Object.freeze({
         name,
         description,
@@ -143,10 +259,12 @@ export function createMcpCapabilityResolver(registrations: readonly McpCapabilit
     if (byAlias.has(tool.name)) throw new Error(`Duplicate explicit MCP capability alias: ${tool.name}`);
     byAlias.set(tool.name, tool);
   }
-  return Object.freeze({
+  const resolver = Object.freeze({
     list: () => tools,
-    resolve: (alias) => byAlias.get(alias),
+    resolve: (alias: string) => byAlias.get(alias),
   });
+  emitMcpToolCatalogChanged();
+  return resolver;
 }
 
 const canvasReadSemanticInputJsonSchema = immutableSchemaSnapshot(jsonSchemaFromCanonicalInput(CANVAS_READ_CAPABILITY));
@@ -195,5 +313,18 @@ export const CANVAS_READ_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   },
 });
 
+const MCP_SAFE_ADAPTERS = new Set<McpCapabilityAdapter>([
+  CANVAS_READ_MCP_ADAPTER, TIMELINE_READ_MCP_ADAPTER, TIMELINE_EDIT_MCP_ADAPTER, EXPORT_JOB_MCP_ADAPTER, MEDIA_QUERY_MCP_ADAPTER,
+]);
+const MCP_READ_ONLY_ADAPTERS = new Set<McpCapabilityAdapter>([
+  CANVAS_READ_MCP_ADAPTER, TIMELINE_READ_MCP_ADAPTER, EXPORT_JOB_MCP_ADAPTER, MEDIA_QUERY_MCP_ADAPTER,
+]);
+
 // Deliberately explicit: do not map CAPABILITY_CONTRACTS, Skills, manifests, or plugin metadata.
-export const MCP_CAPABILITY_RESOLVER = createMcpCapabilityResolver([CANVAS_READ_MCP_ADAPTER]);
+export const MCP_CAPABILITY_RESOLVER = createMcpCapabilityResolver([
+  CANVAS_READ_MCP_ADAPTER,
+  TIMELINE_READ_MCP_ADAPTER,
+  TIMELINE_EDIT_MCP_ADAPTER,
+  EXPORT_JOB_MCP_ADAPTER,
+  MEDIA_QUERY_MCP_ADAPTER,
+]);

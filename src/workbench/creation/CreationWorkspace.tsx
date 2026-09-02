@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
 import WorkbenchEditor from './WorkbenchEditor'
 import DocumentListSidebar from './DocumentListSidebar'
-import StoryboardPlanEditor from './storyboard/StoryboardPlanEditor'
+import StoryboardPlanCard from './storyboard/StoryboardPlanCard'
 import { useWorkbenchStore } from '../workbenchStore'
 
 type CreationWorkspaceProps = {
@@ -45,7 +45,17 @@ export default function CreationWorkspace({ aiCollapsed = false, agentDockRef }:
         <DocumentListSidebar />
       <div className="min-w-0 min-h-0 flex flex-col gap-2">
         <div className="min-h-0 flex-1" data-creation-surface={activeStoryboard ? 'storyboard' : 'source'}>
-          {activeStoryboard ? <StoryboardPlanEditor /> : <WorkbenchEditor />}
+          {/* v5 C3：完整编辑器只住分镜页（§3.7 一个实现一个家）。中列 856px 塞不下全宽表，
+              激活方案时这里只给方案卡摘要，卡上「打开分镜」跳 storyboard 工作区。 */}
+          {activeStoryboard ? (
+            <div className="h-full min-h-0 overflow-y-auto grid place-items-center">
+              <div className="w-full max-w-[400px]">
+                <StoryboardPlanCard documentId={activeDocumentId} storyboardId={activeStoryboard.id} />
+              </div>
+            </div>
+          ) : (
+            <WorkbenchEditor />
+          )}
         </div>
       </div>
       {agentDockRef ? <aside className={cn(

@@ -1,0 +1,154 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-apimart-model-id-and-reference-contract",
+  "problem_type": "APIMart canonical model identity and reference-cardinality drift",
+  "symptom": "Curated mappings sent legacy or internal APIMart model identifiers, and the Omni reference mapping could submit the documented-invalid two-image combination instead of failing before spend.",
+  "direct_cause": "Model identity was copied from historical catalog keys directly into the wire body, while the shared template path had no model-specific validator for APIMart's Omni 1-or-3 image contract.",
+  "class_root": "The earliest shared APIMart request boundary did not own the provider's canonical model-ID translation and model-specific reference invariants; each mapping could therefore drift independently while local construction still looked valid.",
+  "affected_population": [
+    "APIMart Seedream 4.5 and 5.0 Pro image mappings",
+    "APIMart Seedance 2.0 and 2.5, Grok Imagine 1.5, and Omni Flash video mappings",
+    "Users submitting Omni with two reference images, which the official contract rejects synchronously"
+  ],
+  "scope_paths": [
+    "electron/catalog/apimartModelIds.ts",
+    "electron/catalog/apimartImages.ts",
+    "electron/catalog/apimartVideos.ts",
+    "electron/catalog/apimartModelIds.test.ts",
+    "docs/research/2026-09-02-docaudit-apimart.md"
+  ],
+  "entry_points": [
+    "APIMART_IMAGE_MODELS imageCreateOp for Seedream 4.5 and Seedream 5.0 Pro",
+    "APIMART_VIDEO_MODELS videoCreateOp for Seedance 2.0/2.5, Grok Imagine 1.5, and Omni Flash",
+    "validateProfileRequestBeforeSpend and the final request transform immediately before HTTP"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/images/seedream-4.5/generation.md",
+      "checked_at": "2026-09-02",
+      "purpose": "Defines the current canonical model id seedream-4.5 and the flat image generation fields."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation.md",
+      "checked_at": "2026-09-02",
+      "purpose": "Defines the current canonical model id seedream-5-0-pro and the 1K/1.5K/2K resolution contract."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation.md",
+      "checked_at": "2026-09-02",
+      "purpose": "Defines seedance-2.0/fast/mini IDs and image_urls versus image_with_roles mutual exclusion."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation.md",
+      "checked_at": "2026-09-02",
+      "purpose": "Defines canonical seedance-2.5 and the reference/first-last constraints."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/grok-imagine/generation.md",
+      "checked_at": "2026-09-02",
+      "purpose": "Defines canonical grok-imagine-1.5-video-ext."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation.md",
+      "checked_at": "2026-09-02",
+      "purpose": "Defines canonical gemini-omni-1.1-flash-ext, generation_type, and the supported one-or-three image counts."
+    }
+  ],
+  "invariants": [
+    "Every APIMart mapping covered by the translation table sends the official canonical model ID on the wire, while internal legacy catalog keys remain readable for existing projects.",
+    "The Omni mapping accepts zero images for text mode and exactly one or three images for reference mode; two or four-plus images fail before localization or spend.",
+    "The same validator runs in the pre-spend validation path and in the final request transform, so a future caller cannot bypass the contract by skipping one path.",
+    "All current KIE/APIMart mappings can be constructed in a zero-network dry run without unresolved template placeholders or cross-vendor endpoint leakage."
+  ],
+  "generality_proof": "All affected mappings converge on the APIMart create operation and the same pre-spend/final-transform lifecycle. Translating IDs and validating Omni cardinality at that shared boundary prevents a new caller, legacy catalog row, or future mapping from reintroducing the same wire drift through a second hand-written branch.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/apimartModelIds.ts",
+      "symbol": "normalizeApimartCanonicalModelId / validateOmniFlashExtBody",
+      "responsibility": "Translate documented APIMart IDs and fail closed on Omni reference cardinality before spend and again before HTTP."
+    },
+    {
+      "path": "electron/catalog/apimartVideos.ts",
+      "symbol": "videoModel",
+      "responsibility": "Attach the named boundary to every affected APIMart video mapping from the single video factory."
+    },
+    {
+      "path": "electron/catalog/apimartImages.ts",
+      "symbol": "imageModel",
+      "responsibility": "Attach the named canonical-ID boundary to affected APIMart image mappings from the single image factory."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/apimartImages.ts",
+      "entry_point": "Seedream image mappings",
+      "disposition": "enforced",
+      "evidence": "Both Seedream 4.5 and 5.0 Pro mappings copied legacy doubao-prefixed keys into the body; both official pages specify seedream-* canonical IDs."
+    },
+    {
+      "path": "electron/catalog/apimartVideos.ts",
+      "entry_point": "Seedance/Grok/Omni video mappings",
+      "disposition": "enforced",
+      "evidence": "The official video pages specify canonical IDs different from the historical catalog keys; Omni also has a unique 1-or-3 image invariant."
+    },
+    {
+      "path": "electron/catalog/apimartVideos.ts",
+      "entry_point": "Wan 2.7 and Wan 3.0 mappings",
+      "disposition": "not-affected",
+      "evidence": "The official pages specify wan2.7 and wan3.0-video, exactly matching the current wire model values; they remain covered by the all-mapping dry run."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "APIMart model pages and historical catalog identities can drift independently, and any future reference-capable model can have a cardinality or mutual-exclusion rule that generic templates cannot infer.",
+    "same_class_scan": [
+      "Enumerated all 49 APIMart mappings from applyBuiltinSeeds and all 32 KIE mappings; compared every model/body endpoint and reference-bearing mapping against the official pages listed above.",
+      "Checked all APIMart video factories and the image factory for legacy model prefixes, plus the shared request lifecycle validateProfileRequestBeforeSpend/final applyRequestTransform.",
+      "Checked Omni text, one-image, two-image, and three-image cases; only one and three are accepted by the official Omni page, so two is a fail-closed regression case.",
+      "Checked Wan 2.7, Wan 3.0, H3, Sora, Veo, Kling, Hailuo, Vidu, audio, and KIE mappings as unaffected or already guarded; their fields remain in the dry-run test."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/apimartModelIds.ts",
+    "invariant": "Affected APIMart model IDs are canonicalized and Omni reference cardinality is 0, 1, or 3 only.",
+    "failure_mode": "Invalid Omni references throw a stable validation error before spend; the final transform repeats the same validation as defense in depth.",
+    "exception_policy": "none",
+    "strategy": "Use named request transforms attached by the existing model/image/video factories so every affected mapping shares one boundary and no caller-specific fallback remains.",
+    "artifacts": [
+      "electron/catalog/apimartModelIds.ts",
+      "electron/catalog/apimartImages.ts",
+      "electron/catalog/apimartVideos.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/apimartModelIds.test.ts",
+    "electron/catalog/vendorDocAuditWire.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/apimartModelIds.test.ts",
+    "electron/catalog/vendorDocAuditWire.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The historical catalog identifiers remain as migration-safe internal keys; only their outgoing wire value is corrected at the shared request boundary. No parallel HTTP implementation or fallback path is retained."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The fix uses the existing request-transform registry and no third-party dependency controls the provider contract.",
+    "exit_criteria": []
+  },
+  "migration": "Existing projects and catalog records keep their historical modelKey values so routing and persisted node identity do not change. When a request is built, only the outgoing APIMart model field is canonicalized; no stored key or external credential is rewritten.",
+  "residual_risks": [
+    "APIMart accepts some historical aliases, so live acceptance of an alias is not proof that it remains documented or stable; the matrix records canonical wire values separately.",
+    "The APIMart docs do not expose a free universal model-list endpoint in the fetched manual; the free probes therefore validate documented endpoints and parameter errors, not a complete account-specific availability list.",
+    "The two accidental 200 probe submissions are not used as acceptance evidence; their exact task IDs were not persisted by the old probe script, so any provider-side settlement remains part of the honest spend uncertainty recorded in the final report."
+  ]
+}
