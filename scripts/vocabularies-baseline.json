@@ -1304,16 +1304,6 @@
       "reason": "Storyboard design status is the persisted lifecycle of a draft-owned creative asset: draft is proposed, committed is placed on canvas, and stale needs synchronization after its source draft changes."
     },
     {
-      "site": "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx::function:StatusBadge/parameter:0/property:tone/type-union",
-      "members": ["active", "neutral", "success", "warning"],
-      "reason": "TimelineEditPlanCard StatusBadge tone is a visual vocabulary for Agent edit-plan cards; it only controls badge color and icon, not the edit or task lifecycle."
-    },
-    {
-      "site": "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx::type:TimelineAppliedRecord/property:status/type-union",
-      "members": ["applied", "failed", "undoing", "undone"],
-      "reason": "TimelineAppliedRecord.status is a local view-model vocabulary for apply and undo outcomes; it must remain distinct from the persisted adoption and runtime lifecycle states."
-    },
-    {
       "site": "electron/experience/experienceTypes.ts::variable:experienceStatusSchema/z.enum",
       "members": ["active", "demoted", "expired", "quarantined", "shadow", "superseded"],
       "reason": "experienceStatusSchema 是经验候选的唯一生命周期词表：quarantined/shadow/active 表示证据闸门，demoted/expired/superseded 表示不可再用于提示词的终态；策略、投影和回放都必须从此 owner 派生，不能与 Agent turn 或任务状态混用。"
