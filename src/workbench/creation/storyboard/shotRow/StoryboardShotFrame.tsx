@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconArrowUpRight, IconLock, IconLockOpen, IconMaximize, IconRefresh } from '@tabler/icons-react'
+import { IconArrowUpRight, IconLock, IconLockOpen, IconMaximize, IconRefresh } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import { NomiImage } from '../../../../design/media'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'

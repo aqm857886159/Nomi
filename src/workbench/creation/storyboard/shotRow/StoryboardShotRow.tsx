@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconChevronDown, IconChevronUp, IconDots, IconGripVertical, IconTrash } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronUp, IconDots, IconGripVertical, IconTrash } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import { NomiSelect } from '../../../../design'
 import type { MentionSuggestionItem, MentionUploadControls } from '../../../assets/AssetMentionSuggestionList'
