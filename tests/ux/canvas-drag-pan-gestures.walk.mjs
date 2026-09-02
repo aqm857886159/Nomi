@@ -96,7 +96,10 @@ async function findBlankPoint(preferBottom = false) {
         const y = rect.top + rect.height * ry
         const hit = document.elementFromPoint(x, y)
         if (!hit || !stage.contains(hit)) continue
-        if (hit.closest('.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-bounds, .generation-canvas-v2__selection-toolbar, button, input, textarea, [role="menu"], [role="toolbar"], .generation-canvas-v2__edge-hit, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack')) continue
+        // React Flow 的多选包围浮层（.react-flow__nodesselection[-rect]）是可拖动的交互层，
+        // 会盖住两个已选节点之间的画布：点它既不平移也不取消选中（原生行为）。它不是「空白」，
+        // 否则「点空白取消选中」这一步会落到浮层上被吞（窗口尺寸不同处随机命中，见 S4 尾修）。
+        if (hit.closest('.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-bounds, .generation-canvas-v2__selection-toolbar, .react-flow__nodesselection, button, input, textarea, [role="menu"], [role="toolbar"], .generation-canvas-v2__edge-hit, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack')) continue
         return { x: Math.round(x), y: Math.round(y) }
       }
     }
@@ -124,7 +127,8 @@ async function findMarqueeGesture() {
   return getWin().evaluate(() => {
     const stage = document.querySelector('.generation-canvas-v2__stage')
     const nodes = Array.from(document.querySelectorAll('.generation-canvas-v2-node'))
-    if (!stage || nodes.length === 0) return null
+    if (!stage) throw new Error('画布 stage 未渲染，无法构造框选手势')
+    if (!nodes.length) throw new Error('画布节点未渲染，无法构造框选手势')
     const stageRect = stage.getBoundingClientRect()
     const nodeRects = nodes.map((node) => node.getBoundingClientRect())
     const bounds = {

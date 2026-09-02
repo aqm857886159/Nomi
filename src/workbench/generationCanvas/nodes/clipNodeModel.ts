@@ -121,7 +121,7 @@ export function clipNodeTimeline(meta: ClipNodeMeta, fps = 30): TimelineState {
     fps: safeFps,
     scale: 1,
     playheadFrame: 0,
-    tracks: [{ id: 'videoTrack', type: 'video', label: i18n.t('timelineEditor.videoLabel'), clips }],
+    tracks: [{ id: 'videoTrack', type: 'video', label: i18n.t('timelineEditor.track.videoLabel'), clips }],
     textClips: [],
   }
 }

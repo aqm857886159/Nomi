@@ -52,6 +52,7 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   参考图融合: 'Reference image blend',
   参考图作首帧驱动: 'Use a reference image as the first frame',
   参考音频: 'Reference audio',
+  克隆音色参考: 'Voice-clone reference',
   草图: 'Draft',
   尺寸: 'Size',
   纯文本生成: 'Generate from text only',
@@ -103,6 +104,27 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   即梦多帧视频: 'Dreamina multi-frame video',
   即梦图片: 'Dreamina Image',
   '即梦图片（会员）': 'Dreamina Image (membership)',
+  '即梦 Seedance（会员）': 'Dreamina Seedance (membership)',
+  '即梦多帧视频（会员）': 'Dreamina Multi-frame Video (membership)',
+  // 目录里其余带中文的模型展示名(labelZh)。译法沿用本文件既有约定:文生图=text-to-image、
+  // 改图=image editing、图生视频=image-to-video、（会员）=(membership)、（免费）=(free)。
+  'GPT Image 2 · 文生图': 'GPT Image 2 · Text-to-image',
+  'GPT Image 2 · 图生图': 'GPT Image 2 · Image-to-image',
+  'MiniMax H3 · Context-IR 提示词增强': 'MiniMax H3 · Context-IR prompt enhancement',
+  'Qwen-Image 改图': 'Qwen-Image editing',
+  'Qwen3 30B（免费）': 'Qwen3 30B (free)',
+  'Qwen3 8B（免费）': 'Qwen3 8B (free)',
+  'Qwen3 Next 80B（免费）': 'Qwen3 Next 80B (free)',
+  'WAN2.2 图生视频 · 14B': 'WAN2.2 image-to-video · 14B',
+  '本地 · 文生图': 'Local · Text-to-image',
+  '留空 = 自动用本机第一个 checkpoint': 'Leave empty to use the first checkpoint on this machine',
+  // 这几个展示名静态扫不到——它们不是 `labelZh: '…'` 属性:majicFlus 走 t2iModel() 位置参数
+  // (electron/catalog/modelscopeImages.ts:70)、Codex 走导出常量 CODEX_IMAGE_MODEL_LABEL
+  // (electron/catalog/codexImages.ts:26)。是 en 真机走查(tests/ux/i18n-sweep.walk.mjs)照出来的。
+  '可灵 v3': 'Kling v3',
+  'majicFlus 写实': 'majicFlus Photorealistic',
+  '即梦 Seedance 2.0（会员）': 'Dreamina Seedance 2.0 (membership)',
+  'Codex 生图（登录额度）': 'Codex image generation (login quota)',
   即梦图片超清: 'Dreamina Image Upscale',
   '即梦图片超清（会员）': 'Dreamina Image Upscale (membership)',
   极速文生图: 'Fast text-to-image',
@@ -124,9 +146,25 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   即梦: 'Dreamina',
   本地: 'Local',
   '本地 ComfyUI': 'Local ComfyUI',
+  // 内置供应商种子(electron/catalog/builtinVendorSeeds.ts)的展示名——设置→模型 / 设置→AI 里那行标题。
+  // 每个种子名都必须在这儿有译名或登记成语言中立品牌名,由 check:i18n 的 vendor-seed-name 门岗兜底。
+  //
+  // 译法沿用仓内既有英文文案,不另起一套:
+  //  · 火山→Volcengine：与 onboardingProviders.ts 的英文句 "Volcengine Speech is separate from the
+  //    Ark console" 及本文件既有的 'Volcengine Seedream …' 一致；方舟官方英文品牌是 Ark
+  //    (console.volcengine.com/ark 自称 "Volcano Engine Ark Console")。
+  //  · 豆包→Doubao Speech：与本文件 '豆包语音 2.0': 'Doubao Speech 2.0' 一致。
+  //    这条**刻意不用** 'Volcengine Voice'——同一个抽屉里既写 Voice 又写 "Volcengine Speech"
+  //    自相矛盾，读的人会以为是两家。
+  火山方舟: 'Volcengine Ark',
+  火山豆包语音: 'Volcengine Doubao Speech',
+  '即梦会员（本地 CLI）': 'Dreamina membership (local CLI)',
+  'Codex 本地生图（实验）': 'Codex local image (experimental)',
+  本地模型: 'Local models',
   目标面数: 'Target polygon count',
   '排除的元素…': 'Elements to exclude…',
   配音生成: 'Voice generation',
+  '多语种配音；音色从官方预设中选择': 'Multilingual voice-over; pick a voice from the official presets',
   轻量: 'Lightweight',
   清晰度: 'Resolution',
   '情感/语气': 'Emotion / tone',
@@ -244,6 +282,7 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   水印: 'Watermark',
   添加水印: 'Add watermark',
   无缝循环: 'Seamless loop',
+  文本规范化: 'Text normalization',
   时间戳: 'Timestamps',
   区分说话人: 'Distinguish speakers',
   识别声音事件: 'Detect audio events',

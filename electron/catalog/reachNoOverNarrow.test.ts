@@ -9,6 +9,7 @@
 // 拿泛槽扫等于自己造了个错夹具骗自己。
 import { describe, expect, it } from "vitest";
 import { resolveArchetypeForModel } from "../../src/config/modelArchetypes";
+import { modeTransportFor } from "../shared/videoCapabilities";
 import { modeSlotReach } from "./referenceReachability";
 import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 import { VOLCENGINE_VIDEO_MODELS } from "./volcengineVideos";
@@ -41,7 +42,7 @@ describe("专用 codec 零误伤（收窄不许把原生通道判死）", () => 
         if (!archetype) continue;
         for (const mode of archetype.modes) {
           if (mode.slots.length === 0) continue; // 纯文生模式没有参考槽
-          const taskKind = mode.transportTaskKind ?? archetype.transportTaskKind;
+          const taskKind = modeTransportFor(mode, archetype, model.vendorKey);
           const body = model.mappings.find((m) => m.taskKind === taskKind)?.create?.body;
           if (!body) continue; // 该桶没 mapping —— 属另一类问题（无通道），不在本条断言范围
           checked += 1;

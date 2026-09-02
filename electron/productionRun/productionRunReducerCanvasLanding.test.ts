@@ -71,6 +71,19 @@ describe('plan.bind-shot-nodes', () => {
     expect(s1?.nodeId).toBe('node-new')
     expect(s1?.canvasDetached).toBeUndefined()
   })
+
+  it('单镜计划用 candidateId 绑定顶层 nodeId，并让已有 job 继承', () => {
+    const single = runWith([shot('cat')], [
+      { ...job('cat'), metadata: undefined },
+    ])
+    single.generationPlan = { ...single.generationPlan!, shots: undefined }
+    const effect = applyProductionCommand(single, {
+      commandId: 'bind-single', expectedRevision: 1, type: 'plan.bind-shot-nodes',
+      payload: { bindings: [{ shotId: 'cat', nodeId: 'node-cat' }] }, issuedAt: NOW,
+    }, NOW)
+    expect(effect.run.generationPlan?.nodeId).toBe('node-cat')
+    expect(effect.run.jobs[0]?.nodeId).toBe('node-cat')
+  })
 })
 
 describe('plan.detach-shot-nodes', () => {
@@ -104,5 +117,17 @@ describe('plan.detach-shot-nodes', () => {
     }, NOW)
     expect(effect.run.generationPlan?.shots?.[0].nodeId).toBe('node-1')
     expect(effect.run.generationPlan?.shots?.[0].canvasDetached).toBeUndefined()
+  })
+
+  it('单镜节点删除记录 canvasDetached，恢复不会静默复活', () => {
+    const single = runWith([shot('cat')], [{ ...job('cat'), metadata: undefined, nodeId: 'node-cat' }])
+    single.generationPlan = { ...single.generationPlan!, shots: undefined, nodeId: 'node-cat' }
+    const effect = applyProductionCommand(single, {
+      commandId: 'detach-single', expectedRevision: 1, type: 'plan.detach-shot-nodes',
+      payload: { nodeIds: ['node-cat'] }, issuedAt: NOW,
+    }, NOW)
+    expect(effect.run.generationPlan?.nodeId).toBeUndefined()
+    expect(effect.run.generationPlan?.canvasDetached).toBe(true)
+    expect(effect.run.jobs[0]?.nodeId).toBeUndefined()
   })
 })

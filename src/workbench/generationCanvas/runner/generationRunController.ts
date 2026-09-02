@@ -24,6 +24,7 @@ import {
 export { classifyGenerationError, type GenerationErrorReport } from '../../observability/classifyError'
 import type { DependencyWavePlan } from './dependencyWaves'
 import { resolveGenerationReferences } from './generationReferenceResolver'
+import { stampUpstreamRefSnapshot } from './refSnapshotStamp'
 import { archetypeForNode, resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
 import {
   applyArchetypeModeSwitch,
@@ -48,7 +49,8 @@ import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 /** 节点 kind → 付费预估用的产物口径，喂给 describeGenerationCost 报对名词与时长。 */
 function spendCostKind(kind: GenerationNodeKind): Exclude<GenerationCostKind, 'mixed'> {
   const exec = getGenerationNodeExecutionKind(kind)
-  return exec === 'text' || exec === 'video' || exec === 'audio' ? exec : 'image'
+  // model3d 同为一等产物口径——落回 'image' 会让花钱确认卡把 3D 生成说成「1 张画面」（同族 kind 边界漏 3D）。
+  return exec === 'text' || exec === 'video' || exec === 'audio' || exec === 'model3d' ? exec : 'image'
 }
 
 /** 一批节点的产物口径：全同则取该类，混合则 'mixed'，喂给 describeGenerationCost 报对名词。 */
@@ -252,7 +254,9 @@ export async function runGenerationNode(
     throw new Error(
       initialNode.kind === 'video'
         ? '视频节点缺少上游真实图片或视频资产 URL。请先生成或选择首帧/参考图后再生成视频。'
-        : `暂不支持「${initialNode.kind}」类型节点的生成`,
+        : getGenerationNodeExecutionKind(initialNode.kind) === 'model3d'
+          ? i18n.t('generationCommon.composer.model3dReferenceRequired')
+          : `暂不支持「${initialNode.kind}」类型节点的生成`,
     )
   }
 
@@ -260,6 +264,8 @@ export async function runGenerationNode(
   // resolveAutonomousUploadConsent）。这一层不再问、也不再有能问的东西——它只把已决的答案
   // 往下透传给 executor。F16b 之前这里会自己弹第二张卡，那张卡现已删除，见 assetUploadConsent.ts。
   const resolvedReferences = resolveGenerationReferences(initialNode, { nodes: initialState.nodes, edges: initialState.edges })
+  // 提交时打上游版本戳（refSnapshot）：参考图后来重生成 → diff 即知「这次产物用的是旧图」。
+  stampUpstreamRefSnapshot(id, { nodes: initialState.nodes, edges: initialState.edges })
   const hasLocalReference = hasLocalAssetReference({
     ...initialNode,
     references: [
@@ -657,16 +663,22 @@ export async function confirmAndRunNodeVariants(
  * 与「基于此生成变体」(confirmAndRunNode{rerun} = duplicate) 分流，
  * 别共用一个口子（一个改这一镜、一个长出新镜）。
  */
-export async function regenerateNodeInPlace(nodeId: string): Promise<void> {
+export async function regenerateNodeInPlace(
+  nodeId: string,
+  // 确认卡可带调用方的动作名（如分镜表「用新图重跑」）：用户点的是什么，卡上就回声什么，
+  // 不让一张通用「重新生成」卡吃掉刚建立的语境（R16 情绪走查：小白在这一步会迟疑
+  // 「到底用没用新图」）。缺省仍是「重新生成」，画布 composer 等既有调用方零变化。
+  opts?: { title?: string; confirmLabel?: string },
+): Promise<void> {
   const id = String(nodeId || '').trim()
   if (!id) return
   const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)
   const hosting = await resolveHostingDisclosure(node)
   if (!hosting.allowed) return
   const ok = await confirmGenerationSpend([node], {
-    title: i18n.t('generationCommon.composer.regenerate'),
+    title: opts?.title || i18n.t('generationCommon.composer.regenerate'),
     message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image'),
-    confirmLabel: i18n.t('generationCommon.composer.regenerate'),
+    confirmLabel: opts?.confirmLabel || i18n.t('generationCommon.composer.regenerate'),
     light: true,
     ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
@@ -726,7 +738,12 @@ export function canRunGenerationNode(
     const audioReferences = 'id' in node && node.id ? resolveGenerationReferences(node, context) : undefined
     return Boolean(audioArchetype && hasAnyArchetypeReference(meta, audioArchetype, audioReferences))
   }
-  if (executionKind !== 'video') return false
+  // 视频与 3D **共用**下面这段「档案模式声明」判定（P1 不复制第二份）：3D 档案与视频同构——
+  // text 模式 slots:[]（文生3D，prompt-only）、image 模式带 first_frame 参考槽（图生3D）。
+  // 此前这里只认 video，其余 kind 一律 false → model3d 节点生成钮恒灰、runner 抛「暂不支持」，
+  // 画布 3D 节点永远发不出去（#320 J11 实证；同族第二次发作，第一次=#286 参数底栏）。
+  // 「新 kind 漏分支」整类由 canRunGenerationNode.test.ts 的 registry 穷举矩阵当场报红。
+  if (executionKind !== 'video' && executionKind !== 'model3d') return false
   if (!('id' in node) || !node.id) return false
   const meta = node.meta || {}
   const archetype = resolveTaskArchetype(meta)

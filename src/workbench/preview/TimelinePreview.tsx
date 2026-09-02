@@ -24,6 +24,7 @@ import { computeTimelineDuration } from '../timeline/timelineMath'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { getDesktopActiveProjectId } from '../../desktop/activeProject'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { selectStableCanvasNodes } from '../generationCanvas/store/canvasNodeProjection'
 import { resolveTimelineClipPlaybackUrl } from '../timeline/timelinePlaybackUrl'
 import { usePreviewVideoPlayheadSync } from './usePreviewVideoPlayheadSync'
 import { findTimelineTransitionForClipType, resolveTimelineTransitionsAtFrame } from '../timeline/timelineTransition'
@@ -84,7 +85,9 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   const playing = useWorkbenchStore((state) => state.timelinePlaying)
   const setTimelinePlaying = useWorkbenchStore((state) => state.setTimelinePlaying)
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
-  const generationNodes = useGenerationCanvasStore((state) => state.nodes)
+  // 预览只按 sourceNodeId 解析回放 URL（读 result/history），从不读 position → 位置稳定投影：
+  // 画布拖动期间成片预览不再被连坐重渲（suspect #1）。
+  const generationNodes = useGenerationCanvasStore(selectStableCanvasNodes)
   const videoClip = findClip(activeClips, 'video')
   const imageClip = findClip(activeClips, 'image')
   const audioClip = findClip(activeClips, 'audio')

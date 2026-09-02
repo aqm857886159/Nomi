@@ -4,17 +4,11 @@ export type ExportQuality = "small" | "standard" | "high";
 export type ExportPreset = "publish" | "edit" | "share" | "webm";
 export type ExportAudioMode = "mute" | "preserve-source" | "mixdown";
 
-export type ExportJobStatus =
-  | "queued"
-  | "preparing"
-  | "planning"
-  | "rendering"
-  | "encoding"
-  | "muxing"
-  | "finalizing"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
+import { EXPORT_JOB_STATUSES } from "../shared/contracts/exportTypes";
+import type { ExportJobStatus } from "../shared/contracts/exportTypes";
+
+export { EXPORT_JOB_STATUSES } from "../shared/contracts/exportTypes";
+export type { ExportJobStatus } from "../shared/contracts/exportTypes";
 
 export type ExportStage = Exclude<ExportJobStatus, "queued" | "succeeded" | "failed" | "cancelled">;
 
@@ -33,18 +27,6 @@ export type ExportProfile = {
 };
 
 export const EXPORT_PRESETS: readonly ExportPreset[] = ["publish", "edit", "share", "webm"];
-export const EXPORT_JOB_STATUSES: readonly ExportJobStatus[] = [
-  "queued",
-  "preparing",
-  "planning",
-  "rendering",
-  "encoding",
-  "muxing",
-  "finalizing",
-  "succeeded",
-  "failed",
-  "cancelled",
-];
 export const EXPORT_STAGES: readonly ExportStage[] = ["preparing", "planning", "rendering", "encoding", "muxing", "finalizing"];
 
 const PRODUCTION_PRESETS: readonly ExportProfile["preset"][] = ["publish", "edit", "share"];

@@ -71,6 +71,7 @@ import { CODEX_LOCAL_VENDOR_SEED, CODEX_IMAGE_CURATED_MODELS, CODEX_IMAGE_CURATE
 import { VOLCENGINE_IMAGE_MODELS } from "./volcengineImages";
 import { VOLCENGINE_AUDIO_MODELS } from "./volcengineAudios";
 import { VOLCENGINE_SEEDANCE_QUERY_OP, VOLCENGINE_SEEDANCE_STATUS_MAPPING, VOLCENGINE_VIDEO_MODELS } from "./volcengineVideos";
+import { modelHasPublishedExecution } from "../shared/modelPublication";
 import { GEMINI_OMNI_11_MAPPINGS, GEMINI_OMNI_11_MODEL_SEED } from "./kieGeminiOmni11";
 import { KIE_SUNO_MUSIC_MAPPINGS, KIE_SUNO_MUSIC_MODEL_SEED, KIE_SUNO_SFX_MAPPING, KIE_SUNO_SFX_MODEL_SEED } from "./kieSunoAudio";
 import { MINIMAX_OFFICIAL_MODELS, MINIMAX_VENDOR_SEED } from "./minimaxOfficial";
@@ -751,4 +752,49 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
 
   if (!changed) return { state, changed: false };
   return { state: { ...state, vendors, models, mappings }, changed: true };
+}
+
+/**
+ * Verify that a direct-key vendor still points at a code-owned curated
+ * execution contract.  Renderer-created/edited rows are intentionally not
+ * enough: an enabled adapter-less mapping would otherwise look "published"
+ * to the legacy publication helper.  This check is used at the credential and
+ * provider boundaries, so a later catalog edit fails closed as well.
+ */
+export function hasBuiltinCuratedExecution(state: CatalogState, vendorKey: string): boolean {
+  if (vendorKey !== APIMART_VENDOR_SEED.key) return false;
+  const curatedModelByKey = new Map(APIMART_CURATED_MODELS.map((model) => [model.modelKey, model] as const));
+  const curatedMappingsById = new Map(APIMART_CURATED_MAPPINGS.map((mapping) => [mapping.id, mapping] as const));
+  const models = state.models.filter((model) => model.vendorKey === vendorKey && model.enabled);
+  for (const model of models) {
+    const curated = curatedModelByKey.get(model.modelKey);
+    if (!curated || model.kind !== curated.kind) continue;
+    const meta = model.meta && typeof model.meta === "object" && !Array.isArray(model.meta)
+      ? model.meta as Record<string, unknown>
+      : {};
+    if (curated.archetypeId && meta.archetypeId !== curated.archetypeId) continue;
+    if (curated.meta && Object.entries(curated.meta).some(([key, value]) => JSON.stringify(meta[key]) !== JSON.stringify(value))) continue;
+
+    // This predicate gates the media GenerationProvider. Text models are
+    // consumed by the separate language-model path and must not make a
+    // catalog with all image/video mappings removed look generation-ready.
+    if (model.kind === "text") continue;
+    // For media models, require exactly one intact code-owned mapping
+    // (duplicate IDs are ambiguous and fail closed).
+    const candidates = [...curatedMappingsById.values()].filter((mapping) =>
+      mapping.modelKey === model.modelKey && mapping.taskKind !== "chat" && mapping.taskKind !== "prompt_refine",
+    );
+    for (const curatedMapping of candidates) {
+      const actuals = state.mappings.filter((mapping) => mapping.id === curatedMapping.id);
+      if (actuals.length !== 1) continue;
+      const actual = actuals[0];
+      if (!actual.enabled || actual.vendorKey !== vendorKey || actual.modelKey !== curatedMapping.modelKey
+        || actual.taskKind !== curatedMapping.taskKind
+        || JSON.stringify(actual.create) !== JSON.stringify(curatedMapping.create)
+        || JSON.stringify(actual.query) !== JSON.stringify(curatedMapping.query)
+        || JSON.stringify(actual.statusMapping) !== JSON.stringify(curatedMapping.statusMapping)) continue;
+      if (modelHasPublishedExecution(model, { mappings: state.mappings })) return true;
+    }
+  }
+  return false;
 }

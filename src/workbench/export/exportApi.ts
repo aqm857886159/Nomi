@@ -20,7 +20,7 @@ export type ExportTimelineToMp4Options = {
   outputName?: string
   resolution?: '720p' | '1080p'
   quality?: ExportQuality
-  generationNodes?: GenerationCanvasNode[]
+  generationNodes?: readonly GenerationCanvasNode[]
   onProgress?: (progress: { status: 'preparing' | 'recording' | 'converting' | 'done'; ratio: number }) => void
   /** Fired only after the main process has created and persisted the export job. */
   onJobStarted?: (job: { jobId: string; backend: 'filtergraph' | 'webm' }) => void
@@ -28,24 +28,31 @@ export type ExportTimelineToMp4Options = {
 
 export type StartTimelineMp4ExportJobOptions = Omit<ExportTimelineToMp4Options, 'onProgress'>
 
-export async function startTimelineMp4ExportJob(options: StartTimelineMp4ExportJobOptions): Promise<{ jobId: string }> {
-  const desktop = getDesktopBridge()
-  if (!desktop?.exports?.startJob) {
-    throw new Error(i18n.t('runtime.export.jobRequiresDesktop'))
-  }
+export function createTimelineExportManifest(options: Pick<
+  ExportTimelineToMp4Options,
+  'timeline' | 'aspectRatio' | 'projectId' | 'resolution' | 'quality' | 'generationNodes'
+>): { projectId: string; timeline: TimelineState; manifest: ReturnType<typeof buildRenderManifestRequest> } {
   const projectId = (options.projectId || getDesktopActiveProjectId()).trim()
   if (!projectId) throw new Error(i18n.t('runtime.export.missingProjectId'))
-  const exportTimeline = resolveTimelinePlaybackUrls(options.timeline, options.generationNodes || [])
-
+  const timeline = resolveTimelinePlaybackUrls(options.timeline, options.generationNodes || [])
   const manifest = buildRenderManifestRequest({
     projectId,
-    timeline: exportTimeline,
+    timeline,
     aspectRatio: options.aspectRatio,
     resolution: options.resolution || '1080p',
     quality: options.quality || 'standard',
     preset: 'publish',
   })
-  manifest.textOverlays = renderTextOverlays(exportTimeline, manifest.profile.width, manifest.profile.height)
+  manifest.textOverlays = renderTextOverlays(timeline, manifest.profile.width, manifest.profile.height)
+  return { projectId, timeline, manifest }
+}
+
+export async function startTimelineMp4ExportJob(options: StartTimelineMp4ExportJobOptions): Promise<{ jobId: string }> {
+  const desktop = getDesktopBridge()
+  if (!desktop?.exports?.startJob) {
+    throw new Error(i18n.t('runtime.export.jobRequiresDesktop'))
+  }
+  const { projectId, manifest } = createTimelineExportManifest(options)
 
   return desktop.exports.startJob({
     projectId,
@@ -59,20 +66,9 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
   if (!desktop?.exports?.startJob || !desktop.exports.writeTempInput || !desktop.exports.finishTempInput) {
     throw new Error(i18n.t('runtime.export.mp4RequiresDesktop'))
   }
-  const projectId = (options.projectId || getDesktopActiveProjectId()).trim()
-  if (!projectId) throw new Error(i18n.t('runtime.export.missingProjectId'))
   const resolution = options.resolution || '1080p'
   const quality = options.quality || 'standard'
-  const exportTimeline = resolveTimelinePlaybackUrls(options.timeline, options.generationNodes || [])
-  const manifest = buildRenderManifestRequest({
-    projectId,
-    timeline: exportTimeline,
-    aspectRatio: options.aspectRatio,
-    resolution,
-    quality,
-    preset: 'publish',
-  })
-  manifest.textOverlays = renderTextOverlays(exportTimeline, manifest.profile.width, manifest.profile.height)
+  const { projectId, timeline: exportTimeline, manifest } = createTimelineExportManifest(options)
   const { jobId, backend } = await desktop.exports.startJob({
     projectId,
     outputName: options.outputName,

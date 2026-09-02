@@ -223,23 +223,34 @@ test('Cloudflare Workers dependency install never launches the desktop Electron 
 
 test('all Electron entry points share the identity gate and install repair', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(sourceRepoRoot, 'package.json'), 'utf8'))
-  for (const script of ['build', 'dist', 'dist:mac:dir', 'test:e2e', 'test:mcp', 'test:journeys']) {
+  for (const script of ['build', 'dist', 'dist:mac:dir', 'test:e2e', 'test:mcp-journey', 'test:journeys']) {
     assert.match(
       packageJson.scripts[script],
       /^pnpm run check:electron-install && /,
       `${script} must verify Electron before doing work`,
     )
   }
-  assert.match(packageJson.scripts.gates, /^pnpm run gates:contracts && /)
+  // check:fresh-base 是纯 git 读操作（本地未整合 origin/main 就拦下），不算「repository work」，
+  // 允许它站在 gates 链头；本门岗钉的顺序不变：Electron identity 仍先于一切真正的工作。
+  assert.match(packageJson.scripts.gates, /^(?:pnpm run check:fresh-base && )?pnpm run gates:contracts && /)
   assert.match(packageJson.scripts['gates:contracts'], /^pnpm run check:gates-chain && /)
   const gatesIdentityIndex = packageJson.scripts['gates:contracts'].indexOf('pnpm run check:electron-install')
   const gatesWorkIndex = packageJson.scripts['gates:contracts'].indexOf('pnpm run check:filesize')
   assert.notEqual(gatesIdentityIndex, -1, 'full gates must contain the Electron identity check')
   assert.notEqual(gatesWorkIndex, -1, 'full gates must contain its first repository work gate')
   assert.ok(gatesIdentityIndex < gatesWorkIndex, 'full gates must verify Electron before repository work begins')
+  // 这里钉的是**顺序**:Electron runtime 必须第一个装(identity gate 先于其它工作),git hook 紧随其后。
+  // 尾部允许再追加安装器——原先用 `$` 把整串钉死,等于「不许新增任何安装器」,那不是本门岗的意图
+  // (2026-09-02 加 install-claude-hooks 时撞上)。顺序仍不许动。
   assert.match(
     packageJson.scripts.postinstall,
-    /^node \.\/scripts\/install-electron-runtime\.mjs && node \.\/scripts\/install-git-hooks\.cjs$/,
+    /^node \.\/scripts\/install-electron-runtime\.mjs && node \.\/scripts\/install-git-hooks\.cjs(?: && |$)/,
+  )
+  // Claude harness hook 是 R11/R25/self-check 的执行体,装齐才算装好;别被悄悄摘掉。
+  assert.match(
+    packageJson.scripts.postinstall,
+    /node \.\/scripts\/install-claude-hooks\.cjs/,
+    'postinstall must install the versioned Claude harness hooks',
   )
 
   const devSource = fs.readFileSync(path.join(sourceRepoRoot, 'scripts', 'dev-electron.mjs'), 'utf8')

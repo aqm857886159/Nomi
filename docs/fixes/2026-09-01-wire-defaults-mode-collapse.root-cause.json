@@ -1,0 +1,109 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-01-wire-defaults-mode-collapse",
+  "problem_type": "headless wire-defaults 生成器把「同一 transportTaskKind 的多个模式」用遍历顺序里最后一个模式的参数收口，后声明模式静默覆盖前面模式的默认值（种子兜底层不准，比例族档案会把 adaptive 当纯文生默认发出触发 vendor 400）",
+  "symptom": "electron/catalog/archetypeWireDefaults.video.generated.ts 里 minimax-h3 的 text_to_video 兜底默认是 {resolution:\"2K\", aspect_ratio:\"adaptive\", model:\"minimax-h3/reference-to-video\"}——那是 ref（参考生视频）模式的参数，不是 t2v（文生视频）模式的真实默认。t2v 契约（electron/shared/videoCapabilities/minimaxH3.ts RATIO_REQUIRED）是 aspect_ratio 必填 16:9（无 adaptive）+ modelEnum minimax-h3/text-to-video。根因是生成器 scripts/gen-archetype-wire-defaults.ts 按 (archetypeId, transportTaskKind, vendorKey) 收口，minimax-h3 三模式（t2v/i2v/ref）共享档案级 transportTaskKind=text_to_video，旧代码遍历 arch.modes 时「最后一个模式（ref）胜」，把 ref 的 adaptive + reference-to-video 写成了 text_to_video 兜底。运行时各模式带自己的参数不受影响（mapping 按 modeId 解析、body 已注入正确 modelEnum），但兜底被当真相读的 headless 路会把 adaptive 发给 MiniMax 官方 /v2/video_generation → 400「t2va(纯文本)场景必须显式指定 ratio 且不能为 adaptive」。同病波及全部「多模式同 taskKind」档案：happyhorse(edit 胜 t2v)、seedance-2/2.5 与 wan-3.0/gemini-omni 等 i2v 族(omni/ref 胜 first)、suno-v5.5(cover 胜 music) 等共 20+ 处。",
+  "direct_cause": "buildArchetypeWireDefaults 内层 `for (const mode of arch.modes)` 直接把每个模式的 params 写进 out[arch.id][taskKind][vendorKey]，键里没有 modeId 消歧；同一 (archetypeId, taskKind, vendorKey) 被多个模式先后写入时后写覆盖前写，最终留下的是 arch.modes 数组里最后一个映射到该 taskKind 的模式——纯遍历顺序副产品，不是任何有意义的选择。",
+  "class_root": "wire-defaults 桥接的消费侧（electron/catalog/taskParams.ts:134 applyHeadlessParamDefaults）只按 (archetypeId, taskKind, vendorKey) 取兜底、拿不到 modeId（headless 缺参路正是「没选具体模式」那条），所以「一个 (archetypeId, taskKind) 到底用哪个模式的默认」这个选择**必须在生成期确定性地做掉**，而不能靠运行时补 modeId（消费侧结构上没有它）。正确形状：为每个 (archetypeId, taskKind) 选一个语义诚实、稳定确定的**主模式**写默认——① 档案 defaultModeId 若落在该 taskKind 用它（它就是这条 taskKind 的规范/首选模式），② 否则用该 taskKind 首个声明的模式（档案作者把最基础的变体排前）。收口逻辑住在唯一 owner scripts/gen-archetype-wire-defaults.ts 的 buildWireDefaultsFor，输出形状不变（仍 {taskKind:{vendorKey:{...}}}），消费侧零改动（P1：不加并行读方、不迁键形）。这不是修某一个模型的值，而是修生成器「怎么在多模式里收口」的结构。",
+  "affected_population": [
+    "任何档案有多个模式共享同一 transportTaskKind 的模型，其被折叠 taskKind 的 headless 兜底默认（种子层）：minimax-h3(t2v)、happyhorse(t2v)、runway-audio(text_to_audio)、suno-v5.5(text_to_audio)，以及 seedance-2/2.5、seedance-2-apimart/2.5-apimart、volcengine-seedance-2/2-5、wan-2.7/3.0/3.0-apimart、gemini-omni-1.1、veo-3.1、runway-video、happyhorse-1.1、minimax-h3-apimart、dreamina-seedance-2、agnes-video/2.5/2.5-flash 的 image_to_video 折叠。共 20+ 档案、约 25 个 (archetypeId,taskKind) 折叠点。",
+    "headless/MCP 生成路（不经 UI、request.params 为空、按档案兜底补必填参）的调用方：此前对被折叠的 taskKind 拿到的是错模式的默认（错的 model enum / 错的比例默认），比例族档案（含 adaptive 档）会把 adaptive 当纯文生默认发出被 vendor 拒。",
+    "未来任何新增「多模式同 taskKind」档案的开发者：以前静默取最后声明模式（易踩坑、无门岗兜底），现在生成器确定性选主模式，回归测试钉住「各模式默认互不污染」的不变量。"
+  ],
+  "scope_paths": [
+    "scripts/gen-archetype-wire-defaults.ts",
+    "scripts/gen-archetype-wire-defaults.test.ts",
+    "electron/catalog/archetypeWireDefaults.video.generated.ts",
+    "electron/catalog/archetypeWireDefaults.audio.generated.ts"
+  ],
+  "entry_points": [
+    "scripts/gen-archetype-wire-defaults.ts — buildWireDefaultsFor(archetypes)（新纯函数）：唯一收口点，为每个 (archetypeId, taskKind) 用 primaryModeByTaskKind 选主模式（defaultModeId 优先，否则首个声明），再写 params/fixedParams/model；buildArchetypeWireDefaults() 只是喂全局目录的薄封装。",
+    "electron/catalog/taskParams.ts — applyHeadlessParamDefaults（第124-147行，第134行读 ARCHETYPE_WIRE_DEFAULTS[archetypeId]?.[taskKind]）：唯一生产消费者，按 (archetypeId, taskKind, vendorKey) 取兜底、无 modeId；本次不改（形状不变），但它「拿不到 modeId」正是收口必须落在生成期的原因。",
+    "electron/catalog/archetypeWireDefaults.{video,audio}.generated.ts — 生成产物：minimax-h3/happyhorse text_to_video 与各 i2v 族 image_to_video 折叠点已由再生修正为主模式默认。"
+  ],
+  "internal_only_reason": "没有新接入或重新契约任何外部供应商 API。本次只改生成器「同 taskKind 多模式如何收口」的结构（遍历末位胜→确定性选主模式），修正后的兜底值全部来自**已经存在且已带 SOURCE 出处**的模型档案（各模式的 params/modelEnum，出处见 electron/shared/videoCapabilities/*.ts 与 src/config/modelArchetypes/* 的档案注释/sources 字段）。生成器不引入任何新的端点/鉴权/参数取值，只是把每个 taskKind 的兜底从错模式改为主模式——取值本身未被人为编造或改动。扫描全部折叠档案时未发现任何档案源的模式默认与其 SOURCE 注释矛盾（若发现会停下上报，不顺手改值）。",
+  "generality_proof": "收口逻辑对所有档案一视同仁：buildWireDefaultsFor 不 hardcode 任何 archetypeId/模型名/vendor 串，只按「defaultModeId 是否落在该 taskKind」与「声明顺序」这两个通用的档案属性选主模式。因此 minimax-h3 之外的每一个「多模式同 taskKind」档案（happyhorse/seedance 系/wan 系/gemini-omni/veo/suno…）都被同一条规则一次性收口，再生 diff 逐个核对无遗漏。新增此类档案自动纳管，不需回来补名单。回归测试用**合成假档案**（与真实目录解耦）分别覆盖判据①（default 在该 taskKind、排最前、污染源排最后）与判据②（default 在别的 taskKind、i2v 族取首个声明），断言污染源模式的参数不泄漏进主模式默认。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/gen-archetype-wire-defaults.ts",
+      "symbol": "buildWireDefaultsFor",
+      "responsibility": "wire-defaults 桥接的唯一生成边界：为每个 (archetypeId, taskKind) 确定性地选一个主模式（defaultModeId 优先，否则首个声明）写兜底默认，杜绝「同 taskKind 多模式后者遍历胜」的静默覆盖。所有档案（含未来新增）都过这一处收口。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/archetypeWireDefaults.video.generated.ts",
+      "entry_point": "minimax-h3.text_to_video / happyhorse.text_to_video 折叠点",
+      "disposition": "enforced",
+      "evidence": "再生后 minimax-h3.text_to_video['*'] = {resolution:2K, aspect_ratio:16:9, duration:6, model:minimax-h3/text-to-video}（t2v 主模式），不再是 ref 的 adaptive+reference-to-video；happyhorse.text_to_video['*'].model = happyhorse/text-to-video（不再是 edit 的 video-edit）。由 buildWireDefaultsFor 判据①（t2v=defaultModeId 落在 text_to_video）收口，scripts/gen-archetype-wire-defaults.test.ts 真实目录锚点断言钉住。"
+    },
+    {
+      "path": "electron/catalog/archetypeWireDefaults.video.generated.ts",
+      "entry_point": "seedance/wan/gemini-omni/veo 等 image_to_video 折叠点",
+      "disposition": "enforced",
+      "evidence": "再生后各 i2v 族档案的 image_to_video 兜底取首个声明模式（first/i2v/keyframe），不再取最后声明的 omni/ref/reference——如 seedance-2.5-apimart.image_to_video 用 first（size:adaptive 来自 first.fixedParams），wan-2.7.image_to_video.model=wan2.7（不再 wan2.7-r2v），gemini-omni-1.1.image_to_video.generation_type=frame（firstlast），veo-3.1.image_to_video.generation_type=reference。由 buildWireDefaultsFor 判据②（档案 default 是 t2v/text、不在 image_to_video）收口。"
+    },
+    {
+      "path": "electron/catalog/archetypeWireDefaults.audio.generated.ts",
+      "entry_point": "suno-v5.5.text_to_audio 折叠点",
+      "disposition": "enforced",
+      "evidence": "再生后 suno-v5.5.text_to_audio['*'] 取 music 主模式（含 duration:30 等 music 参数），不再是 cover 模式覆盖后的形状。由判据①（music=defaultModeId 落在 text_to_audio）收口。"
+    },
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "entry_point": "applyHeadlessParamDefaults 读侧",
+      "disposition": "not-affected",
+      "evidence": "消费侧按 (archetypeId, taskKind, vendorKey) 取兜底的键形不变、无 modeId 依赖，本次零改动；它读到的每个 taskKind 兜底现在是主模式默认而非末位模式默认，行为自动更正，无需改读方（P1 无并行读方）。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/gen-archetype-wire-defaults.ts",
+    "invariant": "每个 (archetypeId, transportTaskKind) 的 headless 兜底默认只取一个确定性主模式的参数（defaultModeId 落在该 taskKind 则用它，否则用该 taskKind 首个声明的模式）；同一 taskKind 的其它模式的 params/modelEnum/fixedParams 绝不覆盖进该 taskKind 的兜底。",
+    "failure_mode": "若回退成「遍历顺序里最后一个模式胜」或任何非确定性收口，后声明的模式（如 ref/omni/edit/cover）会静默覆盖主模式（t2v/first/music）的默认，把错的 model enum / 错的比例默认（含 adaptive）写进兜底 → headless 路把 adaptive 当纯文生默认发给 vendor 触发 400（minimax-h3 t2va 场景实证）。",
+    "exception_policy": "none",
+    "strategy": "把收口逻辑收敛到唯一生成边界 buildWireDefaultsFor：先用 primaryModeByTaskKind 为每个 taskKind 定主模式，再仅对主模式展开 params/fixedParams/model；输出形状不变故消费侧零改动。回归测试用合成假档案钉住「多模式同 taskKind 各模式默认互不污染」，check:archetype-defaults 门保证生成产物与生成器同步（再生漂移即红），check:root-cause-contracts 钉住本边界。",
+    "artifacts": [
+      "scripts/gen-archetype-wire-defaults.ts",
+      "scripts/gen-archetype-wire-defaults.test.ts"
+    ]
+  },
+  "invariants": [
+    "wire-defaults 生成器对每个 (archetypeId, taskKind) 只写一个确定性主模式的默认；主模式判据 = defaultModeId 落在该 taskKind 优先，否则该 taskKind 首个声明的模式。",
+    "输出形状恒为 {archetypeId:{taskKind:{vendorKey:{...}}}}，不引入 modeId 键；消费侧 applyHeadlessParamDefaults 键形不变、零改动（P1 无并行读方、无键形迁移）。",
+    "收口逻辑只有 scripts/gen-archetype-wire-defaults.ts 的 buildWireDefaultsFor 一处 owner；生产入口 buildArchetypeWireDefaults 只是喂全局目录的薄封装，禁止在别处复制收口逻辑。",
+    "兜底取值全部来自模型档案（单一真相源），改档案默认→pnpm gen:archetype-defaults 重生成；check:archetype-defaults 防生成产物漂移。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "这不是单一 minimax-h3 的一次性错值，而是生成器结构缺陷的一个类：任何「多模式共享同一 transportTaskKind」的档案都会命中同一末位覆盖 bug，实测活跃入口 20+ 档案约 25 个折叠点（video 的 text_to_video/image_to_video、audio 的 text_to_audio）。需要在唯一生成边界结构性收口 + 门岗兜底，才能保证已中招的全部修齐、未来新增此类档案不再复发。",
+    "same_class_scan": [
+      "全目录扫描（枚举每个 archetype 的 modes、按 transportTaskKind 分组、找出 length>1 的组）确认所有折叠点：video 侧 minimax-h3/happyhorse 的 text_to_video 折叠（default=t2v 在该 taskKind），以及 seedance-2/2.5、seedance-2-apimart/2.5-apimart、volcengine-seedance-2/2-5、wan-2.7/3.0/3.0-apimart、gemini-omni-1.1、veo-3.1、runway-video、happyhorse-1.1、minimax-h3-apimart、dreamina-seedance-2、agnes-video/2.5/2.5-flash 的 image_to_video 折叠（default 是 t2v/text、不在该 taskKind）；audio 侧 runway-audio(default=sfx)/suno-v5.5(default=music) 的 text_to_audio 折叠。全部由 buildWireDefaultsFor 同一规则收口。",
+      "逐档核对再生前后 diff：仅上述折叠点变化，且每个变化后的兜底值 == 该 (archetypeId,taskKind) 选中主模式的 params/fixedParams/model（用 buildArchetypeWireDefaults 输出与各档案主模式 params 逐字段比对确认）；无其它档案被误动、无非折叠 taskKind 变化。",
+      "确认消费侧只有 electron/catalog/taskParams.ts:134 一处读 ARCHETYPE_WIRE_DEFAULTS（grep 全仓，其余命中均为 .generated.ts 定义或测试），键形 (archetypeId,taskKind,vendorKey) 未变，无需改读方，不存在第二个消费点会因形状不变而漏改。",
+      "确认扫描中无任何档案源的模式默认与其 SOURCE 注释/sources 字段矛盾（若有会停下上报编排者、不改值）——本次未发现可疑档案源。"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/gen-archetype-wire-defaults.test.ts"
+  ],
+  "regression_tests": [
+    "scripts/gen-archetype-wire-defaults.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "无并行版可删（P1 已就地满足）：旧的「遍历顺序末位模式胜」不是一个独立的旧文件/旧路径，而是 buildArchetypeWireDefaults 内层循环的一段逻辑，本次在同一处直接替换为「先选主模式再展开」，没有留下第二份实现、fallback 或逃生口。生成产物形状不变，消费侧 applyHeadlessParamDefaults 未新增/未保留任何旧读法。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "exit_criteria": [],
+    "rationale": "不涉及任何第三方依赖的升级或保留：本次只改仓库自有生成器脚本的收口逻辑，未新增/升级/保留任何 npm 依赖或外部 SDK，无老化依赖需要退出计划。"
+  },
+  "migration": "无存储数据被改写。wire-defaults 是纯代码桥接（生成产物），headless 缺参兜底在读时按 (archetypeId,taskKind,vendorKey) 取值；既有项目/节点的持久化参数不受影响（UI 路本就自填、兜底只对 headless 缺参路生效，且只把被折叠 taskKind 的兜底从错模式更正为主模式，不改任何已存请求）。无用户可见行为回退，只有 headless 兜底更诚实。",
+  "residual_risks": [
+    "主模式判据依赖档案作者「把最基础变体排前」的声明顺序（判据②）：若某档案把非基础模式排在首位又没设对应 defaultModeId，首个声明可能不是最理想的主模式——但仍确定、可预期，且远好于旧的末位随机；真要更精细可让档案显式声明「per-taskKind 主模式」，本次不引入（现有档案顺序均符合）。",
+    "check:archetype-defaults 保证生成产物与生成器同步，但生成器逻辑本身的正确性由 gen-archetype-wire-defaults.test.ts 的合成假档案 + 真实目录锚点钉住；若未来改收口规则须同步更新该测试，否则锚点断言会红（有意兜底）。",
+    "本次只收口 wire-defaults 一个生成产物；同脚本还产出 size-ratio-semantic / identifiers / modes 三张表——size-ratio-semantic 本就按「任一模式是比例语义即记 true」正确聚合（无末位覆盖问题），identifiers/modes 按 archetype 或逐 mode 枚举（无 taskKind 折叠），均不受此类 bug 影响，已核对无需改。"
+  ]
+}

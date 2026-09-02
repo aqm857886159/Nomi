@@ -5,14 +5,17 @@
 > 跨阶段总纲另见 [`docs/superpowers/plans/`](../superpowers/plans/)；当前主文档是 [Nomi 统一 Agent 总体方案](../superpowers/plans/2026-08-24-unified-agent-master-plan.md)。
 > 新增 plan 时**顺手在本表对应主题下加一行**。
 > 状态图例：✅ 已交付 ｜ 🚧 进行中 ｜ ⏳ 已拍板·未开工 ｜ 🧊 暂缓/远期 ｜ 📋 方案待拍板 ｜ ⛔ 已废弃 ｜ 📎 交接/日志
-> 📋/⏳/🚧 会进 [交付账本](../DELIVERY-LEDGER.md) 现役区并被每日提醒；🧊 列出但不催；无标记 = 未登记存量，不打扰。
+> 📋/⏳/🚧 会进交付账本现役区并被每日提醒（`pnpm run ledger:brief`；账本是本地视图，不进 git）；🧊 列出但不催；无标记 = 未登记存量，不打扰。
 
 ## 模型接入 / Onboarding（最大簇）
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-06-07-model-onboarding-final-plan.md](2026-06-07-model-onboarding-final-plan.md) | **模型接入最终方案**（R7 定稿，审计+设计+计划）— 本簇主文档 | ✅ |
+| [2026-08-30-runway-seedance25-onboarding.md](2026-08-30-runway-seedance25-onboarding.md) | Runway Seedance 2.5 接入与分镜设置（源分支只含文档、未合并；配套指南带「未发布」横幅）| 📋 |
 | [2026-08-15-model-integration-no-dead-end-master-plan.md](2026-08-15-model-integration-no-dead-end-master-plan.md) | 模型接入「不留死路」总纲：事实源 manifest + 能力契约 + 旅程矩阵 | 🚧 |
+| [2026-09-02-docaudit-kie-apimart.md](2026-09-02-docaudit-kie-apimart.md) | KIE + APIMart 官方文档全量对账、映射合同覆盖与未封印模型验收 | ✅ |
+| [2026-09-02-runway-model-identity-workflow.md](2026-09-02-runway-model-identity-workflow.md) | **一个模型一个档案主人**（PR #310 挂起的「单独立项裁决」）：删平台档案 runway-video，10 个 Runway 模型改挂真模型档案；补齐供应商特化三轴（参数/transport/模式可见性）；selectTaskMapping 停止借用别的模式的线缆 | ✅ |
 | [2026-08-15-model-access-exhaustive-user-journeys.md](2026-08-15-model-access-exhaustive-user-journeys.md) | 模型接入全集用户旅途测试：能力面逐维度真实 UI 往返旅程矩阵 | 🚧 |
 | [2026-08-28-conversational-model-integration-verification.md](2026-08-28-conversational-model-integration-verification.md) | 对话式模型接入与认证闭环：J0–J5 真实验收和发布记录 | 🚧 |
 | [2026-08-30-unified-model-integration-certification.md](2026-08-30-unified-model-integration-certification.md) | 旗舰供应商、模型扩充与统一认证流程（官方合同→零费用仿真→认证账本） | 🚧 |
@@ -21,11 +24,13 @@
 | [2026-08-30-issue-237-onboarding.md](2026-08-30-issue-237-onboarding.md) | Issue #237：OpenAI-compatible 图片请求根因修复、匿名上传分诊与英文接入入口 | 🚧 |
 | [2026-08-31-asset-upload-routing.md](2026-08-31-asset-upload-routing.md) | 本地图片/视频/音频统一上传路由、供应商上传 API 与可选 R2 relay | 🚧 |
 | [2026-09-01-provider-proxy-and-onboarding-hardening.md](2026-09-01-provider-proxy-and-onboarding-hardening.md) | #258 拆项①③：per-connection provider proxy（全局默认+单点覆盖，私网 bypass+凭据脱敏）+ onboarding 加固（抽 useOnboardingConnectionTest、CodexLocalImageCard 静默失败修复） | 🚧 |
+| [2026-09-02-docaudit-b.md](2026-09-02-docaudit-b.md) | DOCAUDIT-B：fal/Runway/MiniMax/ElevenLabs 等非 KIE/APIMart 官方合同、零成本模式干跑与付费封印 | 🚧 |
 | [2026-09-01-credential-config-at-rest-encryption.md](2026-09-01-credential-config-at-rest-encryption.md) | 可携带凭据的连接配置（proxyUrl 的 user:pass、extraHeaders 的 Authorization）升到与 API key 同级的 safeStorage 加密落盘层 + 字段分级守卫（P2 类级修） | 🚧 |
 | [2026-08-31-agent-material-channels-and-local-endpoints.md](2026-08-31-agent-material-channels-and-local-endpoints.md) | A+B 计划：素材获取三通道分工 + 本地文本模型通用端点（P0 本地模型卡已随 #281 落地；#223 前提已被 M 线取代，见文首现状标注） | 📋 |
 | [2026-09-01-pr258-derived-directions-eval.md](2026-09-01-pr258-derived-directions-eval.md) | #258 拆项评估定稿：①provider proxy 🟢（已随 #282 落地）②即梦 CLI 模型面 🟡（后被 v1.4.17 对齐 #291 取代其结论）③onboarding 加固 🟢（已随 #282 落地） | 📎 |
 | [2026-09-01-pr271-feedback-share-center-eval.md](2026-09-01-pr271-feedback-share-center-eval.md) | #271 反馈分享中心拆项评估：三方向全 🟢、外发面克制可辩护；按四步收口后已合入（provider 泄露路径证实并修复） | 📎 |
 | [2026-09-01-video-deconstruction-v1.md](2026-09-01-video-deconstruction-v1.md) | 拆解视频 v1 面板方案：一条参考视频→结构化分镜表→勾选镜头逐个落画布+自动编组→用这套结构起稿；含与 Agent 面板的右槽共存契约（③合流终局+过渡期互斥 R-C-1~7） | 🚧 |
+| [2026-09-02-canvas-media-derived-persistence-performance.md](2026-09-02-canvas-media-derived-persistence-performance.md) | 画布媒体派生尺寸回填性能回归修复：隔离运行时测量，避免视口揭示触发项目持久化 | ✅ |
 | [2026-09-01-tikhub-connector-v1.md](2026-09-01-tikhub-connector-v1.md) | TikHub 数据 connector v1：分享链接→无水印直链→喂现有拆解引擎（native-api / BYO-key / effect=spend / AssetSourceEvidence） | 🚧 |
 | [2026-06-07-apimart-curated-onboarding.md](2026-06-07-apimart-curated-onboarding.md) | 策展两家(kie+apimart)一键接入；战略从「通用接入」转向 | ✅ |
 | [2026-06-06-universal-model-onboarding.md](2026-06-06-universal-model-onboarding.md) | 「描述符+通用解释器接长尾」研究稿 | ⛔ |
@@ -67,6 +72,8 @@
 | [2026-08-08-canvas-drag-pan-and-quiet-render.md](2026-08-08-canvas-drag-pan-and-quiet-render.md) | **画布手势现行契约**：拖=平移 / Shift=框选 / 滚轮锚光标；平移零重绘、边标签按选中显示、拖节点收浮层（推翻 08-07 selection-first）| ✅ |
 | [2026-08-09-prompt-paste-node-duplication.md](2026-08-09-prompt-paste-node-duplication.md) | 外部提示词粘贴进编辑器时不再误触画布节点粘贴兜底 | ✅ |
 | [2026-08-31-canvas-paste-routing-root-cause.md](2026-08-31-canvas-paste-routing-root-cause.md) | 画布复制节点后粘贴优先恢复内部节点；仅系统剪贴板明确带外部媒体时才走网页媒体下载（根因修复） | ✅ |
+| [2026-09-01-canvas-drag-perf-eval-v2.md](2026-09-01-canvas-drag-perf-eval-v2.md) | **画布拖动性能 eval v2 + 修复路线**（B 案已拍板）：三腿基线 prod/dev/throttle、画布外重渲染探针、拖/平移比值指纹；S3 订阅细粒度化 → S4 拖动几何下放 RF 内核 | 🚧 |
+| [2026-09-02-canvas-projection-sync-regression.md](2026-09-02-canvas-projection-sync-regression.md) | S4 回归修复：保留非受控 React Flow 内核并补齐 mount 后业务节点投影的单向同步 | 🚧 |
 | [2026-08-09-windows-drag-floating-surfaces.md](2026-08-09-windows-drag-floating-surfaces.md) | Windows 顶部浮层避开自绘窗口栏与功能顶栏拖拽区 | ✅ |
 | [2026-08-09-batch-dock-terminal-dismiss.md](2026-08-09-batch-dock-terminal-dismiss.md) | 批量生成全部完成后隐藏“生成全部 0 个”底栏 | ✅ |
 | [2026-08-13-batch-dock-timeline-occlusion.md](2026-08-13-batch-dock-timeline-occlusion.md) | 批量生成底栏避让时间轴把手并支持按当前批次隐藏 | ✅ |
@@ -85,7 +92,15 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-02-mcp-testnet-l1-handshake.md](2026-09-02-mcp-testnet-l1-handshake.md) | MCP 测试网第 1 片：真实 stdio L1 握手六条回归、tools/list payload 棘轮与 listChanged A1 | 🚧 |
+| [2026-09-02-mcp-l2-journeys.md](2026-09-02-mcp-l2-journeys.md) | MCP 测试网第 2 片：C7-C12 真实语义生成、断连回收、产物审片与导出对账 | ✅ |
+| [2026-08-25-p4-anchor-checkpoint-approval-card.md](2026-08-25-p4-anchor-checkpoint-approval-card.md) | P4 锚定妆照检查点的渲染层审批卡（#155 §8.5 两条腿之二；样张已拍板、方案未入库）| 📋 |
 | [2026-09-01-agent-m0-baseline-freeze.md](2026-09-01-agent-m0-baseline-freeze.md) | M0 基线冻结：owner map、50 项工具映射、旧路径、schema-v3 草案、红灯与 PR 切片 | ⏳ |
+| [2026-09-02-m2-generation-semantic-slice-1.md](2026-09-02-m2-generation-semantic-slice-1.md) | M2 第一片：generation plan/status 语义模型面与 Host-only 闸门排除 | 🚧 |
+| [2026-09-02-m2-editing-semantic-slices.md](2026-09-02-m2-editing-semantic-slices.md) | M2 第二片：timeline/media/export 语义面、MCP 可达性与 Host 审批 | 🚧 |
+| [2026-09-02-m2-canvas-vertical-slice-3.md](2026-09-02-m2-canvas-vertical-slice-3.md) | M2 第三片：canvas + document 语义 MCP 面、租约边界与 ProductionRun 退役收口 | 🚧 |
+| [2026-09-01-m1-round2-host-runtime.md](2026-09-01-m1-round2-host-runtime.md) | M1 round-2：Host/runtime 切片移植计划（Project Agent 执行协调器 + 常驻壳 transport） | ⏳ |
+| [2026-09-01-m1-final-assembly-closure.md](2026-09-01-m1-final-assembly-closure.md) | M1 终装收口：ProductionRun legacy 保留、RL2 投影修复、Pi 岛边界、lint 与全量 gates | ✅ |
 | [2026-08-29-agpl-only-no-cla.md](2026-08-29-agpl-only-no-cla.md) | **只发布 AGPL-3.0-only，不要求 CLA**：统一贡献、分发和 AGPL 合规服务边界 | ✅ |
 | [2026-08-29-cla-signature-ledger.md](2026-08-29-cla-signature-ledger.md) | CLA 签名账本与受保护主分支解耦（历史方案，已废弃） | ⛔ |
 | [2026-08-29-creation-selection-persistence.md](2026-08-29-creation-selection-persistence.md) | 创作区失焦后保留待替换文本的视觉选区 | ✅ |
@@ -140,6 +155,8 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-09-01-feedback-share-center.md](2026-09-01-feedback-share-center.md) | v0.21 低摩擦反馈与分享中心：私密 Tally 表单、公开 GitHub、自动带入安全运行时上下文 | 🚧 |
+| [2026-09-01-storyboard-table-genre-profile.md](2026-09-01-storyboard-table-genre-profile.md) | **分镜表 v5**：场分组+图优先行+结构化提示词（@/骨架段）+行内执行；A 段已合（#330），B-D 分阶段交付；样张 docs/design/mockups/2026-09-01-storyboard-table-image-first.html | 🚧 |
+| [2026-09-02-walkthrough-catalog-seed-version.md](2026-09-02-walkthrough-catalog-seed-version.md) | 隔离走查 catalog 种子按被测 app 版本校验：future seed quarantine + 版本真源单一化，终结「切模型静默失效」假绿 | ✅ |
 
 ## 性能 / 技术地基 / 巨壳拆分 / 管线
 
@@ -174,3 +191,6 @@
 | [v0.8-execution-token-opt-and-phase-b.md](v0.8-execution-token-opt-and-phase-b.md) | v0.8 Token 优化 + Phase B 接入 | 📎 |
 | [v0.8-handoff-2026-05-30.md](v0.8-handoff-2026-05-30.md) | v0.8 用户旅程交接 | 📎 |
 | [2026-06-07-backlog-handoff.md](2026-06-07-backlog-handoff.md) | 剩余 backlog 冷启动交接 | 📎 |
+| [2026-09-02-english-system-prompts.md](2026-09-02-english-system-prompts.md) | 英文版 AI 系统提示词（含 assets 大条·产物也英文·A/B 已过：不回退） | ✅ |
+| [2026-09-02-english-system-prompts.md](2026-09-02-english-system-prompts.md) | 英文版 AI 系统提示词（含 assets 大条·产物也英文·须真实生成 A/B） | 🚧 |
+| [2026-09-01-tail-batch.md](2026-09-01-tail-batch.md) | 尾巴批三件：i18n electron 存量烧批（≥60 处走 desktopT）+ pre-push 缺 Ponytail 脚本安全退出 + 手动 `check:handoff` 分支收货工具（不进 gates 链） | 🚧 |

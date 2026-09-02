@@ -7,11 +7,7 @@ vi.mock('../../agent/availableModels', () => ({ listAvailableModelsForAgent: vi.
 import { applyCanvasToolCall, resetClientIdRegistry } from '../../agent/applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import { buildCameraMoveScene, type CameraMoveSpec } from './cameraMoveBuilder'
-import {
-  createCameraMoveReferenceNode,
-  cameraMoveFrameCount,
-  CAMERA_MOVE_CAPTURE_FPS,
-} from './cameraMoveReferenceNode'
+import { createCameraMoveReferenceNode, cameraMoveFrameCount, CAMERA_MOVE_CAPTURE_FPS } from './cameraMoveReferenceNode'
 import { CAMERA_SPEED_DURATION } from './cameraMoveVocab'
 
 function resetCanvas() {
@@ -86,6 +82,8 @@ describe('createCameraMoveReferenceNode — 与 AI create_camera_move 同源', (
 
   it('cameraMoveFrameCount：缺速度按 medium 派生（与 builder 时长表同源）', () => {
     expect(cameraMoveFrameCount({ move: 'push_in' })).toBe(CAMERA_SPEED_DURATION.medium * CAMERA_MOVE_CAPTURE_FPS)
-    expect(cameraMoveFrameCount({ move: 'push_in', speed: 'fast' })).toBe(CAMERA_SPEED_DURATION.fast * CAMERA_MOVE_CAPTURE_FPS)
+    expect(cameraMoveFrameCount({ move: 'push_in', speed: 'fast' })).toBe(
+      CAMERA_SPEED_DURATION.fast * CAMERA_MOVE_CAPTURE_FPS,
+    )
   })
 })

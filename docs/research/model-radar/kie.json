@@ -508,6 +508,13 @@
     {
       "vendor": "kie",
       "category": "video",
+      "slug": "google/gemini-omni-flash-1-1",
+      "title": "Gemini Omni 1.1 Flash",
+      "url": "https://docs.kie.ai/market/google/gemini-omni-flash-1-1.md"
+    },
+    {
+      "vendor": "kie",
+      "category": "video",
       "slug": "grok-imagine/1-5-preview",
       "title": "Grok Imagine Video 1.5 Preview",
       "url": "https://docs.kie.ai/market/grok-imagine/1-5-preview.md"

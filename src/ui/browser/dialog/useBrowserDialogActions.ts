@@ -13,7 +13,7 @@ import {
   type BrowserAssetPromptCaptureRequest,
   type BrowserAssetRemoteImportInput,
 } from '../popover/NomiBrowserAssetPopover'
-import { BROWSER_PROMPT_EXTRACTION_MODE_LABELS, type BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
+import { BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS, type BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import { addUserPrompt } from '../../../workbench/api/promptLibraryApi'
 import { browserAssetFromDesktopAsset } from '../popover/browserAssetPopoverUtils'
@@ -248,7 +248,7 @@ export function useBrowserDialogActions({
   }, [])
 
   const renameBookmark = React.useCallback((bookmark: BrowserBookmark): void => {
-    const nextTitle = window.prompt('重命名书签', bookmark.title)?.trim()
+    const nextTitle = window.prompt(t('browserAssets.renameBookmark'), bookmark.title)?.trim()
     if (!nextTitle || nextTitle === bookmark.title) return
     setBookmarks((current) => {
       const next = current.map((item) => (item.id === bookmark.id ? { ...item, title: nextTitle } : item))
@@ -333,7 +333,7 @@ export function useBrowserDialogActions({
     return browserBridge.onPromptCapture((event: DesktopBrowserPromptCaptureEvent) => {
       if (event.tabId !== activeTabIdRef.current) return
       if (!event.ok) {
-        setLastError(event.reason === 'empty' ? '没有找到可提取提示词的图片。' : event.message || '图片提示词提取入口失败')
+        setLastError(event.reason === 'empty' ? t('browserAssets.promptImageMissing') : event.message || t('browserAssets.promptEntryFailed'))
         return
       }
       startBrowserPromptExtraction(promptCaptureRequestFromBrowserEvent(event))
@@ -376,11 +376,11 @@ export function useBrowserDialogActions({
         await new Promise((resolve) => window.setTimeout(resolve, 80))
         const selection = await browserBridge?.selectPromptScreenshot?.({ viewId })
         if (!selection) {
-          setLastError('当前浏览器不支持选区截图。')
+          setLastError(t('browserAssets.screenshotUnsupported'))
           return
         }
         if (!selection.ok) {
-          if (selection.reason === 'error') setLastError(selection.message || '选区截图失败')
+          if (selection.reason === 'error') setLastError(selection.message || t('browserAssets.screenshotFailed'))
           return
         }
         setLastError(null)
@@ -389,7 +389,7 @@ export function useBrowserDialogActions({
           sourceType: 'screenshot',
           extractionMode: mode,
           viewId,
-          title: tabSnapshot.title || (mode === 'style' ? '网页选区风格' : '网页选区提示词'),
+          title: tabSnapshot.title || (mode === 'style' ? t('browserAssets.selectedStyle') : t('browserAssets.selectedPrompt')),
           fileName: `browser-selection-${Date.now()}.png`,
           pageUrl: tabSnapshot.url || undefined,
           pageTitle: tabSnapshot.title || undefined,
@@ -433,12 +433,12 @@ export function useBrowserDialogActions({
             items: [
               {
                 id: 'replicate',
-                label: BROWSER_PROMPT_EXTRACTION_MODE_LABELS.replicate,
+                label: t(BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS.replicate),
                 description: t('browserAssets.extraction.replicateDescription'),
               },
               {
                 id: 'style',
-                label: BROWSER_PROMPT_EXTRACTION_MODE_LABELS.style,
+                label: t(BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS.style),
                 description: t('browserAssets.extraction.styleDescription'),
               },
             ],
@@ -491,9 +491,9 @@ export function useBrowserDialogActions({
       const projectId = getDesktopActiveProjectId()
       if (!projectId) throw new Error('projectId is required')
       const tab = tabsRef.current.find((item) => item.id === activeTabIdRef.current)
-      const fallbackTitle = input.title || input.fileName || (input.mediaType === 'video' ? '网页视频' : '网页图片')
+      const fallbackTitle = input.title || input.fileName || (input.mediaType === 'video' ? t('browserAssets.webVideo') : t('browserAssets.webImage'))
       if (!tab?.viewId || !browserBridge?.importMedia || !canDownloadFromBrowserView(input.url)) {
-        throw new Error('来源页面会话已失效，请回到原网页重新拖入')
+        throw new Error(t('browserAssets.sourceSessionExpired'))
       }
       const asset = await browserBridge.importMedia({
         viewId: tab.viewId,

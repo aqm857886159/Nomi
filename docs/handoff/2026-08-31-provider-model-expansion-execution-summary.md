@@ -112,7 +112,7 @@ Gemini Omni 的 `audio_ids`、`video_list`、`character_ids` 已进入 headless 
 
 1. 在本工作树查看 `git status`，确认没有未解决冲突；完成合并提交并 push 任务分支。完成标准：`git status` 不再显示 “you are still merging”，远端 PR 能看到新的 merge commit。
 2. 重新运行 `pnpm run gates:contracts`、`pnpm run test`、`pnpm run build`。完成标准：命令退出码均为 0。
-3. 重新运行 `pnpm run test:model-integration:no-repo`、`packaged`、`trusted-audio`、`fault-matrix`、`pnpm run test:mcp` 和 `pnpm run test:e2e`。完成标准：零费用旅程仍显示 `providerRequests=0`，且结果读回成功。
+3. 重新运行 `pnpm run test:model-integration:no-repo`、`packaged`、`trusted-audio`、`fault-matrix`、`pnpm run test:mcp-journey` 和 `pnpm run test:e2e`。完成标准：零费用旅程仍显示 `providerRequests=0`，且结果读回成功。
 4. 运行 ARM64 packaged smoke；x64 `electron-builder` 若再次卡在 Electron runtime 下载，只记录为网络阻塞，不修改代理或绕过安全边界。
 5. 等 PR #241 所有必需检查通过后，再按项目授权合并到 `main`。完成标准：PR 显示 `MERGEABLE`、检查全绿，并能从 `origin/main` 读到合并提交。
 

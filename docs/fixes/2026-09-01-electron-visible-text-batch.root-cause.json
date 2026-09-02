@@ -1,0 +1,58 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-01-electron-visible-text-batch",
+  "problem_type": "Electron user-visible errors bypass the desktop translation boundary",
+  "symptom": "A batch of Electron throw and dialog messages appears only in Chinese even when the desktop locale is English; the i18n baseline records these unlocalized literals.",
+  "direct_cause": "Selected Electron production paths constructed user-visible Error and dialog text directly from CJK literals instead of calling desktopT with paired zh-CN/en keys.",
+  "class_root": "The desktop-visible error boundary was not applied consistently across provider adapters, media validation, workflow import, review, and custom-call paths, leaving each caller to choose whether to localize its own message.",
+  "affected_population": [
+    "English-locale users receiving validation or provider-adapter errors",
+    "Users importing ComfyUI workflows or decomposing image layers",
+    "Users running Runway or custom-call requests and media technical checks"
+  ],
+  "scope_paths": [
+    "electron/catalog/",
+    "electron/image/decomposeLayers.ts"
+  ],
+  "entry_points": [
+    "Synchronous audio response decoding errors",
+    "Browser media validation and prompt-image size errors",
+    "APIMart/ComfyUI/Runway/custom-call adapter validation errors",
+    "Image layer decomposition and technical review details"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This batch applies Nomi's existing desktopT translation contract to internal Electron error and dialog boundaries; no external API contract decides the locale behavior.",
+  "invariants": [
+    "Selected Electron user-visible throw and dialog messages are emitted through desktopT.",
+    "Every added desktop key has both zh-CN and en values with matching interpolation names.",
+    "The electron i18n baseline shrinks and is never widened or bypassed by an exclusion."
+  ],
+  "generality_proof": "The selected entries cover independent provider, media, workflow, review, and custom-call callers, and every one now converges on the existing desktopT boundary; the existing check:i18n shrink-only gate catches future direct CJK literals or key drift.",
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "This is a bounded inventory burn-down of existing literals, with no new runtime boundary or parallel implementation introduced. The existing check:i18n gate already prevents adding new Electron baseline entries, while this batch removes the selected legacy instances.",
+    "same_class_scan": [
+      "Ran check:i18n before the batch: 146 Electron occurrences across 39 files.",
+      "Selected 62 user-visible throw/dialog occurrences across independent audio, browser media, provider adapter, workflow, decomposition, review, and custom-call paths.",
+      "Ran check:i18n after the batch: 84 occurrences across 28 files; no exclusion list or baseline expansion was used.",
+      "Checked the selected source files for direct CJK Error/TypeError literals with the changed static regression test."
+    ]
+  },
+  "regression_tests": [
+    "scripts/i18n-electron-batch.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No parallel translation implementation or fallback was added; each selected literal was replaced in place by the existing desktopT boundary."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The change uses Nomi's existing translation helper and does not change a third-party dependency or runtime lifecycle.",
+    "exit_criteria": []
+  },
+  "migration": "Existing saved projects and provider configurations are unaffected. The only migration is at source level: selected generated error text now resolves against the current desktop locale.",
+  "residual_risks": [
+    "84 Electron baseline occurrences remain for later batches; they remain protected by the shrink-only gate and were intentionally not disguised as exclusions in this commit."
+  ]
+}

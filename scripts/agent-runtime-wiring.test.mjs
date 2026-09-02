@@ -75,6 +75,9 @@ describe('private pi build and test wiring', () => {
     })
     const program = ts.createProgram(parsed.fileNames, parsed.options)
     expect(program.getSourceFiles().filter((file) => /harness\/runtime\/pi\/.*\.[mc]ts$/.test(file.fileName))).toEqual([])
+    const host = read('electron/ai/agentChatV2.ts')
+    expect(host).toContain("../harness/skillIndex.js")
+    expect(host).not.toMatch(/harness\/runtime\/pi\/.*\.(?:m|c)?js/)
   })
 
   test('root build and dev compile the same entry once; both launch paths check complete artifacts', () => {

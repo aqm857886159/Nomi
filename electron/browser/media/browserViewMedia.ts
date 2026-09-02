@@ -3,6 +3,7 @@ import type { DownloadItem, WebContents } from "electron";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { desktopT } from "../../i18n";
 import { captureFileName } from "../captureNaming";
 import { BROWSER_MEDIA_MAX_BYTES, detectAnimatedImage, mediaTypeFromContentType, resolveBrowserMediaContentType, streamBrowserMediaResponseToFile } from "./browserMediaValidation";
 import {
@@ -202,7 +203,7 @@ async function downloadHttpBrowserMediaFromPageSession(
       mediaUrl,
       browserMediaFetchInit(contents.getURL(), mediaUrl, requestedMediaType, abortController.signal),
     );
-    if (!response.ok) throw new Error(`网页素材下载失败（HTTP ${response.status}）`);
+    if (!response.ok) throw new Error(desktopT("browserMedia.downloadFailed", { status: response.status }));
     const stagingPath = path.join(tempDir, "download.part");
     const header = await streamBrowserMediaResponseToFile(response, stagingPath);
     const resolved = resolveBrowserMediaContentType(
@@ -512,7 +513,7 @@ export async function importBrowserMedia(record: BrowserViewRecord, payload: Bro
 
 export function assertPromptReferenceDataUrlSize(byteLength: number): void {
   if (!Number.isFinite(byteLength) || byteLength < 0 || byteLength > BROWSER_PROMPT_IMAGE_MAX_BYTES) {
-    throw new Error("图片过大，无法用于提示词提取（最大 16 MB）");
+    throw new Error(desktopT("browserMedia.promptImageTooLarge"));
   }
 }
 
@@ -650,4 +651,3 @@ export async function captureBrowserPromptScreenshot(
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 }
-

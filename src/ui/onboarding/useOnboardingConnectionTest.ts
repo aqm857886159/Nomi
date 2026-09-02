@@ -60,9 +60,14 @@ export function useOnboardingConnectionTest({
       if (res.ok) {
         if (res.detectedKind) onDetectedKind(res.detectedKind)
         setTestState('ok')
+        // reachability-only 有两种真相，措辞必须分开（J04 探针 2026-09-02）：零模型时不存在「你选的模型」，
+        // 老文案「你选的都是图片 / 视频模型」在此状态下失真——探通≠读到过任何模型列表。
+        const mediaModelCount = models.filter((m) => m.id.trim()).length
         setTestMessage(
           res.reachabilityOnly
-            ? t(noApiKey ? 'modelSetup.connectedReachabilityOnlyNoApiKey' : 'modelSetup.connectedReachabilityOnly')
+            ? mediaModelCount === 0
+              ? t(noApiKey ? 'modelSetup.connectedReachabilityOnlyNoModelsNoApiKey' : 'modelSetup.connectedReachabilityOnlyNoModels')
+              : t(noApiKey ? 'modelSetup.connectedReachabilityOnlyNoApiKey' : 'modelSetup.connectedReachabilityOnly', { count: mediaModelCount })
             : res.detectedKind
               ? t('modelSetup.connectedProtocol', { protocol: PROVIDER_KIND_LABEL[res.detectedKind] })
               : t('modelSetup.connected'),

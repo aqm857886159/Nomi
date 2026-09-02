@@ -5,24 +5,20 @@ import {
   MCP_APP_MIME_TYPE,
   MCP_UI_EXTENSION_ID,
   NOMI_LIVE_DRAFT_WIDGET_HTML,
-  buildNomiDraftFromGenerate,
   buildNomiRunFromProjection,
 } from './mcpAppWidget'
 
-// MCP Apps 活生成 widget 的协议层 serving（扩展 io.modelcontextprotocol/ui，Stable 2026-01-26）：
-// - 声明了 UI 扩展的宿主：nomi_generate 挂 _meta.ui.resourceUri；resources/list 含 ui:// 资源；
-//   resources/read 回 text/html;profile=mcp-app 的 widget HTML；nomi_generate 结果带 structuredContent.nomiDraft。
-// - 没声明的纯终端客户端：以上 widget 相关字段全不出（零回归——原文本结果不变）。
+// MCP Apps ProductionRun widget serving（扩展 io.modelcontextprotocol/ui，Stable 2026-01-26）：
+// - ProductionRun tools 挂 _meta.ui.resourceUri；resources/list 含 ui:// 资源；
+//   resources/read 回 text/html;profile=mcp-app 的 widget HTML。
+// - 没声明的纯终端客户端会忽略 widget 扩展字段，文本结果仍可用。
 // 纯逻辑（注入假 transport），不碰 electron/fs/进程。渲染在真 GUI 宿主里的效果需宿主验（本机无）。
 
 type RpcMessage = { jsonrpc?: string; id?: unknown; method?: string; params?: Record<string, unknown>; result?: unknown; error?: { code?: number; message?: string } }
 
-const GEN_RESULT = { status: 'succeeded', assets: [{ url: 'nomi-local://asset-abc', type: 'image' }] }
-
 class AppsHarness {
   readonly invoke = vi.fn(async (method: string, _params: Record<string, unknown>) => {
     if (method === 'skills.list') return { skills: [{ name: 'director.cinematography', directoryName: 'director-cinematography', description: '镜头语言。' }] }
-    if (method === 'generate') return GEN_RESULT
     throw new Error(`意外的 invoke: ${method}`)
   })
   private protocol: ReturnType<typeof createMcpProtocol>
@@ -38,7 +34,7 @@ class AppsHarness {
         else this.queue.push(msg)
       },
       invoke: this.invoke,
-      isAppOpen: () => true, // app 开着 → nomi_generate 直调 invoke（不走 elicitation）
+      isAppOpen: () => true,
     }
     this.protocol = createMcpProtocol(transport)
   }
@@ -75,42 +71,44 @@ class AppsHarness {
 let h: AppsHarness | null = null
 afterEach(() => { h = null })
 
-describe('nomi-mcp · MCP Apps 活生成 widget serving', () => {
-  it('声明 UI 扩展的宿主：nomi_generate 带 _meta.ui.resourceUri，其余工具不带', async () => {
+describe('nomi-mcp · MCP Apps ProductionRun widget serving', () => {
+  it('only ProductionRun tools advertise the live widget; nomi_generate stays retired', async () => {
     h = new AppsHarness()
     await h.initUi()
     const res = await h.call(2, 'tools/list')
     const tools = (res.result as { tools: Array<{ name: string; _meta?: Record<string, unknown> }> }).tools
-    const gen = tools.find((t) => t.name === 'nomi_generate')
-    const meta = gen?._meta as { ui?: { resourceUri?: string }; 'openai/outputTemplate'?: string } | undefined
-    expect(meta?.ui?.resourceUri).toBe(NOMI_LIVE_DRAFT_UI_URI) // MCP Apps 标准
-    expect(meta?.['openai/outputTemplate']).toBe(NOMI_LIVE_DRAFT_UI_URI) // ChatGPT 别名
-    const listProjects = tools.find((t) => t.name === 'nomi_list_projects')
-    expect(listProjects?._meta).toBeUndefined()
+    expect(tools.some((tool) => tool.name === 'nomi_generate')).toBe(false)
+    // 面收敛：挂活 widget 的工具 = nomi_run_start（建 Run）+ nomi_read（run/run_events/artifact target 运行时挂 frame，name 级预声明 _meta）。
+    for (const name of ['nomi_run_start', 'nomi_read']) {
+      const meta = tools.find((tool) => tool.name === name)?._meta as {
+        ui?: { resourceUri?: string }
+        'openai/outputTemplate'?: string
+      } | undefined
+      expect(meta?.ui?.resourceUri).toBe(NOMI_LIVE_DRAFT_UI_URI)
+      expect(meta?.['openai/outputTemplate']).toBe(NOMI_LIVE_DRAFT_UI_URI)
+    }
+    // 非 widget 的写工具不预声明 _meta。
+    const canvasEdit = tools.find((t) => t.name === 'nomi_canvas_edit')
+    expect(canvasEdit?._meta).toBeUndefined()
   })
 
-  // 宿主按 readOnlyHint 决定要不要每次弹确认（Codex 的 default_tools_approval_mode="writes" 即
-  // 「没标 read-only 的才问」）。标漏 → 连「列一下项目」都要用户点一次同意；标多（把 nomi_generate
-  // 也标上）→ 花钱的生成被静默放行。两个方向都要钉住。
+  // 宿主按 readOnlyHint 决定要不要每次弹确认。标漏会让查询反复确认，标多会静默放行写入。
   it('只读工具标 readOnlyHint，会改/会花钱的一律不标（决定宿主要不要每次问）', async () => {
     h = new AppsHarness()
     await h.initPlain()
     const res = await h.call(2, 'tools/list')
     const tools = (res.result as { tools: Array<{ name: string; annotations?: { readOnlyHint?: boolean } }> }).tools
     const readOnly = tools.filter((t) => t.annotations?.readOnlyHint === true).map((t) => t.name).sort()
+    // 面收敛：读侧全部并入 nomi_read（整体只读）；nomi_operation_preview 编译预演无状态写，也只读。
+    // 并线 main 后 + 3 个 M2 只读语义编辑工具（export_job / media_query / timeline_read）。sorted。
     expect(readOnly).toEqual([
-      'nomi_get_artifact',
-      'nomi_get_generation_context',
-      'nomi_get_run',
-      'nomi_list_models',
-      'nomi_list_projects',
-      'nomi_operation_read',
-      'nomi_read_artifact',
-      'nomi_read_canvas',
-      'nomi_subscribe_run',
+      'nomi_export_job',
+      'nomi_media_query',
+      'nomi_operation_preview',
+      'nomi_read',
+      'nomi_timeline_read',
     ])
-    // 花钱的那个绝不能被标成只读。
-    expect(tools.find((t) => t.name === 'nomi_generate')?.annotations?.readOnlyHint).toBeUndefined()
+    expect(tools.some((tool) => tool.name === 'nomi_generate')).toBe(false)
   })
 
   it('声明 UI 扩展的宿主：resources/list 含 ui:// widget 资源（正确 mimeType）', async () => {
@@ -139,117 +137,6 @@ describe('nomi-mcp · MCP Apps 活生成 widget serving', () => {
     expect(contents[0].text).toContain('Nomi 活生成')
   })
 
-  it('声明 UI 扩展的宿主：nomi_generate 结果带 structuredContent.nomiDraft + _meta.ui', async () => {
-    h = new AppsHarness()
-    await h.initUi()
-    const res = await h.call(2, 'tools/call', {
-      name: 'nomi_generate',
-      arguments: { projectId: 'p1', vendor: 'apimart', modelKey: 'z-image-turbo', intent: 'image', prompt: '一只橘猫蹲在深夜面馆的木桌上' },
-    })
-    const result = res.result as { content: unknown[]; structuredContent?: { nomiDraft?: { shots?: Array<{ status?: string; thumbnailUrl?: string }> } }; _meta?: { ui?: { resourceUri?: string }; 'openai/outputTemplate'?: string } }
-    expect(result.content).toBeTruthy() // 文本兜底仍在
-    const draft = result.structuredContent?.nomiDraft
-    expect(draft).toBeTruthy()
-    expect(draft?.shots?.[0]?.status).toBe('success')
-    expect(draft?.shots?.[0]?.thumbnailUrl).toBe('nomi-local://asset-abc')
-    expect(result._meta?.ui?.resourceUri).toBe(NOMI_LIVE_DRAFT_UI_URI)
-    expect(result._meta?.['openai/outputTemplate']).toBe(NOMI_LIVE_DRAFT_UI_URI) // ChatGPT 别名
-  })
-
-  it('纯终端客户端（未声明扩展）：widget 元数据照常广告（跨宿主通用），但 content[].text 文本结果不变（终端零回归）', async () => {
-    // 改口径（Phase B→C 走 ChatGPT）：不再 gate on 客户端声明扩展——ChatGPT 不声明 io.modelcontextprotocol/ui，
-    // gate 就会把 widget 藏掉。改为 always 广告（spec：宿主不支持则忽略 _meta/structuredContent）；
-    // 真正的「终端零回归」= content[].text 与从前一致（终端照样看得到文本结果）。
-    h = new AppsHarness()
-    await h.initPlain()
-    const toolsRes = await h.call(2, 'tools/list')
-    const gen = (toolsRes.result as { tools: Array<{ name: string; _meta?: { ui?: { resourceUri?: string } } }> }).tools.find((t) => t.name === 'nomi_generate')
-    expect(gen?._meta?.ui?.resourceUri).toBe(NOMI_LIVE_DRAFT_UI_URI) // 未声明扩展也照常广告
-
-    const callRes = await h.call(4, 'tools/call', {
-      name: 'nomi_generate',
-      arguments: { projectId: 'p1', vendor: 'apimart', modelKey: 'z-image-turbo', intent: 'image', prompt: 'x' },
-    })
-    const r = callRes.result as { content?: Array<{ type?: string; text?: string }>; structuredContent?: unknown }
-    expect(r.structuredContent).toBeTruthy() // widget 数据照常带
-    expect(r.content?.[0]?.text).toContain('succeeded') // 文本兜底不变（终端仍看得到原结果）
-  })
-})
-
-describe('buildNomiDraftFromGenerate（纯函数）', () => {
-  it('成功结果 → shots[0] success + 缩略图取 assets[0].url', () => {
-    const draft = buildNomiDraftFromGenerate({ intent: 'image', prompt: '深夜面馆的橘猫', projectId: 'p1', result: { status: 'succeeded', assets: [{ url: 'https://x/y.png', type: 'image' }] } })
-    expect(draft.kind).toBe('generation')
-    expect(draft.status).toBe('succeeded')
-    expect(draft.shots?.[0]).toMatchObject({ status: 'success', kind: 'image', thumbnailUrl: 'https://x/y.png' })
-  })
-  it('失败结果 → shots[0] error + 透传 error 文案', () => {
-    const draft = buildNomiDraftFromGenerate({ intent: 'video', prompt: 'x', result: { status: 'failed', error: '内容被拦截' } })
-    expect(draft.status).toBe('failed')
-    expect(draft.shots?.[0]).toMatchObject({ status: 'error', kind: 'video' })
-    expect(draft.message).toBe('内容被拦截')
-  })
-  it('运行中/无资产 → running，缩略图缺省不报错', () => {
-    const draft = buildNomiDraftFromGenerate({ intent: 'image', prompt: 'x', result: { status: 'running' } })
-    expect(draft.status).toBe('running')
-    expect(draft.shots?.[0]?.status).toBe('running')
-    expect(draft.shots?.[0]?.thumbnailUrl).toBeUndefined()
-  })
-  it('交付③：有 projectId → 工程级深链 nomi://project/{id}（widget 可打开）', () => {
-    const draft = buildNomiDraftFromGenerate({ intent: 'image', prompt: 'x', projectId: 'p1', result: { status: 'succeeded', assets: [{ url: 'nomi-local://asset/p1/a.png', type: 'image' }] } })
-    expect(draft.deepLink).toBe('nomi://project/p1')
-    expect(draft.projectId).toBe('p1')
-  })
-  it('交付④：结果带签名预览 _nomiPreviewUrl → 缩略图优先用它（非 Electron 宿主可加载）', () => {
-    const draft = buildNomiDraftFromGenerate({
-      intent: 'image', prompt: 'x', projectId: 'p1',
-      result: {
-        status: 'succeeded',
-        assets: [{ url: 'nomi-local://asset/p1/a.png', type: 'image' }],
-        _nomiPreviewUrl: 'http://127.0.0.1:9/production-preview?preview=tok',
-      },
-    })
-    expect(draft.shots?.[0]?.thumbnailUrl).toBe('http://127.0.0.1:9/production-preview?preview=tok')
-  })
-  it('交付④：无签名预览时回退原始本地链', () => {
-    const draft = buildNomiDraftFromGenerate({ intent: 'image', prompt: 'x', projectId: 'p1', result: { status: 'succeeded', assets: [{ url: 'nomi-local://asset/p1/a.png', type: 'image' }] } })
-    expect(draft.shots?.[0]?.thumbnailUrl).toBe('nomi-local://asset/p1/a.png')
-  })
-  it('无 projectId → 无深链（不编）', () => {
-    const draft = buildNomiDraftFromGenerate({ intent: 'image', prompt: 'x', result: { status: 'succeeded', assets: [{ url: 'nomi-local://asset/p1/a.png', type: 'image' }] } })
-    expect(draft.deepLink).toBeUndefined()
-  })
-
-  // 0b · 关闭校验不对称：生成路的 thumbnailUrl / deepLink 与 run 路走**同一套 shape 校验器**，
-  // 危险 scheme / 畸形串一律不进 widget（此前生成路对 thumbnailUrl 不做任何校验、deepLink 用松正则）。
-  it('危险 scheme 的资产 URL（javascript:/file:/blob:/data:）→ 缩略图被拒（回退占位），不注入 widget', () => {
-    for (const bad of ['javascript:alert(1)', 'file:///etc/passwd', 'blob:xxx', 'data:image/png;base64,AAAA', 'not a url']) {
-      const draft = buildNomiDraftFromGenerate({ intent: 'image', prompt: 'x', projectId: 'p1', result: { status: 'succeeded', assets: [{ url: bad, type: 'image' }] } })
-      expect(draft.shots?.[0]?.thumbnailUrl).toBeUndefined()
-    }
-  })
-  it('签名预览若是危险/畸形串 → 同样被拒（不因为它坐在 _nomiPreviewUrl 就免检）', () => {
-    const draft = buildNomiDraftFromGenerate({
-      intent: 'image', prompt: 'x', projectId: 'p1',
-      result: { status: 'succeeded', assets: [{ url: 'nomi-local://asset/p1/a.png', type: 'image' }], _nomiPreviewUrl: 'javascript:steal()' },
-    })
-    // 签名位被拒 → 回退到合法的原始本地链，而不是把危险串塞进 <img src>。
-    expect(draft.shots?.[0]?.thumbnailUrl).toBe('nomi-local://asset/p1/a.png')
-  })
-  it('上游给的 openInNomi 深链形状不合法 → 不采信，回退工程级严格链', () => {
-    const draft = buildNomiDraftFromGenerate({
-      intent: 'image', prompt: 'x', projectId: 'p1',
-      result: { status: 'succeeded', assets: [{ url: 'nomi-local://asset/p1/a.png', type: 'image' }], openInNomi: 'javascript:alert(1)' },
-    })
-    expect(draft.deepLink).toBe('nomi://project/p1')
-  })
-  it('上游 openInNomi 是合法 run 级深链 → 采信原样', () => {
-    const draft = buildNomiDraftFromGenerate({
-      intent: 'image', prompt: 'x', projectId: 'p1',
-      result: { status: 'succeeded', assets: [{ url: 'nomi-local://asset/p1/a.png', type: 'image' }], openInNomi: 'nomi://project/p1/run/r1?artifact=a1' },
-    })
-    expect(draft.deepLink).toBe('nomi://project/p1/run/r1?artifact=a1')
-  })
 })
 
 // 交付④：签名 asset 预览 URL 必须能过 widget 现有的 safePreviewUrl 校验（run 路复用的那把，形状相同）。
@@ -377,7 +264,7 @@ describe('buildNomiRunFromProjection · B6 gate 卡映射', () => {
   })
   it('widget HTML 含 gate 容器与卡内决议通道（nomi_decide_gate via tools/call），钱门只读提示在', () => {
     expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('id="gate"')
-    expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('nomi_decide_gate')
+    expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('nomi_run_gate')
     expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('批准并继续')
     expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('满意，继续批量')
     expect(NOMI_LIVE_DRAFT_WIDGET_HTML).toContain('金额不做卡内一键批')

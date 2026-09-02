@@ -17,6 +17,7 @@ test('reference baseline prevents cap growth, new debt, reclassification, and un
     a: 'src/a.ts::type:AStatus/type-union',
     b: 'src/b.ts::type:BStatus/type-union',
     c: 'src/c.ts::type:CStatus/type-union',
+    d: 'src/d.ts::type:DStatus/type-union',
   }
   const entries = {
     a: vocabularyEntry(sites.a, ['queued', 'running']),
@@ -118,6 +119,49 @@ test('reference baseline prevents cap growth, new debt, reclassification, and un
       const result = runChecker(fixture, '--reference-baseline', referencePath)
       assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`)
       assert.match(result.stdout, /historical debt ratchet checked/)
+    } finally {
+      cleanup(fixture)
+    }
+  })
+
+  await t.test('moving an existing canonical owner to neutral shared while deleting its exact debt is valid', () => {
+    const canonicalReference = {
+      debtCap: 1,
+      registered: [entries.a],
+      debt: [vocabularyEntry(sites.b, ['queued', 'running'])],
+    }
+    const fixture = makeFixture(
+      { 'src/c.ts': `type CStatus = 'queued' | 'running'` },
+      { debtCap: 0, registered: [vocabularyEntry(sites.c, ['queued', 'running'])], debt: [] },
+    )
+    const referencePath = path.join(fixture.root, 'reference-baseline.json')
+    writeJson(referencePath, canonicalReference)
+    try {
+      const result = runChecker(fixture, '--reference-baseline', referencePath)
+      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`)
+      assert.match(result.stdout, /historical debt ratchet checked/)
+    } finally {
+      cleanup(fixture)
+    }
+  })
+
+  await t.test('one retired canonical cannot excuse two exact-member debts', () => {
+    const sharedMembers = ['queued', 'running']
+    const canonicalReference = {
+      debtCap: 2,
+      registered: [entries.a],
+      debt: [vocabularyEntry(sites.b, sharedMembers), vocabularyEntry(sites.c, sharedMembers)],
+    }
+    const fixture = makeFixture(
+      { 'src/d.ts': `type DStatus = 'queued' | 'running'` },
+      { debtCap: 0, registered: [vocabularyEntry(sites.d, sharedMembers)], debt: [] },
+    )
+    const referencePath = path.join(fixture.root, 'reference-baseline.json')
+    writeJson(referencePath, canonicalReference)
+    try {
+      const result = runChecker(fixture, '--reference-baseline', referencePath)
+      assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`)
+      assert.match(result.stderr, /historical debt reclassified as registered.*src\/c\.ts/s)
     } finally {
       cleanup(fixture)
     }

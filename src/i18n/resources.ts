@@ -15,6 +15,7 @@ import { enCreationAi, zhCreationAi } from './locales/creationAi'
 import { enStoryboardEditor, zhStoryboardEditor } from './locales/storyboardEditor'
 import { enGenerationCommon, zhGenerationCommon } from './locales/generationCommon'
 import { enRuntime, zhRuntime } from './locales/runtime'
+import { enAgentResident, zhAgentResident } from './locales/agentResident'
 import { enCommunity, zhCommunity } from './locales/community'
 
 export const zhCN = {
@@ -89,10 +90,6 @@ export const zhCN = {
     untitledShot: '未命名镜头',
     nodeQueued: '排队中',
     freeToCancel: '取消不产生费用',
-    notifyMe: '跑完提示我',
-    sound: '声音',
-    systemNotification: '系统通知',
-    notifyHint: '只在你切走时打扰——窗口开着就走应用内提示，不重复轰炸。',
     cancelQueued: '取消排队的 {{count}} 个',
     retryFailed: '重试失败的 {{count}} 个',
     sections: {
@@ -127,6 +124,14 @@ export const zhCN = {
         awaitingExport: '等待确认导出', exporting: '正在导出', completed: '制作完成', cancelled: '已取消',
       },
     },
+    exportJob: {
+      title: '导出成片',
+      failed: '导出失败',
+      statuses: {
+        queued: '等待导出', preparing: '准备素材', planning: '规划导出', rendering: '渲染画面', encoding: '编码成片',
+        muxing: '合成音视频', finalizing: '完成导出', succeeded: '导出完成', failed: '导出失败', cancelled: '已取消',
+      },
+    },
     empty: {
       title: '没有在跑的任务',
       hint: '框选镜头点「生成」就会出现在这里',
@@ -154,9 +159,6 @@ export const zhCN = {
     globalActions: '全局操作',
     browser: '浏览器',
     openBrowser: '打开浏览器',
-    assetBox: '素材盒',
-    openAssetBox: '打开素材盒',
-    assetCount: '{{count}} 个素材',
     modelAccess: '模型',
     goToProduce: '去出片',
     openModelAccess: '打开模型设置',
@@ -182,14 +184,12 @@ export const zhCN = {
     preview: '预览区',
     storyboard: '分镜',
     creationTab: '创作',
-    storyboardTab: '分镜',
     generationTab: '生成',
     previewTab: '预览',
     switchLabel: '工作区切换',
     loading: '{{label}}加载中',
   },
   library: {
-    title: 'Nomi 项目库',
     wordmarkSuffix: '项目库',
     openBrowser: '打开浏览器',
     browser: '浏览器',
@@ -209,22 +209,10 @@ export const zhCN = {
     local: '本地新建',
     folders: '外部文件夹',
     searchPlaceholder: '搜索项目',
-    justNow: '刚刚',
-    minutesAgo: '{{count}} 分钟前',
-    hoursAgo: '{{count}} 小时前',
-    daysAgo: '{{count}} 天前',
-    noProjects: '还没有项目',
-    noProjectsDescription: '从一句话开始，或打开已有素材文件夹。',
-    noSearchResults: '没有找到匹配的项目',
-    noSearchResultsDescription: '换个关键词，或清空搜索后再试。',
     continueCreating: '继续创作',
-    revealFolder: '在文件夹中显示',
     deleteProject: '删除项目',
     renameHint: '双击改名',
     renameProject: '重命名「{{name}}」',
-    modelMissing: '还没有可用的文本模型',
-    modelMissingDescription: '先接入一个文本模型，再开始创作。',
-    connectModel: '接入模型',
     models: '模型',
     startProject: '开始一个项目',
     watchHow: '看 Nomi 怎么出片',
@@ -242,7 +230,6 @@ export const zhCN = {
     deleteNamedProject: '删除项目 {{name}}',
     folderUnavailable: '文件夹暂不可用',
     openProjectFolder: '打开项目文件夹 {{name}}',
-    revealProjectFolder: '在文件管理器中显示项目文件夹',
   },
   errors: {
     rootTitle: '出了点问题',
@@ -251,11 +238,6 @@ export const zhCN = {
     chunkFailed: '{{label}}加载失败',
     chunkNetwork: '网络抖动中断加载，正在尝试恢复',
     chunkOther: '其余功能不受影响；可重新加载重试',
-  },
-  mention: {
-    addReferenceFirst: '先加参考图',
-    insertReferenceImage: '插入参考图片{{index}}',
-    referenceImage: '参考图片{{index}}',
   },
   connection: {
     sourceUnavailable: '这个节点没有可作为参考的图/视频，先生成它或换个来源',
@@ -334,6 +316,8 @@ export const zhCN = {
     prompts: '提示词',
     skillLibrary: '技能库',
     skills: '技能',
+    // ProjectExplorerSidebar 的流程库导轨/面板标题——与同组 assetLibrary/promptLibrary/skillLibrary
+    // 同住顶层 sidebar 命名空间(此前误引 libraries.sidebar.* 的死副本,渲染出原始 key,2026-09-01 归位)。
     workflowLibrary: '流程库',
     workflows: '流程',
     expand: '展开侧栏',
@@ -391,6 +375,7 @@ export const zhCN = {
   storyboardEditor: zhStoryboardEditor,
   generationCommon: zhGenerationCommon,
   runtime: zhRuntime,
+  agentResident: zhAgentResident,
   community: zhCommunity,
 } as const
 
@@ -471,10 +456,6 @@ export const en = {
     untitledShot: 'Untitled shot',
     nodeQueued: 'Queued',
     freeToCancel: 'free to cancel',
-    notifyMe: 'Tell me when done',
-    sound: 'Sound',
-    systemNotification: 'System notification',
-    notifyHint: 'Only when you have switched away — in-app toasts cover it while the window is open.',
     cancelQueued: 'Cancel {{count}} queued',
     retryFailed: 'Retry {{count}} failed',
     sections: {
@@ -509,6 +490,14 @@ export const en = {
         awaitingExport: 'Export approval required', exporting: 'Exporting', completed: 'Production complete', cancelled: 'Cancelled',
       },
     },
+    exportJob: {
+      title: 'Export',
+      failed: 'Export failed',
+      statuses: {
+        queued: 'Queued', preparing: 'Preparing media', planning: 'Planning export', rendering: 'Rendering', encoding: 'Encoding',
+        muxing: 'Muxing audio and video', finalizing: 'Finalizing', succeeded: 'Export complete', failed: 'Export failed', cancelled: 'Cancelled',
+      },
+    },
     empty: {
       title: 'No tasks running',
       hint: 'Select shots and hit Generate — they will show up here',
@@ -536,9 +525,6 @@ export const en = {
     globalActions: 'Global actions',
     browser: 'Browser',
     openBrowser: 'Open browser',
-    assetBox: 'Assets',
-    openAssetBox: 'Open assets',
-    assetCount: '{{count}} assets',
     modelAccess: 'Models',
     goToProduce: 'Go to export',
     openModelAccess: 'Open model setup',
@@ -564,14 +550,12 @@ export const en = {
     preview: 'Preview',
     storyboard: 'Storyboard',
     creationTab: 'Create',
-    storyboardTab: 'Storyboard',
     generationTab: 'Generate',
     previewTab: 'Preview',
     switchLabel: 'Switch workspace',
     loading: 'Loading {{label}}',
   },
   library: {
-    title: 'Nomi Projects',
     wordmarkSuffix: 'Projects',
     openBrowser: 'Open browser',
     browser: 'Browser',
@@ -591,22 +575,10 @@ export const en = {
     local: 'Local',
     folders: 'Folders',
     searchPlaceholder: 'Search projects',
-    justNow: 'Just now',
-    minutesAgo: '{{count}} min ago',
-    hoursAgo: '{{count}} hr ago',
-    daysAgo: '{{count}} days ago',
-    noProjects: 'No projects yet',
-    noProjectsDescription: 'Start from one sentence or open an existing asset folder.',
-    noSearchResults: 'No matching projects',
-    noSearchResultsDescription: 'Try another keyword or clear the search.',
     continueCreating: 'Continue creating',
-    revealFolder: 'Show in folder',
     deleteProject: 'Delete project',
     renameHint: 'Double-click to rename',
     renameProject: 'Rename "{{name}}"',
-    modelMissing: 'No text model is available',
-    modelMissingDescription: 'Connect a text model before you start creating.',
-    connectModel: 'Connect model',
     models: 'Models',
     startProject: 'Start a project',
     watchHow: 'See how Nomi creates a video',
@@ -623,7 +595,6 @@ export const en = {
     deleteNamedProject: 'Delete project {{name}}',
     folderUnavailable: 'Folder unavailable',
     openProjectFolder: 'Open project folder for {{name}}',
-    revealProjectFolder: 'Show project folder in file manager',
   },
   errors: {
     rootTitle: 'Something went wrong',
@@ -633,11 +604,6 @@ export const en = {
     chunkFailed: 'Failed to load {{label}}',
     chunkNetwork: 'A network interruption stopped loading. Attempting to recover.',
     chunkOther: 'Other features are unaffected. Reload to try again.',
-  },
-  mention: {
-    addReferenceFirst: 'Add a reference image first',
-    insertReferenceImage: 'Insert reference image {{index}}',
-    referenceImage: 'Reference image {{index}}',
   },
   connection: {
     sourceUnavailable:
@@ -720,6 +686,9 @@ export const en = {
     prompts: 'Prompts',
     skillLibrary: 'Skill library',
     skills: 'Skills',
+    // ProjectExplorerSidebar workflow-library rail/panel titles — they live in the top-level sidebar
+    // namespace alongside assetLibrary/promptLibrary/skillLibrary (previously mis-referenced the dead
+    // libraries.sidebar.* copies and rendered the raw key; relocated 2026-09-01).
     workflowLibrary: 'Workflow library',
     workflows: 'Workflows',
     expand: 'Expand sidebar',
@@ -777,6 +746,7 @@ export const en = {
   storyboardEditor: enStoryboardEditor,
   generationCommon: enGenerationCommon,
   runtime: enRuntime,
+  agentResident: enAgentResident,
   community: enCommunity,
 } satisfies TranslationShape<typeof zhCN>
 

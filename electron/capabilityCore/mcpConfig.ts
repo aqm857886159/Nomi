@@ -230,11 +230,11 @@ function tomlEscape(value: string): string {
  * ① startup_timeout_sec 默认 **10s**，而我们的 MCP server 是**整个 Electron app**（实测打包版 0.5s、
  *    dev 并发 6.5–7.6s，冷启更久）。超时 Codex 会**静默丢掉这个 server** → 工具直接不存在 = 用户看到的
  *    「Codex 说不能用」。对照：Codex 自家 node_repl（一个 node 二进制）写的是 120。
- * ② tool_timeout_sec 默认 **60s**，而 nomi_generate 是真出图/出视频，视频动辄几分钟 → 必然中途断
+ * ② tool_timeout_sec 默认 **60s**，而 ProductionRun 的创建/观察工具可能跨越较长的本地处理 → 可能中途断
  *    = 用户看到的「发消息之后没反应」。
  * ③ default_tools_approval_mode 不写 = 每个工具调用都要人点一次同意，连「列一下项目」都要点。
  *    设 "writes" = 只对**没标 readOnlyHint** 的工具弹确认（标注在 mcpProtocol 的 READ_ONLY_TOOLS）：
- *    查询类静默通过，**花钱的 nomi_generate 仍然每次问**——不拿用户的钱换顺滑。
+ *    查询类静默通过，写入与生成门仍由各自权限边界确认——不拿用户的钱换顺滑。
  */
 const CODEX_STARTUP_TIMEOUT_SEC = 60
 const CODEX_TOOL_TIMEOUT_SEC = 600

@@ -8,6 +8,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MODEL_ARCHETYPES } from "../src/config/modelArchetypes/index.ts";
+import type { ModelArchetype } from "../src/config/modelArchetypes/types.ts";
+import { modeTransportFor } from "../electron/shared/videoCapabilities/modeTransport.ts";
 
 type WireDefaults = Record<string, Record<string, Record<string, Record<string, unknown>>>>;
 type ModeManifest = Record<string, {
@@ -24,35 +26,80 @@ const RATIO_OPTION_RE = /^\d+\s*:\s*\d+$/;
 // 同一档案同一 taskKind 在不同 vendor 下参数枚举不同（vendorParams，B 分层，如 apimart Kling duration=number
 // vs kie=string "5"）→ 必须按 vendor 分桶，否则会把 kie 的字符串默认喂给 apimart 触发「string≠int」。
 // runtime 取 perKind[vendorKey] ?? perKind["*"]。
-export function buildArchetypeWireDefaults(): WireDefaults {
+//
+// ⚠️ 同一 taskKind 多模式的「主模式」收口（2026-09-01 修 minimax-h3 text_to_video 被 ref 模式盖住的 bug）：
+// 一个档案可以有多个模式共享同一 transportTaskKind（minimax-h3 的 t2v/i2v/ref 都是 text_to_video 档案级默认；
+// seedance 系的 first/firstlast/omni 都落 image_to_video）。消费侧（taskParams.applyHeadlessParamDefaults）
+// 只按 (archetypeId, taskKind, vendorKey) 取兜底、**拿不到 modeId**（headless 缺参路正是「没选具体模式」那条），
+// 所以这里必须为每个 (archetypeId, taskKind) **确定性地选一个主模式**写默认——而不是旧的「遍历顺序里最后一个模式胜」
+// （那让 ref 的 adaptive + reference-to-video 覆盖了 t2v 的真实默认 16:9 + text-to-video，把 adaptive 当纯文生
+// 默认发给 MiniMax /v2/video_generation → 400「t2va 必须显式 ratio 且不能 adaptive」）。
+// 主模式判据（诚实、稳定、与运行时语义一致）：
+//   ① 档案 defaultModeId 若落在这个 taskKind → 用它（它就是这条 taskKind 的规范/首选模式：
+//      minimax-h3/happyhorse 的 t2v、runway-audio 的 sfx、suno 的 music）。
+//   ② 否则（默认模式在别的 taskKind，如各 i2v 族档案默认是 t2v 文生）→ 用该 taskKind **首个声明**的模式
+//      （档案作者把最基础的变体排前：i2v/first/keyframe 在 ref/omni 之前），保序、确定。
+// 形状不变（仍 {taskKind:{vendorKey:{...}}}），消费侧零改动（P1：不加并行读方、不迁键形）。
+//
+// 纯函数（吃传入档案数组）：核心收口逻辑与全局目录解耦，回归测试可注入合成的「多模式同 taskKind」假档案
+// 断言各模式默认互不污染（见 gen-archetype-wire-defaults.test.ts），不依赖真实目录。
+export function buildWireDefaultsFor(archetypes: readonly ModelArchetype[]): WireDefaults {
   const out: WireDefaults = {};
-  for (const arch of MODEL_ARCHETYPES) {
+  for (const arch of archetypes) {
     const defaultVariant =
       arch.variants && arch.defaultVariantId ? arch.variants.find((v) => v.id === arch.defaultVariantId) : undefined;
+    // 每个模式声明了哪些 vendor 桶：通用 "*" + vendorParams 覆盖的 vendor + vendorTransportTaskKind
+    // 覆盖的 vendor（后者本身就说明「这家把本模式路由到别的桶」，即使参数与通用一致也必须单独落桶，
+    // 否则 runtime 按 (archetypeId, 该家 taskKind) 取兜底时取不到东西）。
+    const vendorBucketsFor = (mode: (typeof arch.modes)[number]): string[] => [
+      "*",
+      ...new Set([...Object.keys(mode.vendorParams ?? {}), ...Object.keys(mode.vendorTransportTaskKind ?? {})]),
+    ];
+    // (vendorKey, taskKind) → 该桶下选中的主模式（见上「主模式判据」）。同桶后续模式不再覆盖它。
+    // ⚠️ 键必须带 vendorKey：vendorTransportTaskKind 让同一模式在不同供应商下落**不同** taskKind
+    // （minimax-h3/happyhorse 的图模式在 kie 是 text_to_video、在 runway 是 image_to_video），
+    // 只按 taskKind 分组会让两家互相抢主模式。
+    const primaryModeByBucket = new Map<string, { vendorKey: string; taskKind: string; mode: (typeof arch.modes)[number] }>();
     for (const mode of arch.modes) {
-      const taskKind = mode.transportTaskKind ?? arch.transportTaskKind;
-      if (!taskKind) continue;
+      for (const vendorKey of vendorBucketsFor(mode)) {
+        const taskKind = modeTransportFor(mode, arch, vendorKey === "*" ? null : vendorKey);
+        if (!taskKind) continue;
+        const bucket = `${vendorKey}\0${taskKind}`;
+        const current = primaryModeByBucket.get(bucket);
+        if (!current) {
+          primaryModeByBucket.set(bucket, { vendorKey, taskKind, mode }); // 首个声明的模式 = 默认候选（判据②）。
+          continue;
+        }
+        // 判据①覆盖判据②：defaultModeId 模式一旦出现，抢占主模式（哪怕它不是首个声明的）。
+        if (mode.id === arch.defaultModeId) primaryModeByBucket.set(bucket, { vendorKey, taskKind, mode });
+      }
+    }
+    for (const { vendorKey, taskKind, mode } of primaryModeByBucket.values()) {
       // body 的 model 字段：mode.modelEnum 优先，否则档案默认变体的 modelKey（headless 不选变体=默认变体）。
       const model = mode.modelEnum ?? defaultVariant?.modelKey;
-      // 通用 params 落 "*"；每个有 vendorParams 覆盖的 vendor 落各自桶（覆盖=整组替换，与 resolveArchetypeForModel 一致）。
-      const paramSets: Record<string, typeof mode.params> = { "*": mode.params ?? [], ...(mode.vendorParams ?? {}) };
-      for (const [vendorKey, params] of Object.entries(paramSets)) {
-        const d: Record<string, unknown> = {};
-        // 模式级固定 body 常量（如 Veo/Omni 的 generation_type）——headless 也必发，各 vendor 桶都带。
-        for (const [k, v] of Object.entries(mode.fixedParams ?? {})) d[k] = v;
-        // 用户可调参的默认值（duration=number 保类型，避 vendor「string≠int」）。
-        for (const p of params ?? []) {
-          if (typeof p.defaultValue !== "undefined") d[p.key] = p.defaultValue;
-        }
-        if (model) d.model = model;
-        if (Object.keys(d).length === 0) continue;
-        out[arch.id] = out[arch.id] ?? {};
-        out[arch.id][taskKind] = out[arch.id][taskKind] ?? {};
-        (out[arch.id][taskKind] as Record<string, Record<string, unknown>>)[vendorKey] = d;
+      // 通用 params 落 "*"；有 vendorParams 覆盖的 vendor 用自己那组（覆盖=整组替换，与 resolveArchetypeForModel 一致），
+      // 只覆盖了 transport 没覆盖参数的 vendor 沿用通用组。
+      const params = (vendorKey === "*" ? undefined : mode.vendorParams?.[vendorKey]) ?? mode.params ?? [];
+      const d: Record<string, unknown> = {};
+      // 模式级固定 body 常量（如 Veo/Omni 的 generation_type）——headless 也必发，各 vendor 桶都带。
+      for (const [k, v] of Object.entries(mode.fixedParams ?? {})) d[k] = v;
+      // 用户可调参的默认值（duration=number 保类型，避 vendor「string≠int」）。
+      for (const p of params) {
+        if (typeof p.defaultValue !== "undefined") d[p.key] = p.defaultValue;
       }
+      if (model) d.model = model;
+      if (Object.keys(d).length === 0) continue;
+      out[arch.id] = out[arch.id] ?? {};
+      out[arch.id][taskKind] = out[arch.id][taskKind] ?? {};
+      (out[arch.id][taskKind] as Record<string, Record<string, unknown>>)[vendorKey] = d;
     }
   }
   return out;
+}
+
+/** 生产入口：吃全局目录。逻辑收口在纯函数 buildWireDefaultsFor（可注入合成档案回归测试）。 */
+export function buildArchetypeWireDefaults(): WireDefaults {
+  return buildWireDefaultsFor(MODEL_ARCHETYPES);
 }
 
 /**
@@ -74,8 +121,6 @@ export function buildArchetypeSizeRatioSemantic(): SizeRatioSemantic {
   const out: SizeRatioSemantic = {};
   for (const arch of MODEL_ARCHETYPES) {
     for (const mode of arch.modes) {
-      const taskKind = mode.transportTaskKind ?? arch.transportTaskKind;
-      if (!taskKind) continue;
       // 通用 params 与每个 vendorParams 覆盖里的 size 控件都算；任一套判为比例语义就登记。
       const paramSets: Array<typeof mode.params> = [mode.params ?? [], ...Object.values(mode.vendorParams ?? {})];
       const ratioSemantic = paramSets.some((params) =>
@@ -84,8 +129,17 @@ export function buildArchetypeSizeRatioSemantic(): SizeRatioSemantic {
         ),
       );
       if (!ratioSemantic) continue;
-      out[arch.id] = out[arch.id] ?? {};
-      out[arch.id][taskKind] = true;
+      // 该模式在通用桶与每个 vendorTransportTaskKind 覆盖桶下各自的 taskKind 都要登记：
+      // 闸是按 (archetypeId, taskKind) 查的，漏掉被特化的那个 taskKind 会让该家画幅重新被吞。
+      const taskKinds = new Set(
+        [null, ...Object.keys(mode.vendorTransportTaskKind ?? {})]
+          .map((vendorKey) => modeTransportFor(mode, arch, vendorKey))
+          .filter((kind): kind is NonNullable<typeof kind> => Boolean(kind)),
+      );
+      for (const taskKind of taskKinds) {
+        out[arch.id] = out[arch.id] ?? {};
+        out[arch.id][taskKind] = true;
+      }
     }
   }
   return out;
@@ -114,6 +168,11 @@ export function buildArchetypeIdentifierPatterns(): Record<string, string[]> {
  * 主进程脚本派发只需要确认「这个 modeId 是否属于该档案、走哪个 taskKind」。
  * 这里从完整档案生成最窄清单，避免 Electron 反向 import renderer 源码，也不在主进程
  * 复制 slots/params 等能力语义。用户自定义能力契约是运行时数据，另由主进程读取其显式投影。
+ *
+ * **供应商无关（传 null）是有意的**：本清单只服务用户自定义 custom-call 脚本派发与发布面
+ * （见 electron/shared/capabilityModeManifest.ts 的消费点），那条路上的模型是用户自建的单供应商
+ * 条目，不会带 vendorTransportTaskKind 覆盖。故这里取的是「未特化」的桶，与消费侧拿不到 vendorKey
+ * 的事实一致——不假装知道供应商，也不悄悄用某一家的特化值当通用值。
  */
 export function buildArchetypeModeManifest(): ModeManifest {
   const out: ModeManifest = {};
@@ -121,7 +180,7 @@ export function buildArchetypeModeManifest(): ModeManifest {
     out[arch.id] = {
       defaultModeId: arch.defaultModeId,
       modes: Object.fromEntries(
-        arch.modes.map((mode) => [mode.id, mode.transportTaskKind ?? arch.transportTaskKind]),
+        arch.modes.map((mode) => [mode.id, modeTransportFor(mode, arch, null)]),
       ),
     };
   }

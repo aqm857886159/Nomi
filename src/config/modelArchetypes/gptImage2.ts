@@ -1,5 +1,6 @@
 import type { ModelParameterControl } from "../modelCatalogMeta";
 import type { ModelArchetype } from "./types";
+import { runwayImageParams } from "../../../electron/shared/imageCapabilities/runwayImageWireFacts";
 
 // GPT Image 2 档案（图像，2026-06）。kie.ai 文档：docs.kie.ai/market/gpt/gpt-image-2-{text,image}-to-image。
 // 两模式：文生图（无参考槽）/ 图生图（输入图数组 → input_urls）。两模式 model enum + taskKind 不同，
@@ -17,6 +18,12 @@ const PARAMS: ModelParameterControl[] = [
   { key: "resolution", label: "清晰度", type: "select", options: ["1K", "2K", "4K"].map((value) => ({ value, label: value })), defaultValue: "1K" },
 ];
 
+// Runway 专属参数（B 分层 vendorParams）：Runway 的 /v1/text_to_image 是**按模型判别的 union**，
+// gpt_image_2 变体的 ratio 是 31 个**像素串**枚举（2048:880 起，`auto` 收尾）——上面那套朝向式
+// `1:1`/`16:9` 在 Runway 上**一个都不合法**，且它没有 `resolution` 字段（尺寸已含在 ratio 里），
+// 却有 `outputCount`（1–10）。取值不在这里重打：由官方 OpenAPI 逐字表 derive（单一真相源）。
+const RUNWAY_PARAMS: ModelParameterControl[] = runwayImageParams("gpt_image_2");
+
 export const GPT_IMAGE_2_ARCHETYPE: ModelArchetype = {
   id: "gpt-image-2",
   family: "gpt-image",
@@ -25,7 +32,10 @@ export const GPT_IMAGE_2_ARCHETYPE: ModelArchetype = {
   defaultModeId: "t2i",
   transportTaskKind: "text_to_image",
   // 含旧的两个独立 model key → 老节点按身份自动套上档案（无需数据迁移）。
-  identifierPatterns: ["gpt-image-2", "gpt-image-2-text-to-image", "gpt-image-2-image-to-image", "gpt-4o-image"],
+  // `gpt_image_2` 是 Runway 侧的判别串（同一个产品的第三家接入，P4：档案 = 模型身份，供应商无关）。
+  identifierPatterns: ["gpt-image-2", "gpt-image-2-text-to-image", "gpt-image-2-image-to-image", "gpt-4o-image", "gpt_image_2"],
+  // Runway 的这一行原挂平台档案 runway-image（已删）；存量节点靠 legacyIds + 模型身份匹配迁到这里。
+  legacyIds: ["runway-image"],
   modes: [
     {
       id: "t2i",
@@ -37,6 +47,7 @@ export const GPT_IMAGE_2_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "text_to_image",
       slots: [],
       params: PARAMS,
+      vendorParams: { runway: RUNWAY_PARAMS },
     },
     {
       id: "i2i",
@@ -51,6 +62,7 @@ export const GPT_IMAGE_2_ARCHETYPE: ModelArchetype = {
       // 已被官方文档证伪，抬到 16（两家一致，不再需要 per-vendor 收窄）。
       slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 16, inputKey: "input_urls" }],
       params: PARAMS,
+      vendorParams: { runway: RUNWAY_PARAMS },
     },
   ],
 };

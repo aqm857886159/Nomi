@@ -14,6 +14,7 @@
 import type { HttpOperation, ProfileKind } from "./types";
 import type { ParamMap } from "./paramTranslate";
 import { APIMART_CREATE_TASK_ID_PATH, APIMART_IMAGE_QUERY_OP, APIMART_STATUS_MAPPING } from "./apimartVendor";
+import "./apimartModelIds";
 
 const CREATE_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 
@@ -68,6 +69,7 @@ function imageModel(p: {
   editBody?: Record<string, unknown>; // 省略 = 该模型仅文生图（imagen / z-image）
   /** 中性 canonical → apimart 字段的翻译（如 gpt-image-2）。缺省 = 档案 params 键即 apimart 字段名（透传）。 */
   paramMap?: ParamMap;
+  requestTransform?: string;
 }): ApimartImageModel {
   const mappings: ApimartImageModel["mappings"] = [
     {
@@ -85,6 +87,9 @@ function imageModel(p: {
       create: imageCreateOp(p.editBody, p.modelRef, p.paramMap),
     });
   }
+  for (const mapping of mappings) {
+    if (p.requestTransform) mapping.create.request_transform = p.requestTransform;
+  }
   return { modelKey: p.modelKey, labelZh: p.labelZh, archetypeId: p.archetypeId, mappings };
 }
 
@@ -94,12 +99,14 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
   // ≤10 张参考图多参一图（首张免费）；resolution 仅 1K/2K（3K/4K 会 400）→ 独立档案不与 4.5 共享。
   imageModel({
     modelKey: "doubao-seedream-5-0-pro", labelZh: "Seedream 5.0 Pro", archetypeId: "seedream-5-pro",
+    requestTransform: "apimart-canonical-model-id",
     t2iBody: { size: SIZE, resolution: RESOLUTION },
     editBody: { size: SIZE, resolution: RESOLUTION, image_urls: IMAGE_URLS },
   }),
   // 共享档案（kie 已建）：Seedream / Nano Banana(Gemini) / GPT-Image-2 —— apimart 专属 params 由档案 vendorParams 提供。
   imageModel({
     modelKey: "doubao-seedream-4.5", labelZh: "Seedream 4.5", archetypeId: "seedream",
+    requestTransform: "apimart-canonical-model-id",
     t2iBody: { size: SIZE, resolution: RESOLUTION },
     editBody: { size: SIZE, resolution: RESOLUTION, image_urls: IMAGE_URLS },
   }),

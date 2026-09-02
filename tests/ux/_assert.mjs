@@ -235,6 +235,105 @@ export async function expectNoCjkInEnglishDom(win, { message, allowSelectors = [
       const cjk = new RegExp(cjkSource)
       const skipSelectors = ['[data-user-content]', 'style', 'script', 'noscript', ...allow]
       const isSkipped = (el) => skipSelectors.some((sel) => el.matches?.(sel))
+      // 剪枝只认「必然连累整棵子树」的属性:display:none / opacity≈0 / visibility:hidden。
+      // **元素自己盒子是 0 不算**——布局包装层(子元素绝对定位、overflow 可见、display:contents)
+      // 经常自身 0 高而内容满屏。2026-09-02 实测:设置→模型 的供应商列表外面套着一个 1440x0 的
+      // div,旧写法把它判成 hidden 直接 return,于是整份供应商列表(含肉眼可见的「火山方舟」)
+      // 从网里被摘掉——截图上明晃晃是中文,断言却报「无残留中文」全绿。假绿比不测更坏。
+      const isPrunedSubtree = (el) => {
+        const style = getComputedStyle(el)
+        return style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) <= 0.01
+      }
+      // 真正「这段字用户看不见」的判据,只对**承载中文的那个元素自己**用。
+      const isInvisibleSelf = (el) => {
+        const r = el.getBoundingClientRect()
+        return r.width < 1 || r.height < 1
+      }
+      const describe = (el) => {
+        const id = el.id ? `#${el.id}` : ''
+        const testid = el.getAttribute?.('data-testid')
+        const cls = typeof el.className === 'string' && el.className ? `.${el.className.split(/\s+/).slice(0, 2).join('.')}` : ''
+        return `${el.tagName.toLowerCase()}${id}${testid ? `[data-testid=${testid}]` : ''}${cls}`
+      }
+      const hits = []
+      const walk = (el) => {
+        if (isSkipped(el) || isPrunedSubtree(el)) return
+        // 只看**直接**文本子节点的中文(子元素各自递归判,避免把整棵子树的文本重复归到父节点)。
+        for (const node of el.childNodes) {
+          if (node.nodeType === Node.TEXT_NODE && cjk.test(node.nodeValue || '')) {
+            const text = (node.nodeValue || '').replace(/\s+/g, ' ').trim()
+            if (text && !isInvisibleSelf(el)) hits.push({ where: describe(el), text: text.slice(0, 60) })
+          }
+        }
+        for (const child of el.children) walk(child)
+      }
+      if (document.body) walk(document.body)
+      // 还要查 title/aria-label/placeholder 这类可见但不在文本节点里的字。
+      for (const el of document.querySelectorAll('[title],[aria-label],[placeholder]')) {
+        if (isSkipped(el) || isPrunedSubtree(el) || isInvisibleSelf(el)) continue
+        for (const attr of ['title', 'aria-label', 'placeholder']) {
+          const v = el.getAttribute(attr)
+          if (v && cjk.test(v)) hits.push({ where: `${describe(el)}@${attr}`, text: v.replace(/\s+/g, ' ').trim().slice(0, 60) })
+        }
+      }
+      // 去重(同一段中文可能被多个祖先命中)。
+      const seen = new Set()
+      return hits.filter((h) => { const k = `${h.where}\0${h.text}`; if (seen.has(k)) return false; seen.add(k); return true })
+    },
+    { cjkSource: CJK_RE.source, allow: allowSelectors },
+  )
+  if (offenders.length > 0) {
+    const lines = offenders.slice(0, 20).map((o) => `  · ${o.where}  “${o.text}”`).join('\n')
+    throw new Error(
+      `${message || 'en 界面上出现了未翻译的中文'}（EN-DOM 断言网）：找到 ${offenders.length} 处 CJK 文本。\n${lines}\n`
+        + '  → 界面已切到 en,这些中文就是漏译(硬编码中文 / 走错分支拿到中文串 / 键缺 en 值)。\n'
+        + '  用户自己写的内容(项目名/提示词/素材名)应包在 [data-user-content] 里豁免——如果上面是这类,给它加这个标记。',
+    )
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RAW-KEY 断言网（2026-09-01）—— 运行时抓「组件引用了不存在的键 → 界面渲染出原始 key」
+//
+// 这是今天那个 class bug 的**运行时兜底**:`t('sidebar.workflows')` 引用了两个词典都没有的键,
+// i18next 找不到就把 key 字符串本身('sidebar.workflows')原样渲染出来。它长得像英文、一个中文没有,
+// zh 界面里一眼看不出——EN-DOM 的 CJK 网也抓不到(它一个汉字都没有)。静态门岗 check:i18n-key-refs
+// 从源码这头拦;这道从**运行时界面**这头兜:任何 raw-key 形态的可见文本 = 报红。两头夹。
+//
+// raw-key 形态:`^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9]+)+$` —— 小写字母起头的点分标识符(≥1 个点)。
+// 单独一段文本节点就是这形状,才算(整句话里带个点的正常文案不会命中:必须整段 ≡ 这个正则)。
+//
+// 误报排除用**清单**不靠猜(任务要求):合法的技术文案里确有这形状——版本号(0.21.0)、
+// 文件名(project.json)、代码/URL 示例、模型 id(gpt-4o.something)。这些多半住在
+// [data-user-content](用户内容)或就是我们自己要展示的技术串;白名单选择器整棵子树豁免,
+// 再加一个「已知合法 raw-key 文本」literal 清单兜掉剩下的。命中清单外的 = 真 raw key。
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** raw-key 形态:小写起头的点分标识符,整段文本必须完全等于它。 */
+const RAW_KEY_RE = /^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9]+)+$/
+
+/**
+ * 已知合法、会以「点分标识符」形态出现在界面上的技术文案(不是漏解析的键)。
+ * 用**字面清单**而非「猜哪些像键」——每加一条都得是真在界面上见过的合法串。
+ * 目前为空:现存界面里没有已知的合法裸点分标识符文本节点(版本号带数字段、文件名多在 user-content)。
+ * 将来若真有(如某处要显示 `foo.bar` 作为示例),把那个确切串加进来并注明它是什么。
+ */
+const ALLOWED_RAW_KEY_TEXTS = new Set([])
+
+/**
+ * 断言界面上没有 raw-key 形态的可见文本(未解析的 i18n 键被原样渲染)。
+ * zh / en 两种语言都该调——这个洞与语言无关(键在两边都缺时,两种语言都渲染 raw key)。
+ *
+ * 只看**直接文本子节点**且**整段 ≡ raw-key 正则**;[data-user-content]/隐藏元素/白名单子树排除;
+ * 命中 ALLOWED_RAW_KEY_TEXTS 的放过。同时扫 title/aria-label/placeholder。
+ */
+export async function expectNoRawI18nKeysInDom(win, { message, allowSelectors = [], allowTexts = [] } = {}) {
+  const offenders = await win.evaluate(
+    ({ rawKeySource, allow, allowedTexts }) => {
+      const rawKey = new RegExp(rawKeySource)
+      const allowedSet = new Set(allowedTexts)
+      const skipSelectors = ['[data-user-content]', 'style', 'script', 'noscript', 'code', 'pre', ...allow]
+      const isSkipped = (el) => skipSelectors.some((sel) => el.matches?.(sel))
       const isHidden = (el) => {
         const style = getComputedStyle(el)
         if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) <= 0.01) return true
@@ -247,39 +346,41 @@ export async function expectNoCjkInEnglishDom(win, { message, allowSelectors = [
         const cls = typeof el.className === 'string' && el.className ? `.${el.className.split(/\s+/).slice(0, 2).join('.')}` : ''
         return `${el.tagName.toLowerCase()}${id}${testid ? `[data-testid=${testid}]` : ''}${cls}`
       }
+      const looksRaw = (text) => {
+        const t = (text || '').trim()
+        return t.length > 0 && !allowedSet.has(t) && rawKey.test(t)
+      }
       const hits = []
       const walk = (el) => {
         if (isSkipped(el) || isHidden(el)) return
-        // 只看**直接**文本子节点的中文(子元素各自递归判,避免把整棵子树的文本重复归到父节点)。
         for (const node of el.childNodes) {
-          if (node.nodeType === Node.TEXT_NODE && cjk.test(node.nodeValue || '')) {
-            const text = (node.nodeValue || '').replace(/\s+/g, ' ').trim()
-            if (text) hits.push({ where: describe(el), text: text.slice(0, 60) })
+          if (node.nodeType === Node.TEXT_NODE && looksRaw(node.nodeValue)) {
+            hits.push({ where: describe(el), text: (node.nodeValue || '').trim().slice(0, 80) })
           }
         }
         for (const child of el.children) walk(child)
       }
       if (document.body) walk(document.body)
-      // 还要查 title/aria-label/placeholder 这类可见但不在文本节点里的字。
       for (const el of document.querySelectorAll('[title],[aria-label],[placeholder]')) {
         if (isSkipped(el) || isHidden(el)) continue
         for (const attr of ['title', 'aria-label', 'placeholder']) {
           const v = el.getAttribute(attr)
-          if (v && cjk.test(v)) hits.push({ where: `${describe(el)}@${attr}`, text: v.replace(/\s+/g, ' ').trim().slice(0, 60) })
+          if (v && looksRaw(v)) hits.push({ where: `${describe(el)}@${attr}`, text: v.trim().slice(0, 80) })
         }
       }
-      // 去重(同一段中文可能被多个祖先命中)。
       const seen = new Set()
-      return hits.filter((h) => { const k = `${h.where} ${h.text}`; if (seen.has(k)) return false; seen.add(k); return true })
+      return hits.filter((h) => { const k = `${h.where} ${h.text}`; if (seen.has(k)) return false; seen.add(k); return true })
     },
-    { cjkSource: CJK_RE.source, allow: allowSelectors },
+    { rawKeySource: RAW_KEY_RE.source, allow: allowSelectors, allowedTexts: [...ALLOWED_RAW_KEY_TEXTS, ...allowTexts] },
   )
   if (offenders.length > 0) {
     const lines = offenders.slice(0, 20).map((o) => `  · ${o.where}  “${o.text}”`).join('\n')
     throw new Error(
-      `${message || 'en 界面上出现了未翻译的中文'}（EN-DOM 断言网）：找到 ${offenders.length} 处 CJK 文本。\n${lines}\n`
-        + '  → 界面已切到 en,这些中文就是漏译(硬编码中文 / 走错分支拿到中文串 / 键缺 en 值)。\n'
-        + '  用户自己写的内容(项目名/提示词/素材名)应包在 [data-user-content] 里豁免——如果上面是这类,给它加这个标记。',
+      `${message || '界面上出现了未解析的 i18n 键(原始 key 被渲染)'}（RAW-KEY 断言网）：找到 ${offenders.length} 处。\n${lines}\n`
+        + '  → 这些点分标识符是 t() 引用了不存在的键、i18next 兜底把 key 本身渲染出来的(今天 sidebar.workflows 那一类)。\n'
+        + '  修法:把键补进它真正该住的命名空间(zh+en),或改用已存在的键。静态门岗 check:i18n-key-refs 应已从源码这头拦到——\n'
+        + '  若这里报了它没报,可能是动态键(模板拼接);去看那个 t(`...${x}`) 的枚举来源缺了这一项。\n'
+        + '  确属合法技术文案(极少见)才加进 ALLOWED_RAW_KEY_TEXTS,并注明它是什么。',
     )
   }
 }

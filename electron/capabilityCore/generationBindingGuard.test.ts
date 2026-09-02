@@ -4,9 +4,19 @@ import { GENERATION_BINDING_MARKERS, hasGenerationBinding } from './generationBi
 
 describe('shared generation binding guard', () => {
   it('owns canonical wrapper and execution-binding markers in one set', () => {
-    expect(GENERATION_BINDING_MARKERS.has('executionBinding')).toBe(true)
-    expect(GENERATION_BINDING_MARKERS.has('providerRecoveryCapabilities')).toBe(true)
-    expect(GENERATION_BINDING_MARKERS.has('model')).toBe(true)
+    for (const marker of [
+      'executionBinding',
+      'providerRecoveryCapabilities',
+      'model',
+      'authorizationEnvelope',
+      'authorizationDigest',
+      'authorizationGateId',
+      'providerWirePayloadHash',
+      'pricingSnapshotHash',
+      'gateId',
+    ]) {
+      expect(GENERATION_BINDING_MARKERS.has(marker), marker).toBe(true)
+    }
     expect(GENERATION_BINDING_MARKERS.has('modelKey')).toBe(false)
     expect(GENERATION_BINDING_MARKERS.has('vendor')).toBe(false)
   })

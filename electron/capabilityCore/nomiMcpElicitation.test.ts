@@ -72,75 +72,17 @@ afterEach(() => {
   harness = null
 })
 
-describe('nomi-mcp · 付费确认按「谁能问到真人」路由', () => {
+describe('nomi-mcp · retired direct generation route', () => {
   const GENERATE_ARGS = { projectId: 'p', vendor: 'apimart', modelKey: 'doubao-seedance-2.0', intent: 'video', prompt: '巷口回头' }
   const callGenerate = (h: ProtocolHarness) =>
     h.send({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'nomi_generate', arguments: GENERATE_ARGS } })
-  /** 生成成功的 invoke 桩：只有「真人确认过」的路径才该走到这里。 */
-  const generateOk = async (method: string) => {
-    if (method === 'generate') return { nodeId: 'n1', assetPath: '/tmp/a.mp4' }
-    throw new Error(`unexpected invoke: ${method}`)
-  }
-
-  it('① 支持 elicitation + App 关：弹在调用方 → decline → 拦截不生成', async () => {
+  it('rejects nomi_generate before elicitation or provider invocation', async () => {
     harness = new ProtocolHarness(false)
     await harness.initialize(true)
     callGenerate(harness)
-    // 服务端应先发 elicitation/create 请求给客户端。
-    const elicit = await harness.next()
-    expect(elicit.method).toBe('elicitation/create')
-    expect(typeof elicit.id).toBe('string')
-    const params = elicit.params as { message?: string }
-    expect(params.message).toContain('doubao-seedance-2.0')
-    // 旧文案硬编码了「Nomi 未打开。」开头；改判据后 App 开着也走这条，那句话不再成立 → 必须已删。
-    expect(params.message).not.toContain('Nomi 未打开')
-    // 真人点了取消 → decline。
-    harness.send({ jsonrpc: '2.0', id: elicit.id, result: { action: 'decline' } })
     const toolRes = await harness.next()
     expect(toolRes.id).toBe(2)
-    const result = toolRes.result as { content: Array<{ text: string }>; isError?: boolean }
-    expect(result.isError).toBe(true)
-    expect(result.content[0].text).toContain('已取消')
-    expect(harness.invoke).not.toHaveBeenCalled()
-  })
-
-  it('② 支持 elicitation + App 开：仍弹在调用方（不赶人回 Nomi），accept 才带 spendConfirmed 放行', async () => {
-    // 这条就是本次修复的核心：旧判据下 App 一开就跳过 elicitation、把人赶去点应用内卡片。
-    harness = new ProtocolHarness(true, generateOk)
-    await harness.initialize(true)
-    callGenerate(harness)
-    const elicit = await harness.next()
-    expect(elicit.method).toBe('elicitation/create')
-    expect((elicit.params as { message?: string }).message).not.toContain('Nomi 未打开')
-    harness.send({ jsonrpc: '2.0', id: elicit.id, result: { action: 'accept', content: { confirm: true } } })
-    const toolRes = await harness.next()
-    expect(toolRes.id).toBe(2)
-    expect(toolRes.result).not.toMatchObject({ isError: true })
-    // 真人在调用方确认过 → 必须带 spendConfirmed 过线，否则 App 会再弹一次卡（双问）。
-    expect(harness.invoke).toHaveBeenCalledWith('generate', expect.anything(), { spendConfirmed: true })
-  })
-
-  it('③ 不支持 elicitation + App 开：不弹、原样 invoke（由应用内确认卡兜底），绝不自带 spendConfirmed', async () => {
-    harness = new ProtocolHarness(true, generateOk)
-    await harness.initialize(false)
-    callGenerate(harness)
-    const toolRes = await harness.next()
-    expect(toolRes.id).toBe(2)
-    expect(toolRes.result).not.toMatchObject({ isError: true })
-    // 没人替我们问过真人 → 这次 invoke 不许预批付费，确认权留给应用内卡片。
-    expect(harness.invoke).toHaveBeenCalledTimes(1)
-    expect(harness.invoke.mock.calls[0][2]).not.toMatchObject({ spendConfirmed: true })
-  })
-
-  it('④ 不支持 elicitation + App 关：无处问真人 → 诚实报错，不生成', async () => {
-    harness = new ProtocolHarness(false)
-    await harness.initialize(false)
-    callGenerate(harness)
-    const toolRes = await harness.next()
-    expect(toolRes.id).toBe(2)
-    const result = toolRes.result as { content: Array<{ text: string }>; isError?: boolean }
-    expect(result.isError).toBe(true)
-    expect(result.content[0].text).toContain('不支持弹确认')
+    expect(toolRes.error?.message).toContain('未知工具: nomi_generate')
     expect(harness.invoke).not.toHaveBeenCalled()
   })
 
@@ -168,7 +110,7 @@ describe('nomi-mcp · 创意门由服务端强制 elicitation', () => {
     await harness.initialize(false)
     harness.send({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'nomi_decide_gate', arguments: { projectId: 'project-1', runId: 'run-1', gateId: 'gate-direction-v1', decision: 'approved', choiceKey: 'studio' } },
+      params: { name: 'nomi_run_gate', arguments: { action: 'decide', projectId: 'project-1', runId: 'run-1', gateId: 'gate-direction-v1', decision: 'approved', choiceKey: 'studio' } },
     })
     const response = await harness.next()
     expect(response.id).toBe(2)
@@ -184,7 +126,7 @@ describe('nomi-mcp · 创意门由服务端强制 elicitation', () => {
     await harness.initialize(true)
     harness.send({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'nomi_decide_gate', arguments: { projectId: 'project-1', runId: 'run-1', gateId: 'gate-direction-v1', decision: 'approved', choiceKey: 'studio' } },
+      params: { name: 'nomi_run_gate', arguments: { action: 'decide', projectId: 'project-1', runId: 'run-1', gateId: 'gate-direction-v1', decision: 'approved', choiceKey: 'studio' } },
     })
     const elicit = await harness.next()
     expect(elicit.method).toBe('elicitation/create')
@@ -208,7 +150,7 @@ describe('nomi-mcp · 创意门由服务端强制 elicitation', () => {
     await harness.initialize(true)
     harness.send({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'nomi_decide_gate', arguments: { projectId: 'project-1', runId: 'run-1', gateId: 'gate-direction-v1', decision: 'approved', choiceKey: 'studio' } },
+      params: { name: 'nomi_run_gate', arguments: { action: 'decide', projectId: 'project-1', runId: 'run-1', gateId: 'gate-direction-v1', decision: 'approved', choiceKey: 'studio' } },
     })
     const elicit = await harness.next()
     harness.send({ jsonrpc: '2.0', id: elicit.id, result: { action: 'accept', content: { confirm: true } } })
@@ -242,7 +184,7 @@ describe('nomi-mcp · 创意门由服务端强制 elicitation', () => {
     await harness.initialize(true)
     harness.send({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'nomi_decide_gate', arguments: { projectId: 'project-1', runId: 'run-1', gateId: 'gate-anchor-checkpoint-run-1', decision: 'approved' } },
+      params: { name: 'nomi_run_gate', arguments: { action: 'decide', projectId: 'project-1', runId: 'run-1', gateId: 'gate-anchor-checkpoint-run-1', decision: 'approved' } },
     })
     const elicit = await harness.next()
     expect(elicit.method).toBe('elicitation/create')
@@ -268,7 +210,7 @@ describe('nomi-mcp · 创意门由服务端强制 elicitation', () => {
     await harness.initialize(true)
     harness.send({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'nomi_decide_gate', arguments: { projectId: 'project-1', runId: 'run-1', gateId: 'gate-contract-v1', decision: 'approved' } },
+      params: { name: 'nomi_run_gate', arguments: { action: 'decide', projectId: 'project-1', runId: 'run-1', gateId: 'gate-contract-v1', decision: 'approved' } },
     })
     const response = await harness.next()
     expect(response.id).toBe(2)

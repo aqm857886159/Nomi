@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import * as canvasGraph from './canvasGraph'
 
 import {
   addNodes,
@@ -6,7 +7,6 @@ import {
   deleteNodes,
   emptyCanvasSnapshot,
   normalizeSnapshot,
-  readCanvas,
   setNodePrompt,
 } from './canvasGraph'
 import { nodeKindDefaultSize } from './nodeKindDomain'
@@ -120,20 +120,18 @@ describe('capabilityCore/canvasGraph', () => {
     expect(second.skipped.map((item) => item.reason).sort()).toEqual(['不能自连', '端点节点不存在', '重复连线'])
   })
 
-  it('connectNodes 非法 mode 落回 reference', () => {
+  it('connectNodes 非法 mode 显式拒绝', () => {
     const built = addNodes(emptyCanvasSnapshot(), [{ kind: 'image' }, { kind: 'video' }])
-    const { snapshot } = connectNodes(built.snapshot, [{ source: built.ids[0], target: built.ids[1], mode: 'bogus' }])
-    expect(snapshot.edges[0].mode).toBe('reference')
+    expect(() => connectNodes(built.snapshot, [{ source: built.ids[0], target: built.ids[1], mode: 'bogus' }])).toThrowError(/Unknown canvas edge mode/)
   })
 
-  it('setNodePrompt 改提示词与标题；未知节点 changed=false', () => {
+  it('setNodePrompt 改提示词与标题；未知节点显式失败', () => {
     const built = addNodes(emptyCanvasSnapshot(), [{ kind: 'text' }])
     const ok = setNodePrompt(built.snapshot, built.ids[0], '新提示', '新标题')
     expect(ok.changed).toBe(true)
     expect(ok.snapshot.nodes[0].prompt).toBe('新提示')
     expect(ok.snapshot.nodes[0].title).toBe('新标题')
-    const miss = setNodePrompt(built.snapshot, 'ghost', 'x')
-    expect(miss.changed).toBe(false)
+    expect(() => setNodePrompt(built.snapshot, 'ghost', 'x')).toThrowError(/Canvas node not found/)
   })
 
   it('deleteNodes 同时清掉关联入边出边，无悬挂边', () => {
@@ -149,20 +147,15 @@ describe('capabilityCore/canvasGraph', () => {
     expect(snapshot.edges).toHaveLength(0)
   })
 
-  it('normalizeSnapshot 把坏数据降级为空，过滤无 id 的节点/边', () => {
+  it('normalizeSnapshot 对未知 kind 和坏边显式失败，不静默丢数据', () => {
     expect(normalizeSnapshot(null).nodes).toHaveLength(0)
-    const dirty = normalizeSnapshot({
+    expect(() => normalizeSnapshot({
       nodes: [{ id: 'n1', kind: 'text', title: 't', position: { x: 0, y: 0 } }, { kind: 'broken' }],
       edges: [{ id: 'e1', source: 'n1', target: 'n2' }, { id: 'bad' }],
-    })
-    expect(dirty.nodes).toHaveLength(1)
-    expect(dirty.edges).toHaveLength(1)
+    })).toThrowError(/unknown node kind/i)
   })
 
-  it('readCanvas 只暴露决策所需精简字段，不灌 raw', () => {
-    const built = addNodes(emptyCanvasSnapshot(), [{ kind: 'text', prompt: 'p', title: 't' }])
-    const view = readCanvas(built.snapshot)
-    expect(view.nodes[0]).toMatchObject({ kind: 'text', prompt: 'p', title: 't', status: 'idle', hasResult: false })
-    expect(view.nodes[0]).not.toHaveProperty('raw')
+  it('does not own a second canvas.read field projector', () => {
+    expect('readCanvas' in canvasGraph).toBe(false)
   })
 })

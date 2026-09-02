@@ -82,7 +82,6 @@ export const zhSettings = {
       customized: '已自定义',
       reset: '恢复默认',
       resetDisabledReason: '这个模式还在用内置默认提示词，没有可恢复的改动。',
-      customGroup: '我的提示词',
       create: '新建',
       createDisabledReason: '自定义提示词最多 {{max}} 条，删掉一条才能再建。',
       defaultCustomName: '新提示词',
@@ -197,6 +196,9 @@ export const zhSettings = {
     canvasGestureZoomHint: '滚轮直接缩放，以光标位置为中心。多数节点编辑器（ComfyUI 等）的习惯。',
     canvasGesturePan: '平移',
     canvasGesturePanHint: '滚轮/双指滑平移画布，捏合或 ⌘/Ctrl+滚轮缩放。触控板用户通常选这档（Figma 等的习惯）。',
+    agentHost: '项目常驻 AI 助手',
+    agentHostHint:
+      '默认关（预览中）。开启后在创作/生成/预览各区常驻一个能帮你写脚本、拆镜头、跑生成的 AI 助手面板。交互仍在打磨，稳定后会默认开启。',
   },
   file: {
     title: '文件与保存',
@@ -304,7 +306,6 @@ export const enSettings = {
       customized: 'Customized',
       reset: 'Restore default',
       resetDisabledReason: 'This mode still uses the built-in default prompt, so there is nothing to restore.',
-      customGroup: 'My prompts',
       create: 'New',
       createDisabledReason: 'You can keep up to {{max}} custom prompts. Delete one to make room.',
       defaultCustomName: 'New prompt',
@@ -418,6 +419,9 @@ export const enSettings = {
     canvasGestureZoomHint: 'The wheel zooms directly, centered on the cursor. What most node editors (ComfyUI and friends) do.',
     canvasGesturePan: 'Pan',
     canvasGesturePanHint: 'Wheel/two-finger swipe pans the canvas; pinch or ⌘/Ctrl+wheel zooms. Usually what trackpad users want (the Figma convention).',
+    agentHost: 'Project AI assistant',
+    agentHostHint:
+      'Off by default (in preview). When on, a resident AI assistant panel lives across the creation/generation/preview areas to help you write scripts, break down shots, and run generations. Interactions are still being polished; it will default on once stable.',
   },
   file: {
     title: 'File & saving',

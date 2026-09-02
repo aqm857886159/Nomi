@@ -5,12 +5,48 @@
 // modelVendor / modelLabel / archetype.{id,modeId} / 该 mode 的默认参数，再用 agent 的合法参数覆盖。
 import type { AgentModelEntry } from "./availableModels";
 import type { ModelParameterControl } from "../../../config/modelCatalogMeta";
+import {
+  resolveArchetypeForModel,
+  specializeArchetypeForVariant,
+  type ModelArchetype,
+} from "../../../config/modelArchetypes";
 
 export type PlannedNodeModelInput = {
   modelKey?: unknown;
+  /** Canonical catalog vendor identity selected alongside modelKey. */
+  vendor?: unknown;
+  /** Backward-compatible wire alias for vendor (normalised before persistence). */
+  modelVendor?: unknown;
   modeId?: unknown;
+  /** Model-archetype variant identity (for example `fast` or `mini`). */
+  variantId?: unknown;
   params?: unknown;
 };
+
+function nonBlankString(value: unknown): string {
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
+/** Resolve the curated archetype again at the write boundary so variant
+ * parameter narrowing and the persisted `{ id, modeId, variantId }` namespace
+ * use the same source as the canvas composer. */
+function entryArchetype(entry: AgentModelEntry): ModelArchetype | null {
+  if (!entry.archetypeId) return null;
+  return resolveArchetypeForModel({
+    modelKey: entry.modelKey,
+    modelAlias: entry.modelAlias,
+    vendorKey: entry.vendor,
+    meta: { archetypeId: entry.archetypeId },
+  });
+}
+
+function canonicalVariantId(archetype: ModelArchetype, value: unknown): string {
+  const requested = nonBlankString(value);
+  if (!requested || !archetype.variants?.length) return "";
+  if (archetype.variants.some((variant) => variant.id === requested)) return requested;
+  const alias = archetype.variantIdAliases?.[requested];
+  return alias && archetype.variants.some((variant) => variant.id === alias) ? alias : "";
+}
 
 // 单字段校验（跨字段互斥/依赖留二期）：select 取值必须在 options；number 在 min-max；boolean 是布尔。
 function isValidParamValue(
@@ -40,18 +76,70 @@ export function buildPlannedNodeMeta(
   // 模型不在可用清单 → 不写模型 meta，回退原自动选（避开 effect3 供应商断开自愈覆盖）。
   if (!entry) return undefined;
 
+  // A proposal may carry both the model key and an explicit vendor selected in
+  // the approval card. Never combine a catalog entry from one vendor with a
+  // caller-declared identity from another; that would make the visible choice
+  // differ from the request that reaches the provider. The model list is the
+  // authority, while a vendor-less entry may still accept an explicit vendor
+  // for legacy/custom catalog rows.
+  const vendor = nonBlankString(planned.vendor);
+  const modelVendor = nonBlankString(planned.modelVendor);
+  // The two spellings are aliases on the wire, not two independent routing
+  // choices. Reject a contradictory direct renderer call just as the shared
+  // capability schema does for the Host transport.
+  if (vendor && modelVendor && vendor !== modelVendor) return undefined;
+  const requestedVendor = vendor || modelVendor;
+  if (requestedVendor && entry.vendor && requestedVendor !== entry.vendor) return undefined;
+  const persistedVendor = requestedVendor || entry.vendor || "";
+
+  const archetype = entryArchetype(entry);
+  const requestedVariant = nonBlankString(planned.variantId);
+  const variantId = archetype ? canonicalVariantId(archetype, requestedVariant) : "";
+  // Only an explicit, valid variant changes the parameter surface. Omitting a
+  // variant preserves the pre-existing default behavior; an invalid one is
+  // ignored and therefore cannot smuggle unsupported parameters through.
+  const effectiveArchetype = archetype && variantId
+    ? specializeArchetypeForVariant(archetype, variantId)
+    : archetype;
+
   const wantModeId = typeof planned.modeId === "string" ? planned.modeId.trim() : "";
-  const mode =
-    entry.modes.find((m) => m.modeId === wantModeId) ??
-    entry.modes.find((m) => m.modeId === entry.defaultModeId) ??
+  // Normalize the renderer-facing and agent-facing mode shapes before the
+  // common parameter pass. This keeps the write boundary independent of which
+  // catalog projection supplied the entry.
+  const archetypeMode =
+    effectiveArchetype?.modes.find((candidate) => candidate.id === wantModeId) ??
+    effectiveArchetype?.modes.find((candidate) => candidate.id === entry.defaultModeId);
+  const entryMode =
+    entry.modes.find((candidate) => candidate.modeId === wantModeId) ??
+    entry.modes.find((candidate) => candidate.modeId === entry.defaultModeId) ??
     entry.modes[0];
+  const mode = archetypeMode
+    ? { modeId: archetypeMode.id, params: archetypeMode.params }
+    : entryMode;
 
   const meta: Record<string, unknown> = {
     modelKey,
     modelLabel: entry.label,
-    archetype: { id: entry.archetypeId, modeId: mode?.modeId ?? entry.defaultModeId },
+    // Chat models are catalog-defined and intentionally have no media
+    // archetype. Do not invent one: the explicit model identity itself is the
+    // contract that keeps text generation from silently falling back.
+    ...(effectiveArchetype
+      ? {
+          archetype: {
+            id: effectiveArchetype.id,
+            modeId: mode?.modeId ?? effectiveArchetype.defaultModeId,
+            ...(variantId ? { variantId } : {}),
+          },
+        }
+      : {}),
   };
-  if (entry.vendor) meta.modelVendor = entry.vendor;
+  if (persistedVendor) {
+    // Canvas generation nodes have historically exposed both keys to the
+    // runner. They are aliases of one value, written together so the selected
+    // provider survives reloads and evidence capture.
+    meta.modelVendor = persistedVendor;
+    meta.vendor = persistedVendor;
+  }
   if (!mode) return meta;
 
   // 1) 铺 mode 默认参数
@@ -76,7 +164,7 @@ export function buildPlannedNodeMeta(
   return meta;
 }
 
-const RESERVED_META_KEYS = new Set(["modelKey", "modelLabel", "archetype", "modelVendor"]);
+const RESERVED_META_KEYS = new Set(["modelKey", "modelLabel", "archetype", "modelVendor", "vendor"]);
 
 /**
  * 把一个 planned node 的 modelKey/modeId/params 解析成「执行后会真正写入的值」——与
@@ -95,7 +183,15 @@ export function resolvePlannedNodeArgs(
   if (typeof node.modelKey !== "string" || !node.modelKey.trim()) return node;
   const meta = buildPlannedNodeMeta(node as PlannedNodeModelInput, entryByKey);
   if (!meta) {
-    const { modelKey: _mk, modeId: _md, params: _p, ...rest } = node;
+    const {
+      modelKey: _mk,
+      modeId: _md,
+      params: _p,
+      vendor: _vendor,
+      modelVendor: _modelVendor,
+      variantId: _variantId,
+      ...rest
+    } = node;
     return rest;
   }
   const params: Record<string, unknown> = {};

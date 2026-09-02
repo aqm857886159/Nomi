@@ -66,6 +66,7 @@ export type {
 export {
   startExportJob,
   getExportJobStatus,
+  listExportJobs,
   cancelExportJob,
   writeExportTempInput,
   finishExportTempInput,
@@ -144,7 +145,6 @@ export type TaskResult = {
     timestamp: number;
   };
 };
-
 // TTL(1h) + LRU(200) 上限，防异步任务条目无界驻留（P0-7）。不再缓存明文 apiKey。
 export const taskCache = new TtlLruCache<CachedTask>({ maxEntries: 200, ttlMs: 60 * 60 * 1000 });
 
@@ -471,7 +471,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
     endpoint(vendor, suffix),
     fallbackHeaders,
     {},
-    {
+    { // 键形状由 taskParams.NO_MAPPING_FALLBACK_BODY 声明并被测试钉死（两处必须同构）。
       model: model.modelAlias || model.modelKey,
       prompt: request.prompt,
       size: request.width && request.height ? `${request.width}x${request.height}` : undefined,

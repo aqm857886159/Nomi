@@ -1,8 +1,14 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import fs from "node:fs";
 import path from "node:path";
 
-import type { NomiRenderManifestV1 } from "./exportManifest";
-import { createExportTempDir } from "./exportPaths";
+import {
+  assertValidExportAuditManifest,
+  createExportAuditManifest,
+  exportAuditManifestDigest,
+  type ExportAuditManifestV1,
+} from "./exportAuditManifest";
+import { assertProjectExportRelativePath, createExportTempDir } from "./exportPaths";
 import type { ExportJobStatus } from "./exportTypes";
 import { ExportJobStore } from "./exportJobStore";
 
@@ -17,7 +23,26 @@ export type ExportJobResult = {
   relativeOutputPath?: string;
   bytes?: number;
   durationMs?: number;
+  execution: ExportJobExecutionEvidence;
 };
+
+export type ExportJobExecutionEvidence = Readonly<{
+  auditManifestDigest: string;
+  input: Readonly<{ kind: "filtergraph" }> | Readonly<{ kind: "webm"; sha256: string; bytes: number }>;
+  correlationDigest: string;
+}>;
+
+export type ExportJobVerification = Readonly<{
+  jobId: string;
+  verified: boolean;
+  verificationLevel: "export_job_output";
+  contentDecoded: false;
+  status: ExportJobStatus;
+  manifestIntegrity: ExportJobSnapshot["manifestIntegrity"];
+  bytes?: number;
+  durationMs?: number | null;
+  code?: string;
+}>;
 
 export type ExportJobError = {
   message: string;
@@ -26,18 +51,27 @@ export type ExportJobError = {
 };
 
 export type CreateExportJobInput = {
-  projectId: string;
+  projectIdentity: ExportJobProjectIdentity;
   projectDir: string;
-  manifest: NomiRenderManifestV1;
+  manifest: ExportAuditManifestV1;
   outputName?: string;
 };
+
+export type ExportJobProjectIdentity = Readonly<{
+  projectId: string;
+  immutableProjectUuid: string;
+  projectGeneration: number;
+  canonicalRootDigest: string;
+}>;
 
 export type ExportJobSnapshot = {
   id: string;
   projectId: string;
+  projectIdentity: ExportJobProjectIdentity | null;
   projectDir: string;
   jobDir: string;
-  manifest: NomiRenderManifestV1;
+  manifest: ExportAuditManifestV1;
+  manifestIntegrity: "canonical" | "legacy_complete" | "legacy_incomplete";
   outputName?: string;
   status: ExportJobStatus;
   progress: ExportJobProgress;
@@ -86,6 +120,135 @@ function toErrorDetails(error: unknown): ExportJobError {
   return { message: JSON.stringify(error) || String(error) };
 }
 
+function sameProjectIdentity(left: ExportJobProjectIdentity | null, right: ExportJobProjectIdentity): boolean {
+  return left !== null && left.projectId === right.projectId
+    && left.immutableProjectUuid === right.immutableProjectUuid
+    && left.projectGeneration === right.projectGeneration
+    && left.canonicalRootDigest === right.canonicalRootDigest;
+}
+
+function correlationDigest(auditManifestDigest: string, input: ExportJobExecutionEvidence["input"]): string {
+  const inputIdentity = input.kind === "webm" ? `webm:${input.sha256}:${input.bytes}` : "filtergraph";
+  return createHash("sha256").update(`${auditManifestDigest}:${inputIdentity}`).digest("hex");
+}
+
+export function createExportJobExecutionEvidence(
+  manifest: ExportAuditManifestV1,
+  input: ExportJobExecutionEvidence["input"],
+): ExportJobExecutionEvidence {
+  const auditManifestDigest = exportAuditManifestDigest(manifest);
+  return Object.freeze({
+    auditManifestDigest,
+    input: Object.freeze({ ...input }),
+    correlationDigest: correlationDigest(auditManifestDigest, input),
+  });
+}
+
+class ExportJobOutputError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message);
+    this.name = "ExportJobOutputError";
+  }
+}
+
+function outputError(code: string, message: string): never {
+  throw new ExportJobOutputError(code, message);
+}
+
+function normalizeSuccessfulResult(current: ExportJobSnapshot, result: ExportJobResult): ExportJobResult {
+  const expectedAuditDigest = exportAuditManifestDigest(current.manifest);
+  if (result.execution.auditManifestDigest !== expectedAuditDigest) {
+    outputError("audit_manifest_mismatch", "Export result does not match the job audit manifest");
+  }
+  if (current.manifest.execution.backend !== result.execution.input.kind) {
+    outputError("execution_backend_mismatch", "Export result execution backend does not match the job audit manifest");
+  }
+  if (result.execution.input.kind === "webm") {
+    if (!/^[a-f0-9]{64}$/.test(result.execution.input.sha256) || !Number.isSafeInteger(result.execution.input.bytes) || result.execution.input.bytes <= 0) {
+      outputError("webm_input_evidence_invalid", "Export result WebM input evidence is invalid");
+    }
+  }
+  if (result.execution.correlationDigest !== correlationDigest(expectedAuditDigest, result.execution.input)) {
+    outputError("execution_correlation_mismatch", "Export result execution evidence is not correlated to the audit manifest");
+  }
+
+  if (!path.isAbsolute(result.outputPath)) outputError("outside_project", "Export output path must be absolute");
+  let projectRoot: string;
+  let outputPath: string;
+  try {
+    projectRoot = fs.realpathSync.native(current.projectDir);
+    outputPath = fs.realpathSync.native(result.outputPath);
+  } catch {
+    outputError("missing_output", "Export output file is missing");
+  }
+  const rootWithSep = `${projectRoot}${path.sep}`;
+  if (outputPath === projectRoot || !outputPath.startsWith(rootWithSep)) {
+    outputError("outside_project", "Export output file is outside the current project");
+  }
+  const relativeOutputPath = assertProjectExportRelativePath(path.relative(projectRoot, outputPath).split(path.sep).join("/"));
+  if (result.relativeOutputPath !== undefined && result.relativeOutputPath.replace(/\\/g, "/") !== relativeOutputPath) {
+    outputError("output_receipt_mismatch", "Export output relative path does not match the output file");
+  }
+  const stat = fs.statSync(outputPath);
+  if (!stat.isFile()) outputError("missing_output", "Export output is not a file");
+  if (stat.size <= 0) outputError("empty_output", "Export output file is empty");
+  if (result.bytes !== undefined && result.bytes !== stat.size) {
+    outputError("output_receipt_mismatch", "Export output byte receipt does not match the output file");
+  }
+  return {
+    ...result,
+    outputPath,
+    relativeOutputPath,
+    bytes: stat.size,
+    execution: Object.freeze({ ...result.execution, input: Object.freeze({ ...result.execution.input }) }),
+  };
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function legacyManifestWasErased(value: unknown): boolean {
+  const manifest = record(value);
+  const timeline = record(manifest?.timeline);
+  const assets = record(manifest?.assets);
+  const diagnostics = record(manifest?.diagnostics);
+  const warnings = Array.isArray(diagnostics?.warnings) ? diagnostics.warnings : [];
+  return Array.isArray(timeline?.tracks)
+    && timeline.tracks.length === 0
+    && assets !== null
+    && Object.keys(assets).length === 0
+    && warnings.some((warning) => typeof warning === "string" && /webm|capture|renderer|unresolved|unsupported tracks/i.test(warning));
+}
+
+function normalizeHydratedSnapshot(value: ExportJobSnapshot): ExportJobSnapshot {
+  const raw = value as ExportJobSnapshot & { manifestIntegrity?: unknown; projectIdentity?: unknown };
+  try {
+    assertValidExportAuditManifest(raw.manifest);
+    return {
+      ...raw,
+      projectIdentity: record(raw.projectIdentity) ? raw.projectIdentity as ExportJobProjectIdentity : null,
+      manifestIntegrity: raw.manifestIntegrity === "canonical"
+        || raw.manifestIntegrity === "legacy_complete"
+        || raw.manifestIntegrity === "legacy_incomplete"
+        ? raw.manifestIntegrity
+        : "legacy_complete",
+    };
+  } catch {
+    const incomplete = legacyManifestWasErased(raw.manifest);
+    const manifest = createExportAuditManifest(raw.manifest, {
+      projectId: raw.projectId,
+      backend: incomplete ? "webm" : "filtergraph",
+    });
+    return {
+      ...raw,
+      projectIdentity: record(raw.projectIdentity) ? raw.projectIdentity as ExportJobProjectIdentity : null,
+      manifest,
+      manifestIntegrity: incomplete ? "legacy_incomplete" : "legacy_complete",
+    };
+  }
+}
+
 export class ExportJobManager {
   private readonly store: ExportJobStore;
   private readonly idGenerator: () => string;
@@ -104,13 +267,13 @@ export class ExportJobManager {
   }
 
   createJob(input: CreateExportJobInput): ExportJobSnapshot {
-    if (input.manifest.projectId !== input.projectId) {
+    if (input.manifest.projectId !== input.projectIdentity.projectId) {
       throw new Error("Export job projectId must match manifest.projectId");
     }
     this.hydrateProject(input.projectDir);
     // active 锁按 projectId 维度，而非全局：同一项目同一时刻只允许一个在跑的导出
     // （避免互相覆盖输出/抢临时目录），但不同项目可并行导出，彼此不阻塞。
-    const activeJob = [...this.jobs.values()].find((job) => job.projectId === input.projectId && isActive(job.status));
+    const activeJob = [...this.jobs.values()].find((job) => job.projectId === input.projectIdentity.projectId && isActive(job.status));
     if (activeJob !== undefined) {
       throw new Error(`Cannot create export job while active export job ${activeJob.id} is ${activeJob.status}`);
     }
@@ -119,10 +282,12 @@ export class ExportJobManager {
     const now = this.clock();
     const snapshot: ExportJobSnapshot = {
       id,
-      projectId: input.projectId,
+      projectId: input.projectIdentity.projectId,
+      projectIdentity: Object.freeze({ ...input.projectIdentity }),
       projectDir: input.projectDir,
       jobDir: createExportTempDir(input.projectDir, id),
       manifest: input.manifest,
+      manifestIntegrity: "canonical",
       outputName: input.outputName,
       status: "queued",
       progress: { ratio: 0, stage: "queued", message: "Queued" },
@@ -140,10 +305,23 @@ export class ExportJobManager {
     return this.jobs.get(jobId) ?? null;
   }
 
+  getJobForProject(identity: ExportJobProjectIdentity, jobId: string): ExportJobSnapshot {
+    const job = this.requireJob(jobId);
+    if (!sameProjectIdentity(job.projectIdentity, identity)) {
+      throw new Error(`Export job ${jobId} does not belong to the current project identity`);
+    }
+    return job;
+  }
+
   listJobs(projectId?: string): ExportJobSnapshot[] {
     this.hydrateKnownProjects();
     const jobs = [...this.jobs.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return projectId === undefined ? jobs : jobs.filter((job) => job.projectId === projectId);
+  }
+
+  listJobsForProject(identity: ExportJobProjectIdentity, projectDir?: string): ExportJobSnapshot[] {
+    if (projectDir) this.hydrateProject(projectDir);
+    return this.listJobs().filter((job) => sameProjectIdentity(job.projectIdentity, identity));
   }
 
   updateJob(jobId: string, patch: ExportJobPatch): ExportJobSnapshot {
@@ -177,12 +355,14 @@ export class ExportJobManager {
 
   completeJob(jobId: string, result: ExportJobResult): ExportJobSnapshot {
     const current = this.requireJob(jobId);
+    const completedAt = this.clock();
     const completed: ExportJobSnapshot = {
       ...current,
       status: "succeeded",
       progress: { ratio: 1, stage: "succeeded", message: "Succeeded" },
-      result,
-      updatedAt: this.clock(),
+      result: normalizeSuccessfulResult(current, result),
+      completedAt,
+      updatedAt: completedAt,
     };
     delete completed.error;
     return this.saveAndEmit(completed, ["status", "progress", "result"]);
@@ -190,6 +370,9 @@ export class ExportJobManager {
 
   async cancelJob(jobId: string): Promise<ExportJobSnapshot> {
     const current = this.requireJob(jobId);
+    if (!isActive(current.status)) {
+      throw new Error(`Export job ${jobId} is ${current.status} and is not cancellable`);
+    }
     const cancelled: ExportJobSnapshot = {
       ...current,
       status: "cancelled",
@@ -197,6 +380,43 @@ export class ExportJobManager {
       updatedAt: this.clock(),
     };
     return this.saveAndEmit(cancelled, ["status"]);
+  }
+
+  async cancelJobForProject(identity: ExportJobProjectIdentity, jobId: string): Promise<ExportJobSnapshot> {
+    this.getJobForProject(identity, jobId);
+    return this.cancelJob(jobId);
+  }
+
+  verifyJobOutputForProject(identity: ExportJobProjectIdentity, jobId: string): ExportJobVerification {
+    const job = this.getJobForProject(identity, jobId);
+    const base = {
+      jobId: job.id,
+      verificationLevel: "export_job_output" as const,
+      contentDecoded: false as const,
+      status: job.status,
+      manifestIntegrity: job.manifestIntegrity,
+    };
+    if (job.manifestIntegrity === "legacy_incomplete") {
+      return { ...base, verified: false, code: "legacy_incomplete_manifest" };
+    }
+    if (job.status !== "succeeded" || !job.result) {
+      return { ...base, verified: false, code: `export_${job.status}` };
+    }
+    try {
+      const result = normalizeSuccessfulResult(job, job.result);
+      return {
+        ...base,
+        verified: true,
+        bytes: result.bytes,
+        durationMs: result.durationMs ?? null,
+      };
+    } catch (error) {
+      return {
+        ...base,
+        verified: false,
+        code: error instanceof ExportJobOutputError ? error.code : "output_verification_failed",
+      };
+    }
   }
 
   onEvent(listener: (event: ExportJobEvent) => void): () => void {
@@ -251,7 +471,8 @@ export class ExportJobManager {
   private hydrateProject(projectDir: string): void {
     const resolvedProjectDir = path.resolve(projectDir);
     this.projectDirs.add(resolvedProjectDir);
-    for (const job of this.store.loadRecentJobs(resolvedProjectDir)) {
+    for (const storedJob of this.store.loadRecentJobs(resolvedProjectDir)) {
+      const job = normalizeHydratedSnapshot(storedJob);
       if (this.jobs.has(job.id)) continue; // 本会话已在跟踪，别用磁盘旧态覆盖
       if (isActive(job.status)) {
         // 上个进程崩溃/退出残留的孤儿 active job：本实例并未在跑它，却会永久占用
@@ -272,6 +493,11 @@ export class ExportJobManager {
       error: { message: "Export interrupted by app restart" },
       updatedAt: this.clock(),
     };
+    if (job.projectIdentity === null) {
+      this.jobs.set(failed.id, failed);
+      this.projectDirs.add(path.resolve(failed.projectDir));
+      return;
+    }
     this.saveAndEmit(failed, ["status", "error"]);
   }
 }

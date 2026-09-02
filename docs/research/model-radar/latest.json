@@ -3,15 +3,7 @@
     {
       "vendor": "kie",
       "total": 142,
-      "added": [
-        {
-          "vendor": "kie",
-          "category": "video",
-          "slug": "google/gemini-omni-flash-1-1",
-          "title": "Gemini Omni 1.1 Flash",
-          "url": "https://docs.kie.ai/market/google/gemini-omni-flash-1-1.md"
-        }
-      ],
+      "added": [],
       "removed": [],
       "uncovered": [
         {
@@ -41,13 +33,6 @@
           "slug": "flux2/flex-text-to-image",
           "title": "Flux-2 - Text to Image",
           "url": "https://docs.kie.ai/market/flux2/flex-text-to-image.md"
-        },
-        {
-          "vendor": "kie",
-          "category": "image",
-          "slug": "grok-imagine-image-2-0/segment-map",
-          "title": "Grok Imagine Image 2.0 Segment Map",
-          "url": "https://docs.kie.ai/market/grok-imagine-image-2-0/segment-map.md"
         },
         {
           "vendor": "kie",
@@ -472,13 +457,6 @@
         {
           "vendor": "kie",
           "category": "video",
-          "slug": "google/gemini-omni-flash-1-1",
-          "title": "Gemini Omni 1.1 Flash",
-          "url": "https://docs.kie.ai/market/google/gemini-omni-flash-1-1.md"
-        },
-        {
-          "vendor": "kie",
-          "category": "video",
           "slug": "gemini-omni-video",
           "title": "Gemini Omni Video",
           "url": "https://docs.kie.ai/market/gemini-omni-video.md"
@@ -564,7 +542,7 @@
     },
     {
       "vendor": "apimart",
-      "total": 127,
+      "total": 128,
       "added": [],
       "removed": [],
       "uncovered": [
@@ -878,13 +856,6 @@
         },
         {
           "vendor": "apimart",
-          "category": "video",
-          "slug": "gemini-omni-flash-preview",
-          "title": "Gemini Omni Flash Video Generation",
-          "url": "https://docs.apimart.ai/en/api-reference/videos/gemini-omni-flash-preview/generation.md"
-        },
-        {
-          "vendor": "apimart",
           "category": "audio",
           "slug": "tts",
           "title": "TTS Text-to-Speech",
@@ -896,13 +867,6 @@
           "slug": "flow-music/music",
           "title": "Generate Music",
           "url": "https://docs.apimart.ai/en/api-reference/audios/flow-music/music.md"
-        },
-        {
-          "vendor": "apimart",
-          "category": "audio",
-          "slug": "flow-music/music-lyria-3-5",
-          "title": "Lyria 3.5 Generate Music",
-          "url": "https://docs.apimart.ai/en/api-reference/audios/flow-music/music-lyria-3-5.md"
         },
         {
           "vendor": "apimart",
@@ -1015,13 +979,6 @@
           "slug": "suno/inspo",
           "title": "Inspiration generation (inspo)",
           "url": "https://docs.apimart.ai/en/api-reference/audios/suno/inspo.md"
-        },
-        {
-          "vendor": "apimart",
-          "category": "audio",
-          "slug": "suno/sounds",
-          "title": "Sound effect generation",
-          "url": "https://docs.apimart.ai/en/api-reference/audios/suno/sounds.md"
         },
         {
           "vendor": "apimart",

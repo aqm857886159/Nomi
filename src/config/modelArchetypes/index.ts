@@ -1,82 +1,56 @@
 import type { ModelParameterControl } from "../modelCatalogMeta";
-import { SEEDANCE_2_ARCHETYPE } from "./seedance";
+// Video archetypes are defined in electron/shared/videoCapabilities (canonical home,
+// shared with main-process planning). The renderer takes the whole video set from that
+// single barrel's registry (sourceBackedVideoProfiles) instead of naming each profile —
+// adding a video model touches the electron side only (profile file + registry line);
+// this file does not change (二期档案归一：清双登记，35 个 video 档案不再手列第二份).
+import { sourceBackedVideoProfiles } from "../../../electron/shared/videoCapabilities";
 import { HUNYUAN3D_ARCHETYPE } from "./hunyuan3d";
 import { HITEM3D_ARCHETYPE } from "./hitem3d";
 import { MESHY6_ARCHETYPE } from "./meshy6";
-import { RUNNINGHUB_SEEDANCE_ARCHETYPE } from "./runninghubSeedance";
-import { RUNNINGHUB_VIDEO_ARCHETYPES } from "./runninghubVideoArchetypes";
 import { RUNNINGHUB_IMAGE_ARCHETYPES } from "./runninghubImageArchetypes";
-import { HAPPYHORSE_ARCHETYPE } from "./happyhorse";
-import { MINIMAX_H3_ARCHETYPE } from "./minimaxH3";
-import { SEEDANCE_2_5_ARCHETYPE } from "./seedance25";
 import { GPT_IMAGE_2_ARCHETYPE } from "./gptImage2";
 import { SEEDREAM_ARCHETYPE } from "./seedream";
 import { NANO_BANANA_ARCHETYPE } from "./nanoBanana";
 import { NANO_BANANA_2_ARCHETYPE, NANO_BANANA_2_LITE_ARCHETYPE } from "./nanoBanana2";
 import { KIE_SEEDREAM_5_LITE_ARCHETYPE, KIE_SEEDREAM_5_PRO_ARCHETYPE } from "./kieSeedream5";
 import { FLUX_2_PRO_ARCHETYPE } from "./flux2Pro";
-import { KLING_3_ARCHETYPE } from "./kling";
 import { QWEN_IMAGE_ARCHETYPE } from "./qwenImage";
 import { QWEN_IMAGE_3_ARCHETYPE } from "./qwenImage3";
 import { IMAGEN_4_ARCHETYPE } from "./imagen4";
 import { Z_IMAGE_ARCHETYPE } from "./zImage";
-import { SORA_2_ARCHETYPE } from "./sora2";
-import { VEO_3_1_ARCHETYPE } from "./veo31";
-import { WAN_2_7_ARCHETYPE } from "./wan27";
-import { WAN_3_0_ARCHETYPE } from "./wan30";
-import { WAN_3_0_APIMART_ARCHETYPE } from "./wan30Apimart";
-import { HAILUO_2_3_ARCHETYPE } from "./hailuo23";
-import { GROK_IMAGINE_1_5_VIDEO_ARCHETYPE } from "./grokImagine15Video";
-import { SEEDANCE_2_APIMART_ARCHETYPE } from "./seedanceApimart";
-import { SEEDANCE_2_5_APIMART_ARCHETYPE } from "./seedance25Apimart";
-import { MINIMAX_H3_APIMART_ARCHETYPE } from "./minimaxH3Apimart";
-import { MINIMAX_H3_REGENERATION_ARCHETYPE } from "./minimaxH3Regeneration";
-import { VIDU_Q3_ARCHETYPE } from "./viduQ3";
-import { KLING_3_TURBO_ARCHETYPE } from "./kling30Turbo";
-import { HAPPYHORSE_1_1_ARCHETYPE } from "./happyhorse11";
 import { SEEDREAM_5_PRO_ARCHETYPE } from "./seedream5Pro";
-import { OMNI_FLASH_EXT_ARCHETYPE } from "./omniFlashExt";
 import { AUDIO_ARCHETYPE } from "./audioArchetype";
 import { DOUBAO_TTS_ARCHETYPE } from "./doubaoTtsArchetype";
 import { SEED_TTS_ARCHETYPE } from "./seedTtsArchetype";
 import { MODELSCOPE_IMAGE_ARCHETYPE, MODELSCOPE_IMAGE_EDIT_ARCHETYPE } from "./modelscopeImage";
 import { SEEDREAM_VOLCENGINE_ARCHETYPE } from "./seedreamVolcengine";
 import { SEEDREAM_VOLCENGINE_5_PRO_ARCHETYPE } from "./seedreamVolcengine5Pro";
-import { SEEDANCE_VOLCENGINE_ARCHETYPE } from "./seedanceVolcengine";
-import { SEEDANCE_VOLCENGINE_2_5_ARCHETYPE } from "./seedanceVolcengine25";
-import { DREAMINA_SEEDANCE_ARCHETYPE } from "./dreaminaSeedance";
 import { DREAMINA_IMAGE_ARCHETYPE } from "./dreaminaImage";
 import { DREAMINA_UPSCALE_ARCHETYPE } from "./dreaminaUpscale";
-import { DREAMINA_MULTIFRAME_ARCHETYPE } from "./dreaminaMultiframe";
 import { AGNES_IMAGE_ARCHETYPE, AGNES_IMAGE_21_ARCHETYPE } from "./agnesImage";
-import { AGNES_VIDEO_ARCHETYPE, AGNES_VIDEO_25_ARCHETYPE, AGNES_VIDEO_25_FLASH_ARCHETYPE } from "./agnesVideo";
 import { ANTIGRAVITY_IMAGE_ARCHETYPE } from "./antigravityImage";
 import { CODEX_IMAGEGEN_ARCHETYPE } from "./codexImagegen";
 import { SUNO_V55_ARCHETYPE, SUNO_SFX_V55_ARCHETYPE } from "./sunoAudio";
 import { LYRIA_35_ARCHETYPE } from "./lyria35";
-import { GEMINI_OMNI_11_ARCHETYPE } from "./geminiOmni11";
 import { MINIMAX_SPEECH_28_ARCHETYPE } from "./minimaxSpeech28";
-import { ELEVEN_MUSIC_V2_ARCHETYPE, ELEVEN_SCRIBE_V2_ARCHETYPE, ELEVEN_SFX_V2_ARCHETYPE, ELEVEN_V3_ARCHETYPE } from "./elevenAudio";
+import { ELEVEN_MULTILINGUAL_V2_ARCHETYPE, ELEVEN_MUSIC_V2_ARCHETYPE, ELEVEN_SCRIBE_V2_ARCHETYPE, ELEVEN_SFX_V2_ARCHETYPE, ELEVEN_V3_ARCHETYPE } from "./elevenAudio";
 import { MESHY_7_ARCHETYPE } from "./meshy7";
-import { MINIMAX_H3_MAX_ARCHETYPE } from "./minimaxH3Max";
 import { MINIMAX_MUSIC_3_ARCHETYPE } from "./minimaxMusic3";
-import { RUNWAY_GEN45_ARCHETYPE } from "./runwayGen45";
-import { RUNWAY_GEN4_TURBO_ARCHETYPE } from "./runwayGen4Turbo";
-import { RUNWAY_VIDEO_ARCHETYPE, RUNWAY_VIDEO_T2V_ARCHETYPE } from "./runwayVideo";
-import { RUNWAY_IMAGE_ARCHETYPE, RUNWAY_IMAGE_REFERENCE_ARCHETYPE } from "./runwayImage";
-import { RUNWAY_AUDIO_ARCHETYPE } from "./runwayAudio";
+import { RUNWAY_NATIVE_IMAGE_ARCHETYPES } from "./runwayNativeImage";
+import { RUNWAY_SEED_AUDIO_ARCHETYPE } from "./runwaySeedAudio";
 import type { ModelArchetype } from "./types";
 import { customCapabilityArchetypeForModel } from "./customCapabilityContract";
 
 export type { ModelArchetype, ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind, ArchetypeExpressionChannel, ArchetypeIntent, ArchetypeTransportTaskKind, ModelArchetypeVariant } from "./types";
-export { recommendVideoGeneration } from "./videoGenerationRecommendation";
+export { modeTransportFor, recommendVideoGeneration } from "../../../electron/shared/videoCapabilities";
 export type {
   VideoGenerationRecommendation,
   VideoGenerationRecommendationInput,
   VideoGenerationRecommendationResult,
   VideoModelCandidate,
   VideoReferenceInput,
-} from "./videoGenerationRecommendation";
+} from "../../../electron/shared/videoCapabilities";
 export {
   CUSTOM_CAPABILITY_CONTRACT_META_KEY,
   CUSTOM_CAPABILITY_CONTRACT_VERSION,
@@ -86,8 +60,20 @@ export {
 } from "./customCapabilityContract";
 export type { CustomCapabilityContractV1, CustomCapabilityModeV1 } from "./customCapabilityContract";
 
-/** 内置档案注册表。新模型族在这里登记一条。 */
-export const MODEL_ARCHETYPES: readonly ModelArchetype[] = [SEEDANCE_2_ARCHETYPE, SEEDANCE_2_5_ARCHETYPE, MINIMAX_H3_ARCHETYPE, MINIMAX_H3_MAX_ARCHETYPE, MINIMAX_MUSIC_3_ARCHETYPE, MINIMAX_SPEECH_28_ARCHETYPE, ELEVEN_V3_ARCHETYPE, ELEVEN_MUSIC_V2_ARCHETYPE, ELEVEN_SFX_V2_ARCHETYPE, ELEVEN_SCRIBE_V2_ARCHETYPE, MESHY_7_ARCHETYPE, RUNWAY_GEN45_ARCHETYPE, RUNWAY_GEN4_TURBO_ARCHETYPE, RUNWAY_VIDEO_ARCHETYPE, RUNWAY_VIDEO_T2V_ARCHETYPE, RUNWAY_IMAGE_REFERENCE_ARCHETYPE, RUNWAY_IMAGE_ARCHETYPE, RUNWAY_AUDIO_ARCHETYPE, HAPPYHORSE_ARCHETYPE, GPT_IMAGE_2_ARCHETYPE, SEEDREAM_ARCHETYPE, KIE_SEEDREAM_5_PRO_ARCHETYPE, KIE_SEEDREAM_5_LITE_ARCHETYPE, NANO_BANANA_2_ARCHETYPE, NANO_BANANA_2_LITE_ARCHETYPE, NANO_BANANA_ARCHETYPE, FLUX_2_PRO_ARCHETYPE, KLING_3_ARCHETYPE, QWEN_IMAGE_3_ARCHETYPE, QWEN_IMAGE_ARCHETYPE, IMAGEN_4_ARCHETYPE, Z_IMAGE_ARCHETYPE, SORA_2_ARCHETYPE, VEO_3_1_ARCHETYPE, WAN_2_7_ARCHETYPE, WAN_3_0_ARCHETYPE, WAN_3_0_APIMART_ARCHETYPE, HAILUO_2_3_ARCHETYPE, GROK_IMAGINE_1_5_VIDEO_ARCHETYPE, GEMINI_OMNI_11_ARCHETYPE, SEEDANCE_2_APIMART_ARCHETYPE, SEEDANCE_2_5_APIMART_ARCHETYPE, MINIMAX_H3_APIMART_ARCHETYPE, MINIMAX_H3_REGENERATION_ARCHETYPE, VIDU_Q3_ARCHETYPE, KLING_3_TURBO_ARCHETYPE, HAPPYHORSE_1_1_ARCHETYPE, SEEDREAM_5_PRO_ARCHETYPE, OMNI_FLASH_EXT_ARCHETYPE, AUDIO_ARCHETYPE, SUNO_V55_ARCHETYPE, SUNO_SFX_V55_ARCHETYPE, LYRIA_35_ARCHETYPE, DOUBAO_TTS_ARCHETYPE, SEED_TTS_ARCHETYPE, MODELSCOPE_IMAGE_ARCHETYPE, MODELSCOPE_IMAGE_EDIT_ARCHETYPE, SEEDREAM_VOLCENGINE_ARCHETYPE, SEEDREAM_VOLCENGINE_5_PRO_ARCHETYPE, SEEDANCE_VOLCENGINE_ARCHETYPE, SEEDANCE_VOLCENGINE_2_5_ARCHETYPE, DREAMINA_SEEDANCE_ARCHETYPE, DREAMINA_IMAGE_ARCHETYPE, DREAMINA_UPSCALE_ARCHETYPE, DREAMINA_MULTIFRAME_ARCHETYPE, CODEX_IMAGEGEN_ARCHETYPE, ANTIGRAVITY_IMAGE_ARCHETYPE, HUNYUAN3D_ARCHETYPE, HITEM3D_ARCHETYPE, MESHY6_ARCHETYPE, RUNNINGHUB_SEEDANCE_ARCHETYPE, ...RUNNINGHUB_VIDEO_ARCHETYPES, ...RUNNINGHUB_IMAGE_ARCHETYPES, AGNES_IMAGE_ARCHETYPE, AGNES_IMAGE_21_ARCHETYPE, AGNES_VIDEO_ARCHETYPE, AGNES_VIDEO_25_ARCHETYPE, AGNES_VIDEO_25_FLASH_ARCHETYPE];
+/**
+ * 内置档案注册表。登记处按 kind 分家（一功能一个家）：
+ * - video → electron/shared/videoCapabilities/registry.ts 的 SOURCE_BACKED_PROFILES（唯一登记点，
+ *   渲染层整块派生，不再手列第二份——接一个 video 模型只碰 electron 侧：档案文件 + registry 一行）；
+ * - image / audio / 3D → 本文件下方的非 video 列表登记一条。
+ * 顺序即三趟身份匹配的同趟决胜顺序（见 resolveBaseArchetype）；video 块的顺序就是 registry
+ * 声明序——渲染层与 registry 平局判据共用同一份决胜序，同一身份串两侧永远同一个赢家
+ * （2026-09-02 修复 "veo3.1" 同串双身份后不再有任何 legacy pin）。跨档案同串的赢家由
+ * resolutionOrder.test.ts 锁死，重排/新增若翻转任何赢家该测试即红。
+ */
+export const MODEL_ARCHETYPES: readonly ModelArchetype[] = [
+  ...sourceBackedVideoProfiles(),
+  MINIMAX_MUSIC_3_ARCHETYPE, MINIMAX_SPEECH_28_ARCHETYPE, ELEVEN_V3_ARCHETYPE, ELEVEN_MULTILINGUAL_V2_ARCHETYPE, ELEVEN_MUSIC_V2_ARCHETYPE, ELEVEN_SFX_V2_ARCHETYPE, ELEVEN_SCRIBE_V2_ARCHETYPE, MESHY_7_ARCHETYPE, ...RUNWAY_NATIVE_IMAGE_ARCHETYPES, RUNWAY_SEED_AUDIO_ARCHETYPE, GPT_IMAGE_2_ARCHETYPE, SEEDREAM_ARCHETYPE, KIE_SEEDREAM_5_PRO_ARCHETYPE, KIE_SEEDREAM_5_LITE_ARCHETYPE, NANO_BANANA_2_ARCHETYPE, NANO_BANANA_2_LITE_ARCHETYPE, NANO_BANANA_ARCHETYPE, FLUX_2_PRO_ARCHETYPE, QWEN_IMAGE_3_ARCHETYPE, QWEN_IMAGE_ARCHETYPE, IMAGEN_4_ARCHETYPE, Z_IMAGE_ARCHETYPE, SEEDREAM_5_PRO_ARCHETYPE, AUDIO_ARCHETYPE, SUNO_V55_ARCHETYPE, SUNO_SFX_V55_ARCHETYPE, LYRIA_35_ARCHETYPE, DOUBAO_TTS_ARCHETYPE, SEED_TTS_ARCHETYPE, MODELSCOPE_IMAGE_ARCHETYPE, MODELSCOPE_IMAGE_EDIT_ARCHETYPE, SEEDREAM_VOLCENGINE_ARCHETYPE, SEEDREAM_VOLCENGINE_5_PRO_ARCHETYPE, DREAMINA_IMAGE_ARCHETYPE, DREAMINA_UPSCALE_ARCHETYPE, CODEX_IMAGEGEN_ARCHETYPE, ANTIGRAVITY_IMAGE_ARCHETYPE, HUNYUAN3D_ARCHETYPE, HITEM3D_ARCHETYPE, MESHY6_ARCHETYPE, ...RUNNINGHUB_IMAGE_ARCHETYPES, AGNES_IMAGE_ARCHETYPE, AGNES_IMAGE_21_ARCHETYPE,
+];
 
 /** 按 id 取档案。 */
 export function getArchetypeById(id: string | null | undefined): ModelArchetype | null {

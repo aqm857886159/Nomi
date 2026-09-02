@@ -9,22 +9,28 @@ import { runDirectionPlanner } from '../generationCanvas/agent/runDirectionPlann
 import { productionScriptSessionKey } from '../ai/agentSessionKey'
 import { runSingleShotAgent } from '../ai/agentLoopMode'
 import { useWorkbenchStore } from '../workbenchStore'
-import { mintSpendGrant } from '../api/taskApi'
-import { resolveAutonomousUploadConsent, runGenerationNode } from '../generationCanvas/runner/generationRunController'
 import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStoryboardToTimeline'
-import { exportTimelineToMp4 } from '../export/exportApi'
+import { createTimelineExportManifest } from '../export/exportApi'
+import { exportTimelineToWebm } from '../export/timelineWebmExport'
 import { verifyShotsAndReport, isShotVerifyEnabled } from '../generationCanvas/agent/shotVerifyStore'
 import { isAnchorFrozen, isVisualAnchorNode } from '../generationCanvas/model/anchorBibleKeys'
 import { assertDraftFilmReady, draftFilmTimelineFromState } from '../preview/timelineSubtitleTransitionContract'
-import {
-  parseStoryboardPlan,
-  storyboardPlanToCreateNodesArgs,
-} from '../generationCanvas/agent/storyboardPlan'
+import { parseStoryboardPlan, storyboardPlanToCreateNodesArgs } from '../generationCanvas/agent/storyboardPlan'
 import { resolveStoryboardImageDefault, resolveStoryboardVideoDefault } from '../generationCanvas/agent/availableModels'
 import { applyCanvasToolCall, resolveCanvasToolNodeId } from '../generationCanvas/agent/applyCanvasToolCall'
-import { generationCanvasTools } from '../generationCanvas/agent/generationCanvasTools'
-import { hasGenerationBinding } from '../../../electron/capabilityCore/generationBindingGuard'
+import { generationCanvasTools, readGenerationCanvasSnapshot } from '../generationCanvas/agent/generationCanvasTools'
+import { captureCanvasReadResult } from '../generationCanvas/agent/canvasReadResultSeal'
+import {
+  captureCurrentProjectCanvasReadSurfaceBinding,
+  sealCurrentProjectCanvasReadSnapshot,
+} from '../project/projectCanvasReadSurface'
+import {
+  SurfacePortWireError,
+  type CapturedCanvasReadSnapshotHandleWire,
+} from '../../../electron/shared/surfacePortBinding'
 import { handleMultiShotCanvasLandingOp } from './multiShotCanvasLanding'
+import { executeTimelineReadTarget, executeTimelineWriteTarget } from '../timeline/agent/timelineCapabilityTarget'
+import { executeAssetReadTarget, executeExportReadTarget } from '../timeline/agent/phase4CapabilityTargets'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。
@@ -66,21 +72,6 @@ type GenerationGateConfirmPayload = {
   shots?: MultiShotGatePayload
 }
 
-export class LegacyPathForbiddenError extends Error {
-  readonly code = 'legacy_path_forbidden' as const
-
-  constructor() {
-    super('legacy_path_forbidden')
-    this.name = 'LegacyPathForbiddenError'
-  }
-}
-
-/** Pure renderer-side firewall for the direct legacy generation bridge. */
-export function assertLegacyGenerationPayload(payload: Record<string, unknown>): void {
-  if (!hasGenerationBinding(payload)) return
-  throw new LegacyPathForbiddenError()
-}
-
 function describeIntent(intent: string | undefined): string {
   const normalized = String(intent || '')
   if (normalized === 'image' || normalized === 'video' || normalized === 'audio' || normalized === 'text') {
@@ -97,30 +88,31 @@ async function runProductionTextPlanner(input: {
   outputFormat?: 'script' | 'storyboard'
 }): Promise<string> {
   const projectId = input.projectId || ''
-  const prompt = input.outputFormat === 'storyboard'
-    ? [
-        '你是分镜规划师。请根据下面的原分镜方案和修改要求，输出一份完整、可执行的 StoryboardPlan JSON。',
-        '只输出 JSON，不要 Markdown、解释或代码围栏。必须包含 title、anchors、shots；每个 shot 必须包含 index、durationSec、anchorIds、prompt。',
-        '允许的 shot 字段：shotId、shotKind(image|video)、durationSec、anchorIds、prompt、modelKey、modeId、params、ffDesc、motionDesc、lfDesc、subtitle、dialogue、variationType(large|medium|small)、camIdx、continuity、transition({type:cut|dissolve|fade|match_cut|whip_pan,durationFrames?})、keyframe。',
-        `修改要求：${input.instruction || '保持原方案，只修正明显问题。'}`,
-        '原分镜方案：',
-        input.source || '',
-      ].join('\n')
-    : input.instruction
-    ? [
-        '你是短视频编剧。请在不改变事实的前提下，按修改要求改写下面的稿件。',
-        `修改要求：${input.instruction}`,
-        '原稿：',
-        input.source || input.goal || '',
-        '只输出改写后的完整稿件，不要解释。',
-      ].join('\n')
-    : [
-        '你是短视频编剧。请把下面的创作简报写成一份可审阅的完整初稿。',
-        '要求：有明确开场、发展、转折和结尾；每镜写清画面、动作、声音/对白和字幕；不要编造简报没有的产品事实。',
-        '创作简报：',
-        input.goal || '',
-        '只输出稿件正文，不要解释。',
-      ].join('\n')
+  const prompt =
+    input.outputFormat === 'storyboard'
+      ? [
+          '你是分镜规划师。请根据下面的原分镜方案和修改要求，输出一份完整、可执行的 StoryboardPlan JSON。',
+          '只输出 JSON，不要 Markdown、解释或代码围栏。必须包含 title、anchors、shots；每个 shot 必须包含 index、durationSec、anchorIds、prompt。',
+          '允许的 shot 字段：shotId、shotKind(image|video)、durationSec、anchorIds、prompt、modelKey、modeId、params、ffDesc、motionDesc、lfDesc、subtitle、dialogue、variationType(large|medium|small)、camIdx、continuity、transition({type:cut|dissolve|fade|match_cut|whip_pan,durationFrames?})、keyframe。',
+          `修改要求：${input.instruction || '保持原方案，只修正明显问题。'}`,
+          '原分镜方案：',
+          input.source || '',
+        ].join('\n')
+      : input.instruction
+        ? [
+            '你是短视频编剧。请在不改变事实的前提下，按修改要求改写下面的稿件。',
+            `修改要求：${input.instruction}`,
+            '原稿：',
+            input.source || input.goal || '',
+            '只输出改写后的完整稿件，不要解释。',
+          ].join('\n')
+        : [
+            '你是短视频编剧。请把下面的创作简报写成一份可审阅的完整初稿。',
+            '要求：有明确开场、发展、转折和结尾；每镜写清画面、动作、声音/对白和字幕；不要编造简报没有的产品事实。',
+            '创作简报：',
+            input.goal || '',
+            '只输出稿件正文，不要解释。',
+          ].join('\n')
   // Ephemeral single-shot text planning never clears a UI conversation.
   const response = await runSingleShotAgent({
     featureKey: productionScriptSessionKey(projectId),
@@ -186,9 +178,13 @@ async function confirmSpendForAgent(info: SpendConfirmPayload): Promise<{ confir
  * 逐镜清单 + 固定 footer + 试拍/返回修改，P1 不造并行卡）；无 `shots` → 走今日扁平单镜卡（字节不动）。
  * 试拍/返回修改经回调回传：`{ confirmed:false, trialFirst:true }`。缩到首镜 + 重封存 + 重发 gate = S4。
  */
-async function confirmGenerationGateForAgent(info: GenerationGateConfirmPayload): Promise<{ confirmed: boolean; trialFirst?: boolean; challengeId?: string }> {
-  const withChallenge = <T extends Record<string, unknown>>(base: T) =>
-    ({ ...base, ...(info.challengeId ? { challengeId: info.challengeId } : {}) })
+async function confirmGenerationGateForAgent(
+  info: GenerationGateConfirmPayload,
+): Promise<{ confirmed: boolean; trialFirst?: boolean; challengeId?: string }> {
+  const withChallenge = <T extends Record<string, unknown>>(base: T) => ({
+    ...base,
+    ...(info.challengeId ? { challengeId: info.challengeId } : {}),
+  })
 
   // ── 多镜路径（S3a 用户可见 UI）──
   if (info.shots && Array.isArray(info.shots.shots) && info.shots.shots.length > 0) {
@@ -214,8 +210,12 @@ async function confirmGenerationGateForAgent(info: GenerationGateConfirmPayload)
       // 倒计时时长随镜数伸缩：每镜 +8s，封顶 5 分钟（交互即暂停，见 SpendConfirmDialog）。
       countdownMs: Math.min(300_000, 60_000 + payload.shots.length * 8_000),
       contract,
-      onTrialFirst: () => { trialFirst = true },
-      onBackToEdit: () => { backToEdit = true },
+      onTrialFirst: () => {
+        trialFirst = true
+      },
+      onBackToEdit: () => {
+        backToEdit = true
+      },
     })
     // 试拍/返回修改都不算确认；只有试拍需要给主进程一个「缩到首镜重发」的信号（S4 落地）。
     void backToEdit
@@ -223,10 +223,12 @@ async function confirmGenerationGateForAgent(info: GenerationGateConfirmPayload)
   }
 
   // ── 单镜路径（今日形态，字节不动；单镜 E2E 是回归门）──
-  const model = typeof info.model === 'string' && info.model.trim() ? info.model.trim() : i18n.t('runtime.capability.defaultModel')
-  const shot = typeof info.shotSummary === 'string' && info.shotSummary.trim()
-    ? info.shotSummary.trim()
-    : i18n.t('runtime.capability.generationGateShotFallback')
+  const model =
+    typeof info.model === 'string' && info.model.trim() ? info.model.trim() : i18n.t('runtime.capability.defaultModel')
+  const shot =
+    typeof info.shotSummary === 'string' && info.shotSummary.trim()
+      ? info.shotSummary.trim()
+      : i18n.t('runtime.capability.generationGateShotFallback')
   const maximumCost = Number.isFinite(info.maximumCost) ? Number(info.maximumCost) : 0
   const cost = `${typeof info.currency === 'string' ? info.currency : ''}${maximumCost}`
   const ok = await useSpendConfirmStore.getState().requestConfirm({
@@ -237,9 +239,13 @@ async function confirmGenerationGateForAgent(info: GenerationGateConfirmPayload)
     source: 'agent',
     countdownMs: 60_000,
     details: [
-      ...(info.projectName ? [{ label: i18n.t('runtime.capability.generationGateProject'), value: info.projectName }] : []),
+      ...(info.projectName
+        ? [{ label: i18n.t('runtime.capability.generationGateProject'), value: info.projectName }]
+        : []),
       { label: i18n.t('runtime.capability.generationGateModel'), value: model },
-      ...(Number.isInteger(info.referenceCount) ? [{ label: i18n.t('runtime.capability.generationGateReferences'), value: String(info.referenceCount) }] : []),
+      ...(Number.isInteger(info.referenceCount)
+        ? [{ label: i18n.t('runtime.capability.generationGateReferences'), value: String(info.referenceCount) }]
+        : []),
       { label: i18n.t('runtime.capability.generationGateCost'), value: cost },
       ...(info.expiresAt ? [{ label: i18n.t('runtime.capability.generationGateExpires'), value: info.expiresAt }] : []),
     ],
@@ -266,7 +272,10 @@ async function confirmPlanForAgent(info: PlanConfirmPayload): Promise<{ confirme
     countdownMs: 60_000,
     details: [
       ...(projectName ? [{ label: i18n.t('runtime.capability.project'), value: projectName }] : []),
-      { label: i18n.t('runtime.capability.planNodeCount'), value: i18n.t('runtime.capability.planNodeCountValue', { count }) },
+      {
+        label: i18n.t('runtime.capability.planNodeCount'),
+        value: i18n.t('runtime.capability.planNodeCountValue', { count }),
+      },
       ...(preview ? [{ label: i18n.t('runtime.capability.planIncludes'), value: preview }] : []),
     ],
   })
@@ -324,7 +333,6 @@ async function verifyShotsForProduction(shotNodeIds: readonly string[]): Promise
 /** 处理一条主进程转发来的能力操作。未知操作抛错（主进程会把错误透传给 agent）。 */
 export async function handleCapabilityApply(op: string, payload: unknown): Promise<unknown> {
   const data = (payload && typeof payload === 'object' ? payload : {}) as Record<string, unknown>
-  if (op === 'production.generate-node') assertLegacyGenerationPayload(data)
   const projectId = typeof data.projectId === 'string' ? data.projectId : ''
   const activeId = getActiveWorkbenchProjectId()
   // 画布读写**只能**作用于当前打开的项目（动 store → 必须是活动项目，否则串台）；目标≠活动 → 拒。
@@ -333,8 +341,24 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   if (op !== 'spend.confirm' && op !== 'plan.confirm' && projectId && activeId && projectId !== activeId) {
     throw new Error(i18n.t('runtime.capability.projectChanged'))
   }
-  const plannerSnapshot = op === 'production.plan-storyboard' ? generationCanvasTools.read_canvas() : null
+  const plannerSnapshot =
+    op === 'production.plan-storyboard'
+      ? captureCanvasReadResult({
+          ...readGenerationCanvasSnapshot(),
+          // Production planning is document-scoped. A transient UI selection
+          // must not make the prompt and the main-sealed read target disagree.
+          selectedNodeIds: [],
+        })
+      : null
   const plannerFeatureKey = `nomi:production-planner:${projectId || 'local'}:${typeof data.runId === 'string' ? data.runId : 'unbound'}:${typeof data.operationId === 'string' ? data.operationId : op}`
+  let plannerCapturedCanvasReadSnapshot: CapturedCanvasReadSnapshotHandleWire | null = null
+  if (plannerSnapshot) {
+    const plannerBinding = captureCurrentProjectCanvasReadSurfaceBinding()
+    if (!plannerBinding) throw new SurfacePortWireError('surface_port_unavailable')
+    // This is production submission's first await. Main seals A's exact safe
+    // bytes before unrelated landing work can yield and the UI can switch to B.
+    plannerCapturedCanvasReadSnapshot = await sealCurrentProjectCanvasReadSnapshot(plannerBinding, plannerSnapshot)
+  }
 
   // P4 S5 画布落地（materialize-shots / attach-shot-result）——受上面的活动项目守卫约束（只动当前项目 store），
   // 落点住在 multiShotCanvasLanding（保持本 handler 精简）。未处理返回 null → 继续走下方 switch。
@@ -353,38 +377,92 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       return confirmGenerationGateForAgent(data as GenerationGateConfirmPayload)
     case 'plan.confirm':
       return confirmPlanForAgent(data as PlanConfirmPayload)
+    case 'timeline.read': {
+      const operation = data.operation === 'range' ? 'inspect_timeline_range' : 'read_timeline'
+      return executeTimelineReadTarget(
+        operation === 'read_timeline'
+          ? { operation }
+          : {
+              operation,
+              startFrame: data.startFrame,
+              endFrame: data.endFrame,
+            } as Parameters<typeof executeTimelineReadTarget>[0],
+      )
+    }
+    case 'timeline.write': {
+      if (data.operation === 'preview') {
+        const plan = data.plan && typeof data.plan === 'object' && !Array.isArray(data.plan) ? data.plan as Record<string, unknown> : {}
+        return executeTimelineReadTarget({ operation: 'propose_edit_plan', ...plan } as Parameters<typeof executeTimelineReadTarget>[0])
+      }
+      const signal = new AbortController().signal
+      const plan = data.plan && typeof data.plan === 'object' && !Array.isArray(data.plan) ? data.plan as Record<string, unknown> : {}
+      const input = data.operation === 'undo'
+        ? { operation: 'undo_timeline_edit', undoToken: data.undoToken, expectedRevision: data.expectedRevision, ...(typeof data.reason === 'string' ? { reason: data.reason } : {}) }
+        : { operation: 'apply_edit_plan', ...plan }
+      const revision = data.operation === 'undo' && typeof data.expectedRevision === 'string'
+        ? data.expectedRevision
+        : typeof plan.baseRevision === 'string' ? plan.baseRevision : ''
+      return executeTimelineWriteTarget({
+        input: input as Parameters<typeof executeTimelineWriteTarget>[0]['input'],
+        target: { kind: 'timeline', clipIds: [] },
+        preconditions: { timeline: { revision } },
+        receiptProposalId: typeof data.receiptProposalId === 'string' ? data.receiptProposalId : 'mcp-edit:renderer',
+        approvalId: typeof data.approvalId === 'string' ? data.approvalId : 'mcp-host:renderer',
+        actionHash: typeof data.actionHash === 'string' ? data.actionHash : 'mcp-action:renderer',
+        signal,
+        assertCurrent: () => undefined,
+      })
+    }
+    case 'asset.read': {
+      const operation = data.operation === 'list' ? 'search_media' : data.operation === 'get' ? 'get_media' : data.operation === 'inspect' ? 'inspect_media' : data.operation === 'source_range' ? 'inspect_source_range' : data.operation === 'waveform' ? 'read_waveform' : 'search_media'
+      return executeAssetReadTarget({
+        input: { operation, ...data, ...(operation === 'search_media' && !data.query ? { query: '' } : {}) },
+        target: { kind: 'asset', assetIds: typeof data.assetId === 'string' ? [data.assetId] : [] },
+      })
+    }
+    case 'export.read': {
+      const operation = data.operation === 'verify' ? 'verify_render' : 'inspect_export_job'
+      return executeExportReadTarget({ input: { operation, jobId: data.jobId }, target: { kind: 'export', jobId: data.jobId } })
+    }
     case 'production.plan-directions': {
       // B1 方向门：driver 停在 awaiting_direction 时让渲染层拟 2-3 个「创意方向」候选（三选一）。
       // 走无工具的一次性文本链路（runDirectionPlanner），语言跟随 brief。失败冒泡给 driver 走
       // gate title/summary 兜底——不静默编造候选（诚实降级）。
-      const brief = data.brief && typeof data.brief === 'object' && !Array.isArray(data.brief)
-        ? data.brief as Record<string, unknown>
-        : {}
-      const playbook = data.playbook && typeof data.playbook === 'object' && !Array.isArray(data.playbook)
-        ? data.playbook as Record<string, unknown>
-        : null
+      const brief =
+        data.brief && typeof data.brief === 'object' && !Array.isArray(data.brief)
+          ? (data.brief as Record<string, unknown>)
+          : {}
+      const playbook =
+        data.playbook && typeof data.playbook === 'object' && !Array.isArray(data.playbook)
+          ? (data.playbook as Record<string, unknown>)
+          : null
       return runDirectionPlanner({ brief, playbook, projectId })
     }
     case 'production.plan-script': {
-      const brief = data.brief && typeof data.brief === 'object' && !Array.isArray(data.brief)
-        ? data.brief as Record<string, unknown>
-        : {}
+      const brief =
+        data.brief && typeof data.brief === 'object' && !Array.isArray(data.brief)
+          ? (data.brief as Record<string, unknown>)
+          : {}
       const lines = [
         typeof brief.goal === 'string' ? `目标：${brief.goal}` : '',
         typeof brief.audience === 'string' ? `受众：${brief.audience}` : '',
         typeof brief.channel === 'string' ? `渠道：${brief.channel}` : '',
         typeof brief.tone === 'string' ? `调性：${brief.tone}` : '',
         typeof brief.durationSeconds === 'number' ? `时长：约 ${brief.durationSeconds} 秒` : '',
-        Array.isArray(brief.sellingPoints) ? `卖点：${brief.sellingPoints.filter((value): value is string => typeof value === 'string').join('、')}` : '',
+        Array.isArray(brief.sellingPoints)
+          ? `卖点：${brief.sellingPoints.filter((value): value is string => typeof value === 'string').join('、')}`
+          : '',
       ].filter(Boolean)
       return { text: await runProductionTextPlanner({ projectId, goal: lines.join('\n') }) }
     }
     case 'production.revise-script': {
-      return { text: await runProductionTextPlanner({
-        projectId,
-        instruction: typeof data.instruction === 'string' ? data.instruction : '',
-        source: typeof data.sourceContent === 'string' ? data.sourceContent : '',
-      }) }
+      return {
+        text: await runProductionTextPlanner({
+          projectId,
+          instruction: typeof data.instruction === 'string' ? data.instruction : '',
+          source: typeof data.sourceContent === 'string' ? data.sourceContent : '',
+        }),
+      }
     }
     case 'production.revise-storyboard': {
       const revised = await runProductionTextPlanner({
@@ -400,21 +478,24 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       const fenced = revised.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)?.[1]
       const candidate = fenced || revised.trim()
       const parsed = JSON.parse(candidate) as unknown
-      const plan = parsed && typeof parsed === 'object' && !Array.isArray(parsed) && 'plan' in parsed
-        ? (parsed as Record<string, unknown>).plan
-        : parsed
+      const plan =
+        parsed && typeof parsed === 'object' && !Array.isArray(parsed) && 'plan' in parsed
+          ? (parsed as Record<string, unknown>).plan
+          : parsed
       return { plan: parseStoryboardPlan(plan) }
     }
     case 'production.plan-storyboard': {
-      const brief = data.brief && typeof data.brief === 'object' && !Array.isArray(data.brief)
-        ? data.brief as Record<string, unknown>
-        : {}
+      const brief =
+        data.brief && typeof data.brief === 'object' && !Array.isArray(data.brief)
+          ? (data.brief as Record<string, unknown>)
+          : {}
       const result = await runStoryboardPlanner({
         target: 'production',
         history: { kind: 'ephemeral' },
         projectId,
         featureKey: plannerFeatureKey,
         snapshot: plannerSnapshot!,
+        capturedCanvasReadSnapshot: plannerCapturedCanvasReadSnapshot!,
         canWrite: () => true,
         storyText: typeof brief.goal === 'string' ? brief.goal : '',
         skill: { key: 'brand.promo', name: '品牌宣传片' },
@@ -430,10 +511,11 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       // real Zustand mutation/edge wiring/layout. The service performs all
       // project/run/version/provenance checks before this operation is reached.
       const plan = parseStoryboardPlan(data.plan)
-      const materializationOperationId = typeof data.materializationOperationId === 'string'
-        && /^[A-Za-z0-9._:-]{1,240}$/.test(data.materializationOperationId)
-        ? data.materializationOperationId
-        : undefined
+      const materializationOperationId =
+        typeof data.materializationOperationId === 'string' &&
+        /^[A-Za-z0-9._:-]{1,240}$/.test(data.materializationOperationId)
+          ? data.materializationOperationId
+          : undefined
       const [imageDefault, videoDefault] = await Promise.all([
         resolveStoryboardImageDefault(),
         resolveStoryboardVideoDefault(),
@@ -464,24 +546,27 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
         : args.nodes
       let applied: { createdNodeIds?: unknown; clientIdToNodeId?: unknown; connectedCount?: unknown }
       if (!hasExistingOperationNodes) {
-        applied = await applyCanvasToolCall('create_canvas_nodes', args) as typeof applied
+        applied = (await applyCanvasToolCall('create_canvas_nodes', args)) as typeof applied
       } else if (missingNodes.length > 0) {
         const missingAnchorCount = missingNodes.reduce((count, node) => {
           const plannedIndex = args.nodes.indexOf(node)
           return count + (plannedIndex >= 0 && plannedIndex < args.anchorCount ? 1 : 0)
         }, 0)
-        applied = await applyCanvasToolCall('create_canvas_nodes', {
+        applied = (await applyCanvasToolCall('create_canvas_nodes', {
           ...args,
           nodes: missingNodes,
           edges: [],
           anchorCount: missingAnchorCount,
-        }) as typeof applied
+        })) as typeof applied
       } else {
         applied = { createdNodeIds: [], clientIdToNodeId: {}, connectedCount: 0 }
       }
-      const rawClientIdToNodeId = applied?.clientIdToNodeId && typeof applied.clientIdToNodeId === 'object' && !Array.isArray(applied.clientIdToNodeId)
-        ? applied.clientIdToNodeId as Record<string, unknown>
-        : {}
+      const rawClientIdToNodeId =
+        applied?.clientIdToNodeId &&
+        typeof applied.clientIdToNodeId === 'object' &&
+        !Array.isArray(applied.clientIdToNodeId)
+          ? (applied.clientIdToNodeId as Record<string, unknown>)
+          : {}
       const clientIdToNodeId: Record<string, string> = {
         ...Object.fromEntries(existingByClientId.entries()),
         ...Object.entries(rawClientIdToNodeId).reduce<Record<string, string>>((out, [clientId, nodeId]) => {
@@ -489,25 +574,33 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
           return out
         }, {}),
       }
-      const edgeResult = args.edges.length > 0
-        && hasExistingOperationNodes
-        ? generationCanvasTools.connect_nodes(args.edges.map((edge) => ({
-            source: clientIdToNodeId[edge.sourceClientId] || resolveCanvasToolNodeId(edge.sourceClientId),
-            target: clientIdToNodeId[edge.targetClientId] || resolveCanvasToolNodeId(edge.targetClientId),
-            ...(edge.mode ? { mode: edge.mode } : {}),
-          })))
-        : { connected: 0 }
+      const edgeResult =
+        args.edges.length > 0 && hasExistingOperationNodes
+          ? generationCanvasTools.connect_nodes(
+              args.edges.map((edge) => ({
+                source: clientIdToNodeId[edge.sourceClientId] || resolveCanvasToolNodeId(edge.sourceClientId),
+                target: clientIdToNodeId[edge.targetClientId] || resolveCanvasToolNodeId(edge.targetClientId),
+                ...(edge.mode ? { mode: edge.mode } : {}),
+              })),
+            )
+          : { connected: 0 }
       const nodeById = new Map(useGenerationCanvasStore.getState().nodes.map((node) => [node.id, node]))
       const bindings = args.nodes
         .map((created) => {
           const mapped = clientIdToNodeId[created.clientId]
-          const nodeId = typeof mapped === 'string' && mapped.trim() ? mapped : resolveCanvasToolNodeId(created.clientId)
+          const nodeId =
+            typeof mapped === 'string' && mapped.trim() ? mapped : resolveCanvasToolNodeId(created.clientId)
           const node = nodeById.get(nodeId)
           const meta = node?.meta as Record<string, unknown> | undefined
           return {
             nodeId,
             stageId: 'generate',
-            provider: typeof meta?.modelVendor === 'string' ? meta.modelVendor : typeof meta?.vendor === 'string' ? meta.vendor : '',
+            provider:
+              typeof meta?.modelVendor === 'string'
+                ? meta.modelVendor
+                : typeof meta?.vendor === 'string'
+                  ? meta.vendor
+                  : '',
             model: typeof meta?.modelKey === 'string' ? meta.modelKey : '',
             ...(created.metadata ? { metadata: created.metadata } : {}),
           }
@@ -517,27 +610,12 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
         createdNodeIds: args.nodes
           .map((created) => clientIdToNodeId[created.clientId])
           .filter((value): value is string => typeof value === 'string' && Boolean(value.trim())),
-        connectedCount: hasExistingOperationNodes ? edgeResult.connected : (typeof applied?.connectedCount === 'number' ? applied.connectedCount : 0),
+        connectedCount: hasExistingOperationNodes
+          ? edgeResult.connected
+          : typeof applied?.connectedCount === 'number'
+            ? applied.connectedCount
+            : 0,
         bindings,
-      }
-    }
-    case 'production.generate-node': {
-      const nodeId = typeof data.nodeId === 'string' ? data.nodeId.trim() : ''
-      if (!nodeId) throw new Error('Production generation requires a node')
-      const grantId = await mintSpendGrant([nodeId], typeof data.maxAttemptsPerJob === 'number' ? data.maxAttemptsPerJob : undefined)
-      const retryDirective = typeof data.retryDirective === 'string' && data.retryDirective.trim()
-        ? data.retryDirective.trim()
-        : undefined
-      // 托管同意：外部 agent / MCP 驱动，没人坐在屏幕前——不能弹卡（会把整条自动化挂死在
-      // 一个没人点的对话框上），也不能默默把本地素材传到公共托管。交给同一个策略真相源判定：
-      // 策略允许 / KIE 已配 / 本地 ComfyUI → 放行；还需要问一次 → 诚实拒发，把「去配 KIE
-      // 或改托管策略」的人话回给 agent（见 resolveAutonomousUploadConsent）。
-      const assetUploadConsent = await resolveAutonomousUploadConsent(nodeId)
-      const result = await runGenerationNode(nodeId, { grantId, assetUploadConsent, ...(retryDirective ? { promptSuffix: retryDirective } : {}) })
-      return {
-        nodeId,
-        status: 'succeeded',
-        assets: result.url ? [{ type: result.type, url: result.url, ...(result.thumbnailUrl ? { thumbnailUrl: result.thumbnailUrl } : {}) }] : [],
       }
     }
     case 'production.arrange': {
@@ -567,8 +645,9 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       // W2 冻结门：driver 提交任何镜头前，问渲染层「本 run 的画布上有哪些视觉锚（角色/场景/道具卡）还没冻结」。
       // 读画布 store 的 node.meta.frozen（判据走 anchorBibleKeys 单一镜像，与 headless/GUI 依赖波次同语义）。
       // 只回未冻结的那些（nodeId + 标题）；driver 据此设冻结门 waiting 或放行（全冻结 → 空数组 → 放行）。
-      const unfrozenAnchors = useGenerationCanvasStore.getState().nodes
-        .filter((node) => isVisualAnchorNode(node) && !isAnchorFrozen(node))
+      const unfrozenAnchors = useGenerationCanvasStore
+        .getState()
+        .nodes.filter((node) => isVisualAnchorNode(node) && !isAnchorFrozen(node))
         .map((node) => ({ nodeId: node.id, ...(node.title && node.title.trim() ? { title: node.title.trim() } : {}) }))
       return { unfrozenAnchors }
     }
@@ -582,14 +661,33 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       if (typeof data.runId === 'string' && data.runId.trim()) {
         assertDraftFilmReady(draftFilmTimelineFromState(state.timeline))
       }
-      const result = await exportTimelineToMp4({
+      const { manifest } = createTimelineExportManifest({
         projectId: project,
         timeline: state.timeline,
         aspectRatio: state.previewAspectRatio,
         generationNodes: useGenerationCanvasStore.getState().nodes,
-        outputName: typeof data.outputName === 'string' ? data.outputName : undefined,
       })
-      return { relativePath: result.relativePath, size: result.size }
+      return { manifest }
+    }
+    case 'production.capture-export': {
+      const project = typeof data.projectId === 'string' ? data.projectId : ''
+      const state = useWorkbenchStore.getState()
+      if (typeof data.runId === 'string' && data.runId.trim()) {
+        assertDraftFilmReady(draftFilmTimelineFromState(state.timeline))
+      }
+      const { timeline } = createTimelineExportManifest({
+        projectId: project,
+        timeline: state.timeline,
+        aspectRatio: state.previewAspectRatio,
+        generationNodes: useGenerationCanvasStore.getState().nodes,
+      })
+      const webm = await exportTimelineToWebm({
+        timeline,
+        aspectRatio: state.previewAspectRatio,
+        width: 1920,
+        autoDownload: false,
+      })
+      return { webmBytes: await webm.arrayBuffer() }
     }
     default:
       throw new Error(i18n.t('runtime.capability.unknownOperation', { operation: op }))

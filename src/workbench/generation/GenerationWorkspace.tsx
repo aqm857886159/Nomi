@@ -6,6 +6,7 @@ import { cn } from '../../utils/cn'
 import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
 import { useWorkbenchStore } from '../workbenchStore'
 import TimelineMiniPreview from '../timeline/TimelineMiniPreview'
+import TimelineResizeHandle from '../timeline/TimelineResizeHandle'
 
 const TimelinePanel = lazyWithChunkBoundary(
   'i18n:generationCommon.workspace.timelineChunk',
@@ -15,8 +16,8 @@ import { computeTimelineDuration } from '../timeline/timelineMath'
 
 type GenerationWorkspaceProps = {
   canvas: React.ReactNode
-  aiSidebar?: React.ReactNode
-  aiLayout?: 'sidebar' | 'overlay'
+  aiCollapsed?: boolean
+  agentDockRef?: React.Ref<HTMLDivElement>
 }
 
 const ASSISTANT_LAYOUT_SPRING = {
@@ -28,8 +29,8 @@ const ASSISTANT_LAYOUT_SPRING = {
 
 export default function GenerationWorkspace({
   canvas,
-  aiSidebar,
-  aiLayout = 'sidebar',
+  aiCollapsed = false,
+  agentDockRef,
 }: GenerationWorkspaceProps): JSX.Element {
   const { t } = useTranslation()
   const width = useWorkbenchStore((s) => s.assistantWidth)
@@ -37,6 +38,7 @@ export default function GenerationWorkspace({
   const timeline = useWorkbenchStore((s) => s.timeline)
   const reduceMotion = useReducedMotion()
   const timelineCollapsed = useWorkbenchStore((state) => state.timelinePanelCollapsed)
+  const timelineHeight = useWorkbenchStore((state) => state.timelinePanelHeight)
   const setTimelineCollapsed = useWorkbenchStore((state) => state.setTimelinePanelCollapsed)
   // 折叠态悬浮把手的真实摘要：段数（含字幕/标题卡）+ 总时长，绝不编造。
   const timelineSummary = React.useMemo(() => {
@@ -74,32 +76,35 @@ export default function GenerationWorkspace({
     }
   }, [])
   const assistantTargetWidth = `${width}px`
-  const assistantColumnWidth = aiSidebar && aiLayout === 'sidebar' ? assistantTargetWidth : '0px'
-  const isDockedAssistant = Boolean(aiSidebar) && aiLayout === 'sidebar'
+  const hasAssistant = Boolean(agentDockRef)
+  const assistantColumnWidth = hasAssistant ? (aiCollapsed ? '0px' : assistantTargetWidth) : '0px'
+  const isDockedAssistant = hasAssistant
   const workspaceStyle = {
     '--generation-assistant-width': assistantColumnWidth,
     '--generation-assistant-target-width': assistantTargetWidth,
     gridTemplateColumns: isDockedAssistant ? 'minmax(0,1fr) var(--generation-assistant-width)' : 'minmax(0,1fr)',
-    gridTemplateRows: `minmax(0,1fr) ${timelineCollapsed ? '0px' : 'var(--workbench-timeline-height)'}`,
+    gridTemplateRows: `minmax(0,1fr) ${timelineCollapsed ? '0px' : `${timelineHeight}px`}`,
+    '--workbench-timeline-height': `${timelineHeight}px`,
   } as React.CSSProperties & {
     '--generation-assistant-width': string
     '--generation-assistant-target-width': string
+    '--workbench-timeline-height': string
   }
 
   return (
     <motion.section
       className={cn(
         'workbench-generation',
+        'relative',
         'grid grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--workbench-timeline-height)]',
         'w-full h-full overflow-hidden bg-[var(--workbench-bg)]',
-        aiSidebar && aiLayout === 'overlay' && 'relative',
       )}
       style={workspaceStyle}
       initial={false}
       animate={{ '--generation-assistant-width': assistantColumnWidth } as Record<string, string>}
       transition={reduceMotion ? { duration: 0 } : ASSISTANT_LAYOUT_SPRING}
-      data-has-ai={aiSidebar ? 'true' : 'false'}
-      data-ai-layout={aiSidebar ? aiLayout : 'none'}
+      data-has-ai={hasAssistant ? 'true' : 'false'}
+      data-ai-layout={hasAssistant ? (aiCollapsed ? 'overlay' : 'sidebar') : 'none'}
       aria-label={t('generationCommon.workspace.aria')}
     >
       <div
@@ -140,21 +145,19 @@ export default function GenerationWorkspace({
         {/* 时间轴展开时的迷你画面窗：跟播放头，治画布上盲剪（收起态自持久化）。 */}
         {timelineCollapsed ? null : <TimelineMiniPreview />}
       </div>
-      {aiSidebar ? (
+      {hasAssistant ? (
         <aside
           className={cn(
             'workbench-generation__ai relative',
-            'grid min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)]',
-            aiLayout === 'overlay'
-              // 收起态胶囊置右上角（2026-08-08 飞书反馈「Nomi 生成按钮和创作框重叠」）：
-              // 浮层落画布右上，与编辑器框不重叠，遮挡面最小。
-              ? 'absolute top-4 right-4 z-[80] block w-auto h-auto border-0 bg-transparent pointer-events-auto'
-              : 'justify-items-end border-l border-l-[var(--workbench-border)] bg-[var(--workbench-surface)]',
+            'grid min-w-0 min-h-0 border-b border-[var(--workbench-border)]',
+            aiCollapsed
+              ? 'pointer-events-none absolute inset-0 z-40 overflow-visible justify-items-end border-0 bg-transparent'
+              : 'overflow-hidden justify-items-end border-l border-l-[var(--workbench-border)] bg-[var(--workbench-surface)]',
           )}
           aria-label={t('generationCommon.workspace.assistantSidebar')}
         >
           {/* 左缘拖手柄：仅停靠态显示。 */}
-          {aiLayout === 'sidebar' ? (
+          {isDockedAssistant ? (
             <div
               role="separator"
               aria-label={t('generationCommon.workspace.resizeAssistant')}
@@ -171,19 +174,22 @@ export default function GenerationWorkspace({
               <span className={cn('h-8 w-[3px] rounded-full bg-nomi-ink-30 group-hover:bg-nomi-accent')} />
             </div>
           ) : null}
-          {aiSidebar}
+          <div ref={agentDockRef} className="h-full w-full min-w-0 min-h-0" />
         </aside>
       ) : null}
       <div className={cn('workbench-generation__timeline', 'relative col-span-full min-w-0 min-h-0')}>
         {timelineCollapsed ? null : (
-          <React.Suspense fallback={null}>
-            <TimelinePanel
-              density="compact"
-              regionLabel={t('generationCommon.workspace.timelineChunk')}
-              actionLabelPrefix={t('generationCommon.workspace.timelineActionPrefix')}
-              onCollapse={() => setTimelineCollapsed(true)}
-            />
-          </React.Suspense>
+          <>
+            <TimelineResizeHandle />
+            <React.Suspense fallback={null}>
+              <TimelinePanel
+                density="compact"
+                regionLabel={t('generationCommon.workspace.timelineChunk')}
+                actionLabelPrefix={t('generationCommon.workspace.timelineActionPrefix')}
+                onCollapse={() => setTimelineCollapsed(true)}
+              />
+            </React.Suspense>
+          </>
         )}
       </div>
     </motion.section>

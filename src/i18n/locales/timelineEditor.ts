@@ -4,16 +4,9 @@ export const zhTimelineEditor = {
   defaultSubtitleText: '字幕文字',
   arranged: '已把 {{count}} 个镜头按镜序排进时间轴',
   noShots: '生成区还没有镜头——先去生成区生成几个镜头再拼片',
-  alreadyArranged: '镜头都已在时间轴上了',
-  arrangeCta: {
-    message: '有 {{count}} 个镜头可拼成初稿',
-    action: '一键拼成初稿',
-    chooseStoryboard: '有多个分镜方案，请先选择要剪辑的分镜',
-  },
   storyboardScopeRequired: '请先在“创作”中选中要剪辑的分镜方案',
   selectedClipActions: '选中片段操作',
   regenerate: '重新生成这个镜头',
-  regenerateHint: '重新生成这个镜头（就地重出、贴回原位；改 prompt/参数请去画布节点）',
   nudgeEarlier: '向前微调片段',
   duplicateClip: '复制片段',
   nudgeLater: '向后微调片段',
@@ -82,11 +75,17 @@ export const zhTimelineEditor = {
     },
   },
   track: {
-    audioOnly: '只有音频素材能放到音频轨',
     unavailable: '这里暂时不能放置素材',
     emptyAudio: '从素材库拖入音频当配乐',
     emptyVisual: '从生成区拖入素材',
     placeAt: '放到 {{timecode}}',
+    // rail*Label = 轨道左侧固定宽标签列（--workbench-timeline-label-width，112px，标尺/播放头都按它对齐）
+    //   里显示的短名，几何约束：必须塞得进这列，不能靠加宽列来容纳（那会牵动整条轴的内容起点与标尺对齐）。
+    // *Label（不带 rail 前缀）= 句子里用的描述名（如 wrongType「…需要放到{{track}}」），要读得通顺。
+    //   中文两者恰好同字；英文分开——rail 用 Images/Videos/Audio（进得了 112px 列），句子用 Image track/… 更自然。
+    railImageLabel: '图片轨',
+    railVideoLabel: '视频轨',
+    railAudioLabel: '音频轨',
     imageLabel: '图片轨',
     videoLabel: '视频轨',
     audioLabel: '音频轨',
@@ -139,7 +138,6 @@ export const zhTimelineEditor = {
     confirmUndo: '确认撤销',
     undoing: '正在撤销',
     undone: '已撤销',
-    undoFailedDetail: '撤销失败，请先检查时间轴是否已改变。',
     untitledPlan: '未命名的时间轴改动',
     operations: {
       move: '将 {{clip}} 移动到第 {{frame}} 帧',
@@ -163,17 +161,9 @@ export const enTimelineEditor = {
   defaultSubtitleText: 'Subtitle text',
   arranged: 'Arranged {{count}} shots on the timeline in shot order',
   noShots: 'There are no shots in Generation yet. Generate a few shots before arranging.',
-  alreadyArranged: 'All shots are already on the timeline',
-  arrangeCta: {
-    message: '{{count}} shots ready to assemble into a draft',
-    action: 'Assemble draft',
-    chooseStoryboard: 'Choose which storyboard design to edit first',
-  },
   storyboardScopeRequired: 'Select the storyboard design to edit in Creation first',
   selectedClipActions: 'Selected clip actions',
   regenerate: 'Regenerate this shot',
-  regenerateHint:
-    'Regenerate this shot in place and keep its timeline position. Edit prompts and parameters on the canvas node.',
   nudgeEarlier: 'Nudge clip earlier',
   duplicateClip: 'Duplicate clip',
   nudgeLater: 'Nudge clip later',
@@ -242,11 +232,15 @@ export const enTimelineEditor = {
     },
   },
   track: {
-    audioOnly: 'Only audio assets can be placed on the audio track',
     unavailable: 'This asset cannot be placed here yet',
     emptyAudio: 'Drag audio from Assets to use as music',
     emptyVisual: 'Drag media from Generation',
     placeAt: 'Place at {{timecode}}',
+    // rail*Label: short names for the fixed-width rail column (112px); must fit without widening it.
+    // *Label (no rail prefix): descriptive names used inside sentences (e.g. wrongType), kept readable.
+    railImageLabel: 'Images',
+    railVideoLabel: 'Videos',
+    railAudioLabel: 'Audio',
     imageLabel: 'Image track',
     videoLabel: 'Video track',
     audioLabel: 'Audio track',
@@ -299,7 +293,6 @@ export const enTimelineEditor = {
     confirmUndo: 'Confirm undo',
     undoing: 'Undoing',
     undone: 'Undone',
-    undoFailedDetail: 'Undo failed. Check whether the timeline has changed.',
     untitledPlan: 'Untitled timeline edit',
     operations: {
       move: 'Move {{clip}} to frame {{frame}}',

@@ -1,0 +1,103 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-unwired-stale-skill-resource-test",
+  "problem_type": "A test that no runner executes claims coverage it never provided, and its hand-copied floor assertion hides that it never ran",
+  "symptom": "tests/ux/mcp-skills-integration.e2e.mjs 里写着 `assert(list.resources.length >= 20)`，被登记为「技能资源面的手抄下限，技能目录一收束就会重演落后」。实查后发现更根本的问题：**它根本没在跑**——全仓对该文件的引用只有它自己的头注释（「用法：pnpm run build && node tests/ux/...」），不在 package.json、不在 tests/system/profiles.mjs、不在任何 workflow、也不被任何 glob 拉起。同时它的断言已按面收敛前的形态过期：期望裸 uri `nomi-skill://director-cinematography`（现已内容寻址为 `nomi-skill://<dir>/<packageVersion>/<contentHash>`），文件头还写着「23 个技能」而仓内实际捆绑 33 个。",
+  "direct_cause": "该文件被当作「手动跑的集成测试」写下并留在 tests/ux 下，从未接进任何套件；此后 MCP 面收敛（#359）与技能资源内容寻址 cutover 都没有触及它，因为没有任何门岗会执行它。",
+  "class_root": "验证资产的存在不等于验证在发生。一份从不执行的测试是**负资产**：它在目录里、在代码搜索里、在 review 时都表现得像覆盖，于是抑制了别人补真覆盖的动机，而它自身对任何回归的检出力是零。这与 2026-09-02 的另外两次是同一族——门岗与它要守的真相源脱钩：那两次是「断言手抄了派生值」和「守它的 job 不由真相源触发」，这次是更极端的一档：**根本没有任何 job 会触发它**。`>= 20` 这类手抄下限进一步掩盖了这一点——它永远不会红，所以「一直绿」和「从来没跑」在观感上无法区分。",
+  "generality_proof": "判据可机械化：tests/ 下的可执行 e2e 入口（有 main/顶层执行且带 .e2e.mjs 后缀）必须被至少一个 package.json script 或 profile 引用，否则它提供的是覆盖的外观而非覆盖本身。本次实查发现该目录下同族文件 mcp-l1-handshake.e2e.mjs 被 package.json 的 test:mcp-journey 引用并因此在面收敛时被正确更新——同一目录、同一形态、同一次收敛，一个跟上一个没跟上，差别只在是否被某个 script 引用。",
+  "affected_population": [
+    "依赖 MCP resources/prompts 面（技能库对外暴露）的用户：该面的 list/read/渐进披露/未知资源报错在收敛后从未被真实验证过",
+    "读代码判断覆盖度的人：该文件的存在让「技能资源面有集成测试」看起来成立，实际为零检出力，抑制了补真覆盖的动机",
+    "后续任何修改技能可见性或资源 uri 形态的贡献者：没有任何门岗会因他们的改动而红"
+  ],
+  "scope_paths": [
+    "tests/ux/mcp-skills-integration.e2e.mjs",
+    "package.json"
+  ],
+  "entry_points": [
+    "pnpm run test:mcp-journey（本次把该 e2e 接入的入口，与 MCP 面同触发面）",
+    "MCP stdio 服务的 resources/list、resources/read、prompts/list 三个方法",
+    "electron/skills/skillStore.ts 的 listSkillSummariesForMcp（技能可见集合的产品侧真相）"
+  ],
+  "invariants": [
+    "签名客户端下，resources/list 暴露的 nomi-skill:// 资源集合，必须与仓内 skills/ 下带 SKILL.md 的目录集合完全相等——期望值从目录 derive，不是手抄的数量下限。",
+    "resources/list 里的非技能资源必须恰为 live-draft widget 一条，使「资源总数」不再是一个没人能解释的数字。",
+    "技能正文必须按 resources/list 返回的内容寻址 uri 读取，不得依赖收敛前的裸 uri。",
+    "该 e2e 必须被 package.json 的 test:mcp-journey 引用，与 MCP 面同触发面执行；未被任何 script 引用的 e2e 等于不存在。"
+  ],
+  "regression_tests": [
+    "tests/ux/mcp-skills-integration.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/mcp-skills-integration.e2e.mjs"
+  ],
+  "shared_boundaries": [
+    {
+      "path": "package.json",
+      "symbol": "test:mcp-journey",
+      "responsibility": "MCP 面 e2e 的唯一执行入口。技能资源面与协议握手面都挂在这里，从而与 MCP 源码改动同触发面；新增 MCP 面 e2e 必须从这里接入，否则不会被执行。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/mcp-skills-integration.e2e.mjs",
+      "entry_point": "技能资源面 e2e（本次修复对象）",
+      "disposition": "enforced",
+      "evidence": "已接入 test:mcp-journey 并对真 stdio 服务实跑通过：10 条断言全绿，`resources/list 恰好暴露仓内全部 33 个技能（集合相等，非手抄下限）`。R17 反向对照已实跑：往期望集合里塞一个不存在的技能名，断言立刻红并精确输出「缺少 [zzz-skill-that-should-not-exist]」，还原后转绿——证明该断言非空转。"
+    },
+    {
+      "path": "tests/ux/mcp-l1-handshake.e2e.mjs",
+      "entry_point": "同目录同形态的 MCP 协议握手 e2e",
+      "disposition": "not-affected",
+      "evidence": "实查 package.json：它已被 test:mcp-journey 引用，因此在 #359 面收敛时被正确更新（文件内可见 `面收敛：nomi_add_nodes → nomi_canvas_edit` 等迁移注释）。它构成本次类根因判断的对照组——同一目录、同一形态、同一次收敛，被引用的跟上了，没被引用的落后了。"
+    },
+    {
+      "path": "tests/ux/packaged-mcp-smoke.e2e.mjs",
+      "entry_point": "打包后 MCP smoke（技能资源面的另一处覆盖）",
+      "disposition": "not-affected",
+      "evidence": "已由 dist:mac:dir 引用并在 2026-09-02-stale-hand-copied-surface-baseline 一轮中迁移到收敛后的面并实跑通过。它覆盖签名/未签名两支的技能可见性，与本文件覆盖的 prompts/list 命名、渐进披露、未知资源报错互补而不重复，故两者都保留。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "package.json",
+    "invariant": "MCP 面的 e2e 全部经 test:mcp-journey 执行；该 script 是 MCP 面 e2e 的唯一入口，因此「写了但没接」在这里可见。",
+    "failure_mode": "违反时，e2e 文件留在 tests/ux 下但没有任何 runner 执行它：它看起来像覆盖、搜索得到、review 时被当作已有保障，实际检出力为零；配上 `>= N` 这类永不变红的手抄下限，「一直绿」与「从来没跑」在观感上无法区分，回归可以无限期潜伏。",
+    "strategy": "把该 e2e 接入 test:mcp-journey，使其与 MCP 面同触发面执行；同时把它的期望集合从仓内 skills/ 目录 derive、把资源读取改为按返回的内容寻址 uri，使它在被执行之后确实具备检出力，而不是被接进来之后变成一个恒绿的摆设。",
+    "exception_policy": "none",
+    "artifacts": [
+      "package.json",
+      "tests/ux/mcp-skills-integration.e2e.mjs"
+    ]
+  },
+  "residual_risks": [
+    "本轮把「未被引用的 e2e」这一类的防护落在 test:mcp-journey 这个集中入口上，而不是新增一个「扫 tests/ 下所有 e2e 是否被引用」的静态门岗。后者能覆盖全仓，但需要先判定哪些文件是可执行入口、哪些是被 import 的 helper 或 fixture，误判成本高；本轮刻意不造这个轮子（R20），代价是其它目录若再出现未接线的 e2e 仍需人工发现。",
+    "期望集合按「skills/ 下带 SKILL.md 的目录」derive。若将来技能来源扩展（例如从远端拉取或用户安装目录参与 MCP 暴露），该 derive 会与实际不符而误红。当前 spawnMcpStdioClient 使用隔离的 settings/capability 目录，用户技能不参与，故成立；来源扩展时需同步改这里的真相源。",
+    "该 e2e 需要 dist-electron 构建产物（assertBuilt），因此只能在 journey 触发面执行，无法下沉到 contracts 阶段。这意味着纯 MCP 源码改动仍要等 journey 面才会红，而不是 contracts 面——本轮不改这一层，因为它需要 Electron 真进程，无法在不构建的前提下跑。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同族在 2026-09-02 一天内出现第三次：交付账本的全局聚合计数、quality-gate 的并发分组键、packaged smoke 的手抄工具面下限，本次是同族里最极端的一档——门岗与真相源不只是触发面错位，而是根本没有任何 job 会触发它。且它具备结构性防护（把 MCP 面 e2e 收敛到 test:mcp-journey 这个唯一入口），故按 recurring 提交。",
+    "same_class_scan": [
+      "对 tests/ux/mcp-skills-integration.e2e.mjs 做全仓引用反查（grep 全树，排除 node_modules/.git）：命中仅为它自己的头注释与本轮之前写下的根因合同引用，无任何 script/profile/workflow 引用；对照 mcp-l1-handshake.e2e.mjs 则命中 package.json:104 的 test:mcp-journey。据此确认「未接线」而非「接线了但没触发」。",
+      "排除 glob 拉起的可能：检查 package.json、tests/system/profiles.mjs、scripts/*.mjs 与 quality-gate.yml 中所有涉及 tests/ux 的写法，e2e 均为逐文件显式调用，无通配批量执行；check-walkthroughs.mjs 虽扫 189 份走查，但它是静态质量检查、不执行测试。",
+      "实测该文件除了手抄下限外还有两处按收敛前形态写的断言（裸 uri 读取、未签名身份却期望内部创作技能），进一步证明它长期未被执行——若跑过，这两处会立刻红。",
+      "R17 反向对照已实跑：往期望集合塞入不存在的技能名 → 断言红并精确指名；还原 → 10 条全绿。另对身份校验做过一次对照，发现伪造 proof 时服务直接拒绝启动（'A verified MCP client connection is required'），说明该 stdio 入口强制要求已验证客户端，故未签名分支不由本测试覆盖，而由 packaged smoke 的 external 分支覆盖。"
+    ]
+  },
+  "internal_only_reason": "本修复完全位于仓库内部的测试接线与断言，不涉及外部 API 或第三方文档契约。所依据的事实（引用关系、技能目录内容、资源 uri 形态、身份校验行为）均直接在本仓实测取得，并以真 Electron stdio 进程实跑验证。",
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/mcp-skills-integration.e2e.mjs"
+    ],
+    "rationale": "旧路径即该文件中手抄的 `resources.length >= 20` 下限、按收敛前形态写的裸 uri 读取、以及自建的一套 spawn/rpc 管道。三者在同一 commit 内被删除：下限由与 skills/ 目录集合相等的断言取代，裸 uri 由按 resources/list 返回的内容寻址 uri 读取取代，自建管道由共享的 _mcpJourney.mjs helper 取代（该 helper 的基础 env 已自带已验证客户端身份，故不再自行 seed 一遍，避免并行版）。文件本身保留并接入执行链。"
+    },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本修复不涉及任何依赖版本或运行时生命周期变更，只改动一份 e2e 的断言与其在 package.json 中的接线。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。test:mcp-journey 现在依次执行协议握手与技能资源两份 e2e，两者共用同一份隔离目录与已验证客户端身份 helper，运行时间增加约一次 Electron 冷启动。该 script 属 journey 触发面，按 scripts/validation-policy.mjs 在 MCP 与 Electron 相关改动时被选中，因此技能资源面的回归此后会与 MCP 改动同批次暴露，不再等到无关 PR。"
+}

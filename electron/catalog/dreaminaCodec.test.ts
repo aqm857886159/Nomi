@@ -10,7 +10,6 @@ import {
   normalizeDreaminaOutput,
   clampDreaminaDuration,
   normalizeMultiframeResolution,
-  buildMultiframeArgs,
   parseDeviceFlow,
   parseAccountStatus,
   isNotMaestroVip,

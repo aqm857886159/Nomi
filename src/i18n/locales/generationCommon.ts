@@ -520,6 +520,8 @@ export const zhGenerationCommon = {
     deconstruct: {
       title: '视频拆解',
       close: '关闭',
+      // 入口守卫：缺桌面端拆解桥 / 没打开项目 / 没有源视频时的失败提示。
+      desktopOnly: '视频拆解需要桌面端，且要先打开项目、选好源视频',
       // 头部/取证
       resultLead: '这条视频拆成 {{count}} 个镜头 —— 勾选你想学着做的，加进画布成一组。',
       chipLocalEvidence: '本地取证据',
@@ -584,7 +586,7 @@ export const zhGenerationCommon = {
   },
   spend: {
     agentNotice: '经 AI 助手驱动 · 需你确认花费',
-    agentNoticePlan: '经 AI 助手驱动 · 需你确认落画布',
+    agentNoticePlan: '经 AI 助手驱动 · 需你确认生成',
     autoIgnore: '{{seconds}}s 后自动忽略',
     suppressSession: '本次会话不再提示',
     ignore: '忽略',
@@ -601,6 +603,7 @@ export const zhGenerationCommon = {
         image_one: '张画面', image_other: '张画面',
         video_one: '段视频', video_other: '段视频',
         audio_one: '段配音', audio_other: '段配音',
+        model3d_one: '个 3D 模型', model3d_other: '个 3D 模型',
         mixed_one: '个素材', mixed_other: '个素材',
       },
     },
@@ -701,6 +704,7 @@ export const zhGenerationCommon = {
     promptReferenceUnsupported: '当前模型不支持参考图，已只应用提示词文本',
     imageReferenceRequired: '图生图需要参考图（拖入 / 连线 / 点 +），或切回「文生图」',
     imageConnectionRequired: '图生图需要参考图：请连接图片节点或添加参考，或切回「文生图」',
+    model3dReferenceRequired: '图生 3D 需要一张参考图：连接图片节点或在参考槽添加，或切回「文生 3D」',
     unsupportedKind: '「{{kind}}」类型暂不支持直接生成',
     generating: '生成中…',
     generateReferencesFirst: '先生成参考，再生成本镜',
@@ -962,6 +966,7 @@ export const zhGenerationCommon = {
   },
   card: {
     pending: '等待生成',
+    pendingOnDemand: '未生成 · 按需生成',
     shot: '镜头 {{index}}',
     open: '打开',
     variants: '⊕{{count}} 变体',
@@ -1509,6 +1514,7 @@ export const zhGenerationCommon = {
         pending: '正在准备重拍这一镜…',
         reworked: '已生成新版本 · 完成后可切回旧版',
         reworkDeclined: '已取消，没有扣费',
+        resumeDeclined: '已取消续拍，没有新增扣费',
         noPriorAttempt: '这一镜还没生成过，先让它正常开拍',
         resumed: '已继续，接着拍剩下的镜头',
         resumePending: '正在继续…',
@@ -1572,6 +1578,7 @@ export const zhGenerationCommon = {
     approvalRequired: '该操作需用户在确认面板批准后才能执行（自动放行路径已禁用）',
     shotTitle: '镜头 {{index}}',
     shotKeyframeTitle: '镜头 {{index}} 首帧',
+    textModelHint: '通过设置里的文本模型流式生成',
     shotNotGenerated: '镜头未生成',
     videoAndKeyframeMissing: '视频与关键帧都未生成',
     videoAndPlaceholderMissing: '视频未生成且无关键帧可占位',
@@ -2108,6 +2115,8 @@ export const enGenerationCommon = {
     deconstruct: {
       title: 'Video deconstruction',
       close: 'Close',
+      // Entry guard: shown when the desktop deconstruction bridge is missing, or no project / source video is set.
+      desktopOnly: 'Video deconstruction needs the desktop app, with a project open and a source video selected',
       // Header / provenance
       resultLead: 'This video breaks into {{count}} shots — tick the ones you want to learn from and add them to the canvas as a group.',
       chipLocalEvidence: 'Local evidence',
@@ -2172,7 +2181,7 @@ export const enGenerationCommon = {
   },
   spend: {
     agentNotice: 'Started by an AI assistant · Your approval is required before spending',
-    agentNoticePlan: 'Started by an AI assistant · Your approval is required before adding to the canvas',
+    agentNoticePlan: 'Started by an AI assistant · Your approval is required before generating',
     autoIgnore: 'Auto-ignore in {{seconds}}s',
     suppressSession: 'Do not ask again this session',
     ignore: 'Ignore',
@@ -2189,6 +2198,7 @@ export const enGenerationCommon = {
         image_one: 'image', image_other: 'images',
         video_one: 'video', video_other: 'videos',
         audio_one: 'voiceover', audio_other: 'voiceovers',
+        model3d_one: '3D model', model3d_other: '3D models',
         mixed_one: 'asset', mixed_other: 'assets',
       },
     },
@@ -2288,6 +2298,8 @@ export const enGenerationCommon = {
       'Image-to-image requires a reference image (drag, connect, or click +), or switch back to text-to-image',
     imageConnectionRequired:
       'Image-to-image requires a reference image. Connect an image node, add a reference, or switch back to text-to-image',
+    model3dReferenceRequired:
+      'Image-to-3D requires a reference image. Connect an image node or add one to the reference slot, or switch back to text-to-3D',
     unsupportedKind: 'The “{{kind}}” type cannot be generated directly yet',
     generating: 'Generating…',
     generateReferencesFirst: 'Generate references before this shot',
@@ -2550,6 +2562,7 @@ export const enGenerationCommon = {
   },
   card: {
     pending: 'Waiting to generate',
+    pendingOnDemand: 'Not generated · on demand',
     shot: 'Shot {{index}}',
     open: 'Open',
     variants: '⊕{{count}} variants',
@@ -3097,6 +3110,7 @@ export const enGenerationCommon = {
         pending: 'Getting this shot ready to re-film…',
         reworked: 'New version generated · switch back to the old one anytime',
         reworkDeclined: 'Cancelled — nothing was charged',
+        resumeDeclined: 'Continuation cancelled — no additional charge',
         noPriorAttempt: 'This shot hasn\'t been generated yet — let it film first',
         resumed: 'Resumed — filming the remaining shots',
         resumePending: 'Resuming…',
@@ -3159,6 +3173,7 @@ export const enGenerationCommon = {
     approvalRequired: 'This operation requires approval in the confirmation panel; automatic approval is disabled.',
     shotTitle: 'Shot {{index}}',
     shotKeyframeTitle: 'Shot {{index}} keyframe',
+    textModelHint: 'Stream text with the model connected in Settings',
     shotNotGenerated: 'Shot not generated',
     videoAndKeyframeMissing: 'Neither the video nor its keyframe has been generated',
     videoAndPlaceholderMissing: 'The video is not generated and no keyframe is available as a placeholder',

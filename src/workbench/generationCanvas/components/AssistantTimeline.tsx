@@ -20,6 +20,8 @@ import type { ReconcileDeviation } from '../agent/reconcile'
 import type { PendingToolCallLike } from './agentPlanSummary'
 import type { WorkbenchAiMessage } from '../../ai/workbenchAiTypes'
 import { assistantTimelineIsEmpty } from './assistantTimelineState'
+import { orderAssistantTimelineEntries } from './assistantTimelineChronology'
+import type { CanvasAssistantTimelineAnchor } from '../agent/canvasAssistantTimelineAnchor'
 import {
   TimelineEditPlanCard,
   type TimelineAppliedRecord,
@@ -62,7 +64,7 @@ export type AssistantTimelineProps = {
   /** 空会话建议点击 → 发消息。 */
   onSuggestion: (text: string) => void
   /** 待确认工具调用(本组件内部折叠 create+connect 成计划步骤)。 */
-  pendingToolCalls: PendingToolCallLike[]
+  pendingToolCalls: readonly PendingToolCallLike[]
   approveCalls: (requests: { toolCallId: string; overrides?: Record<string, unknown> }[]) => void
   rejectPending: (toolCallId: string) => void
   /** 上一笔已应用提议(回执步骤)。 */
@@ -70,7 +72,7 @@ export type AssistantTimelineProps = {
   /** 对账出入(警示步骤,与 committed 互斥显示)。 */
   deviationReport: ReconcileDeviation[] | null
   /** 时序内联:对账卡锚定到本轮「卡前气泡」(与 committed 同源)。 */
-  deviationAnchorId: string | null
+  deviationAnchor: CanvasAssistantTimelineAnchor | null
   onDeviationUndo: () => void
   onDeviationDismiss: () => void
   /** 让 AI 用支持的方式重连没接上的边(完整版重设计)。 */
@@ -109,11 +111,16 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
     .filter((call) => !timelinePendingIds.has(call.toolCallId))
 
   // 活动卡(回执/出入/待确认)。每项一个竖排动作块(标题徽标 + flat 卡);anchor=它锚定到的消息 id。
-  const liveBlocks: { key: string; anchor?: string; render: () => React.ReactNode }[] = []
+  const liveBlocks: {
+    key: string
+    anchorMessageId?: string
+    anchorTextOffset?: number
+    render: () => React.ReactNode
+  }[] = []
   if (props.deviationReport) {
     liveBlocks.push({
       key: 'deviation',
-      anchor: props.deviationAnchorId ?? undefined,
+      ...props.deviationAnchor,
       render: () => (
         <div className={cn('flex flex-col gap-1')}>
           <StepHeader
@@ -134,7 +141,8 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
   } else if (props.committedProposal) {
     liveBlocks.push({
       key: `committed-${props.committedProposal.proposalId}`,
-      anchor: props.committedProposal.anchorMessageId,
+      anchorMessageId: props.committedProposal.anchorMessageId,
+      anchorTextOffset: props.committedProposal.anchorTextOffset,
       render: () => <CommittedProposalCard flat record={props.committedProposal!} />,
     })
   }
@@ -145,14 +153,14 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
   })) {
     liveBlocks.push({
       key: `timeline-preview-${preview.toolCallId}`,
-      anchor: preview.anchorMessageId,
+      anchorMessageId: preview.anchorMessageId,
       render: () => <TimelineEditPlanCard mode="preview" call={preview} result={preview.result} />,
     })
   }
   for (const call of timelinePending) {
     liveBlocks.push({
       key: `timeline-pending-${call.toolCallId}`,
-      anchor: call.anchorMessageId,
+      anchorMessageId: call.anchorMessageId,
       render: () => (
         <TimelineEditPlanCard
           mode="pending"
@@ -166,7 +174,7 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
   if (props.timelineApplied) {
     liveBlocks.push({
       key: `timeline-applied-${props.timelineApplied.planId}`,
-      anchor: props.timelineApplied.anchorMessageId,
+      anchorMessageId: props.timelineApplied.anchorMessageId,
       render: () => <TimelineEditPlanCard mode="applied" applied={props.timelineApplied!} onUndo={props.onTimelineUndo} />,
     })
   }
@@ -193,9 +201,11 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
     })
   }
   if (plan) {
+    const anchorCall = pendingToolCalls.find((call) => call.toolCallId === plan.createCallId)
     liveBlocks.push({
       key: 'plan',
-      anchor: pendingToolCalls.find((call) => call.toolCallId === plan.createCallId)?.anchorMessageId,
+      anchorMessageId: anchorCall?.anchorMessageId,
+      anchorTextOffset: anchorCall?.anchorTextOffset,
       render: () => (
         <div className={cn('flex flex-col gap-2')}>
           <StepHeader
@@ -212,7 +222,8 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
     const detail = describeToolCallDetail(call.toolName, call.args)
     liveBlocks.push({
       key: call.toolCallId,
-      anchor: call.anchorMessageId,
+      anchorMessageId: call.anchorMessageId,
+      anchorTextOffset: call.anchorTextOffset,
       render: () => (
         <div className={cn('flex flex-col gap-2')} data-tool-call-id={call.toolCallId}>
           <StepHeader
@@ -277,65 +288,66 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
     )
   }
 
-  const renderUserBubble = (message: WorkbenchAiMessage): JSX.Element => (
-    <React.Fragment key={message.id}>
+  const renderUserBubble = (message: WorkbenchAiMessage, showStaleBoundary: boolean): JSX.Element => (
+    <>
       <UserMessageBubble content={message.content} attachments={message.attachments} />
-      {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
-    </React.Fragment>
+      {showStaleBoundary ? <StaleConversationDivider /> : null}
+    </>
   )
 
-  const renderAssistantMessage = (message: WorkbenchAiMessage): JSX.Element => {
+  const renderAssistantMessage = (message: WorkbenchAiMessage, showStaleBoundary: boolean): JSX.Element => {
     // 画布无独立 streaming 状态字段:'处理中...' 哨兵 = 等首 token(pending);有真内容 = 已到 token。
-    const isPending = message.content === '处理中...' || message.content === t('generationCommon.assistant.processing')
+    const isStreaming =
+      message.status === 'pending' ||
+      message.status === 'streaming' ||
+      message.content === '处理中...' ||
+      message.content === t('generationCommon.assistant.processing')
+    const isPlaceholder =
+      message.content === '处理中...' || message.content === t('generationCommon.assistant.processing')
     // status 是错误真相源(旧 session 用「（错误）」前缀兜底)。错误分流到红色错误卡(人话+一键出路),
     // 不再当普通回复渲染。
     const isErrorMsg =
       message.status === 'error' || message.content.startsWith('（错误）') || message.content.startsWith('(Error)')
     return (
-      <React.Fragment key={message.id}>
+      <>
         {isErrorMsg ? (
           <AssistantErrorCard error={message.content} onRetry={props.onRetry} />
         ) : (
           <AssistantMessageView
-            content={isPending ? '' : message.content}
+            content={isStreaming && isPlaceholder ? '' : message.content}
             attachments={message.attachments}
-            streaming={isPending}
-            pendingLabel={isPending ? t('generationCommon.assistant.processingShort') : undefined}
+            streaming={isStreaming}
+            pendingLabel={isStreaming ? t('generationCommon.assistant.processingShort') : undefined}
             cancelled={message.status === 'cancelled'}
           />
         )}
-        {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
-      </React.Fragment>
+        {showStaleBoundary ? <StaleConversationDivider /> : null}
+      </>
     )
   }
 
-  // 时序内联:卡片按 anchor 排进消息序列——锚定到某条消息的卡紧跟该消息之后渲染,得到
-  // 「叙述 → 卡 → 总结」位置与时间一致。锚点缺失/无匹配的卡兜底排队尾(=旧行为,保安全)。
   type LiveBlock = (typeof liveBlocks)[number]
-  const messageIds = new Set(messages.map((message) => message.id))
-  const blocksByAnchor = new Map<string, LiveBlock[]>()
-  const tailBlocks: LiveBlock[] = []
-  for (const block of liveBlocks) {
-    if (block.anchor && messageIds.has(block.anchor)) {
-      const list = blocksByAnchor.get(block.anchor) ?? []
-      list.push(block)
-      blocksByAnchor.set(block.anchor, list)
-    } else {
-      tailBlocks.push(block)
-    }
-  }
-
+  const blocksByKey = new Map(liveBlocks.map((block) => [block.key, block]))
+  const chronology = orderAssistantTimelineEntries(messages, liveBlocks)
   const renderBlock = (block: LiveBlock): JSX.Element => <div key={block.key}>{block.render()}</div>
 
   return (
     <div className={cn('flex flex-1 flex-col min-h-0 overflow-auto p-4 gap-3')} data-assistant-thread="true">
-      {messages.map((message) => (
-        <React.Fragment key={`row-${message.id}`}>
-          {message.role === 'user' ? renderUserBubble(message) : renderAssistantMessage(message)}
-          {(blocksByAnchor.get(message.id) ?? []).map(renderBlock)}
-        </React.Fragment>
-      ))}
-      {tailBlocks.map(renderBlock)}
+      {chronology.map((entry) => {
+        if (entry.kind === 'block') {
+          const block = blocksByKey.get(entry.key)
+          return block ? renderBlock(block) : null
+        }
+        const message = { ...entry.message, content: entry.content }
+        const showStaleBoundary = entry.terminalSegment && entry.message.id === staleBoundaryId
+        return (
+          <React.Fragment key={entry.key}>
+            {message.role === 'user'
+              ? renderUserBubble(message, showStaleBoundary)
+              : renderAssistantMessage(message, showStaleBoundary)}
+          </React.Fragment>
+        )
+      })}
       <div ref={props.threadBottomRef} aria-hidden="true" />
     </div>
   )

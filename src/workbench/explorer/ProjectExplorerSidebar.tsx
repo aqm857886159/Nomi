@@ -128,6 +128,15 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
     return () => window.removeEventListener('nomi-open-files-panel', open)
   }, [setSidebarCollapsed])
 
+  React.useEffect(() => {
+    const open = () => {
+      setTab('skill-library')
+      setSidebarCollapsed(false)
+    }
+    window.addEventListener('nomi-open-skill-library', open)
+    return () => window.removeEventListener('nomi-open-skill-library', open)
+  }, [setSidebarCollapsed])
+
   const railItems = React.useMemo(
     () => [
       {

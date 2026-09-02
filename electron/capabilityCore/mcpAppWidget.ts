@@ -8,20 +8,18 @@
 //  - iframe 作为 MCP 客户端，用 JSON-RPC over window.parent.postMessage 与宿主通信
 //    （ui/initialize → ui/notifications/initialized；ui/notifications/size-changed；ui/open-link…）。
 //
-// 本 widget = 「Nomi 活生成」：把外部 agent 驱动的这次生成，在宿主对话里内嵌一张 Nomi 风格活面板——
-// 标题 + 逐镜缩略图（带状态徽标）+「在 Nomi 中打开」。宿主不支持该扩展时 tool 仍回文本兜底（不裸奔）。
+// 本 widget = 「Nomi 活生成」：把 ProductionRun 状态在宿主对话里内嵌成 Nomi 风格活面板——
+// 标题 + 逐镜缩略图（带状态徽标）+「在 Nomi 中打开」。宿主不支持该扩展时 tool 仍回文本兜底。
 // 纯字符串（无 electron/DOM 依赖）→ 可裸 node 单测 serving，也可独立浏览器渲染截图验。
 import { projectGenerationRecovery, type GenerationRecoveryProjection } from './generationRecoveryProjection'
 
 /**
- * widget `<img src>` 用的安全图 URL 校验器——**run 路与生成路共用的唯一一把**（0b 关闭校验不对称）。
+ * widget `<img src>` 用的安全图 URL 校验器。
  *
  * 收的三类：① `nomi-local://`（Electron 内可解，外部宿主 onerror 优雅降级为占位）；② 签名短 TTL 预览链
- *（`http://127.0.0.1/production-preview?preview=…`，run 路 artifact 预览与生成路 _nomiPreviewUrl 同形）；
- * ③ 一般良构 `https?://` 图链（供应商 CDN 直链——生成结果的 assets[0].url 常是它）。
+ *（`http://127.0.0.1/production-preview?preview=…`）；③ 一般良构 `https?://` 图链。
  * 拒的：`javascript:` / `file:` / `blob:` / `data:` 等危险或会灌爆终端的 scheme、以及畸形串。
- * 为什么 run 路一起用它却不被放松：artifact 预览在服务侧只会产出①②两形，一般 https 根本不出现在那条路，
- * 故对 run 路是惰性放行（不削弱它「只认签名/本地」的安全姿态），却让生成路的直链也走同一把尺子。
+ * ProductionRun 的服务投影通常只产出前两种形状。
  */
 export function safeWidgetImageUrl(candidate: unknown): string | undefined {
   if (typeof candidate !== 'string') return undefined
@@ -30,7 +28,7 @@ export function safeWidgetImageUrl(candidate: unknown): string | undefined {
   if (url.startsWith('nomi-local://')) return url
   try {
     const parsed = new URL(url)
-    // 签名预览位（127.0.0.1/production-preview?preview=）——run 路 artifact 与生成路 _nomiPreviewUrl 同形。
+    // 签名预览位（127.0.0.1/production-preview?preview=）。
     if (parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1' && parsed.pathname === '/production-preview' && parsed.searchParams.has('preview')) return url
     // 一般良构图链（供应商 CDN 直链）；只放 http/https，挡掉 javascript:/file:/blob:/data: 等。
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return url
@@ -40,9 +38,7 @@ export function safeWidgetImageUrl(candidate: unknown): string | undefined {
   }
 }
 
-/** 工程级深链严格形（`nomi://project/{id}`，段字符受限）——与 run 路 run 级深链正则同族的等价严格校验（0b）。 */
-const PROJECT_DEEP_LINK_RE = /^nomi:\/\/project\/[A-Za-z0-9._-]+$/
-/** run 级深链严格形（`nomi://project/{id}/run/{id}[?artifact={id}]`）——run 路与生成路采信上游 openInNomi 时共用。 */
+/** run 级深链严格形（`nomi://project/{id}/run/{id}[?artifact={id}]`）。 */
 const RUN_DEEP_LINK_RE = /^nomi:\/\/project\/[A-Za-z0-9._-]+\/run\/[A-Za-z0-9._-]+(?:\?artifact=[A-Za-z0-9._-]+)?$/
 
 /** widget 资源的 ui:// uri（预声明；tool 的 _meta.ui.resourceUri 指向它）。 */
@@ -53,8 +49,7 @@ export const MCP_APP_MIME_TYPE = 'text/html;profile=mcp-app'
 export const MCP_UI_EXTENSION_ID = 'io.modelcontextprotocol/ui'
 
 /**
- * widget 要渲染的数据形状（tool 经 structuredContent.nomiDraft 下发；widget 读它渲染）。
- * kind：generation=逐镜出图｜reference=参考图（定妆/场景）｜plan=方案预览。
+ * widget 要渲染的数据形状（tool 经 structuredContent.nomiRun 下发；widget 读它渲染）。
  */
 export type NomiDraftShot = {
   index?: number
@@ -93,7 +88,7 @@ export type NomiDraftState = {
   recovery?: GenerationRecoveryProjection
 }
 
-/** Convert a safe MCP production projection into the same compact widget state used by generation. */
+/** Convert a safe MCP production projection into the compact widget state. */
 export function buildNomiRunFromProjection(args: {
   projectId?: string
   runId?: string
@@ -209,56 +204,6 @@ export function buildNomiRunFromProjection(args: {
     ...(deepLink ? { deepLink } : {}),
     ...(gate ? { gate } : {}),
     ...(recovery ? { recovery } : {}),
-  }
-}
-
-/**
- * 把一次 nomi_generate 的结果整理成 widget 数据（tool result 的 structuredContent.nomiDraft）。
- * result 形状来自 core.generateOnProject（{ status, assets:[{url,type}], ... }）——尽量宽松取值。
- */
-export function buildNomiDraftFromGenerate(args: {
-  intent?: string
-  prompt?: string
-  projectId?: string
-  vendor?: string
-  modelKey?: string
-  result: unknown
-}): NomiDraftState {
-  const r = (args.result && typeof args.result === 'object' ? args.result : {}) as Record<string, unknown>
-  const rawStatus = String(r.status || '')
-  const status: NomiDraftState['status'] = rawStatus === 'succeeded' ? 'succeeded' : rawStatus === 'failed' ? 'failed' : 'running'
-  const assets = Array.isArray(r.assets) ? (r.assets as Array<Record<string, unknown>>) : []
-  const rawUrl = (assets[0]?.url as string) || (r.url as string) || ((r.result as Record<string, unknown>)?.url as string) || undefined
-  // 交付④：优先用 App 侧铸好的签名 HTTP 预览（_nomiPreviewUrl，非 Electron 宿主能加载）；缺则回退原始本地/直链。
-  // 0b：两者都过共用的 safeWidgetImageUrl（与 run 路同一把尺子）——危险 scheme/畸形串一律不进 <img src>，
-  // 签名位不合法则自然回退到合法的原始资产链（免检漏洞在此堵死）。
-  const signedPreview = safeWidgetImageUrl(r._nomiPreviewUrl)
-  const thumbnailUrl = signedPreview || safeWidgetImageUrl(rawUrl)
-  const isVideo = String(args.intent || assets[0]?.type || '') === 'video'
-  const title = (args.prompt || '').trim().slice(0, 40) || (isVideo ? '一段视频' : '一张画面')
-  // 交付③：工程级深链（无 runId）——widget 的「在 Nomi 打开」据此可跳。上游给了更具体的链且**形状合法**才采信
-  //（run 级严格正则，与 run 路同族）；否则回退工程级严格链（0b：项目级深链也走等价严格校验，不再松放）。
-  const candidateDeep = typeof r.openInNomi === 'string' ? r.openInNomi : ''
-  const projectDeep = args.projectId ? `nomi://project/${encodeURIComponent(args.projectId)}` : undefined
-  const deepLink = RUN_DEEP_LINK_RE.test(candidateDeep) || PROJECT_DEEP_LINK_RE.test(candidateDeep)
-    ? candidateDeep
-    : (projectDeep && PROJECT_DEEP_LINK_RE.test(projectDeep) ? projectDeep : undefined)
-  return {
-    kind: 'generation',
-    title: `Nomi · ${title}`,
-    status,
-    ...(typeof r.error === 'string' && r.error ? { message: r.error } : {}),
-    shots: [
-      {
-        index: 1,
-        title,
-        status: status === 'succeeded' ? 'success' : status === 'failed' ? 'error' : 'running',
-        kind: isVideo ? 'video' : 'image',
-        ...(thumbnailUrl ? { thumbnailUrl } : {}),
-      },
-    ],
-    ...(args.projectId ? { projectId: args.projectId } : {}),
-    ...(deepLink ? { deepLink } : {}),
   }
 }
 
@@ -490,22 +435,23 @@ export const NOMI_LIVE_DRAFT_WIDGET_HTML = `<!DOCTYPE html>
   function decideGate() {
     if (!state || !state.gate || decideInFlight) return;
     var g = state.gate;
-    var args = { projectId: state.projectId, runId: state.runId, gateId: g.gateId, decision: "approved" };
+    // 面收敛：可逆创意门表态并入 nomi_run_gate（action=decide）——卡内确认走同一条 seam。
+    var args = { projectId: state.projectId, runId: state.runId, action: "decide", gateId: g.gateId, decision: "approved" };
     if (g.kind === "direction" && selectedKey) args.choiceKey = selectedKey;
     decideInFlight = true;
     decideFailed = false;
     rpcId += 1;
     decideReqId = "view-" + rpcId;
-    post({ jsonrpc: "2.0", id: decideReqId, method: "tools/call", params: { name: "nomi_decide_gate", arguments: args } });
+    post({ jsonrpc: "2.0", id: decideReqId, method: "tools/call", params: { name: "nomi_run_gate", arguments: args } });
     renderGate();
     // 宿主不支持 tools/call 代理时不会回帧：8s 后按失败降级（按钮复活 + 指路 Nomi/对话）。
     setTimeout(function () { if (decideInFlight) { decideInFlight = false; decideFailed = true; renderGate(); } }, 8000);
   }
 
   function ingest(sc) {
-    // 宿主注入的 tool result / tool input：生成读 nomiDraft，Production Run 读 nomiRun。
+    // 宿主注入的 ProductionRun tool result / tool input。
     if (sc && typeof sc === "object") {
-      var draft = sc.nomiRun || sc.nomiDraft || (sc.structuredContent && (sc.structuredContent.nomiRun || sc.structuredContent.nomiDraft));
+      var draft = sc.nomiRun || (sc.structuredContent && sc.structuredContent.nomiRun);
       if (draft) { state = draft; render(); }
     }
   }
@@ -513,7 +459,7 @@ export const NOMI_LIVE_DRAFT_WIDGET_HTML = `<!DOCTYPE html>
   window.addEventListener("message", function (ev) {
     var m = ev && ev.data;
     if (!m || typeof m !== "object") return;
-    // B6：卡内决议（tools/call nomi_decide_gate）的响应——成功即收起门等宿主推新状态；失败降级指路。
+    // B6：卡内决议（tools/call nomi_run_gate action=decide）的响应——成功即收起门等宿主推新状态；失败降级指路。
     if (m.id && m.id === decideReqId && m.method === undefined) {
       decideInFlight = false;
       decideReqId = null;

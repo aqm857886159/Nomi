@@ -1,6 +1,7 @@
 import { useWorkbenchStore } from '../workbenchStore'
 import { normalizeTimeline } from '../timeline/timelineMath'
 import type { TimelineState } from '../timeline/timelineTypes'
+import type { TimelineUndoEntry } from '../timeline/timelineUndoHistory'
 import type { AdoptionApplyPorts } from './adoptionTypes'
 
 /**
@@ -15,7 +16,7 @@ import type { AdoptionApplyPorts } from './adoptionTypes'
 const TIMELINE_UNDO_LIMIT = 30
 
 type AdoptionUndoStacks = {
-  undo: readonly TimelineState[]
+  undo: readonly TimelineUndoEntry[]
   redo: readonly TimelineState[]
 }
 
@@ -35,11 +36,11 @@ let lastCommittedStacks: AdoptionUndoStacks | null = null
  * 每次都压一层——批量落 12 个镜头，用户要按 12 次 Cmd+Z 才回得去。
  * 这里把整批当**一次编辑**：压入的是采纳前的 base，撤一次全回去。
  */
-function commitTimeline(next: TimelineState, base: TimelineState): void {
+function commitTimeline(next: TimelineState, base: TimelineState, undoEntry: TimelineUndoEntry = base): void {
   useWorkbenchStore.setState((state) => {
     // 记下压栈**前**的两个栈，供补偿对称还原（见 restoreTimeline）。
     lastCommittedStacks = { undo: state.timelineUndoStack, redo: state.timelineRedoStack }
-    const stack = [...state.timelineUndoStack, base]
+    const stack = [...state.timelineUndoStack, undoEntry]
     if (stack.length > TIMELINE_UNDO_LIMIT) stack.shift()
     return {
       timeline: normalizeTimeline(next),

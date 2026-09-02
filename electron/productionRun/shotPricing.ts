@@ -57,6 +57,27 @@ export type PricingResolver = (providerId: string, modelId: string) => ModelPric
 /** A derived per-shot price: an honest known amount, or explicitly unknown. Never a fabricated 0. */
 export type ShotPrice = { known: true; amount: number } | { known: false };
 
+/**
+ * A paid gate cannot be issued when the catalog cannot prove a price.  Keep
+ * this error at the pricing boundary so preview may still surface an honest
+ * `{ known: false }`, while every authorization caller shares the same
+ * fail-closed code/message instead of silently treating unknown as zero.
+ */
+export class GenerationPricingUnavailableError extends Error {
+  readonly code = "generation_pricing_unknown" as const;
+  readonly shotId: string;
+
+  constructor(shotId: string) {
+    super(`Cannot authorize paid generation without a known price: ${shotId}`);
+    this.name = "GenerationPricingUnavailableError";
+    this.shotId = shotId;
+  }
+}
+
+export function assertKnownShotPrice(price: ShotPrice, shotId: string): asserts price is { known: true; amount: number } {
+  if (!price.known) throw new GenerationPricingUnavailableError(shotId);
+}
+
 export type ShotPriceInput = {
   candidate: Pick<PlanCandidate, "providerId" | "modelId" | "parameters">;
   resolvePricing: PricingResolver;
@@ -120,7 +141,8 @@ export type DurationEstimate = { known: true; seconds: number } | { known: false
 
 export type PreviewShotInput = {
   shotId: string;
-  candidate: Pick<PlanCandidate, "providerId" | "modelId" | "parameters" | "references">;
+  candidate: Pick<PlanCandidate, "providerId" | "modelId" | "parameters">
+    & Partial<Pick<PlanCandidate, "references">>;
   /** Whether this shot references a character (for the "model can't take a face" degradation). */
   hasCharacter?: boolean;
   /** Whether the selected model exposes a reference-image channel. */
@@ -167,6 +189,8 @@ export type MultiShotGateShot = {
   durationSeconds: number | null;
   price: ShotPrice;
   degradations: ShotDegradation[];
+  /** Safe, user-visible reference identities; paths and provider URLs never cross this boundary. */
+  referenceMedia?: Array<{ assetId: string; kind?: string; role?: string; version: number }>;
 };
 
 /**
@@ -240,7 +264,7 @@ export type GateShotInput = {
   sceneOneLiner: string;
   /** Human "provider · model（mode）" string built by the caller — the renderer never re-joins it. */
   providerModelText: string;
-  candidate: Pick<PlanCandidate, "providerId" | "modelId" | "parameters">;
+  candidate: Pick<PlanCandidate, "providerId" | "modelId" | "parameters" | "references">;
   durationSeconds?: number;
   hasCharacter?: boolean;
   supportsReferenceImage?: boolean;
@@ -277,6 +301,14 @@ export function buildMultiShotGateProjection(input: BuildMultiShotGateProjection
       durationSeconds: isFiniteNonNegative(seconds) ? seconds : null,
       price,
       degradations: shotDegradations({ shotId: shot.shotId, candidate: shot.candidate as never, hasCharacter: shot.hasCharacter, supportsReferenceImage: shot.supportsReferenceImage }),
+      ...(shot.candidate.references?.length ? {
+        referenceMedia: shot.candidate.references.map((reference) => ({
+          assetId: reference.assetId,
+          ...(reference.kind ? { kind: reference.kind } : {}),
+          ...(reference.role ? { role: reference.role } : {}),
+          version: reference.version,
+        })),
+      } : {}),
     };
   });
   return {

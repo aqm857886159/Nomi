@@ -7,12 +7,14 @@
  */
 export const GENERATION_BINDING_MARKERS: ReadonlySet<string> = new Set([
   'leaseHandle', 'receiptId', 'contractHash', 'gateKind', 'operationId', 'shotId', 'runtimeTaskId',
-  'immutableProjectUuid', 'projectGeneration', 'serverNonce', 'handoff', 'actionNonce',
+  'immutableProjectUuid', 'projectGeneration', 'handoff', 'actionNonce',
   'projectSelectionHandle', 'targetHash', 'reservationId',
   'executionBinding', 'requestFingerprint', 'providerIdempotencyKey', 'runtimeEnvelopeRef',
   'runtimeEnvelopeHash', 'fencingEpoch', 'envelopeState', 'providerTaskId', 'sessionId', 'nonce',
   'baseRevision', 'projectRevision', 'attempt', 'runtimeEnvelope',
   'moduleRef', 'operationRef', 'candidate', 'execution', 'resolvedTaskRequest', 'preparedTaskRequest',
+  'authorizationEnvelope', 'authorizationDigest', 'authorizationGateId', 'providerWirePayloadHash',
+  'pricingSnapshotHash', 'gateId',
   'providerRecoveryCapabilities', 'providerId', 'accountId', 'profileId', 'tenantScope', 'endpoint', 'model',
 ])
 

@@ -1,6 +1,7 @@
 import React from 'react'
 import {
   ReactFlowProvider,
+  useStoreApi,
   useReactFlow,
   type OnNodeDrag,
   type OnEdgesDelete,
@@ -19,14 +20,9 @@ import { WORKSPACE_FILE_DRAG_MIME } from '../../explorer/workspaceFileDrag'
 import { ASSET_LIBRARY_DRAG_MIME } from '../../assets/assetLibraryDrag'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSession'
-import { clientXToFrame } from '../../timeline/timelineEdit'
-import { adoptGenerationNode } from '../../adoption/adoptGenerationNode'
-import { reportAdoptionOutcome } from '../../adoption/adoptionReceipt'
 import { completeNodeConnection } from '../nodes/completeNodeConnection'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { findTimelineDropTarget } from '../nodes/nodeSizing'
-import { emitCanvasGesture } from '../events/canvasEventEmitter'
+import { useStableCategoryNodes } from './useStableCategoryNodes'
 import { getCanvasGroupBoxes, getSelectedBounds } from '../components/generationCanvasGeometry'
 import { useCollapsedGroupConnectionSource } from '../components/useCollapsedGroupConnectionSource'
 import { projectCollapsedGroups } from '../model/canvasCardStackModel'
@@ -61,6 +57,13 @@ import {
   type GenerationFlowEdge,
   type GenerationFlowNode,
 } from './generationCanvasReactFlowAdapter'
+import {
+  applyCanvasDragKernelPositionChanges,
+  applyCanvasDragPositionChanges,
+  overlayCanvasDragDraft,
+  restoreCanvasDragKernelOwnership,
+} from './canvasDragDraft'
+import { commitCanvasNodeDragStop } from './canvasDragWriteback'
 import { GenerationCanvasReactFlowOverlays } from './GenerationCanvasReactFlowOverlays'
 import { GenerationCanvasReactFlowViewport } from './GenerationCanvasReactFlowViewport'
 import { useGenerationCanvasReactFlowPointer } from './useGenerationCanvasReactFlowPointer'
@@ -81,14 +84,18 @@ type GenerationCanvasReactFlowProps = { readOnly?: boolean }
 function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasReactFlowProps): JSX.Element {
   const { t } = useTranslation()
   const flow = useReactFlow<GenerationFlowNode, GenerationFlowEdge>()
+  const flowStore = useStoreApi<GenerationFlowNode, GenerationFlowEdge>()
   const hostRef = React.useRef<HTMLDivElement>(null)
   const draggingRef = React.useRef(false)
+  const dragDraftNodesRef = React.useRef<GenerationFlowNode[]>([])
   const dragStartPositionsRef = React.useRef<Map<string, { x: number; y: number }>>(new Map())
   const connectionStartRef = React.useRef<{ nodeId: string; side: 'left' | 'right' } | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = React.useState<string | null>(null)
   const [focusFlashNodeId, setFocusFlashNodeId] = React.useState<string | null>(null)
   const [stageSize, setStageSize] = React.useState({ width: 0, height: 0 })
   const [minimapVisible, setMinimapVisible] = React.useState(true)
+  // #5 minimap 拖动中冻结门（纯渲染，只翻两次、不碰 RF 写入路径；冻结逻辑见 useStableCategoryNodes）。
+  const [nodeDragActive, setNodeDragActive] = React.useState(false)
   const [connectionCreateMenu, setConnectionCreateMenu] = React.useState<{
     sourceNodeId: string
     sourceSide: 'left' | 'right'
@@ -137,10 +144,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     saveWorkflowFromCurrentProject(template); toast(t('generationCommon.selection.workflowSaved', { name: template.name }), 'success')
   }, [saveSelectedAsWorkflowTemplate, selectedNodeIds.length, t])
 
-  const nodes = React.useMemo(
-    () => allNodes.filter((node) => (node.categoryId || 'shots') === activeCategoryId),
-    [activeCategoryId, allNodes],
-  )
+  // #4 引用稳定过滤 + #5 minimap 拖动冻结（抽到 useStableCategoryNodes，逐字等价）。
+  const { nodes, minimapNodes } = useStableCategoryNodes(allNodes, activeCategoryId, nodeDragActive)
   const visibleNodeIds = React.useMemo(() => new Set(nodes.map((node) => node.id)), [nodes])
   const edges = React.useMemo(
     () => allEdges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)),
@@ -198,6 +203,10 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     appearingNodeIds,
     focusFlashNodeId,
   })
+  const renderedFlowNodes = React.useMemo(() => {
+    if (!draggingRef.current || dragDraftNodesRef.current.length === 0) return flowNodes
+    return overlayCanvasDragDraft(flowNodes, dragDraftNodesRef.current)
+  }, [flowNodes])
   const groupBoxes = React.useMemo(
     () => getCanvasGroupBoxes(visibleGroups.filter((group) => !group.collapsed), collapsedProjection.visibleNodes),
     [collapsedProjection.visibleNodes, visibleGroups],
@@ -445,8 +454,11 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   })
 
   const handleNodesChange: OnNodesChange<GenerationFlowNode> = React.useCallback((changes) => {
-    for (const change of collectFlowPositionChanges(changes)) {
-      moveNode(change.nodeId, change.position, { persist: false, emit: false })
+    const positionChanges = collectFlowPositionChanges(changes)
+    if (positionChanges.length) {
+      const draftNodes = dragDraftNodesRef.current.length ? dragDraftNodesRef.current : flowNodes
+      dragDraftNodesRef.current = applyCanvasDragPositionChanges(draftNodes, changes)
+      applyCanvasDragKernelPositionChanges(flowStore, changes)
     }
 
     const selectionChanges = collectFlowSelectionChanges(changes)
@@ -463,7 +475,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       nextSelection.every((nodeId, index) => nodeId === currentSelection[index])
     ) return
     selectNodes(nextSelection)
-  }, [moveNode, selectNodes])
+  }, [flowNodes, flowStore, selectNodes])
 
   // React Flow's selection store is internal while the persisted selection lives
   // in Zustand. Syncing on every internal selection notification causes a
@@ -495,6 +507,9 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const handleNodeDragStart: OnNodeDrag<GenerationFlowNode> = React.useCallback((_event, draggedNode) => {
     if (readOnly) return
     draggingRef.current = true
+    setNodeDragActive(true) // #5：冻结 minimap（纯渲染门，不碰写入路径）
+    dragDraftNodesRef.current = flowNodes
+    flowStore.setState({ hasDefaultNodes: false })
     setCanvasDragging(hostRef.current, true, CANVAS_DRAGGING_OWNER.reactFlowNode)
     captureHistory()
     const state = useGenerationCanvasStore.getState()
@@ -505,41 +520,27 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         return node ? [[nodeId, { ...node.position }] as const] : []
       }),
     )
-  }, [captureHistory, readOnly, selectedNodeIds, selectedSet])
+  }, [captureHistory, flowNodes, flowStore, readOnly, selectedNodeIds, selectedSet])
 
   const handleNodeDragStop: OnNodeDrag<GenerationFlowNode> = React.useCallback((event, draggedNode, draggedNodes) => {
     if (readOnly || !draggingRef.current) return
-    draggingRef.current = false
-    setCanvasDragging(hostRef.current, false, CANVAS_DRAGGING_OWNER.reactFlowNode)
-    const pointer = 'changedTouches' in event ? event.changedTouches[0] : event
-    const timelineDropTarget = pointer ? findTimelineDropTarget(pointer.clientX, pointer.clientY) : null
-    if (timelineDropTarget) {
-      const liveNode = useGenerationCanvasStore.getState().nodes.find((node) => node.id === draggedNode.id)
-      if (liveNode?.result?.url) {
-        const timeline = useWorkbenchStore.getState().timeline
-        const rect = timelineDropTarget.getBoundingClientRect()
-        const startFrame = clientXToFrame(pointer.clientX, rect.left, timeline.scale)
-        for (const [nodeId, originalPosition] of dragStartPositionsRef.current) {
-          moveNode(nodeId, originalPosition, { persist: false, emit: false })
-        }
-        commitPersistedChange()
-        void adoptGenerationNode(liveNode, { placement: { kind: 'frame', startFrame } }).then((outcome) => {
-          reportAdoptionOutcome(outcome, { revealTimeline: false })
-        })
-        dragStartPositionsRef.current.clear()
-        return
-      }
-      toast(t('generationCommon.node.generateBeforeTimeline'), 'info')
-    }
-    const state = useGenerationCanvasStore.getState()
-    const movedEvents = draggedNodes
-      .map((flowNode) => state.nodes.find((node) => node.id === flowNode.id))
-      .filter((node): node is GenerationCanvasNode => Boolean(node))
-      .map((node) => ({ type: 'canvas.node.moved' as const, payload: { nodeId: node.id, position: node.position } }))
-    if (movedEvents.length) emitCanvasGesture(movedEvents)
-    commitPersistedChange()
-    dragStartPositionsRef.current.clear()
-  }, [commitPersistedChange, moveNode, readOnly, t])
+    setNodeDragActive(false) // #5：解冻 minimap（在所有退出路径之前，含时间轴投放早退；draggingRef 由 writeback 清）
+    commitCanvasNodeDragStop({
+      event,
+      draggedNode,
+      draggedNodes,
+      readOnly,
+      t,
+      hostRef,
+      draggingRef,
+      dragStartPositionsRef,
+      dragDraftNodesRef,
+      moveNode,
+      commitPersistedChange,
+    })
+    // 还原拖动内核关掉的 hasDefaultNodes，恢复 RF 对选择/投影变更的自应用（机制见 helper JSDoc）。
+    restoreCanvasDragKernelOwnership(flowStore)
+  }, [commitPersistedChange, flowStore, moveNode, readOnly, t])
 
   const handleConnect = React.useCallback((connection: { source: string | null; target: string | null; sourceHandle?: string | null }) => {
     if (readOnly || !connection.source || !connection.target) return
@@ -701,7 +702,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       ) : null}
       {!readOnly ? <CanvasToolbar getInsertionPosition={getInsertionPosition} categoryId={activeCategoryId} /> : null}
       <GenerationCanvasReactFlowViewport
-        flowNodes={flowNodes}
+        flowNodes={renderedFlowNodes}
+        isNodeDragging={nodeDragActive}
         flowEdges={flowEdges}
         viewport={liveViewport}
         stageSize={stageSize}
@@ -748,7 +750,9 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       <GenerationCanvasReactFlowOverlays
         readOnly={readOnly}
         activeCategoryId={activeCategoryId}
-        nodes={nodes}
+        // #5：overlays 里唯一逐帧敏感的消费者是 minimap；empty-state 只看 length（拖动中不变）。
+        // 拖动期传冻结引用 → minimap 不重画；空态判定不受影响（成员与 length 一致）。
+        nodes={minimapNodes}
         allNodes={allNodes}
         selectedNodeIds={selectedNodeIds}
         selectedSet={selectedSet}

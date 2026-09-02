@@ -18,6 +18,10 @@ function mapping(over: Partial<Mapping>): Mapping {
 describe("createCatalogModuleRegistry", () => {
   it("derives provider/model/mode/parameter declarations from the user catalog", () => {
     const registry = createCatalogModuleRegistry(state({
+      vendors: [
+        { key: "provider-a", name: "Provider A", enabled: true, createdAt: "t", updatedAt: "t" },
+        { key: "provider-b", name: "Provider B", enabled: true, createdAt: "t", updatedAt: "t" },
+      ],
       models: [
         model({ modelKey: "image-model", vendorKey: "provider-a", onboarding: { addedVia: "manual", addedAt: "t", fields: [{ key: "aspectRatio", displayName: "Aspect", type: "select", options: [{ value: "1:1", label: "Square" }, { value: "16:9", label: "Wide" }] }] } }),
         model({ modelKey: "video-model", vendorKey: "provider-b", kind: "video" }),
@@ -48,5 +52,39 @@ describe("createCatalogModuleRegistry", () => {
       modelId: "image-model",
       mode: "text_to_image",
     })).toThrow(/Unknown module/);
+  });
+
+  it("projects only published modes from enabled vendors", () => {
+    const registry = createCatalogModuleRegistry(state({
+      vendors: [
+        { key: "provider-a", name: "Provider A", enabled: true, createdAt: "t", updatedAt: "t" },
+        { key: "provider-disabled", name: "Disabled", enabled: false, createdAt: "t", updatedAt: "t" },
+      ],
+      models: [
+        model({ vendorKey: "provider-a", modelKey: "image-model" }),
+        model({ vendorKey: "provider-disabled", modelKey: "disabled-model" }),
+      ],
+      mappings: [
+        mapping({ vendorKey: "provider-a", modelKey: "image-model", taskKind: "text_to_image", enabled: true }),
+        mapping({ id: "mapping-edit-disabled", vendorKey: "provider-a", modelKey: "image-model", taskKind: "image_edit", enabled: false }),
+        mapping({ id: "mapping-disabled-vendor", vendorKey: "provider-disabled", modelKey: "disabled-model", taskKind: "text_to_image", enabled: true }),
+      ],
+    }));
+
+    const manifest = registry.snapshot()[0];
+    expect(manifest?.modes).toEqual(["text_to_image"]);
+    expect(manifest?.providers.map((provider) => provider.providerId)).toEqual(["provider-a"]);
+    expect(() => registry.resolve({
+      moduleId: "generation.single-shot",
+      providerId: "provider-a",
+      modelId: "image-model",
+      mode: "image_edit",
+    })).toThrow(/Unsupported mode|does not support mode/);
+    expect(() => registry.resolve({
+      moduleId: "generation.single-shot",
+      providerId: "provider-disabled",
+      modelId: "disabled-model",
+      mode: "text_to_image",
+    })).toThrow(/Unknown provider/);
   });
 });

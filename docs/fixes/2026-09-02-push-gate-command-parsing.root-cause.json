@@ -1,0 +1,123 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-push-gate-command-parsing",
+  "problem_type": "用正则去理解 shell 语法：两个 PreToolUse Bash 闸门各自靠字符串匹配判断命令在做什么，两个方向都判错",
+  "symptom": "push 闸对多种常见推送写法**根本不运行**：`git -C <另一棵树> push`、`git -c k=v push`、`git --no-pager push` 都匹配不到，于是本树一枚有效的五门戳给另一棵**没过五门**的树背了书；`cd A && cd B && git push` 取的是第一个 cd，拿 A 的戳判 B 的推送。同一类错也发生在 secret-guard 上：`git -c k=v commit --no-verify`、`git -C <path> commit --no-verify`、`git --no-pager commit --no-verify`、`git -c x=y add -f` 四种写法全部漏放，等于绕开了防止微信记录 / db_key 进公开仓库的加固层。反方向则误伤：`echo \"git push\"`、`grep -rn \"git push\" docs/`、`echo \"git commit --no-verify\"` 这类只读命令被当成真命令拦下（开发中真实撞到两次）。",
+  "direct_cause": "读戳方用 `grep -Eq 'git[[:space:]]+push'` 判断是否推送——该正则要求 push 紧跟在 git 之后，任何全局选项插在中间就匹配不到；又用一段 `sed -n 's/^[[:space:]]*cd[[:space:]]\\{1,\\}\\([^&;|]*\\).*/\\1/p' | head -1` 抓第一个 cd 作为推送目录，既取错（末个 cd 才是推送发生地）也认不出 `git -C`、子 shell、包装命令等形式。",
+  "class_root": "两个 Bash 闸门要回答的都是**shell 语义**问题（这条命令执行了什么子命令、带了什么选项、在哪棵树里执行），却各自用正则在**字符序列**层面近似，而且是两份互不相干的正则。正则看不见引号边界（所以引号内的词组被当成命令）、看不见命令位置（所以 echo 的参数被当成命令）、也看不见选项文法（所以 git 与子命令之间的全局选项让整条命令隐身）。只要判据仍停在字符层面，任何一种没被枚举到的写法都会静默地让闸门整个不运行——而漏判是无声的：命令照常执行，没有任何提示说闸门被跳过了。两份正则各自演进，还保证了同一个洞要在两处分别被发现、分别被修。",
+  "affected_population": [
+    "任何使用 `git -C`、`git -c`、`git --no-pager` 等带全局选项形式推送的会话或 agent——这在 20+ 棵并行 worktree 的机器上是惯用写法",
+    "任何在一条命令里多次 cd 后推送、或在子 shell / sudo / 前置环境变量赋值下推送的调用方",
+    "任何命令文本中恰好出现该词组的只读操作（检索文档、写提交信息、打印说明）"
+  ],
+  "scope_paths": [
+    "scripts/claude-hooks/_bash-command-analysis.sh",
+    "scripts/claude-hooks/pre-push-check.sh",
+    "scripts/claude-hooks/secret-guard.sh",
+    "scripts/check-hook-behavior.mjs"
+  ],
+  "entry_points": [
+    "scripts/claude-hooks/pre-push-check.sh 的推送识别（此前是 grep 正则）",
+    "scripts/claude-hooks/pre-push-check.sh 的推送目录解析（此前是 sed 抓第一个 cd）",
+    "scripts/claude-hooks/secret-guard.sh 的 `commit --no-verify` 识别（此前是 grep 正则）",
+    "scripts/claude-hooks/secret-guard.sh 的 `add -f/--force` 识别（此前是 grep 正则）"
+  ],
+  "internal_only_reason": "判据是 Nomi 自己的 PreToolUse 闸门如何理解 Bash 命令字符串；`shlex` 的 POSIX 分词与 punctuation_chars 语义取自 Python 标准库既有行为，并已由本仓库 17 条命令形式的实跑矩阵逐条确认，不依赖第三方 API 契约。",
+  "invariants": [
+    "「这条命令是否执行推送」必须按 shell 词法判定：引号内的内容是数据不是命令，且 git 只在命令位置才算命令。",
+    "「推送发生在哪棵树」必须取推送那一刻的目录：`git -C` 优先，其次是此前累积的最后一个 cd/pushd。",
+    "一条命令推多棵树时，每一棵都必须各自过闸。",
+    "无法可靠还原推送目标（--git-dir/--work-tree、词法解析失败）时必须 fail-closed，不得放行。"
+  ],
+  "generality_proof": "「命令在做什么」不再由各闸门用正则各猜一遍，而是收敛到唯一的理解层 `scripts/claude-hooks/_bash-command-analysis.sh`：交给 `shlex` 做一次真正的词法分析，再按 shell 结构判定——OPERATORS 重置命令位置、引号内内容成为单 token、包装命令与前置赋值保持命令位置、git 全局选项按文法消费后才取子命令、cd/pushd 顺序累积目录。它输出「每个 git 调用 = 子命令 + 发生目录 + 选项」的结构化结果，两个闸门只消费结果、不再触碰命令字符串。因此正确性来自「按 shell 结构判定」这一条规则，未被枚举的等价写法同样落在规则内；而且**新增第三个 Bash 闸门时天然继承同一份理解**，不会再长出第三份正则。确实无法还原的两类（--git-dir/--work-tree、词法失败）显式 fail-closed。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/claude-hooks/_bash-command-analysis.sh",
+      "symbol": "analyse_bash_command / flag_has",
+      "responsibility": "唯一理解 Bash 命令的地方：词法分析后输出每个 git 调用的「子命令 + 发生目录 + 选项」。所有 PreToolUse Bash 闸门都从它取结论，闸门自身不再解析命令字符串。"
+    },
+    {
+      "path": "scripts/check-hook-behavior.mjs",
+      "symbol": "checkCommandDetection / checkSecretGuard",
+      "responsibility": "在 gates 链上用**实跑两个 hook** 的方式逐条断言命令识别矩阵：该拦的拦、该放的放，覆盖全部已知漏判与误伤形式。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "entry_point": "推送识别与推送目录解析",
+      "disposition": "enforced",
+      "evidence": "grep 正则与抓第一个 cd 的 sed 均已删除，改为从共用理解层取 push 行的目录列并逐棵校验；矩阵中 `git -C` / `git -c` / `git --no-pager` / 多重 cd / 子 shell / sudo / 前置赋值实测由 exit 0 转为 exit 2，echo / grep / git log --grep 三条由误拦转为放行（14/14）。"
+    },
+    {
+      "path": "scripts/claude-hooks/secret-guard.sh",
+      "entry_point": "`commit --no-verify` 与 `add -f` 识别",
+      "disposition": "enforced",
+      "evidence": "**此前本合同把它记成 not-affected 是错的**：实读源码后发现它用的是 `git[[:space:]]+commit[[:space:]]+...--no-verify` 同款正则，实测 4 种带全局选项的写法全部漏放、1 种引号内词组误拦。现已改为从同一个共用理解层取 commit/add 行的选项列，用 `flag_has` 处理短选项簇（`-nm` 含 n）；同一组探针复跑 9/9 全对。"
+    },
+    {
+      "path": "scripts/claude-hooks/stack-currency-check.sh",
+      "entry_point": "Write|Edit matcher 下的 hook",
+      "disposition": "not-affected",
+      "evidence": "它挂在 Write|Edit matcher 上，消费的是文件路径与内容，不解析 Bash 命令字符串，因此不属于本类；已核对 settings.hooks.json 确认 Bash matcher 下只有 pre-push-check.sh 与 secret-guard.sh 两个成员。"
+    },
+    {
+      "path": "scripts/check-hook-behavior.mjs",
+      "entry_point": "门岗自身的判据",
+      "disposition": "enforced",
+      "evidence": "门岗不读 hook 源码文本（那条路此前已被证明既假绿又假红），而是实跑 hook 判退出码；拿修复前那版 pre-push 实测报红 10 条（7 漏判 + 3 误伤）。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "推送与提交的写法本就多样且会继续增加（新的 git 全局选项、新的包装命令、新的 agent 调用习惯），而闸门每漏一种就整个不运行且毫无提示。更关键的是此前**每个闸门各写一份正则**：同一个洞要在两处分别被发现、分别被修——2026-09-02 一天内先在 pre-push 暴露四种形式，追查同类入口时才发现 secret-guard 有完全相同的四种。",
+    "same_class_scan": [
+      "实跑 17 条推送命令形式的矩阵，逐条记录期望与实际退出码，确认漏判 7 条、误伤 3 条（结论已固化进 commandMatrix）。",
+      "通读 pre-push-check.sh 全文，确认命令层面的判据只有两处（grep 正则、sed 抓 cd），其余判据都作用在 git 仓库状态而非命令字符串上。",
+      "**通读 secret-guard.sh 并实跑 9 条探针**——起初以为它「只查文件内容、不属于本类」，实读后发现它用的是同款正则，实测 4 种带全局选项写法漏放、1 种引号内词组误拦，因此它是同类第二实例而非无关项。",
+      "核对 settings.hooks.json 的 hooks 块，确认 Bash matcher 下只有这两个 hook 消费命令字符串；Write|Edit matcher 下的两个 hook 消费的是文件路径与内容，不在本类。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/claude-hooks/_bash-command-analysis.sh",
+    "invariant": "命令理解只在 _bash-command-analysis.sh 一处进行，按 shell 词法与命令位置判定；闸门只消费「子命令 + 发生目录 + 选项」这一结构化结果，不得再自行解析命令字符串。",
+    "failure_mode": "无法可靠还原目标（--git-dir/--work-tree、引号不配对导致词法失败）时输出 `?` 或 unparsable，shell 侧一律 block(exit 2)；唯一保留的 fail-open 仍只是「连仓库根都拿不到」。",
+    "exception_policy": "none",
+    "strategy": "把「理解 shell」这件事交给 shell 词法分析器而不是正则，并从**每个闸门各一份**收敛到**全局唯一一份**；再由 check:hook-behavior 用实跑两个 hook 的矩阵把已知的全部漏判与误伤形式钉成回归。新增闸门天然继承同一份理解，新增写法只需往矩阵加一行即可获得同等保护。",
+    "artifacts": [
+      "scripts/claude-hooks/_bash-command-analysis.sh",
+      "scripts/claude-hooks/pre-push-check.sh",
+      "scripts/claude-hooks/secret-guard.sh",
+      "scripts/check-hook-behavior.mjs",
+      "scripts/check-hook-behavior.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-hook-behavior.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-hook-behavior.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/claude-hooks/pre-push-check.sh",
+      "scripts/claude-hooks/secret-guard.sh"
+    ],
+    "rationale": "两个闸门里的命令正则均已整段删除（pre-push 的 `grep -Eq \"git[[:space:]]+push\"` 与抓第一个 cd 的 sed；secret-guard 的两条 commit/add 正则），没有保留为 fallback；词法分析失败时走的是各自的 fail 策略分支而不是回退到旧正则（回退等于把漏判重新引进来）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "`shlex` 是 Python 标准库，hook 本来就依赖 python3 解析 PreToolUse 的 JSON 载荷，没有引入新依赖，也没有第三方运行时决定该不变量。",
+    "exit_criteria": []
+  },
+  "migration": "无需迁移。判定逻辑变化只影响 hook 对命令的解读，不产生或读取任何持久化数据。已有 worktree 在下次 `pnpm install` 时由 postinstall 的 install-claude-hooks.cjs 收到新读戳方；在此之前 check:claude-hooks 会报漂移并给出确切命令。",
+  "residual_risks": [
+    "`--no-verify`、网页/API 端推送，以及未安装 .claude/hooks 的环境仍绕得过本地 hook；服务器侧仍需 CI 与分支保护补强（与 R25 既有结论一致）。",
+    "git 的全局选项是一份枚举清单（GLOBAL_FLAGS / GLOBAL_TAKES_ARG）；若 git 将来新增一个我们没列的、且带参数的全局选项并被用在子命令之前，该条命令会解析不到子命令而漏判。清单已覆盖现役全部常用项，新增形式的代价是往矩阵加一行。",
+    "反引号命令替换（`` `git push` ``）只做了首尾反引号剥离，嵌套或多层引用的极端写法可能仍解析不到；此类写法在本仓库的调用习惯中未出现过。",
+    "闸门只在推送目标可被还原为本机目录时才校验；对完全不落地的远程操作（例如通过 API 触发的推送）无能为力，这与 hook 的作用域一致。",
+    "secret-guard 按设计仍是 fail-open（核心扫描在 pre-commit 的 check-no-secrets.mjs），所以共用理解层缺失时它放行；pre-push 则相反，缺失时只要命令含 push 就拦。这两种相反的 fail 策略是刻意的，已分别写在各自抬头。"
+  ]
+}

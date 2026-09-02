@@ -1,0 +1,124 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-ponytail-review-scope",
+  "problem_type": "Ponytail 评审的「评审单元」用端点差定义（push 用 remoteSha..localSha 两点、staged 用 index↔HEAD），于是 base 一动（追平 merge / rebase 后 force-push）就把主线漂移整段卷进评审——那些内容不是本次作者写的、且已在主线上被同一道闸审过一次；结果既把评审撑到跑不动，又恰好把这次操作里唯一由人做的决定（冲突解析）挡在评审之外",
+  "symptom": "2026-09-02 一条落后主线的任务分支连着三次被挡下交付：① 本地追平 merge（672 个 staged 文件）→ `[ponytail-review] BLOCKED: spawnSync git ENOBUFS`（当时 MAX_REVIEW_DIFF_BYTES=1_500_000，runGit 的 maxBuffer=1_564_000，而端点 diff 2.85MB）；② 主线把上限提到 8_000_000 后再合（217 文件）→ 过了尺寸闸、被原样喂给 Codex → `runner_failed: exited with status 1`（2.85MB ≈ 七八十万 token，模型吃不下；stderr 被 stdio ignore 丢掉，原因不可知）；③ rebase 后 force-push 回原分支 → 同样 runner_failed。三次都只能靠「重建走新分支」绕开，代价是同一份内容开了三个 PR（#325 → #331 → #348）。",
+  "direct_cause": "collectReviewDiff 对 push scope 取 `git diff <remoteSha>..<localSha>`、对 staged scope 取 `git diff --cached`（索引 vs HEAD，即我们这一侧）。这两个范围表达的是「本次操作**携带**了什么」。追平 merge 的 merge 提交是 remoteSha 的**后代**，所以任何 fast-forward / 祖先判断都抓不到它——它照样把第二父带来的全部主线内容算进端点差；rebase 后 force-push 则因两端历史不同源，端点差同时包含「旧 tip 有而新 tip 没有」和反向的全部差异。尺寸闸 assertReviewDiffSize 写在 execFileSync **返回之后**，而 runGit 的 maxBuffer 只比上限高 64KB，所以真正超限的 diff 会先以 ENOBUFS 崩掉，那句友好报错对它自己命名的场景是死代码。",
+  "class_root": "缺的不变量是「评审单元 = 本次操作**作者写**的内容」。仓里此前只有「端点差」这一种表达，而端点差只在分支是纯快进时才等于作者内容。一旦 base 在脚下移动（追平 merge、rebase、force-push），端点差就无声地膨胀到「base 漂移了多少」这个与本次工作无关的量级上；而这个仓库几小时前进约 150 个提交，「落后一阵」是常态不是例外。真正的形状是把集合直接表达出来——从 localSha 可达、且从远端 tip 与主线**都不**可达的那些提交，逐个取它们自己的补丁；其中的 merge 提交只取 combined diff（`--cc`，只剩与所有父都不同的行 = 冲突解析）。上限（1.5MB→8MB）是症状层旋钮：它只把失败点从 git 的缓冲区挪到模型的上下文窗口，没有减少一行不该被审的内容。",
+  "affected_population": [
+    "任何分支落后主线一阵后追平的人：merge 提交必被算成「携带主线全部漂移」，diff 体量与落后程度成正比而非与本次改动成正比。",
+    "任何 rebase 后 force-push 的人：两端历史不同源，端点差同时包含正反两向的全部差异。",
+    "上述两类操作里的**冲突解析**：那是整次合并中唯一由人做出的决定，而旧口径把它埋在数千行主线内容里一起送走或一起挡下。本次事故中这两处解析恰好都写错了——一处把 `check:nul-bytes` 从 gates:contracts 链里静默吞掉，一处吞掉两层收尾括号让整个测试文件零执行——都不是评审发现的。",
+    "所有依赖 R25 pre-commit / pre-push 闸的交付路径：闸一旦对这类操作恒红，人就会被迫用「重建新分支」这类绕法，或者去动 `--no-verify`。"
+  ],
+  "scope_paths": [
+    "scripts/ponytail-review-hook.mjs",
+    "scripts/ponytail-review-hook.node-test.mjs"
+  ],
+  "entry_points": [
+    "scripts/ponytail-review-hook.mjs — collectAuthoredPatch()：push scope 的新收口。用 `rev-list <local> --not <remoteSha> <mainlineBase>` 取出本次真正引入的提交，逐个 commitPatch()；merge 提交走 `git show --cc` 只留 combined diff。",
+    "scripts/ponytail-review-hook.mjs — collectReviewDiff() staged 分支：先探 MERGE_HEAD，是合并提交则改用 `git diff --cached <MERGE_HEAD>`，排除被合入分支自带的内容，只剩我方提交与冲突解析。",
+    "scripts/ponytail-review-hook.mjs — mainlineBase()：从 resolveNewRefBase 抽出的可复用查询（远端默认分支 ↔ localSha 的 merge-base），新旧两条路径共用，不各写一份。"
+  ],
+  "internal_only_reason": "判据全部来自 Git 自身语义与本仓可复现的实测，不依赖任何外部文档：`rev-list --not` 的可达性排除、`git show --cc` 的 combined diff 定义（只保留与所有父都不同的行）、`git diff --cached <commit>` 的索引比对。数字均在本仓量得：端点差 2.85MB / 作者内容 0.37MB；上限从 1_500_000 提到 8_000_000 见主线提交 9873808b（2026-09-02 10:01）。未引入或升级任何第三方依赖。",
+  "generality_proof": "新收口不针对某一种操作，而是直接表达「作者内容」这个集合：任何 push 都按「从 localSha 可达、从远端 tip 与主线都不可达」取提交，因此快进、追平 merge、rebase 后 force-push、以及未来任何把 base 挪动的操作都落在同一条规则下，不需要为每种情形加分支。merge 提交取 combined diff 是同一原则在单个提交内的展开：合并里唯一由人写的就是与所有父都不同的那些行。staged 侧用 MERGE_HEAD 作比对基准，语义与 push 侧一致（都排除「被合入的那一侧已经带来的内容」）。回归测试用**真 git 仓库**分别造出追平 merge、rebase 后 force-push、普通快进、以及带真冲突的合并四种拓扑，逐条断言「我写的在、主线漂移不在」，并且专门有一条钉住「普通快进不因本次修复而变宽」。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/ponytail-review-hook.mjs",
+      "symbol": "collectAuthoredPatch",
+      "responsibility": "push scope 的唯一评审单元收口：把「本次操作作者写了什么」表达成可达性集合（--not 远端 tip 与主线），而不是两个端点之间的差。merge 提交在此只贡献 combined diff。所有 pre-push 评审都经这一处，不存在第二条算范围的路径。"
+    },
+    {
+      "path": "scripts/ponytail-review-hook.mjs",
+      "symbol": "collectReviewDiff",
+      "responsibility": "staged 与 push 两个 scope 的共同入口：staged 侧在合并进行中改以 MERGE_HEAD 为基准，push 侧委托给 collectAuthoredPatch；两侧共享同一条语义（排除被合入/已在主线的内容），尺寸闸与二进制摘要仍在此统一施加。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/ponytail-review-hook.mjs",
+      "entry_point": "push scope 的追平 merge（merge 提交是远端 tip 的后代）",
+      "disposition": "enforced",
+      "evidence": "真 git 仓回归测试「追平 merge 后推送：只审我写的，不把主线漂移卷进来」：主线侧 4000 行漂移，断言评审含本次新提交、不含 MAINLINE-DRIFT。修复前该用例红（评审里是整段漂移且不含我的提交）。"
+    },
+    {
+      "path": "scripts/ponytail-review-hook.mjs",
+      "entry_point": "push scope 的 rebase 后 force-push（两端历史不同源）",
+      "disposition": "enforced",
+      "evidence": "真 git 仓回归测试「rebase 后 force-push：只审我写的，不把主线漂移卷进来」，并显式断言 rebase 确实重写了历史（否则这条测试测不到东西）。修复前红。"
+    },
+    {
+      "path": "scripts/ponytail-review-hook.mjs",
+      "entry_point": "staged scope 的合并提交（git diff --cached 比对我方 HEAD）",
+      "disposition": "enforced",
+      "evidence": "真 git 仓回归测试「合并提交的 staged 评审」：制造真冲突（断言 merge 退出码非 0 作为前提对照）、手工解析成第三种内容，断言评审含 RESOLVED-BY-HAND、不含 MAINLINE-DRIFT。修复前红。"
+    },
+    {
+      "path": "scripts/ponytail-review-hook.mjs",
+      "entry_point": "push scope 的普通快进推送",
+      "disposition": "not-affected",
+      "evidence": "本就等于作者内容，修复不得让它变宽。专门有一条回归测试断言：已推送过的提交不出现在评审里、只有新提交在。它同时是防止本次修复把范围改宽的对照组。"
+    },
+    {
+      "path": "scripts/ponytail-review-hook.mjs",
+      "entry_point": "新建远端 ref 的推送（remoteSha 全 0）",
+      "disposition": "not-affected",
+      "evidence": "resolveNewRefBase 早已按主线 merge-base 收口——这正是本次事故中「推新分支就能过」的原因。本次把它内部的查询抽成共用的 mainlineBase()，行为不变，既有断言（new ref baseline origin/main）仍绿。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "与人无关的结构问题：只要 base 在脚下移动，端点差就必然膨胀。本仓几小时前进约 150 个提交，任何分支放一会儿再追平都会命中；同一天同一条分支就命中了三次。且它不是「偶尔慢一点」，而是让 R25 的闸对这类操作恒红，把人推向绕过闸门的做法。",
+    "same_class_scan": [
+      "通读 collectReviewDiff 两个 scope 的全部取范围路径：push 侧只有 `remoteSha..localSha`（新 ref 除外）、staged 侧只有 `--cached`，没有第三条；确认修复覆盖了全部现存入口。",
+      "按拓扑枚举会让端点差 ≠ 作者内容的四种情形（快进 / 追平 merge / rebase 后 force-push / 新建 ref），逐一造真 git 仓验证；其中两种修复前红、两种本就正确且必须保持不变。",
+      "实测量化同一次真实合并的三种口径：端点差 2.85MB、分支相对主线新增 0.37MB、combined diff 0.374MB，确认「上限」这个旋钮无法把 2.85 变成 0.37。",
+      "核对主线提交 9873808b（把上限 1.5MB→8MB）确实只改常量、未触碰取范围逻辑，因此它缓解了 ENOBUFS 却把失败推到了 Codex 侧 runner_failed——同一根因的第二种表现。",
+      "中途试过两版更省事的判据并**都被实测否掉**，一并记录以免有人再走回头路：(a) 按祖先关系选基线——rebase 后旧远端 tip 常仍是主线 merge-base 的后代，于是又退回整段主线 diff；(b) 按 --shortstat 取「更小的那个基线」——尺寸有界了但内容仍可能是错的，实测那次合并它会选端点差，照样漏掉冲突解析。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/ponytail-review-hook.mjs",
+    "invariant": "评审单元恒等于「从 localSha 可达、且从远端 tip 与主线 merge-base 都不可达」的提交集合；其中 merge 提交只贡献 combined diff（与所有父都不同的行）。staged 侧在合并进行中以 MERGE_HEAD 为比对基准，语义相同。",
+    "failure_mode": "集合为空 → 评审内容为空（本次确实没有新作者内容，是正确结果，不是漏审）。集合非空但超过尺寸上限 → 仍由 assertReviewDiffSize 非零退出、fail-closed，不会静默放行。",
+    "exception_policy": "none",
+    "strategy": "把「作者内容」从「两个端点之差」这种近似表达，换成 Git 可达性集合这种精确表达，于是与操作形态（快进/合并/rebase/force-push）解耦，不需要按情形加分支。merge 用 combined diff 是同一原则在提交内部的展开。真 git 仓回归测试覆盖四种拓扑，含一条「不得变宽」的对照。",
+    "artifacts": [
+      "scripts/ponytail-review-hook.mjs",
+      "scripts/ponytail-review-hook.node-test.mjs"
+    ]
+  },
+  "invariants": [
+    "评审只包含本次操作引入、且尚未在远端 tip 或主线上存在的提交。",
+    "merge 提交只贡献 combined diff：被合入分支自带的内容永不进入评审，冲突解析永远进入评审。",
+    "普通快进推送的评审范围不因本次修复而变宽（远端 tip → 本地 tip 的新提交，不含已推送过的）。",
+    "尺寸上限仍是 fail-closed 的最后一道，不因范围收窄而放宽或移除。",
+    "主线 merge-base 的查询只有 mainlineBase() 一处实现，新 ref 与既有 ref 两条路径共用（P1 不留并行版）。"
+  ],
+  "regression_tests": [
+    "scripts/ponytail-review-hook.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/ponytail-review-hook.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/ponytail-review-hook.mjs"
+    ],
+    "rationale": "旧的端点差取法在 push 既有 ref 这条路径上被就地替换，没有留第二条算范围的分支、没有开关、没有回退口。resolveNewRefBase 保留（新 ref 语义本就正确），但其内部查询抽成共用的 mainlineBase()，不再各写一份 merge-base 解析。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "exit_criteria": [],
+    "rationale": "只用 Git CLI 与 node 内置模块；未新增、升级或保留任何第三方依赖。"
+  },
+  "migration": "无数据与配置迁移。钩子是每次 Git 操作现算的，改完即生效；已存在的分支/PR 不需要任何处理。行为变化只有一个方向：评审内容变少且更准，不会有此前能通过的操作变成被拦。",
+  "residual_risks": [
+    "分支上提交数很多时，逐提交拼接的补丁总量可能接近甚至超过尺寸上限（例如一条长期分支第一次推送）。此时仍由 assertReviewDiffSize fail-closed，行为与今天一致、不会静默放行；但尚未做「提交数过多时降级为按范围取 diff」的兜底，若真出现需要再判断降级形状。",
+    "二进制摘要仍按 `remoteSha..localSha` 范围计算（一行一文件、体量可忽略），因此在追平 merge 时会多列出几行主线带来的二进制文件。刻意保留：摘要的用途是提示仓库体重，过度包含无害，而让它跟随作者集合会显著增加复杂度。",
+    "`mainlineBase()` 依赖 `refs/remotes/<remote>/HEAD` 被本地记录。裸克隆或未设置该 ref 的机器上它返回 null，push 既有 ref 会退回到只排除远端 tip（即今天的行为）——不会更差，但也拿不到本次修复的收益。新建 ref 那条路径在这种情况下仍按原样抛错拒审（既有行为，未改）。",
+    "Codex 侧 stderr 仍被 `stdio: [_, 'ignore', 'ignore']` 丢弃，所以一旦 runner 再次失败，原因依然不可知（本次事故里第二、三次挡下就是这样查不出因）。这条与评审范围无关、未在本次改动范围内，但它让任何 runner 侧故障都难以定位，值得单独处理。"
+  ]
+}

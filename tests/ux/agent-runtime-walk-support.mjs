@@ -104,10 +104,13 @@ export async function chooseCreationMode(win, mode) {
 export async function openCanvas(win) {
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '生成工作区')
   await expect(win.locator('.generation-canvas-v2__stage')).toBeVisible()
-  const launcher = win.locator('.generation-canvas-v2-assistant__launcher')
+  // Host cutover retired the in-canvas assistant panel; the project Agent now lives in the
+  // ResidentShell dock (gated by the default-off agentHost flag, #194). Its collapsed launcher is
+  // the pill with [data-agent-resident-collapsed]; expanding it reveals [data-agent-composer].
+  const launcher = win.locator('[data-agent-resident-collapsed="true"]')
   // This is a genuine two-state UI (persisted expanded/collapsed preference).
-  if (await launcher.isVisible()) await clickOrFail(launcher, '展开画布助手')
-  await expect(win.locator(`${CANVAS_PANEL} [aria-label="给生成助手发送消息"]`)).toBeVisible()
+  if (await launcher.isVisible()) await clickOrFail(launcher, '展开常驻助手')
+  await expect(win.locator('[data-agent-resident="true"] [data-agent-composer="true"]')).toBeVisible()
 }
 
 export async function sendCreation(win, text) {

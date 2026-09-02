@@ -92,6 +92,12 @@ function jobFor(shotId: string, hash: string, status: ProductionJob["status"], a
   };
 }
 
+function authorizedJobsFor(shots: ProductionGenerationShot[]): ProductionJob[] {
+  return shots
+    .filter((entry) => entry.included !== false && entry.contract)
+    .map((entry) => jobFor(entry.shotId, entry.contract!.contractHash, "authorized", entry.attemptCount ?? 1));
+}
+
 const ANCHOR_HASH = "n".repeat(64);
 
 /** An anchor entry in the plan: a role:"anchor" shot with an image sub-contract. */
@@ -126,7 +132,7 @@ function baseInput(overrides: Partial<BatchDerivationInput> = {}): BatchDerivati
     runId: "op-batch",
     runStatus: "running",
     plan: sealedPlan(shots),
-    jobs: [],
+    jobs: authorizedJobsFor(shots),
     budget: { currency: "CNY", authorized: 100, reserved: 0, actual: 0, unsettled: 0 },
     perShotPrice: () => ({ known: true, amount: 6 }),
     anchorGate: undefined,
@@ -136,7 +142,7 @@ function baseInput(overrides: Partial<BatchDerivationInput> = {}): BatchDerivati
 }
 
 describe("P4 S4 deriveBatchPlan — shot dispatch", () => {
-  it("dispatches every included shot with no existing job (no anchor requirement)", () => {
+  it("dispatches every included shot with a gate-authorized job (no anchor requirement)", () => {
     const result = deriveBatchPlan(baseInput());
     expect(result.shotDispatch.map((s) => s.shotId)).toEqual(["shot-a", "shot-b"]);
     expect(result.anchorDispatch).toEqual([]);
@@ -151,7 +157,10 @@ describe("P4 S4 deriveBatchPlan — shot dispatch", () => {
 
   it("does not re-dispatch a shot that already has a durable job (crash-recovery re-run)", () => {
     // A restart re-runs derivation over the durable Run: shot-a already submitted, shot-b not.
-    const jobs = [jobFor("shot-a", "a".repeat(64), "provider_accepted")];
+    const jobs = [
+      jobFor("shot-a", "a".repeat(64), "provider_accepted"),
+      jobFor("shot-b", "b".repeat(64), "authorized"),
+    ];
     const result = deriveBatchPlan(baseInput({ jobs }));
     expect(result.shotDispatch.map((s) => s.shotId)).toEqual(["shot-b"]);
   });
@@ -166,13 +175,16 @@ describe("P4 S4 deriveBatchPlan — shot dispatch", () => {
   });
 
   it("re-dispatches only the current attempt when a shot has a fresh (higher) attemptCount but no job for it yet", () => {
-    // A per-shot new_attempt bumped shot-a to attempt 2 (reducer reset its receipt), but no attempt-2
-    // job exists yet. The shot's current attempt is derived from attemptCount; derivation must offer it.
+    // A fresh reauthorization bumped shot-a to attempt 2 and atomically created its authorized job.
     const shots = [
       shot("shot-a", "a".repeat(64), { attemptCount: 2 }),
       shot("shot-b", "b".repeat(64)),
     ];
-    const jobs = [jobFor("shot-a", "a".repeat(64), "needs_attention", 1)]; // the stale attempt-1 job
+    const jobs = [
+      jobFor("shot-a", "a".repeat(64), "needs_attention", 1),
+      jobFor("shot-a", "a".repeat(64), "authorized", 2),
+      jobFor("shot-b", "b".repeat(64), "authorized"),
+    ];
     const result = deriveBatchPlan(baseInput({ plan: sealedPlan(shots), jobs }));
     const shotA = result.shotDispatch.find((s) => s.shotId === "shot-a");
     expect(shotA?.attempt).toBe(2);
@@ -190,7 +202,8 @@ function planWithAnchor(anchorExtra: Partial<ProductionGenerationShot> = {}): Pr
 
 describe("P4 S4 deriveBatchPlan — anchor + checkpoint", () => {
   it("dispatches anchors first and blocks shots until anchors have jobs", () => {
-    const result = deriveBatchPlan(baseInput({ plan: planWithAnchor() }));
+    const plan = planWithAnchor();
+    const result = deriveBatchPlan(baseInput({ plan, jobs: authorizedJobsFor(plan.shots ?? []) }));
     expect(result.anchorDispatch.map((a) => a.shotId)).toEqual(["anchor-1"]);
     // No checkpoint approval yet and anchors not even generated → shots blocked.
     expect(result.shotDispatch).toEqual([]);
@@ -201,7 +214,7 @@ describe("P4 S4 deriveBatchPlan — anchor + checkpoint", () => {
     // Anchor job is ready but the checkpoint gate is still waiting for the user to approve the look.
     const result = deriveBatchPlan(baseInput({
       plan: planWithAnchor(),
-      jobs: [anchorJobReady("anchor-1")],
+      jobs: [anchorJobReady("anchor-1"), ...authorizedJobsFor(planWithAnchor().shots!.slice(1))],
       anchorGate: anchorCheckpointGate("waiting"),
     }));
     expect(result.anchorDispatch).toEqual([]); // anchor already has a job
@@ -212,7 +225,7 @@ describe("P4 S4 deriveBatchPlan — anchor + checkpoint", () => {
   it("releases shots once the anchor checkpoint gate is approved", () => {
     const result = deriveBatchPlan(baseInput({
       plan: planWithAnchor(),
-      jobs: [anchorJobReady("anchor-1")],
+      jobs: [anchorJobReady("anchor-1"), ...authorizedJobsFor(planWithAnchor().shots!.slice(1))],
       anchorGate: anchorCheckpointGate("approved"),
     }));
     expect(result.shotDispatch.map((s) => s.shotId)).toEqual(["shot-a", "shot-b"]);
@@ -222,7 +235,7 @@ describe("P4 S4 deriveBatchPlan — anchor + checkpoint", () => {
   it("signals that the checkpoint gate should be OPENED once all anchors are ready and no gate exists yet", () => {
     const result = deriveBatchPlan(baseInput({
       plan: planWithAnchor(),
-      jobs: [anchorJobReady("anchor-1")],
+      jobs: [anchorJobReady("anchor-1"), ...authorizedJobsFor(planWithAnchor().shots!.slice(1))],
       anchorGate: undefined,
     }));
     expect(result.checkpoint.status).toBe("should_open");
@@ -235,7 +248,7 @@ describe("P4 S4 deriveBatchPlan — anchor + checkpoint", () => {
     const later = "2026-08-25T00:10:00.000Z"; // 10 minutes later
     const result = deriveBatchPlan(baseInput({
       plan: planWithAnchor(),
-      jobs: [anchorJobReady("anchor-1")],
+      jobs: [anchorJobReady("anchor-1"), ...authorizedJobsFor(planWithAnchor().shots!.slice(1))],
       anchorGate: anchorCheckpointGate("waiting", openedAt),
       now: later,
       anchorAutoReleaseMs: 5 * 60 * 1000, // 5 minutes
@@ -257,11 +270,15 @@ describe("P4 S4 deriveBatchPlan — anchor + checkpoint", () => {
   });
 
   it("re-dispatches ONLY the anchor (not shots) when the checkpoint was rejected", () => {
-    // Rejected checkpoint → the anchor got a new_attempt (attemptCount bumped) but no job for it yet.
-    // The stale attempt-1 anchor job stays; derivation offers the anchor's attempt-2, shots stay blocked.
+    // Rejected checkpoint → a fresh authority created the anchor's attempt-2 job. The stale attempt-1
+    // anchor job stays; derivation offers only the authorized replacement and keeps shots blocked.
     const result = deriveBatchPlan(baseInput({
       plan: planWithAnchor({ attemptCount: 2 }),
-      jobs: [anchorJobReady("anchor-1", 1)],
+      jobs: [
+        anchorJobReady("anchor-1", 1),
+        jobFor("anchor-1", ANCHOR_HASH, "authorized", 2),
+        ...authorizedJobsFor(planWithAnchor().shots!.slice(1)),
+      ],
       anchorGate: anchorCheckpointGate("rejected"),
     }));
     expect(result.anchorDispatch.map((a) => a.shotId)).toEqual(["anchor-1"]);
@@ -276,6 +293,7 @@ describe("P4 S4 deriveBatchPlan — budget halt", () => {
     const shots = [shot("shot-a", "a".repeat(64)), shot("shot-b", "b".repeat(64)), shot("shot-c", "c".repeat(64))];
     const result = deriveBatchPlan(baseInput({
       plan: sealedPlan(shots),
+      jobs: authorizedJobsFor(shots),
       budget: { currency: "CNY", authorized: 13, reserved: 0, actual: 0, unsettled: 0 },
     }));
     expect(result.shotDispatch.map((s) => s.shotId)).toEqual(["shot-a", "shot-b"]);
@@ -289,7 +307,11 @@ describe("P4 S4 deriveBatchPlan — budget halt", () => {
   it("accounts already-reserved+actual spend so a partial batch resumes without double-counting", () => {
     // shot-a already reserved (6 in-flight). authorized=13 → only 7 headroom → shot-b(6) fits, shot-c(6) does not.
     const shots = [shot("shot-a", "a".repeat(64)), shot("shot-b", "b".repeat(64)), shot("shot-c", "c".repeat(64))];
-    const jobs = [jobFor("shot-a", "a".repeat(64), "provider_accepted")];
+    const jobs = [
+      jobFor("shot-a", "a".repeat(64), "provider_accepted"),
+      jobFor("shot-b", "b".repeat(64), "authorized"),
+      jobFor("shot-c", "c".repeat(64), "authorized"),
+    ];
     const result = deriveBatchPlan(baseInput({
       plan: sealedPlan(shots),
       jobs,

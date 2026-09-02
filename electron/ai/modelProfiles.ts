@@ -104,7 +104,7 @@ export function getModelProfile(modelId: string): ModelQuirks & { description: s
   const normalized = (modelId || "").trim();
   for (const entry of PROFILES) {
     if (entry.match(normalized)) {
-      const { match, ...rest } = entry;
+      const { match: _match, ...rest } = entry;
       return rest;
     }
   }

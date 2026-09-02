@@ -1,5 +1,27 @@
 import type { HttpOperation, ProfileKind } from "./types";
 import { registerRequestTransform, type RequestTransformContext } from "../tasks/requestTransforms";
+import { desktopT } from "../i18n";
+// Runway union 的线缆事实（比例枚举 / 时长约束 / 哪些族发布 reference 数组）住 shared，
+// 由**能力面（各档案 vendorParams.runway）与本文件的传输归一器共用**。catalog → shared 是允许
+// 的依赖方向（shared 永不反向 import catalog）。在这里重抄一份就是第二个作者，正是本轮修的病。
+import {
+  RUNWAY_FAMILIES_WITHOUT_IMAGE_RATIO,
+  RUNWAY_FAMILIES_WITH_IMAGE_REFS,
+  RUNWAY_FAMILIES_WITH_VIDEO_REFS,
+  RUNWAY_VEO_FALLBACK_DURATION,
+  RUNWAY_VIDEO_DURATION_ENUMS,
+  runwayVideoFamilyForModel,
+} from "../shared/videoCapabilities/runwayWireFacts";
+// 音频侧同理：seed_audio 的参考音频上限只有一份，UI 侧档案槽与这里的传输校验同源。
+import { RUNWAY_SEED_AUDIO_REFERENCE_MAX } from "../shared/audioCapabilities/runwayAudioWireFacts";
+// 图像侧的比例几何（与视频侧无重叠）继续住 catalog/runwayRatio.ts；`normalizeRunwayVideoRatio`
+// 也在那里，但它现在从上面这张 shared 表 derive 枚举与判别（不再自持副本）。
+import { normalizeRunwayVideoRatio } from "./runwayRatio";
+// Runway 目录共享底座（拆图像目录时依赖反转出来，见该文件头注释）。
+import { POLL_HEADERS, RUNWAY_HEADERS, runwayMapping, runwayUriArray, STATUS, type RunwayModel } from "./runwayShared";
+// 图像目录（10 行 + 归一器）已拆出（R9 巨壳门岗）；本 import 同时完成
+// `runway-image-references` 请求变换的注册，故必须在建表前发生。
+import { RUNWAY_IMAGE_SPECS, runwayImageModel } from "./runwayImage";
 
 /** Runway Dev official API (OpenAPI v2024-11-06, checked 2026-08-30). */
 export const RUNWAY_VENDOR_SEED = {
@@ -29,23 +51,11 @@ export const RUNWAY_VENDOR_SEED = {
   },
 };
 
-const HEADERS = {
-  Authorization: "Bearer {{user_api_key}}",
-  "X-Runway-Version": "2024-11-06",
-  "Content-Type": "application/json",
-};
-const POLL_HEADERS = { Authorization: "Bearer {{user_api_key}}", "X-Runway-Version": "2024-11-06" };
-const STATUS: Record<string, string[]> = {
-  queued: ["PENDING", "THROTTLED"],
-  running: ["RUNNING"],
-  succeeded: ["SUCCEEDED"],
-  failed: ["FAILED", "CANCELLED", "CANCELED"],
-};
 
 const create = (path: string, model: string, withImage: boolean): HttpOperation => ({
   method: "POST",
   path,
-  headers: HEADERS,
+  headers: RUNWAY_HEADERS,
   body: {
     promptText: "{{request.prompt}}",
     ...(withImage ? { promptImage: "{{request.params.image_url}}" } : {}),
@@ -65,10 +75,6 @@ const create = (path: string, model: string, withImage: boolean): HttpOperation 
  * vendor-neutral. Empty optional arrays are removed so a mode cannot become a
  * mixed reference request by accident.
  */
-function uriArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean);
-}
 
 function typedReferences(value: unknown, type?: "video" | "audio"): Array<Record<string, string>> {
   if (!Array.isArray(value)) return [];
@@ -81,18 +87,22 @@ function typedReferences(value: unknown, type?: "video" | "audio"): Array<Record
     return [];
   });
 }
-
 function normalizeRunwaySeedance25Body(body: unknown, _context?: RequestTransformContext): unknown {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    throw new Error("Runway Seedance 2.5 请求体必须是 JSON 对象");
+    throw new Error(desktopT("runway.seedanceBody"));
   }
   const input = body as Record<string, unknown>;
-  const images = uriArray(input.reference_image_urls);
-  const videos = uriArray(input.reference_video_urls);
-  const audios = uriArray(input.reference_audio_urls);
-  if (images.length > 30) throw new Error("Runway Seedance 2.5 最多 30 张参考图");
-  if (videos.length > 10) throw new Error("Runway Seedance 2.5 最多 10 个参考视频");
-  if (audios.length > 10) throw new Error("Runway Seedance 2.5 最多 10 个参考音频");
+  // Seedance 2.5 的 ratio 枚举是纯像素值（无 adaptive/友好串）；把共享默认（adaptive/16:9…）收敛到合法像素比例。
+  if (typeof input.ratio === "string") {
+    const mapped = normalizeRunwayVideoRatio("seedance2_5", input.ratio);
+    if (mapped) input.ratio = mapped; else delete input.ratio;
+  }
+  const images = runwayUriArray(input.reference_image_urls);
+  const videos = runwayUriArray(input.reference_video_urls);
+  const audios = runwayUriArray(input.reference_audio_urls);
+  if (images.length > 30) throw new Error(desktopT("runway.seedanceMaxImages", { count: 30 }));
+  if (videos.length > 10) throw new Error(desktopT("runway.seedanceMaxVideos", { count: 10 }));
+  if (audios.length > 10) throw new Error(desktopT("runway.seedanceMaxAudios", { count: 10 }));
 
   delete input.reference_image_urls;
   delete input.reference_video_urls;
@@ -114,10 +124,10 @@ function normalizeRunwaySeedance25Body(body: unknown, _context?: RequestTransfor
       }
       return [];
     });
-    if (!promptImages.length) throw new Error("Runway Seedance 2.5 参考图不能为空");
+    if (!promptImages.length) throw new Error(desktopT("runway.seedanceEmptyImage"));
     const keyframes = promptImages.some((item) => item.position === "first" || item.position === "last");
     if (keyframes && (promptImages.length !== 2 || promptImages.some((item) => item.position !== "first" && item.position !== "last"))) {
-      throw new Error("Runway Seedance 2.5 首尾帧必须同时提供");
+      throw new Error(desktopT("runway.seedanceKeyframes"));
     }
     input.promptImage = promptImages;
   } else if (typeof input.promptImage === "string") {
@@ -145,62 +155,53 @@ registerRequestTransform("runway-video-references", normalizeRunwaySeedance25Bod
  * branch or provider-specific mode is introduced.
  */
 function normalizeRunwayVideoContract(body: unknown, _context?: RequestTransformContext): unknown {
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Runway 视频请求体必须是 JSON 对象");
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(desktopT("runway.videoBody"));
   const input = body as Record<string, unknown>;
   const model = String(input.model || "");
   const hasPromptImage = Object.prototype.hasOwnProperty.call(input, "promptImage");
 
-  // The current shared ratio defaults are intentionally friendly strings;
-  // map them to the official discriminator enums at the transport boundary.
+  // The shared archetype ratio defaults (friendly strings, or high-res pixel values not in every
+  // variant's enum) are collapsed to each model's official discriminator enum via the single
+  // per-model normalizer. This closes two live drifts (2026-09-02): seedance2_fast/mini reject the
+  // high-res 1920:1080/1080:1920 that the shared control exposes (only in seedance2's full enum),
+  // and every family's friendly default is mapped to a member of its own spec enum by orientation.
+  //
+  // **纵深防御，不是唯一防线**：UI 侧的 `vendorParams.runway` 已经只给得出合法值（与归一器同一张
+  // `runwayWireFacts` 表 derive），所以正常走 UI 的请求到这里本就是合法的。这段留着是为**绕过 UI
+  // 的调用方**（headless / MCP / 存量节点带着旧值复活）——它们同样发不出非法值。
+  //
+  // 判别只有一份：`runwayVideoFamilyForModel` 住 shared，归一器与能力面共用（此前这里另有一条
+  // 内联 `startsWith` 链 = 第二个作者，正是本轮修的病）。
   const ratio = String(input.ratio || "").trim();
-  const ratioFamilies: Record<string, readonly string[]> = {
-    seedance: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280", "2206:946", "1920:1080", "1664:1248", "1440:1440", "1248:1664", "1080:1920", "3840:1646", "3840:2160", "3840:2880", "3840:3840", "2880:3840", "2160:3840"],
-    wan: ["832:480", "640:480", "480:480", "480:640", "480:832", "1280:720", "960:720", "720:720", "720:960", "720:1280", "1920:1080", "1440:1080", "1080:1080", "1080:1440", "1080:1920", "auto_480p", "auto_720p", "auto_1080p"],
-    hailuo: ["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"],
-    grok: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"],
-    veo: ["1280:720", "720:1280", "1080:1920", "1920:1080"],
-    happyhorse: ["1280:720", "720:1280", "960:960", "1108:832", "832:1108", "1920:1080", "1080:1920", "1440:1440", "1662:1248", "1248:1662"],
-    gemini: ["1280:720", "720:1280"],
-  };
-  const family = model.startsWith("seedance2") ? "seedance"
-    : model === "wan3" ? "wan"
-      : model === "hailuo3" ? "hailuo"
-        : model === "grok_imagine_1_5" ? "grok"
-          : model.startsWith("veo3.1") ? "veo"
-            : model === "happyhorse_1_0" ? "happyhorse"
-              : model === "gemini_omni_flash" ? "gemini"
-                : null;
-  if (family && ratio && !ratioFamilies[family].includes(ratio)) {
-    const normalized = ratio === "16:9" || (ratio === "1280:720" && (family === "hailuo" || family === "grok"))
-      ? (family === "hailuo" || family === "grok" ? "16:9" : "1280:720")
-      : ratio === "9:16" || (ratio === "720:1280" && (family === "hailuo" || family === "grok"))
-        ? (family === "hailuo" || family === "grok" ? "9:16" : "720:1280")
-        : undefined;
-    if (normalized) input.ratio = normalized;
+  const family = runwayVideoFamilyForModel(model);
+  if (family && ratio) {
+    const mapped = normalizeRunwayVideoRatio(model, ratio);
+    if (mapped) input.ratio = mapped;
     else delete input.ratio;
   }
 
   // Veo only accepts 4/6/8 seconds; choose the cheapest valid duration for
   // the shared control's default instead of sending a guaranteed 400.
-  if (family === "veo" && input.duration !== undefined) {
+  const durations = family ? RUNWAY_VIDEO_DURATION_ENUMS[family] : undefined;
+  if (durations && input.duration !== undefined) {
     const duration = Number(input.duration);
-    input.duration = [4, 6, 8].includes(duration) ? duration : 4;
+    input.duration = durations.includes(duration) ? duration : RUNWAY_VEO_FALLBACK_DURATION;
   }
   // HappyHorse image-to-video has no ratio property in the official schema.
-  if (family === "happyhorse" && hasPromptImage) delete input.ratio;
+  if (family && hasPromptImage && RUNWAY_FAMILIES_WITHOUT_IMAGE_RATIO.includes(family)) delete input.ratio;
 
   // Reference arrays are supported only by the discriminators that publish
   // them.  The UI supplies URL arrays; translate them into Runway's typed
   // reference objects without allowing unsupported video/audio fields to
   // leak into a different model variant.
-  const imageRefs = uriArray(input.reference_image_urls);
-  const videoRefs = uriArray(input.reference_video_urls);
-  const audioRefs = uriArray(input.reference_audio_urls);
+  const imageRefs = runwayUriArray(input.reference_image_urls);
+  const videoRefs = runwayUriArray(input.reference_video_urls);
+  const audioRefs = runwayUriArray(input.reference_audio_urls);
   delete input.reference_image_urls;
   delete input.reference_video_urls;
   delete input.reference_audio_urls;
-  const allowsImage = family === "seedance" || family === "wan" || family === "hailuo" || family === "grok";
-  const allowsVideo = family === "seedance" || family === "wan" || family === "hailuo";
+  const allowsImage = family !== null && RUNWAY_FAMILIES_WITH_IMAGE_REFS.includes(family);
+  const allowsVideo = family !== null && RUNWAY_FAMILIES_WITH_VIDEO_REFS.includes(family);
   const allowsAudio = allowsImage;
   if (allowsImage && imageRefs.length) input.references = imageRefs.map((uri) => ({ uri }));
   if (allowsVideo && videoRefs.length) input.referenceVideos = videoRefs.map((uri) => ({ type: "video", uri }));
@@ -215,31 +216,38 @@ registerRequestTransform("runway-video-contract", normalizeRunwayVideoContract, 
   normalizeRunwayVideoContract(body);
 });
 
-function normalizeRunwayImageReferences(body: unknown): unknown {
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Runway 图像请求体必须是 JSON 对象");
+/**
+ * seed_audio 的参考音频归一（传输边界，纵深防御）。
+ *
+ * 上限**不再写死数字**：从 `runwayAudioWireFacts.ts` 那张官方 spec 表取
+ * （`referenceAudios.maxItems` = 3）。UI 侧档案的槽上限也从同一个常量构建——
+ * 一个事实一个作者，这正是被删掉的平台档案没做到的事。
+ */
+function normalizeRunwayAudioReferences(body: unknown): unknown {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(desktopT("runway.audioBody"));
   const input = body as Record<string, unknown>;
-  const images = uriArray(input.reference_image_urls);
-  if (input.model === "gen4_image_turbo" && images.length === 0) {
-    throw new Error("Runway Gen-4 Image Turbo 必须提供至少一张参考图");
+  const refs = runwayUriArray(input.reference_audio_urls);
+  if (refs.length > RUNWAY_SEED_AUDIO_REFERENCE_MAX) {
+    throw new Error(desktopT("runway.maxAudioReferences", { count: RUNWAY_SEED_AUDIO_REFERENCE_MAX }));
   }
-  if (images.length > 3) throw new Error("Runway 图像模型最多 3 张参考图");
-  delete input.reference_image_urls;
-  if (images.length) input.referenceImages = images.map((uri) => ({ uri }));
+  delete input.reference_audio_urls;
+  if (refs.length) input.referenceAudios = refs;
   return input;
 }
 
-registerRequestTransform("runway-image-references", normalizeRunwayImageReferences, (body) => {
-  normalizeRunwayImageReferences(body);
-});
-
-/** seed_audio accepts referenceAudios as plain provider URI strings (max 3). */
-function normalizeRunwayAudioReferences(body: unknown): unknown {
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Runway 音频请求体必须是 JSON 对象");
+/**
+ * seed_audio 在 **text_to_speech** 端点上的克隆音色归一。
+ * 官方形状是 `voice: {type:"reference-audio", audioUri}`（**单条**，不是数组）——与
+ * sound_effect 端点的 `referenceAudios` 数组是两个不同字段，故单独一个归一器。
+ * 档案侧那个槽的 inputKey 是 `voice_reference_audio_url`，这里把它整形成官方形状。
+ */
+function normalizeRunwaySeedVoiceReference(body: unknown): unknown {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(desktopT("runway.audioBody"));
   const input = body as Record<string, unknown>;
-  const refs = uriArray(input.reference_audio_urls);
-  if (refs.length > 3) throw new Error("Runway seed_audio 最多 3 个参考音频");
-  delete input.reference_audio_urls;
-  if (refs.length) input.referenceAudios = refs;
+  const refs = runwayUriArray(input.voice_reference_audio_url);
+  delete input.voice_reference_audio_url;
+  // 只取第一条：spec 的 SeedReferenceVoice 就是单条音频，档案槽上限也是 1。
+  if (refs.length) input.voice = { type: "reference-audio", audioUri: refs[0] };
   return input;
 }
 
@@ -247,33 +255,13 @@ registerRequestTransform("runway-audio-references", normalizeRunwayAudioReferenc
   normalizeRunwayAudioReferences(body);
 });
 
-const poll: HttpOperation = {
-  method: "GET",
-  path: "/v1/tasks/{{providerMeta.task_id}}",
-  headers: POLL_HEADERS,
-  response_mapping: { task_id: "id", status: "status", video_url: "output.0", error_message: "failure" },
-};
+registerRequestTransform("runway-seed-voice-reference", normalizeRunwaySeedVoiceReference, (body) => {
+  normalizeRunwaySeedVoiceReference(body);
+});
+
 
 // Keep an explicit result stage so ProductionRun can verify the final output
 // after status observation. Runway uses the same task detail endpoint for both.
-const result: HttpOperation = {
-  method: "GET",
-  path: "/v1/tasks/{{providerMeta.task_id}}",
-  headers: POLL_HEADERS,
-  response_mapping: { task_id: "id", status: "status", assets: "output", error_message: "failure" },
-};
-const imagePoll: HttpOperation = {
-  method: "GET",
-  path: "/v1/tasks/{{providerMeta.task_id}}",
-  headers: POLL_HEADERS,
-  response_mapping: { task_id: "id", status: "status", image_url: "output.0", error_message: "failure" },
-};
-const imageResult: HttpOperation = {
-  method: "GET",
-  path: "/v1/tasks/{{providerMeta.task_id}}",
-  headers: POLL_HEADERS,
-  response_mapping: { task_id: "id", status: "status", assets: "output", error_message: "failure" },
-};
 
 const audioPoll: HttpOperation = {
   method: "GET",
@@ -288,20 +276,13 @@ const audioResult: HttpOperation = {
   response_mapping: { task_id: "id", status: "status", assets: "output", error_message: "failure" },
 };
 
-type RunwayModel = {
-  modelKey: string;
-  labelZh: string;
-  kind: "video" | "image" | "audio";
-  archetypeId: string;
-  mappings: Array<{ id: string; modeId: string; taskKind: ProfileKind; name: string; create: HttpOperation; query: HttpOperation; result: HttpOperation; statusMapping: Record<string, string[]> }>;
-};
 
 const RUNWAY_AUDIO_SFX_ID = "seed-runway-seed-audio-sfx";
 const RUNWAY_AUDIO_TTS_ID = "seed-runway-seed-audio-tts";
 const RUNWAY_AUDIO_SFX_CREATE: HttpOperation = {
   method: "POST",
   path: "/v1/sound_effect",
-  headers: HEADERS,
+  headers: RUNWAY_HEADERS,
   body: {
     model: "seed_audio",
     promptText: "{{request.prompt}}",
@@ -319,16 +300,19 @@ const RUNWAY_AUDIO_SFX_CREATE: HttpOperation = {
 const RUNWAY_AUDIO_TTS_CREATE: HttpOperation = {
   method: "POST",
   path: "/v1/text_to_speech",
-  headers: HEADERS,
+  headers: RUNWAY_HEADERS,
   body: {
     model: "seed_audio",
     promptText: "{{request.prompt}}",
+    // 可选克隆音色：归一器把它整形成官方的 voice:{type:"reference-audio",audioUri}。
+    voice_reference_audio_url: "{{request.params.voice_reference_audio_url}}",
     speechRate: "{{request.params.speech_rate}}",
     loudnessRate: "{{request.params.loudness_rate}}",
     pitchRate: "{{request.params.pitch_rate}}",
     sampleRate: "{{request.params.sample_rate}}",
     outputFormat: "{{request.params.output_format}}",
   },
+  request_transform: "runway-seed-voice-reference",
   response_mapping: { task_id: "id" },
   provider_meta_mapping: { task_id: "id" },
 };
@@ -336,7 +320,7 @@ const RUNWAY_AUDIO_TTS_CREATE: HttpOperation = {
 const RUNWAY_ELEVEN_SFX_CREATE: HttpOperation = {
   method: "POST",
   path: "/v1/sound_effect",
-  headers: HEADERS,
+  headers: RUNWAY_HEADERS,
   body: {
     model: "eleven_text_to_sound_v2",
     promptText: "{{request.prompt}}",
@@ -347,27 +331,62 @@ const RUNWAY_ELEVEN_SFX_CREATE: HttpOperation = {
   provider_meta_mapping: { task_id: "id" },
 };
 
-const RUNWAY_ELEVEN_TTS_CREATE = (model: "eleven_multilingual_v2" | "eleven_v3"): HttpOperation => ({
+/**
+ * 两个 Eleven TTS 变体的 create op。
+ *
+ * `voice` 在官方 spec 里**是必填的**，且其 `oneOf` 只有 `RunwayPresetVoice` 一个变体
+ * （49 个 `presetId` 枚举）。旧实现把 `presetId: "Maya"` **焊死在 body 里**——用户永远只能
+ * 用这一个音色，而档案却摆着 7 个对这条线缆毫无作用的控件（output_format / sample_rate /
+ * speech_rate / …，实测一个都到不了 wire）。现在音色由档案的 `voice_preset_id` 控件给，
+ * 取值域来自 `runwayAudioWireFacts.ts` 的官方 49 值表。
+ *
+ * `eleven_v3` 比 `eleven_multilingual_v2` 多一整套表现力参数（后者官方**一个可调属性都没有**）——
+ * 这正是平台档案抹掉的差异，故两者的 body 不同，不再共用一个 create 工厂。
+ */
+const RUNWAY_ELEVEN_MULTILINGUAL_CREATE: HttpOperation = {
   method: "POST",
   path: "/v1/text_to_speech",
-  headers: HEADERS,
+  headers: RUNWAY_HEADERS,
   body: {
-    model,
+    model: "eleven_multilingual_v2",
     promptText: "{{request.prompt}}",
-    // Runway's public contract requires a voice object for these variants.
-    // Maya is an official preset; the generic audio archetype keeps this
-    // default stable until a voice-picker control is added to the shared UI.
-    voice: { type: "runway-preset", presetId: "Maya" },
+    voice: { type: "runway-preset", presetId: "{{request.params.voice_preset_id}}" },
   },
   response_mapping: { task_id: "id" },
   provider_meta_mapping: { task_id: "id" },
-});
+};
 
+const RUNWAY_ELEVEN_V3_CREATE: HttpOperation = {
+  method: "POST",
+  path: "/v1/text_to_speech",
+  headers: RUNWAY_HEADERS,
+  body: {
+    model: "eleven_v3",
+    promptText: "{{request.prompt}}",
+    voice: { type: "runway-preset", presetId: "{{request.params.voice_preset_id}}" },
+    // 以下键逐字对应 spec 的 eleven_v3 变体属性（模板引擎丢弃 undefined 键，用户没调就不发）。
+    stability: "{{request.params.stability}}",
+    similarityBoost: "{{request.params.similarity_boost}}",
+    style: "{{request.params.style}}",
+    speed: "{{request.params.speed}}",
+    useSpeakerBoost: "{{request.params.use_speaker_boost}}",
+    languageCode: "{{request.params.language_code}}",
+    applyTextNormalization: "{{request.params.apply_text_normalization}}",
+  },
+  response_mapping: { task_id: "id" },
+  provider_meta_mapping: { task_id: "id" },
+};
+
+/**
+ * 四行音频各自挂**模型专属**档案（2026-09-02 拆平台档案 `runway-audio`）。
+ * seed_audio 是唯一双模态产品（官方两个端点的 oneOf 里都有它）；另外三个各只有一种能力，
+ * 故各只发布一条 mapping，档案也只声明那一个模式——「SFX 模型宣称会配音」的并集谎言就此消失。
+ */
 const RUNWAY_AUDIO_MODEL: RunwayModel = {
   modelKey: "seed_audio",
   labelZh: "Runway Seed Audio",
   kind: "audio",
-  archetypeId: "runway-audio",
+  archetypeId: "runway-seed-audio",
   mappings: [
     { id: RUNWAY_AUDIO_SFX_ID, modeId: "sfx", taskKind: "text_to_audio", name: "Runway Seed Audio · 音效", create: RUNWAY_AUDIO_SFX_CREATE, query: audioPoll, result: audioResult, statusMapping: STATUS },
     { id: RUNWAY_AUDIO_TTS_ID, modeId: "speech", taskKind: "text_to_audio", name: "Runway Seed Audio · 配音", create: RUNWAY_AUDIO_TTS_CREATE, query: audioPoll, result: audioResult, statusMapping: STATUS },
@@ -379,28 +398,28 @@ const RUNWAY_ELEVEN_AUDIO_MODELS: RunwayModel[] = [
     modelKey: "eleven_text_to_sound_v2",
     labelZh: "Runway Eleven Sound Effects v2",
     kind: "audio",
-    archetypeId: "runway-audio",
+    // 复用 ElevenLabs 直连侧已有的模型身份档案（同一个产品，两条渠道）；
+    // Runway 这条线缆的取值差异由该档案的 vendorParams.runway 吸收（P4）。
+    archetypeId: "eleven-sfx-v2",
     mappings: [{ id: "seed-runway-eleven_text_to_sound_v2-sfx", modeId: "sfx", taskKind: "text_to_audio", name: "Runway Eleven Sound Effects v2 · 音效", create: RUNWAY_ELEVEN_SFX_CREATE, query: audioPoll, result: audioResult, statusMapping: STATUS }],
   },
-  ...(["eleven_multilingual_v2", "eleven_v3"] as const).map((modelKey) => ({
-    modelKey,
-    labelZh: `Runway ${modelKey}`,
-    kind: "audio" as const,
-    archetypeId: "runway-audio",
-    mappings: [{ id: `seed-runway-${modelKey}-speech`, modeId: "speech", taskKind: "text_to_audio" as const, name: `Runway ${modelKey} · 配音`, create: RUNWAY_ELEVEN_TTS_CREATE(modelKey), query: audioPoll, result: audioResult, statusMapping: STATUS }],
-  })),
+  {
+    modelKey: "eleven_multilingual_v2",
+    labelZh: "Runway Eleven Multilingual v2",
+    kind: "audio",
+    archetypeId: "eleven-multilingual-v2",
+    mappings: [{ id: "seed-runway-eleven_multilingual_v2-speech", modeId: "speech", taskKind: "text_to_audio", name: "Runway Eleven Multilingual v2 · 配音", create: RUNWAY_ELEVEN_MULTILINGUAL_CREATE, query: audioPoll, result: audioResult, statusMapping: STATUS }],
+  },
+  {
+    modelKey: "eleven_v3",
+    labelZh: "Runway Eleven v3",
+    kind: "audio",
+    // 同上：复用直连侧的 eleven-v3 档案，Runway 的参数域走 vendorParams.runway。
+    archetypeId: "eleven-v3",
+    mappings: [{ id: "seed-runway-eleven_v3-speech", modeId: "speech", taskKind: "text_to_audio", name: "Runway Eleven v3 · 配音", create: RUNWAY_ELEVEN_V3_CREATE, query: audioPoll, result: audioResult, statusMapping: STATUS }],
+  },
 ];
 
-const mapping = (id: string, modeId: string, taskKind: ProfileKind, name: string, createOp: HttpOperation) => ({
-  id,
-  modeId,
-  taskKind,
-  name,
-  create: createOp,
-  query: poll,
-  result,
-  statusMapping: STATUS,
-});
 
 const GEN45_T2V = create("/v1/text_to_video", "gen4.5", false);
 const GEN45_I2V = create("/v1/image_to_video", "gen4.5", true);
@@ -416,7 +435,7 @@ const SEEDANCE25_OMNI_ID = "seed-runway-seedance2-5-omni";
 const seedance25Create = (path: string, promptImage?: unknown): HttpOperation => ({
   method: "POST",
   path,
-  headers: HEADERS,
+  headers: RUNWAY_HEADERS,
   body: {
     model: "seedance2_5",
     promptText: "{{request.prompt}}",
@@ -442,28 +461,55 @@ const SEEDANCE25_FIRSTLAST = seedance25Create("/v1/image_to_video", [
 ]);
 const SEEDANCE25_OMNI = seedance25Create("/v1/text_to_video");
 
+/**
+ * Runway's three video wire roles. These describe **the request shape Runway accepts**, not a
+ * UI mode name — the two used to be conflated because every row pointed at one platform-shaped
+ * `runway-video` archetype whose mode ids happened to be spelled the same as the roles.
+ *
+ *  - `t2v`      → POST /v1/text_to_video, no image field.
+ *  - `image`    → POST /v1/image_to_video with the single-image `promptImage` aggregate slot.
+ *  - `refs`     → POST /v1/image_to_video with the multi-reference `reference_image_urls` body.
+ */
+type RunwayVideoWireRole = "t2v" | "image" | "refs";
+
 type RunwayVideoSpec = {
   modelKey: string;
   labelZh: string;
+  /** The **real model** archetype this Runway row is an instance of (one model, one archetype owner). */
   archetypeId: string;
   /** The OpenAPI schema fields for this model family; never send fields absent from its variant. */
   fields: "seedance" | "wan" | "grok" | "hailuo" | "veo" | "happyhorse" | "gemini";
-  modes?: Array<"t2v" | "i2v" | "reference">;
+  /**
+   * Runway wire role → **the receiving archetype's own mode id**.
+   *
+   * Why this is a map and not a list: the mapping's `modeId` must equal a mode id that actually
+   * exists on the archetype, otherwise `selectTaskMapping` hands the mode a cable that belongs to
+   * a different mode (the "mode borrowing" defect class). The archetypes name the same concepts
+   * differently — Seedance's single image mode is `first`, Veo's is `frame`, Gemini Omni's is
+   * `firstlast`, minimax/happyhorse/grok call theirs `i2v`. Omitting a role means Runway's union
+   * does not offer it for this model (e.g. veo/gemini have no reference field in the OpenAPI union).
+   */
+  modes: Partial<Record<RunwayVideoWireRole, string>>;
 };
 
 // Literal IDs are kept in source so the static ledger checker can prove every
 // generated mapping has an auditable declaration (dynamic factory output alone
 // is intentionally not trusted by the gate).
+// Ids are keyed on the Runway **wire role** (`t2v` / `image` / `refs`), not on a UI mode name:
+// the receiving archetypes spell the same role differently (`first` / `frame` / `firstlast` /
+// `i2v`), and the id must stay stable when a mode is renamed. Roles a model's Runway union does
+// not offer are simply absent — grok/veo/happyhorse/gemini have no reference field.
 export const RUNWAY_VIDEO_MAPPING_IDS = [
-  "seed-runway-seedance2-t2v", "seed-runway-seedance2-i2v", "seed-runway-seedance2-reference",
-  "seed-runway-seedance2_fast-t2v", "seed-runway-seedance2_fast-i2v", "seed-runway-seedance2_fast-reference",
-  "seed-runway-seedance2_mini-t2v", "seed-runway-seedance2_mini-i2v", "seed-runway-seedance2_mini-reference",
-  "seed-runway-wan3-t2v", "seed-runway-wan3-i2v", "seed-runway-wan3-reference",
-  "seed-runway-grok_imagine_1_5-t2v", "seed-runway-grok_imagine_1_5-i2v", "seed-runway-grok_imagine_1_5-reference",
-  "seed-runway-hailuo3-t2v", "seed-runway-hailuo3-i2v", "seed-runway-hailuo3-reference",
-  "seed-runway-veo3-1-t2v", "seed-runway-veo3-1-i2v", "seed-runway-veo3-1-reference",
-  "seed-runway-veo3-1_fast-t2v", "seed-runway-veo3-1_fast-i2v", "seed-runway-veo3-1_fast-reference",
-  "seed-runway-happyhorse_1_0-t2v", "seed-runway-gemini_omni_flash-t2v", "seed-runway-gemini_omni_flash-i2v", "seed-runway-gemini_omni_flash-reference",
+  "seed-runway-seedance2-t2v", "seed-runway-seedance2-image", "seed-runway-seedance2-refs",
+  "seed-runway-seedance2_fast-t2v", "seed-runway-seedance2_fast-image", "seed-runway-seedance2_fast-refs",
+  "seed-runway-seedance2_mini-t2v", "seed-runway-seedance2_mini-image", "seed-runway-seedance2_mini-refs",
+  "seed-runway-wan3-t2v", "seed-runway-wan3-image", "seed-runway-wan3-refs",
+  "seed-runway-grok_imagine_1_5-t2v", "seed-runway-grok_imagine_1_5-image",
+  "seed-runway-hailuo3-t2v", "seed-runway-hailuo3-image", "seed-runway-hailuo3-refs",
+  "seed-runway-veo3-1-t2v", "seed-runway-veo3-1-image",
+  "seed-runway-veo3-1_fast-t2v", "seed-runway-veo3-1_fast-image",
+  "seed-runway-happyhorse_1_0-t2v", "seed-runway-happyhorse_1_0-image",
+  "seed-runway-gemini_omni_flash-t2v", "seed-runway-gemini_omni_flash-image",
 ] as const;
 
 export const RUNWAY_IMAGE_MAPPING_IDS = [
@@ -485,43 +531,65 @@ export const RUNWAY_AUDIO_MAPPING_IDS = [
   "seed-runway-eleven_multilingual_v2-speech", "seed-runway-eleven_v3-speech",
 ] as const;
 
+/**
+ * **One model, one archetype owner.** Every row points at the archetype of the *real model*
+ * Runway is reselling, not at a Runway-shaped platform archetype.
+ *
+ * The previous shape (`archetypeId: "runway-video"` on all ten rows) put a platform-shaped
+ * capability face on ten different model identities while the `runwayVideoCreate` wire switch
+ * right below already branched per model. Two authors for one fact drift by construction: the
+ * capability face advertised Runway's generic `1280:720 / 1–30s / generate_audio` and a
+ * multi-reference mode to models whose official unions have neither.
+ */
 const RUNWAY_VIDEO_SPECS: RunwayVideoSpec[] = [
-  { modelKey: "seedance2", labelZh: "Runway Seedance 2", archetypeId: "runway-video", fields: "seedance" },
-  { modelKey: "seedance2_fast", labelZh: "Runway Seedance 2 Fast", archetypeId: "runway-video", fields: "seedance" },
-  { modelKey: "seedance2_mini", labelZh: "Runway Seedance 2 Mini", archetypeId: "runway-video", fields: "seedance" },
-  { modelKey: "wan3", labelZh: "Runway Wan 3", archetypeId: "runway-video", fields: "wan" },
-  { modelKey: "grok_imagine_1_5", labelZh: "Runway Grok Imagine 1.5", archetypeId: "runway-video", fields: "grok" },
-  { modelKey: "hailuo3", labelZh: "Runway Hailuo 3", archetypeId: "runway-video", fields: "hailuo" },
-  { modelKey: "veo3.1", labelZh: "Runway Veo 3.1", archetypeId: "runway-video", fields: "veo" },
-  { modelKey: "veo3.1_fast", labelZh: "Runway Veo 3.1 Fast", archetypeId: "runway-video", fields: "veo" },
-  { modelKey: "happyhorse_1_0", labelZh: "Runway HappyHorse 1.0", archetypeId: "runway-video", fields: "happyhorse", modes: ["t2v", "i2v"] },
-  { modelKey: "gemini_omni_flash", labelZh: "Runway Gemini Omni Flash", archetypeId: "runway-video", fields: "gemini" },
+  { modelKey: "seedance2", labelZh: "Runway Seedance 2", archetypeId: "seedance-2", fields: "seedance", modes: { t2v: "t2v", image: "first", refs: "omni" } },
+  { modelKey: "seedance2_fast", labelZh: "Runway Seedance 2 Fast", archetypeId: "seedance-2", fields: "seedance", modes: { t2v: "t2v", image: "first", refs: "omni" } },
+  { modelKey: "seedance2_mini", labelZh: "Runway Seedance 2 Mini", archetypeId: "seedance-2", fields: "seedance", modes: { t2v: "t2v", image: "first", refs: "omni" } },
+  { modelKey: "wan3", labelZh: "Runway Wan 3", archetypeId: "wan-3.0", fields: "wan", modes: { t2v: "t2v", image: "first", refs: "ref" } },
+  // grok-imagine-1.5-video declares only t2v + i2v — no reference mode exists to point at.
+  { modelKey: "grok_imagine_1_5", labelZh: "Runway Grok Imagine 1.5", archetypeId: "grok-imagine-1.5-video", fields: "grok", modes: { t2v: "t2v", image: "i2v" } },
+  { modelKey: "hailuo3", labelZh: "Runway Hailuo 3", archetypeId: "minimax-h3", fields: "hailuo", modes: { t2v: "t2v", image: "i2v", refs: "ref" } },
+  // Runway's veo union carries promptImage only; it has no reference field, so no refs role.
+  { modelKey: "veo3.1", labelZh: "Runway Veo 3.1", archetypeId: "veo-3.1", fields: "veo", modes: { t2v: "t2v", image: "frame" } },
+  { modelKey: "veo3.1_fast", labelZh: "Runway Veo 3.1 Fast", archetypeId: "veo-3.1", fields: "veo", modes: { t2v: "t2v", image: "frame" } },
+  { modelKey: "happyhorse_1_0", labelZh: "Runway HappyHorse 1.0", archetypeId: "happyhorse", fields: "happyhorse", modes: { t2v: "t2v", image: "i2v" } },
+  // Same as veo: Runway's gemini union has no reference field.
+  { modelKey: "gemini_omni_flash", labelZh: "Runway Gemini Omni Flash", archetypeId: "gemini-omni-1.1", fields: "gemini", modes: { t2v: "t2v", image: "firstlast" } },
 ];
 
-function runwayVideoCreate(spec: RunwayVideoSpec, withImage: boolean, withReferences: boolean): HttpOperation {
+/**
+ * `withImage` 只对**单图**角色为真：多图参考角色走 `POST /v1/text_to_video`（PR #342 —— Runway 的
+ * reference 联合体印在文生端点上，此前误发 image_to_video 且把参考数组塞进 `promptImage`）。
+ * 故 `withImage` 与 `withReferences` 互斥，端点由前者决定。
+ */
+function runwayVideoCreate(spec: RunwayVideoSpec, role: RunwayVideoWireRole): HttpOperation {
+  const withImage = role === "image";
+  const withReferences = role === "refs";
   const body: Record<string, unknown> = {
     promptText: "{{request.prompt}}",
-    ...(withImage ? { promptImage: withReferences ? "{{request.params.reference_image_urls}}" : "{{request.params.image_url}}" } : {}),
+    ...(withImage ? { promptImage: "{{request.params.image_url}}" } : {}),
     model: spec.modelKey,
   };
   if (spec.fields === "seedance") Object.assign(body, { audio: "{{request.params.generate_audio}}", duration: "{{request.params.duration}}", ratio: "{{request.params.aspect_ratio}}" });
   if (spec.fields === "wan") Object.assign(body, { audio: "{{request.params.generate_audio}}", duration: "{{request.params.duration}}", ratio: "{{request.params.aspect_ratio}}" });
   if (spec.fields === "hailuo") Object.assign(body, { duration: "{{request.params.duration}}", resolution: "{{request.params.resolution}}", ratio: "{{request.params.aspect_ratio}}" });
-  if (spec.fields === "grok") Object.assign(body, { duration: "{{request.params.duration}}", resolution: "{{request.params.resolution}}" });
+  if (spec.fields === "grok") Object.assign(body, { duration: "{{request.params.duration}}", resolution: "{{request.params.resolution}}", ...(!withImage ? { ratio: "{{request.params.aspect_ratio}}" } : {}) });
   if (spec.fields === "veo") Object.assign(body, { audio: "{{request.params.generate_audio}}", duration: "{{request.params.duration}}", ratio: "{{request.params.aspect_ratio}}" });
   if (spec.fields === "happyhorse") Object.assign(body, { duration: "{{request.params.duration}}", ...(withImage ? {} : { ratio: "{{request.params.aspect_ratio}}" }) });
   if (spec.fields === "gemini") Object.assign(body, { ratio: "{{request.params.aspect_ratio}}", duration: "{{request.params.duration}}" });
   if (withReferences) {
-    if (spec.fields === "seedance" || spec.fields === "wan" || spec.fields === "hailuo" || spec.fields === "grok") {
+    // veo/gemini：OpenAPI 未印 reference 联合体，但 2026-09-02 实测（B 班）参考图上传 wire 校验通过
+    // （文档与实测冲突以实测为准并注明日期）；仅开图参考键，视频/音频参考仍限文档确认过的族。
+    if (spec.fields === "seedance" || spec.fields === "wan" || spec.fields === "hailuo" || spec.fields === "grok" || spec.fields === "veo" || spec.fields === "gemini") {
       Object.assign(body, {
         reference_image_urls: "{{request.params.reference_image_urls}}",
         ...(spec.fields === "seedance" || spec.fields === "wan" || spec.fields === "hailuo" ? { reference_video_urls: "{{request.params.reference_video_urls}}" } : {}),
-        reference_audio_urls: "{{request.params.reference_audio_urls}}",
+        ...(spec.fields === "veo" || spec.fields === "gemini" ? {} : { reference_audio_urls: "{{request.params.reference_audio_urls}}" }),
       });
     }
   }
   const drops = spec.fields === "grok"
-    ? ["aspect_ratio", "generate_audio"]
+    ? [...(withImage ? ["aspect_ratio"] : []), "generate_audio"]
     : spec.fields === "happyhorse" && withImage
       ? ["generate_audio", "aspect_ratio"]
       : spec.fields === "hailuo" || spec.fields === "happyhorse" || spec.fields === "gemini"
@@ -530,7 +598,7 @@ function runwayVideoCreate(spec: RunwayVideoSpec, withImage: boolean, withRefere
   return {
     method: "POST",
     path: withImage ? "/v1/image_to_video" : "/v1/text_to_video",
-    headers: HEADERS,
+    headers: RUNWAY_HEADERS,
     body,
     request_transform: "runway-video-contract",
     ...(drops.length ? { paramMap: { drops, rules: [] } } : {}),
@@ -539,67 +607,41 @@ function runwayVideoCreate(spec: RunwayVideoSpec, withImage: boolean, withRefere
   };
 }
 
+const RUNWAY_VIDEO_ROLE_ORDER: RunwayVideoWireRole[] = ["t2v", "image", "refs"];
+const RUNWAY_VIDEO_ROLE_LABEL: Record<RunwayVideoWireRole, string> = {
+  t2v: "文生视频",
+  image: "图生视频",
+  refs: "多图参考",
+};
+
 function runwayVideoModel(spec: RunwayVideoSpec): RunwayModel {
-  const modes = spec.modes || ["t2v", "i2v", "reference"];
   return {
     modelKey: spec.modelKey,
     labelZh: spec.labelZh,
     kind: "video",
     archetypeId: spec.archetypeId,
-    mappings: modes.map((modeId) => {
-      const taskKind: ProfileKind = modeId === "t2v" ? "text_to_video" : "image_to_video";
-      const withReferences = modeId === "reference";
-      const op = runwayVideoCreate(spec, taskKind === "image_to_video", withReferences);
-      return mapping(`seed-runway-${spec.modelKey.replace(/\./g, "-")}-${modeId}`, modeId, taskKind, `${spec.labelZh} · ${modeId === "t2v" ? "文生视频" : modeId === "reference" ? "多图参考" : "图生视频"}`, op);
+    // Mapping id stays keyed on the **wire role** (stable across archetype renames, and it is
+    // what RUNWAY_VIDEO_MAPPING_IDS / the static ledger checker declare); `modeId` carries the
+    // receiving archetype's own mode id so no mode is ever handed another mode's cable.
+    //
+    // `taskKind` follows the **wire role's endpoint**, not "is there an image involved":
+    // the multi-image reference role rides `POST /v1/text_to_video` (PR #342 — Runway's
+    // reference union is declared on the text endpoint), so only the single-image `image`
+    // role is an `image_to_video` task.
+    mappings: RUNWAY_VIDEO_ROLE_ORDER.flatMap((role) => {
+      const modeId = spec.modes[role];
+      if (!modeId) return [];
+      const taskKind: ProfileKind = role === "image" ? "image_to_video" : "text_to_video";
+      const op = runwayVideoCreate(spec, role);
+      return [runwayMapping(
+        `seed-runway-${spec.modelKey.replace(/\./g, "-")}-${role}`,
+        modeId,
+        taskKind,
+        `${spec.labelZh} · ${RUNWAY_VIDEO_ROLE_LABEL[role]}`,
+        op,
+      )];
     }),
   };
-}
-
-type RunwayImageSpec = { modelKey: string; labelZh: string; allowReferences?: boolean; outputCount?: boolean; requiresReferences?: boolean };
-const RUNWAY_IMAGE_SPECS: RunwayImageSpec[] = [
-  { modelKey: "muse_image", labelZh: "Runway Muse Image", allowReferences: true, outputCount: true },
-  { modelKey: "grok_imagine_image_2", labelZh: "Runway Grok Imagine Image 2", allowReferences: true, outputCount: true },
-  { modelKey: "seedream5_pro", labelZh: "Runway Seedream 5 Pro", allowReferences: true, outputCount: true },
-  { modelKey: "seedream5_lite", labelZh: "Runway Seedream 5 Lite", allowReferences: true, outputCount: true },
-  { modelKey: "gen4_image", labelZh: "Runway Gen-4 Image", allowReferences: false },
-  { modelKey: "gen4_image_turbo", labelZh: "Runway Gen-4 Image Turbo", allowReferences: true, requiresReferences: true },
-  { modelKey: "gemini_image3_pro", labelZh: "Runway Gemini Image 3 Pro", allowReferences: true },
-  { modelKey: "gemini_image3.1_flash", labelZh: "Runway Gemini Image 3.1 Flash", allowReferences: true },
-  { modelKey: "gpt_image_2", labelZh: "Runway GPT Image 2", allowReferences: true },
-  { modelKey: "gemini_2.5_flash", labelZh: "Runway Gemini 2.5 Flash Image", allowReferences: true },
-];
-
-function runwayImageModel(spec: RunwayImageSpec): RunwayModel {
-  const operation = (withReferences: boolean): HttpOperation => ({
-    method: "POST",
-    path: "/v1/text_to_image",
-    headers: HEADERS,
-    body: {
-      promptText: "{{request.prompt}}",
-      ratio: "{{request.params.aspect_ratio}}",
-      ...(spec.outputCount ? { outputCount: "{{request.params.output_count}}" } : {}),
-      ...(withReferences || spec.requiresReferences ? { reference_image_urls: "{{request.params.reference_image_urls}}" } : {}),
-      model: spec.modelKey,
-    },
-    ...((withReferences || spec.requiresReferences) ? { request_transform: "runway-image-references" } : {}),
-    ...(!spec.outputCount ? { paramMap: { drops: ["output_count"], rules: [] } } : {}),
-    response_mapping: { task_id: "id" },
-    provider_meta_mapping: { task_id: "id" },
-  });
-  const mappings: RunwayModel["mappings"] = [];
-  if (!spec.requiresReferences) {
-    const t2i = mapping(`seed-runway-${spec.modelKey.replace(/\./g, "-")}-t2i`, "t2i", "text_to_image", `${spec.labelZh} · 文生图`, operation(false));
-    t2i.query = imagePoll;
-    t2i.result = imageResult;
-    mappings.push(t2i);
-  }
-  if (spec.allowReferences) {
-    const i2i = mapping(`seed-runway-${spec.modelKey.replace(/\./g, "-")}-i2i`, "i2i", "image_edit", `${spec.labelZh} · 参考/改图`, operation(true));
-    i2i.query = imagePoll;
-    i2i.result = imageResult;
-    mappings.push(i2i);
-  }
-  return { modelKey: spec.modelKey, labelZh: spec.labelZh, kind: "image", archetypeId: spec.requiresReferences ? "runway-image-reference" : "runway-image", mappings } as RunwayModel;
 }
 
 export const RUNWAY_OFFICIAL_MODELS: RunwayModel[] = [
@@ -609,8 +651,8 @@ export const RUNWAY_OFFICIAL_MODELS: RunwayModel[] = [
     kind: "video",
     archetypeId: "runway-gen4.5",
     mappings: [
-      mapping(GEN45_T2V_ID, "t2v", "text_to_video", "Runway Gen-4.5 · 文生视频", GEN45_T2V),
-      mapping(GEN45_I2V_ID, "i2v", "image_to_video", "Runway Gen-4.5 · 图生视频", GEN45_I2V),
+      runwayMapping(GEN45_T2V_ID, "t2v", "text_to_video", "Runway Gen-4.5 · 文生视频", GEN45_T2V),
+      runwayMapping(GEN45_I2V_ID, "i2v", "image_to_video", "Runway Gen-4.5 · 图生视频", GEN45_I2V),
     ],
   },
   {
@@ -618,18 +660,18 @@ export const RUNWAY_OFFICIAL_MODELS: RunwayModel[] = [
     labelZh: "Runway Gen-4 Turbo",
     kind: "video",
     archetypeId: "runway-gen4-turbo",
-    mappings: [mapping(GEN4_TURBO_I2V_ID, "i2v", "image_to_video", "Runway Gen-4 Turbo · 图生视频", GEN4_TURBO_I2V)],
+    mappings: [runwayMapping(GEN4_TURBO_I2V_ID, "i2v", "image_to_video", "Runway Gen-4 Turbo · 图生视频", GEN4_TURBO_I2V)],
   },
   {
     modelKey: "seedance2_5",
     labelZh: "Runway Seedance 2.5",
     kind: "video",
-    archetypeId: "seedance-2.5",
+    archetypeId: "seedance-2.5-runway",
     mappings: [
-      mapping(SEEDANCE25_T2V_ID, "t2v", "text_to_video", "Runway Seedance 2.5 · 文生视频", SEEDANCE25_T2V),
-      mapping(SEEDANCE25_FIRST_ID, "first", "image_to_video", "Runway Seedance 2.5 · 首帧", SEEDANCE25_FIRST),
-      mapping(SEEDANCE25_FIRSTLAST_ID, "firstlast", "image_to_video", "Runway Seedance 2.5 · 首尾帧", SEEDANCE25_FIRSTLAST),
-      mapping(SEEDANCE25_OMNI_ID, "omni", "image_to_video", "Runway Seedance 2.5 · 全能参考", SEEDANCE25_OMNI),
+      runwayMapping(SEEDANCE25_T2V_ID, "t2v", "text_to_video", "Runway Seedance 2.5 · 文生视频", SEEDANCE25_T2V),
+      runwayMapping(SEEDANCE25_FIRST_ID, "first", "image_to_video", "Runway Seedance 2.5 · 首帧", SEEDANCE25_FIRST),
+      runwayMapping(SEEDANCE25_FIRSTLAST_ID, "firstlast", "image_to_video", "Runway Seedance 2.5 · 首尾帧", SEEDANCE25_FIRSTLAST),
+      runwayMapping(SEEDANCE25_OMNI_ID, "omni", "text_to_video", "Runway Seedance 2.5 · 全能参考", SEEDANCE25_OMNI),
     ],
   },
   RUNWAY_AUDIO_MODEL,

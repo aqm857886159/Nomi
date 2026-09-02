@@ -7,6 +7,7 @@ import { compileExecutionContract, type PlanCandidate } from "../capabilityCore/
 import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
 import { applyProductionCommand, SealBudgetExceededError } from "./productionRunReducer";
 import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
+import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
 import { createProductionRunRepository } from "./productionRunRepository";
 import type { ProductionGenerationShot, ProductionRun } from "./productionRunTypes";
 
@@ -182,13 +183,25 @@ function sealedApprovedSingleShot(priceAmount: number | null) {
     operationId: "op-1", projectId: "project-1", origin: { host: "semantic-mcp" }, candidate: planCandidate,
     policy: { trustedHosts: ["semantic-mcp"], allowedProviders: ["fixture-provider"], allowedModels: ["fixture-model"], maxSpend: null, maxAttemptsPerJob: 2 },
   });
-  repository.execute("project-1", "op-1", { commandId: "generation.seal:op-1", expectedRevision: 0, type: "generation.seal", payload: { contract }, issuedAt: now });
-  repository.execute("project-1", "op-1", { commandId: "generation.approve:op-1:receipt-1", expectedRevision: 1, type: "generation.approve", payload: { receiptId: "receipt-1", contractHash: contract.contractHash }, issuedAt: now });
   const submit = vi.fn(async () => ({ providerTaskId: "provider-task-1", raw: { accepted: true } }));
-  const runner = createProductionGenerationSubmission({
-    repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1, intentMacKey: "test-intent-key",
-    provider: { providerId: "fixture-provider", capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true }, buildRequest: (input) => input, submit },
+  const provider = { providerId: "fixture-provider", capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true }, buildRequest: (input: unknown) => input, submit } as const;
+  sealAndApproveProductionGeneration({
+    repository,
+    projectId: "project-1",
+    operationId: "op-1",
+    immutableProjectUuid: "project-uuid-1",
+    projectGeneration: 1,
+    projectRevision: 0,
+    candidate: planCandidate,
+    contract,
+    providers: [provider],
     resolveShotPrice: () => (priceAmount === null ? { known: false } : { known: true, amount: priceAmount }),
+    receiptId: "receipt-1",
+    now,
+  });
+  const runner = createProductionGenerationSubmission({
+    repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1, projectRevision: 0, intentMacKey: "test-intent-key",
+    provider,
     now: () => now,
   });
   return { repository, runner, submit };
@@ -208,15 +221,7 @@ describe("P4 S2 real-number ledger on submission", () => {
     expect(approval?.maxSpend).toBe(12);
   });
 
-  it("keeps the ledger at 0 for an unknown-priced model (unpriced models still submit, pre-S2 behavior)", async () => {
-    const { repository, runner, submit } = sealedApprovedSingleShot(null);
-    await expect(runner.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ nextAction: "observe" });
-    expect(submit).toHaveBeenCalledTimes(1);
-
-    const run = repository.read("project-1", "op-1")!;
-    expect(run.budget.authorized).toBe(0);
-    expect(run.budget.reserved).toBe(0);
-    const approval = repository.readApprovals("project-1", "op-1").find((a) => a.jobIds.includes(run.jobs[0].jobId));
-    expect(approval?.maxSpend).toBe(0);
+  it("fails closed before the gate when the provider price is unknown", () => {
+    expect(() => sealedApprovedSingleShot(null)).toThrow("Cannot authorize paid generation without a known price");
   });
 });

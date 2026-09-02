@@ -8,7 +8,7 @@
 //
 // 三题从哪来（derive 不 hardcode 死）：题面与候选**随片型给**（brief 里的 kind），但**题数硬上限 3**。
 // 本模块是纯函数：组题 / 解析回答 / 合成方向摘要，零 electron 依赖，可裸测。真正弹表单的副作用在
-// mcpProtocol 的薄接线（同 mcpPlanTrust / mcpSpendTrust 的纯核+接线分工）。
+// mcpProtocol 的薄接线（同 mcpPlanTrust 的纯核+接线分工）。
 
 /** 一道收敛题：enum 候选 + 人话候选名（MCP elicitation 的 enum/enumNames 直接吃这两个数组）。 */
 export type IntakeQuestion = {

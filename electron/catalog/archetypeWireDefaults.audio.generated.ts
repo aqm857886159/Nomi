@@ -29,6 +29,24 @@ export const ARCHETYPE_WIRE_DEFAULTS_AUDIO: Record<string, Record<string, Record
         "style": 0,
         "speed": 1,
         "use_speaker_boost": true
+      },
+      "runway": {
+        "voice_preset_id": "Maya",
+        "stability": 0.5,
+        "similarity_boost": 0.75,
+        "style": 0,
+        "speed": 1,
+        "use_speaker_boost": true,
+        "language_code": "",
+        "apply_text_normalization": "auto"
+      }
+    }
+  },
+  "eleven-multilingual-v2": {
+    "text_to_audio": {
+      "*": {
+        "voice_preset_id": "Maya",
+        "model": "eleven_multilingual_v2"
       }
     }
   },
@@ -46,6 +64,10 @@ export const ARCHETYPE_WIRE_DEFAULTS_AUDIO: Record<string, Record<string, Record
         "duration_seconds": 5,
         "loop": false,
         "prompt_influence": 0.3
+      },
+      "runway": {
+        "duration_seconds": 5,
+        "loop": false
       }
     }
   },
@@ -59,7 +81,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_AUDIO: Record<string, Record<string, Record
       }
     }
   },
-  "runway-audio": {
+  "runway-seed-audio": {
     "text_to_audio": {
       "*": {
         "output_format": "mp3",
@@ -67,8 +89,6 @@ export const ARCHETYPE_WIRE_DEFAULTS_AUDIO: Record<string, Record<string, Record
         "speech_rate": 0,
         "loudness_rate": 0,
         "pitch_rate": 0,
-        "duration_seconds": 5,
-        "loop": false,
         "model": "seed_audio"
       }
     }
@@ -92,8 +112,9 @@ export const ARCHETYPE_WIRE_DEFAULTS_AUDIO: Record<string, Record<string, Record
     "text_to_audio": {
       "*": {
         "callBackUrl": "https://nomiaqm.com/api/vendor-callbacks/kie/suno/ack",
+        "instrumental": false,
         "customMode": false,
-        "instrumental": false
+        "duration": 30
       }
     }
   },

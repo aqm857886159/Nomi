@@ -1,5 +1,5 @@
 // Shared infra for real-process MCP journeys — the ONE spawn/framing/teardown/mock-vendor implementation
-// (P1: no copy-paste) driven by BOTH J-MCP1 (mcp-journey.e2e.mjs) and production-mcp-journey.e2e.mjs, plus
+// (P1: no copy-paste) driven by the L1/L2 MCP journeys and production-mcp-journey.e2e.mjs, plus
 // any future real-transport MCP test. Client-specific differences (initialize capabilities, clientInfo,
 // extra env) are options on spawnMcpStdioClient; error semantics come in two shapes — callTool (returns
 // raw, isError inspectable) and callToolOrThrow (throws on isError) — so both call sites stay clean.
@@ -13,19 +13,20 @@
 // Transport under test = the REAL in-Electron MCP stdio server: `electron <repoRoot>` with
 // NOMI_MCP_STDIO=1. That process is genuinely headless (no window, app.dock.hide, disk gateway) and
 // speaks real newline-delimited JSON-RPC 2.0 over stdio — the exact framing mcpProtocol.ts implements.
-// It is the same real-process transport production-mcp-journey uses; see mcp-journey.e2e.mjs header for
+// It is the same real-process transport production-mcp-journey uses; see the journey headers for
 // why this (not the bare-Node mcpNodeLauncher wrapper) is the faithful path for a zero-dialog headless
 // spend: the launcher always ensures a *GUI* app instance whose unopened-project spend routes through
 // the renderer confirm card (createHybridGateway) and cannot complete without a human click, whereas the
 // headless stdio server routes spend through elicitation → makeConfirmedGateway (mcpStdioServer.ts:99).
 import { spawn } from 'node:child_process'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import readline from 'node:readline'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { withLinuxNoSandbox } from './_launchApp.mjs'
+import { withLinuxNoSandbox, withLinuxSyntheticCredentialStorage } from './_launchApp.mjs'
 
 const require = createRequire(import.meta.url)
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -236,6 +237,29 @@ export function writeIsolatedCatalog(settingsDir, mockOrigin) {
 export const BAD_SHOT_MARKER = '#BADSHOT'
 
 /**
+ * Seed a verified MCP client identity for an isolated capability dir: ensure the capability-core
+ * bearer token exists (the headless stdio server never mints one — only the GUI app's ensureToken
+ * does), then derive the same HMAC proof `signMcpClient` computes (security.ts:139-146,
+ * context `nomi-mcp-client:v1:<client>`). Returns the env pair the startup gate
+ * (mcpStdioProjectSessionBinding.ts:21-24, since M1 round-2 0b6441c6) requires — without it every
+ * journey dies at initialize with "A verified MCP client connection is required" (audit E-02,
+ * docs/research/2026-09-02-mcp-editing-chain-audit.md). Never overwrites an existing token, so
+ * journeys sharing the capability dir with a live GUI instance keep the GUI-minted token.
+ */
+export function seedMcpClientIdentityEnv(capabilityDir, client = 'claude') {
+  const tokenPath = path.join(capabilityDir, 'token')
+  let token = ''
+  try { token = fs.readFileSync(tokenPath, 'utf8').trim() } catch { /* not seeded yet */ }
+  if (!token) {
+    token = crypto.randomBytes(24).toString('hex')
+    fs.mkdirSync(capabilityDir, { recursive: true })
+    fs.writeFileSync(tokenPath, token, { encoding: 'utf8', mode: 0o600 })
+  }
+  const proof = crypto.createHmac('sha256', token).update(`nomi-mcp-client:v1:${client}`).digest('base64url')
+  return { NOMI_MCP_CLIENT: client, NOMI_MCP_CLIENT_PROOF: proof }
+}
+
+/**
  * Spawn the real in-Electron MCP stdio server (headless) and return a JSON-RPC client.
  * The client:
  *   · declares the given `capabilities` at initialize (default: elicitation, so plan/spend confirmations
@@ -246,13 +270,19 @@ export const BAD_SHOT_MARKER = '#BADSHOT'
  *
  * env is fully isolated: caller passes settingsDir / userDataDir / projectsDir / capabilityDir, plus an
  * optional `env` bag merged over the base isolation env (the sibling adds NOMI_E2E_PRODUCTION_FIXTURE).
+ * The base env always carries a verified client identity (seedMcpClientIdentityEnv, default 'claude') —
+ * the production binding refuses to start without one — and the `env` bag can override the pair for
+ * journeys that pin a different registered client (both mcp-generation journeys pin 'codex').
  * NOMI_LOOP_SPEND_OK is intentionally NOT set — spend must flow through elicitation → makeConfirmedGateway,
  * proving the headless zero-dialog spend path (mcpStdioServer.ts:99), not an env escape hatch.
  */
 export function spawnMcpStdioClient({
-  settingsDir, userDataDir, projectsDir, capabilityDir, clientInfo, capabilities, env,
+  settingsDir, userDataDir, projectsDir, capabilityDir, clientInfo, capabilities, env, captureStderr = false,
+  tracePath, elicitationAction = 'accept', syntheticCredentialStorage = false,
 }) {
-  const child = spawn(require('electron'), withLinuxNoSandbox([repoRoot, '--disable-gpu']), {
+  const child = spawn(require('electron'), withLinuxSyntheticCredentialStorage(
+    withLinuxNoSandbox([repoRoot, '--disable-gpu']), syntheticCredentialStorage,
+  ), {
     cwd: repoRoot,
     env: {
       ...process.env,
@@ -263,9 +293,11 @@ export function spawnMcpStdioClient({
       NOMI_ELECTRON_USER_DATA_DIR: userDataDir,
       NOMI_PROJECTS_DIR: projectsDir,
       NOMI_CAPABILITY_DIR: capabilityDir,
+      ...(syntheticCredentialStorage ? { NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE: '1' } : {}),
+      ...seedMcpClientIdentityEnv(capabilityDir),
       ...(env || {}),
     },
-    stdio: ['pipe', 'pipe', 'inherit'],
+    stdio: ['pipe', 'pipe', captureStderr ? 'pipe' : 'inherit'],
   })
 
   const pending = new Map()
@@ -274,6 +306,16 @@ export function spawnMcpStdioClient({
   const progressByToken = new Map()
   let elicitationCount = 0
   let childExit = null
+  let stderrText = ''
+  const messages = []
+  if (tracePath) {
+    fs.mkdirSync(path.dirname(tracePath), { recursive: true })
+    fs.writeFileSync(tracePath, '', 'utf8')
+  }
+  function trace(direction, frame) {
+    if (!tracePath) return
+    fs.appendFileSync(tracePath, `${JSON.stringify({ at: new Date().toISOString(), direction, frame })}\n`, 'utf8')
+  }
 
   // Transport died (spawn error or the child exited) → reject every in-flight RPC instead of leaving it to
   // time out. This is why pending stores `reject` alongside `resolve`/`timer`.
@@ -289,16 +331,24 @@ export function spawnMcpStdioClient({
     childExit = { code, signal }
     failPending(new Error(`MCP stdio server exited: code=${code} signal=${signal}`))
   })
+  if (captureStderr) child.stderr.on('data', (chunk) => { stderrText += String(chunk) })
 
   readline.createInterface({ input: child.stdout }).on('line', (line) => {
     const text = line.trim()
     if (!text.startsWith('{')) return
     let msg
     try { msg = JSON.parse(text) } catch { return }
+    messages.push(msg)
+    trace('in', msg)
     // Server→client request: elicitation/create → auto-accept (headless test authorization).
     if (msg.method === 'elicitation/create' && msg.id != null) {
       elicitationCount += 1
-      child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { action: 'accept', content: { confirm: true } } }) + '\n')
+      const result = elicitationAction === 'decline'
+        ? { action: 'decline', content: { confirm: false } }
+        : { action: 'accept', content: { confirm: true } }
+      const frame = { jsonrpc: '2.0', id: msg.id, result }
+      trace('out', frame)
+      child.stdin.write(JSON.stringify(frame) + '\n')
       return
     }
     // Server→client notification: progress frame → tally per token.
@@ -321,9 +371,19 @@ export function spawnMcpStdioClient({
       const timer = setTimeout(() => { pending.delete(id); reject(new Error(`RPC timeout: ${method}`)) }, timeoutMs)
       pending.set(id, { resolve, reject, timer })
       const outParams = meta ? { ...params, _meta: meta } : params
-      child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params: outParams }) + '\n')
+      const frame = { jsonrpc: '2.0', id, method, params: outParams }
+      trace('out', frame)
+      child.stdin.write(JSON.stringify(frame) + '\n')
     })
   }
+
+  function notify(method, params = {}) {
+    const frame = { jsonrpc: '2.0', method, params }
+    trace('out', frame)
+    child.stdin.write(`${JSON.stringify(frame)}\n`)
+  }
+
+  function nextRequestId() { return seq + 1 }
 
   /**
    * Call a tool. If progressToken given, attach it under _meta so the server emits notifications/progress.
@@ -379,16 +439,29 @@ export function spawnMcpStdioClient({
     }
   }
 
+  // Drop only the transport pipe so the server's stdin-close cancellation path
+  // is exercised; terminate() additionally sends SIGTERM.
+  function disconnect() {
+    try { child.stdin.end() } catch { /* already closed */ }
+    if (childExit) return Promise.resolve(childExit)
+    return new Promise((resolve) => child.once('exit', (code, signal) => resolve({ code, signal })))
+  }
+
   return {
     child,
     initialize,
     rpc,
+    notify,
+    nextRequestId,
     callTool,
     callToolOrThrow,
     terminate,
+    disconnect,
     progressForToken: (token) => progressByToken.get(String(token)) || 0,
     elicitationCount: () => elicitationCount,
     childExited: () => childExit,
+    stderrText: () => stderrText,
+    messages: () => messages.slice(),
   }
 }
 

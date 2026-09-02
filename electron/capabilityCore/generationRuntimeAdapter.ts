@@ -1,4 +1,8 @@
 import type { ProductionExecutionBinding } from "../productionRun/productionExecutionBinding";
+import {
+  assertProductionGenerationPayloadHash,
+  productionGenerationPayloadHash,
+} from "../productionRun/productionGenerationAuthorization";
 import type { ExecutionContractV1 } from "./executionContract";
 import { assertGenerationProviderCanSubmit } from "./generationProviderCapabilities";
 
@@ -7,6 +11,8 @@ export type ResolvedTaskRequestV1 = {
   providerId: string;
   modelId: string;
   variantId?: string;
+  modeId?: string;
+  transportModelId?: string;
   mode: string;
   prompt: string;
   parameters: Record<string, unknown>;
@@ -16,6 +22,16 @@ export type ResolvedTaskRequestV1 = {
   requestFingerprint: string;
   executionBinding: ProductionExecutionBinding;
 };
+
+/**
+ * Stable, provider-visible request input. Runtime fencing and envelope fields
+ * deliberately stay out of this shape so a restart cannot change the payload
+ * the user approved.
+ */
+export type GenerationProviderRequestInputV1 = Omit<
+  ResolvedTaskRequestV1,
+  "requestFingerprint" | "executionBinding"
+>;
 
 export type GenerationProviderCapabilities = {
   submitIdempotency: boolean;
@@ -32,6 +48,8 @@ export type GenerationProviderOutput = {
   contentType?: string;
   fileName?: string;
   providerOutputId?: string;
+  /** Optional provider-owned still for video review; it is materialized locally before projection. */
+  thumbnailUrl?: string;
 };
 
 export type GenerationProviderMaterializationResult = {
@@ -42,12 +60,27 @@ export type GenerationProviderMaterializationResult = {
 export type GenerationProvider = {
   providerId: string;
   capabilities: GenerationProviderCapabilities;
-  buildRequest: (input: ResolvedTaskRequestV1) => unknown;
+  buildRequest: (input: GenerationProviderRequestInputV1) => unknown;
   submit: (request: unknown, idempotencyKey: string) => Promise<{ providerTaskId: string; raw?: unknown }>;
   query?: (providerTaskId: string) => Promise<{ status: string; raw?: unknown }>;
   reconcile?: (input: { idempotencyKey: string; providerTaskId?: string }) => Promise<{ disposition: GenerationProviderReconcileDisposition; providerTaskId?: string; raw?: unknown }>;
   materialize?: (input: { providerTaskId: string; raw?: unknown }) => Promise<GenerationProviderMaterializationResult>;
   cancel?: (providerTaskId: string) => Promise<{ disposition: Exclude<GenerationProviderCancelDisposition, "unsupported">; raw?: unknown }>;
+};
+
+/**
+ * Optional provider-local submission hook.  The public `submit` contract stays
+ * intentionally narrow (it receives only the approved wire payload), while a
+ * provider that has endpoint semantics not representable in that payload can
+ * also consume the sealed semantic input.  This is a structural/duck-typed
+ * extension so existing providers do not need to change their implementation.
+ */
+type ContextualGenerationProvider = GenerationProvider & {
+  submitWithContext?: (
+    request: unknown,
+    idempotencyKey: string,
+    input: GenerationProviderRequestInputV1,
+  ) => Promise<{ providerTaskId: string; raw?: unknown }>;
 };
 
 export type GenerationProviderTaskState = "queued" | "running" | "succeeded" | "failed" | "cancelled" | "unknown";
@@ -63,6 +96,8 @@ export type GenerationProviderReconcileDisposition = "found" | "not_found" | "in
 export type GenerationProviderReconcileResult = {
   disposition: GenerationProviderReconcileDisposition;
   providerTaskId?: string;
+  /** Provider could answer, but did not establish a terminal/known state. */
+  status?: string;
   raw?: unknown;
 };
 
@@ -88,6 +123,15 @@ export class GenerationRuntimeBindingError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "GenerationRuntimeBindingError";
+  }
+}
+
+export class GenerationProviderRequestError extends Error {
+  readonly code = "provider_request_unstable" as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "GenerationProviderRequestError";
   }
 }
 
@@ -141,6 +185,8 @@ export function resolveExecutionContract(contract: ExecutionContractV1, binding:
     providerId: contract.providerId,
     modelId: contract.modelId,
     ...(contract.variantId ? { variantId: contract.variantId } : {}),
+    ...(contract.modeId ? { modeId: contract.modeId } : {}),
+    ...(contract.transportModelId ? { transportModelId: contract.transportModelId } : {}),
     mode: contract.mode,
     prompt: contract.prompt,
     parameters: structuredClone(contract.parameters),
@@ -152,6 +198,33 @@ export function resolveExecutionContract(contract: ExecutionContractV1, binding:
   };
 }
 
+function providerInput(request: ResolvedTaskRequestV1): GenerationProviderRequestInputV1 {
+  const { requestFingerprint: _requestFingerprint, executionBinding: _executionBinding, ...stable } = request;
+  return stable;
+}
+
+function stableRequestFor(
+  contract: ExecutionContractV1,
+  providerIdempotencyKey: string,
+): GenerationProviderRequestInputV1 {
+  const idempotencyKey = providerIdempotencyKey.trim();
+  if (!idempotencyKey) throw new GenerationRuntimeBindingError("Provider idempotency key is required");
+  return {
+    moduleId: contract.moduleId,
+    providerId: contract.providerId,
+    modelId: contract.modelId,
+    ...(contract.variantId ? { variantId: contract.variantId } : {}),
+    ...(contract.modeId ? { modeId: contract.modeId } : {}),
+    ...(contract.transportModelId ? { transportModelId: contract.transportModelId } : {}),
+    mode: contract.mode,
+    prompt: contract.prompt,
+    parameters: structuredClone(contract.parameters),
+    references: structuredClone(contract.references),
+    contractHash: contract.contractHash,
+    idempotencyKey,
+  };
+}
+
 export function createGenerationRuntimeAdapter(deps: { providers: readonly GenerationProvider[] }) {
   const providers = new Map<string, GenerationProvider>();
   for (const provider of deps.providers) {
@@ -159,15 +232,64 @@ export function createGenerationRuntimeAdapter(deps: { providers: readonly Gener
     providers.set(provider.providerId, provider);
   }
 
-  async function submit(input: { contract: ExecutionContractV1; binding: ProductionExecutionBinding }): Promise<{ providerTaskId: string; raw?: unknown; request: ResolvedTaskRequestV1 }> {
+  function prepareAuthorization(input: {
+    contract: ExecutionContractV1;
+    providerIdempotencyKey: string;
+  }): Readonly<{
+    providerRequest: unknown;
+    providerRequestHash: string;
+  }> {
+    const request = stableRequestFor(input.contract, input.providerIdempotencyKey);
+    const provider = providers.get(request.providerId);
+    if (!provider) throw new GenerationProviderCapabilityError(request.providerId, ["registered_provider"]);
+    assertGenerationProviderCanSubmit(provider);
+    const first = provider.buildRequest(structuredClone(request));
+    const second = provider.buildRequest(structuredClone(request));
+    const firstHash = productionGenerationPayloadHash(first);
+    if (productionGenerationPayloadHash(second) !== firstHash) {
+      throw new GenerationProviderRequestError("Provider buildRequest must be deterministic before approval");
+    }
+    return Object.freeze({ providerRequest: structuredClone(first), providerRequestHash: firstHash });
+  }
+
+  function prepare(input: { contract: ExecutionContractV1; binding: ProductionExecutionBinding }): Readonly<{
+    request: ResolvedTaskRequestV1;
+    providerRequest: unknown;
+    providerRequestHash: string;
+  }> {
+    const request = resolveExecutionContract(input.contract, input.binding);
+    const stableInput = providerInput(request);
+    const prepared = prepareAuthorization({
+      contract: input.contract,
+      providerIdempotencyKey: stableInput.idempotencyKey,
+    });
+    return Object.freeze({ request, ...prepared });
+  }
+
+  async function submit(input: {
+    contract: ExecutionContractV1;
+    binding: ProductionExecutionBinding;
+    expectedProviderRequestHash: string;
+    preparedProviderRequest?: unknown;
+  }): Promise<{ providerTaskId: string; raw?: unknown; request: ResolvedTaskRequestV1; providerRequestHash: string }> {
     const request = resolveExecutionContract(input.contract, input.binding);
     const provider = providers.get(request.providerId);
     if (!provider) throw new GenerationProviderCapabilityError(request.providerId, ["registered_provider"]);
     assertGenerationProviderCanSubmit(provider);
-    const providerRequest = provider.buildRequest(request);
-    const result = await provider.submit(providerRequest, request.idempotencyKey);
+    const providerRequest = input.preparedProviderRequest === undefined
+      ? provider.buildRequest(structuredClone(providerInput(request)))
+      : structuredClone(input.preparedProviderRequest);
+    assertProductionGenerationPayloadHash(providerRequest, input.expectedProviderRequestHash);
+    const contextualProvider = provider as ContextualGenerationProvider;
+    const result = contextualProvider.submitWithContext
+      ? await contextualProvider.submitWithContext(
+        providerRequest,
+        request.idempotencyKey,
+        structuredClone(providerInput(request)),
+      )
+      : await provider.submit(providerRequest, request.idempotencyKey);
     if (!result.providerTaskId.trim()) throw new Error("Provider returned an empty task id");
-    return { ...result, request };
+    return { ...result, request, providerRequestHash: productionGenerationPayloadHash(providerRequest) };
   }
 
   async function query(input: { providerId: string; providerTaskId: string }): Promise<GenerationProviderQueryResult> {
@@ -231,5 +353,5 @@ export function createGenerationRuntimeAdapter(deps: { providers: readonly Gener
     return result;
   }
 
-  return { submit, query, reconcile, cancel, materialize };
+  return { prepareAuthorization, prepare, submit, query, reconcile, cancel, materialize };
 }

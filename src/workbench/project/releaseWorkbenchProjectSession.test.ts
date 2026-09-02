@@ -4,9 +4,15 @@ import { useGenerationCanvasStore } from '../generationCanvas/store/generationCa
 import { useWorkbenchStore } from '../workbenchStore'
 import { createDefaultTimeline } from '../timeline/timelineMath'
 import { releaseWorkbenchProjectRuntimeState } from './releaseWorkbenchProjectSession'
-import { useCanvasTurnStore } from '../generationCanvas/agent/canvasTurnController'
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { clearActiveWorkbenchProjectSaveTarget, setActiveWorkbenchProjectSaveTarget } from './workbenchProjectSession'
+import {
+  getCommittedProposal,
+  hydrateCommittedProposalReceipt,
+} from '../generationCanvas/agent/proposalUndo'
+import { projectAgentProjectionStore } from '../ai/projectAgentProjectionStore'
+import { createInitialProjectAgentState } from '../../../electron/projectAgentHost/projectAgentState'
+import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY } from '../../../electron/shared/projectAgentContracts'
 
 function node(id: string): GenerationCanvasNode {
   return {
@@ -25,7 +31,6 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
   })
 
   it('clears heavy project state without resetting store actions', () => {
-    const canvasTurn = useCanvasTurnStore.getState().begin()
     const addNode = useGenerationCanvasStore.getState().addNode
     useGenerationCanvasStore.setState({
       isReady: true,
@@ -33,12 +38,9 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
       edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
       groups: [{ id: 'g1', name: 'Group', categoryId: 'shots', nodeIds: ['n1'], createdAt: 0, updatedAt: 0 }],
       selectedNodeIds: ['n1'],
-      generationAiDraft: 'draft',
-      generationAiMessages: [{ id: 'm1', role: 'assistant', content: 'hello' }],
       hasClipboard: true,
     })
     useWorkbenchStore.setState({
-      creationAiMessages: [{ id: 'm2', role: 'user', content: 'hello' }],
       storyboardPlans: { 'doc-a': { plan: { title: 'plan', anchors: [], shots: [] }, committed: true } },
       storyboardDesignsByDocumentId: {
         'doc-a': [{
@@ -63,19 +65,15 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
     }])
 
     releaseWorkbenchProjectRuntimeState()
-    expect(canvasTurn.isCurrent()).toBe(false)
 
     const canvas = useGenerationCanvasStore.getState()
     expect(canvas.nodes).toEqual([])
     expect(canvas.edges).toEqual([])
     expect(canvas.groups).toEqual([])
     expect(canvas.selectedNodeIds).toEqual([])
-    expect(canvas.generationAiDraft).toBe('')
-    expect(canvas.generationAiMessages).toEqual([])
     expect(canvas.addNode).toBe(addNode)
 
     const workbench = useWorkbenchStore.getState()
-    expect(workbench.creationAiMessages).toEqual([])
     expect(workbench.storyboardPlans).toEqual({})
     expect(workbench.storyboardDesignsByDocumentId).toEqual({})
     expect(workbench.activeStoryboardId).toBeNull()
@@ -88,6 +86,43 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
     expect(verify.status).toBe('idle')
     expect(verify.deviations).toEqual([])
     expect(verify.requestId).toBeGreaterThan(verifyRequest.requestId)
+  })
+
+  it('resets the resident approval and spend policy when switching projects', () => {
+    useWorkbenchStore.getState().setProjectAgentApprovalPolicy({ mode: 'project', spend: 'within-budget' })
+
+    releaseWorkbenchProjectRuntimeState()
+
+    expect(useWorkbenchStore.getState().projectAgentApprovalPolicy).toEqual(DEFAULT_PROJECT_AGENT_APPROVAL_POLICY)
+  })
+
+  it('clears only the in-memory proposal receipt view on project release', () => {
+    const binding = {
+      projectId: 'project-A',
+      immutableProjectUuid: '11111111-1111-4111-8111-111111111111',
+      projectGeneration: 1,
+    } as const
+    projectAgentProjectionStore.install('subscription-a', 1, createInitialProjectAgentState(binding))
+    hydrateCommittedProposalReceipt({
+      binding,
+      revision: 2,
+      lifecycle: 'committed',
+      proposalId: 'proposal-a',
+      operationId: 'proposal-commit:proposal-a',
+      proposal: {
+        proposalId: 'proposal-a',
+        summary: 'created node',
+        stepLabels: ['created node'],
+        compensation: [{ kind: 'delete-nodes', nodeIds: ['node-a'] }],
+        watchNodes: [],
+        reconciliationOk: true,
+      },
+    })
+    expect(getCommittedProposal()?.proposalId).toBe('proposal-a')
+
+    releaseWorkbenchProjectRuntimeState()
+
+    expect(getCommittedProposal()).toBeNull()
   })
 
   it('active project owner switches shot verify scope before an old result can surface', () => {
