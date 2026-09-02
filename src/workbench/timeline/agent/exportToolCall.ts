@@ -213,7 +213,17 @@ export async function applyExportToolCall(
       return { operation: toolName, jobId, cancelled: false, status: snapshot.status, code: 'export_not_cancellable' }
     }
     await runtime.cancelJob(jobId)
-    return { operation: toolName, jobId, cancelled: true, status: 'cancelled' }
+    // Cancellation is asynchronous at the export manager boundary. Never
+    // fabricate a terminal status: re-read the persisted job and report what
+    // actually committed (E-14/R7).
+    const after = await scopedJob(runtime, jobId)
+    return {
+      operation: toolName,
+      jobId,
+      cancelled: after.status === 'cancelled',
+      status: after.status,
+      ...(after.status === 'cancelled' ? {} : { code: 'export_cancel_pending' }),
+    }
   }
   throw new Error(`unknown export tool ${toolName}`)
 }
