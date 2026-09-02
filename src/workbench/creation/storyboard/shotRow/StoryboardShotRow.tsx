@@ -15,17 +15,19 @@ import {
 import type { ModelOption } from '../../../../config/models'
 import { useDedupedModelSelect } from '../../../common/useDedupedModelSelect'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
-import { aspectControlOf, missingRequiredSlots, referenceZoneView, resolveShotArchetypeMode } from './shotRowModel'
+import { aspectControlOf, referenceZoneView, resolveShotArchetypeMode } from './shotRowModel'
+import type { ShotRowExec } from '../exec/storyboardRowStatus'
+import StoryboardShotFrame from './StoryboardShotFrame'
 import StoryboardShotRowExpand from './StoryboardShotRowExpand'
 
 /**
  * 分镜表 v5 的一行：`[grip | 画面格 76×132 | 参考区 136 | 提示词块 1fr]`（样张
- * 2026-09-01-storyboard-table-image-first.html 拍板，「图是主角」）。Phase A 是纯编辑面：
- * - 画面格两态：占位（虚线 + 镜号）/ 缺必填红（该行模型 mode.slots min≥1 无来源，亮不拦）；
+ * 2026-09-01-storyboard-table-image-first.html 拍板，「图是主角」）。B 起是执行面：
+ * - 画面格 = 行状态机的脸（StoryboardShotFrame：空格生成按钮/等参考卡/缺必填红/进度/结果图）；
  * - 参考区三形态**纯展示**（具名槽空 tile / 「@」入口占位 / 不吃参考）——绑定编辑住展开态锚 chips；
  * - 提示词块：上沿类型/时长/模型/画幅胶囊（作用域=这一镜；整片改走顶部批量条，§1.5 C3），
  *   主体 AutoGrowTextarea，下沿有台词才显只读小字 + ▾ 展开（台词/转场/参考绑定/参数）。
- * 生成按钮/悬停浮条/@ 胶囊/插入线等执行与交互能力属 B/C/D 阶段。
+ * @ 胶囊/插入线/多选浮条属 C/D 阶段。
  */
 
 type Props = {
@@ -35,6 +37,12 @@ type Props = {
   modelOptions?: ModelOption[]
   /** 这镜引用了、但锚已不存在的 id（展开态红标 + 阻断确认）。 */
   danglingIds: string[]
+  /** 行执行态（编辑器统一 derive；缺省 = 无执行面渲染，仅测试/降级）。 */
+  exec?: ShotRowExec | undefined
+  /** 行内「生成 / 重试」。 */
+  onGenerate?: (() => void) | undefined
+  /** ⏳ 态点参考卡名 → 定位那张参考卡。 */
+  onJumpToAnchor?: ((anchorId: string) => void) | undefined
   onUpdate: (patch: Partial<PlanShot>) => void
   onToggleAnchor: (anchorId: string) => void
   onRemove: () => void
@@ -52,7 +60,7 @@ type Props = {
 
 export default function StoryboardShotRow(props: Props): JSX.Element {
   const { t } = useTranslation()
-  const { shot, anchors, modelOptions, danglingIds, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll } = props
+  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll } = props
   const [expanded, setExpanded] = React.useState(false)
 
   const shotTypeValue = shotTypeOf(shot)
@@ -83,9 +91,9 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   const onModelSelect = (id: string): void => (id ? modelSelect.onModelPick(id) : onShotModelChange(''))
   const selectedModelOption = modelOptions?.find((o) => o.value === shot.modelKey) ?? null
 
-  // 档案投影：画面格红态 / 参考区形态 / 画幅胶囊全从「该行模型的当前 mode」derive（shotRowModel 单源）。
+  // 档案投影：参考区形态 / 画幅胶囊从「该行模型的当前 mode」derive（shotRowModel 单源；
+  // 画面格红态由 exec.missingSlots 携带，同一 missingRequiredSlots 判定，在编辑器统一算）。
   const resolvedMode = resolveShotArchetypeMode(selectedModelOption, shot.modeId)?.mode ?? null
-  const missingSlots = missingRequiredSlots(resolvedMode, shot, anchors)
   const zone = referenceZoneView(resolvedMode, shot, anchors)
   const aspectControl = aspectControlOf(resolvedMode)
   const aspectValue = (() => {
@@ -114,19 +122,14 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         <IconGripVertical size={15} stroke={1.6} />
       </span>
 
-      {/* ── 画面格（图是主角：行内最大元素；生成/结果态属 B）── */}
-      {missingSlots.length > 0 ? (
-        <div
-          className="relative w-[76px] h-[132px] rounded-nomi border border-dashed border-workbench-danger bg-workbench-danger-soft flex flex-col items-center justify-center gap-1 p-2 text-center"
-          title={t('storyboardEditor.row.missingRequiredHint')}
-        >
-          <span className="absolute top-1 left-1 px-1 rounded-nomi-sm bg-nomi-ink-10 text-micro text-nomi-ink-60 tabular-nums">
-            {String(shot.index).padStart(2, '0')}
-          </span>
-          <span className="text-micro text-workbench-danger leading-normal">
-            {t('storyboardEditor.row.missingRequired', { slot: translateModelDisplayText(missingSlots[0].label) })}
-          </span>
-        </div>
+      {/* ── 画面格（图是主角：行内最大元素）——行状态机的脸，状态与组头/footer 计数同一份 derive ── */}
+      {exec ? (
+        <StoryboardShotFrame
+          shot={shot}
+          exec={exec}
+          onGenerate={onGenerate}
+          onJumpToAnchor={onJumpToAnchor}
+        />
       ) : (
         <div className="relative w-[76px] h-[132px] rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05">
           <span className="absolute top-1 left-1 px-1 rounded-nomi-sm bg-nomi-ink-10 text-micro text-nomi-ink-60 tabular-nums">

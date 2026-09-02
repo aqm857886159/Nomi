@@ -1,13 +1,11 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconAlertTriangle, IconCheck, IconMovie, IconLockOpen, IconPlus } from '@tabler/icons-react'
-import { alertDialog, confirmDialog, WorkbenchButton } from '../../../design'
+import { IconAlertTriangle, IconMovie, IconLockOpen, IconPlayerPlay, IconPlus } from '@tabler/icons-react'
+import { confirmDialog, WorkbenchButton } from '../../../design'
+import { toast } from '../../../ui/toast'
 import { useWorkbenchStore } from '../../workbenchStore'
-import { applyCanvasToolCall, resolveCanvasToolNodeId } from '../../generationCanvas/agent/applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
-import { resolveStoryboardImageDefault, resolveStoryboardVideoDefault } from '../../generationCanvas/agent/availableModels'
 import { useModelOptionsState } from '../../../config/useModelOptions'
-import { storyboardPlanToCreateNodesArgs } from '../../generationCanvas/agent/storyboardPlan'
 import {
   addAnchor,
   addShot,
@@ -18,22 +16,21 @@ import {
   validatePlan,
   type PlanIssue,
 } from '../../generationCanvas/agent/storyboardPlanEdits'
-import { classifyGenerationError } from '../../observability/classifyError'
 import StoryboardAnchorCard from './StoryboardAnchorCard'
 import StoryboardBulkBar from './StoryboardBulkBar'
 import StoryboardShotTable from './StoryboardShotTable'
-import { productionRunApi } from '../../production/productionRunApi'
-import { useProductionRunStore } from '../../production/productionRunStore'
 import {
-  findMatchingCandidateStoryboard,
-  storyboardDesignNeedsSync,
-  storyboardPlanSourceMatchesApprovedScript,
-} from './storyboardPlanGuards'
+  deriveStoryboardBatch,
+  deriveStoryboardRowRuntimes,
+  type StoryboardRowRuntime,
+} from './exec/storyboardRowStatus'
+import { generateShotRow, runStoryboardBatch } from './exec/storyboardRowActions'
 
 /**
- * 分镜方案字段编辑器（S3，决策 B）。创作区主列在 storyboardPlan 存在时替换文档编辑器渲染它。
- * 字段直接绑对象——每次改字段经纯编辑层（storyboardPlanEdits）算出新方案，写回 store，无解析。
- * 确认 → storyboardPlanToCreateNodesArgs 转 create_canvas_nodes → applyCanvasToolCall 落画布 → 清方案、切生成区。
+ * 分镜方案编辑器（v5 B：执行面）。表 = 画布节点的表格表示版——行内/批量直接生成，
+ * 节点作为副作用按需长到画布（画布=旁路视图）。「确认落画布」及其守卫已删（P1）：
+ * 没有单向门，行状态/计数全部从「plan × 画布节点」实时 derive（exec/storyboardRowStatus）。
+ * 执行只有 canvas runner 一条通路（exec/storyboardRowActions），spendConfirm/波次/undo 全沿用。
  */
 
 export default function StoryboardPlanEditor(): JSX.Element | null {
@@ -41,16 +38,17 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
   const entry = useWorkbenchStore((s) => (s.activeDocumentId ? s.storyboardPlans[s.activeDocumentId] : undefined))
   const plan = entry?.plan ?? null
   const setStoryboardPlan = useWorkbenchStore((s) => s.setStoryboardPlan)
-  const commitStoryboardPlan = useWorkbenchStore((s) => s.commitStoryboardPlan)
   const deleteStoryboardDesign = useWorkbenchStore((s) => s.deleteStoryboardDesign)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
   const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
   const activeDocumentId = useWorkbenchStore((s) => s.activeDocumentId)
   const activeStoryboardId = useWorkbenchStore((s) => s.activeStoryboardId)
-  const [landing, setLanding] = React.useState(false)
-  // 图片/视频模型清单各拉一次，按镜头种类传给镜卡的模型选择器 + 参数控件（完整 option 供解析 archetype 参数）。
+  const canvasNodes = useGenerationCanvasStore((s) => s.nodes)
+  // 图片/视频模型清单各拉一次，按镜头种类传给镜行的模型选择器 + 参数控件（完整 option 供解析 archetype 参数）。
   const videoModelOptions = useModelOptionsState('video').options
   const imageModelOptions = useModelOptionsState('image').options
+  // 行内/批量生成的重入闸（生成本身异步、确认卡在别处；按钮点两下不重复 materialize）。
+  const [busy, setBusy] = React.useState(false)
 
   const firstIssueLabel = (issue: PlanIssue): string => {
     switch (issue.kind) {
@@ -60,6 +58,14 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
       case 'anchor-no-name': return t('storyboardEditor.issue.anchorNoName')
     }
   }
+
+  // 行执行态：plan × 画布节点的实时 derive（F2：组头/标题/footer 计数同一份，禁静态快照）。
+  const designId = activeStoryboardId ?? ''
+  const rows = React.useMemo(
+    () => (plan ? deriveStoryboardRowRuntimes({ plan, designId, imageModelOptions, videoModelOptions, nodes: canvasNodes }) : []),
+    [plan, designId, imageModelOptions, videoModelOptions, canvasNodes],
+  )
+  const batch = React.useMemo(() => deriveStoryboardBatch(rows), [rows])
 
   if (!plan) return null
 
@@ -80,137 +86,34 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
     if (ok) deleteStoryboardDesign(targetStoryboardId, targetDocumentId)
   }
 
-  const onConfirm = async () => {
-    if (issues.length > 0 || landing) return
-    const targetDocumentId = activeDocumentId
-    const targetStoryboardId = activeStoryboardId
-    if (!targetStoryboardId) return
-    const targetDesign = useWorkbenchStore.getState().storyboardDesignsByDocumentId[targetDocumentId]
-      ?.find((design) => design.id === targetStoryboardId)
-    if (!targetDesign) return
-    const targetCanStillLand = () => {
-      const state = useWorkbenchStore.getState()
-      const current = state.storyboardDesignsByDocumentId[targetDocumentId]
-        ?.find((design) => design.id === targetStoryboardId)
-      return current === targetDesign
-    }
-    const targetIsStillVisible = () => {
-      const state = useWorkbenchStore.getState()
-      return state.activeDocumentId === targetDocumentId && state.activeStoryboardId === targetStoryboardId
-    }
-    const targetDocument = useWorkbenchStore.getState().workbenchDocuments.find((document) => document.id === targetDocumentId)
-    if (targetDocument && storyboardDesignNeedsSync(targetDocument.updatedAt, targetDesign.sourceDocumentUpdatedAt)) {
-      const proceed = await confirmDialog({
-        title: t('storyboardEditor.staleTitle'),
-        message: t('storyboardEditor.staleMessage'),
-        confirmLabel: t('storyboardEditor.staleConfirm'),
-      })
-      if (!proceed || !targetCanStillLand()) return
-    }
-    // A storyboard is a one-way projection of the approved script. Check the
-    // identity before mutating the canvas so a stale plan cannot leave orphaned
-    // nodes that the production run will later reject.
-    const productionRunBeforeLanding = useProductionRunStore.getState().run
-    if (productionRunBeforeLanding && (plan.sourceScriptHash || plan.sourceScriptArtifactId || plan.sourceScriptVersion)) {
-      // A provenance-bearing plan is only valid when the exact approved source
-      // is still present. Missing source metadata is not a match: otherwise an
-      // old storyboard could silently land after the script was revised.
-      const matches = storyboardPlanSourceMatchesApprovedScript(plan, productionRunBeforeLanding.artifacts)
-      if (!matches) {
-        await alertDialog({
-          title: t('storyboardEditor.landFailed'),
-          message: t('storyboardEditor.unknownRetry'),
-        })
-        return
-      }
-    }
-    setLanding(true)
+  // 动作统一包一层：失败人话 toast（生成失败本身落在节点卡片，这里只兜 materialize/确认前异常）。
+  const runAction = async (action: () => Promise<void>): Promise<void> => {
+    if (busy || !activeStoryboardId) return
+    setBusy(true)
     try {
-      const productionRun = useProductionRunStore.getState().run
-      // A run may contain multiple storyboard candidates. Only the exact
-      // content-hash match is allowed through the durable review/materialize
-      // path; an unrelated local design must never approve the first artifact.
-      const storyboardArtifact = productionRun
-        ? await findMatchingCandidateStoryboard(plan, productionRun.artifacts)
-        : undefined
-      if (!targetCanStillLand()) return
-      // Production runs use the same durable review → materialize seam as
-      // external MCP. The UI confirmation is the storyboard review decision;
-      // only after it is adopted does the main process ask the renderer to
-      // create nodes and return durable bindings.
-      if (productionRun && storyboardArtifact) {
-        const reviewed = await productionRunApi.command(productionRun.projectId, productionRun.runId, {
-          commandId: globalThis.crypto.randomUUID(),
-          expectedRevision: productionRun.revision,
-          type: 'artifact.review',
-          payload: { artifactId: storyboardArtifact.artifactId, decision: 'approved' },
-          issuedAt: new Date().toISOString(),
-        })
-        if (!targetCanStillLand()) return
-        const materialized = await productionRunApi.materializeStoryboard(
-          productionRun.projectId,
-          productionRun.runId,
-          storyboardArtifact.artifactId,
-          reviewed.run.artifacts.find((artifact) => artifact.artifactId === storyboardArtifact.artifactId)?.version || storyboardArtifact.version || 1,
-        )
-        await useProductionRunStore.getState().load(productionRun.projectId)
-        if (!targetCanStillLand()) return
-        commitStoryboardPlan(targetDocumentId, targetStoryboardId)
-        const landedIds = materialized.createdNodeIds
-        if (targetIsStillVisible()) {
-          setWorkspaceMode('generation')
-          if (landedIds.length > 1) useGenerationCanvasStore.getState().selectNodes(landedIds)
-        }
-        return
-      }
-      // 注入默认模型（用户拍板 B-clean）：定妆卡=图片模型（偏好 GPT Image 2）；镜头=视频模型
-      // （偏好 Seedance，没在编辑器为某镜选模型时兜底）。通用解析，解析失败/无可用模型 → 全空，
-      // 节点不带模型、用户在画布上自己选（不阻断落画布）。
-      const [imageDefault, videoDefault] = await Promise.all([
-        resolveStoryboardImageDefault(),
-        resolveStoryboardVideoDefault(),
-      ])
-      if (!targetCanStillLand()) return
-      const args = storyboardPlanToCreateNodesArgs(plan, {
-        creationDocumentId: targetDocumentId,
-        storyboardDesignId: targetStoryboardId,
-        ...(imageDefault.modelKey ? { defaultImageModelKey: imageDefault.modelKey } : {}),
-        ...(imageDefault.modeId ? { defaultImageModeId: imageDefault.modeId } : {}),
-        ...(imageDefault.refModeId ? { defaultImageRefModeId: imageDefault.refModeId } : {}),
-        ...(videoDefault.modelKey ? { defaultVideoModelKey: videoDefault.modelKey } : {}),
-        ...(videoDefault.modeId ? { defaultVideoModeId: videoDefault.modeId } : {}),
-      })
-      await applyCanvasToolCall('create_canvas_nodes', args, undefined, targetCanStillLand)
-      if (!targetCanStillLand()) return
-      // 不再即焚:方案保留、转「已落画布」、收起编辑器 → 卡片留在对话流可回看/再编辑。
-      commitStoryboardPlan(targetDocumentId, targetStoryboardId)
-      // 落画布即自动全选这批新节点（样张拍板 2026-07-29）→ 既有多选浮条「生成 N 个」直接浮现，
-      // 批量入口不再靠用户自己发现框选；点浮条整批确认生成，依赖波次照旧（定妆/首帧先、镜头后）。
-      // clientId 经注册表换真实节点 id；≤1 个不选（浮条本就只在多选时出现，单节点一键生成足矣）。
-      const landedIds = args.nodes.map((created) => resolveCanvasToolNodeId(created.clientId))
-      if (targetIsStillVisible()) {
-        setWorkspaceMode('generation')
-        if (landedIds.length > 1) useGenerationCanvasStore.getState().selectNodes(landedIds)
-      }
+      await action()
     } catch (error: unknown) {
-      if (!targetCanStillLand()) return
-      // 人话化：别把服务端/内部原串直贴进对话框（2026-08-25 走查同类问题）。
-      // 走 classifyGenerationError 拿分类后的 reason（+ 缺 key 时的一句指引），与错误卡同一真相源（P1）。
-      const raw = error instanceof Error && error.message ? error.message : ''
-      const report = raw ? classifyGenerationError(raw) : null
-      const message = report
-        ? report.hint
-          ? `${report.reason}——${report.hint}`
-          : report.reason
-        : t('storyboardEditor.unknownRetry')
-      await alertDialog({
-        title: t('storyboardEditor.landFailed'),
-        message,
-      })
+      toast(error instanceof Error && error.message ? error.message : t('storyboardEditor.exec.actionFailed'), 'error')
     } finally {
-      setLanding(false)
+      setBusy(false)
     }
   }
+
+  const execCtx = { documentId: activeDocumentId, designId, plan }
+  const onGenerateRow = (runtime: StoryboardRowRuntime): void => {
+    void runAction(() => generateShotRow(execCtx, runtime.shot, runtime.mode))
+  }
+  const onRunBatch = (): void => {
+    void runAction(() => runStoryboardBatch(execCtx, batch.runnable))
+  }
+
+  // 不进批量的原因摘要（footer 写明原因，与批次判定同一份 derive）。
+  const excludedReasons: string[] = []
+  if (batch.excluded.waitingRefs > 0) excludedReasons.push(t('storyboardEditor.footer.reasonWaiting', { count: batch.excluded.waitingRefs }))
+  if (batch.excluded.unlockedRefs > 0) excludedReasons.push(t('storyboardEditor.footer.reasonUnlocked', { count: batch.excluded.unlockedRefs }))
+  if (batch.excluded.missingRequired > 0) excludedReasons.push(t('storyboardEditor.footer.reasonMissing', { count: batch.excluded.missingRequired }))
+  if (batch.excluded.generating > 0) excludedReasons.push(t('storyboardEditor.footer.reasonGenerating', { count: batch.excluded.generating }))
+  if (batch.excluded.locked > 0) excludedReasons.push(t('storyboardEditor.footer.reasonLocked', { count: batch.excluded.locked }))
 
   return (
     <section
@@ -242,11 +145,11 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
 
       <div className="flex items-center gap-1.5 px-4 py-1.5 border-b border-nomi-line-soft text-caption text-nomi-ink-40">
         <IconLockOpen size={14} stroke={1.6} className="shrink-0" />
-        <span className="truncate"><span className="text-nomi-ink-60">{t('storyboardEditor.draftEditable')}</span> · {t('storyboardEditor.freeBeforeConfirm')}</span>
+        <span className="truncate"><span className="text-nomi-ink-60">{t('storyboardEditor.draftEditable')}</span> · {t('storyboardEditor.spendHint')}</span>
       </div>
 
       {/* 「全部镜头」批量条（样张 A）：整片作用域的类型/模型/时长常驻这里，
-          底下镜卡那排同款选择器作用域是「这一镜」——两者靠组名 + 底色分开（§1.5 C3）。 */}
+          底下镜行那排同款选择器作用域是「这一镜」——两者靠组名 + 底色分开（§1.5 C3）。 */}
       <StoryboardBulkBar
         plan={plan}
         imageModelOptions={imageModelOptions}
@@ -290,10 +193,12 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
           <div className="flex flex-col gap-2">
             <StoryboardShotTable
               plan={plan}
+              rows={rows}
               imageModelOptions={imageModelOptions}
               videoModelOptions={videoModelOptions}
               emptyPromptShots={emptyPromptShots}
               onChange={setStoryboardPlan}
+              onGenerateRow={onGenerateRow}
             />
             <button
               type="button"
@@ -321,20 +226,24 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
               <span className="truncate">{t('storyboardEditor.issuesSummary', { count: issues.length, issue: firstIssueLabel(issues[0]) })}</span>
             </span>
           ) : (
-            <span className="text-caption text-workbench-success inline-flex items-center gap-[5px]">
-              <IconCheck size={14} stroke={1.8} />
-              {t('storyboardEditor.readySummary', { anchors: plan.anchors.length, shots: plan.shots.length })}
+            <span className="text-caption text-nomi-ink-60 min-w-0 truncate" data-storyboard-progress="true">
+              {t('storyboardEditor.footer.progress', { done: batch.doneCount + batch.excluded.locked, total: plan.shots.length })}
+              {excludedReasons.length > 0 ? ` · ${excludedReasons.join(t('storyboardEditor.footer.reasonSeparator'))}${t('storyboardEditor.footer.excludedSuffix')}` : ''}
             </span>
           )}
         </div>
-        <WorkbenchButton
-          variant="primary"
-          onClick={onConfirm}
-          disabled={issues.length > 0 || landing}
-        >
-          <IconCheck size={15} stroke={1.8} />
-          {landing ? t('storyboardEditor.landing') : t('storyboardEditor.confirmLanding')}
-        </WorkbenchButton>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <span className="text-micro text-nomi-ink-40">{t('storyboardEditor.footer.spendNote')}</span>
+          <WorkbenchButton
+            variant="primary"
+            onClick={onRunBatch}
+            disabled={busy || batch.runnable.length === 0}
+            data-storyboard-batch="true"
+          >
+            <IconPlayerPlay size={15} stroke={1.8} />
+            {t('storyboardEditor.footer.generateRemaining', { count: batch.runnable.length })}
+          </WorkbenchButton>
+        </div>
       </footer>
     </section>
   )

@@ -13,26 +13,30 @@ import {
   updateShotAt,
   type SceneGroup,
 } from '../../generationCanvas/agent/storyboardPlanEdits'
-import { missingRequiredSlots, resolveShotArchetypeMode } from './shotRow/shotRowModel'
+import type { StoryboardRowRuntime } from './exec/storyboardRowStatus'
 import StoryboardShotRow from './shotRow/StoryboardShotRow'
 
 /**
- * 分镜表主体（v5 场分组）：`sceneGroupsOf` 把镜序切成场组——组头（▾ 场名 · N 镜 · 合计时长 ·
- * 缺必填计数）+ 可折叠行区。无场旧 plan = 单一隐式组，不渲染组头（行为等同没有分场）。
- * 拖拽 = 行对行（moveShot 场感知：落点在哪个场就改挂哪个场的 sceneId，镜号自动重排跨场连续）。
- * 合计口径 = totalDurationSec（图片镜按停留时长计入，与方案卡/顺播同源）。
+ * 分镜表主体（v5 场分组 + 执行态）：`sceneGroupsOf` 把镜序切成场组——组头（▾ 场名 · N 镜 ·
+ * 合计时长 · 异常计数）+ 可折叠行区。无场旧 plan = 单一隐式组，不渲染组头。
+ * 行执行态（rows，与 plan.shots 同序）由编辑器统一 derive 传入——组头计数与行状态同一份
+ * （F2 禁静态快照）。拖拽 = 行对行（moveShot 场感知）。合计口径 = totalDurationSec。
  */
 
 type Props = {
   plan: StoryboardPlan
+  /** 行执行 runtime（与 plan.shots 同序；exec/storyboardRowStatus 单源 derive）。 */
+  rows: StoryboardRowRuntime[]
   imageModelOptions: ModelOption[]
   videoModelOptions: ModelOption[]
   /** 提示词为空的镜号（validatePlan 的 empty-shot-prompt 投影，行红边用）。 */
   emptyPromptShots: Set<number>
   onChange: (plan: StoryboardPlan) => void
+  /** 行内「生成」（画面格常驻按钮 / 失败重试）。 */
+  onGenerateRow: (runtime: StoryboardRowRuntime) => void
 }
 
-export default function StoryboardShotTable({ plan, imageModelOptions, videoModelOptions, emptyPromptShots, onChange }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, rows, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onGenerateRow }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -58,20 +62,18 @@ export default function StoryboardShotTable({ plan, imageModelOptions, videoMode
     return group.scene.title.trim() || t('storyboardEditor.sceneGroup.untitled', { index: groupIndex + 1 })
   }
 
-  // 缺必填计数与画面格红态同一判定（shotRowModel 单源）：按该镜种类取对应模型清单解析档案。
-  const missingCountOf = (group: SceneGroup): number =>
-    group.shots.filter((shot) => {
-      const options = shot.shotKind === 'image' ? imageModelOptions : videoModelOptions
-      const modelOption = options.find((option) => option.value === shot.modelKey) ?? null
-      const mode = resolveShotArchetypeMode(modelOption, shot.modeId)?.mode ?? null
-      return missingRequiredSlots(mode, shot, plan.anchors).length > 0
-    }).length
+  // 组头小结：与行状态同一份 derive（rows 按 startPos 切片；F2 禁静态快照）。
+  const groupRowsOf = (group: SceneGroup): StoryboardRowRuntime[] =>
+    rows.slice(group.startPos, group.startPos + group.shots.length)
 
   return (
     <div className="border border-nomi-line rounded-nomi divide-y divide-nomi-line-soft overflow-hidden">
       {groups.map((group, groupIndex) => {
         const folded = foldedScenes.has(foldKeyOf(group))
-        const missingCount = missingCountOf(group)
+        const groupRows = groupRowsOf(group)
+        const missingCount = groupRows.filter((row) => row.exec.status === 'missing-required').length
+        const doneCount = groupRows.filter((row) => row.exec.status === 'done' || row.exec.status === 'locked').length
+        const lockedCount = groupRows.filter((row) => row.exec.status === 'locked').length
         return (
           <React.Fragment key={foldKeyOf(group)}>
             {showHeads ? (
@@ -89,6 +91,12 @@ export default function StoryboardShotTable({ plan, imageModelOptions, videoMode
                 <span className="min-w-0 truncate text-caption font-medium text-nomi-ink-80">{headTitleOf(group, groupIndex)}</span>
                 <span className="ml-auto shrink-0 flex items-center gap-2.5 text-micro text-nomi-ink-40">
                   <span>{t('storyboardEditor.sceneGroup.summary', { count: group.shots.length, seconds: totalDurationSec(group.shots) })}</span>
+                  {doneCount > 0 ? (
+                    <span className="text-workbench-success">{t('storyboardEditor.sceneGroup.doneCount', { count: doneCount })}</span>
+                  ) : null}
+                  {lockedCount > 0 ? (
+                    <span>{t('storyboardEditor.sceneGroup.lockedCount', { count: lockedCount })}</span>
+                  ) : null}
                   {missingCount > 0 ? (
                     <span className="text-workbench-danger">{t('storyboardEditor.sceneGroup.missingRequired', { count: missingCount })}</span>
                   ) : null}
@@ -98,6 +106,7 @@ export default function StoryboardShotTable({ plan, imageModelOptions, videoMode
             {!folded
               ? group.shots.map((shot, indexInGroup) => {
                   const pos = group.startPos + indexInGroup
+                  const runtime = rows[pos]
                   return (
                     <StoryboardShotRow
                       key={shot.shotId ?? shot.index}
@@ -106,6 +115,8 @@ export default function StoryboardShotTable({ plan, imageModelOptions, videoMode
                       modelOptions={shot.shotKind === 'image' ? imageModelOptions : videoModelOptions}
                       danglingIds={danglingAnchorIdsForShot(plan, shot)}
                       promptInvalid={emptyPromptShots.has(shot.index)}
+                      exec={runtime?.exec}
+                      onGenerate={runtime ? () => onGenerateRow(runtime) : undefined}
                       draggable
                       isDragOver={overIndex === pos && dragIndex !== null && dragIndex !== pos}
                       onDragStart={() => setDragIndex(pos)}
