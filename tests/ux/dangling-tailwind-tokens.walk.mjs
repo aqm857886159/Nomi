@@ -232,23 +232,27 @@ async function setScheme(win, scheme) {
   await win.waitForTimeout(1200)
 }
 
-/** 停在项目工作台而不是库页 —— 画布/时间轴才是这批 token 的真实消费面。库里没项目就先建一个。 */
+/**
+ * 停在项目工作台而不是库页 —— 画布/时间轴才是这批 token 的真实消费面。库里没项目就先建一个。
+ * 每步都等**真实条件**（目标控件可见）而不是睡一个"应该够长"的觉：建项目/首启耗时随磁盘波动，
+ * 固定 sleep 短了就读到空、长了白等，两头都不对。
+ */
 async function ensureInProject(win) {
-  let enter = win.getByRole('button', { name: /^继续创作/ }).first()
-  if (!(await enter.count())) {
+  const enterBtn = () => win.getByRole('button', { name: /^继续创作/ }).first()
+  if (!(await enterBtn().count())) {
     // 库页那张卡的字面是「新建空白项目」——写成 /新建项目/ 匹配不到（中间夹了「空白」），别再收窄。
     const create = win.locator('button, [role="button"]', { hasText: /新建|创建|开始创作/ }).first()
     if (await create.count()) {
       await create.click({ timeout: 4000 }).catch(() => {})
-      await win.waitForTimeout(2500)
+      await enterBtn().waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
     }
-    enter = win.getByRole('button', { name: /^继续创作/ }).first()
   }
-  if (await enter.count()) {
-    await enter.click({ timeout: 4000 }).catch(() => {})
-    await win.waitForTimeout(2200)
-  }
-  const inWorkbench = await win.locator('button, [role="tab"]', { hasText: /^生成$/ }).count()
+  if (await enterBtn().count()) await enterBtn().click({ timeout: 4000 }).catch(() => {})
+  const genTab = win.locator('button, [role="tab"]', { hasText: /^生成$/ }).first()
+  await genTab.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
+  const inWorkbench = await genTab.count()
+  // 进不去不判红：对照带是注入到当前页的，与所处面无关，核心断言照常成立；
+  // 只是天然消费点扫不到，如实说明而不是假装验过。
   console.log(`  进入项目：${inWorkbench > 0 ? '已在工作台' : '⚠️ 仍在库页（对照带仍有效，天然消费点扫不到）'}`)
   return inWorkbench > 0
 }
@@ -268,6 +272,17 @@ async function scanLive(win, list) {
 console.log(`待测类名（从 src 现扫）：${probes.length} 个`)
 for (const p of probes) console.log(`  ${p.cls.padEnd(28)} ${p.sites.length} 处  e.g. ${p.sites[0]}`)
 if (unusedKeys.length) console.log(`已映射但暂无字面消费者（JIT 不生成，真机无法验，仅防同族再漏）：${unusedKeys.join(', ')}`)
+
+// 前置断言之一：扫不到任何消费者就等于这一趟什么都没验。这是「死选择器假绿」的入口——
+// 键改名、正则退化、或 src 结构变了，都会让 probes 变空，而后面每一条断言都会"通过"。
+if (!probes.length) {
+  throw new Error('从 src 扫不到任何本次修复的 token 类名——扫描逻辑或键名已失效，这一趟不会验到任何东西')
+}
+// 前置断言之二：把头牌钉死。text-workbench-success-ink 是本次修复的核心（10 处「已完成」绿字），
+// 它要是从待测集合里消失了，这条走查就失去了存在意义，必须炸而不是安静地少验一项。
+if (!probes.some((p) => p.cls === 'text-workbench-success-ink')) {
+  throw new Error('待测集合里没有 text-workbench-success-ink——本次修复的头牌不见了，拒绝假绿通过')
+}
 
 const probeInput = probes.map((p) => ({
   cls: p.cls,
@@ -294,7 +309,7 @@ for (let i = 0; i < 8; i++) {
 }
 
 const report = {}
-let failures = 0
+const failures = []
 for (const scheme of ['light', 'dark']) {
   console.log(`\n— ${scheme.toUpperCase()} —`)
   await setScheme(win, scheme)
@@ -308,7 +323,13 @@ for (const scheme of ['light', 'dark']) {
     const drift = dist(r.classRgb, r.varRgb)
     const visible = dist(r.classRgb, r.inheritedRgb)
     const ok = drift <= 2
-    if (!ok) failures += 1
+    // 断言一：类名色必须等于 var() 色。不等 = 该类没生成 CSS，元素掉回继承色（本次修的就是这个）。
+    if (!ok) failures.push(`[${scheme}] ${r.cls} 类名色 rgb(${r.classRgb}) ≠ var 色 rgb(${r.varRgb})——映射没生效，类仍悬空`)
+    // 断言二：类名色必须与继承色明显不同。相等意味着这个"修复"在用户眼里什么都没变——
+    // 要么 token 被定义成了正文色（无意义映射），要么我们量错了地方。修了就得看得见。
+    if (dist(r.classRgb, r.inheritedRgb) < 8) {
+      failures.push(`[${scheme}] ${r.cls} 与继承色几乎同色 rgb(${r.inheritedRgb})——这个修复在用户眼里不产生任何差别`)
+    }
     console.log(
       `  ${r.cls.padEnd(28)} 类=rgb(${r.classRgb.join(',')})`.padEnd(58) +
         ` var=rgb(${r.varRgb.join(',')})`.padEnd(22) +
@@ -338,11 +359,23 @@ for (const scheme of ['light', 'dark']) {
   }
 }
 
+// 断言三：明暗两轮必须量到不同的值。本次修的 token 明暗都有各自定义（如 success-ink
+// #248a3d / #7ee8aa），两轮完全相同只可能是主题没真翻——localStorage 写了但没重挂、
+// 或 140ms 过渡还没走完就采样了。那样"暗色也通过"是假的，它量的还是浅色那帧。
+for (const [i, light] of (report.light ?? []).entries()) {
+  const dark = report.dark?.[i]
+  if (!dark || dark.cls !== light.cls) continue
+  if (light.classRgb.join() === dark.classRgb.join()) {
+    failures.push(`${light.cls} 明暗两轮量到同一个 rgb(${light.classRgb})——主题没真翻，暗色那轮的结论不作数`)
+  }
+}
+
 console.log(`\nDone. ${n} shots → ${path.relative(repoRoot, shotsDir)}`)
-if (failures) {
-  console.error(`\n✖ ${failures} 个类的类名色与 var 色不一致——映射没生效，类仍是悬空的。`)
+if (failures.length) {
+  console.error(`\n✖ ${failures.length} 条断言未通过：`)
+  for (const f of failures) console.error(`   · ${f}`)
   await app.close()
   process.exit(1)
 }
-console.log(`✅ ${probes.length} 个真实类名：Tailwind 类色 = var() 色，映射端到端生效。`)
+console.log(`✅ ${probes.length} 个真实类名 × 明暗两轮：类名色 = var() 色、明显区别于继承色、明暗各自生效。`)
 await app.close()
