@@ -211,7 +211,11 @@ Claude Code 会依次调 `nomi_create_project` → `nomi_list_models` → `nomi_
  | `nomi_request_generation_gate` / `nomi_decide_generation_gate` | 请求并提交一次真人确认凭据；裸 boolean 不算确认 |
  | `nomi_start_generation` | 在 rollout 与确认均满足后进入统一 Runtime Adapter；未满足时 fail-closed |
  | `nomi_operation_read` / `nomi_cancel_generation` / `nomi_reconcile_generation` | 读取、取消或核对语义 Run；未知结果不盲目重提 |
-| `nomi_integration_begin` | 创建模型或 ComfyUI 接入会话，只接收公开连接资料 |
+ | `nomi_timeline_read` | 读取时间轴快照或指定范围（只读） |
+ | `nomi_timeline_edit` | 预览、申请或撤销时间轴编辑；apply/undo 必须回到 Nomi 宿主确认 |
+ | `nomi_export_job` | 查询导出状态或验证渲染结果；启动/取消导出仍是宿主专属 |
+ | `nomi_media_query` | 查询项目媒体、素材范围或波形信息（只读） |
+ | `nomi_integration_begin` | 创建模型或 ComfyUI 接入会话，只接收公开连接资料 |
 | `nomi_integration_open_credentials` | 打开 Nomi 安全凭据页面；密钥不会经过 Agent |
 | `nomi_integration_discover` | 分页、搜索并返回带证据来源的模型候选 |
 | `nomi_integration_select` | 一次选择多个精确模型，进入支出合同确认 |

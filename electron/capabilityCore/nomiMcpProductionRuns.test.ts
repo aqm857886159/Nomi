@@ -126,9 +126,8 @@ describe('production run MCP tools', () => {
     const guide = fs.readFileSync(path.join(process.cwd(), 'docs/guide/capability-core-cli-mcp.md'), 'utf8')
     expect(readme).toContain('Thirty-three MCP tools')
     expect(guide).toContain('33 个工具')
-    // The public guide is updated in the release-docs task; this contract test only
-    // requires the pre-existing catalog entries to remain documented while Task 4
-    // adds the versioned artifact business tools.
+    // Keep the public guide aligned with the live catalog so a newly reachable
+    // semantic surface cannot be omitted from the user-facing MCP contract.
     for (const name of MCP_TOOL_NAMES.filter((name) => ![
       'nomi_read_artifact', 'nomi_request_script_revision', 'nomi_request_storyboard_revision', 'nomi_review_artifact',
     ].includes(name))) expect(guide).toContain(`\`${name}\``)
