@@ -1,0 +1,139 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-walkthroughs-rot-without-an-executor",
+  "problem_type": "Verification assets with no automated executor rot silently after intentional product changes",
+  "symptom": "tests/ux/library-language-switcher.walk.mjs failed on every run at [aria-label=\"语言\"] and had done so for a month without anyone noticing. A sweep found tests/ux/multi-user-isolation.walk.mjs dead on the same removed component, 5 dead anchors in total (including the English-state [aria-label=\"Language\"]). The failure was discovered only because someone ran the walkthrough incidentally while verifying an unrelated change.",
+  "direct_cause": "Commit feeb575b («顶栏右簇 7 个平铺 → 分 3 组») deliberately relocated language/appearance/about into the settings dialog per design-system §1.5 and explicitly deleted the LanguageMenuButton component (\"P1：AboutNomiPopover / LanguageMenuButton 整个删除\"). The two walkthroughs that asserted against that component's aria-label were not updated in the same change, so their selectors could never match again.",
+  "class_root": "Walkthroughs have no automated executor. 189 walkthrough files exist and all but a handful appear in no CI workflow, so the only thing that ever runs them is a human deciding to. Consequently an intentional product change can invalidate a walkthrough's assumptions and nothing anywhere reports it — the asset degrades into a permanently red (or, worse, permanently green) file that no longer describes the product.",
+  "affected_population": [
+    "Every walkthrough not referenced by a CI workflow — the overwhelming majority of the 189 files",
+    "Any future control relocation or removal under design-system §1.5, which is an ongoing programme rather than a one-off",
+    "i18n and locale walkthroughs specifically, because they pin user-visible text and control affordances that product decisions move most often"
+  ],
+  "scope_paths": [
+    ".github/workflows/quality-gate.yml",
+    "scripts/run-ci-walkthroughs.mjs",
+    "tests/ux/ci-roster.mjs",
+    "tests/ux/library-language-switcher.walk.mjs",
+    "tests/ux/multi-user-isolation.walk.mjs",
+    "scripts/validation-policy.mjs",
+    "scripts/select-quality-gate-profile.mjs"
+  ],
+  "entry_points": [
+    "quality-gate.yml desktop-linux job — the only place CI runs Electron walkthroughs on Linux",
+    "pnpm run test:walkthroughs:ci — the roster runner",
+    "tests/ux/ci-roster.mjs — the single list of walkthroughs CI must execute",
+    "Any design-system §1.5 relocation that moves or deletes a control a walkthrough anchors on",
+    "CI scope 分类器 scripts/validation-policy.mjs —— 决定 roster 步骤在哪些改动上运行"
+  ],
+  "internal_only_reason": "Walkthrough execution policy, the design-system §1.5 control-hierarchy programme, and this repository's CI scope classifier are all Nomi-internal contracts; no third-party runtime decides whether a walkthrough runs.",
+  "invariants": [
+    "A walkthrough that guards a product invariant must be executed automatically by CI, not only when a human remembers.",
+    "The list of CI-executed walkthroughs is declared in exactly one place and CI derives what to run from it.",
+    "Only zero-cost, deterministic, already-verified-green walkthroughs may enter that list — a permanently red CI step is worse than no step, because it teaches people to ignore red.",
+    "A walkthrough asserts the product intent through a currently-live path, not the identity of one button that a relocation can delete.",
+    "Every roster entry states which invariant it guards, so a future reader can judge whether it still earns its runtime.",
+    "The roster's trigger scope must cover the surfaces its walkthroughs actually assert; a step gated on an unrelated scope is indistinguishable from no step at all."
+  ],
+  "generality_proof": "The fix attacks the absence of an executor rather than the two broken selectors. tests/ux/ci-roster.mjs is the single declaration of which walkthroughs must run; scripts/run-ci-walkthroughs.mjs is the only consumer of it and fails closed when an entry names a missing file; quality-gate.yml invokes that one script, so adding a walkthrough to the roster is sufficient to make CI run it forever and no second registration site exists to drift. tests/ux/ci-roster.test.mjs then enforces the admission bar structurally — it fails if an entry is missing on disk, lacks a stated invariant, depends on the user's real profile (realCatalogPath / requireCatalog: true), burns real quota, or if the runner/package script/workflow ever stop referencing the roster. That last assertion is what keeps the whole mechanism from quietly becoming a dead letter, which is the same failure mode as the original defect one level up.",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/ci-roster.mjs",
+      "symbol": "ROSTER",
+      "responsibility": "Own the single declaration of which walkthroughs CI must execute, each with the invariant it guards and the admission rationale. CI derives its work from this list; there is no second place to register a walkthrough."
+    },
+    {
+      "path": "scripts/run-ci-walkthroughs.mjs",
+      "symbol": "run-ci-walkthroughs",
+      "responsibility": "Own execution of the roster: runs each entry serially against a real Electron instance, fails closed when an entry names a file that no longer exists, and reports per-walkthrough verdicts so a failure can be told apart from a load-induced timeout."
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "symbol": "desktop-linux / CI-safe walkthrough roster",
+      "responsibility": "Own the trigger: runs the roster whenever the desktop surface is in scope, so a relocation that breaks a rostered walkthrough turns CI red on the change that caused it instead of a month later."
+    },
+    {
+      "path": "scripts/validation-policy.mjs",
+      "symbol": "WALKTHROUGH_PATTERNS / policy.walkthroughs",
+      "responsibility": "Own the roster's trigger surface as an independent scope. Covers src/i18n, the project-library and settings shells, the roster file, and the rostered walkthroughs themselves; fail-closed profiles (delete/rename, empty diff, explicit full) always include it."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/library-language-switcher.walk.mjs",
+      "entry_point": "起始页切语言走查 — the reported failure",
+      "disposition": "enforced",
+      "evidence": "Rewritten to assert the product intent (language is changeable from the first screen without creating a project) through the live path 齿轮 → 设置 → 通用 → 语言, anchored on data-settings-tab-id / data-settings-locale test contracts rather than a button's i18n aria-label. Anchors were obtained by running a real probe, not by reading source. Now in the CI roster; verified 7/7 green."
+    },
+    {
+      "path": "tests/ux/multi-user-isolation.walk.mjs",
+      "entry_point": "并发多用户隔离走查 — same removed component, found by sweep",
+      "disposition": "enforced",
+      "evidence": "Its switchToEnglish helper and three language-state probes all anchored on the deleted button (including the English-state [aria-label=\"Language\"] that the initial triage missed). Language state now evidenced by user-visible tab text, and the two absence checks upgraded to expectAbsent + proveProbe. Now in the CI roster; verified 10/10 green."
+    },
+    {
+      "path": "evals/journeys/index.mjs",
+      "entry_point": "j3-onboarding / j5-edit-export — the same class in 2026-06",
+      "disposition": "not-affected",
+      "evidence": "The file's header comment records that on 2026-06-23 both journeys were deleted because they asserted UI that a product decision had removed, leaving them permanently false-red. That is this exact mechanism, one occurrence earlier, and it is why this repair is classified recurring rather than one_off. Those journeys are already gone, so they need no further change; the surviving j1-j6 do run in CI via test:journeys and are therefore not exposed to the no-executor gap."
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "CI-safe walkthrough roster step — its trigger condition",
+      "disposition": "enforced",
+      "evidence": "Originally gated on scope.outputs.desktop, which only matches electron/ and src/desktop/bridge.ts — so an src/i18n change could never trigger it and the step was effectively dead for exactly the cluster the roster holds. Now gated on the independent walkthroughs scope, and validation-policy.node-test.mjs asserts both the predicate (i18n/settings/roster paths select it; README/utils do not; fail-closed always does) and that the workflow still consumes the output. Positive-controlled: reverting the step to desktop turns that test red."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism is structural, not incidental: design-system §1.5 control relocation is an ongoing programme, and every walkthrough outside CI is exposed to it with no reporting path. It has now fired at least twice — the 2026-06-23 journey deletions and this month-long language-button rot — through different entry points, which rules out a one-off.",
+    "same_class_scan": [
+      "Traced the walkthrough's full history: git log -S LanguageMenuButton on ProjectLibraryPage.tsx surfaced both 98416778 (added it, #1b) and feeb575b (relocated per §1.5 and deleted the component).",
+      "Confirmed both the feature commit and the walkthrough are ancestors of origin/main, ruling out a merge accident and establishing that the feature genuinely existed and was later removed on purpose.",
+      "Swept tests/ux for the same dead anchor and found multi-user-isolation.walk.mjs with 3 further occurrences, plus 2 English-state occurrences the first triage had missed — 5 total across 2 files.",
+      "Grepped .github/workflows for every tests/ux reference: only clip-node-editing, production-mcp-journey, canvas-performance-benchmark and packaged-mcp-smoke are executed by CI, out of 189 walkthrough files.",
+      "Read scripts/check-walkthroughs.mjs and confirmed its dead-selector rule deliberately covers only BEM-style class names, so aria-label anchors are outside its reach by design (its comment warns that broadening it would turn the rule into noise).",
+      "Prototyped an aria-label traceability gate and measured 56 flagged anchors, then spot-checked them: 适应视图 is passed through a label= prop and 播放 is written aria-label={isPlaying ? t(a) : t(b)} — both false positives. Established that no zero-false-positive static predicate catches this class, because the i18n text survives while the control moves.",
+      "Read evals/journeys/index.mjs and found the 2026-06-23 record of the identical failure class being resolved by deletion."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/ci-roster.mjs",
+    "invariant": "Walkthroughs guarding product invariants are declared in one roster, executed by CI on every in-scope desktop change, and admitted only if zero-cost, deterministic and verified green.",
+    "failure_mode": "A relocation or removal that invalidates a rostered walkthrough turns the quality gate red on the offending change. A roster entry naming a missing file fails the runner closed rather than silently running one fewer walkthrough.",
+    "exception_policy": "none",
+    "strategy": "Give the assets an executor instead of trying to statically prove their anchors are alive (measured infeasible: no zero-false-positive predicate exists, because the i18n text survives the control's relocation). One roster declares the work, one runner consumes it, one workflow step triggers it, and a structural test fails if any of those three links is severed or if an entry violates the admission bar. The trigger itself is an independent scope with its own predicate tests, because a correctly-written roster gated on the wrong scope is worth exactly nothing.",
+    "artifacts": [
+      "tests/ux/ci-roster.mjs",
+      "scripts/run-ci-walkthroughs.mjs",
+      ".github/workflows/quality-gate.yml",
+      "scripts/validation-policy.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/ci-roster.test.mjs",
+    "scripts/validation-policy.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/ci-roster.test.mjs",
+    "scripts/validation-policy.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No parallel mechanism is introduced. The dead anchors are replaced in place rather than left callable alongside new ones, and the pre-existing test:journeys path is untouched and complementary — it runs the evals/journeys registry, while the roster runs tests/ux walkthroughs. Neither duplicates the other's list."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant concerns this repository's own verification assets, CI configuration and design-system programme. No third-party runtime version governs whether a walkthrough executes.",
+    "exit_criteria": []
+  },
+  "migration": "No data or API migration. The two repaired walkthroughs keep their original intent and identity, so existing evidence directories and their place in the walkthrough inventory are unchanged. Walkthroughs not yet in the roster behave exactly as before; adding one is a one-line change plus a local green run.",
+  "residual_risks": [
+    "Correction to this contract's first revision: it recorded the roster's trigger coupling as merely 'not asserted by a test'. On inspection the coupling was actually wrong — the step was gated on the desktop scope, which matches only electron/ and src/desktop/bridge.ts, so an src/i18n change could never run the roster whose entire content is the i18n/locale cluster. The step was dead for its own purpose. Fixed in the same branch by introducing an independent walkthroughs scope with predicate and workflow-consumption tests; recorded here because under-stating a residual risk is itself the failure mode this contract is about.",
+    "The roster currently holds 5 of 189 walkthroughs — the i18n/locale/multi-user cluster, chosen because it is zero-cost, deterministic and was the cluster that actually rotted. The remaining walkthroughs are still unexecuted by CI and can still rot silently; expanding the roster is deliberate follow-up work and is not claimed here.",
+    "Serial execution costs ~96s locally for 5 walkthroughs and will be slower on a CI runner. If the roster grows substantially this becomes a wall-clock question that needs a scope split rather than more serial entries.",
+    "Load-induced timeouts remain indistinguishable from real failures at the runner level; the runner prints per-walkthrough timings and says so explicitly, but it cannot decide which it was. Verified during this change: one providerAdapter test failed under load average 52 and passed 58/58 when run alone."
+  ]
+}

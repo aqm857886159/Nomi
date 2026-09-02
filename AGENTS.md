@@ -49,7 +49,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **提交/推送前的 Ponytail 闸门（R25，R24 由 PR #223 保留）**：每次成功的 commit 或 push 前都必须由版本化 `pre-commit` / `pre-push` hook 调用只读、限时的 Ponytail Codex 适配器，对准确的 staged 或 outgoing ref diff 运行 `/ponytail-review`（Codex 中是 `@ponytail-review`）；pre-commit 先通过敏感数据扫描，扫描已阻止的提交不会继续调用模型。缺少 Codex/插件、超时、异常或无合法结果标记就 fail-closed。发现过度工程化时只记录阻断状态；逐条删除清单需另行运行 `@ponytail-review` 后处理。`--no-verify`、网页/API 和未安装 hook 的环境仍需 CI/分支保护补强，不能把本地 hook 当成不可绕过的服务器门岗。
 
-## 五条核心原则
+## 六条核心原则
 
 **P1 加新必删旧** — 引入新实现时同 commit 删旧实现，无并行版、无 fallback、无逃生口。CSS 同理：新样式只写组件 `className`，迁 Tailwind 即删旧 CSS；全局 CSS 只可减不可增。**搬家不留转发壳**：迁移文件时同 commit 改所有 import site，re-export 壳必须同 commit 删（现存 29 个 `src/config/modelArchetypes` 壳即反例）。
 
@@ -60,6 +60,8 @@ Nomi：本地优先 AI 视频创作工作台。
 **P4 通用第一** — 能力/组件/交互按「模型身份 / 通用场景」设计，与具体供应商/模型解耦。不为不同模型写两套 UI（那是并行版，违反 P1）。档案声明槽，通用系统负责填。
 
 **P5 想清楚再动手** — UI 改动**先读设计系统 `docs/design/nomi-design-system.md`（token/组件/规范）再画**，再出可视样张（HTML mockup）+ 用户拍板；架构改动先查 Context7 官方文档 + 读顶尖开源代码 + 6 角色评审；多文件改动先写 `docs/plan` 文档。
+
+**P6 会红才是证据** — 测试/断言/门岗/走查/样张/CI 步骤，交付前必须**破坏一次被验对象、确认它精确报红**；只看到绿不算验过。这一类占记忆里约 1/4：expectAbsent 首次采样即过、死选择器两头骗（假绿那半更险）、`| tail` 吞退出码、静态门岗冒充「走查跑过」、CI 步骤挂错 scope 永不触发、走查覆盖获批样张让对账变成拿现状比现状。**这个项目的主要失败模式不是「报错」，是「不报」**，而其余纪律都在防前者。详见 R28。
 
 ## 动手前/报完成前/push 前的三闸
 
@@ -107,6 +109,8 @@ Nomi：本地优先 AI 视频创作工作台。
 | R25 | 提交/推送前 Ponytail 评审 | pre-commit/pre-push 自动调用只读、限时 `/ponytail-review` 适配器；失败或缺少结果 fail-closed |
 | R26 | 分层边界不许反向/循环 | 渲染层（src/）禁直捅主进程（走 bridge/中立契约层）、主进程禁反向 import 渲染层、禁新增完全静态循环；`check:boundaries` 棘轮（`boundaries-baseline.json` 只减不增），加规则先验会红（R17）。归属地图 `docs/architecture/module-ownership-map.md`，详见 L2 |
 | R27 | 多智能体编排手册 | 派工 / 收货 / 接力的机器化纪律：谁的方案谁实施·验收必跨池、任务书发行权独占 + 开工三行头、收货三查（behind 数 / 两点回滚 / 套件失败 delta=0）、等待用 sleep 轮询 + 哨兵法（禁 --watch/Monitor/交卷）、判活看外部面 + 盘上现场接力、远落后分支走 `gh pr update-branch`、验收锚固定复现命令防移靶、Codex 用 full clone + 结构护栏。详见 L2 `docs/engineering/agent-orchestration-playbook.md` |
+| R28 | 会红才是证据（元验证） | 任何证明物交付前先破坏被验对象、确认精确报红；`check:walkthroughs` 的 `mockup-overwrite` / `i18n-text-as-locator` 两条棘轮是它的机器面（R28 = P6 的量化门）|
+| R29 | fail-closed 状态必须可观测 | 拒写/降级/只读守卫必须在共享 health 契约里有结构化表示，不能只以异常存在——否则不 catch 的调用点静默退化、catch 的把英文 Error 甩给用户 |
 
 ## 决策自治
 

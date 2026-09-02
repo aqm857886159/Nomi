@@ -51,6 +51,11 @@ test('scope exposes every independent validation surface from the shared classif
   assert.deepEqual(workflow.jobs.scope.outputs, {
     unit: '${{ steps.profile.outputs.unit }}',
     desktop: '${{ steps.profile.outputs.desktop }}',
+    // walkthroughs 是独立维度，不是 desktop 的搭车项：desktop 只认 electron/ 与
+    // src/desktop/bridge.ts，而 CI 走查清单守的是 i18n/locale 面（改 src/i18n 不会让
+    // desktop 为 true）。2026-09-02 曾把 roster 步骤挂在 desktop 上，等于它在最该跑的
+    // 时候恰好不跑；正是「每个维度都必须在这里显式暴露」的精神让这个缺陷被抓回来。
+    walkthroughs: '${{ steps.profile.outputs.walkthroughs }}',
     journeys: '${{ steps.profile.outputs.journeys }}',
     canvas: '${{ steps.profile.outputs.canvas }}',
     performance: '${{ steps.profile.outputs.performance }}',
@@ -68,9 +73,9 @@ test('quality gate uses Node 24-native actions without a forced runtime shim', (
     (job) => job.steps?.flatMap((step) => (typeof step.uses === 'string' ? [step.uses] : [])) ?? [],
   )
 
-  assert.equal(actionUses.filter((uses) => uses === 'actions/checkout@v7').length, 8)
-  assert.equal(actionUses.filter((uses) => uses === 'pnpm/action-setup@v6').length, 6)
-  assert.equal(actionUses.filter((uses) => uses === 'actions/setup-node@v7').length, 7)
+  assert.equal(actionUses.filter((uses) => uses === 'actions/checkout@v7').length, 9)
+  assert.equal(actionUses.filter((uses) => uses === 'pnpm/action-setup@v6').length, 7)
+  assert.equal(actionUses.filter((uses) => uses === 'actions/setup-node@v7').length, 8)
   assert.ok(actionUses.includes('actions/upload-artifact@v7'))
   assert.ok(actionUses.every((uses) => !/@v4$/.test(uses)))
   for (const job of Object.values(workflow.jobs)) {
@@ -223,6 +228,7 @@ test('Quality Gate requires mandatory jobs and every risk-selected optional surf
     'contracts',
     'unit',
     'desktop-linux',
+    'walkthrough-roster',
     'canvas-acceptance',
     'canvas-performance',
     'mac-package',

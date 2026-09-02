@@ -259,6 +259,9 @@ export function PromptLibraryContent({
             key={value}
             type="button"
             role="tab"
+            // 非「全部来源」的 chip，其 label 就是远端来源名（表情预设 / Sora 官方…）：
+            // 远端策展内容，不归 i18n 网管。「全部来源」走 t()，故不标、继续被抓。
+            data-remote-content={value === PROMPT_SOURCE_ALL ? undefined : ''}
             aria-selected={activeChip}
             className={cn(
               'shrink-0 rounded-full text-caption cursor-pointer border px-2.5 py-0.5 whitespace-nowrap',

@@ -50,6 +50,7 @@ jobs:
     outputs:
       unit: ${{ steps.profile.outputs.unit }}
       desktop: ${{ steps.profile.outputs.desktop }}
+      walkthroughs: ${{ steps.profile.outputs.walkthroughs }}
       journeys: ${{ steps.profile.outputs.journeys }}
       canvas: ${{ steps.profile.outputs.canvas }}
       performance: ${{ steps.profile.outputs.performance }}
@@ -183,6 +184,48 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # 走查过去是「写完没人跑」的资产：产品按 §1.5 搬家后它们静默腐烂，两次都是红了很久才被偶然
+  # 发现（2026-06 的 j3/j5、2026-08 的语言钮 5 处死锚点红了一个月）。清单与准入门槛见
+  # tests/ux/ci-roster.mjs：只收零额度 + 确定性 + 已实测跑绿的走查。
+  # 独立成 job 而不是搭 desktop-linux：它的触发面（walkthroughs = i18n/设置外壳/清单本身）
+  # 与 smoke/journeys/canvas 三条都不重合，挂进去会让「改 src/i18n」平白拉起整个 desktop-linux，
+  # 也让 desktop 改动平白跑走查——两边都不精确。拆开后各触发各的，与本文件 2026-09-02 的拆班方向一致。
+  walkthrough-roster:
+    name: CI-safe Walkthrough Roster (Linux)
+    needs: scope
+    if: needs.scope.outputs.walkthroughs == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build selected desktop surfaces once
+        run: pnpm run build
+      - name: CI-safe walkthrough roster
+        run: xvfb-run -a pnpm run test:walkthroughs:ci
+      - name: Upload walkthrough roster evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: walkthrough-roster-evidence
+          path: |
+            tests/ux/shots/i18n-sweep/**
+            .library-lang-walk/**
+            .multi-user-walk/**
+            .first-launch-walk/**
+            .workbench-en-overview-walk/**
+          if-no-files-found: warn
+          retention-days: 7
+
   # full 功能走查 13 个场景按实测耗时装箱成两片并行跑（分桶清单在 tests/ux/canvas-real-suite.mjs
   # 的 FULL_CANVAS_SHARDS，漏分/重分/幽灵场景会让两片当场 fail-closed 抛错，场景不可能被静默漏跑）。
   canvas-acceptance:
@@ -299,7 +342,7 @@ jobs:
 
   quality:
     name: Quality Gate
-    needs: [scope, contracts, unit, desktop-linux, canvas-acceptance, canvas-performance, mac-package]
+    needs: [scope, contracts, unit, desktop-linux, walkthrough-roster, canvas-acceptance, canvas-performance, mac-package]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -332,6 +375,9 @@ jobs:
              [ "${{ needs.scope.outputs.journeys }}" = "true" ] || \
              [ "${{ needs.scope.outputs.canvas }}" = "critical" ]; then
             test "${{ needs['desktop-linux'].result }}" = "success"
+          fi
+          if [ "${{ needs.scope.outputs.walkthroughs }}" = "true" ]; then
+            test "${{ needs['walkthrough-roster'].result }}" = "success"
           fi
           if [ "${{ needs.scope.outputs.canvas }}" = "full" ]; then
             test "${{ needs['canvas-acceptance'].result }}" = "success"

@@ -60,6 +60,13 @@ docs/onboarding-trials/20*/
 
 # UX 走查截图产物（规则13）—— 不入库
 tests/ux/shots/
+
+# 走查在**仓库根**产出的截图目录：每条走查自己起名（.xxx-walk / .xxx-lab），
+# tests/ux/shots/ 那条挡不住它们。2026-09-02 跑完 111 条普查后 `git add -A`
+# 一次带进 53 个 png，就是这条缺口。
+.*-walk/
+.*-lab/
+.camera-move-explore/
 # Playwright MCP 的 console 日志落点（探针跑完会留一堆，不入库）
 .playwright-mcp/
 tests/ux/__shots__/

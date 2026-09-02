@@ -237,6 +237,7 @@ test('GitHub output exposes every policy dimension with stable snake-case names'
   assert.deepEqual(output, {
     unit: 'full',
     desktop: 'true',
+    walkthroughs: 'false',
     journeys: 'false',
     canvas: 'none',
     performance: 'false',
@@ -246,4 +247,54 @@ test('GitHub output exposes every policy dimension with stable snake-case names'
     reason: 'electron:electron/preload.ts',
     changed_count: '1',
   })
+})
+
+// roster 走查的触发面必须独立于 desktop。
+// 2026-09-02 实测教训：roster 步骤最初挂在 desktop 上，而 desktop 只认 electron/ 与
+// src/desktop/bridge.ts —— 改 src/i18n 压根不会让它为 true，于是 roster 收的那一簇
+// i18n/locale 走查在**最该跑的时候恰好不跑**，整个步骤形同不存在。
+test('i18n and settings-shell changes select the walkthrough roster', () => {
+  for (const path of [
+    'src/i18n/locales/runtime.ts',
+    'src/i18n/index.ts',
+    'src/workbench/settings/SettingsDialog.tsx',
+    'src/workbench/library/ProjectLibraryPage.tsx',
+    'tests/ux/ci-roster.mjs',
+    'tests/ux/library-language-switcher.walk.mjs',
+  ]) {
+    const policy = classifyValidationPolicy([{ path, status: 'M' }], { eventName: 'pull_request' })
+    assert.equal(policy.walkthroughs, true, `${path} 应当触发 roster 走查`)
+  }
+})
+
+test('unrelated changes do not pay for the walkthrough roster', () => {
+  for (const path of ['README.md', 'docs/plan/whatever.md', 'src/utils/cn.ts']) {
+    const policy = classifyValidationPolicy([{ path, status: 'M' }], { eventName: 'pull_request' })
+    assert.equal(policy.walkthroughs, false, `${path} 不该触发 roster 走查`)
+  }
+})
+
+test('fail-closed profiles always include the walkthrough roster', () => {
+  // 删除/重命名、空 diff、显式 full 都 fail-closed 到全维度——roster 不许是例外，
+  // 否则「不确定时跑全套」这个承诺就有个洞。
+  const deleted = classifyValidationPolicy([{ path: 'src/anything.tsx', status: 'D' }], { eventName: 'pull_request' })
+  assert.equal(deleted.walkthroughs, true)
+  const empty = classifyValidationPolicy([], { eventName: 'pull_request' })
+  assert.equal(empty.walkthroughs, true)
+  const explicitFull = classifyValidationPolicy([{ path: 'README.md', status: 'M' }], { eventName: 'pull_request', requestedMode: 'full' })
+  assert.equal(explicitFull.walkthroughs, true)
+})
+
+test('the workflow actually consumes the walkthroughs output (otherwise the scope is dead weight)', () => {
+  const workflow = fs.readFileSync(new URL('../.github/workflows/quality-gate.yml', import.meta.url), 'utf8')
+  // scope job 要导出它、roster step 要用它、desktop-linux job 要因它而启动。
+  assert.match(workflow, /walkthroughs: \$\{\{ steps\.profile\.outputs\.walkthroughs \}\}/)
+  // roster 是**独立 job**（2026-09-02 随 main 的拆班方向调整）：它的触发面与
+  // smoke/journeys/canvas 都不重合，搭 desktop-linux 会让两边互相平白拉起。
+  assert.match(workflow, /walkthrough-roster:/)
+  assert.match(workflow, /if: needs\.scope\.outputs\.walkthroughs == 'true'/)
+  assert.match(workflow, /run: xvfb-run -a pnpm run test:walkthroughs:ci/)
+  // 汇总 job 必须等它、且在该维度选中时要求它成功——否则这个 job 红了也拦不住合并。
+  assert.match(workflow, /needs: \[scope, contracts, unit, desktop-linux, walkthrough-roster,/)
+  assert.match(workflow, /needs\['walkthrough-roster'\]\.result/)
 })

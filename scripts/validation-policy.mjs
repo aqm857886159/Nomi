@@ -1,6 +1,7 @@
 const FULL_POLICY = Object.freeze({
   unit: 'full',
   desktop: true,
+  walkthroughs: true,
   journeys: true,
   canvas: 'full',
   performance: true,
@@ -13,6 +14,7 @@ const FULL_POLICY = Object.freeze({
 const VALIDATION_INFRASTRUCTURE_POLICY = Object.freeze({
   unit: 'full',
   desktop: true,
+  walkthroughs: true,
   journeys: true,
   canvas: 'full',
   performance: false,
@@ -47,6 +49,18 @@ const JOURNEY_PATTERNS = [
 ]
 
 const DESKTOP_PATTERNS = [/^src\/desktop\/bridge\.(?:ts|tsx|js|jsx)$/]
+
+// CI 走查清单（tests/ux/ci-roster.mjs）那批走查真正依赖的面。独立成一档而不是挂 desktop：
+// desktop 只认 electron/ 与 src/desktop/bridge.ts，**改 src/i18n 压根不会让它为 true** ——
+// 而 roster 收的正是 i18n/locale/多用户那一簇，挂 desktop 等于它在最该跑的时候不跑
+// （2026-09-02 加这档时实测发现的，此前 roster 步骤形同不存在）。
+const WALKTHROUGH_PATTERNS = [
+  /^src\/i18n(?:\/|$)/,                                    // 文案与首启 locale 探测
+  /^src\/workbench\/(?:library|settings)(?:\/|$)/,          // 项目库起始页 + 设置对话框（语言归位后的入口）
+  /^src\/workbench\/NomiAppBar/,                            // 工作台顶栏：多用户走查的语言态证据来源
+  /^tests\/ux\/ci-roster\.mjs$/,                            // 清单本身变了就得重跑一遍
+  /^tests\/ux\/(?:first-launch-system-locale|library-language-switcher|i18n-sweep|multi-user-isolation|workbench-en-overview)\.walk\.mjs$/,
+]
 
 const CANVAS_PATTERNS = [
   /^src\/workbench\/generationCanvas(?:\/|$)/,
@@ -141,6 +155,7 @@ export function classifyValidationPolicy(changedFiles, options = {}) {
     : {
         unit: 'focused',
         desktop: false,
+        walkthroughs: false,
         journeys: false,
         canvas: 'none',
         performance: false,
@@ -176,6 +191,10 @@ export function classifyValidationPolicy(changedFiles, options = {}) {
       policy.desktop = true
       policy.reasons.push(`desktop:${path}`)
     }
+    if (matchesAny(path, WALKTHROUGH_PATTERNS)) {
+      policy.walkthroughs = true
+      policy.reasons.push(`walkthroughs:${path}`)
+    }
     if (matchesAny(path, CANVAS_PATTERNS)) {
       policy.unit = 'full'
       policy.canvas = matchesAny(path, FULL_CANVAS_PATTERNS) ? 'full' : 'critical'
@@ -204,6 +223,7 @@ export function classifyValidationPolicy(changedFiles, options = {}) {
 export const VALIDATION_POLICY_OUTPUTS = Object.freeze([
   'unit',
   'desktop',
+  'walkthroughs',
   'journeys',
   'canvas',
   'performance',

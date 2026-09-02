@@ -1,8 +1,10 @@
 {
-  "absence-without-baseline": 65,
+  "absence-without-baseline": 64,
   "whole-page-text": 29,
   "sleep-as-done-signal": 111,
   "dead-selector": 0,
+  "mockup-overwrite": 11,
+  "i18n-text-as-locator": 399,
   "source-scan-without-strip": 9,
   "assertion-density-thin": {
     "tests/ux/accent-soft-hue.walk.mjs": 0,
