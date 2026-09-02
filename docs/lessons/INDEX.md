@@ -70,6 +70,7 @@
 - [下否定式结论前先证明你在哪个 checkout](prove-which-checkout-before-negative-claims.md) — 「仓库里没有 X」多半是你站在一个陈旧分支上
 - [改 baseline JSON 用文本级编辑，别整体重写](json-baselines-need-surgical-edits.md) — 短数组原文是单行，重写会炸出上千行假 diff
 - [方案讨论期别急着 commit/PR](discuss-before-committing-docs.md) — 聊透拍板再落 git；实施类不受限
+- [闸门凭据要绑「哪棵树 + 哪个提交」](gate-stamps-must-be-keyed-to-tree-and-head.md) — 只认固定路径 + mtime 的 gates 戳会跨 worktree 互相顶用，同一天误放和误杀各栽一次
 
 ## D. 排查与平台故障
 
