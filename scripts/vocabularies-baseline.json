@@ -2,6 +2,28 @@
   "debtCap": 78,
   "registered": [
     {
+      "site": "electron/assets/projectAssetStore.ts::variable:VALID_USAGE_STATUSES/set",
+      "members": [
+        "cleared",
+        "reference_only",
+        "requires_attribution",
+        "restricted",
+        "rights_unknown"
+      ],
+      "reason": "AssetSourceEvidence.usageStatus 的运行时白名单由 projectAssetStore 统一校验 sidecar 数据；M4 只读取该合同，不复制或重写素材许可状态词表。"
+    },
+    {
+      "site": "electron/connectors/connectorDefinition.ts::type:UsageStatus/type-union",
+      "members": [
+        "cleared",
+        "reference_only",
+        "requires_attribution",
+        "restricted",
+        "rights_unknown"
+      ],
+      "reason": "UsageStatus 是 AssetSourceEvidence 的唯一类型 owner，表达素材可用性而非 Agent 生命周期；M4 provenance 通过 AssetSourceEvidence 引用它，不另造来源可信度枚举。"
+    },
+    {
       "site": "electron/ai/antigravityProtocol.ts::type:AntigravityToolStep/property:state/type-union",
       "members": [
         "ACTIVE",
