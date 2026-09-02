@@ -9,18 +9,8 @@ import {
   spawnModelIntegrationMcp,
 } from './_modelIntegrationHarness.mjs'
 
-const REQUIRED_TOOLS = [
-  'nomi_integration_begin',
-  'nomi_integration_open_credentials',
-  'nomi_integration_discover',
-  'nomi_integration_select',
-  'nomi_integration_request_confirmation',
-  'nomi_integration_submit_workflow',
-  'nomi_integration_resolve_input',
-  'nomi_integration_start',
-  'nomi_integration_get',
-  'nomi_integration_cancel',
-]
+// 面收敛（surface-16-collapse）：接入状态机 10 工具塌成 nomi_integration（9 写 action）+ nomi_read（target=integration）。
+const REQUIRED_TOOLS = ['nomi_integration', 'nomi_read']
 
 async function inspectPublicSurface(client, label) {
   await client.initialize()
@@ -29,11 +19,12 @@ async function inspectPublicSurface(client, label) {
   for (const name of REQUIRED_TOOLS) assert(names.has(name), `${label} tools/list includes ${name}`)
   assert(names.size === tools.length, `${label} tools/list has unique names`)
   const resources = (await client.rpc('resources/list')).result?.resources || []
-  const skill = resources.find((resource) => resource.uri === 'nomi-skill://model-integration')
+  // Host cutover content-addresses skill resources (nomi-skill://<dir>/<version>/<hash>): prefix-match + read via uri.
+  const skill = resources.find((resource) => resource.uri.startsWith('nomi-skill://model-integration/'))
   assert(skill, `${label} exposes model-integration Skill resource when resources are supported`)
   const body = (await client.rpc('resources/read', { uri: skill.uri })).result?.contents?.[0]?.text || ''
   assert(
-    body.includes('nomi_integration_begin') && body.includes('ComfyUI'),
+    body.includes('nomi_integration') && body.includes('ComfyUI'),
     `${label} Skill is progressively readable`,
   )
   return { tools: tools.length, resources: resources.length, skillChars: body.length }
@@ -50,7 +41,8 @@ async function run() {
     signed = spawnModelIntegrationMcp({ dirs, client: 'codex', signed: true })
     const publicEvidence = await inspectPublicSurface(signed, 'signed codex')
     const begin = parseToolResult(
-      await signed.callTool('nomi_integration_begin', {
+      await signed.callTool('nomi_integration', {
+        action: 'begin',
         kind: 'http-api-provider',
         name: 'No-repository public draft',
         baseUrl: 'https://example.invalid/v1',
@@ -70,14 +62,19 @@ async function run() {
     assert(begin.json.ownerClientId === 'codex', 'draft is bound to the signed client identity')
     assertNoCredentialMaterial(begin.json, 'signed draft')
     runtimeInfo.packaged = Boolean(signed.runtime.packaged)
+    // M1 round-2 (0b6441c6) hardened the boundary: an UNVERIFIED client is refused at TRANSPORT
+    // startup (mcpStdioProjectSessionBinding) — no tools/list, no session, nothing. Assert that
+    // fail-closed refusal instead of the pre-cutover "read-only public surface" behavior.
     unsigned = spawnModelIntegrationMcp({ dirs, client: 'generic', signed: false, runtime: signed.runtime })
-    const unsignedEvidence = await inspectPublicSurface(unsigned, 'unsigned generic')
-    const rejected = await unsigned.callTool('nomi_integration_begin', {
-      kind: 'http-api-provider',
-      name: 'Unsigned write',
-      baseUrl: 'https://example.invalid/v1',
+    const refusal = await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve({ exited: false }), 20_000)
+      unsigned.child.on('exit', (code) => { clearTimeout(timer); resolve({ exited: true, code }) })
     })
-    assert(rejected?.isError === true, 'unsigned generic host can read public tools but cannot create a session')
+    assert(refusal.exited && refusal.code === 1, 'unsigned generic host is refused at transport startup (fail-closed)')
+    assert(
+      unsigned.stderr().some((line) => line.includes('verified MCP client connection is required')),
+      'refusal names the verified-client requirement without leaking anything else',
+    )
     const manifest = {
       schemaVersion: 1,
       journey: 'J0',
@@ -86,7 +83,7 @@ async function run() {
       isolatedCwd: 'isolated-temp-root',
       runtime: runtimeInfo,
       signed: publicEvidence,
-      unsigned: { ...unsignedEvidence, writeRejected: true },
+      unsigned: { transportRefused: true, writeRejected: true },
       providerRequests: 0,
       credentialBytesInResults: 0,
     }
