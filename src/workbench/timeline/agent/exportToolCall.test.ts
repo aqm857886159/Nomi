@@ -84,10 +84,15 @@ describe('project-scoped export Agent tools', () => {
     await expect(applyExportToolCall('inspect_export_job', { jobId: 'job-1' }, foreign)).rejects.toThrow('export_job_not_found')
     expect(foreign.cancelJob).not.toHaveBeenCalled()
 
-    const deps = runtime()
+    const deps = runtime({
+      getJob: vi.fn()
+        .mockResolvedValueOnce(job())
+        .mockResolvedValueOnce(job({ status: 'cancelled', cancelled: true })),
+    })
     await expect(applyExportToolCall('cancel_export_job', { jobId: 'job-1' }, deps)).resolves.toEqual({
       operation: 'cancel_export_job', jobId: 'job-1', cancelled: true, status: 'cancelled',
     })
+    expect(deps.getJob).toHaveBeenCalledTimes(2)
     expect(deps.cancelJob).toHaveBeenCalledWith('job-1')
   })
 

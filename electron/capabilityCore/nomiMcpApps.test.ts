@@ -98,15 +98,18 @@ describe('nomi-mcp · MCP Apps ProductionRun widget serving', () => {
     const tools = (res.result as { tools: Array<{ name: string; annotations?: { readOnlyHint?: boolean } }> }).tools
     const readOnly = tools.filter((t) => t.annotations?.readOnlyHint === true).map((t) => t.name).sort()
     expect(readOnly).toEqual([
+      'nomi_export_job',
       'nomi_get_artifact',
       'nomi_get_generation_context',
       'nomi_get_run',
       'nomi_list_models',
       'nomi_list_projects',
+      'nomi_media_query',
       'nomi_operation_read',
       'nomi_read_artifact',
       'nomi_read_canvas',
       'nomi_subscribe_run',
+      'nomi_timeline_read',
     ])
     expect(tools.some((tool) => tool.name === 'nomi_generate')).toBe(false)
   })

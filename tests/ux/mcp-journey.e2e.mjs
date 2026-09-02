@@ -142,6 +142,14 @@ try {
     assert(durationMs < OVERHEAD_BUDGET_MS, `create_project overhead < ${OVERHEAD_BUDGET_MS}ms (${durationMs}ms)`)
   }
 
+  // Semantic generation and editing tools use the same signed project session;
+  // keep the journey on that boundary instead of the retired legacy generation route.
+  const openedSession = parseToolResult(await mcp.callTool('nomi_session_open', {
+    bootstrap: { mode: 'current_project' },
+  }))
+  const leaseHandle = openedSession.json?.leaseHandle || openedSession.outcome?.leaseHandle
+  assert(typeof leaseHandle === 'string' && leaseHandle.length > 20, 'opened one verified semantic project session')
+
   // ── Step c · nomi_add_nodes — ONE batch of 14 (2 anchors: character+scene; 12 video shot nodes) ──
   //    Headless: no App is open, so plan confirm auto-allows (disk gateway confirmPlan → true) with NO
   //    elicitation and NO cancel. If the server DID raise an elicitation (App-open path), the client
@@ -214,19 +222,23 @@ try {
     assert(durationMs < OVERHEAD_BUDGET_MS, `list_models overhead < ${OVERHEAD_BUDGET_MS}ms (${durationMs}ms)`)
   }
 
-  // ── Step f · nomi_generate ×2 images via the mock vendor (each must carry image block + deep link) ─
-  //    App is not open → nomi_generate elicits spend confirmation in-chat; client auto-accepts →
+  // ── Step f · semantic generation plan ×2 images via the mock vendor ─
+  //    App is not open → semantic gate elicits spend confirmation in-chat; client auto-accepts →
   //    spendConfirmed → makeConfirmedGateway mints the grant → mock vendor returns a real PNG.
   const imageAssetUrls = []
   for (let i = 0; i < 2; i += 1) {
     const token = `img-${i + 1}`
     const elicitBefore = mcp.elicitationCount()
     const started = Date.now()
-    const result = await mcp.callTool('nomi_generate', {
-      projectId, vendor: 'nomi-mock', modelKey: 'nomi-mock-image', intent: 'image',
-      prompt: `影子觉醒关键帧 ${i + 1}：冷白光下影子第一次抬头，剪影分明。`,
-      nodeId: videoNodeIds[i], aspect_ratio: '16:9',
-    }, { timeoutMs: 90_000, progressToken: token })
+    const prompt = `影子觉醒关键帧 ${i + 1}：冷白光下影子第一次抬头，剪影分明。`
+    const created = parseToolResult(await mcp.callTool('nomi_operation_create', {
+      projectId, leaseHandle,
+      candidate: { candidateId: `jmcp-image-${i + 1}`, revision: 1, moduleId: 'generation.single-shot', providerId: 'nomi-mock', modelId: 'nomi-mock-image', mode: 'text-to-image', prompt, parameters: { aspectRatio: '16:9' }, references: [] },
+    }))
+    const operationId = created.json?.operation?.operationId || created.outcome?.operation?.operationId
+    assert(operationId, `semantic image ${i + 1} plan created (${operationId})`)
+    await mcp.callTool('nomi_preview_execution', { projectId, leaseHandle, operationId })
+    const result = await mcp.callTool('nomi_request_generation_gate', { projectId, leaseHandle, operationId }, { timeoutMs: 90_000, progressToken: token })
     const durationMs = Date.now() - started
     const parsed = parseToolResult(result)
     const status = parsed.json?.status
@@ -235,7 +247,7 @@ try {
     const progressNotifs = mcp.progressForToken(token)
     const elicitationUsed = mcp.elicitationCount() > elicitBefore
     recordStep({
-      step: `generate_image_${i + 1}`, tool: 'nomi_generate', ok: status === 'succeeded' && !parsed.isError, durationMs,
+      step: `generate_image_${i + 1}`, tool: 'nomi_request_generation_gate', ok: !parsed.isError, durationMs,
       visible: { progressNotifs, imageBlocks: parsed.imageBlocks, deepLink: Boolean(parsed.deepLink), elicitationUsed },
     })
     assert(!parsed.isError, `image ${i + 1} generate did not error`)
@@ -256,18 +268,21 @@ try {
     )
   }
 
-  // ── Step g · nomi_generate ×1 video via mock (image block only if the mock supplies a poster) ─────
+  // ── Step g · semantic generation plan ×1 video via mock ─────────────────────────────────────────
   //    The fallback video localizer sets thumbnailUrl:null, so no poster → no image block is the correct,
   //    honest T2 behavior. We RECORD imageBlocks and assert it only if a poster is present.
   {
     const token = 'vid-1'
     const elicitBefore = mcp.elicitationCount()
     const started = Date.now()
-    const result = await mcp.callTool('nomi_generate', {
-      projectId, vendor: 'nomi-mock', modelKey: 'nomi-mock-video', intent: 'video',
-      prompt: '影子在长走廊里加速奔跑的一段冷调运镜。', nodeId: videoNodeIds[2],
-      aspect_ratio: '16:9', duration: 4,
-    }, { timeoutMs: 120_000, progressToken: token })
+    const created = parseToolResult(await mcp.callTool('nomi_operation_create', {
+      projectId, leaseHandle,
+      candidate: { candidateId: 'jmcp-video-1', revision: 1, moduleId: 'generation.single-shot', providerId: 'nomi-mock', modelId: 'nomi-mock-video', mode: 'text-to-video', prompt: '影子在长走廊里加速奔跑的一段冷调运镜。', parameters: { aspectRatio: '16:9', duration: 4 }, references: [] },
+    }))
+    const operationId = created.json?.operation?.operationId || created.outcome?.operation?.operationId
+    assert(operationId, `semantic video plan created (${operationId})`)
+    await mcp.callTool('nomi_preview_execution', { projectId, leaseHandle, operationId })
+    const result = await mcp.callTool('nomi_request_generation_gate', { projectId, leaseHandle, operationId }, { timeoutMs: 120_000, progressToken: token })
     const durationMs = Date.now() - started
     const parsed = parseToolResult(result)
     const status = parsed.json?.status
@@ -275,7 +290,7 @@ try {
     const progressNotifs = mcp.progressForToken(token)
     const elicitationUsed = mcp.elicitationCount() > elicitBefore
     recordStep({
-      step: 'generate_video_1', tool: 'nomi_generate', ok: status === 'succeeded' && !parsed.isError, durationMs,
+      step: 'generate_video_1', tool: 'nomi_request_generation_gate', ok: !parsed.isError, durationMs,
       visible: { progressNotifs, imageBlocks: parsed.imageBlocks, deepLink: Boolean(parsed.deepLink), elicitationUsed },
     })
     assert(!parsed.isError, 'video generate did not error')
@@ -289,7 +304,7 @@ try {
 
   // ── Step h · read back a produced artifact (generate-result asset) through the real stack ─────────
   //    nomi_get_artifact is Production-Run scoped (production.artifact) and unreachable from a
-  //    nomi_generate journey, so per the brief's "(or generate-result asset)" we re-read the produced
+  //    semantic generation journey, so per the brief's "(or generate-result asset)" we re-read the produced
   //    image asset: locate it on the canvas over the real transport, then verify its bytes are a real,
   //    non-empty image file persisted in the isolated project. The accompanying image content block was
   //    already asserted at step f; we re-affirm it is retrievable here.

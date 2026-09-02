@@ -1,5 +1,7 @@
 # M2 slice-2：剪辑语义纵切
 
+状态：🚧 进行中
+
 ## 目标
 
 把已有 timeline/asset/export capability 的分散 Pi 别名收口到四个语义意图：

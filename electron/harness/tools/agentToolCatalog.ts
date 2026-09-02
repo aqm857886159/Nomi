@@ -22,6 +22,7 @@ import {
 import { canvasToolDescriptors } from "./canvasDescriptors";
 import { documentToolDescriptors } from "./documentDescriptors";
 import { productionRunToolDescriptors } from "./productionRunDescriptors";
+import { editingPiDescriptors } from "./editingPiDescriptors";
 import { skillToolDescriptors } from "./skillDescriptors";
 import { modelToolSurfaceManifest } from "./modelToolSurfaceManifest";
 
@@ -119,7 +120,7 @@ export const agentToolCatalog = Object.freeze({
     ...canvasWriteCoreDescriptors,
     canvasDeleteDescriptor,
   ]),
-  timeline: Object.freeze(modelToolSurfaceManifest.editing.map(semanticDescriptor)),
+  timeline: Object.freeze(Object.values(editingPiDescriptors)),
   production: Object.freeze(Object.values(productionRunToolDescriptors)),
   skills: Object.freeze(Object.values(skillToolDescriptors)),
   generation: Object.freeze(modelToolSurfaceManifest.generation.map(semanticDescriptor)),
