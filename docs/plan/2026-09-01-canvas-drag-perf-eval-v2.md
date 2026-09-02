@@ -2,7 +2,7 @@
 
 > 2026-09-01 · 背景：8-27 React Flow 单内核迁移后用户体感「拖动节点明显变卡」，但现有 perf 基准全绿。
 > 本文 = 三腿 Opus 调研（考古 / 现状实测 / 官方+近邻）的综合。详细证据临时存放 `/tmp/canvas-perf-research/leg-{a,b,c}*.md`（机器重启即失，关键结论已内联本文）。
-> 状态：S1–S5 已交付（2026-09-02 merged main a056b4ed）；S6 进行中（① click-select 优化 + ② 卫生批）。
+> 状态：🚧 S6 进行中（S1–S5 已交付 2026-09-02 merged main a056b4ed；S6 ① click-select 优化 + ② 卫生批）
 
 ## 一、事实基座
 
