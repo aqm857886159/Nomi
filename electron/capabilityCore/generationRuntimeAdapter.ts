@@ -48,6 +48,8 @@ export type GenerationProviderOutput = {
   contentType?: string;
   fileName?: string;
   providerOutputId?: string;
+  /** Optional provider-owned still for video review; it is materialized locally before projection. */
+  thumbnailUrl?: string;
 };
 
 export type GenerationProviderMaterializationResult = {

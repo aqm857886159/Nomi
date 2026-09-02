@@ -13,7 +13,6 @@ export const zhComfyuiWorkflowPage = {
 
   backends: {
     title: '后端',
-    add: '添加一台 ComfyUI',
     addressAria: '{{name}} 的接入地址',
     edit: '改地址',
     save: '保存地址',
@@ -22,7 +21,6 @@ export const zhComfyuiWorkflowPage = {
     removeTitle: '移除这台 ComfyUI',
     removeMessage: '确定移除「{{name}}」吗？它名下的 {{count}} 条工作流会一起删除——那些工作流指向的是这台的地址，留着是死的。',
     removed: '已移除「{{name}}」',
-    workflowCount: '{{count}} 条工作流',
     offline: '连不上',
     online: '已连上',
     checking: '检查中',
@@ -48,7 +46,6 @@ export const zhComfyuiWorkflowPage = {
     namePlaceholder: '给这条工作流起个名',
     save: '保存',
     saving: '保存中',
-    saved: '「{{name}}」已保存',
     unsaved: '有未保存的改动',
     delete: '删除',
     deleteTitle: '删除这条工作流',
@@ -63,7 +60,6 @@ export const zhComfyuiWorkflowPage = {
     zoomIn: '放大',
     zoomOut: '缩小',
     fit: '适应',
-    zoomLevel: '缩放 {{percent}}%',
     showList: '显示完整节点列表',
     showGraph: '回到节点图',
     listAria: '完整节点列表',
@@ -91,7 +87,6 @@ export const zhComfyuiWorkflowPage = {
     roleEmpty: '这个节点没有可绑定的输入。',
     fieldSection: '变成画布上的可调字段',
     fieldEmpty: '这个节点没有可调的标量输入。',
-    fieldTakenByRole: '这个输入已经被角色占用了',
     clear: '取消',
     close: '关闭菜单',
     inputSuffix: '· {{key}}',
@@ -100,7 +95,6 @@ export const zhComfyuiWorkflowPage = {
   preview: {
     title: '画布节点预览',
     live: '实时',
-    hint: '这条工作流在生成画布上就长这样。',
     empty: '画布上只会有一个「生成」钮——还没有任何输入被绑定或暴露。',
     promptPlaceholder: '在画布上你会在这里打提示词',
     mediaImage: '拖一张图进来',
@@ -116,9 +110,6 @@ export const zhComfyuiWorkflowPage = {
     runNeedsMissing: '缺少 {{count}} 个模型文件：{{names}}',
     runNeedsNodes: '缺少 {{count}} 个自定义节点，无法试跑',
     runNeedsSave: '工作流还没保存成功，先保存',
-    runStarted: '已提交给 ComfyUI，去画布或任务面板看进度',
-    runFailed: '试跑失败：{{error}}',
-    runUnsupported: '当前版本不支持从这里试跑',
   },
 
   errors: {
@@ -144,7 +135,6 @@ export const enComfyuiWorkflowPage = {
 
   backends: {
     title: 'Backends',
-    add: 'Add a ComfyUI',
     addressAria: 'Address for {{name}}',
     edit: 'Edit address',
     save: 'Save address',
@@ -153,7 +143,6 @@ export const enComfyuiWorkflowPage = {
     removeTitle: 'Remove this ComfyUI',
     removeMessage: 'Remove “{{name}}”? Its {{count}} workflows are deleted with it — they point at this backend’s address, so they would be dead anyway.',
     removed: 'Removed “{{name}}”',
-    workflowCount: '{{count}} workflows',
     offline: 'Unreachable',
     online: 'Connected',
     checking: 'Checking',
@@ -179,7 +168,6 @@ export const enComfyuiWorkflowPage = {
     namePlaceholder: 'Name this workflow',
     save: 'Save',
     saving: 'Saving',
-    saved: '“{{name}}” saved',
     unsaved: 'Unsaved changes',
     delete: 'Delete',
     deleteTitle: 'Delete this workflow',
@@ -194,7 +182,6 @@ export const enComfyuiWorkflowPage = {
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
     fit: 'Fit',
-    zoomLevel: 'Zoom {{percent}}%',
     showList: 'Show full node list',
     showGraph: 'Back to the graph',
     listAria: 'Full node list',
@@ -222,7 +209,6 @@ export const enComfyuiWorkflowPage = {
     roleEmpty: 'This node has nothing to bind.',
     fieldSection: 'Expose as a canvas field',
     fieldEmpty: 'This node has no adjustable scalar input.',
-    fieldTakenByRole: 'This input is already taken by a role',
     clear: 'Clear',
     close: 'Close menu',
     inputSuffix: '· {{key}}',
@@ -231,7 +217,6 @@ export const enComfyuiWorkflowPage = {
   preview: {
     title: 'Canvas node preview',
     live: 'live',
-    hint: 'This is what the workflow looks like on the generation canvas.',
     empty: 'The canvas node would show only a Generate button — nothing is bound or exposed yet.',
     promptPlaceholder: 'On the canvas you type your prompt here',
     mediaImage: 'Drop an image here',
@@ -247,9 +232,6 @@ export const enComfyuiWorkflowPage = {
     runNeedsMissing: 'This workflow is missing {{count}} model files: {{names}}',
     runNeedsNodes: 'This workflow is missing {{count}} custom nodes and cannot run',
     runNeedsSave: 'The workflow has not been saved yet — save first',
-    runStarted: 'Submitted to ComfyUI — watch progress on the canvas or the task panel',
-    runFailed: 'Test run failed: {{error}}',
-    runUnsupported: 'Test runs are unavailable in this version',
   },
 
   errors: {

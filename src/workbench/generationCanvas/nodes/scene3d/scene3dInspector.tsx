@@ -26,28 +26,29 @@ import {
   type Scene3DVector3,
 } from './scene3dTypes'
 import {
-  radiansToDegrees,
-  degreesToRadians,
   CROWD_MAX_AXIS,
-  MANNEQUIN_POSE_SECTIONS,
-  MANNEQUIN_POSE_MIN_DEG,
   MANNEQUIN_POSE_MAX_DEG,
+  MANNEQUIN_POSE_MIN_DEG,
   MANNEQUIN_POSE_PRESETS,
+  MANNEQUIN_POSE_SECTIONS,
+  crowdCount,
+  degreesToRadians,
+  radiansToDegrees,
   type MannequinPoseControl,
   type MannequinPosePreset,
 } from './scene3dConstants'
 import {
-  crowdCount,
   clonePoseValue,
   poseMatchesPreset,
   cameraLookAtRotation,
   fovToFocalMm,
   roleColorForIndex,
-  mannequinRoleLabel,
   updateVectorValue,
   numberInputValue,
 } from './scene3dMath'
 import { Scene3DEnvironmentPanel } from './scene3dEnvironmentPanel'
+import { mannequinRoleLabel } from './scene3dObjectNames'
+import { scene3dCameraDisplayName, scene3dObjectDisplayName } from './scene3dObjectNames'
 
 function VectorInputs({
   label,
@@ -164,7 +165,7 @@ export function SceneObjectList({
       return {
         id: object.id,
         type: 'object' as const,
-        name: object.name,
+        name: scene3dObjectDisplayName(object, objects),
         visible: object.visible,
         object,
         camera: undefined,
@@ -174,7 +175,7 @@ export function SceneObjectList({
     const cameraRows = cameras.map((camera) => ({
       id: camera.id,
       type: 'camera' as const,
-      name: camera.name,
+      name: scene3dCameraDisplayName(camera, cameras),
       visible: camera.visible,
       object: undefined,
       camera,
@@ -399,9 +400,12 @@ function MannequinPosePanel({
     const value = mannequinPoseControlValue(control, object.pose)
     const min = control.min ?? MANNEQUIN_POSE_MIN_DEG
     const max = control.max ?? MANNEQUIN_POSE_MAX_DEG
+    // 标签列曾固定 42px——中文标签两字刚好,换英文("Forward lean"/"Swing forward")就断词换行、
+    // 最长的词还挤不下(实测 46 > 42)。改成 56px 起、随内容长的一列:中文仍是原来的紧凑观感,
+    // 英文有地方放,且不吃掉滑杆宽度到影响操作。
     return (
-      <label key={`${control.bone}-${control.axisIndex}-${control.label}`} className="grid grid-cols-[42px_1fr_58px] items-center gap-2 text-caption text-[var(--nomi-ink-60)]">
-        <span>{control.label}</span>
+      <label key={`${control.bone}-${control.axisIndex}-${control.labelKey}`} className="grid grid-cols-[minmax(56px,auto)_1fr_58px] items-center gap-2 text-caption text-[var(--nomi-ink-60)]">
+        <span className="leading-tight">{t(control.labelKey)}</span>
         <input
           className="h-1.5 w-full accent-[var(--nomi-ink)] disabled:opacity-50"
           disabled={readOnly}
@@ -441,7 +445,9 @@ function MannequinPosePanel({
               <button
                 key={preset.id}
                 className={cn(
-                  'h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-1 text-caption text-[var(--nomi-ink-60)] transition',
+                  // 高度改 min-h:中文预设都是二三字、一行放得下,英文("Raise both hands")要换行,
+                  // 固定 h-8 会让文字直接溢出按钮外。min-h 保住原有紧凑高度,超长的自己长高。
+                  'min-h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-1 py-1 text-caption leading-tight text-[var(--nomi-ink-60)] transition',
                   'hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)] disabled:cursor-not-allowed disabled:opacity-40',
                   active && 'border-[var(--nomi-ink)] bg-[var(--nomi-ink)] text-[var(--nomi-paper)] hover:bg-[var(--nomi-ink)] hover:text-[var(--nomi-paper)]',
                 )}
@@ -449,7 +455,8 @@ function MannequinPosePanel({
                 type="button"
                 onClick={() => applyPosePreset(preset)}
               >
-                {preset.label}
+                {/* 预设 id 与词条同名(standing / t-pose / …),键由 id 派生,不另存一份 labelKey。 */}
+                {t(`scene3d.inspector.posePreset.${preset.id}` as 'scene3d.inspector.posePreset.standing')}
               </button>
             )
           })}
@@ -457,16 +464,16 @@ function MannequinPosePanel({
       </div>
       <div className="grid gap-3">
         {MANNEQUIN_POSE_SECTIONS.map((section) => (
-          <div key={section.title} className="grid gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2">
-            <div className="text-caption font-medium text-[var(--nomi-ink)]">{section.title}</div>
+          <div key={section.titleKey} className="grid gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2">
+            <div className="text-caption font-medium text-[var(--nomi-ink)]">{t(section.titleKey)}</div>
             {section.controls ? (
               <div className="grid gap-2">{section.controls.map(renderControl)}</div>
             ) : (
               <div className="grid gap-3">
                 {section.groups.map((group) => (
-                  <div key={group.title} className="grid gap-2">
+                  <div key={group.titleKey} className="grid gap-2">
                     <div className="w-fit rounded-nomi-sm bg-[var(--nomi-ink-10)] px-1.5 py-0.5 text-micro font-medium text-[var(--nomi-ink-60)]">
-                      {group.title}
+                      {t(group.titleKey)}
                     </div>
                     <div className="grid gap-2">{group.controls.map(renderControl)}</div>
                   </div>
@@ -551,6 +558,7 @@ export function PropertyPanel({
               className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)] disabled:opacity-50"
               disabled={readOnly}
               value={selectedObject.name}
+              placeholder={scene3dObjectDisplayName(selectedObject, state.objects)}
               onChange={(event) => onObjectPatch(selectedObject.id, { name: event.currentTarget.value })}
             />
           </label>
@@ -632,6 +640,7 @@ export function PropertyPanel({
               className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)] disabled:opacity-50"
               disabled={readOnly}
               value={selectedCamera.name}
+              placeholder={scene3dCameraDisplayName(selectedCamera, state.cameras)}
               onChange={(event) => onCameraPatch(selectedCamera.id, { name: event.currentTarget.value })}
             />
           </label>

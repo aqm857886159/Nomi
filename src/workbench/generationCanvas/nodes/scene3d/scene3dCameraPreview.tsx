@@ -4,7 +4,13 @@ import { useThree } from '@react-three/fiber'
 import { FencedCanvas } from '../fencedCanvas'
 import { IconCamera, IconEye, IconRotate, IconChevronUp, IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
-import { applySceneCameraPose, crowdCount, FOCAL_MM_MAX, FOCAL_MM_MIN, focalMmToFov, fovToFocalMm } from './scene3dMath'
+import {
+  applySceneCameraPose,
+  FOCAL_MM_MAX,
+  FOCAL_MM_MIN,
+  focalMmToFov,
+  fovToFocalMm,
+} from './scene3dMath'
 import { SCENE3D_ASPECT_OPTIONS, SCENE3D_ASPECT_RATIOS } from './scene3dTypes'
 import type { Scene3DAspectRatio, Scene3DCamera, Scene3DObject, Scene3DState } from './scene3dTypes'
 import { Scene3DEnvironmentLayer } from './scene3dEnvironment'
@@ -18,6 +24,9 @@ import {
 } from './scene3dObjects'
 import { cameraWithPlaybackPosition, objectWithPlaybackPose, playbackCameraAtPlayhead } from './scene3dPlayback'
 import { clampRatio, useScene3DTrajectoryRuntimeStore } from './trajectory'
+import { crowdCount } from './scene3dConstants'
+import { scene3dCameraDisplayName } from './scene3dObjectNames'
+import { scene3dTrajectoryDisplayName } from './scene3dObjectNames'
 
 export function cameraPreviewViewportStyle(aspectRatio: Scene3DAspectRatio): React.CSSProperties {
   const ratio = SCENE3D_ASPECT_RATIOS[aspectRatio]
@@ -154,7 +163,7 @@ export function CameraPreview({
     >
       <div className={cn('flex items-center justify-between gap-2', collapsed ? '' : 'mb-2')}>
         <div className="min-w-0 truncate text-caption font-medium">
-          {camera.name} · {camera.aspectRatio}
+          {scene3dCameraDisplayName(camera, state.cameras)} · {camera.aspectRatio}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button
@@ -355,7 +364,7 @@ export const PlaybackCameraMonitor = React.memo(function PlaybackCameraMonitor({
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="min-w-0 truncate text-caption font-medium">
-          {activeCamera.camera.name} · {activeCamera.trajectory.name}
+          {scene3dCameraDisplayName(activeCamera.camera, state.cameras)} · {scene3dTrajectoryDisplayName(activeCamera.trajectory, state.trajectories)}
         </div>
         <div className="shrink-0 text-micro tabular-nums text-[var(--nomi-ink-40)]">{Math.round(progress * 100)}%</div>
       </div>
