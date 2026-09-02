@@ -1,6 +1,6 @@
 # 创作资源链 Epic 切片计划
 
-> 状态：草稿，待拍板  
+> 📋 状态：草稿，待拍板  
 > 日期：2026-09-03  
 > 输入调研：`docs/research/2026-08-29-browser-assets-pi-ecosystem-research.md`  
 > main 现状对账：截至 2026-09-03 origin/main（含 M0–M3，最新合入 #376 m3/context-factory-c）  
