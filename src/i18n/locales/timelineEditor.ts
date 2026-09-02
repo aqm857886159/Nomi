@@ -4,11 +4,6 @@ export const zhTimelineEditor = {
   defaultSubtitleText: '字幕文字',
   arranged: '已把 {{count}} 个镜头按镜序排进时间轴',
   noShots: '生成区还没有镜头——先去生成区生成几个镜头再拼片',
-  arrangeCta: {
-    message: '有 {{count}} 个镜头可拼成初稿',
-    action: '一键拼成初稿',
-    chooseStoryboard: '有多个分镜方案，请先选择要剪辑的分镜',
-  },
   storyboardScopeRequired: '请先在“创作”中选中要剪辑的分镜方案',
   selectedClipActions: '选中片段操作',
   regenerate: '重新生成这个镜头',
@@ -143,7 +138,6 @@ export const zhTimelineEditor = {
     confirmUndo: '确认撤销',
     undoing: '正在撤销',
     undone: '已撤销',
-    undoFailedDetail: '撤销失败，请先检查时间轴是否已改变。',
     untitledPlan: '未命名的时间轴改动',
     operations: {
       move: '将 {{clip}} 移动到第 {{frame}} 帧',
@@ -167,11 +161,6 @@ export const enTimelineEditor = {
   defaultSubtitleText: 'Subtitle text',
   arranged: 'Arranged {{count}} shots on the timeline in shot order',
   noShots: 'There are no shots in Generation yet. Generate a few shots before arranging.',
-  arrangeCta: {
-    message: '{{count}} shots ready to assemble into a draft',
-    action: 'Assemble draft',
-    chooseStoryboard: 'Choose which storyboard design to edit first',
-  },
   storyboardScopeRequired: 'Select the storyboard design to edit in Creation first',
   selectedClipActions: 'Selected clip actions',
   regenerate: 'Regenerate this shot',
@@ -304,7 +293,6 @@ export const enTimelineEditor = {
     confirmUndo: 'Confirm undo',
     undoing: 'Undoing',
     undone: 'Undone',
-    undoFailedDetail: 'Undo failed. Check whether the timeline has changed.',
     untitledPlan: 'Untitled timeline edit',
     operations: {
       move: 'Move {{clip}} to frame {{frame}}',

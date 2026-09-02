@@ -5,7 +5,6 @@ export const zhStoryboardEditor = {
     backToCreation: '去创作页写故事',
   },
   shotParams: {
-    parameters: '参数',
     mode: '模式',
     applyAll: '把这一镜的参数套用到全部',
   },
@@ -115,7 +114,6 @@ export const zhStoryboardEditor = {
   backToCreation: '返回原稿',
   second: '{{count}} 秒',
   defaultModel: '默认模型',
-  shotNumber: '镜 {{index}}',
   shotType: '镜头类型',
   type: '类型',
   image: '图片',
@@ -210,7 +208,6 @@ export const enStoryboardEditor = {
     backToCreation: 'Go to Creation',
   },
   shotParams: {
-    parameters: 'Parameters',
     mode: 'Mode',
     applyAll: "Apply this shot's parameters to all",
   },
@@ -320,7 +317,6 @@ export const enStoryboardEditor = {
   backToCreation: 'Back to draft',
   second: '{{count}} sec',
   defaultModel: 'Default model',
-  shotNumber: 'Shot {{index}}',
   shotType: 'Shot type',
   type: 'Type',
   image: 'Image',
