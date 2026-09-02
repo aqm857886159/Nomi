@@ -231,7 +231,7 @@ expect(
   readmeEn.includes('docs/media/nomi-canvas-group-wechat-2026-09-01.jpg'),
   'English README uses the current group QR',
 )
-expect(readmeEn.includes('github.com/aqm857886159/Nomi/issues'), 'English README keeps GitHub Issues')
+expect(readmeEn.includes('github.com/aqm857886159/Nomi/discussions'), 'English README keeps GitHub Discussions')
 expect(readmeEn.includes('business_inquiry.yml'), 'English README keeps business inquiry')
 expect(readmeEn.includes('[Download](#download)'), 'English README download shortcut leads to direct installers')
 expect(readmeZh.includes('[下载](#下载)'), 'Chinese README download shortcut leads to direct installers')

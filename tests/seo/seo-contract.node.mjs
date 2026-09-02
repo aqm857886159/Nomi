@@ -3,10 +3,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { shared } from '../../scripts/marketing/content.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8')
 const version = JSON.parse(read('package.json')).version
+const canonicalCommunityUrl = shared.discussionUrl
 
 const pages = [
   ['marketing/index.html', 'https://nomiaqm.com/'],
@@ -16,9 +18,17 @@ const pages = [
 ]
 
 test('public community links resolve to a real GitHub surface', () => {
-  const source = [read('scripts/marketing/content.mjs'), read('README.md'), read('README.zh-CN.md'), read('.github/ISSUE_TEMPLATE/config.yml')].join('\n')
-  assert.doesNotMatch(source, /github\.com\/aqm857886159\/Nomi\/discussions/)
-  assert.match(source, /github\.com\/aqm857886159\/Nomi\/issues/)
+  const source = [
+    read('scripts/marketing/content.mjs'),
+    read('README.md'),
+    read('README.zh-CN.md'),
+    read('.github/ISSUE_TEMPLATE/config.yml'),
+    read('docs/guide/model-connection-en.md'),
+  ].join('\n')
+  assert.ok(source.includes(canonicalCommunityUrl))
+  for (const file of ['marketing/index.html', 'marketing/en/index.html']) {
+    assert.ok(read(file).includes(canonicalCommunityUrl), file)
+  }
 })
 
 test('every indexed public page exposes a complete share and identity contract', () => {
