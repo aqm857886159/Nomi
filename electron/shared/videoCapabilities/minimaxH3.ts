@@ -42,6 +42,8 @@ const DURATION: ModelParameterControl = {
 };
 
 export const MINIMAX_H3_ARCHETYPE: ModelArchetype = {
+  // Runway 的 hailuo3 行原挂平台档案 runway-video（已删）；存量节点靠 legacyIds 迁到这里。
+  legacyIds: ["runway-video"],
   id: "minimax-h3",
   family: "minimax",
   label: "MiniMax H3",
@@ -75,6 +77,9 @@ export const MINIMAX_H3_ARCHETYPE: ModelArchetype = {
       hint: "首帧驱动，可加尾帧（比例随图）",
       promptRequired: true,
       modelEnum: "minimax-h3/image-to-video",
+      // kie 把 H3 全部场景收在一个 createTask 端点（故本档案不写模式级 transportTaskKind，用档案级
+      // text_to_video）；Runway 转售的同一模型把图模式发到 /v1/image_to_video → 只对 runway 覆盖桶。
+      vendorTransportTaskKind: { runway: "image_to_video" },
       // kie H3 图生契约用 image_url / end_image_url（非 first_frame_url/last_frame_url）→ inputKey 覆盖。
       slots: [
         { kind: "first_frame", label: "首帧", min: 1, max: 1, inputKey: "image_url", asArray: false },
@@ -89,6 +94,8 @@ export const MINIMAX_H3_ARCHETYPE: ModelArchetype = {
       hint: "1–9 图 / ≤3 视频 / ≤3 音频作参考",
       promptRequired: true,
       modelEnum: "minimax-h3/reference-to-video",
+      // 同 i2v：kie 单端点、Runway 多图参考走 /v1/image_to_video。
+      vendorTransportTaskKind: { runway: "image_to_video" },
       // 槽默认 inputKey（reference_image_urls/reference_video_urls/reference_audio_urls）与 kie H3
       // 文档键同名 → 不覆盖。
       slots: [

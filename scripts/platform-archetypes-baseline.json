@@ -1,0 +1,14 @@
+{
+  "_comment": [
+    "平台档案棘轮基线（P4）：只减不增。",
+    "「平台档案」= 一个档案罩住同一供应商的多个**不同产品**，其声明的能力面因此是并集，对每个模型都在撒谎。",
+    "注意：一个档案服务多行目录不是缺陷——同一模型多供应商（gpt-image-2）、同一模型多变体（seedance-2）都是正确形状。",
+    "判据与已知盲区见 scripts/check-platform-archetypes.mjs 顶部注释。",
+    "拆掉一个档案必须同步删这里对应一行；新增平台档案当场报红，绝不允许追加到本文件抬高基线。"
+  ],
+  "platformArchetypes": [
+    "modelscope-image",
+    "runway-audio",
+    "runway-image"
+  ]
+}

@@ -1,26 +1,18 @@
 /**
- * Runway ratio geometry — per-model ratio enums and orientation-based normalization,
- * split from runwayOfficial.ts (R9 size gate). Video + image duals live together here.
+ * Runway ratio geometry — orientation-based normalization, split from runwayOfficial.ts
+ * (R9 size gate). Video + image duals live together here.
+ *
+ * **视频侧的枚举与判别不住在这里**：它们是「Runway union 的线缆事实」，唯一真相源在
+ * `electron/shared/videoCapabilities/runwayWireFacts.ts`——因为**能力面**（各档案的
+ * `vendorParams.runway`，住 shared/）与**传输侧归一器**（本文件的消费者 runwayOfficial.ts）
+ * 说的必须是同一组值：UI 选得到的就得是发得出去的。分层纪律 R26 规定 `electron/shared/` 不得
+ * import `electron/catalog/`，所以那张表只能住 shared，本文件**消费**它而不再自持副本。
+ * （此前两处各有一份 = 一个事实两个作者，正是本轮合并要消掉的 P1 并行实现。）
+ *
+ * 图像侧的 `RUNWAY_IMAGE_RATIO_REMAP` / `runwayRatioOrientation` 与视频侧无重叠，继续住这里。
+ * 字段对账见 docs/research/2026-09-02-docaudit-fal-runway-etc.md。
  */
-
-/**
- * Runway's current OpenAPI is a per-model discriminator union. Shared UI ratios
- * are normalized once to each model's legal enum; unknown values are dropped.
- * See docs/research/2026-09-02-docaudit-fal-runway-etc.md for the field audit.
- */
-const RUNWAY_VIDEO_RATIO_ENUMS: Record<string, readonly string[]> = {
-  seedance2: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280", "2206:946", "1920:1080", "1664:1248", "1440:1440", "1248:1664", "1080:1920", "3840:1646", "3840:2160", "3840:2880", "3840:3840", "2880:3840", "2160:3840"],
-  seedance2_fast: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280"],
-  seedance2_mini: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280"],
-  seedance2_5: ["992:432", "854:480", "752:560", "640:640", "560:752", "480:854", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280", "2206:946", "1920:1080", "1664:1248", "1440:1440", "1248:1664", "1080:1920"],
-  hailuo3: ["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"],
-  grok_imagine_1_5: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"],
-  wan3: ["832:480", "640:480", "480:480", "480:640", "480:832", "1280:720", "960:720", "720:720", "720:960", "720:1280", "1920:1080", "1440:1080", "1080:1080", "1080:1440", "1080:1920", "auto_480p", "auto_720p", "auto_1080p"],
-  "veo3.1": ["1280:720", "720:1280", "1080:1920", "1920:1080"],
-  "veo3.1_fast": ["1280:720", "720:1280", "1080:1920", "1920:1080"],
-  happyhorse_1_0: ["1280:720", "720:1280", "960:960", "1108:832", "832:1108", "1920:1080", "1080:1920", "1440:1440", "1662:1248", "1248:1662"],
-  gemini_omni_flash: ["1280:720", "720:1280"],
-};
+import { runwayVideoRatioEnumForModel } from "../shared/videoCapabilities/runwayWireFacts";
 
 /**
  * 从任意 Runway ratio 值（像素 `<w>:<h>` 或友好 `16:9`/`1:1` 或 `auto_720p`）判朝向。
@@ -72,7 +64,7 @@ function pickRatioForOrientation(enumValues: readonly string[], orientation: "sq
  * `adaptive`（对含 adaptive 的族如 hailuo 是合法值 → 直接保留；对不含的族按方形归一）。
  */
 export function normalizeRunwayVideoRatio(model: string, ratio: string): string | undefined {
-  const enumValues = RUNWAY_VIDEO_RATIO_ENUMS[model];
+  const enumValues = runwayVideoRatioEnumForModel(model);
   if (!enumValues) return ratio || undefined; // 未建模的模型不动
   const trimmed = ratio.trim();
   if (!trimmed) return undefined;

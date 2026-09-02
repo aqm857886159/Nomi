@@ -119,6 +119,19 @@ export type ArchetypeMode = {
    */
   transportTaskKind?: ArchetypeTransportTaskKind;
   /**
+   * **供应商特化的传输桶**（第二条供应商特化轴，与 `vendorParams` 平行；2026-09-02 加）。
+   *
+   * 同一模型身份在不同供应商下可能被路由到**不同的 mapping 桶**：kie 把 minimax-h3 / happyhorse 的
+   * 全部场景收在一个 createTask 端点（故档案级/模式级都是 `text_to_video`），而 Runway 把同样两个模型的
+   * 图模式发到 `/v1/image_to_video`（`image_to_video` 桶）。这不是能力差异、不该分裂成两个档案（P4），
+   * 也不该让 catalog 侧另立第二份真相 —— 由本字段按 vendorKey 覆盖。
+   *
+   * 优先级：`vendorTransportTaskKind[vendor]` > `transportTaskKind`（模式级）> 档案级 `transportTaskKind`。
+   * **唯一读取入口是 `modeTransportFor()`**（同目录 index.ts / electron 侧 modeTransport.ts）——
+   * 禁止在别处手写 `mode.transportTaskKind ?? archetype.transportTaskKind`，那正是本字段要消灭的双真相源。
+   */
+  vendorTransportTaskKind?: Record<string, ArchetypeTransportTaskKind>;
+  /**
    * **角色数组合并（通用原语）**：把本模式有值的若干槽合并成一个带 `role` 的对象数组，落在 `key` 上，
    * 并删掉被合并的扁平键（M2 互斥：避免 image_urls/first_frame_url 与合并键并存触发 vendor 报错）。
    * 用途：apimart Seedance 首尾帧 = `image_with_roles:[{url,role:'first_frame'},{url,role:'last_frame'}]`。

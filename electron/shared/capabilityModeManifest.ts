@@ -1,6 +1,7 @@
 import { ARCHETYPE_MODE_MANIFEST } from "../catalog/archetypeModes.generated";
 import { archetypeIdForModel } from "../catalog/archetypeIdentity";
 import { parseCustomCapabilityContract } from "./customCapabilityContract";
+import { modeTransportFor } from "./videoCapabilities/modeTransport";
 import type { BillingModelKind, ProfileKind } from "../catalog/types";
 
 export type CapabilityModeModel = {
@@ -63,9 +64,12 @@ function customCapabilityModeManifest(model: CapabilityModeModel): CapabilityMod
   if (!contract || contract.kind !== trim(model.kind)) return null;
   const identifier = trim(model.modelKey) || trim(model.modelAlias);
   if (!identifier) return null;
+  // User-authored contracts are single-vendor by construction (CustomCapabilityModeV1 does not
+  // pick up `vendorTransportTaskKind`), so vendor specialization is `null` here — but the read
+  // still goes through the one helper rather than an inline `??` chain.
   const modes = Object.fromEntries(contract.modes.map((mode) => [
     mode.id,
-    mode.transportTaskKind ?? contract.transportTaskKind,
+    modeTransportFor(mode, contract, null),
   ])) as Record<string, ProfileKind>;
   return {
     archetypeId: `custom-capability:${encodeURIComponent(identifier)}`,
