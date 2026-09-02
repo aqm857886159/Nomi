@@ -284,7 +284,15 @@ const skippedEdgeSchema = z
   .object({ source: canonicalIdSchema, target: canonicalIdSchema, reason: z.string().trim().min(1) })
   .strict();
 
-export const canvasWriteResultSchema = z.discriminatedUnion("operation", [
+export const canvasWriteResultSchema = z.union([
+  z
+    .object({
+      cancelled: z.literal(true),
+      reason: z.literal("declined"),
+      operation: z.literal("create_canvas_nodes"),
+      ids: z.array(canonicalIdSchema).max(24),
+    })
+    .strict(),
   z
     .object({
       applied: z.literal(true),

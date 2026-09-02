@@ -67,12 +67,15 @@ export function pickThumbnailSourceUrl(result: unknown): string | null {
     // 图/音频/其它：thumbnailUrl 优先（图生成后 = 本地图链），否则 url。音频最终会因非图字节被 nativeImage 判空 → null。
     return str(primary.thumbnailUrl) || str(primary.url) || null
   }
-  // artifact 投影：preview 的本地链。优先 nomiUrl（恒为 nomi-local://production-preview/… 可解析到磁盘）；
-  // preview.url 在 App 里已被换成签名 HTTP 链（http://127.0.0.1/…），readLocalFile 解不了它——故只当 nomiUrl
-  // 缺失时才回退 url（例如 HTTP server 未起时 url === nomiUrl）。视频产物不出图（不抽帧）。
-  const preview = rec(value.preview)
+  // artifact 投影：视频只认显式 poster（避免把 mp4 交给 nativeImage）；图片/其它产物兼容 preview。
+  // 优先 nomiUrl（恒为 nomi-local://production-preview/… 可解析到磁盘）；preview.url 是签名 HTTP 链，
+  // readLocalFile 解不了它——故只当 nomiUrl 缺失时回退 url。
+  const preview = rec(value.poster)
   const previewUrl = str(preview.nomiUrl) || str(preview.url)
-  if (previewUrl && str(value.kind) !== 'video') return previewUrl
+  if (previewUrl) return previewUrl
+  const fallbackPreview = rec(value.preview)
+  const fallbackUrl = str(fallbackPreview.nomiUrl) || str(fallbackPreview.url)
+  if (fallbackUrl && str(value.kind) !== 'video') return fallbackUrl
   return null
 }
 

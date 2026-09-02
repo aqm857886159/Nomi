@@ -78,6 +78,12 @@ function safeFixtureBaseUrl(value: unknown): string | undefined {
   }
 }
 
+function safeFixtureApiKey(baseUrl: string | undefined): string | undefined {
+  if (!baseUrl) return undefined;
+  const value = String(process.env.NOMI_E2E_APIMART_API_KEY || '').trim();
+  return value || undefined;
+}
+
 /**
  * The only main-process boundary that turns a saved credential into a
  * semantic generation provider. Bootstrap checks the persisted encrypted
@@ -95,18 +101,21 @@ export function createGenerationProviderBootstrap(
   const apimart = state.vendors.find((vendor) => vendor.key === "apimart" && vendor.enabled);
   const hasPublishedModel = hasPublishedExecutionForProvider(state, "apimart");
   const apimartCredential = state.apiKeysByVendor.apimart;
+  const fixtureBaseUrl = safeFixtureBaseUrl(options.fixtureBaseUrlOverride);
+  const fixtureApiKey = safeFixtureApiKey(fixtureBaseUrl);
   const hasEnabledCredential = Boolean(
     typeof apimartCredential?.apiKey === "string"
       && apimartCredential.apiKey.trim()
-      && apimartCredential.enabled === true
-      && apiKeyDecryptStatus(apimartCredential) === "ok",
-  );
+    && apimartCredential.enabled === true
+    && apiKeyDecryptStatus(apimartCredential) === "ok",
+  ) || Boolean(fixtureApiKey);
   if (apimart && hasEnabledCredential && hasPublishedModel && hasSafeDirectKeyScope(state, "apimart")) {
     const connectionResolver = options.connectionResolver;
     const catalogReader = options.catalogReader ?? readCatalog;
-    const fixtureBaseUrl = safeFixtureBaseUrl(options.fixtureBaseUrlOverride);
     const resolveConnection = connectionResolver
       ? () => connectionResolver("apimart")
+      : fixtureApiKey
+        ? () => ({ apiKey: fixtureApiKey, baseUrl: fixtureBaseUrl })
       : () => {
         const current = catalogReader();
         const vendor = current.vendors.find((candidate) => candidate.key === "apimart" && candidate.enabled);

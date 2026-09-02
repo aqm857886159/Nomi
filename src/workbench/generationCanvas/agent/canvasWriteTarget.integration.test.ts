@@ -99,7 +99,7 @@ describe('canvas.write real renderer execution', () => {
     const result = await executeCanvasWriteTarget(buildRequest(input), readGenerationCanvasSnapshot)
     const snapshot = readGenerationCanvasSnapshot()
     expect(result.operation).toBe('create_canvas_nodes')
-    if (result.operation !== 'create_canvas_nodes') return
+    if (!('applied' in result) || result.operation !== 'create_canvas_nodes') return
     expect(result.proposalId).toBe(RECEIPT_ID)
     expect(result.affectedNodeIds).toEqual(snapshot.nodes.map((node) => node.id))
     expect(result.affectedNodeIds).toEqual([result.clientIdToNodeId.source, result.clientIdToNodeId.target])

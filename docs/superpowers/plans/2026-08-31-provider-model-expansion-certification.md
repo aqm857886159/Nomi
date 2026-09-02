@@ -203,7 +203,7 @@
 
   ```bash
   pnpm run test:model-integration:no-repo
-  pnpm run test:mcp
+  pnpm run test:mcp-journey
   ```
 
   Expected: MCP reaches immutable spend confirmation, `providerRequests = 0` for the no-cost journey, and `credentialBytesInResults = 0`.
