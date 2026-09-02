@@ -14,8 +14,15 @@ import {
 import { cn } from '../../../../utils/cn'
 import { PanelButton, SceneAddToolbar } from './scene3dToolbar'
 import { MANNEQUIN_POSE_PRESETS, type CrowdAddOptions } from './scene3dConstants'
-import type { Scene3DCamera, Scene3DGeometry, Scene3DObject, Scene3DPropKind } from './scene3dTypes'
+import type {
+  Scene3DCamera,
+  Scene3DGeometry,
+  Scene3DObject,
+  Scene3DPropKind,
+  Scene3DState,
+} from './scene3dTypes'
 import type { Scene3DSceneTemplate } from './scene3dSceneTemplates'
+import { scene3dCameraDisplayName, scene3dObjectDisplayName } from './scene3dObjectNames'
 
 type CharacterDriveApi = {
   possessId: string | null
@@ -334,6 +341,7 @@ export function CameraPossessActionBar({
 // Scene3DFullscreen 壳里抽出（R9 防巨壳），壳只传 possessedObject/possessedCamera + 各套回调。
 export function Scene3DBottomBar({
   readOnly,
+  scene,
   possessedObject,
   possessedCamera,
   activePresetId,
@@ -351,6 +359,8 @@ export function Scene3DBottomBar({
   onToggleCanvasFocusMode,
 }: {
   readOnly: boolean
+  // 显示名要按「在同类里的序号」现算(角色A/相机1),光有被操控那一个对象算不出来,故把整份场景传进来。
+  scene: Scene3DState
   possessedObject?: Scene3DObject
   possessedCamera?: Scene3DCamera
   activePresetId?: string
@@ -371,7 +381,7 @@ export function Scene3DBottomBar({
     return (
       <CharacterActionBar
         speed={speed}
-        characterName={possessedObject.name}
+        characterName={scene3dObjectDisplayName(possessedObject, scene.objects)}
         activePresetId={activePresetId}
         onApplyPreset={onApplyPreset}
         onExit={onExitPossess}
@@ -383,7 +393,7 @@ export function Scene3DBottomBar({
     return (
       <CameraPossessActionBar
         speed={speed}
-        cameraName={possessedCamera.name}
+        cameraName={scene3dCameraDisplayName(possessedCamera, scene.cameras)}
         onExit={onExitCameraPossess}
         recorder={recorder}
       />

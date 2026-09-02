@@ -19,7 +19,7 @@ import {
   referenceResultUrl,
 } from '../popover/browserAssetPopoverUtils'
 import {
-  BROWSER_PROMPT_EXTRACTION_MODE_LABELS,
+  BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS,
   extractTextFromTaskResult,
   parseBrowserPromptExtraction,
   type BrowserPromptExtractionMode,
@@ -88,9 +88,9 @@ async function runPromptExtraction(
   mode: BrowserPromptExtractionMode,
   settings: BrowserPromptExtractionTemplateSettings,
 ): Promise<{ title: string; prompt: string }> {
-  if (!modelImageUrl) throw new Error('没有可分析的参考图')
+  if (!modelImageUrl) throw new Error(i18n.t('browserAssets.promptReferenceMissing'))
   const brain = await getTextBrain()
-  if (!brain) throw new Error('请先在「设置 → 模型」里启用一个支持图片输入的文本模型')
+  if (!brain) throw new Error(i18n.t('browserAssets.promptVisionModelMissing'))
   const result = await runWorkbenchTaskByVendor(brain.vendor, {
     kind: 'image_to_prompt',
     prompt: browserPromptExtractionPromptFromSettings(settings, mode),
@@ -102,9 +102,9 @@ async function runPromptExtraction(
     },
   })
   const text = extractTextFromTaskResult(result)
-  if (!text) throw new Error('模型没有返回提示词')
+  if (!text) throw new Error(i18n.t('browserAssets.promptModelEmpty'))
   const parsed = parseBrowserPromptExtraction(text, mode)
-  if (!parsed.prompt) throw new Error('模型没有返回可用提示词')
+  if (!parsed.prompt) throw new Error(i18n.t('browserAssets.promptModelInvalid'))
   return parsed
 }
 
@@ -132,7 +132,7 @@ function dispatchExtractionFeedback(detail: { ok: boolean; title?: string; error
 /** 浏览器截图/图片右键 → 提取提示词 → 直存主提示词库。fire-and-forget，进度/结果全走 toast。 */
 export async function runBrowserPromptExtractionToLibrary(request: BrowserAssetPromptCaptureRequest): Promise<void> {
   const mode = promptExtractionModeFromRequest(request)
-  toast(i18n.t('browserAssets.extractingPrompt', { mode: BROWSER_PROMPT_EXTRACTION_MODE_LABELS[mode] }))
+  toast(i18n.t('browserAssets.extractingPrompt', { mode: i18n.t(BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS[mode]) }))
   try {
     const settings = await loadExtractionSettings()
     const initialReferences = promptReferenceImagesFromRequest(request)
@@ -143,7 +143,7 @@ export async function runBrowserPromptExtractionToLibrary(request: BrowserAssetP
       title,
       prompt: extracted.prompt,
       promptType: 'image',
-      tags: ['网页提取', BROWSER_PROMPT_EXTRACTION_MODE_LABELS[mode]],
+      tags: [i18n.t('browserAssets.webExtraction'), i18n.t(BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS[mode])],
       referenceImages: prepared.references,
     })
     toast(i18n.t('browserAssets.savedToPromptLibraryNamed', { name: title }), 'success')
