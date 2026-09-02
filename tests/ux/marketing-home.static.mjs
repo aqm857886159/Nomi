@@ -198,6 +198,9 @@ expect(!fs.existsSync(path.join(root, 'marketing/assets/vendor/gsap.min.js')), '
 expect(!fs.existsSync(path.join(root, 'marketing/assets/vendor/ScrollTrigger.min.js')), 'ScrollTrigger remains removed')
 
 expect(sitemap.includes('<loc>https://nomiaqm.com/en/</loc>'), 'English route is in sitemap')
+expect(sitemap.includes('<loc>https://nomiaqm.com/quickstart</loc>'), 'clean quickstart route is in sitemap')
+expect(sitemap.includes('<loc>https://nomiaqm.com/handbook</loc>'), 'clean handbook route is in sitemap')
+expect(!sitemap.includes('/quickstart.html') && !sitemap.includes('/handbook.html'), 'legacy onboarding routes are absent from sitemap')
 expect((zh.match(/<meta property="og:locale"/g) || []).length === 1, 'one Chinese OG locale')
 expect((en.match(/<meta property="og:locale"/g) || []).length === 1, 'one English OG locale')
 expect(zh.includes('social-preview-zh.jpg'), 'Chinese social card')

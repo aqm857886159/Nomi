@@ -2,7 +2,7 @@
 
 > 报告日期：2026-09-03
 > 目标站点：https://nomiaqm.com/
-> 范围：只读审计、站点结构对账、增长机会判断；本报告未修改网站代码，也未修改 OpenSEO 项目设置。
+> 范围：OpenSEO 只读审计、站点结构对账、增长机会判断，以及随后落地的确定性 SEO 修复。
 
 ## 一、结论先行
 
@@ -14,7 +14,22 @@ Nomi 当前不是“基础 SEO 没做”，而是“技术地基基本合格，�
 2. 把 `handbook` 从“只有视觉卡片的一页介绍”变成一个有明确文字答案、上下游链接和产品证据的上手入口。
 3. 围绕 Nomi 真正的差异建立一条窄内容入口：`open source + local-first + AI video workflow`。这个切口比直接竞争 `AI video editor` 更现实。
 
-OpenSEO 的技术审计发现 5 个问题，但没有 Critical/High；真正影响 Nomi 增长的结构性问题，是可索引页面太少、目标意图没有拆开、反链较少指向产品解释页面，以及 OpenSEO 项目上下文为空。
+OpenSEO 的技术审计发现 5 个问题，但没有 Critical/High；真正影响 Nomi 增长的结构性问题，是可索引页面太少、目标意图没有拆开、反链较少指向产品解释页面，以及项目定位尚未进入 OpenSEO 的工作上下文。
+
+## 执行更新（2026-09-03）
+
+本次已把高置信、低风险的部分直接落地：
+
+- `shared.quickstartUrl` / `shared.handbookUrl` 和 sitemap manifest 已统一为 `/quickstart`、`/handbook`。
+- handbook 的页面标题已改为“从安装到第一条 AI 视频”，并增加 quickstart、Release、源码和 Discussions 四个下一步链接。
+- quickstart 页脚已改用 `/handbook` clean URL。
+- 重新生成了双语首页、handbook 和 sitemap。
+- 新增 SEO 回归断言，覆盖 canonical、sitemap、内部链接和 legacy `.html` 信号，避免同类漂移再次出现。
+- 新增 schema-v3 根因合同：`docs/fixes/2026-09-03-seo-clean-route-drift.root-cause.json`。
+- SEO Observatory 的 `docs/seo/config.json` 公共路径清单也已同步为 clean URL，避免下次本地审计继续把旧地址当成入口。
+- 尝试更新 OpenSEO `Default` 项目上下文，但被外部 MCP 的 approval gate 拒绝；没有伪造成功状态，OpenSEO 余额仍为 138 credits。
+
+代码已推送到 [PR #403](https://github.com/aqm857886159/Nomi/pull/403)。生产环境的最终 200/3xx 行为仍需 PR 合并后复跑 OpenSEO 和 Search Console URL Inspection 验证。
 
 ## 二、这次实际做了哪些审计
 
@@ -42,7 +57,7 @@ OpenSEO 的技术审计发现 5 个问题，但没有 Critical/High；真正影�
 - 当前市场：US / English（location `2840`，language `en`）
 - 关键词没有保存
 - 没有创建排名追踪器
-- 没有修改 OpenSEO 项目上下文
+- OpenSEO 项目上下文更新被外部写入审批门拒绝，当前仍为空
 - 没有接入 GSC/GA
 
 费用记录：Lighthouse 前余额 500，后余额 444；增长层审计前余额 444，后余额 138。本次两轮实际消耗 362 credits。OpenSEO 没有返回逐项扣费明细，因此以余额差额为准。
@@ -56,11 +71,11 @@ OpenSEO 观察到：
 - `https://nomiaqm.com/handbook` 返回 `200`，可索引，但 canonical 指向 `https://nomiaqm.com/handbook.html`。
 - `https://nomiaqm.com/handbook.html` 返回 `307`，又重定向回 `/handbook`。
 - `quickstart` 存在同样关系。
-- 本地 `scripts/marketing/site-manifest.mjs` 和 `scripts/marketing/content.mjs` 仍把 `.html` 当作公开 URL，sitemap 也列 `.html`。
+- 审计时本地 `scripts/marketing/site-manifest.mjs`、`scripts/marketing/content.mjs`、SEO Observatory 配置和 sitemap 都把 `.html` 当作公开 URL；这批源文件现已统一为 clean URL。
 
-这不是单纯的标题问题，而是“搜索引擎看到的最终页面”和“我们声明的 canonical/sitemap 页面”不一致。推荐把 clean URL 作为最终公开 URL：
+这不是单纯的标题问题，而是“搜索引擎看到的最终页面”和“我们声明的 canonical/sitemap 页面”不一致。已选择并实现 clean URL 作为最终公开 URL：
 
-| 页面 | 推荐最终 URL | 推荐 canonical | sitemap |
+| 页面 | 最终 URL | canonical | sitemap |
 |---|---|---|---|
 | 新手指南 | `/quickstart` | `/quickstart` | `/quickstart` |
 | 一页上手 | `/handbook` | `/handbook` | `/handbook` |
@@ -77,11 +92,11 @@ OpenSEO 报告：
 
 CJK 页面被工具按英文 word 规则统计，83 不能直接等同于中文真实字数；但“没有链接”是真问题。当前 handbook 更像一张可视化说明卡：它有流程、首胜、常见卡点，但没有把用户继续带到下载、模型设置、GitHub、quickstart 或具体工作流证据的路径上。
 
-推荐：保留它作为“首胜导航页”，但补上 3–5 个上下文链接，并将标题改为能表达任务的句子，例如：
+已保留它作为“首胜导航页”，补上了 4 个上下文链接，并将标题改为能表达任务的句子：
 
 > Nomi 一页上手：从安装到生成第一条 AI 视频
 
-链接至少覆盖：下载/Release、quickstart、模型接入说明、身份参考/3D 导演台工作流、GitHub Discussions。不要为了凑字数堆 SEO 段落；每段都应回答用户下一步怎么做。
+当前链接覆盖 quickstart、下载/Release、源码和 GitHub Discussions；模型接入与身份参考工作流仍应在下一版证据页补成可引用的深链接。不要为了凑字数堆 SEO 段落；每段都应回答用户下一步怎么做。
 
 ### P1：目标页面太少，首页承担了过多搜索意图
 
@@ -89,8 +104,8 @@ CJK 页面被工具按英文 word 规则统计，83 不能直接等同于中文�
 
 - `/`：产品定位与价值
 - `/en/`：英文产品定位与价值
-- `/quickstart.html`：安装与第一次成功
-- `/handbook.html`：一页上手
+- `/quickstart`：安装与第一次成功
+- `/handbook`：一页上手
 
 这套结构适合产品发布页，不足以覆盖“开源替代品比较”“本地优先工作流”“参考图/身份一致性”等不同意图。首页不应同时承担所有词，否则每个词都只得到一小段说明。
 
@@ -130,7 +145,7 @@ OpenSEO 返回：
 
 抽样链接主要指向首页或 MP4 资产，指向产品解释页、教程页和工作流证据页的较少。来源里 `noisework.cn` 有 10 条反链，但 spam score 为 35；不能把反链数量直接当作权威质量。
 
-推荐的外链策略不是买链接，而是让每次真实发布都链接到一个可阅读、可引用的页面：
+下一阶段的外链策略不是买链接，而是让每次真实发布都链接到一个可阅读、可引用的页面：
 
 - 产品介绍页：解释 Nomi 与传统在线 AI 视频工具的区别
 - 工作流证据页：一条完整作品、输入、参考、过程、输出和成本记录
@@ -139,17 +154,17 @@ OpenSEO 返回：
 
 视频文件可以继续被外部引用，但应同时提供页面级链接，避免权重只落在不可阅读的 `.mp4` 资源上。
 
-### P2：OpenSEO 项目上下文为空
+### P2：OpenSEO 项目上下文仍为空（外部写入被阻断）
 
 OpenSEO 当前项目缺少：business overview、current goal、positioning、writing preferences、competitors、key pages。这样后续 AI 代理即使拿到关键词和竞品数据，也容易给出泛化建议。
 
-建议下一步在 OpenSEO 项目里补充上下文，但这属于外部持久化写入，本报告没有代为修改。建议内容：
+OpenSEO 的 `Default` 项目仍缺少这些上下文。已准备好写入内容，但实际更新被外部 MCP 的 approval gate 拒绝（当前任务 approval policy 为 `never`），所以没有假装已经完成。建议在 OpenSEO 页面手动粘贴以下内容，或在允许外部写入后重试：
 
 - 业务：开源、本地优先的 AI 视频创作工作台，连接用户自己的模型/API/ComfyUI，覆盖脚本、分镜、生成、剪辑和导出。
 - 当前目标：让正在寻找开源 AI 视频编辑器或低浪费 AI 视频工作流的人，理解 Nomi 的差异并完成下载/首胜。
 - 定位：不是另一个封闭的在线生成器，而是把已有模型、参考证据和完整创作流程放在用户可控制的工作台里。
 - 竞品分组：OpenReel、Frame、LTX Desktop 属于开源/本地邻近；Runway、Canva、InVideo、CapCut 属于泛 AI 视频 SaaS 竞争。
-- 关键页面：首页、quickstart、handbook、未来的开源 AI 视频工作台入口页。
+- 关键页面：首页、英文首页、quickstart、handbook、未来的开源 AI 视频工作台入口页。
 
 ## 四、建议使用的完整审计组合
 
@@ -157,7 +172,7 @@ OpenSEO 可以做更多，但不是所有功能都应现在全部跑。正确做
 
 | 层 | OpenSEO 能力 | 当前状态 | 对 Nomi 的价值 | 下一步 |
 |---|---|---|---|---|
-| 技术抓取 | site audit + pages/issues | 已完成 | 找状态码、canonical、薄内容、链接和索引信号 | 修完 URL 后复测 |
+| 技术抓取 | site audit + pages/issues | 已完成首次审计，修复后待复测 | 找状态码、canonical、薄内容、链接和索引信号 | PR 合并后复跑 OpenSEO |
 | 性能体验 | Lighthouse | 已完成 8/8，但无细项返回 | 补性能、SEO、可访问性、最佳实践 | 用本地 PageSpeed Observatory 补可见指标 |
 | 需求发现 | keyword research + metrics | 已完成 US/English | 找真实需求与难度，避免凭感觉写页面 | 挑 10–20 个候选词，不急着保存 |
 | SERP 竞争 | SERP results / competitor signals | 已完成 2 个核心词 | 判断结果页是 SaaS、开源项目还是社区 | 新页面上线前复查 |
@@ -175,7 +190,7 @@ OpenSEO 官方能力说明： [Site Audit](https://openseo.so/features/site-audi
 | 页面 | 唯一任务 | 索引建议 | 内容证据 | 必须有的链接 | 结构化数据 |
 |---|---|---|---|---|---|
 | `/` | 让新用户理解 Nomi 为什么省成本、能不能马上试 | index | 真实产品截图、60 秒回放、模型/API/ComfyUI 事实 | quickstart、Release、GitHub、Discussions | WebSite + WebPage + SoftwareApplication |
-| `/en/` | 英文用户理解定位并开始下载 | index | 英文同构证据，不能只做翻译壳 | quickstart/English、Release、GitHub、Discussions | 同上，保持 hreflang 互指 |
+| `/en/` | 英文用户理解定位并开始下载 | index | 英文同构证据，不能只做翻译壳 | GitHub quick start、Release、GitHub、Discussions | 同上，保持 hreflang 互指 |
 | `/quickstart` | 完成安装、接入模型和第一条视频 | index | 安装包、步骤、首胜路径、已知限制 | handbook、下载、模型说明、问题反馈 | WebPage + SoftwareApplication |
 | `/handbook` | 90 秒理解整个工作流并选择下一步 | index，前提是补链接和文字 | 流程、首胜卡、能力路线、常见卡点 | quickstart、下载、参考工作流、Discussions | WebPage + SoftwareApplication |
 | `/open-source-ai-video-editor`（建议新增） | 承接开源/本地优先 AI 视频编辑器的高匹配搜索 | index | 真实作品、代码、运行方式、成本边界、与在线 SaaS 的差异 | quickstart、Release、GitHub、工作流证据 | WebPage + SoftwareApplication；不添加无法证明的 Review/FAQ schema |
@@ -191,12 +206,12 @@ OpenSEO 官方能力说明： [Site Audit](https://openseo.so/features/site-audi
 
 ## 六、执行顺序
 
-### 第一阶段：确定性修复
+### 第一阶段：确定性修复（已完成代码部分）
 
-1. 选择 clean URL 作为 handbook/quickstart 的最终 canonical。
-2. 同步修改内容源、构建脚本、manifest、sitemap、内部链接和测试。
-3. handbook 补 3–5 个真实上下文链接，改描述性标题。
-4. 发布后同时跑本地 Observatory 和 OpenSEO site audit，确认不再出现 canonicalized-page、no-outgoing-links。
+1. clean URL 已成为 handbook/quickstart 的最终 canonical。
+2. 内容源、manifest、sitemap、生成器、内部链接和测试已同步。
+3. handbook 已补 4 个真实上下文链接，并改为描述性标题。
+4. SEO Observatory 配置已同步 clean URL；PR 合并发布后，再跑本地 Observatory 和 OpenSEO site audit，确认不再出现 canonicalized-page、no-outgoing-links。
 
 ### 第二阶段：一页差异化入口
 

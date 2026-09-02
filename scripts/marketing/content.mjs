@@ -11,8 +11,8 @@ export const shared = Object.freeze({
   wechatId: 'TZ857886159',
   groupQr: '/assets/group-wechat-2026-09-01.jpg',
   authorQr: '/assets/qingyang-wechat.jpg',
-  quickstartUrl: '/quickstart.html',
-  handbookUrl: '/handbook.html',
+  quickstartUrl: '/quickstart',
+  handbookUrl: '/handbook',
   mcpGuideUrl: 'https://github.com/aqm857886159/Nomi/blob/main/docs/guide/capability-core-cli-mcp.md',
 })
 
