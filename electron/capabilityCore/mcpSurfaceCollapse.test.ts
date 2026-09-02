@@ -230,7 +230,7 @@ describe('MCP surface collapse · equivalence-anchor mapping table', () => {
       .toEqual({ method: 'integration.cancel', params: { sessionId: 's', expectedRevision: 1 } })
     expect(route('nomi_integration_manage', { action: 'set_proxy', vendorKey: 'relay', enabled: true }))
       .toEqual({ method: 'integration.manage.set_proxy', params: { action: 'set_proxy', vendorKey: 'relay', enabled: true } })
-    expect((MCP_INTEGRATION_TOOL.inputSchema as { properties: { action: { enum: string[] } } }).properties.action.enum)
+    expect((MCP_INTEGRATION_TOOL.inputSchema as unknown as { properties: { action: { enum: string[] } } }).properties.action.enum)
       .toEqual(['begin', 'open_credentials', 'propose', 'confirm', 'start', 'cancel'])
   })
 
