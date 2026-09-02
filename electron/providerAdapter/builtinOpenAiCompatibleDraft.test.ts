@@ -2,8 +2,10 @@
 // 旧行为：把 IP 当域名截成 "18.254" → 拼 http://docs.18.254 → new URL 抛 Invalid URL → 接入判死。
 import { describe, expect, it, vi } from "vitest";
 
+import { buildProfileHttpRequest } from "../catalog/profileHttpRequest";
 import { buildOpenAiCompatibleDraft } from "./builtinOpenAiCompatibleDraft";
 import { canHostPublicDocs, discoverProviderDocs } from "./docsDiscovery";
+import { assertAdapterModeInvariants } from "./validator";
 
 describe("canHostPublicDocs", () => {
   it("IP 字面量一律没有公开文档站（公网 IP 也没有 docs.203.0.113.5）", () => {
@@ -91,6 +93,78 @@ describe("buildOpenAiCompatibleDraft", () => {
     const i2v = draftFor("video").modes.find((mode) => mode.taskKind === "image_to_video");
     expect(i2v?.referenceParam).toBe("image_url");
     expect(i2v?.referenceShape).toBe("single");
+  });
+
+  // 端到端闭合：光声明对了不算数，得证明「探针注进去的那个值真的出现在报文里」。
+  // 这条把 声明(referenceParam) → 探针注入(verifier 的 verificationRequest 同一份逻辑)
+  // → 模板渲染(buildProfileHttpRequest) 三段串起来。断言的是**注入的那个 URL 本身**出现在
+  // body.image，而不是「image 键存在」——键在但值是空模板串正是此前 i2v 首帧发不出去的样子。
+  it("图生视频：探针注入的参考图真的落进报文 body.image（声明对≠报文对）", () => {
+    const i2v = draftFor("video").modes.find((mode) => mode.taskKind === "image_to_video");
+    const injected = "https://example.test/reference.png";
+    const extras: Record<string, unknown> = { modelKey: "m-1" };
+    // 与 verifier.ts:149 同一条注入规则：按声明的键与形状放参考。
+    extras[i2v!.referenceParam!] = i2v!.referenceShape === "array" ? [injected] : injected;
+
+    const built = buildProfileHttpRequest({
+      vendor: { key: "relay", name: "relay", baseUrlHint: "http://192.168.18.254:3000", authType: "bearer" } as never,
+      model: { modelKey: "m-1", labelZh: "m-1", kind: "video" } as never,
+      apiKey: "k",
+      request: { kind: "image_to_video", prompt: "p", extras } as never,
+      operation: i2v!.create,
+    });
+
+    expect((built.body as Record<string, unknown>).image).toBe(injected);
+  });
+
+  // Task 2 的另一半：自建中转**根本接不了**音频参考类与 3D 模型。这不是「没问题」，是缺口——
+  // 明着钉住（D4 缺口标出来），别让「没有这条 mode」被误读成「已验证正常」。
+  // 音频：newapiTransportFor('audio') 只给 text_to_audio，没有 edit/imageToVideo → 没有 image_to_audio。
+  // 3D：modesForKind 对 model3d 直接返回 []（没有通用 OpenAI 兼容契约，不编造）。
+  it("音频只有文生音频通道——自建中转接不了 image_to_audio（缺口，不是正常）", () => {
+    expect(draftFor("audio").modes.map((mode) => mode.taskKind)).toEqual(["text_to_audio"]);
+  });
+
+  it("3D 模型零通道——自建中转根本接不了，验证阶段如实报「没有可用通道」", () => {
+    const model3d = buildOpenAiCompatibleDraft({
+      baseUrl: "http://192.168.18.254:3000",
+      authType: "bearer",
+      models: [{ modelKey: "m-3d", labelZh: "m-3d", kind: "model3d" }],
+    }).models[0];
+    expect(model3d.modes).toEqual([]);
+  });
+
+  // 结构闸（R17 已验红）：内置草稿与 AI 编译路共用同一份语义校验。此前这条路一次都没被校验过，
+  // 「参考类模式必须声明 referenceParam/referenceShape」对它结构性失效 —— image_edit 漏声明多年
+  // 没人拦。把 image_to_video 的 referenceParam 删掉，构建期就该当场炸，不是等运行期静默失败。
+  it("参考类模式漏声明 referenceParam 时构建期当场抛（不是运行期静默失败）", () => {
+    expect(() =>
+      assertAdapterModeInvariants({
+        modelKey: "m-1",
+        kind: "video",
+        modes: [{
+          taskKind: "image_to_video",
+          create: { method: "POST", path: "/v1/video/generations", response_mapping: { video_url: "url" } },
+          referenceShape: "single",
+          sourceUrls: [],
+        }],
+      }),
+    ).toThrow(/requires referenceParam/);
+  });
+
+  it("参考类模式漏声明 referenceShape 时同样当场抛", () => {
+    expect(() =>
+      assertAdapterModeInvariants({
+        modelKey: "m-1",
+        kind: "image",
+        modes: [{
+          taskKind: "image_edit",
+          create: { method: "POST", path: "/v1/images/edits", response_mapping: { image_url: "url" } },
+          referenceParam: "reference_images",
+          sourceUrls: [],
+        }],
+      }),
+    ).toThrow(/requires referenceShape/);
   });
 
   it("视频同时给出文生视频与图生视频通道，并带轮询", () => {

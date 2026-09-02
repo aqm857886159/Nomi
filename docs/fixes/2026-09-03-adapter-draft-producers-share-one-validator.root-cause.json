@@ -1,0 +1,124 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-adapter-draft-producers-share-one-validator",
+  "problem_type": "说明卡（provider adapter draft）有两个生产者，只有一个过校验：AI 编译路径调 validateProviderAdapterDraft，自建中转用户实际走的内置模板路径一次都没调过，于是「参考类模式必须声明 referenceParam/referenceShape」这条对后者结构性失效——不是有人手滑漏写，是这条规则根本管不到那条路",
+  "symptom": "本条修的不是用户可见症状，而是上一条修复（2026-09-03-relay-multipart-image-edit-certification）的类根因。那次的用户可见症状是：经自建中转接入 gpt-image 系模型，连上参考图点生成被拒发「该模型没有图生图通道」，而中转其实完全支持改图。四个 bug 中三个已被通用地修掉（multipart 注入口修在 multipartOperation 单一入口、fixture 尺寸是单一共享常量、错误端点族是图像独有），只剩「没有强制声明」这一条结构缺口——它才是让这类 bug 一开始就必然存在的原因。",
+  "direct_cause": "validator.ts:299-304 强制「taskKind ∈ referenceTaskKinds（image_edit / image_to_video / image_to_audio / image_to_3d）的模式必须声明 referenceParam 与 referenceShape」。该断言只住在 validateProviderAdapterDraft 里，而 builtinOpenAiCompatibleDraft.buildOpenAiCompatibleDraft 从不调用它——它直接返回自己拼的 ProviderAdapterDraft。于是内置模板漏声明 referenceParam 多年，没有任何构建期或测试期信号；缺陷一路静默到运行期，表现为认证探针拿零参考图去验一条参考通道，再表现为落库缺 mapping，最后表现为界面对用户说了句错话。",
+  "class_root": "「同一份契约有 N 个生产者，校验只挂在其中一个生产者身上」。校验挂在调用点而不是挂在**产物**上，就等于宣布「只有走这条路的产物才需要合规」。新增第二个生产者时没人会想起去补校验，因为校验根本不在产物的类型/构造边界上，看不见。正确形状 = 语义不变量抽成一个所有生产者都必须穿过的函数，且每个生产者在**构造完成的那一行**调用它——线缆契约的声明缺失必须在构建/测试期大声失败，不能留到运行期。注意这与本仓「能力展示 fail-open（查不到 ≠ 不支持）」的纪律方向相反且不冲突：展示层宁可多显示，wire 契约层宁可炸。",
+  "affected_population": [
+    "全部经「自定义中转 / 自建 OpenAI 兼容端点」接入的媒体模型：其说明卡此前从未被任何语义校验看过。本次改动后每次构造都过同一份校验；对现有正确的模板是无声通过（已由 383 项 providerAdapter 单测证实零行为变化），对将来漏声明的模式是构建期当场抛。",
+    "将来任何新增参考类 taskKind（referenceTaskKinds 现有四种）的人：此前只要在内置模板里加一条模式就能合法漏掉参考契约，现在加了就必须声明，否则该文件的任何一条测试都跑不起来。",
+    "不影响任何存量库数据：本次是纯构建期断言，不改说明卡内容、不改 wire、不做迁移。"
+  ],
+  "scope_paths": [
+    "electron/providerAdapter/validator.ts",
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts"
+  ],
+  "entry_points": [
+    "electron/providerAdapter/validator.ts::assertAdapterModeInvariants —— 新抽出的共享函数，装每条 mode 的语义不变量（模式去重、taskKind 与 model.kind 匹配、参考类模式必须声明 referenceParam/referenceShape、result 依赖 query、响应映射键在允许集内、非文本模型必须有媒体产物映射）。原先这些判断内联在 validateProviderAdapterDraft 里，本次抽出后 validateProviderAdapterDraft 改为调用它（P1 不留第二份判断）。",
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts::buildOpenAiCompatibleDraft —— 内置模板生产者。在每个 model 构造完成的那一行调 assertAdapterModeInvariants，把此前完全缺席的校验补上。"
+  ],
+  "internal_only_reason": "不新增也不修改任何供应商 API 契约：不动端点、鉴权、参数、模板内容。本次全部改动是把仓库内已有的校验逻辑抽成共享函数并让第二个生产者也穿过它，外加三条锁死该行为的测试。说明卡的内容一字未改（由既有 383 项 providerAdapter 单测全绿证实）。",
+  "invariants": [
+    "说明卡的每条 mode 的语义不变量只有一个实现 assertAdapterModeInvariants；两个生产者（compiler 的 AI 编译路径、builtinOpenAiCompatibleDraft 的内置模板路径）都必须穿过它，不许任何一方自带一份判断或跳过。",
+    "凡是参考类模式（image_edit / image_to_video / image_to_audio / image_to_3d），无论由哪个生产者产出，缺 referenceParam 或缺 referenceShape 都必须在构建期抛错，不许留到运行期变成「认证失败 → 缺 mapping → 对用户说该模型没有这个能力」。",
+    "出处类约束（sources 非空、sourceUrls 非空、create 的 strict 形状）只属于 AI 编译路径，留在 validateProviderAdapterDraft，不下放到共享函数——内置模板没有文档出处（诚实留空，D4），且复用 catalog 的 op 带运行期键 paramMap。放宽这三条中的任何一条去迁就内置模板，等于削弱 AI 路径的校验，是错误方向。",
+    "抽取不得改变错误的抛出顺序：响应映射键的允许集判断必须早于「缺媒体产物映射」判断，否则写了不支持的键时用户听到的是笼统的「缺媒体映射」而不是「这个键不支持」。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「同一种产物有多个生产者、校验只挂一个」在本仓已反复出现，且每次都以「某条路径静默漏掉一个必填声明」的形态回来。上一条修复（relay-multipart-image-edit-certification）已把它记为 recurring，本条正是对那条 class_root 的结构化封堵。只要说明卡将来再多一个生产者（例如手工导入、或某家供应商的专用模板），同一个病就会原样复发——除非不变量长在产物的构造边界上而不是某一条调用链上。",
+    "same_class_scan": [
+      "全仓普查「谁生产 ProviderAdapterDraft / AdapterModelDraft」：恰好 2 处生产者。① compiler.ts（AI 编译路径）三处调 validateProviderAdapterDraft（compiler.ts:301/323/409）；② builtinOpenAiCompatibleDraft.ts::buildOpenAiCompatibleDraft，此前零次调用，本次补上。第三处 serviceFallback.ts::genericCompilation 不是独立生产者——它转调 buildOpenAiCompatibleDraft，故自动继承本次校验（已由 onboardingMatrix / onboardingRoundtrip 测试覆盖其调用面）。serviceFallback.ts::withTextModels 产出的是 text 模型的 chat 模式，不属参考类，且 kind=text 不触发媒体映射断言。",
+      "全量校验对内置模板的适用性实测（一次性探针，四个 kind 各跑一遍完整 validateProviderAdapterDraft）：恰好三条不适用，全部是出处/形状类而非语义类——sources.min(1)、mode.sourceUrls.min(1)、create 的 .strict() 撞上 catalog op 的 paramMap 键。其余语义判断（含本次要强制的 referenceParam/referenceShape）对内置模板完全适用，故抽取成共享函数而不是放宽 validator（不削弱既有校验）。",
+      "参考类 taskKind 全集（validator.ts:20 referenceTaskKinds）逐条核对内置模板的覆盖：image_edit 与 image_to_video 由内置模板产出且均已声明；image_to_audio 与 image_to_3d 内置模板**根本不产出**——newapiTransportFor('audio') 只给 text_to_audio（无 edit / imageToVideo 字段），modesForKind 对 model3d 直接返回空数组。这不是「没问题」，是能力缺口：自建中转用户目前接不了音频参考类模型与任何 3D 模型。已各加一条测试把该缺口钉成显式断言，防止「没有这条 mode」被将来的人误读成「已验证正常」。",
+      "请求体构造路径普查（两条路是否都被守）：JSON 路 executeProfileOperation（runtime.ts:266-281）与 multipart 路 runMultipartProfileOperation（multipartOperation.ts:128）都经同一个 buildProfileHttpRequest 构造 url/headers/body，模板渲染共用 templateContext，未见第二份构造实现。判定：两条路共用同一边界，无未守缺口。",
+      "参考注入路径普查：认证侧唯一注入点是 verifier.ts::verificationRequest（verifier.ts:147-160），按 mode.referenceParam/referenceShape 注入；生产侧走 taskParams 聚合 + imageEditGuardError 拦截（runtime.ts:363）。两者读的都是同一份 mapping/mode 声明，不存在「一条守一条不守」。本次新增的 i2v 端到端测试正是把「声明 → 注入 → 报文」三段串起来验，证明注入的值真的出现在 body.image。",
+      "multipart 与 JSON 在资产本地化上的差异复核（确认不是同类缺口）：executeProfileOperation 在 multipart 分支提前 return，不走 localizeAssetsForVendor。这是设计正确而非漏守——multipart 由 resolveReferenceMediaBytes 自行把 nomi-local / data / http(s) 三种 URL 取成字节直接放进 FormData，本就不需要先上传成供应商 URL。判定 not-affected。",
+      "落库 mapping 创建路径普查（catalog 路 vs 认证路）：catalogCommit.ts::draftShapeForKind 的 image 分支用 newapiImageEditProfileForModel 分族选协议、video 分支注册 mappingImageToVideo；认证路 builtinOpenAiCompatibleDraft 上一条修复已改为同源调用同一个选择器。两条路现已共用同一判据，无第二份定义。"
+    ]
+  },
+  "generality_proof": "缺陷不是「内置模板忘了写 referenceParam」，而是「校验挂在调用点而非产物上」，三条独立证据：① 漏声明存在多年且零信号——没有任何构建期、测试期或类型层面的提示，因为那条路径根本不经过校验；② 上一条修复的四个 bug 里，三个是具体的 wire 错误（可以逐个修完），第四个是「没有强制」，它不修则同一族缺陷会从任何新增的参考类 taskKind 或新增的生产者重新进来；③ 实测证明不适用的只有三条出处/形状约束，语义约束对内置模板 100% 适用——也就是说这不是「内置模板特殊所以不能校验」，纯粹是没人把它接上。故防复发落在「语义不变量抽成所有生产者共穿的单一函数，且在构造完成处调用」这一条结构改变上，而不是再补一次具体字段。",
+  "shared_boundaries": [
+    {
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "assertAdapterModeInvariants",
+      "responsibility": "说明卡每条 mode 的语义不变量的唯一实现。两个生产者（AI 编译、内置模板）都必须穿过它。新增任何生产者时必须在构造完成处调用它；新增任何模式级语义规则只能加在这里，不许在某一条生产路径上私自加判断。出处/形状类约束不属于它（理由见 invariants 第三条）。"
+    },
+    {
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "buildOpenAiCompatibleDraft",
+      "responsibility": "内置模板这条生产路径的唯一出口（builtinDraftForUndocumentedEndpoint 与 serviceFallback.genericCompilation 都转调它）。必须在每个 model 构造完成的那一行调 assertAdapterModeInvariants，使这条路径与 AI 编译路径受同一份语义约束。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/providerAdapter/compiler.ts",
+      "entry_point": "AI 编译路径的三处 validateProviderAdapterDraft 调用（compiler.ts:301 / 323 / 409）",
+      "disposition": "not-affected",
+      "evidence": "该路径一直调用全量校验，本就受参考契约约束。本次把语义判断抽进 assertAdapterModeInvariants 后由 validateProviderAdapterDraft 内部转调，对该路径是纯重构、零行为变化——由 validator.test.ts 全绿证实，其中「rejects response mapping keys the runtime cannot consume」这条专门锁住了抽取过程中差点被我改掉的错误抛出顺序。"
+    },
+    {
+      "path": "electron/providerAdapter/serviceFallback.ts",
+      "entry_point": "genericCompilation（自建中转接入实际走的编译入口）",
+      "disposition": "enforced",
+      "evidence": "它转调 buildOpenAiCompatibleDraft，故自动继承本次新增的校验，无需也不应在此再加一份（加了就是第二处判断，违反 P1）。其调用面由 onboardingMatrix.test.ts 与 onboardingRoundtrip.test.ts 覆盖，两者本次全绿。"
+    },
+    {
+      "path": "electron/providerAdapter/serviceFallback.ts",
+      "entry_point": "withTextModels 产出的 text 模型 chat 模式",
+      "disposition": "not-affected",
+      "evidence": "产出的是 kind=text 的 chat 模式，不属参考类 taskKind，也不触发非文本模型的媒体产物映射断言；该模式的 create 是生产路径常量 TEXT_PRODUCTION_PATH_CREATE，不经说明卡投递。"
+    },
+    {
+      "path": "electron/providerAdapter/verifier.ts",
+      "entry_point": "verificationRequest 的参考注入",
+      "disposition": "not-affected",
+      "evidence": "它是声明的**消费者**而非生产者——读 mode.referenceParam/referenceShape 注入 fixture。本次强制的是生产端必须声明，消费端逻辑未改。新增的 i2v 测试用与它逐字相同的注入规则，证明声明→注入→报文三段闭合。"
+    },
+    {
+      "path": "electron/catalog/catalogCommit.ts",
+      "entry_point": "draftShapeForKind（落库路径建 mappingEdit / mappingImageToVideo）",
+      "disposition": "not-affected",
+      "evidence": "落库路径产出的是 Mapping 不是 AdapterModeDraft，参考键由 op 模板自身承载，不经 referenceParam 声明；且它一直用 newapiImageEditProfileForModel 分族选协议（上一条修复已让认证路向它看齐）。两条路现已同源，无第二份定义。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "invariant": "说明卡每条 mode 的语义不变量只有一个实现（assertAdapterModeInvariants），两个生产者都在构造完成处穿过它；参考类模式缺 referenceParam/referenceShape 在构建期抛错，不留到运行期。",
+    "enforcement_path": "electron/providerAdapter/validator.ts",
+    "failure_mode": "校验若再次只挂在一个生产者上，症状不会立刻可见：漏声明的模式会照常构造成功、照常落库，直到某个用户连上参考图，才在最末端表现为「该模型没有 X 通道」——一句诚实但完全误导的话，用户按它换模型是错误的行动建议。这正是最难自查的一类缺陷，也是它上次能潜伏多年的原因。",
+    "exception_policy": "none",
+    "strategy": "把语义判断从调用链上搬到共享函数，两个生产者都在「构造完成的那一行」调用——位置选在构造出口而不是消费入口，是为了让违规在最早的时刻炸，且让新增生产者的人在写 return 时就撞见它。出处/形状类约束刻意留在 validateProviderAdapterDraft，避免为迁就内置模板而削弱 AI 路径的校验强度。R17 已验红：把 image_to_video 的 referenceParam 删掉，该文件三条测试当场炸在构建期（Error: Mode m-1/image_to_video requires referenceParam，栈指向 assertAdapterModeInvariants），恢复后全绿。",
+    "artifacts": [
+      "electron/providerAdapter/validator.ts",
+      "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts",
+    "electron/providerAdapter/validator.test.ts"
+  ],
+  "regression_tests": [
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts",
+    "electron/providerAdapter/validator.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "无并行实现被引入或保留：语义判断从 validateProviderAdapterDraft 内联块搬进 assertAdapterModeInvariants，原处同 commit 删除并改为调用（P1 加新必删旧，不留第二份判断、不留 fallback）。内置模板侧是新增一次调用，不存在被替换的旧实现。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不新增、不升级、不保留任何第三方依赖；全部改动是仓库内部校验逻辑的抽取与接线。",
+    "exit_criteria": []
+  },
+  "migration": "无存储迁移，无数据变化。本次是纯构建期断言：说明卡内容一字未改（383 项 providerAdapter 单测全绿证实）。回滚 = 还原三个文件，无残留状态。",
+  "residual_risks": [
+    "自建中转用户目前**接不了**音频参考类模型（image_to_audio）与任何 3D 模型（model3d 零通道）——内置模板不产出这两类模式。这是能力缺口不是缺陷：音频侧 newapiTransportFor('audio') 只有 TTS 一条 wire，3D 侧 OpenAI 兼容面上根本没有标准端点，本仓的既定纪律是不编造契约。已各加一条测试把缺口钉成显式断言，但**用户侧的表现仍是「这个模型没有可用通道」**，界面是否把「我们没接」与「它不支持」讲清楚，不在本次范围内，值得单独看一眼。",
+    "本次强制只覆盖「声明是否存在」，不覆盖「声明的键是否真是该 op 读的那个键」。键写错的后果与不声明同症（探针注了参考却进不了报文），目前由 i2v 的端到端测试与 image_edit 的既有测试逐条锁住，但那是逐个模式的锁，不是类级不变量。要做成类级需要从 op 模板反推可接受键集合，成本明显更高，本次未做。",
+    "assertAdapterModeInvariants 在构造期抛的是普通 Error，会让 buildOpenAiCompatibleDraft 整个调用失败。对内置模板这是正确的（模板是我们自己写死的常量，抛错说明是我们的 bug，必须炸），但若将来有生产者用它校验**用户输入**来源的说明卡，需要在那一层包成可恢复的失败，而不是让整个接入流程崩掉。"
+  ]
+}

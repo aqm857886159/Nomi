@@ -273,6 +273,74 @@ function assertOperation(operation: HttpOperation, providerBaseUrl: string, loca
   if (serialized.length > 64_000) throw new Error(`${location} exceeds the maximum serialized size`);
 }
 
+/**
+ * 每条 mode 的**语义**不变量（与「这张卡从哪读来的」无关的那部分）。
+ *
+ * 为什么单独抽出来：说明卡有**两个生产者**——`compiler.ts`（抓文档 + AI 编译）和
+ * `builtinOpenAiCompatibleDraft.ts`（自建/内网端点走的内置模板）。此前只有前者调
+ * `validateProviderAdapterDraft`，后者一次都没调过，于是「参考类模式必须声明
+ * referenceParam/referenceShape」这条对内置模板**结构性失效**：image_edit 漏声明多年没人拦，
+ * 直到 2026-09-03 真中转实测才炸出来（认证探针注不进参考图 → 改图通道判死 → 界面反过来
+ * 告诉用户「这模型没有改图通道」）。声明缺失必须在**构建/测试期**大声失败，不是运行期静默。
+ *
+ * 内置模板天然不满足全量校验里的三条**出处/形状**约束，故它们留在 validateProviderAdapterDraft：
+ *   ① `sources.min(1)` / ② `sourceUrls.min(1)`：内置卡来自内置标准契约、不是从某页面读来的，
+ *      诚实留空（D4），不编造来源；
+ *   ③ `create` 的 `.strict()`：内置卡直接复用 catalog 的 op，带运行期键 `paramMap`
+ *      （中性参数→线缆字段翻译表，catalog/types.ts:450），AI 那条路不产出它。
+ * 除这三条外，两个生产者共用下面这一份。
+ */
+export function assertAdapterModeInvariants(
+  model: Pick<AdapterModelDraft, "modelKey" | "kind" | "modes">,
+): void {
+  const seenModes = new Set<ProfileKind>();
+  for (const mode of model.modes) {
+    if (seenModes.has(mode.taskKind)) throw new Error(`Duplicate mode ${model.modelKey}/${mode.taskKind}`);
+    seenModes.add(mode.taskKind);
+    if (taskKindToModelKind[mode.taskKind] !== model.kind) {
+      throw new Error(`Task ${mode.taskKind} does not match model kind ${model.kind}`);
+    }
+    if (referenceTaskKinds.has(mode.taskKind) && !mode.referenceParam) {
+      throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires referenceParam`);
+    }
+    if (referenceTaskKinds.has(mode.taskKind) && !mode.referenceShape) {
+      throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires referenceShape`);
+    }
+    if (mode.result && !mode.query) {
+      throw new Error(`Mode ${model.modelKey}/${mode.taskKind} declares result without query`);
+    }
+    if (model.kind !== "text") {
+      const resultKeys = new Set([
+        ...Object.keys(mode.create.response_mapping || {}),
+        ...Object.keys(mode.query?.response_mapping || {}),
+        ...Object.keys(mode.result?.response_mapping || {}),
+      ]);
+      // 先判「这个键运行时根本消费不了」，再判「有没有媒体产物映射」。顺序不能反：
+      // 写了个不支持的键时，用户要听的是「这个键不支持」，不是笼统的「缺媒体映射」。
+      // 全量校验里这条由 assertOperation 更早抛出，抽取时必须保住同一顺序（改反了会被
+      // validator.test.ts「rejects response mapping keys the runtime cannot consume」抓到）。
+      for (const key of resultKeys) {
+        if (!allowedResponseMappingKeys.has(key)) {
+          throw new Error(`${model.modelKey}.${mode.taskKind} uses unsupported response mapping key ${key}`);
+        }
+      }
+      const accepted = model.kind === "image"
+        ? ["assets", "image_url"]
+        : model.kind === "video"
+          ? ["assets", "video_url"]
+          : model.kind === "model3d"
+            ? ["assets", "model_url"]
+            : model.kind === "audio"
+              ? (mode.taskKind === "transcribe" ? ["text"] : ["assets", "audio_url"])
+              : ["assets"];
+      const declaredAudioBody = model.kind === "audio" && mode.taskKind !== "transcribe" && Boolean(mode.create.audioResponse);
+      if (!declaredAudioBody && !accepted.some((key) => resultKeys.has(key))) {
+        throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires a media result mapping`);
+      }
+    }
+  }
+}
+
 export function validateProviderAdapterDraft(
   input: unknown,
   options: { providerBaseUrl: string; selectedModelKeys: readonly string[] },
@@ -289,19 +357,9 @@ export function validateProviderAdapterDraft(
     if (!selected.has(model.modelKey)) throw new Error(`Model ${model.modelKey} was not selected by the user`);
     if (seenModels.has(model.modelKey)) throw new Error(`Duplicate model ${model.modelKey}`);
     seenModels.add(model.modelKey);
-    const seenModes = new Set<ProfileKind>();
+    // 语义不变量与内置模板共用同一份（见 assertAdapterModeInvariants 的注释）。
+    assertAdapterModeInvariants(model);
     for (const mode of model.modes) {
-      if (seenModes.has(mode.taskKind)) throw new Error(`Duplicate mode ${model.modelKey}/${mode.taskKind}`);
-      seenModes.add(mode.taskKind);
-      if (taskKindToModelKind[mode.taskKind] !== model.kind) {
-        throw new Error(`Task ${mode.taskKind} does not match model kind ${model.kind}`);
-      }
-      if (referenceTaskKinds.has(mode.taskKind) && !mode.referenceParam) {
-        throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires referenceParam`);
-      }
-      if (referenceTaskKinds.has(mode.taskKind) && !mode.referenceShape) {
-        throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires referenceShape`);
-      }
       for (const sourceUrl of mode.sourceUrls) {
         if (!sourceUrls.has(sourceUrl)) {
           throw new Error(`Mode ${model.modelKey}/${mode.taskKind} source URL was not discovered from the provider site`);
@@ -309,30 +367,7 @@ export function validateProviderAdapterDraft(
       }
       assertOperation(mode.create, parsed.provider.baseUrl, `${model.modelKey}.${mode.taskKind}.create`);
       if (mode.query) assertOperation(mode.query, parsed.provider.baseUrl, `${model.modelKey}.${mode.taskKind}.query`);
-      if (mode.result && !mode.query) {
-        throw new Error(`Mode ${model.modelKey}/${mode.taskKind} declares result without query`);
-      }
       if (mode.result) assertOperation(mode.result, parsed.provider.baseUrl, `${model.modelKey}.${mode.taskKind}.result`);
-      if (model.kind !== "text") {
-        const resultKeys = new Set([
-          ...Object.keys(mode.create.response_mapping || {}),
-          ...Object.keys(mode.query?.response_mapping || {}),
-          ...Object.keys(mode.result?.response_mapping || {}),
-        ]);
-        const accepted = model.kind === "image"
-          ? ["assets", "image_url"]
-          : model.kind === "video"
-            ? ["assets", "video_url"]
-            : model.kind === "model3d"
-              ? ["assets", "model_url"]
-              : model.kind === "audio"
-                ? (mode.taskKind === "transcribe" ? ["text"] : ["assets", "audio_url"])
-                : ["assets"];
-        const declaredAudioBody = model.kind === "audio" && mode.taskKind !== "transcribe" && Boolean(mode.create.audioResponse);
-        if (!declaredAudioBody && !accepted.some((key) => resultKeys.has(key))) {
-          throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires a media result mapping`);
-        }
-      }
       assertJsonShape(mode.statusMapping, `${model.modelKey}.${mode.taskKind}.statusMapping`);
       assertJsonShape(mode.testParams, `${model.modelKey}.${mode.taskKind}.testParams`);
     }

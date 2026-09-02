@@ -12,6 +12,7 @@
 // 后半段不打折：仍然拿真实请求验过才启用，不假设它能用。
 import { newapiImageEditProfileForModel, newapiTransportFor } from "../catalog/newapiTransport";
 import { canHostPublicDocs } from "./docsDiscovery";
+import { assertAdapterModeInvariants } from "./validator";
 import type { BillingModelKind, HttpOperation, Model, Vendor } from "../catalog/types";
 import type { AdapterAuthType, AdapterModeDraft, AdapterModelDraft, ProviderAdapterDraft } from "./types";
 import type { AiSdkProviderKind } from "../catalog/types";
@@ -169,13 +170,20 @@ export function buildOpenAiCompatibleDraft(input: {
         model.kind === "image" || model.kind === "video" || model.kind === "audio"
           ? toDraftParameters(newapiTransportFor(model.kind).params)
           : [];
-      return {
+      const draftModel: AdapterModelDraft = {
         modelKey: model.modelKey,
         labelZh: model.labelZh,
         kind: model.kind,
         ...(parameters.length > 0 ? { parameters } : {}),
         modes: modesForKind(model.kind, input.authType, input.providerKind, model.modelKey),
       };
+      // 与 AI 编译路走**同一份**语义校验（P1 不留第二套判断）。此前这条路一次都没被校验过，
+      // 「参考类模式必须声明 referenceParam/referenceShape」对它结构性失效 —— image_edit 漏声明
+      // 多年没人拦，直到真中转实测才炸。线缆契约的声明缺失必须在构建期大声失败，不是运行期静默。
+      // 出处类约束（sources/sourceUrls 非空）与 create 的 strict 形状不适用于内置卡，
+      // 理由写在 assertAdapterModeInvariants 的注释里。
+      assertAdapterModeInvariants(draftModel);
+      return draftModel;
     }),
   };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProviderAdapterDraft } from "./types";
-import { adapterRevisionDigest, validateProviderAdapterDraft } from "./validator";
+import { adapterRevisionDigest, assertAdapterModeInvariants, validateProviderAdapterDraft } from "./validator";
 
 const baseDraft = (): ProviderAdapterDraft => ({
   provider: {
@@ -341,6 +341,84 @@ describe("validateProviderAdapterDraft", () => {
       providerBaseUrl: "https://api.example.com/v1",
       selectedModelKeys: ["paint-v2"],
     })).toThrow(/boundary/i);
+  });
+});
+
+// 类级锁：说明卡有**两个生产者**（compiler 的 AI 编译路径、builtinOpenAiCompatibleDraft 的内置模板），
+// 语义不变量必须只有一份、两边都穿过。此前校验只挂在 AI 那条路上，内置模板一次都没被看过，
+// 于是「参考类模式必须声明 referenceParam/referenceShape」对它结构性失效——不是有人手滑漏写，
+// 是这条规则根本管不到那条路（2026-09-03 真中转实测挖出，见同名根因合同）。
+describe("assertAdapterModeInvariants（两个生产者共用的那一份）", () => {
+  const referenceMode = (taskKind: "image_edit" | "image_to_video" | "image_to_audio" | "image_to_3d") => ({
+    image_edit: { kind: "image" as const, path: "/v1/images/edits", mapping: { image_url: "url" } },
+    image_to_video: { kind: "video" as const, path: "/v1/video/generations", mapping: { video_url: "url" } },
+    image_to_audio: { kind: "audio" as const, path: "/v1/audio/speech", mapping: { audio_url: "url" } },
+    image_to_3d: { kind: "model3d" as const, path: "/v1/3d/generations", mapping: { model_url: "url" } },
+  })[taskKind];
+
+  // 全集以 validator.ts 的 referenceTaskKinds 为准；四种都锁，防止将来加了第五种却漏挂。
+  for (const taskKind of ["image_edit", "image_to_video", "image_to_audio", "image_to_3d"] as const) {
+    const shape = referenceMode(taskKind);
+
+    it(`${taskKind} 缺 referenceParam 必须当场抛（不许留到运行期静默失败）`, () => {
+      expect(() =>
+        assertAdapterModeInvariants({
+          modelKey: "m-1",
+          kind: shape.kind,
+          modes: [{
+            taskKind,
+            create: { method: "POST", path: shape.path, response_mapping: shape.mapping },
+            referenceShape: "array",
+            sourceUrls: [],
+          }],
+        }),
+      ).toThrow(/requires referenceParam/);
+    });
+
+    it(`${taskKind} 缺 referenceShape 必须当场抛`, () => {
+      expect(() =>
+        assertAdapterModeInvariants({
+          modelKey: "m-1",
+          kind: shape.kind,
+          modes: [{
+            taskKind,
+            create: { method: "POST", path: shape.path, response_mapping: shape.mapping },
+            referenceParam: "reference_images",
+            sourceUrls: [],
+          }],
+        }),
+      ).toThrow(/requires referenceShape/);
+    });
+  }
+
+  // 非参考类模式不受这条约束——别把闸门开得比规则宽（那会逼着 text_to_image 也编一个参考键）。
+  it("非参考类模式不要求参考声明（闸门不许比规则更宽）", () => {
+    expect(() =>
+      assertAdapterModeInvariants({
+        modelKey: "m-1",
+        kind: "image",
+        modes: [{
+          taskKind: "text_to_image",
+          create: { method: "POST", path: "/v1/images/generations", response_mapping: { image_url: "url" } },
+          sourceUrls: [],
+        }],
+      }),
+    ).not.toThrow();
+  });
+
+  // 抽取时差点改坏的那条顺序：先说「这个键不支持」，而不是笼统的「缺媒体映射」。
+  it("不支持的响应映射键先于「缺媒体映射」报出（错误顺序不许被抽取改掉）", () => {
+    expect(() =>
+      assertAdapterModeInvariants({
+        modelKey: "m-1",
+        kind: "image",
+        modes: [{
+          taskKind: "text_to_image",
+          create: { method: "POST", path: "/v1/images/generations", response_mapping: { totally_unknown: "url" } },
+          sourceUrls: [],
+        }],
+      }),
+    ).toThrow(/unsupported response mapping key/);
   });
 });
 
