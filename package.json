@@ -216,4 +216,138 @@
     "xlsx": "^0.18.5",
     "zod": "^3.25.76",
     "zod-to-json-schema": "3.25.1",
-
+    "zustand": "^4.5.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@mastra/core": "^1.45.0",
+    "@playwright/test": "1.60.0",
+    "@types/node": "22.19.17",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "@types/three": "^0.184.1",
+    "@vitejs/plugin-react": "^5.2.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "autoprefixer": "^10.5.0",
+    "dependency-cruiser": "18.2.0",
+    "electron": "43.4.1",
+    "electron-builder": "26.15.3",
+    "eslint": "^10.4.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "fast-check": "^4.8.0",
+    "globals": "^17.6.0",
+    "js-yaml": "4.1.1",
+    "playwright": "^1.60.0",
+    "postcss": "^8.5.15",
+    "prettier": "^3.8.3",
+    "tailwindcss": "3",
+    "tsx": "^4.22.3",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.60.1",
+    "vite": "^7.3.5",
+    "vitest": "^4.1.8"
+  },
+  "build": {
+    "appId": "com.nomi.app",
+    "productName": "Nomi",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "afterPack": "scripts/after-pack-mac.cjs",
+    "asarUnpack": [
+      "node_modules/@ffmpeg-installer/**",
+      "node_modules/.pnpm/@ffmpeg-installer+*/**",
+      "node_modules/@ffprobe-installer/**",
+      "node_modules/.pnpm/@ffprobe-installer+*/**"
+    ],
+    "icon": "build/icon.png",
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "public/**",
+      "resources/**",
+      "skills/**",
+      "build/icon.png",
+      "build/icon.ico"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "dmg",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "identity": null
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "publish": {
+      "provider": "github",
+      "releaseType": "release"
+    },
+    "artifactName": "${productName}-${os}-${arch}.${ext}"
+  },
+  "pnpm": {
+    "overrides": {
+      "@earendil-works/pi-agent-core": "0.84.3",
+      "@earendil-works/pi-ai": "0.84.3",
+      "@earendil-works/pi-client": "0.84.3",
+      "@earendil-works/pi-coding-agent": "0.84.3",
+      "@earendil-works/pi-protocol": "0.84.3",
+      "@earendil-works/pi-tui": "0.84.3"
+    },
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "@ffmpeg-installer/darwin-arm64",
+      "@ffmpeg-installer/darwin-x64",
+      "@ffmpeg-installer/linux-x64",
+      "@ffmpeg-installer/win32-x64",
+      "@ffprobe-installer/darwin-arm64",
+      "@ffprobe-installer/darwin-x64",
+      "@ffprobe-installer/linux-x64",
+      "@ffprobe-installer/win32-x64"
+    ],
+    "ignoredBuiltDependencies": [
+      "@ffmpeg-installer/darwin-arm64",
+      "@ffprobe-installer/darwin-arm64"
+    ]
+  }
+}
