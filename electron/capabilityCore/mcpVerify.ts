@@ -17,6 +17,7 @@ import {
   MCP_CONFIG_KIND_ENV,
   MCP_CONFIG_VERSION_ENV,
   configuredMcpEntry,
+  listCustomMcpProfiles,
   mcpServerEntry,
   type McpClientKey,
 } from './mcpConfig'
@@ -57,7 +58,9 @@ function fail(reason: McpVerifyReason, stale: boolean, detail = ''): McpVerifyRe
  * 用户点开接入面板就跑（打包版实测 ~0.5s），失败时 UI 直接给「配置已失效 · 重新接入」。
  */
 export async function verifyMcp(client?: string): Promise<McpVerifyResult> {
-  const key: McpClientKey = client === 'codex' || client === 'cursor' ? client : 'claude'
+  const key: McpClientKey = client && (client === 'codex' || client === 'cursor' || listCustomMcpProfiles().some((p) => p.key === client))
+    ? client
+    : 'claude'
   const entry = configuredMcpEntry(key)
   if (!entry) return fail('not-installed', false)
 

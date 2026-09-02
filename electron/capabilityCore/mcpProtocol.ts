@@ -73,6 +73,11 @@ export interface McpTransport {
   confirmGenerationInNomi?(challenge: GenerationGateChallengeProjection): Promise<boolean | GenerationGateVerificationResult>
   /** 结果/进度文案语言（可选；缺省 zh-CN，跟 App 语言设置走）。 */
   getLocale?(): ResultLocale
+  /**
+   * 未签名的外部客户端（clientHost === 'external'）自报了名字时回调——用于自动检测并登记到 profile 列表。
+   * 只传自报名字（rawName），登记逻辑在 recordDetectedMcpClient（mcpDetectedClients.ts），HMAC 安全模型不受影响。
+   */
+  onClientDetected?(name: string): void
 }
 
 const PROTOCOL_VERSION = '2025-11-25'
@@ -331,14 +336,10 @@ export function createMcpProtocol(transport: McpTransport) {
 
     if (method === 'initialize') {
       clientSupportsElicitation = Boolean(params?.capabilities && (params.capabilities as Record<string, unknown>).elicitation)
-      const clientName = String((params?.clientInfo as Record<string, unknown> | undefined)?.name || '').toLowerCase()
-      clientHost = clientName.includes('codex')
-        ? 'codex'
-        : clientName.includes('claude')
-          ? 'claude'
-          : clientName.includes('cursor')
-            ? 'cursor'
-            : 'external'
+      const rawName = String((params?.clientInfo as Record<string, unknown> | undefined)?.name || '').trim()
+      const clientName = rawName.toLowerCase()
+      clientHost = ['codex', 'claude', 'cursor'].find((host) => clientName.includes(host)) ?? 'external'
+      if (clientHost === 'external' && rawName) transport.onClientDetected?.(rawName)
       // 版本交集协商：不支持的版本回 -32602。
       const requested = params?.protocolVersion
       if (requested !== undefined && requested !== null && typeof requested !== 'string') {
