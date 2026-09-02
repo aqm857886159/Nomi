@@ -3,16 +3,8 @@
   "version": "1.0.0",
   "description": "Connect HTTP models or a native ComfyUI workflow through Nomi's verified certification path.",
   "tools": [
-    "nomi_integration_begin",
-    "nomi_integration_open_credentials",
-    "nomi_integration_discover",
-    "nomi_integration_select",
-    "nomi_integration_request_confirmation",
-    "nomi_integration_submit_workflow",
-    "nomi_integration_resolve_input",
-    "nomi_integration_start",
-    "nomi_integration_get",
-    "nomi_integration_cancel"
+    "nomi_integration",
+    "nomi_read"
   ],
   "requiredProviders": ["text", "image", "video"],
   "permissions": ["read-only", "create"],

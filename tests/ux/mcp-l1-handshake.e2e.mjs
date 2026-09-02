@@ -73,13 +73,13 @@ async function main() {
     // unknown-tool-probe：故意调不存在的工具验 -32602，不是忘了跟进面收敛（见 check:mcp-tool-refs）。
     const unknown = await mcp.rpc('tools/call', { name: 'nomi_not_a_real_tool', arguments: {} }, 10_000)
     check(unknown.error?.code === -32602, 'C3 unknown tool returns -32602')
-    // 面收敛：nomi_add_nodes → nomi_canvas_edit(action=add_nodes)。空 nodes 仍触发 schema 校验拒绝。
+    // nomi_canvas_edit(action=add_nodes)：空 nodes 仍触发 schema 校验拒绝。
     const badArgs = await mcp.rpc('tools/call', { name: 'nomi_canvas_edit', arguments: { action: 'add_nodes', nodes: [] } }, 10_000)
     check(badArgs.result?.isError === true, 'C3 invalid tool arguments return isError')
     check(badArgs.result?.structuredContent?.nomiOutcome?.errorCode === 'capability_input_invalid', 'C3 invalid arguments include diagnostic code')
 
     // C4 · cancel a real long-poll call and require no response for that request.
-    // 面收敛：nomi_create_project→nomi_project_create；nomi_start_playbook→nomi_run_start；nomi_subscribe_run→nomi_read(target=run_events)。
+    // 建项目/起 Run/长轮询全走收敛面：nomi_project_create / nomi_run_start / nomi_read(target=run_events)。
     const project = await mcp.callTool('nomi_project_create', { name: 'MCP L1 cancellation fixture' }, { timeoutMs: 10_000 })
     const projectId = parseToolResult(project).json?.id || parseToolResult(project).json?.projectId || ''
     const started = await mcp.callTool('nomi_run_start', {

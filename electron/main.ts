@@ -55,6 +55,8 @@ import { registerVideoIpc } from "./video/videoIpc";
 import { registerTikhubConnectorIpc } from "./connectors/tikhubConnectorIpc";
 import { desktopT, registerI18nIpc, setDesktopLocale } from "./i18n";
 import { registerSettingsIpc } from "./settings/registerSettingsIpc";
+import { registerIntegrationHandoffIpc } from "./integrationCertification/handoffQueue";
+import { registerIntegrationSessionIpc } from "./integrationCertification/integrationSessionIpc";
 import { registerProductionRunIpc } from "./productionRun/productionRunIpc";
 import { registerProductionActionIpc } from "./productionRun/productionActionIpc";
 import { installProductionRunDesktopLifecycle } from "./productionRun/productionRunDesktopLifecycle";
@@ -530,6 +532,11 @@ function registerIpc(): void {
     }),
   });
   registerI18nIpc();
+  // 会话式模型接入的可信渲染层交接（凭据保存/确认/handoff 队列）。0b6441c6 移植时这两行被误删，而
+  // preload 与 OnboardingWizard/IntegrationConfirmationPanel 仍调这些通道（No handler registered）；
+  // model-integration-trusted-audio.e2e 抓到后按根因恢复注册。
+  registerIntegrationHandoffIpc();
+  registerIntegrationSessionIpc();
   // 渲染层崩溃（RootErrorBoundary）也落到同一崩溃日志（P0-8）。
   ipcMain.on("nomi:log:renderer-crash", (_event, message: unknown) => logCrash("renderer", String(message)));
   // 窗口控制（Windows 自绘标题栏）：只注册一次，作用于发起请求的那个窗口（fromWebContents），

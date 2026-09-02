@@ -182,7 +182,7 @@ function crc32(buf) {
 /**
  * Write an ISOLATED synthetic model catalog into settingsDir/model-catalog.json.
  * Shapes it for J-MCP1 step (e): a usable no-key mock vendor (authType none → keyStatus ok) exposing an
- * image and a video model, PLUS a real no-key vendor kept enabled so nomi_list_models must flag it
+ * image and a video model, PLUS a real no-key vendor kept enabled so nomi_read(target=models) must flag it
  * not-usable (keyStatus missing) rather than hide it. Each media row carries explicit verified publication
  * evidence, matching the production catalog invariant; mockOrigin points the mock vendor at the loopback
  * server so runTask's fallback path reaches it.

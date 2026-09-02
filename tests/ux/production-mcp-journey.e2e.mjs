@@ -69,7 +69,7 @@ async function initializeMcp() {
 const callTool = (name, args) => mcp.callToolOrThrow(name, args, { timeoutMs: 40_000 })
 
 async function getRunData(projectId, runId) {
-  const result = await callTool('nomi_get_run', { projectId, runId })
+  const result = await callTool('nomi_read', { target: 'run', projectId, runId })
   return result.structuredContent?.nomiRunData
 }
 
@@ -148,11 +148,11 @@ try {
   mcp = spawnMcpStdioClient({ ...mcpDirs, clientInfo: mcpClientInfo, capabilities: mcpCapabilities, env: mcpEnv })
   await initializeMcp()
   const tools = (await mcp.rpc('tools/list', {}, 20_000)).result?.tools || []
-  // 期望清单从目录源 derive（mcpToolCatalog = 自身条目 + spread 进来的 mcpGenerationTools 条目），
+  // 期望清单从**已构建的目录源** derive（MCP_TOOL_RESOLVER 就是 tools/list 用的同一份快照——单一真相，
+  // 面收敛后 name 字面量散在多个文件+capability 投影里，regex 扫源文件会漏播 session_open 与 M2 编辑工具），
   // 断言集合相等：漏播/多播都抓得住，目录再长这里也不会烂成过期死数。
-  const catalogNames = ['mcpToolCatalog.ts', 'mcpGenerationTools.ts', 'mcpIntegrationTools.ts']
-    .flatMap((file) => [...fs.readFileSync(path.join(repoRoot, 'electron/capabilityCore', file), 'utf8').matchAll(/\bname:\s*["'](nomi_[a-z0-9_]+)["']/g)]
-      .map((match) => match[1]))
+  const catalogNames = require(path.join(repoRoot, 'dist-electron/capabilityCore/mcpToolCatalog.js'))
+    .MCP_TOOL_RESOLVER.list().map((tool) => tool.name)
   const stdioNames = tools.map((tool) => tool.name)
   const missing = catalogNames.filter((name) => !stdioNames.includes(name))
   const extra = stdioNames.filter((name) => !catalogNames.includes(name))
@@ -160,20 +160,20 @@ try {
     catalogNames.length > 0 && missing.length === 0 && extra.length === 0,
     `real MCP stdio exposes the exact ${catalogNames.length}-tool catalog (missing: ${missing.join(', ') || 'none'}; extra: ${extra.join(', ') || 'none'})`,
   )
-  for (const name of [
-    'nomi_start_playbook', 'nomi_get_run', 'nomi_subscribe_run', 'nomi_get_artifact',
-    'nomi_read_artifact', 'nomi_review_artifact', 'nomi_materialize_storyboard',
-  ]) {
+  // 面收敛：Run 旅程的整套动词并进 4 个对象工具（读侧统一 nomi_read）。
+  for (const name of ['nomi_run_start', 'nomi_read', 'nomi_artifact_review', 'nomi_run_gate']) {
     check(tools.some((tool) => tool.name === name), `${name} is registered over real stdio`)
   }
 
   const resources = (await mcp.rpc('resources/list', {}, 20_000)).result?.resources || []
-  const directorResource = resources.find((resource) => resource.uri === 'nomi-skill://director-cinematography')
+  // Host cutover content-addresses skill resources: nomi-skill://<dir>/<packageVersion>/<contentHash>.
+  // Match by directory-name prefix and read via the returned uri (same as packaged-mcp-smoke).
+  const directorResource = resources.find((resource) => resource.uri.startsWith('nomi-skill://director-cinematography/'))
   check(Boolean(directorResource), 'director cinematography skill is discoverable through MCP resources')
   const director = (await mcp.rpc('resources/read', { uri: directorResource.uri }, 20_000)).result?.contents?.[0]?.text || ''
   check(director.includes('镜头语言') && director.length > 1_000, 'director skill body can be loaded progressively over MCP')
 
-  const started = await callTool('nomi_start_playbook', {
+  const started = await callTool('nomi_run_start', {
     projectId,
     playbook: 'brand.promo',
     trustLevel: 'confirm_all',
@@ -196,7 +196,7 @@ try {
   await window.screenshot({ path: path.join(shotsDir, '01-direction-gate.png') })
 
   // B1/B5 方向门三选一（获批样张贰幕）：MCP 投影带候选 → GUI 渲染可点 → 选中留痕。
-  const atDirection = (await callTool('nomi_get_run', { projectId, runId })).structuredContent.nomiRunData
+  const atDirection = (await callTool('nomi_read', { target: 'run', projectId, runId })).structuredContent.nomiRunData
   const directionGate = atDirection.gates.find((gate) => gate.gateId === 'gate-direction-v1')
   check(directionGate?.directionCandidates?.length === 3, 'direction gate projects three LLM-planned candidates over MCP')
   check(directionGate.directionCandidates.some((candidate) => candidate.key === 'kinetic'), 'candidate keys survive the safe projection')
@@ -217,29 +217,30 @@ try {
   check(decidedDirection?.decidedChoiceKey === 'kinetic', 'approval records the chosen direction as decidedChoiceKey')
   const scriptArtifact = run.artifacts.find((artifact) => artifact.kind === 'script')
   check(Boolean(scriptArtifact) && !run.artifacts.some((artifact) => artifact.kind === 'storyboard'), 'direction approval produces a durable script candidate before any storyboard')
-  await callTool('nomi_review_artifact', {
+  await callTool('nomi_artifact_review', {
     projectId,
     runId,
     artifactId: scriptArtifact.artifactId,
     expectedVersion: scriptArtifact.version || 1,
-    decision: 'approved',
+    action: 'approve',
   })
   run = await waitForRunStatus(projectId, runId, 'awaiting_storyboard_review')
   check(run.artifacts.some((artifact) => artifact.kind === 'storyboard'), 'script approval produces the durable storyboard candidate')
-  const events = await callTool('nomi_subscribe_run', { projectId, runId, afterCursor: 0, waitMs: 0 })
+  const events = await callTool('nomi_read', { target: 'run_events', projectId, runId, afterCursor: 0, waitMs: 0 })
   check(events.structuredContent?.nomiRunData?.events?.some((event) => event.type === 'skill.loaded'), 'MCP event stream exposes durable skill evidence')
 
   const storyboardArtifact = run.artifacts.find((artifact) => artifact.kind === 'storyboard')
-  await callTool('nomi_review_artifact', {
+  await callTool('nomi_artifact_review', {
     projectId,
     runId,
     artifactId: storyboardArtifact.artifactId,
     expectedVersion: storyboardArtifact.version || 1,
-    decision: 'approved',
+    action: 'approve',
   })
-  const materialized = await callTool('nomi_materialize_storyboard', {
+  const materialized = await callTool('nomi_run_gate', {
     projectId,
     runId,
+    action: 'materialize',
     artifactId: storyboardArtifact.artifactId,
     expectedVersion: storyboardArtifact.version || 1,
   })
@@ -321,7 +322,7 @@ try {
   const exportArtifact = run.artifacts.find((artifact) => artifact.kind === 'export')
   check(Boolean(exportArtifact?.artifactId), 'completed Run exposes a scoped export artifact identity')
 
-  const artifactResult = await callTool('nomi_get_artifact', { projectId, runId, artifactId: exportArtifact.artifactId })
+  const artifactResult = await callTool('nomi_read', { target: 'artifact', projectId, runId, artifactId: exportArtifact.artifactId })
   const serializedArtifact = JSON.stringify(artifactResult)
   const artifactData = artifactResult.structuredContent?.nomiRunData
   check(artifactData.nomiUri === `nomi://project/${projectId}/run/${runId}/artifact/${exportArtifact.artifactId}`, 'MCP returns a scoped nomiUri for the final export')

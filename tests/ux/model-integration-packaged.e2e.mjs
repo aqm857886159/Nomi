@@ -17,7 +17,8 @@ async function run() {
     first = spawnModelIntegrationMcp({ dirs, client: 'codex', signed: true })
     await first.initialize()
     const firstDraft = parseToolResult(
-      await first.callTool('nomi_integration_begin', {
+      await first.callTool('nomi_integration', {
+        action: 'begin',
         kind: 'http-api-provider',
         name: 'Packaged restart draft',
         baseUrl: 'https://example.invalid/v1',
@@ -32,7 +33,8 @@ async function run() {
     const sessionId = firstDraft.json.id
     const revision = firstDraft.json.revision
     const duplicate = parseToolResult(
-      await first.callTool('nomi_integration_begin', {
+      await first.callTool('nomi_integration', {
+        action: 'begin',
         kind: 'http-api-provider',
         name: 'Packaged restart draft',
         baseUrl: 'https://example.invalid/v1',
@@ -47,7 +49,7 @@ async function run() {
 
     second = spawnModelIntegrationMcp({ dirs, client: 'codex', signed: true, runtime: first.runtime })
     await second.initialize()
-    const afterRestart = parseToolResult(await second.callTool('nomi_integration_get', { sessionId }))
+    const afterRestart = parseToolResult(await second.callTool('nomi_read', { target: 'integration', sessionId }))
     assert(!afterRestart.isError && afterRestart.json?.id === sessionId, 'fresh MCP process reads the same session')
     assert(afterRestart.json?.revision === revision, 'fresh-process readback preserves revision')
     assert(afterRestart.json?.stage === 'needs_credential', 'fresh-process readback preserves unverified stage')
