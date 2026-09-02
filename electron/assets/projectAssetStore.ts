@@ -493,25 +493,123 @@ type RemoteAssetImportOptions = {
 };
 
 /**
- * Sanitize a caller-supplied source-evidence record into the connector provenance
- * shape (docs/plan/2026-09-01-tikhub-connector-v1.md). Only whitelisted fields
- * survive so an untrusted payload cannot smuggle arbitrary metadata into the
- * sidecar. rightsStatus is pinned to 'unknown': connector-ingested media is never
- * inferred to be commercially usable.
+ * 合法的 UsageStatus 枚举值（与 connectorDefinition.ts 中定义保持同步）。
+ * 用于 sanitizeSourceEvidence 中的白名单校验。
+ */
+const VALID_USAGE_STATUSES = new Set([
+  "reference_only",
+  "rights_unknown",
+  "requires_attribution",
+  "cleared",
+  "restricted",
+] as const);
+
+/**
+ * 合法的 IntendedRole 枚举值（与 connectorDefinition.ts 中定义保持同步）。
+ */
+const VALID_INTENDED_ROLES = new Set([
+  "character_reference",
+  "scene_reference",
+  "style_reference",
+  "background",
+  "sound_effect",
+  "music",
+  "voiceover",
+  "footage",
+  "other",
+] as const);
+
+/**
+ * Sanitize a caller-supplied source-evidence record into the provenance shape
+ * (docs/plan/2026-09-03-creative-resource-chain-epic.md P0-1).
+ *
+ * 三类来源：
+ *   · connector  : 经 ConnectorDefinition 摄取；必须有 connectorId；
+ *                  旧 sidecar 的 rightsStatus:"unknown" 自动迁移成 usageStatus:"rights_unknown"。
+ *   · browser    : 用户从浏览器手工导入；usageStatus 强制为 reference_only（诚实默认）。
+ *   · user       : 用户从本地文件导入；usageStatus 强制为 reference_only。
+ *
+ * 只有白名单字段能穿越到 sidecar，防止 untrusted payload 污染。
+ * 新写入路径必须带 usageStatus，缺失时按 source 类型降到最保守的默认值（fail-closed）。
  */
 export function sanitizeSourceEvidence(raw: unknown): JsonRecord | undefined {
-  if (!isJsonRecord(raw) || raw.source !== "connector") return undefined;
-  const connectorId = String(raw.connectorId || "").trim();
-  if (!connectorId) return undefined;
-  return {
-    source: "connector",
-    connectorId,
-    originalUrl: String(raw.originalUrl || "").trim(),
-    resolvedUrl: String(raw.resolvedUrl || "").trim(),
-    platform: String(raw.platform || "").trim(),
-    rightsStatus: "unknown",
-    fetchedAt: String(raw.fetchedAt || "").trim() || nowIso(),
-  };
+  if (!isJsonRecord(raw)) return undefined;
+  const source = String(raw.source || "").trim();
+
+  // ── connector 来源 ───────────────────────────────────────────────────────
+  if (source === "connector") {
+    const connectorId = String(raw.connectorId || "").trim();
+    if (!connectorId) return undefined;
+
+    // 旧 sidecar 迁移：rightsStatus:"unknown" → usageStatus:"rights_unknown"
+    let usageStatus: string = "rights_unknown";
+    if (raw.usageStatus && VALID_USAGE_STATUSES.has(raw.usageStatus as never)) {
+      usageStatus = String(raw.usageStatus);
+    } else if (raw.rightsStatus === "unknown") {
+      usageStatus = "rights_unknown";
+    }
+
+    const result: JsonRecord = {
+      source: "connector",
+      connectorId,
+      originalUrl: String(raw.originalUrl || "").trim(),
+      resolvedUrl: String(raw.resolvedUrl || "").trim(),
+      platform: String(raw.platform || "").trim(),
+      usageStatus,
+      fetchedAt: String(raw.fetchedAt || "").trim() || nowIso(),
+    };
+    // 可选扩展字段（白名单）
+    if (raw.creator) result.creator = String(raw.creator).trim();
+    if (raw.licenseId) result.licenseId = String(raw.licenseId).trim();
+    if (raw.licenseUrl) result.licenseUrl = String(raw.licenseUrl).trim();
+    if (raw.attribution) result.attribution = String(raw.attribution).trim();
+    if (isJsonRecord(raw.licenseSnapshot)) {
+      const snap: JsonRecord = { termsUrl: String(raw.licenseSnapshot.termsUrl || "").trim(), checkedAt: String(raw.licenseSnapshot.checkedAt || "").trim() };
+      if (raw.licenseSnapshot.termsHash) snap.termsHash = String(raw.licenseSnapshot.termsHash).trim();
+      result.licenseSnapshot = snap;
+    }
+    if (Array.isArray(raw.intendedRoles)) {
+      result.intendedRoles = raw.intendedRoles.filter((r) => VALID_INTENDED_ROLES.has(r as never));
+    }
+    return result;
+  }
+
+  // ── browser 来源 ─────────────────────────────────────────────────────────
+  if (source === "browser") {
+    const pageUrl = String(raw.pageUrl || "").trim();
+    const capturedAt = String(raw.capturedAt || "").trim() || nowIso();
+    // 浏览器导入：usageStatus 强制为 reference_only（诚实默认，没核实过许可不能当作可商用）
+    const result: JsonRecord = {
+      source: "browser",
+      pageUrl,
+      capturedAt,
+      usageStatus: "reference_only",
+    };
+    if (raw.creator) result.creator = String(raw.creator).trim();
+    if (raw.licenseId) result.licenseId = String(raw.licenseId).trim();
+    if (raw.licenseUrl) result.licenseUrl = String(raw.licenseUrl).trim();
+    if (Array.isArray(raw.intendedRoles)) {
+      result.intendedRoles = raw.intendedRoles.filter((r) => VALID_INTENDED_ROLES.has(r as never));
+    }
+    return result;
+  }
+
+  // ── user（本地文件）来源 ─────────────────────────────────────────────────
+  if (source === "user") {
+    // 本地文件导入：usageStatus 强制为 reference_only（来源不明，不推断可商用）
+    const result: JsonRecord = {
+      source: "user",
+      capturedAt: String(raw.capturedAt || "").trim() || nowIso(),
+      usageStatus: "reference_only",
+    };
+    if (raw.creator) result.creator = String(raw.creator).trim();
+    if (Array.isArray(raw.intendedRoles)) {
+      result.intendedRoles = raw.intendedRoles.filter((r) => VALID_INTENDED_ROLES.has(r as never));
+    }
+    return result;
+  }
+
+  return undefined;
 }
 
 export async function importRemoteAsset(payload: unknown, options: RemoteAssetImportOptions = {}): Promise<unknown> {
