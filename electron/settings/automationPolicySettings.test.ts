@@ -33,10 +33,12 @@ describe("automation policy settings", () => {
     expect(readAutomationPolicySettings()).toEqual(DEFAULT_AUTOMATION_POLICY_SETTINGS);
   });
 
-  it("normalizes modes, strips unknown hosts, and preserves mandatory gates", () => {
+  it("normalizes modes, strips malformed hosts, and preserves mandatory gates", () => {
+    // 泛化（方案 A）：合法形状的任意 MCP host key 都保留（内置 + 自定义 profile）；
+    // 只有非法形状（含空格/大写/特殊字符）才被剥离。
     expect(normalizeAutomationPolicySettings({
       mode: "anything",
-      trustedHosts: ["codex", "evil", "codex", "cursor"],
+      trustedHosts: ["codex", "Evil Host!", "codex", "cursor"],
       confirmFirstSpend: false,
       confirmIrreversible: false,
       maxAttemptsPerJob: 99,
@@ -47,6 +49,12 @@ describe("automation policy settings", () => {
       confirmIrreversible: true,
       maxAttemptsPerJob: 10,
     });
+  });
+
+  it("preserves a valid custom MCP host key in trustedHosts", () => {
+    expect(normalizeAutomationPolicySettings({
+      trustedHosts: ["nomi", "workbuddy"],
+    }).trustedHosts).toEqual(["nomi", "workbuddy"]);
   });
 
   it("normalizes notification, automation, privacy, and spend values", () => {

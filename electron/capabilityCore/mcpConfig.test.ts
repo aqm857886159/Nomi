@@ -19,10 +19,13 @@ import {
   MCP_CONFIG_VERSION,
   MCP_CONFIG_VERSION_ENV,
   installMcp,
+  listCustomMcpProfiles,
   packagedMcpLauncherAvailable,
   readMcpInfo,
+  registerCustomMcpProfile,
   uninstallMcp,
 } from './mcpConfig'
+import { recordDetectedMcpClient } from './mcpDetectedClients'
 import {
   MCP_CLIENT_ENV,
   MCP_CLIENT_PROOF_ENV,
@@ -342,5 +345,29 @@ describe('capabilityCore/mcpConfig', () => {
     const info = readMcpInfo(0)
     expect(info.clients.claude).toMatchObject({ configState: 'custom', migration: 'none' })
     expect(fs.readFileSync(claudeJson(), 'utf8')).toBe(original)
+  })
+})
+
+describe('custom MCP client profiles', () => {
+  it('records a detected external client with a derived key and empty path', () => {
+    recordDetectedMcpClient('WorkBuddy')
+    const profiles = listCustomMcpProfiles()
+    expect(profiles).toHaveLength(1)
+    expect(profiles[0]).toMatchObject({ key: 'workbuddy', label: 'WorkBuddy', detected: true, configPath: '' })
+  })
+
+  it('is idempotent for repeated detection of the same name', () => {
+    recordDetectedMcpClient('WorkBuddy')
+    recordDetectedMcpClient('WorkBuddy')
+    expect(listCustomMcpProfiles()).toHaveLength(1)
+  })
+
+  it('does not overwrite an already-registered profile with the same key', () => {
+    const configuredPath = path.join(homeDir, 'wb.json')
+    registerCustomMcpProfile({ key: 'workbuddy', label: 'WorkBuddy', format: 'json', configPath: configuredPath })
+    recordDetectedMcpClient('WorkBuddy')
+    const profiles = listCustomMcpProfiles()
+    expect(profiles).toHaveLength(1)
+    expect(profiles[0]).toMatchObject({ detected: false, configPath: configuredPath })
   })
 })

@@ -14,6 +14,7 @@ const taskCenterSource = readCode(path.join(process.cwd(), 'src/workbench/taskCe
 const studioSource = readCode(path.join(process.cwd(), 'src/workbench/NomiStudioApp.tsx'))
 const controllerSource = readCode(path.join(process.cwd(), 'src/workbench/settings/useSettingsDialogController.ts'))
 const aboutSource = readCode(path.join(process.cwd(), 'src/workbench/settings/AboutSection.tsx'))
+const automationSource = readCode(path.join(process.cwd(), 'src/workbench/settings/AutomationPermissionsSection.tsx'))
 const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 
 // 这张表锁的是「别无意间改动了这几块」。**有意的、已拍板的改动就该更新基线**，
@@ -26,6 +27,8 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 //             对应正向断言仍锁定实际渲染条件，避免只挪哈希掩盖配置入口变化。
 // 2026-09-01：AboutSection 增加反馈与分享入口，更新其基线；对应正向断言见 AboutSection 自身的
 //             dispatch 逻辑，避免把用户已拍板的入口误报为意外漂移。
+// 2026-09-01：AutomationPermissionsSection 新增「自定义 MCP 客户端」卡（任意 MCP stdio 工具接入），
+//             更新其基线；对应正向断言见下方 mounts the custom MCP client card 那条。
 // 2026-09-01（二）：反馈与分享改为**内嵌在设置弹窗内**（原 dispatch+关设置 会冒成独立浮层，
 //             用户反馈「点开变成独立框」）。AboutSection 现在切内嵌视图并渲染 FeedbackShareContent，
 //             故再次更新其基线；对应正向断言见下方 embeds feedback and sharing inside the About section。
@@ -37,7 +40,7 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 const MAIN_NON_MODEL_SECTION_SHA256 = {
   'ProjectLocationSection.tsx': 'ad37c2f07c403b60cf42385f4d93fce8e2ff494c934467c670a7ae4b8c8d5523',
   'AiModelsSection.tsx': 'f05b4e11bdeb83ef04b6b40d84e4fdfe275de41e06511163c8ee1be87b3240c8',
-  'AutomationPermissionsSection.tsx': 'a0ea704afb1a31c33ffa3e00821658d8696cc15d5069e6361032b194e638b352',
+  'AutomationPermissionsSection.tsx': '14c5602939d38da1d899efad4d0bf8c0ec0c1559519a9fe58eb252e9018bc497',
   'CanvasGestureSection.tsx': '3cf19ee35f686e76b54497ff668bb91245b00a6593bc5d5d6162a0d30c476c95',
   'AboutSection.tsx': 'b38e0e2265f29ca56da53595e4bb5886bd14799ea3a7f7f36797b33d46eda57f',
 } as const
@@ -167,6 +170,14 @@ describe('settings dialog structure', () => {
       const source = fs.readFileSync(path.join(settingsDirectory, fileName), 'utf8').replaceAll('\r\n', '\n')
       expect(createHash('sha256').update(source).digest('hex'), fileName).toBe(expectedHash)
     }
+  })
+
+  // 2026-09-01：自动化页 MCP 二级页新增「自定义 MCP 客户端」卡——把「客户端身份」从硬编码三值
+  // 泛化成可注册 profile 的入口。上面的哈希锁只防无意漂移，这条正向断言锁「接入入口真的挂上去了」。
+  it('mounts the custom MCP client card in the automation MCP page', () => {
+    expect(automationSource).toContain('CustomMcpClientCard')
+    expect(automationSource).toContain('listCustomMcpProfiles')
+    expect(automationSource).toContain('onToggleTrust={toggleHost}')
   })
 
   it('shares one gesture preference between settings and both canvases', () => {

@@ -22,10 +22,25 @@ const TOKEN_FILE = 'token'
 const KEY_DIR = 'keys'
 const MCP_CLIENT_PROOF_CONTEXT = 'nomi-mcp-client:v1'
 
-export type AuthenticatedMcpClient = 'claude' | 'codex' | 'cursor'
+// 客户端身份 key 的合法形状（复用 signingKeyPath 的命名校验，保持单一规则）。
+const MCP_CLIENT_KEY_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/
+
+/** 内置种子客户端（默认信任，配置文件路径由 Nomi 内置）。 */
+export const BUILTIN_MCP_CLIENTS = ['claude', 'codex', 'cursor'] as const
+export type BuiltinMcpClient = (typeof BUILTIN_MCP_CLIENTS)[number]
+
+/** 任意 Nomi 签名过的 MCP 客户端身份（内置 + 用户自定义）。语义 = 过 isValidMcpClientKey 校验的 key 字符串。 */
+export type AuthenticatedMcpClient = string
+
 export type CapabilityOriginHost = 'external' | 'nomi' | AuthenticatedMcpClient
 
-const MCP_CLIENTS = new Set<AuthenticatedMcpClient>(['claude', 'codex', 'cursor'])
+export function isValidMcpClientKey(value: unknown): value is AuthenticatedMcpClient {
+  return typeof value === 'string' && MCP_CLIENT_KEY_PATTERN.test(value)
+}
+
+export function isBuiltinMcpClient(value: unknown): value is BuiltinMcpClient {
+  return typeof value === 'string' && (BUILTIN_MCP_CLIENTS as readonly string[]).includes(value)
+}
 
 export function capabilityCoreDir(): string {
   const configured = String(process.env[CAPABILITY_DIR_ENV] || '').trim()
@@ -127,9 +142,7 @@ export function verifyToken(provided: unknown): boolean {
 }
 
 function mcpClient(value: unknown): AuthenticatedMcpClient | null {
-  return typeof value === 'string' && MCP_CLIENTS.has(value as AuthenticatedMcpClient)
-    ? value as AuthenticatedMcpClient
-    : null
+  return isValidMcpClientKey(value) ? value : null
 }
 
 /**
@@ -137,6 +150,7 @@ function mcpClient(value: unknown): AuthenticatedMcpClient | null {
  * that client entry without exposing the capability-core bearer token itself.
  */
 export function signMcpClient(client: AuthenticatedMcpClient): string | null {
+  if (!isValidMcpClientKey(client)) return null
   const token = readToken()
   if (!token) return null
   return crypto

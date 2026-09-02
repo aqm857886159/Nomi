@@ -4,13 +4,16 @@ import { IconArrowLeft, IconChevronRight, IconLock, IconRobot } from '@tabler/ic
 
 import { DesignSwitch, IconActionButton, NomiSegmented } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
-import type { McpInfo } from '../../desktop/mcpBridgeTypes'
+import type { McpClientProfile, McpInfo } from '../../desktop/mcpBridgeTypes'
 import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
 import type { AutomationPolicySettings } from '../../../electron/settings/automationPolicyContract'
-import { buildAutomationSettingsView, type SettingsHostKey } from './settingsAutomationView'
+import { buildAutomationSettingsView } from './settingsAutomationView'
 
 const ConnectAssistantCard = lazyWithChunkBoundary('MCP', () =>
   import('../../ui/onboarding/ConnectAssistantCard').then((module) => ({ default: module.ConnectAssistantCard })),
+)
+const CustomMcpClientCard = lazyWithChunkBoundary('MCP 自定义客户端', () =>
+  import('../../ui/onboarding/CustomMcpClientCard').then((module) => ({ default: module.CustomMcpClientCard })),
 )
 
 type Props = {
@@ -75,10 +78,27 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
   const [focusMcpEntry, setFocusMcpEntry] = React.useState(false)
   const [mcpSnapshot, setMcpSnapshot] = React.useState<McpConnectionSnapshot>(readMcpConnectionSnapshot)
   const view = buildAutomationSettingsView(settings)
+  const [profiles, setProfiles] = React.useState<McpClientProfile[]>([])
+  const refreshProfiles = React.useCallback(() => {
+    setProfiles(getDesktopBridge()?.capability?.listCustomMcpProfiles?.() ?? [])
+  }, [])
   const refreshMcpInfo = React.useCallback(() => {
     setMcpSnapshot(readMcpConnectionSnapshot())
-  }, [])
-  const toggleHost = (host: SettingsHostKey, enabled: boolean): void => {
+    refreshProfiles()
+  }, [refreshProfiles])
+  // 进入 MCP 页读一次 + 实时刷新（订阅 watch 广播 + 定时轮询兜底——检测在外部进程写文件，跨进程 watch 不可靠，
+  // 轮询保证「WorkBuddy 一连就出现」）。用 refreshMcpInfo 而非 refreshProfiles：installed 状态读自 info.clients。
+  React.useEffect(() => {
+    if (page !== 'mcp') return
+    refreshMcpInfo()
+    const unsub = getDesktopBridge()?.capability?.onMcpProfilesChanged?.(refreshMcpInfo)
+    const timer = window.setInterval(refreshMcpInfo, 2000)
+    return () => {
+      unsub?.()
+      window.clearInterval(timer)
+    }
+  }, [page, refreshMcpInfo])
+  const toggleHost = (host: string, enabled: boolean): void => {
     if (host === 'nomi') return
     const next = new Set(settings.trustedHosts)
     if (enabled) next.add(host)
@@ -156,6 +176,13 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
                 setPage('main')
               }}
               detailMode
+            />
+            <CustomMcpClientCard
+              info={mcpSnapshot.info}
+              profiles={profiles}
+              trustedHosts={settings.trustedHosts}
+              onToggleTrust={toggleHost}
+              onChanged={refreshMcpInfo}
             />
           </React.Suspense>
         ) : (

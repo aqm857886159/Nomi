@@ -12,6 +12,7 @@ import path from 'node:path'
 import readline from 'node:readline'
 
 import { createMcpProtocol, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
+import { recordDetectedMcpClient } from './mcpDetectedClients'
 import { MAX_MCP_LINE_BYTES, parseMcpStdioLine } from './mcpStdioLine'
 // 直接吃纯 locale 模块，不经 i18n.ts——后者顶层 `import { app } from 'electron'`，本 launcher 打包后跑在
 // 无 electron 的裸 Node 里，引 i18n 会 MODULE_NOT_FOUND。这条 electron-free 由 mcpLauncherClosure.test.ts 钉死。
@@ -281,6 +282,9 @@ const protocol = createMcpProtocol({
   isAppOpen: () => Boolean(readLiveInstance()),
   getAuthenticatedClient: () => launcherConnection().authenticatedClient,
   getLocale: () => launcherLocale,
+  onClientDetected: (name) => {
+    recordDetectedMcpClient(name)
+  },
 })
 
 const input = readline.createInterface({ input: process.stdin })

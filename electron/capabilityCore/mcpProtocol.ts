@@ -73,6 +73,7 @@ export interface McpTransport {
   confirmGenerationInNomi?(challenge: GenerationGateChallengeProjection): Promise<boolean | GenerationGateVerificationResult>
   /** 结果/进度文案语言（可选；缺省 zh-CN，跟 App 语言设置走）。 */
   getLocale?(): ResultLocale
+  onClientDetected?(name: string): void
 }
 
 const PROTOCOL_VERSION = '2025-11-25'
@@ -331,14 +332,10 @@ export function createMcpProtocol(transport: McpTransport) {
 
     if (method === 'initialize') {
       clientSupportsElicitation = Boolean(params?.capabilities && (params.capabilities as Record<string, unknown>).elicitation)
-      const clientName = String((params?.clientInfo as Record<string, unknown> | undefined)?.name || '').toLowerCase()
-      clientHost = clientName.includes('codex')
-        ? 'codex'
-        : clientName.includes('claude')
-          ? 'claude'
-          : clientName.includes('cursor')
-            ? 'cursor'
-            : 'external'
+      const rawName = String((params?.clientInfo as Record<string, unknown> | undefined)?.name || '').trim()
+      const clientName = rawName.toLowerCase()
+      clientHost = ['codex', 'claude', 'cursor'].find((host) => clientName.includes(host)) ?? 'external'
+      if (clientHost === 'external' && rawName) transport.onClientDetected?.(rawName)
       // 版本交集协商：不支持的版本回 -32602。
       const requested = params?.protocolVersion
       if (requested !== undefined && requested !== null && typeof requested !== 'string') {
@@ -442,7 +439,7 @@ export function createMcpProtocol(transport: McpTransport) {
         if (tool.name === 'nomi_run_start') {
           // initialize.clientInfo is self-declared, so it remains an audit label only. The stdio/RPC
           // transport supplies authority from Nomi's signed per-client configuration capability.
-          built.actorId = clientHost
+          built.actorId = transport.getAuthenticatedClient?.() ?? clientHost
         }
         // 面收敛：可逆创意门表态并入 nomi_run_gate（action=decide）——只有 decide 走 elicitation-first 真人确认，
         // materialize（$ 落地）走下面原样 invoke（其付费边界在 handler，不弹创意门确认）。
