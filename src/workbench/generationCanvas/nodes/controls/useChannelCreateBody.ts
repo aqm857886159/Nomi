@@ -23,7 +23,7 @@ const CATALOG_CHANGED_EVENT = 'nomi-model-catalog-changed'
  * - 桶查得到、里面就是没有这个模式的 mapping → `null` → 这家真发不出这个模式（判据 (a)）。
  * 合成一个 `null` 的话，「查不到」会被当成「发不出」，第一次遇到老 preload 就把用户全部模式藏光。
  */
-function readModeChannelBody(
+export function readModeChannelBody(
   vendorKey: string,
   modelKey: string,
   taskKind: string,
@@ -33,6 +33,12 @@ function readModeChannelBody(
   try {
     const list = getDesktopBridge()?.modelCatalog?.listMappings?.({ vendorKey })
     if (!Array.isArray(list)) return undefined // 查不到 → fail-open。
+    // **这家一条 mapping 都没有 → 同样是「没证据」，不是「不支持」。**
+    // 自建中转（用户自己接的模型）常常一条 mapping 都不配：它的能力由 meta.adapter.publicationModes
+    // 声明、走通用 transport 发送。把「空桶」读成判据 (a) 会把这些模型除文生外的模式**全部藏光**——
+    // 正好砍到最该保护的那批用户。CI 的 group-reference-direction 走查（ux-local 供应商、mappings: []）
+    // 就是这么红的：「改图」模式被静默摘掉。空列表 = 无证据 = fail-open。
+    if (list.length === 0) return undefined
     // selectTaskMapping = 主进程选 mapping 的那把尺子本尊（精确 modelKey 优先、再回落无 modelKey 的通配，
     // 且 modeId 给定时不再借用别的模式的专属线缆），直接复用而不是在这儿重写一遍——重写就会有
     // 「UI 看 A、生成走 B」的第二种漂移。**modeId 必须一起传**：runtime.findTaskMapping 传了它，这里不传
