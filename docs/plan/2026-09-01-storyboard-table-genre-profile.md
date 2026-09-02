@@ -330,6 +330,22 @@ commit 内零变动）。
 | 预览/放大 | **复用** `AssetPreviewDialog`（body-portal；`NodeMediaPreviewDialog` 挂画布容器在分镜页不可见，注释自证）；双击=放大手势对齐画布 2026-08-04 拍板 |
 | @ 输入 | **复用**创作 composer 的 mention 机制 |
 
+### 4.1.1 C/D 复用点名地图（用户 2026-09-02 指令：设计可以不同，逻辑必须同源）
+
+任何一条在分镜页再长出第二份实现即打回（P1/P4）。每个功能先点名画布/创作侧的逻辑 owner：
+
+| 分镜页功能 | 逻辑 owner（复用，不重造） |
+|---|---|
+| @ 弹出建议/选人 | `src/workbench/assets/AssetMentionSuggestionList.tsx`（已有 @ 建议列表）+ composer mention 触发语义 |
+| @ 传文件/上传附件 | `src/workbench/ai/composer/useComposerAttachments.ts` + `composerAttachmentTypes.ts`（同一上传/附件管线） |
+| 参考槽「+」选择器（素材库/上传/画布结果三来源） | `AssetReference` 的 `onTogglePicker` 现有 picker 流 + `AssetLibraryPanel` 数据源 |
+| 参考 tile 视觉/行为 | `AssetTile` / `AssetAddTile`（含拖拽 `assetLibraryDrag`） |
+| 模式/参数选择 | `ShotParamControls`（本就是 archetype 控件的分镜壳）；**有效上限以 `slotReachByKey` 运行时为准**（NodeParameterControls 同语义） |
+| 默认模型/默认模式/默认参数 | `availableModels.resolveStoryboardImageDefault/VideoDefault` + `archetype.defaultModeId` + 目录参数 `defaultValue`——全 derive，禁 hardcode |
+| 生成执行/花费/撤销/多结果 | `generationRunController`（confirmAndRunNode/Variants/regenerate）+ `spendConfirm` + canvas undo journal（B 已接线，C/D 不另起炉灶） |
+| 全屏预览 | `AssetPreviewDialog`（body-portal；画布那个挂画布容器分镜页不可见） |
+| 波次/依赖 | `dependencyWaves`（参考卡先、镜头后） |
+
 ### 4.2 阶段切分（每阶段一个可合分支；阶段边界才开 PR；每阶段过 R16 走查）
 
 - **A 地基+表形态**：IR（sceneId/durationSec）、全宽、场分组（渲染/折叠/重排/自动重编号）、
