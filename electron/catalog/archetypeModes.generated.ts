@@ -337,13 +337,41 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "i2m": "image_to_3d"
     }
   },
-  "runway-image-reference": {
+  "runway-gen4-image": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "runway-gen4-image-turbo": {
     "defaultModeId": "i2i",
     "modes": {
       "i2i": "image_edit"
     }
   },
-  "runway-image": {
+  "runway-muse-image": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "grok-imagine-image-2": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "gemini-image-3-pro": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "gemini-image-3.1-flash": {
     "defaultModeId": "t2i",
     "modes": {
       "t2i": "text_to_image",

@@ -41,8 +41,9 @@ describe("跨档案同串的存量赢家（同趟多命中的顺序决胜，逐�
   // happyhorse_1_0 这些串不再有第二个声明者——撞串本身消失了，连同它的 LEGACY_RESOLUTION_ORDER_PINS
   // 一起清掉（PR #310 合同 residual_risks 第三条指明的处置）。下面只剩仍然真实存在的撞串。
   const LOCKED_WINNERS: Record<string, string> = {
-    // Runway image 家族内的遮蔽（前者档案先声明）
-    gen4_image_turbo: "runway-image-reference",
+    // ⚠️ image 侧同理已不在此列：2026-09-02 把 Runway 十行 image 也改挂各自**真模型**档案，
+    // 平台档案 runway-image / runway-image-reference 同 commit 删除。`gen4_image_turbo`
+    // 此后只有 runway-gen4-image-turbo 一个声明者，撞串本身消失（不再是「谁遮蔽谁」）。
     // 归属 runway-audio，专属音频档案赢
     eleven_text_to_sound_v2: "eleven-sfx-v2",
     eleven_v3: "eleven-v3",
@@ -77,8 +78,8 @@ describe("pattern 自解析不变量（除已登记例外，每个 pattern 解�
   // pattern 抢走（新的同串且自己没赢），这里会红——逼着新档案作者显式处理撞串而不是静默吞。
   // video 侧的四条旧例外（seedance2 / hailuo3 / happyhorse_1_0 / veo3.1）已随平台档案 runway-video
   // 一起消失：这些串现在各自只有真模型档案一个声明者，pattern 自解析回自己，不再是「损失」。
+  // image 侧的 gen4_image_turbo 同样已随平台档案 runway-image / runway-image-reference 消失。
   const KNOWN_LOSSES: Record<string, string> = {
-    gen4_image_turbo: "runway-image-reference", // owner runway-image
     eleven_text_to_sound_v2: "eleven-sfx-v2", // owner runway-audio
     eleven_v3: "eleven-v3", // owner runway-audio
   };

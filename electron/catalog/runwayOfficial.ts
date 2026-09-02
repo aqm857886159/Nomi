@@ -14,7 +14,12 @@ import {
 } from "../shared/videoCapabilities/runwayWireFacts";
 // 图像侧的比例几何（与视频侧无重叠）继续住 catalog/runwayRatio.ts；`normalizeRunwayVideoRatio`
 // 也在那里，但它现在从上面这张 shared 表 derive 枚举与判别（不再自持副本）。
-import { normalizeRunwayVideoRatio, RUNWAY_IMAGE_RATIO_REMAP, runwayRatioOrientation } from "./runwayRatio";
+import { normalizeRunwayVideoRatio } from "./runwayRatio";
+// Runway 目录共享底座（拆图像目录时依赖反转出来，见该文件头注释）。
+import { POLL_HEADERS, RUNWAY_HEADERS, runwayMapping, runwayUriArray, STATUS, type RunwayModel } from "./runwayShared";
+// 图像目录（10 行 + 归一器）已拆出（R9 巨壳门岗）；本 import 同时完成
+// `runway-image-references` 请求变换的注册，故必须在建表前发生。
+import { RUNWAY_IMAGE_SPECS, runwayImageModel } from "./runwayImage";
 
 /** Runway Dev official API (OpenAPI v2024-11-06, checked 2026-08-30). */
 export const RUNWAY_VENDOR_SEED = {
@@ -44,23 +49,11 @@ export const RUNWAY_VENDOR_SEED = {
   },
 };
 
-const HEADERS = {
-  Authorization: "Bearer {{user_api_key}}",
-  "X-Runway-Version": "2024-11-06",
-  "Content-Type": "application/json",
-};
-const POLL_HEADERS = { Authorization: "Bearer {{user_api_key}}", "X-Runway-Version": "2024-11-06" };
-const STATUS: Record<string, string[]> = {
-  queued: ["PENDING", "THROTTLED"],
-  running: ["RUNNING"],
-  succeeded: ["SUCCEEDED"],
-  failed: ["FAILED", "CANCELLED", "CANCELED"],
-};
 
 const create = (path: string, model: string, withImage: boolean): HttpOperation => ({
   method: "POST",
   path,
-  headers: HEADERS,
+  headers: RUNWAY_HEADERS,
   body: {
     promptText: "{{request.prompt}}",
     ...(withImage ? { promptImage: "{{request.params.image_url}}" } : {}),
@@ -80,10 +73,6 @@ const create = (path: string, model: string, withImage: boolean): HttpOperation 
  * vendor-neutral. Empty optional arrays are removed so a mode cannot become a
  * mixed reference request by accident.
  */
-function uriArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean);
-}
 
 function typedReferences(value: unknown, type?: "video" | "audio"): Array<Record<string, string>> {
   if (!Array.isArray(value)) return [];
@@ -106,9 +95,9 @@ function normalizeRunwaySeedance25Body(body: unknown, _context?: RequestTransfor
     const mapped = normalizeRunwayVideoRatio("seedance2_5", input.ratio);
     if (mapped) input.ratio = mapped; else delete input.ratio;
   }
-  const images = uriArray(input.reference_image_urls);
-  const videos = uriArray(input.reference_video_urls);
-  const audios = uriArray(input.reference_audio_urls);
+  const images = runwayUriArray(input.reference_image_urls);
+  const videos = runwayUriArray(input.reference_video_urls);
+  const audios = runwayUriArray(input.reference_audio_urls);
   if (images.length > 30) throw new Error(desktopT("runway.seedanceMaxImages", { count: 30 }));
   if (videos.length > 10) throw new Error(desktopT("runway.seedanceMaxVideos", { count: 10 }));
   if (audios.length > 10) throw new Error(desktopT("runway.seedanceMaxAudios", { count: 10 }));
@@ -203,9 +192,9 @@ function normalizeRunwayVideoContract(body: unknown, _context?: RequestTransform
   // them.  The UI supplies URL arrays; translate them into Runway's typed
   // reference objects without allowing unsupported video/audio fields to
   // leak into a different model variant.
-  const imageRefs = uriArray(input.reference_image_urls);
-  const videoRefs = uriArray(input.reference_video_urls);
-  const audioRefs = uriArray(input.reference_audio_urls);
+  const imageRefs = runwayUriArray(input.reference_image_urls);
+  const videoRefs = runwayUriArray(input.reference_video_urls);
+  const audioRefs = runwayUriArray(input.reference_audio_urls);
   delete input.reference_image_urls;
   delete input.reference_video_urls;
   delete input.reference_audio_urls;
@@ -225,33 +214,11 @@ registerRequestTransform("runway-video-contract", normalizeRunwayVideoContract, 
   normalizeRunwayVideoContract(body);
 });
 
-function normalizeRunwayImageReferences(body: unknown): unknown {
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(desktopT("runway.imageBody"));
-  const input = body as Record<string, unknown>;
-  const images = uriArray(input.reference_image_urls);
-  if (input.model === "gen4_image_turbo" && images.length === 0) {
-    throw new Error(desktopT("runway.gen4ReferenceRequired"));
-  }
-  if (images.length > 3) throw new Error(desktopT("runway.maxImageReferences", { count: 3 }));
-  delete input.reference_image_urls;
-  if (images.length) input.referenceImages = images.map((uri) => ({ uri }));
-
-  // 按模型判别把共享比例映射到该模型合法的 ratio（只对枚举不含共享默认的模型动手）。
-  const remap = RUNWAY_IMAGE_RATIO_REMAP[String(input.model || "")];
-  const ratio = typeof input.ratio === "string" ? input.ratio.trim() : "";
-  if (remap && ratio) input.ratio = remap[runwayRatioOrientation(ratio)];
-  return input;
-}
-
-registerRequestTransform("runway-image-references", normalizeRunwayImageReferences, (body) => {
-  normalizeRunwayImageReferences(body);
-});
-
 /** seed_audio accepts referenceAudios as plain provider URI strings (max 3). */
 function normalizeRunwayAudioReferences(body: unknown): unknown {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(desktopT("runway.audioBody"));
   const input = body as Record<string, unknown>;
-  const refs = uriArray(input.reference_audio_urls);
+  const refs = runwayUriArray(input.reference_audio_urls);
   if (refs.length > 3) throw new Error(desktopT("runway.maxAudioReferences", { count: 3 }));
   delete input.reference_audio_urls;
   if (refs.length) input.referenceAudios = refs;
@@ -262,33 +229,9 @@ registerRequestTransform("runway-audio-references", normalizeRunwayAudioReferenc
   normalizeRunwayAudioReferences(body);
 });
 
-const poll: HttpOperation = {
-  method: "GET",
-  path: "/v1/tasks/{{providerMeta.task_id}}",
-  headers: POLL_HEADERS,
-  response_mapping: { task_id: "id", status: "status", video_url: "output.0", error_message: "failure" },
-};
 
 // Keep an explicit result stage so ProductionRun can verify the final output
 // after status observation. Runway uses the same task detail endpoint for both.
-const result: HttpOperation = {
-  method: "GET",
-  path: "/v1/tasks/{{providerMeta.task_id}}",
-  headers: POLL_HEADERS,
-  response_mapping: { task_id: "id", status: "status", assets: "output", error_message: "failure" },
-};
-const imagePoll: HttpOperation = {
-  method: "GET",
-  path: "/v1/tasks/{{providerMeta.task_id}}",
-  headers: POLL_HEADERS,
-  response_mapping: { task_id: "id", status: "status", image_url: "output.0", error_message: "failure" },
-};
-const imageResult: HttpOperation = {
-  method: "GET",
-  path: "/v1/tasks/{{providerMeta.task_id}}",
-  headers: POLL_HEADERS,
-  response_mapping: { task_id: "id", status: "status", assets: "output", error_message: "failure" },
-};
 
 const audioPoll: HttpOperation = {
   method: "GET",
@@ -303,20 +246,13 @@ const audioResult: HttpOperation = {
   response_mapping: { task_id: "id", status: "status", assets: "output", error_message: "failure" },
 };
 
-type RunwayModel = {
-  modelKey: string;
-  labelZh: string;
-  kind: "video" | "image" | "audio";
-  archetypeId: string;
-  mappings: Array<{ id: string; modeId: string; taskKind: ProfileKind; name: string; create: HttpOperation; query: HttpOperation; result: HttpOperation; statusMapping: Record<string, string[]> }>;
-};
 
 const RUNWAY_AUDIO_SFX_ID = "seed-runway-seed-audio-sfx";
 const RUNWAY_AUDIO_TTS_ID = "seed-runway-seed-audio-tts";
 const RUNWAY_AUDIO_SFX_CREATE: HttpOperation = {
   method: "POST",
   path: "/v1/sound_effect",
-  headers: HEADERS,
+  headers: RUNWAY_HEADERS,
   body: {
     model: "seed_audio",
     promptText: "{{request.prompt}}",
@@ -334,7 +270,7 @@ const RUNWAY_AUDIO_SFX_CREATE: HttpOperation = {
 const RUNWAY_AUDIO_TTS_CREATE: HttpOperation = {
   method: "POST",
   path: "/v1/text_to_speech",
-  headers: HEADERS,
+  headers: RUNWAY_HEADERS,
   body: {
     model: "seed_audio",
     promptText: "{{request.prompt}}",
@@ -351,7 +287,7 @@ const RUNWAY_AUDIO_TTS_CREATE: HttpOperation = {
 const RUNWAY_ELEVEN_SFX_CREATE: HttpOperation = {
   method: "POST",
   path: "/v1/sound_effect",
-  headers: HEADERS,
+  headers: RUNWAY_HEADERS,
   body: {
     model: "eleven_text_to_sound_v2",
     promptText: "{{request.prompt}}",
@@ -365,7 +301,7 @@ const RUNWAY_ELEVEN_SFX_CREATE: HttpOperation = {
 const RUNWAY_ELEVEN_TTS_CREATE = (model: "eleven_multilingual_v2" | "eleven_v3"): HttpOperation => ({
   method: "POST",
   path: "/v1/text_to_speech",
-  headers: HEADERS,
+  headers: RUNWAY_HEADERS,
   body: {
     model,
     promptText: "{{request.prompt}}",
@@ -406,16 +342,6 @@ const RUNWAY_ELEVEN_AUDIO_MODELS: RunwayModel[] = [
   })),
 ];
 
-const mapping = (id: string, modeId: string, taskKind: ProfileKind, name: string, createOp: HttpOperation) => ({
-  id,
-  modeId,
-  taskKind,
-  name,
-  create: createOp,
-  query: poll,
-  result,
-  statusMapping: STATUS,
-});
 
 const GEN45_T2V = create("/v1/text_to_video", "gen4.5", false);
 const GEN45_I2V = create("/v1/image_to_video", "gen4.5", true);
@@ -431,7 +357,7 @@ const SEEDANCE25_OMNI_ID = "seed-runway-seedance2-5-omni";
 const seedance25Create = (path: string, promptImage?: unknown): HttpOperation => ({
   method: "POST",
   path,
-  headers: HEADERS,
+  headers: RUNWAY_HEADERS,
   body: {
     model: "seedance2_5",
     promptText: "{{request.prompt}}",
@@ -594,7 +520,7 @@ function runwayVideoCreate(spec: RunwayVideoSpec, role: RunwayVideoWireRole): Ht
   return {
     method: "POST",
     path: withImage ? "/v1/image_to_video" : "/v1/text_to_video",
-    headers: HEADERS,
+    headers: RUNWAY_HEADERS,
     body,
     request_transform: "runway-video-contract",
     ...(drops.length ? { paramMap: { drops, rules: [] } } : {}),
@@ -629,7 +555,7 @@ function runwayVideoModel(spec: RunwayVideoSpec): RunwayModel {
       if (!modeId) return [];
       const taskKind: ProfileKind = role === "image" ? "image_to_video" : "text_to_video";
       const op = runwayVideoCreate(spec, role);
-      return [mapping(
+      return [runwayMapping(
         `seed-runway-${spec.modelKey.replace(/\./g, "-")}-${role}`,
         modeId,
         taskKind,
@@ -640,55 +566,6 @@ function runwayVideoModel(spec: RunwayVideoSpec): RunwayModel {
   };
 }
 
-type RunwayImageSpec = { modelKey: string; labelZh: string; allowReferences?: boolean; outputCount?: boolean; requiresReferences?: boolean };
-const RUNWAY_IMAGE_SPECS: RunwayImageSpec[] = [
-  { modelKey: "muse_image", labelZh: "Runway Muse Image", allowReferences: true, outputCount: true },
-  { modelKey: "grok_imagine_image_2", labelZh: "Runway Grok Imagine Image 2", allowReferences: true, outputCount: true },
-  { modelKey: "seedream5_pro", labelZh: "Runway Seedream 5 Pro", allowReferences: true, outputCount: true },
-  { modelKey: "seedream5_lite", labelZh: "Runway Seedream 5 Lite", allowReferences: true, outputCount: true },
-  { modelKey: "gen4_image", labelZh: "Runway Gen-4 Image", allowReferences: false },
-  { modelKey: "gen4_image_turbo", labelZh: "Runway Gen-4 Image Turbo", allowReferences: true, requiresReferences: true },
-  { modelKey: "gemini_image3_pro", labelZh: "Runway Gemini Image 3 Pro", allowReferences: true },
-  { modelKey: "gemini_image3.1_flash", labelZh: "Runway Gemini Image 3.1 Flash", allowReferences: true },
-  { modelKey: "gpt_image_2", labelZh: "Runway GPT Image 2", allowReferences: true },
-  { modelKey: "gemini_2.5_flash", labelZh: "Runway Gemini 2.5 Flash Image", allowReferences: true },
-];
-
-function runwayImageModel(spec: RunwayImageSpec): RunwayModel {
-  const operation = (withReferences: boolean): HttpOperation => ({
-    method: "POST",
-    path: "/v1/text_to_image",
-    headers: HEADERS,
-    body: {
-      promptText: "{{request.prompt}}",
-      ratio: "{{request.params.aspect_ratio}}",
-      ...(spec.outputCount ? { outputCount: "{{request.params.output_count}}" } : {}),
-      ...(withReferences || spec.requiresReferences ? { reference_image_urls: "{{request.params.reference_image_urls}}" } : {}),
-      model: spec.modelKey,
-    },
-    // 始终挂 runway-image-references：它现在同时承载**按模型判别的 ratio 重映射**（muse/gpt/seedream5_lite
-    // 的枚举不含共享默认比例 → 不映射就恒 400）。纯 t2i（无参考）过去不挂它，正是这三个模型文生图挂掉的原因。
-    request_transform: "runway-image-references",
-    ...(!spec.outputCount ? { paramMap: { drops: ["output_count"], rules: [] } } : {}),
-    response_mapping: { task_id: "id" },
-    provider_meta_mapping: { task_id: "id" },
-  });
-  const mappings: RunwayModel["mappings"] = [];
-  if (!spec.requiresReferences) {
-    const t2i = mapping(`seed-runway-${spec.modelKey.replace(/\./g, "-")}-t2i`, "t2i", "text_to_image", `${spec.labelZh} · 文生图`, operation(false));
-    t2i.query = imagePoll;
-    t2i.result = imageResult;
-    mappings.push(t2i);
-  }
-  if (spec.allowReferences) {
-    const i2i = mapping(`seed-runway-${spec.modelKey.replace(/\./g, "-")}-i2i`, "i2i", "image_edit", `${spec.labelZh} · 参考/改图`, operation(true));
-    i2i.query = imagePoll;
-    i2i.result = imageResult;
-    mappings.push(i2i);
-  }
-  return { modelKey: spec.modelKey, labelZh: spec.labelZh, kind: "image", archetypeId: spec.requiresReferences ? "runway-image-reference" : "runway-image", mappings } as RunwayModel;
-}
-
 export const RUNWAY_OFFICIAL_MODELS: RunwayModel[] = [
   {
     modelKey: "gen4.5",
@@ -696,8 +573,8 @@ export const RUNWAY_OFFICIAL_MODELS: RunwayModel[] = [
     kind: "video",
     archetypeId: "runway-gen4.5",
     mappings: [
-      mapping(GEN45_T2V_ID, "t2v", "text_to_video", "Runway Gen-4.5 · 文生视频", GEN45_T2V),
-      mapping(GEN45_I2V_ID, "i2v", "image_to_video", "Runway Gen-4.5 · 图生视频", GEN45_I2V),
+      runwayMapping(GEN45_T2V_ID, "t2v", "text_to_video", "Runway Gen-4.5 · 文生视频", GEN45_T2V),
+      runwayMapping(GEN45_I2V_ID, "i2v", "image_to_video", "Runway Gen-4.5 · 图生视频", GEN45_I2V),
     ],
   },
   {
@@ -705,7 +582,7 @@ export const RUNWAY_OFFICIAL_MODELS: RunwayModel[] = [
     labelZh: "Runway Gen-4 Turbo",
     kind: "video",
     archetypeId: "runway-gen4-turbo",
-    mappings: [mapping(GEN4_TURBO_I2V_ID, "i2v", "image_to_video", "Runway Gen-4 Turbo · 图生视频", GEN4_TURBO_I2V)],
+    mappings: [runwayMapping(GEN4_TURBO_I2V_ID, "i2v", "image_to_video", "Runway Gen-4 Turbo · 图生视频", GEN4_TURBO_I2V)],
   },
   {
     modelKey: "seedance2_5",
@@ -713,10 +590,10 @@ export const RUNWAY_OFFICIAL_MODELS: RunwayModel[] = [
     kind: "video",
     archetypeId: "seedance-2.5-runway",
     mappings: [
-      mapping(SEEDANCE25_T2V_ID, "t2v", "text_to_video", "Runway Seedance 2.5 · 文生视频", SEEDANCE25_T2V),
-      mapping(SEEDANCE25_FIRST_ID, "first", "image_to_video", "Runway Seedance 2.5 · 首帧", SEEDANCE25_FIRST),
-      mapping(SEEDANCE25_FIRSTLAST_ID, "firstlast", "image_to_video", "Runway Seedance 2.5 · 首尾帧", SEEDANCE25_FIRSTLAST),
-      mapping(SEEDANCE25_OMNI_ID, "omni", "text_to_video", "Runway Seedance 2.5 · 全能参考", SEEDANCE25_OMNI),
+      runwayMapping(SEEDANCE25_T2V_ID, "t2v", "text_to_video", "Runway Seedance 2.5 · 文生视频", SEEDANCE25_T2V),
+      runwayMapping(SEEDANCE25_FIRST_ID, "first", "image_to_video", "Runway Seedance 2.5 · 首帧", SEEDANCE25_FIRST),
+      runwayMapping(SEEDANCE25_FIRSTLAST_ID, "firstlast", "image_to_video", "Runway Seedance 2.5 · 首尾帧", SEEDANCE25_FIRSTLAST),
+      runwayMapping(SEEDANCE25_OMNI_ID, "omni", "text_to_video", "Runway Seedance 2.5 · 全能参考", SEEDANCE25_OMNI),
     ],
   },
   RUNWAY_AUDIO_MODEL,
