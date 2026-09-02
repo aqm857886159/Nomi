@@ -115,14 +115,17 @@ describe("2026-08 flagship media contracts", () => {
     expect(KIE_SUNO_MUSIC_MAPPINGS).toHaveLength(3);
   });
 
-  it("seeds fal's 10 logical models and 17 create/status/result endpoint mappings", () => {
+  // 17 → 20：Seedance 2.5 的 first/firstlast/omni 与 Gemini Omni 1.1 的 firstlast 从「借用
+  // 兄弟模式的线缆」改为各自持有 mapping（+4），同时删掉被借用的那条 seedance `i2v`（-1）。
+  // 端点仍只有两个（image-to-video / reference-to-video），多出来的是**模式绑定**不是新端点。
+  it("seeds fal's 10 logical models and 20 create/status/result endpoint mappings", () => {
     const state = applyBuiltinSeeds(emptyCatalog(), "2026-08-30T00:00:00.000Z").state;
     const falModels = state.models.filter((item) => item.vendorKey === "fal");
     const falMappings = state.mappings.filter((item) => item.vendorKey === "fal");
     expect(falModels).toHaveLength(10);
     expect(falMappings).toHaveLength(FAL_OFFICIAL_ENDPOINT_COUNT);
-    expect(FAL_OFFICIAL_ENDPOINT_COUNT).toBe(17);
-    expect(FAL_OFFICIAL_MODELS.flatMap((item) => item.mappings)).toHaveLength(17);
+    expect(FAL_OFFICIAL_ENDPOINT_COUNT).toBe(20);
+    expect(FAL_OFFICIAL_MODELS.flatMap((item) => item.mappings)).toHaveLength(20);
     for (const mapping of falMappings) {
       expect(mapping.create.method).toBe("POST");
       expect(mapping.query?.path).toContain("/requests/{{providerMeta.task_id}}/status");
@@ -227,7 +230,7 @@ describe("2026-08 flagship media contracts", () => {
 
   it("keeps Runway reference uploads provider-native and shapes typed image objects at the mapping boundary", async () => {
     const state = applyBuiltinSeeds(emptyCatalog(), "2026-08-30T00:00:00.000Z").state;
-    const runwayReference = state.mappings.find((item) => item.id === "seed-runway-seedance2-reference");
+    const runwayReference = state.mappings.find((item) => item.id === "seed-runway-seedance2-refs");
     expect(runwayReference).toBeTruthy();
     const transformed = await applyRequestTransform(runwayReference?.create.request_transform, {
       model: "seedance2",
@@ -273,7 +276,7 @@ describe("2026-08 flagship media contracts", () => {
       model: "happyhorse_1_0", promptText: "test", ratio: "16:9", duration: 5,
     }, { baseUrl: RUNWAY_VENDOR_SEED.baseUrl });
     expect(hhBody).toMatchObject({ model: "happyhorse_1_0", ratio: "1280:720" });
-    const happyhorseI2v = runway.find((item) => item.id === "seed-runway-happyhorse_1_0-i2v");
+    const happyhorseI2v = runway.find((item) => item.id === "seed-runway-happyhorse_1_0-image");
     expect(happyhorseI2v?.create.body).toMatchObject({ model: "happyhorse_1_0", promptImage: "{{request.params.image_url}}" });
     expect(happyhorseI2v?.create.paramMap?.drops).toEqual(expect.arrayContaining(["generate_audio", "aspect_ratio"]));
     const hhI2vBody = await applyRequestTransform(happyhorseI2v?.create.request_transform, {

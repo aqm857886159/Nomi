@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import { applyBuiltinSeeds } from "./seedBuiltins";
 import { selectTaskMapping } from "./types";
 import { resolveArchetypeForModel } from "../../src/config/modelArchetypes";
+import { modeTransportFor } from "../shared/videoCapabilities";
 import { applyParamMap, bodyReferencedParamKeys, consumedCanonicalKeys } from "./paramTranslate";
 import { NEWAPI_IMAGE_CREATE_OP, NEWAPI_VIDEO_CREATE_OP } from "./newapiTransport";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
@@ -58,7 +59,7 @@ describe("参数一致性不变量：内置 (模型×模式) canonical 参数都
       for (const mode of archetype.modes) {
         const canonicalKeys = mode.params.map((p) => p.key);
         if (canonicalKeys.length === 0) continue;
-        const taskKind = mode.transportTaskKind ?? archetype.transportTaskKind;
+        const taskKind = modeTransportFor(mode, archetype, model.vendorKey);
         const mapping = selectTaskMapping(state.mappings, model.vendorKey, taskKind, model.modelKey, mode.id);
         if (!mapping) continue; // 该 (vendor, mode) 没内置 codec —— 另一类问题，本不变量不管
 

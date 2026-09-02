@@ -1,0 +1,188 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-runway-model-identity",
+  "problem_type": "模型身份↔档案归属分裂：一个平台形状的档案（runway-video）蹲在 10 个不同模型的身份上，而它下面的 wire 层早已按模型分叉，导致能力面（UI 显示什么模式/参数）与 wire（真发得出什么）由两个作者维护、必然漂移",
+  "symptom": "① Runway 的 veo3.1 在模式栏显示「多图参考」并提供 1280:720 / 1–30 秒 / 生成音频这套 Runway 通用值，而官方 union 说 veo 只有 4/6/8 秒且没有 reference——用户切过去、连好参考图、点生成才被第三闸拒；② runway/happyhorse_1_0/reference 声明可放 10 张参考图，实际只有 1 张挤得进单图聚合位（selectTaskMapping 把 i2v 的专属线缆借给了 reference 模式），主线契约测试长期「绿」是假绿；③ 裸身份串 \"veo3.1\" 在渲染层解析出 runway-video、在 registry 解析出 veo-3.1，两器给相反答案；④ registry 打分制里 pattern 长度加权让 bytedance/seedance-2（20 字符）压过 seedance-2.5（12 字符），低版本档案吃掉高版本 key。",
+  "direct_cause": "RUNWAY_VIDEO_SPECS 的 10 行全部写 archetypeId: \"runway-video\"，而 runway-video 只声明一套通用的 t2v/i2v/reference 三模式与一套通用参数；同时它把 10 个模型的判别串全列进自己的 identifierPatterns，与各模型的真档案（veo-3.1 / happyhorse / minimax-h3 …）撞串。selectTaskMapping 的单候选回落没检查 modeId 是否为空，于是带着明确且不同 modeId 的行也会被借出去，把「模式集与 mapping 集不对齐」这件事掩盖成绿灯。",
+  "class_root": "档案的归属粒度错了：档案必须是**模型身份**（供应商无关），供应商差异由「供应商特化」轴吸收；而 runway-video 是按**供应商平台**建的档案，于是同一个模型经不同供应商就有了两个能力面，且平台面必然是 10 个模型能力的并集（对每个具体模型都过宽）。供应商特化此前只有一条轴（vendorParams 管参数取值），缺「这家有没有这个模式」和「这个模式走哪个 mapping 桶」两条，于是无法用一个模型档案同时服务多家——只好建平台档案。正确形状 = 三条轴齐备：模式可见性按可达性 derive（不声明第四份真相）、transport 用 vendorTransportTaskKind 覆盖、参数用 vendorParams 覆盖；平台档案随之删除，每个模型只剩一个档案主人。",
+  "affected_population": [
+    "Runway 全部 10 个视频模型（seedance2/_fast/_mini、wan3、grok_imagine_1_5、hailuo3、veo3.1/_fast、happyhorse_1_0、gemini_omni_flash）的全部用户：模式栏此后只显示 Runway 真支持的模式，参数控件只显示 Runway 真发得出的键与取值。",
+    "画布上已存在、meta.archetype.id === \"runway-video\" 的存量节点：经 legacyIds 迁移到各自的真模型档案（读时映射，不写库）。",
+    "fal 的 bytedance/seedance-2.5（first/firstlast/omni）与 google/gemini-omni-flash/v1.1（firstlast）用户：这四个模式此前借用兄弟模式的线缆、参考静默降级为单图，现已补齐各自的 mode-specific mapping，30/10/10 多参考与尾帧真正发得出。",
+    "全部自建中转 / 未收录模型的用户：模式栏收窄是 fail-open 的——查不到 mapping body 时一律不收窄，能力显示与今天完全一致。",
+    "任何依赖 selectTaskMapping 的调用方（发送路 catalogTaskResolve、MCP 生成、能力投影）：请求模式而该模式没有自己的线缆时改为 fail-closed 返回 null，不再静默借用另一个模式的报文形状。"
+  ],
+  "scope_paths": [
+    "electron/catalog/types.ts",
+    "electron/catalog/runwayOfficial.ts",
+    "electron/catalog/falOfficial.ts",
+    "electron/catalog/curatedVideoSharedContracts.test.ts",
+    "electron/catalog/archetypeIdentifiers.generated.ts",
+    "electron/catalog/archetypeModes.generated.ts",
+    "electron/catalog/archetypeWireDefaults.video.generated.ts",
+    "electron/shared/videoCapabilities/registry.ts",
+    "electron/shared/videoCapabilities/modeTransport.ts",
+    "electron/shared/videoCapabilities/runwayWireFacts.ts",
+    "electron/shared/videoCapabilities/types.ts",
+    "src/config/modelArchetypes/types.ts",
+    "src/config/modelArchetypes/index.ts",
+    "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+    "src/workbench/generationCanvas/runner/usableVendorModel.ts"
+  ],
+  "entry_points": [
+    "electron/catalog/types.ts::selectTaskMapping —— 单候选回落收紧为「只有 modeId 为空的候选才可服务多个模式」。带着明确且不同 modeId 的行不再被借出，fail-closed 返回 null。这是掩盖整族缺陷的那道闸。",
+    "electron/shared/videoCapabilities/modeTransport.ts::modeTransportFor —— 模式 transport 的唯一读取点（vendor 覆盖 > mode 声明 > archetype 缺省）。15 个原先写 `mode.transportTaskKind ?? archetype.transportTaskKind` 的散点全部改走它，杜绝第二份真相。",
+    "electron/shared/videoCapabilities/runwayWireFacts.ts —— Runway 每族合法 ratio 枚举 / veo 时长枚举 / 参考数组允许名单的唯一真相源。两个消费者：runwayOfficial.ts 的传输边界校验（headless/MCP 防线）与 6 个档案的 vendorParams.runway（UI 只给得出合法值）。此前这些字面量只活在传输层，UI 给非法值、传输层再悄悄改写或删字段。",
+    "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts::archetypeModeIsVisible —— 模式栏收窄判据（(a) 无自己的 mapping、(b) 全部参考槽 reach=none）。fail-open：拿不到 body 一律不收窄。判据复用 referenceReachability，与第三闸同一把尺子。",
+    "electron/shared/videoCapabilities/registry.ts::modelProfileMatchScore —— 子串档加版本边界守卫 substringHitIsVersionSafe：pattern 以数字结尾时，key 若继续该版本（.5 / -5 / _5 / 5）就不是它。",
+    "src/config/modelArchetypes/index.ts::resolveBaseArchetype —— legacyIds 迁移承接存量 \"runway-video\" 节点；LEGACY_RESOLUTION_ORDER_PINS 随撞串消失而删除。"
+  ],
+  "invariants": [
+    "每个模型只有一个档案主人：不存在跨模型共享的「平台档案」；runway-video / runway-video-t2v 已删除且不得重建。",
+    "一个模式要么有属于自己的 mapping（modeId 相等）且其声明的参考槽在该 mapping 上可达，要么在 UI 上被证明不可见——不存在第三种状态（curatedVideoSharedContracts.test.ts 全量断言）。",
+    "任何 (vendor, model, mode) 三元组的豁免名单不得存在：KNOWN_LEGACY_GAPS 及任何形如 ALLOW/SKIP/KNOWN/EXEMPT/GAP/IGNORE/WAIVE 的逐条豁免集合，由测试内的 git grep 与形状正则双重拦截。",
+    "模式 transport 只有一个读取点 modeTransportFor；仓库内不得再出现 `mode.transportTaskKind ?? archetype.transportTaskKind` 的散写。",
+    "Runway 的 ratio/duration 合法集只有一份（runwayWireFacts.ts），UI 侧 vendorParams 与传输侧校验同源。",
+    "模式栏收窄 fail-open：拿不到 mapping body（老 preload / 自建中转 / 未知 vendor）时不隐藏任何模式。",
+    "承载力缩水（多图槽只过得去 1 张）**不是**隐藏模式的理由——那是槽级如实收成 1 张的事。误加此判据会摘掉 runway/grok_imagine_1_5/i2v 这类真能用的功能，回归锁在 channelModeReach.test.ts。",
+    "两套解析器（渲染层 resolveBaseArchetype 与 registry profileFor）对全部 263 条身份语料给出相同赢家（探针零分歧）；分工是渲染层不做子串、registry 的子串档受版本边界守卫约束。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「平台型供应商把多个模型塞进一个共享档案」是会反复发生的接入捷径：任何一家中转/平台（Runway、apimart、kie、RunningHub、未来任何一家）新接一批模型时，建一个平台档案都比逐模型建档省事，而能力面与 wire 的漂移要等用户点生成被拒才暴露。同类还包括「模式集与 mapping 集不对齐」——只要有人给模型少配一条 mapping，旧的 selectTaskMapping 回落就会把别的模式的线缆借过去继续绿。因此防复发必须是结构性的（闸 + 全量契约断言 + 豁免名单禁令），不能靠这次把 Runway 修对。",
+    "same_class_scan": [
+      "全供应商全模型逐 (vendor, model, mode) 扫描（探针 identitySplit.probe.ts §3，53 个 video 模型全模式）：修复前 5 个三元组在借用别的模式的专属线缆（runway/happyhorse_1_0/reference、fal seedance-2.5 的 first/firstlast/omni、fal gemini-omni-flash/v1.1/firstlast），2 个多图承诺塌成单图；修复后借用 0、塌陷 0。任务书只点名了 happyhorse 一处，其余 4 处是本次同类扫描扫出来的。",
+      "平台型共享档案普查：runway-video（10 个模型）与 runway-video-t2v（0 个模型，死档案）是全仓仅有的两个跨模型共享 video 档案，已全部删除。其余档案逐一核对为单模型或同模型多变体（variants 轴，非跨模型共享）。runway-image / runway-audio 属 image/audio kind，不在本次 video 归一范围，已记入后续。",
+      "transport 读取点普查：15 处 `mode.transportTaskKind ?? archetype.transportTaskKind` 散写全部改走 modeTransportFor（生成器 ×3、capabilityModeManifest、mcpGenerationVideoResolve、modelCapabilityProjection、customCallScriptModes、capabilityContractDraft、catalogTaskResolve 发送路、usableVendorModel 及其 2 个调用方、NodeParameterControls、4 个契约测试）；另核实 3 处形似但语义不同（派生契约自身的顶层字段 / plan 模式字面量），未改。",
+      "身份解析器分歧普查：263 条语料（全档案 identifierPatterns + 全变体 modelKey + 全目录 modelKey/alias）× 两套解析器，修复前 8 条分歧（veo3.1 的两器相反 + 7 条 seedance 版本串），修复后 0 条。",
+      "模式栏之外的第二个模式选择面：src/workbench/ai/resident/GenerationProposalEditor.tsx 同样渲染未收窄的模式列表（archetypeModeChoices 只传一个参数）。**本轮未修**，作为紧邻的下一项交付——记在 residual_risks 里，不假称已覆盖。"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/curatedVideoSharedContracts.test.ts",
+    "electron/catalog/paramConsistency.test.ts",
+    "electron/catalog/falVideoModeContracts.test.ts",
+    "src/workbench/generationCanvas/nodes/controls/channelModeReach.test.ts",
+    "src/config/modelArchetypes/resolutionOrder.test.ts"
+  ],
+  "migration": "无存储写入迁移。画布节点持久化的是 meta.archetype.id；存量 \"runway-video\" 节点由 resolveBaseArchetype 的 legacyIds 分支在**读时**映射到各自的真模型档案（按模型身份匹配决定映射到哪一个），不改写项目文件。回滚只需恢复两个平台档案与 10 行 archetypeId，无残留数据。四个 .generated.ts 桥接文件按新档案集合重新生成，消费侧均按 archetypeId 键取。",
+  "residual_risks": [
+    "hailuo3 经 Runway 的 i2v 模式仍不显示 resolution/aspect_ratio 两个控件：minimax-h3 档案按 kie 官方示例有意只放 duration（注释在案），而 Runway 的 hailuo wire 确实携带这两个字段。这是**收窄偏保守**（少给控件，不会发非法值），不是错误；要放开需要 kie/Runway 双方文档实证，本轮不猜。",
+    "Runway 的 reference 模式当前仍 POST 到 /v1/image_to_video（main 的既有形状）。官方 OpenAPI 说多图参考应走 /v1/text_to_video；该端点修正属开放 PR #342 的交付内容，本次刻意不重复实现以避免冲突。两者合并后须复核 seedance2/wan3/hailuo3/grok 的 omni/ref 模式端点。",
+    "veo / gemini 经 Runway 的参考图能力：2026-09-02 曾有「上传参考图 wire 校验通过」的观察，但 schema 未拒 ≠ 参考生效，产物级封印因 Runway 余额不足未做。本次按官方 union 保守处理（不发布 reference 模式）。若日后拿到产物证据，只需给 mapping 补真正的数组键，模式会自动重新出现——不必改档案。",
+    "模式栏收窄对自建中转是 fail-open 的：那条路拿不到 mapping body，因此仍可能显示该中转发不出的模式，由第三闸在生成时拦下。这是有意的取舍（宁可多显示也不藏用户的能力），不是遗漏。",
+    "变体轴（第四条轴）尚未按供应商收窄：Runway 的 veo3.1 节点仍显示「变体 快速」下拉，而 Runway 把 veo3.1 与 veo3.1_fast 建成两个独立目录行，veo-3.1 档案的 quality/lite 变体在 Runway 根本不存在。已实证该控件在 Runway 上**完全惰性**（切变体只写 variantId 不动 modelKey，Runway mapping 的 model 字段是字面量 veo3.1，且 veo-3.1 的变体无 paramOverrides）——不会发出非法请求，但它让用户以为有得选。这与本轮修的是同一族「能力面对该供应商不诚实」，只是落在变体轴上；修它先要裁一个设计问题：Runway 的 veo3.1/veo3.1_fast 该继续是两行，还是收成一行加变体轴。R13 走查截图 01 可见，已另立单跟进。",
+    "同类第二入口尚未收窄：src/workbench/ai/resident/GenerationProposalEditor.tsx:106 仍以 archetypeModeChoices(archetype) 单参数调用，即 Agent 提案面板的模式选择器会显示该供应商发不出的模式，用户仍要到生成时才被第三闸拒。本轮不改它是因为交付次序（用户 2026-09-02 拍板：先落地已验证的这一块），不是因为它不属于本类。修法已定：复用 archetypeModeIsVisible + useChannelCreateBodies，禁止另写第二份判据。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://raw.githubusercontent.com/runwayml/openapi/main/openapi.json",
+      "checked_at": "2026-08-30",
+      "purpose": "Runway OpenAPI v2024-11-06 逐模型 union：veo3.1/_fast、gemini_omni_flash、happyhorse_1_0 只有 text_to_video / image_to_video 无 reference 字段；seedance2 族 / wan3 / grok_imagine_1_5 / hailuo3 发布参考数组；各族 ratio 枚举与 veo duration ∈ {4,6,8}。据此裁定每个模型的真实模式集与合法参数取值。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://fal.ai/models/bytedance/seedance-2.5/reference-to-video/api",
+      "checked_at": "2026-09-02",
+      "purpose": "fal seedance-2.5 reference-to-video 的 image_urls≤30 / video_urls≤10 / audio_urls≤10，据此为 omni 模式补齐它自己的 mapping（此前借用 i2v 线缆导致 30 张参考塌成 1 张）。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://fal.ai/models/google/gemini-omni-flash/v1.1/image-to-video/api",
+      "checked_at": "2026-09-02",
+      "purpose": "fal gemini-omni-flash v1.1 image-to-video 的 image_url(首帧) 与 end_image_url(尾帧)，据此为 firstlast 模式补齐 mapping（此前借用 reference 线缆导致尾帧丢失）。"
+    }
+  ],
+  "generality_proof": "缺陷不是「Runway 配错了一行」，而是「档案按供应商平台建、能力面与 wire 分两个作者」这一形状必然产生的漂移，且掩盖它的是一条通用闸（selectTaskMapping 的单候选回落）。证据有三：① 同一条闸在 fal 上独立产生了 4 个同类三元组（seedance-2.5 的 first/firstlast/omni、gemini-omni-flash 的 firstlast），与 Runway 无任何代码共享，说明成因与供应商无关；② 探针对全部 53 个 video 模型 × 全模式做无差别扫描，命中集合恰好等于「模式集与 mapping 集不对齐」的那些三元组，而非某一家的配置错误；③ 两套解析器的分歧同样不是 Runway 专属——registry 的子串加权让 bytedance/seedance-2 吃掉 seedance-2.5，属版本前缀这一通用形状。因此防复发必须落在共享边界（选择闸 + 收窄判据 + 全量契约断言 + 豁免名单禁令），任何只改 Runway 配置的修法都会让下一家平台型供应商原样复发。",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/types.ts",
+      "symbol": "selectTaskMapping",
+      "responsibility": "唯一的 (vendor, model, mode) → mapping 选择闸。单候选回落收紧为「只有 modeId 为空的候选才可服务多个模式」，带着明确且不同 modeId 的行一律 fail-closed。这是掩盖整族假绿的那道闸，修在这里所有供应商同时受益。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/modeTransport.ts",
+      "symbol": "modeTransportFor",
+      "responsibility": "模式 transport 的唯一读取点（vendor 覆盖 > mode 声明 > archetype 缺省）。15 个散写点全部收编，杜绝「同一模式在两处算出不同桶」的第二份真相。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/runwayWireFacts.ts",
+      "symbol": "RUNWAY_RATIO_FAMILIES",
+      "responsibility": "Runway 每族合法 ratio / veo 时长 / 参考数组允许名单的唯一真相源，同时供 UI 侧 vendorParams 与传输侧校验消费，杜绝「UI 给非法值、传输层再悄悄改写」。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+      "symbol": "archetypeModeIsVisible",
+      "responsibility": "模式栏收窄的唯一判据，与第三闸共用 referenceReachability 这把尺子；fail-open。让「这家发不出这个模式」在渲染时就说实话，而不是等点了生成被拒。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/runwayOfficial.ts",
+      "entry_point": "RUNWAY_VIDEO_SPECS",
+      "disposition": "enforced",
+      "evidence": "10 行全部由平台档案 runway-video 改挂各自的真模型档案，生成的 mapping modeId 等于接收档案的真实模式 id；平台档案 runway-video / runway-video-t2v 同 commit 删除。探针复扫：借用 0。"
+    },
+    {
+      "path": "electron/catalog/falOfficial.ts",
+      "entry_point": "fal video mappings (seedance-2.5 / gemini-omni-flash v1.1)",
+      "disposition": "enforced",
+      "evidence": "同一条闸在 fal 上独立暴露的 4 个三元组，按官方 image-to-video / reference-to-video 契约补齐各自的 mode-specific mapping（30/10/10 多参考与尾帧真正发得出），并删掉那条只为被借用而存在的 i2v 行。"
+    },
+    {
+      "path": "src/workbench/ai/resident/GenerationProposalEditor.tsx",
+      "entry_point": "第二个模式选择面",
+      "disposition": "not-affected",
+      "evidence": "模式栏之外的第二个模式选择面（第 106 行 archetypeModeChoices(archetype) 只传一个参数=未收窄）。本轮**未修**：它不经 selectTaskMapping 取 body，因此不受本次 fail-closed 收紧影响，既有行为零变化、不构成回归；但它与模式栏是同一族「档案声明了这家发不出的模式」，已按用户 2026-09-02 拍板的次序另立一项紧接着修（复用同一判据 archetypeModeIsVisible，不另写第二份）。见 residual_risks。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/registry.ts",
+      "entry_point": "modelProfileMatchScore",
+      "disposition": "enforced",
+      "evidence": "子串档加版本边界守卫；263 条身份语料两器赢家从 8 条分歧降到 0 条。"
+    },
+    {
+      "path": "electron/catalog/apimartVideoSharedContracts.test.ts",
+      "entry_point": "apimart 共享契约",
+      "disposition": "not-affected",
+      "evidence": "apimart 的每个模型本就各自持有专属档案（无跨模型共享的平台档案），探针全量扫描下 apimart 无任何借用或塌陷三元组；仅因 modeTransportFor 收编而同步改了读取方式。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/types.ts",
+    "invariant": "一个模式只能拿到属于它自己的 mapping：候选行带着明确且不同的 modeId 时一律返回 null，绝不把另一个模式的报文形状借出去。",
+    "failure_mode": "此前带不同 modeId 的单候选会被静默借出，于是「模式集与 mapping 集不对齐」表现为绿灯而非红灯——用户选「多图参考」实际发单图，要等产物出来才可能发现（甚至发现不了）。",
+    "exception_policy": "none",
+    "strategy": "把判定收进唯一的选择闸并 fail-closed，让缺一条 mapping 立刻变成可见的「无 mapping」；再由全量契约测试（每个 vendor×model×mode 要么有自己的线缆、要么被证明在 UI 上不可见）与豁免名单禁令保证它不能被逐条豁免掉。",
+    "artifacts": [
+      "electron/catalog/types.ts",
+      "electron/shared/videoCapabilities/modeTransport.ts",
+      "electron/shared/videoCapabilities/runwayWireFacts.ts",
+      "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+      "electron/catalog/curatedVideoSharedContracts.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/catalog/curatedVideoSharedContracts.test.ts",
+    "electron/catalog/paramConsistency.test.ts",
+    "electron/catalog/falVideoModeContracts.test.ts",
+    "src/workbench/generationCanvas/nodes/controls/channelModeReach.test.ts",
+    "src/config/modelArchetypes/resolutionOrder.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/videoCapabilities/runwayVideo.ts",
+      "src/config/modelArchetypes/index.ts"
+    ],
+    "rationale": "平台档案 RUNWAY_VIDEO_ARCHETYPE / RUNWAY_VIDEO_T2V_ARCHETYPE 连同其文件整体删除（P1 加新必删旧，无 re-export 壳、无并行版）；渲染层的 LEGACY_RESOLUTION_ORDER_PINS 与 withLegacyResolutionPins 一并删除——它们只为钉住 veo3.1 撞串而存在，撞串随平台档案消失后即为死代码，PR #310 的合同 residual_risks[2] 明示此时应连同测试锁一起清理。存量画布节点由 legacyIds 读时迁移承接，不留双写路径。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次不新增、不升级、不保留任何第三方依赖：全部改动是仓库内部的档案归属结构与选择闸收紧，外部供应商契约只做「按官方文档对账后收窄」，未引入新 SDK 或版本约束。",
+    "exit_criteria": []
+  }
+}

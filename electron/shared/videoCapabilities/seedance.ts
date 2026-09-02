@@ -1,5 +1,6 @@
 import type { ModelParameterControl } from "./types";
 import type { ModelArchetype } from "./types";
+import { RUNWAY_GENERATE_AUDIO_CONTROL, runwayRatioControl } from "./runwayWireFacts";
 
 // Seedance 2.0 档案。C1 放「首帧」打通；C2b 加「首尾帧」（验模式分段切换 + M2 互斥 hide）；
 // 「全能参考」(omni 多参考数组槽) 在 C3 增量加。
@@ -26,6 +27,17 @@ const FIRST_MODE_PARAMS: ModelParameterControl[] = [
   { key: "generate_audio", label: "生成音频", type: "boolean", options: [], defaultValue: true },
 ];
 
+// Runway 转售的 seedance2/_fast/_mini：Runway union 的 seedance 变体**没有 resolution 属性**
+// （只有 ratio / duration / audio），比例枚举也是像素式而非 kie 的 "16:9" 这类朝向串。
+// 声明了发不出去的 resolution = 用户调了却被静默丢弃；给 kie 的 "16:9" 则会在传输层被改写。
+// 两者都由 vendorParams.runway 如实收窄——枚举从 shared 的 RUNWAY_VIDEO_RATIO_ENUMS derive，
+// 与传输层归一器同一张表（不重抄）。
+const RUNWAY_PARAMS: ModelParameterControl[] = [
+  runwayRatioControl("seedance"),
+  { key: "duration", label: "时长", type: "number", options: [], min: 4, max: 15, defaultValue: 5 },
+  RUNWAY_GENERATE_AUDIO_CONTROL,
+];
+
 const SEEDANCE_2_MODES: ModelArchetype["modes"] = [
   {
     // 文生视频（纯 prompt，无参考图）。kie 文档实证（docs.kie.ai/market/bytedance/seedance-2，2026-06-30 核对）：
@@ -39,6 +51,7 @@ const SEEDANCE_2_MODES: ModelArchetype["modes"] = [
     promptRequired: true,
     slots: [],
     params: FIRST_MODE_PARAMS,
+    vendorParams: { runway: RUNWAY_PARAMS },
     transportTaskKind: "text_to_video",
   },
   {
@@ -49,6 +62,7 @@ const SEEDANCE_2_MODES: ModelArchetype["modes"] = [
     promptRequired: true,
     slots: [{ kind: "first_frame", label: "首帧", min: 1, max: 1 }],
     params: FIRST_MODE_PARAMS,
+    vendorParams: { runway: RUNWAY_PARAMS },
   },
   {
     id: "firstlast",
@@ -61,6 +75,7 @@ const SEEDANCE_2_MODES: ModelArchetype["modes"] = [
       { kind: "last_frame", label: "尾帧", min: 1, max: 1 },
     ],
     params: FIRST_MODE_PARAMS,
+    vendorParams: { runway: RUNWAY_PARAMS },
   },
   {
     // 全能参考（omni）：多模态参考数组。kie 文档：reference_image_urls[≤9]（按序 = character1..9）、
@@ -81,6 +96,7 @@ const SEEDANCE_2_MODES: ModelArchetype["modes"] = [
       { kind: "audio_ref", label: "参考音频", min: 0, max: 3, requiresAnyOf: ["image_ref", "video_ref"] },
     ],
     params: FIRST_MODE_PARAMS,
+    vendorParams: { runway: RUNWAY_PARAMS },
   },
 ];
 
@@ -96,6 +112,9 @@ const LOW_RES_OVERRIDES = Object.fromEntries(
 );
 
 export const SEEDANCE_2_ARCHETYPE: ModelArchetype = {
+  // Runway 转售的 seedance2/_fast/_mini 三行原先挂在平台档案 runway-video 上；那个档案已删（一模型一档案）。
+  // 存量画布节点持久化的是 meta.archetype.id="runway-video"，靠 legacyIds + 模型身份匹配迁到这里。
+  legacyIds: ["runway-video"],
   id: "seedance-2",
   family: "seedance",
   label: "Seedance 2.0",
@@ -105,7 +124,8 @@ export const SEEDANCE_2_ARCHETYPE: ModelArchetype = {
   defaultModeId: "t2v",
   transportTaskKind: "image_to_video",
   // 收纳标准 + Fast + Mini 变体 modelKey → 旧 fast/mini 节点仍解析到本档案（迁移层据 variant.identifierPatterns 归一）。
-  identifierPatterns: ["bytedance/seedance-2", "seedance-2", "seedance2", "bytedance/seedance-2-fast", "seedance-2-fast", "seedance2fast", "bytedance/seedance-2-mini", "seedance-2-mini", "seedance2mini"],
+  // 末尾两串是 Runway 的判别串（seedance2 已在上面）：裸串接入同名模型时也认到本档案。
+  identifierPatterns: ["bytedance/seedance-2", "seedance-2", "seedance2", "bytedance/seedance-2-fast", "seedance-2-fast", "seedance2fast", "bytedance/seedance-2-mini", "seedance-2-mini", "seedance2mini", "seedance2_fast", "seedance2_mini"],
   modes: SEEDANCE_2_MODES,
   // 变体轴：标准 / 快速 / Mini（kie 的 model enum bytedance/seedance-2 / -fast / -mini）。快速与 Mini 仅 480/720
   // （LOW_RES_OVERRIDES 按 modeId 收窄 resolution）。catalog body 取 {{request.params.model}} 读当前变体 modelKey

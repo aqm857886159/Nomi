@@ -1,5 +1,6 @@
 import type { ModelParameterControl } from "./types";
 import type { ModelArchetype } from "./types";
+import { runwayRatioControl } from "./runwayWireFacts";
 
 // HappyHorse 1.0 档案（C4）。kie.ai 把它的 4 个端点（text/image/reference/video-to-video）做成
 // 4 个 model enum；我们**合成 1 个 catalog 条目 + 4 个模式**，靠 per-mode modelEnum 区分（评审 M3）。
@@ -26,7 +27,16 @@ const SEED: ModelParameterControl =
 const AUDIO_SETTING: ModelParameterControl =
   { key: "audio_setting", label: "音频", type: "select", options: [{ value: "auto", label: "自动" }, { value: "origin", label: "保留原声" }], defaultValue: "auto" };
 
+// Runway 转售的 happyhorse_1_0：Runway union 的 happyhorse 变体只有 ratio / duration——
+// **没有 resolution，也没有 seed**；比例是像素式枚举（1280:720…）。
+// 且它的 **image_to_video 变体连 ratio 属性都没有**（比例由参考图决定，见
+// RUNWAY_FAMILIES_WITHOUT_IMAGE_RATIO——传输层归一器读的是同一条事实），故图生模式不出比例控件。
+const RUNWAY_T2V_PARAMS: ModelParameterControl[] = [runwayRatioControl("happyhorse"), DURATION];
+const RUNWAY_I2V_PARAMS: ModelParameterControl[] = [DURATION];
+
 export const HAPPYHORSE_ARCHETYPE: ModelArchetype = {
+  // Runway 的 happyhorse_1_0 行原挂平台档案 runway-video（已删）；存量节点靠 legacyIds 迁到这里。
+  legacyIds: ["runway-video"],
   id: "happyhorse",
   family: "happyhorse",
   label: "HappyHorse 1.0",
@@ -39,6 +49,8 @@ export const HAPPYHORSE_ARCHETYPE: ModelArchetype = {
     "happyhorse/image-to-video",
     "happyhorse/reference-to-video",
     "happyhorse/video-edit",
+    // Runway 判别串。
+    "happyhorse_1_0",
   ],
   modes: [
     {
@@ -50,6 +62,7 @@ export const HAPPYHORSE_ARCHETYPE: ModelArchetype = {
       modelEnum: "happyhorse/text-to-video",
       slots: [],
       params: [RES("1080p"), RATIO, DURATION, SEED],
+      vendorParams: { runway: RUNWAY_T2V_PARAMS },
     },
     {
       id: "i2v",
@@ -58,9 +71,13 @@ export const HAPPYHORSE_ARCHETYPE: ModelArchetype = {
       hint: "单张首帧图（无尾帧、无比例）",
       promptRequired: true,
       modelEnum: "happyhorse/image-to-video",
+      // kie 把 4 个端点收在一个 createTask 上（故档案级 text_to_video 即可）；Runway 转售的同一模型
+      // 把图模式发到 /v1/image_to_video → 只对 runway 覆盖桶。
+      vendorTransportTaskKind: { runway: "image_to_video" },
       // 单图首帧，但 HappyHorse 的 input 是 image_urls[正好 1] → asArray 包成 1 元素数组。无 aspect_ratio。
       slots: [{ kind: "first_frame", label: "首帧", min: 1, max: 1, inputKey: "image_urls", asArray: true }],
       params: [RES("1080p"), DURATION, SEED],
+      vendorParams: { runway: RUNWAY_I2V_PARAMS },
     },
     {
       id: "ref",

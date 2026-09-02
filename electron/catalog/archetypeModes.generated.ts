@@ -78,14 +78,6 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "i2v": "image_to_video"
     }
   },
-  "runway-video": {
-    "defaultModeId": "t2v",
-    "modes": {
-      "t2v": "text_to_video",
-      "i2v": "image_to_video",
-      "reference": "image_to_video"
-    }
-  },
   "veo-3.1": {
     "defaultModeId": "t2v",
     "modes": {
@@ -113,12 +105,6 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
     "defaultModeId": "i2v",
     "modes": {
       "i2v": "image_to_video"
-    }
-  },
-  "runway-video-t2v": {
-    "defaultModeId": "t2v",
-    "modes": {
-      "t2v": "text_to_video"
     }
   },
   "kling-3.0": {

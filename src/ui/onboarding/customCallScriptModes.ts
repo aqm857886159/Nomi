@@ -1,4 +1,5 @@
 import {
+  modeTransportFor,
   resolveArchetypeForModel,
   type ArchetypeReferenceSlot,
   type ArchetypeTransportTaskKind,
@@ -57,7 +58,7 @@ export function resolveCustomCallScriptModes(
     id: mode.id,
     label: mode.vendorTerm,
     hint: mode.hint,
-    taskKind: mode.transportTaskKind ?? archetype.transportTaskKind,
+    taskKind: modeTransportFor(mode, archetype, model.vendorKey),
     promptRequired: mode.promptRequired,
     slots: mode.slots.map((slot) => ({ ...slot })),
     parameters: mode.params.map((parameter) => ({
