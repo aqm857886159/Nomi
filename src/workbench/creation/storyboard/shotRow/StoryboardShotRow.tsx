@@ -43,6 +43,14 @@ type Props = {
   onGenerate?: (() => void) | undefined
   /** ⏳ 态点参考卡名 → 定位那张参考卡。 */
   onJumpToAnchor?: ((anchorId: string) => void) | undefined
+  /** 结果态双击 / 浮条 ⛶ → 放大预览（AssetPreviewDialog，编辑器统一挂）。 */
+  onOpenPreview?: (() => void) | undefined
+  /** 浮条 ↻ 原地重生成。 */
+  onRegenerate?: (() => void) | undefined
+  /** 浮条 ×3 变体。 */
+  onVariants?: (() => void) | undefined
+  /** 浮条 🔒/🔓 镜级锁定开关。 */
+  onToggleLock?: (() => void) | undefined
   onUpdate: (patch: Partial<PlanShot>) => void
   onToggleAnchor: (anchorId: string) => void
   onRemove: () => void
@@ -60,7 +68,7 @@ type Props = {
 
 export default function StoryboardShotRow(props: Props): JSX.Element {
   const { t } = useTranslation()
-  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll } = props
+  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll } = props
   const [expanded, setExpanded] = React.useState(false)
 
   const shotTypeValue = shotTypeOf(shot)
@@ -129,6 +137,10 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           exec={exec}
           onGenerate={onGenerate}
           onJumpToAnchor={onJumpToAnchor}
+          onOpenPreview={onOpenPreview}
+          onRegenerate={onRegenerate}
+          onVariants={onVariants}
+          onToggleLock={onToggleLock}
         />
       ) : (
         <div className="relative w-[76px] h-[132px] rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05">

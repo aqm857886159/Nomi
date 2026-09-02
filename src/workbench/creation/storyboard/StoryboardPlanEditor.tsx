@@ -24,7 +24,15 @@ import {
   deriveStoryboardRowRuntimes,
   type StoryboardRowRuntime,
 } from './exec/storyboardRowStatus'
-import { generateShotRow, runStoryboardBatch } from './exec/storyboardRowActions'
+import {
+  generateShotRow,
+  generateShotRowVariants,
+  regenerateShotRow,
+  runStoryboardBatch,
+  toggleShotRowLock,
+} from './exec/storyboardRowActions'
+import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
+import { AssetPreviewDialog } from '../../assets/AssetPreviewDialog'
 
 /**
  * 分镜方案编辑器（v5 B：执行面）。表 = 画布节点的表格表示版——行内/批量直接生成，
@@ -105,6 +113,30 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
   }
   const onRunBatch = (): void => {
     void runAction(() => runStoryboardBatch(execCtx, batch.runnable))
+  }
+  const onRegenerateRow = (runtime: StoryboardRowRuntime): void => {
+    const node = runtime.exec.node
+    if (node) void runAction(() => regenerateShotRow(execCtx, runtime.shot, node))
+  }
+  const onVariantsRow = (runtime: StoryboardRowRuntime): void => {
+    const node = runtime.exec.node
+    if (node) void runAction(() => generateShotRowVariants(execCtx, runtime.shot, node))
+  }
+  // 锁定开关：同步写 meta（不花钱不确认）；状态经 derive 立刻回流行/组头/footer。
+  const onToggleLockRow = (runtime: StoryboardRowRuntime): void => {
+    if (runtime.exec.node) toggleShotRowLock(runtime.exec.node.id)
+  }
+  // 放大预览：存 nodeId（不存快照），渲染时从画布节点现取结果——重生成后再开永远是最新图。
+  const [previewNodeId, setPreviewNodeId] = React.useState<string | null>(null)
+  const onOpenPreviewRow = (runtime: StoryboardRowRuntime): void => {
+    if (runtime.exec.node && runtime.exec.resultUrl) setPreviewNodeId(runtime.exec.node.id)
+  }
+  const previewNode = previewNodeId ? canvasNodes.find((node) => node.id === previewNodeId) ?? null : null
+  const previewAsset = previewNode ? canvasNodeToAssetRefs(previewNode)[0] ?? null : null
+  // ⏳ 直达参考卡：滚动定位 + data 锚点（参考卡区在同一滚动容器内）。
+  const onJumpToAnchor = (anchorId: string): void => {
+    const card = document.querySelector(`[data-anchor-card="${CSS.escape(anchorId)}"]`)
+    card?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
   // 不进批量的原因摘要（footer 写明原因，与批次判定同一份 derive）。
@@ -199,6 +231,11 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
               emptyPromptShots={emptyPromptShots}
               onChange={setStoryboardPlan}
               onGenerateRow={onGenerateRow}
+              onRegenerateRow={onRegenerateRow}
+              onVariantsRow={onVariantsRow}
+              onToggleLockRow={onToggleLockRow}
+              onOpenPreviewRow={onOpenPreviewRow}
+              onJumpToAnchor={onJumpToAnchor}
             />
             <button
               type="button"
@@ -245,6 +282,9 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
           </WorkbenchButton>
         </div>
       </footer>
+
+      {/* 放大预览：素材库同一 body-portal lightbox（NodeMediaPreviewDialog 挂画布容器在分镜页不可见）。 */}
+      {previewAsset ? <AssetPreviewDialog asset={previewAsset} onClose={() => setPreviewNodeId(null)} /> : null}
     </section>
   )
 }

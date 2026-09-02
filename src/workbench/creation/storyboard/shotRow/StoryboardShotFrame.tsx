@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconLock, IconRefresh } from '@tabler/icons-react'
+import { IconLock, IconLockOpen, IconMaximize, IconRefresh } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 import { NomiImage } from '../../../../design/media'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
@@ -15,7 +15,9 @@ import type { ShotRowExec } from '../exec/storyboardRowStatus'
  * - missing-required：红虚线 + 缺哪个必填槽（换模型/补参考才能跑）；
  * - generating：进度覆盖（有 percent 显进度条，无则活动文案）；
  * - failed：红边 + 人话错误一行 + 重试；
- * - done/locked：结果图铺满 + 时长角标（+🔒 已锁徽章）；双击放大与悬停浮条由父层挂（B2）。
+ * - done：结果图铺满 + 角标；双击放大（AssetPreviewDialog）+ 悬停中央 2×2 浮条
+ *   ↻ 重生成 · ×3 变体 · ⛶ 放大 · 🔒 锁定（第 4 格 D 期加 ⤴ 后重排）；
+ * - locked：同结果图 + 🔒 徽章，浮条只剩 🔓 解锁 · ⛶ 放大（锁了不被重跑，重跑入口一并收走）。
  * 常驻角标只有镜号/时长/锁——动作浮条是悬停瞬时覆盖，不违 §1.5 禁常驻压图。
  */
 
@@ -25,13 +27,32 @@ type Props = {
   onGenerate?: (() => void) | undefined
   /** ⏳ 态点参考卡名 → 滚动定位那张参考卡。 */
   onJumpToAnchor?: ((anchorId: string) => void) | undefined
-  /** 结果态双击（放大预览，B2 接 AssetPreviewDialog）。 */
+  /** 结果态双击 / 浮条 ⛶（AssetPreviewDialog body-portal 放大）。 */
   onOpenPreview?: (() => void) | undefined
-  /** 结果态悬停中央动作浮条（B2：↻ 重生成 · ×3 变体 · ⛶ 放大）。 */
-  hoverActions?: React.ReactNode
+  /** 浮条 ↻：写回行编辑 + 原地重生成。 */
+  onRegenerate?: (() => void) | undefined
+  /** 浮条 ×3：同镜连出 3 版。 */
+  onVariants?: (() => void) | undefined
+  /** 浮条 🔒/🔓：镜级锁定开关（锁=不进批量不被重跑）。 */
+  onToggleLock?: (() => void) | undefined
 }
 
-export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAnchor, onOpenPreview, hoverActions }: Props): JSX.Element {
+/** 浮条按钮（mockup .actbar button：32×26 深底白字，悬停瞬时覆盖）。 */
+function BarButton({ label, onClick, children }: { label: string; onClick?: (() => void) | undefined; children: React.ReactNode }): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className="w-8 h-[26px] grid place-items-center rounded-nomi-sm bg-nomi-overlay-chip-strong text-nomi-paper text-micro hover:bg-nomi-ink"
+    >
+      {children}
+    </button>
+  )
+}
+
+export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock }: Props): JSX.Element {
   const { t } = useTranslation()
   const indexBadge = (
     <span className="absolute top-1 left-1 z-[2] px-1 rounded-nomi-sm bg-nomi-overlay-chip text-micro text-nomi-paper tabular-nums">
@@ -49,8 +70,9 @@ export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAn
     </span>
   )
 
-  // 结果态（done / locked / 带旧图的 failed）：图铺满 + 角标。
+  // 结果态（done / locked）：图铺满 + 角标；悬停中央动作浮条（瞬时覆盖，移开即散）。
   if (exec.resultUrl && (exec.status === 'done' || exec.status === 'locked')) {
+    const locked = exec.status === 'locked'
     return (
       <div
         className="group/frame relative w-[76px] h-[132px] rounded-nomi overflow-hidden border border-nomi-line bg-nomi-ink-05"
@@ -60,12 +82,26 @@ export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAn
         <NomiImage src={exec.resultUrl} alt={t('storyboardEditor.frame.resultAlt', { index: shot.index })} className="absolute inset-0 w-full h-full object-cover" />
         {indexBadge}
         {durationBadge}
-        {exec.status === 'locked' ? (
+        {locked ? (
           <span className="absolute top-1 right-1 z-[2] px-1 py-0.5 rounded-pill bg-nomi-overlay-chip-strong text-nomi-paper inline-flex items-center gap-0.5">
             <IconLock size={10} stroke={2} aria-label={t('storyboardEditor.frame.lockedBadge')} />
           </span>
         ) : null}
-        {hoverActions}
+        <div className="absolute inset-0 z-[3] hidden group-hover/frame:grid place-items-center bg-nomi-scrim" data-storyboard-actbar="true">
+          {locked ? (
+            <div className="grid grid-cols-2 gap-1">
+              <BarButton label={t('storyboardEditor.frame.unlock')} onClick={onToggleLock}><IconLockOpen size={13} stroke={1.8} /></BarButton>
+              <BarButton label={t('storyboardEditor.frame.zoom')} onClick={onOpenPreview}><IconMaximize size={13} stroke={1.8} /></BarButton>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-1">
+              <BarButton label={t('storyboardEditor.frame.regenerate')} onClick={onRegenerate}><IconRefresh size={13} stroke={1.8} /></BarButton>
+              <BarButton label={t('storyboardEditor.frame.variants3')} onClick={onVariants}>×3</BarButton>
+              <BarButton label={t('storyboardEditor.frame.zoom')} onClick={onOpenPreview}><IconMaximize size={13} stroke={1.8} /></BarButton>
+              <BarButton label={t('storyboardEditor.frame.lock')} onClick={onToggleLock}><IconLock size={13} stroke={1.8} /></BarButton>
+            </div>
+          )}
+        </div>
       </div>
     )
   }

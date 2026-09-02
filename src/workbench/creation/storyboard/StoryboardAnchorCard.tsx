@@ -37,7 +37,7 @@ export default function StoryboardAnchorCard({ anchor, onUpdate, onChangeKind, o
   const desc = anchor.description.trim()
 
   return (
-    <div className="px-2.5 py-2">
+    <div className="px-2.5 py-2" data-anchor-card={anchor.id}>
       <div className="flex items-center gap-2.5">
         <button
           type="button"

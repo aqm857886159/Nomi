@@ -29,6 +29,11 @@ export const zhStoryboardEditor = {
     durationBadge: '{{seconds}}s',
     resultAlt: '镜 {{index}} 生成结果',
     lockedBadge: '已锁定',
+    regenerate: '重生成',
+    variants3: '再出 3 版',
+    zoom: '放大',
+    lock: '锁定（不进批量、不被重跑）',
+    unlock: '解锁',
   },
   footer: {
     progress: '已生成 {{done}}/{{total}} 镜',
@@ -224,6 +229,11 @@ export const enStoryboardEditor = {
     durationBadge: '{{seconds}}s',
     resultAlt: 'Result of shot {{index}}',
     lockedBadge: 'Locked',
+    regenerate: 'Regenerate',
+    variants3: '3 more takes',
+    zoom: 'Zoom',
+    lock: 'Lock (excluded from batch and reruns)',
+    unlock: 'Unlock',
   },
   footer: {
     progress: '{{done}}/{{total}} shots generated',
