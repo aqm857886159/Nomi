@@ -47,6 +47,7 @@ import { buildResidentContextSnapshot, mergeResidentContextHandles, type AgentCo
 import { isTranscriptAtBottom, shouldFollowTranscript, transcriptScrollBehavior } from './resident/residentTranscriptScroll'
 import { isAgentActionIntent } from './agentIntent'
 import { buildStaticAgentSystemPrompt } from '../generationCanvas/agent/generationCanvasAgentClient'
+import { projectAgentSkillEvents } from './skillEventProjection'
 
 type ResidentSurface = Extract<WorkspaceMode, 'creation' | 'generation' | 'preview'>
 type PendingTool = { call: ToolCallEvent; bindingKey: string; state: ResidentApprovalState }
@@ -385,6 +386,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const activeThreadId = snapshot?.activeThreadId ?? null
   const activeThread = snapshot?.threads.find((thread) => thread.threadId === activeThreadId)
   const items = React.useMemo(() => snapshot?.items.filter((item) => item.threadId === activeThreadId) ?? [], [activeThreadId, snapshot])
+  const skillEvents = React.useMemo(() => projectAgentSkillEvents(items), [items])
   const queue = React.useMemo(() => snapshot?.queue.filter((item) => item.threadId === activeThreadId) ?? [], [activeThreadId, snapshot])
   const activeQueue = React.useMemo(() => queue.filter((item) => isActiveQueueStatus(item.status)), [queue])
   const activeTurn = snapshot?.turns.find((turn) => turn.threadId === activeThreadId && isLive(turn.status))
@@ -407,7 +409,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     }
     emitPending()
   }, [toolProjectionScope])
-  const toolChipItems = React.useMemo<ResidentToolChipData[]>(() => items.filter((item): item is Extract<ProjectAgentItem, { kind: 'tool' }> => item.kind === 'tool').map((item) => {
+  const toolChipItems = React.useMemo<ResidentToolChipData[]>(() => items.filter((item): item is Extract<ProjectAgentItem, { kind: 'tool' }> => item.kind === 'tool' && item.capability.id !== 'skill.read').map((item) => {
     const projection = toolProjectionScope ? residentToolProjections.get(residentToolProjectionKey(toolProjectionScope, item.turnId, item.toolCallId)) : undefined
     const args = residentToolArgs.get(pendingKey({ turnId: item.turnId, toolCallId: item.toolCallId }))
     const effect = projection?.effect || readableToolPreview(t, item.capability.id, args) || item.text || ''
@@ -692,7 +694,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     </section>
   }
 
-  return <section id="project-agent-resident" onKeyDownCapture={(event) => { if (event.key === 'Escape') { setThreadsOpen(false); setMenu(null) } }} className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col bg-[var(--workbench-ai-panel-bg)] text-nomi-ink" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-surface={surface} data-agent-run-mode={runMode} data-agent-approval-mode={approvalPolicy.mode} data-agent-spend-policy={approvalPolicy.spend}>
+  return <section id="project-agent-resident" onKeyDownCapture={(event) => { if (event.key === 'Escape') { setThreadsOpen(false); setMenu(null) } }} className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col bg-[var(--workbench-ai-panel-bg)] text-nomi-ink" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-panel="true" data-agent-surface={surface} data-agent-run-mode={runMode} data-agent-approval-mode={approvalPolicy.mode} data-agent-spend-policy={approvalPolicy.spend}>
     <header className="relative flex shrink-0 items-center gap-2 border-b border-nomi-line-soft px-3 py-1.5" data-agent-header="true">
       <div className="flex min-w-0 flex-1 items-center gap-2 text-left"><NomiLogoMark size={19} /><span className="min-w-0"><span className="block text-body-sm font-semibold leading-tight">{t('agentResident.brand')}</span><span className="block truncate text-micro text-nomi-ink-60">{activeThread?.title || t('agentResident.untitledThread')}</span></span></div>
       <span className="max-w-[12rem] shrink-0 truncate text-micro text-nomi-ink-60" data-agent-usage="true" title={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })} aria-label={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })}>{t('agentResident.usageCompact', { last: lastTurnTokens, total: sessionTotalTokens })}</span><span className="max-w-[4.5rem] shrink-0 truncate text-micro text-nomi-ink-40" data-agent-cost="true" title={costLabel}>{costLabel}</span>
@@ -702,9 +704,10 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     </header>
     <div className={cn('flex shrink-0 items-center gap-2 border-b border-nomi-line-soft px-3 py-1.5 transition-[background,box-shadow] duration-[var(--nomi-transition-fast)]', contextPulse && 'bg-nomi-accent-soft shadow-[inset_0_-2px_0_var(--nomi-accent)]')} data-agent-context="true" data-agent-context-focused={contextPulse ? 'true' : 'false'}><div className="min-w-0 flex-1 truncate text-caption"><span className="text-nomi-ink-60">{t('agentResident.currentScene')} · </span><span className="font-medium">{surfaceShortLabel(t, surface)}</span><span className="text-nomi-ink-60"> · {contextCount}</span></div>{contextPulse ? <span className="shrink-0 text-micro text-nomi-accent">{t('agentResident.sceneFocused')}</span> : null}{hasContextLocator ? <button type="button" className={iconControlClass(contextPulse)} aria-label={t('agentResident.focusContext')} title={t('agentResident.focusContext')} data-agent-context-focus="true" onClick={focusContext}><IconFocusCentered size={14} aria-hidden="true" /></button> : null}</div>
     <div className="relative min-h-0 flex-1">
-    <div ref={scrollRef} className={cn('h-full min-h-0 space-y-1.5 overflow-y-auto px-3 py-2', menu && 'pointer-events-none')} role="log" aria-live="polite" data-agent-transcript="true">
+    <div ref={scrollRef} className={cn('h-full min-h-0 space-y-1.5 overflow-y-auto px-3 py-2', menu && 'pointer-events-none')} role="log" aria-live="polite" data-agent-transcript="true" data-agent-flow="true">
       {!items.length && !activeQueue.length ? <div className="grid min-h-28 place-items-center px-3 text-center"><div><div className="mb-1 text-body-sm font-semibold">{t('agentResident.emptyTitle')}</div><p className="m-0 text-caption text-nomi-ink-60">{t('agentResident.emptyDescription')}</p></div></div> : null}
       {planningTurn ? <ResidentThinkingState label={t('agentResident.planning')} detail={t('agentResident.planningDetail')} open={thinkingOpen} onToggle={() => setThinkingOpen((value) => !value)} /> : null}
+      {skillEvents.map((item) => <div key={item.itemId} className="flex min-h-7 items-center gap-1.5 px-1 text-micro text-nomi-ink-40" data-agent-skill-event="true" data-state={item.loaded ? 'settled' : 'failed'}><IconTool size={13} className="shrink-0" aria-hidden="true" /><span>{item.loaded ? t('agentResident.skillLoaded', { name: item.name }) : t('agentResident.skillLoadFailed')}</span></div>)}
       <ResidentToolChips items={toolChipItems} emptyLabel={t('agentResident.toolDetailEmpty')} sectionLabel={t('agentResident.toolCalls')} headerLabel={t('agentResident.toolCallsCount', { count: toolChipItems.length })} explanationLabel={t('agentResident.toolExplanation')} targetLabel={t('agentResident.toolTargetLabel')} resultLabel={t('agentResident.toolResult')} technicalLabel={t('agentResident.toolTechnicalDetails')} statusLabel={(status) => statusLabel(t, status)} />
       {items.map((item) => { const proposal = item.kind === 'proposal' && item.approval; const proposalActive = item.kind === 'proposal' && item.status === 'proposed' && Boolean(proposal); const declined = item.kind === 'failure' && item.status === 'declined'; if (item.kind === 'tool' || proposalActive) return null; return <article key={item.itemId} data-agent-item-kind={item.kind} data-agent-turn-id={item.turnId} data-agent-status={item.status} className={cn(item.kind === 'user' ? 'ml-6 rounded-nomi-sm border border-nomi-ink bg-nomi-ink px-2.5 py-1.5 text-caption text-nomi-paper' : item.kind === 'assistant' ? 'px-1 py-0.5 text-caption' : cn('rounded-nomi-sm border px-2.5 py-1.5 text-caption', item.kind === 'failure' && !declined ? 'border-workbench-danger bg-workbench-danger-soft' : declined ? 'border-nomi-line-soft bg-nomi-ink-05' : 'border-nomi-line-soft bg-nomi-paper'))}>
         {item.kind === 'user' ? <div className="whitespace-pre-wrap break-words">{item.text}</div> : null}
