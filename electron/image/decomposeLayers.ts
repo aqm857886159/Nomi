@@ -8,6 +8,7 @@ import { resolveLocalAsset } from "../catalog/assetLocalization";
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload, putBinaryForAssetUpload } from "../assets/localAssetFile";
 import { requestJson } from "../vendor/vendorHttp";
 import { importRemoteAsset } from "../runtime";
+import { desktopT } from "../i18n";
 import {
   REPLICATE_VENDOR_SEED,
   REPLICATE_DECOMPOSE_PREDICTIONS_PATH,
@@ -40,19 +41,19 @@ async function pollPrediction(vendor: { baseUrlHint?: string | null } & Record<s
     if (status === "succeeded" || status === "failed" || status === "canceled") return res;
     await new Promise((r) => setTimeout(r, 2000));
   }
-  throw new Error("拆解超时，请稍后重试");
+  throw new Error(desktopT("decompose.timeout"));
 }
 
 export async function decomposeLayers(payload: DecomposeLayersPayload): Promise<DecomposeLayersResult> {
   const imageUrl = asString(payload?.imageUrl);
   const nodeId = asString(payload?.nodeId) || undefined;
-  if (!imageUrl) throw new Error("缺少待拆解图片");
+  if (!imageUrl) throw new Error(desktopT("decompose.missingImage"));
 
   const catalog = readCatalog();
   const vendor = catalog.vendors.find((v) => v.key === REPLICATE_VENDOR_SEED.key && v.enabled);
-  if (!vendor) throw new Error("Replicate 未接入：请先在「模型设置」里填入 Replicate API Token");
+  if (!vendor) throw new Error(desktopT("decompose.notConnected"));
   const apiKey = decryptApiKeyRecord(catalog.apiKeysByVendor[REPLICATE_VENDOR_SEED.key]);
-  if (!apiKey) throw new Error("Replicate 未填 API Token：请在「模型设置」里填入 r8_ 开头的 token");
+  if (!apiKey) throw new Error(desktopT("decompose.missingToken"));
 
   // 付费令牌：必须在真发 vendor 之前同步消费（与现有 task 路径同铁律，spendGrant.ts）。
   assertAndConsumeSpendGrant(payload?.grantId, nodeId);
@@ -78,13 +79,13 @@ export async function decomposeLayers(payload: DecomposeLayersPayload): Promise<
 
   if (asString(res.status) !== "succeeded") {
     const getUrl = asString((res.urls as Record<string, unknown> | undefined)?.get);
-    if (!getUrl) throw new Error(asString(res.error) || "拆解提交失败");
+    if (!getUrl) throw new Error(asString(res.error) || desktopT("decompose.submitFailed"));
     res = await pollPrediction(vendor, apiKey, getUrl);
   }
-  if (asString(res.status) !== "succeeded") throw new Error(asString(res.error) || "拆解失败");
+  if (asString(res.status) !== "succeeded") throw new Error(asString(res.error) || desktopT("decompose.failed"));
 
   const remoteLayers = parseDecomposeOutput(res.output);
-  if (remoteLayers.length === 0) throw new Error("拆解未返回任何图层");
+  if (remoteLayers.length === 0) throw new Error(desktopT("decompose.noLayers"));
 
   // 主进程就地落地：把临时直链下载进项目，返回 nomi-local（持久、同源、白板合成不污染画布）。
   const projectId = asString(payload?.projectId);

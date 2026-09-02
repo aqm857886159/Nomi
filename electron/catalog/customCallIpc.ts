@@ -21,12 +21,13 @@ import type { ProfileKind } from "./types";
 import { createCustomCallTestRunRegistry, type CustomCallTestRunInput, type CustomCallTestRunResult } from "./customCallTestRuns";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
+import { desktopT } from "../i18n";
 function resolveTarget(vendorKey: string, modelKey: string) {
   const state = readCatalog();
   const vendor = state.vendors.find((v) => v.key === vendorKey);
-  if (!vendor) throw new Error(`供应商不存在：${vendorKey}`);
+  if (!vendor) throw new Error(desktopT("catalog.vendorMissing", { vendor: vendorKey }));
   const model = state.models.find((m) => m.vendorKey === vendorKey && m.modelKey === modelKey);
-  if (!model) throw new Error(`模型不存在：${vendorKey}/${modelKey}`);
+  if (!model) throw new Error(desktopT("catalog.modelMissing", { vendor: vendorKey, model: modelKey }));
   const apiKey = decryptApiKeyRecord(state.apiKeysByVendor[vendorKey]) || "";
   const customConfig = decryptCustomConfigWithLegacy(state.apiKeysByVendor[vendorKey], vendor.meta);
   return { vendor, model, apiKey, customConfig };
@@ -52,7 +53,7 @@ function cannedTaskKind(kind: string): ProfileKind {
 const TEST_SAVE_FILE_MAX_BYTES = 4 * 1024 * 1024;
 async function previewSavedFile(bytes: Buffer, contentType: string): Promise<string> {
   if (bytes.byteLength > TEST_SAVE_FILE_MAX_BYTES) {
-    throw new Error("试跑 saveFile 收到的文件太大，不能在面板里拼 data URL；请直接保存后在真实任务里验证");
+    throw new Error(desktopT("customCall.previewFileTooLarge"));
   }
   return `data:${contentType};base64,${bytes.toString("base64")}`;
 }
@@ -70,7 +71,7 @@ async function executeCustomCallTest(
   const started = Date.now();
   try {
     const { vendor, model, apiKey, customConfig } = resolveTarget(input.vendorKey, input.modelKey);
-    if (!input.script.trim()) throw new Error("脚本为空——先写点内容或让 AI 生成");
+    if (!input.script.trim()) throw new Error(desktopT("customCall.emptyScript"));
     const canned = cannedTestInput(model.kind);
     const taskKind = input.taskKind || cannedTaskKind(model.kind);
     const executed = await runCustomCallScript({
