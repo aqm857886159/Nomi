@@ -183,6 +183,23 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
     });
   });
 
+  it('re-reads a Host ledger Skill reference by hash before putting its body in the next outbound prompt', async () => {
+    state.skill = {
+      name: 'brand.promo', directoryName: 'brand-promo', filePath: '/skills/brand-promo/SKILL.md',
+      description: 'Brand', body: 'CANONICAL_SKILL_BODY_NEXT_TURN', manifest: null, origin: 'user',
+      audience: 'internal', packageVersion: 'nomi-skill-v1', contentHash: 'a'.repeat(64),
+    };
+    await runAgentChatV2({
+      ...request(),
+      hostPromptLedger: [{
+        kind: 'tool', capability: { id: 'skill.read' },
+        skillLoad: { name: 'brand.promo', packageVersion: 'nomi-skill-v1', contentHash: 'a'.repeat(64) },
+      }],
+    }, hooks());
+    expect(state.request?.systemPrompt).toContain('CANONICAL_SKILL_BODY_NEXT_TURN');
+    expect(state.request?.promptReceipt?.stablePrefixHash).toEqual(expect.any(String));
+  });
+
   it('rejects missing capability, missing history and cross-project binding before model selection', async () => {
     await expect(runAgentChatV2({ ...request(), capability: undefined }, hooks())).rejects.toThrow(/capability/i);
     await expect(runAgentChatV2({ ...request(), history: undefined }, hooks())).rejects.toThrow(/history/i);

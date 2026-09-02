@@ -183,6 +183,7 @@ describe('nomi-mcp · 画布方案确认 elicitation-first（App 开着）', () 
 
     const toolRes = await harness.next()
     expect(toolRes.id).toBe(2)
+    expect(JSON.parse((toolRes.result as { content?: Array<{ text?: string }> }).content?.[0]?.text || '{}')).toMatchObject({ cancelled: true, reason: 'declined' })
     // caller（core→dispatcher→outcome）会把 cancelled 转述成文本；协议层这里断言不 invoke + 未落节点。
     expect(harness.addNodeCalls()).toHaveLength(0)
   })

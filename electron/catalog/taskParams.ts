@@ -607,6 +607,24 @@ export function projectReferencesOntoBodyKeys(
 }
 
 /**
+ * **无 mapping 时 runtime 兜底请求体的形状**（单一真相源）。
+ *
+ * runtime 在找不到任何 mapping 时会 POST `/v1/images/generations` 或 `/v1/videos/generations`，
+ * body 是写死的这几个键（electron/runtime.ts 的兜底分支直接展开它）。这里声明它是为了让 L3 第三闸
+ * 能用**同一份形状**判断「参考发不发得出去」——闸门与真实 wire 必须同源，否则又是一处
+ * 「UI/闸门说能发、实际发不出」的漂移。值用 `{{request.params.X}}` 占位与模板同构，
+ * bodyReferencedParamKeys 据此取键；**刻意不含任何参考族的键**（这条兜底 wire 确实没有图片位）。
+ */
+export const NO_MAPPING_FALLBACK_BODY = {
+  model: "{{model.modelKey}}",
+  prompt: "{{request.prompt}}",
+  size: "{{request.params.size}}",
+  seed: "{{request.params.seed}}",
+  n: "{{request.params.n}}",
+  response_format: "url",
+} as const;
+
+/**
  * L3 诚实护栏（runTask 前置闸，纯函数）：图生图/图生视频「参考图缺失」或「无传输 mapping」→ 返回
  * 人话错误（调用方在付费守卫/vendor 调用之前拒发，零扣费）；其余情况 null。此前会静默退化成纯文生
  * ——模板引擎丢空键 / fallback body 根本没有图片位——生成成功、扣费成功、和原图毫无关系，
@@ -626,11 +644,28 @@ export function imageEditGuardError(
   selected?: ParameterReferenceSelection,
 ): string | null {
   // 第三闸对**所有 kind** 生效（运镜的参考视频可能挂在 t2v/omni 上），且只在真带了参考时才可能触发。
-  if (typeof createBody !== "undefined") {
-    const unreachable = unreachableReferenceLabels(request, createBody, selected);
+  //
+  // `createBody === undefined` 有两种截然不同的成因，处置也相反：
+  //  · 有 mapping、只是调用方没把 body 传进来（如 customCall 走脚本，不看模板 body）→ 无证据，放行；
+  //  · **压根没有 mapping**（hasMapping=false）→ 这不是「查不到」，而是**确知**接下来会走
+  //    runtime 的无 mapping 兜底（electron/runtime.ts:449-481），那条 body 是写死的
+  //    `{model,prompt,size,seed,n,response_format,extras}`，**任何参考族都没有位置**。
+  // 后者此前只在 image_edit / image_to_video 两个 kind 被拦（下方 !hasMapping 分支），于是
+  // 自建中转的 text_to_image / text_to_video 带着参考图落进兜底：模板丢键 → 生成成功、扣费成功、
+  // 和参考图毫无关系——正是本闸设立要根治的那种静默退化，只是从另一个 kind 的入口回来了。
+  // 用 FALLBACK-body 同款判据（不 hardcode 参考键名），让所有 kind 一口径。
+  //
+  // 补兜底 body 只补**下方没管的那些 kind**：image_edit / image_to_video 无 mapping 时，
+  // 下方那条「没有『图生图（改图）』通道」更具体（点名缺的是哪条通道、该怎么办），
+  // 拒发与零扣费的效果二者相同，就把话语权留给更会说话的那条，别在这儿抢答。
+  const fallbackBodyApplies = !hasMapping && kind !== "image_edit" && kind !== "image_to_video";
+  const effectiveBody = typeof createBody !== "undefined" ? createBody
+    : fallbackBodyApplies ? NO_MAPPING_FALLBACK_BODY : undefined;
+  if (typeof effectiveBody !== "undefined") {
+    const unreachable = unreachableReferenceLabels(request, effectiveBody, selected);
     if (unreachable.length > 0) {
       const base = `模型「${modelLabel}」在这个接入方式下发不出：${unreachable.join(" / ")}。连上的这些素材不会进入请求——为免白扣费这次不发。请断开它们，或换一个支持这些参考的渠道/模型。`;
-      const suggestion = reachableModeSuggestion(request, createBody, modeBodies, selected);
+      const suggestion = reachableModeSuggestion(request, effectiveBody, modeBodies, selected);
       return suggestion ? `${base}\n${suggestion}` : base;
     }
   }

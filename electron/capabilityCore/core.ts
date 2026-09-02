@@ -227,7 +227,15 @@ export async function importProjectAsset(input: {
   projectId: string
   path: string
   title?: string
-}): Promise<{ url: string; name: string; contentType: string; sizeBytes: number }> {
+}): Promise<{
+  url: string
+  name: string
+  contentType: string
+  sizeBytes: number
+  assetId: string
+  contentHash: string
+  version: 1
+}> {
   if (!readProject(input.projectId)) throw new Error(`项目不存在: ${input.projectId}`)
   const raw = String(input.path || '')
   // I/O 先做（realpath 解软链 + stat），判据本身保持纯函数。
@@ -255,14 +263,18 @@ export async function importProjectAsset(input: {
   const record = (await copyAssetFile(input.projectId, verdict.realPath, fileName, contentType, {
     kind: 'imported',
     source: 'mcp-import',
-  })) as { name?: string; data?: { url?: string; size?: number } }
-  const url = record?.data?.url
-  if (!url) throw new Error('素材已复制但没拿到可引用的地址，请重试。')
+  })) as { id?: string; name?: string; data?: { url?: string; size?: number; contentHash?: string } }
+  const data = record.data
+  const url = data?.url
+  if (!url || !record.id || !data?.contentHash) throw new Error('素材已复制但没拿到完整的可引用身份，请重试。')
   return {
     url,
     name: record.name || fileName,
     contentType,
-    sizeBytes: record.data?.size ?? sizeBytes ?? 0,
+    sizeBytes: data.size ?? sizeBytes ?? 0,
+    assetId: record.id,
+    contentHash: data.contentHash,
+    version: 1,
   }
 }
 

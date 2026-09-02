@@ -48,14 +48,14 @@ try {
   if ((await genTab.count()) > 0) await genTab.click()
   await win.waitForTimeout(1500)
 
-  // 加 3D 场景节点
+  // 加 3D 场景节点。
+  // 菜单真实文案是 runtime.scene3d.menu = 「3D 场景」(**中间有空格**);此处原先写的是无空格的
+  // 「3D场景」,匹配不上,于是落到下面 [title*="3D"] 兜底、**点中了「3D 模型」节点**——
+  // 编辑器压根没开,后面每一步都跟着假红。死选择器就是这么同时造假红和假绿的,故锚点写死到真实文案。
   let added = false
-  const byName = win.getByRole('button', { name: '3D场景', exact: false })
+  const byName = win.getByRole('button', { name: '3D 场景', exact: false })
   if ((await byName.count()) > 0) { await byName.first().click(); added = true }
-  if (!added) {
-    const cube = win.locator('[title*="3D"], [aria-label*="3D"]')
-    if ((await cube.count()) > 0) { await cube.first().click(); added = true }
-  }
+  if (!added) throw new Error('没找到「3D 场景」节点菜单项——锚点可能又漂了,别用模糊兜底掩盖')
   await win.waitForTimeout(2000)
   await screenshotSettled(win, { path: path.join(outDir, 'walk-01-node-added.png') })
   log(`  ✓ 3D 节点已添加 (added=${added})`)
@@ -73,8 +73,10 @@ try {
   const addMan = win.locator('[aria-label="添加假人"]')
   if ((await addMan.count()) > 0) { await addMan.first().click(); await win.waitForTimeout(1200) }
 
-  // 选第一个假人 → 姿势 tab → 套「坐姿」
-  const firstMan = win.getByText('假人', { exact: true }).first()
+  // 选第一个假人 → 姿势 tab → 套「坐姿」。
+  // 场景树里的默认名 2026-09-02 起不再落盘写死的「假人」,而是显示时按序号现算的角色号
+  // (中文「角色A」/ 英文 "Character A",与 3D 视口里那个角色徽标同名),故锚点改成角色A。
+  const firstMan = win.getByText('角色A', { exact: true }).first()
   if ((await firstMan.count()) > 0) { await firstMan.click(); await win.waitForTimeout(700) }
   const poseTab = win.getByRole('button', { name: '姿势', exact: true })
   if ((await poseTab.count()) > 0) { await poseTab.first().click(); await win.waitForTimeout(700) }

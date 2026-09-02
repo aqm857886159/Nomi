@@ -175,7 +175,7 @@ F 的入口地图已按现有代码核实；实际执行结果单独记录，不
 
 生命周期任务串起：A 对话批准一次真实写入 → 长流中 Stop → 无迟到写入 → 新建 B 且无 A 上下文 → 关闭进程 → 同隔离目录重开 → 切回 A 续聊，完整工具结果仍在、执行计数不增加。仅 reload 不等同冷重开。
 
-正式包依次运行 `pnpm run build`、`pnpm run dist:mac:dir`，后者的 packaged MCP smoke 必须通过；再用同一包内 renderer 跑 Agent 与恢复任务。开发态 test:mcp、R0 合成包或直接调用 adapter 均不能替代正式包证据。
+正式包依次运行 `pnpm run build`、`pnpm run dist:mac:dir`，后者的 packaged MCP smoke 必须通过；再用同一包内 renderer 跑 Agent 与恢复任务。开发态 `test:mcp-journey`、R0 合成包或直接调用 adapter 均不能替代正式包证据。
 
 真供应商另走 `agent-runtime-provider.walk.mjs`：显式评测开关 + 正式包，仅读已配置 APIMart 的供应商/单一模型/加密凭证，复制进新隔离设置目录；不启动真实用户目录、不复制作品或别家密钥。通过真实创作输入完成短问答、批准一次追加、撤销，以真实快照/事件中的模型与 token 用量记账，收尾删除临时凭证文件。官方通用接口已于 2026-08-27 复核为 `POST /v1/chat/completions`、Bearer 和 SSE（[官方文档](https://docs.apimart.ai/en/api-reference/texts/general/chat-completions)）；公开页未列工具及 stream_options 细节，不冒称文档保证，以本次真实运行结果单独报告。
 

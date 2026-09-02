@@ -171,7 +171,9 @@ describe("2026-08 flagship media contracts", () => {
     const turbo = selectTaskMapping(state.mappings, "runway", "image_to_video", "gen4_turbo", "i2v");
     const imageTurbo = state.models.find((item) => item.vendorKey === "runway" && item.modelKey === "gen4_image_turbo");
     const imageTurboMapping = selectTaskMapping(state.mappings, "runway", "image_edit", "gen4_image_turbo", "i2i");
-    expect(imageTurbo).toMatchObject({ meta: { archetypeId: "runway-image-reference" } });
+    // 2026-09-02 拆平台档案：gen4_image_turbo 从 runway-image-reference（罩 9 个产品）
+    // 改挂它自己的单产品档案。
+    expect(imageTurbo).toMatchObject({ meta: { archetypeId: "runway-gen4-image-turbo" } });
     expect(imageTurboMapping?.create.body).toMatchObject({ model: "gen4_image_turbo", reference_image_urls: "{{request.params.reference_image_urls}}" });
     expect(selectTaskMapping(state.mappings, "runway", "text_to_image", "gen4_image_turbo", "t2i")).toBeNull();
     expect(t2v?.create).toMatchObject({ method: "POST", path: "/v1/text_to_video", body: { model: "gen4.5" } });

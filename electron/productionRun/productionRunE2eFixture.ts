@@ -331,6 +331,29 @@ export function createProductionRunE2eRenderer(options: FixtureOptions) {
       }
     }
 
+    if (operation === 'production.materialize-shots') {
+      const rawShots = (payload as Record<string, unknown>).shots
+      const shots = Array.isArray(rawShots) ? rawShots : []
+      if (shots.length === 0) throw new Error('Production fixture semantic materialize requires shots')
+      const bindings = shots.map((rawShot, index) => {
+        const shot = rawShot && typeof rawShot === 'object' && !Array.isArray(rawShot)
+          ? rawShot as Record<string, unknown>
+          : {}
+        const shotId = typeof shot.shotId === 'string' && shot.shotId.trim()
+          ? shot.shotId.trim()
+          : `shot-${index + 1}`
+        return {
+          shotId,
+          nodeId: `semantic-shot-${index + 1}`,
+          stageId: 'generate',
+          provider: PRODUCTION_E2E_FIXTURE_PROVIDER,
+          model: PRODUCTION_E2E_FIXTURE_MODEL,
+          ...(typeof shot.role === 'string' ? { metadata: { role: shot.role } } : {}),
+        }
+      })
+      return { createdNodeIds: bindings.map((binding) => binding.nodeId), connectedCount: 0, bindings }
+    }
+
     if (operation === 'production.materialize-storyboard') {
       const rawPlan = (payload as Record<string, unknown>).plan
       const plan = rawPlan && typeof rawPlan === 'object' && !Array.isArray(rawPlan)
