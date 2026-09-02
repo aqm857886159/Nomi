@@ -11,7 +11,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { createAgentRuntimeFixture, FIXTURE_API_KEY, FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
-import { clickOrFail, expect, expectAbsent, expectCount, expectText, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { assertMockupContract, clickOrFail, expect, expectAbsent, expectCount, expectText, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import storyboardIntentContract from '../../docs/design/mockups/contracts/2026-09-01-storyboard-table-image-first.intent.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-storyboard-exec-'))
@@ -271,6 +272,10 @@ try {
   const shot1After = await frame(1).getAttribute('data-storyboard-frame')
   if (shot1After !== 'ready') failures.push(`取消花钱后镜 1 应回 ready（materialize 免费副作用），实为 ${shot1After}`)
   await snap('14-batch-cancelled-final.png')
+
+  // ── 形态契约（意图层）：拍板样张里「哪些位置承载设计意图」的二值断言。
+  // 放在这里——app 仍活、表已渲染出全部行状态，几何与结构都是真值。
+  await assertMockupContract(win, storyboardIntentContract)
 
   fixture.assertClean()
 } catch (error) {

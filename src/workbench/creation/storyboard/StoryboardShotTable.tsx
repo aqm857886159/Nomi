@@ -79,7 +79,7 @@ export default function StoryboardShotTable({ plan, rows, imageModelOptions, vid
     rows.slice(group.startPos, group.startPos + group.shots.length)
 
   return (
-    <div className="border border-nomi-line rounded-nomi divide-y divide-nomi-line-soft overflow-hidden">
+    <div className="border border-nomi-line rounded-nomi divide-y divide-nomi-line-soft overflow-hidden" data-storyboard-rows="true">
       {groups.map((group, groupIndex) => {
         const folded = foldedScenes.has(foldKeyOf(group))
         const groupRows = groupRowsOf(group)
