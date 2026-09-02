@@ -8,10 +8,16 @@ export type BrowserPromptExtraction = {
 
 export type BrowserPromptExtractionMode = 'replicate' | 'style'
 
-export const BROWSER_PROMPT_EXTRACTION_MODE_LABELS: Record<BrowserPromptExtractionMode, string> = {
-  replicate: '画面复刻',
-  style: '画面风格',
-}
+// 模式名只存**键**,取文案一律在用的地方 t(...)。
+// 原先这里是写死中文的 label 表(`replicate: '画面复刻'`),两个毛病:
+//   ① 英文界面照样显示中文——而词条 browserAssets.extraction.replicate/style 一直都在、没人引用;
+//   ② 就算改成在这里调 i18n.t(),它是**模块顶层常量**,求值发生在 import 那一刻,
+//      语言切换后不会更新,等于把首次加载时的语言冻死。
+// `as const satisfies` 让取值保持字面量类型,消费方 t(KEYS[mode]) 直接类型安全、不用 as 断言。
+export const BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS = {
+  replicate: 'browserAssets.extraction.replicate',
+  style: 'browserAssets.extraction.style',
+} as const satisfies Record<BrowserPromptExtractionMode, string>
 
 export const BROWSER_IMAGE_REPLICATE_PROMPT_EXTRACTION_PROMPT = [
   '你是 Nomi 的资深 AI 视觉提示词工程师，擅长把参考图拆解为可复现的图片生成提示词。',

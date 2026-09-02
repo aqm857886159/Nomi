@@ -153,6 +153,19 @@ describe('production Run E2E fixture', () => {
     ])
   })
 
+  it('materializes semantic shots into stable bindings before scheduler start', async () => {
+    const renderer = createProductionRunE2eRenderer({ projectRootResolver: () => '/tmp' })
+    const result = await renderer('production.materialize-shots', {
+      projectId: 'project-fixture',
+      runId: 'run-fixture',
+      shots: [{ shotId: 'c9-shot-1', role: 'shot' }, { shotId: 'c9-shot-2', role: 'shot' }],
+    }, 30_000) as { bindings?: Array<{ shotId?: string; nodeId?: string }> }
+    expect(result.bindings).toEqual([
+      expect.objectContaining({ shotId: 'c9-shot-1', nodeId: 'semantic-shot-1' }),
+      expect.objectContaining({ shotId: 'c9-shot-2', nodeId: 'semantic-shot-2' }),
+    ])
+  })
+
   it('fails closed when a semantic arrange request contains no adopted shots', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-production-semantic-arrange-empty-'))
     const renderer = createProductionRunE2eRenderer({ projectRootResolver: () => root })
