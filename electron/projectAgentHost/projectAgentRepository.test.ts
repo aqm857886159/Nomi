@@ -577,11 +577,19 @@ describe("ProjectAgentRepository", () => {
     const realRename = fs.renameSync.bind(fs);
     const directoryFds = new Set<number>();
     let mainPublished = false;
-    const readSpy = vi.spyOn(fs, "readFileSync");
+    // Ledger rescans are counted by OPEN INTENT. Production opens the ledger by path and then
+    // reads the fd, so filtering readFileSync calls by path matches nothing and asserts nothing.
+    // Only a full rescan opens the ledger read-only; the append is O_WRONLY and the tail
+    // reconciler is O_RDWR. See docs/fixes/2026-09-03-host-snapshot-complexity-assertion.
+    const writeIntent = fs.constants.O_WRONLY | fs.constants.O_RDWR;
+    let ledgerRescans = 0;
     setDurabilityMode("durable");
     vi.spyOn(fs, "openSync").mockImplementation((filePath, flags, mode) => {
       const fd = realOpen(filePath, flags, mode);
       if (String(filePath) === paths.dir && flags === "r") directoryFds.add(fd);
+      if (String(filePath) === paths.ledger && typeof flags === "number" && (flags & writeIntent) === 0) {
+        ledgerRescans += 1;
+      }
       return fd;
     });
     vi.spyOn(fs, "renameSync").mockImplementation((from, to) => {
@@ -619,7 +627,12 @@ describe("ProjectAgentRepository", () => {
     expect(repository.lookupCommittedCommand(state(BINDING_A, 1), "repository-fixture-command-1")).toMatchObject({
       appliedRevision: 1,
     });
-    expect(readSpy.mock.calls.filter(([filePath]) => String(filePath) === paths.ledger)).toHaveLength(0);
+    // The warm repository answered both reads from its in-memory index, despite the failure.
+    expect(ledgerRescans).toBe(0);
+    // Positive control: the counter must be able to move, or the zero above proves nothing.
+    // A cold repository over the same partition has to rebuild its index from the ledger.
+    expect(createProjectAgentRepository({ rootDir: root }).load(BINDING_A)).toEqual(state(BINDING_A, 1));
+    expect(ledgerRescans).toBe(1);
     expect(fs.existsSync(paths.backup)).toBe(false);
   });
 

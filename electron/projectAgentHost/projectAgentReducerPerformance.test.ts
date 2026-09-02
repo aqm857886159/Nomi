@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { ProjectAgentMutation } from "../shared/projectAgentContracts";
 import * as reducerModule from "./projectAgentReducer";
 import { ProjectAgentReducerError, reduceProjectAgentMutation } from "./projectAgentReducer";
-import { __projectAgentFullValidationCountForTests, createInitialProjectAgentState } from "./projectAgentState";
+import {
+  __projectAgentFullValidationCountForTests,
+  createInitialProjectAgentState,
+  snapshotProjectAgentHostState,
+} from "./projectAgentState";
 
 const binding = {
   projectId: "project-a",
@@ -171,17 +175,22 @@ describe("ProjectAgent reducer bounded idempotency history", () => {
 
   it("keeps queued-turn invariant validation out of the cubic growth path", () => {
     let state = createInitialProjectAgentState(binding);
-    const startedAt = performance.now();
+    const validationsBefore = __projectAgentFullValidationCountForTests();
     for (let index = 0; index < 1_000; index += 1) {
       state = reduceProjectAgentMutation(state, enqueueMutation(index)).state;
     }
     expect(state.turns).toHaveLength(1_000);
     expect(state.queue).toHaveLength(1_000);
-    // This guards the linear→cubic regression, not a fixed latency SLA. Isolated the loop is ~560ms;
-    // under the full 1084-file Vitest run it can starve to ~3.7s purely from CPU contention (measured),
-    // so a 2s budget flakes on load without any algorithmic change. A cubic path at n=1000 is ~10^6×
-    // slower (minutes), so an 8s budget still trips the regression while surviving parallel load — and
-    // the 10s per-test timeout remains a hard ceiling. Not a timeout-widen to mask a real failure.
-    expect(performance.now() - startedAt).toBeLessThan(8_000);
-  }, 10_000);
+    // The cubic path is full-state revalidation per enqueue, so count it rather than time it.
+    // 1,000 trusted appends must not trigger a single full validation, and that holds at any
+    // machine speed. This was an 8s wall-clock budget until 2026-09-03, when it failed at 11.1s
+    // under parallel load with no algorithmic change - it was measuring the machine, not the
+    // algorithm. The sibling test above already used this counter.
+    expect(__projectAgentFullValidationCountForTests()).toBe(validationsBefore);
+
+    // Positive control: a zero delta only means something if the counter can move. Handing the
+    // same state back as untrusted data must cost exactly one full validation.
+    snapshotProjectAgentHostState(JSON.parse(JSON.stringify(state)) as unknown);
+    expect(__projectAgentFullValidationCountForTests()).toBe(validationsBefore + 1);
+  });
 });

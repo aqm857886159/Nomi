@@ -13,6 +13,7 @@ import type {
   ProjectAgentTurn,
   ProjectBinding,
 } from "../shared/projectAgentContracts";
+import { PROJECT_AGENT_RECENT_COMMAND_LIMIT } from "../shared/projectAgentContracts";
 import { createOfflineProjectAgentHost } from "./projectAgentHost";
 import { reduceProjectAgentMutation } from "./projectAgentReducer";
 import { createProjectAgentRepository } from "./projectAgentRepository";
@@ -34,6 +35,13 @@ afterEach(() => {
 });
 
 const now = "2026-08-28T00:00:00.000Z";
+// Derived from production so the window assertion cannot drift from the real cap.
+const RECENT_COMMAND_WINDOW = PROJECT_AGENT_RECENT_COMMAND_LIMIT;
+// Four full window turnovers. The boundedness invariants are asserted by counts, not by wall
+// clock, so scale buys no extra coverage past the point where the window starts evicting — it
+// only buys I/O. The previous 1,000 was ~4x this cost and repeatedly blew the 30s timeout under
+// parallel load (see docs/fixes/2026-09-03-host-snapshot-complexity-assertion.root-cause.json).
+const STEADY_STATE_COMMANDS = RECENT_COMMAND_WINDOW * 4;
 const binding = {
   projectId: "project-a",
   immutableProjectUuid: "11111111-1111-4111-8111-111111111111",
@@ -352,29 +360,48 @@ describe("offline ProjectAgentHost orchestration", () => {
     });
   });
 
-  it("keeps a 1,000-command same-entity snapshot bounded without steady-state ledger rescans", async () => {
+  it("keeps a long same-entity command run bounded without steady-state ledger rescans", async () => {
     setDurabilityMode("ephemeral");
     const durableRepository = repository();
     const paths = durableRepository.pathsFor(binding);
-    const ledgerReadSpy = vi.spyOn(fs, "readFileSync");
+    // Count ledger opens by READ INTENT, not readFileSync-by-path. Production never reads the
+    // ledger by path: `scan()` opens it and then reads the fd, so a `readFileSync` spy filtered
+    // on `filePath === paths.ledger` matches nothing and passes no matter how often the ledger
+    // is rescanned. Open flags separate the three callers cleanly — the steady-state append
+    // opens O_WRONLY|O_APPEND, the tail reconciler opens O_RDWR, and only a full rescan opens
+    // read-only — so a read-intent open is exactly one rescan.
+    const openSpy = vi.spyOn(fs, "openSync");
+    const writeIntent = fs.constants.O_WRONLY | fs.constants.O_RDWR;
+    const ledgerRescans = () =>
+      openSpy.mock.calls.filter(
+        ([filePath, flags]) => String(filePath) === paths.ledger && (Number(flags) & writeIntent) === 0,
+      ).length;
     const host = createOfflineProjectAgentHost({ repository: durableRepository });
     let sizeAtWindowLimit = 0;
 
-    for (let revision = 0; revision < 1_000; revision += 1) {
+    for (let revision = 0; revision < STEADY_STATE_COMMANDS; revision += 1) {
       await host.dispatch(threadMutation(`bounded-command-${revision + 1}`, revision, "thread-a"));
-      if (revision === 63) sizeAtWindowLimit = fs.statSync(paths.snapshot).size;
+      if (revision === RECENT_COMMAND_WINDOW - 1) sizeAtWindowLimit = fs.statSync(paths.snapshot).size;
     }
 
     const snapshot = host.getSnapshot(binding);
     const finalSize = fs.statSync(paths.snapshot).size;
-    const ledgerReads = ledgerReadSpy.mock.calls.filter(([filePath]) => String(filePath) === paths.ledger);
     expect(snapshot).toMatchObject({
-      hostRevision: 1_000,
-      commandLedgerHighWater: 1_000,
+      hostRevision: STEADY_STATE_COMMANDS,
+      commandLedgerHighWater: STEADY_STATE_COMMANDS,
     });
-    expect(snapshot.recentAppliedCommands).toHaveLength(64);
+    expect(snapshot.recentAppliedCommands).toHaveLength(RECENT_COMMAND_WINDOW);
     expect(finalSize).toBeLessThan(sizeAtWindowLimit + 10_000);
-    expect(ledgerReads).toHaveLength(0);
+    // The invariant: cost per command does not grow with history. A warm host holds its ledger
+    // index in memory, so every command after the first costs zero ledger reads.
+    expect(ledgerRescans()).toBe(0);
+
+    // Positive control. `toBe(0)` above is only meaningful if the counter can move at all — the
+    // assertion it replaces was itself a permanent zero. A cold host over the same partition has
+    // to rebuild its index from the ledger, so it must register exactly one rescan.
+    const coldHost = createOfflineProjectAgentHost({ repository: repository() });
+    expect(coldHost.getSnapshot(binding)).toMatchObject({ hostRevision: STEADY_STATE_COMMANDS });
+    expect(ledgerRescans()).toBe(1);
   });
 
   it("round-trips an enqueued and running turn through the durable repository", async () => {

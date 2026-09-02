@@ -1,0 +1,125 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-host-snapshot-complexity-assertion",
+  "problem_type": "vacuous test assertion paired with an unnecessarily expensive test body",
+  "symptom": "The Project Agent Host snapshot boundedness test timed out (46-51s against a 30s testTimeout) on four separate branches on the night of 2026-09-02, and was triaged as a parallel-load wall-clock flake each time.",
+  "direct_cause": "projectAgentHost.test.ts spied on fs.readFileSync and filtered its calls by ledger path, but production opens the ledger by path and reads the file descriptor (projectAgentCommandLedger.ts:183, projectAgentRepository.ts:199), so the filter matched zero calls under every possible behaviour. The assertion was a permanent zero, while the 1,000-command loop it hung off cost ~25s of real snapshot I/O and already sat at 85% of the timeout before any external load.",
+  "class_root": "A test asserted a complexity invariant through an instrument that could not observe the operation it named, so the test's cost was real while its protection was zero, and nothing required the instrument to be proven capable of failing.",
+  "migration": "None. The suite keeps its describe block and every correctness assertion; only the ledger-read instrument and the command count change. The pre-fix spy and its assertion are deleted in the same commit that adds the open-intent counter, so no parallel measurement of ledger reads survives.",
+  "affected_population": [
+    "Project Agent Host steady-state snapshot and ledger boundedness coverage",
+    "Any test that infers I/O behaviour by filtering fs spy calls on a path argument",
+    "Any test whose runtime, rather than its assertions, is what approaches the vitest timeout"
+  ],
+  "scope_paths": [
+    "electron/projectAgentHost/projectAgentHost.test.ts",
+    "electron/projectAgentHost/projectAgentRepository.test.ts",
+    "electron/projectAgentHost/hostLifecycle.test.ts",
+    "scripts/check-test-waits.mjs",
+    "docs/lessons/wall-clock-timeout-can-mean-a-dead-assertion.md",
+    "electron/projectAgentHost/projectAgentReducerPerformance.test.ts"
+  ],
+  "entry_points": [
+    "electron/projectAgentHost/projectAgentHost.test.ts: 'keeps a 1,000-command same-entity snapshot bounded without steady-state ledger rescans'",
+    "electron/projectAgentHost/hostLifecycle.test.ts:3, which re-executes the same suite via import",
+    "pnpm run test and pnpm run test:system:focused, both of which include the file"
+  ],
+  "invariants": [
+    "A warm host performs zero ledger rescans in steady state, regardless of how many commands it has applied.",
+    "The recentAppliedCommands window stays capped at the production PROJECT_AGENT_RECENT_COMMAND_LIMIT rather than a 64 re-typed in the test.",
+    "The persisted snapshot stays within a constant of its size at the window limit.",
+    "The rescan counter is proven able to observe a rescan in the same run in which it asserts zero.",
+    "The cubic-growth guard is expressed as a full-validation count that does not move across 1,000 trusted appends, not as an elapsed-time budget."
+  ],
+  "regression_tests": [
+    "electron/projectAgentHost/projectAgentHost.test.ts",
+    "electron/projectAgentHost/projectAgentRepository.test.ts",
+    "electron/projectAgentHost/projectAgentReducerPerformance.test.ts"
+  ],
+  "residual_risks": [
+    "The command count drops from 1,000 to 4x the recent-command window (256). Boundedness is asserted by counts that hold at any size past the window, and the mutation test confirms the rescan regression is still caught at 256, but a defect that only manifests beyond ~256 commands would now be missed. No size threshold exists between the two in the snapshot or ledger code.",
+    "The counter reads open flags, so a hypothetical future ledger reader that opens O_RDWR and only reads would not register as a rescan. The tail reconciler is the sole O_RDWR caller today and it truncates rather than reads."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is internal to Nomi's own snapshot/ledger repository; no third-party API contract decides whether a warm host may re-read its command ledger.",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same test failed on four independent branches in one night and was closed as environmental each time, because a timeout is indistinguishable from load unless someone measures what the test actually asserts.",
+    "same_class_scan": [
+      "Repo-wide sweep for elapsed-millisecond assertions across electron/, src/, scripts/, tests/, evals/ found exactly three. projectAgentReducerPerformance.test.ts:185 is fixed in this change after it failed the verification run at 11,111ms against its 8,000ms budget. capabilityCore/shotVerifyOrchestrate.test.ts:165 (40ms deadline vs a 2s assertion, ~50x margin) and capabilityCore/mcpNodeLauncher.test.ts:432 (fast-fail vs indefinite block) both measure the thing they name with wide margins and are left alone; the full sweep is in the PR body.",
+      "Sweep for fs spies filtered by path where production reads by fd: this test was the only instance. The other fs spies in the suite assert on writes, which production does perform by path.",
+      "vitest.config.ts:22-27 already documents the neighbouring real failure mode (fsync and external load pushing orchestration tests past the timeout), which is why four sessions reached for that explanation first."
+    ]
+  },
+  "generality_proof": "The rescan counter keys on open intent rather than on a named call site: the steady-state append opens the ledger O_WRONLY|O_APPEND, the tail reconciler opens it O_RDWR, and only a full rescan opens it read-only. Any future code path that rebuilds the ledger index must open the file for reading, so it is counted regardless of which function introduces it.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-test-waits.mjs",
+      "symbol": "RULES entry 'fs-read-spy-path-filter'",
+      "responsibility": "Reject, repo-wide and at hard zero, any test that filters an fs read spy's recorded calls by path - the construct that produced a permanently-true assertion here."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentHost.test.ts",
+      "symbol": "ledgerRescans() open-intent counter and its in-test positive control",
+      "responsibility": "Observe ledger rescans through a signal production actually emits, and prove within the same run that the counter can leave zero before a zero reading is trusted."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projectAgentHost/projectAgentHost.test.ts",
+      "entry_point": "keeps a long same-entity command run bounded without steady-state ledger rescans",
+      "disposition": "enforced",
+      "evidence": "Mutation-tested: disabling the ledger index cache makes the new assertion fail with 'expected 1022 to be +0', while the pre-fix assertion passed that identical mutant having matched 0 of 2045 readFileSync calls."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentRepository.test.ts",
+      "entry_point": "marks a post-publish directory failure as committed and non-retryable",
+      "disposition": "enforced",
+      "evidence": "The repo-wide scan found this second, independent copy of the same vacuous construct at line 622 - identical filter, identical permanent zero. It is repaired the same way, counting read-intent opens inside the openSync mock the test already installs, with its own cold-repository positive control."
+    },
+    {
+      "path": "electron/projectAgentHost/hostLifecycle.test.ts",
+      "entry_point": "import './projectAgentHost.test'",
+      "disposition": "enforced",
+      "evidence": "A three-line compatibility entrypoint that re-executes the same suite, so it inherits the repaired assertion with no separate change."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentReducerPerformance.test.ts",
+      "entry_point": "keeps queued-turn invariant validation out of the cubic growth path",
+      "disposition": "enforced",
+      "evidence": "Initially triaged as out-of-class - a genuine wall-clock budget rather than a vacuous one - and deferred to follow-up. It then failed the verification gates run for this very change at 11,111ms against its 8,000ms budget with no algorithmic change, and measured 8,657ms inside the full suite, over budget again. Converted here to the count assertion the sibling test in the same file already used: __projectAgentFullValidationCountForTests() must not move across 1,000 trusted appends, plus a positive control. Mutation-tested by disabling the trusted-state fast path: 'expected 1001 to be 1'."
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-test-waits.mjs",
+    "invariant": "No test file anywhere in electron/, src/, scripts/, tests/ or evals/ may filter an fs read spy's recorded calls by path. The rule is hard zero with no ratchet baseline, matching the gate's existing policy.",
+    "failure_mode": "A reintroduced path filter fails the gate with exit 1 and names the file, line and remediation, so the construct cannot reach main again even though it looks correct in review and passes when run.",
+    "exception_policy": "none",
+    "strategy": "Move the check from author discipline to the machine. Reviewers cannot see that a path filter is vacuous without knowing production reads by fd; the gate encodes that knowledge once and applies it to every test file on every run.",
+    "artifacts": [
+      "scripts/check-test-waits.mjs",
+      "electron/projectAgentHost/projectAgentHost.test.ts",
+      "electron/projectAgentHost/projectAgentRepository.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/projectAgentHost/projectAgentHost.test.ts",
+    "electron/projectAgentHost/projectAgentRepository.test.ts",
+    "electron/projectAgentHost/projectAgentReducerPerformance.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/projectAgentHost/projectAgentHost.test.ts",
+      "electron/projectAgentHost/projectAgentRepository.test.ts",
+      "electron/projectAgentHost/projectAgentReducerPerformance.test.ts"
+    ],
+    "rationale": "Both path-filtered fs.readFileSync spies and their expect(...).toHaveLength(0) assertions are deleted in the same commit that introduces the open-intent counters, and the reducer test's performance.now() wall-clock budget is deleted in favour of the validation counter. No fallback measurement of ledger reads or of elapsed time remains, and the new gate rule makes the deleted fs-spy construct unrepresentable rather than merely absent."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The fix uses vitest's existing spy API and Node's fs constants, both already required by this suite; no dependency version influences whether the assertion can observe a rescan.",
+    "exit_criteria": []
+  }
+}
