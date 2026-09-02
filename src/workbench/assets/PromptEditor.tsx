@@ -30,6 +30,8 @@ type PromptEditorProps = {
   value: string
   onChange: (next: string) => void
   placeholder?: string
+  /** 可编辑区的可访问名（提示词框是主输入面，读屏必须报得出它属于哪一镜）。 */
+  ariaLabel?: string
   className?: string
   onBlur?: () => void
   /** 暴露 editor 实例,供「点 tile 插入 chip」等外部命令(insertAssetMention)。 */
@@ -89,7 +91,7 @@ function createPromptSkeletonPlugin(options: {
   })
 }
 
-export default function PromptEditor({ value, onChange, placeholder, className, onBlur, onReady, mentionCandidates, mentionReferences, mentionSearch, onMentionSelect, mentionUpload, editable, promptSegments, onPromptSegmentClick }: PromptEditorProps): JSX.Element {
+export default function PromptEditor({ value, onChange, placeholder, ariaLabel, className, onBlur, onReady, mentionCandidates, mentionReferences, mentionSearch, onMentionSelect, mentionUpload, editable, promptSegments, onPromptSegmentClick }: PromptEditorProps): JSX.Element {
   const onChangeRef = React.useRef(onChange)
   React.useEffect(() => { onChangeRef.current = onChange }, [onChange])
   // 有序参考 url 也留一份 ref：外部 value 变化时 setContent 要用它给 chip 编号（那个 effect 不该依赖它重跑）。
@@ -146,7 +148,7 @@ export default function PromptEditor({ value, onChange, placeholder, className, 
     ],
     content: promptToContent(value, mentionReferences ?? mentionCandidates),
     editable: editable !== false,
-    editorProps: { attributes: { class: 'generation-canvas-v2-node__prompt-input outline-0' } },
+    editorProps: { attributes: { class: 'generation-canvas-v2-node__prompt-input outline-0', ...(ariaLabel ? { 'aria-label': ariaLabel } : {}) } },
     onUpdate: ({ editor: current, transaction }) => {
       const next = contentToPrompt(current)
       if (!shouldEmitPromptUpdate(transaction.docChanged, next, latestValueRef.current)) return

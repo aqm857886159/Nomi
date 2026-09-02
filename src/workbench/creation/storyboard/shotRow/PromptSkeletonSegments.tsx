@@ -15,6 +15,7 @@ export default function PromptSkeletonSegments({
   onChange: (next: { prompt: string; ranges: PromptSegmentRange[] }) => void
   editorProps: {
     placeholder?: string
+    ariaLabel?: string
     className?: string
     mentionCandidates?: string[]
     mentionSearch?: (query: string) => MentionSuggestionItem[]
