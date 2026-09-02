@@ -586,7 +586,7 @@ export const zhGenerationCommon = {
   },
   spend: {
     agentNotice: '经 AI 助手驱动 · 需你确认花费',
-    agentNoticePlan: '经 AI 助手驱动 · 需你确认落画布',
+    agentNoticePlan: '经 AI 助手驱动 · 需你确认生成',
     autoIgnore: '{{seconds}}s 后自动忽略',
     suppressSession: '本次会话不再提示',
     ignore: '忽略',
@@ -2181,7 +2181,7 @@ export const enGenerationCommon = {
   },
   spend: {
     agentNotice: 'Started by an AI assistant · Your approval is required before spending',
-    agentNoticePlan: 'Started by an AI assistant · Your approval is required before adding to the canvas',
+    agentNoticePlan: 'Started by an AI assistant · Your approval is required before generating',
     autoIgnore: 'Auto-ignore in {{seconds}}s',
     suppressSession: 'Do not ask again this session',
     ignore: 'Ignore',

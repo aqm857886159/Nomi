@@ -70,6 +70,24 @@ describe('buildClipFromGenerationNode 视频时长真相序（修「拖入视频
   })
 })
 
+describe('buildClipFromGenerationNode 图片停留时长（分镜 v5：meta.imageDurationSec 生效）', () => {
+  it('分镜图片镜带 meta.imageDurationSec → 落轨按停留时长（不再钉死 3 秒）', () => {
+    const node = { ...makeNode({ url: 'nomi-local://a.png' }), meta: { imageDurationSec: 7 } }
+    const clip = buildClipFromGenerationNode(node, { fps: 30 })
+    expect(clip?.frameCount).toBe(210) // 7s * 30fps
+  })
+
+  it('无标记（画布手建图片节点）回落 DEFAULT_IMAGE_SECONDS=3 单源默认', () => {
+    const clip = buildClipFromGenerationNode(makeNode({ url: 'nomi-local://a.png' }), { fps: 30 })
+    expect(clip?.frameCount).toBe(90) // 3s * 30fps
+  })
+
+  it('非法标记（0/负数/非数字）视同无标记', () => {
+    const node = { ...makeNode({ url: 'nomi-local://a.png' }), meta: { imageDurationSec: 0 } }
+    expect(buildClipFromGenerationNode(node, { fps: 30 })?.frameCount).toBe(90)
+  })
+})
+
 function videoClip(over: Partial<TimelineClip> = {}): TimelineClip {
   return {
     id: 'clip-1',

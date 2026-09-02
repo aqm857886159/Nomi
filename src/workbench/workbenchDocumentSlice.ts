@@ -44,7 +44,7 @@ export type WorkbenchDocumentSlice = {
   hydrateWorkbenchDocuments: (documents: WorkbenchDocument[], activeId: string | null) => void
   /** 写入/改写分镜方案对象（planner 落库、编辑器逐字段编辑）：置草稿态。按 documentId 索引；缺省回退 activeDocumentId。 */
   setStoryboardPlan: (plan: StoryboardPlan | null, documentId?: string, storyboardId?: string, syncSource?: boolean, createNew?: boolean) => StoryboardDesign | null
-  /** 确认落画布后：方案保留、转「已落画布」（卡片留痕）。按 documentId 索引；缺省回退 activeDocumentId。 */
+  /** 首次行内/批量生成把方案「落进画布」后调用：方案保留、转已落画布（卡片留痕）。按 documentId 索引；缺省回退 activeDocumentId。 */
   commitStoryboardPlan: (documentId?: string, storyboardId?: string) => void
   /** 丢弃方案：清空该文档的方案（卡片随之消失）。按 documentId 索引；缺省回退 activeDocumentId。 */
   discardStoryboardPlan: (documentId?: string) => void
@@ -332,7 +332,7 @@ export const createWorkbenchDocumentSlice: WorkbenchSliceCreator<WorkbenchDocume
     return appliedDesign
   },
   commitStoryboardPlan: (documentId, storyboardId) => {
-    // 确认落画布:方案保留(卡片留痕)、转已落画布。bump 落盘 committed 状态。
+    // v5 起没有「确认落画布」按钮:首次行内/批量生成即落画布并调用本方法。方案保留(卡片留痕)、转已落画布,bump 落盘 committed 状态。
     const target = resolveTargetDocumentId(documentId, get)
     if (!target) return
     set((state) => {

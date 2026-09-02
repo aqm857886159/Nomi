@@ -10,7 +10,7 @@ import { approveLatestScript, approveLatestStoryboard, waitForProduction as wait
 import { compileExecutionContract, type PlanCandidate } from '../capabilityCore/executionContract'
 import { createModuleRegistry } from '../capabilityCore/moduleRegistry'
 import { sealAndApproveProductionGeneration } from './productionGenerationAuthorizationTestUtils'
-import { semanticGenerationReadiness } from './productionRunDriverOps'
+import { isRetiredLegacyWriterState, semanticGenerationReadiness } from './productionRunDriverOps'
 
 function makeRoot(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-production-driver-'))
@@ -45,6 +45,13 @@ function semanticCandidate(id: string, prompt: string): PlanCandidate {
 }
 
 describe('ProductionRunService driver round 1', () => {
+  it('keeps the retired legacy writer guard limited to durable submit states', () => {
+    expect(isRetiredLegacyWriterState('submit_intent_persisted')).toBe(true)
+    expect(isRetiredLegacyWriterState('submitting')).toBe(true)
+    expect(isRetiredLegacyWriterState('authorized')).toBe(false)
+    expect(isRetiredLegacyWriterState('adopted')).toBe(false)
+  })
+
   it('initializes direction gate with zero paid work at draft time, safe even if direction planning cannot run', () => {
     const root = makeRoot()
     const repository = createProductionRunRepository({ projectDirResolver: () => root })

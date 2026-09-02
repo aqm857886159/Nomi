@@ -22,15 +22,20 @@ const RETIRED_OLD_NAMES = [
   // session_open 保留原名（唯一 1→1），不在退役表。
 ]
 
-// 收敛后的 15 个工具名 + 并线 main 带入的 4 个 M2 语义编辑工具（收敛后新增的独立对象，catalog 末尾原样保留）。
+// 收敛后的 15 个工具名（nomi_canvas_edit 槽位现由 M2 语义 canvas.write 适配器承担）+ 8 个 M2 语义编辑工具（catalog 末尾原样保留）。
 const COLLAPSED_TOOL_NAMES = [
   'nomi_session_open', 'nomi_read', 'nomi_canvas_edit', 'nomi_asset_import', 'nomi_operation_plan',
   'nomi_operation_preview', 'nomi_operation_gate', 'nomi_operation_execute', 'nomi_operation_control',
   'nomi_run_start', 'nomi_run_control', 'nomi_artifact_review', 'nomi_run_gate', 'nomi_integration',
   'nomi_project_create',
 ]
-// M2 语义编辑（main #16290f6e，非本次 42→15 收敛的一员；此处只断言「原样保留、不被误删」）。
-const M2_EDITING_TOOL_NAMES = ['nomi_timeline_read', 'nomi_timeline_edit', 'nomi_export_job', 'nomi_media_query']
+// M2 语义编辑（非本次 42→15 收敛的一员；此处只断言「原样保留、不被误删」）。并线裁定（2026-09-02）：
+// M2 canvas/document 语义面 4 个透传工具随并线加入（canvas_read 收进 nomi_read target=canvas、canvas 写即 T3 本体，
+// 均不在透传里，见 mcpToolCatalog.ts）。
+const M2_EDITING_TOOL_NAMES = [
+  'nomi_canvas_plan', 'nomi_canvas_maintenance', 'nomi_document_read', 'nomi_document_edit',
+  'nomi_timeline_read', 'nomi_timeline_edit', 'nomi_export_job', 'nomi_media_query',
+]
 const NEW_TOOL_NAMES = [...COLLAPSED_TOOL_NAMES, ...M2_EDITING_TOOL_NAMES]
 
 function tool(name: string): McpToolDefinition {
@@ -63,8 +68,8 @@ describe('MCP surface collapse 42→15 · P1 retirement', () => {
   it('exposes exactly the 15 collapsed tools + 4 preserved M2 editing tools', () => {
     const listed = MCP_TOOL_RESOLVER.list()
     expect(listed.map((t) => t.name)).toEqual(NEW_TOOL_NAMES)
-    // 收敛的 15 个带人读 title；M2 语义编辑工具沿用 main 已发布形态（暂无 title，续裁时补）。
-    for (const t of listed.filter((t) => COLLAPSED_TOOL_NAMES.includes(t.name))) {
+    // 收敛的 15 个带人读 title；M2 语义工具（含 T3 槽位的语义 canvas_edit）沿用已发布形态（暂无 title，续裁时补）。
+    for (const t of listed.filter((t) => COLLAPSED_TOOL_NAMES.includes(t.name) && t.name !== 'nomi_canvas_edit')) {
       expect(typeof (t as { title?: unknown }).title, `${t.name} carries a title`).toBe('string')
     }
   })
@@ -116,15 +121,23 @@ describe('MCP surface collapse · equivalence-anchor mapping table', () => {
       .toEqual({ method: 'integration.get', params: { sessionId: 's-1' } })
   })
 
-  it('T3 nomi_canvas_edit absorbs the 4 canvas writes (each = an action)', () => {
-    expect(route('nomi_canvas_edit', { action: 'add_nodes', projectId: P, nodes: [{ kind: 'video' }] }))
-      .toEqual({ method: 'canvas.addNodes', params: { projectId: P, nodes: [{ kind: 'video' }] } })
-    expect(route('nomi_canvas_edit', { action: 'connect', projectId: P, connections: [{ source: 'a', target: 'b' }] }))
-      .toEqual({ method: 'canvas.connect', params: { projectId: P, connections: [{ source: 'a', target: 'b' }] } })
-    expect(route('nomi_canvas_edit', { action: 'set_prompt', projectId: P, nodeId: 'n-1', prompt: 'x', title: 't' }))
-      .toEqual({ method: 'canvas.setPrompt', params: { projectId: P, nodeId: 'n-1', prompt: 'x', title: 't' } })
-    expect(route('nomi_canvas_edit', { action: 'delete_nodes', projectId: P, nodeIds: ['n-1'] }))
-      .toEqual({ method: 'canvas.deleteNodes', params: { projectId: P, nodeIds: ['n-1'] } })
+  it('T3 nomi_canvas_edit routes canvas writes through the semantic lease-scoped surface (no legacy catalog methods)', () => {
+    // 并线裁定：action→canvas.addNodes/... 薄路由被 M2 语义面（根因契约）取代——leaseHandle 必填、operation 枚举、
+    // 统一 canvas.write 能力路由；删除/撤销拆去 nomi_canvas_maintenance（destructiveHint + confirmation + undoToken）。
+    expect(route('nomi_canvas_edit', { leaseHandle: L, projectId: P, operation: 'set_node_prompt', nodeId: 'n-1', prompt: 'x' }))
+      .toEqual({ method: 'canvas.write', params: { leaseHandle: L, projectId: P, operation: 'set_node_prompt', nodeId: 'n-1', prompt: 'x' } })
+    expect(route('nomi_canvas_edit', {
+      leaseHandle: L, projectId: P, operation: 'create_canvas_nodes', summary: '创建画布节点',
+      nodes: [{ clientId: 'c-1', kind: 'image', title: '镜 1', prompt: '镜头 1' }, { clientId: 'c-2', kind: 'video', title: '镜 2', prompt: '镜头 2' }],
+    }).method).toBe('canvas.write')
+    expect(route('nomi_canvas_edit', { leaseHandle: L, projectId: P, operation: 'connect_canvas_edges', edges: [{ sourceClientId: 'c-1', targetClientId: 'c-2', mode: 'reference' }] }))
+      .toEqual({ method: 'canvas.write', params: { leaseHandle: L, projectId: P, operation: 'connect_canvas_edges', edges: [{ sourceClientId: 'c-1', targetClientId: 'c-2', mode: 'reference' }] } })
+    expect(route('nomi_canvas_maintenance', { leaseHandle: L, projectId: P, operation: 'delete_canvas_nodes', nodeIds: ['n-1'], confirmation: true }))
+      .toEqual({ method: 'canvas.delete', params: { leaseHandle: L, projectId: P, operation: 'delete_canvas_nodes', nodeIds: ['n-1'], confirmation: true } })
+    // 旧目录级路由键彻底退役（P1）：语义面不再把这些字面量当 catalog method 暴露。
+    for (const legacy of ['canvas.addNodes', 'canvas.connect', 'canvas.setPrompt', 'canvas.deleteNodes']) {
+      expect(MCP_TOOL_RESOLVER.list().map((t) => t.method)).not.toContain(legacy)
+    }
   })
 
   it('T4 nomi_asset_import ≡ nomi_import_asset', () => {

@@ -123,12 +123,15 @@ describe('production run MCP tools', () => {
   })
 
   it('keeps the current README count and guide table aligned with the exported catalog', () => {
-    // 面收敛（surface-16-collapse）：拉分支时 42 个塌成 15 个；并线 main 后 +4 个 M2 语义编辑工具 = 19。
-    // README/guide 计数同步到 19，且每个导出 name（含 4 个 M2 工具）在 guide 都有条目——公开契约不许漏面。
+    // 面收敛（surface-16-collapse）：拉分支时 42 个塌成 15 个；并线 main +4 M2 编辑工具、并线 M2 canvas/document
+    // 语义面 +4（canvas_plan/maintenance · document_read/edit）= 23。README/guide 计数同步到 23，且每个导出
+    // name 在 guide 都有条目——公开契约不许漏面。
     const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8')
     const guide = fs.readFileSync(path.join(process.cwd(), 'docs/guide/capability-core-cli-mcp.md'), 'utf8')
-    expect(readme).toContain('Nineteen MCP tools')
-    expect(guide).toContain('15+4=19')
+    expect(readme).toContain('Twenty-three MCP tools')
+    expect(guide).toContain('15+8=23')
+    // Keep the public guide aligned with the live catalog so a newly reachable
+    // semantic surface cannot be omitted from the user-facing MCP contract.
     for (const name of MCP_TOOL_NAMES) expect(guide).toContain(`\`${name}\``)
   })
 

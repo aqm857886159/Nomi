@@ -252,6 +252,26 @@ export function consumedCanonicalKeys(paramMap: ParamMap | undefined): string[] 
 
 const PARAM_TOKEN = /\{\{\s*request\.params\.([a-zA-Z0-9_]+)\s*\}\}/g;
 
+/**
+ * 这条 create op **整体**引用了哪些 canonical 参数键——HTTP body 与进程型 transport 的 CLI args 一起算。
+ *
+ * 为什么不能只扫 body：即梦（dreamina）这类走 `create.process.args` 的渠道根本没有 body，参数是
+ * `--model_version={{request.params.model}}` 这样经 argv 发出去的。只扫 body 会把它们误判成「这个键
+ * 发不出去」——实测就险些据此把即梦活着的变体选择器藏掉（它 6 个变体全靠 params.model 生效）。
+ *
+ * 单一真相源：参数一致性不变量（paramConsistency.test）与变体轴收窄都读它，不各写一份扫描。
+ */
+export function wireReferencedParamKeys(create: {
+  body?: unknown;
+  process?: { args?: string[] };
+} | null | undefined): string[] {
+  if (!create) return [];
+  return [...new Set([
+    ...bodyReferencedParamKeys(create.body),
+    ...bodyReferencedParamKeys(create.process?.args),
+  ])];
+}
+
 /** 扫一个 body 模板（任意嵌套 JSON）里所有 `{{request.params.X}}` 令牌引用的键。 */
 export function bodyReferencedParamKeys(body: unknown): string[] {
   const keys = new Set<string>();

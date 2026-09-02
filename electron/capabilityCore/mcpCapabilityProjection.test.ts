@@ -172,7 +172,7 @@ describe("canvas.read MCP capability projection", () => {
   });
 
   it("registers only the explicitly project-session-authorized canvas.read adapter", () => {
-    expect(MCP_CAPABILITY_RESOLVER.list()).toHaveLength(5);
+    expect(MCP_CAPABILITY_RESOLVER.list()).toHaveLength(10);
     const [tool] = MCP_CAPABILITY_RESOLVER.list();
     expect(tool).toMatchObject({
       name: CANVAS_READ_CAPABILITY.aliases.mcp,

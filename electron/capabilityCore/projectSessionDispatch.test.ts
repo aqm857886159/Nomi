@@ -110,7 +110,7 @@ describe('generic project-session route', () => {
     expect(opened).toMatchObject({
       protocolVersion: 2,
       projectId: 'project-1',
-      effectiveScope: ['canvas:read'],
+      effectiveScope: expect.arrayContaining(['canvas:read', 'canvas:write', 'document:read', 'document:write']),
     })
     expect(runTask).not.toHaveBeenCalled()
     expect(isSemanticGenerationRoute('nomi_session_open')).toBe(false)

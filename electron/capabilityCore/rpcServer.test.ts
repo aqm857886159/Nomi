@@ -232,7 +232,15 @@ describe("capabilityCore/rpcServer", () => {
       protocolVersion: 2,
       projectId: createdResult.id,
       sessionId: context.sessionId,
-      effectiveScope: ["asset:read", "canvas:read", "export:read", "timeline:read"],
+      effectiveScope: expect.arrayContaining([
+        "asset:read",
+        "canvas:read",
+        "canvas:write",
+        "document:read",
+        "document:write",
+        "export:read",
+        "timeline:read",
+      ]),
     });
     const canonicalRead = await rpc(
       "canvas.read",

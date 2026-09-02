@@ -1,0 +1,73 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-main-push-concurrency-cancels-evidence",
+  "problem_type": "A cancelling concurrency group keyed on a shared branch ref makes consecutive merges cancel each other's CI, destroying merge-SHA evidence",
+  "symptom": "2026-09-02 合并潮期间，main 上连续多个 merge SHA 的 Quality Gate run 以 conclusion=cancelled 收场，聚合 job 因此记 failure。`pnpm run delivery:verify-merged -- --expected-sha <merge SHA>` 在高峰期对任何 SHA 都发不出 exact-SHA 收据；对旧 SHA 手动 rerun 也会被下一次 push 再次取消。实测样本：10:51:03 的 8cd01c56 开跑，10:52:20 下一个 merge 8e22dffb 落地，10:52:35–38 前者的 Contracts / Unit / E2E / Mac Package 被全部取消；同一时段连续四班（8cd01c56、8e22dffb、576cb909、b412c592）里三班被取消。",
+  "direct_cause": ".github/workflows/quality-gate.yml 的并发组表达式为 `quality-gate-${{ github.event.pull_request.number || github.ref }}` 且 cancel-in-progress 为 true。push 事件下 pull_request.number 为空，回落到 github.ref，而 main 的 ref 恒为 refs/heads/main——于是 main 上所有 merge 共用同一个并发组，后一班取消前一班。",
+  "class_root": "取消式并发组按「多个不同提交共用的标识」分组。分组键的粒度必须与「需要独立证据的单位」一致：PR 的证据单位是 PR（新推送应当取消旧班），push 的证据单位是 commit（每个 merge SHA 都要独立收据）。用 ref 给 push 分组把两者混为一谈，使得证据单位被并发策略吞掉；并且没有任何分支作者能规避——取消你的是下一个 merge，与你做了什么无关。",
+  "affected_population": [
+    "所有向 main 合并的贡献者：合并潮期间他们的 merge SHA 拿不到完整 CI 结论，main 的 check 历史留下 failure",
+    "依赖 delivery:verify-merged 出 exact-SHA 收据的交付流程：cancelled 被正确拒绝，交付身份无法确认（工具行为正确，是供给侧缺席）",
+    "任何在 main 变红后排查的人：cancelled 传导成聚合 job failure，看起来像代码回归，实际是并发策略造成的假红"
+  ],
+  "scope_paths": [
+    ".github/workflows/quality-gate.yml",
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "entry_points": [
+    "GitHub Actions 并发调度：push / pull_request / merge_group / workflow_dispatch 四类事件进入 quality-gate 时的分组键",
+    "pnpm run check:quality-gate-workflow（gates 链与 CI Contracts job 中的 workflow 结构门岗）",
+    "pnpm run delivery:verify-merged（消费 merge SHA 上的 check 结论生成收据）"
+  ],
+  "invariants": [
+    "并发分组键的粒度等于证据单位：pull_request 按 PR 号分组，其余事件按 github.sha 分组。",
+    "由 push 触发且 cancel-in-progress 为 true 的 workflow，其并发组表达式必须含 github.sha——否则同一分支的相邻 push 会互相取消。",
+    "PR 事件不得按 github.sha 分组：PR 里每次推送 sha 都变，按 sha 分组会让旧班不被取消而堆积。",
+    "cancel-in-progress 保持 true：目标是让每个 commit 各跑各的，不是取消掉重试语义。"
+  ],
+  "regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "residual_risks": [
+    "类级断言的判据是「push 触发 + cancel-in-progress: true + 组表达式不含 github.sha」。若将来有人用别的方式引入共用键（例如显式写死一个常量组名，或用 github.workflow 之类的全局量）而表达式里恰好又出现了 github.sha，本断言不会红。取此判据是因为它精确覆盖了已发生的失效形态，且不会对 schedule / workflow_dispatch 类 workflow 产生误报。",
+    "workflow_dispatch 与 merge_group 的分组键从 github.ref 改为 github.sha：同一 commit 上的两次手动 dispatch 仍会互相取消（与改动前一致），但不同 commit 上的两次 dispatch 不再互相取消。这是期望的行为改进，不是回归。",
+    "并发不再取消意味着合并潮期间同时在跑的 job 数上升。仓库是 public，GitHub 标准 runner 免费，代价是并发位与墙钟；且改动前被取消的班在取消前已经消耗了 runner 时间却不产出任何证据，故净成本并未显著增加。"
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "这是单个 workflow 文件里的一处分组键表达式写错，不是会自我再生的缺陷类：没有任何代码路径在生产并发组表达式。已对仓库全部 8 个 workflow 实查分组键与触发器组合，只有 quality-gate 一处命中，其余在结构上不可能复现（见 same_class_scan）。因此按 schema 要求不构造可复用边界（omit prevention），只把不变量以类级断言的形式钉在既有的 workflow 结构测试里——该断言扫描 .github/workflows 下全部文件，覆盖的是「push 触发 + 取消式并发」这个组合，而非 quality-gate 一个文件。",
+    "same_class_scan": [
+      "逐个实查 .github/workflows 下全部 8 个 workflow 的 (触发器 × concurrency.group × cancel-in-progress) 组合：quality-gate.yml 是唯一「由 push 触发 + cancel-in-progress: true + 分组键可回落到共用 ref」的文件，即本次修复对象。",
+      "desktop-preview.yml 组键为 pull_request.number || inputs.ref || github.ref 且 cancel 为 true，但触发器只有 pull_request 与 workflow_dispatch，没有 push：PR 事件恒命中 PR 号，dispatch 的 ref 由调用者指定，故不存在共用键，不受影响。",
+      "win-gate.yml 与 win-invalid-state-probe.yml 组键含 github.ref 且 cancel 为 true，但均为 workflow_dispatch-only：ref 由每次手动调用指定，是该次运行的证据单位本身，不存在多个提交共用，不受影响。",
+      "download-stats.yml 与 seo-radar.yml 使用固定常量组名（download-stats / seo-radar），看似最粗粒度，但两者 cancel-in-progress 均为 false 且由 schedule 触发：不取消即不销毁证据，属于「排队」而非「相消」，不受影响。",
+      "desktop-rc.yml 组键为 inputs.version、cancel 为 false；desktop-release.yml 未声明 concurrency：均不构成取消式共用键，不受影响。",
+      "已把上述判据固化为 scripts/check-quality-gate-workflow.node-test.mjs 中的类级断言并做 R17 反向验证：在未修复的 workflow 上运行，该断言红并精确输出 `quality-gate.yml: quality-gate-${{ github.event.pull_request.number || github.ref }}`，且不误报其余 7 个 workflow；修复后转绿。"
+    ]
+  },
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/expressions",
+      "checked_at": "2026-09-02",
+      "purpose": "核实 GitHub Actions 表达式的假值定义（false、0、-0、空串、null 会被转成 false），据此确认 `pull_request.number || github.sha` 在 push / merge_group / workflow_dispatch 事件下会正确回落到 github.sha，而非停在空的 pull_request.number 上。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/orgs/community/discussions/26738",
+      "checked_at": "2026-09-02",
+      "purpose": "核实 `condition && value || fallback` 三元惯用法的已知限制——当 && 右侧为假值时会静默落到 || 右侧。据此刻意放弃该写法，改用不依赖该前提的两段式 `pull_request.number || github.sha`。"
+    }
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本次只修正一处并发分组键表达式，不引入也不移除任何并行或遗留路径；cancel-in-progress 语义保持不变，job 结构、job id 与 needs 图均未改动。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "并发分组键的修正不涉及任何依赖版本或运行时生命周期变更。",
+    "exit_criteria": []
+  },
+  "migration": "无迁移动作。改动只影响本次改动落地之后新触发的 run 如何分组：此前被取消的历史 run 不会追溯恢复，那些 merge SHA 上的 exact-SHA 收据仍然发不出（cancelled 是终态）。若需要为某个历史 merge SHA 补收据，可在改动生效后对该 SHA 手动重跑 Quality Gate——届时它拥有独立的并发组，不会再被后续 merge 取消。分支保护要求的 required status checks 名称（Quality Gate、Mac Package）与 job id 均未改动，无需调整保护规则。"
+}

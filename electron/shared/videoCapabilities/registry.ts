@@ -34,7 +34,6 @@ import { VEO_3_1_ARCHETYPE } from "./veo31";
 import { GEMINI_OMNI_11_ARCHETYPE } from "./geminiOmni11";
 import { RUNWAY_GEN45_ARCHETYPE } from "./runwayGen45";
 import { RUNWAY_GEN4_TURBO_ARCHETYPE } from "./runwayGen4Turbo";
-import { RUNWAY_VIDEO_ARCHETYPE, RUNWAY_VIDEO_T2V_ARCHETYPE } from "./runwayVideo";
 import { VIDU_Q3_ARCHETYPE } from "./viduQ3";
 import { WAN_2_7_ARCHETYPE } from "./wan27";
 import { WAN_3_0_ARCHETYPE } from "./wan30";
@@ -74,8 +73,6 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   GEMINI_OMNI_11_ARCHETYPE,
   RUNWAY_GEN45_ARCHETYPE,
   RUNWAY_GEN4_TURBO_ARCHETYPE,
-  RUNWAY_VIDEO_ARCHETYPE,
-  RUNWAY_VIDEO_T2V_ARCHETYPE,
   KLING_3_ARCHETYPE,
   SEEDANCE_2_APIMART_ARCHETYPE,
   SEEDANCE_2_5_APIMART_ARCHETYPE,
@@ -98,8 +95,35 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   AGNES_VIDEO_25_FLASH_ARCHETYPE,
 ];
 
+/**
+ * A loose substring hit must not let a **lower version** capture a **higher version** key.
+ * The 10k substring tier is weighted by pattern length, so `bytedance/seedance-2` (20 chars)
+ * outscored `seedance-2.5` (12) on the key `bytedance/seedance-2.5` — the resolver handed a
+ * 2.5 model the 2.0 profile. The renderer has no substring tier and got this right, so the
+ * two resolvers disagreed on exactly this family.
+ *
+ * Rule: when the pattern already **ends in a digit**, it is version-terminated; a key that
+ * continues that version (`.5`, `-5`, `_5`, `5`) is a *different* model, not this one.
+ * A pattern that does not end in a digit (`happyhorse`) is a family name, so a version suffix
+ * (`happyhorse_1_0`) still belongs to it — that hit stays valid.
+ */
+function substringHitIsVersionSafe(normalizedKey: string, candidate: string): boolean {
+  if (!/[0-9]$/.test(candidate)) return true; // family-name pattern: version suffixes still belong to it
+  const at = normalizedKey.indexOf(candidate);
+  const rest = normalizedKey.slice(at + candidate.length);
+  return !/^[.\-_]?[0-9]/.test(rest);
+}
+
+/** 与渲染层 rawIdentifier 同规则（trim + 去 "models/" 前缀）：归一化必须两侧一致，
+ * 否则同一身份串会在渲染层（精确趟命中）与这里（掉进忽略大小写的 includes 档）得出不同赢家
+ * （2026-09-02 实例："models/MiniMax-H3" 曾在这里丢掉大小写信号、认成 kie 档案）。 */
+function stripModelsPrefix(value: string): string {
+  const raw = value.trim();
+  return raw.startsWith("models/") ? raw.slice("models/".length) : raw;
+}
+
 function modelProfileMatchScore(modelKey: string, profile: ModelArchetype): number {
-  const raw = modelKey.trim();
+  const raw = stripModelsPrefix(modelKey);
   const normalized = raw.toLowerCase();
   return profile.identifierPatterns.reduce((best, pattern) => {
     const rawPattern = pattern.trim();
@@ -107,7 +131,9 @@ function modelProfileMatchScore(modelKey: string, profile: ModelArchetype): numb
     if (!candidate) return best;
     if (raw === rawPattern) return Math.max(best, 30_000 + rawPattern.length);
     if (normalized === candidate) return Math.max(best, 20_000 + candidate.length);
-    if (normalized.includes(candidate)) return Math.max(best, 10_000 + candidate.length);
+    if (normalized.includes(candidate) && substringHitIsVersionSafe(normalized, candidate)) {
+      return Math.max(best, 10_000 + candidate.length);
+    }
     return best;
   }, 0);
 }

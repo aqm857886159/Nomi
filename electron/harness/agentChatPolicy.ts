@@ -90,10 +90,10 @@ export function agentToolsForCapability(capability: AgentChatRequest["capability
       : capability === "canvas-agent"
           ? [...agentToolProjection.canvasAll, ...agentToolProjection.timelineAll, ...agentToolProjection.generationAll]
           : capability === "canvas-refine"
-            ? agentToolProjection.canvasCore.filter(({ name }) => name === "set_node_prompt")
+            ? agentToolProjection.canvasCore.filter(({ name }) => name === "nomi_canvas_edit")
             : capability === "storyboard"
-              ? agentToolProjection.canvasCore.filter(({ name }) => name === "read_canvas_state")
-                .concat(agentToolProjection.canvasAll.filter(({ name }) => name === "propose_storyboard_plan"))
+              ? agentToolProjection.canvasCore.filter(({ name }) => name === "nomi_canvas_read")
+                .concat(agentToolProjection.canvasAll.filter(({ name }) => name === "nomi_canvas_plan"))
               : [];
   return descriptors.map(({ name, description, schema }) => ({ name, description, schema }));
 }
@@ -107,12 +107,9 @@ export function agentToolsForCapabilityAndSkill(
 
 const CANVAS_CORE_TOOL_NAMES = new Set(agentToolProjection.canvasCore.map(({ name }) => name));
 const CANVAS_TOOL_NAMES = new Set(agentToolNames.canvas);
-const CANVAS_DESTRUCTIVE_TOOL_NAMES = new Set(["delete_canvas_nodes", "tidy_canvas"]);
+const CANVAS_DESTRUCTIVE_TOOL_NAMES = new Set(["nomi_canvas_maintenance", "nomi_canvas_edit"]);
 const STORYBOARD_TOOL_NAMES = new Set([
-  "propose_storyboard_plan",
-  "arrange_storyboard_to_timeline",
-  "create_staging_reference",
-  "create_camera_move",
+  "nomi_canvas_plan",
 ]);
 const MEDIA_READ_TOOL_NAMES = new Set([
   "get_media",

@@ -1,4 +1,7 @@
 import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead'
+import { CANVAS_WRITE_CAPABILITY } from '../shared/agentCapabilities/canvasWrite'
+import { DOCUMENT_READ_CAPABILITY } from '../shared/agentCapabilities/documentRead'
+import { DOCUMENT_WRITE_CAPABILITY } from '../shared/agentCapabilities/documentWrite'
 import type { McpConnectionContext } from './mcpConnectionContext'
 import type { McpGenerationCapability, McpGenerationPolicy } from './mcpGenerationPolicy'
 import type {
@@ -70,10 +73,14 @@ export function scopeForGenerationCapability(capability: McpGenerationCapability
 /** The session bootstrap can only grant server-owned, non-submit scopes. */
 export function deriveProjectSessionScopes(policy: McpGenerationPolicy): readonly string[] {
   // The same project session also authorizes the registered read-only editing
-  // ports. Keep write scopes out of the bootstrap ceiling; timeline writes
-  // still require the separate Host approval path in rpcServer.ts.
+  // ports and the current document/canvas session capabilities. Generation
+  // submit remains excluded; timeline/export writes still use their own
+  // approval paths.
   const scopes = new Set<string>([
     CANVAS_READ_CAPABILITY.requiredScope,
+    CANVAS_WRITE_CAPABILITY.requiredScope,
+    DOCUMENT_READ_CAPABILITY.requiredScope,
+    DOCUMENT_WRITE_CAPABILITY.requiredScope,
     'timeline:read',
     'export:read',
     'asset:read',

@@ -1,0 +1,171 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-audio-modelscope-identity",
+  "problem_type": "模型身份↔档案归属分裂（音频侧）：一个平台形状的档案（runway-audio）蹲在 4 个完全不同的音频产品身上，给它们发同一套参数与同样两个模式，而它下面的 wire 层（Runway /v1/sound_effect 与 /v1/text_to_speech 的 oneOf）本来就是按模型判别的——能力面与 wire 由两个作者维护、必然漂移。同轮复核第二个同族档案 modelscope-image，判定它不属此类，保留并记录理由。",
+  "symptom": "① runway-audio 声明一套共享的 7 个参数（output_format / sample_rate / speech_rate / loudness_rate / pitch_rate / duration_seconds / loop）喂给全部 4 个产品；照官方 OpenAPI 逐模型对账，**没有任何一个模型收得下这 7 个**：seed_audio 收前 5 个（spec 里没有 duration/loop），eleven_text_to_sound_v2 只收 duration/loop（其余 5 个是编的），eleven_multilingual_v2 官方**一个可调属性都没有**（7 个全是编的），eleven_v3 官方给的是 stability/similarityBoost/style/speed/useSpeakerBoost/languageCode/applyTextNormalization/seed 这**另外一套**（与档案给的 7 个零交集）。② 这些多余控件比「发非法值」更隐蔽——实测它们**根本到不了 wire**（mapping body 里没有对应模板串）：用户把采样率从 44100 调到 48000、把语速拉满，请求里一个字节都不会变，也不会报错。逐 mapping 干跑实测死参数为 2/2/5/7/7。③ 模式层同样是并集谎言：档案给全部 4 个模型都声明了 sfx + speech 两个模式，而官方 union 里 eleven_text_to_sound_v2 只在 /v1/sound_effect（纯音效模型）、eleven_multilingual_v2 与 eleven_v3 只在 /v1/text_to_speech（纯 TTS 模型）——即一个音效模型对外宣称自己会配音。这三个模式此前靠「该模式在该行没有 mapping」被 UI 收窄逻辑兜住而不可见，是**兜住的**、不是**不存在的**。④ 两个 Eleven TTS 变体的 voice 在官方 spec 里是**必填**且只接受 49 个预设之一，旧实现把 presetId: \"Maya\" **焊死在 mapping body 里**——用户永远只能用这一个音色，而档案却摆着 7 个对这条线缆毫无作用的控件。",
+  "direct_cause": "RUNWAY_AUDIO_MODEL 与 RUNWAY_ELEVEN_AUDIO_MODELS 的 4 行全部写 archetypeId: \"runway-audio\"，而 runway-audio 只声明一套通用的 sfx/speech 两模式与一套通用参数（AUDIO_PARAMS 常量），且把 4 个模型的判别串全列进自己的 identifierPatterns。能力面是这 4 个产品能力的**并集**（对每个具体模型都过宽），wire 侧则各发各的，多出来的控件无人接收。",
+  "class_root": "与 2026-09-02-runway-model-identity（视频侧）、2026-09-02-runway-image-identity（图像侧）**完全同一个类根因**：档案的归属粒度错了。档案必须是**模型身份**（供应商无关），供应商差异由「供应商特化」轴吸收；而 runway-audio 是按**供应商平台**建的档案。视频侧那轮把三条轴补齐并删掉 runway-video / runway-video-t2v 时，明确把 image/audio kind 记为「不在本次范围，记入后续」；图像侧那轮拆掉 runway-image 后把 audio 记进 residual_risks——本轮就是那最后一项。音频侧不需要新增任何轴：vendorParams（2026-06-07 已存在）足够表达「同一个模型在不同供应商上的合法取值不同」，缺的只是**把事实集中到一个作者**。",
+  "affected_population": [
+    "Runway 全部 4 个音频模型的用户：参数控件此后只出现该模型官方 spec 真实拥有的字段（seed_audio 5 个 / eleven_text_to_sound_v2 2 个 / eleven_multilingual_v2 1 个 / eleven_v3 8 个），不再有「调了没反应」的假控件。",
+    "经 Runway 用 Eleven Multilingual v2 与 Eleven v3 的用户：音色从写死的 Maya 变成官方 49 个预设的选择器（spec 里 voice 本就是必填枚举），第一次真正可选。",
+    "经 Runway 用 seed_audio 配音的用户：官方 text_to_speech 端点支持 voice:{type:\"reference-audio\",audioUri} 单条克隆音频，此前档案与 wire 都没有这条路径，现在开出来了（槽上限 1，与 sound_effect 的 referenceAudios 数组是两个不同字段）。",
+    "画布上已存在、meta.archetype.id === \"runway-audio\" 的存量节点：经 legacyIds + 模型身份匹配在**读时**迁移到各自的真模型档案，不改写项目文件。",
+    "经 ElevenLabs 直连用 eleven_v3 / eleven_text_to_sound_v2 的用户：**不受影响**——这两个档案的默认 params 一字未动，Runway 的差异走 vendorParams.runway 分家（P4）。",
+    "魔搭（ModelScope）6 个图像模型的用户：**本轮零改动、行为零变化**（判定见 residual_risks 第一条与 same_class_entry_points）。"
+  ],
+  "scope_paths": [
+    "electron/shared/audioCapabilities/runwayAudioWireFacts.ts",
+    "electron/catalog/runwayOfficial.ts",
+    "electron/catalog/runwayAudioIdentity.test.ts",
+    "electron/catalog/archetypeIdentifiers.generated.ts",
+    "electron/catalog/archetypeModes.generated.ts",
+    "electron/catalog/archetypeWireDefaults.audio.generated.ts",
+    "src/config/modelArchetypes/runwaySeedAudio.ts",
+    "src/config/modelArchetypes/elevenAudio.ts",
+    "src/config/modelArchetypes/index.ts",
+    "src/config/modelArchetypes/resolutionOrder.test.ts",
+    "src/i18n/locales/modelDisplayText.ts",
+    "scripts/check-i18n-visible-text.mjs",
+    "scripts/platform-archetypes-baseline.json",
+    "scripts/check-platform-archetypes.mjs",
+    "docs/integration-certification/model-certification-ledger.json"
+  ],
+  "entry_points": [
+    "electron/shared/audioCapabilities/runwayAudioWireFacts.ts —— Runway 每模型「在哪个端点存在 / 有哪些可调字段及取值域 / 参考音频上限 / 49 个官方音色」的唯一真相源，逐字抄自官方 OpenAPI 的两个 oneOf。两个消费者：各音频档案的 params（由 runwaySeedAudioParams() / runwayElevenSfxParams() / runwayElevenV3Params() / runwayElevenMultilingualParams() **构建**，不重打字面量）与 runwayOfficial.ts 的传输边界校验（参考音频上限）。此前这些事实只活在两处：档案里一套编的、mapping body 里一套真的，互不知情。",
+    "src/config/modelArchetypes/runwaySeedAudio.ts —— Runway 一手 seed_audio 的模型档案（新建）。它是本轮唯一真正双模态的产品（官方两个端点的 oneOf 里都有它），旧平台档案正是把这个双模态形状当成「Runway 音频」的通用形状发给了另外三个单模态产品。",
+    "src/config/modelArchetypes/elevenAudio.ts —— eleven-sfx-v2 与 eleven-v3 加 vendorParams.runway（同一产品两条渠道，取值域不同）与 legacyIds；新增 eleven-multilingual-v2 档案（仓里此前没有这个产品的主人）。",
+    "electron/catalog/runwayOfficial.ts::RUNWAY_ELEVEN_AUDIO_MODELS —— 4 行改挂各自的真模型档案；两个 Eleven TTS 的 create op 从「共用一个焊死 Maya 的工厂」拆成各自的 body（eleven_v3 多一整套表现力字段，multilingual 官方一个都没有）。",
+    "electron/catalog/runwayOfficial.ts::normalizeRunwaySeedVoiceReference —— 新增：把档案槽的 voice_reference_audio_url 整形成官方的 voice:{type:\"reference-audio\",audioUri}（单条，非数组）。",
+    "src/config/modelArchetypes/index.ts::resolveBaseArchetype —— legacyIds 迁移承接存量 \"runway-audio\" 节点。"
+  ],
+  "invariants": [
+    "每个模型只有一个档案主人：不存在跨产品共享的「平台档案」；runway-audio 已删除且不得重建（check:platform-archetypes 棘轮 + runwayAudioIdentity.test.ts 双重拦截）。",
+    "档案声明的模式集合 = 该模型在官方 union 里真实存在的端点集合：不在 /v1/sound_effect 的 oneOf 里就不许声明 sfx，不在 /v1/text_to_speech 的就不许声明 speech（幻影模式在测试期即红，不靠 UI 收窄兜底）。",
+    "UI 给得出的每一个参数都必须真的到得了 wire：mapping body 里没有 request.params.<key> 的控件即为假控件，测试逐 mapping 扫描，零容忍。",
+    "Runway 音频的可调字段、取值域、参考上限、音色枚举只有一份（runwayAudioWireFacts.ts），UI 侧 params 与传输侧校验同源。",
+    "两个 Eleven TTS 变体的 voice.presetId 必须由用户控件驱动（body 里读 request.params.voice_preset_id），且选项恰为官方 49 个预设、默认值在枚举内——不得再把任何单一音色焊死在 body 里。",
+    "参考槽在其 mapping 的 create.body 上必须可达（reach ≠ none）；seed_audio 的参考音频上限取自官方常量，不在档案里另写数字。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「平台型供应商把多个模型塞进一个共享档案」是会反复发生的接入捷径：任何一家中转/平台新接一批模型时，建一个平台档案都比逐模型建档省事。而音频侧这一轮暴露了该形状**最隐蔽的一种后果**——多余控件不是发非法值被拒（会报错、看得见），而是**根本到不了 wire**：用户调了参数、请求毫无变化、也没有任何错误，要靠逐 mapping 干跑对账才发现。同一个类根因在 2026-09-02 一天之内于 video / image / audio 三个 kind 上各暴露一次，复发性已由事实证明。防复发必须是结构性的（棘轮门岗 + 全量契约断言），不能靠这次把 Runway 音频修对。",
+    "same_class_scan": [
+      "平台型共享档案全仓普查（check:platform-archetypes 的判据：identifierPatterns 归一成产品词干后聚类 > 2 簇）：修复前 2 个（modelscope-image / runway-audio），本轮拆掉 runway-audio，基线 2 → 1。真实门岗输出：『✅ 平台档案棘轮通过：扫 107 个档案，1 个存量平台档案（基线 1，只减不增）』。",
+      "Runway 音频 4 行逐行扫描（探针，交付前删）：修复前 4 行共用 runway-audio、死参数 2/2/5/7/7、幻影模式 3 个；修复后 4 行各自独占一个档案，平台档案 0、死参数 0、幻影模式 0、参考槽不可达 0。",
+      "modelscope-image 逐项复核（同一探针法）：6 行的 wire body **逐字相同**（同一个 /v1/images/generations 端点，只有 model/prompt/size 三键，model 还是 {{model.modelKey}} 变量），档案只声明 1 个模式、5 个 size 值，实测**死参数 0、幻影模式 0**——即『能力面对每个成员撒谎』这个危害在此不存在。复用既有档案（z-image-turbo / qwen-image / qwen-image-3 / flux-2-pro）反而**会制造**新缺陷：那四个是 apimart/kie 渠道档案，size 用比例串且带 resolution 字段，而魔搭要求像素 WxH（实测传 16:9 报 size format should be WxH）。逐模型分档亦无据：魔搭 api-inference 官方文档不发布任何 per-model 参数表。故**判定保留**，理由与证据写进 baseline 的 _comment 与门岗头注释（见 residual_risks 第一条）。",
+      "视频侧（runway-video / runway-video-t2v）与图像侧（runway-image / runway-image-reference）同类已分别由 2026-09-02-runway-model-identity 与 2026-09-02-runway-image-identity 合同处置完毕，本轮不重复。",
+      "resolutionOrder 撞串登记复扫：runway-audio 删除后 eleven_text_to_sound_v2 / eleven_v3 各只剩一个声明者，KNOWN_LOSSES 例外表**清空**（此前两条都是这个平台档案造成的『损失』），全目录逐 pattern 自解析不变量仍绿。"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/runwayAudioIdentity.test.ts",
+    "electron/catalog/runwayImageIdentity.test.ts",
+    "electron/catalog/flagshipAudioVideoContracts.test.ts",
+    "src/config/modelArchetypes/resolutionOrder.test.ts"
+  ],
+  "migration": "无存储写入迁移。画布节点持久化的是 meta.archetype.id；存量 \"runway-audio\" 节点由 resolveBaseArchetype 的 legacyIds 分支在**读时**按模型身份匹配映射到各自的真模型档案（seed_audio→runway-seed-audio、eleven_text_to_sound_v2→eleven-sfx-v2、eleven_multilingual_v2→eleven-multilingual-v2、eleven_v3→eleven-v3），不改写项目文件。回滚只需恢复被删的 runwayAudio.ts 与 4 行 archetypeId，无残留数据。三个 .generated.ts 桥接文件按新档案集合重新生成（pnpm run gen:archetype-defaults），消费侧均按 archetypeId 键取。注：存量节点若持久化过 sample_rate 等此后不再存在于该模型的参数，读时按档案 params 归一即被丢弃，不会发到 wire（此前它们也没发到 wire，故无行为回退）。",
+  "residual_risks": [
+    "**modelscope-image 仍在棘轮基线里（本轮 2 → 1），这是裁决不是待办。** 判据与证据见 same_class_scan 第三条：它没有『能力面取并集对成员撒谎』这个危害（6 行 wire 逐字相同、死参数 0、幻影模式 0），而强行拆分或复用现有比例串档案**都会引入**真缺陷。诚实标注两处不确定：① 上游模型卡确实显示原生分辨率有差异（Qwen-Image 原生 1328x1328、FLUX.2-klein 支持到 4MP、Z-Image-Turbo 示例 1024x1024），而当前档案给全部 6 个模型同一套 5 个像素值——这是**画质次优**（非原生分辨率出图质量下降），不是 wire 非法；② 魔搭 api-inference 官方文档未发布 per-model 参数表，故无法按官方依据给逐模型 size 表（R5：不凭推断写枚举）。若日后魔搭发布 per-model 参数表、或某模型需要自己的模式/槽（如 FLUX.2-klein 的多参考图编辑要在这条线缆上开），再按本轮同构手法拆。",
+      "**eleven_v3 的 seed 字段未暴露**：官方 spec 有 seed（int 0..4294967295），本轮未加控件——与仓内其他音频档案的口径一致（不暴露随机种子），属刻意取舍而非遗漏。需要时加一行即可，取值域已在 spec 注释里记明。",
+    "**eleven_v3 的 languageCode 给的是 7 个常用语言 + 自动**：官方 spec 只约束 minLength 2 / maxLength 5、**未给枚举**。给自由文本会让用户猜 BCP-47 格式（D1：不让用户学我们的格式），故给选择器；所列值均满足 2..5 位长度约束，但「Runway 实际支持哪些语言」没有官方清单可对账，这是全文件唯一一处取值不是逐字抄来的地方，已在 runwayAudioWireFacts.ts 就地标注。",
+    "**seed_audio 的克隆音色路径未经真实生成验证**：voice:{type:\"reference-audio\",audioUri} 这条路径是本轮照 spec **新开**的（此前档案与 wire 都没有），已由结构测试证明槽可达、body 形状与 spec 一致，但没有付费实发。",
+    "本轮**未做付费封印**（R5 第三段）：全部依据来自官方 OpenAPI（第一段）+ 零额度的结构/契约测试与逐 mapping 干跑对账（第二段）。4 个模型的真实生成产物双验未做——Runway 余额与最小花费预算未在本轮授权范围内。ledger 里这些行的 live 状态保持原样（seed_audio 仍是此前已获得的 live-certified，另三行仍是 blocked/simulated），未假称已封印。注意 seed_audio 那条既有 live 收据是在**旧 body**（无 voice 字段）上取得的；本轮给它的 text_to_speech body 增加了可选 voice 键，属 wire 契约变更，严格按 R5 应重封——记在此处不隐瞒。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://raw.githubusercontent.com/runwayml/openapi/main/openapi.json",
+      "checked_at": "2026-09-02",
+      "purpose": "Runway OpenAPI 的 /v1/sound_effect（2 变体 oneOf：seed_audio、eleven_text_to_sound_v2）与 /v1/text_to_speech（3 变体 oneOf：seed_audio、eleven_multilingual_v2、eleven_v3），discriminator 均为 model。逐变体取 properties 全集、required、各字段 type/enum/min/max/maxLength、referenceAudios.maxItems=3、voice 的 oneOf 变体（SeedReferenceVoice{type:\"reference-audio\",audioUri} vs RunwayPresetVoice{type:\"runway-preset\",presetId 49 值枚举}）及 voice 是否在 required 里（两个 Eleven TTS 是、seed_audio 否）。本合同全部数值与枚举均逐字抄自此处，无一处凭记忆。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.modelscope.cn/docs/model-service/API-Inference/intro",
+      "checked_at": "2026-09-02",
+      "purpose": "魔搭 api-inference 平台文档：确认 POST /v1/images/generations 的 size 为像素 WxH 形态，且**未发布任何 per-model 参数表/分辨率枚举**——这是判定 modelscope-image 不可按官方依据逐模型分档的直接证据（R5：无依据不写枚举）。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://huggingface.co/Qwen/Qwen-Image",
+      "checked_at": "2026-09-02",
+      "purpose": "上游模型卡的原生分辨率表（1:1→1328x1328、16:9→1664x928 等）。用于评估「共享 size 表是否造成画质次优」这一 residual risk；**不作为 API 契约依据**（权重性质 ≠ 托管层 API 契约）。"
+    }
+  ],
+  "generality_proof": "缺陷不是「Runway 音频配错了一行」，而是「档案按供应商平台建、能力面与 wire 分两个作者」这一形状必然产生的漂移。证据有三：① **同一个类根因在同一天于 video / image / audio 三个 kind 上各独立暴露一次**（video 10 个模型、image 9 个、audio 4 个），三侧没有共享代码，说明成因与 kind 无关、与「平台档案」这个形状有关；② 音频侧的越界是**普遍且更隐蔽的**——4 个模型全部收到自己 spec 里没有的参数，而这些参数根本到不了 wire（调了没反应、也不报错），比图像侧「发非法值恒 400」更难被用户或测试发现，说明「并集必然对每个成员过宽」的后果会以不同伪装反复出现；③ 本轮同时证明了这条判据**不会误伤正确形状**：同族的 modelscope-image 经同一套探针复核，死参数 0、幻影模式 0、wire 逐字相同，被判定为「长尾社区模型共享托管档案」这个正确形状而保留——防复发机制因此是可信的（既能抓真病，也不会逼着人为了刷指标去拆不该拆的）。故防复发落在共享边界（wire 事实单一真相源 + 平台档案棘轮门岗 + 全量逐值/逐参数契约断言），任何只改 Runway 音频配置的修法都会让下一家平台型供应商原样复发。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/audioCapabilities/runwayAudioWireFacts.ts",
+      "symbol": "RUNWAY_AUDIO_ENDPOINTS / RUNWAY_VOICE_PRESETS / runway*Params()",
+      "responsibility": "Runway 音频每模型「在哪个端点存在 / 有哪些可调字段及取值域 / 参考上限 / 官方音色枚举」的唯一真相源，同时供 UI 侧档案 params 与传输侧校验消费，杜绝「档案摆一套编的控件、mapping body 各发各的」。住 electron/shared/ 是分层纪律的必然结果：音频档案住 src/、归一器住 electron/catalog/，两侧唯一都够得着的中立地就是 shared（且 shared 禁 import catalog）。"
+    },
+    {
+      "path": "scripts/check-platform-archetypes.mjs",
+      "symbol": "platformArchetypes 棘轮",
+      "responsibility": "「一个档案罩多个不同产品」的机器闸，基线只减不增。本轮 2 → 1（runway-audio 拆除）。新建平台档案当场报红且不允许追加进基线；保留项必须在 baseline 的 _comment 里写明裁决理由与证据，不允许无声豁免。"
+    },
+    {
+      "path": "electron/catalog/runwayAudioIdentity.test.ts",
+      "symbol": "Runway 音频四条不变量",
+      "responsibility": "逐行断言：档案是模型专属（无跨产品共享）、声明的模式 = 官方端点归属（无幻影模式）、每个 UI 参数都到得了 wire（无假控件）、参考槽可达且音色只给官方 49 个预设（无焊死值）。让「能力面对该供应商撒谎」在测试期就红，而不是等用户发现调了没反应。已实证四条在旧形状下全部翻红。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/runwayOfficial.ts",
+      "entry_point": "RUNWAY_AUDIO_MODEL / RUNWAY_ELEVEN_AUDIO_MODELS",
+      "disposition": "enforced",
+      "evidence": "4 行全部由平台档案改挂各自的真模型档案（2 行复用既有 ElevenLabs 模型档案 + vendorParams.runway、1 行新建 eleven-multilingual-v2、1 行新建 runway-seed-audio）；平台档案 runway-audio 同 commit 连文件删除，无 re-export 壳。探针复扫：平台档案 0、死参数 0、幻影模式 0、参考槽不可达 0。"
+    },
+    {
+      "path": "electron/catalog/runwayOfficial.ts",
+      "entry_point": "RUNWAY_ELEVEN_TTS_CREATE（焊死 presetId:\"Maya\" 的共用工厂）",
+      "disposition": "enforced",
+      "evidence": "整体删除（P1 加新必删旧），拆成 RUNWAY_ELEVEN_MULTILINGUAL_CREATE 与 RUNWAY_ELEVEN_V3_CREATE 两个 body：presetId 改读 {{request.params.voice_preset_id}}（官方 49 值枚举由档案控件给），eleven_v3 另补齐官方那 7 个表现力字段。测试断言 body 里不得再出现焊死音色。"
+    },
+    {
+      "path": "src/config/modelArchetypes/modelscopeImage.ts",
+      "entry_point": "modelscope-image",
+      "disposition": "not-affected",
+      "evidence": "同族档案（词干判据 6 簇），本轮**经完整复核后判定保留**，零改动、行为零变化。复核用与音频侧同一套探针：6 行 wire body 逐字相同（同端点、同三键）、档案 1 个模式、死参数 0、幻影模式 0 —— 平台档案的危害（能力面取并集对成员撒谎）在此不成立。复用既有 z-image-turbo / qwen-image / qwen-image-3 / flux-2-pro 会引入**真**缺陷（那四个用比例串 + resolution 字段，魔搭要求像素 WxH，实测传 16:9 被拒）；逐模型分档则无官方依据（魔搭不发布 per-model 参数表）。裁决理由与证据已写进 scripts/platform-archetypes-baseline.json 的 _comment 与门岗头注释，可审计、非无声豁免。"
+    },
+    {
+      "path": "src/config/modelArchetypes/modelscopeImage.ts",
+      "entry_point": "modelscope-image-edit",
+      "disposition": "not-affected",
+      "evidence": "单产品档案（Qwen-Image-Edit-2511 一行），不在词干判据的违规集里，本轮零改动。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/audioCapabilities/runwayAudioWireFacts.ts",
+    "invariant": "Runway 音频的端点归属、可调字段与取值域只有一份，能力面与传输侧都从它 derive；UI 给得出的每一个控件都必须真的到得了 wire，声明的每一个模式都必须是该模型官方真实拥有的能力。",
+    "failure_mode": "此前能力面（平台档案的共享 AUDIO_PARAMS）与 wire 事实（各 mapping body）是两个作者：档案提供 wire 根本不读的控件，用户调了没有任何效果也没有任何错误；档案声明模型没有的模式，只靠「该行没有 mapping」被 UI 收窄兜住。两种失败都不会在测试里变红。",
+    "exception_policy": "none",
+    "strategy": "把事实收进唯一真相源并让两个消费者都**构建**而非重抄；再由平台档案棘轮门岗（禁止「一个档案罩多个产品」这个成因）与逐参数/逐模式契约测试（禁止假控件与幻影模式这两个后果）双向锁死。",
+    "artifacts": [
+      "electron/shared/audioCapabilities/runwayAudioWireFacts.ts",
+      "scripts/check-platform-archetypes.mjs",
+      "scripts/platform-archetypes-baseline.json",
+      "electron/catalog/runwayAudioIdentity.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/catalog/runwayAudioIdentity.test.ts",
+    "electron/catalog/runwayImageIdentity.test.ts",
+    "electron/catalog/flagshipAudioVideoContracts.test.ts",
+    "src/config/modelArchetypes/resolutionOrder.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/config/modelArchetypes/runwayAudio.ts"
+    ],
+    "rationale": "平台档案 RUNWAY_AUDIO_ARCHETYPE 连同其文件整体删除（P1 加新必删旧，无 re-export 壳、无并行版）；焊死音色的共用 create 工厂 RUNWAY_ELEVEN_TTS_CREATE 一并删除（它只为给平台档案补 voice 必填而存在，档案拆掉后即为死代码）。resolutionOrder.test.ts 里因该平台档案而生的两条 KNOWN_LOSSES 登记随撞串消失而清空。存量画布节点由 legacyIds 读时迁移承接，不留双写路径。",
+    "verification": "git grep 'runway-audio' 在 src/ 与 electron/ 下仅命中 request_transform 声明名 \"runway-audio-references\"（那是变换器的注册名，不是档案 id）与本轮新增的注释性引用；档案 id 与 RUNWAY_AUDIO_ARCHETYPE 符号零命中。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次不新增、不升级、不保留任何第三方依赖：全部改动是仓库内部的档案归属结构与 wire 事实集中，外部供应商契约只做「按官方 OpenAPI 对账后收窄」，未引入新 SDK 或版本约束。",
+    "exit_criteria": []
+  }
+}

@@ -4,6 +4,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 
+import { expect } from '@playwright/test'
+
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { seedFinishedJourneyProject } from './fixtures/journey-project-fixture.mjs'
 
@@ -179,6 +181,16 @@ try {
       .find((item) => /下载 GLB|Download GLB/.test(item.getAttribute('aria-label') || ''))
     return Boolean(button && !button.disabled)
   })
+  // The desktop bridge streams the GLB to disk: the file appears (0 bytes) before its bytes finish
+  // flushing, so gate the byte checks on the download having fully landed — size matches the managed
+  // source asset — otherwise readFileSync races a half-written file on slow CI (same write race as
+  // canvas-card-stack's history-image download).
+  await expect
+    .poll(() => (fs.existsSync(downloadPath) ? fs.statSync(downloadPath).size : -1), {
+      message: 'GLB 下载桥接应写出与受管资产等长的完整文件',
+      timeout: 10_000,
+    })
+    .toBe(fs.statSync(storedModel).size)
   check(fs.existsSync(downloadPath), 'download button saves a GLB through the desktop bridge')
   check(sha256(fs.readFileSync(downloadPath)) === sha256(fs.readFileSync(storedModel)), 'downloaded GLB bytes match the managed asset')
 

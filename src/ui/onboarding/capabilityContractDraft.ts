@@ -1,5 +1,6 @@
 import type { ModelParameterControl, ModelParameterControlOption } from '../../config/modelCatalogMeta'
 import {
+  modeTransportFor,
   normalizeCustomCapabilityContract,
   type ArchetypeIntent,
   type ArchetypeReferenceSlot,
@@ -174,6 +175,8 @@ function slotDraft(slot: ArchetypeReferenceSlot): CapabilitySlotDraft {
   }
 }
 
+// 用户自建能力契约是**单供应商**的（CustomCapabilityModeV1 的 Pick 里就没有 vendorTransportTaskKind），
+// 故这里 vendorKey 传 null = 不做供应商特化；读取仍走唯一入口 modeTransportFor，不另写 ?? 链。
 function modeDraft(mode: CustomCapabilityModeV1, fallbackTaskKind: ArchetypeTransportTaskKind): CapabilityModeDraft {
   return {
     id: mode.id,
@@ -181,7 +184,7 @@ function modeDraft(mode: CustomCapabilityModeV1, fallbackTaskKind: ArchetypeTran
     displayName: mode.vendorTerm,
     description: mode.hint,
     promptRequired: mode.promptRequired,
-    taskKind: mode.transportTaskKind ?? fallbackTaskKind,
+    taskKind: modeTransportFor(mode, { transportTaskKind: fallbackTaskKind }, null) ?? fallbackTaskKind,
     slots: mode.slots.map(slotDraft),
     parameters: mode.params.map(parameterDraft),
     ...(mode.fixedParams ? { fixedParams: { ...mode.fixedParams } } : {}),

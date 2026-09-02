@@ -1,0 +1,118 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-stale-hand-copied-surface-baseline",
+  "problem_type": "A gate assertion hand-copies a derived value from a distant source of truth, while the job that runs it triggers on a different risk surface than that source",
+  "symptom": "2026-09-02 main 的 Mac Package job 红在 `PACKAGED MCP SMOKE FAIL: claude expected the legacy catalog baseline, got 19`。断言是 tests/ux/packaged-mcp-smoke.e2e.mjs 里手抄的 `tools.length >= 22`。进一步实跑发现落后的远不止这个数字：该文件引用的 5 个工具名（nomi_integration_begin、nomi_integration_open_credentials、nomi_integration_start、nomi_create_project、nomi_start_playbook）在面收敛后**一个都不存在**，整个测试体仍写在收敛前的工具面上。",
+  "direct_cause": "PR #359（mcp/surface-16-collapse-20260902）有意把 MCP 工具面收束到 19 个并换掉全套命名，但 tests/ux/packaged-mcp-smoke.e2e.mjs 没有同步迁移。该文件只由 Mac Package job 执行，而按 scripts/validation-policy.mjs，Mac Package 只在打包配置、依赖锁、Electron 启动/preload/runtime path 或 release 边界变动时才被选中——#359 改的是 MCP 源码，从未触发它。落后遂潜伏，直到 PR #322（worktree janitor）碰了 package.json 触发打包面才炸，且第一眼看去像是 #322 引入的回归。",
+  "class_root": "门岗断言持有真相源的派生值副本（数量、名单、聚合数），而守它的 job 与该真相源不在同一个触发面上。两个条件缺一不可：只要断言是 derive 的，真相源一变它就跟着变；只要门岗与真相源同触发面，落后当场就会被发现。两者同时不满足时，落后可以潜伏任意久，并在一个无关改动上以「别人的锅」的形态爆出来。本仓的风险分层验证（R22「改哪面验哪面」）是正确设计，但它的结构性代价正是：当 B 面的断言依赖 A 面的真相源时，改 A 不会执行 B 面的断言。同一份 19 工具名单在 tests/ux/mcp-l1-handshake.e2e.mjs 里也是硬编码的，却被 #359 正确更新了——差别只在于它所在的 lane 会被 MCP 改动触发。同样的硬编码，一个跟上一个落后，证明决定性变量是触发面而非作者是否细心。",
+  "generality_proof": "这不是「某人忘了改一个数字」，而是一个可被机械判定的组合条件：断言里出现真相源的派生值 + 该断言所在的 job 不由真相源的改动触发。本次实跑还暴露该组合的第二种危害：迁移前那三条「未签名 host 的写操作必须被拒绝」的断言一直是绿的，因为调用一个**不存在**的工具同样返回 isError:true——死名字既能造假红也能造假绿，门岗看起来在守写边界，实际上什么也没守。因此危害不止于「红得晚」，还包括「绿得假」。仓库里同类的手抄下限还有 tests/ux/mcp-skills-integration.e2e.mjs 的 `resources.length >= 20`（技能目录一收束就会重演同样的落后）。",
+  "affected_population": [
+    "任何改动 MCP 工具面的贡献者：他们的改动不会触发 Mac Package，落后被静默累积，最后由一个无关 PR 承担红灯",
+    "在无关 PR 上撞见这个红灯的人：错误信息指向「catalog baseline」，极易被误判为自己引入的回归，或被就地改成 19 来凑绿（症状修复，下次收束再复发）",
+    "依赖 packaged MCP smoke 作为发布前安全证据的发布流程：迁移前那三条未签名写边界断言是假绿，等于该安全面在收敛后一直没有被真正验证"
+  ],
+  "scope_paths": [
+    "scripts/check-mcp-tool-references.ts",
+    "tests/ux/packaged-mcp-smoke.e2e.mjs",
+    "tests/ux/mcp-l1-handshake.e2e.mjs",
+    "package.json",
+    "CLAUDE.md",
+    "AGENTS.md"
+  ],
+  "entry_points": [
+    "pnpm run check:mcp-tool-refs（新增，挂在 gates:contracts 里，每次都跑）",
+    "pnpm run dist:mac:dir → tests/ux/packaged-mcp-smoke.e2e.mjs（打包后对真 app 的 MCP smoke）",
+    "electron/capabilityCore/mcpToolCatalog.ts 的 MCP_TOOL_RESOLVER（工具面的唯一真相源）"
+  ],
+  "invariants": [
+    "packaged smoke 的 tools/list 断言必须等于本次构建声明的 MCP_TOOL_NAMES，不得是手抄的数量或名单。",
+    "tests/ux 下 tools/call 引用的每个工具名，必须在 MCP 工具目录里真实存在；故意调用不存在的工具必须以 unknown-tool-probe 显式声明，使「忘了迁移」与「故意写假名」在门岗前可区分。",
+    "守工具面的门岗必须与工具面同触发面：check:mcp-tool-refs 放在 contracts（每次都跑），不放在只由打包路径触发的 Mac Package 链上。",
+    "工具目录从 TypeScript 源码直接读取（tsx），不依赖 dist-electron 构建产物，从而可以在不构建的 contracts 阶段执行。"
+  ],
+  "regression_tests": [
+    "tests/ux/packaged-mcp-smoke.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/packaged-mcp-smoke.e2e.mjs"
+  ],
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-mcp-tool-references.ts",
+      "symbol": "CALL_SITE",
+      "responsibility": "唯一的工具名引用校验点：扫 tests/ux 下所有 tools/call 调用点，逐个对照 MCP_TOOL_RESOLVER 的真实目录。工具面变更后任何未迁移的引用都必须从这里红，而不是等到打包链才被发现。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/packaged-mcp-smoke.e2e.mjs",
+      "entry_point": "打包后 MCP smoke 的 tools/list 断言与 5 处 tools/call 调用点",
+      "disposition": "enforced",
+      "evidence": "数量与名单断言已改为与构建声明的 MCP_TOOL_NAMES 比对；5 处调用点已迁移到收敛后的面（nomi_integration+action / nomi_project_create / nomi_run_start）。已对真打包 app 实跑通过：`PACKAGED MCP SMOKE PASS: 19 tools, 34 resources, director body 7885 chars, origins claude/codex/cursor/external`。"
+    },
+    {
+      "path": "tests/ux/mcp-l1-handshake.e2e.mjs",
+      "entry_point": "同样硬编码 19 个工具名的 L1 快照断言，以及一处故意调用不存在工具的协议探针",
+      "disposition": "enforced",
+      "evidence": "该文件的硬编码名单**已被 #359 正确更新**——因为它所在的 lane 由 MCP 改动触发，这正好构成本次类根因的对照组。本次只为其协议探针补上 unknown-tool-probe 声明，使新门岗能区分「故意的假名」与「忘了迁移」；反向对照已实跑：删掉该声明后门岗立刻红并指出该行。",
+      "note": "它是 exact-equality 快照而非「只会变多」的下限，且同触发面，因此不构成静默落后风险，本次不改其断言形态。"
+    },
+    {
+      "path": "tests/agent-runtime/session.test.mts",
+      "entry_point": "使用 nomi_echo / nomi_frames 等合成工具名的 HTTP fixture",
+      "disposition": "not-affected",
+      "evidence": "实查该文件：这些名字是喂给假 LLM 的 mock tool call fixture，验的是 Pi 运行时的工具管道，与 MCP 目录无关，也从不发往 MCP 服务。故新门岗的扫描范围刻意限定为 tests/ux；若把该目录纳入会产生 25 条噪音并反过来逼人放宽门岗。"
+    },
+    {
+      "path": "tests/ux/mcp-skills-integration.e2e.mjs",
+      "entry_point": "resources/list 的手抄下限 `resources.length >= 20`",
+      "disposition": "not-affected",
+      "evidence": "同属「假设只会变多的手抄下限」这一类，技能目录一旦收束就会重演。本次不改：技能可见集合同时受打包技能目录与用户安装目录影响，若在测试里重算 audience 可见性规则，等于再抄一份规则——正是本合同要治的病。正确做法是让它调用产品自身的 listSkillSummariesForMcp 求期望集合，需要单独一轮验证，已在 residual_risks 登记为待办而非静默放过。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-mcp-tool-references.ts",
+    "invariant": "tests/ux 下每个 tools/call 引用的工具名都存在于 MCP_TOOL_RESOLVER 的目录中；故意的未知工具探针必须显式声明 unknown-tool-probe。",
+    "failure_mode": "违反时，工具面收敛/改名后测试仍调用已删除的工具：断言要么在打包链上迟到数小时才红并栽赃给无关 PR，要么因为「不存在的工具同样返回 isError」而假绿，让安全边界断言看起来在守、实际什么也没守。",
+    "strategy": "把工具名引用一致性做成 contracts 阶段的静态门岗，与工具面同触发面（每次都跑），并从 TS 源码直接读目录以免依赖构建；同时把 packaged smoke 的数量/名单断言改成与 MCP_TOOL_NAMES 的集合相等，使收敛与扩张都自动跟随。",
+    "exception_policy": "none",
+    "artifacts": [
+      "scripts/check-mcp-tool-references.ts",
+      "package.json",
+      "tests/ux/packaged-mcp-smoke.e2e.mjs",
+      "tests/ux/mcp-l1-handshake.e2e.mjs"
+    ]
+  },
+  "residual_risks": [
+    "新门岗按 `name: 'nomi_xxx'` 这一调用点形状识别引用。若某处用变量或模板串拼出工具名（如 `name: toolFor(kind)`），门岗看不见。当前 tests/ux 下 9 处调用点全为字面量；如将来引入动态构造，需要改为在运行时校验或补充该形状。",
+    "扫描范围限定 tests/ux。electron/**/*.test.ts 里若有对工具名的硬编码引用不在覆盖内；这些是单测且多为对 catalog 自身的断言（目录变了会直接红），风险低于跨面 e2e。",
+    "tests/ux/mcp-skills-integration.e2e.mjs 的 `resources.length >= 20` 仍是手抄下限，技能面收束时会重演本类问题。本轮刻意不改（理由见 same_class_entry_points），属已知未清偿债务，不是遗漏。",
+    "packaged smoke 与 MCP_TOOL_NAMES 比对的是同一棵源码树的构建产物。若 electron-builder 的打包配置把某个模块整体漏掉，两边可能一起缺失而不被发现；该风险由 check:electron-install 的安装身份门岗与签名校验从另一维度覆盖。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一形态在本仓已至少三次：交付账本把全局聚合计数 commit 进仓库（2026-09-02-unmergeable-generated-artifact）、quality-gate 并发分组键按共用 ref 分组（2026-09-02-main-push-concurrency-cancels-evidence）、以及本次的 `>= 22` 工具数下限。三者都是「派生物与真相源脱钩」，且都不是靠细心能避免的。本次同时具备结构性防护（contracts 阶段的静态门岗，覆盖 tests/ux 全部调用点而非单个文件），故按 recurring 提交。",
+    "same_class_scan": [
+      "用 `assert.*(length|size) *(>=|===) *NN` 形态横扫 tests/ux、tests/system 与 scripts，命中 4 处：packaged-mcp-smoke 的 `tools.length >= 22`（本次修复）、mcp-skills-integration 的 `resources.length >= 20`（同类，已登记为未清偿债务）、mcp-journey 的两处 `nodeIds.length === 14` 与 `nodes.length === 14`（**不属此类**：那 14 个节点由该测试自己创建，是自足的期望值，没有镜像任何外部真相源）。据此确立判据：测试自己造出来的数字可以写死，镜像别处真相源的数字不行。",
+      "以工具目录为真相源反查全部引用：写脚本对照 MCP_TOOL_RESOLVER 扫描 tests/ 全树，初版命中 27 处不存在的名字；逐个核实后确认 26 处为误报（25 处是 tests/agent-runtime 的合成 mock 工具名、1 处是 l1-handshake 故意的 -32602 探针），真实落后为 packaged smoke 的 5 处调用点。据此把扫描范围收窄到 tests/ux 并为故意探针引入显式声明，而不是放宽判据凑绿。",
+      "对照组核实：tests/ux/mcp-l1-handshake.e2e.mjs 同样硬编码 19 个工具名，但已被 #359 正确更新——因为它所在的 lane 由 MCP 改动触发。这条对照直接支撑「决定性变量是触发面，不是作者是否细心」这一类根因判断。",
+      "R17 反向对照已实跑两条：①把 nomi_project_create 改回旧名 nomi_create_project，门岗立刻红并精确指出 packaged-mcp-smoke.e2e.mjs:227；②删掉 l1-handshake 的 unknown-tool-probe 声明，门岗立刻红并指出该行。两条还原后均转绿。"
+    ]
+  },
+  "internal_only_reason": "本修复完全位于仓库内部的 MCP 工具目录、测试与门岗链，不涉及外部 API 或第三方文档契约。所依据的事实（工具目录实际内容、失败 job 与其触发条件、各测试的真实行为）均直接在本仓与 GitHub Actions 运行记录上实测取得，并以真打包 app 实跑 packaged smoke 验证。",
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/packaged-mcp-smoke.e2e.mjs"
+    ],
+    "rationale": "旧路径即该文件里手抄的 `tools.length >= 22` 与 16 个 legacy 工具名的 requiredTools 名单，以及 5 处指向已删除工具的调用点。它们在同一 commit 内被删除并由 derive 的集合相等断言与迁移后的调用点取代，不保留并行版本、不留兼容旧名的回退分支。",
+    "removed_paths_note": "该文件本身保留，被移除的是其中的手抄基线与失效调用点。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本修复不涉及任何依赖版本或运行时生命周期变更，只改动测试断言、新增一个静态门岗脚本与门岗链登记。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。新增门岗 check:mcp-tool-refs 已挂进 gates:contracts，本地与 CI 的 Contracts 阶段都会执行；它从 TS 源码读目录，不需要先构建 dist-electron。packaged smoke 仍由 dist:mac:dir 在打包后运行，其 tools/list 断言现在从同一棵树的 dist-electron 构建产物读取 MCP_TOOL_NAMES——Mac Package job 先 `pnpm run build` 再 `dist:mac:dir`，顺序已满足，无需调整 workflow。CLAUDE.md 的贯穿原则同步补入「门岗断言不许手抄真相源的派生值」，AGENTS.md 由 gen:agents 重新生成，check:agents-sync 拦漂移。"
+}

@@ -221,7 +221,7 @@ export function totalDurationSec(shots: readonly PlanShot[]): number {
   return Math.round(shots.reduce((sum, shot) => sum + effectiveShotDurationSec(shot), 0))
 }
 
-// ── 校验：确认落画布前的拦截项（footer 计数 + 镜卡红标的唯一真相源）──
+// ── 校验：生成前的拦截项（footer 计数 + 行红标的唯一真相源；v5 行内/批量生成共用）──
 
 export type PlanIssue =
   | { kind: 'no-shots' }
@@ -229,7 +229,7 @@ export type PlanIssue =
   | { kind: 'empty-shot-prompt'; shotIndex: number }
   | { kind: 'anchor-no-name'; anchorId: string }
 
-/** 一个方案的全部待处理项；空数组 = 可确认落画布。 */
+/** 一个方案的全部待处理项；空数组 = 可生成。 */
 export function validatePlan(plan: StoryboardPlan): PlanIssue[] {
   const issues: PlanIssue[] = []
   const anchorIds = new Set(plan.anchors.map((anchor) => anchor.id))

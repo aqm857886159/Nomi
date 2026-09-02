@@ -3,6 +3,10 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 
 import type { CapabilityContract } from "../shared/agentCapabilities/capabilityContract";
 import { CANVAS_READ_CAPABILITY } from "../shared/agentCapabilities/canvasRead";
+import { CANVAS_WRITE_CAPABILITY, canvasWriteSemanticInputSchema, canvasWriteResultSchema } from "../shared/agentCapabilities/canvasWrite";
+import { CANVAS_DELETE_CAPABILITY, canvasDeleteSemanticInputSchema, canvasDeleteResultSchema } from "../shared/agentCapabilities/canvasDelete";
+import { DOCUMENT_READ_CAPABILITY, documentReadSemanticInputSchema, documentReadResultSchema } from "../shared/agentCapabilities/documentRead";
+import { DOCUMENT_WRITE_CAPABILITY, documentWriteSemanticInputSchema, documentWriteResultSchema } from "../shared/agentCapabilities/documentWrite";
 import { ASSET_READ_CAPABILITY } from "../shared/agentCapabilities/assetRead";
 import { EXPORT_READ_CAPABILITY } from "../shared/agentCapabilities/exportCapabilities";
 import { TIMELINE_READ_CAPABILITY, timelineEditPlanSchema } from "../shared/agentCapabilities/timelineRead";
@@ -52,6 +56,8 @@ export type McpCapabilityAdapter = {
   readonly parseCall: (args: Record<string, unknown>) => McpCapabilityCall;
   /** Composite semantic tools can return a read/approval projection rather than one legacy output union. */
   readonly outputSchema?: ZodTypeAny;
+  /** A capability may have one semantic MCP intent per safe operation. */
+  readonly mcpName?: string;
 };
 
 export type McpCapabilityTool = {
@@ -61,7 +67,7 @@ export type McpCapabilityTool = {
   readonly method: string;
   readonly build: (args: Record<string, unknown>) => Record<string, unknown>;
   readonly presentResult: (result: unknown) => CanonicalMcpToolResult;
-  readonly annotations?: { readonly readOnlyHint: true };
+  readonly annotations?: { readonly readOnlyHint?: true; readonly destructiveHint?: true };
 };
 
 export type McpCapabilityResolver = {
@@ -107,6 +113,7 @@ function isMcpExposable(adapter: McpCapabilityAdapter): boolean {
 }
 
 function readOnlyAnnotations(adapter: McpCapabilityAdapter): McpCapabilityTool["annotations"] {
+  if (adapter.contract.effect === "destructive") return Object.freeze({ destructiveHint: true as const });
   return MCP_READ_ONLY_ADAPTERS.has(adapter) &&
     adapter.contract.effect === "read" &&
     adapter.port.access === "read" &&
@@ -235,7 +242,7 @@ export function isMcpEditingMethod(method: string): boolean {
 export function createMcpCapabilityResolver(registrations: readonly McpCapabilityAdapter[]): McpCapabilityResolver {
   const tools = Object.freeze(
     registrations.filter(isMcpExposable).map((adapter): McpCapabilityTool => {
-      const name = adapter.contract.aliases.mcp;
+      const name = adapter.mcpName ?? adapter.contract.aliases.mcp;
       const description = adapter.contract.projections.mcp?.description;
       if (!name || !description) throw new Error(`Missing MCP projection metadata for ${adapter.contract.id}`);
       const annotations = readOnlyAnnotations(adapter);
@@ -313,8 +320,123 @@ export const CANVAS_READ_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   },
 });
 
+const canvasOperationNames = [
+  "set_node_prompt", "create_canvas_nodes", "connect_canvas_edges", "tidy_canvas",
+  "propose_storyboard_plan", "arrange_storyboard_to_timeline", "create_staging_reference", "create_camera_move",
+] as const;
+const canvasNodeKinds = [
+  "text", "character", "scene", "image", "keyframe", "video", "audio", "clip", "shot", "output", "panorama",
+  "scene3d", "whiteboard", "model3d", "asset",
+] as const;
+const canvasEdgeModes = ["reference", "first_frame", "last_frame", "style_ref", "character_ref", "composition_ref"] as const;
+const canvasMutationTransportSchema = immutableSchemaSnapshot({
+  type: "object",
+  properties: {
+    leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 },
+    operation: { type: "string", enum: [...canvasOperationNames] }, nodeId: { type: "string", minLength: 1 },
+    prompt: { type: "string", minLength: 1 }, summary: { type: "string", minLength: 1 },
+    nodes: { type: "array", maxItems: 24, items: { type: "object", additionalProperties: true } },
+    edges: { type: "array", maxItems: 48, items: { type: "object", additionalProperties: true } },
+    categoryId: { type: "string", minLength: 1 }, nodeIds: { type: "array", maxItems: 48, items: { type: "string" } },
+    kind: { type: "string", enum: [...canvasNodeKinds] }, mode: { type: "string", enum: [...canvasEdgeModes] },
+  },
+  required: ["leaseHandle", "operation"], additionalProperties: false,
+});
+const canvasMaintenanceTransportSchema = immutableSchemaSnapshot({
+  type: "object",
+  properties: {
+    leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 },
+    operation: { type: "string", enum: ["delete_canvas_nodes", "undo_canvas_delete"] },
+    nodeIds: { type: "array", maxItems: 24, items: { type: "string", minLength: 1 } },
+    reason: { type: "string", maxLength: 300 }, confirmation: { type: "boolean" }, undoToken: { type: "string", minLength: 1 },
+  },
+  required: ["leaseHandle", "operation"], additionalProperties: false,
+});
+const documentReadTransportSchema = immutableSchemaSnapshot({
+  type: "object", properties: {
+    leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 },
+    documentId: { type: "string", minLength: 1 }, scope: { type: "string", enum: ["full", "selection"] },
+  }, required: ["leaseHandle", "scope"], additionalProperties: false,
+});
+const documentWriteTransportSchema = immutableSchemaSnapshot({
+  type: "object", properties: {
+    leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 },
+    documentId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["insert", "replace", "append"] },
+    content: { type: "string", minLength: 1 },
+  }, required: ["leaseHandle", "operation", "content"], additionalProperties: false,
+});
+
+const canvasMcpInput = z.object({ ...leaseField, operation: z.enum(canvasOperationNames), nodeId: z.string().trim().min(1).optional(), prompt: z.string().min(1).optional(), summary: z.string().trim().min(1).optional(), nodes: z.array(z.record(z.unknown())).min(1).max(24).optional(), edges: z.array(z.record(z.unknown())).max(48).optional(), categoryId: z.string().trim().min(1).optional(), nodeIds: z.array(z.string().trim().min(1)).max(48).optional() }).strict();
+function canvasAdapter(name: string, allowed: readonly string[]): McpCapabilityAdapter {
+  return Object.freeze({
+    contract: CANVAS_WRITE_CAPABILITY,
+    mcpName: name,
+    authority: Object.freeze({ kind: "project_session", requiredScope: CANVAS_WRITE_CAPABILITY.requiredScope }),
+    port: Object.freeze({ kind: "canvas", access: "write" }),
+    semanticInputJsonSchema: canvasMutationTransportSchema,
+    transportInputSchema: canvasMutationTransportSchema,
+    outputSchema: canvasWriteResultSchema,
+    parseCall(args) {
+      const input = canvasMcpInput.parse(args);
+      if (!allowed.includes(input.operation)) throw new Error("operation is not valid for this semantic tool");
+      const { leaseHandle, projectId, ...semantic } = input;
+      return { semanticInput: canvasWriteSemanticInputSchema.parse(semantic), transport: { leaseHandle, ...(projectId ? { projectId } : {}), ...semantic } };
+    },
+  });
+}
+
+export const CANVAS_PLAN_MCP_ADAPTER = canvasAdapter("nomi_canvas_plan", [
+  "propose_storyboard_plan", "arrange_storyboard_to_timeline", "create_staging_reference", "create_camera_move",
+]);
+export const CANVAS_EDIT_MCP_ADAPTER = canvasAdapter("nomi_canvas_edit", [
+  "set_node_prompt", "create_canvas_nodes", "connect_canvas_edges", "tidy_canvas",
+]);
+export const CANVAS_MAINTENANCE_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+  contract: CANVAS_DELETE_CAPABILITY,
+  authority: Object.freeze({ kind: "project_session", requiredScope: CANVAS_DELETE_CAPABILITY.requiredScope }),
+  port: Object.freeze({ kind: "canvas", access: "write" }),
+  semanticInputJsonSchema: canvasMaintenanceTransportSchema,
+  transportInputSchema: canvasMaintenanceTransportSchema,
+  outputSchema: canvasDeleteResultSchema,
+  parseCall(args) {
+    const input = z.object({ ...leaseField, operation: z.enum(["delete_canvas_nodes", "undo_canvas_delete"]), nodeIds: z.array(z.string().trim().min(1)).min(1).max(24).optional(), reason: z.string().trim().max(300).optional(), confirmation: z.boolean().optional(), undoToken: z.string().trim().min(1).optional() }).strict().parse(args);
+    const { leaseHandle, projectId, ...transport } = input;
+    const semantic = input.operation === "delete_canvas_nodes"
+      ? canvasDeleteSemanticInputSchema.parse({ operation: input.operation, nodeIds: input.nodeIds, ...(input.reason ? { reason: input.reason } : {}) })
+      : { operation: input.operation, undoToken: input.undoToken };
+    return { semanticInput: semantic, transport: { leaseHandle, ...(projectId ? { projectId } : {}), ...transport } };
+  },
+});
+export const DOCUMENT_READ_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+  contract: DOCUMENT_READ_CAPABILITY,
+  authority: Object.freeze({ kind: "project_session", requiredScope: DOCUMENT_READ_CAPABILITY.requiredScope }),
+  port: Object.freeze({ kind: "document", access: "read" }),
+  semanticInputJsonSchema: immutableSchemaSnapshot({ type: "object", properties: { scope: { type: "string", enum: ["full", "selection"] } }, required: ["scope"], additionalProperties: false }),
+  transportInputSchema: documentReadTransportSchema,
+  outputSchema: documentReadResultSchema,
+  parseCall(args) {
+    const input = z.object({ ...leaseField, documentId: z.string().trim().min(1).optional(), scope: z.enum(["full", "selection"]) }).strict().parse(args);
+    const { leaseHandle, projectId, documentId, scope } = input;
+    return { semanticInput: documentReadSemanticInputSchema.parse({ scope }), transport: { leaseHandle, ...(projectId ? { projectId } : {}), ...(documentId ? { documentId } : {}), scope } };
+  },
+});
+export const DOCUMENT_EDIT_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+  contract: DOCUMENT_WRITE_CAPABILITY,
+  authority: Object.freeze({ kind: "project_session", requiredScope: DOCUMENT_WRITE_CAPABILITY.requiredScope }),
+  port: Object.freeze({ kind: "document", access: "write" }),
+  semanticInputJsonSchema: immutableSchemaSnapshot({ type: "object", properties: { operation: { type: "string", enum: ["insert", "replace", "append"] }, content: { type: "string", minLength: 1 } }, required: ["operation", "content"], additionalProperties: false }),
+  transportInputSchema: documentWriteTransportSchema,
+  outputSchema: documentWriteResultSchema,
+  parseCall(args) {
+    const input = z.object({ ...leaseField, documentId: z.string().trim().min(1).optional(), operation: z.enum(["insert", "replace", "append"]), content: z.string().min(1) }).strict().parse(args);
+    const { leaseHandle, projectId, documentId, operation, content } = input;
+    return { semanticInput: documentWriteSemanticInputSchema.parse({ operation, content }), transport: { leaseHandle, ...(projectId ? { projectId } : {}), ...(documentId ? { documentId } : {}), operation, content } };
+  },
+});
+
 const MCP_SAFE_ADAPTERS = new Set<McpCapabilityAdapter>([
-  CANVAS_READ_MCP_ADAPTER, TIMELINE_READ_MCP_ADAPTER, TIMELINE_EDIT_MCP_ADAPTER, EXPORT_JOB_MCP_ADAPTER, MEDIA_QUERY_MCP_ADAPTER,
+  CANVAS_READ_MCP_ADAPTER, CANVAS_PLAN_MCP_ADAPTER, CANVAS_EDIT_MCP_ADAPTER, CANVAS_MAINTENANCE_MCP_ADAPTER,
+  DOCUMENT_READ_MCP_ADAPTER, DOCUMENT_EDIT_MCP_ADAPTER, TIMELINE_READ_MCP_ADAPTER, TIMELINE_EDIT_MCP_ADAPTER, EXPORT_JOB_MCP_ADAPTER, MEDIA_QUERY_MCP_ADAPTER,
 ]);
 const MCP_READ_ONLY_ADAPTERS = new Set<McpCapabilityAdapter>([
   CANVAS_READ_MCP_ADAPTER, TIMELINE_READ_MCP_ADAPTER, EXPORT_JOB_MCP_ADAPTER, MEDIA_QUERY_MCP_ADAPTER,
@@ -323,6 +445,11 @@ const MCP_READ_ONLY_ADAPTERS = new Set<McpCapabilityAdapter>([
 // Deliberately explicit: do not map CAPABILITY_CONTRACTS, Skills, manifests, or plugin metadata.
 export const MCP_CAPABILITY_RESOLVER = createMcpCapabilityResolver([
   CANVAS_READ_MCP_ADAPTER,
+  CANVAS_PLAN_MCP_ADAPTER,
+  CANVAS_EDIT_MCP_ADAPTER,
+  CANVAS_MAINTENANCE_MCP_ADAPTER,
+  DOCUMENT_READ_MCP_ADAPTER,
+  DOCUMENT_EDIT_MCP_ADAPTER,
   TIMELINE_READ_MCP_ADAPTER,
   TIMELINE_EDIT_MCP_ADAPTER,
   EXPORT_JOB_MCP_ADAPTER,

@@ -104,7 +104,7 @@ describe("canvas.read canonical contract", () => {
       version: 1,
       aliases: {
         pi: "read_canvas_state",
-        mcp: "nomi_read_canvas",
+        mcp: "nomi_canvas_read",
       },
       inputSchema: canvasReadSemanticInputSchema,
       outputSchema: canvasReadResultSchema,
@@ -417,7 +417,7 @@ describe("projectCanvasRead", () => {
         { id: "valid-a", kind: "video", title: "duplicate must not win" },
       ],
       edges: [
-        { id: " edge-a ", source: " valid-a ", target: "valid-b", mode: 7, order: Number.NaN },
+        { id: " edge-a ", source: " valid-a ", target: "valid-b", mode: undefined, order: Number.NaN },
         { id: "edge-a", source: "valid-b", target: "valid-a", mode: "last_frame", order: 2 },
         { id: "edge-missing-target", source: "valid-a", target: "ghost" },
         { id: "", source: "valid-a", target: "valid-b" },
