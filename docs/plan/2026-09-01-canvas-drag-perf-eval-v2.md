@@ -2,7 +2,7 @@
 
 > 2026-09-01 · 背景：8-27 React Flow 单内核迁移后用户体感「拖动节点明显变卡」，但现有 perf 基准全绿。
 > 本文 = 三腿 Opus 调研（考古 / 现状实测 / 官方+近邻）的综合。详细证据临时存放 `/tmp/canvas-perf-research/leg-{a,b,c}*.md`（机器重启即失，关键结论已内联本文）。
-> 状态：🚧 进行中 —— B 案与 eval v2 范围均已拍板（2026-09-01）。S1+S2（量具三腿 + 基线）已交付；S3（画布外订阅细粒度化）/ S4（B 案内核改造）在途；S5 同尺复测收官。
+> 状态：S1–S5 已交付（2026-09-02 merged main a056b4ed）；S6 进行中（① click-select 优化 + ② 卫生批）。
 
 ## 一、事实基座
 
@@ -103,3 +103,41 @@ pnpm build
 node tests/ux/canvas-performance-benchmark.e2e.mjs <label> --scale S \
   --scenario node-drag-image,node-drag-video,blank-pan --runs 5 --warmup 1
 ```
+
+## S6 与后续（2026-09-03 卫生批补录）
+
+### S6 范围
+
+① **click-select 优化**（Codex 班，分支 `perf/canvas-click-select-20260903`）：
+click-select 场景 frameGapP95 32.8ms 贴 33ms 上限，S6 目标 ≤20ms。
+② **本卫生批**（分支 `chore/canvas-perf-s6-hygiene-20260903`）：
+孤儿死码清零（H1）、S5 走查脚本入库（H2）、终验基线入库（H3）、maxFrameGapMs advisory 化（H4）、/tmp 审计报告入库（H6）、S3 收据补录（H7）。
+
+### ③ 媒体分级分辨率 LOD —— 触发条件待命
+
+**不做的理由**：LOD 治的是内存/解码压力，不是帧时。我们已有落盘换本地链接、
+视口懒挂载（lightweightCanvasNodes）、并发池 image≤4/video≤1，且基准堆内存指标
+从未告警（perf 历次采样 JSHeapUsedMB 正常）。代价是开一本新账：派生缩略图的
+生成/存储/失效/重建/磁盘占用，以及 LOD 切换时的视觉跳变。R23 单内核初衷已将
+两套渲染路径视为反模式。
+
+**触发线**（再议时用这套量）：真实项目里 JSHeapUsedMB 逼近告警阈值，或
+maxLoadingImages 排队造成缩略图长时间不出，或用户报「图一多就卡/闪」——
+届时先量内存与解码 long-task，数字达标再立项。
+
+**参考做法**（届时看）：tldraw 按屏幕缩放量化到 2 的幂（steppedScreenScale，
+2026-01-31 文档）。
+
+### ④ 静态层 canvas 化（先 minimap 再评估边层）—— 触发条件待命
+
+**不做的理由**：tldraw「最高 25×」提速针对的是全屏几百个 SVG 指示器；我们
+minimap 面积小、频率低，且 S3（#341）已让它在拖动期间冻结（细粒度订阅）；
+L 档 384 边实测无压力（frameGapP95 ≤13ms）。真代价是架构分裂：命中测试/
+高清屏/主题切换要重写，且从此两套渲染路径并存，与 R23 单内核初衷相悖——
+S4 两次回归已证明跨世界状态同步极易漏（#346 前两次 attempt 都因此失败）。
+
+**触发线**：节点规模到 500+ 节点/1000+ 边，且实测边层或 minimap 重绘成为帧时
+主因（frameGapP95 仍 >33ms 且 CDP LayoutCount 主要来自 SVG 层）。届时先拿
+只读 minimap 试工程量再决定是否吃边层。
+
+**出处**：tldraw SDK 4.4（2026-02-19）；细节见 `docs/audit/2026-09-02-canvas-performance-ceiling-audit.md`。
