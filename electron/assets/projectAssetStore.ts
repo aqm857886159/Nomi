@@ -29,6 +29,8 @@ import type {
   ProjectAgentAttachmentClaim,
   ProjectAgentAttachmentRef,
 } from "../shared/projectAgentContracts";
+import type { UsageStatus, IntendedRole } from "../connectors/connectorDefinition";
+import { ASSET_PROVENANCE_ALLOWED_USAGES, ASSET_PROVENANCE_ALLOWED_ROLES } from "../connectors/connectorDefinition";
 
 type LocalAssetRecord = {
   id: string;
@@ -492,32 +494,9 @@ type RemoteAssetImportOptions = {
   certificationEvidence?: CertificationMediaEvidence;
 };
 
-/**
- * 合法的 UsageStatus 枚举值（与 connectorDefinition.ts 中定义保持同步）。
- * 用于 sanitizeSourceEvidence 中的白名单校验。
- */
-const VALID_USAGE_STATUSES = new Set([
-  "reference_only",
-  "rights_unknown",
-  "requires_attribution",
-  "cleared",
-  "restricted",
-] as const);
-
-/**
- * 合法的 IntendedRole 枚举值（与 connectorDefinition.ts 中定义保持同步）。
- */
-const VALID_INTENDED_ROLES = new Set([
-  "character_reference",
-  "scene_reference",
-  "style_reference",
-  "background",
-  "sound_effect",
-  "music",
-  "voiceover",
-  "footage",
-  "other",
-] as const);
+// 运行时白名单：从 connectorDefinition.ts 导入，单一真相源，不在此处重复成员列表。
+const VALID_USAGE_STATUSES = ASSET_PROVENANCE_ALLOWED_USAGES;
+const VALID_INTENDED_ROLES = ASSET_PROVENANCE_ALLOWED_ROLES;
 
 /**
  * Sanitize a caller-supplied source-evidence record into the provenance shape
@@ -543,7 +522,7 @@ export function sanitizeSourceEvidence(raw: unknown): JsonRecord | undefined {
 
     // 旧 sidecar 迁移：rightsStatus:"unknown" → usageStatus:"rights_unknown"
     let usageStatus: string = "rights_unknown";
-    if (raw.usageStatus && VALID_USAGE_STATUSES.has(raw.usageStatus as never)) {
+    if (raw.usageStatus && VALID_USAGE_STATUSES.has(raw.usageStatus as UsageStatus)) {
       usageStatus = String(raw.usageStatus);
     } else if (raw.rightsStatus === "unknown") {
       usageStatus = "rights_unknown";
@@ -569,7 +548,7 @@ export function sanitizeSourceEvidence(raw: unknown): JsonRecord | undefined {
       result.licenseSnapshot = snap;
     }
     if (Array.isArray(raw.intendedRoles)) {
-      result.intendedRoles = raw.intendedRoles.filter((r) => VALID_INTENDED_ROLES.has(r as never));
+      result.intendedRoles = raw.intendedRoles.filter((r) => VALID_INTENDED_ROLES.has(r as IntendedRole));
     }
     return result;
   }
@@ -589,7 +568,7 @@ export function sanitizeSourceEvidence(raw: unknown): JsonRecord | undefined {
     if (raw.licenseId) result.licenseId = String(raw.licenseId).trim();
     if (raw.licenseUrl) result.licenseUrl = String(raw.licenseUrl).trim();
     if (Array.isArray(raw.intendedRoles)) {
-      result.intendedRoles = raw.intendedRoles.filter((r) => VALID_INTENDED_ROLES.has(r as never));
+      result.intendedRoles = raw.intendedRoles.filter((r) => VALID_INTENDED_ROLES.has(r as IntendedRole));
     }
     return result;
   }
@@ -604,7 +583,7 @@ export function sanitizeSourceEvidence(raw: unknown): JsonRecord | undefined {
     };
     if (raw.creator) result.creator = String(raw.creator).trim();
     if (Array.isArray(raw.intendedRoles)) {
-      result.intendedRoles = raw.intendedRoles.filter((r) => VALID_INTENDED_ROLES.has(r as never));
+      result.intendedRoles = raw.intendedRoles.filter((r) => VALID_INTENDED_ROLES.has(r as IntendedRole));
     }
     return result;
   }

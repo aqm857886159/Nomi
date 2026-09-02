@@ -2,6 +2,11 @@
   "debtCap": 78,
   "registered": [
     {
+      "site": "electron/connectors/connectorDefinition.ts::type:UsageStatus/type-union",
+      "members": ["cleared", "reference_only", "requires_attribution", "restricted", "rights_unknown"],
+      "reason": "UsageStatus 是 P0-1 来源取证的五态操作性枚举（代表「系统该怎么对待这份素材」，不是法律结论）：reference_only 浏览器/本地来源的诚实默认，rights_unknown connector 抓取平台内容的默认，requires_attribution CC BY 族等必须署名的来源，cleared 已核实可用（仅 Pixabay API 等明确授权来源才设），restricted 在当前用途下受限。与 M4 taint 系统对齐：usageStatus 是 content trust level 维度，M4 output projection 直接读取。projectAssetStore.ts 的 VALID_USAGE_STATUSES 运行时 Set 从此类型 derive，不另立成员列表。"
+    },
+    {
       "site": "electron/ai/antigravityProtocol.ts::type:AntigravityToolStep/property:state/type-union",
       "members": [
         "ACTIVE",
