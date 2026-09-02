@@ -3,8 +3,8 @@
 // durable restart recovery, safe MCP projections, preview authorization, and a valid final MP4.
 //
 // Transport framing (spawn / initialize / rpc / callTool / terminate) lives in the ONE shared module
-// _mcpJourney.mjs — this sibling and J-MCP1 (mcp-journey.e2e.mjs) both drive it, so there is a single
-// spawn/JSON-RPC implementation (P1: no copy-paste). Differences from J-MCP1 are passed as options:
+// _mcpJourney.mjs — this production journey and the L1/L2 MCP lanes share one
+// spawn/JSON-RPC implementation (P1: no copy-paste). Lane differences are passed as options:
 // the io.modelcontextprotocol/ui client capability + Codex clientInfo, and the production fixture env.
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'

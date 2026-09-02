@@ -1,4 +1,3 @@
-import i18n from '../../../../i18n'
 
 import * as THREE from 'three'
 import { createScene3DCameraId, createScene3DObjectId } from './scene3dBindingIds'
@@ -28,6 +27,7 @@ import {
   SCENE3D_RUNTIME_ID_KEY,
   type CrowdAddOptions,
 } from './scene3dConstants'
+import { scene3dCopiedName } from './scene3dObjectNames'
 
 // isEditableKeyboardTarget / pointerCaptureTarget / PointerCaptureTarget 的单源在
 // scene3dInput.ts / scene3dSharedTypes.ts（P1：此处曾经的并行副本已删，2026-08-07）。
@@ -188,21 +188,12 @@ export function degreesToRadians(value: number): number {
   return Number(THREE.MathUtils.degToRad(value).toFixed(4))
 }
 
-export function crowdRows(object: Scene3DObject): number {
-  return Math.min(CROWD_MAX_AXIS, Math.max(1, Math.round(object.crowdRows || 1)))
-}
 
-export function crowdColumns(object: Scene3DObject): number {
-  return Math.min(CROWD_MAX_AXIS, Math.max(1, Math.round(object.crowdColumns || 1)))
-}
 
 export function crowdSpacing(object: Scene3DObject): number {
   return Math.min(10, Math.max(0.2, object.crowdSpacing || 1.2))
 }
 
-export function crowdCount(object: Scene3DObject): number {
-  return object.type === 'mannequinCrowd' ? crowdRows(object) * crowdColumns(object) : 1
-}
 
 export type CameraPoseSample = {
   px: number
@@ -542,10 +533,6 @@ export function roleColorForIndex(index: number): string {
   return ROLE_COLOR_SEQUENCE[index % ROLE_COLOR_SEQUENCE.length]
 }
 
-export function mannequinRoleLabel(index: number): string {
-  if (index < 26) return i18n.t('scene3d.mannequinName', { letter: String.fromCharCode(65 + index) })
-  return i18n.t('scene3d.mannequinNameOverflow', { index: index - 25 })
-}
 
 export function clampCrowdOptions(options: CrowdAddOptions): CrowdAddOptions {
   return {
@@ -560,7 +547,7 @@ export function makeObject(kind: Scene3DGeometry | 'mannequin' | 'light', roleIn
   if (kind === 'mannequin') {
     return {
       id,
-      name: '假人',
+      name: '',
       type: 'mannequin',
       visible: true,
       position: [0, MANNEQUIN_DEFAULT_SCALE[1] * 0.5, 0],
@@ -572,7 +559,7 @@ export function makeObject(kind: Scene3DGeometry | 'mannequin' | 'light', roleIn
   if (kind === 'light') {
     return {
       id,
-      name: '点光源',
+      name: '',
       type: 'light',
       visible: true,
       position: [2.5, 3.5, 2.5],
@@ -607,7 +594,7 @@ export function makeCrowdObject(options: CrowdAddOptions): Scene3DObject {
   const crowd = clampCrowdOptions(options)
   return {
     id,
-    name: `群众(${crowd.rows}x${crowd.columns})`,
+    name: '',
     type: 'mannequinCrowd',
     visible: true,
     position: [0, MANNEQUIN_DEFAULT_SCALE[1] * 0.5, 0],
@@ -619,12 +606,12 @@ export function makeCrowdObject(options: CrowdAddOptions): Scene3DObject {
   }
 }
 
-export function makeCamera(index: number): Scene3DCamera {
+export function makeCamera(): Scene3DCamera {
   const position: Scene3DVector3 = [4, 2.4, 5]
   const target: Scene3DVector3 = [...CAMERA_DEFAULT_TARGET]
   return {
     id: createScene3DCameraId(),
-    name: `相机${index + 1}`,
+    name: '',
     visible: true,
     position,
     rotation: cameraLookAtRotation(position, target),
@@ -669,7 +656,7 @@ export function makePastedObject(object: Scene3DObject, pasteCount: number): Sce
   return {
     ...cloneObjectForClipboard(object),
     id: createScene3DObjectId(),
-    name: `${object.name} 副本`,
+    name: scene3dCopiedName(object.name),
     position: offsetScene3DVector(object.position, pasteCount),
     parentId: undefined,
     children: undefined,
@@ -682,7 +669,7 @@ export function makePastedCamera(camera: Scene3DCamera, pasteCount: number): Sce
   return {
     ...cloneCameraForClipboard(camera),
     id: createScene3DCameraId(),
-    name: `${camera.name} 副本`,
+    name: scene3dCopiedName(camera.name),
     position,
     target,
     rotation: cameraLookAtRotation(position, target),
