@@ -34,6 +34,10 @@ export type PromptSourcePart = Readonly<{
   provenance: ProvenanceInput | readonly ProvenanceInput[];
 }>;
 
+export type ProvenanceProjection = Readonly<Omit<ProvenanceMark, "assetSourceEvidence"> & {
+  assetEvidenceRef?: string;
+}>;
+
 function assetTrust(evidence: AssetSourceEvidence | undefined): ProvenanceTrust {
   return evidence?.usageStatus === "cleared" ? "trusted" : "untrusted";
 }
@@ -81,4 +85,14 @@ export function sectionTrust(marks: readonly ProvenanceMark[]): "trusted" | "use
 
 export function taintedSourceRefs(marks: readonly ProvenanceMark[]): readonly string[] {
   return Object.freeze([...new Set(marks.filter((mark) => mark.tainted).map((mark) => mark.sourceRef))]);
+}
+
+export function projectProvenance(marks: readonly ProvenanceMark[]): readonly ProvenanceProjection[] {
+  return Object.freeze(uniqueProvenance(marks).map((mark) => ({
+    source: mark.source,
+    sourceRef: mark.sourceRef,
+    trust: mark.trust,
+    tainted: mark.tainted,
+    ...(mark.assetSourceEvidence ? { assetEvidenceRef: mark.sourceRef } : {}),
+  })));
 }
