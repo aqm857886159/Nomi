@@ -66,11 +66,24 @@ describe("resident semantic generation transport", () => {
     const leaseFor = vi.fn(() => lease);
     const adapter = createPiGenerationTransportAdapter(binding, { planning, leaseFor });
 
-    const result = await adapter.tryExecute(call("nomi_operation_create", { prompt: "a small cat avatar" }), new AbortController().signal);
+    const result = await adapter.tryExecute(call("nomi_generation_plan", { operation: "create", prompt: "a small cat avatar" }), new AbortController().signal);
 
     expect(result).toMatchObject({ ok: true, result: { capability: "create", projectId: binding.projectId } });
     expect(leaseFor).toHaveBeenCalledWith(binding);
     expect(planning).toHaveBeenCalledWith(expect.objectContaining({ origin: { host: "nomi", actorId: "project-agent-host" } }));
+  });
+
+  it("maps the status intent operations to the same lease-bound canonical seam", async () => {
+    const planning = vi.fn(async ({ capability, params }) => ({ capability, params }));
+    const adapter = createPiGenerationTransportAdapter(binding, { planning, leaseFor: () => lease });
+
+    const result = await adapter.tryExecute(
+      call("nomi_generation_status", { operation: "reconcile", operationId: "op-1", outcome: "not_found" }),
+      new AbortController().signal,
+    );
+
+    expect(result).toMatchObject({ ok: true, result: { capability: "reconcile", params: { operationId: "op-1", outcome: "not_found" } } });
+    expect(planning).toHaveBeenCalledTimes(1);
   });
 
   it("runs one compact gate, verifies its receipt, authorizes, and starts exactly once", async () => {

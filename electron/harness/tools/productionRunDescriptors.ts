@@ -36,7 +36,7 @@ const descriptors = {
   },
   start_production_run: {
     name: "start_production_run",
-    description: "Create a reviewable brief/playbook draft only; it stops at the first review gate and never generates media. For a concrete image/video request or a multi-minute finished piece, use nomi_operation_create (prompt for one shot, scriptText/shots for multiple shots) and then preview → request_gate → start.",
+    description: "Create a reviewable brief/playbook draft only; it stops at the first review gate and never generates media. For a concrete image/video request or a multi-minute finished piece, use the generation plan intent; Nomi Host handles preview, approval, and start transitions.",
     parameters: z.object({
       goal: z.string().trim().min(1).max(2_000).describe("What the finished piece should achieve; do not force the user into a schema."),
       playbook: z.string().trim().min(1).max(160).optional().describe("Optional registered playbook name; omit to use the default."),

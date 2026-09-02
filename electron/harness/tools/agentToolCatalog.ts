@@ -24,7 +24,7 @@ import { documentToolDescriptors } from "./documentDescriptors";
 import { productionRunToolDescriptors } from "./productionRunDescriptors";
 import { timelineToolDescriptors } from "./timelineDescriptors";
 import { skillToolDescriptors } from "./skillDescriptors";
-import { generationToolDescriptors } from "./generationDescriptors";
+import { modelToolSurfaceManifest } from "./modelToolSurfaceManifest";
 
 export type AgentToolDescriptor = Readonly<{
   name: string;
@@ -34,6 +34,14 @@ export type AgentToolDescriptor = Readonly<{
 
 function runtimeDescriptor(descriptor: AgentToolDescriptor): RuntimeToolDescriptor {
   return { name: descriptor.name, description: descriptor.description, schema: descriptor.parameters };
+}
+
+function semanticDescriptor(descriptor: (typeof modelToolSurfaceManifest.generation)[number]): AgentToolDescriptor {
+  return {
+    name: descriptor.name,
+    description: descriptor.intent,
+    parameters: descriptor.inputSchema,
+  };
 }
 
 function registryDescriptors(
@@ -115,7 +123,7 @@ export const agentToolCatalog = Object.freeze({
   timeline: Object.freeze(Object.values(timelineToolDescriptors)),
   production: Object.freeze(Object.values(productionRunToolDescriptors)),
   skills: Object.freeze(Object.values(skillToolDescriptors)),
-  generation: Object.freeze(Object.values(generationToolDescriptors)),
+  generation: Object.freeze(modelToolSurfaceManifest.generation.map(semanticDescriptor)),
 });
 
 export const agentToolNames = Object.freeze({

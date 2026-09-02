@@ -9,7 +9,7 @@
 
 ---
 
-## 现役欠账（26）
+## 现役欠账（27）
 
 | 状态 | 文档 | 标题 |
 |---|---|---|
@@ -34,6 +34,7 @@
 | 🚧 进行中 | [2026-09-01-provider-proxy-and-onboarding-hardening.md](plan/2026-09-01-provider-proxy-and-onboarding-hardening.md) | 计划：per-connection provider proxy + onboarding 加固（#258 拆项①③） |
 | 🚧 进行中 | [2026-09-01-tail-batch.md](plan/2026-09-01-tail-batch.md) | 尾巴批交付计划（2026-09-01） |
 | 🚧 进行中 | [2026-09-01-tikhub-connector-v1.md](plan/2026-09-01-tikhub-connector-v1.md) | 2026-09-01 TikHub 数据 connector v1（分享链接 → 无水印直链 → 拆解） |
+| 🚧 进行中 | [2026-09-02-m2-generation-semantic-slice-1.md](plan/2026-09-02-m2-generation-semantic-slice-1.md) | M2 generation semantic slice 1 |
 | 🚧 进行中 | [2026-08-25-generation-credit-estimation.md](superpowers/plans/2026-08-25-generation-credit-estimation.md) | 生成积分估算与实际记录实施计划 |
 | 🚧 进行中 | [2026-08-27-release-media-pack-skill.md](superpowers/plans/2026-08-27-release-media-pack-skill.md) | Nomi Release Media Pack Skill Implementation Plan |
 | 🚧 进行中 | [2026-08-28-conversational-model-integration.md](superpowers/plans/2026-08-28-conversational-model-integration.md) | Conversational Model Integration Implementation Plan |
