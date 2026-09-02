@@ -230,7 +230,9 @@ test('all Electron entry points share the identity gate and install repair', () 
       `${script} must verify Electron before doing work`,
     )
   }
-  assert.match(packageJson.scripts.gates, /^pnpm run gates:contracts && /)
+  // check:fresh-base 是纯 git 读操作（本地未整合 origin/main 就拦下），不算「repository work」，
+  // 允许它站在 gates 链头；本门岗钉的顺序不变：Electron identity 仍先于一切真正的工作。
+  assert.match(packageJson.scripts.gates, /^(?:pnpm run check:fresh-base && )?pnpm run gates:contracts && /)
   assert.match(packageJson.scripts['gates:contracts'], /^pnpm run check:gates-chain && /)
   const gatesIdentityIndex = packageJson.scripts['gates:contracts'].indexOf('pnpm run check:electron-install')
   const gatesWorkIndex = packageJson.scripts['gates:contracts'].indexOf('pnpm run check:filesize')
