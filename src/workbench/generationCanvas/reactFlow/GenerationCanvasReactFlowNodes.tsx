@@ -132,7 +132,8 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
   const pendingConnectionSourceId = useGenerationCanvasStore((state) => state.pendingConnectionSourceId)
   const selectNodes = useGenerationCanvasStore((state) => state.selectNodes)
   const flowStore = useStoreApi<GenerationFlowNode, GenerationFlowEdge>()
-  const isSelected = useStore((state) => Boolean(state.nodeLookup.get(node.id)?.selected)) || selected
+  const selectedInBusiness = useGenerationCanvasStore((state) => state.selectedNodeIds.includes(node.id))
+  const isSelected = useStore((state) => Boolean(state.nodeLookup.get(node.id)?.selected)) || selected || data.primarySelection || selectedInBusiness
   const multiSelectionActive = useStore((state) => state.multiSelectionActive && data.primarySelection)
   const { zoom } = useViewport()
   const primarySelection = data.primarySelection && !multiSelectionActive
