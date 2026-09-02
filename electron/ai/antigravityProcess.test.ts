@@ -65,13 +65,22 @@ describe("Antigravity process ownership", () => {
     const f = await fixture(mode);
     // Rescue a regressed blocking FIFO open after the init deadline, so RED
     // fails with INIT_TIMEOUT instead of stranding the test's libuv worker.
+    //
+    // 2026-09-03：这两个数原本是 500 / 1_000，在满载机器上让本用例假红——它期望
+    // PROFILE_UNVERIFIED，实际拿到 ANTIGRAVITY_INIT_TIMEOUT。原因是 500ms 的 init 截止时间
+    // 要和**真实子进程启动**赛跑：本仓常年 20+ worktree 并行跑套件，spawn 一旦超过 500ms，
+    // 绿路径也会先撞上截止时间，于是报的是「机器慢」而不是「诊断文件校验没生效」。
+    // 这两个数都不是判据——判据是抛出的错误码（PROFILE_UNVERIFIED）和 input 文件必须不存在。
+    // 它们只是「别永远挂着」的兜底，且必须保持 init 截止 < rescue 的先后关系（RED 时先超时、
+    // 再解救被 FIFO 堵住的 libuv worker）。所以按同一倍数一起放大，比例与语义都不变；
+    // 绿路径本就在校验完成时立刻 reject，放大不影响它的耗时。
     const rescue = setTimeout(() => {
       void readFile(path.join(f.dir, "cwd"), "utf8")
         .then((cwd) => open(path.join(cwd, "cli.log"), constants.O_WRONLY | constants.O_NONBLOCK))
         .then((file) => file.close()).catch(() => {});
-    }, 1_000);
+    }, 16_000);
     try {
-      await expect(runAntigravityProcess({ prompt: "secret task" }, { invocation: f.invocation, initTimeoutMs: 500 }))
+      await expect(runAntigravityProcess({ prompt: "secret task" }, { invocation: f.invocation, initTimeoutMs: 8_000 }))
         .rejects.toThrow("PROFILE_UNVERIFIED");
       await expect(readFile(path.join(f.dir, "input"))).rejects.toMatchObject({ code: "ENOENT" });
     } finally { clearTimeout(rescue); }
