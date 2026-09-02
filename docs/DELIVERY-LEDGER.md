@@ -9,7 +9,7 @@
 
 ---
 
-## 现役欠账（28）
+## 现役欠账（29）
 
 | 状态 | 文档 | 标题 |
 |---|---|---|
@@ -32,6 +32,7 @@
 | 🚧 进行中 | [2026-09-01-credential-config-at-rest-encryption.md](plan/2026-09-01-credential-config-at-rest-encryption.md) | Credential-bearing connection config → encrypted at rest (P2 class fix) |
 | 🚧 进行中 | [2026-09-01-m1-round2-host-runtime.md](plan/2026-09-01-m1-round2-host-runtime.md) | M1 round-2 Host/runtime delivery |
 | 🚧 进行中 | [2026-09-01-provider-proxy-and-onboarding-hardening.md](plan/2026-09-01-provider-proxy-and-onboarding-hardening.md) | 计划：per-connection provider proxy + onboarding 加固（#258 拆项①③） |
+| 🚧 进行中 | [2026-09-01-storyboard-table-genre-profile.md](plan/2026-09-01-storyboard-table-genre-profile.md) | 分镜表视图 + 片种模板（Genre Profile） |
 | 🚧 进行中 | [2026-09-01-tail-batch.md](plan/2026-09-01-tail-batch.md) | 尾巴批交付计划（2026-09-01） |
 | 🚧 进行中 | [2026-09-01-tikhub-connector-v1.md](plan/2026-09-01-tikhub-connector-v1.md) | 2026-09-01 TikHub 数据 connector v1（分享链接 → 无水印直链 → 拆解） |
 | 🚧 进行中 | [2026-09-02-docaudit-b.md](plan/2026-09-02-docaudit-b.md) | DOCAUDIT-B：非 KIE/APIMart 官方文档对账与封印 |
@@ -56,16 +57,15 @@
 ## 其余
 
 - **已结案**：39 篇（✅ 已交付 / ⛔ 已废弃 / 📎 交接日志）
-- **未登记存量**：424 篇。这些是历史文件，**有意不进现役区**——其中很多离得很远、或已经不需要做。
+- **未登记存量**：423 篇。这些是历史文件，**有意不进现役区**——其中很多离得很远、或已经不需要做。
   想分诊就挑一篇加状态标记；不分诊也不会有人催。`check:doc-status` 只拦**新增**文档缺标记，不逼你清存量。
 
 <details>
-<summary>按月份看这 424 篇存量（点开，便于分批分诊）</summary>
+<summary>按月份看这 423 篇存量（点开，便于分批分诊）</summary>
 
 | 月份 | 篇数 |
 |---|---:|
 | 无日期 | 14 |
-| 2026-09 | 1 |
 | 2026-08 | 186 |
 | 2026-07 | 51 |
 | 2026-06 | 161 |
