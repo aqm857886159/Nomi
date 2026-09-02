@@ -1,0 +1,156 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-i18n-display-name-boundary",
+  "problem_type": "供应商/模型的展示名在英文界面显示中文，且两道 i18n 网都抓不到：静态门岗按**属性名白名单**枚举「哪些字是展示文案」（漏了 name/labelZh 这两个最显眼的），运行时 EN-DOM 网按**祖先盒子尺寸**剪枝（一个 0 高包装层就能摘掉整棵子树）",
+  "symptom": "2026-09-02 走查：英文界面 设置→模型 的供应商列表里第 5 行显示中文「火山方舟」（其余行是 APIMart / Agnes AI / KIE.AI / ModelScope / RunningHub）。设置→AI 那一屏更严重：7 个供应商名（本地 ComfyUI、魔搭社区、火山方舟、火山豆包语音、即梦会员（本地 CLI）、Codex 本地生图（实验）、本地模型）+ 一批模型名（可灵 3.0、豆包语音 2.0、Qwen3 30B（免费）、GPT Image 2 · 文生图、majicFlus 写实…）共 34 处中文。其中「本地 ComfyUI」「魔搭社区」「可灵 3.0」「豆包语音 2.0」词典里**本来就有译文**，只是那一屏根本没过翻译边界。CI 全绿、EN 走查也报「无残留中文」全绿——两道网同时假绿。",
+  "direct_cause": "① 静态侧：scripts/check-i18n-visible-text.mjs 的 collectUntranslatedModelLabels 用 MODEL_DISPLAY_SOURCE_PROPERTIES = ['label','hint','placeholder','description','emptyText','emptyTitle','vendorTerm'] 做正则，供应商展示名住在 VENDOR_SEED.name、模型展示名住在 Model.labelZh，两个属性都不在表里，于是这两类漏译对门岗完全不可见。② 该扫描还与「源里有中文就算漏译」那条泛化规则共用 isProductSource 过滤器，于是 EXCLUDED_FILES 的豁免把两道网**一起**关掉——comfyuiLocal.ts 的 `labelZh: \"本地 · 文生图\"` 两头落空。③ 运行时侧：tests/ux/_assert.mjs 的 expectNoCjkInEnglishDom 在 walk() 里用 isHidden(el)（含 `rect.width<1 || rect.height<1`）作**剪枝**条件，而设置对话框的供应商列表外面套着一个 1440x0 的布局包装 div（子元素撑不起父盒），整棵子树被当成隐藏摘掉。④ 显示侧：设置→AI 那一屏（AiModelsSection.tsx:423/436/455、defaultGenerationModelOptions.ts:64）等 9 处渲染点直接输出 provider.name / model.labelZh，从没调用过 translateModelDisplayText。",
+  "class_root": "目录里的中文展示名是**刻意稳定的档案键**（老项目和 catalog 行会持久化它们），所以它们必须在渲染边界 translateModelDisplayText 被换成英文。缺的不变量是「凡是会被显示的目录展示名，都必须有英文说法，且必须真的过那个边界」。原来这条不变量由**属性名白名单**近似表达——白名单是「记得加就有、忘了加就没有」的开放清单，每新增一种承载展示名的属性/文件就是一次新的漏网机会；再叠上「豁免名单同时关掉两道网」和「运行时网按祖先盒子剪枝」，就形成了同一处漏译在静态和运行时**双双假绿**。正确形状是按**边界**收口而不是按属性名：供应商侧直接顺着既有单一真相源 BUILTIN_VENDOR_SEEDS 把每个真正被 seed 出去的展示名逐个核对（新接一家自动纳管，且能覆盖住 electron/catalog/ 之外的种子），模型侧把 labelZh 纳入翻译契约并解开豁免误伤，运行时网的剪枝只认真正会连累整棵子树的属性。",
+  "affected_population": [
+    "所有把界面语言设成 en 的用户：设置→模型 的供应商列表标题行、设置→AI 的「允许的供应商 / 允许的模型」勾选列表、以及「新建卡片默认模型」下拉，都会混着中文。7 个内置供应商里有 7 个名字是中文（其中 5 个连词典条目都没有），模型侧至少 16 个展示名受影响。",
+    "electron/localRuntime/localTextVendorSeed.ts 的「本地模型」是最隐蔽的一个：它住在 electron/catalog/ 之外，任何「按目录扫档案文件」的写法都覆盖不到它——同批修复里另一个分支（fix/en-locale-geometry-vendor-names-20260902）手工补了 4 个供应商名，恰恰就漏了它。",
+    "未来每一个新接入的供应商/模型：只要展示名带中文而作者忘了补词典，旧门岗一律放行。",
+    "跑 EN 走查的人：expectNoCjkInEnglishDom 被 0 高包装层剪枝的那一族屏（设置对话框首当其冲），拿到的「无残留中文」是假绿——比没有断言更坏，因为它给了已经查过的错觉。"
+  ],
+  "scope_paths": [
+    "scripts/check-i18n-visible-text.mjs",
+    "scripts/check-i18n-visible-text.test.ts",
+    "src/i18n/locales/modelDisplayText.ts",
+    "src/workbench/settings/AiModelsSection.tsx",
+    "src/workbench/settings/settingsDialogStructure.test.ts",
+    "src/workbench/settings/defaultGenerationModelOptions.ts",
+    "src/workbench/ai/assistantModelIdentity.ts",
+    "src/ui/onboarding/ModelChipGroups.tsx",
+    "src/ui/onboarding/ModelEnableEditor.tsx",
+    "src/ui/onboarding/LocalModelCard.tsx",
+    "src/ui/onboarding/AdapterVerificationScreen.tsx",
+    "src/ui/onboarding/ComfyuiPresetSection.tsx",
+    "tests/ux/_assert.mjs",
+    "tests/ux/i18n-sweep.walk.mjs"
+  ],
+  "entry_points": [
+    "scripts/check-i18n-visible-text.mjs — checkVendorSeedNames(readTranslatedLabels())：新的供应商展示名边界。顺 BUILTIN_VENDOR_SEEDS 的 import 图取到每个在册种子的 name 字面量，要求它要么在 modelDisplayText 里有译文、要么登记进 LOCALE_NEUTRAL_VENDOR_NAMES；名单解析不出来直接抛（fail-closed，不静默放行）。",
+    "scripts/check-i18n-visible-text.mjs — collectUntranslatedModelLabels()：MODEL_DISPLAY_SOURCE_PROPERTIES 加入 labelZh；扫描范围改用 isModelSpecSource（只摘测试夹具，不再跟着 EXCLUDED_FILES 一起豁免）。",
+    "src/i18n/modelDisplayText.ts — translateModelDisplayText(value)：既有的唯一展示边界（词典命中就换英文，没命中原样透传，故用户自建模型名不受影响）。本次把 9 处此前直连原始字段的渲染点接到它上面。",
+    "tests/ux/_assert.mjs — expectNoCjkInEnglishDom()：运行时兜底网。剪枝改为只认 display:none / visibility:hidden / opacity≈0，元素自身 0 盒子只用于判**承载中文的那个元素**是否真看不见。"
+  ],
+  "internal_only_reason": "英文译名不是从外部文档现编的，而是**对齐仓库里既有的英文文案**得出的，所以判据在仓内：火山→Volcengine 沿用 src/i18n/locales/onboardingProviders.ts:1750 已有的英文句 'Volcengine Speech is separate from the Ark console.' 与本文件既有的 '火山 Seedream 5.0 Pro 文生图': 'Volcengine Seedream 5.0 Pro text-to-image'；豆包→Doubao Speech 沿用 modelDisplayText.ts:74 '豆包语音 2.0': 'Doubao Speech 2.0'；即梦→Dreamina 沿用既有 '即梦图片（会员）': 'Dreamina Image (membership)'；（会员）→(membership)、（免费）→(free)、文生图→text-to-image、改图→image editing 均沿用本文件既定译法。选「与自己已有英文文案一致」而不是「与某个外部写法一致」，是因为同一个抽屉里同时出现 'Volcengine Ark' 和 'Volcengine Speech' 才读得通。本次没有新接入或重新契约任何外部供应商 API，未改动任何端点/鉴权/参数。",
+  "invariants": [
+    "BUILTIN_VENDOR_SEEDS 里每个在册种子的 name，要么是 modelDisplayText 的一个键（有英文说法），要么登记在 LOCALE_NEUTRAL_VENDOR_NAMES（语言中立品牌名）——二者必居其一，没有第三种状态。",
+    "LOCALE_NEUTRAL_VENDOR_NAMES 的每一条登记都必须**当下仍成立**：豁免名不含 CJK（含了就说明它不再语言中立）、对得上一个在册种子、且该名字在词典里没有译文（有译文就说明豁免多余）。理由写在登记项里，但生效与否由断言判，不由注释判。",
+    "模型档案目录（src/config/modelArchetypes/、electron/catalog/、electron/shared/videoCapabilities/）里 label/labelZh/hint/placeholder/description/emptyText/emptyTitle/vendorTerm 这些展示属性上的中文字面量，都必须在 modelDisplayText 里有英文说法；只有测试夹具摘除。",
+    "翻译契约扫描的豁免面独立于「源里有中文就算漏译」那条泛化规则的豁免面：EXCLUDED_FILES 只关掉后者，不得同时关掉前者（否则豁免理由「这些标签走 model-display 边界翻译」就成了没人验的空话）。",
+    "expectNoCjkInEnglishDom 的子树剪枝只用会连累整棵子树的属性（display:none / visibility:hidden / opacity≈0）；元素自身盒子为 0 只能判它自己，不能用来摘掉子孙。"
+  ],
+  "generality_proof": "供应商侧不是「补上火山方舟这一条」，而是把判据挂到 BUILTIN_VENDOR_SEEDS 这个**应用自己用的单一真相源**上：门岗顺 import 图逐个解析在册种子的 name，因此覆盖面天然等于「实际会被 seed 出去的全部供应商」，不多不少。这条对目录位置免疫——LOCAL_TEXT_VENDOR_SEED 住在 electron/localRuntime/ 而非 electron/catalog/，按目录扫的写法（含同批另一个分支的手工补法）会漏掉它，顺名单走则一次照出（实测：门岗上线时它正是 5 个未分类之一）。新接一家供应商自动纳管，不需要回来补名单；名单形状被换掉（改名/改成函数生成）则直接抛错而不是静默放行。模型侧把 labelZh 纳入同一条翻译契约，并解开「豁免同时关掉两道网」的误伤，于是档案目录里的展示名一视同仁。类级测试 scripts/check-i18n-visible-text.test.ts 用**改副本跑真门岗**的黑盒法钉住这些判据，含一条阳性对照（不改必须绿），保证四条「会红」是被改动触发的、不是门岗恒红。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-i18n-visible-text.mjs",
+      "symbol": "checkVendorSeedNames",
+      "responsibility": "供应商展示名的唯一合规边界：按 BUILTIN_VENDOR_SEEDS 逐个种子核对「有英文说法 或 已登记为语言中立品牌名」，并同时校验豁免名单本身没有过期/烂掉/冗余。种子名单解析不出来即抛错，防门岗静默失效。"
+    },
+    {
+      "path": "scripts/check-i18n-visible-text.mjs",
+      "symbol": "collectUntranslatedModelLabels",
+      "responsibility": "模型档案展示名的翻译契约边界：档案目录里全部展示属性（含本次加入的 labelZh）的中文字面量都必须在 modelDisplayText 里有英文说法；扫描范围由 isModelSpecSource 决定，只摘测试夹具，不受泛化规则豁免名单影响。"
+    },
+    {
+      "path": "src/i18n/locales/modelDisplayText.ts",
+      "symbol": "enModelDisplayText",
+      "responsibility": "展示名英文说法的唯一词典。translateModelDisplayText（src/i18n/modelDisplayText.ts，本次未改动，是既有边界）在 en 下查这张表：命中换英文、未命中原样透传，故用户自建的模型/供应商名不会被误翻。本次把设置→AI、模型 chip、适配校验、ComfyUI 预设、助手模型选择器等 9 处此前直连原始字段的渲染点全部接到那一处边界，并把缺的 22 条说法补进本表。"
+    },
+    {
+      "path": "tests/ux/_assert.mjs",
+      "symbol": "expectNoCjkInEnglishDom",
+      "responsibility": "英文界面漏译的运行时兜底网：按用户真正看得见的文本判定。剪枝只认会连累整棵子树的可见性属性，自身 0 盒子只用于判承载文本的元素本身。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/localRuntime/localTextVendorSeed.ts",
+      "entry_point": "LOCAL_TEXT_VENDOR_SEED.name = \"本地模型\"",
+      "disposition": "enforced",
+      "evidence": "住在 electron/catalog/ 之外，是「按目录扫」写法的盲区。新门岗顺 BUILTIN_VENDOR_SEEDS 走，把它和其它 17 个种子一起照出（上线首跑报 5 个未分类，它在内），现已补词典 '本地模型': 'Local models'。"
+    },
+    {
+      "path": "electron/catalog/volcengineVendor.ts",
+      "entry_point": "VOLCENGINE_VENDOR_SEED.name / VOLCENGINE_SPEECH_VENDOR_SEED.name",
+      "disposition": "enforced",
+      "evidence": "报告案例本身（火山方舟）+ 同文件第二个种子（火山豆包语音）。两者均由 checkVendorSeedNames 覆盖；类级测试「内置供应商的中文展示名没有英文说法 → 红」直接以 VOLCENGINE_VENDOR_SEED 为断言对象。"
+    },
+    {
+      "path": "electron/catalog/comfyuiLocal.ts",
+      "entry_point": "COMFYUI 档案的 labelZh: \"本地 · 文生图\" 与 hint「留空 = 自动用本机第一个 checkpoint」",
+      "disposition": "enforced",
+      "evidence": "该文件在 EXCLUDED_FILES 内，旧写法把翻译契约扫描一并关掉，故两条中文展示名从未被要求译文（EN 走查实测显示为中文）。改用 isModelSpecSource 后当场照出并补齐；类级测试「EXCLUDED_FILES 里的档案文件，其 labelZh 仍受翻译契约约束」钉住。"
+    },
+    {
+      "path": "src/workbench/settings/AiModelsSection.tsx",
+      "entry_point": "供应商/模型勾选列表的渲染点（423/436/455 行）",
+      "disposition": "enforced",
+      "evidence": "此前直连 provider.name / model.labelZh，连词典里**已有**译文的「本地 ComfyUI」「魔搭社区」「可灵 3.0」「豆包语音 2.0」都照样显示中文——证明问题不只是词典缺条目，而是这条路没过边界。已接 translateModelDisplayText；EN 走查该屏 CJK 命中数 34 → 0。"
+    },
+    {
+      "path": "electron/catalog/types.ts",
+      "entry_point": "Mapping.name（catalog mapping 的渠道名，types.ts:476）",
+      "disposition": "not-affected",
+      "evidence": "看起来同名同形（也叫 name、也是中文），但它是内部渠道名不是展示文案——electron/catalog/nativeWireProfiles.ts:23 写明「非 UI 文案」，且全仓 src/ 里 `mapping.name` 零命中（渲染层读的是 Model.labelZh）。实测把 name 无差别加进属性白名单会一次索要 53 条译文，其中 49 条是这一族「Seedance 2.0 · 首帧」式渠道名——造出来只会是对不上任何渲染点的死词条。故按渲染边界收口、刻意不纳管它。"
+    },
+    {
+      "path": "src/config/knownVendors.ts",
+      "entry_point": "KNOWN_VENDORS 的展示字段（向导里的「已知供应商」）",
+      "disposition": "not-affected",
+      "evidence": "同为供应商展示名，但它走自己的本地化函数 getLocalizedKnownVendors()（knownVendors.ts:302 逐条 localizeKnownVendor），不经 catalog 种子路径，既有豁免注释即为此。本次不改，其正确性由它自己的本地化函数保证。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "不是「火山方舟」这一条错值，而是判据形状的问题：用属性名白名单近似「哪些字会被显示」，白名单是开放清单，每多一种承载展示名的属性/文件就多一次漏网机会。实测同一个洞同时放过了 7 个供应商名 + 16 个模型展示名，跨 3 个目录、含 1 个在 catalog 目录之外的种子；而且其中 4 个名字**词典里本来就有译文**，说明第二类复发路径（渲染点没过边界）与词典是否齐全无关。每新接一家供应商/模型都会重新经过这两条路径。",
+    "same_class_scan": [
+      "顺 BUILTIN_VENDOR_SEEDS 解析全部 18 个在册种子的 name：11 个是拉丁品牌名（Kie.ai/APIMart/Agnes AI/RunningHub/Replicate/fal.ai/Runway Dev/Antigravity CLI/MiniMax/ElevenLabs/Meshy），7 个含中文；7 个里 2 个已有译文（魔搭社区/本地 ComfyUI）、5 个没有（火山方舟、火山豆包语音、即梦会员（本地 CLI）、Codex 本地生图（实验）、本地模型）。全部已分类，门岗现报 18 seeded / 11 locale-neutral / 0 unclassified / 0 stale。",
+      "把 name 无差别加进 MODEL_DISPLAY_SOURCE_PROPERTIES 试跑，得 53 条待译，逐条判定来源：4 条是供应商种子名（真展示文案），49 条是 catalog mapping 的渠道名（内部）。据此确认必须按渲染边界而非属性名收口，并保留 Mapping.name 不纳管（见 same_class_entry_points 的 not-affected 条）。",
+      "把 labelZh 加进 MODEL_DISPLAY_SOURCE_PROPERTIES 试跑，得 10 条待译；解开 EXCLUDED_FILES 对翻译契约的误伤后再跑，多照出 2 条（comfyuiLocal.ts 的「本地 · 文生图」与「留空 = 自动用本机第一个 checkpoint」）——证明豁免确实同时关掉了两道网。",
+      "grep 全仓找仍直连原始展示字段的渲染点，确认并接上 9 处：AiModelsSection.tsx(3)、defaultGenerationModelOptions.ts(2)、assistantModelIdentity.ts(2)、ModelChipGroups.tsx(2)、ModelEnableEditor.tsx(2)、LocalModelCard.tsx(1)、AdapterVerificationScreen.tsx(1)、ComfyuiPresetSection.tsx(2)；同时确认 ModelSettingsHome.tsx / OnboardingDrawer.tsx / WorkflowSidebar.tsx / WorkflowGraphCanvas.tsx 早已在调 translateModelDisplayText，无需改。",
+      "EN 真机走查逐屏复扫（tests/ux/i18n-sweep.walk.mjs，修好运行时网之后）：修前 4 面红（设置·models 1 处、设置·ai 34 处、设置·general 1 处、设置·TikHub 卡 1 处），修后 51/51 全绿。设置·general 的「简体中文」经判定为**正确行为**（语言选项按各自写法显示的国际惯例），已按选择器豁免并写明理由。"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-i18n-visible-text.mjs",
+    "invariant": "每个在册内置供应商的展示名都有英文说法或登记为语言中立品牌名（且登记理由当下仍成立）；模型档案目录里的展示属性（含 labelZh）中文字面量都有英文说法，该契约不受泛化规则豁免名单影响。",
+    "failure_mode": "任一条不满足即非零退出并指名道姓报出是哪个种子/哪个文件/哪条豁免、以及不合格的具体理由；BUILTIN_VENDOR_SEEDS 解析不出来（改名、改成函数生成等）时直接抛错，绝不当成「零个种子」放行——门岗静默失效比漏一个译名更危险。",
+    "exception_policy": "none",
+    "strategy": "把判据从「属性名白名单」换成「顺应用自己的单一真相源 BUILTIN_VENDOR_SEEDS 逐个核对在册种子」，于是覆盖面自动等于真实供应商集合、且对文件位置免疫；豁免不再是注释而是带断言的登记（过期/烂掉/冗余三种失效状态各自报红）。模型侧把 labelZh 纳入同一条翻译契约，并把翻译契约的扫描范围与泛化规则的豁免名单解耦。check:i18n 在 gates:contracts 链里，每个 PR 必跑。",
+    "artifacts": [
+      "scripts/check-i18n-visible-text.mjs",
+      "scripts/check-i18n-visible-text.test.ts",
+      "tests/ux/_assert.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-i18n-visible-text.test.ts",
+    "src/workbench/settings/settingsDialogStructure.test.ts"
+  ],
+  "class_regression_tests": [
+    "scripts/check-i18n-visible-text.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/check-i18n-visible-text.mjs"
+    ],
+    "rationale": "旧判据没有留并行版：collectUntranslatedModelLabels 里「翻译契约跟着 EXCLUDED_FILES 一起豁免」的写法已被 isModelSpecSource 就地替换（不是新增一条旁路），_assert.mjs 的 isHidden 剪枝已被 isPrunedSubtree + isInvisibleSelf 就地替换、旧函数删除。9 个渲染点是补上原本就该调的边界调用，没有产生第二条渲染路径，也没有任何 fallback 或逃生口。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "exit_criteria": [],
+    "rationale": "不涉及任何第三方依赖：改的是仓库自有的门岗脚本、走查断言、i18n 词典与渲染层调用。未新增/升级/保留任何 npm 依赖或外部 SDK。"
+  },
+  "migration": "无数据迁移。目录里的中文展示名保持原样不动（它们是被持久化的稳定档案键，改动会打断老项目和已存 catalog 行的匹配）——本次只在渲染边界把它们换成英文显示。zh-CN 界面一个字不变（translateModelDisplayText 在非 en 语言下原样返回）；词典未命中的字符串（用户自建的模型名/供应商名）同样原样透传，不会被误翻。",
+  "residual_risks": [
+    "静态门岗只认**字面量属性**上的展示名。以位置参数传进构造函数的标签（electron/catalog/modelscopeImages.ts:70 `t2iModel(\"MAILAND/majicflus_v1\", \"majicFlus 写实\", …)`）和导出常量（electron/catalog/codexImages.ts:26 CODEX_IMAGE_MODEL_LABEL）仍然扫不到——本次这 4 条（可灵 v3、majicFlus 写实、即梦 Seedance 2.0（会员）、Codex 生图（登录额度））是 EN 真机走查照出来后手工补的，不是门岗照出来的。要让它们也进静态网，得先把这些构造器的标签改成具名属性；未做。",
+    "EN 真机走查（tests/ux/i18n-sweep.walk.mjs）**不在 CI 里**：quality-gate.yml 跑的 test:journeys 是 evals/journeys/ 的 J1-J5，不含 tests/ux/*.walk.mjs。所以运行时那道网只是本地/人工兜底，上一条残留风险目前没有自动化拦截，靠的是有人跑走查。",
+    "供应商英文名按仓内既有英文文案对齐（见 internal_only_reason），没有逐个回官方英文站核对；11 个登记为「语言中立」的拉丁品牌名，验的是「不含 CJK 所以原样显示在英文界面是对的」这条可断言的判据，而不是「该品牌官方确实没有中文名」这条没验过的说法。若某家日后启用官方中文品牌名，需要人去把它从名单挪进词典（门岗只在名字本身混进中文时才会自动报红）。",
+    "设置→AI 的系统提示词编辑框在英文界面里显示整段中文（内容是 src/workbench/creation/creationAiModes.ts 的 mode.prompt，发给模型的提示词本体，按中文调过）。已在走查里按 #settings-system-prompt-editor 豁免并写明理由——它不算漏译，但英文用户看到一段中文提示词仍是真实毛边；「默认提示词要不要出英文版」会改变生成效果，属产品决定，未做。",
+    "本次只修了 expectNoCjkInEnglishDom 的剪枝。同文件的 RAW-KEY 网 expectNoRawI18nKeysInDom 是否也有等价的剪枝问题未逐条核实（它此前在同样的屏上也报绿）。"
+  ]
+}

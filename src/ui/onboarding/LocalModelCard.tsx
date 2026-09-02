@@ -24,6 +24,7 @@ import { getDesktopBridge } from '../../desktop/bridge'
 import { toast } from '../toast'
 import { alertDialog } from '../../design'
 import { FoldableModelCard } from './FoldableModelCard'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 
 /** 稳定契约：与后端 electron/localRuntime/localTextVendorSeed.ts 的 vendor key 对齐。 */
 export const LOCAL_TEXT_VENDOR_KEY = 'local-text'
@@ -205,7 +206,7 @@ export function LocalModelCard({ enabled, models, onChanged, onOpenDetails, deta
             <div key={m.modelKey} className="flex items-center gap-2.5 px-3 py-2 bg-nomi-ink-05 rounded-nomi-sm">
               <IconCircleCheck size={16} className="shrink-0 text-workbench-success" />
               <div className="flex-1 min-w-0">
-                <div className="text-body-sm text-nomi-ink truncate font-mono">{m.labelZh}</div>
+                <div className="text-body-sm text-nomi-ink truncate font-mono">{translateModelDisplayText(m.labelZh)}</div>
               </div>
               {capabilityBadge(verdicts[m.modelKey] ?? m.capability)}
               <button

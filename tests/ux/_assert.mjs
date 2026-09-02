@@ -235,9 +235,17 @@ export async function expectNoCjkInEnglishDom(win, { message, allowSelectors = [
       const cjk = new RegExp(cjkSource)
       const skipSelectors = ['[data-user-content]', 'style', 'script', 'noscript', ...allow]
       const isSkipped = (el) => skipSelectors.some((sel) => el.matches?.(sel))
-      const isHidden = (el) => {
+      // 剪枝只认「必然连累整棵子树」的属性:display:none / opacity≈0 / visibility:hidden。
+      // **元素自己盒子是 0 不算**——布局包装层(子元素绝对定位、overflow 可见、display:contents)
+      // 经常自身 0 高而内容满屏。2026-09-02 实测:设置→模型 的供应商列表外面套着一个 1440x0 的
+      // div,旧写法把它判成 hidden 直接 return,于是整份供应商列表(含肉眼可见的「火山方舟」)
+      // 从网里被摘掉——截图上明晃晃是中文,断言却报「无残留中文」全绿。假绿比不测更坏。
+      const isPrunedSubtree = (el) => {
         const style = getComputedStyle(el)
-        if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) <= 0.01) return true
+        return style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) <= 0.01
+      }
+      // 真正「这段字用户看不见」的判据,只对**承载中文的那个元素自己**用。
+      const isInvisibleSelf = (el) => {
         const r = el.getBoundingClientRect()
         return r.width < 1 || r.height < 1
       }
@@ -249,12 +257,12 @@ export async function expectNoCjkInEnglishDom(win, { message, allowSelectors = [
       }
       const hits = []
       const walk = (el) => {
-        if (isSkipped(el) || isHidden(el)) return
+        if (isSkipped(el) || isPrunedSubtree(el)) return
         // 只看**直接**文本子节点的中文(子元素各自递归判,避免把整棵子树的文本重复归到父节点)。
         for (const node of el.childNodes) {
           if (node.nodeType === Node.TEXT_NODE && cjk.test(node.nodeValue || '')) {
             const text = (node.nodeValue || '').replace(/\s+/g, ' ').trim()
-            if (text) hits.push({ where: describe(el), text: text.slice(0, 60) })
+            if (text && !isInvisibleSelf(el)) hits.push({ where: describe(el), text: text.slice(0, 60) })
           }
         }
         for (const child of el.children) walk(child)
@@ -262,7 +270,7 @@ export async function expectNoCjkInEnglishDom(win, { message, allowSelectors = [
       if (document.body) walk(document.body)
       // 还要查 title/aria-label/placeholder 这类可见但不在文本节点里的字。
       for (const el of document.querySelectorAll('[title],[aria-label],[placeholder]')) {
-        if (isSkipped(el) || isHidden(el)) continue
+        if (isSkipped(el) || isPrunedSubtree(el) || isInvisibleSelf(el)) continue
         for (const attr of ['title', 'aria-label', 'placeholder']) {
           const v = el.getAttribute(attr)
           if (v && cjk.test(v)) hits.push({ where: `${describe(el)}@${attr}`, text: v.replace(/\s+/g, ' ').trim().slice(0, 60) })
@@ -270,7 +278,7 @@ export async function expectNoCjkInEnglishDom(win, { message, allowSelectors = [
       }
       // 去重(同一段中文可能被多个祖先命中)。
       const seen = new Set()
-      return hits.filter((h) => { const k = `${h.where} ${h.text}`; if (seen.has(k)) return false; seen.add(k); return true })
+      return hits.filter((h) => { const k = `${h.where}\0${h.text}`; if (seen.has(k)) return false; seen.add(k); return true })
     },
     { cjkSource: CJK_RE.source, allow: allowSelectors },
   )
