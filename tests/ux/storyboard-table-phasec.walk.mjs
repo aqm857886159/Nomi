@@ -78,6 +78,7 @@ const appInstance = await launchNomiApp({ name: 'storyboard-table-phasec', tempR
 const { app, win } = appInstance
 const failures = []
 const screenshots = []
+let segmentInsidePromptBox = false
 const snap = async (name) => { const target = path.join(outDir, name); await screenshotSettled(win, { path: target }); screenshots.push(target) }
 const row = win.locator('[data-storyboard-editor="true"] [data-storyboard-row="1"]').first()
 
@@ -94,7 +95,12 @@ try {
   // 1) 骨架段点击换预设；prompt 直接变更，range 只是可丢失标注。
   const segment = row.locator('[data-storyboard-prompt-segment="shotSize"]')
   await expectVisible(segment, '骨架段虚线入口未渲染')
+  const promptBox = row.locator('[data-prompt-box="true"]')
+  await expectVisible(promptBox, '提示词块缺少 data-prompt-box')
+  segmentInsidePromptBox = await segment.evaluate((element) => Boolean(element.closest('[data-prompt-box="true"]')))
+  if (!segmentInsidePromptBox) failures.push('骨架段不是 data-prompt-box 的后代：结构仍在提示词框外')
   await clickOrFail(segment, '打开骨架段预设菜单')
+  await snap('00-skeleton-menu.png')
   await clickOrFail(row.getByRole('button', { name: '特写' }), '把景别换成特写')
   await expectText(row.locator('.ProseMirror'), /特写/, '骨架预设没有改 prompt 文本')
   await snap('00-skeleton-preset.png')
@@ -165,6 +171,7 @@ const report = [
   `screenshots: ${screenshots.join(', ')}`,
   'covers: @ picker/current/shot-result/library/upload, insert capsule, no-reference disabled, expand subline, dialogue/transition, skeleton preset, unbind.',
   'order evidence: promptMentions + storyboardPlan conversion tests assert first @ occurrence -> anchorIds -> edge.order.',
+  `skeleton DOM: segment is ${segmentInsidePromptBox ? '' : 'not '}a descendant of [data-prompt-box="true"] (decoration is rendered inside .ProseMirror).`,
   failures.length ? `failures: ${failures.join(' | ')}` : 'failures: none',
 ].join('\n')
 fs.writeFileSync(path.join(outDir, 'report.md'), `${report}\n`)

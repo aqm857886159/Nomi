@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { IconChevronDown, IconChevronUp, IconGripVertical, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 import { NomiSelect } from '../../../../design'
-import PromptEditor from '../../../assets/PromptEditor'
 import type { MentionSuggestionItem, MentionUploadControls } from '../../../assets/AssetMentionSuggestionList'
 import type { PlanAnchor, PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import type { PromptSegmentRange, StoryboardProfile } from '../../../generationCanvas/agent/storyboardPlan'
@@ -340,27 +339,25 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             mentionSearch/onMentionSelect 由 StoryboardShotTable 通过 useShotMentionSource 提供；
             缺省（不吃参考的模型）= 不开 @ 面板（§1.6 C4 禁用有说明）。
             currentRefUrls 维持 chip 编号一致性（与 NodeGenerationComposer 同语义）。 */}
-        <PromptEditor
-          value={shot.prompt}
-          onChange={(next) => onUpdate({ prompt: next })}
-          placeholder={isImageShot ? t('storyboardEditor.imagePromptPlaceholder') : t('storyboardEditor.videoPromptPlaceholder')}
-          className={cn(
-            'flex-1 px-2.5 py-2 rounded-nomi-sm border bg-nomi-paper',
-            'text-body-sm leading-normal',
-            '[&_.ProseMirror]:min-h-[60px]',
-            promptInvalid ? 'border-workbench-danger' : 'border-nomi-line',
-          )}
-          mentionCandidates={currentRefUrls}
-          mentionSearch={mentionSearch}
-          onMentionSelect={onMentionSelect}
-          mentionUpload={mentionUpload}
-          onReady={(editor) => { editorRef.current = editor }}
-        />
         <PromptSkeletonSegments
           prompt={shot.prompt}
           profile={storyboardProfile}
           ranges={shot.promptSegments}
           onChange={({ prompt, ranges }) => onUpdate({ prompt, promptSegments: ranges as PromptSegmentRange[] })}
+          editorProps={{
+            placeholder: isImageShot ? t('storyboardEditor.imagePromptPlaceholder') : t('storyboardEditor.videoPromptPlaceholder'),
+            className: cn(
+              'flex-1 px-2.5 py-2 rounded-nomi-sm border bg-nomi-paper',
+              'text-body-sm leading-normal',
+              '[&_.ProseMirror]:min-h-[60px]',
+              promptInvalid ? 'border-workbench-danger' : 'border-nomi-line',
+            ),
+            mentionCandidates: currentRefUrls,
+            mentionSearch,
+            onMentionSelect,
+            mentionUpload,
+            onReady: (editor) => { editorRef.current = editor },
+          }}
         />
         {dialogueWillGenerate ? (
           <div className="text-micro text-nomi-ink-40" data-storyboard-dialogue-hint="true">
