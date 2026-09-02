@@ -180,7 +180,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       )}
 
       {/* ── 参考区（纯展示）：具名槽空 tile / 已引用锚 + 「@」入口占位 / 不吃参考 ── */}
-      <div className="min-h-[132px] flex flex-col justify-center gap-2">
+      <div className="min-h-[132px] flex flex-col justify-center gap-2" data-storyboard-refzone="true">
         {zone.kind === 'none-accepted' ? (
           <span className="text-micro text-nomi-ink-30 leading-relaxed">{t('storyboardEditor.row.noRefAccepted')}</span>
         ) : (
@@ -190,6 +190,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
               return (
                 <span key={slot.kind} className="flex flex-col items-center gap-0.5">
                   <span
+                    data-storyboard-ref-tile="named-slot"
                     className={cn(
                       'grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed',
                       missing ? 'border-workbench-danger bg-workbench-danger-soft text-workbench-danger' : 'border-nomi-ink-20 bg-nomi-ink-05 text-nomi-ink-30',
@@ -207,7 +208,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             })}
             {zone.referencedAnchors.map((anchor) => (
               <span key={anchor.id} className="flex flex-col items-center gap-0.5">
-                <span className="grid place-items-center w-14 h-14 rounded-nomi-sm border border-nomi-line bg-nomi-ink-10 text-title text-nomi-ink-60">
+                <span data-storyboard-ref-tile="anchor" className="grid place-items-center w-14 h-14 rounded-nomi-sm border border-nomi-line bg-nomi-ink-10 text-title text-nomi-ink-60">
                   {(anchor.name || t('storyboardEditor.unnamed')).slice(0, 1)}
                 </span>
                 <span className="text-micro text-nomi-ink-40 max-w-14 truncate">{anchor.name || t('storyboardEditor.unnamed')}</span>
@@ -224,6 +225,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
                     onClick={triggerAtMention}
                     aria-label={t('storyboardEditor.row.atRefAria')}
                     title={t('storyboardEditor.row.atRefTitle')}
+                    data-storyboard-ref-tile="intake"
                     className="grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed border-nomi-ink-20 text-title text-nomi-ink-40 hover:border-nomi-accent hover:text-nomi-accent transition-colors duration-[var(--nomi-transition-fast)]"
                   >
                     @
@@ -247,7 +249,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       </div>
 
       {/* ── 提示词块：上沿胶囊（这一镜作用域）→ 提示词 → 下沿台词小字 + ▾ ── */}
-      <div className="min-w-0 min-h-[132px] flex flex-col gap-1.5">
+      <div className="min-w-0 min-h-[132px] flex flex-col gap-1.5" data-storyboard-prompt-block="true">
         <div className="flex items-center gap-1.5 flex-wrap">
           <NomiSelect
             ariaLabel={t('storyboardEditor.shotType')}
@@ -410,7 +412,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       </div>
 
       {expanded ? (
-        <div className="col-start-2 col-span-3">
+        <div className="col-start-2 col-span-3" data-storyboard-expand="true">
           <StoryboardShotRowExpand
             shot={shot}
             anchors={anchors}

@@ -216,7 +216,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       />
 
       <div className="overflow-y-auto px-4 py-4 flex flex-col gap-4">
-        <section>
+        <section data-storyboard-anchors="true">
           <div className="flex items-baseline gap-2 mb-2">
             <span className="text-body-sm font-medium text-nomi-ink-80">{t('storyboardEditor.consistencyTitle')}</span>
             <span className="text-micro text-nomi-ink-40">{t('storyboardEditor.consistencyHint')}</span>
