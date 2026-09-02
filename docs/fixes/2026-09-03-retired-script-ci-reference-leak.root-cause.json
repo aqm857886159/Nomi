@@ -90,11 +90,9 @@
     "scripts/check-workflow-script-refs.node-test.mjs"
   ],
   "legacy_paths": {
-    "status": "removed",
-    "removed_paths": [
-      "tests/ux/mcp-journey.e2e.mjs"
-    ],
-    "rationale": "J-MCP1 旧网本体（上列路径）与其入口脚本 `scripts.test:mcp`（package.json，同 diff 删除，因非独立文件路径故不列入 removed_paths）已在本分支同批删净，后继 lane 为 `test:mcp-journey`（L1+L2+skills，覆盖面严格更大）；本次修的正是该退役遗留的悬空引用，不存在新旧并行版。"
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本 PR 不删任何旧实现——J-MCP1 旧网本体（tests/ux/mcp-journey.e2e.mjs）与其入口脚本 scripts.test:mcp 已随 PR #381 合入 main 时删净。本 PR 修的是那次退役**遗留在 workflow 里的悬空引用**：把 desktop-rc.yml 指向后继 lane test:mcp-journey（L1+L2+skills，覆盖面严格更大），并补上此前缺失的静态门岗。故无旧可删，removed_paths 留空。"
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
