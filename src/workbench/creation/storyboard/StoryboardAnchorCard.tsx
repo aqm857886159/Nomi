@@ -50,6 +50,7 @@ type Props = {
   onRegenerate: () => void
   /** 🔒/🔓 定妆锁开关（anchorBibleKeys 同一把锁）。 */
   onToggleLock: () => void
+  onFilterByAnchor?: () => void
   /** 视觉锚缺名字 → 校验高亮（名字是落画布的卡片标题）。 */
   nameInvalid?: boolean
 }
@@ -69,7 +70,7 @@ function FaceButton({ label, onClick, children }: { label: string; onClick: () =
   )
 }
 
-export default function StoryboardAnchorCard({ anchor, runtime, onUpdate, onChangeKind, onRemove, onGenerate, onRegenerate, onToggleLock, nameInvalid }: Props): JSX.Element {
+export default function StoryboardAnchorCard({ anchor, runtime, onUpdate, onChangeKind, onRemove, onGenerate, onRegenerate, onToggleLock, onFilterByAnchor, nameInvalid }: Props): JSX.Element {
   const { t } = useTranslation()
   // 空描述（新加的锚）默认展开好直接写；AI 填好的默认收起成图卡。
   const [editing, setEditing] = React.useState(() => !anchor.description.trim())
@@ -192,9 +193,20 @@ export default function StoryboardAnchorCard({ anchor, runtime, onUpdate, onChan
             {editing ? <IconChevronUp size={12} stroke={1.8} /> : <span className="text-micro leading-none" aria-hidden>✎</span>}
           </button>
         </div>
-        <span className={cn('text-micro truncate', runtime.failed ? 'text-workbench-danger' : 'text-nomi-ink-40')} data-anchor-stat={anchor.id}>
-          {statLine}
-        </span>
+        {runtime.referencedByCount > 0 && onFilterByAnchor ? (
+          <button
+            type="button"
+            onClick={onFilterByAnchor}
+            className={cn('text-left text-micro truncate hover:text-nomi-accent hover:underline', runtime.failed ? 'text-workbench-danger' : 'text-nomi-ink-40')}
+            data-anchor-stat={anchor.id}
+          >
+            {statLine}
+          </button>
+        ) : (
+          <span className={cn('text-micro truncate', runtime.failed ? 'text-workbench-danger' : 'text-nomi-ink-40')} data-anchor-stat={anchor.id}>
+            {statLine}
+          </span>
+        )}
       </div>
 
       {editing ? (

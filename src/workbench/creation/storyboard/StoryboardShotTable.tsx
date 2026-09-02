@@ -21,6 +21,7 @@ import type { AnchorCardRuntime, StoryboardRowRuntime } from './exec/storyboardR
 import { useShotMentionSource } from './shotRow/useShotMentionSource'
 import StoryboardShotRow from './shotRow/StoryboardShotRow'
 import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionList'
+import { positionsForAnchorFilter } from './storyboardDInteractions'
 
 /**
  * 分镜表主体（v5 场分组 + 执行态）：`sceneGroupsOf` 把镜序切成场组——组头（▾ 场名 · N 镜 ·
@@ -55,6 +56,7 @@ type Props = {
   onRerunFreshRefsRow: (runtime: StoryboardRowRuntime) => void
   /** ⏳ 态点参考卡名 → 滚动定位参考卡。 */
   onJumpToAnchor: (anchorId: string) => void
+  filterAnchorId?: string | null
 }
 
 /**
@@ -136,13 +138,16 @@ function ShotRowWithMention(props: {
   )
 }
 
-export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor, filterAnchorId }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
   const [foldedScenes, setFoldedScenes] = React.useState<ReadonlySet<string>>(new Set())
 
-  const groups = sceneGroupsOf(plan)
+  const visiblePositions = positionsForAnchorFilter(plan, filterAnchorId ?? null)
+  const visiblePlan = filterAnchorId ? { ...plan, shots: visiblePositions.map((position) => plan.shots[position]) } : plan
+  const groups = sceneGroupsOf(visiblePlan)
+  const allGroups = sceneGroupsOf(plan)
   // 单一隐式组 = 无分场故事：不显组头（表退化成今天的平铺行为）。
   const showHeads = !(groups.length === 1 && groups[0].scene === null)
 
@@ -164,7 +169,9 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
 
   // 组头小结：与行状态同一份 derive（rows 按 startPos 切片；F2 禁静态快照）。
   const groupRowsOf = (group: SceneGroup): StoryboardRowRuntime[] =>
-    rows.slice(group.startPos, group.startPos + group.shots.length)
+    group.shots
+      .map((_shot, index) => rows[visiblePositions[group.startPos + index]])
+      .filter((row): row is StoryboardRowRuntime => Boolean(row))
 
   return (
     <div className="border border-nomi-line rounded-nomi divide-y divide-nomi-line-soft overflow-hidden" data-storyboard-rows="true">
@@ -190,7 +197,12 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                 )}
                 <span className="min-w-0 truncate text-caption font-medium text-nomi-ink-80">{headTitleOf(group, groupIndex)}</span>
                 <span className="ml-auto shrink-0 flex items-center gap-2.5 text-micro text-nomi-ink-40">
-                  <span>{t('storyboardEditor.sceneGroup.summary', { count: group.shots.length, seconds: totalDurationSec(group.shots) })}</span>
+                  <span>{(() => {
+                    const allGroup = allGroups.find((candidate) => foldKeyOf(candidate) === foldKeyOf(group))
+                    return filterAnchorId && allGroup
+                      ? t('storyboardEditor.sceneGroup.filteredSummary', { visible: group.shots.length, total: allGroup.shots.length, seconds: totalDurationSec(group.shots) })
+                      : t('storyboardEditor.sceneGroup.summary', { count: group.shots.length, seconds: totalDurationSec(group.shots) })
+                  })()}</span>
                   {doneCount > 0 ? (
                     <span className="text-workbench-success">{t('storyboardEditor.sceneGroup.doneCount', { count: doneCount })}</span>
                   ) : null}
@@ -205,7 +217,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
             ) : null}
             {!folded
               ? group.shots.map((shot, indexInGroup) => {
-                  const pos = group.startPos + indexInGroup
+                  const pos = visiblePositions[group.startPos + indexInGroup]
                   const runtime = rows[pos]
                   // C1：anchorCards 有时用 ShotRowWithMention（含 useShotMentionSource），
                   // 缺省（编辑器没提供 anchorCards）退回 StoryboardShotRow（无 @ 面板）。
