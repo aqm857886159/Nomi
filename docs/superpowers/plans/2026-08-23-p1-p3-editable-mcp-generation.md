@@ -371,7 +371,7 @@ pnpm run test:e2e -- tests/ux/mcp-generation-single-shot.e2e.mjs tests/ux/mcp-ge
 - [x] **Step 4: 提交 P3 零额度证据**
 
 ```bash
-pnpm run test:mcp
+pnpm run test:mcp-journey
 pnpm run gates
 ```
 

@@ -234,7 +234,7 @@ export async function executeProductionRunExport(input: ProductionRunExportInput
         profile: prepared.manifest.profile,
         filtergraph: compileFfmpegFiltergraph({ manifest: prepared.manifest, textOverlays }),
         durationMs: Math.max(0, prepared.manifest.timeline.durationFrames / Math.max(1, prepared.manifest.timeline.fps) * 1000),
-        stderrLogPath: path.join(runDir, "export-ffmpeg.log"),
+        stderrLogPath: path.join(runDir, "ffmpeg.log"),
       });
     } else {
       const bytes = bufferFromExportBytes(await input.captureWebm() as TimelineMp4ExportRequest["webmBytes"]);
@@ -249,15 +249,17 @@ export async function executeProductionRunExport(input: ProductionRunExportInput
         quality: audit.profile.quality || "standard",
         fps: audit.profile.fps || audit.timeline.fps || 30,
         durationMs: Math.max(0, audit.timeline.durationFrames / Math.max(1, audit.timeline.fps) * 1000),
-        stderrLogPath: path.join(runDir, "export-ffmpeg.log"),
+        stderrLogPath: path.join(runDir, "ffmpeg.log"),
       });
     }
   } finally {
     fs.rmSync(workDir, { recursive: true, force: true });
   }
 
+  fs.writeFileSync(path.join(runDir, "manifest.json"), `${JSON.stringify(audit, null, 2)}\n`, "utf8");
   fs.writeFileSync(path.join(runDir, "export-execution.json"), `${JSON.stringify({
     schemaVersion: 1,
+    buildSha: String(process.env.NOMI_BUILD_SHA || process.env.GITHUB_SHA || "development").trim(),
     owner: "production-run",
     runId,
     backend,
