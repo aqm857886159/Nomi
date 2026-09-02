@@ -278,6 +278,7 @@ export function seedMcpClientIdentityEnv(capabilityDir, client = 'claude') {
  */
 export function spawnMcpStdioClient({
   settingsDir, userDataDir, projectsDir, capabilityDir, clientInfo, capabilities, env, captureStderr = false,
+  tracePath, elicitationAction = 'accept',
 }) {
   const child = spawn(require('electron'), withLinuxNoSandbox([repoRoot, '--disable-gpu']), {
     cwd: repoRoot,
@@ -304,6 +305,14 @@ export function spawnMcpStdioClient({
   let childExit = null
   let stderrText = ''
   const messages = []
+  if (tracePath) {
+    fs.mkdirSync(path.dirname(tracePath), { recursive: true })
+    fs.writeFileSync(tracePath, '', 'utf8')
+  }
+  function trace(direction, frame) {
+    if (!tracePath) return
+    fs.appendFileSync(tracePath, `${JSON.stringify({ at: new Date().toISOString(), direction, frame })}\n`, 'utf8')
+  }
 
   // Transport died (spawn error or the child exited) → reject every in-flight RPC instead of leaving it to
   // time out. This is why pending stores `reject` alongside `resolve`/`timer`.
@@ -327,10 +336,16 @@ export function spawnMcpStdioClient({
     let msg
     try { msg = JSON.parse(text) } catch { return }
     messages.push(msg)
+    trace('in', msg)
     // Server→client request: elicitation/create → auto-accept (headless test authorization).
     if (msg.method === 'elicitation/create' && msg.id != null) {
       elicitationCount += 1
-      child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { action: 'accept', content: { confirm: true } } }) + '\n')
+      const result = elicitationAction === 'decline'
+        ? { action: 'decline', content: { confirm: false } }
+        : { action: 'accept', content: { confirm: true } }
+      const frame = { jsonrpc: '2.0', id: msg.id, result }
+      trace('out', frame)
+      child.stdin.write(JSON.stringify(frame) + '\n')
       return
     }
     // Server→client notification: progress frame → tally per token.
@@ -353,12 +368,16 @@ export function spawnMcpStdioClient({
       const timer = setTimeout(() => { pending.delete(id); reject(new Error(`RPC timeout: ${method}`)) }, timeoutMs)
       pending.set(id, { resolve, reject, timer })
       const outParams = meta ? { ...params, _meta: meta } : params
-      child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params: outParams }) + '\n')
+      const frame = { jsonrpc: '2.0', id, method, params: outParams }
+      trace('out', frame)
+      child.stdin.write(JSON.stringify(frame) + '\n')
     })
   }
 
   function notify(method, params = {}) {
-    child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method, params })}\n`)
+    const frame = { jsonrpc: '2.0', method, params }
+    trace('out', frame)
+    child.stdin.write(`${JSON.stringify(frame)}\n`)
   }
 
   function nextRequestId() { return seq + 1 }

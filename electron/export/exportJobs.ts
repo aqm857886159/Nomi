@@ -258,6 +258,7 @@ export async function executeProductionRunExport(input: ProductionRunExportInput
 
   fs.writeFileSync(path.join(runDir, "export-execution.json"), `${JSON.stringify({
     schemaVersion: 1,
+    buildSha: String(process.env.NOMI_BUILD_SHA || process.env.GITHUB_SHA || "development").trim(),
     owner: "production-run",
     runId,
     backend,

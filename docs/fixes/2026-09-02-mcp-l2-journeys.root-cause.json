@@ -1,0 +1,99 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-mcp-l2-journeys",
+  "problem_type": "MCP semantic media journey contract regression",
+  "symptom": "The real C-L2 journey loses the reason for a declined canvas plan, shows only reference counts on the paid challenge, returns no reviewable poster for a video artifact, and leaves export-execution.json without the build identity needed for reconciliation.",
+  "direct_cause": "The shared MCP/result boundaries projected cancellation and gate data with reduced shapes; video output materialization did not persist provider-owned poster media; and the export receipt writer persisted runtime output without a buildSha field.",
+  "class_root": "Durable MCP and export receipts were assembled independently from the underlying production contracts, so fields required to explain a user decision, review a media artifact, or reconcile an export were not carried through the shared projection/materialization boundaries.",
+  "affected_population": [
+    "MCP clients declining a batch canvas plan",
+    "MCP clients approving multi-shot generation with reference media",
+    "MCP clients reviewing generated video artifacts",
+    "Operators reconciling export outputs across builds"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/productionRun/shotPricing.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/capabilityCore/generationRuntimeAdapter.ts",
+    "electron/capabilityCore/apimartGenerationOutputs.ts",
+    "electron/capabilityCore/generationOutputMaterializer.ts",
+    "electron/productionRun/artifactProjection.ts",
+    "electron/capabilityCore/mcpPreviewImage.ts",
+    "electron/export/exportJobs.ts"
+  ],
+  "entry_points": [
+    "nomi_canvas_edit(action=add_nodes) decline response",
+    "nomi_operation_gate request multi-shot display projection",
+    "GenerationProviderOutput video materialization",
+    "production artifact projection and MCP thumbnail enrichment",
+    "export-execution.json persistence"
+  ],
+  "generality_proof": "Any future semantic MCP result or durable export/media receipt assembled from these shared boundaries inherits the same field-preservation requirement; callers do not need a vendor-specific branch.",
+  "shared_boundaries": [
+    { "path": "electron/capabilityCore/mcpProtocol.ts", "symbol": "buildToolResultPayload", "responsibility": "Preserve safe structured MCP results and notification/confirmation outcomes." },
+    { "path": "electron/capabilityCore/generationOutputMaterializer.ts", "symbol": "createGenerationOutputMaterializer", "responsibility": "Turn provider outputs into validated project-owned media receipts." },
+    { "path": "electron/productionRun/artifactProjection.ts", "symbol": "createArtifactProjection", "responsibility": "Expose scoped artifact paths and signed previews." },
+    { "path": "electron/export/exportJobs.ts", "symbol": "runExportJob", "responsibility": "Persist the export execution reconciliation receipt." }
+  ],
+  "same_class_entry_points": [
+    { "path": "electron/capabilityCore/mcpProtocol.ts", "entry_point": "nomi_canvas_edit decline", "disposition": "enforced", "evidence": "The response carries reason=declined and remains cancelled without ids." },
+    { "path": "electron/productionRun/shotPricing.ts", "entry_point": "multi-shot gate reference projection", "disposition": "enforced", "evidence": "Each shot carries safe referenceMedia identities when candidate references exist." },
+    { "path": "electron/capabilityCore/generationOutputMaterializer.ts", "entry_point": "video poster materialization", "disposition": "enforced", "evidence": "Provider thumbnailUrl is fetched and persisted as a project-owned poster." },
+    { "path": "electron/productionRun/artifactProjection.ts", "entry_point": "video artifact poster", "disposition": "enforced", "evidence": "Video artifacts expose poster as a thumbnail-first signed preview." },
+    { "path": "electron/productionRun/productionRunE2eFixture.ts", "entry_point": "legacy renderer fixture poster", "disposition": "not-affected", "evidence": "The existing fixture already persists thumbnailUrl and remains a regression reference." },
+    { "path": "electron/export/exportJobs.ts", "entry_point": "export execution receipt", "disposition": "enforced", "evidence": "The receipt includes a non-empty buildSha for cross-build reconciliation." }
+  ],
+  "internal_only_reason": "These are Nomi-owned projection, materialization, and receipt invariants; no external provider documentation can define which safe fields must remain available to an MCP client or an export reconciler.",
+  "invariants": [
+    "A declined canvas plan returns cancelled=true with a typed reason and never creates nodes.",
+    "A multi-shot paid challenge projects safe reference asset identities per shot, never local paths or provider URLs.",
+    "A completed video provider output with a poster URL persists a local poster and exposes it as the artifact poster/preview.",
+    "Every persisted export execution receipt includes a non-empty buildSha."
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same loss-of-contract pattern affects multiple independent MCP and durable-receipt consumers; shared projections and materialization are the earliest common boundaries.",
+    "same_class_scan": [
+      "Scanned all MCP result builders and widget-bound nomiRunData paths; nomi_canvas_edit, nomi_operation_gate, nomi_read artifact and run_events are the active C-L2 consumers.",
+      "Scanned all GenerationProviderOutput producers and consumers; APIMart extraction and generationOutputMaterializer are the shared media path, while legacy production fixture output already carries poster data and remains not-affected.",
+      "Scanned export receipt writers; exportJobs.ts is the sole export-execution.json writer, and existing export verification reads the same job directory.",
+      "Checked the old J-MCP1 and production/draft journeys; only J-MCP1 is retired, while shared harness consumers remain in scope and are not-affected."
+    ]
+  },
+  "prevention": {
+    "kind": "shared projection and persistence contract",
+    "enforcement_path": "unit tests plus C-L2 real-process journey assertions and check:root-cause-contracts",
+    "invariant": "The field needed for a user decision, media review, or build reconciliation is present at the first shared boundary and survives the structured MCP projection.",
+    "failure_mode": "A future caller adds a reduced result shape or bypasses poster/receipt persistence.",
+    "exception_policy": "none",
+    "strategy": "derive safe fields from canonical candidate/output/receipt data and test both positive and negative paths.",
+    "artifacts": ["electron/capabilityCore/mcpProtocol.ts", "electron/productionRun/shotPricing.ts", "electron/capabilityCore/generationOutputMaterializer.ts", "electron/productionRun/artifactProjection.ts", "electron/export/exportJobs.ts"]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpPlanConfirm.test.ts",
+    "electron/productionRun/shotPricing.test.ts",
+    "electron/capabilityCore/apimartGenerationOutputs.test.ts",
+    "electron/capabilityCore/generationOutputMaterializer.test.ts",
+    "electron/productionRun/artifactProjection.test.ts",
+    "electron/capabilityCore/mcpPreviewImage.test.ts",
+    "electron/export/exportJobs.test.ts",
+    "tests/ux/mcp-l2-journeys.e2e.mjs"
+  ],
+  "class_regression_tests": ["tests/ux/mcp-l2-journeys.e2e.mjs", "electron/productionRun/shotPricing.test.ts"],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": ["tests/ux/mcp-journey.e2e.mjs"],
+    "rationale": "J-MCP1 is replaced by the C7-C12 lane; shared harness consumers remain and are explicitly audited rather than removed."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is added or retained; the fixture uses the repository's existing Electron, ffmpeg, and HTTP runtime dependencies.",
+    "exit_criteria": []
+  },
+  "migration": "No user data migration. Existing video artifacts without a poster remain readable; new semantic provider video outputs materialize a poster when the provider returns one. Existing export receipts remain readable and new receipts carry buildSha.",
+  "residual_risks": [
+    "A provider that returns no poster URL still has no MCP image block; the client receives the playable artifact preview and can open it in Nomi.",
+    "CI window managers may minimize Electron; screenshot evidence therefore asserts file existence and non-zero dimensions only."
+  ]
+}
