@@ -515,6 +515,30 @@ export function createMcpProtocol(transport: McpTransport) {
           reply(id, buildToolResultPayload(tool.name, args, result))
           return
         }
+        // Timeline writes are Host-approved edits. Preview is free and stays
+        // read-only; apply/undo cross the same MCP elicitation boundary as the
+        // in-app approval card and are forwarded with one approval bit only
+        // after an explicit accept + confirm=true response.
+        if (tool.name === 'nomi_timeline_edit' && (built.operation === 'apply' || built.operation === 'undo')) {
+          const confirmation = await elicitBooleanConfirm({
+            message: built.operation === 'apply'
+              ? '确认把这份时间线修改应用到当前项目吗？修改可撤销，但会改变项目内容。'
+              : '确认撤销最近一次 Agent 时间线修改吗？',
+            title: built.operation === 'apply' ? '确认应用时间线修改' : '确认撤销时间线修改',
+            description: '这是项目内容修改，必须由 Host 在执行前确认。',
+          }, requestSignal)
+          if (!confirmation.supported || !confirmation.confirmed) {
+            reply(id, {
+              content: [{ type: 'text', text: '未生效：时间线修改需要 Host 明确确认。' }],
+              isError: true,
+              structuredContent: { nomiOutcome: { errorCode: 'human_approval_required', nextAction: 'confirm', capability: 'timeline.write' } },
+            })
+            return
+          }
+          const result = await invokeForRequest(tool.method, built, { planConfirmed: true })
+          reply(id, buildToolResultPayload(tool.name, args, result))
+          return
+        }
         // W3 幕 0 · 开场收敛：一屏 ≤3 题弹在调用方（enum 候选，客户端渲染成按钮）。
         // 客户端不支持表单 → **不假装问过**：把题面与候选原样交给模型，由它在对话里一次问全（同样只问一次）。
         // 任何一题留空/选「按你判断」/给非法值 → 走系统默认（跳过永远安全，C 路调研铁律）。
