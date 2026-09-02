@@ -6,15 +6,13 @@ import { createApprovalReceiptAuthority } from "../capabilityCore/approvalReceip
 import { createProductionRunLock } from "../productionRun/productionRunLock";
 import { writeCertificationJsonAtomic } from "./certificationPersistence";
 import { ConnectionCertificationService, getConnectionCertificationService } from "./service";
-import { HttpProviderConnector, type HttpLocalRuntimeProbeInput } from "./httpConnector";
 import type { AdapterAuthType, ProviderAdapterModelSelection, ProviderAdapterRun } from "../providerAdapter/types";
 import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from "../capabilityCore/approvalReceipt";
 import type { IntegrationHandoff } from "./handoffQueue";
 import { enqueueIntegrationHandoff } from "./handoffQueue";
-import { mutateCatalog, readCatalog, extractVendorExtraHeaders, normalizeProviderKind } from "../catalog/catalogStore";
+import { mutateCatalog, readCatalog, normalizeProviderKind } from "../catalog/catalogStore";
 import { decryptApiKeyRecord } from "../catalog/secrets";
 import { deriveVendorKeyFromBaseUrl } from "../catalog/catalogCommit";
-import { authHeaders } from "../ai/requestPipeline";
 import type { ProfileKind } from "../catalog/types";
 import type { FetchTaskResultFn, RunTaskFn } from "../capabilityCore/core";
 import { runComfyCandidateTest } from "../tasks/comfyCandidateTest";
@@ -47,6 +45,12 @@ export type IntegrationCandidate = {
   evidence?: Array<"remote" | "manual" | "docs" | "runtime">;
   classification?: "supported" | "unknown" | "unavailable";
   estimatedCalls?: number;
+};
+export type IntegrationProposal = {
+  candidates?: unknown;
+  selections?: unknown;
+  workflow?: unknown;
+  modelKey?: unknown;
 };
 export type IntegrationSession = {
   schemaVersion: 1;
@@ -104,11 +108,6 @@ type Dependencies = {
   filePath?: string;
   certification?: ConnectionCertificationService;
   save?: (filePath: string, state: PersistedState) => void;
-  discoverHttp?: (
-    session: IntegrationSession,
-    page: number,
-    search?: string,
-  ) => Promise<IntegrationCandidate[]> | IntegrationCandidate[];
   certifyComfy?: (
     session: IntegrationSession,
     idempotencyKey: string,
@@ -476,30 +475,6 @@ export function createRuntimeIntegrationSessionService(
     certifyComfy,
     comfyOperationLedger,
     reconcileComfy,
-    discoverHttp: async (session, _page, search) => {
-      if (!session.config.baseUrl) return [];
-      const apiKey = resolveCredential(session) || "";
-      const providerKind = normalizeProviderKind(session.config.providerKind) as "openai-compatible" | "openai-responses" | "anthropic";
-      const authType = session.config.authType || (providerKind === "anthropic" ? "x-api-key" : "bearer");
-      const catalog = readCatalog();
-      const vendorKey = deriveVendorKeyFromBaseUrl(session.config.baseUrl);
-      const vendor = catalog.vendors.find((candidate) => candidate.key === vendorKey);
-      const extraHeaders = vendor ? extractVendorExtraHeaders(vendor) || {} : {};
-      const headers = {
-        ...(providerKind === "anthropic" ? { "anthropic-version": "2023-06-01" } : {}),
-        ...authHeaders(authType, apiKey, session.config.authHeader),
-        ...extraHeaders,
-      };
-      const discovery = certification as unknown as {
-        discoverHttpModels?: (input: Record<string, unknown>) => Promise<IntegrationCandidate[]>;
-        probeExternalLocalRuntime?: (input: Record<string, unknown>) => Promise<unknown>;
-      };
-      if (discovery.discoverHttpModels) return discovery.discoverHttpModels({ baseUrl: session.config.baseUrl, providerKind, authType, apiKey, ...(session.config.authHeader ? { authHeader: session.config.authHeader } : {}), ...(session.config.authQueryParam ? { authQueryParam: session.config.authQueryParam } : {}), headers, search });
-      const connector = new HttpProviderConnector(undefined, undefined, discovery.probeExternalLocalRuntime
-        ? ((probeInput: HttpLocalRuntimeProbeInput) => discovery.probeExternalLocalRuntime!({ ...probeInput, providerKind, authType })) as never
-        : undefined);
-      return connector.discoverModels({ baseUrl: session.config.baseUrl, providerKind, authType, apiKey, ...(session.config.authHeader ? { authHeader: session.config.authHeader } : {}), ...(session.config.authQueryParam ? { authQueryParam: session.config.authQueryParam } : {}), headers, search });
-    },
   });
 }
 /** Install the process-wide runtime instance used by RPC, stdio and trusted UI IPC. */
@@ -563,6 +538,41 @@ function rejectWorkflowKeys(value: Record<string, unknown>, allowed: readonly st
     (key) => key === "__proto__" || key === "prototype" || key === "constructor" || !allowedSet.has(key),
   );
   if (unknown) throw new Error(`Unexpected ${name} field: ${unknown}`);
+}
+
+const PROPOSAL_KINDS = new Set(["text", "image", "video", "audio", "model3d"]);
+function proposalRejected(field: string, reason: string, repair: string): never {
+  throw new Error(`propose rejected: ${field} ${reason}. ${repair}`);
+}
+function proposalCandidates(value: unknown): IntegrationCandidate[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 100)
+    proposalRejected("proposal.candidates", "must contain 1 to 100 items", "send the complete candidate page set");
+  return value.map((raw, index) => {
+    assertRecord(raw);
+    try {
+      rejectWorkflowKeys(raw, ["modelKey", "kind"], `proposal.candidates[${index}]`);
+      const modelKey = id(raw.modelKey, `proposal.candidates[${index}].modelKey`);
+      if (typeof raw.kind !== "string" || !PROPOSAL_KINDS.has(raw.kind))
+        proposalRejected(`proposal.candidates[${index}].kind`, "is not a supported capability kind", "use text, image, video, audio, or model3d");
+      return { modelKey, kind: raw.kind };
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("propose rejected:")) throw error;
+      proposalRejected(`proposal.candidates[${index}]`, error instanceof Error ? error.message : "is invalid", "correct the candidate object and resubmit");
+    }
+  });
+}
+function proposalSelections(value: unknown, candidates: IntegrationCandidate[]): IntegrationCandidate[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 100)
+    proposalRejected("proposal.selections", "must contain 1 to 100 items", "select at least one candidate by modelKey");
+  const allowed = new Map(candidates.map((candidate) => [candidate.modelKey, candidate]));
+  return value.map((raw, index) => {
+    assertRecord(raw);
+    rejectWorkflowKeys(raw, ["modelKey"], `proposal.selections[${index}]`);
+    const modelKey = id(raw.modelKey, `proposal.selections[${index}].modelKey`);
+    const candidate = allowed.get(modelKey);
+    if (!candidate) proposalRejected(`proposal.selections[${index}].modelKey`, "does not match proposal.candidates", "select only a candidate included in the same proposal");
+    return clone(candidate);
+  });
 }
 
 function sanitizeWorkflowBinding(value: unknown): WorkflowBinding | undefined {
@@ -1159,67 +1169,62 @@ export class IntegrationSessionService {
     this.persist();
     return this.projection(session);
   }
-  async discover(
-    sessionId: unknown,
-    _expectedRevision: unknown,
-    owner: CapabilityOriginHost,
-    page = 0,
-    search?: string,
-  ) {
-    const session = this.getOrThrow(sessionId);
-    if (session.ownerClientId !== owner) throw new Error("Integration session owner mismatch");
-    if (!Number.isInteger(_expectedRevision) || _expectedRevision !== session.revision)
-      throw new Error("Integration session revision is stale");
-    if (session.kind === "http-api-provider" && session.credentialStatus !== "ready")
-      return {
-        ...this.projection(session),
-        candidates: [],
-        page,
-        pageSize: 0,
-        hasMore: false,
-        nextActions: ["nomi_integration_open_credentials"],
-      };
-    const candidates = this.deps.discoverHttp
-      ? await this.deps.discoverHttp(session, page, search)
-      : session.candidates;
-    const filtered = search
-      ? candidates.filter((candidate) =>
-          `${candidate.modelKey} ${candidate.label || ""}`.toLowerCase().includes(search.toLowerCase()),
-        )
-      : candidates;
-    const boundedPage = Math.max(0, Math.floor(page));
-    session.candidates = filtered.slice(boundedPage * 100, boundedPage * 100 + 100);
-    session.stage = session.candidates.length ? "needs_selection" : "needs_input";
-    session.unresolvedFields = session.candidates.length ? [] : [{ key: "models", reasonCode: "no_candidates" }];
-    session.revision += 1;
-    session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
-    this.state.revision += 1;
-    this.persist();
-    return {
-      ...this.projection(session),
-      page,
-      pageSize: session.candidates.length,
-      hasMore: filtered.length > (boundedPage + 1) * 100,
-      nextActions: session.candidates.length ? ["nomi_integration_select"] : ["nomi_integration_resolve_input"],
-    };
-  }
-  select(
+  /**
+   * The sole MCP persistence gate for provider-shaped work. Agents may do
+   * discovery, pagination and translation outside Nomi; this method only
+   * accepts a complete public proposal and mutates behind the shared CAS.
+   */
+  async propose(
     sessionId: unknown,
     expectedRevision: unknown,
     owner: CapabilityOriginHost,
-    selections: Array<{ modelKey: string }>,
-  ): IntegrationSessionProjection {
-    return this.mutate(sessionId, expectedRevision, owner, (session) => {
-      if (!Array.isArray(selections) || selections.length === 0 || selections.length > 100)
-        throw new Error("At least one model selection is required");
-      const allowed = new Map(session.candidates.map((candidate) => [candidate.modelKey, candidate]));
-      session.selections = selections.map((selection) => {
-        const candidate = allowed.get(id(selection.modelKey, "modelKey"));
-        if (!candidate) throw new Error("Selection is not a discovered candidate");
-        return candidate;
+    rawProposal: unknown,
+  ): Promise<IntegrationSessionProjection> {
+    if (!rawProposal || typeof rawProposal !== "object" || Array.isArray(rawProposal))
+      proposalRejected("proposal", "is required and must be an object", "send candidates and selections for HTTP, or workflow for ComfyUI");
+    assertRecord(rawProposal);
+    rejectWorkflowKeys(rawProposal, ["candidates", "selections", "workflow", "modelKey"], "proposal");
+    const session = this.getOrThrow(sessionId);
+    if (session.kind === "http-api-provider") {
+      if (session.credentialStatus !== "ready")
+        proposalRejected("proposal", "cannot be accepted before the credential is ready", "call open_credentials and save the key in Nomi's secure page first");
+      if (rawProposal.workflow !== undefined || rawProposal.modelKey !== undefined)
+        proposalRejected("proposal", "contains ComfyUI-only fields for an HTTP provider", "send candidates and selections only");
+      const candidates = proposalCandidates(rawProposal.candidates);
+      const keys = new Set<string>();
+      for (const candidate of candidates) {
+        if (keys.has(candidate.modelKey)) proposalRejected("proposal.candidates.modelKey", "contains a duplicate", "send each modelKey once");
+        keys.add(candidate.modelKey);
+      }
+      const selections = proposalSelections(rawProposal.selections, candidates);
+      return this.mutate(sessionId, expectedRevision, owner, (current) => {
+        current.candidates = clone(candidates);
+        current.selections = clone(selections);
+        current.unresolvedFields = [];
+        current.stage = "needs_spend_confirmation";
       });
-      session.stage = "needs_spend_confirmation";
-      session.unresolvedFields = [];
+    }
+    if (rawProposal.candidates !== undefined || rawProposal.selections !== undefined)
+      proposalRejected("proposal", "contains HTTP-only fields for a ComfyUI workflow", "send workflow and optionally modelKey only");
+    const workflow = text(rawProposal.workflow, "proposal.workflow", MAX_WORKFLOW);
+    const modelKey = rawProposal.modelKey === undefined ? undefined : id(rawProposal.modelKey, "proposal.modelKey");
+    let analyzed: Awaited<ReturnType<ConnectionCertificationService["analyzeComfyWorkflow"]>>;
+    try {
+      analyzed = await this.certification.analyzeComfyWorkflow(workflow);
+    } catch (error) {
+      proposalRejected("proposal.workflow", "could not be analyzed", `fix the workflow JSON and retry (${error instanceof Error ? error.message.slice(0, 240) : "invalid workflow"})`);
+    }
+    if (!analyzed.ok)
+      proposalRejected("proposal.workflow", "was rejected by the ComfyUI analyzer", "send an API-format workflow with a usable output node");
+    return this.mutate(sessionId, expectedRevision, owner, (current) => {
+      current.config.workflow = analyzed.convertedText || workflow;
+      current.config.workflowBinding = analyzed.analysis.suggested;
+      if (modelKey) current.config.modelKey = modelKey;
+      current.configDigest = digest(current.config);
+      current.candidates = [];
+      current.selections = [];
+      current.unresolvedFields = [];
+      current.stage = "needs_spend_confirmation";
     });
   }
   /** Create the signed, immutable confirmation challenge consumed by the trusted Nomi UI. */

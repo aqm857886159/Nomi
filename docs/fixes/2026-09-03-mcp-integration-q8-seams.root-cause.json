@@ -1,0 +1,134 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-mcp-integration-q8-seams",
+  "problem_type": "Context-sensitive MCP integration orchestration at a deterministic capability boundary",
+  "symptom": "Agents are forced through discover/select/workflow-submit/input-resolution transitions that return opaque or provider-shaped failures for real-world relay APIs, including no-message validation failures and model-specific 500s.",
+  "direct_cause": "The MCP integration surface exposes provider discovery and workflow orchestration as Nomi-owned transitions, while the deterministic persistence and certification boundaries are mixed into the same session API; invalid proposals are not rejected at one explicit, readable persistence gate.",
+  "class_root": "The integration contract lacks a single fail-closed proposal boundary that accepts only public, already-prepared provider candidates/workflows and converges every write through owner + expectedRevision before persistence.",
+  "affected_population": [
+    "MCP agents connecting HTTP providers, relays, or ComfyUI workflows",
+    "providers with non-canonical discovery, pagination, or workflow input conventions",
+    "all callers of the integration session MCP surface"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/mcpIntegrationTools.ts",
+    "electron/capabilityCore/mcpIntegrationManagementTools.ts",
+    "electron/capabilityCore/mcpArgValidation.ts",
+    "electron/capabilityCore/mcpToolCatalog.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/integrationCertification/integrationSession.ts",
+    "electron/catalog/catalogStore.ts",
+    "electron/catalog/networkConfigStore.ts",
+    "electron/catalog/types.ts",
+    "electron/providerNetwork.ts"
+  ],
+  "entry_points": [
+    "MCP nomi_integration tools/call",
+    "MCP nomi_integration_manage tools/call",
+    "trusted UI integration session and catalog management callers"
+  ],
+  "internal_only_reason": "The missing invariant is an application-owned boundary; no third-party behavior decides whether a public proposal is safe to persist.",
+  "invariants": [
+    "MCP integration input never contains API key, Authorization value, receipt token, or other credential value.",
+    "Every mutable integration session write checks owner and exact expectedRevision before any state or disk mutation.",
+    "A rejected proposal leaves session state and revision unchanged and returns a field-addressable repair reason.",
+    "Paid confirm and start remain separate receipt-authorized transitions.",
+    "Provider network configuration is encrypted at the catalog write boundary and proxy routing is per vendor connection."
+  ],
+  "generality_proof": "Both HTTP candidate selection and ComfyUI workflow submission enter through the same propose action and IntegrationSessionService boundary; management updates and proxy toggles enter through the catalog's existing encrypted write boundary. Removing the four provider-shaped transitions prevents equivalent relay and workflow variance from re-entering through another MCP name, while preserving trusted UI callers where repository evidence shows shared use.",
+  "shared_boundaries": [
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "IntegrationSessionService.propose",
+      "responsibility": "Validate the proposal shape and semantic relationship, then mutate the session only behind owner and expectedRevision CAS."
+    },
+    {
+      "path": "electron/capabilityCore/mcpArgValidation.ts",
+      "symbol": "validateToolArguments",
+      "responsibility": "Execute the catalog JSON Schema at the MCP tools/call boundary, including additionalProperties rejection for credential-shaped fields."
+    },
+    {
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "upsertModelCatalogVendor/deleteModelCatalogVendor/deleteModelCatalogModel",
+      "responsibility": "Own persistent vendor/model management and reuse lineage, mapping, and catalog atomic write semantics."
+    },
+    {
+      "path": "electron/catalog/networkConfigStore.ts",
+      "symbol": "applyPlainNetworkConfig",
+      "responsibility": "Encrypt or explicitly clear per-vendor proxy configuration before catalog persistence."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpIntegrationTools.ts",
+      "entry_point": "MCP nomi_integration action=propose",
+      "disposition": "enforced",
+      "evidence": "This is the replacement entry for both old HTTP select and Comfy workflow/input transitions; it dispatches only to the shared propose method."
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "entry_point": "IntegrationSessionService.requestConfirmation/start",
+      "disposition": "enforced",
+      "evidence": "These callers consume the proposal output but remain separately guarded by expectedRevision, signed receipt validation, and canonical certification run startup."
+    },
+    {
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "entry_point": "trusted renderer catalog vendor/model mutation",
+      "disposition": "enforced",
+      "evidence": "Renderer writes already converge on catalogStore and retain certification metadata protections; the management tool uses the same persistence owner."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Provider discovery and workflow conventions vary by vendor and can reproduce opaque failures through any future integration caller unless the deterministic persistence boundary is centralized.",
+    "same_class_scan": [
+      "Searched integrationSession.ts, dispatcher.ts, mcpIntegrationTools.ts, and tests for begin/openCredentials/discover/select/submitWorkflow/resolveInput/requestConfirmation/start/cancel.",
+      "Checked rendererCatalogMutation.ts and catalogStore.ts for parallel vendor/model writes and networkConfigStore.ts/providerNetwork.ts for proxy routing consumers.",
+      "Checked MCP tools/call validation and L2 model-integration journeys for external entry points."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/integrationCertification/integrationSession.ts",
+    "invariant": "Only public, semantically valid candidates/workflows with exact owner and expectedRevision may reach persisted session state; management writes use catalog's encrypted atomic boundary.",
+    "failure_mode": "Reject before mutation with a stable field path and repair instruction; unknown fields and credential-shaped fields fail the MCP tool call; paid transitions remain unavailable without the existing receipt seam.",
+    "exception_policy": "none",
+    "strategy": "Delete provider-shaped MCP transitions and route both proposal families through one validator/mutator, while reusing existing catalog encryption and lineage deletion instead of introducing parallel stores.",
+    "artifacts": [
+      "electron/integrationCertification/integrationSession.ts",
+      "electron/capabilityCore/mcpIntegrationTools.ts",
+      "electron/capabilityCore/mcpIntegrationManagementTools.ts",
+      "electron/catalog/catalogStore.ts",
+      "electron/capabilityCore/mcpArgValidation.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpIntegrationTools.test.ts",
+    "electron/capabilityCore/mcpSurfaceCollapse.test.ts",
+    "electron/capabilityCore/mcpIntegrationManagementTools.test.ts",
+    "tests/ux/mcp-l2-journeys.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpIntegrationTools.test.ts",
+    "electron/capabilityCore/mcpIntegrationManagementTools.test.ts",
+    "tests/ux/mcp-l2-journeys.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpIntegrationTools.ts",
+      "electron/capabilityCore/dispatcher.ts"
+    ],
+    "rationale": "The four provider-shaped MCP transitions are replaced by propose; trusted UI-only shared capabilities remain only if repository evidence requires them and are not exposed as MCP actions."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The repair owns an application boundary; no third-party dependency controls proposal validation, revision CAS, or catalog persistence.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema migration is required. Existing sessions remain readable; old MCP names/actions are removed from the catalog and callers must construct a public proposal. Existing catalog records retain their current encrypted network format.",
+  "residual_risks": [
+    "A certification-owned vendor configuration change may still require the existing new-session policy; the final behavior must follow live main evidence and be reported if the management tool cannot safely apply it.",
+    "Real external provider variance remains intentionally delegated to the driving Agent and is not certified by the deterministic propose gate."
+  ]
+}

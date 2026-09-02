@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { MCP_TOOL_NAMES } from './mcpProtocol'
 import { MCP_TOOL_RESOLVER, CANVAS_READ_METHOD, type McpToolDefinition } from './mcpToolCatalog'
+import { MCP_INTEGRATION_TOOL } from './mcpIntegrationTools'
 
 // 面收敛（surface-16-collapse）等价锚 + P1 无并行版断言。
 // ① 退役：42 个旧 MCP name 同 commit 从目录删净（resolve→undefined、不在 tools/list、不在 MCP_TOOL_NAMES）。
@@ -22,11 +23,11 @@ const RETIRED_OLD_NAMES = [
   // session_open 保留原名（唯一 1→1），不在退役表。
 ]
 
-// 收敛后的 15 个工具名（nomi_canvas_edit 槽位现由 M2 语义 canvas.write 适配器承担）+ 8 个 M2 语义编辑工具（catalog 末尾原样保留）。
+// 收敛后的 15 个工具名 + T14 管理补充工具 + 8 个 M2 语义编辑工具。
 const COLLAPSED_TOOL_NAMES = [
   'nomi_session_open', 'nomi_read', 'nomi_canvas_edit', 'nomi_asset_import', 'nomi_operation_plan',
   'nomi_operation_preview', 'nomi_operation_gate', 'nomi_operation_execute', 'nomi_operation_control',
-  'nomi_run_start', 'nomi_run_control', 'nomi_artifact_review', 'nomi_run_gate', 'nomi_integration',
+  'nomi_run_start', 'nomi_run_control', 'nomi_artifact_review', 'nomi_run_gate', 'nomi_integration', 'nomi_integration_manage',
   'nomi_project_create',
 ]
 // M2 语义编辑（非本次 42→15 收敛的一员；此处只断言「原样保留、不被误删」）。并线裁定（2026-09-02）：
@@ -212,27 +213,25 @@ describe('MCP surface collapse · equivalence-anchor mapping table', () => {
       .toEqual({ method: 'production.storyboard.materialize', params: { projectId: P, runId: 'r-1', artifactId: 'a-1', expectedVersion: 3 } })
   })
 
-  it('T14 nomi_integration absorbs the 9 write transitions (get went to nomi_read)', () => {
+  it('T14 nomi_integration exposes only the 5 deterministic seams (get went to nomi_read)', () => {
     expect(route('nomi_integration', { action: 'begin', kind: 'http-api-provider', name: 'X', baseUrl: 'https://x', authType: 'bearer', authHeader: 'Authorization' }))
       .toEqual({ method: 'integration.begin', params: { kind: 'http-api-provider', name: 'X', baseUrl: 'https://x', authType: 'bearer', authHeader: 'Authorization' } })
     expect(route('nomi_integration', { action: 'open_credentials', sessionId: 's', expectedRevision: 1 }))
       .toEqual({ method: 'integration.open_credentials', params: { sessionId: 's', expectedRevision: 1 } })
-    expect(route('nomi_integration', { action: 'discover', sessionId: 's', expectedRevision: 1, page: 0, search: 'flux' }))
-      .toEqual({ method: 'integration.discover', params: { sessionId: 's', expectedRevision: 1, page: 0, search: 'flux' } })
-    expect(route('nomi_integration', { action: 'select', sessionId: 's', expectedRevision: 1, selections: [{ modelKey: 'm' }] }))
-      .toEqual({ method: 'integration.select', params: { sessionId: 's', expectedRevision: 1, selections: [{ modelKey: 'm' }] } })
+    expect(route('nomi_integration', { action: 'propose', sessionId: 's', expectedRevision: 1, proposal: { candidates: [{ modelKey: 'm', kind: 'text' }], selections: [{ modelKey: 'm' }] } }))
+      .toEqual({ method: 'integration.propose', params: { sessionId: 's', expectedRevision: 1, proposal: { candidates: [{ modelKey: 'm', kind: 'text' }], selections: [{ modelKey: 'm' }] } } })
     // confirm → integration.request_confirmation ($ 付费两相之一)
     expect(route('nomi_integration', { action: 'confirm', sessionId: 's', expectedRevision: 1, idempotencyKey: 'k' }))
       .toEqual({ method: 'integration.request_confirmation', params: { sessionId: 's', expectedRevision: 1, idempotencyKey: 'k' } })
-    expect(route('nomi_integration', { action: 'submit_workflow', sessionId: 's', expectedRevision: 1, workflow: '{}' }))
-      .toEqual({ method: 'integration.submit_workflow', params: { sessionId: 's', expectedRevision: 1, workflow: '{}' } })
-    expect(route('nomi_integration', { action: 'resolve_input', sessionId: 's', expectedRevision: 1, answers: { a: 1 } }))
-      .toEqual({ method: 'integration.resolve_input', params: { sessionId: 's', expectedRevision: 1, answers: { a: 1 } } })
     // start → integration.start ($ 付费两相之二，前置 receipt)
     expect(route('nomi_integration', { action: 'start', sessionId: 's', expectedRevision: 1, idempotencyKey: 'k', receipt: 'rc' }))
       .toEqual({ method: 'integration.start', params: { sessionId: 's', expectedRevision: 1, idempotencyKey: 'k', receipt: 'rc' } })
     expect(route('nomi_integration', { action: 'cancel', sessionId: 's', expectedRevision: 1 }))
       .toEqual({ method: 'integration.cancel', params: { sessionId: 's', expectedRevision: 1 } })
+    expect(route('nomi_integration_manage', { action: 'set_proxy', vendorKey: 'relay', enabled: true }))
+      .toEqual({ method: 'integration.manage.set_proxy', params: { action: 'set_proxy', vendorKey: 'relay', enabled: true } })
+    expect((MCP_INTEGRATION_TOOL.inputSchema as { properties: { action: { enum: string[] } } }).properties.action.enum)
+      .toEqual(['begin', 'open_credentials', 'propose', 'confirm', 'start', 'cancel'])
   })
 
   it('T15 nomi_project_create ≡ nomi_create_project', () => {

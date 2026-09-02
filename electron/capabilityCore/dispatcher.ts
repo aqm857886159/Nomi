@@ -39,6 +39,7 @@ import {
   getIntegrationSessionService,
   type IntegrationSessionService,
 } from '../integrationCertification/integrationSession'
+import { manageModelCatalogConnection } from '../catalog/catalogStore'
 
 export function projectIdOf(params: Record<string, unknown>): string {
   return typeof params.projectId === 'string' ? params.projectId : ''
@@ -689,20 +690,12 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         params.expectedRevision,
         ctx.origin?.host || 'external',
       )
-    case 'integration.discover':
-      return (ctx.integrationSessions || getIntegrationSessionService()).discover(
+    case 'integration.propose':
+      return (ctx.integrationSessions || getIntegrationSessionService()).propose(
         params.sessionId,
         params.expectedRevision,
         ctx.origin?.host || 'external',
-        typeof params.page === 'number' ? params.page : 0,
-        typeof params.search === 'string' ? params.search : undefined,
-      )
-    case 'integration.select':
-      return (ctx.integrationSessions || getIntegrationSessionService()).select(
-        params.sessionId,
-        params.expectedRevision,
-        ctx.origin?.host || 'external',
-        params.selections as Array<{ modelKey: string }>,
+        params.proposal,
       )
     case 'integration.request_confirmation':
       return (ctx.integrationSessions || getIntegrationSessionService()).requestConfirmation(
@@ -710,20 +703,6 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         params.expectedRevision,
         ctx.origin?.host || 'external',
         params.idempotencyKey as string,
-      )
-    case 'integration.submit_workflow':
-      return (ctx.integrationSessions || getIntegrationSessionService()).submitWorkflow(
-        params.sessionId,
-        params.expectedRevision,
-        ctx.origin?.host || 'external',
-        params.workflow as string,
-      )
-    case 'integration.resolve_input':
-      return (ctx.integrationSessions || getIntegrationSessionService()).resolveInput(
-        params.sessionId,
-        params.expectedRevision,
-        ctx.origin?.host || 'external',
-        params.answers as Record<string, unknown>,
       )
     case 'integration.start':
       return (ctx.integrationSessions || getIntegrationSessionService()).start(
@@ -744,6 +723,12 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         params.expectedRevision,
         ctx.origin?.host || 'external',
       )
+    case 'integration.manage.update_vendor':
+    case 'integration.manage.delete_vendor':
+    case 'integration.manage.delete_model':
+    case 'integration.manage.set_proxy':
+      if (ctx.origin?.host === 'external' || !ctx.origin?.host) throw new RpcError('Signed client identity is required', 403)
+      return manageModelCatalogConnection(params)
     default:
       throw new RpcError(`未知方法: ${method}`, 404)
   }
