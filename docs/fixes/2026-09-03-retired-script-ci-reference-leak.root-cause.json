@@ -1,0 +1,104 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-retired-script-ci-reference-leak",
+  "problem_type": "npm script 退役后 workflow 里的引用成悬空引用",
+  "symptom": "J-MCP1 退役把 `test:mcp` 从 package.json 删除，`.github/workflows/desktop-rc.yml:56` 仍写着 `xvfb-run -a pnpm run test:mcp`。退役 PR 的 Quality Gate 全绿（RC workflow 只在发布候选时跑），要到下一次发 RC 才会炸在 `pnpm: Command \"test:mcp\" not found`，那时改动早已远去。",
+  "direct_cause": "退役 J-MCP1 时清理了 package.json 脚本、旧 journey 文件与文档引用，但漏掉 `.github/workflows/desktop-rc.yml:56` 这处 CI 引用——它不在退役 PR 的验证面上，没有任何一道门会读它。",
+  "class_root": "「npm script 是一份被多处按字符串引用的契约，而这些引用没有任何静态校验」。改名/退役任何 script 时，`.github/workflows/**` 里的 `pnpm run <script>` 引用是否跟着改，此前完全依赖人记得逐条核对；且 PR 的 CI 只跑 quality-gate 一族 workflow，release/RC 一族的悬空引用在 PR 面上不可见——「坏了但没人跑」能存活到发版当天。",
+  "migration": "本次同 diff 把该引用改指后继 lane `test:mcp-journey`（覆盖 L1+L2+skills，严格超过原 J-MCP1），并新增 `check:workflow-script-refs` 把「引用必须解析得到」变成机器强制。旧的 `test:mcp` script 与 `tests/ux/mcp-journey.e2e.mjs` 已在本分支同批删除（P1 加新删旧），不留并行版。",
+  "affected_population": [
+    "所有 `.github/workflows/**` 里以 `pnpm run <script>` 形式调用 npm script 的步骤（当前 8 份 workflow、28 处引用）",
+    "改名或退役任何 npm script 的改动——退役面若漏掉 workflow 引用，PR 全绿但 release/RC 流水线会在下次运行时失败",
+    "本次直接受害者：desktop-rc.yml 的 Release-critical feature journeys 步骤（RC 发版必经）"
+  ],
+  "scope_paths": [
+    ".github/workflows/**",
+    "package.json",
+    "scripts/check-workflow-script-refs.mjs"
+  ],
+  "entry_points": [
+    ".github/workflows/desktop-rc.yml:56（本次悬空引用现场）",
+    ".github/workflows/quality-gate.yml（PR 面 workflow，同样按字符串引用 npm script）",
+    ".github/workflows/desktop-preview.yml（预览面 workflow，同一引用形态）",
+    "package.json:scripts（被引用的一侧——script 增删改名的唯一真相源）"
+  ],
+  "invariants": [
+    "`.github/workflows/**` 里每一处 `pnpm run <script>` 的 <script> 都必须存在于 package.json 的 scripts 中",
+    "该不变量对全部 workflow 一视同仁——不区分它是否会在 PR 上跑（正是 PR 不跑的那些才需要机器守）",
+    "扫到 0 份 workflow 或 0 处引用时门岗 fail-closed，不允许「解析不出来所以一片绿」"
+  ],
+  "regression_tests": [
+    "scripts/check-workflow-script-refs.node-test.mjs"
+  ],
+  "residual_risks": [
+    "只覆盖 `pnpm run <script>` 这一种引用形态：workflow 里直接 `node scripts/x.mjs` 的路径引用不在本门岗内（那类由 check-e2e-launch / check-walkthroughs 按各自语义管），`npm run` / `yarn` 写法本仓不使用、出现时会漏",
+    "只校验「script 名存在」，不校验「这个 script 是不是语义上该调的那个」——把 test:mcp 改指一个存在但不相干的 script，本门岗会放行"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "纯内部契约问题：package.json scripts 与本仓 workflow 之间的字符串引用一致性，无第三方 API 或版本语义需要查证。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "script 改名/退役是本仓高频动作（近期就有 J-MCP1 退役、gates 链重组、M2 工具面收敛三次），而引用侧散落在 8 份 workflow 里、无任何静态校验；只要「靠人记得核对退役面」，同类漏网就会以相同方式复发。本次正是人工收货逐条核对时才抓到的，说明既有流程里没有机器闸。",
+    "same_class_scan": [
+      "全仓实扫：`grep -rhoE 'pnpm run [a-z0-9:_-]+' .github/workflows/` 得 28 处引用、8 份 workflow；逐个用 package.json 解析，修复前唯一悬空项 = desktop-rc.yml:56 的 test:mcp",
+      "同批退役面对账：`grep -rn 'run test:mcp\\b'` 全仓（排除 test:mcp-journey）修复前 1 命中（即上条），修复后 0 命中",
+      "反向核对被引用侧：package.json scripts 中被 workflow 引用的 script 均存在，无「只在 workflow 里活着」的孤儿"
+    ]
+  },
+  "generality_proof": "把「引用必须解析得到」从人工核对提升为 gates 链里的静态门岗后，任何 script 的增删改名若遗漏 workflow 引用，都会在改动者本机的 `pnpm run gates` 与 PR 的 Contracts 面当场报红，并逐处点名 file:line。门岗按 `.github/workflows/**` 整片扫描而非白名单，故新增 workflow 自动纳入；覆盖不变量（0 份/0 处即 fail-closed）保证遍历或正则失效时报红而非静默放行。这样「改了 script 却漏改引用」这一类在合入 main 之前必被拦住，不再依赖某个人在收货时想起来核对。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-workflow-script-refs.mjs",
+      "symbol": "findMissingRefs",
+      "responsibility": "在 gates 链上统一裁决「workflow 引用的每个 npm script 是否解析得到」，是本类问题唯一的强制执行边界"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/desktop-rc.yml",
+      "entry_point": "Release-critical feature journeys",
+      "disposition": "enforced",
+      "evidence": "本次现场：第 56 行的 `pnpm run test:mcp` 已改指 `test:mcp-journey`；把旧引用放回后门岗真实 exit 1 并点名 desktop-rc.yml:56（阳性对照已跑），恢复后 exit 0"
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "Contracts / Unit / E2E 各 job 的 pnpm run 步骤",
+      "disposition": "enforced",
+      "evidence": "同一道门整片扫描 `.github/workflows/**`，该文件的引用一并被解析核对；全量运行报「8 份 workflow、28 处 pnpm run 全部解析得到」，其引用含在这 28 处内"
+    },
+    {
+      "path": ".github/workflows/desktop-preview.yml",
+      "entry_point": "预览构建的 pnpm run 步骤",
+      "disposition": "enforced",
+      "evidence": "同上，纳入整片扫描；本门岗不使用白名单，故无需为每份 workflow 单独登记即被覆盖"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-workflow-script-refs.mjs",
+    "invariant": "`.github/workflows/**` 中每一处 `pnpm run <script>` 的 <script> 必须存在于 package.json 的 scripts",
+    "failure_mode": "`pnpm run check:workflow-script-refs`（在 gates:contracts 链中，紧随 check:cla-workflow）非零退出，逐处打印 `<workflow>:<行号>  pnpm run <script>`；本机 gates 与 PR 的 Contracts 面同时报红",
+    "exception_policy": "none",
+    "strategy": "把「改 script 时记得同步 workflow 引用」从人工核对变成机器强制，且覆盖 PR 上不运行的 release/RC 一族 workflow",
+    "artifacts": [
+      "scripts/check-workflow-script-refs.mjs",
+      "scripts/check-workflow-script-refs.node-test.mjs",
+      "package.json"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/check-workflow-script-refs.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/mcp-journey.e2e.mjs"
+    ],
+    "rationale": "J-MCP1 旧网本体（上列路径）与其入口脚本 `scripts.test:mcp`（package.json，同 diff 删除，因非独立文件路径故不列入 removed_paths）已在本分支同批删净，后继 lane 为 `test:mcp-journey`（L1+L2+skills，覆盖面严格更大）；本次修的正是该退役遗留的悬空引用，不存在新旧并行版。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯仓内脚本引用一致性问题，不涉及任何第三方依赖的版本或生命周期决策。",
+    "exit_criteria": []
+  }
+}
