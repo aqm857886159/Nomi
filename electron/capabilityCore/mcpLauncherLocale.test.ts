@@ -61,7 +61,7 @@ function listModelsText(frames: RpcMessage[]): string {
 describe('launcher locale → protocol getLocale → tool-result L() 文本', () => {
   it("OS locale='en-US' 经 resolveLauncherLocale 接进 protocol → list_models 转述是英文", async () => {
     const { protocol, frames } = harness(() => resolveLauncherLocale(() => 'en-US'))
-    protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'nomi_list_models', arguments: {} } } as never)
+    protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'nomi_read', arguments: { target: 'models' } } } as never)
     await flush()
     const text = listModelsText(frames)
     expect(text).toContain('usable model(s)')
@@ -70,7 +70,7 @@ describe('launcher locale → protocol getLocale → tool-result L() 文本', ()
 
   it("OS locale 取不到（provider 抛错）→ 缺省 zh-CN → 中文转述", async () => {
     const { protocol, frames } = harness(() => resolveLauncherLocale(() => { throw new Error('no Intl') }))
-    protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'nomi_list_models', arguments: {} } } as never)
+    protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'nomi_read', arguments: { target: 'models' } } } as never)
     await flush()
     expect(listModelsText(frames)).toContain('可用模型')
   })

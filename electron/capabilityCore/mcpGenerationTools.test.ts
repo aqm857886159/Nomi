@@ -116,12 +116,14 @@ describe("semantic MCP generation tools", () => {
   });
 
   it("exposes one vocabulary for MCP and GUI adapters", () => {
-    expect(MCP_GENERATION_TOOL_CATALOG.map((tool) => tool.name)).toEqual(expect.arrayContaining([
-      "nomi_operation_create",
-      "nomi_submit_generation_plan",
-      "nomi_preview_execution",
-      "nomi_start_generation",
-    ]));
+    // 面收敛（surface-16-collapse）：operation 族 8 步塌成 5 个贴生命周期的工具（get_context 进 nomi_read）。
+    expect(MCP_GENERATION_TOOL_CATALOG.map((tool) => tool.name)).toEqual([
+      "nomi_operation_plan",
+      "nomi_operation_preview",
+      "nomi_operation_gate",
+      "nomi_operation_execute",
+      "nomi_operation_control",
+    ]);
   });
 
   it("keeps editing provider-neutral and does not call a provider", async () => {

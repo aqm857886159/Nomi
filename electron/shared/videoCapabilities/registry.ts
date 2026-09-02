@@ -98,8 +98,16 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   AGNES_VIDEO_25_FLASH_ARCHETYPE,
 ];
 
+/** 与渲染层 rawIdentifier 同规则（trim + 去 "models/" 前缀）：归一化必须两侧一致，
+ * 否则同一身份串会在渲染层（精确趟命中）与这里（掉进忽略大小写的 includes 档）得出不同赢家
+ * （2026-09-02 实例："models/MiniMax-H3" 曾在这里丢掉大小写信号、认成 kie 档案）。 */
+function stripModelsPrefix(value: string): string {
+  const raw = value.trim();
+  return raw.startsWith("models/") ? raw.slice("models/".length) : raw;
+}
+
 function modelProfileMatchScore(modelKey: string, profile: ModelArchetype): number {
-  const raw = modelKey.trim();
+  const raw = stripModelsPrefix(modelKey);
   const normalized = raw.toLowerCase();
   return profile.identifierPatterns.reduce((best, pattern) => {
     const rawPattern = pattern.trim();

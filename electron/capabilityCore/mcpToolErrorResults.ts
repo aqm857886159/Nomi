@@ -36,7 +36,7 @@ const ERROR_HINT: Record<string, { zh: string; en: string; recover: Array<{ zh: 
     zh: '找不到能执行这次生成的渲染器或供应商配置',
     en: 'No renderer or provider configuration can execute this generation',
     recover: [
-      { zh: '用 nomi_list_models 核对可用模型后换一个', en: 'Check available models with nomi_list_models and switch' },
+      { zh: '用 nomi_read（target=models）核对可用模型后换一个', en: 'Check available models with nomi_read (target=models) and switch' },
       { zh: '在 Nomi 设置里补齐该供应商的接入', en: 'Complete the provider setup in Nomi settings' },
     ],
   },

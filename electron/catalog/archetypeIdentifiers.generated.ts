@@ -64,18 +64,6 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "sora-2-pro",
     "sora2"
   ],
-  "runway-video": [
-    "seedance2",
-    "seedance2_fast",
-    "seedance2_mini",
-    "wan3",
-    "grok_imagine_1_5",
-    "hailuo3",
-    "veo3.1",
-    "veo3.1_fast",
-    "happyhorse_1_0",
-    "gemini_omni_flash"
-  ],
   "veo-3.1": [
     "veo-3.1",
     "veo3.1",
@@ -96,6 +84,18 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "gen4_turbo",
     "runway-gen4-turbo",
     "runway-gen-4-turbo"
+  ],
+  "runway-video": [
+    "seedance2",
+    "seedance2_fast",
+    "seedance2_mini",
+    "wan3",
+    "grok_imagine_1_5",
+    "hailuo3",
+    "veo3.1",
+    "veo3.1_fast",
+    "happyhorse_1_0",
+    "gemini_omni_flash"
   ],
   "runway-video-t2v": [
     "happyhorse_1_0"

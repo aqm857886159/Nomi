@@ -5,15 +5,14 @@ import { describe, expect, it } from "vitest";
 
 import { dispatch } from "./dispatcher";
 import { validateToolArguments } from "./mcpArgValidation";
-import { MCP_INTEGRATION_TOOL_CATALOG } from "./mcpIntegrationTools";
+import { MCP_INTEGRATION_TOOL } from "./mcpIntegrationTools";
 import { MCP_TOOL_CATALOG } from "./mcpToolCatalog";
 import { createMcpProtocol, type McpTransport } from "./mcpProtocol";
 import { IntegrationSessionService } from "../integrationCertification/integrationSession";
 
+// 面收敛（surface-16-collapse）：10 个 integration_* 工具塌成 1 个 nomi_integration（action 枚举 + expectedRevision 单锁）。
 function beginTool() {
-  const tool = MCP_INTEGRATION_TOOL_CATALOG.find((item) => item.name === "nomi_integration_begin");
-  if (!tool) throw new Error("integration begin tool is missing");
-  return tool;
+  return MCP_INTEGRATION_TOOL;
 }
 
 function service() {
@@ -28,6 +27,7 @@ describe("MCP integration tool contract", () => {
   it("accepts only public begin configuration and rejects credential-shaped fields", () => {
     const tool = beginTool();
     const valid = {
+      action: "begin",
       kind: "http-api-provider",
       name: "Example",
       baseUrl: "https://api.example/v1",
@@ -97,7 +97,9 @@ describe("MCP integration tool contract", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     const response = sent[0] as { result?: { tools?: Array<{ name: string }> } };
     const names = response.result?.tools?.map((tool) => tool.name) || [];
-    expect(names).toEqual(expect.arrayContaining(MCP_INTEGRATION_TOOL_CATALOG.map((tool) => tool.name)));
-    expect(MCP_TOOL_CATALOG.map((tool) => tool.name)).toEqual(expect.arrayContaining(MCP_INTEGRATION_TOOL_CATALOG.map((tool) => tool.name)));
+    // 面收敛：整族接入收进单个 nomi_integration 工具。
+    expect(names).toContain(MCP_INTEGRATION_TOOL.name);
+    expect(MCP_INTEGRATION_TOOL.name).toBe("nomi_integration");
+    expect(MCP_TOOL_CATALOG.map((tool) => tool.name)).toContain("nomi_integration");
   });
 });

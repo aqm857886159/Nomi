@@ -149,22 +149,6 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       }
     }
   },
-  "runway-video": {
-    "text_to_video": {
-      "*": {
-        "aspect_ratio": "1280:720",
-        "duration": 5,
-        "generate_audio": true
-      }
-    },
-    "image_to_video": {
-      "*": {
-        "aspect_ratio": "1280:720",
-        "duration": 5,
-        "generate_audio": true
-      }
-    }
-  },
   "veo-3.1": {
     "text_to_video": {
       "*": {
@@ -220,6 +204,22 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "aspect_ratio": "1280:720",
         "duration": 5,
         "seed": 0
+      }
+    }
+  },
+  "runway-video": {
+    "text_to_video": {
+      "*": {
+        "aspect_ratio": "1280:720",
+        "duration": 5,
+        "generate_audio": true
+      }
+    },
+    "image_to_video": {
+      "*": {
+        "aspect_ratio": "1280:720",
+        "duration": 5,
+        "generate_audio": true
       }
     }
   },

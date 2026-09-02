@@ -1,0 +1,115 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-quality-gate-e2e-walkthrough-sharding",
+  "problem_type": "CI wall-clock regression by serial accretion",
+  "symptom": "Every PR round that selects desktop/journey/canvas/performance surfaces takes 22-25 minutes end to end, and on a 16-merge day the serial wall clock plus runner queueing became the largest loss in the whole delivery flow. Job timing over the last full-lane runs shows E2E Walkthroughs (Linux) at 1333-1370s while every other job finishes under 300s.",
+  "direct_cause": "quality-gate.yml ran five independent test surfaces (Electron smoke ~32s, CI journeys ~158s + MCP handshake ~7s, full canvas acceptance ~325s, canvas performance budget ~763s) serially inside the single desktop-linux job, so the job's duration was the sum, not the max, of its surfaces.",
+  "class_root": "The workflow had exactly one Linux walkthrough job, so every new heavyweight surface added over time was appended as another serial step in that job - the path of least resistance. Nothing structurally forced independent risk surfaces into parallel jobs, and nothing made a scenario-to-shard partition verifiable, so splitting was never safe to attempt and the critical path only ever grew.",
+  "affected_population": [
+    "every pull request, main push, and merge-group build whose scope selects desktop, journeys, canvas, or performance surfaces (the 22-25 minute rounds observed on 2026-09-02)",
+    "every future author adding a walkthrough surface, who would otherwise append it serially to the same job and grow the critical path again"
+  ],
+  "scope_paths": [
+    ".github/workflows/quality-gate.yml",
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "tests/ux/canvas-real-suite.mjs",
+    "tests/ux/canvas-real-suite.test.mjs"
+  ],
+  "entry_points": [
+    "pull request rounds and main pushes selecting desktop/journey/canvas/performance surfaces",
+    "merge_group builds and workflow_dispatch full-validation runs (same job graph)"
+  ],
+  "internal_only_reason": "CI topology change fully determined by the workflow file, its shape-guard test, and the canvas suite runner; no external API or vendor behaviour is involved.",
+  "structural_guarantee": "scripts/check-quality-gate-workflow.node-test.mjs pins the parallel topology byte-for-byte: desktop-linux may only run smoke/journeys/critical-canvas (full acceptance and performance steps are asserted absent), canvas-acceptance must be a fail-fast:false [1,2] shard matrix with the exact shard command, canvas-performance must run the untouched instrument command in its own job, and the Quality Gate aggregation must require each selected surface's job result individually. tests/ux/canvas-real-suite.mjs assertFullCanvasShardPartition makes every CI shard throw before running anything if a full-profile scenario is missing from, duplicated in, or unknown to the shard partition, so a scenario can never be silently dropped by the split.",
+  "verification": [
+    "pnpm run check:quality-gate-workflow passes 34/34 with the new topology pinned",
+    "npx vitest run tests/ux/canvas-real-suite.test.mjs passes 10/10 including partition-drift fail-closed cases",
+    "PR round on this branch shows desktop-linux and both canvas-acceptance shards running in parallel with end-to-end wall time recorded in the PR body before/after table",
+    "workflow_dispatch full-validation run on this branch exercises canvas-performance and mac-package on the new graph"
+  ],
+  "regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "tests/ux/canvas-real-suite.test.mjs"
+  ],
+  "residual_risks": [
+    "The canvas performance budget remains a single ~763s scenario and is now the longest lane (~14.5 min end to end) on performance-selected rounds; splitting the benchmark itself means touching the calibrated instrument (PERFORMANCE_BUDGETS) and is deliberately out of scope here.",
+    "Three extra runner slots per full round (two acceptance shards + performance job setup, ~78s each) add mild queue pressure at peak; per-run wall time drops far more than the added slot time, so runs vacate slots sooner overall.",
+    "Shard balance (162.5s vs 162.9s, measured from run 33609025386) will drift as scenarios change; drift degrades balance only, never coverage, because the partition assertion is about membership, not timing."
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Serial accretion is the default failure mode of a single walkthrough job: the next heavyweight surface would again be appended as one more step unless the guard pins which surfaces each job may run and the shard partition fails closed on unassigned scenarios.",
+    "same_class_scan": [
+      "quality-gate.yml job audit (2026-09-02): desktop-linux was the only multi-surface serial job (5 surfaces, 1285s of serial test time); contracts/unit/mac-package each run one surface family and finish under 300s, no further split has payoff.",
+      "win-gate.yml runs walkthroughs serially too, but it is an optional non-required surface off the merge critical path; not converted, revisit only if it joins the required set.",
+      "tests/ux/canvas-real-suite.mjs full profile (13 scenarios, 325s serial) was the largest intra-step serial block; it now carries the shard partition with a runtime fail-closed completeness assertion."
+    ]
+  },
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The serial full-acceptance and performance steps were deleted from desktop-linux in the same commit that adds the parallel jobs (no parallel-version survives; the guard test asserts the old steps are absent), and no file path was removed."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency added, upgraded, or removed; the change is confined to workflow YAML, its shape-guard test, and the canvas suite runner's shard selection.",
+    "exit_criteria": []
+  },
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "desktop-linux serial accretion of walkthrough surfaces",
+      "disposition": "enforced",
+      "evidence": "Guard test asserts 'Full functional canvas acceptance' and 'Canvas performance budget' steps are absent from desktop-linux and pins the canvas-acceptance shard matrix and canvas-performance job with their exact commands."
+    },
+    {
+      "path": "tests/ux/canvas-real-suite.mjs",
+      "entry_point": "full-profile scenario list growth without shard assignment",
+      "disposition": "enforced",
+      "evidence": "assertFullCanvasShardPartition throws on missing/unknown/duplicated ids before any scenario runs, and tests/ux/canvas-real-suite.test.mjs proves the drift case fails closed."
+    },
+    {
+      "path": ".github/workflows/win-gate.yml",
+      "entry_point": "windows walkthrough lane",
+      "disposition": "not-affected",
+      "evidence": "Optional surface outside the required-check set (Quality Gate, Mac Package); it never gates merges, so its serial layout is off the critical path by construction."
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-quality-gate-workflow.node-test.mjs",
+    "invariant": "Independent walkthrough risk surfaces (smoke+journeys+critical canvas, full canvas shards, performance budget) run in parallel jobs whose exact commands, selection conditions, and per-surface Quality Gate aggregation are pinned; the full-canvas shard partition must cover every scenario exactly once or every shard fails closed.",
+    "failure_mode": "Re-appending a heavyweight surface to desktop-linux, dropping a shard, changing shard counts without the partition, or un-anchoring a surface from the Quality Gate aggregation fails the Contracts job until the guard is consciously co-updated; an unassigned new scenario turns both CI shards red at startup.",
+    "exception_policy": "none",
+    "strategy": "Keep one job per independent risk surface; when a new walkthrough surface lands, give it its own conditional job (or shard bucket) plus a pinned aggregation clause in the same commit, and rebalance shard buckets from measured summary.json durations.",
+    "artifacts": [
+      ".github/workflows/quality-gate.yml",
+      "scripts/check-quality-gate-workflow.node-test.mjs",
+      "tests/ux/canvas-real-suite.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "tests/ux/canvas-real-suite.test.mjs"
+  ],
+  "generality_proof": "Class = 'required-check wall time grows because independent surfaces accrete serially inside one CI job'. Scanned every job in quality-gate.yml with per-step timings from runs 33609025386/33595409350/33595402457/33608529936: desktop-linux was the only multi-surface serial job (sum 1285s vs max-surface 763s); contracts (~200s), unit (~260s), and mac-package (~260s) are single-surface and cannot pay for a split. After the change each surface family owns one parallel job, the aggregation requires each selected surface individually, and the guard test plus the fail-closed shard partition prevent both re-accretion and silent coverage loss - so the class, not just today's instance, is closed on the required path.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-quality-gate-workflow.node-test.mjs",
+      "symbol": "quality gate workflow shape guard (node --test)",
+      "responsibility": "Pins the parallel job topology, per-job commands, shard matrix, and per-surface Quality Gate aggregation; the Contracts job fails on any unconscious edit."
+    },
+    {
+      "path": "tests/ux/canvas-real-suite.mjs",
+      "symbol": "assertFullCanvasShardPartition / FULL_CANVAS_SHARDS",
+      "responsibility": "Single source of truth for the full-profile shard partition; throws before running anything when a scenario is unassigned, duplicated, or unknown, so CI shards fail closed instead of under-covering."
+    }
+  ],
+  "migration": "No persisted data or consumer migration. Required check names (Quality Gate, Mac Package) and their semantics are unchanged; branch protection needs no edit. Evidence artifacts split by job (linux-walkthrough-evidence keeps its name; canvas-acceptance-evidence-1/2 and canvas-performance-evidence are new), and full-profile shard runs write summary.json under outputs/canvas-acceptance/full-<i>of<n>/ while unsharded local runs keep outputs/canvas-acceptance/full/.",
+  "invariants": [
+    "Every scenario in FULL_CANVAS_SCENARIOS runs in exactly one CI shard, or every shard fails closed before running anything.",
+    "The exact test commands for every surface (smoke, journeys, MCP handshake, critical canvas, full canvas, performance, package) are preserved; no test was removed or weakened by the split.",
+    "Required checks remain exactly 'Quality Gate' and 'Mac Package', and Quality Gate turns green only when every risk-selected surface job succeeded.",
+    "The workflow file and its shape guard change together or the Contracts job fails."
+  ]
+}

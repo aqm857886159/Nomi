@@ -292,8 +292,9 @@ describe("B6 canvas.read transport acceptance", () => {
     nowMs = Date.parse(opened.expiresAt);
 
     const response = await client.call(1, "tools/call", {
-      name: CANVAS_READ_CAPABILITY.aliases.mcp,
-      arguments: { leaseHandle: opened.leaseHandle, projectId: IDENTITY.projectId },
+      // 面收敛：画布只读并入 nomi_read（target=canvas）；内部仍路由到 canvas.read 传输适配器。
+      name: "nomi_read",
+      arguments: { target: "canvas", leaseHandle: opened.leaseHandle, projectId: IDENTITY.projectId },
     });
     const result = response.result as {
       isError?: boolean;

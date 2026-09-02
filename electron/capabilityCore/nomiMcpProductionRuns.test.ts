@@ -88,20 +88,21 @@ describe('production run MCP tools', () => {
     const tools = (response.result as {
       tools: Array<{
         name: string
-        inputSchema: { required?: string[]; properties?: Record<string, { maximum?: number }> }
+        inputSchema: { required?: string[]; properties?: Record<string, { maximum?: number; enum?: string[] }> }
         annotations?: { readOnlyHint?: boolean }
       }>
     }).tools
     const names = tools.map((tool) => tool.name)
     expect(names).toEqual([...MCP_TOOL_NAMES])
     expect(names).toHaveLength(MCP_TOOL_NAMES.length)
-    expect(tools.find((tool) => tool.name === 'nomi_start_playbook')?.annotations?.readOnlyHint).toBeUndefined()
-    for (const name of ['nomi_get_run', 'nomi_subscribe_run', 'nomi_get_artifact']) {
-      expect(tools.find((tool) => tool.name === name)?.annotations?.readOnlyHint).toBe(true)
-    }
-    const subscribe = tools.find((tool) => tool.name === 'nomi_subscribe_run')
-    expect(subscribe?.inputSchema.properties?.waitMs?.maximum).toBe(25_000)
-    expect(subscribe?.inputSchema.required).toEqual(['projectId', 'runId'])
+    // 面收敛：nomi_run_start（建 Run）是写，不标 readOnlyHint；所有读并入 nomi_read（整体只读）。
+    expect(tools.find((tool) => tool.name === 'nomi_run_start')?.annotations?.readOnlyHint).toBeUndefined()
+    expect(tools.find((tool) => tool.name === 'nomi_read')?.annotations?.readOnlyHint).toBe(true)
+    // nomi_read 的 run_events 长轮询上限仍 ≤25s；target 是唯一必填（其余由 handler 按 target 断言）。
+    const read = tools.find((tool) => tool.name === 'nomi_read')
+    expect(read?.inputSchema.properties?.waitMs?.maximum).toBe(25_000)
+    expect(read?.inputSchema.required).toEqual(['target'])
+    expect(read?.inputSchema.properties?.target?.enum).toContain('run_events')
   })
 
   // 2026-08-18：描述原先写「制作 playbook，例如 brand.promo」——「例如」暗示还有别的名字可传，
@@ -113,7 +114,7 @@ describe('production run MCP tools', () => {
     const tools = (response.result as {
       tools: Array<{ name: string; inputSchema: { properties?: Record<string, { enum?: string[]; description?: string }> } }>
     }).tools
-    const playbook = tools.find((tool) => tool.name === 'nomi_start_playbook')?.inputSchema.properties?.playbook
+    const playbook = tools.find((tool) => tool.name === 'nomi_run_start')?.inputSchema.properties?.playbook
 
     expect(playbook?.enum).toEqual(listProductionPlaybookNames())
     expect(playbook?.enum).toContain('brand.promo')
@@ -122,15 +123,16 @@ describe('production run MCP tools', () => {
   })
 
   it('keeps the current README count and guide table aligned with the exported catalog', () => {
+    // 面收敛（surface-16-collapse）：拉分支时 42 个塌成 15 个；并线 main +4 M2 编辑工具、并线 M2 canvas/document
+    // 语义面 +4（canvas_plan/maintenance · document_read/edit）= 23。README/guide 计数同步到 23，且每个导出
+    // name 在 guide 都有条目——公开契约不许漏面。
     const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8')
     const guide = fs.readFileSync(path.join(process.cwd(), 'docs/guide/capability-core-cli-mcp.md'), 'utf8')
-    expect(readme).toContain('Forty-seven MCP tools')
-    expect(guide).toContain('47 个工具')
+    expect(readme).toContain('Twenty-three MCP tools')
+    expect(guide).toContain('15+8=23')
     // Keep the public guide aligned with the live catalog so a newly reachable
     // semantic surface cannot be omitted from the user-facing MCP contract.
-    for (const name of MCP_TOOL_NAMES.filter((name) => ![
-      'nomi_read_artifact', 'nomi_request_script_revision', 'nomi_request_storyboard_revision', 'nomi_review_artifact',
-    ].includes(name))) expect(guide).toContain(`\`${name}\``)
+    for (const name of MCP_TOOL_NAMES) expect(guide).toContain(`\`${name}\``)
   })
 
   it('keeps initialize clientInfo as an audit label and starts only a draft', async () => {
@@ -141,7 +143,7 @@ describe('production run MCP tools', () => {
       clientInfo: { name: 'OpenAI Codex', version: '1.0.0' },
     })
     const response = await harness.call(2, 'tools/call', {
-      name: 'nomi_start_playbook',
+      name: 'nomi_run_start',
       arguments: {
         projectId: 'project-1',
         playbook: 'brand.promo',
@@ -163,8 +165,8 @@ describe('production run MCP tools', () => {
   it('passes a resumable cursor and bounded long-poll duration', async () => {
     const harness = new ProductionHarness()
     const response = await harness.call(3, 'tools/call', {
-      name: 'nomi_subscribe_run',
-      arguments: { projectId: 'project-1', runId: 'run-1', afterCursor: 2, waitMs: 25_000 },
+      name: 'nomi_read',
+      arguments: { target: 'run_events', projectId: 'project-1', runId: 'run-1', afterCursor: 2, waitMs: 25_000 },
     })
     expect(harness.invoke).toHaveBeenCalledWith('production.events', {
       projectId: 'project-1', runId: 'run-1', afterCursor: 2, waitMs: 25_000,
@@ -177,8 +179,8 @@ describe('production run MCP tools', () => {
   it('returns the safe full projection for AI reasoning alongside the compact widget frame', async () => {
     const harness = new ProductionHarness()
     const response = await harness.call(5, 'tools/call', {
-      name: 'nomi_get_run',
-      arguments: { projectId: 'project-1', runId: 'run-1' },
+      name: 'nomi_read',
+      arguments: { target: 'run', projectId: 'project-1', runId: 'run-1' },
     })
     const result = response.result as {
       structuredContent?: {
@@ -197,8 +199,8 @@ describe('production run MCP tools', () => {
   it('returns a concise artifact link without approval or paid dispatch', async () => {
     const harness = new ProductionHarness()
     const response = await harness.call(4, 'tools/call', {
-      name: 'nomi_get_artifact',
-      arguments: { projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-1' },
+      name: 'nomi_read',
+      arguments: { target: 'artifact', projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-1' },
     })
     const result = response.result as { content: Array<{ text: string }> }
     expect(result.content[0].text).toContain('storyboard')
