@@ -348,7 +348,7 @@ export default function WorkbenchShell({
                         <WorkspaceSlot
                             active={workspaceMode === "storyboard"}
                             label={t("workspace.storyboard")}>
-                            <StoryboardWorkspace />
+                            <StoryboardWorkspace projectId={projectId} />
                         </WorkspaceSlot>
                     ) : null}
                     {mountedWorkspaceModes.includes("generation") ? (

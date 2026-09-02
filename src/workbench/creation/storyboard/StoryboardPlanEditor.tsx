@@ -46,7 +46,7 @@ import { AssetPreviewDialog } from '../../assets/AssetPreviewDialog'
  * 执行只有 canvas runner 一条通路（exec/storyboardRowActions），spendConfirm/波次/undo 全沿用。
  */
 
-export default function StoryboardPlanEditor(): JSX.Element | null {
+export default function StoryboardPlanEditor({ projectId }: { projectId?: string | null }): JSX.Element | null {
   const { t } = useTranslation()
   const entry = useWorkbenchStore((s) => (s.activeDocumentId ? s.storyboardPlans[s.activeDocumentId] : undefined))
   const plan = entry?.plan ?? null
@@ -272,6 +272,7 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
           <div className="flex flex-col gap-2">
             <StoryboardShotTable
               plan={plan}
+              projectId={projectId}
               rows={rows}
               anchorCards={anchorCards}
               imageModelOptions={imageModelOptions}

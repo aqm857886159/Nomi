@@ -17,7 +17,7 @@ import { withCanvasGestureContext, type CanvasGestureContext } from '../events/c
 import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
 import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
-import { parseStoryboardPlan } from './storyboardPlan'
+import { parseStoryboardPlan } from './storyboardPlanSchema'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
 import type { CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
 import type { ScenePropPlacement } from '../nodes/scene3d/scene3dPropSpecs'

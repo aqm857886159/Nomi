@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { storyboardProfileForKey } from '../../../generationCanvas/agent/storyboardProfiles'
-import { replacePromptSkeletonRange, validPromptSkeletonSegments } from './PromptSkeletonSegments'
+import { replacePromptSkeletonRange, validPromptSkeletonSegments } from './promptSkeletonRangeUtils'
 
 const profile = storyboardProfileForKey('genre.short-drama')
 

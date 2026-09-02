@@ -6,7 +6,7 @@ import { cn } from '../../utils/cn'
 import { AssetMention } from './AssetMentionNode'
 import { createAssetMentionSuggestion } from './AssetMentionSuggestion'
 import type { MentionSuggestionItem, MentionUploadControls } from './AssetMentionSuggestionList'
-import { promptToContent, shouldApplyExternalPromptSync } from './promptEditorContent'
+import { promptToContent, shouldApplyExternalPromptSync, shouldEmitPromptUpdate } from './promptEditorContent'
 import { encodeMention } from './promptMentions'
 
 // 生成节点的描述框(规范 §4):Tiptap 编辑器替换原 textarea —— 句中可放 18px 缩略图 chip(@ 内联媒体引用),
@@ -88,8 +88,9 @@ export default function PromptEditor({ value, onChange, placeholder, className, 
     content: promptToContent(value, mentionReferences ?? mentionCandidates),
     editable: editable !== false,
     editorProps: { attributes: { class: 'generation-canvas-v2-node__prompt-input outline-0' } },
-    onUpdate: ({ editor: current }) => {
+    onUpdate: ({ editor: current, transaction }) => {
       const next = contentToPrompt(current)
+      if (!shouldEmitPromptUpdate(transaction.docChanged, next, latestValueRef.current)) return
       lastStringRef.current = next
       latestValueRef.current = next
       onChangeRef.current(next)

@@ -62,10 +62,12 @@ export function useShotMentionSource(
   onToggleAnchor: (anchorId: string) => void,
   onRememberAnchorUrl: (anchorId: string, url: string) => void,
   onAddExternalReference: (item: MentionSuggestionItem) => void,
+  projectId?: string | null,
 ): ShotMentionCallbacks {
   const { t } = useTranslation()
   // 复用 AssetPicker/AssetLibraryPanel 的素材池；不在分镜页维护第二份素材列表。
-  const { canvasAssets, projectAssets } = useAssetPool(getDesktopActiveProjectId() || null)
+  const assetProjectId = projectId ?? (getDesktopActiveProjectId() || null)
+  const { canvasAssets, projectAssets } = useAssetPool(assetProjectId)
   const [attachments, setAttachments] = React.useState<ComposerAttachment[]>([])
   const mentionUpload = useComposerAttachments({ attachments, setAttachments })
 
@@ -162,7 +164,8 @@ export function useShotMentionSource(
 
       // 「素材库」组
       for (const asset of libraryAssets) {
-        if (seen.has(asset.url) || out.length >= MENTION_LIMIT) break
+        if (out.length >= MENTION_LIMIT) break
+        if (seen.has(asset.url)) continue
         const label = asset.name.trim() || asset.url.split('/').pop() || asset.id
         if (!textMatches(label, query)) continue
         seen.add(asset.url)
@@ -183,9 +186,10 @@ export function useShotMentionSource(
         out.push({ key: `upload:${attachment.id}`, url: attachment.url!, label: attachment.fileName, kind, group: 'upload' })
       })
 
-      return out.slice(0, MENTION_LIMIT)
+      const candidates = out.slice(0, MENTION_LIMIT)
+      return candidates
     },
-    [boundVisualCards, libraryAssets, resultAssets, t, uploadedAssets],
+    [boundVisualCards, libraryAssets, resultAssets, t, unboundCards, uploadedAssets],
   )
 
   const onMentionSelect = React.useCallback(

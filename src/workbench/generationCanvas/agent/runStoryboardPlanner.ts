@@ -9,7 +9,8 @@ import type { StoryboardPlanApplicationResult } from './applyCanvasToolCall'
 import { evaluateGate } from './gate'
 import { buildLockGateContext } from './lockGateContext'
 import { STORYBOARD_PLANNER_SKILL, buildStoryboardPlanningMessage, type StoryboardShotMode } from './storyboardLauncher'
-import { parseStoryboardPlan, type StoryboardPlan } from './storyboardPlan'
+import type { StoryboardPlan } from './storyboardPlan'
+import { parseStoryboardPlan } from './storyboardPlanSchema'
 
 type StoryboardPlannerInput = {
   turnId?: string

@@ -209,7 +209,7 @@ describe('buildCatalogTaskRequest — 档案 mapping 桶由 transportTaskKind �
   })
 })
 
-describe('buildCatalogTaskRequest — 出声模型组装对白', () => {
+describe('buildCatalogTaskRequest — 保持提示词原文，执行层负责组装对白', () => {
   const wanNode = (extraMeta: Record<string, unknown> = {}): GenerationCanvasNode => ({
     id: 'dialogue-shot',
     kind: 'video',
@@ -226,8 +226,8 @@ describe('buildCatalogTaskRequest — 出声模型组装对白', () => {
     },
   })
 
-  it('当前 mode 的 audio 默认开启时，在请求 prompt 注入对白', () => {
-    expect(buildCatalogTaskRequest(wanNode()).request.prompt).toContain('对白：你终于来了。')
+  it('直接构建请求不改写持久化 prompt', () => {
+    expect(buildCatalogTaskRequest(wanNode()).request.prompt).toBe('镜头缓慢推近')
   })
 
   it('当前 mode 显式关闭 audio 时不注入对白', () => {

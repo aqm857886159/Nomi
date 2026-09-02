@@ -31,6 +31,7 @@ import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionL
 
 type Props = {
   plan: StoryboardPlan
+  projectId?: string | null
   /** 行执行 runtime（与 plan.shots 同序；exec/storyboardRowStatus 单源 derive）。 */
   rows: StoryboardRowRuntime[]
   /** C1：参考卡 runtime（供行级 @ 候选）。缺省 = 不开 @ 面板。 */
@@ -88,6 +89,7 @@ function ShotRowWithMention(props: {
   onRemove: () => void
   onApplyParamsToAll: () => void
   storyboardProfile: ReturnType<typeof storyboardProfileForKey>
+  projectId?: string | null
 }): JSX.Element {
   const { shot, anchors, anchorCards, onToggleAnchor } = props
   // C1：useShotMentionSource 在行级调用（每行 shot 不同），复用 owner 见 useShotMentionSource.ts。
@@ -98,6 +100,7 @@ function ShotRowWithMention(props: {
     onToggleAnchor,
     props.onRememberAnchorUrl,
     props.onAddExternalReference,
+    props.projectId,
   )
   return (
     <StoryboardShotRow
@@ -133,7 +136,7 @@ function ShotRowWithMention(props: {
   )
 }
 
-export default function StoryboardShotTable({ plan, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -256,7 +259,7 @@ export default function StoryboardShotTable({ plan, rows, anchorCards, imageMode
                     storyboardProfile: storyboardProfileForKey(plan.profileKey),
                   }
                   return RowComponent && anchorCards
-                    ? <RowComponent {...commonRowProps} anchorCards={anchorCards} />
+                    ? <RowComponent {...commonRowProps} anchorCards={anchorCards} projectId={projectId} />
                     : <StoryboardShotRow {...commonRowProps} />
                 })
               : null}
