@@ -73,9 +73,9 @@ test('quality gate uses Node 24-native actions without a forced runtime shim', (
     (job) => job.steps?.flatMap((step) => (typeof step.uses === 'string' ? [step.uses] : [])) ?? [],
   )
 
-  assert.equal(actionUses.filter((uses) => uses === 'actions/checkout@v7').length, 8)
-  assert.equal(actionUses.filter((uses) => uses === 'pnpm/action-setup@v6').length, 6)
-  assert.equal(actionUses.filter((uses) => uses === 'actions/setup-node@v7').length, 7)
+  assert.equal(actionUses.filter((uses) => uses === 'actions/checkout@v7').length, 9)
+  assert.equal(actionUses.filter((uses) => uses === 'pnpm/action-setup@v6').length, 7)
+  assert.equal(actionUses.filter((uses) => uses === 'actions/setup-node@v7').length, 8)
   assert.ok(actionUses.includes('actions/upload-artifact@v7'))
   assert.ok(actionUses.every((uses) => !/@v4$/.test(uses)))
   for (const job of Object.values(workflow.jobs)) {
@@ -228,6 +228,7 @@ test('Quality Gate requires mandatory jobs and every risk-selected optional surf
     'contracts',
     'unit',
     'desktop-linux',
+    'walkthrough-roster',
     'canvas-acceptance',
     'canvas-performance',
     'mac-package',

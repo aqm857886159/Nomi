@@ -289,6 +289,12 @@ test('the workflow actually consumes the walkthroughs output (otherwise the scop
   const workflow = fs.readFileSync(new URL('../.github/workflows/quality-gate.yml', import.meta.url), 'utf8')
   // scope job 要导出它、roster step 要用它、desktop-linux job 要因它而启动。
   assert.match(workflow, /walkthroughs: \$\{\{ steps\.profile\.outputs\.walkthroughs \}\}/)
-  assert.match(workflow, /if: needs\.scope\.outputs\.walkthroughs == 'true'\s*\n\s*run: xvfb-run -a pnpm run test:walkthroughs:ci/)
-  assert.match(workflow, /needs\.scope\.outputs\.walkthroughs == 'true' \|\|/)
+  // roster 是**独立 job**（2026-09-02 随 main 的拆班方向调整）：它的触发面与
+  // smoke/journeys/canvas 都不重合，搭 desktop-linux 会让两边互相平白拉起。
+  assert.match(workflow, /walkthrough-roster:/)
+  assert.match(workflow, /if: needs\.scope\.outputs\.walkthroughs == 'true'/)
+  assert.match(workflow, /run: xvfb-run -a pnpm run test:walkthroughs:ci/)
+  // 汇总 job 必须等它、且在该维度选中时要求它成功——否则这个 job 红了也拦不住合并。
+  assert.match(workflow, /needs: \[scope, contracts, unit, desktop-linux, walkthrough-roster,/)
+  assert.match(workflow, /needs\['walkthrough-roster'\]\.result/)
 })
