@@ -347,6 +347,15 @@ export type StoryboardPlanToArgsOptions = {
 
 const VISUAL_KINDS: ReadonlySet<PlanAnchorKind> = new Set(['character', 'scene', 'prop'])
 
+/**
+ * 「这把锚会生成参考图卡」的唯一谓词（materialize / 连边 / 分镜表卡面与等待判定共用）：
+ * carrier=visual 且 kind 在可出图集合（style 恒文本语义，即使 carrier 被手动翻成 visual
+ * 也不建节点——materialize 同一判定，卡面「生成」按钮与等待判定不得与它分裂）。
+ */
+export function isVisualAnchor(anchor: Pick<PlanAnchor, 'carrier' | 'kind'>): boolean {
+  return anchor.carrier === 'visual' && VISUAL_KINDS.has(anchor.kind)
+}
+
 /** 锚类型 → 该锚连到镜头的参考边语义。 */
 function edgeModeForAnchor(kind: PlanAnchorKind): GenerationCanvasEdgeMode {
   if (kind === 'character') return 'character_ref'
@@ -365,7 +374,11 @@ function anchorKindToNodeKind(kind: PlanAnchorKind): string {
   return 'image' // prop（style 是文本锚，不走到这）
 }
 
-function stableShotId(shot: PlanShot): string {
+/**
+ * 该镜的稳定绑定 id（落画布写进 node.meta.shotId）——分镜表按它把行绑回画布节点
+ * （B：行状态/结果/重跑全从「designId × shotId」的节点 derive），导出供绑定层用。
+ */
+export function stableShotId(shot: PlanShot): string {
   const candidate = typeof shot.shotId === 'string' ? shot.shotId.trim() : ''
   return /^[A-Za-z0-9._-]{1,160}$/.test(candidate) ? candidate : `shot-${shot.index}`
 }
@@ -517,14 +530,163 @@ function buildKeyframePrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>
   return bits.length ? [keyframePrompt, ...bits].filter(Boolean).join('\n') : keyframePrompt
 }
 
+/** 视觉锚 → 定妆卡/场景卡节点（clientId = anchor.id）。整方案落画布与单锚按需 materialize（B）共用。 */
+function buildAnchorCardNode(anchor: PlanAnchor, options: StoryboardPlanToArgsOptions): PlanCreatedNode {
+  return {
+    clientId: anchor.id,
+    kind: anchorKindToNodeKind(anchor.kind),
+    title: anchor.name,
+    prompt: buildAnchorSheetPrompt(anchor),
+    // 参考卡永不占镜号（道具锚 kind=image 落 shots 分类，不标记会吃掉「镜头 1/2」，R13 抓出）。
+    referenceSheet: true,
+    // W2 圣经：static/dynamic 落画布写进 node.meta（passthrough 自动持久化）→ 身份轴基准 + 冻结门可显示。
+    // description 仍拼进 prompt（buildAnchorSheetPrompt），二者并存不矛盾（static/dynamic 是 description 的结构化细化）。
+    ...(anchor.staticFeatures && anchor.staticFeatures.trim() ? { staticFeatures: anchor.staticFeatures.trim() } : {}),
+    ...(anchor.dynamicFeatures && anchor.dynamicFeatures.trim() ? { dynamicFeatures: anchor.dynamicFeatures.trim() } : {}),
+    metadata: {
+      // 锚绑定 id（B）：分镜表按「designId × anchorId」把参考卡绑回画布节点（重生成/锁定/反查都靠它）。
+      anchorId: anchor.id,
+      ...(options.materializationOperationId ? {
+        materializationOperationId: options.materializationOperationId,
+        materializationClientId: anchor.id,
+      } : {}),
+      ...(options.creationDocumentId ? { creationDocumentId: options.creationDocumentId } : {}),
+      ...(options.storyboardDesignId ? { storyboardDesignId: options.storyboardDesignId } : {}),
+    },
+    ...(options.defaultImageModelKey ? { modelKey: options.defaultImageModelKey } : {}),
+    ...(options.defaultImageModeId ? { modeId: options.defaultImageModeId } : {}),
+  }
+}
+
+/** 单镜建行选项（B 单行 materialize）：已建过的依赖节点传真实 id 复用，不重建。 */
+export type StoryboardShotRowArgsOptions = StoryboardPlanToArgsOptions & {
+  /** 已建过的锚节点：anchor.id → 画布真实节点 id（normalizePlannedEdges 认真实 id，直接当 sourceClientId）。 */
+  existingAnchorNodeIdByAnchorId?: Record<string, string>
+  /** 已建过的首帧图节点（图片+视频镜）：真实节点 id，复用不重建。 */
+  existingKeyframeNodeId?: string
+  /**
+   * 该行解析后的模式**不吃任何参考**（mode.slots 为空，如 t2v/t2i）时置 true：不连锚边。
+   * 连了也会在投影层被静默丢（正是「静默丢参考裸跑」一族），且会让批量波次替一条吃不进的边
+   * 空等定妆——诚实跳过。文本锚照旧拼 prompt，不受影响。
+   */
+  omitAnchorReferenceEdges?: boolean
+}
+
+/**
+ * 一镜 → 节点+边（不含锚卡节点本身）。整方案转换与单行 materialize（B）共用的唯一构造器：
+ * - 图片镜头 → image 节点（无 duration、绑图片模型）；视频镜头 → video 节点（带 duration、绑视频模型）。
+ *   缺省 shotKind 按 video 兜底（旧草稿兼容）；引用的视觉锚 → 参考边（图片/视频镜头都连，锁身份）。
+ * - 图片+视频模式派生首帧图节点，再用 first_frame 边喂视频。
+ * - 模型：用户为该镜选的 modelKey/modeId 优先，没选 → 按种类取默认兜底。
+ * - **不连 shot→shot 链**：视频→视频会落到尚未实现的「首帧接力抽帧」必裸跑；镜头连贯靠共享锚参考。
+ */
+function buildShotRowNodes(
+  plan: StoryboardPlan,
+  anchorById: Map<string, PlanAnchor>,
+  shot: PlanShot,
+  options: StoryboardShotRowArgsOptions,
+): { nodes: PlanCreatedNode[]; edges: PlanCreatedEdge[] } {
+  const nodes: PlanCreatedNode[] = []
+  const edges: PlanCreatedEdge[] = []
+  const id = shotClientId(shot)
+  // 镜头种类分支（用户拍板：拆镜头默认图片分镜）。缺省无 shotKind → 按 video 兜底（旧草稿兼容）。
+  const isImageShot = shot.shotKind === 'image'
+  const hasKeyframe = !isImageShot && shot.keyframe?.enabled === true
+  const keyframeTargetId = hasKeyframe ? (options.existingKeyframeNodeId || shotKeyframeClientId(shot)) : id
+  // 该镜引用的视觉锚（定妆卡）——连 character_ref/style_ref/reference 参考边。
+  // 视频镜头：图→视频 i2v 参考；图片镜头：图→图 参考（同样锁角色/场景身份，图片模型的参考槽）。
+  const visualAnchorIds = shot.anchorIds.filter((anchorId) => {
+    const anchor = anchorById.get(anchorId)
+    return Boolean(anchor) && isVisualAnchor(anchor!)
+  })
+  // 图片镜头绑图片模型默认、视频镜头绑视频模型默认；用户在编辑器为该镜选的 modelKey 永远优先。
+  const defaultModelKey = isImageShot ? options.defaultImageModelKey : options.defaultVideoModelKey
+  const defaultModeId = isImageShot ? options.defaultImageModeId : options.defaultVideoModeId
+  const modelKey = shot.modelKey || defaultModelKey
+  // 用户为该镜选了具体模型 → 不套默认模型的 modeId（会张冠李戴）；留空让 buildPlannedNodeMeta
+  // 按所选模型自己取默认模式。只有用默认模型时才用默认 modeId。
+  const modeId = shot.modeId || (shot.modelKey ? undefined : defaultModeId)
+  if (hasKeyframe && !options.existingKeyframeNodeId) {
+    const keyframeModelKey = shot.keyframe?.modelKey || options.defaultImageModelKey
+    const keyframeModeId = shot.keyframe?.modeId || (shot.keyframe?.modelKey ? undefined : (visualAnchorIds.length > 0 ? options.defaultImageRefModeId || options.defaultImageModeId : options.defaultImageModeId))
+    nodes.push({
+      clientId: keyframeTargetId,
+      kind: 'image',
+      title: i18n.t('generationCommon.agentRuntime.shotKeyframeTitle', { index: shot.index }),
+      prompt: buildKeyframePrompt(shot, anchorById),
+      storyboardKeyframe: true,
+      ...(keyframeModelKey ? { modelKey: keyframeModelKey } : {}),
+      ...(keyframeModeId ? { modeId: keyframeModeId } : {}),
+      ...(shot.keyframe?.params ? { params: shot.keyframe.params } : {}),
+      metadata: storyboardShotMetadata(
+        plan,
+        shot,
+        options.materializationOperationId,
+        keyframeTargetId,
+        options.creationDocumentId,
+        options.storyboardDesignId,
+      ),
+    })
+  }
+  nodes.push({
+    clientId: id,
+    // 图片镜头 → image 节点（纯图生图静态画面，无 duration）；视频镜头 → video 节点（带 duration）。
+    kind: isImageShot ? 'image' : 'video',
+    title: i18n.t('generationCommon.agentRuntime.shotTitle', { index: shot.index }),
+    prompt: buildShotPrompt(shot, anchorById),
+    ...(modelKey ? { modelKey } : {}),
+    ...(modeId ? { modeId } : {}),
+    // duration 仅视频镜头写（由卡的「时长」选择器管）；图片镜头不写。其余模型参数（比例/清晰度/负向…）来自 shot.params。
+    params: {
+      ...(shot.params || {}),
+      ...(!isImageShot && Number.isFinite(shot.durationSec) ? { duration: shot.durationSec } : {}),
+    },
+    metadata: {
+      ...storyboardShotMetadata(
+        plan,
+        shot,
+        options.materializationOperationId,
+        id,
+        options.creationDocumentId,
+        options.storyboardDesignId,
+      ),
+      // 图片镜停留时长（v5）：写进节点 meta，buildClipFromGenerationNode/顺播读取（默认值同源 DEFAULT_IMAGE_SECONDS）。
+      ...(isImageShot ? { imageDurationSec: effectiveShotDurationSec(shot) } : {}),
+    },
+  })
+  // 定妆卡 → 这一镜参考边（角色 character_ref / 场景·风格 style_ref / 道具 reference）。图片/视频镜头都连；
+  // 已建过的锚用真实节点 id 连（复用）；该行模式吃不进参考时按 omitAnchorReferenceEdges 跳过。
+  if (!options.omitAnchorReferenceEdges) {
+    const referenceTargetId = hasKeyframe ? keyframeTargetId : id
+    for (const anchorId of visualAnchorIds) {
+      const anchor = anchorById.get(anchorId)!
+      const sourceId = options.existingAnchorNodeIdByAnchorId?.[anchorId] || anchorId
+      edges.push({ sourceClientId: sourceId, targetClientId: referenceTargetId, mode: edgeModeForAnchor(anchor.kind) })
+    }
+  }
+  if (hasKeyframe) {
+    edges.push({ sourceClientId: keyframeTargetId, targetClientId: id, mode: 'first_frame' })
+  }
+  return { nodes, edges }
+}
+
+/** 该镜落到节点上的最终提示词（文本锚拼接后）——行编辑写回节点（B sync）与建节点同一渲染。 */
+export function renderShotNodePrompt(plan: StoryboardPlan, shot: PlanShot): string {
+  return buildShotPrompt(shot, new Map(plan.anchors.map((anchor) => [anchor.id, anchor])))
+}
+
+/** 该镜首帧图节点的最终提示词（keyframe.prompt > ffDesc > shot.prompt，文本锚拼接后）。 */
+export function renderShotKeyframePrompt(plan: StoryboardPlan, shot: PlanShot): string {
+  return buildKeyframePrompt(shot, new Map(plan.anchors.map((anchor) => [anchor.id, anchor])))
+}
+
 /**
  * 确认后：把方案转成 create_canvas_nodes 参数，照常走 applyCanvasToolCall 落画布
  * （复用现有建节点+连边+依赖波次「参考层先生成」，零重写）。
- * - 视觉锚（character/scene/prop）→ 卡片节点（image）；文本锚（style 等）不建节点、描述拼进镜头 prompt。
- * - 每镜按 shotKind 分支：图片镜头 → image 节点（无时长、绑图片模型）；视频镜头 → video 节点（带时长、绑视频模型）。
- *   缺省 shotKind 按 video 兜底（旧草稿兼容）；引用的视觉锚 → 参考边（图片/视频镜头都连，锁身份）。
- *   模型：用户在编辑器为该镜选的 modelKey/modeId 优先，没选 → 按种类取默认图片/视频模型兜底。
- * - **不连 shot→shot 链**：视频→视频会落到尚未实现的「首帧接力抽帧」必裸跑；镜头连贯靠共享定妆卡/场景卡参考。
+ * - 视觉锚（character/scene/prop）→ 卡片节点；文本锚（style 等）不建节点、描述拼进镜头 prompt。
+ * - 每镜经 buildShotRowNodes（与单行 materialize 同一构造器，P1 无并行版）。
+ * 现役调用方：MCP production.materialize-storyboard（整方案落画布）与引导 tour；
+ * 分镜表的行内/批量生成走 storyboardShotToCreateNodesArgs 按需建行。
  */
 export function storyboardPlanToCreateNodesArgs(
   plan: StoryboardPlan,
@@ -534,121 +696,22 @@ export function storyboardPlanToCreateNodesArgs(
   const nodes: PlanCreatedNode[] = []
   const edges: PlanCreatedEdge[] = []
 
-  // 视觉锚 → 定妆卡/场景卡节点（clientId = anchor.id）。prompt 用「卡片大图」构造器：
-  // 多视图+多变体集中一张图、整张喂参考（用户拍板）。图片模型锁 GPT Image 2（调用方传入）。
+  // 视觉锚 → 定妆卡/场景卡节点。prompt 用「卡片大图」构造器：多视图+多变体集中一张图、整张喂参考（用户拍板）。
   for (const anchor of plan.anchors) {
-    if (anchor.carrier !== 'visual' || !VISUAL_KINDS.has(anchor.kind)) continue
-    nodes.push({
-      clientId: anchor.id,
-      kind: anchorKindToNodeKind(anchor.kind),
-      title: anchor.name,
-      prompt: buildAnchorSheetPrompt(anchor),
-      // 参考卡永不占镜号（道具锚 kind=image 落 shots 分类，不标记会吃掉「镜头 1/2」，R13 抓出）。
-      referenceSheet: true,
-      // W2 圣经：static/dynamic 落画布写进 node.meta（passthrough 自动持久化）→ 身份轴基准 + 冻结门可显示。
-      // description 仍拼进 prompt（buildAnchorSheetPrompt），二者并存不矛盾（static/dynamic 是 description 的结构化细化）。
-      ...(anchor.staticFeatures && anchor.staticFeatures.trim() ? { staticFeatures: anchor.staticFeatures.trim() } : {}),
-      ...(anchor.dynamicFeatures && anchor.dynamicFeatures.trim() ? { dynamicFeatures: anchor.dynamicFeatures.trim() } : {}),
-      ...(options.materializationOperationId || options.creationDocumentId || options.storyboardDesignId ? {
-        metadata: {
-          ...(options.materializationOperationId ? {
-            materializationOperationId: options.materializationOperationId,
-            materializationClientId: anchor.id,
-          } : {}),
-          ...(options.creationDocumentId ? { creationDocumentId: options.creationDocumentId } : {}),
-          ...(options.storyboardDesignId ? { storyboardDesignId: options.storyboardDesignId } : {}),
-        },
-      } : {}),
-      ...(options.defaultImageModelKey ? { modelKey: options.defaultImageModelKey } : {}),
-      ...(options.defaultImageModeId ? { modeId: options.defaultImageModeId } : {}),
-    })
+    if (!isVisualAnchor(anchor)) continue
+    nodes.push(buildAnchorCardNode(anchor, options))
   }
 
   // 锚已全部 push 完，此刻节点数 = 参考卡数（镜头随后 push）→ 落画布布局的角色边界。
   const anchorCount = nodes.length
 
-  // 镜头 → image/video 节点 + 定妆卡参考边。图片+视频模式会派生首帧图节点，再用 first_frame 喂视频。
-  // 按 shot.index 排序后再建节点（审计 A5 防御）：布局按数组顺序排格子，若 LLM 把镜头
-  // 乱序吐出来，画布空间顺序就会与镜头编号错位（镜6 排在镜5 前）。这里钉死「数组序=镜序」。
+  // 镜头 → image/video 节点 + 定妆卡参考边。按 shot.index 排序后再建节点（审计 A5 防御）：
+  // 布局按数组顺序排格子，若 LLM 把镜头乱序吐出来，画布空间顺序就会与镜头编号错位。钉死「数组序=镜序」。
   const orderedShots = [...plan.shots].sort((a, b) => a.index - b.index)
   for (const shot of orderedShots) {
-    const id = shotClientId(shot)
-    // 镜头种类分支（用户拍板：拆镜头默认图片分镜）。缺省无 shotKind → 按 video 兜底（旧草稿兼容）。
-    const isImageShot = shot.shotKind === 'image'
-    const hasKeyframe = !isImageShot && shot.keyframe?.enabled === true
-    const referenceTargetId = hasKeyframe ? shotKeyframeClientId(shot) : id
-    // 该镜引用的视觉锚（定妆卡）——连 character_ref/style_ref/reference 参考边。
-    // 视频镜头：图→视频 i2v 参考；图片镜头：图→图 参考（同样锁角色/场景身份，图片模型的参考槽）。
-    const visualAnchorIds = shot.anchorIds.filter((anchorId) => {
-      const anchor = anchorById.get(anchorId)
-      return Boolean(anchor) && anchor!.carrier === 'visual' && VISUAL_KINDS.has(anchor!.kind)
-    })
-    // 图片镜头绑图片模型默认、视频镜头绑视频模型默认；用户在编辑器为该镜选的 modelKey 永远优先。
-    const defaultModelKey = isImageShot ? options.defaultImageModelKey : options.defaultVideoModelKey
-    const defaultModeId = isImageShot ? options.defaultImageModeId : options.defaultVideoModeId
-    const modelKey = shot.modelKey || defaultModelKey
-    // 用户为该镜选了具体模型 → 不套默认模型的 modeId（会张冠李戴）；留空让 buildPlannedNodeMeta
-    // 按所选模型自己取默认模式。只有用默认模型时才用默认 modeId。
-    const modeId = shot.modeId || (shot.modelKey ? undefined : defaultModeId)
-    if (hasKeyframe) {
-      const keyframeModelKey = shot.keyframe?.modelKey || options.defaultImageModelKey
-      const keyframeModeId = shot.keyframe?.modeId || (shot.keyframe?.modelKey ? undefined : (visualAnchorIds.length > 0 ? options.defaultImageRefModeId || options.defaultImageModeId : options.defaultImageModeId))
-      nodes.push({
-        clientId: referenceTargetId,
-        kind: 'image',
-        title: i18n.t('generationCommon.agentRuntime.shotKeyframeTitle', { index: shot.index }),
-        prompt: buildKeyframePrompt(shot, anchorById),
-        storyboardKeyframe: true,
-        ...(keyframeModelKey ? { modelKey: keyframeModelKey } : {}),
-        ...(keyframeModeId ? { modeId: keyframeModeId } : {}),
-        ...(shot.keyframe?.params ? { params: shot.keyframe.params } : {}),
-        metadata: storyboardShotMetadata(
-          plan,
-          shot,
-          options.materializationOperationId,
-          referenceTargetId,
-          options.creationDocumentId,
-          options.storyboardDesignId,
-        ),
-      })
-    }
-    nodes.push({
-      clientId: id,
-      // 图片镜头 → image 节点（纯图生图静态画面，无 duration）；视频镜头 → video 节点（带 duration）。
-      kind: isImageShot ? 'image' : 'video',
-      title: i18n.t('generationCommon.agentRuntime.shotTitle', { index: shot.index }),
-      prompt: buildShotPrompt(shot, anchorById),
-      ...(modelKey ? { modelKey } : {}),
-      ...(modeId ? { modeId } : {}),
-      // duration 仅视频镜头写（由卡的「时长」选择器管）；图片镜头不写。其余模型参数（比例/清晰度/负向…）来自 shot.params。
-      params: {
-        ...(shot.params || {}),
-        ...(!isImageShot && Number.isFinite(shot.durationSec) ? { duration: shot.durationSec } : {}),
-      },
-      metadata: {
-        ...storyboardShotMetadata(
-          plan,
-          shot,
-          options.materializationOperationId,
-          id,
-          options.creationDocumentId,
-          options.storyboardDesignId,
-        ),
-        // 图片镜停留时长（v5）：写进节点 meta 供时间轴/顺播读取。本阶段只写入，
-        // buildClipFromGenerationNode 的读取接线在 B（默认值同源 DEFAULT_IMAGE_SECONDS）。
-        ...(isImageShot ? { imageDurationSec: effectiveShotDurationSec(shot) } : {}),
-      },
-    })
-    // 定妆卡 → 这一镜参考边（角色 character_ref / 场景·风格 style_ref / 道具 reference）。图片/视频镜头都连。
-    for (const anchorId of visualAnchorIds) {
-      const anchor = anchorById.get(anchorId)!
-      edges.push({ sourceClientId: anchorId, targetClientId: referenceTargetId, mode: edgeModeForAnchor(anchor.kind) })
-    }
-    if (hasKeyframe) {
-      edges.push({ sourceClientId: referenceTargetId, targetClientId: id, mode: 'first_frame' })
-    }
-    // B-clean：不连 shot→shot 链（视频→视频参考会落到尚未实现的首帧接力抽帧 → 必裸跑）。
-    // 镜头连贯靠共享的定妆卡/场景卡参考（同一批镜头引用同一组锚 → 视觉一致）。
+    const row = buildShotRowNodes(plan, anchorById, shot, options)
+    nodes.push(...row.nodes)
+    edges.push(...row.edges)
   }
 
   // 整批落「分镜」分类：角色/场景与镜头同处一个视图，参考边同屏可见可连（用户拍板 A）。
@@ -667,5 +730,58 @@ export function storyboardPlanToCreateNodesArgs(
     ...(plan.sourceScriptArtifactId?.trim() ? { sourceScriptArtifactId: plan.sourceScriptArtifactId.trim() } : {}),
     ...(sourceScriptVersion !== undefined ? { sourceScriptVersion } : {}),
     ...(plan.sourceScriptHash?.trim() ? { sourceScriptHash: plan.sourceScriptHash.trim() } : {}),
+  }
+}
+
+/**
+ * 单行 materialize（分镜表 v5 B）：把**一镜**转成 create_canvas_nodes 参数——该行引用的视觉锚
+ * 里还没建节点的一并按需建立（已建过的经 existingAnchorNodeIdByAnchorId 用真实 id 连边复用），
+ * 图片+视频镜按需建首帧图节点。与整方案转换共用同一构造器（buildAnchorCardNode/buildShotRowNodes）。
+ */
+export function storyboardShotToCreateNodesArgs(
+  plan: StoryboardPlan,
+  shot: PlanShot,
+  options: StoryboardShotRowArgsOptions = {},
+): PlanCreateNodesArgs {
+  const anchorById = new Map(plan.anchors.map((anchor) => [anchor.id, anchor]))
+  const existing = options.existingAnchorNodeIdByAnchorId ?? {}
+  const nodes: PlanCreatedNode[] = []
+  // 该行引用、且还没建过节点的视觉锚 → 一并建卡（吃不进参考的行不建：锚卡只为连边而生）。
+  if (!options.omitAnchorReferenceEdges) {
+    for (const anchorId of shot.anchorIds) {
+      const anchor = anchorById.get(anchorId)
+      if (!anchor || !isVisualAnchor(anchor)) continue
+      if (existing[anchorId]) continue
+      nodes.push(buildAnchorCardNode(anchor, options))
+    }
+  }
+  const anchorCount = nodes.length
+  const row = buildShotRowNodes(plan, anchorById, shot, options)
+  nodes.push(...row.nodes)
+  return {
+    summary: `${plan.title.trim() || '分镜方案'} · shot-${shot.index}`,
+    nodes,
+    edges: row.edges,
+    anchorCount,
+    groupCategoryId: 'shots',
+  }
+}
+
+/**
+ * 单锚 materialize（B3 参考卡就地生成）：把一张视觉锚转成 create_canvas_nodes 参数。
+ * 文本锚（仅提示词）不建节点 → null（调用方按钮态就不该出现，这里兜底防误调）。
+ */
+export function storyboardAnchorToCreateNodesArgs(
+  plan: StoryboardPlan,
+  anchor: PlanAnchor,
+  options: StoryboardPlanToArgsOptions = {},
+): PlanCreateNodesArgs | null {
+  if (!isVisualAnchor(anchor)) return null
+  return {
+    summary: `${plan.title.trim() || '分镜方案'} · ${anchor.name || anchor.id}`,
+    nodes: [buildAnchorCardNode(anchor, options)],
+    edges: [],
+    anchorCount: 1,
+    groupCategoryId: 'shots',
   }
 }
