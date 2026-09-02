@@ -295,8 +295,8 @@ describe("P4 S4 buildMultiShotGateProjection (the real display.shots for the con
   it("builds serializable per-shot rows with index, human model text, and honest prices", () => {
     const projection = buildMultiShotGateProjection({
       shots: [
-        { shotId: "shot-1", sceneOneLiner: "雨夜推门", providerModelText: "APIMart · 即梦（文生图）", candidate: { providerId: "apimart", modelId: "video-model", parameters: {} }, durationSeconds: 5 },
-        { shotId: "shot-2", sceneOneLiner: "货架对视", providerModelText: "APIMart · 未定价模型", candidate: { providerId: "apimart", modelId: "unpriced-model", parameters: {} } },
+        { shotId: "shot-1", sceneOneLiner: "雨夜推门", providerModelText: "APIMart · 即梦（文生图）", candidate: { providerId: "apimart", modelId: "video-model", parameters: {}, references: [] }, durationSeconds: 5 },
+        { shotId: "shot-2", sceneOneLiner: "货架对视", providerModelText: "APIMart · 未定价模型", candidate: { providerId: "apimart", modelId: "unpriced-model", parameters: {}, references: [] } },
       ],
       resolvePricing: resolve,
       currency: "CNY",
@@ -322,7 +322,7 @@ describe("P4 S4 buildMultiShotGateProjection (the real display.shots for the con
 
   it("flags the 'model_cannot_take_character_reference' degradation as a STRUCTURED code (not a string)", () => {
     const projection = buildMultiShotGateProjection({
-      shots: [{ shotId: "s", sceneOneLiner: "x", providerModelText: "m", candidate: { providerId: "apimart", modelId: "no-ref", parameters: {} }, hasCharacter: true, supportsReferenceImage: false }],
+      shots: [{ shotId: "s", sceneOneLiner: "x", providerModelText: "m", candidate: { providerId: "apimart", modelId: "no-ref", parameters: {}, references: [] }, hasCharacter: true, supportsReferenceImage: false }],
       resolvePricing: resolve,
     });
     expect(projection.shots[0].degradations).toEqual([{ code: "model_cannot_take_character_reference", params: { modelId: "no-ref" } }]);

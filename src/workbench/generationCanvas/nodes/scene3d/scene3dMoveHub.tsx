@@ -13,6 +13,7 @@ import { TrajectoryPanel } from './trajectory'
 import { isCameraMoveReady } from './scene3dPlayback'
 import type { CameraMovePresetSpec } from './cameraMovePreset'
 import type { Scene3DReferenceTargetSummary } from './scene3dReferenceDirector'
+import { scene3dCameraDisplayName, scene3dObjectDisplayName } from './scene3dObjectNames'
 
 export type Scene3DMoveHubTab = 'preset' | 'trajectory' | 'take'
 
@@ -55,12 +56,12 @@ export function Scene3DMoveHub({
     ...mannequins.map((object) => ({
       kind: 'mannequin' as const,
       id: object.id,
-      label: t('scene3d.moveHub.mannequinLabel', { name: object.name }),
+      label: t('scene3d.moveHub.mannequinLabel', { name: scene3dObjectDisplayName(object, state.objects) }),
     })),
     ...state.cameras.map((camera) => ({
       kind: 'camera' as const,
       id: camera.id,
-      label: t('scene3d.moveHub.cameraLabel', { name: camera.name }),
+      label: t('scene3d.moveHub.cameraLabel', { name: scene3dCameraDisplayName(camera, state.cameras) }),
     })),
   ]
   const effectiveTakeTarget = takeTargets.find((target) => target.id === takeTargetId)
@@ -109,7 +110,7 @@ export function Scene3DMoveHub({
                   className="h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink)] hover:bg-[var(--nomi-ink-10)]"
                   onClick={() => onPickCamera(state.cameras[0].id)}
                 >
-                  {t('scene3d.moveHub.selectCamera', { camera: state.cameras[0].name })}
+                  {t('scene3d.moveHub.selectCamera', { camera: scene3dCameraDisplayName(state.cameras[0], state.cameras) })}
                 </button>
               ) : null}
             </div>
