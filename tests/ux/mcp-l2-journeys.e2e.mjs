@@ -38,16 +38,18 @@ const call = async (mcp, name, args, options) => {
 let gui
 let provider
 let mcp
+let declinedClient
+let landedClient
 let passed = 0
 const check = (condition, message) => { assert.ok(condition, message); passed += 1; console.log(`  ✓ ${message}`) }
 
 try {
   provider = await startFakeApimartServer({ pendingPolls: 1 })
-  writeFakeApimartCatalog(dirs.settingsDir, dirs.userDataDir, provider.origin)
+  writeFakeApimartCatalog(dirs.settingsDir, dirs.userDataDir, provider.origin, { withKey: false })
   gui = await launchNomiApp({
-    name: 'mcp-l2-journeys', userDataDir: dirs.userDataDir, settingsDir: dirs.settingsDir, projectsDir: dirs.projectsDir,
+    name: 'mcp-l2-journeys', userDataDir: dirs.userDataDir, settingsDir: dirs.settingsDir, projectsDir: dirs.projectsDir, capabilityDir: dirs.capabilityDir,
     env: { NOMI_APP_NAME: 'Nomi', NOMI_CAPABILITY_DIR: dirs.capabilityDir },
-    args: ['--disable-gpu', '--disable-software-rasterizer'], settleMs: 0,
+    args: ['--disable-gpu', '--disable-software-rasterizer'], settleMs: 0, syntheticCredentialStorage: true,
   })
   const win = gui.win
   await win.getByText('新建空白项目', { exact: false }).first().click()
@@ -55,12 +57,13 @@ try {
   const projectId = await win.evaluate(() => new URLSearchParams(window.location.hash.split('?')[1] || '').get('projectId'))
   console.log('  GUI hash=', await win.evaluate(() => window.location.hash))
   check(Boolean(projectId), 'GUI 打开隔离项目')
-  await win.waitForTimeout(1_000)
+  await win.waitForTimeout(5_000)
+  writeFakeApimartCatalog(dirs.settingsDir, dirs.userDataDir, provider.origin)
 
   mcp = spawnMcpStdioClient({
     ...dirs, tracePath: trace('C7-C12'), captureStderr: true,
     clientInfo: { name: 'Codex MCP L2', version: 'e2e' }, capabilities: { elicitation: {} },
-    env: { NOMI_APP_NAME: 'Nomi' },
+    env: { NOMI_APP_NAME: 'Nomi' }, syntheticCredentialStorage: true,
   })
   const initialized = await mcp.initialize()
   check(Boolean(initialized?.result), 'C7 initialize 成功')
@@ -83,17 +86,34 @@ try {
   check(typeof leaseHandle === 'string' && leaseHandle.length > 20, 'C7 session/open 返回可用 leaseHandle')
 
   const fourNodes = [0, 1, 2, 3].map((index) => ({ kind: 'shot', title: `镜头 ${index + 1}`, prompt: `湖边纸船镜头 ${index + 1}`, x: index * 380, y: 0 }))
-  const declinedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-decline'), capabilities: { elicitation: {} }, elicitationAction: 'decline', env: { NOMI_APP_NAME: 'Nomi' } })
+  declinedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-decline'), capabilities: { elicitation: {} }, elicitationAction: 'decline', syntheticCredentialStorage: true, env: { NOMI_APP_NAME: 'Nomi' } })
   await declinedClient.initialize()
-  const declined = await call(declinedClient, 'nomi_canvas_edit', { projectId, action: 'add_nodes', nodes: fourNodes })
+  const c8Project = await call(declinedClient, 'nomi_project_create', { name: 'C8 four-shot confirmation' })
+  const c8ProjectData = resultTextJson(c8Project)
+  const c8ProjectId = c8ProjectData.id || resultData(c8Project).id
+  const c8ProjectSelectionHandle = c8ProjectData.projectSelectionHandle || resultData(c8Project).projectSelectionHandle
+  check(Boolean(c8ProjectId && c8ProjectSelectionHandle), 'C8 项目选择句柄来自独立 project_create')
+  await win.evaluate((id) => { window.location.hash = `#/studio?projectId=${id}` }, c8ProjectId)
+  await win.waitForFunction((id) => window.location.hash.includes(`projectId=${id}`), c8ProjectId, { timeout: 10_000 })
+  await call(declinedClient, 'nomi_session_open', { projectSelectionHandle: c8ProjectSelectionHandle })
+  const declined = await call(declinedClient, 'nomi_canvas_edit', { projectId: c8ProjectId, action: 'add_nodes', nodes: fourNodes })
   const declinedData = resultTextJson(declined)
   console.log('  C8 decline payload=', JSON.stringify({ elicitationCount: declinedClient.elicitationCount(), text: parseToolResult(declined).text, structured: declined.structuredContent }))
   check(declinedData.cancelled === true && declinedData.reason === 'declined', 'C8 elicitation decline 返回 typed reason=declined')
   await declinedClient.terminate()
+  declinedClient = null
 
-  const landedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-land'), capabilities: {}, env: { NOMI_APP_NAME: 'Nomi' } })
+  landedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-land'), capabilities: {}, syntheticCredentialStorage: true, env: { NOMI_APP_NAME: 'Nomi' } })
   await landedClient.initialize()
-  const addPromise = landedClient.callTool('nomi_canvas_edit', { projectId, action: 'add_nodes', nodes: fourNodes })
+  const landedProject = await call(landedClient, 'nomi_project_create', { name: 'C8 four-shot landed' })
+  const landedProjectData = resultTextJson(landedProject)
+  const landedProjectId = landedProjectData.id || resultData(landedProject).id
+  const landedProjectSelectionHandle = landedProjectData.projectSelectionHandle || resultData(landedProject).projectSelectionHandle
+  check(Boolean(landedProjectId && landedProjectSelectionHandle), 'C8 落地项目选择句柄来自独立 project_create')
+  await win.evaluate((id) => { window.location.hash = `#/studio?projectId=${id}` }, landedProjectId)
+  await win.waitForFunction((id) => window.location.hash.includes(`projectId=${id}`), landedProjectId, { timeout: 10_000 })
+  await call(landedClient, 'nomi_session_open', { projectSelectionHandle: landedProjectSelectionHandle })
+  const addPromise = landedClient.callTool('nomi_canvas_edit', { projectId: landedProjectId, action: 'add_nodes', nodes: fourNodes })
   const planCard = win.locator('div.fixed.inset-0').filter({ hasText: /在画布落一套方案|落到画布/ }).first()
   await planCard.waitFor({ timeout: 20_000 })
   await takeScreenshot(win, 'C8-four-shots-landed')
@@ -102,6 +122,7 @@ try {
   const nodeIds = resultTextJson(landed).ids || resultTextJson(landed).nodeIds || resultData(landed).ids || []
   check(Array.isArray(nodeIds) && nodeIds.length === 4, 'C8 方案确认后四镜真实落画布')
   await landedClient.terminate()
+  landedClient = null
   await mcp.terminate()
   mcp = null
   console.log(`MCP-L2 partial PASS: ${passed} assertions; artifacts=${artifactDir}`)
@@ -109,6 +130,8 @@ try {
   console.error(error?.stack || error)
   process.exitCode = 1
 } finally {
+  await declinedClient?.terminate().catch(() => undefined)
+  await landedClient?.terminate().catch(() => undefined)
   await mcp?.terminate().catch(() => undefined)
   await provider?.close().catch(() => undefined)
   await gui?.app?.close().catch(() => undefined)

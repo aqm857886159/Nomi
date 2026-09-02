@@ -7,7 +7,7 @@
 //   · 没开 → 进程内 dispatch（磁盘网关，本进程是唯一写者，安全）。付费经 elicitation 真人确认后铸令牌放行。
 // 取代旧 scripts/nomi-mcp.mjs + scripts/lib/nomiClient.mjs 的 MCP 路径：无 node 依赖、入口在包内永远存在（P1）。
 import readline from 'node:readline'
-import { app, session } from 'electron'
+import { app, safeStorage, session } from 'electron'
 import { createMcpProtocol, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
 import { MAX_MCP_LINE_BYTES, parseMcpStdioLine } from './mcpStdioLine'
 import { getDesktopLocale, setDesktopLocale } from '../i18n'
@@ -185,6 +185,9 @@ async function invoke(
 
 /** 启动 stdio JSON-RPC server。main.ts 在 NOMI_MCP_STDIO 模式的 app.whenReady 后调；不开窗、不抢单实例锁。 */
 export async function startMcpStdioServer(authorities: McpStdioServerOptions = {}): Promise<void> {
+  if (process.env.NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE === '1' && process.platform === 'linux') {
+    safeStorage.setUsePlainTextEncryption(true)
+  }
   const generationPolicy = authorities.generationPolicy ?? createRuntimeMcpGenerationPolicy()
   const projectSession = createProductionMcpStdioProjectSessionBinding(generationPolicy)
   const canvasReadExecutionRuntime = createHeadlessCanvasReadExecutionRuntime()

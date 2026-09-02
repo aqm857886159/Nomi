@@ -26,7 +26,7 @@ import path from 'node:path'
 import readline from 'node:readline'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { withLinuxNoSandbox } from './_launchApp.mjs'
+import { withLinuxNoSandbox, withLinuxSyntheticCredentialStorage } from './_launchApp.mjs'
 
 const require = createRequire(import.meta.url)
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -278,9 +278,11 @@ export function seedMcpClientIdentityEnv(capabilityDir, client = 'claude') {
  */
 export function spawnMcpStdioClient({
   settingsDir, userDataDir, projectsDir, capabilityDir, clientInfo, capabilities, env, captureStderr = false,
-  tracePath, elicitationAction = 'accept',
+  tracePath, elicitationAction = 'accept', syntheticCredentialStorage = false,
 }) {
-  const child = spawn(require('electron'), withLinuxNoSandbox([repoRoot, '--disable-gpu']), {
+  const child = spawn(require('electron'), withLinuxSyntheticCredentialStorage(
+    withLinuxNoSandbox([repoRoot, '--disable-gpu']), syntheticCredentialStorage,
+  ), {
     cwd: repoRoot,
     env: {
       ...process.env,
@@ -291,6 +293,7 @@ export function spawnMcpStdioClient({
       NOMI_ELECTRON_USER_DATA_DIR: userDataDir,
       NOMI_PROJECTS_DIR: projectsDir,
       NOMI_CAPABILITY_DIR: capabilityDir,
+      ...(syntheticCredentialStorage ? { NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE: '1' } : {}),
       ...seedMcpClientIdentityEnv(capabilityDir),
       ...(env || {}),
     },
