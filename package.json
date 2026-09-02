@@ -136,7 +136,7 @@
     "test:system:release": "node scripts/test-system.mjs release",
     "delivery:preflight": "node scripts/git-delivery.mjs preflight",
     "delivery:verify-merged": "node scripts/git-delivery.mjs verify-merged",
-    "check:mockup-contracts": "node ./scripts/check-mockup-contracts.mjs",
+    "check:mockup-contracts": "node ./scripts/inject-mockup-tokens.mjs --check && node ./scripts/extract-design-spec.mjs --check && node ./scripts/check-mockup-contracts.mjs",
     "check:walkthroughs": "node ./scripts/check-walkthroughs.mjs",
     "check:heavy-path": "node ./scripts/check-heavy-path.mjs",
     "check:mcp-payload": "pnpm exec tsx scripts/check-mcp-payload.ts",
