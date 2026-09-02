@@ -38,6 +38,18 @@ export function hiddenGeneratingCount(
   return rows.reduce((count, row, position) => count + (!visible.has(position) && row.exec.status === 'generating' ? 1 : 0), 0)
 }
 
+export function resolveResultTargetShotIndex(
+  shots: readonly PlanShot[],
+  sourceIndex: number,
+  requestedIndex?: number | null,
+): number | null {
+  if (requestedIndex !== undefined && requestedIndex !== null && requestedIndex >= 0 && requestedIndex < shots.length && requestedIndex !== sourceIndex) {
+    return requestedIndex
+  }
+  const next = shots.findIndex((shot, index) => index > sourceIndex && Boolean(shot.shotId || shot.index))
+  return next >= 0 ? next : null
+}
+
 /** 顺播只把已生成结果排进队列；被跳过的镜数由调用方提示用户。 */
 export function buildStoryboardPlaybackQueue(
   rows: readonly StoryboardRowRuntime[],

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_IMAGE_SECONDS } from '../../generationCanvas/model/buildClipFromGenerationNode'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import type { StoryboardRowRuntime } from './exec/storyboardRowStatus'
-import { buildStoryboardPlaybackQueue, filterPlanByAnchor, hiddenGeneratingCount, positionsForAnchorFilter } from './storyboardDInteractions'
+import { buildStoryboardPlaybackQueue, filterPlanByAnchor, hiddenGeneratingCount, positionsForAnchorFilter, resolveResultTargetShotIndex } from './storyboardDInteractions'
 
 const plan: StoryboardPlan = {
   title: 'test',
@@ -52,5 +52,11 @@ describe('storyboard D interaction pure functions', () => {
     expect(queue.map((item) => item.mediaUrl)).toEqual(['image://1', 'video://3'])
     expect(queue[0].durationSec).toBe(DEFAULT_IMAGE_SECONDS)
     expect(queue[1].durationSec).toBe(4)
+  })
+
+  it('resolves the next shot by default but accepts any other shot as target', () => {
+    expect(resolveResultTargetShotIndex(plan.shots, 0)).toBe(1)
+    expect(resolveResultTargetShotIndex(plan.shots, 0, 2)).toBe(2)
+    expect(resolveResultTargetShotIndex(plan.shots, 2)).toBeNull()
   })
 })

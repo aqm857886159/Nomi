@@ -56,6 +56,8 @@ type Props = {
   onRerunFreshRefsRow: (runtime: StoryboardRowRuntime) => void
   /** ⏳ 态点参考卡名 → 滚动定位参考卡。 */
   onJumpToAnchor: (anchorId: string) => void
+  onSaveResultAsReference: (runtime: StoryboardRowRuntime) => void
+  onSetResultAsFirstFrame: (runtime: StoryboardRowRuntime, targetIndex: number) => void
   filterAnchorId?: string | null
 }
 
@@ -75,6 +77,9 @@ function ShotRowWithMention(props: {
   onRegenerate: (() => void) | undefined
   onVariants: (() => void) | undefined
   onToggleLock: (() => void) | undefined
+  targetShots: Parameters<typeof StoryboardShotRow>[0]['targetShots']
+  onSaveAsReference: (() => void) | undefined
+  onSetAsFirstFrame: Parameters<typeof StoryboardShotRow>[0]['onSetAsFirstFrame']
   onOpenPreview: (() => void) | undefined
   onRerunFreshRefs: (() => void) | undefined
   onJumpToAnchor: (anchorId: string) => void
@@ -116,6 +121,9 @@ function ShotRowWithMention(props: {
       onRegenerate={props.onRegenerate}
       onVariants={props.onVariants}
       onToggleLock={props.onToggleLock}
+      targetShots={props.targetShots}
+      onSaveAsReference={props.onSaveAsReference}
+      onSetAsFirstFrame={props.onSetAsFirstFrame}
       onOpenPreview={props.onOpenPreview}
       onRerunFreshRefs={props.onRerunFreshRefs}
       onJumpToAnchor={props.onJumpToAnchor}
@@ -138,7 +146,7 @@ function ShotRowWithMention(props: {
   )
 }
 
-export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor, filterAnchorId }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor, onSaveResultAsReference, onSetResultAsFirstFrame, filterAnchorId }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -234,6 +242,9 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     onRegenerate: runtime ? () => onRegenerateRow(runtime) : undefined,
                     onVariants: runtime ? () => onVariantsRow(runtime) : undefined,
                     onToggleLock: runtime ? () => onToggleLockRow(runtime) : undefined,
+                    targetShots: plan.shots.filter((candidate) => candidate.shotId !== shot.shotId && candidate.index !== shot.index),
+                    onSaveAsReference: runtime ? () => onSaveResultAsReference(runtime) : undefined,
+                    onSetAsFirstFrame: runtime ? (targetIndex: number) => onSetResultAsFirstFrame(runtime, targetIndex) : undefined,
                     onOpenPreview: runtime ? () => onOpenPreviewRow(runtime) : undefined,
                     onRerunFreshRefs: runtime ? () => onRerunFreshRefsRow(runtime) : undefined,
                     onJumpToAnchor,

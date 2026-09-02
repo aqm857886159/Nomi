@@ -107,6 +107,7 @@ export const zhStoryboardEditor = {
     targetShot: '目标镜头',
     nextShot: '下一镜（镜 {{index}}）',
     noNextShot: '没有下一镜',
+    shot: '镜 {{index}}',
   },
   promptSkeleton: {
     choose: '换一个预设',
@@ -343,6 +344,7 @@ export const enStoryboardEditor = {
     targetShot: 'Target shot',
     nextShot: 'Next shot ({{index}})',
     noNextShot: 'No next shot',
+    shot: 'Shot {{index}}',
   },
   promptSkeleton: {
     choose: 'Choose a preset',

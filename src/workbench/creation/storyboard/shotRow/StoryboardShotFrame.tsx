@@ -1,12 +1,13 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconLock, IconLockOpen, IconMaximize, IconRefresh } from '@tabler/icons-react'
+import { IconArrowUpRight, IconLock, IconLockOpen, IconMaximize, IconRefresh } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 import { NomiImage } from '../../../../design/media'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
+import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 
 /**
  * 画面格（行内最大元素，图是主角）——行状态机的脸（样张 2026-09-01 v5）：
@@ -35,6 +36,9 @@ type Props = {
   onVariants?: (() => void) | undefined
   /** 浮条 🔒/🔓：镜级锁定开关（锁=不进批量不被重跑）。 */
   onToggleLock?: (() => void) | undefined
+  targetShots?: readonly PlanShot[]
+  onSaveAsReference?: (() => void) | undefined
+  onSetAsFirstFrame?: ((targetIndex: number) => void) | undefined
 }
 
 /** 浮条按钮（mockup .actbar button：32×26 深底白字，悬停瞬时覆盖）。 */
@@ -52,7 +56,44 @@ function BarButton({ label, onClick, children }: { label: string; onClick?: (() 
   )
 }
 
-export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock }: Props): JSX.Element {
+function ResultIntakeMenu({ shot, targetShots, onSaveAsReference, onSetAsFirstFrame }: {
+  shot: PlanShot
+  targetShots: readonly PlanShot[]
+  onSaveAsReference: () => void
+  onSetAsFirstFrame: (targetIndex: number) => void
+}): JSX.Element {
+  const { t } = useTranslation()
+  const [open, setOpen] = React.useState(false)
+  const [targetIndex, setTargetIndex] = React.useState(targetShots[0]?.index ?? -1)
+  return (
+    <div className="relative">
+      <BarButton label={t('storyboardEditor.resultIntake.useAs')} onClick={() => setOpen((value) => !value)}>
+        <IconArrowUpRight size={13} stroke={1.8} />
+      </BarButton>
+      {open ? (
+        <div className="absolute left-1/2 top-full z-20 mt-1.5 flex min-w-40 -translate-x-1/2 flex-col gap-1 rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1.5 shadow-nomi-md" onPointerDown={(event) => event.stopPropagation()}>
+          <button type="button" className="rounded-nomi-sm px-2 py-1 text-left text-micro text-nomi-ink-80 hover:bg-nomi-ink-05" onClick={onSaveAsReference}>
+            {t('storyboardEditor.resultIntake.reference')}
+          </button>
+          <span className="px-2 pt-1 text-micro text-nomi-ink-40">{t('storyboardEditor.resultIntake.targetShot')}</span>
+          <select
+            value={targetIndex}
+            onChange={(event) => setTargetIndex(Number(event.target.value))}
+            aria-label={t('storyboardEditor.resultIntake.targetShot')}
+            className="h-7 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-1.5 text-micro text-nomi-ink-80"
+          >
+            {targetShots.map((target) => <option key={target.shotId ?? target.index} value={target.index}>{target.index === shot.index + 1 ? t('storyboardEditor.resultIntake.nextShot', { index: target.index }) : t('storyboardEditor.resultIntake.shot', { index: target.index })}</option>)}
+          </select>
+          <button type="button" disabled={targetIndex < 0} className="rounded-nomi-sm px-2 py-1 text-left text-micro text-nomi-ink-80 hover:bg-nomi-ink-05 disabled:opacity-40" onClick={() => onSetAsFirstFrame(targetIndex)}>
+            {t('storyboardEditor.resultIntake.firstFrame')}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, targetShots = [], onSaveAsReference, onSetAsFirstFrame }: Props): JSX.Element {
   const { t } = useTranslation()
   const indexBadge = (
     <span className="absolute top-1 left-1 z-[2] px-1 rounded-nomi-sm bg-nomi-overlay-chip text-micro text-nomi-paper tabular-nums">
@@ -103,6 +144,7 @@ export default function StoryboardShotFrame({ shot, exec, onGenerate, onJumpToAn
               <BarButton label={t('storyboardEditor.frame.variants3')} onClick={onVariants}>×3</BarButton>
               <BarButton label={t('storyboardEditor.frame.zoom')} onClick={onOpenPreview}><IconMaximize size={13} stroke={1.8} /></BarButton>
               <BarButton label={t('storyboardEditor.frame.lock')} onClick={onToggleLock}><IconLock size={13} stroke={1.8} /></BarButton>
+              {onSaveAsReference && onSetAsFirstFrame && targetShots.length > 0 ? <ResultIntakeMenu shot={shot} targetShots={targetShots} onSaveAsReference={onSaveAsReference} onSetAsFirstFrame={onSetAsFirstFrame} /> : null}
             </div>
           )}
         </div>

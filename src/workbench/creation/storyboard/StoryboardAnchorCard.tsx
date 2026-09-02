@@ -19,6 +19,7 @@ import { AutoGrowTextarea } from '../../ai/composer/AutoGrowTextarea'
 import type { PlanAnchor, PlanAnchorKind } from '../../generationCanvas/agent/storyboardPlan'
 import { ANCHOR_KINDS } from '../../generationCanvas/agent/storyboardPlanEdits'
 import type { AnchorCardRuntime } from './exec/storyboardRowStatus'
+import StoryboardHoverPreview from './StoryboardHoverPreview'
 
 /**
  * 参考卡（v5 B3 图卡）：新增就地生成后**图成为审阅对象，必须大到能审**（拍板记录 §3.9）。
@@ -51,6 +52,7 @@ type Props = {
   /** 🔒/🔓 定妆锁开关（anchorBibleKeys 同一把锁）。 */
   onToggleLock: () => void
   onFilterByAnchor?: () => void
+  onOpenPreview?: () => void
   /** 视觉锚缺名字 → 校验高亮（名字是落画布的卡片标题）。 */
   nameInvalid?: boolean
 }
@@ -70,7 +72,7 @@ function FaceButton({ label, onClick, children }: { label: string; onClick: () =
   )
 }
 
-export default function StoryboardAnchorCard({ anchor, runtime, onUpdate, onChangeKind, onRemove, onGenerate, onRegenerate, onToggleLock, onFilterByAnchor, nameInvalid }: Props): JSX.Element {
+export default function StoryboardAnchorCard({ anchor, runtime, onUpdate, onChangeKind, onRemove, onGenerate, onRegenerate, onToggleLock, onFilterByAnchor, onOpenPreview, nameInvalid }: Props): JSX.Element {
   const { t } = useTranslation()
   // 空描述（新加的锚）默认展开好直接写；AI 填好的默认收起成图卡。
   const [editing, setEditing] = React.useState(() => !anchor.description.trim())
@@ -177,7 +179,11 @@ export default function StoryboardAnchorCard({ anchor, runtime, onUpdate, onChan
       data-anchor-card={anchor.id}
     >
       <div className="shrink-0 flex flex-col gap-1 w-[108px]">
-        {face}
+        {runtime.resultUrl && onOpenPreview ? (
+          <StoryboardHoverPreview url={runtime.resultUrl} alt={t('storyboardEditor.anchor.resultAlt', { name: displayName })}>
+            <div onDoubleClick={onOpenPreview}>{face}</div>
+          </StoryboardHoverPreview>
+        ) : face}
         <div className="flex items-center gap-1 min-w-0">
           <KindIcon size={11} stroke={1.8} className="shrink-0 text-nomi-ink-40" aria-label={t(`storyboardEditor.anchor.kind.${anchor.kind}` as 'storyboardEditor.anchor.kind.character')} />
           <span className={cn('min-w-0 truncate text-caption font-medium', nameInvalid ? 'text-workbench-danger' : 'text-nomi-ink-80')}>

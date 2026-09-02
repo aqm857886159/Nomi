@@ -8,6 +8,7 @@ import { useGenerationCanvasStore } from '../../generationCanvas/store/generatio
 import { useModelOptionsState } from '../../../config/useModelOptions'
 import {
   addAnchor,
+  addExternalReferenceAnchor,
   addShot,
   changeAnchorKind,
   removeAnchor,
@@ -38,6 +39,7 @@ import {
 } from './exec/storyboardRowActions'
 import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../assets/AssetPreviewDialog'
+import type { AssetRef } from '../../assets/assetTypes'
 import { buildStoryboardPlaybackQueue, hiddenGeneratingCount, positionsForAnchorFilter } from './storyboardDInteractions'
 
 /**
@@ -67,6 +69,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const [previewNodeId, setPreviewNodeId] = React.useState<string | null>(null)
   const [filterAnchorId, setFilterAnchorId] = React.useState<string | null>(null)
   const [playbackOpen, setPlaybackOpen] = React.useState(false)
+  const [mentionPreviewAsset, setMentionPreviewAsset] = React.useState<AssetRef | null>(null)
 
   const firstIssueLabel = (issue: PlanIssue): string => {
     switch (issue.kind) {
@@ -89,6 +92,25 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     () => (plan ? deriveAnchorCardRuntimes({ plan, designId, nodes: canvasNodes, rows }) : []),
     [plan, designId, canvasNodes, rows],
   )
+
+  React.useEffect(() => {
+    const onMentionPreview = (event: Event): void => {
+      const detail = (event as CustomEvent<{ url?: string; kind?: AssetRef['kind']; label?: string }>).detail
+      const url = detail?.url?.trim()
+      if (!url) return
+      const matched = canvasNodes.find((node) => canvasNodeToAssetRefs(node).some((asset) => asset.renderUrl === url))
+      if (matched) {
+        setMentionPreviewAsset(null)
+        setPreviewNodeId(matched.id)
+        return
+      }
+      const kind = detail.kind === 'video' || detail.kind === 'audio' || detail.kind === 'model3d' ? detail.kind : 'image'
+      setPreviewNodeId(null)
+      setMentionPreviewAsset({ id: url, kind, name: detail.label || url, renderUrl: url, source: 'project', origin: { source: 'project', projectId: '', relativePath: '' } })
+    }
+    window.addEventListener('nomi:asset-mention-preview', onMentionPreview)
+    return () => window.removeEventListener('nomi:asset-mention-preview', onMentionPreview)
+  }, [canvasNodes])
 
   const visiblePositions = React.useMemo(() => positionsForAnchorFilter(plan ?? { title: '', anchors: [], shots: [] }, filterAnchorId), [filterAnchorId, plan])
   const visibleRows = React.useMemo(
@@ -172,7 +194,36 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     if (runtime.node) toggleNodeLock(runtime.node.id)
   }
   const onOpenPreviewRow = (runtime: StoryboardRowRuntime): void => {
-    if (runtime.exec.node && runtime.exec.resultUrl) setPreviewNodeId(runtime.exec.node.id)
+    if (runtime.exec.node && runtime.exec.resultUrl) {
+      setMentionPreviewAsset(null)
+      setPreviewNodeId(runtime.exec.node.id)
+    }
+  }
+  const onOpenPreviewAnchor = (runtime: AnchorCardRuntime): void => {
+    if (runtime.node && runtime.resultUrl) {
+      setMentionPreviewAsset(null)
+      setPreviewNodeId(runtime.node.id)
+    }
+  }
+  const resultReference = (runtime: StoryboardRowRuntime): { plan: typeof plan; anchorId: string } | null => {
+    if (!runtime.exec.node || !runtime.exec.resultUrl) return null
+    const asset = canvasNodeToAssetRefs(runtime.exec.node)[0]
+    if (!asset) return null
+    return addExternalReferenceAnchor(plan, { id: asset.id, name: t('storyboardEditor.resultIntake.shot', { index: runtime.shot.index }), url: asset.renderUrl, kind: asset.kind === 'video' ? 'video' : 'image', sourceNodeId: runtime.exec.node.id })
+  }
+  const onSaveResultAsReference = (runtime: StoryboardRowRuntime): void => {
+    const result = resultReference(runtime)
+    if (result) setStoryboardPlan(result.plan)
+  }
+  const onSetResultAsFirstFrame = (runtime: StoryboardRowRuntime, targetIndex: number): void => {
+    const result = resultReference(runtime)
+    if (!result) return
+    const targetPos = result.plan.shots.findIndex((shot) => shot.index === targetIndex)
+    if (targetPos < 0) return
+    const target = result.plan.shots[targetPos]
+    const anchorIds = target.anchorIds.includes(result.anchorId) ? target.anchorIds : [...target.anchorIds, result.anchorId]
+    const keyframe = target.shotKind !== 'image' ? { ...(target.keyframe ?? {}), enabled: true } : target.keyframe
+    setStoryboardPlan({ ...result.plan, shots: result.plan.shots.map((shot, position) => position === targetPos ? { ...shot, anchorIds, ...(keyframe ? { keyframe } : {}) } : shot) })
   }
   const onStartPlayback = (): void => {
     if (playbackSequence.length === 0) return
@@ -278,6 +329,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
                 onRegenerate={() => onRegenerateAnchor(runtime)}
                 onToggleLock={() => onToggleLockAnchor(runtime)}
                 onFilterByAnchor={() => setFilterAnchorId(runtime.anchor.id)}
+                onOpenPreview={() => onOpenPreviewAnchor(runtime)}
               />
             ))}
             <button
@@ -337,6 +389,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               onOpenPreviewRow={onOpenPreviewRow}
               onRerunFreshRefsRow={onRerunFreshRefsRow}
               onJumpToAnchor={onJumpToAnchor}
+              onSaveResultAsReference={onSaveResultAsReference}
+              onSetResultAsFirstFrame={onSetResultAsFirstFrame}
               filterAnchorId={filterAnchorId}
             />
             <button
@@ -388,7 +442,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       {/* 放大预览：素材库同一 body-portal lightbox（NodeMediaPreviewDialog 挂画布容器在分镜页不可见）。 */}
       {playbackOpen && playbackSequence.length > 0 ? (
         <AssetPreviewDialog asset={playbackSequence[0].asset} sequence={playbackSequence} onClose={() => setPlaybackOpen(false)} />
-      ) : previewAsset ? <AssetPreviewDialog asset={previewAsset} onClose={() => setPreviewNodeId(null)} /> : null}
+      ) : previewAsset ? <AssetPreviewDialog asset={previewAsset} onClose={() => setPreviewNodeId(null)} /> : mentionPreviewAsset ? <AssetPreviewDialog asset={mentionPreviewAsset} onClose={() => setMentionPreviewAsset(null)} /> : null}
     </section>
   )
 }
