@@ -1,0 +1,119 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-m3-prompt-pipe-skill-truth",
+  "problem_type": "Prompt assembly and Skill loading have no shared structured truth boundary",
+  "symptom": "Each Agent turn rebuilds a four-string system prompt; a Skill can appear selected or loaded in a tool record without a hash-verified body receipt proving that the next outbound context contains it, and budget/cache behavior is not observable.",
+  "direct_cause": "agentChatV2 joins identity, panel, Skill index/body, and project memory inline; project-agent tool items retain only an opaque resultRef, so the next turn has no canonical Skill load reference to resolve.",
+  "class_root": "Prompt sections, trust/stability metadata, Skill load receipts, and budget/cache evidence are not owned by one deterministic compiler at the main-process outbound boundary.",
+  "affected_population": [
+    "All Pi Agent turns using a Skill or project context",
+    "All project-agent turns after a successful skill.read/load_skill call",
+    "All providers where KV-cache usage is absent or reported through runtime usage"
+  ],
+  "scope_paths": [
+    "electron/harness/context/promptPipe.ts",
+    "electron/ai/agentChatV2.ts",
+    "electron/harness/runtime/runtimePort.ts",
+    "electron/harness/agentChatContracts.ts",
+    "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "electron/shared/projectAgentContracts.ts"
+  ],
+  "entry_points": [
+    "runAgentChatV2 main-process outbound request",
+    "Project Agent skill.read tool result and persisted tool item",
+    "Pi runtime usage receipt"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The seven-layer order, host ledger semantics, trust boundary, and honest cache wording are Nomi contracts defined by the M3 plan, M-line rulings, functional conformance test spec, and MCP session-chain audit.",
+  "invariants": [
+    "Every outbound Agent turn is compiled through one deterministic seven-layer order: identity, capability, Skill index, Skill body, project, conversation, current user input.",
+    "Stable/session sections precede turn sections; compile and stable-prefix hashes are derived from the exact bytes sent, and cache hit is claimed only from provider usage evidence.",
+    "A successful skill.read ledger event carries only name/version/hash references in persisted state; the next outbound turn re-reads the canonical Skill body and verifies the hash before injection.",
+    "Any budget truncation or omission produces an explicit diagnostic naming affected sections; stable policy text is not silently discarded.",
+    "Skill content cannot override policy, capability scope, or user intent, and failed hash lookup never presents a loaded Skill body."
+  ],
+  "generality_proof": "All current Agent outbound turns converge on runAgentChatV2 and all project-agent tool items converge on toolItem; placing compilation and Skill reference derivation at those shared boundaries prevents caller, provider, or future Skill alias variation from bypassing the same invariants.",
+  "shared_boundaries": [
+    {
+      "path": "electron/harness/context/promptPipe.ts",
+      "symbol": "compilePromptPipe",
+      "responsibility": "Own deterministic section order, byte hashes, stability/trust metadata, budget diagnostics, and outbound cache receipt."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+      "symbol": "toolItem",
+      "responsibility": "Persist a ref-only, hash-verified Skill load reference when the canonical skill.read result succeeds."
+    },
+    {
+      "path": "electron/ai/agentChatV2.ts",
+      "symbol": "runAgentChatV2",
+      "responsibility": "Resolve Skill refs through the canonical Skill store and pass the compiled prompt plus hash-only receipt to runtime."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/harness/context/agentContext.ts",
+      "entry_point": "legacy prompt helpers",
+      "disposition": "enforced",
+      "evidence": "The runtime caller moves to PromptPipe; compatibility tests remain only until the single compiler owns the production path."
+    },
+    {
+      "path": "electron/harness/runtime/pi/run.mts",
+      "entry_point": "Pi RuntimeTurnRequest",
+      "disposition": "enforced",
+      "evidence": "Runtime consumes the compiled system/user slots and reports provider cached prompt tokens without inventing cache evidence."
+    },
+    {
+      "path": "electron/capabilityCore/skillReadTransportAdapters.ts",
+      "entry_point": "canonical skill.read transport",
+      "disposition": "enforced",
+      "evidence": "This adapter already validates the canonical result schema and content hash; PromptPipe consumes only that result/ref shape."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new Agent surface, Skill caller, provider runtime, or budget path can otherwise reintroduce a string join or a visually loaded but context-absent Skill.",
+    "same_class_scan": [
+      "Searched agentChatV2, agentContext, runtimePort, Pi run, project-agent coordinator, skill read adapters, and all chatContext/skillKey callers.",
+      "Checked existing Skill tool-item persistence and confirmed it was ref-only with no Skill-specific receipt.",
+      "Added PromptPipe unit coverage for layer order, stable prefix, budget diagnostics, provider cache evidence, and F-A5 event/body/outbound equivalence."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/harness/context/promptPipe.ts",
+    "invariant": "No production Agent outbound prompt bypasses the seven-layer compiler; Skill body injection requires a successful canonical event and exact content hash.",
+    "failure_mode": "Unknown or hash-mismatched Skill refs are omitted with a visible diagnostic; budget loss is named; absent provider cached usage is reported as unknown.",
+    "exception_policy": "none",
+    "strategy": "Compile once at the main-process boundary, persist only ref-only Skill evidence, resolve canonical content on the next turn, and use class tests to prevent alternate joins.",
+    "artifacts": [
+      "electron/harness/context/promptPipe.ts",
+      "electron/harness/context/promptPipe.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/harness/context/promptPipe.test.ts",
+    "electron/ai/agentChatV2.facade.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/harness/context/promptPipe.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The obsolete inline join was a code path inside electron/ai/agentChatV2.ts and was replaced in that changed file; no standalone legacy file or public route remains. The exported agentContext helpers are retained as characterization compatibility for the next cleanup slice."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is owned by Nomi's prompt, Host, and Skill contracts; no third-party dependency controls the ledger or budget semantics.",
+    "exit_criteria": []
+  },
+  "migration": "Existing project snapshots retain their existing ref-only tool items. New Skill load items add only a validated reference; old items remain valid and simply contribute no Skill body until a new successful load event occurs.",
+  "residual_risks": [
+    "Provider-specific cache hit remains unknown when RuntimeUsage does not expose cachedPromptTokens.",
+    "The full UI ledger projection for a load_skill row is covered by the shared item contract only after the Host receipt field is wired and the real Electron journey is rerun."
+  ]
+}

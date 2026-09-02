@@ -50,7 +50,7 @@ export const NOMI_AGENT_IDENTITY = [
  * 只在这里定义一次（P1：一条规则一个家），由 composeAgentSystemPrompt 殿后追加；
  * locale 从 electron-free 的 desktopLocale 读，与判官 prompt 的做法一致。
  */
-function buildLanguageRule(): string {
+export function buildLanguageRule(): string {
   return getDesktopLocale() === "en"
     ? [
         "Response-language rule (highest priority):",

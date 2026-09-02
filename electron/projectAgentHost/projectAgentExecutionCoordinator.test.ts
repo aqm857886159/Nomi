@@ -1949,6 +1949,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
     expect(final.items.find((item) => item.kind === "tool")).toMatchObject({
       capability: { id: "skill.read", version: 1 },
       status: "done",
+      skillLoad: { name: "brand.promo", packageVersion: "nomi-skill-v1", contentHash: "a".repeat(64) },
     });
     coordinator.release(opened.subscriptionId);
     expect(adapter.dispose).toHaveBeenCalledOnce();
