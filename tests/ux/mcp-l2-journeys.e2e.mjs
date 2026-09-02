@@ -106,7 +106,7 @@ try {
   const leaseHandle = openedData.leaseHandle || resultData(opened).leaseHandle
   check(typeof leaseHandle === 'string' && leaseHandle.length > 20, 'C7 session/open 返回可用 leaseHandle')
 
-  const fourNodes = [0, 1, 2, 3].map((index) => ({ kind: 'shot', title: `镜头 ${index + 1}`, prompt: `湖边纸船镜头 ${index + 1}`, x: index * 380, y: 0 }))
+  const fourNodes = [0, 1, 2, 3].map((index) => ({ clientId: `c8-shot-${index + 1}`, kind: 'shot', title: `镜头 ${index + 1}`, prompt: `湖边纸船镜头 ${index + 1}`, position: { x: index * 380, y: 0 } }))
   declinedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-decline'), capabilities: { elicitation: {} }, elicitationAction: 'decline', syntheticCredentialStorage: true, env: { NOMI_APP_NAME: 'Nomi' } })
   await declinedClient.initialize()
   const c8Project = await call(declinedClient, 'nomi_project_create', { name: 'C8 four-shot confirmation' })
@@ -116,8 +116,10 @@ try {
   check(Boolean(c8ProjectId && c8ProjectSelectionHandle), 'C8 项目选择句柄来自独立 project_create')
   await win.evaluate((id) => { window.location.hash = `#/studio?projectId=${id}` }, c8ProjectId)
   await win.waitForFunction((id) => window.location.hash.includes(`projectId=${id}`), c8ProjectId, { timeout: 10_000 })
-  await call(declinedClient, 'nomi_session_open', { projectSelectionHandle: c8ProjectSelectionHandle })
-  const declined = await call(declinedClient, 'nomi_canvas_edit', { projectId: c8ProjectId, action: 'add_nodes', nodes: fourNodes })
+  const c8DeclinedSession = await call(declinedClient, 'nomi_session_open', { projectSelectionHandle: c8ProjectSelectionHandle })
+  const c8DeclinedSessionData = resultTextJson(c8DeclinedSession)
+  const c8DeclinedLease = c8DeclinedSessionData.leaseHandle || resultData(c8DeclinedSession).leaseHandle
+  const declined = await call(declinedClient, 'nomi_canvas_edit', { projectId: c8ProjectId, leaseHandle: c8DeclinedLease, operation: 'create_canvas_nodes', summary: '在画布落下四镜方案', nodes: fourNodes })
   const declinedData = resultTextJson(declined)
   console.log('  C8 decline payload=', JSON.stringify({ elicitationCount: declinedClient.elicitationCount(), text: parseToolResult(declined).text, structured: declined.structuredContent }))
   check(declinedData.cancelled === true && declinedData.reason === 'declined', 'C8 elicitation decline 返回 typed reason=declined')
@@ -133,14 +135,17 @@ try {
   check(Boolean(landedProjectId && landedProjectSelectionHandle), 'C8 落地项目选择句柄来自独立 project_create')
   await win.evaluate((id) => { window.location.hash = `#/studio?projectId=${id}` }, landedProjectId)
   await win.waitForFunction((id) => window.location.hash.includes(`projectId=${id}`), landedProjectId, { timeout: 10_000 })
-  await call(landedClient, 'nomi_session_open', { projectSelectionHandle: landedProjectSelectionHandle })
-  const addPromise = landedClient.callTool('nomi_canvas_edit', { projectId: landedProjectId, action: 'add_nodes', nodes: fourNodes })
+  const c8LandedSession = await call(landedClient, 'nomi_session_open', { projectSelectionHandle: landedProjectSelectionHandle })
+  const c8LandedSessionData = resultTextJson(c8LandedSession)
+  const c8LandedLease = c8LandedSessionData.leaseHandle || resultData(c8LandedSession).leaseHandle
+  const addPromise = landedClient.callTool('nomi_canvas_edit', { projectId: landedProjectId, leaseHandle: c8LandedLease, operation: 'create_canvas_nodes', summary: '在画布落下四镜方案', nodes: fourNodes })
   const planCard = win.locator('div.fixed.inset-0').filter({ hasText: /在画布落一套方案|落到画布/ }).first()
   await planCard.waitFor({ timeout: 20_000 })
   await takeScreenshot(win, 'C8-four-shots-landed')
   await planCard.locator('button').last().click()
   const landed = await addPromise
-  const nodeIds = resultTextJson(landed).ids || resultTextJson(landed).nodeIds || resultData(landed).ids || []
+  const landedData = resultTextJson(landed)
+  const nodeIds = landedData.affectedNodeIds || landedData.ids || landedData.nodeIds || resultData(landed).affectedNodeIds || []
   check(Array.isArray(nodeIds) && nodeIds.length === 4, 'C8 方案确认后四镜真实落画布')
   await landedClient.terminate()
   landedClient = null

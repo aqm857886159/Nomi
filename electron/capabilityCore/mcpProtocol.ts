@@ -516,7 +516,7 @@ export function createMcpProtocol(transport: McpTransport) {
             if (!confirm.confirmed) {
               // decline / 超时 → 不落节点，但把可机读的原因留在结果里；旧形状只有
               // cancelled=true，调用方无法区分用户拒绝与传输/超时取消（J02）。
-              reply(id, buildToolResultPayload(tool.name, args, { ids: [], cancelled: true, reason: 'declined' }))
+              reply(id, buildToolResultPayload(tool.name, args, { operation: 'create_canvas_nodes', ids: [], cancelled: true, reason: 'declined' }))
               return
             }
             planTrust.trust(projectId)

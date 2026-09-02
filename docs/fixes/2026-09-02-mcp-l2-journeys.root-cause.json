@@ -13,6 +13,7 @@
   ],
   "scope_paths": [
     "electron/capabilityCore/mcpProtocol.ts",
+    "electron/shared/agentCapabilities/canvasWrite.ts",
     "electron/productionRun/shotPricing.ts",
     "electron/capabilityCore/mcpGenerationTools.ts",
     "electron/capabilityCore/generationRuntimeAdapter.ts",
@@ -33,6 +34,7 @@
   "generality_proof": "Any future semantic MCP result or durable export/media receipt assembled from these shared boundaries inherits the same field-preservation requirement; callers do not need a vendor-specific branch.",
   "shared_boundaries": [
     { "path": "electron/capabilityCore/mcpProtocol.ts", "symbol": "buildToolResultPayload", "responsibility": "Preserve safe structured MCP results and notification/confirmation outcomes." },
+    { "path": "electron/shared/agentCapabilities/canvasWrite.ts", "symbol": "canvasWriteResultSchema", "responsibility": "Keep accepted and explicitly declined semantic canvas writes in the canonical result contract." },
     { "path": "electron/capabilityCore/generationOutputMaterializer.ts", "symbol": "createGenerationOutputMaterializer", "responsibility": "Turn provider outputs into validated project-owned media receipts." },
     { "path": "electron/productionRun/artifactProjection.ts", "symbol": "createArtifactProjection", "responsibility": "Expose scoped artifact paths and signed previews." },
     { "path": "electron/export/exportJobs.ts", "symbol": "runExportJob", "responsibility": "Persist the export execution reconciliation receipt." }
@@ -69,13 +71,14 @@
     "failure_mode": "A future caller adds a reduced result shape or bypasses poster/receipt persistence.",
     "exception_policy": "none",
     "strategy": "derive safe fields from canonical candidate/output/receipt data and test both positive and negative paths.",
-    "artifacts": ["electron/capabilityCore/mcpProtocol.ts", "electron/productionRun/shotPricing.ts", "electron/capabilityCore/generationOutputMaterializer.ts", "electron/productionRun/artifactProjection.ts", "electron/export/exportJobs.ts"]
+    "artifacts": ["electron/capabilityCore/mcpProtocol.ts", "electron/shared/agentCapabilities/canvasWrite.ts", "electron/productionRun/shotPricing.ts", "electron/capabilityCore/generationOutputMaterializer.ts", "electron/productionRun/artifactProjection.ts", "electron/export/exportJobs.ts"]
   },
   "regression_tests": [
+    "electron/capabilityCore/mcpPlanConfirm.test.ts",
     "electron/productionRun/productionRunE2eFixture.test.ts",
     "tests/ux/mcp-l2-journeys.e2e.mjs"
   ],
-  "class_regression_tests": ["tests/ux/mcp-l2-journeys.e2e.mjs", "electron/productionRun/productionRunE2eFixture.test.ts"],
+  "class_regression_tests": ["tests/ux/mcp-l2-journeys.e2e.mjs", "electron/capabilityCore/mcpPlanConfirm.test.ts", "electron/productionRun/productionRunE2eFixture.test.ts"],
   "legacy_paths": {
     "status": "removed",
     "removed_paths": ["tests/ux/mcp-journey.e2e.mjs"],
