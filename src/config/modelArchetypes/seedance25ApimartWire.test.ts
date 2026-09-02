@@ -9,7 +9,7 @@
 // 档案侧的静态断言在 seedance25ApimartContract.test.ts；这里测的是**组装出的请求参数**。
 import { describe, expect, it } from 'vitest'
 import { buildArchetypeInputParams } from '../../workbench/generationCanvas/nodes/controls/archetypeMeta'
-import { SEEDANCE_2_5_APIMART_ARCHETYPE } from './seedance25Apimart'
+import { SEEDANCE_2_5_APIMART_ARCHETYPE } from '../../../electron/shared/videoCapabilities'
 
 /** 模拟「从别的模型切过来」的节点：比例残留 16:9。 */
 const carriedOver = (modeId: string) => ({

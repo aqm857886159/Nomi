@@ -10,14 +10,14 @@ function resultUrlCandidates(result: GenerationNodeResult | null | undefined): s
   return [readString(result?.url), readString(result?.providerUrl), readString(result?.thumbnailUrl)].filter(Boolean)
 }
 
-function findSourceNode(nodes: GenerationCanvasNode[], clip: TimelineClip | null | undefined): GenerationCanvasNode | null {
+function findSourceNode(nodes: readonly GenerationCanvasNode[], clip: TimelineClip | null | undefined): GenerationCanvasNode | null {
   if (!clip?.sourceNodeId) return null
   return nodes.find((node) => node.id === clip.sourceNodeId) || null
 }
 
 export function resolveTimelineClipPlaybackUrl(
   clip: TimelineClip | null | undefined,
-  nodes: GenerationCanvasNode[],
+  nodes: readonly GenerationCanvasNode[],
 ): string {
   const clipUrl = readString(clip?.url)
   if (!clip) return ''
@@ -35,7 +35,7 @@ export function resolveTimelineClipPlaybackUrl(
   return clipUrl
 }
 
-export function resolveTimelinePlaybackUrls(timeline: TimelineState, nodes: GenerationCanvasNode[]): TimelineState {
+export function resolveTimelinePlaybackUrls(timeline: TimelineState, nodes: readonly GenerationCanvasNode[]): TimelineState {
   let changed = false
   const tracks = timeline.tracks.map((track) => {
     let trackChanged = false

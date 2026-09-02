@@ -3,7 +3,6 @@ import { APIMART_VIDEO_MODELS } from "../../catalog/apimartVideos";
 import { applyBuiltinSeeds } from "../../catalog/seedBuiltins";
 import type { CatalogState } from "../../catalog/types";
 import { getArchetypeById } from "../../../src/config/modelArchetypes";
-import { SEEDANCE_2_APIMART_ARCHETYPE as rendererSeedance20 } from "../../../src/config/modelArchetypes/seedanceApimart";
 import {
   SEEDANCE_2_APIMART_ARCHETYPE,
   buildVideoModelCandidates,
@@ -23,7 +22,9 @@ describe("shared video capability registry", () => {
   });
 
   it("exposes the same source-backed profile to renderer and shared consumers", () => {
-    expect(rendererSeedance20).toBe(SEEDANCE_2_APIMART_ARCHETYPE);
+    // The renderer registry (MODEL_ARCHETYPES) now holds the exact electron object —
+    // no re-export shell in between — so resolving by id returns the identical instance.
+    expect(getArchetypeById(SEEDANCE_2_APIMART_ARCHETYPE.id)).toBe(SEEDANCE_2_APIMART_ARCHETYPE);
     const candidates = buildVideoModelCandidates([
       { provider: "apimart", modelKey: "doubao-seedance-2.0", label: "Seedance 2.0" },
       { provider: "apimart", modelKey: "doubao-seedance-2.0-fast", label: "Seedance 2.0 Fast" },

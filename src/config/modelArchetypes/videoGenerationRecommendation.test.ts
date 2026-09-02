@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { SEEDANCE_2_APIMART_ARCHETYPE } from "./seedanceApimart";
-import { SEEDANCE_2_5_APIMART_ARCHETYPE } from "./seedance25Apimart";
-import { recommendVideoGeneration, type VideoModelCandidate } from "./videoGenerationRecommendation";
+import {
+  recommendVideoGeneration,
+  SEEDANCE_2_APIMART_ARCHETYPE,
+  SEEDANCE_2_5_APIMART_ARCHETYPE,
+  type VideoModelCandidate,
+} from "../../../electron/shared/videoCapabilities";
 import type { ArchetypeExpressionChannel, ModelArchetype } from "./types";
 
 const seedance20: VideoModelCandidate = {

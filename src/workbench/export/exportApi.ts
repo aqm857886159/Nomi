@@ -20,7 +20,7 @@ export type ExportTimelineToMp4Options = {
   outputName?: string
   resolution?: '720p' | '1080p'
   quality?: ExportQuality
-  generationNodes?: GenerationCanvasNode[]
+  generationNodes?: readonly GenerationCanvasNode[]
   onProgress?: (progress: { status: 'preparing' | 'recording' | 'converting' | 'done'; ratio: number }) => void
   /** Fired only after the main process has created and persisted the export job. */
   onJobStarted?: (job: { jobId: string; backend: 'filtergraph' | 'webm' }) => void

@@ -4,6 +4,7 @@
 
 import React from 'react'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { selectStableCanvasNodes } from '../generationCanvas/store/canvasNodeProjection'
 import { useWorkspaceFiles } from '../workspace/useWorkspaceFiles'
 import {
   canvasNodeToAssetRefs,
@@ -42,7 +43,8 @@ export function composeAssetPoolSources(
 }
 
 export function useAssetPool(projectId: string | null): AssetPool {
-  const nodes = useGenerationCanvasStore((state) => state.nodes)
+  // 素材池按 renderUrl 派生，不读 position → 订位置稳定投影，拖动期不重建素材 Map（suspect #1）。
+  const nodes = useGenerationCanvasStore(selectStableCanvasNodes)
   const { items, loading, refresh } = useWorkspaceFiles(projectId)
 
   return React.useMemo<AssetPool>(() => {

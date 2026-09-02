@@ -12,13 +12,8 @@ import {
   addAnchor,
   addShot,
   changeAnchorKind,
-  danglingAnchorIdsForShot,
-  moveShot,
   removeAnchor,
-  removeShotAt,
-  toggleShotAnchor,
   updateAnchor,
-  updateShotAt,
   updateTitle,
   validatePlan,
   type PlanIssue,
@@ -26,7 +21,7 @@ import {
 import { classifyGenerationError } from '../../observability/classifyError'
 import StoryboardAnchorCard from './StoryboardAnchorCard'
 import StoryboardBulkBar from './StoryboardBulkBar'
-import StoryboardShotCard from './StoryboardShotCard'
+import StoryboardShotTable from './StoryboardShotTable'
 import { productionRunApi } from '../../production/productionRunApi'
 import { useProductionRunStore } from '../../production/productionRunStore'
 import {
@@ -52,8 +47,6 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
   const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
   const activeDocumentId = useWorkbenchStore((s) => s.activeDocumentId)
   const activeStoryboardId = useWorkbenchStore((s) => s.activeStoryboardId)
-  const [dragIndex, setDragIndex] = React.useState<number | null>(null)
-  const [overIndex, setOverIndex] = React.useState<number | null>(null)
   const [landing, setLanding] = React.useState(false)
   // 图片/视频模型清单各拉一次，按镜头种类传给镜卡的模型选择器 + 参数控件（完整 option 供解析 archetype 参数）。
   const videoModelOptions = useModelOptionsState('video').options
@@ -295,41 +288,13 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
         <section>
           <div className="text-body-sm font-medium text-nomi-ink-80 mb-2">{t('storyboardEditor.storyboardHeading', { count: plan.shots.length })}</div>
           <div className="flex flex-col gap-2">
-            {plan.shots.map((shot, pos) => (
-              <StoryboardShotCard
-                key={shot.index}
-                shot={shot}
-                anchors={plan.anchors}
-                modelOptions={shot.shotKind === 'image' ? imageModelOptions : videoModelOptions}
-                danglingIds={danglingAnchorIdsForShot(plan, shot)}
-                promptInvalid={emptyPromptShots.has(shot.index)}
-                draggable
-                isDragOver={overIndex === pos && dragIndex !== null && dragIndex !== pos}
-                onDragStart={() => setDragIndex(pos)}
-                onDragOver={(event) => {
-                  event.preventDefault()
-                  setOverIndex(pos)
-                }}
-                onDrop={() => {
-                  if (dragIndex !== null && dragIndex !== pos) setStoryboardPlan(moveShot(plan, dragIndex, pos))
-                  setDragIndex(null)
-                  setOverIndex(null)
-                }}
-                onDragEnd={() => {
-                  setDragIndex(null)
-                  setOverIndex(null)
-                }}
-                onUpdate={(patch) => setStoryboardPlan(updateShotAt(plan, pos, patch))}
-                onToggleAnchor={(anchorId) => setStoryboardPlan(toggleShotAnchor(plan, pos, anchorId))}
-                onRemove={() => setStoryboardPlan(removeShotAt(plan, pos))}
-                // 只套 params：模型/模式归「全部镜头」批量条管（一功能一个家，§1.5.2）——
-                // 这里再复制 modelKey/modeId 就是第二个改整片模型的入口。
-                onApplyParamsToAll={() => setStoryboardPlan({
-                  ...plan,
-                  shots: plan.shots.map((s) => ({ ...s, params: shot.params })),
-                })}
-              />
-            ))}
+            <StoryboardShotTable
+              plan={plan}
+              imageModelOptions={imageModelOptions}
+              videoModelOptions={videoModelOptions}
+              emptyPromptShots={emptyPromptShots}
+              onChange={setStoryboardPlan}
+            />
             <button
               type="button"
               onClick={() => setStoryboardPlan(addShot(plan))}

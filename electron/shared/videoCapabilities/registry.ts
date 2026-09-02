@@ -25,6 +25,7 @@ import { RUNNINGHUB_VIDEO_ARCHETYPES } from "./runninghubVideoArchetypes";
 import { SEEDANCE_2_ARCHETYPE } from "./seedance";
 import { SEEDANCE_2_5_ARCHETYPE } from "./seedance25";
 import { SEEDANCE_2_5_APIMART_ARCHETYPE } from "./seedance25Apimart";
+import { SEEDANCE_2_5_RUNWAY_ARCHETYPE } from "./seedance25Runway";
 import { SEEDANCE_2_APIMART_ARCHETYPE } from "./seedanceApimart";
 import { SEEDANCE_VOLCENGINE_ARCHETYPE } from "./seedanceVolcengine";
 import { SEEDANCE_VOLCENGINE_2_5_ARCHETYPE } from "./seedanceVolcengine25";
@@ -78,6 +79,7 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   KLING_3_ARCHETYPE,
   SEEDANCE_2_APIMART_ARCHETYPE,
   SEEDANCE_2_5_APIMART_ARCHETYPE,
+  SEEDANCE_2_5_RUNWAY_ARCHETYPE,
   MINIMAX_H3_APIMART_ARCHETYPE,
   WAN_2_7_ARCHETYPE,
   WAN_3_0_ARCHETYPE,

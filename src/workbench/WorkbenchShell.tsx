@@ -24,6 +24,12 @@ const CreationWorkspace = lazyWithChunkBoundary(
     "创作区",
     () => import("./creation/CreationWorkspace"),
 );
+// 分镜独立工作区（v5 C3）：storyboard 模式不再共用 CreationWorkspace，
+// 单独懒挂载全宽 StoryboardWorkspace（无文档侧栏、无 AI 栏）。
+const StoryboardWorkspace = lazyWithChunkBoundary(
+    "i18n:workspace.storyboard",
+    () => import("./creation/storyboard/StoryboardWorkspace"),
+);
 const GenerationWorkspace = lazyWithChunkBoundary(
     "生成区",
     () => import("./generation/GenerationWorkspace"),
@@ -331,11 +337,18 @@ export default function WorkbenchShell({
                     <ProjectExplorerSidebar projectId={projectId ?? null} categories={categories} />
                 ) : null}
                 <div className='flex-1 min-w-0 min-h-0 relative'>
-                    {mountedWorkspaceModes.includes("creation") || mountedWorkspaceModes.includes("storyboard") ? (
+                    {mountedWorkspaceModes.includes("creation") ? (
                         <WorkspaceSlot
-                            active={workspaceMode === "creation" || workspaceMode === "storyboard"}
+                            active={workspaceMode === "creation"}
                             label={t("workspace.creation")}>
                             <CreationWorkspace aiCollapsed={agentDockCollapsed} agentDockRef={agentDockRefs.creation} />
+                        </WorkspaceSlot>
+                    ) : null}
+                    {mountedWorkspaceModes.includes("storyboard") ? (
+                        <WorkspaceSlot
+                            active={workspaceMode === "storyboard"}
+                            label={t("workspace.storyboard")}>
+                            <StoryboardWorkspace />
                         </WorkspaceSlot>
                     ) : null}
                     {mountedWorkspaceModes.includes("generation") ? (

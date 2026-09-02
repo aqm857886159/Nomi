@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 /**
- * 文档索引棘轮：方案文档必须被 docs/README.md 或 docs 树中的某个 INDEX.md 链接。
+ * 文档索引棘轮：方案文档与教训文档必须被 docs/README.md 或 docs 树中的某个 INDEX.md 链接。
  *
  * baseline 记录具体文件路径，不记裸数字。裸数字会允许“收录一篇旧文档，同时新增一篇
  * 失联文档”蒙混过关；具体身份才能保证历史债只减不增。
+ *
+ * docs/lessons 一并纳管（2026-09-02）：教训库的入口就是 INDEX.md，孤儿教训文件等于不存在
+ * ——没人会去 grep 一条自己不知道存在的坑。这条罩着的是纪律「新增一条就挂号」。
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -12,7 +15,11 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const docsRoot = path.join(repoRoot, 'docs')
 const baselinePath = path.join(repoRoot, 'scripts', 'docs-index-baseline.json')
-const planRoots = [path.join(docsRoot, 'plan'), path.join(docsRoot, 'superpowers', 'plans')]
+const scanRoots = [
+  path.join(docsRoot, 'plan'),
+  path.join(docsRoot, 'superpowers', 'plans'),
+  path.join(docsRoot, 'lessons'),
+]
 
 function collectMarkdownFiles(root) {
   if (!fs.existsSync(root)) return []
@@ -79,7 +86,7 @@ function writeBaseline(paths) {
   const baseline = {
     _comment: [
       '文档索引棘轮基线：只减不增。',
-      '扫描 docs/plan/**/*.md 与 docs/superpowers/plans/**/*.md。',
+      '扫描 docs/plan/**/*.md、docs/superpowers/plans/**/*.md 与 docs/lessons/**/*.md。',
       '身份使用仓库相对路径；新增未收录文档必须进索引，不能追加到本数组。',
     ],
     unindexedDocuments: paths,
@@ -88,7 +95,7 @@ function writeBaseline(paths) {
 }
 
 // INDEX.md 是索引本身，不是被审的方案文档；否则新建一个目录索引会把自己判成违规。
-const documents = planRoots.flatMap(collectMarkdownFiles)
+const documents = scanRoots.flatMap(collectMarkdownFiles)
   .filter((file) => path.basename(file) !== 'INDEX.md')
   .map(relative)
   .sort()

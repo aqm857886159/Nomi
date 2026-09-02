@@ -1,22 +1,16 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconAdjustmentsHorizontal, IconChevronDown, IconChevronUp } from '@tabler/icons-react'
 import { NomiSelect } from '../../../design'
-import { cn } from '../../../utils/cn'
 import type { ModelOption } from '../../../config/models'
-import { resolveArchetypeForModel } from '../../../config/modelArchetypes'
 import type { ModelParameterControl } from '../../../config/modelCatalogMeta'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
+import { resolveShotArchetypeMode } from './shotRow/shotRowModel'
 
 /**
- * 镜卡的模型参数控件（#1）。参数**全 derive 自模型档案**（archetype），不为某模型写专属 UI（P4）。
- * 渐进展开（用户拍板）：
- *   - 常用参数（紧凑 select、非时长、前 2 个 → 视频露「清晰度+比例」、图片露「尺寸」）**直接露**。
- *   - 其余参数 + 模式切换收进「参数」抽屉，点开才显。
- * duration 不在这里（卡有独立「时长」选择器，避免双份真相源）。
- *
- * 拆成 inline / drawer 两块（用户反馈「参数换行好多、应该一行」）：inline 选择器由镜卡并进
- * header 同一行、不再另起一行；drawer（展开面板）full-width 落在 header 下方。open 态提升到镜卡。
+ * 镜行展开态的模型参数控件。参数**全 derive 自模型档案**（archetype），不为某模型写专属 UI（P4）。
+ * v5 表形态：行内不再有 inline 参数位——模型/画幅/时长住提示词块上沿的一等胶囊，
+ * 其余参数 + 模式切换全住展开态（▾）这一个抽屉；duration 与 aspect_ratio 在这里被排除，
+ * 避免与行内胶囊成双份真相源（P1）。
  */
 
 type ParamIO = {
@@ -26,34 +20,9 @@ type ParamIO = {
   onUpdate: (patch: { params?: Record<string, unknown>; modeId?: string }) => void
 }
 
-/** 拆分：inline=紧凑 select 前 2 个（去 duration）；drawer=其余。纯函数便于单测。 */
-export function splitShotParams(params: readonly ModelParameterControl[]): {
-  inline: ModelParameterControl[]
-  drawer: ModelParameterControl[]
-} {
-  const usable = params.filter((p) => p.key !== 'duration')
-  const inline = usable.filter((p) => p.type === 'select').slice(0, 2)
-  const inlineKeys = new Set(inline.map((p) => p.key))
-  const drawer = usable.filter((p) => !inlineKeys.has(p.key))
-  return { inline, drawer }
-}
-
-/** 解析选中模型的 archetype → 当前 mode + inline/drawer 参数分组。null = 无模型/无档案/无 mode。 */
-function resolveShotParams(modelOption: ModelOption | null, modeId?: string) {
-  if (!modelOption) return null
-  const archetype = resolveArchetypeForModel({
-    modelKey: modelOption.modelKey || modelOption.value,
-    modelAlias: modelOption.modelAlias,
-    vendorKey: modelOption.vendor,
-    meta: modelOption.meta,
-  })
-  if (!archetype) return null
-  const modes = archetype.modes
-  const mode = modes.find((m) => m.id === modeId) ?? modes.find((m) => m.id === archetype.defaultModeId) ?? modes[0]
-  if (!mode) return null
-  const { inline, drawer } = splitShotParams(mode.params)
-  const hasDrawer = drawer.length > 0 || modes.length > 1
-  return { modes, mode, inline, drawer, hasDrawer }
+/** 抽屉参数 = 档案参数去掉行内已有一等胶囊的两项（时长/画幅）。纯函数便于单测。 */
+export function drawerShotParams(params: readonly ModelParameterControl[]): ModelParameterControl[] {
+  return params.filter((p) => p.key !== 'duration' && p.key !== 'aspect_ratio')
 }
 
 function makeParamIO(params: ParamIO['params'], onUpdate: ParamIO['onUpdate']) {
@@ -88,55 +57,8 @@ function ParamSelect({
 }
 
 /**
- * inline 参数区（并进镜卡 header 同一行）：前 2 个紧凑 select + 「参数」抽屉开关。
- * 无档案/无 inline 且无抽屉 → 不渲染任何东西（返回 null，父行不多占位）。
- */
-export function ShotParamsInline({
-  modelOption,
-  modeId,
-  params,
-  onUpdate,
-  open,
-  onToggleOpen,
-}: ParamIO & { open: boolean; onToggleOpen: () => void }): JSX.Element | null {
-  const { t } = useTranslation()
-  const resolved = resolveShotParams(modelOption, modeId)
-  if (!resolved) return null
-  const { inline, hasDrawer } = resolved
-  if (inline.length === 0 && !hasDrawer) return null
-  return (
-    <>
-      {inline.map((c) => (
-        <ParamSelect key={c.key} control={c} params={params} onUpdate={onUpdate} />
-      ))}
-      {hasDrawer ? (
-        <button
-          type="button"
-          onClick={onToggleOpen}
-          aria-expanded={open}
-          className={cn(
-            'h-6 px-2.5 rounded-full border text-caption inline-flex items-center gap-1',
-            open
-              ? 'border-nomi-accent text-nomi-ink-80 bg-nomi-ink-05'
-              : 'border-nomi-line text-nomi-ink-60 hover:text-nomi-ink-80',
-          )}
-        >
-          <IconAdjustmentsHorizontal size={12} stroke={1.8} aria-hidden />
-          {t('storyboardEditor.shotParams.parameters')}
-          {open ? (
-            <IconChevronUp size={12} stroke={1.8} aria-hidden />
-          ) : (
-            <IconChevronDown size={12} stroke={1.8} aria-hidden />
-          )}
-        </button>
-      ) : null}
-    </>
-  )
-}
-
-/**
- * 参数抽屉（open 时 full-width 落在 header 下方）：模式切换 + 其余参数 + 套用到全部。
- * open 态由镜卡持有；此组件只在 open 时被渲染。无抽屉内容 → null。
+ * 参数抽屉（镜行展开态内嵌）：模式切换 + 其余参数 + 套用到全部。
+ * 无档案 / 无可调项 → null（展开态照常显示台词/转场，只是没有参数段）。
  */
 export function ShotParamsDrawer({
   modelOption,
@@ -147,18 +69,19 @@ export function ShotParamsDrawer({
 }: ParamIO & { onApplyToAll?: () => void }): JSX.Element | null {
   const { t } = useTranslation()
   const { valueOf, setParam } = makeParamIO(params, onUpdate)
-  const resolved = resolveShotParams(modelOption, modeId)
+  const resolved = resolveShotArchetypeMode(modelOption, modeId)
   if (!resolved) return null
-  const { modes, mode, drawer, hasDrawer } = resolved
-  if (!hasDrawer) return null
+  const modes = resolved.archetype.modes
+  const drawer = drawerShotParams(resolved.mode.params)
+  if (drawer.length === 0 && modes.length <= 1) return null
   return (
-    <div className="w-full mt-2 p-2.5 rounded-nomi-sm bg-nomi-ink-05 flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
       {modes.length > 1 ? (
         <NomiSelect
           ariaLabel={t('storyboardEditor.shotParams.mode')}
           leadingLabel={t('storyboardEditor.shotParams.mode')}
           size="xs"
-          value={mode.id}
+          value={resolved.mode.id}
           options={modes.map((m) => ({ value: m.id, label: translateModelDisplayText(m.vendorTerm || m.id) }))}
           onChange={(value) => onUpdate({ modeId: value })}
         />

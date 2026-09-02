@@ -4,8 +4,10 @@
 // 这条与 kie 版（seedance25Contract.test.ts）成对：同一个模型、两条通道，能力形状必须一致，
 // 差的只该是字段名与供应商硬约束。谁哪天只改了一边，这两个文件会分叉——那正是要被发现的。
 import { describe, expect, it } from 'vitest'
-import { SEEDANCE_2_5_APIMART_ARCHETYPE } from './seedance25Apimart'
-import { SEEDANCE_2_5_ARCHETYPE } from './seedance25'
+import {
+  SEEDANCE_2_5_APIMART_ARCHETYPE,
+  SEEDANCE_2_5_ARCHETYPE,
+} from '../../../electron/shared/videoCapabilities'
 import { resolveArchetypeForModel } from './index'
 
 const DOC_LIMITS = { image_ref: 30, video_ref: 10, audio_ref: 10 } as const

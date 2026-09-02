@@ -30,6 +30,7 @@ import {
   getGenerationNodePromptPlaceholder,
   isAudioLikeGenerationNodeKind,
   isImageLikeGenerationNodeKind,
+  isModel3dLikeGenerationNodeKind,
   isVideoLikeGenerationNodeKind,
 } from '../model/generationNodeKinds'
 import { resolveArchetypeForModel } from '../../../config/modelArchetypes'
@@ -313,7 +314,11 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   const textGenMode = getTextGenMode(node)
   const hasPromptPickerButton = Boolean(nodeExecutionKind) && acceptsPrompt && !audioIsTranscribe && !isTextKind
   const hasReferenceControls =
-    isImageLikeGenerationNodeKind(node.kind) || isVideoLikeGenerationNodeKind(node.kind) || isAudioKind
+    isImageLikeGenerationNodeKind(node.kind) ||
+    isVideoLikeGenerationNodeKind(node.kind) ||
+    isAudioKind ||
+    // 3D 的图生3D模式带 first_frame 参考槽——漏了它参考区整个不渲染，图生3D没法放参考（同族 kind 边界漏 3D）。
+    isModel3dLikeGenerationNodeKind(node.kind)
   // 持有 prompt 编辑器实例,供「点参考 tile → 在光标处插入 chip」(@ 内联引用主路径)。
   const [promptEditor, setPromptEditor] = React.useState<Editor | null>(null)
   const [promptPickerOpen, setPromptPickerOpen] = React.useState(false)
@@ -730,7 +735,10 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
                 ? acceptsDrop
                   ? t('generationCommon.composer.imageReferenceRequired')
                   : t('generationCommon.composer.imageConnectionRequired')
-                : t('generationCommon.composer.unsupportedKind', { kind: node.kind })
+                : nodeExecutionKind === 'model3d'
+                  // 图生3D缺参考时的诚实原因——此前落到 unsupportedKind「暂不支持」，明明支持只是缺图（同族 kind 边界漏 3D）。
+                  ? t('generationCommon.composer.model3dReferenceRequired')
+                  : t('generationCommon.composer.unsupportedKind', { kind: node.kind })
             : undefined
           const title = disabledReason
             ?? (isGenerating
