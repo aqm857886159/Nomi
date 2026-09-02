@@ -54,9 +54,10 @@ describe('external MCP production artifact reads', () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     const tools = (nextFrame(frames, 1).result as { tools: Array<{ name: string; annotations?: { readOnlyHint?: boolean } }> }).tools
-    expect(MCP_TOOL_NAMES).toEqual(expect.arrayContaining(['nomi_get_artifact', 'nomi_read_artifact', 'nomi_request_script_revision', 'nomi_request_storyboard_revision', 'nomi_review_artifact']))
-    expect(tools.find((tool) => tool.name === 'nomi_read_artifact')?.annotations?.readOnlyHint).toBe(true)
-    expect(tools.find((tool) => tool.name === 'nomi_request_script_revision')?.annotations?.readOnlyHint).toBeUndefined()
+    // 面收敛：get/read artifact 并入 nomi_read（整体只读）；script/storyboard revision + review 并入 nomi_artifact_review（写）。
+    expect(MCP_TOOL_NAMES).toEqual(expect.arrayContaining(['nomi_read', 'nomi_artifact_review']))
+    expect(tools.find((tool) => tool.name === 'nomi_read')?.annotations?.readOnlyHint).toBe(true)
+    expect(tools.find((tool) => tool.name === 'nomi_artifact_review')?.annotations?.readOnlyHint).toBeUndefined()
 
     const templates = (nextFrame(frames, 2).result as { resourceTemplates: Array<{ uriTemplate: string }> }).resourceTemplates
     expect(templates.some((template) => template.uriTemplate === 'nomi://project/{projectId}/run/{runId}/artifact/{artifactId}')).toBe(true)
@@ -66,7 +67,7 @@ describe('external MCP production artifact reads', () => {
     const { protocol, frames, invoke } = harness()
     protocol.handleIncoming({
       jsonrpc: '2.0', id: 3, method: 'tools/call',
-      params: { name: 'nomi_read_artifact', arguments: { projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-script-v2' } },
+      params: { name: 'nomi_read', arguments: { target: 'artifact_content', projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-script-v2' } },
     })
     await new Promise((resolve) => setTimeout(resolve, 0))
 
@@ -128,7 +129,7 @@ describe('external MCP production artifact reads', () => {
     })
     protocol.handleIncoming({
       jsonrpc: '2.0', id: 6, method: 'tools/call',
-      params: { name: 'nomi_read_artifact', arguments: { projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-script-v2' } },
+      params: { name: 'nomi_read', arguments: { target: 'artifact_content', projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-script-v2' } },
     })
     await new Promise((resolve) => setTimeout(resolve, 0))
     const result = nextFrame(frames, 6).result as { content: Array<{ text: string }>; structuredContent?: { nomiOutcome?: { openInNomi?: unknown } } }

@@ -135,3 +135,50 @@ APIMart 视频：**全 15 模型识别探测确认在架，0 下线**。族代�
 | APIMart `seedance-2.5` × image-to-video reference (`480p`/4s/1 图) | `ac6a5da498f1152947beee406e33bf65a01aed3f7e92afceca26825df07d4d9f` | 2026-09-02 | `/tmp/matrix/artifacts/docaudit-apimart-seedance25-ref.mp4` | ¥0.3883 | ✅ 4.04s H.264；抽帧确认红色机器人参考特征与挥手提示词；接口 `credits_cost=3.883`，余额差 `0.3883` |
 
 附注：本班早先的免费探针曾让 APIMart Veo/Omni 入口返回 200 并创建任务，但 `/v1/balance` 的 `used_balance` 从 `173.221924` 增至 `173.543524`，增量正好 `¥0.3216`，说明两笔探针未产生额外花销；二者未作为封印证据。Kling 首次错误地发送 `mode=standard`，异步失败且 cost=0，之后用官方 `std` 参数完成上述封印。
+
+## DOCAUDIT-B 封印模式审计 + 参考模式补发（2026-09-02，SEALMODE 终班）
+
+> **规则依据**：`docs/engineering-rules.md` R5「模型 wire 契约三段标准作业」第三段（付费给封印）+ hook `scripts/claude-hooks/model-doc-check.sh`。原文：封印发选**覆盖面最大的模式**（带参考图/参考视频输入的模式优先，参考 wire 是纯文 wire 超集，一发管两头）；**多模式模型其余模式**——wire 形态与已封模式**差异大（另端点/另编码/multipart）才补发**，仅多一字段且干跑+免费探针对账通过的记「**结构已验**」。
+> **本次做法**：以 `applyBuiltinSeeds()` 空目录种子为准（代码为准），对每个 ✅ 已封模型比对「封印模式（纯文/无参考）× 该模型参考模式」两条 mapping 的 create 端点 + 编码 + body 形态；同端点+同编码（JSON）→ 结构已验；另端点 → 候选补发。`mapping content hash` 同 DOCAUDIT-A 口径 `sha256(JSON.stringify({create,query,statusMapping}))`，按封印时代码计算；密钥未写入本文件（掩码 6 位，源 `~/.nomi-test-keys.env`）。
+> **预算**：本班上限 **¥20**；实际新增 **≈¥1.8**（fal 4 发，见逐笔）。
+
+### 审计结论摘要
+
+- **纳入审计的 ✅ 已封模型（有参考模式者）= 27**：KIE 视频 5（seedance-2.0/happyhorse/minimax-h3/wan-3.0/gemini-omni-1.1）+ KIE 图 8 + MiniMax-H3 + fal 4（3 图 + seedance-2.5）+ APIMart 图 7 + APIMart grok(视频代表) + Runway wan3(视频代表)。（文本/TTS/音乐类无参考 wire，不纳入。）
+- **结构已验 = 22**：封印模式与参考模式**同 create 端点 + 同 JSON 编码**，参考仅在同一 body 里多填 `image_urls`/`first_frame_url`/`reference_*_urls` 等字段（运行时按 mode 填），干跑逐字段对账 + 已封纯文模式真发过同端点即证端点/轮询/状态词表通 → 不烧钱。其中 KIE `happyhorse`/`minimax-h3` 连独立 i2v mapping 都没有，参考字段就长在那条 t2v mapping 里（同一条服务两模式）。
+- **候选补发 = 5**（均「另端点」）：fal 4（3 图 `/edit` + seedance-2.5 `/image-to-video`）差异端点、fal 账户有余额 → **本班真发封印**；Runway `wan3` 的 i2v 走 `/v1/image_to_video`（与封印用的 `/v1/text_to_video` 另端点）→ 但 **Runway credits ⛔ 已知拦**（veo estimatedCost=40、seedance 系余额不足），本班不重试，留 ⛔。
+- **补发 K = 4**，全部真发 + 产物下载 + **双验（提示词特征 + 红色机器人参考特征）通过**。参考图用自绘特征强图 `/tmp/matrix/artifacts/ref-red-robot.png`（亮红机器人 + 天线 + 青色胸灯，fal 官方文档确认 `image_urls`/`image_url` 接受 base64 data URI，故内联不需外链托管）。
+
+### 审计对照表（✅ 已封 × 封印模式 × 参考模式 wire 形态 → 判定）
+
+| vendor/model | 封印模式(纯文) create 端点 | 参考模式 create 端点 | wire 差异 | 判定 |
+|---|---|---|---|---|
+| kie `bytedance/seedance-2`(2.0,generic) | POST `/api/v1/jobs/createTask` | 同端点(i2v generic 同 hash) | 同端点/JSON，+`first_frame_url`等 | 结构已验 |
+| kie `happyhorse` / `minimax-h3` | POST `/api/v1/jobs/createTask` | 无独立 ref mapping（同条 t2v 已含 `image_urls`/`reference_image_urls`） | 同端点/JSON | 结构已验 |
+| kie `wan/3-0-video` | POST `/api/v1/jobs/createTask` | 同端点(i2v 同 hash) | 同端点/JSON | 结构已验 |
+| kie `google/gemini-omni-flash-1-1` | POST `/api/v1/jobs/createTask` | 同端点(i2v 同 hash `ac80dabc`) | 同端点/JSON | 结构已验 |
+| kie 图 ×8（gpt-image-2 / seedream / nano-banana(-2/-2-lite) / seedream/5-pro / 5-lite / flux-2/pro） | POST `/api/v1/jobs/createTask` | `image_edit` 同端点 | 同端点/JSON，+参考图 URL | 结构已验 |
+| minimax `MiniMax-H3` | POST `/v2/video_generation` | 同端点(i2v 同 hash `5cba9696`) | 同端点/JSON | 结构已验 |
+| apimart 图 ×7（seedream-5-0-pro / 4.5 / gemini-2.5/3.1-flash-image / gpt-image-2 / qwen-image-2.0/3.0） | POST `/v1/images/generations` | `image_edit` 同端点 | 同端点/JSON，+参考图 URL | 结构已验 |
+| apimart `grok-imagine-1.5`(视频代表) | POST `/v1/videos/generations` | 同端点(i2v，+`image_urls`) | 同端点/JSON | 结构已验 |
+| **fal `openai/gpt-image-2`** | POST `/openai/gpt-image-2` | POST `/openai/gpt-image-2/edit` | **另端点** | **补发 ✅** |
+| **fal `bytedance/seedream/v5/pro`** | POST `/bytedance/seedream/v5/pro/text-to-image` | POST `/bytedance/seedream/v5/pro/edit` | **另端点**（轮询根收敛 `bytedance/seedream`，BUG-2 路径） | **补发 ✅** |
+| **fal `fal-ai/nano-banana-2`** | POST `/fal-ai/nano-banana-2` | POST `/fal-ai/nano-banana-2/edit` | **另端点** | **补发 ✅** |
+| **fal `bytedance/seedance-2.5`** | POST `/bytedance/seedance-2.5/text-to-video` | POST `/bytedance/seedance-2.5/image-to-video` | **另端点** | **补发 ✅** |
+| runway `wan3`(视频代表) | POST `/v1/text_to_video` | POST `/v1/image_to_video`（i2v）；另有 `reference` 模式=同端点+字段 | 另端点 | ⛔ 候选但 Runway credits 不足 |
+
+### 补发封印台账（模型 × 封印模式 × 哈希 × 日期 × 产物路径 × 花销）
+
+| 模型 × 封印模式 | mapping content hash | 日期 | 产物路径 | 单笔花销 | 结果/人工核验（双验） |
+|---|---|---|---|---:|---|
+| fal `openai/gpt-image-2` × edit reference (`image_edit`，`square`/1 图/1 张) | `ca0a2ed3644df49c2e87cb3e6395c60d7ad0cc347766b9c58c00567da1448545` | 2026-09-02 | `/tmp/matrix/artifacts/seal-fal-gpt-image-2-edit-ref.png` | ≈¥0.29 | ✅ 1.0MB PNG；亲验红色机器人（天线+青胸灯，形态保真）置于阳光沙滩+棕榈——参考特征+提示词特征双中 |
+| fal `bytedance/seedream/v5/pro` × edit reference (`image_edit`，`square`/1 图/1 张) | `9dd01030b6d54ef0313845eceea21d5dcca1a78cddd71fee696f98b7c9d0ea3a` | 2026-09-02 | `/tmp/matrix/artifacts/seal-fal-seedream5pro-edit-ref.png` | ≈¥0.22 | ✅ 2.1MB PNG；亲验红色机器人置于绿色森林；轮询根 `bytedance/seedream`（BUG-2 收敛路径实走）——双验通过 |
+| fal `fal-ai/nano-banana-2` × edit reference (`image_edit`，`1K`/`1:1`/1 图/1 张) | `0d593c323e5155d8e1cfe8885e22b9c1757f20c6672e6b4afd9b6acc720dbca5` | 2026-09-02 | `/tmp/matrix/artifacts/seal-fal-nanobanana2-edit-ref.png` | ≈¥0.28 | ✅ 1.8MB PNG；亲验红色机器人置于雪山之巅；`resolution` 官方枚举实为 `0.5K/1K/2K/4K`（首发误用 `1080p` 被校验拒=不计费，改 `1K` 通）——双验通过 |
+| fal `bytedance/seedance-2.5` × image-to-video reference (`480p`/4s/1 图/auto) | `60ab8074c9657ca07aa655ec7b137cac2d0c09e381f4b3137aa0f10984ed9a7e` | 2026-09-02 | `/tmp/matrix/artifacts/seal-fal-seedance25-i2v-ref.mp4` | ≈¥0.79 | ✅ 4.04s H.264 640×640 143KB；抽帧确认红色机器人保真、手臂挥动姿态——参考特征+提示词特征双中 |
+
+附注：① 逐笔花销为按 fal 官方逐模型公示单价的保守估算（fal 无用量流水端点可查）；封印后 fal 余额读回 `$17.437`，本班 4 发 + 早期一次已取消的 t2i 探针（HTTP 0 冷连后手动 PUT `cancel`）+ 一次 nano-banana `1080p` 校验拒（cost=0），合计 ≈$0.25≈¥1.8，**远在 ¥20 上限内**。② fal 提交存在首连偶发 HTTP 0（冷连），已在 `seal-fal-ref.mjs` 加一次重试；不是契约问题（同 body 二次即 200）。③ 复跑脚本 `/tmp/matrix/seal-fal-ref.mjs`（`--dry` 干跑对账 / `--only=<substr>` 单发），参考图生成 `/tmp/matrix/make-robot.py`。
+
+### ⛔ 清单（已知不重试）
+
+- KIE `seedance-2.5` × reference：HTTP 402，余额 12.5 credits（DOCAUDIT-A 已记，本班未重试）。
+- Runway `wan3` i2v（及 Runway 视频族的 i2v 另端点）：Runway credits 不足（seedance/veo estimatedCost=40），本班判为候选补发但按已知 ⛔ 不重试；其 `reference` 模式为同端点+字段=结构已验，i2v 另端点待账户充值后补发。

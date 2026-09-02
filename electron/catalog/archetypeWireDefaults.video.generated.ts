@@ -339,6 +339,26 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       }
     }
   },
+  "seedance-2.5-runway": {
+    "text_to_video": {
+      "*": {
+        "resolution": "720p",
+        "aspect_ratio": "adaptive",
+        "duration": 5,
+        "generate_audio": true,
+        "return_last_frame": false
+      }
+    },
+    "image_to_video": {
+      "*": {
+        "resolution": "720p",
+        "aspect_ratio": "adaptive",
+        "duration": 5,
+        "generate_audio": true,
+        "return_last_frame": false
+      }
+    }
+  },
   "minimax-h3-apimart": {
     "text_to_video": {
       "*": {

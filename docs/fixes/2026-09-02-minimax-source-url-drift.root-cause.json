@@ -1,0 +1,98 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-minimax-source-url-drift",
+  "problem_type": "MiniMax H3-Max source URL drift",
+  "symptom": "The H3-Max capability source pointed at an obsolete API-reference URL that now returns 404, so the catalog's evidence pointer could not be opened to review the active video contract.",
+  "direct_cause": "The capability source URL was not refreshed when MiniMax moved the video contract to the current guide route.",
+  "class_root": "Capability source metadata had no source-reachability regression test, allowing an old vendor documentation path to remain attached to a production model profile.",
+  "affected_population": [
+    "Consumers reviewing the MiniMax H3-Max video profile and its documented 5–15 second, 480P/768P contract.",
+    "Future vendor profiles whose source links are moved without updating the single capability source declaration."
+  ],
+  "scope_paths": [
+    "electron/shared/videoCapabilities/minimaxH3Max.ts",
+    "electron/catalog/minimaxOfficial.test.ts"
+  ],
+  "entry_points": [
+    "MINIMAX_H3_MAX_ARCHETYPE.sources",
+    "MiniMax official contract source assertion"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://platform.minimaxi.com/docs/guides/video-generation",
+      "checked_at": "2026-09-02",
+      "purpose": "Current official MiniMax video guide for H3-Max endpoint, text/first-last/reference modes, and parameter contract."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://platform.minimaxi.com/docs/api-reference/video-generation-v2",
+      "checked_at": "2026-09-02",
+      "purpose": "Negative check: the former source path returns 404 and is not retained as an evidence pointer."
+    }
+  ],
+  "invariants": [
+    "H3-Max has one current official source pointer that is reachable and dated with the audit.",
+    "The source pointer covers the same endpoint and modes represented by the capability profile.",
+    "The stale 404 source is not retained as a fallback evidence path."
+  ],
+  "generality_proof": "The source pointer is declared once in MINIMAX_H3_MAX_ARCHETYPE and the contract test reads that owner directly; future source updates have one place and one regression assertion.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/videoCapabilities/minimaxH3Max.ts",
+      "symbol": "MINIMAX_H3_MAX_ARCHETYPE.sources",
+      "responsibility": "Single source-of-truth evidence pointer for the H3-Max capability contract."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/shared/videoCapabilities/minimaxH3Max.ts",
+      "entry_point": "H3-Max official source declaration",
+      "disposition": "enforced",
+      "evidence": "The declaration now uses the reachable official video guide and records checkedAt 2026-09-02."
+    },
+    {
+      "path": "electron/catalog/minimaxOfficial.test.ts",
+      "entry_point": "H3-Max source pointer test",
+      "disposition": "enforced",
+      "evidence": "The test pins the current URL and audit date; no obsolete fallback is accepted."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Vendor documentation routes can move or be retired; stale source pointers can recur across model profiles unless the source owner is tested.",
+    "same_class_scan": [
+      "Checked the current MiniMax video and speech official routes and searched the non-KIE/non-APIMart capability sources for adjacent MiniMax URLs.",
+      "Confirmed only H3-Max used the retired video-generation-v2 source in the changed scope."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/videoCapabilities/minimaxH3Max.ts",
+    "invariant": "The H3-Max source URL and checked date are declared once and pinned by a focused contract test.",
+    "failure_mode": "A moved or deleted official page leaves the catalog claiming source-backed evidence that users and maintainers cannot open.",
+    "exception_policy": "none",
+    "strategy": "Replace the retired URL at the source owner and pin the active URL in the adjacent contract test; do not keep a dead fallback.",
+    "artifacts": [
+      "electron/shared/videoCapabilities/minimaxH3Max.ts",
+      "electron/catalog/minimaxOfficial.test.ts"
+    ]
+  },
+  "regression_tests": ["electron/catalog/minimaxOfficial.test.ts"],
+  "class_regression_tests": ["electron/catalog/minimaxOfficial.test.ts"],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": ["electron/shared/videoCapabilities/minimaxH3Max.ts"],
+    "rationale": "The obsolete 404 evidence pointer is removed from the profile with no fallback.",
+    "removal_evidence": "The profile source assertion accepts only the current guide URL."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No package dependency is changed; only an official documentation evidence pointer is corrected.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration is required; model identity and wire mapping are unchanged.",
+  "residual_risks": [
+    "A reachable official guide does not by itself prove account eligibility or successful paid generation; those are recorded separately in the acceptance ledger."
+  ]
+}

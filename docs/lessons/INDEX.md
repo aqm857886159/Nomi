@@ -48,6 +48,7 @@
 - [GitHub Windows runner 把窗口夹到下限](gh-windows-runner-clamps-window-to-minimum.md) — 「只有 Windows 红」的头号原因，先反推 stage 尺寸
 - [功能落地后要做体验测试并记情绪摩擦日志](experiential-qa-emotion-log.md) — 截图审查要问「舒服吗」，不只问「在不在」
 - [断言前先证明你在你以为的现场](assert-you-are-in-the-situation-you-claim.md) — 注入的 meta 会被归一，两种假绿看起来都和真绿一样
+- [带状态的 UI 元素要立双层一致性合同](stateful-ui-needs-two-layer-conformance-contract.md) — 设计断言 + 功能承诺三层验证，专防装饰性 UI（`deviated` 恒 false 前科）
 
 ## B. 测试与 CI 的红绿判读
 
@@ -70,6 +71,7 @@
 - [下否定式结论前先证明你在哪个 checkout](prove-which-checkout-before-negative-claims.md) — 「仓库里没有 X」多半是你站在一个陈旧分支上
 - [改 baseline JSON 用文本级编辑，别整体重写](json-baselines-need-surgical-edits.md) — 短数组原文是单行，重写会炸出上千行假 diff
 - [方案讨论期别急着 commit/PR](discuss-before-committing-docs.md) — 聊透拍板再落 git；实施类不受限
+- [闸门凭据要绑「哪棵树 + 哪个提交」](gate-stamps-must-be-keyed-to-tree-and-head.md) — 只认固定路径 + mtime 的 gates 戳会跨 worktree 互相顶用，同一天误放和误杀各栽一次
 
 ## D. 排查与平台故障
 
@@ -87,7 +89,7 @@
 ## E. 产品判断与对外表达
 
 - [分镜表 = 画布节点的表格表示版](shot-table-is-a-projection-of-canvas-nodes.md) — 不是落画布前的临时物；两半列各有各的 derive 来源
-- [参考槽已是声明式数据，别重造](nomi-reference-slots-are-already-declarative.md) — archetype + AssetReference 已是拍板过的渲染器
+- [参考槽：声明上限不是有效上限，锚→槽是语义绑定](nomi-reference-slots-are-already-declarative.md) — 别渲染 `slot.max`、别按下标推语义、Agent 建完只能改 prompt（结构本身见 `ARCHITECTURE-NOW.md`）
 - [批量产出要逐步冒出来 + 自动编组](batch-output-appears-progressively-and-grouped.md) — 一个动作产出多个节点时的既定交互
 - [「改不了 / 没有按钮」是可发现性问题](vendor-manage-is-a-discoverability-problem.md) — 功能一直在，根因是控件被 overflow 裁出视口
 - [用户说「坏了」多半是「找不到」](group-says-broken-usually-means-undiscoverable.md) — 先真机实测再信；扫到真 bug ≠ 那就是他的 bug
@@ -96,6 +98,9 @@
 - [讲方向必须说人话：自造名词和标准术语都要解释](d6-proposal-jargon-must-be-explained.md) — 附「从用户看得见的东西起头」五步结构
 - [对外公开发言带 Nomi 品牌](public-upstream-reports-carry-nomi-brand.md) — 上游 issue / 社区默认具名，具名反而更有证据力
 - [样张拍板只卡大 UI 改动](mockup-approval-gates-only-big-ui.md) — 小 UI / 非 UI 不等拍板照常推进，等待期并行推别的轨
+- [样张交付 = 逐屏逐件走读，不是统计表汇总](mockup-delivery-is-a-per-screen-walkthrough.md) — 每件「这是什么 / 为什么 / 什么时候碰」三段式；走读文档还是验收合同的上游
+- [界面重设计走四步流水线：整件复用优先](ui-redesign-four-step-pipeline.md) — 分类 → 找证据（库解剖 / 竞品还原，禁脑补）→ 还原解剖 → 套 token + 认知负荷审计
+- [本地旧构建的 `-h` ≠ 官方现役能力面](stale-local-build-is-not-the-current-capability.md) — 判「工具支不支持 X」先刷新到现役版本；update log 才是事实源
 
 ## F. 多智能体编排
 

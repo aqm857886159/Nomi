@@ -2,7 +2,12 @@ import type { TimelineClip, TimelineClipType } from '../../timeline/timelineType
 import type { GenerationCanvasNode, GenerationNodeResult } from './generationCanvasTypes'
 import { getGenerationNodeExecutionKind } from './generationNodeKinds'
 
-const DEFAULT_IMAGE_SECONDS = 3
+/**
+ * 图片素材的默认停留秒数——时间轴 clip 与分镜表「图片镜停留时长」的**单一真相源**
+ * （分镜 v5：`PlanShot.durationSec` 对图片镜生效为停留时长，默认值必须与 clip 落轨一致，
+ * 禁止在别处再写字面量 3）。
+ */
+export const DEFAULT_IMAGE_SECONDS = 3
 const DEFAULT_VIDEO_SECONDS = 5
 
 type BuildClipOptions = {

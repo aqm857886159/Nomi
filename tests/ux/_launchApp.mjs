@@ -26,6 +26,47 @@ import { ensureElectronSignature } from '../../scripts/ensure-electron-signature
 import { assertElectronBuildArtifacts } from '../../scripts/electron-build-artifacts.mjs'
 
 const require = createRequire(import.meta.url)
+const catalogVersionManifest = require('../../electron/catalog/catalogVersion.json')
+
+export function currentCatalogVersion() {
+  const version = Number(catalogVersionManifest.current)
+  if (!Number.isInteger(version) || version < 1) throw new Error('catalog version manifest is invalid')
+  return version
+}
+
+/**
+ * 检查隔离 settings 里调用方预埋的 catalog seed。
+ *
+ * 旧版走查会把真实用户 catalog 原样复制进隔离 profile；真实 catalog 可能来自更新的
+ * Nomi，随后旧版被测 app 的正确只读保护会让 UI 写入静默失效。future seed 不能被改写
+ * 成当前版本（那会丢字段），所以留在隔离目录里 quarantine，app 无盘首启自建。
+ */
+export function prepareIsolatedCatalog(settingsDir, { testedCatalogVersion = currentCatalogVersion() } = {}) {
+  if (!Number.isInteger(testedCatalogVersion) || testedCatalogVersion < 1) {
+    throw new Error(`tested catalog version is invalid: ${testedCatalogVersion}`)
+  }
+  const catalogPath = path.join(settingsDir, 'model-catalog.json')
+  if (!fs.existsSync(catalogPath)) return { status: 'missing', catalogPath }
+
+  let parsed
+  try {
+    parsed = JSON.parse(fs.readFileSync(catalogPath, 'utf8'))
+  } catch {
+    return { status: 'unreadable', catalogPath }
+  }
+  const diskVersion = parsed?.version
+  if (!Number.isInteger(diskVersion) || diskVersion <= testedCatalogVersion) {
+    return { status: 'compatible', catalogPath, diskVersion }
+  }
+
+  const prefix = path.join(settingsDir, `model-catalog.future-v${diskVersion}`)
+  let quarantinePath = `${prefix}.json`
+  let suffix = 1
+  while (fs.existsSync(quarantinePath)) quarantinePath = `${prefix}.${suffix++}.json`
+  fs.renameSync(catalogPath, quarantinePath)
+  console.warn(`[walkthrough] quarantined catalog seed v${diskVersion} > tested app v${testedCatalogVersion}: ${quarantinePath}`)
+  return { status: 'quarantined', catalogPath, quarantinePath, diskVersion, testedCatalogVersion }
+}
 
 /** 仓库根：本文件在 <repo>/tests/ux/ 下。 */
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -128,6 +169,7 @@ export function withPackagedPlaywrightOrigin(args, isPackaged) {
  * @param {string} [options.settingsDir]    单独指定（默认 <tempRoot>/settings）
  * @param {string} [options.projectsDir]    单独指定（默认 <tempRoot>/projects）
  * @param {string} [options.capabilityDir]  单独指定（默认 <tempRoot>/capability）
+ * @param {number} [options.testedCatalogVersion]  被测构建的 catalog 版本；默认读取仓库 canonical manifest
  * @param {number} [options.timeout]        等窗口上限（ms）
  * @param {number} [options.settleMs=1500]  domcontentloaded 后再等一会儿（渲染层挂载）
  * @param {boolean} [options.syntheticCredentialStorage=false]  仅供隔离目录里的非秘密测试凭据；Linux CI 使用 basic 后端
@@ -175,6 +217,7 @@ export async function launchNomiApp(options = {}) {
   //（如 toolbar-order.walk.mjs 先写好 project.json 再启动）。启动器擅自 rm 会把它们的前置条件擦掉。
   // 想要干净 profile 的脚本自己在调用前 rmSync——语义留在看得见的地方。
   if (isolate) for (const dir of [userDataDir, settingsDir, projectsDir, capabilityDir]) fs.mkdirSync(dir, { recursive: true })
+  if (isolate) prepareIsolatedCatalog(settingsDir, { testedCatalogVersion: options.testedCatalogVersion })
 
   const launchOptions = {
     executablePath,

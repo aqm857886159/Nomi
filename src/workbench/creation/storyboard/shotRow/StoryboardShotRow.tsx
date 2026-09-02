@@ -1,0 +1,315 @@
+import React from 'react'
+import { useTranslation } from 'react-i18next'
+import { IconChevronDown, IconChevronUp, IconGripVertical, IconTrash } from '@tabler/icons-react'
+import { cn } from '../../../../utils/cn'
+import { NomiSelect } from '../../../../design'
+import { AutoGrowTextarea } from '../../../ai/composer/AutoGrowTextarea'
+import type { PlanAnchor, PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
+import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
+import {
+  DURATION_OPTIONS_SEC,
+  shotKindPatch,
+  shotTypeOf,
+  type ShotTypeValue,
+} from '../../../generationCanvas/agent/storyboardPlanEdits'
+import type { ModelOption } from '../../../../config/models'
+import { useDedupedModelSelect } from '../../../common/useDedupedModelSelect'
+import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
+import { aspectControlOf, missingRequiredSlots, referenceZoneView, resolveShotArchetypeMode } from './shotRowModel'
+import StoryboardShotRowExpand from './StoryboardShotRowExpand'
+
+/**
+ * 分镜表 v5 的一行：`[grip | 画面格 76×132 | 参考区 136 | 提示词块 1fr]`（样张
+ * 2026-09-01-storyboard-table-image-first.html 拍板，「图是主角」）。Phase A 是纯编辑面：
+ * - 画面格两态：占位（虚线 + 镜号）/ 缺必填红（该行模型 mode.slots min≥1 无来源，亮不拦）；
+ * - 参考区三形态**纯展示**（具名槽空 tile / 「@」入口占位 / 不吃参考）——绑定编辑住展开态锚 chips；
+ * - 提示词块：上沿类型/时长/模型/画幅胶囊（作用域=这一镜；整片改走顶部批量条，§1.5 C3），
+ *   主体 AutoGrowTextarea，下沿有台词才显只读小字 + ▾ 展开（台词/转场/参考绑定/参数）。
+ * 生成按钮/悬停浮条/@ 胶囊/插入线等执行与交互能力属 B/C/D 阶段。
+ */
+
+type Props = {
+  shot: PlanShot
+  anchors: PlanAnchor[]
+  /** 可选模型清单（父组件按镜头种类传图片/视频清单）；空 → 不显模型选择器，落画布按种类用默认模型兜底。 */
+  modelOptions?: ModelOption[]
+  /** 这镜引用了、但锚已不存在的 id（展开态红标 + 阻断确认）。 */
+  danglingIds: string[]
+  onUpdate: (patch: Partial<PlanShot>) => void
+  onToggleAnchor: (anchorId: string) => void
+  onRemove: () => void
+  /** 把这镜的模型参数+模式套用到全部镜头（编辑器实现）。 */
+  onApplyParamsToAll?: () => void
+  promptInvalid?: boolean
+  // grip 拖拽重排（state 在表层，行只透传）。跨场界落点 = moveShot 场感知改挂 sceneId。
+  draggable?: boolean
+  isDragOver?: boolean
+  onDragStart?: () => void
+  onDragOver?: (event: React.DragEvent) => void
+  onDrop?: () => void
+  onDragEnd?: () => void
+}
+
+export default function StoryboardShotRow(props: Props): JSX.Element {
+  const { t } = useTranslation()
+  const { shot, anchors, modelOptions, danglingIds, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll } = props
+  const [expanded, setExpanded] = React.useState(false)
+
+  const shotTypeValue = shotTypeOf(shot)
+  const isImageShot = shotTypeValue === 'image'
+  const onKindChange = (value: string): void => {
+    if (value === shotTypeValue) return
+    onUpdate(shotKindPatch(shot, value as ShotTypeValue))
+  }
+
+  // 时长：视频镜=生成时长；图片镜=停留时长（v5，默认 3 经 effectiveShotDurationSec 单源换算），
+  // 图片镜旁跟「停留」pill 点破语义差。
+  const effectiveDuration = effectiveShotDurationSec(shot)
+  const durationOptions = [...new Set([...DURATION_OPTIONS_SEC, ...(isImageShot ? [3] : []), effectiveDuration])]
+    .filter((sec) => Number.isFinite(sec) && sec > 0)
+    .sort((a, b) => a - b)
+    .map((sec) => ({ value: String(sec), label: t('storyboardEditor.second', { count: sec }) }))
+
+  // 模型选择：与画布节点共用同一去重 view-model（P1）。选具体模型 → 写 modelKey、清 modeId/params
+  // （由 buildPlannedNodeMeta 按所选模型取默认模式，避免把别的模型的 modeId/参数套错）。
+  const onShotModelChange = React.useCallback(
+    (value: string) => onUpdate({ modelKey: value || undefined, modeId: undefined, params: undefined }),
+    [onUpdate],
+  )
+  const modelSelect = useDedupedModelSelect(modelOptions ?? [], shot.modelKey ?? '', onShotModelChange)
+  const modelSelectOptions = modelOptions && modelOptions.length > 0
+    ? [{ value: '', label: t('storyboardEditor.defaultModel') }, ...modelSelect.modelOptions]
+    : null
+  const onModelSelect = (id: string): void => (id ? modelSelect.onModelPick(id) : onShotModelChange(''))
+  const selectedModelOption = modelOptions?.find((o) => o.value === shot.modelKey) ?? null
+
+  // 档案投影：画面格红态 / 参考区形态 / 画幅胶囊全从「该行模型的当前 mode」derive（shotRowModel 单源）。
+  const resolvedMode = resolveShotArchetypeMode(selectedModelOption, shot.modeId)?.mode ?? null
+  const missingSlots = missingRequiredSlots(resolvedMode, shot, anchors)
+  const zone = referenceZoneView(resolvedMode, shot, anchors)
+  const aspectControl = aspectControlOf(resolvedMode)
+  const aspectValue = (() => {
+    const raw = shot.params?.aspect_ratio
+    if (raw !== undefined && raw !== null && raw !== '') return String(raw)
+    return aspectControl?.defaultValue !== undefined ? String(aspectControl.defaultValue) : ''
+  })()
+
+  const dialogueText = shot.dialogue?.trim() || shot.subtitle?.trim() || ''
+
+  return (
+    <div
+      draggable={props.draggable}
+      onDragStart={props.onDragStart}
+      onDragOver={props.onDragOver}
+      onDrop={props.onDrop}
+      onDragEnd={props.onDragEnd}
+      className="relative grid grid-cols-[14px_84px_136px_minmax(0,1fr)] gap-3 py-3 pl-1.5 pr-3 items-start bg-nomi-paper"
+      data-storyboard-row={shot.index}
+    >
+      {props.isDragOver ? (
+        <div className="absolute inset-x-1.5 top-0 h-0.5 rounded-full bg-nomi-accent" aria-hidden />
+      ) : null}
+
+      <span className="self-center justify-self-center cursor-grab text-nomi-ink-20 active:cursor-grabbing" aria-hidden>
+        <IconGripVertical size={15} stroke={1.6} />
+      </span>
+
+      {/* ── 画面格（图是主角：行内最大元素；生成/结果态属 B）── */}
+      {missingSlots.length > 0 ? (
+        <div
+          className="relative w-[76px] h-[132px] rounded-nomi border border-dashed border-workbench-danger bg-workbench-danger-soft flex flex-col items-center justify-center gap-1 p-2 text-center"
+          title={t('storyboardEditor.row.missingRequiredHint')}
+        >
+          <span className="absolute top-1 left-1 px-1 rounded-nomi-sm bg-nomi-ink-10 text-micro text-nomi-ink-60 tabular-nums">
+            {String(shot.index).padStart(2, '0')}
+          </span>
+          <span className="text-micro text-workbench-danger leading-normal">
+            {t('storyboardEditor.row.missingRequired', { slot: translateModelDisplayText(missingSlots[0].label) })}
+          </span>
+        </div>
+      ) : (
+        <div className="relative w-[76px] h-[132px] rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05">
+          <span className="absolute top-1 left-1 px-1 rounded-nomi-sm bg-nomi-ink-10 text-micro text-nomi-ink-60 tabular-nums">
+            {String(shot.index).padStart(2, '0')}
+          </span>
+        </div>
+      )}
+
+      {/* ── 参考区（纯展示）：具名槽空 tile / 已引用锚 + 「@」入口占位 / 不吃参考 ── */}
+      <div className="min-h-[132px] flex flex-col justify-center gap-2">
+        {zone.kind === 'none-accepted' ? (
+          <span className="text-micro text-nomi-ink-30 leading-relaxed">{t('storyboardEditor.row.noRefAccepted')}</span>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {zone.namedSlots.map((slot) => {
+              const missing = slot.min >= 1
+              return (
+                <span key={slot.kind} className="flex flex-col items-center gap-0.5">
+                  <span
+                    className={cn(
+                      'grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed',
+                      missing ? 'border-workbench-danger bg-workbench-danger-soft text-workbench-danger' : 'border-nomi-ink-20 bg-nomi-ink-05 text-nomi-ink-30',
+                    )}
+                  >
+                    <span className="text-micro leading-tight text-center">
+                      {missing ? t('storyboardEditor.row.slotRequired') : null}
+                    </span>
+                  </span>
+                  <span className={cn('text-micro', missing ? 'text-workbench-danger' : 'text-nomi-ink-40')}>
+                    {translateModelDisplayText(slot.label)}
+                  </span>
+                </span>
+              )
+            })}
+            {zone.referencedAnchors.map((anchor) => (
+              <span key={anchor.id} className="flex flex-col items-center gap-0.5">
+                <span className="grid place-items-center w-14 h-14 rounded-nomi-sm border border-nomi-line bg-nomi-ink-10 text-title text-nomi-ink-60">
+                  {(anchor.name || t('storyboardEditor.unnamed')).slice(0, 1)}
+                </span>
+                <span className="text-micro text-nomi-ink-40 max-w-14 truncate">{anchor.name || t('storyboardEditor.unnamed')}</span>
+              </span>
+            ))}
+            {zone.hasArrayIntake ? (
+              <span className="flex flex-col items-center gap-0.5">
+                <span className="grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed border-nomi-ink-20 text-title text-nomi-ink-40" aria-hidden>
+                  @
+                </span>
+                <span className="text-micro text-nomi-ink-40">{t('storyboardEditor.row.refIntakeCap')}</span>
+              </span>
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      {/* ── 提示词块：上沿胶囊（这一镜作用域）→ 提示词 → 下沿台词小字 + ▾ ── */}
+      <div className="min-w-0 min-h-[132px] flex flex-col gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <NomiSelect
+            ariaLabel={t('storyboardEditor.shotType')}
+            leadingLabel={t('storyboardEditor.type')}
+            size="xs"
+            value={shotTypeValue}
+            options={[
+              { value: 'image', label: t('storyboardEditor.image') },
+              { value: 'video', label: t('storyboardEditor.video') },
+              { value: 'image-video', label: t('storyboardEditor.imageVideo') },
+            ]}
+            onChange={onKindChange}
+          />
+          {modelSelectOptions ? (
+            <NomiSelect
+              ariaLabel={isImageShot ? t('storyboardEditor.imageModel') : t('storyboardEditor.videoModel')}
+              leadingLabel={t('storyboardEditor.model')}
+              size="xs"
+              triggerMaxWidth={150}
+              value={shot.modelKey ? modelSelect.modelValue : ''}
+              options={modelSelectOptions}
+              onChange={onModelSelect}
+            />
+          ) : null}
+          {modelSelect.providerOptions.length > 1 ? (
+            <NomiSelect
+              ariaLabel={t('storyboardEditor.provider')}
+              leadingLabel={t('storyboardEditor.provider')}
+              size="xs"
+              triggerMaxWidth={110}
+              value={modelSelect.providerValue}
+              options={modelSelect.providerOptions}
+              onChange={modelSelect.onProviderPick}
+            />
+          ) : null}
+          {aspectControl ? (
+            <NomiSelect
+              ariaLabel={t('storyboardEditor.row.aspectAria')}
+              leadingLabel={t('storyboardEditor.aspect')}
+              size="xs"
+              value={aspectValue}
+              options={aspectControl.options.map((o) => ({ value: String(o.value), label: translateModelDisplayText(o.label) }))}
+              onChange={(value) => onUpdate({ params: { ...(shot.params || {}), aspect_ratio: value } })}
+            />
+          ) : null}
+          <NomiSelect
+            ariaLabel={t('storyboardEditor.duration')}
+            leadingLabel={t('storyboardEditor.duration')}
+            size="xs"
+            value={String(effectiveDuration)}
+            options={durationOptions}
+            onChange={(value) => onUpdate({ durationSec: Number(value) })}
+          />
+          {isImageShot ? (
+            <span
+              className="shrink-0 text-micro text-nomi-accent bg-nomi-accent-soft px-2 py-0.5 rounded-pill"
+              title={t('storyboardEditor.row.stayHint')}
+            >
+              {t('storyboardEditor.row.stayPill')}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            aria-label={t('storyboardEditor.deleteShot')}
+            onClick={onRemove}
+            className="ml-auto shrink-0 size-7 grid place-items-center rounded-nomi-sm text-nomi-ink-30 hover:bg-nomi-ink-10 hover:text-nomi-ink-60"
+          >
+            <IconTrash size={14} stroke={1.6} />
+          </button>
+        </div>
+
+        {shotTypeValue === 'image-video' ? (
+          <>
+            <div className="text-micro text-nomi-ink-40">{t('storyboardEditor.keyframePrompt')}</div>
+            <AutoGrowTextarea
+              value={shot.keyframe?.prompt || ''}
+              onChange={(event) => onUpdate({ keyframe: { ...(shot.keyframe || {}), enabled: true, prompt: event.target.value } })}
+              aria-label={t('storyboardEditor.keyframePromptAria', { index: shot.index })}
+              placeholder={t('storyboardEditor.keyframePromptPlaceholder')}
+              className="px-2 py-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-body-sm text-nomi-ink-80 leading-normal focus:border-nomi-accent"
+            />
+            <div className="text-micro text-nomi-ink-40">{t('storyboardEditor.videoPrompt')}</div>
+          </>
+        ) : null}
+        <AutoGrowTextarea
+          value={shot.prompt}
+          onChange={(event) => onUpdate({ prompt: event.target.value })}
+          aria-label={t('storyboardEditor.promptAria', { index: shot.index })}
+          placeholder={isImageShot ? t('storyboardEditor.imagePromptPlaceholder') : t('storyboardEditor.videoPromptPlaceholder')}
+          className={cn(
+            'flex-1 px-2.5 py-2 rounded-nomi-sm border bg-nomi-paper',
+            'text-body-sm text-nomi-ink-80 leading-normal focus:border-nomi-accent',
+            promptInvalid ? 'border-workbench-danger' : 'border-nomi-line',
+          )}
+        />
+
+        <div className="flex items-center gap-2 min-w-0">
+          {dialogueText ? (
+            <span className="min-w-0 truncate text-micro text-nomi-ink-40">
+              {t('storyboardEditor.row.dialogueQuiet', { text: dialogueText })}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setExpanded((open) => !open)}
+            aria-expanded={expanded}
+            aria-label={expanded ? t('storyboardEditor.row.collapse') : t('storyboardEditor.row.expand')}
+            className="ml-auto shrink-0 size-6 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink-60"
+          >
+            {expanded ? <IconChevronUp size={14} stroke={1.8} /> : <IconChevronDown size={14} stroke={1.8} />}
+          </button>
+        </div>
+      </div>
+
+      {expanded ? (
+        <div className="col-start-2 col-span-3">
+          <StoryboardShotRowExpand
+            shot={shot}
+            anchors={anchors}
+            danglingIds={danglingIds}
+            selectedModelOption={selectedModelOption}
+            onUpdate={onUpdate}
+            onToggleAnchor={onToggleAnchor}
+            {...(onApplyParamsToAll ? { onApplyParamsToAll } : {})}
+          />
+        </div>
+      ) : null}
+    </div>
+  )
+}

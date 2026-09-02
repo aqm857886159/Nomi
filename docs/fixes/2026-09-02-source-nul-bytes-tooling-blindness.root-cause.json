@@ -1,0 +1,130 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-source-nul-bytes-tooling-blindness",
+  "problem_type": "源文件里写了字面 NUL 字节（而非 `\\0` 转义），git 与 grep 据此把它判成二进制，于是该文件对全仓搜索与代码评审**静默失明**——不报错、不警告，只是搜不到也 diff 不出来",
+  "symptom": "2026-09-02 排查 i18n 漏译时，`grep -rn \"expectNoCjkInEnglishDom\" tests/ux/_assert.mjs` 返回**零结果且无任何提示**，我据此一度断定该函数不在这个文件里——它就在第 232 行；`grep -c \"^export\"` 对同一个 570 行的模块也返回 0。同批 `git diff --stat` 把 src/workbench/settings/defaultGenerationModelOptions.ts 显示成 `Bin 3372 -> 3703 bytes` 而不是行 diff，该文件的改动因此无法正常评审，pre-commit 的 Ponytail 评审也读不到它。全仓实扫命中 9 个文件 10 处裸 NUL。",
+  "direct_cause": "复合键分隔符被写成**字面 U+0000 字节**而不是 `\\0` 转义，例如 `\\`${model.vendorKey}<裸NUL>${model.modelKey}\\``。git 判定二进制的启发式是「前 8000 字节内是否含 NUL」，grep 则扫整个文件；两者命中后都改走二进制路径：grep 直接跳过该文件（不打印任何提示，除非加 -a），git 输出 `Bin ... bytes` 而不做逐行 diff。运行期行为与转义写法完全一致，所以写的人和读的人都不会察觉。",
+  "class_root": "缺的不变量是「仓库里的源文件必须始终是**纯文本**，即不含裸 NUL」。这条此前完全没人守：裸 NUL 在编辑器里不可见、粘贴/生成代码时极易带入、运行期又毫无差别，所以它既不会被作者发现，也不会被任何测试、类型检查或 lint 发现——唯一的症状是**别的工具从此少看见一个文件**，而那是个否定式的、没有报错的症状。同一份代码里已经存在正确写法（src/ui/onboarding/modelSettingsCatalogProjection.ts:43 用的是 `\\0` 转义），说明这不是「不知道该怎么写」，而是「写错了也没有任何东西会告诉你」。因此正确形状是加一道扫全仓字节的硬零门岗，让「文件不再是纯文本」这件事在 CI 当场可见，而不是靠人记得用转义。",
+  "affected_population": [
+    "任何做全仓 grep 的人和流程：审计（R14 七维横扫）、重构改名、安全扫查、以及我派出去做搜索的 subagent——它们对这 9 个文件全部失明，且失明时返回的是「没有匹配」而不是错误，与「确实不存在」完全无法区分。",
+    "代码评审：受影响文件的 diff 显示为 `Bin`，人看不到改了什么；R25 的 pre-commit / pre-push Ponytail 只读评审同样读不到这些文件的内容，等于这几个文件的改动绕过了评审闸。",
+    "受影响文件覆盖持久化与供应商路径（electron/projects/repository.ts 的文件名净化、electron/vendor/fingerprintCache.ts 的缓存键、electron/catalog/relayNativeWireUpgrade.ts 的中转升级缓存键），不是只在边角。",
+    "未来任何新写的源文件：裸 NUL 可以从粘贴、代码生成、或直接手输带入，此前没有任何环节会发现。"
+  ],
+  "scope_paths": [
+    "scripts/check-source-nul-bytes.mjs",
+    "scripts/check-source-nul-bytes.test.ts",
+    "package.json",
+    "electron/capabilityCore/shotVerifyCore.ts",
+    "electron/catalog/relayNativeWireUpgrade.ts",
+    "electron/projects/repository.ts",
+    "electron/vendor/fingerprintCache.ts",
+    "src/ui/onboarding/modelEnableEditing.ts",
+    "src/ui/onboarding/modelEnableEditing.test.ts",
+    "src/workbench/assets/assetSurfaceMigration.ts",
+    "src/workbench/settings/defaultGenerationModelOptions.ts",
+    "tests/ux/_assert.mjs"
+  ],
+  "entry_points": [
+    "scripts/check-source-nul-bytes.mjs — 唯一强制点：按 `git ls-files --cached --others --exclude-standard` 枚举「已跟踪 + 未跟踪未忽略」的文件，跳过真二进制资产扩展名，逐个读字节找 0x00，命中即非零退出并报出文件与行号。硬零，无基线、无豁免名单。",
+    "package.json — gates:contracts 链里新增 check:nul-bytes（紧跟 check:symlinks）；check:gates-chain 保证它不会在解冲突时被静默吞掉。",
+    "8 处模板/字符串里的复合键分隔符改用 `\\0` 转义（沿用 modelSettingsCatalogProjection.ts:43 的既有写法）；2 处正则的控制字符区间改用 `[\\u0000-\\u001f]`（与同区间另一端 U+001F 一起转义，让「这是控制字符区间」这个意图读得出来）。"
+  ],
+  "internal_only_reason": "判据全部可在本机验证、不依赖任何外部文档：`file <path>` 从 `data` 变回 `Unicode text`、`grep` 不再需要 -a、`git diff` 从 `Bin` 变回行 diff、以及 `\\`a\\0b\\`.length === 3 且中间码位为 0` 证明运行期字节未变。git 的「前 8000 字节含 NUL 即二进制」阈值是实测观察到的（同一批文件里，NUL 在 8000 字节之后的 shotVerifyCore.ts 与 _assert.mjs 的 git diff 正常、grep 仍失明），不是从文档抄的，故未引用外部来源。未新增或改动任何第三方依赖与外部契约。",
+  "invariants": [
+    "仓库中每个「已跟踪或未跟踪未忽略」且不是二进制资产扩展名的文件，其字节流中不得出现 0x00。",
+    "需要 U+0000 的字符串一律写转义（模板/字符串里 `\\0` 或 `\\u0000`，正则字符类里 `\\u0000`）；运行期语义与裸字节完全等价，因此这条约束不改变任何行为。",
+    "门岗的扫描面必须包含**未跟踪**文件：只扫已跟踪文件会让新写的文件免检，而新文件正是最常见的引入路径。",
+    "该门岗是硬零：不设基线、不设豁免名单。真二进制资产靠扩展名整体排除，不靠逐个开豁免。"
+  ],
+  "generality_proof": "门岗不针对某个文件或某种写法，而是直接扫**字节**：任何文件、任何语言、任何引入方式（手输、粘贴、代码生成、合并冲突残留）带进来的 0x00 都会命中同一条判据，因此覆盖面等于「仓库里所有非二进制资产文件」。它也不依赖作者记得用转义——正是「写错了没人告诉你」构成了这个类的根，所以强制点必须在 CI 而不在人的习惯上。扫描面包含未跟踪文件，堵住「新文件免检」这条最常见的引入路径（这条不是推想：门岗第一版用 `git ls-files` 只扫已跟踪，结果扫不到它自己，而它自身当时恰好含裸 NUL 却报了全仓通过；该情形已由类级测试固定）。类级测试 scripts/check-source-nul-bytes.test.ts 用真实探针文件驱动真门岗，含阳性对照（仓库现状必须绿）、已跟踪与未跟踪两种命中、以及「转义写法不算违规」的反向断言。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-source-nul-bytes.mjs",
+      "symbol": "filesToScan",
+      "responsibility": "裸 NUL 的唯一强制边界：枚举全仓（含未跟踪未忽略）非二进制资产文件并逐字节检查 0x00，命中即 fail-closed。保证「源文件始终是纯文本、因而 grep 搜得到、git diff 读得出、Ponytail 评审看得见」这条不变量对所有文件、所有引入路径一视同仁。"
+    },
+    {
+      "path": "package.json",
+      "symbol": "gates:contracts",
+      "responsibility": "把 check:nul-bytes 接进每个 PR 必跑的门岗链；check:gates-chain 反过来保证它不会在解冲突时被静默吞掉（该门岗本身就是为「门岗从链里消失」这一类失效而设）。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/_assert.mjs",
+      "entry_point": "expectNoCjkInEnglishDom 去重键（第 281 行）",
+      "disposition": "enforced",
+      "evidence": "报告案例本身：NUL 在约 12000 字节处，超出 git 的 8000 字节窗口，所以 git diff 一直正常、唯独 grep 失明——最难察觉的一种。改用 `\\0` 后 `grep -n \"expectNoCjkInEnglishDom\" tests/ux/_assert.mjs` 直接命中第 232 行，无需 -a。"
+    },
+    {
+      "path": "electron/projects/repository.ts",
+      "entry_point": "文件名净化正则 `/[<>:\"/\\\\|?*\\u0000-\\u001f]/g`（第 58 行）",
+      "disposition": "enforced",
+      "evidence": "与复合键那族形状不同（正则字符类里的控制字符区间，两端 U+0000 与 U+001F 都是裸字节），但触发同一条二进制判定。改为 `\\u0000-\\u001f` 后区间意图反而读得出来了。同形状的另一处是 electron/capabilityCore/shotVerifyCore.ts:209，同批修复。"
+    },
+    {
+      "path": "electron/assets/mediaTypes.test.ts",
+      "entry_point": "PNG magic 夹具 `head([0x89], \"PNG\\r\\n<U+001A>\\n\")`（第 129 行）",
+      "disposition": "not-affected",
+      "evidence": "全仓扫描确认这是除 NUL 外唯一的裸 C0 控制字符（U+001A）。它是正当的二进制签名夹具，且 U+001A **不触发** git/grep 的二进制判定，不造成本类失明，故刻意不纳管——把它一并禁掉就得让规则上线当天自带豁免名单，那比一条精确的硬零规则弱。门岗注释里写明了这个边界。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "不是某一处手滑：全仓实扫命中 9 个文件 10 处，跨 electron/ 与 src/ 两侧、跨生产代码与测试、跨两种语法形状（模板串分隔符、正则控制字符区间），且分属不同时期不同作者。成因是结构性的——裸 NUL 在编辑器里不可见、运行期与转义完全等价、既有测试/类型/lint 全都发现不了，所以只要没有专门的字节级门岗，第 11 处一定会出现。写这条门岗的过程本身又复现了一次：我写门岗脚本时自己带进了裸 NUL。",
+    "same_class_scan": [
+      "全仓字节扫描（git ls-files 枚举 4485 个非二进制资产的跟踪文件，逐个 buf.includes(0)）：命中 9 个文件——electron/capabilityCore/shotVerifyCore.ts:209、electron/catalog/relayNativeWireUpgrade.ts:59、electron/projects/repository.ts:58、electron/vendor/fingerprintCache.ts:62、src/ui/onboarding/modelEnableEditing.ts:28、src/ui/onboarding/modelEnableEditing.test.ts:56、src/workbench/assets/assetSurfaceMigration.ts:44、src/workbench/settings/defaultGenerationModelOptions.ts:52,76、tests/ux/_assert.mjs:281。任务单最初只点名 3 个，实扫多出 6 个——证明按报告清单逐条修必然漏。",
+      "扩大到全部 C0 控制字符（除 tab/LF/CR）再扫一遍，确认除 NUL 外只有 1 处 U+001A（PNG magic 夹具），据此把规则精确定在 NUL 而不是泛化到 C0（见 same_class_entry_points 的 not-affected 条）。",
+      "确认仓内已存在正确写法作为对照：src/ui/onboarding/modelSettingsCatalogProjection.ts:43 的 `\\`${vendorKey}\\0${modelKey}\\`` 用的是转义，与 defaultGenerationModelOptions.ts 的裸字节写法做同一件事——说明差别不在知识而在缺少强制。",
+      "逐条验证运行期未变：`\\`a\\0b\\`.length === 3` 且中间字符码位为 0；并程序化确认修改后的 10 处 `\\0` 后面都不是数字（若跟数字会退化成八进制转义，含义完全不同）。",
+      "门岗自检：第一版用 `git ls-files`（仅已跟踪）时对自身失明——脚本自己含裸 NUL 却报全仓通过。改为 `--cached --others --exclude-standard` 后当场自己红。该情形写成了类级测试的一条。"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-source-nul-bytes.mjs",
+    "invariant": "仓库中每个已跟踪或未跟踪未忽略的非二进制资产文件，字节流里不含 0x00。",
+    "failure_mode": "命中即非零退出，并逐个报出文件、裸 NUL 个数、行号与该行内容（用 ␀ 标出不可见字节的位置），并给出改成 `\\0` / `\\u0000` 的具体写法。硬零：没有基线数字可以往上调，也没有豁免名单可以往里加。",
+    "exception_policy": "none",
+    "strategy": "把判据落在**字节**而不是语法或作者习惯上，于是与语言、写法、引入路径都无关；扫描面含未跟踪文件，堵住新文件免检这条最常见的引入路径。接进 gates:contracts（每个 PR 必跑），并由既有的 check:gates-chain 保证它不会在解冲突时被静默吞掉。",
+    "artifacts": [
+      "scripts/check-source-nul-bytes.mjs",
+      "scripts/check-source-nul-bytes.test.ts",
+      "package.json"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-source-nul-bytes.test.ts"
+  ],
+  "class_regression_tests": [
+    "scripts/check-source-nul-bytes.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/shotVerifyCore.ts",
+      "electron/catalog/relayNativeWireUpgrade.ts",
+      "electron/projects/repository.ts",
+      "electron/vendor/fingerprintCache.ts",
+      "src/ui/onboarding/modelEnableEditing.ts",
+      "src/ui/onboarding/modelEnableEditing.test.ts",
+      "src/workbench/assets/assetSurfaceMigration.ts",
+      "src/workbench/settings/defaultGenerationModelOptions.ts",
+      "tests/ux/_assert.mjs"
+    ],
+    "rationale": "裸字节写法在这 9 个文件里就地替换为转义写法，没有留第二种写法、没有 fallback、也没有「暂时容忍」的豁免口子。全仓现在只剩一种表达 U+0000 的方式（转义），由硬零门岗保证。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "exit_criteria": [],
+    "rationale": "不涉及任何第三方依赖：门岗只用 node 内置模块与 git CLI，修复只改仓库自有源文件的字节表示。未新增/升级/保留任何 npm 依赖。"
+  },
+  "migration": "无数据迁移，也无任何运行期行为变化。转义写法产生的字符串与裸字节写法**逐字节相同**（仍是单个 U+0000），因此所有复合键、去重集合、缓存键、正则匹配结果都不变；已持久化的数据（catalog 行、项目文件名、fingerprint 缓存）不受影响，无需重建。改的只是源文件在磁盘上的字节表示，让工具重新把它们当纯文本。",
+  "residual_risks": [
+    "门岗按扩展名整体排除真二进制资产（png/woff/zip…）。若将来有人以**非常规扩展名**提交二进制内容（如把二进制塞进 .txt/.json），门岗会把它报成违规——那时正确处置是给该文件配 .gitattributes 标 binary 或换扩展名，而不是往门岗里加豁免名单；此情形当前不存在，未预先设计。",
+    "只收 NUL，不收其它裸 C0 控制字符。electron/assets/mediaTypes.test.ts:129 的裸 U+001A（PNG magic）依然存在——它不触发 git/grep 失明，但在 diff 与编辑器里同样不可见。判断是「不造成本类危害，不值得为它引入豁免名单」，但这是个取舍不是定论。",
+    "门岗每次跑要读约 4485 个文件（本机 <1s）。仓库继续长大后若成为 gates 链的时间瓶颈，可改为只扫 `git diff` 涉及的文件——但那样就从「全仓不变量」退化成「增量检查」，会漏掉从别的分支合进来的存量，届时需要权衡。",
+    "已提交的历史里仍留有含 NUL 的旧 blob，因此**跨这次修复的 diff**（如 git log -p 看这条提交本身）仍会显示为 `Bin`——git 只要 diff 一侧是二进制就走二进制路径。这是不可回避的一次性代价，此提交之后的所有 diff 都是正常文本。"
+  ]
+}

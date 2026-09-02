@@ -49,3 +49,9 @@ cat <<'EOF'
 ③ push 前 —— 五门：`pnpm run gates` 全过(filesize→tokens→lint→typecheck→test→build R11)。push 闸会拦没过的
 【贯穿全程】修 bug 挖根因不修症状·答得出「这类不再复发」才算到根因(P2)｜加新必删旧·无并行版/fallback/逃生口·CSS 只写组件 className(P1)｜随输入 derive 不 hardcode 钉死｜分层(UI/状态/领域/runtime/持久化)·单文件≤800 行(R9)
 EOF
+
+# 交付账本提醒（现役欠账 + 最久停滞 top3）——账本设计里「salience 才是关键」的那一半，2026-09-02 接上。
+# 现算，不读任何 committed 产物：账本本身是本地视图、不进 git（含全局计数，commit 了会造成
+# 人工解不对的合并冲突，见 docs/fixes/2026-09-02-unmergeable-generated-artifact.root-cause.json）。
+# 失败静默跳过，不阻塞本 hook 的三闸输出。
+node "$ROOT/scripts/build-delivery-ledger.mjs" --brief 2>/dev/null || true

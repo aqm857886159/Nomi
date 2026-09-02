@@ -1,16 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { MODEL_ARCHETYPES, resolveArchetypeForModel } from "./index";
-import { sourceBackedVideoProfiles } from "../../../electron/shared/videoCapabilities";
+import { buildVideoModelCandidates, sourceBackedVideoProfiles } from "../../../electron/shared/videoCapabilities";
 
 // 二期档案归一（2026-09-02）的结构保证：MODEL_ARCHETYPES 的 video 块改为从
 // electron/shared/videoCapabilities/registry.ts 派生（唯一登记点），数组顺序因此从
-// 「手列的历史顺序」变成 registry 顺序。三趟身份匹配（resolveBaseArchetype）
+// 「手列的历史顺序」变成 registry 声明序。三趟身份匹配（resolveBaseArchetype）
 // 在同趟多命中时按数组顺序决胜——所以「顺序」本身是行为。本文件把**所有已知的跨档案同串**
 // 的存量赢家逐个锁死：未来任何重排 / 新增档案 / 改 pattern 若翻转任一赢家，这里当场红，
 // 而不是等用户手上「认错模型、参数全错」（z-image 事故的教训）。
 //
-// 语料来源：搬迁探针对全 pattern 语料（raw/lower/upper/models 前缀/末段变形，1042 条）
-// 在新旧两序上逐一对比，赢家全部一致；同趟多命中点（顺序敏感点）沉淀为下面两张表。
+// veo3.1 同串双身份修复（2026-09-02，行为变更独立立项）：裸 "veo3.1" 曾在渲染层解析到
+// runway-video（历史手列序 + legacy pin 钉住）、在 registry 平局判据解析到 veo-3.1——同一个
+// 串两个身份。语义正确身份 = veo-3.1（Google Veo 3.1：APIMart 官方 key 就是 veo3.1 族，
+// 专属档案的报文形状 image_urls/generation_type 才是中转/裸 key 该走的契约；Runway 平台自己
+// 的目录行显式 pin 了 archetypeId，从不走身份匹配）。pin 已删，两侧共用 registry 声明序，
+// 「专属档案赢平台判别串」规则自此无例外；跨侧一致性由文末对拍测试永久锁住。
 
 const resolve = (modelKey: string) => resolveArchetypeForModel({ modelKey, vendorKey: null })?.id ?? null;
 
@@ -91,5 +95,58 @@ describe("pattern 自解析不变量（除已登记例外，每个 pattern 解�
       }
     }
     expect(violations).toEqual([]);
+  });
+});
+
+describe("同串双身份禁令：渲染层与 registry 平局判据对全语料逐串对拍", () => {
+  // 这类分裂（"veo3.1" 事故）的病灶：两侧各持一份决胜逻辑，同一身份串两个赢家——推荐/规划层
+  // （registry profileFor）许诺一个档案，UI/发送路（resolveArchetypeForModel）却按另一个档案发报文。
+  // 不变量：对「全部档案 identifierPatterns + variant modelKey + legacyIds ×
+  // {raw, lower, UPPER, models/ 前缀, 裸末段, vendor 前缀末段}」全语料，凡两侧都认领的串，
+  // 赢家必须相同。认领面允许不同（registry 有 includes 宽容档给推荐兜底、渲染层刻意只认相等），
+  // 但**身份判定不许分裂**。新增档案若引入新的同串且两侧赢家不同，这里当场红。
+  const lastSegment = (s: string): string => {
+    const i = s.lastIndexOf("/");
+    return i >= 0 ? s.slice(i + 1) : s;
+  };
+
+  const corpus = new Set<string>();
+  for (const archetype of MODEL_ARCHETYPES) {
+    const bases = [
+      ...archetype.identifierPatterns,
+      ...(archetype.variants ?? []).map((v) => v.modelKey),
+      ...(archetype.legacyIds ?? []),
+    ];
+    for (const base of bases) {
+      corpus.add(base);
+      corpus.add(base.toLowerCase());
+      corpus.add(base.toUpperCase());
+      corpus.add(`models/${base}`);
+      corpus.add(lastSegment(base));
+      corpus.add(`somevendor/${lastSegment(base)}`);
+    }
+  }
+
+  const registryResolve = (modelKey: string): string | null => {
+    const [candidate] = buildVideoModelCandidates([{ provider: "probe", modelKey, label: modelKey }]);
+    const id = candidate?.archetype?.id ?? null;
+    return id && id.startsWith("catalog-video-") ? null : id; // unknown 兜底 = 不认领
+  };
+
+  it("两侧都认领的串赢家一致（diffs=0）", () => {
+    const diffs: string[] = [];
+    for (const identifier of corpus) {
+      const rendererId = resolve(identifier);
+      const registryId = registryResolve(identifier);
+      if (rendererId && registryId && rendererId !== registryId) {
+        diffs.push(`"${identifier}" renderer→${rendererId} registry→${registryId}`);
+      }
+    }
+    expect(diffs).toEqual([]);
+  });
+
+  it('裸 "veo3.1" 两侧同判 veo-3.1（曾经的分裂原案，双向显式锁死）', () => {
+    expect(resolve("veo3.1")).toBe("veo-3.1");
+    expect(registryResolve("veo3.1")).toBe("veo-3.1");
   });
 });

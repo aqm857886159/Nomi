@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { BuiltinCanvasCategoryId, GenerationCanvasEdgeMode } from '../model/generationCanvasTypes'
+import { DEFAULT_IMAGE_SECONDS } from '../model/buildClipFromGenerationNode'
 import i18n from '../../../i18n'
 
 /**
@@ -52,12 +53,23 @@ export type PlanShot = {
   /** Stable story-order identifier. Legacy plans may omit it; the converter derives `shot-${index}`. */
   shotId?: string
   /**
+   * 所属场 id（分镜表 v5 场分组）。同场镜头在 shots[] 里应连续；缺省（旧 plan/无场故事）=
+   * 单一隐式场（表不显组头，行为等同没有分场）。场的标题/顺序在 `StoryboardPlan.scenes`；
+   * 引用了 scenes 里不存在的 id 时表层按出现顺序补隐式组头，不丢镜头。
+   */
+  sceneId?: string
+  /**
    * 该镜种类：'image'=图片分镜（落 image 节点、无时长、绑图片模型）；'video'=视频分镜（落 video 节点、带时长）。
    * 缺省（旧草稿无此字段）按 'video' 兜底以保持既有行为；新计划由拆镜头开关/planner 显式标注
    * （用户拍板：拆镜头默认出图片分镜）。图片镜头满意后可经「转视频」升成视频镜头（S2）。
    */
   shotKind?: 'image' | 'video'
-  /** 该镜时长(秒)；仅视频镜头用——落画布写进视频节点 duration 参数，按所选模型控件钳值。图片镜头忽略。 */
+  /**
+   * 该镜时长(秒)。视频镜头 = 生成时长——落画布写进视频节点 duration 参数，按所选模型控件钳值。
+   * 图片镜头 = **停留时长**（分镜 v5：进时间轴/顺播时这张图停几秒）——默认 3 = `DEFAULT_IMAGE_SECONDS`
+   * 单一真相源（buildClipFromGenerationNode.ts）；≤0（旧 planner 对图片镜吐 0）经
+   * `effectiveShotDurationSec` 回落到默认，别在展示/合计处再写字面量 3。
+   */
   durationSec: number
   /** 这镜用到哪些锚（按 anchor.id 引用）→ 视觉锚连参考边、文本锚拼 prompt。 */
   anchorIds: string[]
@@ -124,10 +136,29 @@ export type StoryboardPlan = {
   title: string
   anchors: PlanAnchor[]
   shots: PlanShot[]
+  /**
+   * 场清单（v5 场分组）：id 被 `PlanShot.sceneId` 引用，title 是组头显示名，数组序=场序。
+   * 缺省 = 无分场（表按单一隐式场渲染，不显组头）。
+   */
+  scenes?: { id: string; title: string }[]
+  /** 片种模板 key（如 'genre.short-drama'）；缺省 = 自由格式。骨架段/画幅默认按它 derive（C 阶段接管）。 */
+  profileKey?: string
   /** The exact approved script this plan was derived from. */
   sourceScriptArtifactId?: string
   sourceScriptVersion?: number
   sourceScriptHash?: string
+}
+
+/**
+ * 该镜计入合计/顺播/时间轴的**有效时长**（秒）——图片镜的停留语义唯一换算点。
+ * 图片镜：durationSec>0 用它，否则回落 `DEFAULT_IMAGE_SECONDS`（旧 planner 对图片镜吐 0 的向后兼容）；
+ * 视频镜：durationSec 原值。方案卡合计、场组头小结、行角标全走这里（P1 单一真相源）。
+ */
+export function effectiveShotDurationSec(shot: PlanShot): number {
+  if (shot.shotKind === 'image') {
+    return Number.isFinite(shot.durationSec) && shot.durationSec > 0 ? shot.durationSec : DEFAULT_IMAGE_SECONDS
+  }
+  return Number.isFinite(shot.durationSec) && shot.durationSec > 0 ? shot.durationSec : 0
 }
 
 // ── 校验 schema：planner 产出/落库前的运行时守卫（也是 S3 激活时交给 LLM 的工具参数 schema）──
@@ -162,6 +193,7 @@ export const planAnchorSchema = z.object({
 export const planShotSchema = z.object({
   index: z.number().int(),
   shotId: z.string().min(1).optional().describe('稳定镜头 ID；缺省时由系统按镜号生成。'),
+  sceneId: z.string().min(1).optional().describe('所属场 id（同场镜头连续、共用一个 id）；无分场故事省略。'),
   shotKind: z
     .enum(['image', 'video'])
     .optional()
@@ -215,6 +247,11 @@ export const storyboardPlanSchema = z.object({
   title: z.string(),
   anchors: z.array(planAnchorSchema),
   shots: z.preprocess(parseJsonArrayString, z.array(planShotSchema)),
+  scenes: z
+    .array(z.object({ id: z.string().min(1), title: z.string() }))
+    .optional()
+    .describe('场清单（数组序=场序）；id 被 shots[].sceneId 引用。无分场省略。'),
+  profileKey: z.string().min(1).optional().describe('片种模板 key；缺省=自由格式。'),
   sourceScriptArtifactId: z.string().min(1).optional(),
   sourceScriptVersion: z.number().int().positive().optional(),
   sourceScriptHash: z.string().min(1).optional(),
@@ -431,15 +468,42 @@ export function buildAnchorSheetPrompt(anchor: PlanAnchor): string {
   ].join('\n')
 }
 
-/** 文本锚的描述拼进引用它的镜头 prompt（「能 prompt 说清的就别生成图」的落地：文本锚 = 写进 prompt）。 */
-function buildShotPrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>): string {
-  const textBits = shot.anchorIds
+/**
+ * 引用锚要拼进镜头 prompt 的那几段。两类锚、两种拼法，**唯一一处**（两个 build*Prompt 共用，别再各抄一份）：
+ *
+ *  · 文本锚（style 等，carrier='text'）：整段 description。它本来就不建节点，只能靠 prompt 说清。
+ *  · 视觉锚（角色/场景/道具 = 定妆卡）：只拼 `staticFeatures`（身份 DNA），**绝不拼 dynamicFeatures**。
+ *    档案本来就把这两层分开了：static 是「同一个人」的定义（脸/眼/疤/年龄性别），跨镜不变；
+ *    dynamic 是服装与状态，跨镜本来就该变——拼进去会跟这一镜的画面打架（这一镜她刚从水里爬出来，
+ *    卡上却写着「穿黄油布外套」）。
+ *
+ * 为什么视觉锚除了连参考图还要**再给一段字**（2026-09-02 实测才敢加，不是拍脑袋）：
+ * Seedream 4.5 i2i、同一张参考图、同一段镜头文字，只有「拼不拼 static」一个变量，shot3 各跑 4 次——
+ *   · 只给图：**0/4** 拿到要求的「脸部特写」（都退回全身/中景站位）
+ *   · 图 + static：**3/4** 拿到特写
+ * 身份本身两臂都没崩（参考图 i2i 已经锁得住），所以这段字的收益在**构图遵循度**：
+ * 只给图时模型不知道这一镜的重点是谁，就退回最安全的全身；给了身份文字它才照着「特写谁的脸」去构图。
+ *
+ * 顺带解决黑盒：拼在这里 = 这段字进 `node.prompt`，用户在提示词框里**看得见也改得动**，
+ * 而不是躺在 meta 里没人知道它存不存在。
+ */
+function anchorPromptBits(shot: PlanShot, anchorById: Map<string, PlanAnchor>): string[] {
+  return shot.anchorIds
     .map((id) => anchorById.get(id))
-    .filter((anchor): anchor is PlanAnchor => Boolean(anchor) && anchor!.carrier === 'text')
-    .map((anchor) => `${anchor.name}：${anchor.description}`.trim())
+    .filter((anchor): anchor is PlanAnchor => Boolean(anchor))
+    .map((anchor) => {
+      if (anchor.carrier === 'text') return `${anchor.name}：${anchor.description}`.trim()
+      const staticFeatures = (anchor.staticFeatures || '').trim()
+      return staticFeatures ? `${anchor.name}·身份特征（跨镜保持一致）：${staticFeatures}` : ''
+    })
     .filter(Boolean)
+}
+
+/** 镜头 prompt = 镜头本体 + 引用锚的描述段（文本锚整段 / 视觉锚只给身份 DNA）。 */
+function buildShotPrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>): string {
+  const bits = anchorPromptBits(shot, anchorById)
   const base = shot.prompt.trim()
-  return textBits.length ? [base, ...textBits].filter(Boolean).join('\n') : base
+  return bits.length ? [base, ...bits].filter(Boolean).join('\n') : base
 }
 
 function buildKeyframePrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>): string {
@@ -449,12 +513,8 @@ function buildKeyframePrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>
   const keyframePrompt = typeof shot.keyframe?.prompt === 'string' && shot.keyframe.prompt.trim()
     ? shot.keyframe.prompt.trim()
     : (typeof shot.ffDesc === 'string' && shot.ffDesc.trim() ? shot.ffDesc.trim() : shot.prompt.trim())
-  const textBits = shot.anchorIds
-    .map((id) => anchorById.get(id))
-    .filter((anchor): anchor is PlanAnchor => Boolean(anchor) && anchor!.carrier === 'text')
-    .map((anchor) => `${anchor.name}：${anchor.description}`.trim())
-    .filter(Boolean)
-  return textBits.length ? [keyframePrompt, ...textBits].filter(Boolean).join('\n') : keyframePrompt
+  const bits = anchorPromptBits(shot, anchorById)
+  return bits.length ? [keyframePrompt, ...bits].filter(Boolean).join('\n') : keyframePrompt
 }
 
 /**
@@ -565,14 +625,19 @@ export function storyboardPlanToCreateNodesArgs(
         ...(shot.params || {}),
         ...(!isImageShot && Number.isFinite(shot.durationSec) ? { duration: shot.durationSec } : {}),
       },
-      metadata: storyboardShotMetadata(
-        plan,
-        shot,
-        options.materializationOperationId,
-        id,
-        options.creationDocumentId,
-        options.storyboardDesignId,
-      ),
+      metadata: {
+        ...storyboardShotMetadata(
+          plan,
+          shot,
+          options.materializationOperationId,
+          id,
+          options.creationDocumentId,
+          options.storyboardDesignId,
+        ),
+        // 图片镜停留时长（v5）：写进节点 meta 供时间轴/顺播读取。本阶段只写入，
+        // buildClipFromGenerationNode 的读取接线在 B（默认值同源 DEFAULT_IMAGE_SECONDS）。
+        ...(isImageShot ? { imageDurationSec: effectiveShotDurationSec(shot) } : {}),
+      },
     })
     // 定妆卡 → 这一镜参考边（角色 character_ref / 场景·风格 style_ref / 道具 reference）。图片/视频镜头都连。
     for (const anchorId of visualAnchorIds) {

@@ -308,7 +308,7 @@ describe('mcpNodeLauncher library fingerprint handshake', () => {
       clientInfo: { name: 'redirect-test', version: '1' },
     })
 
-    const response = await launcher.rpc('tools/call', { name: 'nomi_list_projects', arguments: {} })
+    const response = await launcher.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
 
     expect(redirect.sourceRequests).toHaveLength(1)
     expect(redirect.targetRequests).toEqual([])
@@ -351,8 +351,8 @@ describe('mcpNodeLauncher library fingerprint handshake', () => {
     })
 
     const response = await launcher.rpc('tools/call', {
-      name: 'nomi_read_canvas',
-      arguments: { projectId: 'project-1', leaseHandle: 'opaque-project-lease' },
+      name: 'nomi_read',
+      arguments: { target: 'canvas', projectId: 'project-1', leaseHandle: 'opaque-project-lease' },
     })
     const serialized = JSON.stringify(response)
     const outcome = response.result?.structuredContent as { nomiOutcome?: Record<string, unknown> } | undefined
@@ -393,9 +393,9 @@ describe('mcpNodeLauncher library fingerprint handshake', () => {
       })
     }
 
-    await first.rpc('tools/call', { name: 'nomi_list_projects', arguments: {} })
-    await first.rpc('tools/call', { name: 'nomi_list_projects', arguments: {} })
-    await second.rpc('tools/call', { name: 'nomi_list_projects', arguments: {} })
+    await first.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
+    await first.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
+    await second.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
 
     const [firstCall, firstAgain, secondCall] = fake.requests
     expect(firstCall?.['x-nomi-mcp-connection-attestation']).toBe(firstAgain?.['x-nomi-mcp-connection-attestation'])
@@ -426,7 +426,7 @@ describe('mcpNodeLauncher library fingerprint handshake', () => {
     await launcher.rpc('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'hijack-test', version: '1' } })
 
     const startedAt = Date.now()
-    const response = await launcher.rpc('tools/call', { name: 'nomi_list_projects', arguments: {} })
+    const response = await launcher.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
     const elapsed = Date.now() - startedAt
 
     expect(elapsed).toBeLessThan(FAST_FAIL_BUDGET_MS)
@@ -485,7 +485,7 @@ setTimeout(() => process.exit(0), 5_000)
       appArgs: [fallbackApp, capabilityDir, String(defaultRpc.port)],
     })
     await launcher.rpc('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'namespace-test', version: '1' } })
-    const response = await launcher.rpc('tools/call', { name: 'nomi_list_projects', arguments: {} })
+    const response = await launcher.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
 
     const serialized = JSON.stringify(response)
     expect(serialized).not.toContain('CUSTOM-only') // 自定义库广告被无视
@@ -506,7 +506,7 @@ describe('mcpNodeLauncher cold start', () => {
       protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'launcher-race-test', version: '1' },
     })))
     const responses = await Promise.all([first, second].map(({ rpc }) => rpc('tools/call', {
-      name: 'nomi_list_projects', arguments: {},
+      name: 'nomi_read', arguments: { target: 'projects' },
     })))
 
     for (const response of responses) {

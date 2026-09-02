@@ -110,7 +110,7 @@ describe('nomi-mcp · 创意门由服务端强制 elicitation', () => {
     await harness.initialize(false)
     harness.send({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'nomi_decide_gate', arguments: { projectId: 'project-1', runId: 'run-1', gateId: 'gate-direction-v1', decision: 'approved', choiceKey: 'studio' } },
+      params: { name: 'nomi_run_gate', arguments: { action: 'decide', projectId: 'project-1', runId: 'run-1', gateId: 'gate-direction-v1', decision: 'approved', choiceKey: 'studio' } },
     })
     const response = await harness.next()
     expect(response.id).toBe(2)
@@ -126,7 +126,7 @@ describe('nomi-mcp · 创意门由服务端强制 elicitation', () => {
     await harness.initialize(true)
     harness.send({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'nomi_decide_gate', arguments: { projectId: 'project-1', runId: 'run-1', gateId: 'gate-direction-v1', decision: 'approved', choiceKey: 'studio' } },
+      params: { name: 'nomi_run_gate', arguments: { action: 'decide', projectId: 'project-1', runId: 'run-1', gateId: 'gate-direction-v1', decision: 'approved', choiceKey: 'studio' } },
     })
     const elicit = await harness.next()
     expect(elicit.method).toBe('elicitation/create')
@@ -150,7 +150,7 @@ describe('nomi-mcp · 创意门由服务端强制 elicitation', () => {
     await harness.initialize(true)
     harness.send({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'nomi_decide_gate', arguments: { projectId: 'project-1', runId: 'run-1', gateId: 'gate-direction-v1', decision: 'approved', choiceKey: 'studio' } },
+      params: { name: 'nomi_run_gate', arguments: { action: 'decide', projectId: 'project-1', runId: 'run-1', gateId: 'gate-direction-v1', decision: 'approved', choiceKey: 'studio' } },
     })
     const elicit = await harness.next()
     harness.send({ jsonrpc: '2.0', id: elicit.id, result: { action: 'accept', content: { confirm: true } } })
@@ -184,7 +184,7 @@ describe('nomi-mcp · 创意门由服务端强制 elicitation', () => {
     await harness.initialize(true)
     harness.send({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'nomi_decide_gate', arguments: { projectId: 'project-1', runId: 'run-1', gateId: 'gate-anchor-checkpoint-run-1', decision: 'approved' } },
+      params: { name: 'nomi_run_gate', arguments: { action: 'decide', projectId: 'project-1', runId: 'run-1', gateId: 'gate-anchor-checkpoint-run-1', decision: 'approved' } },
     })
     const elicit = await harness.next()
     expect(elicit.method).toBe('elicitation/create')
@@ -210,7 +210,7 @@ describe('nomi-mcp · 创意门由服务端强制 elicitation', () => {
     await harness.initialize(true)
     harness.send({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'nomi_decide_gate', arguments: { projectId: 'project-1', runId: 'run-1', gateId: 'gate-contract-v1', decision: 'approved' } },
+      params: { name: 'nomi_run_gate', arguments: { action: 'decide', projectId: 'project-1', runId: 'run-1', gateId: 'gate-contract-v1', decision: 'approved' } },
     })
     const response = await harness.next()
     expect(response.id).toBe(2)

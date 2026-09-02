@@ -227,7 +227,9 @@ export function resolveTaskKind(node: GenerationCanvasNode, references: Partial<
   // 撞到别的模型；图像档案的文生图/改图 taskKind 也得各走各的桶。供应商这一档是必要的：同一模型身份
   // 在 kie 是单端点（text_to_video）、在 Runway 图模式走 /v1/image_to_video，桶不同。
   // modelKey 精确路由（findTaskMapping）再保证打到本模型的 mapping。
-  if (executionKind === 'video' || executionKind === 'image' || executionKind === 'audio') {
+  // model3d 同走档案声明桶（text_to_3d / image_to_3d 由模式 transportTaskKind 决定）。此前这里漏 3D →
+  // RunningHub 混元/Meshy（带档案、非 comfy）直接砸到底部 throw「not implemented yet」（同族 kind 边界漏 3D）。
+  if (executionKind === 'video' || executionKind === 'image' || executionKind === 'audio' || executionKind === 'model3d') {
     const archetype = resolveTaskArchetype(meta)
     if (archetype) {
       const transport = modeTransportFor(currentArchetypeMode(archetype, meta), archetype, selectedVendor(node))
@@ -255,5 +257,10 @@ export function resolveTaskKind(node: GenerationCanvasNode, references: Partial<
   if (executionKind === 'text') return 'chat'
   // 音频节点档案缺失时的兜底（正常 AUDIO_MODELS 都带档案，走上面的 transportTaskKind）。
   if (executionKind === 'audio') return 'text_to_audio'
+  // 3D 档案缺失时的兜底（自定义直连），启发式与 image/video 同口径：有图参考 → 图生3D。
+  if (executionKind === 'model3d') {
+    const hasReference = Boolean(asTrimmedString(references.firstFrameUrl)) || (references.referenceImages?.length || 0) > 0
+    return hasReference ? 'image_to_3d' : 'text_to_3d'
+  }
   throw new Error(`${node.kind} generation is not implemented yet`)
 }

@@ -65,7 +65,9 @@ export type { CustomCapabilityContractV1, CustomCapabilityModeV1 } from "./custo
  * - video → electron/shared/videoCapabilities/registry.ts 的 SOURCE_BACKED_PROFILES（唯一登记点，
  *   渲染层整块派生，不再手列第二份——接一个 video 模型只碰 electron 侧：档案文件 + registry 一行）；
  * - image / audio / 3D → 本文件下方的非 video 列表登记一条。
- * 顺序即三趟身份匹配的同趟决胜顺序（见 resolveBaseArchetype）；跨档案同串的存量赢家由
+ * 顺序即三趟身份匹配的同趟决胜顺序（见 resolveBaseArchetype）；video 块的顺序就是 registry
+ * 声明序——渲染层与 registry 平局判据共用同一份决胜序，同一身份串两侧永远同一个赢家
+ * （2026-09-02 修复 "veo3.1" 同串双身份后不再有任何 legacy pin）。跨档案同串的赢家由
  * resolutionOrder.test.ts 锁死，重排/新增若翻转任何赢家该测试即红。
  */
 export const MODEL_ARCHETYPES: readonly ModelArchetype[] = [

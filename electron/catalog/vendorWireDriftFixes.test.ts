@@ -168,3 +168,28 @@ describe("BUG-4: KIE Kling 3 uses the current Omni wire contract", () => {
     }
   });
 });
+
+describe("Runway reference modes use the text-to-video reference union", () => {
+  it("does not construct a promptImage or image_to_video mapping for multi-reference modes", () => {
+    // 选择器按**线缆角色**（mapping id 的 `-refs` 后缀），不按 modeId：一模型一档案之后，
+    // 各档案给同一个多图参考角色起的名字本就不同（seedance=omni / wan=ref / hailuo=ref），
+    // 按 "reference" 这个名字筛会一个都筛不到 —— 那正是本断言 toBeGreaterThan(0) 要挡的假绿。
+    // 角色是 Runway 侧的稳定事实，档案改名它不动。
+    const referenceMappings = RUNWAY_OFFICIAL_MODELS
+      .flatMap((model) => model.mappings.filter((mapping) => mapping.id.endsWith("-refs")));
+    expect(referenceMappings.length).toBeGreaterThan(0);
+    for (const mapping of referenceMappings) {
+      expect(mapping.taskKind).toBe("text_to_video");
+      expect(mapping.create.path).toBe("/v1/text_to_video");
+      expect(mapping.create.body).not.toHaveProperty("promptImage");
+      expect(mapping.create.body).toHaveProperty("reference_image_urls");
+    }
+  });
+
+  it("keeps Seedance 2.5 omni aligned with its text-to-video operation", () => {
+    const mapping = RUNWAY_OFFICIAL_MODELS
+      .find((model) => model.modelKey === "seedance2_5")?.mappings.find((item) => item.modeId === "omni");
+    expect(mapping).toMatchObject({ taskKind: "text_to_video", create: { path: "/v1/text_to_video" } });
+  });
+
+});

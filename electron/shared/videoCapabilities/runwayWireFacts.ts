@@ -42,6 +42,34 @@ export const RUNWAY_VIDEO_RATIO_ENUMS: Record<RunwayVideoFamily, readonly string
 };
 
 /**
+ * **族内还要再分的那几个模型**——同族但官方 enum 不同的变体，逐字抄自各自的 OpenAPI 变体。
+ *
+ * 为什么需要这一层：`ratio` 的判别粒度是**模型**，不是族。seedance 族里只有满血 `seedance2`
+ * 收下 1920/3840 系高分辨率；`_fast` / `_mini` 的变体 enum 到 720p 就截止，`seedance2_5` 则是
+ * 另一套（`854:480` 而非 `864:496`）。2026-09-02 实测：给 `_fast` / `_mini` 发共享控件暴露的
+ * `1920:1080` 恒 400。族表当默认、本表当覆盖，既保留「一个事实一个作者」，又不把精度磨平。
+ *
+ * 未在此登记的模型 = 族表就是它的 enum（上面 `RUNWAY_VIDEO_RATIO_ENUMS` 已逐字对账）。
+ */
+const RUNWAY_VIDEO_RATIO_ENUMS_BY_MODEL: Record<string, readonly string[]> = {
+  seedance2_fast: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280"],
+  seedance2_mini: ["992:432", "864:496", "752:560", "640:640", "560:752", "496:864", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280"],
+  seedance2_5: ["992:432", "854:480", "752:560", "640:640", "560:752", "480:854", "1470:630", "1280:720", "1112:834", "960:960", "834:1112", "720:1280", "2206:946", "1920:1080", "1664:1248", "1440:1440", "1248:1664", "1080:1920"],
+};
+
+/**
+ * 某个 Runway `model` 判别串的合法 ratio enum：**先问模型，再退回族**。
+ * 传输侧归一器（`normalizeRunwayVideoRatio`）与能力面都从这一个入口问，故两侧不可能漂移。
+ */
+export function runwayVideoRatioEnumForModel(model: string): readonly string[] | undefined {
+  const key = String(model || "").trim();
+  const perModel = RUNWAY_VIDEO_RATIO_ENUMS_BY_MODEL[key];
+  if (perModel) return perModel;
+  const family = runwayVideoFamilyForModel(key);
+  return family ? RUNWAY_VIDEO_RATIO_ENUMS[family] : undefined;
+}
+
+/**
  * 每族的 `duration` 约束。
  * - `veo`：官方 union 只接受 4 / 6 / 8 秒（枚举，不是区间）——发别的值必 400。
  * - 其余族：官方是区间，各档案自己的 duration 控件已经在区间内，无需本表收窄（故不登记）。

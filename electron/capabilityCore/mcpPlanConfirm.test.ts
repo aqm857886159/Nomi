@@ -79,8 +79,8 @@ class PlanHarness {
       id,
       method: 'tools/call',
       params: {
-        name: 'nomi_add_nodes',
-        arguments: { projectId, nodes: Array.from({ length: count }, (_, i) => ({ kind: 'image', title: `镜 ${i + 1}` })) },
+        name: 'nomi_canvas_edit',
+        arguments: { action: 'add_nodes', projectId, nodes: Array.from({ length: count }, (_, i) => ({ kind: 'image', title: `镜 ${i + 1}` })) },
       },
     })
   }

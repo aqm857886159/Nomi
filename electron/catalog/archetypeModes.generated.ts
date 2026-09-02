@@ -132,6 +132,15 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "omni": "image_to_video"
     }
   },
+  "seedance-2.5-runway": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "first": "image_to_video",
+      "firstlast": "image_to_video",
+      "omni": "text_to_video"
+    }
+  },
   "minimax-h3-apimart": {
     "defaultModeId": "t2v",
     "modes": {
