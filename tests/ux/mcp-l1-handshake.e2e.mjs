@@ -5,7 +5,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { makeIsolatedDirs, spawnMcpStdioClient, parseToolResult } from './_mcpJourney.mjs'
 
-const BASELINE_PAYLOAD_BYTES = 22_941
+// 2026-09-02 M2 slice-2：+4 semantic editing tools (nomi_timeline_read/edit,
+// nomi_export_job, nomi_media_query) — deliberate L1 surface growth, snapshot
+// and byte budget recalibrated in the same diff (docs/plan/2026-09-02-m2-editing-semantic-slices.md).
+const BASELINE_PAYLOAD_BYTES = 25_341
 const TOOL_NAMES = [
   'nomi_session_open', 'nomi_get_generation_context', 'nomi_operation_create', 'nomi_submit_generation_plan',
   'nomi_preview_execution', 'nomi_request_generation_gate', 'nomi_decide_generation_gate', 'nomi_start_generation',
@@ -13,7 +16,8 @@ const TOOL_NAMES = [
   'nomi_integration_open_credentials', 'nomi_integration_discover', 'nomi_integration_select',
   'nomi_integration_request_confirmation', 'nomi_integration_submit_workflow', 'nomi_integration_resolve_input',
   'nomi_integration_start', 'nomi_integration_get', 'nomi_integration_cancel', 'nomi_list_projects',
-  'nomi_create_project', 'nomi_list_models', 'nomi_read_canvas', 'nomi_add_nodes', 'nomi_connect_nodes',
+  'nomi_create_project', 'nomi_list_models', 'nomi_read_canvas', 'nomi_timeline_read', 'nomi_timeline_edit',
+  'nomi_export_job', 'nomi_media_query', 'nomi_add_nodes', 'nomi_connect_nodes',
   'nomi_set_node_prompt', 'nomi_delete_nodes', 'nomi_start_playbook', 'nomi_get_run', 'nomi_subscribe_run',
   'nomi_get_artifact', 'nomi_read_artifact', 'nomi_request_script_revision', 'nomi_request_storyboard_revision',
   'nomi_review_artifact', 'nomi_materialize_storyboard', 'nomi_control_run', 'nomi_decide_gate', 'nomi_intake_brief',
@@ -53,11 +57,11 @@ async function main() {
     check(badVersion.error?.code === -32602, 'C1 unsupported version returns -32602')
     check(Array.isArray(badVersion.error?.data?.supported), 'C1 unsupported version includes supported array')
 
-    // C2 · exact current 42-tool snapshot and byte budget.
+    // C2 · exact current 46-tool snapshot and byte budget.
     const listed = await mcp.rpc('tools/list', {}, 10_000)
     const tools = listed.result?.tools || []
     const names = tools.map((tool) => tool.name)
-    check(names.length === 42 && JSON.stringify(names) === JSON.stringify(TOOL_NAMES), 'C2 tools/list matches current 42-tool snapshot')
+    check(names.length === 46 && JSON.stringify(names) === JSON.stringify(TOOL_NAMES), 'C2 tools/list matches current 46-tool snapshot')
     const payloadBytes = Buffer.byteLength(JSON.stringify({
       tools: tools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
     }))
