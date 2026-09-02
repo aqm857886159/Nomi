@@ -37,10 +37,13 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 //             说明缺的不是词条而是这条路没过翻译边界）。三处渲染点接上 translateModelDisplayText，
 //             故更新 AiModelsSection 基线；对应正向断言见下方 translates vendor and model display
 //             names through the model-display boundary。
+// 2026-09-02（二）：custom MCP 客户端 profile 的 3 条 IPC 读路径异步化（sync→async，进
+//             ipcSenderGuard 基线），AutomationPermissionsSection 的 refreshProfiles 改 async，
+//             故更新其基线；对应正向断言见下方 reads custom MCP profiles through async bridge。
 const MAIN_NON_MODEL_SECTION_SHA256 = {
   'ProjectLocationSection.tsx': 'ad37c2f07c403b60cf42385f4d93fce8e2ff494c934467c670a7ae4b8c8d5523',
   'AiModelsSection.tsx': 'f05b4e11bdeb83ef04b6b40d84e4fdfe275de41e06511163c8ee1be87b3240c8',
-  'AutomationPermissionsSection.tsx': '14c5602939d38da1d899efad4d0bf8c0ec0c1559519a9fe58eb252e9018bc497',
+  'AutomationPermissionsSection.tsx': 'e878ff7462e732aa0a92cfa08866a4829737bf4a1f009f467456ceef1b68f4d7',
   'CanvasGestureSection.tsx': '3cf19ee35f686e76b54497ff668bb91245b00a6593bc5d5d6162a0d30c476c95',
   'AboutSection.tsx': 'b38e0e2265f29ca56da53595e4bb5886bd14799ea3a7f7f36797b33d46eda57f',
 } as const
@@ -178,6 +181,13 @@ describe('settings dialog structure', () => {
     expect(automationSource).toContain('CustomMcpClientCard')
     expect(automationSource).toContain('listCustomMcpProfiles')
     expect(automationSource).toContain('onToggleTrust={toggleHost}')
+  })
+
+  // 2026-09-02（二）：profile 的 3 条 IPC 从 sync（registerSyncIpc）改 async（ipcMain.handle），
+  // 读路径异步化进 ipcSenderGuard 基线。这里锁宿主刷新点确实 await 了，而不是拿到 Promise 直接 setState。
+  it('reads custom MCP profiles through the async IPC bridge', () => {
+    expect(automationSource).toContain('await getDesktopBridge()?.capability?.listCustomMcpProfiles?.()')
+    expect(automationSource).toContain('void refreshProfiles()')
   })
 
   it('shares one gesture preference between settings and both canvases', () => {

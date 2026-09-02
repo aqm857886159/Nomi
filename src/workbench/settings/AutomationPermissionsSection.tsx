@@ -79,12 +79,13 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
   const [mcpSnapshot, setMcpSnapshot] = React.useState<McpConnectionSnapshot>(readMcpConnectionSnapshot)
   const view = buildAutomationSettingsView(settings)
   const [profiles, setProfiles] = React.useState<McpClientProfile[]>([])
-  const refreshProfiles = React.useCallback(() => {
-    setProfiles(getDesktopBridge()?.capability?.listCustomMcpProfiles?.() ?? [])
+  const refreshProfiles = React.useCallback(async () => {
+    const list = await getDesktopBridge()?.capability?.listCustomMcpProfiles?.()
+    setProfiles(list ?? [])
   }, [])
   const refreshMcpInfo = React.useCallback(() => {
     setMcpSnapshot(readMcpConnectionSnapshot())
-    refreshProfiles()
+    void refreshProfiles()
   }, [refreshProfiles])
   // 进入 MCP 页读一次 + 实时刷新（订阅 watch 广播 + 定时轮询兜底——检测在外部进程写文件，跨进程 watch 不可靠，
   // 轮询保证「WorkBuddy 一连就出现」）。用 refreshMcpInfo 而非 refreshProfiles：installed 状态读自 info.clients。

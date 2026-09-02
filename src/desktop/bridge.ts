@@ -749,9 +749,9 @@ export type DesktopBridge = DesktopMediaBridge & DesktopConnectorBridge & {
     installMcp: (client?: string) => { ok: boolean; client: string; configPath: string; backupPath: string | null }
     /** 撤销接入指定客户端：删 nomi 条目。默认 Claude Code。 */
     uninstallMcp: (client?: string) => { ok: boolean; client: string }
-    listCustomMcpProfiles?: () => McpClientProfile[]
-    registerCustomMcpProfile?: (profile: unknown) => McpClientProfile | null
-    removeCustomMcpProfile?: (key: string) => boolean
+    listCustomMcpProfiles?: () => Promise<McpClientProfile[]>
+    registerCustomMcpProfile?: (profile: unknown) => Promise<McpClientProfile | null>
+    removeCustomMcpProfile?: (key: string) => Promise<boolean>
     onMcpProfilesChanged?: (cb: () => void) => () => void
     /** 实连验证：真起一次配置里那条命令握手（老 preload 无此口）。「配置里有这行字」≠「还连得上」。 */
     verifyMcp?: (client?: string) => Promise<McpVerifyResult>

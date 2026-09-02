@@ -14,7 +14,7 @@
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconCheck, IconCopy, IconHelp, IconPlus, IconPlugConnected, IconSettings, IconTrash } from '@tabler/icons-react'
+import { IconCheck, IconCopy, IconHelp, IconPlus, IconPlugConnected } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { FoldableModelCard } from './FoldableModelCard'
@@ -137,13 +137,13 @@ export function CustomMcpClientCard({ info, profiles, trustedHosts, onToggleTrus
     setEditingKey(profile.key)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!registerBridge || !installBridge) return
     // key 缺省自动生成：取 name 的小写字母数字横杠。
     const resolvedKey = key.trim() || name.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
     // 编辑已有 profile（尤其 detected 改名，key 会变）：先按旧 key 删掉再注册新的，否则「改名后旧卡片残留 + 新卡片又加进来」。
-    if (editingKey) removeBridge?.(editingKey)
-    const profile = registerBridge({ key: resolvedKey, label: name.trim(), format, configPath: configPath.trim(), sourceName: editingSourceName })
+    if (editingKey) await removeBridge?.(editingKey)
+    const profile = await registerBridge({ key: resolvedKey, label: name.trim(), format, configPath: configPath.trim(), sourceName: editingSourceName })
     if (!profile) {
       setError(tc.saveError)
       return
@@ -171,10 +171,10 @@ export function CustomMcpClientCard({ info, profiles, trustedHosts, onToggleTrus
     }
   }
 
-  const handleRemove = (profile: McpClientProfile) => {
+  const handleRemove = async (profile: McpClientProfile) => {
     if (!removeBridge || !uninstallBridge) return
     uninstallBridge(profile.key)
-    removeBridge(profile.key)
+    await removeBridge(profile.key)
     onChanged()
   }
 
@@ -221,81 +221,78 @@ export function CustomMcpClientCard({ info, profiles, trustedHosts, onToggleTrus
           const trusted = trustedHosts.includes(profile.key)
           const installed = info.clients[profile.key]?.installed === true
           return (
-            <div key={profile.key} className="flex items-center gap-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 text-body-sm font-medium text-nomi-ink">
-                  <span className="truncate">{profile.label}</span>
-                  <span className={cn(
-                    'shrink-0 rounded-full px-1.5 py-0.5 text-micro',
-                    detected ? 'bg-nomi-ink-05 text-nomi-warning' : installed ? 'bg-workbench-success-soft text-workbench-success' : 'bg-nomi-ink-05 text-nomi-ink-40',
-                  )}>
-                    {detected ? tc.detected : installed ? tc.installed : tc.notInstalled}
-                  </span>
+            <div key={profile.key} className="rounded-nomi-sm border border-nomi-line bg-nomi-paper px-3 py-2.5">
+              {/* 头部：名字 + 状态徽章 + 信任开关（detected 未配置不显信任，registered 接入后才归位到这里）。 */}
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 text-body-sm font-medium text-nomi-ink">
+                    <span className="truncate">{profile.label}</span>
+                    <span className={cn(
+                      'shrink-0 rounded-full px-1.5 py-0.5 text-micro',
+                      detected ? 'bg-nomi-ink-05 text-nomi-warning' : installed ? 'bg-workbench-success-soft text-workbench-success' : 'bg-nomi-ink-05 text-nomi-ink-40',
+                    )}>
+                      {detected ? tc.detected : installed ? tc.installed : tc.notInstalled}
+                    </span>
+                  </div>
+                  <div className="truncate text-micro text-nomi-ink-40">{detected ? tc.detectedHint : profile.configPath}</div>
                 </div>
-                <div className="truncate text-micro text-nomi-ink-40">{detected ? tc.detectedHint : profile.configPath}</div>
-              </div>
-              {detected ? (
-                <>
-                  <button
-                    type="button"
-                    title={tc.configure}
-                    onClick={() => startEdit(profile)}
-                    className="grid h-7 w-7 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink"
-                  >
-                    <IconSettings size={14} stroke={1.6} />
-                  </button>
-                  <button
-                    type="button"
-                    title={tc.remove}
-                    onClick={() => handleRemove(profile)}
-                    className="grid h-7 w-7 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-workbench-danger"
-                  >
-                    <IconTrash size={14} stroke={1.6} />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    title={installed ? tc.reinstall : tc.connect}
-                    onClick={() => handleInstall(profile)}
-                    className="grid h-7 w-7 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink"
-                  >
-                    <IconPlugConnected size={14} stroke={1.6} />
-                  </button>
-                  <button
-                    type="button"
-                    title={tc.copyPrompt}
-                    onClick={() => handleCopyPrompt(profile)}
-                    className="grid h-7 w-7 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink"
-                  >
-                    {copied ? <IconCheck size={14} stroke={1.6} /> : <IconCopy size={14} stroke={1.6} />}
-                  </button>
-                  <button
-                    type="button"
-                    title={tc.configure}
-                    onClick={() => startEdit(profile)}
-                    className="grid h-7 w-7 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink"
-                  >
-                    <IconSettings size={14} stroke={1.6} />
-                  </button>
+                {!detected && installed ? (
                   <DesignSwitch
                     checked={trusted}
-                    disabled={!installed}
                     aria-label={trusted ? tc.trust : tc.untrust}
-                    title={installed ? (trusted ? tc.trust : tc.untrust) : tc.trustDisabled}
+                    title={trusted ? tc.trust : tc.untrust}
                     onChange={(event) => onToggleTrust(profile.key, event.currentTarget.checked)}
                   />
+                ) : null}
+              </div>
+              {/* 操作行：主操作（接入/重新接入）+ 复制兜底 + 配置 + 移除。文字按钮而非图标堆砌，
+                  主次分层（§1.5 先分组再去重再归位）；信任开关已归到头部，不再挤这一行。 */}
+              <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-nomi-line-soft pt-2">
+                {detected ? (
                   <button
                     type="button"
-                    title={tc.remove}
-                    onClick={() => handleRemove(profile)}
-                    className="grid h-7 w-7 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-workbench-danger"
+                    onClick={() => startEdit(profile)}
+                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-nomi-sm bg-nomi-ink px-3 text-caption font-semibold text-nomi-paper hover:bg-nomi-accent"
                   >
-                    <IconTrash size={14} stroke={1.6} />
+                    {tc.configure}
                   </button>
-                </>
-              )}
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleInstall(profile)}
+                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-nomi-sm bg-nomi-ink px-3 text-caption font-semibold text-nomi-paper hover:bg-nomi-accent"
+                  >
+                    <IconPlugConnected size={14} stroke={1.8} />
+                    {installed ? tc.reinstall : tc.connect}
+                  </button>
+                )}
+                {!detected ? (
+                  <button
+                    type="button"
+                    onClick={() => handleCopyPrompt(profile)}
+                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-nomi-sm border border-nomi-line px-3 text-caption text-nomi-ink-60 hover:border-nomi-ink-20 hover:text-nomi-ink"
+                  >
+                    {copied ? <IconCheck size={14} stroke={1.8} /> : <IconCopy size={14} stroke={1.6} />}
+                    {copied ? tc.copied : tc.copyPrompt}
+                  </button>
+                ) : null}
+                {!detected ? (
+                  <button
+                    type="button"
+                    onClick={() => startEdit(profile)}
+                    className="text-caption text-nomi-ink-40 hover:text-nomi-ink"
+                  >
+                    {tc.configure}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => handleRemove(profile)}
+                  className="text-caption text-nomi-ink-40 hover:text-workbench-danger"
+                >
+                  {tc.remove}
+                </button>
+              </div>
             </div>
           )
         })}
@@ -389,21 +386,24 @@ export function CustomMcpClientCard({ info, profiles, trustedHosts, onToggleTrus
           </button>
         )}
 
-        {/* 通用接入提示词（找不到工具/路径时的兜底） */}
-        <div className="rounded-nomi-sm border border-dashed border-nomi-accent bg-nomi-accent-soft p-3">
-          <div className="flex items-center gap-1.5 text-caption font-semibold text-nomi-accent">
-            <IconHelp size={14} stroke={1.8} />
-            {tc.copyPromptHint}
+        {/* 通用接入提示词（找不到工具/路径时的兜底）：仅列表为空时显示——
+            有 profile 时复制签名条目已够，不重复占位（§1.5 一功能一个家）。 */}
+        {profiles.length === 0 ? (
+          <div className="rounded-nomi-sm border border-dashed border-nomi-accent bg-nomi-accent-soft p-3">
+            <div className="flex items-center gap-1.5 text-caption font-semibold text-nomi-accent">
+              <IconHelp size={14} stroke={1.8} />
+              {tc.copyPromptHint}
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyGenericPrompt}
+              className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-caption text-nomi-ink-60 hover:text-nomi-ink"
+            >
+              {copied ? <IconCheck size={14} stroke={1.8} /> : <IconCopy size={14} stroke={1.6} />}
+              {copied ? tc.copied : tc.copyPrompt}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleCopyGenericPrompt}
-            className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-caption text-nomi-ink-60 hover:text-nomi-ink"
-          >
-            {copied ? <IconCheck size={14} stroke={1.8} /> : <IconCopy size={14} stroke={1.6} />}
-            {copied ? tc.copied : tc.copyPrompt}
-          </button>
-        </div>
+        ) : null}
       </div>
     </FoldableModelCard>
   )
