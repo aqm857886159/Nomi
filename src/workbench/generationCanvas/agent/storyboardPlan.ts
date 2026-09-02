@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { BuiltinCanvasCategoryId, GenerationCanvasEdgeMode } from '../model/generationCanvasTypes'
 import { DEFAULT_IMAGE_SECONDS } from '../model/buildClipFromGenerationNode'
 import i18n from '../../../i18n'
+import { parsePromptSegments } from '../../assets/promptMentions'
 
 /**
  * 「分镜方案」中间表示（IR）—— 剧本→方案文档→确认→落画布 主链路的中枢。
@@ -46,6 +47,11 @@ export type PlanAnchor = {
    * 落画布时拼进卡片提示词的「变体行」，让多视图+多变体集中在一张图里、整张喂参考。
    */
   variants?: string[]
+  /** @ 引用绑定的来源事实；关系本身仍只存在于 PlanShot.anchorIds。 */
+  referenceUrl?: string
+  referenceKind?: 'image' | 'video' | 'audio'
+  /** 某镜结果已是画布节点时直接复用该节点，不复制成新的参考卡。 */
+  referenceSourceNodeId?: string
 }
 
 export type PlanShot = {
@@ -188,6 +194,9 @@ export const planAnchorSchema = z.object({
       '同一锚需要并列在一张定妆卡/场景卡里的变体/状态。仅当剧情里该角色/场景有明显形态差异时填，' +
         '如角色「成年」「童年」，场景「白天远景」「夜晚近景」；没有就省略。',
     ),
+  referenceUrl: z.string().min(1).optional(),
+  referenceKind: z.enum(['image', 'video', 'audio']).optional(),
+  referenceSourceNodeId: z.string().min(1).optional(),
 })
 
 export const planShotSchema = z.object({
@@ -302,6 +311,8 @@ export type PlanCreatedEdge = {
   sourceClientId: string
   targetClientId: string
   mode?: GenerationCanvasEdgeMode
+  /** @ token 在提示词中的首次出现序，投影到画布边的唯一参考顺序。 */
+  order?: number
 }
 
 export type PlanCreateNodesArgs = {
@@ -512,6 +523,25 @@ function anchorPromptBits(shot: PlanShot, anchorById: Map<string, PlanAnchor>): 
     .filter(Boolean)
 }
 
+/** 视觉参考的边顺序：先按提示词 @ 的出现顺序，再接没有 @ 的旧绑定，保持兼容。 */
+function referenceOrderForShot(shot: PlanShot, anchorById: Map<string, PlanAnchor>): Map<string, number> {
+  const byUrl = new Map<string, string>()
+  for (const anchor of anchorById.values()) {
+    if (anchor.referenceUrl) byUrl.set(anchor.referenceUrl, anchor.id)
+  }
+  const ordered = new Set<string>()
+  for (const segment of parsePromptSegments(shot.prompt)) {
+    if (segment.type !== 'mention') continue
+    const anchorId = byUrl.get(segment.url)
+    if (anchorId && shot.anchorIds.includes(anchorId)) ordered.add(anchorId)
+  }
+  for (const anchorId of shot.anchorIds) {
+    const anchor = anchorById.get(anchorId)
+    if (anchor && isVisualAnchor(anchor)) ordered.add(anchorId)
+  }
+  return new Map([...ordered].map((anchorId, index) => [anchorId, index]))
+}
+
 /** 镜头 prompt = 镜头本体 + 引用锚的描述段（文本锚整段 / 视觉锚只给身份 DNA）。 */
 function buildShotPrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>): string {
   const bits = anchorPromptBits(shot, anchorById)
@@ -599,6 +629,14 @@ function buildShotRowNodes(
     const anchor = anchorById.get(anchorId)
     return Boolean(anchor) && isVisualAnchor(anchor!)
   })
+  const referenceOrder = referenceOrderForShot(shot, anchorById)
+  const externalReferences = visualAnchorIds
+    .map((anchorId) => anchorById.get(anchorId))
+    .filter((anchor): anchor is PlanAnchor => Boolean(anchor && anchor.referenceUrl && !anchor.referenceSourceNodeId))
+    .sort((a, b) => (referenceOrder.get(a.id) ?? 0) - (referenceOrder.get(b.id) ?? 0))
+  const externalImageUrls = externalReferences.filter((anchor) => (anchor.referenceKind ?? 'image') === 'image').map((anchor) => anchor.referenceUrl!)
+  const externalVideoUrls = externalReferences.filter((anchor) => anchor.referenceKind === 'video').map((anchor) => anchor.referenceUrl!)
+  const externalAudioUrls = externalReferences.filter((anchor) => anchor.referenceKind === 'audio').map((anchor) => anchor.referenceUrl!)
   // 图片镜头绑图片模型默认、视频镜头绑视频模型默认；用户在编辑器为该镜选的 modelKey 永远优先。
   const defaultModelKey = isImageShot ? options.defaultImageModelKey : options.defaultVideoModelKey
   const defaultModeId = isImageShot ? options.defaultImageModeId : options.defaultVideoModeId
@@ -652,6 +690,9 @@ function buildShotRowNodes(
       ),
       // 图片镜停留时长（v5）：写进节点 meta，buildClipFromGenerationNode/顺播读取（默认值同源 DEFAULT_IMAGE_SECONDS）。
       ...(isImageShot ? { imageDurationSec: effectiveShotDurationSec(shot) } : {}),
+      ...(externalImageUrls.length ? { referenceImageUrls: externalImageUrls } : {}),
+      ...(externalVideoUrls.length ? { referenceVideoUrls: externalVideoUrls } : {}),
+      ...(externalAudioUrls.length ? { referenceAudioUrls: externalAudioUrls } : {}),
     },
   })
   // 定妆卡 → 这一镜参考边（角色 character_ref / 场景·风格 style_ref / 道具 reference）。图片/视频镜头都连；
@@ -661,7 +702,8 @@ function buildShotRowNodes(
     for (const anchorId of visualAnchorIds) {
       const anchor = anchorById.get(anchorId)!
       const sourceId = options.existingAnchorNodeIdByAnchorId?.[anchorId] || anchorId
-      edges.push({ sourceClientId: sourceId, targetClientId: referenceTargetId, mode: edgeModeForAnchor(anchor.kind) })
+      if (anchor.referenceUrl && !anchor.referenceSourceNodeId) continue
+      edges.push({ sourceClientId: anchor.referenceSourceNodeId || sourceId, targetClientId: referenceTargetId, mode: edgeModeForAnchor(anchor.kind), order: referenceOrder.get(anchorId) })
     }
   }
   if (hasKeyframe) {
@@ -698,7 +740,7 @@ export function storyboardPlanToCreateNodesArgs(
 
   // 视觉锚 → 定妆卡/场景卡节点。prompt 用「卡片大图」构造器：多视图+多变体集中一张图、整张喂参考（用户拍板）。
   for (const anchor of plan.anchors) {
-    if (!isVisualAnchor(anchor)) continue
+    if (!isVisualAnchor(anchor) || anchor.referenceUrl || anchor.referenceSourceNodeId) continue
     nodes.push(buildAnchorCardNode(anchor, options))
   }
 
@@ -750,7 +792,7 @@ export function storyboardShotToCreateNodesArgs(
   if (!options.omitAnchorReferenceEdges) {
     for (const anchorId of shot.anchorIds) {
       const anchor = anchorById.get(anchorId)
-      if (!anchor || !isVisualAnchor(anchor)) continue
+      if (!anchor || !isVisualAnchor(anchor) || anchor.referenceUrl || anchor.referenceSourceNodeId) continue
       if (existing[anchorId]) continue
       nodes.push(buildAnchorCardNode(anchor, options))
     }

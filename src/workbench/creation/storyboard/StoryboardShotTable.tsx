@@ -4,18 +4,22 @@ import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import type { ModelOption } from '../../../config/models'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import {
+  addExternalReferenceAnchor,
   danglingAnchorIdsForShot,
   moveShot,
   removeShotAt,
+  rememberAnchorReferenceUrl,
   sceneGroupsOf,
   toggleShotAnchor,
   totalDurationSec,
+  updateShotPrompt,
   updateShotAt,
   type SceneGroup,
 } from '../../generationCanvas/agent/storyboardPlanEdits'
 import type { AnchorCardRuntime, StoryboardRowRuntime } from './exec/storyboardRowStatus'
 import { useShotMentionSource } from './shotRow/useShotMentionSource'
 import StoryboardShotRow from './shotRow/StoryboardShotRow'
+import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionList'
 
 /**
  * 分镜表主体（v5 场分组 + 执行态）：`sceneGroupsOf` 把镜序切成场组——组头（▾ 场名 · N 镜 ·
@@ -78,16 +82,20 @@ function ShotRowWithMention(props: {
   onDragEnd: () => void
   onUpdate: (patch: Partial<Parameters<typeof StoryboardShotRow>[0]['shot']>) => void
   onToggleAnchor: (anchorId: string) => void
+  onRememberAnchorUrl: (anchorId: string, url: string) => void
+  onAddExternalReference: (item: MentionSuggestionItem) => void
   onRemove: () => void
   onApplyParamsToAll: () => void
 }): JSX.Element {
   const { shot, anchors, anchorCards, onToggleAnchor } = props
   // C1：useShotMentionSource 在行级调用（每行 shot 不同），复用 owner 见 useShotMentionSource.ts。
-  const { mentionSearch, onMentionSelect, currentReferenceUrls } = useShotMentionSource(
+  const { mentionSearch, onMentionSelect, currentReferenceUrls, mentionUpload } = useShotMentionSource(
     shot,
     anchors,
     anchorCards,
     onToggleAnchor,
+    props.onRememberAnchorUrl,
+    props.onAddExternalReference,
   )
   return (
     <StoryboardShotRow
@@ -117,6 +125,7 @@ function ShotRowWithMention(props: {
       mentionSearch={mentionSearch}
       onMentionSelect={onMentionSelect}
       currentRefUrls={currentReferenceUrls}
+      mentionUpload={mentionUpload}
     />
   )
 }
@@ -219,8 +228,20 @@ export default function StoryboardShotTable({ plan, rows, anchorCards, imageMode
                       setDragIndex(null); setOverIndex(null)
                     },
                     onDragEnd: () => { setDragIndex(null); setOverIndex(null) },
-                    onUpdate: (patch: Partial<typeof shot>) => onChange(updateShotAt(plan, pos, patch)),
+                    onUpdate: (patch: Partial<typeof shot>) => onChange(
+                      typeof patch.prompt === 'string' ? updateShotPrompt(plan, pos, patch.prompt) : updateShotAt(plan, pos, patch),
+                    ),
                     onToggleAnchor: (anchorId: string) => onChange(toggleShotAnchor(plan, pos, anchorId)),
+                    onRememberAnchorUrl: (anchorId: string, url: string) => onChange(rememberAnchorReferenceUrl(plan, anchorId, url)),
+                    onAddExternalReference: (item: MentionSuggestionItem) => {
+                      const sourceNodeId = item.group === 'canvas' && item.key.startsWith('shot-result:')
+                        ? item.key.slice('shot-result:'.length).split(':')[0]
+                        : undefined
+                      const added = addExternalReferenceAnchor(plan, { id: item.key, name: item.label, url: item.url, kind: item.kind ?? 'image', ...(sourceNodeId ? { sourceNodeId } : {}) })
+                      const nextShot = plan.shots[pos]
+                      const anchorIds = nextShot.anchorIds.includes(added.anchorId) ? nextShot.anchorIds : [...nextShot.anchorIds, added.anchorId]
+                      onChange(updateShotAt(added.plan, pos, { anchorIds }))
+                    },
                     onRemove: () => onChange(removeShotAt(plan, pos)),
                     // 只套 params：模型/模式归「全部镜头」批量条管（一功能一个家，§1.5.2）
                     onApplyParamsToAll: () => onChange({ ...plan, shots: plan.shots.map((s) => ({ ...s, params: shot.params })) }),

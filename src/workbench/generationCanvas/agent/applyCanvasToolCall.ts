@@ -66,13 +66,14 @@ function normalizeEdgeMode(raw: unknown): GenerationCanvasEdgeMode | undefined {
 /** create 携带边 / connect_canvas_edges 共用的边参数归一（clientId→真实 id + mode 白名单）。 */
 function normalizePlannedEdges(
   rawEdges: unknown[],
-): Array<{ source: string; target: string; mode?: GenerationCanvasEdgeMode }> {
+): Array<{ source: string; target: string; mode?: GenerationCanvasEdgeMode; order?: number }> {
   return rawEdges
     .map((raw) => (raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}))
     .map((edge) => ({
       source: resolveNodeId(String(edge.sourceClientId || edge.source || '').trim()),
       target: resolveNodeId(String(edge.targetClientId || edge.target || '').trim()),
       ...(normalizeEdgeMode(edge.mode) ? { mode: normalizeEdgeMode(edge.mode) } : {}),
+      ...(typeof edge.order === 'number' && Number.isFinite(edge.order) ? { order: edge.order } : {}),
     }))
     .filter((edge) => edge.source && edge.target)
 }

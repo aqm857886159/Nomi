@@ -5,7 +5,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { cn } from '../../utils/cn'
 import { AssetMention } from './AssetMentionNode'
 import { createAssetMentionSuggestion } from './AssetMentionSuggestion'
-import type { MentionSuggestionItem } from './AssetMentionSuggestionList'
+import type { MentionSuggestionItem, MentionUploadControls } from './AssetMentionSuggestionList'
 import { promptToContent, shouldApplyExternalPromptSync } from './promptEditorContent'
 import { encodeMention } from './promptMentions'
 
@@ -41,11 +41,13 @@ type PromptEditorProps = {
   mentionSearch?: (query: string) => MentionSuggestionItem[]
   /** 选中候选：负责真的建立引用（建边/落上传槽），返回最终 chip 编号；返回 null = 没插成。 */
   onMentionSelect?: (item: MentionSuggestionItem) => number | null
+  /** @ 面板沿用 composer 附件上传管线；上传完成后作为 upload 来源重新出现在列表。 */
+  mentionUpload?: MentionUploadControls
   /** S6-4 节点锁:false=只读(Tiptap 官方 editable/setEditable);缺省可编辑。 */
   editable?: boolean
 }
 
-export default function PromptEditor({ value, onChange, placeholder, className, onBlur, onReady, mentionCandidates, mentionReferences, mentionSearch, onMentionSelect, editable }: PromptEditorProps): JSX.Element {
+export default function PromptEditor({ value, onChange, placeholder, className, onBlur, onReady, mentionCandidates, mentionReferences, mentionSearch, onMentionSelect, mentionUpload, editable }: PromptEditorProps): JSX.Element {
   const onChangeRef = React.useRef(onChange)
   React.useEffect(() => { onChangeRef.current = onChange }, [onChange])
   // 有序参考 url 也留一份 ref：外部 value 变化时 setContent 要用它给 chip 编号（那个 effect 不该依赖它重跑）。
@@ -56,6 +58,8 @@ export default function PromptEditor({ value, onChange, placeholder, className, 
   React.useEffect(() => { searchRef.current = mentionSearch }, [mentionSearch])
   const selectRef = React.useRef(onMentionSelect)
   React.useEffect(() => { selectRef.current = onMentionSelect }, [onMentionSelect])
+  const uploadRef = React.useRef(mentionUpload)
+  React.useEffect(() => { uploadRef.current = mentionUpload }, [mentionUpload])
   // placeholder 同理走 ref：扩展只在 editor 创建时配一次，直接把 prop 传进 configure 的话，
   // 调用方**后来**改的 placeholder 永远不生效——「已有参考图才提示打 @」正是这种后来才成立的条件。
   // 官方类型允许传函数（PlaceholderOptions.placeholder: ((props) => string) | string），
@@ -65,6 +69,7 @@ export default function PromptEditor({ value, onChange, placeholder, className, 
     () => createAssetMentionSuggestion({
       getCandidates: (query) => searchRef.current?.(query) ?? [],
       onSelect: (item) => selectRef.current?.(item) ?? null,
+      getUpload: () => uploadRef.current,
     }),
     [],
   )

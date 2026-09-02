@@ -117,7 +117,11 @@ export const zhAssetLibrary = {
   mentionGroupCurrent: '当前参考',
   mentionGroupCanvas: '画布',
   mentionGroupLibrary: '素材库',
+  mentionGroupUpload: '上传',
+  mentionGroupShotResult: '某镜结果',
   mentionWillConnect: '连上',
+  mentionUpload: '上传文件并作为参考',
+  mentionDropUpload: '松开即可上传',
   insertImageIndexed: '插入图片{{index}}',
   addNamed: '添加{{label}}',
   picker: {
@@ -260,7 +264,11 @@ export const enAssetLibrary = {
   mentionGroupCurrent: 'Current references',
   mentionGroupCanvas: 'Canvas',
   mentionGroupLibrary: 'Asset library',
+  mentionGroupUpload: 'Uploads',
+  mentionGroupShotResult: 'Shot results',
   mentionWillConnect: 'Connect',
+  mentionUpload: 'Upload a file as a reference',
+  mentionDropUpload: 'Drop to upload',
   insertImageIndexed: 'Insert image {{index}}',
   addNamed: 'Add {{label}}',
   picker: {

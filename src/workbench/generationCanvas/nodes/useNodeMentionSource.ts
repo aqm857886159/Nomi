@@ -64,7 +64,7 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
       url: candidate.url,
       label: candidate.label,
       ...(candidate.kind ? { kind: candidate.kind } : {}),
-      group: candidate.group,
+      group: candidate.group as 'current' | 'canvas' | 'library',
       ...(candidate.referenceIndex === undefined ? {} : { index: candidate.referenceIndex }),
     }))
   }, [libraryAssets, node, t])
@@ -74,7 +74,7 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
       key: item.key,
       url: item.url,
       label: item.label,
-      group: item.group,
+      group: item.group as 'current' | 'canvas' | 'library',
       ...(item.kind ? { kind: item.kind } : {}),
       ...(item.index === undefined ? {} : { referenceIndex: item.index }),
       ...(item.key.startsWith('canvas:') ? { sourceNodeId: item.key.slice('canvas:'.length) } : {}),

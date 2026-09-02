@@ -4,7 +4,7 @@ import { IconChevronDown, IconChevronUp, IconGripVertical, IconTrash } from '@ta
 import { cn } from '../../../../utils/cn'
 import { NomiSelect } from '../../../../design'
 import PromptEditor from '../../../assets/PromptEditor'
-import type { MentionSuggestionItem } from '../../../assets/AssetMentionSuggestionList'
+import type { MentionSuggestionItem, MentionUploadControls } from '../../../assets/AssetMentionSuggestionList'
 import type { PlanAnchor, PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import {
@@ -52,6 +52,7 @@ type Props = {
   mentionSearch?: (query: string) => MentionSuggestionItem[]
   onMentionSelect?: (item: MentionSuggestionItem) => number | null
   currentRefUrls?: string[]
+  mentionUpload?: MentionUploadControls
   /** 行内「生成 / 重试」。 */
   onGenerate?: (() => void) | undefined
   /** ⏳ 态点参考卡名 → 定位那张参考卡。 */
@@ -83,7 +84,7 @@ type Props = {
 
 export default function StoryboardShotRow(props: Props): JSX.Element {
   const { t } = useTranslation()
-  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll, mentionSearch, onMentionSelect, currentRefUrls } = props
+  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll, mentionSearch, onMentionSelect, currentRefUrls, mentionUpload } = props
   const [expanded, setExpanded] = React.useState(false)
   // C1：PromptEditor ref——参考区「@」入口点击时触发 mention（一个实现两个入口）。
   const editorRef = React.useRef<Editor | null>(null)
@@ -347,6 +348,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           mentionCandidates={currentRefUrls}
           mentionSearch={mentionSearch}
           onMentionSelect={onMentionSelect}
+          mentionUpload={mentionUpload}
           onReady={(editor) => { editorRef.current = editor }}
         />
 
