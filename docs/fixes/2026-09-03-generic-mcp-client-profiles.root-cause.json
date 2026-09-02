@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "id": "2026-09-03-generic-mcp-client-profiles",
   "problem_type": "hardcoded three-value union type blocks any MCP stdio tool from being a first-class client",
   "symptom": "Only Claude Code, Codex, and Cursor can be signed and trusted as MCP clients. Any other AI tool (WorkBuddy, AutoClaw, etc.) that speaks MCP stdio must connect as 'external', gaining no identity binding and no trusted-host privilege, even if the user explicitly wants to grant it.",
@@ -50,6 +50,24 @@
   "residual_risks": [
     "UI for adding/managing custom profiles is deferred (TODO in AutomationPermissionsSection.tsx and ConnectAssistantCard) — users cannot yet configure custom profiles via the GUI, only via direct file edit or future UI.",
     "watchFile polling (1s interval) may miss rapid successive writes in pathological test environments, but is stable for the 'user saves settings' use case."
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "The restriction was a hardcoded union type literal in one file (security.ts). Widening AuthenticatedMcpClient from a three-value union to a validated string, replacing the MCP_CLIENTS Set with isValidMcpClientKey() regex, and replacing the TRUSTED_HOSTS Set with a regex in automationPolicyContract.ts — these are corrections at the two named sites where the restriction lived. No new structural boundary is introduced; the HMAC signing mechanism was already fully generic and required no changes. Regression tests pin the round-trip signing/verification for custom keys and the regex-based host validation. This is not promoted to a recurring gate because the class of bug ('exhaustive enum instead of validated string') is site-specific and all sites have been corrected.",
+    "same_class_scan": [
+      "Searched the full codebase for 'claude' | 'codex' | 'cursor' union literals that model client identity — found only security.ts (AuthenticatedMcpClient), mcpBridgeTypes.ts (McpClientKey), and settingsAutomationView.ts (SettingsHostKey). All three widened in this change.",
+      "Searched for hardcoded Set membership checks on MCP client identity — found MCP_CLIENTS in security.ts (replaced with regex) and TRUSTED_HOSTS in automationPolicyContract.ts (replaced with regex). Both corrected.",
+      "Searched for any consumer that grants trust or skips verification based on client name without HMAC proof — found none. All trust grants still go through verifyMcpClient() which enforces HMAC.",
+      "Verified mcpVerify.ts key resolution retains the fallback-to-claude behavior for builtin clients and now also accepts custom registered profiles — no path exists to bypass proof verification."
+    ]
+  },
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://spec.modelcontextprotocol.io/specification/basic/messages/",
+      "checked_at": "2026-09-03",
+      "purpose": "Confirmed MCP initialize frame carries clientInfo.name as a self-declared string — the protocol imposes no identity guarantees, which is why Nomi's HMAC layer is required for any binding identity claim."
+    }
   ],
   "ui_todo": "CustomMcpClientCard component not yet implemented. See TODO comment in src/workbench/settings/AutomationPermissionsSection.tsx. Requires design mockup approval (R8) before implementation."
 }
