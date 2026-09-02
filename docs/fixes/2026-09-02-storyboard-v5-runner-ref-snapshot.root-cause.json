@@ -1,0 +1,50 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-storyboard-v5-runner-ref-snapshot",
+  "problem_type": "分镜表 v5 Phase B 触碰 runner 高风险路径（提交时上游版本戳 + hasUsableResult 导出复用），R21 门岗要求携带合同的风险分析",
+  "symptom": "本身不是纠正性修复：分镜表 v5「参考已变」链需要在生成提交时记录『这次跑用了上游哪个 result 版本』；若不记录，参考卡重生成后引用镜会静默停留在旧图（Toonflow 引用模式零失效传播=静默换脸的反面教材，plan §v3-3 拍板反着做）。",
+  "direct_cause": "此前节点 meta 无任何『运行时参考版本』事实，表层 diff 无从谈起；「有可用结果」判据私藏在 dependencyWaves 内部，表行状态若自写一份会与批量放行口径分裂。",
+  "class_root": "执行事实（用了哪个版本、结果可不可用）只能由执行层在提交那一刻记录/裁决——任何在展示层重建这类事实的尝试都是第二真相源。",
+  "migration": "无数据迁移：meta.refSnapshot 为可选新键，旧节点无戳=不亮标（诚实：只有确知用了旧版才报）；hasUsableResult 仅从私有函数变导出，语义零变化。回滚=revert 分支，无残留。",
+  "affected_population": [
+    "分镜表 v5 行内/批量生成的用户（获得参考已变检测）",
+    "画布一切生成路径（多写一个 meta.refSnapshot 键；无上游版本时零写入，行为不变）"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/runner/refSnapshotStamp.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/runner/dependencyWaves.ts",
+    "src/workbench/generationCanvas/runner/refSnapshotStamp.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardExec.test.ts"
+  ],
+  "entry_points": [
+    "分镜表画面格「生成/重试」与 footer 批量（exec/storyboardRowActions → confirmAndRunNode/confirmAndRunPlan）",
+    "画面格浮条 ↻/×3 与「用新图重跑」（regenerateNodeInPlace / confirmAndRunNodeVariants / 波次）",
+    "画布节点卡片的既有生成/重生成/变体入口（同一 runGenerationNode 咽喉）"
+  ],
+  "invariants": [
+    "refSnapshot 只在 runGenerationNode 提交处（花钱确认之后、executor 之前）由 stampUpstreamRefSnapshot 写入：取消确认不打戳，戳=『这次跑真用了这些版本』",
+    "无入边上游结果且无旧戳时零 meta 写入；边已断而旧戳仍在时删戳（不留过期事实）",
+    "「有可用结果」判据唯一 owner 是 dependencyWaves.hasUsableResult：批量放行、行状态 derive、绑定层判断全部 import 它，不许另写",
+    "表层「参考已变」只做 diff 与提示，绝不自动重跑（用户显式点「用新图重跑」才跑，花钱确认照过）"
+  ],
+  "regression_tests": [
+    "src/workbench/generationCanvas/runner/refSnapshotStamp.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardExec.test.ts"
+  ],
+  "residual_risks": [
+    "极窄竞态：参考卡在本镜提交后、完成前被重生成——戳记录的是提交时版本，此时表会正确亮『参考已变』；但若锚重生成发生在提交前一瞬且用户看的是旧界面，亮标要等下一次 derive（store 订阅即刷，窗口为单帧渲染）",
+    "画布上手动删除锚节点后，引用镜的旧戳键失去对应节点：diff 按锚绑定查找为 null → 不亮标（与『无快照不报』同一诚实策略），用户经缺参考红态另行得知"
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "特性范畴的执行层扩展而非缺陷修复；『所有跑法都会打戳吗』这个类问题由结构回答——戳位于 runGenerationNode 单一咽喉点，全部生成入口（单发/变体/原地重生成/批量波次）在 spendConfirm 之后都必经此函数，无第二条执行通路（check:batch-machines 钉死 runGenerationNode 不外扩）。",
+    "same_class_scan": [
+      "grep confirmAndRunNode/confirmAndRunNodeVariants/regenerateNodeInPlace/confirmAndRunPlan 的全部调用点：画布节点卡、多选浮条、分镜表 exec 层——均经 runGenerationNode，无绕行",
+      "grep hasUsableResult 定义点：仅 dependencyWaves.ts 一处 export，storyboardRowStatus/storyboardNodeBinding/storyboardRowActions 全部 import 消费，无重复实现",
+      "runner/ 目录内 grep refSnapshot：唯一写点 stampUpstreamRefSnapshot、唯一调用点 runGenerationNode:提交处"
+    ]
+  },
+  "external_sources": [],
+  "internal_only_reason": "纯内部执行层扩展，不触任何供应商 wire 契约；Toonflow 反面教材的取证（batchGenerateImage.ts:52-103 引用模式零失效传播）已在 docs/plan/2026-09-01-storyboard-table-genre-profile.md §v3-3 记录，本合同不重复对外主张。"
+}
