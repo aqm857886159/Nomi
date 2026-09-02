@@ -1,6 +1,19 @@
 import type { HttpOperation, ProfileKind } from "./types";
 import { registerRequestTransform, type RequestTransformContext } from "../tasks/requestTransforms";
 import { desktopT } from "../i18n";
+// Runway union 的线缆事实（比例枚举 / 时长约束 / 哪些族发布 reference 数组）住 shared，
+// 由**能力面（各档案 vendorParams.runway）与本文件的传输归一器共用**。catalog → shared 是允许
+// 的依赖方向（shared 永不反向 import catalog）。在这里重抄一份就是第二个作者，正是本轮修的病。
+import {
+  RUNWAY_FAMILIES_WITHOUT_IMAGE_RATIO,
+  RUNWAY_FAMILIES_WITH_IMAGE_REFS,
+  RUNWAY_FAMILIES_WITH_VIDEO_REFS,
+  RUNWAY_VEO_FALLBACK_DURATION,
+  RUNWAY_VIDEO_DURATION_ENUMS,
+  runwayVideoFamilyForModel,
+} from "../shared/videoCapabilities/runwayWireFacts";
+// 图像侧的比例几何（与视频侧无重叠）继续住 catalog/runwayRatio.ts；`normalizeRunwayVideoRatio`
+// 也在那里，但它现在从上面这张 shared 表 derive 枚举与判别（不再自持副本）。
 import { normalizeRunwayVideoRatio, RUNWAY_IMAGE_RATIO_REMAP, runwayRatioOrientation } from "./runwayRatio";
 
 /** Runway Dev official API (OpenAPI v2024-11-06, checked 2026-08-30). */
@@ -161,15 +174,15 @@ function normalizeRunwayVideoContract(body: unknown, _context?: RequestTransform
   // per-model normalizer. This closes two live drifts (2026-09-02): seedance2_fast/mini reject the
   // high-res 1920:1080/1080:1920 that the shared control exposes (only in seedance2's full enum),
   // and every family's friendly default is mapped to a member of its own spec enum by orientation.
+  //
+  // **纵深防御，不是唯一防线**：UI 侧的 `vendorParams.runway` 已经只给得出合法值（与归一器同一张
+  // `runwayWireFacts` 表 derive），所以正常走 UI 的请求到这里本就是合法的。这段留着是为**绕过 UI
+  // 的调用方**（headless / MCP / 存量节点带着旧值复活）——它们同样发不出非法值。
+  //
+  // 判别只有一份：`runwayVideoFamilyForModel` 住 shared，归一器与能力面共用（此前这里另有一条
+  // 内联 `startsWith` 链 = 第二个作者，正是本轮修的病）。
   const ratio = String(input.ratio || "").trim();
-  const family = model.startsWith("seedance2") ? "seedance"
-    : model === "wan3" ? "wan"
-      : model === "hailuo3" ? "hailuo"
-        : model === "grok_imagine_1_5" ? "grok"
-          : model.startsWith("veo3.1") ? "veo"
-            : model === "happyhorse_1_0" ? "happyhorse"
-              : model === "gemini_omni_flash" ? "gemini"
-                : null;
+  const family = runwayVideoFamilyForModel(model);
   if (family && ratio) {
     const mapped = normalizeRunwayVideoRatio(model, ratio);
     if (mapped) input.ratio = mapped;
@@ -178,12 +191,13 @@ function normalizeRunwayVideoContract(body: unknown, _context?: RequestTransform
 
   // Veo only accepts 4/6/8 seconds; choose the cheapest valid duration for
   // the shared control's default instead of sending a guaranteed 400.
-  if (family === "veo" && input.duration !== undefined) {
+  const durations = family ? RUNWAY_VIDEO_DURATION_ENUMS[family] : undefined;
+  if (durations && input.duration !== undefined) {
     const duration = Number(input.duration);
-    input.duration = [4, 6, 8].includes(duration) ? duration : 4;
+    input.duration = durations.includes(duration) ? duration : RUNWAY_VEO_FALLBACK_DURATION;
   }
   // HappyHorse image-to-video has no ratio property in the official schema.
-  if (family === "happyhorse" && hasPromptImage) delete input.ratio;
+  if (family && hasPromptImage && RUNWAY_FAMILIES_WITHOUT_IMAGE_RATIO.includes(family)) delete input.ratio;
 
   // Reference arrays are supported only by the discriminators that publish
   // them.  The UI supplies URL arrays; translate them into Runway's typed
@@ -195,8 +209,8 @@ function normalizeRunwayVideoContract(body: unknown, _context?: RequestTransform
   delete input.reference_image_urls;
   delete input.reference_video_urls;
   delete input.reference_audio_urls;
-  const allowsImage = family === "seedance" || family === "wan" || family === "hailuo" || family === "grok";
-  const allowsVideo = family === "seedance" || family === "wan" || family === "hailuo";
+  const allowsImage = family !== null && RUNWAY_FAMILIES_WITH_IMAGE_REFS.includes(family);
+  const allowsVideo = family !== null && RUNWAY_FAMILIES_WITH_VIDEO_REFS.includes(family);
   const allowsAudio = allowsImage;
   if (allowsImage && imageRefs.length) input.references = imageRefs.map((uri) => ({ uri }));
   if (allowsVideo && videoRefs.length) input.referenceVideos = videoRefs.map((uri) => ({ type: "video", uri }));
@@ -443,28 +457,55 @@ const SEEDANCE25_FIRSTLAST = seedance25Create("/v1/image_to_video", [
 ]);
 const SEEDANCE25_OMNI = seedance25Create("/v1/text_to_video");
 
+/**
+ * Runway's three video wire roles. These describe **the request shape Runway accepts**, not a
+ * UI mode name — the two used to be conflated because every row pointed at one platform-shaped
+ * `runway-video` archetype whose mode ids happened to be spelled the same as the roles.
+ *
+ *  - `t2v`      → POST /v1/text_to_video, no image field.
+ *  - `image`    → POST /v1/image_to_video with the single-image `promptImage` aggregate slot.
+ *  - `refs`     → POST /v1/image_to_video with the multi-reference `reference_image_urls` body.
+ */
+type RunwayVideoWireRole = "t2v" | "image" | "refs";
+
 type RunwayVideoSpec = {
   modelKey: string;
   labelZh: string;
+  /** The **real model** archetype this Runway row is an instance of (one model, one archetype owner). */
   archetypeId: string;
   /** The OpenAPI schema fields for this model family; never send fields absent from its variant. */
   fields: "seedance" | "wan" | "grok" | "hailuo" | "veo" | "happyhorse" | "gemini";
-  modes?: Array<"t2v" | "i2v" | "reference">;
+  /**
+   * Runway wire role → **the receiving archetype's own mode id**.
+   *
+   * Why this is a map and not a list: the mapping's `modeId` must equal a mode id that actually
+   * exists on the archetype, otherwise `selectTaskMapping` hands the mode a cable that belongs to
+   * a different mode (the "mode borrowing" defect class). The archetypes name the same concepts
+   * differently — Seedance's single image mode is `first`, Veo's is `frame`, Gemini Omni's is
+   * `firstlast`, minimax/happyhorse/grok call theirs `i2v`. Omitting a role means Runway's union
+   * does not offer it for this model (e.g. veo/gemini have no reference field in the OpenAPI union).
+   */
+  modes: Partial<Record<RunwayVideoWireRole, string>>;
 };
 
 // Literal IDs are kept in source so the static ledger checker can prove every
 // generated mapping has an auditable declaration (dynamic factory output alone
 // is intentionally not trusted by the gate).
+// Ids are keyed on the Runway **wire role** (`t2v` / `image` / `refs`), not on a UI mode name:
+// the receiving archetypes spell the same role differently (`first` / `frame` / `firstlast` /
+// `i2v`), and the id must stay stable when a mode is renamed. Roles a model's Runway union does
+// not offer are simply absent — grok/veo/happyhorse/gemini have no reference field.
 export const RUNWAY_VIDEO_MAPPING_IDS = [
-  "seed-runway-seedance2-t2v", "seed-runway-seedance2-i2v", "seed-runway-seedance2-reference",
-  "seed-runway-seedance2_fast-t2v", "seed-runway-seedance2_fast-i2v", "seed-runway-seedance2_fast-reference",
-  "seed-runway-seedance2_mini-t2v", "seed-runway-seedance2_mini-i2v", "seed-runway-seedance2_mini-reference",
-  "seed-runway-wan3-t2v", "seed-runway-wan3-i2v", "seed-runway-wan3-reference",
-  "seed-runway-grok_imagine_1_5-t2v", "seed-runway-grok_imagine_1_5-i2v", "seed-runway-grok_imagine_1_5-reference",
-  "seed-runway-hailuo3-t2v", "seed-runway-hailuo3-i2v", "seed-runway-hailuo3-reference",
-  "seed-runway-veo3-1-t2v", "seed-runway-veo3-1-i2v", "seed-runway-veo3-1-reference",
-  "seed-runway-veo3-1_fast-t2v", "seed-runway-veo3-1_fast-i2v", "seed-runway-veo3-1_fast-reference",
-  "seed-runway-happyhorse_1_0-t2v", "seed-runway-gemini_omni_flash-t2v", "seed-runway-gemini_omni_flash-i2v", "seed-runway-gemini_omni_flash-reference",
+  "seed-runway-seedance2-t2v", "seed-runway-seedance2-image", "seed-runway-seedance2-refs",
+  "seed-runway-seedance2_fast-t2v", "seed-runway-seedance2_fast-image", "seed-runway-seedance2_fast-refs",
+  "seed-runway-seedance2_mini-t2v", "seed-runway-seedance2_mini-image", "seed-runway-seedance2_mini-refs",
+  "seed-runway-wan3-t2v", "seed-runway-wan3-image", "seed-runway-wan3-refs",
+  "seed-runway-grok_imagine_1_5-t2v", "seed-runway-grok_imagine_1_5-image",
+  "seed-runway-hailuo3-t2v", "seed-runway-hailuo3-image", "seed-runway-hailuo3-refs",
+  "seed-runway-veo3-1-t2v", "seed-runway-veo3-1-image",
+  "seed-runway-veo3-1_fast-t2v", "seed-runway-veo3-1_fast-image",
+  "seed-runway-happyhorse_1_0-t2v", "seed-runway-happyhorse_1_0-image",
+  "seed-runway-gemini_omni_flash-t2v", "seed-runway-gemini_omni_flash-image",
 ] as const;
 
 export const RUNWAY_IMAGE_MAPPING_IDS = [
@@ -486,24 +527,40 @@ export const RUNWAY_AUDIO_MAPPING_IDS = [
   "seed-runway-eleven_multilingual_v2-speech", "seed-runway-eleven_v3-speech",
 ] as const;
 
+/**
+ * **One model, one archetype owner.** Every row points at the archetype of the *real model*
+ * Runway is reselling, not at a Runway-shaped platform archetype.
+ *
+ * The previous shape (`archetypeId: "runway-video"` on all ten rows) put a platform-shaped
+ * capability face on ten different model identities while the `runwayVideoCreate` wire switch
+ * right below already branched per model. Two authors for one fact drift by construction: the
+ * capability face advertised Runway's generic `1280:720 / 1–30s / generate_audio` and a
+ * multi-reference mode to models whose official unions have neither.
+ */
 const RUNWAY_VIDEO_SPECS: RunwayVideoSpec[] = [
-  { modelKey: "seedance2", labelZh: "Runway Seedance 2", archetypeId: "runway-video", fields: "seedance" },
-  { modelKey: "seedance2_fast", labelZh: "Runway Seedance 2 Fast", archetypeId: "runway-video", fields: "seedance" },
-  { modelKey: "seedance2_mini", labelZh: "Runway Seedance 2 Mini", archetypeId: "runway-video", fields: "seedance" },
-  { modelKey: "wan3", labelZh: "Runway Wan 3", archetypeId: "runway-video", fields: "wan" },
-  { modelKey: "grok_imagine_1_5", labelZh: "Runway Grok Imagine 1.5", archetypeId: "runway-video", fields: "grok" },
-  { modelKey: "hailuo3", labelZh: "Runway Hailuo 3", archetypeId: "runway-video", fields: "hailuo" },
-  { modelKey: "veo3.1", labelZh: "Runway Veo 3.1", archetypeId: "runway-video", fields: "veo" },
-  { modelKey: "veo3.1_fast", labelZh: "Runway Veo 3.1 Fast", archetypeId: "runway-video", fields: "veo" },
-  { modelKey: "happyhorse_1_0", labelZh: "Runway HappyHorse 1.0", archetypeId: "runway-video", fields: "happyhorse", modes: ["t2v", "i2v"] },
-  { modelKey: "gemini_omni_flash", labelZh: "Runway Gemini Omni Flash", archetypeId: "runway-video", fields: "gemini" },
+  { modelKey: "seedance2", labelZh: "Runway Seedance 2", archetypeId: "seedance-2", fields: "seedance", modes: { t2v: "t2v", image: "first", refs: "omni" } },
+  { modelKey: "seedance2_fast", labelZh: "Runway Seedance 2 Fast", archetypeId: "seedance-2", fields: "seedance", modes: { t2v: "t2v", image: "first", refs: "omni" } },
+  { modelKey: "seedance2_mini", labelZh: "Runway Seedance 2 Mini", archetypeId: "seedance-2", fields: "seedance", modes: { t2v: "t2v", image: "first", refs: "omni" } },
+  { modelKey: "wan3", labelZh: "Runway Wan 3", archetypeId: "wan-3.0", fields: "wan", modes: { t2v: "t2v", image: "first", refs: "ref" } },
+  // grok-imagine-1.5-video declares only t2v + i2v — no reference mode exists to point at.
+  { modelKey: "grok_imagine_1_5", labelZh: "Runway Grok Imagine 1.5", archetypeId: "grok-imagine-1.5-video", fields: "grok", modes: { t2v: "t2v", image: "i2v" } },
+  { modelKey: "hailuo3", labelZh: "Runway Hailuo 3", archetypeId: "minimax-h3", fields: "hailuo", modes: { t2v: "t2v", image: "i2v", refs: "ref" } },
+  // Runway's veo union carries promptImage only; it has no reference field, so no refs role.
+  { modelKey: "veo3.1", labelZh: "Runway Veo 3.1", archetypeId: "veo-3.1", fields: "veo", modes: { t2v: "t2v", image: "frame" } },
+  { modelKey: "veo3.1_fast", labelZh: "Runway Veo 3.1 Fast", archetypeId: "veo-3.1", fields: "veo", modes: { t2v: "t2v", image: "frame" } },
+  { modelKey: "happyhorse_1_0", labelZh: "Runway HappyHorse 1.0", archetypeId: "happyhorse", fields: "happyhorse", modes: { t2v: "t2v", image: "i2v" } },
+  // Same as veo: Runway's gemini union has no reference field.
+  { modelKey: "gemini_omni_flash", labelZh: "Runway Gemini Omni Flash", archetypeId: "gemini-omni-1.1", fields: "gemini", modes: { t2v: "t2v", image: "firstlast" } },
 ];
 
-type RunwayVideoMode = "t2v" | "i2v" | "reference";
-
-function runwayVideoCreate(spec: RunwayVideoSpec, modeId: RunwayVideoMode): HttpOperation {
-  const withImage = modeId === "i2v";
-  const withReferences = modeId === "reference";
+/**
+ * `withImage` 只对**单图**角色为真：多图参考角色走 `POST /v1/text_to_video`（PR #342 —— Runway 的
+ * reference 联合体印在文生端点上，此前误发 image_to_video 且把参考数组塞进 `promptImage`）。
+ * 故 `withImage` 与 `withReferences` 互斥，端点由前者决定。
+ */
+function runwayVideoCreate(spec: RunwayVideoSpec, role: RunwayVideoWireRole): HttpOperation {
+  const withImage = role === "image";
+  const withReferences = role === "refs";
   const body: Record<string, unknown> = {
     promptText: "{{request.prompt}}",
     ...(withImage ? { promptImage: "{{request.params.image_url}}" } : {}),
@@ -546,17 +603,39 @@ function runwayVideoCreate(spec: RunwayVideoSpec, modeId: RunwayVideoMode): Http
   };
 }
 
+const RUNWAY_VIDEO_ROLE_ORDER: RunwayVideoWireRole[] = ["t2v", "image", "refs"];
+const RUNWAY_VIDEO_ROLE_LABEL: Record<RunwayVideoWireRole, string> = {
+  t2v: "文生视频",
+  image: "图生视频",
+  refs: "多图参考",
+};
+
 function runwayVideoModel(spec: RunwayVideoSpec): RunwayModel {
-  const modes = spec.modes || ["t2v", "i2v", "reference"];
   return {
     modelKey: spec.modelKey,
     labelZh: spec.labelZh,
     kind: "video",
     archetypeId: spec.archetypeId,
-    mappings: modes.map((modeId) => {
-      const taskKind: ProfileKind = modeId === "i2v" ? "image_to_video" : "text_to_video";
-      const op = runwayVideoCreate(spec, modeId);
-      return mapping(`seed-runway-${spec.modelKey.replace(/\./g, "-")}-${modeId}`, modeId, taskKind, `${spec.labelZh} · ${modeId === "t2v" ? "文生视频" : modeId === "reference" ? "多图参考" : "图生视频"}`, op);
+    // Mapping id stays keyed on the **wire role** (stable across archetype renames, and it is
+    // what RUNWAY_VIDEO_MAPPING_IDS / the static ledger checker declare); `modeId` carries the
+    // receiving archetype's own mode id so no mode is ever handed another mode's cable.
+    //
+    // `taskKind` follows the **wire role's endpoint**, not "is there an image involved":
+    // the multi-image reference role rides `POST /v1/text_to_video` (PR #342 — Runway's
+    // reference union is declared on the text endpoint), so only the single-image `image`
+    // role is an `image_to_video` task.
+    mappings: RUNWAY_VIDEO_ROLE_ORDER.flatMap((role) => {
+      const modeId = spec.modes[role];
+      if (!modeId) return [];
+      const taskKind: ProfileKind = role === "image" ? "image_to_video" : "text_to_video";
+      const op = runwayVideoCreate(spec, role);
+      return [mapping(
+        `seed-runway-${spec.modelKey.replace(/\./g, "-")}-${role}`,
+        modeId,
+        taskKind,
+        `${spec.labelZh} · ${RUNWAY_VIDEO_ROLE_LABEL[role]}`,
+        op,
+      )];
     }),
   };
 }

@@ -23,7 +23,6 @@ export { RUNNINGHUB_SEEDANCE_ARCHETYPE } from "./runninghubSeedance";
 export { RUNNINGHUB_VIDEO_ARCHETYPES } from "./runninghubVideoArchetypes";
 export { RUNWAY_GEN45_ARCHETYPE } from "./runwayGen45";
 export { RUNWAY_GEN4_TURBO_ARCHETYPE } from "./runwayGen4Turbo";
-export { RUNWAY_VIDEO_ARCHETYPE, RUNWAY_VIDEO_T2V_ARCHETYPE } from "./runwayVideo";
 export { SEEDANCE_2_ARCHETYPE } from "./seedance";
 export { SEEDANCE_2_5_ARCHETYPE } from "./seedance25";
 export { SEEDANCE_2_5_APIMART_ARCHETYPE } from "./seedance25Apimart";
@@ -37,6 +36,7 @@ export { WAN_2_7_ARCHETYPE } from "./wan27";
 export { WAN_3_0_ARCHETYPE } from "./wan30";
 export { WAN_3_0_APIMART_ARCHETYPE } from "./wan30Apimart";
 
+export { modeTransportFor } from "./modeTransport";
 export { canonicalVideoVariantId, effectiveVideoModes, recommendVideoGeneration } from "./recommendation";
 export type {
   VideoCatalogModel,

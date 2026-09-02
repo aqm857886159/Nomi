@@ -12,6 +12,7 @@ import type {
   VideoModelCandidate,
 } from "../shared/videoCapabilities/recommendation";
 import { canonicalVideoVariantId, effectiveVideoModes, recommendVideoGeneration } from "../shared/videoCapabilities/recommendation";
+import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
 import type { ArchetypeMode, ModelParameterControl } from "../shared/videoCapabilities/types";
 
 // Keep mode/task comparisons tolerant of the wire's kebab/snake aliases.  This
@@ -231,7 +232,11 @@ export function normalizeVideoCandidate(candidate: PlanCandidate, candidates: re
   const transportModelId = videoTransportModelIdForPlan(selected.candidate, selected.videoCandidate, mode);
   return {
     ...selected.candidate,
-    mode: mode.transportTaskKind ?? selected.candidate.mode,
+    // Transport bucket comes from the one helper (vendor specialization > mode > archetype):
+    // the same model identity is a single kie endpoint but a distinct Runway image endpoint.
+    // Falls back to the plan's own declared mode when the archetype declares no transport.
+    mode: modeTransportFor(mode, selected.videoCandidate.archetype, selected.videoCandidate.provider)
+      ?? selected.candidate.mode,
     modeId: mode.id,
     transportModelId,
   };

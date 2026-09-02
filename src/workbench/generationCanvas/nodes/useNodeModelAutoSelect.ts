@@ -160,6 +160,13 @@ export function useNodeModelAutoSelect({
   // 据 selectedModelValue 解析档案（此时旧 modelKey 仍命中基础档案的 identifierPatterns）。
   React.useEffect(() => {
     if (!isGenerationNode || !selectedModelValue) return
+    // ⚠️ 迁移只针对**已经解析不到**的旧串。一个在当前目录里活着的 (vendor, modelKey) 绝不能被改写：
+    // 变体的 identifierPatterns 是**供应商无关**的裸串，而不同供应商可以用同一个裸串命名不同的行——
+    // Runway 的真实 modelKey `veo3.1` 正好等于 veo-3.1 档案 fast 变体的 pattern，`seedance2` 同理。
+    // 少了这道闸，迁移会把活着的 Runway 节点改写成 APIMart 的基础串（veo3.1-fast / bytedance/seedance-2），
+    // 供应商却还留在 runway：轻则模式栏/参数显示成另一家的样子，重则 (runway, bytedance/seedance-2)
+    // 这个组合在目录里根本不存在 → 生成面板直接报「加载失败」。R13 真机走查抓到的就是这个。
+    if (selectedModelOption) return
     const sourceArchetype = resolveArchetypeForModel({
       modelKey: selectedModelValue,
       modelAlias: readMeta(meta, 'modelAlias'),
@@ -177,7 +184,7 @@ export function useNodeModelAutoSelect({
         ...(isVideoLike ? { videoModel: patch.modelKey } : { imageModel: patch.modelKey }),
       },
     })
-  }, [isGenerationNode, isVideoLike, meta, node.id, node.meta, selectedModelValue, writeDerivedMeta])
+  }, [isGenerationNode, isVideoLike, meta, node.id, node.meta, selectedModelOption, selectedModelValue, writeDerivedMeta])
 
   // 供应商断开后，节点钉死的旧模型已从下拉移除（selectedModelOption===null，但 selectedModelValue 仍在）。
   // 按 archetype 在当前可用 options 里找同款，自动改选并写回 meta —— 否则节点会卡在选不中的死供应商上，
@@ -202,6 +209,8 @@ export function useNodeModelAutoSelect({
           sourceArchetype,
           (meta.archetype as { modeId?: string } | undefined)?.modeId,
           targetArchetype,
+          readMeta(meta, 'modelVendor') || readMeta(meta, 'vendor'),
+          optionVendor,
         )
       : null
     writeDerivedMeta(node.id, {

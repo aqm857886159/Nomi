@@ -47,8 +47,6 @@ import {
   applyArchetypeModeSwitch,
   applyArchetypeVariantSwitch,
   archetypeModeArraySlots,
-  archetypeModeChoices,
-  archetypeModeSlotReachByKey,
   archetypeModeSlots,
   archetypeModeSourceVideoSlot,
   archetypeVariantChoices,
@@ -57,10 +55,16 @@ import {
   readArchetypeArray,
   referenceSlotStorage,
 } from './controls/archetypeMeta'
+import {
+  archetypeModeChoices,
+  archetypeModeIsVisible,
+  archetypeModeSlotReachByKey,
+  fallbackVisibleModeId,
+} from './controls/channelModeReach'
 import { resolveReferenceSlots, decideArrayReferenceRemoval } from '../runner/referenceSlots'
-import { useChannelCreateBody } from './controls/useChannelCreateBody'
+import { useChannelCreateBodies } from './controls/useChannelCreateBody'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
-import { specializeArchetypeForVariant } from '../../../config/modelArchetypes'
+import { modeTransportFor, specializeArchetypeForVariant } from '../../../config/modelArchetypes'
 import ModeBar from './controls/ModeBar'
 import AssetReference, { type AssetSlot } from '../../assets/AssetReference'
 import type { AssetRef } from '../../assets/assetTypes'
@@ -149,11 +153,27 @@ export default function NodeParameterControls({
   // 才对账，于是用户连好参考、切到「全能参考」、点了生成才被拒。这里提前算出来，发不出的槽不显示、
   // 只带得动 1 张的槽如实收成 1 张。判据与第三闸同一套（referenceReachability），不另起一份。
   // 拿不到 body（老 preload / 查不到 mapping）→ 空表 → 一律不收窄，绝不因为查不到就藏用户的槽。
-  const channelCreateBody = useChannelCreateBody(
+  //
+  // 模式栏（U4）要的是**每个**声明模式各自的 body，不只是当前选中那个：档案的模式集供应商无关，
+  // 而「这家到底有没有这个模式」得逐模式问 mapping（至多两个 taskKind：text_to_video / image_to_video）。
+  // taskKind 走唯一入口 modeTransportFor（供应商特化 > 模式级 > 档案级）：同一模型身份在 kie 是单端点
+  // （text_to_video）、在 Runway 图模式走 /v1/image_to_video，问错桶会查不到 mapping 而误收窄。
+  const modeBodySpecs = React.useMemo(
+    () =>
+      (effectiveArchetype?.modes ?? []).map((mode) => ({
+        key: mode.id,
+        taskKind: (modeTransportFor(mode, effectiveArchetype, selectedModelOption?.vendor) ?? '') as string,
+        modeId: mode.id,
+      })),
+    [effectiveArchetype, selectedModelOption?.vendor],
+  )
+  const modeBodies = useChannelCreateBodies(
     selectedModelOption?.vendor ?? '',
     selectedModelOption?.value ?? '',
-    (archMode?.transportTaskKind ?? effectiveArchetype?.transportTaskKind ?? '') as string,
+    modeBodySpecs,
   )
+  // 槽级收窄仍只看**当前**模式的 body（口径不变）。三态里的 undefined/null 都落到「拿不到 body」→ 不收窄。
+  const channelCreateBody = archMode ? (modeBodies[archMode.id]?.body ?? null) : null
   const slotReachByKey = React.useMemo(
     () => (archMode && channelCreateBody ? archetypeModeSlotReachByKey(archMode, channelCreateBody) : {}),
     [archMode, channelCreateBody],
@@ -234,6 +254,24 @@ export default function NodeParameterControls({
     // 触发时机只需「输入边集合 / 模型」变化，语义由下面两个签名精确表达。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputAspectSignature, isVideoLike, selectedModelValue, node.id])
+
+  // 模式收窄的**选择安全**（U4）：收窄只改「显示哪几个」，节点 meta 里钉的 modeId 不会自己动。存量节点
+  // （或用户把模型换到另一家后）可能停在一个已经不显示的模式上——那时模式栏一个都不高亮，而发送路径仍按
+  // 那个看不见的模式投影槽，UI 与发送再次分家（正是本轮要根治的那类病）。这里把它写回 meta，让两边一致。
+  // history:false —— 这是系统纠偏，不是用户操作，不该占一格撤销。
+  const visibleModeIdSignature = archetype
+    ? archetype.modes.filter((mode) => archetypeModeIsVisible(mode, modeBodies[mode.id])).map((m) => m.id).join('|')
+    : ''
+  React.useEffect(() => {
+    if (!archetype) return
+    const visibleIds = visibleModeIdSignature ? visibleModeIdSignature.split('|') : []
+    const latest = getLatestMeta()
+    const next = fallbackVisibleModeId(archetype, latest, visibleIds)
+    if (!next) return
+    updateNode(node.id, { meta: applyArchetypeModeSwitch(latest, archetype, next) }, { history: false })
+    // getLatestMeta/updateNode 每渲染重建；触发时机只需「可见模式集 / 档案 / 节点」变化。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleModeIdSignature, archetype?.id, node.id])
 
   if (!isGenerationNode) return null
 
@@ -460,7 +498,11 @@ export default function NodeParameterControls({
           { key: 'lastFrameUrl', label: t('generationCommon.parameters.lastFrame'), group: 'last_frame' },
         ]
       : modelImageUrlSlots
-  const modeChoices = archetype ? archetypeModeChoices(archetype) : []
+  // 模式栏按可达性收窄（U4）：档案声明了模式 ≠ 这家发得出。判据与第三闸同源（archetypeModeIsVisible），
+  // 拿不到 body 一律不收窄。变体特化不改模式 id，故按 id 取 body 与 archetype/effectiveArchetype 无关。
+  const modeChoices = archetype
+    ? archetypeModeChoices(archetype, (mode) => modeBodies[mode.id])
+    : []
   const showModeBar = modeChoices.length > 1
   const showVariantBar = variantChoices.length > 1
   // 当前模式的数组参考槽（全能参考，meta-only）+ 源视频单槽（HappyHorse 视频编辑）。

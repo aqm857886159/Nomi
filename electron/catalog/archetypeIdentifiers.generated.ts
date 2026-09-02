@@ -10,7 +10,9 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "seedance2fast",
     "bytedance/seedance-2-mini",
     "seedance-2-mini",
-    "seedance2mini"
+    "seedance2mini",
+    "seedance2_fast",
+    "seedance2_mini"
   ],
   "seedance-2.5": [
     "bytedance/seedance-2-5",
@@ -37,7 +39,8 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "happyhorse/text-to-video",
     "happyhorse/image-to-video",
     "happyhorse/reference-to-video",
-    "happyhorse/video-edit"
+    "happyhorse/video-edit",
+    "happyhorse_1_0"
   ],
   "vidu-q3": [
     "viduq3",
@@ -57,7 +60,8 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "grok-imagine-1.5-video-apimart",
     "grok-imagine-1.5-video-ext",
     "grok-imagine-1.5-video",
-    "grok-imagine-1.5"
+    "grok-imagine-1.5",
+    "grok_imagine_1_5"
   ],
   "sora-2": [
     "sora-2",
@@ -69,11 +73,13 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "veo3.1",
     "veo3.1-fast",
     "veo3.1-quality",
-    "veo3.1-lite"
+    "veo3.1-lite",
+    "veo3.1_fast"
   ],
   "gemini-omni-1.1": [
     "google/gemini-omni-flash-1-1",
-    "gemini-omni-flash-1-1"
+    "gemini-omni-flash-1-1",
+    "gemini_omni_flash"
   ],
   "runway-gen4.5": [
     "gen4.5",
@@ -84,21 +90,6 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "gen4_turbo",
     "runway-gen4-turbo",
     "runway-gen-4-turbo"
-  ],
-  "runway-video": [
-    "seedance2",
-    "seedance2_fast",
-    "seedance2_mini",
-    "wan3",
-    "grok_imagine_1_5",
-    "hailuo3",
-    "veo3.1",
-    "veo3.1_fast",
-    "happyhorse_1_0",
-    "gemini_omni_flash"
-  ],
-  "runway-video-t2v": [
-    "happyhorse_1_0"
   ],
   "kling-3.0": [
     "kling-3.0",
@@ -140,7 +131,8 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "wan/3-0-video",
     "wan/3-0-video-prime",
     "wan-3.0",
-    "wan3.0"
+    "wan3.0",
+    "wan3"
   ],
   "wan-3.0-apimart": [
     "wan3.0-video",

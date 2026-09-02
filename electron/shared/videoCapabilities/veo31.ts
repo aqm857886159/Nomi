@@ -1,5 +1,6 @@
 import type { ModelParameterControl } from "./types";
 import type { ModelArchetype } from "./types";
+import { RUNWAY_GENERATE_AUDIO_CONTROL, runwayDurationControl, runwayRatioControl } from "./runwayWireFacts";
 
 // Veo 3.1（apimart 独占）视频档案。
 // 变体（官方 model 枚举 veo3.1-fast/quality/lite）：fast 默认。注：lite 仅文生、quality 不支持「参考图」
@@ -15,21 +16,35 @@ const PARAMS: ModelParameterControl[] = [
   { key: "resolution", label: "清晰度", type: "select", options: opt(["720p", "1080p", "4k"]), defaultValue: "720p" },
 ];
 
+// Runway 转售的 veo3.1 / veo3.1_fast：Runway union 的 veo 变体是 ratio / duration / audio——
+// **没有 resolution**（apimart 的 720p/1080p/4k 在这里发不出去），比例是像素式枚举
+// （1280:720…，不是 apimart 的 "16:9"），且**时长只接受 4/6/8 秒**（发别的值必 400；此前传输层
+// 默默把它夹到 4，用户选的数与真正生成的长度不是一回事）。三项全部从 shared 的同一张表 derive：
+// 用户在 UI 里选得到的，就是线缆收得下的。
+const RUNWAY_PARAMS: ModelParameterControl[] = [
+  runwayRatioControl("veo"),
+  runwayDurationControl("veo")!,
+  RUNWAY_GENERATE_AUDIO_CONTROL,
+];
+
 export const VEO_3_1_ARCHETYPE: ModelArchetype = {
+  // Runway 的 veo3.1 / veo3.1_fast 两行原挂平台档案 runway-video（已删）；存量节点靠 legacyIds 迁到这里。
+  legacyIds: ["runway-video"],
   id: "veo-3.1",
   family: "veo",
   label: "Veo 3.1",
   kind: "video",
   defaultModeId: "t2v",
   transportTaskKind: "text_to_video",
-  identifierPatterns: ["veo-3.1", "veo3.1", "veo3.1-fast", "veo3.1-quality", "veo3.1-lite"],
+  // "veo3.1_fast" 是 Runway 的判别串（veo3.1 已在前面）。
+  identifierPatterns: ["veo-3.1", "veo3.1", "veo3.1-fast", "veo3.1-quality", "veo3.1-lite", "veo3.1_fast"],
   modes: [
-    { id: "t2v", intent: "text", vendorTerm: "文生视频", hint: "纯文字生成视频", promptRequired: true, transportTaskKind: "text_to_video", slots: [], params: PARAMS },
+    { id: "t2v", intent: "text", vendorTerm: "文生视频", hint: "纯文字生成视频", promptRequired: true, transportTaskKind: "text_to_video", slots: [], params: PARAMS, vendorParams: { runway: RUNWAY_PARAMS } },
     {
       id: "reference", intent: "single", vendorTerm: "参考图", hint: "参考图驱动（最多 3 张）", promptRequired: true,
       transportTaskKind: "image_to_video",
       slots: [{ kind: "image_ref", label: "参考图", min: 1, max: 3, inputKey: "image_urls" }],
-      params: PARAMS,
+      params: PARAMS, vendorParams: { runway: RUNWAY_PARAMS },
       fixedParams: { generation_type: "reference" },
     },
     {
@@ -41,7 +56,7 @@ export const VEO_3_1_ARCHETYPE: ModelArchetype = {
       ],
       // 首尾帧 → image_urls 有序扁平数组 [首url, 尾url]（位置语义，非 role 对象）。
       combineSlotsInto: { key: "image_urls", flat: true },
-      params: PARAMS,
+      params: PARAMS, vendorParams: { runway: RUNWAY_PARAMS },
       fixedParams: { generation_type: "frame" },
     },
   ],
