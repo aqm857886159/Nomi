@@ -73,6 +73,7 @@ async function main() {
     check(payloadBytes <= BASELINE_PAYLOAD_BYTES, 'C2 tools/list payload is within ratchet budget')
 
     // C3 · protocol error vs recoverable tool execution error.
+    // unknown-tool-probe：故意调不存在的工具验 -32602，不是忘了跟进面收敛（见 check:mcp-tool-refs）。
     const unknown = await mcp.rpc('tools/call', { name: 'nomi_not_a_real_tool', arguments: {} }, 10_000)
     check(unknown.error?.code === -32602, 'C3 unknown tool returns -32602')
     // 面收敛：nomi_add_nodes → nomi_canvas_edit(action=add_nodes)。空 nodes 仍触发 schema 校验拒绝。
