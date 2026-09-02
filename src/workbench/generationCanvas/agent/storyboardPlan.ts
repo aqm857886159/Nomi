@@ -19,6 +19,22 @@ export type PlanAnchorKind = 'character' | 'scene' | 'prop' | 'style'
 /** 载体：视觉锚=生成参考图挂参考槽；文本锚=描述拼进引用它的镜头 prompt（prompt 能说清的就别生成图）。 */
 export type PlanAnchorCarrier = 'visual' | 'text'
 
+export type StoryboardPromptSkeletonSegment = {
+  key: string
+  label: string
+  kind: 'enum'
+  options: string[]
+}
+
+export type StoryboardProfile = {
+  aspect: string
+  dialogue: boolean
+  promptSkeleton: StoryboardPromptSkeletonSegment[]
+}
+
+/** 可丢失的文本 range 标注；prompt 本身永远是唯一真相。 */
+export type PromptSegmentRange = { key: string; start: number; end: number }
+
 export type PlanAnchor = {
   /** 稳定 id；落画布时直接当 create_canvas_nodes 的 clientId。 */
   id: string
@@ -81,6 +97,8 @@ export type PlanShot = {
   anchorIds: string[]
   /** 可直接生成的提示词（运镜+动作演进，不复述锚的静态描述）。 */
   prompt: string
+  /** 片种骨架在 prompt 中的轻量标注；失效/丢失时不影响纯文本。 */
+  promptSegments?: PromptSegmentRange[]
   /** 用户在分镜编辑器为该镜选的视频模型 catalog key；没选 → 落画布用默认视频模型兜底。 */
   modelKey?: string
   /** 用户为该镜选的模型模式 id（随 modelKey 一起）；没选 → 默认模式。 */
@@ -149,6 +167,8 @@ export type StoryboardPlan = {
   scenes?: { id: string; title: string }[]
   /** 片种模板 key（如 'genre.short-drama'）；缺省 = 自由格式。骨架段/画幅默认按它 derive（C 阶段接管）。 */
   profileKey?: string
+  /** skill.json 声明的片种 profile 快照；缺省时按 profileKey/自由文本 derive。 */
+  storyboardProfile?: StoryboardProfile
   /** The exact approved script this plan was derived from. */
   sourceScriptArtifactId?: string
   sourceScriptVersion?: number
@@ -199,6 +219,23 @@ export const planAnchorSchema = z.object({
   referenceSourceNodeId: z.string().min(1).optional(),
 })
 
+const promptSegmentRangeSchema = z.object({
+  key: z.string().min(1),
+  start: z.number().int().min(0),
+  end: z.number().int().min(0),
+})
+
+export const storyboardProfileSchema = z.object({
+  aspect: z.string().min(1),
+  dialogue: z.boolean(),
+  promptSkeleton: z.array(z.object({
+    key: z.string().min(1),
+    label: z.string().min(1),
+    kind: z.literal('enum'),
+    options: z.array(z.string().min(1)),
+  })),
+})
+
 export const planShotSchema = z.object({
   index: z.number().int(),
   shotId: z.string().min(1).optional().describe('稳定镜头 ID；缺省时由系统按镜号生成。'),
@@ -210,6 +247,7 @@ export const planShotSchema = z.object({
   durationSec: z.number(),
   anchorIds: z.array(z.string()),
   prompt: z.string(),
+  promptSegments: z.array(promptSegmentRangeSchema).optional(),
   modelKey: z.string().optional(),
   modeId: z.string().optional(),
   params: z.record(z.unknown()).optional(),
@@ -261,6 +299,7 @@ export const storyboardPlanSchema = z.object({
     .optional()
     .describe('场清单（数组序=场序）；id 被 shots[].sceneId 引用。无分场省略。'),
   profileKey: z.string().min(1).optional().describe('片种模板 key；缺省=自由格式。'),
+  storyboardProfile: storyboardProfileSchema.optional().describe('片种骨架声明；promptSegments 只做可丢失的文本 range 标注。'),
   sourceScriptArtifactId: z.string().min(1).optional(),
   sourceScriptVersion: z.number().int().positive().optional(),
   sourceScriptHash: z.string().min(1).optional(),

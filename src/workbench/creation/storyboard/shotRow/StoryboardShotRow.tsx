@@ -6,6 +6,7 @@ import { NomiSelect } from '../../../../design'
 import PromptEditor from '../../../assets/PromptEditor'
 import type { MentionSuggestionItem, MentionUploadControls } from '../../../assets/AssetMentionSuggestionList'
 import type { PlanAnchor, PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
+import type { PromptSegmentRange, StoryboardProfile } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import {
   DURATION_OPTIONS_SEC,
@@ -21,6 +22,7 @@ import type { ShotRowExec } from '../exec/storyboardRowStatus'
 import type { Editor } from '@tiptap/react'
 import StoryboardShotFrame from './StoryboardShotFrame'
 import StoryboardShotRowExpand from './StoryboardShotRowExpand'
+import PromptSkeletonSegments from './PromptSkeletonSegments'
 
 /**
  * 分镜表 v5 的一行：`[grip | 画面格 76×132 | 参考区 136 | 提示词块 1fr]`（样张
@@ -53,6 +55,7 @@ type Props = {
   onMentionSelect?: (item: MentionSuggestionItem) => number | null
   currentRefUrls?: string[]
   mentionUpload?: MentionUploadControls
+  storyboardProfile?: StoryboardProfile
   /** 行内「生成 / 重试」。 */
   onGenerate?: (() => void) | undefined
   /** ⏳ 态点参考卡名 → 定位那张参考卡。 */
@@ -84,7 +87,7 @@ type Props = {
 
 export default function StoryboardShotRow(props: Props): JSX.Element {
   const { t } = useTranslation()
-  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll, mentionSearch, onMentionSelect, currentRefUrls, mentionUpload } = props
+  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll, mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile } = props
   const [expanded, setExpanded] = React.useState(false)
   // C1：PromptEditor ref——参考区「@」入口点击时触发 mention（一个实现两个入口）。
   const editorRef = React.useRef<Editor | null>(null)
@@ -350,6 +353,12 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           onMentionSelect={onMentionSelect}
           mentionUpload={mentionUpload}
           onReady={(editor) => { editorRef.current = editor }}
+        />
+        <PromptSkeletonSegments
+          prompt={shot.prompt}
+          profile={storyboardProfile}
+          ranges={shot.promptSegments}
+          onChange={({ prompt, ranges }) => onUpdate({ prompt, promptSegments: ranges as PromptSegmentRange[] })}
         />
 
         {/* 参考已变警示行（v5 §v3-3）：只报事实 + 给一键补跑，绝不自动跑。 */}

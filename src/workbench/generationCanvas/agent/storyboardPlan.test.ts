@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildAnchorSheetPrompt, effectiveShotDurationSec, parseStoryboardPlan, storyboardPlanSchema, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
 import { encodeMention } from '../../assets/promptMentions'
+import { storyboardProfileForKey } from './storyboardProfiles'
 
 const PLAN: StoryboardPlan = {
   title: '雨夜追凶',
@@ -615,5 +616,27 @@ describe('v5 IR 扩展（sceneId / scenes / profileKey / 图片镜停留时长�
     const video = nodes.find((n) => n.clientId === 'shot-1')!
     expect(video.metadata).not.toHaveProperty('imageDurationSec')
     expect(video.params?.duration).toBe(5)
+  })
+})
+
+describe('v5 C2 storyboard profiles', () => {
+  it('内置短剧 profile 是 9:16 + 台词 + 骨架，自由 profile 无骨架', () => {
+    const shortDrama = storyboardProfileForKey('genre.short-drama')
+    expect(shortDrama).toMatchObject({ aspect: '9:16', dialogue: true })
+    expect(shortDrama.promptSkeleton.map((segment) => segment.key)).toEqual(['shotSize', 'emotion'])
+    expect(storyboardProfileForKey('genre.free-form')).toMatchObject({ aspect: '16:9', dialogue: false, promptSkeleton: [] })
+  })
+
+  it('storyboardProfile schema 与 promptSegments 可选且不剥除文本真相', () => {
+    const profile = storyboardProfileForKey('genre.short-drama')
+    const parsed = parseStoryboardPlan({
+      title: 't',
+      profileKey: 'genre.short-drama',
+      storyboardProfile: profile,
+      anchors: [],
+      shots: [{ index: 1, durationSec: 5, anchorIds: [], prompt: '远景，雨夜', promptSegments: [{ key: 'shotSize', start: 0, end: 2 }] }],
+    })
+    expect(parsed.storyboardProfile).toEqual(profile)
+    expect(parsed.shots[0].prompt).toBe('远景，雨夜')
   })
 })

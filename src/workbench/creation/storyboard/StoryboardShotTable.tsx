@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import type { ModelOption } from '../../../config/models'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
+import { storyboardProfileForKey } from '../../generationCanvas/agent/storyboardProfiles'
 import {
   addExternalReferenceAnchor,
   danglingAnchorIdsForShot,
@@ -86,6 +87,7 @@ function ShotRowWithMention(props: {
   onAddExternalReference: (item: MentionSuggestionItem) => void
   onRemove: () => void
   onApplyParamsToAll: () => void
+  storyboardProfile: ReturnType<typeof storyboardProfileForKey>
 }): JSX.Element {
   const { shot, anchors, anchorCards, onToggleAnchor } = props
   // C1：useShotMentionSource 在行级调用（每行 shot 不同），复用 owner 见 useShotMentionSource.ts。
@@ -112,6 +114,7 @@ function ShotRowWithMention(props: {
       onOpenPreview={props.onOpenPreview}
       onRerunFreshRefs={props.onRerunFreshRefs}
       onJumpToAnchor={props.onJumpToAnchor}
+      storyboardProfile={props.storyboardProfile}
       draggable={props.draggable}
       isDragOver={props.isDragOver}
       onDragStart={props.onDragStart}
@@ -228,9 +231,14 @@ export default function StoryboardShotTable({ plan, rows, anchorCards, imageMode
                       setDragIndex(null); setOverIndex(null)
                     },
                     onDragEnd: () => { setDragIndex(null); setOverIndex(null) },
-                    onUpdate: (patch: Partial<typeof shot>) => onChange(
-                      typeof patch.prompt === 'string' ? updateShotPrompt(plan, pos, patch.prompt) : updateShotAt(plan, pos, patch),
-                    ),
+                    onUpdate: (patch: Partial<typeof shot>) => {
+                      if (typeof patch.prompt !== 'string') {
+                        onChange(updateShotAt(plan, pos, patch))
+                        return
+                      }
+                      const next = updateShotPrompt(plan, pos, patch.prompt)
+                      onChange(updateShotAt(next, pos, { promptSegments: patch.promptSegments }))
+                    },
                     onToggleAnchor: (anchorId: string) => onChange(toggleShotAnchor(plan, pos, anchorId)),
                     onRememberAnchorUrl: (anchorId: string, url: string) => onChange(rememberAnchorReferenceUrl(plan, anchorId, url)),
                     onAddExternalReference: (item: MentionSuggestionItem) => {
@@ -245,6 +253,7 @@ export default function StoryboardShotTable({ plan, rows, anchorCards, imageMode
                     onRemove: () => onChange(removeShotAt(plan, pos)),
                     // 只套 params：模型/模式归「全部镜头」批量条管（一功能一个家，§1.5.2）
                     onApplyParamsToAll: () => onChange({ ...plan, shots: plan.shots.map((s) => ({ ...s, params: shot.params })) }),
+                    storyboardProfile: storyboardProfileForKey(plan.profileKey),
                   }
                   return RowComponent && anchorCards
                     ? <RowComponent {...commonRowProps} anchorCards={anchorCards} />

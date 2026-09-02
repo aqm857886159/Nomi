@@ -84,6 +84,12 @@ export const zhStoryboardEditor = {
     atRefTitle: '在提示词里插入参考（@ 符号弹出选择器）',
     atRefDisabledTitle: '此模型不吃参考，无法用 @ 引用',
   },
+  promptSkeleton: {
+    label: '骨架段',
+    choose: '换一个预设',
+    segmentAria: '{{label}}：{{value}}',
+    segment: { shotSize: '景别·运镜', emotion: '情绪' },
+  },
   bulk: {
     scope: '全部镜头',
     mixed: '混合',
@@ -302,6 +308,12 @@ export const enStoryboardEditor = {
     atRefAria: 'Type @ to select a reference',
     atRefTitle: 'Insert a reference into the prompt (@ opens the picker)',
     atRefDisabledTitle: 'This model takes no references — @ is disabled',
+  },
+  promptSkeleton: {
+    label: 'Prompt sections',
+    choose: 'Choose a preset',
+    segmentAria: '{{label}}: {{value}}',
+    segment: { shotSize: 'Shot size · camera', emotion: 'Emotion' },
   },
   bulk: {
     scope: 'All shots',
