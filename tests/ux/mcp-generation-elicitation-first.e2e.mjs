@@ -78,10 +78,10 @@ async function driveGate(dirs, token, { capabilities, clientName }) {
     candidateId: `elicit-${clientName}`, revision: 1, moduleId: 'generation.single-shot', providerId: 'apimart', modelId: 'gpt-image-2', mode: 'text-to-image',
     prompt: '一只纸鹤停在窗台，晨光', parameters: { aspectRatio: '1:1' }, references: [],
   }
-  const created = parseToolResult(await mcp.callTool('nomi_operation_create', { leaseHandle, projectId, candidate }))
+  const created = parseToolResult(await mcp.callTool('nomi_operation_plan', { leaseHandle, projectId, candidate }))
   const operationId = created.json?.operation?.operationId || created.outcome?.operation?.operationId
-  await mcp.callTool('nomi_preview_execution', { leaseHandle, projectId, operationId })
-  const gatePromise = mcp.callTool('nomi_request_generation_gate', { leaseHandle, projectId, operationId }, { timeoutMs: 90_000 }).catch((e) => ({ swallowed: String(e) }))
+  await mcp.callTool('nomi_operation_preview', { leaseHandle, projectId, operationId })
+  const gatePromise = mcp.callTool('nomi_operation_gate', { phase: 'request', leaseHandle, projectId, operationId }, { timeoutMs: 90_000 }).catch((e) => ({ swallowed: String(e) }))
   return { mcp, gatePromise }
 }
 

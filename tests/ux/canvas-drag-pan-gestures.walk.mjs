@@ -127,7 +127,8 @@ async function findMarqueeGesture() {
   return getWin().evaluate(() => {
     const stage = document.querySelector('.generation-canvas-v2__stage')
     const nodes = Array.from(document.querySelectorAll('.generation-canvas-v2-node'))
-    if (!stage || nodes.length === 0) return null
+    if (!stage) throw new Error('画布 stage 未渲染，无法构造框选手势')
+    if (!nodes.length) throw new Error('画布节点未渲染，无法构造框选手势')
     const stageRect = stage.getBoundingClientRect()
     const nodeRects = nodes.map((node) => node.getBoundingClientRect())
     const bounds = {
