@@ -99,7 +99,7 @@ describe('ProjectSessionAuthority', () => {
       protocolVersion: 2,
       projectId: 'project-1',
       sessionId: connection.sessionId,
-      effectiveScope: [CANVAS_READ_CAPABILITY.requiredScope],
+      effectiveScope: ["asset:read", CANVAS_READ_CAPABILITY.requiredScope, "export:read", "timeline:read"],
     })
     await expect(session.verifyLease(opened.leaseHandle, {
       connection,
@@ -171,7 +171,7 @@ describe('ProjectSessionAuthority', () => {
     expect(opened).toMatchObject({
       projectId: 'project-1',
       sessionId: connection.sessionId,
-      effectiveScope: [CANVAS_READ_CAPABILITY.requiredScope],
+      effectiveScope: ["asset:read", CANVAS_READ_CAPABILITY.requiredScope, "export:read", "timeline:read"],
     })
     expect(resolveProjectSelection).toHaveBeenCalledTimes(1)
   })

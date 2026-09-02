@@ -69,7 +69,15 @@ export function scopeForGenerationCapability(capability: McpGenerationCapability
 
 /** The session bootstrap can only grant server-owned, non-submit scopes. */
 export function deriveProjectSessionScopes(policy: McpGenerationPolicy): readonly string[] {
-  const scopes = new Set<string>([CANVAS_READ_CAPABILITY.requiredScope])
+  // The same project session also authorizes the registered read-only editing
+  // ports. Keep write scopes out of the bootstrap ceiling; timeline writes
+  // still require the separate Host approval path in rpcServer.ts.
+  const scopes = new Set<string>([
+    CANVAS_READ_CAPABILITY.requiredScope,
+    'timeline:read',
+    'export:read',
+    'asset:read',
+  ])
   const snapshot = policy.snapshot()
   if (snapshot.flagEnabled) {
     for (const capability of snapshot.effectiveScope) {

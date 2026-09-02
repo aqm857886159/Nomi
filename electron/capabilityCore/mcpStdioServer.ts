@@ -56,6 +56,7 @@ import { createRunOwnedGenerationGateAuthority } from './runOwnedGenerationGateA
 import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
 import { startSemanticMultiShotBatch } from './mcpSemanticBatchStart'
 import { hasGenerationOperationProviderReadiness } from './generationOperationProviderReadiness'
+import { createDefaultAuthorities } from './appIntegrationAuthorities'
 
 const productionRuns = getProductionRunService()
 
@@ -189,6 +190,8 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     safeStorage.setUsePlainTextEncryption(true)
   }
   const generationPolicy = authorities.generationPolicy ?? createRuntimeMcpGenerationPolicy()
+  const defaultAuthorities = createDefaultAuthorities(generationPolicy)
+  const approvalReceiptAuthority = authorities.approvalReceiptAuthority ?? defaultAuthorities.approvalReceiptAuthority
   const projectSession = createProductionMcpStdioProjectSessionBinding(generationPolicy)
   const canvasReadExecutionRuntime = createHeadlessCanvasReadExecutionRuntime()
   const { connection } = projectSession
@@ -225,10 +228,18 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   const fixtureBaseUrlOverride = process.env.NOMI_E2E_PRODUCTION_FIXTURE === '1'
     ? process.env.NOMI_E2E_APIMART_BASE_URL
     : undefined
+  const fixtureReferenceUrl = fixtureBaseUrlOverride && process.env.NOMI_E2E_APIMART_REFERENCE_URL
+    ? process.env.NOMI_E2E_APIMART_REFERENCE_URL
+    : undefined
   const liveGenerationRuntime = createLiveGenerationRuntime({
     bootstrap: (state, options) => createGenerationProviderBootstrap(state, {
       ...options,
       ...(fixtureBaseUrlOverride ? { fixtureBaseUrlOverride } : {}),
+      ...(fixtureReferenceUrl ? {
+        resolveReferenceUrls: (input) => ({
+          imageUrls: input.references.filter((reference) => reference.kind === 'image').map(() => fixtureReferenceUrl),
+        }),
+      } : {}),
     }),
   })
   const readProviderBootstrap = liveGenerationRuntime.readBootstrap
@@ -387,16 +398,17 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         }
       },
     })
-  const runOwnedGenerationAuthority = authorities.approvalReceiptAuthority
+  const runOwnedGenerationAuthority = approvalReceiptAuthority
     ? createRunOwnedGenerationGateAuthority({
         owner: productionRuns,
         operations: operationStore,
         planning: generationPlanning,
-        receipts: authorities.approvalReceiptAuthority,
+        receipts: approvalReceiptAuthority,
       })
     : undefined
   const generationAuthorities = {
     ...authorities,
+    approvalReceiptAuthority,
     generationPlanning,
     generationPolicy,
     ...(authorities.requestGenerationGate ?? runOwnedGenerationAuthority?.requestGenerationGate

@@ -9,7 +9,7 @@
 - 新增隔离的 APIMart HTTP fixture，覆盖 image/video create/query/result，并生成可解码 PNG、MP4、poster。
 - 新增 C7-C12 journey、逐帧 JSON-RPC trace、阶段截图和 artifact index；截图只验存在与非零尺寸。
 - 修复四个已知红锚：拒绝原因、gate reference projection、video artifact poster、export buildSha。
-- 删除 J-MCP1 本体与其 `test:mcp` 入口；保留 `_mcpJourney.mjs` 及 production/draft consumers。
+- 删除 J-MCP1 本体与其旧入口；保留 `_mcpJourney.mjs` 及 production/draft consumers。
 
 ## 不动项与验收
 

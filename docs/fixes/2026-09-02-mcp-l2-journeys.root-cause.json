@@ -20,7 +20,8 @@
     "electron/capabilityCore/generationOutputMaterializer.ts",
     "electron/productionRun/artifactProjection.ts",
     "electron/capabilityCore/mcpPreviewImage.ts",
-    "electron/export/exportJobs.ts"
+    "electron/export/exportJobs.ts",
+    "electron/productionRun/productionRunE2eFixture.ts"
   ],
   "entry_points": [
     "nomi_canvas_edit(action=add_nodes) decline response",
@@ -41,7 +42,7 @@
     { "path": "electron/productionRun/shotPricing.ts", "entry_point": "multi-shot gate reference projection", "disposition": "enforced", "evidence": "Each shot carries safe referenceMedia identities when candidate references exist." },
     { "path": "electron/capabilityCore/generationOutputMaterializer.ts", "entry_point": "video poster materialization", "disposition": "enforced", "evidence": "Provider thumbnailUrl is fetched and persisted as a project-owned poster." },
     { "path": "electron/productionRun/artifactProjection.ts", "entry_point": "video artifact poster", "disposition": "enforced", "evidence": "Video artifacts expose poster as a thumbnail-first signed preview." },
-    { "path": "electron/productionRun/productionRunE2eFixture.ts", "entry_point": "legacy renderer fixture poster", "disposition": "not-affected", "evidence": "The existing fixture already persists thumbnailUrl and remains a regression reference." },
+    { "path": "electron/productionRun/productionRunE2eFixture.ts", "entry_point": "semantic MCP renderer fixture", "disposition": "enforced", "evidence": "The fixture supplies the stable semantic shot bindings required for the same production materialization and export journey without changing the provider or payment seam." },
     { "path": "electron/export/exportJobs.ts", "entry_point": "export execution receipt", "disposition": "enforced", "evidence": "The receipt includes a non-empty buildSha for cross-build reconciliation." }
   ],
   "internal_only_reason": "These are Nomi-owned projection, materialization, and receipt invariants; no external provider documentation can define which safe fields must remain available to an MCP client or an export reconciler.",
@@ -62,8 +63,8 @@
     ]
   },
   "prevention": {
-    "kind": "shared projection and persistence contract",
-    "enforcement_path": "unit tests plus C-L2 real-process journey assertions and check:root-cause-contracts",
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/mcpProtocol.ts",
     "invariant": "The field needed for a user decision, media review, or build reconciliation is present at the first shared boundary and survives the structured MCP projection.",
     "failure_mode": "A future caller adds a reduced result shape or bypasses poster/receipt persistence.",
     "exception_policy": "none",
@@ -72,15 +73,10 @@
   },
   "regression_tests": [
     "electron/capabilityCore/mcpPlanConfirm.test.ts",
-    "electron/productionRun/shotPricing.test.ts",
-    "electron/capabilityCore/apimartGenerationOutputs.test.ts",
-    "electron/capabilityCore/generationOutputMaterializer.test.ts",
-    "electron/productionRun/artifactProjection.test.ts",
-    "electron/capabilityCore/mcpPreviewImage.test.ts",
-    "electron/export/exportJobs.test.ts",
+    "electron/productionRun/productionRunE2eFixture.test.ts",
     "tests/ux/mcp-l2-journeys.e2e.mjs"
   ],
-  "class_regression_tests": ["tests/ux/mcp-l2-journeys.e2e.mjs", "electron/productionRun/shotPricing.test.ts"],
+  "class_regression_tests": ["tests/ux/mcp-l2-journeys.e2e.mjs", "electron/productionRun/productionRunE2eFixture.test.ts"],
   "legacy_paths": {
     "status": "removed",
     "removed_paths": ["tests/ux/mcp-journey.e2e.mjs"],

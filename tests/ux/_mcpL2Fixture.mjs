@@ -71,7 +71,7 @@ export async function startFakeApimartServer({ pendingPolls = 0 } = {}) {
   let origin = ''
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   origin = `http://127.0.0.1:${server.address().port}`
-  return { origin, hits, referencePath: media.referencePath, close: () => new Promise((resolve) => server.close(resolve)) }
+  return { origin, hits, referencePath: media.referencePath, videoPath: path.join(media.root, 'fixture.mp4'), close: () => new Promise((resolve) => server.close(resolve)) }
 }
 
 export function encryptFixtureKey(userDataDir) {
@@ -90,14 +90,20 @@ export function encryptFixtureKey(userDataDir) {
   return result.stdout.trim()
 }
 
-export function writeFakeApimartCatalog(settingsDir, userDataDir, origin = '', { withKey = true } = {}) {
+export function writeFakeApimartCatalog(settingsDir, userDataDir, _origin = '', { withKey = true } = {}) {
   const { applyBuiltinSeeds } = require(path.join(repoRoot, 'dist-electron/catalog/seedBuiltins.js'))
   const seeded = applyBuiltinSeeds({ version: currentCatalogVersion(), vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, new Date().toISOString()).state
   const encrypted = encryptFixtureKey(userDataDir)
-  const vendors = seeded.vendors.map((vendor) => vendor.key === 'apimart' && origin ? { ...vendor, baseUrlHint: origin } : vendor)
+  const models = seeded.models.map((model) => model.vendorKey === 'apimart' && model.kind === 'video'
+    ? { ...model, pricing: { cost: 0, enabled: true, specCosts: [] } }
+    : model)
   const catalog = {
     ...seeded,
-    vendors,
+    // Keep the shipped APIMart scope intact. The explicit loopback fixture
+    // env selects the test origin; mutating baseUrlHint would correctly trip
+    // the production direct-key scope guard.
+    vendors: seeded.vendors,
+    models,
     apiKeysByVendor: withKey ? {
       apimart: { vendorKey: 'apimart', apiKey: encrypted, enc: 'safeStorage', enabled: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
     } : {},

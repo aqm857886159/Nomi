@@ -223,7 +223,7 @@ test('Cloudflare Workers dependency install never launches the desktop Electron 
 
 test('all Electron entry points share the identity gate and install repair', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(sourceRepoRoot, 'package.json'), 'utf8'))
-  for (const script of ['build', 'dist', 'dist:mac:dir', 'test:e2e', 'test:mcp', 'test:journeys']) {
+  for (const script of ['build', 'dist', 'dist:mac:dir', 'test:e2e', 'test:mcp-journey', 'test:journeys']) {
     assert.match(
       packageJson.scripts[script],
       /^pnpm run check:electron-install && /,

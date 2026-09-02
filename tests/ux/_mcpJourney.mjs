@@ -1,5 +1,5 @@
 // Shared infra for real-process MCP journeys — the ONE spawn/framing/teardown/mock-vendor implementation
-// (P1: no copy-paste) driven by BOTH J-MCP1 (mcp-journey.e2e.mjs) and production-mcp-journey.e2e.mjs, plus
+// (P1: no copy-paste) driven by the L1/L2 MCP journeys and production-mcp-journey.e2e.mjs, plus
 // any future real-transport MCP test. Client-specific differences (initialize capabilities, clientInfo,
 // extra env) are options on spawnMcpStdioClient; error semantics come in two shapes — callTool (returns
 // raw, isError inspectable) and callToolOrThrow (throws on isError) — so both call sites stay clean.
@@ -13,7 +13,7 @@
 // Transport under test = the REAL in-Electron MCP stdio server: `electron <repoRoot>` with
 // NOMI_MCP_STDIO=1. That process is genuinely headless (no window, app.dock.hide, disk gateway) and
 // speaks real newline-delimited JSON-RPC 2.0 over stdio — the exact framing mcpProtocol.ts implements.
-// It is the same real-process transport production-mcp-journey uses; see mcp-journey.e2e.mjs header for
+// It is the same real-process transport production-mcp-journey uses; see the journey headers for
 // why this (not the bare-Node mcpNodeLauncher wrapper) is the faithful path for a zero-dialog headless
 // spend: the launcher always ensures a *GUI* app instance whose unopened-project spend routes through
 // the renderer confirm card (createHybridGateway) and cannot complete without a human click, whereas the
@@ -439,6 +439,14 @@ export function spawnMcpStdioClient({
     }
   }
 
+  // Drop only the transport pipe so the server's stdin-close cancellation path
+  // is exercised; terminate() additionally sends SIGTERM.
+  function disconnect() {
+    try { child.stdin.end() } catch { /* already closed */ }
+    if (childExit) return Promise.resolve(childExit)
+    return new Promise((resolve) => child.once('exit', (code, signal) => resolve({ code, signal })))
+  }
+
   return {
     child,
     initialize,
@@ -448,6 +456,7 @@ export function spawnMcpStdioClient({
     callTool,
     callToolOrThrow,
     terminate,
+    disconnect,
     progressForToken: (token) => progressByToken.get(String(token)) || 0,
     elicitationCount: () => elicitationCount,
     childExited: () => childExit,
