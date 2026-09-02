@@ -14,6 +14,7 @@
 | **已拍板但还没交付的，都欠着什么** | `pnpm run ledger:brief` 看一行摘要（每轮 L0 hook 也会自动顶出来）；`pnpm run gen:ledger` 生成本地 `DELIVERY-LEDGER.md`——**本地视图、不进 git**（它含全局计数，commit 了两个分支会永远抢它）|
 | **设计系统 / token / 组件规范** | [`design/`](design/) → 核心是 `design/nomi-design-system.md`（任何 UI 改动前必读）|
 | **「设计一个页面」的完整流程（可搬到别的产品复用）** | [`design/page-design-process.md`](design/page-design-process.md) → 七道闸 + 每道闸防的真实事故 + 可复制的模板/门岗/断言 |
+| **说一句话触发的设计流程技能（五步：看真实 UI→复用→样张→走读→契约）** | `.claude/skills/nomi-design-flow/SKILL.md`（技能）；`design/nomi-design-flow-howto.md`（使用指南）|
 | **UI 样张（HTML mockup）** | [`mockups/`](mockups/) ｜ 旧版 [`ui-designs/`](ui-designs/) |
 | **代码健康 / 周期审计 / 问题分级** | [`audit/`](audit/) |
 | **某版本改了什么** | [`release-notes/`](release-notes/) |
