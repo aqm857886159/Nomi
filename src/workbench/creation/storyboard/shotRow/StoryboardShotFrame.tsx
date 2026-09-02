@@ -37,6 +37,8 @@ type Props = {
   /** 浮条 🔒/🔓：镜级锁定开关（锁=不进批量不被重跑）。 */
   onToggleLock?: (() => void) | undefined
   targetShots?: readonly PlanShot[]
+  allShots?: readonly PlanShot[]
+  sourcePosition?: number
   onSaveAsReference?: (() => void) | undefined
   onSetAsFirstFrame?: ((targetIndex: number) => void) | undefined
   selected?: boolean
@@ -69,6 +71,8 @@ function BarButton({
 function ResultIntakeMenu({
   shot,
   targetShots,
+  allShots,
+  sourcePosition,
   onSaveAsReference,
   onSetAsFirstFrame,
 }: {
