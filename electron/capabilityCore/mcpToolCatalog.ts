@@ -34,8 +34,14 @@ export const CANVAS_READ_METHOD = CANVAS_READ_ADAPTER_TOOL.method
 //（docs/fixes/2026-09-02-m2-canvas-document-semantic-surface.root-cause.json），薄路由正是它要杀的
 //「目录直投遗留画布操作、裸 projectId 可写」——同 commit 删净（P1），画布写只此一面；删除/撤销走
 // nomi_canvas_maintenance（destructiveHint + confirmation + undoToken）。
-const CANVAS_EDIT_TOOL = MCP_CAPABILITY_RESOLVER.resolve('nomi_canvas_edit')
-if (!CANVAS_EDIT_TOOL) throw new Error('canvas.write MCP adapter is not registered')
+// title 回归修复（slice-3）：T3 把旧薄路由替换成 M2 语义面时 title 随旧对象一起丢了；
+// 此处包装补回，措辞按新语义面（lease-scoped / semantic operation 枚举），不照抄旧分支枚举说明。
+const _CANVAS_EDIT_ADAPTER = MCP_CAPABILITY_RESOLVER.resolve('nomi_canvas_edit')
+if (!_CANVAS_EDIT_ADAPTER) throw new Error('canvas.write MCP adapter is not registered')
+const CANVAS_EDIT_TOOL = {
+  ..._CANVAS_EDIT_ADAPTER,
+  title: '在租约内对画布做语义写操作：create_canvas_nodes 加节点 / connect_canvas_edges 连线 / set_node_prompt 改提示词 / tidy_canvas 整理布局。每次操作原子落账，支持 undo。',
+}
 
 // M2 语义编辑工具（timeline_read/edit · export_job · media_query + M2 canvas/document 语义面）——
 // 独立能力投影，非本次 42→15 收敛的一员，此处**原样保留**其已发布形态（读工具带 annotations.readOnlyHint），
@@ -43,6 +49,9 @@ if (!CANVAS_EDIT_TOOL) throw new Error('canvas.write MCP adapter is not register
 // canvas.read 已进 nomi_read（target=canvas）、canvas 写已是 T3 本体，这两个从透传里排除以免撞名/并行版。
 const SEMANTIC_EDITING_TOOLS = MCP_CAPABILITY_RESOLVER.list().filter((tool) => tool.name !== CANVAS_READ_ALIAS && tool.name !== CANVAS_EDIT_TOOL.name)
 if (SEMANTIC_EDITING_TOOLS.length === 0) throw new Error('M2 semantic editing MCP adapters are not registered')
+/** M2 语义编辑工具名单（真相源），供测试派生 collapsedTitled 范围而非手抄排除规则。
+ *  这些工具来自 MCP_CAPABILITY_RESOLVER（capability 层），暂无 title——续裁时统一补（A 线任务）。 */
+export const SEMANTIC_EDITING_TOOL_NAMES = Object.freeze(SEMANTIC_EDITING_TOOLS.map((t) => t.name))
 
 // ── T2 · nomi_read：读侧统一入口（多态只读，整体 readOnlyHint） ───────────────────────────────
 // 每个旧读工具 = 一个 target 值；get/read 双读（get_artifact vs read_artifact）= artifact vs artifact_content
