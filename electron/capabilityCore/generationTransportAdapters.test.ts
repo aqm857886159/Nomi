@@ -14,6 +14,7 @@ const binding: ProjectBinding = {
 
 const lease = {
   ...binding,
+  canonicalRootDigest: "test-digest",
   version: 2,
   keyId: "test",
   algorithm: "HMAC-SHA256",
