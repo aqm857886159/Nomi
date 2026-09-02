@@ -44,7 +44,7 @@
     "generate:icons": "node ./scripts/generate-app-icon.cjs",
     "check:tokens": "node ./scripts/check-design-tokens.mjs",
     "check:dangling-tokens": "node ./scripts/check-dangling-tokens.mjs",
-    "check:dangling-tailwind": "node ./scripts/check-dangling-tailwind.mjs",
+    "check:dangling-tailwind": "node --test ./scripts/check-dangling-tailwind.node-test.mjs && node ./scripts/check-dangling-tailwind.mjs",
     "check:archetype-defaults": "tsx scripts/gen-archetype-wire-defaults.ts --check",
     "check:archetype-sources": "node ./scripts/check-archetype-sources.mjs",
     "check:platform-archetypes": "node ./scripts/check-platform-archetypes.mjs",

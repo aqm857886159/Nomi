@@ -1,0 +1,121 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-dangling-tailwind-token-mapping",
+  "problem_type": "CSS 变量定义了却没映射进 Tailwind theme，类名静默不生成 CSS",
+  "symptom": "全 App 10 处「已完成」绿字/绿勾（常驻卡、助手时间轴、生成节点、生产任务卡）一直渲染成继承色（浅色近黑 rgb(0,0,0) / 暗色 rgb(201,201,201)），不是设计色 #248a3d/#7ee8aa；另有警示横幅无底色无描边、ClipNode 时间轴段无青色底、41 处 ink 层级被压平。肉眼不报错、控制台不报错。",
+  "direct_cause": "tailwind.config.ts 的 theme.extend.colors.workbench 少了 'success-ink' 这一行映射；nomi 组同样缺 danger-soft/warning-soft/track-*，workbench 组缺 video/video-soft。另有 30 处站点写了 ink 阶梯根本不存在的档位（35/45/50/55/65/70）。",
+  "class_root": "「定义 CSS 自定义属性」与「把它映射进 theme.extend」是两个彼此独立的动作，而 Tailwind 对未定义的 token 键**既不报错也不生成 CSS**——声明静默丢弃、元素掉回继承值。只要这两个动作没有被同一道机器闸绑在一起，任何人新增一个 --nomi-*/--workbench-* 颜色变量、或写一个自以为存在的档位类名，都会再次制造同类静默失效。该断层此前已发生过一次（tailwind.config.ts 内 P4 S5 注释留证：--nomi-warning 有变量无映射、--nomi-success 变量都不存在，text-nomi-success 静默失色），当时只补了那两个实例、没有设闸。",
+  "affected_population": [
+    "所有 src/ 下写 text-/bg-/border-/ring-/fill-/stroke-/rounded-/shadow-/font- 前缀 + nomi-/workbench- token 键的静态类名",
+    "所有在 tailwind.config.ts addBase 新增 --nomi-*/--workbench-* 颜色变量的改动",
+    "依赖这些类上色的用户可见状态：完成/成功、警示、错误、媒体轨语义色、文字层级阶梯"
+  ],
+  "scope_paths": [
+    "tailwind.config.ts",
+    "scripts/check-dangling-tailwind.mjs",
+    "scripts/dangling-tailwind-baseline.json",
+    "scripts/unmapped-token-baseline.json",
+    "tests/ux/dangling-tailwind-tokens.walk.mjs"
+  ],
+  "entry_points": [
+    "tailwind.config.ts theme.extend.colors/borderRadius/boxShadow/fontSize/fontFamily（token 键的唯一定义处）",
+    "tailwind.config.ts workbenchBasePlugin addBase(':root' / 暗色块)（CSS 自定义属性的 live 真源）",
+    "src/**/*.tsx|ts|css 里的静态类名字面量（Tailwind JIT 的唯一扫描面）"
+  ],
+  "internal_only_reason": "这是 Nomi 自己的设计 token 层与 Tailwind 配置之间的内部合同；Tailwind 对未知键静默的行为是其既定设计，不是第三方缺陷。",
+  "invariants": [
+    "src 中任何静态类名引用的 nomi-/workbench- token 键，必须存在于 tailwind.config.ts 对应族的 theme.extend 中。",
+    "addBase 中定义的每个值为颜色的 --nomi-*/--workbench-* 变量，要么被 theme.extend 映射（可当 Tailwind 类用），要么被显式登记为「只给 CSS 直接 var() 消费」。",
+    "两条棘轮基线只减不增；新增一处即红。",
+    "Tailwind 类渲染出的颜色必须等于该 token CSS 变量直接渲染出的颜色（带 /NN 修饰时等于同比例 color-mix）。"
+  ],
+  "generality_proof": "正向检查扫的是全部 src/**/*.{ts,tsx,css} 的静态类名字面量，而 Tailwind JIT 本身也只认这一个面——扫描面与生效面完全重合，任何文件、任何组件、任何新写法都逃不掉。反向检查扫的是 tailwind.config.ts 中全部 --nomi-*/--workbench- 变量定义，而该文件是这些变量的 live 唯一真源（src/theme/nomi-tokens.css 只是样张与 design-sync 用的镜像、App 不加载）。两个方向合起来把「定义变量」与「暴露成类」这两个此前独立的动作锁进同一道闸：漏任一半都当场红。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-dangling-tailwind.mjs",
+      "symbol": "正向棘轮（offenders）+ 反向棘轮（unmapped）",
+      "responsibility": "正向：src 静态类名引用的 token 键必须在 config 里存在。反向：config 里定义的颜色变量必须被 theme 映射或显式登记为 CSS-only。两者共用 --baseline，只减不增。"
+    },
+    {
+      "path": "tailwind.config.ts",
+      "symbol": "theme.extend.colors + addBase(':root')",
+      "responsibility": "token 键与 CSS 自定义属性的唯一定义处；颜色映射一律走 tokenColor() 以保住 /NN 透明度修饰符。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tailwind.config.ts",
+      "entry_point": "theme.extend.colors.workbench / colors.nomi",
+      "disposition": "enforced",
+      "evidence": "补齐 success-ink、video、video-soft、audio、audio-soft、text、text-soft、danger-soft、warning-soft、track-text/image/video 共 12 个映射；反向棘轮现在盯住这两组，再漏一个映射即红。"
+    },
+    {
+      "path": "src/theme/nomi-tokens.css",
+      "entry_point": "镜像 token 定义",
+      "disposition": "not-affected",
+      "evidence": "该文件不被 App 加载（main.tsx 只 import styles/index.css；仅 docs/design/mockups 与 .design-sync 引用），不构成运行时 token 来源；门岗只以 tailwind.config.ts 为准，避免把镜像误当真源。"
+    },
+    {
+      "path": "src/ui/onboarding/workflowPage/WorkflowSidebar.tsx",
+      "entry_point": "bg-[var(--nomi-track-video)] / text-[var(--nomi-track-video)] 任意值逃生口",
+      "disposition": "enforced",
+      "evidence": "缺映射曾逼出该逃生口（两处）；映射补齐后同 commit 收口成正式类名，反向棘轮保证不会再因缺映射而复发这类写法分叉。"
+    },
+    {
+      "path": "scripts/check-dangling-tokens.mjs",
+      "entry_point": "既有 var(--未定义) 门岗",
+      "disposition": "not-affected",
+      "evidence": "它抓的是 CSS 里 var() 指向未定义变量；「类名里的 token 键悬空」与「变量定义了没映射进 theme」对它完全隐形（另一道 check-design-tokens 抓硬编码 px/hex，同样隐形），故新增本门岗补洞而非改动它们。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同类断层已发生过一次并留有注释证据（--nomi-warning 有变量无映射、--nomi-success 变量缺失导致 text-nomi-success 静默失色），当时只补实例未设闸；token 与组件持续新增，且失败是静默的（无报错、无控制台警告、视觉上常只是「颜色差一点」），靠人眼与代码评审必然继续漏。",
+    "same_class_scan": [
+      "用真实 Tailwind 编译器（postcss + tailwindcss 3.4.19 加载真 config）对 27 个候选类做发射探针，确认 18 个确实不生成任何 CSS 规则，排除正则解析器误报。",
+      "对全部 51 处基线逐条交叉核对 CSS 变量是否存在：workbench-success-ink、nomi-track-video、workbench-video/-soft 属「变量在、映射缺」；ink 35/45/50/55/65/70、ink-soft、ink-02、rounded-nomi-md、shadow-nomi-xs、workbench-warning* 属「档位根本不存在」，两类处置不同。",
+      "反扫 tailwind.config.ts 全部 98 个 --nomi-*/--workbench-* 定义，按值判断颜色性，得出 21 个「定义了但没映射」的颜色变量作为反向棘轮基线（其中 audio/text/track 三族本次一并补映射，降到 17）。",
+      "grep src 确认 --nomi-track-video 等缺映射变量此前被 bg-[var(--…)] 任意值逃生口消费，证明缺映射会外溢成写法分叉。"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-dangling-tailwind.mjs",
+    "invariant": "src 静态类名引用的 token 键必须在 theme.extend 中存在；且 addBase 中每个颜色值的 --nomi-*/--workbench- 变量必须被 theme 映射或显式登记进 unmapped 基线。",
+    "failure_mode": "两条棘轮任一新增即 exit 1，逐条打印文件:行与悬空类名（正向）或变量名与已映射的同族兄弟（反向），并指明「addBase 与 theme.extend 必须同时加」。",
+    "exception_policy": "none",
+    "strategy": "把「定义 CSS 变量」与「把它映射成 Tailwind 类」这两个原本独立的动作，用一道双向棘轮门岗绑成一个整体：正向堵住「用了不存在的键」，反向堵住「定义了却没出口」。两条基线只减不增，接进 gates:contracts 常跑。",
+    "artifacts": [
+      "scripts/check-dangling-tailwind.mjs",
+      "scripts/dangling-tailwind-baseline.json",
+      "scripts/unmapped-token-baseline.json",
+      "tailwind.config.ts"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-dangling-tailwind.node-test.mjs",
+    "tests/ux/dangling-tailwind-tokens.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-dangling-tailwind.node-test.mjs",
+    "tests/ux/dangling-tailwind-tokens.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/ui/onboarding/workflowPage/WorkflowSidebar.tsx"
+    ],
+    "rationale": "缺映射曾逼出 arbitrary-value 写法作为并行表达方式；映射补齐后同 commit 收口成正式类名，不留两种写法（P1）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "修复只调整仓库内 Tailwind 配置、门岗与站点类名，不涉及第三方运行时或版本升级；Tailwind 3.4.19 对未知键静默是其既定行为，不通过升级解决。",
+    "exit_criteria": []
+  },
+  "migration": "51 处历史欠账按两类处置：变量已存在的补 theme 映射（零站点改动即修好 10 处 success-ink 与 track-video）；档位不存在的按组件内层级关系归位到真实档位（ink 阶梯 05/10/20/30/40/60/80、rounded-nomi、shadow-nomi-sm），workbench 无 warning 族的三处改用根层 nomi-warning。新增 --nomi-danger-soft/--nomi-warning-soft 两个 token 沿用 --nomi-accent-soft 的 color-mix(in srgb, …) 配方与明暗比例。两条棘轮基线随之降到 0 与 17。",
+  "residual_risks": [
+    "反向棘轮按「值看起来是颜色」判定，若将来有人把颜色写成 CSS 全局关键字（如 currentColor）或纯变量链指向非颜色，判定会漏；此类写法本就不符合仓库 token 规范，且正向棘轮仍会在有人写类名时兜住。",
+    "audio/text/track-image/track-text 四族映射目前无字面类名消费者，JIT 不生成 CSS，故只在编译层与配置层得到验证、真机走查无法覆盖；它们的作用是防同族再漏，实际上色行为待首个消费者出现时由正向棘轮与走查覆盖。",
+    "ink 阶梯 30 处的档位归位是按组件内相对层级判断的设计取舍（如 45→40、70→60），与原作者意图可能有个别出入；这些站点修复前渲染的是继承色（层级本就被压平），归位后层级恢复，个别档位若与设计意图不符属可见且易调的偏差，不会再静默失效。"
+  ]
+}

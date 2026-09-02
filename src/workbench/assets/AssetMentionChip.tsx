@@ -42,7 +42,7 @@ export default function AssetMentionChip({ node }: NodeViewProps): JSX.Element {
       <span className={cn('relative w-[22px] h-[22px] overflow-hidden bg-nomi-ink-05 shrink-0 flex items-center justify-center')} aria-hidden>
         <AssetThumb asset={asset} playSize={10} />
       </span>
-      <span className={cn('text-micro font-medium leading-none text-nomi-ink-70 whitespace-nowrap')}>{label}</span>
+      <span className={cn('text-micro font-medium leading-none text-nomi-ink-60 whitespace-nowrap')}>{label}</span>
     </NodeViewWrapper>
   )
 }
