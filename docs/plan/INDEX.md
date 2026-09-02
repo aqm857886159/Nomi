@@ -14,6 +14,7 @@
 | [2026-06-07-model-onboarding-final-plan.md](2026-06-07-model-onboarding-final-plan.md) | **模型接入最终方案**（R7 定稿，审计+设计+计划）— 本簇主文档 | ✅ |
 | [2026-08-15-model-integration-no-dead-end-master-plan.md](2026-08-15-model-integration-no-dead-end-master-plan.md) | 模型接入「不留死路」总纲：事实源 manifest + 能力契约 + 旅程矩阵 | 🚧 |
 | [2026-09-02-docaudit-kie-apimart.md](2026-09-02-docaudit-kie-apimart.md) | KIE + APIMart 官方文档全量对账、映射合同覆盖与未封印模型验收 | ✅ |
+| [2026-09-02-runway-model-identity-workflow.md](2026-09-02-runway-model-identity-workflow.md) | **一个模型一个档案主人**（PR #310 挂起的「单独立项裁决」）：删平台档案 runway-video，10 个 Runway 模型改挂真模型档案；补齐供应商特化三轴（参数/transport/模式可见性）；selectTaskMapping 停止借用别的模式的线缆 | ✅ |
 | [2026-08-15-model-access-exhaustive-user-journeys.md](2026-08-15-model-access-exhaustive-user-journeys.md) | 模型接入全集用户旅途测试：能力面逐维度真实 UI 往返旅程矩阵 | 🚧 |
 | [2026-08-28-conversational-model-integration-verification.md](2026-08-28-conversational-model-integration-verification.md) | 对话式模型接入与认证闭环：J0–J5 真实验收和发布记录 | 🚧 |
 | [2026-08-30-unified-model-integration-certification.md](2026-08-30-unified-model-integration-certification.md) | 旗舰供应商、模型扩充与统一认证流程（官方合同→零费用仿真→认证账本） | 🚧 |
@@ -71,6 +72,7 @@
 | [2026-08-09-prompt-paste-node-duplication.md](2026-08-09-prompt-paste-node-duplication.md) | 外部提示词粘贴进编辑器时不再误触画布节点粘贴兜底 | ✅ |
 | [2026-08-31-canvas-paste-routing-root-cause.md](2026-08-31-canvas-paste-routing-root-cause.md) | 画布复制节点后粘贴优先恢复内部节点；仅系统剪贴板明确带外部媒体时才走网页媒体下载（根因修复） | ✅ |
 | [2026-09-01-canvas-drag-perf-eval-v2.md](2026-09-01-canvas-drag-perf-eval-v2.md) | **画布拖动性能 eval v2 + 修复路线**（B 案已拍板）：三腿基线 prod/dev/throttle、画布外重渲染探针、拖/平移比值指纹；S3 订阅细粒度化 → S4 拖动几何下放 RF 内核 | 🚧 |
+| [2026-09-02-canvas-projection-sync-regression.md](2026-09-02-canvas-projection-sync-regression.md) | S4 回归修复：保留非受控 React Flow 内核并补齐 mount 后业务节点投影的单向同步 | 🚧 |
 | [2026-08-09-windows-drag-floating-surfaces.md](2026-08-09-windows-drag-floating-surfaces.md) | Windows 顶部浮层避开自绘窗口栏与功能顶栏拖拽区 | ✅ |
 | [2026-08-09-batch-dock-terminal-dismiss.md](2026-08-09-batch-dock-terminal-dismiss.md) | 批量生成全部完成后隐藏“生成全部 0 个”底栏 | ✅ |
 | [2026-08-13-batch-dock-timeline-occlusion.md](2026-08-13-batch-dock-timeline-occlusion.md) | 批量生成底栏避让时间轴把手并支持按当前批次隐藏 | ✅ |

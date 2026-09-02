@@ -3,11 +3,11 @@ import { MODEL_ARCHETYPES, resolveArchetypeForModel } from "./index";
 import { buildVideoModelCandidates, sourceBackedVideoProfiles } from "../../../electron/shared/videoCapabilities";
 
 // 二期档案归一（2026-09-02）的结构保证：MODEL_ARCHETYPES 的 video 块改为从
-// electron/shared/videoCapabilities/registry.ts 派生（唯一登记点），数组顺序就是 registry
-// 声明序。三趟身份匹配（resolveBaseArchetype）在同趟多命中时按数组顺序决胜——所以「顺序」
-// 本身是行为。本文件把**所有已知的跨档案同串**的赢家逐个锁死：未来任何重排 / 新增档案 /
-// 改 pattern 若翻转任一赢家，这里当场红，而不是等用户手上「认错模型、参数全错」
-// （z-image 事故的教训）。
+// electron/shared/videoCapabilities/registry.ts 派生（唯一登记点），数组顺序因此从
+// 「手列的历史顺序」变成 registry 声明序。三趟身份匹配（resolveBaseArchetype）
+// 在同趟多命中时按数组顺序决胜——所以「顺序」本身是行为。本文件把**所有已知的跨档案同串**
+// 的存量赢家逐个锁死：未来任何重排 / 新增档案 / 改 pattern 若翻转任一赢家，这里当场红，
+// 而不是等用户手上「认错模型、参数全错」（z-image 事故的教训）。
 //
 // veo3.1 同串双身份修复（2026-09-02，行为变更独立立项）：裸 "veo3.1" 曾在渲染层解析到
 // runway-video（历史手列序 + legacy pin 钉住）、在 registry 平局判据解析到 veo-3.1——同一个
@@ -32,20 +32,16 @@ describe("MODEL_ARCHETYPES 派生构造（video 单一登记点）", () => {
   });
 });
 
-describe("跨档案同串的赢家（同趟多命中的顺序决胜，逐条锁死）", () => {
-  // Runway 是平台型供应商：它的 video/audio/image 档案把所住模型的判别串也列进了
-  // identifierPatterns（sources 实证自 Runway OpenAPI discriminator）。凡与专属档案撞串，
-  // 赢家 = 专属档案（seedance2/hailuo3/veo3.1/eleven_v3…），无例外：平台档案只是判别串的
-  // 宿主，专属档案才携带该模型的真实能力面与报文契约；Runway 自家目录行显式 pin archetypeId，
-  // 不依赖这里。（"veo3.1" 曾是唯一反向例外=渲染层认 runway-video，2026-09-02 已纠正到 veo-3.1
-  // 并删除 legacy pin——它与 registry 平局判据的赢家自此一致。）
+describe("跨档案同串的存量赢家（同趟多命中的顺序决胜，逐条锁死）", () => {
+  // Runway 的 image/audio 档案仍是平台型的：它们把所住模型的判别串也列进 identifierPatterns
+  // （sources 实证自 Runway OpenAPI discriminator）。凡与专属档案撞串，存量赢家 = 专属档案。
+  //
+  // ⚠️ video 侧已不在此列：2026-09-02「一模型一档案」把 Runway 十行 video 改挂各自**真模型**档案，
+  // 平台档案 runway-video / runway-video-t2v 同 commit 删除。于是 seedance2 / hailuo3 / veo3.1 /
+  // happyhorse_1_0 这些串不再有第二个声明者——撞串本身消失了，连同它的 LEGACY_RESOLUTION_ORDER_PINS
+  // 一起清掉（PR #310 合同 residual_risks 第三条指明的处置）。下面只剩仍然真实存在的撞串。
   const LOCKED_WINNERS: Record<string, string> = {
-    // pattern 归属 runway-video，专属档案赢
-    seedance2: "seedance-2",
-    hailuo3: "minimax-h3",
-    "veo3.1": "veo-3.1",
-    // Runway 家族内的遮蔽（前者档案先声明）
-    happyhorse_1_0: "runway-video",
+    // Runway image 家族内的遮蔽（前者档案先声明）
     gen4_image_turbo: "runway-image-reference",
     // 归属 runway-audio，专属音频档案赢
     eleven_text_to_sound_v2: "eleven-sfx-v2",
@@ -57,8 +53,13 @@ describe("跨档案同串的赢家（同趟多命中的顺序决胜，逐条锁�
     "MINIMAX-H3": "minimax-h3",
     // 末段撞串（vendor 前缀被剥掉后才相同，tier-2 决胜）
     "somevendor/z-image-turbo": "z-image-turbo", // vs modelscope-image（z-image 事故的原案）
-    "somevendor/seedance2": "seedance-2", // vs runway-video
-    "somevendor/veo3.1": "veo-3.1", // 专属档案在末段趟同样赢
+    // 平台档案删除后，这两串各自只有一个声明者 —— 锁住「归到真模型档案」这个新现状。
+    "somevendor/seedance2": "seedance-2",
+    "somevendor/veo3.1": "veo-3.1",
+    seedance2: "seedance-2",
+    hailuo3: "minimax-h3",
+    "veo3.1": "veo-3.1",
+    happyhorse_1_0: "happyhorse",
     // minimax-h3 与 happyhorse 各自声明了 <family>/text-to-video 形态的 key，末段同串
     "text-to-video": "minimax-h3",
     "image-to-video": "minimax-h3",
@@ -74,11 +75,9 @@ describe("跨档案同串的赢家（同趟多命中的顺序决胜，逐条锁�
 describe("pattern 自解析不变量（除已登记例外，每个 pattern 解析回自己的档案）", () => {
   // 例外 = 上面锁过赢家的跨档案同串：owner ≠ 赢家 的全部现存条目。新增档案若把别人的
   // pattern 抢走（新的同串且自己没赢），这里会红——逼着新档案作者显式处理撞串而不是静默吞。
+  // video 侧的四条旧例外（seedance2 / hailuo3 / happyhorse_1_0 / veo3.1）已随平台档案 runway-video
+  // 一起消失：这些串现在各自只有真模型档案一个声明者，pattern 自解析回自己，不再是「损失」。
   const KNOWN_LOSSES: Record<string, string> = {
-    seedance2: "seedance-2", // owner runway-video
-    hailuo3: "minimax-h3", // owner runway-video
-    "veo3.1": "veo-3.1", // owner runway-video（平台判别串让位专属档案，与其余各行同一条规则）
-    happyhorse_1_0: "runway-video", // owner runway-video-t2v
     gen4_image_turbo: "runway-image-reference", // owner runway-image
     eleven_text_to_sound_v2: "eleven-sfx-v2", // owner runway-audio
     eleven_v3: "eleven-v3", // owner runway-audio

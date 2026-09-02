@@ -23,8 +23,19 @@ on:
         options:
           - full
 
+# PR 按 PR 号分组：PR 里 github.sha 每次推送都变，按 sha 分组就不会取消旧班、会堆积；按 PR 号才对。
+# 其余事件（push / merge_group / workflow_dispatch）按 commit SHA 分组。
+#
+# 为什么不能回落到 github.ref：main 的 ref 恒为 refs/heads/main，按它分组会让每个新 merge 取消上一个
+# merge 还在跑的班。实测 2026-09-02 10:51–10:55 连续四班里三班被取消；被取消的班留不下任何证据，
+# delivery:verify-merged 因此在那些 merge SHA 上发不出 exact-SHA 收据（它正确拒绝把 cancelled 当成功）。
+# 没有任何作者能规避——取消你的是下一个 merge。故每个 commit 各跑各的。
+#
+# 这里刻意不用 `event_name == 'push' && github.sha || github.ref` 那套三元惯用法：它依赖「&& 右侧必须
+# 是真值」这个隐式前提，写错一次就静默回落到错误分支。github.sha 在上述每种事件下都有定义且唯一，
+# 两段式就够，少一个能出错的地方。
 concurrency:
-  group: quality-gate-${{ github.event.pull_request.number || github.ref }}
+  group: quality-gate-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 permissions:
