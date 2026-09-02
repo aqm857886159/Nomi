@@ -3,7 +3,7 @@ import i18n from '../../../i18n'
 import {
   BROWSER_IMAGE_REPLICATE_PROMPT_EXTRACTION_PROMPT,
   BROWSER_IMAGE_STYLE_PROMPT_EXTRACTION_PROMPT,
-  BROWSER_PROMPT_EXTRACTION_MODE_LABELS,
+  BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS,
   browserPromptExtractionPromptForMode,
   type BrowserPromptExtractionMode,
 } from './browserPromptExtraction'
@@ -14,9 +14,11 @@ const BROWSER_PROMPT_TEMPLATE_DEFAULT_IDS: Record<BrowserPromptExtractionMode, s
   replicate: 'default:replicate',
   style: 'default:style',
 }
-const BROWSER_PROMPT_TEMPLATE_DEFAULT_TITLES: Record<BrowserPromptExtractionMode, string> = {
-  replicate: BROWSER_PROMPT_EXTRACTION_MODE_LABELS.replicate,
-  style: BROWSER_PROMPT_EXTRACTION_MODE_LABELS.style,
+// 内置模板的默认标题:**每次取值时**翻译,不做成模块顶层常量——
+// 常量会把 import 那一刻的语言冻住,切语言后内置模板名不跟着变。
+// (标题只用于显示;持久化认的是 BROWSER_PROMPT_TEMPLATE_DEFAULT_IDS 那个语言无关的 id。)
+function defaultTemplateTitle(mode: BrowserPromptExtractionMode): string {
+  return i18n.t(BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS[mode])
 }
 const BROWSER_PROMPT_TEMPLATE_DEFAULT_PROMPTS: Record<BrowserPromptExtractionMode, string> = {
   replicate: BROWSER_IMAGE_REPLICATE_PROMPT_EXTRACTION_PROMPT,
@@ -102,7 +104,7 @@ export function browserPromptExtractionTemplatesForMode(
   return [
     {
       id: BROWSER_PROMPT_TEMPLATE_DEFAULT_IDS[mode],
-      title: override?.title || BROWSER_PROMPT_TEMPLATE_DEFAULT_TITLES[mode],
+      title: override?.title || defaultTemplateTitle(mode),
       prompt: override?.prompt || BROWSER_PROMPT_TEMPLATE_DEFAULT_PROMPTS[mode],
       builtin: true,
       updatedAt: override?.updatedAt,

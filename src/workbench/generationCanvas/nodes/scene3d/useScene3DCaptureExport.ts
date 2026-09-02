@@ -13,6 +13,7 @@ import { cameraWithPlaybackPosition } from './scene3dPlayback'
 import { Scene3DTrajectoryCapture, type CameraMoveCaptureResult } from './Scene3DTrajectoryCapture'
 import { toastPickCameraFirst } from './useScene3DFullscreenActions'
 import type { useScene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
+import { scene3dCameraDisplayName } from './scene3dObjectNames'
 
 // 视口/相机截图（live 场景 captureScene——editor-only 对象已由 SCENE3D_EDITOR_ONLY_FLAG 隐藏）。
 // 返回是否截成：出片面板据此弹截图完成卡（产物落在被编辑器盖住的画布上，无卡=用户以为没发生）。
@@ -99,7 +100,7 @@ export function useScene3DMoveFrameExport({
     // 与 MP4 同口径：离屏采样器恒用 cameras[0]（同 takeRecording 的重排），把选定相机排到首位。
     setRequest((previous) => ({
       state: { ...current, cameras: [camera, ...current.cameras.filter((candidate) => candidate.id !== cameraId)] },
-      cameraName: camera.name,
+      cameraName: scene3dCameraDisplayName(camera, current.cameras),
       attempt: (previous?.attempt ?? 0) + 1,
     }))
   }, [stateRef])
