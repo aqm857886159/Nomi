@@ -10,6 +10,7 @@
 import React from 'react'
 import { getDesktopBridge } from '../../../../desktop/bridge'
 import { selectTaskMapping, type Mapping } from '../../../../../electron/catalog/types'
+import { wireReferencedParamKeys } from './archetypeMeta'
 import type { ModeChannelBody } from './channelModeReach'
 
 /** 目录变更广播（OnboardingDrawer.refresh 发的同一个信号）——接入/停用模型后立刻重算承载力。 */
@@ -44,7 +45,10 @@ export function readModeChannelBody(
     // 「UI 看 A、生成走 B」的第二种漂移。**modeId 必须一起传**：runtime.findTaskMapping 传了它，这里不传
     // 就会拿到一条生成路径根本不会用的 body，收窄依据与实际发送再次分家。
     const mapping = selectTaskMapping(list as Mapping[], vendorKey, taskKind as Mapping['taskKind'], modelKey, modeId)
-    return mapping ? { body: mapping.create?.body ?? null } : null
+    if (!mapping) return null
+    // wireParamKeys 在这里算而不是留给调用方：只有这儿拿得到**整条 create op**。渲染层若只收到 body，
+    // 进程型渠道（即梦走 create.process.args，根本没有 body）会被误判成「什么参数都发不出」。
+    return { body: mapping.create?.body ?? null, wireParamKeys: wireReferencedParamKeys(mapping.create) }
   } catch {
     return undefined
   }
