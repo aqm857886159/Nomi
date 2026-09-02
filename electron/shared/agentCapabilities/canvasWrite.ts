@@ -401,6 +401,7 @@ export const CANVAS_WRITE_CAPABILITY = {
   version: 1,
   aliases: {
     pi: CANVAS_WRITE_ALIASES.setNodePrompt,
+    mcp: "nomi_canvas_edit",
   },
   additionalAliases: {
     pi: Object.freeze(Object.values(CANVAS_WRITE_OPERATION_ALIASES)),
@@ -412,13 +413,16 @@ export const CANVAS_WRITE_CAPABILITY = {
     port: "canvas",
     availability: "renderer_required",
   },
-  exposure: "internal_only",
+  exposure: "mcp_safe",
   requiredScope: "canvas:write",
   targetKind: "canvas",
   approval: "proposal",
   projections: {
     pi: {
       description: "Propose an exact, reversible prompt update to one generation canvas node.",
+    },
+    mcp: {
+      description: "Read the current canvas intent and propose a validated, reversible canvas edit.",
     },
   },
 } as const satisfies CapabilityContract<CanvasWriteInput, CanvasWriteResult>;

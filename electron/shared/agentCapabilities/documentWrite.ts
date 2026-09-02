@@ -40,6 +40,7 @@ export const DOCUMENT_WRITE_CAPABILITY = {
   version: 1,
   aliases: {
     pi: DOCUMENT_WRITE_ALIASES.insert,
+    mcp: "nomi_document_edit",
   },
   additionalAliases: {
     pi: Object.freeze([DOCUMENT_WRITE_ALIASES.replace, DOCUMENT_WRITE_ALIASES.append]),
@@ -51,12 +52,15 @@ export const DOCUMENT_WRITE_CAPABILITY = {
     port: "document",
     availability: "renderer_required",
   },
-  exposure: "internal_only",
+  exposure: "mcp_safe",
   requiredScope: "document:write",
   targetKind: "document",
   approval: "proposal",
   projections: {
     pi: {
+      description: "Propose an insertion, selection replacement, or append to the current creation document.",
+    },
+    mcp: {
       description: "Propose an insertion, selection replacement, or append to the current creation document.",
     },
   },

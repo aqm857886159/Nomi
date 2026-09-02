@@ -1,5 +1,6 @@
 // 能力核 · 方法路由（单一真相源）。
 // RPC 传输（rpcServer）与 headless host（host）共用这一份 method→core 映射，杜绝两份路由漂移（P1）。
+import crypto from 'node:crypto'
 import {
   addProjectNodes,
   connectProjectNodes,
@@ -13,6 +14,11 @@ import {
   type MakeVerifyDeps,
   type RunTaskFn,
 } from './core'
+import { canvasWriteSemanticInputSchema } from '../shared/agentCapabilities/canvasWrite'
+import { canvasDeleteSemanticInputSchema } from '../shared/agentCapabilities/canvasDelete'
+import { documentWriteSemanticInputSchema } from '../shared/agentCapabilities/documentWrite'
+import { readProjectDocument, writeProjectDocument } from './documentSurface'
+import { CanvasGraphError, type CanvasSnapshot } from './canvasGraph'
 import { listSkillSummariesForMcp, readSkillContentForMcp, type SkillMcpAccess } from '../skills/skillStore'
 import type { ProductionRunService } from '../productionRun/productionRunService'
 import type { ProductionBrief } from '../productionRun/productionRunTypes'
@@ -180,6 +186,37 @@ function projectSessionOpenPublicError(error: unknown): RpcError {
     capability: 'project.session',
   })
 }
+
+async function leasedProject(
+  ctx: DispatchContext,
+  params: Record<string, unknown>,
+  scope: string,
+): Promise<ProjectLeaseV2> {
+  const session = ctx.projectSession
+  const leaseHandle = typeof params.leaseHandle === 'string' ? params.leaseHandle.trim() : ''
+  if (!session || !leaseHandle) {
+    throw new RpcError('A verified project-session lease is required', 403, {
+      code: 'lease_required', nextAction: PROJECT_SESSION_RETRY, capability: 'project.session',
+    })
+  }
+  try {
+    return await session.authority.verifyLease(leaseHandle, {
+      connection: session.connection,
+      ...(typeof params.projectId === 'string' && params.projectId.trim() ? { projectHint: params.projectId.trim() } : {}),
+      scope,
+    })
+  } catch (error) {
+    throw leasePublicError(error)
+  }
+}
+
+function proposalId(): string { return `proposal-${crypto.randomUUID()}` }
+
+function canvasRecovery(deviationCount = 0) {
+  return { ok: deviationCount === 0, deviationCount }
+}
+
+const canvasDeleteUndoJournal = new Map<string, Readonly<{ projectId: string; snapshot: CanvasSnapshot; deletedNodeIds: readonly string[] }>>()
 
 const PRODUCTION_START_FIELDS = new Set([
   'projectId', 'playbook', 'playbookVersion', 'host', 'actorId', 'brief', 'trustLevel',
@@ -481,6 +518,122 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         issuedAt: new Date().toISOString(),
       })
       return ctx.productionRuns.readProjection(projectId, runId)
+    }
+    case 'canvas.write': {
+      const lease = await leasedProject(ctx, params, 'canvas:write')
+      const raw = { ...params }
+      delete raw.leaseHandle
+      delete raw.projectId
+      const input = canvasWriteSemanticInputSchema.parse(raw)
+      const base = ctx.makeGateway(lease.projectId)
+      if (input.operation === 'set_node_prompt') {
+        const result = await setProjectNodePrompt(base, input.nodeId, input.prompt)
+        if (!result.changed) throw new CanvasGraphError('node_not_found', `Canvas node not found: ${input.nodeId}`)
+        return { applied: true, proposalId: proposalId(), operation: input.operation, affectedNodeIds: [input.nodeId], reconciliation: canvasRecovery() }
+      }
+      if (input.operation === 'create_canvas_nodes') {
+        const created = await addProjectNodes(
+          ctx.planConfirmed ? withPreApprovedPlan(base) : base,
+          input.nodes.map((node) => ({
+            kind: node.kind, title: node.title, prompt: node.prompt,
+            ...(node.position ? { x: node.position.x, y: node.position.y } : {}),
+            ...(node.vendor || node.modelVendor ? { vendor: node.vendor || node.modelVendor } : {}),
+            ...(node.modelKey ? { modelKey: node.modelKey } : {}),
+          })),
+          lease.projectId,
+        )
+        if (created.cancelled) return { applied: false, proposalId: proposalId(), operation: input.operation, cancelled: true, affectedNodeIds: [], affectedEdgeIds: [], clientIdToNodeId: {}, connectedCount: 0, skippedEdges: [], reconciliation: canvasRecovery() }
+        const clientIdToNodeId = Object.fromEntries(input.nodes.map((node, index) => [node.clientId, created.ids[index]]))
+        const edges = (input.edges ?? []).map((edge) => ({
+          source: clientIdToNodeId[edge.sourceClientId] ?? edge.sourceClientId,
+          target: clientIdToNodeId[edge.targetClientId] ?? edge.targetClientId,
+          ...(edge.mode ? { mode: edge.mode } : {}),
+        }))
+        const connected = edges.length
+          ? await connectProjectNodes(ctx.makeGateway(lease.projectId), edges)
+          : { edgeIds: [], skipped: [] }
+        const skippedEdges = connected.skipped.map((item) => ({ source: item.connection.source, target: item.connection.target, reason: item.reason }))
+        return { applied: true, proposalId: proposalId(), operation: input.operation, affectedNodeIds: created.ids, affectedEdgeIds: connected.edgeIds, clientIdToNodeId, connectedCount: connected.edgeIds.length, skippedEdges, reconciliation: canvasRecovery(skippedEdges.length) }
+      }
+      if (input.operation === 'connect_canvas_edges') {
+        const connected = await connectProjectNodes(ctx.makeGateway(lease.projectId), input.edges.map((edge) => ({
+          source: edge.sourceClientId, target: edge.targetClientId, ...(edge.mode ? { mode: edge.mode } : {}),
+        })))
+        const skippedEdges = connected.skipped.map((item) => ({ source: item.connection.source, target: item.connection.target, reason: item.reason }))
+        return { applied: true, proposalId: proposalId(), operation: input.operation, affectedNodeIds: [], affectedEdgeIds: connected.edgeIds, connectedCount: connected.edgeIds.length, skippedEdges, reconciliation: canvasRecovery(skippedEdges.length) }
+      }
+      if (typeof ctx.generationPlanning !== 'function') throw new RpcError('Canvas planning is unavailable', 501, { code: 'capability_unsupported', nextAction: 'Open the Nomi creation surface and retry', capability: 'canvas.write' as never })
+      const planned = await ctx.generationPlanning({ capability: input.operation, params: input as unknown as Record<string, unknown>, lease, origin: ctx.origin })
+      return { applied: true, proposalId: proposalId(), operation: input.operation, result: planned, reconciliation: canvasRecovery() }
+    }
+    case 'canvas.delete': {
+      const lease = await leasedProject(ctx, params, 'canvas:write')
+      const gateway = ctx.makeGateway(lease.projectId)
+      if (params.operation === 'undo_canvas_delete') {
+        const undoToken = typeof params.undoToken === 'string' ? params.undoToken.trim() : ''
+        const entry = canvasDeleteUndoJournal.get(undoToken)
+        if (!entry || entry.projectId !== lease.projectId) {
+          throw new RpcError('Canvas undo token is invalid or expired', 409, {
+            code: 'capability_input_invalid',
+            nextAction: 'Use the latest deletion receipt or refresh the Canvas and retry',
+            capability: 'canvas.delete',
+          })
+        }
+        const current = await gateway.readDoc()
+        const currentIds = new Set(current.nodes.map((node) => node.id))
+        const restoredNodes = entry.snapshot.nodes.filter((node) => entry.deletedNodeIds.includes(node.id) && !currentIds.has(node.id))
+        const restoredIds = restoredNodes.map((node) => node.id)
+        if (!restoredNodes.length) {
+          throw new RpcError('Canvas deletion has already been undone or superseded', 409, {
+            code: 'capability_input_invalid',
+            nextAction: 'Refresh the Canvas and continue from its current state',
+            capability: 'canvas.delete',
+          })
+        }
+        const restoredIdSet = new Set([...currentIds, ...restoredIds])
+        const currentEdgeIds = new Set(current.edges.map((edge) => edge.id))
+        const restoredEdges = entry.snapshot.edges.filter((edge) =>
+          !currentEdgeIds.has(edge.id) && restoredIdSet.has(edge.source) && restoredIdSet.has(edge.target))
+        await gateway.apply({ ...current, nodes: [...current.nodes, ...restoredNodes], edges: [...current.edges, ...restoredEdges] })
+        canvasDeleteUndoJournal.delete(undoToken)
+        return {
+          applied: true,
+          proposalId: proposalId(),
+          operation: 'undo_canvas_delete',
+          restoredNodeIds: restoredIds,
+          recoveryActions: ['undo_applied'],
+          reconciliation: canvasRecovery(),
+        }
+      }
+      if (params.operation !== 'delete_canvas_nodes' || params.confirmation !== true) {
+        throw new RpcError('Human confirmation is required before deleting Canvas nodes', 403, { code: 'human_approval_required', nextAction: 'Confirm the destructive Canvas maintenance request and retry', capability: 'canvas.write' as never })
+      }
+      const input = canvasDeleteSemanticInputSchema.parse({ operation: 'delete_canvas_nodes', nodeIds: params.nodeIds, ...(typeof params.reason === 'string' ? { reason: params.reason } : {}) })
+      const before = await gateway.readDoc()
+      const deleted = await deleteProjectNodes(gateway, input.nodeIds)
+      if (!deleted.deleted.length) throw new CanvasGraphError('node_not_found', 'One or more canvas nodes were not found')
+      const undoToken = `undo-${crypto.randomUUID()}`
+      canvasDeleteUndoJournal.set(undoToken, { projectId: lease.projectId, snapshot: before, deletedNodeIds: deleted.deleted })
+      return {
+        applied: true,
+        proposalId: proposalId(),
+        operation: input.operation,
+        deletedNodeIds: deleted.deleted,
+        undoToken,
+        recoveryActions: ['Call nomi_canvas_maintenance with this undoToken before making another canvas edit.'],
+        reconciliation: canvasRecovery(),
+      }
+    }
+    case 'document.read': {
+      const lease = await leasedProject(ctx, params, 'document:read')
+      const scope = params.scope === 'selection' ? 'selection' : params.scope === 'full' ? 'full' : null
+      if (!scope) throw new RpcError('Document scope is required', 400, { code: 'capability_input_invalid', nextAction: 'Retry with scope full or selection', capability: 'document.read' as never })
+      return readProjectDocument(lease.projectId, typeof params.documentId === 'string' ? params.documentId : undefined, scope)
+    }
+    case 'document.write': {
+      const lease = await leasedProject(ctx, params, 'document:write')
+      const input = documentWriteSemanticInputSchema.parse({ operation: params.operation, content: params.content })
+      return writeProjectDocument(lease.projectId, typeof params.documentId === 'string' ? params.documentId : undefined, input.operation, input.content)
     }
     case 'canvas.addNodes': {
       // 方案已被协议层 elicitation-first 批准 → 预批准方案门（不再弹渲染层卡，免双问）；否则原网关照常确认。

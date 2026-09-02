@@ -5,7 +5,6 @@
 //
 // 为什么用 factory：driveReconciliation 成功后要重踢 driveGeneration（同层互相引用），且四条都闭包
 // 复用同一组注入依赖（requireRun / executeInternal / requestRenderer / 路径工具 / in-flight 去重集）。
-
 import crypto from 'node:crypto'
 
 import { desktopT } from '../i18n'
@@ -146,6 +145,7 @@ export function isSemanticMultiShotRun(run: Pick<ProductionRun, 'playbook' | 'ge
   return run.playbook.name === 'generation.single-shot' && (run.generationPlan?.shots?.length ?? 0) > 0
 }
 
+export function isRetiredLegacyWriterState(status: ProductionRun['jobs'][number]['status']): boolean { return status === 'submit_intent_persisted' || status === 'submitting' }
 /**
  * A scheduler job can reach `adopted` even when the renderer failed to land
  * its generated node/artifact.  Assembly must never proceed from that partial
@@ -466,6 +466,32 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
       current = settlePauseIfQuiet(repository, run.projectId, run.runId, requireRun(run.projectId, run.runId))
       if (current.status !== 'running') return
       if (!semanticMultiShot) {
+        // `authorized` is the pre-submit state owned by the still-supported
+        // legacy compatibility fixture. Once the durable submit intent exists,
+        // the retired writer must never be re-entered after restart/retry.
+        const legacyJobs = current.jobs.filter((job) =>
+          job.stageId === 'generate' && isRetiredLegacyWriterState(job.status))
+        if (legacyJobs.length > 0) {
+          for (const job of legacyJobs) {
+            current = requireRun(run.projectId, run.runId)
+            const latest = current.jobs.find((candidate) => candidate.jobId === job.jobId)
+            if (latest && isRetiredLegacyWriterState(latest.status)) {
+              current = executeInternal(run.projectId, run.runId, current, 'job.status', {
+                jobId: job.jobId,
+                status: 'needs_attention',
+                patch: {
+                  errorCode: 'legacy_generation_writer_retired',
+                  errorMessage: 'Legacy ProductionRun generation writer is retired; create a semantic generation.single-shot plan to continue.',
+                },
+              }, `driver-${run.runId}-${job.jobId}-legacy-writer-retired`).run
+            }
+          }
+          current = requireRun(run.projectId, run.runId)
+          if (current.status !== 'needs_attention') {
+            current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'needs_attention' }, `driver-${run.runId}-legacy-writer-retired`).run
+          }
+          return
+        }
         if (current.status === 'running' && !hasApprovedFreezeGate(current)) {
           const pendingJobs = current.jobs.filter((job) => job.status === 'authorized' || job.status === 'submit_intent_persisted')
           if (hasWaitingFreezeGate(current)) return

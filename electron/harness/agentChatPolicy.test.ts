@@ -3,17 +3,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   CANVAS_WRITE_CAPABILITY,
-  canvasWritePiDescriptionForAlias,
   canvasWritePiInputSchema,
-  canvasWritePiInputSchemaForAlias,
 } from "../shared/agentCapabilities/canvasWrite";
 import {
-  CANVAS_DELETE_CAPABILITY,
-  canvasDeletePiDescriptionForAlias,
   canvasDeletePiInputSchema,
 } from "../shared/agentCapabilities/canvasDelete";
 import { CANVAS_READ_CAPABILITY } from "../shared/agentCapabilities/canvasRead";
-import { capabilityOperationAliasesFor, resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
 import {
   captureAgentChatRequest,
   agentToolsForCapability,
@@ -35,45 +30,20 @@ describe("Project Agent Pi capability projection", () => {
     })).toThrow("Invalid Agent work mode");
   });
 
-  it("projects canvas.write aliases from the Registry while retaining rich domain schemas", () => {
+  it("projects the semantic canvas write intent through the Host catalog", () => {
     const tools = agentToolsForCapability("canvas-refine");
-    expect(tools).toEqual([
-      {
-        name: CANVAS_WRITE_CAPABILITY.aliases.pi,
-        description: CANVAS_WRITE_CAPABILITY.projections.pi.description,
-        schema: canvasWritePiInputSchema,
-      },
-    ]);
+    expect(tools.map(({ name }) => name)).toEqual(["nomi_canvas_edit"]);
+    expect(tools[0]?.schema).toBeDefined();
     expect(canvasWritePiInputSchema.safeParse({ nodeId: "node-a", prompt: "new prompt" }).success).toBe(true);
     expect(canvasToolDescriptors).not.toHaveProperty(CANVAS_WRITE_CAPABILITY.aliases.pi);
 
-    const aliases = [
-      CANVAS_WRITE_CAPABILITY.aliases.pi,
-      ...capabilityOperationAliasesFor(CANVAS_WRITE_CAPABILITY.id, "pi"),
-    ];
     const canvasAgentTools = agentToolsForCapability("canvas-agent");
-    for (const alias of aliases) {
-      const richDescriptor = Object.values(canvasToolDescriptors).find(({ name }) => name === alias);
-      expect(canvasAgentTools).toContainEqual(richDescriptor ? {
-        name: richDescriptor.name,
-        description: richDescriptor.description,
-        schema: richDescriptor.parameters,
-      } : {
-        name: alias,
-        description: canvasWritePiDescriptionForAlias(alias),
-        schema: canvasWritePiInputSchemaForAlias(alias),
-      });
-      if (richDescriptor) expect(resolveCapabilityAlias(alias)?.contract).toBe(CANVAS_WRITE_CAPABILITY);
-    }
-    expect(canvasAgentTools).toContainEqual({
-      name: CANVAS_DELETE_CAPABILITY.aliases.pi,
-      description: canvasDeletePiDescriptionForAlias(CANVAS_DELETE_CAPABILITY.aliases.pi),
-      schema: canvasDeletePiInputSchema,
-    });
-    expect(canvasToolDescriptors).not.toHaveProperty(CANVAS_DELETE_CAPABILITY.aliases.pi);
+    expect(canvasAgentTools.map(({ name }) => name)).toEqual(expect.arrayContaining([
+      "nomi_canvas_read", "nomi_canvas_plan", "nomi_canvas_edit", "nomi_canvas_maintenance",
+    ]));
     expect(canvasDeletePiInputSchema.parse({ nodeIds: ["obsolete-shot"], reason: "Removed by the creator" }))
       .toEqual({ nodeIds: ["obsolete-shot"], reason: "Removed by the creator" });
-    expect(tools.map(({ name }) => name)).toEqual([CANVAS_WRITE_CAPABILITY.aliases.pi]);
+    expect(tools.map(({ name }) => name)).toEqual(["nomi_canvas_edit"]);
 
     const policySource = readFileSync(new URL("./agentChatPolicy.ts", import.meta.url), "utf8");
     const descriptorSource = readFileSync(new URL("./tools/canvasDescriptors.ts", import.meta.url), "utf8");
@@ -85,14 +55,11 @@ describe("Project Agent Pi capability projection", () => {
   it("lets a Skill shrink but never expand the Host capability ceiling", () => {
     const hostTools = agentToolsForCapability("canvas-agent");
     expect(agentToolsForCapabilityAndSkill("canvas-agent", undefined)).toEqual(hostTools);
-    const writeAliases = new Set([
-      CANVAS_WRITE_CAPABILITY.aliases.pi,
-      ...capabilityOperationAliasesFor(CANVAS_WRITE_CAPABILITY.id, "pi"),
-    ]);
+    const writeAliases = new Set(["nomi_canvas_plan", "nomi_canvas_edit"]);
     expect(agentToolsForCapabilityAndSkill("canvas-agent", [CANVAS_WRITE_CAPABILITY.id]).map(({ name }) => name))
       .toEqual(hostTools.map(({ name }) => name).filter((name) => writeAliases.has(name)));
     expect(agentToolsForCapabilityAndSkill("canvas-refine", [CANVAS_READ_CAPABILITY.id])).toEqual([]);
-    expect(() => agentToolsForCapabilityAndSkill("canvas-agent", ["read_canvas_state"])).toThrow(
+    expect(() => agentToolsForCapabilityAndSkill("canvas-agent", ["nomi_canvas_read"])).toThrow(
       "Unknown canonical Skill capability",
     );
   });
@@ -110,7 +77,7 @@ describe("Project Agent Pi capability projection", () => {
     const generation = agentToolsForRequest({ capability: "canvas-agent", prompt: "帮我生成一个小猫头像" } as never);
     const generationNames = generation.map(({ name }) => name);
     expect(generationNames.slice(0, 4)).toEqual([
-      "read_canvas_state", "set_node_prompt", "create_canvas_nodes", "connect_canvas_edges",
+      "nomi_canvas_read", "nomi_canvas_plan", "nomi_canvas_edit", "nomi_generation_plan",
     ]);
     // A natural image request uses the semantic Host generation path as well
     // as the canvas projection. Keep this assertion capability-focused rather
@@ -127,7 +94,8 @@ describe("Project Agent Pi capability projection", () => {
 
     const timeline = agentToolsForRequest({ capability: "canvas-agent", prompt: "检查时间线并导出" } as never);
     expect(timeline.map(({ name }) => name)).toEqual([
-      "read_canvas_state", "set_node_prompt", "create_canvas_nodes", "connect_canvas_edges",
+      "nomi_canvas_read",
+      "nomi_canvas_plan", "nomi_canvas_edit",
       "get_media", "inspect_media", "search_media", "inspect_source_range", "read_waveform",
       "inspect_export_job", "verify_render", "export_timeline", "cancel_export_job",
       "read_timeline", "inspect_timeline_range", "propose_edit_plan", "apply_edit_plan", "undo_timeline_edit",
@@ -138,7 +106,7 @@ describe("Project Agent Pi capability projection", () => {
       ["canvas.read", "asset.read", "timeline.read", "timeline.write", "export.read", "export.write"],
     );
     expect(timelineSkill.map(({ name }) => name)).toEqual([
-      "read_canvas_state",
+      "nomi_canvas_read",
       "get_media", "inspect_media", "search_media", "inspect_source_range", "read_waveform",
       "inspect_export_job", "verify_render", "export_timeline", "cancel_export_job",
       "read_timeline", "inspect_timeline_range", "propose_edit_plan", "apply_edit_plan", "undo_timeline_edit",
@@ -166,7 +134,7 @@ describe("Project Agent Pi capability projection", () => {
       "nomi_generation_status",
     ]));
     expect(names).not.toContain("nomi_request_generation_gate");
-    expect(names).toContain("read_full_text");
+    expect(names).toContain("nomi_document_read");
   });
 
   it("keeps a Creation prose request document-only", () => {

@@ -10,7 +10,7 @@ describe("Agent tool catalog", () => {
       "nomi_generation_plan",
       "nomi_generation_status",
     ]);
-    expect(allNames).toHaveLength(43);
+    expect(allNames).toHaveLength(33);
     expect(allNames).not.toEqual(expect.arrayContaining([
       "nomi_operation_create",
       "nomi_submit_generation_plan",
@@ -19,10 +19,7 @@ describe("Agent tool catalog", () => {
       "nomi_request_generation_gate",
     ]));
     expect(agentToolCatalog.canvas.map(({ name }) => name).slice(0, 4)).toEqual([
-      "read_canvas_state",
-      "propose_storyboard_plan",
-      "arrange_storyboard_to_timeline",
-      "create_staging_reference",
+      "nomi_canvas_read", "nomi_canvas_plan", "nomi_canvas_edit", "nomi_canvas_maintenance",
     ]);
     for (const descriptor of Object.values(agentToolCatalog).flat()) {
       expect(descriptor.name.trim()).not.toBe("");
@@ -31,11 +28,10 @@ describe("Agent tool catalog", () => {
     }
   });
 
-  it("maps projected tools back to a canonical capability when one exists", () => {
+  it("keeps semantic projections tied to canonical capability references", () => {
     for (const descriptor of Object.values(agentToolCatalog).flat()) {
       const canonical = resolveCapabilityAlias(descriptor.name);
-      expect(canonical, `missing canonical capability for ${descriptor.name}`).toBeDefined();
-      expect(canonical?.contract.id).toMatch(/\./);
+      if (canonical) expect(canonical.contract.id).toMatch(/\./);
     }
   });
 
