@@ -1,0 +1,1412 @@
+{
+  "version": "1.0",
+  "generatedAt": "2026-09-02T17:22:50.101Z",
+  "description": "从样张 HTML 渲染提取的设计规格表——每条对应一个 conformance testspec 断言挂点，包含真实几何（px）和计算色值，供实现者核对实现与样张是否对齐。",
+  "mockupPath": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html",
+  "mockupHash": "7853f8149d90e80b",
+  "screens": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E"
+  ],
+  "specAnchors": [
+    "data-agent-panel",
+    "data-agent-header",
+    "data-agent-usage-pill",
+    "data-agent-usage-popover",
+    "data-agent-history",
+    "data-agent-collapse",
+    "data-agent-flow",
+    "data-agent-compaction-line",
+    "data-agent-compaction-expand",
+    "data-agent-stage-line",
+    "data-agent-user-bubble",
+    "data-agent-skill-event",
+    "data-agent-thinking-line",
+    "data-agent-reply",
+    "data-agent-stream-cursor",
+    "data-agent-tool-line",
+    "data-agent-tool-detail",
+    "data-agent-proposal-receipt",
+    "data-agent-receipt-undo",
+    "data-agent-lost-edits-card",
+    "data-agent-landing-chip",
+    "data-agent-queue-row",
+    "data-agent-queue-remove",
+    "data-agent-composer",
+    "data-agent-input",
+    "data-agent-at-picker",
+    "data-agent-at-token",
+    "data-agent-composer-attach",
+    "data-agent-composer-mode",
+    "data-agent-composer-model",
+    "data-agent-composer-prompt",
+    "data-agent-composer-send",
+    "data-agent-model-alert",
+    "data-agent-plan-card",
+    "data-agent-spend-card",
+    "data-agent-deviation-card",
+    "data-agent-question-card",
+    "data-agent-candidates-card",
+    "data-agent-artifact-card",
+    "data-agent-failure-card",
+    "data-agent-pinned-card",
+    "data-agent-pinned-head",
+    "data-agent-pinned-summary",
+    "data-agent-pinned-body",
+    "data-agent-topbar-badge",
+    "data-agent-badge-dot",
+    "data-decon-node-stub",
+    "data-decon-node-badge",
+    "data-agent-tip"
+  ],
+  "declaredAnchors": [],
+  "elements": [
+    {
+      "anchor": "data-agent-header",
+      "selector": "[data-agent-header]",
+      "cssSelector": ".asst-head",
+      "screen": "A",
+      "specRef": "A-01",
+      "desc": "头部一行",
+      "tolerances": {
+        "h": 4,
+        "padding": 4
+      },
+      "text": "N\nNomi\n还能聊 ~40 轮",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 980,
+        "y": 238,
+        "w": 339,
+        "h": 41,
+        "right": 1319,
+        "bottom": 279
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.22 0.01 80)",
+        "borderColor": "oklch(0.22 0.01 80) oklch(0.22 0.01 80) oklch(0.95 0.003 80)",
+        "borderWidth": "0px 0px 1px",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "19.5px",
+        "paddingTop": "8px",
+        "paddingRight": "10px",
+        "paddingBottom": "8px",
+        "paddingLeft": "10px"
+      }
+    },
+    {
+      "anchor": "data-agent-usage-pill",
+      "selector": "[data-agent-usage-pill]",
+      "cssSelector": ".usage-pill",
+      "screen": "A",
+      "specRef": "A-02",
+      "desc": "用量胶囊",
+      "tolerances": {
+        "h": 2,
+        "w": 8
+      },
+      "text": "还能聊 ~40 轮",
+      "tagName": "span",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1054,
+        "y": 247,
+        "w": 106,
+        "h": 22,
+        "right": 1160,
+        "bottom": 269
+      },
+      "tokens": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "oklch(0.5 0.01 80)",
+        "borderColor": "oklch(0.91 0.004 80)",
+        "borderWidth": "1px",
+        "fontSize": "11px",
+        "fontWeight": "400",
+        "lineHeight": "16.5px",
+        "paddingTop": "0px",
+        "paddingRight": "8px",
+        "paddingBottom": "0px",
+        "paddingLeft": "8px"
+      }
+    },
+    {
+      "anchor": "data-agent-history",
+      "selector": "[data-agent-history]",
+      "cssSelector": ".hico[title=\"历史对话\"]",
+      "screen": "A",
+      "specRef": "A-01",
+      "desc": "历史对话按钮",
+      "tolerances": {
+        "w": 2,
+        "h": 2
+      },
+      "text": "",
+      "tagName": "span",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1254,
+        "y": 246,
+        "w": 24,
+        "h": 24,
+        "right": 1278,
+        "bottom": 270
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.68 0.01 80)",
+        "borderColor": "oklch(0.68 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "21px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-collapse",
+      "selector": "[data-agent-collapse]",
+      "cssSelector": ".hico[title=\"收起\"]",
+      "screen": "A",
+      "specRef": "A-01",
+      "desc": "收起按钮",
+      "tolerances": {
+        "w": 2,
+        "h": 2
+      },
+      "text": "",
+      "tagName": "span",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1285,
+        "y": 246,
+        "w": 24,
+        "h": 24,
+        "right": 1309,
+        "bottom": 270
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.68 0.01 80)",
+        "borderColor": "oklch(0.68 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "21px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-flow",
+      "selector": "[data-agent-flow]",
+      "cssSelector": ".flow",
+      "screen": "A",
+      "specRef": "A-01",
+      "desc": "会话流（role=log）",
+      "tolerances": {
+        "w": 4
+      },
+      "text": "前面 24 轮已折叠 ·\n展开\n进入 · 生产段\n把这段雨夜追逐拆成 5 个镜头，第 2、4 镜生成参考图。\n载入 编剧·Kasdan\n想了 4 秒 · 拆成 5 镜，2 镜要站位参考\n拆好了：5 个镜头，第 2、4 镜的参考图我来生成。\n6 步 · 读剧本 · 拆 5 镜 · 生成 2 图\n已加 5 个节点\n撤销会丢掉你改过的东西：镜 3 的提示词你手动改过（暖光→冷调），整笔撤销会一起丢。\n再",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 980,
+        "y": 279,
+        "w": 339,
+        "h": 417,
+        "right": 1319,
+        "bottom": 697
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.22 0.01 80)",
+        "borderColor": "oklch(0.22 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "19.5px",
+        "paddingTop": "12px",
+        "paddingRight": "12px",
+        "paddingBottom": "8px",
+        "paddingLeft": "12px"
+      }
+    },
+    {
+      "anchor": "data-agent-compaction-line",
+      "selector": "[data-agent-compaction-line]",
+      "cssSelector": ".divider:not(.stage-line)",
+      "screen": "A",
+      "specRef": "A-03",
+      "desc": "压缩分隔线",
+      "tolerances": {
+        "h": 4
+      },
+      "text": "前面 24 轮已折叠 ·\n展开",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 992,
+        "y": 171,
+        "w": 315,
+        "h": 17,
+        "right": 1307,
+        "bottom": 188
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.68 0.01 80)",
+        "borderColor": "oklch(0.68 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "11px",
+        "fontWeight": "400",
+        "lineHeight": "16.5px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-stage-line",
+      "selector": "[data-agent-stage-line]",
+      "cssSelector": ".divider.stage-line",
+      "screen": "A",
+      "specRef": "A-05",
+      "desc": "阶段分隔线",
+      "tolerances": {
+        "h": 4
+      },
+      "text": "进入 · 生产段",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 992,
+        "y": 202,
+        "w": 315,
+        "h": 21,
+        "right": 1307,
+        "bottom": 222
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.5 0.01 80)",
+        "borderColor": "oklch(0.5 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "11px",
+        "fontWeight": "400",
+        "lineHeight": "16.5px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-user-bubble",
+      "selector": "[data-agent-user-bubble]",
+      "cssSelector": ".userbubble",
+      "screen": "A",
+      "specRef": "A-06",
+      "desc": "用户气泡",
+      "tolerances": {
+        "x": 4,
+        "h": 4
+      },
+      "text": "把这段雨夜追逐拆成 5 个镜头，第 2、4 镜生成参考图。",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1049,
+        "y": 236,
+        "w": 258,
+        "h": 52,
+        "right": 1307,
+        "bottom": 288
+      },
+      "tokens": {
+        "backgroundColor": "oklch(0.22 0.01 80)",
+        "color": "rgb(255, 255, 255)",
+        "borderColor": "rgb(255, 255, 255)",
+        "borderWidth": "0px",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "18px",
+        "paddingTop": "8px",
+        "paddingRight": "12px",
+        "paddingBottom": "8px",
+        "paddingLeft": "12px"
+      }
+    },
+    {
+      "anchor": "data-agent-skill-event",
+      "selector": "[data-agent-skill-event]",
+      "cssSelector": ".evt",
+      "screen": "A",
+      "specRef": "A-07",
+      "desc": "技能载入事件行",
+      "tolerances": {
+        "h": 4
+      },
+      "text": "载入 编剧·Kasdan",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 994,
+        "y": 300,
+        "w": 313,
+        "h": 17,
+        "right": 1307,
+        "bottom": 317
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.68 0.01 80)",
+        "borderColor": "oklch(0.68 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "11px",
+        "fontWeight": "400",
+        "lineHeight": "16.5px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-thinking-line",
+      "selector": "[data-agent-thinking-line]",
+      "cssSelector": ".line.settled",
+      "screen": "A",
+      "specRef": "A-08",
+      "desc": "思考条（落定态）",
+      "tolerances": {
+        "h": 4
+      },
+      "text": "想了 4 秒 · 拆成 5 镜，2 镜要站位参考",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 992,
+        "y": 326,
+        "w": 315,
+        "h": 22,
+        "right": 1307,
+        "bottom": 348
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.68 0.01 80)",
+        "borderColor": "oklch(0.68 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "18px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-reply",
+      "selector": "[data-agent-reply]",
+      "cssSelector": ".asstext",
+      "screen": "A",
+      "specRef": "A-10",
+      "desc": "正文回复",
+      "tolerances": {
+        "h": 8
+      },
+      "text": "拆好了：5 个镜头，第 2、4 镜的参考图我来生成。",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 992,
+        "y": 358,
+        "w": 315,
+        "h": 19,
+        "right": 1307,
+        "bottom": 376
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.32 0.01 80)",
+        "borderColor": "oklch(0.32 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "18.6px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-tool-line",
+      "selector": "[data-agent-tool-line]",
+      "cssSelector": ".toolline",
+      "screen": "A",
+      "specRef": "A-11",
+      "desc": "工具总览行",
+      "tolerances": {
+        "h": 4
+      },
+      "text": "6 步 · 读剧本 · 拆 5 镜 · 生成 2 图",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 992,
+        "y": 386,
+        "w": 315,
+        "h": 21,
+        "right": 1307,
+        "bottom": 407
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.5 0.01 80)",
+        "borderColor": "oklch(0.5 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "18px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-proposal-receipt",
+      "selector": "[data-agent-proposal-receipt]",
+      "cssSelector": ".receipt",
+      "screen": "A",
+      "specRef": "A-13",
+      "desc": "写入回执行",
+      "tolerances": {
+        "h": 4
+      },
+      "text": "已加 5 个节点",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 992,
+        "y": 417,
+        "w": 315,
+        "h": 22,
+        "right": 1307,
+        "bottom": 439
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(36, 138, 61)",
+        "borderColor": "rgb(36, 138, 61)",
+        "borderWidth": "0px",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "18px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-receipt-undo",
+      "selector": "[data-agent-receipt-undo]",
+      "cssSelector": ".rico",
+      "screen": "A",
+      "specRef": "A-13",
+      "desc": "撤销 icon 钮",
+      "tolerances": {
+        "w": 4,
+        "h": 4
+      },
+      "text": "",
+      "tagName": "span",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1285,
+        "y": 417,
+        "w": 22,
+        "h": 22,
+        "right": 1307,
+        "bottom": 439
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.68 0.01 80)",
+        "borderColor": "oklch(0.68 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "21px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-lost-edits-card",
+      "selector": "[data-agent-lost-edits-card]",
+      "cssSelector": ".lost-edits",
+      "screen": "A",
+      "specRef": "A-14",
+      "desc": "lost-edits 确认卡",
+      "tolerances": {
+        "h": 8
+      },
+      "text": "撤销会丢掉你改过的东西：镜 3 的提示词你手动改过（暖光→冷调），整笔撤销会一起丢。\n再想想\n仍要撤销",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 992,
+        "y": 449,
+        "w": 315,
+        "h": 87,
+        "right": 1307,
+        "bottom": 536
+      },
+      "tokens": {
+        "backgroundColor": "oklch(0.965 0.03 75)",
+        "color": "oklch(0.32 0.01 80)",
+        "borderColor": "oklch(0.62 0.14 75)",
+        "borderWidth": "1px",
+        "fontSize": "11px",
+        "fontWeight": "400",
+        "lineHeight": "16.5px",
+        "paddingTop": "8px",
+        "paddingRight": "10px",
+        "paddingBottom": "8px",
+        "paddingLeft": "10px"
+      }
+    },
+    {
+      "anchor": "data-agent-landing-chip",
+      "selector": "[data-agent-landing-chip]",
+      "cssSelector": ".chip-jump",
+      "screen": "A",
+      "specRef": "A-15",
+      "desc": "落点胶囊",
+      "tolerances": {
+        "h": 4,
+        "w": 8
+      },
+      "text": "2 张参考图在「参考」分类 · 去看",
+      "tagName": "span",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 992,
+        "y": 549,
+        "w": 180,
+        "h": 22,
+        "right": 1172,
+        "bottom": 571
+      },
+      "tokens": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "oklch(0.5 0.01 80)",
+        "borderColor": "oklch(0.91 0.004 80)",
+        "borderWidth": "1px",
+        "fontSize": "10px",
+        "fontWeight": "400",
+        "lineHeight": "15px",
+        "paddingTop": "0px",
+        "paddingRight": "8px",
+        "paddingBottom": "0px",
+        "paddingLeft": "8px"
+      }
+    },
+    {
+      "anchor": "data-agent-queue-row",
+      "selector": "[data-agent-queue-row]",
+      "cssSelector": ".qline",
+      "screen": "A",
+      "specRef": "A-16",
+      "desc": "排队行",
+      "tolerances": {
+        "h": 4
+      },
+      "text": "再给第 5 镜换个更冷的色调",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 986,
+        "y": 697,
+        "w": 327,
+        "h": 24,
+        "right": 1313,
+        "bottom": 721
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.68 0.01 80)",
+        "borderColor": "oklch(0.68 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "11.5px",
+        "fontWeight": "400",
+        "lineHeight": "17.25px",
+        "paddingTop": "3px",
+        "paddingRight": "6px",
+        "paddingBottom": "3px",
+        "paddingLeft": "6px"
+      }
+    },
+    {
+      "anchor": "data-agent-queue-remove",
+      "selector": "[data-agent-queue-remove]",
+      "cssSelector": ".qx",
+      "screen": "A",
+      "specRef": "A-16",
+      "desc": "撤回 × 钮",
+      "tolerances": {
+        "w": 4,
+        "h": 4
+      },
+      "text": "",
+      "tagName": "span",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1289,
+        "y": 700,
+        "w": 18,
+        "h": 18,
+        "right": 1307,
+        "bottom": 718
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.78 0.01 80)",
+        "borderColor": "oklch(0.78 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "18px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-composer",
+      "selector": "[data-agent-composer]",
+      "cssSelector": ".composer",
+      "screen": "A",
+      "specRef": "A-17",
+      "desc": "composer 区",
+      "tolerances": {
+        "h": 8
+      },
+      "text": "第 5 镜也按 @阿青定妆 的造型，接 @街道 02:10 那段的雨势",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 980,
+        "y": 726,
+        "w": 339,
+        "h": 113,
+        "right": 1319,
+        "bottom": 838
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.22 0.01 80)",
+        "borderColor": "oklch(0.95 0.003 80) oklch(0.22 0.01 80) oklch(0.22 0.01 80)",
+        "borderWidth": "1px 0px 0px",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "19.5px",
+        "paddingTop": "7px",
+        "paddingRight": "10px",
+        "paddingBottom": "9px",
+        "paddingLeft": "10px"
+      }
+    },
+    {
+      "anchor": "data-agent-input",
+      "selector": "[data-agent-input]",
+      "cssSelector": ".cprompt",
+      "screen": "A",
+      "specRef": "A-17",
+      "desc": "输入框",
+      "tolerances": {
+        "h": 8
+      },
+      "text": "第 5 镜也按 @阿青定妆 的造型，接 @街道 02:10 那段的雨势",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1001,
+        "y": 743,
+        "w": 297,
+        "h": 41,
+        "right": 1298,
+        "bottom": 783
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.32 0.01 80)",
+        "borderColor": "oklch(0.32 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "20.4px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-at-token",
+      "selector": "[data-agent-at-token]",
+      "cssSelector": ".at:not(.stale)",
+      "screen": "A",
+      "specRef": "A-18",
+      "desc": "@ 引用 token（正常态）",
+      "tolerances": {
+        "h": 2
+      },
+      "text": "@阿青定妆",
+      "tagName": "span",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1067,
+        "y": 744,
+        "w": 69,
+        "h": 18,
+        "right": 1135,
+        "bottom": 762
+      },
+      "tokens": {
+        "backgroundColor": "oklch(0.955 0.018 250)",
+        "color": "oklch(0.55 0.13 250)",
+        "borderColor": "oklch(0.55 0.13 250)",
+        "borderWidth": "0px",
+        "fontSize": "11.5px",
+        "fontWeight": "400",
+        "lineHeight": "18px",
+        "paddingTop": "0px",
+        "paddingRight": "6px",
+        "paddingBottom": "0px",
+        "paddingLeft": "6px"
+      }
+    },
+    {
+      "anchor": "data-agent-at-token[data-stale=true]",
+      "selector": "[data-agent-at-token[data-stale=true]]",
+      "cssSelector": ".at.stale",
+      "screen": "A",
+      "specRef": "A-18",
+      "desc": "@ 引用 token（变黄态）",
+      "tolerances": {
+        "h": 2
+      },
+      "text": "@街道 02:10",
+      "tagName": "span",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1202,
+        "y": 744,
+        "w": 79,
+        "h": 18,
+        "right": 1281,
+        "bottom": 762
+      },
+      "tokens": {
+        "backgroundColor": "oklch(0.965 0.03 75)",
+        "color": "oklch(0.62 0.14 75)",
+        "borderColor": "oklch(0.62 0.14 75)",
+        "borderWidth": "0px",
+        "fontSize": "11.5px",
+        "fontWeight": "400",
+        "lineHeight": "18px",
+        "paddingTop": "0px",
+        "paddingRight": "6px",
+        "paddingBottom": "0px",
+        "paddingLeft": "6px"
+      }
+    },
+    {
+      "anchor": "data-agent-composer-attach",
+      "selector": "[data-agent-composer-attach]",
+      "cssSelector": ".cbtn.ico[data-tip=\"附件\"]",
+      "screen": "A",
+      "specRef": "A-19",
+      "desc": "底排附件钮",
+      "tolerances": {
+        "w": 2,
+        "h": 2
+      },
+      "text": "",
+      "tagName": "button",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1001,
+        "y": 791,
+        "w": 28,
+        "h": 28,
+        "right": 1029,
+        "bottom": 819
+      },
+      "tokens": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "oklch(0.5 0.01 80)",
+        "borderColor": "oklch(0.91 0.004 80)",
+        "borderWidth": "1px",
+        "fontSize": "13.3333px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-composer-mode",
+      "selector": "[data-agent-composer-mode]",
+      "cssSelector": ".cbtn.ico[data-tip^=\"Agent\"]",
+      "screen": "A",
+      "specRef": "A-19",
+      "desc": "底排执行方式钮",
+      "tolerances": {
+        "w": 2,
+        "h": 2
+      },
+      "text": "",
+      "tagName": "button",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1034,
+        "y": 791,
+        "w": 28,
+        "h": 28,
+        "right": 1062,
+        "bottom": 819
+      },
+      "tokens": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "oklch(0.5 0.01 80)",
+        "borderColor": "oklch(0.91 0.004 80)",
+        "borderWidth": "1px",
+        "fontSize": "13.3333px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-composer-model",
+      "selector": "[data-agent-composer-model]",
+      "cssSelector": ".cbtn.ico[data-tip^=\"去选\"]",
+      "screen": "A",
+      "specRef": "A-19",
+      "desc": "底排模型钮",
+      "tolerances": {
+        "w": 2,
+        "h": 2
+      },
+      "text": "",
+      "tagName": "button",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1067,
+        "y": 791,
+        "w": 28,
+        "h": 28,
+        "right": 1095,
+        "bottom": 819
+      },
+      "tokens": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "oklch(0.5 0.01 80)",
+        "borderColor": "oklch(0.91 0.004 80)",
+        "borderWidth": "1px",
+        "fontSize": "13.3333px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-composer-prompt",
+      "selector": "[data-agent-composer-prompt]",
+      "cssSelector": ".cbtn.ico[data-tip=\"提示词模板\"]",
+      "screen": "A",
+      "specRef": "A-19",
+      "desc": "底排提示词钮",
+      "tolerances": {
+        "w": 2,
+        "h": 2
+      },
+      "text": "",
+      "tagName": "button",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1100,
+        "y": 791,
+        "w": 28,
+        "h": 28,
+        "right": 1128,
+        "bottom": 819
+      },
+      "tokens": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "oklch(0.5 0.01 80)",
+        "borderColor": "oklch(0.91 0.004 80)",
+        "borderWidth": "1px",
+        "fontSize": "13.3333px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-composer-send",
+      "selector": "[data-agent-composer-send]",
+      "cssSelector": ".send",
+      "screen": "A",
+      "specRef": "A-19",
+      "desc": "发送钮",
+      "tolerances": {
+        "w": 2,
+        "h": 2
+      },
+      "text": "",
+      "tagName": "button",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1268,
+        "y": 790,
+        "w": 30,
+        "h": 30,
+        "right": 1298,
+        "bottom": 820
+      },
+      "tokens": {
+        "backgroundColor": "oklch(0.22 0.01 80)",
+        "color": "rgb(255, 255, 255)",
+        "borderColor": "rgb(255, 255, 255)",
+        "borderWidth": "0px",
+        "fontSize": "15px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "paddingTop": "1px",
+        "paddingRight": "6px",
+        "paddingBottom": "1px",
+        "paddingLeft": "6px"
+      }
+    },
+    {
+      "anchor": "data-agent-model-alert",
+      "selector": "[data-agent-model-alert]",
+      "cssSelector": ".reddot",
+      "screen": "A",
+      "specRef": "A-20",
+      "desc": "模型未选红点",
+      "tolerances": {
+        "w": 2,
+        "h": 2
+      },
+      "text": "",
+      "tagName": "span",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 1085,
+        "y": 795,
+        "w": 6,
+        "h": 6,
+        "right": 1091,
+        "bottom": 801
+      },
+      "tokens": {
+        "backgroundColor": "rgb(179, 36, 28)",
+        "color": "oklch(0.5 0.01 80)",
+        "borderColor": "oklch(0.5 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "13.3333px",
+        "fontWeight": "400",
+        "lineHeight": "normal",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-plan-card",
+      "selector": "[data-agent-plan-card]",
+      "cssSelector": ".card.accent .chd",
+      "screen": "B",
+      "specRef": "B-01",
+      "desc": "计划卡",
+      "tolerances": {
+        "h": 8
+      },
+      "text": "拆成 5 镜 · 生成计划",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 134,
+        "y": 221,
+        "w": 361,
+        "h": 37,
+        "right": 495,
+        "bottom": 258
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.22 0.01 80)",
+        "borderColor": "oklch(0.22 0.01 80) oklch(0.22 0.01 80) oklch(0.95 0.003 80)",
+        "borderWidth": "0px 0px 1px",
+        "fontSize": "12px",
+        "fontWeight": "600",
+        "lineHeight": "18px",
+        "paddingTop": "9px",
+        "paddingRight": "11px",
+        "paddingBottom": "9px",
+        "paddingLeft": "11px"
+      }
+    },
+    {
+      "anchor": "data-agent-spend-card",
+      "selector": "[data-agent-spend-card]",
+      "cssSelector": ".card.accent .frozen",
+      "screen": "B",
+      "specRef": "B-02",
+      "desc": "付费确认卡",
+      "tolerances": {
+        "h": 8
+      },
+      "text": "付费后就不能再改：镜头数、模型、时长、清晰度。提示词仍可改。",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 550,
+        "y": 406,
+        "w": 339,
+        "h": 47,
+        "right": 890,
+        "bottom": 453
+      },
+      "tokens": {
+        "backgroundColor": "oklch(0.97 0.003 80)",
+        "color": "oklch(0.5 0.01 80)",
+        "borderColor": "oklch(0.5 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "11px",
+        "fontWeight": "400",
+        "lineHeight": "16.5px",
+        "paddingTop": "7px",
+        "paddingRight": "9px",
+        "paddingBottom": "7px",
+        "paddingLeft": "9px"
+      }
+    },
+    {
+      "anchor": "data-agent-deviation-card",
+      "selector": "[data-agent-deviation-card]",
+      "cssSelector": ".card.warn",
+      "screen": "B",
+      "specRef": "B-03",
+      "desc": "有出入卡",
+      "tolerances": {
+        "h": 8
+      },
+      "text": "做完了，有 2 处和你批准的不一样\n其余 3 镜都对上了。没对上的：\n镜 2\n→\n镜 3\n画面衔接镜 2 结尾的画面没接到镜 3 开头——中间那条连线生成时丢了。\n镜 4\n→\n阿青\n角色造型阿青的头发画成了棕色，和定妆不一样。\n让 AI 修\n撤销这一步\n知道了",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 944,
+        "y": 220,
+        "w": 363,
+        "h": 248,
+        "right": 1307,
+        "bottom": 468
+      },
+      "tokens": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "oklch(0.22 0.01 80)",
+        "borderColor": "oklch(0.62 0.14 75)",
+        "borderWidth": "1px",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "19.5px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-artifact-card",
+      "selector": "[data-agent-artifact-card]",
+      "cssSelector": ".card.artifact",
+      "screen": "B",
+      "specRef": "B-06",
+      "desc": "产物缩略卡",
+      "tolerances": {
+        "h": 8
+      },
+      "text": "镜 1\n1024×1792 · 第 2 版\n去画布\n镜 1 · 特写 · 暖光",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 944,
+        "y": 585,
+        "w": 363,
+        "h": 174,
+        "right": 1307,
+        "bottom": 759
+      },
+      "tokens": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "oklch(0.22 0.01 80)",
+        "borderColor": "oklch(0.91 0.004 80)",
+        "borderWidth": "1px",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "19.5px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-failure-card",
+      "selector": "[data-agent-failure-card]",
+      "cssSelector": ".card.danger",
+      "screen": "B",
+      "specRef": "B-07",
+      "desc": "失败卡",
+      "tolerances": {
+        "h": 8
+      },
+      "text": "镜 4 生成失败\n当前模型没配置好，这一步没跑起来。这次没扣钱。\n换模型重试\n改提示词\n看详情",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 944,
+        "y": 771,
+        "w": 363,
+        "h": 114,
+        "right": 1307,
+        "bottom": 885
+      },
+      "tokens": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "oklch(0.22 0.01 80)",
+        "borderColor": "rgb(179, 36, 28)",
+        "borderWidth": "1px",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "19.5px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-pinned-card",
+      "selector": "[data-agent-pinned-card]",
+      "cssSelector": ".result-card",
+      "screen": "D",
+      "specRef": "D-02",
+      "desc": "固定结果卡",
+      "tolerances": {
+        "h": 8
+      },
+      "text": "拆解结果\n· 5 镜 · 已选 2",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 990,
+        "y": 285,
+        "w": 319,
+        "h": 30,
+        "right": 1309,
+        "bottom": 315
+      },
+      "tokens": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "oklch(0.22 0.01 80)",
+        "borderColor": "oklch(0.91 0.004 80)",
+        "borderWidth": "1px",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "19.5px",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px"
+      }
+    },
+    {
+      "anchor": "data-agent-pinned-head",
+      "selector": "[data-agent-pinned-head]",
+      "cssSelector": ".result-card .rc-head",
+      "screen": "D",
+      "specRef": "D-02",
+      "desc": "固定卡头部",
+      "tolerances": {
+        "h": 4
+      },
+      "text": "拆解结果\n· 5 镜 · 已选 2",
+      "tagName": "div",
+      "role": null,
+      "ariaLabel": null,
+      "geometry": {
+        "x": 991,
+        "y": 286,
+        "w": 317,
+        "h": 28,
+        "right": 1308,
+        "bottom": 314
+      },
+      "tokens": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "oklch(0.22 0.01 80)",
+        "borderColor": "oklch(0.22 0.01 80)",
+        "borderWidth": "0px",
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "lineHeight": "18px",
+        "paddingTop": "0px",
+        "paddingRight": "9px",
+        "paddingBottom": "0px",
+        "paddingLeft": "9px"
+      }
+    }
+  ],
+  "summary": {
+    "totalElements": 35,
+    "byScreen": {
+      "A": 28,
+      "B": 5,
+      "C": 0,
+      "D": 2,
+      "E": 0
+    },
+    "coveredAnchors": [
+      "data-agent-header",
+      "data-agent-usage-pill",
+      "data-agent-history",
+      "data-agent-collapse",
+      "data-agent-flow",
+      "data-agent-compaction-line",
+      "data-agent-stage-line",
+      "data-agent-user-bubble",
+      "data-agent-skill-event",
+      "data-agent-thinking-line",
+      "data-agent-reply",
+      "data-agent-tool-line",
+      "data-agent-proposal-receipt",
+      "data-agent-receipt-undo",
+      "data-agent-lost-edits-card",
+      "data-agent-landing-chip",
+      "data-agent-queue-row",
+      "data-agent-queue-remove",
+      "data-agent-composer",
+      "data-agent-input",
+      "data-agent-at-token",
+      "data-agent-at-token[data-stale=true]",
+      "data-agent-composer-attach",
+      "data-agent-composer-mode",
+      "data-agent-composer-model",
+      "data-agent-composer-prompt",
+      "data-agent-composer-send",
+      "data-agent-model-alert",
+      "data-agent-plan-card",
+      "data-agent-spend-card",
+      "data-agent-deviation-card",
+      "data-agent-artifact-card",
+      "data-agent-failure-card",
+      "data-agent-pinned-card",
+      "data-agent-pinned-head"
+    ],
+    "uncoveredSpecAnchors": [
+      "data-agent-panel",
+      "data-agent-usage-popover",
+      "data-agent-compaction-expand",
+      "data-agent-stream-cursor",
+      "data-agent-tool-detail",
+      "data-agent-at-picker",
+      "data-agent-question-card",
+      "data-agent-candidates-card",
+      "data-agent-pinned-summary",
+      "data-agent-pinned-body",
+      "data-agent-topbar-badge",
+      "data-agent-badge-dot",
+      "data-decon-node-stub",
+      "data-decon-node-badge",
+      "data-agent-tip"
+    ]
+  },
+  "note": [
+    "样张当前不含 data-agent-* 属性（用 CSS class 表达结构）。",
+    "本规格表通过 CLASS_TO_ANCHOR 映射将 CSS 类与 testspec 挂点关联。",
+    "实现者应在生产代码中添加 data-agent-* 属性，断言器 (agent-ui-conformance.walk.mjs) 将对真实应用运行这些断言。",
+    "样张几何是断言容差的设计真相源：±2px（坐标/尺寸）除非此表另标。"
+  ]
+}
