@@ -117,10 +117,10 @@
       "evidence": "同类平台档案（仍在棘轮基线里），但不经 Runway 的任何代码路径，本轮零改动、行为零变化。拆法与本轮同构，待其官方文档对账后单独立项——记在 residual_risks，不假称已覆盖。"
     },
     {
-      "path": "src/config/modelArchetypes/runwayAudio.ts",
+      "path": "src/config/modelArchetypes/runwaySeedAudio.ts",
       "entry_point": "runway-audio",
-      "disposition": "not-affected",
-      "evidence": "同类平台档案（仍在棘轮基线里），audio kind，不在本轮 image 归一范围。本轮零改动。同上待单独立项。"
+      "disposition": "enforced",
+      "evidence": "同类平台档案 runway-audio（4 个不同音频产品共用）。本合同交付时它仍在棘轮基线里、本轮零改动；**紧接着的同分支下一轮已把它拆掉**——4 行各自归位（seed_audio → 本文件的新档案 runway-seed-audio；eleven 三行复用/新建各自的 ElevenLabs 档案），runwayAudio.ts 已删除。因此这里指向承接它的新档案，不再指向已不存在的路径。详见 docs/fixes/2026-09-02-audio-modelscope-identity.root-cause.json。"
     }
   ],
   "prevention": {
