@@ -85,9 +85,15 @@ try {
   //（回归 2026-07-15：滚动容器无高度上限 → 长 prompt 溢出盖住底栏，提交钮点不到）。
   await win.getByRole("button", { name: "生成", exact: false }).first().click();
   await win.waitForTimeout(800);
+  const flowNodeCountBeforeAdd = await win.locator('.react-flow__node[data-id]').count();
   await win.locator('button[aria-label="添加图片节点"]').first().click();
   const flowNode = win.locator('.react-flow__node[data-id]').last();
   await flowNode.waitFor({ timeout: 5000 });
+  const flowNodeCountAfterAdd = await win.locator('.react-flow__node[data-id]').count();
+  assert(
+    flowNodeCountAfterAdd === flowNodeCountBeforeAdd + 1,
+    `mount 后添加图片节点使画布节点计数 +1（${flowNodeCountBeforeAdd} → ${flowNodeCountAfterAdd}）`,
+  );
   const flowNodeId = await flowNode.getAttribute('data-id');
   await win.waitForFunction((nodeId) => {
     const outer = Array.from(document.querySelectorAll('.react-flow__node[data-id]'))

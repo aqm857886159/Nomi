@@ -71,6 +71,7 @@
 | [2026-08-09-prompt-paste-node-duplication.md](2026-08-09-prompt-paste-node-duplication.md) | 外部提示词粘贴进编辑器时不再误触画布节点粘贴兜底 | ✅ |
 | [2026-08-31-canvas-paste-routing-root-cause.md](2026-08-31-canvas-paste-routing-root-cause.md) | 画布复制节点后粘贴优先恢复内部节点；仅系统剪贴板明确带外部媒体时才走网页媒体下载（根因修复） | ✅ |
 | [2026-09-01-canvas-drag-perf-eval-v2.md](2026-09-01-canvas-drag-perf-eval-v2.md) | **画布拖动性能 eval v2 + 修复路线**（B 案已拍板）：三腿基线 prod/dev/throttle、画布外重渲染探针、拖/平移比值指纹；S3 订阅细粒度化 → S4 拖动几何下放 RF 内核 | 🚧 |
+| [2026-09-02-canvas-projection-sync-regression.md](2026-09-02-canvas-projection-sync-regression.md) | S4 回归修复：保留非受控 React Flow 内核并补齐 mount 后业务节点投影的单向同步 | 🚧 |
 | [2026-08-09-windows-drag-floating-surfaces.md](2026-08-09-windows-drag-floating-surfaces.md) | Windows 顶部浮层避开自绘窗口栏与功能顶栏拖拽区 | ✅ |
 | [2026-08-09-batch-dock-terminal-dismiss.md](2026-08-09-batch-dock-terminal-dismiss.md) | 批量生成全部完成后隐藏“生成全部 0 个”底栏 | ✅ |
 | [2026-08-13-batch-dock-timeline-occlusion.md](2026-08-13-batch-dock-timeline-occlusion.md) | 批量生成底栏避让时间轴把手并支持按当前批次隐藏 | ✅ |
