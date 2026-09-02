@@ -1173,9 +1173,20 @@ function timingBudget(baseMax) {
   return os.platform() === 'darwin' ? baseMax : Math.round(baseMax * NON_DARWIN_TIMING_CALIBRATION)
 }
 
+// maxFrameGapMs is recorded and reported but does NOT gate PASS/FAIL.
+//
+// Why advisory-only: single-frame worst-case is acutely sensitive to machine
+// contention and video-decode scheduling. On a clean darwin prod build,
+// node-drag-video maxGap ranged 41.9–140 ms across runs while the P95 was
+// healthy; dev/throttle legs hit 101–4252 ms. S5 and S4 acceptance each
+// showed 1/5 samples with a tail outlier while the median was fine. A hard
+// ceiling on a metric this volatile manufactures false-red CI without
+// catching real regressions — the P95 budget (frameGapP95Ms ≤ 33 ms) is the
+// calibrated, stable indicator; that one stays gating. (#264 lesson: harden
+// only after cross-platform data confirms stability.)
 const PERFORMANCE_BUDGETS = [
   { metric: 'frameGapP95Ms', max: timingBudget(33) },
-  { metric: 'maxFrameGapMs', max: timingBudget(100) },
+  { metric: 'maxFrameGapMs', max: timingBudget(100), advisory: true },
   { metric: 'longTaskP95Ms', max: timingBudget(80) },
   { metric: 'maxLoadingImages', max: 4 },
   { metric: 'maxLoadingVideos', max: 1 },
@@ -1291,11 +1302,14 @@ function summarizeScenario(samples, panControl = null) {
   const hardFailures = samples.flatMap((sample) =>
     sampleHardFailures(sample).map((reason) => ({ runIndex: sample.runIndex, reason })),
   )
-  const budgetChecks = PERFORMANCE_BUDGETS.filter(({ metric }) => metrics[metric]).map(({ metric, max }) => ({
+  const budgetChecks = PERFORMANCE_BUDGETS.filter(({ metric }) => metrics[metric]).map(({ metric, max, advisory }) => ({
     metric,
     actualP95: metrics[metric].p95,
     max,
     pass: metrics[metric].p95 <= max,
+    // advisory budgets are recorded and printed but never flip the scenario verdict.
+    // See comment above PERFORMANCE_BUDGETS for rationale.
+    advisory: advisory === true,
   }))
   // eval v2 advisory block (U2): per-move amortization, drag/pan ratios, action
   // latency, off-canvas render counts. Attached alongside — NOT inside — the
@@ -1325,7 +1339,7 @@ function summarizeScenario(samples, panControl = null) {
       pass: advisoryOnly
         ? true
         : budgetsAreCalibratedForLeg
-          ? hardFailures.length === 0 && budgetChecks.every((check) => check.pass)
+          ? hardFailures.length === 0 && budgetChecks.every((check) => check.advisory || check.pass)
           : hardFailures.length === 0,
       advisoryOnly,
       budgetsAdvisory: !advisoryOnly && !budgetsAreCalibratedForLeg,
