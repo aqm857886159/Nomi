@@ -9,6 +9,10 @@ import path from 'node:path'
 import readline from 'node:readline'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+// 工具面的真相源：与打包进 app.asar 的是同一份 dist-electron 构建产物（Mac Package job 先 `pnpm run build`
+// 再 `dist:mac:dir`）。因此「打包后 tools/list === MCP_TOOL_NAMES」是一条真不变量，不是同义反复：
+// 打包漏带模块、或客户端过滤把工具吃掉，两边就会不等。
+import { MCP_TOOL_NAMES } from '../../dist-electron/capabilityCore/mcpProtocol.js'
 
 // Expected catalog = the SAME compiled truth source electron-builder packs into app.asar
 // (electron/capabilityCore/mcpToolCatalog.ts → dist-electron/capabilityCore/mcpToolCatalog.js;
@@ -20,11 +24,6 @@ import { launchNomiApp } from './_launchApp.mjs'
 // drop: the packaged server's tools/list comes from the asar, the expectation from dist-electron.
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const compiledCatalogPath = path.join(repoRoot, 'dist-electron', 'capabilityCore', 'mcpToolCatalog.js')
-if (!fs.existsSync(compiledCatalogPath)) {
-  throw new Error(`Compiled MCP tool catalog missing: ${compiledCatalogPath}\n→ the expected-catalog truth source is the dist-electron build, run: pnpm run build`)
-}
-const EXPECTED_TOOL_NAMES = require(compiledCatalogPath).MCP_TOOL_RESOLVER.list().map((tool) => tool.name).sort()
 
 const bundlePath = path.resolve(process.argv[2] || '')
 const executablePath = process.platform === 'darwin'
@@ -146,17 +145,21 @@ async function smokeClient(client, { signed = true } = {}) {
     assert(initialized.result?.serverInfo?.name === 'nomi-capability-core', `${client} initialize handshake`)
 
     const tools = (await rpc('tools/list')).result?.tools || []
-    const actualNames = tools.map((tool) => tool.name).sort()
-    assert(new Set(actualNames).size === actualNames.length, `${client} tools/list contains duplicate names`)
-    // tools/list serves the one unfiltered catalog to every client (mcpProtocol.ts tools/list →
-    // MCP_TOOL_RESOLVER.list(); signed vs unsigned differs at call/resource time, not list time),
-    // so signed and generic hosts alike must match the built catalog exactly — no floor, no
-    // hand-required subset, no drift.
-    const missing = EXPECTED_TOOL_NAMES.filter((name) => !actualNames.includes(name))
-    const extra = actualNames.filter((name) => !EXPECTED_TOOL_NAMES.includes(name))
+    assert(new Set(tools.map((tool) => tool.name)).size === tools.length, `${client} tools/list contains duplicate names`)
+    // 断言的是不变量「打包后暴露的 === 本次构建声明的」，不是手抄的数量或名单。
+    // 手抄版已经栽过（见 docs/fixes/2026-09-02-stale-hand-copied-surface-baseline.root-cause.json）：
+    // 原文是 `tools.length >= 22` 加 16 个工具名，08-23 按「目录只会变多」当下限写；09-02 的 #359 有意
+    // 把工具面收束到 19 个并换掉全套命名，两处硬编码同时落后。而守它们的 Mac Package job 只在打包路径
+    // 变动时触发，改 MCP 源码根本跑不到这里，落后遂潜伏到一个无关 PR 才炸。
+    // derive 之后：收束/扩张自动跟随，只有真失效（打包丢了工具、或意外多暴露一个）才红——比原来更强。
+    const actualToolNames = tools.map((tool) => tool.name).sort()
+    const declaredToolNames = [...MCP_TOOL_NAMES].sort()
     assert(
-      missing.length === 0 && extra.length === 0,
-      `${client} packaged catalog drifted from the dist-electron truth source (missing: ${missing.join(', ') || 'none'}; unexpected: ${extra.join(', ') || 'none'})`,
+      actualToolNames.length === declaredToolNames.length
+        && actualToolNames.every((name, index) => name === declaredToolNames[index]),
+      `${client} tools/list 与构建声明的 MCP_TOOL_NAMES 不一致：`
+        + `多出 [${actualToolNames.filter((name) => !declaredToolNames.includes(name)).join(', ')}]，`
+        + `缺少 [${declaredToolNames.filter((name) => !actualToolNames.includes(name)).join(', ')}]`,
     )
 
     const resources = (await rpc('resources/list')).result?.resources || []
@@ -180,9 +183,9 @@ async function smokeClient(client, { signed = true } = {}) {
     }
 
     if (!signed) {
-      // Surface-16-collapse folded the integration_* FSM tools into one nomi_integration action
-      // enum (mcpIntegrationTools.ts); the write boundary under test is unchanged — every action
-      // routes to the original integration.* method literal.
+      // 面收敛（#359）后三个动作收进 nomi_integration 的 action 参数。迁移前这里写的是已被删除的
+      // nomi_integration_begin / _open_credentials / _start——调用不存在的工具同样返回 isError:true，
+      // 于是这三条断言**靠「工具不存在」假绿**，看起来在守写边界，实际上什么也没守（死名字两头骗人）。
       const begin = await rpc('tools/call', {
         name: 'nomi_integration',
         arguments: {

@@ -9,6 +9,7 @@ import {
   type OnNodeDrag,
   type OnNodesChange,
   type Viewport,
+  useReactFlow,
 } from '@xyflow/react'
 import { CanvasSelectionToolbar } from '../components/CanvasSelectionToolbar'
 import { CanvasGroupProjectionLayer } from '../components/CanvasGroupProjectionLayer'
@@ -22,6 +23,7 @@ import { canvasViewportFromFlow } from './generationCanvasReactFlowAdapter'
 import { edgeTypes, nodeTypes } from './GenerationCanvasReactFlowNodes'
 import { resolveSelectionToolbarPlacement } from './selectionToolbarPlacement'
 import { CANVAS_DRAGGING_OWNER, setCanvasDragging } from '../components/canvasDraggingFlag'
+import { syncCanvasNodeProjection } from './canvasNodeProjectionSync'
 
 type GenerationCanvasReactFlowViewportProps = {
   flowNodes: GenerationFlowNode[]
@@ -67,6 +69,22 @@ type GenerationCanvasReactFlowViewportProps = {
   onBuildContactSheet: () => void
   onSaveWorkflow: () => void
   onClearSelection: () => void
+  isNodeDragging: boolean
+}
+
+function CanvasNodeProjectionSync({
+  flowNodes,
+  isNodeDragging,
+}: {
+  flowNodes: readonly GenerationFlowNode[]
+  isNodeDragging: boolean
+}): null {
+  const flow = useReactFlow<GenerationFlowNode, GenerationFlowEdge>()
+  const previousProjectionRef = React.useRef<readonly GenerationFlowNode[] | null>(null)
+  React.useEffect(() => {
+    syncCanvasNodeProjection(flow, flowNodes, previousProjectionRef, isNodeDragging)
+  }, [flow, flowNodes, isNodeDragging])
+  return null
 }
 
 export function GenerationCanvasReactFlowViewport({
@@ -113,13 +131,14 @@ export function GenerationCanvasReactFlowViewport({
   onBuildContactSheet,
   onSaveWorkflow,
   onClearSelection,
+  isNodeDragging,
 }: GenerationCanvasReactFlowViewportProps): JSX.Element {
   const selectionToolbarPlacement = selectedBounds
     ? resolveSelectionToolbarPlacement(selectedBounds, viewport, stageSize)
     : null
   return (
     <ReactFlow
-      nodes={flowNodes}
+      defaultNodes={flowNodes}
       edges={flowEdges}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
@@ -166,6 +185,7 @@ export function GenerationCanvasReactFlowViewport({
       }}
       proOptions={{ hideAttribution: true }}
     >
+      <CanvasNodeProjectionSync flowNodes={flowNodes} isNodeDragging={isNodeDragging} />
       <ViewportPortal>
         <CanvasGroupProjectionLayer
           boxes={groupBoxes}
