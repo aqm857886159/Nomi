@@ -1,0 +1,135 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-push-gate-stamp-identity",
+  "problem_type": "交付闸门的放行凭据（五门戳）身份维度不足：只认「固定路径 + mtime 新鲜」，既不认是哪棵 worktree 盖的、也不认盖戳时的代码是哪个提交，于是在并行多 worktree 下一枚戳可以给任意一棵树、任意一份代码背书",
+  "symptom": "2026-09-02 在 sibling worktree 里 push 一个 gates 实际 exit=1 的分支，被放行并推上了远端（PR 未开、CI 兜住，纯属运气）。同一天反方向也栽：nomi-brand-mark 里 gates 连过两轮，却被会话树那枚过期戳拦了三次。两次都不报错——闸门放行时的输出与正常放行完全一致，静默。",
+  "direct_cause": "pre-push-check.sh 读的标记是 `$ROOT/.claude/.gates-ok`，其中 ROOT 在命令不含 `cd <path>` 时退回 `CLAUDE_PROJECT_DIR`（固定指向**会话**那棵 worktree，而非推送发生的那棵）；判据只有「文件存在」+「mtime 在 30 分钟内」。于是主仓里一枚别处盖的新鲜戳，对任何一棵树的推送都成立。",
+  "class_root": "凭据（capability）本身没有携带**被背书对象的身份**，而是靠「文件躺在某个约定路径上」隐式代表。隐式身份在单树时恰好等价、在并行多树时必然错配，且两个方向都会错（误放 + 误杀）。正确形状：凭据必须把「为谁背书」写进自己的内容里——这里是 ① 落在本 worktree 自己的 gitdir（`git rev-parse --absolute-git-dir`，git 保证一树一份，物理隔离）② 记录盖戳时的 worktree 绝对路径 ③ 记录盖戳时的 HEAD sha；push 时三项与当前现场逐项比对，任一不符即拒。签发（stamp-gates-ok.mjs）与核验（pre-push-check.sh）是同一份格式的两端，收敛在这一对文件里，不留第二处读法。",
+  "affected_population": [
+    "这台机器上全部并行 worktree（实测 48 棵持有旧戳）的每一次 push：任一棵树盖的新鲜戳都能为另一棵树没过门的代码背书（误放），任一棵树的过期戳也能拦下已过门的树（误杀）。",
+    "「盖戳之后又提交代码」的所有推送：旧判据下戳在 30 分钟内即放行，被推出去的是**盖戳后新写的、没过任何门的代码**。",
+    "未来任何在此仓新增的「跑过检查 → 盖标记 → 后续见标记即放行」机制：此前没有可照抄的正确形状，也没有门岗兜底，会重复同一形状的错误。"
+  ],
+  "scope_paths": [
+    "scripts/claude-hooks/pre-push-check.sh",
+    "scripts/stamp-gates-ok.mjs",
+    "scripts/root-cause-contracts.mjs",
+    "scripts/pre-push-check.node-test.mjs",
+    "scripts/check-root-cause-contracts.node-test.mjs"
+  ],
+  "entry_points": [
+    "scripts/claude-hooks/pre-push-check.sh — 核验端（唯一）：解析 PreToolUse 输入定位推送发生的 worktree（`cd` 目标 → harness 报的 cwd → CLAUDE_PROJECT_DIR → PWD），再对 `$GIT_DIR/nomi-gates-ok` 逐项核验新鲜度/树/HEAD，任一不符 exit 2。",
+    "scripts/stamp-gates-ok.mjs — 签发端（唯一）：`pnpm run gates` 全过后写入 sha/worktree/at 三元组；同时是文档里给出的手动补盖入口（取代旧的 `touch .claude/.gates-ok`）。",
+    "package.json 的 `gates` 脚本 — 唯一调用签发端的地方；旧的内联 `node -e` 写 `.claude/.gates-ok` 已同 commit 删除，无并行写法。",
+    "scripts/root-cause-contracts.mjs 的 HIGH_RISK_EXACT — 把闸门执行体纳入「改它必须带合同 + 类级回归测试」的强制面。"
+  ],
+  "internal_only_reason": "没有接入或重新契约任何外部供应商 API。全部改动只涉及本仓自有的交付闸门脚本与 git 的本地语义；唯一依赖的外部事实是 `git rev-parse --absolute-git-dir` 在 worktree 下返回 per-worktree 的 gitdir（主仓 `.git/`、worktree `.git/worktrees/<name>/`），这一点没有凭记忆断言，而是在本机实测确认（主仓返回 /Users/aoqimin/Desktop/Nomi/.git，worktree 返回 /Users/aoqimin/Desktop/Nomi/.git/worktrees/sad-mestorf-730a9e），并由 scripts/pre-push-check.node-test.mjs 在临时 git 仓的真实 worktree 上持续复验，不依赖任何外部文档的措辞。",
+  "generality_proof": "核验逻辑不 hardcode 任何 worktree 名、分支名或机器路径：树的身份来自 `git rev-parse --show-toplevel`、戳的位置来自 `git rev-parse --absolute-git-dir`、代码的身份来自 `git rev-parse HEAD`，三者都是对任意仓库/任意棵树一视同仁的 git 事实。因此这台机器上现有的 48 棵树、以及以后新开的每一棵，都被同一条规则一次性收口，不需要回来补名单。回归测试同样与真实仓库解耦——在临时目录里 `git init` 一个种子仓、直接写 `refs/remotes/origin/main` 假装有远端、再开两棵真实 worktree，因此在 CI 与任何协作者机器上都能复现同一判定。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "symbol": "戳的三项核验（新鲜度 / STAMP_WT == ROOT / STAMP_SHA == HEAD_SHA）",
+      "responsibility": "push 放行与否的唯一判定处。所有 `git push`（无论从哪棵 worktree、命令里带不带 cd）都收敛到这一处按三维身份核验凭据；判据不成立即 fail-closed exit 2。"
+    },
+    {
+      "path": "scripts/stamp-gates-ok.mjs",
+      "symbol": "戳的唯一签发者（写 sha/worktree/at 到 $GIT_DIR/nomi-gates-ok）",
+      "responsibility": "凭据格式与落点的唯一定义处：决定戳落在本树自己的 gitdir、并把 worktree 路径与 HEAD sha 写进内容。核验端的判据完全由这份格式决定，两端不各自解释格式。"
+    },
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "symbol": "HIGH_RISK_EXACT 中的闸门执行体条目",
+      "responsibility": "把「交付闸门的执行体」这一族纳入根因合同强制面：改它们必须带合同与本次变化中的类级回归测试，防止下一次静默失效在无人复核的情况下合入。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "entry_point": "命令含 `cd <path> && git push` 的推送",
+      "disposition": "enforced",
+      "evidence": "按 cd 目标定位 worktree 后核验本树 gitdir 里的戳。scripts/pre-push-check.node-test.mjs 覆盖：A 树盖戳放行、B 树无戳被拦（即便 A 有新鲜戳）、把 A 的戳整份拷进 B 的 gitdir 仍被拦（报「另一棵 worktree」）。"
+    },
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "entry_point": "命令不含 cd、按 harness 报的 cwd 定位的推送",
+      "disposition": "enforced",
+      "evidence": "候选顺序 cd 目标 → HOOK_CWD → CLAUDE_PROJECT_DIR → PWD，逐个解析到 git toplevel。这正是旧实现漏掉的那条腿（直接退回会话目录）。测试用例「命令里没写 cd 时，按 harness 报的 cwd 认树 → 放行」钉住，且 runHook 显式清空 CLAUDE_PROJECT_DIR，防止被跑测试的那棵树污染成假绿。"
+    },
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "entry_point": "盖戳之后 HEAD 发生变化的推送",
+      "disposition": "enforced",
+      "evidence": "STAMP_SHA != HEAD_SHA 时拦截（报「盖戳之后又动了代码」）；仅当戳是 HEAD 的祖先且增量全是 doc/hook 时沿用既有 doc 豁免。测试覆盖两侧：补代码提交被拦、只补 docs/*.md 放行。本次交付自己也撞上过这条——commit 后戳失效，遂重跑 gates 而非走手动补盖，push 是真过闸放行的。"
+    },
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "entry_point": "旧版「只有时间戳」的空戳",
+      "disposition": "enforced",
+      "evidence": "戳内容解析不出 sha=/worktree= 即拒（报「格式不认识」），所以 `touch` 一个文件蒙混不过去，旧戳也不会被误认为有效凭据。测试用例「旧版空戳不认」钉住。盘上 44 枚已失效旧戳同步清除（4 枚属在途会话，留其自然过期）。"
+    },
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "entry_point": "提醒型 hook（self-check / handoff / model-doc-check / stack-currency）",
+      "disposition": "not-affected",
+      "evidence": "蓄意不纳入 HIGH_RISK_EXACT：它们失效顶多少一层提示，不会把未验证的代码送出去；纳入会让改一句提示文案都要写合同，而门岗一旦开始拦无辜的人，人就会开始绕过门岗。scripts/check-root-cause-contracts.node-test.mjs 用反面断言钉住这条边界（连同 .node-test.mjs 仍走 isTestFile 豁免）。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/claude-hooks/pre-push-check.sh",
+    "invariant": "一枚五门戳只能为「盖它的那棵 worktree」在「盖它时的那个 HEAD」上、且在 30 分钟内的推送背书；三项中任一不符即 fail-closed 拦截。凭据的身份写在凭据内容里，不由它所在的路径隐式代表。",
+    "failure_mode": "任何一维退化都会让闸门静默失效：去掉「认树」→ 一棵树的戳给另一棵树没过门的代码背书（09-02 实测已推上远端）；去掉「认 HEAD」→ 盖戳后新写的代码搭便车出去；去掉「认新鲜度」→ 隔夜旧戳长期有效。三种失效的输出都与正常放行完全一致，事后只能在远端发现。",
+    "exception_policy": "none",
+    "strategy": "把凭据的签发与核验收敛成一对：stamp-gates-ok.mjs 定义格式与落点（本树 gitdir + worktree 路径 + HEAD sha），pre-push-check.sh 是唯一核验处并对三项 fail-closed（fail-open 只保留给「连仓库根都拿不到」）。旧的 .claude/.gates-ok 读写两侧同 commit 删除，无并行版、无 fallback。再加两层门岗兜底：scripts/pre-push-check.node-test.mjs 在真实 worktree 上钉住三项判定（挂进 check:claude-hooks，与只查安装漂移的 install-claude-hooks.cjs --check 互补），HIGH_RISK_EXACT 把这族文件纳入根因合同强制面。",
+    "artifacts": [
+      "scripts/claude-hooks/pre-push-check.sh",
+      "scripts/stamp-gates-ok.mjs",
+      "scripts/root-cause-contracts.mjs",
+      "scripts/pre-push-check.node-test.mjs",
+      "scripts/check-root-cause-contracts.node-test.mjs"
+    ]
+  },
+  "invariants": [
+    "戳落在 `git rev-parse --absolute-git-dir` 返回的目录里（一树一份，物理隔离），不落在任何跨树共享的固定路径。",
+    "戳内容含 sha= 与 worktree= 两维身份；解析不出这两项的戳一律不认（旧版空时间戳文件不构成凭据）。",
+    "push 放行需三项同时成立：mtime 在 30 分钟内、worktree 与推送现场一致、HEAD 与盖戳时一致；盖戳后的增量全为 doc/hook 时沿用既有 doc 豁免。",
+    "签发只有 scripts/stamp-gates-ok.mjs 一处、核验只有 pre-push-check.sh 一处；package.json 的 gates 链末节是唯一自动签发调用点。",
+    "hook 的版本化真相源是 scripts/claude-hooks/，由 postinstall 装进 .claude/；本地改动必须同步回仓库，否则 check:claude-hooks 报漂移。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "不是一次性错值，而是「凭据靠隐式身份代表」这一形状的必然结果：同一天已在两个方向各发作一次（误放一次、误杀三次），且发作面覆盖机器上全部并行 worktree（实测 48 棵持旧戳）。只要凭据不带身份，任何新开的 worktree 都会重新命中，因此必须在签发/核验这对共享边界上结构性收口，并用门岗防止回退。",
+    "same_class_scan": [
+      "扫全部 worktree 的旧标记：`git worktree list` 逐棵查 .claude/.gates-ok，共 48 枚；按 mtime 分类后 44 枚已失效（清除），4 枚属在途会话（保留，待其自然过期或该树 pnpm install 装上新 hook）。注：首次扫描用 `find -mmin -60` 的退出码判新鲜，得到「48 枚全新鲜」的明显荒谬结果——find 无匹配时同样 exit 0，改判 stdout 非空后才得到真实分布。",
+      "扫仓库内所有「盖标记 → 见标记放行」的机制，确认 .gates-ok 是唯一一处：grep `gates-ok` 全仓命中 package.json（签发）、pre-push-check.sh（核验）与若干历史 docs/plan 记录；无第二个同形状凭据机制需要一并收口。",
+      "扫同族闸门执行体并逐个判定归属：pre-push-check.sh / secret-guard.sh / stamp-gates-ok.mjs / ponytail-review-hook.mjs / install-claude-hooks.cjs / install-git-hooks.cjs 纳入 HIGH_RISK_EXACT（静默失效即放行未验证代码或未扫描的凭据）；self-check.sh / handoff-*.sh / model-doc-check.sh / stack-currency-check.sh 明确不纳入（提醒型，失效不导致代码外流）。两侧都由 check-root-cause-contracts.node-test.mjs 的正反断言钉住。",
+      "确认 hook 的传播路径已闭环：上游已把 hook 纳入版本库（scripts/claude-hooks/ + postinstall 安装 + check:claude-hooks 拦漂移），故本次修复落在版本化那份即可自行传播；仍在跑旧 hook 的在途 worktree 需各自 `pnpm install`，已写进 CLAUDE.md 与 docs/lessons 条目。",
+      "验证新规则确实会红（R17）：加入 HIGH_RISK_EXACT 后先跑 check:root-cause-contracts，得到 3 个触发文件全部「未被合同覆盖」的红，再补本合同转绿——避免加了一条永远不会红的死规则。"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/pre-push-check.node-test.mjs",
+    "scripts/check-root-cause-contracts.node-test.mjs"
+  ],
+  "regression_tests": [
+    "scripts/pre-push-check.node-test.mjs",
+    "scripts/check-root-cause-contracts.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有独立的旧文件/旧路径可删——P1 已就地满足：旧实现是 pre-push-check.sh 里读 `$ROOT/.claude/.gates-ok` 的那段判据与 package.json `gates` 末节内联的 `node -e` 写法，两者在同一 commit 分别被整段替换为三项核验与 `node ./scripts/stamp-gates-ok.mjs`，没有留下第二份实现、fallback 或逃生口，也不存在「新旧两种戳都认」的过渡期（旧格式被显式拒绝，报「格式不认识」）。盘上残留的 44 枚失效旧戳作为死数据一并清除（4 枚属在途会话，留其自然过期）。"
+  },
+  "residual_risks": [
+    "本地 hook 不是不可绕过的服务器门岗：`--no-verify`、网页/API 推送、以及尚未 `pnpm install` 的在途 worktree 都绕得过（R25 已载明同一限制）。真正的兜底仍是 CI 与分支保护——本次只把「本地闸门自己会说谎」这一层修掉，没有、也不该声称把绕过面关死。",
+    "30 分钟 TTL 与「HEAD 一变即失效」叠加后，习惯「先 gates 再 commit」的人每次都会被拦一下，从而更常用手动补盖（`node ./scripts/stamp-gates-ok.mjs`）——补盖写的是真实 HEAD，但它证明的是「人说跑过」。缓解是把推荐流程改成 commit 完再跑 gates（已写进闸门拦截文案与 docs/lessons 条目）；若日后发现补盖被滥用，再考虑让戳记录 gates 实际验过的 tree 而非仅 HEAD。",
+    "戳落在 `$GIT_DIR` 内：`git worktree remove`/`prune` 会连带清掉戳（无害，最多要求重跑一次 gates），但如果有人手工搬移 gitdir 或用非标准 `--separate-git-dir` 布局，戳的落点会随之改变；核验端因为同样按 `git rev-parse --absolute-git-dir` 解析，两端始终一致，不会出现单边漂移。",
+    "HIGH_RISK_EXACT 新收的 6 个闸门执行体中，secret-guard.sh 与两个安装器目前没有各自的类级回归测试；下次真要改它们时，合同门会要求当次补上（这是刻意的前置成本，而非已存在的覆盖）。"
+  ],
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "exit_criteria": [],
+    "rationale": "未新增、升级或保留任何第三方依赖：改动全部落在本仓自有的 shell/node 脚本上，只用到 git 自带命令与 node 内置模块（node:child_process / node:fs / node:path / node:test），无老化依赖需要退出计划。"
+  },
+  "migration": "无持久化数据迁移。凭据是进程外的一枚本地文件、且天生短命（30 分钟 TTL），新旧格式不共存：新核验端不认旧格式，旧戳等同于没有戳——后果只是「下次 push 前要重跑一次 gates」，方向安全（fail-closed，只会多过门，不会少过门）。盘上 44 枚失效旧戳已清除，4 枚属在途会话的保留待其自然过期。仍在跑旧 hook 的 worktree 跑一次 `pnpm install` 即由 postinstall 装上新版。"
+}

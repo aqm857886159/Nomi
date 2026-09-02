@@ -176,6 +176,32 @@ test("not_match: docs-only changes do not require a contract", () => {
   assert.deepEqual(result, { ok: true, errors: [], triggeredFiles: [] });
 });
 
+// 闸门执行体（2026-09-02 加）。这一族的失效是**静默**的：放行得和正常放行一模一样，
+// 所以「改它必须带根因合同」这条本身要有测试钉住——否则谁把某个 hook 从名单里删掉，
+// 也是静默生效的。同时钉住**反面**：提醒型 hook 不该进这张表，否则改一句提示文案都要写合同。
+test("match: 交付闸门的执行体算高风险，提醒型 hook 不算", () => {
+  for (const file of [
+    "scripts/claude-hooks/pre-push-check.sh",
+    "scripts/claude-hooks/secret-guard.sh",
+    "scripts/stamp-gates-ok.mjs",
+    "scripts/ponytail-review-hook.mjs",
+    "scripts/install-claude-hooks.cjs",
+    "scripts/install-git-hooks.cjs",
+  ]) {
+    assert.equal(isHighRiskProductionFile(file), true, `闸门执行体必须算高风险：${file}`);
+  }
+  for (const file of [
+    "scripts/claude-hooks/self-check.sh",
+    "scripts/claude-hooks/handoff-write.sh",
+    "scripts/claude-hooks/model-doc-check.sh",
+    "scripts/claude-hooks/stack-currency-check.sh",
+  ]) {
+    assert.equal(isHighRiskProductionFile(file), false, `提醒型 hook 不该进高风险名单：${file}`);
+  }
+  // 闸门的测试文件本身仍走 isTestFile 豁免——否则改测试也要写合同，会把人逼去绕过门岗。
+  assert.equal(isHighRiskProductionFile("scripts/pre-push-check.node-test.mjs"), false);
+});
+
 test("match: every changed schema v3 contract is validated even without a high-risk production path", () => {
   const result = validateRootCauseChange({
     changedFiles: [completeContract.__file, "electron/catalog/assetLocalization.test.ts"],
