@@ -124,16 +124,6 @@ async function smokeClient(client, { signed = true } = {}) {
   }
 
   try {
-    if (!signed) {
-      // M1 round-2 (0b6441c6): an unverified client is refused at TRANSPORT startup
-      // (mcpStdioProjectSessionBinding) — the packaged server must exit 1 before any handshake.
-      const refusal = await new Promise((resolve) => {
-        const timer = setTimeout(() => resolve({ exited: false }), 60_000)
-        child.on('exit', (code) => { clearTimeout(timer); resolve({ exited: true, code }) })
-      })
-      assert(refusal.exited && refusal.code === 1, `${client} unsigned host is refused at packaged transport startup`)
-      return { tools: 0, resources: 0, body: 0, origin: 'refused-at-transport' }
-    }
     const initialized = await rpc('initialize', {
       protocolVersion: '2025-11-25',
       capabilities: {},
@@ -159,23 +149,68 @@ async function smokeClient(client, { signed = true } = {}) {
         + `缺少 [${declaredToolNames.filter((name) => !actualToolNames.includes(name)).join(', ')}]`,
     )
 
+    // resources/list: unsigned hosts receive an RPC-level error (403 from rpcServer when
+    // clientProof is absent → rpcErrorFromPayload propagates → mcpProtocol catches it and
+    // returns -32603 to the caller → .result is undefined → falls back to []). This is the
+    // correct behaviour: the launcher's launcherConnection() throws McpConnectionAuthenticationError
+    // at the first invoke() boundary, the protocol layer turns it into a -32603 reply, and the
+    // process stays alive for the full session. Signed clients reach the GUI RPC which forwards
+    // through the skills.list route and returns the full creative catalog.
     const resources = (await rpc('resources/list')).result?.resources || []
     // Host cutover content-addresses skill resources: nomi-skill://<dir>/<packageVersion>/<contentHash>
     // (integrity contract asserted in electron/capabilityCore/nomiMcpSkills.test.ts). Match by the
     // directory-name prefix and read via the returned uri rather than the pre-cutover bare uri.
     const director = resources.find((resource) => resource.uri.startsWith('nomi-skill://director-cinematography/'))
-    // Signed clients (proof-verified claude/codex/cursor) get local-authenticated MCP access →
-    // the full creative catalog including director.cinematography (electron/capabilityCore/
-    // dispatcher.ts::mcpSkillAccess + skillDispatcher.test.ts). Read via the returned uri.
-    // (Unsigned hosts now exit at transport startup — lines 127-136 — so this branch is only reached by signed clients.)
-    assert(director, `${client} director cinematography resource is missing`)
-    const body = (await rpc('resources/read', { uri: director.uri })).result?.contents?.[0]?.text || ''
-    assert(body.includes('镜头语言') && body.length > 1_000, `${client} director cinematography body is incomplete`)
+    let body = ''
+    if (signed) {
+      // Signed clients (proof-verified claude/codex/cursor) get local-authenticated MCP access →
+      // the full creative catalog including director.cinematography (electron/capabilityCore/
+      // dispatcher.ts::mcpSkillAccess + skillDispatcher.test.ts). Read via the returned uri.
+      assert(director, `${client} director cinematography resource is missing`)
+      body = (await rpc('resources/read', { uri: director.uri })).result?.contents?.[0]?.text || ''
+      assert(body.includes('镜头语言') && body.length > 1_000, `${client} director cinematography body is incomplete`)
+    } else {
+      // Unsigned/generic hosts: resources/list returns an empty list (RPC auth gate → -32603 →
+      // result undefined → []). The internal creative catalog must not leak to unverified callers.
+      assert(!director, `${client} internal creative skill must not leak to an unsigned host`)
+    }
+
+    if (!signed) {
+      // Write-boundary check: the exact same nomi_integration tool calls that succeed for signed
+      // clients must return isError:true for unsigned callers (rpcServer 403 → dispatcher rejects).
+      const begin = await rpc('tools/call', {
+        name: 'nomi_integration',
+        arguments: {
+          action: 'begin',
+          kind: 'http-api-provider',
+          name: 'Unsigned generic host',
+          baseUrl: 'https://example.invalid/v1',
+        },
+      })
+      assert(begin.result?.isError === true, `${client} unsigned integration.begin is rejected`)
+      const openCredentials = await rpc('tools/call', {
+        name: 'nomi_integration',
+        arguments: { action: 'open_credentials', sessionId: 'unsigned-session', expectedRevision: 1 },
+      })
+      assert(openCredentials.result?.isError === true, `${client} unsigned credential handoff is rejected`)
+      const start = await rpc('tools/call', {
+        name: 'nomi_integration',
+        arguments: {
+          action: 'start',
+          sessionId: 'unsigned-session',
+          expectedRevision: 1,
+          idempotencyKey: 'unsigned-start',
+          receipt: 'unsigned-receipt',
+        },
+      })
+      assert(start.result?.isError === true, `${client} unsigned certification start is rejected`)
+      return { tools: tools.length, resources: resources.length, body: body.length, origin: 'external' }
+    }
 
     // J0 positive path: a Nomi-signed host can create a durable integration
     // draft from an empty directory without exposing a credential or sending a
     // provider request. The companion unsigned branch above proves that the
-    // same boundary is now closed at transport startup for an unverified host.
+    // exact same write boundary remains closed to an unsigned generic host.
     const integrationBegin = await rpc('tools/call', {
       name: 'nomi_integration',
       arguments: {
