@@ -10,6 +10,13 @@ function entryByKey(): Map<string, AgentModelEntry> {
   return new Map(entries.map((e) => [e.modelKey, e]));
 }
 
+function textEntryByKey(): Map<string, AgentModelEntry> {
+  const entries = buildAgentModelEntries([
+    { value: "agent-runtime-text", label: "Fixture 文本", vendor: "loopback", kind: "text" } as ModelOption & { kind: "text" },
+  ]);
+  return new Map(entries.map((e) => [e.modelKey, e]));
+}
+
 describe("buildPlannedNodeMeta", () => {
   it("无 modelKey 返回 undefined（走原自动选）", () => {
     expect(buildPlannedNodeMeta({}, entryByKey())).toBeUndefined();
@@ -28,6 +35,28 @@ describe("buildPlannedNodeMeta", () => {
     expect(meta!.archetype).toMatchObject({ id: "seedance-2" });
     // 默认参数已铺（seedance aspect_ratio 默认 16:9）
     expect(meta!.aspect_ratio).toBe("16:9");
+  });
+
+  it("保留批准卡选择的供应商和变体到 canonical node meta", () => {
+    const meta = buildPlannedNodeMeta(
+      { modelKey: "seedance-2", vendor: "kie", variantId: "fast", modeId: "t2v" },
+      entryByKey(),
+    );
+    expect(meta).toMatchObject({
+      modelKey: "seedance-2",
+      modelVendor: "kie",
+      vendor: "kie",
+      archetype: { id: "seedance-2", modeId: "t2v", variantId: "fast" },
+    });
+  });
+
+  it("冲突的 vendor/modelVendor 不会静默改路由", () => {
+    expect(
+      buildPlannedNodeMeta(
+        { modelKey: "seedance-2", vendor: "kie", modelVendor: "other-vendor", variantId: "fast" },
+        entryByKey(),
+      ),
+    ).toBeUndefined();
   });
 
   it("agent 的合法参数覆盖默认", () => {
@@ -53,6 +82,12 @@ describe("buildPlannedNodeMeta", () => {
     );
     expect(meta!.aspect_ratio).toBe("16:9");
   });
+
+  it("文本模型保留显式身份但不伪造媒体 archetype", () => {
+    const meta = buildPlannedNodeMeta({ modelKey: "agent-runtime-text", modeId: "chat" }, textEntryByKey());
+    expect(meta).toMatchObject({ modelKey: "agent-runtime-text", modelVendor: "loopback", modelLabel: "Fixture 文本" });
+    expect(meta?.archetype).toBeUndefined();
+  });
 });
 
 describe("resolvePlannedNodeArgs — 批准≡执行(消灭对账出入)", () => {
@@ -69,7 +104,7 @@ describe("resolvePlannedNodeArgs — 批准≡执行(消灭对账出入)", () =>
     const node = { clientId: "k1", kind: "video", modelKey: "seedance-2", params: { aspect_ratio: "999:1" } };
     const resolved = resolvePlannedNodeArgs(node, entryByKey());
     const meta = buildPlannedNodeMeta(node, entryByKey())!;
-    const { modelKey: _mk, modelLabel: _ml, archetype: _arch, modelVendor: _mv, ...metaParams } = meta;
+    const { modelKey: _mk, modelLabel: _ml, archetype: _arch, modelVendor: _mv, vendor: _vendor, ...metaParams } = meta;
     expect(resolved.params).toEqual(metaParams);
     expect(resolved.modelKey).toBe(meta.modelKey);
   });

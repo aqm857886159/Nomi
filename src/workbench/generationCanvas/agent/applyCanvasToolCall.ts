@@ -6,20 +6,17 @@ import type {
 import { CATEGORY_IDS } from '../model/generationCanvasTypes'
 import { getDefaultCategoryForNodeKind, getGenerationNodeDefaultTitle } from '../model/generationNodeKinds'
 import { ANCHOR_META_KEYS } from '../model/anchorBibleKeys'
-import { generationCanvasTools, type CreateGenerationNodeToolInput } from './generationCanvasTools'
+import {
+  generationCanvasTools,
+  readGenerationCanvasSnapshot,
+  type CreateGenerationNodeToolInput,
+} from './generationCanvasTools'
 import { listAvailableModelsForAgent, type AgentModelEntry } from './availableModels'
 import { buildPlannedNodeMeta } from './plannedNodeMeta'
 import { withCanvasGestureContext, type CanvasGestureContext } from '../events/canvasGestureContext'
 import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
-import { formatCanvasForAgent } from './canvasPromptContext'
-import { buildDependencyWaves } from '../runner/dependencyWaves'
-import { runPlanWithToasts } from '../components/batchPlanPreview'
-import { resolveAutonomousUploadConsent } from '../runner/generationRunController'
-import { toast } from '../../../ui/toast'
-import { mintSpendGrant } from '../../api/taskApi'
-import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
+import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
-import { applyTimelineToolCall } from '../../timeline/agent/timelineToolCall'
 import { parseStoryboardPlan } from './storyboardPlan'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
 import type { CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
@@ -42,7 +39,7 @@ export { resetClientIdRegistry, resolveCanvasToolNodeId } from './clientIdRegist
  * map the throw to `{ ok: false, message }`).
  *
  * Used by BOTH the auto-execute path (`generationCanvasAgentClient`) and the
- * user-confirmed path (`CanvasAssistantPanel`) — there is no parallel
+ * user-confirmed path (resident Agent approval) — there is no parallel
  * implementation anymore (P1). Tool execution does not depend on any panel
  * being mounted: the store + tools are global.
  */
@@ -98,7 +95,7 @@ function appendDirectiveToNodePrompt(
   metaFlagKey: string,
   inCtx: <T>(fn: () => T) => T,
 ): { found: boolean; applied: boolean; alreadyApplied: boolean } {
-  const existing = generationCanvasTools.read_canvas().nodes.find((node) => node.id === nodeId)
+  const existing = readGenerationCanvasSnapshot().nodes.find((node) => node.id === nodeId)
   if (!existing) return { found: false, applied: false, alreadyApplied: false }
   const meta = (existing.meta ?? {}) as Record<string, unknown>
   if (meta[metaFlagKey] === directive) {
@@ -222,7 +219,9 @@ export async function applyCanvasToolCall(
   documentId?: string,
   storyboardId?: string,
 ): Promise<unknown> {
-  const assertWritable = () => { if (canWrite) assertTurnCanWrite(canWrite) }
+  const assertWritable = () => {
+    if (canWrite) assertTurnCanWrite(canWrite)
+  }
   assertWritable()
   const record = args && typeof args === 'object' ? (args as Record<string, unknown>) : {}
   // S6-2:提议事务把手势上下文传进来,store 变更段(纯同步)包在上下文里——途经 action
@@ -231,21 +230,6 @@ export async function applyCanvasToolCall(
   const inCtx = <T>(fn: () => T): T => {
     assertWritable()
     return gesture ? withCanvasGestureContext(gesture, fn) : fn()
-  }
-
-  // Timeline tools use the canonical workbench timeline/adoption boundary and
-  // deliberately do not participate in the generation-canvas gesture context.
-  if (['read_timeline', 'inspect_timeline_range', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit', 'get_media', 'inspect_media', 'search_media', 'inspect_source_range', 'read_waveform', 'export_timeline', 'inspect_export_job', 'verify_render', 'cancel_export_job'].includes(toolName)) {
-    return applyTimelineToolCall(toolName, args)
-  }
-
-  if (toolName === 'read_canvas_state') {
-    // T1 token 优化:回包用紧凑行格式(与 system prompt 的画布段同源),
-    // 不再把全字段快照 JSON 回灌进对话历史(那是每请求 2-3k token 的洞)。
-    const snapshot = generationCanvasTools.read_canvas()
-    const selectedIds = new Set(snapshot.selectedNodeIds ?? [])
-    const selected = snapshot.nodes.filter((node) => selectedIds.has(node.id))
-    return formatCanvasForAgent(snapshot, selected)
   }
 
   if (toolName === 'propose_storyboard_plan') {
@@ -281,7 +265,7 @@ export async function applyCanvasToolCall(
       status: 'applied',
       documentId: targetDocumentId,
       storyboardDesignId: design.id,
-      message: `已生成分镜方案「${plan.title || '未命名'}」：${plan.anchors.length} 个锚 · ${plan.shots.length} 个镜头，已放到创作页，待你审阅/修改后确认落画布。`,
+      message: `已生成分镜方案「${plan.title || '未命名'}」：${plan.anchors.length} 个锚 · ${plan.shots.length} 个镜头，已放到分镜页，待你审阅/修改后在行内或底部批量生成。`,
     } satisfies StoryboardPlanApplicationResult
   }
 
@@ -303,7 +287,7 @@ export async function applyCanvasToolCall(
     })
     // 分镜方案落画布（storyboardPlanToCreateNodesArgs 给 anchorCount）→ 参考行在上 + 镜头折行网格；
     // 其余（agent 直接建卡）→ 原轨迹分层布局。两者都从已有节点包围盒下方起、不压旧内容。
-    const existingCanvasNodes = generationCanvasTools.read_canvas().nodes
+    const existingCanvasNodes = readGenerationCanvasSnapshot().nodes
     const storyboardAnchorCount = typeof record.anchorCount === 'number' ? record.anchorCount : null
     const layout =
       storyboardAnchorCount !== null
@@ -326,8 +310,10 @@ export async function applyCanvasToolCall(
       // 首帧图身份同机制 → node.meta.storyboardKeyframe：创建时不领号，随后共用所属视频的镜号（见下）。
       // W2 圣经：static/dynamic 特征也透传进 meta（键名走 anchorBibleKeys 单一常量，防 GUI/headless 漂移）——
       // 身份轴对照读 meta.staticFeatures、冻结门/交付可显示；passthrough schema 自动持久化，零 schema 改动。
-      const staticFeatures = typeof node.staticFeatures === 'string' && node.staticFeatures.trim() ? node.staticFeatures.trim() : ''
-      const dynamicFeatures = typeof node.dynamicFeatures === 'string' && node.dynamicFeatures.trim() ? node.dynamicFeatures.trim() : ''
+      const staticFeatures =
+        typeof node.staticFeatures === 'string' && node.staticFeatures.trim() ? node.staticFeatures.trim() : ''
+      const dynamicFeatures =
+        typeof node.dynamicFeatures === 'string' && node.dynamicFeatures.trim() ? node.dynamicFeatures.trim() : ''
       const identityMarks = {
         ...(node.referenceSheet === true ? { referenceSheet: true } : {}),
         ...(node.storyboardKeyframe === true ? { storyboardKeyframe: true } : {}),
@@ -342,9 +328,10 @@ export async function applyCanvasToolCall(
         node.metadata && typeof node.metadata === 'object' && !Array.isArray(node.metadata)
           ? (node.metadata as Record<string, unknown>)
           : undefined
-      const meta = structuredMetadata || Object.keys(identityMarks).length
-        ? { ...(plannedMeta ?? {}), ...(structuredMetadata ?? {}), ...identityMarks }
-        : plannedMeta
+      const meta =
+        structuredMetadata || Object.keys(identityMarks).length
+          ? { ...(plannedMeta ?? {}), ...(structuredMetadata ?? {}), ...identityMarks }
+          : plannedMeta
       // 单节点：尊重 agent 指定位置（增量添加可能要贴近某节点），否则同走避让布局。
       const position =
         total > 1
@@ -413,7 +400,9 @@ export async function applyCanvasToolCall(
       }
     }
     // 批量落节点后统一请求适应视图。AI 直接建卡、方案确认和示例引导都走这里，
-    // 避免调用方漏触发后只看到被视口裁断的一部分新节点。单节点保留用户当前视口。
+    // 避免调用方漏触发后只看到被视口裁断的一部分新节点。单节点不重排全局视口，
+    // 但要把刚创建的卡居中：布局原点在已有内容下方，若时间轴占据底部，单卡可能
+    // 被裁在视口外；保留当前视口并不等于让用户自己猜卡片去了哪里。
     if (created.length > 1) {
       const workbench = useWorkbenchStore.getState()
       const categoryCounts = new Map<string, { count: number; firstIndex: number }>()
@@ -431,6 +420,8 @@ export async function applyCanvasToolCall(
               left.firstIndex - right.firstIndex,
           )[0]?.[0]
       workbench.requestCanvasFit(fitCategoryId)
+    } else if (created[0] && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId: created[0].id } }))
     }
     return {
       createdNodeIds: created.map((node) => node.id),
@@ -470,7 +461,7 @@ export async function applyCanvasToolCall(
     const { buildStagingSceneAudited } = await import('../nodes/scene3d/stagingBuilder')
     // 运行时自检(F3,零额度几何守卫):修正非法/近似姿势 id(治静默落站立)+ 角色过近自动拉开间距。
     const { state, issues: stagingIssues } = buildStagingSceneAudited(spec)
-    const existing = generationCanvasTools.read_canvas().nodes
+    const existing = readGenerationCanvasSnapshot().nodes
     const position = layoutPlannedNodes(['image'], existing)[0]
     const created = inCtx(() =>
       generationCanvasTools.create_nodes([
@@ -579,60 +570,16 @@ export async function applyCanvasToolCall(
     return { deletedNodeIds: deleted }
   }
 
-  if (toolName === 'run_generation_batch') {
-    const projectId = getDesktopActiveProjectId()
-    // S6b 受理语义:本分支只在用户批准后到达(确认前零网络调用)。受理 = 按依赖波次
-    // 规划(显示的≡执行的,S2b 纯函数)并启动;立即返回受理回执——生成进度走 run 域
-    // 事件给用户看,不阻塞 LLM 回合。approved nodeIds ≡ requested:只跑请求里解析
-    // 出来的真实节点,一个不多。
-    const requested = Array.isArray(record.nodeIds)
-      ? record.nodeIds.map((id) => resolveNodeId(String(id || '').trim())).filter(Boolean)
-      : []
-    const existing = new Set(generationCanvasTools.read_canvas().nodes.map((node) => node.id))
-    const nodeIds = requested.filter((id) => existing.has(id))
-    if (!nodeIds.length) throw new Error('node_not_found:请求生成的节点都不存在')
-    const state = generationCanvasTools.read_canvas()
-    const plan = buildDependencyWaves(nodeIds, { nodes: state.nodes, edges: state.edges })
-    const accepted = plan.waves.flat()
-    if (!accepted.length) {
-      const reasons = plan.blocked.map((item) => item.detail).join(';')
-      throw new Error(`批量被拦:${reasons || '没有可执行节点'}`)
-    }
-    // 付费守卫：本分支只在用户批准 pending 卡后到达（人手势在上游）→ 铸令牌绑受理节点，
-    // 随 plan 下到主进程 runTask 核验。删了 defaultExecuteToolCall 的自动放行旁路后此处不会被 AI 静默触发。
-    // 托管同意：这条是**外部 agent 受理**路径，回合不阻塞、也没人在等着点第二张卡。
-    // 交给同一个策略真相源逐节点判定（resolveAutonomousUploadConsent）：策略允许 / KIE 已配
-    // / 本地 ComfyUI → 放行；还需要问一次 → 拒发并把人话原因走 toast 告诉用户，不偷偷上传。
-    void mintSpendGrant(accepted)
-      .then(async (grantId) => {
-        // Approval survives normal Agent finish, but must never hand its node IDs
-        // to another project's live canvas while authorization/consent awaits.
-        if (getDesktopActiveProjectId() !== projectId) return
-        const decisions = await Promise.all(accepted.map((id) => resolveAutonomousUploadConsent(id)))
-        if (getDesktopActiveProjectId() !== projectId) return
-        const consent = decisions.includes('allow') ? 'allow' as const : 'not-needed' as const
-        await runPlanWithToasts(plan, { grantId, assetUploadConsent: consent })
-      })
-      .catch((error: unknown) => {
-        // 进度/结果本来全走 toast+run 域事件；托管被拒是唯一需要在此说人话的失败。
-        const message = error instanceof Error && error.message ? error.message : ''
-        if (message) toast(message, 'error')
-      })
-    return {
-      accepted: true,
-      acceptedNodeIds: accepted,
-      waves: plan.waves.length,
-      blocked: plan.blocked.map((item) => ({ nodeId: item.nodeId, detail: item.detail })),
-    }
-  }
-
   if (toolName === 'arrange_storyboard_to_timeline') {
     // 排序/选片全在纯函数(planStoryboardTimeline)里——LLM 只触发,顺序按 shotIndex 镜序确定。
     // 不走 inCtx 手势上下文(那是画布事件域);时间轴变更是 workbenchStore 的事。
     const rawIds = Array.isArray(record.nodeIds)
       ? record.nodeIds.map((id) => resolveNodeId(String(id || '').trim())).filter(Boolean)
       : undefined
-    const result = await arrangeStoryboardToTimeline({ ...(rawIds && rawIds.length ? { nodeIds: rawIds } : {}), assertCanApply: assertWritable })
+    const result = await arrangeStoryboardToTimeline({
+      ...(rawIds && rawIds.length ? { nodeIds: rawIds } : {}),
+      assertCanApply: assertWritable,
+    })
     if (result.scopeError) throw new Error(result.scopeError)
     if (!result.ok && result.total === 0) {
       throw new Error('没有可排片的镜头:画布上还没有生成好的视频或可占位的关键帧')

@@ -21,10 +21,26 @@ export function collectFilesRecursively(dir: string): string[] {
 
 /** 解析 data: URL → 字节 + contentType（非法即抛）。 */
 export function parseDataUrl(dataUrl: string): { bytes: Buffer; contentType: string } {
-  const match = dataUrl.match(/^data:([^;,]+)?(;base64)?,([\s\S]*)$/);
+  // RFC 2397: data:[<mediatype>][;base64],<data> — <mediatype> may carry extra
+  // parameters (`;charset=utf-8`, `;utf8`, …). Match the whole parameter run up
+  // to the comma rather than only `;base64`, so an inline `data:image/svg+xml;utf8,…`
+  // (very common for seeded SVG thumbnails) parses instead of throwing.
+  const match = dataUrl.match(/^data:([^;,]+)?((?:;[^,]*)*),([\s\S]*)$/);
   if (!match) throw new Error("Invalid data URL");
   const contentType = match[1] || "application/octet-stream";
+  const isBase64 = /;base64\b/i.test(match[2] || "");
   const encoded = match[3] || "";
-  const bytes = match[2] ? Buffer.from(encoded, "base64") : Buffer.from(decodeURIComponent(encoded));
+  // Non-base64 payloads are percent-encoded text; tolerate a literal (already
+  // decoded) payload if decodeURIComponent chokes on stray `%`.
+  let bytes: Buffer;
+  if (isBase64) {
+    bytes = Buffer.from(encoded, "base64");
+  } else {
+    try {
+      bytes = Buffer.from(decodeURIComponent(encoded));
+    } catch {
+      bytes = Buffer.from(encoded);
+    }
+  }
   return { bytes, contentType };
 }

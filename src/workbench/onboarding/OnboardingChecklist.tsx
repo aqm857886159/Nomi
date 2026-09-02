@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next'
 import { IconCheck, IconChevronDown, IconListCheck, IconMap } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { selectStableCanvasNodes } from '../generationCanvas/store/canvasNodeProjection'
 import { useHasTextModel } from '../library/useHasTextModel'
 import { useJourneyTourActive } from './journeyTourActivity'
 import { DesignProgress } from '../../design'
@@ -54,7 +55,8 @@ export function OnboardingChecklist(): JSX.Element | null {
     ],
     [t],
   )
-  const nodes = useGenerationCanvasStore((state) => state.nodes)
+  // 清单只看 nodes.length>0 与「有没有 success 节点」，不读 position → 位置稳定投影（suspect #1）。
+  const nodes = useGenerationCanvasStore(selectStableCanvasNodes)
   const { hasTextModel: textModelReady } = useHasTextModel()
   // 引导旅途进行时让位：清单是被动进度，tour 在演同一条流程，两者同屏会叠成一团（真机走查抓出）。
   const journeyTourActive = useJourneyTourActive()

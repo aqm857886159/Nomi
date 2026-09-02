@@ -10,6 +10,7 @@
 // 每节点 { inputs:{…}, class_type, _meta:{title} }；inputs 值要么是直接 widget 值（可参数化），
 // 要么是连线 [源节点ID, 输出槽] （不可参数化，保持不动）。
 import { COMFYUI_VENDOR_KEY, type HttpOperation } from "./types";
+import { desktopT } from "../i18n";
 import type { ComfyObjectInfoIndex } from "../comfyuiObjectInfo";
 import { normalizeWorkflowBinding } from "./comfyuiWorkflowBindingNormalize";
 import { comfyOutputCandidates, resolveComfyWorkflowOutput, suggestedComfyOutput } from "./comfyuiWorkflowOutput";
@@ -237,19 +238,19 @@ export function parseComfyApiWorkflow(text: string): ComfyGraph {
   try {
     json = JSON.parse(text);
   } catch {
-    throw new Error("不是合法 JSON —— 请粘贴完整的 ComfyUI workflow.json 或 workflow_api.json。");
+    throw new Error(desktopT("comfyWorkflow.invalidJson"));
   }
-  if (!json || typeof json !== "object" || Array.isArray(json)) throw new Error("workflow 格式不对（应是节点对象）。");
+  if (!json || typeof json !== "object" || Array.isArray(json)) throw new Error(desktopT("comfyWorkflow.invalidShape"));
   const obj = json as Record<string, unknown>;
   // UI 保存格式（nodes[]+links[]）≠ API 格式 → 明确提示（治「导错格式」最常见坑）。
   if (Array.isArray(obj.nodes) || Array.isArray(obj.links)) {
-    throw new Error("这是 ComfyUI 保存的界面工作流，需要连接当前 ComfyUI 才能自动转换；启动后重试，也可以改用 Workflow → Export (API) 导出。");
+    throw new Error(desktopT("comfyWorkflow.uiFormat"));
   }
   const entries = Object.entries(obj);
-  if (entries.length === 0) throw new Error("workflow 是空的。");
+  if (entries.length === 0) throw new Error(desktopT("comfyWorkflow.empty"));
   for (const [id, node] of entries) {
     if (!node || typeof node !== "object" || Array.isArray(node) || typeof (node as ComfyNode).class_type !== "string") {
-      throw new Error(`节点 ${id} 缺 class_type —— 确认导出的是 API 格式（每个节点带 class_type + inputs）。`);
+      throw new Error(desktopT("comfyWorkflow.missingClassType", { id }));
     }
   }
   return obj as ComfyGraph;

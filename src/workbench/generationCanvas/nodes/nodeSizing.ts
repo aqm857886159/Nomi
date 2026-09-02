@@ -257,6 +257,15 @@ export type MediaMetaPatch = {
   meta: Record<string, unknown>;
 };
 
+/** Runtime media measurement is derived from the loaded asset, not a user edit.
+ * Keep it out of the durable project/event paths so viewport reveals cannot
+ * schedule a full-project save for every image/video load. */
+export const MEDIA_DIMENSION_UPDATE_OPTIONS = {
+  persist: false,
+  emit: false,
+  history: false,
+} as const;
+
 /**
  * 媒体（图片/视频）loadedmetadata 回填的纯计算：据真实 W/H（视频再带真实时长）算出
  * 节点尺寸 + meta 补丁；无变化返回 null（调用方不发空 update）。从 BaseGenerationNode 抽出

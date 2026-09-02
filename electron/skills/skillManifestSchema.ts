@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CAPABILITY_CONTRACTS } from "../shared/agentCapabilities/registry";
 
 /**
  * Skill Pack v2 manifest schema.
@@ -16,6 +17,15 @@ import { z } from "zod";
 
 export const skillProviderKindSchema = z.enum(["text", "image", "video"]);
 export type SkillProviderKind = z.infer<typeof skillProviderKindSchema>;
+
+export const skillAudienceSchema = z.enum(["internal", "mcp"]);
+export type SkillAudience = z.infer<typeof skillAudienceSchema>;
+
+const canonicalCapabilityIds = new Set<string>(CAPABILITY_CONTRACTS.map((contract) => contract.id));
+export const skillRequestedCapabilitySchema = z.string().refine(
+  (capabilityId) => canonicalCapabilityIds.has(capabilityId),
+  "must be a canonical Capability Registry id",
+);
 
 export const skillPermissionSchema = z.enum([
   "read-only",
@@ -85,11 +95,17 @@ export const skillManifestSchema = z.object({
   version: z.string().min(1),
   /** One-line human-readable summary shown in the UI. */
   description: z.string().min(1),
-  /** Tool whitelist — only these tool names may be exposed to the LLM. */
+  /** Visibility request. User-imported Skills are still forced internal by origin policy. */
+  audience: skillAudienceSchema.optional(),
+  /** Canonical requests can only shrink the Host-owned capability ceiling. */
+  requestedCapabilities: z.array(skillRequestedCapabilitySchema).max(64)
+    .refine((items) => new Set(items).size === items.length, "must not contain duplicate capability ids")
+    .optional(),
+  /** Legacy workflow metadata. Runtime authorization is derived only from requestedCapabilities. */
   tools: z.array(z.string().min(1)),
   /** Provider modalities required to run this skill end-to-end. */
   requiredProviders: z.array(skillProviderKindSchema),
-  /** Capability gates the user grants when loading the skill. */
+  /** Legacy workflow metadata; never grants runtime capabilities. */
   permissions: z.array(skillPermissionSchema),
   /** Declared inputs the caller is expected to supply (optional). */
   inputs: z.array(skillInputSchema).optional(),

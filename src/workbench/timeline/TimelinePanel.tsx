@@ -16,11 +16,9 @@ import {
   IconWand,
 } from '@tabler/icons-react'
 import { useWorkbenchStore } from '../workbenchStore'
-import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
-import { planActiveStoryboardTimeline } from '../generationCanvas/agent/storyboardTimelinePlan'
 import { WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
-import { computeTimelineDuration, timelineHasVisualClips } from './timelineMath'
+import { computeTimelineDuration } from './timelineMath'
 import TimelineTrack from './TimelineTrack'
 import TimelineTextTrack from './TimelineTextTrack'
 import { TimelineSecondaryAddRow } from './TimelineSecondaryAddRow'
@@ -116,8 +114,8 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     return null
   }, [selectedClipIds, primaryClipId, timeline.tracks])
 
-  // C2 一键拼片：把画布镜头按镜序追加排进时间轴（复用 arrangeStoryboardToTimeline，幂等去重）。
-  // 用户测的主线诉求——点一下出初剪，手动重排/trim 是之后的微调。
+  // AI 拼片仍保留在时间轴工具栏；移除空态里的大号「一键拼成初稿」促销条，
+  // 避免在用户尚未准备好时抢占工作区。Agent 后续可在对话中按状态给出建议。
   const handleAiArrange = React.useCallback(() => {
     void import('../generationCanvas/agent/sendStoryboardToTimeline').then(({ arrangeStoryboardToTimeline }) => {
       void arrangeStoryboardToTimeline(activeStoryboardId ? { storyboardDesignId: activeStoryboardId } : {}).then((result) => {
@@ -137,16 +135,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
       })
     })
   }, [activeStoryboardId, t])
-  // 空态「一键拼成初稿」入口的镜头数：取自与拼片同源的纯规划器（planStoryboardTimeline），
-  // 与 handleAiArrange 实际会排的单位一致；选择器只返回数字 → 数字不变不触发重渲。
-  const arrangePlanSummary = useGenerationCanvasStore(
-    (state) => {
-      const plan = planActiveStoryboardTimeline(state.nodes, state.edges, activeStoryboardId)
-      return plan.scopeError ?? plan.units.length
-    },
-  )
-  const arrangeableShotCount = typeof arrangePlanSummary === 'number' ? arrangePlanSummary : 0
-  const needsStoryboardScope = typeof arrangePlanSummary === 'string'
+
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const splitTimelineClip = useWorkbenchStore((state) => state.splitTimelineClip)
   const durationFrame = computeTimelineDuration(timeline)
@@ -154,8 +143,6 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     () => groupTimelineTransitionFeedbackByTrack(timeline.tracks, timeline.transitions),
     [timeline.tracks, timeline.transitions],
   )
-  // 画面轨还空着 + 画布已有可拼镜头 → 显示空态提示行（纯增益，有画面片段后自动隐去）。
-  const showArrangeCta = !timelineHasVisualClips(timeline) && (arrangeableShotCount > 0 || needsStoryboardScope)
   const rulerEndFrame = React.useMemo(
     () => resolveTimelineRulerEndFrame({
       durationFrame,
@@ -414,39 +401,6 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
             ))}
           </div>
         </div>
-        {/* 空态「一键拼成初稿」提示行：整条「剧本→初稿」旅程的收尾动作——逐镜出完图后一键成初剪。
-            只在「画面轨空 + 画布已有可拼镜头」时出现，点击复用 handleAiArrange（幂等追加、单测已覆盖），
-            有画面片段 / 无可拼镜头后自动隐去 = 纯增益空态，不改任何拼片逻辑。右上角魔杖图标仍保留。 */}
-        {showArrangeCta ? (
-          <div
-            className={cn(
-              'workbench-timeline__arrange-cta',
-              'w-full grid grid-cols-[var(--workbench-timeline-label-width)_minmax(0,1fr)] mb-2',
-            )}
-            data-testid="timeline-arrange-cta"
-          >
-            <span aria-hidden="true" />
-            <div className={cn(
-              'flex items-center justify-between gap-2.5 min-w-0',
-              'px-2.5 py-1.5 rounded-[var(--nomi-radius-sm)]',
-              'bg-[var(--workbench-accent-soft)]',
-              'border border-[color-mix(in_oklch,var(--workbench-accent)_26%,transparent)]',
-            )}>
-              <span className="inline-flex items-center gap-2 min-w-0">
-                <IconSparkles size={15} className="flex-none text-[var(--workbench-accent)]" />
-                <span className="min-w-0 truncate text-xs text-[var(--workbench-ink)]">
-                  {needsStoryboardScope
-                    ? t('timelineEditor.arrangeCta.chooseStoryboard')
-                    : t('timelineEditor.arrangeCta.message', { count: arrangeableShotCount })}
-                </span>
-              </span>
-              <WorkbenchButton variant="primary" size="sm" className="flex-none" onClick={handleAiArrange}>
-                <IconWand size={16} />
-                {t('timelineEditor.arrangeCta.action')}
-              </WorkbenchButton>
-            </div>
-          </div>
-        ) : null}
         {/* 吸附辅助线（暖橙虚线 + 标签），仅拖动中临时出现 */}
         {snapGuide ? (
           <div

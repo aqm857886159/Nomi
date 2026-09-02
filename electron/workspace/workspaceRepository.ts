@@ -1,8 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
-import { readJsonFile, writeJsonFileAtomic } from "../jsonFile";
+import { readJsonFile } from "../jsonFile";
 import { migrateLegacyProjectFolder } from "./legacyProjectMigration";
-import { initializeWorkspace, readWorkspaceManifest, writeWorkspaceManifest } from "./workspaceManifest";
+import {
+  initializeWorkspace,
+  readWorkspaceManifest,
+  readWorkspaceManifestSnapshot,
+  recoverWorkspaceManifest,
+  withWorkspaceManifestMutationSync,
+} from "./workspaceManifest";
 import {
   backfillWorkspaceOrigins,
   findRecentWorkspace,
@@ -18,11 +24,7 @@ import {
   type WorkspaceProjectSource,
   type WorkspaceProjectRecordV2,
 } from "./workspaceTypes";
-import {
-  workspaceProjectBackupFile,
-  workspaceProjectFile,
-  workspaceProjectQuarantineFile,
-} from "./workspacePaths";
+import { workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
 
 export type WorkspaceRepositoryDeps = {
   settingsRoot: string;
@@ -56,14 +58,7 @@ function readValidProjectRecord(filePath: string, projectId: string): WorkspaceP
   }
 }
 
-function backupWorkspaceProject(rootPath: string, record: WorkspaceProjectRecordV2): void {
-  writeJsonFileAtomic(workspaceProjectBackupFile(rootPath), record);
-}
-
-export function diagnoseWorkspaceProject(
-  projectId: string,
-  deps: WorkspaceRepositoryDeps,
-): WorkspaceProjectDiagnostic {
+export function diagnoseWorkspaceProject(projectId: string, deps: WorkspaceRepositoryDeps): WorkspaceProjectDiagnostic {
   const id = String(projectId || "").trim();
   const entry = findRecentEntry(id, deps);
   if (!entry) return { projectId: id, status: "not-registered", recoverable: false, backupAvailable: false };
@@ -90,24 +85,12 @@ export function diagnoseWorkspaceProject(
   }
 }
 
-export function recoverWorkspaceProject(
-  projectId: string,
-  deps: WorkspaceRepositoryDeps,
-): WorkspaceProjectRecordV2 {
+export function recoverWorkspaceProject(projectId: string, deps: WorkspaceRepositoryDeps): WorkspaceProjectRecordV2 {
   const diagnostic = diagnoseWorkspaceProject(projectId, deps);
   if (!diagnostic.rootPath || !diagnostic.recoverable) {
     throw new Error(`Workspace project is not recoverable: ${projectId}`);
   }
-  const backup = readValidProjectRecord(workspaceProjectBackupFile(diagnostic.rootPath), projectId);
-  if (!backup) throw new Error(`Workspace project backup is unavailable: ${projectId}`);
-  const manifestPath = workspaceProjectFile(diagnostic.rootPath);
-  if (fs.existsSync(manifestPath)) {
-    fs.copyFileSync(manifestPath, workspaceProjectQuarantineFile(diagnostic.rootPath, Date.now()));
-  }
-  const recovered = writeWorkspaceManifest(diagnostic.rootPath, {
-    ...backup,
-    lastKnownRootPath: diagnostic.rootPath,
-  });
+  const recovered = recoverWorkspaceManifest(diagnostic.rootPath, projectId, Date.now());
   rememberWorkspace(deps.settingsRoot, recovered);
   return recovered;
 }
@@ -154,7 +137,10 @@ export type ProjectCover = {
 export function deriveProjectCover(record: unknown, max = 4): ProjectCover {
   const r = record as { payload?: unknown; generationCanvas?: unknown } | null;
   const payload = r?.payload;
-  const gc = (payload && typeof payload === "object" ? (payload as { generationCanvas?: unknown }).generationCanvas : undefined) ?? r?.generationCanvas;
+  const gc =
+    (payload && typeof payload === "object"
+      ? (payload as { generationCanvas?: unknown }).generationCanvas
+      : undefined) ?? r?.generationCanvas;
   const nodes = (gc as { nodes?: unknown } | undefined)?.nodes;
   if (!Array.isArray(nodes)) return { imageUrls: [] };
   const imageUrls: string[] = [];
@@ -236,7 +222,7 @@ function findRecentEntry(projectId: string, deps: WorkspaceRepositoryDeps) {
 }
 
 function readManifestOrMigrateLegacy(rootPath: string): WorkspaceProjectRecordV2 | null {
-  const manifest = readWorkspaceManifest(rootPath);
+  const manifest = readWorkspaceManifestSnapshot(rootPath) ?? readWorkspaceManifest(rootPath);
   if (manifest) return manifest;
   if (!hasLegacyProjectFile(rootPath)) return null;
   return migrateLegacyProjectFolder(rootPath);
@@ -249,18 +235,13 @@ export function createWorkspaceProject(
   const rootPath = path.resolve(input.rootPath);
   const raw = asRecordInput(input.record);
   const initialized = initializeWorkspace(rootPath, {
-    name: inputName(raw),
-    payload: inputPayload(input.record),
-  });
-  const record = normalizeWorkspaceProjectRecord({
-    ...initialized,
     ...(typeof raw.id === "string" && raw.id.trim() ? { id: raw.id.trim() } : {}),
+    name: inputName(raw),
     ...(typeof raw.seedKey === "string" && raw.seedKey.trim() ? { seedKey: raw.seedKey.trim() } : {}),
     ...(raw.draft === true ? { draft: true } : {}),
-    lastKnownRootPath: rootPath,
+    payload: inputPayload(input.record),
   });
-  writeWorkspaceManifest(rootPath, record);
-  backupWorkspaceProject(rootPath, record);
+  const record = normalizeWorkspaceProjectRecord(initialized);
   const defaultRoot = path.resolve(deps.defaultProjectsRoot);
   const fallbackOrigin: WorkspaceOrigin =
     rootPath !== defaultRoot && rootPath.startsWith(`${defaultRoot}${path.sep}`)
@@ -291,7 +272,7 @@ export function listWorkspaceProjects(deps: WorkspaceRepositoryDeps): WorkspaceP
         source,
       );
     }
-    const manifest = readWorkspaceManifest(entry.rootPath);
+    const manifest = readWorkspaceManifestSnapshot(entry.rootPath) ?? readWorkspaceManifest(entry.rootPath);
     if (!manifest || manifest.id !== entry.id) {
       if (hasLegacyProjectFile(entry.rootPath)) {
         return withoutPayload(
@@ -336,7 +317,10 @@ export function listWorkspaceProjects(deps: WorkspaceRepositoryDeps): WorkspaceP
   });
 }
 
-export function readWorkspaceProject(projectId: string, deps: WorkspaceRepositoryDeps): WorkspaceProjectRecordV2 | null {
+export function readWorkspaceProject(
+  projectId: string,
+  deps: WorkspaceRepositoryDeps,
+): WorkspaceProjectRecordV2 | null {
   const entry = findRecentEntry(projectId, deps);
   if (!entry || entry.missing) {
     return null;
@@ -357,24 +341,36 @@ export function saveWorkspaceProject(
   if (!entry || entry.missing) {
     throw new Error(`Workspace project not found: ${projectId}`);
   }
-  const existing = readWorkspaceProject(projectId, deps);
-  if (!existing) {
-    throw new Error(`Workspace project not found: ${projectId}`);
-  }
-  const now = Date.now();
-  const next = normalizeWorkspaceProjectRecord({
-    ...existing,
-    // 首次真实保存 = 从草稿态 promote 为持久态：清掉 draft 标记，此后 GC 永不回收它。
-    draft: undefined,
-    name: inputName(record, existing.name),
-    updatedAt: now,
-    savedAt: now,
-    revision: existing.revision + 1,
-    payload: inputPayload(record),
-    lastKnownRootPath: entry.rootPath,
+  const written = withWorkspaceManifestMutationSync(entry.rootPath, (context) => {
+    const existing = context.current;
+    if (!existing || existing.id !== projectId) {
+      throw new Error(`Workspace project not found: ${projectId}`);
+    }
+    const now = Date.now();
+    const next = normalizeWorkspaceProjectRecord({
+      ...existing,
+      // 首次真实保存 = 从草稿态 promote 为持久态：清掉 draft 标记，此后 GC 永不回收它。
+      draft: undefined,
+      name: inputName(record, existing.name),
+      updatedAt: now,
+      savedAt: now,
+      revision: existing.revision + 1,
+      payload: inputPayload(record),
+      lastKnownRootPath: entry.rootPath,
+    });
+    const backupCandidate =
+      !existing.immutableProjectUuid &&
+      context.currentBackup?.immutableProjectUuid &&
+      context.currentBackup.projectGeneration
+        ? {
+            ...(context.currentRaw ?? existing),
+            immutableProjectUuid: context.currentBackup.immutableProjectUuid,
+            projectGeneration: context.currentBackup.projectGeneration,
+          }
+        : (context.currentRaw ?? existing);
+    context.replaceBackup(backupCandidate);
+    return context.replace(next);
   });
-  backupWorkspaceProject(entry.rootPath, existing);
-  const written = writeWorkspaceManifest(entry.rootPath, next);
   rememberWorkspace(deps.settingsRoot, written);
   return written;
 }
@@ -436,9 +432,7 @@ function dirHasRealFiles(dir: string): boolean {
  * 不变量 `revision===0 ⟺ 落盘 payload 即出生默认值` 保证「revision 0 的草稿 = 可证明的零编辑」。
  * 调用方负责「一进程一次」（见 repository.listProjects 的 once-guard），故本会话新建的草稿不会被误删。
  */
-export function gcEmptyDraftWorkspaceProjects(
-  deps: WorkspaceRepositoryDeps,
-): { recycled: string[]; scanned: number } {
+export function gcEmptyDraftWorkspaceProjects(deps: WorkspaceRepositoryDeps): { recycled: string[]; scanned: number } {
   const projects = listWorkspaceProjects(deps);
   const recycled: string[] = [];
   for (const project of projects) {

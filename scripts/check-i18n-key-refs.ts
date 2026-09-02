@@ -81,7 +81,6 @@ function resolvesAsSubtree(prefix: string): boolean {
   return zhTree.subtrees.has(prefix) || enTree.subtrees.has(prefix)
 }
 
-// ── 显式动态键前缀注册表 ──
 // 定义住 scripts/lib/i18nDynamicKeyPrefixes.ts(与反向死键门岗 check-i18n-dead-keys 共用同一份;
 // 抄两份必漂移——删一条前缀后正向红了改这份、反向那份还留着,就会把活键判死并删掉)。
 // 本门岗对注册表的用法:① 校验每条前缀在 resources 树里真实存在(防假注册)② 判定动态键是否在册。

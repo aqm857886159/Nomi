@@ -9,6 +9,11 @@ import {
   resetLegacyDiscoveryGuard,
   suppressLegacyProjectRediscovery,
 } from "./legacyProjectMigration";
+import {
+  WorkspaceManifestLockBusyError,
+  releaseWorkspaceManifestLock,
+  tryAcquireWorkspaceManifestLock,
+} from "./workspaceManifestLock";
 import { workspaceProjectFile } from "./workspacePaths";
 
 const tempRoots: string[] = [];
@@ -80,7 +85,10 @@ describe("migrateLegacyProjectFolder", () => {
     const projectRoot = makeTempDir();
     writeLegacyProject(projectRoot, { id: "legacy-id" });
     const first = migrateLegacyProjectFolder(projectRoot);
-    fs.writeFileSync(path.join(projectRoot, "project.json"), JSON.stringify({ id: "changed", name: "Changed", version: 1 }));
+    fs.writeFileSync(
+      path.join(projectRoot, "project.json"),
+      JSON.stringify({ id: "changed", name: "Changed", version: 1 }),
+    );
 
     const second = migrateLegacyProjectFolder(projectRoot);
 
@@ -100,6 +108,25 @@ describe("migrateLegacyProjectFolder", () => {
 
     expect(fs.existsSync(path.join(projectRoot, "assets", "custom", "ref.png"))).toBe(true);
     expect(fs.existsSync(path.join(projectRoot, "exports", "old.mp4"))).toBe(true);
+  });
+
+  it("does not slim or migrate a legacy file outside the shared manifest transaction", () => {
+    const projectRoot = makeTempDir();
+    writeLegacyProject(projectRoot, {
+      payload: { image: "data:image/png;base64,aGVsbG8=" },
+    });
+    const legacyPath = path.join(projectRoot, "project.json");
+    const before = fs.readFileSync(legacyPath, "utf8");
+    const held = tryAcquireWorkspaceManifestLock(projectRoot, {
+      ownerId: "other-writer",
+      randomId: () => "other-writer-nonce",
+    });
+
+    expect(() => migrateLegacyProjectFolder(projectRoot)).toThrow(WorkspaceManifestLockBusyError);
+    expect(fs.readFileSync(legacyPath, "utf8")).toBe(before);
+    expect(fs.existsSync(workspaceProjectFile(projectRoot))).toBe(false);
+
+    releaseWorkspaceManifestLock(held);
   });
 });
 

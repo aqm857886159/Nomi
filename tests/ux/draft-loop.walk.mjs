@@ -1,6 +1,6 @@
 // R16 真实用户任务走查（应用内完整闭环）：剧本 → 拆镜头 → 落画布 → 逐镜真出图 → 排时间轴出初稿。
 // 全程走**真实 UI**（用户点的那些按钮），不 stub agent/模型：创作区点「拆成镜头·落画布」→ 规划师(真文本大脑)
-// 出方案 → 编辑器「确认落画布」→ 画布落节点(定妆卡+镜头) → 选中浮条「生成」→ 付费确认 → 真出图(依赖波次
+// 出方案 → 分镜页 footer「生成未生成的 N 镜」→ 按需 materialize 落节点(定妆卡+镜头) → 付费确认 → 真出图(依赖波次
 // 参考先→镜头后) → 让画布助手把镜头排到时间轴 → 预览区看初稿。每步 getWin().screenshot 供人眼复核(眼见链)。
 //
 // **会花真实图额度**（图片分镜，默认档，最省）。额度闸：不显式 NOMI_R16_GEN=1 就 SKIP。
@@ -116,19 +116,19 @@ try {
   if (!(await runStoryboard.count())) { await snap(win, 'no-storyboard-button'); throw new Error('无拆镜头入口') }
   await runStoryboard.click({ timeout: 3000 }).catch(() => {})
   console.log('  · 已点「拆成镜头·落画布」，等规划师(真文本大脑)出方案…')
-  // 真「方案就绪」信号 = 方案编辑器渲出「确认落画布」按钮（替换文档编辑器）。真模型可能慢，给足 180s。
-  // 不用宽松关键词（会误命中「正在整理分镜方案…」loading 文案 → 2026-08-02 首跑踩过）。
-  const confirmLanding = win.locator('button', { hasText: /确认落画布/ }).first()
+  // 真「方案就绪」信号 = 中列方案摘要卡渲出「打开分镜」按钮（v5：完整编辑器住分镜页，执行面在表内）。
+  // 不用宽松关键词（会误命中「正在整理分镜方案…」loading 文案 → 2026-08-02 首跑踩过）。真模型可能慢，给足 180s。
+  const openStoryboard = win.locator('button', { hasText: /打开分镜/ }).first()
   let planReady = false
   for (let i = 0; i < 180; i++) {
-    if (await confirmLanding.count()) { planReady = true; break }
+    if (await openStoryboard.count()) { planReady = true; break }
     const txt = await bodyText(win)
     if (/拆镜头失败|未接入该模型|模型未接入|规划失败|出错了/.test(txt) && i > 8) { console.log(`  ⚠ 规划师疑似报错：${txt.slice(0, 160)}`); break }
     if (i % 15 === 14) console.log(`    …规划师仍在跑（${i + 1}s）`)
     await sleep(1000)
   }
   await snap(win, 'storyboard-plan')
-  console.log(`  · 方案编辑器就绪 = ${planReady}`)
+  console.log(`  · 方案摘要卡就绪 = ${planReady}`)
   const shotCountText = await win.evaluate(() => {
     const m = document.body.innerText.match(/(\d+)\s*个镜头|(\d+)\s*镜/)
     return m ? m[0] : '(未读到镜头数)'
@@ -136,27 +136,17 @@ try {
   console.log(`  · 方案镜头数线索：${shotCountText}`)
   if (!planReady) throw new Error('规划师未在 180s 内产出方案（看 storyboard-plan 截图 + 上面日志）')
 
-  // ── Stage 3: 确认落画布 → 画布落节点 ─────────────────────────
-  console.log('  确认落画布按钮 count:', await confirmLanding.count())
-  await confirmLanding.click({ timeout: 3000 }).catch(() => {})
-  console.log('  · 已点「确认落画布」，等节点落画布 + 切生成区…')
-  await sleep(4000)
-  await snap(win, 'canvas-landed')
+  // ── Stage 3: 打开分镜页（v5 执行面：表内直接生成，节点按需长到画布）──
+  await openStoryboard.click({ timeout: 3000 }).catch(() => {})
+  await sleep(1500)
+  await snap(win, 'storyboard-table')
 
-  // ── Stage 4: 选中浮条「生成」→ 付费确认 → 真出图 ──────────────
-  // 落画布会自动全选这批节点 → 浮条出现。若没自动全选（≤1 节点等边界），兜底全选画布。
-  let runAll = win.locator('[data-storyboard-run-all="true"]').first()
-  if (!(await runAll.count())) {
-    console.log('  · 浮条未出现，尝试全选画布（⌘A）再找浮条')
-    await win.click('body').catch(() => {})
-    await win.keyboard.press('Meta+a').catch(() => {})
-    await sleep(1000)
-    runAll = win.locator('[data-storyboard-run-all="true"]').first()
-  }
-  console.log('  生成浮条按钮 count:', await runAll.count())
-  if (!(await runAll.count())) { await snap(win, 'no-run-all'); throw new Error('无「生成」浮条') }
+  // ── Stage 4: footer「生成未生成的 N 镜」→ 付费确认 → 真出图 ──────────────
+  const runAll = win.locator('[data-storyboard-batch="true"]').first()
+  console.log('  批量生成按钮 count:', await runAll.count())
+  if (!(await runAll.count())) { await snap(win, 'no-batch-button'); throw new Error('无「生成未生成的 N 镜」按钮') }
   await runAll.click({ timeout: 3000 }).catch(() => {})
-  await sleep(800)
+  await sleep(1500)
   await snap(win, 'spend-confirm')
   // 付费确认对话框（z-[3500] 全屏模态，标题「开始生成」）→ 点确认（primary，最后一个按钮）。
   const spendDlg = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成|会消耗模型额度|将生成/ }).first()

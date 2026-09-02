@@ -8,6 +8,10 @@
 // 住在 electron/ 而非 src/：electron tsconfig 是 rootDir:"." 反向 import 不了 src；渲染层则本就 import
 // 得到 electron（bridge.ts 已在做），且本模块依赖链纯净（paramTranslate → jsonUtils，后者零 import）。
 import { bodyReferencedParamKeys } from "./paramTranslate";
+// 渲染层的变体轴收窄也要「这条 create op 引用了哪些参数键」（body ∪ 进程 args）。它的单一实现在
+// paramTranslate；从本模块转出一次，是因为 src→electron 的越界是棘轮门岗，渲染层已放行的入口只有
+// 本文件这一条（archetypeMeta 那条基线）。让渲染层再直连 paramTranslate 会被判成新增违规。
+export { wireReferencedParamKeys } from "./paramTranslate";
 
 /** 一个参考槽在某条渠道上的真实承载力。 */
 export type SlotReach =

@@ -11,7 +11,7 @@ import { encodeTimelineGenerationNodeDragPayload, TIMELINE_GENERATION_NODE_DRAG_
 import { addGenerationNodeToTimelineEnd } from '../timeline/addNodeToTimelineEnd'
 import { useFilmstrip } from '../../media/useFilmstrip'
 import { NomiImage } from '../../design/media'
-import { selectCanvasShotSources, type CanvasShotSource } from './canvasShotSources'
+import { selectCanvasShotSourcesFromStore, type CanvasShotSource } from './canvasShotSources'
 
 const AssetLibraryContent = lazyWithChunkBoundary('i18n:sidebar.assetLibrary', () =>
   import('../assets/AssetLibraryPanel').then((module) => ({ default: module.AssetLibraryContent })),
@@ -54,8 +54,11 @@ function ShotCover({ source }: { source: CanvasShotSource }): JSX.Element {
 
 function ShotGrid(): JSX.Element {
   const { t } = useTranslation()
-  const nodes = useGenerationCanvasStore((state) => state.nodes)
-  const sources = React.useMemo(() => selectCanvasShotSources(nodes), [nodes])
+  // 镜头栏按 result/shotIndex 派生已出片镜头；无号镜头（参考卡/首帧图/非分镜产物）按真实
+  // position.y/x 排序 → 必须读真节点，不能喂位置无关投影（S3 F1：投影冻结旧位置 → 拖动后
+  // 顺序不更新）。selectCanvasShotSourcesFromStore 读真 state.nodes 但按输出稳定 memo：位置无
+  // 关的拖动帧产出同一列表引用 → 面板不重渲（保住 S3 画布外零重渲）；真发生重排才发新引用。
+  const sources = useGenerationCanvasStore(selectCanvasShotSourcesFromStore)
 
   if (sources.length === 0) {
     return (

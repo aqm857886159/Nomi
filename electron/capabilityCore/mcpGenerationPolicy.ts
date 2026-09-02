@@ -2,8 +2,8 @@
  * The single policy owner for the generation.single-shot semantic surface.
  *
  * This module deliberately does not route legacy generation calls. It only
- * classifies them so the semantic dispatcher can keep the old `nomi_generate`
- * path outside this flag and preserve its existing behaviour.
+ * classifies tombstones so old aliases remain fail-closed after their handlers
+ * and catalog entries are removed.
  */
 
 export const MCP_GENERATION_SINGLE_SHOT_FLAG = 'NOMI_MCP_GENERATION_SINGLE_SHOT_V1' as const

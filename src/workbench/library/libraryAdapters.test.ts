@@ -26,6 +26,8 @@ const skill = (overrides: Partial<SkillListItemDto>): SkillListItemDto => ({
   neededProviders: ['text'],
   manifestError: null,
   origin: 'user',
+  packageVersion: '1',
+  contentHash: 'hash',
   ...overrides,
 })
 

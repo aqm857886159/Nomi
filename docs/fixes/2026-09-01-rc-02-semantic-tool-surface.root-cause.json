@@ -1,0 +1,93 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-01-rc-02-semantic-tool-surface",
+  "problem_type": "Internal capability aliases and execution transitions are projected one-for-one to the model",
+  "symptom": "The model must choose among roughly 50 internal descriptors and can select gate/start/subscribe/materialize transitions instead of expressing one creative intent.",
+  "direct_cause": "agentToolCatalog combines document, canvas, timeline, production, generation, and Skill descriptors; regex/sticky profiles filter names but do not collapse intent or risk.",
+  "class_root": "There is no single semantic model-surface manifest separating canonical capabilities from Host-only transitions.",
+  "affected_population": [
+    "All model-facing Agent profiles",
+    "All alias additions to the capability registry",
+    "All paid or approval-bearing generation/ProductionRun transitions"
+  ],
+  "scope_paths": [
+    "electron/projectAgentHost/projectAgentHost.ts",
+    "electron/projectAgentHost/hostLifecycle.test.ts"
+  ],
+  "entry_points": [
+    "agentToolCatalog model projection",
+    "agentChatPolicy profile filtering",
+    "MCP/capability registry alias projection"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The semantic grouping and Nomi risk ceiling are application product contracts pinned to the M0 mapping and approved architecture docs.",
+  "invariants": [
+    "Every model tool names a user intent and maps to canonical capabilities.",
+    "Host-only transitions never enter the model projection.",
+    "Alias deletion occurs in the same migration commit as semantic replacement."
+  ],
+  "generality_proof": "All six descriptor groups and registry aliases pass through the manifest boundary; new capabilities must declare intent, risk, phase, and projection before becoming model-visible.",
+  "shared_boundaries": [
+    {
+      "path": "electron/projectAgentHost/projectAgentHost.ts",
+      "symbol": "ProjectAgentHost",
+      "responsibility": "Host policy and effect authorization stay outside model projections."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projectAgentHost/projectAgentHost.ts",
+      "entry_point": "setPolicy",
+      "disposition": "enforced",
+      "evidence": "Policy changes are validated at the Host boundary."
+    },
+    {
+      "path": "electron/projectAgentHost/hostLifecycle.test.ts",
+      "entry_point": "permission-tier-regression",
+      "disposition": "enforced",
+      "evidence": "Tier and tainted-content cases are covered."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every future capability or alias can recreate model overload and unsafe transition exposure unless the manifest is the only model boundary.",
+    "same_class_scan": [
+      "Counted descriptor groups in #223 ref: document/canvas/timeline/production/skills/generation.",
+      "Searched capabilityAliasesFor and capabilityOperationAliasesFor consumers.",
+      "Checked generation and ProductionRun gate/start/subscribe/review/materialize names for Host-only treatment."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/projectAgentHost/projectAgentHost.ts",
+    "invariant": "Only versioned semantic descriptors are model-visible; canonical aliases and Host transitions cannot leak through profile filtering.",
+    "failure_mode": "A descriptor without intent/risk/capabilityRefs is rejected from the manifest; Host-only entries are omitted rather than silently downgraded.",
+    "exception_policy": "none",
+    "strategy": "Generate one manifest from canonical registry, merge aliases by user intent, and delete the old model projection in the same commit.",
+    "artifacts": [
+      "electron/projectAgentHost/projectAgentHost.ts",
+      "electron/projectAgentHost/hostLifecycle.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/projectAgentHost/hostLifecycle.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/projectAgentHost/hostLifecycle.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "M1 does not change model tool descriptors; semantic projection remains an M2 scope."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "This is a Nomi projection contract; no third-party dependency controls alias grouping.",
+    "exit_criteria": []
+  },
+  "migration": "Freeze existing run descriptor contractHash and permissions; old MCP aliases may remain versioned readers only and are never re-exposed to new model turns.",
+  "residual_risks": [
+    "The 49 catalog plus one wire-level gate count must be confirmed against the inaccessible maintainer comment before implementation.",
+    "Deferred Loading remains explicitly unchosen until M2 A/B evidence."
+  ]
+}

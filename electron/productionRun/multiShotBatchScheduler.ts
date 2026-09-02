@@ -40,12 +40,6 @@ export type BatchSchedulerOptions = {
    * batch pauses at the checkpoint until the user approves. `0` = release immediately (test/express).
    */
   anchorAutoReleaseMs?: number;
-  /**
-   * Raise the plan-level budget authorization to this ceiling before dispatching (提额续拍, §3.3).
-   * Used when the user lifts the cap to resume a halted batch. The ledger only accepts authorize ≥
-   * current liability, so this never lowers an existing authorization.
-   */
-  raisePlanAuthorizationTo?: number;
   /** Safety cap on how many NEW shots this run dispatches (test hook for partial batches). */
   maxShotsPerRun?: number;
   /** Safety cap on scheduler ticks before giving up (default 64). A healthy batch needs a few. */
@@ -74,6 +68,13 @@ export type BatchSchedulerDependencies = {
    * 推给渲染层回填占位节点（「逐个冒」）。scheduler 本身不认识渲染层，只发这个信号（关注点分离）。
    */
   onShotMaterialized?: (shotId: string) => void | Promise<void>;
+  /**
+   * Notify the owning production pipeline once every included video shot has
+   * settled.  The scheduler deliberately does not know about QA/assembly/
+   * export; the callback lets the domain owner continue the same Run without
+   * introducing a second writer or a legacy generation path.
+   */
+  onBatchComplete?: (outcome: { progress: BatchDerivationResult["progress"] }) => void | Promise<void>;
 };
 
 export type BatchOutcome = {
@@ -104,24 +105,6 @@ function defaultPollHorizonMs(): number {
   return Number.isFinite(env) && env > 0 ? env : 300_000;
 }
 
-/**
- * The plan-level authorized ceiling (§3.3): the HARD spend cap for the whole batch. It is the smaller of
- *   - the sum of known per-shot prices over included shots + anchors (what the batch would cost), and
- *   - the user's policy.maxSpend hard limit (null = unbounded → the estimated total governs).
- * Taking the min is what makes "构造超顶批次停在正确的第 K 镜" work: a user cap of ¥13 over a ¥18 batch
- * authorizes ¥13, so the derivation halts once the running reserve would breach ¥13.
- */
-function planCeiling(run: ProductionRun, perShotPrice: (shot: ProductionGenerationShot) => ShotPrice): number {
-  const shots = (run.generationPlan?.shots ?? []).filter((shot) => shot.included !== false);
-  let estimatedTotal = 0;
-  for (const shot of shots) {
-    const price = perShotPrice(shot);
-    if (price.known) estimatedTotal += price.amount;
-  }
-  const maxSpend = run.policy.maxSpend;
-  return maxSpend === null || maxSpend === undefined ? estimatedTotal : Math.min(estimatedTotal, maxSpend);
-}
-
 export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) {
   const now = deps.now ?? (() => new Date().toISOString());
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
@@ -137,21 +120,6 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
       payload,
       issuedAt: now(),
     }).run;
-  }
-
-  /**
-   * Seed the plan-level authorization once (§3.3): the receipt authorized the whole batch, so before the
-   * first shot reserves we authorize the ledger up to the plan ceiling (or the raised ceiling). Without
-   * this, the submission facade's per-shot authorize (first-entry only, single-shot cap) would make the
-   * SECOND shot's reserve exceed the authorization. Idempotent by commandId; only raises, never lowers.
-   */
-  function ensurePlanAuthorization(run: ProductionRun): ProductionRun {
-    const ceiling = Math.max(planCeiling(run, deps.perShotPrice), options.raisePlanAuthorizationTo ?? 0);
-    if (ceiling <= run.budget.authorized) return run; // already authorized at/above the ceiling
-    // The billingEntryId embeds the target amount so a raise gets a fresh (idempotent) entry.
-    return command(run, "budget.entry", {
-      entry: { billingEntryId: `plan-authorize:${run.runId}:${ceiling}`, kind: "authorize", amount: ceiling, occurredAt: now() },
-    }, `plan-authorize:${ceiling}`);
   }
 
   /**
@@ -206,6 +174,19 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
     return command(run, "gate.decide", { gateId, status: "approved" }, "auto-release-anchor-checkpoint");
   }
 
+  async function notifyBatchComplete(progress: BatchDerivationResult["progress"]): Promise<void> {
+    if (!deps.onBatchComplete || progress.total === 0 || progress.completed !== progress.total || progress.inFlight !== 0) return;
+    try {
+      await deps.onBatchComplete({ progress });
+    } catch (error) {
+      // Completion of the generation units is already durable.  A downstream
+      // QA/assembly kick may be retried from the Run owner, so do not turn a
+      // transient renderer/export handoff failure into a false scheduler
+      // failure or another provider submission.
+      console.warn("[nomi:production] onBatchComplete failed:", error instanceof Error ? error.message : String(error));
+    }
+  }
+
   /** Halt the Run (§3.3): a queryable stop, never a silent over-spend. */
   function haltRun(run: ProductionRun): ProductionRun {
     if (run.status === "needs_attention") return run;
@@ -217,26 +198,13 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
     let dispatchedShots = 0;
     let lastResult: BatchDerivationResult | undefined;
 
-    // Batch startup (§3.3): a confirmed multi-shot plan (state submitted) drives the run. Two one-time,
-    // idempotent seeds before the derivation loop:
-    //   (a) transition draft → running so the batch becomes pausable/cancellable (Run pause needs running);
-    //   (b) authorize the ledger up to the plan ceiling — the receipt authorized the WHOLE batch, so the
-    //       derivation must see the cap from tick 0 (otherwise it halts at shot 1 against authorized=0).
-    // A stopped run (paused/cancelled/needs_attention) is NOT re-started here — the scheduler only resumes
-    // when an explicit control resumes it. 提额续拍 supplies `raisePlanAuthorizationTo`.
+    // A confirmed multi-shot plan drives the run. Gate approval already wrote the only budget
+    // authorization; the scheduler may start execution but can never mint or raise spend authority.
     {
       let seed = requireRun(deps);
       const batchActive = seed.generationPlan?.state === "submitted" && (seed.generationPlan?.shots?.length ?? 0) > 0;
       if (batchActive && seed.status === "draft") {
         seed = command(seed, "run.status", { status: "running" }, "batch-start-running");
-      }
-      if (batchActive && seed.status === "running") {
-        try {
-          ensurePlanAuthorization(seed);
-        } catch (error) {
-          // A concurrent writer may have advanced the revision; the next tick refreshes and retries.
-          if (!isBudgetExceeded(error)) throw error;
-        }
       }
     }
 
@@ -368,6 +336,10 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
       }
 
       // 8. Nothing to dispatch, observe or decide → the batch is complete (or stopped).
+      // Keep QA/assembly/export in the owning production pipeline.  This
+      // callback is only emitted for a fully settled batch; checkpoint waits,
+      // budget halts, and partial test drives never trigger it.
+      await notifyBatchComplete(result.progress);
       return { progress: result.progress, checkpoint: result.checkpoint, ...(result.halt ? { halt: result.halt } : {}), quiescent: true };
     }
 

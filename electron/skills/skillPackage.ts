@@ -3,6 +3,7 @@
 // 拒路径穿越、不覆盖内置（docs/plan/2026-06-19-skill-playbook-system.md §6 + §0.5.d）。
 // 纯函数（打包/校验/冲突命名）与 FS 函数（显式目录，便于单测，不碰 electron app）分离；
 // runtimePaths 薄包装见末尾。
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -71,6 +72,22 @@ export function buildSkillPackage(
   exportedAt: number,
 ): SkillPackage {
   return { version: SKILL_PACKAGE_VERSION, exportedAt, dirName, files };
+}
+
+/**
+ * Order-independent content hash over a skill's file map (M1 skill-write capability).
+ * Names are sorted so the digest is stable regardless of insertion order; each name/body
+ * is NUL-delimited to prevent boundary collisions. Consumed by skillStore + skillWriteTransportAdapters.
+ */
+export function computeSkillContentHash(files: Record<string, string>): string {
+  const hash = createHash("sha256");
+  for (const name of Object.keys(files).sort()) {
+    hash.update(name, "utf8");
+    hash.update("\0");
+    hash.update(files[name], "utf8");
+    hash.update("\0");
+  }
+  return hash.digest("hex");
 }
 
 export type ValidatedSkillPackage =

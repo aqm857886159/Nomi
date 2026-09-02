@@ -66,9 +66,13 @@ export const zhModelSetup = {
   connectedProtocol: '已连上 · 用的是 {{protocol}} 协议',
   connected: '连接正常',
   connectedReachabilityOnly:
-    '地址和 Key 没问题 · 你选的都是图片 / 视频模型，不走「接口协议」，能不能出片要真跑一次才知道',
+    '地址和 Key 没问题 · 你选的 {{count}} 个模型都是图片 / 视频类，不走「接口协议」，能不能出片要真跑一次才知道',
   connectedReachabilityOnlyNoApiKey:
-    '地址可以访问 · 你选的都是图片 / 视频模型，不走「接口协议」，能不能出片要真跑一次才知道',
+    '地址可以访问 · 你选的 {{count}} 个模型都是图片 / 视频类，不走「接口协议」，能不能出片要真跑一次才知道',
+  connectedReachabilityOnlyNoModels:
+    '地址和 Key 没问题 · 这次只探了连通性，没有读到模型列表；先在下方添加模型，能不能出片要真跑一次才知道',
+  connectedReachabilityOnlyNoModelsNoApiKey:
+    '地址可以访问 · 这次只探了连通性，没有读到模型列表；先在下方添加模型，能不能出片要真跑一次才知道',
   connectionFailedWithReason: '连不上：{{error}}。可在下方「接口协议」手动指定再试',
   connectionFailed: '连不上。可在下方「接口协议」手动指定，或检查地址 / Key',
   connectionFailedNoApiKey: '连不上。可在下方「接口协议」手动指定，或检查接入地址',
@@ -195,9 +199,13 @@ export const enModelSetup = {
   connectedProtocol: 'Connected · Using the {{protocol}} protocol',
   connected: 'Connection successful',
   connectedReachabilityOnly:
-    'URL and key are fine · You picked only image / video models, which do not use the protocol setting. Run one generation to confirm they work.',
+    'URL and key are fine · All {{count}} models you picked are image / video models, which do not use the protocol setting. Run one generation to confirm they work.',
   connectedReachabilityOnlyNoApiKey:
-    'The URL is reachable · You picked only image / video models, which do not use the protocol setting. Run one generation to confirm they work.',
+    'The URL is reachable · All {{count}} models you picked are image / video models, which do not use the protocol setting. Run one generation to confirm they work.',
+  connectedReachabilityOnlyNoModels:
+    'URL and key are fine · This probe only checked reachability and read no model list. Add models below, then run one generation to confirm they work.',
+  connectedReachabilityOnlyNoModelsNoApiKey:
+    'The URL is reachable · This probe only checked reachability and read no model list. Add models below, then run one generation to confirm they work.',
   connectionFailedWithReason: 'Could not connect: {{error}}. Choose a protocol below and try again.',
   connectionFailed: 'Could not connect. Choose a protocol below or check the URL and key.',
   connectionFailedNoApiKey: 'Could not connect. Choose a protocol below or check the URL.',

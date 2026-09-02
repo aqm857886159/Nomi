@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 // 制作任务的家 = 任务中心（plan 2026-08-11-nomi-side-viewer-and-fallback）。
 // 这些断言锁的是「归位」本身：两套操作不许再挤回助手面板，以及卡内的结构不变量。
 const card = fs.readFileSync(path.join(process.cwd(), 'src/workbench/production/ProductionRunTaskCard.tsx'), 'utf8')
-const assistant = fs.readFileSync(path.join(process.cwd(), 'src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx'), 'utf8')
+const assistant = fs.readFileSync(path.join(process.cwd(), 'src/workbench/ai/ProjectAgentResidentShell.tsx'), 'utf8')
 const taskCenter = fs.readFileSync(path.join(process.cwd(), 'src/workbench/taskCenter/TaskCenterPanel.tsx'), 'utf8')
 
 describe('production run task card structure', () => {

@@ -68,7 +68,7 @@ function referenceFromFile(referenceBaselinePath) {
   }
 }
 
-function resolveReferenceBaselines({ repoRoot, baselinePath, referenceBaselinePath, environment }) {
+export function resolveReferenceBaselines({ repoRoot, baselinePath, referenceBaselinePath, environment }) {
   const references = []
   const errors = []
   const seenCommits = new Set()
@@ -329,7 +329,10 @@ export function evaluateHistoricalRatchet(vocabularies, baseline, referenceBasel
   const currentRegistered = baseline.registered ?? []
   const referenceDebt = referenceBaseline.debt ?? []
   const referenceDebtIdentities = new Set(referenceDebt.map(vocabularyIdentity))
-  const referenceRegisteredIdentities = new Set((referenceBaseline.registered ?? []).map(vocabularyIdentity))
+  const referenceRegistered = referenceBaseline.registered ?? []
+  const referenceRegisteredIdentities = new Set(referenceRegistered.map(vocabularyIdentity))
+  const consumedRetiredCanonicalSites = new Set()
+  const consumedReplacementCanonicalSites = new Set()
 
   if (baseline.debtCap > referenceBaseline.debtCap) {
     failures.push({
@@ -359,11 +362,29 @@ export function evaluateHistoricalRatchet(vocabularies, baseline, referenceBasel
       continue
     }
     if (currentDebtIdentities.has(identity)) continue
-    const renamedPromotion = currentRegistered.find(
+    const renamedPromotions = currentRegistered.filter(
       (candidate) =>
         sameMembers(candidate.members, entry.members) &&
         !referenceRegisteredIdentities.has(vocabularyIdentity(candidate)),
     )
+    const replacementCanonical = renamedPromotions.find(
+      (candidate) =>
+        currentVocabularySites.has(candidate.site) && !consumedReplacementCanonicalSites.has(candidate.site),
+    )
+    const retiredCanonical = replacementCanonical
+      ? referenceRegistered.find(
+          (canonical) =>
+            sameMembers(canonical.members, entry.members) &&
+            !currentVocabularySites.has(canonical.site) &&
+            !consumedRetiredCanonicalSites.has(canonical.site),
+        )
+      : undefined
+    if (replacementCanonical && retiredCanonical) {
+      consumedReplacementCanonicalSites.add(replacementCanonical.site)
+      consumedRetiredCanonicalSites.add(retiredCanonical.site)
+      continue
+    }
+    const renamedPromotion = renamedPromotions[0]
     if (renamedPromotion) {
       failures.push({
         kind: 'historical-debt-promoted',

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Slider } from '@mantine/core'
 import { IconAspectRatio, IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { DesignSwitch, NomiIdentityIcon, NomiSegmented, NomiSelect, type NomiIdentityIconSource, type NomiSegmentedOption } from '../../../design'
+import { DesignSwitch, NomiSegmented, NomiSelect, type NomiSegmentedOption } from '../../../design'
 import { formatVideoOptionLabel, type ModelParameterControl } from '../../../config/modelCatalogMeta'
 import type { ModelOption } from '../../../config/models'
 import {
@@ -29,6 +29,9 @@ import {
 } from './parameterOptionPresentation'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 
+export type InlineParameterBarLayout = 'inline' | 'stacked'
+export type InlineParameterBarPanelMode = 'portal' | 'inline'
+
 type InlineParameterBarProps = {
   modelOptions: readonly ModelOption[]
   modelCatalogStatus: { message: string }
@@ -50,8 +53,28 @@ type InlineParameterBarProps = {
    * （群反馈 2026-08-20 G2#433「勾了功能画布里没对应按钮」——其实渲染了，只是这颗 pill 没说）。
    * 传了就用它当 pill 文案；点开的参数面板内容不受影响。
    * 2026-08-20 用户拍板，是 2026-07-17「摘要 pill」拍板形态内的一处窄例外。
-   */
+  */
   summaryOverride?: string
+  /**
+   * Chat surfaces use the same controls as the canvas, but stack the identity
+   * row and the parameter summary so a narrow resident panel never creates a
+   * second horizontal form. Canvas keeps the historical inline layout.
+   */
+  layout?: InlineParameterBarLayout
+  /**
+   * The canvas uses an anchored portal. A resident proposal opens the very
+   * same panel in place so it cannot detach from the card while the transcript
+   * scrolls.
+   */
+  panelMode?: InlineParameterBarPanelMode
+  /** Width of the summary trigger in CSS pixels. The resident contract uses
+   * the wider 150px dialog pill; the canvas remains 110px. */
+  summaryWidth?: number
+  /** Optional generation-mode group shown at the top of the shared panel. */
+  modeChoices?: readonly { id: string; label: string }[]
+  activeModeId?: string
+  modeLabel?: string
+  onModeSelect?: (id: string) => void
 }
 
 // section="parameters"：底栏 = 模型芯片 + 变体 + **摘要 pill**（当前参数一句话）。
@@ -191,6 +214,13 @@ export default function InlineParameterBar({
   activeVariantId,
   onVariantSelect,
   summaryOverride,
+  layout = 'inline',
+  panelMode = 'portal',
+  summaryWidth,
+  modeChoices,
+  activeModeId = '',
+  modeLabel,
+  onModeSelect,
 }: InlineParameterBarProps): JSX.Element {
   const { t } = useTranslation()
   // 去重选择 view-model（hook 必须在任何早返回前调用）。
@@ -225,6 +255,11 @@ export default function InlineParameterBar({
   const PANEL_GAP = 6
 
   const openPanel = (): void => {
+    if (panelMode === 'inline') {
+      setFrozenSummary(summaryText)
+      setPanelOpen(true)
+      return
+    }
     const rect = pillRef.current?.getBoundingClientRect()
     if (!rect) return
     const vw = window.innerWidth
@@ -304,7 +339,7 @@ export default function InlineParameterBar({
   const renderOptions = (
     label: string,
     value: string,
-    rawOptions: { value: string; text: string; icon?: NomiIdentityIconSource }[],
+    rawOptions: { value: string; text: string }[],
     onChange: (value: string) => void,
     requestedPurpose: ParameterOptionPurpose = 'generic',
   ): JSX.Element => {
@@ -317,7 +352,6 @@ export default function InlineParameterBar({
       )
       return {
         ...localized,
-        ...(option.icon ? { icon: option.icon } : {}),
         shape: purpose === 'aspect-ratio'
           ? ratioShape(localized.isAuto, localized.value, localized.text)
           : null,
@@ -328,7 +362,7 @@ export default function InlineParameterBar({
         <NomiSelect
           ariaLabel={label}
           value={value}
-          options={entries.map((entry) => ({ value: entry.value, label: entry.text, icon: entry.icon }))}
+          options={entries.map((entry) => ({ value: entry.value, label: entry.text }))}
           onChange={onChange}
           searchable
           portalTarget={panelRef}
@@ -343,9 +377,7 @@ export default function InlineParameterBar({
     }
     const options: NomiSegmentedOption[] = entries.map((o) => ({
       value: o.value,
-      label: o.icon
-        ? <span className="inline-flex items-center gap-1.5"><NomiIdentityIcon icon={o.icon} />{o.text}</span>
-        : anyShape ? shapedGroupLabel(o.text, o.shape) : o.text,
+      label: anyShape ? shapedGroupLabel(o.text, o.shape) : o.text,
       title: o.text,
     }))
     return (
@@ -442,7 +474,7 @@ export default function InlineParameterBar({
       )
     })()
     return (
-      <div key={control.key} className="flex flex-col gap-1.5">
+      <div key={control.key} className="flex flex-col gap-1.5" data-agent-parameter-control={control.key}>
         <div className="text-micro font-semibold leading-none text-nomi-ink-40">{label}</div>
         {body}
       </div>
@@ -458,12 +490,81 @@ export default function InlineParameterBar({
     ? modelSelect.variantOptions
     : (variantChoices || []).map((variant) => ({ value: variant.id, label: variant.label }))
 
-  return (
-    <div className={cn('generation-canvas-v2-node__params--parameters', 'flex items-center gap-2 min-w-0')}>
+  const renderParameterPanel = (surface: 'portal' | 'inline'): JSX.Element => {
+    const content = (
+      <div className="flex flex-col gap-3 overflow-y-auto overscroll-contain rounded-nomi-lg p-3" style={{ maxHeight: surface === 'portal' ? panelInit?.maxHeight : 320 }}>
+        {modeChoices?.length && onModeSelect ? (
+          <div className="flex flex-col gap-1.5" data-agent-generation-mode="true">
+            <div className="text-micro font-semibold leading-none text-nomi-ink-40">
+              {modeLabel || t('generationCommon.parameters.generationMode')}
+            </div>
+            {renderOptions(
+              modeLabel || t('generationCommon.parameters.generationMode'),
+              activeModeId,
+              modeChoices.map((choice) => ({ value: choice.id, text: choice.label })),
+              onModeSelect,
+            )}
+          </div>
+        ) : null}
+        {renderedControls.map((control) => renderPanelGroup(control))}
+        {hasProvider ? (
+          <div className="flex flex-col gap-1.5">
+            <div className="text-micro font-semibold leading-none text-nomi-ink-40">
+              {t('generationCommon.parameters.provider')}
+            </div>
+            {renderOptions(
+              t('generationCommon.parameters.provider'),
+              modelSelect.providerValue,
+              modelSelect.providerOptions.map((o) => ({ value: o.value, text: o.label })),
+              modelSelect.onProviderPick,
+              'provider',
+            )}
+          </div>
+        ) : null}
+      </div>
+    )
+    if (surface === 'inline') {
+      return (
+        <div
+          ref={panelRef}
+          role="group"
+          aria-label={t('generationCommon.parameters.panel')}
+          data-agent-parameter-panel="true"
+          className="w-full rounded-nomi-lg border border-nomi-line bg-nomi-paper"
+          style={{ boxShadow: 'var(--workbench-shadow-pop)' }}
+        >
+          {content}
+        </div>
+      )
+    }
+    return (
+      <div
+        ref={panelRef}
+        role="group"
+        aria-label={t('generationCommon.parameters.panel')}
+        data-agent-parameter-panel="true"
+        className="fixed rounded-nomi-lg border border-nomi-line bg-nomi-paper"
+        style={{
+          zIndex: 600,
+          left: panelInit?.left,
+          ...(panelInit?.side === 'above' ? { bottom: panelInit.top } : { top: panelInit?.top }),
+          width: PANEL_W,
+          boxShadow: 'var(--workbench-shadow-pop)',
+        }}
+      >
+        {content}
+      </div>
+    )
+  }
+
+  const stacked = layout === 'stacked'
+  const resolvedSummaryWidth = summaryWidth ?? (stacked ? 150 : 110)
+  const identityRow = (
+    <div className={cn('flex min-w-0 items-center gap-2', stacked && 'w-full')}>
       <NomiSelect
         ariaLabel={t('generationCommon.parameters.model')}
         placeholder={t('generationCommon.parameters.selectModel')}
-        triggerMaxWidth={150}
+        triggerMaxWidth={stacked ? 132 : 150}
         value={modelSelect.modelValue}
         options={modelSelect.modelOptions}
         onChange={modelSelect.onModelPick}
@@ -479,76 +580,49 @@ export default function InlineParameterBar({
           onChange={catalogVariants ? modelSelect.onVariantPick : (v) => onVariantSelect?.(v)}
         />
       ) : null}
-      {/* 摘要 pill：当前参数一句话，点开统一参数面板。 */}
-      {hasPanel ? (
-        <>
-          <button
-            ref={pillRef}
-            type="button"
-            aria-label={t('generationCommon.parameters.generationParameters')}
-            aria-expanded={panelOpen}
-            title={pillText || t('generationCommon.parameters.generationParameters')}
-            onClick={() => (panelOpen ? closePanel() : openPanel())}
-            className={cn(
-              'inline-flex items-center gap-1 h-7 pl-2.5 pr-2 rounded-pill border border-nomi-line bg-nomi-ink-05',
-              'w-[110px] shrink-0 justify-between text-caption text-nomi-ink-80 cursor-pointer min-w-0',
-              'hover:border-nomi-ink-20 focus:outline-none focus-visible:border-nomi-accent',
-            )}
-          >
-            <span className="min-w-0 truncate" style={{ maxWidth: 240 }}>
-              {pillText || t('generationCommon.parameters.parameters')}
-            </span>
-            <IconChevronDown
-              size={12}
-              stroke={1.6}
-              className={cn(
-                'shrink-0 text-nomi-ink-40 pointer-events-none transition-transform',
-                panelOpen && 'rotate-180',
-              )}
-              aria-hidden
-            />
-          </button>
-          {/* 静止浮层（非 Popover）：打开定位一次绝不跟随——composer 已在打开期间冻结（两框皆不动）。 */}
-          {panelOpen && panelInit
-            ? createPortal(
-                <div
-                  ref={panelRef}
-                  role="group"
-                  aria-label={t('generationCommon.parameters.panel')}
-                  // zIndex/尺寸全走 inline：z-[600] 这类新任意值类在 dev 的 tailwind 缓存里可能不存在
-                  // → z 失效面板被透明层截胡「点击不了」（2026-07-17 用户 dev 实况，与图形隐身同根）。
-                  className="fixed rounded-nomi-lg border border-nomi-line bg-nomi-paper"
-                  style={{
-                    zIndex: 600,
-                    left: panelInit.left,
-                    ...(panelInit.side === 'above' ? { bottom: panelInit.top } : { top: panelInit.top }),
-                    width: PANEL_W,
-                    boxShadow: 'var(--workbench-shadow-pop)',
-                  }}
-                >
-                  {/* Nested select portals attach to the outer panel, outside its scrolling content. */}
-                  <div className="flex flex-col gap-3 overflow-y-auto rounded-nomi-lg p-3" style={{ maxHeight: panelInit.maxHeight }}>
-                  {renderedControls.map((control) => renderPanelGroup(control))}
-                  {hasProvider ? (
-                    <div className="flex flex-col gap-1.5">
-                      <div className="text-micro font-semibold leading-none text-nomi-ink-40">
-                        {t('generationCommon.parameters.provider')}
-                      </div>
-                      {renderOptions(
-                        t('generationCommon.parameters.provider'),
-                        modelSelect.providerValue,
-                        modelSelect.providerOptions.map((o) => ({ value: o.value, text: o.label, icon: o.icon })),
-                        modelSelect.onProviderPick,
-                        'provider',
-                      )}
-                    </div>
-                  ) : null}
-                  </div>
-                </div>,
-                document.body,
-              )
-            : null}
-        </>
+    </div>
+  )
+
+  const summaryTrigger = hasPanel ? (
+    <button
+      ref={pillRef}
+      type="button"
+      aria-label={t('generationCommon.parameters.generationParameters')}
+      aria-expanded={panelOpen}
+      title={pillText || t('generationCommon.parameters.generationParameters')}
+      onClick={() => (panelOpen ? closePanel() : openPanel())}
+      className={cn(
+        'inline-flex items-center gap-1 h-7 pl-2.5 pr-2 rounded-pill border border-nomi-line bg-nomi-ink-05',
+        'shrink-0 justify-between text-caption text-nomi-ink-80 cursor-pointer min-w-0',
+        'hover:border-nomi-ink-20 focus:outline-none focus-visible:border-nomi-accent',
+        stacked && 'w-full',
+      )}
+      style={{ width: stacked ? '100%' : resolvedSummaryWidth }}
+    >
+      <span className="min-w-0 truncate" style={{ maxWidth: stacked ? 'calc(100% - 18px)' : 240 }}>
+        {pillText || t('generationCommon.parameters.parameters')}
+      </span>
+      <IconChevronDown
+        size={12}
+        stroke={1.6}
+        className={cn(
+          'shrink-0 text-nomi-ink-40 pointer-events-none transition-transform',
+          panelOpen && 'rotate-180',
+        )}
+        aria-hidden
+      />
+    </button>
+  ) : null
+
+  return (
+    <div className={cn('generation-canvas-v2-node__params--parameters', 'min-w-0', stacked ? 'flex flex-col items-stretch gap-1.5' : 'flex items-center gap-2')}>
+      {stacked ? identityRow : <div className="contents">{identityRow}</div>}
+      {summaryTrigger ? (
+        <div className={cn('min-w-0', stacked ? 'w-full' : 'contents')}>
+          {summaryTrigger}
+          {panelOpen && panelMode === 'inline' ? <div className="mt-1.5 w-full">{renderParameterPanel('inline')}</div> : null}
+          {panelOpen && panelMode === 'portal' && panelInit ? createPortal(renderParameterPanel('portal'), document.body) : null}
+        </div>
       ) : null}
     </div>
   )

@@ -14,6 +14,8 @@ import {
 import { confirmDialog, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { materializedShotIds } from './storyboard/exec/storyboardNodeBinding'
 
 type EditingTarget = { kind: 'document' | 'storyboard'; id: string } | null
 type ResourceMenu = {
@@ -28,6 +30,7 @@ export default function DocumentListSidebar(): JSX.Element {
   const documents = useWorkbenchStore((state) => state.workbenchDocuments)
   const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
   const activeStoryboardId = useWorkbenchStore((state) => state.activeStoryboardId)
+  const canvasNodes = useGenerationCanvasStore((state) => state.nodes)
   const designsByDocumentId = useWorkbenchStore((state) => state.storyboardDesignsByDocumentId)
   const setActiveDocumentId = useWorkbenchStore((state) => state.setActiveDocumentId)
   const setActiveStoryboardId = useWorkbenchStore((state) => state.setActiveStoryboardId)
@@ -308,7 +311,9 @@ export default function DocumentListSidebar(): JSX.Element {
                     const designActive = design.id === activeStoryboardId
                     const stale = doc.updatedAt > design.sourceDocumentUpdatedAt
                     const designEditing = editing?.kind === 'storyboard' && editing.id === design.id
-                    const statusLabel = stale ? t('storyboardEditor.planCard.stale') : design.committed ? t('storyboardEditor.planCard.committed') : t('storyboardEditor.planCard.draft')
+                    // v5 committed 语义 derive：至少一镜已建节点（旧项目回退存量标记）。
+                    const committedNow = design.committed || materializedShotIds(canvasNodes, design.id).size > 0
+                    const statusLabel = stale ? t('storyboardEditor.planCard.stale') : committedNow ? t('storyboardEditor.planCard.committed') : t('storyboardEditor.planCard.draft')
                     const title = design.title || t('storyboardEditor.planCard.defaultTitle')
                     return (
                       <div
@@ -318,7 +323,7 @@ export default function DocumentListSidebar(): JSX.Element {
                           designActive ? 'bg-nomi-accent-soft text-nomi-accent' : 'text-nomi-ink-80 hover:bg-nomi-ink-05',
                         )}
                         data-storyboard-row={design.id}
-                        data-storyboard-status={stale ? 'stale' : design.committed ? 'committed' : 'draft'}
+                        data-storyboard-status={stale ? 'stale' : committedNow ? 'committed' : 'draft'}
                       >
                         {designEditing ? (
                           <input

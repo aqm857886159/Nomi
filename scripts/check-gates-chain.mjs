@@ -28,6 +28,11 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
  */
 const INTENTIONALLY_OUT_OF_CHAIN = new Map([
   [
+    'check:handoff',
+    // 交接体检是人工收货时按需跑的报告工具；它可选地启动全套件，不应阻塞每次 push。
+    '手动交接体检工具（--with-tests 可启动全套件），不是每次 push 的正确性门岗',
+  ],
+  [
     'check:audit',
     // 这是**节奏提醒**不是正确性门岗：commit 攒够 25 个就提示该做周期审计（R14）。
     // 它按时间/计数报红，和这次改动对不对无关。放进 gates 会让「今天该审计了」

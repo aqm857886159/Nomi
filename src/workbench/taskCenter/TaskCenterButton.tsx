@@ -7,16 +7,19 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconListDetails } from '@tabler/icons-react'
 import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
+import type { ExportJobSnapshot } from '../../../electron/shared/contracts/exportJobManager'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WorkbenchButton } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { cn } from '../../utils/cn'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { selectStableCanvasNodes } from '../generationCanvas/store/canvasNodeProjection'
 import { useGenerationQueueStore } from '../generationCanvas/runner/generationQueueStore'
 import { useProductionRunStore } from '../production/productionRunStore'
 import { useWorkbenchStore } from '../workbenchStore'
 import { TaskCenterPanel } from './TaskCenterPanel'
 import { buildTaskCenterView, resolveTaskButtonTone } from './taskCenterEntries'
 import { buildProductionRunTaskRows, mergeProductionRunSummaries } from './productionRunTaskCenter'
+import { buildExportJobTaskRows } from './exportJobTaskCenter'
 import { useBatchFinishNotifier } from './useBatchFinishNotifier'
 
 type Props = {
@@ -30,14 +33,20 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
   const [opened, setOpened] = React.useState(false)
   const entries = useGenerationQueueStore((state) => state.entries)
   const batches = useGenerationQueueStore((state) => state.batches)
-  const nodes = useGenerationCanvasStore((state) => state.nodes)
+  // 任务中心只按 id 取标题/状态/进度合成任务行，不读 position → 位置稳定投影（suspect #1）。
+  const nodes = useGenerationCanvasStore(selectStableCanvasNodes)
   const [productionRuns, setProductionRuns] = React.useState<ProductionRunSummary[]>([])
+  const [exportJobs, setExportJobs] = React.useState<ExportJobSnapshot[]>([])
   const detailedProductionRun = useProductionRunStore((state) => (
     state.projectId === projectId ? state.run : null
   ))
   const resolvedProductionRuns = React.useMemo(
     () => mergeProductionRunSummaries(productionRuns, detailedProductionRun),
     [detailedProductionRun, productionRuns],
+  )
+  const resolvedExportJobs = React.useMemo(
+    () => exportJobs.filter((job) => job.projectId === projectId),
+    [exportJobs, projectId],
   )
 
   const refreshProductionRuns = React.useCallback(async (): Promise<void> => {
@@ -54,12 +63,28 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
     }
   }, [projectId])
 
+  const refreshExportJobs = React.useCallback(async (): Promise<void> => {
+    if (!projectId) {
+      setExportJobs([])
+      return
+    }
+    const bridge = getDesktopBridge()?.exports
+    if (!bridge?.list) return
+    try {
+      const jobs = await bridge.list()
+      setExportJobs(jobs.filter((job) => job.projectId === projectId))
+    } catch {
+      // Preserve the last exact project snapshot while a transient IPC refresh fails.
+    }
+  }, [projectId])
+
   React.useEffect(() => {
-    void refreshProductionRuns()
+    setExportJobs([])
+    void Promise.all([refreshProductionRuns(), refreshExportJobs()])
     if (!projectId) return
-    const id = window.setInterval(() => void refreshProductionRuns(), 1_500)
+    const id = window.setInterval(() => void Promise.all([refreshProductionRuns(), refreshExportJobs()]), 1_500)
     return () => window.clearInterval(id)
-  }, [projectId, refreshProductionRuns])
+  }, [projectId, refreshExportJobs, refreshProductionRuns])
 
   // 失焦提醒的订阅住这里：本按钮全程挂载（跟着顶栏），是最稳的宿主。
   useBatchFinishNotifier()
@@ -106,12 +131,29 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
         cancelled: t('taskCenter.productionRun.statuses.cancelled'),
       },
     })
+    const exports = buildExportJobTaskRows(resolvedExportJobs, {
+      title: t('taskCenter.exportJob.title'),
+      failed: t('taskCenter.exportJob.failed'),
+      statuses: {
+        queued: t('taskCenter.exportJob.statuses.queued'),
+        preparing: t('taskCenter.exportJob.statuses.preparing'),
+        planning: t('taskCenter.exportJob.statuses.planning'),
+        rendering: t('taskCenter.exportJob.statuses.rendering'),
+        encoding: t('taskCenter.exportJob.statuses.encoding'),
+        muxing: t('taskCenter.exportJob.statuses.muxing'),
+        finalizing: t('taskCenter.exportJob.statuses.finalizing'),
+        succeeded: t('taskCenter.exportJob.statuses.succeeded'),
+        failed: t('taskCenter.exportJob.statuses.failed'),
+        cancelled: t('taskCenter.exportJob.statuses.cancelled'),
+      },
+    })
     return {
       ...generation,
-      running: generation.running + production.filter((row) => row.group === 'running').length,
-      queued: generation.queued + production.filter((row) => row.group === 'queued').length,
+      running: generation.running + production.filter((row) => row.group === 'running').length + exports.filter((row) => row.group === 'running').length,
+      queued: generation.queued + production.filter((row) => row.group === 'queued').length + exports.filter((row) => row.group === 'queued').length,
+      failed: generation.failed + exports.filter((row) => row.outcome === 'error').length,
     }
-  }, [entries, batches, nodes, resolvedProductionRuns, t])
+  }, [entries, batches, nodes, resolvedExportJobs, resolvedProductionRuns, t])
   const tone = resolveTaskButtonTone(summary)
   const pending = summary.running + summary.queued
 
@@ -154,9 +196,10 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
         opened={opened}
         onClose={() => setOpened(false)}
         productionRuns={resolvedProductionRuns}
+        exportJobs={resolvedExportJobs}
         onRevealProductionRun={(targetProjectId, runId) => {
           useWorkbenchStore.getState().setWorkspaceMode('generation')
-          useGenerationCanvasStore.getState().setGenerationAiCollapsed(false)
+          useWorkbenchStore.getState().setProjectAgentDockCollapsed(false)
           void useProductionRunStore.getState().navigateTo(targetProjectId, runId)
         }}
         {...(onRevealNode ? { onRevealNode } : {})}

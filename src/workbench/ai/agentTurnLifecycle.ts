@@ -19,10 +19,31 @@ export type AgentTurnState = {
   abandon: () => void
 }
 
+// Project replacement must invalidate any renderer transport that was created
+// before the new project binding was installed. Keep this registry in the
+// neutral lifecycle module so release code does not import an area-specific
+// turn store (which would recreate a second semantic owner).
+const turnInvalidators = new Set<() => void>()
+
+export function registerAgentTurnInvalidator(invalidate: () => void): () => void {
+  turnInvalidators.add(invalidate)
+  return () => turnInvalidators.delete(invalidate)
+}
+
+export function invalidateAgentTurnStates(): void {
+  for (const invalidate of [...turnInvalidators]) invalidate()
+}
+
 export function createAgentTurnState(
   set: (state: Partial<AgentTurnState>) => void,
   get: () => AgentTurnState,
 ): AgentTurnState {
+  const invalidate = () => {
+    const state = get()
+    set({ turnId: state.turnId + 1, sending: false, cancel: null, cancelRequested: true })
+    state.cancel?.()
+  }
+  registerAgentTurnInvalidator(invalidate)
   return {
     turnId: 0,
     sending: false,
@@ -58,9 +79,7 @@ export function createAgentTurnState(
       state.cancel?.()
     },
     abandon: () => {
-      const state = get()
-      set({ turnId: state.turnId + 1, sending: false, cancel: null, cancelRequested: true })
-      state.cancel?.()
+      invalidate()
     },
   }
 }

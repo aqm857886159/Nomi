@@ -3,7 +3,9 @@
 > **本文件由 `scripts/build-delivery-ledger.mjs` 生成，禁止手改**；加了文档就跑 `pnpm run gen:ledger`。
 > 跨阶段总纲 / master plan 住这里；功能级方案在 [`docs/plan/`](../../plan/INDEX.md)。
 > **当前主文档**：[Nomi 统一 Agent 总体方案](2026-08-24-unified-agent-master-plan.md)（含 §5.1「AI 剪辑三步」E1/E2/E3）。
-> 「标题」取自各文件 H1，未二次概括；状态为「—」表示尚未登记（见 [交付账本](../../DELIVERY-LEDGER.md)）。
+> 「标题」取自各文件 H1，未二次概括；状态为「—」表示尚未登记。
+> 想看「已拍板但没交付」的全量欠账：跑 `pnpm run ledger:brief`（一行摘要）或 `pnpm run gen:ledger`
+> 生成本地 `docs/DELIVERY-LEDGER.md`——它是本地视图、**不进 git**（含全局计数，commit 了会造成人工解不对的合并冲突）。
 
 | 文件 | 标题 | 状态 |
 |---|---|---|
@@ -55,3 +57,5 @@
 | [2026-08-31-asset-relay-routing.md](2026-08-31-asset-relay-routing.md) | Asset Relay Routing Implementation Plan | ✅ 已交付 |
 | [2026-08-31-provider-model-expansion-certification.md](2026-08-31-provider-model-expansion-certification.md) | Provider and Flagship Model Expansion Certification Implementation Plan | ✅ 已交付 |
 | [2026-09-01-agent-architecture-test-system.md](2026-09-01-agent-architecture-test-system.md) | Agent Architecture Test System Implementation Plan | 🚧 进行中 |
+| [2026-09-01-cross-device-project-continuation.md](2026-09-01-cross-device-project-continuation.md) | Nomi 跨设备继续编辑实施计划 | 📋 方案待拍板 |
+| [2026-09-01-real-tutorial-system.md](2026-09-01-real-tutorial-system.md) | Real Tutorial System Implementation Plan | 🚧 进行中 |

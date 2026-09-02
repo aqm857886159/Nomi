@@ -118,10 +118,12 @@ test('repository exact-set owners are upstream and every local projection stays 
     'electron/capabilityCore/mcpGenerationTools.ts::type:GenerationPlanningHandlerDependencies/property:reconcile/parameter:outcome/type-union',
     'src/workbench/production/useProductionStatus.ts::function:useProductionStatus/variable:onPrimaryAction/variable:outcome/type-union',
   ]
-  const generationSchema =
-    'src/workbench/generationCanvas/model/generationCanvasSchema.ts::variable:generationNodeStatusSchema/z.enum'
-  const generationType =
-    'src/workbench/generationCanvas/model/generationCanvasTypes.ts::type:GenerationNodeStatus/type-union'
+  // Post-cutover dedup: the canvas node-status vocabulary collapsed into a single
+  // shared as-const owner (electron/shared/canvas/generationNodeStatus.ts). The renderer's
+  // generationNodeStatusSchema is now z.enum(GENERATION_NODE_STATUSES) and GenerationNodeStatus
+  // is a re-export alias — both former sites derive from the const and are no longer owners.
+  const generationStatusCanonical =
+    'electron/shared/canvas/generationNodeStatus.ts::variable:GENERATION_NODE_STATUSES/as-const'
 
   assert.match(registeredBySite.get(contextStore)?.reason ?? '', /contextService.*(?:导入|import).*contextStore/i)
   assert.match(debtBySite.get(contextService)?.reason ?? '', /StoredAgentContext.*(?:投影|projection)/i)
@@ -140,8 +142,8 @@ test('repository exact-set owners are upstream and every local projection stays 
     assert.match(reason, /ProductionRun\/shared.*GenerationReconcileOutcome/i, site)
     assert.match(reason, /as const tuple.*runtime schema.*JSON Schema.*callback.*IPC validation.*UI/i, site)
   }
-  assert.match(registeredBySite.get(generationSchema)?.reason ?? '', /运行时校验.*z\.infer/i)
-  assert.match(debtBySite.get(generationType)?.reason ?? '', /generationNodeStatusSchema.*z\.infer/i)
+  assert.equal(registeredBySite.has(generationStatusCanonical), true, generationStatusCanonical)
+  assert.match(registeredBySite.get(generationStatusCanonical)?.reason ?? '', /单源.*z\.enum.*z\.infer/i)
 })
 
 test('repository text-brain reasons preserve metadata readiness without keychain probing', () => {
@@ -240,10 +242,9 @@ test('repository-specific runtime and view-model vocabularies are not mislabeled
       'electron/harness/runtime/runtimePort.ts::interface:RuntimeTurnResult/property:status/type-union',
       /runtime port.*turn/i,
     ],
-    [
-      'src/api/desktopAgentsChatStream.ts::type:AgentsChatToolStreamPayload/property:stage/type-union',
-      /stream event.*view model/i,
-    ],
+    // src/api/desktopAgentsChatStream.ts was deleted by the Host cutover (see
+    // projectAgentCutoverStructure.test.ts asserting the file no longer exists);
+    // its AgentsChatToolStreamPayload.stage owner is correctly gone from the baseline.
     [
       'src/workbench/ai/workbenchAiTypes.ts::type:WorkbenchAiMessage/property:status/type-union',
       /assistant message.*view model/i,

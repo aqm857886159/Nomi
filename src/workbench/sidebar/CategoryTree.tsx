@@ -5,6 +5,7 @@ import { showUndoToast } from '../../utils/showUndoToast'
 import { useWorkbenchStore } from '../workbenchStore'
 import { confirmDialog, promptDialog } from '../../design'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { selectStableCanvasNodes } from '../generationCanvas/store/canvasNodeProjection'
 import { useCommittedProposal } from '../generationCanvas/agent/proposalUndo'
 import CategoryItem from './CategoryItem'
 import GroupItem from './GroupItem'
@@ -39,7 +40,9 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
   const addCategory = useWorkbenchStore((s) => s.addCategory)
   const renameCategory = useWorkbenchStore((s) => s.renameCategory)
   const deleteCategory = useWorkbenchStore((s) => s.deleteCategory)
-  const nodes = useGenerationCanvasStore((s) => s.nodes)
+  // 位置稳定投影：分类树只读节点身份/分类/标题，从不读 position。订这个派生视图 →
+  // 拖动时 immer 换 nodes 数组引用不会打醒它（suspect #1，见 canvasNodeProjection.ts）。
+  const nodes = useGenerationCanvasStore(selectStableCanvasNodes)
   const groups = useGenerationCanvasStore((s) => s.groups)
   const selectedNodeIds = useGenerationCanvasStore((s) => s.selectedNodeIds)
   const selectNode = useGenerationCanvasStore((s) => s.selectNode)
@@ -117,7 +120,7 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
   const closeMenu = React.useCallback(() => setMenu(null), [])
 
   const nodesByCategory = React.useMemo(() => {
-    const map = new Map<string, typeof nodes>()
+    const map = new Map<string, (typeof nodes)[number][]>()
     for (const node of nodes) {
       const id = node.categoryId || 'shots'
       const list = map.get(id)

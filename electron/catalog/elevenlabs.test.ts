@@ -18,13 +18,13 @@ describe("ElevenLabs 官方旗舰合同", () => {
     });
   });
 
-  it("rejects Sound Effects v2 above the certified 22 second cap before provider dispatch", async () => {
+  it("rejects Sound Effects v2 above the official 30 second cap before provider dispatch", async () => {
     await expect(applyRequestTransform("eleven-sfx-v2-duration-cap", {
-      duration_seconds: 23,
-    }, { baseUrl: "https://api.elevenlabs.io" })).rejects.toThrow(/22 秒/);
+      duration_seconds: 31,
+    }, { baseUrl: "https://api.elevenlabs.io" })).rejects.toThrow(/30 秒/);
     await expect(applyRequestTransform("eleven-sfx-v2-duration-cap", {
-      duration_seconds: 22,
-    }, { baseUrl: "https://api.elevenlabs.io" })).resolves.toMatchObject({ duration_seconds: 22 });
+      duration_seconds: 30,
+    }, { baseUrl: "https://api.elevenlabs.io" })).resolves.toMatchObject({ duration_seconds: 30 });
   });
 
   it("keeps the static identity manifest in sync with all four curated mappings", () => {

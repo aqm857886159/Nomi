@@ -7,7 +7,7 @@ import StoryboardActionCard, { type StoryboardShotMode } from './StoryboardActio
 
 // 情景卡自动浮现（用户拍板 2026-07-15）：写好故事、还没拆过镜头、非生成中时，在助手顶部浮一张「拆成镜头」卡。
 // 补上「拆镜头没有可点入口、全靠说对暗号」这个触发难的根因；点了才跑、可关，不加常驻按钮、贴合「对话驱动」。
-// 自成组件（从 CreationAiPanel 抽出，防巨壳 R9）：故事正文/是否已拆/收起态都在这判，父层只给 onRun + busy。
+// 自成组件（从旧 Agent shell 抽出，防巨壳 R9）：故事正文/是否已拆/收起态都在这判，父层只给 onRun + busy。
 const STORYBOARD_NUDGE_MIN_CHARS = 60 // 故事正文达到这么多字才认为「有故事可拆」，避免刚起个头就弹卡。
 
 export default function StoryboardNudge({

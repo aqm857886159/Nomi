@@ -101,7 +101,7 @@ describe('confirm_all per-shot provider boundary', () => {
     expect(submissions).toEqual([])
     expect(current.gates.find((gate) => gate.scope === 'budget_envelope')?.status).toBe('approved')
 
-    const narration = buildToolOutcome('nomi_get_run', { projectId: 'project-1', runId }, service.readProjection('project-1', runId), 'zh-CN')
+    const narration = buildToolOutcome('nomi_read', { target: 'run', projectId: 'project-1', runId }, service.readProjection('project-1', runId), 'zh-CN')
     expect(narration.text).toContain('第 1 镜')
     expect(narration.text).toContain('shot-1')
     expect(narration.text).toContain('local · demo-video')

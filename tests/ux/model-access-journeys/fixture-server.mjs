@@ -28,6 +28,40 @@ async function requestBody(request) {
   return Buffer.concat(chunks)
 }
 
+/**
+ * Smallest spec-correct GLB (one untextured triangle, ~700B). Why not reuse
+ * src/assets/x-bot.glb (1.8MB): 3D results are delivered as inline data: URLs
+ * (same SSRF reasoning as image/video below), and a multi-MB base64 blob is the
+ * exact shape that already blew the certification media path once (see the
+ * video-asset comment) — the certification harness re-reads the data URL every
+ * poll. A hand-built minimal GLB stays tiny, passes the strict GLB structure
+ * validator (electron/assets/model3dValidation.ts walks header/chunks/accessors),
+ * and still renders a real mesh in the node's three.js viewer.
+ */
+function minimalGlbBuffer() {
+  const gltf = {
+    asset: { version: '2.0' },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ mesh: 0 }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+    accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: 'VEC3', min: [0, 0, 0], max: [1, 1, 0] }],
+    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: 36 }],
+    buffers: [{ byteLength: 36 }],
+  }
+  let jsonChunk = Buffer.from(JSON.stringify(gltf), 'utf8')
+  jsonChunk = Buffer.concat([jsonChunk, Buffer.alloc((4 - (jsonChunk.length % 4)) % 4, 0x20)])
+  const bin = Buffer.alloc(36)
+  ;[0, 0, 0, 1, 0, 0, 0, 1, 0].forEach((value, index) => bin.writeFloatLE(value, index * 4))
+  const header = Buffer.alloc(12)
+  header.write('glTF', 0, 'ascii'); header.writeUInt32LE(2, 4); header.writeUInt32LE(12 + 8 + jsonChunk.length + 8 + bin.length, 8)
+  const jsonHeader = Buffer.alloc(8)
+  jsonHeader.writeUInt32LE(jsonChunk.length, 0); jsonHeader.writeUInt32LE(0x4e4f534a, 4) // 'JSON'
+  const binHeader = Buffer.alloc(8)
+  binHeader.writeUInt32LE(bin.length, 0); binHeader.writeUInt32LE(0x004e4942, 4) // 'BIN\0'
+  return Buffer.concat([header, jsonHeader, jsonChunk, binHeader, bin])
+}
+
 function safeHeaders(headers) {
   return Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, /authorization|api-key|cookie/i.test(key) ? '[REDACTED]' : value]))
 }
@@ -138,6 +172,25 @@ export async function startFixtureServer({ repoRoot, fault = {} } = {}) {
 
     if (request.method === 'GET' && url.pathname === '/v1/video/generations/fixture-video-task') {
       json(response, 200, { task_id: 'fixture-video-task', status: 'succeeded', data: [{ url: dataUrl('video') }] })
+      return
+    }
+
+    // ── RunningHub-style direct 3D endpoints (J11 executed leg / J14 3D leg) ──
+    // The relay deliberately has no generic 3D wire (electron/catalog/catalogCommit.ts:540
+    // “OpenAI 兼容面上根本没有 3D 生成端点”), so 3D roundtrips must ride a direct
+    // declarative-http vendor. Shape mirrors electron/catalog/runninghub3d.ts (probed
+    // real-API contract recorded there): submit POST /{endpoint} → flat {taskId,status};
+    // poll POST /query {taskId} → flat {taskId,status,results:[{fileUrl,fileType}]}.
+    if (request.method === 'POST' && /^\/(meshy6|hunyuan3d-v3\.1|hitem3d-v21)\/(text|image)-to-3d$/.test(url.pathname)) {
+      json(response, 200, { taskId: 'fixture-3d-task', status: 'QUEUED' })
+      return
+    }
+    if (request.method === 'POST' && url.pathname === '/query') {
+      json(response, 200, {
+        taskId: 'fixture-3d-task',
+        status: 'SUCCESS',
+        results: [{ fileUrl: `data:model/gltf-binary;base64,${minimalGlbBuffer().toString('base64')}`, fileType: 'glb' }],
+      })
       return
     }
 

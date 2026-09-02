@@ -59,13 +59,13 @@ import {
   getNodeSizeBounds,
   FOCUS_GENERATION_NODE_EVENT,
   computeMediaMetaPatch,
+  MEDIA_DIMENSION_UPDATE_OPTIONS,
   resolveNodeVisualSize,
 } from './nodeSizing'
 import { useNodeVideoHoverPreview } from './useNodeVideoHoverPreview'
 import { NodeInlineImageTitle } from './NodeImagePreviewActions'
 import { useNodeDisplayPrompt } from './useNodeDisplayPrompt'
 import { useNodeMediaPreview } from './useNodeMediaPreview'
-
 export type BaseGenerationNodeProps = {
   node: GenerationCanvasNode
   selected: boolean
@@ -160,7 +160,7 @@ function BaseGenerationNodeImpl({
       height,
       durationSeconds,
     })
-    if (patch) updateNode(node.id, patch, { history: false }) // 加载完才量得到的派生尺寸不是用户编辑，别自成一个撤销点（否则刚建的一批节点按 Cmd+Z，撤掉的是「某张图量了尺寸」）
+    if (patch) updateNode(node.id, patch, MEDIA_DIMENSION_UPDATE_OPTIONS) // 加载完才量得到的派生尺寸不是用户编辑，别自成一个撤销点（否则刚建的一批节点按 Cmd+Z，撤掉的是「某张图量了尺寸」）
   }
 
   const { handleVideoNodePointerEnter, handleVideoNodePointerLeave } = useNodeVideoHoverPreview(node.result?.type)

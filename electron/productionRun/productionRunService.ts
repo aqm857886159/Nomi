@@ -39,6 +39,7 @@ import type {
   AutomationPolicy,
   CreateProductionRunInput,
   ProductionGenerationPlan,
+  ProductionGenerationShot,
   ProductionRun,
   RunEvent,
   RunCommand,
@@ -105,6 +106,7 @@ type ServiceDeps = {
   projectRootResolver?: (projectId: string) => string | null
   previewSecret?: string
   requestRenderer?: (op: string, payload: unknown, timeoutMs: number) => Promise<unknown>
+  executeProductionExport?: (input: { projectId: string; runId: string; outputName: string }) => Promise<{ relativePath: string; size: number }>
   policyResolver?: () => Partial<AutomationPolicy>
   reconcileProviderTask?: (job: ProductionRun['jobs'][number]) => Promise<{
     status?: string
@@ -238,6 +240,18 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
     const bridge = await import('../capabilityCore/rendererBridge')
     return bridge.requestRenderer(op, payload, timeoutMs)
   })
+  const executeProductionExport = deps.executeProductionExport ?? (async (input) => {
+    const prepared = await requestRenderer('production.export', input, 5 * 60_000) as { manifest?: unknown }
+    const exports = await import('../export/exportJobs')
+    return exports.executeProductionRunExport({
+      ...input,
+      manifest: prepared?.manifest,
+      captureWebm: async () => {
+        const captured = await requestRenderer('production.capture-export', input, 30 * 60_000) as { webmBytes?: unknown }
+        return captured?.webmBytes
+      },
+    })
+  })
   const policyResolver = deps.policyResolver ?? (() => {
     const settings = readAutomationPolicySettings()
     return {
@@ -301,8 +315,19 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
     candidate: ProductionGenerationPlan['candidate']
     currency?: string
     policy?: Partial<AutomationPolicy>
+    shots?: ReadonlyArray<Pick<ProductionGenerationShot, 'shotId' | 'role' | 'included' | 'candidate'>>
   }): ProductionRun {
-    return repository.createGenerationDraft(input)
+    // Semantic generation drafts must use the same live automation policy as
+    // every other ProductionRun entry point. Previously this thin service
+    // method delegated straight to the repository, whose low-level fallback
+    // is intentionally conservative (¥20 / one attempt), silently discarding
+    // the user's configured budget and retry ceiling. Keep caller-supplied
+    // provider/model allowlists as the narrow operation override, while
+    // deriving all unspecified controls from this service's policy resolver.
+    return repository.createGenerationDraft({
+      ...input,
+      policy: { ...policyResolver(), ...(input.policy || {}) },
+    })
   }
 
   function writeProjectJson(projectId: string, relativePath: string, value: unknown): void {
@@ -360,12 +385,13 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
 
   // B0：driver 编排（拟分镜 / 生成 / 导出 / 对账）抽到 productionRunDriverOps.ts，行为零变化。
   // service 保留其依赖的路径工具 + in-flight 去重集，经参数注入，仍可单测（R9 ≤800）。
-  const { proposeDirections, proposeScript, proposeStoryboard, driveGeneration, driveExport, driveReconciliation } = createDriverOps({
+  const { proposeDirections, proposeScript, proposeStoryboard, driveGeneration, advanceSemanticProduction, driveExport, driveReconciliation } = createDriverOps({
     repository,
     sleep,
     requireRun,
     executeInternal,
     requestRenderer,
+    executeProductionExport,
     writeProjectJson,
     localAssetPath,
     projectRelativePath,
@@ -779,14 +805,12 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
   function listFull(projectId: string): ProductionRun[] {
     return repository.list(identifier(projectId, 'project')).map((summary) => requireRun(projectId, summary.runId))
   }
-
   return {
-    // The semantic generation submission adapter is a thin orchestration layer;
-    // ProductionRun's repository remains its only durable owner.
+    // Semantic generation is a thin orchestration layer; ProductionRun remains the only durable owner.
     repository,
     createDraft, createGenerationDraft, readProjection, readFull, readEvents, readArtifactProjection, readArtifactContent, readScriptDraft,
     requestArtifactRevision, reviewArtifact, materializeStoryboard, resolveArtifactPreview, command, proposeScript, proposeStoryboard,
-    resumeUnfinishedRuns, listProjections, listFull,
+    advanceSemanticProduction, resumeUnfinishedRuns, listProjections, listFull,
   }
 }
 export type ProductionRunService = ReturnType<typeof createProductionRunService>

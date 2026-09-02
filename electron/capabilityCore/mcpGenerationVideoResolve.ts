@@ -11,8 +11,15 @@ import type {
   VideoGenerationRecommendationInput,
   VideoModelCandidate,
 } from "../shared/videoCapabilities/recommendation";
-import { canonicalVideoVariantId, effectiveVideoModes } from "../shared/videoCapabilities/recommendation";
-import type { ModelParameterControl } from "../shared/videoCapabilities/types";
+import { canonicalVideoVariantId, effectiveVideoModes, recommendVideoGeneration } from "../shared/videoCapabilities/recommendation";
+import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
+import type { ArchetypeMode, ModelParameterControl } from "../shared/videoCapabilities/types";
+
+// Keep mode/task comparisons tolerant of the wire's kebab/snake aliases.  This
+// local normalizer is intentionally dependency-free so candidate resolution
+// cannot accidentally call a provider-specific helper (or an undefined symbol).
+const normalizedMode = (value: unknown): string =>
+  typeof value === "string" ? value.trim().toLowerCase().replace(/-/g, "_") : "";
 
 const CAMERA_INTENTS = new Set<NonNullable<VideoGenerationRecommendationInput["cameraIntent"]>>([
   "locked", "pan", "tilt", "dolly", "orbit", "handheld", "path",
@@ -134,10 +141,63 @@ export function videoCandidateForPlan(candidate: PlanCandidate, candidates: read
   const requestedCanonical = canonicalVideoVariantId(source.archetype, requested);
   if (requested && !requestedCanonical) throw new Error(`Unknown video variant: ${candidate.variantId}`);
   const variantId = requestedCanonical ?? inferredVariant?.id ?? source.variantId ?? source.archetype.defaultVariantId;
+  const baseModelId = source.archetype.catalogModelKey?.trim() || source.modelKey;
   return {
-    candidate: { ...candidate, modelId: source.modelKey, ...(variantId ? { variantId } : {}) },
+    candidate: { ...candidate, modelId: baseModelId, ...(variantId ? { variantId } : {}) },
     videoCandidate: { ...source, ...(variantId ? { variantId } : {}) },
   };
+}
+
+const normalizedTaskKind = (value: unknown): string => normalizedMode(value);
+
+/**
+ * Resolve the source-archetype mode without guessing a provider wire mode.
+ * Several real models (Seedance, Wan, H3) expose multiple modes through the
+ * same catalog task kind. A persisted `modeId` is authoritative; when older
+ * drafts only carry the task kind, references/recommendation facts select a
+ * mode. If the facts are insufficient we fail closed and ask for modeId.
+ */
+export function videoModeForPlan(candidate: PlanCandidate, videoCandidate: VideoModelCandidate): ArchetypeMode {
+  const modes = effectiveVideoModes(videoCandidate);
+  const requestedModeId = typeof candidate.modeId === "string" ? candidate.modeId.trim() : "";
+  if (requestedModeId) {
+    const mode = modes.find((item) => normalizedMode(item.id) === normalizedMode(requestedModeId));
+    if (!mode) throw new Error(`Unknown video mode: ${candidate.modeId}`);
+    const requestedTransport = normalizedTaskKind(candidate.mode);
+    if (requestedTransport && requestedTransport !== normalizedMode(mode.id) && requestedTransport !== normalizedTaskKind(mode.transportTaskKind)) {
+      throw new Error(`Video mode ${candidate.modeId} does not match transport task ${candidate.mode}`);
+    }
+    return mode;
+  }
+
+  const byId = modes.find((item) => normalizedMode(item.id) === normalizedMode(candidate.mode));
+  if (byId) return byId;
+  const byTask = modes.filter((item) => normalizedTaskKind(item.transportTaskKind) === normalizedTaskKind(candidate.mode));
+  if (byTask.length === 1) return byTask[0]!;
+  if (byTask.length === 0) throw new Error(`Video mode is unsupported: ${candidate.mode}`);
+
+  // Legacy drafts may not have modeId. Use the same recommendation facts as
+  // preview, but only among modes that actually share this transport task.
+  const recommendationInput = videoRecommendationInput(candidate);
+  if (recommendationInput) {
+    const recommended = recommendVideoGeneration(recommendationInput, [videoCandidate]).recommendations;
+    const selected = recommended.find((item) => byTask.some((mode) => normalizedMode(mode.id) === normalizedMode(item.modeId)));
+    if (selected) return byTask.find((mode) => normalizedMode(mode.id) === normalizedMode(selected.modeId))!;
+  }
+
+  // A mode with no reference requirements is a safe default only when the
+  // archetype explicitly declares it as the default for this task kind.
+  const declaredDefault = modes.find((mode) => normalizedMode(mode.id) === normalizedMode(videoCandidate.archetype.defaultModeId)
+    && byTask.includes(mode));
+  if (declaredDefault) return declaredDefault;
+  throw new Error(`Video task ${candidate.mode} has multiple modes; specify modeId`);
+}
+
+/** Exact provider wire model used by the existing catalog mappings. */
+export function videoTransportModelIdForPlan(candidate: PlanCandidate, videoCandidate: VideoModelCandidate, mode: ArchetypeMode): string {
+  const variantId = candidate.variantId ?? videoCandidate.variantId ?? videoCandidate.archetype.defaultVariantId;
+  const variant = videoCandidate.archetype.variants?.find((item) => item.id === variantId);
+  return variant?.modelKey?.trim() || mode.modelEnum?.trim() || videoCandidate.modelKey;
 }
 
 function parameterFieldForControl(control: ModelParameterControl): ParameterField {
@@ -161,12 +221,23 @@ export function videoParameterSchema(candidate: PlanCandidate, candidates: reado
   if (!candidates) return undefined;
   const selected = videoCandidateForPlan(candidate, candidates);
   if (!selected) return undefined;
-  const mode = effectiveVideoModes(selected.videoCandidate).find((item) => item.transportTaskKind === candidate.mode);
-  if (!mode) return undefined;
+  const mode = videoModeForPlan(selected.candidate, selected.videoCandidate);
   return Object.fromEntries(mode.params.map((control) => [control.key, parameterFieldForControl(control)]));
 }
 
 export function normalizeVideoCandidate(candidate: PlanCandidate, candidates: readonly VideoModelCandidate[] | undefined): PlanCandidate {
   const selected = candidates ? videoCandidateForPlan(candidate, candidates) : null;
-  return selected?.candidate ?? candidate;
+  if (!selected) return candidate;
+  const mode = videoModeForPlan(selected.candidate, selected.videoCandidate);
+  const transportModelId = videoTransportModelIdForPlan(selected.candidate, selected.videoCandidate, mode);
+  return {
+    ...selected.candidate,
+    // Transport bucket comes from the one helper (vendor specialization > mode > archetype):
+    // the same model identity is a single kie endpoint but a distinct Runway image endpoint.
+    // Falls back to the plan's own declared mode when the archetype declares no transport.
+    mode: modeTransportFor(mode, selected.videoCandidate.archetype, selected.videoCandidate.provider)
+      ?? selected.candidate.mode,
+    modeId: mode.id,
+    transportModelId,
+  };
 }

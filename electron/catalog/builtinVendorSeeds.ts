@@ -23,6 +23,8 @@ import type { Vendor } from "./types";
 // 这里集中一次，seedBuiltins 与 deriveVendorKeyFromBaseUrl 共用（P1）。
 // ---------------------------------------------------------------------------
 
+export type CredentialMode = "direct-key" | "certification";
+
 export type VendorSeed = {
   key: string;
   name: string;
@@ -31,8 +33,17 @@ export type VendorSeed = {
   legacyBaseUrls?: readonly string[];
   authType: Vendor["authType"];
   authHeader?: string | null;
+  authQueryParam?: string | null;
+  providerKind?: Vendor["providerKind"];
   enabled?: boolean;
   assetIngestion?: Vendor["assetIngestion"];
+  /**
+   * How a credential entered in the built-in Settings card becomes usable.
+   * `direct-key` is reserved for code-owned, published contracts (currently
+   * APIMart); absent means the canonical integration-certification flow owns
+   * promotion.
+   */
+  credentialMode?: CredentialMode;
 };
 
 /** 顺序 = 原 seedBuiltins 的播种顺序（保持既有装机行为一致）。 */
@@ -56,6 +67,60 @@ export const BUILTIN_VENDOR_SEEDS: readonly VendorSeed[] = [
   ELEVENLABS_VENDOR_SEED,
   MESHY_VENDOR_SEED,
 ];
+
+/** Return the immutable code-owned seed for a vendor key, if one exists. */
+export function builtinVendorSeed(vendorKey: string): VendorSeed | undefined {
+  const key = String(vendorKey || "").trim();
+  return BUILTIN_VENDOR_SEEDS.find((seed) => seed.key === key);
+}
+
+/**
+ * Publicly expose the credential flow for a catalog row without trusting
+ * renderer-supplied metadata. Built-ins default to certification unless the
+ * immutable seed explicitly opts into the direct-key contract; custom rows do
+ * not receive a mode and therefore remain fail-closed in the UI.
+ */
+export function credentialModeForVendor(vendorKey: string): CredentialMode | undefined {
+  const seed = builtinVendorSeed(vendorKey);
+  if (!seed) return undefined;
+  return seed.credentialMode ?? "certification";
+}
+
+/**
+ * A direct-key vendor is allowed to unlock only its shipped contract after the
+ * renderer has saved an encrypted credential.  Keeping this policy beside the
+ * single seed list prevents UI and IPC callers from growing vendor-name
+ * allowlists in separate files.
+ */
+export function isBuiltinDirectKeyVendor(vendorKey: string): boolean {
+  return builtinVendorSeed(vendorKey)?.credentialMode === "direct-key";
+}
+
+/**
+ * Check the transport scope of a built-in direct-key vendor against its code
+ * seed.  This is shared by renderer mutation and runtime bootstrap so an old
+ * catalog edit cannot retarget an already-saved credential to another host.
+ */
+export function builtinVendorScopeMatches(vendor: Vendor): boolean {
+  const seed = builtinVendorSeed(vendor.key);
+  if (!seed || seed.credentialMode !== "direct-key") return false;
+  const normalize = (value: unknown, trimSlashes = false): unknown => {
+    if (typeof value !== "string") return value ?? null;
+    const trimmed = value.trim();
+    return trimSlashes ? trimmed.replace(/\/+$/, "") : trimmed;
+  };
+  // catalogStore normalizes an omitted providerKind to the effective default
+  // before returning a live state. Compare effective values on both sides so
+  // a freshly seeded APIMart row remains eligible after Settings persists it.
+  const vendorProviderKind = vendor.providerKind ?? "openai-compatible";
+  const seedProviderKind = seed.providerKind ?? "openai-compatible";
+  return normalize(vendor.baseUrlHint, true) === normalize(seed.baseUrl, true)
+    && normalize(vendor.authType) === normalize(seed.authType)
+    && normalize(vendor.authHeader) === normalize(seed.authHeader)
+    && normalize(vendor.authQueryParam) === normalize(seed.authQueryParam)
+    && normalize(vendorProviderKind) === normalize(seedProviderKind)
+    && JSON.stringify(vendor.assetIngestion ?? null) === JSON.stringify(seed.assetIngestion ?? null);
+}
 
 /**
  * 已知 host → 内置 vendorKey。

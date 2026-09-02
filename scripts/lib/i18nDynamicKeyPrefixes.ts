@@ -57,6 +57,26 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'onboardingProviders.splash.nodes', why: '动态: 开屏动画节点标签;枚举来源: SplashIntro 的 labelKeys 数组(splash.nodes.* 词条)' },
   // ── runtime ──
   { prefix: 'runtime.capability.intent', why: '动态: 能力应用意图;枚举来源: capabilityApplyHandler 归一化后的 intent(capability.intent.* 词条)' },
+  // ── agentResident ──
+  { prefix: 'agentResident', why: '动态(整命名空间): ProjectAgentResidentShell 及 resident/ 展示器的 `agentResident.${preset.labelKey|preset.hintKey|promptPreset.labelKey|hintKey|key|labelKey}`(提示词档 label/hint、审批/花费 hint、referenceRole、工具参数标签);枚举来源: 内置 prompt preset 的 labelKey/hintKey 常量、residentReferenceRole 的 kind→key 映射、READABLE_PARAMETER_LABELS 的 labelKey(均指向 agentResident.* 已存在词条)' },
+  {
+    prefix: 'agentResident.mode',
+    kind: 'concat',
+    suffixes: ['AskHint', 'EditSelectionHint', 'AgentHint'],
+    why: '动态-拼接: 模式菜单 `agentResident.mode${Ask|EditSelection|Agent}Hint` 逐模式提示;枚举来源: ProjectAgentRunMode 三态(ask/editSelection/agent)',
+  },
+  {
+    prefix: 'agentResident.approvalMode',
+    kind: 'concat',
+    suffixes: ['SafeAuto', 'Project', 'Step'],
+    why: '动态-拼接: 审批策略 `agentResident.approvalMode${SafeAuto|Project|Step}` 标签;枚举来源: ProjectAgentApprovalMode 三态(safe-auto/project/step)',
+  },
+  {
+    prefix: 'agentResident.spendPolicy',
+    kind: 'concat',
+    suffixes: ['WithinBudget', 'Confirm'],
+    why: '动态-拼接: 花费策略 `agentResident.spendPolicy${WithinBudget|Confirm}` 标签;枚举来源: ProjectAgentSpendPolicy 二态(within-budget/confirm)',
+  },
   // ── generationCommon ──
   { prefix: 'generationCommon', why: '动态(整命名空间): NodeGenerationComposer/ProductionRunTaskCard/SelectionPromptSaveController 的 `generationCommon.${option.labelKey|view.titleKey|view.descriptionKey|TEXT_MODE_PLACEHOLDER_KEY[...]}`;枚举来源: 这些视图模型里预置的 labelKey/titleKey/descriptionKey 常量(值指向 generationCommon.* 已存在词条)' },
   { prefix: 'generationCommon.agentRuntime', why: '动态: 画布 agent 运行时动作;枚举来源: gate.ts 的 actionKey(agentRuntime.* 词条)' },
@@ -84,6 +104,8 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'generationCommon.production.runDetails.stageStatus', why: '动态: 制作阶段状态;枚举来源: ProductionDetails 的 stage.status(runDetails.stageStatus.* 词条)' },
   { prefix: 'generationCommon.production.runTone', why: '动态: 制作运行语气;枚举来源: ProductionRunTaskCard 的 view.tone(production.runTone.* 词条)' },
   { prefix: 'generationCommon.spend.cost.units', why: '动态: 花费单位;枚举来源: spendConfirm 的 kind(spend.cost.units.* 词条)' },
+  // ── storyboardEditor ──
+  { prefix: 'storyboardEditor.row.transition', why: '动态: 镜行展开态转场类型;枚举来源: StoryboardShotRowExpand 的 TRANSITION_TYPES 常量(=storyboardShotSchema transition.type 枚举, row.transition.* 词条)' },
   // ── timelineEditor ──
   { prefix: 'timelineEditor.agent.edges', why: '动态: 时间线 agent 边操作;枚举来源: timelineEditPlanModel 的 operation.edge(agent.edges.* 词条)' },
   { prefix: 'timelineEditor.transition.types', why: '动态: 转场类型;枚举来源: 时间线转场 type 集(transition.types.* 词条)' },

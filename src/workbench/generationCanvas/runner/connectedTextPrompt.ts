@@ -22,7 +22,8 @@ export function collectConnectedTextPromptParts(
   context: TextPromptContext = {},
 ): string[] {
   const executionKind = getGenerationNodeExecutionKind(node.kind)
-  if (executionKind !== 'image' && executionKind !== 'video') return []
+  // 与 isTextPromptEdge 的目标面同口径（image/video/model3d），改必同改——漏一侧=边被分类成 prompt 上下文却永不被消费。
+  if (executionKind !== 'image' && executionKind !== 'video' && executionKind !== 'model3d') return []
 
   const nodes = context.nodes || [node]
   const edges = context.edges || []

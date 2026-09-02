@@ -1,0 +1,122 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-relay-no-mapping-reference-drop",
+  "problem_type": "「无传输 mapping」被 L3 诚实护栏当成「查不到证据」而放行，实际上它是「确知会走兜底 wire、而那条 wire 确知发不出任何参考」——自建中转用户带着参考图做纯文生时，参考被静默丢弃、请求照发、费照扣",
+  "symptom": "用户把模型接在自己的中转（relay / 中转站）上，模型经 Provider Adapter 认证发布（meta.adapter.publicationModes）但**一条 mapping 都没有**。合成器因「空 mapping 桶 = 无证据」正确地 fail-open，把档案声明的全部模式与参考槽都显示出来；用户连上参考图、选 text_to_image（或 text_to_video）点生成——runtime 的 findTaskMapping 返回 null，落进无 mapping 兜底分支（POST /v1/images/generations，body 写死 {model,prompt,size,seed,n,response_format,extras}，**没有任何参考位**）。模板丢键 → 生成成功、扣费成功、产物与参考图毫无关系。用户看到的是「参考图没起作用」，而 UI 全程没有任何提示。同族的 image_edit / image_to_video 早已被拦（imageEditGuardError 的 !hasMapping 分支），所以这个洞**只在纯文生两个 kind 上现形**——而「参考图 + 文生图模型」恰恰是最常见的连法之一。",
+  "direct_cause": "imageEditGuardError 的第三闸（unreachableReferenceLabels）此前只在 `typeof createBody !== \"undefined\"` 时才运行。runtime.ts 调用它时传的是 `mapping?.create?.body`——没有 mapping 时该表达式求值为 undefined，于是第三闸整个跳过。而紧随其后的 `!hasMapping` 分支只覆盖 kind === image_edit || image_to_video，纯文生两个 kind 直接 return null 放行。",
+  "class_root": "`createBody === undefined` 这**一个值承载了两种语义相反的成因**，而代码只按「无证据 → fail-open」处置了其中一种：\n① 有 mapping、只是调用方没把 body 传进来（customCall 走脚本，不看模板 body）→ 真·无证据，必须 fail-open；\n② **压根没有 mapping** → 这不是「查不到」，而是**确知**接下来会走 runtime 的兜底 wire，且那条 wire 的形状是我们自己写死的、确知不含任何参考位 → 这是**证据**，必须拒发。\n把二者合成一个 undefined，就让本闸门设立要根治的那种静默退化（「UI 说能发、实际发不出、还照扣费」）从另一个 kind 的入口原样回来了。这与仓里反复在修的 `readModeChannelBody` 三态（undefined 查不到 / null 确知没有）是**同一个形状**的问题：那边已经把「空桶 = 无证据」和「桶里没有 = 有证据」分开了，闸门这边还没有。",
+  "affected_population": [
+    "自建中转（relay / 中转站）用户里，模型经 Provider Adapter 认证发布但零 mapping 的那批：此后在 text_to_image / text_to_video 上连参考素材会被**发送前**拦下并说明原因（零扣费），而不是拿到一个与参考无关的产物。",
+    "任何走到 runtime 无 mapping 兜底分支且携带参考素材的调用方（含 headless / MCP）：判据一致，不分入口。",
+    "**不受影响（明确不误伤）**：不带参考的纯文生（兜底路的正当用途）、text_to_audio 同步 TTS（同属无 mapping 形状但不带参考）、以及有 mapping 但未传 body 的 customCall 脚本渠道——后者仍按「无证据」fail-open。"
+  ],
+  "scope_paths": [
+    "electron/catalog/taskParams.ts",
+    "electron/runtime.ts",
+    "electron/catalog/taskParams.test.ts",
+    "docs/research/2026-09-02-self-hosted-relay-capability-audit.md"
+  ],
+  "entry_points": [
+    "electron/catalog/taskParams.ts::imageEditGuardError —— L3 护栏本体。改为按 hasMapping 区分 undefined 的两种成因：hasMapping=false 时用 NO_MAPPING_FALLBACK_BODY 作判据 body 跑同一套 unreachableReferenceLabels，**所有 kind 一口径**；hasMapping=true 且无 body 时维持 fail-open。**话语权例外**：image_edit / image_to_video 无 mapping 时仍由下方那条「没有『图生图（改图）』通道」应答——两条路都拒发且零扣费，但那条点名了缺哪条通道、用户该怎么办，更会说话；补兜底 body 只补下方没管的 kind，不抢答（taskParams.test.ts 有专门用例锁住这个次序）。",
+    "electron/catalog/taskParams.ts::NO_MAPPING_FALLBACK_BODY —— 新增常量，声明 runtime 兜底 wire 的键形状（单一真相源）。刻意不含任何参考族的键，因为那条 wire 确实没有图片位。判据仍全 derive（bodyReferencedParamKeys），不 hardcode 任何参考键名。",
+    "electron/runtime.ts —— 无 mapping 兜底分支（POST /v1/{images,videos}/generations）。本轮只加一行注释指明其键形状由 NO_MAPPING_FALLBACK_BODY 声明并被测试钉死；请求体本身零行为变化。",
+    "electron/runtime.ts::runTask —— imageEditGuardError 的唯一生产调用点，传 `mapping?.create?.body`（无 mapping 时即 undefined）与 `Boolean(mapping) || Boolean(customCallScript)`（即 hasMapping）。两个实参的组合正是本次判据的输入，调用点无需改动。"
+  ],
+  "invariants": [
+    "L3 第三闸对**所有 kind** 一口径：只要本次请求携带了参考素材、而将要发出的 wire 读不到它，就在付费守卫之前拒发（零扣费），不因 kind 是纯文生而放行。",
+    "「没有 mapping」是证据（确知走兜底、确知发不出参考），不是「查不到」；「有 mapping 但没传 body」才是查不到，必须继续 fail-open。两者不得再合成同一种处置。",
+    "兜底 wire 的键形状只有一份（NO_MAPPING_FALLBACK_BODY），与 runtime 实际发出的键一一对应；任一侧新增参考位而另一侧未跟上，测试必须变红。",
+    "不带参考的请求永远不被本闸拦截——护栏只在「真的连了东西、而那东西发不出去」时说话（避免把兜底路的正当纯文生用途误伤）。",
+    "判据不 hardcode 任何参考键名：新增参考族自动纳管（沿用 carriedReferences 读 referenceInputParams 的既有纪律）。",
+    "拒发文案取更具体的那条：同一个请求若既落进兜底 body 判据、又落进「没有某某通道」分支，以后者为准（二者拒发与零扣费效果相同，差别只在说得清不清楚）。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「参考素材静默丢弃 + 照常扣费」在本仓已从多个不同入口复发过：最早是模板丢空键导致图生图不按原图（docs/plan/2026-07-06-i2i-reference-reliability.md，第三闸因此设立）；随后是画布连线来的参考不在手抄键名单里导致第三闸空转（carriedReferences 改读 referenceInputParams）；再后来是中转视频模型缺 image_to_video 通道（catalogCommit 补齐 + v8 迁移）；本轮是同一族从「无 mapping 兜底 + 纯文生 kind」这个入口回来。每次都是同一个后果（UI 说能发、实际发不出、还扣费），只是入口不同——正是 recurring 的定义。防复发必须落在闸门的判据本身（让「所有 kind 一口径」与「两种 undefined 分开」成为结构），不能靠这次把两个 kind 补上。",
+    "same_class_scan": [
+      "**imageEditGuardError 的全部生产调用点**：git grep 显示唯一生产调用点是 electron/runtime.ts:363（runTask 前置闸）。该点同时传入 hasMapping 与 createBody，本次判据所需的两个输入均已就位，无第二个调用点需要同步。",
+      "**runtime 里所有绕过 mapping 直接发请求的路径逐条扫描**：① 无 mapping 兜底（runtime.ts 兜底分支，POST /v1/{images,videos}/generations）→ 本轮修复目标，已纳管；② executeTextTask（wantedKind === \"text\"）→ 文本任务不承载参考素材，不属本类；③ runAudioTask（usesSynchronousAudioRunner，无 query 的 audio）→ 同步 TTS，探针实测不带参考时放行、行为不变；④ runCustomCallTask（脚本渠道）→ hasMapping 由 `Boolean(mapping) || Boolean(customCallScript)` 计算，脚本存在即为 true，故仍走 fail-open，未被本次收紧误伤（探针已实测）。四条路径全部核对完毕。",
+      "**UI 侧同形状判据复核**：src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts:44 与 channelModeReach.ts:55-62 的三态（undefined 查不到 / null 确知没有）本就把两种成因分开了，方向与本次修复一致，无需改动——本次是把闸门侧对齐到 UI 侧已有的纪律。",
+      "**中转全链路逐段审计**（docs/research/2026-09-02-self-hosted-relay-capability-audit.md）：接入→目录→显示→发送四段 + 其它 7 个收窄面（modelCapabilityProjection / derivePublishedExecution / MCP nomi_list_models / mappingsForModel / archetypeVariantAxisIsLive 等）× 三种中转 mapping 形状（零 mapping / 无 modeId / 部分模式有 mapping）全表核对：除本条外，其余各面要么 fail-open 要么如实报空，未发现第二处隐藏或阉割用户能力的点。",
+      "**#351 selectTaskMapping 收紧的回归面**（本次调查的另一半）：逐形状探针证明中转侧五种真实 mapping 形状（S0 零 mapping / S1 图像精确 / S2 视频精确 / S3 老 generic / S4 混合）在收紧前后选中结果**逐格相同**，唯一会变的 S5（同桶两条精确行）被 applyMappingUpsert 的去重键 (vendorKey, taskKind, modelKey, modeId) 结构性排除。发送未被打断，不属本合同修复范围，仅作为同类扫描的阴性结论记录。"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/taskParams.test.ts"
+  ],
+  "migration": "无数据迁移、无存储写入。改动纯粹是发送前判据：此前会静默丢参考并扣费的请求，现在在付费守卫之前被拒发并给出人话原因。用户侧的处置是断开参考素材（走纯文生）或改用带参考通道的模型/渠道，与 image_edit / image_to_video 早已有的提示同款。回滚只需恢复 imageEditGuardError 的 effectiveBody 分支与 NO_MAPPING_FALLBACK_BODY 常量，无残留状态。",
+  "residual_risks": [
+    "**拒发对「本来就不该连参考」的用户是新增摩擦**：此前这类请求会成功返回一个（与参考无关的）产物，现在会被拒。这是刻意的取舍——静默扣费拿错结果比明确拒发更糟（D4 缺口明标）。已确保拒发文案指明可行动的两条路（断开素材 / 换渠道），且不带参考时绝不触发。",
+    "**零 mapping 的 adapter 认证模型仍会在合成器里显示参考槽**：本轮修的是「发送前拒发」，没有动 UI 收窄——因为 useChannelCreateBody.ts:44 的「空桶 = 无证据 = fail-open」正是上一轮 CI 抓到的回归的修复方向，收窄回去会重新把中转用户的模式藏光。代价是用户仍可能连上参考、到点生成才被拦。真正的解是让零 mapping 的 adapter 模型也带上可查询的 wire 形状（让空桶不再是空桶），属结构变更，应单独立项裁决，本轮不猜。",
+    "**NO_MAPPING_FALLBACK_BODY 与 runtime 兜底 body 是「两处同构」而非「一处共享」**：runtime 那侧发的是求值后的具体值（model.modelAlias、request.prompt…），这侧声明的是 {{request.params.X}} 模板形状，类型不同无法直接共享同一个对象。已用测试断言键集合钉死对应关系（「兜底 body 形状与 runtime 一致」用例），任一侧漂移即红；但这终究是断言级而非类型级的约束。",
+    "**未做真机走查与付费验证**：本轮为调查性审计 + 纯函数判据修复，证据来自 file:line 溯源、构造真实中转目录形状的探针实测、以及 red-then-green 回归测试（去掉修复 3 条失败 / 装回 84 条全绿）。未在真实中转账号上发一次真实生成——该验证需要用户的中转 API Key（属用户独有资源），不在本轮授权范围。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "本次修复不涉及任何第三方/供应商契约：缺陷与修复都在仓库内部的纯函数判据上——L3 护栏把「无 mapping」这一成因错归类为「无证据」，而兜底 wire 的形状（electron/runtime.ts 的 POST /v1/{images,videos}/generations 请求体）是 Nomi 自己写死的、不是任何外部文档规定的。判断「这条 wire 发不发得出参考」的依据因此只能来自我们自己的代码（file:line 溯源 + 构造真实中转目录形状的探针实测），抓官方文档在这里没有可对账的对象。中转模板本身的端点/字段依据早已在既有文档中核过（electron/catalog/newapiTransport.ts 头部记录 doc.newapi.pro / newapi.ai），本轮未改动任何 wire 字段。",
+  "generality_proof": "缺陷不是「imageEditGuardError 少判了两个 kind」，而是「同一个 undefined 承载了两种语义相反的成因，代码只按其中一种处置」这一形状的必然后果。证据有三：① 该形状在本仓**已被独立发现并修复过一次**——UI 侧的 readModeChannelBody 正是为此拆出三态（undefined 查不到 / null 确知没有），且上一轮 CI 抓到的回归就是「空桶被误读成不支持」；闸门侧没有做同样的区分，于是同一个形状在另一侧留了个反向的洞（那边是误藏能力，这边是误放行）。② 后果的普遍性：判据一旦跳过，**所有**参考族（探针实测 referenceImages / firstFrameUrl / archetypeInput.image_urls 三类全部落空）与**所有**走兜底的 kind 一起失守，不是某个键或某个模型的配置疏忽。③ 复发史：同族后果（参考静默丢弃 + 照常扣费）已从模板丢空键、手抄键名单、中转缺 i2v 通道三个不同入口各回来过一次，本轮是第四个入口。因此防复发落在闸门判据这个共享边界上——让「所有 kind 一口径」与「两种 undefined 分开」成为结构性事实；任何只给纯文生两个 kind 补 if 的修法，都会在下一个绕过 mapping 的入口原样复发。",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "imageEditGuardError / NO_MAPPING_FALLBACK_BODY",
+      "responsibility": "所有生成请求在付费守卫之前的唯一「参考素材发得出去吗」判据。本轮把「无 mapping」从『无证据』重新归类为『确知发不出』，并用 NO_MAPPING_FALLBACK_BODY 把兜底 wire 的形状收成单一真相源，使第三闸对所有 kind 一口径——不再存在「某个 kind 走某条路就绕过闸门」的缺口。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "entry_point": "imageEditGuardError",
+      "disposition": "enforced",
+      "evidence": "第三闸改为按 hasMapping 区分 undefined 的两种成因，所有 kind 一口径。探针复扫（构造真实中转目录形状）：修复前 text_to_image / text_to_video 带参考且无 mapping → ALLOWED（落进兜底丢参考）；修复后 → BLOCKED 且文案点名发不出的参考族。同一探针确认不带参考的纯文生、text_to_audio、以及 hasMapping=true 无 body 的 customCall 三条路径行为不变。"
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "无 mapping 兜底分支（POST /v1/{images,videos}/generations）",
+      "disposition": "enforced",
+      "evidence": "该分支是本缺陷的下游受害面：其 body 写死且不含任何参考位（探针实测 referenceImages → [\"参考图\"]、firstFrameUrl → [\"首帧\"]、archetypeInput.image_urls → [\"参考图\"] 全部不可达，无参考时为空）。本轮不改其行为，改由上游闸门在进入前拦住带参考的请求；键形状由 NO_MAPPING_FALLBACK_BODY 声明并被测试钉死，防两处漂移。"
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "runAudioTask（usesSynchronousAudioRunner，无 query 的同步 TTS）",
+      "disposition": "not-affected",
+      "evidence": "同属「无 mapping」形状的另一条绕过路径，故必须核对。text_to_audio 不承载参考素材，探针实测修复前后均放行（ALLOWED），行为零变化——收紧未误伤配音。"
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "runCustomCallTask（脚本渠道）",
+      "disposition": "not-affected",
+      "evidence": "hasMapping 实参为 `Boolean(mapping) || Boolean(customCallScript)`，脚本存在时恒 true，因此走的是「有 mapping 但没传 body = 无证据」的 fail-open 分支。探针实测（hasMapping=true, createBody=undefined, 携带参考）→ ALLOWED，脚本渠道的参考能力未被本次收紧冤杀。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+      "entry_point": "readModeChannelBody 三态",
+      "disposition": "not-affected",
+      "evidence": "UI 侧同形状判据，本就把「空桶 = 无证据 = fail-open」与「桶里没有 = 有证据 = 收窄」分开（方向与本次修复一致，且空桶 fail-open 正是保护中转用户的那条纪律）。本轮零改动、行为零变化；本次是把闸门侧对齐到它已有的纪律，不是改它。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/taskParams.ts",
+    "invariant": "只要请求携带了参考素材、而将要发出的那条 wire（含无 mapping 时的兜底 wire）读不到它，就在付费守卫之前拒发——对所有 kind、所有绕过 mapping 的路径一口径；「没有 mapping」是证据不是无证据，「有 mapping 但没传 body」才是无证据。",
+    "failure_mode": "此前 createBody === undefined 被一律当成「查不到 → fail-open」，而无 mapping 时它其实意味着「确知走兜底、确知发不出参考」。于是纯文生两个 kind 带着参考长驱直入兜底 wire：参考被丢、请求照发、费照扣，产物与参考无关，且全程无任何提示——测试与 CI 都不会变红。",
+    "exception_policy": "none",
+    "strategy": "把兜底 wire 的形状收进单一真相源常量（NO_MAPPING_FALLBACK_BODY），让闸门在「无 mapping」时改用它作判据 body 跑同一套 unreachableReferenceLabels，从而消除「某个 kind 走某条路就绕过第三闸」这个缺口；再由 red-then-green 回归测试锁死两件事：洞本身（三条断言去掉修复即红）与两处形状对应关系（键集合断言）。",
+    "artifacts": [
+      "electron/catalog/taskParams.ts",
+      "electron/catalog/taskParams.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/catalog/taskParams.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本次是判据收紧，不引入新实现、不保留旧实现：第三闸仍是同一个函数、同一套 unreachableReferenceLabels，只是输入端把「无 mapping」这一成因接上了正确的判据 body。没有并行版、没有 fallback、没有逃生口，因此无旧路径需要删除。",
+    "verification": "git diff 显示 electron/catalog/taskParams.ts 仅新增 NO_MAPPING_FALLBACK_BODY 常量与 effectiveBody 分支，无第二份可达性判断被引入（unreachableReferenceLabels 仍是唯一实现）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次不新增、不升级、不保留任何第三方依赖：全部改动是仓库内部纯函数判据与一个形状常量。",
+    "exit_criteria": []
+  }
+}

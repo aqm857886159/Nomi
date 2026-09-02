@@ -2,6 +2,7 @@
  * 模型配置 - 与TaskNode保持一致
  */
 import { isAnthropicModel } from './modelSource'
+import type { BillingModelKind } from '../workbench/api/modelCatalogApi'
 
 export interface ModelOptionPricingSpec {
   specKey: string
@@ -31,6 +32,8 @@ export interface ModelOption {
   vendorName?: string
   modelKey?: string
   modelAlias?: string | null
+  /** Catalog billing kind. Kept alongside the option so non-media models (chat) retain their identity. */
+  kind?: BillingModelKind
   meta?: unknown
   pricing?: ModelOptionPricing
   variant?: ModelOptionVariant

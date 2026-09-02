@@ -1,79 +1,166 @@
 {
-  "debtCap": 80,
+  "debtCap": 78,
   "registered": [
     {
-      "site": "src/workbench/generationCanvas/nodes/deconstructionTypes.ts::type:DeconstructionEntry/property:status/type-union",
-      "members": ["failed", "idle", "ready", "running"],
-      "reason": "DeconstructionEntry.status 是「一条源视频拆解成分镜表」这个动作的四态本地 view model（idle 未拆 / running 拆解中 / ready 结果 / failed 整次拆解抛错）。它按源视频节点身份建槽、驱动就近拆解面板的四态渲染，语义是拆解流水线状态，不等同于 ShotVerifyStatus（单镜画面校验的 verifying/…）也不等同于生成任务/导出状态；逐镜画面失败由 DeconstructionShot.visionFailed 单独表达、不进本 union。故保持独立。"
-    },
-    {
-      "site": "src/ui/community/feedbackTypes.ts::type:FeedbackStage/type-union",
-      "members": ["export", "generation", "model", "other", "upload"],
-      "reason": "FeedbackStage 是反馈中心让用户定位摩擦发生阶段的本地 view model；它只服务反馈草稿与诊断 envelope，不代表生成任务或导出流水线状态，故保持独立并由表单阶段列表复用。"
-    },
-    {
       "site": "electron/ai/antigravityProtocol.ts::type:AntigravityToolStep/property:state/type-union",
-      "members": ["ACTIVE", "DONE"],
+      "members": [
+        "ACTIVE",
+        "DONE"
+      ],
       "reason": "AntigravityToolStep.state 是浏览器工具调用步骤的协议状态：ACTIVE 表示远端步骤仍在执行，DONE 表示步骤已结束。acceptTool 只构造这份导出协议，同文件的局部 state 必须从 AntigravityToolStep['state'] derive。"
     },
     {
       "site": "electron/ai/antigravityTask.ts::type:PreparedTaskRecord/property:state/type-union",
-      "members": ["claimed", "consumed", "prepared", "running"],
+      "members": [
+        "claimed",
+        "consumed",
+        "prepared",
+        "running"
+      ],
       "reason": "PreparedTaskRecord.state 是 Antigravity 预备任务在 WeakMap 中的一次性消费状态机：prepared 建档、claimed 认领、running 执行、consumed 封口；它保护同一预备输入不被重复执行，不等同于生成任务状态。"
     },
     {
+      "site": "electron/capabilityCore/apimartGenerationProvider.ts::function:createApimartGenerationProvider/variable:provider/method:reconcile/variable:knownStatuses/set",
+      "members": [
+        "canceled",
+        "cancelled",
+        "completed",
+        "error",
+        "failed",
+        "pending",
+        "processing",
+        "queued",
+        "rejected",
+        "running",
+        "submitted",
+        "succeeded",
+        "success"
+      ],
+      "reason": "APIMart reconcile 的「供应商已识别状态」白名单：只用于把不确定的对账回执判定为 found（任务确实存在）还是 indeterminate（歧义、禁止物化产物或重投）。它是 APIMart 一家供应商原样吐出的状态词面（含 canceled/cancelled、succeeded/success 等同义拼写），刻意宽松以覆盖该家所有已知回执，语义是「这串状态我认得吗」而非任务生命周期归一化；不能复用 GenerationProviderTaskState（供应商无关的归一化态）或 TERMINAL_STATUSES（终态集），否则会把某家特有拼写漏判成 indeterminate 而错误触发人工对账。"
+    },
+    {
       "site": "electron/capabilityCore/approvalReceipt.ts::type:ChallengeRecord/property:status/type-union",
-      "members": ["accepted", "expired", "pending", "rejected"],
+      "members": [
+        "accepted",
+        "expired",
+        "pending",
+        "rejected"
+      ],
       "reason": "能力调用审批 challenge 的生命周期（accepted / expired / pending / rejected），是授权事实，不是任务执行状态。"
     },
     {
+      "site": "electron/capabilityCore/canvasReadSurfaceRegistry.ts::type:LifecycleState/property:status/type-union",
+      "members": [
+        "committed",
+        "committing",
+        "suspended"
+      ],
+      "reason": "canvasRead surface 端口的三态生命周期（suspended 挂起未绑定 / committing 绑定事务进行中 / committed 已绑定可读）：它保护「A 面 sealed 快照在 Surface 切到 B 后仍只读一份规范快照并拒绝 replay」的端口所有权语义，是 surface-port 绑定状态机，不是生成/导出/审批任务态；三态与任何任务词表都不同源，故独立。"
+    },
+    {
       "site": "electron/capabilityCore/generationRecoveryProjection.ts::type:GenerationRecoveryState/type-union",
-      "members": ["cancel_requested", "cancelled", "submission_unknown"],
+      "members": [
+        "cancel_requested",
+        "cancelled",
+        "submission_unknown"
+      ],
       "reason": "GenerationRecoveryState 是跨 ProductionJob/Run 状态生成恢复提示的输入投影：submission_unknown、cancel_requested、cancelled 分别驱动 reconcile、observe 或 create_new_attempt；它描述恢复决策面，不是持久化的 ProductionJobStatus。"
     },
     {
       "site": "electron/capabilityCore/generationRuntimeAdapter.ts::type:GenerationProviderTaskState/type-union",
-      "members": ["cancelled", "failed", "queued", "running", "succeeded", "unknown"],
+      "members": [
+        "cancelled",
+        "failed",
+        "queued",
+        "running",
+        "succeeded",
+        "unknown"
+      ],
       "reason": "GenerationProviderTaskState 是供应商无关的任务生命周期归一化词表，承接 create、query、result 适配器的状态投影；它必须覆盖不确定的 unknown 与取消态，不能复用 Codex 专属图片任务状态。"
     },
     {
       "site": "electron/capabilityCore/mcpAppWidget.ts::type:NomiDraftShot/property:status/type-union",
-      "members": ["error", "queued", "running", "success"],
+      "members": [
+        "error",
+        "queued",
+        "running",
+        "success"
+      ],
       "reason": "NomiDraftShot.status 是 MCP widget 单镜状态的合法 view model：它把生成或 Production artifact 事实投影为 queued、running、success、error 供外部宿主渲染，不持久化也不反向覆盖上游；构造 widget 时由显式 mapper 消费上游状态。"
     },
     {
       "site": "electron/capabilityCore/mcpAppWidget.ts::type:NomiDraftState/property:status/type-union",
-      "members": ["available", "failed", "running", "succeeded", "unknown"],
+      "members": [
+        "available",
+        "failed",
+        "running",
+        "succeeded",
+        "unknown"
+      ],
       "reason": "NomiDraftState.status 是 MCP widget 聚合结果的合法 view model：running、succeeded、failed、available、unknown 描述外部宿主此刻应展示的面板结论，由 ProductionRun、artifact 或 generation result 经 buildNomiRunFromProjection/buildNomiDraftFromGenerate 映射，不是持久任务状态。"
     },
     {
       "site": "electron/capabilityCore/mcpGenerationPolicy.ts::type:McpGenerationPhase/type-union",
-      "members": ["e0_zero_credit", "e1_paid", "schema_only"],
+      "members": [
+        "e0_zero_credit",
+        "e1_paid",
+        "schema_only"
+      ],
       "reason": "McpGenerationPhase 是 MCP 语义生成能力的发布策略阶段：schema_only 只暴露合同，e0_zero_credit 开放零额度规划，e1_paid 才开放付费执行；它由 flag/checkpoint 派生并决定 effectiveScope，不是生成 operation 生命周期。"
     },
     {
       "site": "electron/capabilityCore/mcpGenerationTools.ts::type:GenerationOperationState/type-union",
-      "members": ["cancelled", "draft", "sealed", "submitted"],
+      "members": [
+        "cancelled",
+        "draft",
+        "sealed",
+        "submitted"
+      ],
       "reason": "GenerationOperationState 是语义生成计划从 draft、sealed 到 submitted 或 cancelled 的导出状态合同；GenerationOperationStore 以它为接口，ProductionGenerationPlan.state 只是持久化适配投影，必须复用该 named owner。"
     },
     {
+      "site": "electron/capabilityCore/mcpGenerationTools.ts::variable:GENERATION_RECONCILE_OUTCOMES/as-const",
+      "members": [
+        "found",
+        "not_found"
+      ],
+      "reason": "生成对账结果的规范单源（found / not_found），供 MCP 生成工具的 reconcile 入口 schema enum 与运行时判定共用。这是把同文件 GenerationPlanningHandlerDependencies.reconcile 的字面量 outcome 收敛成 as-const 元组的单一真相源（该 param 类型应从 (typeof GENERATION_RECONCILE_OUTCOMES)[number] derive）；语义是「拿这个 operationId 在供应商侧找到没有」的二值裁决，独立于任务生命周期态。"
+    },
+    {
+      "site": "electron/capabilityCore/projectLeaseStore.ts::function:directoryState/type-union",
+      "members": [
+        "directory",
+        "invalid",
+        "missing"
+      ],
+      "reason": "项目租约令牌目录在磁盘上的物理探测结果（missing 不存在 / directory 是合法目录 / invalid 存在但不是目录）：directoryState 只服务租约签发/回收时对令牌路径做文件系统一致性检查，是磁盘实体判别，与任务/审批/生成状态无任何语义重叠，故独立。"
+    },
+    {
       "site": "electron/catalog/antigravityCatalog.ts::type:AntigravityProcessStage/type-union",
-      "members": ["create", "query"],
+      "members": [
+        "create",
+        "query"
+      ],
       "reason": "AntigravityProcessStage 是 catalog 对 Antigravity 进程身份的命名协议：create 产生任务，query 查询任务；processOperation 与 runtime 都消费该导出类型，执行入口的局部 stage 必须复用它。"
     },
     {
-      "site": "electron/catalog/seedBuiltins.ts::type:CatalogLifecycle/type-union",
-      "members": ["companion", "flagship", "legacy", "value"],
-      "reason": "seedBuiltins 的 CatalogLifecycle 是主进程内置目录的产品分层标签：flagship、companion、legacy 与 value 决定种子发布和兼容策略，和 renderer 的排序投影保持边界分离。"
-    },
-    {
       "site": "electron/catalog/customCallSandbox.ts::class:CustomCallSandboxError/property:kind/type-union",
-      "members": ["cancelled", "runtime", "syntax", "timeout"],
+      "members": [
+        "cancelled",
+        "runtime",
+        "syntax",
+        "timeout"
+      ],
       "reason": "模型目录/供应商调用域的结果词表（cancelled / runtime / syntax / timeout），成员由该供应商或调用协议定义。"
     },
     {
       "site": "electron/catalog/dreaminaCodec.ts::type:DreaminaGenStatus/type-union",
-      "members": ["", "fail", "querying", "success"],
+      "members": [
+        "",
+        "fail",
+        "querying",
+        "success"
+      ],
       "reason": "模型目录/供应商调用域的结果词表（ / fail / querying / success），成员由该供应商或调用协议定义。"
     },
     {
@@ -82,124 +169,312 @@
       "reason": "ApiKeyDecryptStatus 是首次真实执行时的凭据可解密性合同：missing 表示没有可用记录，needs_resave 表示 legacy plaintext 仅可用于迁移提示且不可执行，locked 表示 safeStorage 密文存在但宿主无法解密，ok 表示取得可用明文；它会触碰解密能力，与零解密的 textBrain metadata readiness 正交。owner 已上移到中立契约层 electron/shared/contracts/apiKeyStatus.ts（renderer connector DTO 与主进程凭据层都从此 derive，跨进程不各写一份）；secrets.ts 只再导出，成员唯一定义在此 as-const tuple。"
     },
     {
-      "site": "electron/export/exportTypes.ts::type:ExportJobStatus/type-union",
+      "site": "electron/catalog/seedBuiltins.ts::type:CatalogLifecycle/type-union",
       "members": [
-        "cancelled",
-        "encoding",
-        "failed",
-        "finalizing",
-        "muxing",
-        "planning",
-        "preparing",
-        "queued",
-        "rendering",
-        "succeeded"
+        "companion",
+        "flagship",
+        "legacy",
+        "value"
       ],
-      "reason": "导出/编码流水线的领域状态（cancelled / encoding / failed / finalizing / muxing / planning / preparing / queued / rendering / succeeded），成员对应准备、录制、封装或终止阶段，不能用通用任务态替代。"
+      "reason": "seedBuiltins 的 CatalogLifecycle 是主进程内置目录的产品分层标签：flagship、companion、legacy 与 value 决定种子发布和兼容策略，和 renderer 的排序投影保持边界分离。"
     },
     {
       "site": "electron/harness/context/contextStore.ts::interface:StoredAgentContext/property:state/type-union",
-      "members": ["cleared", "ready"],
+      "members": [
+        "cleared",
+        "ready"
+      ],
       "reason": "StoredAgentContext.state 是 AgentContextStore 持久化记录的上游状态：ready 表示 context 可继续使用，cleared 表示用户已显式清空。contextService 单向导入 contextStore 并原样发布 record.state，因此服务 DTO 必须从 store owner derive。"
     },
     {
       "site": "electron/harness/runtime/pi/snapshotSchema.mts::variable:message/property:stopReason/z.enum",
-      "members": ["aborted", "deferred", "error", "length", "pending", "stop", "toolUse"],
+      "members": [
+        "aborted",
+        "deferred",
+        "error",
+        "length",
+        "pending",
+        "stop",
+        "toolUse"
+      ],
       "reason": "Pi runtime 端口/快照协议的结果词表（aborted / deferred / error / length / pending / stop / toolUse），描述 turn、tool 或 stop reason 的协议语义。"
     },
     {
       "site": "electron/harness/runtime/runtimePort.ts::interface:RuntimeErrorFacts/property:timeoutPhase/type-union",
-      "members": ["first-response", "idle"],
+      "members": [
+        "first-response",
+        "idle"
+      ],
       "reason": "RuntimeErrorFacts.timeoutPhase 区分 native stream 在 first-response 前超时与响应后的 idle 间隙超时，决定错误事实与诊断文案；observeStream 的异常和 arm 参数都只是 runtime port 合同的投影，应从该导出接口 derive。"
     },
     {
       "site": "electron/harness/runtime/runtimePort.ts::interface:RuntimeToolCallRecord/property:status/type-union",
-      "members": ["cancelled", "denied", "error", "ok"],
+      "members": [
+        "cancelled",
+        "denied",
+        "error",
+        "ok"
+      ],
       "reason": "RuntimeToolCallRecord.status 是 runtime port 的 tool 调用结果合同：ok、denied、cancelled、error 记录宿主审批与执行后的事实，并随 turn result 发布；Pi HostToolResult 的失败分支必须从该 owner 派生。"
     },
     {
       "site": "electron/harness/runtime/runtimePort.ts::interface:RuntimeTurnResult/property:status/type-union",
-      "members": ["cancelled", "error", "finished"],
+      "members": [
+        "cancelled",
+        "error",
+        "finished"
+      ],
       "reason": "RuntimeTurnResult.status 是 runtime port 的 turn 终态合同：finished、cancelled、error 只描述一次 runtime turn 的结算；AgentChatStatus 与失败结果构造器应从它派生，不与消息 pending/streaming view state 混用。"
     },
     {
       "site": "electron/harness/runtime/runtimePort.ts::type:RuntimeFinishReason/type-union",
-      "members": ["aborted", "error", "length", "stop", "toolUse"],
+      "members": [
+        "aborted",
+        "error",
+        "length",
+        "stop",
+        "toolUse"
+      ],
       "reason": "Pi runtime 端口/快照协议的结果词表（aborted / error / length / stop / toolUse），描述 turn、tool 或 stop reason 的协议语义。"
     },
     {
       "site": "electron/integrationCertification/operationLedger.ts::type:OperationLedgerBeginResult/property:status/type-union",
-      "members": ["created", "duplicate"],
+      "members": [
+        "created",
+        "duplicate"
+      ],
       "reason": "OperationLedgerBeginResult.status 是认证启动在跨进程锁内完成幂等占位后的唯一权威结果：created 表示本次调用取得 canonical run 和 create lease，duplicate 表示 idempotency hash 已绑定且调用方必须直接返回既有 canonical run；它决定是否允许 stage、schedule 和远端 create，不能复用展示态或提交状态。"
     },
     {
       "site": "electron/integrationCertification/types.ts::variable:CERTIFICATION_START_TRANSACTION_STATES/as-const",
-      "members": ["catalog_staged", "committed", "intent", "rolled_back", "run_persisted"],
+      "members": [
+        "catalog_staged",
+        "committed",
+        "intent",
+        "rolled_back",
+        "run_persisted"
+      ],
       "reason": "CERTIFICATION_START_TRANSACTION_STATES 是认证启动跨文件事务的耐久状态机：intent 先占 canonical id，run_persisted 记录本地 run，catalog_staged 记录现有 Catalog writer 已完成候选 staging，committed 才允许调度，rolled_back 保留 canonical tombstone 并要求重新认证；它用于崩溃恢复而非远端提交状态。"
     },
     {
       "site": "electron/integrationCertification/types.ts::variable:CERTIFICATION_SUBMISSION_STATES/as-const",
-      "members": ["idle", "settled", "submitted", "submitting", "unknown"],
+      "members": [
+        "idle",
+        "settled",
+        "submitted",
+        "submitting",
+        "unknown"
+      ],
       "reason": "CERTIFICATION_SUBMISSION_STATES 是付费认证单次远端提交的耐久状态机：idle 尚未提交，submitting 已在 create 前落盘，submitted 已取得远端任务标识，unknown 表示受理结果不确定且只准 reconcile，settled 表示该提交已得到确定结果；它是本地防重复花费边界，不等同于 Provider Adapter 展示阶段。"
     },
     {
       "site": "electron/integrationCertification/types.ts::variable:PROMOTION_JOURNAL_STATES/as-const",
-      "members": ["aborted", "catalog_committed", "catalog_committing", "committed", "prepared"],
+      "members": [
+        "aborted",
+        "catalog_committed",
+        "catalog_committing",
+        "committed",
+        "prepared"
+      ],
       "reason": "PROMOTION_JOURNAL_STATES 是认证发布 journal 的耐久协调状态：prepared 记录发布意图，catalog_committing 在外部 Catalog 写前 fail-closed，catalog_committed 记录 CAS 已提交，committed 允许终态 run 收敛，aborted 表示 lease/CAS 丢失；它必须区分可能已提交但响应丢失的窗口才能安全重放。"
     },
     {
       "site": "electron/integrationCertification/types.ts::variable:PROMOTION_TERMINAL_STAGES/as-const",
-      "members": ["completed", "partial"],
+      "members": [
+        "completed",
+        "partial"
+      ],
       "reason": "PROMOTION_TERMINAL_STAGES 是认证 journal 唯一允许发布的成功结果子集：completed 表示所选模式全部通过，partial 表示只发布明确验证通过的模式；失败、取消、超时或不确定提交都不能借 journal 进入可见 Catalog。"
     },
     {
+      "site": "electron/localRuntime/localRuntimeDescriptor.ts::type:LocalRuntimeDiagnostic/property:stage/type-union",
+      "members": [
+        "capabilities",
+        "discovery",
+        "models",
+        "readiness",
+        "version"
+      ],
+      "reason": "LocalRuntimeDiagnostic.stage 描述本地运行时诊断的证据层级：version、discovery、models、capabilities、readiness 依次建立可用性事实；它不是供应商生成任务的生命周期。"
+    },
+    {
+      "site": "electron/localRuntime/localRuntimeDescriptor.ts::type:LocalRuntimeHealth/type-union",
+      "members": [
+        "degraded",
+        "offline",
+        "ready",
+        "unauthorized"
+      ],
+      "reason": "LocalRuntimeHealth 是本地运行时健康投影，区分 offline、unauthorized、degraded 与 ready 的用户可行动状态；该诊断词表不能与远端任务 succeeded/failed 混用。"
+    },
+    {
       "site": "electron/productionRun/batchScheduleDerivation.ts::type:CheckpointStatus/type-union",
-      "members": ["approved", "auto_release", "not_required", "pending_anchors", "rejected", "should_open", "waiting"],
+      "members": [
+        "approved",
+        "auto_release",
+        "not_required",
+        "pending_anchors",
+        "rejected",
+        "should_open",
+        "waiting"
+      ],
       "reason": "ProductionRun 账本域的业务合同（approved / auto_release / not_required / pending_anchors / rejected / should_open / waiting），描述关卡、产物、阶段或整条生产运行，不等同于通用后台任务态。"
     },
     {
       "site": "electron/productionRun/budgetLedger.ts::type:Reservation/property:status/type-union",
-      "members": ["released", "reserved", "settled", "unsettled"],
+      "members": [
+        "released",
+        "reserved",
+        "settled",
+        "unsettled"
+      ],
       "reason": "Reservation.status 是预算账本中单笔预留的结算状态机：reserved 占额、unsettled 等待实际账单、settled 按实结算、released 释放；它驱动可用预算计算，不可复用生成任务状态。"
     },
     {
+      "site": "electron/productionRun/prepareProductionGenerationAuthorization.ts::variable:REWORKABLE_JOB_STATUSES/set",
+      "members": [
+        "adopted",
+        "cancelled_remote",
+        "detached",
+        "needs_attention",
+        "ready",
+        "too_late"
+      ],
+      "reason": "ProductionRun 授权准备时判定「父 job 是否处于可返工态」的集合（adopted/ready/detached/needs_attention/too_late/cancelled_remote）：它决定能否为某镜发起新一轮生成授权，是授权前置门的输入，语义与 shotPlaceholderState 的 FAILED_STATUSES（UI 占位失败态）虽有部分重叠但取值范围与用途不同（含 adopted/detached/ready 这类非失败可返工态），复用会把「可返工」误判成「失败」，故独立。"
+    },
+    {
+      "site": "electron/productionRun/prepareProductionGenerationAuthorization.ts::variable:UNSUBMITTED_AUTHORIZATION_STATUSES/set",
+      "members": [
+        "authorization_required",
+        "authorized",
+        "submit_intent_persisted"
+      ],
+      "reason": "ProductionRun 授权准备时判定「run 内是否还有未提交给供应商的 job」的集合（authorization_required 待授权 / authorized 已授权未提交 / submit_intent_persisted 提交意图已落盘未确认）：它守护「批准后、真正调 production.generate-node 前」这段授权窗口的幂等，是授权阶段专属词表，不等同于任何供应商轮询态或终态，故独立。"
+    },
+    {
+      "site": "electron/productionRun/productionGenerationSubmission.ts::type:ProviderPollStatusClass/type-union",
+      "members": [
+        "failed",
+        "pending",
+        "succeeded",
+        "unknown"
+      ],
+      "reason": "供应商轮询状态的归一化「四类」（pending 在途 / succeeded 成功 / failed 失败 / unknown 无法归类）：classifyProviderStatus 把各家供应商五花八门的原始状态串映射到这四类以驱动提交后的下一步决策。它必须显式保留 unknown（无法归类时不得臆断成终态），与 TERMINAL_STATUSES（只区分终/非终）取值与粒度都不同，复用会丢掉 pending/unknown 的区分，故独立。"
+    },
+    {
+      "site": "electron/productionRun/productionGenerationSubmission.ts::variable:PROVIDER_STATUS_CLASSES/property:failed/set",
+      "members": [
+        "aborted",
+        "cancel",
+        "canceled",
+        "cancelled",
+        "error",
+        "expired",
+        "fail",
+        "failed",
+        "failure",
+        "refused",
+        "rejected",
+        "revoked",
+        "timed_out",
+        "timeout"
+      ],
+      "reason": "把供应商原始状态串归类到 failed 类的同义词面（aborted/cancel/canceled/cancelled/error/expired/fail/failed/failure/refused/rejected/revoked/timed_out/timeout）：这是 classifyProviderStatus 的 failed 分支查找集，刻意穷举各家对「失败/取消/超时/拒绝」的所有拼写变体，语义是「这个原始串算不算失败」的词法匹配，不是领域状态本身；与其它 provider status 分类集互斥、专供归一化查表，故独立。"
+    },
+    {
+      "site": "electron/productionRun/productionGenerationSubmission.ts::variable:PROVIDER_STATUS_CLASSES/property:pending/set",
+      "members": [
+        "create",
+        "created",
+        "downloading",
+        "generating",
+        "in-progress",
+        "in_progress",
+        "in_queue",
+        "not_start",
+        "notstart",
+        "pending",
+        "processing",
+        "queued",
+        "queueing",
+        "queuing",
+        "running",
+        "started",
+        "starting",
+        "submitted",
+        "validating",
+        "waiting"
+      ],
+      "reason": "把供应商原始状态串归类到 pending（在途）类的同义词面：穷举各家对「排队/处理中/生成中/下载中/等待」的所有拼写（in-progress vs in_progress、queueing vs queuing 等）。它是 classifyProviderStatus 的 pending 分支查找集，语义是词法归类而非领域态，与 failed/succeeded 分支集互斥，故独立。"
+    },
+    {
+      "site": "electron/productionRun/productionGenerationSubmission.ts::variable:PROVIDER_STATUS_CLASSES/property:succeeded/set",
+      "members": [
+        "complete",
+        "completed",
+        "done",
+        "succeed",
+        "succeeded",
+        "success"
+      ],
+      "reason": "把供应商原始状态串归类到 succeeded 类的同义词面（complete/completed/done/succeed/succeeded/success）：classifyProviderStatus 的 succeeded 分支查找集，穷举各家「成功/完成」的拼写变体。语义是词法归类，与 pending/failed 分支集互斥，故独立。"
+    },
+    {
       "site": "electron/productionRun/productionRunIntentLog.ts::type:ProductionRunIntentStatus/type-union",
-      "members": ["aborted", "committed", "prepared"],
+      "members": [
+        "aborted",
+        "committed",
+        "prepared"
+      ],
       "reason": "ProductionRunIntentStatus 是 append-only intent log 的耐久提交状态：prepared 先落意图，committed 记录事实已提交，aborted 允许受控终止；MAC、序号和重放逻辑依赖它，与 Run/Job 业务状态分离。"
     },
     {
-      "site": "electron/productionRun/productionRunReducer.ts::type:ArtifactReviewDecision/type-union",
-      "members": ["approved", "changes_requested", "rejected"],
-      "reason": "ProductionRun 账本域的业务合同（approved / changes_requested / rejected），描述关卡、产物、阶段或整条生产运行，不等同于通用后台任务态。"
+      "site": "electron/productionRun/productionRunReducer.ts::variable:ARTIFACT_REVIEW_DECISIONS/as-const",
+      "members": [
+        "approved",
+        "changes_requested",
+        "rejected"
+      ],
+      "reason": "ProductionRun 账本域的产物评审业务合同（approved / changes_requested / rejected），描述关卡产物的人工裁决，不等同于通用后台任务态。改为同文件 as-const 元组单源后 ArtifactReviewDecision 由它 derive。"
     },
     {
       "site": "electron/productionRun/productionRunRuntimeEnvelope.ts::type:RuntimeEnvelopeState/type-union",
-      "members": ["materialized", "provider_accepted", "sealed", "submitted_unknown"],
+      "members": [
+        "materialized",
+        "provider_accepted",
+        "sealed",
+        "submitted_unknown"
+      ],
       "reason": "RuntimeEnvelopeState 是供应商提交信封的耐久恢复状态：sealed、provider_accepted、submitted_unknown、materialized 对应请求冻结、远端受理、不确定提交与产物落盘；resume 输入必须从该导出 owner 复用成员。"
     },
     {
-      "site": "electron/shared/providerAdapterContract.ts::variable:ADAPTER_RUN_STAGES/as-const",
-      "members": ["cancelled", "compiling", "completed", "discovering_docs", "failed", "needs_ai", "partial", "queued", "reconciling", "repairing", "stale", "testing", "timed_out"],
-      "reason": "ADAPTER_RUN_STAGES 是 Provider Adapter 跨主进程、IPC 与 renderer 的中立运行阶段合同；reconciling 明确表示远端提交结果不确定且只能查询，所有 DTO、终态判断和持久化解析必须从该 owner 派生，禁止再维护平行字符串集合。"
-    },
-    {
-      "site": "electron/shared/contracts/modelAccessCapabilities.ts::variable:MODEL_ACCESS_LIFECYCLES/as-const",
-      "members": ["binary", "create-poll", "create-status-result", "http-websocket", "multipart", "ndjson", "process", "sse", "sync-json"],
-      "reason": "MODEL_ACCESS_LIFECYCLES 是模型接入「不留死路」旅程门岗的传输生命周期覆盖面（sync-json / sse / create-poll / create-status-result / multipart / binary / ndjson / process / http-websocket），描述接入协议的响应形态而非生成任务状态；manifest.test 用它保证每种传输形态都有真实 UI 往返，禁止在旅程矩阵外另立平行集合。"
-    },
-    {
       "site": "electron/productionRun/productionRunTypes.ts::type:ProductionArtifact/property:reviewStatus/type-union",
-      "members": ["approved", "changes_requested", "waiting"],
+      "members": [
+        "approved",
+        "changes_requested",
+        "waiting"
+      ],
       "reason": "ProductionRun 账本域的业务合同（approved / changes_requested / waiting），描述关卡、产物、阶段或整条生产运行，不等同于通用后台任务态。"
     },
     {
       "site": "electron/productionRun/productionRunTypes.ts::type:ProductionArtifact/property:status/type-union",
-      "members": ["adopted", "candidate", "ready", "rejected"],
+      "members": [
+        "adopted",
+        "candidate",
+        "ready",
+        "rejected"
+      ],
       "reason": "ProductionRun 账本域的业务合同（adopted / candidate / ready / rejected），描述关卡、产物、阶段或整条生产运行，不等同于通用后台任务态。"
     },
     {
       "site": "electron/productionRun/productionRunTypes.ts::type:ProductionGateStatus/type-union",
-      "members": ["approved", "expired", "rejected", "revoked", "waiting"],
+      "members": [
+        "approved",
+        "expired",
+        "rejected",
+        "revoked",
+        "waiting"
+      ],
       "reason": "ProductionRun 账本域的业务合同（approved / expired / rejected / revoked / waiting），描述关卡、产物、阶段或整条生产运行，不等同于通用后台任务态。"
     },
     {
@@ -251,113 +526,408 @@
     },
     {
       "site": "electron/productionRun/productionRunTypes.ts::type:ProductionStageStatus/type-union",
-      "members": ["awaiting_gate", "cancelled", "completed", "needs_attention", "pending", "running"],
+      "members": [
+        "awaiting_gate",
+        "cancelled",
+        "completed",
+        "needs_attention",
+        "pending",
+        "running"
+      ],
       "reason": "ProductionRun 账本域的业务合同（awaiting_gate / cancelled / completed / needs_attention / pending / running），描述关卡、产物、阶段或整条生产运行，不等同于通用后台任务态。"
     },
     {
+      "site": "electron/productionRun/singleShotRunLifecycle.ts::variable:NON_TERMINAL_JOB_STATUSES/set",
+      "members": [
+        "authorized",
+        "downloading",
+        "polling",
+        "provider_accepted",
+        "reconciling",
+        "retry_wait",
+        "submission_unknown",
+        "submit_intent_persisted",
+        "submitting",
+        "validating_content",
+        "validating_technical"
+      ],
+      "reason": "单镜运行生命周期里「未到终态、仍在推进」的 ProductionJob 内部状态集（authorized/submitting/submit_intent_persisted/provider_accepted/polling/downloading/reconciling/retry_wait/submission_unknown/validating_technical/validating_content）：它判定 run 内是否还有 job 在活跃、能否收尾。取值是本地生成流水线的细粒度内部态（含 reconciling/submission_unknown/submit_intent_persisted 等 UI 层没有的态），与 shotPlaceholderState 的 GENERATING_STATUSES（面向 UI 占位的粗粒度态）不同源，复用会把细粒度内部推进态漏判，故独立。"
+    },
+    {
+      "site": "electron/projectAgentHost/projectAgentApprovalHelpers.ts::function:executeProductionApproval/parameter:input/property:settle/parameter:status/type-union",
+      "members": [
+        "done",
+        "failed"
+      ],
+      "reason": "Project Agent Host 执行生产审批后回传给 coordinator 的二值结算信号（done 执行成功 / failed 执行失败）：settle 只把「这次已批准动作最终成/败」通知宿主以推进回合，是审批执行的收尾回执，不是 job 生命周期态也不是 UI 占位态；仅二值、与 ShotPlaceholderPhase 用途不同，故独立。"
+    },
+    {
+      "site": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts::type:ProjectAgentExecutionCoordinatorDeps/property:reportInternalError/parameter:context/property:phase/type-union",
+      "members": [
+        "start",
+        "terminalize-runtime-failure"
+      ],
+      "reason": "Project Agent 执行协调器上报内部错误时标注「错误发生在回合的哪个阶段」（start 启动阶段 / terminalize-runtime-failure 终结化运行时失败阶段）：它只服务错误遥测的现场定位，是内部诊断维度，不是对外的任务/审批状态，取值专属于协调器内部编排，故独立。"
+    },
+    {
+      "site": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts::type:SubscriptionDelivery/property:phase/type-union",
+      "members": [
+        "activating",
+        "live",
+        "pre-live"
+      ],
+      "reason": "Project Agent 订阅投递的三态（pre-live 订阅已建未开始推流 / activating 激活中 / live 已实时推流）：它管理 Host 向 UI 投影的订阅通道生命周期，保证快照订阅在 activating 窗口不漏帧，是订阅通道态而非业务任务态，与任何生成/审批词表无重叠，故独立。"
+    },
+    {
       "site": "electron/providerAdapter/types.ts::type:AdapterModeResult/property:stage/type-union",
-      "members": ["compile", "create", "docs", "localize_reference", "poll", "promote", "result", "verify_asset"],
+      "members": [
+        "compile",
+        "create",
+        "docs",
+        "localize_reference",
+        "poll",
+        "promote",
+        "result",
+        "verify_asset"
+      ],
       "reason": "AdapterModeResult.stage 记录单个模型模式失败或停留的具体接入步骤：docs、compile、localize_reference、create、poll、verify_asset、promote；它用于定位 mode 级错误，边界不同于整次 AdapterRunStage。"
     },
     {
       "site": "electron/providerAdapter/verifier.ts::type:AdapterVerificationResult/property:stage/type-union",
-      "members": ["create", "localize_reference", "poll", "result", "verify_asset"],
+      "members": [
+        "create",
+        "localize_reference",
+        "poll",
+        "result",
+        "verify_asset"
+      ],
       "reason": "AdapterVerificationResult.stage 是真实请求验证器的失败步骤合同：localize_reference、create、poll、verify_asset 由 verifier 抛出点写入；verifyAdapterMode 的局部 stage 原样进入该导出结果，必须从失败 variant derive。"
     },
     {
-      "site": "electron/localRuntime/localRuntimeDescriptor.ts::type:LocalRuntimeDiagnostic/property:stage/type-union",
-      "members": ["capabilities", "discovery", "models", "readiness", "version"],
-      "reason": "LocalRuntimeDiagnostic.stage 描述本地运行时诊断的证据层级：version、discovery、models、capabilities、readiness 依次建立可用性事实；它不是供应商生成任务的生命周期。"
-    },
-    {
-      "site": "electron/localRuntime/localRuntimeDescriptor.ts::type:LocalRuntimeHealth/type-union",
-      "members": ["degraded", "offline", "ready", "unauthorized"],
-      "reason": "LocalRuntimeHealth 是本地运行时健康投影，区分 offline、unauthorized、degraded 与 ready 的用户可行动状态；该诊断词表不能与远端任务 succeeded/failed 混用。"
-    },
-    {
       "site": "electron/shared/antigravity.ts::type:AntigravityCheck/property:state/type-union",
-      "members": ["cancelled", "failed", "passed"],
+      "members": [
+        "cancelled",
+        "failed",
+        "passed"
+      ],
       "reason": "Antigravity 连接或自检域状态（cancelled / failed / passed），描述集成可用性而不是生成任务。"
     },
     {
       "site": "electron/shared/antigravity.ts::type:AntigravityConnectionStatus/property:state/type-union",
-      "members": ["error", "limited", "login-required", "missing", "ready", "unverified"],
+      "members": [
+        "error",
+        "limited",
+        "login-required",
+        "missing",
+        "ready",
+        "unverified"
+      ],
       "reason": "Antigravity 连接或自检域状态（error / limited / login-required / missing / ready / unverified），描述集成可用性而不是生成任务。"
     },
     {
+      "site": "electron/shared/canvas/generationNodeStatus.ts::variable:GENERATION_NODE_STATUSES/as-const",
+      "members": [
+        "error",
+        "idle",
+        "queued",
+        "recoverable",
+        "running",
+        "success"
+      ],
+      "reason": "画布节点状态的唯一领域词表（idle / queued / running / success / error / recoverable）。收进 electron/shared/canvas/generationNodeStatus.ts 作 as-const 单源，generationNodeStatusSchema=z.enum(它)、GenerationNodeStatus=其 z.infer、generationNodeRunStatusSchema 也从它 exclude/or 派生；渲染层与持久化/IPC 校验共用这一份，故独立且集中。"
+    },
+    {
+      "site": "electron/shared/contracts/exportTypes.ts::variable:EXPORT_JOB_STATUSES/as-const",
+      "members": [
+        "cancelled",
+        "encoding",
+        "failed",
+        "finalizing",
+        "muxing",
+        "planning",
+        "preparing",
+        "queued",
+        "rendering",
+        "succeeded"
+      ],
+      "reason": "导出/编码流水线的领域状态单源（cancelled / encoding / failed / finalizing / muxing / planning / preparing / queued / rendering / succeeded），成员对应准备、录制、封装或终止阶段。收进 shared/contracts/exportTypes.ts 作 as-const 单一真相源后，ExportJobStatus 由它 derive；不能用通用后台任务态替代。"
+    },
+    {
+      "site": "electron/shared/contracts/modelAccessCapabilities.ts::variable:MODEL_ACCESS_LIFECYCLES/as-const",
+      "members": [
+        "binary",
+        "create-poll",
+        "create-status-result",
+        "http-websocket",
+        "multipart",
+        "ndjson",
+        "process",
+        "sse",
+        "sync-json"
+      ],
+      "reason": "MODEL_ACCESS_LIFECYCLES 是模型接入「不留死路」旅程门岗的传输生命周期覆盖面（sync-json / sse / create-poll / create-status-result / multipart / binary / ndjson / process / http-websocket），描述接入协议的响应形态而非生成任务状态；manifest.test 用它保证每种传输形态都有真实 UI 往返，禁止在旅程矩阵外另立平行集合。"
+    },
+    {
+      "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_CREDENTIAL_STATUSES/as-const",
+      "members": [
+        "missing",
+        "needs_resave",
+        "ready",
+        "unavailable"
+      ],
+      "reason": "INTEGRATION_CREDENTIAL_STATUSES 是模型接入会话的凭据持久化状态唯一合同；主进程 session、trusted UI projection 和跨进程恢复都从该 tuple 派生，避免把安全存储失败误报成可用。"
+    },
+    {
+      "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_STAGES/as-const",
+      "members": [
+        "cancelled",
+        "certifying",
+        "committing",
+        "completed",
+        "discovering",
+        "draft",
+        "failed",
+        "needs_credential",
+        "needs_input",
+        "needs_selection",
+        "needs_spend_confirmation",
+        "partial"
+      ],
+      "reason": "INTEGRATION_STAGES 是模型/ComfyUI 接入会话生命周期唯一合同；MCP、trusted UI、持久化恢复和下一步映射都从同一 tuple 派生。"
+    },
+    {
+      "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_START_RECEIPT_STATUSES/as-const",
+      "members": [
+        "consumed",
+        "pending"
+      ],
+      "reason": "INTEGRATION_START_RECEIPT_STATUSES 是接入认证 receipt 的两阶段持久化窗口；pending 先落 intent、consumed 才允许执行，保证崩溃恢复不重复花费。"
+    },
+    {
+      "site": "electron/shared/projectAgentContracts.ts::variable:PROJECT_AGENT_PROPOSAL_LIFECYCLES/as-const",
+      "members": [
+        "claimed",
+        "expired",
+        "pending"
+      ],
+      "reason": "Project Agent 提案（proposal）的领取生命周期规范单源（pending 待领取 / claimed 已领取 / expired 已过期）：描述一条 Agent 提案从产生到被 UI 领取或超时作废的所有权流转，是提案分发合同，与能力审批 challenge 的 ChallengeRecord.status（accepted/rejected/expired/pending，授权事实）虽有 pending/expired 重叠但语义不同（这里是「提案被谁领了」，那里是「授权被批没批」），复用会混淆分发态与授权态，故独立。"
+    },
+    {
+      "site": "electron/shared/projectAgentContracts.ts::variable:PROJECT_AGENT_STATUSES/as-const",
+      "members": [
+        "declined",
+        "done",
+        "drafting",
+        "failed",
+        "proposed",
+        "queued",
+        "running",
+        "stopped"
+      ],
+      "reason": "Project Agent 回合的对外状态规范单源（drafting 起草 / proposed 已提案待批 / declined 被拒 / queued 排队 / running 执行 / done 完成 / failed 失败 / stopped 用户中止）：这是 Agent 一次回合完整生命周期的权威词表，含 drafting/proposed/declined 这类审批协商态，与 ShotPlaceholderPhase（单镜画面占位态）语义与取值都不同，是 Agent 域的核心合同，故独立。"
+    },
+    {
+      "site": "electron/shared/projectAgentProposalReceipt.ts::variable:PROJECT_AGENT_PROPOSAL_RECEIPT_LIFECYCLES/as-const",
+      "members": [
+        "committed",
+        "preparing",
+        "undoing",
+        "undone"
+      ],
+      "reason": "Project Agent 提案回执（写盘后可撤销）的持久化生命周期规范单源（preparing 准备提交 / committed 已提交 / undoing 撤销中 / undone 已撤销）：它保证「批准后落盘的提案改动可被用户 Ctrl+Z 撤销且重启后精确重放」，是提案写入的可撤销事务态，独立于提案分发（PROPOSAL_LIFECYCLES）与回合态（PROJECT_AGENT_STATUSES），三者各管一段，故独立。"
+    },
+    {
+      "site": "electron/shared/providerAdapterContract.ts::variable:ADAPTER_RUN_STAGES/as-const",
+      "members": [
+        "cancelled",
+        "compiling",
+        "completed",
+        "discovering_docs",
+        "failed",
+        "needs_ai",
+        "partial",
+        "queued",
+        "reconciling",
+        "repairing",
+        "stale",
+        "testing",
+        "timed_out"
+      ],
+      "reason": "ADAPTER_RUN_STAGES 是 Provider Adapter 跨主进程、IPC 与 renderer 的中立运行阶段合同；reconciling 明确表示远端提交结果不确定且只能查询，所有 DTO、终态判断和持久化解析必须从该 owner 派生，禁止再维护平行字符串集合。"
+    },
+    {
       "site": "electron/shared/videoCapabilities/types.ts::type:ArchetypeExpressionChannel/property:status/type-union",
-      "members": ["documented", "unknown", "unsupported"],
+      "members": [
+        "documented",
+        "unknown",
+        "unsupported"
+      ],
       "reason": "ArchetypeExpressionChannel.status 描述视频能力证据的覆盖度：documented 有来源证据，unsupported 明确不支持，unknown 尚无结论；它驱动规划时是否采用表达通道，不是任务执行状态。"
     },
     {
       "site": "electron/skills/playbookOrchestrator.ts::type:PlaybookStatus/type-union",
-      "members": ["awaiting-confirm", "done", "running"],
+      "members": [
+        "awaiting-confirm",
+        "done",
+        "running"
+      ],
       "reason": "Skill playbook 编排状态（awaiting-confirm / done / running），包含等待确认这一工作流专属阶段。"
     },
     {
       "site": "electron/tasks/responseParsing.ts::variable:NON_FAILURE_TEXTS/set",
-      "members": ["done", "ok", "succeeded", "success", "完成", "成功"],
+      "members": [
+        "done",
+        "ok",
+        "succeeded",
+        "success",
+        "完成",
+        "成功"
+      ],
       "reason": "外部任务响应解析的成功同义词集合（done / ok / succeeded / success / 完成 / 成功），是解析字典而非执行状态。"
     },
     {
-      "site": "src/api/desktopAgentsChatStream.ts::type:AgentsChatToolStreamPayload/property:stage/type-union",
-      "members": ["completed", "error", "started", "warning"],
-      "reason": "AgentsChatToolStreamPayload.stage 是 stream event 的合法 view model：started、completed、warning、error 描述单个工具事件在旧 stream 适配层的呈现阶段，其中 warning 不是 turn 终态；它不替代 RuntimeToolCallRecord。"
-    },
-    {
       "site": "src/config/modelCatalogStatus.ts::type:ModelCatalogStatus/type-union",
-      "members": ["api_unreachable", "catalog_empty", "incomplete", "kind_empty", "loading", "ready"],
+      "members": [
+        "api_unreachable",
+        "catalog_empty",
+        "incomplete",
+        "kind_empty",
+        "loading",
+        "ready"
+      ],
       "reason": "模型目录/供应商调用域的结果词表（api_unreachable / catalog_empty / incomplete / kind_empty / loading / ready），成员由该供应商或调用协议定义。"
     },
     {
       "site": "src/config/modelIdentity.ts::type:CatalogLifecycle/type-union",
-      "members": ["companion", "flagship", "legacy", "value"],
+      "members": [
+        "companion",
+        "flagship",
+        "legacy",
+        "value"
+      ],
       "reason": "modelIdentity 的 CatalogLifecycle 是 renderer 目录排序与展示使用的产品分层投影；它与主进程 seedBuiltins 的种子标签同构但跨进程独立，避免 renderer 依赖 Electron 实现。"
     },
     {
       "site": "src/design/status.tsx::type:StatusBadgeTone/type-union",
-      "members": ["danger", "info", "neutral", "success", "warning"],
+      "members": [
+        "danger",
+        "info",
+        "neutral",
+        "success",
+        "warning"
+      ],
       "reason": "StatusBadgeTone 是 StatusBadge 组件的视觉色调合同：neutral、info、success、warning、danger 只映射 Mantine 颜色与图标层级；它不表示业务生命周期，也不等同于 ToastType 的消息通道。"
     },
     {
       "site": "src/desktop/bridge.ts::type:DesktopBridge/property:promptLibrary/property:textBrain/property:status/type-union",
-      "members": ["missing", "ok"],
+      "members": [
+        "missing",
+        "ok"
+      ],
       "reason": "textBrain.status 是 catalog metadata readiness 合同：enabled 候选配免鉴权 vendor 或 enabled/nonempty credential record 时为 ok，否则 missing；该只读入口零解密且不触碰 safeStorage，execution 阶段的 locked 另由 ApiKeyDecryptStatus 表达。"
     },
     {
       "site": "src/ui/app-shell/useUpdater.ts::type:UpdaterPhase/type-union",
-      "members": ["available", "checking", "downloaded", "downloading", "error", "idle", "up-to-date"],
+      "members": [
+        "available",
+        "checking",
+        "downloaded",
+        "downloading",
+        "error",
+        "idle",
+        "up-to-date"
+      ],
       "reason": "桌面更新器生命周期（available / checking / downloaded / downloading / error / idle / up-to-date），对应下载/安装检查阶段，与创作任务正交。"
     },
     {
       "site": "src/ui/browser/assets/browserAssetData.ts::type:NomiBrowserAsset/property:status/type-union",
-      "members": ["error", "loading", "ready"],
+      "members": [
+        "error",
+        "loading",
+        "ready"
+      ],
       "reason": "**资源加载**三态（有没有拿到数据），与任务执行无关。"
     },
     {
+      "site": "src/ui/community/feedbackTypes.ts::type:FeedbackStage/type-union",
+      "members": [
+        "export",
+        "generation",
+        "model",
+        "other",
+        "upload"
+      ],
+      "reason": "FeedbackStage 是反馈中心让用户定位摩擦发生阶段的本地 view model；它只服务反馈草稿与诊断 envelope，不代表生成任务或导出流水线状态，故保持独立并由表单阶段列表复用。"
+    },
+    {
+      "site": "src/ui/onboarding/FoldableModelCard.tsx::type:FoldableModelCardProps/property:status/type-union",
+      "members": [
+        "error",
+        "ok",
+        "todo"
+      ],
+      "reason": "FoldableModelCard.status 是 Assistant、ComfyUI、Dreamina 共用的模型接入卡视觉合同：ok、todo、error 分别驱动已连通、待接入与需行动样式；各供应商卡只能从这份共享 props 类型 derive 子集。"
+    },
+    {
+      "site": "src/ui/onboarding/NetworkSection.tsx::type:TestState/property:phase/type-union",
+      "members": [
+        "fail",
+        "idle",
+        "ok",
+        "partial",
+        "running"
+      ],
+      "reason": "**网络连通性检测**结果，ok/partial/fail 是探测结论不是执行状态。"
+    },
+    {
+      "site": "src/ui/onboarding/OnboardingWizard.tsx::type:Phase/type-union",
+      "members": [
+        "error",
+        "input",
+        "running",
+        "success"
+      ],
+      "reason": "**接入向导**步骤态，input 表示「等用户填表」，非后台任务。"
+    },
+    {
       "site": "src/ui/onboarding/adapterVerificationViewModel.ts::type:AdapterModelProgressState/type-union",
-      "members": ["failed", "needs_attention", "partial", "verified", "working"],
+      "members": [
+        "failed",
+        "needs_attention",
+        "partial",
+        "verified",
+        "working"
+      ],
       "reason": "模型适配与接入验证域的状态（failed / needs_attention / partial / verified / working），包含接入专属阶段/结论，不等同于生成任务生命周期。"
     },
     {
       "site": "src/ui/onboarding/adapterVerificationViewModel.ts::type:AdapterProviderCardState/type-union",
-      "members": ["configured", "failed", "partial", "testing", "verified"],
+      "members": [
+        "configured",
+        "failed",
+        "partial",
+        "testing",
+        "verified"
+      ],
       "reason": "模型适配与接入验证域的状态（configured / failed / partial / testing / verified），包含接入专属阶段/结论，不等同于生成任务生命周期。"
     },
     {
       "site": "src/ui/onboarding/antigravityConnection.ts::type:AntigravityConnectionView/property:busy/type-union",
-      "members": ["cancelling", "checking", "testing"],
+      "members": [
+        "cancelling",
+        "checking",
+        "testing"
+      ],
       "reason": "Antigravity 连接或自检域状态（cancelling / checking / testing），描述集成可用性而不是生成任务。"
     },
     {
       "site": "src/ui/onboarding/assistantActivationState.ts::type:AssistantVerifyPhase/type-union",
-      "members": ["broken", "checking", "ok"],
+      "members": [
+        "broken",
+        "checking",
+        "ok"
+      ],
       "reason": "AssistantVerifyPhase 是 Claude、Codex、Cursor 接入握手的 UI 探测阶段：checking 正在验证，ok 已握手，broken 配置存在但连接失败，null 表示未探测；ConnectAssistantCard 的非空 phase 必须用 NonNullable derive。"
-    },
-    {
-      "site": "src/ui/onboarding/FoldableModelCard.tsx::type:FoldableModelCardProps/property:status/type-union",
-      "members": ["error", "ok", "todo"],
-      "reason": "FoldableModelCard.status 是 Assistant、ComfyUI、Dreamina 共用的模型接入卡视觉合同：ok、todo、error 分别驱动已连通、待接入与需行动样式；各供应商卡只能从这份共享 props 类型 derive 子集。"
     },
     {
       "site": "src/ui/onboarding/modelAdapterDetailState.ts::type:ModelAdapterDetailState/property:state/type-union",
@@ -374,127 +944,259 @@
     },
     {
       "site": "src/ui/onboarding/modelAdapterDetailState.ts::type:ModelAdapterDetailState/property:tone/type-union",
-      "members": ["active", "danger", "neutral", "success", "warning"],
+      "members": [
+        "active",
+        "danger",
+        "neutral",
+        "success",
+        "warning"
+      ],
       "reason": "**视觉语气**枚举（决定用哪组颜色），不是状态——同一状态在不同场景可映射到不同语气。"
     },
     {
       "site": "src/ui/onboarding/modelSettingsHomeState.ts::type:ModelHomeConnectionState/type-union",
-      "members": ["attention", "disabled", "verified", "working"],
+      "members": [
+        "attention",
+        "disabled",
+        "verified",
+        "working"
+      ],
       "reason": "模型接入 UI 的视图状态/语气（attention / disabled / verified / working），用于表达配置或检测结论，不直接承载任务事实。"
     },
     {
       "site": "src/ui/onboarding/modelSettingsHomeState.ts::type:ModelHomeStatus/type-union",
-      "members": ["disabled", "failed", "needsSetup", "ready", "verified", "working"],
+      "members": [
+        "disabled",
+        "failed",
+        "needsSetup",
+        "ready",
+        "verified",
+        "working"
+      ],
       "reason": "**模型设置首页**的卡片态，needsSetup/disabled 是配置维度，与运行时任务无关。"
     },
     {
-      "site": "src/ui/onboarding/NetworkSection.tsx::type:TestState/property:phase/type-union",
-      "members": ["fail", "idle", "ok", "partial", "running"],
-      "reason": "**网络连通性检测**结果，ok/partial/fail 是探测结论不是执行状态。"
-    },
-    {
       "site": "src/ui/onboarding/useOnboardingConnectionTest.ts::type:ConnectionTestState/type-union",
-      "members": ["fail", "idle", "ok", "testing", "unsupported"],
+      "members": [
+        "fail",
+        "idle",
+        "ok",
+        "testing",
+        "unsupported"
+      ],
       "reason": "模型接入 UI 的连接测试视图状态/语气（fail / idle / ok / testing / unsupported），用于表达配置或检测结论，不直接承载任务事实。2026-09-01 从 OnboardingWizard 内联块抽取为 useOnboardingConnectionTest hook（P1），语义 owner 随之搬到具名 ConnectionTestState 类型。"
     },
     {
-      "site": "src/ui/onboarding/OnboardingWizard.tsx::type:Phase/type-union",
-      "members": ["error", "input", "running", "success"],
-      "reason": "**接入向导**步骤态，input 表示「等用户填表」，非后台任务。"
-    },
-    {
       "site": "src/ui/toast.tsx::type:ToastType/type-union",
-      "members": ["error", "info", "success", "warning"],
+      "members": [
+        "error",
+        "info",
+        "success",
+        "warning"
+      ],
       "reason": "全应用共享 Toast 视觉语气合同，只决定呈现颜色/图标，不是业务状态。"
     },
     {
       "site": "src/workbench/adoption/adoptionTypes.ts::type:AdoptionProposalStatus/type-union",
-      "members": ["applied", "failed", "needs_attention", "needs_recovery", "stale"],
+      "members": [
+        "applied",
+        "failed",
+        "needs_attention",
+        "needs_recovery",
+        "stale"
+      ],
       "reason": "AdoptionProposalStatus 是生成产物落入时间轴的幂等事务状态：applied、stale、needs_attention、failed、needs_recovery 决定重放、拒绝或补偿路径；它属于 adoption registry，不可复用生成 job 生命周期。"
     },
     {
-      "site": "src/workbench/ai/composer/composerAttachmentTypes.ts::type:ComposerAttachmentStatus/type-union",
-      "members": ["error", "ready", "uploading"],
-      "reason": "**附件上传**三态，生命周期归 composer 管，不进任务账本。"
-    },
-    {
       "site": "src/workbench/ai/NoTextModelRecoveryCard.tsx::type:CardState/type-union",
-      "members": ["done", "enabling", "prompt"],
+      "members": [
+        "done",
+        "enabling",
+        "prompt"
+      ],
       "reason": "NoTextModelRecoveryCard.CardState 是单张恢复卡的本地交互阶段：prompt 等用户选择，enabling 正在启用候选文本模型，done 已完成并退场；它只控制 CTA 呈现，不写入 catalog 或任务账本。"
     },
     {
+      "site": "src/workbench/ai/composer/composerAttachmentTypes.ts::type:ComposerAttachmentStatus/type-union",
+      "members": [
+        "error",
+        "ready",
+        "uploading"
+      ],
+      "reason": "**附件上传**三态，生命周期归 composer 管，不进任务账本。"
+    },
+    {
+      "site": "src/workbench/ai/resident/ResidentUiPrimitives.tsx::type:ResidentApprovalState/type-union",
+      "members": [
+        "approved",
+        "denied",
+        "pending"
+      ],
+      "reason": "常驻 Agent 面板审批卡片的渲染态（pending 待用户裁决 / approved 已批 / denied 已拒）：它只驱动 ResidentApprovalCard 的三态外观（边框色/标签/是否 resolved），是 UI 呈现态，从 Host 投影的审批事实 derive 而来，服务渲染而非充当真相源；与后端 challenge/proposal 词表不同层，故作为该卡片的本地视图词表独立登记。"
+    },
+    {
       "site": "src/workbench/ai/workbenchAiTypes.ts::type:WorkbenchAiMessage/property:status/type-union",
-      "members": ["cancelled", "done", "error", "pending", "streaming"],
+      "members": [
+        "cancelled",
+        "done",
+        "error",
+        "pending",
+        "streaming"
+      ],
       "reason": "WorkbenchAiMessage.status 是 assistant message 的合法 view model：pending 与 streaming 驱动首 token/流式呈现，done、error、cancelled记录该消息的 UI 结局；它由 Agent turn 事件映射，但不是 runtime turn 的第二账本。"
     },
     {
       "site": "src/workbench/api/modelCatalogApi.ts::type:ModelCatalogHealthIssueCode/type-union",
-      "members": ["catalog_empty", "model_mapping_missing", "vendor_api_key_locked", "vendor_api_key_missing", "vendor_api_key_needs_resave", "vendor_disabled"],
+      "members": [
+        "catalog_empty",
+        "model_mapping_missing",
+        "vendor_api_key_locked",
+        "vendor_api_key_missing",
+        "vendor_api_key_needs_resave",
+        "vendor_disabled"
+      ],
       "reason": "ModelCatalogHealthIssueCode 是模型目录健康 DTO 的结构化问题码，区分目录为空、供应商禁用、缺 API key、safeStorage 密文锁定、legacy plaintext 需重存与缺模型映射；renderer 据此定位安全且可执行的配置缺口，它不是连接探测或任务状态。"
     },
     {
       "site": "src/workbench/export/exportApi.ts::type:ExportTimelineToMp4Options/property:onProgress/parameter:progress/property:status/type-union",
-      "members": ["converting", "done", "preparing", "recording"],
+      "members": [
+        "converting",
+        "done",
+        "preparing",
+        "recording"
+      ],
       "reason": "导出/编码流水线的领域状态（converting / done / preparing / recording），成员对应准备、录制、封装或终止阶段，不能用通用任务态替代。"
     },
     {
       "site": "src/workbench/export/timelineWebmExport.ts::type:ExportStatus/type-union",
-      "members": ["done", "error", "idle", "preparing", "recording"],
+      "members": [
+        "done",
+        "error",
+        "idle",
+        "preparing",
+        "recording"
+      ],
       "reason": "**本地导出录制**状态机，preparing/recording 是 MediaRecorder 的真实阶段，无法映射到任务态。"
     },
     {
       "site": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts::variable:STORYBOARD_PLAN_APPLICATION_STATUSES/as-const",
-      "members": ["applied", "obsolete"],
+      "members": [
+        "applied",
+        "obsolete"
+      ],
       "reason": "Storyboard plan application status is the Agent planning receipt: applied means the targeted draft/design still exists and accepted the result, while obsolete means a late result was safely discarded. It is not a design or task lifecycle."
     },
     {
       "site": "src/workbench/generationCanvas/agent/shotVerifyStore.ts::type:ShotVerifyStatus/type-union",
-      "members": ["idle", "ready", "verifying"],
+      "members": [
+        "idle",
+        "ready",
+        "verifying"
+      ],
       "reason": "**镜级画面校验**独立生命周期（无撤销、与结构对账分开），见 shotVerifyStore 注释。"
     },
     {
+      "site": "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx::function:StatusBadge/parameter:0/property:tone/type-union",
+      "members": [
+        "active",
+        "neutral",
+        "success",
+        "warning"
+      ],
+      "reason": "TimelineEditPlanCard StatusBadge tone is a visual vocabulary for Agent edit-plan cards; it only controls badge color and icon, not the edit or task lifecycle."
+    },
+    {
+      "site": "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx::type:TimelineAppliedRecord/property:status/type-union",
+      "members": [
+        "applied",
+        "failed",
+        "undoing",
+        "undone"
+      ],
+      "reason": "TimelineAppliedRecord.status is a local view-model vocabulary for apply and undo outcomes; it must remain distinct from the persisted adoption and runtime lifecycle states."
+    },
+    {
       "site": "src/workbench/generationCanvas/components/viewportAnimationSettlement.ts::type:ViewportAnimationSettlementOutcome/type-union",
-      "members": ["cancelled", "completed"],
+      "members": [
+        "cancelled",
+        "completed"
+      ],
       "reason": "**视口动画结算**结果，描述一次动画怎么收场，非任务。"
     },
     {
-      "site": "src/workbench/generationCanvas/model/generationCanvasSchema.ts::variable:generationNodeStatusSchema/z.enum",
-      "members": ["error", "idle", "queued", "recoverable", "running", "success"],
-      "reason": "generationNodeStatusSchema 是画布节点持久化与 IPC 数据的运行时校验 owner；idle、queued、running、success、error、recoverable 在反序列化入口由该 Zod schema 判定。GenerationNodeStatus 必须用 z.infer 从它派生。"
-    },
-    {
       "site": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx::function:DeferredNodeMediaFailure/parameter:0/property:state/type-union",
-      "members": ["error", "timeout"],
+      "members": [
+        "error",
+        "timeout"
+      ],
       "reason": "**媒体加载失败原因**分类（不是状态），用于给用户不同的人话提示。"
     },
     {
+      "site": "src/workbench/generationCanvas/nodes/Scene3DEditor.tsx::function:readTakeCaptureStatus/type-union",
+      "members": [
+        "done",
+        "generating"
+      ],
+      "reason": "3D/全景交互的局部捕获或反馈结果（done / generating），仅属于该交互域。"
+    },
+    {
+      "site": "src/workbench/generationCanvas/nodes/deconstructionTypes.ts::type:DeconstructionEntry/property:status/type-union",
+      "members": [
+        "failed",
+        "idle",
+        "ready",
+        "running"
+      ],
+      "reason": "DeconstructionEntry.status 是「一条源视频拆解成分镜表」这个动作的四态本地 view model（idle 未拆 / running 拆解中 / ready 结果 / failed 整次拆解抛错）。它按源视频节点身份建槽、驱动就近拆解面板的四态渲染，语义是拆解流水线状态，不等同于 ShotVerifyStatus（单镜画面校验的 verifying/…）也不等同于生成任务/导出状态；逐镜画面失败由 DeconstructionShot.visionFailed 单独表达、不进本 union。故保持独立。"
+    },
+    {
       "site": "src/workbench/generationCanvas/nodes/deferredNodeMediaQueue.ts::type:DeferredNodeMediaState/type-union",
-      "members": ["error", "idle", "loading", "queued", "ready", "timeout"],
+      "members": [
+        "error",
+        "idle",
+        "loading",
+        "queued",
+        "ready",
+        "timeout"
+      ],
       "reason": "**延迟媒体加载队列**态，loading/ready 是资源维度、timeout 是它独有的失败原因，与生成任务正交。"
     },
     {
       "site": "src/workbench/generationCanvas/nodes/scene3d/cameraMoveCaptureRetry.ts::type:CameraMoveCaptureOutcome/type-union",
-      "members": ["null", "ok", "timeout"],
+      "members": [
+        "null",
+        "ok",
+        "timeout"
+      ],
       "reason": "3D/全景交互的局部捕获或反馈结果（null / ok / timeout），仅属于该交互域。"
     },
     {
       "site": "src/workbench/generationCanvas/nodes/scene3d/useScene3DFullscreenActions.ts::type:Scene3DExportCard/property:phase/type-union",
-      "members": ["done", "rendering", "slow"],
+      "members": [
+        "done",
+        "rendering",
+        "slow"
+      ],
       "reason": "Scene3DExportCard.phase 是 3D 导出反馈卡的局部呈现阶段：rendering 正在捕获，slow 表示耗时提示，done 表示已产出并可下传；它不持久化为生成任务状态。"
     },
     {
-      "site": "src/workbench/generationCanvas/nodes/Scene3DEditor.tsx::function:readTakeCaptureStatus/type-union",
-      "members": ["done", "generating"],
-      "reason": "3D/全景交互的局部捕获或反馈结果（done / generating），仅属于该交互域。"
-    },
-    {
       "site": "src/workbench/generationCanvas/runner/generationQueueStore.ts::type:QueueEntryState/type-union",
-      "members": ["cancelled", "error", "queued", "running", "success"],
+      "members": [
+        "cancelled",
+        "error",
+        "queued",
+        "running",
+        "success"
+      ],
       "reason": "QueueEntryState 是 generation queue 的调度 state machine：queued、running、success、error、cancelled 记录队列条目的排队、执行和结算，边界不同于画布节点的 idle/recoverable 持久状态；TaskCenter 只从它投影视图。"
     },
     {
       "site": "src/workbench/generationCanvas/runner/referenceSlots.ts::type:ReferenceFillStatus/type-union",
-      "members": ["pending-extraction", "pending-generation", "resolved"],
+      "members": [
+        "pending-extraction",
+        "pending-generation",
+        "resolved"
+      ],
       "reason": "ReferenceFillStatus 是画布参考槽中单个输入的可用性合同：pending-generation 等源节点产物，pending-extraction 等视频抽帧，resolved 已有 URL；显示、生成、校验和对账共同消费该状态。"
     },
     {
@@ -515,104 +1217,155 @@
     },
     {
       "site": "src/workbench/onboarding/journeyTourStore.ts::type:TourPhase/type-union",
-      "members": ["finale", "idle", "running"],
+      "members": [
+        "finale",
+        "idle",
+        "running"
+      ],
       "reason": "**引导动画**播放态，finale 是动画收尾帧，纯 UI。"
     },
     {
       "site": "src/workbench/onboarding/onboardingState.ts::type:ChecklistStep/type-union",
-      "members": ["exported", "generated", "model", "storyboard"],
+      "members": [
+        "exported",
+        "generated",
+        "model",
+        "storyboard"
+      ],
       "reason": "ChecklistStep 是跨会话上手清单的稳定里程碑键：model、storyboard、generated、exported 对应四项用户任务，并作为 localStorage record 的键集合；它不是按时间推进的任务 lifecycle。"
     },
     {
       "site": "src/workbench/production/productionRunView.ts::type:ProductionRunTone/type-union",
-      "members": ["attention", "danger", "neutral", "success", "working"],
+      "members": [
+        "attention",
+        "danger",
+        "neutral",
+        "success",
+        "working"
+      ],
       "reason": "ProductionRun 的视觉语气投影（attention / danger / neutral / success / working），只决定呈现，不承载账本状态。"
     },
     {
       "site": "src/workbench/production/shotPlaceholderState.ts::type:ShotPlaceholderPhase/type-union",
-      "members": ["done", "failed", "generating", "queued", "stopped"],
+      "members": [
+        "done",
+        "failed",
+        "generating",
+        "queued",
+        "stopped"
+      ],
       "reason": "ShotPlaceholderPhase 是合法的 view model：queued、generating、stopped、failed、done 表达镜头占位卡的用户可见阶段，由 ProductionJobStatus、Run status 与 error code 通过一个穷尽 mapper 派生；它不持久化、不反向覆盖 ProductionRun 账本。"
     },
     {
       "site": "src/workbench/settings/settingsAutomationView.ts::type:ProviderHealthState/type-union",
-      "members": ["connected", "disabled", "local", "needs-key", "no-models"],
+      "members": [
+        "connected",
+        "disabled",
+        "local",
+        "needs-key",
+        "no-models"
+      ],
       "reason": "ProviderHealthState 是设置页按供应商配置与已启用模型数量派生的能力摘要：connected、local、needs-key、disabled、no-models 回答能否工作；它不做网络请求，边界不同于 VendorHealthState 的实时 reachability。"
     },
     {
       "site": "src/workbench/taskCenter/taskCenterEntries.ts::function:resolveTaskButtonTone/type-union",
-      "members": ["busy", "failed", "idle"],
+      "members": [
+        "busy",
+        "failed",
+        "idle"
+      ],
       "reason": "resolveTaskButtonTone 的 busy、failed、idle 是 TaskCenter 顶栏按钮的合法 visual view model，由 running、queued、failed 计数映射，只决定强调色与提示，不充当任务生命周期。"
     },
     {
       "site": "src/workbench/taskCenter/taskCenterProjection.ts::type:TaskCenterGroup/type-union",
-      "members": ["done", "queued", "running"],
+      "members": [
+        "done",
+        "queued",
+        "running"
+      ],
       "reason": "TaskCenterGroup 是 TaskCenter 排序分组的合法 view model：running、queued、done 将 generation queue 与 ProductionRun 的不同状态机投影为统一列表分区，不持久化为新的任务状态。"
     },
     {
       "site": "src/workbench/taskCenter/taskCenterProjection.ts::type:TaskCenterOutcome/type-union",
-      "members": ["cancelled", "error", "success"],
+      "members": [
+        "cancelled",
+        "error",
+        "success"
+      ],
       "reason": "TaskCenterOutcome 是 TaskCenter 终局徽标的合法 view model：success、error、cancelled 由各上游任务状态通过各自 mapper 产生，跨 generation 与 ProductionRun 共用展示语义但不反向成为业务真相源。"
     },
     {
-      "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_CREDENTIAL_STATUSES/as-const",
-      "members": ["missing", "needs_resave", "ready", "unavailable"],
-      "reason": "INTEGRATION_CREDENTIAL_STATUSES 是模型接入会话的凭据持久化状态唯一合同；主进程 session、trusted UI projection 和跨进程恢复都从该 tuple 派生，避免把安全存储失败误报成可用。"
-    },
-    {
-      "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_STAGES/as-const",
-      "members": ["cancelled", "certifying", "committing", "completed", "discovering", "draft", "failed", "needs_credential", "needs_input", "needs_selection", "needs_spend_confirmation", "partial"],
-      "reason": "INTEGRATION_STAGES 是模型/ComfyUI 接入会话生命周期唯一合同；MCP、trusted UI、持久化恢复和下一步映射都从同一 tuple 派生。"
-    },
-    {
-      "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_START_RECEIPT_STATUSES/as-const",
-      "members": ["consumed", "pending"],
-      "reason": "INTEGRATION_START_RECEIPT_STATUSES 是接入认证 receipt 的两阶段持久化窗口；pending 先落 intent、consumed 才允许执行，保证崩溃恢复不重复花费。"
-    },
-    {
       "site": "src/workbench/workbenchTypes.ts::variable:STORYBOARD_DESIGN_STATUSES/as-const",
-      "members": ["committed", "draft", "stale"],
+      "members": [
+        "committed",
+        "draft",
+        "stale"
+      ],
       "reason": "Storyboard design status is the persisted lifecycle of a draft-owned creative asset: draft is proposed, committed is placed on canvas, and stale needs synchronization after its source draft changes."
     },
     {
-      "site": "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx::function:StatusBadge/parameter:0/property:tone/type-union",
-      "members": ["active", "neutral", "success", "warning"],
-      "reason": "TimelineEditPlanCard StatusBadge tone is a visual vocabulary for Agent edit-plan cards; it only controls badge color and icon, not the edit or task lifecycle."
-    },
-    {
-      "site": "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx::type:TimelineAppliedRecord/property:status/type-union",
-      "members": ["applied", "failed", "undoing", "undone"],
-      "reason": "TimelineAppliedRecord.status is a local view-model vocabulary for apply and undo outcomes; it must remain distinct from the persisted adoption and runtime lifecycle states."
+      "site": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts::variable:SHOT_ROW_STATUSES/as-const",
+      "members": [
+        "done",
+        "failed",
+        "generating",
+        "locked",
+        "missing-required",
+        "ready",
+        "waiting-refs"
+      ],
+      "reason": "ShotRowStatus 是分镜表行的执行态投影词表（v5 B）：从「plan × 画布节点」实时 derive（不持久化），waiting-refs/missing-required 是表独有的前置就绪判定（参考卡未出图/必填槽无来源），与节点自身的 GenerationCanvasNode.status（queued/running/error…）不同源不同义——节点态只描述单节点生命周期，行态还要综合锚就绪度与锁定；组头/footer/批量判定必须从本 owner derive，禁止另写快照。"
     }
   ],
   "debt": [
     {
       "site": "electron/ai/agentChatV2Ipc.ts::function:emptyResult/parameter:status/type-union",
-      "members": ["cancelled", "error"],
+      "members": [
+        "cancelled",
+        "error"
+      ],
       "reason": "emptyResult.status 只是 RuntimeTurnResult['status'] 中 error、cancelled 的失败子集；应改为 Extract<AgentChatStatus, 'error' | 'cancelled'>，而 AgentChatStatus 本身从 RuntimeTurnResult['status'] 派生，删除该参数的本地字面量。"
     },
     {
       "site": "electron/ai/antigravityProtocol.ts::class:AntigravityProtocol/method:acceptTool/property:state/type-union",
-      "members": ["ACTIVE", "DONE"],
+      "members": [
+        "ACTIVE",
+        "DONE"
+      ],
       "reason": "Exact duplicate of electron/ai/antigravityProtocol.ts::type:AntigravityToolStep/property:state/type-union; converge by importing or deriving the canonical members instead of maintaining this local literal set."
     },
     {
       "site": "electron/ai/onboarding/vendorHealth.ts::type:VendorHealthState/type-union",
-      "members": ["reachable", "unreachable", "unsupported"],
+      "members": [
+        "reachable",
+        "unreachable",
+        "unsupported"
+      ],
       "reason": "VendorHealthState 供应商探测合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 VENDOR_HEALTH_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "electron/browser/core/browserViewTypes.ts::type:BrowserPromptScreenshotSelectionResult/property:reason/type-union",
-      "members": ["cancelled", "error"],
+      "members": [
+        "cancelled",
+        "error"
+      ],
       "reason": "浏览器截图选择结束原因合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 BROWSER_SCREENSHOT_SELECTION_REASONS as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "electron/capabilityCore/core.ts::variable:TERMINAL_STATUSES/set",
-      "members": ["failed", "succeeded"],
+      "members": [
+        "failed",
+        "succeeded"
+      ],
       "reason": "TERMINAL_STATUSES 是 TaskStatus 的 failed、succeeded 终态子集；neutral TaskStatus 合同落地后由同一个 isTerminalTaskStatus helper 提供，core 不再维护独立 Set。"
     },
     {
       "site": "electron/capabilityCore/dispatcher.ts::type:DispatchContext/property:productionRuns/property:reviewArtifact/parameter:input/property:decision/type-union",
-      "members": ["approved", "changes_requested", "rejected"],
+      "members": [
+        "approved",
+        "changes_requested",
+        "rejected"
+      ],
       "reason": "与 electron/productionRun/productionRunReducer.ts::type:ArtifactReviewDecision/type-union 的成员完全相同，当前为重复 owner；后续改为导入或 derive 唯一真相源。"
     },
     {
@@ -631,7 +1384,10 @@
     },
     {
       "site": "electron/capabilityCore/mcpGenerationTools.ts::type:GenerationPlanningHandlerDependencies/property:reconcile/parameter:outcome/type-union",
-      "members": ["found", "not_found"],
+      "members": [
+        "found",
+        "not_found"
+      ],
       "reason": "该 found/not_found 是 ProductionRun job.reconcile 的投影；应在 ProductionRun/shared 定义 GenerationReconcileOutcome as const tuple 与 runtime schema，并按同一顺序生成 MCP JSON Schema enum、callback 类型、IPC validation、UI 类型及校验，随后删除所有本地字面量与手写分支。"
     },
     {
@@ -650,182 +1406,360 @@
     },
     {
       "site": "electron/catalog/codexCli.ts::type:CodexImageJobStatus/type-union",
-      "members": ["failed", "queued", "running", "succeeded"],
+      "members": [
+        "failed",
+        "queued",
+        "running",
+        "succeeded"
+      ],
       "reason": "TaskStatus 外部任务执行合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 TASK_STATUSES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "electron/catalog/customCallRunner.ts::type:CustomCallTranscriptEntry/property:status/type-union",
-      "members": ["error", "ok"],
+      "members": [
+        "error",
+        "ok"
+      ],
       "reason": "CustomCall transcript 结果合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 CUSTOM_CALL_TRANSCRIPT_STATUSES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "electron/catalog/customCallTestRuns.ts::type:CustomCallTestRunState/type-union",
-      "members": ["cancelled", "cancelling", "failed", "running", "succeeded"],
+      "members": [
+        "cancelled",
+        "cancelling",
+        "failed",
+        "running",
+        "succeeded"
+      ],
       "reason": "CustomCall test run 生命周期合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 CUSTOM_CALL_TEST_RUN_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "electron/catalog/dreaminaLoginIpc.ts::type:DreaminaLoginPoll/property:status/type-union",
-      "members": ["error", "pending", "success"],
+      "members": [
+        "error",
+        "pending",
+        "success"
+      ],
       "reason": "Dreamina 设备码登录轮询合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 DREAMINA_LOGIN_POLL_STATUSES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "electron/events/vendorCallTrace.ts::function:traceVendorCompleted/parameter:payload/property:status/type-union",
-      "members": ["failed", "succeeded"],
+      "members": [
+        "failed",
+        "succeeded"
+      ],
       "reason": "traceVendorCompleted.status 是观测事件对任务终局的二元投影；应由 neutral TaskStatus 合同的 isTerminalTaskStatus helper 映射为 named VendorCallOutcome，而不是在 trace payload 重写 failed、succeeded。"
     },
     {
       "site": "electron/export/exportJobManager.ts::variable:ACTIVE_STATUSES/set",
-      "members": ["encoding", "finalizing", "muxing", "planning", "preparing", "queued", "rendering"],
+      "members": [
+        "encoding",
+        "finalizing",
+        "muxing",
+        "planning",
+        "preparing",
+        "queued",
+        "rendering"
+      ],
       "reason": "ACTIVE_STATUSES 是 ExportJobStatus 的活动子集；应在 exportTypes 旁提供唯一 isActiveExportJobStatus helper，并让 manager 与临时输入清理逻辑共用，删除两份 Set。"
     },
     {
       "site": "electron/export/exportJobs.ts::variable:EXPORT_TEMP_INPUT_WRITABLE_STATUSES/set",
-      "members": ["encoding", "finalizing", "muxing", "planning", "preparing", "queued", "rendering"],
+      "members": [
+        "encoding",
+        "finalizing",
+        "muxing",
+        "planning",
+        "preparing",
+        "queued",
+        "rendering"
+      ],
       "reason": "EXPORT_TEMP_INPUT_WRITABLE_STATUSES 与 ACTIVE_STATUSES 都是 ExportJobStatus 的同一活动子集；应共用 exportTypes 旁的 isActiveExportJobStatus helper，删除本地 Set。"
     },
     {
       "site": "electron/harness/agentChatContracts.ts::type:AgentChatStatus/type-union",
-      "members": ["cancelled", "error", "finished"],
+      "members": [
+        "cancelled",
+        "error",
+        "finished"
+      ],
       "reason": "AgentChatStatus 是 RuntimeTurnResult['status'] 原样穿过 IPC 的 wire 投影；应改为 RuntimeTurnResult['status'] 或共享 named alias，并删除 finished、cancelled、error 的第二份字面量。"
     },
     {
       "site": "electron/harness/context/contextService.ts::interface:AgentContextInfo/property:state/type-union",
-      "members": ["cleared", "ready"],
+      "members": [
+        "cleared",
+        "ready"
+      ],
       "reason": "AgentContextInfo.state 是 StoredAgentContext.state 的只读服务投影；contextService 已导入 contextStore 并在 describe 中原样返回 record.state，不拥有独立成员。应改为 StoredAgentContext['state'] 后删除本地字面量。"
     },
     {
       "site": "electron/harness/runtime/pi/observeStream.mts::class:NativeStreamTimeout/parameter:phase/type-union",
-      "members": ["first-response", "idle"],
+      "members": [
+        "first-response",
+        "idle"
+      ],
       "reason": "Exact duplicate of electron/harness/runtime/runtimePort.ts::interface:RuntimeErrorFacts/property:timeoutPhase/type-union; converge by importing or deriving the canonical members instead of maintaining this local literal set."
     },
     {
       "site": "electron/harness/runtime/pi/observeStream.mts::function:observeNativeStream/variable:arm/parameter:phase/type-union",
-      "members": ["first-response", "idle"],
+      "members": [
+        "first-response",
+        "idle"
+      ],
       "reason": "Exact duplicate of electron/harness/runtime/runtimePort.ts::interface:RuntimeErrorFacts/property:timeoutPhase/type-union; converge by importing or deriving the canonical members instead of maintaining this local literal set."
     },
     {
       "site": "electron/harness/runtime/pi/tools.mts::type:HostToolResult/property:status/type-union",
-      "members": ["cancelled", "denied", "error"],
+      "members": [
+        "cancelled",
+        "denied",
+        "error"
+      ],
       "reason": "HostToolResult 的 denied、cancelled、error 是 RuntimeToolCallRecord['status'] 排除 ok 后的失败分支；应以 Exclude<RuntimeToolCallRecord['status'], 'ok'> 派生，并让成功分支也复用 ok 字面量 owner。"
     },
     {
       "site": "electron/preload.ts::property:onboarding/property:vendorHealth/property:state/type-union",
-      "members": ["reachable", "unreachable", "unsupported"],
+      "members": [
+        "reachable",
+        "unreachable",
+        "unsupported"
+      ],
       "reason": "VendorHealthState 供应商探测合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 VENDOR_HEALTH_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "electron/preload.ts::property:promptLibrary/property:textBrain/property:status/type-union",
-      "members": ["locked", "missing", "ok"],
+      "members": [
+        "locked",
+        "missing",
+        "ok"
+      ],
       "reason": "preload 的 ok、locked、missing 是旧投影且范围过宽：真实 textBrain IPC 只返回 metadata readiness 的 ok 或 missing，execution 阶段首次解密才可能得到 locked。应复用 readiness bridge 合同并保持该读路径零 Keychain。"
     },
     {
       "site": "electron/productionRun/productionRunArtifactOperations.ts::function:createArtifactOperations/function:reviewArtifact/parameter:input/property:decision/type-union",
-      "members": ["approved", "changes_requested", "rejected"],
+      "members": [
+        "approved",
+        "changes_requested",
+        "rejected"
+      ],
       "reason": "与 electron/productionRun/productionRunReducer.ts::type:ArtifactReviewDecision/type-union 的成员完全相同，当前为重复 owner；后续改为导入或 derive 唯一真相源。"
     },
     {
       "site": "electron/productionRun/productionRunReducer.ts::variable:ARTIFACT_STATUSES/set",
-      "members": ["adopted", "candidate", "ready", "rejected"],
+      "members": [
+        "adopted",
+        "candidate",
+        "ready",
+        "rejected"
+      ],
       "reason": "与 electron/productionRun/productionRunTypes.ts::type:ProductionArtifact/property:status/type-union 的成员完全相同，当前为重复 owner；后续改为导入或 derive 唯一真相源。"
     },
     {
       "site": "electron/productionRun/productionRunReducer.ts::variable:GATE_STATUSES/set",
-      "members": ["approved", "expired", "rejected", "revoked", "waiting"],
+      "members": [
+        "approved",
+        "expired",
+        "rejected",
+        "revoked",
+        "waiting"
+      ],
       "reason": "与 electron/productionRun/productionRunTypes.ts::type:ProductionGateStatus/type-union 的成员完全相同，当前为重复 owner；后续改为导入或 derive 唯一真相源。"
     },
     {
       "site": "electron/productionRun/productionRunResume.ts::type:GenerationResumeInput/property:envelopeState/type-union",
-      "members": ["materialized", "provider_accepted", "sealed", "submitted_unknown"],
+      "members": [
+        "materialized",
+        "provider_accepted",
+        "sealed",
+        "submitted_unknown"
+      ],
       "reason": "Exact duplicate of electron/productionRun/productionRunRuntimeEnvelope.ts::type:RuntimeEnvelopeState/type-union; converge by importing or deriving the canonical members instead of maintaining this local literal set."
     },
     {
       "site": "electron/productionRun/productionRunTypes.ts::type:ProductionGenerationPlan/property:state/type-union",
-      "members": ["cancelled", "draft", "sealed", "submitted"],
+      "members": [
+        "cancelled",
+        "draft",
+        "sealed",
+        "submitted"
+      ],
       "reason": "Exact duplicate of electron/capabilityCore/mcpGenerationTools.ts::type:GenerationOperationState/type-union; converge by importing or deriving the canonical members instead of maintaining this local literal set."
     },
     {
       "site": "electron/providerAdapter/existingConnection.ts::variable:TERMINAL_RUN_STAGES/set",
-      "members": ["cancelled", "completed", "failed", "needs_ai", "partial", "stale", "timed_out"],
+      "members": [
+        "cancelled",
+        "completed",
+        "failed",
+        "needs_ai",
+        "partial",
+        "stale",
+        "timed_out"
+      ],
       "reason": "TERMINAL_RUN_STAGES 是 future neutral AdapterRunStage contract 的终态子集；共享合同落地时同时提供 isTerminalAdapterRunStage helper，existingConnection、liveHarness、store 与 renderer 全部调用该 helper，删除四份 Set。"
     },
     {
       "site": "electron/providerAdapter/liveHarness.ts::variable:TERMINAL/set",
-      "members": ["cancelled", "completed", "failed", "needs_ai", "partial", "stale", "timed_out"],
+      "members": [
+        "cancelled",
+        "completed",
+        "failed",
+        "needs_ai",
+        "partial",
+        "stale",
+        "timed_out"
+      ],
       "reason": "TERMINAL 是 future neutral AdapterRunStage contract 的终态子集；共享合同落地时由 isTerminalAdapterRunStage helper 唯一判断，liveHarness 不再维护成员列表。"
     },
     {
       "site": "electron/providerAdapter/service.ts::class:ProviderAdapterService/method:finishRunWithFailure/parameter:stage/type-union",
-      "members": ["cancelled", "failed", "needs_ai", "timed_out"],
+      "members": [
+        "cancelled",
+        "failed",
+        "needs_ai",
+        "timed_out"
+      ],
       "reason": "AdapterRunStage 的失败终态子集被再次写在参数类型上；待从 electron/providerAdapter/types.ts::type:AdapterRunStage derive。"
     },
     {
       "site": "electron/providerAdapter/service.ts::class:ProviderAdapterService/method:finishTerminal/parameter:stage/type-union",
-      "members": ["cancelled", "timed_out"],
+      "members": [
+        "cancelled",
+        "timed_out"
+      ],
       "reason": "finishTerminal.stage 只是 AdapterRunStage 中会终止 controller 的 cancelled、timed_out 子集；所有值最终进入共同 finishRunWithFailure 路径。应改为 Extract<AdapterRunStage, 'cancelled' | 'timed_out'>，不维护第二份成员。"
     },
     {
       "site": "electron/providerAdapter/service.ts::class:ProviderAdapterService/method:finishWithError/parameter:stage/type-union",
-      "members": ["failed", "needs_ai"],
+      "members": [
+        "failed",
+        "needs_ai"
+      ],
       "reason": "finishWithError.stage 只是 AdapterRunStage 中普通失败的 failed、needs_ai 子集；所有值最终进入共同 finishRunWithFailure 路径。应改为 Extract<AdapterRunStage, 'failed' | 'needs_ai'>，不维护第二份成员。"
     },
     {
       "site": "electron/providerAdapter/store.ts::variable:TERMINAL_ADAPTER_STAGES/set",
-      "members": ["cancelled", "completed", "failed", "needs_ai", "partial", "stale", "timed_out"],
+      "members": [
+        "cancelled",
+        "completed",
+        "failed",
+        "needs_ai",
+        "partial",
+        "stale",
+        "timed_out"
+      ],
       "reason": "TERMINAL_ADAPTER_STAGES 是 future neutral AdapterRunStage contract 的终态子集；共享合同落地时改用 isTerminalAdapterRunStage helper，持久化清理不再维护第二份 Set。"
     },
     {
-      "site": "electron/providerAdapter/types.ts::type:AdapterModelMeta/property:state/type-union",
-      "members": ["failed", "partial", "testing", "unverified", "verified"],
-      "reason": "AdapterModelMeta.state 模型适配结果合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODEL_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
-    },
-    {
       "site": "electron/providerAdapter/types.ts::type:AdapterModeState/type-union",
-      "members": ["failed", "queued", "repairing", "testing", "verified"],
+      "members": [
+        "failed",
+        "queued",
+        "repairing",
+        "testing",
+        "verified"
+      ],
       "reason": "AdapterModeState 模型模式验证合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODE_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
+      "site": "electron/providerAdapter/types.ts::type:AdapterModelMeta/property:state/type-union",
+      "members": [
+        "failed",
+        "partial",
+        "testing",
+        "unverified",
+        "verified"
+      ],
+      "reason": "AdapterModelMeta.state 模型适配结果合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODEL_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
+    },
+    {
       "site": "electron/runtime.ts::function:runTask/property:status/type-union",
-      "members": ["failed", "succeeded"],
+      "members": [
+        "failed",
+        "succeeded"
+      ],
       "reason": "runTask.status 只返回 neutral TaskStatus 合同的 failed、succeeded 终态；应从 TASK_STATUSES 生成的 TaskStatus 以 Extract 派生，并复用 isTerminalTaskStatus，不保留局部二元字面量。"
     },
     {
       "site": "electron/runtime.ts::type:TaskResult/property:status/type-union",
-      "members": ["failed", "queued", "running", "succeeded"],
+      "members": [
+        "failed",
+        "queued",
+        "running",
+        "succeeded"
+      ],
       "reason": "TaskStatus 外部任务执行合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 TASK_STATUSES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "electron/tasks/localTaskJobs.ts::type:Job/property:status/type-union",
-      "members": ["cancelled", "failed", "running", "succeeded"],
+      "members": [
+        "cancelled",
+        "failed",
+        "running",
+        "succeeded"
+      ],
       "reason": "本地 Job.status 是 neutral TaskStatus 去掉 queued 后再加入 cancelled 的执行投影；应声明为 Exclude<TaskStatus, 'queued'> | 'cancelled'，并由 task mapper 负责 queued→running 与取消语义，删除本地四态副本。"
     },
     {
       "site": "electron/tasks/responseParsing.ts::function:resolveTaskStatus/as-const",
-      "members": ["failed", "queued", "running", "succeeded"],
+      "members": [
+        "failed",
+        "queued",
+        "running",
+        "succeeded"
+      ],
       "reason": "TaskStatus 外部任务执行合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 TASK_STATUSES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "electron/tasks/responseParsing.ts::type:TaskStatus/type-union",
-      "members": ["failed", "queued", "running", "succeeded"],
+      "members": [
+        "failed",
+        "queued",
+        "running",
+        "succeeded"
+      ],
       "reason": "TaskStatus 外部任务执行合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 TASK_STATUSES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "electron/workspace/workspaceRepository.ts::type:WorkspaceProjectDiagnosticStatus/type-union",
-      "members": ["corrupt-manifest", "id-mismatch", "missing-folder", "missing-manifest", "not-registered", "ok"],
+      "members": [
+        "corrupt-manifest",
+        "id-mismatch",
+        "missing-folder",
+        "missing-manifest",
+        "not-registered",
+        "ok"
+      ],
       "reason": "WorkspaceProjectDiagnosticStatus 项目诊断合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 WORKSPACE_PROJECT_DIAGNOSTIC_STATUSES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "src/desktop/bridge.ts::type:DesktopBridge/property:dreamina/property:loginPoll/property:status/type-union",
-      "members": ["error", "pending", "success"],
+      "members": [
+        "error",
+        "pending",
+        "success"
+      ],
       "reason": "Dreamina 设备码登录轮询合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 DREAMINA_LOGIN_POLL_STATUSES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "src/desktop/bridge.ts::type:DesktopBridge/property:projects/property:diagnose/property:status/type-union",
-      "members": ["corrupt-manifest", "id-mismatch", "missing-folder", "missing-manifest", "not-registered", "ok"],
+      "members": [
+        "corrupt-manifest",
+        "id-mismatch",
+        "missing-folder",
+        "missing-manifest",
+        "not-registered",
+        "ok"
+      ],
       "reason": "WorkspaceProjectDiagnosticStatus 项目诊断合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 WORKSPACE_PROJECT_DIAGNOSTIC_STATUSES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "src/desktop/bridge.ts::type:DesktopBrowserPromptScreenshotSelection/property:reason/type-union",
-      "members": ["cancelled", "error"],
+      "members": [
+        "cancelled",
+        "error"
+      ],
       "reason": "浏览器截图选择结束原因合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 BROWSER_SCREENSHOT_SELECTION_REASONS as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
@@ -858,152 +1792,264 @@
     },
     {
       "site": "src/desktop/modelCatalogBridgeTypes.ts::type:CustomCallTestRunSnapshot/property:state/type-union",
-      "members": ["cancelled", "cancelling", "failed", "running", "succeeded"],
+      "members": [
+        "cancelled",
+        "cancelling",
+        "failed",
+        "running",
+        "succeeded"
+      ],
       "reason": "CustomCall test run 生命周期合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 CUSTOM_CALL_TEST_RUN_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "src/desktop/modelCatalogBridgeTypes.ts::type:CustomCallTranscriptEntry/property:status/type-union",
-      "members": ["error", "ok"],
+      "members": [
+        "error",
+        "ok"
+      ],
       "reason": "CustomCall transcript 结果合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 CUSTOM_CALL_TRANSCRIPT_STATUSES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "src/desktop/onboardingBridgeTypes.ts::type:DesktopAdapterModeResult/property:state/type-union",
-      "members": ["failed", "queued", "repairing", "testing", "verified"],
+      "members": [
+        "failed",
+        "queued",
+        "repairing",
+        "testing",
+        "verified"
+      ],
       "reason": "AdapterModeState 模型模式验证合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODE_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "src/desktop/onboardingBridgeTypes.ts::type:VendorHealthState/type-union",
-      "members": ["reachable", "unreachable", "unsupported"],
+      "members": [
+        "reachable",
+        "unreachable",
+        "unsupported"
+      ],
       "reason": "VendorHealthState 供应商探测合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 VENDOR_HEALTH_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
-      "site": "src/ui/onboarding/adapterVerificationViewModel.ts::variable:TERMINAL_STAGES/set",
-      "members": ["cancelled", "completed", "failed", "needs_ai", "partial", "stale", "timed_out"],
-      "reason": "renderer TERMINAL_STAGES 是 future neutral AdapterRunStage contract 的终态子集；共享合同落地时直接调用 isTerminalAdapterRunStage helper，UI 不再维护第四份成员列表。"
-    },
-    {
-      "site": "src/ui/onboarding/assistantActivationState.ts::function:resolveAssistantActivationState/property:headerStatus/type-union",
-      "members": ["ok", "todo"],
-      "reason": "resolveAssistantActivationState.headerStatus 只是 FoldableModelCard.status 的无 error 子集，并直接传入共享卡片；Assistant 不应成为 ComfyUI/Dreamina 的 owner。应改为 Exclude<Parameters<typeof FoldableModelCard>[0]['status'], 'error'> 后删除本地字面量。"
-    },
-    {
       "site": "src/ui/onboarding/ComfyuiLocalCard.tsx::function:ComfyuiLocalCard/variable:cardStatus/type-union",
-      "members": ["ok", "todo"],
+      "members": [
+        "ok",
+        "todo"
+      ],
       "reason": "ComfyuiLocalCard.cardStatus 只是 FoldableModelCard.status 的无 error 子集，并直接传入共享卡片；它不是独立领域合同。应改为 Exclude<Parameters<typeof FoldableModelCard>[0]['status'], 'error'> 后删除本地字面量。"
     },
     {
       "site": "src/ui/onboarding/ConnectAssistantCard.tsx::type:VerifyState/property:phase/type-union",
-      "members": ["broken", "checking", "ok"],
+      "members": [
+        "broken",
+        "checking",
+        "ok"
+      ],
       "reason": "Exact duplicate of src/ui/onboarding/assistantActivationState.ts::type:AssistantVerifyPhase/type-union; converge by importing or deriving the canonical members instead of maintaining this local literal set."
     },
     {
       "site": "src/ui/onboarding/DreaminaMemberCard.tsx::function:DreaminaMemberCard/variable:cardStatus/type-union",
-      "members": ["ok", "todo"],
+      "members": [
+        "ok",
+        "todo"
+      ],
       "reason": "DreaminaMemberCard.cardStatus 只是 FoldableModelCard.status 的无 error 子集，并直接传入共享卡片；它不是独立领域合同。应改为 Exclude<Parameters<typeof FoldableModelCard>[0]['status'], 'error'> 后删除本地字面量。"
     },
     {
       "site": "src/ui/onboarding/ModelChipGroups.tsx::type:ChipModel/property:adapterState/type-union",
-      "members": ["failed", "partial", "testing", "unverified", "verified"],
-      "reason": "AdapterModelMeta.state 模型适配结果合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODEL_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
-    },
-    {
-      "site": "src/ui/onboarding/modelSettingsCatalogProjection.ts::variable:ADAPTER_STATES/set",
-      "members": ["failed", "partial", "testing", "unverified", "verified"],
+      "members": [
+        "failed",
+        "partial",
+        "testing",
+        "unverified",
+        "verified"
+      ],
       "reason": "AdapterModelMeta.state 模型适配结果合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODEL_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "src/ui/onboarding/OnboardingWizardResult.tsx::function:OnboardingWizardResult/parameter:0/property:phase/type-union",
-      "members": ["error", "input", "running", "success"],
+      "members": [
+        "error",
+        "input",
+        "running",
+        "success"
+      ],
       "reason": "与 src/ui/onboarding/OnboardingWizard.tsx::type:Phase/type-union 的成员完全相同，当前为重复 owner；后续改为导入或 derive 唯一真相源。"
     },
     {
+      "site": "src/ui/onboarding/adapterVerificationViewModel.ts::variable:TERMINAL_STAGES/set",
+      "members": [
+        "cancelled",
+        "completed",
+        "failed",
+        "needs_ai",
+        "partial",
+        "stale",
+        "timed_out"
+      ],
+      "reason": "renderer TERMINAL_STAGES 是 future neutral AdapterRunStage contract 的终态子集；共享合同落地时直接调用 isTerminalAdapterRunStage helper，UI 不再维护第四份成员列表。"
+    },
+    {
+      "site": "src/ui/onboarding/assistantActivationState.ts::function:resolveAssistantActivationState/property:headerStatus/type-union",
+      "members": [
+        "ok",
+        "todo"
+      ],
+      "reason": "resolveAssistantActivationState.headerStatus 只是 FoldableModelCard.status 的无 error 子集，并直接传入共享卡片；Assistant 不应成为 ComfyUI/Dreamina 的 owner。应改为 Exclude<Parameters<typeof FoldableModelCard>[0]['status'], 'error'> 后删除本地字面量。"
+    },
+    {
+      "site": "src/ui/onboarding/modelSettingsCatalogProjection.ts::variable:ADAPTER_STATES/set",
+      "members": [
+        "failed",
+        "partial",
+        "testing",
+        "unverified",
+        "verified"
+      ],
+      "reason": "AdapterModelMeta.state 模型适配结果合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODEL_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
+    },
+    {
       "site": "src/ui/onboarding/useCustomCallTestRun.ts::type:CustomCallTestRunState/property:phase/type-union",
-      "members": ["cancelling", "running"],
+      "members": [
+        "cancelling",
+        "running"
+      ],
       "reason": "useCustomCallTestRun.phase 只是 future neutral CustomCallTestRunState 的 running、cancelling 活动态子集；应改为 Extract<CustomCallTestRunState, 'running' | 'cancelling'>，保留 hook 的 UI 数据但删除本地字面量。"
     },
     {
       "site": "src/ui/onboarding/useVendorHealth.ts::type:VendorConnection/property:state/type-union",
-      "members": ["checking", "reachable", "unreachable", "unsupported"],
+      "members": [
+        "checking",
+        "reachable",
+        "unreachable",
+        "unsupported"
+      ],
       "reason": "VendorConnection.state 是主进程 VendorHealthState 与 renderer 瞬时 checking 的组合投影，却再次抄写 reachable、unreachable、unsupported。应改为 'checking' | VendorHealthState 并删除本地三态副本。"
     },
     {
       "site": "src/ui/onboarding/vendorConnectionView.ts::type:VendorPill/property:status/type-union",
-      "members": ["error", "ok", "todo"],
+      "members": [
+        "error",
+        "ok",
+        "todo"
+      ],
       "reason": "与 src/ui/onboarding/FoldableModelCard.tsx::type:FoldableModelCardProps/property:status/type-union 的成员完全相同，当前为重复 owner；后续改为导入或 derive 唯一真相源。"
     },
     {
       "site": "src/workbench/api/taskApi.ts::type:TaskStatus/type-union",
-      "members": ["failed", "queued", "running", "succeeded"],
+      "members": [
+        "failed",
+        "queued",
+        "running",
+        "succeeded"
+      ],
       "reason": "TaskStatus 外部任务执行合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 TASK_STATUSES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
     },
     {
       "site": "src/workbench/export/exportApi.ts::function:exportTimelineToMp4/property:onProgress/variable:status/type-union",
-      "members": ["done", "preparing", "recording"],
+      "members": [
+        "done",
+        "preparing",
+        "recording"
+      ],
       "reason": "同一 MP4 导出回调合同已有四态 owner；这里是少 converting 的局部子集，待从 ExportTimelineToMp4Options 的 progress status derive。"
     },
     {
       "site": "src/workbench/generationCanvas/components/AssistantTimeline.tsx::type:StepTone/type-union",
-      "members": ["active", "done", "warn"],
+      "members": [
+        "active",
+        "done",
+        "warn"
+      ],
       "reason": "StepTone 把执行进度 active/done 与对账偏差 warn 混成互斥枚举；现码中 warn 只由 deviationReport/contentDeviations 触发。收敛目标是以 active/done 作为步骤进度 canonical，并把偏差改为 done 上独立的 deviated flag，随后删除 warn 成员。"
     },
     {
-      "site": "src/workbench/generationCanvas/model/generationCanvasSchema.ts::variable:generationNodeRunStatusSchema/z.enum",
-      "members": ["cancelled", "error", "queued", "recoverable", "running", "success"],
-      "reason": "generationNodeRunStatusSchema 是 generationNodeStatusSchema 排除 idle 后加入 cancelled 的运行投影，却重写了其余成员；应从 runtime owner exclude/extend derive，避免与画布节点状态并行维护。"
-    },
-    {
-      "site": "src/workbench/generationCanvas/model/generationCanvasTypes.ts::type:GenerationNodeStatus/type-union",
-      "members": ["error", "idle", "queued", "recoverable", "running", "success"],
-      "reason": "GenerationNodeStatus 与 runtime canonical generationNodeStatusSchema 成员完全相同；应改为 z.infer<typeof generationNodeStatusSchema> 并删除这份并行 TypeScript 字面量。"
-    },
-    {
-      "site": "src/workbench/generationCanvas/nodes/nodeAssetWrite.ts::type:AddAssetOutcome/property:status/type-union",
-      "members": ["added", "duplicate", "empty", "no-slot"],
-      "reason": "该 site 只扫描到 AddAssetOutcome 第一分支的四个 status，不能把不完整成员集注册为 owner。应先抽出命名 AddAssetStatus 并把另一分支的 full 与 added、duplicate、empty、no-slot 一并纳入，再由整个 outcome 复用。"
-    },
-    {
       "site": "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx::type:PanoramaCaptureFeedback/property:tone/type-union",
-      "members": ["error", "info", "success"],
+      "members": [
+        "error",
+        "info",
+        "success"
+      ],
       "reason": "PanoramaCaptureFeedback 在局部重复了共享 Toast 的 info/success/error 语气子集；canonical owner 是 src/ui/toast.tsx::type:ToastType/type-union，待改为直接复用或从该类型 derive。"
     },
     {
+      "site": "src/workbench/generationCanvas/nodes/nodeAssetWrite.ts::type:AddAssetOutcome/property:status/type-union",
+      "members": [
+        "added",
+        "duplicate",
+        "empty",
+        "no-slot"
+      ],
+      "reason": "该 site 只扫描到 AddAssetOutcome 第一分支的四个 status，不能把不完整成员集注册为 owner。应先抽出命名 AddAssetStatus 并把另一分支的 full 与 added、duplicate、empty、no-slot 一并纳入，再由整个 outcome 复用。"
+    },
+    {
       "site": "src/workbench/generationCanvas/runner/catalogTaskActions.ts::variable:TERMINAL_STATUSES/set",
-      "members": ["failed", "succeeded"],
+      "members": [
+        "failed",
+        "succeeded"
+      ],
       "reason": "catalogTaskActions.TERMINAL_STATUSES 是 neutral TaskStatus 的 failed、succeeded 子集；应调用共享 isTerminalTaskStatus helper，catalog action 不再保存独立 Set。"
     },
     {
       "site": "src/workbench/generationCanvas/runner/recoverTaskActions.ts::variable:TERMINAL_STATUSES/set",
-      "members": ["failed", "succeeded"],
+      "members": [
+        "failed",
+        "succeeded"
+      ],
       "reason": "recoverTaskActions.TERMINAL_STATUSES 是 neutral TaskStatus 的 failed、succeeded 子集；应与 catalog action 共用 isTerminalTaskStatus helper，删除本地 Set。"
     },
     {
       "site": "src/workbench/library/openWorkspaceFlow.ts::type:OpenWorkspaceFromLibraryOptions/property:showMessage/parameter:tone/type-union",
-      "members": ["error", "success"],
+      "members": [
+        "error",
+        "success"
+      ],
       "reason": "两个 openWorkspace showMessage callback 都只接受 ToastType 的 error、success 子集；应在本文件定义一次 OpenWorkspaceMessageTone = Extract<ToastType, 'error' | 'success'> 并让两个 options 复用。"
     },
     {
       "site": "src/workbench/library/openWorkspaceFlow.ts::type:OpenWorkspaceProjectFromPickerOptions/property:showMessage/parameter:tone/type-union",
-      "members": ["error", "success"],
+      "members": [
+        "error",
+        "success"
+      ],
       "reason": "OpenWorkspaceProjectFromPickerOptions.showMessage 与 library 入口完全共用语义；应复用 OpenWorkspaceMessageTone = Extract<ToastType, 'error' | 'success'>，删除第二份参数字面量。"
     },
     {
       "site": "src/workbench/preview/TimelinePreview.tsx::type:PreviewExportStatus/type-union",
-      "members": ["converting", "done", "error", "idle", "preparing", "recording"],
+      "members": [
+        "converting",
+        "done",
+        "error",
+        "idle",
+        "preparing",
+        "recording"
+      ],
       "reason": "TimelinePreview 把 MP4 进度四态再加 idle/error 维护成第二套状态；活动进度的 canonical owner 是 src/workbench/export/exportApi.ts::type:ExportTimelineToMp4Options 的 onProgress.status，待从该合同 derive，并把 idle/error 保留为 UI 局部标志。"
     },
     {
       "site": "src/workbench/production/productionShotActions.ts::type:ToastKind/type-union",
-      "members": ["error", "info", "success", "warning"],
+      "members": [
+        "error",
+        "info",
+        "success",
+        "warning"
+      ],
       "reason": "与 src/ui/toast.tsx::type:ToastType/type-union 成员完全相同；待直接复用共享 ToastType。"
     },
     {
       "site": "src/workbench/production/shotPlaceholderState.ts::variable:DONE_STATUSES/set",
-      "members": ["adopted", "ready"],
+      "members": [
+        "adopted",
+        "ready"
+      ],
       "reason": "DONE_STATUSES 重复列出 ProductionJobStatus 的 adopted、ready；应删除独立 Set，由 ProductionJobStatus 的一个穷尽 mapper 结合 Run/error facts 返回 ShotPlaceholderPhase，保留合法 view phase。"
     },
     {
       "site": "src/workbench/production/shotPlaceholderState.ts::variable:FAILED_STATUSES/set",
-      "members": ["cancelled_remote", "needs_attention", "too_late"],
+      "members": [
+        "cancelled_remote",
+        "needs_attention",
+        "too_late"
+      ],
       "reason": "FAILED_STATUSES 重复列出 ProductionJobStatus 的失败候选且还依赖 errorCode/Run 状态；应删除独立 Set，由 ProductionJobStatus 的一个穷尽 mapper 统一返回 ShotPlaceholderPhase 的 failed 或 stopped。"
     },
     {
@@ -1021,12 +2067,18 @@
     },
     {
       "site": "src/workbench/production/useProductionStatus.ts::function:useProductionStatus/variable:onPrimaryAction/variable:outcome/type-union",
-      "members": ["found", "not_found"],
+      "members": [
+        "found",
+        "not_found"
+      ],
       "reason": "该 found/not_found 是 ProductionRun job.reconcile 的投影；应在 ProductionRun/shared 定义 GenerationReconcileOutcome as const tuple 与 runtime schema，并按同一顺序生成 MCP JSON Schema enum、callback 类型、IPC validation、UI 类型及校验，随后删除所有本地字面量与手写分支。"
     },
     {
       "site": "src/workbench/taskCenter/productionRunTaskCenter.ts::variable:TERMINAL/set",
-      "members": ["cancelled", "completed"],
+      "members": [
+        "cancelled",
+        "completed"
+      ],
       "reason": "ProductionRun 任务中心自己重写了 cancelled/completed 终态子集；应从 ProductionRunStatus 的唯一终态判定 derive，而不是与碰巧同值的视口动画结果共用。"
     }
   ]

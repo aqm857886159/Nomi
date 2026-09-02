@@ -7,7 +7,6 @@ import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
 import { approveLatestScript, approveLatestStoryboard, waitForProduction as waitFor } from './productionRunTestHelpers'
 import { normalizeTrustLevel, trustLevelOf, DEFAULT_TRUST_LEVEL } from './productionRunTypes'
-import { shouldSampleGate } from './productionRunDriverOps'
 import { buildToolOutcome } from '../capabilityCore/mcpToolResults'
 
 // B3 信任档位（plan 2026-08-11-mcp-conversation-native-phase-b）：
@@ -81,12 +80,6 @@ describe('normalizeTrustLevel / trustLevelOf (B3 收口)', () => {
     expect(trustLevelOf({ trustLevel: 'budget_only' })).toBe('budget_only')
   })
 
-  it('shouldSampleGate 仅 budget_only 跳样片门', () => {
-    expect(shouldSampleGate({ policy: { trustLevel: 'budget_only' } } as never)).toBe(false)
-    expect(shouldSampleGate({ policy: { trustLevel: 'key_confirm' } } as never)).toBe(true)
-    expect(shouldSampleGate({ policy: { trustLevel: 'confirm_all' } } as never)).toBe(true)
-    expect(shouldSampleGate({ policy: {} } as never)).toBe(true) // 缺省 = 要门
-  })
 })
 
 describe('trust level gate-skip matrix (B3 · 预算门永不跳)', () => {
@@ -191,12 +184,12 @@ describe('set_trust 对话改档 (B3 · 降档留痕 + 立即生效)', () => {
       policy: { trustLevel: 'budget_only' },
     })
     const projection = service.readProjection('project-1', runId)
-    const outcome = buildToolOutcome('nomi_control_run', { projectId: 'project-1', runId, action: 'set_trust', trustLevel: 'budget_only' }, projection, 'zh-CN')
+    const outcome = buildToolOutcome('nomi_run_control', { projectId: 'project-1', runId, action: 'set_trust', trustLevel: 'budget_only' }, projection, 'zh-CN')
     expect(outcome.text).toContain('信任档位已改为')
     expect(outcome.text).toContain('预算门仍会请示')
     expect(outcome.outcome).toMatchObject({ action: 'set_trust', trustLevel: 'budget_only' })
     // 英文侧同样双语可用。
-    const outcomeEn = buildToolOutcome('nomi_control_run', { projectId: 'project-1', runId, action: 'set_trust', trustLevel: 'budget_only' }, projection, 'en')
+    const outcomeEn = buildToolOutcome('nomi_run_control', { projectId: 'project-1', runId, action: 'set_trust', trustLevel: 'budget_only' }, projection, 'en')
     expect(outcomeEn.text).toContain('Trust level set to')
     expect(outcomeEn.text).toContain('budget gate still asks')
   })

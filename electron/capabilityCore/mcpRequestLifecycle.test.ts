@@ -18,7 +18,7 @@ describe('MCP request lifecycle hardening', () => {
       }),
     }
     const protocol = createMcpProtocol(transport)
-    protocol.handleIncoming({ jsonrpc: '2.0', id: 42, method: 'tools/call', params: { name: 'nomi_list_models', arguments: {} } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: 42, method: 'tools/call', params: { name: 'nomi_read', arguments: { target: 'models' } } })
     await flush()
     expect(signal).toBeInstanceOf(AbortSignal)
     protocol.handleIncoming({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 42, reason: 'user stopped' } })
@@ -36,7 +36,7 @@ describe('MCP request lifecycle hardening', () => {
       invoke: async () => ({ models: [] }),
     }
     const protocol = createMcpProtocol(transport)
-    protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'nomi_list_models', arguments: {} } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'nomi_read', arguments: { target: 'models' } } })
     await flush()
     protocol.handleIncoming({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: { forged: true } } })
     protocol.handleIncoming({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 1 } })
@@ -56,8 +56,8 @@ describe('MCP request lifecycle hardening', () => {
         pendingResolvers.push(resolve)
       }),
     })
-    protocol.handleIncoming({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'nomi_list_models', arguments: {} } })
-    protocol.handleIncoming({ jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'nomi_list_models', arguments: {} } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'nomi_read', arguments: { target: 'models' } } })
+    protocol.handleIncoming({ jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'nomi_read', arguments: { target: 'models' } } })
     await flush()
     expect(protocol.cancelAllInFlight('stdio disconnected')).toBe(2)
     expect(signals.every((signal) => signal.aborted)).toBe(true)

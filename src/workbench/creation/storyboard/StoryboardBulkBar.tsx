@@ -6,11 +6,14 @@ import type { ModelOption } from '../../../config/models'
 import BulkModelPicker from '../../common/BulkModelPicker'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import {
+  BULK_ASPECT_OPTIONS,
   DURATION_OPTIONS_SEC,
   MIXED_VALUE,
+  applyAspectToAll,
   applyDurationToAll,
   applyModelToAll,
   applyShotKindToAll,
+  deriveBulkAspect,
   deriveBulkDuration,
   deriveBulkModelKey,
   deriveBulkShotKind,
@@ -20,7 +23,7 @@ import {
 /**
  * 「全部镜头」批量条（样张 A 拍板 2026-08-17）。
  *
- * 为什么存在：拆镜头默认全出图片镜（`CreationAiPanel` 的 shotMode='image'），要换成视频得逐镜改
+ * 为什么存在：拆镜头默认全出图片镜，用户可在批量栏切换视频而不必逐镜改
  * 十几次——类型/模型选择器过去只住在单张镜卡里，唯一批量入口还埋在 L3 参数抽屉。这条是**归位**
  * 不是新增（§1.5.3 手法优先级：分组 → 去重 → 归位 → 最后才收纳）：整片作用域的控件提到 L1 常驻。
  *
@@ -44,6 +47,7 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
   const bulkKind = deriveBulkShotKind(plan)
   const bulkModelKey = deriveBulkModelKey(plan)
   const bulkDuration = deriveBulkDuration(plan)
+  const bulkAspect = deriveBulkAspect(plan)
 
   // 生效类型：全镜一致 → 那一档；混合 → 按 image 之外处理不了，取视频清单（混合里只要有视频镜就有视频模型可选）。
   const effectiveKind: ShotTypeValue = bulkKind ?? 'video'
@@ -86,6 +90,15 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
       .filter((sec) => Number.isFinite(sec) && sec > 0)
       .sort((a, b) => a - b)
       .map((sec) => ({ value: String(sec), label: t('storyboardEditor.second', { count: sec }) })),
+  ]
+
+  // 画幅（v5）：混合/「按模型默认」（全镜都没写 aspect）都是显示态，选中不做事；预设 ∪ 当前值
+  // （Agent 可能写了预设外的档，别让触发器显错）。应用走 applyAspectToAll（空串在纯函数里就是 no-op）。
+  const aspectOptions = [
+    ...(bulkAspect === null ? [mixedOption] : []),
+    ...(bulkAspect === '' ? [{ value: '', label: t('storyboardEditor.bulk.aspectDefault') }] : []),
+    ...[...new Set([...BULK_ASPECT_OPTIONS, ...(bulkAspect ? [bulkAspect] : [])])]
+      .map((aspect) => ({ value: aspect, label: aspect })),
   ]
 
   // 选「混合」这个临时项不做事（它只是「当前不一致」的显示态，不是可应用的值）。
@@ -133,6 +146,14 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
           onChange={(value) => applyIfReal(value, (v) => onChange(applyDurationToAll(plan, Number(v))))}
         />
       ) : null}
+      <NomiSelect
+        ariaLabel={t('storyboardEditor.bulk.aspectAria')}
+        leadingLabel={t('storyboardEditor.aspect')}
+        size="xs"
+        value={bulkAspect === null ? MIXED_VALUE : bulkAspect}
+        options={aspectOptions}
+        onChange={(value) => applyIfReal(value, (v) => onChange(applyAspectToAll(plan, v)))}
+      />
 
       <span className="ml-auto shrink-0 text-micro text-nomi-ink-40">
         {t('storyboardEditor.bulk.hint', { count: plan.shots.length })}

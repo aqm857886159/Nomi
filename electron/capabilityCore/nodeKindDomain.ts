@@ -8,6 +8,8 @@
 //
 // 纯净：零 import（可在纯 Node 单测）。
 
+import { CANVAS_NODE_KINDS } from '../shared/agentCapabilities/canvasRead'
+
 /** per-kind 名义默认尺寸（镜像 registry.defaultSize）。 */
 export const NODE_KIND_DEFAULT_SIZE: Record<string, { width: number; height: number }> = {
   text: { width: 280, height: 200 },
@@ -44,6 +46,13 @@ export const NODE_KIND_DEFAULT_TITLE: Record<string, string> = {
   whiteboard: 'Whiteboard',
   model3d: '3D Model',
   asset: 'Asset',
+}
+
+/** Persisted canvas kind registry. Every reader and writer uses this list. */
+export const NODE_KINDS = CANVAS_NODE_KINDS
+
+export function isNodeKind(value: unknown): value is string {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(NODE_KIND_DEFAULT_SIZE, value)
 }
 
 // 极端兜底尺寸（理论不可达；仅防 kind 串入非法值）。与 src generationNodeKinds FOOTPRINT_FALLBACK_SIZE 同值。

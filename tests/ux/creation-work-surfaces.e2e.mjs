@@ -218,7 +218,8 @@ try {
 
   await win.locator('[data-storyboard-id="sb-a2"]').click()
   await expect(win.locator('[data-creation-surface]'), '分镜选择没有切换主编辑面').toHaveAttribute('data-creation-surface', 'storyboard')
-  await expect(win.getByLabel('镜 1 提示词'), '分镜编辑态没有恢复对应方案').toHaveValue('PLAN_A2_SENTINEL：慢推悬疑。')
+  // v5：中列是方案摘要卡（完整编辑器住分镜页）——卡上的镜头预览须恢复对应方案的内容。
+  await expect(win.locator('[data-creation-surface="storyboard"]'), '分镜摘要卡没有恢复对应方案').toContainText('PLAN_A2_SENTINEL：慢推悬疑。')
   await screenshotSettled(win, { path: path.join(outDir, '02-unified-storyboard-desktop.png') })
   await win.locator('[data-document-id="doc-a"]:not([data-storyboard-id])').click()
   await expect(win.locator('[data-creation-surface]'), '返回原稿后没有切回原稿编辑面').toHaveAttribute('data-creation-surface', 'source')
@@ -257,9 +258,9 @@ try {
   await screenshotSettled(win, { path: path.join(outDir, '02-unified-creation-min-window.png') })
 
   await win.locator('[data-storyboard-id="sb-a2"]').click()
-  await expect(win.locator('[data-creation-surface="storyboard"]'), '最小窗口无法打开分镜编辑器').toBeVisible()
-  await expect(win.getByLabel('镜 1 提示词'), '最小窗口打开了错误的分镜设计').toHaveValue('PLAN_A2_SENTINEL：慢推悬疑。')
-  await expect(win.getByRole('button', { name: '确认落画布', exact: true }), '最小窗口分镜主操作不可见').toBeVisible()
+  await expect(win.locator('[data-creation-surface="storyboard"]'), '最小窗口无法打开分镜摘要').toBeVisible()
+  await expect(win.locator('[data-creation-surface="storyboard"]'), '最小窗口打开了错误的分镜设计').toContainText('PLAN_A2_SENTINEL：慢推悬疑。')
+  await expect(win.getByRole('button', { name: '打开分镜', exact: true }), '最小窗口分镜主操作不可见').toBeVisible()
   const narrowStoryboardGeometry = await win.evaluate(() => {
     const surface = document.querySelector('[data-creation-surface="storyboard"]')?.getBoundingClientRect()
     const assistant = document.querySelector('[aria-label="AI 创作区"]')?.getBoundingClientRect()

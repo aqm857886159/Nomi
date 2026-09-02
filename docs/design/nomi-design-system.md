@@ -514,7 +514,11 @@ Tailwind 标准 spacing 已经是 4 的倍数（`p-1` = 4px、`gap-3` = 12px）�
 
 #### 3.9.0 Logo mark 解剖（设计不变量）
 
-mark 是 **28×28 viewBox 的圆角方块**：深色底（`oklch(0.22 0.01 80)` = ink）+ 3 个白色图形（两条竖条 `x=5.5`/`x=18.5` + 一条对角 polygon）拼成抽象的「M/N」笔画。圆角 `rx` 按尺寸等比（`size/28*7`，24 档约 6px）。
+mark 是 **28×28 viewBox 的圆角方块**：深色底（`oklch(0.22 0.01 80)` = ink）+ 3 个白色图形（两条竖条 `x=5.5`/`x=18.5` + 一条对角 polygon）拼成抽象的「M/N」笔画。
+
+- **圆角 `rx` 恒为 `7`（viewBox 单位 = 边长 25%），不随渲染尺寸变化。** 缩放由 viewBox 自动负责：渲染到 24px 时屏幕上约 6px 圆角，**但那是结果，不是要写回 `rx` 的值**。
+  > ⚠️ 这句原先写作「圆角 `rx` 按尺寸等比（`size/28*7`，24 档约 6px）」——把「渲染后的像素半径」当成了属性值。`NomiBrand` 照此实现，造成**双重缩放**：`markSize` 一大，`rx` 就超过半边长 14，被 SVG 截断成**正圆**。开屏标版把 mark 钳在 56–96px（实测 75px → `rx=19`），于是它一直是个圆，而 README／favicon／系统图标都是圆角方——用户两次反馈「logo 圆、产品方」皆源于此。2026-09-02 修正，并由 `src/design/identityMarkGeometry.test.ts` 按多个尺寸钉死（只测默认尺寸会漏：26 档恰好算出 7）。
+- 几何只有一份：`src/design/identity.tsx` 的 `NomiMarkShapes`，`NomiBrand` 与 `NomiLogoMark` 共用，并与 `public/nomi-logo.svg` 逐项比对。
 
 - **底色永远是 ink（深暖灰），笔画永远纯白。** 不要换底色、不要给 mark 加 accent。
 - accent 蓝紫**只出现在字标的中间 m**（`NomiWordmark`），不在 mark 上——这是品牌的色彩分工。
