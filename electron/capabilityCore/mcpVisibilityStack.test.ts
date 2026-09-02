@@ -31,8 +31,8 @@ function callArtifact(protocol: ReturnType<typeof createMcpProtocol>) {
     id: 43,
     method: 'tools/call',
     params: {
-      name: 'nomi_get_artifact',
-      arguments: { projectId: 'p1', runId: 'r9', artifactId: 'a1' },
+      name: 'nomi_read',
+      arguments: { target: 'artifact', projectId: 'p1', runId: 'r9', artifactId: 'a1' },
     },
   })
 }

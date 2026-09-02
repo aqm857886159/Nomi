@@ -3,9 +3,13 @@ import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  assertFullCanvasShardPartition,
   CRITICAL_CANVAS_SCENARIOS,
   DEFAULT_CANVAS_SCENARIO_TIMEOUT_MS,
   FULL_CANVAS_SCENARIOS,
+  FULL_CANVAS_SHARDS,
+  parseCanvasShard,
+  parseCanvasSuiteArgv,
   PERFORMANCE_CANVAS_SCENARIOS,
   PERFORMANCE_CANVAS_SCENARIO_TIMEOUT_MS,
   runCanvasScenario,
@@ -30,6 +34,49 @@ describe('real canvas acceptance suite', () => {
 
   it('fails closed for unknown profiles', () => {
     expect(() => scenariosForProfile('typo')).toThrow('unknown canvas suite profile')
+  })
+
+  it('partitions every full scenario into exactly one CI shard, in canonical order', () => {
+    expect(() => assertFullCanvasShardPartition()).not.toThrow()
+
+    const fullIds = FULL_CANVAS_SCENARIOS.map((scenario) => scenario.id)
+    const shardedIds = FULL_CANVAS_SHARDS.map((_, index) =>
+      scenariosForProfile('full', { shard: { index: index + 1, total: FULL_CANVAS_SHARDS.length } })
+        .map((scenario) => scenario.id),
+    )
+
+    expect(shardedIds.flat().toSorted()).toEqual(fullIds.toSorted())
+    for (const ids of shardedIds) {
+      expect(ids.length).toBeGreaterThan(0)
+      expect(fullIds.filter((id) => ids.includes(id))).toEqual(ids)
+    }
+  })
+
+  it('fails closed when a full scenario is left out of the shard partition', () => {
+    const drifted = [...FULL_CANVAS_SCENARIOS, { id: 'brand-new-walkthrough', script: 'tests/ux/new.walk.mjs' }]
+    expect(() => assertFullCanvasShardPartition(drifted)).toThrow(/missing=\[brand-new-walkthrough\]/)
+    expect(() => assertFullCanvasShardPartition(FULL_CANVAS_SCENARIOS, [['gestures'], ['gestures']])).toThrow(/duplicated=\[gestures\]/)
+    expect(() => assertFullCanvasShardPartition(FULL_CANVAS_SCENARIOS, FULL_CANVAS_SHARDS.map((ids) => [...ids, 'ghost']))).toThrow(/unknown=\[ghost/)
+  })
+
+  it('parses only well-formed shard specs matching the declared shard count', () => {
+    expect(parseCanvasShard('1/2')).toEqual({ index: 1, total: 2 })
+    expect(parseCanvasShard('2/2')).toEqual({ index: 2, total: 2 })
+    expect(() => parseCanvasShard('0/2')).toThrow('out of range')
+    expect(() => parseCanvasShard('3/2')).toThrow('out of range')
+    expect(() => parseCanvasShard('1/3')).toThrow('does not match FULL_CANVAS_SHARDS')
+    expect(() => parseCanvasShard('half')).toThrow('invalid canvas shard spec')
+    expect(() => parseCanvasShard(undefined)).toThrow('invalid canvas shard spec')
+  })
+
+  it('rejects sharding for non-full profiles and unknown CLI arguments', () => {
+    expect(() => scenariosForProfile('critical', { shard: { index: 1, total: 2 } })).toThrow('only supported for the full profile')
+    expect(() => scenariosForProfile('performance', { shard: { index: 1, total: 2 } })).toThrow('only supported for the full profile')
+    expect(parseCanvasSuiteArgv(['full', '--shard', '1/2'])).toEqual({ profile: 'full', shard: { index: 1, total: 2 } })
+    // pnpm 会把 `--` 分隔符原样转发给脚本（CI 实际到达的 argv 形状），npm 则吃掉它；两种都必须可解析。
+    expect(parseCanvasSuiteArgv(['full', '--', '--shard', '2/2'])).toEqual({ profile: 'full', shard: { index: 2, total: 2 } })
+    expect(parseCanvasSuiteArgv(['critical'])).toEqual({ profile: 'critical', shard: null })
+    expect(() => parseCanvasSuiteArgv(['full', '--shards', '1/2'])).toThrow('unknown canvas suite argument')
   })
 
   it('keeps performance separate from functional full acceptance with its own bounded budget', () => {

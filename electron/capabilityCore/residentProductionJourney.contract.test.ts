@@ -263,11 +263,9 @@ describe("resident Agent production journey (zero quota contract)", () => {
     const toolNames = tools.map((tool) => tool.name);
     expect(toolNames).toEqual(expect.arrayContaining([
       "start_production_run",
-      "propose_storyboard_plan",
-      "nomi_operation_create",
-      "nomi_preview_execution",
-      "nomi_request_generation_gate",
-      "arrange_storyboard_to_timeline",
+      "nomi_canvas_plan",
+      "nomi_generation_plan",
+      "nomi_generation_status",
       "export_timeline",
     ]));
 

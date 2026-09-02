@@ -110,15 +110,18 @@ export function timelineWritePiDescriptionForAlias(alias: string): string | unde
 export const TIMELINE_WRITE_CAPABILITY = {
   id: "timeline.write",
   version: 1,
-  aliases: { pi: TIMELINE_WRITE_ALIASES.applyPlan },
+  aliases: { pi: TIMELINE_WRITE_ALIASES.applyPlan, mcp: "nomi_timeline_edit" },
   additionalAliases: { pi: Object.freeze([TIMELINE_WRITE_ALIASES.undo]) },
   inputSchema: timelineWriteSemanticInputSchema,
   outputSchema: timelineWriteResultSchema,
   effect: "reversible_write",
   execution: { port: "timeline", availability: "renderer_required" },
-  exposure: "internal_only",
+  exposure: "mcp_safe",
   requiredScope: "timeline:write",
   targetKind: "timeline",
   approval: "proposal",
-  projections: { pi: { description: "Apply or undo an approved project timeline edit." } },
+  projections: {
+    pi: { description: "Apply or undo an approved project timeline edit." },
+    mcp: { description: "Preview, apply, or undo a revision-guarded timeline edit after Host approval." },
+  },
 } as const satisfies CapabilityContract<TimelineWriteInput, TimelineWriteResult>;

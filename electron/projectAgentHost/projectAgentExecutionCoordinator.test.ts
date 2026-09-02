@@ -1949,7 +1949,43 @@ describe("ProjectAgentExecutionCoordinator", () => {
     expect(final.items.find((item) => item.kind === "tool")).toMatchObject({
       capability: { id: "skill.read", version: 1 },
       status: "done",
+      skillLoad: { name: "brand.promo", packageVersion: "nomi-skill-v1", contentHash: "a".repeat(64) },
     });
+    coordinator.release(opened.subscriptionId);
+    expect(adapter.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("carries a successful Skill load ledger reference into the next Thread turn", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-skill-ledger-"));
+    const adapter = skillReadAdapter();
+    const seen: AgentChatRequest[] = [];
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-skill-ledger",
+      {
+        runAgent: async (request, hooks) => {
+          seen.push(request);
+          if (seen.length === 1) {
+            const call = { toolCallId: "tool-skill-ledger", toolName: "load_skill", args: { name: "brand.promo" } };
+            const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+            return documentWriteResponse(call, decision);
+          }
+          return { id: "second", status: "finished", text: "continued", finishReason: "stop", artifacts: [], toolCalls: [], usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 } };
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { skillRead: adapter });
+    const first = executionInput("skill-ledger-first", 0, binding, { threadId: "thread-skill-ledger" });
+    await coordinator.enqueue(opened.subscriptionId, first);
+    const firstState = await coordinator.waitForTurn(opened.subscriptionId, first.mutation.payload.turn.turnId);
+    const second = executionInput("skill-ledger-second", firstState.hostRevision, binding, { threadId: "thread-skill-ledger" });
+    await coordinator.enqueue(opened.subscriptionId, second);
+    await coordinator.waitForTurn(opened.subscriptionId, second.mutation.payload.turn.turnId);
+
+    expect(seen[1]?.hostPromptLedger).toEqual([expect.objectContaining({
+      capability: { id: "skill.read", version: 1 },
+      skillLoad: { name: "brand.promo", packageVersion: "nomi-skill-v1", contentHash: "a".repeat(64) },
+    })]);
     coordinator.release(opened.subscriptionId);
     expect(adapter.dispose).toHaveBeenCalledOnce();
   });

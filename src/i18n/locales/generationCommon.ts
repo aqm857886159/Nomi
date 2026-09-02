@@ -586,7 +586,7 @@ export const zhGenerationCommon = {
   },
   spend: {
     agentNotice: '经 AI 助手驱动 · 需你确认花费',
-    agentNoticePlan: '经 AI 助手驱动 · 需你确认落画布',
+    agentNoticePlan: '经 AI 助手驱动 · 需你确认生成',
     autoIgnore: '{{seconds}}s 后自动忽略',
     suppressSession: '本次会话不再提示',
     ignore: '忽略',
@@ -603,6 +603,7 @@ export const zhGenerationCommon = {
         image_one: '张画面', image_other: '张画面',
         video_one: '段视频', video_other: '段视频',
         audio_one: '段配音', audio_other: '段配音',
+        model3d_one: '个 3D 模型', model3d_other: '个 3D 模型',
         mixed_one: '个素材', mixed_other: '个素材',
       },
     },
@@ -703,6 +704,7 @@ export const zhGenerationCommon = {
     promptReferenceUnsupported: '当前模型不支持参考图，已只应用提示词文本',
     imageReferenceRequired: '图生图需要参考图（拖入 / 连线 / 点 +），或切回「文生图」',
     imageConnectionRequired: '图生图需要参考图：请连接图片节点或添加参考，或切回「文生图」',
+    model3dReferenceRequired: '图生 3D 需要一张参考图：连接图片节点或在参考槽添加，或切回「文生 3D」',
     unsupportedKind: '「{{kind}}」类型暂不支持直接生成',
     generating: '生成中…',
     generateReferencesFirst: '先生成参考，再生成本镜',
@@ -2179,7 +2181,7 @@ export const enGenerationCommon = {
   },
   spend: {
     agentNotice: 'Started by an AI assistant · Your approval is required before spending',
-    agentNoticePlan: 'Started by an AI assistant · Your approval is required before adding to the canvas',
+    agentNoticePlan: 'Started by an AI assistant · Your approval is required before generating',
     autoIgnore: 'Auto-ignore in {{seconds}}s',
     suppressSession: 'Do not ask again this session',
     ignore: 'Ignore',
@@ -2196,6 +2198,7 @@ export const enGenerationCommon = {
         image_one: 'image', image_other: 'images',
         video_one: 'video', video_other: 'videos',
         audio_one: 'voiceover', audio_other: 'voiceovers',
+        model3d_one: '3D model', model3d_other: '3D models',
         mixed_one: 'asset', mixed_other: 'assets',
       },
     },
@@ -2295,6 +2298,8 @@ export const enGenerationCommon = {
       'Image-to-image requires a reference image (drag, connect, or click +), or switch back to text-to-image',
     imageConnectionRequired:
       'Image-to-image requires a reference image. Connect an image node, add a reference, or switch back to text-to-image',
+    model3dReferenceRequired:
+      'Image-to-3D requires a reference image. Connect an image node or add one to the reference slot, or switch back to text-to-3D',
     unsupportedKind: 'The “{{kind}}” type cannot be generated directly yet',
     generating: 'Generating…',
     generateReferencesFirst: 'Generate references before this shot',

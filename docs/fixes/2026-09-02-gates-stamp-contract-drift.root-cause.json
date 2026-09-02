@@ -1,0 +1,124 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-gates-stamp-contract-drift",
+  "problem_type": "五门戳的写方与读方各自演进，没有任何机制强迫两边一致（两侧都不报错的静默失效）",
+  "symptom": "在任意 worktree 里 `pnpm run gates` 全过之后，`git push` 仍被 pre-push 闸以「本次有代码改动，但这棵 worktree 没有五门刚过的戳」拦下；必须手写 `$(git rev-parse --absolute-git-dir)/nomi-gates-ok` 才能推送。闸门给出的补救命令 `node ./scripts/stamp-gates-ok.mjs` 指向一个不存在的文件。",
+  "direct_cause": "`package.json` 的 `gates` 用一段内联 node 写 `.claude/.gates-ok`（只有一个 ISO 时间戳），而 2026-09-02 升级后的读戳方读的是 `$(git rev-parse --absolute-git-dir)/nomi-gates-ok` 并要求解析出 `sha=` 与 `worktree=` 两个身份字段。两个文件名与两套字段互不相干，读戳方因此永远判定「无戳」。",
+  "class_root": "五门戳的路径与字段名没有单一 owner。它被三处各自独立写死——写戳方（package.json 内联 node）、读戳方（pre-push hook 的 shell 解析）、以及读戳方拦人时推荐的手动补盖命令——三者分处 JSON、shell 与文件系统，无法互相 import，也没有任何门岗校验它们仍然指同一枚戳。因此任一方单独演进都会静默失效：两边各自看都「正确」，gates 说盖好了戳、hook 说没有戳，谁都不报错。",
+  "affected_population": [
+    "这台机器上 20+ 棵并行 worktree 的每一次含代码改动的 push",
+    "任何执行 `pnpm run gates` 后尝试推送的协作者或 agent 会话",
+    "读到闸门提示、按提示运行 `node ./scripts/stamp-gates-ok.mjs` 的所有调用方（该文件此前不存在）"
+  ],
+  "scope_paths": [
+    "package.json",
+    "scripts/stamp-gates-ok.mjs",
+    "scripts/check-hook-behavior.mjs",
+    "scripts/claude-hooks/pre-push-check.sh"
+  ],
+  "entry_points": [
+    "package.json 的 `gates` 脚本尾部（写戳方，五门全过后盖戳）",
+    "scripts/claude-hooks/pre-push-check.sh（读戳方，PreToolUse 命中 git push 时验戳）",
+    "读戳方 block() 提示里的手动补盖命令 `node ./scripts/stamp-gates-ok.mjs`"
+  ],
+  "internal_only_reason": "戳的路径与字段名是 Nomi 自己的 push 闸门内部合同，不由任何第三方 API、SDK 或依赖行为决定；`git rev-parse --absolute-git-dir` 的一树一份语义已由本仓库 worktree 实测确认。",
+  "invariants": [
+    "五门戳的文件名与字段名只有一个定义处：scripts/stamp-gates-ok.mjs。",
+    "写戳方（gates）必须调用该唯一书写者，且不得内联写入任何其他戳文件。",
+    "读戳方必须**在实际执行时**认唯一书写者盖出的戳（放行），并在任一身份字段被篡改、无戳、老格式戳、或戳来自另一棵 worktree 时拦截。",
+    "读戳方在拦人时推荐的补盖命令，指向的脚本必须真实存在于仓库中。",
+    "戳落在本棵 worktree 自己的 gitdir 下，携带盖戳时的 HEAD sha 与树根路径。",
+    "戳的内容必须由 STAMP_KEYED_FIELDS 逐项驱动写出，不得另存一份硬编码模板。"
+  ],
+  "generality_proof": "戳的路径与字段名收敛到 scripts/stamp-gates-ok.mjs 一个定义处，戳的内容也由 STAMP_KEYED_FIELDS 逐项驱动写出，写戳方通过直接调用它消除了第二份定义。读戳方是 shell、无法 import，因此由 scripts/check-hook-behavior.mjs 在 gates 链上**实际执行它**来证明一致：造一棵临时仓库、用唯一书写者盖出真戳、把真实的推送载荷喂给真实 hook，断言「书写者的戳被放行」且「每个身份字段被篡改、无戳、老格式戳、异树戳都被拦」。判据是退出码而非源码文本，因此任何等价改写都合法、而任何真实的行为回退都拦得住——这一点第一版做不到：它 grep 源码文本，被 hook 注释里的同名字符串骗出过假绿（实测：把可执行那行改回老戳、注释保留，门岗照样打勾）。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/stamp-gates-ok.mjs",
+      "symbol": "MARKER_BASENAME / STAMP_KEYED_FIELDS / writeStamp",
+      "responsibility": "唯一定义五门戳的文件名、落点与字段名，并负责实际盖戳；写戳方与门岗都以它为准。"
+    },
+    {
+      "path": "scripts/check-hook-behavior.mjs",
+      "symbol": "checkHookBehavior",
+      "responsibility": "在 gates 链上**实际运行读戳方**（临时仓库 + 真戳 + 真实推送载荷），以退出码证明它仍与书写者一致；把跨语言无法 import 的那一侧钉死，且不依赖读戳方的具体 shell 写法。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "package.json",
+      "entry_point": "scripts.gates 尾部的盖戳步骤",
+      "disposition": "enforced",
+      "evidence": "内联 node 写 .claude/.gates-ok 的那段已删除，改为调用 scripts/stamp-gates-ok.mjs；check-hook-behavior 同时断言 gates 必须引用该书写者且不得再出现 .gates-ok 字样，老戳复活会立刻变红。"
+    },
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "entry_point": "MARKER 定位与 sha=/worktree= 解析",
+      "disposition": "enforced",
+      "evidence": "此前修好的读戳方只存在于 gitignore 的 .claude/hooks/ 安装副本中，未提交回版本化真相源；已将其移入 scripts/claude-hooks/，因此 postinstall 的 install-claude-hooks.cjs 会向所有 worktree 传播它而不是把它覆盖回旧版。check-hook-behavior 通过实际执行它来校验行为与书写者一致。"
+    },
+    {
+      "path": "scripts/install-claude-hooks.cjs",
+      "entry_point": "installScripts / check",
+      "disposition": "not-affected",
+      "evidence": "该安装器与漂移门岗（check:claude-hooks）本身工作正常，且已在 gates 链内；它比对的是「安装副本 vs 版本化源」，而本次失效发生在「写戳方 vs 读戳方」这条正交的轴上，两者互不覆盖，故本修复新增独立门岗而非扩展它。"
+    },
+    {
+      "path": "scripts/stamp-gates-ok.mjs",
+      "entry_point": "writeStamp 的戳内容模板",
+      "disposition": "enforced",
+      "evidence": "第一版 writeStamp 用硬编码模板字符串写出 sha/worktree/stamped_at，与同文件里的 STAMP_KEYED_FIELDS 并列为两份真相源——等于把本次要消灭的漂移类缩到同一文件内 17 行之间（实测：往模板加一个字段而不动清单，门岗照样绿）。现改为按 STAMP_KEYED_FIELDS 逐项取值并逐行写出，字段缺取值来源直接抛错；类级回归测试断言写出的身份字段与清单逐项相等。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "写戳方与读戳方分处 package.json 的 JSON 字符串与 shell 脚本，永远无法互相 import；push 闸门又在持续演进（本次的三维戳本身就是当天刚加的第三次迭代）。只要契约仍靠两处各自写死的字面量维系，下一次单边修改就会再次制造同一类静默失效，且代价是每棵 worktree 的每次 push。",
+    "same_class_scan": [
+      "`git grep -n gates-ok origin/main` 找出全部提及处，确认写戳方只有 package.json 一处、读戳方只有 pre-push-check.sh 一处，其余均为 docs/plan 与 docs/audit 的历史记录。",
+      "`node -e` 枚举 package.json scripts，确认没有第二个脚本写入或读取任何 gates 戳文件（只有 gates 一处写）。",
+      "对比 scripts/claude-hooks/pre-push-check.sh 与 .claude/hooks/pre-push-check.sh，发现修好的读戳方只活在 gitignore 的安装副本里、从未提交回版本化源——即「一个 pnpm install 就会被覆盖回旧版」的第二个同类入口。",
+      "运行 scripts/check-gates-chain.mjs 确认 check:claude-hooks 已在链上，从而排除「漂移门岗缺失」这一假设，把根因定位到写读双方的契约本身而非安装机制。"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-hook-behavior.mjs",
+    "invariant": "package.json 的 gates 调用唯一书写者且不写老戳；读戳方在真实执行下认书写者盖出的戳，并对每个身份字段的篡改与无戳/老格式/异树戳全部拦截；读戳方推荐的补盖脚本真实存在。",
+    "failure_mode": "任一条不满足即 exit 1，在 gates:contracts 阶段变红并逐条打印哪一侧漂了。判据是读戳方的**实际退出码**，不是它的源码文本。",
+    "exception_policy": "none",
+    "strategy": "把契约的两个维度分别用最强可用手段固定：能 import 的一侧（写戳方）直接调用唯一书写者，并让戳的内容由字段清单逐项驱动，消灭第二份定义；不能 import 的一侧（shell 读戳方）由门岗**造临时仓库、用书写者盖出真戳、把真实的推送载荷喂给真实 hook**，以退出码判定它是否仍与书写者一致。门岗自身入 gates 链，由 check:gates-chain 保证不会被合并冲突静默吞掉。往 STAMP_KEYED_FIELDS 加字段必须同时给出「篡改该字段→必须拦」的用例，否则报红——新增身份维度必须可被证伪。",
+    "artifacts": [
+      "scripts/stamp-gates-ok.mjs",
+      "scripts/check-hook-behavior.mjs",
+      "package.json",
+      "scripts/claude-hooks/pre-push-check.sh",
+      "scripts/check-hook-behavior.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-hook-behavior.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-hook-behavior.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "package.json",
+      "scripts/claude-hooks/pre-push-check.sh"
+    ],
+    "rationale": "package.json 中写 .claude/.gates-ok 的内联 node 已整段删除（没有任何读戳方读它，留着即是平行戳，违反 P1）；scripts/claude-hooks/pre-push-check.sh 中读固定路径 .claude/.gates-ok 的旧实现已被三维戳实现整体替换，未保留 fallback 分支。check-hook-behavior 断言 gates 中不得再出现 .gates-ok，防止老路径复活。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "修复只涉及仓库内的 npm 脚本、node 脚本与版本化 shell hook，不由任何第三方运行时或依赖版本决定。",
+    "exit_criteria": []
+  },
+  "migration": "无需数据迁移。老的 `.claude/.gates-ok` 文件位于 gitignore 的 `.claude/` 下、且已无任何读方，可留在原地自然失效，不影响任何判定。已有 worktree 在下次 `pnpm install` 时由 postinstall 的 install-claude-hooks.cjs 收到版本化的读戳方；在此之前，安装副本已是同一份实现，行为一致。",
+  "residual_risks": [
+    "`--no-verify`、网页/API 端推送，以及未安装 .claude/hooks 的环境仍绕得过本地 hook；服务器侧仍需 CI 与分支保护补强，本修复不改变这一边界（与 R25 既有结论一致）。",
+    "门岗要实际执行读戳方，因此依赖 bash / git / python3 可用（hook 本身也依赖它们）；缺任一个会让门岗红在环境而不是契约上。代价是每次 gates 多约 10 秒（造临时仓库 + 多次真实执行 hook），换来的是「注释骗不过一次真实执行」。",
+    "戳的 30 分钟新鲜度阈值仍只写在读戳方一侧，书写者不感知；本次未把它纳入契约校验，因为它不影响写读双方是否指向同一枚戳。",
+    "门岗验的是版本化的 scripts/claude-hooks/pre-push-check.sh，不是 .claude/hooks/ 下那份实际被执行的安装副本；两者一致由既有的 check:claude-hooks 负责，本门岗不重复覆盖。",
+    "读戳方从命令字符串里解析推送目标（cd 链、git -C 等）此前存在双向误判面，**已在同一分支修复**：见 docs/fixes/2026-09-02-push-gate-command-parsing.root-cause.json（改为共用词法分析层，两个 Bash 闸门同源，17 + 11 条命令矩阵入 check:hook-behavior）。"
+  ]
+}

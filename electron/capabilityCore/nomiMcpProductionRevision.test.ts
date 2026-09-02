@@ -50,15 +50,15 @@ describe('external MCP production artifact revisions', () => {
     protocol.handleIncoming({
       jsonrpc: '2.0', id: 1, method: 'tools/call',
       params: {
-        name: 'nomi_request_script_revision',
-        arguments: { projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-script-v2', expectedVersion: 2, instruction: '把结尾改得更温暖' },
+        name: 'nomi_artifact_review',
+        arguments: { action: 'revise', kind: 'script', projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-script-v2', expectedVersion: 2, instruction: '把结尾改得更温暖' },
       },
     })
     protocol.handleIncoming({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
       params: {
-        name: 'nomi_request_storyboard_revision',
-        arguments: { projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-storyboard-v2', expectedVersion: 2, instruction: '将第三镜改为近景' },
+        name: 'nomi_artifact_review',
+        arguments: { action: 'revise', kind: 'storyboard', projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-storyboard-v2', expectedVersion: 2, instruction: '将第三镜改为近景' },
       },
     })
     await settle()
@@ -82,8 +82,8 @@ describe('external MCP production artifact revisions', () => {
     protocol.handleIncoming({
       jsonrpc: '2.0', id: 3, method: 'tools/call',
       params: {
-        name: 'nomi_review_artifact',
-        arguments: { projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-script-v2', expectedVersion: 2, decision: 'approved' },
+        name: 'nomi_artifact_review',
+        arguments: { action: 'approve', projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-script-v2', expectedVersion: 2 },
       },
     })
     await settle()
@@ -102,8 +102,8 @@ describe('external MCP production artifact revisions', () => {
     protocol.handleIncoming({
       jsonrpc: '2.0', id: 4, method: 'tools/call',
       params: {
-        name: 'nomi_request_script_revision',
-        arguments: { projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-script-v2', expectedVersion: 1, instruction: '过时修改' },
+        name: 'nomi_artifact_review',
+        arguments: { action: 'revise', kind: 'script', projectId: 'project-1', runId: 'run-1', artifactId: 'artifact-script-v2', expectedVersion: 1, instruction: '过时修改' },
       },
     })
     protocol.handleIncoming({

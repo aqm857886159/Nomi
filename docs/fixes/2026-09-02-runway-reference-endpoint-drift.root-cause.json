@@ -1,0 +1,69 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-runway-reference-endpoint-drift",
+  "problem_type": "Runway reference-mode endpoint discriminator drift",
+  "symptom": "Runway multi-reference mappings were labeled image_to_video and sent to /v1/image_to_video even though the official union declares references/referenceVideos/referenceAudio on /v1/text_to_video; a reference-mode request could therefore be rejected before generation.",
+  "direct_cause": "The mapping factory inferred endpoint and task kind from the presence of any image-like input, so the reference mode reused the image-to-video path and promptImage shape instead of the text-to-video reference union.",
+  "class_root": "Endpoint, task kind, and payload field set were not derived from one declared mode discriminator at the mapping boundary.",
+  "affected_population": [
+    "Runway seedance2/seedance2_fast/seedance2_mini/wan3/grok_imagine_1_5/hailuo3/veo3.1/veo3.1_fast/gemini_omni_flash reference mappings",
+    "Runway Seedance 2.5 omni reference mapping"
+  ],
+  "scope_paths": [
+    "electron/catalog/runwayOfficial.ts",
+    "electron/catalog/archetypeModes.generated.ts",
+    "electron/shared/videoCapabilities/runwayWireFacts.ts",
+    "electron/catalog/vendorWireDriftFixes.test.ts",
+    "electron/catalog/flagshipAudioVideoContracts.test.ts",
+    "electron/shared/videoCapabilities/seedance25Runway.ts",
+    "electron/catalog/archetypeIdentifiers.generated.ts",
+    "electron/catalog/archetypeWireDefaults.video.generated.ts"
+  ],
+  "entry_points": [
+    "Runway generated video catalog reference mode",
+    "Runway Seedance 2.5 omni mode"
+  ],
+  "external_sources": [
+    { "kind": "source-code", "url": "https://raw.githubusercontent.com/runwayml/openapi/main/openapi.json", "checked_at": "2026-09-02", "purpose": "Official /v1/text_to_video and /v1/image_to_video oneOf schemas show reference fields on text_to_video and promptImage on image_to_video." },
+    { "kind": "official-doc", "url": "https://docs.dev.runwayml.com/guides/using-the-api/", "checked_at": "2026-09-02", "purpose": "Official Runway endpoint creation and task lifecycle guidance." }
+  ],
+  "invariants": [
+    "A Runway reference mode uses POST /v1/text_to_video and sends only fields declared by that model's text-to-video variant.",
+    "A Runway first-frame mode uses POST /v1/image_to_video and sends promptImage only when the image-to-video variant requires it.",
+    "The mapping taskKind matches the endpoint's transport contract for every generated reference mapping."
+  ],
+  "generality_proof": "The generated Runway video mappings all pass through runwayVideoModel/runwayVideoCreate, and the Seedance 2.5 omni mapping uses the same endpoint distinction explicitly. Deriving mode, endpoint, task kind, and reference fields at those factories prevents the same mismatch across every checked model family.",
+  "shared_boundaries": [
+    { "path": "electron/catalog/runwayOfficial.ts", "symbol": "runwayVideoCreate", "responsibility": "Build the endpoint-specific Runway video operation from the explicit mode discriminator." },
+    { "path": "electron/catalog/runwayOfficial.ts", "symbol": "runwayVideoModel", "responsibility": "Assign the matching task kind and mapping identity to each generated video mode." }
+  ],
+  "same_class_entry_points": [
+    { "path": "electron/catalog/runwayOfficial.ts", "entry_point": "runwayVideoModel reference mappings", "disposition": "enforced", "evidence": "All generated reference modes now select text_to_video, omit promptImage, and retain typed reference arrays." },
+    { "path": "electron/catalog/runwayOfficial.ts", "entry_point": "Seedance 2.5 omni mapping", "disposition": "enforced", "evidence": "The omni operation already posts to text_to_video; its mapping task kind is aligned to that endpoint and its reference transform remains attached." },
+    { "path": "electron/catalog/runwayOfficial.ts", "entry_point": "gen4.5/gen4_turbo first-frame mappings", "disposition": "not-affected", "evidence": "These mappings have promptImage and no reference arrays, matching their image_to_video schemas." }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The official API is a per-model, per-endpoint union; adding another reference-capable model or changing mode inference can reproduce the mismatch unless the factory owns the discriminator.",
+    "same_class_scan": [
+      "Compared every RUNWAY_VIDEO_SPECS mode and the Seedance 2.5 t2v/first/firstlast/omni mappings against the official OpenAPI endpoint schemas.",
+      "Searched all Runway mappings for modeId=reference/omni, taskKind, path, promptImage, reference_image_urls, reference_video_urls, and reference_audio_urls."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/runwayOfficial.ts",
+    "invariant": "The explicit mode discriminator is the only source for endpoint, task kind, promptImage presence, and reference-array fields.",
+    "failure_mode": "A reference mapping cannot silently use image_to_video; the structural tests fail if its path, task kind, or promptImage shape drifts.",
+    "exception_policy": "none",
+    "strategy": "Replace boolean image inference with mode-driven construction and delete the old reference-as-image path in the same change.",
+    "artifacts": ["electron/catalog/runwayOfficial.ts", "electron/shared/videoCapabilities/runwayWireFacts.ts", "electron/catalog/archetypeModes.generated.ts"]
+  },
+  "regression_tests": ["electron/catalog/vendorWireDriftFixes.test.ts", "electron/catalog/flagshipAudioVideoContracts.test.ts"],
+  "class_regression_tests": ["electron/catalog/vendorWireDriftFixes.test.ts"],
+  "legacy_paths": { "status": "removed", "removed_paths": ["electron/catalog/runwayOfficial.ts"], "rationale": "The old boolean-driven reference image_to_video construction is removed; no fallback remains.", "removal_evidence": "The factory is mode-driven and tests assert no promptImage on reference mappings." },
+  "dependency_lifecycle": { "decision": "not-applicable", "rationale": "No dependency controls the endpoint discriminator; the invariant is owned by the catalog mapping boundary.", "exit_criteria": [] },
+  "migration": "No persisted data migration is required; mapping IDs and user-selected model identities remain unchanged.",
+  "residual_risks": ["Live reference generation remains subject to Runway account credits and asset reachability; zero-cost contract tests do not certify provider output quality."],
+  "scope_path_notes": "electron/shared/videoCapabilities/runwayVideo.ts held the platform archetype runway-video and was deleted by the one-model-one-archetype identity split (PR #351). The capability side of this fix now lives in the per-model archetypes (veo31.ts / geminiOmni11.ts / seedance.ts / happyhorse.ts / minimaxH3.ts / wan30.ts / grokImagine15Video.ts) with Runway's per-family wire facts in runwayWireFacts.ts, which replaces it in scope_paths. The transport-side invariant is unchanged: the reference wire role still posts to /v1/text_to_video."
+}

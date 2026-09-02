@@ -42,6 +42,8 @@ const JOURNEY_PATTERNS = [
   /^electron\/(?:ai|catalog|comfyui|providerAdapter|vendor)(?:\/|$)/,
   /^electron\/runtime(?:\.|\/)/,
   /^src\/.*(?:agent|bridge|credential|model|provider|catalog|comfyui|network|security|generationCanvas\/runner).*\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i,
+  /^electron\/capabilityCore\/mcp.*\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i,
+  /^tests\/ux\/mcp-(?:l1-handshake|journey).*\.(?:mjs|js|ts)$/i,
 ]
 
 const DESKTOP_PATTERNS = [/^src\/desktop\/bridge\.(?:ts|tsx|js|jsx)$/]

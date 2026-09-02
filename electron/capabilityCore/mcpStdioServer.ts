@@ -126,7 +126,7 @@ async function callViaRpc(
     if (options?.signal?.aborted) throw options.signal.reason instanceof Error ? options.signal.reason : new Error('MCP request cancelled')
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(
-        `Nomi 无响应（${Math.round(timeoutMs / 1000)}s 超时）——生成可能仍在后台跑，可稍后用 nomi_read_canvas 查结果。`,
+        `Nomi 无响应（${Math.round(timeoutMs / 1000)}s 超时）——生成可能仍在后台跑，可稍后用 nomi_read（target=canvas）查结果。`,
         { cause: error },
       )
     }
@@ -459,6 +459,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     closing = true
     const cancelled = protocol.cancelAllInFlight('stdio disconnected')
     if (cancelled > 0) console.warn(`[nomi-mcp] cancelled ${cancelled} in-flight request(s) on disconnect`)
+    protocol.dispose()
     void previewServer.close().finally(() => app.exit(0))
   }
   rl.on('close', close)

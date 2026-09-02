@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { load } from 'js-yaml'
 
 import { PROFILES, STAGES } from '../tests/system/profiles.mjs'
+import { assertFullCanvasShardPartition, FULL_CANVAS_SHARDS } from '../tests/ux/canvas-real-suite.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const workflow = load(fs.readFileSync(path.join(repoRoot, '.github/workflows/quality-gate.yml'), 'utf8'))
@@ -15,6 +16,7 @@ const runCommands = (job) => job.steps?.flatMap((step) => (typeof step.run === '
 test('quality gate runs for pull requests and real main before/after pushes', () => {
   assert.deepEqual(workflow.on, {
     push: { branches: ['main'] },
+    merge_group: null,
     pull_request: null,
     workflow_dispatch: {
       inputs: {
@@ -35,13 +37,13 @@ test('quality gate runs for pull requests and real main before/after pushes', ()
     },
   })
   assert.deepEqual(workflow.concurrency, {
-    group: 'quality-gate-${{ github.event.pull_request.number || github.ref }}',
+    group: 'quality-gate-${{ github.event.pull_request.number || github.sha }}',
     'cancel-in-progress': true,
   })
   assert.deepEqual(workflow.permissions, { actions: 'read', checks: 'read', contents: 'read' })
 
   const scopeEnvironment = workflow.jobs.scope.steps.find((step) => step.id === 'profile').env
-  assert.equal(scopeEnvironment.NOMI_BASE_SHA, "${{ github.event.pull_request.base.sha || github.event.before || '' }}")
+  assert.equal(scopeEnvironment.NOMI_BASE_SHA, "${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || '' }}")
   assert.equal(scopeEnvironment.NOMI_HEAD_SHA, '${{ github.sha }}')
 })
 
@@ -66,9 +68,9 @@ test('quality gate uses Node 24-native actions without a forced runtime shim', (
     (job) => job.steps?.flatMap((step) => (typeof step.uses === 'string' ? [step.uses] : [])) ?? [],
   )
 
-  assert.equal(actionUses.filter((uses) => uses === 'actions/checkout@v7').length, 6)
-  assert.equal(actionUses.filter((uses) => uses === 'pnpm/action-setup@v6').length, 4)
-  assert.equal(actionUses.filter((uses) => uses === 'actions/setup-node@v7').length, 5)
+  assert.equal(actionUses.filter((uses) => uses === 'actions/checkout@v7').length, 8)
+  assert.equal(actionUses.filter((uses) => uses === 'pnpm/action-setup@v6').length, 6)
+  assert.equal(actionUses.filter((uses) => uses === 'actions/setup-node@v7').length, 7)
   assert.ok(actionUses.includes('actions/upload-artifact@v7'))
   assert.ok(actionUses.every((uses) => !/@v4$/.test(uses)))
   for (const job of Object.values(workflow.jobs)) {
@@ -83,7 +85,7 @@ test('contracts always run and unit alone chooses focused or full coverage', () 
   assert.ok(runCommands(contracts).includes('pnpm run test:system:contracts'))
   assert.equal(
     contracts.env.ROOT_CAUSE_BASE_REF,
-    '${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}',
+    '${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}',
   )
 
   const unit = workflow.jobs.unit
@@ -96,10 +98,13 @@ test('contracts always run and unit alone chooses focused or full coverage', () 
   assert.equal(focused.run, 'pnpm run test:system:focused')
 })
 
-test('Linux builds once and runs only selected desktop, journey, canvas, and performance surfaces', () => {
+test('Linux walkthrough job builds once and keeps only smoke, journey, and critical canvas surfaces', () => {
   const desktop = workflow.jobs['desktop-linux']
   assert.equal(desktop.needs, 'scope')
-  for (const output of ['desktop', 'journeys', 'canvas', 'performance']) assert.match(desktop.if, new RegExp(output))
+  assert.equal(
+    desktop.if,
+    "needs.scope.outputs.desktop == 'true' || needs.scope.outputs.journeys == 'true' || needs.scope.outputs.canvas == 'critical'",
+  )
 
   const selectedSteps = Object.fromEntries(
     desktop.steps.filter((step) => step.name && step.run).map((step) => [step.name, step]),
@@ -109,23 +114,62 @@ test('Linux builds once and runs only selected desktop, journey, canvas, and per
     [
       selectedSteps['Electron smoke'].run,
       selectedSteps['CI-safe user journeys'].run,
+      selectedSteps['MCP L1 handshake journey'].run,
       selectedSteps['Critical canvas acceptance'].run,
-      selectedSteps['Full functional canvas acceptance'].run,
-      selectedSteps['Canvas performance budget'].run,
     ],
     [
       'xvfb-run -a pnpm run test:e2e',
       'xvfb-run -a pnpm run test:journeys',
+      'xvfb-run -a pnpm run test:mcp-journey',
       'xvfb-run -a pnpm run test:canvas:critical',
-      'xvfb-run -a pnpm run test:canvas:acceptance',
-      'xvfb-run -a pnpm run test:canvas:performance',
     ],
   )
+  assert.equal(selectedSteps['Electron smoke'].if, "needs.scope.outputs.desktop == 'true'")
+  assert.equal(selectedSteps['CI-safe user journeys'].if, "needs.scope.outputs.journeys == 'true'")
+  assert.equal(selectedSteps['MCP L1 handshake journey'].if, "needs.scope.outputs.journeys == 'true'")
+  assert.equal(selectedSteps['Critical canvas acceptance'].if, "needs.scope.outputs.canvas == 'critical'")
   assert.equal(runCommands(desktop).filter((command) => command === 'pnpm run build').length, 1)
+  // full/performance 面已拆到并行 job；本 job 不得再串行执行它们（那是 22 分钟关键路径的根因）。
+  assert.equal(selectedSteps['Full functional canvas acceptance'], undefined)
+  assert.equal(selectedSteps['Canvas performance budget'], undefined)
 
   const evidence = desktop.steps.find((step) => step.uses === 'actions/upload-artifact@v7')
   assert.equal(evidence.if, 'always()')
+  assert.equal(evidence.with.name, 'linux-walkthrough-evidence')
   assert.match(evidence.with.path, /outputs\/canvas-acceptance\/\*\*/)
+})
+
+test('full canvas acceptance runs as a fail-closed two-shard matrix that partitions every scenario', () => {
+  const acceptance = workflow.jobs['canvas-acceptance']
+  assert.equal(acceptance.needs, 'scope')
+  assert.equal(acceptance.if, "needs.scope.outputs.canvas == 'full'")
+  assert.deepEqual(acceptance.strategy, { 'fail-fast': false, matrix: { shard: [1, 2] } })
+  assert.equal(FULL_CANVAS_SHARDS.length, 2)
+  assert.doesNotThrow(() => assertFullCanvasShardPartition())
+
+  const commands = runCommands(acceptance)
+  assert.ok(commands.includes('xvfb-run -a pnpm run test:canvas:acceptance -- --shard ${{ matrix.shard }}/2'))
+  assert.equal(commands.filter((command) => command === 'pnpm run build').length, 1)
+
+  const evidence = acceptance.steps.find((step) => step.uses === 'actions/upload-artifact@v7')
+  assert.equal(evidence.if, 'always()')
+  assert.equal(evidence.with.name, 'canvas-acceptance-evidence-${{ matrix.shard }}')
+  assert.match(evidence.with.path, /outputs\/canvas-acceptance\/\*\*/)
+})
+
+test('canvas performance budget runs as its own parallel job with an untouched instrument command', () => {
+  const performance = workflow.jobs['canvas-performance']
+  assert.equal(performance.needs, 'scope')
+  assert.equal(performance.if, "needs.scope.outputs.performance == 'true'")
+  assert.equal(performance.strategy, undefined)
+
+  const commands = runCommands(performance)
+  assert.ok(commands.includes('xvfb-run -a pnpm run test:canvas:performance'))
+  assert.equal(commands.filter((command) => command === 'pnpm run build').length, 1)
+
+  const evidence = performance.steps.find((step) => step.uses === 'actions/upload-artifact@v7')
+  assert.equal(evidence.if, 'always()')
+  assert.equal(evidence.with.name, 'canvas-performance-evidence')
   assert.match(evidence.with.path, /tests\/ux\/perf-results\/canvas-\*\.json/)
 })
 
@@ -174,7 +218,15 @@ test('package scripts expose canonical separated profiles and classifier contrac
 
 test('Quality Gate requires mandatory jobs and every risk-selected optional surface', () => {
   const quality = workflow.jobs.quality
-  assert.deepEqual(quality.needs, ['scope', 'contracts', 'unit', 'desktop-linux', 'mac-package'])
+  assert.deepEqual(quality.needs, [
+    'scope',
+    'contracts',
+    'unit',
+    'desktop-linux',
+    'canvas-acceptance',
+    'canvas-performance',
+    'mac-package',
+  ])
   assert.equal(quality.if, '${{ always() }}')
   assert.equal(quality.name, 'Quality Gate')
 
@@ -195,6 +247,49 @@ test('Quality Gate requires mandatory jobs and every risk-selected optional surf
   for (const output of ['desktop', 'journeys', 'canvas', 'performance', 'package']) {
     assert.match(command, new RegExp(`needs\\.scope\\.outputs\\.${output}`))
   }
+  // 每个风险面独立聚合：full 走查、perf 预算拆成并行 job 后仍必须逐面要求 success，
+  // 不允许出现「面被选中但结果没人验」的缺口（canvas 的 critical/full 两档分别锚到两个 job）。
+  assert.match(command, /"\$\{\{ needs\.scope\.outputs\.canvas \}\}" = "critical"/)
+  assert.match(command, /"\$\{\{ needs\.scope\.outputs\.canvas \}\}" = "full"/)
   assert.match(command, /needs\['desktop-linux'\]\.result/)
+  assert.match(command, /needs\['canvas-acceptance'\]\.result/)
+  assert.match(command, /needs\['canvas-performance'\]\.result/)
   assert.match(command, /needs\['mac-package'\]\.result/)
+})
+
+/**
+ * 类级不变量：**取消式并发组不能按「多个提交共用的 ref」分组**。
+ *
+ * 2026-09-02 实测（docs/fixes/2026-09-02-main-push-concurrency-cancels-evidence.root-cause.json）：
+ * quality-gate 对 push 事件回落到 `github.ref`，而 main 的 ref 恒为 refs/heads/main——于是每个新
+ * merge 都取消上一个 merge 还在跑的班。实测 10:51–10:55 连续四班里三班被取消，`delivery:verify-merged`
+ * 因此在那些 merge SHA 上发不出 exact-SHA 收据（工具正确拒绝把 cancelled 当成功）。
+ *
+ * 判据落在「push 触发 + cancel-in-progress」这个组合上，而不是只盯 quality-gate 一个文件：
+ * 谁将来给某个取消式 workflow 加上 push 触发，这里就会红。
+ */
+test('取消式并发组不得按共用 ref 分组：push 触发的 workflow 必须按 commit 区分', () => {
+  const workflowDir = path.join(repoRoot, '.github/workflows')
+  const files = fs.readdirSync(workflowDir).filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
+  assert.ok(files.length > 0, '应当扫到 workflow 文件')
+
+  const offenders = []
+  for (const name of files) {
+    const definition = load(fs.readFileSync(path.join(workflowDir, name), 'utf8'))
+    const triggers = definition?.on ?? {}
+    const hasPushTrigger = Object.prototype.hasOwnProperty.call(triggers, 'push')
+    const cancels = definition?.concurrency?.['cancel-in-progress'] === true
+    if (!hasPushTrigger || !cancels) continue
+    const group = String(definition?.concurrency?.group ?? '')
+    // push 事件下必须落到 github.sha；否则同一分支的相邻 push 会互相取消。
+    if (!group.includes('github.sha')) offenders.push(`${name}: ${group}`)
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    '下列 workflow 由 push 触发且会取消在跑的班，但并发组里没有 github.sha —— '
+      + '同一分支的相邻 push 会互相取消，被取消的班留不下任何证据，exact-SHA 收据也发不出：\n  '
+      + offenders.join('\n  '),
+  )
 })

@@ -26,9 +26,10 @@ class PlanHarness {
     // 加节点 invoke 返回稳定 ids；记录 method/params/options 供断言。
     this.invoke = vi.fn(async (method: string, params: Record<string, unknown>, options?: McpInvokeOptions) => {
       this.invokeCalls.push({ method, params, options })
-      if (method === 'canvas.addNodes') {
+      if (method === 'canvas.write') {
         const count = Array.isArray(params.nodes) ? params.nodes.length : 0
-        return { ids: Array.from({ length: count }, (_, i) => `n${i}`) }
+        const ids = Array.from({ length: count }, (_, i) => `n${i}`)
+        return { applied: true, proposalId: 'proposal-test', operation: 'create_canvas_nodes', affectedNodeIds: ids, affectedEdgeIds: [], clientIdToNodeId: {}, connectedCount: 0, skippedEdges: [], reconciliation: { ok: true, deviationCount: 0 } }
       }
       throw new Error(`unexpected invoke: ${method}`)
     })
@@ -79,14 +80,14 @@ class PlanHarness {
       id,
       method: 'tools/call',
       params: {
-        name: 'nomi_add_nodes',
-        arguments: { projectId, nodes: Array.from({ length: count }, (_, i) => ({ kind: 'image', title: `镜 ${i + 1}` })) },
+        name: 'nomi_canvas_edit',
+        arguments: { leaseHandle: 'lease-a', projectId, operation: 'create_canvas_nodes', summary: '创建画布节点', nodes: Array.from({ length: count }, (_, i) => ({ clientId: `client-${i + 1}`, kind: 'image', title: `镜 ${i + 1}`, prompt: `镜头 ${i + 1}` })) },
       },
     })
   }
 
   addNodeCalls(): InvokeCall[] {
-    return this.invokeCalls.filter((call) => call.method === 'canvas.addNodes')
+    return this.invokeCalls.filter((call) => call.method === 'canvas.write')
   }
 }
 
@@ -145,7 +146,7 @@ describe('nomi-mcp · 画布方案确认 elicitation-first（App 开着）', () 
     expect(calls).toHaveLength(2)
     expect(calls[1].options?.planConfirmed).toBe(true)
     // 全程只发过一次 elicitation。
-    expect(harness.invokeCalls.filter((c) => c.method === 'canvas.addNodes')).toHaveLength(2)
+    expect(harness.invokeCalls.filter((c) => c.method === 'canvas.write')).toHaveLength(2)
   })
 
   it('c. 同会话不同项目：重新弹确认（信任按项目隔离）', async () => {

@@ -36,6 +36,22 @@ const HIGH_RISK_EXACT = new Set([
   "electron/workspace/workspaceRegistry.ts",
   "scripts/check-root-cause-contracts.mjs",
   "scripts/root-cause-contracts.mjs",
+  // —— 交付闸门的执行体（2026-09-02 加）——
+  // 收的是同一个风险形状：**静默失效**。它们坏掉时不会报错，只会安静地放行——
+  // 一次没过门的 push、一份没扫过的凭据、一个压根没装上的钩子，和正常放行长得一模一样，
+  // 只有事后在远端才看得见。当天实测：push 闸的戳只认「固定路径 + mtime」，主仓里一枚别处
+  // 盖的旧戳把 gates 实际 exit=1 的分支放上了远端（docs/lessons/gate-stamps-must-be-keyed-to-tree-and-head.md）。
+  // 进这张表 = 改它必须带根因合同 + 本次变化中的类级回归测试。
+  //
+  // 蓄意**不**收 self-check.sh / handoff-*.sh / model-doc-check.sh / stack-currency-check.sh：
+  // 那些是提醒型（salience）hook，失效顶多少一层提示，不会把未验证的代码送出去；
+  // 把它们也收进来，等于让改一句提示文案都要写合同——门岗一旦开始拦无辜的人，人就会开始绕过门岗。
+  "scripts/claude-hooks/pre-push-check.sh",   // R11 push 闸：五门戳的判定方
+  "scripts/claude-hooks/secret-guard.sh",     // R25 提交前敏感数据扫描
+  "scripts/stamp-gates-ok.mjs",               // 五门戳的签发方（凭据怎么盖、绑什么身份）
+  "scripts/ponytail-review-hook.mjs",         // R25 提交/推送前只读评审适配器
+  "scripts/install-claude-hooks.cjs",         // 装配器：坏了 = 上面这些根本没装上
+  "scripts/install-git-hooks.cjs",
 ]);
 
 function normalized(file) {

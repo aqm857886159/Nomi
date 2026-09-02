@@ -1,0 +1,138 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-vendor-honest-axes-followup",
+  "problem_type": "供应商诚实的能力轴只收窄了「一个面 × 两条轴」：Agent 提案面板的模式选择器没接收窄判据，变体选择器则四条轴里唯一没被收窄的一条——档案声明的能力照样展示给一个根本兑现不了它的供应商",
+  "symptom": "① Agent 提案面板（GenerationProposalEditor）的模式选择器把档案声明的**全部**模式列出来，包括这家供应商压根没有 mapping 的那些；用户在提案里选中它、点生成，才被第三闸拒——与画布模式栏修好前是同一个病，只是换了个面。② Runway 的 Veo 3.1 节点显示「变体 · 快速」下拉并可切到「高质 / 轻量」，但 Runway 的 mapping 把 model 写成字面量 veo3.1，切变体只写 meta.archetype.variantId、既不改发出去的 model 串、又没有 paramOverrides——控件完全惰性，点了什么都不会发生。",
+  "direct_cause": "① 收窄机制（archetypeModeChoices 的 bodyForMode 形参）上一轮只接进了画布的 NodeParameterControls，提案面板仍以单参数调用 archetypeModeChoices(archetype)，看着像接上了其实没有。② 变体轴从来没有收窄判据：archetypeVariantChoices 只看档案声明了几个变体，不问「这条渠道会不会因为换变体而发出不同的 model 串」。",
+  "class_root": "「档案声明的能力轴」与「这家供应商真能兑现的」之间需要逐轴收窄，而收窄有两个维度会被漏：**轴**（参数 / transport / 模式 / 变体）和**面**（画布节点 / Agent 提案面板）。上一轮补齐了前三条轴、但只覆盖了画布一个面，于是同一个缺陷从第二个面原样回来；变体轴则是最后一条没人管的轴。正确形状 = 收窄判据全部住在**一个**模块（channelModeReach），每个面都从它取，每条轴都有自己的判据函数；判据一律从渠道 mapping derive，不新增声明式真相源。变体轴的判据是「create op 有没有把 model 参数化」——它必须取 body ∪ 进程型 transport 的 CLI args 并集，否则即梦（无 body、参数全在 argv）会被误判成惰性、把一个活着的选择器藏掉。",
+  "affected_population": [
+    "用 Agent 提案面板改生成参数的全部用户：模式选择器此后只列这家真发得出的模式，与画布模式栏同口径；提案草稿若钉在被收窄掉的模式上，自动落回默认/第一个可见模式并写回草稿（经 onModeChange，与用户手点同一条路）。",
+    "Runway 全部 6 个带变体档案的视频模型（seedance2/_fast/_mini、wan3、veo3.1/_fast）的用户：不再显示那条惰性的变体下拉。",
+    "apimart / kie / volcengine / 即梦上 9 个 (vendor, model) 的用户：变体轴照常显示——实测这些渠道确实把 model 参数化，切变体真的换发出去的模型串，行为零变化。",
+    "自建中转 / 未收录模型的用户：两条收窄都是 fail-open（查不到 mapping body 一律不收窄），显示与今天完全一致。"
+  ],
+  "scope_paths": [
+    "electron/catalog/paramTranslate.ts",
+    "electron/catalog/referenceReachability.ts",
+    "electron/catalog/paramConsistency.test.ts",
+    "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+    "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+    "src/workbench/ai/resident/GenerationProposalEditor.tsx"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts::archetypeVariantAxisIsLive —— 变体轴收窄的唯一判据：create op 把 model 参数化才显示变体选择器。三态与模式收窄同口径（undefined/null 都 fail-open）。",
+    "electron/catalog/paramTranslate.ts::wireReferencedParamKeys —— 「这条 create op 引用了哪些 canonical 键」的单点：body ∪ process.args 并集。变体轴判据与参数一致性不变量（paramConsistency）读同一个函数；此前后者是内联的第二份扫描。",
+    "src/workbench/ai/resident/GenerationProposalEditor.tsx::ProposalParameterBar —— 第二个面接入同一套机制：modeBodySpecs → useChannelCreateBodies → archetypeModeChoices(archetype, bodyForMode)，外加 fallbackVisibleModeId 的选择安全。",
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx —— 画布侧变体栏接上 archetypeVariantAxisIsLive；declaredVariantChoices 与收窄后的 variantChoices 分开命名，避免以后有人误用未收窄那份。",
+    "electron/catalog/referenceReachability.ts —— 渲染层对 electron/ 的唯一放行入口（src-no-import-electron 棘轮基线只登记了这一条），wireReferencedParamKeys 经它转出给渲染层，基线不涨。"
+  ],
+  "internal_only_reason": "不接触任何外部供应商 API 契约：没有新增/修改端点、鉴权、字段或取值。全部改动是仓库内部的「UI 该显示哪些已声明的能力」判据，判据本身从既有 mapping 模板 derive。变体轴的收窄结论（Runway 惰性 / apimart-kie-volcengine-即梦 活）是对**现存 mapping 模板**的静态读数，不是对供应商文档的新解读。",
+  "invariants": [
+    "所有「档案能力轴 × 渠道」的收窄判据只住在 channelModeReach 一个模块；任何面（画布节点 / Agent 提案面板 / 将来新面）都从它取，不许就地另写一份。",
+    "模式选择面全集 = NodeParameterControls + GenerationProposalEditor，两者都必须传 bodyForMode；变体选择面全集同样是这两处，都必须过 archetypeVariantAxisIsLive。",
+    "变体选择器出现 ⟺ 该渠道的 create op 把 model 参数化（wireReferencedParamKeys 含 'model'）。",
+    "「这条 create op 引用了哪些 canonical 键」只有一个实现 wireReferencedParamKeys，且必须取 body ∪ process.args 并集——只扫 body 会把即梦这类进程型渠道判死。",
+    "两条收窄都 fail-open：拿不到 mapping body（undefined）或该模式无自己的线缆（null）时一律不收窄。",
+    "渲染层对 electron/ 的 import 入口仍只有 referenceReachability 一条（boundaries 棘轮 80 不涨）。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「档案声明了某条能力轴，但这家供应商兑现不了」会随每条新轴、每个新 UI 面反复出现：轴上一轮补了参数/transport/模式三条、这轮补上变体；面这一轮才发现第二个（提案面板）——上一轮的合同曾把它误记成已覆盖。只要收窄判据不集中、或新面不知道要来取判据，同一个病就会换个地方回来。",
+    "same_class_scan": [
+      "模式选择面全仓普查（grep archetypeModeChoices 的全部非测试消费者）：恰好 2 处——NodeParameterControls:508 与 GenerationProposalEditor:126，均已传 bodyForMode。无第三个面。",
+      "变体选择面全仓普查（grep archetypeVariantChoices + variantChoices= 的全部非测试消费者）：同样恰好 2 处，均已过 archetypeVariantAxisIsLive。无第三个面。",
+      "变体轴活性全目录实测（探针跑全部 15 个带变体的 (vendor, model)）：apimart/kie/volcengine/即梦 共 9 个把 model 参数化=活（照常显示）；Runway 6 个写死字面量=惰性（隐藏）。收窄集合与「Runway 把 veo3.1 与 veo3.1_fast 建成两个目录行、本就不需要变体轴」这一事实吻合。",
+      "「变体 modelKey 是否是目录行」这个更直觉的判据被实测否决：apimart 的 veo 只有 veo3.1-fast 一行、quality/lite 不是独立行，按那个判据会把 apimart 活着的变体轴一起藏掉。故判据取「model 有没有被参数化」。",
+      "进程型 transport 普查：即梦（dreamina）没有 body、参数全在 create.process.args（--model_version={{request.params.model}}）。只扫 body 的判据会把它 6 个变体全藏掉；wireReferencedParamKeys 取并集后正确。同族的 multiframe build 分支由 paramConsistency 既有声明覆盖，未受影响。"
+    ]
+  },
+  "generality_proof": "缺陷不是「提案面板漏改了一行」也不是「Runway 变体配错了」，而是收窄判据的**集中度**与**覆盖面**问题，两条独立证据：① 同一个模式收窄缺陷在两个互不共享代码的 UI 面上各出现一次（画布、提案面板），说明成因是「面不知道要取判据」而非某个面写错；② 变体轴的正确判据只能从渠道 mapping derive——两个直觉判据（变体 modelKey 是不是目录行 / 只扫 body）都被全目录实测证伪，各自会误杀 apimart 与即梦活着的控件，说明这类判据必须集中在一处并有实测语料兜底，散落到各面各写一份必然出错。因此防复发落在共享边界（channelModeReach 单模块 + wireReferencedParamKeys 单实现），而不是把这两处改对。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+      "symbol": "archetypeModeIsVisible / archetypeVariantAxisIsLive / fallbackVisibleModeId",
+      "responsibility": "全部「档案能力轴 × 渠道」收窄判据的唯一住所。每条轴一个判据函数，三态语义统一（undefined/null → fail-open）。任何 UI 面都从这里取，不在面内就地判断。"
+    },
+    {
+      "path": "electron/catalog/paramTranslate.ts",
+      "symbol": "wireReferencedParamKeys",
+      "responsibility": "「这条 create op 真正引用了哪些 canonical 参数键」的单一实现，body 与进程型 transport 的 CLI args 一起算。变体轴收窄与参数一致性不变量共用它。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+      "symbol": "useChannelCreateBodies / readModeChannelBody",
+      "responsibility": "逐 (taskKind, modeId) 取渠道 create op，并在**唯一拿得到整条 create op 的地方**算出 wireParamKeys 一并交给渲染层——渲染层只拿 body 的话，进程型渠道会被误判成什么都发不出。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/resident/GenerationProposalEditor.tsx",
+      "entry_point": "ProposalParameterBar 的模式选择器与变体选择器",
+      "disposition": "enforced",
+      "evidence": "模式栏改为 archetypeModeChoices(archetype, (mode) => modeBodies[mode.id]) 并加 fallbackVisibleModeId 选择安全；变体栏过 archetypeVariantAxisIsLive。上一轮合同曾把此入口误记为已覆盖，本轮核实为未覆盖并改正。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "entry_point": "画布节点的变体栏",
+      "disposition": "enforced",
+      "evidence": "declaredVariantChoices 与收窄后的 variantChoices 分名；archMode 的 modeBodies 过 archetypeVariantAxisIsLive。模式栏上一轮已收窄，本轮不变。"
+    },
+    {
+      "path": "electron/catalog/paramConsistency.test.ts",
+      "entry_point": "coveredWireKeys 里内联的第二份 body+args 扫描",
+      "disposition": "enforced",
+      "evidence": "删除内联实现、改调 wireReferencedParamKeys；否则变体轴收窄会照抄出第三份扫描。6 项断言全绿，行为不变。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationVideoResolve.ts",
+      "entry_point": "headless / MCP 的模式与参数投影",
+      "disposition": "not-affected",
+      "evidence": "无 UI 选择器可收窄；它按 archetypeId 与 modeId 直接投影，越界请求由 selectTaskMapping 的 fail-closed 与第三闸在生成时拦下（上一轮已收紧）。本轮无改动。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+    "invariant": "每条「档案声明的能力轴」在展示前都要过本模块的对应判据；判据从渠道 mapping derive，三态 fail-open。",
+    "failure_mode": "判据散落到各 UI 面就地实现时，新面只会照抄「显示档案声明的全部」这一行，缺陷静默复制——画布修好后提案面板原样犯，就是这么来的；而且各面写的判据会各自漏掉进程型 transport 之类的边角，误杀活着的控件。",
+    "exception_policy": "none",
+    "strategy": "把每条轴的判据收进 channelModeReach 单模块并统一三态语义；把「create op 引用了哪些键」收进 wireReferencedParamKeys 单实现（同时删掉 paramConsistency 里的内联第二份）；判据的边角行为（进程型渠道、fail-open、缩水不隐藏）逐条有回归锁，误改当场红。",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+      "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+      "electron/catalog/paramTranslate.ts",
+      "src/workbench/ai/resident/GenerationProposalEditor.tsx",
+      "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "src/workbench/generationCanvas/nodes/controls/channelModeReach.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/controls/channelModeReach.test.ts",
+    "electron/catalog/paramConsistency.test.ts"
+  ],
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/controls/channelModeReach.test.ts",
+    "electron/catalog/paramConsistency.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/paramConsistency.test.ts"
+    ],
+    "rationale": "coveredWireKeys 里那份内联的 body+process.args 扫描是 wireReferencedParamKeys 的并行实现，同 commit 删除改调单一实现（P1 加新必删旧）。留着它变体轴收窄就会照抄出第三份，而三份扫描漂移时只有最不常跑的那份会静默出错。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不新增、不升级、不保留任何第三方依赖：全部改动是仓库内部的收窄判据集中化与两个 UI 面的接线。",
+    "exit_criteria": []
+  },
+  "migration": "无存储迁移。两条收窄都只影响「显示哪些选项」，不改写 meta；唯一的写入是模式选择安全（当前模式被收窄掉时落回默认/第一个可见模式），画布侧走 history:false 不占撤销、提案侧经 onModeChange 与用户手点同一条路。回滚 = 把两个面的收窄参数去掉，无残留数据。",
+  "residual_risks": [
+    "变体轴收窄用当前模式的 create op 判断。理论上同一模型的不同模式可能一条参数化 model、另一条写死；实测全目录 15 个带变体的 (vendor, model) 没有这种混合情形。若将来出现，表现是切模式时变体栏闪现/消失——届时应把判据改成「任一模式参数化即算活」，而不是回退收窄。",
+    "Runway 的变体轴被隐藏后，veo3.1 与 veo3.1_fast 只能靠模型选单区分（它们本就是两个目录行）。这是 option (a) 的既定取舍（2026-09-02 用户拍板）：不动 Runway 目录行、不churn 认证台账；代价是同一模型在不同供应商上的「形状」仍不一致（apimart 一行带变体、Runway 两行）。",
+    "提案面板的选择安全经 onModeChange 回写 Host 草稿，与画布的 store 写入不同路。若 Host 侧将来对 onModeChange 加了额外副作用（如触发重算提案），收窄导致的自动落点会连带触发一次——当前 Host 实现只更新草稿字段，无此风险。",
+    "**Agent 提案面板那一半没有真机走查证据**（画布侧变体轴已走查，见 tests/ux/vendor-honest-variant-axis.walk.mjs 与 shots/ 下 9 张截图，含变异测试：把 archetypeVariantAxisIsLive 强制 return true 后走查当场红）。提案卡只能由真实 agent 回合渲染，而它要一个可执行的文本模型；渲染层的凭据写入路径 sanitizeRendererVendorApiKeyMutation 强制 enabled:false（认证才有权提升），因此隔离走查环境里造不出「已启用」的供应商——伪造只能靠直接改 catalog 文件或伪造认证，那就不是真机走查了。缓解：两个面 import 的是**同一个** archetypeModeIsVisible / archetypeVariantAxisIsLive，「两面同口径」由共享实现保证、判据本身有单测；未被证实的只剩提案面板自己的接线（useChannelCreateBodies 调用与 fallbackVisibleModeId effect）。补证据的路径 = 在有认证凭据的环境里走 agent-runtime 走查链。"
+  ]
+}

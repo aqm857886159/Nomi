@@ -9,6 +9,7 @@
 // 身份从 derive 而来、不再用半截 key 凑合，这类「显示/绑定张冠李戴」才不会换个入口又复发。
 
 import { modelSupportsToolCalls } from '../../../electron/shared/textModelCapabilities'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText';
 export type ModelIdentity = { vendorKey: string; modelKey: string };
 
 export type AssistantCatalogModelLike = {
@@ -94,8 +95,8 @@ export function labelForModel(
   allModels: ReadonlyArray<{ modelKey: string }>,
   vendorNameByKey: Readonly<Record<string, string>>,
 ): string {
-  const base = model.labelZh || model.modelKey;
+  const base = translateModelDisplayText(model.labelZh || model.modelKey);
   const duplicated = allModels.filter((item) => item.modelKey === model.modelKey).length > 1;
   if (!duplicated) return base;
-  return `${base} · ${vendorNameByKey[model.vendorKey] || model.vendorKey}`;
+  return `${base} · ${translateModelDisplayText(vendorNameByKey[model.vendorKey] || model.vendorKey)}`;
 }

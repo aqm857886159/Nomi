@@ -23,6 +23,15 @@ const nonnegativeSafeIntegerSchema = z
   .number()
   .refine(isNonnegativeSafeInteger, { message: "Sequence number must be a nonnegative safe integer" });
 
+/** Shared persisted-domain vocabulary; canvas read and write boundaries consume this same list. */
+export const CANVAS_NODE_KINDS = Object.freeze([
+  "text", "character", "scene", "image", "keyframe", "video", "audio", "clip", "shot", "output", "panorama",
+  "scene3d", "whiteboard", "model3d", "asset",
+] as const);
+export const CANVAS_EDGE_MODES = Object.freeze([
+  "reference", "first_frame", "last_frame", "style_ref", "character_ref", "composition_ref",
+] as const);
+
 const canvasReadNodeSchema = z
   .object({
     id: trimmedNonEmptyStringSchema,
@@ -76,6 +85,7 @@ export const canvasReadResultSchema = z
     edges: z.array(canvasReadEdgeSchema),
     groups: z.array(canvasReadGroupSchema),
     selectedNodeIds: z.array(trimmedNonEmptyStringSchema),
+    truncated: z.boolean().optional(),
   })
   .strict()
   .superRefine((result, context) => {
@@ -190,6 +200,9 @@ function projectNode(value: unknown, seen: Set<string>): CanvasReadNode | undefi
   const id = nonEmptyString(node?.id);
   const kind = nonEmptyString(node?.kind);
   if (!node || !id || !kind || seen.has(id)) return undefined;
+  if (!CANVAS_NODE_KINDS.includes(kind as typeof CANVAS_NODE_KINDS[number])) {
+    throw Object.assign(new Error("Canvas snapshot contains an unknown node kind"), { code: "unknown_node_kind" });
+  }
   seen.add(id);
 
   const rawPosition = asRecord(node.position);
@@ -202,12 +215,13 @@ function projectNode(value: unknown, seen: Set<string>): CanvasReadNode | undefi
   const shotIndex = node.shotIndex;
   const currentResultId = resultId(node.result);
   const resultIds = stableResultIds(node);
+  const prompt = typeof node.prompt === "string" ? node.prompt : "";
 
   return {
     id,
     kind,
     title: typeof node.title === "string" ? node.title : "",
-    prompt: typeof node.prompt === "string" ? node.prompt : "",
+    prompt: prompt.length > 8_192 ? `${prompt.slice(0, 8_191)}…` : prompt,
     status,
     position,
     locked: node.locked === true,
@@ -228,6 +242,9 @@ function projectEdges(values: unknown, survivingNodeIds: ReadonlySet<string>): C
     const source = nonEmptyString(edge?.source);
     const target = nonEmptyString(edge?.target);
     if (!edge || !id || !source || !target || seen.has(id)) continue;
+    if (edge.mode !== undefined && !CANVAS_EDGE_MODES.includes(edge.mode as typeof CANVAS_EDGE_MODES[number])) {
+      throw Object.assign(new Error("Canvas snapshot contains an unknown edge mode"), { code: "invalid_edge_mode" });
+    }
     if (!survivingNodeIds.has(source) || !survivingNodeIds.has(target)) continue;
     seen.add(id);
     const order = edge.order;
@@ -276,6 +293,10 @@ function projectGroups(values: unknown, survivingNodeIds: ReadonlySet<string>): 
 
 export function projectCanvasRead(source: unknown): CanvasReadResult {
   const canvas = asRecord(source);
+  const truncated = Array.isArray(canvas?.nodes) && canvas.nodes.some((value) => {
+    const node = asRecord(value);
+    return typeof node?.prompt === "string" && node.prompt.length > 8_192;
+  });
   const seenNodeIds = new Set<string>();
   const nodes = (Array.isArray(canvas?.nodes) ? canvas.nodes : []).flatMap((value): CanvasReadNode[] => {
     const node = projectNode(value, seenNodeIds);
@@ -288,6 +309,7 @@ export function projectCanvasRead(source: unknown): CanvasReadResult {
     edges: projectEdges(canvas?.edges, survivingNodeIds),
     groups: projectGroups(canvas?.groups, survivingNodeIds),
     selectedNodeIds: survivingReferences(canvas?.selectedNodeIds, survivingNodeIds),
+    ...(truncated ? { truncated: true } : {}),
   });
 }
 
@@ -296,7 +318,7 @@ export const CANVAS_READ_CAPABILITY = {
   version: 1,
   aliases: {
     pi: "read_canvas_state",
-    mcp: "nomi_read_canvas",
+    mcp: "nomi_canvas_read",
   },
   inputSchema: canvasReadSemanticInputSchema,
   outputSchema: canvasReadResultSchema,

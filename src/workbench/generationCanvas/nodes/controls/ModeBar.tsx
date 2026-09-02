@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../../utils/cn'
-import type { ArchetypeModeChoice } from './archetypeMeta'
+import type { ArchetypeModeChoice } from './channelModeReach'
 
 // 「生成方式」分段切换 —— 常驻参考区的头（样张 v3：切它能当场看到下方参考槽变化，不被弹层遮挡）。
 // 主标签用**模型自己的真名**（vendor 原词：首帧/首尾帧/全能参考…）——用户已熟悉这些词，改成意图词反而

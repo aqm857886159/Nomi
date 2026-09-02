@@ -10,8 +10,8 @@
 > **这份文件负责机器拦不住的那半**——同一职能别再开新家。
 >
 > 读法：先看「依赖方向铁律」（一句话记住哪条箭头合法），再按职能查表。
-> 存量违规（136 处 `src→electron` + 6 个静态硬环）已由门岗基线冻结、只减不增；
-> 清零路线见审计分析六（分期，搬迁类须等在途大线合入，本期零搬迁）。
+> 存量违规已由门岗基线冻结、只减不增（二期档案归一后：104 处 `src→electron` + 6 个静态硬环 = 110；
+> 归一前 137 + 6 = 143）；清零路线见审计分析六（分期，搬迁类须等在途大线合入）。
 
 ---
 
@@ -44,7 +44,7 @@
 
 | 职能 | Canonical 家（唯一真源） | 允许的卫星 | 禁止 |
 |---|---|---|---|
-| **模型档案定义** | video → `electron/shared/videoCapabilities/`；image/3D → `src/config/modelArchetypes/` | 无 | 新增 re-export 壳（现存 29 个进清零清单，见下） |
+| **模型档案定义** | video → `electron/shared/videoCapabilities/`（含 barrel `index.ts` 为渲染层导出的唯一公共面）；image/3D → `src/config/modelArchetypes/` | 无 | 新增 re-export 壳（历史 33 个已于二期清净，见下） |
 | **跨进程契约 / 类型** | `electron/shared/contracts/`（**待建中立层**，第二期） | 无 | `src/` 直捅 `electron/*/…Contract.ts` / `…Types.ts` 拿类型 |
 | **供应商/模型目录存储 · 生命周期** | `electron/catalog/` | 无 | 渲染层直引 catalog（走 bridge）；与 providerAdapter/certification 直环 |
 | **供应商适配** | `electron/providerAdapter/` | 无 | 与 `catalog` / `integrationCertification` 互相直引成硬环（第三期解耦） |
@@ -66,11 +66,25 @@
 
 ## 疤痕组织清零清单（P1：搬家不留转发壳）
 
-- **29 个 `src/config/modelArchetypes/*` 纯 re-export 壳**：把 video 档案搬去
-  `electron/shared/videoCapabilities/` 后，为不改 import site 留下的转发文件
-  （如 `kling.ts` = `export { KLING_3_ARCHETYPE } from "…/electron/shared/videoCapabilities/kling"`）。
-  它们直接产生 30 条 `src→electron` value 越界。
-  **清零法（第二期，须等 #241 供应商扩充合入）**：统一 canonical 家 → 改所有 import site → 同 commit 删壳（P1）。
+- **✅ 已清（二期，`arch/phase2-archetype-consolidation`）：33 个 `src/config/modelArchetypes/*` 纯 re-export 壳**
+  （29 个审计点名的 video 档案壳 + `videoGenerationRecommendation` + `runninghubVideoArchetypes`
+  + `seedanceApimart` + `seedance25Apimart`）。做法：`electron/shared/videoCapabilities/index.ts`
+  升为「渲染层可见的唯一公共面」（把各 video 档案的具名导出集中在这个 barrel），
+  渲染层 `src/config/modelArchetypes/index.ts` 与相关测试改为从该 barrel import，
+  同 commit 删净 33 个壳（P1）。**净效果**：34 条分散 `src→electron` value 越界收敛为 **1 条**
+  （`modelArchetypes/index.ts → videoCapabilities/index.ts`，即渲染 barrel 从 canonical 家的 barrel 取值），
+  `check:boundaries` 基线 143 → 110（棘轮下调）。纯搬迁、全量测试 delta = 0。
+
+- **✅ 已清（二期单元 2）：video 双登记**。渲染层 `MODEL_ARCHETYPES` 的 video 块改为从
+  `sourceBackedVideoProfiles()` **整块派生**（35 项手列 + 35 具名 import 删净），登记点唯一
+  = `registry.ts::SOURCE_BACKED_PROFILES`。顺序敏感性用证据处理：全 pattern 语料（1042 条，
+  raw/大小写/前缀/末段变形）在新旧数组序上跑三趟匹配逐一对比，渲染层与主进程身份表两侧均
+  diffs=0；唯一同串反序对 `"veo3.1"`（Runway 平台判别串 vs Veo 家族键）由
+  `LEGACY_RESOLUTION_ORDER_PINS` 钉住渲染层存量赢家。跨档案同串的全部存量赢家锁在
+  `src/config/modelArchetypes/resolutionOrder.test.ts`（重排/新增翻转赢家即红）。
+  ⚠️ 已记录存量分裂：裸 `"veo3.1"` 渲染层解析 runway-video、registry 平局判据出 veo-3.1，
+  两侧本就相反——修它属行为变更，单独立项裁决（契约：
+  `docs/fixes/2026-09-02-archetype-video-registry-derivation.root-cause.json`）。
 
 - **原则（新代码即刻生效）**：迁移文件时，re-export 壳必须与迁移**同 commit 删除**，
   不留垫片。新增壳 = 违反 P1，评审直接打回。
@@ -84,4 +98,5 @@
   加规则前先验它会红（R17）；修掉一处越界必须同步删 baseline 一行。
 - 循环的软/硬之分：懒加载 `import()` 环（约 495 个，`registry.ts` 主犯）是**认知耦合**不是
   加载顺序炸弹，故意不入门岗（否则永红被无视）；只拦「每条环边都非懒加载、非纯类型」的静态硬环。
-- 分期重组路线（本期只加门岗+地图，零搬迁）见审计分析六。
+- 分期重组路线见审计分析六。一期加门岗+地图（零搬迁）；二期档案归一（清 33 转发壳、
+  video 档案 canonical 家收敛为 `videoCapabilities` barrel，见上「疤痕组织清零清单」）。

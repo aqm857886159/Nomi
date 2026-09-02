@@ -9,6 +9,7 @@ import { IconAlertTriangle, IconCheck, IconClock, IconProgress, IconLoader2, Ico
 import type { ExportJobSnapshot } from '../../../electron/shared/contracts/exportJobManager'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { selectStableCanvasNodes } from '../generationCanvas/store/canvasNodeProjection'
 import { useGenerationQueueStore } from '../generationCanvas/runner/generationQueueStore'
 import { requestTaskCancel } from '../generationCanvas/runner/localTaskControl'
 // 重试复用既有链路（单发 confirmAndRunNode / 批量 confirmAndRunPlan），不另起一套付费路径。
@@ -47,7 +48,10 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
   const topOffset = currentWorkbenchFloatingTopOffset()
   const entries = useGenerationQueueStore((state) => state.entries)
   const batches = useGenerationQueueStore((state) => state.batches)
-  const nodes = useGenerationCanvasStore((state) => state.nodes)
+  // 面板全程挂载（关着也订阅，见 TaskCenterButton）；只按 id 取任务行数据、不读 position
+  // → 位置稳定投影，拖动期这个常挂订阅者不再每帧重渲（suspect #1）。cancel/retry 处理器仍走
+  // getState().nodes 拿真节点，不受投影影响。
+  const nodes = useGenerationCanvasStore(selectStableCanvasNodes)
   const [now, setNow] = React.useState(() => Date.now())
   // N1：制作任务的家搬到这里（原先在画布助手面板里，见 plan 2026-08-11-nomi-side-viewer-and-fallback）。
   // 只在面板打开时加载/轮询完整 run——关着时徽标由 TaskCenterButton 的 summary 轮询维持。

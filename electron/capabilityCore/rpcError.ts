@@ -22,6 +22,7 @@ export type RpcProjectSessionErrorCode =
   | 'project_session_unavailable'
   | 'capability_authority_invalid'
   | 'capability_input_invalid'
+  | 'capability_unsupported'
   | 'capability_output_invalid'
   | 'capability_timeout'
   | 'capability_cancelled'
@@ -34,6 +35,7 @@ export type RpcProjectSessionErrorCode =
 export type RpcPublicErrorCode = RpcPolicyErrorCode | RpcProjectSessionErrorCode
 
 export type RpcPublicCapability = McpGenerationCapability | typeof CANVAS_READ_CAPABILITY.id | 'project.session'
+  | 'canvas.write' | 'canvas.delete' | 'document.read' | 'document.write'
 
 export type RpcPolicyErrorDetails = Readonly<{
   code: RpcPolicyErrorCode

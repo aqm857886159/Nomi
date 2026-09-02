@@ -78,6 +78,16 @@ export function assertVersionRefs(value: unknown): void {
   value.forEach(assertVersionRef);
 }
 
+export function assertSkillLoadReference(value: unknown): void {
+  const reference = asRecord(value);
+  assertAllowedKeys(reference, ["name", "packageVersion", "contentHash"]);
+  assertNonEmpty(reference.name);
+  assertNonEmpty(reference.packageVersion);
+  if (typeof reference.contentHash !== "string" || !/^[a-f0-9]{64}$/iu.test(reference.contentHash)) {
+    throw new ProjectAgentStateError("invalid_state");
+  }
+}
+
 export function assertStatusRecord(value: Record<string, unknown>): void {
   if (!isProjectAgentStatus(value.status)) throw new ProjectAgentStateError("invalid_state");
   if (typeof value.retryable !== "boolean" || typeof value.deviated !== "boolean") {

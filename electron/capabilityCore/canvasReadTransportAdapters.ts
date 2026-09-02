@@ -122,7 +122,7 @@ export type PiCanvasReadIpcCapture = Readonly<{
 function createUnavailablePiCanvasReadTransportAdapter(): PiCanvasReadTransportAdapter {
   return Object.freeze({
     async tryExecute(call) {
-      if (call.toolName !== CANVAS_READ_CAPABILITY.aliases.pi) return null;
+      if (call.toolName !== CANVAS_READ_CAPABILITY.aliases.pi && call.toolName !== "nomi_canvas_read") return null;
       return { ok: false, code: "surface_port_unavailable", message: "surface_port_unavailable" };
     },
     dispose() {},
@@ -183,7 +183,7 @@ export function createPiCanvasReadTransportAdapter(
   });
   return Object.freeze({
     async tryExecute(call, signal) {
-      if (call.toolName !== CANVAS_READ_CAPABILITY.aliases.pi) return null;
+      if (call.toolName !== CANVAS_READ_CAPABILITY.aliases.pi && call.toolName !== "nomi_canvas_read") return null;
       try {
         const invocation = await factory.mint({ toolCallId: call.toolCallId, input: call.args });
         const result = await input.executor.execute(invocation, { signal });
@@ -213,7 +213,7 @@ export function createCapturedPiCanvasReadTransportAdapter(
   let disposed = false;
   return Object.freeze({
     async tryExecute(call, signal) {
-      if (call.toolName !== CANVAS_READ_CAPABILITY.aliases.pi) return null;
+      if (call.toolName !== CANVAS_READ_CAPABILITY.aliases.pi && call.toolName !== "nomi_canvas_read") return null;
       try {
         const invocation = await factory.mint({ toolCallId: call.toolCallId, input: call.args });
         const result = await input.executor.execute(invocation, { signal });

@@ -172,7 +172,7 @@ describe("canvas.read MCP capability projection", () => {
   });
 
   it("registers only the explicitly project-session-authorized canvas.read adapter", () => {
-    expect(MCP_CAPABILITY_RESOLVER.list()).toHaveLength(1);
+    expect(MCP_CAPABILITY_RESOLVER.list()).toHaveLength(10);
     const [tool] = MCP_CAPABILITY_RESOLVER.list();
     expect(tool).toMatchObject({
       name: CANVAS_READ_CAPABILITY.aliases.mcp,
@@ -306,19 +306,21 @@ describe("canvas.read MCP capability projection", () => {
   });
 
   it("uses the same filtered tool resolver for list identity and call lookup", () => {
-    const listed = MCP_TOOL_RESOLVER.list().find((tool) => tool.name === CANVAS_READ_CAPABILITY.aliases.mcp);
+    // 面收敛：画布只读并入 nomi_read；capability adapter 本身不再是独立的 MCP 面工具（不在 MCP_TOOL_RESOLVER）。
+    expect(MCP_TOOL_RESOLVER.resolve(CANVAS_READ_CAPABILITY.aliases.mcp!)).toBeUndefined();
+    const listed = MCP_TOOL_RESOLVER.list().find((tool) => tool.name === "nomi_read");
     expect(listed).toBeTruthy();
-    expect(MCP_TOOL_RESOLVER.resolve(CANVAS_READ_CAPABILITY.aliases.mcp!)).toBe(listed);
+    expect(MCP_TOOL_RESOLVER.resolve("nomi_read")).toBe(listed);
   });
 
   it("keeps the total MCP resolver on one frozen snapshot for list and call", () => {
     const listed = MCP_TOOL_RESOLVER.list();
-    const tool = MCP_TOOL_RESOLVER.resolve(CANVAS_READ_CAPABILITY.aliases.mcp!)!;
+    const tool = MCP_TOOL_RESOLVER.resolve("nomi_read")!;
 
     expect(Object.isFrozen(listed)).toBe(true);
     expect(Object.isFrozen(tool)).toBe(true);
     expect(Object.isFrozen(tool.inputSchema)).toBe(true);
-    if (!("annotations" in tool)) throw new Error("canvas.read annotations are missing");
+    if (!("annotations" in tool)) throw new Error("nomi_read annotations are missing");
     expect(Object.isFrozen(tool.annotations)).toBe(true);
     expect(listed.find((candidate) => candidate.name === tool.name)).toBe(tool);
     expect(() => ((tool as unknown as { method: string }).method = "project.create")).toThrow();
@@ -332,18 +334,17 @@ describe("canvas.read MCP wire requires a verified project session lease", () =>
     const harness = new ProtocolHarness();
     const listed = await harness.call(1, "tools/list");
     const tools = (listed.result as { tools: Array<Record<string, unknown>> }).tools;
-    expect(tools.find((tool) => tool.name === "nomi_read_canvas")).toMatchObject({
-      description: CANVAS_READ_CAPABILITY.projections.mcp?.description,
-      inputSchema: CANVAS_READ_MCP_ADAPTER.transportInputSchema,
-      annotations: { readOnlyHint: true },
-    });
+    // 面收敛：画布只读并入 nomi_read（target=canvas）。整体只读、target 是 canvas 之一。
+    const read = tools.find((tool) => tool.name === "nomi_read") as { annotations?: unknown; inputSchema?: { properties?: { target?: { enum?: string[] } } } } | undefined;
+    expect(read?.annotations).toMatchObject({ readOnlyHint: true });
+    expect(read?.inputSchema?.properties?.target?.enum).toContain("canvas");
     expect(tools.map((tool) => tool.name)).not.toEqual(
-      expect.arrayContaining(["skills.read", "manifest.read", "nomi_hidden_internal"]),
+      expect.arrayContaining(["skills.read", "manifest.read", "nomi_hidden_internal", "nomi_read_canvas"]),
     );
 
     const called = await harness.call(2, "tools/call", {
-      name: "nomi_read_canvas",
-      arguments: { leaseHandle: "lease-a", projectId: "project-a" },
+      name: "nomi_read",
+      arguments: { target: "canvas", leaseHandle: "lease-a", projectId: "project-a" },
     });
     expect(harness.invoke).toHaveBeenCalledWith("canvas.read", { leaseHandle: "lease-a", projectId: "project-a" });
     const payload = called.result as {
@@ -362,8 +363,8 @@ describe("canvas.read MCP wire requires a verified project session lease", () =>
   it("rejects model-supplied target metadata before the verified adapter is called", async () => {
     const harness = new ProtocolHarness();
     const response = await harness.call(1, "tools/call", {
-      name: "nomi_read_canvas",
-      arguments: { projectId: "project-a", leaseHandle: "lease-a", target: { projectId: "project-b" } },
+      name: "nomi_read",
+      arguments: { target: "canvas", projectId: "project-a", leaseHandle: "lease-a", scopeSet: ["generation:submit"] },
     });
 
     expect((response.result as { isError?: boolean }).isError).toBe(true);
@@ -392,8 +393,8 @@ describe("canvas.read MCP wire requires a verified project session lease", () =>
     const harness = new ProtocolHarness();
     harness.invoke.mockResolvedValueOnce(unsafe);
     const response = await harness.call(3, "tools/call", {
-      name: "nomi_read_canvas",
-      arguments: { leaseHandle: "lease-a", projectId: "project-a" },
+      name: "nomi_read",
+      arguments: { target: "canvas", leaseHandle: "lease-a", projectId: "project-a" },
     });
     const result = response.result as {
       content?: Array<{ text?: string }>;
@@ -427,8 +428,8 @@ describe("canvas.read MCP wire requires a verified project session lease", () =>
     harness.invoke.mockRejectedValueOnce(error);
 
     const response = await harness.call(31, "tools/call", {
-      name: "nomi_read_canvas",
-      arguments: { leaseHandle: "lease-a", projectId: "project-a" },
+      name: "nomi_read",
+      arguments: { target: "canvas", leaseHandle: "lease-a", projectId: "project-a" },
     });
     const result = response.result as {
       isError?: boolean;

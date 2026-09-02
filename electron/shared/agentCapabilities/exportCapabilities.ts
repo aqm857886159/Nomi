@@ -174,17 +174,20 @@ export function exportWritePiDescriptionForAlias(alias: string): string | undefi
 export const EXPORT_READ_CAPABILITY = {
   id: "export.read",
   version: 1,
-  aliases: { pi: EXPORT_READ_ALIASES.inspect },
+  aliases: { pi: EXPORT_READ_ALIASES.inspect, mcp: "nomi_export_job" },
   additionalAliases: { pi: Object.freeze([EXPORT_READ_ALIASES.verify]) },
   inputSchema: exportReadSemanticInputSchema,
   outputSchema: exportReadResultSchema,
   effect: "read",
   execution: { port: "export", availability: "renderer_required" },
-  exposure: "internal_only",
+  exposure: "mcp_safe",
   requiredScope: "export:read",
   targetKind: "export",
   approval: "none",
-  projections: { pi: { description: "Inspect and verify active-project export receipts." } },
+  projections: {
+    pi: { description: "Inspect and verify active-project export receipts." },
+    mcp: { description: "Inspect or verify an export job receipt; starting and cancelling exports remain Host-only." },
+  },
 } as const satisfies CapabilityContract<ExportReadInput, ExportReadResult>;
 
 export const EXPORT_WRITE_CAPABILITY = {

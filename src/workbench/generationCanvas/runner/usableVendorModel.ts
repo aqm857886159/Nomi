@@ -3,7 +3,7 @@ import {
   type ModelCatalogVendorDto,
   listWorkbenchModelCatalogVendors,
 } from '../../api/modelCatalogApi'
-import { type ModelArchetype } from '../../../config/modelArchetypes'
+import { modeTransportFor, type ModelArchetype } from '../../../config/modelArchetypes'
 import { modelSuccessorDepth } from '../../../../electron/shared/vendorLineage'
 
 /**
@@ -100,19 +100,24 @@ export function resolveUsableModelForNode(query: UsableModelQuery): ModelCatalog
  * 跨档案迁移时（family 兜底命中，源/目标 archetypeId 不同）重映射 node.meta.archetype：
  * 按 transportTaskKind 在目标档案里找意图等价的模式（保住 t2v/i2v / 文生·改图），落不到用目标 defaultModeId。
  * 同档案（id 相同）返回 null —— 调用方保持节点原 archetype meta 不动。
+ *
+ * 源/目标各自的 vendorKey **必须分别传**：传输桶是供应商特化的（modeTransportFor），迁移正是「换供应商」
+ * 这件事本身。拿源供应商的桶去查目标档案会把 kie 的 text_to_video 拿去 Runway 侧比对，配错模式。
  */
 export function remapArchetypeMode(
   sourceArchetype: ModelArchetype | null,
   sourceModeId: string | undefined,
   targetArchetype: ModelArchetype,
+  sourceVendorKey: string | null | undefined,
+  targetVendorKey: string | null | undefined,
 ): { id: string; modeId: string } | null {
   if (sourceArchetype && sourceArchetype.id === targetArchetype.id) return null
 
   const sourceMode = sourceArchetype?.modes.find((mode) => mode.id === sourceModeId)
-  const sourceTransport = sourceMode ? (sourceMode.transportTaskKind ?? sourceArchetype?.transportTaskKind) : undefined
+  const sourceTransport = sourceMode ? modeTransportFor(sourceMode, sourceArchetype, sourceVendorKey) : undefined
 
   const matched = sourceTransport
-    ? targetArchetype.modes.find((mode) => (mode.transportTaskKind ?? targetArchetype.transportTaskKind) === sourceTransport)
+    ? targetArchetype.modes.find((mode) => modeTransportFor(mode, targetArchetype, targetVendorKey) === sourceTransport)
     : undefined
   const target = matched
     || targetArchetype.modes.find((mode) => mode.id === targetArchetype.defaultModeId)

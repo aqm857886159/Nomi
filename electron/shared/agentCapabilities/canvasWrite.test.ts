@@ -17,7 +17,7 @@ describe("canvas.write canonical contract", () => {
     expect(CANVAS_WRITE_CAPABILITY).toEqual({
       id: "canvas.write",
       version: 1,
-      aliases: { pi: "set_node_prompt" },
+      aliases: { pi: "set_node_prompt", mcp: "nomi_canvas_edit" },
       additionalAliases: {
         pi: [
           "create_canvas_nodes",
@@ -33,15 +33,16 @@ describe("canvas.write canonical contract", () => {
       outputSchema: canvasWriteResultSchema,
       effect: "reversible_write",
       execution: { port: "canvas", availability: "renderer_required" },
-      exposure: "internal_only",
+      exposure: "mcp_safe",
       requiredScope: "canvas:write",
       targetKind: "canvas",
       approval: "proposal",
       projections: {
         pi: { description: "Propose an exact, reversible prompt update to one generation canvas node." },
+        mcp: { description: "Read the current canvas intent and propose a validated, reversible canvas edit." },
       },
     });
-    expect(CANVAS_WRITE_CAPABILITY.aliases).not.toHaveProperty("mcp");
+    expect(CANVAS_WRITE_CAPABILITY.aliases.mcp).toBe("nomi_canvas_edit");
   });
 
   it("accepts the strict reversible operation union", () => {

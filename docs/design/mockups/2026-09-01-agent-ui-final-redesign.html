@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nomi Agent 界面最终版重做 · 5 屏样张 v3.2（2026-09-02 · 九条整改 + 两条快修 + 布局补全）</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<style>
+:root{
+  --bg:oklch(0.985 0.003 90);--paper:#fff;--canvas:oklch(0.975 0.004 85);
+  --ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);
+  --ink40:oklch(0.68 0.01 80);--ink30:oklch(0.78 0.01 80);--ink20:oklch(0.88 0.005 80);
+  --ink10:oklch(0.94 0.003 80);--ink05:oklch(0.97 0.003 80);
+  --line:oklch(0.91 0.004 80);--lineS:oklch(0.95 0.003 80);
+  --ac:oklch(0.55 0.13 250);--acS:oklch(0.955 0.018 250);--acBg:oklch(0.965 0.014 250);
+  --warn:oklch(0.62 0.14 75);--warnBg:oklch(0.965 0.03 75);
+  --ok:#248a3d;--okBg:rgba(52,199,89,.10);
+  --dg:#b3241c;--dgBg:rgba(255,59,48,.05);
+  --r-ctl:7px;--r-panel:10px;--r-lg:14px;
+  --t-tap:140ms;--t-enter:260ms;--t-settle:420ms;--t-breathe:1.8s;--t-sweep:2.2s;
+  --ease:cubic-bezier(.2,.7,.3,1);
+  --asst:340px;
+}
+body.dark{
+  --bg:oklch(0.19 0.008 85);--paper:oklch(0.235 0.008 85);--canvas:oklch(0.21 0.008 85);
+  --ink:oklch(0.93 0.006 85);--ink80:oklch(0.84 0.008 85);--ink60:oklch(0.7 0.01 85);
+  --ink40:oklch(0.62 0.012 85);--ink30:oklch(0.5 0.012 85);--ink20:oklch(0.36 0.01 85);
+  --ink10:oklch(0.3 0.009 85);--ink05:oklch(0.27 0.008 85);
+  --line:oklch(0.34 0.009 85);--lineS:oklch(0.3 0.008 85);
+  --ac:oklch(0.7 0.12 250);--acS:oklch(0.32 0.05 250);--acBg:oklch(0.29 0.04 250);
+  --warn:oklch(0.78 0.13 75);--warnBg:oklch(0.32 0.05 75);
+  --ok:#7ee8aa;--okBg:rgba(126,232,170,.13);
+  --dg:#ff6961;--dgBg:rgba(255,105,97,.11);
+}
+*{box-sizing:border-box}
+body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+h1{font-size:18px;font-weight:600;margin:0}
+.topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:12px 20px;
+  background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--lineS)}
+.topbar .meta{font-size:11px;color:var(--ink40);flex:1;line-height:1.4}
+.topbar .meta a{color:var(--ac)}
+.tabs{display:flex;gap:4px;background:var(--ink05);border-radius:999px;padding:3px}
+.tab{height:28px;padding:0 12px;border:0;border-radius:999px;background:transparent;color:var(--ink60);
+  font:500 12px/1 inherit;cursor:pointer;font-family:inherit}
+.tab.on{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(20,18,16,.08)}
+.toggle{height:28px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:var(--paper);
+  color:var(--ink80);font:12px/1 inherit;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-family:inherit}
+.toggle:hover{border-color:var(--ink20)}
+.stage{padding:22px 20px 60px;max-width:1240px;margin:0 auto}
+.screen{display:none}.screen.on{display:block}
+.caption{font-size:12px;color:var(--ink60);margin:0 0 14px;line-height:1.6;max-width:960px}
+.caption b{color:var(--ink);font-weight:600}
+.caption code{background:var(--ink05);padding:1px 5px;border-radius:4px;font-size:11px}
+
+/* ── App 外壳（复刻真机布局：顶栏 + 三栏，右栏=Agent 340px）── */
+.app{border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:var(--paper);box-shadow:0 6px 30px rgba(20,18,16,.06)}
+.appbar{height:52px;display:flex;align-items:center;gap:0;padding:0 14px;border-bottom:1px solid var(--lineS);background:var(--paper)}
+.appbar .brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.appbar .logo{width:26px;height:26px;border-radius:7px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-weight:700;font-size:13px}
+.appbar .stepper{margin:0 auto;display:flex;gap:2px;background:var(--ink05);border-radius:999px;padding:3px}
+.appbar .stepper .st{height:26px;padding:0 14px;border-radius:999px;font-size:12px;color:var(--ink60);display:grid;place-items:center}
+.appbar .stepper .st.on{background:var(--paper);color:var(--ink);font-weight:500}
+.appbar .rgrp{display:flex;align-items:center;gap:6px}
+.appbar .ico{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;color:var(--ink60);font-size:16px;cursor:pointer}
+.appbar .ico:hover{background:var(--ink05);color:var(--ink)}
+.appbar .go{width:34px;height:34px;border-radius:8px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:17px}
+
+.body{display:flex;height:600px}
+.rail{width:150px;flex:none;border-right:1px solid var(--lineS);padding:14px 10px;background:var(--paper)}
+.rail .rh{font-size:12px;font-weight:600;margin-bottom:2px}.rail .rs{font-size:10px;color:var(--ink40);margin-bottom:12px}
+.rail .item{height:30px;border-radius:7px;padding:0 8px;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink80)}
+.rail .item.on{background:var(--acBg);color:var(--ac)}
+.rail .item.sub{color:var(--ink40);font-size:11px;padding-left:20px}
+.center{flex:1;min-width:0;background:var(--canvas);position:relative;display:flex;align-items:center;justify-content:center}
+.center .hint{font-size:11px;color:var(--ink30);position:absolute;top:12px;left:14px}
+.center.grid{background-image:radial-gradient(var(--ink10) 1px,transparent 1px);background-size:22px 22px;background-color:var(--canvas)}
+.vnode{width:150px;border:2px solid var(--ac);border-radius:10px;background:var(--paper);position:relative}
+.vnode .vh{height:22px;border-radius:8px 8px 0 0;background:var(--acBg);display:flex;align-items:center;gap:5px;padding:0 7px;font-size:10px;color:var(--ac)}
+.vnode .vthumb{height:180px;border-radius:0 0 8px 8px;background:linear-gradient(135deg,oklch(0.55 0.09 40),oklch(0.4 0.06 250))}
+.vnode .vfoot{position:absolute;bottom:6px;right:8px;font-size:10px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.node-badge{position:absolute;top:-24px;left:8px;height:18px;padding:0 7px;border-radius:999px;background:var(--ac);color:#fff;font-size:10px;display:inline-flex;align-items:center;gap:4px}
+
+/* ── Agent 右栏：常驻栏最薄（header 一行）── */
+.asst{width:var(--asst);flex:none;border-left:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;min-width:0}
+.asst-head{flex:none;display:flex;align-items:center;gap:7px;padding:8px 10px;border-bottom:1px solid var(--lineS)}
+.asst-head .nm{display:flex;align-items:center;gap:6px;font-weight:600;font-size:12px;color:var(--ink)}
+.asst-head .nlogo{width:20px;height:20px;border-radius:6px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-weight:700;font-size:10px}
+.asst-head .sp{flex:1}
+.asst-head .hico{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--ink40);cursor:pointer;font-size:14px}
+.asst-head .hico:hover{background:var(--ink05);color:var(--ink)}
+
+/* 用量 pill（悬停出明细，唯一的 header 信息件） */
+.usage-pill{position:relative;height:22px;padding:0 8px;border:1px solid var(--line);border-radius:999px;background:var(--paper);
+  display:inline-flex;align-items:center;gap:5px;color:var(--ink60);font-size:11px;cursor:default;font-variant-numeric:tabular-nums}
+.usage-pill svg{flex:none}
+.usage-pill .ring-bg{stroke:var(--ink10)}
+.usage-pill .ring-fg{stroke:var(--ac);stroke-linecap:round}
+.usage-pill:hover{border-color:var(--ink20);color:var(--ink80)}
+.ctx-pop{position:absolute;top:26px;left:0;z-index:30;width:210px;border:1px solid var(--line);border-radius:10px;background:var(--paper);
+  box-shadow:0 8px 30px rgba(20,18,16,.12);padding:10px 12px;display:none;text-align:left;cursor:default}
+.usage-pill:hover .ctx-pop{display:block}
+.ctx-pop .cp-h{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink);font-weight:600;margin-bottom:6px}
+.ctx-pop .cp-row{display:flex;justify-content:space-between;font-size:11px;color:var(--ink60);padding:3px 0}
+.ctx-pop .cp-row .n{color:var(--ink80);font-variant-numeric:tabular-nums}
+.ctx-pop .cp-foot{border-top:1px solid var(--lineS);margin-top:5px;padding-top:6px;display:flex;justify-content:space-between;font-size:11px;color:var(--ink80);font-weight:500}
+
+/* 固定结果卡（屏 D · 不随聊天滚走 · v3.1：默认收成一根细条 📌+摘要，点开才见全表；展开封顶≈视口 45%，表内滚动） */
+.resultzone{flex:none;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--ink05) 60%,var(--paper));padding:6px 10px}
+.result-card{border:1px solid var(--line);border-radius:8px;background:var(--paper);overflow:hidden}
+.result-card .rc-head{height:28px;display:flex;align-items:center;gap:7px;padding:0 9px;cursor:pointer;font-size:12px}
+.result-card .rc-head:hover{background:var(--ink05)}
+.result-card .rc-head .pin{color:var(--ac);font-size:13px;display:inline-grid;place-items:center}
+.result-card .rc-head b{font-weight:600}
+.result-card .rc-head .cnt{color:var(--ink40);font-size:11px}
+.result-card .rc-head .chev{margin-left:auto;color:var(--ink40);font-size:14px;transition:transform var(--t-tap) var(--ease)}
+.result-card.open .rc-head .chev{transform:rotate(180deg)}
+.result-card .rc-body{display:none;padding:0 9px 9px}
+.result-card.open .rc-body{display:block}
+.result-card .rc-body .shot-table{max-height:194px} /* 头 28 + 表 194 + 脚 ≈ 270px ≈ 600px 壳的 45%，超出表内滚 */
+
+.flow{flex:1;overflow-y:auto;padding:12px 12px 8px;position:relative;scrollbar-width:thin}
+.flow::-webkit-scrollbar{width:6px}.flow::-webkit-scrollbar-thumb{background:var(--ink10);border-radius:3px}
+
+/* 会话流条目 */
+.divider{display:flex;align-items:center;gap:8px;margin:14px 0;color:var(--ink40);font-size:11px}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--lineS)}
+.divider.stage-line{color:var(--ink60)}
+.divider .lk{color:var(--ink40);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.divider .lk:hover{color:var(--ink)}
+.divider .stage-ic{width:16px;height:16px;color:var(--ac)}
+
+.line{display:flex;align-items:flex-start;gap:8px;margin:9px 0;font-size:12px;color:var(--ink80);line-height:1.5}
+.line .li{width:16px;flex:none;text-align:center;color:var(--ink40);font-size:14px;margin-top:1px}
+.line.expandable{cursor:pointer}
+.line.expandable:hover{color:var(--ink)}
+.line .chev{margin-left:auto;color:var(--ink30);font-size:14px;flex:none}
+.line.settled{color:var(--ink40)}
+.line.settled .li{color:var(--ok)}
+.elapsed{color:var(--ink30);font-variant-numeric:tabular-nums;font-size:11px}
+
+/* 技能载入 = 对话流里的一行小事件（灰字小号 · 非卡片 · 过后不驻留） */
+.evt{display:flex;align-items:center;gap:6px;margin:9px 0 9px 2px;font-size:11px;color:var(--ink40)}
+.evt i{font-size:12px}
+
+/* 工具活动 = 一行 + 行尾折叠（不占独立横条、不做面板区块） */
+.toolwrap{margin:9px 0}
+.toolline{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink60);cursor:pointer;line-height:1.5}
+.toolline:hover{color:var(--ink)}
+.toolline .li{width:16px;flex:none;text-align:center;color:var(--ink40);font-size:14px}
+.toolline.running .li{color:var(--ac)}
+.toolline.running .li i{display:inline-block;animation:spin 1.1s linear infinite}
+.toolline .chev{margin-left:auto;flex:none;color:var(--ink30);font-size:14px;transition:transform var(--t-tap) var(--ease)}
+.toolwrap.open .toolline .chev{transform:rotate(180deg)}
+.toolbody{display:none;padding:2px 0 0 24px}
+.toolwrap.open .toolbody{display:block}
+.toolbody .sub{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink60);margin:5px 0}
+.toolbody .sub i{color:var(--ok);font-size:12px}
+.toolbody .sub .elapsed{margin-left:auto}
+
+.userbubble{max-width:82%;margin:12px 0 12px auto;background:var(--ink);color:var(--paper);border-radius:12px;padding:8px 12px;font-size:12px;line-height:1.5}
+body.dark .userbubble{color:var(--bg)}
+.asstext{margin:10px 0;font-size:12px;line-height:1.55;color:var(--ink80)}
+.asstext .cursor{display:inline-block;width:7px;height:14px;background:var(--ac);vertical-align:text-bottom;margin-left:2px;position:relative;overflow:hidden}
+.asstext .cursor::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);background-size:200% 100%;animation:sweep var(--t-sweep) linear infinite}
+
+/* 回执：动作 icon 化（撤销 = icon + tooltip） */
+.receipt{display:flex;align-items:center;gap:8px;margin:10px 0;font-size:12px;color:var(--ok)}
+.receipt .li{color:var(--ok)}
+.receipt .rico{margin-left:auto;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;color:var(--ink40);cursor:pointer;font-size:14px}
+.receipt .rico:hover{background:var(--ink05);color:var(--ink80)}
+.lost-edits{border:1px solid var(--warn);border-radius:8px;background:var(--warnBg);padding:8px 10px;margin:8px 0;font-size:11px;color:var(--ink80)}
+.lost-edits b{color:var(--warn)}
+.chip-jump{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--ink60);font-size:10px;margin-top:5px;cursor:pointer}
+
+/* 排队 = 消息排队：浅色行贴在输入框上沿（无卡片无边框 · 右侧小 × 可撤回） */
+.qzone{padding:0 6px 5px}
+.qline{display:flex;align-items:center;gap:7px;padding:3px 6px;font-size:11.5px;color:var(--ink40)}
+.qline .qdot{width:5px;height:5px;flex:none;border-radius:50%;border:1.5px solid var(--ink30)}
+.qline .qtxt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qline .qx{width:18px;height:18px;flex:none;border-radius:5px;display:grid;place-items:center;cursor:pointer;color:var(--ink30);font-size:12px}
+.qline .qx:hover{background:var(--ink05);color:var(--ink80)}
+
+/* composer（无常驻架：引用/定妆/技能全走输入框里的 @） */
+.composer{flex:none;border-top:1px solid var(--lineS);padding:7px 10px 9px}
+.cbox{border:1px solid var(--line);border-radius:var(--r-panel);background:var(--paper);padding:8px 10px}
+.cbox:focus-within{border-color:color-mix(in srgb,var(--ac) 46%,var(--line))}
+.cprompt{min-height:34px;color:var(--ink80);font-size:12px;outline:0;line-height:1.7}
+.cprompt.ph{color:var(--ink40)}
+.at{display:inline-flex;align-items:center;padding:0 6px;border-radius:5px;background:var(--acS);color:var(--ac);font-size:11.5px;line-height:18px}
+.at.stale{background:var(--warnBg);color:var(--warn)}
+.cbar{display:flex;align-items:center;gap:5px;margin-top:7px}
+.cbtn{position:relative;height:28px;min-width:28px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink60);display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;font-family:inherit}
+.cbtn:hover{border-color:var(--ink20);color:var(--ink80)}
+.cbtn.ico{width:28px}
+.cbtn i{font-size:15px}
+/* v3.1：底排全 icon —— hover 冒完整含义（tooltip 常驻零文字），注意态 = 图标右上角小红点 */
+.cbtn[data-tip]::after{content:attr(data-tip);position:absolute;bottom:33px;left:50%;transform:translateX(-50%);
+  white-space:nowrap;background:var(--ink);color:var(--paper);font-size:11px;line-height:1;padding:6px 8px;border-radius:6px;
+  box-shadow:0 4px 14px rgba(20,18,16,.18);opacity:0;pointer-events:none;transition:opacity var(--t-tap) var(--ease);z-index:40}
+.cbtn[data-tip]:hover::after{opacity:1}
+body.dark .cbtn[data-tip]::after{color:var(--bg)}
+.cbtn .reddot{position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:var(--dg);box-shadow:0 0 0 1.5px var(--paper)}
+.send{margin-left:auto;width:30px;height:30px;border-radius:999px;background:var(--ink);color:var(--paper);border:0;display:grid;place-items:center;font-size:15px;cursor:pointer}
+body.dark .send{color:var(--bg)}
+
+/* ── 卡片（屏 B）── */
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;align-items:start}
+.cardframe{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--paper);overflow:hidden}
+.cardframe .cf-lbl{font-size:11px;color:var(--ink40);padding:8px 12px 0;line-height:1.5}
+.cardframe .cf-lbl b{color:var(--ink80);font-weight:600}
+.cardframe .cf-body{padding:12px}
+
+.card{border:1px solid var(--line);border-radius:10px;background:var(--paper);overflow:hidden}
+.card.accent{border-color:color-mix(in srgb,var(--ac) 42%,var(--line))}
+.card.warn{border-color:var(--warn)}
+.card.danger{border-color:var(--dg)}
+.card .chd{display:flex;align-items:center;gap:7px;padding:9px 11px;font-size:12px;font-weight:600;border-bottom:1px solid var(--lineS)}
+.card .chd .ic{font-size:18px}
+.card.accent .chd .ic{color:var(--ac)}.card.warn .chd .ic{color:var(--warn)}.card.danger .chd .ic{color:var(--dg)}
+.card .cbd{padding:10px 11px}
+.card .tag-you{margin-left:auto;height:20px;padding:0 8px;border-radius:999px;background:var(--acS);color:var(--ac);font-size:10px;display:inline-flex;align-items:center;font-weight:500}
+
+.parambar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0}
+.pick{height:28px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--ink80);padding:0 9px 0 11px;display:inline-flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;white-space:nowrap}
+.pick:hover{border-color:var(--ink20)}
+.pick .caret{color:var(--ink40);font-size:12px}
+.pick.you{border-color:color-mix(in srgb,var(--ac) 40%,var(--line));background:var(--acS);color:var(--ac)}
+
+.planrow{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--lineS);font-size:12px}
+.planrow .num{width:18px;height:18px;flex:none;border-radius:999px;background:var(--ink05);color:var(--ink60);display:grid;place-items:center;font-size:10px}
+.planrow input[type=checkbox]{accent-color:var(--ac)}
+.planrow .ptitle{color:var(--ink80)}
+.planrow .ppreview{color:var(--ink40);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.planrow .same{margin-left:auto;color:var(--ink40);font-size:10px}
+.planrow .same.mod{color:var(--ac)}
+
+.grp{display:flex;gap:7px;margin-top:10px}
+.grp .btn{flex:1}
+.btn{height:28px;padding:0 12px;min-width:72px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink80);
+  font:12px/1 inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:inherit}
+.btn:hover{background:var(--ink05)}
+.btn.pri{border-color:transparent;background:var(--ink);color:var(--paper)}
+body.dark .btn.pri{color:var(--bg)}
+.btn.pri:hover{background:var(--ac);color:#fff}
+.btn.acc{color:var(--ac);border-color:color-mix(in srgb,var(--ac) 35%,var(--line))}
+
+.priceline{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;color:var(--ink80)}
+.priceline.total{border-top:1px solid var(--line);margin-top:4px;padding-top:7px;font-weight:600;color:var(--ink)}
+.priceline .n{font-variant-numeric:tabular-nums}
+.frozen{background:var(--ink05);border-radius:7px;padding:7px 9px;font-size:11px;color:var(--ink60);margin:8px 0;line-height:1.5}
+.frozen b{color:var(--ink80);font-weight:500}
+
+.opt-stack{display:flex;flex-direction:column;gap:6px;margin:8px 0 2px}
+.opt-stack .opt{height:28px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink80);
+  display:flex;align-items:center;gap:7px;padding:0 10px;font-size:12px;cursor:pointer;text-align:left;font-family:inherit}
+.opt-stack .opt:hover{border-color:var(--ink20);background:var(--ink05)}
+.opt-stack .opt.sel{border-color:var(--ac);background:var(--acS);color:var(--ac)}
+.opt-stack .opt .ord{width:14px;color:var(--ink30);font-size:10px;font-variant-numeric:tabular-nums}
+.opt-stack .opt.sel .ord{color:var(--ac)}
+.appr-foot{display:flex;align-items:center;gap:7px;margin-top:10px}
+.appr-foot .pg{font-size:11px;color:var(--ink40);font-variant-numeric:tabular-nums}
+.appr-foot .btn.skip{flex:none;min-width:0;border-color:transparent;color:var(--ink40)}
+.appr-foot .btn.next{flex:1}
+
+.artifact .a-head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.artifact .a-head .a-title{font-size:12px;font-weight:600;color:var(--ink)}
+.artifact .a-head .a-desc{font-size:10px;color:var(--ink40);font-variant-numeric:tabular-nums}
+.artifact .a-head .a-acts{margin-left:auto;display:inline-flex;gap:3px;align-items:center}
+.artifact .a-head .a-acts .ai{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--ink60);cursor:pointer;font-size:14px}
+.artifact .a-head .a-acts .ai:hover{background:var(--ink05);color:var(--ink)}
+.artifact .athumb{height:120px;border-radius:8px;background:linear-gradient(135deg,oklch(0.55 0.09 40),oklch(0.4 0.06 250));position:relative}
+.artifact .ameta{position:absolute;bottom:6px;left:8px;font-size:10px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+
+.audit{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:999px;background:var(--ink05);
+  color:var(--ink60);font-size:10px;font-variant-numeric:tabular-nums;vertical-align:1px}
+.audit b{color:var(--ok);font-weight:600}.audit s{color:var(--ink40)}
+
+.deviation{background:var(--ink05);border-radius:7px;padding:8px 10px;margin:7px 0;font-size:11px}
+.deviation .dw{color:var(--ink80);font-weight:500;display:flex;align-items:center;gap:5px;margin-bottom:3px}
+.deviation .dw .arr{color:var(--ink40)}
+.deviation .dd{color:var(--ink60);line-height:1.5}
+.deviation .df{display:inline-block;background:var(--warnBg);color:var(--warn);padding:0 6px;border-radius:4px;font-size:10px;margin-right:5px}
+
+.candidates{display:flex;gap:8px}
+.cand{flex:1;border:1px solid var(--line);border-radius:8px;overflow:hidden;position:relative;cursor:pointer}
+.cand.sel{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
+.cand .cthumb{height:88px;background:linear-gradient(135deg,oklch(0.6 0.1 var(--h,40)),oklch(0.45 0.07 calc(var(--h,40) + 60)))}
+.cand .cft{padding:5px 7px;font-size:10px;color:var(--ink60);display:flex;align-items:center;gap:4px}
+.cand .selmark{position:absolute;top:5px;right:5px;width:18px;height:18px;border-radius:50%;background:var(--ac);color:#fff;display:grid;place-items:center;font-size:11px}
+
+/* 拆解表（屏 C/D） */
+.shot-table{max-height:320px;overflow-y:auto}
+.shot-row{display:flex;gap:8px;padding:8px 0;border-top:1px solid var(--lineS);font-size:11px}
+.shot-row input[type=checkbox]{accent-color:var(--ac);margin-top:2px}
+.shot-thumb{width:44px;height:34px;flex:none;border-radius:5px;background:linear-gradient(135deg,oklch(0.55 0.08 var(--h,40)),oklch(0.4 0.05 250))}
+.shot-meta{min-width:0;flex:1}
+.shot-meta .sm-top{display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.shot-meta .sm-num{width:16px;height:16px;border-radius:999px;background:var(--ink05);color:var(--ink60);display:inline-grid;place-items:center;font-size:9px;flex:none}
+.shot-meta .sm-tag{color:var(--ink80);font-weight:500}
+.shot-meta .sm-emo{color:var(--ink40)}
+.shot-meta .sm-time{margin-left:auto;color:var(--ink30);font-variant-numeric:tabular-nums}
+.shot-meta .sm-desc{color:var(--ink60);line-height:1.45}
+.shot-meta .sm-field{color:var(--ink40);font-size:10px;margin-top:2px}
+.shot-meta .sm-field b{color:var(--ink60);font-weight:500}
+.shot-fail{color:var(--dg);font-size:10px}
+.decon-foot{display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.decon-foot .sel-cnt{font-size:11px;color:var(--ink40);margin-left:auto}
+
+/* 屏 C 布局 */
+.split{display:grid;grid-template-columns:1fr 40px 1fr;gap:0;align-items:center}
+.split .arrow-mid{display:grid;place-items:center;color:var(--ink30);font-size:22px}
+.mini-app{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--paper)}
+.mini-app .m-bar{height:40px;display:flex;align-items:center;padding:0 10px;border-bottom:1px solid var(--lineS);gap:6px;font-size:11px}
+.mini-app .m-bar .m-logo{width:20px;height:20px;border-radius:6px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:10px;font-weight:700}
+.mini-app .m-bar .m-step{margin:0 auto;font-size:11px;color:var(--ink40)}
+.mini-app .m-body{display:flex;height:340px}
+.mini-app .m-canvas{flex:1;background:radial-gradient(var(--ink10) 1px,transparent 1px);background-size:20px 20px;background-color:var(--canvas);position:relative;display:grid;place-items:center}
+.mini-app .m-slot{width:190px;flex:none;border-left:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column}
+.mini-app .m-slot .msh{height:36px;border-bottom:1px solid var(--lineS);display:flex;align-items:center;gap:6px;padding:0 10px;font-size:11px;font-weight:600}
+.mini-app .m-slot .msh .ic{color:var(--ac)}
+.mini-app .m-slot .msb{flex:1;padding:9px 10px;font-size:10px;color:var(--ink60);overflow:hidden}
+.mvnode{width:96px;border:2px solid var(--ac);border-radius:8px;position:relative;background:var(--paper)}
+.mvnode .mvt{height:90px;border-radius:6px;background:linear-gradient(135deg,oklch(0.55 0.09 40),oklch(0.4 0.06 250))}
+.mvnode .mv-badge{position:absolute;top:-20px;left:5px;height:15px;padding:0 5px;border-radius:999px;background:var(--ac);color:#fff;font-size:8px;display:inline-flex;align-items:center;gap:2px}
+.mvnode .mv-stub{position:absolute;bottom:4px;left:4px;right:4px;height:18px;border-radius:5px;background:var(--paper);border:1px solid var(--line);font-size:8px;color:var(--ink80);display:flex;align-items:center;gap:3px;padding:0 4px}
+.mvnode .mv-stub i{color:var(--ac);font-size:10px}
+.m-line{display:flex;align-items:center;gap:5px;margin-top:8px;font-size:10px;color:var(--ink60)}
+.m-line i{color:var(--ok);font-size:11px}
+.m-line .tc-lk{color:var(--ac);cursor:pointer;text-decoration:underline;text-underline-offset:2px;margin-left:auto;white-space:nowrap}
+.badge-corner{margin-left:auto;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--line);background:var(--paper);display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--ink80);cursor:pointer;position:relative}
+.badge-corner .dot{width:6px;height:6px;border-radius:50%;background:var(--ac);animation:breathe var(--t-breathe) ease-in-out infinite}
+
+/* ── 屏 E · 布局（v3.2 补全）── */
+.ly-h{font-size:13px;font-weight:600;margin:28px 0 4px;display:flex;align-items:center;gap:8px;color:var(--ink)}
+.ly-h .bdg{height:18px;padding:0 7px;border-radius:999px;background:var(--ink);color:var(--paper);display:inline-grid;place-items:center;font-size:10px;font-weight:600}
+.ly-h + .caption{margin-top:4px}
+.ly-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:16px;align-items:start}
+.ly-card{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--paper);padding:12px 12px 11px}
+.ly-card .t{font-size:12px;font-weight:600;color:var(--ink)}
+.ly-card .t .sub{font-weight:400;color:var(--ink40);font-size:10.5px;margin-left:5px}
+.ly-win{border:1px solid var(--ink20);border-radius:8px;overflow:hidden;background:var(--canvas);margin-top:8px}
+.ly-top{height:20px;background:var(--paper);border-bottom:1px solid var(--lineS);display:flex;align-items:center;justify-content:space-between;padding:0 8px;font-size:8.5px;color:var(--ink40)}
+.ly-top .ct{color:var(--ink60)}
+.ly-row{display:flex;min-height:112px;position:relative}
+.ly-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9.5px;color:var(--ink60);position:relative;padding:6px 4px;text-align:center;line-height:1.35}
+.ly-col.rail{background:var(--paper);border-right:1px solid var(--lineS)}
+.ly-col.main{flex:1;background-image:radial-gradient(var(--ink10) 1px,transparent 1px);background-size:14px 14px;background-color:var(--canvas)}
+.ly-col.plain{flex:1;background:var(--canvas)}
+.ly-col.agent{background:var(--acBg);border-left:1.5px solid var(--ac);color:var(--ac);font-weight:600}
+.ly-bottom{min-height:24px;background:var(--paper);border-top:1px solid var(--lineS);display:flex;align-items:center;justify-content:center;gap:6px;font-size:9px;color:var(--ink40);padding:2px 6px}
+.ly-num{display:inline-flex;align-items:center;height:15px;padding:0 6px;border-radius:999px;background:var(--paper);border:1px solid var(--line);color:var(--ink60);font-size:8.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ly-col.agent .ly-num{border-color:color-mix(in srgb,var(--ac) 40%,var(--line));color:var(--ac);background:var(--paper)}
+.ly-note{display:flex;gap:6px;align-items:flex-start;font-size:10.5px;color:var(--ink60);margin-top:7px;line-height:1.5}
+.ly-note i{color:var(--ac);font-size:12px;margin-top:1px;flex:none}
+.ly-note b{color:var(--ink80);font-weight:600}
+/* 收起态顶栏条 */
+.ly-appbar{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:9px;background:var(--paper);height:42px;padding:0 12px;margin-top:8px;font-size:10px;color:var(--ink40);overflow-x:auto}
+.ly-appbar .seg{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap;flex:none}
+.ly-appbar .seg i{font-size:11px}
+.ly-appbar .chip{position:relative;border:1.5px dashed var(--ac);color:var(--ac);font-weight:600;background:var(--acBg)}
+.ly-appbar .chip .dot{position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--ac);box-shadow:0 0 0 1.5px var(--paper)}
+.ly-appbar .div{width:1px;height:14px;background:var(--line);flex:none}
+.ly-appbar .sp{flex:1;min-width:8px}
+/* 断点表 */
+.ly-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+.ly-table th{color:var(--ink40);font-weight:500;text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);font-size:10px}
+.ly-table td{padding:6px 8px;border-bottom:1px solid var(--lineS);color:var(--ink80);line-height:1.45}
+.ly-table td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.ly-table td .dim{color:var(--ink40);font-size:10px}
+/* 三能力标注图 */
+.ly-cap{position:relative}
+.ly-cap .grip-zone{position:absolute;top:0;bottom:0;left:-4px;width:8px;background:color-mix(in srgb,var(--ac) 24%,transparent);display:grid;place-items:center;cursor:col-resize}
+.ly-cap .grip-zone .bar{width:3px;height:32px;border-radius:99px;background:var(--ac)}
+.ly-mark{width:15px;height:15px;flex:none;border-radius:50%;background:var(--ac);color:#fff;display:inline-grid;place-items:center;font-size:9px;font-weight:700}
+.ly-mark.abs{position:absolute;z-index:5}
+.ly-head-demo{height:26px;background:var(--paper);border-bottom:1px solid var(--lineS);display:flex;align-items:center;gap:4px;padding:0 7px;font-size:9px;color:var(--ink60)}
+.ly-head-demo .dragzone{flex:1;height:16px;border:1.5px dashed color-mix(in srgb,var(--ac) 55%,transparent);border-radius:4px;display:grid;place-items:center;color:var(--ac);font-size:8px;cursor:grab}
+.ly-head-demo .hbtn{width:17px;height:17px;border-radius:4px;display:grid;place-items:center;color:var(--ink40);font-size:10px;flex:none}
+.ly-head-demo .hbtn.hl{border:1.5px dashed var(--ac);color:var(--ac)}
+.ly-float{position:absolute;right:64px;top:26px;width:132px;border:1.5px dashed var(--ac);border-radius:8px;background:color-mix(in srgb,var(--paper) 82%,transparent);box-shadow:0 8px 24px rgba(20,18,16,.14);z-index:4;overflow:hidden}
+.ly-float .fh{height:18px;border-bottom:1px solid var(--lineS);display:flex;align-items:center;gap:3px;padding:0 6px;font-size:8px;color:var(--ink60)}
+.ly-float .fb{height:64px;display:grid;place-items:center;font-size:8.5px;color:var(--ink40);text-align:center;line-height:1.4}
+.ly-snap{position:absolute;right:0;top:0;bottom:0;width:22px;border-left:1.5px dashed var(--ac);background:color-mix(in srgb,var(--ac) 12%,transparent);display:grid;place-items:center;z-index:3}
+.ly-snap span{writing-mode:vertical-rl;font-size:8px;color:var(--ac)}
+.ly-legend{margin-top:9px;display:flex;flex-direction:column;gap:6px}
+.ly-legend .lg{display:flex;gap:7px;align-items:flex-start;font-size:11px;color:var(--ink60);line-height:1.55}
+.ly-legend .lg b{color:var(--ink80)}
+/* 标尺 */
+body.rule .cbtn,body.rule .btn,body.rule .pick,body.rule .send,body.rule .chip-jump,body.rule .at,body.rule .rico,body.rule .qx,body.rule .opt,body.rule .rc-head{outline:1px dashed var(--ac);outline-offset:1px}
+body.rule .divider .lk{outline:1px dashed var(--warn);outline-offset:2px}
+
+/* 动效（极简：屏 A 只有进行中那一行在动） */
+@keyframes sweep{0%{background-position:-42% 0}100%{background-position:142% 0}}
+@keyframes breathe{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Nomi Agent · 最终版重做样张 v3.2</h1>
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-s="A">屏 A · 主对话流</button>
+    <button class="tab" data-s="B">屏 B · 审批 + 付费 + 有出入</button>
+    <button class="tab" data-s="C">屏 C · 右槽互斥切换</button>
+    <button class="tab" data-s="D">屏 D · 结果卡区并存</button>
+    <button class="tab" data-s="E">屏 E · 布局</button>
+  </div>
+  <div class="meta">v3.2 · 九条整改 + 两条快修 + 布局补全：面板在四个面 + 浏览器的落位 · 缩小三档 · 拖宽/放大/拖走 · <a href="../2026-09-02-agent-ui-v3-walkthrough.md">逐屏走读</a> · <a href="../2026-09-01-agent-ui-final-redesign.md">设计定稿</a></div>
+  <button class="toggle" id="darkT"><i class="ti ti-moon"></i><span>暗色</span></button>
+  <button class="toggle" id="ruleT"><i class="ti ti-ruler-2"></i><span>标尺</span></button>
+</div>
+
+<div class="stage">
+
+<!-- ══════════════════ 屏 A · 主对话流 ══════════════════ -->
+<section class="screen on" data-screen="A">
+  <p class="caption"><b>屏 A · 主对话流（v3 = 住在对话里的 Claude Code）。</b>整改落点：<b>①②</b> header 技能 pill、composer 技能 chip 全删——技能只在载入那刻在流里出一行灰字小事件；<b>③</b> 参考图/定妆不再有对话外专用槽，输入框里 <code>@</code> 直接引（token 内嵌句中，引用后素材变过 = token 变黄）；<b>④</b> 排队 = 浅色行贴输入框上沿（无卡无边框，右侧小 × 撤回，轮到它自动进对话）；<b>⑤</b> 工具 = 一行 + 行尾 ▾（点头可展开明细，样张里真的可点）；<b>⑦</b> 撤销收成 icon；<b>⑧</b> header 删「· 雨夜追逐」「当前现场」——只剩 Nomi + 用量 + 两个 icon 一行；<b>v3.1</b> 底排全 icon 化——悬停冒完整含义，模型未选 = 🤖 右上角小红点。<span class="audit">常驻可点 <s>19</s> → <b>10</b></span> <span class="audit">底排常驻文字 <s>2 句</s> → <b>0</b></span></p>
+  <div class="app">
+    <div class="appbar">
+      <div class="brand"><span class="logo">N</span>Nomi</div>
+      <div class="stepper"><span class="st">创作</span><span class="st on">生成</span><span class="st">预览</span></div>
+      <div class="rgrp">
+        <span class="ico"><i class="ti ti-layout-grid"></i></span>
+        <span class="ico"><i class="ti ti-list-check"></i></span>
+        <span class="ico"><i class="ti ti-settings"></i></span>
+        <span class="go"><i class="ti ti-arrow-right"></i></span>
+      </div>
+    </div>
+    <div class="body">
+      <div class="rail">
+        <div class="rh">镜头</div><div class="rs">素材</div>
+        <div class="item on"><i class="ti ti-photo"></i>咖啡馆入物镜头</div>
+        <div class="item sub"><i class="ti ti-plus"></i>新建分镜方案</div>
+      </div>
+      <div class="center grid">
+        <div class="hint">生成画布</div>
+        <div class="vnode">
+          <div class="vh"><i class="ti ti-movie"></i>咖啡馆入物镜头</div>
+          <div class="vthumb"></div>
+          <div class="vfoot">00:15</div>
+        </div>
+      </div>
+      <!-- Agent 右栏：header 一行到底 -->
+      <div class="asst">
+        <div class="asst-head">
+          <span class="nm"><span class="nlogo">N</span>Nomi</span>
+          <span class="usage-pill">
+            <svg width="12" height="12" viewBox="0 0 12 12"><circle class="ring-bg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6"/><circle class="ring-fg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6" stroke-dasharray="28.9" stroke-dashoffset="24.9" transform="rotate(-90 6 6)"/></svg>
+            还能聊 ~40 轮
+            <span class="ctx-pop">
+              <span class="cp-h">这轮对话还能聊多久</span>
+              <span class="cp-row"><span>本轮用了</span><span class="n">1.2k 字符量</span></span>
+              <span class="cp-row"><span>累计用了</span><span class="n">8.4k 字符量</span></span>
+              <span class="cp-foot"><span>本对话花费</span><span class="n">¥0.00</span></span>
+            </span>
+          </span>
+          <span class="sp"></span>
+          <span class="hico" title="历史对话"><i class="ti ti-history"></i></span>
+          <span class="hico" title="收起"><i class="ti ti-layout-sidebar-right-collapse"></i></span>
+        </div>
+
+        <div class="flow">
+          <!-- 压缩分隔线 (形态 2) -->
+          <div class="divider">前面 24 轮已折叠 · <span class="lk">展开</span></div>
+
+          <!-- 阶段分隔线 (形态 5 · 静态，屏内只留进行中那一行在动) -->
+          <div class="divider stage-line">
+            <span class="stagefig" title="拆镜头">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4">
+                <rect x="1" y="2" width="13" height="3" rx="1"/><rect x="1" y="6.5" width="13" height="3" rx="1"/><rect x="1" y="11" width="13" height="3" rx="1"/>
+              </svg>
+            </span>
+            进入 · 生产段
+          </div>
+
+          <!-- 用户气泡 (形态 3) -->
+          <div class="userbubble">把这段雨夜追逐拆成 5 个镜头，第 2、4 镜生成参考图。</div>
+
+          <!-- 技能载入 = 一行小事件 (整改②，形态 19/20/21 合一) -->
+          <div class="evt" title="Nomi 临时装上的一套写法，本轮开始按它来"><i class="ti ti-settings"></i>载入 编剧·Kasdan</div>
+
+          <!-- 思考条：结束落定不消失 (形态 4) -->
+          <div class="line settled expandable">
+            <span class="li"><i class="ti ti-bulb"></i></span>
+            想了 4 秒 · 拆成 5 镜，2 镜要站位参考
+            <span class="chev"><i class="ti ti-chevron-right"></i></span>
+          </div>
+
+          <!-- 普通回复 (形态 7) -->
+          <div class="asstext">拆好了：5 个镜头，第 2、4 镜的参考图我来生成。</div>
+
+          <!-- 工具结束 = 一行总览，点开看明细 (整改⑤，形态 6/12) -->
+          <div class="toolwrap" data-fold>
+            <div class="toolline">
+              <span class="li"><i class="ti ti-tool"></i></span>
+              6 步 · 读剧本 · 拆 5 镜 · 生成 2 图
+              <span class="chev"><i class="ti ti-chevron-down"></i></span>
+            </div>
+            <div class="toolbody">
+              <div class="sub"><i class="ti ti-check"></i>读了剧本 · 2400 字<span class="elapsed">&lt;1s</span></div>
+              <div class="sub"><i class="ti ti-check"></i>拆成 5 镜<span class="elapsed">0:04</span></div>
+              <div class="sub"><i class="ti ti-check"></i>生成 2 张参考图<span class="elapsed">0:41</span></div>
+            </div>
+          </div>
+
+          <!-- 写入回执 + 撤销 icon (整改⑦，形态 10) -->
+          <div class="receipt"><span class="li"><i class="ti ti-circle-check"></i></span>已加 5 个节点<span class="rico" title="撤销这一笔"><i class="ti ti-arrow-back-up"></i></span></div>
+          <div class="lost-edits">
+            <b>撤销会丢掉你改过的东西</b>：镜 3 的提示词你手动改过（暖光→冷调），整笔撤销会一起丢。
+            <div class="grp" style="margin-top:8px">
+              <button class="btn">再想想</button>
+              <button class="btn acc">仍要撤销</button>
+            </div>
+          </div>
+          <div><span class="chip-jump"><i class="ti ti-arrow-up-right"></i>2 张参考图在「参考」分类 · 去看</span></div>
+
+          <!-- 第二轮：进行中 -->
+          <div class="userbubble">第 4 镜的参考图换成俯拍。</div>
+          <div class="asstext">好，第 4 镜重画成俯拍。<span class="cursor"></span></div>
+
+          <!-- 工具进行中 = 当前一行 + 行尾 ▾ (整改⑤，形态 6/11/12：同一行原地从「排队」变「进行」变「完成」) -->
+          <div class="toolwrap" data-fold>
+            <div class="toolline running">
+              <span class="li"><i class="ti ti-loader-2"></i></span>
+              正在重画第 4 镜参考图<span class="elapsed">0:12</span>
+              <span class="chev"><i class="ti ti-chevron-down"></i></span>
+            </div>
+            <div class="toolbody">
+              <div class="sub"><i class="ti ti-check"></i>改了提示词 · 平视 → 俯拍<span class="elapsed">&lt;1s</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 排队的消息：贴输入框上沿 (整改④，形态 18) -->
+        <div class="qzone">
+          <div class="qline">
+            <span class="qdot"></span>
+            <span class="qtxt">再给第 5 镜换个更冷的色调</span>
+            <span class="qx" title="撤回这条"><i class="ti ti-x"></i></span>
+          </div>
+        </div>
+
+        <!-- composer：引用全走 @ (整改③) -->
+        <div class="composer">
+          <div class="cbox">
+            <div class="cprompt">第 5 镜也按 <span class="at">@阿青定妆</span> 的造型，接 <span class="at stale" title="引用之后这段素材改过，发送时按现在的版本">@街道 02:10</span> 那段的雨势</div>
+            <div class="cbar">
+              <button class="cbtn ico" data-tip="附件"><i class="ti ti-paperclip"></i></button>
+              <button class="cbtn ico" data-tip="Agent · 安全自动"><i class="ti ti-bolt"></i></button>
+              <button class="cbtn ico" data-tip="去选文本模型"><i class="ti ti-robot"></i><span class="reddot"></span></button>
+              <button class="cbtn ico" data-tip="提示词模板"><i class="ti ti-file-pencil"></i></button>
+              <button class="send" title="发送"><i class="ti ti-arrow-up"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption" style="margin-top:14px"><b>底栏仍是 5 簇、v3.1 起全 icon</b>：📎附件 · ⚡执行方式（动什么 3 档 + 问多少 3 档，同一入口两段）· 🤖文本模型 · ✏️提示词 · ↑发送——常驻零文字，悬停 tooltip 给完整含义（「Agent · 安全自动」「文本模型 · Kimi K2」）；模型没选时不再摆一句常驻提示，改 🤖 右上角一颗小红点 + tooltip「去选文本模型」（修 C4 的 v3.1 形态）。<b>@ 是唯一的引用手势</b>：素材、定妆、片段、技能都从输入框 @ 出来，选完变成句中的小 token（可删可点）；引用后素材变过 → token 变黄提醒，发送时用当下版本。<b>排队行为</b>：Nomi 忙时输入框不禁用，回车即排一行在输入框上沿；轮到它自动进对话，点 × 撤回。技能载入那行灰字过后不驻留——当前生效的约束，点开那行随时能看。</p>
+</section>
+
+<!-- ══════════════════ 屏 B · 卡片 ══════════════════ -->
+<section class="screen" data-screen="B">
+  <p class="caption"><b>屏 B · 要你做决定的卡。</b>v3 整改落点：<b>⑥</b> 全部文案过人话闸——「过闸后」改「付费后」、删「校验分 0.62 低于阈值」、版本号说「第 2 版」；<b>⑨</b> 卡内的设计注释全部挪出卡外（卡里只剩用户真会看到的东西）；付费卡按 D4 建议画 agent 档——<b>每次都问，没有「不再提示」开关</b>（那个开关只在你自己点生成时出现）；计划卡参数去重（「竖版」只出现一次）。<span class="audit">卡均可见选择 <s>4.3</s> → <b>4.0</b> · 卡内注释 <s>5</s> → <b>0</b></span></p>
+  <div class="grid2">
+
+    <!-- 计划卡 (形态 8) -->
+    <div class="cardframe">
+      <div class="cf-lbl"><b>形态 8 · 计划卡</b>（自家 AgentPlanCard 整件复用 · 逐镜勾选，选几镜就生成几镜）</div>
+      <div class="cf-body">
+        <div class="card accent">
+          <div class="chd"><i class="ti ti-list-details ic"></i>拆成 5 镜 · 生成计划</div>
+          <div class="cbd">
+            <div style="font-size:10px;color:var(--ink40);margin-bottom:5px">这批的设置（每行可以单独改）</div>
+            <div class="parambar">
+              <span class="pick you">seedream 4.0 <i class="ti ti-chevron-down caret"></i></span>
+              <span class="pick">竖版 · 1K <i class="ti ti-chevron-down caret"></i></span>
+            </div>
+            <div class="planrow"><span class="num">1</span><input type="checkbox" checked><span class="ptitle">特写</span><span class="ppreview">咖啡杯从暗处推入画面中心</span><span class="same">同上</span></div>
+            <div class="planrow"><span class="num">2</span><input type="checkbox" checked><span class="ptitle">中景</span><span class="ppreview">女主坐在窗边，侧脸自然光</span><span class="same mod">已改 · 还原</span></div>
+            <div class="planrow"><span class="num">3</span><input type="checkbox"><span class="ptitle">近景</span><span class="ppreview">指尖搅动拉花，奶泡纹路清晰</span><span class="same">同上</span></div>
+            <div class="grp">
+              <button class="btn">全不选</button>
+              <button class="btn pri">生成已选（2 镜）</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 付费富卡 (形态 9 · agent 档) -->
+    <div class="cardframe">
+      <div class="cf-lbl"><b>形态 9 · 付费确认卡（agent 档）</b>（竞品连「失败扣不扣钱」都不说 → 我们单价+合计+改不了的全明示；agent 自动跑的每次都问，无「不再提示」开关 = D4）</div>
+      <div class="cf-body">
+        <div class="card accent">
+          <div class="chd"><i class="ti ti-coin ic"></i>确认生成 · 会花钱<span class="tag-you">要你点</span></div>
+          <div class="cbd">
+            <div class="priceline"><span>镜 1 特写 · seedream 4.0</span><span class="n">¥0.42</span></div>
+            <div class="priceline"><span>镜 2 中景 · seedream 4.0</span><span class="n">¥0.42</span></div>
+            <div class="priceline"><span>镜 4 近景 · seedream 4.0</span><span class="n">¥0.42</span></div>
+            <div class="priceline total"><span>合计 3 镜</span><span class="n">¥1.26</span></div>
+            <div class="frozen">付费后就不能再改：<b>镜头数、模型、时长、清晰度</b>。提示词仍可改。</div>
+            <div class="grp">
+              <button class="btn">取消</button>
+              <button class="btn pri">确认并生成 ¥1.26</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 有出入卡 (形态 16) -->
+    <div class="cardframe">
+      <div class="cf-lbl"><b>形态 16 · 有出入卡</b>（自家 ReconcileDeviationCard 整件复用 · 竞品全都没有这形态 = 护城河 · 全对上时永不出现）</div>
+      <div class="cf-body">
+        <div class="card warn">
+          <div class="chd"><i class="ti ti-git-compare ic"></i>做完了，有 2 处和你批准的不一样</div>
+          <div class="cbd">
+            <div style="font-size:11px;color:var(--ink60);margin-bottom:6px">其余 3 镜都对上了。没对上的：</div>
+            <div class="deviation">
+              <div class="dw">镜 2 <span class="arr">→</span> 镜 3</div>
+              <div class="dd"><span class="df">画面衔接</span>镜 2 结尾的画面没接到镜 3 开头——中间那条连线生成时丢了。</div>
+            </div>
+            <div class="deviation">
+              <div class="dw">镜 4 <span class="arr">→</span> 阿青</div>
+              <div class="dd"><span class="df">角色造型</span>阿青的头发画成了棕色，和定妆不一样。</div>
+            </div>
+            <div class="grp">
+              <button class="btn acc">让 AI 修</button>
+              <button class="btn">撤销这一步</button>
+              <button class="btn">知道了</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 反问卡 (形态 17) -->
+    <div class="cardframe">
+      <div class="cf-lbl"><b>形态 17 · 反问卡</b>（Beautiful UI Approval Card：一次一问 · 选项竖排 · 最多合并 3 问，答完一次性继续）</div>
+      <div class="cf-body">
+        <div class="card accent">
+          <div class="chd"><i class="ti ti-help-circle ic"></i>开始前问你 2 件事<span class="tag-you">要你选</span></div>
+          <div class="cbd">
+            <div style="font-size:12px;color:var(--ink80)">整体走什么调性？</div>
+            <div class="opt-stack">
+              <button class="opt sel"><span class="ord">1</span>冷调雨夜<i class="ti ti-check" style="margin-left:auto;font-size:13px"></i></button>
+              <button class="opt"><span class="ord">2</span>暖调怀旧</button>
+              <button class="opt"><span class="ord">3</span>高对比黑白</button>
+            </div>
+            <div class="appr-foot">
+              <span class="pg">1 / 2</span>
+              <button class="btn skip">跳过</button>
+              <button class="btn pri next">下一问</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 多候选组 (形态 14) -->
+    <div class="cardframe">
+      <div class="cf-lbl"><b>形态 14 · 多候选组</b>（同一请求出的几版结果 · 点缩略图即选 · 采用前只是候选，不动画布 · 多于 3 版折叠）</div>
+      <div class="cf-body">
+        <div class="card">
+          <div class="chd"><i class="ti ti-layout-grid ic" style="color:var(--ink60)"></i>镜 1 · 3 个候选</div>
+          <div class="cbd">
+            <div class="candidates">
+              <div class="cand sel" style="--h:40"><div class="cthumb"></div><div class="selmark"><i class="ti ti-check"></i></div><div class="cft">A · 选中</div></div>
+              <div class="cand" style="--h:210"><div class="cthumb"></div><div class="cft">B</div></div>
+              <div class="cand" style="--h:120"><div class="cthumb"></div><div class="cft">C</div></div>
+            </div>
+            <div class="grp">
+              <button class="btn pri">采用 A 版</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 产物缩略卡 (形态 13) + 失败卡 (形态 15) -->
+    <div class="cardframe">
+      <div class="cf-lbl"><b>形态 13 · 产物卡</b>（AI Elements Artifact：动作在标题行，图面永不被盖）+ <b>形态 15 · 失败卡</b>（人话原因 + 扣没扣钱明说）</div>
+      <div class="cf-body">
+        <div class="card artifact">
+          <div class="cbd">
+            <div class="a-head">
+              <span class="a-title">镜 1</span><span class="a-desc">1024×1792 · 第 2 版</span>
+              <span class="a-acts">
+                <span class="ai" title="改提示词"><i class="ti ti-pencil"></i></span>
+                <span class="ai" title="重新生成"><i class="ti ti-refresh"></i></span>
+                <button class="btn acc" style="height:24px;min-width:0;padding:0 9px">去画布</button>
+              </span>
+            </div>
+            <div class="athumb"><div class="ameta">镜 1 · 特写 · 暖光</div></div>
+          </div>
+        </div>
+        <div class="card danger" style="margin-top:12px">
+          <div class="chd"><i class="ti ti-alert-triangle ic"></i>镜 4 生成失败</div>
+          <div class="cbd">
+            <div style="font-size:11px;color:var(--ink60);line-height:1.5">当前模型没配置好，这一步没跑起来。<b style="color:var(--ok)">这次没扣钱。</b></div>
+            <div class="grp">
+              <button class="btn">换模型重试</button>
+              <button class="btn">改提示词</button>
+              <button class="btn">看详情</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════ 屏 C · 右槽互斥切换 ══════════════════ -->
+<section class="screen" data-screen="C">
+  <p class="caption"><b>屏 C · 右槽互斥切换（过渡期）。</b>双区外壳落地前，右栏同一时刻只住一个：<b>左</b> = Nomi 对话进驻，拆解结果收成源视频节点上的小浮条「拆解结果 · 5 镜」；<b>右</b> = 拆解表进驻，Nomi 收成顶栏小角标「● 进行中」（有新动静冒蓝点）。切换 260ms 滑入；<b>收起只是收起，不清空</b>——勾选、滚动位置、进行中的任务都保持，点回来原样还在。词汇闸落点：对话里的工具事件同屏 A 一行式，删掉了内部行话。</p>
+  <div class="split">
+
+    <!-- 左：Agent 进驻，拆解收节点浮条 -->
+    <div class="mini-app">
+      <div class="m-bar">
+        <span class="m-logo">N</span><b style="font-size:11px">Nomi</b>
+        <span class="m-step">创作 · <b style="color:var(--ink)">生成</b> · 预览</span>
+      </div>
+      <div class="m-body">
+        <div class="m-canvas">
+          <div class="mvnode">
+            <span class="mv-badge"><i class="ti ti-check" style="font-size:9px"></i>已拆解·5 镜</span>
+            <div class="mvt"></div>
+            <div class="mv-stub"><i class="ti ti-table"></i>拆解结果·5 镜</div>
+          </div>
+        </div>
+        <div class="m-slot">
+          <div class="msh"><span class="m-logo" style="width:18px;height:18px">N</span>Nomi</div>
+          <div class="msb">
+            <div style="color:var(--ink80)">帮我把这条视频拆成分镜，我想照着做一版。</div>
+            <div class="m-line"><i class="ti ti-check"></i>拆解视频 · 5 镜 · 1 镜没读出来<span class="tc-lk">看结果 →</span></div>
+            <div style="color:var(--ink60);margin-top:8px">拆好了。你想先挑保留镜，还是直接照 5 镜起稿？</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-mid"><i class="ti ti-arrows-left-right"></i></div>
+
+    <!-- 右：拆解进驻，Agent 收顶栏角标 -->
+    <div class="mini-app">
+      <div class="m-bar">
+        <span class="m-logo">N</span><b style="font-size:11px">Nomi</b>
+        <span class="m-step">创作 · <b style="color:var(--ink)">生成</b> · 预览</span>
+        <span class="badge-corner"><span class="dot"></span>进行中<i class="ti ti-chevron-left" style="font-size:11px"></i></span>
+      </div>
+      <div class="m-body">
+        <div class="m-canvas">
+          <div class="mvnode"><div class="mvt"></div></div>
+        </div>
+        <div class="m-slot">
+          <div class="msh"><i class="ti ti-table ic"></i>视频拆解 · 00:15</div>
+          <div class="msb" style="overflow-y:auto">
+            <div style="display:flex;gap:6px;padding:6px 0;border-top:1px solid var(--lineS)">
+              <input type="checkbox" checked style="accent-color:var(--ac);margin-top:2px">
+              <div class="shot-thumb" style="--h:40;width:38px;height:28px"></div>
+              <div class="shot-meta">
+                <div class="sm-top"><span class="sm-num">1</span><span class="sm-tag" style="font-size:10px">特写</span><span class="sm-time" style="font-size:9px">2.1s</span></div>
+                <div class="sm-desc" style="font-size:10px">咖啡杯从暗处推入画面中心</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;padding:6px 0;border-top:1px solid var(--lineS)">
+              <input type="checkbox" checked style="accent-color:var(--ac);margin-top:2px">
+              <div class="shot-thumb" style="--h:210;width:38px;height:28px"></div>
+              <div class="shot-meta">
+                <div class="sm-top"><span class="sm-num">2</span><span class="sm-tag" style="font-size:10px">中景</span><span class="sm-time" style="font-size:9px">2.7s</span></div>
+                <div class="sm-desc" style="font-size:10px">女主坐在窗边，侧脸自然光</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;padding:6px 0;border-top:1px solid var(--lineS)">
+              <input type="checkbox" style="accent-color:var(--ac);margin-top:2px">
+              <div class="shot-thumb" style="--h:120;width:38px;height:28px;opacity:.5"></div>
+              <div class="shot-meta">
+                <div class="sm-top"><span class="sm-num">3</span><span class="shot-fail">这镜没读出来·可单独重试</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption" style="margin-top:14px"><b>宽度单一真相源：</b>两个住户共享槽宽 <code>assistantWidth</code> 340（clamp 300–600）；<b>#251 的 520px 作废</b>。角标落顶栏因为它是唯一跨创作/生成/预览常驻的 chrome；浮条落源节点因为拆解结果本就属那条视频（一功能一个家）。</p>
+</section>
+
+<!-- ══════════════════ 屏 D · 结果卡区并存 ══════════════════ -->
+<section class="screen" data-screen="D">
+  <p class="caption"><b>屏 D · 结果卡固定 + 对话并存（③合流最终态）。</b>双区外壳落地后互斥消失：需要反复对照操作的工件（拆解分镜表）<b>固定在对话上方、不随聊天滚走</b>（卡头一枚 📌，没有任何区域标签——整改⑧）；过程都在下方对话里滚。<b>v3.1：固定卡默认收成一根细条</b>「📌 拆解结果 · 5 镜 · 已选 2 ▾」——常驻脚印一行、状态摘要常在；点细条展开全表（封顶约视口 45%，表内滚动），再点收回，<b>样张里真的可点</b>。TapNow 手册同证：「随时回到画布查看已确认内容，不需要在很长的聊天记录里重新寻找」。header 同屏 A 一行到底。<span class="audit">常驻可点 <s>12</s> → <s>10</s> → <b>9</b></span></p>
+  <div class="app">
+    <div class="appbar">
+      <div class="brand"><span class="logo">N</span>Nomi</div>
+      <div class="stepper"><span class="st">创作</span><span class="st on">生成</span><span class="st">预览</span></div>
+      <div class="rgrp">
+        <span class="ico"><i class="ti ti-layout-grid"></i></span>
+        <span class="ico"><i class="ti ti-settings"></i></span>
+        <span class="go"><i class="ti ti-arrow-right"></i></span>
+      </div>
+    </div>
+    <div class="body">
+      <div class="rail">
+        <div class="rh">镜头</div><div class="rs">素材</div>
+        <div class="item on"><i class="ti ti-photo"></i>咖啡馆入物镜头</div>
+        <div class="item sub"><i class="ti ti-plus"></i>新建分镜方案</div>
+      </div>
+      <div class="center grid">
+        <div class="hint">生成画布</div>
+        <div class="vnode">
+          <div class="vh"><i class="ti ti-movie"></i>咖啡馆入物镜头</div>
+          <div class="vthumb"></div>
+          <div class="vfoot">00:15</div>
+          <span class="node-badge"><i class="ti ti-check" style="font-size:9px"></i>已拆解 · 5 镜</span>
+        </div>
+      </div>
+
+      <!-- Agent 右栏：固定结果卡 + 对话 -->
+      <div class="asst">
+        <div class="asst-head">
+          <span class="nm"><span class="nlogo">N</span>Nomi</span>
+          <span class="usage-pill">
+            <svg width="12" height="12" viewBox="0 0 12 12"><circle class="ring-bg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6"/><circle class="ring-fg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6" stroke-dasharray="28.9" stroke-dashoffset="27" transform="rotate(-90 6 6)"/></svg>
+            还能聊 ~52 轮
+            <span class="ctx-pop">
+              <span class="cp-h">这轮对话还能聊多久</span>
+              <span class="cp-row"><span>本轮用了</span><span class="n">0.8k 字符量</span></span>
+              <span class="cp-row"><span>累计用了</span><span class="n">3.1k 字符量</span></span>
+              <span class="cp-foot"><span>本对话花费</span><span class="n">¥1.26</span></span>
+            </span>
+          </span>
+          <span class="sp"></span>
+          <span class="hico" title="历史对话"><i class="ti ti-history"></i></span>
+          <span class="hico" title="收起"><i class="ti ti-layout-sidebar-right-collapse"></i></span>
+        </div>
+
+        <!-- 固定结果卡（不随聊天滚走 · v3.1 默认收成细条：📌+摘要一行，点开全表，再点收回；收起只是收起不清空） -->
+        <div class="resultzone">
+          <div class="result-card" data-pinfold>
+            <div class="rc-head"><span class="pin" title="固定在这里，不随聊天滚走"><i class="ti ti-pin"></i></span><b>拆解结果</b><span class="cnt">· 5 镜 · 已选 2</span><span class="chev"><i class="ti ti-chevron-down"></i></span></div>
+            <div class="rc-body">
+              <div class="shot-table">
+                <div class="shot-row">
+                  <input type="checkbox" checked>
+                  <div class="shot-thumb" style="--h:40"></div>
+                  <div class="shot-meta">
+                    <div class="sm-top"><span class="sm-num">1</span><span class="sm-tag">特写</span><span class="sm-emo">· 温暖</span><span class="sm-time">0.0–2.1s</span></div>
+                    <div class="sm-desc">咖啡杯从暗处缓缓推入画面中心，暖色顶光打在瓶身与热气。</div>
+                    <div class="sm-field"><b>字幕</b> 熬夜救星 · <b>图片</b> 特写咖啡杯，暖光</div>
+                  </div>
+                </div>
+                <div class="shot-row">
+                  <input type="checkbox" checked>
+                  <div class="shot-thumb" style="--h:210"></div>
+                  <div class="shot-meta">
+                    <div class="sm-top"><span class="sm-num">2</span><span class="sm-tag">中景</span><span class="sm-emo">· 明净</span><span class="sm-time">2.1–4.8s</span></div>
+                    <div class="sm-desc">女主坐在窗边喝咖啡，自然侧光，背景轻微虚化。</div>
+                    <div class="sm-field"><b>字幕</b> 限时 3 折（第 3 秒才跳出来）</div>
+                  </div>
+                </div>
+                <div class="shot-row">
+                  <input type="checkbox">
+                  <div class="shot-thumb" style="--h:120;opacity:.5"></div>
+                  <div class="shot-meta">
+                    <div class="sm-top"><span class="sm-num">3</span><span class="shot-fail"><i class="ti ti-alert-circle" style="font-size:10px"></i>这镜没读出来·可单独重试</span><span class="sm-time">4.8–7.0s</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="decon-foot">
+                <button class="btn acc" style="flex:none">用这套结构起稿</button>
+                <span class="sel-cnt">已选 2/5</span>
+                <button class="btn pri" style="flex:none">加入画布 (2)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 会话流 -->
+        <div class="flow">
+          <div class="userbubble">帮我把这条咖啡馆视频拆成分镜，我想照着做一版。</div>
+          <div class="toolwrap" data-fold>
+            <div class="toolline">
+              <span class="li"><i class="ti ti-table"></i></span>
+              拆解视频 · 5 镜 · 1 镜没读出来
+              <span class="chev"><i class="ti ti-chevron-down"></i></span>
+            </div>
+            <div class="toolbody">
+              <div class="sub"><i class="ti ti-check"></i>逐帧看了画面 · 00:15<span class="elapsed">0:23</span></div>
+              <div class="sub"><i class="ti ti-check"></i>拆成 5 镜，写好每镜的字幕和画面描述</div>
+            </div>
+          </div>
+          <div class="asstext">拆好了，结果钉在上方那根细条里，点开勾选就能加入画布。镜 3 画面没读出来，你可以单独重试那一镜。</div>
+        </div>
+
+        <!-- composer -->
+        <div class="composer">
+          <div class="cbox">
+            <div class="cprompt ph">继续告诉 Nomi 要改什么… 输入 @ 可以引素材或技能</div>
+            <div class="cbar">
+              <button class="cbtn ico" data-tip="附件"><i class="ti ti-paperclip"></i></button>
+              <button class="cbtn ico" data-tip="Agent · 安全自动"><i class="ti ti-bolt"></i></button>
+              <button class="cbtn ico" data-tip="文本模型 · Kimi K2"><i class="ti ti-robot"></i></button>
+              <button class="cbtn ico" data-tip="提示词模板"><i class="ti ti-file-pencil"></i></button>
+              <button class="send" title="发送"><i class="ti ti-arrow-up"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption" style="margin-top:14px"><b>细条的规矩（v3.1）：</b>收起只是收起——勾选、滚动位置全保持，摘要「5 镜 · 已选 2」跟着勾选实时变；展开态封顶约视口 45%，表格内部滚，绝不把对话挤没。<b>开闸删旧（C9 / 决策 D5）：</b>最终态固定结果卡 + 对话并存 → 过渡版的互斥标志作废、4 档工作方式契约删净（P1 加新必删旧无并行版）。节点浮条和对话里的工具行都指向同一张固定结果卡，绝不各开一张。</p>
+</section>
+
+<!-- ══════════════════ 屏 E · 布局（v3.2 补全） ══════════════════ -->
+<section class="screen" data-screen="E">
+  <p class="caption"><b>屏 E · 面板住在哪（v3.2 布局补全）。</b>三条布局总则：<b>① 一个家</b>——面板在所有页面都停靠<b>视口右缘</b>，切页不挪窝（空间记忆最省脑）；<b>② 一个宽度</b>——全页面共用 <code>assistantWidth</code>（默认 340，拖拽 300–600，单一真相源，拆解表/结果卡区同源）；<b>③ 让位不悬浮</b>——停靠态是 in-flow 列，主内容被挤窄而不是被盖住（动作不压内容）。以下每张图的数字都来自真实外壳代码，非脑补。</p>
+
+  <div class="ly-h"><span class="bdg">A</span>四个面 + 浏览器的落位</div>
+  <div class="ly-grid">
+
+    <!-- E1 创作 -->
+    <div class="ly-card">
+      <div class="t">① 创作<span class="sub">creation · 面板全高</span></div>
+      <div class="ly-win">
+        <div class="ly-top"><span>顶栏 <b class="ct">56px</b></span><span>创作 · <b class="ct">生成 · 预览</b></span></div>
+        <div class="ly-row" style="min-height:124px">
+          <div class="ly-col rail" style="width:64px">文稿列表<span class="ly-num">240 / 窄时 200</span></div>
+          <div class="ly-col plain">正文编辑器<span class="ly-num">内容区内居中 · max 1480</span></div>
+          <div class="ly-col agent" style="width:86px">Agent<span class="ly-num">340</span><span style="font-weight:400;font-size:8.5px">顶栏下沿→窗底</span></div>
+        </div>
+      </div>
+      <div class="ly-note"><i class="ti ti-replace"></i><span><b>取代原网格内 344px 助手栏</b>（P1 加新删旧）：现役创作助手是居中网格里的一列，统一后面板改停视口右缘、宽度归一到 340；「常驻右栏」的拍板（2026-07-25）不变，变的只是从「内容列」升为「全局 chrome」。创作没有时间轴，面板独享整个右缘高度。</span></div>
+    </div>
+
+    <!-- E2 分镜 -->
+    <div class="ly-card">
+      <div class="t">② 分镜<span class="sub">storyboard · 与创作同壳</span></div>
+      <div class="ly-win">
+        <div class="ly-top"><span>顶栏 <b class="ct">56px</b></span><span>创作(亮) · 生成 · 预览</span></div>
+        <div class="ly-row" style="min-height:124px">
+          <div class="ly-col rail" style="width:64px">文稿列表<span class="ly-num">240</span></div>
+          <div class="ly-col plain">分镜表编辑器<span class="ly-num">同创作居中网格</span></div>
+          <div class="ly-col agent" style="width:86px">Agent<span class="ly-num">340</span></div>
+        </div>
+      </div>
+      <div class="ly-note"><i class="ti ti-info-circle"></i><span><b>分镜不是独立页签</b>：顶栏步进器只有创作/生成/预览三格，分镜模式亮在「创作」上（identity.tsx:137）；它就是创作面把中栏换成分镜表（CreationWorkspace.tsx:72）。所以面板<b>可用且布局与创作完全一致</b>——不另画规则，切进分镜对话不断。</span></div>
+    </div>
+
+    <!-- E3 生成 -->
+    <div class="ly-card">
+      <div class="t">③ 画布<span class="sub">generation · 面板停在时间轴上沿</span></div>
+      <div class="ly-win">
+        <div class="ly-top"><span>顶栏 <b class="ct">56px</b></span><span>创作 · 生成(亮) · 预览</span></div>
+        <div class="ly-row">
+          <div class="ly-col rail" style="width:34px;font-size:8.5px">树<span class="ly-num" style="padding:0 4px">60/300</span></div>
+          <div class="ly-col main">生成画布<span class="ly-num">≥700 底线</span></div>
+          <div class="ly-col agent" style="width:86px">Agent 或 拆解表<span class="ly-num">340 同源</span></div>
+        </div>
+        <div class="ly-bottom">时间轴 · 通栏 <span class="ly-num">188</span><span style="color:var(--ink30)">收起时面板落到窗底</span></div>
+      </div>
+      <div class="ly-note"><i class="ti ti-arrows-left-right"></i><span><b>右槽互斥的页面级落位</b>：拆解表与 Agent 用的是<b>同一列、同一宽度变量</b>（`--generation-assistant-target-width`，R-C-4）——过渡期二选一换班（屏 C），终局同壳并存（屏 D），页面骨架一行代码不用动。时间轴永远通栏在下（用户拍板：主时间观入口在底部中间），面板底 = 时间轴顶。</span></div>
+    </div>
+
+    <!-- E4 预览 -->
+    <div class="ly-card">
+      <div class="t">④ 预览<span class="sub">preview · 同画布规则</span></div>
+      <div class="ly-win">
+        <div class="ly-top"><span>顶栏 <b class="ct">56px</b>（本页无「去出片」钮）</span><span>创作 · 生成 · 预览(亮)</span></div>
+        <div class="ly-row">
+          <div class="ly-col rail" style="width:52px;font-size:8.5px">素材源<span class="ly-num" style="padding:0 4px">268</span></div>
+          <div class="ly-col plain">播放器</div>
+          <div class="ly-col agent" style="width:86px">Agent<span class="ly-num">340</span></div>
+        </div>
+        <div class="ly-bottom">剪辑时间轴 · 通栏 <span class="ly-num">222</span></div>
+      </div>
+      <div class="ly-note"><i class="ti ti-scissors"></i><span>预览的时间轴是<b>全密度剪辑面</b>（222px 通栏、不可收起），面板同样停在它上沿。在这个面对 Nomi 说的是剪辑话（「把镜 3 换成第 2 版」「字幕提前半秒」），产物直接落时间轴——所以面板必须和播放器 + 时间轴同屏，不能盖任何一个。</span></div>
+    </div>
+
+    <!-- E5 浏览器 -->
+    <div class="ly-card" style="grid-column:1/-1">
+      <div class="t">⑤ 浏览器对话框打开时<span class="sub">NomiBrowserDialog · 全屏接管，面板不并存</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">
+        <div class="ly-win">
+          <div class="ly-top" style="background:var(--ink05)"><span>浏览器接管层 z-520 · <b class="ct">mac 从 y=0 全盖 / win32 从窗控条(32px)下起</b></span><span>ESC / × 关闭</span></div>
+          <div class="ly-row" style="min-height:96px">
+            <div class="ly-col plain" style="border-right:1.5px dashed var(--line)">网页内容<br><span style="font-size:8.5px;color:var(--ink30)">原生 WebContentsView<br>浮在所有 DOM 之上</span></div>
+            <div class="ly-col rail" style="width:96px;border-right:0;border-left:1px solid var(--lineS)">捕捞坞（已有）<span class="ly-num">默认 500 · 拖 220–75%</span><span style="font-weight:400;font-size:8.5px">悬停素材 Ctrl+C 入库</span></div>
+          </div>
+          <div class="ly-bottom" style="justify-content:flex-start">页签行 ~44 + 地址行 ~48 是对话框自己的 chrome；下层工作台（含 Agent 面板）被完全盖住</div>
+        </div>
+        <div>
+          <div class="ly-note" style="margin-top:2px"><i class="ti ti-eye-off"></i><span><b>不压暗、不并用——是接管</b>：对话框是不透明纸面（无半透明 backdrop 可言），mac 上连顶栏都在它底下（NomiBrowserDialogModel.tsx:304 的锚点在 mac 量出 0）。网页画面是<b>原生视图</b>，浮在一切 DOM 之上——想并排塞一条 Agent 栏，只能再挤网页（右缘已有 500px 捕捞坞），两个输入焦点抢一个屏 = 认知过载。所以：<b>浏览器开着时面板不可见、不可用，也不装可用</b>。</span></div>
+          <div class="ly-note"><i class="ti ti-fish-hook"></i><span><b>@ 回填走素材桥，不走并屏</b>：浏览器里悬停图/视频按 Ctrl+C → 捕捞坞收进项目素材（现役链路）。关掉浏览器回到工作台，composer 打 <code>@</code> 时选择器<b>置顶「刚从浏览器捞的」组</b>（本会话内的捕捞，含缩略图）——「捞完就能 @」，桥在素材库，不在窗口叠窗口。</span></div>
+          <div class="ly-note"><i class="ti ti-bell"></i><span><b>Nomi 干着活你去捞素材</b>：任务不中断；浏览器关上那一刻，顶栏角标的蓝点/未读数（见下）告诉你它这段时间干完了什么。浏览时不弹任何 Agent 通知——一次一个焦点面。</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ly-h"><span class="bdg">B</span>缩小三档</div>
+  <div class="ly-grid">
+
+    <!-- B1 收起态 -->
+    <div class="ly-card" style="grid-column:1/-1">
+      <div class="t">① 收起态<span class="sub">面板 → 顶栏角标，四个面同一位置</span></div>
+      <div class="ly-appbar">
+        <span class="seg" style="padding-left:0"><i class="ti ti-brand-apple" style="opacity:0"></i>N Nomi</span>
+        <span class="seg" style="border:1px solid var(--lineS);border-radius:7px">项目库 › 雨夜追逐</span>
+        <span class="sp"></span>
+        <span class="seg" style="background:var(--ink05);border-radius:999px">创作 · 生成 · 预览</span>
+        <span class="sp"></span>
+        <span class="seg"><i class="ti ti-list-check"></i>任务</span>
+        <span class="div"></span>
+        <span class="seg"><i class="ti ti-browser"></i>浏览器</span>
+        <span class="div"></span>
+        <span class="seg chip"><span style="font-weight:700">N</span>Nomi<span class="dot"></span></span>
+        <span class="div"></span>
+        <span class="seg"><i class="ti ti-settings"></i></span>
+        <span class="seg"><i class="ti ti-plug-connected"></i></span>
+        <span class="div"></span>
+        <span class="seg" style="background:var(--ink);color:var(--paper);border-radius:7px"><i class="ti ti-arrow-right"></i>去出片</span>
+      </div>
+      <div class="ly-legend">
+        <div class="lg"><span class="ly-mark">1</span><span><b>落位固定：右簇「浏览器」与「设置」之间</b>——就是现役互斥角标 CollapsedAiChip 住的那格（NomiAppBar.tsx:274，紧挨配置组左侧）。顶栏是唯一跨创作/分镜/生成/预览常驻的 chrome，所以四个面收起后角标都在这一格，win32 也一样（NomiAppBar 两平台都渲染）。收起入口 = 面板头右侧「收起」icon；点角标 = 原宽度、原状态还原（collapse≠unmount）。</span></div>
+        <div class="lg"><span class="ly-mark">2</span><span><b>蓝点 = 有新动静</b>（收起期间有新回复/工具跑完，settle 420ms 单次脉冲，不常闪）；<b>数字徽标 = 未读条数</b>（语法复刻 TaskCenterButton 徽标与 CollapsedAiChip 计数：min-w-4 rounded-pill accent）。没动静就安安静静一颗角标，不制造假紧迫。过渡期拆解互斥的「● 进行中」角标（屏 C）与收起角标是<b>同一格只出一颗</b>——面板不在右槽，原因不同、家相同。</span></div>
+      </div>
+    </div>
+
+    <!-- B2 窄窗态 -->
+    <div class="ly-card">
+      <div class="t">② 窄窗态<span class="sub">挤压规则 + 断点</span></div>
+      <table class="ly-table">
+        <tr><th>视口宽</th><th>发生什么</th></tr>
+        <tr><td class="n">≤1600</td><td>顶栏动作钮文字隐藏，收成 30px 图标方块（现役断点，NomiAppBar `max-[1600px]`）——面板不受影响</td></tr>
+        <tr><td class="n">&lt;1360</td><td>面板<b>拖宽上限开始缩水</b>：max = 视口 − 760（1280→520、1200→440）；已拖到超限的宽度被钳回，默认 340 不动</td></tr>
+        <tr><td class="n">1100（最小）</td><td>上限 = 340 = 默认宽：拖宽手柄到头、「放大」钮置灰。面板<b>仍可停靠</b>，不强制收起</td></tr>
+      </table>
+      <div class="ly-note"><i class="ti ti-lock"></i><span><b>面板宽度从不背着人自动变</b>——窄窗只收「上限」，不偷改当前宽。760 的出处：探索栏最窄轨 60 + 画布底线 700（= 最小窗默认布局的实际画布宽，见右图）。内容区自己的断点（创作文稿列 240→200 等）改按<b>内容区宽度</b>（视口−面板）评估，不再看裸视口。</span></div>
+    </div>
+
+    <!-- B3 最小窗态 -->
+    <div class="ly-card">
+      <div class="t">③ 最小窗态<span class="sub">1100 × 720 · electron/main.ts:295 锁死</span></div>
+      <div class="ly-win">
+        <div class="ly-top"><span>顶栏 <b class="ct">56</b></span><span>1100 × 720（min-window 走查同尺寸：creation-work-surfaces.e2e.mjs:226）</span></div>
+        <div class="ly-row" style="min-height:86px">
+          <div class="ly-col rail" style="width:26px;font-size:8px"><span class="ly-num" style="padding:0 3px">60</span></div>
+          <div class="ly-col main">画布<span class="ly-num">700</span></div>
+          <div class="ly-col agent" style="width:76px">Agent<span class="ly-num">340</span><span style="font-weight:400;font-size:8.5px">高 476</span></div>
+        </div>
+        <div class="ly-bottom">时间轴 <span class="ly-num">188</span><span style="color:var(--ink30)">一键收起 → 面板高回 664</span></div>
+      </div>
+      <div class="ly-note"><i class="ti ti-ruler-measure"></i><span>最小窗下各面实数：<b>生成</b> 60+700+340（面板高 476，时间轴收起 664）；<b>创作/分镜</b> 内容区 760 → 文稿列 200 + 编辑器 ~490（紧但可写，一键收起面板回 812）；<b>预览</b> 268+492+340。走查以这套数为锚。</span></div>
+    </div>
+  </div>
+
+  <div class="ly-h"><span class="bdg">C</span>面板操控三能力</div>
+  <div class="ly-grid">
+
+    <!-- C 停靠态标注 -->
+    <div class="ly-card">
+      <div class="t">停靠态：拖宽 ① + 放大 ②<span class="sub">手柄/热区/光标</span></div>
+      <div class="ly-win ly-cap">
+        <div class="ly-top"><span>顶栏 56</span><span>生成</span></div>
+        <div class="ly-row" style="min-height:150px">
+          <div class="ly-col main">画布</div>
+          <div style="width:150px;position:relative;background:var(--paper);border-left:1.5px solid var(--ac);display:flex;flex-direction:column">
+            <span class="ly-mark abs" style="left:-8px;top:46px">1</span>
+            <div class="grip-zone" style="position:absolute;top:0;bottom:0;left:-4px;width:8px;background:color-mix(in srgb,var(--ac) 24%,transparent);display:grid;place-items:center;cursor:col-resize;z-index:2"><span style="width:3px;height:32px;border-radius:99px;background:var(--ac)"></span></div>
+            <div class="ly-head-demo">
+              <span style="font-weight:700">N</span>
+              <span class="dragzone">拖走热区 ③</span>
+              <span class="hbtn hl" title="放大/还原"><i class="ti ti-arrows-diagonal"></i></span><span class="ly-mark" style="width:13px;height:13px;font-size:8px">2</span>
+              <span class="hbtn"><i class="ti ti-layout-sidebar-right-collapse"></i></span>
+            </div>
+            <div style="flex:1;display:grid;place-items:center;font-size:9px;color:var(--ink40);text-align:center;line-height:1.5">对话流<br><span style="font-size:8.5px;color:var(--ink30)">340 默认 · 拖 300–600</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="ly-legend">
+        <div class="lg"><span class="ly-mark">1</span><span><b>左缘拖宽</b>：热区 <b>8px</b> 竖条骑在边线上（左右各 4px，≥6px 达标）、hover 变<b>列宽光标</b>（col-resize）+ 3×32px accent 竖粒——整套解剖复用现役生成区手柄（GenerationWorkspace.tsx:157-173），不发明第二种手柄。<b>min 300 / 默认 340 / max = min(600, 视口−760)</b>（workbenchStore.ts:332 的 clamp + 窄窗动态上限）；拖动实时生效、松手落库记住；<b>双击手柄回 340</b>。</span></div>
+        <div class="lg"><span class="ly-mark">2</span><span><b>放大 = 一键到拖宽上限，不盖画布</b>：头部 ⤢ 钮在 340↔上限（宽屏即 600）间切换，还原回放大前的记忆宽。<b>为什么不全屏盖</b>：面板产物全在画布上（去画布/对照/勾镜），盖住画布 = 蒙眼批准，违背结果卡区「对着改」的整个存在理由；600px 已够拆解全表/计划卡完整可读。<b>为什么不另做分屏态</b>：放大只是拖宽的快捷键，全程只有 assistantWidth 一个变量——没有第二种布局模式要学。最小窗时上限=340，钮置灰 + tooltip「窗口太窄」。</span></div>
+      </div>
+    </div>
+
+    <!-- C3 拖走 -->
+    <div class="ly-card">
+      <div class="t">拖走 ③：浮动窗（推荐）<span class="sub">重停靠语义</span></div>
+      <div class="ly-win ly-cap">
+        <div class="ly-top"><span>顶栏 56</span><span>生成</span></div>
+        <div class="ly-row" style="min-height:150px">
+          <div class="ly-col main" style="align-items:flex-start;justify-content:flex-start;padding:8px">画布（回满宽）</div>
+          <div class="ly-float">
+            <div class="fh"><span style="font-weight:700">N</span>Nomi<span style="margin-left:auto"><i class="ti ti-arrow-bar-to-right"></i></span></div>
+            <div class="fb">浮动窗 380×620 起<br>min 320×420 · 记住位置尺寸</div>
+          </div>
+          <div class="ly-snap"><span>右缘 30px 吸附回停</span></div>
+        </div>
+      </div>
+      <div class="ly-legend">
+        <div class="lg"><span class="ly-mark">3</span><span><b>从头部空白区抓着拖</b>（grab 光标），拖离右缘 &gt;40px 出槽变浮动窗；拖回右缘 30px 热区亮出停靠预览、松手归位；头部「⇥ 回停靠」钮一键回家。浮窗<b>只此一个</b>、默认落右下、跨页跟随，位置尺寸记忆；收起角标对浮动态同样生效。</span></div>
+        <div class="lg" style="color:var(--ink40)"><span class="ly-mark" style="background:var(--ink30)">✕</span><span><b>为什么不做左右换边（考虑过，否决）</b>：三个面的左缘全被占着——生成是探索栏(60/300)、创作是文稿列(240)、预览是素材源(268)，Agent 靠左 = 一边叠两条栏，而且各页左栏宽度不同，切页面板会左右横跳，把「一个家」拆了。浮动才有真用例（超宽屏/双屏把对话挪开、画布全宽），机构也是现成的（捕捞坞同款 useResizableFloatingWindow）。浮窗盖到节点是用户自己拖的选择，不属于「系统把动作压在内容上」。</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="caption" style="margin-top:14px"><b>数字一页账</b>：停靠宽 <code>340</code> 默认 · 拖 <code>300–600</code> · 窄窗上限 <code>min(600, 视口−760)</code> · 拖宽热区 <code>8px</code>/竖粒 <code>3×32</code> · 双击回 <code>340</code> · 出槽阈值 <code>40px</code> · 回停热区 <code>30px</code> · 浮窗 <code>380×620</code> 起（min <code>320×420</code>）· 最小窗 <code>1100×720</code> 画布底线 <code>700</code> · 收起角标高 <code>30px</code> 蓝点 <code>8px</code>。宽度真相源唯一：<code>assistantWidth</code>（拆解表/结果卡区/浮窗回停共用）。</p>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var tabs=document.getElementById('tabs');
+  tabs.addEventListener('click',function(e){
+    var b=e.target.closest('.tab');if(!b)return;
+    tabs.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t===b)});
+    document.querySelectorAll('.screen').forEach(function(s){s.classList.toggle('on',s.dataset.screen===b.dataset.s)});
+  });
+  document.getElementById('darkT').addEventListener('click',function(){
+    document.body.classList.toggle('dark');
+    this.querySelector('span').textContent=document.body.classList.contains('dark')?'亮色':'暗色';
+    this.querySelector('i').className=document.body.classList.contains('dark')?'ti ti-sun':'ti ti-moon';
+  });
+  document.getElementById('ruleT').addEventListener('click',function(){
+    document.body.classList.toggle('rule');
+  });
+  /* 整改⑤：工具行 行尾 ▾ 真可点 — 点头展开/收起明细 */
+  document.querySelectorAll('[data-fold] .toolline').forEach(function(h){
+    h.addEventListener('click',function(){h.parentElement.classList.toggle('open')});
+  });
+  /* v3.1：固定结果卡默认细条 — 点卡头展开全表 / 再点收回（收起只是收起，勾选不清空） */
+  document.querySelectorAll('[data-pinfold] .rc-head').forEach(function(h){
+    h.addEventListener('click',function(){h.parentElement.classList.toggle('open')});
+  });
+  /* 对话流底部锚定（role=log · 回到最新）：载入与切屏都停在最新一轮 */
+  function anchorFlows(){document.querySelectorAll('.screen.on .flow').forEach(function(f){f.scrollTop=f.scrollHeight})}
+  anchorFlows();
+  tabs.addEventListener('click',function(){setTimeout(anchorFlows,0)});
+})();
+</script>
+</body>
+</html>

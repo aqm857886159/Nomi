@@ -5,6 +5,9 @@ on:
     branches:
       - main
   pull_request:
+  # Merge queue builds run required checks on the speculative merge result;
+  # without this trigger a queued PR waits forever for checks that never start.
+  merge_group:
   workflow_dispatch:
     inputs:
       base_ref:
@@ -20,8 +23,19 @@ on:
         options:
           - full
 
+# PR 按 PR 号分组：PR 里 github.sha 每次推送都变，按 sha 分组就不会取消旧班、会堆积；按 PR 号才对。
+# 其余事件（push / merge_group / workflow_dispatch）按 commit SHA 分组。
+#
+# 为什么不能回落到 github.ref：main 的 ref 恒为 refs/heads/main，按它分组会让每个新 merge 取消上一个
+# merge 还在跑的班。实测 2026-09-02 10:51–10:55 连续四班里三班被取消；被取消的班留不下任何证据，
+# delivery:verify-merged 因此在那些 merge SHA 上发不出 exact-SHA 收据（它正确拒绝把 cancelled 当成功）。
+# 没有任何作者能规避——取消你的是下一个 merge。故每个 commit 各跑各的。
+#
+# 这里刻意不用 `event_name == 'push' && github.sha || github.ref` 那套三元惯用法：它依赖「&& 右侧必须
+# 是真值」这个隐式前提，写错一次就静默回落到错误分支。github.sha 在上述每种事件下都有定义且唯一，
+# 两段式就够，少一个能出错的地方。
 concurrency:
-  group: quality-gate-${{ github.event.pull_request.number || github.ref }}
+  group: quality-gate-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -53,7 +67,7 @@ jobs:
         env:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           NOMI_VALIDATION_MODE: ${{ inputs.validation_mode || '' }}
-          NOMI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          NOMI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || '' }}
           NOMI_HEAD_SHA: ${{ github.sha }}
         run: node scripts/select-quality-gate-profile.mjs
 
@@ -61,8 +75,8 @@ jobs:
     name: Contracts
     runs-on: ubuntu-latest
     env:
-      VOCAB_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
-      ROOT_CAUSE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
+      VOCAB_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
+      ROOT_CAUSE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -102,18 +116,21 @@ jobs:
       - name: Changed and related tests (fast lane)
         if: needs.scope.outputs.unit == 'focused'
         env:
-          NOMI_CHANGED_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'origin/main' }}
+          NOMI_CHANGED_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || 'origin/main' }}
           NOMI_CHANGED_HEAD: ${{ github.sha }}
         run: pnpm run test:system:focused
 
+  # 2026-09-02 拆班：此前 smoke/journeys/canvas-full/perf 全串在这一个 job 里（实测 ~22.5 分钟，
+  # 整条 PR 轮的关键路径）。现在按风险面拆成三个并行 job：本 job 只留 smoke + journeys + canvas
+  # critical（~5 分钟），canvas full 走 canvas-acceptance 两片 matrix，perf 走 canvas-performance。
+  # 覆盖一条不少：canvas=='full' 时 full 套件本就是 critical 的超集，由 canvas-acceptance 全量跑。
   desktop-linux:
     name: E2E Walkthroughs (Linux)
     needs: scope
     if: >-
       needs.scope.outputs.desktop == 'true' ||
       needs.scope.outputs.journeys == 'true' ||
-      needs.scope.outputs.canvas != 'none' ||
-      needs.scope.outputs.performance == 'true'
+      needs.scope.outputs.canvas == 'critical'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -136,15 +153,12 @@ jobs:
       - name: CI-safe user journeys
         if: needs.scope.outputs.journeys == 'true'
         run: xvfb-run -a pnpm run test:journeys
+      - name: MCP L1 handshake journey
+        if: needs.scope.outputs.journeys == 'true'
+        run: xvfb-run -a pnpm run test:mcp-journey
       - name: Critical canvas acceptance
         if: needs.scope.outputs.canvas == 'critical'
         run: xvfb-run -a pnpm run test:canvas:critical
-      - name: Full functional canvas acceptance
-        if: needs.scope.outputs.canvas == 'full'
-        run: xvfb-run -a pnpm run test:canvas:acceptance
-      - name: Canvas performance budget
-        if: needs.scope.outputs.performance == 'true'
-        run: xvfb-run -a pnpm run test:canvas:performance
 
       # 走查证据（截图 + output.jsonl）。win-gate.yml 一直有这步，本 job 却没有——
       # 结果是 ubuntu 这边走查一红就只剩一行「✗ 某某检查」，几何类失败隔着 CI 根本判不了因
@@ -154,6 +168,98 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: linux-walkthrough-evidence
+          path: |
+            evals/runs/**/screenshots/**
+            evals/runs/**/output.jsonl
+            outputs/canvas-acceptance/**
+            outputs/canvas-smoke/**
+            outputs/canvas-card-stack-20260827/**
+            tests/system/runs/**/report.md
+            tests/system/runs/**/summary.json
+            tests/ux/shots/canvas-drag-pan-gestures/**
+            tests/ux/shots/group-ports/**
+            tests/ux/shots/react-flow-read-only/**
+            tests/ux/perf-results/canvas-*.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  # full 功能走查 13 个场景按实测耗时装箱成两片并行跑（分桶清单在 tests/ux/canvas-real-suite.mjs
+  # 的 FULL_CANVAS_SHARDS，漏分/重分/幽灵场景会让两片当场 fail-closed 抛错，场景不可能被静默漏跑）。
+  canvas-acceptance:
+    name: Canvas Acceptance (Linux)
+    needs: scope
+    if: needs.scope.outputs.canvas == 'full'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build selected desktop surfaces once
+        run: pnpm run build
+      - name: Full functional canvas acceptance
+        run: xvfb-run -a pnpm run test:canvas:acceptance -- --shard ${{ matrix.shard }}/2
+      - name: Upload walkthrough evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: canvas-acceptance-evidence-${{ matrix.shard }}
+          path: |
+            evals/runs/**/screenshots/**
+            evals/runs/**/output.jsonl
+            outputs/canvas-acceptance/**
+            outputs/canvas-smoke/**
+            outputs/canvas-card-stack-20260827/**
+            tests/system/runs/**/report.md
+            tests/system/runs/**/summary.json
+            tests/ux/shots/canvas-drag-pan-gestures/**
+            tests/ux/shots/group-ports/**
+            tests/ux/shots/react-flow-read-only/**
+            tests/ux/perf-results/canvas-*.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  # perf 预算单场景实测 ~763s，是全流水线最长的一根；独立成 job 后它只拖自己，
+  # 不再把 smoke/journeys/canvas 走查压在同一根串行棒上。预算与校准（仪器）一字未动。
+  canvas-performance:
+    name: Canvas Performance (Linux)
+    needs: scope
+    if: needs.scope.outputs.performance == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build selected desktop surfaces once
+        run: pnpm run build
+      - name: Canvas performance budget
+        run: xvfb-run -a pnpm run test:canvas:performance
+      - name: Upload walkthrough evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: canvas-performance-evidence
           path: |
             evals/runs/**/screenshots/**
             evals/runs/**/output.jsonl
@@ -193,7 +299,7 @@ jobs:
 
   quality:
     name: Quality Gate
-    needs: [scope, contracts, unit, desktop-linux, mac-package]
+    needs: [scope, contracts, unit, desktop-linux, canvas-acceptance, canvas-performance, mac-package]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -224,9 +330,14 @@ jobs:
           test "${{ needs.unit.result }}" = "success"
           if [ "${{ needs.scope.outputs.desktop }}" = "true" ] || \
              [ "${{ needs.scope.outputs.journeys }}" = "true" ] || \
-             [ "${{ needs.scope.outputs.canvas }}" != "none" ] || \
-             [ "${{ needs.scope.outputs.performance }}" = "true" ]; then
+             [ "${{ needs.scope.outputs.canvas }}" = "critical" ]; then
             test "${{ needs['desktop-linux'].result }}" = "success"
+          fi
+          if [ "${{ needs.scope.outputs.canvas }}" = "full" ]; then
+            test "${{ needs['canvas-acceptance'].result }}" = "success"
+          fi
+          if [ "${{ needs.scope.outputs.performance }}" = "true" ]; then
+            test "${{ needs['canvas-performance'].result }}" = "success"
           fi
           if [ "${{ needs.scope.outputs.package }}" = "true" ]; then
             test "${{ needs['mac-package'].result }}" = "success"

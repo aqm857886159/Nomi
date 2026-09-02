@@ -8,7 +8,7 @@
 //
 // 所以这里钉的不只是数字，是「数字类契约必须能追到文档出处」这条纪律。
 import { describe, expect, it } from 'vitest'
-import { SEEDANCE_2_5_ARCHETYPE } from './seedance25'
+import { SEEDANCE_2_5_ARCHETYPE } from '../../../electron/shared/videoCapabilities'
 
 /**
  * 逐项抄自官方文档（2026-08-12）：

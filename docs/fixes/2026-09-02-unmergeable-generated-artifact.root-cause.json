@@ -1,0 +1,116 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-unmergeable-generated-artifact",
+  "problem_type": "A generated artifact that aggregates a global corpus is committed and gated by byte-exact equality, making it unmergeable under parallel branches",
+  "symptom": "2026-09-02 合并潮期间，main 在多个 merge commit 上 Contracts job 红，失败点是 check:ledger：「✖ 1 份生成物已过期：docs/DELIVERY-LEDGER.md」。各 PR 在自己分支上门岗全绿，合并后才红；同时 delivery:verify-merged 的 exact-SHA 收据在这些 SHA 上发不出。",
+  "direct_cause": "合并结果树里的 docs/DELIVERY-LEDGER.md 内容 ≠ 用该树的 docs 语料重新渲染的结果。GitHub 的服务端 merge commit 不会重跑生成器。",
+  "class_root": "把「全局语料的聚合派生物」commit 进仓库，再用逐字节精确匹配把关。账本含全局聚合量（`现役欠账（N）`、按月分桶、合计篇数）。设 base 分出 A、B 两个分支各加一篇方案文档并各自重生成：两边计数都从 30→31，git 在计数行上无冲突地取 31，而并集的真值是 32。也就是说合并结果里存在「A、B、base 谁都没写过」的行——人工解冲突只能在三方写过的行里取舍，产生不了第四种内容，因此在原理上无法靠解冲突得到正确结果，必须重跑生成器。这使得该产物在并行分支下是一个不可合并的语义单点：分支数越多越必红，且没有任何分支作者能靠「合并前重生成」规避（重生成到自己落地之间，只要有别的 PR 先合就失效）。",
+  "generality_proof": "问题不在账本这一个文件，而在「全局聚合派生物 + committed + 逐字节门岗 + 并行分支」这个组合。任何满足该组合的产物都会复现同一失效：本仓其余全局语料门岗（check:docs-index、check:vocabularies、check:boundaries、check:filesize、lint:ci）无一例外都采用棘轮式基线（只减不增）而非逐字节相等，正是因为棘轮对合并免疫——仓库的其余部分已经收敛到正确形态，check:ledger 是唯一的例外。复发数据佐证其为类问题而非偶发：2026-08-25 以来 142 个 commit 触碰该产物，其中约 25 个是纯「追平 main 后重生成」的空转 commit，绝大多数挤在 2026-09-02 一天。",
+  "affected_population": [
+    "所有在合并潮期间向 main 合并、且 PR 中含新增或改状态的方案文档的贡献者——他们的 PR 单独全绿，合并后却把 main 打红",
+    "依赖 delivery:verify-merged 出 exact-SHA 收据的交付流程：Quality Gate 在这些 merge SHA 上是 failure，收据被正确拒绝，交付身份无法确认",
+    "任何在 main 变红后来排查的人：失败信息指向「生成物过期」，容易被误读为某个作者忘记重生成，从而反复施加人工重生成这一无效修法"
+  ],
+  "scope_paths": [
+    "scripts/build-delivery-ledger.mjs",
+    "scripts/build-delivery-ledger.node-test.mjs",
+    ".gitignore",
+    "package.json",
+    "scripts/claude-hooks/self-check.sh",
+    "docs/README.md",
+    "docs/plan/INDEX.md",
+    "docs/superpowers/plans/INDEX.md"
+  ],
+  "entry_points": [
+    "pnpm run check:ledger（gates 链与 CI Contracts job 中的静态门岗）",
+    "pnpm run gen:ledger（生成产物的唯一入口）",
+    "L0 hook self-check.sh 每条用户消息触发的 --brief 摘要"
+  ],
+  "invariants": [
+    "进 git 且受逐字节把关的生成物，其渲染函数必须满足可达性：render(union) 的每一行都出现在 render(base)、render(A)、render(B) 三者之一——等价于不含任何全局聚合量。",
+    "docs/DELIVERY-LEDGER.md 是本地视图，不进 git，且被 .gitignore 挡住，使得 git add -A 不会再把它带回仓库。",
+    "「已拍板但没交付」的 salience 不依赖任何 committed 产物的新鲜度：由 L0 hook 每轮跑 --brief 现算。",
+    "docs/superpowers/plans/INDEX.md 继续 commit 并受把关——它是纯排序清单、无聚合量（合并后每一行三方都写过），且是 check:docs-index 的索引源，删除会让该棘轮翻红。"
+  ],
+  "regression_tests": [
+    "scripts/build-delivery-ledger.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/build-delivery-ledger.node-test.mjs"
+  ],
+  "shared_boundaries": [
+    {
+      "path": "scripts/build-delivery-ledger.mjs",
+      "symbol": "COMMITTED_ARTIFACTS",
+      "responsibility": "唯一决定「哪些生成物进 git 并受 --check 逐字节把关」的登记处；准入条件即可合并性。新增 committed 生成物只能从这里进，因此类级测试只需盯住这一个数组就能覆盖整类。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/build-delivery-ledger.mjs",
+      "entry_point": "COMMITTED_ARTIFACTS 数组（账本原先与 plans INDEX 并列登记于此）",
+      "disposition": "enforced",
+      "evidence": "可达性属性测试对该数组每一份产物实测。反向对照已实跑：把账本放回该数组后，测试立刻由 3 绿变 2 红，并精确指出 `## 现役欠账（8）` 与 `- 合计扫描：8 篇方案文档…` 两行不可达；移出后恢复全绿。"
+    },
+    {
+      "path": "docs/superpowers/plans/INDEX.md",
+      "entry_point": "同一生成器的另一份 committed 产物（renderPlansIndex）",
+      "disposition": "enforced",
+      "evidence": "同一属性测试实测其可达性为空集，故保留 commit + 逐字节把关。它是纯排序清单，行内容与相邻行无关；两分支各加一行时即便产生文本冲突，人工「两行都留」即得正确结果，与账本的不可解冲突有本质区别。"
+    },
+    {
+      "path": "AGENTS.md",
+      "entry_point": "scripts/gen-agents-md.mjs 生成、check:agents-sync 逐字节把关的另一份 committed 生成物",
+      "disposition": "not-affected",
+      "evidence": "实查生成器：AGENTS.md 是 CLAUDE.md 的逐字节副本加一个封闭替换集，产物中不含任何计数/分桶（gen-agents-md.mjs 里的 .length 只出现在 console 输出与 diff 算法，不进产物）。它派生自单一文件而非全局语料，其合并结果与 CLAUDE.md 的合并结果同构，不存在「谁都没写过」的行。"
+    },
+    {
+      "path": "scripts/docs-index-baseline.json",
+      "entry_point": "check:docs-index 的棘轮基线（同为全局语料派生的 committed 产物）",
+      "disposition": "not-affected",
+      "evidence": "它是路径身份数组 + 只减不增的棘轮语义，不是逐字节相等门岗：两分支各自删除不同条目，合并后仍满足「只减不增」，不会产生不可达内容。这正是本仓其余全局语料门岗采用的免疫形态，也是 generality_proof 里的对照组。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/build-delivery-ledger.mjs",
+    "invariant": "COMMITTED_ARTIFACTS 中每一份产物的 renderer 必须满足可达性：render(union) 的每一行都出现在 render(base)/render(A)/render(B) 之一。",
+    "failure_mode": "违反时，两个分支各加一篇方案文档会各自门岗全绿，合并后产物取到一个三方都没写过的聚合值；main 变红，人工解冲突无法修对，服务端 merge 又永不重跑生成器，只能靠事后补一个空转的「重生成」commit——并且下一次合并潮会再次发生。",
+    "exception_policy": "none",
+    "strategy": "把「可合并」提升为 COMMITTED_ARTIFACTS 的显式准入条件并在代码注释中写明；由 build-delivery-ledger.node-test.mjs 对该数组每一份产物做可达性属性测试（含阳性对照，防门岗自身失去分辨力），并断言 local 产物确实未被 git 跟踪且被 .gitignore 覆盖。账本本身降级为本地视图，其 salience 价值改由 L0 hook 现算的 --brief 承接，不依赖产物新鲜度。",
+    "artifacts": [
+      "scripts/build-delivery-ledger.mjs",
+      "scripts/build-delivery-ledger.node-test.mjs",
+      ".gitignore",
+      "package.json"
+    ]
+  },
+  "residual_risks": [
+    "可达性属性测试用合成语料（两个方案根各加一篇文档）而非真实 docs 树。若将来某个 renderer 的聚合量只在特定文档组合下才出现（例如仅当存在未登记文档时才渲染按月分桶表），合成场景可能覆盖不到。当前两份 renderer 的聚合量都无条件渲染，故实测有效；新增 renderer 时需确认合成场景能触达其全部分支。",
+    "docs/DELIVERY-LEDGER.md 变为本地文件后，各人工作区里的副本新鲜度不同。缓解是 salience 路径（--brief）完全不读该文件而是现算；该文件仅作按需查阅的全量视图。",
+    "本次未改动 check:ledger 之外的门岗形态。若将来有人新增一个「全局语料 + 逐字节相等」的门岗而不把产物登记进 COMMITTED_ARTIFACTS，本测试覆盖不到它。缓解是该模式在本仓已无先例（其余全部为棘轮），且共享边界注释明确要求新 committed 生成物从此数组进。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "已复发数十次且成因是结构性的：只要产物含全局聚合量并被逐字节把关，任意两个并行分支都会重演，与作者是否细心无关。2026-08-25 起约 25 个纯「追平 main 后重生成」commit 即为反复施加症状修法的记录；2026-09-02 合并潮中连续多个 merge SHA 因此变红并阻断 exact-SHA 收据。",
+    "same_class_scan": [
+      "枚举仓库中带「禁止手改／生成物」声明的 committed 产物，命中三份：docs/DELIVERY-LEDGER.md（本次移出 git）、docs/superpowers/plans/INDEX.md（实测可合并，保留）、AGENTS.md（派生自单文件 CLAUDE.md，实查生成器确认产物无聚合量，不受影响）。",
+      "横扫其余全局语料门岗的形态：check:docs-index、check:doc-status、check:vocabularies、check:boundaries、check:filesize、lint:ci 全部为棘轮式基线（只减不增），对合并免疫；check:ledger 是唯一使用逐字节相等的例外，本次修正后不再有例外。",
+      "实测复现与反向对照均已跑通：在 origin/main 上拉两个分支各加一篇方案文档并各自重生成，两边 check 全绿，git merge 后门岗红；按最自然方式解冲突（两行都保留）后门岗仍红，计数行停在 31 而真值 32，证明人工解冲突不可能修对。反向对照见 same_class_entry_points 第一条。"
+    ]
+  },
+  "internal_only_reason": "本修复完全位于仓库内部的文档生成与门岗链，不涉及任何外部 API 或第三方文档契约。所依据的事实（生成器行为、门岗形态、合并语义、复发计数）均直接在本仓与 GitHub Actions 运行记录上实测取得。",
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "docs/DELIVERY-LEDGER.md"
+    ],
+    "rationale": "账本的 committed 副本即旧路径，本次同 commit 从 git 移除并写入 .gitignore，不保留并行版本、不留转发壳。生成器仍会写出同名本地文件供按需查阅，但它不再进 git、不再受逐字节把关，因此不构成第二个真相源；指向它的三处文档入链接（docs/README.md、docs/plan/INDEX.md、以及 renderPlansIndex 模板）同 commit 改为指向命令而非文件路径，避免留下指向仓库中不存在文件的死链。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本修复不涉及任何依赖版本或运行时生命周期变更，只改动仓库内的生成脚本、门岗登记与 .gitignore。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。已有工作区在拉取本次改动后，docs/DELIVERY-LEDGER.md 会从「被跟踪」变为「被忽略」：git 会在 checkout 时删除该文件，随后 pnpm run gen:ledger 可随时重新生成本地副本；由于它已进 .gitignore，重新生成不会产生脏工作区。L0 hook 由 postinstall 的 install-claude-hooks.cjs 自动更新，无需手动补装；check:claude-hooks 会拦截漂移。"
+}

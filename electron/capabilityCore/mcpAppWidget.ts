@@ -435,13 +435,14 @@ export const NOMI_LIVE_DRAFT_WIDGET_HTML = `<!DOCTYPE html>
   function decideGate() {
     if (!state || !state.gate || decideInFlight) return;
     var g = state.gate;
-    var args = { projectId: state.projectId, runId: state.runId, gateId: g.gateId, decision: "approved" };
+    // 面收敛：可逆创意门表态并入 nomi_run_gate（action=decide）——卡内确认走同一条 seam。
+    var args = { projectId: state.projectId, runId: state.runId, action: "decide", gateId: g.gateId, decision: "approved" };
     if (g.kind === "direction" && selectedKey) args.choiceKey = selectedKey;
     decideInFlight = true;
     decideFailed = false;
     rpcId += 1;
     decideReqId = "view-" + rpcId;
-    post({ jsonrpc: "2.0", id: decideReqId, method: "tools/call", params: { name: "nomi_decide_gate", arguments: args } });
+    post({ jsonrpc: "2.0", id: decideReqId, method: "tools/call", params: { name: "nomi_run_gate", arguments: args } });
     renderGate();
     // 宿主不支持 tools/call 代理时不会回帧：8s 后按失败降级（按钮复活 + 指路 Nomi/对话）。
     setTimeout(function () { if (decideInFlight) { decideInFlight = false; decideFailed = true; renderGate(); } }, 8000);
@@ -458,7 +459,7 @@ export const NOMI_LIVE_DRAFT_WIDGET_HTML = `<!DOCTYPE html>
   window.addEventListener("message", function (ev) {
     var m = ev && ev.data;
     if (!m || typeof m !== "object") return;
-    // B6：卡内决议（tools/call nomi_decide_gate）的响应——成功即收起门等宿主推新状态；失败降级指路。
+    // B6：卡内决议（tools/call nomi_run_gate action=decide）的响应——成功即收起门等宿主推新状态；失败降级指路。
     if (m.id && m.id === decideReqId && m.method === undefined) {
       decideInFlight = false;
       decideReqId = null;

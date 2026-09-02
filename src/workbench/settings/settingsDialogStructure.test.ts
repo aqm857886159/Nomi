@@ -30,10 +30,16 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 // 2026-09-01（二）：反馈与分享改为**内嵌在设置弹窗内**（原 dispatch+关设置 会冒成独立浮层，
 //             用户反馈「点开变成独立框」）。AboutSection 现在切内嵌视图并渲染 FeedbackShareContent，
 //             故再次更新其基线；对应正向断言见下方 embeds feedback and sharing inside the About section。
+// 2026-09-02：这一屏的供应商名与模型名此前直连 provider.name / model.labelZh，英文界面上照原样
+//             显示中文（实测 34 处，连词典里已有译文的「本地 ComfyUI」「可灵 3.0」也是中文——
+//             说明缺的不是词条而是这条路没过翻译边界）。三处渲染点接上 translateModelDisplayText，
+//             故更新 AiModelsSection 基线；对应正向断言见下方 translates vendor and model display
+//             names through the model-display boundary。
 const MAIN_NON_MODEL_SECTION_SHA256 = {
   // 2026-09-02：文件与保存页新增跨设备目录状态与检查入口，保持项目位置仍由该区唯一拥有。
   'ProjectLocationSection.tsx': 'd4922263552dfdb659d031e128c8baee47df22ab548621e933714c7a9d8b8df1',
-  'AiModelsSection.tsx': '50e253177108dfda44128f7b002d22d5d769fbc4ac12eeeb3e376fc0757e64b7',
+  // 2026-09-02: AiModelsSection 按渲染边界收口供应商/模型展示名（translateModelDisplayText）。
+  'AiModelsSection.tsx': 'f05b4e11bdeb83ef04b6b40d84e4fdfe275de41e06511163c8ee1be87b3240c8',
   'AutomationPermissionsSection.tsx': 'a0ea704afb1a31c33ffa3e00821658d8696cc15d5069e6361032b194e638b352',
   'CanvasGestureSection.tsx': '3cf19ee35f686e76b54497ff668bb91245b00a6593bc5d5d6162a0d30c476c95',
   'AboutSection.tsx': 'b38e0e2265f29ca56da53595e4bb5886bd14799ea3a7f7f36797b33d46eda57f',
@@ -151,6 +157,21 @@ describe('settings dialog structure', () => {
       "channel.visibility === 'public-anonymous' || channel.visibility === 'public-provider'",
     )
     expect(aiModelsSource).not.toContain('settings.ai.upload.kieTitle')
+  })
+
+  // 2026-09-02：这一屏两份清单（允许的供应商 / 允许的模型）显示的是 catalog 里的原始展示名，
+  // 那些中文是**刻意稳定的档案键**（老项目和 catalog 行持久化了它们），所以必须在渲染点过
+  // translateModelDisplayText 才能变成英文。锁住这三处，是因为「忘了过边界」不会让任何测试变红——
+  // 词典再全也没用，界面照样是中文（2026-09-02 走查在这屏抓到 34 处）。
+  it('translates vendor and model display names through the model-display boundary', () => {
+    expect(aiModelsSource).toContain("import { translateModelDisplayText } from '../../i18n/modelDisplayText'")
+    // 供应商勾选行的标题。
+    expect(aiModelsSource).toContain('{translateModelDisplayText(provider.name)}')
+    // 模型勾选行的「模型名 · 供应商名」，两段都要过边界。
+    expect(aiModelsSource).toContain('translateModelDisplayText(model.labelZh || model.modelKey)')
+    expect(aiModelsSource).toContain('const providerName = translateModelDisplayText(')
+    // 不许再出现直连原始字段的裸渲染。
+    expect(aiModelsSource).not.toContain('<span className="truncate">{provider.name}</span>')
   })
 
   it('keeps all five non-model sections byte-for-byte at the origin/main baseline', () => {
