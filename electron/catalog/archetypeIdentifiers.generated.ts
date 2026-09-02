@@ -218,6 +218,10 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "eleven_v3",
     "eleven-v3"
   ],
+  "eleven-multilingual-v2": [
+    "eleven_multilingual_v2",
+    "eleven-multilingual-v2"
+  ],
   "eleven-music-v2": [
     "music_v2",
     "eleven-music-v2"
@@ -252,12 +256,8 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
   "gemini-image-3.1-flash": [
     "gemini_image3.1_flash"
   ],
-  "runway-audio": [
-    "seed_audio",
-    "eleven_text_to_sound_v2",
-    "eleven_multilingual_v2",
-    "eleven_v3",
-    "runway-audio"
+  "runway-seed-audio": [
+    "seed_audio"
   ],
   "gpt-image-2": [
     "gpt-image-2",

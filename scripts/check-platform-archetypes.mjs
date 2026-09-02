@@ -9,7 +9,17 @@
 // docs/fixes/2026-09-02-runway-image-identity.root-cause.json）：照官方 OpenAPI 逐模型对账，
 // 它给全部产品发的那套共享比例在 **10 个变体里 10 个**都至少有一个非法值，传输层只好靠一张
 // 手工补丁表静默改写其中 3 个——「能力面与 wire 两个作者」的教科书样本。基线 3 → 2。
-// 同族现存两个：modelscope-image / runway-audio。
+//
+// 音频侧同族 `runway-audio`（罩 4 个不同音频产品）随后也已拆除（合同
+// docs/fixes/2026-09-02-audio-modelscope-identity.root-cause.json）：它给 4 个产品发**同一套 7 个参数**，
+// 照官方 OpenAPI 逐模型对账，**没有任何一个模型收得下这 7 个**——实测多余控件根本到不了 wire
+// （调了没效果也不报错），且它同时给 4 个模型声明 sfx+speech 两个模式，导致纯音效模型
+// `eleven_text_to_sound_v2` 对外宣称自己会配音。基线 2 → 1。
+//
+// 基线现存一个：modelscope-image —— **它是经过分析后判定应当保留的**（理由与证据见
+// scripts/platform-archetypes-baseline.json 的 _comment；一句话：6 行 wire body 逐字相同、
+// 实测 0 个死参数 0 个幻影模式，是「长尾社区模型共享托管档案」这个正确形状，
+// 而非「多个产品硬凑一套并集」）。它留在基线里是裁决，不是待办。
 //
 // ⚠️ 关键区分：「一个档案服务多行目录」**本身不是缺陷**，恰恰是我们要的形状：
 //   - 同一个模型由多个供应商提供（gpt-image-2 在 kie + apimart + fal）= P4 的目标形状；

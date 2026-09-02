@@ -12,6 +12,8 @@ import {
   RUNWAY_VIDEO_DURATION_ENUMS,
   runwayVideoFamilyForModel,
 } from "../shared/videoCapabilities/runwayWireFacts";
+// 音频侧同理：seed_audio 的参考音频上限只有一份，UI 侧档案槽与这里的传输校验同源。
+import { RUNWAY_SEED_AUDIO_REFERENCE_MAX } from "../shared/audioCapabilities/runwayAudioWireFacts";
 // 图像侧的比例几何（与视频侧无重叠）继续住 catalog/runwayRatio.ts；`normalizeRunwayVideoRatio`
 // 也在那里，但它现在从上面这张 shared 表 derive 枚举与判别（不再自持副本）。
 import { normalizeRunwayVideoRatio } from "./runwayRatio";
@@ -214,19 +216,47 @@ registerRequestTransform("runway-video-contract", normalizeRunwayVideoContract, 
   normalizeRunwayVideoContract(body);
 });
 
-/** seed_audio accepts referenceAudios as plain provider URI strings (max 3). */
+/**
+ * seed_audio 的参考音频归一（传输边界，纵深防御）。
+ *
+ * 上限**不再写死数字**：从 `runwayAudioWireFacts.ts` 那张官方 spec 表取
+ * （`referenceAudios.maxItems` = 3）。UI 侧档案的槽上限也从同一个常量构建——
+ * 一个事实一个作者，这正是被删掉的平台档案没做到的事。
+ */
 function normalizeRunwayAudioReferences(body: unknown): unknown {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(desktopT("runway.audioBody"));
   const input = body as Record<string, unknown>;
   const refs = runwayUriArray(input.reference_audio_urls);
-  if (refs.length > 3) throw new Error(desktopT("runway.maxAudioReferences", { count: 3 }));
+  if (refs.length > RUNWAY_SEED_AUDIO_REFERENCE_MAX) {
+    throw new Error(desktopT("runway.maxAudioReferences", { count: RUNWAY_SEED_AUDIO_REFERENCE_MAX }));
+  }
   delete input.reference_audio_urls;
   if (refs.length) input.referenceAudios = refs;
   return input;
 }
 
+/**
+ * seed_audio 在 **text_to_speech** 端点上的克隆音色归一。
+ * 官方形状是 `voice: {type:"reference-audio", audioUri}`（**单条**，不是数组）——与
+ * sound_effect 端点的 `referenceAudios` 数组是两个不同字段，故单独一个归一器。
+ * 档案侧那个槽的 inputKey 是 `voice_reference_audio_url`，这里把它整形成官方形状。
+ */
+function normalizeRunwaySeedVoiceReference(body: unknown): unknown {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(desktopT("runway.audioBody"));
+  const input = body as Record<string, unknown>;
+  const refs = runwayUriArray(input.voice_reference_audio_url);
+  delete input.voice_reference_audio_url;
+  // 只取第一条：spec 的 SeedReferenceVoice 就是单条音频，档案槽上限也是 1。
+  if (refs.length) input.voice = { type: "reference-audio", audioUri: refs[0] };
+  return input;
+}
+
 registerRequestTransform("runway-audio-references", normalizeRunwayAudioReferences, (body) => {
   normalizeRunwayAudioReferences(body);
+});
+
+registerRequestTransform("runway-seed-voice-reference", normalizeRunwaySeedVoiceReference, (body) => {
+  normalizeRunwaySeedVoiceReference(body);
 });
 
 
@@ -274,12 +304,15 @@ const RUNWAY_AUDIO_TTS_CREATE: HttpOperation = {
   body: {
     model: "seed_audio",
     promptText: "{{request.prompt}}",
+    // 可选克隆音色：归一器把它整形成官方的 voice:{type:"reference-audio",audioUri}。
+    voice_reference_audio_url: "{{request.params.voice_reference_audio_url}}",
     speechRate: "{{request.params.speech_rate}}",
     loudnessRate: "{{request.params.loudness_rate}}",
     pitchRate: "{{request.params.pitch_rate}}",
     sampleRate: "{{request.params.sample_rate}}",
     outputFormat: "{{request.params.output_format}}",
   },
+  request_transform: "runway-seed-voice-reference",
   response_mapping: { task_id: "id" },
   provider_meta_mapping: { task_id: "id" },
 };
@@ -298,27 +331,62 @@ const RUNWAY_ELEVEN_SFX_CREATE: HttpOperation = {
   provider_meta_mapping: { task_id: "id" },
 };
 
-const RUNWAY_ELEVEN_TTS_CREATE = (model: "eleven_multilingual_v2" | "eleven_v3"): HttpOperation => ({
+/**
+ * 两个 Eleven TTS 变体的 create op。
+ *
+ * `voice` 在官方 spec 里**是必填的**，且其 `oneOf` 只有 `RunwayPresetVoice` 一个变体
+ * （49 个 `presetId` 枚举）。旧实现把 `presetId: "Maya"` **焊死在 body 里**——用户永远只能
+ * 用这一个音色，而档案却摆着 7 个对这条线缆毫无作用的控件（output_format / sample_rate /
+ * speech_rate / …，实测一个都到不了 wire）。现在音色由档案的 `voice_preset_id` 控件给，
+ * 取值域来自 `runwayAudioWireFacts.ts` 的官方 49 值表。
+ *
+ * `eleven_v3` 比 `eleven_multilingual_v2` 多一整套表现力参数（后者官方**一个可调属性都没有**）——
+ * 这正是平台档案抹掉的差异，故两者的 body 不同，不再共用一个 create 工厂。
+ */
+const RUNWAY_ELEVEN_MULTILINGUAL_CREATE: HttpOperation = {
   method: "POST",
   path: "/v1/text_to_speech",
   headers: RUNWAY_HEADERS,
   body: {
-    model,
+    model: "eleven_multilingual_v2",
     promptText: "{{request.prompt}}",
-    // Runway's public contract requires a voice object for these variants.
-    // Maya is an official preset; the generic audio archetype keeps this
-    // default stable until a voice-picker control is added to the shared UI.
-    voice: { type: "runway-preset", presetId: "Maya" },
+    voice: { type: "runway-preset", presetId: "{{request.params.voice_preset_id}}" },
   },
   response_mapping: { task_id: "id" },
   provider_meta_mapping: { task_id: "id" },
-});
+};
 
+const RUNWAY_ELEVEN_V3_CREATE: HttpOperation = {
+  method: "POST",
+  path: "/v1/text_to_speech",
+  headers: RUNWAY_HEADERS,
+  body: {
+    model: "eleven_v3",
+    promptText: "{{request.prompt}}",
+    voice: { type: "runway-preset", presetId: "{{request.params.voice_preset_id}}" },
+    // 以下键逐字对应 spec 的 eleven_v3 变体属性（模板引擎丢弃 undefined 键，用户没调就不发）。
+    stability: "{{request.params.stability}}",
+    similarityBoost: "{{request.params.similarity_boost}}",
+    style: "{{request.params.style}}",
+    speed: "{{request.params.speed}}",
+    useSpeakerBoost: "{{request.params.use_speaker_boost}}",
+    languageCode: "{{request.params.language_code}}",
+    applyTextNormalization: "{{request.params.apply_text_normalization}}",
+  },
+  response_mapping: { task_id: "id" },
+  provider_meta_mapping: { task_id: "id" },
+};
+
+/**
+ * 四行音频各自挂**模型专属**档案（2026-09-02 拆平台档案 `runway-audio`）。
+ * seed_audio 是唯一双模态产品（官方两个端点的 oneOf 里都有它）；另外三个各只有一种能力，
+ * 故各只发布一条 mapping，档案也只声明那一个模式——「SFX 模型宣称会配音」的并集谎言就此消失。
+ */
 const RUNWAY_AUDIO_MODEL: RunwayModel = {
   modelKey: "seed_audio",
   labelZh: "Runway Seed Audio",
   kind: "audio",
-  archetypeId: "runway-audio",
+  archetypeId: "runway-seed-audio",
   mappings: [
     { id: RUNWAY_AUDIO_SFX_ID, modeId: "sfx", taskKind: "text_to_audio", name: "Runway Seed Audio · 音效", create: RUNWAY_AUDIO_SFX_CREATE, query: audioPoll, result: audioResult, statusMapping: STATUS },
     { id: RUNWAY_AUDIO_TTS_ID, modeId: "speech", taskKind: "text_to_audio", name: "Runway Seed Audio · 配音", create: RUNWAY_AUDIO_TTS_CREATE, query: audioPoll, result: audioResult, statusMapping: STATUS },
@@ -330,16 +398,26 @@ const RUNWAY_ELEVEN_AUDIO_MODELS: RunwayModel[] = [
     modelKey: "eleven_text_to_sound_v2",
     labelZh: "Runway Eleven Sound Effects v2",
     kind: "audio",
-    archetypeId: "runway-audio",
+    // 复用 ElevenLabs 直连侧已有的模型身份档案（同一个产品，两条渠道）；
+    // Runway 这条线缆的取值差异由该档案的 vendorParams.runway 吸收（P4）。
+    archetypeId: "eleven-sfx-v2",
     mappings: [{ id: "seed-runway-eleven_text_to_sound_v2-sfx", modeId: "sfx", taskKind: "text_to_audio", name: "Runway Eleven Sound Effects v2 · 音效", create: RUNWAY_ELEVEN_SFX_CREATE, query: audioPoll, result: audioResult, statusMapping: STATUS }],
   },
-  ...(["eleven_multilingual_v2", "eleven_v3"] as const).map((modelKey) => ({
-    modelKey,
-    labelZh: `Runway ${modelKey}`,
-    kind: "audio" as const,
-    archetypeId: "runway-audio",
-    mappings: [{ id: `seed-runway-${modelKey}-speech`, modeId: "speech", taskKind: "text_to_audio" as const, name: `Runway ${modelKey} · 配音`, create: RUNWAY_ELEVEN_TTS_CREATE(modelKey), query: audioPoll, result: audioResult, statusMapping: STATUS }],
-  })),
+  {
+    modelKey: "eleven_multilingual_v2",
+    labelZh: "Runway Eleven Multilingual v2",
+    kind: "audio",
+    archetypeId: "eleven-multilingual-v2",
+    mappings: [{ id: "seed-runway-eleven_multilingual_v2-speech", modeId: "speech", taskKind: "text_to_audio", name: "Runway Eleven Multilingual v2 · 配音", create: RUNWAY_ELEVEN_MULTILINGUAL_CREATE, query: audioPoll, result: audioResult, statusMapping: STATUS }],
+  },
+  {
+    modelKey: "eleven_v3",
+    labelZh: "Runway Eleven v3",
+    kind: "audio",
+    // 同上：复用直连侧的 eleven-v3 档案，Runway 的参数域走 vendorParams.runway。
+    archetypeId: "eleven-v3",
+    mappings: [{ id: "seed-runway-eleven_v3-speech", modeId: "speech", taskKind: "text_to_audio", name: "Runway Eleven v3 · 配音", create: RUNWAY_ELEVEN_V3_CREATE, query: audioPoll, result: audioResult, statusMapping: STATUS }],
+  },
 ];
 
 

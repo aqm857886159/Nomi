@@ -313,6 +313,12 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "speech": "text_to_audio"
     }
   },
+  "eleven-multilingual-v2": {
+    "defaultModeId": "speech",
+    "modes": {
+      "speech": "text_to_audio"
+    }
+  },
   "eleven-music-v2": {
     "defaultModeId": "music",
     "modes": {
@@ -378,7 +384,7 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "i2i": "image_edit"
     }
   },
-  "runway-audio": {
+  "runway-seed-audio": {
     "defaultModeId": "sfx",
     "modes": {
       "sfx": "text_to_audio",
