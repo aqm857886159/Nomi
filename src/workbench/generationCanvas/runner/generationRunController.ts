@@ -6,7 +6,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { toast } from '../../../ui/toast'
 import { mintSpendGrant } from '../../api/taskApi'
-import { confirmGenerationSpend, describeGenerationCost, type GenerationCostKind } from '../spend/spendConfirm'
+import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind } from '../spend/spendConfirm'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
 import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
@@ -578,7 +578,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
     title: opts.rerun
       ? i18n.t('generationCommon.spend.generateVariant')
       : i18n.t('generationCommon.spend.startGeneration'),
-    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image'),
+    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node)),
     confirmLabel: opts.rerun
       ? i18n.t('generationCommon.spend.generateVariant')
       : i18n.t('generationCommon.spend.generate'),
@@ -634,7 +634,7 @@ export async function confirmAndRunNodeVariants(
   if (!hosting.allowed) return
   const ok = await confirmGenerationSpend([node], {
     title: i18n.t('generationCommon.spend.startGeneration'),
-    message: describeGenerationCost(total, node ? spendCostKind(node.kind) : 'image'),
+    message: describeGenerationCost(total, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node)),
     confirmLabel: i18n.t('generationCommon.spend.generate'),
     light: true,
     ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
@@ -684,7 +684,7 @@ export async function regenerateNodeInPlace(
   if (!hosting.allowed) return
   const ok = await confirmGenerationSpend([node], {
     title: opts?.title || i18n.t('generationCommon.composer.regenerate'),
-    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image'),
+    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node)),
     confirmLabel: opts?.confirmLabel || i18n.t('generationCommon.composer.regenerate'),
     light: true,
     ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),

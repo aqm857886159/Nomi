@@ -98,12 +98,12 @@ function WorkflowCard({
   const { t } = useTranslation()
   const groupCount = entry.template.groups?.length || 0
   return (
-    <article className="rounded-nomi-md border border-nomi-line-soft bg-nomi-paper p-3 shadow-nomi-xs">
+    <article className="rounded-nomi border border-nomi-line-soft bg-nomi-paper p-3 shadow-nomi-sm">
       <div className="flex items-start gap-2.5">
         <WorkflowThumbnail entry={entry} />
         <div className="min-w-0 flex-1">
           <h3 className="m-0 truncate text-body-sm font-medium text-nomi-ink" title={entry.name}>{entry.name}</h3>
-          <p className="m-0 mt-1 truncate text-caption text-nomi-ink-45">
+          <p className="m-0 mt-1 truncate text-caption text-nomi-ink-40">
             {t('libraries.workflow.nodes', { count: entry.template.nodes.length })}
             {groupCount > 0 ? ` · ${t('libraries.workflow.groups', { count: groupCount })}` : ''}
           </p>
@@ -113,7 +113,7 @@ function WorkflowCard({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="grid size-7 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent text-nomi-ink-35 hover:bg-nomi-ink-05 hover:text-nomi-accent"
+                className="grid size-7 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-accent"
                 aria-label={entry.favorite ? t('libraries.workflow.unfavorite') : t('libraries.workflow.favorite')}
                 onClick={onToggleFavorite}
               >
@@ -124,12 +124,12 @@ function WorkflowCard({
           </Tooltip>
         </TooltipProvider>
       </div>
-      {entry.description ? <p className="m-0 mt-2 line-clamp-2 text-caption leading-relaxed text-nomi-ink-55">{entry.description}</p> : null}
-      <div className="mt-2 flex items-center gap-1.5 text-micro text-nomi-ink-35">
+      {entry.description ? <p className="m-0 mt-2 line-clamp-2 text-caption leading-relaxed text-nomi-ink-60">{entry.description}</p> : null}
+      <div className="mt-2 flex items-center gap-1.5 text-micro text-nomi-ink-40">
         <span className="min-w-0 flex-1 truncate">{t('libraries.workflow.source', { name: entry.sourceProjectName || t('libraries.workflow.unknownSource') })}</span>
         <button
           type="button"
-          className="grid size-6 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent text-nomi-ink-35 hover:bg-nomi-ink-05 hover:text-nomi-ink"
+          className="grid size-6 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink"
           aria-label={t('libraries.workflow.edit')}
           onClick={onEdit}
         >
@@ -137,7 +137,7 @@ function WorkflowCard({
         </button>
         <button
           type="button"
-          className="shrink-0 border-0 bg-transparent p-0 text-nomi-ink-35 hover:text-nomi-ink"
+          className="shrink-0 border-0 bg-transparent p-0 text-nomi-ink-40 hover:text-nomi-ink"
           aria-label={t('libraries.workflow.deleteAria', { name: entry.name })}
           onClick={onDelete}
         >
@@ -290,7 +290,7 @@ export function WorkflowLibraryContent({ projectId, compact = false, showHeader 
               aria-selected={filter === value}
               className={cn(
                 'rounded-nomi-sm border-0 px-2 py-1 text-caption transition-colors',
-                filter === value ? 'bg-nomi-ink text-nomi-paper' : 'bg-transparent text-nomi-ink-45 hover:bg-nomi-ink-05 hover:text-nomi-ink',
+                filter === value ? 'bg-nomi-ink text-nomi-paper' : 'bg-transparent text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink',
               )}
               onClick={() => setFilter(value)}
             >

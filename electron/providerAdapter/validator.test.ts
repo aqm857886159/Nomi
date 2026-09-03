@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
+import {
+  PROFILE_KIND_REFERENCE_CHANNEL,
+  REFERENCE_TASK_KINDS,
+  type DeclaredReferenceProfileKind,
+} from "../shared/contracts/modelAccessCapabilities";
 import type { ProviderAdapterDraft } from "./types";
-import { adapterRevisionDigest, validateProviderAdapterDraft } from "./validator";
+import { adapterRevisionDigest, assertAdapterModeInvariants, validateProviderAdapterDraft } from "./validator";
 
 const baseDraft = (): ProviderAdapterDraft => ({
   provider: {
@@ -341,6 +346,113 @@ describe("validateProviderAdapterDraft", () => {
       providerBaseUrl: "https://api.example.com/v1",
       selectedModelKeys: ["paint-v2"],
     })).toThrow(/boundary/i);
+  });
+});
+
+// 类级锁：说明卡有**两个生产者**（compiler 的 AI 编译路径、builtinOpenAiCompatibleDraft 的内置模板），
+// 语义不变量必须只有一份、两边都穿过。此前校验只挂在 AI 那条路上，内置模板一次都没被看过，
+// 于是「参考类模式必须声明 referenceParam/referenceShape」对它结构性失效——不是有人手滑漏写，
+// 是这条规则根本管不到那条路（2026-09-03 真中转实测挖出，见同名根因合同）。
+describe("assertAdapterModeInvariants（两个生产者共用的那一份）", () => {
+  // 每个参考类 taskKind 的最小合法外壳（模型 kind / 端点 / 结果映射）。键必须覆盖
+  // REFERENCE_TASK_KINDS 的全集——`Record<...>` 让「加了第七种参考类 kind 却没在这里补壳」
+  // 编译期就红，而不是悄悄少测一种。
+  const referenceMode: Record<DeclaredReferenceProfileKind, {
+    kind: "image" | "video" | "audio" | "model3d" | "text";
+    path: string;
+    mapping: Record<string, string>;
+  }> = {
+    image_edit: { kind: "image", path: "/v1/images/edits", mapping: { image_url: "url" } },
+    image_to_video: { kind: "video", path: "/v1/video/generations", mapping: { video_url: "url" } },
+    image_to_audio: { kind: "audio", path: "/v1/audio/speech", mapping: { audio_url: "url" } },
+    image_to_3d: { kind: "model3d", path: "/v1/3d/generations", mapping: { model_url: "url" } },
+  };
+
+  // 全集从 PROFILE_KINDS 旁边那份划分 derive（不是手抄）：加第七种参考类 kind 会自动被锁上。
+  for (const taskKind of REFERENCE_TASK_KINDS) {
+    const shape = referenceMode[taskKind];
+
+    it(`${taskKind} 缺 referenceParam 必须当场抛（不许留到运行期静默失败）`, () => {
+      expect(() =>
+        assertAdapterModeInvariants({
+          modelKey: "m-1",
+          kind: shape.kind,
+          modes: [{
+            taskKind,
+            create: { method: "POST", path: shape.path, response_mapping: shape.mapping },
+            referenceShape: "array",
+            sourceUrls: [],
+          }],
+        }),
+      ).toThrow(/requires referenceParam/);
+    });
+
+    it(`${taskKind} 缺 referenceShape 必须当场抛`, () => {
+      expect(() =>
+        assertAdapterModeInvariants({
+          modelKey: "m-1",
+          kind: shape.kind,
+          modes: [{
+            taskKind,
+            create: { method: "POST", path: shape.path, response_mapping: shape.mapping },
+            referenceParam: "reference_images",
+            sourceUrls: [],
+          }],
+        }),
+      ).toThrow(/requires referenceShape/);
+    });
+  }
+
+  // 非参考类模式不受这条约束——别把闸门开得比规则宽（那会逼着 text_to_image 也编一个参考键）。
+  it("非参考类模式不要求参考声明（闸门不许比规则更宽）", () => {
+    expect(() =>
+      assertAdapterModeInvariants({
+        modelKey: "m-1",
+        kind: "image",
+        modes: [{
+          taskKind: "text_to_image",
+          create: { method: "POST", path: "/v1/images/generations", response_mapping: { image_url: "url" } },
+          sourceUrls: [],
+        }],
+      }),
+    ).not.toThrow();
+  });
+
+  // 「吃输入媒体」≠「靠说明卡声明拿到媒体」。这两个 kind 的媒体通道按 kind 写死在运行期
+  // （textTaskRunner.ts:29-31 的 allReferenceImages、audioTaskRunner.ts:141-142 的 resolveAudioSource
+  // 且缺则抛），谁都不读 referenceParam——强制声明等于逼人编一个无人读取的字段。
+  // 这条锁住「豁免是想清楚的，不是漏了」：哪天有人把它们改回 'declared'，这里会红。
+  it.each([
+    { taskKind: "image_to_prompt" as const, kind: "text" as const, path: "/v1/chat/completions", mapping: { text: "text" } },
+    { taskKind: "transcribe" as const, kind: "audio" as const, path: "/v1/audio/transcriptions", mapping: { text: "text" } },
+  ])("$taskKind 吃媒体但通道写死在运行期，故不强制参考声明", ({ taskKind, kind, path, mapping }) => {
+    expect(PROFILE_KIND_REFERENCE_CHANNEL[taskKind]).toBe("runtime-fixed");
+    expect(() =>
+      assertAdapterModeInvariants({
+        modelKey: "m-1",
+        kind,
+        modes: [{
+          taskKind,
+          create: { method: "POST", path, response_mapping: mapping },
+          sourceUrls: [],
+        }],
+      }),
+    ).not.toThrow();
+  });
+
+  // 抽取时差点改坏的那条顺序：先说「这个键不支持」，而不是笼统的「缺媒体映射」。
+  it("不支持的响应映射键先于「缺媒体映射」报出（错误顺序不许被抽取改掉）", () => {
+    expect(() =>
+      assertAdapterModeInvariants({
+        modelKey: "m-1",
+        kind: "image",
+        modes: [{
+          taskKind: "text_to_image",
+          create: { method: "POST", path: "/v1/images/generations", response_mapping: { totally_unknown: "url" } },
+          sourceUrls: [],
+        }],
+      }),
+    ).toThrow(/unsupported response mapping key/);
   });
 });
 

@@ -377,7 +377,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
             return (
               <div className="mb-2 flex items-center gap-2 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-2.5 py-1.5 text-caption text-nomi-ink-60" data-storyboard-filter="true">
                 <span className="min-w-0 truncate">{t('storyboardEditor.filter.active', { name: anchor?.name || t('storyboardEditor.unnamed'), count: visibleRows.length })}</span>
-                {hiddenGenerating > 0 ? <span className="shrink-0 text-workbench-warning">{t('storyboardEditor.filter.hiddenGenerating', { count: hiddenGenerating })}</span> : null}
+                {hiddenGenerating > 0 ? <span className="shrink-0 text-nomi-warning">{t('storyboardEditor.filter.hiddenGenerating', { count: hiddenGenerating })}</span> : null}
                 <button type="button" onClick={() => setFilterAnchorId(null)} aria-label={t('storyboardEditor.filter.clear')} className="ml-auto shrink-0 size-5 grid place-items-center rounded-full text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink-80">
                   <IconX size={13} stroke={1.8} />
                 </button>

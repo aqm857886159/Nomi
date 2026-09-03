@@ -88,7 +88,7 @@ export function IntegrationConfirmationPanel({ handoff, onDone }: Props): JSX.El
           <p className="mt-1 text-caption leading-relaxed text-nomi-ink-60">{t('modelSetup.integrationConfirmHint')}</p>
         </div>
       </div>
-      <div className="flex flex-col gap-2 border-y border-nomi-line-soft py-3 text-caption text-nomi-ink-70">
+      <div className="flex flex-col gap-2 border-y border-nomi-line-soft py-3 text-caption text-nomi-ink-60">
         {displayName ? (
           <div>
             <span className="font-medium text-nomi-ink">{t('modelSetup.vendorName')}：</span>
@@ -109,9 +109,9 @@ export function IntegrationConfirmationPanel({ handoff, onDone }: Props): JSX.El
             .join('、') || t('modelSetup.integrationPending')}
         </div>
       </div>
-      <div className="flex items-start gap-2 rounded-nomi-sm bg-nomi-ink-05 px-3 py-2 text-caption leading-relaxed text-nomi-ink-70">
+      <div className="flex items-start gap-2 rounded-nomi-sm bg-nomi-ink-05 px-3 py-2 text-caption leading-relaxed text-nomi-ink-60">
         <IconAlertTriangle size={15} className="mt-0.5 shrink-0 text-nomi-warning" aria-hidden="true" />
-        <p className="text-caption leading-relaxed text-nomi-ink-70">{t('modelSetup.integrationSpendWarning')}</p>
+        <p className="text-caption leading-relaxed text-nomi-ink-60">{t('modelSetup.integrationSpendWarning')}</p>
       </div>
       {error ? (
         <div className="text-caption leading-relaxed text-workbench-danger" role="alert">

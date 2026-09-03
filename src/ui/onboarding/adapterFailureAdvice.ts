@@ -21,9 +21,18 @@ export type AdapterFailureInput = {
   errorCategory?: string
   httpStatus?: number
   stage?: string
+  /** 编译失败的结构化细分原因，主进程带过来（见 onboardingBridgeTypes.DesktopAdapterModeResult）。 */
+  compileFailureReason?: string
 }
 
 export function adapterFailureAdvice(input: AdapterFailureInput): AdapterFailureAdvice {
+  // 「这个 kind 在通用协议上没有标准端点」是编译失败里**性质不同**的一种：不是我们没读懂、
+  // 也不是用户填错，而是这条路本来就不通（当前只有 3D）。这时候还说「我们没读懂文档」等于
+  // 把用户往「换个地址再试」上引——他该走的是直接脚本 / ComfyUI 工作流那条真的走得通的路。
+  // 判据是生产者带来的结构化原因，不是 error 文案里的关键词。
+  if (input.compileFailureReason === 'no_generic_contract') {
+    return { reasonKey: 'noGenericContract', action: 'selfConnect' }
+  }
   // 编译失败 = 我们没读懂这家的文档，跟用户的配置无关 —— 直接给逃生口，别让他改地址瞎试。
   if (input.stage === 'compile' || input.stage === 'docs') {
     return { reasonKey: 'compile', action: 'selfConnect' }
