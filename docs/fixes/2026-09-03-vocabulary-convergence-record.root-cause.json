@@ -1,0 +1,107 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-vocabulary-convergence-record",
+  "problem_type": "semantic vocabulary ratchet cannot distinguish a real multi-owner convergence from debt relabelling",
+  "symptom": "A branch that deleted two src/ generation-node-status owners and retained one neutral electron/shared owner was rejected as historical-debt-promoted, even though the live scan proved the old definitions were gone and the new owner was the only definition.",
+  "direct_cause": "evaluateHistoricalRatchet only sees a removed reference debt identity and a same-member registered identity at a new site. It had no checkable provenance record connecting the retired owners to the surviving owner, so the genuine merge and a forged reclassification had the same observable shape.",
+  "class_root": "The ratchet lacked a source-verified convergence contract: a reduction must name every retired owner and the surviving registered owner, prove the retired sites are absent and the survivor is present, and prove the retired sites existed in the reference baseline with the same member set.",
+  "affected_population": [
+    "Any baseline reduction that merges two or more vocabulary owners into one registered owner.",
+    "Historical checks comparing a current baseline with a reference snapshot after a source-level vocabulary convergence.",
+    "The generation-node-status convergence from src/workbench/generationCanvas/model/* into electron/shared/canvas/generationNodeStatus.ts."
+  ],
+  "scope_paths": [
+    "scripts/check-vocabularies.mjs",
+    "scripts/check-vocabularies-history.node-test.mjs",
+    "docs/engineering-rules.md"
+  ],
+  "entry_points": [
+    "scripts/check-vocabularies.mjs:validateBaseline and evaluate — current baseline shape, live source presence, and surviving registered owner.",
+    "scripts/check-vocabularies.mjs:evaluateHistoricalRatchet — reference existence, member-set matching, and the narrowly scoped promotion bypass.",
+    "scripts/check-vocabularies-history.node-test.mjs — the six requested convergence and ratchet regression cases."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal baseline and source-scan invariant; no third-party contract or external documentation determines whether a repository owner was genuinely retired or survived.",
+  "invariants": [
+    "Every convergence record explicitly names one or more retiredOwners and exactly one survivingOwner.",
+    "Every retired owner in a current convergence record is absent from the live scan, and the surviving owner is present.",
+    "The surviving owner is a current registered baseline entry with a substantive reason.",
+    "Every retired owner exists in the historical reference baseline in either registered or debt, and its normalized members equal the surviving registered owner's members.",
+    "Only retired debt entries and member sets matched by a valid convergence record bypass historical-debt-promoted; all other promotion paths retain their prior behavior.",
+    "debtCap remains non-increasing and exactly equals current debt length; convergence cannot bypass historical-cap-increased or historical-cap-not-tight."
+  ],
+  "generality_proof": "The record is evaluated at the shared baseline and historical-ratchet boundary rather than in a generation-specific fixture. Its retired-owner list is checked against every scanned site and every reference entry, while the bypass is keyed by the exact retired site and the surviving registered site/member set. Therefore any future multi-owner convergence must satisfy the same live, historical, and cap checks; a rename, missing source owner, mismatched member set, unregistered survivor, new debt, cap increase, or loose cap still fails.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-vocabularies.mjs",
+      "symbol": "evaluate",
+      "responsibility": "Fail closed on malformed convergence records, retired owners still present in the live scan, missing surviving owners, and survivors that are not registered."
+    },
+    {
+      "path": "scripts/check-vocabularies.mjs",
+      "symbol": "evaluateHistoricalRatchet",
+      "responsibility": "Verify reference-baseline provenance and member identity, then permit only the exact recorded convergence to explain a retired debt promotion while preserving all cap checks."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-vocabularies-history.node-test.mjs",
+      "entry_point": "multi-owner convergence fixture",
+      "disposition": "enforced",
+      "evidence": "The valid case merges two reference debt owners and one reference registered owner into one current registered owner; without the record the old historical promotion guard rejects the reduction, and with the record the exact source and reference checks pass."
+    },
+    {
+      "path": "scripts/check-vocabularies-history.node-test.mjs",
+      "entry_point": "existing renamed debt promotion regression",
+      "disposition": "enforced",
+      "evidence": "The pre-existing case has no convergence record and continues to fail as historical debt reclassified as registered, proving the new bypass is not a general same-member rename exception."
+    },
+    {
+      "path": "scripts/check-vocabularies.mjs",
+      "entry_point": "current debt and historical cap checks",
+      "disposition": "enforced",
+      "evidence": "The convergence-specific tests keep cap growth and untightened reductions red; those checks remain outside the convergence bypass and are still rendered as historical-cap-increased or historical-cap-not-tight."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Owner convergence is a recurring repository refactor pattern, and the failure is structural: any future deletion of a debt owner into a newly named registered owner is indistinguishable from gaming unless provenance and source presence are checked at the shared ratchet boundary.",
+    "same_class_scan": [
+      "Searched scripts/check-vocabularies.mjs and all scripts/check-vocabularies*.node-test.mjs for historical-debt-promoted, reference debt, registered promotion, debtCap, and existing convergence-like canonical move handling.",
+      "Live AST scan confirmed the generation-node-status survivor at electron/shared/canvas/generationNodeStatus.ts::variable:GENERATION_NODE_STATUSES/as-const and no former src owner sites.",
+      "Reference history inspection found the former generation-node-status owners in d270d34e (the pre-convergence baseline), while origin/main is already post-convergence."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-vocabularies.mjs",
+    "invariant": "A convergence record can affect historical-debt-promoted only after explicit owner naming, current source presence/absence checks, reference-baseline membership checks, surviving registered reason checks, and exact normalized-member matching; cap ratchets remain unconditional.",
+    "failure_mode": "The gate exits non-zero with a specific convergence failure for malformed or unproven provenance, or with the existing historical promotion/cap failure for any unrecorded or cap-violating path.",
+    "exception_policy": "none",
+    "strategy": "Centralize provenance validation before the historical promotion guard and keep the bypass keyed to validated owner identity instead of member-set similarity alone.",
+    "artifacts": [
+      "scripts/check-vocabularies.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-vocabularies-history.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-vocabularies-history.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy runtime path is retained or removed; this change adds a checked baseline provenance capability and does not create a fallback implementation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The gate uses existing Node built-ins and repository AST scan output; no third-party dependency controls this invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Existing baselines remain valid because converged is optional. A future convergence records the retired site strings and surviving site in the current baseline after the source change; the record is not a substitute for the surviving registered entry or for tightening debtCap. The already-merged generation-node-status convergence cannot be added to the current baseline as a live historical record because origin/main is already post-convergence and therefore no default reference baseline still contains both retired owners.",
+  "residual_risks": [
+    "The real generation-node-status convergence is confirmed in the live tree and in pre-convergence commit history, but no real record is committed in the current baseline: origin/main's reference baseline is already post-convergence, so adding the record now would correctly fail the new reference-presence check. The capability is proven with explicit historical fixtures instead.",
+    "The gate verifies the declared owner sites and normalized member sets, not semantic equivalence of implementation behavior beyond the AST scan contract; a malicious author who changes the scan itself remains outside this specific invariant's scope."
+  ]
+}
