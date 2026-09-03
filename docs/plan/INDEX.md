@@ -19,6 +19,7 @@
 | [2026-09-02-runway-model-identity-workflow.md](2026-09-02-runway-model-identity-workflow.md) | **一个模型一个档案主人**（PR #310 挂起的「单独立项裁决」）：删平台档案 runway-video，10 个 Runway 模型改挂真模型档案；补齐供应商特化三轴（参数/transport/模式可见性）；selectTaskMapping 停止借用别的模式的线缆 | ✅ |
 | [2026-09-03-veo31-panel-crash.md](2026-09-03-veo31-panel-crash.md) | Runway Veo 3.1 节点生成面板 React #185 无限渲染循环：自动元数据写回边界与零额度 Electron 回归走查 | ✅ |
 | [2026-09-03-mcp-integration-q8-seams.md](2026-09-03-mcp-integration-q8-seams.md) | Q8：MCP 接入面按「确定性归我们，情境性归模型」收敛为 5 个 T14 action，并补接入管理后端动词 | 🚧 |
+| [2026-09-03-mcp-elicitation-e2e-reachability.md](2026-09-03-mcp-elicitation-e2e-reachability.md) | MCP elicitation-first e2e 接入 package script、Quality Gate 与 desktop RC，防止关键 started 断言成为无人执行的文档 | ✅ |
 | [2026-09-03-mcp-remaining-holes.md](2026-09-03-mcp-remaining-holes.md) | #202 余账与群反馈非 UI 修洞班 | 🚧 |
 | [2026-08-15-model-access-exhaustive-user-journeys.md](2026-08-15-model-access-exhaustive-user-journeys.md) | 模型接入全集用户旅途测试：能力面逐维度真实 UI 往返旅程矩阵 | 🚧 |
 | [2026-08-28-conversational-model-integration-verification.md](2026-08-28-conversational-model-integration-verification.md) | 对话式模型接入与认证闭环：J0–J5 真实验收和发布记录 | 🚧 |

@@ -68,6 +68,32 @@ export type MainProcessGestureAttestationV1 = {
   mac: string;
 };
 
+/**
+ * Attestation produced by a registered MCP client that has confirmed a generation
+ * gate via the MCP elicitation protocol (2025-06-18+). Recorded in the receipt's
+ * gestureAttestation field in lieu of a main-process GUI gesture attestation when
+ * the confirmation surface is the calling client, not a Nomi application window.
+ *
+ * Fields prove: which authenticated client spoke (authenticatedClient), over which
+ * challenge (challengeId / gestureNonce), with what decision, and when. The HMAC
+ * is computed by the main process using its own macKey — the client never sees the
+ * key, so this is not a client-self-issued attestation.
+ */
+export type ClientElicitationAttestationV1 = {
+  kind: "client_elicitation";
+  issuer: "nomi-main";
+  keyId: string;
+  challengeId: string;
+  decision: "accept";
+  authenticatedClient: string;
+  gestureNonce: string;
+  issuedAt: string;
+  expiresAt: string;
+  mac: string;
+};
+
+export type GestureAttestationV1 = MainProcessGestureAttestationV1 | ClientElicitationAttestationV1;
+
 export type HumanApprovalReceiptV1 = {
   version: typeof HUMAN_APPROVAL_VERSION;
   keyId: string;
@@ -88,7 +114,7 @@ export type HumanApprovalReceiptV1 = {
   costScope: string;
   pricingSnapshotHash: string;
   humanActor: string;
-  gestureAttestation: MainProcessGestureAttestationV1;
+  gestureAttestation: GestureAttestationV1;
   receiptNonce: string;
   audience: typeof HUMAN_APPROVAL_AUDIENCE;
   issuedAt: string;
@@ -384,10 +410,48 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
     return { ...withoutMac, mac: sign(withoutMac, deps.macKey) };
   }
 
-  function verifyGesture(token: string, value: unknown): MainProcessGestureAttestationV1 {
+  /**
+   * Create a client_elicitation attestation for a registered MCP client that has
+   * confirmed a generation gate via the elicitation protocol. The main process
+   * issues and signs this — the client never handles the macKey — so the audit
+   * chain is honest: "a registered MCP client confirmed this gate over elicitation".
+   */
+  function createClientElicitationAttestation(token: string, authenticatedClient: string): ClientElicitationAttestationV1 {
+    const challenge = verifyChallenge(token);
+    if (typeof authenticatedClient !== "string" || !authenticatedClient.trim()) {
+      throw new ReceiptScopeError("Authenticated client identity is required for client elicitation attestation");
+    }
+    const withoutMac: Omit<ClientElicitationAttestationV1, "mac"> = {
+      kind: "client_elicitation",
+      issuer: "nomi-main",
+      keyId,
+      challengeId: challenge.challengeId,
+      decision: "accept",
+      authenticatedClient: authenticatedClient.trim(),
+      gestureNonce: challenge.nonce,
+      issuedAt: now(),
+      expiresAt: challenge.expiresAt,
+    };
+    return { ...withoutMac, mac: sign(withoutMac, deps.macKey) };
+  }
+
+  function verifyGesture(token: string, value: unknown): GestureAttestationV1 {
     const challenge = verifyChallenge(token);
     if (!value || typeof value !== "object" || Array.isArray(value)) throw new HumanApprovalRequiredError();
-    const attestation = value as MainProcessGestureAttestationV1;
+    const raw = value as Record<string, unknown>;
+    if (raw.kind === "client_elicitation") {
+      const attestation = raw as ClientElicitationAttestationV1;
+      if (attestation.issuer !== "nomi-main" || attestation.keyId !== keyId
+        || attestation.challengeId !== challenge.challengeId || attestation.gestureNonce !== challenge.nonce
+        || attestation.decision !== "accept" || typeof attestation.authenticatedClient !== "string" || !attestation.authenticatedClient
+        || typeof attestation.mac !== "string"
+        || !timingEqual(attestation.mac, sign({ ...attestation, mac: undefined }, deps.macKey))) {
+        throw new HumanApprovalRequiredError();
+      }
+      assertNotExpired(attestation, now());
+      return attestation;
+    }
+    const attestation = raw as MainProcessGestureAttestationV1;
     if (attestation.kind !== "main_process_gesture" || attestation.issuer !== "nomi-main" || attestation.keyId !== keyId
       || attestation.challengeId !== challenge.challengeId || attestation.gestureNonce !== challenge.nonce
       || attestation.decision !== "accept" || !Number.isInteger(attestation.webContentsId) || !Number.isInteger(attestation.frameId)
@@ -428,7 +492,9 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
       projectRevision: challenge.projectRevision,
       costScope: challenge.costScope,
       pricingSnapshotHash: challenge.pricingSnapshotHash,
-      humanActor: `web_contents:${attestation.webContentsId}:${attestation.frameId}:${attestation.origin}`,
+      humanActor: attestation.kind === "client_elicitation"
+        ? `mcp_client:${attestation.authenticatedClient}`
+        : `web_contents:${(attestation as MainProcessGestureAttestationV1).webContentsId}:${(attestation as MainProcessGestureAttestationV1).frameId}:${(attestation as MainProcessGestureAttestationV1).origin}`,
       gestureAttestation: attestation,
       receiptNonce: randomId(),
       audience: HUMAN_APPROVAL_AUDIENCE,
@@ -486,6 +552,7 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
     verifyChallenge,
     resolveChallengeToken,
     createMainProcessGestureAttestation,
+    createClientElicitationAttestation,
     mintReceipt,
     verifyReceipt,
     resolveReceiptToken,

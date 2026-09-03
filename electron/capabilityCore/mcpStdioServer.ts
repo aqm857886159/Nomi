@@ -442,6 +442,19 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
       const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
       return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
     },
+    // Electron stdio 态：client_elicitation 路径——客户端在调用方 accept 后，通过 loopback RPC 让主进程铸收据。
+    // 此函数是 mcpGateConfirmation.ts 中 verifyClientGenerationConfirmation 的装配点。
+    verifyClientGenerationConfirmation: async (challenge) => {
+      const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
+        ? challenge.handoff.challengeToken
+        : ''
+      const instance = readLiveInstance(currentLibrary())
+      const authenticatedClient = connection.authenticatedClient
+      if (!challengeToken || !instance || !authenticatedClient) return { confirmed: false }
+      const result = await callViaRpc(instance, 'nomi_verify_client_generation_gate', { challengeToken, authenticatedClient }, connection)
+      const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
+      return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
+    },
     getLocale: () => getDesktopLocale(),
   })
 
