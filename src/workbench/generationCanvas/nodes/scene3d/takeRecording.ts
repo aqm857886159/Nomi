@@ -24,6 +24,7 @@ import type {
   Scene3DTrajectoryPoint,
   Scene3DVector3,
 } from './scene3dTypes'
+import { scene3dCharacterMovementName, scene3dObjectDisplayName } from './scene3dObjectNames'
 
 // 一条采样：某时刻（毫秒 wall-clock）+ 世界坐标位置。相机额外带注视点（见 TakeCameraSample）。
 export type TakeSample = {
@@ -211,7 +212,7 @@ export function buildRecordedTakeScene(base: Scene3DState, take: RecordedTake): 
   const characterTrajectory = samplesToTrajectory(
     footLevelSamples(take.characterSamples, objectVisualHalfHeight(character)),
     ROLE_COLOR_SEQUENCE[0],
-    `${character.name} 走位`,
+    scene3dCharacterMovementName(scene3dObjectDisplayName(character, base.objects)),
   )
   if (!characterTrajectory) return null
 

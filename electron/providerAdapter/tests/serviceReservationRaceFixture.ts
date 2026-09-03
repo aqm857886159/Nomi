@@ -186,7 +186,17 @@ export async function runCanonicalReservationRace(): Promise<{
       catalog: catalog(root),
       id: () => "run-duplicate",
       now: () => fixedNow,
-      canonicalStartWaitMs: 200,
+      // 这个窗口是**死锁兜底**，不是判据。本用例断言的是「duplicate 复用了 canonical 的 run」
+      // （duplicateRunId === canonicalRunId），从来没断言过它多快拿到；而 canonical 侧跑在独立
+      // tsx 子进程里，这 200ms 要覆盖「子进程启动 + 文件栅栏轮询 + start()/executeRun()」。
+      // 本仓常年 20+ worktree 并行跑套件，机器一忙窗口就不够，start() 抛
+      // "Timed out waiting for canonical run materialization" 让整条用例红——证明的是机器慢，
+      // 不是代码阻塞了事件循环。真判据 eventLoopResponsiveDuringWait 由「setImmediate 回调有没有
+      // 抢在 duplicate 结算之前跑到」决定，是顺序事实、与机器速度无关，放宽这里不会削弱它。
+      // 兜底就该给得宽；真卡死仍会在 30s testTimeout 处红。
+      // 别顺手改下面 fail-closed 用例的 canonicalStartWaitMs: 25——那条的 owner 永不物化，
+      // 短窗口正是它的判据本身。
+      canonicalStartWaitMs: 10_000,
       schedule: () => marker(root, "schedule"),
       verify: async ({ mode }) => {
         marker(root, "create");

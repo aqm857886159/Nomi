@@ -145,7 +145,7 @@ function buildSubject(spec: CameraMoveSpec): Scene3DObject {
     : undefined
   return {
     id: createScene3DObjectId(),
-    name: '主体',
+    name: '',
     type: 'mannequin',
     visible: true,
     position: [0, FEET_Y, 0],
@@ -176,7 +176,7 @@ function buildCamera(shot: StagingShot, startPosition: Scene3DVector3): Scene3DC
   const target: Scene3DVector3 = [0, SUBJECT_TARGET_Y, 0]
   return {
     id: createScene3DCameraId(),
-    name: '运镜机位',
+    name: '',
     visible: true,
     position: [...startPosition] as Scene3DVector3,
     rotation: cameraLookAtRotation(startPosition, target),

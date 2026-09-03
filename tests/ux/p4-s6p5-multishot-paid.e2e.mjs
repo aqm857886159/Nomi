@@ -1,11 +1,11 @@
 // P4 S6.5 — APIMart 真付费全链验收（走真生产入口：语义多镜 create）。
 //
 // 链路：起隔离 GUI app（真 catalog + 隔离 NOMI_CAPABILITY_DIR，绝不碰用户真库）→ 另起 stdio MCP 子进程
-// （同隔离 capDir → 探到运行中的 GUI，确认卡就地弹在 GUI 里）→ 走真语义入口：
-//   nomi_create_project → nomi_session_open → nomi_operation_create({shots}) → nomi_preview_execution
-//   → nomi_request_generation_gate（阻塞：内部 request_gate→等确认→decide→start 一气呵成，见
+// （同隔离 capDir → 探到运行中的 GUI，确认卡就地弹在 GUI 里）→ 走真语义入口（面收敛后的 15 工具名）：
+//   nomi_session_open → nomi_operation_plan({shots}) → nomi_operation_preview
+//   → nomi_operation_gate(phase=request)（阻塞：内部 request_gate→等确认→decide→start 一气呵成，见
 //     mcpSemanticGenerationFlow.ts）——趁它阻塞，Playwright 点 GUI 里的多镜确认卡（真收据）→ 生成启动
-//   → 轮询 nomi_get_run 等两镜真生成完成 → ffprobe 验时长/编码 → 截图。
+//   → 轮询 nomi_read(target=run) 等两镜真生成完成 → ffprobe 验时长/编码 → 截图。
 //   返工腿：对第 1 镜走返工（同 Run 新 Job）→ 单镜确认卡 → 真返工出第 2 版。
 //
 // 规格（最低成本）：2 个 text-to-video 镜（无锚——锚检查点在生产无审批入口，见 plan §8.5；这里不走它），
@@ -188,8 +188,8 @@ try {
   const leaseProjectId = session.json?.projectId || session.structured?.projectId || projectId
   note(`lease projectId = ${leaseProjectId}`)
 
-  // ── 真生产入口：create 多镜 plan（2 个 t2v 镜，无锚）──
-  const created = await agent.callTool('nomi_operation_create', {
+  // ── 真生产入口：create 多镜 plan（2 个 t2v 镜，无锚；无 operationId=新建）──
+  const created = await agent.callTool('nomi_operation_plan', {
     leaseHandle,
     shots: [
       { shotId: 'shot-1', role: 'shot', candidate: videoCandidate('shot-1', '雨夜便利店门口，一个人推门而入，霓虹灯反光，电影感') },
@@ -202,7 +202,7 @@ try {
     const errText = created.raw?.result?.content?.find?.((x) => x.type === 'text')?.text || JSON.stringify(created.structured)
     note(`create 错误: ${String(errText).slice(0, 400)}`)
   }
-  ok(!created.isError, `nomi_operation_create 多镜草稿建成（真生产入口，非测试注入）`)
+  ok(!created.isError, `nomi_operation_plan 多镜草稿建成（真生产入口，非测试注入）`)
   ok(Array.isArray(created.json?.operation?.shots) && created.json.operation.shots.length === 2, `草稿落 2 个镜头`)
   // 用 create 返回的 operationId（工具 schema 不收 operationId，服务端生成 UUID；后续全用它）。
   const operationId = created.json?.operation?.operationId
@@ -211,15 +211,15 @@ try {
 
   note(`create 返回 operationId=${created.json?.operation?.operationId} state=${created.json?.operation?.state}`)
   // 探针：create 后 Run 能否被 GUI 侧 production 服务读到（跨进程/跨命名空间一致性）。
-  const runProbe = await agent.callTool('nomi_get_run', { projectId: leaseProjectId, runId: operationId }, 15000).catch((e) => ({ isError: true, err: e?.message }))
-  note(`create 后 get_run 探针: isError=${runProbe.isError} ${runProbe.isError ? (runProbe.err || JSON.stringify(runProbe.raw?.result?.content?.[0]?.text || '').slice(0, 150)) : 'run 可读'}`)
+  const runProbe = await agent.callTool('nomi_read', { target: 'run', projectId: leaseProjectId, runId: operationId }, 15000).catch((e) => ({ isError: true, err: e?.message }))
+  note(`create 后 run 读探针: isError=${runProbe.isError} ${runProbe.isError ? (runProbe.err || JSON.stringify(runProbe.raw?.result?.content?.[0]?.text || '').slice(0, 150)) : 'run 可读'}`)
 
-  await agent.callTool('nomi_preview_execution', { leaseHandle, operationId })
+  await agent.callTool('nomi_operation_preview', { leaseHandle, operationId })
   note('preview 完成（零 provider 调用）')
 
-  // ── request_gate 阻塞：内部 request→等确认→decide→start。趁阻塞点 GUI 卡。──
-  console.log('  · 发 nomi_request_generation_gate（会阻塞等 GUI 卡确认）…')
-  const gatePromise = agent.callTool('nomi_request_generation_gate', { leaseHandle, operationId }, 300000)
+  // ── gate(phase=request) 阻塞：内部 request→等确认→decide→start。趁阻塞点 GUI 卡。──
+  console.log('  · 发 nomi_operation_gate(phase=request)（会阻塞等 GUI 卡确认）…')
+  const gatePromise = agent.callTool('nomi_operation_gate', { phase: 'request', leaseHandle, operationId }, 300000)
 
   // 诊断：等几秒后截图 + dump 卡相关 DOM（card 不弹时看 GUI 到底在什么态）。
   await sleep(5000)
@@ -272,11 +272,11 @@ try {
   const submitDeadline = Date.now() + 3 * 60 * 1000
   let lastStatus = ''
   const accepted = (jobs) => jobs.filter((j) => ['provider_accepted', 'polling', 'ready', 'adopted', 'materializing'].includes(j.status)).length
-  // nomi_get_run 的完整安全投影在 structuredContent.nomiRunData（text 是人话转述不是 JSON，
+  // nomi_read(target=run) 的完整安全投影在 structuredContent.nomiRunData（text 是人话转述不是 JSON，
   // structured 顶层是 {nomiOutcome,nomiRun,nomiRunData}——见 mcpProtocol.buildToolResultPayload）。
   const runFrom = (got) => got.structured?.nomiRunData || got.json?.run || got.json || null
   while (Date.now() < submitDeadline) {
-    const got = await agent.callTool('nomi_get_run', { projectId: leaseProjectId, runId }, 30000)
+    const got = await agent.callTool('nomi_read', { target: 'run', projectId: leaseProjectId, runId }, 30000)
     run = runFrom(got) || run
     const jobs = run?.jobs || []
     const failed = jobs.filter((j) => ['failed', 'needs_attention'].includes(j.status))
@@ -301,7 +301,7 @@ try {
   // pollHorizon + 15s re-kick），慢真 provider 也会在完成后被取回落地。fast/480p/4s 通常 1-2 分钟。
   const matDeadline = Date.now() + 6 * 60 * 1000
   while (Date.now() < matDeadline) {
-    const got = await agent.callTool('nomi_get_run', { projectId: leaseProjectId, runId }, 30000)
+    const got = await agent.callTool('nomi_read', { target: 'run', projectId: leaseProjectId, runId }, 30000)
     run = runFrom(got) || run
     const readyNow = (run?.artifacts || []).filter((a) => a.status === 'ready').length
     const polls = (run?.jobs || []).map((j) => `${j.metadata?.shotId || j.jobId.slice(-6)}:${j.status}@${j.lastPollAt?.slice(11, 19) || '-'}`).join(' ')
@@ -318,7 +318,7 @@ try {
   }
   for (const [i, art] of artifacts.slice(0, 2).entries()) {
     // 安全投影带项目内相对路径 → 拼项目根拿到本机文件，直接 ffprobe 验真（不再靠截图人眼降级）。
-    const got = await agent.callTool('nomi_get_artifact', { projectId: leaseProjectId, runId, artifactId: art.artifactId }, 30000)
+    const got = await agent.callTool('nomi_read', { target: 'artifact', projectId: leaseProjectId, runId, artifactId: art.artifactId }, 30000)
     const meta = got.structured?.nomiRunData || got.json || got.structured || {}
     const relativePath = art.projectRelativePath || meta.projectRelativePath
     const localPath = resolveLocalArtifact(relativePath, projectDir)
@@ -387,7 +387,7 @@ async function driveRework(agent, win, confirmBtn, projectId, runId, shotId, car
     // 本 headless 腿只能验：run 里该镜有可返工的终态 job（返工的前提）。真返工的 UI 走查在 R13 走查腿覆盖。
     // projectId 用形参（leaseProjectId 是 try 块里的 const，函数作用域取不到——取了会 ReferenceError
     // 被自家 catch 吞成「返工前提不满足」，看起来像产品问题，其实是本脚本的作用域 bug）。
-    const got = await agent.callTool('nomi_get_run', { projectId, runId }, 30000)
+    const got = await agent.callTool('nomi_read', { target: 'run', projectId, runId }, 30000)
     const run = got.structured?.nomiRunData || got.json?.run || got.json
     // 安全投影现在带 metadata.shotId → 能按镜头认领 job（此前恒空，返工前提永远校验不过）。
     // 不留 `|| j.shotId` 兜底：投影发的就是嵌套 metadata.shotId，扁平 shotId 从来不存在（P1 无并行版）。

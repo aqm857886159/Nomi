@@ -43,5 +43,9 @@ export async function handleSemanticGenerationGate(
     receiptId: confirmation.receiptId,
     receiptToken: confirmation.receiptToken,
   }, signal);
-  deps.reply(id, deps.buildResult(toolName, args, { confirmation, approved, started }));
+  // Return the signed challenge's public display projection for journey/audit consumers, but never the
+  // opaque handoff token. This lets a client verify that a multi-shot approval covered the same reference
+  // media it is about to submit without turning the transport response into another receipt channel.
+  const { handoff: _handoff, ...publicChallenge } = challenge;
+  deps.reply(id, deps.buildResult(toolName, args, { challenge: publicChallenge, confirmation, approved, started }));
 }

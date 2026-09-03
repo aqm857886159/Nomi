@@ -149,6 +149,13 @@ async function smokeClient(client, { signed = true } = {}) {
         + `缺少 [${declaredToolNames.filter((name) => !actualToolNames.includes(name)).join(', ')}]`,
     )
 
+    // resources/list: unsigned hosts receive an RPC-level error (403 from rpcServer when
+    // clientProof is absent → rpcErrorFromPayload propagates → mcpProtocol catches it and
+    // returns -32603 to the caller → .result is undefined → falls back to []). This is the
+    // correct behaviour: the launcher's launcherConnection() throws McpConnectionAuthenticationError
+    // at the first invoke() boundary, the protocol layer turns it into a -32603 reply, and the
+    // process stays alive for the full session. Signed clients reach the GUI RPC which forwards
+    // through the skills.list route and returns the full creative catalog.
     const resources = (await rpc('resources/list')).result?.resources || []
     // Host cutover content-addresses skill resources: nomi-skill://<dir>/<packageVersion>/<contentHash>
     // (integrity contract asserted in electron/capabilityCore/nomiMcpSkills.test.ts). Match by the
@@ -163,16 +170,14 @@ async function smokeClient(client, { signed = true } = {}) {
       body = (await rpc('resources/read', { uri: director.uri })).result?.contents?.[0]?.text || ''
       assert(body.includes('镜头语言') && body.length > 1_000, `${client} director cinematography body is incomplete`)
     } else {
-      // Unsigned/generic hosts get only "public" access = skills marked audience:"mcp"; the cutover
-      // deliberately withholds the internal creative catalog from unverified callers (never trust a
-      // caller-supplied audience). director.cinematography is not audience:"mcp", so it must be absent.
+      // Unsigned/generic hosts: resources/list returns an empty list (RPC auth gate → -32603 →
+      // result undefined → []). The internal creative catalog must not leak to unverified callers.
       assert(!director, `${client} internal creative skill must not leak to an unsigned host`)
     }
 
     if (!signed) {
-      // 面收敛（#359）后三个动作收进 nomi_integration 的 action 参数。迁移前这里写的是已被删除的
-      // nomi_integration_begin / _open_credentials / _start——调用不存在的工具同样返回 isError:true，
-      // 于是这三条断言**靠「工具不存在」假绿**，看起来在守写边界，实际上什么也没守（死名字两头骗人）。
+      // Write-boundary check: the exact same nomi_integration tool calls that succeed for signed
+      // clients must return isError:true for unsigned callers (rpcServer 403 → dispatcher rejects).
       const begin = await rpc('tools/call', {
         name: 'nomi_integration',
         arguments: {
@@ -204,7 +209,7 @@ async function smokeClient(client, { signed = true } = {}) {
 
     // J0 positive path: a Nomi-signed host can create a durable integration
     // draft from an empty directory without exposing a credential or sending a
-    // provider request. The companion external branch above proves that the
+    // provider request. The companion unsigned branch above proves that the
     // exact same write boundary remains closed to an unsigned generic host.
     const integrationBegin = await rpc('tools/call', {
       name: 'nomi_integration',

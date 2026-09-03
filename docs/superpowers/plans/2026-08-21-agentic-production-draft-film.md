@@ -521,7 +521,7 @@ Rubric 至少包含：
 
 - [ ] **Step 3: 运行无额度的确定性矩阵。**
 
-Run: `pnpm vitest run tests/production/real-draft-film-adversarial.spec.ts tests/production tests/ux/mcp-journey.e2e.mjs`
+Run: `pnpm vitest run tests/production/real-draft-film-adversarial.spec.ts tests/production tests/ux/mcp-l2-journeys.e2e.mjs`
 
 - [ ] **Step 4: 用真实模型跑 30 秒片。**
 
@@ -571,7 +571,7 @@ Run:
 ```bash
 pnpm run build
 pnpm run test:e2e
-pnpm run test:mcp
+pnpm run test:mcp-journey
 node tests/ux/production-project-artifacts.walk.mjs
 node tests/production/real-draft-film.spec.ts
 ```
