@@ -215,6 +215,11 @@ try {
   const challenge = gatedData.challenge || resultData(gated).challenge
   const gateShots = challenge?.shots?.shots || []
   check(gateShots.length === 4 && gateShots.every((shot) => Array.isArray(shot.referenceMedia) && shot.referenceMedia.some((item) => item.assetId === referenceAssetId)), 'C9 gate challenge 含四镜参考媒体投影')
+  // J06 — gate challenge 不再硬编 ETA，应给 coldstart 区间（waitSecondsHigh > waitSeconds, etaBasis='coldstart'）
+  const gateEtaBasis = challenge?.shots?.etaBasis
+  const gateWaitLow = challenge?.shots?.waitSeconds
+  const gateWaitHigh = challenge?.shots?.waitSecondsHigh
+  check(gateEtaBasis === 'coldstart' && typeof gateWaitLow === 'number' && typeof gateWaitHigh === 'number' && gateWaitHigh > gateWaitLow, 'C9 gate challenge ETA 为 coldstart 区间而非固定点值')
   check(Boolean(gatedData.started || resultData(gated).started), 'C9 gate request 完成确认并进入 execute')
 
   // C10: while the same confirmed batch is still being observed, drop a second

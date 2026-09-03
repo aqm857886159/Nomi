@@ -181,13 +181,18 @@ describe("路径白名单对非凭证规则仍然有效（没被这次改动误�
   });
 });
 
+// 2026-09-03 删掉了这里的「--all 全绿」用例。
+//
+// 它跑的是 `node scripts/check-no-secrets.mjs --all`——与 package.json 的 `check:secrets`
+// **逐字节同一条命令**，而 `check:secrets` 已经在 gates:contracts 链里独立跑。也就是说
+// 同一次全仓扫描在每次 gates 里跑两遍：一遍在 contracts lane，一遍在并行 unit lane。
+// 后者还挤在 ~1120 个测试文件中间抢 CPU，实测空载 17.7s、并行 lane 上直接压穿 60s 超时。
+//
+// 按 P1（不留并行版）删的是**重复的那一份**，不是覆盖：全仓零误报这件事仍由
+// `pnpm run check:secrets` 独立守着，而且它红了会直接把 gates 链断掉，比这里的断言更硬。
+// 下面这条静态检查（1ms，不起子进程）留着——它验的是「ALLOWLIST 没被开后门」这件
+// **源码层**的事，contracts lane 的扫描跑绿并不能证明它，两者不重复。
 describe("全仓兜底", () => {
-  it("--all 全绿：零误报，且不靠给那 8 个文件加白名单", () => {
-    const r = scan("--all");
-    expect(r.out).not.toContain("🔴"); // 拦截横幅
-    expect(r.code, r.out).toBe(0);
-  }, 60_000); // 全仓真扫 3500+ 文件，墙钟随仓库增长；5s 默认超时在 CI 上已被 main 的体量压穿（同 #139 的墙钟病）
-
   it("ALLOWLIST 里没有为那 8 个合法 hex 文件开的口子", () => {
     const src = fs.readFileSync(SCANNER, "utf8");
     const allowlist = src.slice(src.indexOf("const ALLOWLIST"), src.indexOf("// ====="));

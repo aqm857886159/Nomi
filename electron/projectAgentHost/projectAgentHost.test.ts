@@ -14,6 +14,7 @@ import type {
   ProjectBinding,
 } from "../shared/projectAgentContracts";
 import { PROJECT_AGENT_RECENT_COMMAND_LIMIT } from "../shared/projectAgentContracts";
+import { __projectAgentCommandLedgerScanCountForTests } from "./projectAgentCommandLedger";
 import { createOfflineProjectAgentHost } from "./projectAgentHost";
 import { reduceProjectAgentMutation } from "./projectAgentReducer";
 import { createProjectAgentRepository } from "./projectAgentRepository";
@@ -353,90 +354,92 @@ describe("offline ProjectAgentHost orchestration", () => {
     });
   });
 
-  it("keeps a same-entity snapshot bounded without steady-state ledger rescans", async () => {
-    // The sibling "acknowledged-byte fsync" test flips durability to "durable".
-    // afterEach restores it, but pin it here so a regression there cannot quietly
-    // turn this test into a per-command fsync storm.
+  // 2026-09-03：这条曾是负载敏感 flake，两个零 electron 改动的分支上各红一次。它此前用
+  // **1,000 次真实落盘往返**去「证明」稳态不重扫账本：单跑 ~10s，机器繁忙时 ~30s，正好顶在
+  // vitest 的 30s testTimeout 上（本机 load=76 实测 29,668ms 险过 332ms）。测试从未断言过自己
+  // 的耗时，却把墙钟当成了判据——和 canvas 性能预算「在空闲机器上校准、在繁忙机器上执行」是同一族病。
+  //
+  // 更要命的是招牌断言是**死选择器**：它数「fs.readFileSync 是否以账本路径被调用」，而重扫走
+  // readRegular() → fs.readFileSync(fd)，传的是 fd 数字不是路径，过滤器永远为 0。阳性对照实测：
+  // 强制一次冷缓存全量重扫 25,742 字节账本，该过滤器仍数出 0 条。它**不可能失败**。
+  //
+  // 改法是换判据而不是放宽阈值：
+  //  ① 「稳态有没有重扫」交给账本自己的 scan 计数器（直接观测点，不经 fs 间接层）；
+  //  ② 「每条命令的落盘工作量是否恒定」改成**两个等长稳态窗口的 fs 调用逐项相等**——这是
+  //     O(1)/命令的直接结构证明，和机器快慢无关，且比原版更强：原版即使每条命令都全量重扫也照样绿。
+  // 两个判据都与耗时脱钩，命令数于是可以从 1,000 降到刚够跨过回执窗口，墙钟 ~30s → ~2s。
+  //
+  // 注意这里换掉的是**算法面**的守卫。纯常数因子的 CPU 退化（例如把热路径拆成跨模块调用）
+  // 只有墙钟测得出，那属于 performance 风险面的显式预算，不该靠共享单测套件的 timeout 兼职
+  // ——兼职的代价就是它按机器负载报红，而不是按代码报红。
+  const STEADY_WINDOW = PROJECT_AGENT_RECENT_COMMAND_LIMIT;
+  // 提交路径真正碰的 fs 入口。窗口间逐项相等 = 每条命令工作量恒定。
+  const FS_COMMIT_OPS = ["readFileSync", "writeFileSync", "openSync", "renameSync", "rmSync"] as const;
+
+  it("keeps a same-entity snapshot bounded with constant per-command work and no steady-state ledger rescan", async () => {
     setDurabilityMode("ephemeral");
     const durableRepository = repository();
     const paths = durableRepository.pathsFor(binding);
     const host = createOfflineProjectAgentHost({ repository: durableRepository });
 
-    // A ledger rescan is exactly one thing: readRegular() opening the ledger
-    // read-only and parsing it whole. Spying on fs.readFileSync cannot see that
-    // — readRegular passes a numeric fd, so a `String(arg) === paths.ledger`
-    // filter never matches anything. The previous version of this test asserted
-    // exactly that, which made its headline claim vacuous: re-run with the
-    // ledger cache force-disabled, it observed 597 real rescans and still
-    // asserted zero. Watch open() instead, which is the actual mechanism.
-    const ACCESS_MODE = fs.constants.O_RDONLY | fs.constants.O_WRONLY | fs.constants.O_RDWR;
-    const openSpy = vi.spyOn(fs, "openSync");
-    const partitionOpens = (): number =>
-      openSpy.mock.calls.filter(([target]) => String(target).startsWith(paths.dir)).length;
-    const ledgerRescans = (): number =>
-      openSpy.mock.calls.filter(
-        ([target, flags]) =>
-          String(target) === paths.ledger &&
-          typeof flags === "number" &&
-          (flags & ACCESS_MODE) === fs.constants.O_RDONLY,
-      ).length;
-
-    const windowLimit = PROJECT_AGENT_RECENT_COMMAND_LIMIT;
-    const sample = Math.floor(windowLimit / 2);
     let revision = 0;
-    async function runCommands(count: number): Promise<void> {
-      for (let index = 0; index < count; index += 1) {
-        // Fixed-width ids keep per-command snapshot bytes comparable across samples.
-        const commandId = `bounded-command-${String(revision + 1).padStart(4, "0")}`;
-        await host.dispatch(threadMutation(commandId, revision, "thread-a"));
+    const dispatchWindow = async (commands: number): Promise<void> => {
+      for (let index = 0; index < commands; index += 1) {
+        await host.dispatch(threadMutation(`bounded-command-${revision + 1}`, revision, "thread-a"));
         revision += 1;
       }
-    }
-    function measure() {
-      return {
-        opens: partitionOpens(),
-        rescans: ledgerRescans(),
-        snapshot: fs.statSync(paths.snapshot).size,
-        ledger: fs.statSync(paths.ledger).size,
-      };
-    }
+    };
 
-    // Warm-up fills the recent-command window; everything after it is steady state.
-    await runCommands(windowLimit);
-    const warm = measure();
-    await runCommands(sample);
-    const first = measure();
-    await runCommands(sample);
-    const second = measure();
+    // 先跨过回执窗口，之后两个等长窗口才都是纯稳态（回执数组已经在裁剪、不再增长）。
+    await dispatchWindow(STEADY_WINDOW);
+    const sizeAtWindowLimit = fs.statSync(paths.snapshot).size;
+
+    const spies = FS_COMMIT_OPS.map((op) => [op, vi.spyOn(fs, op)] as const);
+    const fsWork = (): Record<string, number> =>
+      Object.fromEntries(spies.map(([op, spy]) => [op, spy.mock.calls.length]));
+    const delta = (before: Record<string, number>, after: Record<string, number>): Record<string, number> =>
+      Object.fromEntries(Object.keys(after).map((op) => [op, after[op] - before[op]]));
+
+    const scansBefore = __projectAgentCommandLedgerScanCountForTests();
+    const beforeFirst = fsWork();
+    await dispatchWindow(STEADY_WINDOW);
+    const betweenWindows = fsWork();
+    await dispatchWindow(STEADY_WINDOW);
+    const afterSecond = fsWork();
+
+    const firstWindow = delta(beforeFirst, betweenWindows);
+    const secondWindow = delta(betweenWindows, afterSecond);
+
+    // 稳态里一次账本全量重扫都不许有。计数器会不会涨由下一条阳性对照钉住。
+    expect(__projectAgentCommandLedgerScanCountForTests() - scansBefore).toBe(0);
+    // 每条命令的落盘工作量恒定。写成「两窗相等」而不是抄下具体次数，是为了不把派生值手抄进断言
+    // ——次数一旦被重构改动，正确的反应是它仍然相等，而不是让人来改这里的数字。
+    expect(secondWindow).toEqual(firstWindow);
+    // 防止上面退化成 0 === 0 的空断言（fs 入口被改名 / spy 挂空时会这样）。
+    for (const op of FS_COMMIT_OPS) expect(firstWindow[op]).toBeGreaterThan(0);
 
     const snapshot = host.getSnapshot(binding);
     expect(snapshot).toMatchObject({ hostRevision: revision, commandLedgerHighWater: revision });
-    // Derived from the declared limit rather than a copied 64.
-    expect(snapshot.recentAppliedCommands).toHaveLength(windowLimit);
+    expect(snapshot.recentAppliedCommands).toHaveLength(PROJECT_AGENT_RECENT_COMMAND_LIMIT);
+    // 快照有界：跨过回执窗口后又写了两个窗口，体积不随命令数增长（只有 revision 位数带来的零头）。
+    expect(fs.statSync(paths.snapshot).size).toBeLessThan(sizeAtWindowLimit + 10_000);
+  });
 
-    // No steady-state rescans. A one-time warm-up scan would be legitimate, so
-    // this is scoped to the two post-warm-up samples, not to the whole run.
-    expect(second.rescans - warm.rescans).toBe(0);
+  it("counts a real cold-cache ledger rescan, so the steady-state assertion above cannot go dead", async () => {
+    setDurabilityMode("ephemeral");
+    const host = createOfflineProjectAgentHost({ repository: repository() });
+    for (let revision = 0; revision < 4; revision += 1) {
+      await host.dispatch(threadMutation(`scan-probe-${revision + 1}`, revision, "thread-a"));
+    }
 
-    // Per-command work is constant: two disjoint equal-size samples open exactly
-    // the same number of files. This is the inductive step that makes a small
-    // command count sufficient — work per command that is flat across two
-    // windows after warm-up stays flat, so dispatching 1,000 only samples the
-    // same line further out. The 1,000-command version cost 14s-37s of wall
-    // clock depending on machine load (measured on the same commit) against a
-    // 30s testTimeout, and proved nothing this does not.
-    expect(second.opens - first.opens).toBe(first.opens - warm.opens);
+    // 阳性对照：新仓库实例 = 冷账本缓存，下一次 load() 必然走一次 scan()。上一版的探针
+    // （按路径过滤 fs.readFileSync）在这里数出的是 0——正因如此它的「不重扫」断言永远绿。
+    // 这条用例保证换上的计数器确实是活信号，而不是又一个死选择器。
+    const scansBefore = __projectAgentCommandLedgerScanCountForTests();
+    const coldState = createProjectAgentRepository({ rootDir: root }).load(binding);
 
-    // The snapshot stays bounded while the append-only ledger genuinely grows.
-    // Ledger growth is the positive control: it proves the samples did real
-    // durable work, so "zero rescans" cannot pass by doing nothing at all.
-    // A snapshot that accumulated history instead of a bounded window would grow
-    // by roughly the ledger delta (one receipt per command); a bounded one grows
-    // only by a few dozen bytes of revision counters.
-    const ledgerGrowth = second.ledger - first.ledger;
-    const snapshotGrowth = second.snapshot - first.snapshot;
-    expect(ledgerGrowth).toBeGreaterThan(0);
-    expect(snapshotGrowth * 10).toBeLessThan(ledgerGrowth);
+    expect(coldState?.hostRevision).toBe(4);
+    expect(__projectAgentCommandLedgerScanCountForTests() - scansBefore).toBeGreaterThan(0);
   });
 
   it("round-trips an enqueued and running turn through the durable repository", async () => {
