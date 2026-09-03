@@ -148,6 +148,7 @@
 |---|---|---|
 | [2026-09-03-creative-resource-chain-epic.md](2026-09-03-creative-resource-chain-epic.md) | **创作资源链 Epic 切片**：来源记录、Agent 浏览器工具、智能库视图、统一扩展合同四个 P0 切片（待拍板） | 📋 |
 | [2026-08-31-library-discovery-slice.md](2026-08-31-library-discovery-slice.md) | **非 Agent 资源库发现优化**：四库各自有家，共用搜索/确定性分类与素材真实媒体路径 | 🚧 |
+| [2026-09-02-cross-device-sync-execution.md](2026-09-02-cross-device-sync-execution.md) | **跨设备继续创作执行方案**：设置归位、外部同步客户端边界、项目打开前就绪检查与真实任务验收 | 🚧 |
 | [2026-05-31-workspace-folder-projects-implementation-plan.md](2026-05-31-workspace-folder-projects-implementation-plan.md) | 任意文件夹 Workspace 项目实施 | ⛔ |
 | [2026-05-31-merge-workspace-feature.md](2026-05-31-merge-workspace-feature.md) | 把 workspace 文件管理合并进 main | ⛔ |
 | [2026-05-31-left-panel-material-redesign.md](2026-05-31-left-panel-material-redesign.md) | 左面板重做：分类/素材双 Tab | 📋 |

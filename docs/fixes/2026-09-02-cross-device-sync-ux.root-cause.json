@@ -2,9 +2,9 @@
   "schema_version": 3,
   "id": "2026-09-02-cross-device-sync-ux",
   "problem_type": "cross-device configuration and status discoverability",
-  "symptom": "The first cross-device design put setup instructions, folder configuration, and sync state into a new project-library panel; the existing Nomi page had no clear configuration home or actionable status trigger.",
-  "direct_cause": "The implementation rendered sync text directly in project cards and exposed a static mockup panel, while the real settings surface already owned project-location configuration and the sync inspector was called without a persisted expected revision/hash.",
-  "class_root": "Cross-device state has no single ownership contract separating configuration (settings), transport (external sync client), and project-specific readiness (library/open guard).",
+  "symptom": "The first cross-device design put setup instructions, folder configuration, and sync state into a new project-library panel; the existing Nomi page had no clear configuration home or actionable status trigger. During the real canvas continuation journey, deleting one result also removed a physical file still referenced by another result, so the next open was blocked as missing assets.",
+  "direct_cause": "The implementation rendered sync text directly in project cards and exposed a static mockup panel, while the real settings surface already owned project-location configuration and the sync inspector was called without a persisted expected revision/hash. Result deletion removed its file without checking references from the remaining canvas results.",
+  "class_root": "Cross-device state and project-owned media lacked single ownership contracts separating configuration (settings), transport (external sync client), readiness (library/open guard), and safe lifecycle cleanup (delete metadata first, delete files only when unreferenced).",
   "affected_population": [
     "All users configuring a synced project directory",
     "Users opening a project after another computer changed its manifest",
@@ -14,6 +14,8 @@
     "src/workbench/settings/ProjectLocationSection.tsx",
     "src/workbench/settings/SettingsDialog.tsx",
     "src/workbench/library/ProjectLibraryPage.tsx",
+    "src/workbench/assets/assetResultDeletion.ts",
+    "src/workbench/assets/deleteAssetResult.ts",
     "electron/workspace/workspaceSync.ts",
     "electron/workspace/workspaceSyncIpc.ts",
     "electron/workspace/workspaceRepository.ts",
@@ -32,7 +34,8 @@
     "Project-directory configuration is rendered only in Settings > File & saving.",
     "Project-library cards never contain sync setup controls; they show only a compact status for folder-backed projects.",
     "An actionable sync warning is emitted only after a comparison against a persisted local baseline revision/hash.",
-    "No project is silently overwritten when an external revision is detected."
+    "No project is silently overwritten when an external revision is detected.",
+    "A physical project asset is deleted only after no remaining canvas result references its project-relative path."
   ],
   "generality_proof": "All equivalent user paths converge on the project-location settings component for configuration and the workspace sync inspector for readiness. Persisting a per-device baseline makes revision/hash comparison deterministic whether the external change arrives while Nomi is closed, during focus refresh, or immediately before opening a project.",
   "shared_boundaries": [
@@ -50,6 +53,11 @@
       "path": "src/workbench/library/ProjectLibraryPage.tsx",
       "symbol": "ProjectLibraryPage",
       "responsibility": "Render compact status and open the exception popover/guard without adding a second configuration surface."
+    },
+    {
+      "path": "src/workbench/assets/assetResultDeletion.ts",
+      "symbol": "buildAssetResultDeletionPlan",
+      "responsibility": "Apply result metadata removal first and suppress physical deletion while any remaining result still references the same project asset."
     }
   ],
   "same_class_entry_points": [
@@ -70,6 +78,12 @@
       "entry_point": "nomi:workspace:sync-inspect",
       "disposition": "enforced",
       "evidence": "The IPC boundary resolves the project root and is the single main-process entry for renderer inspections."
+    },
+    {
+      "path": "src/workbench/assets/assetResultDeletion.ts",
+      "entry_point": "buildAssetResultDeletionPlan",
+      "disposition": "enforced",
+      "evidence": "Deletion plans compare the post-removal node graph before returning a physical file target, preventing shared thumbnails or results from becoming missing after reopen."
     }
   ],
   "recurrence": {
@@ -99,17 +113,17 @@
     "electron/workspace/workspaceSync.test.ts",
     "src/workbench/settings/settingsDialogStructure.test.ts",
     "tests/system/cross-device-continuation.contract.test.mjs",
-    "tests/ux/cross-device-continuation.e2e.mjs"
+    "tests/ux/cross-device-continuation.e2e.mjs",
+    "src/workbench/assets/deleteAssetResult.test.ts"
   ],
   "class_regression_tests": [
     "electron/workspace/workspaceSync.test.ts",
-    "tests/ux/cross-device-continuation.e2e.mjs"
+    "tests/ux/cross-device-continuation.e2e.mjs",
+    "src/workbench/assets/deleteAssetResult.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
-    "removed_paths": [
-      "docs/design/2026-09-02-cross-device-sync-mockup.html"
-    ],
+    "removed_paths": ["docs/design/2026-09-02-cross-device-sync-mockup.html"],
     "rationale": "The rejected standalone panel is replaced by the approved Settings > File & saving sample; no second configuration surface remains."
   },
   "dependency_lifecycle": {

@@ -29,6 +29,13 @@ function resultMatchesAsset(result: GenerationNodeResult, asset: AssetRef): bool
   return [result.url, result.thumbnailUrl].some((url) => comparableUrl(url) === targetUrl)
 }
 
+function resultReferencesFile(result: GenerationNodeResult, target: { projectId: string; relativePath: string }): boolean {
+  return [result.url, result.thumbnailUrl].some((url) => {
+    const parsed = parseNomiLocalAssetUrl(url)
+    return parsed?.projectId === target.projectId && parsed.relativePath === target.relativePath
+  })
+}
+
 export function buildAssetResultDeletionPlan(
   asset: AssetRef,
   nodes: readonly GenerationCanvasNode[],
@@ -49,10 +56,22 @@ export function buildAssetResultDeletionPlan(
     if (patch) matches.push({ nodeId: node.id, resultId, patch })
   }
 
-  const fileTarget = asset.origin.source === 'project'
+  const candidateFileTarget = asset.origin.source === 'project'
     ? { projectId: asset.origin.projectId, relativePath: asset.origin.relativePath }
     : parseNomiLocalAssetUrl(asset.renderUrl)
-  return { matches, fileTarget }
+  if (!candidateFileTarget) return { matches, fileTarget: null }
+
+  // A single physical asset can back more than one result (for example an
+  // image result and another node's video thumbnail). Remove the result from
+  // metadata first, then only delete the file when no remaining result still
+  // points at the same project-relative path.
+  const removedByNode = new Map(matches.map((match) => [match.nodeId, match.patch]))
+  const stillReferenced = nodes.some((node) => {
+    const patch = removedByNode.get(node.id)
+    const effective = patch ? { ...node, ...patch } : node
+    return listNodeMediaResults(effective).some((result) => resultReferencesFile(result, candidateFileTarget))
+  })
+  return { matches, fileTarget: stillReferenced ? null : candidateFileTarget }
 }
 
 export function applyAssetResultDeletion(
