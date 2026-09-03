@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { encodeMention, parsePromptSegments, hasMentions, projectPromptForDisplay, projectPromptForSend, removeMention } from './promptMentions'
+import { encodeMention, mentionUrlsInOrder, parsePromptSegments, hasMentions, projectPromptForDisplay, projectPromptForSend, removeMention } from './promptMentions'
 
 const A = 'nomi-local://asset/p/a.png'
 const B = 'https://pub/b.png'
@@ -23,6 +23,11 @@ describe('encode / parse round-trip', () => {
     expect(parsePromptSegments('阳光下的猫')).toEqual([{ type: 'text', value: '阳光下的猫' }])
     expect(hasMentions('阳光下的猫')).toBe(false)
     expect(hasMentions(`x ${encodeMention(A)}`)).toBe(true)
+  })
+
+  it('@ url 去重但保留首次出现顺序，供绑定边排序', () => {
+    const prompt = `${encodeMention(B)} ${encodeMention(A)} ${encodeMention(B)}`
+    expect(mentionUrlsInOrder(prompt)).toEqual([B, A])
   })
 })
 

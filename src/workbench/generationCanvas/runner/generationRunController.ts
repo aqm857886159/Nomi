@@ -45,6 +45,7 @@ import {
 } from './assetUploadConsent'
 import type { HostingDisclosure } from '../spend/spendConfirm'
 import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
+import { buildDialoguePromptSuffix } from '../agent/storyboardDialogue'
 
 /** 节点 kind → 付费预估用的产物口径，喂给 describeGenerationCost 报对名词与时长。 */
 function spendCostKind(kind: GenerationNodeKind): Exclude<GenerationCostKind, 'mixed'> {
@@ -305,12 +306,18 @@ export async function runGenerationNode(
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const state = useGenerationCanvasStore.getState()
       const node = state.nodes.find((candidate) => candidate.id === id) || initialNode
+      const nodeMeta = (node.meta || {}) as Record<string, unknown>
+      const dialogueArchetype = resolveTaskArchetype(nodeMeta)
+      const dialogueMode = dialogueArchetype ? currentArchetypeMode(dialogueArchetype, nodeMeta) : null
+      const dialoguePromptSuffix = buildDialoguePromptSuffix(dialogueMode, nodeMeta, nodeMeta.dialogue)
       try {
         result = await executor(node, {
           nodes: state.nodes,
           edges: state.edges,
           ...(options.grantId ? { grantId: options.grantId } : {}),
-          ...(options.promptSuffix ? { promptSuffix: options.promptSuffix } : {}),
+          ...(options.promptSuffix || dialoguePromptSuffix
+            ? { promptSuffix: [options.promptSuffix, dialoguePromptSuffix].filter(Boolean).join('\n\n') }
+            : {}),
           // 提交幂等键 = 本次 run.id：重试循环内每次 attempt 复用同一个 run.id，
           // electron 侧台账据此认作「同一次意图提交」→ 重试绝不二次下单。新生成 = 新 run.id。
           idempotencyKey: run.id,

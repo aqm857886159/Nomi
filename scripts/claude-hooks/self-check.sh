@@ -4,6 +4,7 @@
 # 组织(杠杆2)；顶部吐 violations.log→数据驱动、会变、针对真实毛病(杠杆3，抗横幅失明)。
 # 升级（2026-06-21，docs/plan/2026-06-21-context-handoff-and-self-iterating-control-files.md，S2）：
 # 改为按「踩坑次数 hits」排序取前 3——反复犯的优先顶眼前，不再单纯按时间。兼容旧平铺行。
+# 升级（2026-09-03）：新增设计流程关键词检测，命中时注入一行提示。
 # 完整规则仍以 CLAUDE.md 为单一真相源。stdout 在 exit 0 被 harness 注入上下文。
 set +e
 ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}"
@@ -39,6 +40,15 @@ PY
   else
     grep -v '^[[:space:]]*$' "$LOG" | tail -3 | sed 's/^/   · /'
   fi
+  echo ""
+fi
+
+# ── 设计流程关键词检测 ────────────────────────────────────────────────────────
+# 命中「设计/样张/界面/UI/mockup/重做/改这个面/改下这个/加个面板/布局/组件/改界面」等词时，
+# 注入一行提示引导走 nomi-design-flow 技能。极简：一行，不膨胀。
+PROMPT="${CLAUDE_USER_PROMPT:-}"
+if echo "$PROMPT" | grep -qiE '设计|样张|界面|mockup|改这个面|重做|改下这个|加个面板|布局怎么|改界面|UI 怎么|UI怎么|出个样|新增.*(面板|页面|界面|区域)|这个 UI|这个UI'; then
+  echo "【设计流程提示】这类活走 nomi-design-flow 技能：先看真实 UI → 组件复用 → 样张带 data-* 挂点与异常态 → 逐件走读（禁纯统计表）→ 拍板后产契约（pnpm run check:mockup-contracts）"
   echo ""
 fi
 

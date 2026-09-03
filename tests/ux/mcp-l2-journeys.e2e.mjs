@@ -106,6 +106,56 @@ try {
   const leaseHandle = openedData.leaseHandle || resultData(opened).leaseHandle
   check(typeof leaseHandle === 'string' && leaseHandle.length > 20, 'C7 session/open 返回可用 leaseHandle')
 
+  // C7-T14: the Agent handles provider variance, while Nomi owns only the
+  // secure credential handoff, proposal persistence gate, and paid two-phase.
+  const integrationStarted = await call(mcp, 'nomi_integration', {
+    action: 'begin', kind: 'http-api-provider', name: 'C7 relay proposal', baseUrl: provider.origin,
+    authType: 'bearer', authHeader: 'Authorization', docs: `${provider.origin}/docs`,
+  })
+  const integrationStartData = resultTextJson(integrationStarted)
+  const integrationSessionId = integrationStartData.id || resultData(integrationStarted).id
+  const credentialHandoff = await call(mcp, 'nomi_integration', {
+    action: 'open_credentials', sessionId: integrationSessionId, expectedRevision: integrationStartData.revision,
+  })
+  check(resultTextJson(credentialHandoff).stage === 'needs_credential', 'C7 T14 open_credentials 只打开 Nomi 安全页')
+  await win.evaluate(async (id) => {
+    const onboarding = window.nomiDesktop?.onboarding
+    const current = await onboarding?.integrationSessionGet?.(id)
+    const saved = await onboarding?.integrationSessionSaveCredential?.({ sessionId: id, expectedRevision: Number(current?.revision), apiKey: 'mcp-l2-proposal-key' })
+    const handoffs = await onboarding?.integrationHandoffList?.() || []
+    const handoff = handoffs.find((item) => item.sessionId === id && item.target === 'credential')
+    if (handoff) await onboarding?.integrationHandoffAck?.(handoff.requestId)
+    if (saved?.credentialStatus !== 'ready') throw new Error('T14 fixture credential was not saved')
+  }, integrationSessionId)
+  const afterCredential = await call(mcp, 'nomi_read', { target: 'integration', sessionId: integrationSessionId })
+  const afterCredentialData = resultTextJson(afterCredential)
+  const rejectedProposal = await mcp.callTool('nomi_integration', {
+    action: 'propose', sessionId: integrationSessionId, expectedRevision: afterCredentialData.revision,
+    proposal: { candidates: [{ modelKey: 'relay-image', kind: 'image' }], selections: [{ modelKey: 'missing-model' }] },
+  })
+  check(rejectedProposal.isError && /proposal\.selections|candidate/i.test(parseToolResult(rejectedProposal).text), 'C7 T14 propose 返回字段级可读打回原因')
+  const proposed = await call(mcp, 'nomi_integration', {
+    action: 'propose', sessionId: integrationSessionId, expectedRevision: afterCredentialData.revision,
+    proposal: { candidates: [{ modelKey: 'relay-image', kind: 'image' }], selections: [{ modelKey: 'relay-image' }] },
+  })
+  const proposedData = resultTextJson(proposed)
+  check(proposedData.stage === 'needs_spend_confirmation', 'C7 T14 propose 通过强 schema 落库门')
+  const proposalConfirm = await call(mcp, 'nomi_integration', {
+    action: 'confirm', sessionId: integrationSessionId, expectedRevision: proposedData.revision, idempotencyKey: 'c7-t14-paid-phase',
+  })
+  const proposalConfirmData = resultTextJson(proposalConfirm)
+  check(Boolean(proposalConfirmData.challengeId), 'C7 T14 confirm 只生成不可变花费挑战')
+  const afterConfirm = await call(mcp, 'nomi_read', { target: 'integration', sessionId: integrationSessionId })
+  const afterConfirmData = resultTextJson(afterConfirm)
+  const bypassStart = await mcp.callTool('nomi_integration', {
+    action: 'start', sessionId: integrationSessionId, expectedRevision: afterConfirmData.revision,
+    idempotencyKey: 'c7-t14-paid-phase', receipt: 'not-a-trusted-receipt',
+  })
+  check(bypassStart.isError && /receipt|approval|收据|确认|invalid/i.test(parseToolResult(bypassStart).text), 'C7 T14 start 无可信收据不可绕过 confirm')
+  check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length === 0, 'C7 T14 付费绕过失败且未提交供应商任务')
+  const proxyOff = await call(mcp, 'nomi_integration_manage', { action: 'set_proxy', vendorKey: 'apimart', enabled: false })
+  check(resultTextJson(proxyOff).enabled === false, 'C7 管理动词可关闭单连接代理')
+
   const fourNodes = [0, 1, 2, 3].map((index) => ({ clientId: `c8-shot-${index + 1}`, kind: 'shot', title: `镜头 ${index + 1}`, prompt: `湖边纸船镜头 ${index + 1}`, position: { x: index * 380, y: 0 } }))
   declinedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-decline'), capabilities: { elicitation: {} }, elicitationAction: 'decline', syntheticCredentialStorage: true, env: { NOMI_APP_NAME: 'Nomi' } })
   await declinedClient.initialize()
@@ -215,6 +265,11 @@ try {
   const challenge = gatedData.challenge || resultData(gated).challenge
   const gateShots = challenge?.shots?.shots || []
   check(gateShots.length === 4 && gateShots.every((shot) => Array.isArray(shot.referenceMedia) && shot.referenceMedia.some((item) => item.assetId === referenceAssetId)), 'C9 gate challenge 含四镜参考媒体投影')
+  // J06 — gate challenge 不再硬编 ETA，应给 coldstart 区间（waitSecondsHigh > waitSeconds, etaBasis='coldstart'）
+  const gateEtaBasis = challenge?.shots?.etaBasis
+  const gateWaitLow = challenge?.shots?.waitSeconds
+  const gateWaitHigh = challenge?.shots?.waitSecondsHigh
+  check(gateEtaBasis === 'coldstart' && typeof gateWaitLow === 'number' && typeof gateWaitHigh === 'number' && gateWaitHigh > gateWaitLow, 'C9 gate challenge ETA 为 coldstart 区间而非固定点值')
   check(Boolean(gatedData.started || resultData(gated).started), 'C9 gate request 完成确认并进入 execute')
 
   // C10: while the same confirmed batch is still being observed, drop a second

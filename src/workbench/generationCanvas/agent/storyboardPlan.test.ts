@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { buildAnchorSheetPrompt, effectiveShotDurationSec, parseStoryboardPlan, storyboardPlanSchema, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
+import { buildAnchorSheetPrompt, effectiveShotDurationSec, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
+import { parseStoryboardPlan, storyboardPlanSchema } from './storyboardPlanSchema'
+import { storyboardProfileForKey } from './storyboardProfiles'
 
 const PLAN: StoryboardPlan = {
   title: '雨夜追凶',
@@ -168,11 +170,11 @@ describe('storyboardPlanToCreateNodesArgs', () => {
   it('定妆卡 → 镜头参考边（角色 character_ref / 场景 style_ref / 道具 reference）；B-clean 不连 shot→shot 链', () => {
     const { edges } = storyboardPlanToCreateNodesArgs(PLAN)
     expect(edges).toEqual([
-      { sourceClientId: 'a-linxia', targetClientId: 'shot-1', mode: 'character_ref' },
-      { sourceClientId: 'a-roof', targetClientId: 'shot-1', mode: 'style_ref' },
+      { sourceClientId: 'a-linxia', targetClientId: 'shot-1', mode: 'character_ref', order: 0 },
+      { sourceClientId: 'a-roof', targetClientId: 'shot-1', mode: 'style_ref', order: 1 },
       // a-style 是文本锚 → 不连边（拼进 prompt 了）
-      { sourceClientId: 'a-linxia', targetClientId: 'shot-2', mode: 'character_ref' },
-      { sourceClientId: 'a-bag', targetClientId: 'shot-2', mode: 'reference' },
+      { sourceClientId: 'a-linxia', targetClientId: 'shot-2', mode: 'character_ref', order: 0 },
+      { sourceClientId: 'a-bag', targetClientId: 'shot-2', mode: 'reference', order: 1 },
       // B-clean：不再连 shot→shot 时序链（视频→视频会落到未实现的首帧接力；连贯靠共享定妆卡参考）
     ])
   })
@@ -184,7 +186,23 @@ describe('storyboardPlanToCreateNodesArgs', () => {
       shots: [{ index: 1, durationSec: 5, anchorIds: ['a1', 'ghost'], prompt: 'p' }],
     }
     const { edges } = storyboardPlanToCreateNodesArgs(plan)
-    expect(edges).toEqual([{ sourceClientId: 'a1', targetClientId: 'shot-1', mode: 'character_ref' }])
+    expect(edges).toEqual([{ sourceClientId: 'a1', targetClientId: 'shot-1', mode: 'character_ref', order: 0 }])
+  })
+
+  it('@ 顺序重排参考边；无来源节点的上传/素材库引用落到既有数组 metadata', () => {
+    const first = 'https://cdn.example/first.png'
+    const second = 'https://cdn.example/second.png'
+    const plan: StoryboardPlan = {
+      title: '外部参考',
+      anchors: [
+        { id: 'first', kind: 'prop', name: '第一张', description: '', carrier: 'visual', referenceUrl: first, referenceKind: 'image' },
+        { id: 'second', kind: 'prop', name: '第二张', description: '', carrier: 'visual', referenceUrl: second, referenceKind: 'image', referenceSourceNodeId: 'canvas-node' },
+      ],
+      shots: [{ index: 1, durationSec: 5, anchorIds: ['first', 'second'], prompt: `先 @[asset:${encodeURIComponent(second)}] 再 @[asset:${encodeURIComponent(first)}]` }],
+    }
+    const { edges, nodes } = storyboardPlanToCreateNodesArgs(plan)
+    expect(edges).toEqual([{ sourceClientId: 'canvas-node', targetClientId: 'shot-1', mode: 'reference', order: 0 }])
+    expect(nodes.find((node) => node.clientId === 'shot-1')?.metadata?.referenceImageUrls).toEqual([first])
   })
 
   it('产出的节点种类都是画布支持的（结构保证：防 prop/style 等非节点种类漏进去崩 defaultSize）', () => {
@@ -249,8 +267,8 @@ describe('图片分镜（shotKind=image，用户拍板 2026-07-02 image-first）
 
   it('图片镜头仍连定妆卡参考边（锁身份），与视频镜头同语义', () => {
     const { edges } = storyboardPlanToCreateNodesArgs(IMAGE_PLAN)
-    expect(edges).toContainEqual({ sourceClientId: 'a-ye', targetClientId: 'shot-1', mode: 'character_ref' })
-    expect(edges).toContainEqual({ sourceClientId: 'a-market', targetClientId: 'shot-1', mode: 'style_ref' })
+    expect(edges).toContainEqual({ sourceClientId: 'a-ye', targetClientId: 'shot-1', mode: 'character_ref', order: 0 })
+    expect(edges).toContainEqual({ sourceClientId: 'a-market', targetClientId: 'shot-1', mode: 'style_ref', order: 1 })
   })
 
   it('缺省 shotKind → 按 video 兜底（旧草稿兼容，行为不变）', () => {
@@ -384,12 +402,12 @@ describe('图片+视频分镜（video shot + keyframe.enabled）', () => {
       params: { duration: 6 },
     })
     expect(edges).toEqual([
-      { sourceClientId: 'a-hero', targetClientId: 'shot-1-keyframe', mode: 'character_ref' },
-      { sourceClientId: 'a-room', targetClientId: 'shot-1-keyframe', mode: 'style_ref' },
+      { sourceClientId: 'a-hero', targetClientId: 'shot-1-keyframe', mode: 'character_ref', order: 0 },
+      { sourceClientId: 'a-room', targetClientId: 'shot-1-keyframe', mode: 'style_ref', order: 1 },
       { sourceClientId: 'shot-1-keyframe', targetClientId: 'shot-1', mode: 'first_frame' },
-      { sourceClientId: 'a-hero', targetClientId: 'shot-2-keyframe', mode: 'character_ref' },
+      { sourceClientId: 'a-hero', targetClientId: 'shot-2-keyframe', mode: 'character_ref', order: 0 },
       { sourceClientId: 'shot-2-keyframe', targetClientId: 'shot-2', mode: 'first_frame' },
-    ])
+  ])
   })
 
   it('文本锚同时拼进首帧 prompt 和视频 prompt', () => {
@@ -598,5 +616,27 @@ describe('v5 IR 扩展（sceneId / scenes / profileKey / 图片镜停留时长�
     const video = nodes.find((n) => n.clientId === 'shot-1')!
     expect(video.metadata).not.toHaveProperty('imageDurationSec')
     expect(video.params?.duration).toBe(5)
+  })
+})
+
+describe('v5 C2 storyboard profiles', () => {
+  it('内置短剧 profile 是 9:16 + 台词 + 骨架，自由 profile 无骨架', () => {
+    const shortDrama = storyboardProfileForKey('genre.short-drama')
+    expect(shortDrama).toMatchObject({ aspect: '9:16', dialogue: true })
+    expect(shortDrama.promptSkeleton.map((segment) => segment.key)).toEqual(['shotSize', 'emotion'])
+    expect(storyboardProfileForKey('genre.free-form')).toMatchObject({ aspect: '16:9', dialogue: false, promptSkeleton: [] })
+  })
+
+  it('storyboardProfile schema 与 promptSegments 可选且不剥除文本真相', () => {
+    const profile = storyboardProfileForKey('genre.short-drama')
+    const parsed = parseStoryboardPlan({
+      title: 't',
+      profileKey: 'genre.short-drama',
+      storyboardProfile: profile,
+      anchors: [],
+      shots: [{ index: 1, durationSec: 5, anchorIds: [], prompt: '远景，雨夜', promptSegments: [{ key: 'shotSize', start: 0, end: 2 }] }],
+    })
+    expect(parsed.storyboardProfile).toEqual(profile)
+    expect(parsed.shots[0].prompt).toBe('远景，雨夜')
   })
 })

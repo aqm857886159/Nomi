@@ -10,6 +10,7 @@ export function normalizeProviderProxyUrl(raw: string | null | undefined): strin
 }
 
 export function providerProxyUrl(vendor: Pick<Vendor, "network">): string | undefined {
+  if (vendor.network?.proxyEnabled === false) return undefined;
   const raw = vendor.network?.proxyUrl;
   const normalized = normalizeProviderProxyUrl(raw);
   return normalized || undefined;

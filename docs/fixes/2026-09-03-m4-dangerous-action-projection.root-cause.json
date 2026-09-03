@@ -1,0 +1,116 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-m4-dangerous-action-projection",
+  "problem_type": "Untrusted prompt provenance is not enforced at the action confirmation and ledger projection boundaries",
+  "symptom": "A model tool call can be confirmed without a structured decision showing that untrusted prompt sources drove a spend, write, or egress action, and the Host ledger has no honest source projection.",
+  "direct_cause": "Runtime tool confirmation receives only the raw call, while Agent responses and Project Agent tool items discard the compiled prompt provenance receipt.",
+  "class_root": "Every risky tool call must pass the shared provenance action guard before Host confirmation, and every settled tool item must project the same source/taint receipt without copying asset license evidence.",
+  "affected_population": [
+    "All Agent tool calls classified as spend, write, or egress",
+    "All Project Agent ledger rows created from Agent tool calls",
+    "Users relying on confirmation cards to understand why an action is blocked or requires approval"
+  ],
+  "scope_paths": [
+    "electron/harness/context/provenanceActionGuard.ts",
+    "electron/harness/context/provenanceActionGuard.test.ts",
+    "electron/harness/context/provenance.ts",
+    "electron/harness/agentChatContracts.ts",
+    "electron/harness/runtime/runtimePort.ts",
+    "electron/ai/agentChatV2.ts",
+    "electron/i18n.ts",
+    "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+    "electron/projectAgentHost/projectAgentExecutionHelpers.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "electron/shared/projectAgentContracts.ts"
+  ],
+  "entry_points": [
+    "runAgentChatV2 RuntimeTurnHooks.awaitToolConfirmation",
+    "AgentChatResponse provenance receipt",
+    "toolItem Host ledger projection"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "M4's action and projection semantics are defined by the checked-in M-line rulings, Creative Resource Chain M4 shared-point contract, PromptPipe M3 contract, and functional conformance spec.",
+  "invariants": [
+    "A spend, write, or egress call with any tainted source is never silently allowed; it must receive an explicit Host confirmation or a rejection containing a human-readable reason.",
+    "Read-only calls and calls with no tainted source do not acquire an extra provenance confirmation requirement.",
+    "Agent responses and Host ledger tool items expose derived provenance source, trust, taint, and source references; ledger projection does not embed a second AssetSourceEvidence snapshot.",
+    "The action guard and ledger projection consume the final PromptPipe receipt, so model-produced output inherits the turn's source summary."
+  ],
+  "generality_proof": "All runtime tool executions converge on runAgentChatV2's awaitToolConfirmation hook, and all persisted tool rows converge on toolItem; placing the guard and projection there covers provider, Skill, MCP, and future tool aliases without caller-specific bypasses.",
+  "shared_boundaries": [
+    {
+      "path": "electron/harness/context/provenanceActionGuard.ts",
+      "symbol": "evaluateProvenanceAction",
+      "responsibility": "Fail closed to a required confirmation whenever a risky action has tainted source references."
+    },
+    {
+      "path": "electron/ai/agentChatV2.ts",
+      "symbol": "runAgentChatV2",
+      "responsibility": "Apply the guard before delegating to the Host confirmation hook and attach the exact prompt receipt to the runtime and response."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+      "symbol": "toolItem",
+      "responsibility": "Persist the response's hash-free provenance projection as the Host ledger's source summary."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "entry_point": "Agent response to Host tool-item settlement",
+      "disposition": "enforced",
+      "evidence": "The coordinator passes AgentChatResponse.provenance into the sole toolItem projection path before dispatching the settled result."
+    },
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "MCP capability dispatch",
+      "disposition": "not-affected",
+      "evidence": "MCP capability dispatch is not an Agent model tool execution path; its own capability contracts remain the effect boundary and do not consume PromptPipe receipts."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "New tools, aliases, Skill/MCP adapters, and future output surfaces can otherwise discard or bypass the source summary at confirmation or persistence time.",
+    "same_class_scan": [
+      "Searched all RuntimeTurnHooks.awaitToolConfirmation implementations and all toolItem call sites.",
+      "Checked semantic tool risk descriptors and existing Host confirmation/ledger routes for risky action aliases.",
+      "Added guard unit tests and Host ledger projection coverage; retained AssetSourceEvidence as the only asset evidence contract."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/ai/agentChatV2.ts",
+    "invariant": "No risky runtime tool call reaches Host confirmation without evaluating the final PromptPipe taint set, and no settled tool row is created without the response provenance projection when one exists.",
+    "failure_mode": "Tainted risky calls remain pending for explicit confirmation; rejection receives a translated plain-language reason and a stable reason code. Ledger rows retain refs and taint, not duplicated license snapshots.",
+    "exception_policy": "none",
+    "strategy": "Guard at the single runtime confirmation hook, project at the single Host ledger constructor, and make source metadata part of the existing response/receipt contract.",
+    "artifacts": [
+      "electron/harness/context/provenanceActionGuard.ts",
+      "electron/ai/agentChatV2.ts",
+      "electron/projectAgentHost/projectAgentExecutionHelpers.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/harness/context/provenanceActionGuard.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionHelpers.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/harness/context/provenanceActionGuard.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionHelpers.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The implementation extends the existing single confirmation and ledger paths; it does not retain a second action guard or a parallel provenance snapshot."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The guard and projection use existing Nomi contracts and Electron i18n; no third-party package controls the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Legacy Agent responses and ledger rows without provenance remain valid; new turns emit the optional projection, and old rows are not rewritten or falsely backfilled.",
+  "residual_risks": [
+    "The current production Host coordinator does not yet expose a separate visual taint badge; the ledger projection is available for the existing UI projection path.",
+    "AssetSourceEvidence v2 remains dependent on unmerged PR #388 in this stacked branch."
+  ]
+}
