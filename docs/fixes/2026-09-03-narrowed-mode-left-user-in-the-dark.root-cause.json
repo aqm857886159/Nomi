@@ -27,14 +27,14 @@
     "undefined（查不到 body）走 fail-open：模式不藏，因此也不出提示；把 undefined 与 null 合并会让老 preload / 自建中转用户看到一行假指控",
     "「换到 X」的落点必须能把全部被藏的模式都做出来（every 而非 some）——只能做一半的家不配当落点",
     "提示的存在独立于模式栏：showModeBar === false 时仍必须渲染",
-    "切换动作复用 handleModelChange，与手动换模型同一条写入路径，因而可 Cmd+Z 撤销"
+    "切换动作复用 handleModelChange，与手动换模型同一条写入路径（不新开第二条切换路径）"
   ],
   "regression_tests": [
     "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.test.ts",
-    "src/workbench/generationCanvas/nodes/controls/NarrowedModeGuidanceNote.test.ts",
-    "src/workbench/generationCanvas/nodes/narrowedModeGuidanceUndo.test.ts"
+    "src/workbench/generationCanvas/nodes/controls/NarrowedModeGuidanceNote.test.ts"
   ],
   "residual_risks": [
+    "样张承诺的「点了可 Cmd+Z 撤回」真机不成立：2026-09-03 R13 走查实测，点「换到 X」之后按 Cmd+Z 换不回去——而且手动换模型也一样撤不回，是既有缺陷（断裂在「键盘事件 → store」这一段，store 自身历史正常）。已另派任务从真实按键路径修并补回归锁。此处一并删掉了原先的 narrowedModeGuidanceUndo.test.ts：它直接调 store.undo()，恰好绕过坏掉的那一段，是假绿，比没有测试更坏。",
     "样张 C（「别家有这个模式，但那家你还没接入」）没有实现，因为渲染层拿不到未接入供应商的目录。实测证据：src/config/modelCatalogCache.ts 的 getEnabledVendorKeys 只收 enabled && (authType === 'none' || hasApiKey) 的供应商，getCatalogModelOptions 再用 enabledVendorKeys.has(vendorKey) 硬过滤模型行；本次用桩数据实跑 preloadModelOptions（runway 已接入 / kie 有行无 key / apimart 停用，三家都有同一模型的已发布行），输出 vendors = ['runway']。ModelCatalogHealthDto 只有计数与 issues，无逐供应商凭证状态。故 C 档在渲染层无数据源，故意不做，也绝不用猜的去谎称某家「有但你没接」。将来要做的正解是让主进程补一个「未接入供应商也返回的目录只读视图」。",
     "「谁能做」只在同一档案身份（archetype.id 相同）的候选里找；跨档案的功能替代不在覆盖内——那是模型推荐问题，混进来会把提示变成广告",
     "候选渠道的 body 查询走 readModeChannelBody 的同步 bridge 调用，候选数量等于同身份的已接入渠道数（实测个位数），故无可感知开销；目录规模大幅增长时需改成缓存/批量"
