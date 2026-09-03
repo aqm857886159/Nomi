@@ -49,7 +49,7 @@ function ActionRow({
       <span className="grid size-9 shrink-0 place-items-center rounded-nomi-sm bg-nomi-accent-soft text-nomi-accent">{icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block text-body-sm font-medium text-nomi-ink">{title}</span>
-        <span className="mt-0.5 block text-caption text-nomi-ink-50">{hint}</span>
+        <span className="mt-0.5 block text-caption text-nomi-ink-40">{hint}</span>
       </span>
       <IconExternalLink size={15} stroke={1.7} className="shrink-0 text-nomi-ink-30 transition-colors group-hover:text-nomi-accent" aria-hidden="true" />
     </button>
@@ -180,7 +180,7 @@ export function FeedbackShareContent({
               type="button"
               onClick={onBackToAbout}
               data-feedback-back="about"
-              className="mb-2 inline-flex items-center gap-1 text-caption text-nomi-ink-50 hover:text-nomi-ink"
+              className="mb-2 inline-flex items-center gap-1 text-caption text-nomi-ink-40 hover:text-nomi-ink"
             >
               <IconArrowLeft size={14} stroke={1.7} aria-hidden="true" /> {t('about.feedbackShare')}
             </button>
@@ -212,7 +212,7 @@ export function FeedbackShareContent({
 
       {page === 'share' ? (
         <div className="space-y-3">
-          <button type="button" onClick={() => setPage('home')} className="inline-flex items-center gap-1 text-caption text-nomi-ink-50 hover:text-nomi-ink">
+          <button type="button" onClick={() => setPage('home')} className="inline-flex items-center gap-1 text-caption text-nomi-ink-40 hover:text-nomi-ink">
             <IconArrowLeft size={14} stroke={1.7} aria-hidden="true" /> {t('community.back')}
           </button>
           <h2 className="text-body font-medium text-nomi-ink">{t('community.shareTitle')}</h2>
@@ -244,7 +244,7 @@ export function FeedbackShareContent({
 
       {page === 'feedback' ? (
         <div className="space-y-4">
-          <button type="button" onClick={() => setPage('home')} className="inline-flex items-center gap-1 text-caption text-nomi-ink-50 hover:text-nomi-ink">
+          <button type="button" onClick={() => setPage('home')} className="inline-flex items-center gap-1 text-caption text-nomi-ink-40 hover:text-nomi-ink">
             <IconArrowLeft size={14} stroke={1.7} aria-hidden="true" /> {t('community.back')}
           </button>
           <h2 className="text-body font-medium text-nomi-ink">{t('community.reportProblem')}</h2>
@@ -255,7 +255,7 @@ export function FeedbackShareContent({
                 type="button"
                 aria-pressed={intent === option}
                 onClick={() => setIntent(option)}
-                className={intent === option ? 'rounded-nomi-sm border border-nomi-accent bg-nomi-accent-soft px-2.5 py-1.5 text-caption text-nomi-accent' : 'rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5 py-1.5 text-caption text-nomi-ink-50 hover:bg-nomi-ink-05'}
+                className={intent === option ? 'rounded-nomi-sm border border-nomi-accent bg-nomi-accent-soft px-2.5 py-1.5 text-caption text-nomi-accent' : 'rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5 py-1.5 text-caption text-nomi-ink-40 hover:bg-nomi-ink-05'}
               >
                 {option === 'problem' ? t('community.problem') : t('community.suggestion')}
               </button>
@@ -270,7 +270,7 @@ export function FeedbackShareContent({
                   type="button"
                   aria-pressed={stage === option}
                   onClick={() => setStage(option)}
-                  className={stage === option ? 'rounded-nomi-sm border border-nomi-ink bg-nomi-ink px-2.5 py-1.5 text-caption text-nomi-paper' : 'rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5 py-1.5 text-caption text-nomi-ink-50 hover:bg-nomi-ink-05'}
+                  className={stage === option ? 'rounded-nomi-sm border border-nomi-ink bg-nomi-ink px-2.5 py-1.5 text-caption text-nomi-paper' : 'rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5 py-1.5 text-caption text-nomi-ink-40 hover:bg-nomi-ink-05'}
                 >
                   {t(`community.stages.${option}`)}
                 </button>
@@ -279,7 +279,7 @@ export function FeedbackShareContent({
           </div>
           <DesignTextarea label={t('community.summaryLabel')} placeholder={t('community.summaryPlaceholder')} value={summary} onChange={(event) => { setSummary(event.currentTarget.value); setValidationMessage('') }} autosize minRows={2} maxRows={4} error={validationMessage || undefined} />
           <DesignTextarea label={t('community.detailsLabel')} placeholder={t('community.detailsPlaceholder')} value={details} onChange={(event) => setDetails(event.currentTarget.value)} autosize minRows={3} maxRows={7} />
-          <div className="flex items-center gap-2 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2 text-caption text-nomi-ink-50">
+          <div className="flex items-center gap-2 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2 text-caption text-nomi-ink-40">
             <IconCamera size={15} stroke={1.7} aria-hidden="true" />
             <span>{t('community.screenshotLabel')}</span>
           </div>
@@ -287,11 +287,11 @@ export function FeedbackShareContent({
           <details className="rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2">
             <summary className="cursor-pointer text-caption text-nomi-ink-60">{t('community.diagnostics')}</summary>
             <p className="mt-2 text-micro leading-relaxed text-nomi-ink-40">{t('community.diagnosticsHint')}</p>
-            <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words font-nomi-mono text-micro text-nomi-ink-50">{JSON.stringify(diagnostics ?? buildFeedbackDiagnostics(request ?? {}, draft, appInfo), null, 2)}</pre>
+            <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words font-nomi-mono text-micro text-nomi-ink-40">{JSON.stringify(diagnostics ?? buildFeedbackDiagnostics(request ?? {}, draft, appInfo), null, 2)}</pre>
           </details>
           <p className="text-micro leading-relaxed text-nomi-ink-40">{t('community.destinationHint')}</p>
           <div className="flex items-center justify-between gap-2">
-            <button type="button" onClick={() => void handleCopy()} className="inline-flex items-center gap-1 text-caption text-nomi-ink-50 hover:text-nomi-ink">
+            <button type="button" onClick={() => void handleCopy()} className="inline-flex items-center gap-1 text-caption text-nomi-ink-40 hover:text-nomi-ink">
               {copied ? <IconCheck size={14} stroke={1.7} aria-hidden="true" /> : <IconCopy size={14} stroke={1.7} aria-hidden="true" />}
               {copied ? t('community.copied') : t('community.copySummary')}
             </button>
@@ -311,9 +311,9 @@ export function FeedbackShareContent({
             <IconCheck size={18} stroke={1.8} className="mt-0.5 shrink-0 text-nomi-accent" aria-hidden="true" />
             <span>{t('community.saved')}</span>
           </div>
-          <p className="text-caption leading-relaxed text-nomi-ink-50">{outboxItem?.destination === 'tally' ? t('community.privateOpened') : t('community.publicOpened')}</p>
+          <p className="text-caption leading-relaxed text-nomi-ink-40">{outboxItem?.destination === 'tally' ? t('community.privateOpened') : t('community.publicOpened')}</p>
           <div className="flex items-center justify-between gap-2">
-            <button type="button" onClick={() => void handleCopy()} className="inline-flex items-center gap-1 text-caption text-nomi-ink-50 hover:text-nomi-ink">
+            <button type="button" onClick={() => void handleCopy()} className="inline-flex items-center gap-1 text-caption text-nomi-ink-40 hover:text-nomi-ink">
               <IconCopy size={14} stroke={1.7} aria-hidden="true" /> {copied ? t('community.copied') : t('community.copySummary')}
             </button>
             <div className="flex items-center gap-2">

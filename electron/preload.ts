@@ -398,6 +398,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       }>,
     read: (projectId: string, fromSeq: number) =>
       ipcRenderer.invoke("nomi:events:read", { projectId, fromSeq }) as Promise<{ ok: boolean; events: unknown[] }>,
+    generationEtaStats: (projectId: string) =>
+      ipcRenderer.sendSync('nomi:events:generation-eta-stats', { projectId }) as { ok: boolean; stats: unknown[] },
   },
   memory: {
     get: (projectId: string) =>

@@ -285,6 +285,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
                   </button>
                 ) : (
                   <span
+                    data-storyboard-ref-tile="intake"
                     className="grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed border-nomi-ink-20 text-title text-nomi-ink-20 cursor-not-allowed"
                     title={t('storyboardEditor.row.atRefDisabledTitle')}
                     aria-hidden

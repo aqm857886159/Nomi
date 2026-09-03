@@ -11,6 +11,7 @@ import { desktopT } from '../i18n'
 import { settlePauseIfQuiet } from './productionRunControl'
 import { adoptedGenerationShotNodeIds, buildQaRetryPlans, buildQaStageOutcome, type QaVerifyResponse } from './productionQaVerdict'
 import type { ProductionRunRepository } from './productionRunRepository'
+import { freezeGateId, hasApprovedFreezeGate, hasWaitingFreezeGate, hasWaitingSampleGate, isShotGate, sampleGateId, shotGateId, shouldSampleGate } from './productionRunGateIdentity'
 import { trustLevelOf, type ProductionRun } from './productionRunTypes'
 import { loadPlaybookStageEvidence } from '../skills/skillExecutionEvidence'
 
@@ -35,7 +36,7 @@ export type DriverOpsDeps = {
     commandId: string,
   ) => { run: ProductionRun; events: unknown[] }
   requestRenderer: (op: string, payload: unknown, timeoutMs: number) => Promise<unknown>
-  executeProductionExport: (input: { projectId: string; runId: string; outputName: string }) => Promise<{ relativePath: string; size: number }>
+  executeProductionExport: (input: { projectId: string; runId: string; outputName: string }) => Promise<{ relativePath: string; size: number; jobId?: string }>
   writeProjectJson: (projectId: string, relativePath: string, value: unknown) => void
   localAssetPath: (projectId: string, rawUrl: unknown) => string | undefined
   projectRelativePath: (projectId: string, rawPath: unknown, options?: { requireFile?: boolean }) => string
@@ -83,34 +84,6 @@ export function normalizeDirectionCandidates(value: unknown): Array<{ key: strin
   }
   if (out.length < 2) throw new Error('Direction planner returned fewer than two usable candidates')
   return out
-}
-
-/** One durable, URL-safe gate per plan/job. The hash keeps ids stable even when node ids collide
- * after sanitization, while jobIds[0] remains the authoritative job identity. */
-export function shotGateId(planVersion: number, jobId: string, round = 1): string {
-  const slug = jobId.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-48) || 'shot'
-  const suffix = crypto.createHash('sha256').update(jobId).digest('hex').slice(0, 10)
-  return `gate-shot-v${planVersion}-${slug}-${suffix}${round > 1 ? `-r${round}` : ''}`
-}
-
-export function isShotGate(gate: Pick<ProductionRun['gates'][number], 'gateId' | 'scope'>): boolean {
-  return gate.scope === 'job_set' && gate.gateId.startsWith('gate-shot-')
-}
-
-function sampleGateId(planVersion: number): string {
-  return `gate-sample-v${planVersion}`
-}
-
-function freezeGateId(planVersion: number): string {
-  return `gate-freeze-v${planVersion}`
-}
-
-function hasApprovedFreezeGate(run: ProductionRun): boolean {
-  return run.gates.some((gate) => gate.gateId === freezeGateId(run.planVersion) && gate.status === 'approved')
-}
-
-function hasWaitingFreezeGate(run: ProductionRun): boolean {
-  return run.gates.some((gate) => gate.gateId === freezeGateId(run.planVersion) && gate.status === 'waiting')
 }
 
 async function readUnfrozenAnchors(
@@ -166,14 +139,6 @@ export function semanticGenerationReadiness(run: Pick<ProductionRun, 'jobs' | 'a
     if (!artifact) return { ready: false, reason: desktopT('production.generationMissingArtifact', { jobId: job.jobId }) }
   }
   return { ready: true }
-}
-
-function hasWaitingSampleGate(run: ProductionRun): boolean {
-  return run.gates.some((gate) => gate.gateId === sampleGateId(run.planVersion) && gate.status === 'waiting')
-}
-
-export function shouldSampleGate(run: ProductionRun): boolean {
-  return trustLevelOf(run.policy) !== 'budget_only'
 }
 
 export type DriverOps = {
@@ -702,10 +667,12 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
       current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'exporting' }, `driver-${run.runId}-export-start`).run
       const result = isSemanticMultiShotRun(current)
         ? await executeProductionExport({ projectId: run.projectId, runId: run.runId, outputName: `nomi-${run.runId}.mp4` })
-        : await requestRenderer('production.export', { projectId: run.projectId, runId: run.runId, outputName: `nomi-${run.runId}.mp4` }, 30 * 60_000) as { relativePath?: string; size?: number }
+        : await requestRenderer('production.export', { projectId: run.projectId, runId: run.runId, outputName: `nomi-${run.runId}.mp4` }, 30 * 60_000) as { relativePath?: string; size?: number; jobId?: string }
       const relativePath = projectRelativePath(run.projectId, result?.relativePath, { requireFile: true })
       current = requireRun(run.projectId, run.runId)
-      current = executeInternal(run.projectId, run.runId, current, 'artifact.add', { artifact: { artifactId: `artifact-export-v${current.planVersion}`, stageId: 'export', kind: 'export', status: 'adopted', projectRelativePath: relativePath, createdAt: new Date().toISOString(), adoptedAt: new Date().toISOString() } }, `driver-${run.runId}-export-artifact`).run
+      const exportVersion = Math.max(0, ...current.artifacts.filter((artifact) => artifact.kind === 'export').map((artifact) => artifact.version || 0)) + 1
+      const exportJobId = typeof result?.jobId === 'string' && result.jobId.trim() ? result.jobId.trim() : `export:${run.runId}:v${exportVersion}`
+      current = executeInternal(run.projectId, run.runId, current, 'artifact.add', { artifact: { artifactId: `artifact-export-v${exportVersion}`, stageId: 'export', kind: 'export', status: 'adopted', jobId: exportJobId, version: exportVersion, source: 'nomi-agent', projectRelativePath: relativePath, createdAt: new Date().toISOString(), adoptedAt: new Date().toISOString() } }, `driver-${run.runId}-export-artifact-v${exportVersion}`).run
       current = executeInternal(run.projectId, run.runId, current, 'stage.upsert', { stage: stageValue(current, 'export', { status: 'completed', completedAt: new Date().toISOString() }) }, `driver-${run.runId}-stage-export`).run
       executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'completed' }, `driver-${run.runId}-completed`)
     } catch (error) {
