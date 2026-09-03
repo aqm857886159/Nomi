@@ -48,8 +48,6 @@ const ALLOWLIST = {
   "electron/capabilityCore/mcpGenerationTools.ts": 826, // 803→826（2026-09-03 J05 changeset + J06 coldstartEtaForGate — net +23 行根因修复）
   "electron/capabilityCore/verifiedCapabilityInvocation.ts": 1257,
   "electron/productionRun/productionRunService.ts": 814,
-  "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1839, // 2026-09-02 M3: ledger extraction kept the coordinator below its prior ratchet.
-  "electron/projectAgentHost/projectAgentReducer.ts": 936,
   "electron/projectAgentHost/projectAgentState.ts": 809,
   // Phase 6 常驻壳成为唯一 Agent UI 后的应用外壳（pr223 评审基线曾为 908；并 origin/main 拆解面板宿主后
   // 折叠一行多名 import，曾 907；m1 侧栏收起修复顺手折叠 hydrate/navigate 多行调用参数，实际 903，锁棘轮只减不增）。
