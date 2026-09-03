@@ -55,11 +55,13 @@
 - [管道跑测试会吞掉退出码](piped-test-runs-mask-exit-codes.md) — `| tail` 的 exit 0 是 tail 的；错的 reporter 名会「全绿」通过
 - [测试文件不进主 typecheck](tests-are-not-typechecked.md) — 已由 `check:test-types` 接管，但 `pnpm typecheck` 仍看不见测试
 - [判测试翻红前先查别的 worktree](flaky-test-check-other-worktrees-first.md) — 并行 suite 能把耗时放大 40x，和真 flake 长得一样
+- [并行会话各跑各的 gates 会把机器压进 swap](parallel-gates-thrash-the-machine.md) — ✅ 已由 `vitest-fair-share` 接管；判超时红灯前先看 load 与 `sys%`，sys>15% 时超时红灯不作数
 - [productionRun 这类 flake 的分腿处置](production-run-tests-are-flaky.md) — 验修复用 `git cat-file` 看代码，别看 PR 状态
 - [复现竞态必须有阳性对照](race-repro-needs-positive-control.md) — 没阳性对照的绿灯不作数；「换平台才能复现」多半是仪器没 power
 - [性能预算在 macOS 校准却在 Linux CI 执行 → 假回归](canvas-perf-budget-calibrated-on-macos-fails-on-linux.md) — 别改预算挤 PR，那是治症状
 - [harness 的 catch 会把自己的 bug 洗成产品结论](harness-catch-launders-bugs-into-verdicts.md) — 报某腿失败前先分清是断言红的还是 catch 编的
 - [A/B 两版提示词：确认关卡会污染两臂](prompt-ab-gating-question-confounds-arms.md) — 量到的是服从度不是质量
+- [探针测不到它命名的那件事，断言就永远绿](vacuous-probe-passes-forever.md) — 按路径过滤 fs 读 spy 恒空；四个会话判成「负载 flake」的那条其实恒真。变异测试是唯一判据，「永不发生」必配阳性对照
 - [门岗断言不许手抄真相源的派生值，且必须与真相源同触发面](gate-assertions-must-not-copy-derived-values.md) — 看到 `>= N` 先问「N 是抄谁的」；决定落后与否的是触发面不是细心；死名字既造假红也造假绿
 - [有界性/复杂度不变量要用「计数」证，别用墙钟跑量](complexity-invariants-need-counters-not-wall-clock.md) — ✅ 已由 `check:test-waits` 第三条规则接管；留下的是门岗抓不到的那半：`fs.readFileSync(fd)` 让按路径过滤的 spy 断言恒真（实测 597 次重扫仍报 0）
 - [转发壳能让「命令一字不改」的复核纪律失真](compat-shim-keeps-command-text-changes-its-meaning.md) — 钉死的是命令文本不是它验的东西；复核前先 `git log --follow` 看它有没有被掏空成 `import './别的.test'`
@@ -75,6 +77,7 @@
 - [改 baseline JSON 用文本级编辑，别整体重写](json-baselines-need-surgical-edits.md) — 短数组原文是单行，重写会炸出上千行假 diff
 - [方案讨论期别急着 commit/PR](discuss-before-committing-docs.md) — 聊透拍板再落 git；实施类不受限
 - [闸门凭据要绑「哪棵树 + 哪个提交」](gate-stamps-must-be-keyed-to-tree-and-head.md) — 只认固定路径 + mtime 的 gates 戳会跨 worktree 互相顶用，同一天误放和误杀各栽一次
+- [合并后不立刻录交付收据，窗口就永久关闭](verify-merged-receipt-window-closes-fast.md) — `verify-merged` 要求 HEAD == `origin/main` == 目标 SHA；main 一前进就再也录不成，收据命令要自带重试
 
 ## D. 排查与平台故障
 
@@ -111,5 +114,6 @@
 
 - [`codex exec` 后台派工要关 stdin](codex-exec-background-needs-stdin-closed.md) — 缺 `</dev/null` 会永久挂起等输入；会话内后台工人全随 App 死
 - [子 agent 起不来时的探针法](subagent-startup-400-probe-method.md) — 一次 harness 侧 400 故障的定位法与两次误诊，别照抄已过期的结论
+- [长等待交给 shell 哨兵，别交给子 agent](long-waits-belong-to-shell-sentinels-not-agents.md) — 同一天三种死法（Monitor 交卷 / 零 commit 等到超时 / `--watch` 挂死）；附哨兵模板与「CI 不替你跑新入库走查」
 
 > 另见 playbook [§14 门岗验「没变坏」，不验「做到了」](../engineering/agent-orchestration-playbook.md#14-门岗验没变坏不验做到了把-p3-机器化进派工合同)——派下去的活「36 门全绿」不等于规格达成；派工要绑验收物、收货先验规格再看门岗。

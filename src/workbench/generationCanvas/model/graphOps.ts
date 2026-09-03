@@ -79,6 +79,7 @@ export function connectNodes(
   target: string,
   mode: GenerationCanvasEdgeMode = 'reference',
   targetParamKey?: string,
+  explicitOrder?: number,
 ): GenerationCanvasEdge[] {
   if (!source || !target || source === target) return edges
   // 去重按 (source,target,mode,targetParamKey)：同图可进入两个声明槽；未声明槽仍保留旧语义。
@@ -88,7 +89,9 @@ export function connectNodes(
   if (edges.some((edge) => edge.source === source && edge.target === target && edge.mode === mode && edge.targetParamKey === targetParamKey)) return edges
   // order = 该 target 现有入边数：保住「放入顺序」= 数组参考 character1..N 的真相源（audit 2026-06-16 §1d）。
   // 全模式单调（不按 mode 分桶）→ 数组槽落槽用单调序、首尾帧用 mode 位置偏好，互不打架。
-  const order = nextEdgeOrderForTarget(edges, target)
+  const order = typeof explicitOrder === 'number' && Number.isFinite(explicitOrder)
+    ? explicitOrder
+    : nextEdgeOrderForTarget(edges, target)
   return [...edges, { id: createEdgeId(source, target, order), source, target, mode, order, ...(targetParamKey ? { targetParamKey } : {}) }]
 }
 

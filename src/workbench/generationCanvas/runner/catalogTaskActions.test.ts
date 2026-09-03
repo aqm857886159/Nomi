@@ -209,6 +209,32 @@ describe('buildCatalogTaskRequest — 档案 mapping 桶由 transportTaskKind �
   })
 })
 
+describe('buildCatalogTaskRequest — 保持提示词原文，执行层负责组装对白', () => {
+  const wanNode = (extraMeta: Record<string, unknown> = {}): GenerationCanvasNode => ({
+    id: 'dialogue-shot',
+    kind: 'video',
+    title: '对白镜头',
+    position: { x: 0, y: 0 },
+    prompt: '镜头缓慢推近',
+    meta: {
+      modelKey: 'wan/3-0-video',
+      modelVendor: 'kie',
+      vendor: 'kie',
+      archetype: { id: 'wan-3.0', modeId: 't2v' },
+      dialogue: '你终于来了。',
+      ...extraMeta,
+    },
+  })
+
+  it('直接构建请求不改写持久化 prompt', () => {
+    expect(buildCatalogTaskRequest(wanNode()).request.prompt).toBe('镜头缓慢推近')
+  })
+
+  it('当前 mode 显式关闭 audio 时不注入对白', () => {
+    expect(buildCatalogTaskRequest(wanNode({ audio: false })).request.prompt).toBe('镜头缓慢推近')
+  })
+})
+
 describe('buildCatalogTaskRequest — ComfyUI 本地 workflow 不吃旧档案 archetype', () => {
   it('只绑定首帧的 Comfy i2v 即便残留 Dreamina archetype，也走 flat firstFrameUrl', () => {
     const node: GenerationCanvasNode = {

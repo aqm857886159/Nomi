@@ -26,6 +26,12 @@ export type DesktopAdapterModeResult = {
    * 渲染层据它说人话（adapterFailureAdvice）；**别在 UI 里用关键词猜 error 字符串**——同型 bug 已反复 5 轮。
    */
   errorCategory?: string
+  /**
+   * stage === 'compile' 时的结构化细分原因（'no_generic_contract' | 'docs_not_understood'）。
+   * 「这个 kind 没有通用协议」与「我们没读懂这家文档」给用户的话不一样，由主进程带过来，
+   * **别在 UI 里从 error 文案猜**。
+   */
+  compileFailureReason?: string
   httpStatus?: number
   verifiedAt?: string
 }

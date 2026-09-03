@@ -107,7 +107,7 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap px-4 py-2 border-b border-nomi-line-soft bg-nomi-ink-05">
+    <div className="flex items-center gap-2 flex-wrap px-4 py-2 border-b border-nomi-line-soft bg-nomi-ink-05" data-storyboard-bulkbar="true">
       <span className="inline-flex items-center gap-1.5 shrink-0 text-caption font-medium text-nomi-ink-80">
         <IconStack2 size={14} stroke={1.6} className="text-nomi-ink-60" aria-hidden />
         {t('storyboardEditor.bulk.scope')}

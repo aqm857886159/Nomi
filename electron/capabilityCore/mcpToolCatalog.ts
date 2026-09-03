@@ -16,6 +16,7 @@ import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead'
 import { MCP_CAPABILITY_RESOLVER, immutableSchemaSnapshot } from './mcpCapabilityProjection'
 import { MCP_GENERATION_TOOL_CATALOG } from './mcpGenerationTools'
 import { MCP_INTEGRATION_TOOL, INTEGRATION_METHOD_BY_ACTION } from './mcpIntegrationTools'
+import { MCP_INTEGRATION_MANAGEMENT_TOOL } from './mcpIntegrationManagementTools'
 import { MCP_PROJECT_SESSION_TOOL } from './mcpProjectSessionTool'
 
 const str = (value: unknown): string => (typeof value === 'string' ? value : '')
@@ -297,7 +298,8 @@ export const MCP_TOOL_CATALOG = [
   RUN_CONTROL_TOOL, // T11
   ARTIFACT_REVIEW_TOOL, // T12（吸收 review + script/storyboard revision）
   RUN_GATE_TOOL, // T13（吸收 decide_gate + materialize）
-  MCP_INTEGRATION_TOOL, // T14（接入状态机 9→5 action）
+  MCP_INTEGRATION_TOOL, // T14（接入状态机 5 个确定性缝）
+  MCP_INTEGRATION_MANAGEMENT_TOOL, // T14 supplemental（已接入连接管理）
   PROJECT_CREATE_TOOL, // T15
   ...SEMANTIC_EDITING_TOOLS, // M2 语义编辑（canvas_plan/maintenance · document_read/edit · timeline_read/edit · export_job · media_query）——原样保留待续裁
 ] as const

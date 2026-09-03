@@ -1,0 +1,19 @@
+[
+  "--nomi-axis-x",
+  "--nomi-axis-y",
+  "--nomi-axis-z",
+  "--nomi-focus",
+  "--nomi-logo-ground",
+  "--nomi-snap",
+  "--nomi-snap-tag",
+  "--workbench-ai-border",
+  "--workbench-ai-border-strong",
+  "--workbench-ai-composer-bg",
+  "--workbench-ai-message-bg",
+  "--workbench-ai-panel-bg",
+  "--workbench-ai-user-bg",
+  "--workbench-bevel",
+  "--workbench-frame-ring",
+  "--workbench-overlay-strong",
+  "--workbench-veil-chip"
+]
