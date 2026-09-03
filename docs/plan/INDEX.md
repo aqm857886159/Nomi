@@ -161,6 +161,7 @@
 | [2026-09-01-feedback-share-center.md](2026-09-01-feedback-share-center.md) | v0.21 低摩擦反馈与分享中心：私密 Tally 表单、公开 GitHub、自动带入安全运行时上下文 | 🚧 |
 | [2026-09-01-storyboard-table-genre-profile.md](2026-09-01-storyboard-table-genre-profile.md) | **分镜表 v5**：场分组+图优先行+结构化提示词（@/骨架段）+行内执行；A 段已合（#330），B-D 分阶段交付；样张 docs/design/mockups/2026-09-01-storyboard-table-image-first.html | 🚧 |
 | [2026-09-02-walkthrough-catalog-seed-version.md](2026-09-02-walkthrough-catalog-seed-version.md) | 隔离走查 catalog 种子按被测 app 版本校验：future seed quarantine + 版本真源单一化，终结「切模型静默失效」假绿 | ✅ |
+| [2026-09-03-m5-packaged-graduation.md](2026-09-03-m5-packaged-graduation.md) | M5 打包真机毕业：零额度 MCP 全链、M0-M4 证据清单与发版前人工 runbook | 🚧 |
 
 ## 性能 / 技术地基 / 巨壳拆分 / 管线
 
