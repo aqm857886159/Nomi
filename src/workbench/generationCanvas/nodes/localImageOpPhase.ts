@@ -6,6 +6,7 @@
 // 为什么抽出来：两边各写各的字符串，加一种本地操作就会漏掉一边，于是切图时节点要么没反馈、
 // 要么被当成「正在生成」——这类不一致只能靠共用一个常量根治。
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import i18n from '../../../i18n'
 
 export const REMOVE_BACKGROUND_PHASE = 'remove-background'
 /** 切图 / 裁剪共用一相：对用户是同一件事——「这张图正在被裁开」。 */
@@ -21,4 +22,26 @@ export function isLocalImageOpPending(node: GenerationCanvasNode): boolean {
 /** 浮条上「抠图中」那颗按钮只认抠图这一相：切图时它不该转圈说自己在抠图。 */
 export function isRemoveBackgroundPending(node: GenerationCanvasNode): boolean {
   return isLocalImageOpPending(node) && node.progress?.phase === REMOVE_BACKGROUND_PHASE
+}
+
+const matte = (step: string): string =>
+  i18n.t(`generationCommon.imageToolbar.matteProgress.${step}` as 'generationCommon.imageToolbar.matteProgress.decode')
+
+/**
+ * 抠图阶段 key → 给用户看的一句话。节点画布与白板共用这一份（P1：不留两套映射）。
+ *
+ * @imgly 只发两族 key：下载资源发 `fetch:<资源路径>`，推理各步发 `compute:<步骤>`。
+ * `fetch:` 必须先判——`fetch:/models/isnet_quint8` 同时含 "model"，落到 model 分支就把
+ * 「正在下载 50MB」说成「加载抠图模型」；而 wasm 那条 `fetch:/onnxruntime-web/...`
+ * 一个分支都不匹配，只会掉进 fallback「抠图中」。启动预热删掉后，这 ~50MB 改由用户
+ * 在首次点抠图时当场等，这两句话就是他判断「到底卡住没有」的唯一依据，不能含糊。
+ */
+export function removeBackgroundProgressMessage(key: string): string {
+  if (key.startsWith('fetch:')) return matte('download')
+  if (key.includes('decode')) return matte('decode')
+  if (key.includes('inference')) return matte('inference')
+  if (key.includes('mask')) return matte('mask')
+  if (key.includes('encode')) return matte('encode')
+  if (key.includes('model')) return matte('model')
+  return matte('fallback')
 }

@@ -31,6 +31,39 @@ function nomiStaticAssetPlugin(): Plugin {
   }
 }
 
+// onnxruntime-web 自带一句 `new URL("ort-wasm-simd-threaded.jsep.wasm", import.meta.url)`
+// 作为「调用方没设 wasmPaths 时」的兜底路径。Vite 认得这个模式，会把那份 22.8MiB 的 .wasm
+// 当静态资产 emit 进 dist/ 并打进安装包。
+//
+// 但这条兜底在 Nomi 里永远走不到：抠图是 onnxruntime-web 的唯一入口（pnpm why 确认它只作为
+// @imgly/background-removal 的 peer 存在），而 @imgly 在 createOnnxSession 里、于
+// InferenceSession.create 之前**无条件**把 ort.env.wasm.wasmPaths 指向自己的 CDN
+// （node_modules/@imgly/background-removal/dist/index.mjs:1017-1021）。两处兜底都以
+// `!wasmPaths` 为前提，故都是死代码——我们为一份运行时永不读取的文件付了 22.8MiB 包体。
+//
+// 这里把该表达式换成同类型的字符串常量：Vite 不再认出资产引用、不再 emit .wasm，
+// 而万一将来有人绕开 @imgly 直接用 ort 且不设 wasmPaths，取到的是这个显式路径而不是
+// 一个静默的坏 URL——失败会说人话，不会退化成「模型莫名加载不出来」。
+// 守卫：src/lib/removeBackgroundBundle.test.ts 断言 @imgly 仍然自设 wasmPaths；
+// 一旦升级后它不再自设，那条测试先红，提醒把这个插件撤掉。
+const ORT_DEAD_WASM_FALLBACK = 'new URL("ort-wasm-simd-threaded.jsep.wasm",import.meta.url).href'
+
+function nomiDropDeadOrtWasmAsset(): Plugin {
+  return {
+    name: 'nomi-drop-dead-ort-wasm-asset',
+    apply: 'build',
+    enforce: 'pre',
+    transform(code: string, id: string) {
+      if (!id.includes('onnxruntime-web')) return null
+      if (!code.includes(ORT_DEAD_WASM_FALLBACK)) return null
+      return {
+        code: code.split(ORT_DEAD_WASM_FALLBACK).join('"ort-wasm-simd-threaded.jsep.wasm"'),
+        map: null,
+      }
+    },
+  }
+}
+
 function isKnownDevDependencyWarning(message: string): boolean {
   return (
     message.includes('The above dynamic import cannot be analyzed by Vite') && message.includes('react-router-dom.js')
@@ -160,7 +193,7 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
     base: './',
     cacheDir: resolve(__dirname, '.tmp/vite'),
     customLogger: createNomiLogger(),
-    plugins: [nomiStaticAssetPlugin(), react()],
+    plugins: [nomiStaticAssetPlugin(), nomiDropDeadOrtWasmAsset(), react()],
     resolve: {
       dedupe: ['react', 'react-dom', 'scheduler', 'use-sync-external-store', 'three'],
       alias: [
@@ -294,6 +327,9 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
     },
     worker: {
       format: 'es',
+      // 抠图 worker 是独立的 Rollup 构建：顶层 plugins 不会自动进来，
+      // onnxruntime-web 只在这条链上被 import，所以摘死 wasm 的插件必须挂在这里。
+      plugins: () => [nomiDropDeadOrtWasmAsset()],
     },
   }
 })

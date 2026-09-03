@@ -323,7 +323,10 @@ export const zhGenerationCommon = {
   },
   imageToolbar: {
     // 抠图分步进度(按 worker 阶段 key 选一句),让等待有具体的「现在在干嘛」。
+    // download 是首次抠图专有：模型+运行时约 50MB 要下载,只发生一次,之后走本地缓存。
+    // 不说清「只此一次」,用户会以为每次抠图都这么慢。
     matteProgress: {
+      download: '首次抠图，正在下载模型（约 50MB，仅此一次）',
       decode: '读取图片中',
       inference: '识别主体中',
       mask: '生成透明遮罩',
@@ -1916,6 +1919,7 @@ export const enGenerationCommon = {
   },
   imageToolbar: {
     matteProgress: {
+      download: 'First cut-out: downloading the model (~50MB, one time only)',
       decode: 'Reading the image',
       inference: 'Detecting the subject',
       mask: 'Generating the transparency mask',
