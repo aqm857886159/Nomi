@@ -548,7 +548,7 @@ export default function ProjectLibraryPage({
                               : missing
                                 ? t('library.syncMissingAssets', { count: inspection.missingAssetCount })
                                 : t('library.syncCorrupt')
-                          const tone = ready ? 'text-workbench-success' : missing ? 'text-workbench-warning' : 'text-workbench-danger'
+                          const tone = ready ? 'text-workbench-success' : missing ? 'text-nomi-warning' : 'text-workbench-danger'
                           const Icon = ready ? IconCircleCheck : missing ? IconInfoCircle : IconAlertTriangle
                           return (
                             <button
