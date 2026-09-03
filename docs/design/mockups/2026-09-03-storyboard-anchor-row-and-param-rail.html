@@ -112,7 +112,10 @@
   .section-head { display: flex; align-items: baseline; gap: var(--nomi-space-2); margin-bottom: var(--nomi-space-3); }
   .section-head h2 { margin: 0; font-size: var(--nomi-font-title); font-weight: 650; }
   .section-head span { color: var(--nomi-ink-40); font-size: var(--nomi-font-micro); }
-  .anchor-stack { display: grid; gap: var(--nomi-space-3); }
+  /* justify-items:start——同一个 bug 的第三层：grid 容器默认把子项（每条锚行）横向拉伸到
+     整列宽度，跟 .anchor-infocol/.anchor-refs-list 那两层的 flex 默认 stretch 是同一类问题
+     （CSS 布局模式的默认值都是"撑满"，三层没一层被显式关掉，空白就是这么叠出来的）。 */
+  .anchor-stack { display: grid; justify-items: start; gap: var(--nomi-space-3); }
   .anchor-state-key { display: flex; flex-wrap: wrap; gap: var(--nomi-space-1); margin: calc(var(--nomi-space-2) * -1) 0 var(--nomi-space-3); color: var(--nomi-ink-40); font-size: var(--nomi-font-micro); }
   .state-key { padding: 2px var(--nomi-space-2); border: 1px solid var(--nomi-line-soft); border-radius: var(--nomi-radius-pill); background: var(--nomi-ink-05); }
   .state-key::before { content: "●"; margin-right: var(--nomi-space-1); color: var(--nomi-ink-40); }
@@ -130,8 +133,13 @@
   .shot-row.anchor-row { display: flex; align-items: flex-start; gap: var(--nomi-space-4); border-color: var(--nomi-line); background: var(--nomi-paper); box-shadow: inset 3px 0 0 var(--nomi-ink-30); }
   /* 面列：照抄 StoryboardAnchorCard.tsx:181 的 shrink-0 flex flex-col gap-1 w-[108px]。 */
   .anchor-facecol { flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; width: 108px; }
-  /* 信息列：新增部分的容器（选择器 + 引用列表），非真实组件已有结构。 */
-  .anchor-infocol { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--nomi-space-2); padding-top: 2px; }
+  /* 信息列：新增部分的容器（选择器 + 引用列表），非真实组件已有结构。
+     之前 flex:1 把这一列撑满整行剩余宽度，而选择器和引用列表本身内容很窄——
+     纵向 flex 容器默认 align-items:stretch，子项跟着被横向拉伸成隐形空盒子，
+     卡片右侧就露出一大片空白（这是纯 CSS 失误，不是"设计需要留白"）。
+     改：align-items:flex-start 让子项收到自己内容的宽度；整列本身也不再无条件占满，
+     由内容决定，最多不超过可用空间。 */
+  .anchor-infocol { flex: 0 1 auto; align-items: flex-start; min-width: 0; display: flex; flex-direction: column; gap: var(--nomi-space-2); padding-top: 2px; }
   .anchor-state-gallery { margin-top: var(--nomi-space-3); padding-top: var(--nomi-space-3); border-top: 1px dashed var(--nomi-line-soft); }
   .gallery-caption { display: block; margin-bottom: var(--nomi-space-2); color: var(--nomi-ink-40); font-size: var(--nomi-font-micro); }
   .gallery-row { display: flex; gap: var(--nomi-space-3); }
@@ -238,7 +246,7 @@
   .anchor-statline.danger { color: var(--nomi-danger); }
 
   /* ── 新增：谁引用了我（带缩略图，仍是 §7.4 的新增内容；密度对齐 anchor-namerow）。 */
-  .anchor-refs-list { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .anchor-refs-list { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
   .anchor-refs-head { font-size: var(--nomi-font-micro); color: var(--nomi-ink-40); font-variant-numeric: tabular-nums; }
   .anchor-refs-head strong { color: var(--nomi-ink-80); font-weight: 600; }
   .anchor-ref-row { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 2px; border-radius: var(--nomi-radius-sm); border: 0; background: transparent; text-align: left; }

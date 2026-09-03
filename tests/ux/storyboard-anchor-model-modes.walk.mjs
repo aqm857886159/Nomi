@@ -99,6 +99,30 @@ for (const kind of ['character', 'scene']) {
   if (await descLocator.count() !== 1) failMode(`锚（${kind}）缺少描述框——StoryboardAnchorCard.tsx 里 anchor.description 是锚的核心字段，不能在样张里凭空消失`)
   else if (!(await descLocator.first().isVisible()) || !(await descLocator.first().textContent())?.trim()) failMode(`锚（${kind}）描述框存在但不可见或为空`)
 }
+// 锚行不许被 flex/grid 默认的 stretch 撑成空盒子。拉伸是逐层传递的——容器和它的直接子项会
+// 一起变宽，"父容器 vs 直接子项"同层比较看不出差距，必须量到最深层真正的文字/按钮内容
+// （不会再被拉伸的叶子节点）右边缘离容器还有多远，才量得出真实浪费了多少。
+for (const kind of ['character', 'scene', 'style']) {
+  const infocol = page.locator(`[data-storyboard-anchor-row="${kind}"] .anchor-infocol`)
+  if (await infocol.count() === 0) continue
+  const infocolBox = await infocol.boundingBox()
+  const deepestRightEdge = await infocol.evaluate((container) => {
+    // 只信真正不会被父级 flex 拉伸的两种：.ref-label（嵌两层深，父级 inline-flex 内容自定宽）、
+    // .nomi-select-xs（行向 flex 的子项，横向不受拉伸影响）。.anchor-refs-head 曾经也在这个名单里，
+    // 但它自己就是 .anchor-refs-list 这个纵向 flex 容器的直接子项，会跟着一起被撑宽，
+    // 拿它当参照点等于用嫌疑人自己的口供——量出来的"最深内容"和"容器"永远相等，看不出案发。
+    const leafSelectors = '.ref-label, .nomi-select-xs'
+    let maxRight = 0
+    container.querySelectorAll(leafSelectors).forEach((element) => {
+      maxRight = Math.max(maxRight, element.getBoundingClientRect().right)
+    })
+    return maxRight
+  })
+  const wasted = infocolBox && deepestRightEdge ? infocolBox.x + infocolBox.width - deepestRightEdge : 0
+  if (infocolBox && deepestRightEdge && wasted > 60) {
+    failMode(`锚（${kind}）信息列右侧空出 ${Math.round(wasted)}px——flex 默认 align-items:stretch 又在某一层把空盒子撑出来了（真实内容早就结束了，容器还在继续拉）`)
+  }
+}
 const hasLegacyGridRule = await page.evaluate(() => document.documentElement.outerHTML.includes('.anchor-card') || document.documentElement.outerHTML.includes('108px 1fr'))
 if (hasLegacyGridRule) failMode('样张仍残留 .anchor-card 的 108px 1fr 旧布局规则')
 // 新增：锚行必须带模型 + 画幅两个选择器（NomiSelect size="xs" 视觉规格），且带缩略图的引用列表。
