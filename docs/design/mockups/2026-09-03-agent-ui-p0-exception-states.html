@@ -191,6 +191,9 @@ body.dark .send{color:var(--bg)}
 /* 按钮组 */
 .grp{display:flex;gap:7px;margin-top:10px}
 .grp .btn{flex:1}
+/* icon 按钮组：右对齐紧凑方形，不铺行宽 */
+.grp.icon-grp{justify-content:flex-end}
+.grp.icon-grp .btn,.grp .icon-btn{flex:none!important;width:32px;height:32px;min-width:0;padding:0}
 .btn{height:28px;padding:0 12px;min-width:72px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink80);
   font:12px/1 inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:inherit}
 .btn:hover{background:var(--ink05)}
@@ -238,6 +241,16 @@ body.dark .btn.pri{color:var(--bg)}
 .at-empty .ae-desc{font-size:11px;color:var(--ink40);line-height:1.55}
 .at-empty .ae-cta{height:28px;padding:0 14px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink80);font:12px/1 inherit;cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-top:4px;font-family:inherit}
 .at-count{font-size:10px;color:var(--ink40);padding:5px 12px 6px;border-top:1px solid var(--lineS)}
+
+/* @ 选择器缩略图行（形态19 正常态：图大字小） */
+.at-item-thumb{display:flex;align-items:center;gap:10px;padding:6px 12px;cursor:pointer;color:var(--ink80)}
+.at-item-thumb:hover{background:var(--ink05)}
+.at-item-thumb .at-thumb{width:48px;height:36px;flex:none;border-radius:5px;object-fit:cover;background:linear-gradient(135deg,oklch(0.6 0.1 var(--h,200)),oklch(0.45 0.07 calc(var(--h,200)+60)));overflow:hidden;display:flex;align-items:center;justify-content:center}
+.at-item-thumb .at-thumb-img{width:100%;height:100%;object-fit:cover;border-radius:5px}
+.at-item-thumb .at-thumb-icon{font-size:18px;color:rgba(255,255,255,.75)}
+.at-item-thumb .at-meta{flex:1;min-width:0}
+.at-item-thumb .at-meta .at-name2{font-size:12px;color:var(--ink80);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.at-item-thumb .at-meta .at-sub2{font-size:10px;color:var(--ink40);margin-top:1px}
 
 /* 骨架 shimmer（加载中） */
 .skel{border-radius:6px;background:linear-gradient(90deg,var(--ink10) 25%,var(--ink05) 50%,var(--ink10) 75%);background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite}
@@ -590,7 +603,7 @@ body.dark .btn.pri{color:var(--bg)}
               <div class="deviation"><div class="dw"><span class="df">参数</span>镜 1 时长不对</div><div class="dd">批准 3s，实际生成 4s</div></div>
             </div>
             <div class="grp" style="margin-top:8px">
-              <button class="btn" data-tip="让 AI 修" style="min-width:0;width:32px;padding:0"><i class="ti ti-tool"></i></button>
+              <button class="btn icon-btn" data-tip="让 AI 修"><i class="ti ti-tool"></i></button>
               <button class="btn">撤销</button>
               <button class="btn">知道了</button>
             </div>
@@ -693,13 +706,13 @@ body.dark .btn.pri{color:var(--bg)}
             <div style="font-size:11px;color:var(--ink40);padding:6px 8px;background:var(--ink05);border-radius:6px;margin-bottom:10px">
               这次没扣钱
             </div>
-            <div class="grp">
-              <button class="btn" data-tip="改描述" style="min-width:0;width:32px;padding:0"><i class="ti ti-pencil"></i></button>
-              <button class="btn pri" data-tip="重试" style="min-width:0;width:32px;padding:0"><i class="ti ti-refresh"></i></button>
+            <div class="grp icon-grp">
+              <button class="btn" data-tip="改描述"><i class="ti ti-pencil"></i></button>
+              <button class="btn pri" data-tip="重试"><i class="ti ti-refresh"></i></button>
             </div>
           </div>
         </div>
-        <p class="caption" style="margin-top:8px">不出计划卡骨架——失败即失败，给重试和改描述两个出路。「这次没扣钱」绿字（此处用灰底小字，因为计划阶段还未付费，事实陈述即可，不需要强调色）。✎ 和 ↻ icon 一眼即懂，hover tooltip 兜底。<br><code>data-agent-plan-card</code></p>
+        <p class="caption" style="margin-top:8px">不出计划卡骨架——失败即失败，给重试和改描述两个出路。「这次没扣钱」绿字（此处用灰底小字，因为计划阶段还未付费，事实陈述即可，不需要强调色）。✎ 和 ↻ icon 一眼即懂，hover tooltip 兜底。两钮紧凑右对齐（32×32），不铺满行宽。<br><code>data-agent-plan-card</code></p>
       </div>
     </div>
 
@@ -902,25 +915,46 @@ body.dark .btn.pri{color:var(--bg)}
       </div>
     </div>
 
-    <!-- 参照：@ 选择器正常态（对比）-->
+    <!-- 参照：@ 选择器正常态（对比）— ⚠️ 维护者反馈：图大字小，此为对已拍板 v3.1 正常态的修订 -->
     <div class="cardframe" data-agent-panel>
-      <div class="cf-lbl"><b>正常态对比（@ 选择器有素材时）</b><span class="fam">参照</span></div>
+      <div class="cf-lbl"><b>正常态对比（@ 选择器有素材时）</b><span class="fam">参照</span> <span style="color:var(--warn);font-size:10px;margin-left:4px">⚠️ v3.1 修订</span></div>
       <div class="cf-body">
         <div class="at-picker" data-agent-at-picker style="width:100%">
           <div style="padding:8px 12px;border-bottom:1px solid var(--lineS);font-size:11px;color:var(--ink40)">
             引用素材或技能
           </div>
+          <!-- 视觉素材：缩略图大（48×36）、名字次要、元信息再次要 -->
           <div class="at-group">
             <div class="at-group-head">最近使用</div>
-            <div class="at-item"><div class="at-ic"><i class="ti ti-video"></i></div><div class="at-name">雨夜追逐素材<div class="at-sub">视频 · 1.2GB</div></div></div>
-            <div class="at-item"><div class="at-ic"><i class="ti ti-user-circle"></i></div><div class="at-name">阿青定妆<div class="at-sub">定妆 · 4 张参考图</div></div></div>
+            <div class="at-item-thumb">
+              <div class="at-thumb" style="--h:210"><i class="ti ti-video at-thumb-icon"></i></div>
+              <div class="at-meta">
+                <div class="at-name2">雨夜追逐素材</div>
+                <div class="at-sub2">视频 · 1.2GB · 已引用 3 次</div>
+              </div>
+            </div>
+            <div class="at-item-thumb">
+              <div class="at-thumb" style="--h:30"><i class="ti ti-user-circle at-thumb-icon"></i></div>
+              <div class="at-meta">
+                <div class="at-name2">阿青定妆</div>
+                <div class="at-sub2">定妆 · 4 张参考图</div>
+              </div>
+            </div>
+            <div class="at-item-thumb">
+              <div class="at-thumb" style="--h:80"><i class="ti ti-photo at-thumb-icon"></i></div>
+              <div class="at-meta">
+                <div class="at-name2">雨夜氛围参考图</div>
+                <div class="at-sub2">图片 · 2MB</div>
+              </div>
+            </div>
           </div>
-          <div class="at-group">
+          <!-- 技能：无视觉内容，保持 icon 行；分组隔开，类型区别合理 -->
+          <div class="at-group" style="border-top:1px solid var(--lineS)">
             <div class="at-group-head">已装载技能</div>
             <div class="at-item"><div class="at-ic" style="color:var(--ac)"><i class="ti ti-tools"></i></div><div class="at-name">编剧·Kasdan 方法论<div class="at-sub">技能 · 已装载</div></div></div>
           </div>
         </div>
-        <p class="caption" style="margin-top:8px">正常态：分组展示「最近使用」+ 「已装载技能」。无搜索框（素材 ≤50）。对比空状态一目了然。</p>
+        <p class="caption" style="margin-top:8px"><b>⚠️ 这是对已拍板 v3.1 正常态的修订（维护者 2026-09-03 提出）。</b>视觉素材改为缩略图行（48×36，大到能认出内容）；名称 12px 降为次要、元信息 10px 再次要。技能条目无视觉内容，仍用 icon 行——两类以分组线隔开，共存不割裂：素材靠图认、技能靠名字认，行高差异即说明了分组意义。<br>v3.1 样张（<code>2026-09-01-agent-ui-final-redesign.html</code>）与规格（§3.2）需同步更新，建议单独过一轮 —— 本次只改本样张。</p>
       </div>
     </div>
 
