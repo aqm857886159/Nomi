@@ -1,9 +1,13 @@
 // R16 核心愿景验证：外部 agent 经 MCP 驱动 Nomi 产出**真素材**（「AI 出初稿」的机制端到端）。
 // 起真 MCP stdio 服务（app 二进制+NOMI_MCP_STDIO=1），像 Claude Code 那样发 JSON-RPC：
-//   list 模型 → 建项目 → 加镜头节点 → nomi_generate 真生成一张图（headless 走 elicitation 确认付费）
-//   → read_canvas 验证节点真拿到图素材。
+//   读模型 → 建项目 → 加镜头节点 → nomi_generate 真生成一张图（headless 走 elicitation 确认付费）
+//   → 读画布验证节点真拿到图素材。
 // **会花一次真图额度**（测试默认授权）。额度闸：不显式 NOMI_R16_GEN=1 就 SKIP。
 // 用法：pnpm run build && NOMI_R16_GEN=1 node tests/ux/mcp-draft-loop.e2e.mjs
+//
+// ⚠️ 已知缺口（2026-09-02 面收敛名迁移时如实记录，未修）：生成一步仍调 nomi_generate——它在 M1 期已整体
+// 退役（-32602），42→15 收敛映射里没有等价名（单次生成 = nomi_operation_plan→preview→gate→execute 语义族）。
+// 付费腿在重构前会在该步红；本文件其余步骤已迁到收敛名。
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, copyFileSync, existsSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -130,12 +134,16 @@ function rpc(method, params, timeoutMs = 30000) {
   });
 }
 // tools/call 的结果被 JSON.stringify 进 text content——解出来。
-async function callTool(name, args, timeoutMs = 30000) {
+async function callToolRaw(name, args, timeoutMs = 30000) {
   const response = await rpc("tools/call", { name, arguments: args }, timeoutMs);
   if (response?.error) throw new Error(`工具 ${name} 失败：${response.error.message || JSON.stringify(response.error)}`);
   const res = response.result;
+  if (res?.isError) throw new Error(`工具 ${name} 失败：${res?.content?.[0]?.text || ""}`);
+  return res;
+}
+async function callTool(name, args, timeoutMs = 30000) {
+  const res = await callToolRaw(name, args, timeoutMs);
   const text = res?.content?.[0]?.text || "";
-  if (res?.isError) throw new Error(`工具 ${name} 失败：${text}`);
   try { return JSON.parse(text); } catch {
     const jsonStart = text.indexOf("\n{");
     if (jsonStart >= 0) {
@@ -171,18 +179,19 @@ try {
     catalogInjected = true;
   }
 
-  const models = await callTool("nomi_list_models", {});
-  const list = models.models || models || [];
+  // 面收敛：模型清单 = nomi_read(target=models)；条目在 structuredContent.nomiOutcome.models（text 是人话转述）。
+  const models = await callToolRaw("nomi_read", { target: "models" });
+  const list = models?.structuredContent?.nomiOutcome?.models || [];
   // 避开已知死模型（apimart Imagen 上游 404 必死，见记忆 batch-generation-audit），优先已知可用族。
   const imgAll = list.filter((m) => (m.kind === "image" || m.intent === "image") && (m.enabled ?? true) && !/imagen/i.test(m.modelKey || ""));
   const img = imgAll.find((m) => /z-image|qwen-image|gpt-image|seedream|flux|nano-banana/i.test(m.modelKey || "")) || imgAll[0];
   assert(img, `找到已连图片模型（${img ? (img.vendor || img.vendorKey) + "·" + img.modelKey : "无"}）`);
 
-  const proj = await callTool("nomi_create_project", { name: "R16 MCP 出初稿验证" });
+  const proj = await callTool("nomi_project_create", { name: "R16 MCP 出初稿验证" });
   const projectId = proj.projectId || proj.id;
   assert(projectId, `建项目成功（${projectId}）`);
 
-  const addNodes = callTool("nomi_add_nodes", { projectId, nodes: [
+  const addNodes = callTool("nomi_canvas_edit", { projectId, action: "add_nodes", nodes: [
     { kind: "image", title: "角色参考", prompt: "橘猫，琥珀色眼睛，红色细项圈。" },
     { kind: "shot", title: "S1 面馆开场", prompt: "橘猫蹲在深夜面馆的木桌上，暖黄灯光，浅景深。" },
     { kind: "shot", title: "S2 老板递碗", prompt: "面馆老板把一碗热汤面推到橘猫面前，蒸汽上升。" },
@@ -198,8 +207,9 @@ try {
   assert(nodeIds.length === 3, `一次加好 3 个可编辑节点（${nodeIds.join(", ")}）`);
   const [referenceNodeId, firstShotNodeId] = nodeIds;
 
-  const connected = await callTool("nomi_connect_nodes", {
+  const connected = await callTool("nomi_canvas_edit", {
     projectId,
+    action: "connect",
     connections: [{ source: referenceNodeId, target: firstShotNodeId, mode: "reference" }],
   });
   assert(connected?.created === 1 || connected?.edgeIds?.length === 1 || connected?.ok === true, "角色参考已连到首镜");
@@ -229,9 +239,9 @@ try {
   // 生成结果在 gen.assets[0].url；也兜底读画布节点。
   const resultUrl = gen?.assets?.[0]?.url || gen?.result?.url || gen?.url;
   assert(resultUrl && /^(https?:|asset:|nomi-local:|file:)/.test(String(resultUrl)), `节点真拿到图素材（${String(resultUrl).slice(0, 56)}）`);
-  const canvas = await callTool("nomi_read_canvas", { projectId });
-  assert(Array.isArray(canvas.nodes) && canvas.nodes.length === 3, `read_canvas 回读到 3 个画布节点`);
-  assert(Array.isArray(canvas.edges) && canvas.edges.length === 1, "read_canvas 回读到 1 条 reference 连线");
+  const canvas = await callTool("nomi_read", { target: "canvas", projectId });
+  assert(Array.isArray(canvas.nodes) && canvas.nodes.length === 3, `画布回读到 3 个节点`);
+  assert(Array.isArray(canvas.edges) && canvas.edges.length === 1, "画布回读到 1 条 reference 连线");
 
   // 关闭无窗 MCP 进程，再用同一构建、同一隔离项目库启动真实 Nomi，确认用户实际看到完整结果。
   child.kill("SIGTERM");

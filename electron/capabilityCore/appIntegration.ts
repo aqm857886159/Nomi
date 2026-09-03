@@ -38,6 +38,7 @@ import { createArtifactProjection, getArtifactPreviewSecret } from '../productio
 import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
 import type { ModuleRegistry } from './moduleRegistry'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
+import { hardenedFetch } from '../hardenedFetch'
 import { observeSingleShotGeneration } from '../productionRun/singleShotGenerationObserver'
 import { createSingleShotObservationLifecycle } from '../productionRun/singleShotObservationLifecycle'
 import {
@@ -159,14 +160,30 @@ export async function startCapabilityCore(
     const fixtureBaseUrlOverride = process.env.NOMI_E2E_PRODUCTION_FIXTURE === '1'
       ? process.env.NOMI_E2E_APIMART_BASE_URL
       : undefined
+    const fixtureReferenceUrl = fixtureBaseUrlOverride && process.env.NOMI_E2E_APIMART_REFERENCE_URL
+      ? process.env.NOMI_E2E_APIMART_REFERENCE_URL
+      : undefined
     const liveGenerationRuntime = createLiveGenerationRuntime({
       bootstrap: (state, options) => createGenerationProviderBootstrap(state, {
         ...options,
         ...(fixtureBaseUrlOverride ? { fixtureBaseUrlOverride } : {}),
+        ...(fixtureReferenceUrl ? {
+          resolveReferenceUrls: (input) => ({
+            imageUrls: input.references.filter((reference) => reference.kind === 'image').map(() => fixtureReferenceUrl),
+          }),
+        } : {}),
       }),
     })
     const readProviderBootstrap = liveGenerationRuntime.readBootstrap
-    const outputMaterializer = createGenerationOutputMaterializer()
+    const outputMaterializer = createGenerationOutputMaterializer(fixtureBaseUrlOverride ? {
+      // The loopback vendor is a test-only trusted local service. Keep the
+      // private-origin exception at this fixture wiring boundary; ordinary
+      // provider output downloads retain hardenedFetch's SSRF guard.
+      fetchOutput: (url, options) => hardenedFetch(url, {
+        ...options,
+        allowedPrivateOrigins: [fixtureBaseUrlOverride],
+      }),
+    } : {})
     const generationRegistry = authorities.generationModuleRegistry ?? liveGenerationRuntime.registry
     const videoModelCandidates = buildVideoModelCandidates(readCatalog().models
       .filter((model) => model.enabled && model.kind === 'video')

@@ -80,7 +80,7 @@ export type TikhubImportResult = {
 
 /**
  * 解析 + 落成项目视频素材（一次 trusted 主进程调用）。素材带 AssetSourceEvidence
- * （source=connector、rightsStatus:'unknown'）。用户随后用现有节点拆解它。
+ * （source=connector、usageStatus:'rights_unknown'）。用户随后用现有节点拆解它。
  */
 export async function importTikhubShareUrl(payload: unknown): Promise<TikhubImportResult> {
   const raw = (payload || {}) as JsonRecord;
@@ -96,7 +96,7 @@ export async function importTikhubShareUrl(payload: unknown): Promise<TikhubImpo
     originalUrl: shareText,
     resolvedUrl: resolved.playUrl,
     platform: resolved.platform,
-    rightsStatus: "unknown",
+    usageStatus: "rights_unknown",
     fetchedAt: nowIso(),
   };
   const asset = await importRemoteAsset({

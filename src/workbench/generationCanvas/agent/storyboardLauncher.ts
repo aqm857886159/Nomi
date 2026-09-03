@@ -52,6 +52,7 @@ export function buildStoryboardPlanningMessage(input: {
   currentPlan?: StoryboardPlan | null
   revisionRequest?: string
   shotMode?: StoryboardShotMode
+  profileKey?: string
 }): string {
   if (input.currentPlan && input.revisionRequest?.trim()) {
     return [
@@ -73,6 +74,8 @@ export function buildStoryboardPlanningMessage(input: {
     '请把下面这段故事规划成一份「分镜方案」（跨镜头要一致的角色/场景/道具/风格 + 每个镜头），通过 propose_storyboard_plan 产出结构化方案对象——先给用户在创作区审阅、修改，不要直接写画布。',
     '',
     shotModeDirective(input.shotMode ?? 'image'),
+    '片种模板只能从以下内置 profile 选择：genre.short-drama（9:16、带台词轨、骨架段 shotSize/emotion）或 genre.free-form（16:9、无骨架、纯自由文本）。默认使用 genre.short-drama；输出 profileKey，并在 storyboardProfile 中原样带出所选声明。',
+    '使用有骨架模板时，先按 promptSkeleton 填 prompt，再用 promptSegments 标注每段在 prompt 中的 start/end 字符范围；范围只是可丢失的视图标注，不要另造列字段或 promptOverridden。',
     '',
     '结构化工具调用硬约束：propose_storyboard_plan 参数必须是对象本体，anchors/shots 必须是数组本体；不要把任何数组序列化成字符串。',
     '',

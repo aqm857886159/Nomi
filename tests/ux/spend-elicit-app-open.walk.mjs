@@ -157,7 +157,7 @@ try {
   const plainAgent = spawnAgent({ capabilities: {}, clientName: 'claude-code' })
   agents.push(plainAgent)
   ok(Boolean((await plainAgent.start())?.result), 'stdio MCP 起来了（不声明 elicitation）')
-  const projA = await plainAgent.callTool('nomi_create_project', { name: '付费确认-兜底腿' })
+  const projA = await plainAgent.callTool('nomi_project_create', { name: '付费确认-兜底腿' })
   const projectIdA = projA.json?.projectId || projA.json?.id
   ok(projectIdA, `建项目（${projectIdA}）`)
 
@@ -191,7 +191,7 @@ try {
   const elicitAgent = spawnAgent({ capabilities: { elicitation: {} }, clientName: 'codex' })
   agents.push(elicitAgent)
   ok(Boolean((await elicitAgent.start())?.result), 'stdio MCP 起来了（声明 elicitation）')
-  const projB = await elicitAgent.callTool('nomi_create_project', { name: '付费确认-调用方腿' })
+  const projB = await elicitAgent.callTool('nomi_project_create', { name: '付费确认-调用方腿' })
   const projectIdB = projB.json?.projectId || projB.json?.id
   ok(projectIdB, `建项目（${projectIdB}）`)
 

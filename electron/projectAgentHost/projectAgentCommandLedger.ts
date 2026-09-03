@@ -7,6 +7,21 @@ import { assertProjectAgentBinding, sameProjectAgentBinding, stableProjectAgentJ
 const RECORD_KEYS = "appliedRevision|binding|checksum|commandId|mutationHash";
 const EMPTY_HEAD = crypto.createHash("sha256").update("nomi-project-agent-command-ledger:v1\0empty").digest("hex");
 
+// scan() 是账本唯一的 O(账本长度) 全量重扫路径；稳态必须命中 validate() 的缓存、一次都不走它。
+// 这个计数器是**该语义的直接观测点**，和 projectAgentState.ts 的
+// `__projectAgentFullValidationCountForTests` 同一套写法。
+//
+// 为什么需要它：此前 projectAgentHost.test.ts 用「fs.readFileSync 有没有以账本路径被调用过」
+// 当探针，而重扫走 readRegular() → fs.readFileSync(fd)，第一个参数是 fd 数字不是路径，
+// 那个过滤器**永远匹配不到**——实测强制一次冷缓存全量重扫 25KB 账本，它仍然数出 0 条。
+// 招牌断言测不出它命名的那件事。计数器不经过 fs 间接层，因此不会再这样悄悄失效；
+// projectAgentHost.test.ts 里另有一条阳性对照用例钉住「它真的会涨」。
+let fullScanCount = 0;
+
+export function __projectAgentCommandLedgerScanCountForTests(): number {
+  return fullScanCount;
+}
+
 export type ProjectAgentCommandLedgerPointer = Readonly<{
   highWater: number;
   byteOffset: number;
@@ -191,6 +206,7 @@ export function createProjectAgentCommandLedger(deps: ProjectAgentCommandLedgerD
     binding: ProjectBinding,
     pointer: ProjectAgentCommandLedgerPointer,
   ): ProjectAgentCommandLedgerView {
+    fullScanCount += 1;
     const initial = stamp(ledgerPath);
     if (!initial.exists && pointer.highWater > 0) {
       throw deps.integrityError("Project Agent command ledger is missing");

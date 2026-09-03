@@ -135,10 +135,10 @@ try {
     candidateId: 'semantic-gui-candidate', revision: 1, moduleId: 'generation.single-shot', providerId: 'apimart', modelId: 'gpt-image-2', mode: 'text-to-image',
     prompt: '一张纸船在湖面上，柔和晨光', parameters: { aspectRatio: '1:1' }, references: [],
   }
-  const created = parseToolResult(await mcp.callTool('nomi_operation_create', { leaseHandle, projectId, candidate }))
+  const created = parseToolResult(await mcp.callTool('nomi_operation_plan', { leaseHandle, projectId, candidate }))
   const operationId = created.json?.operation?.operationId || created.outcome?.operation?.operationId
   check(typeof operationId === 'string' && operationId.length > 0, '创建语义单镜草稿且没有触达 provider')
-  const preview = parseToolResult(await mcp.callTool('nomi_preview_execution', { leaseHandle, projectId, operationId }))
+  const preview = parseToolResult(await mcp.callTool('nomi_operation_preview', { leaseHandle, projectId, operationId }))
   check(preview.json?.contract?.providerId === 'apimart' && preview.json?.contract?.modelId === 'gpt-image-2', '预览显示真实目录中的 provider/model')
   check(provider.hits.length === 0, '创建/预览阶段 provider 请求数保持为 0')
 
@@ -146,7 +146,7 @@ try {
   // challenge is sealed; a human never experiences a confirmation racing the
   // first project-open write.
   await window.waitForTimeout(1_000)
-  const gatePromise = mcp.callTool('nomi_request_generation_gate', { leaseHandle, projectId, operationId }, { timeoutMs: 90_000 })
+  const gatePromise = mcp.callTool('nomi_operation_gate', { phase: 'request', leaseHandle, projectId, operationId }, { timeoutMs: 90_000 })
   const gateCard = window.locator('.fixed.inset-0').filter({ hasText: '允许 Nomi 生成这一镜？' })
   await gateCard.waitFor({ timeout: 20_000 })
   check(await gateCard.count() === 1, '不支持 elicitation 的客户端只看到一张 Nomi 语义确认卡')
@@ -160,7 +160,7 @@ try {
 
   const approved = started.outcome?.approved || started.json?.approved || {}
   const upgradedLease = typeof approved.leaseHandle === 'string' ? approved.leaseHandle : leaseHandle
-  const reconciled = parseToolResult(await mcp.callTool('nomi_reconcile_generation', { leaseHandle: upgradedLease, projectId, operationId, outcome: 'found' }, { timeoutMs: 90_000 }))
+  const reconciled = parseToolResult(await mcp.callTool('nomi_operation_control', { action: 'reconcile', leaseHandle: upgradedLease, projectId, operationId, outcome: 'found' }, { timeoutMs: 90_000 }))
   check(!reconciled.isError, '同一 Run 通过查询恢复，而不是再次提交')
   check(provider.hits.filter((hit) => hit.method === 'POST').length === 1 && provider.hits.filter((hit) => hit.method === 'GET').length === 1, '恢复只查询一次且没有重复扣费提交')
   check(Boolean(reconciled.outcome?.artifactId || reconciled.json?.artifactId || reconciled.json?.artifact?.artifactId), '终态结果落成可持久化 Artifact')

@@ -105,7 +105,8 @@ async function run() {
   let revision = 0
   try {
     await withMcp(dirs, runtime, async (mcp) => {
-      const begin = parseToolResult(await mcp.callTool('nomi_integration_begin', {
+      const begin = parseToolResult(await mcp.callTool('nomi_integration', {
+        action: 'begin',
         kind: 'http-api-provider',
         name: 'Trusted audio journey',
         baseUrl: provider.baseUrl,
@@ -116,7 +117,8 @@ async function run() {
       assert(!begin.isError && begin.json?.stage === 'needs_credential', 'MCP creates an unverified audio session')
       sessionId = begin.json.id
       revision = begin.json.revision
-      const handoff = parseToolResult(await mcp.callTool('nomi_integration_open_credentials', {
+      const handoff = parseToolResult(await mcp.callTool('nomi_integration', {
+        action: 'open_credentials',
         sessionId,
         expectedRevision: revision,
       }))
@@ -143,22 +145,21 @@ async function run() {
     })
 
     await withMcp(dirs, runtime, async (mcp) => {
-      const current = parseToolResult(await mcp.callTool('nomi_integration_get', { sessionId }))
-      const discovered = parseToolResult(await mcp.callTool('nomi_integration_discover', {
+      const current = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
+      const proposed = parseToolResult(await mcp.callTool('nomi_integration', {
+        action: 'propose',
         sessionId,
         expectedRevision: current.json.revision,
-      }, 60_000))
-      assert(!discovered.isError, `MCP discovers the audio fixture: ${discovered.text}`)
-      const candidate = discovered.json?.candidates?.find((item) => item.modelKey === 'tts-journey-audio')
-      assert(candidate?.kind === 'audio', 'discovery classifies the new model as audio')
-      const selected = parseToolResult(await mcp.callTool('nomi_integration_select', {
-        sessionId,
-        expectedRevision: discovered.json.revision,
-        selections: [{ modelKey: candidate.modelKey }],
+        proposal: {
+          candidates: [{ modelKey: 'tts-journey-audio', kind: 'audio', evidence: ['docs', 'manual'], classification: 'supported' }],
+          selections: [{ modelKey: 'tts-journey-audio' }],
+        },
       }))
-      const requested = parseToolResult(await mcp.callTool('nomi_integration_request_confirmation', {
+      assert(!proposed.isError && proposed.json?.stage === 'needs_spend_confirmation', `MCP accepts the audio proposal: ${proposed.text}`)
+      const requested = parseToolResult(await mcp.callTool('nomi_integration', {
+        action: 'confirm',
         sessionId,
-        expectedRevision: selected.json.revision,
+        expectedRevision: proposed.json.revision,
         idempotencyKey: 'trusted-audio-certification',
       }))
       assert(!requested.isError && requested.json?.challengeId, 'MCP requests a signed immutable confirmation challenge')
@@ -184,9 +185,10 @@ async function run() {
     })
 
     await withMcp(dirs, runtime, async (mcp) => {
-      const confirmed = parseToolResult(await mcp.callTool('nomi_integration_get', { sessionId }))
+      const confirmed = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
       assert(confirmed.json?.pendingReceiptId, 'MCP observes only the opaque receipt handle')
-      let state = parseToolResult(await mcp.callTool('nomi_integration_start', {
+      let state = parseToolResult(await mcp.callTool('nomi_integration', {
+        action: 'start',
         sessionId,
         expectedRevision: confirmed.json.revision,
         idempotencyKey: 'trusted-audio-certification',
@@ -199,7 +201,7 @@ async function run() {
       const deadline = Date.now() + 30_000
       while (state.json?.stage === 'certifying' && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 100))
-        state = parseToolResult(await mcp.callTool('nomi_integration_get', { sessionId }))
+        state = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
       }
       let adapterEvidence = null
       try {
@@ -229,7 +231,7 @@ async function run() {
         state.json?.stage === 'completed',
         `audio certification completes: ${state.text}; adapter=${JSON.stringify(adapterEvidence)}; requests=${JSON.stringify(provider.requests)}; stderr=${JSON.stringify(mcp.stderr())}`,
       )
-      const models = parseToolResult(await mcp.callTool('nomi_list_models', {}))
+      const models = parseToolResult(await mcp.callTool('nomi_read', { target: 'models' }))
       const promoted = models.outcome?.models?.find((item) => item.modelKey === 'tts-journey-audio')
         || models.json?.models?.find((item) => item.modelKey === 'tts-journey-audio')
       assert(promoted?.kind === 'audio' && promoted?.keyStatus === 'ok', 'promoted audio model appears in the ordinary usable picker contract')

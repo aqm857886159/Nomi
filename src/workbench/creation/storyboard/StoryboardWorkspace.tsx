@@ -11,7 +11,7 @@ import StoryboardPlanEditor from './StoryboardPlanEditor'
  * 无文档侧栏无 AI 栏——完整编辑器只住这里（P1 一个实现一个家）。
  * 有方案 → StoryboardPlanEditor；无方案 → 空态引导回创作页拆镜头。返回原稿 = 切回 creation。
  */
-export default function StoryboardWorkspace(): JSX.Element {
+export default function StoryboardWorkspace({ projectId }: { projectId?: string | null }): JSX.Element {
   const { t } = useTranslation()
   const entry = useWorkbenchStore((state) => (state.activeDocumentId ? state.storyboardPlans[state.activeDocumentId] : undefined))
   const plan = entry?.plan ?? null
@@ -36,7 +36,7 @@ export default function StoryboardWorkspace(): JSX.Element {
         aria-label={t('workspace.storyboard')}
       >
         <div className="h-full min-h-0">
-          <StoryboardPlanEditor />
+          <StoryboardPlanEditor projectId={projectId} />
         </div>
       </section>
     )
