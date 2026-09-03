@@ -430,7 +430,7 @@ export const CANVAS_WRITE_CAPABILITY = {
       description: "Propose an exact, reversible prompt update to one generation canvas node.",
     },
     mcp: {
-      description: "Read the current canvas intent and propose a validated, reversible canvas edit.",
+      description: "Propose a validated, reversible canvas edit from current intent.",
     },
   },
 } as const satisfies CapabilityContract<CanvasWriteInput, CanvasWriteResult>;

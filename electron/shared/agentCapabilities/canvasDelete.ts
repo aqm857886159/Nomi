@@ -59,6 +59,6 @@ export const CANVAS_DELETE_CAPABILITY = {
   approval: "proposal",
   projections: {
     pi: { description: "Delete exact Canvas nodes after explicit approval." },
-    mcp: { description: "Confirm and undo a destructive Canvas maintenance operation." },
+    mcp: { description: "Confirm or undo destructive Canvas maintenance." },
   },
 } as const satisfies CapabilityContract<CanvasDeleteInput, CanvasDeleteResult>;

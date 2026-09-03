@@ -39,7 +39,7 @@ describe("canvas.write canonical contract", () => {
       approval: "proposal",
       projections: {
         pi: { description: "Propose an exact, reversible prompt update to one generation canvas node." },
-        mcp: { description: "Read the current canvas intent and propose a validated, reversible canvas edit." },
+        mcp: { description: "Propose a validated, reversible canvas edit from current intent." },
       },
     });
     expect(CANVAS_WRITE_CAPABILITY.aliases.mcp).toBe("nomi_canvas_edit");
