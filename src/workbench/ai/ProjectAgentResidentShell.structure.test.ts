@@ -63,7 +63,7 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('readableToolSummary')
     expect(resident).toContain('readableToolPreview')
     expect(resident).toContain('useAgentUsageStore')
-    expect(resident).toContain('data-agent-usage')
+    expect(resident).toContain('data-agent-usage-pill')
     expect(resident).not.toContain('resultRef ?? t(\'agentResident.waitingApproval\')')
     expect(resident).toContain("t('agentResident.task'")
     expect(resident).toContain("t('agentResident.artifact'")
@@ -81,18 +81,18 @@ describe('ProjectAgentResidentShell production contract', () => {
 
   it('keeps PR194 controls separate and routes actions through the Host boundary', () => {
     for (const control of [
-      'data-agent-attachment-trigger',
+      'data-agent-composer-attach',
       'data-agent-mention-trigger',
       'data-agent-skill-trigger',
-      'data-agent-prompt-trigger',
-      'data-agent-mode-trigger',
-      'data-agent-model-trigger',
-      'data-agent-send',
+      'data-agent-composer-prompt',
+      'data-agent-composer-mode',
+      'data-agent-composer-model',
+      'data-agent-composer-send',
       'data-agent-stop',
       'data-agent-context',
       'data-agent-context-focus',
     ]) expect(resident).toContain(control)
-    expect(residentPrimitives).toContain('data-agent-queue-item')
+    expect(residentPrimitives).toContain('data-agent-queue-row')
     expect(residentPrimitives).toContain('data-agent-tool-header')
     expect(residentPrimitives).toContain('ToolActionIcon')
     expect(residentPrimitives).toContain('data-agent-approval-details')
