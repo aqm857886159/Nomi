@@ -189,7 +189,13 @@ const storyboardPatchShotsInputSchema = z
       // 空补丁 = 一次无效调用，早报错好过静默无操作（静默无操作正是这轮一直在修的那类）。
       .refine((patch) => Object.keys(patch).length > 0, { message: "patch must name at least one field" })
       // prompt 是整句替换、promptAppend 是追加，同时给等于意图矛盾——不猜，直接拒。
-      .refine((patch) => !(patch.prompt && patch.promptAppend), { message: "give either prompt or promptAppend, not both" }),
+      .refine((patch) => !(patch.prompt && patch.promptAppend), { message: "give either prompt or promptAppend, not both" })
+      // modelVendor 不能单独出现，也不能给了 modelKey 却不给 vendor —— 模型身份的唯一键是
+      // (vendor, modelKey)，半套等于让落地路径按裸 key 反查、命中别家（2026-09-03 三次真实故障的成因）。
+      // 讽刺的是这个洞正是我一边修那三处、一边在自己新写的 schema 里留下的，由真机验证抓出。
+      .refine((patch) => !(patch.modelKey || patch.modelVendor) || Boolean(patch.modelKey && patch.modelVendor), {
+        message: "modelKey and modelVendor must be given together (a model's identity is the (vendor, modelKey) pair)",
+      }),
   })
   .strict();
 

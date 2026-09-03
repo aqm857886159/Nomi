@@ -336,6 +336,11 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const setReferences = useWorkbenchStore((state) => state.setProjectAgentReferences)
   const runMode = useWorkbenchStore((state) => state.projectAgentRunMode)
   const setRunMode = useWorkbenchStore((state) => state.setProjectAgentRunMode)
+  // 分镜页与创作页共用 surface='creation'（文档上下文/target/capability 确实一样），
+  // 但**工具集不一样**：分镜页要能改分镜表。此前只按 surface 判断，于是分镜页的 Agent
+  // 拿的是文稿编辑工具集——你说「所有镜头加雨天」它去改文稿了（2026-09-03 真机验证抓到）。
+  // 我们明知道用户在哪一页，没有任何理由让 agentChatPolicy 那张关键词表去猜。
+  const workspaceMode = useWorkbenchStore((state) => state.workspaceMode)
   const approvalPolicy = useWorkbenchStore((state) => state.projectAgentApprovalPolicy)
   const setApprovalPolicy = useWorkbenchStore((state) => state.setProjectAgentApprovalPolicy)
   const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
@@ -603,7 +608,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     const selectedNodeIdsAtSend = sendContext.selectedNodeIds
     const selectedClipIdsAtSend = sendContext.selectedClipIds
     const surfaceContext = surfaceLabel(t, surface)
-    const contextDetail = surface === 'generation' ? t('agentResident.contextNodes', { count: selectedNodeIdsAtSend.length }) : surface === 'preview' ? t('agentResident.contextClips', { count: selectedClipIdsAtSend.length }) : t('agentResident.currentDocument')
+    const contextDetail = surface === 'generation' ? t('agentResident.contextNodes', { count: selectedNodeIdsAtSend.length }) : surface === 'preview' ? t('agentResident.contextClips', { count: selectedClipIdsAtSend.length }) : workspaceMode === 'storyboard' ? t('agentResident.currentStoryboard') : t('agentResident.currentDocument')
     // Preview is a real timeline task surface, not tool-free chat. Keep the
     // legacy canvas-chat capability for callers that explicitly need prose,
     // while the resident routes timeline work through the Host's timeline
@@ -645,7 +650,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           ? selectedPromptPreset.prompt || selectedPrompt.prompt
           : undefined
       const systemPrompt = composeResidentSystemPrompt(surfaceSystemPrompt, activeSkill ? null : selectedLibraryPrompt)
-      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: options?.displayText ?? text, capability, ...(options?.toolProfile ? { toolProfile: options.toolProfile } : surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIdsAtSend : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: surface === 'creation' ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, workMode: runMode, approvalPolicy, skillKey, skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), contextSnapshot, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? ''); if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, call.args, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }; emitPending() } })
+      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: options?.displayText ?? text, capability, ...(options?.toolProfile ? { toolProfile: options.toolProfile } : workspaceMode === 'storyboard' ? { toolProfile: 'storyboard' as const } : surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIdsAtSend : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: surface === 'creation' ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, workMode: runMode, approvalPolicy, skillKey, skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), contextSnapshot, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? ''); if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, call.args, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }; emitPending() } })
       const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? '')
       if (projectionScope && response.toolCalls.length) {
         const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope)))
@@ -660,7 +665,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       }
       setLastTurnTokens(response.usage.totalTokens)
     } catch (caught) { setError(friendlyError(caught, t)) } finally { clearResidentPendingTools(turnId) }
-  }, [activeSkill, approvalPolicy, attachmentApi, attachments, closeMenu, creationDocumentTools, promptModeId, references, runMode, selectedLibraryPrompt, selectedPromptPreset, snapshot, surface, t])
+  }, [activeSkill, approvalPolicy, attachmentApi, attachments, closeMenu, creationDocumentTools, promptModeId, references, runMode, selectedLibraryPrompt, selectedPromptPreset, snapshot, surface, t, workspaceMode])
 
   const submit = React.useCallback(async () => {
     const text = draft.trim(); if (!text || !snapshot) return; setError('')

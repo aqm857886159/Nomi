@@ -16,6 +16,7 @@ export const zhAgentResident = {
   contextGeneration: '生成 · 画布',
   contextPreview: '预览 · 时间轴',
   currentDocument: '当前文稿',
+  currentStoryboard: '当前分镜表',
   // 侧栏「新建分镜方案」/ 选中浮条「拆镜头」按下时真正发给 agent 的那句话（按钮文案是显示用的，
   // 这句是指令用的）。显式带 toolProfile:'storyboard'，不指望关键词表猜中。
   storyboardRequest: '把当前文稿拆成一份分镜方案：先读全文，再规划跨镜头要保持一致的角色/场景/风格，然后逐镜给出画面描述。',
@@ -342,6 +343,7 @@ export const enAgentResident = {
   contextGeneration: 'Generation · Canvas',
   contextPreview: 'Preview · Timeline',
   currentDocument: 'Current draft',
+  currentStoryboard: 'Current storyboard',
   storyboardRequest: 'Turn the current draft into a storyboard: read the full text, plan the characters/settings/style that must stay consistent across shots, then describe each shot.',
   patchShotsAll: 'All shots',
   patchShotsIndexes: 'Shot {{indexes}}',

@@ -591,6 +591,16 @@ describe('applyCanvasToolCall patch_shots', () => {
     expect(shots()[0].modeId).toBeUndefined()
   })
 
+  it('模型身份必须成对：半套 modelKey 在 schema 层就被拒', async () => {
+    // 2026-09-03 真机验证抓到：我一边修「vendor 必须成对」那三处，一边在自己新写的 schema 里
+    // 留了同一个洞——modelKey 可以不带 modelVendor 出现。
+    const { canvasWriteSemanticInputSchema } = await import('../../../../electron/shared/agentCapabilities/canvasWrite')
+    const half = { operation: 'patch_shots', select: { kind: 'all' }, patch: { modelKey: 'nano-banana' } }
+    expect(canvasWriteSemanticInputSchema.safeParse(half).success).toBe(false)
+    const pair = { operation: 'patch_shots', select: { kind: 'all' }, patch: { modelKey: 'nano-banana', modelVendor: 'apimart' } }
+    expect(canvasWriteSemanticInputSchema.safeParse(pair).success).toBe(true)
+  })
+
   it('镜号越界时错误信息告诉模型怎么改（错误信息即提示词）', async () => {
     await expect(applyCanvasToolCall('patch_shots', {
       select: { kind: 'indexes', indexes: [9] }, patch: { prompt: 'x' },

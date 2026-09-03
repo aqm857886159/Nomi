@@ -245,3 +245,18 @@ describe('按钮类入口的意图必须显式声明，不留给猜', () => {
     expect(launcher).toContain('action: true')
   })
 })
+
+describe('分镜页的 Agent 必须拿到分镜工具集', () => {
+  // 2026-09-03 真机验证（Codex）抓到的最高优先级 bug，且是我自己造的：
+  // 做三栏时我拆了 agentSurface / agentDockSurface 两个变量，但只拆对了一半——
+  // dock 挂对了地方，capability 仍是 creation-editor，工具集靠 agentChatPolicy 的关键词表猜。
+  // 后果：你在分镜页说「所有镜头都加雨天」，Agent 去改文稿了；确认卡回退成「执行操作/查看细节」。
+  // 我当时还在注释里写下了那个错误判断：「分镜页操作的仍是文稿故仍走 creation」。
+  it('workspaceMode 为 storyboard 时强制 storyboard toolProfile，不靠关键词表猜', () => {
+    expect(resident).toContain("workspaceMode === 'storyboard' ? { toolProfile: 'storyboard' as const }")
+  })
+
+  it('现场描述也说对——模型读的就是这句', () => {
+    expect(resident).toContain("workspaceMode === 'storyboard' ? t('agentResident.currentStoryboard')")
+  })
+})
