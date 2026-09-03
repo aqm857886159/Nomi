@@ -14,6 +14,7 @@ export function residentReferenceRole(t: Translate, kind: ProjectAgentReference[
     preview: 'referenceRolePreview',
     timeline: 'referenceRoleTimeline',
     browser: 'referenceRoleBrowser',
+    asset: 'referenceRoleAsset',
   }[kind]
   return t(`agentResident.${key}`)
 }

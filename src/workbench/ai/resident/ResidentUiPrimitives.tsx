@@ -77,14 +77,14 @@ export function ResidentToolChips({ items, emptyLabel, statusLabel, sectionLabel
   }, [hasRunningItem, items.length])
   if (!items.length) return null
   // data-agent-tool-line: spec §0 挂点
-  return <section className="space-y-1.5" data-agent-tool-line="true" aria-label={sectionLabel}>
+  return <section className="space-y-1.5" data-agent-tool-line="true" data-state={hasRunningItem ? 'running' : 'done'} aria-label={sectionLabel}>
     <button type="button" aria-expanded={groupOpen} aria-controls="agent-tool-run" onClick={() => { setGroupOpen((value) => { if (value) setOpenId(null); return !value }) }} className="-mx-1 flex min-h-7 w-fit items-center gap-1.5 rounded-nomi-sm px-1 text-micro text-nomi-ink-60 transition-[background,color] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nomi-accent/40 motion-reduce:transition-none" data-agent-tool-header="true">
       <IconChevronRight size={12} className={cn('transition-transform duration-[var(--nomi-transition-fast)] motion-reduce:transition-none', groupOpen && 'rotate-90')} aria-hidden="true" /><IconTool size={13} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
       <span className="tabular-nums">{headerLabel}</span>
     </button>
     <div id="agent-tool-run" className="grid transition-[grid-template-rows,opacity] duration-[var(--nomi-transition-fast)] motion-reduce:transition-none" style={{ gridTemplateRows: groupOpen ? '1fr' : '0fr', opacity: groupOpen ? 1 : 0 }}>
       <div className="min-h-0 overflow-hidden">
-        <div className="grid gap-0.5">
+        <div className="grid max-h-[220px] gap-0.5 overflow-y-auto overscroll-contain">
           {items.map((item) => {
             const openItem = item.id === openId
             const detailId = `agent-tool-detail-${item.id}`
