@@ -18,7 +18,8 @@
 | [2026-09-03-storyboard-selection-and-inline-diff.md](2026-09-03-storyboard-selection-and-inline-diff.md) | **选中即引用 + 改动就地预览**：寻址问题的正解不是让模型指得更准而是根本不让它指；引用胶囊进输入框内部（现状飘在框外、生命周期模糊）；中文 diff 用 Intl.Segmenter（0 依赖）+ ProseMirror Decoration，实查否掉 react-diff-viewer 与付费 Tiptap Tracked Changes | ✅ |
 | [2026-09-03-storyboard-agent-tools.md](2026-09-03-storyboard-agent-tools.md) | **分镜表的 Agent 工具面**：三栏改造给分镜页接上了 Agent 却没给它能碰分镜表的手。按用户在分镜表前真会说的 6 类话反推工具，核心取舍是粒度——粒度必须对齐审批/撤销粒度（一次调用一张卡），并把「别乱改没点名的字段」从提示词软约束变成 schema 硬约束 | 📋 |
 | [2026-09-03-storyboard-entry-vendor-identity.md](2026-09-03-storyboard-entry-vendor-identity.md) | **分镜表首次真实付费闭环走查的三个阻断**：模型身份唯一键补 vendor（选 A 家发去 B 家）、拆镜头入口的注册者被移植删掉、工具 profile 靠关键词表猜措辞；外加分镜页从全宽孤岛改成与创作页同构的三栏 | ✅ |
-| [2026-09-03-storyboard-fix5.md](2026-09-03-storyboard-fix5.md) | **分镜样张 FIX5**：修复参考槽内部标识符泄漏、镜头行歧义定位与默认态截图误拍展开面板，并按 Web Interface Guidelines 做静态审计 | 🚧 |
+| [2026-09-03-storyboard-fix5.md](2026-09-03-storyboard-fix5.md) | **分镜样张 FIX5**：修复参考槽内部标识符泄漏、镜头行歧义定位与默认态截图误拍展开面板，并按 Web Interface Guidelines 做静态审计 | 📎 |
+| [2026-09-03-storyboard-anchor-mockup-handoff.md](2026-09-03-storyboard-anchor-mockup-handoff.md) | **交接**：锚行/参数条样张 7 轮返工后用户判定"根本不是人能用的东西"，换人重做；含完整时间线、诊断与给下一个人的建议 | 📎 |
 | [2026-09-03-self-hosted-relay-conformance-harness.md](2026-09-03-self-hosted-relay-conformance-harness.md) | **自建中转一致性台架**：CI 里起一个**严格的**假中转，驱动真实接入→认证→生成全链路。严格度锚定 2026-09-03 真机实测（用错端点/无图/图太小/multipart 无字节 四条拒绝规则），把「用户接入」这条唯一没有反馈回路的路径接上回路 | 📋 |
 | [2026-09-02-docaudit-kie-apimart.md](2026-09-02-docaudit-kie-apimart.md) | KIE + APIMart 官方文档全量对账、映射合同覆盖与未封印模型验收 | ✅ |
 | [2026-09-02-runway-model-identity-workflow.md](2026-09-02-runway-model-identity-workflow.md) | **一个模型一个档案主人**（PR #310 挂起的「单独立项裁决」）：删平台档案 runway-video，10 个 Runway 模型改挂真模型档案；补齐供应商特化三轴（参数/transport/模式可见性）；selectTaskMapping 停止借用别的模式的线缆 | ✅ |

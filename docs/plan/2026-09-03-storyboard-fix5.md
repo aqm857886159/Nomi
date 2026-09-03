@@ -1,5 +1,9 @@
 # 分镜样张 FIX5 执行计划（2026-09-03）
 
+📎 交接/日志——本轮范围内的具体 bug（内部标识符泄漏、镜头行定位歧义）已修复验证，但后续用户
+对整体锚行/参数条设计方向判定不可用、已换人重做。完整交接见
+[2026-09-03-storyboard-anchor-mockup-handoff.md](2026-09-03-storyboard-anchor-mockup-handoff.md)。
+
 ## 范围
 
 - 修复参考区把 `slot.kind` 直接显示给用户的问题：所有参考槽文案必须是中文语义，不出现裸 snake_case 标识符。
