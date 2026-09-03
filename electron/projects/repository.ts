@@ -16,9 +16,8 @@ import {
   suppressLegacyProjectRediscovery,
 } from "../workspace/legacyProjectMigration";
 import {
-  backfillWorkspaceOrigins,
   findRecentWorkspace,
-  rememberWorkspace,
+  rememberWorkspaces,
   removeWorkspaceReference,
 } from "../workspace/workspaceRegistry";
 import { resolveWorkspaceRelativePath } from "../workspace/workspacePaths";
@@ -130,18 +129,19 @@ export function resetEmptyDraftGcGuard(): void {
 
 export function listProjects(): Array<Omit<ProjectRecord, "payload">> {
   const deps = getWorkspaceRepositoryDeps();
-  // 存量 registry 没有来源字段：按当前（切换前）默认根冻结一次，此后不随设置变化重算。
-  backfillWorkspaceOrigins(deps.settingsRoot, deps.defaultProjectsRoot);
-  // 「发现」legacy 项目是一次性回填语义，不挂在每次列举上（P1 性能根因）：仅进程内
-  // 首次列举（或显式 syncLegacyProjects）才扫默认根并把带顶层清单的 legacy 项目重注册
-  // 进 registry；之后列举只走 registry（O(已注册数)），不再 O(磁盘目录数) fs 读 + 全量
-  // 重写 registry，也不会把已删/已 suppress 的项目反复复活。
-  for (const legacyProject of discoverLegacyProjectsOnce(deps.defaultProjectsRoot)) {
-    rememberWorkspace(deps.settingsRoot, legacyProject, {
-      source: "native",
-      nativeRootPath: deps.defaultProjectsRoot,
-    });
-  }
+  // 存量 registry 的来源字段冻结由下游 listWorkspaceProjects 统一负责（同参数同进程重复调用
+  // 是纯浪费的一次取锁+读表，2026-09-03 去重）。
+  // 「发现」legacy 项目是对 registry **缺失项**的增量对账，不是每次启动把全库重读重注册：
+  // discoverLegacyProjectsOnce 拿 settingsRoot 先跳过所有已注册目录（0 次 manifest 读），
+  // 只对真正的新项目走无锁快照读；随后一次批量写 registry（而不是 N 次全量重写）。
+  const discovered = discoverLegacyProjectsOnce(deps.defaultProjectsRoot, { settingsRoot: deps.settingsRoot });
+  rememberWorkspaces(
+    deps.settingsRoot,
+    discovered.map((record) => ({
+      record,
+      origin: { source: "native", nativeRootPath: deps.defaultProjectsRoot } as const,
+    })),
+  );
   // 启动首次列举顺手回收上个进程遗留的空白草稿（默认根存在才跑，避免根被移走时雪崩）。
   if (!emptyDraftGcDone) {
     emptyDraftGcDone = true;
