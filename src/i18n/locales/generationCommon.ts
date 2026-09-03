@@ -641,6 +641,13 @@ export const zhGenerationCommon = {
     referencesAria: '参考素材',
     generationMode: '生成方式',
     comfyNoPrompt: '这条工作流无需提示词',
+    // 被这条渠道藏掉的模式：指一条路，而不是让用户以为「这个模型没这功能」。
+    // 模式名用模型自己的真名（mode.vendorTerm）；引号与分隔符都在译文里，不在代码里拼中文标点。
+    narrowedModeName: '「{{mode}}」',
+    narrowedModeSeparator: '',
+    narrowedModeSwitch: '{{vendor}} 上没有{{modes}}—— {{targetVendor}} 上有',
+    narrowedModeSwitchAction: '换到 {{targetVendor}}',
+    narrowedModeNone: '你接入的这条中转发不出{{modes}}—— 已接入的模型里也没有能做的',
   },
   assetReference: {
     addNamed: '添加{{label}}',
@@ -2236,6 +2243,12 @@ export const enGenerationCommon = {
     referencesAria: 'Reference assets',
     generationMode: 'Generation mode',
     comfyNoPrompt: 'This workflow takes no prompt',
+    // English quotes the mode names and joins with a comma — punctuation lives in the copy, not the code.
+    narrowedModeName: '“{{mode}}”',
+    narrowedModeSeparator: ', ',
+    narrowedModeSwitch: '{{vendor}} does not offer {{modes}} — {{targetVendor}} does',
+    narrowedModeSwitchAction: 'Switch to {{targetVendor}}',
+    narrowedModeNone: 'The relay you connected cannot send {{modes}} — none of your connected models can either',
   },
   assetReference: {
     addNamed: 'Add {{label}}',

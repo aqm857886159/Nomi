@@ -62,6 +62,8 @@ import {
   archetypeVariantAxisIsLive,
   fallbackVisibleModeId,
 } from './controls/channelModeReach'
+import { referencesSectionIsEmpty, useNarrowedModeGuidance } from './controls/narrowedModeGuidance'
+import NarrowedModeGuidanceNote from './controls/NarrowedModeGuidanceNote'
 import { resolveReferenceSlots, decideArrayReferenceRemoval } from '../runner/referenceSlots'
 import { useChannelCreateBodies } from './controls/useChannelCreateBody'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
@@ -182,6 +184,15 @@ export default function NodeParameterControls({
     () => (archMode && channelCreateBody ? archetypeModeSlotReachByKey(archMode, channelCreateBody) : {}),
     [archMode, channelCreateBody],
   )
+  // 被收窄的模式：不再静默消失，而是指一条路（样张 B/E）。判据与候选查询都住在 narrowedModeGuidance，
+  // 这里只消费结论——见该模块头注释（含「样张 C 为何故意不做」的实测依据）。
+  // 位置必须在下面那些 early return **之前**：hooks 不能条件调用（react-hooks/rules-of-hooks）。
+  const modeGuidance = useNarrowedModeGuidance({
+    archetype: effectiveArchetype,
+    selectedModelOption,
+    modelOptions,
+    modeBodies,
+  })
 
   // P1 单一真相源：所有 meta 增量 patch 都从 store 读**最新** meta 再 spread，绝不基于渲染快照 prop
   // `node.meta`（那是第二份真相源）。连边赋图 + 紧接改参数等「先后两次写」时，读快照会让后写覆盖前写
@@ -694,14 +705,20 @@ export default function NodeParameterControls({
   // 否则用户在下面的提示词框里打了字却毫无作用，只会以为是我们坏了（D4 缺口明着标）。
   const comfyTakesPrompt = comfyWorkflowTakesPrompt(selectedModelOption?.meta)
   const showNoPromptNote = section === 'references' && comfyTakesPrompt === false
+  // 指路提示**独立于模式栏存在**：最坏的一种（样张 D）恰恰是「只剩 1 个模式 → 整条模式栏不显示」，
+  // 那时用户什么都看不到。它若跟着模式栏一起消失，最需要说话的场合反而哑了，所以它单独进空返回判据。
+  const showModeGuidance = showReferences && Boolean(modeGuidance)
 
   if (
     section === 'references' &&
-    imageUrlSlots.length === 0 &&
-    arraySlots.length === 0 &&
-    !sourceVideoSlot &&
-    !showModeBar &&
-    !showNoPromptNote
+    referencesSectionIsEmpty({
+      hasImageUrlSlots: imageUrlSlots.length > 0,
+      hasArraySlots: arraySlots.length > 0,
+      hasSourceVideoSlot: Boolean(sourceVideoSlot),
+      showModeBar,
+      showNoPromptNote,
+      hasModeGuidance: showModeGuidance,
+    })
   )
     return null
 
@@ -713,6 +730,16 @@ export default function NodeParameterControls({
     <div className={rootClassName} aria-label={t('generationCommon.parameters.referencesAria')}>
       {showReferences && showModeBar ? (
         <ModeBar choices={modeChoices} activeId={archMode?.id || ''} onSelect={handleModeSwitch} />
+      ) : null}
+
+      {showModeGuidance && modeGuidance ? (
+        <NarrowedModeGuidanceNote
+          guidance={modeGuidance}
+          currentVendorName={selectedModelOption?.vendorName || selectedModelOption?.vendor || ''}
+          // 复用**已有的** handleModelChange = 与用户手动换模型同一条状态写入路径（updateNode 带 meta patch
+          // → pushEditBurstBarrier），因此天然被 Cmd+Z 覆盖，不新开第二条切换路径。
+          onSwitch={handleModelChange}
+        />
       ) : null}
 
       {showReferences && assetSlots.length > 0 ? (
