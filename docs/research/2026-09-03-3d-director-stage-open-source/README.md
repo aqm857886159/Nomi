@@ -40,7 +40,7 @@ Nomi 并不是从零开始：
 此前的完整 3D 导演台、TapNow、LibTV 和 Lovart 走查已经保存在：
 
 - [`2026-08-02 3D 导演台完整研究`](2026-08-02-3d-director-stage/README.md)
-- [`Lovart 学习包`](../../competitive-learning/lovart/README.md)
+- [`Lovart 元素拆解研究`](../2026-06-27-lovart-element-decomposition-research.md)
 
 本报告只补“开源项目/框架能否快速拉齐”的层，不重复复制已有截图树。
 
