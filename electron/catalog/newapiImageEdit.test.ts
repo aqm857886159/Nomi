@@ -8,12 +8,21 @@ import type { HttpOperation } from "./types";
 
 type AnyRec = Record<string, unknown>;
 
+const RENDER_MODEL_KEY = "gemini-2.5-flash-image";
+
+/**
+ * 渲染一次 create body。**必须与生产的 profileHttpRequest.templateContext 同构**：
+ * 中转 op 的 model 现在读 `{{request.params.model}}`（变体轴要活就只能这么写），而
+ * `params.model` 的回落由 taskTemplateParams 按 `selected.wireModelKey` 补。
+ * 本 helper 手工拼 context，故在此把同一个身份补进 params —— 调用方传进来的 params
+ * 若自带 model（模拟选了变体）会盖过它，与生产同序。
+ */
 function renderBody(op: HttpOperation, prompt: string, params: AnyRec): AnyRec {
   const ctx = buildTemplateContext({
     request: { prompt },
-    params,
+    params: { model: RENDER_MODEL_KEY, ...params },
     model: {},
-    modelKey: "gemini-2.5-flash-image",
+    modelKey: RENDER_MODEL_KEY,
     apiKey: "sk-test",
   });
   return renderTemplateValue(op.body, ctx) as AnyRec;

@@ -19,12 +19,15 @@ export function templateContext(
   providerMeta: JsonRecord = {},
   paramMap?: ParamMap,
 ): JsonRecord {
+  // 「发哪个 model 串」的单一表达式：`{{model.modelKey}}` 与 `{{request.params.model}}` 的回落值
+  // 必须**逐字节同源**，否则把 body 换成参数化 model 就会悄悄改掉裸模型发出去的串（P1：不留第二份）。
+  const wireModelKey = model.modelAlias || model.modelKey;
   return buildTemplateContext({
     request: request as unknown as JsonRecord,
     params: applyParamMap(paramMap, taskTemplateParams(request,
-      { vendorKey: model.vendorKey, modelKey: model.modelKey })),
+      { vendorKey: model.vendorKey, modelKey: model.modelKey, wireModelKey })),
     model: model as unknown as JsonRecord,
-    modelKey: model.modelAlias || model.modelKey,
+    modelKey: wireModelKey,
     apiKey,
     providerMeta,
   });

@@ -384,3 +384,89 @@ describe("自建中转一致性台架 · 视频生成阶段（认证之后的真
     expect(create[0].jsonBody?.duration).toBe(5);
   }, 30_000);
 });
+
+// ── 变体轴（快速/mini 等档位）真的换掉了发出去的 model 串 ───────────────────────────────────
+//
+// ★ 补这一组的原因（2026-09-03 探针实测的差距）：同一个模型名，内置 kie/apimart 能选 标准/快速/mini，
+// 经用户自建中转**一个档都选不到**。根因不在 UI：中转的 op 把 model 写成字面量 `{{model.modelKey}}`，
+// 于是变体轴**恒为惰性**——收窄判据 `archetypeVariantAxisIsLive` 读「wire 有没有引用 params.model」，
+// 读到没有就（正确地）把整条变体栏藏起来。用户因此永远在跑默认档：每一次生成都更贵、更慢，
+// 而且界面上看不出还有别的档可选。这不是「少个控件」，是**每次生成都在多花钱**。
+//
+// 断言纪律与本文件其余部分一致：**断 wire，不断 UI**。变体轴活没活，唯一算数的证据是
+// 「切了档之后，发到中转的那个 model 字符串真的变了」——这正是下面两条在量的东西。
+describe("自建中转一致性台架 · 变体轴（切档真的换掉线上的 model 串）", () => {
+  /** 发一次生成，回传中转真正收到的 create body。 */
+  async function createBodyWith(extras: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const mode = modeOf("video", "text_to_video");
+    await executeProfileOperation({
+      vendor: vendor(),
+      model: model("video"),
+      apiKey: "sk-relay-test",
+      request: { kind: "text_to_video", prompt: "a cat", extras: { modelKey: VIDEO_MODEL_KEY, ...extras } } as never,
+      operation: mode.create,
+    });
+    const create = createVideoHits();
+    expect(create.length, "生成请求没打到 /v1/video/generations").toBe(1);
+    expect(create[0].status, `严格中转拒绝了这次生成：${create[0].rejection}`).toBe(200);
+    return create[0].jsonBody ?? {};
+  }
+
+  it("选了变体：发出去的 model **就是那个变体的串**（不是目录行的名字）", async () => {
+    // 档案切变体的产物就是 params.model（buildArchetypeInputParams 末尾：变体 > mode.modelEnum）。
+    // 这里直接喂那个键 = 模拟「用户在节点上点了『快速』」之后送到 runtime 的东西。
+    const body = await createBodyWith({ model: `${VIDEO_MODEL_KEY}-fast` });
+    expect(
+      body.model,
+      `切了变体，发到中转的 model 却不是变体串 —— 变体轴是死的，用户白点。实际 body: ${JSON.stringify(body)}`,
+    ).toBe(`${VIDEO_MODEL_KEY}-fast`);
+  }, 30_000);
+
+  it("**没有变体**的裸模型：model 仍是目录身份，且该键绝不缺席", async () => {
+    // ★ 这条是把 model 参数化的**代价闸**，也是本组最该盯的一条。
+    // 模板引擎对整 token 的 undefined 是「整键丢弃」（不是留空串）：只要回落没接上，
+    // 没变体的模型就会发出一个**没有 model 字段**的请求 —— 那是每一个裸中转模型 100% 失败，
+    // 比原来的「变体选不了」严重得多。所以这里同时断言「键在」与「值对」。
+    const body = await createBodyWith({});
+    expect(
+      Object.prototype.hasOwnProperty.call(body, "model"),
+      `裸模型发出的请求里**根本没有 model 字段** —— 参数化把回落丢了，中转必 400。实际 body: ${JSON.stringify(body)}`,
+    ).toBe(true);
+    expect(body.model, `裸模型的 model 串不等于目录身份 —— 换写法改变了线上字节。实际 body: ${JSON.stringify(body)}`)
+      .toBe(VIDEO_MODEL_KEY);
+  }, 30_000);
+
+  // ── 参数是否真的到得了 wire（同一组 createBodyWith，故并在本 describe 里）─────────────────
+  //
+  // 判据与 paramConsistency / 变体轴收窄同源（wireReferencedParamKeys）：档案声明的参数要么被
+  // body 引用、要么被 paramMap 翻译、要么**显式** drop。逐参数查下来，通用中转视频这条 wire 上
+  // seed 与 negative_prompt 属于「文档明写支持、我们却没给位置」——即静默丢弃，本轮补上。
+  it("种子与负向词**真的进了报文**（文档明写的字段，此前静默丢弃）", async () => {
+    // R5 依据：doc.newapi.pro/api/kling-jimeng/（2026-09-03）——seed 是顶层可选 integer；
+    // negative_prompt 是 metadata 袋的官方示例字段。
+    const body = await createBodyWith({ seed: 20231234, negative_prompt: "模糊" });
+    expect(body.seed, `种子没进 wire —— 用户填了种子却拿不到可复现的结果。实际 body: ${JSON.stringify(body)}`)
+      .toBe(20231234);
+    // 数字必须原样是 number（字符串化会被严格端点拒，与 duration 同理）。
+    expect(typeof body.seed).toBe("number");
+    expect(
+      body.metadata,
+      `负向词没进 metadata.negative_prompt —— 用户写的负向词完全不生效且毫无迹象。实际 body: ${JSON.stringify(body)}`,
+    ).toEqual({ negative_prompt: "模糊" });
+  }, 30_000);
+
+  it("什么都没填时，**绝不**多发空的 seed / metadata 字段", async () => {
+    // ★ 这条守的是「加字段的代价」：模板层丢得掉 undefined 的键，却丢不掉因此变空的父对象——
+    // 逐键写 metadata 时实测会发出 `"metadata":{}`。空对象/空字段进严格端点是白白的拒绝风险，
+    // 而且这类回归本地看不出来（假中转不校验），只有把它钉成断言才拦得住。
+    const body = await createBodyWith({});
+    expect(
+      Object.prototype.hasOwnProperty.call(body, "metadata"),
+      `没填负向词却发出了 metadata —— 空对象凭空进了严格端点。实际 body: ${JSON.stringify(body)}`,
+    ).toBe(false);
+    expect(
+      Object.prototype.hasOwnProperty.call(body, "seed"),
+      `没填种子却发出了 seed 字段。实际 body: ${JSON.stringify(body)}`,
+    ).toBe(false);
+  }, 30_000);
+});
