@@ -142,14 +142,23 @@ export function listProjects(): Array<Omit<ProjectRecord, "payload">> {
       origin: { source: "native", nativeRootPath: deps.defaultProjectsRoot } as const,
     })),
   );
+  // 全库列举一次，GC 与最终返回共用这一份快照。
+  // 曾经是「GC 自己列一遍 + 这里再列一遍」＝ 372 次 manifest 快照读做两遍，
+  // 实测占冷启动列举总耗时的 55-63%，而第一遍的结果用完即弃。
+  const listed = listWorkspaceProjects(deps);
   // 启动首次列举顺手回收上个进程遗留的空白草稿（默认根存在才跑，避免根被移走时雪崩）。
+  // 回收掉的项目目录已不在盘上，必须从这份快照里摘掉，否则它们会以「幽灵卡片」返回给渲染层。
+  let projects = listed;
   if (!emptyDraftGcDone) {
     emptyDraftGcDone = true;
     if (fs.existsSync(deps.defaultProjectsRoot)) {
-      gcEmptyDraftWorkspaceProjects(deps);
+      const { recycled } = gcEmptyDraftWorkspaceProjects(deps, listed);
+      if (recycled.length) {
+        const recycledIds = new Set(recycled);
+        projects = listed.filter((project) => !recycledIds.has(project.id));
+      }
     }
   }
-  const projects = listWorkspaceProjects(deps);
   // 自愈对齐磁盘 ↔ registry:native 项目(Nomi 自管目录,~/Documents/Nomi Projects 内)
   // 若文件夹已不存在 = 真删(本地盘不会临时消失),从 registry 摘除引用,不再当幽灵卡片展示。
   // 防雪崩:仅当默认根本身仍存在时才清;根整体不可访问(被移走/同步中)则全部保留,等其回归。
