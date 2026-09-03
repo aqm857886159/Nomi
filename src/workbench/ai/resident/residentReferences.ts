@@ -26,6 +26,10 @@ export function buildResidentReference(
   return Object.freeze({ id: value ? `${kind}:${value}` : `${kind}:selection`, label, kind, ...(value ? { value } : {}), ...(contextHandle ? { contextHandle } : {}) })
 }
 
+export function buildResidentAssetReference(assetId: string, label: string): ProjectAgentReference {
+  return Object.freeze({ id: `asset:${assetId}`, label, kind: 'asset' as const, value: `asset:${assetId}` })
+}
+
 export function residentReferencePromptValue(reference: ProjectAgentReference): string {
   return reference.value ? `${reference.label} (${reference.value})` : reference.label
 }
@@ -87,6 +91,7 @@ function targetIdsInReference(reference: ProjectAgentReference): ReadonlySet<str
   if (reference.kind === 'canvas' && prefix === 'nodes') return new Set(raw.split(',').filter(Boolean))
   if (reference.kind === 'preview' && prefix === 'clips') return new Set(raw.split(',').filter(Boolean))
   if (reference.kind === 'timeline' && prefix === 'range') return new Set(raw.split(',').filter(Boolean))
+  if (reference.kind === 'asset' && prefix === 'asset') return new Set([raw])
   return new Set([reference.value])
 }
 

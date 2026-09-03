@@ -1,0 +1,128 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-agent-ui-p0-exception-states",
+  "problem_type": "Agent resident output states lose actionable context when content is long, loading, empty, or failed",
+  "symptom": "The resident panel has no consistent P0 presentation for long lists and text, generation and artifact failures, price uncertainty, loading skeletons, deviation details, candidate sets, or an empty asset picker. Users can lose context, mistake a failure for loading, or be unable to find the next safe action.",
+  "direct_cause": "ProjectAgentResidentShell rendered heterogeneous transcript, pending-tool, queue, and asset-picker data through normal-state rows without state-specific rendering contracts, thresholds, or billing disclosure.",
+  "class_root": "There was no shared resident presentation boundary that derives exception state from existing Agent items and provider DTOs while preserving the normal shell and canonical write/resolve callbacks.",
+  "affected_population": [
+    "Users sending long prompts or receiving long replies and tool batches",
+    "Users encountering plan, price, write, generation, or artifact failures",
+    "Users waiting for a plan or artifact, reviewing deviations, choosing candidates, or opening @ with many or no assets"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/resident/ResidentExceptionStates.tsx",
+    "src/workbench/ai/resident/residentExceptionProjections.ts",
+    "src/workbench/ai/resident/ResidentUiPrimitives.tsx",
+    "src/workbench/ai/resident/ResidentReferenceChip.tsx",
+    "src/workbench/ai/resident/residentReferenceDisplay.ts",
+    "src/workbench/ai/resident/residentReferences.ts",
+    "src/workbench/workbenchStore.ts",
+    "src/i18n/locales/agentResident.ts"
+  ],
+  "entry_points": [
+    "Transcript items projected from the Agent snapshot",
+    "Pending tool calls projected from provider arguments",
+    "Composer @ asset picker projected from the project asset pool",
+    "Queue and tool-chip summaries projected from live Agent state"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This invariant is an internal Nomi presentation contract. The threshold and selector requirements were checked against the approved exception-state mockup, walkthrough, conformance spec, and the existing Agent contracts; no third-party behavior decides the state semantics.",
+  "invariants": [
+    "Long text exposes the first three lines plus an explicit fold link, without a gradient mask.",
+    "Long interactive lists keep their action footer visible, cap the list at 220px, and expose the hidden count where the approved design requires it.",
+    "Failure presentations use a danger border, a human-readable reason, explicit billing status, and only actions that are valid for that failure.",
+    "Loading presentations use shimmer and keep known controls visible but disabled; empty asset selection presents one next action.",
+    "Exception projections reuse existing Agent item state and pending-tool resolve/edit callbacks; they do not create a second task or persistence truth source."
+  ],
+  "generality_proof": "All four entry families converge in ProjectAgentResidentShell: snapshot items and queue rows are already normalized there, pending provider arguments are normalized through residentExceptionProjections, and asset references are built at the single composer picker boundary. The shared exception components own thresholds and state affordances, so another provider, item kind, or project asset population receives the same treatment without a vendor-specific branch.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "ProjectAgentResidentShell",
+      "responsibility": "Select the exception presentation from canonical Agent snapshot/pending-tool state and retain existing resolve, edit, retry, and navigation callbacks."
+    },
+    {
+      "path": "src/workbench/ai/resident/ResidentExceptionStates.tsx",
+      "symbol": "ResidentFoldableText and Resident*Card components",
+      "responsibility": "Own the approved long-content thresholds, 220px list cap, danger/loading/empty visual states, compact icon actions, and accessible labels."
+    },
+    {
+      "path": "src/workbench/ai/resident/residentExceptionProjections.ts",
+      "symbol": "residentPlanShots, residentCandidates, residentVisibleCandidates",
+      "responsibility": "Derive display-safe exception data from provider arguments without changing the provider payload or persistence owner."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "transcript item rendering",
+      "disposition": "enforced",
+      "evidence": "User and assistant text use ResidentFoldableText; failure, artifact, and deviated items route to shared exception cards."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "renderPendingTool",
+      "disposition": "enforced",
+      "evidence": "Pending price, candidate, and generation proposal payloads are projected into shared cards while approval and resolve callbacks remain canonical."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "composer asset reference menu",
+      "disposition": "enforced",
+      "evidence": "The same picker handles populated and empty asset pools, adds search above 50 assets, and builds the stable asset reference through residentReferences."
+    },
+    {
+      "path": "src/workbench/ai/resident/ResidentUiPrimitives.tsx",
+      "entry_point": "ResidentToolChips",
+      "disposition": "enforced",
+      "evidence": "The tool summary uses the same shared 220px detail cap and reports representative actions when the step count exceeds 20."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Long content, provider failures, live waiting, and asset population changes are normal future inputs; a single short-text fixture cannot establish that these states will remain safe.",
+    "same_class_scan": [
+      "Searched the resident shell for all ProjectAgentItem kinds and routed user/assistant/proposal/failure/artifact/task paths through the existing item render boundary.",
+      "Searched pending-tool rendering and generationProposalEditing consumers; generation, price, candidate, approval, and resolve paths converge in renderPendingTool.",
+      "Searched asset reference construction and useAssetPool consumers; the composer menu is the single resident @ entry point and now uses buildResidentAssetReference.",
+      "Searched tool-chip and queue selectors in the conformance spec; summary details and queue rows remain in their existing primitives with shared caps and count links."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/resident/ResidentExceptionStates.tsx",
+    "invariant": "Every resident exception card must state what happened, preserve known context, disclose billing where relevant, and expose a safe next action or an explicit disabled/loading state.",
+    "failure_mode": "Unknown provider fields are omitted or shown with localized unknown-state copy; no exception card fabricates task truth, prices, results, or pinned selections.",
+    "exception_policy": "none",
+    "strategy": "Keep state-specific layout and thresholds in shared components and keep provider-specific parsing in small projections. The shell only selects the component from canonical state and passes existing callbacks.",
+    "artifacts": [
+      "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "src/workbench/ai/resident/ResidentExceptionStates.tsx",
+      "src/workbench/ai/resident/residentExceptionProjections.ts",
+      "src/workbench/ai/resident/ResidentUiPrimitives.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/resident/residentExceptionProjections.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/resident/residentExceptionProjections.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The v3.1 normal shell remains the one shell; this change adds state branches and shared projections without introducing a parallel resident implementation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls the exception-state invariant; existing React, Tailwind tokens, Tabler icons, and Agent contracts are retained.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted Agent or asset data changes. Existing project references gain the explicit asset kind only when the user selects an asset from the resident picker; existing document, canvas, preview, timeline, browser, and skill references are unchanged.",
+  "residual_risks": [
+    "The current conformance app fixture does not drive every provider failure, candidate, deviation, artifact, price, or pinned state; those cards remain conditional and are verified by projection tests plus source-level selector evidence, while the exact harness reports them as state-not-reached or true gaps.",
+    "Pinned result cards are intentionally deferred because ProjectAgentArtifactRef has no safe selected-shot/result-list DTO; fabricating one would violate the canonical-state invariant."
+  ]
+}
