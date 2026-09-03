@@ -96,6 +96,7 @@
 - [批量产出要逐步冒出来 + 自动编组](batch-output-appears-progressively-and-grouped.md) — 一个动作产出多个节点时的既定交互
 - [「改不了 / 没有按钮」是可发现性问题](vendor-manage-is-a-discoverability-problem.md) — 功能一直在，根因是控件被 overflow 裁出视口
 - [用户说「坏了」多半是「找不到」](group-says-broken-usually-means-undiscoverable.md) — 先真机实测再信；扫到真 bug ≠ 那就是他的 bug
+- [静默降级把「能力缺席」伪装成「本来就没这功能」](silent-degradation-looks-like-feature-absent.md) — 一次走查撞见的三个 bug 是同一类；`?.()` 在能力槽上是禁用写法，缺席必须禁用+说明
 - [中转平台的上限 ≠ 模型的上限](model-limits-first-party-over-reseller.md) — 参数上限要查一手厂商文档
 - [KIE 文件上传的实测契约](kie-file-upload-real-contract.md) — 官方文档三处与实测不符（响应字段 / 回链域名 / 有效期）
 - [讲方向必须说人话：自造名词和标准术语都要解释](d6-proposal-jargon-must-be-explained.md) — 附「从用户看得见的东西起头」五步结构
