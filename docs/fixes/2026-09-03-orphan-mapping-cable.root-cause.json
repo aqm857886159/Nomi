@@ -1,0 +1,133 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-orphan-mapping-cable",
+  "problem_type": "同一事实由两条路径各自声明（档案的模式路由 vs seed 的 mapping 归桶），只守住一条 → 配好的线缆永远选不中，模式被静默藏掉",
+  "symptom": "生成画布模式栏出现「假收窄」：mapping 明明存在且 body 配得好好的，模式却在 UI 上消失。实测 6 条：runway/hailuo3 的「参考生视频」、runway/seedance2|_fast|_mini 的「全能参考」、runway/wan3 的「全能参考」、fal/openai/gpt-image-2 的「改图」——用户看到的是「这家不支持这个功能」，实际是这家支持、只是我们自己接不上线。",
+  "direct_cause": "两类拼错。① 错桶（5 条）：Runway 的多图参考 union 声明在 text 端点（POST /v1/text_to_video，PR #342），seed 据此把这些 mapping 放进 text_to_video 桶；档案侧却把对应模式路由到 image_to_video（minimaxH3.ts 的 ref 写了 vendorTransportTaskKind:{runway:\"image_to_video\"}；seedance.ts 的 omni 与 wan30.ts 的 ref 吃到 image_to_video 的档案级/模式级默认）。② 拼写（1 条）：falOfficial.ts 给 gpt-image-2 的改图 mapping 写 modeId:\"edit\"，而 gpt-image-2 档案声明的模式是 t2i / i2i（\"edit\" 是 nano-banana-2 / seedream 档案的写法，被顺手抄了过来）。两类的后果相同：selectTaskMapping 在档案路由到的那个桶里按 modeId 精确匹配，取不到 → archetypeModeIsVisible 判据 (a) 判定「这家发不出这个模式」→ 藏掉。",
+  "class_root": "「一个模式该走哪个 taskKind 桶」这件事被**两个作者**各自声明了一遍：档案侧用 modeTransportFor 三层优先级算出一个桶，seed 侧在建 mapping 时直接写死另一个桶；「mapping 属于哪个模式」同样两处各写一遍 modeId 字符串。两侧各自都自洽、各自的既有测试都绿——只有把两侧**对起来**才看得见那条线缆连不上。缺陷因此没有任何报错：它表现为「少了一个功能」，而少一个功能和「本来就不支持」在 UI 上长得一模一样。",
+  "migration": "档案侧跟上 seed（seed 是对的，依据是 Runway 官方 reference union 声明在 text 端点，见 electron/catalog/runwayOfficial.ts 的 runwayVideoModel 注释与 PR #342）：三个档案的对应模式加 vendorTransportTaskKind:{runway:\"text_to_video\"}；minimaxH3 的 ref 由 image_to_video 改成 text_to_video。拼写族改 seed 侧那一处 modeId（\"edit\"→\"i2i\"），因为档案的 t2i/i2i 才是全仓其余读取点（画布 runner、参考槽）已在用的口径。同一 commit 把对账做成常驻门岗 check:orphan-cables，硬零。档案是真相源，主进程侧的桥接副本 electron/catalog/archetypeWireDefaults.video.generated.ts 由 pnpm run gen:archetype-defaults 重生成（+6 行：hailuo3 的 ref 模式在 text_to_video 桶下多出 runway 那份 wire 默认值，正是本次改的那条路由），不手改。",
+  "affected_population": [
+    "任何带 modeId 的 seed mapping —— 全目录 230 条 mapping 中 80 条带 (modelKey, modeId) 落入判据",
+    "任何在档案侧声明 transportTaskKind / vendorTransportTaskKind 的模式",
+    "未来新接入的模型：一家转售商把某模式挂在与档案默认不同的端点上时，同一缺陷会原样复发"
+  ],
+  "scope_paths": [
+    "electron/shared/videoCapabilities/minimaxH3.ts",
+    "electron/shared/videoCapabilities/seedance.ts",
+    "electron/shared/videoCapabilities/wan30.ts",
+    "electron/shared/videoCapabilities/modeTransport.ts",
+    "electron/catalog/falOfficial.ts",
+    "electron/catalog/archetypeWireDefaults.video.generated.ts",
+    "scripts/check-orphan-mapping-cables.ts"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts 的 archetypeModeIsVisible（模式栏收窄的唯一判据，判据 (a) 就是这里把模式藏掉的）",
+    "electron/catalog/types.ts 的 selectTaskMapping（按 (vendor, taskKind, modelKey, modeId) 取线缆，取不到即 null）",
+    "electron/shared/videoCapabilities/modeTransport.ts 的 modeTransportFor（模式 → 桶 的唯一读取点）",
+    "pnpm run check:orphan-cables（本次新增的常驻对账入口）"
+  ],
+  "invariants": [
+    "每条带 (modelKey, modeId) 的 enabled mapping，其 modeId 必须在该模型所解析档案的 modes 里存在同名 mode。",
+    "该 mode 经 modeTransportFor(mode, archetype, vendorKey) 算出的桶，必须等于这条 mapping 自己的 taskKind。",
+    "两条不变量由 check:orphan-cables 硬零守住，无棘轮基线、无豁免名单。"
+  ],
+  "regression_tests": [
+    "electron/catalog/vendorWireDriftFixes.test.ts"
+  ],
+  "residual_risks": [
+    "门岗只覆盖**内置 seed 目录**（applyBuiltinSeeds 的产物）。用户自建中转/自定义接入的 mapping 不在扫描范围——那条路径上档案通常解析不到（走通用回退、不做模式收窄），因此不产生同类假收窄；但若用户显式指定 archetypeId 又手写了不咬合的 modeId，门岗看不见。",
+    "判据只回答「线缆接不接得上」，不回答「接上的线缆 body 对不对」。modeId 与桶都对、但 body 少了参考键的情形由既有的槽级可达性（modeSlotReach）与第三闸负责，本门岗不重复。",
+    "「压根没有 mapping 的模式」（如 seedance2 / wan3 的 firstlast，实测仍被藏）**不在**本门岗判据内——那是「这家真的没接这个模式」，与「接了却选不中」是两回事。刻意不合并，否则门岗会开始要求补齐所有模式，变成待办清单而不是正确性门岗。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "本次判定不需要新抓第三方文档：缺陷是**仓内两侧自相矛盾**（档案路由 vs seed 归桶），判据完全由仓内两份声明对账得出。哪一侧是对的由仓内已落库的一手结论裁定——electron/catalog/runwayOfficial.ts 的 runwayVideoModel 注释写明「the multi-image reference role rides POST /v1/text_to_video (PR #342 — Runway's reference union is declared on the text endpoint)，so only the single-image image role is an image_to_video task」，该结论是 PR #342 当时照 Runway 官方 OpenAPI 对账后落库的。本次修复方向即以该已落库结论（= seed 侧）为准，档案侧跟上；未重新抓取 Runway 官网，也不据本次改动主张任何新的外部契约事实。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "这是本轮反复出现的「同一事实两条路径、只守住一条」族的又一实例（同族前例：档案能力面 vs wire 的双作者、UI 收窄 vs 第三闸的双判据）。且本次一次就实测出 6 条、横跨 4 个档案与 2 个供应商，说明不是手滑而是构造性缺陷：只要「桶」和「modeId」继续由两侧各写一遍，下一个接入者会原样再犯。",
+    "same_class_scan": [
+      "全目录按**构造**实扫（scripts/check-orphan-mapping-cables.ts，走生产同款 applyBuiltinSeeds + resolveArchetypeForModel + modeTransportFor + selectTaskMapping）：230 条 mapping，其中 80 条带 (modelKey, modeId) 进入判据。修复前得孤儿拼写 1 条 / 孤儿错桶 5 条，逐条为 fal/openai/gpt-image-2[edit]、runway/seedance2[omni]、runway/seedance2_fast[omni]、runway/seedance2_mini[omni]、runway/wan3[ref]、runway/hailuo3[ref]。修复后 0 条 / 0 条。",
+      "vendorTransportTaskKind 轴的全部声明点实扫（git grep vendorTransportTaskKind -- 档案目录）：修复前仅 happyhorse.ts:76 与 minimaxH3.ts:82 两处（均为 i2v → runway:image_to_video，判 not-affected：单图 i2v 的 wire role 确实是 image_to_video，seed 侧同桶，门岗不报）；修复后新增 minimaxH3.ts:102、seedance.ts:102、wan30.ts:172 三处。",
+      "「edit」这个 modeId 串的全仓实扫（git grep '\\\"edit\\\"'）：nano-banana-2 / seedream / agnes-image 三族档案**确实**声明 id:\"edit\"，其 seed mapping 写 \"edit\" 是对的（门岗实测不报红）；只有 gpt-image-2 的档案是 t2i/i2i，故只有它那一条是拼写孤儿。",
+      "收窄行为的前后对照（走生产判据 archetypeModeIsVisible 的一次性探针）：修复前 runway/hailuo3 可见=[t2v,i2v] 被藏=[ref]、runway/seedance2 可见=[t2v,first] 被藏=[firstlast,omni]、fal/openai/gpt-image-2 可见=[t2i] 被藏=[i2i]；修复后依次为可见=[t2v,i2v,ref] 被藏=[]、可见=[t2v,first,omni] 被藏=[firstlast]、可见=[t2i,i2i] 被藏=[]。firstlast 仍被藏是正确结果（那两个模式压根没有 mapping，属另一类，见 residual_risks）。"
+    ]
+  },
+  "generality_proof": "门岗按**构造**判定而非按名单：对每条带 (modelKey, modeId) 的 enabled mapping，用生产同一批函数（resolveArchetypeForModel / modeTransportFor / selectTaskMapping 的同款桶匹配）做跨两侧对账，与是哪个供应商、哪个模型、模式叫什么名字无关。因此不仅覆盖本次修的 6 条，也覆盖任何未来新接入的模型——新接一家转售商时若把某模式挂在与档案默认不同的端点上，门岗在 push 前即报红并指出「期望桶 vs 实际桶」。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-orphan-mapping-cables.ts",
+      "symbol": "findOrphanMappingCables",
+      "responsibility": "在「档案怎么路由模式」与「seed 把线缆放进哪个桶」之间做唯一一处常驻对账，把原本只有两侧对起来才看得见的失配变成 push 前的硬零门岗。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/modeTransport.ts",
+      "symbol": "modeTransportFor",
+      "responsibility": "「一个模式该走哪个 taskKind 桶」的唯一读取点；门岗复用它而不另写一份桶推导，保证门岗判据与 UI/发送路径永远同一把尺子。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/shared/videoCapabilities/minimaxH3.ts",
+      "entry_point": "ref 模式的 vendorTransportTaskKind.runway",
+      "disposition": "enforced",
+      "evidence": "由 image_to_video 改为 text_to_video 后门岗转绿；回退该处后门岗报「✗ 孤儿错桶 runway/hailuo3 [ref] 期望桶 档案路由 image_to_video vs 实际桶 text_to_video」。收窄探针实测由「被藏=[ref]」变为「可见=[t2v,i2v,ref]」。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/seedance.ts",
+      "entry_point": "omni 模式（吃档案级 transportTaskKind:image_to_video）",
+      "disposition": "enforced",
+      "evidence": "加 vendorTransportTaskKind:{runway:text_to_video} 后门岗转绿；回退该处门岗一次报出 seedance2 / seedance2_fast / seedance2_mini 三行（同一档案罩三个变体行）。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/wan30.ts",
+      "entry_point": "ref 模式的 transportTaskKind:image_to_video",
+      "disposition": "enforced",
+      "evidence": "加 vendorTransportTaskKind:{runway:text_to_video} 后门岗转绿；模式级 image_to_video 保留不动（其余供应商仍走该桶），只对 runway 覆盖。"
+    },
+    {
+      "path": "electron/catalog/falOfficial.ts",
+      "entry_point": "openai/gpt-image-2 的 image_edit mapping 的 modeId",
+      "disposition": "enforced",
+      "evidence": "\"edit\"→\"i2i\" 后门岗转绿；回退后报「✗ 孤儿拼写 fal/openai/gpt-image-2 [edit] 桶 image_edit — 档案 gpt-image-2 里没有这个 mode；档案 modes = [t2i, i2i]」。全仓其余读取点（catalogTaskActions.test.ts、referenceSlots.test.ts）本就用 i2i，本次是把 seed 侧对齐到既有口径。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/happyhorse.ts",
+      "entry_point": "i2v 模式的 vendorTransportTaskKind:{runway:image_to_video}",
+      "disposition": "not-affected",
+      "evidence": "单图 i2v 的 wire role 确实是 image_to_video（runwayOfficial.ts 的 runwayVideoModel：只有 role===\"image\" 才是 image_to_video），seed 侧同桶，门岗实测不报红。这是该轴的**正确**用法，留作对照。"
+    },
+    {
+      "path": "electron/catalog/falOfficial.ts",
+      "entry_point": "fal-ai/nano-banana-2 与 bytedance/seedream/v5/pro 的 modeId:\"edit\"",
+      "disposition": "not-affected",
+      "evidence": "这两族档案自己声明的就是 id:\"edit\"（nanoBanana2.ts:111/163、seedream 族同理），modeId 与档案咬合，门岗实测不报红。证明修的是 gpt-image-2 那一条的拼写、不是把 \"edit\" 一律当错。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-orphan-mapping-cables.ts",
+    "invariant": "内置 seed 目录里不存在孤儿线缆：每条带 (modelKey, modeId) 的 enabled mapping，其 modeId 必须在所解析档案里存在同名 mode，且 modeTransportFor 算出的桶必须等于该 mapping 的 taskKind。硬零，无棘轮基线。",
+    "failure_mode": "重新引入任一类失配 → check:orphan-cables 退出码 1，逐条打印「vendor/model [modeId] 期望桶 vs 实际桶」并给出两条修法；gates:contracts 链在 push 前拦下。另设兜底：seed 后 mapping 数为 0 时直接报错退出，防止 seed 入口变更导致门岗静默空扫通过。",
+    "exception_policy": "none",
+    "strategy": "把「只有把两侧对起来才看得见」的失配变成一条常驻的、按构造的跨侧对账——两侧各自的测试永远发现不了它，因为两侧各自都是自洽的。门岗复用生产同一批函数（modeTransportFor / resolveArchetypeForModel / 同款桶匹配），确保门岗与 UI 收窄判据不会各自漂移。",
+    "artifacts": [
+      "scripts/check-orphan-mapping-cables.ts",
+      "package.json"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/catalog/vendorWireDriftFixes.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/videoCapabilities/minimaxH3.ts",
+      "electron/catalog/falOfficial.ts"
+    ],
+    "rationale": "错桶的 runway:image_to_video 声明与拼写错的 modeId:\"edit\" 都在同一 commit 就地改正，不保留任何兼容分支或双写；门岗硬零使这两类写法不可能再被写回来。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只用到仓内既有的 seed / 档案解析 / 桶推导函数与 tsx 运行器，无新增第三方依赖。",
+    "exit_criteria": []
+  }
+}
