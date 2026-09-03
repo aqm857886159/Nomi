@@ -6,18 +6,15 @@ import { createProductionRunRepository, type ProductionRunRepository } from './p
 import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { getWorkspaceRepositoryDeps } from '../runtimePaths'
 import {
-  createArtifactProjection,
   getArtifactPreviewSecret,
   resolveOwnedArtifactFile,
   verifyArtifactPreviewHandle,
-  type ArtifactProjection,
 } from './artifactProjection'
 import { buildProductionDeepLink } from './productionDeepLink'
 import { applyRunControl } from './productionRunControl'
 import { createDriverOps } from './productionRunDriverOps'
 import { isShotGate } from './productionRunGateIdentity'
 import { withEventTap } from './productionRunEventTap'
-import { safeExternalText, safeProductionContract, safeShotId } from './productionRunProjectionSanitizer'
 import { assertStoryboardSourceFresh, createArtifactOperations } from './productionRunArtifactOperations'
 import { assertStoryboardSourceApproved } from './productionRunReducer'
 import { MEANINGFUL_EVENT_TYPES } from './productionRunMeaningfulEvents'
@@ -30,7 +27,6 @@ import { kickBatchSchedulerForRun } from './batchSchedulerKick'
 import { recoverStoryboardContentHashes } from './productionRunStoryboardHashRecovery'
 import type { ApprovalReceiptAuthority } from '../capabilityCore/approvalReceipt'
 import {
-  metadataProjection,
   storyboardMetadata,
 } from './productionRunArtifactHelpers'
 import type {
@@ -42,7 +38,7 @@ import type {
   RunEvent,
   RunCommand,
 } from './productionRunTypes'
-import { eventProjection, runProjection, safeRunProjection } from './productionRunProjections'
+import { eventProjection, runProjection } from './productionRunProjections'
 import type { ProductionEventProjection, ProductionRunProjection } from './productionRunProjections'
 // 投影类型的公共 API 位置不变：外部调用方仍从本模块 import。
 export type {
