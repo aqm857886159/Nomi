@@ -11,7 +11,7 @@ import { BodyPortal, NomiLogoMark, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore, type ProjectAgentReference, type ProjectAgentRunMode, type WorkspaceMode } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
-import { runWorkbenchAgent, type ToolCallEvent } from './workbenchAgentRunner'
+import { runWorkbenchAgent } from './workbenchAgentRunner'
 // 从渲染层自己的入口反推工具 profile 的取值域，不去 import electron/harness 的类型——
 // 渲染层直捅主进程模块会被 check:boundaries 拦（R26）。这样类型还跟着入口自动同步。
 type AgentToolProfile = NonNullable<Parameters<typeof runWorkbenchAgent>[0]['toolProfile']>
@@ -38,9 +38,9 @@ import type { ProjectAgentApprovalMode, ProjectAgentItem, ProjectAgentSpendPolic
 import type { DocumentAnchorRef, PreconditionSet, TargetRef } from '../../../electron/shared/capabilityTargeting'
 import { timelineRevision } from '../timeline/kernel/timelineKernel'
 import { useProductionRunStore } from '../production/productionRunStore'
-import { ResidentApprovalCard, ResidentStreamingText, ResidentTaskRows, ResidentThinkingState, ResidentToolChips, type ResidentApprovalState, type ResidentToolChipData } from './resident/ResidentUiPrimitives'
+import { ResidentApprovalCard, ResidentStreamingText, ResidentTaskRows, ResidentThinkingState, ResidentToolChips, type ResidentToolChipData } from './resident/ResidentUiPrimitives'
 import { ResidentReferenceChip } from './resident/ResidentReferenceChip'
-import { normalizeResidentToolProjection, readResidentToolProjections, residentToolProjectionKey, residentToolProjectionScope, writeResidentToolProjections, type ResidentToolProjection } from './resident/residentToolProjection'
+import { readResidentToolProjections, residentToolProjectionKey, residentToolProjectionScope, writeResidentToolProjections } from './resident/residentToolProjection'
 import { proposalForTool, readableToolDetailRows, readableToolName, readableToolPreview, readableToolResult, readableToolSummary, readableToolTarget, residentToolProjectionForCall } from './resident/residentToolDisplay'
 import { GenerationProposalEditor } from './resident/GenerationProposalEditor'
 import { isGenerationProposalTool, proposalDecisionPayload } from './resident/generationProposalEditing'
