@@ -94,8 +94,12 @@ export const MINIMAX_H3_ARCHETYPE: ModelArchetype = {
       hint: "1–9 图 / ≤3 视频 / ≤3 音频作参考",
       promptRequired: true,
       modelEnum: "minimax-h3/reference-to-video",
-      // 同 i2v：kie 单端点、Runway 多图参考走 /v1/image_to_video。
-      vendorTransportTaskKind: { runway: "image_to_video" },
+      // kie 单端点（走档案级 text_to_video）；Runway 的**多图参考** union 声明在 **text** 端点
+      // （POST /v1/text_to_video，PR #342；只有单图 i2v 那个 wire role 才是 image_to_video）。
+      // 曾写成 image_to_video → 档案把 ref 路由去 image_to_video 桶，而 seed 把线缆放在
+      // text_to_video 桶，selectTaskMapping 永远取不到 → 模式栏把「参考生视频」静默藏掉
+      // （2026-09-03 check:orphan-cables 实测；seed 侧是对的，此处跟上）。
+      vendorTransportTaskKind: { runway: "text_to_video" },
       // 槽默认 inputKey（reference_image_urls/reference_video_urls/reference_audio_urls）与 kie H3
       // 文档键同名 → 不覆盖。
       slots: [

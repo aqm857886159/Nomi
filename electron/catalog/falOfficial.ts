@@ -88,7 +88,10 @@ export const FAL_OFFICIAL_MODELS: FalModel[] = [
     modelKey: "openai/gpt-image-2", labelZh: "GPT Image 2 · fal", kind: "image", archetypeId: "gpt-image-2",
     mappings: [
       withCreateOptions(mapping("openai/gpt-image-2", "text_to_image", "t2i", "GPT Image 2 · 文生图", "openai/gpt-image-2", { prompt: "{{request.prompt}}", image_size: p("image_size"), background: p("background"), quality: p("quality"), num_images: p("num_images"), output_format: p("output_format") }, "images[*]"), { paramMap: { rules: [{ wire: "image_size", fromMany: ["aspect_ratio", "resolution"], transform: "ratioResToFalImageSize" }] } }),
-      withCreateOptions(mapping("openai/gpt-image-2", "image_edit", "edit", "GPT Image 2 · 改图", "openai/gpt-image-2/edit", { prompt: "{{request.prompt}}", image_urls: p("image_urls"), image_size: p("image_size"), background: p("background"), quality: p("quality"), num_images: p("num_images"), output_format: p("output_format"), mask_url: p("mask_url") }, "images[*]"), { paramMap: { rules: [{ wire: "image_size", fromMany: ["aspect_ratio", "resolution"], transform: "ratioResToFalImageSize" }] } }),
+      // modeId 必须是**接收档案自己的 mode.id**：gpt-image-2 档案声明 t2i / i2i（"edit" 是
+      // nano-banana-2 / seedream 档案的写法，不是这个档案的）。曾写 "edit" → selectTaskMapping
+      // 在 i2i 上永远取不到本条，模式栏把「改图」静默藏掉（2026-09-03 check:orphan-cables 实测）。
+      withCreateOptions(mapping("openai/gpt-image-2", "image_edit", "i2i", "GPT Image 2 · 改图", "openai/gpt-image-2/edit", { prompt: "{{request.prompt}}", image_urls: p("image_urls"), image_size: p("image_size"), background: p("background"), quality: p("quality"), num_images: p("num_images"), output_format: p("output_format"), mask_url: p("mask_url") }, "images[*]"), { paramMap: { rules: [{ wire: "image_size", fromMany: ["aspect_ratio", "resolution"], transform: "ratioResToFalImageSize" }] } }),
     ],
   },
   {

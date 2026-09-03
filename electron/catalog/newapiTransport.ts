@@ -21,6 +21,24 @@ import type { ParamMap } from "./paramTranslate";
 
 const JSON_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 
+/**
+ * 中转所有 op 的 model 字段引用——**参数化，不是字面量**（内置变体模型早就是这个写法，
+ * apimartVideos.VARIANT_MODEL_REF / apimartImages / volcengineVideos 同串）。
+ *
+ * 为什么必须参数化：变体（seedance-2 的 标准/快速/mini 等）的全部意义就是「换一个真正发出去的
+ * model 串」。渲染层的收窄判据 `archetypeVariantAxisIsLive` 读的正是「这条 create op 的 wire 有没有
+ * 引用 params.model」（channelModeReach.ts:80-83）——写死 `{{model.modelKey}}` 的渠道切变体什么也
+ * 不会发生，所以那个判据（正确地）把变体栏整条藏掉。结果：中转用户**永远只能跑默认档**，每一次
+ * 生成都更贵更慢，且界面上根本看不出还有别的档 —— 这就是内置模型与中转模型体验分家的那道口子。
+ *
+ * 回落（关键）：`params.model` 只有带变体的档案才产出，裸模型是 undefined，而模板层对整 token 的
+ * undefined 是**整键丢弃**（不是留空串）→ 每个没变体的中转模型都会发出没有 model 字段的请求。
+ * 回落因此补在**参数层**（taskTemplateParams：`extras.model || selected.wireModelKey`），值与
+ * `{{model.modelKey}}` 同源，保证裸模型换写法前后线上字节逐字节一致。模板层没有 `||` 语法，
+ * 也刻意不给它加一套（那会是第二套「发哪个 model 串」的机制，P1）。
+ */
+const RELAY_MODEL_REF = "{{request.params.model}}";
+
 // new-api 状态动词 → 归一态。
 export const NEWAPI_STATUS_MAPPING: Record<string, string[]> = {
   queued: ["queued", "pending", "submitted", "not_start", "notstart"],
@@ -53,7 +71,7 @@ export const NEWAPI_IMAGE_CREATE_OP: HttpOperation = {
   path: "/v1/images/generations",
   headers: JSON_HEADERS,
   body: {
-    model: "{{model.modelKey}}",
+    model: RELAY_MODEL_REF,
     prompt: "{{request.prompt}}",
     size: "{{request.params.size}}",
     quality: "{{request.params.quality}}",
@@ -77,7 +95,7 @@ export const NEWAPI_IMAGE_EDIT_OP: HttpOperation = {
   path: "/v1/chat/completions",
   headers: JSON_HEADERS,
   body: {
-    model: "{{model.modelKey}}",
+    model: RELAY_MODEL_REF,
     messages: [
       {
         role: "user",
@@ -102,7 +120,7 @@ export const XAI_JSON_IMAGE_EDIT_OP: HttpOperation = {
   path: "/v1/images/edits",
   headers: JSON_HEADERS,
   body: {
-    model: "{{model.modelKey}}",
+    model: RELAY_MODEL_REF,
     prompt: "{{request.prompt}}",
     image: "{{request.params.json_edit_image}}",
     images: "{{request.params.json_edit_images}}",
@@ -128,7 +146,7 @@ export const OPENAI_MULTIPART_IMAGE_EDIT_OP: HttpOperation = {
   headers: { Authorization: "Bearer {{user_api_key}}" }, // 不设 Content-Type：multipart 由 fetch 自动加 boundary
   multipart: {
     fields: {
-      model: "{{model.modelKey}}",
+      model: RELAY_MODEL_REF,
       prompt: "{{request.prompt}}",
       size: "{{request.params.size}}",
       quality: "{{request.params.quality}}",
@@ -202,13 +220,24 @@ export const NEWAPI_VIDEO_CREATE_OP: HttpOperation = {
   path: "/v1/video/generations",
   headers: JSON_HEADERS,
   body: {
-    model: "{{model.modelKey}}",
+    model: RELAY_MODEL_REF,
     prompt: "{{request.prompt}}",
     duration: "{{request.params.duration}}",
     size: "{{request.params.size}}",
     // i2v 首帧：取 taskParams 聚合后的 image_url（含节点填的 firstFrameUrl / referenceImages[0]），
     // 不是裸 image 键（那个 taskParams 从不产出 → 通用路 i2v 首帧此前根本到不了 wire）。可选，未填模板丢弃。
     image: "{{request.params.image_url}}",
+    // seed / negative_prompt：**文档明写的字段，此前静默丢弃**（R5 核 doc.newapi.pro/api/kling-jimeng/
+    // 2026-09-03：seed「随机种子」是顶层可选 integer；negative_prompt 是 metadata 的官方示例字段之一，
+    // 原文 "供应商特定/自定义参数（如 negative_prompt, style, quality_level 等）"）。
+    // 两者 taskParams 早就归一好了（seed 走 numericWireParam 保数字、negative_prompt 认 camel/snake 两种来源），
+    // 只是 body 没给位置 —— 于是用户在节点上填的种子/负向词一路走到发送前被无声吃掉，
+    // 产出不可复现、负向词完全不生效，且界面上没有任何迹象。未填 → 模板整键丢弃，严格端点不会收到空字段。
+    seed: "{{request.params.seed}}",
+    // metadata 用**整 token**引用（不是 `{ negative_prompt: "{{...}}" }` 逐键写）：模板层丢得掉
+    // undefined 的**键**，却丢不掉那个已经变空的**父对象** —— 实测逐键写法在什么都没填时仍会发出
+    // `"metadata":{}`，给严格端点凭空多一个空对象。整 token 引用则在没内容时整键消失（见 relay_metadata）。
+    metadata: "{{request.params.relay_metadata}}",
   },
   response_mapping: { task_id: "task_id" },
   provider_meta_mapping: { task_id: "task_id" },
@@ -269,7 +298,7 @@ export const NEWAPI_AUDIO_TTS_OP: HttpOperation = {
   path: "/v1/audio/speech",
   headers: JSON_HEADERS,
   body: {
-    model: "{{model.modelKey}}",
+    model: RELAY_MODEL_REF,
     input: "{{request.prompt}}",
     voice: "{{request.params.voice}}",
     speed: "{{request.params.speed}}", // OpenAI /v1/audio/speech 标准语速（0.25~4.0，缺省由模板丢弃→站默认）

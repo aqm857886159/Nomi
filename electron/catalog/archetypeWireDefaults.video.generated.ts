@@ -60,6 +60,12 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "aspect_ratio": "16:9",
         "duration": 6,
         "model": "minimax-h3/text-to-video"
+      },
+      "runway": {
+        "resolution": "2K",
+        "aspect_ratio": "adaptive",
+        "duration": 6,
+        "model": "minimax-h3/reference-to-video"
       }
     },
     "image_to_video": {

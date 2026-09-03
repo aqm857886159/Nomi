@@ -1,0 +1,99 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-veo31-panel-update-depth",
+  "problem_type": "Repeated derived node-meta writes caused by stale render snapshots",
+  "symptom": "Selecting runway/veo3.1 causes the node generation panel to hit React error #185 (Maximum update depth exceeded) and render its error boundary.",
+  "direct_cause": "The archetype initialization effect reads node.meta from its render snapshot and writes the archetype correction; two NodeParameterControls instances then repeat the same write while the vendor-specialized archetype dependency is recreated.",
+  "class_root": "Derived node-meta effects have no shared rule to base a write on the current store node, so an idempotent correction can still be committed repeatedly from stale snapshots.",
+  "affected_population": [
+    "Generation nodes with vendor-specialized archetypes and stale or missing archetype metadata",
+    "Existing nodes entering the panel through model, vendor-recovery, variant-migration, or archetype-initialization paths",
+    "Electron renderer builds using the generation canvas composer"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx"
+  ],
+  "entry_points": [
+    "NodeParameterControls mounted in the composer references and parameters sections"
+  ],
+  "internal_only_reason": "The invariant is internal Zustand/React state ownership; no third-party runtime behavior controls it.",
+  "invariants": [
+    "Every derived node-meta write reads the current store node before computing its patch.",
+    "An already-correct archetype or vendor/contract state produces no write.",
+    "The shared hook applies the same rule to model defaults, vendor sync, variant migration, provider recovery, and archetype initialization."
+  ],
+  "generality_proof": "All four auto-selection effects converge in useNodeModelAutoSelect, and the composer mounts that hook for both control sections. Reading the live node at that boundary makes the correction idempotent for every vendor, model, old stored value, and caller using the hook.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "symbol": "useNodeModelAutoSelect",
+      "responsibility": "Own all automatic model/archetype metadata writes and derive them from the current store node."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "NodeGenerationComposer",
+      "responsibility": "Mounts the shared hook through NodeParameterControls in both composer sections."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "entry_point": "vendor sync and variant migration effects",
+      "disposition": "enforced",
+      "evidence": "Both effects now read getLatestMeta before comparing or merging metadata."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "entry_point": "provider disconnected recovery and archetype initialization effects",
+      "disposition": "enforced",
+      "evidence": "Both effects now read getLatestMeta/getLatestNode before remapping or initializing metadata."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "entry_point": "visible-mode fallback effect",
+      "disposition": "enforced",
+      "evidence": "This adjacent automatic mode write already reads the current store meta through getLatestMeta; it shares the same canvas write boundary."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The stale-snapshot write pattern is shared by multiple automatic effects and can be reached by any vendor-specialized archetype or old node metadata, not only Runway Veo 3.1.",
+    "same_class_scan": [
+      "Searched useNodeModelAutoSelect.ts for every updateNode/writeDerivedMeta effect: default, vendor sync, variant migration, provider recovery, and archetype initialization.",
+      "Checked NodeGenerationComposer.tsx: NodeParameterControls mounts the shared hook in references and parameters sections.",
+      "Checked NodeParameterControls.tsx: visible-mode fallback is a second automatic metadata write path and reads live store state."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+    "invariant": "Automatic metadata derivation must use the current store node, and an already-correct state must return without updateNode.",
+    "failure_mode": "Stale or mismatched metadata is corrected once from the live store; repeated effect passes observe the corrected state and perform no write.",
+    "exception_policy": "none",
+    "strategy": "Centralize live-node reads in callbacks used by every auto-selection effect instead of adding a provider/model-specific guard.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/vendor-honest-variant-axis.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/vendor-honest-variant-axis.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The fix strengthens the existing shared write path; no obsolete production path or migration is retained."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "React and Zustand expose the behavior but no dependency defect was identified; the missing invariant is application state ownership.",
+    "exit_criteria": []
+  },
+  "migration": "No migration is needed. Existing node metadata is preserved and corrected only when the shared hook observes a mismatch.",
+  "residual_risks": [
+    "The Agent proposal panel is not exercised by this canvas walk because it does not mount the node auto-selection hook; its shared visibility predicates remain covered by existing tests."
+  ]
+}

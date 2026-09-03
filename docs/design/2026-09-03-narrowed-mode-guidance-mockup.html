@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>被收窄的模式 · 指路提示 样张 2026-09-03</title>
+<!--
+  这是「模式栏按可达性收窄时，如何告诉用户」的待拍板样张。
+  布局取自真实节点生成面板（tests/ux/shots/vendor-honest-variant-axis/01-*.png 逐项复刻：
+  生成方式分段 + 提示词框 + 底栏参数芯片行），只加提示那一条，其余一字未改。
+  token 值取自 src/theme/nomi-tokens.css。默认暗色（真机截图即暗色），可切光色。
+-->
+<style>
+  :root {
+    --nomi-bg: oklch(0.985 0.003 90); --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80); --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80); --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-30: oklch(0.78 0.01 80); --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80); --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80); --nomi-line-soft: oklch(0.95 0.003 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+    --nomi-radius-sm: 6px; --nomi-radius: 10px; --nomi-radius-lg: 16px;
+    --nomi-font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  }
+  html[data-theme="dark"] {
+    --nomi-bg: oklch(0.18 0.006 80); --nomi-paper: oklch(0.235 0.007 80);
+    --nomi-ink: oklch(0.93 0.006 85); --nomi-ink-80: oklch(0.84 0.006 85);
+    --nomi-ink-60: oklch(0.70 0.006 85); --nomi-ink-40: oklch(0.62 0.006 85);
+    --nomi-ink-30: oklch(0.50 0.006 85); --nomi-ink-20: oklch(0.42 0.006 85);
+    --nomi-ink-10: oklch(0.34 0.006 85); --nomi-ink-05: oklch(0.30 0.006 85);
+    --nomi-line: oklch(0.38 0.006 80); --nomi-line-soft: oklch(0.32 0.006 80);
+    --nomi-accent: oklch(0.70 0.12 250);
+    --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 16%, var(--nomi-paper));
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px; background: var(--nomi-bg); color: var(--nomi-ink);
+         font-family: var(--nomi-font-sans); font-size: 13px; line-height: 1.55; }
+  h1 { font-size: 17px; margin: 0 0 4px; font-weight: 620; }
+  .sub { color: var(--nomi-ink-60); font-size: 12px; margin-bottom: 22px; }
+  h2 { font-size: 13px; font-weight: 620; margin: 26px 0 3px; }
+  .note { color: var(--nomi-ink-60); font-size: 11.5px; margin: 0 0 10px; }
+  .row { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+
+  /* ── 真实合成器外壳（复刻截图）── */
+  .composer { width: 392px; background: var(--nomi-paper); border: 1px solid var(--nomi-line);
+              border-radius: var(--nomi-radius-lg); padding: 11px 12px 9px; }
+  .composer-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+  .composer-head .label { font-size: 11px; color: var(--nomi-ink-60); }
+  .composer-head .right { font-size: 11px; color: var(--nomi-ink-60); display: flex; gap: 4px; align-items: center; }
+  .modebar { display: inline-flex; background: var(--nomi-ink-05); border-radius: var(--nomi-radius-sm);
+             padding: 2px; gap: 2px; }
+  .modebar button { border: 0; background: transparent; color: var(--nomi-ink-60); font: inherit;
+                    font-size: 11.5px; padding: 3px 9px; border-radius: 4px; cursor: pointer; }
+  .modebar button[aria-selected="true"] { background: var(--nomi-paper); color: var(--nomi-ink);
+                    box-shadow: 0 1px 2px oklch(0 0 0 / 0.18); }
+  .modehint { font-size: 11px; color: var(--nomi-ink-40); margin: 5px 0 0; }
+  .prompt { margin-top: 8px; min-height: 46px; font-size: 12px; color: var(--nomi-ink-30); }
+  .chips { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin-top: 8px;
+           border-top: 1px solid var(--nomi-line-soft); padding-top: 8px; }
+  .chip { font-size: 11px; color: var(--nomi-ink-80); background: var(--nomi-ink-05);
+          border: 1px solid var(--nomi-line-soft); border-radius: 999px; padding: 2.5px 8px; white-space: nowrap; }
+  .chip.send { margin-left: auto; background: var(--nomi-ink-10); border-color: var(--nomi-line);
+               width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; padding: 0; }
+
+  /* ── 唯一的新东西：指路提示 ── */
+  .guide { display: flex; align-items: baseline; gap: 6px; margin: 6px 0 0;
+           font-size: 11px; line-height: 1.45; color: var(--nomi-ink-40); }
+  .guide b { font-weight: 500; color: var(--nomi-ink-60); }
+  .guide button { border: 0; background: transparent; padding: 0; font: inherit; font-size: 11px;
+                  color: var(--nomi-accent); cursor: pointer; text-decoration: underline;
+                  text-underline-offset: 2px; white-space: nowrap; }
+
+  .tag { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 999px;
+         background: var(--nomi-ink-05); color: var(--nomi-ink-60); border: 1px solid var(--nomi-line-soft);
+         vertical-align: middle; margin-left: 6px; }
+  .bad { border-color: color-mix(in srgb, red 30%, var(--nomi-line)); }
+  .toggle { position: fixed; top: 14px; right: 18px; font-size: 11px; color: var(--nomi-ink-60);
+            background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: 999px;
+            padding: 4px 11px; cursor: pointer; }
+  .why { max-width: 780px; color: var(--nomi-ink-60); font-size: 12px; border-left: 2px solid var(--nomi-line);
+         padding-left: 12px; margin: 8px 0 0; }
+  .why b { color: var(--nomi-ink-80); font-weight: 560; }
+</style>
+</head>
+<body>
+<button class="toggle" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme==='dark'?'light':'dark'">切换光/暗</button>
+
+<h1>被收窄的模式：从「静默消失」改成「指一条路」</h1>
+<div class="sub">2026-09-03 · 待拍板 · 布局逐项复刻真实节点面板，只加了一行提示</div>
+
+<div class="why">
+<b>要解决的真实摩擦：</b>模型档案声明了「首尾帧」，但 Runway 这条线发不出去 → 我们把这个模式<b>直接从界面上摘掉</b>。
+用户看到的是「这个模型没有首尾帧功能」，于是要么放弃，要么以为 Nomi 坏了。<br />
+<b>关键事实（全目录实测）：被藏掉的 11 个模式，11 个在别家都能用，没有一个是「谁都做不了」。</b>
+所以这里缺的不是一段解释，是<b>一次跳转</b>。
+</div>
+
+<h2>A · 现状（对照组）<span class="tag bad">今天就长这样</span></h2>
+<p class="note">Runway 的 seedance2：「首尾帧」和「全能参考」被摘掉，界面上不留任何痕迹。</p>
+<div class="row">
+  <div class="composer">
+    <div class="composer-head"><span class="label">生成方式</span><span class="right">▤ 提示词</span></div>
+    <div class="modebar">
+      <button aria-selected="true">文生视频</button><button>图生视频</button>
+    </div>
+    <p class="modehint">纯文字生成视频</p>
+    <div class="prompt">描述这一段视频的镜头、动作和节奏…</div>
+    <div class="chips">
+      <span class="chip">⚙ Seedance 2</span><span class="chip">变体 · 标准</span>
+      <span class="chip">16:9 · 720p</span><span class="chip">N 优化</span><span class="chip">1 张</span>
+      <span class="chip send">↑</span>
+    </div>
+  </div>
+</div>
+
+<h2>B · 提议：有别家能做，且已接入 <span class="tag">主用例</span></h2>
+<p class="note">一句实话 + 一次跳转。点「换到 KIE」= 直接把这个节点的模型切到 KIE 的同一模型，模式即刻可用。</p>
+<div class="row">
+  <div class="composer">
+    <div class="composer-head"><span class="label">生成方式</span><span class="right">▤ 提示词</span></div>
+    <div class="modebar">
+      <button aria-selected="true">文生视频</button><button>图生视频</button>
+    </div>
+    <p class="guide">Runway 上没有<b>「首尾帧」「全能参考」</b>—— KIE 上有 <button>换到 KIE</button></p>
+    <div class="prompt">描述这一段视频的镜头、动作和节奏…</div>
+    <div class="chips">
+      <span class="chip">⚙ Seedance 2</span><span class="chip">变体 · 标准</span>
+      <span class="chip">16:9 · 720p</span><span class="chip">N 优化</span><span class="chip">1 张</span>
+      <span class="chip send">↑</span>
+    </div>
+  </div>
+</div>
+
+<h2>C · 别家能做，但那家还没接入</h2>
+<p class="note">动作换成去接入。不谎称「可以用」，也不把路藏起来。</p>
+<div class="row">
+  <div class="composer">
+    <div class="composer-head"><span class="label">生成方式</span><span class="right">▤ 提示词</span></div>
+    <div class="modebar">
+      <button aria-selected="true">文生视频</button><button>图生视频</button>
+    </div>
+    <p class="guide">Runway 上没有<b>「首尾帧」</b>—— KIE 上有 <button>去接入 KIE</button></p>
+    <div class="prompt">描述这一段视频的镜头、动作和节奏…</div>
+    <div class="chips">
+      <span class="chip">⚙ Seedance 2</span><span class="chip">变体 · 标准</span>
+      <span class="chip">16:9 · 720p</span><span class="chip">N 优化</span><span class="chip">1 张</span>
+      <span class="chip send">↑</span>
+    </div>
+  </div>
+</div>
+
+<h2>D · 最坏的一种：模式栏整条消失 <span class="tag bad">今天用户什么都看不到</span></h2>
+<p class="note">
+  只剩 1 个模式时模式栏本身不显示（<code>showModeBar = choices.length &gt; 1</code>）。
+  fal 的 GPT Image 2 曾因此「改图」整个消失——那条已在本轮修掉（孤儿线缆），但<b>机制还在</b>：
+  自建中转用户随时会撞上。提示必须独立于模式栏存在。
+</p>
+<div class="row">
+  <div class="composer">
+    <div class="composer-head"><span class="label">生成方式</span><span class="right">▤ 提示词</span></div>
+    <p class="guide" style="margin-top:0">这条线只支持<b>「文生图」</b>—— 改图在 APIMart 上有 <button>换到 APIMart</button></p>
+    <div class="prompt">描述你想要的画面…</div>
+    <div class="chips">
+      <span class="chip">⚙ GPT Image 2</span><span class="chip">1:1 · 1024</span>
+      <span class="chip">N 优化</span><span class="chip">1 张</span><span class="chip send">↑</span>
+    </div>
+  </div>
+</div>
+
+<h2>E · 谁都做不了（自建中转会撞上）</h2>
+<p class="note">内置目录里 0 例，但自建中转用户随时可能。此时没有假动作——只说实话，不给按钮。</p>
+<div class="row">
+  <div class="composer">
+    <div class="composer-head"><span class="label">生成方式</span><span class="right">▤ 提示词</span></div>
+    <div class="modebar">
+      <button aria-selected="true">文生视频</button><button>图生视频</button>
+    </div>
+    <p class="guide">你接入的这条中转发不出<b>「全能参考」</b>—— 已接入的模型里也没有能做的</p>
+    <div class="prompt">描述这一段视频的镜头、动作和节奏…</div>
+    <div class="chips">
+      <span class="chip">⚙ 我的中转 · seedance-2</span><span class="chip">16:9 · 720p</span>
+      <span class="chip">N 优化</span><span class="chip">1 张</span><span class="chip send">↑</span>
+    </div>
+  </div>
+</div>
+
+<div class="why" style="margin-top:26px">
+<b>为什么这么放（过了 §1.5 控件层级）：</b>
+它不是控件，是一行说明，<b>没有给常驻条加第 6 个功能簇</b>；
+「换供应商」这个动作<b>不新开家</b>——底栏模型芯片本来就是它的家，提示只是把人送过去（归位，代价 0，不是收纳）；
+不压在内容上；文案位置与已有的「这个工作流没有提示词槽」那句同一层（<code>text-ink-40 · text-micro</code>）。<br />
+<b>你要权衡的那一个点：</b>这行字只在被收窄时出现（全目录 95 个多模式模型里命中 11 个，约 12%）。
+更啰嗦一点＝更少人卡住，但每个撞上的人都多读一行；完全不说＝界面更干净，但撞上的人会以为功能不存在。
+我的判断是<b>值得说</b>——因为这一行同时也是我们自己的探针：本轮 17 个被藏的模式里有 6 个其实是 bug，
+正是「静默」让它们藏了很久。
+</div>
+
+</body>
+</html>

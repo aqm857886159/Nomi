@@ -1,13 +1,43 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
-import { canvasZoomShortcutDirection, isCanvasTextEditingContext, shouldPreferCanvasClipboard } from './useCanvasShortcuts'
+import type { RefObject } from 'react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createGenerationNode } from '../model/graphOps'
+import { useGenerationCanvasStore, __resetGenerationCanvasHistoryForTests } from '../store/generationCanvasStore'
+import { canvasZoomShortcutDirection, createCanvasKeydownHandler, isCanvasTextEditingContext, shouldPreferCanvasClipboard } from './useCanvasShortcuts'
 
 function targetWithEditableAncestor(editable: boolean): EventTarget {
+  const ancestor = editable ? {} : null
   return {
-    closest: () => editable ? {} : null,
+    closest: () => ancestor,
   } as unknown as EventTarget
 }
+
+function keyboardEvent(target: EventTarget, overrides: Partial<KeyboardEvent> = {}): KeyboardEvent {
+  const event = new Event('keydown', { cancelable: true })
+  Object.defineProperties(event, {
+    key: { value: 'z' },
+    code: { value: 'KeyZ' },
+    ctrlKey: { value: false },
+    metaKey: { value: true },
+    altKey: { value: false },
+    shiftKey: { value: false },
+    target: { value: target },
+    ...Object.fromEntries(Object.entries(overrides).map(([key, value]) => [key, { value }])),
+  })
+  return event as KeyboardEvent
+}
+
+const originalWindow = globalThis.window
+const originalDocument = globalThis.document
+
+afterEach(() => {
+  __resetGenerationCanvasHistoryForTests()
+  if (originalWindow === undefined) delete (globalThis as { window?: Window }).window
+  else globalThis.window = originalWindow
+  if (originalDocument === undefined) delete (globalThis as { document?: Document }).document
+  else globalThis.document = originalDocument
+})
 
 function shortcut(overrides: Partial<Parameters<typeof canvasZoomShortcutDirection>[0]> = {}) {
   return canvasZoomShortcutDirection({
@@ -55,12 +85,12 @@ describe('canvasZoomShortcutDirection', () => {
 })
 
 describe('画布快捷键的文本编辑边界', () => {
-  it('事件目标或当前焦点处于编辑器时都放行给文本编辑器', () => {
+  it('事件目标处于编辑器时放行，只有残留焦点处于编辑器时仍由画布处理', () => {
     const editable = targetWithEditableAncestor(true)
     const outside = targetWithEditableAncestor(false)
 
     expect(isCanvasTextEditingContext(editable, outside)).toBe(true)
-    expect(isCanvasTextEditingContext(outside, editable)).toBe(true)
+    expect(isCanvasTextEditingContext(outside, editable)).toBe(false)
     expect(isCanvasTextEditingContext(outside, outside)).toBe(false)
   })
 
@@ -86,6 +116,87 @@ describe('画布快捷键的文本编辑边界', () => {
 
     expect(handler).toBeDefined()
     expect(handler?.indexOf('event.defaultPrevented')).toBeLessThan(handler?.indexOf('shouldIgnoreCanvasShortcut') ?? -1)
+  })
+
+  it('模型选择后焦点仍在提示词 textarea，真实 Cmd+Z 仍能到达 store 撤销模型变更', () => {
+    const eventWindow = new EventTarget() as EventTarget & { getSelection: () => { isCollapsed: boolean } }
+    eventWindow.getSelection = () => ({ isCollapsed: true })
+    const promptTextarea = targetWithEditableAncestor(true)
+    const modelPicker = targetWithEditableAncestor(false)
+    globalThis.window = eventWindow as Window & typeof globalThis
+    globalThis.document = {
+      activeElement: promptTextarea,
+      querySelector: () => null,
+    } as unknown as Document
+
+    const node = { ...createGenerationNode({ id: 'model-node', kind: 'image' }), meta: { modelKey: 'old-model' } }
+    const store = useGenerationCanvasStore.getState()
+    store.restoreSnapshot({ nodes: [node], edges: [], groups: [] })
+    store.updateNode(node.id, { meta: { modelKey: 'new-model' } })
+    const undo = vi.fn(store.undo)
+
+    const handler = createCanvasKeydownHandler({
+      stageRef: { current: { offsetParent: {} } } as RefObject<HTMLDivElement>,
+      selectedNodeCount: 0,
+      selectedGroupCount: 0,
+      activeCategoryId: 'shots',
+      setActiveEdge: () => {},
+      cancelConnection: () => {},
+      deleteSelectedNodes: () => {},
+      groupSelectedNodes: () => {},
+      ungroupSelectedNodes: () => {},
+      copySelectedNodes: () => {},
+      cutSelectedNodes: () => {},
+      pasteNodes: () => {},
+      zoomByStep: () => {},
+      undo,
+      redo: store.redo,
+    })
+    eventWindow.addEventListener('keydown', (event) => handler(event as KeyboardEvent))
+    eventWindow.dispatchEvent(keyboardEvent(modelPicker))
+
+    expect(undo).toHaveBeenCalledTimes(1)
+    expect(useGenerationCanvasStore.getState().nodes[0]?.meta?.modelKey).toBe('old-model')
+  })
+
+  it('真实 Cmd+Z 从 textarea 发出时仍留给文本编辑器，不撤销画布', () => {
+    const eventWindow = new EventTarget() as EventTarget & { getSelection: () => { isCollapsed: boolean } }
+    eventWindow.getSelection = () => ({ isCollapsed: true })
+    const promptTextarea = targetWithEditableAncestor(true)
+    globalThis.window = eventWindow as Window & typeof globalThis
+    globalThis.document = {
+      activeElement: promptTextarea,
+      querySelector: () => null,
+    } as unknown as Document
+
+    const node = { ...createGenerationNode({ id: 'text-node', kind: 'image' }), meta: { modelKey: 'old-model' } }
+    const store = useGenerationCanvasStore.getState()
+    store.restoreSnapshot({ nodes: [node], edges: [], groups: [] })
+    store.updateNode(node.id, { meta: { modelKey: 'new-model' } })
+    const undo = vi.fn(store.undo)
+    const handler = createCanvasKeydownHandler({
+      stageRef: { current: { offsetParent: {} } } as RefObject<HTMLDivElement>,
+      selectedNodeCount: 0,
+      selectedGroupCount: 0,
+      activeCategoryId: 'shots',
+      setActiveEdge: () => {},
+      cancelConnection: () => {},
+      deleteSelectedNodes: () => {},
+      groupSelectedNodes: () => {},
+      ungroupSelectedNodes: () => {},
+      copySelectedNodes: () => {},
+      cutSelectedNodes: () => {},
+      pasteNodes: () => {},
+      zoomByStep: () => {},
+      undo,
+      redo: store.redo,
+    })
+    eventWindow.addEventListener('keydown', (event) => handler(event as KeyboardEvent))
+    const event = keyboardEvent(promptTextarea)
+    eventWindow.dispatchEvent(event)
+
+    expect(event.defaultPrevented).toBe(false)
+    expect(useGenerationCanvasStore.getState().nodes[0]?.meta?.modelKey).toBe('new-model')
   })
 })
 
