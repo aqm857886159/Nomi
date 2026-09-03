@@ -72,11 +72,18 @@ export function scopeForGenerationCapability(capability: McpGenerationCapability
 
 /** The session bootstrap can only grant server-owned, non-submit scopes. */
 export function deriveProjectSessionScopes(policy: McpGenerationPolicy): readonly string[] {
+  // The same project session also authorizes the registered read-only editing
+  // ports and the current document/canvas session capabilities. Generation
+  // submit remains excluded; timeline/export writes still use their own
+  // approval paths.
   const scopes = new Set<string>([
     CANVAS_READ_CAPABILITY.requiredScope,
     CANVAS_WRITE_CAPABILITY.requiredScope,
     DOCUMENT_READ_CAPABILITY.requiredScope,
     DOCUMENT_WRITE_CAPABILITY.requiredScope,
+    'timeline:read',
+    'export:read',
+    'asset:read',
   ])
   const snapshot = policy.snapshot()
   if (snapshot.flagEnabled) {

@@ -1,0 +1,48 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-storyboard-v5-dialogue-prompt-suffix",
+  "problem_type": "分镜表 v5 Phase C3 触碰 runner 高风险路径（出声模型的对白注入 promptSuffix），R21 门岗要求携带合同的风险分析",
+  "symptom": "本身不是纠正性修复：v4 用户裁定「台词框从行内删除——真实生成的时候哪有这个东西」，台词自此只住展开态、归时间轴消费。但会说话的模型（对白/音频能力档位）确实需要台词进生成输入，否则用户在展开态写了台词、片子里角色却不说话，而界面上没有任何地方解释这个落差。",
+  "direct_cause": "台词此前只作为 metadata.dialogue 透传给时间轴组装（storyboardPlan.ts:81『carried to timeline assembly without reparsing the prompt』），生成请求侧完全不消费它；模型能不能出声的判据在 archetype mode 上，而 runner 提交时并未查过这个档位。",
+  "class_root": "「这次跑到底喂了什么给模型」只能由执行层在提交那一刻裁决——展示层无法知道该行当前模型的 mode 能力，任何在表层预拼 prompt 的做法都会与真实请求分叉（同一咽喉外的第二真相源）。",
+  "migration": "无数据迁移：dialogue 字段与时间轴管线零改动；注入是纯读取——模型 mode 不具备对白能力时 buildDialoguePromptSuffix 返回空串，promptSuffix 与改动前逐字节相同。回滚=revert 分支，无残留。",
+  "affected_population": [
+    "分镜表 v5 用户中在展开态写了台词、且该镜模型具备对白/出声能力的（对白进生成输入）",
+    "其余一切生成路径（无 dialogue 或模型不具对白能力时零变化，promptSuffix 与改前一致）"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/agent/storyboardDialogue.ts",
+    "src/workbench/generationCanvas/agent/storyboardDialogue.test.ts",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRowExpand.tsx"
+  ],
+  "entry_points": [
+    "分镜表画面格「生成/重试」与 footer 批量（exec/storyboardRowActions → confirmAndRunNode/confirmAndRunPlan）",
+    "画面格浮条 ↻/×3 与「用新图重跑」（regenerateNodeInPlace / confirmAndRunNodeVariants / 波次）",
+    "画布节点卡片的既有生成入口（同一 runGenerationNode 咽喉；节点 meta 无 dialogue 时零注入）"
+  ],
+  "invariants": [
+    "对白注入只在 runGenerationNode 提交处发生（与 refSnapshot 打戳同一咽喉），取消花费确认即不注入——注入=『这次跑真喂了对白』",
+    "模型 mode 不具备对白/出声能力时 buildDialoguePromptSuffix 返回空，promptSuffix 逐字节等于改动前（不具能力的模型绝不被喂台词，避免把对白画成画面里的字）",
+    "台词的唯一编辑处仍是行展开态；提示词框内不出现台词副本（文本是唯一真相，不引入第二份）",
+    "既有 options.promptSuffix 与对白后缀以空行拼接、顺序固定（options 在前），不互相吞并"
+  ],
+  "regression_tests": [
+    "src/workbench/generationCanvas/agent/storyboardDialogue.test.ts",
+    "tests/ux/storyboard-table-phasec.walk.mjs"
+  ],
+  "residual_risks": [
+    "「哪些 mode 算具备对白能力」依赖 archetype 档位声明：新接入模型若声明缺失，台词不会被注入且界面不报错——用户只会发现角色不说话。缓解：提示词块下沿浅灰只读行只在具备能力时显示『对白将随出声模型生成』，不具备时不显示该承诺（诚实降级而非静默失败）",
+    "对白进 prompt 后由模型自行处置，不同供应商对『台词』的理解不一（有的配音、有的画字幕）——这属模型行为差异，非本改动可控；付费封印按模型逐个验（R5 三段作业）"
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "特性范畴的执行层扩展而非缺陷修复；『所有跑法都会正确注入吗』这个类问题由结构回答——注入位于 runGenerationNode 单一咽喉点，全部生成入口（单发/变体/原地重生成/批量波次）在 spendConfirm 之后都必经此函数，无第二条执行通路（check:batch-machines 钉死 runGenerationNode 不外扩）。",
+    "same_class_scan": [
+      "grep confirmAndRunNode/confirmAndRunNodeVariants/regenerateNodeInPlace/confirmAndRunPlan 全部消费方，确认均落回 runGenerationNode",
+      "grep promptSuffix 全部写入点，确认除 options 与本次对白后缀外无第三处拼接"
+    ]
+  },
+  "external_sources": [],
+  "internal_only_reason": "纯内部执行层扩展，不触任何供应商 wire 契约：对白以既有 promptSuffix 通道进入请求体，未新增任何供应商字段或端点。"
+}

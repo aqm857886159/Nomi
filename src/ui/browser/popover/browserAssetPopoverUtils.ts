@@ -195,7 +195,7 @@ export function browserAssetFromDesktopAsset(asset: DesktopAssetDto, fallbackTit
     id: asset.id,
     type,
     source: 'my',
-    title: sidecarTitle || fallbackTitle?.trim() || asset.name || (type === 'video' ? '项目视频' : '项目图片'),
+    title: sidecarTitle || fallbackTitle?.trim() || asset.name || (type === 'video' ? i18n.t('browserAssets.projectVideo') : i18n.t('browserAssets.projectImage')),
     subtitle,
     previewUrl: url || undefined,
     previewMediaType: type,

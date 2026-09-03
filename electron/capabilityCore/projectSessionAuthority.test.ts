@@ -107,6 +107,9 @@ describe('ProjectSessionAuthority', () => {
         CANVAS_WRITE_CAPABILITY.requiredScope,
         DOCUMENT_READ_CAPABILITY.requiredScope,
         DOCUMENT_WRITE_CAPABILITY.requiredScope,
+        "asset:read",
+        "export:read",
+        "timeline:read",
       ]),
     })
     await expect(session.verifyLease(opened.leaseHandle, {
@@ -184,6 +187,9 @@ describe('ProjectSessionAuthority', () => {
         CANVAS_WRITE_CAPABILITY.requiredScope,
         DOCUMENT_READ_CAPABILITY.requiredScope,
         DOCUMENT_WRITE_CAPABILITY.requiredScope,
+        "asset:read",
+        "export:read",
+        "timeline:read",
       ]),
     })
     expect(resolveProjectSelection).toHaveBeenCalledTimes(1)

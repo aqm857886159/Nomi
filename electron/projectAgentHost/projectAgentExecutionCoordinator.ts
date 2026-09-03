@@ -64,7 +64,7 @@ import {
   productionRunTaskItems,
   stableJson,
   statusForResponse,
-  toolItem,
+  toolItem, hostPromptLedgerForTurn,
 } from "./projectAgentExecutionHelpers";
 import { projectAgentWorkModeOf } from "../shared/projectAgentContracts";
 import { projectAgentExecutionRisk, projectAgentMayReuseSafeApproval } from "./projectAgentExecutionPolicy";
@@ -1059,7 +1059,7 @@ export function createProjectAgentExecutionCoordinator(
         history: { kind: "ephemeral" as const },
         projectId: execution.request.projectId ?? partition.binding.projectId,
         canvasProjectId: execution.request.canvasProjectId ?? partition.binding.projectId,
-        prompt: steeredExecutionPrompt(partition.host.getSnapshot(partition.binding), execution.turn.turnId, execution.request, execution.steering),
+        prompt: steeredExecutionPrompt(partition.host.getSnapshot(partition.binding), execution.turn.turnId, execution.request, execution.steering), hostPromptLedger: hostPromptLedgerForTurn(partition.host.getSnapshot(partition.binding), execution.turn.threadId),
       };
       const response = await runAgent(request, {
         abortSignal: execution.controller.signal,
@@ -1478,7 +1478,7 @@ export function createProjectAgentExecutionCoordinator(
       const proposalSettlements = proposalSettlementsFor(execution, status);
       const receivedAt = now();
       const beforeResult = partition.host.getSnapshot(partition.binding);
-      const toolItems = response.toolCalls.map((item) => toolItem(partition.binding, execution.turn, item, receivedAt));
+      const toolItems = response.toolCalls.map((item) => toolItem(partition.binding, execution.turn, item, receivedAt, response.provenance));
       const settledApprovalIds = new Set(
         proposalSettlements.filter((settlement) => settlement.status === "done").map((settlement) => settlement.approvalId),
       );

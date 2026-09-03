@@ -13,6 +13,8 @@ import {
   EXPORT_WRITE_ALIASES,
   exportWriteResultSchema,
 } from "../shared/agentCapabilities/exportCapabilities";
+import { skillReadResultSchema } from "../shared/agentCapabilities/skillRead";
+import type { SkillLedgerItem } from "../harness/context/promptPipe";
 
 export function stableJson(value: unknown): string {
   if (value === null) return "null";
@@ -33,6 +35,12 @@ export function digest(value: unknown): string {
   return createHash("sha256")
     .update(`nomi-project-agent-execution:v1\0${stableJson(value)}`)
     .digest("hex");
+}
+
+export function hostPromptLedgerForTurn(snapshot: ProjectAgentHostState, threadId: string): SkillLedgerItem[] {
+  return snapshot.items.flatMap((item) => item.threadId === threadId && item.kind === "tool" && item.skillLoad
+    ? [{ kind: "tool", capability: item.capability, skillLoad: item.skillLoad }]
+    : []);
 }
 
 export function statusForResponse(response: AgentChatResponse): ProjectAgentStatus {
@@ -94,9 +102,13 @@ export function toolItem(
   turn: ProjectAgentTurn,
   record: AgentChatResponse["toolCalls"][number],
   now: string,
+  provenance?: AgentChatResponse["provenance"],
 ): ProjectAgentItem {
   const status = record.status === "ok" ? "done" : record.status === "cancelled" ? "stopped" : "failed";
   const canonicalCapability = resolveCapabilityAlias(record.toolName)?.contract;
+  const skillResult = canonicalCapability?.id === "skill.read" && record.status === "ok"
+    ? skillReadResultSchema.safeParse(record.result)
+    : { success: false as const };
   return Object.freeze({
     itemId: `tool-${digest([binding, turn.executionToken, record.toolCallId])}`,
     threadId: turn.threadId,
@@ -109,6 +121,14 @@ export function toolItem(
       : { id: record.toolName, version: 1 },
     ...(record.error ? { text: record.error } : {}),
     resultRef: `result-${digest(record.result ?? record.error ?? record.status)}`,
+    ...(provenance?.length ? { provenance } : {}),
+    ...(skillResult.success ? {
+      skillLoad: {
+        name: skillResult.data.name,
+        packageVersion: skillResult.data.packageVersion,
+        contentHash: skillResult.data.contentHash,
+      },
+    } : {}),
     status,
     retryable: false,
     deviated: false,

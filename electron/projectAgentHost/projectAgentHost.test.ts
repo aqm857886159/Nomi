@@ -13,6 +13,8 @@ import type {
   ProjectAgentTurn,
   ProjectBinding,
 } from "../shared/projectAgentContracts";
+import { PROJECT_AGENT_RECENT_COMMAND_LIMIT } from "../shared/projectAgentContracts";
+import { __projectAgentCommandLedgerScanCountForTests } from "./projectAgentCommandLedger";
 import { createOfflineProjectAgentHost } from "./projectAgentHost";
 import { reduceProjectAgentMutation } from "./projectAgentReducer";
 import { createProjectAgentRepository } from "./projectAgentRepository";
@@ -352,29 +354,92 @@ describe("offline ProjectAgentHost orchestration", () => {
     });
   });
 
-  it("keeps a 1,000-command same-entity snapshot bounded without steady-state ledger rescans", async () => {
+  // 2026-09-03：这条曾是负载敏感 flake，两个零 electron 改动的分支上各红一次。它此前用
+  // **1,000 次真实落盘往返**去「证明」稳态不重扫账本：单跑 ~10s，机器繁忙时 ~30s，正好顶在
+  // vitest 的 30s testTimeout 上（本机 load=76 实测 29,668ms 险过 332ms）。测试从未断言过自己
+  // 的耗时，却把墙钟当成了判据——和 canvas 性能预算「在空闲机器上校准、在繁忙机器上执行」是同一族病。
+  //
+  // 更要命的是招牌断言是**死选择器**：它数「fs.readFileSync 是否以账本路径被调用」，而重扫走
+  // readRegular() → fs.readFileSync(fd)，传的是 fd 数字不是路径，过滤器永远为 0。阳性对照实测：
+  // 强制一次冷缓存全量重扫 25,742 字节账本，该过滤器仍数出 0 条。它**不可能失败**。
+  //
+  // 改法是换判据而不是放宽阈值：
+  //  ① 「稳态有没有重扫」交给账本自己的 scan 计数器（直接观测点，不经 fs 间接层）；
+  //  ② 「每条命令的落盘工作量是否恒定」改成**两个等长稳态窗口的 fs 调用逐项相等**——这是
+  //     O(1)/命令的直接结构证明，和机器快慢无关，且比原版更强：原版即使每条命令都全量重扫也照样绿。
+  // 两个判据都与耗时脱钩，命令数于是可以从 1,000 降到刚够跨过回执窗口，墙钟 ~30s → ~2s。
+  //
+  // 注意这里换掉的是**算法面**的守卫。纯常数因子的 CPU 退化（例如把热路径拆成跨模块调用）
+  // 只有墙钟测得出，那属于 performance 风险面的显式预算，不该靠共享单测套件的 timeout 兼职
+  // ——兼职的代价就是它按机器负载报红，而不是按代码报红。
+  const STEADY_WINDOW = PROJECT_AGENT_RECENT_COMMAND_LIMIT;
+  // 提交路径真正碰的 fs 入口。窗口间逐项相等 = 每条命令工作量恒定。
+  const FS_COMMIT_OPS = ["readFileSync", "writeFileSync", "openSync", "renameSync", "rmSync"] as const;
+
+  it("keeps a same-entity snapshot bounded with constant per-command work and no steady-state ledger rescan", async () => {
     setDurabilityMode("ephemeral");
     const durableRepository = repository();
     const paths = durableRepository.pathsFor(binding);
-    const ledgerReadSpy = vi.spyOn(fs, "readFileSync");
     const host = createOfflineProjectAgentHost({ repository: durableRepository });
-    let sizeAtWindowLimit = 0;
 
-    for (let revision = 0; revision < 1_000; revision += 1) {
-      await host.dispatch(threadMutation(`bounded-command-${revision + 1}`, revision, "thread-a"));
-      if (revision === 63) sizeAtWindowLimit = fs.statSync(paths.snapshot).size;
-    }
+    let revision = 0;
+    const dispatchWindow = async (commands: number): Promise<void> => {
+      for (let index = 0; index < commands; index += 1) {
+        await host.dispatch(threadMutation(`bounded-command-${revision + 1}`, revision, "thread-a"));
+        revision += 1;
+      }
+    };
+
+    // 先跨过回执窗口，之后两个等长窗口才都是纯稳态（回执数组已经在裁剪、不再增长）。
+    await dispatchWindow(STEADY_WINDOW);
+    const sizeAtWindowLimit = fs.statSync(paths.snapshot).size;
+
+    const spies = FS_COMMIT_OPS.map((op) => [op, vi.spyOn(fs, op)] as const);
+    const fsWork = (): Record<string, number> =>
+      Object.fromEntries(spies.map(([op, spy]) => [op, spy.mock.calls.length]));
+    const delta = (before: Record<string, number>, after: Record<string, number>): Record<string, number> =>
+      Object.fromEntries(Object.keys(after).map((op) => [op, after[op] - before[op]]));
+
+    const scansBefore = __projectAgentCommandLedgerScanCountForTests();
+    const beforeFirst = fsWork();
+    await dispatchWindow(STEADY_WINDOW);
+    const betweenWindows = fsWork();
+    await dispatchWindow(STEADY_WINDOW);
+    const afterSecond = fsWork();
+
+    const firstWindow = delta(beforeFirst, betweenWindows);
+    const secondWindow = delta(betweenWindows, afterSecond);
+
+    // 稳态里一次账本全量重扫都不许有。计数器会不会涨由下一条阳性对照钉住。
+    expect(__projectAgentCommandLedgerScanCountForTests() - scansBefore).toBe(0);
+    // 每条命令的落盘工作量恒定。写成「两窗相等」而不是抄下具体次数，是为了不把派生值手抄进断言
+    // ——次数一旦被重构改动，正确的反应是它仍然相等，而不是让人来改这里的数字。
+    expect(secondWindow).toEqual(firstWindow);
+    // 防止上面退化成 0 === 0 的空断言（fs 入口被改名 / spy 挂空时会这样）。
+    for (const op of FS_COMMIT_OPS) expect(firstWindow[op]).toBeGreaterThan(0);
 
     const snapshot = host.getSnapshot(binding);
-    const finalSize = fs.statSync(paths.snapshot).size;
-    const ledgerReads = ledgerReadSpy.mock.calls.filter(([filePath]) => String(filePath) === paths.ledger);
-    expect(snapshot).toMatchObject({
-      hostRevision: 1_000,
-      commandLedgerHighWater: 1_000,
-    });
-    expect(snapshot.recentAppliedCommands).toHaveLength(64);
-    expect(finalSize).toBeLessThan(sizeAtWindowLimit + 10_000);
-    expect(ledgerReads).toHaveLength(0);
+    expect(snapshot).toMatchObject({ hostRevision: revision, commandLedgerHighWater: revision });
+    expect(snapshot.recentAppliedCommands).toHaveLength(PROJECT_AGENT_RECENT_COMMAND_LIMIT);
+    // 快照有界：跨过回执窗口后又写了两个窗口，体积不随命令数增长（只有 revision 位数带来的零头）。
+    expect(fs.statSync(paths.snapshot).size).toBeLessThan(sizeAtWindowLimit + 10_000);
+  });
+
+  it("counts a real cold-cache ledger rescan, so the steady-state assertion above cannot go dead", async () => {
+    setDurabilityMode("ephemeral");
+    const host = createOfflineProjectAgentHost({ repository: repository() });
+    for (let revision = 0; revision < 4; revision += 1) {
+      await host.dispatch(threadMutation(`scan-probe-${revision + 1}`, revision, "thread-a"));
+    }
+
+    // 阳性对照：新仓库实例 = 冷账本缓存，下一次 load() 必然走一次 scan()。上一版的探针
+    // （按路径过滤 fs.readFileSync）在这里数出的是 0——正因如此它的「不重扫」断言永远绿。
+    // 这条用例保证换上的计数器确实是活信号，而不是又一个死选择器。
+    const scansBefore = __projectAgentCommandLedgerScanCountForTests();
+    const coldState = createProjectAgentRepository({ rootDir: root }).load(binding);
+
+    expect(coldState?.hostRevision).toBe(4);
+    expect(__projectAgentCommandLedgerScanCountForTests() - scansBefore).toBeGreaterThan(0);
   });
 
   it("round-trips an enqueued and running turn through the durable repository", async () => {

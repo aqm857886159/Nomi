@@ -1,4 +1,5 @@
 import type { ZodTypeAny } from 'zod'
+import type { CompiledPrompt, PromptCacheTelemetry } from '../context/promptPipe'
 
 /** Nomi's boundary. SDK objects and types stay in the private pi directory. */
 export interface NomiModelConfig {
@@ -81,6 +82,8 @@ export interface RuntimeTurnRequest {
   /** Opaque, versioned working history; the caller owns thread binding/publication. */
   snapshot?: string
   compaction: { enabled: boolean; reserveTokens?: number; keepRecentTokens?: number }
+  /** Hash-only prompt receipt; contents stay in the request's actual prompt slots. */
+  promptReceipt?: Pick<CompiledPrompt, 'compileHash' | 'stablePrefixHash' | 'estimatedTokens' | 'byteLength' | 'warnings' | 'budgetWarning' | 'provenance' | 'taintedSourceRefs'>
 }
 
 export interface RuntimeTurnHooks {
@@ -112,6 +115,7 @@ export interface RuntimeTurnResult {
   snapshot?: string
   context?: RuntimeContextMetadata
   error?: RuntimeErrorFacts
+  promptCache?: PromptCacheTelemetry
 }
 
 export type RunAgentTurn = (request: RuntimeTurnRequest, hooks: RuntimeTurnHooks) => Promise<RuntimeTurnResult>

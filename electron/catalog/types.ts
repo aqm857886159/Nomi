@@ -244,7 +244,7 @@ export type Vendor = {
    */
   providerKind?: AiSdkProviderKind;
   /** Optional per-connection egress. Empty/absent preserves the application-level route. */
-  network?: { proxyUrl?: string };
+  network?: { proxyUrl?: string; proxyEnabled?: boolean };
   /** R1:本地素材吞入策略。curated vendor 也可由代码注册表兜底(见 assetLocalization.curatedAssetIngestion)。 */
   assetIngestion?: AssetIngestion;
   meta?: unknown;

@@ -11,6 +11,7 @@ import type {
   Scene3DTrajectoryPoint,
   Scene3DVector3,
 } from '../scene3dTypes'
+import { scene3dCameraDisplayName, scene3dObjectDisplayName, scene3dTrajectoryDisplayName } from '../scene3dObjectNames'
 
 type TrajectoryPanelProps = {
   state: Scene3DState
@@ -55,9 +56,11 @@ const POSITION_AXIS_META = [
 ] as const
 
 function nodeName(state: Scene3DState, objectId: string): string {
-  return state.objects.find((object) => object.id === objectId)?.name ||
-    state.cameras.find((camera) => camera.id === objectId)?.name ||
-    objectId
+  const object = state.objects.find((candidate) => candidate.id === objectId)
+  if (object) return scene3dObjectDisplayName(object, state.objects)
+  const camera = state.cameras.find((candidate) => candidate.id === objectId)
+  if (camera) return scene3dCameraDisplayName(camera, state.cameras)
+  return objectId
 }
 
 function globallyBoundObjectIds(bindings: Scene3DTrajectoryBinding[]): Set<string> {
@@ -165,7 +168,7 @@ function TrajectoryBindingCard({
     )}>
       <button className="flex min-w-0 items-center gap-2 text-left" type="button" onClick={() => onSelectTrajectory(trajectory.id)}>
         <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: trajectory.color }} />
-        <span className="min-w-0 flex-1 truncate text-caption font-medium text-[var(--nomi-ink)]">{trajectory.name}</span>
+        <span className="min-w-0 flex-1 truncate text-caption font-medium text-[var(--nomi-ink)]">{scene3dTrajectoryDisplayName(trajectory, state.trajectories)}</span>
         <span className="shrink-0 text-micro text-[var(--nomi-ink-40)]">{t('scene3d.trajectory.nodeCount', { count: binding?.objects.length ?? 0 })}</span>
       </button>
 
@@ -313,10 +316,10 @@ export function TrajectoryPanel({
   const availableNodes = React.useMemo<TrajectoryBindableNode[]>(() => [
     ...state.objects
       .filter((object) => object.type !== 'light' && !allBoundObjectIds.has(object.id))
-      .map((object) => ({ id: object.id, name: object.name })),
+      .map((object) => ({ id: object.id, name: scene3dObjectDisplayName(object, state.objects) })),
     ...state.cameras
       .filter((camera) => !allBoundObjectIds.has(camera.id))
-      .map((camera) => ({ id: camera.id, name: camera.name })),
+      .map((camera) => ({ id: camera.id, name: scene3dCameraDisplayName(camera, state.cameras) })),
   ], [allBoundObjectIds, state.cameras, state.objects])
 
   return (
@@ -342,7 +345,7 @@ export function TrajectoryPanel({
         <div className="grid gap-3">
           <div className="flex min-w-0 items-center gap-2 rounded-nomi-sm bg-[var(--nomi-ink-05)] px-2 py-2">
             <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: activeTrajectory.color }} />
-            <span className="min-w-0 flex-1 truncate text-caption font-medium text-[var(--nomi-ink)]">{activeTrajectory.name}</span>
+            <span className="min-w-0 flex-1 truncate text-caption font-medium text-[var(--nomi-ink)]">{scene3dTrajectoryDisplayName(activeTrajectory, state.trajectories)}</span>
             <span className="text-micro text-[var(--nomi-ink-40)]">{t('scene3d.trajectory.summary', { points: activeTrajectory.points.length, nodes: activeBinding?.objects.length ?? 0 })}</span>
           </div>
 
@@ -352,6 +355,7 @@ export function TrajectoryPanel({
               className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)] disabled:opacity-50"
               disabled={readOnly}
               value={activeTrajectory.name}
+              placeholder={scene3dTrajectoryDisplayName(activeTrajectory, state.trajectories)}
               onChange={(event) => onPatchTrajectory(activeTrajectory.id, { name: event.currentTarget.value })}
             />
           </label>

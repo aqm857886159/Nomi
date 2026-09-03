@@ -110,7 +110,7 @@ export function createDefaultScene3DState(): Scene3DState {
   const objects: Scene3DState['objects'] = [
       {
         id: createScene3DObjectId(),
-        name: '假人',
+        name: '',
         type: 'mannequin',
         visible: true,
         position: [0, MANNEQUIN_DEFAULT_SCALE[1] * 0.5, 0],
@@ -122,7 +122,7 @@ export function createDefaultScene3DState(): Scene3DState {
   const cameras: Scene3DState['cameras'] = [
       {
         id: createScene3DCameraId(),
-        name: '相机1',
+        name: '',
         visible: true,
         // 保留出厂 3/4 俯视方位；下面按主体安全画幅重解 target + 距离（F1：不再固定看 0.75 把头裁掉）。
         position: [4, 2.4, 5],
@@ -173,7 +173,7 @@ export function createDefaultScene3DState(): Scene3DState {
   }
 }
 
-function normalizeObject(value: unknown, index: number): Scene3DObject | null {
+function normalizeObject(value: unknown): Scene3DObject | null {
   const raw = asRecord(value)
   const id = stringValue(raw.id, '')
   if (!id) return null
@@ -186,7 +186,7 @@ function normalizeObject(value: unknown, index: number): Scene3DObject | null {
   const lightType = LIGHT_TYPES.has(raw.lightType as Scene3DLightType) ? raw.lightType as Scene3DLightType : 'point'
   return {
     id,
-    name: stringValue(raw.name, `${type === 'light' ? '灯光' : '对象'}${index + 1}`),
+    name: stringValue(raw.name, ''),
     type,
     visible: raw.visible !== false,
     // prop 的 origin 在地面中心 → 默认落 y=0 贴地。
@@ -212,14 +212,14 @@ function normalizeObject(value: unknown, index: number): Scene3DObject | null {
   }
 }
 
-function normalizeCamera(value: unknown, index: number): Scene3DCamera | null {
+function normalizeCamera(value: unknown): Scene3DCamera | null {
   const raw = asRecord(value)
   const id = stringValue(raw.id, '')
   if (!id) return null
   const followTargetId = stringValue(raw.followTargetId, '')
   return {
     id,
-    name: stringValue(raw.name, `相机${index + 1}`),
+    name: stringValue(raw.name, ''),
     visible: raw.visible !== false,
     position: finiteVector(raw.position, [4, 2.4, 5]),
     rotation: finiteVector(raw.rotation, [-0.35, 0.65, 0]),
@@ -284,7 +284,7 @@ function normalizeTrajectory(value: unknown, index: number): Scene3DTrajectory |
     : []
   return {
     id,
-    name: stringValue(raw.name, `轨迹${index + 1}`),
+    name: stringValue(raw.name, ''),
     points,
     curveControls,
     tension: Math.min(1, Math.max(0, finiteNumber(raw.tension, 0.5))),
@@ -343,7 +343,7 @@ function normalizeTrajectoryGroup(value: unknown, index: number, trajectoryIds: 
     : []
   return {
     id,
-    name: stringValue(raw.name, `组${index + 1}`),
+    name: stringValue(raw.name, ''),
     trajectoryIds: groupTrajectoryIds,
   }
 }
@@ -355,14 +355,14 @@ export function normalizeScene3DState(value: unknown): Scene3DState {
   const editorCamera = asRecord(raw.editorCamera)
   const sceneTimeline = asRecord(raw.sceneTimeline)
   const objects = Array.isArray(raw.objects)
-    ? raw.objects.flatMap((item, index) => {
-      const object = normalizeObject(item, index)
+    ? raw.objects.flatMap((item) => {
+      const object = normalizeObject(item)
       return object ? [object] : []
     })
     : fallback.objects
   const cameras = Array.isArray(raw.cameras)
-    ? raw.cameras.flatMap((item, index) => {
-      const camera = normalizeCamera(item, index)
+    ? raw.cameras.flatMap((item) => {
+      const camera = normalizeCamera(item)
       return camera ? [camera] : []
     })
     : fallback.cameras
