@@ -13,8 +13,10 @@
 //   · **concat**:`t(`P${x}`)` —— **无点直接拼后缀**(如 `mode${'System'|'Custom'|'Off'}`)。
 //     此时 P 是半个词、不是子树,故改为枚举全部字面量后缀,逐个校验 `P+suffix` 是叶子。
 
+import { VENDOR_CONNECTION_PILL_LABEL_MEMBERS } from '../../src/ui/onboarding/vendorConnectionView'
+
 export type DynamicPrefix =
-  | { prefix: string; why: string; kind?: 'subtree' }
+  | { prefix: string; why: string; kind?: 'subtree'; members?: readonly string[] }
   | { prefix: string; why: string; kind: 'concat'; suffixes: string[] }
 
 export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
@@ -38,6 +40,11 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'onboardingProviders.workspace.capability.editor.errors', why: '动态: 能力编辑器表单错误码;枚举来源: ModelCapabilityEditor 的 errors.form/errors.modes(editor.errors.* 词条)' },
   { prefix: 'onboardingProviders.workspace.adapter.title', why: '动态: 适配器状态卡标题;枚举来源: ModelAdapterStatusSection 的 state.state 联合(adapter.title.* 词条)' },
   { prefix: 'onboardingProviders.workspace.adapter.body', why: '动态: 适配器状态卡正文;枚举来源: ModelAdapterStatusSection 的 state.state 联合(adapter.body.* 词条)' },
+  {
+    prefix: 'onboardingProviders.vendorCard.connection',
+    members: VENDOR_CONNECTION_PILL_LABEL_MEMBERS,
+    why: '动态: 供应商连接胶囊文案;枚举来源: vendorConnectionView 的 VENDOR_CONNECTION_PILL_LABEL_MEMBERS（由 VendorConnection.state 四态映射，unsupported 复用 saved）',
+  },
   { prefix: 'onboardingProviders.drawer.network', why: '动态: 网络抽屉 pill;枚举来源: NetworkSection 的 pill.key(drawer.network.* 词条)' },
   {
     prefix: 'onboardingProviders.drawer.network.mode',

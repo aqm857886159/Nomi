@@ -13,6 +13,13 @@ export type VendorPill = {
 const BASE = 'onboardingProviders.vendorCard.connection'
 
 /**
+ * The values actually appended to BASE below. Keep this next to the mapping so
+ * the i18n gate checks the runtime key set instead of trusting a hand-copied
+ * registry entry.
+ */
+export const VENDOR_CONNECTION_PILL_LABEL_MEMBERS = ['reachable', 'unreachable', 'checking', 'saved'] as const
+
+/**
  * connection 为 null（这家还没填 key）时不该调这里——那张卡是「待接入」，
  * 由调用方交给 FoldableModelCard 的缺省文案。
  *

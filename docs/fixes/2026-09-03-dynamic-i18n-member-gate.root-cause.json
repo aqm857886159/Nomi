@@ -1,0 +1,98 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-dynamic-i18n-member-gate",
+  "problem_type": "动态 i18n 前缀只登记前缀、不校验运行时成员",
+  "symptom": "供应商断开时，界面显示 onboardingProviders.vendorCard.connection.unreachable 裸键；check:i18n 仍然全绿。",
+  "direct_cause": "scripts/check-i18n-key-refs.ts 只把动态键按前缀登记，并验证前缀是子树；vendorConnectionView 通过 labelKey 变量取动态叶子，成员缺词条时没有静态检查。",
+  "class_root": "动态 i18n 的可解析性不只是前缀存在，还要求运行时可能拼出的每个叶子在 zh-CN 与 en 都存在；旧门岗把成员来源留在调用者脑中，导致缺一个成员仍可通过。",
+  "migration": "保留既有动态前缀注册表和所有调用路径；新增 members 声明接入实际胶囊键数组，门岗在同一注册边界逐成员校验。没有旧数据迁移，缺失词条直接修正为双语叶子。",
+  "affected_population": [
+    "所有使用动态 i18n 前缀的渲染路径，尤其供应商连接卡的 checking/reachable/unreachable/unsupported 四态。",
+    "未来新增动态成员而忘记补任一语言词条的 renderer 代码。"
+  ],
+  "scope_paths": [
+    "scripts/check-i18n-key-refs.ts",
+    "scripts/lib/i18nDynamicKeyPrefixes.ts",
+    "src/ui/onboarding/vendorConnectionView.ts",
+    "src/i18n/locales/onboardingProviders.ts"
+  ],
+  "entry_points": [
+    "check-i18n-key-refs.ts 的动态注册校验",
+    "DYNAMIC_KEY_PREFIXES 的 onboardingProviders.vendorCard.connection 登记",
+    "vendorConnectionPill 的四态到 labelKey 映射"
+  ],
+  "invariants": [
+    "每条带 members 的 subtree 动态前缀，其每个 prefix.member 都必须在 zh-CN 和 en 各有可解析叶子。",
+    "成员来源必须非空且无重复；实际运行时拼出的供应商连接胶囊键必须完整登记。",
+    "缺词条时 check:i18n 以非零退出并点名完整 key，不得把动态前缀当作豁免。"
+  ],
+  "regression_tests": [
+    "scripts/lib/i18nDynamicKeyPrefixes.test.ts",
+    "src/ui/onboarding/vendorConnectionView.test.ts"
+  ],
+  "residual_risks": [
+    "无法静态求解的纯变量键仍按既有规则豁免；本次只为有明确 subtree 前缀且成员来源可枚举的路径增加强校验。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这是仓库自有 i18n 资源树、TypeScript 动态键扫描和 renderer 映射之间的内部不变量，不受第三方运行时或外部协议决定；证据来自本仓库的 resources、vendorConnectionPill 与 check:i18n-key-refs 实际运行。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "这是动态前缀门岗的通用结构缺口，不是 unreachable 单词拼写孤例；任何可枚举的新状态都能以同样方式漏过。",
+    "same_class_scan": [
+      "全仓扫描 t()/i18n.t() 的字符串、模板和变量调用，确认 DYNAMIC_KEY_PREFIXES 是所有显式模板前缀的共同注册表；同时扫描注册表的 66 条现有前缀，保持未提供 members 的历史整子树语义不变。",
+      "独立核对 src/ui/onboarding/vendorConnectionView.ts 的四态映射与其 VENDOR_CONNECTION_PILL_LABEL_MEMBERS，确认真实叶子集合是 reachable/unreachable/checking/saved，而不是把 unsupported 错登记成 unsupported。"
+    ]
+  },
+  "generality_proof": "所有可静态识别的动态 subtree 都先经过同一注册表，再由同一 checker 对注册成员逐语言验叶子；调用者只要登记自己的真实成员来源，缺任一成员都会在 check:i18n 失败。供应商连接卡的四态只是首个被走查揭出的实例，其他已登记前缀仍受原有子树存在性检查，无法静态求解的键没有被虚假宣称已覆盖。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-i18n-key-refs.ts",
+      "symbol": "staleRegisteredPrefixes 动态成员校验",
+      "responsibility": "对带 members 的动态 subtree 同时检查前缀存在、成员来源有效，以及 zh-CN/en 每个完整叶子存在。"
+    },
+    {
+      "path": "scripts/lib/i18nDynamicKeyPrefixes.ts",
+      "symbol": "DYNAMIC_KEY_PREFIXES",
+      "responsibility": "集中登记动态前缀和可枚举成员来源，供正向 key-ref 与反向 dead-key 门岗共用。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/onboarding/vendorConnectionView.ts",
+      "entry_point": "VENDOR_CONNECTION_PILL_LABEL_MEMBERS / vendorConnectionPill",
+      "disposition": "enforced",
+      "evidence": "实际四态映射产生四个动态 labelKey；成员数组与该映射同文件，注册表直接复用它，缺 checking/unreachable 时门岗点名完整 key。"
+    },
+    {
+      "path": "scripts/lib/i18nDynamicKeyPrefixes.ts",
+      "entry_point": "DYNAMIC_KEY_PREFIXES",
+      "disposition": "enforced",
+      "evidence": "这是正向 key-ref 与反向 dead-key 共用的动态前缀单一真相源；新增 members 字段只增强正向成员存在性，不复制另一份 registry。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-i18n-key-refs.ts",
+    "invariant": "每个已登记 members 的动态 subtree 成员在 zh-CN 与 en 都解析为叶子。",
+    "failure_mode": "check:i18n 非零退出，并报告「成员缺少译文叶子」及 onboardingProviders.vendorCard.connection.<member> 和缺失语言。",
+    "exception_policy": "none",
+    "strategy": "把成员来源与动态前缀一起登记，再在共享门岗一次性按语言验证，新增或删除状态不会只改变调用者而漏掉词典。",
+    "artifacts": [
+      "scripts/check-i18n-key-refs.ts",
+      "scripts/lib/i18nDynamicKeyPrefixes.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/lib/i18nDynamicKeyPrefixes.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有旧的生产实现需要保留或删除；本次把原有前缀存在性检查扩展为成员存在性检查。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方依赖；改动只在仓库自有 TypeScript checker、动态注册表和本地资源。",
+    "exit_criteria": []
+  }
+}
