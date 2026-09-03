@@ -1,0 +1,45 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-mcp-j06-honest-eta-shape",
+  "problem_type": "hardcoded ETA point value in MCP gate challenge misleads callers",
+  "symptom": "MCP gate challenge `shots.waitSeconds` was always 180 (or 40 in an earlier revision), regardless of output kind, vendor, model, or shot count. A video generation job that realistically takes 4-8 minutes would show '3 minutes' to the calling agent, causing premature timeouts, user confusion, and incorrect budget decisions in automated pipelines.",
+  "direct_cause": "`mcpGenerationTools.ts` gate_request path used the literal `waitSeconds: 180` in the multi-shot gate projection. `MultiShotGateProjection` had no `etaBasis` or `waitSecondsHigh` fields, so callers had no way to know whether the estimate was measured or fabricated and could not display a range.",
+  "class_root": "ETA values that are machine-read (by MCP callers, scheduling agents, budget estimators) must never be fabricated constants. The constant 180 s originated as a placeholder during the initial gate scaffold and was never replaced. The class: any place where a time/cost estimate is expressed as a single fixed literal rather than a function of the actual operation parameters (kind × model × vendor × count). A single point value is always wrong for at least one dimension of the space.",
+  "affected_population": [
+    "MCP agent callers that use `waitSeconds` to set timeouts or user-facing progress indicators for video generation",
+    "Automated pipelines that schedule downstream steps based on the ETA from the gate challenge",
+    "Any user of the confirmation card that reads `waitSeconds` to display 'estimated time' — video jobs showed ~3 min instead of the true 4-10 min range"
+  ],
+  "scope_paths": [
+    "electron/productionRun/shotPricing.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts"
+  ],
+  "entry_points": [
+    "createGenerationPlanningHandler gate_request branch — builds the MultiShotGateProjection and previously set `waitSeconds: 180` unconditionally",
+    "coldstartEtaForGate — new exported helper that maps outputKinds × shotCount to a {waitSeconds, waitSecondsHigh, etaBasis} triple; this is the single source of truth for cold-start ETA",
+    "MultiShotGateProjection type — gained `etaBasis` and `waitSecondsHigh` optional fields so callers can render a range and know the estimate basis"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The ETA bounds are derived from empirical measurements of production APIMart video/image jobs (2026-09-03, ~10 jobs each, Seedance 2.0/2.0-fast/2.0-mini): video 4-8 min, image 10-30 s. There is no official SLA document for APIMart generation latency; the bounds are conservative cold-start estimates and are explicitly labelled etaBasis='coldstart' so callers know they are approximate. The fix is a structural change (type shape + helper function) not a protocol contract, so no external spec needs to be checked against.",
+  "invariants": [
+    "The `waitSeconds` field in a MultiShotGateProjection must be derived from the operation's outputKinds and shotCount; it must never be a literal constant in the call site.",
+    "When no historical P50/P90 data is available, `etaBasis` must be 'coldstart' and both `waitSeconds` (low) and `waitSecondsHigh` (high) must be present so callers can display a range rather than a false-precision point value.",
+    "The coldstartEtaForGate helper is the single source of cold-start ETA bounds; call sites must not re-derive their own bounds."
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "The hardcoded value lived at a single call site in gate_request. Fixing it replaces the literal with a function call and extends the type with the two new fields. The historical P50/P90 upgrade path (etaBasis='historical') is future work; the current fix is the correct cold-start floor. No new structural gate is introduced because the type system now enforces that callers receive the etaBasis discriminant and can branch on it.",
+    "same_class_scan": [
+      "Searched for other literal ETA constants in the codebase: `grep -rn 'waitSeconds.*[0-9]' electron/` — the only remaining non-computed waitSeconds is in the single-shot gate return path, which has no waitSeconds field at all (single-shot does not show a time estimate). No other fabricated ETA points found.",
+      "Confirmed spendConfirm.ts:196 (the renderer-side fallback ETA for the confirmation card) is a separate rendering concern that reads waitSeconds from the gate projection; it falls back to 40s for single-shot which is acceptable since it is a UI-only last-resort fallback, not machine-read by MCP callers."
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpGenerationTools.test.ts"
+  ],
+  "migration": "No stored data is affected. The gate challenge is a transient MCP response; existing callers that already ignore waitSeconds or treat it as advisory see no breaking change. Callers that now read etaBasis='coldstart' and waitSecondsHigh can opt in to range display.",
+  "residual_risks": [
+    "The coldstart bounds are empirically measured from a small sample (2026-09-03, APIMart, ~10 jobs) and will drift as models improve. They should be replaced by historical P50/P90 from the .nomi/events log once that pipeline is built (etaBasis='historical').",
+    "Single-shot gate path does not emit waitSeconds at all. If a caller relies on it for single-shot operations, they see undefined and must fall back to a UI default."
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "debtCap": 78,
+  "debtCap": 77,
   "registered": [
     {
       "site": "electron/connectors/connectorDefinition.ts::type:UsageStatus/type-union",
@@ -1101,26 +1101,6 @@
       "reason": "**镜级画面校验**独立生命周期（无撤销、与结构对账分开），见 shotVerifyStore 注释。"
     },
     {
-      "site": "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx::function:StatusBadge/parameter:0/property:tone/type-union",
-      "members": [
-        "active",
-        "neutral",
-        "success",
-        "warning"
-      ],
-      "reason": "TimelineEditPlanCard StatusBadge tone is a visual vocabulary for Agent edit-plan cards; it only controls badge color and icon, not the edit or task lifecycle."
-    },
-    {
-      "site": "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx::type:TimelineAppliedRecord/property:status/type-union",
-      "members": [
-        "applied",
-        "failed",
-        "undoing",
-        "undone"
-      ],
-      "reason": "TimelineAppliedRecord.status is a local view-model vocabulary for apply and undo outcomes; it must remain distinct from the persisted adoption and runtime lifecycle states."
-    },
-    {
       "site": "src/workbench/generationCanvas/components/viewportAnimationSettlement.ts::type:ViewportAnimationSettlementOutcome/type-union",
       "members": [
         "cancelled",
@@ -1957,15 +1937,6 @@
         "recording"
       ],
       "reason": "同一 MP4 导出回调合同已有四态 owner；这里是少 converting 的局部子集，待从 ExportTimelineToMp4Options 的 progress status derive。"
-    },
-    {
-      "site": "src/workbench/generationCanvas/components/AssistantTimeline.tsx::type:StepTone/type-union",
-      "members": [
-        "active",
-        "done",
-        "warn"
-      ],
-      "reason": "StepTone 把执行进度 active/done 与对账偏差 warn 混成互斥枚举；现码中 warn 只由 deviationReport/contentDeviations 触发。收敛目标是以 active/done 作为步骤进度 canonical，并把偏差改为 done 上独立的 deviated flag，随后删除 warn 成员。"
     },
     {
       "site": "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx::type:PanoramaCaptureFeedback/property:tone/type-union",

@@ -60,6 +60,7 @@
 - [性能预算在 macOS 校准却在 Linux CI 执行 → 假回归](canvas-perf-budget-calibrated-on-macos-fails-on-linux.md) — 别改预算挤 PR，那是治症状
 - [harness 的 catch 会把自己的 bug 洗成产品结论](harness-catch-launders-bugs-into-verdicts.md) — 报某腿失败前先分清是断言红的还是 catch 编的
 - [A/B 两版提示词：确认关卡会污染两臂](prompt-ab-gating-question-confounds-arms.md) — 量到的是服从度不是质量
+- [探针测不到它命名的那件事，断言就永远绿](vacuous-probe-passes-forever.md) — 按路径过滤 fs 读 spy 恒空；四个会话判成「负载 flake」的那条其实恒真。变异测试是唯一判据，「永不发生」必配阳性对照
 - [门岗断言不许手抄真相源的派生值，且必须与真相源同触发面](gate-assertions-must-not-copy-derived-values.md) — 看到 `>= N` 先问「N 是抄谁的」；决定落后与否的是触发面不是细心；死名字既造假红也造假绿
 
 ## C. Git 交付、分支与文档改动

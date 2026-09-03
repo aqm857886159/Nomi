@@ -1478,7 +1478,7 @@ export function createProjectAgentExecutionCoordinator(
       const proposalSettlements = proposalSettlementsFor(execution, status);
       const receivedAt = now();
       const beforeResult = partition.host.getSnapshot(partition.binding);
-      const toolItems = response.toolCalls.map((item) => toolItem(partition.binding, execution.turn, item, receivedAt));
+      const toolItems = response.toolCalls.map((item) => toolItem(partition.binding, execution.turn, item, receivedAt, response.provenance));
       const settledApprovalIds = new Set(
         proposalSettlements.filter((settlement) => settlement.status === "done").map((settlement) => settlement.approvalId),
       );
