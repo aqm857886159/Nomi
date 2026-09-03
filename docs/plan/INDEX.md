@@ -95,6 +95,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-03-agent-interaction-epic.md](2026-09-03-agent-interaction-epic.md) | Agent 交互 epic 施工顺序：先打通断言器 app 模式（阻塞项）→ 逐屏对齐实现 → 17 个 P0 异常态补画 → R16 真实任务闭环 → 开闸 | 📋 |
 | [2026-09-02-mcp-testnet-l1-handshake.md](2026-09-02-mcp-testnet-l1-handshake.md) | MCP 测试网第 1 片：真实 stdio L1 握手六条回归、tools/list payload 棘轮与 listChanged A1 | 🚧 |
 | [2026-09-02-mcp-l2-journeys.md](2026-09-02-mcp-l2-journeys.md) | MCP 测试网第 2 片：C7-C12 真实语义生成、断连回收、产物审片与导出对账 | ✅ |
 | [2026-08-25-p4-anchor-checkpoint-approval-card.md](2026-08-25-p4-anchor-checkpoint-approval-card.md) | P4 锚定妆照检查点的渲染层审批卡（#155 §8.5 两条腿之二；样张已拍板、方案未入库）| 📋 |
