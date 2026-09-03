@@ -33,6 +33,30 @@
 - `origin/perf/canvas-click-select-20260903` 曾存在未开 PR 的唯一代码提交；`origin/fix/mcp-remaining-holes-20260903` 曾主要是 test-only 分支。两者必须通过 patch-id 和当前行为重测后，分别决定开 PR、归类 duplicate，或转后续任务。
 - 历史账本和 `docs/plan/INDEX.md` 存在明显状态漂移：TikHub、视频拆解、画布、MCP、凭据和部分 Agent/M 线条目可能已经有代码但仍标旧状态；反向地，资源链 P0-2/3/4、MCP Q8、M5 graduation、Agent 真实创作闭环等可能只有计划或部分实现。最终以当前 SHA 的证据矩阵为准。
 
+## Exhaustive Feature Discovery: Preventing Memory-Based Omissions
+
+“全量”在本方案中不是把我当前能想起来的功能列长，而是建立一个可审计的功能宇宙。最终清单必须从下面五个来源分别生成，再做去重和交叉校验：
+
+| 来源 | 枚举对象 | 反查要求 |
+|---|---|---|
+| 产品入口 | `src/workbench` 下所有一级/二级模块、Workbench shell、页面、panel、workspace、editor、dialog、toolbar 和 `data-*` action | 每个用户可触发动作要对应状态/命令和一个测试或明确的“不适用”理由 |
+| 领域逻辑 | `src/workbench/ai`、`creation/storyboard`、`generationCanvas`、`generation`、`timeline`、`preview`、`assets`、`library`、`production`、`project`、`settings`、`onboarding`、`taskCenter`、`skillLibrary`、`export`、`player`、`observability` 等模块 | 每个模块要有用户价值、事实源、持久化边界、失败恢复和当前证据 |
+| 外部能力 | `src/desktop/*BridgeTypes.ts`、MCP tool mapping、provider/model catalog、skills、IPC/transport 和 `nomi_*` 工具 | 每个 tool/capability 要有 schema/授权/执行/副作用/receipt/恢复测试，不能只登记 UI 名称 |
+| 自动化证据 | `tests/agent-runtime`、`tests/agent-system`、`tests/ux`、`src/**/*.test.*`、`package.json` 中的 test/gate/build 脚本 | 每个测试要反向指向能力；通过测试但没有真实用户路径或视觉证据时标为未证明 |
+| 计划与历史 | `docs/plan`、`docs/superpowers/plans`、`docs/superpowers/specs`、`docs/architecture`、`docs/qa`、已合并/开放 PR 和所有 Git refs | 每个计划要绑定当前代码/PR/SHA 或明确标为历史、重复、仅设计、阻塞或待决策 |
+
+执行 S1 时必须保存以下“无遗漏检查”：
+
+- 用 `find src/workbench -mindepth 1 -maxdepth 2 -type d | sort` 固定领域模块清单；逐个登记，不允许只围绕 Agent/MCP/分镜表搜索。
+- 用 `rg --files src tests electron docs` 枚举实现、测试、设计、计划和 QA 文件；再用 `rg -n 'data-action|aria-label|nomi_|mcp|storyboard|agent|run|export|preview|timeline|asset|library|setting|onboarding'` 生成候选关键词索引。关键词只用于找候选，最终必须人工归并，避免同名重复或漏掉不含关键词的功能。
+- 从 `package.json` 的所有 `test:*`、`check:*`、`gates*`、`build*`、`bench:*` 脚本反查能力；每个与产品行为有关的脚本都要落到能力矩阵，纯工具脚本也要标注为工程能力。
+- 从 `docs/architecture/agent-m0-tool-mapping.md`、MCP plans/specs、tool registry 和 bridge types 反查 MCP 全量工具；不能只按当前某次 journey 中实际调用的工具统计。
+- 从所有 `tests/ux/*.walk.mjs`、`*.e2e.mjs`、`*.test.mjs` 和 `src/**/*.test.*` 反查已经被测试保护的功能，再对照产品入口寻找“有功能无测试”和“有测试无当前入口”。
+- 每条候选都生成稳定 `featureId`，推荐格式为 `domain.capability.surface.action`；同一能力在 UI、Agent、MCP、Storyboard、Canvas、Timeline 的不同入口共享 featureId，不得重复计数。
+- **全量闭合条件：** 顶层模块 100% 有记录；用户动作 100% 有状态/命令/证据或“不适用”理由；MCP tool 100% 有合同和旅程归属；测试脚本 100% 有能力归属；计划/PR 100% 有当前状态。无法归属的条目进入 `unknown-needs-review`，在闭合前不能删掉。
+- **红证据：** 故意从矩阵中删除一条模块、一个 MCP tool 或一个 walkthrough，闭合检查必须失败；这证明盘点系统真的能发现遗漏。
+- **绿证据：** 恢复条目后闭合检查通过，且每个 featureId 都能沿“设计/入口 → state/command → effect → persistence → test → visual walkthrough”链路找到证据或明确阻塞。
+
 ## Red → Green → Visual Gate
 
 每一个阶段和每一个后续修复都按以下顺序执行，不能只做最后的绿测：
@@ -58,6 +82,55 @@ visual_proof: mockup + screenshot paths + reviewer result
 remaining:
 decision_needed:
 ```
+
+## Three Required Evidence Structures: UI/Function, MCP and Storyboard Table
+
+这三部分必须在每个阶段同时出现，不能只测后端、只走 UI 或只看分镜表局部组件。执行人要为每个能力建立一条可追踪链：
+
+```text
+设计真源/mockup
+  -> UI surface
+  -> user action / UI command
+  -> projection/state transition
+  -> runtime/Host/MCP effect
+  -> persisted receipt or recovery state
+  -> automated assertion
+  -> real Electron/package walkthrough + screenshot
+```
+
+### UI and Function Structure
+
+- **Surface 层：** 以 `src/workbench/ai/ProjectAgentResidentShell.tsx` 为 Agent 常驻界面入口；相关 settings surface 为 `src/workbench/settings/AgentHostSection.tsx`；画布 surface 以 `src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx`、`GenerationCanvasReactFlowOverlays.tsx` 和对应 CSS/visual contract 为入口。
+- **Intent/command 层：** 检查 `src/workbench/ai/agentIntent.ts`、`projectAgentUiCommands.ts`、`projectAgentTurnCommands.ts` 和 `agentLoopMode.ts`，确认点击、提交、停止、重试、确认、恢复等动作都有明确语义，不让组件直接绕过命令层写状态。
+- **Projection/state 层：** 检查 `projectAgentUiProjection.ts`、`projectAgentProjectionStore.ts`、`useProjectAgentThreadMessages.ts`、`agentTurnLifecycle.ts`、`agentUsageStore.ts`；每个可见状态都要能回溯到事实源、session/turn identity 和失败原因。
+- **Runtime/effect 层：** 检查 `projectAgentClient.ts`、`workbenchAgentRunner.ts`、`src/desktop/projectAgentBridgeTypes.ts` 和 `src/desktop/mcpBridgeTypes.ts`；确认 UI 状态、Agent Host、MCP effect、confirmation/receipt 和项目落盘之间没有第二套隐式协议。
+- **Canvas integration 层：** 需要时沿 `src/workbench/generationCanvas/agent/`、`runner/`、`events/`、`store/` 和 `reactFlow/` 追踪“Agent 提案 → 用户确认 → 画布写入 → undo/recovery → 后续时间线/预览”完整链路。
+- **UI 完成判定：** 不是组件存在或截图相似，而是每个状态/操作具备：设计预期、命令入口、projection 事实、持久化结果、自动化断言、真实路径和视觉证据。缺任何一面都标为 `已合入但未证明` 或 `部分完成`。
+
+### MCP Test Structure
+
+MCP 测试按“工具面 → 握手/授权 → 执行 → 副作用 → 收据/恢复 → 打包态”分层，不能只跑一个 happy path：
+
+- **静态与合同层：** `pnpm run check:mcp-payload`、`pnpm run check:mcp-tool-refs`、`pnpm run gates:contracts`；确认 tool name/description/schema/ref、payload、能力声明和边界没有漂移。
+- **L1 接入层：** `tests/ux/mcp-l1-handshake.e2e.mjs`、`tests/ux/mcp-client-activation.walk.mjs`、`tests/ux/mcp-skills-integration.e2e.mjs`；验证 MCP client 激活、工具可见性、skill 注入、连接失败和恢复。
+- **L2 交互层：** `tests/ux/mcp-l2-journeys.e2e.mjs`、`mcp-generation-elicitation-first.e2e.mjs`、`mcp-generation-single-shot-gui-fallback.e2e.mjs`、`mcp-generation-multishot-confirm.e2e.mjs`、`mcp-generation-provider-degradation.e2e.mjs`、`mcp-draft-loop.e2e.mjs`；验证授权/确认、免费与收费边界、单镜/多镜、GUI fallback、provider degradation、取消/重试和重复执行。
+- **应用与真实创作层：** `tests/ux/mcp-apps-host-render.e2e.mjs`、`production-mcp-journey.e2e.mjs`、`agent-runtime-production.walk.mjs`；验证 MCP 结果如何进入 Agent、画布、时间线或预览，并检查用户可编辑性。
+- **打包与发布层：** `pnpm run test:mcp-l2:packaged` 及 `tests/ux/packaged-mcp-smoke.e2e.mjs`；必须在实际 `release/mac-arm64/Nomi.app`（或收据中明确的当前打包物）上验证 bridge、安装身份、工具面、授权和持久化。缺少打包物只能记为 blocked，不能用开发态代替。
+- **MCP 必查断言：** 工具描述与引用一致；未授权不能产生 provider effect；确认收据绑定正确 project/session/revision；重复提交幂等；失败可分类且不吞异常；取消/重启后不重复扣费、不丢状态；MCP 结果能回到正确项目/画布；每个 skip 都有原因和替代证据。
+- **MCP 红绿要求：** 先在当前 main 让目标断言真实失败，记录具体 tool/effect/receipt 缺口；实现或合并后重跑同一断言，并用故意错误的 revision、receipt、tool ref 或 provider response 做 positive control，确认测试确实能阻止回归。
+
+### New Storyboard Table Structure
+
+新版分镜表不是旧分镜方案的一个改名页面，而是“分镜计划/镜头状态/参考绑定/执行结果”的工作面。盘点时必须把旧方案和新版实现按同一条链对齐，明确哪些是迁移后的能力、哪些是新增加的能力、哪些仍只是计划：
+
+- **Design/source 层：** 以 `docs/plan/2026-09-01-storyboard-table-genre-profile.md`、`docs/plan/2026-08-13-video-deconstruction-storyboard-table.md`、`docs/design/mockups/2026-09-01-storyboard-table-image-first.html` 和 `docs/design/mockups/contracts/2026-09-01-storyboard-table-image-first.intent.mjs` 为入口；更早的 storyboard 方案只能作为历史需求来源，不能直接覆盖新版设计。
+- **Workspace/UI 层：** 检查 `src/workbench/creation/storyboard/StoryboardWorkspace.tsx`、`StoryboardShotTable.tsx`、`StoryboardPlanEditor.tsx`、`StoryboardPlanCard.tsx`、`StoryboardActionCard.tsx`、`StoryboardBulkBar.tsx`、`StoryboardSelectionToolbar.tsx`、`shotRow/StoryboardShotRow.tsx` 和 `shotRow/StoryboardShotFrame.tsx`。
+- **Interaction/exec 层：** 检查 `storyboardDInteractions.ts`、`storyboardActionCardModel.ts`、`exec/storyboardRowActions.ts`、`exec/storyboardExec.ts`、`exec/storyboardNodeBinding.ts` 和 `exec/storyboardRowStatus.ts`，确保单镜生成、批量生成、锁定/等待参考、重试、筛选、折叠、插镜、选择、拖拽/排序、编辑 prompt、设置首帧/参考和回画布都有明确动作与状态。
+- **Plan/IR/provenance 层：** 检查 `src/workbench/generationCanvas/agent/storyboardPlan.ts`、`storyboardPlanSchema.ts`、`storyboardPlanEdits.ts`、`storyboardDialogue.ts`、`storyboardTimelinePlan.ts`、`runStoryboardPlanner.ts`、`sendStoryboardToTimeline.ts`、`adoptStoryboardBatch.ts`；验证镜头 ID/order、场分组、对白、prompt skeleton、model/mode/params、参考素材、source/version/hash 和 stale/revision 不会在表格与画布/时间线之间丢失。
+- **Storyboard test/evidence 层：** 必须运行 `tests/ux/storyboard-table-exec.walk.mjs`、`storyboard-table-phasec.walk.mjs`、`storyboard-methodology.walk.mjs`、`storyboard-trigger.walk.mjs`、`src/workbench/creation/storyboard/storyboardDInteractions.test.ts`、`storyboardActionCardModel.test.ts`、`exec/storyboardExec.test.ts`、`storyboardPlanLifecycle.test.ts` 及相关 `generationCanvas/agent/storyboard*.test.ts`。
+- **Story-to-canvas/timeline 交接：** 证明“生成/编辑分镜表 → 用户审阅/批准 → 产生或更新画布节点 → 绑定参考/执行状态 → 送入时间线 → 可回查/可撤销/重启可恢复”。`shot-table-is-a-projection-of-canvas-nodes` 规则必须作为验收前提，不能另外维护一套与画布脱节的镜头事实源。
+- **新版完成判定：** 分镜表完成不等于“表格能显示”。必须同时证明结构化计划可编辑、状态可解释、执行动作有效、错误可恢复、画布/时间线交接正确、项目落盘可恢复，并通过批准 mockup 的视觉走查。缺任何一面，状态写为 `部分完成` 或 `已合入但未证明`。
+- **分镜表红绿要求：** 先在当前 main 让一个可观察缺口失败，例如旧计划字段在表格编辑后丢失、批量计数与实际待执行镜头不一致、参考变更未标 stale、落画布后 order/anchor 丢失或重启后状态消失；完成实现/合并后重跑同一断言，并使用故意错序、缺参考、过期 revision 或失败镜头做 positive control。
 
 ## Stage Exit Matrix
 
@@ -114,10 +187,11 @@ decision_needed:
 ## Task 4 — Rebaseline M0–M5, Agent and All Feature Epics
 
 - [ ] 以最新 main SHA 重新阅读 `docs/superpowers/plans/2026-09-01-agent-architecture-test-system.md`、`docs/qa/2026-09-03-m5-graduation-checklist.md`、`docs/research/2026-09-01-agent-architecture-solution-and-execution-plan.md`、MCP/Q8、TikHub、video deconstruction、canvas performance、credential、resource-chain 等相关计划。
-- [ ] 建立 `docs/qa/2026-09-04-main-convergence-rebaseline.md`，每一行至少有：目标/用户价值、代码路径、相关 PR/merge SHA、契约证据、单元证据、系统/真实 Electron 证据、持久化/重启证据、视觉证据、当前状态、阻塞原因和下一动作。
+- [ ] 建立 `docs/qa/2026-09-04-main-convergence-rebaseline.md`，每一行至少有：目标/用户价值、代码路径、相关 PR/merge SHA、契约证据、单元证据、系统/真实 Electron 证据、持久化/重启证据、视觉证据、当前状态、阻塞原因和下一动作；主表至少分为 MCP、Agent、Storyboard Table 三大能力簇，并记录三者之间的交接。
 - [ ] 状态只能使用：`已合入且已证明`、`已合入但未证明`、`部分完成`、`仅计划/设计`、`未开始`、`被阻塞`、`等待外部会话`、`等待用户决策`。`CI green` 只能填某个证据列，不能直接填完成状态。
 - [ ] M0–M5 必须按现行 checklist 重跑，尤其确认当前 main 的 packaged parity、真实 Agent Host context、M4 taint/approval spend guard、M5 client confirmation chain 和 packaged L2；旧的 50/50、旧 release 或旧 SHA 证据全部标记为历史证据。
 - [ ] TikHub 与视频拆解要区分“代码已合入”“面板存在”“真实连接器/无水印链路可运行”“拆解结果能进入后续创作工作流”；缺真实 key 时只做无密钥契约和模拟证据，不声称 live-certified。
+- [ ] 新版分镜表要单独核验，不沿用旧分镜方案的完成结论：确认新版设计、表格编辑、单镜/批量执行、参考绑定、状态/错误、画布与时间线交接和重启恢复；把旧方案仍有效的需求与已被新版替代的需求分开登记。
 - [ ] 画布性能要区分 S1–S5、S6 hygiene、S6 click-select 和真实业务路径；性能脚本通过不等于视觉和交互完成。
 - [ ] **红证据：** 对每一条声称完成的能力在当前 main 上找出至少一个未覆盖的证据面；如果四面（代码、自动化、真实路径、视觉/持久化）已经全部成立，则该项不再制造红测，直接标为已证明。
 - [ ] **绿证据：** 每个状态都有对应可重跑命令、SHA、原始输出或截图，且能解释旧计划为什么需要更新。
@@ -126,8 +200,8 @@ decision_needed:
 ## Task 5 — Perform the Required Visual and Interaction Walkthrough
 
 - [ ] 先锁定设计真源和批准稿。至少对照 `docs/design/mockups/2026-09-03-agent-ui-p0-exception-states.html`、`docs/design/mockups/2026-09-01-video-deconstruction-v1.html` 以及仓库中对应的 design contract；若某个页面没有批准稿，标记为需要设计决策，不自行补设计。
-- [ ] 走查 Agent 正常态、异常态、恢复态、工作中/停止/重试/需确认态；走查 TikHub → 视频拆解 → 后续创作入口；走查画布拖拽/选中/缩放/大量节点；走查 M5 打包应用关键链路。
-- [ ] 优先使用现有 walkthrough：`tests/ux/agent-ui-conformance.walk.mjs`、`tests/ux/agent-ui-exception-states-runtime.walk.mjs`、`tests/ux/tikhub-connector.walk.mjs`、`tests/ux/mcp-l2-journeys.e2e.mjs`、`tests/ux/canvas-performance-benchmark.e2e.mjs`、`tests/ux/p4-s5-canvas-landing.e2e.mjs`、`tests/ux/p4-s6-rework-version.e2e.mjs`；打包态使用 `tests/ux/mcp-l2-journeys.e2e.mjs --packaged release/mac-arm64/Nomi.app`，并记录是否因缺 release/凭据而阻塞。
+- [ ] 走查 Agent 正常态、异常态、恢复态、工作中/停止/重试/需确认态；走查 MCP 工具调用、授权/确认、失败/重试和结果回写；走查 TikHub → 视频拆解 → 新版分镜表 → 后续创作入口；走查画布拖拽/选中/缩放/大量节点；走查 M5 打包应用关键链路。
+- [ ] 优先使用现有 walkthrough：`tests/ux/agent-ui-conformance.walk.mjs`、`tests/ux/agent-ui-exception-states-runtime.walk.mjs`、`tests/ux/mcp-l2-journeys.e2e.mjs`、`tests/ux/mcp-generation-elicitation-first.e2e.mjs`、`tests/ux/mcp-skills-integration.e2e.mjs`、`tests/ux/tikhub-connector.walk.mjs`、`tests/ux/storyboard-table-exec.walk.mjs`、`tests/ux/storyboard-table-phasec.walk.mjs`、`tests/ux/canvas-performance-benchmark.e2e.mjs`、`tests/ux/p4-s5-canvas-landing.e2e.mjs`、`tests/ux/p4-s6-rework-version.e2e.mjs`；打包态使用 `tests/ux/mcp-l2-journeys.e2e.mjs --packaged release/mac-arm64/Nomi.app`，并记录是否因缺 release/凭据而阻塞。
 - [ ] 每条路径至少保存：进入前状态、关键交互后状态、错误/确认态、落盘或恢复后的状态。截图存入本轮 QA 证据目录，不以一张“看起来对”的截图代替完整走查。
 - [ ] 视觉检查维度固定为：布局与间距、信息层级、字体/字号/行高、token 颜色与明暗主题、边界和空状态、按钮/禁用/加载/错误/确认态、交互反馈和恢复路径、无裁切/重叠/重复控件、键盘与可访问性、项目/资源/Agent 身份一致性、折叠/重启后的状态一致性。
 - [ ] **红证据：** 每个走查对象先填写一条“预期设计/用户行为”和一条“当前截图或运行结果尚未证明的点”；若发现视觉偏差，先记录差异，不在本收敛 PR 中自行改 UI。
@@ -148,7 +222,7 @@ decision_needed:
 
 - [ ] 根据 S4/S5 的真实结果生成 `docs/plan/2026-09-04-main-convergence-follow-ups.md`，只保留当前 main 上确实未完成或未证明、且有用户价值的项目；每项写明用户价值、依赖、风险、红测、实现范围、绿测、视觉验收和交付方式。
 - [ ] 优先级默认按“阻塞主创作链路 → 影响 Agent 核心闭环 → 影响团队复用/稳定性 → 性能/体验 → 研究/扩展”排序；但必须以证据矩阵为准，不凭历史标题排序。
-- [ ] 预期需要单独推进的候选包括：#452 Agent Host usage/receipt 稳定性、M5 packaged graduation、Agent piece 3/真实创作闭环、MCP Q8/B 余项、resource chain P0-2/3/4、canvas click-select S6；它们只有在 S4 重新确认后才进入正式顺序。
+- [ ] 预期需要单独推进的候选包括：#452 Agent Host usage/receipt 稳定性、M5 packaged graduation、Agent piece 3/真实创作闭环、MCP Q8/B 余项、新版分镜表与旧分镜方案的迁移/补齐、resource chain P0-2/3/4、canvas click-select S6；它们只有在 S4 重新确认后才进入正式顺序。
 - [ ] 架构三期（清理硬环并建立中立契约层）必须单列为架构决策任务：先读近邻开源实现，再做六角色评审和迁移边界，不在本收敛任务里直接重构。
 - [ ] 所有 UI 变更先产出样张/对照稿并等待确认；所有真实供应商/付费/私钥验证先写无密钥 contract，再请求授权做最小 canary。
 - [ ] **红证据：** 每个新 follow-up 在当前 main 上都有可复现的失败断言或明确未证明证据；没有红证据的项只能是研究/决策项，不能冒充实现任务。
@@ -190,4 +264,4 @@ visual_evidence: mockup/screenshot/reviewer result
 remaining: exact unresolved items and owner/next action
 ```
 
-本计划自身的交付只包含这份方案和必要的 QA 模板，不包含 Agent、TikHub、视频拆解、画布或架构代码改动。任何在盘点中发现的产品缺口，都必须按上述红→绿→视觉门拆成后续任务。
+本计划自身的交付只包含这份方案和必要的 QA 模板，不包含 Agent、MCP、TikHub、视频拆解、新版分镜表、画布或架构代码改动。任何在盘点中发现的产品缺口，都必须按上述红→绿→视觉门拆成后续任务。
