@@ -388,7 +388,7 @@ function ClipItem({
       className={cn(
         'absolute inset-y-1 overflow-hidden rounded-nomi-sm border text-left shadow-nomi-sm',
         'cursor-grab select-none touch-none active:cursor-grabbing',
-        clip.type === 'video' ? 'border-nomi-video/60 bg-nomi-video-soft' : 'border-nomi-accent/60 bg-nomi-accent-soft',
+        clip.type === 'video' ? 'border-workbench-video/60 bg-workbench-video-soft' : 'border-nomi-accent/60 bg-nomi-accent-soft',
         selected ? 'ring-2 ring-inset ring-nomi-accent' : 'ring-1 ring-inset ring-transparent',
         dragging || resizingEdge ? 'z-40 opacity-90' : 'z-10',
       )}

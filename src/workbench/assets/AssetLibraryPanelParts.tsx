@@ -84,8 +84,8 @@ export function AssetKindFilterMenu({
               className={cn(
                 'grid h-8 items-center gap-2 rounded-nomi-sm border-0 px-1.5',
                 'bg-transparent text-left text-caption transition-colors duration-[var(--nomi-transition-fast)]',
-                'cursor-pointer text-nomi-ink-65 hover:bg-nomi-ink-05 hover:text-nomi-ink',
-                muted && 'text-nomi-ink-35',
+                'cursor-pointer text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink',
+                muted && 'text-nomi-ink-40',
                 selected && 'bg-nomi-accent-soft font-semibold text-nomi-accent',
               )}
               style={{ gridTemplateColumns: '20px minmax(42px, 1fr) auto' }}
@@ -100,7 +100,7 @@ export function AssetKindFilterMenu({
                     ? 'bg-nomi-paper text-nomi-accent'
                     : muted
                       ? 'text-nomi-ink-30'
-                      : 'bg-nomi-ink-05 text-nomi-ink-45',
+                      : 'bg-nomi-ink-05 text-nomi-ink-40',
                 )}
               >
                 {count}
@@ -164,7 +164,7 @@ export function FolderGridCell({
         onDropAssets(id, event)
       }}
     >
-      <IconFolder size={compact ? 22 : 26} stroke={1.6} className={cn(dragOver ? 'text-nomi-accent' : 'text-nomi-ink-45')} aria-hidden="true" />
+      <IconFolder size={compact ? 22 : 26} stroke={1.6} className={cn(dragOver ? 'text-nomi-accent' : 'text-nomi-ink-40')} aria-hidden="true" />
       <span className="max-w-[90%] truncate text-caption text-nomi-ink">{label}</span>
       <span className="text-micro tabular-nums text-nomi-ink-40">{count}</span>
       {manageable ? <button
@@ -365,7 +365,7 @@ export const AssetGridCell = React.memo(function AssetGridCell({
               {check}
               {deleteButton}
             </div>
-            <div className="min-w-0 truncate px-1.5 py-1 text-micro text-nomi-ink-70" title={asset.name}>
+            <div className="min-w-0 truncate px-1.5 py-1 text-micro text-nomi-ink-60" title={asset.name}>
               {asset.name}
             </div>
           </div>

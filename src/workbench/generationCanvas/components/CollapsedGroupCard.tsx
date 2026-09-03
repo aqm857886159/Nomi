@@ -107,7 +107,7 @@ export function CollapsedGroupCard({
         <div className="flex items-center justify-between gap-3 border-t border-nomi-line px-3 py-2.5">
           <div className="min-w-0">
             <div className="truncate text-body-sm font-semibold text-nomi-ink">{card.name}</div>
-            <div className="text-micro text-nomi-ink-50">{countLabel}</div>
+            <div className="text-micro text-nomi-ink-60">{countLabel}</div>
           </div>
           <span className="shrink-0 text-micro text-nomi-ink-40">{t('generationCommon.canvas.group.dragWhole')}</span>
         </div>

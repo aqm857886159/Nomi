@@ -625,7 +625,7 @@ export function AssetLibraryContent({
 
         <div ref={setScrollEl} className={cn('flex-1 overflow-y-auto', compact ? 'px-3 pb-3' : 'px-3.5 pb-4')}>
           {sourceFilter === 'all' && allProjectAssetsPartial ? (
-            <div className="mb-2 rounded-nomi-sm border border-workbench-warning/25 bg-workbench-warning-soft px-2.5 py-2 text-micro text-workbench-warning" role="status">
+            <div className="mb-2 rounded-nomi-sm border border-nomi-warning/25 bg-nomi-warning-soft px-2.5 py-2 text-micro text-nomi-warning" role="status">
               {t('assetLibrary.partialResults')}
             </div>
           ) : null}
@@ -651,7 +651,7 @@ export function AssetLibraryContent({
             </div>
           ) : null}
           {sourceFilter === 'all' && allProjectAssetsLoading && allProjectAssets.length === 0 ? (
-            <div className="grid min-h-32 place-items-center gap-2 py-8 text-caption text-nomi-ink-50" role="status" aria-busy="true">
+            <div className="grid min-h-32 place-items-center gap-2 py-8 text-caption text-nomi-ink-40" role="status" aria-busy="true">
               <NomiLoadingMark size={24} label={t('assetLibrary.loading')} />
               <span>{t('assetLibrary.loading')}</span>
             </div>
