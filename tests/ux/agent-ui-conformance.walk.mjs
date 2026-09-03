@@ -547,6 +547,10 @@ if (POSITIVE_CONTROL) {
 //   - data-agent-proposal-receipt → 只在 item.status=done 时出现（需要工具调用+确认）
 //   - data-agent-lost-edits-card → 需要 undo+编辑冲突场景
 //   - data-agent-landing-chip    → 需要落点胶囊场景
+//   - data-agent-thinking-line   → 只在 agent 模式有 thinking 过程时才渲染
+//   - data-agent-tool-line       → 只在 agent 有工具调用时才渲染
+//   - data-agent-queue-row       → 只在排队有条目时才渲染（isQueued li）
+//   - data-agent-queue-remove    → 同上（cancel button 只在非 queued 条目时渲染）
 //
 // 分类的意义：修法完全相反
 //   真差距（元素存在）→ 件1 在实现里加 data-agent-* 挂点（已完成见上）
@@ -576,16 +580,21 @@ const STATE_NOT_REACHED_ANCHORS = new Set([
   'data-agent-proposal-receipt',
   'data-agent-lost-edits-card',
   'data-agent-landing-chip',
+  // 以下需要 agent 工具调用/思考/排队才出现，基础文本夹具驱动不到：
+  'data-agent-thinking-line',
+  'data-agent-tool-line',
+  'data-agent-queue-row',
+  'data-agent-queue-remove',
 ])
 
 // 件0b：会话流元素（data-agent-user-bubble / data-agent-reply / data-agent-skill-event 等）
 // 在基础文本回复驱动成功后，它们「应该」出现——如果还是找不到，这是「真差距」（挂点名不对）。
 // 如果驱动失败（fixtureConvDone=false），则降级为「状态未驱达」。
+// 这些在基础文本回复驱动成功后应该出现——如果找不到 = 真差距（挂点名错）
+// data-agent-thinking-line 已移到 STATE_NOT_REACHED_ANCHORS，因为它只在 agent 有思考过程时才渲染
 const CONV_FLOW_ANCHORS = new Set([
   'data-agent-user-bubble',
-  'data-agent-skill-event',
   'data-agent-reply',
-  'data-agent-thinking-line',
 ])
 
 // ── 逐元素断言 ────────────────────────────────────────────────────────────────
@@ -659,6 +668,14 @@ for (const elem of elements) {
           ? '需要 undo 撞上手改冲突的特定场景'
           : anchor === 'data-agent-landing-chip'
           ? '需要节点落点完成后出现落点胶囊场景'
+          : anchor === 'data-agent-thinking-line'
+          ? '需要 agent 模式有思考过程（thinking block），基础文本回复不触发'
+          : anchor === 'data-agent-tool-line'
+          ? '需要 agent 有工具调用才渲染工具总览行，基础文本回复不触发'
+          : anchor === 'data-agent-queue-row'
+          ? '需要排队区有条目（isQueued li），基础夹具无排队场景'
+          : anchor === 'data-agent-queue-remove'
+          ? '需要排队区有非 queued 状态的条目（cancel button），基础夹具无排队场景'
           : '状态未驱达（需要特定运行时状态）'
         fail(anchor, specRef, `状态未驱达：${reason}`, 'state')
       } else if (CONV_FLOW_ANCHORS.has(anchor) && !fixtureConvDone) {
