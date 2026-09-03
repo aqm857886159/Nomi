@@ -26,6 +26,7 @@ import {
   assertProjectAgentMutationEnvelope,
   hashProjectAgentMutation,
 } from "./projectAgentMutationValidation";
+import { assertProjectAgentUsage } from "./projectAgentStateValidationPrimitives";
 import type { ProjectAgentReduction } from "./projectAgentReduction";
 import {
   isProjectAgentAbortStatus,
@@ -79,19 +80,6 @@ function findQueueForTurn(queue: readonly ProjectAgentQueueItem[], turnId: strin
   const item = queue.find((value) => value.turnId === turnId);
   if (!item) fail("record_not_found");
   return item;
-}
-
-const AGENT_USAGE_KEYS = ["promptTokens", "completionTokens", "cachedPromptTokens", "totalTokens"] as const;
-
-function assertAsyncResultUsage(value: unknown): void {
-  if (!value || typeof value !== "object" || Array.isArray(value)) fail("async_result_stale");
-  const usage = value as Record<string, unknown>;
-  if (Object.keys(usage).some((key) => !AGENT_USAGE_KEYS.includes(key as (typeof AGENT_USAGE_KEYS)[number]))) {
-    fail("async_result_stale");
-  }
-  for (const key of AGENT_USAGE_KEYS) {
-    if (!Number.isSafeInteger(usage[key]) || (usage[key] as number) < 0) fail("async_result_stale");
-  }
 }
 
 function assertSingleRunningTurn(state: ProjectAgentHostState, turnId: string): void {
@@ -597,7 +585,13 @@ export function reduceProjectAgentMutation(
         const result = mutation.payload;
         assertCanonicalMutationTimestamp(result.receivedAt);
         assertOptionalMutationBoolean(result.retryable);
-        if (result.usage !== undefined) assertAsyncResultUsage(result.usage);
+        if (result.usage !== undefined) {
+          try {
+            assertProjectAgentUsage(result.usage);
+          } catch {
+            fail("async_result_stale");
+          }
+        }
         assertExactMutationKeys(result.binding, ["projectId", "immutableProjectUuid", "projectGeneration"]);
         if (
           result.expectedRevision !== mutation.expectedRevision ||

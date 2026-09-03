@@ -53,6 +53,14 @@ export function assertSafeInteger(value: unknown, minimum = 0): asserts value is
   }
 }
 
+export function assertProjectAgentUsage(value: unknown): void {
+  const usage = asRecord(value);
+  assertAllowedKeys(usage, ["promptTokens", "completionTokens", "cachedPromptTokens", "totalTokens"]);
+  for (const key of ["promptTokens", "completionTokens", "cachedPromptTokens", "totalTokens"] as const) {
+    assertSafeInteger(usage[key]);
+  }
+}
+
 export function assertStringArray(value: unknown): asserts value is readonly string[] {
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !item.trim())) {
     throw new ProjectAgentStateError("invalid_state");
