@@ -3,7 +3,8 @@ import {
   type AutomationPolicySettings,
 } from '../../../electron/settings/automationPolicyContract'
 
-export type SettingsHostKey = 'nomi' | 'claude' | 'codex' | 'cursor'
+/** @deprecated 泛化后 trustedHost key 是任意合法字符串；保留此 alias 供存量引用方向后迁移。 */
+export type SettingsHostKey = string
 /**
  * `no-models`：连上了、但这家一个可用模型都没有。
  *

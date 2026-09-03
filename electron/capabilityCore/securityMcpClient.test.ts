@@ -41,6 +41,30 @@ describe('signed MCP client identity', () => {
     expect(resolveMcpOrigin('cursor', tampered)).toBe('external')
     expect(resolveMcpOrigin('evil-client', proof)).toBe('external')
   })
+
+  it('signs and verifies an arbitrary valid custom client key (泛化)', () => {
+    // 方案 A：任意形状合法的 key（内置 + 自定义 profile）都能被 Nomi 签名并验证。
+    const proof = signMcpClient('workbuddy')
+    expect(proof).toBeTruthy()
+    expect(verifyMcpClient('workbuddy', proof)).toBe('workbuddy')
+    expect(resolveMcpOrigin('workbuddy', proof)).toBe('workbuddy')
+    // proof 仍绑定到签名时的 key，不能跨 key 冒用。
+    expect(verifyMcpClient('cursor', proof)).toBeNull()
+  })
+
+  it('rejects malformed custom client keys', () => {
+    // 非法形状（含大写/空格/特殊字符）不签名，恒 external。
+    expect(signMcpClient('Work Buddy')).toBeNull()
+    expect(signMcpClient('')).toBeNull()
+    expect(resolveMcpOrigin('Work Buddy', 'whatever')).toBe('external')
+  })
+
+  it('rejects proof for unknown client with valid key format but no token match', () => {
+    // 合法格式但未被 Nomi 签名过：proof 是任意字符串，不通过验证。
+    const fakeProof = 'YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoA'
+    expect(verifyMcpClient('workbuddy', fakeProof)).toBeNull()
+    expect(resolveMcpOrigin('workbuddy', fakeProof)).toBe('external')
+  })
 })
 
 describe('app-owned signing keys', () => {

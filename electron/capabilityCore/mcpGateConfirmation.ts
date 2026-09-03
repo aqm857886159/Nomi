@@ -97,6 +97,23 @@ export function createGenerationGateConfirmation({ transport, clientSupportsElic
           nextAction: 'wait_for_reconciliation',
         }
       }
+      // 客户端明确点了「是」。**但光有「是」不够——花钱必须有主进程铸的收据**，这不是本文件的规矩，
+      // 是下游两处硬约束：
+      //   · mcpSemanticGenerationFlow.ts:22 —— 没有 receiptId/receiptToken 即回 human_approval_required；
+      //   · generationDispatcher.ts:156 —— 原话「Approval booleans cannot replace a Nomi human approval receipt」。
+      // 所以「本函数返回 confirmed」和「这次生成真能开始」是两件事。
+      //
+      // 两条出口：
+      // · 附了凭证 + 有验证器 → 验证器铸出收据，就地算数（surface:'client'）。
+      // · 其余情况 → 落 Nomi 兜底卡。**那条路会铸真收据**，所以它不是在折磨用户，是唯一能把这次生成
+      //   真正放行的路。签发点带的 handoff.clientAttestation:true 就是「我要凭证」的声明。
+      //
+      // ⚠️ 2026-09-03 在这里判断错过一次，把过程留下防再犯：当时把 clientAttestation 读成「要求一种没人
+      // 能提供的凭证 = 半成品开关」，删掉它让「光秃秃的同意就地算数」这条分支可达。真机走查（打包版 +
+      // 真 Codex 客户端）证明净效果更糟——elicitation 帧确实弹到客户端、用户也点了同意，然后 gate 回
+      // human_approval_required，生成压根没开始；而在那之前用户至少还能去 Nomi 点一下把它跑完。
+      // 那面旗其实是**对的要求**，真正缺的是**铸收据那一环**（verifyClientGenerationConfirmation 两个
+      // 生产装配点都没接）。要让客户端的同意真正算数，得补那一环，不是放宽这里。
       if (elicited.attestation != null && typeof transport.verifyClientGenerationConfirmation === 'function') {
         const verified = await transport.verifyClientGenerationConfirmation(challenge, elicited.attestation)
         const result = typeof verified === 'boolean' ? { confirmed: verified } : verified

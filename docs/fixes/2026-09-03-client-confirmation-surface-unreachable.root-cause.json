@@ -1,0 +1,125 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-client-confirmation-surface-unreachable",
+  "problem_type": "一条能力路径的启用条件由两个互不知情的地方共同决定（签发点提要求、装配点提供实现），任一方缺席该路径就整条不可达——而两边分开看都像正常代码",
+  "symptom": "外部 AI（Claude Code / Cursor / Codex）请求 Nomi 生成时，确认卡**永远**弹在 Nomi 应用里，从不弹在调用方。用户在客户端点「同意」不算数：轻则要切到 Nomi 再点一次，重则 Nomi 没开着时那声「同意」被直接丢掉、请求以 `surface:'none'` 拒绝。用生产真实装配形状实跑三个场景，全部落到 Nomi：带凭证的同意 → `nomi`；不带凭证的同意 → `nomi`；客户端已同意且 Nomi 未开 → `none, confirmed=false`。",
+  "direct_cause": "`mcpGateConfirmation.ts` 的客户端确认面有两条出口，生产里**两条都进不去**：出口一 `elicited.attestation != null && typeof transport.verifyClientGenerationConfirmation === 'function'` —— 该回调在两个生产装配点（mcpNodeLauncher / mcpStdioServer）都没传；出口二 `elicited.attestation == null && challenge.handoff?.clientAttestation !== true` —— 而两个生产签发点 `generationDispatcher.ts:278` 与 `runOwnedGenerationGateAuthority.ts:114` 都**无条件**写死 `clientAttestation: true`。两个条件各自都有合理来由（「要凭证就得验」「说了要凭证就别收光秃秃的同意」），但合起来使整个 client 面成为死路，只剩 Nomi 兜底。",
+  "class_root": "一条路径的可达性被拆给**两个互不知情的角色**：签发方声明「我要什么样的证据」（handoff.clientAttestation），装配方决定「有没有能力核验这种证据」（可选 transport 成员）。二者没有任何机器约束把它们绑在一起——签发方可以要求一种从没有人实现的证据，装配方可以不提供任何签发方要求的能力，双方各自的代码与测试都全绿。于是「主路径不可达、只剩兜底」这种状态可以长期存在且不产生任何信号。更隐蔽的是：兜底本身工作正常，所以功能测试全过、用户也能完成任务，只是每次都贵一点、绕一点——退化被伪装成了正常。",
+  "migration": "① 删掉两个签发点无条件写的 `clientAttestation: true`——没有任何实现能提供它要求的东西（生产无验证器、标准 MCP 客户端不产出凭证），它不是安全防线而是半成品开关，同 commit 删净不留并行版；② `mcpGateConfirmation.ts` 的分支从「凭证 AND 验证器」/「无凭证 AND 未要求凭证」改成按凭证有无二分：**有凭证**必须验得过才算数（验证器缺席或验不过 → 不降级、落 Nomi 兜底卡重问），**无凭证**的明确同意就地算数（底线是此前已成立的三件事：主进程 HMAC 认证、127.0.0.1、客户端声明 elicitation 且用户显式点同意）；③ 补三条用例，**只用两个生产装配点真有的能力装配 transport**（此前全部用例都给了 verifyClientGenerationConfirmation 的 mock，所以证明不了生产行为）；④ 原先编码旧意图的用例 `routes a bare semantic client accept to the same GUI challenge` 就地改写并写明为何被推翻，不静默删除；⑤ 把这三个文件加进 `HIGH_RISK_PREFIXES`，此后改花钱确认语义必须带根因合同。",
+  "affected_population": [
+    "所有通过外部 MCP 客户端驱动 Nomi 生成的用户——即 Agent Host 的主用法。本次修复前，无一例外每次花钱确认都被强制回到 Nomi 应用",
+    "其中 Nomi 未开着的场景最严重：用户在客户端已明确同意，请求仍以 surface:'none' 被拒，用户的意思表示被丢弃",
+    "此前所有 mcpGenerationConfirmation.test.ts 的绿灯：它们都给 transport 传了 verifyClientGenerationConfirmation 的 mock，覆盖的是一个生产不存在的装配形状",
+    "M5 打包毕业考的 50/50：C9 客户端声明 capabilities:{}（不支持 elicitation），走的是 Nomi 兜底，因此该数字证明的是兜底面可用，并未证明主确认面可用",
+    "未来任何「签发方要求某种证据 / 装配方提供核验能力」的新配对：无约束则同样会静默退化"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/mcpGateConfirmation.ts",
+    "electron/capabilityCore/generationDispatcher.ts",
+    "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
+    "electron/capabilityCore/mcpGenerationConfirmation.test.ts",
+    "scripts/root-cause-contracts.mjs",
+    "scripts/check-transport-assembly.mjs"
+  ],
+  "entry_points": [
+    "electron/capabilityCore/mcpGateConfirmation.ts（消费点：两条客户端出口的条件判定）",
+    "electron/capabilityCore/generationDispatcher.ts（签发点一：语义生成挑战，无条件带 clientAttestation）",
+    "electron/capabilityCore/runOwnedGenerationGateAuthority.ts（签发点二：run-owned 生成门，同上）",
+    "electron/capabilityCore/mcpNodeLauncher.ts / mcpStdioServer.ts（两个装配点：都未提供 verifyClientGenerationConfirmation）"
+  ],
+  "invariants": [
+    "认证客户端 + 声明 elicitation + 用户显式点同意 ⇒ 就地确认（surface:'client'），不再弹 Nomi 卡；Nomi 开没开都不影响这个结论",
+    "客户端附了凭证而本端无法核验 ⇒ 绝不降级成「光秃秃的同意」，落 Nomi 兜底卡重问；核验失败同理",
+    "客户端点拒绝 ⇒ 立即返回未确认，不得改由 Nomi 再问一次（不给第二次机会改答案）",
+    "签发点不得要求一种本端没有任何实现能核验的证据——要求与核验能力必须成对存在",
+    "覆盖客户端确认面的用例必须用生产装配点真有的能力集组装 transport；给 transport 传生产没有的 mock 成员则该用例不构成生产行为证据"
+  ],
+  "regression_tests": [
+    "electron/capabilityCore/mcpGenerationConfirmation.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpGenerationConfirmation.test.ts"
+  ],
+  "generality_proof": "这不是一处条件写反，是「可达性被拆给两个互不知情的角色」这一族。证据三条：① **本次就是两处独立缺席叠加**——签发点要求凭证（2 处）与装配点缺核验能力（2 处），任一方单独存在都不致命，合起来才封死主路径，说明病灶在二者之间没有绑定关系，而不在任何单一文件；② **同族前科同日发生**——`confirmGenerationInNomi` 在打包装配点缺席（`docs/fixes/2026-09-03-packaged-transport-callback-omitted.root-cause.json`），同样是可选 transport 成员缺席导致运行时静默降级，同样本机全绿；那次的修复只保证了「成员必须接上」，没有覆盖「签发方要求的东西必须有人能提供」这一半；③ **退化伪装成正常**——兜底路径工作良好，功能测试全过、用户也能完成任务，因此这类失效不产生任何错误信号，只能靠机器每次比对，靠人评审必然长期漏过（本次实际存在时长以月计）。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "symbol": "HIGH_RISK_PREFIXES",
+      "responsibility": "把花钱确认面的三个文件（确认判定 + 两个签发点）纳入必须带根因合同的范围：此后改「要不要问人、问在哪、谁的同意算数」必须写清这一类的入口集与防线，不能只靠单点 review 放行。"
+    },
+    {
+      "path": "scripts/check-transport-assembly.mjs",
+      "symbol": "SURFACES",
+      "responsibility": "装配面平价的单一判据（上一次事故立的门岗）：对着 McpTransport 枚举可选成员核对每个生产装配点。本次更新其欠账登记，记清 verifyClientGenerationConfirmation 未接时的确切行为与它曾参与造成的后果。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpGateConfirmation.ts",
+      "entry_point": "客户端确认面的两条出口",
+      "disposition": "enforced",
+      "evidence": "新增三条用例只用生产装配点真有的能力组装 transport。改动前实测：前两条红（`expected 'nomi' to be 'client'`、`expected false to be true`），第三条绿；改动后 13/13 全绿。红灯先行，证明它们真能抓住这个病。"
+    },
+    {
+      "path": "electron/capabilityCore/generationDispatcher.ts",
+      "entry_point": "语义生成挑战签发（handoff.clientAttestation）",
+      "disposition": "enforced",
+      "evidence": "该签发点写死的 clientAttestation 已删；用例「语义生成挑战：客户端光秃秃的同意就地算数」直接覆盖此签发形状，若有人把这面旗加回来，该用例立刻红。"
+    },
+    {
+      "path": "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
+      "entry_point": "run-owned 生成门签发",
+      "disposition": "enforced",
+      "evidence": "同上删除；与 dispatcher 共用 mcpGateConfirmation 的同一段判定，故被同组用例覆盖。且本文件已进 HIGH_RISK_PREFIXES，后续改动必须带合同。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "entry_point": "打包态装配点（verifyClientGenerationConfirmation 未接）",
+      "disposition": "not-affected",
+      "evidence": "本次不改装配点。其缺席行为已明确为「收到无法核验的凭证不降级、落 Nomi 兜底」，由用例「客户端给了凭证但生产装配没有验证器」守；缺席状态本身由 check:transport-assembly 持续登记与断言。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/root-cause-contracts.mjs",
+    "invariant": "改动花钱确认面的三个文件（mcpGateConfirmation / generationDispatcher / runOwnedGenerationGateAuthority）必须附带 schema-v3 根因合同，写明这一类的入口集与结构防线。",
+    "failure_mode": "缺合同时 `check:root-cause-contracts` exit 1 并逐个点名未被覆盖的高风险文件；合同存在但缺 generality_proof / same_class_entry_points / prevention 等必填项时按项报错，读不出文件一律判失败而非放行。",
+    "exception_policy": "none",
+    "strategy": "把「谁的同意算数」这类语义变更从可以单点 review 通过，提升为必须先写清「这一类还能从哪些入口出现、防线是什么」。本次事故的两个成因分处不同文件、各自都像正常代码——只有被迫做整类盘点时才会发现「签发方要求的证据没有任何实现能提供」。同时更新 check-transport-assembly 的欠账登记，纠正此前把该缺席评为「无风险」的判断。",
+    "artifacts": [
+      "scripts/root-cause-contracts.mjs",
+      "scripts/check-transport-assembly.mjs",
+      "electron/capabilityCore/mcpGateConfirmation.ts"
+    ]
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同日已有一次同族事故（confirmGenerationInNomi 在打包装配点缺席，导致确认门恒拒），根因同样是可选 transport 成员缺席造成运行时静默降级。那次的门岗只覆盖「成员必须接上」，未覆盖「签发方要求的证据必须有人能核验」这另一半，本次即从未覆盖的那一半复发。",
+    "same_class_scan": [
+      "全仓 grep `clientAttestation`：仅两个生产签发点写、mcpGateConfirmation 一处读，已全部处理；处理后生产签发点零命中。",
+      "对着 McpTransport 枚举 4 个可选成员 × 2 个生产装配点复核：confirmGenerationInNomi / getAuthenticatedClient / getLocale 两边均已传；verifyClientGenerationConfirmation 两边均未传，其未接行为已明确并有用例守，登记在 check-transport-assembly 的 unwired。",
+      "确认面测试形状普查：改动前 mcpGenerationConfirmation.test.ts 的全部既有用例都给 transport 传了生产不存在的 verifyClientGenerationConfirmation mock，因此无一构成生产行为证据——这正是本病能长期隐身的原因。新增的三条用例刻意只用生产真有的能力集组装。",
+      "端到端覆盖普查：mcp-l2-journeys.e2e.mjs 的 C9（生成门）客户端声明 capabilities:{}（不支持 elicitation），走的是 Nomi 兜底；唯一使用 elicitation 的 C8 测的是「用户拒绝」，在到达凭证分支前即返回。**没有任何端到端用例覆盖「用户在调用方点同意」**——已记入 residual_risks，作为独立工作补上。"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/generationDispatcher.ts",
+      "electron/capabilityCore/runOwnedGenerationGateAuthority.ts"
+    ],
+    "rationale": "两个签发点无条件写的 `clientAttestation: true` 已删净。它要求的证据没有任何实现能提供（生产两个装配点都无验证器、标准 MCP 客户端不产出凭证），保留它等于保留一个永远为真的开关把主确认面钉死——属于 P1 禁止的半成品并行版/逃生口，不做兼容保留。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次修复不涉及第三方依赖的引入、升级或保留决策：改动全在自有代码（确认面分支判定、两个签发点、门岗前缀与登记）。MCP elicitation 的使用方式未变。",
+    "exit_criteria": []
+  },
+  "residual_risks": [
+    "**端到端仍无「在调用方点同意」的旅程**：单测已用生产装配形状覆盖判定逻辑，但 elicitation 的整条管线（客户端声明 → 服务端发 elicitation/create → 客户端 accept → 就地确认且不弹 Nomi 卡）在 E2E 层没有用例。若将来 clientSupportsElicitation() 在某个装配点失真（正是打包/开发分叉最爱出问题的地方），单测抓不到。已列为独立后续工作。",
+    "本次未在真实 Claude Code / Cursor 上做人工走查，只有单测与代码级证据。发版前应至少在一个真实 MCP 客户端上确认「点同意后不再要求切回 Nomi」。",
+    "安全底线由此从「凭证可验」下调为「认证连接 + 声明 elicitation + 显式同意」。这是 2026-09-03 用户在知悉后果后的明确拍板，不是默认取舍。若将来要恢复强校验，正确做法是接上 verifyClientGenerationConfirmation 并让签发点**按验证器是否存在**决定要不要凭证，而不是把无条件的旗加回来。",
+    "M4 的污染标记拦截仍以 agentHostEnabled=false 未在打包态覆盖（见 M5 毕业清单），本次不改变该状态。"
+  ],
+  "internal_only_reason": "根因、判据与修法全部落在仓内自有代码：确认面的分支条件、两个签发点的 handoff 约定、transport 可选成员的装配方式都是 Nomi 自定义协议层的设计，不依赖第三方库行为。涉及的 MCP elicitation 只用到其标准 accept/decline 语义，本次未改变对它的用法，故无需外部文档佐证。"
+}

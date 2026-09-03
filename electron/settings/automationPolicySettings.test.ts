@@ -33,10 +33,12 @@ describe("automation policy settings", () => {
     expect(readAutomationPolicySettings()).toEqual(DEFAULT_AUTOMATION_POLICY_SETTINGS);
   });
 
-  it("normalizes modes, strips unknown hosts, and preserves mandatory gates", () => {
+  it("normalizes modes, strips malformed hosts, and preserves mandatory gates", () => {
+    // 泛化后：任意格式合法的 key（小写字母/数字/横杠）都通过，不限定白名单四值。
+    // "Evil Host!"（含非法字符）被过滤；格式合法的 key（含自定义 profile key）通过。
     expect(normalizeAutomationPolicySettings({
       mode: "anything",
-      trustedHosts: ["codex", "evil", "codex", "cursor"],
+      trustedHosts: ["codex", "Evil Host!", "codex", "cursor"],
       confirmFirstSpend: false,
       confirmIrreversible: false,
       maxAttemptsPerJob: 99,
@@ -47,6 +49,14 @@ describe("automation policy settings", () => {
       confirmIrreversible: true,
       maxAttemptsPerJob: 10,
     });
+  });
+
+  it("accepts arbitrary valid-format custom client keys in trustedHosts", () => {
+    // 方案 A：自定义客户端 key（合法格式）可以出现在 trustedHosts 里，不被白名单过滤。
+    const result = normalizeAutomationPolicySettings({
+      trustedHosts: ["claude", "workbuddy", "my-tool-42"],
+    });
+    expect(result.trustedHosts).toEqual(["nomi", "claude", "workbuddy", "my-tool-42"]);
   });
 
   it("normalizes notification, automation, privacy, and spend values", () => {

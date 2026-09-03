@@ -176,13 +176,24 @@ describe('one generation challenge, two confirmation surfaces', () => {
     expect(verifyClientGenerationConfirmation).toHaveBeenCalledTimes(1)
   })
 
-  it('routes a bare semantic client accept to the same GUI challenge', async () => {
+  // 【2026-09-03 走了一个来回，把过程留在这儿防再犯】
+  //
+  // 本用例原本断言「语义挑战 + 客户端只给光秃秃的同意 → 回落 Nomi 卡」。当天先被判成「规则的前提在生产
+  // 永远无法满足，所以是半成品开关」而推翻（改成就地算数），当天又被真机走查推回来——因为推翻的那版
+  // 让用户在客户端点完同意后，生成**直接报 human_approval_required**，比多点一次更糟。
+  //
+  // 真正的约束在下游，本文件管不着也不能绕：
+  //   · mcpSemanticGenerationFlow.ts:22 —— 没有 receiptId/receiptToken 即回 human_approval_required；
+  //   · generationDispatcher.ts:156 —— 原话「Approval booleans cannot replace a Nomi human approval receipt」。
+  // 所以「确认面返回 confirmed」与「这次生成真能开始」是两件事：**光秃秃的同意换不来收据，就换不来生成**。
+  // 回落 Nomi 不是折磨用户，是因为那条路会铸出真收据。
+  //
+  // 结论：本断言恢复原意图。要让客户端的同意真正算数，缺的不是删掉哪面旗，而是补上「铸收据」那一环
+  // （verifyClientGenerationConfirmation 两个生产装配点都没接）——那是独立工作。
+  it('语义生成挑战：客户端光秃秃的同意换不来收据，回落 Nomi 卡（那条路才铸真收据）', async () => {
     const frames: unknown[] = []
     const verifyClientGenerationConfirmation = vi.fn(async () => ({ confirmed: true, receiptId: 'should-not-be-used' }))
-    const confirmGenerationInNomi = vi.fn(async (received: GenerationGateChallengeProjection) => {
-      expect(received.handoff).toMatchObject({ clientAttestation: true, challengeToken: 'challenge-token' })
-      return { confirmed: true, receiptId: 'receipt-gui' }
-    })
+    const confirmGenerationInNomi = vi.fn(async () => ({ confirmed: true, receiptId: 'receipt-gui' }))
     const protocol = await initialized({
       send: (frame) => frames.push(frame),
       invoke: vi.fn(async () => ({})),
@@ -213,5 +224,69 @@ describe('one generation challenge, two confirmation surfaces', () => {
     const request = frames.find((frame) => (frame as { method?: string }).method === 'elicitation/create') as { id: string }
     protocol.handleIncoming({ id: request.id, result: { action: 'decline' } })
     await expect(resultPromise).resolves.toMatchObject({ challengeId: 'challenge-1', confirmed: false, surface: 'client' })
+  })
+})
+
+// ── 生产装配面下的确认面：现实是什么样，就断言什么样 ──
+//
+// 为什么要单独一组：上面那些用例都给 transport 传了 verifyClientGenerationConfirmation 的 mock，而
+// **两个生产装配点（mcpNodeLauncher / mcpStdioServer）都没有传它**。于是那些绿灯证明不了生产行为——
+// 真实用户遇到的是下面这组。它们刻意只用生产真有的能力装配 transport。
+//
+// 本组断言的是**现状**，不是理想态：没有验证器 = 客户端的同意换不来收据 = 只能回落 Nomi。
+// 理想态（客户端点同意就能开始生成）要等「铸收据」那一环接上，不是靠放宽这里的断言换来的。
+describe('生产装配面：没有验证器时，客户端的同意换不来收据', () => {
+  /** 只含两个生产装配点真正传入的能力——没有 verifyClientGenerationConfirmation。 */
+  function productionTransport(overrides: Partial<McpTransport> = {}): McpTransport {
+    return {
+      send: () => {},
+      invoke: vi.fn(async () => ({})),
+      isAppOpen: () => true,
+      getAuthenticatedClient: () => 'codex',
+      confirmGenerationInNomi: vi.fn(async () => ({ confirmed: true, receiptId: 'receipt-gui' })),
+      getLocale: () => 'zh-CN',
+      ...overrides,
+    }
+  }
+
+  async function acceptInClient(transport: McpTransport, content: Record<string, unknown>) {
+    const frames: unknown[] = []
+    const withCapture: McpTransport = { ...transport, send: (frame) => frames.push(frame) }
+    const protocol = await initialized(withCapture)
+    const promise = protocol.requestGenerationConfirmation({
+      ...challenge,
+      handoff: { challengeToken: 'challenge-token', clientAttestation: true },
+    })
+    await tick()
+    const request = frames.find((f) => (f as { method?: string }).method === 'elicitation/create') as { id: string }
+    protocol.handleIncoming({ id: request.id, result: { action: 'accept', content } })
+    return promise
+  }
+
+  // 这条是本轮最贵的一课：2026-09-03 曾把它断言成「就地确认、不弹 Nomi 卡」，真机走查（打包版 + 真
+  // Codex 客户端 + 零额度 loopback）证明那样做的净效果是——elicitation 帧确实弹到客户端了、用户也
+  // accept 了，然后 gate 回 `human_approval_required`，生成压根没开始。比多点一次更糟。
+  // 现在断言现状：回落 Nomi。等「铸收据」接上再来改它，并且要连着下游一起验，不能只看这一层返回值。
+  it('客户端明确点「是」但拿不到收据 → 回落 Nomi 卡（那条路才铸真收据）', async () => {
+    const transport = productionTransport()
+    await expect(acceptInClient(transport, { confirm: true })).resolves.toMatchObject({
+      confirmed: true, surface: 'nomi', receiptId: 'receipt-gui',
+    })
+    expect(transport.confirmGenerationInNomi).toHaveBeenCalledTimes(1)
+  })
+
+  it('客户端已确认但 Nomi 没开着 → 如实回 surface:none，不假装成功', async () => {
+    const transport = productionTransport({ isAppOpen: () => false })
+    await expect(acceptInClient(transport, { confirm: true })).resolves.toMatchObject({
+      confirmed: false, surface: 'none',
+    })
+  })
+
+  it('客户端给了凭证但生产装配没有验证器 → 不许降级成就地确认，回落 Nomi', async () => {
+    const transport = productionTransport()
+    await expect(acceptInClient(transport, { confirm: true, attestation: 'unverifiable' })).resolves.toMatchObject({
+      surface: 'nomi',
+    })
+    expect(transport.confirmGenerationInNomi).toHaveBeenCalledTimes(1)
   })
 })

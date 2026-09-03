@@ -1,0 +1,104 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-asset-store-vocab-single-source",
+  "problem_type": "vocabulary dual-truth: runtime Set in projectAssetStore.ts duplicated enum members from connectorDefinition.ts, creating a silent drift risk",
+  "symptom": "VALID_USAGE_STATUSES and VALID_INTENDED_ROLES were manually maintained as Set literals in projectAssetStore.ts with a comment saying \"keep in sync with connectorDefinition.ts\". When connectorDefinition.ts adds or removes a usageStatus or intendedRole member, the Store's whitelist does not automatically update — the only enforcement is a human reading a comment. The vocabularies gate already tracks the UsageStatus/type-union owner but had to also track the duplicate Set owner, adding a second baseline entry whose member list could diverge from the type.",
+  "direct_cause": "The original implementation inlined both VALID_USAGE_STATUSES and VALID_INTENDED_ROLES as const Set literals in projectAssetStore.ts. These were copy-pasted from the connector definition with no compile-time link. The UsageStatus and IntendedRole types already existed in connectorDefinition.ts as single-source authoritative enumerations; the Sets were redundant and could diverge.",
+  "class_root": "Vocabulary lists that exist in two forms (type union + runtime Set) invite member drift when the type is updated but the Set is not, or vice versa. The correct shape is: one authoritative type union, one derived Set exported from the same file, and one vocabularies-baseline entry pointing at the type (not the Set). Any module needing a runtime whitelist imports the derived Set; no module maintains its own copy.",
+  "affected_population": [
+    "sanitizeSourceEvidence in projectAssetStore.ts: the whitelist validation now always matches the UsageStatus and IntendedRole type unions in connectorDefinition.ts, with no possibility of drift.",
+    "The vocabularies-baseline.json: the VALID_USAGE_STATUSES/set entry is removed; the UsageStatus/type-union entry is the sole owner. debtCap decreases by 1."
+  ],
+  "scope_paths": [
+    "electron/assets/projectAssetStore.ts",
+    "electron/connectors/connectorDefinition.ts",
+    "scripts/vocabularies-baseline.json"
+  ],
+  "entry_points": [
+    "electron/assets/projectAssetStore.ts::sanitizeSourceEvidence — now imports ASSET_PROVENANCE_ALLOWED_USAGES and ASSET_PROVENANCE_ALLOWED_ROLES from connectorDefinition.ts instead of maintaining local Set literals.",
+    "electron/connectors/connectorDefinition.ts::ASSET_PROVENANCE_ALLOWED_USAGES and ASSET_PROVENANCE_ALLOWED_ROLES — new exported Sets derived from UsageStatus and IntendedRole types; these are the single runtime representations of the enum members."
+  ],
+  "internal_only_reason": "The usageStatus and intendedRole vocabularies are Nomi-internal provenance semantics defined entirely within the connector and asset modules. No external specification determines their allowed values.",
+  "invariants": [
+    "VALID_USAGE_STATUSES in projectAssetStore.ts is always ASSET_PROVENANCE_ALLOWED_USAGES imported from connectorDefinition.ts; no local copy of the member list exists.",
+    "VALID_INTENDED_ROLES in projectAssetStore.ts is always ASSET_PROVENANCE_ALLOWED_ROLES imported from connectorDefinition.ts; no local copy of the member list exists.",
+    "The vocabularies-baseline.json contains exactly one entry for usageStatus members, pointing at the UsageStatus type-union in connectorDefinition.ts, not at any runtime Set.",
+    "Adding or removing a member from UsageStatus or IntendedRole in connectorDefinition.ts automatically changes the runtime whitelist in sanitizeSourceEvidence with no manual baseline update required."
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future enum that exists both as a TypeScript type union and as a runtime validation Set risks the same dual-truth drift. The correct pattern (export a const Set derived from the type union; import it everywhere) must be applied consistently.",
+    "same_class_scan": [
+      "Scanned electron/assets/projectAssetStore.ts for any remaining manually maintained Set literals that duplicate type union members: none found after this change.",
+      "The vocabularies gate (check:vocabularies.mjs) now has a single registered entry for UsageStatus and a single registered entry for IntendedRole, both pointing at connectorDefinition.ts type unions."
+    ]
+  },
+  "generality_proof": "The refactor is a pure import substitution: the Set contents are identical (same five usageStatus members, same nine intendedRole members), the sanitizeSourceEvidence logic is unchanged, and all existing sourceEvidence tests pass without modification. The only behavioral difference is that future changes to UsageStatus or IntendedRole in connectorDefinition.ts will immediately affect the whitelist without any manual sync step.",
+  "shared_boundaries": [
+    {
+      "path": "electron/connectors/connectorDefinition.ts",
+      "symbol": "ASSET_PROVENANCE_ALLOWED_USAGES",
+      "responsibility": "Single runtime Set for usageStatus whitelist validation, derived from the UsageStatus type union. All modules needing this whitelist must import this export; no module may define its own copy."
+    },
+    {
+      "path": "electron/connectors/connectorDefinition.ts",
+      "symbol": "ASSET_PROVENANCE_ALLOWED_ROLES",
+      "responsibility": "Single runtime Set for intendedRole whitelist validation, derived from the IntendedRole type union. All modules needing this whitelist must import this export; no module may define its own copy."
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "sanitizeSourceEvidence",
+      "responsibility": "Single choke point for source evidence normalization. Uses imported ASSET_PROVENANCE_ALLOWED_USAGES and ASSET_PROVENANCE_ALLOWED_ROLES for whitelist validation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "sanitizeSourceEvidence — connector source branch usageStatus whitelist check",
+      "disposition": "enforced",
+      "evidence": "Now uses ASSET_PROVENANCE_ALLOWED_USAGES.has(raw.usageStatus as UsageStatus) with proper TypeScript typing. Previously used a local Set with a 'never' cast. Behavior is identical but now compile-time linked to the type definition."
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "sanitizeSourceEvidence — intendedRoles whitelist filter",
+      "disposition": "enforced",
+      "evidence": "Now uses ASSET_PROVENANCE_ALLOWED_ROLES imported from connectorDefinition.ts. Member list is identical; the import replaces the local Set literal."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/connectors/connectorDefinition.ts",
+    "invariant": "Runtime Sets for enum validation are always derived from and co-located with their type unions in connectorDefinition.ts; no module maintains a local copy.",
+    "failure_mode": "A duplicate Set maintained independently would allow the whitelist to accept values that are no longer valid types, or reject values that have been added to the type, silently writing incorrect provenance to sidecar JSON.",
+    "exception_policy": "none",
+    "strategy": "Export derived const Sets (ASSET_PROVENANCE_ALLOWED_USAGES, ASSET_PROVENANCE_ALLOWED_ROLES) from connectorDefinition.ts next to their type unions. Import them everywhere a runtime check is needed. The vocabularies gate tracks the type-union owner, not the Set, preventing duplicate baseline entries.",
+    "artifacts": [
+      "electron/connectors/connectorDefinition.ts",
+      "electron/assets/projectAssetStore.ts",
+      "scripts/vocabularies-baseline.json"
+    ]
+  },
+  "regression_tests": [
+    "electron/assets/projectAssetStore.sourceEvidence.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/assets/projectAssetStore.sourceEvidence.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/assets/projectAssetStore.ts",
+      "electron/connectors/connectorDefinition.ts"
+    ],
+    "rationale": "The local Set literals (VALID_USAGE_STATUSES and VALID_INTENDED_ROLES) were removed from projectAssetStore.ts in the same commit that adds the derived exported Sets (ASSET_PROVENANCE_ALLOWED_USAGES and ASSET_PROVENANCE_ALLOWED_ROLES) in connectorDefinition.ts (P1: add new, delete old in same commit)."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency is introduced or changed. This is a purely internal refactor within the electron/ module boundary.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration required. The Set contents are identical before and after; existing sidecars and runtime behavior are unchanged. The only change is the import path of the whitelist Sets.",
+  "residual_risks": [
+    "TypeScript type inference on the UsageStatus type currently uses 'as UsageStatus' cast in sanitizeSourceEvidence. If a string is passed at runtime that is not in the type union, TypeScript does not catch it at the call site — the runtime Set.has() check is still required. This is the existing behavior and is not changed by this refactor."
+  ]
+}

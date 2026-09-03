@@ -1,0 +1,137 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-memoized-vendor-config-drops-callbacks",
+  "problem_type": "A per-call callback is handed to a vendor API that memoizes its configuration by JSON serialization, so every call after the first silently routes callbacks into the first call's closure and later callers observe no events at all",
+  "symptom": "The second and every subsequent background removal in a session reports no progress whatsoever. The first cut-out shows the full phase sequence (download, decode, inference, mask, encode); the second one emits zero progress callbacks, so the node progress bar and the whiteboard status capsule sit on their initial static label for the entire wait with no percentage and no phase movement. Measured in a real Electron app via tests/ux/remove-background-first-use.walk.mjs: first run 20 progress callbacks across 5 distinct phases, second run 0 callbacks.",
+  "direct_cause": "src/lib/removeBackground.worker.ts built a fresh Config per request (configForRequest(id)) whose progress closure captured that request's id. @imgly/background-removal memoizes session init with `memoize_default(initInference, (config) => JSON.stringify(config))` (dist/index.mjs:5329). JSON.stringify drops function-valued fields, so two configs differing only in their progress closure produce byte-identical memo keys. init therefore returns the first call's config object, and removeBackground uses that object rather than the caller's: `const { config, session } = await init(configuration)` (dist/index.mjs:5335), followed by config.progress(...) for every phase. All progress from call N>1 was delivered to the already-settled promise of call 1, whose pendingRequests entry had been deleted, so removeBackground.ts dropped it on the floor.",
+  "class_root": "A callback whose identity is per-call was passed through a vendor boundary whose caching key cannot represent callback identity. The missing invariant is: any object handed to a memoized vendor API must be stable across calls, and per-call variation must be carried in mutable state that the stable object reads at call time, not in a fresh closure per call. Without it the failure is silent by construction - no error, no type violation, correct output blob - and it only manifests on the second and later calls, which is exactly the path least likely to be exercised in a first-run smoke test.",
+  "affected_population": [
+    "Every user who removes the background from more than one image in a single app session; the first cut-out looks fine and every one after it loses all progress feedback",
+    "Both production entry points: the generation-canvas node toolbar (useNodeImageEditing) and the whiteboard asset context menu (WhiteboardDrawingTool)",
+    "All platforms: the mechanism is vendor-side memoization plus JSON key serialization, not platform specific",
+    "Impact grew with this same change set: startup preloading was removed, so the model download now happens inside a user-visible wait, making honest progress reporting load-bearing rather than cosmetic"
+  ],
+  "scope_paths": [
+    "src/lib/removeBackground.worker.ts"
+  ],
+  "entry_points": [
+    "removeBackgroundBlob() in src/lib/removeBackground.ts - the single renderer-side entry that both UI callers use, forwarding onProgress per request over worker postMessage",
+    "handleRequest() in src/lib/removeBackground.worker.ts - the worker-side boundary that owns the vendor config"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://unpkg.com/@imgly/background-removal@1.7.0/dist/index.mjs",
+      "checked_at": "2026-09-03",
+      "purpose": "Read the installed 1.7.0 bundle (node_modules/@imgly/background-removal/dist/index.mjs, same published artifact). Confirmed the memo key is `memoize_default(initInference, (config) => JSON.stringify(config))` at line 5329, and that removeBackground consumes the config returned by init rather than the caller's configuration at line 5335 (`const { config, session } = await init(configuration)`), which together prove per-call progress closures cannot survive the first call."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://unpkg.com/@imgly/background-removal@1.7.0/package.json",
+      "checked_at": "2026-09-03",
+      "purpose": "Confirmed 1.7.0 is the version actually installed and that onnxruntime-web 1.21.0 is declared as a peer dependency, establishing that @imgly is the sole application-level owner of the ONNX runtime configuration."
+    }
+  ],
+  "invariants": [
+    "The worker holds exactly one Config object for the process lifetime; it is never rebuilt per request.",
+    "The progress function inside that Config is stable and resolves the owning request through mutable module state (activeRequestId) read at call time.",
+    "activeRequestId is set before the vendor call and cleared in a finally block, so progress emitted outside any active request is dropped rather than misattributed.",
+    "Requests are processed serially, so at most one request owns activeRequestId at any moment and two overlapping cut-outs cannot interleave their progress."
+  ],
+  "generality_proof": "Both UI callers reach the vendor exclusively through removeBackgroundBlob, which posts a message to the single worker; the worker has exactly one vendor call site (handleRequest) and exactly one Config object. Because the Config is module-level and the progress function is defined once with it, no caller and no future request shape can reintroduce a per-call closure without deleting the module-level constant, which the config-shape regression test detects. The serial queue guarantees the mutable attribution state has a single owner at any time, so the invariant holds for one request and for any number of concurrent user actions.",
+  "shared_boundaries": [
+    {
+      "path": "src/lib/removeBackground.worker.ts",
+      "symbol": "CONFIG",
+      "responsibility": "The single, stable vendor configuration for the process. Owns the invariant that the object handed to the memoized vendor API never varies between calls, so the vendor's JSON-keyed cache cannot strand a stale callback."
+    },
+    {
+      "path": "src/lib/removeBackground.worker.ts",
+      "symbol": "activeRequestId",
+      "responsibility": "Carries the only genuinely per-call value (which request owns the current progress) as mutable state the stable callback reads at emit time, and is cleared in finally so unattributed progress is dropped instead of misrouted."
+    },
+    {
+      "path": "src/lib/removeBackground.worker.ts",
+      "symbol": "queue",
+      "responsibility": "Serializes requests so the mutable attribution state has exactly one owner at a time, preventing two overlapping cut-outs from stealing each other's progress."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeImageEditing.ts",
+      "entry_point": "handleRemoveBackground",
+      "disposition": "enforced",
+      "evidence": "Canvas node entry. Passes a per-call onProgress into removeBackgroundBlob to drive node progress.percent and phase message. It cannot reach the vendor except through the worker's single CONFIG, so it inherits the fix; before the fix its second and later invocations in a session received zero callbacks."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx",
+      "entry_point": "handleRemoveBackground",
+      "disposition": "enforced",
+      "evidence": "Whiteboard entry. Same shared path through removeBackgroundBlob; it additionally renders the phase text now, so a dropped callback would freeze its status capsule on the initial label. Verified by the walkthrough's warm run, which reports the four compute phases after the fix."
+    },
+    {
+      "path": "src/lib/removeBackground.ts",
+      "entry_point": "postWorkerRequest / pendingRequests dispatch",
+      "disposition": "not-affected",
+      "evidence": "The renderer-side correlation layer was always correct: it keys pending requests by a monotonic id and routes worker progress messages to the matching entry. It dropped events only because the worker stamped them with a stale id. No change was needed here, which is the evidence that the defect lived at the vendor boundary rather than in message routing."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/decompose/useDecomposeLayers.ts",
+      "entry_point": "decompose IPC layer extraction",
+      "disposition": "not-affected",
+      "evidence": "Checked as the nearest same-shape neighbour (a long-running local image operation that reports progress into the same node progress field). It calls a main-process IPC endpoint and never touches @imgly or any memoized vendor config, so no per-call callback crosses a JSON-keyed cache."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism is a property of the vendor's caching contract, not of one call site. Any future code that passes a per-call callback, AbortSignal, or other non-serializable per-request value into this vendor API - a cancel hook, a per-request logger, a different model config - reproduces the same silent stranding, because JSON.stringify keys will still collapse them. It is silent by construction: no throw, no type error, correct output, and the first call always looks right, so ordinary manual testing and first-run smoke tests cannot catch it. The class also generalizes beyond this vendor to any memoize-by-serialization API.",
+    "same_class_scan": [
+      "grep -rn 'removeBackground' src/ - two production UI callers (useNodeImageEditing.ts:453, WhiteboardDrawingTool.tsx:411), both funnelled through removeBackgroundBlob and therefore through the single worker CONFIG; both independently confirmed to pass a fresh per-call onProgress.",
+      "grep -n 'memoize' node_modules/@imgly/background-removal/dist/index.mjs - the only memoized entry is init (line 5329), used by both preload and removeBackground; preload has since been deleted from this codebase, leaving removeBackground as the sole consumer.",
+      "grep -rn 'onnxruntime\\|@imgly' src/ electron/ - @imgly is reached only from src/lib/removeBackground.worker.ts; onnxruntime-web is a transitive peer with no direct Nomi import, so there is no second application-level config crossing that boundary.",
+      "Checked useDecomposeLayers (the nearest same-shape long-running local image op that reports progress) by construction rather than by name: it routes through main-process IPC and passes no callback across a serialization-keyed cache, so it is outside the class."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/lib/removeBackground.worker.ts",
+    "invariant": "Exactly one module-level Config object is ever handed to the vendor; per-request variation lives only in mutable module state that the stable progress function reads when it emits, and requests are serialized so that state has a single owner.",
+    "failure_mode": "If progress fires while no request is active (a late callback after settle or error), activeRequestId is null and the event is dropped rather than attributed to an unrelated request. Dropping an orphan progress event is safe - it degrades to the previous 'no update' state - whereas misattributing it would corrupt another node's progress bar.",
+    "exception_policy": "none",
+    "strategy": "The invariant is enforced by the shape of the module rather than by discipline at call sites: the Config is a single const defined once beside the callback that closes over module state, so there is no per-request config to get wrong. The vendor is reached from exactly one function in one file, so no caller can construct an alternative config. The regression test asserts the structural shape (single module-level CONFIG, no per-request factory, id-carrying progress, serial queue) so reintroducing the old factory shape fails CI even though it would still typecheck and still produce correct output images.",
+    "artifacts": [
+      "src/lib/removeBackground.worker.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/lib/removeBackgroundWorkerConfig.test.ts",
+    "tests/ux/remove-background-first-use.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/lib/removeBackgroundWorkerConfig.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/lib/removeBackground.worker.ts"
+    ],
+    "rationale": "configForRequest(id) - the per-request config factory that created the stranded closures - is deleted, not kept as a fallback. The worker's 'preload' request branch is deleted in the same change together with preloadRemoveBackground(), because on-demand loading replaced startup preheating outright; leaving preload callable would have kept a second, differently-shaped config crossing the same memoized boundary."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "@imgly/background-removal 1.7.0",
+    "target": "A future @imgly/background-removal release whose init cache distinguishes per-call callbacks, or which invokes configuration.progress instead of the memoized config.progress; no such release exists as of 2026-09-03, so no version number can be named yet.",
+    "rationale": "@imgly/background-removal 1.7.0 is the current release and its memoize-by-JSON-key behaviour is intended caching, not a bug we can report as broken; no newer version changes it. The application-level invariant (one stable config, per-call data in mutable state) is safe across any version that keeps this contract, so retaining is correct. The prerequisite for dropping the workaround is a vendor version whose session cache can distinguish configs by callback identity, or one that invokes the caller's configuration rather than the memoized copy.",
+    "exit_criteria": [
+      "A released @imgly/background-removal version keys its init cache on something that distinguishes per-call callbacks, or calls configuration.progress instead of the memoized config.progress.",
+      "src/lib/removeBackgroundWorkerConfig.test.ts fails on its '@imgly config memoization 前提' assertions after an upgrade, which is the signal to re-evaluate the activeRequestId indirection.",
+      "Verified by re-running tests/ux/remove-background-first-use.walk.mjs and observing a non-zero progress callback count on the second cut-out without the workaround."
+    ]
+  },
+  "migration": "No data migration and no persisted state is involved; the change is confined to in-memory worker structure. No on-disk format, IPC contract, or message schema changed - the worker still emits the same {id, type:'progress', key, current, total} messages and removeBackground.ts still correlates them by id. Existing sessions simply start reporting progress on their second and later cut-outs after the app is rebuilt.",
+  "residual_risks": [
+    "Serialization changes throughput characteristics if a future feature issues concurrent cut-outs: two simultaneous requests now queue rather than run in parallel. This matches the previous effective behaviour, since the vendor already shared a single memoized ONNX session, but it is now explicit and would need revisiting if batch background removal is added.",
+    "The regression test asserts the structural shape of the worker source rather than observing a second call's callbacks in a unit test, because exercising the real vendor requires downloading ~50MB and a WASM runtime. The behavioural proof lives in the Electron walkthrough (second run reports four compute phases), which is not part of the default unit run.",
+    "Progress percentages within the download phase are per-resource, not aggregate: @imgly reports current/total per fetched resource, so the displayed percentage restarts for each of the model and wasm downloads instead of advancing monotonically across the whole ~50MB. This is honest but not ideal and was left unchanged; making it monotonic would require summing known resource sizes ahead of time."
+  ]
+}
