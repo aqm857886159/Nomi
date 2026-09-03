@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconChevronDown, IconChevronUp, IconGripVertical, IconTrash } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronUp, IconDots, IconGripVertical, IconTrash } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import { NomiSelect } from '../../../../design'
 import type { MentionSuggestionItem, MentionUploadControls } from '../../../assets/AssetMentionSuggestionList'
@@ -68,6 +68,18 @@ type Props = {
   onVariants?: (() => void) | undefined
   /** 浮条 🔒/🔓 镜级锁定开关。 */
   onToggleLock?: (() => void) | undefined
+  targetShots?: readonly PlanShot[]
+  allShots?: readonly PlanShot[]
+  sourcePosition?: number
+  onSaveAsReference?: (() => void) | undefined
+  onSetAsFirstFrame?: ((targetIndex: number) => void) | undefined
+  selected?: boolean
+  onSelect?: ((event: React.MouseEvent) => void) | undefined
+  scenes?: readonly { id: string; title: string }[]
+  onCopy?: (() => void) | undefined
+  onMoveToScene?: ((sceneId: string) => void) | undefined
+  onKeyboardMove?: ((direction: -1 | 1) => void) | undefined
+  onKeyboardFocus?: ((direction: -1 | 1) => void) | undefined
   /** 参考已变警示行「用新图重跑」（B3）。 */
   onRerunFreshRefs?: (() => void) | undefined
   onUpdate: (patch: Partial<PlanShot>) => void
@@ -87,8 +99,9 @@ type Props = {
 
 export default function StoryboardShotRow(props: Props): JSX.Element {
   const { t } = useTranslation()
-  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll, mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile } = props
+  const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, targetShots, allShots, sourcePosition, onSaveAsReference, onSetAsFirstFrame, onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll, mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile } = props
   const [expanded, setExpanded] = React.useState(false)
+  const [actionsOpen, setActionsOpen] = React.useState(false)
   // C1：PromptEditor ref——参考区「@」入口点击时触发 mention（一个实现两个入口）。
   const editorRef = React.useRef<Editor | null>(null)
   const triggerAtMention = React.useCallback(() => {
@@ -142,11 +155,24 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
 
   return (
     <div
-      draggable={props.draggable}
-      onDragStart={props.onDragStart}
+      tabIndex={-1}
       onDragOver={props.onDragOver}
       onDrop={props.onDrop}
-      onDragEnd={props.onDragEnd}
+      onKeyDown={(event) => {
+        if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+          event.preventDefault()
+          props.onKeyboardMove?.(event.key === 'ArrowUp' ? -1 : 1)
+        } else if (event.metaKey && event.key === 'Enter') {
+          event.preventDefault()
+          onGenerate?.()
+        } else if (event.key === 'Enter' && !(event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]'))) {
+          event.preventDefault()
+          const prompt = event.currentTarget.querySelector<HTMLElement>('[data-prompt-box="true"] [contenteditable="true"]')
+          prompt?.focus()
+        } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+          props.onKeyboardFocus?.(event.key === 'ArrowUp' ? -1 : 1)
+        }
+      }}
       className="relative grid grid-cols-[14px_84px_136px_minmax(0,1fr)] gap-3 py-3 pl-1.5 pr-3 items-start bg-nomi-paper"
       data-storyboard-row={shot.index}
     >
@@ -154,9 +180,29 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         <div className="absolute inset-x-1.5 top-0 h-0.5 rounded-full bg-nomi-accent" aria-hidden />
       ) : null}
 
-      <span className="self-center justify-self-center cursor-grab text-nomi-ink-20 active:cursor-grabbing" aria-hidden>
-        <IconGripVertical size={15} stroke={1.6} />
-      </span>
+      <div className="relative self-center justify-self-center text-nomi-ink-20">
+        <button
+          type="button"
+          draggable={props.draggable}
+          onDragStart={props.onDragStart}
+          onDragEnd={props.onDragEnd}
+          className="cursor-grab active:cursor-grabbing"
+          aria-label={t('storyboardEditor.rowActions.open')}
+        >
+          <IconGripVertical size={15} stroke={1.6} aria-hidden />
+        </button>
+        <button type="button" onClick={() => setActionsOpen((value) => !value)} aria-label={t('storyboardEditor.rowActions.open')} className="mt-1 grid size-4 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink-80">
+          <IconDots size={13} stroke={1.8} />
+        </button>
+        {actionsOpen ? (
+          <div className="absolute left-5 top-5 z-30 flex min-w-28 flex-col gap-0.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1 shadow-nomi-md" onPointerDown={(event) => event.stopPropagation()}>
+            <button type="button" onClick={() => { props.onCopy?.(); setActionsOpen(false) }} className="whitespace-nowrap rounded-nomi-sm px-2 py-1 text-left text-micro text-nomi-ink-80 hover:bg-nomi-ink-05">{t('storyboardEditor.row.copy')}</button>
+            {props.scenes?.map((scene) => <button key={scene.id} type="button" onClick={() => { props.onMoveToScene?.(scene.id); setActionsOpen(false) }} className="whitespace-nowrap rounded-nomi-sm px-2 py-1 text-left text-micro text-nomi-ink-80 hover:bg-nomi-ink-05">{scene.title}</button>)}
+            <button type="button" onClick={() => { props.onMoveToScene?.('__none__'); setActionsOpen(false) }} className="whitespace-nowrap rounded-nomi-sm px-2 py-1 text-left text-micro text-nomi-ink-80 hover:bg-nomi-ink-05">{t('storyboardEditor.selection.allScenes')}</button>
+            <button type="button" onClick={() => { props.onRemove?.(); setActionsOpen(false) }} className="whitespace-nowrap rounded-nomi-sm px-2 py-1 text-left text-micro text-workbench-danger hover:bg-workbench-danger-soft">{t('storyboardEditor.row.delete')}</button>
+          </div>
+        ) : null}
+      </div>
 
       {/* ── 画面格（图是主角：行内最大元素）——行状态机的脸，状态与组头/footer 计数同一份 derive ── */}
       {exec ? (
@@ -169,6 +215,13 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           onRegenerate={onRegenerate}
           onVariants={onVariants}
           onToggleLock={onToggleLock}
+          targetShots={targetShots}
+          allShots={allShots}
+          sourcePosition={sourcePosition}
+          onSaveAsReference={onSaveAsReference}
+          onSetAsFirstFrame={onSetAsFirstFrame}
+          selected={props.selected}
+          onSelect={props.onSelect}
         />
       ) : (
         /* exec 缺省（测试/降级）：纯占位格 */
@@ -180,7 +233,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       )}
 
       {/* ── 参考区（纯展示）：具名槽空 tile / 已引用锚 + 「@」入口占位 / 不吃参考 ── */}
-      <div className="min-h-[132px] flex flex-col justify-center gap-2">
+      <div className="min-h-[132px] flex flex-col justify-center gap-2" data-storyboard-refzone="true">
         {zone.kind === 'none-accepted' ? (
           <span className="text-micro text-nomi-ink-30 leading-relaxed">{t('storyboardEditor.row.noRefAccepted')}</span>
         ) : (
@@ -190,6 +243,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
               return (
                 <span key={slot.kind} className="flex flex-col items-center gap-0.5">
                   <span
+                    data-storyboard-ref-tile="named-slot"
                     className={cn(
                       'grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed',
                       missing ? 'border-workbench-danger bg-workbench-danger-soft text-workbench-danger' : 'border-nomi-ink-20 bg-nomi-ink-05 text-nomi-ink-30',
@@ -207,7 +261,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             })}
             {zone.referencedAnchors.map((anchor) => (
               <span key={anchor.id} className="flex flex-col items-center gap-0.5">
-                <span className="grid place-items-center w-14 h-14 rounded-nomi-sm border border-nomi-line bg-nomi-ink-10 text-title text-nomi-ink-60">
+                <span data-storyboard-ref-tile="anchor" className="grid place-items-center w-14 h-14 rounded-nomi-sm border border-nomi-line bg-nomi-ink-10 text-title text-nomi-ink-60">
                   {(anchor.name || t('storyboardEditor.unnamed')).slice(0, 1)}
                 </span>
                 <span className="text-micro text-nomi-ink-40 max-w-14 truncate">{anchor.name || t('storyboardEditor.unnamed')}</span>
@@ -224,6 +278,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
                     onClick={triggerAtMention}
                     aria-label={t('storyboardEditor.row.atRefAria')}
                     title={t('storyboardEditor.row.atRefTitle')}
+                    data-storyboard-ref-tile="intake"
                     className="grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed border-nomi-ink-20 text-title text-nomi-ink-40 hover:border-nomi-accent hover:text-nomi-accent transition-colors duration-[var(--nomi-transition-fast)]"
                   >
                     @
@@ -247,7 +302,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       </div>
 
       {/* ── 提示词块：上沿胶囊（这一镜作用域）→ 提示词 → 下沿台词小字 + ▾ ── */}
-      <div className="min-w-0 min-h-[132px] flex flex-col gap-1.5">
+      <div className="min-w-0 min-h-[132px] flex flex-col gap-1.5" data-storyboard-prompt-block="true">
         <div className="flex items-center gap-1.5 flex-wrap">
           <NomiSelect
             ariaLabel={t('storyboardEditor.shotType')}
@@ -410,7 +465,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       </div>
 
       {expanded ? (
-        <div className="col-start-2 col-span-3">
+        <div className="col-start-2 col-span-3" data-storyboard-expand="true">
           <StoryboardShotRowExpand
             shot={shot}
             anchors={anchors}
