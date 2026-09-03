@@ -148,6 +148,37 @@ export function addShot(plan: StoryboardPlan): StoryboardPlan {
   return { ...plan, shots: [...plan.shots, shot] }
 }
 
+/** D3 行间插镜：只继承上一镜的生成血统，内容保持空白，避免复制出用户未要求的 prompt/引用。 */
+export function insertShotAt(plan: StoryboardPlan, pos: number): StoryboardPlan {
+  const previous = plan.shots[pos - 1] ?? plan.shots[pos]
+  const next: PlanShot = previous
+    ? {
+        index: pos + 1,
+        ...(previous.shotKind ? { shotKind: previous.shotKind } : {}),
+        ...(previous.sceneId ? { sceneId: previous.sceneId } : {}),
+        ...(previous.modelKey ? { modelKey: previous.modelKey } : {}),
+        ...(previous.modeId ? { modeId: previous.modeId } : {}),
+        ...(previous.params?.aspect_ratio !== undefined ? { params: { aspect_ratio: previous.params.aspect_ratio } } : {}),
+        durationSec: effectiveShotDurationSec(previous) || DEFAULT_VIDEO_DURATION_SEC,
+        anchorIds: [],
+        prompt: '',
+      }
+    : { index: 1, durationSec: DEFAULT_VIDEO_DURATION_SEC, anchorIds: [], prompt: '' }
+  const shots = [...plan.shots]
+  shots.splice(Math.max(0, Math.min(pos, shots.length)), 0, next)
+  return { ...plan, shots: renumber(shots) }
+}
+
+/** D3 复制镜头：复制可见内容但不给新行复用稳定身份。 */
+export function duplicateShotAt(plan: StoryboardPlan, pos: number): StoryboardPlan {
+  const source = plan.shots[pos]
+  if (!source) return plan
+  const copy: PlanShot = { ...source, shotId: undefined, index: source.index + 1, anchorIds: [...source.anchorIds], ...(source.params ? { params: { ...source.params } } : {}), ...(source.keyframe ? { keyframe: { ...source.keyframe, ...(source.keyframe.params ? { params: { ...source.keyframe.params } } : {}) } } : {}) }
+  const shots = [...plan.shots]
+  shots.splice(pos + 1, 0, copy)
+  return { ...plan, shots: renumber(shots) }
+}
+
 export function updateShotAt(plan: StoryboardPlan, pos: number, patch: Partial<PlanShot>): StoryboardPlan {
   return { ...plan, shots: plan.shots.map((shot, i) => (i === pos ? { ...shot, ...patch } : shot)) }
 }

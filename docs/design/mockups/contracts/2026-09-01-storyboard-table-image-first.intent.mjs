@@ -21,6 +21,9 @@ export default {
   layer: 'intent',
 
   structure: [
+    { name: '骨架段必须长在提示词框内部', ancestor: '[data-storyboard-prompt-block]', descendant: '[data-storyboard-prompt-segment]' },
+    { name: '@ 引用胶囊必须长在提示词框内部', ancestor: '[data-storyboard-prompt-block]', descendant: '[data-storyboard-mention-chip]' },
+
     // ── 行三块顺序：要生成的 → 拿来参考的 → 怎么描述。用户 2026-09-01 亲自指定的阅读顺序。
     {
       name: '画面格排在参考区之前',
