@@ -24,10 +24,11 @@
 
 `mutate()` 是普通写 transition 的共享 CAS 边界：先找 session、校验 owner、要求 `expectedRevision === session.revision`、要求可写 stage，再执行变更，成功后递增 session/state revision 并持久化。`requestConfirmation`/`start` 有额外的收据与认证约束，保持原实现，不把付费 seam 合并。
 
-## 新 T14：五个确定性缝
+## 新 T14：六个确定性缝
 
-`nomi_integration` 的 action 只允许：
+`nomi_integration` 的 action 只允许下列六个（实测 catalog 枚举 = `begin` / `open_credentials` / `propose` / `confirm` / `start` / `cancel`）：
 
+0. `begin`：建 session。它同样是确定性缝而非流程编排——落一个带 owner 与 `expectedRevision` 起点的持久对象，是后续所有 CAS 写的前提；不收 key、不做任何发现。（本节初稿把它漏在「五个缝」之外，实现一直是六个；2026-09-03 编排者验收对账时更正，以本行为准。）
 1. `open_credentials`：需要 `sessionId` 与 `expectedRevision`，只发起 Nomi 安全页 handoff；MCP 输入禁止 `apiKey`、`authorization`、receipt token 等密钥形字段。
 2. `propose`：需要 `sessionId`、`expectedRevision`、`proposal`。HTTP proposal 必须一次携带唯一候选集和非空 selections；ComfyUI proposal 必须携带最终 workflow。服务端在落库前做强校验，失败返回带路径的可读原因，不产生任何持久化变化；修正后以返回的新 revision 再次 propose，形成 patch 循环。
 3. `confirm`：仍路由到 `integration.request_confirmation`，只建立不可变花费挑战；真人确认仍由可信 Nomi UI 完成。
