@@ -92,6 +92,13 @@ if (await anchorPanel.locator('[data-anchor-frame] .anchor-generate').count() !=
 const anchorStates = new Set(await anchorPanel.locator('[data-anchor-state]').evaluateAll((elements) => elements.map((element) => element.dataset.anchorState)))
 for (const state of ['loading', 'failed', 'generated', 'locked']) if (!anchorStates.has(state)) failMode(`锚画面格状态缺少 ${state}`)
 for (const railText of await anchorPanel.locator('[data-parameter-rail]').allTextContents()) if (/\d+\s*s/.test(railText)) failMode('锚行参数条误带时长胶囊')
+// 图像锚（角色/场景）必须有可见、非空的描述——对应真实 anchor.description（StoryboardAnchorCard.tsx:255），
+// 这是生成这张脸/这个场景用的提示词，不是可选装饰。文本锚（风格）豁免：它的描述就是文字卡本身显示的内容，不需要第二份。
+for (const kind of ['character', 'scene']) {
+  const descLocator = page.locator(`[data-storyboard-anchor-row="${kind}"] [data-anchor-desc]`)
+  if (await descLocator.count() !== 1) failMode(`锚（${kind}）缺少描述框——StoryboardAnchorCard.tsx 里 anchor.description 是锚的核心字段，不能在样张里凭空消失`)
+  else if (!(await descLocator.first().isVisible()) || !(await descLocator.first().textContent())?.trim()) failMode(`锚（${kind}）描述框存在但不可见或为空`)
+}
 const hasLegacyGridRule = await page.evaluate(() => document.documentElement.outerHTML.includes('.anchor-card') || document.documentElement.outerHTML.includes('108px 1fr'))
 if (hasLegacyGridRule) failMode('样张仍残留 .anchor-card 的 108px 1fr 旧布局规则')
 // 新增：锚行必须带模型 + 画幅两个选择器（NomiSelect size="xs" 视觉规格），且带缩略图的引用列表。

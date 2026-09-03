@@ -228,6 +228,11 @@
   .anchor-namerow .name-text { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--nomi-font-caption); font-weight: 500; color: var(--nomi-ink-80); }
   .anchor-namerow .edit-btn { margin-left: auto; flex-shrink: 0; width: 20px; height: 20px; display: grid; place-items: center; border-radius: var(--nomi-radius-sm); color: var(--nomi-ink-40); background: transparent; border: 0; font-size: var(--nomi-font-micro); }
   .anchor-namerow .edit-btn:hover { background: var(--nomi-ink-10); color: var(--nomi-ink-60); }
+  /* ── 锚描述框：照抄 StoryboardAnchorCard.tsx:254-260 的 AutoGrowTextarea 视觉规格。
+     真实组件默认收起（仅描述为空时自动展开）；这里默认展开是样张评审需要——
+     一眼要能看到"锚到底有没有提示词"，不需要先点 ✎ 才发现。✎ 仍是真实可点的收起/展开开关。 */
+  .anchor-desc { padding: var(--nomi-space-2); border-radius: var(--nomi-radius-sm); background: var(--nomi-paper); border: 1px solid var(--nomi-line); font-size: var(--nomi-font-body-sm); color: var(--nomi-ink-60); line-height: 1.5; }
+  .anchor-desc.collapsed { display: none; }
   .anchor-statline { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--nomi-font-micro); color: var(--nomi-ink-40); background: transparent; border: 0; text-align: left; padding: 0; }
   .anchor-statline:hover { color: var(--nomi-accent); text-decoration: underline; }
   .anchor-statline.danger { color: var(--nomi-danger); }
@@ -352,7 +357,9 @@
                 </div>
               </div>
               <!-- 名字行：照抄 StoryboardAnchorCard.tsx:187-201（gap-1、text-caption font-medium）。 -->
-              <div class="anchor-namerow"><span class="kind-icon" aria-hidden>👤</span><span class="name-text">林薇</span><button class="edit-btn" type="button" aria-label="编辑描述">✎</button></div>
+              <div class="anchor-namerow"><span class="kind-icon" aria-hidden>👤</span><span class="name-text">林薇</span><button class="edit-btn" type="button" aria-label="收起/展开描述" data-anchor-edit-toggle>✎</button></div>
+              <!-- 描述框：对应真实 anchor.description（StoryboardAnchorCard.tsx:255）——锁定态下这段文字就是生成这张脸用的提示词。 -->
+              <div class="anchor-desc" data-anchor-desc>25 岁女性，短发利落，米色风衣，冷淡疏离气质，习惯性摸栏杆的小动作</div>
               <!-- astat 反查行：照抄 StoryboardAnchorCard.tsx:202-215 的密度，逻辑同 statLine（locked → referenced）。 -->
               <button class="anchor-statline" type="button" data-anchor-stat="character">被 5 镜引用</button>
             </div>
@@ -387,7 +394,8 @@
                   </div>
                 </div>
               </div>
-              <div class="anchor-namerow"><span class="kind-icon" aria-hidden>🖼️</span><span class="name-text">天台夜景</span><button class="edit-btn" type="button" aria-label="编辑描述">✎</button></div>
+              <div class="anchor-namerow"><span class="kind-icon" aria-hidden>🖼️</span><span class="name-text">天台夜景</span><button class="edit-btn" type="button" aria-label="收起/展开描述" data-anchor-edit-toggle>✎</button></div>
+              <div class="anchor-desc" data-anchor-desc>雨后天台，积水反光，霓虹灯牌染蓝紫色调，远景城市天际线，湿滑地面高对比</div>
               <button class="anchor-statline" type="button" data-anchor-stat="scene">未锁定 · 满意就锁定</button>
             </div>
             <div class="anchor-infocol">
@@ -566,6 +574,11 @@
   document.getElementById('summaryPill').addEventListener('click', () => document.getElementById('parameterPanel').classList.toggle('on'));
   document.getElementById('themeToggle').addEventListener('click', () => { const app = document.getElementById('app'); app.classList.toggle('dark'); const dark = app.classList.contains('dark'); document.documentElement.style.colorScheme = dark ? 'dark' : 'light'; document.querySelector('meta[name="theme-color"]').setAttribute('content', getComputedStyle(app).getPropertyValue('--nomi-bg').trim()); });
   document.querySelectorAll('[data-shot-ref]').forEach((button) => button.addEventListener('click', () => { document.querySelectorAll('[data-shot-ref]').forEach((item) => item.removeAttribute('aria-pressed')); button.setAttribute('aria-pressed', 'true'); document.getElementById('app').dataset.selectedShot = button.dataset.shotRef; }));
+  // 锚描述框收起/展开——对应真实 StoryboardAnchorCard.tsx 的 editing 状态切换（此处不收窄/放宽整卡宽度，只切换描述块可见性）。
+  document.querySelectorAll('[data-anchor-edit-toggle]').forEach((button) => button.addEventListener('click', () => {
+    const desc = button.closest('.anchor-namerow')?.nextElementSibling
+    if (desc && desc.matches('[data-anchor-desc]')) { desc.classList.toggle('collapsed'); button.setAttribute('aria-expanded', String(!desc.classList.contains('collapsed'))) }
+  }))
   const inventoryGrid = document.getElementById('inventoryGrid');
   for (const [id, label, modes] of INVENTORY) { const el = document.createElement('div'); el.className = 'inventory-item'; el.innerHTML = `<strong><span translate="no">${id}</span> · ${label}</strong><span translate="no">${modes}</span>`; inventoryGrid.append(el); }
   render();
