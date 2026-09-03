@@ -274,7 +274,6 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
               <span className="flex flex-col items-center gap-0.5">
                 {mentionSearch ? (
                   <button
-                    data-storyboard-ref-tile="intake"
                     type="button"
                     onClick={triggerAtMention}
                     aria-label={t('storyboardEditor.row.atRefAria')}
