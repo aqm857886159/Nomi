@@ -114,4 +114,43 @@ describe("ApprovalReceiptAuthority", () => {
     advance(6);
     expect(() => authority.verifyChallenge(pending.token)).toThrow(ReceiptExpiredError);
   });
+
+  it("mints a receipt via client_elicitation attestation and records correct humanActor", () => {
+    const { authority } = makeAuthority();
+    const pending = challenge(authority);
+    const attestation = authority.createClientElicitationAttestation(pending.token, "codex");
+    expect(attestation.kind).toBe("client_elicitation");
+    expect(attestation.authenticatedClient).toBe("codex");
+    expect(attestation.decision).toBe("accept");
+    expect(attestation.issuer).toBe("nomi-main");
+    const minted = authority.mintReceipt(pending.token, attestation);
+    expect(minted.receipt.humanActor).toBe("mcp_client:codex");
+    expect(minted.receipt.gestureAttestation).toMatchObject({ kind: "client_elicitation", authenticatedClient: "codex" });
+    expect(minted.receipt.receiptId).toBeTruthy();
+    // Downstream verifiers still accept this receipt
+    expect(() => authority.verifyReceipt(minted.token)).not.toThrow();
+  });
+
+  it("replays client_elicitation receipt idempotently on the same challenge", () => {
+    const { authority } = makeAuthority();
+    const pending = challenge(authority);
+    const first = authority.mintReceipt(pending.token, authority.createClientElicitationAttestation(pending.token, "claude"));
+    const second = authority.mintReceipt(pending.token, authority.createClientElicitationAttestation(pending.token, "claude"));
+    expect(first.receipt.receiptId).toBe(second.receipt.receiptId);
+  });
+
+  it("rejects client_elicitation attestation with empty authenticatedClient", () => {
+    const { authority } = makeAuthority();
+    const pending = challenge(authority);
+    expect(() => authority.createClientElicitationAttestation(pending.token, "")).toThrow();
+    expect(() => authority.createClientElicitationAttestation(pending.token, "  ")).toThrow();
+  });
+
+  it("rejects client_elicitation attestation with tampered mac", () => {
+    const { authority } = makeAuthority();
+    const pending = challenge(authority);
+    const attestation = authority.createClientElicitationAttestation(pending.token, "codex");
+    const tampered = { ...attestation, authenticatedClient: "evil-client" };
+    expect(() => authority.mintReceipt(pending.token, tampered)).toThrow(HumanApprovalRequiredError);
+  });
 });

@@ -40,22 +40,10 @@ const SURFACES = [
       'electron/capabilityCore/mcpStdioServer.ts',
     ],
     // member → 为什么这个生产装配点没接（必须是真理由，不是「以后再说」）
-    unwired: {
-      // 「客户端自带确认凭证」的强校验模式：两个生产装配点都没接，标准 MCP 客户端（Claude Code /
-      // Cursor / Codex）也不产出凭证，所以这条路在今天的生产里没有对手方。
-      //
-      // 它**不是**死代码，行为是明确且可达的：客户端若真附了凭证而这里没有验证器，
-      // mcpGateConfirmation.ts 不把它降级成「光秃秃的同意」，而是落 Nomi 兜底卡重问——
-      // 收到一份自己看不懂的凭证，比压根没收到更该谨慎。这条由
-      // mcpGenerationConfirmation.test.ts「客户端给了凭证但生产装配没有验证器」用例守着。
-      //
-      // 2026-09-03 更正：此前这里写「落空 = fail-closed 无风险」，低估了它。当时两个签发点还无条件带
-      // handoff.clientAttestation:true，配上没接的验证器，把**整个「弹在调用方」的主确认面**堵死了——
-      // 每次花钱确认都被赶回 Nomi 应用，Nomi 没开就直接拒绝。那面旗已随用户拍板删除；本成员保留为
-      // 真正的升级钩子，接上它才谈得上强校验模式。
-      verifyClientGenerationConfirmation:
-        '强校验模式的升级钩子：两个生产装配点都没接，标准 MCP 客户端也不产出凭证。未接时行为明确——收到无法验证的凭证不降级、落 Nomi 兜底卡（有用例守）。要开强校验就接上它。',
-    },
+    // verifyClientGenerationConfirmation 已于 2026-09-03 在两个装配点（mcpNodeLauncher / mcpStdioServer）
+    // 接通，通过 loopback RPC nomi_verify_client_generation_gate 让主进程铸 client_elicitation 收据。
+    // 欠账登记已删除。
+    unwired: {},
   },
 ]
 
