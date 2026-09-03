@@ -102,6 +102,7 @@ export function toolItem(
   turn: ProjectAgentTurn,
   record: AgentChatResponse["toolCalls"][number],
   now: string,
+  provenance?: AgentChatResponse["provenance"],
 ): ProjectAgentItem {
   const status = record.status === "ok" ? "done" : record.status === "cancelled" ? "stopped" : "failed";
   const canonicalCapability = resolveCapabilityAlias(record.toolName)?.contract;
@@ -120,6 +121,7 @@ export function toolItem(
       : { id: record.toolName, version: 1 },
     ...(record.error ? { text: record.error } : {}),
     resultRef: `result-${digest(record.result ?? record.error ?? record.status)}`,
+    ...(provenance?.length ? { provenance } : {}),
     ...(skillResult.success ? {
       skillLoad: {
         name: skillResult.data.name,
