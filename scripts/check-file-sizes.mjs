@@ -46,7 +46,6 @@ const ALLOWLIST = {
   // certification handoff queue，0b6441c6 transplant 时误删后按根因恢复）7行；仍远低于本分支起点 847。
   "electron/main.ts": 846,
   "electron/capabilityCore/mcpGenerationTools.ts": 826, // 803→826（2026-09-03 J05 changeset + J06 coldstartEtaForGate — net +23 行根因修复）
-  "electron/productionRun/productionRunService.ts": 814,
   "electron/projectAgentHost/projectAgentState.ts": 809,
   // Phase 6 常驻壳成为唯一 Agent UI 后的应用外壳（pr223 评审基线曾为 908；并 origin/main 拆解面板宿主后
   // 折叠一行多名 import，曾 907；m1 侧栏收起修复顺手折叠 hydrate/navigate 多行调用参数，实际 903，锁棘轮只减不增）。
