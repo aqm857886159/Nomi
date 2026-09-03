@@ -193,7 +193,7 @@ function BrowserPromptPickerPopover({
                 className={cn(
                   'grid w-full min-w-0 grid-cols-[32px_minmax(0,1fr)] items-center gap-2 border-0 bg-transparent px-2.5 py-1.5 text-left',
                   'cursor-pointer transition-colors duration-[var(--nomi-transition-fast)]',
-                  'text-nomi-ink-70 hover:bg-nomi-ink-05 hover:text-nomi-ink',
+                  'text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink',
                 )}
                 onMouseEnter={(event) => showHoveredPrompt(item.id, event.currentTarget)}
                 onFocus={(event) => showHoveredPrompt(item.id, event.currentTarget)}
@@ -207,7 +207,7 @@ function BrowserPromptPickerPopover({
                     className="block size-8 rounded-nomi-sm object-cover"
                   />
                 ) : (
-                  <span className="grid size-8 place-items-center rounded-nomi-sm bg-nomi-bg text-nomi-ink-35">
+                  <span className="grid size-8 place-items-center rounded-nomi-sm bg-nomi-bg text-nomi-ink-40">
                     <IconFileText size={15} stroke={1.6} aria-hidden="true" />
                   </span>
                 )}
@@ -240,7 +240,7 @@ function BrowserPromptPickerPopover({
               </div>
             ))}
             {hoveredItem?.prompt ? (
-              <div className="overflow-hidden rounded-nomi-sm bg-nomi-bg/70 px-2 py-1.5 text-caption leading-snug text-nomi-ink-70 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:6] [overflow-wrap:anywhere]">
+              <div className="overflow-hidden rounded-nomi-sm bg-nomi-bg/70 px-2 py-1.5 text-caption leading-snug text-nomi-ink-60 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:6] [overflow-wrap:anywhere]">
                 {hoveredItem.prompt}
               </div>
             ) : null}
@@ -594,10 +594,10 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
               type="button"
               className={cn(
                 'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-nomi-sm border-0 bg-transparent px-2',
-                'cursor-pointer text-nomi-ink-45 transition-[background,color,transform] duration-[var(--nomi-transition-fast)]',
+                'cursor-pointer text-nomi-ink-40 transition-[background,color,transform] duration-[var(--nomi-transition-fast)]',
                 'hover:-translate-y-0.5 hover:bg-nomi-ink-05 hover:text-nomi-accent',
                 promptPickerOpen && 'bg-nomi-ink-05 text-nomi-accent',
-                node.locked && 'cursor-not-allowed opacity-45 hover:translate-y-0 hover:bg-transparent hover:text-nomi-ink-45',
+                node.locked && 'cursor-not-allowed opacity-45 hover:translate-y-0 hover:bg-transparent hover:text-nomi-ink-40',
               )}
               aria-label={t('generationCommon.composer.openPromptLibrary')}
               aria-haspopup="menu"

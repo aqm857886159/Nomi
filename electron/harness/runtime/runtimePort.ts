@@ -83,7 +83,7 @@ export interface RuntimeTurnRequest {
   snapshot?: string
   compaction: { enabled: boolean; reserveTokens?: number; keepRecentTokens?: number }
   /** Hash-only prompt receipt; contents stay in the request's actual prompt slots. */
-  promptReceipt?: Pick<CompiledPrompt, 'compileHash' | 'stablePrefixHash' | 'estimatedTokens' | 'byteLength' | 'warnings' | 'budgetWarning'>
+  promptReceipt?: Pick<CompiledPrompt, 'compileHash' | 'stablePrefixHash' | 'estimatedTokens' | 'byteLength' | 'warnings' | 'budgetWarning' | 'provenance' | 'taintedSourceRefs'>
 }
 
 export interface RuntimeTurnHooks {

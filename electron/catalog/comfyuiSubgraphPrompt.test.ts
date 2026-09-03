@@ -63,6 +63,7 @@ describe("ComfyUI 0.30 子图工作流（MiniMax H3 官方模板形态）", () =
     const analysis = analyzeComfyWorkflow(h3Graph("linked"));
     expect(analysis.suggested.outputNodeId).toBe("92");
     expect(analysis.suggested.outputKind).toBe("video");
+    expect(buildImportedWorkflow(h3Graph("linked"), analysis.suggested).kind).toBe("video");
   });
 
   it("提示词不会出现在「生成时可用参数」候选里（用户看到的正是它跑到了那里）", () => {

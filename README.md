@@ -39,7 +39,7 @@ People generating AI video at scale — and companies that want to put AI video 
 
 **③ Local** — your footage, generated takes, workflows, and provider setup all live on your machine. When you call an external model API, only the inputs required to complete the task are sent to the provider you configured.
 
-And a structural difference: **use Nomi as your agent's generation backend.** Twenty-three MCP tools let Codex / Claude Code / Cursor drive Nomi over MCP for generation, orchestration, and editing, reusing the credits bundled with your agent membership. Online platforms make their money on compute, so structurally they can't offer this; an open-source local app is naturally happy to be driven by an agent.
+And a structural difference: **use Nomi as your agent's generation backend.** 24 MCP tools let Codex / Claude Code / Cursor drive Nomi over MCP for generation, orchestration, and editing, reusing the credits bundled with your agent membership. Online platforms make their money on compute, so structurally they can't offer this; an open-source local app is naturally happy to be driven by an agent.
 
 ## Connecting your own stack
 

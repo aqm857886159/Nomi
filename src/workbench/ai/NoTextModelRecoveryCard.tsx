@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { IconBulb, IconCheck, IconSettings } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { WorkbenchButton } from '../../design'
-import { NomiIdentityRow } from './AssistantMessageView'
+import { NomiIdentityRow } from './NomiIdentityRow'
 import {
   listWorkbenchModelCatalogModels,
   listWorkbenchModelCatalogVendors,

@@ -26,6 +26,23 @@ export type VendorConnection = {
  */
 const lastKnown = new Map<string, VendorHealth>()
 
+/** Catalog writes are the invalidation boundary for all cards, not only the card that initiated the write. */
+export function invalidateVendorHealthSnapshots(vendorKey?: string): void {
+  const key = typeof vendorKey === 'string' ? vendorKey.trim() : ''
+  if (!key) {
+    lastKnown.clear()
+    return
+  }
+  for (const snapshotKey of lastKnown.keys()) {
+    if (snapshotKey.startsWith(`${key}|`)) lastKnown.delete(snapshotKey)
+  }
+}
+
+/** Test-only accessors keep the invalidation contract unit-testable without exposing the state machine. */
+export function seedVendorHealthSnapshotForTests(key: string, value: VendorHealth): void { lastKnown.set(key, value) }
+export function vendorHealthSnapshotForTests(key: string): VendorHealth | undefined { return lastKnown.get(key) }
+export function resetVendorHealthSnapshotsForTests(): void { lastKnown.clear() }
+
 export function useVendorHealth(
   vendorKey: string,
   {
@@ -41,6 +58,21 @@ export function useVendorHealth(
   const [explicitPending, setExplicitPending] = React.useState(false)
   // recheck 要的是「跳过缓存重探一次」，用 ref 传给下一次 effect，不进依赖数组（否则会自触发）。
   const forceRef = React.useRef(false)
+
+  React.useEffect(() => {
+    const onCatalogChanged = (event: Event): void => {
+      const changedVendor = typeof CustomEvent !== 'undefined' && event instanceof CustomEvent && typeof event.detail?.vendorKey === 'string'
+        ? event.detail.vendorKey.trim()
+        : ''
+      if (changedVendor && changedVendor !== vendorKey) return
+      invalidateVendorHealthSnapshots(changedVendor || undefined)
+      setHealth(null)
+      setNonce((value) => value + 1)
+    }
+    if (typeof window === 'undefined') return undefined
+    window.addEventListener('nomi-model-catalog-changed', onCatalogChanged)
+    return () => window.removeEventListener('nomi-model-catalog-changed', onCatalogChanged)
+  }, [vendorKey])
 
   React.useEffect(() => {
     const force = forceRef.current

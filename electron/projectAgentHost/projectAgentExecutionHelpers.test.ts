@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RuntimeToolCallRecord } from "../harness/runtime/runtimePort";
 import type { ProjectAgentTaskItem, ProjectAgentTurn } from "../shared/projectAgentContracts";
-import { exportJobTaskItems } from "./projectAgentExecutionHelpers";
+import { exportJobTaskItems, toolItem } from "./projectAgentExecutionHelpers";
 
 const binding = Object.freeze({
   projectId: "project-a",
@@ -78,5 +78,28 @@ describe("ExportJob TaskRef projection", () => {
     { ...successfulExport(), result: { ...(successfulExport().result as object), foreignStatus: "succeeded" } },
   ])("rejects unsuccessful, mismatched, or non-strict tool results", (record) => {
     expect(exportJobTaskItems(binding, turn, [record], [], "2026-08-29T00:00:00.000Z")).toEqual([]);
+  });
+});
+
+describe("Provenance ledger projection", () => {
+  it("persists the source and taint summary without duplicating AssetSourceEvidence", () => {
+    const item = toolItem(binding, turn, {
+      toolCallId: "tool-provenance",
+      toolName: "nomi_document_edit",
+      args: { content: "generated text" },
+      status: "ok",
+      result: { accepted: true },
+    }, "2026-09-03T00:00:00.000Z", [{
+      source: "web_fetched",
+      sourceRef: "https://example.test/page",
+      trust: "untrusted",
+      tainted: true,
+    }]);
+
+    expect(item).toMatchObject({
+      kind: "tool",
+      provenance: [{ source: "web_fetched", sourceRef: "https://example.test/page", tainted: true }],
+    });
+    expect(JSON.stringify(item)).not.toContain("licenseSnapshot");
   });
 });

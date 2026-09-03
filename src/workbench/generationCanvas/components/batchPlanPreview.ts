@@ -4,7 +4,7 @@ import { create } from 'zustand'
 import { toast, useToastStore } from '../../../ui/toast'
 import { runGenerationNodesByPlan, spendCostKindForNodes } from '../runner/generationRunController'
 import { mintSpendGrant } from '../../api/taskApi'
-import { confirmAndMintGrant, confirmGenerationSpend, describeGenerationCost } from '../spend/spendConfirm'
+import { confirmAndMintGrant, confirmGenerationSpend, describeGenerationCost, generationCostContextForNodes } from '../spend/spendConfirm'
 import { hasLocalAssetReference, resolveAssetUploadConsent } from '../runner/assetUploadConsent'
 import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
 import { buildDependencyWaves, type DependencyWavePlan } from '../runner/dependencyWaves'
@@ -134,7 +134,7 @@ async function confirmPlanHostingConsent(ids: string[]): Promise<'allow' | 'not-
     ids.map((id) => useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)),
     {
       title: i18n.t('generationCommon.batchPlan.startTitle'),
-      message: describeGenerationCost(ids.length, spendCostKindForNodes(ids)),
+      message: describeGenerationCost(ids.length, spendCostKindForNodes(ids), generationCostContextForNodes(ids.map((id) => useGenerationCanvasStore.getState().nodes.find((node) => node.id)))),
       confirmLabel: i18n.t('generationCommon.batchPlan.confirmGenerate'),
       light: true,
       ...hostingDisclosureFor(hosting),
@@ -164,7 +164,7 @@ export async function confirmAndRunPlan(
     nodeIds: ids,
     nodes: ids.map((id) => nodesById.get(id)),
     title: i18n.t('generationCommon.batchPlan.startTitle'),
-    message: describeGenerationCost(ids.length, spendCostKindForNodes(ids)),
+    message: describeGenerationCost(ids.length, spendCostKindForNodes(ids), generationCostContextForNodes(ids.map((id) => nodesById.get(id)))),
     confirmLabel: i18n.t('generationCommon.batchPlan.confirmGenerate'),
     light: true,
     ...hostingDisclosureFor(hosting),

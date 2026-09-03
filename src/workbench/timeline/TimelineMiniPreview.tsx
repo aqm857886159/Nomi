@@ -9,6 +9,8 @@ import { useVideoPlaybackHeal } from '../../media/useVideoPlaybackHeal'
 import { usePreviewVideoPlayheadSync } from '../preview/usePreviewVideoPlayheadSync'
 import { findTimelineTransitionForClipType, resolveTimelineTransitionsAtFrame } from './timelineTransition'
 import { TimelineTransitionLayer } from '../preview/TimelineTransitionLayer'
+import { getDesktopActiveProjectId } from '../../desktop/activeProject'
+import { recordVideoPlaybackState } from '../../media/videoPlaybackTelemetry'
 
 /**
  * 生成页时间轴的迷你画面窗：跟随播放头显示当前帧，治「画布上盲剪」——
@@ -124,8 +126,15 @@ export default function TimelineMiniPreview(): JSX.Element | null {
             muted
             playsInline
             preload="metadata"
-            onError={heal.onError}
-            onLoadedMetadata={heal.onLoadedMetadata}
+            onError={(event) => {
+              recordVideoPlaybackState(getDesktopActiveProjectId(), { phase: 'error', rawUrl: videoClip?.url ?? '', readyState: event.currentTarget.readyState, networkState: event.currentTarget.networkState, mediaErrorCode: event.currentTarget.error?.code })
+              heal.onError(event)
+            }}
+            onLoadedMetadata={(event) => {
+              recordVideoPlaybackState(getDesktopActiveProjectId(), { phase: 'metadata', rawUrl: videoClip?.url ?? '', readyState: event.currentTarget.readyState, networkState: event.currentTarget.networkState })
+              heal.onLoadedMetadata(event)
+            }}
+            onCanPlay={(event) => recordVideoPlaybackState(getDesktopActiveProjectId(), { phase: 'canplay', rawUrl: videoClip?.url ?? '', readyState: event.currentTarget.readyState, networkState: event.currentTarget.networkState })}
           />
         ) : null}
         {videoTransition ? (

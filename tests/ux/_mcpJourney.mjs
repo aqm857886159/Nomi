@@ -27,6 +27,7 @@ import readline from 'node:readline'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { withLinuxNoSandbox, withLinuxSyntheticCredentialStorage } from './_launchApp.mjs'
+export { packagedMcpRuntime } from './_packagedMcpRuntime.mjs'
 
 const require = createRequire(import.meta.url)
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -182,7 +183,7 @@ function crc32(buf) {
 /**
  * Write an ISOLATED synthetic model catalog into settingsDir/model-catalog.json.
  * Shapes it for J-MCP1 step (e): a usable no-key mock vendor (authType none → keyStatus ok) exposing an
- * image and a video model, PLUS a real no-key vendor kept enabled so nomi_list_models must flag it
+ * image and a video model, PLUS a real no-key vendor kept enabled so nomi_read(target=models) must flag it
  * not-usable (keyStatus missing) rather than hide it. Each media row carries explicit verified publication
  * evidence, matching the production catalog invariant; mockOrigin points the mock vendor at the loopback
  * server so runTask's fallback path reaches it.
@@ -278,14 +279,21 @@ export function seedMcpClientIdentityEnv(capabilityDir, client = 'claude') {
  */
 export function spawnMcpStdioClient({
   settingsDir, userDataDir, projectsDir, capabilityDir, clientInfo, capabilities, env, captureStderr = false,
-  tracePath, elicitationAction = 'accept', syntheticCredentialStorage = false,
+  tracePath, elicitationAction = 'accept', syntheticCredentialStorage = false, runtime = null,
 }) {
-  const child = spawn(require('electron'), withLinuxSyntheticCredentialStorage(
-    withLinuxNoSandbox([repoRoot, '--disable-gpu']), syntheticCredentialStorage,
-  ), {
+  const selectedRuntime = runtime || {
+    command: require('electron'),
+    args: withLinuxSyntheticCredentialStorage(
+      withLinuxNoSandbox([repoRoot, '--disable-gpu']), syntheticCredentialStorage,
+    ),
     cwd: repoRoot,
+    env: {},
+  }
+  const child = spawn(selectedRuntime.command, selectedRuntime.args, {
+    cwd: selectedRuntime.cwd || repoRoot,
     env: {
       ...process.env,
+      ...(selectedRuntime.env || {}),
       NOMI_E2E: '1',
       NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
       NOMI_MCP_STDIO: '1',

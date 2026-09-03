@@ -3,8 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { WorkbenchAiMessage } from "../../src/workbench/ai/workbenchAiTypes";
-import { orderAssistantTimelineEntries } from "../../src/workbench/generationCanvas/components/assistantTimelineChronology";
 import {
   hashProjectAgentCommittedProposal,
   createProjectAgentProposalReceiptService,
@@ -50,7 +48,7 @@ afterEach(() => {
 });
 
 describe("ProjectAgent committed proposal receipt", () => {
-  it("survives a real disk write and process-style reader recreation with its rendered chronology intact", () => {
+  it("survives a real disk write and process-style reader recreation with its render anchor intact", () => {
     const projectRoot = tempProject();
     const writer = createProjectAgentProposalReceiptService({ projectRoot, binding });
     const prepared = writer.write({
@@ -72,19 +70,16 @@ describe("ProjectAgent committed proposal receipt", () => {
     const restored = createProjectAgentProposalReceiptService({ projectRoot, binding }).read();
     expect(restored).toEqual(committed);
 
-    const messages: WorkbenchAiMessage[] = [
-      {
-        id: "assistant-a",
-        role: "assistant",
-        content: "Before tool. After tool.",
-        status: "done",
-      },
-    ];
-    expect(
-      orderAssistantTimelineEntries(messages, [{ key: "restored-receipt", ...restored!.proposal }]).map((entry) =>
-        entry.kind === "message" ? `text:${entry.content}` : entry.key,
-      ),
-    ).toEqual(["text:Before tool.", "restored-receipt", "text: After tool."]);
+    // Host 的职责是把「这张回执挂在哪条助手消息的第几个字」原样持久化下来;真正的分段渲染
+    // 属渲染层。故这里只断言锚点跨进程往返后逐字节不变、且仍是该消息内容里的合法切点。
+    const anchoredContent = "Before tool. After tool.";
+    expect(restored!.proposal).toMatchObject({
+      anchorMessageId: proposal.anchorMessageId,
+      anchorTextOffset: proposal.anchorTextOffset,
+    });
+    expect(Number.isInteger(restored!.proposal.anchorTextOffset)).toBe(true);
+    expect(restored!.proposal.anchorTextOffset).toBeLessThanOrEqual(anchoredContent.length);
+    expect(anchoredContent.slice(0, restored!.proposal.anchorTextOffset)).toBe("Before tool.");
   });
 
   it("rejects malformed live writes and fails closed after disk tampering", () => {

@@ -6,7 +6,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { toast } from '../../../ui/toast'
 import { mintSpendGrant } from '../../api/taskApi'
-import { confirmGenerationSpend, describeGenerationCost, type GenerationCostKind } from '../spend/spendConfirm'
+import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind } from '../spend/spendConfirm'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
 import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
@@ -45,6 +45,7 @@ import {
 } from './assetUploadConsent'
 import type { HostingDisclosure } from '../spend/spendConfirm'
 import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
+import { buildDialoguePromptSuffix } from '../agent/storyboardDialogue'
 
 /** 节点 kind → 付费预估用的产物口径，喂给 describeGenerationCost 报对名词与时长。 */
 function spendCostKind(kind: GenerationNodeKind): Exclude<GenerationCostKind, 'mixed'> {
@@ -305,12 +306,18 @@ export async function runGenerationNode(
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const state = useGenerationCanvasStore.getState()
       const node = state.nodes.find((candidate) => candidate.id === id) || initialNode
+      const nodeMeta = (node.meta || {}) as Record<string, unknown>
+      const dialogueArchetype = resolveTaskArchetype(nodeMeta)
+      const dialogueMode = dialogueArchetype ? currentArchetypeMode(dialogueArchetype, nodeMeta) : null
+      const dialoguePromptSuffix = buildDialoguePromptSuffix(dialogueMode, nodeMeta, nodeMeta.dialogue)
       try {
         result = await executor(node, {
           nodes: state.nodes,
           edges: state.edges,
           ...(options.grantId ? { grantId: options.grantId } : {}),
-          ...(options.promptSuffix ? { promptSuffix: options.promptSuffix } : {}),
+          ...(options.promptSuffix || dialoguePromptSuffix
+            ? { promptSuffix: [options.promptSuffix, dialoguePromptSuffix].filter(Boolean).join('\n\n') }
+            : {}),
           // 提交幂等键 = 本次 run.id：重试循环内每次 attempt 复用同一个 run.id，
           // electron 侧台账据此认作「同一次意图提交」→ 重试绝不二次下单。新生成 = 新 run.id。
           idempotencyKey: run.id,
@@ -571,7 +578,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
     title: opts.rerun
       ? i18n.t('generationCommon.spend.generateVariant')
       : i18n.t('generationCommon.spend.startGeneration'),
-    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image'),
+    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node)),
     confirmLabel: opts.rerun
       ? i18n.t('generationCommon.spend.generateVariant')
       : i18n.t('generationCommon.spend.generate'),
@@ -627,7 +634,7 @@ export async function confirmAndRunNodeVariants(
   if (!hosting.allowed) return
   const ok = await confirmGenerationSpend([node], {
     title: i18n.t('generationCommon.spend.startGeneration'),
-    message: describeGenerationCost(total, node ? spendCostKind(node.kind) : 'image'),
+    message: describeGenerationCost(total, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node)),
     confirmLabel: i18n.t('generationCommon.spend.generate'),
     light: true,
     ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
@@ -677,7 +684,7 @@ export async function regenerateNodeInPlace(
   if (!hosting.allowed) return
   const ok = await confirmGenerationSpend([node], {
     title: opts?.title || i18n.t('generationCommon.composer.regenerate'),
-    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image'),
+    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node)),
     confirmLabel: opts?.confirmLabel || i18n.t('generationCommon.composer.regenerate'),
     light: true,
     ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
