@@ -14,6 +14,7 @@
 | [2026-06-07-model-onboarding-final-plan.md](2026-06-07-model-onboarding-final-plan.md) | **模型接入最终方案**（R7 定稿，审计+设计+计划）— 本簇主文档 | ✅ |
 | [2026-08-30-runway-seedance25-onboarding.md](2026-08-30-runway-seedance25-onboarding.md) | Runway Seedance 2.5 接入与分镜设置（源分支只含文档、未合并；配套指南带「未发布」横幅）| 📋 |
 | [2026-08-15-model-integration-no-dead-end-master-plan.md](2026-08-15-model-integration-no-dead-end-master-plan.md) | 模型接入「不留死路」总纲：事实源 manifest + 能力契约 + 旅程矩阵 | 🚧 |
+| [2026-09-03-self-hosted-relay-conformance-harness.md](2026-09-03-self-hosted-relay-conformance-harness.md) | **自建中转一致性台架**：CI 里起一个**严格的**假中转，驱动真实接入→认证→生成全链路。严格度锚定 2026-09-03 真机实测（用错端点/无图/图太小/multipart 无字节 四条拒绝规则），把「用户接入」这条唯一没有反馈回路的路径接上回路 | 📋 |
 | [2026-09-02-docaudit-kie-apimart.md](2026-09-02-docaudit-kie-apimart.md) | KIE + APIMart 官方文档全量对账、映射合同覆盖与未封印模型验收 | ✅ |
 | [2026-09-02-runway-model-identity-workflow.md](2026-09-02-runway-model-identity-workflow.md) | **一个模型一个档案主人**（PR #310 挂起的「单独立项裁决」）：删平台档案 runway-video，10 个 Runway 模型改挂真模型档案；补齐供应商特化三轴（参数/transport/模式可见性）；selectTaskMapping 停止借用别的模式的线缆 | ✅ |
 | [2026-09-03-mcp-integration-q8-seams.md](2026-09-03-mcp-integration-q8-seams.md) | Q8：MCP 接入面按「确定性归我们，情境性归模型」收敛为 5 个 T14 action，并补接入管理后端动词 | 🚧 |
