@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRegistry } from "./moduleRegistry";
 import {
+  coldstartEtaForGate,
   createGenerationPlanningHandler,
   createInMemoryGenerationOperationStore,
   MCP_GENERATION_TOOL_CATALOG,
@@ -650,6 +651,97 @@ describe("semantic MCP generation tools", () => {
       };
       expect(defaultModelForTaskKind).toHaveBeenCalledWith("text_to_video");
       expect(created.operation.shots[0]?.candidate).toMatchObject({ providerId: "video-provider", modelId: "video-model", mode: "text-to-video" });
+    });
+  });
+
+  // J05 — plan patch model-change 应返回 changeset（modelChanged+previousModel+nextModel），
+  // 让调用方知道哪些字段被静默重置。今天返回 {operation, nextAction:"preview"} 无 changeset → 红灯。
+  describe("J05 plan patch changeset on model switch", () => {
+    it("returns changeset.modelChanged when the model changes", async () => {
+      const operations = createInMemoryGenerationOperationStore();
+      const registry2 = createModuleRegistry([{
+        moduleId: "generation.single-shot",
+        version: "1.0.0",
+        inputKinds: ["text", "image"],
+        outputKinds: ["image"],
+        modes: ["text-to-image"],
+        parameterSchema: { aspectRatio: { type: "enum", enum: ["1:1", "16:9"] } },
+        assetInputSchema: { references: { kind: "image", max: 4 } },
+        providers: [
+          {
+            providerId: "fixture-provider",
+            models: [{ modelId: "model-a", modes: ["text-to-image"], parameterSchema: { seed: { type: "integer" } }, capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true } }],
+          },
+          {
+            providerId: "fixture-provider",
+            models: [{ modelId: "model-b", modes: ["text-to-image"], parameterSchema: {}, capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true } }],
+          },
+        ],
+      }]);
+      const handler = createGenerationPlanningHandler({ registry: registry2, operations, now: () => "2026-09-03T00:00:00.000Z" });
+      // Create with model-a (may have variantId later)
+      await handler({ capability: "create", params: { operationId: "op-j05", prompt: "test prompt", providerId: "fixture-provider", modelId: "model-a", mode: "text-to-image", moduleId: "generation.single-shot" }, lease });
+      // Patch to model-b (different model → should emit changeset)
+      const patched = await handler({ capability: "plan", params: { operationId: "op-j05", patch: { providerId: "fixture-provider", modelId: "model-b" } }, lease }) as {
+        operation: object;
+        nextAction: string;
+        changeset?: { modelChanged: boolean; previousModel: string; nextModel: string };
+      };
+      expect(patched.nextAction).toBe("preview");
+      // J05 red light: today this will be undefined; after fix it should be present
+      expect(patched.changeset).toBeDefined();
+      expect(patched.changeset?.modelChanged).toBe(true);
+      expect(patched.changeset?.previousModel).toBe("fixture-provider/model-a");
+      expect(patched.changeset?.nextModel).toBe("fixture-provider/model-b");
+    });
+
+    it("returns no changeset when only the prompt changes (no model switch)", async () => {
+      const operations = createInMemoryGenerationOperationStore();
+      const handler = createGenerationPlanningHandler({ registry, operations, now: () => "2026-09-03T00:00:00.000Z" });
+      await handler({ capability: "create", params: { operationId: "op-j05-noop", prompt: "first", providerId: "fixture-provider", modelId: "fixture-model", mode: "text-to-image", moduleId: "generation.single-shot" }, lease });
+      const patched = await handler({ capability: "plan", params: { operationId: "op-j05-noop", patch: { prompt: "changed prompt" } }, lease }) as {
+        changeset?: unknown;
+      };
+      expect(patched.changeset).toBeUndefined();
+    });
+  });
+
+  // J06 — coldstartEtaForGate 应产出区间（waitSeconds/waitSecondsHigh/etaBasis='coldstart'）
+  // 而不是硬编码 40 秒或 180 秒点值。
+  describe("J06 coldstartEtaForGate — ETA range instead of hardcoded 40/180s", () => {
+    it("video kind returns waitSecondsHigh > waitSeconds, both > 0, etaBasis=coldstart", () => {
+      const eta = coldstartEtaForGate(["video"], 1);
+      expect(eta.etaBasis).toBe("coldstart");
+      expect(eta.waitSeconds).toBeGreaterThan(0);
+      expect(eta.waitSecondsHigh).toBeGreaterThan(eta.waitSeconds);
+      // video must be honest: at least 3 minutes (180s); 40s was the fake value
+      expect(eta.waitSeconds).toBeGreaterThan(40);
+    });
+
+    it("video kind scales linearly with shotCount", () => {
+      const single = coldstartEtaForGate(["video"], 1);
+      const four = coldstartEtaForGate(["video"], 4);
+      expect(four.waitSeconds).toBe(single.waitSeconds * 4);
+      expect(four.waitSecondsHigh).toBe(single.waitSecondsHigh * 4);
+    });
+
+    it("image kind is faster than video", () => {
+      const videoEta = coldstartEtaForGate(["video"], 1);
+      const imageEta = coldstartEtaForGate(["image"], 1);
+      expect(imageEta.waitSeconds).toBeLessThan(videoEta.waitSeconds);
+    });
+
+    it("mixed kinds with video present picks video as primary", () => {
+      const eta = coldstartEtaForGate(["image", "video"], 1);
+      const videoEta = coldstartEtaForGate(["video"], 1);
+      expect(eta.waitSeconds).toBe(videoEta.waitSeconds);
+    });
+
+    it("unknown kind falls back gracefully without throwing", () => {
+      const eta = coldstartEtaForGate(["hologram"], 2);
+      expect(eta.etaBasis).toBe("coldstart");
+      expect(eta.waitSeconds).toBeGreaterThan(0);
+      expect(eta.waitSecondsHigh).toBeGreaterThan(eta.waitSeconds);
     });
   });
 });

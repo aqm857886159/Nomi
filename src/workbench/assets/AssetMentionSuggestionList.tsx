@@ -5,7 +5,7 @@ import { cn } from '../../utils/cn'
 import { AssetThumb } from './AssetTile'
 import type { AssetKind, AssetRef } from './assetTypes'
 
-// @ suggestion 下拉：列出可引用的媒体，按「当前参考 / 画布 / 素材库」分组，打字即过滤。
+// @ suggestion 下拉：列出可引用的媒体，按来源分组，打字即过滤。
 // 键盘：↑↓ 移动、Enter 选、Esc 关（Esc 在扩展层处理）。
 //
 // 「当前参考」以外的两组选中后**会真的建立引用**（画布→建一条真边；素材库→落进上传参考槽），
@@ -16,13 +16,16 @@ export type MentionSuggestionItem = {
   url: string
   label: string
   kind?: 'image' | 'video' | 'audio'
-  group: 'current' | 'canvas' | 'library'
+  group: 'current' | 'canvas' | 'library' | 'upload'
   index?: number
+  /** 分镜候选可把 canvas owner 的结果单独标成「某镜结果」，不复制 group 语义。 */
+  groupLabelKey?: string
 }
 
 export type MentionSuggestionListRef = { onKeyDown: (args: { event: KeyboardEvent }) => boolean }
 
-type Props = { items: MentionSuggestionItem[]; command: (item: MentionSuggestionItem) => void }
+export type MentionUploadControls = { openFilePicker: () => void; inputRef: React.RefObject<HTMLInputElement>; onInputChange: (event: React.ChangeEvent<HTMLInputElement>) => void; isDragging: boolean }
+type Props = { items: MentionSuggestionItem[]; command: (item: MentionSuggestionItem) => void; upload?: MentionUploadControls }
 
 function displayAsset(url: string, kind: AssetKind, name: string): AssetRef {
   return {
@@ -39,9 +42,10 @@ const GROUP_LABEL_KEY: Record<MentionSuggestionItem['group'], string> = {
   current: 'assetLibrary.mentionGroupCurrent',
   canvas: 'assetLibrary.mentionGroupCanvas',
   library: 'assetLibrary.mentionGroupLibrary',
+  upload: 'assetLibrary.mentionGroupUpload',
 }
 
-const AssetMentionSuggestionList = React.forwardRef<MentionSuggestionListRef, Props>(({ items, command }, ref) => {
+const AssetMentionSuggestionList = React.forwardRef<MentionSuggestionListRef, Props>(({ items, command, upload }, ref) => {
   const { t } = useTranslation()
   const [selected, setSelected] = React.useState(0)
   React.useEffect(() => { setSelected(0) }, [items])
@@ -56,7 +60,7 @@ const AssetMentionSuggestionList = React.forwardRef<MentionSuggestionListRef, Pr
     },
   }), [items, selected, command])
 
-  if (!items.length) {
+  if (!items.length && !upload) {
     return (
       <div className={cn('inline-flex items-center px-[8px] h-[30px] rounded-nomi-sm border border-nomi-line bg-nomi-paper shadow-nomi-sm text-nomi-ink-40 text-micro')}>
         {t('assetLibrary.mentionEmpty')}
@@ -78,7 +82,7 @@ const AssetMentionSuggestionList = React.forwardRef<MentionSuggestionListRef, Pr
           <React.Fragment key={item.key}>
             {showHeader ? (
               <div className={cn('px-[6px] pt-[6px] pb-[2px] text-micro text-nomi-ink-40')}>
-                {t(GROUP_LABEL_KEY[item.group])}
+                {t(item.groupLabelKey ?? GROUP_LABEL_KEY[item.group])}
               </div>
             ) : null}
             <button
@@ -117,6 +121,18 @@ const AssetMentionSuggestionList = React.forwardRef<MentionSuggestionListRef, Pr
           </React.Fragment>
         )
       })}
+      {upload ? (
+        <div className={cn('mt-[4px] border-t border-nomi-line pt-[5px]')}>
+          <button
+            type="button"
+            onClick={upload.openFilePicker}
+            className={cn('w-full rounded-nomi-sm border border-dashed border-nomi-ink-20 px-[6px] py-[5px] text-left text-micro text-nomi-ink-60 hover:border-nomi-accent hover:text-nomi-accent')}
+          >
+            {upload.isDragging ? t('assetLibrary.mentionDropUpload') : t('assetLibrary.mentionUpload')}
+          </button>
+          <input ref={upload.inputRef} type="file" accept="image/*,video/*,audio/*" onChange={upload.onInputChange} className="sr-only" />
+        </div>
+      ) : null}
     </div>
   )
 })

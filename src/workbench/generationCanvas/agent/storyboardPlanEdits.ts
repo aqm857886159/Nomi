@@ -1,4 +1,5 @@
 import { effectiveShotDurationSec, type PlanAnchor, type PlanAnchorCarrier, type PlanAnchorKind, type PlanShot, type StoryboardPlan } from './storyboardPlan'
+import { hasMentions, mentionUrlsInOrder } from '../../assets/promptMentions'
 
 /**
  * 分镜方案的**纯编辑 + 校验**层（S3 字段编辑器的领域逻辑，与渲染解耦、可单测）。
@@ -67,6 +68,48 @@ export function updateAnchor(plan: StoryboardPlan, id: string, patch: Partial<Pl
   return { ...plan, anchors: plan.anchors.map((anchor) => (anchor.id === id ? { ...anchor, ...patch } : anchor)) }
 }
 
+/** 记录 @ token 对应的 URL，绑定关系仍由镜头的 anchorIds 唯一持有。 */
+export function rememberAnchorReferenceUrl(plan: StoryboardPlan, anchorId: string, url: string): StoryboardPlan {
+  const normalized = url.trim()
+  if (!normalized || !plan.anchors.some((anchor) => anchor.id === anchorId)) return plan
+  return updateAnchor(plan, anchorId, { referenceUrl: normalized })
+}
+
+/** 将画布结果/素材库/上传提升为现有 PlanAnchor，避免新增第二份镜头绑定结构。 */
+export function addExternalReferenceAnchor(
+  plan: StoryboardPlan,
+  input: { id: string; name: string; url: string; kind: 'image' | 'video' | 'audio'; sourceNodeId?: string },
+): { plan: StoryboardPlan; anchorId: string } {
+  const existing = plan.anchors.find((anchor) => anchor.referenceUrl === input.url && anchor.referenceSourceNodeId === input.sourceNodeId)
+  if (existing) return { plan, anchorId: existing.id }
+  const anchorId = makeAnchorId(plan)
+  const anchor: PlanAnchor = {
+    id: anchorId,
+    kind: 'prop',
+    name: input.name.trim() || `参考 ${plan.anchors.length + 1}`,
+    description: '',
+    carrier: 'visual',
+    scope: 'selective',
+    referenceUrl: input.url,
+    referenceKind: input.kind,
+    ...(input.sourceNodeId ? { referenceSourceNodeId: input.sourceNodeId } : {}),
+  }
+  return { plan: { ...plan, anchors: [...plan.anchors, anchor] }, anchorId }
+}
+
+/** 文本中已有 @ 时，镜头绑定按 URL 重建；没有 @ 的旧纯文本仍保留旧绑定。 */
+export function updateShotPrompt(plan: StoryboardPlan, pos: number, prompt: string): StoryboardPlan {
+  const shot = plan.shots[pos]
+  if (!shot) return plan
+  const nextUrls = mentionUrlsInOrder(prompt)
+  const previousHadMentions = hasMentions(shot.prompt)
+  if (!previousHadMentions && nextUrls.length === 0) return updateShotAt(plan, pos, { prompt })
+  const idsByUrl = new Map(plan.anchors.flatMap((anchor) => anchor.referenceUrl ? [[anchor.referenceUrl, anchor.id] as const] : []))
+  const mentioned = new Set(nextUrls.flatMap((url) => idsByUrl.get(url) ? [idsByUrl.get(url)!] : []))
+  const textAnchorIds = shot.anchorIds.filter((id) => plan.anchors.find((anchor) => anchor.id === id)?.carrier === 'text')
+  return updateShotAt(plan, pos, { prompt, anchorIds: [...textAnchorIds, ...mentioned] })
+}
+
 /** 改锚类型：carrier/scope 跟随新类型的默认（风格→仅提示词+常驻）；用户随后仍可手动覆盖 carrier。 */
 export function changeAnchorKind(plan: StoryboardPlan, id: string, kind: PlanAnchorKind): StoryboardPlan {
   return updateAnchor(plan, id, { kind, carrier: defaultCarrierForKind(kind), scope: defaultScopeForKind(kind) })
@@ -103,6 +146,37 @@ export function addShot(plan: StoryboardPlan): StoryboardPlan {
     prompt: '',
   }
   return { ...plan, shots: [...plan.shots, shot] }
+}
+
+/** D3 行间插镜：只继承上一镜的生成血统，内容保持空白，避免复制出用户未要求的 prompt/引用。 */
+export function insertShotAt(plan: StoryboardPlan, pos: number): StoryboardPlan {
+  const previous = plan.shots[pos - 1] ?? plan.shots[pos]
+  const next: PlanShot = previous
+    ? {
+        index: pos + 1,
+        ...(previous.shotKind ? { shotKind: previous.shotKind } : {}),
+        ...(previous.sceneId ? { sceneId: previous.sceneId } : {}),
+        ...(previous.modelKey ? { modelKey: previous.modelKey } : {}),
+        ...(previous.modeId ? { modeId: previous.modeId } : {}),
+        ...(previous.params?.aspect_ratio !== undefined ? { params: { aspect_ratio: previous.params.aspect_ratio } } : {}),
+        durationSec: effectiveShotDurationSec(previous) || DEFAULT_VIDEO_DURATION_SEC,
+        anchorIds: [],
+        prompt: '',
+      }
+    : { index: 1, durationSec: DEFAULT_VIDEO_DURATION_SEC, anchorIds: [], prompt: '' }
+  const shots = [...plan.shots]
+  shots.splice(Math.max(0, Math.min(pos, shots.length)), 0, next)
+  return { ...plan, shots: renumber(shots) }
+}
+
+/** D3 复制镜头：复制可见内容但不给新行复用稳定身份。 */
+export function duplicateShotAt(plan: StoryboardPlan, pos: number): StoryboardPlan {
+  const source = plan.shots[pos]
+  if (!source) return plan
+  const copy: PlanShot = { ...source, shotId: undefined, index: source.index + 1, anchorIds: [...source.anchorIds], ...(source.params ? { params: { ...source.params } } : {}), ...(source.keyframe ? { keyframe: { ...source.keyframe, ...(source.keyframe.params ? { params: { ...source.keyframe.params } } : {}) } } : {}) }
+  const shots = [...plan.shots]
+  shots.splice(pos + 1, 0, copy)
+  return { ...plan, shots: renumber(shots) }
 }
 
 export function updateShotAt(plan: StoryboardPlan, pos: number, patch: Partial<PlanShot>): StoryboardPlan {
