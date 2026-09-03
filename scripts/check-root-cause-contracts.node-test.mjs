@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   inheritLegacyContractHashes,
@@ -6,6 +9,8 @@ import {
   validateRootCauseChange,
   validateRootCauseHistory,
 } from "./root-cause-contracts.mjs";
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const completeContract = {
   __file: "docs/fixes/fixture-media-boundary.root-cause.json",
@@ -73,6 +78,46 @@ const completeContract = {
   migration: "Existing stored values are validated on their next upload.",
   residual_risks: ["Provider-owned URLs outside the upload boundary are not re-fetched."],
 };
+
+const STRUCTURAL_CONTRACT_FILE = "docs/fixes/fixture-structural-change.root-cause.json";
+const STRUCTURAL_PATH = "electron/productionRun/productionRunProjections.ts";
+const STRUCTURAL_TEST = "tests/example/structural-contract.node-test.mjs";
+const structuralSource = [
+  "export function projectProductionRun() {}",
+  "function internalProjection() {}",
+  "export { internalProjection as projectInternalProjection };",
+].join("\n");
+const structuralFiles = new Set([
+  STRUCTURAL_CONTRACT_FILE,
+  STRUCTURAL_PATH,
+  STRUCTURAL_TEST,
+]);
+const structuralContract = {
+  __file: STRUCTURAL_CONTRACT_FILE,
+  schema_version: 3,
+  change_kind: "structural",
+  id: "fixture-structural-change",
+  scope_paths: ["electron/productionRun/"],
+  regression_tests: [STRUCTURAL_TEST],
+  structural_evidence: {
+    affected_paths: [STRUCTURAL_PATH],
+    preserved_exports: [
+      { path: STRUCTURAL_PATH, name: "projectProductionRun" },
+      { path: STRUCTURAL_PATH, name: "projectInternalProjection" },
+    ],
+    behavior_preservation: "The refactor preserves the existing observable behavior.",
+    verification_limits: "The path/export checks are machine-verified; behavioral equivalence remains supported by the changed test and is a declared claim.",
+  },
+};
+
+function validateStructural(contract = structuralContract, fileContents = new Map([[STRUCTURAL_PATH, structuralSource]])) {
+  return validateRootCauseChange({
+    changedFiles: [STRUCTURAL_PATH, STRUCTURAL_TEST, STRUCTURAL_CONTRACT_FILE],
+    contracts: [contract],
+    existingFiles: structuralFiles,
+    fileContents,
+  });
+}
 
 test("match: high-risk production changes require a contract", () => {
   const result = validateRootCauseChange({
@@ -236,6 +281,68 @@ test("match: a complete contract covers changed production and test files", () =
     errors: [],
     triggeredFiles: ["electron/catalog/assetLocalization.ts"],
   });
+});
+
+test("match: a structural contract covers a high-risk production change with structural evidence", () => {
+  const result = validateStructural();
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.triggeredFiles, [STRUCTURAL_PATH]);
+});
+
+test("match: structural contracts require their own evidence", () => {
+  const contract = { ...structuralContract, structural_evidence: undefined };
+  const result = validateStructural(contract);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /structural_evidence|affected_paths|behavior_preservation/);
+});
+
+test("match: structural contracts reject missing modules and named exports", () => {
+  const contract = {
+    ...structuralContract,
+    structural_evidence: {
+      ...structuralContract.structural_evidence,
+      affected_paths: ["electron/productionRun/does-not-exist.ts"],
+      preserved_exports: [{ path: STRUCTURAL_PATH, name: "doesNotExist" }],
+    },
+  };
+  const result = validateStructural(contract);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /structural affected path does not exist/);
+  assert.match(result.errors.join("\n"), /named export does not exist/);
+});
+
+test("match: a contract without change_kind retains the full corrective schema", () => {
+  const contract = { ...completeContract, class_root: "" };
+  const result = validateRootCauseChange({
+    changedFiles: [
+      "electron/catalog/assetLocalization.ts",
+      "electron/catalog/assetLocalization.test.ts",
+      completeContract.__file,
+    ],
+    contracts: [contract],
+    existingFiles: new Set([
+      "electron/catalog/assetLocalization.ts",
+      "electron/catalog/assetLocalization.test.ts",
+      completeContract.__file,
+    ]),
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /class_root/);
+});
+
+test("match: unknown change_kind fails closed", () => {
+  const contract = { ...structuralContract, change_kind: "refactor" };
+  const result = validateStructural(contract);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /change_kind/);
+});
+
+test("match: every existing docs/fixes contract still validates through the formal checker", () => {
+  assert.doesNotThrow(() => execFileSync(process.execPath, ["./scripts/check-root-cause-contracts.mjs"], {
+    cwd: repoRoot,
+    stdio: "pipe",
+  }));
 });
 
 test("not_match: unrelated historical contracts are ignored", () => {

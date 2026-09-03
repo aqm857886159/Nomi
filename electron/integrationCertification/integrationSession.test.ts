@@ -1,6 +1,4 @@
 import fs from "node:fs";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -9,6 +7,13 @@ import { createRuntimeIntegrationSessionService } from "./integrationSession";
 import { createApprovalReceiptAuthority } from "../capabilityCore/approvalReceipt";
 
 describe("IntegrationSessionService", () => {
+  async function proposeHttp(service: IntegrationSessionService, sessionId: string, revision: number, owner: "codex" | "claude", modelKey = "text-1", kind = "text") {
+    return service.propose(sessionId, revision, owner, {
+      candidates: [{ modelKey, kind }],
+      selections: [{ modelKey }],
+    });
+  }
+
   function make() {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-integration-session-"));
     const filePath = path.join(dir, "sessions.json");
@@ -61,7 +66,7 @@ describe("IntegrationSessionService", () => {
     expect(ready.credentialRef).toEqual({ status: "ready", scope: "session" });
     expect(JSON.stringify(ready)).not.toContain("cred-ref-only");
   });
-  it("persists, enforces CAS, paginates candidates, and selects exact IDs", async () => {
+  it("persists and enforces the proposal CAS boundary", async () => {
     const { service, filePath } = make();
     const started = service.begin(
       { kind: "http-api-provider", name: "Provider", baseUrl: "https://api.example/v1", clientRequestId: "req-1" },
@@ -73,9 +78,12 @@ describe("IntegrationSessionService", () => {
     );
     expect(same.id).toBe(started.id);
     const ready = service.markCredentialReady(started.id, "ref", "claude");
-    const discover = await service.discover(started.id, ready.revision, "claude", 0);
-    expect(discover.stage).toBe("needs_input");
-    expect(() => service.select(started.id, ready.revision, "claude", [{ modelKey: "missing" }])).toThrow(/stale/);
+    await expect(service.propose(started.id, ready.revision, "claude", {
+      candidates: [{ modelKey: "text-1", kind: "text" }], selections: [{ modelKey: "text-1" }],
+    })).resolves.toMatchObject({ stage: "needs_spend_confirmation" });
+    await expect(service.propose(started.id, ready.revision, "claude", {
+      candidates: [{ modelKey: "text-1", kind: "text" }], selections: [{ modelKey: "text-1" }],
+    })).rejects.toThrow(/stale/);
     expect(fs.existsSync(filePath)).toBe(true);
     const reloaded = new IntegrationSessionService({ filePath });
     expect(reloaded.get(started.id, "claude").id).toBe(started.id);
@@ -94,16 +102,13 @@ describe("IntegrationSessionService", () => {
       certification: cert as never,
       credentialResolver: () => "secret",
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
-      discoverHttp: () => [{ modelKey: "text-1", kind: "text", modes: ["text"], evidence: ["manual"] }],
     });
     const session = withCert.begin(
       { kind: "http-api-provider", name: "Provider", baseUrl: "https://api.example" },
       "codex",
     );
     const ready = withCert.markCredentialReady(session.id, "ref", "codex");
-    const candidates = await withCert.discover(session.id, ready.revision, "codex");
-    expect(candidates.stage).toBe("needs_selection");
-    const selected = withCert.select(session.id, candidates.revision, "codex", [{ modelKey: "text-1" }]);
+    const selected = await proposeHttp(withCert, session.id, ready.revision, "codex");
     await expect(withCert.start(session.id, selected.revision, "codex", "idem")).rejects.toThrow(/receipt/i);
     const result = await withCert.start(session.id, selected.revision, "codex", "idem", "receipt-1");
     expect(result.childRunRef?.runId).toBe("run-1");
@@ -128,15 +133,13 @@ describe("IntegrationSessionService", () => {
       certification: certification as never,
       credentialResolver: () => "secret",
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
-      discoverHttp: () => [{ modelKey: "audio-flagship", kind: "audio", modes: ["text_to_audio"] }],
     });
     const session = service.begin(
       { kind: "http-api-provider", name: "Audio Provider", baseUrl: "https://api.example" },
       "codex",
     );
     const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const discovered = await service.discover(session.id, ready.revision, "codex");
-    const selected = service.select(session.id, discovered.revision, "codex", [{ modelKey: "audio-flagship" }]);
+    const selected = await proposeHttp(service, session.id, ready.revision, "codex", "audio-flagship", "audio");
 
     const started = await service.start(session.id, selected.revision, "codex", "async-http", "receipt-1");
     expect(started).toMatchObject({ stage: "certifying", childRunRef: { runId: "run-async" } });
@@ -162,15 +165,13 @@ describe("IntegrationSessionService", () => {
       certification: cert as never,
       credentialResolver: () => "secret",
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
-      discoverHttp: () => [{ modelKey: "text-1", kind: "text" }],
     });
     const session = service.begin(
       { kind: "http-api-provider", name: "Provider", baseUrl: "https://api.example" },
       "codex",
     );
     const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const discovered = await service.discover(session.id, ready.revision, "codex");
-    const selected = service.select(session.id, discovered.revision, "codex", [{ modelKey: "text-1" }]);
+    const selected = await proposeHttp(service, session.id, ready.revision, "codex");
     const first = await service.start(session.id, selected.revision, "codex", "same-key", "receipt-1");
     const second = await service.start(session.id, first.revision, "codex", "same-key", "receipt-1");
     expect(second.childRunRef).toEqual(first.childRunRef);
@@ -185,12 +186,10 @@ describe("IntegrationSessionService", () => {
       certification: cert as never,
       credentialResolver: () => undefined,
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
-      discoverHttp: () => [{ modelKey: "text-1", kind: "text" }],
     });
     const session = service.begin({ kind: "http-api-provider", name: "Provider", baseUrl: "https://api.example" }, "codex");
     const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const discovered = await service.discover(session.id, ready.revision, "codex");
-    const selected = service.select(session.id, discovered.revision, "codex", [{ modelKey: "text-1" }]);
+    const selected = await proposeHttp(service, session.id, ready.revision, "codex");
     const result = await service.start(session.id, selected.revision, "codex", "missing-key", "receipt-1");
     expect(result.stage).toBe("failed");
     expect(result.blockingReason).toEqual({ code: "credential_unavailable" });
@@ -227,26 +226,6 @@ describe("IntegrationSessionService", () => {
     );
   });
 
-  it("pages every discovered candidate and rejects extra input answers", async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-page-"));
-    const candidates = Array.from({ length: 150 }, (_, index) => ({ modelKey: `model-${index}`, kind: "text" }));
-    const service = new IntegrationSessionService({
-      filePath: path.join(dir, "sessions.json"),
-      save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
-      discoverHttp: () => candidates,
-    });
-    const session = service.begin({ kind: "comfyui-workflow", name: "Local" }, "codex");
-    const first = await service.discover(session.id, session.revision, "codex", 0);
-    expect(first.candidates).toHaveLength(100);
-    expect(first.hasMore).toBe(true);
-    const second = await service.discover(session.id, first.revision, "codex", 1);
-    expect(second.candidates[0].modelKey).toBe("model-100");
-    const blocked = service.submitWorkflow(session.id, second.revision, "codex", "{}");
-    expect(() => service.resolveInput(session.id, blocked.revision, "codex", { unexpected: true })).toThrow(
-      /extra|unknown|answer/i,
-    );
-  });
-
   it("deep-validates persisted session records instead of accepting malformed state", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-corrupt-"));
     const filePath = path.join(dir, "sessions.json");
@@ -270,15 +249,13 @@ describe("IntegrationSessionService", () => {
         verifyReceipt,
       } as never,
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
-      discoverHttp: () => [{ modelKey: "text-1", kind: "text" }],
     });
     const session = service.begin(
       { kind: "http-api-provider", name: "Provider", baseUrl: "https://api.example" },
       "codex",
     );
     const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const discovered = await service.discover(session.id, ready.revision, "codex");
-    const selected = service.select(session.id, discovered.revision, "codex", [{ modelKey: "text-1" }]);
+    const selected = await proposeHttp(service, session.id, ready.revision, "codex");
     await expect(service.start(session.id, selected.revision, "codex", "idem", "forged-receipt")).rejects.toThrow(
       /receipt/i,
     );
@@ -307,124 +284,6 @@ describe("IntegrationSessionService", () => {
     service.openCredentials(session.id, session.revision, "codex");
     expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({ sessionId: session.id, target: "credential" }));
     expect(authority.verifyReceipt).not.toHaveBeenCalled();
-  });
-
-  it("uses confirmed LocalAI discovery evidence without publishing unverified media capabilities", async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-localai-"));
-    const probeExternalLocalRuntime = vi.fn(async () => ({
-      schemaVersion: 1 as const,
-      deployment: "external" as const,
-      runtimeId: "localai:test",
-      kind: "localai" as const,
-      origin: "http://127.0.0.1:9",
-      apiBaseUrl: "http://127.0.0.1:9/v1",
-      version: "4.9.0",
-      identity: "confirmed" as const,
-      auth: { mode: "none" as const, scope: "none" as const },
-      health: "ready" as const,
-      capabilities: [
-        {
-          modelId: "local-chat",
-          outputs: ["text" as const],
-          inputModes: ["text"],
-          supports: ["stream" as const],
-          evidence: { source: "discovery" as const, endpoint: "/v1/models/capabilities", checkedAt: "2026-08-30T00:00:00.000Z" },
-        },
-        {
-          modelId: "local-video",
-          outputs: ["video" as const],
-          inputModes: ["text"],
-          supports: ["submit" as const],
-          evidence: { source: "discovery" as const, endpoint: "/v1/models/capabilities", checkedAt: "2026-08-30T00:00:00.000Z" },
-        },
-      ],
-      certification: "uncertified" as const,
-      diagnostics: [],
-      checkedAt: "2026-08-30T00:00:00.000Z",
-    }));
-    const service = createRuntimeIntegrationSessionService({
-      filePath: path.join(dir, "sessions.json"),
-      certification: { probeExternalLocalRuntime } as never,
-      approvalReceiptAuthority: { resolveReceiptToken: vi.fn(), verifyReceipt: vi.fn() } as never,
-    });
-    const session = service.begin({
-      kind: "http-api-provider",
-      name: "LocalAI",
-      baseUrl: "http://127.0.0.1:9/v1",
-      authType: "none",
-      providerKind: "openai-compatible",
-    }, "codex");
-    const ready = service.markCredentialReady(session.id, "no-secret", "codex");
-    const discovered = await service.discover(session.id, ready.revision, "codex");
-
-    expect(discovered.candidates).toEqual([
-      expect.objectContaining({
-        modelKey: "local-chat",
-        kind: "text",
-        modes: ["chat"],
-        evidence: ["runtime"],
-        classification: "supported",
-      }),
-    ]);
-    expect(discovered.candidates).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({ modelKey: "local-video" }),
-    ]));
-    expect(probeExternalLocalRuntime).toHaveBeenCalledWith(expect.objectContaining({
-      baseUrl: "http://127.0.0.1:9/v1",
-      authType: "none",
-      providerKind: "openai-compatible",
-    }));
-  });
-
-  it("falls back to the ordinary OpenAI-compatible model list when LocalAI identity is unconfirmed", async () => {
-    const requests: string[] = [];
-    const server = createServer((request, response) => {
-      requests.push(request.url || "");
-      response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({ data: [{ id: "fallback-chat" }] }));
-    });
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    try {
-      const port = (server.address() as AddressInfo).port;
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-localai-fallback-"));
-      const probeExternalLocalRuntime = vi.fn(async () => ({
-        schemaVersion: 1 as const,
-        deployment: "external" as const,
-        runtimeId: "localai:assumed",
-        kind: "localai" as const,
-        origin: `http://127.0.0.1:${port}`,
-        apiBaseUrl: `http://127.0.0.1:${port}/v1`,
-        identity: "assumed" as const,
-        auth: { mode: "none" as const, scope: "none" as const },
-        health: "ready" as const,
-        capabilities: [],
-        certification: "uncertified" as const,
-        diagnostics: [],
-        checkedAt: "2026-08-30T00:00:00.000Z",
-      }));
-      const service = createRuntimeIntegrationSessionService({
-        filePath: path.join(dir, "sessions.json"),
-        certification: { probeExternalLocalRuntime } as never,
-        approvalReceiptAuthority: { resolveReceiptToken: vi.fn(), verifyReceipt: vi.fn() } as never,
-      });
-      const session = service.begin({
-        kind: "http-api-provider",
-        name: "Local OpenAI API",
-        baseUrl: `http://127.0.0.1:${port}/v1`,
-        authType: "none",
-        providerKind: "openai-compatible",
-      }, "codex");
-      const ready = service.markCredentialReady(session.id, "no-secret", "codex");
-      const discovered = await service.discover(session.id, ready.revision, "codex");
-
-      expect(discovered.candidates).toEqual([
-        expect.objectContaining({ modelKey: "fallback-chat", kind: "text", evidence: ["remote"] }),
-      ]);
-      expect(requests).toContain("/v1/models");
-      expect(probeExternalLocalRuntime).toHaveBeenCalledTimes(1);
-    } finally {
-      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
-    }
   });
 
   it("enqueues a safe credential handoff after opening the credential page", () => {
@@ -463,7 +322,6 @@ describe("IntegrationSessionService", () => {
     const service = new IntegrationSessionService({
       filePath,
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
-      discoverHttp: () => [{ modelKey: "text-1", kind: "text" }],
       approvalReceiptAuthority: {
         requestChallenge: requestChallenge as never,
         resolveReceiptToken: vi.fn(),
@@ -477,8 +335,7 @@ describe("IntegrationSessionService", () => {
       "codex",
     );
     const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const discovered = await service.discover(session.id, ready.revision, "codex");
-    const selected = service.select(session.id, discovered.revision, "codex", [{ modelKey: "text-1" }]);
+    const selected = await proposeHttp(service, session.id, ready.revision, "codex");
     const challenge = service.requestConfirmation(selected.id, selected.revision, "codex", "idem");
     expect(JSON.stringify(challenge)).not.toContain("challenge-token");
     expect(requestChallenge).toHaveBeenCalledWith(
@@ -549,7 +406,6 @@ describe("IntegrationSessionService", () => {
       certification: certification as never,
       approvalReceiptAuthority: authority,
       credentialResolver: () => "secret-is-main-only",
-      discoverHttp: () => [{ modelKey: "text-1", kind: "text", modes: ["chat"] }],
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
       enqueueHandoff: () => undefined,
     });
@@ -558,8 +414,7 @@ describe("IntegrationSessionService", () => {
       "codex",
     );
     const ready = service.markCredentialReady(session.id, "opaque", "codex");
-    const discovered = await service.discover(session.id, ready.revision, "codex");
-    const selected = service.select(session.id, discovered.revision, "codex", [{ modelKey: "text-1" }]);
+    const selected = await proposeHttp(service, session.id, ready.revision, "codex");
     const requested = service.requestConfirmation(selected.id, selected.revision, "codex", "confirm-once");
     const afterRequest = service.get(selected.id, "codex");
     const confirmed = service.confirmFromTrustedUi({

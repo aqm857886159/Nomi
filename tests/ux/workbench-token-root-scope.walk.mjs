@@ -138,7 +138,7 @@ try {
   // ── MCP 触发真卡（浮在库页上）──
   agent = spawnAgent()
   ok(Boolean((await agent.start())?.result), 'stdio MCP 起来了（不声明 elicitation → 走应用内卡）')
-  const proj = await agent.callTool('nomi_create_project', { name: 'token 作用域走查' })
+  const proj = await agent.callTool('nomi_project_create', { name: 'token 作用域走查' })
   const projectId = proj.json?.projectId || proj.json?.id
   ok(projectId, `建项目（${projectId}）`)
   const gen = agent.callTool('nomi_generate', {

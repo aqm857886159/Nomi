@@ -191,7 +191,7 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
                 <NomiLogoMark size={22} />
                 {t('generationCommon.savePrompt.title')}
               </div>
-              <button type="button" className="grid size-8 place-items-center rounded-nomi-sm border-0 bg-transparent text-nomi-ink-45 hover:bg-nomi-ink-05 hover:text-nomi-ink" onClick={closeDraft}>
+              <button type="button" className="grid size-8 place-items-center rounded-nomi-sm border-0 bg-transparent text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink" onClick={closeDraft}>
                 <IconX size={17} stroke={1.8} aria-hidden />
               </button>
             </header>

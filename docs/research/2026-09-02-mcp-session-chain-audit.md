@@ -8,7 +8,7 @@
 
 **真走通：** 34 条记录（S-01..S-27，包含轮询记录），协议握手、A/B 项目创建、会话打开、canvas 读、错误项目范围、同连接并发请求、跨连接拒绝、SIGKILL、磁盘项目恢复、真实 lease expiry 均有活体结果。过期段按最多 60 秒一段前台轮询，未注入时钟、未改 token、未使用 `NOMI_LOOP_SPEND_OK`。
 
-**控制组红灯：** `pnpm run build` 通过；随后 `pnpm run test:mcp` 在真实 stdio 初始化后，于旧调用 `nomi_create_project` 失败：`未知工具: nomi_create_project`。M2 已将模型/MCP 面收敛到 `nomi_project_create`（`electron/capabilityCore/mcpToolCatalog.ts:278-286`），旧 J-MCP1 仍是未迁移的红灯，不把它算成 session 运输通过。
+**控制组红灯：** `pnpm run build` 通过；随后旧 MCP 入口在真实 stdio 初始化后，于旧调用 `nomi_create_project` 失败：`未知工具: nomi_create_project`。M2 已将模型/MCP 面收敛到 `nomi_project_create`（`electron/capabilityCore/mcpToolCatalog.ts:278-286`），旧 J-MCP1 仍是未迁移的红灯，不把它算成 session 运输通过。
 
 **证据边界：** 这次是真 MCP stdio + Electron 主进程链，不是 GUI renderer 审批卡；没有生成、付费、Host resident shell 或跨机器网络链。项目恢复证明的是持久化项目可重新选择，不证明原连接、原 sessionId 或原 lease 可跨进程复活。
 
@@ -31,7 +31,7 @@
 
 ### R-01（P0，链路合同漂移）
 
-- **症状：** 旗舰 `test:mcp` 在 initialize 后调用已删除的 `nomi_create_project`，立即收到 `未知工具`。
+- **症状：** 旧旗舰 MCP 入口在 initialize 后调用已删除的 `nomi_create_project`，立即收到 `未知工具`。
 - **直接原因：** M2 语义面已将建项目入口收敛为 `nomi_project_create`，旧旅程仍引用旧名；当前目录由 `mcpToolCatalog.ts:278-286` 注册新名，`mcpSurfaceCollapse.test.ts:238-240` 只验证新路由。
 - **类根因：** 工具删除后的真实旅程没有和工具目录同一触发面迁移，导致运输通过被误报成业务链通过。
 - **影响：** M3 的 session 链回归入口在第一业务步红，任何后续上下文/技能验收都可能没有真实调用地基。
@@ -73,7 +73,7 @@
 
 | 红灯 | 可复演断言 | 今天预期 |
 |---|---|---|
-| R1 | `pnpm run test:mcp` 使用当前语义工具目录走通 create→open→read，不再调用 `nomi_create_project` | 红 |
+| R1 | 旧旗舰 MCP 入口使用当前语义工具目录走通 create→open→read，不再调用 `nomi_create_project` | 红 |
 | R2 | create/open 的 `structuredContent.nomiOutcome` 同时含 `projectId/projectSelectionHandle` 与 `sessionId/leaseHandle/expiresAt/effectiveScope` | 红 |
 | R3 | 同连接 A/B 并发 session 的 identity 语义明确：若允许独立 session，`sessionId` 不相同；若连接级复用，结果显式声明 `connectionSessionId` 且 context key 不用它冒充 turn session | 红 |
 | R4 | 第二连接/崩溃后旧 handle 不可复用时，错误给出可执行的重新选择入口；若支持恢复，则必须用新的真实连接完成同一 thread checkpoint replay | 红 |
@@ -90,6 +90,6 @@
 ## 5. 活体命令与结果边界
 
 - 构建：`pnpm run build`：通过。
-- 控制组：`pnpm run test:mcp`：红，失败点为已删除旧工具 `nomi_create_project`。
+- 控制组：旧旗舰 MCP 入口：红，失败点为已删除旧工具 `nomi_create_project`。
 - 审计：使用 `tests/ux/_mcpJourney.mjs` 的真实 `spawnMcpStdioClient`，隔离目录、真实 Electron stdio、真实 MCP RPC；活体记录为本文件 S-01..S-27。
 - 结论：transport/session guard 基本 fail-closed，但“结构化续链、并发 session identity、crash resume、expiry observability、旧旅程迁移”仍是 M3 红灯，不得把本审计称为 M3 完成。

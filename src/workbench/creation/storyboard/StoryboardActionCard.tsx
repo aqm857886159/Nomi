@@ -59,7 +59,7 @@ export default function StoryboardActionCard({
         ) : null}
       </div>
       {kind === 'storyboard' ? (
-        <div className={cn('flex items-center gap-1.5 text-micro text-nomi-ink-50')}>
+        <div className={cn('flex items-center gap-1.5 text-micro text-nomi-ink-40')}>
           <IconMovie size={12} stroke={1.8} aria-hidden="true" />
           <span>{t('storyboardEditor.action.typeHint')}</span>
         </div>

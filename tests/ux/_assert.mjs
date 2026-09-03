@@ -576,3 +576,8 @@ export async function readComputedColorChannels(locator, property = 'color') {
   const channels = (raw.match(/-?\d*\.?\d+/g) ?? []).map(Number)
   return { raw, channels }
 }
+
+// ── 形态契约（2026-09-03）──
+// 意图层（拍板方手写的结构关系）与自动层（从样张导出的挂点/几何/token）**共用这一个入口**，
+// 实现在 `_contract.mjs`。走查里 `import { assertMockupContract } from './_assert.mjs'` 即可。
+export { assertMockupContract, TOKEN_STEP_PX, MAGNITUDE_RATIO } from './_contract.mjs'

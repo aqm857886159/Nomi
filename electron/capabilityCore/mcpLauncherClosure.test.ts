@@ -103,4 +103,8 @@ describe('mcpNodeLauncher 值导入闭包 —— electron-free 结构不变量',
             `或把仅取类型的导入改成 \`import type\`。`,
     ).toEqual([])
   })
+
+  // 姊妹不变量住在别处：本文件管「launcher 的 import 闭包不能有 electron 值导入」（08-18 打包事故），
+  // 而「两个装配点必须传齐 McpTransport 的可选成员」（09-03 打包事故）由 scripts/check-transport-assembly.mjs
+  // 管——它对着接口枚举成员，覆盖整族且新增成员自动纳入，比在这里钉单个字段名强。
 })

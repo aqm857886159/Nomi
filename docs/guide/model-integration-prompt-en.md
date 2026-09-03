@@ -20,7 +20,7 @@ You are helping me connect an AI provider to my local Nomi installation. I need 
 
 ## Start with the existing Nomi Skill and MCP
 
-1. Confirm that the Nomi MCP server is connected and that these tools are available: `nomi_integration_begin`, `nomi_integration_open_credentials`, `nomi_integration_discover`, `nomi_integration_select`, `nomi_integration_request_confirmation`, `nomi_integration_start`, and `nomi_integration_get`.
+1. Confirm that the Nomi MCP server is connected and that these tools are available: `nomi_integration`, `nomi_integration_manage`, and `nomi_read`.
 2. If the tools are missing, tell me to open Nomi's **Model setup → Connect AI coding assistant** card, complete its generated configuration, and restart this client. Do not hand-edit an MCP config as a workaround.
 3. Read the `model-integration` Skill if this MCP host exposes `nomi-skill://model-integration`. If a repository checkout is open, also read `skills/model-integration/SKILL.md`, `docs/provider-integration.md`, `docs/guide/model-connection-en.md`, and `docs/guide/capability-core-cli-mcp.md`. Treat the Skill and tool schemas as the source of truth.
 
@@ -38,15 +38,14 @@ Do not ask for the API key. Do not ask for my phone number or private contact de
 
 ## Connect and certify the provider
 
-1. Call `nomi_integration_begin` with the public connection material. Preserve the documentation URL and the provider's exact terminology as evidence.
-2. Call `nomi_integration_open_credentials` so I can enter the key in Nomi's secure UI. Wait for me to finish; never handle the key yourself.
-3. Call `nomi_integration_discover` until every result page has been covered. Keep each exact model ID, declared mode, evidence source, and classification state. Do not silently truncate results.
-4. Show me a concise list of candidates that match my requested modes. If a model or mode is unavailable, state its stable reason and one next action.
-5. Call `nomi_integration_select` with the exact candidates I choose. If it returns `unresolvedFields`, ask all of those questions together and submit all answers through `nomi_integration_resolve_input`.
-6. For native ComfyUI, use `nomi_integration_submit_workflow` and bind inputs by `nodeId`, `inputKey`, `paramKey`, and `mediaKind`. Never map `widgets_values` by array position. A cloud service that does not implement native ComfyUI routes is an ordinary HTTP provider.
-7. Before any paid or external generation, call `nomi_integration_request_confirmation`. I must confirm the exact provider, model(s), modes, and expected cost in Nomi's trusted UI; you cannot invent or bypass the receipt.
-8. After I confirm in Nomi, call `nomi_integration_start` with the opaque receipt handle returned by Nomi.
-9. Poll `nomi_integration_get` and report the real final state. Treat credential storage, successful discovery, or a staged draft as incomplete. Say “verified and available” only after the certification run completes, the bounded artifact is decoded, the journal is committed, and a fresh-process readback succeeds.
+1. Call `nomi_integration` with `action: "begin"` and the public connection material. Preserve the documentation URL and the provider's exact terminology as evidence.
+2. Call `nomi_integration` with `action: "open_credentials"` so I can enter the key in Nomi's secure UI. Wait for me to finish; never handle the key yourself.
+3. Read the official docs and use web/Bash to discover every candidate page, translate relay quirks, and keep exact model IDs and modes. Do not ask Nomi to perform discovery or pagination.
+4. Show me a concise list of candidates that match my requested modes, then call `nomi_integration` once with `action: "propose"`, complete HTTP `candidates` + `selections`, or a final ComfyUI `workflow`. If it returns a readable `propose rejected` reason, fix that field and retry with the returned revision.
+5. For native ComfyUI, put the final workflow in the `propose` payload and bind inputs by `nodeId`, `inputKey`, `paramKey`, and `mediaKind` when applicable. Never map `widgets_values` by array position. A cloud service that does not implement native ComfyUI routes is an ordinary HTTP provider.
+6. Before any paid or external generation, call `nomi_integration` with `action: "confirm"`. I must confirm the exact provider, model(s), modes, and expected cost in Nomi's trusted UI; you cannot invent or bypass the receipt.
+7. After I confirm in Nomi, call `nomi_integration` with `action: "start"` and the opaque receipt handle returned by Nomi.
+8. Poll `nomi_read` with `target: "integration"` and report the real final state. Treat credential storage, accepted proposal, or a staged draft as incomplete. Say “verified and available” only after the certification run completes, the bounded artifact is decoded, the journal is committed, and a fresh-process readback succeeds.
 
 ## If the provider's private upload channel is missing
 

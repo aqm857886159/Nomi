@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { executeMultipartOperation } from "./multipartOperation";
+import { executeMultipartOperation, runMultipartProfileOperation } from "./multipartOperation";
 import { OPENAI_MULTIPART_IMAGE_EDIT_OP } from "./newapiTransport";
 import { taskTemplateParams } from "./taskParams";
 import { applyParamMap } from "./paramTranslate";
@@ -70,6 +70,31 @@ describe("multipart 图生图（/v1/images/edits）请求装配", () => {
     await expect(
       executeMultipartOperation({ multipart: spec, context, resolveImage: fakeResolver([]), send: async () => ({}) }),
     ).rejects.toThrow(/参考图/);
+  });
+
+  // 类级锁（2026-09-03）：multipart 路必须尊重调用方注入的 localAssetReader，与 JSON 路同口径
+  // （runtime.ts 的 JSON 分支一直尊重它）。此前这里写死生产解析器，认证探针靠该注入口喂 fixture
+  // 参考图（nomi-local://adapter-test/…）——被忽略 → 取不到字节 → multipart 改图通道永远认证不过
+  // → 落库缺 image_edit mapping → 用户连参考图被拒发「该模型没有图生图通道」。
+  it("尊重注入的 localAssetReader —— 认证探针的 fixture 参考图必须能喂进 multipart", async () => {
+    let sentForm: FormData | undefined;
+    await runMultipartProfileOperation(
+      {
+        vendor: { key: "v", baseUrlHint: "https://x" } as never,
+        model: { modelKey: "gpt-image-2" } as never,
+        apiKey: "k",
+        request: { prompt: "改图", extras: { referenceImages: ["nomi-local://adapter-test/reference.png"] } } as never,
+        operation: OPENAI_MULTIPART_IMAGE_EDIT_OP,
+        localAssetReader: () => ({ bytes: Buffer.from([1, 2, 3, 4]), contentType: "image/png", fileName: "ref.png" }),
+      },
+      async (_u, _h, _q, form) => {
+        sentForm = form;
+        return {};
+      },
+    );
+    const files = sentForm!.getAll("image[]") as File[];
+    expect(files).toHaveLength(1);
+    expect(files[0].size).toBe(4);
   });
 
   it("取字节失败（resolver 返 null）→ 抛，不静默丢图发半套", async () => {

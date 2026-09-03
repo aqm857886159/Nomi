@@ -488,7 +488,7 @@ Expected: all commands exit 0; existing warning baseline does not increase.
 - [x] **Step 3: Run the user-visible MCP journey and inspect its evidence**
 
 ```bash
-pnpm run test:mcp
+pnpm run test:mcp-journey
 pnpm exec vitest run electron/capabilityCore/nomiMcpGenerationPlanning.test.ts --reporter=dot
 ```
 

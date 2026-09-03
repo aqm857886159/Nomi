@@ -567,6 +567,7 @@ export type DesktopBridge = DesktopMediaBridge & DesktopConnectorBridge & {
   events?: {
     append: (projectId: string, events: unknown[]) => Promise<{ ok: boolean; count: number; lastSeq: number }>
     read: (projectId: string, fromSeq: number) => Promise<{ ok: boolean; events: unknown[] }>
+    generationEtaStats?: (projectId: string) => { ok: boolean; stats: unknown[] }
   }
   /** S9 项目记忆卡:get=增量提炼+读;update=pin/纠正(text→origin:user);remove=删+墓碑。 */
   memory?: {

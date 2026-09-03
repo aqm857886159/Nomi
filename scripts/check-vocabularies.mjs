@@ -155,6 +155,7 @@ function writePendingEntries(baselinePath, baseline, vocabularies) {
     registered: [...(baseline.registered ?? [])],
     debt: [...(baseline.debt ?? [])],
   }
+  if (baseline.converged !== undefined) next.converged = [...baseline.converged]
   const knownSites = new Set(baselineEntries(next).map((entry) => entry.site))
   for (const vocabulary of vocabularies) {
     if (knownSites.has(vocabulary.site)) continue
@@ -218,6 +219,53 @@ function validateBaseline(baseline) {
     }
     seen.add(entry.site)
   }
+  if (baseline.converged !== undefined) {
+    if (!Array.isArray(baseline.converged)) {
+      failures.push({ kind: 'invalid-baseline', message: 'converged must be an array' })
+    } else {
+      const retiredOwners = new Set()
+      for (const [index, record] of baseline.converged.entries()) {
+        const label = `converged[${index}]`
+        if (!record || typeof record !== 'object' || Array.isArray(record)) {
+          failures.push({ kind: 'invalid-baseline', message: `${label} must be an object` })
+          continue
+        }
+        if (!Array.isArray(record.retiredOwners) || record.retiredOwners.length === 0) {
+          failures.push({ kind: 'invalid-baseline', message: `${label}.retiredOwners must be a non-empty array` })
+        } else {
+          const recordRetiredOwners = new Set()
+          for (const [ownerIndex, site] of record.retiredOwners.entries()) {
+            if (typeof site !== 'string' || !site.trim()) {
+              failures.push({
+                kind: 'invalid-baseline',
+                message: `${label}.retiredOwners[${ownerIndex}] must be a non-empty string`,
+              })
+              continue
+            }
+            if (recordRetiredOwners.has(site)) {
+              failures.push({ kind: 'invalid-baseline', message: `${label} repeats retired owner：${site}` })
+            }
+            recordRetiredOwners.add(site)
+            if (retiredOwners.has(site)) {
+              failures.push({
+                kind: 'invalid-baseline',
+                message: `retired owner appears in multiple convergences：${site}`,
+              })
+            }
+            retiredOwners.add(site)
+          }
+        }
+        if (typeof record.survivingOwner !== 'string' || !record.survivingOwner.trim()) {
+          failures.push({ kind: 'invalid-baseline', message: `${label}.survivingOwner must be a non-empty string` })
+        } else if (record.retiredOwners?.includes(record.survivingOwner)) {
+          failures.push({
+            kind: 'invalid-baseline',
+            message: `${label}.survivingOwner must not also be retired：${record.survivingOwner}`,
+          })
+        }
+      }
+    }
+  }
   return failures
 }
 
@@ -267,6 +315,31 @@ export function evaluate(vocabularies, baseline) {
   const currentBySite = new Map(vocabularies.map((vocabulary) => [vocabulary.site, vocabulary]))
   const entryBySite = new Map(entries.map((entry) => [entry.site, entry]))
   const failures = []
+
+  for (const record of baseline.converged ?? []) {
+    // Retired sites must be gone from the live scan; otherwise this is a claim
+    // about a rename or duplicate, not evidence of a completed convergence.
+    for (const retiredOwner of record.retiredOwners) {
+      if (currentBySite.has(retiredOwner)) {
+        failures.push({
+          kind: 'convergence-retired-present',
+          retiredOwner,
+          survivingOwner: record.survivingOwner,
+        })
+      }
+    }
+    // The survivor must still be discoverable, or the record would explain a
+    // reduction with no live owner receiving the vocabulary.
+    if (!currentBySite.has(record.survivingOwner)) {
+      failures.push({ kind: 'convergence-surviving-absent', survivingOwner: record.survivingOwner })
+    }
+    // A convergence record explains provenance only; ownership still requires
+    // the normal registered bucket and its substantive reason check below.
+    const survivingEntry = baseline.registered.find((entry) => entry.site === record.survivingOwner)
+    if (!survivingEntry) {
+      failures.push({ kind: 'convergence-surviving-not-registered', survivingOwner: record.survivingOwner })
+    }
+  }
 
   const unregistered = vocabularies.filter((vocabulary) => !entryBySite.has(vocabulary.site))
   const stale = entries.filter((entry) => !currentBySite.has(entry.site))
@@ -334,6 +407,48 @@ export function evaluateHistoricalRatchet(vocabularies, baseline, referenceBasel
   const consumedRetiredCanonicalSites = new Set()
   const consumedReplacementCanonicalSites = new Set()
 
+  const validConvergenceByRetiredSite = new Map()
+  const referenceEntriesBySite = new Map(baselineEntries(referenceBaseline).map((entry) => [entry.site, entry]))
+  for (const record of baseline.converged ?? []) {
+    if (
+      record.retiredOwners.some((site) => currentVocabularySites.has(site)) ||
+      !currentVocabularySites.has(record.survivingOwner)
+    ) {
+      continue
+    }
+    const surviving = currentRegistered.find((candidate) => candidate.site === record.survivingOwner)
+    // A retired site must be present in the old ledger; otherwise the record
+    // could invent history for an owner that was never part of the ratchet.
+    const missingReferenceOwner = record.retiredOwners.find((site) => !referenceEntriesBySite.has(site))
+    if (missingReferenceOwner) {
+      failures.push({
+        kind: 'convergence-retired-unreferenced',
+        retiredOwner: missingReferenceOwner,
+        survivingOwner: record.survivingOwner,
+        referenceLabel,
+      })
+      continue
+    }
+    if (!surviving || !isSubstantiveReason(surviving.reason)) continue
+    // Matching normalized members proves this record explains this vocabulary,
+    // rather than granting a same-site/name-independent promotion exception.
+    const mismatchedReferenceOwner = record.retiredOwners.find(
+      (site) => !sameMembers(referenceEntriesBySite.get(site).members, surviving.members),
+    )
+    if (mismatchedReferenceOwner) {
+      failures.push({
+        kind: 'convergence-members-mismatch',
+        retiredOwner: mismatchedReferenceOwner,
+        survivingOwner: record.survivingOwner,
+        referenceLabel,
+      })
+      continue
+    }
+    for (const retiredOwner of record.retiredOwners) {
+      validConvergenceByRetiredSite.set(retiredOwner, record.survivingOwner)
+    }
+  }
+
   if (baseline.debtCap > referenceBaseline.debtCap) {
     failures.push({
       kind: 'historical-cap-increased',
@@ -362,6 +477,15 @@ export function evaluateHistoricalRatchet(vocabularies, baseline, referenceBasel
       continue
     }
     if (currentDebtIdentities.has(identity)) continue
+    const convergenceSurvivor = validConvergenceByRetiredSite.get(entry.site)
+    const convergedPromotion = convergenceSurvivor
+      ? currentRegistered.find(
+          (candidate) => candidate.site === convergenceSurvivor && sameMembers(candidate.members, entry.members),
+        )
+      : undefined
+    // Only an independently validated record can explain a debt reduction. The
+    // regular promotion guard below remains unchanged for every other rename.
+    if (convergedPromotion) continue
     const renamedPromotions = currentRegistered.filter(
       (candidate) =>
         sameMembers(candidate.members, entry.members) &&
@@ -433,6 +557,24 @@ function renderFailures(failures) {
         }
       }
       console.error('    → 先复用现有 owner；确需独立时登记并写明 reason。\n')
+    } else if (failure.kind === 'convergence-retired-present') {
+      console.error(`  convergence retired owner is still present：${failure.retiredOwner}`)
+      console.error(`    surviving owner：${failure.survivingOwner}`)
+      console.error('    → retired owners must be absent from the live source scan.\n')
+    } else if (failure.kind === 'convergence-surviving-absent') {
+      console.error(`  convergence surviving owner is absent：${failure.survivingOwner}`)
+      console.error('    → the surviving owner must be present in the live source scan.\n')
+    } else if (failure.kind === 'convergence-surviving-not-registered') {
+      console.error(`  convergence surviving owner is not registered：${failure.survivingOwner}`)
+      console.error('    → the surviving owner still needs a substantive registered entry.\n')
+    } else if (failure.kind === 'convergence-retired-unreferenced') {
+      console.error(`  convergence retired owner is absent from reference baseline：${failure.retiredOwner}`)
+      console.error(`    surviving owner：${failure.survivingOwner}`)
+      console.error(`    reference：${failure.referenceLabel}\n`)
+    } else if (failure.kind === 'convergence-members-mismatch') {
+      console.error(`  convergence members do not match the surviving owner：${failure.retiredOwner}`)
+      console.error(`    surviving owner：${failure.survivingOwner}`)
+      console.error(`    reference：${failure.referenceLabel}\n`)
     } else if (failure.kind === 'owner-moved') {
       console.error(`  owner moved：${failure.entry.site} → ${failure.vocabulary.site}`)
       console.error(`    members：[${failure.vocabulary.members.join(' | ')}]`)

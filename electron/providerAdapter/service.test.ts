@@ -1120,7 +1120,7 @@ describe("ProviderAdapterService", () => {
     // 编译不出来的只可能是媒体模型——文本压根不进编译器（分级，2026-08-12）。
     deps.compile = async () => ({
       draft: { ...draft(), models: [] },
-      failures: [{ modelKey: "paint-v2", error: "No documented image mode" }],
+      failures: [{ modelKey: "paint-v2", error: "No documented image mode", reason: "docs_not_understood" as const }],
     });
     const service = new ProviderAdapterService(store(), deps);
     const started = await service.start(startInput);

@@ -10,7 +10,7 @@ import { MCP_TOOL_CATALOG } from "./mcpToolCatalog";
 import { createMcpProtocol, type McpTransport } from "./mcpProtocol";
 import { IntegrationSessionService } from "../integrationCertification/integrationSession";
 
-// 面收敛（surface-16-collapse）：10 个 integration_* 工具塌成 1 个 nomi_integration（action 枚举 + expectedRevision 单锁）。
+// Q8：T14 只保留 5 个确定性缝，provider discovery/workflow orchestration 由 Agent 在 propose 外完成。
 function beginTool() {
   return MCP_INTEGRATION_TOOL;
 }
@@ -83,6 +83,53 @@ describe("MCP integration tool contract", () => {
         { integrationSessions: sessions, origin: { host: "external" } } as never,
       ),
     ).rejects.toThrow(/signed client identity/i);
+  });
+
+  it("accepts a complete public proposal, rejects bad fields readably, and supports CAS patch retry", async () => {
+    const sessions = service();
+    const created = await dispatch(
+      "integration.begin",
+      { kind: "http-api-provider", name: "Relay", baseUrl: "https://relay.example/v1" },
+      { integrationSessions: sessions, origin: { host: "codex" } } as never,
+    ) as { id: string; revision: number };
+    const ready = sessions.markCredentialReady(created.id, "ref-never-returned", "codex");
+    const invalid = {
+      candidates: [{ modelKey: "relay-text", kind: "text", apiKey: "secret" }],
+      selections: [{ modelKey: "relay-text" }],
+    };
+    expect(validateToolArguments(MCP_INTEGRATION_TOOL.name, MCP_INTEGRATION_TOOL.inputSchema, {
+      action: "propose", sessionId: created.id, expectedRevision: ready.revision, proposal: invalid,
+    })?.message).toContain("未知参数");
+    await expect(dispatch("integration.propose", {
+      sessionId: created.id, expectedRevision: ready.revision,
+      proposal: { candidates: [{ modelKey: "relay-text", kind: "image" }], selections: [{ modelKey: "wrong" }] },
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never)).rejects.toThrow(/proposal\.selections\[0\]\.modelKey.*proposal\.candidates/);
+    expect(sessions.get(created.id, "codex").revision).toBe(ready.revision);
+    const accepted = await dispatch("integration.propose", {
+      sessionId: created.id, expectedRevision: ready.revision,
+      proposal: { candidates: [{ modelKey: "relay-text", kind: "text" }], selections: [{ modelKey: "relay-text" }] },
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as { stage: string; revision: number; selections: unknown[] };
+    expect(accepted.stage).toBe("needs_spend_confirmation");
+    expect(accepted.selections).toHaveLength(1);
+    await expect(dispatch("integration.propose", {
+      sessionId: created.id, expectedRevision: ready.revision,
+      proposal: { candidates: [{ modelKey: "relay-text", kind: "text" }], selections: [{ modelKey: "relay-text" }] },
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never)).rejects.toThrow(/stale/);
+  });
+
+  it("rejects an invalid ComfyUI proposal before the CAS write", async () => {
+    const sessions = service();
+    const created = await dispatch(
+      "integration.begin",
+      { kind: "comfyui-workflow", name: "Workflow" },
+      { integrationSessions: sessions, origin: { host: "codex" } } as never,
+    ) as { id: string; revision: number };
+    await expect(dispatch("integration.propose", {
+      sessionId: created.id,
+      expectedRevision: created.revision,
+      proposal: { workflow: "{}" },
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never)).rejects.toThrow(/proposal\.workflow/);
+    expect(sessions.get(created.id, "codex").revision).toBe(created.revision);
   });
 
   it("advertises every integration action to tools-only clients without reading a Skill resource", async () => {

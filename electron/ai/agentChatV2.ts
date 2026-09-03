@@ -4,6 +4,8 @@ import { agentToolsForRequest, agentToolIsInScope, captureAgentChatRequest, capt
 import { agentContextHost, withAgentRuntimePaths } from '../harness/context/agentContextHost';
 import { NOMI_AGENT_IDENTITY, buildLanguageRule, readRequestedSkill, resolveRequestedSkill } from '../harness/context/agentContext';
 import { compilePromptPipe, deriveSkillLoadEvents, measurePromptCacheUsage, type CompiledPrompt, type SkillLedgerItem, type SkillLoadEvent } from '../harness/context/promptPipe';
+import { projectProvenance } from '../harness/context/provenance';
+import { classifyToolAction, evaluateProvenanceAction } from '../harness/context/provenanceActionGuard';
 import type { RuntimeTurnHooks, NomiModelConfig } from '../harness/runtime/runtimePort';
 import { projectIdFromSessionKey } from '../events/eventLogRepository';
 import { getProjectMemory, formatMemoryForPrompt } from '../memory/projectMemory';
@@ -21,6 +23,7 @@ import { formatNomiSkillIndex, listNomiSkillIndexEntries } from '../harness/skil
 import { formatAgentContextSnapshot } from '../shared/agentContextSnapshot';
 import { workModeInstruction } from './agentWorkModePolicy';
 import { findSkillRecord } from '../skills/skillStore';
+import { desktopT } from '../i18n';
 
 export type RunAgentChatV2Payload = AgentChatRequest;
 export type AgentChatV2Event = AgentChatActivity;
@@ -63,7 +66,18 @@ export async function runAgentChatV2(input: AgentChatRequest, hooks: AgentChatV2
     awaitToolConfirmation: (call, signal) => {
       signal.throwIfAborted();
       if (!agentToolIsInScope(payload, call, requestedCapabilities)) return Promise.resolve({ ok: false, denied: true, message: 'Tool target is outside this request capability' });
-      return hooks.awaitToolConfirmation(call, signal);
+      const guard = evaluateProvenanceAction(classifyToolAction(call.toolName), promptCompilation?.provenance ?? []);
+      return hooks.awaitToolConfirmation(call, signal).then((decision) => {
+        if (decision.ok || !guard.requiresConfirmation || decision.message) return decision;
+        return {
+          ...decision,
+          code: guard.reasonCode,
+          message: desktopT('agent.provenanceConfirmation', {
+            sources: guard.taintedSourceRefs.join(', '),
+            action: guard.action,
+          }),
+        };
+      });
     },
   };
   const result = await withAgentRuntimePaths((paths) => agentContextHost.run(payload.history, async (signal) => {
@@ -160,6 +174,8 @@ export async function runAgentChatV2(input: AgentChatRequest, hooks: AgentChatV2
         estimatedTokens: promptCompilation.estimatedTokens,
         byteLength: promptCompilation.byteLength,
         warnings: promptCompilation.warnings,
+        provenance: promptCompilation.provenance,
+        taintedSourceRefs: promptCompilation.taintedSourceRefs,
         ...(promptCompilation.budgetWarning ? { budgetWarning: promptCompilation.budgetWarning } : {}),
       },
     };
@@ -177,5 +193,9 @@ export async function runAgentChatV2(input: AgentChatRequest, hooks: AgentChatV2
     ...(promptCompilation ? { promptCache: measurePromptCacheUsage(promptCompilation, result.usage) } : {}),
     ...(promptCompilation?.budgetWarning ? { promptBudgetWarning: promptCompilation.budgetWarning } : {}),
     ...(promptCompilation?.warnings.length ? { promptWarnings: promptCompilation.warnings } : {}),
+    ...(promptCompilation ? {
+      provenance: projectProvenance(promptCompilation.provenance),
+      taintedSourceRefs: promptCompilation.taintedSourceRefs,
+    } : {}),
   };
 }
