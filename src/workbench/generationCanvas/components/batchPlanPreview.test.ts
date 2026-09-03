@@ -19,6 +19,7 @@ vi.mock('../../../ui/toast', () => ({
 vi.mock('../spend/spendConfirm', () => ({
   confirmAndMintGrant: mocks.confirmAndMintGrant,
   describeGenerationCost: vi.fn(() => '1 image'),
+  generationCostContextForNodes: vi.fn(() => ({ vendorKey: 'v', modelKey: 'm', etaStats: [] })),
 }))
 
 vi.mock('../store/generationCanvasStore', () => ({
