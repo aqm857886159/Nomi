@@ -246,7 +246,8 @@
         "paddingRight": "12px",
         "paddingBottom": "8px",
         "paddingLeft": "12px"
-      }
+      },
+      "responsiveH": true
     },
     {
       "anchor": "data-agent-compaction-line",
