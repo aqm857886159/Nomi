@@ -185,10 +185,10 @@ describe('C3 全能参考 — 数组槽声明', () => {
       { kind: 'audio_ref', label: '参考音频', min: 0, max: 3, requiresAnyOf: ['image_ref', 'video_ref'] },
     ])
     const arr = archetypeModeArraySlots(OMNI)
-    expect(arr.map((s) => [s.metaKey, s.max, s.numbered])).toEqual([
-      ['referenceImageUrls', 9, true],
-      ['referenceVideoUrls', 3, false],
-      ['referenceAudioUrls', 3, false],
+    expect(arr.map((s) => [s.metaKey, s.max, s.accept, s.numbered])).toEqual([
+      ['referenceImageUrls', 9, 'image', true],
+      ['referenceVideoUrls', 3, 'video', false],
+      ['referenceAudioUrls', 3, 'audio', false],
     ])
     expect(arr[0].caption).toMatch(/编号/)
   })
