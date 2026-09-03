@@ -6,7 +6,7 @@ import path from 'node:path'
 export const PRODUCTION_E2E_FIXTURE_PROVIDER = 'nomi-e2e-fixture'
 export const PRODUCTION_E2E_FIXTURE_MODEL = 'nomi-e2e-fixture-video'
 
-type FixtureEnvironment = Partial<Record<'NOMI_E2E' | 'NOMI_E2E_PRODUCTION_FIXTURE', string | undefined>>
+type FixtureEnvironment = Partial<Record<'NOMI_E2E' | 'NOMI_E2E_PRODUCTION_FIXTURE' | 'NOMI_E2E_PACKAGED_FIXTURE', string | undefined>>
 
 type FixtureOptions = {
   projectRootResolver: (projectId: string) => string | null
@@ -26,9 +26,12 @@ export function isProductionRunE2eFixtureEnabled(
   env: FixtureEnvironment,
   isPackaged: boolean,
 ): boolean {
-  return !isPackaged
-    && env.NOMI_E2E === '1'
-    && env.NOMI_E2E_PRODUCTION_FIXTURE === '1'
+  // In packaged mode the fixture is disabled by default so production users
+  // are never exposed to it.  CI packaged E2E can opt back in by setting
+  // NOMI_E2E_PACKAGED_FIXTURE=1 in addition to the normal two flags.  This
+  // three-flag gate makes an accidental opt-in extremely unlikely.
+  if (isPackaged && env.NOMI_E2E_PACKAGED_FIXTURE !== '1') return false
+  return env.NOMI_E2E === '1' && env.NOMI_E2E_PRODUCTION_FIXTURE === '1'
 }
 
 function identifier(value: unknown, label: string): string {
@@ -329,6 +332,29 @@ export function createProductionRunE2eRenderer(options: FixtureOptions) {
           })),
         },
       }
+    }
+
+    if (operation === 'production.materialize-shots') {
+      const rawShots = (payload as Record<string, unknown>).shots
+      const shots = Array.isArray(rawShots) ? rawShots : []
+      if (shots.length === 0) throw new Error('Production fixture semantic materialize requires shots')
+      const bindings = shots.map((rawShot, index) => {
+        const shot = rawShot && typeof rawShot === 'object' && !Array.isArray(rawShot)
+          ? rawShot as Record<string, unknown>
+          : {}
+        const shotId = typeof shot.shotId === 'string' && shot.shotId.trim()
+          ? shot.shotId.trim()
+          : `shot-${index + 1}`
+        return {
+          shotId,
+          nodeId: `semantic-shot-${index + 1}`,
+          stageId: 'generate',
+          provider: PRODUCTION_E2E_FIXTURE_PROVIDER,
+          model: PRODUCTION_E2E_FIXTURE_MODEL,
+          ...(typeof shot.role === 'string' ? { metadata: { role: shot.role } } : {}),
+        }
+      })
+      return { createdNodeIds: bindings.map((binding) => binding.nodeId), connectedCount: 0, bindings }
     }
 
     if (operation === 'production.materialize-storyboard') {

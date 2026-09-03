@@ -13,12 +13,18 @@ import {
 const require = createRequire(import.meta.url)
 
 describe('production Run E2E fixture', () => {
-  it('requires both explicit E2E flags and refuses packaged builds', () => {
+  it('requires both explicit E2E flags and refuses packaged builds by default', () => {
     expect(isProductionRunE2eFixtureEnabled({}, false)).toBe(false)
     expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1' }, false)).toBe(false)
     expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E_PRODUCTION_FIXTURE: '1' }, false)).toBe(false)
+    // Without the packaged-fixture escape hatch, packaged builds are always refused.
     expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1' }, true)).toBe(false)
     expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1' }, false)).toBe(true)
+    // Three-flag packaged E2E opt-in: all three flags must be set simultaneously.
+    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1', NOMI_E2E_PACKAGED_FIXTURE: '1' }, true)).toBe(true)
+    // Missing any one of the three flags still refuses.
+    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E_PRODUCTION_FIXTURE: '1', NOMI_E2E_PACKAGED_FIXTURE: '1' }, true)).toBe(false)
+    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PACKAGED_FIXTURE: '1' }, true)).toBe(false)
   })
 
   it('materializes a playable local clip and a valid MP4 export without a provider', async () => {
@@ -150,6 +156,19 @@ describe('production Run E2E fixture', () => {
     expect(arrangement.timelineContract?.clips).toEqual([
       { shotId: 'shot-a', startFrame: 0, endFrame: 450 },
       { shotId: 'shot-b', startFrame: 450, endFrame: 900 },
+    ])
+  })
+
+  it('materializes semantic shots into stable bindings before scheduler start', async () => {
+    const renderer = createProductionRunE2eRenderer({ projectRootResolver: () => '/tmp' })
+    const result = await renderer('production.materialize-shots', {
+      projectId: 'project-fixture',
+      runId: 'run-fixture',
+      shots: [{ shotId: 'c9-shot-1', role: 'shot' }, { shotId: 'c9-shot-2', role: 'shot' }],
+    }, 30_000) as { bindings?: Array<{ shotId?: string; nodeId?: string }> }
+    expect(result.bindings).toEqual([
+      expect.objectContaining({ shotId: 'c9-shot-1', nodeId: 'semantic-shot-1' }),
+      expect.objectContaining({ shotId: 'c9-shot-2', nodeId: 'semantic-shot-2' }),
     ])
   })
 

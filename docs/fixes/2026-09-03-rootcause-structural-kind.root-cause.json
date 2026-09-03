@@ -1,0 +1,107 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-rootcause-structural-kind",
+  "problem_type": "root_cause_contract_schema_gap",
+  "symptom": "A behavior-preserving production extraction under electron/productionRun/ was blocked because the gate required corrective-only evidence that did not exist for a pure structural change.",
+  "direct_cause": "The contract validator required symptom, direct_cause, class_root, recurrence, and corrective prevention fields before it had any change-kind discriminator or structural evidence branch.",
+  "class_root": "The gate had one evidence vocabulary for both corrective changes and behavior-preserving structural changes, so honest structural work could only pass by fabricating corrective claims or abandoning the change.",
+  "affected_population": [
+    "Behavior-preserving extractions, moves, renames, and comment-only changes that touch a high-risk production path",
+    "Maintainers authoring schema-v3 contracts for high-risk changes",
+    "The root-cause validator, its command-line checker, and the contract scaffolding generator"
+  ],
+  "scope_paths": [
+    "scripts/root-cause-contracts.mjs",
+    "scripts/check-root-cause-contracts.mjs",
+    "scripts/new-root-cause-contract.mjs"
+  ],
+  "entry_points": [
+    "validateRootCauseChange: high-risk change coverage and contract validation",
+    "scripts/check-root-cause-contracts.mjs: repository checker input assembly",
+    "scripts/new-root-cause-contract.mjs: schema-v3 contract scaffolding"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal schema and static-gate invariant; no external API or dependency behavior determines it.",
+  "invariants": [
+    "A contract without change_kind remains on the complete corrective validation path.",
+    "Only the explicit structural value selects the structural evidence path; unknown values fail closed.",
+    "Structural evidence names changed existing paths and states behavior preservation plus verification limits.",
+    "New module paths and declared named exports are checked against the repository files and contents when supplied by the checker."
+  ],
+  "generality_proof": "The discriminator is resolved once at the shared contract validator, so every high-risk prefix and exact path uses the same corrective default, structural evidence rules, and unknown-value failure behavior. The command-line checker supplies real file contents for export claims, while the generator exposes the same structural vocabulary to future authors.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "symbol": "validateRootCauseChange",
+      "responsibility": "Resolve change_kind and enforce either the complete corrective schema or the bounded structural evidence schema for every changed high-risk path."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "entry_point": "validateRootCauseChange",
+      "disposition": "enforced",
+      "evidence": "All contract validation converges here; the changed node-test proves structural acceptance, missing evidence rejection, bad path/export rejection, corrective default retention, and unknown-kind rejection."
+    },
+    {
+      "path": "scripts/check-root-cause-contracts.mjs",
+      "entry_point": "fileContents assembly for structural preserved_exports",
+      "disposition": "enforced",
+      "evidence": "The checker reads claimed in-repository export files and passes their contents to validateRootCauseChange; unavailable contents fail the structural claim closed."
+    },
+    {
+      "path": "scripts/new-root-cause-contract.mjs",
+      "entry_point": "buildSkeleton",
+      "disposition": "enforced",
+      "evidence": "The generator accepts structural explicitly and emits structural_evidence fields without corrective-only fields; its node-test pins that shape."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future high-risk structural refactor could otherwise hit the same corrective-only schema gap, and the high-risk matcher intentionally covers the whole productionRun directory.",
+    "same_class_scan": [
+      "Scanned scripts/root-cause-contracts.mjs, scripts/check-root-cause-contracts.mjs, and scripts/new-root-cause-contract.mjs as the validator, checker, and authoring entry points.",
+      "Scanned the high-risk matcher and confirmed electron/productionRun/ remains a broad prefix; the fix changes no prefix or exact-path membership.",
+      "Added node-test coverage for structural success, missing evidence, nonexistent module/export claims, corrective default, unknown kind, existing docs/fixes validation, and structural scaffolding."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/root-cause-contracts.mjs",
+    "invariant": "The contract vocabulary must distinguish explicit structural changes from corrective changes and require evidence appropriate to the selected kind.",
+    "failure_mode": "Malformed structural evidence, unavailable export contents, nonexistent paths/exports, missing corrective fields, and unknown change_kind values produce validator errors and a nonzero gate.",
+    "exception_policy": "none",
+    "strategy": "Resolve the discriminator at the shared validator before kind-specific fields, keep corrective as the absent-value default, and make structural claims bounded by changed existing paths and optional machine-checked exports.",
+    "artifacts": [
+      "scripts/root-cause-contracts.mjs",
+      "scripts/check-root-cause-contracts.mjs",
+      "scripts/check-root-cause-contracts.node-test.mjs",
+      "scripts/new-root-cause-contract.mjs",
+      "scripts/new-root-cause-contract.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-root-cause-contracts.node-test.mjs",
+    "scripts/new-root-cause-contract.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-root-cause-contracts.node-test.mjs",
+    "scripts/new-root-cause-contract.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The corrective validator remains the default path; this change adds a bounded structural branch and does not leave a parallel structural validator or obsolete implementation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The gate uses the existing Node.js runtime and repository file set; no third-party dependency controls the contract invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Existing contracts are unchanged and omit change_kind, so they continue to validate as corrective contracts. Future structural contracts opt in explicitly with change_kind structural and structural_evidence.",
+  "residual_risks": [
+    "The behavior_preservation statement is trust-based; the validator cannot prove semantic equivalence. Changed tests, typecheck, and reviewer judgment remain required evidence.",
+    "Named-export checking is a conservative static syntax check, not a full TypeScript module-resolution or runtime export proof.",
+    "The structural branch does not infer whether a change is truly structural; an author can misclassify a behavior change, so the declaration and tests remain review-sensitive."
+  ]
+}

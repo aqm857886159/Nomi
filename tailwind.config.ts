@@ -56,6 +56,11 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       // 工作区语义块），该病已根除，两层按语义就近取用。
       '--nomi-danger': 'oklch(0.55 0.20 27)',
       '--nomi-warning': 'oklch(0.62 0.14 75)',
+      // 根层语义色的 soft 底（承载同色文字的浅底：错误行、警示横幅）。此前只有 --nomi-accent-soft 有 soft 档，
+      // danger/warning 没有 → `bg-nomi-danger-soft`/`bg-nomi-warning-soft` 四处静默无底色。配比与混色空间同
+      // --nomi-accent-soft（必须 in srgb，原因见上方 accent-soft 处长注：oklch 插值会对色相走最短弧）。
+      '--nomi-danger-soft': 'color-mix(in srgb, var(--nomi-danger) 12%, var(--nomi-paper))',
+      '--nomi-warning-soft': 'color-mix(in srgb, var(--nomi-warning) 12%, var(--nomi-paper))',
       // 根层语义绿（设计系统 ① 层）。P4 S5 补：多镜占位「完成」态、批次进度回执的成功信号要在
       // portal/画布层用（同 --nomi-danger/-warning 那类根层色的动机——作用域色 portal 够不到）。
       // 与 --workbench-success(#34c759) 同色相、走 oklch 以随明暗自动过渡。
@@ -256,6 +261,9 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       '--nomi-accent-soft': 'color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper))',
       '--nomi-danger': 'oklch(0.72 0.16 25)',
       '--nomi-warning': 'oklch(0.78 0.13 75)',
+      // 暗底提高混入比（同 --nomi-accent-soft 的 12%→26%），否则 12% 混进暗 paper 几乎看不出底色。
+      '--nomi-danger-soft': 'color-mix(in srgb, var(--nomi-danger) 26%, var(--nomi-paper))',
+      '--nomi-warning-soft': 'color-mix(in srgb, var(--nomi-warning) 26%, var(--nomi-paper))',
       // 暗底提亮以保持可辨（与 --workbench-success 暗色 #45d483 同族）。
       '--nomi-success': 'oklch(0.75 0.15 150)',
       '--nomi-focus': 'color-mix(in srgb, var(--nomi-accent) 50%, transparent)',
@@ -594,11 +602,18 @@ export default {
           accent: tokenColor('--nomi-accent'),
           'accent-soft': tokenColor('--nomi-accent-soft'),
           danger: tokenColor('--nomi-danger'),
+          'danger-soft': tokenColor('--nomi-danger-soft'),
           // P4 S5：根层 warning/success 映射（此前 --nomi-warning 有 CSS 变量但无 Tailwind 映射，
           // --nomi-success 根本不存在 → text-nomi-success 静默失色）。多镜占位三态用它们（warning=已停、
           // success=完成），portal/画布层都解析得到。
           warning: tokenColor('--nomi-warning'),
+          'warning-soft': tokenColor('--nomi-warning-soft'),
           success: tokenColor('--nomi-success'),
+          // 时间轴三轨语义色。变量早在上方 addBase，但一直没映射进 theme —— `bg-nomi-track-video` 静默无
+          // 底色，另两处只能退回 `bg-[var(--nomi-track-video)]` 任意值逃生口。补映射后两者一起收口。
+          'track-text': tokenColor('--nomi-track-text'),
+          'track-image': tokenColor('--nomi-track-image'),
+          'track-video': tokenColor('--nomi-track-video'),
           scrim: tokenColor('--nomi-scrim'),
           'overlay-chip': tokenColor('--nomi-overlay-chip'),
           'overlay-chip-strong': tokenColor('--nomi-overlay-chip-strong'),
@@ -619,8 +634,19 @@ export default {
           'accent-soft': tokenColor('--workbench-accent-soft'),
           success: tokenColor('--workbench-success'),
           'success-soft': tokenColor('--workbench-success-soft'),
+          // --workbench-success-ink 明暗两套值一直都在（明 #248a3d / 暗 #7ee8aa），漏的只是这行映射 →
+          // 全 App 10 处「已完成」绿字/绿勾（常驻卡、助手时间轴、生成节点、任务卡）静默掉回继承色。
+          'success-ink': tokenColor('--workbench-success-ink'),
           danger: tokenColor('--workbench-danger'),
           'danger-soft': tokenColor('--workbench-danger-soft'),
+          // 时间轴媒体三轨（视频青 / 音频紫 / 文字紫）。video 有类名消费者（ClipNode 时间轴段）；
+          // audio/text 目前只被 `bg-[var(--workbench-audio)]` 一类任意值消费，一并映射以免同族再漏。
+          video: tokenColor('--workbench-video'),
+          'video-soft': tokenColor('--workbench-video-soft'),
+          audio: tokenColor('--workbench-audio'),
+          'audio-soft': tokenColor('--workbench-audio-soft'),
+          text: tokenColor('--workbench-text'),
+          'text-soft': tokenColor('--workbench-text-soft'),
           hover: tokenColor('--workbench-hover'),
           pressed: tokenColor('--workbench-pressed'),
           overlay: tokenColor('--workbench-overlay'),

@@ -11,6 +11,12 @@
 // 传输 = 真 in-Electron MCP stdio server（headless，磁盘网关）+ mock vendor（零额度）。
 // GUI 开着的确认卡/双问路径由 spend-elicit-app-open.walk.mjs 专测，此处不重复。
 // 用法：pnpm run build && node tests/ux/draft-journey.e2e.mjs
+//
+// ⚠️ 已知缺口（2026-09-02 面收敛名迁移时如实记录，未修）：幕 5/5b/6 仍驱动 nomi_generate——它在 M1 期
+// 已整体退役（nomiGenerateRetirement.test.ts，-32602），且 42→15 收敛映射里没有它的等价名（单次生成 =
+// nomi_operation_plan→preview→gate→execute 语义族，结果形状完全不同）。这三幕需要按 operation 语义族重设计
+// （mock 目录还得补已知定价，否则付费门 fail-closed），属旅程重构不属名字迁移；在重构落地前本 harness
+// 会在幕 5 处红。幕 0（nomi_intake_brief）随收敛从 MCP 面移除（无外部消费者），已删。
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
@@ -53,33 +59,17 @@ try {
   const init = await (async () => { for (let i = 0; i < 20; i++) { try { return await mcp.initialize() } catch { await new Promise((r) => setTimeout(r, 1000)) } } throw new Error('initialize 超时') })()
   assertTrue(init?.result, 'MCP stdio server 起来了')
 
-  const created = parseToolResult(await mcp.callToolOrThrow('nomi_create_project', { name: '验收旅程《2:17 的男人》' }))
+  const created = parseToolResult(await mcp.callToolOrThrow('nomi_project_create', { name: '验收旅程《2:17 的男人》' }))
   const projectId = created.json?.id || created.json?.projectId
   assertTrue(projectId, '建项目返回 id')
 
-  // ── 幕 0 · 开场收敛 ─────────────────────────────────────────────
-  {
-    // W3 幕 0 点亮：一屏 ≤3 题弹在调用方。harness 客户端声明 elicitation 且**自动 accept 空内容**
-    // （_mcpJourney 的 auto-accept 回 {confirm:true}，不含题目键）→ 正好压到「跳过永远安全」这条铁律：
-    // 一题没答也必须全落默认、不报错、不二次追问。
-    const beforeIntake = mcp.elicitationCount()
-    const intake = parseToolResult(await mcp.callToolOrThrow('nomi_intake_brief', { projectId, kind: '短剧' }))
-    const askedTimes = mcp.elicitationCount() - beforeIntake
-    assertTrue(askedTimes === 1, `收敛恰好弹 1 次表单（得 ${askedTimes}）——一屏问全，不逐条追问`)
-    const j = intake.json || {}
-    assertTrue(j.elicited === true, '走的是表单路（客户端声明了 elicitation）')
-    const values = j.values || {}
-    assertTrue(Object.keys(values).length === 3, `拿到三个方向取值（得 ${Object.keys(values).length}）`)
-    assertTrue(typeof j.summary === 'string' && j.summary.includes('方向已定'), '回执给人话方向摘要')
-    assertTrue(Array.isArray(j.usedDefaults) && j.usedDefaults.length === 3, '一题没答 → 三题全落默认（跳过永远安全）')
-    assertTrue(j.summary.includes('按默认'), '走了默认要明着标（D4 缺口不藏）')
-    record('幕0 开场收敛', 'pass', `一屏 ≤3 题恰弹 1 次；未答全部落默认且如实标注；回执含方向摘要「${j.summary.slice(0, 40)}」。`)
-  }
+  // （幕 0 开场收敛已随面收敛删除：nomi_intake_brief 从 MCP 目录移除，无外部消费者——见 commit a0091dec。）
 
   // ── 幕 1 · 剧本 + 圣经（今天可测「剧本落节点 + 指改」半幕；圣经字段等 W2） ──
   {
-    const added = parseToolResult(await mcp.callToolOrThrow('nomi_add_nodes', {
+    const added = parseToolResult(await mcp.callToolOrThrow('nomi_canvas_edit', {
       projectId,
+      action: 'add_nodes',
       nodes: [
         { kind: 'shot', title: '#1 外·夜', prompt: '暴雨中的便利店招牌，2:17 的钟面特写' },
         { kind: 'shot', title: '#2 内', prompt: '小周整理货架，玻璃映出街对面的人影' },
@@ -88,10 +78,10 @@ try {
     }))
     const sceneIds = added.json?.ids || []
     assertTrue(sceneIds.length === 3, `3 场剧本场景落画布（得 ${sceneIds.length}）`)
-    // 指改 #3：编号即地址 → set_node_prompt → 回读验证生效且其余不动。
+    // 指改 #3：编号即地址 → canvas_edit(set_prompt) → 回读验证生效且其余不动。
     const newPrompt = '男人进店，没拿水，只是站在冰柜前数了 17 秒'
-    await mcp.callToolOrThrow('nomi_set_node_prompt', { projectId, nodeId: sceneIds[2], prompt: newPrompt })
-    const canvas = parseToolResult(await mcp.callToolOrThrow('nomi_read_canvas', { projectId }))
+    await mcp.callToolOrThrow('nomi_canvas_edit', { projectId, action: 'set_prompt', nodeId: sceneIds[2], prompt: newPrompt })
+    const canvas = parseToolResult(await mcp.callToolOrThrow('nomi_read', { target: 'canvas', projectId }))
     const nodes = canvas.json?.nodes || []
     const scene3 = nodes.find((n) => n.id === sceneIds[2])
     const scene2 = nodes.find((n) => n.id === sceneIds[1])
@@ -120,8 +110,9 @@ try {
     assertTrue(anchorBible.isAnchorFrozen(anchorNode(true)), '冻结后 isAnchorFrozen=真（→ 镜头放行、强制引用该冻结卡）')
     assertTrue(anchorBible.unfrozenVisualAnchors([anchorNode(true)]).length === 0, '冻结后不再被挑出（放行）')
     // 真实画布拓扑：锚 + 镜头 + character_ref 边真的落 headless 画布（冻结门要拦的就是这条引用边的下游）。
-    const a2 = parseToolResult(await mcp.callToolOrThrow('nomi_add_nodes', {
+    const a2 = parseToolResult(await mcp.callToolOrThrow('nomi_canvas_edit', {
       projectId,
+      action: 'add_nodes',
       nodes: [
         { kind: 'character', title: '幕2锚 · 林夏定妆', prompt: '齐肩黑发、左眉一颗痣，红色校服，正面平光定妆照' },
         { kind: 'video', title: '#幕2镜 引用林夏', prompt: '林夏倚护栏远望，缓慢推近', vendor: 'nomi-mock', modelKey: 'nomi-mock-video' },
@@ -129,8 +120,8 @@ try {
     }))
     const [freezeAnchorId, freezeShotId] = a2.json?.ids || []
     assertTrue(freezeAnchorId && freezeShotId, '幕2 锚 + 引用镜头落画布')
-    await mcp.callToolOrThrow('nomi_connect_nodes', { projectId, connections: [{ source: freezeAnchorId, target: freezeShotId, mode: 'character_ref' }] })
-    const c2 = parseToolResult(await mcp.callToolOrThrow('nomi_read_canvas', { projectId }))
+    await mcp.callToolOrThrow('nomi_canvas_edit', { projectId, action: 'connect', connections: [{ source: freezeAnchorId, target: freezeShotId, mode: 'character_ref' }] })
+    const c2 = parseToolResult(await mcp.callToolOrThrow('nomi_read', { target: 'canvas', projectId }))
     const anchorBack = (c2.json?.nodes || []).find((n) => n.id === freezeAnchorId)
     const refEdge = (c2.json?.edges || []).find((e) => e.source === freezeAnchorId && e.target === freezeShotId)
     assertTrue(anchorBack?.kind === 'character' && refEdge, '锚(kind=character)+镜头+character_ref 边真的持久化（批量拓扑成立）')
@@ -150,8 +141,9 @@ try {
   let anchorId = ''
   let shotNodeIds = []
   {
-    const anchors = parseToolResult(await mcp.callToolOrThrow('nomi_add_nodes', {
+    const anchors = parseToolResult(await mcp.callToolOrThrow('nomi_canvas_edit', {
       projectId,
+      action: 'add_nodes',
       nodes: [
         { kind: 'character', title: '小周 · 定妆', prompt: '短发圆脸、左眉一颗痣，深蓝工装，正面平光定妆照' },
         { kind: 'scene', title: '便利店 · 场景卡', prompt: '暴雨夜便利店内景，冷白灯光，货架与冰柜' },
@@ -160,8 +152,9 @@ try {
     const anchorIds = anchors.json?.ids || []
     assertTrue(anchorIds.length === 2, '角色/场景锚落画布')
     anchorId = anchorIds[0]
-    const shots = parseToolResult(await mcp.callToolOrThrow('nomi_add_nodes', {
+    const shots = parseToolResult(await mcp.callToolOrThrow('nomi_canvas_edit', {
       projectId,
+      action: 'add_nodes',
       nodes: [
         { kind: 'video', title: '#S1 远景·缓推', prompt: '暴雨夜便利店外观，招牌闪烁，缓慢推近', vendor: 'nomi-mock', modelKey: 'nomi-mock-video' },
         { kind: 'video', title: '#S2 中景·固定', prompt: '小周理货抬头看钟，冷白灯光', vendor: 'nomi-mock', modelKey: 'nomi-mock-video' },
@@ -169,11 +162,12 @@ try {
     }))
     shotNodeIds = shots.json?.ids || []
     assertTrue(shotNodeIds.length === 2, '2 个可生成镜头节点落画布')
-    await mcp.callToolOrThrow('nomi_connect_nodes', {
+    await mcp.callToolOrThrow('nomi_canvas_edit', {
       projectId,
+      action: 'connect',
       connections: shotNodeIds.map((target) => ({ source: anchorId, target, mode: 'character_ref' })),
     })
-    const canvas = parseToolResult(await mcp.callToolOrThrow('nomi_read_canvas', { projectId }))
+    const canvas = parseToolResult(await mcp.callToolOrThrow('nomi_read', { target: 'canvas', projectId }))
     const edges = canvas.json?.edges || []
     const linked = edges.filter((e) => e.source === anchorId && shotNodeIds.includes(e.target))
     assertTrue(linked.length === 2, `锚→镜头参考边齐（得 ${linked.length}/2）`)
@@ -237,20 +231,23 @@ try {
   {
     // 注入 1 坏镜：图片镜（图片镜跳过抽帧，判分直接吃 result.url——mock 图是真 PNG），prompt 埋 BAD_SHOT_MARKER
     // → mock judge 命中标记返回身份 1 档。带角色锚引用边 → 身份轴被评（有 anchorDescriptions）。
-    const badAnchorRes = parseToolResult(await mcp.callToolOrThrow('nomi_add_nodes', {
+    const badAnchorRes = parseToolResult(await mcp.callToolOrThrow('nomi_canvas_edit', {
       projectId,
+      action: 'add_nodes',
       nodes: [{ kind: 'character', title: '坏镜锚 · 定妆', prompt: '短发圆脸、左眉痣、深蓝工装，正面平光' }],
     }))
     const badAnchorId = (badAnchorRes.json?.ids || [])[0]
     assertTrue(badAnchorId, '坏镜的角色锚落画布')
-    const badShotRes = parseToolResult(await mcp.callToolOrThrow('nomi_add_nodes', {
+    const badShotRes = parseToolResult(await mcp.callToolOrThrow('nomi_canvas_edit', {
       projectId,
+      action: 'add_nodes',
       nodes: [{ kind: 'image', title: '#坏镜 身份错', prompt: `小周站在冰柜前的画面 ${BAD_SHOT_MARKER}`, vendor: 'nomi-mock', modelKey: 'nomi-mock-image' }],
     }))
     const badShotId = (badShotRes.json?.ids || [])[0]
     assertTrue(badShotId, '坏镜节点落画布')
-    await mcp.callToolOrThrow('nomi_connect_nodes', {
+    await mcp.callToolOrThrow('nomi_canvas_edit', {
       projectId,
+      action: 'connect',
       connections: [{ source: badAnchorId, target: badShotId, mode: 'character_ref' }],
     })
     // 生成坏镜 → 审片环应判分低 → 定向重试（复用首发 grant，K≤2）→ 仍低 → 红标交付。

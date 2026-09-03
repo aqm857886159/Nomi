@@ -1,0 +1,130 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-relay-multipart-image-edit-certification",
+  "problem_type": "自建中转接入路径（内置 OpenAI 兼容草稿 → 认证 → 落库）把「改图通道」建成了一条这家根本不认的 wire，导致凡是 multipart 改图协议的模型（gpt-image 系 / dall-e-2）image_edit 一律认证失败、落库缺 mapping，用户连了参考图只会看到「没有图生图通道」——而这家中转其实完全支持改图",
+  "symptom": "用户在「接入自定义中转」里填 BaseURL + key，选中 gpt-image-2（kind=image），走完接入向导。文生图正常出图；但把任何图片节点连到该模型的节点上，点生成立刻被拒：「模型「gpt-image-2」没有「图生图（改图）」通道，参考图发不出去。请改用支持图生图的模型」。用户手里这家中转的 /v1/images/edits 明明是通的（curl 直打 HTTP 200 且真按原图改）。",
+  "direct_cause": "三处各自独立、但叠在同一条链上：① builtinOpenAiCompatibleDraft.modesForKind 用 newapiTransportFor('image').edit 建 image_edit 模式，而那个字段恒是 chat/completions 多模态 op，不按模型族分流——gpt-image 系发过去被上游如实回 400「This model is not supported on the Chat Completions endpoint」。② 该草稿从不声明 referenceParam/referenceShape，认证探针（verifier.verificationRequest）据此判断要不要注入参考图，于是拿「零参考图」去验一条改图通道。③ 认证探针的 fixture 参考图是 2×2 PNG，真实 /v1/images/edits 有最小边长校验，直接回 400 invalid_image。任一处不修，image_edit 都认证不过。",
+  "class_root": "「同一个语义（这条 wire 长什么样 / 它需要什么输入）在接入链的两条路径上各有一份定义，且只有一条路径被审查过」。改图协议的正确选择器 newapiImageEditProfileForModel 早就存在，catalogCommit 那条落库路径一直在用；但**认证草稿这条路径**绕开了它、直接取 newapiTransportFor().edit 这个不分族的字段。同理，参考输入契约（referenceParam/referenceShape）在 AI 编译路径上由 validator.ts:299 强制声明，内置草稿因为不过 validator 而合法地漏掉了它。正确形状 = 凡是「建一条改图/图生视频模式」的地方，协议选择与参考输入契约都必须从同一个 derive 函数取，且认证 fixture 必须满足真实端点的输入下限——否则「能力面」与「真实 wire」在接入这一步就分叉，后面每一环都在诚实地报错，只是报的不是真问题。",
+  "affected_population": [
+    "全部通过「自定义中转 / 自建 OpenAI 兼容端点」接入 gpt-image 系（gpt-image-1/1.5/2）或 dall-e-2 的用户：此前这些模型的改图通道 100% 认证失败、落库无 image_edit mapping，连参考图必被拒发；修复后认证真跑 /v1/images/edits 并落一条 multipart mapping，改图可用。",
+    "同路径接入的 chat 多模态改图模型（gemini / nano-banana 系）：协议选择结果与此前完全一致（smartDefaultImageEditProtocol 回落 chat-completions-image-url），但此前它们的 image_edit 认证同样是「零参考图」在验，验的其实是纯文生图；修复后探针会真带一张参考图，认证结论从此对应真实用法。",
+    "同路径接入的视频模型：image_to_video 模式此前同样不声明 referenceParam，认证不带首帧图；修复后按该 wire 真实读的键 image_url（单值）注入，认证覆盖真实 i2v 用法。",
+    "已在库里的存量中转模型：本次不做数据迁移，存量条目维持现状；用户重新走一次接入/重新认证即可拿到正确的 image_edit mapping。"
+  ],
+  "scope_paths": [
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+    "electron/providerAdapter/verifier.ts",
+    "electron/catalog/multipartOperation.ts",
+    "electron/catalog/newapiTransport.ts",
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts",
+    "electron/catalog/multipartOperation.test.ts"
+  ],
+  "entry_points": [
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts::modesForKind —— 内置 OpenAI 兼容草稿建模式的唯一处。改图协议改为按 modelKey 走 newapiImageEditProfileForModel（与 catalogCommit 落库路径同源）；image_edit 与 image_to_video 各自声明自己 wire 真实读的参考键。",
+    "electron/providerAdapter/verifier.ts::REFERENCE_PNG —— 认证探针注入的 fixture 参考图。从 2×2 提到 256×256，以满足真实改图端点的最小边长校验。",
+    "electron/catalog/multipartOperation.ts::runMultipartProfileOperation —— multipart 执行口。此前写死生产解析器 resolveReferenceMediaBytes，忽略调用方注入的 localAssetReader；认证探针正是靠该注入口喂 fixture 参考图（nomi-local://adapter-test/…），忽略它则 multipart 改图通道永远取不到字节。"
+  ],
+  "internal_only_reason": "不新增也不修改任何供应商 API 契约：/v1/images/edits 的端点、鉴权、字段与 multipart 造型（OPENAI_MULTIPART_IMAGE_EDIT_OP）本就存在于仓库且已按 OpenAI 官方文档对账；本次只是让**认证草稿这条路径**改用已有的协议选择器、补上已有的参考输入契约字段、并把 fixture 尺寸提到真实端点的输入下限。协议选择结论（gpt-image 系 → multipart）沿用既有 OPENAI_MULTIPART_EDIT_MODEL_RE，不是对文档的新解读。",
+  "invariants": [
+    "「改图协议怎么选」只有一个实现 newapiImageEditProfileForModel；接入落库（catalogCommit）与认证草稿（builtinOpenAiCompatibleDraft）都必须从它取，不许任何一方直接用 newapiTransportFor('image').edit 那个不分族的字段建 image_edit 模式。",
+    "凡是参考类模式（image_edit / image_to_video / image_to_audio / image_to_3d），建模式的地方都必须声明 referenceParam 与 referenceShape，且键必须是该模式 create op 真实读的那个键——改图读聚合的 reference_images（数组），图生视频读首帧 image_url（单值）。",
+    "认证 fixture 参考图必须满足真实改图端点的输入下限（≥256×256）；低于下限时真实端点回 400 invalid_image，会把「通道不通」误报成模型没有该能力。",
+    "multipart 执行口必须尊重调用方注入的 localAssetReader（与 JSON 路同口径）；写死生产解析器会让认证探针的 fixture 参考图取不到字节。",
+    "以上四条任一不成立时，症状都表现为「该模型没有图生图通道」——一条对用户完全误导的诚实错误。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「接入链上同一语义有两份定义、只有一条路径被审查」在本仓已反复出现：改图协议选择器早就分族了，但认证草稿这条路径绕开它；参考输入契约在 AI 编译路径由 validator 强制、内置草稿因不过 validator 而合法漏掉。每新增一条建模式的路径、或新增一条参考类 taskKind，同一个病都会换个地方回来。认证 fixture 的输入下限同理：它是所有参考类模式共用的单点，一旦低于某家端点的下限，那一族模型会整体误判成「没有该能力」。",
+    "same_class_scan": [
+      "全仓普查「谁在建 image_edit 模式/mapping」：恰好 2 处——catalogCommit.ts:520（落库路径，一直用 newapiImageEditProfileForModel，正确）与 builtinOpenAiCompatibleDraft.ts:112（认证草稿，本次修正）。无第三处。",
+      "全仓普查 newapiTransportFor('image').edit 的消费者：仅上述认证草稿一处（newapiTransport.ts:311 的 edit 字段本身保留，视频/音频分支与 params 投影仍在用同一个函数）。修正后该字段不再被用于建 image_edit 模式。",
+      "全仓普查 referenceParam 的生产者：AI 编译路径由 compiler.ts:39 提示 + validator.ts:299/302 强制；内置草稿此前是唯一不声明的生产者，本次补齐。参考类 taskKind 全集以 validator.ts:20 的 referenceTaskKinds 为准（image_edit / image_to_video / image_to_audio / image_to_3d），内置草稿只产出前两种，均已声明。",
+      "参考键与 wire 真实读的键逐条对账：改图三种协议（chat-completions-image-url / xai-json-edits / openai-multipart-edits）的 op 模板都读 reference_images（chat 经 chat_image_parts 聚合、multipart 经 imageSource、xai 经 jsonImageEditInput），故统一声明 reference_images/array；视频 create op 读的是 image_url 单值（newapiTransport.ts:211 注释写明「不是裸 image 键」），故声明 image_url/single。写错键会表现为「探针注了参考却进不了报文」，与不声明同症。",
+      "multipart 执行口普查：runMultipartProfileOperation 是唯一入口（runtime.ts:264 调用），此前写死 resolveReferenceMediaBytes。JSON 路（runtime.ts:269）一直尊重 localAssetReader——两条路对同一个注入口的处置不一致，正是这次的第三个成因。",
+      "fixture 尺寸下限实测（真中转 gpt-image-2）：2×2 → HTTP 400 invalid_image；256×256 → HTTP 200。256×256 纯色 PNG base64 后仅 752 字节，不构成体积负担。"
+    ]
+  },
+  "generality_proof": "缺陷不是「gpt-image-2 这个模型配错了」，而是接入链上「建模式」这一步与「落库」这一步对同一语义各持一份定义，三条独立证据：① 协议选择——正确的分族选择器早就存在且被落库路径使用，认证草稿绕开它，任何走 multipart 改图协议的模型族（gpt-image 全系 + dall-e-2）都被同样打死，与具体模型无关；② 参考输入契约——AI 编译路径被 validator 强制声明、内置草稿因不过 validator 而合法漏掉，这是「校验只覆盖一条路径」的结构性缺口，新增任何参考类 taskKind 都会重演；③ multipart 执行口忽略注入的 localAssetReader，而 JSON 路尊重它——同一个注入口在两条执行路上处置不一致。三者都不是某个模型的配置错误，故防复发落在「协议选择单实现 + 参考契约随 wire 声明 + fixture 满足真实下限」这三条不变量上。",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/newapiTransport.ts",
+      "symbol": "newapiImageEditProfileForModel",
+      "responsibility": "「这个模型的改图走哪种协议」的唯一判据（探测/手动 override → 模型族智能默认 → chat 兜底）。接入落库与认证草稿两条路径都必须从它取，不许任何一方直接使用不分族的 newapiTransportFor('image').edit 建 image_edit 模式。"
+    },
+    {
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "modesForKind",
+      "responsibility": "内置 OpenAI 兼容草稿建模式的唯一处。每条参考类模式必须同时给出「协议（create op）」与「参考输入契约（referenceParam/referenceShape，键取该 op 真实读的那个）」，两者成对出现、不许只给其一。"
+    },
+    {
+      "path": "electron/catalog/multipartOperation.ts",
+      "symbol": "runMultipartProfileOperation",
+      "responsibility": "multipart 执行的唯一入口。必须尊重调用方注入的 localAssetReader（与 JSON 路同口径），缺省才回落生产解析器；认证探针靠该注入口喂 fixture 参考图。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/catalogCommit.ts",
+      "entry_point": "onboardingProjectionForKind 的 image 分支（落库路径建 mappingEdit）",
+      "disposition": "not-affected",
+      "evidence": "该路径一直调 newapiImageEditProfileForModel(modelKey, null, imageEditProtocol) 分族选协议（catalogCommit.ts:520），本就是正确形状；本次是让认证草稿向它看齐，落库侧无改动。"
+    },
+    {
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "entry_point": "modesForKind 的 image_to_video 模式",
+      "disposition": "enforced",
+      "evidence": "与 image_edit 同因（不声明参考输入契约），同 commit 一并补齐；键按该 wire 真实读的首帧 image_url（单值）声明，不与改图的 reference_images 混用。"
+    },
+    {
+      "path": "electron/providerAdapter/validator.ts",
+      "entry_point": "AI 编译草稿路径的参考输入契约（compiler.ts:39 提示 + validator.ts:299/302 强制）",
+      "disposition": "not-affected",
+      "evidence": "该路径已由 compiler.ts:39 提示 + validator.ts:299/302 强制声明 referenceParam/referenceShape，本就不会漏；本次补的是绕过 validator 的内置草稿那一份。"
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "executeProfileOperation 的 multipart 分支",
+      "disposition": "not-affected",
+      "evidence": "它一直把完整 input（含 localAssetReader）整体传给 runMultipartProfileOperation，无需改动；缺陷在被调用方丢弃了该字段，故修在被调用方（P2 修在最早共享边界）。runtime.ts 本次零改动。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+    "invariant": "建任何参考类模式时，协议从 newapiImageEditProfileForModel derive、参考输入契约随该 op 真实读的键声明，两者成对；multipart 执行口尊重注入的 localAssetReader；认证 fixture 满足真实端点输入下限。",
+    "failure_mode": "任一条不成立，症状都是 image_edit 认证失败 → 落库缺 mapping → 用户连参考图被拒发「该模型没有图生图通道」。这条错误信息本身是诚实的（确实没有那条 mapping），但成因在接入链上游，用户按提示「换一个支持图生图的模型」是完全错误的行动建议——这正是最难自查的一类缺陷。",
+    "exception_policy": "none",
+    "strategy": "协议选择收敛到已有的单一 derive 函数（不新增第二份判据）；参考输入契约与 create op 在同一处成对声明，写错键的后果由类级回归锁住；fixture 尺寸带实测依据的注释钉死，防止后人以「省几百字节」为由改小。",
+    "artifacts": [
+      "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "electron/providerAdapter/verifier.ts",
+      "electron/catalog/multipartOperation.ts",
+      "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts",
+    "electron/catalog/multipartOperation.test.ts"
+  ],
+  "regression_tests": [
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts",
+    "electron/catalog/multipartOperation.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "无并行实现被引入或保留：改图协议本次改为复用既有单一选择器（不新增第二份），参考输入契约是补齐既有字段，multipart 注入口是让被调用方尊重既有参数。newapiTransportFor('image').edit 字段本身保留——它仍是 chat 协议 op 在 OP_BY_PROTOCOL 表里的来源，只是不再被用于直接建 image_edit 模式。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不新增、不升级、不保留任何第三方依赖；全部改动是仓库内部接入链的协议选择与参考契约对齐。",
+    "exit_criteria": []
+  },
+  "migration": "无存储迁移。存量已接入的中转模型条目维持现状（此前它们的 image_edit 认证失败、库里本就没有该 mapping，故无脏数据可清）；用户重新走一次接入或重新认证即可拿到正确的 multipart image_edit mapping。回滚 = 还原三处改动，库里已落的正确 mapping 不受影响（它就是一条普通 mapping）。",
+  "residual_risks": [
+    "协议选择仍是「按模型族猜」的智能默认（OPENAI_MULTIPART_EDIT_MODEL_RE 匹配 gpt-image 系 + dall-e-2）。若某家中转把 gpt-image 系代理成 chat 多模态而不提供 /v1/images/edits，认证会失败并如实报错——此时用户可在模型编辑面板手选协议（override 优先级最高，本次未改该机制）。",
+    "本次只在一家真实中转（otokapi，gpt-image-2）上做了付费封印：文生图与 multipart 改图各一发，改图产物经「提示词特征 + 参考特征」双验（喂蓝底黄圆、要求只把圆改红，产物保持蓝底与圆的几何位置、仅颜色变红 → 参考确实到达模型）。chat 协议族（gemini/nano-banana）与 xai-json 族的参考注入未在真机上重验——它们的 create op 未改，改的只是「探针会带一张参考图」，理论上只会让认证更接近真实用法；但若某家 chat 端点对带图请求另有约束，可能出现「此前认证通过、现在失败」的翻转。这类翻转是诚实的（此前那张认证书本就没验过带图路径），但会影响存量重新认证的用户。",
+    "image_to_video 的参考键改为 image_url/single 后，认证探针会带首帧图去验 i2v。该路径未在真机上验证（本次中转只有图像模型），若某家视频端点对首帧图有额外要求（尺寸/格式），可能出现 i2v 认证失败。缓解：失败信息会带真实 HTTP 状态与上游文案，不会被误报成「没有该能力」以外的东西。",
+    "认证 fixture 提到 256×256 是对齐本次实测的下限；若将来遇到要求更大尺寸（如 ≥512）的端点，会再次表现为该族模型 image_edit 整体认证失败。届时应继续上调并补一条实测记录，而不是给某家单独开特例。"
+  ]
+}

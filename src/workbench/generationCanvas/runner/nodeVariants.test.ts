@@ -63,7 +63,7 @@ describe('confirmAndRunNodeVariants', () => {
     expect(spendCostKindForNodes([text.id])).toBe('text')
     expect(spendCostKindForNodes([text.id, image.id])).toBe('mixed')
     expect(describeGenerationCost(2, spendCostKindForNodes([text.id]))).toBe('将生成 2 段文本 · 会消耗模型额度')
-    expect(describeGenerationCost(1, spendCostKindForNodes([image.id]))).toBe('将生成 1 张画面 · 预计约 1 分钟 · 会消耗模型额度')
+    expect(describeGenerationCost(1, spendCostKindForNodes([image.id]))).toBe('将生成 1 张画面 · 预计约 1–3 分钟 · 会消耗模型额度')
   })
 
   it('localizes text confirmation counts in English without a made-up duration', async () => {

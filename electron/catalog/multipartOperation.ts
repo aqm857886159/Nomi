@@ -9,6 +9,7 @@ import { appFetch } from "../appFetch";
 import { templateContext, buildProfileHttpRequest } from "./profileHttpRequest";
 import type { HttpOperation, Model, Vendor } from "./types";
 import type { TaskRequest } from "../runtime";
+import type { LocalAssetReader } from "./assetLocalization";
 
 type MultipartSpec = NonNullable<HttpOperation["multipart"]>;
 
@@ -125,16 +126,32 @@ export async function executeMultipartOperation(input: {
  * 但走 FormData。requestMultipart 由 runtime 注入（避免反向依赖 vendorHttp 的 vendor 计费上下文）。
  */
 export async function runMultipartProfileOperation(
-  input: { vendor: Vendor; model: Model; apiKey: string; request: TaskRequest; operation: HttpOperation; providerMeta?: Record<string, unknown> },
+  input: {
+    vendor: Vendor; model: Model; apiKey: string; request: TaskRequest; operation: HttpOperation;
+    providerMeta?: Record<string, unknown>;
+    /** 调用方注入的本地资产读取口（认证探针用它喂 fixture 参考图）。缺省走生产解析器。 */
+    localAssetReader?: LocalAssetReader;
+  },
   sendMultipart: (url: string, headers: Record<string, string>, query: Record<string, unknown>, form: FormData) => Promise<unknown>,
 ): Promise<{ response: unknown; request: unknown }> {
   // 与 JSON 路共用 profileHttpRequest 构造（P1 不另造一套）：context 渲染 multipart.fields，built 出 url/headers。
   const context = templateContext(input.request, input.model, input.apiKey, input.providerMeta || {}, input.operation.paramMap);
   const built = buildProfileHttpRequest(input);
+  // JSON 路一直尊重 localAssetReader（runtime.ts:269），multipart 路此前写死生产解析器 → 认证探针注进来的
+  // fixture 参考图（nomi-local://adapter-test/…）取不到字节，multipart 改图通道**永远认证不过**，于是该模型
+  // 落库时没有 image_edit mapping，用户连了参考图只会看到「没有图生图通道」。真实用户的 http/data/nomi-local
+  // 参考图本就能解析，故这条只修「注入口被忽略」，不改生产解析行为。
+  const readLocal = input.localAssetReader;
+  const resolveFile: MultipartFileResolver = readLocal
+    ? async (url) => {
+        const seeded = readLocal(url);
+        return seeded ? { bytes: seeded.bytes, contentType: seeded.contentType, fileName: seeded.fileName } : resolveReferenceMediaBytes(url);
+      }
+    : resolveReferenceMediaBytes;
   return executeMultipartOperation({
     multipart: input.operation.multipart!,
     context,
-    resolveFile: resolveReferenceMediaBytes,
+    resolveFile,
     send: (form) => sendMultipart(built.url, built.headers, built.query, form),
   });
 }

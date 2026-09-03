@@ -44,6 +44,16 @@ function outputFileName(value: unknown): string | undefined {
   return undefined;
 }
 
+function outputThumbnailUrl(value: unknown): string | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const item = value as JsonRecord;
+  for (const key of ["thumbnailUrl", "thumbnail_url", "poster", "poster_url"]) {
+    const candidate = firstUrlString(item[key]);
+    if (candidate) return candidate;
+  }
+  return undefined;
+}
+
 export function extractMaterializationOutputs(raw: unknown): GenerationProviderOutput[] {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
   const payload = raw as JsonRecord;
@@ -59,7 +69,8 @@ export function extractMaterializationOutputs(raw: unknown): GenerationProviderO
           ? (value as JsonRecord).id as string
           : `${kind}-${index + 1}`;
         const fileName = outputFileName(value);
-        outputs.push({ kind, url, providerOutputId, ...(fileName ? { fileName } : {}) });
+        const thumbnailUrl = kind === "video" ? outputThumbnailUrl(value) : undefined;
+        outputs.push({ kind, url, providerOutputId, ...(fileName ? { fileName } : {}), ...(thumbnailUrl ? { thumbnailUrl } : {}) });
       }
     }
   }

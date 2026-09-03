@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { IconCheck, IconFolderPlus, IconTrash, IconX } from '../../../vendor/tablerIcons'
 import { cn } from '../../../utils/cn'
-import { BROWSER_PROMPT_EXTRACTION_MODE_LABELS, type BrowserPromptExtractionMode } from './browserPromptExtraction'
+import { BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS, type BrowserPromptExtractionMode } from './browserPromptExtraction'
 import { TOOL_BUTTON_CLASS } from '../popover/browserAssetPopoverConstants'
 import type { BrowserPromptExtractionTemplate, BrowserPromptExtractionTemplateSettings } from '../popover/browserAssetPopoverTypes'
 import {
@@ -82,7 +82,7 @@ export function BrowserPromptExtractionSettingsModal({
     const id = `custom:${mode}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const template: BrowserPromptExtractionTemplate = {
       id,
-      title: t('browserAssets.extraction.customTemplate', { mode: BROWSER_PROMPT_EXTRACTION_MODE_LABELS[mode] }),
+      title: t('browserAssets.extraction.customTemplate', { mode: t(BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS[mode]) }),
       prompt: selectedTemplate.prompt,
       createdAt: now,
       updatedAt: now,
@@ -133,8 +133,8 @@ export function BrowserPromptExtractionSettingsModal({
           <section className="flex min-h-0 flex-col gap-3">
             <div className="grid grid-cols-2 gap-1 rounded-nomi bg-nomi-ink-05 p-1">
               {(['replicate', 'style'] as const).map((item) => (
-                <button key={item} type="button" className={cn('h-8 rounded-nomi-sm border-0 bg-transparent px-2 text-caption font-semibold', 'cursor-pointer transition-colors duration-[var(--nomi-transition-fast)]', mode === item ? 'bg-nomi-paper text-nomi-ink shadow-nomi-sm' : 'text-nomi-ink-55 hover:text-nomi-ink')} onClick={() => setMode(item)}>
-                  {BROWSER_PROMPT_EXTRACTION_MODE_LABELS[item]}
+                <button key={item} type="button" className={cn('h-8 rounded-nomi-sm border-0 bg-transparent px-2 text-caption font-semibold', 'cursor-pointer transition-colors duration-[var(--nomi-transition-fast)]', mode === item ? 'bg-nomi-paper text-nomi-ink shadow-nomi-sm' : 'text-nomi-ink-60 hover:text-nomi-ink')} onClick={() => setMode(item)}>
+                  {t(BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS[item])}
                 </button>
               ))}
             </div>
@@ -142,7 +142,7 @@ export function BrowserPromptExtractionSettingsModal({
               {templates.map((template) => {
                 const active = template.id === selectedTemplate.id
                 return (
-                  <button key={template.id} type="button" className={cn('min-h-10 rounded-nomi border px-3 py-2 text-left text-caption font-semibold', 'cursor-pointer transition-colors duration-[var(--nomi-transition-fast)]', active ? 'border-nomi-accent bg-nomi-accent-soft text-nomi-accent' : 'border-nomi-line bg-nomi-paper text-nomi-ink-65 hover:bg-nomi-ink-05 hover:text-nomi-ink')} onClick={() => selectTemplate(template.id)}>
+                  <button key={template.id} type="button" className={cn('min-h-10 rounded-nomi border px-3 py-2 text-left text-caption font-semibold', 'cursor-pointer transition-colors duration-[var(--nomi-transition-fast)]', active ? 'border-nomi-accent bg-nomi-accent-soft text-nomi-accent' : 'border-nomi-line bg-nomi-paper text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink')} onClick={() => selectTemplate(template.id)}>
                     <span className="block truncate">{template.title}</span>
                     {template.builtin ? <span className="mt-0.5 block text-micro text-nomi-ink-40">{t('browserAssets.extraction.default')}</span> : null}
                   </button>
@@ -156,11 +156,11 @@ export function BrowserPromptExtractionSettingsModal({
           </section>
           <section className="flex min-h-0 flex-col gap-3">
             <label className="grid gap-1.5">
-              <span className="text-caption font-semibold text-nomi-ink-65">{t('browserAssets.extraction.name')}</span>
+              <span className="text-caption font-semibold text-nomi-ink-60">{t('browserAssets.extraction.name')}</span>
               <input value={selectedTemplate.title} className="h-9 rounded-nomi border border-nomi-line bg-nomi-bg px-3 text-body-sm text-nomi-ink outline-none focus:border-nomi-accent" onChange={(event) => updateTemplate({ title: event.target.value })} />
             </label>
             <label className="flex min-h-0 flex-1 flex-col gap-1.5">
-              <span className="text-caption font-semibold text-nomi-ink-65">{t('browserAssets.extraction.prompt')}</span>
+              <span className="text-caption font-semibold text-nomi-ink-60">{t('browserAssets.extraction.prompt')}</span>
               <textarea value={selectedTemplate.prompt} className="min-h-[340px] flex-1 resize-none rounded-nomi border border-nomi-line bg-nomi-bg p-3 text-body-sm leading-relaxed text-nomi-ink outline-none focus:border-nomi-accent" onChange={(event) => updateTemplate({ prompt: event.target.value })} />
             </label>
             <div className="flex flex-wrap items-center justify-between gap-2">

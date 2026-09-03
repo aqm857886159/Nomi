@@ -5,6 +5,7 @@ import { contentTypeFromPath } from "../assets/assetPaths";
 import { resolveContentType } from "../assets/mediaTypes";
 import { resolveProjectRelativePath } from "../projects/repository";
 import { getArtifactPreviewSecret, verifyArtifactPreviewHandle } from "../productionRun/artifactProjection";
+import { appendEvents } from "../events/eventLogRepository";
 
 function withLocalAssetHeaders(headers?: HeadersInit): Headers {
   const next = new Headers(headers);
@@ -62,10 +63,6 @@ export function parseLocalAssetUrl(rawUrl: string): { projectId: string; filePat
   }
 }
 
-function assetPathFromUrl(rawUrl: string): string | null {
-  return parseLocalAssetUrl(rawUrl)?.filePath ?? null;
-}
-
 function contentTypeForFile(filePath: string): string {
   const extensionType = contentTypeFromPath(filePath);
   if (extensionType !== "application/octet-stream") return extensionType;
@@ -121,8 +118,25 @@ function rangeNotSatisfiable(size: number): Response {
 }
 
 export async function handleNomiLocalRequest(request: Request): Promise<Response> {
+  const target = parseLocalAssetUrl(request.url);
+  const respond = (response: Response): Response => {
+    if (target?.projectId) {
+      appendEvents(target.projectId, [{
+        id: `local-response-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        source: 'runtime',
+        type: 'preview.local.response',
+        payload: {
+          method: request.method,
+          status: response.status,
+          range: Boolean(request.headers.get('range')),
+          contentType: response.headers.get('content-type') || '',
+        },
+      }]);
+    }
+    return response;
+  };
   try {
-    const filePath = assetPathFromUrl(request.url);
+    const filePath = target?.filePath ?? null;
     if (!filePath) {
       return new Response("Unsupported nomi-local host", { status: 404 });
     }
@@ -130,8 +144,8 @@ export async function handleNomiLocalRequest(request: Request): Promise<Response
     if (rangeHeader) {
       const stat = fs.statSync(filePath);
       const range = parseRangeHeader(rangeHeader, stat.size);
-      if (!range) return rangeNotSatisfiable(stat.size);
-      return streamRange(filePath, range, stat.size, request.method);
+      if (!range) return respond(rangeNotSatisfiable(stat.size));
+      return respond(streamRange(filePath, range, stat.size, request.method));
     }
     const stat = fs.statSync(filePath);
     const headers = withLocalAssetHeaders({
@@ -147,10 +161,10 @@ export async function handleNomiLocalRequest(request: Request): Promise<Response
     //      至今 OPEN、修复 PR 未合（本仓 v0.20.1 的 fileBody() 曾走这条，已在本轮删除）。
     // 三条都得避开：用我们自己拥有、自带关闭闸的流。见 ./fileResponseStream.ts。
     const body = request.method === "HEAD" ? null : createOwnedFileStream(filePath);
-    return new Response(body, { status: 200, headers });
+    return respond(new Response(body, { status: 200, headers }));
   } catch (error) {
     const message = error instanceof Error ? error.message : "local asset not found";
-    return new Response(message, { status: 404 });
+    return respond(new Response(message, { status: 404 }));
   }
 }
 

@@ -17,6 +17,7 @@ import { CURRENT_CATALOG_VERSION } from "./types";
 import { normalizeCustomCall } from "./customCallMode";
 import { derivePublishedExecution, modelHasPublishedExecution } from "../shared/modelPublication";
 import { deriveModelCatalogHealth } from "./catalogHealth";
+import { depublishVendorForDisabledCredential } from "./credentialPublication";
 import { deleteVendorLineageAndRestore, removeVendorLineage } from "./vendorLineageLifecycle";
 import { guardAntigravityMappingWrite, guardAntigravityModelWrite, guardAntigravityVendorWrite } from "./antigravityWriteGuard";
 import { antigravityConnection } from "../ai/antigravityConnection";
@@ -401,15 +402,15 @@ function applyVendorUpsert(state: CatalogState, payload: unknown): Vendor {
         }
       : { customConfig: existingMeta?.customConfig };
   }
-  // Credential-bearing network config (proxyUrl / extraHeaders) is encrypted into the
-  // vendor's ApiKeyRecord and never persisted as plaintext on the vendor. A field the
-  // upsert actually supplies is encrypted; a field it omits falls back to the existing
-  // vendor's legacy plaintext so a re-save migrates (never drops) pre-v12 secrets. The
-  // plaintext is stripped off the meta/network written to the vendor row below.
+  // Credential-bearing network config is encrypted into ApiKeyRecord; omitted fields migrate legacy plaintext.
   const networkIncoming = resolveNetworkConfigForWrite(raw, incomingMeta, existing, state.apiKeysByVendor[key]);
   if (networkIncoming.proxyUrl !== undefined || networkIncoming.extraHeaders !== undefined) {
     applyPlainNetworkConfig(state, key, networkIncoming);
   }
+  const rawNetwork = isJsonRecord(raw.network) ? raw.network : undefined;
+  const proxyEnabled = typeof rawNetwork?.proxyEnabled === "boolean"
+    ? rawNetwork.proxyEnabled
+    : existing?.network?.proxyEnabled;
   const vendor: Vendor = {
     key,
     name: String(raw.name || existing?.name || key).trim(),
@@ -422,6 +423,7 @@ function applyVendorUpsert(state: CatalogState, payload: unknown): Vendor {
       typeof raw.authQueryParam === "string" ? raw.authQueryParam.trim() || null : (existing?.authQueryParam ?? null),
     providerKind: normalizeProviderKind(raw.providerKind, existing?.providerKind ?? "openai-compatible"),
     meta: metaWithoutExtraHeaders(incomingMeta),
+    ...(proxyEnabled !== undefined ? { network: { proxyEnabled } } : {}),
     createdAt: existing?.createdAt || t,
     updatedAt: t,
   };
@@ -461,16 +463,13 @@ function applyApiKeyUpsert(state: CatalogState, vendorKey: string, payload: unkn
   }
   const t = nowIso();
   const existing = state.apiKeysByVendor[key];
+  const enabled = normalizeEnabled((payload as JsonRecord)?.enabled, true);
   state.apiKeysByVendor[key] = {
-    ...makeApiKeyRecordFromPlain(
-      apiKey,
-      key,
-      normalizeEnabled((payload as JsonRecord)?.enabled, true),
-      existing?.createdAt || t,
-      t,
-    ),
+    ...makeApiKeyRecordFromPlain(apiKey, key, enabled, existing?.createdAt || t, t),
     ...(existing?.customConfig ? { customConfig: existing.customConfig } : {}),
   };
+  // 名实一致：停用凭据 = 该 vendor 退出「已接入/可用」投影，与凭据写入同一次落盘。见 credentialPublication。
+  if (!enabled) depublishVendorForDisabledCredential(state, key, t);
 }
 
 export function upsertModelCatalogVendorApiKey(vendorKey: string, payload: unknown): unknown {

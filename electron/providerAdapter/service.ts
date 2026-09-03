@@ -35,6 +35,7 @@ import { redactAdapterSecrets } from "./redaction";
 import { defaultCatalog, type LoadedConnection, type ProviderAdapterCatalogPort } from "./serviceCatalog";
 import { AdapterWaitError, awaitAdapterStep, deadlineExpired, deadlineFrom } from "./serviceLifecycle";
 import {
+  compileErrorBanner,
   completedModelCount,
   genericCompilation,
   withTextModels,
@@ -448,9 +449,7 @@ export class ProviderAdapterService {
           break;
         }
       }
-      const compileError = compilation.failures.length
-        ? compilation.failures.map((failure) => `${failure.modelKey}: ${failure.error}`).join("; ")
-        : undefined;
+      const compileError = compileErrorBanner(compilation.failures);
       await this.promoteFinal(
         id,
         candidate,

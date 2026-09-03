@@ -38,7 +38,6 @@ export const zhCommunity = {
   shareMessageCopied: '已复制，去粘给朋友吧',
   website: '打开官网',
   github: '查看 GitHub',
-  localDraft: '没有后台上传；你选择的目标页面会在浏览器中单独确认。',
 }
 
 export const enCommunity = {
@@ -81,5 +80,4 @@ export const enCommunity = {
   shareMessageCopied: 'Copied — go paste it to a friend',
   website: 'Open website',
   github: 'View GitHub',
-  localDraft: 'No background upload; the destination page is confirmed separately in your browser.',
 }
