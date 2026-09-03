@@ -1,6 +1,6 @@
 # 分镜表：入口贯通 + 供应商身份 + 三栏骨架
 
-状态：🚧 **实施中**（2026-09-03；来源=分镜表 v5 首次真实付费闭环走查，报告 `/tmp/e2e-report.md`）
+状态：✅ **S1/S2/S3 已实现**（待真实付费闭环复验才能称「已解决」，R19）；原文状态：🚧 实施中（2026-09-03；来源=分镜表 v5 首次真实付费闭环走查，报告 `/tmp/e2e-report.md`）
 
 > ⚠️ 本文档是**方案**，不是现状。现状见 `docs/ARCHITECTURE-NOW.md`。
 
@@ -16,15 +16,35 @@ fixture 上——**名字对上了、实质没有**（playbook §15：判据是�
 
 ### Bug 1（高）创作页「新建分镜方案」点击无反应
 `DocumentListSidebar.tsx:117` 调 `storyboardPlannerLauncher?.()`；`WorkbenchEditor.tsx:237` 同样依赖它。
-**但 `setStoryboardPlannerLauncher` 全仓无人调用**（`git grep storyboardPlannerLauncher` 只有 store 定义
-与三处消费方，零注册方）——launcher 恒 `null`，`?.()` 静默跳过。
-**类根因**：可空回调 + 可选链 = **失败被设计成静默**。没有注册方也不会有任何提示。
+`setStoryboardPlannerLauncher` 全仓零注册方 —— launcher 恒 `null`，`?.()` 静默跳过。
+
+**追到底：注册者不是「没写」，是「被删了」。** `git log -S` 定位到 `d270d34e`（agent-host M1 移植）：
+它用 `ProjectAgentResidentShell` 换掉旧的创作 AI 面板 `WorkbenchAiPanel.tsx`，而那个面板里
+`React.useEffect(() => setStoryboardPlannerLauncher(launchStoryboardPlanning))` 是**唯一注册点**，
+随文件一起消失，新壳没补。加新删旧时把旧实现的一项能力一并删掉了（P1 的反面）。
+
+**类根因**：可空回调 + 可选链 = **失败被设计成静默**。缺口存活两天且 49 个门岗全绿。
 
 ### Bug 2（高）创作 Agent 报「文稿为空」且没有分镜工具
-`creation-editor` 能力的工具集是 `[nomi_document_read, nomi_document_edit, load_skill]`
-（`agentChatV2.facade.test.ts:93` 固化），**不含 `propose_storyboard_plan`**——那属于独立的
-`storyboard` 能力（`agentChatContracts.ts:16`）。用户在创作页对着可见文稿说「拆成 8 镜」，
-Agent 既没有工具、报的还是「文稿为空」（两个错叠在一起，用户只看到后者，信任当场崩）。
+
+> ⚠️ **本条最初写的根因（「`creation-editor` 能力不含 `propose_storyboard_plan`」）已被实测推翻。**
+> `nomi_canvas_plan` 本来就在 `canvasCore` 里（`agentToolCatalog.ts:57`），创作页拿得到。
+> 留此更正是因为：读码得出的猜测和实测长得一模一样，区别只在有没有跑探针。
+
+**真根因（探针实测，`agentToolsForRequest` 直接打表）**：工具 profile 由一张手写正则猜用户措辞——
+
+| prompt | profile | 拿到 `nomi_canvas_plan` |
+|---|---|---|
+| 「拆镜头」 | creation | ❌ |
+| 「把这个故事拆成 8 个镜头」 | creation | ❌ |
+| 「生成分镜方案」 | storyboard | ✅ |
+
+`STORYBOARD_INTENT` 里有「镜头卡/镜头设计」，偏偏没有「镜头」——而「拆镜头」正是产品自己的
+按钮文案。**词表与产品文案脱钩**，用户点自己的按钮触发不了自己的功能。
+
+**「文稿为空」是另一条独立根因**：正文只能从**挂载中的** tiptap 桥读（`NomiStudioApp.tsx:283`），
+分镜页/生成页不挂载编辑器，读一律 `surface_port_stale`；而正文本来就持久化在
+`workbenchDocuments[].contentJson` 里没被用。真相源绑在了 UI 组件的挂载生命周期上。
 
 ### Bug 3（阻断）UI 选 APIMart，请求发去 code-newcli-com
 **这不是新 bug，是 2026-08-18 已登记、已被测试固化的缺口**：
