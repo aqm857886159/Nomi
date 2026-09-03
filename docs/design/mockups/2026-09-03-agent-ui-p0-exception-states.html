@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nomi Agent · P0 异常态样张（2026-09-03 · 17 个缺口 · 4 族统一策略）</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<style>
+/* ── 设计 token（与 2026-09-01-agent-ui-final-redesign.html 完全同源）── */
+:root{
+  --bg:oklch(0.985 0.003 90);--paper:#fff;--canvas:oklch(0.975 0.004 85);
+  --ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);
+  --ink40:oklch(0.68 0.01 80);--ink30:oklch(0.78 0.01 80);--ink20:oklch(0.88 0.005 80);
+  --ink10:oklch(0.94 0.003 80);--ink05:oklch(0.97 0.003 80);
+  --line:oklch(0.91 0.004 80);--lineS:oklch(0.95 0.003 80);
+  --ac:oklch(0.55 0.13 250);--acS:oklch(0.955 0.018 250);--acBg:oklch(0.965 0.014 250);
+  --warn:oklch(0.62 0.14 75);--warnBg:oklch(0.965 0.03 75);
+  --ok:#248a3d;--okBg:rgba(52,199,89,.10);
+  --dg:#b3241c;--dgBg:rgba(255,59,48,.05);
+  --r-ctl:7px;--r-panel:10px;--r-lg:14px;
+  --t-tap:140ms;--t-enter:260ms;--t-settle:420ms;--t-breathe:1.8s;--t-sweep:2.2s;
+  --ease:cubic-bezier(.2,.7,.3,1);
+  --asst:340px;
+}
+body.dark{
+  --bg:oklch(0.19 0.008 85);--paper:oklch(0.235 0.008 85);--canvas:oklch(0.21 0.008 85);
+  --ink:oklch(0.93 0.006 85);--ink80:oklch(0.84 0.008 85);--ink60:oklch(0.7 0.01 85);
+  --ink40:oklch(0.62 0.012 85);--ink30:oklch(0.5 0.012 85);--ink20:oklch(0.36 0.01 85);
+  --ink10:oklch(0.3 0.009 85);--ink05:oklch(0.27 0.008 85);
+  --line:oklch(0.34 0.009 85);--lineS:oklch(0.3 0.008 85);
+  --ac:oklch(0.7 0.12 250);--acS:oklch(0.32 0.05 250);--acBg:oklch(0.29 0.04 250);
+  --warn:oklch(0.78 0.13 75);--warnBg:oklch(0.32 0.05 75);
+  --ok:#7ee8aa;--okBg:rgba(126,232,170,.13);
+  --dg:#ff6961;--dgBg:rgba(255,105,97,.11);
+}
+*{box-sizing:border-box}
+body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+h1{font-size:18px;font-weight:600;margin:0}
+.topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:12px 20px;
+  background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--lineS)}
+.topbar .meta{font-size:11px;color:var(--ink40);flex:1;line-height:1.4}
+.topbar .meta a{color:var(--ac)}
+.tabs{display:flex;gap:4px;background:var(--ink05);border-radius:999px;padding:3px}
+.tab{height:28px;padding:0 12px;border:0;border-radius:999px;background:transparent;color:var(--ink60);
+  font:500 12px/1 inherit;cursor:pointer;font-family:inherit}
+.tab.on{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(20,18,16,.08)}
+.toggle{height:28px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:var(--paper);
+  color:var(--ink80);font:12px/1 inherit;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-family:inherit}
+.toggle:hover{border-color:var(--ink20)}
+.stage{padding:22px 20px 60px;max-width:1240px;margin:0 auto}
+.screen{display:none}.screen.on{display:block}
+.caption{font-size:12px;color:var(--ink60);margin:0 0 14px;line-height:1.6;max-width:960px}
+.caption b{color:var(--ink);font-weight:600}
+.caption code{background:var(--ink05);padding:1px 5px;border-radius:4px;font-size:11px}
+
+/* ── 折叠策略说明盒 ── */
+.strategy-box{border:1.5px solid var(--ac);border-radius:var(--r-lg);background:var(--acBg);padding:14px 16px;margin:0 0 20px;font-size:12px;line-height:1.65}
+.strategy-box h3{font-size:13px;font-weight:600;color:var(--ac);margin:0 0 8px}
+.strategy-box p{margin:4px 0;color:var(--ink80)}
+.strategy-box code{background:var(--paper);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--ac)}
+.strategy-box ul{margin:6px 0 0 16px;padding:0}
+.strategy-box li{margin:3px 0;color:var(--ink60)}
+
+/* ── 分族网格 ── */
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;align-items:start}
+.grid3{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;align-items:start}
+.section-head{font-size:14px;font-weight:700;color:var(--ink);margin:28px 0 10px;display:flex;align-items:center;gap:8px}
+.section-head .badge{height:22px;padding:0 9px;border-radius:999px;font-size:11px;font-weight:600;display:inline-flex;align-items:center}
+.badge-fold{background:var(--ink10);color:var(--ink60)}
+.badge-err{background:var(--dgBg);color:var(--dg)}
+.badge-load{background:var(--acBg);color:var(--ac)}
+.badge-empty{background:var(--ink05);color:var(--ink40)}
+
+/* ── 样态卡外壳（每个缺口一张） ── */
+.cardframe{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--paper);overflow:hidden}
+.cardframe .cf-lbl{font-size:11px;color:var(--ink40);padding:8px 12px 0;line-height:1.5}
+.cardframe .cf-lbl b{color:var(--ink80);font-weight:600}
+.cardframe .cf-lbl .fam{color:var(--ac);font-size:10px;margin-left:5px}
+.cardframe .cf-body{padding:12px}
+.deviate-note{font-size:10.5px;color:var(--warn);background:var(--warnBg);border-radius:5px;padding:5px 8px;margin-top:8px;line-height:1.5}
+.deviate-note i{font-size:11px;vertical-align:-1px}
+
+/* ── Agent 外壳（迷你版，仅右栏 340px + 真实 header）── */
+.mini-asst{width:340px;border:1px solid var(--line);border-radius:10px;background:var(--paper);display:flex;flex-direction:column;overflow:hidden}
+.asst-head{flex:none;display:flex;align-items:center;gap:7px;padding:8px 10px;border-bottom:1px solid var(--lineS)}
+.asst-head .nm{display:flex;align-items:center;gap:6px;font-weight:600;font-size:12px;color:var(--ink)}
+.asst-head .nlogo{width:20px;height:20px;border-radius:6px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-weight:700;font-size:10px}
+.asst-head .sp{flex:1}
+.asst-head .hico{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--ink40);cursor:pointer;font-size:14px}
+
+/* 用量 pill */
+.usage-pill{position:relative;height:22px;padding:0 8px;border:1px solid var(--line);border-radius:999px;background:var(--paper);
+  display:inline-flex;align-items:center;gap:5px;color:var(--ink60);font-size:11px;cursor:default;font-variant-numeric:tabular-nums}
+.usage-pill svg{flex:none}
+.usage-pill .ring-bg{stroke:var(--ink10)}
+.usage-pill .ring-fg{stroke:var(--ac);stroke-linecap:round}
+
+/* 流区 */
+.flow{flex:1;overflow-y:auto;padding:12px 12px 8px;position:relative;scrollbar-width:thin;max-height:380px}
+.flow.short{max-height:240px}
+.flow::-webkit-scrollbar{width:6px}.flow::-webkit-scrollbar-thumb{background:var(--ink10);border-radius:3px}
+
+/* 折叠/展开的通用组件 */
+.fold-wrap{margin:8px 0}
+.fold-trigger{display:flex;align-items:center;gap:8px;padding:6px 9px;border:1px solid var(--line);border-radius:7px;cursor:pointer;background:var(--paper);font-size:12px;color:var(--ink80);line-height:1.4}
+.fold-trigger:hover{background:var(--ink05)}
+.fold-trigger .chev{margin-left:auto;color:var(--ink30);font-size:14px;flex:none;transition:transform var(--t-tap) var(--ease)}
+.fold-trigger .chev.open{transform:rotate(180deg)}
+.fold-trigger .li{width:16px;flex:none;text-align:center;color:var(--ink40);font-size:14px}
+.fold-body{display:none;margin-top:4px;padding:8px 10px;background:var(--ink05);border-radius:7px;font-size:11.5px;color:var(--ink60);line-height:1.6}
+.fold-body.open{display:block}
+
+/* 折叠后的「截断尾」—— 遮罩渐变 */
+.text-clamp{position:relative;overflow:hidden}
+.text-clamp.clamped{max-height:72px}
+.text-clamp .fade-mask{position:absolute;bottom:0;left:0;right:0;height:28px;background:linear-gradient(to bottom,transparent,var(--paper));pointer-events:none}
+.text-clamp .expand-btn{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--ac);cursor:pointer;margin-top:2px}
+.text-clamp .expand-btn:hover{text-decoration:underline}
+
+/* 用户气泡 */
+.userbubble{max-width:82%;margin:12px 0 12px auto;background:var(--ink);color:var(--paper);border-radius:12px;padding:8px 12px;font-size:12px;line-height:1.5}
+body.dark .userbubble{color:var(--bg)}
+
+/* 工具行 */
+.toolwrap{margin:9px 0}
+.toolline{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink60);cursor:pointer;line-height:1.5}
+.toolline:hover{color:var(--ink)}
+.toolline .li{width:16px;flex:none;text-align:center;color:var(--ink40);font-size:14px}
+.toolline.running .li{color:var(--ac)}
+.toolline.running .li i{display:inline-block;animation:spin 1.1s linear infinite}
+.toolline .chev{margin-left:auto;color:var(--ink30);font-size:14px;flex:none}
+.elapsed{color:var(--ink30);font-variant-numeric:tabular-nums;font-size:11px}
+.toolline .tcnt{font-size:11px;color:var(--ink40)}
+
+/* 分隔线 */
+.divider{display:flex;align-items:center;gap:8px;margin:14px 0;color:var(--ink40);font-size:11px}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--lineS)}
+
+/* 排队行 */
+.qzone{padding:0 6px 5px}
+.qline{display:flex;align-items:center;gap:7px;padding:3px 6px;font-size:11.5px;color:var(--ink40)}
+.qline .qdot{width:5px;height:5px;flex:none;border-radius:50%;border:1.5px solid var(--ink30)}
+.qline .qtxt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qline .qx{width:18px;height:18px;flex:none;border-radius:5px;display:grid;place-items:center;cursor:pointer;color:var(--ink30);font-size:12px}
+.qline.more{font-size:11px;color:var(--ink40);padding:2px 6px;justify-content:center}
+.qzone.capped{border-top:1px solid var(--lineS)}
+
+/* composer 区 */
+.composer{flex:none;border-top:1px solid var(--lineS);padding:7px 10px 9px}
+.cbox{border:1px solid var(--line);border-radius:var(--r-panel);background:var(--paper);padding:8px 10px}
+.cprompt{min-height:34px;color:var(--ink40);font-size:12px;line-height:1.7}
+.cbar{display:flex;align-items:center;gap:5px;margin-top:7px}
+.cbtn{position:relative;height:28px;min-width:28px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink60);display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;font-family:inherit}
+.cbtn i{font-size:15px}
+.cbtn[data-tip]::after{content:attr(data-tip);position:absolute;bottom:33px;left:50%;transform:translateX(-50%);
+  white-space:nowrap;background:var(--ink);color:var(--paper);font-size:11px;line-height:1;padding:6px 8px;border-radius:6px;
+  box-shadow:0 4px 14px rgba(20,18,16,.18);opacity:0;pointer-events:none;transition:opacity var(--t-tap) var(--ease);z-index:40}
+.cbtn[data-tip]:hover::after{opacity:1}
+body.dark .cbtn[data-tip]::after{color:var(--bg)}
+.send{margin-left:auto;width:30px;height:30px;border-radius:999px;background:var(--ink);color:var(--paper);border:0;display:grid;place-items:center;font-size:15px;cursor:pointer}
+body.dark .send{color:var(--bg)}
+
+/* 通用卡片 */
+.card{border:1px solid var(--line);border-radius:10px;background:var(--paper);overflow:hidden}
+.card.accent{border-color:color-mix(in srgb,var(--ac) 42%,var(--line))}
+.card.warn{border-color:var(--warn)}
+.card.danger{border-color:var(--dg)}
+.card .chd{display:flex;align-items:center;gap:7px;padding:9px 11px;font-size:12px;font-weight:600;border-bottom:1px solid var(--lineS)}
+.card .chd .ic{font-size:16px}
+.card.accent .chd .ic{color:var(--ac)}.card.warn .chd .ic{color:var(--warn)}.card.danger .chd .ic{color:var(--dg)}
+.card .cbd{padding:10px 11px}
+.card .tag-you{margin-left:auto;height:20px;padding:0 8px;border-radius:999px;background:var(--acS);color:var(--ac);font-size:10px;display:inline-flex;align-items:center;font-weight:500}
+
+/* 计划卡行 */
+.planrow{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--lineS);font-size:12px}
+.planrow .num{width:18px;height:18px;flex:none;border-radius:999px;background:var(--ink05);color:var(--ink60);display:grid;place-items:center;font-size:10px}
+.planrow input[type=checkbox]{accent-color:var(--ac)}
+.planrow .ptitle{color:var(--ink80)}
+.planrow .ppreview{color:var(--ink40);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+
+/* 价格行 */
+.priceline{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;color:var(--ink80)}
+.priceline.total{border-top:1px solid var(--line);margin-top:4px;padding-top:7px;font-weight:600;color:var(--ink)}
+.priceline .n{font-variant-numeric:tabular-nums}
+.frozen{background:var(--ink05);border-radius:7px;padding:7px 9px;font-size:11px;color:var(--ink60);margin:8px 0;line-height:1.5}
+
+/* 按钮组 */
+.grp{display:flex;gap:7px;margin-top:10px}
+.grp .btn{flex:1}
+.btn{height:28px;padding:0 12px;min-width:72px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink80);
+  font:12px/1 inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:inherit}
+.btn:hover{background:var(--ink05)}
+.btn.pri{border-color:transparent;background:var(--ink);color:var(--paper)}
+body.dark .btn.pri{color:var(--bg)}
+.btn.pri:hover{background:var(--ac);color:#fff}
+.btn.pri.disabled{background:var(--ink30);cursor:not-allowed;opacity:.55}
+.btn.acc{color:var(--ac);border-color:color-mix(in srgb,var(--ac) 35%,var(--line))}
+.btn.danger{color:var(--dg);border-color:color-mix(in srgb,var(--dg) 40%,var(--line))}
+
+/* 有出入的偏差行 */
+.deviation{background:var(--ink05);border-radius:7px;padding:8px 10px;margin:7px 0;font-size:11px}
+.deviation .dw{color:var(--ink80);font-weight:500;display:flex;align-items:center;gap:5px;margin-bottom:3px}
+.deviation .dd{color:var(--ink60);line-height:1.5}
+.deviation .df{display:inline-block;background:var(--warnBg);color:var(--warn);padding:0 6px;border-radius:4px;font-size:10px;margin-right:5px}
+
+/* 候选组 */
+.candidates{display:flex;gap:8px}
+.cand{flex:1;border:1px solid var(--line);border-radius:8px;overflow:hidden;position:relative;cursor:pointer}
+.cand.sel{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
+.cand .cthumb{height:88px;background:linear-gradient(135deg,oklch(0.6 0.1 var(--h,40)),oklch(0.45 0.07 calc(var(--h,40) + 60)))}
+.cand .cft{padding:5px 7px;font-size:10px;color:var(--ink60);display:flex;align-items:center;gap:4px}
+.cand .selmark{position:absolute;top:5px;right:5px;width:18px;height:18px;border-radius:50%;background:var(--ac);color:#fff;display:grid;place-items:center;font-size:11px}
+.cand.fail .cthumb{background:color-mix(in srgb,var(--dgBg) 80%,var(--ink10))}
+.cand.fail .cft{color:var(--dg)}
+.cand-more{display:flex;align-items:center;justify-content:center;width:40px;flex:none;border:1px dashed var(--line);border-radius:8px;font-size:11px;color:var(--ink40);cursor:pointer;background:var(--ink05)}
+.cand-more:hover{border-color:var(--ink20);color:var(--ink80)}
+
+/* @ 选择器 */
+.at-picker{border:1px solid var(--line);border-radius:10px;background:var(--paper);box-shadow:0 8px 30px rgba(20,18,16,.12);padding:8px 0;width:260px}
+.at-picker .at-head{display:flex;align-items:center;gap:8px;padding:6px 12px 8px;border-bottom:1px solid var(--lineS)}
+.at-picker .at-head input{flex:1;border:1px solid var(--line);border-radius:6px;height:26px;padding:0 8px;font-size:12px;color:var(--ink80);background:var(--paper);outline:none}
+.at-picker .at-head input:focus{border-color:var(--ac)}
+.at-picker .at-head input::placeholder{color:var(--ink40)}
+.at-group{padding:4px 0}
+.at-group-head{font-size:10px;color:var(--ink40);padding:5px 12px 3px;font-weight:600;letter-spacing:.02em;text-transform:uppercase}
+.at-item{display:flex;align-items:center;gap:9px;padding:5px 12px;font-size:12px;cursor:pointer;color:var(--ink80)}
+.at-item:hover{background:var(--ink05)}
+.at-item .at-ic{width:24px;height:24px;flex:none;border-radius:6px;background:var(--ink05);display:grid;place-items:center;font-size:13px;color:var(--ink40)}
+.at-item .at-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.at-item .at-sub{font-size:10px;color:var(--ink40)}
+.at-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 16px;text-align:center;gap:8px}
+.at-empty i{font-size:28px;color:var(--ink20)}
+.at-empty .ae-title{font-size:13px;color:var(--ink60);font-weight:500}
+.at-empty .ae-desc{font-size:11px;color:var(--ink40);line-height:1.55}
+.at-empty .ae-cta{height:28px;padding:0 14px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink80);font:12px/1 inherit;cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-top:4px;font-family:inherit}
+.at-count{font-size:10px;color:var(--ink40);padding:5px 12px 6px;border-top:1px solid var(--lineS)}
+
+/* 骨架 shimmer（加载中） */
+.skel{border-radius:6px;background:linear-gradient(90deg,var(--ink10) 25%,var(--ink05) 50%,var(--ink10) 75%);background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skel-line{height:12px;margin:7px 0;border-radius:4px}
+.skel-block{border-radius:8px;border:1px solid var(--lineS)}
+.skel-thumb{border-radius:8px}
+
+/* 错误行内说明 */
+.inline-err{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dg);padding:4px 0}
+.inline-err i{font-size:13px;flex:none}
+
+/* 「另有 N 处」折叠尾 */
+.more-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink40);padding:6px 10px;cursor:pointer;border-top:1px solid var(--lineS)}
+.more-row:hover{color:var(--ink80)}
+.more-row i{font-size:12px}
+
+/* 选项竖排（反问卡）*/
+.opt-stack{display:flex;flex-direction:column;gap:6px;margin:8px 0 2px}
+.opt-stack .opt{height:28px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink80);
+  display:flex;align-items:center;gap:7px;padding:0 10px;font-size:12px;cursor:pointer;text-align:left;font-family:inherit}
+.opt-stack .opt:hover{border-color:var(--ink20);background:var(--ink05)}
+.opt-stack .opt .ord{width:14px;color:var(--ink30);font-size:10px}
+.appr-foot{display:flex;align-items:center;gap:7px;margin-top:10px}
+.appr-foot .pg{font-size:11px;color:var(--ink40);font-variant-numeric:tabular-nums}
+.appr-foot .btn.skip{flex:none;min-width:0;border-color:transparent;color:var(--ink40)}
+.appr-foot .btn.next{flex:1}
+
+/* 产物缩略卡 */
+.artifact .a-head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.artifact .a-head .a-title{font-size:12px;font-weight:600;color:var(--ink)}
+.artifact .a-head .a-desc{font-size:10px;color:var(--ink40);font-variant-numeric:tabular-nums}
+.artifact .a-head .a-acts{margin-left:auto;display:inline-flex;gap:3px;align-items:center}
+.artifact .a-head .a-acts .ai{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--ink60);cursor:pointer;font-size:14px}
+.artifact .athumb{height:120px;border-radius:8px;position:relative;overflow:hidden}
+.artifact .athumb.normal{background:linear-gradient(135deg,oklch(0.55 0.09 40),oklch(0.4 0.06 250))}
+.artifact .athumb.skel-state{background:var(--ink10)}
+.artifact .athumb.fail-state{background:var(--dgBg);border:1px solid color-mix(in srgb,var(--dg) 30%,var(--line));display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px}
+.artifact .athumb .ameta{position:absolute;bottom:6px;left:8px;font-size:10px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.artifact .athumb .fail-ic{font-size:22px;color:var(--dg)}
+.artifact .athumb .fail-txt{font-size:11px;color:var(--dg)}
+.artifact .a-err{font-size:11px;color:var(--dg);margin-top:6px;display:flex;align-items:center;gap:5px}
+
+/* 动效 */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Nomi Agent · P0 异常态样张</h1>
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-s="S1">族1 · 超长折叠</button>
+    <button class="tab" data-s="S2">族2 · 错误态</button>
+    <button class="tab" data-s="S3">族3 · 加载中</button>
+    <button class="tab" data-s="S4">族4 · 空状态</button>
+  </div>
+  <div class="meta">
+    2026-09-03 · P0 17 个缺口 · 4 族统一策略 · 基版：<a href="./2026-09-01-agent-ui-final-redesign.html">v3.2 正常态样张</a> ·
+    <a href="../../2026-09-03-agent-ui-p0-exception-states-walkthrough.md">逐件走读</a>
+  </div>
+  <button class="toggle" id="darkT"><i class="ti ti-moon"></i><span>暗色</span></button>
+</div>
+
+<div class="stage">
+
+<!-- ═══════════════════════════════════════════════
+     族1 · 超长 → 折叠/封顶（10 个缺口）
+═══════════════════════════════════════════════ -->
+<section class="screen on" data-screen="S1">
+  <div class="strategy-box">
+    <h3>族1 统一折叠策略（所有 10 个「超长/超多」缺口一致应用）</h3>
+    <p><b>在哪折：</b>气泡/回复/反问内容超过 3 行文字，或列表超过 <code>N_max</code> 条（各形态的 N_max 见下），触发折叠。</p>
+    <p><b>折后显示什么：</b>首 3 行（或首 N_max 条）保持可见 + 渐变遮罩（内容逐渐淡出） + 下方「展开全文 · 还有 M 行」文字链。若是列表，改为「还有 M 条 ▾」折叠行。</p>
+    <p><b>怎么展开：</b>点文字链/折叠行 → 遮罩和折叠行消失，全文/全列表展开，无动画（instant，避免焦点跳动）。已展开则文字链变「收起 ▴」。</p>
+    <p><b>封顶高度（含列表的卡片用）：</b>卡片内列表最大高度 <code>max-height: 220px</code>；超出则卡内滚动（<code>overflow-y:auto</code>），卡底仍显「另有 M 条 ▾」摘要行。排队/候选/@ 等独立滚动区同理。</p>
+    <ul>
+      <li>气泡超长（形态3）：首 3 行 + 展开链</li>
+      <li>工具条超多步（形态6）：折叠头改 <code>20+ 步 · …</code>，展开列表封顶 220px 卡内滚</li>
+      <li>普通回复超长（形态7）：首 3 行 + 渐变遮罩 + 展开链</li>
+      <li>计划卡 >10 镜（形态8）：列表封顶 220px 卡内滚 + 脚部摘要行「共 N 镜 · 已选 M」</li>
+      <li>排队行 >3 条（形态11/18）：只显前 3 条 + 「还有 N 条」折叠行（无撤回按钮），点展开显全部</li>
+      <li>多候选 >3 版（形态14）：显 3 张缩略图 + 「+N」小盒；悬停 +N 展开全候选（最多 6 列；列数 >6 则改两行×3）</li>
+      <li>有出入 >5 处（形态16）：显前 5 条 + 「还有 M 处 ▾」折叠行；点展开显全部，列表封顶 220px 卡内滚</li>
+      <li>反问卡超长/超多选项（形态17）：问题文字超 3 行折叠同回复策略；选项超 5 个则前 4 个 + 「+N 更多」；点「+N 更多」全部展开</li>
+      <li>@ 选择器素材 >50（形态19）：分组 + 搜索框常驻 + 滚动区封顶 280px，不折叠（搜索替代折叠）</li>
+    </ul>
+    <p style="margin-top:6px;color:var(--ink40)">偏离该策略的形态：<b>@选择器（形态19）</b>用搜索而非折叠——因为「找到特定素材」是目标，折叠后仍需滚动；搜索更直接。</p>
+  </div>
+
+  <div class="grid2">
+
+    <!-- 形态3 · 用户气泡 × 超长文本 -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 3 · 用户气泡 × 超长文本</b><span class="fam">折叠族</span></div>
+      <div class="cf-body">
+        <div class="mini-asst">
+          <div class="asst-head">
+            <span class="nm"><span class="nlogo">N</span>Nomi</span>
+            <span class="usage-pill"><svg width="12" height="12" viewBox="0 0 12 12"><circle class="ring-bg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6"/><circle class="ring-fg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6" stroke-dasharray="28.9" stroke-dashoffset="24.9" transform="rotate(-90 6 6)"/></svg>还能聊 ~38 轮</span>
+            <span class="sp"></span>
+            <span class="hico"><i class="ti ti-history"></i></span>
+          </div>
+          <div class="flow short">
+            <!-- 正常长度气泡 -->
+            <div class="userbubble">拆一下上面这段</div>
+            <!-- 超长气泡：触发折叠 -->
+            <div style="max-width:82%;margin:12px 0 12px auto">
+              <div style="background:var(--ink);color:var(--paper);border-radius:12px;padding:8px 12px;font-size:12px;line-height:1.5">
+                <div class="text-clamp clamped">
+                  我需要把「雨夜追逐」这段拆成 8 个镜头：第 1 镜是夜景远景建立环境感，主角站在路口仰望，雨打在路灯上折射光晕；第 2 镜切到警车车灯穿透大雨的特写，红蓝色光把路面的积水映得闪烁；第 3 镜是主角开始快跑，脚踩到水坑，水花飞溅，慢动作；第 4 镜是追逐者的手部特写，压下车门把手，同时反光镜里出现逃跑中的人影；第 5 镜双人疾跑，远景对比距离感。
+                  <div class="fade-mask"></div>
+                </div>
+                <div style="margin-top:4px"><span class="expand-btn" style="color:rgba(255,255,255,0.65)"><i class="ti ti-chevron-down" style="font-size:11px"></i>展开全文 · 还有 3 行</span></div>
+              </div>
+            </div>
+            <div class="toolwrap">
+              <div class="toolline running">
+                <span class="li"><i class="ti ti-loader-2"></i></span>正在拆镜头<span class="elapsed">0:02</span>
+              </div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="cbox"><div class="cprompt" style="color:var(--ink40)">输入 @ 可以引素材或技能</div>
+              <div class="cbar">
+                <button class="cbtn" data-tip="附件"><i class="ti ti-paperclip"></i></button>
+                <button class="cbtn" data-tip="Agent · 安全自动"><i class="ti ti-bolt"></i></button>
+                <button class="cbtn" data-tip="文本模型 · Kimi K2"><i class="ti ti-robot"></i></button>
+                <button class="cbtn" data-tip="提示词模板"><i class="ti ti-file-pencil"></i></button>
+                <button class="send"><i class="ti ti-arrow-up"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">气泡正文超过 3 行时，第 4 行起被渐变遮罩覆盖，遮罩内下方出现白色（暗色模式下用背景色）展开链。折叠不截断——文字完整，只是视口截断。<br><code>data-agent-user-bubble</code> 内嵌 <code>data-fold-text</code> 控制展开态。</p>
+      </div>
+    </div>
+
+    <!-- 形态6 · 工具条 × 超长（>20步） -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 6 · 工具条 × 超长（>20 步）</b><span class="fam">折叠族</span></div>
+      <div class="cf-body">
+        <div class="mini-asst">
+          <div class="asst-head">
+            <span class="nm"><span class="nlogo">N</span>Nomi</span>
+            <span class="usage-pill"><svg width="12" height="12" viewBox="0 0 12 12"><circle class="ring-bg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6"/><circle class="ring-fg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6" stroke-dasharray="28.9" stroke-dashoffset="22.0" transform="rotate(-90 6 6)"/></svg>还能聊 ~32 轮</span>
+            <span class="sp"></span><span class="hico"><i class="ti ti-history"></i></span>
+          </div>
+          <div class="flow short">
+            <div class="userbubble">批量生成所有 22 个镜头的参考图。</div>
+            <div style="font-size:12px;color:var(--ink80);margin:10px 0;line-height:1.55">好，22 张参考图全部生成完毕。</div>
+            <!-- 超多步工具总览 -->
+            <div class="toolwrap" data-fold>
+              <div class="toolline" id="tool6-trigger" onclick="toggleFold('tool6')">
+                <span class="li"><i class="ti ti-tool"></i></span>
+                <span>24 步 · 生成参考图 · 读分镜 · 检查参数…</span>
+                <span class="tcnt">完成</span>
+                <span class="chev" id="tool6-chev"><i class="ti ti-chevron-down"></i></span>
+              </div>
+              <!-- 折叠体：封顶 220px，内部滚动 -->
+              <div id="tool6-body" style="display:none;margin-top:4px;max-height:220px;overflow-y:auto;background:var(--ink05);border-radius:7px;padding:6px 8px">
+                <div style="font-size:11px;color:var(--ink40);padding:2px 4px 6px">共 24 步，全部完成</div>
+                <div style="font-size:11.5px;color:var(--ink60);display:flex;flex-direction:column;gap:5px">
+                  <div style="display:flex;align-items:center;gap:6px"><i class="ti ti-check" style="color:var(--ok);font-size:12px"></i>读取分镜表<span style="margin-left:auto;color:var(--ink30);font-size:11px">&lt;1s</span></div>
+                  <div style="display:flex;align-items:center;gap:6px"><i class="ti ti-check" style="color:var(--ok);font-size:12px"></i>检查模型配置<span style="margin-left:auto;color:var(--ink30);font-size:11px">&lt;1s</span></div>
+                  <div style="display:flex;align-items:center;gap:6px"><i class="ti ti-check" style="color:var(--ok);font-size:12px"></i>生成镜 1 参考图<span style="margin-left:auto;color:var(--ink30);font-size:11px">0:38</span></div>
+                  <div style="display:flex;align-items:center;gap:6px"><i class="ti ti-check" style="color:var(--ok);font-size:12px"></i>生成镜 2 参考图<span style="margin-left:auto;color:var(--ink30);font-size:11px">0:42</span></div>
+                  <div style="display:flex;align-items:center;gap:6px"><i class="ti ti-check" style="color:var(--ok);font-size:12px"></i>生成镜 3 参考图<span style="margin-left:auto;color:var(--ink30);font-size:11px">0:44</span></div>
+                  <div style="display:flex;align-items:center;gap:6px"><i class="ti ti-check" style="color:var(--ok);font-size:12px"></i>生成镜 4 参考图<span style="margin-left:auto;color:var(--ink30);font-size:11px">0:41</span></div>
+                  <div style="display:flex;align-items:center;gap:6px"><i class="ti ti-check" style="color:var(--ok);font-size:12px"></i>生成镜 5 参考图<span style="margin-left:auto;color:var(--ink30);font-size:11px">0:39</span></div>
+                  <div style="display:flex;align-items:center;gap:6px"><i class="ti ti-check" style="color:var(--ok);font-size:12px"></i>…以及其余 17 步<span style="margin-left:auto;color:var(--ink30);font-size:11px">—</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="composer"><div class="cbox"><div class="cprompt" style="color:var(--ink40)">输入 @ 可以引素材或技能</div><div class="cbar"><button class="cbtn" data-tip="附件"><i class="ti ti-paperclip"></i></button><button class="cbtn" data-tip="Agent · 安全自动"><i class="ti ti-bolt"></i></button><button class="cbtn" data-tip="文本模型 · Kimi K2"><i class="ti ti-robot"></i></button><button class="cbtn" data-tip="提示词模板"><i class="ti ti-file-pencil"></i></button><button class="send"><i class="ti ti-arrow-up"></i></button></div></div></div>
+        </div>
+        <p class="caption" style="margin-top:8px">总览行文案格式：<code>N 步 · 动作摘要…</code>（N 不截断，完整数字）。展开的明细列表封顶 220px、卡内滚动，不无限拉高。<br><code>data-agent-tool-line[data-state=done]</code></p>
+      </div>
+    </div>
+
+    <!-- 形态7 · 普通回复 × 超长文本 -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 7 · 普通回复 × 超长（>1000 字/含代码块）</b><span class="fam">折叠族</span></div>
+      <div class="cf-body">
+        <div class="mini-asst">
+          <div class="asst-head"><span class="nm"><span class="nlogo">N</span>Nomi</span><span class="usage-pill"><svg width="12" height="12" viewBox="0 0 12 12"><circle class="ring-bg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6"/><circle class="ring-fg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6" stroke-dasharray="28.9" stroke-dashoffset="20" transform="rotate(-90 6 6)"/></svg>还能聊 ~30 轮</span><span class="sp"></span><span class="hico"><i class="ti ti-history"></i></span></div>
+          <div class="flow short">
+            <div class="userbubble">给我分析一下这个故事结构</div>
+            <!-- 超长回复：折叠 -->
+            <div style="margin:10px 0;font-size:12px;color:var(--ink80);line-height:1.55">
+              <div class="text-clamp clamped">
+                这个故事采用的是「英雄旅程」的变体结构，具体来说可以分成三幕来理解：<br><br>
+                <b>第一幕（建立世界）</b>：女主阿青生活在一个雨季绵延的港口城市，她是一名独立的数据分析师，表面上过着平静的生活，但内心深处对自己的身份认同始终存在一种无名的焦虑……
+                <div class="fade-mask"></div>
+              </div>
+              <span class="expand-btn"><i class="ti ti-chevron-down" style="font-size:11px"></i>展开全文 · 还有约 800 字</span>
+            </div>
+          </div>
+          <div class="composer"><div class="cbox"><div class="cprompt" style="color:var(--ink40)">继续问...</div><div class="cbar"><button class="cbtn" data-tip="附件"><i class="ti ti-paperclip"></i></button><button class="cbtn" data-tip="Agent · 安全自动"><i class="ti ti-bolt"></i></button><button class="cbtn" data-tip="文本模型 · Kimi K2"><i class="ti ti-robot"></i></button><button class="cbtn" data-tip="提示词模板"><i class="ti ti-file-pencil"></i></button><button class="send"><i class="ti ti-arrow-up"></i></button></div></div></div>
+        </div>
+        <p class="caption" style="margin-top:8px">回复超 3 行时渐变遮罩 + 展开链；Markdown 代码块同样折叠（块顶部 3 行可见 + 遮罩）。展开是全量，不分页。<br><code>data-agent-reply</code> 内嵌 <code>data-fold-text</code></p>
+      </div>
+    </div>
+
+    <!-- 形态8 · 计划卡 × 超长（>10镜） -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 8 · 计划卡 × 超长（>10 镜）</b><span class="fam">折叠族</span></div>
+      <div class="cf-body">
+        <div class="card accent">
+          <div class="chd"><i class="ti ti-list-details ic"></i>拆成 14 镜 · 生成计划</div>
+          <div class="cbd">
+            <div style="font-size:10px;color:var(--ink40);margin-bottom:5px">这批的设置</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+              <span style="height:28px;border:1px solid var(--line);border-radius:999px;background:var(--paper);padding:0 9px;display:inline-flex;align-items:center;font-size:11px;color:var(--ink80)">seedream 4.0</span>
+              <span style="height:28px;border:1px solid color-mix(in srgb,var(--ac) 40%,var(--line));background:var(--acS);border-radius:999px;padding:0 9px;display:inline-flex;align-items:center;font-size:11px;color:var(--ac)">竖版 · 1K</span>
+            </div>
+            <!-- 列表封顶：220px 内滚 -->
+            <div style="max-height:220px;overflow-y:auto;border-top:1px solid var(--lineS)">
+              <div class="planrow"><span class="num">1</span><input type="checkbox" checked><span class="ptitle">特写</span><span class="ppreview">路灯光晕</span><span style="margin-left:auto;font-size:10px;color:var(--ink40)">同上</span></div>
+              <div class="planrow"><span class="num">2</span><input type="checkbox" checked><span class="ptitle">中景</span><span class="ppreview">主角仰望</span><span style="margin-left:auto;font-size:10px;color:var(--ink40)">同上</span></div>
+              <div class="planrow"><span class="num">3</span><input type="checkbox"><span class="ptitle">近景</span><span class="ppreview">雨中奔跑</span><span style="margin-left:auto;font-size:10px;color:var(--ink40)">同上</span></div>
+              <div class="planrow"><span class="num">4</span><input type="checkbox" checked><span class="ptitle">特写</span><span class="ppreview">车灯穿透大雨</span><span style="margin-left:auto;font-size:10px;color:var(--ac)">已改 · 还原</span></div>
+              <div class="planrow"><span class="num">5</span><input type="checkbox"><span class="ptitle">俯拍</span><span class="ppreview">水坑溅水慢动作</span><span style="margin-left:auto;font-size:10px;color:var(--ink40)">同上</span></div>
+              <div class="planrow"><span class="num">6</span><input type="checkbox"><span class="ptitle">手部</span><span class="ppreview">按下车门把手</span><span style="margin-left:auto;font-size:10px;color:var(--ink40)">同上</span></div>
+              <div class="planrow"><span class="num">7</span><input type="checkbox" checked><span class="ptitle">全景</span><span class="ppreview">追逐对比距离</span><span style="margin-left:auto;font-size:10px;color:var(--ink40)">同上</span></div>
+              <div class="planrow"><span class="num">8</span><input type="checkbox"><span class="ptitle">内景</span><span class="ppreview">反光镜人影</span><span style="margin-left:auto;font-size:10px;color:var(--ink40)">同上</span></div>
+              <div class="planrow"><span class="num">9</span><input type="checkbox"><span class="ptitle">特写</span><span class="ppreview">门缝透出光线</span><span style="margin-left:auto;font-size:10px;color:var(--ink40)">同上</span></div>
+              <div class="planrow"><span class="num">10</span><input type="checkbox" checked><span class="ptitle">远景</span><span class="ppreview">雨中小巷收尾</span><span style="margin-left:auto;font-size:10px;color:var(--ink40)">同上</span></div>
+              <div class="planrow"><span class="num">11</span><input type="checkbox"><span class="ptitle">中景</span><span class="ppreview">阿青转身</span><span style="margin-left:auto;font-size:10px;color:var(--ink40)">同上</span></div>
+              <div class="planrow"><span class="num">12</span><input type="checkbox"><span class="ptitle">特写</span><span class="ppreview">雨滴打在玻璃上</span><span style="margin-left:auto;font-size:10px;color:var(--ink40)">同上</span></div>
+            </div>
+            <!-- 滚动区下方摘要行（始终可见） -->
+            <div style="border-top:1px solid var(--line);padding-top:7px;margin-top:2px;display:flex;align-items:center;font-size:11px;color:var(--ink60)">
+              <span>共 14 镜</span><span style="margin-left:auto;color:var(--ink80);font-weight:500">已选 4 镜</span>
+            </div>
+            <div class="grp">
+              <button class="btn">全不选</button>
+              <button class="btn pri">生成已选（4 镜）</button>
+            </div>
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">列表区 <code>max-height: 220px; overflow-y: auto</code>。脚部摘要行「共 N 镜 · 已选 M」始终可见，不随列表滚走。勾选数实时更新按钮文案。<br><code>data-agent-plan-card</code></p>
+      </div>
+    </div>
+
+    <!-- 形态11 + 18 · 排队行 × 超长（>3条） -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 11 · 排队行 × 超长（>3 条）</b>（形态 18 指令队列同策略）<span class="fam">折叠族</span></div>
+      <div class="cf-body">
+        <div class="mini-asst">
+          <div class="asst-head"><span class="nm"><span class="nlogo">N</span>Nomi</span><span class="usage-pill"><svg width="12" height="12" viewBox="0 0 12 12"><circle class="ring-bg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6"/><circle class="ring-fg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6" stroke-dasharray="28.9" stroke-dashoffset="18" transform="rotate(-90 6 6)"/></svg>还能聊 ~28 轮</span><span class="sp"></span><span class="hico"><i class="ti ti-history"></i></span></div>
+          <div class="flow short">
+            <div class="toolwrap">
+              <div class="toolline running"><span class="li"><i class="ti ti-loader-2"></i></span>正在生成镜 1 参考图<span class="elapsed">0:28</span></div>
+            </div>
+          </div>
+          <!-- 排队区：>3 条时封顶显 3 条 + 折叠行 -->
+          <div class="qzone capped">
+            <div class="qline"><span class="qdot"></span><span class="qtxt">第 2 镜改成黄昏光</span><span class="qx"><i class="ti ti-x"></i></span></div>
+            <div class="qline"><span class="qdot"></span><span class="qtxt">第 3 镜再给一个仰拍版本</span><span class="qx"><i class="ti ti-x"></i></span></div>
+            <div class="qline"><span class="qdot"></span><span class="qtxt">全部生成完后发我个汇总</span><span class="qx"><i class="ti ti-x"></i></span></div>
+            <!-- 折叠行：无单条撤回，只显数量 -->
+            <div class="qline more" style="cursor:pointer" id="qmore-trigger" onclick="toggleQMore()">
+              <i class="ti ti-chevron-down" id="qmore-icon"></i>还有 2 条排队
+            </div>
+            <!-- 隐藏的额外行 -->
+            <div id="qmore-extra" style="display:none">
+              <div class="qline"><span class="qdot"></span><span class="qtxt">帮我写一段旁白文案</span><span class="qx"><i class="ti ti-x"></i></span></div>
+              <div class="qline"><span class="qdot"></span><span class="qtxt">导出全部为 PNG</span><span class="qx"><i class="ti ti-x"></i></span></div>
+            </div>
+          </div>
+          <div class="composer"><div class="cbox"><div class="cprompt" style="color:var(--ink40)">输入 @ 可以引素材或技能</div><div class="cbar"><button class="cbtn" data-tip="附件"><i class="ti ti-paperclip"></i></button><button class="cbtn" data-tip="Agent · 安全自动"><i class="ti ti-bolt"></i></button><button class="cbtn" data-tip="文本模型 · Kimi K2"><i class="ti ti-robot"></i></button><button class="cbtn" data-tip="提示词模板"><i class="ti ti-file-pencil"></i></button><button class="send"><i class="ti ti-arrow-up"></i></button></div></div></div>
+        </div>
+        <p class="caption" style="margin-top:8px">前 3 条正常显示（含 × 撤回）。第 4 条起折叠成「还有 N 条排队」折叠行。折叠行没有单条撤回（折叠态无法操作每条）。点折叠行展开全部，全部可见时折叠行变「收起 ▴」。<br><code>data-agent-queue-row</code></p>
+      </div>
+    </div>
+
+    <!-- 形态14 · 多候选组 × 超长（>3版） -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 14 · 多候选组 × 超长（>3 版）</b><span class="fam">折叠族</span></div>
+      <div class="cf-body">
+        <div class="card accent" data-agent-candidates-card>
+          <div class="chd"><i class="ti ti-photo-scan ic"></i>镜 1 · 5 个候选</div>
+          <div class="cbd">
+            <div style="display:flex;gap:6px;align-items:stretch">
+              <!-- 前 3 版正常显示 -->
+              <div class="cand sel" style="--h:40">
+                <div class="cthumb"></div>
+                <div class="cft"><span>A 版</span><span class="selmark"><i class="ti ti-check"></i></span></div>
+              </div>
+              <div class="cand" style="--h:160">
+                <div class="cthumb"></div>
+                <div class="cft">B 版</div>
+              </div>
+              <div class="cand" style="--h:280">
+                <div class="cthumb"></div>
+                <div class="cft">C 版</div>
+              </div>
+              <!-- +2 折叠盒 -->
+              <div class="cand-more" id="cand-more-box">
+                <span style="font-size:10px;font-weight:600;color:var(--ink40)">+2</span>
+              </div>
+            </div>
+            <!-- 展开后的额外候选（默认隐藏） -->
+            <div id="cand-extra" style="display:none;display:flex;gap:6px;margin-top:6px">
+              <div class="cand" style="--h:60;flex:1">
+                <div class="cthumb"></div>
+                <div class="cft">D 版</div>
+              </div>
+              <div class="cand" style="--h:200;flex:1">
+                <div class="cthumb"></div>
+                <div class="cft">E 版</div>
+              </div>
+              <div style="flex:1"></div>
+            </div>
+            <div class="grp" style="margin-top:8px">
+              <button class="btn pri">采用 A 版</button>
+            </div>
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">固定显示前 3 个缩略图，第 4+ 个合并成「+N」小盒（与候选缩略图等高）。点「+N」盒展开剩余候选（第 2 排展示）。超过 6 版时改成 2 排 × 3。<br><code>data-agent-candidates-card</code></p>
+      </div>
+    </div>
+
+    <!-- 形态16 · 有出入卡 × 超长（>5处） -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 16 · 有出入卡 × 超长（>5 处）</b><span class="fam">折叠族</span></div>
+      <div class="cf-body">
+        <div class="card warn" data-agent-deviation-card>
+          <div class="chd"><i class="ti ti-alert-triangle ic"></i>做完了，有 7 处和你批准的不一样</div>
+          <div class="cbd">
+            <!-- 前 5 条正常显示，封顶 220px -->
+            <div style="max-height:220px;overflow-y:auto">
+              <div class="deviation"><div class="dw"><span class="df">画面</span>镜 2 颜色偏差</div><div class="dd">阿青的头发画成棕色，和定妆不一样（应为黑色直发）</div></div>
+              <div class="deviation"><div class="dw"><span class="df">连线</span>镜 3→镜 4 断线</div><div class="dd">镜 3 结尾画面没接到镜 4 开头——中间那条连线生成时丢了</div></div>
+              <div class="deviation"><div class="dw"><span class="df">画面</span>镜 5 构图偏移</div><div class="dd">要求俯拍，但实际偏成了 45° 斜角</div></div>
+              <div class="deviation"><div class="dw"><span class="df">参数</span>镜 6 分辨率不对</div><div class="dd">生成了 1024×1024，你批准的是 1024×1792 竖版</div></div>
+              <div class="deviation"><div class="dw"><span class="df">画面</span>镜 7 背景不符</div><div class="dd">咖啡馆场景变成了室外</div></div>
+            </div>
+            <!-- 折叠尾 -->
+            <div class="more-row" id="dev-more-trigger" onclick="toggleDevMore()">
+              <i class="ti ti-chevron-down" id="dev-more-icon"></i>还有 2 处 ▾
+            </div>
+            <!-- 隐藏的额外偏差 -->
+            <div id="dev-extra" style="display:none">
+              <div class="deviation"><div class="dw"><span class="df">连线</span>镜 8 断线</div><div class="dd">镜 8 末尾连接画布节点时丢失</div></div>
+              <div class="deviation"><div class="dw"><span class="df">参数</span>镜 1 时长不对</div><div class="dd">批准 3s，实际生成 4s</div></div>
+            </div>
+            <div class="grp" style="margin-top:8px">
+              <button class="btn">让 AI 修</button>
+              <button class="btn">撤销这一步</button>
+              <button class="btn">知道了</button>
+            </div>
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">列表区封顶 220px 卡内滚，同时在列表下方出现「还有 M 处 ▾」折叠行。点折叠行 → 展开剩余偏差（不再卡内滚，全部展开追加在下方）。<br><code>data-agent-deviation-card</code></p>
+      </div>
+    </div>
+
+    <!-- 形态17 · 反问卡 × 超长/超多选项 -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 17 · 反问卡 × 超长问题/超多选项（>5）</b><span class="fam">折叠族</span></div>
+      <div class="cf-body">
+        <div class="card accent" data-agent-question-card>
+          <div class="chd"><i class="ti ti-help ic"></i>开始前问你一件事 <span class="tag-you">要你答</span></div>
+          <div class="cbd">
+            <!-- 问题超长：折叠 -->
+            <div style="font-size:12px;color:var(--ink80);line-height:1.55;margin-bottom:8px">
+              <div class="text-clamp clamped">
+                你在故事里设定的阿青是一个什么样的人物？她的职业背景、性格特点、和主线冲突的关系，还有你希望她的视觉形象偏向哪种风格——是现代都市感还是带点复古的港风，这些会影响我怎么调整光影和构图……
+                <div class="fade-mask"></div>
+              </div>
+              <span class="expand-btn"><i class="ti ti-chevron-down" style="font-size:11px"></i>展开问题全文</span>
+            </div>
+            <!-- 选项超多：前 4 个 + +N 更多 -->
+            <div class="opt-stack">
+              <button class="opt"><span class="ord">1</span>现代都市，冷调蓝绿</button>
+              <button class="opt"><span class="ord">2</span>港风复古，暖黄橙调</button>
+              <button class="opt"><span class="ord">3</span>黑色电影，高对比黑白</button>
+              <button class="opt sel"><span class="ord">4</span>赛博朋克，霓虹饱和</button>
+              <!-- 折叠的额外选项 -->
+              <div id="opt-extra" style="display:none;display:flex;flex-direction:column;gap:6px">
+                <button class="opt"><span class="ord">5</span>自然光写实，低饱和</button>
+                <button class="opt"><span class="ord">6</span>让 Nomi 帮我决定</button>
+              </div>
+              <button class="opt" id="opt-more-btn" onclick="toggleOptMore()" style="color:var(--ac);border-color:color-mix(in srgb,var(--ac) 35%,var(--line))">
+                <span class="ord"></span>+2 更多选项 ▾
+              </button>
+            </div>
+            <div class="appr-foot">
+              <span class="pg">1 / 2</span>
+              <button class="btn skip">跳过</button>
+              <button class="btn next pri">继续</button>
+            </div>
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">问题超 3 行：渐变遮罩 + 展开链。选项超 5 个：显前 4 个，第 5+ 折进「+N 更多选项 ▾」按钮；点展开，新选项追加在按钮上方，按钮变「收起 ▴」。<br><code>data-agent-question-card</code></p>
+      </div>
+    </div>
+
+    <!-- 形态19 · @ 选择器 × 素材 >50（搜索替代折叠） -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 19 · @ 选择器 × 素材 >50（偏离折叠族：搜索替代折叠）</b><span class="fam">折叠族·偏离</span></div>
+      <div class="cf-body">
+        <div class="deviate-note"><i class="ti ti-info-circle"></i> 此形态偏离族1 统一折叠策略：当素材 >50 时，目标是「找到特定素材」，搜索比折叠后滚动更直接。搜索框在 >50 时自动出现（<50 无搜索框）。</div>
+        <div style="margin-top:10px">
+          <div class="at-picker" data-agent-at-picker style="width:100%">
+            <div class="at-head">
+              <i class="ti ti-search" style="color:var(--ink40);font-size:14px"></i>
+              <input placeholder="搜索素材、定妆、技能…" value="雨夜">
+            </div>
+            <!-- 搜索结果 -->
+            <div class="at-group">
+              <div class="at-group-head">搜索结果 · 2 项</div>
+              <div class="at-item"><div class="at-ic"><i class="ti ti-video"></i></div><div class="at-name">雨夜追逐素材<div class="at-sub">视频 · 1.2GB · 已引用 3 次</div></div></div>
+              <div class="at-item"><div class="at-ic"><i class="ti ti-photo"></i></div><div class="at-name">雨夜氛围参考图<div class="at-sub">图片 · 2MB</div></div></div>
+            </div>
+            <div class="at-count">项目共 64 个素材 · 输入关键词搜索</div>
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">搜索框在素材数量 >50 时自动出现（始终在选择器顶部，跨分组）。滚动区封顶 280px。无搜索词时按分组展示最近使用（≤5 条/组）。<br><code>data-agent-at-picker</code> 内嵌 <code>data-at-search</code></p>
+      </div>
+    </div>
+
+  </div><!-- end grid2 -->
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     族2 · 错误态（4 个缺口）
+═══════════════════════════════════════════════ -->
+<section class="screen" data-screen="S2">
+  <div class="strategy-box">
+    <h3>族2 统一错误态策略（形态 8·计划失败 / 9·价格算不出 / 10·写入失败 / 13·产物失败）</h3>
+    <p><b>统一三要素：</b>① <b>说人话的原因</b>——一句用户能看懂的话，禁止错误码或技术栈信息；② <b>是否花钱明示</b>——「这次没扣钱」或「已扣 ¥X.XX」，绿字/红字分别；③ <b>能重试的就给重试</b>——主按钮是「重试」或「换模型重试」，次按钮是「知道了」或「改提示词」。</p>
+    <p><b>视觉处理：</b>错误态用 <code>--workbench-danger</code> 边框，不用红色背景块（红底造成视觉压迫感，边框足够传递警示）。不用 toast——错误发生在对话流里，就在对话流里就地展示，不浮出。</p>
+    <p><b>何时显重试入口：</b>所有错误默认显重试，除非已知「重试也没用」（如余额不足），此时主按钮换成「充值」或「换模型」。</p>
+  </div>
+
+  <div class="grid2">
+
+    <!-- 形态8 · 计划生成失败 -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 8 · 计划生成失败</b><span class="fam">错误族</span></div>
+      <div class="cf-body">
+        <div class="card danger" data-agent-plan-card>
+          <div class="chd"><i class="ti ti-alert-circle ic"></i>计划没做出来</div>
+          <div class="cbd">
+            <div style="font-size:12px;color:var(--ink80);line-height:1.55;margin-bottom:10px">
+              我没能把你的描述拆成具体的镜头——可能是描述太开放，或者我理解出了偏差。
+            </div>
+            <div style="font-size:11px;color:var(--ink40);padding:6px 8px;background:var(--ink05);border-radius:6px;margin-bottom:10px">
+              这次没扣钱
+            </div>
+            <div class="grp">
+              <button class="btn">改一下描述</button>
+              <button class="btn pri">重试</button>
+            </div>
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">不出计划卡骨架——失败即失败，给重试和改描述两个出路。「这次没扣钱」绿字（此处用灰底小字，因为计划阶段还未付费，事实陈述即可，不需要强调色）。<br><code>data-agent-plan-card</code></p>
+      </div>
+    </div>
+
+    <!-- 形态9 · 价格计算失败 -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 9 · 付费确认卡 × 价格算不出</b><span class="fam">错误族</span></div>
+      <div class="cf-body">
+        <div class="card warn" data-agent-spend-card>
+          <div class="chd"><i class="ti ti-alert-triangle ic"></i>价格暂时算不出来</div>
+          <div class="cbd">
+            <div style="font-size:12px;color:var(--ink80);line-height:1.55;margin-bottom:8px">
+              获取价格时连接超时了，没法给你准确的金额。你可以稍后重试，或者在「价格未知」的情况下继续生成（生成完成后仍会按实际用量计费）。
+            </div>
+            <!-- 已知的明细行（尽可能显示） -->
+            <div class="priceline">
+              <span>镜数</span><span class="n">5 镜</span>
+            </div>
+            <div class="priceline">
+              <span>模型</span><span class="n">seedream 4.0</span>
+            </div>
+            <div class="priceline total" style="color:var(--warn)">
+              <span>预计金额</span><span class="n">暂时无法获取</span>
+            </div>
+            <div class="grp">
+              <button class="btn">重新获取价格</button>
+              <button class="btn danger">仍要生成</button>
+            </div>
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">尽可能展示已知信息（镜数、模型）；价格行变 <code>--nomi-warning</code> 色 + 文字「暂时无法获取」。两个出路：重新获取（主路） / 仍要生成（次路，用危险色警示，因为可能花未知数额的钱）。<br><code>data-agent-spend-card</code></p>
+      </div>
+    </div>
+
+    <!-- 形态10 · 写入画布失败 -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 10 · 写入画布失败</b><span class="fam">错误族</span></div>
+      <div class="cf-body">
+        <div style="margin:10px 0">
+          <!-- 写入失败行（在对话流里，原位替代正常回执） -->
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dg);padding:6px 0" data-agent-proposal-receipt>
+            <i class="ti ti-circle-x" style="font-size:14px;flex:none"></i>
+            <span>写入画布失败——5 个节点没加进去</span>
+            <button class="btn" style="margin-left:auto;height:24px;font-size:11px;padding:0 10px;color:var(--dg);border-color:color-mix(in srgb,var(--dg) 40%,var(--line))">重试</button>
+          </div>
+          <div style="font-size:11px;color:var(--ink60);padding:5px 8px;background:var(--ink05);border-radius:6px;margin-top:4px;line-height:1.5">
+            可能原因：画布正忙着处理别的操作，稍等一下再重试通常能成。这次没扣钱。
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">写入失败是一行（和正常回执同层级），不升级为独立卡片。颜色用 <code>--workbench-danger</code>，行尾「重试」按钮（危险边框色）。失败原因在下方 hint 行（灰底小字）。<br><code>data-agent-proposal-receipt[data-state=failed]</code></p>
+      </div>
+    </div>
+
+    <!-- 形态13 · 产物缩略卡 × 生成失败 -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 13 · 产物缩略卡 × 生成失败</b><span class="fam">错误族</span></div>
+      <div class="cf-body">
+        <div class="artifact" data-agent-artifact-card style="border:1px solid var(--line);border-radius:10px;padding:10px 11px">
+          <div class="a-head">
+            <span class="a-title">镜 3 · 1024×1792</span>
+            <span class="a-desc">第 1 版 · 生成失败</span>
+            <div class="a-acts">
+              <span class="ai" title="重新生成"><i class="ti ti-refresh"></i></span>
+              <span class="ai" title="改提示词"><i class="ti ti-pencil"></i></span>
+            </div>
+          </div>
+          <!-- 缩略图显示错误态 -->
+          <div class="athumb fail-state">
+            <i class="ti ti-photo-off fail-ic"></i>
+            <span class="fail-txt">生成失败</span>
+          </div>
+          <div class="a-err">
+            <i class="ti ti-info-circle" style="flex:none;font-size:12px"></i>
+            模型返回了错误，提示词可能触发了内容过滤。这次没扣钱。
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">产物卡保持（不流向失败卡形态15）——因为失败发生在这张卡的「图」的位置，卡结构仍需呈现（标题/尺寸/重试动作）。缩略图区改为红色底 + 图标 + 文字「生成失败」。错误原因在卡底一行小字。<br><code>data-agent-artifact-card[data-state=failed]</code></p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     族3 · 加载中（2 个缺口）
+═══════════════════════════════════════════════ -->
+<section class="screen" data-screen="S3">
+  <div class="strategy-box">
+    <h3>族3 统一加载中策略（形态 8·计划生成中 / 形态 13·图像生成中）</h3>
+    <p><b>原则：极简披露，不做进度剧场。</b>显示「正在做」的事实（骨架 shimmer），不模拟假进度条，不编造步骤动画。</p>
+    <p><b>骨架态：</b>卡片用骨架线（shimmer 动效，与设计系统 <code>--nomi-motion-sweep</code> 同频）填充「还不知道内容」的位置。已知的内容（标题行、按钮区）可以先出现，但处于禁用态。</p>
+    <p><b>何时切出骨架态：</b>骨架是一个瞬间——AI 开始处理时进入骨架，内容确定（哪怕第一个字段）就开始替换骨架。不允许骨架态常驻超过 30 秒——超时显示错误提示（不是无限骨架）。</p>
+  </div>
+
+  <div class="grid3">
+
+    <!-- 形态8 · 计划卡 × 生成中（骨架） -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 8 · 计划卡 × 生成中（骨架态）</b><span class="fam">加载族</span></div>
+      <div class="cf-body">
+        <div class="card accent" data-agent-plan-card>
+          <div class="chd">
+            <i class="ti ti-loader-2 ic" style="animation:spin 1.1s linear infinite"></i>
+            正在拆镜头…
+          </div>
+          <div class="cbd">
+            <!-- 参数行：骨架 -->
+            <div style="display:flex;gap:6px;margin-bottom:10px">
+              <div class="skel" style="height:28px;width:110px;border-radius:999px"></div>
+              <div class="skel" style="height:28px;width:80px;border-radius:999px"></div>
+            </div>
+            <!-- 3 行镜头骨架 -->
+            <div style="border-top:1px solid var(--lineS);padding-top:2px">
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 0">
+                <div class="skel" style="width:18px;height:18px;border-radius:999px;flex:none"></div>
+                <div class="skel" style="width:18px;height:18px;border-radius:3px;flex:none"></div>
+                <div class="skel skel-line" style="flex:1;height:12px;margin:0"></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--lineS)">
+                <div class="skel" style="width:18px;height:18px;border-radius:999px;flex:none"></div>
+                <div class="skel" style="width:18px;height:18px;border-radius:3px;flex:none"></div>
+                <div class="skel skel-line" style="flex:1;height:12px;margin:0"></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--lineS)">
+                <div class="skel" style="width:18px;height:18px;border-radius:999px;flex:none"></div>
+                <div class="skel" style="width:18px;height:18px;border-radius:3px;flex:none"></div>
+                <div class="skel skel-line" style="flex:1;height:12px;margin:0"></div>
+              </div>
+            </div>
+            <!-- 按钮：禁用态 -->
+            <div class="grp" style="margin-top:10px">
+              <button class="btn" disabled style="opacity:.4;cursor:not-allowed">全不选</button>
+              <button class="btn pri disabled" disabled>生成计划中…</button>
+            </div>
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">卡片骨架：参数药丸和每行镜头都用 shimmer 占位（宽度随意，暗示「还不知道」）。按钮禁用 + 文案改「生成计划中…」。头部转圈 icon 是进行中的唯一动效。<br><code>data-agent-plan-card[data-state=loading]</code></p>
+      </div>
+    </div>
+
+    <!-- 形态13 · 产物缩略卡 × 图像生成中 -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 13 · 产物缩略卡 × 图像生成中</b><span class="fam">加载族</span></div>
+      <div class="cf-body">
+        <div class="artifact" data-agent-artifact-card style="border:1px solid var(--line);border-radius:10px;padding:10px 11px">
+          <div class="a-head">
+            <span class="a-title">镜 2 · 1024×1792</span>
+            <span class="a-desc">第 1 版 · 生成中</span>
+            <!-- 动作按钮禁用 -->
+            <div class="a-acts">
+              <span class="ai" style="opacity:.3;cursor:not-allowed" title="生成中，不可操作"><i class="ti ti-refresh"></i></span>
+              <span class="ai" style="opacity:.3;cursor:not-allowed"><i class="ti ti-pencil"></i></span>
+            </div>
+          </div>
+          <!-- 缩略图：骨架 shimmer -->
+          <div class="athumb skel-state skel" style="height:120px"></div>
+          <!-- 进度提示（时间，不是百分比） -->
+          <div style="display:flex;align-items:center;gap:5px;margin-top:7px;font-size:11px;color:var(--ink40)">
+            <i class="ti ti-loader-2" style="animation:spin 1.1s linear infinite;font-size:12px"></i>
+            已等 0:12，通常需要 30–60 秒
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">缩略图区是 shimmer 骨架（无假进度条）。动作按钮整组禁用（opacity .3 + cursor not-allowed）。底部一行提示已等时间 + 预期范围（给用户时间锚点，不是假进度）。<br><code>data-agent-artifact-card[data-state=loading]</code></p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     族4 · 空状态（1 个缺口）
+═══════════════════════════════════════════════ -->
+<section class="screen" data-screen="S4">
+  <div class="strategy-box">
+    <h3>族4 空状态策略（仅 @ 选择器 × 无素材）</h3>
+    <p><b>选择：主动引导，不留白。</b>「@ 选择器打开却空着」发生在用户第一次用 Nomi 或刚建新项目时，此刻不知道下一步该做什么。不选「纯留白」——那会让用户怀疑「是不是哪里出了问题」。</p>
+    <p><b>三层结构：</b>① 大 icon（告知这是什么地方）；② 一句话说明（没有素材可以引用）；③ 一个行动入口（「去上传素材」）——只给一个，避免选择困难。</p>
+    <p><b>为什么不引导「创建技能」：</b>@ 选择器支持素材和技能两类，但空状态下用户最先缺的是素材（技能是高阶用法）。只给最直接的引导，不堆两个按钮。</p>
+  </div>
+
+  <div class="grid3">
+
+    <!-- 形态19 · @ 选择器 × 无素材（空状态） -->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>形态 19 · @ 选择器 × 无素材（空状态）</b><span class="fam">空状态族</span></div>
+      <div class="cf-body">
+        <div class="at-picker" data-agent-at-picker style="width:100%">
+          <!-- 头部：无搜索框（素材数 =0，搜索无意义） -->
+          <div style="padding:8px 12px;border-bottom:1px solid var(--lineS);font-size:11px;color:var(--ink40)">
+            引用素材或技能 · @ 快捷键
+          </div>
+          <!-- 空状态主体 -->
+          <div class="at-empty">
+            <i class="ti ti-box-off"></i>
+            <div class="ae-title">这个项目还没有素材</div>
+            <div class="ae-desc">上传图片、视频或音频后，<br>就可以在对话里直接 @ 引用了。</div>
+            <button class="ae-cta"><i class="ti ti-upload"></i>去上传素材</button>
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">选择器内空状态：无搜索框、大 icon + 两行说明 + 一个「去上传素材」引导按钮。点按钮跳转到素材库（不关闭选择器，跳转后选择器关闭）。<br><code>data-agent-at-picker[data-empty=true]</code></p>
+      </div>
+    </div>
+
+    <!-- 参照：@ 选择器正常态（对比）-->
+    <div class="cardframe" data-agent-panel>
+      <div class="cf-lbl"><b>正常态对比（@ 选择器有素材时）</b><span class="fam">参照</span></div>
+      <div class="cf-body">
+        <div class="at-picker" data-agent-at-picker style="width:100%">
+          <div style="padding:8px 12px;border-bottom:1px solid var(--lineS);font-size:11px;color:var(--ink40)">
+            引用素材或技能
+          </div>
+          <div class="at-group">
+            <div class="at-group-head">最近使用</div>
+            <div class="at-item"><div class="at-ic"><i class="ti ti-video"></i></div><div class="at-name">雨夜追逐素材<div class="at-sub">视频 · 1.2GB</div></div></div>
+            <div class="at-item"><div class="at-ic"><i class="ti ti-user-circle"></i></div><div class="at-name">阿青定妆<div class="at-sub">定妆 · 4 张参考图</div></div></div>
+          </div>
+          <div class="at-group">
+            <div class="at-group-head">已装载技能</div>
+            <div class="at-item"><div class="at-ic" style="color:var(--ac)"><i class="ti ti-tools"></i></div><div class="at-name">编剧·Kasdan 方法论<div class="at-sub">技能 · 已装载</div></div></div>
+          </div>
+        </div>
+        <p class="caption" style="margin-top:8px">正常态：分组展示「最近使用」+ 「已装载技能」。无搜索框（素材 ≤50）。对比空状态一目了然。</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+</div><!-- end stage -->
+
+<script>
+/* 标签切换 */
+document.getElementById('tabs').addEventListener('click',e=>{
+  const b=e.target.closest('.tab'); if(!b)return;
+  const s=b.dataset.s;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  b.classList.add('on');
+  document.querySelectorAll('.screen').forEach(sc=>sc.classList.remove('on'));
+  const target=document.querySelector('[data-screen="'+s+'"]');
+  if(target)target.classList.add('on');
+});
+
+/* 暗色切换 */
+document.getElementById('darkT').addEventListener('click',()=>{
+  document.body.classList.toggle('dark');
+  document.getElementById('darkT').querySelector('span').textContent=
+    document.body.classList.contains('dark')?'亮色':'暗色';
+});
+
+/* 工具条折叠（形态6） */
+function toggleFold(id){
+  const body=document.getElementById(id+'-body');
+  const chev=document.getElementById(id+'-chev');
+  if(!body)return;
+  const open=body.style.display==='block';
+  body.style.display=open?'none':'block';
+  if(chev)chev.style.transform=open?'':'rotate(180deg)';
+}
+
+/* 排队行折叠（形态11/18） */
+function toggleQMore(){
+  const extra=document.getElementById('qmore-extra');
+  const icon=document.getElementById('qmore-icon');
+  const trigger=document.getElementById('qmore-trigger');
+  if(!extra)return;
+  const open=extra.style.display==='block';
+  extra.style.display=open?'none':'block';
+  if(icon)icon.className=open?'ti ti-chevron-down':'ti ti-chevron-up';
+  if(trigger)trigger.lastChild.textContent=open?'还有 2 条排队':' 收起排队 ▴';
+}
+
+/* 有出入卡折叠尾（形态16） */
+function toggleDevMore(){
+  const extra=document.getElementById('dev-extra');
+  const icon=document.getElementById('dev-more-icon');
+  const trigger=document.getElementById('dev-more-trigger');
+  if(!extra)return;
+  const open=extra.style.display==='block';
+  extra.style.display=open?'none':'block';
+  if(icon)icon.className=open?'ti ti-chevron-down':'ti ti-chevron-up';
+  if(trigger)trigger.querySelector('span')||null;
+  if(trigger)trigger.innerHTML=(open?'<i class="ti ti-chevron-down"></i>还有 2 处 ▾':'<i class="ti ti-chevron-up"></i>收起 ▴');
+}
+
+/* 反问卡选项折叠（形态17） */
+function toggleOptMore(){
+  const extra=document.getElementById('opt-extra');
+  const btn=document.getElementById('opt-more-btn');
+  if(!extra||!btn)return;
+  const open=extra.style.display==='flex';
+  extra.style.display=open?'none':'flex';
+  btn.innerHTML=(open?'<span class="ord"></span>+2 更多选项 ▾':'<span class="ord"></span>收起 ▴');
+}
+</script>
+</body>
+</html>
