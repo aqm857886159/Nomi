@@ -111,6 +111,7 @@ export function createRunOwnedGenerationGateAuthority(input: Readonly<{
       expiresAt: challenge.challenge.expiresAt,
       handoff: {
         challengeToken: challenge.token,
+        clientAttestation: true,
         contractHash: digest,
         operationId,
       },
