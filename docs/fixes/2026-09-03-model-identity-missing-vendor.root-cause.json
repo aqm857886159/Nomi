@@ -1,0 +1,173 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-model-identity-missing-vendor",
+  "problem_type": "阻断级 + 机制失效：模型的身份唯一键漏掉 vendor，同名模型跨供应商身份坍缩。同一缺陷在一天内于三处独立暴露（Agent 模型清单去重 / 分镜 IR / 健康记账），前两处导致请求发错供应商全链阻断，第三处让「换家优先于换模型」的容错机制完全失效。",
+  "symptom": "2026-09-03 分镜表 v5 首次真实付费闭环走查（真实 Electron、isolate:false、真实资料库、APIMart 真扣额度）：用户在 UI 上选中 APIMart 的 Qwen-Image 3.0，请求实际出站到 code-newcli-com /codex/v1/images/generations，HTTP 400，0 资产、镜头失败（项目 .nomi/events/log-0.jsonl seq 55/64/68/69）。走查判决「小白做不出一条真片子，真实闭环在参考图/单镜生成处被 vendor 身份错绑阻断」。第二轮复验又暴露第三处：点击「Gpt Image 2」反复落到 Kie（该账号余额为负、连连失败），必须手动切回 APIMart（事件 :27-:29）——本该自动避让的健康机制没有生效。",
+  "direct_cause": "三处各自的直接原因：(1) src/workbench/generationCanvas/agent/availableModels.ts 的 buildAgentModelEntries 以裸 modelKey 作为去重键（seen.has(modelKey)），两家供应商提供同名模型时首家胜出、后来者被丢弃；(2) src/workbench/generationCanvas/agent/storyboardPlan.ts 的 PlanShot / PlanShot.keyframe / PlanCreatedNode 只声明 modelKey，没有 modelVendor，落画布时 buildPlannedNodeMeta 只能按裸 key 反查、命中索引里的另一家；(3) src/workbench/generationCanvas/runner/modelHealthMemory.ts 以裸 modelKey 作为连败记账键，Kie 的 gpt-image-2 连败被记成「gpt-image-2 这个模型病了」，APIMart 的同名模型跟着背锅，useDedupedModelSelect 的 pickHealthiestProvider 算出的 healthyVendors 于是只能是全好或全病，回退全集后按 catalog 顺序又选回 Kie（apimart 与 kie 同属 vendorTier 1）。",
+  "class_root": "模型的身份唯一键是 (vendor, modelKey)，而代码库里多处只带 modelKey。同一个模型名可以由多家供应商提供（gpt-image-2 来自 apimart 与 kie；nano-banana 来自 3 家），裸 modelKey 当身份 = 不同家的同名模型在去重、反查、记账三种场合都会坍缩成一个。这不是三个 bug，是同一条身份规则在三处没被遵守；且三次全部当场无异常、类型合法、49 个门岗全绿，只有真花钱跑一遍闭环才会撞见。特别值得记的是 useDedupedModelSelect.ts:47 的注释白纸黑字写着「必须是供应商级而不是模型级」，实现却只把 modelKey 传给探针——注释与实现长期不一致而无人发现，因为没有任何机器判据核对它。",
+  "generality_proof": "判据可机械化并已落地为 check:model-identity（scripts/check-model-identity.mjs，棘轮基线 10 条）：在多供应商并存的那一层（src/workbench + src/config），任何声明了 modelKey/modelAlias 的对象类型或函数参数列表，必须同时声明供应商字段（vendor / vendorKey / modelVendor / providerKey / provider / providers），否则报红。红灯探针已用两次真实故障的原始写法验证：摘掉 PlanShot.modelVendor → 红 3 处；把健康记忆退回 (modelKey, now?) 签名 → 红 1 处；还原即绿。门岗的效力边界是明确的、写在脚本头里的：它工作在签名层，抓不住第 1 处那种纯运行时去重写法（seen.has(modelKey)），那一半由 availableModels.test.ts 与 useDedupedModelSelect.test.ts 的去重回归钉住。扫描范围刻意不含 electron/catalog、electron/integrationCertification、electron/providerAdapter——那三处在「一家一个文件、一家一次会话」的单供应商语境里，裸 modelKey 正当；全仓扫会得到 108 条基线、其中约 95% 是噪音，冻结噪音的门岗没有价值（R20），而三次真实故障恰好全部发生在被覆盖的范围内。",
+  "affected_population": [
+    "所有接入了两家及以上供应商、且这些供应商提供同名模型的用户：在 UI 上选定的供应商与实际出站的供应商可能不一致，导致 HTTP 400 全链阻断或在错误的账号上扣费。",
+    "所有用分镜表落画布的用户：镜头节点上的模型可能被解析成另一家的同名模型（PlanShot 不携带 vendor）。",
+    "所有依赖「某家挂了自动换另一家」容错的用户：该机制在多供应商同名模型场景下从未真正生效过，一家连败会把同名模型的所有家一起判病，随后按目录顺序又选回坏的那家。"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/agent/availableModels.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+    "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "src/workbench/generationCanvas/runner/modelHealthMemory.ts",
+    "src/workbench/generationCanvas/runner/nodeModelHealth.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/nodes/nodeModelArchetype.ts",
+    "src/workbench/common/useDedupedModelSelect.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "scripts/check-model-identity.mjs",
+    "src/config/modelIdentity.ts"
+  ],
+  "entry_points": [
+    "buildAgentModelEntries — Agent 可用模型清单的去重入口",
+    "storyboardPlanToCreateNodesArgs — 分镜方案落画布的转换入口",
+    "buildPlannedNodeMeta / buildModelEntryIndex — 计划节点解析模型的反查入口",
+    "resolveStoryboardImageDefault / resolveStoryboardVideoDefault — 分镜默认模型解析入口",
+    "recordModelFailure / recordModelSuccess / isModelRecentlyAiling — 模型健康记账与查询入口",
+    "pickHealthiestProvider — 「换家优先于换模型」的选家入口",
+    "chooseDefaultModelOption — 新节点自动选默认模型的入口"
+  ],
+  "invariants": [
+    "模型的身份唯一键是 (vendor, modelKey)：任何去重、反查、记账、缓存都必须用这个复合键，不得用裸 modelKey。",
+    "vendor 与 modelKey 必须成对流动：用户选了具体模型就用它自己的 vendor，用默认模型时用默认的 vendor，二者不许混搭（混搭正是「选 A 家发去 B 家」的成因）。",
+    "同名模型来自不同供应商是两个模型，不是重复项；同名同家才是重复项。",
+    "健康判定必须是供应商级：一家连败不得牵连同名模型的其他家；只要还有一家健康，整条模型不该被标病，且自动选家必须走那家健康的。",
+    "裸 modelKey 索引在存在时只作为无 vendor 旧数据的回落，且必须取首次出现的条目（后来者不覆盖），避免身份取决于「索引里最后写入的那家」。"
+  ],
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-model-identity.mjs",
+      "symbol": "check:model-identity",
+      "responsibility": "签名层的身份规则执行体：在多供应商并存那一层拦截「带 modelKey 却不带供应商字段」的新增类型与函数参数。棘轮基线只减不增。"
+    },
+    {
+      "path": "src/config/modelIdentity.ts",
+      "symbol": "dedupeModelOptions / resolveBestProvider / ModelProviderRef",
+      "responsibility": "模型选择层的 canonical 身份边界：把平铺 ModelOption[] 按 canonical 身份聚合成「一个模型 + N 家供应商」，并解析默认那家。节点 picker 与分镜行共用它，不各写一套。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "symbol": "buildModelEntryIndex",
+      "responsibility": "计划落地路径的模型索引构造器：同时含 vendor::modelKey 与裸 modelKey 两种键，裸键取首次出现。applyCanvasToolCall 与 storyboardRowActions 两处共用，避免两份索引对同一模型给出不同身份。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/modelHealthMemory.ts",
+      "symbol": "ModelHealthIdentity",
+      "responsibility": "健康记账的身份主体类型：强制 (vendor, modelKey) 成对传入。用对象而非位置参数，使旧的 (modelKey, now?) 写法在编译期即失败。nodeModelHealth.ts 是它的按节点薄封装。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-model-identity.mjs",
+      "entry_point": "签名层同类门岗：带 modelKey/modelAlias 的对象类型与函数参数列表必须同时带供应商字段",
+      "disposition": "enforced",
+      "evidence": "红灯探针用两次真实故障的原始写法验证会红：摘掉 PlanShot.modelVendor → 报 3 处新增；把 modelHealthMemory 退回 (modelKey, now?) 签名 → 报 1 处新增；还原即绿。已挂进 gates:contracts（check:boundaries 之后），棘轮基线 10 条，逐条人工复核。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/availableModels.test.ts",
+      "entry_point": "运行时去重键回归：同名不同家不去重、同名同家仍去重",
+      "disposition": "enforced",
+      "evidence": "门岗工作在签名层，看不见运行时用了哪个键；这条覆盖第 1 处故障（seen.has(modelKey)）。两条用例分别断言 entries 长度为 2（vendor 各异）与 1（同家重复）。"
+    },
+    {
+      "path": "src/workbench/common/useDedupedModelSelect.test.ts",
+      "entry_point": "换家机制回归：一家病了换另一家、还有健康家时不整条判病、批量下拉只有病的那行沉底、全病才回退全集",
+      "disposition": "enforced",
+      "evidence": "红灯探针已验：把 p.vendor 从 isAiling 调用里摘掉 → 2 条红；还原即绿。覆盖第 3 处故障。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/modelHealthMemory.test.ts",
+      "entry_point": "记账键回归：别家同名模型的连败不该殃及这一家",
+      "disposition": "enforced",
+      "evidence": "用同一 modelKey、不同 vendor 记两次失败，断言 isModelRecentlyAiling 对该家为 true、对本家为 false，且 chooseDefaultModelOption 仍选本家。"
+    },
+    {
+      "path": "src/workbench/ai/assistantModelIdentity.ts",
+      "entry_point": "labelForModel — 按裸 modelKey 统计出现次数以决定是否缀供应商名",
+      "disposition": "not-affected",
+      "evidence": "逐条实证：这是碰撞探测器而非身份断言。它问的是「这个名字出现了不止一次吗」，命中就把供应商名缀上去消歧；若改成按 (vendor, modelKey) 比较则永远不重复，供应商名永远缀不出来，反而破坏消歧。已在源码该处加注释固化这条理由，防止后续误改。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "entry_point": "generationCostContextForNodes — 判断批选节点是否同一模型",
+      "disposition": "not-affected",
+      "evidence": "实证读码：同时计算 vendorKeys 与 modelKeys 两个集合，且要求两者 size 均为 1 才认定同一模型，vendor 维度未丢失。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+      "entry_point": "按 (vendor, modelKey) 解析执行用的 catalog mapping",
+      "disposition": "not-affected",
+      "evidence": "实证读码 line 161：model.vendorKey === vendor 与 [model.modelKey, model.modelAlias].includes(modelKey) 必须同时成立才命中，复合键完整。"
+    },
+    {
+      "path": "electron/catalog",
+      "entry_point": "各供应商种子表（apimartImages / kieImages2026 / falOfficial 等）按 modelKey 建索引",
+      "disposition": "not-affected",
+      "evidence": "结构性正当：一家一个文件、函数入口已按 vendorKey 过滤（如 seedBuiltins.ts:765 先判 vendorKey !== APIMART_VENDOR_SEED.key 即返回），该作用域内 modelKey 唯一无歧义。全仓扫描时这类共 72 处，纳入门岗会让基线从 10 涨到 108、约 95% 是噪音，冻结噪音的门岗没有价值（R20），故门岗 SCAN_DIRS 刻意排除。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-model-identity.mjs",
+    "invariant": "在多供应商并存的那一层（src/workbench + src/config），任何声明了 modelKey 或 modelAlias 的对象类型、接口或函数参数列表，必须同时声明供应商字段（vendor / vendorKey / modelVendor / vendorName / providerKey / provider / providers）；未登记进基线的新增违规即报红。",
+    "failure_mode": "违反时，同名模型来自不同供应商会在去重、反查、记账三种场合坍缩成一个：用户在 UI 选定 A 家而请求出站到 B 家（HTTP 400 或在错误账号上扣费）、分镜落画布时模型被解析成另一家、一家连败导致同名模型所有家一起被判病使换家容错失效。三种失效当场全部无异常、类型合法、全套门岗绿，只有真花钱跑闭环才会撞见。",
+    "strategy": "用棘轮而非硬零：存量 10 条里多数是正当写法（档案类型、碰撞探测器），硬零会逼人为了变绿而乱改正确代码。基线只减不增，新增必须显式登记并在类型旁写明「为什么不需要 vendor」——理由会过期，写下来才能被复核。门岗的效力边界写在脚本头注释里：它工作在签名层，抓不住纯运行时的去重写法，那一半由 class_regression_tests 里的运行时回归覆盖；两者合起来仍不构成「这一类绝不再发生」的证明，残余风险已记录。",
+    "exception_policy": "none",
+    "artifacts": [
+      "scripts/check-model-identity.mjs",
+      "scripts/model-identity-baseline.json",
+      "package.json"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/agent/availableModels.test.ts",
+    "src/workbench/common/useDedupedModelSelect.test.ts",
+    "src/workbench/generationCanvas/runner/modelHealthMemory.test.ts"
+  ],
+  "regression_tests": [
+    "src/workbench/generationCanvas/agent/storyboardPlan.test.ts",
+    "src/workbench/generationCanvas/agent/availableModels.test.ts",
+    "src/workbench/common/useDedupedModelSelect.test.ts",
+    "src/workbench/generationCanvas/runner/modelHealthMemory.test.ts"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一条身份规则在一天内于三处独立被违反（Agent 模型清单去重 / 分镜 IR / 健康记账），三次都真实、都当场无异常、都只有真花钱跑闭环才撞见。三次不是巧合，是这个代码库的结构性倾向：模型在渲染层被广泛按 modelKey 传递与索引，而 vendor 是后来才成为身份一部分的，既有代码没有跟上。故按 recurring 提交，并落地 check:model-identity 静态门岗做结构性防护，而不是逐处修补。",
+    "same_class_scan": [
+      "范围：src/ 与 electron/ 全量（排除测试），找「把 modelKey / modelAlias / option.value 当身份键」的写法——Map/Set/Record 作键、seen.has 去重、.find(m => m.modelKey === k) 反查、缓存与存储键、按 modelKey 分组、判断是否同一模型。",
+      "命中并已修：availableModels.ts buildAgentModelEntries（去重键）、storyboardPlan.ts PlanShot/keyframe/PlanCreatedNode（IR 字段）、plannedNodeMeta.ts buildModelEntryIndex + buildPlannedNodeMeta（索引与反查）、modelHealthMemory.ts（记账键）、useDedupedModelSelect.ts isModelAiling/pickHealthiestProvider/buildVendorExplicitModelOptions 三处探针调用、nodeModelArchetype.ts chooseDefaultModelOption、generationRunController.ts 结算记账。",
+      "逐条实证判定为正当、无需 vendor：assistantModelIdentity.ts:99 labelForModel 是碰撞探测器而非身份断言（问「这个名字出现了不止一次吗」，带上 vendor 反而永远不重复、供应商名永远缀不出来，已加注释固化理由）；spendConfirm.ts:32 同时检查 vendorKeys 与 modelKeys 两个维度；catalogTaskResolve.ts:161 双键同时成立才命中；comfyuiProgressSocket.ts:337 modelKey 只在 vendorKey 已确定后使用。",
+      "整目录判定为正当：electron/catalog/**（一家一个种子文件）、electron/integrationCertification/**（一家一次会话）、electron/providerAdapter/**（一家一个适配器）——vendor 由上下文决定，裸 modelKey 在那里无歧义。把它们纳入门岗会得到 108 条基线、约 95% 是噪音，冻结噪音的门岗没有价值（R20），故门岗 SCAN_DIRS 刻意只覆盖多供应商并存的 src/workbench + src/config，而三次真实故障恰好全部发生在该范围内。",
+      "排除项（非遗漏）：resolveArchetypeForModel 按 modelKey 解析档案是正当的——档案描述模型本身的能力，其内部再按 vendor 特化；此处若强加 vendor 反而会把同一模型的档案拆成多份。",
+      "扫描的效力边界：静态搜索无法穷尽运行时才成形的身份键（例如动态拼串）。门岗在签名层拦截新增裸 modelKey 类型与函数参数，运行时那一半由 availableModels.test.ts 与 useDedupedModelSelect.test.ts 的去重回归钉住；两者合起来仍不能证明「这一类绝不再发生」，该残余风险已记入 residual_risks。"
+    ]
+  },
+  "migration": "modelHealthMemory 的 localStorage 键从 nomi:model-health:v1 升到 v2。v1 记录按裸 modelKey 存，无法追认属于哪一家，直接弃用而不做双读兼容——健康记忆本就 24 小时过期（STALE_MS），重学一天即恢复；双读会让「这条记录算哪家的」长期存在两个答案（P1 无并行版）。无用户可见迁移动作，无数据丢失风险（记忆是本地实测经验的缓存，不是用户资产）。",
+  "residual_risks": [
+    "check:model-identity 工作在签名层，抓不住纯运行时的去重/反查写法（例如新写一个 seen.has(modelKey)）。该风险由 availableModels.test.ts 与 useDedupedModelSelect.test.ts 的去重回归覆盖，但新写的第三处运行时去重仍可能漏网。",
+    "门岗扫描范围限于 src/workbench 与 src/config。若将来 electron/ 侧出现真正的多供应商并存层（例如主进程侧的跨供应商路由），需要同步扩大 SCAN_DIRS，否则该层不受保护。",
+    "vendorTier 把 apimart 与 kie 同列为 tier 1，同级之间按 catalog 顺序决定默认家。健康记忆修好后能自动避开连败的那家，但「用户账号在这家余额为负、尚未产生失败记录」这一刻仍会先选中它并失败一次才学会。真正的余额/可用性预检不在本次范围。",
+    "本次修复的最后一环（按钮入口显式声明执行意图）尚未由一次新的真实付费闭环证明，只有结构测试钉住。"
+  ],
+  "internal_only_reason": "身份键缺陷全部位于本仓渲染层的模型选择、计划与记账代码，不涉及上游依赖或第三方 SDK 的行为；供应商侧 API 本身没有问题（同名模型分属不同账号与端点是正常现象，是我们的身份建模缺失）。",
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/runner/modelHealthMemory.ts"
+    ],
+    "rationale": "localStorage 键 nomi:model-health:v1（按裸 modelKey 记账）在本次随 modelHealthMemory.ts 一并弃用，升为 v2（按 vendor::modelKey）。不做双读兼容——双读会让「这条记录算哪家的」长期存在两个答案（P1 无并行版）；健康记忆本就 24 小时过期（STALE_MS），重学一天即恢复，无用户资产损失。buildModelEntryIndex 里保留的裸 modelKey 索引不属于遗留并行实现：它是无 vendor 旧计划数据的回落读取，且明确取首次出现的条目（后来者不覆盖），随旧数据自然消亡。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及依赖版本或运行时生命周期变更。新增门岗脚本 scripts/check-model-identity.mjs 使用的 typescript 5.9.3 已是本仓既有开发依赖，未新增、未升降级。",
+    "exit_criteria": []
+  }
+}
