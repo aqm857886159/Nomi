@@ -1,0 +1,116 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-canvas-connect-regression",
+  "problem_type": "rendered-canvas-body-drop-target-resolution",
+  "symptom": "从源节点磁吸把手拖到目标节点卡片正文后，画布 edges 保持 0。",
+  "direct_cause": "handleConnectEnd 的正文目标解析只读取 document.elementsFromPoint；本次真实 Electron 探针中该分支结束后 pendingConnectionSourceId 仍在且 edges 为 0，说明正文没有解析出目标并调用 completeNodeConnection。",
+  "class_root": "手动连线的正文落点必须以当前渲染节点或组框的几何矩形为共享解析真相；隐藏 target handle 和受视口命中栈影响的 document.elementsFromPoint 不能是唯一依据。",
+  "affected_population": [
+    "在画布卡片可见矩形内松手、但 document.elementsFromPoint 未返回目标节点的手动连线",
+    "目标节点或组框位于画布边缘、部分越出可命中区域，或正文被 React Flow 命中层遮挡的布局"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/canvasConnectionDropTarget.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
+  ],
+  "entry_points": [
+    "React Flow 手动节点连线松手后的节点正文目标解析",
+    "React Flow 手动节点连线松手后的组框正文目标解析",
+    "Agent、分镜批量和 3D 站位通过 Zustand connectNodes 的程序化连线"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这是 Nomi React Flow 适配层的内部正文落点合同；修复不升级或改变 XYFlow 依赖，只约束 Nomi 自己的渲染矩形与领域提交边界。",
+  "invariants": [
+    "手动连线在目标节点渲染矩形内松手时，必须解析到该节点并排除源节点自身。",
+    "节点正文和组框正文必须共用同一几何目标解析规则。",
+    "程序化 connectNodes 的 mode、targetParamKey、order 语义不因 UI 落点修复而改变。"
+  ],
+  "generality_proof": "handleConnectEnd 的节点正文和组框正文是同一 UI 手势的两个目标分支，统一交给 resolveCanvasDropTarget；该边界读取候选实际渲染矩形、排除源对象并在无命中时显式返回 null，因此不依赖某个 target handle 是否进入 document 命中栈。Agent、分镜批量和 3D 入口不经过 UI 落点边界，继续共享 Zustand 领域动作。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasConnectionDropTarget.ts",
+      "symbol": "resolveCanvasDropTarget",
+      "responsibility": "统一按渲染矩形解析正文落点，排除源对象，并对无候选返回 null。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "handleConnectEnd",
+      "responsibility": "收集当前渲染节点/组框候选，并把正文落点交给共享几何边界后提交既有连接动作。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "handleConnectEnd node body target branch",
+      "disposition": "enforced",
+      "evidence": "节点正文分支改为使用 resolveCanvasDropTarget，并在命中后调用 completeNodeConnection。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "handleConnectEnd group body target branch",
+      "disposition": "enforced",
+      "evidence": "组框正文分支使用同一个 resolveCanvasDropTarget，不再复制 document.elementsFromPoint 算法。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/generationCanvasTools.ts",
+      "entry_point": "connect_nodes agent plan",
+      "disposition": "not-affected",
+      "evidence": "该入口直接调用 Zustand connectNodes；坏树上图片→视频 store 探针从 0 增至 1，且不经过 DOM 落点解析。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/scene3d/StagingCaptureHost.tsx",
+      "entry_point": "staging capture connectNodes",
+      "disposition": "not-affected",
+      "evidence": "该入口直接调用同一 Zustand connectNodes，不经过 React Flow onConnectEnd。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardExec.ts",
+      "entry_point": "storyboard batch adoption graph writes",
+      "disposition": "not-affected",
+      "evidence": "分镜批量落地路径通过领域批量动作写入图快照，不经过正文 hit-test；本次修复 scope 不改其 order 或边归一化。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "这是共享的 UI 正文落点机制缺失；同一类手势对任何位于边缘、被命中层遮挡或 hidden target handle 未命中的节点/组框都可能静默留下 pending 而不建边。",
+    "same_class_scan": [
+      "rg -n 'elementsFromPoint|data-node-id|data-group-id' src/workbench/generationCanvas：确认手动正文目标解析集中在 GenerationCanvasReactFlow.handleConnectEnd，节点与组框共用同一 onConnectEnd。",
+      "rg -n 'connectNodes\\(|connectToNode\\(' src/workbench/generationCanvas src/workbench/creation：检查 Agent、分镜、3D、白板和模型派生入口；这些走 Zustand 领域动作或已有 connectToNode，不经过该 DOM 命中边界。",
+      "坏树真实 Electron 探针：正文松手后 pendingConnectionSourceId 仍为源节点、edges=0；程序化图片→视频 connectNodes 测试两条均通过，隔离 UI 与领域层。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/canvasConnectionDropTarget.ts",
+    "invariant": "正文落点只能由当前候选渲染矩形统一解析；源对象被排除，未命中时显式返回 null。",
+    "failure_mode": "没有合法候选时返回 null，上层继续现有组框/创建菜单/取消流程，不伪造 edge。",
+    "exception_policy": "none",
+    "strategy": "抽出纯几何解析函数，并让节点正文与组框正文收集候选后共用它；保留既有 React Flow valid-handle onConnect 路径和 Zustand 领域路径。",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/canvasConnectionDropTarget.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/canvasConnectionDropTarget.test.ts",
+    "src/workbench/generationCanvas/store/canvasConnectRegression.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/canvasConnectionDropTarget.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "旧实现是 handleConnectEnd 内联的命中表达式，不是独立持久化路径；生产改动会在原分支删除该重复算法。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "未升级或替换 XYFlow；这是 Nomi 对现有 React Flow 回调做的渲染几何补偿。",
+    "exit_criteria": []
+  },
+  "migration": "没有持久化数据或边 schema 迁移；新增逻辑只影响尚未提交的手动正文落点，既有边和 order 原样保留。",
+  "residual_risks": [
+    "重叠节点矩形的优先级由候选 DOM 顺序决定；本次走查场景为非重叠目标。",
+    "a056b4ed..origin/main 没有修改正文命中代码；42beea3 引入的旧命中策略是机制来源，当前差异更像布局/命中条件暴露的潜伏缺陷，不能把 2e476ee1 order 改动称为根因。"
+  ]
+}
