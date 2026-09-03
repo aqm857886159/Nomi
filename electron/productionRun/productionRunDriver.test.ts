@@ -276,7 +276,11 @@ describe('ProductionRunService driver round 1', () => {
     await waitFor(() => service.readFull('project-1', 'run-driver-3').status === 'completed')
     const completed = service.readFull('project-1', 'run-driver-3')
     expect(completed.status).toBe('completed')
-    expect(completed.artifacts.find((item) => item.kind === 'export')?.projectRelativePath).toBe('exports/nomi-run-driver-3.mp4')
+    expect(completed.artifacts.find((item) => item.kind === 'export')).toMatchObject({
+      projectRelativePath: 'exports/nomi-run-driver-3.mp4',
+      jobId: 'export:run-driver-3:v1',
+      version: 1,
+    })
   })
 
   it('W2 冻结门：有未冻结视觉锚 → 合同批准后停在冻结门（零 provider 调用）；冻结批准后才提交镜头', async () => {

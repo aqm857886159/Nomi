@@ -21,6 +21,9 @@ vi.mock("../projects/repository", () => ({
   resolveProjectRelativePath: vi.fn((_projectId: string, relativePath: string) => path.join(projectRoot, relativePath)),
 }));
 
+const { appendEvents } = vi.hoisted(() => ({ appendEvents: vi.fn() }));
+vi.mock("../events/eventLogRepository", () => ({ appendEvents }));
+
 import { handleNomiLocalRequest } from "./localProtocol";
 import { createArtifactProjection, getArtifactPreviewSecret } from "../productionRun/artifactProjection";
 
@@ -65,6 +68,16 @@ describe("handleNomiLocalRequest", () => {
 
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("0123456789");
+  });
+
+  it("records the local response status for playback diagnosis", async () => {
+    appendEvents.mockClear();
+    const response = await handleNomiLocalRequest(new Request(assetUrl(), { headers: { Range: "bytes=0-0" } }));
+    expect(response.status).toBe(206);
+    expect(appendEvents).toHaveBeenCalledWith("project-a", [expect.objectContaining({
+      type: "preview.local.response",
+      payload: expect.objectContaining({ status: 206, method: "GET" }),
+    })]);
   });
 
   it("serves byte ranges for video playback", async () => {
