@@ -41,6 +41,7 @@ import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../assets/AssetPreviewDialog'
 import type { AssetRef } from '../../assets/assetTypes'
 import { buildStoryboardPlaybackQueue, hiddenGeneratingCount, positionsForAnchorFilter } from './storyboardDInteractions'
+import { clearStoryboardPatchPreview, publishStoryboardPatchPreview } from './storyboardPatchPreview'
 
 /**
  * 分镜方案编辑器（v5 B：执行面）。表 = 画布节点的表格表示版——行内/批量直接生成，
@@ -93,6 +94,22 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     () => (plan ? deriveAnchorCardRuntimes({ plan, designId, nodes: canvasNodes, rows }) : []),
     [plan, designId, canvasNodes, rows],
   )
+
+  // E2E 专用桥（同 CameraMoveCaptureHost/ProductionCanvasLandingHost 既有写法）：仅当
+  // localStorage['__nomiE2E']==='1' 时把 patch_shots 就地预览挂到 window，供隔离走查直接
+  // 触发一次真实的改动预览卡（不必真跑模型），拍到真实渲染而不是猜测。生产从不置该标志。
+  React.useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage?.getItem('__nomiE2E') === '1') {
+        ;(window as unknown as { __nomiStoryboardPatchPreview?: unknown }).__nomiStoryboardPatchPreview = {
+          publish: publishStoryboardPatchPreview,
+          clear: clearStoryboardPatchPreview,
+        }
+      }
+    } catch {
+      // localStorage 不可用 → 跳过
+    }
+  }, [])
 
   React.useEffect(() => {
     const onMentionPreview = (event: Event): void => {
