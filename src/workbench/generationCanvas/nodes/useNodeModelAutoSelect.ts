@@ -1,6 +1,6 @@
 // NodeParameterControls 的「模型自动选择」副作用集合（4 个 useEffect）。
 // 从组件抽出为 hook：默认选模型 / vendor 同步 / 供应商断开自愈 / archetype meta 初始化。
-// 行为与原组件逐字节一致——仅把 effect 体平移进来，依赖数组原样保留。
+// 所有派生写回都从 store 读取最新节点，避免两个同屏控制实例用旧快照互相触发。
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ModelOption } from '../../../config/models'
@@ -38,7 +38,6 @@ import {
 
 type UseNodeModelAutoSelectArgs = {
   node: GenerationCanvasNode
-  meta: Record<string, unknown>
   modelOptions: readonly ModelOption[]
   selectedModelValue: string
   selectedModelOption: ModelOption | null
@@ -51,7 +50,6 @@ type UseNodeModelAutoSelectArgs = {
 
 export function useNodeModelAutoSelect({
   node,
-  meta,
   modelOptions,
   selectedModelValue,
   selectedModelOption,
@@ -63,6 +61,12 @@ export function useNodeModelAutoSelect({
 }: UseNodeModelAutoSelectArgs): void {
   const { t } = useTranslation()
   const deferredWrites = React.useRef(new Set<string>())
+  const latestNodeRef = React.useRef(node)
+  latestNodeRef.current = node
+  const getLatestNode = React.useCallback((): GenerationCanvasNode => (
+    useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id) || latestNodeRef.current
+  ), [node.id])
+  const getLatestMeta = React.useCallback((): Record<string, unknown> => getLatestNode().meta || {}, [getLatestNode])
   const writeDerivedMeta = React.useCallback((nodeId: string, patch: Partial<GenerationCanvasNode>): void => {
     const options = { history: false } as const
     try {
@@ -97,10 +101,12 @@ export function useNodeModelAutoSelect({
     if (!isGenerationNode) return
     if (selectedModelValue) return
     if (!defaultsReady) return
+    const latestNode = getLatestNode()
+    const latestMeta = latestNode.meta || {}
     const taskKind = deriveGenerationDefaultTaskKind({
       isImageLike,
       isVideoLike,
-      hasImageReference: nodeHasImageReference(node.meta as Record<string, unknown> | undefined),
+      hasImageReference: nodeHasImageReference(latestMeta),
     })
     // 用户设过就用他的；没设、或设的那个此刻不可用（供应商删了/模型禁用了），
     // 就让位给原有的健康挑选策略——绝不把卡片钉在一个跑不了的模型上。
@@ -108,7 +114,7 @@ export function useNodeModelAutoSelect({
     const firstOption = preferred ?? chooseDefaultModelOption(modelOptions, isImageLike, isVideoLike)
     if (!firstOption?.value) return
     const defaultPatch = defaultPatchForControls(buildModelControls(firstOption.meta, isImageLike, isVideoLike))
-    const modelMeta = replaceCustomCapabilityContractMeta(node.meta || {}, firstOption.meta)
+    const modelMeta = replaceCustomCapabilityContractMeta(latestMeta, firstOption.meta)
     writeDerivedMeta(node.id, {
       meta: projectParameterReferenceSlots({
         ...modelMeta,
@@ -123,19 +129,20 @@ export function useNodeModelAutoSelect({
           : { imageModel: firstOption.value, imageModelVendor: firstOption.vendor || null }),
       }, firstOption.meta),
     })
-  }, [defaultsReady, isGenerationNode, isImageLike, isVideoLike, modelOptions, node.id, node.meta, selectedModelValue, writeDerivedMeta])
+  }, [defaultsReady, getLatestNode, isGenerationNode, isImageLike, isVideoLike, modelOptions, node.id, selectedModelValue, writeDerivedMeta])
 
   React.useEffect(() => {
     if (!isGenerationNode || !selectedModelOption) return
     const optionVendor = typeof selectedModelOption.vendor === 'string' ? selectedModelOption.vendor.trim() : ''
+    const latestMeta = getLatestMeta()
     const currentVendor =
-      readMeta(meta, 'modelVendor') ||
-      readMeta(meta, 'vendor') ||
-      readMeta(meta, isVideoLike ? 'videoModelVendor' : 'imageModelVendor')
+      readMeta(latestMeta, 'modelVendor') ||
+      readMeta(latestMeta, 'vendor') ||
+      readMeta(latestMeta, isVideoLike ? 'videoModelVendor' : 'imageModelVendor')
     if (!optionVendor) return
-    const contractChanged = JSON.stringify(parseCustomCapabilityContract(node.meta))
+    const contractChanged = JSON.stringify(parseCustomCapabilityContract(latestMeta))
       !== JSON.stringify(parseCustomCapabilityContract(selectedModelOption.meta))
-    const modelMeta = replaceCustomCapabilityContractMeta(node.meta || {}, selectedModelOption.meta)
+    const modelMeta = replaceCustomCapabilityContractMeta(latestMeta, selectedModelOption.meta)
     const nextMeta = projectParameterReferenceSlots({
       ...modelMeta,
       modelKey: selectedModelOption.modelKey || selectedModelOption.value,
@@ -147,10 +154,10 @@ export function useNodeModelAutoSelect({
         ? { videoModel: selectedModelOption.value, videoModelVendor: optionVendor }
         : { imageModel: selectedModelOption.value, imageModelVendor: optionVendor }),
     }, selectedModelOption.meta)
-    const declarationsChanged = JSON.stringify(node.meta?.parameterReferenceSlots) !== JSON.stringify(nextMeta.parameterReferenceSlots)
+    const declarationsChanged = JSON.stringify(latestMeta.parameterReferenceSlots) !== JSON.stringify(nextMeta.parameterReferenceSlots)
     if (currentVendor === optionVendor && !contractChanged && !declarationsChanged) return
     writeDerivedMeta(node.id, { meta: nextMeta })
-  }, [isGenerationNode, isVideoLike, meta, node.id, node.meta, selectedModelOption, writeDerivedMeta])
+  }, [getLatestMeta, isGenerationNode, isVideoLike, node.id, selectedModelOption, writeDerivedMeta])
 
   // ★变体合并迁移（2026-06-16，最大风险点）：旧项目 node.meta.modelKey 钉的是具体变体串
   // （如 doubao-seedance-2.0-fast），合并后 picker 只剩基础 modelKey。把旧变体 modelKey 归一成
@@ -167,35 +174,37 @@ export function useNodeModelAutoSelect({
     // 供应商却还留在 runway：轻则模式栏/参数显示成另一家的样子，重则 (runway, bytedance/seedance-2)
     // 这个组合在目录里根本不存在 → 生成面板直接报「加载失败」。R13 真机走查抓到的就是这个。
     if (selectedModelOption) return
+    const latestMeta = getLatestMeta()
     const sourceArchetype = resolveArchetypeForModel({
       modelKey: selectedModelValue,
-      modelAlias: readMeta(meta, 'modelAlias'),
-      vendorKey: readMeta(meta, 'modelVendor') || readMeta(meta, 'vendor'),
-      meta,
+      modelAlias: readMeta(latestMeta, 'modelAlias'),
+      vendorKey: readMeta(latestMeta, 'modelVendor') || readMeta(latestMeta, 'vendor'),
+      meta: latestMeta,
     })
     if (!sourceArchetype?.variants?.length) return
-    const patch = normalizeArchetypeVariantMeta(node.meta || {}, sourceArchetype)
+    const patch = normalizeArchetypeVariantMeta(latestMeta, sourceArchetype)
     if (!patch) return
     writeDerivedMeta(node.id, {
       meta: {
-        ...(node.meta || {}),
+        ...latestMeta,
         ...patch,
         modelAlias: patch.modelKey,
         ...(isVideoLike ? { videoModel: patch.modelKey } : { imageModel: patch.modelKey }),
       },
     })
-  }, [isGenerationNode, isVideoLike, meta, node.id, node.meta, selectedModelOption, selectedModelValue, writeDerivedMeta])
+  }, [getLatestMeta, isGenerationNode, isVideoLike, node.id, selectedModelOption, selectedModelValue, writeDerivedMeta])
 
   // 供应商断开后，节点钉死的旧模型已从下拉移除（selectedModelOption===null，但 selectedModelValue 仍在）。
   // 按 archetype 在当前可用 options 里找同款，自动改选并写回 meta —— 否则节点会卡在选不中的死供应商上，
   // 标签/参数全错。与运行时咽喉 resolveExecutableNodeFromCatalog 同策略（同 id 优先，family 兜底）。
   React.useEffect(() => {
     if (!isGenerationNode || !selectedModelValue || selectedModelOption) return
+    const latestMeta = getLatestMeta()
     const sourceArchetype = resolveArchetypeForModel({
       modelKey: selectedModelValue,
-      modelAlias: readMeta(meta, 'modelAlias'),
-      vendorKey: readMeta(meta, 'modelVendor') || readMeta(meta, 'vendor'),
-      meta,
+      modelAlias: readMeta(latestMeta, 'modelAlias'),
+      vendorKey: readMeta(latestMeta, 'modelVendor') || readMeta(latestMeta, 'vendor'),
+      meta: latestMeta,
     })
     if (!sourceArchetype) return
     const target =
@@ -207,15 +216,15 @@ export function useNodeModelAutoSelect({
     const remapped = targetArchetype
       ? remapArchetypeMode(
           sourceArchetype,
-          (meta.archetype as { modeId?: string } | undefined)?.modeId,
+          (latestMeta.archetype as { modeId?: string } | undefined)?.modeId,
           targetArchetype,
-          readMeta(meta, 'modelVendor') || readMeta(meta, 'vendor'),
+          readMeta(latestMeta, 'modelVendor') || readMeta(latestMeta, 'vendor'),
           optionVendor,
         )
       : null
     writeDerivedMeta(node.id, {
       meta: {
-        ...replaceCustomCapabilityContractMeta(node.meta || {}, target.meta),
+        ...replaceCustomCapabilityContractMeta(latestMeta, target.meta),
         modelKey: target.modelKey || target.value,
         modelAlias: target.modelAlias || target.value,
         modelVendor: optionVendor,
@@ -227,20 +236,19 @@ export function useNodeModelAutoSelect({
           : { imageModel: target.value, imageModelVendor: optionVendor }),
       },
     })
-    const sourceVendor = readMeta(meta, 'modelVendor') || readMeta(meta, 'vendor')
-    const sourceModel = readMeta(meta, 'modelAlias') || readMeta(meta, 'modelKey') || selectedModelValue
+    const sourceVendor = readMeta(latestMeta, 'modelVendor') || readMeta(latestMeta, 'vendor')
+    const sourceModel = readMeta(latestMeta, 'modelAlias') || readMeta(latestMeta, 'modelKey') || selectedModelValue
     const targetModel = target.modelAlias || target.modelKey || target.value
     showInfoToast(
       t('generationCommon.node.providerDisconnectedSwitched', { model: target.label }),
       providerSwitchToastId([node.id, sourceVendor, sourceModel, optionVendor, targetModel]),
     )
   }, [
+    getLatestMeta,
     isGenerationNode,
     isVideoLike,
-    meta,
     modelOptions,
     node.id,
-    node.meta,
     selectedModelOption,
     selectedModelValue,
     t,
@@ -255,13 +263,16 @@ export function useNodeModelAutoSelect({
   // 用户之后手动切回文生图是他的选择，提交时才由咽喉按「挂着参考=要用参考」纠正。
   React.useEffect(() => {
     if (!isGenerationNode || !archetype) return
-    const patch = ensureArchetypeNodeMeta(node.meta || {}, archetype)
+    const latestNode = getLatestNode()
+    const latestMeta = latestNode.meta || {}
+    const patch = ensureArchetypeNodeMeta(latestMeta, archetype)
     if (!patch) return
     const state = useGenerationCanvasStore.getState()
-    const promotedModeId = resolveModeForConnectedReferences({ ...node, meta: patch }, state.nodes, state.edges)
+    const promotedModeId = resolveModeForConnectedReferences({ ...latestNode, meta: patch }, state.nodes, state.edges)
     writeDerivedMeta(
       node.id,
       { meta: promotedModeId ? applyArchetypeModeSwitch(patch, archetype, promotedModeId) : patch },
     )
-  }, [isGenerationNode, archetype, node, node.id, node.meta, writeDerivedMeta])
+  }, [archetype, getLatestNode, isGenerationNode, node.id, writeDerivedMeta])
 }
+
