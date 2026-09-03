@@ -110,6 +110,7 @@
     "postinstall": "node ./scripts/install-electron-runtime.mjs && node ./scripts/install-git-hooks.cjs && node ./scripts/install-claude-hooks.cjs",
     "test:e2e": "pnpm run check:electron-install && node tests/ux/smoke.e2e.mjs",
     "test:mcp-journey": "pnpm run check:electron-install && node tests/ux/mcp-l1-handshake.e2e.mjs && node tests/ux/mcp-l2-journeys.e2e.mjs && node tests/ux/mcp-skills-integration.e2e.mjs",
+    "test:mcp-elicitation": "pnpm run check:electron-install && node tests/ux/mcp-generation-elicitation-first.e2e.mjs",
     "test:model-integration:no-repo": "node tests/ux/model-integration-no-repo.mjs",
     "test:model-integration:packaged": "node tests/ux/model-integration-packaged.e2e.mjs",
     "test:mcp-l2:packaged": "node tests/ux/mcp-l2-journeys.e2e.mjs --packaged release/mac-arm64/Nomi.app",

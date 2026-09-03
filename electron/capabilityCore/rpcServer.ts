@@ -57,6 +57,13 @@ export type RpcServerOptions = {
   authorizeGeneration?: import('./dispatcher').DispatchContext['authorizeGeneration']
   /** Internal client→GUI fallback. The callback must verify the challenge before prompting. */
   confirmGenerationInNomi?: (input: { challengeToken: string }) => Promise<unknown>
+  /**
+   * Verify that a registered MCP client confirmed the gate identified by
+   * challengeToken via the elicitation protocol, then mint and return a real
+   * main-process receipt. Called by the launcher/stdio-server loopback RPC
+   * `nomi_verify_client_generation_gate`.
+   */
+  verifyClientGenerationGateInMain?: (input: { challengeToken: string; authenticatedClient: string }) => Promise<unknown>
   generationPolicy?: McpGenerationPolicy
   generationContext?: (params: Record<string, unknown>) => unknown | Promise<unknown>
   generationPlanning?: import('./dispatcher').DispatchContext['generationPlanning']
@@ -176,6 +183,18 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           if (!challengeToken) throw new RpcError('Generation challenge is required', 400)
           if (typeof options.confirmGenerationInNomi !== 'function') throw new RpcError('Nomi confirmation is unavailable', 501)
           const result = await options.confirmGenerationInNomi({ challengeToken })
+          send(200, { ok: true, result })
+          return
+        }
+        if (method === 'nomi_verify_client_generation_gate') {
+          // Only registered MCP clients may call this — the same guard as nomi_confirm_generation_gate.
+          if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
+          const challengeToken = typeof params.challengeToken === 'string' ? params.challengeToken.trim() : ''
+          if (!challengeToken) throw new RpcError('Generation challenge is required', 400)
+          const authenticatedClient = typeof params.authenticatedClient === 'string' ? params.authenticatedClient.trim() : ''
+          if (!authenticatedClient) throw new RpcError('Authenticated client identity is required', 400)
+          if (typeof options.verifyClientGenerationGateInMain !== 'function') throw new RpcError('Client generation verification is unavailable', 501)
+          const result = await options.verifyClientGenerationGateInMain({ challengeToken, authenticatedClient })
           send(200, { ok: true, result })
           return
         }
