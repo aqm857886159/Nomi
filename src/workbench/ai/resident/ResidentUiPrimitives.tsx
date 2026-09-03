@@ -99,7 +99,8 @@ export function ResidentToolChips({ items, emptyLabel, statusLabel, sectionLabel
     if (!nextOpen) setOpenId(null)
   }, [hasRunningItem, items.length])
   if (!items.length) return null
-  return <section className="space-y-1.5" data-agent-tool-chips="true" aria-label={sectionLabel}>
+  // data-agent-tool-line: spec §0 挂点
+  return <section className="space-y-1.5" data-agent-tool-line="true" aria-label={sectionLabel}>
     <button type="button" aria-expanded={groupOpen} aria-controls="agent-tool-run" onClick={() => { setGroupOpen((value) => { if (value) setOpenId(null); return !value }) }} className="-mx-1 flex min-h-7 w-fit items-center gap-1.5 rounded-nomi-sm px-1 text-micro text-nomi-ink-60 transition-[background,color] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nomi-accent/40 motion-reduce:transition-none" data-agent-tool-header="true">
       <IconChevronRight size={12} className={cn('transition-transform duration-[var(--nomi-transition-fast)] motion-reduce:transition-none', groupOpen && 'rotate-90')} aria-hidden="true" /><IconTool size={13} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
       <span className="tabular-nums">{headerLabel}</span>
@@ -212,7 +213,7 @@ export function ResidentTaskRows({ entries, getLabel, getStatusLabel, editLabel,
        const canMoveUp = isQueued && queuedIndex > 0
        const canMoveDown = isQueued && queuedIndex >= 0 && queuedIndex < queuedEntries.length - 1
        const paused = isQueued && entry.paused === true
-       return <li key={entry.queueItemId} className="flex min-h-7 min-w-0 flex-wrap items-center gap-1.5 rounded-nomi-sm bg-nomi-ink-05 px-2 py-1 text-micro" data-agent-queue-item="true" data-agent-queue-paused={paused ? 'true' : undefined}>
+       return <li key={entry.queueItemId} className="flex min-h-7 min-w-0 flex-wrap items-center gap-1.5 rounded-nomi-sm bg-nomi-ink-05 px-2 py-1 text-micro" data-agent-queue-row="true" data-agent-queue-paused={paused ? 'true' : undefined}>
          <span className="size-1.5 shrink-0 rounded-pill bg-nomi-accent" aria-hidden="true" />
          <span className="min-w-[4rem] flex-1 truncate text-nomi-ink-80">{getLabel(entry)}</span>
          <span className="max-w-[5rem] shrink-0 truncate text-nomi-ink-40">{getStatusLabel(entry.status)}{paused ? ` · ${pauseLabel}` : ''}</span>
@@ -222,14 +223,14 @@ export function ResidentTaskRows({ entries, getLabel, getStatusLabel, editLabel,
            <button type="button" data-agent-queue-action="move-down" className="grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-10 hover:text-nomi-ink disabled:pointer-events-none disabled:opacity-30" aria-label={moveDownLabel} title={moveDownLabel} disabled={!canMoveDown} onClick={() => onMove(entry, 'down')}><IconArrowDown size={13} aria-hidden="true" /></button>
            <button type="button" data-agent-queue-action={paused ? 'resume' : 'pause'} className="grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-10 hover:text-nomi-ink" aria-label={paused ? resumeLabel : pauseLabel} title={paused ? resumeLabel : pauseLabel} onClick={() => paused ? onResume(entry) : onPause(entry)}>{paused ? <IconPlayerPlay size={13} aria-hidden="true" /> : <IconPlayerPause size={13} aria-hidden="true" />}</button>
            <button type="button" data-agent-queue-action="delete" className="grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-workbench-danger-soft hover:text-workbench-danger" aria-label={deleteLabel} title={deleteLabel} onClick={() => onDelete(entry)}><IconTrash size={13} aria-hidden="true" /></button>
-         </span> : <button type="button" data-agent-queue-action="cancel" className="ml-auto grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-workbench-danger-soft hover:text-workbench-danger" aria-label={cancelLabel} title={cancelLabel} onClick={() => onCancel(entry)}><IconX size={13} aria-hidden="true" /></button>}
+         </span> : <button type="button" data-agent-queue-remove="true" className="ml-auto grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-workbench-danger-soft hover:text-workbench-danger" aria-label={cancelLabel} title={cancelLabel} onClick={() => onCancel(entry)}><IconX size={13} aria-hidden="true" /></button>}
        </li>
      })}</ul> : null}
   </section>
 }
 
 export function ResidentThinkingState({ label, detail, open, onToggle }: { label: string; detail: string; open: boolean; onToggle: () => void }): JSX.Element {
-  return <details open={open} className="rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05" data-agent-thinking="true"><summary className="flex min-h-7 cursor-pointer list-none items-center gap-1.5 px-2.5 py-1.5 text-micro text-nomi-ink-60" onClick={(event) => { event.preventDefault(); onToggle() }}><IconChevronRight size={12} className={cn('transition-transform duration-[var(--nomi-transition-fast)] motion-reduce:transition-none', open && 'rotate-90')} aria-hidden="true" /><IconRobot size={13} className="text-nomi-accent" aria-hidden="true" /><span className="font-medium">{label}</span></summary>{open ? <p className="m-0 border-t border-nomi-line-soft px-2.5 py-2 text-micro leading-relaxed text-nomi-ink-60">{detail}</p> : null}</details>
+  return <details open={open} className="rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05" data-agent-thinking-line="true"><summary className="flex min-h-7 cursor-pointer list-none items-center gap-1.5 px-2.5 py-1.5 text-micro text-nomi-ink-60" onClick={(event) => { event.preventDefault(); onToggle() }}><IconChevronRight size={12} className={cn('transition-transform duration-[var(--nomi-transition-fast)] motion-reduce:transition-none', open && 'rotate-90')} aria-hidden="true" /><IconRobot size={13} className="text-nomi-accent" aria-hidden="true" /><span className="font-medium">{label}</span></summary>{open ? <p className="m-0 border-t border-nomi-line-soft px-2.5 py-2 text-micro leading-relaxed text-nomi-ink-60">{detail}</p> : null}</details>
 }
 
 export function ResidentStreamingText({ text, streaming, streamingLabel }: { text: string; streaming: boolean; streamingLabel: string }): JSX.Element {
