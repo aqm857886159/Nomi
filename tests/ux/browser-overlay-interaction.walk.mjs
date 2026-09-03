@@ -12,6 +12,7 @@
 //
 // 用法: pnpm build && node tests/ux/browser-overlay-interaction.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
+import { expectAbsent, proveProbe } from './_assert.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -314,10 +315,18 @@ try {
     await filter.click({ timeout: 2000 }).catch(() => {})
     await overlay.waitForTimeout(250)
     results.filterOpens = (await overlay.locator('[role="dialog"][aria-label="素材分类筛选"]').count()) > 0
+    // 筛掉「走查文件夹」前先证它此刻确实在场（未筛选态）——不然后面的「筛完它消失了」
+    // 测不出「压根没渲染/选择器打错」这种恒真陷阱。
+    const folderBeforeFilterProof = await proveProbe(overlay.getByText('走查文件夹', { exact: true }), '筛选前「走查文件夹」确实可见')
     const imageOption = overlay.getByRole('option', { name: /图片/ }).first()
     if (await imageOption.count()) await imageOption.click({ timeout: 2000 }).catch(() => {})
     await overlay.waitForTimeout(250)
-    results.filterSelects = (await overlay.getByText('走查文件夹', { exact: true }).count()) === 0 &&
+    let filterHidesFolder = false
+    try {
+      await expectAbsent(overlay.getByText('走查文件夹', { exact: true }), { provenBy: folderBeforeFilterProof, message: '按图片筛选后「走查文件夹」应被过滤掉' })
+      filterHidesFolder = true
+    } catch { filterHidesFolder = false }
+    results.filterSelects = filterHidesFolder &&
       (await overlay.getByText('walk-upload.png', { exact: false }).count()) > 0
     if (await more.count()) await more.click({ timeout: 2000 }).catch(() => {})
     await overlay.locator('button[aria-label="筛选分类"]').first().click({ timeout: 2000 }).catch(() => {})

@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expectVisible, screenshotSettled } from './_assert.mjs'
+import { expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-control-clarity')
@@ -204,7 +204,11 @@ try {
   ]
   const toolButtons = toolbar.locator('[data-node-kind]')
   assert((await toolButtons.count()) === expectedTools.length, '左侧 9 个节点入口全部直接可见')
-  assert((await toolbar.locator('[aria-label*="更多"], [aria-label*="省略"]').count()) === 0, '左侧栏没有省略号创建入口')
+  // 用刚证过的 9 个真实入口当基线——工具栏确实渲染了内容，不是空壳/选择器打错，
+  // 「没有省略号入口」这个断言才立得住。
+  const toolbarProof = await proveProbe(toolButtons, '左侧栏 9 个节点入口确实渲染')
+  await expectAbsent(toolbar.locator('[aria-label*="更多"], [aria-label*="省略"]'), { provenBy: toolbarProof, message: '左侧栏没有省略号创建入口' })
+  assert(true, '左侧栏没有省略号创建入口')
   for (const [kind, tooltipText] of expectedTools) {
     const button = toolbar.locator(`[data-node-kind="${kind}"]`)
     assert(await button.isVisible(), `${tooltipText}入口可见`)

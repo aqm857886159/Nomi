@@ -8,6 +8,7 @@
 // 用法: pnpm build && node tests/ux/asset-surface-convergence.walk.mjs
 // 判据=断言 + 截图（tests/ux/shots/asset-surface-convergence/）人眼过。
 import { launchNomiApp } from './_launchApp.mjs'
+import { expectAbsent, proveProbe } from './_assert.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -95,12 +96,17 @@ try {
     await win.waitForTimeout(350)
   }
 
-  // —— ① 唯一门（库页）——
-  check('库页无素材盒按钮', (await win.locator('button[aria-label="打开素材盒"]').count()) === 0)
+  // —— ① 唯一门（库页）——按钮已被彻底删除，无法「先证它会出现」，改证同屏必然存在的
+  // 项目卡（本来就要用它进项目）：排除「库页压根没渲染 / 选择器写错了」这种恒真陷阱。
+  const card = win.getByText('素材面收敛验收', { exact: false }).first()
+  try {
+    const libraryProof = await proveProbe(card, '库页确实渲染了项目卡')
+    await expectAbsent(win.locator('button[aria-label="打开素材盒"]'), { provenBy: libraryProof, message: '库页无素材盒按钮' })
+    check('库页无素材盒按钮', true)
+  } catch (error) { check('库页无素材盒按钮', false, error.message) }
   await snap(win, '01-library-page-no-assetbox')
 
   // —— 进项目（studio 挂载触发迁移器）——
-  const card = win.getByText('素材面收敛验收', { exact: false }).first()
   if (await card.count()) {
     await card.click({ timeout: 4000 }).catch(() => {})
     await win.waitForTimeout(400)
@@ -111,8 +117,13 @@ try {
   }
   check('进入项目', /projectId=/.test(win.url()), win.url().slice(-32))
 
-  // —— ① 唯一门（studio 顶栏）——
-  check('顶栏无素材盒按钮', (await win.locator('button[aria-label="打开素材盒"]').count()) === 0)
+  // —— ① 唯一门（studio 顶栏）——同理，用 studio 根壳（.nomi-studio-app，语言无关）当基线：
+  // 它一旦挂载必然存在，证的是「这屏真的是渲染出来的 studio」而不是空白/选择器打错。
+  try {
+    const studioProof = await proveProbe(win.locator('.nomi-studio-app'), 'studio 外壳确实挂载')
+    await expectAbsent(win.locator('button[aria-label="打开素材盒"]'), { provenBy: studioProof, message: '顶栏无素材盒按钮' })
+    check('顶栏无素材盒按钮', true)
+  } catch (error) { check('顶栏无素材盒按钮', false, error.message) }
   await snap(win, '02-studio-topbar-no-assetbox')
 
   // 迁移器启动即跑（IPC 往返），稍候

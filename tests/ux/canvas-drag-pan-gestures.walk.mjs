@@ -14,7 +14,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
+import { expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-drag-pan-gestures')
@@ -582,15 +582,22 @@ try {
     JSON.stringify(connectedEdgeVisual),
   )
 
+  // 先选中证明「关联边标签会出现」这个机制本身是活的，拿到基线，
+  // 再退回未选中态断言它没有——expectAbsent 强制要求先有 proveProbe，
+  // 顺序对调是因为原实现「先断言 idle 态没有、再选中证明会出现」中间没留基线。
+  await videoNode.click({ position: { x: 20, y: 10 } })
+  await getWin().waitForTimeout(400)
+  const edgeLabelProof = await proveProbe(getWin().locator('.generation-canvas-v2__edge-tag-pill'), '选中节点后连线标签确实会出现')
+
   const blankForDeselect = await findBlankPoint()
   await getWin().mouse.click(blankForDeselect.x, blankForDeselect.y)
   await getWin().waitForTimeout(300)
-  const labelsWhenIdle = await getWin().evaluate(
-    () => document.querySelectorAll('.generation-canvas-v2__edge-tag-pill').length,
-  )
   await snap('03-edge-labels-hidden.png')
-  assert(labelsWhenIdle === 0, '没选中任何节点时，画布上一个连线标签都没有')
+  await expectAbsent(getWin().locator('.generation-canvas-v2__edge-tag-pill'), { provenBy: edgeLabelProof, message: '没选中任何节点时，画布上一个连线标签都没有' })
+  assert(true, '没选中任何节点时，画布上一个连线标签都没有')
 
+  // 重新选中，继续原有「选中后标签浮出 + 样式恢复」验证，衔接后面的拖动测试
+  // （后续②③段都依赖节点处于选中态）。
   await videoNode.click({ position: { x: 20, y: 10 } })
   await getWin().waitForTimeout(400)
   const selectedEdgeState = await getWin().evaluate(() => {
