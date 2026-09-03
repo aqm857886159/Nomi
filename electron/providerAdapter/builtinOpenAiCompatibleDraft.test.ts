@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { buildProfileHttpRequest } from "../catalog/profileHttpRequest";
+import { runMultipartProfileOperation } from "../catalog/multipartOperation";
 import { buildOpenAiCompatibleDraft } from "./builtinOpenAiCompatibleDraft";
 import { canHostPublicDocs, discoverProviderDocs } from "./docsDiscovery";
 import { assertAdapterModeInvariants } from "./validator";
@@ -95,26 +96,75 @@ describe("buildOpenAiCompatibleDraft", () => {
     expect(i2v?.referenceShape).toBe("single");
   });
 
-  // 端到端闭合：光声明对了不算数，得证明「探针注进去的那个值真的出现在报文里」。
-  // 这条把 声明(referenceParam) → 探针注入(verifier 的 verificationRequest 同一份逻辑)
-  // → 模板渲染(buildProfileHttpRequest) 三段串起来。断言的是**注入的那个 URL 本身**出现在
-  // body.image，而不是「image 键存在」——键在但值是空模板串正是此前 i2v 首帧发不出去的样子。
-  it("图生视频：探针注入的参考图真的落进报文 body.image（声明对≠报文对）", () => {
-    const i2v = draftFor("video").modes.find((mode) => mode.taskKind === "image_to_video");
-    const injected = "https://example.test/reference.png";
-    const extras: Record<string, unknown> = { modelKey: "m-1" };
-    // 与 verifier.ts:149 同一条注入规则：按声明的键与形状放参考。
-    extras[i2v!.referenceParam!] = i2v!.referenceShape === "array" ? [injected] : injected;
+  // 端到端闭合：光声明对了不算数，得证明「探针注进去的那个值真的出现在最终报文」。
+  // 表里的 image 两个模型族分别穿过 JSON chat 与 multipart；video 穿过 JSON i2v。
+  // multipart 的真实 wire 是文件字节而不是 URL，所以 fake reader 把可辨识 URL 写进 fixture
+  // 字节，再从真正组出的 FormData 文件读回；这同时证明 imageSource 读到了声明的键。
+  const referenceDraftCases = [
+    { kind: "image", modelKey: "nano-banana", expectedModes: ["image_edit"] },
+    { kind: "image", modelKey: "gpt-image-2", expectedModes: ["image_edit"] },
+    { kind: "video", modelKey: "m-1", expectedModes: ["image_to_video"] },
+    { kind: "audio", modelKey: "m-audio", expectedModes: [] },
+    { kind: "text", modelKey: "m-text", expectedModes: [] },
+    { kind: "model3d", modelKey: "m-3d", expectedModes: [] },
+  ] as const;
 
-    const built = buildProfileHttpRequest({
-      vendor: { key: "relay", name: "relay", baseUrlHint: "http://192.168.18.254:3000", authType: "bearer" } as never,
-      model: { modelKey: "m-1", labelZh: "m-1", kind: "video" } as never,
-      apiKey: "k",
-      request: { kind: "image_to_video", prompt: "p", extras } as never,
-      operation: i2v!.create,
-    });
+  it.each(referenceDraftCases)("$kind/$modelKey：每个参考模式的注入 URL 都进入最终报文（空集也显式钉住）", async ({ kind, modelKey, expectedModes }) => {
+    const model = buildOpenAiCompatibleDraft({
+      baseUrl: "http://192.168.18.254:3000",
+      authType: "bearer",
+      models: [{ modelKey, labelZh: modelKey, kind }],
+    }).models[0];
+    const referenceModes = model.modes.filter((mode) => mode.referenceParam !== undefined);
+    expect(referenceModes.map((mode) => mode.taskKind)).toEqual(expectedModes);
 
-    expect((built.body as Record<string, unknown>).image).toBe(injected);
+    for (const mode of referenceModes) {
+      const injected = `https://example.test/${kind}-${mode.taskKind}-reference.png`;
+      const extras: Record<string, unknown> = { modelKey };
+      // 与 verifier.ts:149 同一条注入规则：按声明的键与形状放参考。
+      extras[mode.referenceParam!] = mode.referenceShape === "array" ? [injected] : injected;
+      const request = { kind: mode.taskKind, prompt: "p", extras } as never;
+      const label = `${kind}/${modelKey}/${mode.taskKind} referenceParam=${mode.referenceParam}`;
+
+      if (mode.create.multipart) {
+        let sent: FormData | undefined;
+        const resolved: string[] = [];
+        await runMultipartProfileOperation(
+          {
+            vendor: { key: "relay", name: "relay", baseUrlHint: "http://192.168.18.254:3000", authType: "bearer" } as never,
+            model: { modelKey, labelZh: modelKey, kind } as never,
+            apiKey: "k",
+            request,
+            operation: mode.create,
+            localAssetReader: (url) => {
+              resolved.push(url);
+              return url === injected
+                ? { bytes: Buffer.from(`fixture:${url}`), contentType: "image/png", fileName: "reference.png" }
+                : null;
+            },
+          },
+          async (_url, _headers, _query, form) => {
+            sent = form;
+            return {};
+          },
+        );
+        expect(resolved, label).toEqual([injected]);
+        let filePayload = "";
+        for (const [, value] of sent!.entries()) {
+          if (typeof value !== "string") filePayload += await value.text();
+        }
+        expect(filePayload, label).toContain(injected);
+      } else {
+        const built = buildProfileHttpRequest({
+          vendor: { key: "relay", name: "relay", baseUrlHint: "http://192.168.18.254:3000", authType: "bearer" } as never,
+          model: { modelKey, labelZh: modelKey, kind } as never,
+          apiKey: "k",
+          request,
+          operation: mode.create,
+        });
+        expect(JSON.stringify(built.body), label).toContain(injected);
+      }
+    }
   });
 
   // Task 2 的另一半：自建中转**根本接不了**音频参考类与 3D 模型。这不是「没问题」，是缺口——
