@@ -80,9 +80,11 @@ describe('chooseDefaultModelOption 健康避让', () => {
   })
 
   it('全部候选都在避让期 → 回退原序，绝不空选', () => {
-    for (const key of ['imagen-4.0-apimart', 'doubao-seedream-4.5']) {
-      recordModelFailure(key)
-      recordModelFailure(key)
+    // 两个候选都是 apimart 家：记账主体是 (vendor, modelKey)，得按各自那家记。
+    for (const option of [imagen, seedream]) {
+      const identity = { modelKey: option.modelKey, vendor: option.vendor }
+      recordModelFailure(identity)
+      recordModelFailure(identity)
     }
     expect(chooseDefaultModelOption([imagen, seedream], true, false)?.value).toBe('imagen-4.0-apimart')
   })

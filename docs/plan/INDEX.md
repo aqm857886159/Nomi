@@ -14,6 +14,7 @@
 | [2026-06-07-model-onboarding-final-plan.md](2026-06-07-model-onboarding-final-plan.md) | **模型接入最终方案**（R7 定稿，审计+设计+计划）— 本簇主文档 | ✅ |
 | [2026-08-30-runway-seedance25-onboarding.md](2026-08-30-runway-seedance25-onboarding.md) | Runway Seedance 2.5 接入与分镜设置（源分支只含文档、未合并；配套指南带「未发布」横幅）| 📋 |
 | [2026-08-15-model-integration-no-dead-end-master-plan.md](2026-08-15-model-integration-no-dead-end-master-plan.md) | 模型接入「不留死路」总纲：事实源 manifest + 能力契约 + 旅程矩阵 | 🚧 |
+| [2026-09-03-storyboard-agent-tools.md](2026-09-03-storyboard-agent-tools.md) | **分镜表的 Agent 工具面**：三栏改造给分镜页接上了 Agent 却没给它能碰分镜表的手。按用户在分镜表前真会说的 6 类话反推工具，核心取舍是粒度——粒度必须对齐审批/撤销粒度（一次调用一张卡），并把「别乱改没点名的字段」从提示词软约束变成 schema 硬约束 | 📋 |
 | [2026-09-03-storyboard-entry-vendor-identity.md](2026-09-03-storyboard-entry-vendor-identity.md) | **分镜表首次真实付费闭环走查的三个阻断**：模型身份唯一键补 vendor（选 A 家发去 B 家）、拆镜头入口的注册者被移植删掉、工具 profile 靠关键词表猜措辞；外加分镜页从全宽孤岛改成与创作页同构的三栏 | ✅ |
 | [2026-09-03-self-hosted-relay-conformance-harness.md](2026-09-03-self-hosted-relay-conformance-harness.md) | **自建中转一致性台架**：CI 里起一个**严格的**假中转，驱动真实接入→认证→生成全链路。严格度锚定 2026-09-03 真机实测（用错端点/无图/图太小/multipart 无字节 四条拒绝规则），把「用户接入」这条唯一没有反馈回路的路径接上回路 | 📋 |
 | [2026-09-02-docaudit-kie-apimart.md](2026-09-02-docaudit-kie-apimart.md) | KIE + APIMart 官方文档全量对账、映射合同覆盖与未封印模型验收 | ✅ |
