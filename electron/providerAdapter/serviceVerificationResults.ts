@@ -27,7 +27,14 @@ export function initialVerificationState(input: {
       modes: candidate
         ? candidate.modes.map((mode) => ({ taskKind: mode.taskKind, state: "queued" as const, attempts: input.attempt }))
         : failure
-          ? [{ taskKind: primaryTaskKind(model.kind), state: "failed" as const, attempts: 1, stage: "compile" as const, error: failure.error }]
+          ? [{
+              taskKind: primaryTaskKind(model.kind),
+              state: "failed" as const,
+              attempts: 1,
+              stage: "compile" as const,
+              error: failure.error,
+              compileFailureReason: failure.reason,
+            }]
           : [],
     };
   });
@@ -40,6 +47,7 @@ export function initialVerificationState(input: {
       attempts: 1,
       stage: "compile",
       error: failure.error,
+      compileFailureReason: failure.reason,
     };
   });
   return { models, results };
@@ -84,6 +92,7 @@ export function persistedModeResult(result: ModeResultWithModel): AdapterModeRes
     ...(result.stage ? { stage: result.stage } : {}),
     ...(result.error ? { error: result.error } : {}),
     ...(result.errorCategory ? { errorCategory: result.errorCategory } : {}),
+    ...(result.compileFailureReason ? { compileFailureReason: result.compileFailureReason } : {}),
     ...(result.httpStatus ? { httpStatus: result.httpStatus } : {}),
     ...(result.verifiedAt ? { verifiedAt: result.verifiedAt } : {}),
     ...(result.mediaEvidence ? { mediaEvidence: result.mediaEvidence } : {}),

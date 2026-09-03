@@ -1,0 +1,142 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-compile-failure-reason-is-structured",
+  "problem_type": "编译期失败只带得动一句英文散文，带不动「为什么失败」这个事实。于是「这个 kind 压根没有通用协议」和「我们没读懂这家文档」两种性质完全不同的处境，在界面上塌缩成同一个 stage=compile，唯一能区分它们的信息只存在于 error 字符串的措辞里——而按本仓纪律那串措辞是不许读的",
+  "symptom": "中文用户经通用 OpenAI 兼容中转接入 3D 模型时，模型卡上出现一句生英文技术串「No safe generic contract exists for this model kind; configure a manual call script」，同一句还会以 `<modelKey>: <英文>` 的形式重复到 run.error 那条原样渲染、无 i18n 的红色横幅上（R15 违规）。它恰好出现在用户最需要指引的那一刻，而 3D 其实**接得上**——直接脚本（DirectScriptDraftForm 的 KINDS 含 model3d）与 ComfyUI 工作流导入（支持 model3d 输出）两条路都能把它接上。用户读到的却是「没有安全的通用契约」，读起来像「这东西坏了/不支持」，于是他会去换模型、换地址、换密钥——全都是错误的行动建议。这正是本仓最常复发的一条教训「群里说『坏了』多半是『找不到』」的又一个实例：一个能用的逃生口没人找得到，等价于它不存在。",
+  "direct_cause": "serviceFallback.ts::genericCompilation 对 buildOpenAiCompatibleDraft 产出零 modes 的模型，构造 failure 时只写了 { modelKey, error: MANUAL_CONTRACT_ERROR }。ProviderAdapterCompileFailure 这个类型上压根没有「原因」这一维，所以下游拿不到任何可判定的信号：serviceVerificationResults 把它铺成 stage=\"compile\" 的 mode 结果，而 stage=compile 同时也是 AI 编译路径失败的落点；渲染层 adapterFailureAdvice 只能按 stage 给出「我们没读懂这家的接口文档」这句话——对 3D 而言这句话是**假的**（我们不是没读懂，是这个 kind 在 OpenAI 兼容面上根本没有标准端点，我们刻意不编造）。同时 service.ts 把全部 compile failures 原样 join 进 run.error，而该字段在 AdapterVerificationScreen.tsx:281 是 `{run.error}` 直接渲染，没有任何 i18n 通道。",
+  "class_root": "「把结构化事实编码进给人看的散文里，再指望下游把它解析回来」。生产者知道得清清楚楚——它就是在 `if (kind !== image && kind !== video && kind !== audio) return []` 这一行决定放弃的——但它把这个判断结果丢掉了，只留下一句英文描述。下游要想恢复这个事实，唯一的办法就是去匹配措辞，而 adapterFailureAdvice 的文件头注释明令禁止这么做（「绝不用关键词去猜 error 字符串——那是已经反复漏了 5 轮的反模式」）。于是这个信息在架构上是**不可恢复**的，界面只能在「说一句可能是假的话」和「什么都不说」之间选。正确形状 = 凡是下游要据以改变行为（换文案、换按钮、换动作）的分类，必须在**做出该判断的那一行**编码成结构化字段随失败一起传递；散文只保留给「给人和 AI 看的原始证据」，永远不作为判据。",
+  "affected_population": [
+    "全部经「自定义中转 / 自建 OpenAI 兼容端点」接入 3D 模型的用户（当前 modesForKind 唯一返回空数组的 kind 就是 model3d）：此前拿到英文技术串 + 一个假原因，现在拿到本地化的解释 + 指向两条真正走得通的路（「我自己接」/ ComfyUI 工作流导入）。",
+    "全部 zh-CN 用户在 run.error 红色横幅上的观感：该横幅原样渲染无 i18n，此前 3D 这类失败会把英文串重复糊上去。现在这类不再进横幅（模型卡上已用用户的语言讲清楚），而「没读懂文档」那类仍然进——它不针对某个具体模型，无处可说。",
+    "不影响任何 wire 行为、不改任何供应商契约、不改零通道这一事实本身：3D 依然没有通用契约，依然零 modes（这是刻意的、不编造契约的正确行为）。本次只改「这件事怎么被表达出来」。",
+    "不影响存量库数据：compileFailureReason 是可选字段，老 run 记录没有它时行为与此前完全一致（落回 stage=compile 的通用文案）。"
+  ],
+  "scope_paths": [
+    "electron/providerAdapter/types.ts",
+    "electron/providerAdapter/serviceFallback.ts",
+    "electron/providerAdapter/serviceVerificationResults.ts",
+    "electron/providerAdapter/compiler.ts",
+    "electron/providerAdapter/service.ts",
+    "src/desktop/onboardingBridgeTypes.ts",
+    "src/ui/onboarding/adapterFailureAdvice.ts",
+    "src/ui/onboarding/AdapterVerificationScreen.tsx",
+    "src/i18n/locales/onboardingProviders.ts"
+  ],
+  "entry_points": [
+    "electron/providerAdapter/types.ts::AdapterCompileFailureReason —— 新增的结构化原因词表（no_generic_contract | docs_not_understood），挂在 ProviderAdapterCompileFailure.reason 上且**必填**。必填是这次防复发的关键：任何新增的 compile failure 生产者不写它就过不了类型检查，而不是默默退化成一句无法分辨的散文。",
+    "electron/providerAdapter/serviceFallback.ts::genericCompilation —— 零 modes 这条路的唯一生产者，在放弃的那一行写 reason: \"no_generic_contract\"。",
+    "electron/providerAdapter/compiler.ts::compileModels 的 catch —— AI 编译路径的唯一生产者，在抛出点写 reason: \"docs_not_understood\"。",
+    "electron/providerAdapter/serviceFallback.ts::compileErrorBanner —— run.error 红色横幅文本的唯一构造点。它决定哪些 compile failure 该出现在这条无 i18n 的横幅上：已在模型卡上用用户语言解释清楚的（no_generic_contract）不再重复糊英文，其余仍然报。",
+    "electron/providerAdapter/serviceVerificationResults.ts::initialVerificationState / persistedModeResult —— 把 reason 铺到 mode 结果上并落库，使它一路活到渲染层与重开面板之后。",
+    "src/ui/onboarding/adapterFailureAdvice.ts::adapterFailureAdvice —— 归类到文案 + 动作的唯一映射。新增 no_generic_contract 分支返回 { reasonKey: 'noGenericContract', action: 'selfConnect' }，排在通用 compile 分支之前（更具体者优先）。"
+  ],
+  "internal_only_reason": "不新增也不修改任何供应商 API 契约：不动端点、鉴权、参数、模板内容，也不改「3D 没有通用契约所以零通道」这个既定结论（那正是刻意不编造契约的正确行为，见 builtinOpenAiCompatibleDraft.ts:105 注释）。本次全部改动是在仓库内部给已有失败补一维结构化分类，并据它选择用户看到的文案与按钮。",
+  "invariants": [
+    "凡是下游要据以改变行为（换文案、换按钮、换动作）的失败分类，必须由**做出该判断的生产者**以结构化字段编码，随失败一起传递；error 散文只作为「给人和 AI 看的原始证据」保留在折叠区，永远不作为判据。adapterFailureAdvice 里不许出现对 error 文案的任何关键词匹配。",
+    "ProviderAdapterCompileFailure.reason 必填。新增任何 compile failure 生产者时必须显式选择一个原因，不许用可选字段或默认值把「没想清楚」伪装成「没有原因」——这正是本次缺陷得以存在的形状。",
+    "run.error 是**原样渲染、无 i18n 通道**的横幅（AdapterVerificationScreen.tsx:281）。因此任何已经在模型卡上用用户语言解释清楚的失败，不得再以英文技术串重复进 run.error；反之，不针对某个具体模型、在模型卡上无处可说的失败必须仍然进横幅，不能因为怕英文而把它吞掉。",
+    "「3D 零通道」这一事实本身不许因为文案变好看而被改动：modesForKind 对 model3d 仍返回空数组，不编造 OpenAI 兼容的 3D 端点（本仓既定纪律，R5）。本次只改这件事怎么被表达。",
+    "面向用户解释某条路走不通时，必须同时指出真正走得通的那条路（若存在）。3D 的两条路是直接脚本与 ComfyUI 工作流导入，两者都实际支持 model3d——文案里点名的路必须是代码里真的存在的路。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「结构化事实被编码进给人看的散文、下游只能靠猜措辞恢复」在本仓已反复出现且有明确记录：adapterFailureAdvice 的文件头注释写着这一族「已经反复漏了 5 轮」，2026-08-12 的 `fix(errors): 文本侧错误也在源头留住 category` 是同一族的上一次修复——那次的做法正是「在抛出点查表定好 category 并一路带过来」。本次是同一个病在**编译期**这条路上的复发：verifier 那条路早就有 errorCategory 了，compile 这条路却一直只有散文。只要将来再多一种「下游要据以改变行为的失败分类」而生产者只留散文，同一个病就会原样回来。",
+    "same_class_scan": [
+      "全仓普查「谁生产 ProviderAdapterCompileFailure」：恰好 2 处，均已带上结构化 reason。① serviceFallback.ts::genericCompilation（零 modes → no_generic_contract）；② compiler.ts 的 catch（AI 编译失败 → docs_not_understood）。第三处 serviceCompilation.ts:33-39 不是独立生产者——它把 genericCompilation 的 failure 原样 spread 后只在 error 后面追加一段上下文，reason 经 `...failure` 自动继承（已核对该 spread 保留了新字段）。字段设为**必填**后，任何遗漏的生产者都会在类型检查当场失败，不会静默退化：本次改动时正是这条必填约束把 compiler.ts 这个我原本没打算碰的生产者暴露出来的（tsc 报 TS2345 指到 compiler.ts:314）。",
+      "同族的另一条路（verifier 真实请求失败）复核：它早在 2026-08-12 就已按同一形状修好——归类在 vendorHttp 抛出点查表定好，经 errorCategory 一路带到渲染层。本次编译期这条路是把同一形状补齐，两条路现在共用同一个消费者 adapterFailureAdvice，不存在第二份判断。判定 not-affected（无需改动，且正是本次的参照样板）。",
+      "渲染层「有没有别处在读 error 散文当判据」普查：grep adapterFailureAdvice 全部调用点，唯一调用点是 AdapterVerificationScreen.tsx:218，输入只有 errorCategory / httpStatus / stage / compileFailureReason 四个结构化字段，无任何字符串匹配。onboardingBridgeTypes.ts:26 的注释已明令禁止 UI 侧关键词猜测。已加一条测试把「原始英文原样喂进来也不许改变归类」钉死。",
+      "渲染层「还有哪些地方原样渲染未翻译的 error」普查（AdapterVerificationScreen 全文件）：共 3 处。① :281 run.error 红色横幅——本次处理对象；② :263 折叠的「看原始报错」——**刻意保留**，它对普通用户是收起的，对来求助的人是唯一线索，两边都不能丢（D4 诚实交付）；③ :183 mode 徽章的 title 悬浮提示——同属诊断性质，不是主要解释面。判定：只有 ① 属缺陷，②③ 是设计正确。",
+      "i18n 侧同类缺口复核：pnpm run check:i18n 四道子门岗全绿（visible-text 硬零、key-parity 5224 键 zh-CN↔en 锁步、key-ref 每个引用可解析、fragile-match 棘轮）。新增的 why.noGenericContract 两语齐备，由 key-parity 门岗保证不会单边漂移。",
+      "「文案点名的逃生口是否真的存在」实查（防止修完文案反而骗人）：直接脚本路 src/ui/onboarding/DirectScriptDraftForm.tsx:11 的 KINDS 含 model3d；ComfyUI 路 ComfyuiWorkflowImportPanel.tsx:462 的输出 kind 分支含 model3d。按钮落点复核：selfConnect 动作经 OnboardingDrawer.tsx:619 打开该模型的设置对话框（手动调用配置就住在那里），与文案承诺一致。"
+    ]
+  },
+  "generality_proof": "缺陷不是「这句英文没翻译」，而是「判断结果在生产者那里就被丢掉了，只剩散文」，三条独立证据：① 就算把 MANUAL_CONTRACT_ERROR 整句翻成中文，界面**仍然**说不出那句该说的话——因为它分辨不出这是「没有通用协议」还是「没读懂文档」，只能按 stage 给出一句对 3D 而言是假的解释；换言之翻译解决不了这个缺陷，这证明根因不在文案层。② 同一个信息缺失同时造成了两个不同表面的问题（模型卡上的假原因、红色横幅上的英文噪音），一个信息缺失打出两个症状，说明症状不是根因。③ 隔壁 verifier 那条路早在 2026-08-12 就按「抛出点定分类 + 结构化字段带过来」修好了，本次只是把同一形状补到 compile 这条路上——同形状能修好两条不同的路，证明该形状是类级的而非本例特有。故防复发落在「分类必填、在判断发生处编码」这一结构改变上：字段必填意味着新增生产者不写就过不了类型检查，而不是靠人记得。",
+  "shared_boundaries": [
+    {
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "AdapterCompileFailureReason / ProviderAdapterCompileFailure.reason",
+      "responsibility": "编译期失败分类的唯一词表与唯一携带点，且**必填**。所有 compile failure 生产者都必须在构造失败的那一行显式选一个原因；新增分类只能加在这个 union 上。下游（渲染层文案与动作）只许读这个字段，不许读 error 散文——散文的角色被限定为折叠区里的原始证据。必填是这条边界的执行力来源：漏写不是「少个可选字段」而是编译不过。"
+    },
+    {
+      "path": "electron/providerAdapter/serviceFallback.ts",
+      "symbol": "compileErrorBanner",
+      "responsibility": "run.error 红色横幅文本的唯一构造点。该横幅在渲染层原样输出、没有 i18n 通道，所以「哪些失败该出现在这里」必须集中判断：已在模型卡上用用户语言解释清楚的不再重复糊英文，不针对具体模型、别处无处可说的仍然报。禁止任何调用方绕过它自行 join failures 进 run.error。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/providerAdapter/serviceFallback.ts",
+      "entry_point": "genericCompilation（零 modes 的失败生产者，自建中转 3D 实际走的那条）",
+      "disposition": "enforced",
+      "evidence": "在放弃的那一行写 reason: \"no_generic_contract\"。由 builtinOpenAiCompatibleDraft.test.ts 新增断言锁住 failures 恰为 [{ modelKey, error, reason: 'no_generic_contract' }]。"
+    },
+    {
+      "path": "electron/providerAdapter/compiler.ts",
+      "entry_point": "compileModels 的 catch（AI 编译路径的失败生产者）",
+      "disposition": "enforced",
+      "evidence": "在抛出点写 reason: \"docs_not_understood\"。这个生产者是被必填约束**自动暴露**的——加上必填后 tsc 立刻报 TS2345 指到 compiler.ts:314，而非靠人工普查记得，正是本次防复发形状的实证。"
+    },
+    {
+      "path": "electron/providerAdapter/serviceCompilation.ts",
+      "entry_point": "compileMediaModels 中对 genericCompilation failures 的再包装（error 后追加上下文）",
+      "disposition": "not-affected",
+      "evidence": "它不是独立生产者：`...failure` spread 后只改写 error 字段，reason 自动继承。已核对该 spread 未列举字段白名单，故新增字段不会被静默丢弃。"
+    },
+    {
+      "path": "electron/providerAdapter/verifier.ts",
+      "entry_point": "真实请求验证失败的 errorCategory 归类（同族的上一次修复，2026-08-12）",
+      "disposition": "not-affected",
+      "evidence": "该路径早已按同一形状修好（抛出点查表定分类并一路带到渲染层），本次未改动它。它与本次新增的 compileFailureReason 汇入同一个消费者 adapterFailureAdvice，不存在第二份判断——是本次的参照样板而非待修对象。"
+    },
+    {
+      "path": "src/ui/onboarding/adapterFailureAdvice.ts",
+      "entry_point": "adapterFailureAdvice（归类 → 文案 + 动作的唯一映射，全应用唯一调用点在 AdapterVerificationScreen.tsx:218）",
+      "disposition": "enforced",
+      "evidence": "新增 no_generic_contract 分支且排在通用 compile 分支之前；输入仍只有结构化字段。新增测试「ignores the raw English error prose entirely」把原始英文原样喂进来断言归类不变，防止将来退回关键词匹配。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "invariant": "编译期失败的分类由生产者在做出判断的那一行以必填结构化字段编码（ProviderAdapterCompileFailure.reason），渲染层只据它选文案与动作，永不读 error 散文；run.error 横幅文本只由 compileErrorBanner 一处构造。",
+    "enforcement_path": "electron/providerAdapter/types.ts",
+    "failure_mode": "若分类再次退化成「只有散文」，症状不会立刻可见：失败照常构造、照常落库、界面照常显示一句语法通顺的解释——只不过那句解释对其中一类是**假的**，并把用户推向错误的行动（换模型/换地址/换密钥），而真正走得通的那条路他永远不会知道。这是最难自查的一类缺陷：没有任何东西会报错，只有用户在错误的方向上浪费时间，且他多半会把它描述成「这功能坏了」而不是「文案不对」。",
+    "exception_policy": "none",
+    "strategy": "把分类做成**必填**字段挂在失败类型上，而不是可选字段或约定。必填的作用是让「漏写」从一个安静的退化变成一次编译失败：本次加上它之后，tsc 当场指出了 compiler.ts 这个我原本没打算改的第二个生产者——防复发的执行力来自类型系统而不是来自记性。R17 已验红：把 serviceVerificationResults 里传递 reason 的那一行删掉，builtinOpenAiCompatibleDraft.test.ts 立刻红在「结构化原因活到模型卡上」这条（恢复后 28 项全绿）；另把 reason 改为可选并删掉 compiler.ts 的赋值，tsc 恢复静默——反证必填正是该形状的执行体。同时把横幅文本收进 compileErrorBanner 单一构造点，避免「哪些失败该进无 i18n 横幅」这个判断散落到调用方。",
+    "artifacts": [
+      "electron/providerAdapter/types.ts",
+      "electron/providerAdapter/serviceFallback.ts",
+      "electron/providerAdapter/serviceVerificationResults.ts",
+      "electron/providerAdapter/compiler.ts",
+      "electron/providerAdapter/service.ts",
+      "src/ui/onboarding/adapterFailureAdvice.ts",
+      "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts",
+      "src/ui/onboarding/adapterFailureAdvice.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts",
+    "src/ui/onboarding/adapterFailureAdvice.test.ts",
+    "src/ui/onboarding/adapterVerificationCopy.test.ts"
+  ],
+  "regression_tests": [
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.test.ts",
+    "src/ui/onboarding/adapterFailureAdvice.test.ts",
+    "src/ui/onboarding/adapterVerificationCopy.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "无并行实现被引入或保留。MANUAL_CONTRACT_ERROR 这个常量**不是**被替换的旧实现——它改变了角色：从「摆在用户面前的解释」变成「折叠区里的原始诊断证据」，这个新角色已写进它的文档注释。用户可见的解释由 i18n 的 why.noGenericContract 单独承担，两者不是同一件东西的两份实现，不存在 P1 意义上的并行版。run.error 横幅的 join 逻辑从 service.ts 内联块搬进 compileErrorBanner，原处同 commit 删除并改为调用，不留第二份。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不新增、不升级、不保留任何第三方依赖；全部改动是仓库内部的失败分类字段与文案接线。",
+    "exit_criteria": []
+  },
+  "migration": "无存储迁移。compileFailureReason 是 mode 结果上的可选字段：老 run 记录没有它时，adapterFailureAdvice 落回原有的 stage=compile 通用文案，行为与此前完全一致；新 run 才带上它。3D 零通道这一 wire 事实一字未改。回滚 = 还原本次文件，无残留状态。",
+  "residual_risks": [
+    "音频侧的真能力缺口仍在：newapiTransportFor('audio') 只有 TTS 一条 wire，自建中转接不了 image_to_audio 参考类音频模型。那是**能力**缺口不是表达缺口，本次不碰（已由 builtinOpenAiCompatibleDraft.test.ts 的显式断言钉住）。若将来它也需要一句「这条路不通、该走哪」，形状已经现成：给它一个新的 reason 值即可。",
+    "本次只保证「界面据结构化原因说话」，不保证「说的那句话本身好」。文案质量（是否够短、是否真的让用户知道下一步点哪）由 adapterVerificationCopy.test.ts 断言了两条硬要求——不含英文技术原文、必须点名两条真实可用的路——但「读起来舒不舒服」这类体感仍需真机走查判断，属 P3/R13 范畴，不是本合同能覆盖的。",
+    "run.error 这条横幅**整体**仍是原样渲染、无 i18n 通道的。本次只是不再把已解释清楚的那类糊上去；其余进入横幅的文本（repairError、deadline 超时消息等）仍可能是英文技术串。要彻底解决需要把 run 级失败也做成结构化 reason + i18n，范围明显大于本次，且那些文本的读者更接近「来求助的人」而非「正常路径上的用户」，优先级低。这是**已知的、有意留下的**范围边界，不是遗漏。"
+  ]
+}

@@ -6,6 +6,8 @@ import { buildProfileHttpRequest } from "../catalog/profileHttpRequest";
 import { runMultipartProfileOperation } from "../catalog/multipartOperation";
 import { buildOpenAiCompatibleDraft } from "./builtinOpenAiCompatibleDraft";
 import { canHostPublicDocs, discoverProviderDocs } from "./docsDiscovery";
+import { MANUAL_CONTRACT_ERROR, compileErrorBanner, genericCompilation } from "./serviceFallback";
+import { initialVerificationState, persistedModeResult } from "./serviceVerificationResults";
 import { assertAdapterModeInvariants } from "./validator";
 
 describe("canHostPublicDocs", () => {
@@ -182,6 +184,50 @@ describe("buildOpenAiCompatibleDraft", () => {
       models: [{ modelKey: "m-3d", labelZh: "m-3d", kind: "model3d" }],
     }).models[0];
     expect(model3d.modes).toEqual([]);
+  });
+
+  // 零通道那一刻用户看到什么，才是这个缺口的真实代价。原先他拿到的是一句生英文技术串
+  // （MANUAL_CONTRACT_ERROR）——恰好在他最需要指引的时候，而 3D 其实**接得上**（直接脚本 / ComfyUI）。
+  // 所以生产者必须带出结构化原因，界面据它说人话并指路；判据不是 error 文案里的关键词。
+  it("3D 的零通道失败带结构化原因 no_generic_contract（界面据它说人话，不是拿英文原文糊用户脸上）", () => {
+    const compilation = genericCompilation(
+      { vendor: { baseUrlHint: "http://192.168.18.254:3000", authType: "bearer" }, models: [] } as never,
+      [{ modelKey: "m-3d", labelZh: "三维模型", kind: "model3d" }] as never,
+    );
+    expect(compilation.draft.models).toEqual([]);
+    expect(compilation.failures).toEqual([
+      { modelKey: "m-3d", error: MANUAL_CONTRACT_ERROR, reason: "no_generic_contract" },
+    ]);
+  });
+
+  // run.error 那条红色横幅是原样渲染的（无 i18n）。3D 这类已经在模型卡上用用户的语言讲清楚了，
+  // 再以英文技术串重复到横幅上就只是噪音；而「没读懂文档」那类不针对某个模型，仍必须留在横幅上。
+  it("零通道不再往无 i18n 的红色横幅上糊英文，但读不懂文档那类仍要报", () => {
+    expect(compileErrorBanner([
+      { modelKey: "m-3d", error: MANUAL_CONTRACT_ERROR, reason: "no_generic_contract" },
+    ])).toBeUndefined();
+    expect(compileErrorBanner([
+      { modelKey: "m-3d", error: MANUAL_CONTRACT_ERROR, reason: "no_generic_contract" },
+      { modelKey: "paint-v2", error: "No documented image mode", reason: "docs_not_understood" },
+    ])).toBe("paint-v2: No documented image mode");
+  });
+
+  // 结构化原因必须一路活到模型卡上：断在中途 = 界面又只剩 error 文案可读，等于退回关键词匹配。
+  it("结构化原因活到模型卡的 mode 上（stage=compile 且 compileFailureReason 不丢）", () => {
+    const { models } = initialVerificationState({
+      connection: { models: [{ modelKey: "m-3d", labelZh: "三维模型", kind: "model3d" }] } as never,
+      draft: { provider: {}, sources: [], models: [] } as never,
+      compileFailures: [{ modelKey: "m-3d", error: MANUAL_CONTRACT_ERROR, reason: "no_generic_contract" }],
+      attempt: 1,
+    });
+    expect(models[0].modes[0]).toMatchObject({
+      state: "failed",
+      stage: "compile",
+      compileFailureReason: "no_generic_contract",
+    });
+    // 持久化投影同样不许把它丢掉（落库后重开面板还得能说人话）。
+    expect(persistedModeResult({ ...models[0].modes[0], modelKey: "m-3d" } as never))
+      .toMatchObject({ compileFailureReason: "no_generic_contract" });
   });
 
   // 结构闸（R17 已验红）：内置草稿与 AI 编译路共用同一份语义校验。此前这条路一次都没被校验过，

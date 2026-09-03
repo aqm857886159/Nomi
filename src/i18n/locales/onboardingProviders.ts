@@ -775,6 +775,7 @@ export const zhOnboardingProviders = {
       server: '对方服务器出错了（{{status}}），和你的配置无关。过一会儿重新验证。',
       network: '连不上这个地址。检查地址有没有写错，以及本机网络/代理。',
       compile: '我们没能读懂这家的接口文档，所以没生成出调用方式。和你填的东西无关。',
+      noGenericContract: '这类模型没有通用的接口标准，所以自动接入这条路走不通——不是你填错了，也不是这个模型有问题。改用「我自己接」写调用脚本，或导入 ComfyUI 工作流，都能把它接上。',
       unknown: '这个错误我们没认出来。原文在下面，可以照着自己接，或复制给 AI 帮你看。',
     },
     whyStatusUnknown: '无状态码',
@@ -2030,6 +2031,8 @@ export const enOnboardingProviders = {
       network: 'Cannot reach this address. Check the URL, and your network or proxy.',
       compile:
         'We could not understand this provider’s API docs, so no call was generated. Not caused by anything you entered.',
+      noGenericContract:
+        'There is no shared API standard for this kind of model, so automatic setup cannot work here — nothing is wrong with your settings or with the model. Use “Connect it myself” to write a call script, or import a ComfyUI workflow; either one will get it working.',
       unknown: 'We do not recognise this error. The raw message is below — connect it yourself, or copy it to an AI.',
     },
     whyStatusUnknown: 'no status',
