@@ -203,8 +203,8 @@ export function useShotMentionSource(
         return idx + 1
       }
 
-      if (item.group === 'canvas') {
-        // 「其他锚」选中：先绑 anchorIds，然后算 index
+      if (item.group === 'canvas' && item.key.startsWith('anchor:')) {
+        // 「其他锚」选中：先绑 anchorIds，然后算 index；镜头结果同组但走下方素材链。
         const anchorId = item.key.replace(/^anchor:/, '')
         const anchor = anchors.find((candidate) => candidate.id === anchorId)
         if (!anchor) return null

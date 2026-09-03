@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconAlertTriangle, IconMovie, IconLockOpen, IconPlayerPlay, IconPlus } from '@tabler/icons-react'
+import { IconAlertTriangle, IconMovie, IconLockOpen, IconPlayerPlay, IconPlus, IconX } from '@tabler/icons-react'
 import { confirmDialog, WorkbenchButton } from '../../../design'
 import { toast } from '../../../ui/toast'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -8,6 +8,7 @@ import { useGenerationCanvasStore } from '../../generationCanvas/store/generatio
 import { useModelOptionsState } from '../../../config/useModelOptions'
 import {
   addAnchor,
+  addExternalReferenceAnchor,
   addShot,
   changeAnchorKind,
   removeAnchor,
@@ -37,7 +38,9 @@ import {
   toggleNodeLock,
 } from './exec/storyboardRowActions'
 import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
-import { AssetPreviewDialog } from '../../assets/AssetPreviewDialog'
+import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../assets/AssetPreviewDialog'
+import type { AssetRef } from '../../assets/assetTypes'
+import { buildStoryboardPlaybackQueue, hiddenGeneratingCount, positionsForAnchorFilter } from './storyboardDInteractions'
 
 /**
  * 分镜方案编辑器（v5 B：执行面）。表 = 画布节点的表格表示版——行内/批量直接生成，
@@ -64,6 +67,10 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const [busy, setBusy] = React.useState(false)
   // 放大预览：存 nodeId（不存快照），渲染时从画布节点现取结果——重生成后再开永远是最新图。
   const [previewNodeId, setPreviewNodeId] = React.useState<string | null>(null)
+  const [filterAnchorId, setFilterAnchorId] = React.useState<string | null>(null)
+  const [playbackOpen, setPlaybackOpen] = React.useState(false)
+  const [mentionPreviewAsset, setMentionPreviewAsset] = React.useState<AssetRef | null>(null)
+  const deletedPlanUndoRef = React.useRef<{ plan: NonNullable<typeof plan>; canvasSteps: number } | null>(null)
 
   const firstIssueLabel = (issue: PlanIssue): string => {
     switch (issue.kind) {
@@ -85,6 +92,52 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const anchorCards = React.useMemo(
     () => (plan ? deriveAnchorCardRuntimes({ plan, designId, nodes: canvasNodes, rows }) : []),
     [plan, designId, canvasNodes, rows],
+  )
+
+  React.useEffect(() => {
+    const onMentionPreview = (event: Event): void => {
+      const detail = (event as CustomEvent<{ url?: string; kind?: AssetRef['kind']; label?: string }>).detail
+      const url = detail?.url?.trim()
+      if (!url) return
+      const matched = canvasNodes.find((node) => canvasNodeToAssetRefs(node).some((asset) => asset.renderUrl === url))
+      if (matched) {
+        setMentionPreviewAsset(null)
+        setPreviewNodeId(matched.id)
+        return
+      }
+      const kind = detail.kind === 'video' || detail.kind === 'audio' || detail.kind === 'model3d' ? detail.kind : 'image'
+      setPreviewNodeId(null)
+      setMentionPreviewAsset({ id: url, kind, name: detail.label || url, renderUrl: url, source: 'project', origin: { source: 'project', projectId: '', relativePath: '' } })
+    }
+    window.addEventListener('nomi:asset-mention-preview', onMentionPreview)
+    return () => window.removeEventListener('nomi:asset-mention-preview', onMentionPreview)
+  }, [canvasNodes])
+
+  React.useEffect(() => {
+    const onUndo = (event: KeyboardEvent): void => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z' || !deletedPlanUndoRef.current) return
+      event.preventDefault()
+      const undo = deletedPlanUndoRef.current
+      deletedPlanUndoRef.current = null
+      for (let index = 0; index < undo.canvasSteps; index += 1) useGenerationCanvasStore.getState().undo()
+      setStoryboardPlan(undo.plan)
+    }
+    window.addEventListener('keydown', onUndo)
+    return () => window.removeEventListener('keydown', onUndo)
+  }, [setStoryboardPlan])
+
+  const visiblePositions = React.useMemo(() => positionsForAnchorFilter(plan ?? { title: '', anchors: [], shots: [] }, filterAnchorId), [filterAnchorId, plan])
+  const visibleRows = React.useMemo(
+    () => visiblePositions.map((position) => rows[position]).filter((row): row is StoryboardRowRuntime => Boolean(row)),
+    [rows, visiblePositions],
+  )
+  const playbackQueue = React.useMemo(() => buildStoryboardPlaybackQueue(visibleRows), [visibleRows])
+  const playbackSequence = React.useMemo<AssetPreviewSequenceItem[]>(
+    () => playbackQueue.flatMap((item) => {
+      const asset = item.runtime.exec.node ? canvasNodeToAssetRefs(item.runtime.exec.node)[0] : null
+      return asset ? [{ asset, durationSec: item.durationSec }] : []
+    }),
+    [playbackQueue],
   )
 
   if (!plan) return null
@@ -155,7 +208,42 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     if (runtime.node) toggleNodeLock(runtime.node.id)
   }
   const onOpenPreviewRow = (runtime: StoryboardRowRuntime): void => {
-    if (runtime.exec.node && runtime.exec.resultUrl) setPreviewNodeId(runtime.exec.node.id)
+    if (runtime.exec.node && runtime.exec.resultUrl) {
+      setMentionPreviewAsset(null)
+      setPreviewNodeId(runtime.exec.node.id)
+    }
+  }
+  const onOpenPreviewAnchor = (runtime: AnchorCardRuntime): void => {
+    if (runtime.node && runtime.resultUrl) {
+      setMentionPreviewAsset(null)
+      setPreviewNodeId(runtime.node.id)
+    }
+  }
+  const resultReference = (runtime: StoryboardRowRuntime): { plan: typeof plan; anchorId: string } | null => {
+    if (!runtime.exec.node || !runtime.exec.resultUrl) return null
+    const asset = canvasNodeToAssetRefs(runtime.exec.node)[0]
+    if (!asset) return null
+    return addExternalReferenceAnchor(plan, { id: asset.id, name: t('storyboardEditor.resultIntake.shot', { index: runtime.shot.index }), url: asset.renderUrl, kind: asset.kind === 'video' ? 'video' : 'image', sourceNodeId: runtime.exec.node.id })
+  }
+  const onSaveResultAsReference = (runtime: StoryboardRowRuntime): void => {
+    const result = resultReference(runtime)
+    if (result) setStoryboardPlan(result.plan)
+  }
+  const onSetResultAsFirstFrame = (runtime: StoryboardRowRuntime, targetPosition: number): void => {
+    const result = resultReference(runtime)
+    if (!result) return
+    const target = result.plan.shots[targetPosition]
+    if (!target) return
+    const anchorIds = target.anchorIds.includes(result.anchorId) ? target.anchorIds : [...target.anchorIds, result.anchorId]
+    const keyframe = target.shotKind !== 'image' ? { ...(target.keyframe ?? {}), enabled: true } : target.keyframe
+    setStoryboardPlan({ ...result.plan, shots: result.plan.shots.map((shot, position) => position === targetPosition ? { ...shot, anchorIds, ...(keyframe ? { keyframe } : {}) } : shot) })
+  }
+  const onStartPlayback = (): void => {
+    if (playbackSequence.length === 0) return
+    const skipped = visibleRows.length - playbackSequence.length
+    if (skipped > 0) toast(t('storyboardEditor.playback.skipped', { count: skipped }), 'info')
+    setPreviewNodeId(null)
+    setPlaybackOpen(true)
   }
   const previewNode = previewNodeId ? canvasNodes.find((node) => node.id === previewNodeId) ?? null : null
   const previewAsset = previewNode ? canvasNodeToAssetRefs(previewNode)[0] ?? null : null
@@ -216,7 +304,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       />
 
       <div className="overflow-y-auto px-4 py-4 flex flex-col gap-4">
-        <section>
+        <section data-storyboard-anchors="true">
           <div className="flex items-baseline gap-2 mb-2">
             <span className="text-body-sm font-medium text-nomi-ink-80">{t('storyboardEditor.consistencyTitle')}</span>
             <span className="text-micro text-nomi-ink-40">{t('storyboardEditor.consistencyHint')}</span>
@@ -253,6 +341,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
                 onGenerate={() => onGenerateAnchor(runtime)}
                 onRegenerate={() => onRegenerateAnchor(runtime)}
                 onToggleLock={() => onToggleLockAnchor(runtime)}
+                onFilterByAnchor={() => setFilterAnchorId(runtime.anchor.id)}
+                onOpenPreview={() => onOpenPreviewAnchor(runtime)}
               />
             ))}
             <button
@@ -268,7 +358,33 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         </section>
 
         <section>
-          <div className="text-body-sm font-medium text-nomi-ink-80 mb-2">{t('storyboardEditor.storyboardHeading', { count: plan.shots.length })}</div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="text-body-sm font-medium text-nomi-ink-80">{t('storyboardEditor.storyboardHeading', { count: filterAnchorId ? visibleRows.length : plan.shots.length })}</div>
+            <button
+              type="button"
+              onClick={onStartPlayback}
+              disabled={playbackSequence.length === 0}
+              aria-label={t('storyboardEditor.playback.aria')}
+              className="h-6 px-2.5 rounded-full border border-nomi-line text-caption text-nomi-ink-60 inline-flex items-center gap-1 hover:border-nomi-accent hover:text-nomi-accent disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <IconPlayerPlay size={12} stroke={1.8} />
+              {t('storyboardEditor.playback.start')}
+            </button>
+          </div>
+          {filterAnchorId ? (() => {
+            const anchor = plan.anchors.find((candidate) => candidate.id === filterAnchorId)
+            const hiddenGenerating = hiddenGeneratingCount(rows, visiblePositions)
+            return (
+              <div className="mb-2 flex items-center gap-2 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-2.5 py-1.5 text-caption text-nomi-ink-60" data-storyboard-filter="true">
+                <span className="min-w-0 truncate">{t('storyboardEditor.filter.active', { name: anchor?.name || t('storyboardEditor.unnamed'), count: visibleRows.length })}</span>
+                {hiddenGenerating > 0 ? <span className="shrink-0 text-workbench-warning">{t('storyboardEditor.filter.hiddenGenerating', { count: hiddenGenerating })}</span> : null}
+                <button type="button" onClick={() => setFilterAnchorId(null)} aria-label={t('storyboardEditor.filter.clear')} className="ml-auto shrink-0 size-5 grid place-items-center rounded-full text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink-80">
+                  <IconX size={13} stroke={1.8} />
+                </button>
+              </div>
+            )
+          })() : null}
+          {filterAnchorId && visibleRows.length === 0 ? <div className="mb-2 text-caption text-nomi-ink-40">{t('storyboardEditor.filter.empty')}</div> : null}
           <div className="flex flex-col gap-2">
             <StoryboardShotTable
               plan={plan}
@@ -286,6 +402,17 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               onOpenPreviewRow={onOpenPreviewRow}
               onRerunFreshRefsRow={onRerunFreshRefsRow}
               onJumpToAnchor={onJumpToAnchor}
+              onSaveResultAsReference={onSaveResultAsReference}
+              onSetResultAsFirstFrame={onSetResultAsFirstFrame}
+              onGenerateSelected={(selected) => void runAction(() => runStoryboardBatch(execCtx, selected))}
+              onDeleteSelected={(selected) => {
+                const ids = selected.flatMap((runtime) => [runtime.exec.node?.id, runtime.exec.keyframeNode?.id]).filter((id): id is string => Boolean(id))
+                deletedPlanUndoRef.current = { plan, canvasSteps: ids.length }
+                ids.forEach((id) => useGenerationCanvasStore.getState().deleteNode(id))
+                const selectedIds = new Set(selected.map((runtime) => runtime.shot.shotId ?? `index:${runtime.shot.index}`))
+                setStoryboardPlan({ ...plan, shots: plan.shots.filter((shot) => !selectedIds.has(shot.shotId ?? `index:${shot.index}`)).map((shot, index) => ({ ...shot, index: index + 1 })) })
+              }}
+              filterAnchorId={filterAnchorId}
             />
             <button
               type="button"
@@ -334,7 +461,9 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       </footer>
 
       {/* 放大预览：素材库同一 body-portal lightbox（NodeMediaPreviewDialog 挂画布容器在分镜页不可见）。 */}
-      {previewAsset ? <AssetPreviewDialog asset={previewAsset} onClose={() => setPreviewNodeId(null)} /> : null}
+      {playbackOpen && playbackSequence.length > 0 ? (
+        <AssetPreviewDialog asset={playbackSequence[0].asset} sequence={playbackSequence} onClose={() => setPlaybackOpen(false)} />
+      ) : previewAsset ? <AssetPreviewDialog asset={previewAsset} onClose={() => setPreviewNodeId(null)} /> : mentionPreviewAsset ? <AssetPreviewDialog asset={mentionPreviewAsset} onClose={() => setMentionPreviewAsset(null)} /> : null}
     </section>
   )
 }
