@@ -502,32 +502,34 @@ if (POSITIVE_CONTROL) {
 // 这个映射表决定：当一个挂点找不到时，用哪个错误分类报错。
 // 背景知识来自对 src/workbench/ai/ProjectAgentResidentShell.tsx 的实查（不猜）：
 //
-// 【真差距】：挂点名和实现里实际用的属性名不一致，或完全没有这个属性：
-//   - data-agent-usage-pill → 实现用 data-agent-usage
-//   - data-agent-history    → 实现用 data-agent-thread-trigger
-//   - data-agent-collapse   → 实现没有这个属性
-//   - data-agent-input      → 实现用 aria-label textarea，无 data-agent-input
-//   - data-agent-composer-attach → 实现用 data-agent-attachment-trigger
-//   - data-agent-composer-mode   → 实现用 data-agent-mode-trigger
-//   - data-agent-composer-model  → 实现用 data-agent-model-trigger
-//   - data-agent-composer-prompt → 实现用 data-agent-prompt-trigger
-//   - data-agent-composer-send   → 实现用 data-agent-send（差一个 "composer-" 前缀）
-//   - data-agent-model-alert     → 实现没有这个属性
-//   - data-agent-user-bubble     → 实现用 data-agent-item-kind="user"
-//   - data-agent-thinking-line   → 实现用 data-agent-thinking
-//   - data-agent-reply           → 实现没有独立挂点
-//   - data-agent-tool-line       → 实现用 data-agent-tool-chips
-//   - data-agent-receipt-undo    → 实现没有这个属性
-//   - data-agent-queue-row       → 实现用 data-agent-queue-item
-//   - data-agent-queue-remove    → 实现用 data-agent-queue-action="cancel"
-//   - data-agent-at-token        → 实现没有这个属性
-//   - data-agent-plan-card       → 实现没有找到（BatchPlanOverlay 不含此属性）
-//   - data-agent-spend-card      → 实现没有找到
-//   - data-agent-deviation-card  → 实现没有找到
-//   - data-agent-artifact-card   → 实现没有找到
-//   - data-agent-failure-card    → 实现没有找到
-//   - data-agent-pinned-card     → 实现没有找到
-//   - data-agent-pinned-head     → 实现没有找到
+// 【件1 已修·alias 并列挂】（实现加了 spec 名，保留旧名兼容）：
+//   - data-agent-usage-pill      → 已加（旧 data-agent-usage 兼容保留）
+//   - data-agent-history         → 已加（旧 data-agent-thread-trigger 兼容保留）
+//   - data-agent-collapse        → 已加（新增）
+//   - data-agent-input           → 已加（AutoGrowTextarea 透传 ...rest）
+//   - data-agent-composer-attach → 已加（旧 data-agent-attachment-trigger 兼容保留）
+//   - data-agent-composer-mode   → 已加（旧 data-agent-mode-trigger 兼容保留）
+//   - data-agent-composer-model  → 已加（旧 data-agent-model-trigger 兼容保留）
+//   - data-agent-composer-prompt → 已加（旧 data-agent-prompt-trigger 兼容保留）
+//   - data-agent-composer-send   → 已加（旧 data-agent-send 兼容保留）
+//   - data-agent-user-bubble     → 已加（item.kind==='user' 时条件渲染）
+//   - data-agent-reply           → 已加（item.kind==='assistant' 时条件渲染）
+//   - data-agent-thinking-line   → 已加（旧 data-agent-thinking 兼容保留）
+//   - data-agent-tool-line       → 已加（旧 data-agent-tool-chips 兼容保留）
+//   - data-agent-queue-row       → 已加（旧 data-agent-queue-item 兼容保留）
+//   - data-agent-queue-remove    → 已加（旧 data-agent-queue-action="cancel" 兼容保留）
+//
+// 【真差距·元素不存在 → 交后续排期，不虚造 UI】：
+//   - data-agent-model-alert     → 无未选模型红点 UI
+//   - data-agent-receipt-undo    → UI 里没有 undo 按钮（API 存在但无渲染）
+//   - data-agent-at-token        → 语义不同于 composer reference chip，待后续
+//   - data-agent-plan-card       → BatchPlanOverlay 不在 agent panel 内
+//   - data-agent-spend-card      → 同上（canvas overlay）
+//   - data-agent-deviation-card  → ReconcileDeviationCard 系统不同，data-reconcile-deviation-card
+//   - data-agent-artifact-card   → 未在任何文件中找到
+//   - data-agent-failure-card    → 未在任何文件中找到
+//   - data-agent-pinned-card     → 未在任何文件中找到
+//   - data-agent-pinned-head     → 未在任何文件中找到
 //
 // 【状态未驱达】：属性可能存在于实现中，但需要特定运行时状态才出现，
 //   且本次夹具驱动（基础文本回复）不足以产生该状态：
@@ -539,27 +541,15 @@ if (POSITIVE_CONTROL) {
 //   - data-agent-landing-chip    → 需要落点胶囊场景
 //
 // 分类的意义：修法完全相反
-//   真差距 → 件1 在实现里加 data-agent-* 挂点
+//   真差距（元素存在）→ 件1 在实现里加 data-agent-* 挂点（已完成见上）
+//   真差距（元素不存在）→ 交后续，不虚造 shell UI
 //   状态未驱达 → 在夹具/备场里加驱动步骤（改测试设施，不改实现）
 
 const TRUE_GAP_ANCHORS = new Set([
-  'data-agent-usage-pill',
-  'data-agent-history',
-  'data-agent-collapse',
-  'data-agent-input',
-  'data-agent-composer-attach',
-  'data-agent-composer-mode',
-  'data-agent-composer-model',
-  'data-agent-composer-prompt',
-  'data-agent-composer-send',
+  // 件1 已修的从这里移走——若下面仍找不到，说明实现回归，应红
+  // 仍未实现（元素不存在，不可虚造 UI）：
   'data-agent-model-alert',
-  'data-agent-user-bubble',
-  'data-agent-thinking-line',
-  'data-agent-reply',
-  'data-agent-tool-line',
   'data-agent-receipt-undo',
-  'data-agent-queue-row',
-  'data-agent-queue-remove',
   'data-agent-at-token',
   'data-agent-at-token[data-stale=true]',
   'data-agent-plan-card',
@@ -668,32 +658,34 @@ for (const elem of elements) {
         fail(anchor, specRef, `状态未驱达：fixture 对话驱动失败，无法验证会话流元素是否存在（见上方驱动失败日志）`, 'state')
       } else {
         // 真差距：挂点名不对或实现没有这个属性
-        const hint = anchor === 'data-agent-usage-pill' ? '（实现用 data-agent-usage）'
-          : anchor === 'data-agent-history' ? '（实现用 data-agent-thread-trigger）'
-          : anchor === 'data-agent-collapse' ? '（实现无此属性）'
-          : anchor === 'data-agent-input' ? '（实现用 aria-label textbox，无 data-agent-input）'
-          : anchor === 'data-agent-composer-attach' ? '（实现用 data-agent-attachment-trigger）'
-          : anchor === 'data-agent-composer-mode' ? '（实现用 data-agent-mode-trigger）'
-          : anchor === 'data-agent-composer-model' ? '（实现用 data-agent-model-trigger）'
-          : anchor === 'data-agent-composer-prompt' ? '（实现用 data-agent-prompt-trigger）'
-          : anchor === 'data-agent-composer-send' ? '（实现用 data-agent-send，缺 composer- 前缀）'
-          : anchor === 'data-agent-model-alert' ? '（实现无此属性，需新增）'
-          : anchor === 'data-agent-user-bubble' ? '（实现用 data-agent-item-kind="user"）'
-          : anchor === 'data-agent-thinking-line' ? '（实现用 data-agent-thinking）'
-          : anchor === 'data-agent-reply' ? '（实现无独立 data-agent-reply 挂点）'
-          : anchor === 'data-agent-tool-line' ? '（实现用 data-agent-tool-chips）'
-          : anchor === 'data-agent-receipt-undo' ? '（实现无此属性，需新增）'
-          : anchor === 'data-agent-queue-row' ? '（实现用 data-agent-queue-item）'
-          : anchor === 'data-agent-queue-remove' ? '（实现用 data-agent-queue-action="cancel"）'
-          : anchor === 'data-agent-at-token' ? '（实现无此属性，需新增）'
-          : anchor.startsWith('data-agent-at-token[') ? '（实现无 data-agent-at-token 挂点）'
-          : anchor === 'data-agent-plan-card' ? '（BatchPlanOverlay 未找到此属性）'
-          : anchor === 'data-agent-spend-card' ? '（实现未找到此属性）'
-          : anchor === 'data-agent-deviation-card' ? '（实现未找到此属性）'
-          : anchor === 'data-agent-artifact-card' ? '（实现未找到此属性）'
-          : anchor === 'data-agent-failure-card' ? '（实现未找到此属性）'
-          : anchor === 'data-agent-pinned-card' ? '（实现未找到此属性）'
-          : anchor === 'data-agent-pinned-head' ? '（实现未找到此属性）'
+        // 件1 已修的挂点如果回归出现在这里，说明实现被意外改回：
+        const hint = anchor === 'data-agent-usage-pill' ? '（件1 已修·回归：ProjectAgentResidentShell.tsx 应并列挂此属性）'
+          : anchor === 'data-agent-history' ? '（件1 已修·回归：应并列挂此属性）'
+          : anchor === 'data-agent-collapse' ? '（件1 已修·回归：应在 collapse 按钮挂此属性）'
+          : anchor === 'data-agent-input' ? '（件1 已修·回归：AutoGrowTextarea ...rest 透传应带此属性）'
+          : anchor === 'data-agent-composer-attach' ? '（件1 已修·回归：应并列挂此属性）'
+          : anchor === 'data-agent-composer-mode' ? '（件1 已修·回归：应并列挂此属性）'
+          : anchor === 'data-agent-composer-model' ? '（件1 已修·回归：应并列挂此属性）'
+          : anchor === 'data-agent-composer-prompt' ? '（件1 已修·回归：应并列挂此属性）'
+          : anchor === 'data-agent-composer-send' ? '（件1 已修·回归：应并列挂此属性）'
+          : anchor === 'data-agent-user-bubble' ? '（件1 已修·回归：item.kind==="user" 时应带此属性）'
+          : anchor === 'data-agent-reply' ? '（件1 已修·回归：item.kind==="assistant" 时应带此属性）'
+          : anchor === 'data-agent-thinking-line' ? '（件1 已修·回归：ResidentUiPrimitives details 应并列挂此属性）'
+          : anchor === 'data-agent-tool-line' ? '（件1 已修·回归：ResidentToolChips section 应并列挂此属性）'
+          : anchor === 'data-agent-queue-row' ? '（件1 已修·回归：queue li 应并列挂此属性）'
+          : anchor === 'data-agent-queue-remove' ? '（件1 已修·回归：queue cancel button 应并列挂此属性）'
+          // 仍未实现（元素不存在）：
+          : anchor === 'data-agent-model-alert' ? '（元素不存在：无未选模型红点 UI，交后续排期）'
+          : anchor === 'data-agent-receipt-undo' ? '（元素不存在：UI 无 undo 按钮，transitionProposalReceipt API 存在但无渲染）'
+          : anchor === 'data-agent-at-token' ? '（元素不存在：语义不同于 composer reference chip，交后续排期）'
+          : anchor.startsWith('data-agent-at-token[') ? '（元素不存在：data-agent-at-token 本体缺失）'
+          : anchor === 'data-agent-plan-card' ? '（元素不存在：BatchPlanOverlay 在 canvas overlay，不在 agent panel）'
+          : anchor === 'data-agent-spend-card' ? '（元素不存在：同 plan-card，canvas overlay 层）'
+          : anchor === 'data-agent-deviation-card' ? '（元素不存在：ReconcileDeviationCard 用 data-reconcile-deviation-card，不同系统）'
+          : anchor === 'data-agent-artifact-card' ? '（元素不存在：全仓未找到，交后续排期）'
+          : anchor === 'data-agent-failure-card' ? '（元素不存在：全仓未找到，交后续排期）'
+          : anchor === 'data-agent-pinned-card' ? '（元素不存在：全仓未找到，交后续排期）'
+          : anchor === 'data-agent-pinned-head' ? '（元素不存在：全仓未找到，交后续排期）'
           : ''
         fail(anchor, specRef, `元素不存在: 找不到 ${selector}${hint ? ' ' + hint : ''}`, 'gap')
       }
