@@ -116,18 +116,6 @@ export const zhTimelineEditor = {
     resizeLeft: '向左调整时长',
     resizeRight: '向右调整时长',
   },
-  agent: {
-    operations: {
-      move: '将 {{clip}} 移动到第 {{frame}} 帧',
-      remove: '删除 {{clip}}',
-      split: '在 {{clip}} 的第 {{frame}} 帧分割',
-      trim: '调整 {{clip}} 的{{edge}}边 {{delta}} 帧',
-      'source-window': '设置 {{clip}} 的源素材窗口（{{start}}-{{end}} 帧）',
-      ripple: '从第 {{frame}} 帧开始推动后续素材（{{delta}} 帧）',
-      unknown: '时间轴操作',
-    },
-    edges: { left: '左', right: '右' },
-  },
 } as const
 
 type TranslationShape<T> = {
@@ -248,17 +236,5 @@ export const enTimelineEditor = {
     empty: '(Empty)',
     resizeLeft: 'Adjust duration from the left',
     resizeRight: 'Adjust duration from the right',
-  },
-  agent: {
-    operations: {
-      move: 'Move {{clip}} to frame {{frame}}',
-      remove: 'Remove {{clip}}',
-      split: 'Split {{clip}} at frame {{frame}}',
-      trim: 'Adjust the {{edge}} edge of {{clip}} by {{delta}} frames',
-      'source-window': 'Set the source window for {{clip}} ({{start}}-{{end}} frames)',
-      ripple: 'Ripple media from frame {{frame}} ({{delta}} frames)',
-      unknown: 'Timeline operation',
-    },
-    edges: { left: 'left', right: 'right' },
   },
 } satisfies TranslationShape<typeof zhTimelineEditor>
