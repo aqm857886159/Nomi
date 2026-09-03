@@ -51,46 +51,16 @@ import { isTranscriptAtBottom, shouldFollowTranscript, transcriptScrollBehavior 
 import { isAgentActionIntent } from './agentIntent'
 import { buildStaticAgentSystemPrompt } from '../generationCanvas/agent/generationCanvasAgentClient'
 import { projectAgentSkillEvents } from './skillEventProjection'
-import { clearStoryboardPatchPreview, publishStoryboardPatchPreview } from '../creation/storyboard/storyboardPatchPreview'
+import { dismissStoryboardPatchPreview, isStoryboardPatchTool, presentStoryboardPatchPreview } from './resident/residentStoryboardBridge'
 
 type ResidentSurface = Extract<WorkspaceMode, 'creation' | 'generation' | 'preview'>
-type PendingTool = { call: ToolCallEvent; bindingKey: string; state: ResidentApprovalState }
 type MenuId = 'attachments' | 'references' | 'skills' | 'prompts' | 'modes' | 'policy' | 'models' | null
 
-const residentPendingTools = new Map<string, PendingTool>()
-const residentToolArgs = new Map<string, unknown>()
-/** Derived, redacted display data; never a second source of Host task truth. */
-const residentToolProjections = new Map<string, ResidentToolProjection>()
-const residentPendingListeners = new Set<() => void>()
-const residentResolvingTools = new Set<string>()
-const pendingKey = (call: Pick<ToolCallEvent, 'turnId' | 'toolCallId'>): string => `${call.turnId}:${call.toolCallId}`
-const bindingKey = (binding: { immutableProjectUuid: string; projectGeneration: number }): string => `${binding.immutableProjectUuid}:${binding.projectGeneration}`
-const isLive = (status: ProjectAgentStatus): boolean => ['drafting', 'proposed', 'queued', 'running'].includes(status)
-const emitPending = (): void => residentPendingListeners.forEach((listener) => listener())
-
-function cacheResidentToolProjection(scope: string, turnId: string, toolCallId: string, projection: ResidentToolProjection): void {
-  if (!scope) return
-  residentToolProjections.set(residentToolProjectionKey(scope, turnId, toolCallId), normalizeResidentToolProjection(projection))
-  emitPending()
-}
-
-function clearResidentPendingTools(turnId: string): void {
-  let changed = false
-  for (const key of residentPendingTools.keys()) {
-    if (!key.startsWith(`${turnId}:`)) continue
-    residentPendingTools.delete(key)
-    residentToolArgs.delete(key)
-    residentResolvingTools.delete(key)
-    changed = true
-  }
-  if (changed) emitPending()
-}
-
-function useResidentPendingTools(key: string | null): PendingTool[] {
-  const [, redraw] = React.useState(0)
-  React.useEffect(() => { const listener = () => redraw((value) => value + 1); residentPendingListeners.add(listener); return () => { residentPendingListeners.delete(listener) } }, [])
-  return key ? Array.from(residentPendingTools.values()).filter((item) => item.bindingKey === key) : []
-}
+import {
+  bindingKey, cacheResidentToolProjection, clearResidentPendingTools, emitPending, isLive, pendingKey,
+  residentPendingTools, residentResolvingTools, residentToolArgs, residentToolProjections,
+  useResidentPendingTools, type PendingTool,
+} from './resident/residentPendingTools'
 
 function Popover({ open, onClose, children, role = 'menu', label, className }: { open: boolean; onClose: () => void; children: React.ReactNode; role?: 'menu' | 'dialog'; label: string; className?: string }): JSX.Element | null {
   const ref = React.useRef<HTMLDivElement>(null)
@@ -593,7 +563,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     } catch (caught) {
       setError(friendlyError(caught, t))
     } finally {
-      if (pending.call.toolName.toLowerCase() === 'patch_shots') clearStoryboardPatchPreview(key)
+      dismissStoryboardPatchPreview(pending.call.toolName, key)
       residentResolvingTools.delete(key)
     }
   }, [proposalDrafts, t])
@@ -657,8 +627,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         const effectiveRecord = effectiveArgs && typeof effectiveArgs === 'object' && !Array.isArray(effectiveArgs) ? effectiveArgs as Record<string, unknown> : null
         residentToolArgs.set(key, effectiveArgs); if (effectiveRecord && effectiveArgs !== call.args) setProposalDrafts((previous) => ({ ...previous, [key]: effectiveRecord }))
         const pending: PendingTool = { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }; residentPendingTools.set(key, pending)
-        if (call.toolName.toLowerCase() === 'patch_shots' && effectiveRecord) {
-          publishStoryboardPatchPreview({ id: key, args: effectiveRecord, onApprove: () => { void resolveTool(pending, true, effectiveRecord).finally(() => clearStoryboardPatchPreview(key)) }, onDiscard: () => { void resolveTool(pending, false).finally(() => clearStoryboardPatchPreview(key)) } })
+        if (isStoryboardPatchTool(call.toolName) && effectiveRecord) {
+          presentStoryboardPatchPreview({ key, args: effectiveRecord, approve: () => resolveTool(pending, true, effectiveRecord), discard: () => resolveTool(pending, false) })
         }
         const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? '')
         if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, effectiveArgs, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }
