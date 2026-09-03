@@ -111,12 +111,15 @@ h1{font-size:18px;font-weight:600;margin:0}
 .fold-body{display:none;margin-top:4px;padding:8px 10px;background:var(--ink05);border-radius:7px;font-size:11.5px;color:var(--ink60);line-height:1.6}
 .fold-body.open{display:block}
 
-/* 折叠后的「截断尾」—— 遮罩渐变 */
+/* 折叠后的「截断尾」—— 无遮罩，链子本身已说清「还有 N 行」 */
 .text-clamp{position:relative;overflow:hidden}
 .text-clamp.clamped{max-height:72px}
-.text-clamp .fade-mask{position:absolute;bottom:0;left:0;right:0;height:28px;background:linear-gradient(to bottom,transparent,var(--paper));pointer-events:none}
-.text-clamp .expand-btn{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--ac);cursor:pointer;margin-top:2px}
-.text-clamp .expand-btn:hover{text-decoration:underline}
+/* .fade-mask 已删除：链子「⌄ 还有 N 行」已把信息给足，渐变是重复装饰且在深色底下翻车 */
+.expand-btn{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--ac);cursor:pointer;margin-top:4px}
+.expand-btn:hover{text-decoration:underline}
+/* 气泡外的展开链，紧跟气泡下方，面板底色上 */
+.bubble-expand{display:flex;justify-content:flex-end;padding-right:2px}
+.bubble-expand .expand-btn{color:var(--ac)}
 
 /* 用户气泡 */
 .userbubble{max-width:82%;margin:12px 0 12px auto;background:var(--ink);color:var(--paper);border-radius:12px;padding:8px 12px;font-size:12px;line-height:1.5}
@@ -309,11 +312,11 @@ body.dark .btn.pri{color:var(--bg)}
   <div class="strategy-box">
     <h3>族1 统一折叠策略（所有 10 个「超长/超多」缺口一致应用）</h3>
     <p><b>在哪折：</b>气泡/回复/反问内容超过 3 行文字，或列表超过 <code>N_max</code> 条（各形态的 N_max 见下），触发折叠。</p>
-    <p><b>折后显示什么：</b>首 3 行（或首 N_max 条）保持可见 + 渐变遮罩（内容逐渐淡出） + 下方「展开全文 · 还有 M 行」文字链。若是列表，改为「还有 M 条 ▾」折叠行。</p>
+    <p><b>折后显示什么：</b>首 3 行（或首 N_max 条）保持可见 + 下方「⌄ 还有 M 行」文字链（无遮罩，链子本身已传达信息）。若是列表，改为「还有 M 条 ▾」折叠行。</p>
     <p><b>怎么展开：</b>点文字链/折叠行 → 遮罩和折叠行消失，全文/全列表展开，无动画（instant，避免焦点跳动）。已展开则文字链变「收起 ▴」。</p>
     <p><b>封顶高度（含列表的卡片用）：</b>卡片内列表最大高度 <code>max-height: 220px</code>；超出则卡内滚动（<code>overflow-y:auto</code>），卡底仍显「另有 M 条 ▾」摘要行。排队/候选/@ 等独立滚动区同理。</p>
     <ul>
-      <li>气泡超长（形态3）：首 3 行 + 展开链</li>
+      <li>气泡超长（形态3）：首 3 行 + 气泡外下方「⌄ 还有 N 行」链（链在面板底色上，无遮罩）</li>
       <li>工具条超多步（形态6）：折叠头改 <code>20+ 步 · …</code>，展开列表封顶 220px 卡内滚</li>
       <li>普通回复超长（形态7）：首 3 行 + 渐变遮罩 + 展开链</li>
       <li>计划卡 >10 镜（形态8）：列表封顶 220px 卡内滚 + 脚部摘要行「共 N 镜 · 已选 M」</li>
@@ -342,15 +345,17 @@ body.dark .btn.pri{color:var(--bg)}
           <div class="flow short">
             <!-- 正常长度气泡 -->
             <div class="userbubble">拆一下上面这段</div>
-            <!-- 超长气泡：触发折叠 -->
-            <div style="max-width:82%;margin:12px 0 12px auto">
+            <!-- 超长气泡：触发折叠；展开链放气泡外下方（形态7同策略） -->
+            <div style="max-width:82%;margin:12px 0 4px auto">
               <div style="background:var(--ink);color:var(--paper);border-radius:12px;padding:8px 12px;font-size:12px;line-height:1.5">
                 <div class="text-clamp clamped">
                   我需要把「雨夜追逐」这段拆成 8 个镜头：第 1 镜是夜景远景建立环境感，主角站在路口仰望，雨打在路灯上折射光晕；第 2 镜切到警车车灯穿透大雨的特写，红蓝色光把路面的积水映得闪烁；第 3 镜是主角开始快跑，脚踩到水坑，水花飞溅，慢动作；第 4 镜是追逐者的手部特写，压下车门把手，同时反光镜里出现逃跑中的人影；第 5 镜双人疾跑，远景对比距离感。
-                  <div class="fade-mask"></div>
                 </div>
-                <div style="margin-top:4px"><span class="expand-btn" style="color:rgba(255,255,255,0.65)"><i class="ti ti-chevron-down" style="font-size:11px"></i>展开全文 · 还有 3 行</span></div>
               </div>
+            </div>
+            <!-- 展开链在气泡外、面板底色上，右对齐跟气泡对齐 -->
+            <div class="bubble-expand" style="max-width:82%;margin:0 0 12px auto">
+              <span class="expand-btn"><i class="ti ti-chevron-down" style="font-size:11px"></i>还有 3 行</span>
             </div>
             <div class="toolwrap">
               <div class="toolline running">
@@ -370,7 +375,7 @@ body.dark .btn.pri{color:var(--bg)}
             </div>
           </div>
         </div>
-        <p class="caption" style="margin-top:8px">气泡正文超过 3 行时，第 4 行起被渐变遮罩覆盖，遮罩内下方出现白色（暗色模式下用背景色）展开链。折叠不截断——文字完整，只是视口截断。<br><code>data-agent-user-bubble</code> 内嵌 <code>data-fold-text</code> 控制展开态。</p>
+        <p class="caption" style="margin-top:8px">气泡正文超过 3 行时截断，气泡<b>外下方</b>（面板底色上）显示「⌄ 还有 N 行」展开链——同形态7策略。无渐变遮罩：链子本身已传达信息，遮罩在深色气泡上反而出错。<br><code>data-agent-user-bubble</code> 内嵌 <code>data-fold-text</code> 控制展开态。</p>
       </div>
     </div>
 
@@ -425,14 +430,13 @@ body.dark .btn.pri{color:var(--bg)}
           <div class="asst-head"><span class="nm"><span class="nlogo">N</span>Nomi</span><span class="usage-pill"><svg width="12" height="12" viewBox="0 0 12 12"><circle class="ring-bg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6"/><circle class="ring-fg" cx="6" cy="6" r="4.6" fill="none" stroke-width="1.6" stroke-dasharray="28.9" stroke-dashoffset="20" transform="rotate(-90 6 6)"/></svg>还能聊 ~30 轮</span><span class="sp"></span><span class="hico"><i class="ti ti-history"></i></span></div>
           <div class="flow short">
             <div class="userbubble">给我分析一下这个故事结构</div>
-            <!-- 超长回复：折叠 -->
+            <!-- 超长回复：折叠；链子放clamp块外，面板底色上 -->
             <div style="margin:10px 0;font-size:12px;color:var(--ink80);line-height:1.55">
               <div class="text-clamp clamped">
                 这个故事采用的是「英雄旅程」的变体结构，具体来说可以分成三幕来理解：<br><br>
                 <b>第一幕（建立世界）</b>：女主阿青生活在一个雨季绵延的港口城市，她是一名独立的数据分析师，表面上过着平静的生活，但内心深处对自己的身份认同始终存在一种无名的焦虑……
-                <div class="fade-mask"></div>
               </div>
-              <span class="expand-btn"><i class="ti ti-chevron-down" style="font-size:11px"></i>展开全文 · 还有约 800 字</span>
+              <span class="expand-btn"><i class="ti ti-chevron-down" style="font-size:11px"></i>还有约 800 字</span>
             </div>
           </div>
           <div class="composer"><div class="cbox"><div class="cprompt" style="color:var(--ink40)">继续问...</div><div class="cbar"><button class="cbtn" data-tip="附件"><i class="ti ti-paperclip"></i></button><button class="cbtn" data-tip="Agent · 安全自动"><i class="ti ti-bolt"></i></button><button class="cbtn" data-tip="文本模型 · Kimi K2"><i class="ti ti-robot"></i></button><button class="cbtn" data-tip="提示词模板"><i class="ti ti-file-pencil"></i></button><button class="send"><i class="ti ti-arrow-up"></i></button></div></div></div>
@@ -582,12 +586,12 @@ body.dark .btn.pri{color:var(--bg)}
             </div>
             <!-- 隐藏的额外偏差 -->
             <div id="dev-extra" style="display:none">
-              <div class="deviation"><div class="dw"><span class="df">连线</span>镜 8 断线</div><div class="dd">镜 8 末尾连接画布节点时丢失</div></div>
+              <div class="deviation"><div class="dw"><span class="df">连线</span>镜 8 断线</div><div class="dd">镜 8 末尾的连线断掉了，画面未串联</div></div>
               <div class="deviation"><div class="dw"><span class="df">参数</span>镜 1 时长不对</div><div class="dd">批准 3s，实际生成 4s</div></div>
             </div>
             <div class="grp" style="margin-top:8px">
-              <button class="btn">让 AI 修</button>
-              <button class="btn">撤销这一步</button>
+              <button class="btn" data-tip="让 AI 修" style="min-width:0;width:32px;padding:0"><i class="ti ti-tool"></i></button>
+              <button class="btn">撤销</button>
               <button class="btn">知道了</button>
             </div>
           </div>
@@ -607,9 +611,8 @@ body.dark .btn.pri{color:var(--bg)}
             <div style="font-size:12px;color:var(--ink80);line-height:1.55;margin-bottom:8px">
               <div class="text-clamp clamped">
                 你在故事里设定的阿青是一个什么样的人物？她的职业背景、性格特点、和主线冲突的关系，还有你希望她的视觉形象偏向哪种风格——是现代都市感还是带点复古的港风，这些会影响我怎么调整光影和构图……
-                <div class="fade-mask"></div>
               </div>
-              <span class="expand-btn"><i class="ti ti-chevron-down" style="font-size:11px"></i>展开问题全文</span>
+              <span class="expand-btn"><i class="ti ti-chevron-down" style="font-size:11px"></i>还有更多</span>
             </div>
             <!-- 选项超多：前 4 个 + +N 更多 -->
             <div class="opt-stack">
@@ -685,18 +688,18 @@ body.dark .btn.pri{color:var(--bg)}
           <div class="chd"><i class="ti ti-alert-circle ic"></i>计划没做出来</div>
           <div class="cbd">
             <div style="font-size:12px;color:var(--ink80);line-height:1.55;margin-bottom:10px">
-              我没能把你的描述拆成具体的镜头——可能是描述太开放，或者我理解出了偏差。
+              描述有点难拆，可以改一下再试试。
             </div>
             <div style="font-size:11px;color:var(--ink40);padding:6px 8px;background:var(--ink05);border-radius:6px;margin-bottom:10px">
               这次没扣钱
             </div>
             <div class="grp">
-              <button class="btn">改一下描述</button>
-              <button class="btn pri">重试</button>
+              <button class="btn" data-tip="改描述" style="min-width:0;width:32px;padding:0"><i class="ti ti-pencil"></i></button>
+              <button class="btn pri" data-tip="重试" style="min-width:0;width:32px;padding:0"><i class="ti ti-refresh"></i></button>
             </div>
           </div>
         </div>
-        <p class="caption" style="margin-top:8px">不出计划卡骨架——失败即失败，给重试和改描述两个出路。「这次没扣钱」绿字（此处用灰底小字，因为计划阶段还未付费，事实陈述即可，不需要强调色）。<br><code>data-agent-plan-card</code></p>
+        <p class="caption" style="margin-top:8px">不出计划卡骨架——失败即失败，给重试和改描述两个出路。「这次没扣钱」绿字（此处用灰底小字，因为计划阶段还未付费，事实陈述即可，不需要强调色）。✎ 和 ↻ icon 一眼即懂，hover tooltip 兜底。<br><code>data-agent-plan-card</code></p>
       </div>
     </div>
 
@@ -708,7 +711,7 @@ body.dark .btn.pri{color:var(--bg)}
           <div class="chd"><i class="ti ti-alert-triangle ic"></i>价格暂时算不出来</div>
           <div class="cbd">
             <div style="font-size:12px;color:var(--ink80);line-height:1.55;margin-bottom:8px">
-              获取价格时连接超时了，没法给你准确的金额。你可以稍后重试，或者在「价格未知」的情况下继续生成（生成完成后仍会按实际用量计费）。
+              价格获取超时，金额暂时未知。继续生成仍会按实际用量计费。
             </div>
             <!-- 已知的明细行（尽可能显示） -->
             <div class="priceline">
@@ -738,11 +741,11 @@ body.dark .btn.pri{color:var(--bg)}
           <!-- 写入失败行（在对话流里，原位替代正常回执） -->
           <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dg);padding:6px 0" data-agent-proposal-receipt>
             <i class="ti ti-circle-x" style="font-size:14px;flex:none"></i>
-            <span>写入画布失败——5 个节点没加进去</span>
-            <button class="btn" style="margin-left:auto;height:24px;font-size:11px;padding:0 10px;color:var(--dg);border-color:color-mix(in srgb,var(--dg) 40%,var(--line))">重试</button>
+            <span>写入画布失败——5 个画面没加进去</span>
+            <button class="btn" data-tip="重试" style="margin-left:auto;height:24px;width:28px;padding:0;color:var(--dg);border-color:color-mix(in srgb,var(--dg) 40%,var(--line))"><i class="ti ti-refresh" style="font-size:13px"></i></button>
           </div>
           <div style="font-size:11px;color:var(--ink60);padding:5px 8px;background:var(--ink05);border-radius:6px;margin-top:4px;line-height:1.5">
-            可能原因：画布正忙着处理别的操作，稍等一下再重试通常能成。这次没扣钱。
+            画布可能正忙，稍后重试。这次没扣钱。
           </div>
         </div>
         <p class="caption" style="margin-top:8px">写入失败是一行（和正常回执同层级），不升级为独立卡片。颜色用 <code>--workbench-danger</code>，行尾「重试」按钮（危险边框色）。失败原因在下方 hint 行（灰底小字）。<br><code>data-agent-proposal-receipt[data-state=failed]</code></p>
@@ -769,7 +772,7 @@ body.dark .btn.pri{color:var(--bg)}
           </div>
           <div class="a-err">
             <i class="ti ti-info-circle" style="flex:none;font-size:12px"></i>
-            模型返回了错误，提示词可能触发了内容过滤。这次没扣钱。
+            提示词可能触发了内容过滤。这次没扣钱。
           </div>
         </div>
         <p class="caption" style="margin-top:8px">产物卡保持（不流向失败卡形态15）——因为失败发生在这张卡的「图」的位置，卡结构仍需呈现（标题/尺寸/重试动作）。缩略图区改为红色底 + 图标 + 文字「生成失败」。错误原因在卡底一行小字。<br><code>data-agent-artifact-card[data-state=failed]</code></p>
