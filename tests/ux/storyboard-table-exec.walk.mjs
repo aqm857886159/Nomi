@@ -137,6 +137,7 @@ async function closeAppHard(instance) {
 }
 
 const { app, win } = await launchNomiApp({ name: 'storyboard-table-exec', tempRoot, settingsDir, projectsDir, settleMs: 1200 })
+await win.evaluate(() => localStorage.setItem('__nomiE2E', '1'))
 const failures = []
 // 控制台错误留证（R16 报告用）：只记录不判红——平台/供应商噪音与真回归得由人眼分，
 // 但「没记录」和「没有错误」必须可区分。
@@ -205,6 +206,7 @@ try {
   await expectVisible(win.locator('[data-anchor-face="locked"]'), '林薇卡缺锁定面')
   await expectCount(win.locator('[data-anchor-face="empty"]'), 2, '陈默/天台应为两张未生成空卡')
   await expectVisible(win.locator('[data-anchor-face="text"]'), '全片风格缺文字卡')
+  await expectCount(win.locator('[data-storyboard-anchors="true"] [data-storyboard-shot-toggle]'), 0, '锚区不应出现无批量语义的镜头勾选框')
   await snap('03-anchor-cards.png')
 
   // ── 5. ⏳ 直达参考卡 ──
@@ -350,16 +352,42 @@ try {
 
   const select1 = win.locator('[data-storyboard-row="1"] [aria-label="选择镜 1"]')
   const select2 = win.locator('[data-storyboard-row="2"] [aria-label="选择镜 2"]')
-  await clickOrFail(select1, '选择镜 1')
-  await select2.click({ modifiers: ['Shift'] })
   const selectionBar = win.locator('[data-storyboard-selection-toolbar="true"]')
+  const row1 = win.locator('[data-storyboard-row="1"]')
+  await row1.locator('[data-storyboard-ref-tile="anchor"]').first().click({ position: { x: 30, y: 30 } })
+  const rowClickState = await win.evaluate(() => window.__nomiStoryboardSelection?.getState?.())
+  if (!rowClickState) throw new Error('分镜选择 E2E 桥未挂载')
+  if (!rowClickState.referenceIds?.includes('storyboard:shot:1')) throw new Error(`点击行本体没有产生镜头引用：${JSON.stringify(rowClickState)}`)
+  if (rowClickState.selectedShotIds?.length) throw new Error('点击行本体不应改变批量选中状态')
+  await clickOrFail(select1, '选择镜 1')
+  await expectVisible(selectionBar, '选择镜 1 后没有出现批量操作条')
+  const selectionBarProof = await proveProbe(selectionBar, '批量操作条')
+  await selectionBar.getByRole('button', { name: '取消选择' }).click()
+  await expectAbsent(selectionBar, { provenBy: selectionBarProof, message: '点击行本体不应出现批量操作条' })
+  await snap('24-row-reference-only.png')
+  await clickOrFail(select1, '选择镜 1')
+  const referencesBeforeCheckbox = await win.evaluate(() => window.__nomiStoryboardSelection?.getState?.().referenceIds || [])
+  await select2.click({ modifiers: ['Shift'] })
+  const checkboxState = await win.evaluate(() => window.__nomiStoryboardSelection?.getState?.())
+  if (checkboxState?.referenceIds?.join('|') !== referencesBeforeCheckbox.join('|')) throw new Error('点击勾选框不应改变引用胶囊')
+  if (checkboxState?.referenceIds?.includes('storyboard:shot:2')) throw new Error('点击勾选框不应产生镜头 2 引用')
   await expectVisible(selectionBar, 'Shift 连选后没有出现画布同款多选浮条')
   await expectText(selectionBar, /已选 2 镜/, '多选浮条作用域计数不对')
-  await snap('24-multi-selection-toolbar.png')
+  await snap('25-multi-selection-toolbar.png')
+  await selectionBar.getByRole('button', { name: '取消选择' }).click()
+  const selectVisible = win.getByRole('checkbox', { name: '选择全部可见镜头' })
+  await selectVisible.click()
+  await expectText(selectionBar, /已选 9 镜/, '表头全选后的批量计数不对')
+  await expectCount(win.locator('[data-storyboard-shot-toggle][aria-checked="true"]'), 9, '表头全选没有选中全部可见镜头')
+  const clearVisible = win.getByRole('checkbox', { name: '清除全部可见镜头' })
+  await expect(clearVisible).toHaveAttribute('aria-checked', 'true')
+  await snap('26-select-all-visible.png')
+  await clearVisible.click()
+  await expectAbsent(selectionBar, { provenBy: selectionBarProof, message: '表头再次点击没有清空批量选择' })
   await gripMenu.focus()
   await win.keyboard.press('Enter')
   await expect(win.locator('[data-storyboard-row="3"] [data-prompt-box="true"] [contenteditable="true"]')).toBeFocused()
-  await snap('25-keyboard-prompt-focus.png')
+  await snap('27-keyboard-prompt-focus.png')
 
   // ── 形态契约（意图层）：拍板样张里「哪些位置承载设计意图」的二值断言。
   // 放在这里——app 仍活、表已渲染出全部行状态，几何与结构都是真值。

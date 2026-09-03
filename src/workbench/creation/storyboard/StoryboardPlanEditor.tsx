@@ -1,8 +1,9 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconAlertTriangle, IconMovie, IconLockOpen, IconPlayerPlay, IconPlus, IconX } from '@tabler/icons-react'
+import { IconAlertTriangle, IconCheck, IconLockOpen, IconMinus, IconMovie, IconPlayerPlay, IconPlus, IconX } from '@tabler/icons-react'
 import { confirmDialog, WorkbenchButton } from '../../../design'
 import { toast } from '../../../ui/toast'
+import { cn } from '../../../utils/cn'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { useModelOptionsState } from '../../../config/useModelOptions'
@@ -40,7 +41,7 @@ import {
 import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../assets/AssetPreviewDialog'
 import type { AssetRef } from '../../assets/assetTypes'
-import { buildStoryboardPlaybackQueue, hiddenGeneratingCount, positionsForAnchorFilter } from './storyboardDInteractions'
+import { buildStoryboardPlaybackQueue, hiddenGeneratingCount, positionsForAnchorFilter, storyboardSelectionKey } from './storyboardDInteractions'
 import { clearStoryboardPatchPreview, publishStoryboardPatchPreview } from './storyboardPatchPreview'
 
 /**
@@ -69,6 +70,10 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   // 放大预览：存 nodeId（不存快照），渲染时从画布节点现取结果——重生成后再开永远是最新图。
   const [previewNodeId, setPreviewNodeId] = React.useState<string | null>(null)
   const [filterAnchorId, setFilterAnchorId] = React.useState<string | null>(null)
+  const [selectedShotIds, setSelectedShotIds] = React.useState<ReadonlySet<string>>(new Set())
+  const [selectionAnchor, setSelectionAnchor] = React.useState<number | null>(null)
+  const selectionStateRef = React.useRef({ selectedShotIds: [] as string[], referenceIds: [] as string[] })
+  selectionStateRef.current = { selectedShotIds: [...selectedShotIds], referenceIds: [] }
   const [playbackOpen, setPlaybackOpen] = React.useState(false)
   const [mentionPreviewAsset, setMentionPreviewAsset] = React.useState<AssetRef | null>(null)
   const deletedPlanUndoRef = React.useRef<{ plan: NonNullable<typeof plan>; canvasSteps: number } | null>(null)
@@ -104,6 +109,12 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         ;(window as unknown as { __nomiStoryboardPatchPreview?: unknown }).__nomiStoryboardPatchPreview = {
           publish: publishStoryboardPatchPreview,
           clear: clearStoryboardPatchPreview,
+        }
+        ;(window as unknown as { __nomiStoryboardSelection?: unknown }).__nomiStoryboardSelection = {
+          getState: () => ({
+            selectedShotIds: selectionStateRef.current.selectedShotIds,
+            referenceIds: useWorkbenchStore.getState().projectAgentReferences.map((reference) => reference.id),
+          }),
         }
       }
     } catch {
@@ -156,6 +167,19 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     }),
     [playbackQueue],
   )
+
+  const selectedVisibleCount = visibleRows.filter((row) => selectedShotIds.has(storyboardSelectionKey(row.shot))).length
+  const allVisibleSelected = visibleRows.length > 0 && selectedVisibleCount === visibleRows.length
+  const toggleVisibleSelection = (): void => {
+    const visibleKeys = visibleRows.map((row) => storyboardSelectionKey(row.shot))
+    setSelectedShotIds((previous) => {
+      const next = new Set(previous)
+      if (allVisibleSelected) visibleKeys.forEach((key) => next.delete(key))
+      else visibleKeys.forEach((key) => next.add(key))
+      return next
+    })
+    setSelectionAnchor(null)
+  }
 
   if (!plan) return null
 
@@ -376,6 +400,24 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
 
         <section>
           <div className="flex items-center gap-2 mb-2">
+            {visibleRows.length > 0 ? (
+              <button
+                type="button"
+                className={cn(
+                  'grid size-4 shrink-0 place-items-center rounded-nomi-sm border-[1.5px] cursor-pointer',
+                  allVisibleSelected || selectedVisibleCount > 0
+                    ? 'border-nomi-accent bg-nomi-accent text-nomi-paper'
+                    : 'border-nomi-ink-30 bg-transparent',
+                )}
+                role="checkbox"
+                aria-checked={allVisibleSelected ? true : selectedVisibleCount > 0 ? 'mixed' : false}
+                aria-label={t(allVisibleSelected ? 'storyboardEditor.selection.clearVisible' : 'storyboardEditor.selection.selectVisible')}
+                data-storyboard-select-visible="true"
+                onClick={toggleVisibleSelection}
+              >
+                {allVisibleSelected ? <IconCheck size={12} stroke={2.2} /> : selectedVisibleCount > 0 ? <IconMinus size={12} stroke={2.2} /> : null}
+              </button>
+            ) : null}
             <div className="text-body-sm font-medium text-nomi-ink-80">{t('storyboardEditor.storyboardHeading', { count: filterAnchorId ? visibleRows.length : plan.shots.length })}</div>
             <button
               type="button"
@@ -429,6 +471,10 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
                 const selectedIds = new Set(selected.map((runtime) => runtime.shot.shotId ?? `index:${runtime.shot.index}`))
                 setStoryboardPlan({ ...plan, shots: plan.shots.filter((shot) => !selectedIds.has(shot.shotId ?? `index:${shot.index}`)).map((shot, index) => ({ ...shot, index: index + 1 })) })
               }}
+              selectedShotIds={selectedShotIds}
+              selectionAnchor={selectionAnchor}
+              onSelectionChange={setSelectedShotIds}
+              onSelectionAnchorChange={setSelectionAnchor}
               filterAnchorId={filterAnchorId}
             />
             <button

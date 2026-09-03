@@ -25,6 +25,11 @@ export function positionsForAnchorFilter(plan: StoryboardPlan, anchorId: string 
   }, [])
 }
 
+/** 批量选中使用稳定的镜头身份；镜头没有 id 时退回当前镜号。 */
+export function storyboardSelectionKey(shot: Pick<PlanShot, 'shotId' | 'index'>): string {
+  return shot.shotId ?? `index:${shot.index}`
+}
+
 export function filterPlanByAnchor(plan: StoryboardPlan, anchorId: string | null): StoryboardPlan {
   if (!anchorId) return plan
   return { ...plan, shots: shotsReferencingAnchor(plan, anchorId) }

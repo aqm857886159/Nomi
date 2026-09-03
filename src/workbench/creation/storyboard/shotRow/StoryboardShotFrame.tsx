@@ -42,7 +42,6 @@ type Props = {
   onSaveAsReference?: (() => void) | undefined
   onSetAsFirstFrame?: ((targetIndex: number) => void) | undefined
   selected?: boolean
-  onSelect?: ((event: React.MouseEvent) => void) | undefined
   onSelectFrame?: (() => void) | undefined
 }
 
@@ -157,7 +156,6 @@ export default function StoryboardShotFrame({
   onSaveAsReference,
   onSetAsFirstFrame,
   selected,
-  onSelect,
   onSelectFrame,
 }: Props): JSX.Element {
   const { t } = useTranslation()
@@ -169,30 +167,17 @@ export default function StoryboardShotFrame({
     onSelectFrame?.()
   }
   const indexBadge = (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-label={t('storyboardEditor.row.selectAria', { index: shot.index })}
-      className={cn(
-        'absolute top-1 left-1 z-[4] px-1 rounded-nomi-sm text-micro text-nomi-paper tabular-nums',
-        selected ? 'bg-nomi-accent' : 'bg-nomi-overlay-chip',
-      )}
-    >
+    <span className="absolute top-1 left-1 z-[4] px-1 rounded-nomi-sm bg-nomi-overlay-chip text-micro text-nomi-paper tabular-nums">
       {String(shot.index).padStart(2, '0')}
-    </button>
+    </span>
   )
   const quietIndexBadge = (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-label={t('storyboardEditor.row.selectAria', { index: shot.index })}
-      className={cn(
-        'absolute top-1 left-1 z-[4] px-1 rounded-nomi-sm text-micro tabular-nums',
-        selected ? 'bg-nomi-accent text-nomi-paper' : 'bg-nomi-ink-10 text-nomi-ink-60',
-      )}
-    >
+    <span className={cn(
+      'absolute top-1 left-1 z-[4] px-1 rounded-nomi-sm text-micro tabular-nums',
+      selected ? 'bg-nomi-accent text-nomi-paper' : 'bg-nomi-ink-10 text-nomi-ink-60',
+    )}>
       {String(shot.index).padStart(2, '0')}
-    </button>
+    </span>
   )
   const durationBadge = (
     <span className="absolute bottom-1 right-1 z-[2] px-1 rounded-nomi-sm bg-nomi-overlay-chip text-micro text-nomi-paper tabular-nums">

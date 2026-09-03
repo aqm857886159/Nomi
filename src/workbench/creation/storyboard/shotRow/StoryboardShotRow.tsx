@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconChevronDown, IconChevronUp, IconDots, IconGripVertical, IconTrash } from '../../../../vendor/tablerIcons'
+import { IconCheck, IconChevronDown, IconChevronUp, IconDots, IconGripVertical, IconTrash } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import { NomiSelect } from '../../../../design'
 import type { MentionSuggestionItem, MentionUploadControls } from '../../../assets/AssetMentionSuggestionList'
@@ -77,6 +77,7 @@ type Props = {
   onSetAsFirstFrame?: ((targetIndex: number) => void) | undefined
   selected?: boolean
   onSelect?: ((event: React.MouseEvent) => void) | undefined
+  onToggleChecked?: ((event: React.MouseEvent) => void) | undefined
   selectedFrame?: boolean
   onSelectFrame?: (() => void) | undefined
   scenes?: readonly { id: string; title: string }[]
@@ -186,7 +187,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         }
       }}
       className={cn(
-        'relative grid grid-cols-[14px_84px_136px_minmax(0,1fr)] gap-3 py-3 pl-1.5 pr-3 items-start bg-nomi-paper',
+        'relative grid grid-cols-[40px_84px_136px_minmax(0,1fr)] gap-3 py-3 pl-1.5 pr-3 items-start bg-nomi-paper',
         props.selected && 'bg-nomi-ink-05',
       )}
       data-storyboard-row={shot.index}
@@ -196,7 +197,24 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         <div className="absolute inset-x-1.5 top-0 h-0.5 rounded-full bg-nomi-accent" aria-hidden />
       ) : null}
 
-      <div className="relative self-center justify-self-center text-nomi-ink-20">
+      <div className="relative flex flex-wrap items-center justify-center gap-1 self-center justify-self-center text-nomi-ink-20">
+        <button
+          type="button"
+          className={cn(
+            'grid size-4 shrink-0 place-items-center rounded-nomi-sm border-[1.5px] cursor-pointer',
+            props.selected ? 'border-nomi-accent bg-nomi-accent text-nomi-paper' : 'border-nomi-ink-30 bg-transparent',
+          )}
+          role="checkbox"
+          aria-checked={props.selected === true}
+          aria-label={t('storyboardEditor.row.selectAria', { index: shot.index })}
+          data-storyboard-shot-toggle={shot.index}
+          onClick={(event) => {
+            event.stopPropagation()
+            props.onToggleChecked?.(event)
+          }}
+        >
+          {props.selected ? <IconCheck size={12} stroke={2.2} /> : null}
+        </button>
         <button
           type="button"
           draggable={props.draggable}
@@ -207,7 +225,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         >
           <IconGripVertical size={15} stroke={1.6} aria-hidden />
         </button>
-        <button type="button" onClick={() => setActionsOpen((value) => !value)} aria-label={t('storyboardEditor.rowActions.open')} className="mt-1 grid size-4 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink-80">
+        <button type="button" onClick={() => setActionsOpen((value) => !value)} aria-label={t('storyboardEditor.rowActions.open')} className="grid size-4 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink-80">
           <IconDots size={13} stroke={1.8} />
         </button>
         {actionsOpen ? (
@@ -237,7 +255,6 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           onSaveAsReference={onSaveAsReference}
           onSetAsFirstFrame={onSetAsFirstFrame}
           selected={props.selectedFrame}
-          onSelect={props.onSelect}
           onSelectFrame={props.onSelectFrame}
         />
       ) : (

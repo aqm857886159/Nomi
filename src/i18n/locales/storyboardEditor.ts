@@ -122,6 +122,8 @@ export const zhStoryboardEditor = {
     delete: '删除已选',
     clear: '取消选择',
     insert: '在这里插入镜头',
+    selectVisible: '选择全部可见镜头',
+    clearVisible: '清除全部可见镜头',
   },
   rowActions: {
     open: '镜头操作',
@@ -383,6 +385,8 @@ export const enStoryboardEditor = {
     delete: 'Delete selected',
     clear: 'Clear selection',
     insert: 'Insert a shot here',
+    selectVisible: 'Select all visible shots',
+    clearVisible: 'Clear all visible shots',
   },
   rowActions: {
     open: 'Shot actions',
