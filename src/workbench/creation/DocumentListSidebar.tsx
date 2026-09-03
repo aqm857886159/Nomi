@@ -363,7 +363,7 @@ export default function DocumentListSidebar(): JSX.Element {
                             <span
                               className={cn(
                                 'grid size-4 shrink-0 place-items-center transition-opacity group-hover/design:opacity-0 group-focus-within/design:opacity-0',
-                                stale ? 'text-workbench-warning' : design.committed ? 'text-workbench-success' : 'text-nomi-ink-40',
+                                stale ? 'text-nomi-warning' : design.committed ? 'text-workbench-success' : 'text-nomi-ink-40',
                               )}
                               title={statusLabel}
                               data-storyboard-status-indicator="true"

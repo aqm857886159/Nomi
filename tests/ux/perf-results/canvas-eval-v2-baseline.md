@@ -126,3 +126,113 @@ display name 未被 minify）。阳性对照要求拖动中读到 **>0** 的画�
 
 对照 blank-pan 的 layout/move ≈0.03-0.05：拖动路径每个 pointer-move 强制 ~2.5 次
 布局，纯 pan 几乎为 0 —— 这个比值（而非任何绝对 ms 预算）是修复要撬动的目标。
+
+## S3+S4 交付后基线（2026-09-02 · merged main a056b4ed）
+
+> S3（#341 细粒度订阅）+ S4（#346 拖动几何下放 RF 内核）全部合并到 main，
+> S5 终验在 merged main 的 worktree nomi-s5-final 重采（runs=5/3 各腿）。
+> 产物文件：`canvas-final-postfix-{prod,dev,throttle,L,select}.json`。
+
+### 腿① prod（darwin 构建 · runs=5）— S3+S4 after
+
+| 场景 | fps | frameGapP95 | maxGap（advisory） | script(ms) | moves |
+|---|---|---|---|---|---|
+| blank-pan（对照） | 120.4 | 10.8ms | 13.5ms | 119 | 60 |
+| node-drag-image | 118.7 | **10.3ms** ↓37% | 30.6ms | 149 | 60 |
+| node-drag-video | 114.5 | **10.5ms** ↓53% | 94.1ms | 265 | 60 |
+| multi-node-drag* | 117.1 | 13ms | 44.4ms | 215 | 22 |
+| drag-at-low-zoom* | 119.1 | 10.1ms | 24.4ms | 245 | 22 |
+| drag-over-dense-edges* | 106.9 | 12.8ms | 71.2ms | 214 | 22 |
+
+**node-drag-image before→after**（prod）：frameGapP95 16.5ms → 10.3ms（↓37%）；script 500ms → 149ms（↓70%）。
+
+### 腿① prod — drag/pan script 比值
+
+| 腿 | before（pre-S3） | after（post-S4） | 目标 |
+|---|---|---|---|
+| prod node-drag-image/blank-pan | **5.14×** | **1.25×** | ≤2× |
+
+拖动/平移 script 比值从 5.14× 降至 1.25×，S4 拖动几何下放到 RF 内核后画布外事件链近乎消除。
+
+### 腿② dev（dev bundle + StrictMode · runs=3）— S3+S4 after
+
+| 场景 | fps | frameGapP95 | maxGap（advisory） |
+|---|---|---|---|
+| blank-pan | 120.3 | 9.7ms | 15ms |
+| node-drag-image | 60.3 | **18.2ms** ↓47% | 41.1ms |
+| node-drag-video | 59.4 | **18.5ms** ↓48% | 66.1ms |
+| multi-node-drag* | 113.3 | 14.6ms | 50.7ms |
+| drag-at-low-zoom* | 111.5 | 14.0ms | 54.5ms |
+| drag-over-dense-edges* | 110.8 | 15.8ms | 36.3ms |
+
+dev 腿 node-drag-image before→after：frameGapP95 34.6ms → 18.2ms（↓47%）。
+
+### 腿③ throttle（prod + CDP CPU 4x · runs=3）— S3+S4 after
+
+| 场景 | fps | frameGapP95 | maxGap（advisory） |
+|---|---|---|---|
+| blank-pan | 119.6 | 13.6ms | 19.9ms |
+| node-drag-image | 112.9 | **12.9ms** ↓74% | 56.1ms |
+| node-drag-video | 102.4 | **16.9ms** ↓70% | 97.5ms |
+| multi-node-drag* | 76 | 31.1ms | 89.1ms |
+| drag-at-low-zoom* | 98 | 23.5ms | 60.9ms |
+| drag-over-dense-edges* | 94 | 22ms | 76.2ms |
+
+throttle 腿 node-drag-image before→after：frameGapP95 49.3ms → 12.9ms（↓74%）。
+
+### L 档（192 节点）— 拖动成本与节点量解耦
+
+S4 后在 192 节点（L 档）重采：frameGapP95 与 S 档（48 节点）几乎同数，证明
+**拖动成本已与节点规模解耦**（S4 把几何运算下放给 RF 内核，不再随节点数 O(n) 扩张）。
+
+| 场景 | fps（L） | frameGapP95（L） | fps（S） | frameGapP95（S） |
+|---|---|---|---|---|
+| node-drag-image | 119.6 | **10.3ms** | 118.7 | 10.3ms |
+| node-drag-video | 117.8 | **10.5ms** | 114.5 | 10.5ms |
+| multi-node-drag* | 119.0 | 10.9ms | 117.1 | 13ms |
+
+L 与 S 数字几乎重叠 → 节点量不再是拖动帧时的驱动因素。
+
+### click-select 现状与 S6 目标
+
+| 场景 | fps | frameGapP95 | 状态 |
+|---|---|---|---|
+| click-select | 102.4 | **32.8ms** | ⚠️ 贴 33ms 上限，Codex 班 S6 正在治 |
+
+click-select 32.8ms 贴线。S6 目标：≤20ms。Codex 班分支 `perf/canvas-click-select-20260903` 进行中。
+
+### 复现命令（S5 终验锚 · 一字不改）
+
+```bash
+# 腿① prod（S3+S4 after · darwin · runs=5）
+pnpm build && node tests/ux/canvas-performance-benchmark.e2e.mjs final-postfix-prod \
+  --scale S \
+  --scenario blank-pan,node-drag-image,node-drag-video,multi-node-drag,drag-at-low-zoom,drag-over-dense-edges \
+  --runs 5 --warmup 1
+
+# 腿② dev（runs=3）
+node tests/ux/canvas-performance-benchmark.e2e.mjs final-postfix-dev \
+  --dev-server \
+  --scale S \
+  --scenario blank-pan,node-drag-image,node-drag-video,multi-node-drag,drag-at-low-zoom,drag-over-dense-edges \
+  --runs 3 --warmup 1
+
+# 腿③ throttle（prod + CPU 4x · runs=3）
+node tests/ux/canvas-performance-benchmark.e2e.mjs final-postfix-throttle \
+  --throttle 4 \
+  --scale S \
+  --scenario blank-pan,node-drag-image,node-drag-video,multi-node-drag,drag-at-low-zoom,drag-over-dense-edges \
+  --runs 3 --warmup 1
+
+# L 档（192 节点 · 解耦验证 · runs=3）
+node tests/ux/canvas-performance-benchmark.e2e.mjs final-postfix-L \
+  --scale L \
+  --scenario node-drag-image,node-drag-video,multi-node-drag \
+  --runs 3 --warmup 1
+
+# click-select 基线
+node tests/ux/canvas-performance-benchmark.e2e.mjs final-postfix-select \
+  --scale S \
+  --scenario click-select \
+  --runs 5 --warmup 1
+```

@@ -449,7 +449,7 @@ export function PromptModeOption({
       <span
         className={cn(
           'mt-0.5 grid size-7 shrink-0 place-items-center rounded-pill',
-          styleMode ? 'bg-nomi-accent-soft text-nomi-accent' : 'bg-nomi-ink-05 text-nomi-ink-65',
+          styleMode ? 'bg-nomi-accent-soft text-nomi-accent' : 'bg-nomi-ink-05 text-nomi-ink-60',
         )}
       >
         <Icon size={15} stroke={1.8} aria-hidden="true" />

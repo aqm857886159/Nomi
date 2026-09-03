@@ -116,7 +116,7 @@ export function AssetLibraryToolbar({
       type="button"
       className={cn(
         'inline-flex shrink-0 items-center justify-center rounded-full border border-nomi-line bg-nomi-paper',
-        'cursor-pointer text-nomi-ink-65 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
+        'cursor-pointer text-nomi-ink-60 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
         'hover:border-nomi-ink-20 hover:bg-nomi-ink-05 hover:text-nomi-ink',
         compact ? 'h-[30px] w-[30px]' : 'h-7 w-7',
       )}
@@ -198,7 +198,7 @@ export function AssetLibraryToolbar({
         type="button"
         className={cn(
           'inline-flex items-center justify-center gap-1.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper',
-          'cursor-pointer text-caption text-nomi-ink-65 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
+          'cursor-pointer text-caption text-nomi-ink-60 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
           'hover:border-nomi-ink-20 hover:bg-nomi-ink-05 hover:text-nomi-ink',
           compact ? 'h-8 px-2.5' : 'h-8 px-3',
           (filterOpen || filterActive) && 'border-nomi-ink-20 bg-nomi-ink-05 text-nomi-ink',
@@ -245,7 +245,7 @@ export function AssetLibraryToolbar({
               type="button"
               className={cn(
                 'inline-flex h-8 shrink-0 items-center justify-center rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
-                'cursor-pointer text-nomi-ink-65 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
+                'cursor-pointer text-nomi-ink-60 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
                 'hover:border-nomi-ink-20 hover:bg-nomi-ink-05 hover:text-nomi-ink',
               )}
               aria-label={t('assetLibrary.newFolder')}

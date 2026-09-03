@@ -1,0 +1,102 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-vacuous-fs-read-spy-probe",
+  "problem_type": "同类扫描按测试名做、漏掉同构造的第二处；恒真探针因此留在仓里",
+  "symptom": "PR #410 修掉了「按路径过滤 fs 读 spy」的恒真断言，但同一个构造在 projectAgentRepository.test.ts:622 原样留存，继续以恒真的 toHaveLength(0) 冒充「稳态不重扫账本」的覆盖。",
+  "direct_cause": "#410 的同类扫描用测试名/描述文字做 grep（'1,000-command\\|steady-state'），而第二处所在的用例叫「marks a post-publish directory failure as committed and non-retryable」，名字里没有这两个词，于是不在命中集里——尽管它的断言与被修那条逐字同构。",
+  "class_root": "同类扫描按「症状的名字」检索，而不是按「缺陷的构造」检索。名字是作者当时怎么描述它，构造才是缺陷本身；只要第二处换个说法命名，按名字扫的同类检查就必然漏掉它，而且漏得毫无征兆。",
+  "migration": "第二处改用 #410 引入的生产侧计数器 __projectAgentCommandLedgerScanCountForTests()，与第一处同一套写法；恒真的 readSpy 与其断言在同一 commit 删除，不留并行探针。",
+  "affected_population": [
+    "任何断言「稳态不重扫账本」「某 fs 读不发生」的测试",
+    "任何以测试名/描述文字作为同类扫描检索式的根因修复",
+    "未来新写的、按路径过滤 fs 读 spy 调用记录的测试"
+  ],
+  "scope_paths": [
+    "electron/projectAgentHost/projectAgentRepository.test.ts",
+    "scripts/check-test-waits.mjs",
+    "docs/lessons/vacuous-probe-passes-forever.md"
+  ],
+  "entry_points": [
+    "electron/projectAgentHost/projectAgentRepository.test.ts:622 的 expect(readSpy.mock.calls.filter(...)).toHaveLength(0)",
+    "pnpm run test / test:system:focused（该文件在两者的收集范围内）",
+    "pnpm run check:test-waits（本次新增规则的执行入口）"
+  ],
+  "invariants": [
+    "全仓不存在「按路径过滤 fs 读 spy 的 mock.calls」这一构造，且由门岗硬零守住、无棘轮基线。",
+    "「稳态不重扫账本」一律用生产侧计数器观测，不经过 fs 间接层。",
+    "该断言在被测不变量被破坏时必须变红（变异测试证实：expected 3 to be +0）。"
+  ],
+  "regression_tests": [
+    "electron/projectAgentHost/projectAgentRepository.test.ts"
+  ],
+  "residual_risks": [
+    "门岗按行匹配 .mock.calls + .filter( + ===，若同一表达式被拆成多行则漏检。取舍是宁可漏检也不误报——本仓 2 处历史实例均为单行，且真正的兜底是「永不发生的断言必配阳性对照」这条纪律，不是正则。",
+    "规则只在文件同时 spy 了 fs 读接口时才触发，因此不拦非 fs 的 mock.calls 路径过滤（如 agentChatV2Ipc.test.ts:345 的 trace spy，实测不误报）。那类探针不存在 fd/路径错位，不属本类。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "缺陷完全发生在本仓测试写法与自有门岗之间，没有第三方 API 契约参与判定。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一构造在本仓已出现 2 次（#410 修 1 处、本次修第 2 处），且第 2 处正是被上一轮同类扫描漏掉的——说明靠人写检索式复发概率高。",
+    "same_class_scan": [
+      "按构造全仓实扫 git grep -nE '\\.mock\\.calls' -- '*.test.ts' '*.test.mjs' | grep '\\.filter(' | grep '===' ：当前 main 得 2 命中——projectAgentRepository.test.ts:622（本次修）与 electron/ai/agentChatV2Ipc.test.ts:345。后者是 trace spy、非 fs，不存在 fd/路径错位，判 not-affected，门岗实测不误报。",
+      "对照 #410 的同类扫描检索式（grep -rn '1,000-command\\|steady-state' electron/）：它按测试名检索，得 2 命中且不含 projectAgentRepository.test.ts——这次漏检的直接机制，已由本次门岗按构造检索补上。",
+      "全仓实扫 fs 读 spy：spyOn(fs, 'readFileSync'|'readFile'|'readSync'|'read') 得 3 个文件（runtime.assets.test.ts、projectAgentRepository.test.ts、projectAgentCommandLedger.test.ts）。后者的 expect(readSpy).not.toHaveBeenCalled() 无路径过滤、能看见 fd 形态的读，是活信号（#410 已判 not-affected，本次复核维持）。"
+    ]
+  },
+  "generality_proof": "门岗按**构造**检索而非按名字：只要出现「文件里 spy 了 fs 读接口」且「拿 mock.calls 按值过滤」这对组合就报红，与用例叫什么、断言写在哪条测试里无关。这正好补上 #410 按名字扫描的漏点——同一次检索若按构造做，两处会一起命中。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-test-waits.mjs",
+      "symbol": "RULES 里的 'fs-read-spy-path-filter' 规则 + context.spiesOnFsRead",
+      "responsibility": "以硬零、按构造的方式在全仓测试文件上拦截「按路径过滤 fs 读 spy」这一恒真探针写法，取代靠人写 grep 的同类扫描。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projectAgentHost/projectAgentRepository.test.ts",
+      "entry_point": "marks a post-publish directory failure as committed and non-retryable",
+      "disposition": "enforced",
+      "evidence": "改用生产侧计数器后做变异测试（关掉 validate() 缓存强制每命令全量重扫）：新断言红在 'expected 3 to be +0'；同一变异体下旧写法此前实测为绿。"
+    },
+    {
+      "path": "electron/ai/agentChatV2Ipc.test.ts",
+      "entry_point": "state.trace.mock.calls.filter(...) 按 requestId 过滤",
+      "disposition": "not-affected",
+      "evidence": "是自建 trace spy 而非 fs 读 spy，第一个参数就是 requestId 本身，不存在 fd/路径错位；门岗对该文件实测不报红（规则要求文件同时 spy 了 fs 读接口）。"
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentCommandLedger.test.ts",
+      "entry_point": "expect(readSpy).not.toHaveBeenCalled()",
+      "disposition": "not-affected",
+      "evidence": "未按路径过滤，任何形态（含 fd）的读都会被它看见，是活信号；#410 已判定 not-affected，本次按构造复扫维持该结论。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-test-waits.mjs",
+    "invariant": "任何测试文件只要同时出现「spy 了 fs 读接口」与「按值过滤 mock.calls」，门岗即报红并给出文件、行号与替代写法；硬零，无棘轮基线。",
+    "failure_mode": "重新引入该构造 → check:test-waits 退出码 1，gates 链在 push 前拦下；实测在未修的 main 文件上确实报红、修好后转绿。",
+    "exception_policy": "none",
+    "strategy": "把同类扫描从「人写的、按名字的一次性 grep」升级为「按构造的常驻门岗」——名字会变、构造不会，这样第二处不必等下一个人想起来去找。",
+    "artifacts": [
+      "scripts/check-test-waits.mjs",
+      "electron/projectAgentHost/projectAgentRepository.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/projectAgentHost/projectAgentRepository.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/projectAgentHost/projectAgentRepository.test.ts"
+    ],
+    "rationale": "恒真的 readSpy 及其 toHaveLength(0) 断言在同一 commit 删除，替换为生产侧计数器；不保留并行探针，且门岗使该构造不可再被写出来。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只用到 vitest 既有 spy API 与仓内既有生产计数器，无第三方依赖参与判定。",
+    "exit_criteria": []
+  }
+}

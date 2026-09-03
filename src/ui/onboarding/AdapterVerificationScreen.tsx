@@ -219,6 +219,7 @@ export function AdapterVerificationScreen({
                   errorCategory: failure.errorCategory,
                   httpStatus: failure.httpStatus,
                   stage: failure.stage,
+                  compileFailureReason: failure.compileFailureReason,
                 })
                 const status = failure.httpStatus
                   ? String(failure.httpStatus)

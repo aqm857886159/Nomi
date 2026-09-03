@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { StoryboardPlan } from './storyboardPlan'
 import {
   addAnchor,
+  addExternalReferenceAnchor,
   addScene,
   addShot,
   applyAspectToAll,
@@ -27,6 +28,7 @@ import {
   shotTypeOf,
   toggleShotAnchor,
   totalDurationSec,
+  updateShotPrompt,
   validatePlan,
 } from './storyboardPlanEdits'
 
@@ -72,6 +74,42 @@ describe('storyboardPlanEdits — 锚', () => {
 })
 
 describe('storyboardPlanEdits — 镜头', () => {
+  it('提示词中的 @ 出现顺序是视觉锚绑定和画布边 order 的唯一顺序', () => {
+    const firstUrl = 'nomi-local://first.png'
+    const secondUrl = 'nomi-local://second.png'
+    const p = base()
+    const plan: StoryboardPlan = {
+      ...p,
+      anchors: [
+        { ...p.anchors[0], id: 'first', referenceUrl: firstUrl },
+        { ...p.anchors[0], id: 'second', referenceUrl: secondUrl },
+        p.anchors[1],
+      ],
+      shots: [{ ...p.shots[0], anchorIds: ['first', 'second'], prompt: `${firstUrl} 旧文本` }],
+    }
+    const next = updateShotPrompt(plan, 0, `先看 @[asset:${encodeURIComponent(secondUrl)}]，再看 @[asset:${encodeURIComponent(firstUrl)}]`)
+    expect(next.shots[0].anchorIds).toEqual(['second', 'first'])
+  })
+
+  it('没有 @ 的旧纯文本保留历史绑定，删掉 @ 后绑定随文本真相移除', () => {
+    const url = 'nomi-local://first.png'
+    const p = base()
+    const withBinding: StoryboardPlan = {
+      ...p,
+      anchors: [{ ...p.anchors[0], referenceUrl: url }, p.anchors[1]],
+      shots: [{ ...p.shots[0], anchorIds: ['anchor-1'], prompt: `主体 @[asset:${encodeURIComponent(url)}]` }],
+    }
+    expect(updateShotPrompt(withBinding, 0, '纯文字').shots[0].anchorIds).toEqual([])
+    expect(updateShotPrompt({ ...p, shots: [{ ...p.shots[0], anchorIds: ['anchor-1'], prompt: '旧纯文本' }] }, 0, '继续旧纯文本').shots[0].anchorIds).toEqual(['anchor-1'])
+  })
+
+  it('外部素材只提升为现有 PlanAnchor，镜头仍只写 anchorIds', () => {
+    const url = 'https://cdn.example/ref.mp4'
+    const added = addExternalReferenceAnchor(base(), { id: 'upload-1', name: '参考视频', url, kind: 'video' })
+    expect(added.plan.anchors.at(-1)).toMatchObject({ referenceUrl: url, referenceKind: 'video', carrier: 'visual' })
+    expect(added.plan.shots[0]).not.toHaveProperty('references')
+  })
+
   it('addShot 追加并续号（时长继承上一镜，v5）', () => {
     const p = addShot(base())
     expect(p.shots.map((s) => s.index)).toEqual([1, 2, 3])

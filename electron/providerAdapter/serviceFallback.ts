@@ -5,11 +5,17 @@ import type {
   AdapterModelDraft,
   AdapterModeResult,
   ProviderAdapterCompilation,
+  ProviderAdapterCompileFailure,
   ProviderAdapterDraft,
   ProviderAdapterRun,
 } from "./types";
 
 export const TEXT_PRODUCTION_PATH_CREATE = { method: "POST", path: "/chat/completions" } as const;
+/**
+ * 折叠在「看原始报错」里的**诊断**文本（英文技术描述，给来求助的人和 AI 看）。
+ * 用户看到的解释不是这句——那句由 compileFailureReason 走 i18n（why.noGenericContract），
+ * 见 adapterFailureAdvice。这句不许再当人话直接摆给用户（R15）。
+ */
 export const MANUAL_CONTRACT_ERROR = "No safe generic contract exists for this model kind; configure a manual call script";
 
 export function primaryTaskKind(kind: BillingModelKind): ProfileKind {
@@ -49,8 +55,26 @@ export function genericCompilation(
   const unusable = draft.models.filter((model) => model.modes.length === 0);
   return {
     draft: { ...draft, models: usable },
-    failures: unusable.map((model) => ({ modelKey: model.modelKey, error: MANUAL_CONTRACT_ERROR })),
+    // 零 modes = 这个 kind 在 OpenAI 兼容面上没有标准端点（当前只有 model3d，见 modesForKind）。
+    // 带上结构化原因，界面才能把「我们没接」和「它坏了」讲清楚，并指向真正走得通的那条路。
+    failures: unusable.map((model) => ({
+      modelKey: model.modelKey,
+      error: MANUAL_CONTRACT_ERROR,
+      reason: "no_generic_contract" as const,
+    })),
   };
+}
+
+/**
+ * run.error 在界面上是**原样**渲染的一条红色横幅（AdapterVerificationScreen），没有 i18n 可言。
+ * 「这个 kind 没有通用协议」这一类已经在每张模型卡上用用户的语言解释清楚了（why.noGenericContract
+ * + 「我自己接」按钮），再把同一件事以英文技术串重复到横幅上，对中文用户只是一句看不懂的噪音，
+ * 而且恰好出现在他最需要指引的那一刻（R15）。英文原文仍留在该模型卡的「看原始报错」折叠里，
+ * 求助时不丢证据。真正需要横幅的是「我们没读懂这家文档」那一类——它不针对某个模型，无处可说。
+ */
+export function compileErrorBanner(failures: readonly ProviderAdapterCompileFailure[]): string | undefined {
+  const banner = failures.filter((failure) => failure.reason !== "no_generic_contract");
+  return banner.length ? banner.map((failure) => `${failure.modelKey}: ${failure.error}`).join("; ") : undefined;
 }
 
 export function appendCompilation(

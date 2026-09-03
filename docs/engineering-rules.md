@@ -293,6 +293,7 @@ CSS 文件分工与「只可减不可增」规则详见 R1 最后一节。
 
 - `registered`：确实是独立领域合同，reason 必须说明为什么不能复用。
 - `debt`：已知重复/待收敛 owner；`debtCap` 只减不增，等量换一个 owner 也不算减少。
+- `converged`：收敛 provenance；每条记录用 `retiredOwners` 明列已退役 owner、用 `survivingOwner` 明列 surviving owner。门岗会对 live scan 验证前者全部消失、后者仍存在且有 substantive `registered` entry，并对 reference baseline 验证每个 retired owner 确实在册且成员集与 surviving owner 一致；只有这样的记录能解释历史 `historical-debt-promoted`，不能绕过 `debtCap` 或 `historical-cap-not-tight`。
 
 `--update-baseline` 只生成带 `TODO` 的待解释条目，写完仍然红；它是检索助手，不是自动放行按钮。
 
