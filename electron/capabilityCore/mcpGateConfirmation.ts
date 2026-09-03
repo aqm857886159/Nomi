@@ -97,7 +97,20 @@ export function createGenerationGateConfirmation({ transport, clientSupportsElic
           nextAction: 'wait_for_reconciliation',
         }
       }
-      if (elicited.attestation != null && typeof transport.verifyClientGenerationConfirmation === 'function') {
+      // 客户端明确点了「是」。**但光有「是」不够——花钱必须有主进程铸的收据**，这不是本文件的规矩，
+      // 是下游两处硬约束：
+      //   · mcpSemanticGenerationFlow.ts:22 —— 没有 receiptId/receiptToken 即回 human_approval_required；
+      //   · generationDispatcher.ts:156 —— 原话「Approval booleans cannot replace a Nomi human approval receipt」。
+      // 所以「本函数返回 confirmed」和「这次生成真能开始」是两件事。
+      //
+      // ⚠️ 2026-09-03 来回记录（防再犯）：先把 clientAttestation 读成「要求没人能提供的凭证 = 半成品开关」
+      // 删掉它——真机走查（打包版 + 真 Codex）证明净效果更糟：用户点了同意，gate 返回 human_approval_required，
+      // 比改动前（多点一次但能跑完）更差。那面旗是**对的要求**，真正缺的是铸收据那一环。
+      // 本次修法：verifyClientGenerationConfirmation 两个生产装配点接通，让主进程铸 client_elicitation 收据，
+      // 不是放宽这里的判据。两条出口：
+      // 1. verifyClientGenerationConfirmation 存在（已接通） → 让主进程铸 client_elicitation 收据，就地算数。
+      // 2. 不存在 + handoff.clientAttestation !== true → 非语义门，bare accept 就地算数（无收据，见基线登记）。
+      if (typeof transport.verifyClientGenerationConfirmation === 'function') {
         const verified = await transport.verifyClientGenerationConfirmation(challenge, elicited.attestation)
         const result = typeof verified === 'boolean' ? { confirmed: verified } : verified
         if (result.confirmed === true) {
@@ -110,7 +123,7 @@ export function createGenerationGateConfirmation({ transport, clientSupportsElic
             ...(result.receiptToken ? { receiptToken: result.receiptToken } : {}),
           }
         }
-      } else if (elicited.attestation == null && challenge.handoff?.clientAttestation !== true) {
+      } else if (challenge.handoff?.clientAttestation !== true) {
         return {
           challengeId: challenge.challengeId,
           confirmed: true,

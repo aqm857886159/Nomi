@@ -18,6 +18,14 @@ const CHANGE_KINDS = new Set(["corrective", "structural"]);
 
 const HIGH_RISK_PREFIXES = [
   ".github/workflows/",
+  // 花钱确认面（2026-09-03 加）：决定「这次花钱要不要问人、问在哪、谁的同意算数」的三处。
+  // 加它们的理由是一次真事故：签发点无条件要求客户端凭证、而验证凭证的回调在两个生产装配点都没接——
+  // 两件事分开看都不像 bug，合起来把「弹在调用方」的主确认面整个堵死：用户在 Claude Code 里点了同意
+  // 也不算数，每次都被赶回 Nomi 应用，Nomi 没开就直接拒绝。这类改动必须写清「这一类的入口集在哪、
+  // 防线是什么」才放行，不能只靠单点 review。
+  "electron/capabilityCore/mcpGateConfirmation.ts",
+  "electron/capabilityCore/generationDispatcher.ts",
+  "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
   "electron/catalog/",
   "electron/assets/",
   "electron/comfyui/",

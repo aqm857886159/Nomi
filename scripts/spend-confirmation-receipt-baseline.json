@@ -1,0 +1,12 @@
+{
+  "_why": "花钱确认收据门岗的存量基线（棘轮：只减不增）。登记的是「声称放行却不带收据」的既有出口。",
+  "_how_to_shrink": "要清掉一条：让该出口拿到主进程铸的真收据（补 verifyClientGenerationConfirmation 那一环），或让它落 Nomi 兜底面。不许靠加豁免清账。",
+  "allowed": [
+    {
+      "surface": "client",
+      "condition": "} else if (challenge.handoff?.clientAttestation !== true) {",
+      "why": "原设计遗留：不要求凭证的挑战（handoff.clientAttestation !== true），且 verifyClientGenerationConfirmation 未接通时，客户端裸同意即算数（无收据）。生产里够不着——两个签发点(generationDispatcher / runOwnedGenerationGateAuthority)都无条件带 clientAttestation:true，且两个装配点(mcpNodeLauncher / mcpStdioServer)都已接通 verifyClientGenerationConfirmation，所以该 else-if 永远进不来。守卫是双重的：① verifyClientGenerationConfirmation 不存在 ② handoff.clientAttestation !== true。",
+      "exit_criteria": "若有签发点不带 clientAttestation:true，需同步确保 verifyClientGenerationConfirmation 已接通；或直接移除该分支（无法为花钱授权，costScope/maximumCost 是必填）。"
+    }
+  ]
+}

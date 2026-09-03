@@ -610,3 +610,17 @@ pnpm run delivery:verify-merged -- --expected-sha <merge-commit-sha>
 **清零路线**（分期，搬迁类须等在途大线合入，见审计分析六）：第一期纯加门岗+地图（零搬迁，本次）；第二期（#241 后）建中立契约层 + 清 29 个 re-export 壳（配 P1）；第三期（#223 后）解 `providerAdapter ↔ catalog ↔ integrationCertification` 硬环。
 
 **归属地图**：`docs/architecture/module-ownership-map.md`（一功能一个家 + 依赖方向铁律）。
+
+## R28 防线建在最早能拦住的那层
+
+**触发**：给某个能力/依赖设计「可选成员」时；或想用「基线 / 欠账名单 / 白名单」放行一处已知缺口时。
+
+**规则**：防线要建在**最早能拦住它的那一层**。能让类型系统拦的，别留给门岗；能让门岗拦的，别留给人肉 review。**安全关键依赖尤其不许写成 optional 成员再配一条欠账登记**——登记只是备忘录，它不阻止下一个人合法地漏传。能力确实可能不存在时，用**显式的 `unsupported` 返回值**表达，不要用 `undefined` 表达。
+
+**依据（2026-09-03 同日两起）**：
+
+- 打包态确认门恒拒：`McpTransport` 把 `confirmGenerationInNomi` 做成可选成员，两个生产装配点各自手写对象字面量，打包态那个漏传。漏传是合法 TypeScript，编译期与 lint 均无信号，只在打包后显形——开发态 43/43 全绿，打包态 15/43。
+- 客户端确认面整条不可达：同一接口的 `verifyClientGenerationConfirmation` 在两个生产装配点都没接，配合签发点无条件要求凭证，使「确认弹在调用方」这条主路径在生产中恒不可达数月，而全套单测绿着。
+- 当日新建的 `scripts/check-transport-assembly.mjs` 采用「欠账登记即放绿」，被外部评审指出**可在安全关键欠账存在时通过**（见 `docs/audit/2026-09-03-codex-agent-host-review.md`）。结构性修法不是记账，是把依赖改成必填。
+
+**自检**：写下 `foo?:` 或往基线里加一条时问——**漏了它会怎样？** 若答案是「运行时静默降级」且该能力碰钱/碰权限/碰数据完整性，就不该是可选的。

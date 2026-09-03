@@ -10,7 +10,7 @@ import {
 } from '@tabler/icons-react'
 import type { ProjectAgentReference } from '../../workbenchStore'
 import { cn } from '../../../utils/cn'
-import { presentResidentReference } from './residentReferenceDisplay'
+import { isResidentReferenceStale, presentResidentReference } from './residentReferenceDisplay'
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
@@ -37,6 +37,8 @@ export function ResidentReferenceChip({
   const presentation = presentResidentReference(t, reference)
   return <span
     data-agent-reference={reference.id}
+    data-agent-at-token="true"
+    data-stale={isResidentReferenceStale(reference.state) ? 'true' : undefined}
     data-agent-reference-kind={reference.kind}
     data-agent-reference-context-bound={reference.contextHandle ? 'true' : 'false'}
     data-agent-reference-role={presentation.role}

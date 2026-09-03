@@ -63,7 +63,7 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('readableToolSummary')
     expect(resident).toContain('readableToolPreview')
     expect(resident).toContain('useAgentUsageStore')
-    expect(resident).toContain('data-agent-usage')
+    expect(resident).toContain('data-agent-usage-pill')
     expect(resident).not.toContain('resultRef ?? t(\'agentResident.waitingApproval\')')
     expect(resident).toContain("t('agentResident.task'")
     expect(resident).toContain("t('agentResident.artifact'")
@@ -81,18 +81,14 @@ describe('ProjectAgentResidentShell production contract', () => {
 
   it('keeps PR194 controls separate and routes actions through the Host boundary', () => {
     for (const control of [
-      'data-agent-attachment-trigger',
-      'data-agent-mention-trigger',
-      'data-agent-skill-trigger',
-      'data-agent-prompt-trigger',
-      'data-agent-mode-trigger',
-      'data-agent-model-trigger',
-      'data-agent-send',
-      'data-agent-stop',
-      'data-agent-context',
-      'data-agent-context-focus',
+      'data-agent-composer-attach',
+      'data-agent-composer-prompt',
+      'data-agent-composer-mode',
+      'data-agent-composer-model',
+      'data-agent-composer-send',
     ]) expect(resident).toContain(control)
-    expect(residentPrimitives).toContain('data-agent-queue-item')
+    expect(resident).toContain('data-agent-queue-row')
+    expect(resident).toContain('data-agent-queue-actions')
     expect(residentPrimitives).toContain('data-agent-tool-header')
     expect(residentPrimitives).toContain('ToolActionIcon')
     expect(residentPrimitives).toContain('data-agent-approval-details')
@@ -101,9 +97,15 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('pending.call.confirm')
     expect(resident).toContain('setAssistantModelPref')
     expect(resident).toContain('projectAgentReferences')
-    for (const icon of ['IconPaperclip', 'IconAt', 'IconTool', 'IconPencil', 'IconAdjustmentsHorizontal', 'IconRobot', 'IconArrowUp', 'IconPlayerStopFilled', 'IconChevronLeft', 'IconFocusCentered']) {
+    for (const icon of ['IconPaperclip', 'IconBolt', 'IconTool', 'IconPencil', 'IconRobot', 'IconArrowUp', 'IconPlayerStopFilled', 'IconChevronLeft', 'IconFocusCentered']) {
       expect(resident).toContain(icon)
     }
+    expect(resident).toContain("event.key === '@'")
+    expect(resident).toContain('data-agent-references')
+    expect(resident).toContain('data-agent-model-alert')
+    expect(resident).not.toContain('data-agent-mention-trigger')
+    expect(resident).not.toContain('data-agent-skill-trigger')
+    expect(resident).not.toContain('data-agent-context')
     expect(resident).not.toContain('IconSparkles')
     expect(resident).not.toContain('IconNotes')
     expect(resident).not.toContain('IconStack2')
@@ -125,8 +127,8 @@ describe('ProjectAgentResidentShell production contract', () => {
 
   it('keeps the capability picker complete and tool history progressively disclosed', () => {
     expect(resident).toContain('setSkills(listWorkbenchSkills())')
-    expect(resident).not.toContain('listWorkbenchSkills().filter((item) => item.isPlaybook)')
-    expect(resident).toContain('item.name} ${item.directoryName} ${item.label}')
+    expect(resident).toContain('const filteredSkills = skills')
+    expect(resident).toContain('skillCapabilityFor(skill, availableSkillProviders)')
     expect(residentPrimitives).toContain("normalized.includes('load_skill')")
     expect(residentPrimitives).toContain('<IconRobot size={13}')
     expect(residentPrimitives).toContain('items.length <= 1 || hasRunningItem')
@@ -152,10 +154,10 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('isGenerationProposalTool')
     expect(resident).toContain('compactGeneration={compactGeneration}')
     expect(residentPrimitives).toContain('partitionResidentProposalFields')
-    expect(residentPrimitives).toContain('queueSummaryLabel')
-    expect(residentPrimitives).toContain('queueHiddenLabel')
-    expect(residentPrimitives).toContain('whitespace-nowrap')
-    expect(residentPrimitives).toContain('aria-label={stopLabel}')
+    expect(resident).toContain('data-agent-queue')
+    expect(resident).toContain('data-agent-queue-remove')
+    expect(residentPrimitives).toContain('data-agent-tool-detail')
+    expect(resident).toContain('data-agent-stop')
     expect(resident).toContain('ResidentReferenceChip')
     expect(resident).toContain('contextHandleForResidentReference')
     expect(resident).toContain('mergeResidentContextHandles')
