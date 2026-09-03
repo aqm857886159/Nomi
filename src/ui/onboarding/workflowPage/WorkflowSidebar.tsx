@@ -190,7 +190,7 @@ function BackendItem({
             <span
               className={cn('size-1.5 shrink-0 rounded-full', backend.reachable === null
                 ? 'bg-nomi-ink-30'
-                : backend.reachable ? 'bg-[var(--nomi-track-video)]' : 'bg-nomi-danger')}
+                : backend.reachable ? 'bg-nomi-track-video' : 'bg-nomi-danger')}
               title={backend.reachable === null
                 ? t('comfyuiWorkflowPage.backends.checking')
                 : backend.reachable ? t('comfyuiWorkflowPage.backends.online') : t('comfyuiWorkflowPage.backends.offline')}
@@ -277,7 +277,7 @@ function WorkflowItem({
                   })}
             </span>
           ) : (
-            <span className="inline-flex min-w-0 items-center gap-0.5 truncate text-[var(--nomi-track-video)]">
+            <span className="inline-flex min-w-0 items-center gap-0.5 truncate text-nomi-track-video">
               <IconCircleCheck size={11} stroke={1.9} aria-hidden="true" />
               {t('comfyuiWorkflowPage.workflows.complete')}
             </span>
