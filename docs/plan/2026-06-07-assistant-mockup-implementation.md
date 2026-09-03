@@ -1,5 +1,7 @@
 # 实施规范：助手面板对齐样张（R8 完整版 · token 驱动）
 
+> 裁决：已被现行 Project Agent Resident Shell 取代；证据：`docs/audit/2026-09-03-codex-agent-host-review.md:229-234`、`src/workbench/ai/ProjectAgentResidentShell.tsx:696-700`。
+
 > 设计真相源：`docs/mockups/unified-assistant-panel.html`（已拍板）。
 > 本文是 R8 要求的「实现规范」（精确 token + DOM 结构 + 状态 + 数据绑定 + 逐项验收清单）。
 > **教训（根因）**：之前没在出样张时同时出本规范，且把样张裸 px 直接抄进代码（违反 R8 token-only）。

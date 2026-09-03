@@ -1,5 +1,7 @@
 # Scene3D 导演参考包（基于最新版导演台）
 
+> 裁决：已被现行 Scene3D 参考导演路由取代；证据：`src/workbench/generationCanvas/nodes/scene3d/scene3dReferenceDirector.ts:111-128`、`src/workbench/generationCanvas/nodes/Scene3DEditor.tsx:289-296`。
+
 日期：2026-07-04
 基线：`origin/main@0f132880`，承接 `2026-07-03-scene3d-director-upgrade.md`、`2026-06-21-staging-reference-tool.md`、`2026-06-30-game-style-3d-character-control.md`、`2026-06-06-reference-v4-implementation-spec.md`。
 

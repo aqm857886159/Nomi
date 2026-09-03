@@ -1,5 +1,7 @@
 # 落地页：GSAP 轻量动画 + SEO 标准修补
 
+> 裁决：已被 CSS-only 静态营销站取代；证据：`tests/ux/marketing-home.static.mjs:196-198`、`docs/superpowers/specs/2026-08-01-nomi-bilingual-growth-destination-design.md:111-120`。
+
 > 范围决策（用户拍板）：GSAP **轻量打磨** · 装 **gsap-skills** · SEO **标准修补**。
 > 只动 `marketing/`，纯静态站，Cloudflare 静态部署不变。
 

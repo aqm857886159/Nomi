@@ -1,5 +1,7 @@
 # 手填模型表单优化（A 降噪 + C 自动拉模型 + B 预设）
 
+> 裁决：已被现行模型设置/发现流程取代；证据：`src/ui/onboarding/OnboardingWizard.tsx:6-26`、`docs/plan/2026-08-16-model-settings-approved-implementation.md:26-32`。
+
 > 第一个加模型表单是最大流失点。目标：从"填一张考卷"变成"点几下"。
 > 决策（2026-06-02）：A 先做；C 试，能成就上、留手填兜底；B 做但补全且去 Ollama。
 

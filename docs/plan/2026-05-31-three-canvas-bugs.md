@@ -1,5 +1,7 @@
 # 修三个生成画布 bug（图片比例 / 视频误判图片 / GPT-image 空参数框）
 
+> 裁决：三个问题已由当前媒体预览、参数过滤与模型发现链路覆盖；证据：`src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx:562-591`、`src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts:406-441`、`src/ui/onboarding/modelDiscovery.ts:50-79`。
+
 > 状态：实施中
 > 触发：用户截图反馈三个 bug。
 
