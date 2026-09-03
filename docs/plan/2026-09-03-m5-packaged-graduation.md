@@ -9,8 +9,8 @@
 - Slice B: record packaged evidence for M0-M4 commitments, including explicit
   gaps where `agentHostEnabled=false` or an audited boundary is not present.
 - Slice C: add a release runbook for real Claude/Codex hosts and paid vendor
-  generation, and wire the zero-quota packaged journey into the Mac Package CI
-  job.
+  generation. The existing Mac Package CI smoke remains the blocking packaged
+  check; full L2 is not wired while its real parity failure is open.
 
 ## Non-goals
 
