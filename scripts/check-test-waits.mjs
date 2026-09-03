@@ -89,7 +89,31 @@ const RULES = [
       return Boolean(expected && context.clockDeltaNames.has(expected[1]))
     },
   },
+  {
+    // 2026-09-03 加。上面三条抓的是「墙钟当判据」，这条抓的是**探针根本测不到它命名的那件事**
+    // ——同一族假绿的另一种成因，而且更隐蔽：它不是偶尔红，是永远绿。
+    //
+    // 形状：spy 住 fs 的读接口，再拿 `mock.calls` 按**路径**过滤。可生产读文件的惯用写法是
+    // 「按路径 open、按 fd 读」（`projectAgentCommandLedger.ts` 的 readRegular() 就是），
+    // 于是 `readFileSync` 的第一个参数永远是数字 fd、永远不等于路径串，过滤器恒空、断言恒真。
+    //
+    // 实证：`projectAgentHost.test.ts` 那条「不许稳态重扫账本」的招牌断言就是这么写的。
+    // 强制让它每条命令都全量重扫（关掉 validate() 的缓存）后，它数出的仍然是 0 条、照样绿——
+    // 它为这个恒真的零付了 1000 次真实落盘往返的代价，然后在四个分支上超时，被判成「负载 flake」。
+    // 同一天在 `projectAgentRepository.test.ts` 扫出第二份一模一样的写法（#410 只修了第一份）。
+    //
+    // 正解：改用**生产侧计数器**（`__projectAgentCommandLedgerScanCountForTests` /
+    // `__projectAgentFullValidationCountForTests` 那一套），不经过 fs 间接层，不会悄悄失效；
+    // 并配一条阳性对照用例钉住「这个计数器真的会涨」。
+    id: 'fs-read-spy-path-filter',
+    label: '按路径过滤 fs 读 spy 的 mock.calls——生产按 fd 读，过滤器恒空、断言恒真（造的是假绿，不是假红）',
+    test: (line, context) =>
+      context.spiesOnFsRead && /\.mock\.calls\b/.test(line) && /\.filter\(/.test(line) && /===/.test(line),
+  },
 ]
+
+// 生产读文件常见「按路径 open、按 fd 读」，所以按路径过滤读 spy 的调用记录必然落空。
+const FS_READ_SPY = /spyOn\(\s*fs\s*,\s*['"](readFileSync|readFile|readSync|read)['"]/
 
 // `wallclock-budget-assertion` 的棘轮基线（只减不增）。
 //
@@ -110,7 +134,7 @@ const WALLCLOCK_BUDGET_BASELINE = new Map([
 const hits = []
 for (const file of collectTestFiles()) {
   const source = stripComments(fs.readFileSync(file, 'utf8'))
-  const context = { clockDeltaNames: collectClockDeltaNames(source) }
+  const context = { clockDeltaNames: collectClockDeltaNames(source), spiesOnFsRead: FS_READ_SPY.test(source) }
   source.split('\n').forEach((line, i) => {
     for (const rule of RULES) {
       if (rule.test(line, context)) hits.push({ rule, file, line: i + 1, text: line.trim().slice(0, 120) })
@@ -149,9 +173,14 @@ if (hardHits.length > 0 || budgetViolations.length > 0 || staleBaseline.length >
     console.log(`    ${relative}  [wallclock-budget-assertion]  基线陈旧：登记 ${allowed} 处、实际 ${actual} 处`)
     console.log('        → 好事，把 WALLCLOCK_BUDGET_BASELINE 里的数字降到实际值（棘轮只减不增）')
   }
-  if (hardHits.length > 0) {
+  if (hardHits.some((hit) => hit.rule.id !== 'fs-read-spy-path-filter')) {
     console.log('  → 等后台编排链请 import electron/productionRun/productionRunTestHelpers 的 waitForProduction')
     console.log('    （60s 安全网只拦真死锁/真回归，不给磁盘排队计时；来龙去脉见 docs/plan/2026-08-25-fix-flaky-production-run-tests.md）')
+  }
+  if (hardHits.some((hit) => hit.rule.id === 'fs-read-spy-path-filter')) {
+    console.log('  → fs-read-spy-path-filter：生产按 fd 读，按路径过滤读 spy 恒空、断言恒真（假绿）。')
+    console.log('    改用生产侧计数器（__projectAgentCommandLedgerScanCountForTests 那一套），')
+    console.log('    并配一条阳性对照用例钉住「它真的会涨」——见 docs/lessons/vacuous-probe-passes-forever.md')
   }
   if (budgetViolations.length > 0) {
     console.log('  → 新增的耗时断言：若它量的是「这段计算够不够快」，删掉换与机器速度无关的判据')
