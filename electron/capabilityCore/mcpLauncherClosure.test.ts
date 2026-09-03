@@ -104,16 +104,7 @@ describe('mcpNodeLauncher 值导入闭包 —— electron-free 结构不变量',
     ).toEqual([])
   })
 
-  // 打包态生成门确认必须可用：mcpNodeLauncher 必须向 createMcpProtocol 传 confirmGenerationInNomi。
-  // 缺失 → 打包态 nomi_operation_gate 恒返回 human_approval_required（开发态不复现，因 mcpStdioServer 有它）。
-  // 这条结构断言阻止该回归静默进入打包产物（2026-09-03 首发修复）。
-  it('launcher 的 createMcpProtocol 调用包含 confirmGenerationInNomi 字段', () => {
-    const src = fs.readFileSync(LAUNCHER, 'utf8')
-    expect(
-      src.includes('confirmGenerationInNomi'),
-      'mcpNodeLauncher 的 createMcpProtocol 调用缺少 confirmGenerationInNomi。' +
-      '缺失会导致打包态 nomi_operation_gate 恒返回 human_approval_required（开发态不复现）。' +
-      '修法：向 createMcpProtocol 传入 confirmGenerationInNomi，通过 callViaRpc 把挑战令牌转给 GUI 进程。',
-    ).toBe(true)
-  })
+  // 姊妹不变量住在别处：本文件管「launcher 的 import 闭包不能有 electron 值导入」（08-18 打包事故），
+  // 而「两个装配点必须传齐 McpTransport 的可选成员」（09-03 打包事故）由 scripts/check-transport-assembly.mjs
+  // 管——它对着接口枚举成员，覆盖整族且新增成员自动纳入，比在这里钉单个字段名强。
 })
