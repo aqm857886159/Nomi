@@ -52,6 +52,20 @@ export const GENERATION_RECONCILE_OUTCOMES = ["found", "not_found"] as const;
 
 const gstr = (value: unknown): string => (typeof value === "string" ? value : "");
 
+// J06 — 诚实 ETA：冷启动给区间（low/high），不再硬编 40/180s 点值。
+// 历史 P50/P90 落盘后可切 etaBasis='historical'；当前全部为 coldstart。
+// 基线（APIMart 生产 2026-09-03）：video 4-10min / image 10-60s / audio 15-90s。
+const COLDSTART_ETA_BY_KIND: Record<string, { low: number; high: number }> = {
+  video: { low: 240, high: 600 }, image: { low: 10, high: 60 },
+  audio: { low: 15, high: 90 },  model3d: { low: 120, high: 300 },
+};
+/** J06 — shotCount × kind → { waitSeconds, waitSecondsHigh, etaBasis }. */
+export function coldstartEtaForGate(outputKinds: readonly string[], shotCount: number): { waitSeconds: number; waitSecondsHigh: number; etaBasis: 'coldstart' } {
+  const primaryKind = outputKinds.find((k) => k === "video") ?? outputKinds[0] ?? "image";
+  const { low, high } = COLDSTART_ETA_BY_KIND[primaryKind] ?? { low: 120, high: 360 };
+  return { waitSeconds: Math.round(low * shotCount), waitSecondsHigh: Math.round(high * shotCount), etaBasis: "coldstart" as const };
+}
+
 /**
  * The semantic MCP surface is deliberately data-only.  These tools are the
  * same vocabulary a GUI adapter uses; neither the catalog nor this handler
@@ -660,7 +674,15 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
         ...(normalizedCandidate.modeId ? { modeId: normalizedCandidate.modeId } : { modeId: undefined }),
       };
       const operation = await deps.operations.patch(input.lease.projectId, operationId, normalizedPatch, now());
-      return { operation, nextAction: "preview" };
+      // J05 — 模型/模式切换时返回 changeset，让调用方知道哪些字段被静默重置。
+      const changeset = (modelChanged || modeChanged) ? {
+        modelChanged, modeChanged,
+        ...(modelChanged && userPatch.variantId === undefined && current.candidate.variantId ? { clearedVariantId: current.candidate.variantId } : {}),
+        ...((modelChanged || modeChanged) && userPatch.modeId === undefined && current.candidate.modeId ? { clearedModeId: current.candidate.modeId } : {}),
+        previousModel: `${current.candidate.providerId}/${current.candidate.modelId}`,
+        nextModel: `${nextProviderId}/${nextModelId}`,
+      } : undefined;
+      return { operation, nextAction: "preview", ...(changeset ? { changeset } : {}) };
     }
     if (input.capability === "preview") {
       const candidate = normalizeVideoCandidate(current.candidate, deps.videoModelCandidates);
@@ -702,6 +724,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       const contract = compileExecutionContract(candidate, deps.registry, { parameterSchema: videoParameterSchema(candidate, deps.videoModelCandidates) });
       const readiness = resolveProviderReadiness(deps, candidate);
       if (!readiness.providerReady) throw new GenerationProviderCapabilityError(contract.providerId, readiness.missingForSubmit.length ? readiness.missingForSubmit : ["configured_provider"]);
+      const gateResolved = deps.registry.resolve({ moduleId: candidate.moduleId, providerId: candidate.providerId, modelId: candidate.modelId, mode: candidate.mode }); // J06
       // P4 S6.5: a multi-shot draft seals its per-shot sub-contracts + planHash (built from the draft
       // shots) alongside the top-level contract. `sealMultiShotFor` compiles each included shot's contract
       // and the plan hash; the store forwards them to the reducer (which freezes the batch + hard cap). A
@@ -751,7 +774,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
           // The full projection rides here → dispatcher threads it into the MAC-signed challenge display.shots.
           // hardLimit = the estimated plan total (the natural ceiling shown on the card); the scheduler
           // enforces the real cap = min(this, policy.maxSpend) at reserve time (§3.3).
-          shots: { ...multiShot, hardLimit: knownSubtotal, waitSeconds: 180, frozenItems: ["shots", "models", "references", "price"], expiresAt },
+          shots: { ...multiShot, hardLimit: knownSubtotal, ...coldstartEtaForGate(gateResolved.outputKinds, multiShot.shots.length || 1), frozenItems: ["shots", "models", "references", "price"], expiresAt }, // J06 诚实 ETA
           providerReady: readiness.providerReady,
           providerCapabilityProfile: readiness.providerCapabilityProfile,
           recoveryNotice: readiness.recoveryNotice,
