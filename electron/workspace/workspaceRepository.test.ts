@@ -482,7 +482,7 @@ describe("draft lifecycle + empty-draft GC", () => {
     const dir = resolveWorkspaceProjectDir(draft.id, repoDeps);
     expect(dir).toBeTruthy();
 
-    const result = gcEmptyDraftWorkspaceProjects(repoDeps);
+    const result = gcEmptyDraftWorkspaceProjects(repoDeps, listWorkspaceProjects(repoDeps));
     expect(result.recycled).toContain(draft.id);
     expect(fs.existsSync(dir as string)).toBe(false);
     expect(listWorkspaceProjects(repoDeps).some((p) => p.id === draft.id)).toBe(false);
@@ -496,7 +496,7 @@ describe("draft lifecycle + empty-draft GC", () => {
     );
     writeAsset(resolveWorkspaceProjectDir(draft.id, repoDeps) as string);
 
-    const result = gcEmptyDraftWorkspaceProjects(repoDeps);
+    const result = gcEmptyDraftWorkspaceProjects(repoDeps, listWorkspaceProjects(repoDeps));
     expect(result.recycled).not.toContain(draft.id);
     expect(readWorkspaceProject(draft.id, repoDeps)).not.toBeNull();
   });
@@ -509,7 +509,7 @@ describe("draft lifecycle + empty-draft GC", () => {
     );
     saveWorkspaceProject(draft.id, { name: "已编辑", payload: { scenes: [{ id: "s1" }] } }, repoDeps);
 
-    const result = gcEmptyDraftWorkspaceProjects(repoDeps);
+    const result = gcEmptyDraftWorkspaceProjects(repoDeps, listWorkspaceProjects(repoDeps));
     expect(result.recycled).not.toContain(draft.id);
     expect(readWorkspaceProject(draft.id, repoDeps)).not.toBeNull();
   });
@@ -520,7 +520,7 @@ describe("draft lifecycle + empty-draft GC", () => {
       { rootPath: nativeRoot(repoDeps, "normal"), record: { name: "普通" } },
       repoDeps,
     );
-    const result = gcEmptyDraftWorkspaceProjects(repoDeps);
+    const result = gcEmptyDraftWorkspaceProjects(repoDeps, listWorkspaceProjects(repoDeps));
     expect(result.recycled).not.toContain(normal.id);
     expect(readWorkspaceProject(normal.id, repoDeps)).not.toBeNull();
   });
@@ -529,7 +529,7 @@ describe("draft lifecycle + empty-draft GC", () => {
     const repoDeps = deps();
     const externalRoot = makeTempDir("nomi-external-folder-"); // 不在默认根下 = folder
     const draft = createWorkspaceProject({ rootPath: externalRoot, record: { name: "外部", draft: true } }, repoDeps);
-    const result = gcEmptyDraftWorkspaceProjects(repoDeps);
+    const result = gcEmptyDraftWorkspaceProjects(repoDeps, listWorkspaceProjects(repoDeps));
     expect(result.recycled).not.toContain(draft.id);
     expect(fs.existsSync(workspaceProjectFile(externalRoot))).toBe(true);
   });

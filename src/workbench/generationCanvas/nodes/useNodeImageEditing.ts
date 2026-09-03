@@ -5,7 +5,7 @@ import { persistNodeImageBlob } from '../adapters/persistNodeImage'
 import type { CropGridResult, CropGridSize } from './render/ImageCropGridOverlay'
 import { computeGridCells, computeSplitLayout, type GridCell } from './render/cropGridGeometry'
 import { removeBackgroundBlob } from '../../../lib/removeBackground'
-import { IMAGE_EDIT_PHASE, REMOVE_BACKGROUND_PHASE } from './localImageOpPhase'
+import { IMAGE_EDIT_PHASE, REMOVE_BACKGROUND_PHASE, removeBackgroundProgressMessage } from './localImageOpPhase'
 import { withCanvasGestureContext } from '../events/canvasGestureContext'
 import { useWorkbenchStore } from '../../workbenchStore'
 // 尺寸上下界与"卡片实际渲染多大"都从 nodeSizing 拿——这里再抄一份就是布局错位的温床。
@@ -103,18 +103,6 @@ export type ImageTransformOp = 'rotate-left' | 'rotate-right' | 'flip-h' | 'flip
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
-}
-
-const matte = (step: string): string =>
-  i18n.t(`generationCommon.imageToolbar.matteProgress.${step}` as 'generationCommon.imageToolbar.matteProgress.decode')
-
-function removeBackgroundProgressMessage(key: string): string {
-  if (key.includes('decode')) return matte('decode')
-  if (key.includes('inference')) return matte('inference')
-  if (key.includes('mask')) return matte('mask')
-  if (key.includes('encode')) return matte('encode')
-  if (key.includes('model')) return matte('model')
-  return matte('fallback')
 }
 
 function imageGridTileNodeSize(

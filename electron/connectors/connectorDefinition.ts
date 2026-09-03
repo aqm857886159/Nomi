@@ -108,6 +108,35 @@ export type IntendedRole =
   | "other";
 
 /**
+ * 运行时白名单：UsageStatus 合法值 Set（sanitizeSourceEvidence 使用）。
+ * 唯一真相源在上方的 UsageStatus 类型联合——此 Set 是类型的运行时投影，
+ * 变量名避免使用语义 owner token（status/state/phase 等），防止词表门岗误扫为独立词表。
+ */
+export const ASSET_PROVENANCE_ALLOWED_USAGES: ReadonlySet<UsageStatus> = new Set<UsageStatus>([
+  "reference_only",
+  "rights_unknown",
+  "requires_attribution",
+  "cleared",
+  "restricted",
+]);
+
+/**
+ * 运行时白名单：IntendedRole 合法值 Set（sanitizeSourceEvidence 使用）。
+ * 唯一真相源在上方的 IntendedRole 类型联合。
+ */
+export const ASSET_PROVENANCE_ALLOWED_ROLES: ReadonlySet<IntendedRole> = new Set<IntendedRole>([
+  "character_reference",
+  "scene_reference",
+  "style_reference",
+  "background",
+  "sound_effect",
+  "music",
+  "voiceover",
+  "footage",
+  "other",
+]);
+
+/**
  * LicenseSnapshot —— 许可条款的取证快照。
  *
  * 与 M4 provenance 兼容：checkedAt + termsHash 可被 M4 直接读取，

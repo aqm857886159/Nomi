@@ -1,0 +1,128 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-client-confirm-needs-a-real-receipt",
+  "problem_type": "把「约束的前提在生产里无法满足」误读成「约束本身是多余的」，删掉它——而它其实指向的是一个从未接通的实现",
+  "symptom": "同日早些时候的改动（PR #429）删掉了两个生产签发点无条件写的 `handoff.clientAttestation: true`，让「客户端裸同意即就地确认」这条分支可达。真机走查（打包版 Nomi + 真实 Codex CLI + 零额度 loopback）显示净效果更糟：`elicitation/create` 帧确实弹到客户端（带真实价格文案 `最多花费 CNY0.01`）、客户端也 accept 了，然后 gate 返回 `{errorCode:'human_approval_required', nextAction:'confirm'}`，**未进入 nomi_decide_generation_gate，生成压根没开始**。改动前用户至少还能切回 Nomi 点一下把这次生成跑完；改动后点了同意也跑不成。",
+  "direct_cause": "`mcpGateConfirmation.ts` 只负责「确认弹在哪、返回什么」，它**不是最终放行者**。真正放行要过下游两道硬约束：`mcpSemanticGenerationFlow.ts:22`（`!receiptId && !receiptToken` 即回 human_approval_required）与 `generationDispatcher.ts:156`（原话 `Approval booleans cannot replace a Nomi human approval receipt`）。被删掉的那面旗正是「我要一份能铸成收据的凭证」的声明；删掉它以后，裸同意分支返回 `{confirmed:true, surface:'client'}` 但**不带任何收据**，下游据此正确地拒绝。",
+  "class_root": "一条约束看起来「没有任何实现能满足」时，有两种可能：①它确实多余；②它指向的实现从来没接通。二者在代码里长得一模一样——都表现为「条件永远不成立」。本次错误地按①处理，而真相是②（铸收据的 `verifyClientGenerationConfirmation` 在两个生产装配点都没接）。使这种误读能一路过关的结构原因是：**「确认面返回什么」与「这次生成真的开始了没有」之间没有任何测试把它们连起来**——单测只断言 `resolveGenerationConfirmation` 的返回值，端到端旅程又只跑 Nomi 兜底面（C9 客户端声明 `capabilities:{}` 不支持 elicitation），所以「确认成功但生成不开始」这个组合态是全套测试的盲区。",
+  "migration": "① 恢复两个生产签发点的 `clientAttestation: true` 与 `mcpGateConfirmation.ts` 的原判定分支，把 main 退回「多点一次但能跑完」的已知良好行为；② 用例同步改回原意图，并在注释里完整记下这次来回（推翻的理由、被推回的证据），不静默改断言；③ 新增 `scripts/check-spend-confirmation-receipt.mjs` 并入 `gates:contracts`：扫确认面所有 `confirmed:true` 出口，无收据者必须在基线登记，且**逐字核验其守卫表达式仍然存在**；④ 基线记下现存那一条（原设计遗留的裸同意分支）及其退出条件；⑤ 客户端确认要真正算数，属独立后续工作——补「铸收据」那一环，不是放宽确认层。",
+  "affected_population": [
+    "所有用支持 elicitation 的 MCP 客户端驱动 Nomi 生成的用户。本机实测 Claude Code CLI 2.1.232 与 Codex CLI 0.151.0 都声明 elicitation，所以这条路径对真实用户全量生效",
+    "受影响窗口：PR #429 合入 main 起，至本次回滚止（同日）。期间的净效果是「点了同意也生成不了」，比修改前严格更差",
+    "未来任何新增的生成挑战签发点：若不带 clientAttestation 旗，会直接落进同一个坑（守卫是约定不是结构——这正是本次新门岗要盯住的）",
+    "所有「只断言确认函数返回值」的用例：它们对本类失效完全无感，绿灯不构成生产可用的证据"
+  ],
+  "scope_paths": [
+    "scripts/check-spend-confirmation-receipt.mjs",
+    "scripts/spend-confirmation-receipt-baseline.json",
+    "electron/capabilityCore/mcpGateConfirmation.ts",
+    "electron/capabilityCore/generationDispatcher.ts",
+    "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
+    "electron/capabilityCore/mcpSemanticGenerationFlow.ts",
+    "electron/capabilityCore/mcpGenerationConfirmation.test.ts",
+    "package.json"
+  ],
+  "entry_points": [
+    "electron/capabilityCore/mcpGateConfirmation.ts（确认面：决定返回 client / nomi / none）",
+    "electron/capabilityCore/mcpSemanticGenerationFlow.ts（下游放行者之一：无收据即 human_approval_required）",
+    "electron/capabilityCore/generationDispatcher.ts（下游放行者之二：布尔值不许冒充收据）",
+    "electron/capabilityCore/runOwnedGenerationGateAuthority.ts（签发点：带 clientAttestation 旗）"
+  ],
+  "invariants": [
+    "确认面声称放行（confirmed:true）的每条出口，要么自带主进程铸的收据，要么在基线登记并保有使其不可达的守卫——没有第三种状态",
+    "基线登记项的守卫表达式必须逐字仍在源码中：守卫消失 = 该出口变可达 = 报红（只数条数不够，本次错误就没有改变条数）",
+    "花钱授权不得由布尔值构成：`Approval booleans cannot replace a Nomi human approval receipt`（generationDispatcher.ts）",
+    "「确认面返回 confirmed」不等于「这次生成能开始」；任何声称修好确认面的改动，必须验到生成真的开始，而不是只看确认函数的返回值",
+    "下游收据约束若被移除，本门岗与本合同必须一并复审后才能删除，不许只删门岗（门岗自检 DOWNSTREAM 存在性）"
+  ],
+  "regression_tests": [
+    "electron/capabilityCore/mcpGenerationConfirmation.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpGenerationConfirmation.test.ts"
+  ],
+  "generality_proof": "这一族的判据是「同一天、同一处、正反两个方向都栽了」。① 正向：原状态下客户端确认面事实上不可达，被判为缺陷（那个判断本身没错——确认确实被赶回 Nomi）；② 反向：按「删掉多余约束」去修，反而做出更差的行为。两次都通过了全套单测与全部门禁，说明缺的不是细心而是判据。③ 结构证据：真正的盲区是「确认返回值」与「生成是否开始」之间没有任何测试相连——单测只看前者，端到端旅程的 C9 用的是 `capabilities:{}` 的客户端（走 Nomi 兜底），所以「确认成功但生成不开始」这个组合从未被任何一条断言覆盖过。④ 面向未来：守卫是约定不是结构——任何新增签发点只要不带 clientAttestation 旗，就会重现同样的净效果，靠人记住不可靠。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-spend-confirmation-receipt.mjs",
+      "symbol": "brokenGuards",
+      "responsibility": "唯一的机器判据：确认面每条 confirmed:true 出口必须带收据，或在基线登记且其守卫表达式逐字仍在。守卫消失即报红——这一条才抓得住本次这种「不增条数、只让既有出口变可达」的改动。"
+    },
+    {
+      "path": "scripts/spend-confirmation-receipt-baseline.json",
+      "symbol": "allowed",
+      "responsibility": "存量欠账登记（棘轮只减不增）：每条记清守卫表达式、为什么现在够不着、以及清账的退出条件（补铸收据或移除该分支），使「暂时容忍」成为可见且会过期的状态。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpGateConfirmation.ts",
+      "entry_point": "裸同意出口的守卫 `elicited.attestation == null && challenge.handoff?.clientAttestation !== true`",
+      "disposition": "enforced",
+      "evidence": "变异测试：把该守卫改成 `} else {`（即当天那次错误改动的确切形状）→ `node scripts/check-spend-confirmation-receipt.mjs` 真实 exit=1，报「守卫不见了 —— 它们现在可达」并附后果说明；恢复后 exit=0。注：先前只做计数的版本对该变异**无感**（条数不变），已据此改判据。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpGateConfirmation.ts",
+      "entry_point": "新增任何 confirmed:true 出口",
+      "disposition": "enforced",
+      "evidence": "门岗按对象字面量括号配对扫描全部 `confirmed: true` 返回点（当前 2 处），新增无收据出口会使实测数超过基线 1 而报红；数量少于基线也报红，防基线腐烂。"
+    },
+    {
+      "path": "electron/capabilityCore/generationDispatcher.ts",
+      "entry_point": "生成挑战签发（handoff.clientAttestation）",
+      "disposition": "enforced",
+      "evidence": "该旗是上述守卫赖以成立的另一半；旗被删则守卫恒真、出口可达，由同一条守卫核验断言覆盖。本文件亦在 HIGH_RISK_PREFIXES，后续改动必须带合同。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpSemanticGenerationFlow.ts",
+      "entry_point": "下游收据校验",
+      "disposition": "not-affected",
+      "evidence": "本次不改其判据。门岗启动时自检该文件仍含 receiptId/receiptToken 约束，若下游哪天真的不再要求收据，门岗会报红要求连同本合同一起复审，而不是继续空转。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-spend-confirmation-receipt.mjs",
+    "invariant": "确认面声称放行的每条出口，要么带主进程铸的收据，要么在基线登记且其守卫表达式逐字仍在源码中。",
+    "failure_mode": "守卫失配时 exit 1，打印失配的守卫表达式、它为什么重要、以及删掉它的真实后果（用户点完同意撞 human_approval_required）；无收据出口数超基线时 exit 1 并逐条给 file:line；少于基线也 exit 1（防基线腐烂）；受检文件或下游约束消失时 exit 1 而非静默通过。",
+    "exception_policy": "none",
+    "strategy": "把判据从「有几条无收据出口」升级为「使它们不可达的守卫还在不在」——这是本次的要害：错误改动没有改变条数，只是删掉了守卫，纯计数型门岗对它完全无感（已实测确认）。同时门岗自检下游约束仍然存在，避免在下游语义变化后变成空转的摆设。已并入 gates:contracts，每次 push 前与 CI Contracts 作业都跑。",
+    "artifacts": [
+      "scripts/check-spend-confirmation-receipt.mjs",
+      "scripts/spend-confirmation-receipt-baseline.json",
+      "package.json"
+    ]
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一天在同一处正反两个方向各栽一次：先是没发现客户端确认面事实上不可达，接着按「删掉多余约束」去修反而做出更差的行为。两次都全绿过关，说明这不是一次手滑，而是缺少判据。",
+    "same_class_scan": [
+      "全仓 grep `clientAttestation`：两个生产签发点写、mcpGateConfirmation 一处读，已全部恢复并登记进基线的守卫表达式。",
+      "确认面 `confirmed: true` 出口普查（按对象字面量括号配对，非行匹配）：共 2 处——'nomi' 兜底面透传下游收据（豁免，形状由 confirmGenerationInNomi 决定）、裸同意分支（无收据，已登记基线并保有守卫）。",
+      "下游放行者普查：`mcpSemanticGenerationFlow.ts:22` 与 `generationDispatcher.ts:156/160` 两处硬拒，均已纳入门岗的 DOWNSTREAM 自检。",
+      "测试盲区普查（这条是本次的根本）：既有单测只断言 `resolveGenerationConfirmation` 返回值；端到端 C9 的客户端声明 `capabilities:{}` 走 Nomi 兜底，C8 用 elicitation 但测的是「用户拒绝」——**没有任何断言把「客户端确认成功」与「生成真的开始」连起来**。补这条端到端旅程属独立工作（PR #433 在途，其断言需按本次回滚后的正确行为重写）。",
+      "客户端能力面复核（决定这条路值不值得打通）：探针实测 Claude Code CLI 2.1.232 与 Codex CLI 0.151.0 均声明 elicitation，故「让客户端确认真正算数」是有真实对手方的目标，正解是补铸收据那一环。"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpGateConfirmation.ts",
+      "electron/capabilityCore/generationDispatcher.ts",
+      "electron/capabilityCore/runOwnedGenerationGateAuthority.ts"
+    ],
+    "rationale": "PR #429 引入的两分支判定与被删的 clientAttestation 旗已同 commit 清除，恢复为单一的原判定，不留并行版；相关注释就地改写为记录这次来回的教训，而不是留下两套互相矛盾的说明。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次回滚与新门岗不涉及第三方依赖的引入、升级或保留决策，改动全在自有代码与仓内脚本。",
+    "exit_criteria": []
+  },
+  "residual_risks": [
+    "**用户想要的东西仍未交付**：维护者当天明确拍板「客户端点同意就算数」，本次只是把 main 退回已知良好状态（多点一次但能跑完），并未实现该目标。正解是补「铸收据」那一环——由主进程在认证客户端的用户 accept 后铸出真收据，与 Nomi 兜底面同构。属独立工作，需单独设计与验收。",
+    "基线里那条裸同意出口仍然存在，只是够不着。它靠守卫挡着，而守卫现在由门岗盯住；但更彻底的做法是直接移除该分支（本函数只服务花钱确认，costScope/maximumCost 均为必填，该分支无法为花钱授权）。未做，因本次目标是最小回滚。",
+    "PR #433（C9b 端到端旅程）的断言写于回滚前，其中「客户端 accept 后期望 human_approval_required」是照着当时的错误状态写的，需按回滚后的正确行为重写后才能合入。",
+    "门岗按源码文本判定守卫存在性，不做语义分析：若有人保留字面量但用等价写法绕开（如把条件抽成变量），门岗会误判为守卫仍在。当前形态是直接内联条件，形状稳定；若将来重构成变量，需同步升级判据。"
+  ],
+  "internal_only_reason": "根因与修法全部落在仓内自有代码：确认面分支、签发点 handoff 约定、下游收据校验、以及新门岗，均为 Nomi 自定义的花钱授权协议。MCP elicitation 只用到其标准 accept/decline 语义且本次未改变用法，故无需外部文档佐证。"
+}

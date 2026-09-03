@@ -1,0 +1,155 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-startup-library-discovery-rescan",
+  "problem_type": "Startup library listing re-reads and re-registers the entire on-disk project set on every launch, so cold-start cost scales with library size instead of with newly added projects",
+  "symptom": "Cold launch to the project library freezes the window for ~9s with a real 346-project / 982MB library. Measured in a real Electron main process against a hardlink clone of the user library: listProjects() cold = 9134ms, second call = 61ms. The renderer calls desktop.projects.list() through invokeSync (ipcRenderer.sendSync, electron/preload.ts:125), so the entire renderer main thread is blocked for that whole window. Form 2 (startup GC double enumeration) was the residual tail of the same class: after the discovery fix the cold call still took 1310/1598/1323ms on a deep copy of the real user profile (372 registry entries / 346 project folders), of which gcEmptyDraftWorkspaceProjects accounted for 727/996/837ms - 55 to 63 percent - purely by enumerating the whole library a second time and discarding the result.",
+  "direct_cause": "listProjects() (electron/projects/repository.ts) ran discoverLegacyProjectsOnce over the default root and, for all 346 directories, called readWorkspaceManifestSummary -> readWorkspaceManifest -> withWorkspaceManifestMutationSync, i.e. the write-transaction/locking reader (7419ms). It then called rememberWorkspace once per project (1752ms), each acquiring withRegistryLock and rewriting the full ~110KB registry (O(n^2) write amplification). Head-to-head on the same 346 projects: readWorkspaceManifestSnapshot = 226ms (0.7ms/project) versus readWorkspaceManifestSummary = 10203ms (29.5ms/project), a 45x difference.",
+  "class_root": "Startup library work is sized by the whole library instead of by the items that actually need work, and the same full-library pass is performed more than once per launch. Two concrete forms were found and fixed under this one class. Form 1 (discovery): discovery/migration is a one-time reconciliation against projects the registry does not yet know about, but it was implemented as 'every launch, re-read every project on disk and re-register every one of them'; the missing invariant is that discovery may only touch project directories absent from the registry, and may only read them through the lock-free snapshot reader. Form 2 (startup GC): gcEmptyDraftWorkspaceProjects called listWorkspaceProjects itself, so the full 372-manifest enumeration ran twice per cold launch - once inside the GC whose result was discarded, once again in listProjects twenty lines later; the missing invariant is that one listProjects call performs at most one full-library enumeration, and any startup pass that needs the library must consume the caller's already-computed snapshot rather than recomputing it. Both forms make startup cost proportional to library size rather than to the work actually required, so every user's launch degrades as the library grows.",
+  "affected_population": [
+    "Every user whose default projects root contains many project folders; cost grows linearly with library size (346 projects = ~9s frozen window)",
+    "All platforms: the mechanism is filesystem and registry bookkeeping, not platform specific",
+    "Worst on the first list call of each process, which is exactly the app-startup library load"
+  ],
+  "scope_paths": [
+    "electron/workspace/legacyProjectMigration.ts",
+    "electron/workspace/workspaceRegistry.ts",
+    "electron/workspace/workspaceRepository.ts",
+    "electron/projects/repository.ts"
+  ],
+  "entry_points": [
+    "listProjects() in electron/projects/repository.ts - the startup library load reached over synchronous IPC",
+    "syncLegacyProjects() in electron/projects/repository.ts - explicit re-discovery after reset of the per-process guard",
+    "discoverLegacyProjects / discoverLegacyProjectsOnce in electron/workspace/legacyProjectMigration.ts - the shared discovery boundary itself"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is entirely internal: it concerns Nomi's own registry bookkeeping and its own manifest reader selection. No third-party API contract or documented external behavior decides whether discovery may re-read already-registered projects.",
+  "invariants": [
+    "The discovery phase resolves the registry's known rootPath set before performing any manifest read, and skips every directory already present in that set.",
+    "For a library whose projects are all already registered, discovery performs zero manifest reads and zero registry writes.",
+    "Directories that are genuinely unregistered are read through the lock-free readWorkspaceManifestSnapshot first; the locked reader is used only when the snapshot declines (partial identity, conflicting backup identity, or embedded data: URLs needing slimming).",
+    "Registering N discovered projects takes one registry lock acquisition, one read and one write, not N of each.",
+    "Path comparison between registry entries and scanned directories is normalized through path.resolve and fs.realpathSync so symlinked roots (macOS /tmp -> /private/tmp) still match.",
+    "One listProjects call performs at most one full-library enumeration. Startup passes that need the library (currently the empty-draft GC) receive the caller's already-computed snapshot as a required parameter and must not enumerate again.",
+    "Projects recycled by the startup GC are removed from the reused snapshot before it is returned, so reusing one enumeration cannot surface deleted projects as ghost cards."
+  ],
+  "generality_proof": "Both discovery entry points converge on the single function discoverLegacyProjects; discoverLegacyProjectsOnce delegates to it and merely adds a per-process guard, so it cannot bypass the reconciliation. The registry skip-set is computed inside discoverLegacyProjects before the directory loop, which means no caller can obtain an unreconciled scan: the invariant lives below the callers rather than in each caller's conditionals. Reader selection is likewise centralized in readDiscoveredManifestSummary inside that same loop, so no discovery path can reach the locked reader without the snapshot declining first. Registration is funneled through rememberWorkspaces, which shares mergeWorkspaceEntry with the single-item rememberWorkspace, so batch and single registration cannot drift in merge semantics.",
+  "shared_boundaries": [
+    {
+      "path": "electron/workspace/legacyProjectMigration.ts",
+      "symbol": "discoverLegacyProjects",
+      "responsibility": "Owns the reconciliation invariant: resolves the registry's known rootPath set before any manifest read and skips already-registered directories, so discovery cost tracks newly appeared projects rather than total library size. Also owns reader selection via readDiscoveredManifestSummary (snapshot first, locked reader only on decline)."
+    },
+    {
+      "path": "electron/workspace/workspaceRegistry.ts",
+      "symbol": "listRegisteredRootPaths",
+      "responsibility": "Produces the normalized (path.resolve plus fs.realpathSync) set of registry-known root paths that the discovery boundary reconciles against, so symlinked roots still compare equal."
+    },
+    {
+      "path": "electron/workspace/workspaceRegistry.ts",
+      "symbol": "rememberWorkspaces",
+      "responsibility": "Owns bulk registration: one lock, one read, one write for N records, sharing mergeWorkspaceEntry with the single-record path so both cannot diverge."
+    },
+    {
+      "path": "electron/workspace/workspaceRepository.ts",
+      "symbol": "gcEmptyDraftWorkspaceProjects",
+      "responsibility": "Takes the already-enumerated library snapshot as a required parameter instead of enumerating it again. The parameter has no default: leaving a `projects = listWorkspaceProjects(deps)` fallback would keep the old double-enumeration reachable, so the type system now forces every caller to supply an existing snapshot."
+    },
+    {
+      "path": "electron/projects/repository.ts",
+      "symbol": "listProjects",
+      "responsibility": "Owns the 'one enumeration per list call' invariant: enumerates once, hands that snapshot to the startup GC, and filters recycled ids out of the same snapshot before returning, so the reused enumeration cannot surface deleted projects."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projects/repository.ts",
+      "entry_point": "listProjects",
+      "disposition": "enforced",
+      "evidence": "The startup path. Now calls discoverLegacyProjectsOnce with { settingsRoot } so the reconciliation set is available, and registers the result through the single batched rememberWorkspaces call. Measured on the 346-project clone with a populated registry: discovery 7ms, 0 projects discovered, 0 registry writes."
+    },
+    {
+      "path": "electron/projects/repository.ts",
+      "entry_point": "syncLegacyProjects",
+      "disposition": "enforced",
+      "evidence": "Explicit refresh entry: clears the per-process guard and calls listProjects, so it inherits the same reconciliation and batch registration. It cannot reach discovery except through the shared boundary."
+    },
+    {
+      "path": "electron/workspace/workspaceRepository.ts",
+      "entry_point": "listWorkspaceProjects",
+      "disposition": "not-affected",
+      "evidence": "Reads only registry-listed entries and already used readWorkspaceManifestSnapshot with a fallback to readWorkspaceManifest (workspaceRepository.ts:275). Measured at 58-68ms for all 346 projects, so its per-call cost was never part of the failure class; it is the proof that the snapshot reader is sufficient for listing. The class defect was never this function's cost but how many times per launch it was invoked."
+    },
+    {
+      "path": "electron/workspace/workspaceRepository.ts",
+      "entry_point": "gcEmptyDraftWorkspaceProjects",
+      "disposition": "enforced",
+      "evidence": "Form 2 of the class. It called listWorkspaceProjects itself, so the full-library enumeration ran twice per cold launch and the GC's copy was discarded. Instrumented in a real Electron main process against a deep copy of the user profile (372 registry entries): GC 727/996/837ms of a 1310/1598/1323ms cold listProjects. It now receives the caller's snapshot as a required parameter and measures 0.1ms in all three runs. The recycling verdict is unchanged because it reads only summary fields (source/missing/draft/revision) plus the on-disk assets/ directory, all consistent with the enumeration instant."
+    },
+    {
+      "path": "electron/projects/repository.ts",
+      "entry_point": "syncLegacyProjects -> listProjects (per-process GC guard already consumed)",
+      "disposition": "not-affected",
+      "evidence": "The GC runs at most once per process behind emptyDraftGcDone, so explicit refresh calls never reach it; they perform exactly one enumeration both before and after this change. Verified by the existing guard test 'first listing recycles, second listing keeps this session's new draft' in electron/projects/repository.test.ts, which still passes unchanged."
+    },
+    {
+      "path": "electron/workspace/workspaceRepository.ts",
+      "entry_point": "createWorkspaceProject / saveWorkspaceProject / recoverWorkspaceProject",
+      "disposition": "not-affected",
+      "evidence": "Genuine single-project paths that legitimately register exactly one record per user action; they keep calling rememberWorkspace, which now shares mergeWorkspaceEntry with the batch entry. One user action equals one registry write is not write amplification."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "This exact class was already reported and 'fixed' once and came back in a different shape. Commit 4acbcd3d (2026-06-14, 'legacy 发现移出列举热路径') claimed listProjects would thereafter only walk the registry, O(already registered), and would no longer do O(disk directories) fs reads plus full registry rewrites. It shipped only the per-process guard discoverLegacyProjectsOnce, which suppresses repeat listings inside one process but leaves the first listing of every process doing exactly the full re-read and re-registration it claimed to remove. Since the first listing per process is the app startup library load, the user-visible cost was never removed, and it grows with every project the user adds. Any future change that adds a new discovery or reconciliation caller can reintroduce the same shape unless the invariant is enforced below the callers.",
+    "same_class_scan": [
+      "git show 4acbcd3d - prior remediation of the same class; its guard covers only repeat calls within a process, not the per-launch first call. The stale comment asserting 'listing only walks the registry' was rewritten in legacyProjectMigration.ts to state explicitly which layer owns which cost.",
+      "grep -rn 'discoverLegacyProjects' electron/ src/ - two production callers only (repository.ts listProjects and syncLegacyProjects), both of which now route through discoverLegacyProjects with the registry skip set.",
+      "grep -rn 'rememberWorkspace' electron/ src/ - four production callers: the discovery loop (converted to the batch entry) plus createWorkspaceProject, saveWorkspaceProject and recoverWorkspaceProject, which are genuine single-record user actions and were independently checked as outside the class.",
+      "grep -rn 'readWorkspaceManifestSummary' electron/ - the discovery loop was the only hot-path consumer of the locked summary reader; head-to-head measurement on the same 346 projects gives 10203ms locked versus 226ms snapshot.",
+      "grep -rn 'backfillWorkspaceOrigins' electron/ - found the same-arguments call duplicated between repository.ts listProjects and workspaceRepository.ts listWorkspaceProjects; the redundant caller-side copy was removed so the downstream boundary remains the single owner."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/workspace/legacyProjectMigration.ts",
+    "invariant": "Discovery resolves the registry's known rootPath set before the directory loop and skips every already-registered directory before any manifest read; unregistered directories are read through the lock-free snapshot reader, falling back to the locked reader only when the snapshot itself declines.",
+    "failure_mode": "A directory that cannot be matched against the registry, or whose snapshot read declines for a safety reason (partial identity, conflicting backup identity, embedded data: URL needing slimming), falls through to the existing locked reader and full migration path. The safe, slower behavior remains the fallback, so an unmatched or unsafe case degrades to the previous correctness rather than being skipped.",
+    "exception_policy": "none",
+    "strategy": "The invariant is enforced inside the single shared discovery function rather than at its callers. discoverLegacyProjectsOnce delegates to it, so neither production entry point can obtain an unreconciled scan or reach the locked reader directly. Registration is likewise funneled through rememberWorkspaces, which shares its merge logic with rememberWorkspace so batch and single-record semantics cannot diverge. For form 2 the enforcement is in the type system: gcEmptyDraftWorkspaceProjects takes the library snapshot as a required parameter with no default, so a caller cannot reintroduce a second enumeration by omission - it would not compile. The deliberate absence of a default value is the structural prevention; a default would have left the old double-enumeration path callable as a silent fallback.",
+    "artifacts": [
+      "electron/workspace/legacyProjectMigration.ts",
+      "electron/workspace/workspaceRegistry.ts",
+      "electron/workspace/workspaceRepository.ts",
+      "electron/projects/repository.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/workspace/legacyDiscoveryReconciliation.test.ts",
+    "electron/projects/repository.test.ts",
+    "electron/workspace/workspaceRepository.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/workspace/legacyDiscoveryReconciliation.test.ts",
+    "electron/projects/repository.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/projects/repository.ts",
+      "electron/workspace/workspaceRegistry.ts"
+    ],
+    "rationale": "The per-project rememberWorkspace loop inside listProjects is deleted, not left callable as a fallback; the discovery path now has exactly one registration route (rememberWorkspaces). The duplicated backfillWorkspaceOrigins call in listProjects is removed so listWorkspaceProjects is the single owner of origin freezing. The unconditional locked-reader call in the discovery loop is replaced by snapshot-first selection; the locked reader survives only as the snapshot's declared safety fallback, not as a parallel path. rememberWorkspace and rememberWorkspaces are not two implementations: both delegate to the single mergeWorkspaceEntry."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls this invariant. The cost is Nomi's own filesystem walk, its own manifest reader choice and its own registry write pattern; the fix is entirely in application-level bookkeeping.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration is required and no on-disk format changes. Existing registries are read as-is, and the reconciliation is purely additive: projects already registered are skipped, projects missing from the registry are discovered and registered exactly as before. A user whose registry is empty or partial (first launch after install, or a restored library) still gets a full discovery pass on that one launch, which also remains far cheaper than before because it uses the snapshot reader and a single batched write: measured 9134ms to 215ms for the empty-registry case on the same 346-project library.",
+  "residual_risks": [
+    "RESOLVED 2026-09-03 (form 2, this change): gcEmptyDraftWorkspaceProjects no longer walks the library itself. It consumes the caller's snapshot and now measures 0.1ms (was 727/996/837ms on the real profile). Cold listProjects on the same 372-entry profile went 1310/1598/1323ms to 601/575/520ms.",
+    "The remaining cold cost is the one legitimate full-library enumeration: listWorkspaceProjects performs 372 manifest snapshot reads at roughly 1.1-1.4ms each. Removing it needs either an incremental registry-side summary cache or lazy/paged listing, both of which change the persistence contract and are out of scope here.",
+    "Remaining cold-start time is also dominated by Electron process and window bring-up (firstWindow 2666ms in the end-to-end probe), which this change does not address.",
+    "desktop.projects.list() still crosses the bridge via invokeSync (electron/preload.ts:125), so the remaining ~0.5s still blocks the renderer main thread rather than degrading gracefully. preload.ts already exposes an async listAsync ('nomi:projects:list-async') and src/workbench/project/projectRepository.ts:98 still chooses the sync one. Switching would require a skeleton state for ProjectLibraryPage, whose SWR fallbackData is [] (localProjectStore.ts) and would otherwise render an empty library during first paint. Deliberately not done in this change: it is a renderer-side loading-state redesign, not part of this class's invariant, and it should be decided together with the library's first-paint design rather than bolted on."
+  ]
+}

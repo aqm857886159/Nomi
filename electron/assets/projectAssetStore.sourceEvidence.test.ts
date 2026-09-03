@@ -12,6 +12,12 @@ import path from "node:path";
 //   4. 白名单外的字段被丢弃（untrusted payload 塞不进任意 metadata）。
 //   5. 未知 source → undefined（不给假署名）。
 //   6. 可选扩展字段（creator / licenseId / licenseUrl / attribution / licenseSnapshot / intendedRoles）通过白名单验证。
+//
+// 词表真相源（2026-09-03）：
+//   VALID_USAGE_STATUSES 和 VALID_INTENDED_ROLES 白名单现从 connectorDefinition.ts 的
+//   ASSET_PROVENANCE_ALLOWED_USAGES / ASSET_PROVENANCE_ALLOWED_ROLES 导入，消除了本文件与
+//   connectorDefinition.ts 之间的成员重复（双真相源风险）。
+//   不变量 1、3、4、6 的成员集由 connectorDefinition.ts 的类型联合单一决定。
 const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-src-evidence-"));
 vi.mock("../projects/repository", () => ({
   projectDirById: () => projectRoot,
