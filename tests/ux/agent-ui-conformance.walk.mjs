@@ -1,4 +1,6 @@
 /**
+ * 件0：打通断言器的 app 模式（2026-09-03）
+ *
  * Piece 3: Agent UI 对应断言器 —— 读 agent-ui-spec.generated.json，
  * 对运行中的应用（或样张本身）逐条断言挂点存在性、几何、文案、token。
  *
@@ -20,9 +22,11 @@
  *   --only-p0              只跑 P0 级断言
  *
  * 阳性对照（红灯先行）：
- *   --positive-control     故意改样张里一个元素（header 高度 +20px），断言器必须报红。
+ *   --positive-control     故意改一个元素（header 高度 +20px），断言器必须报红。
+ *                          对 mockup 模式和 app 模式均有效。
  *   测试：先跑 --positive-control（预期：红），再跑正常模式（预期：绿）。
  */
+// 件0：断言器 app 模式打通（2026-09-03）
 // 件1：断言入口归一（2026-09-03）——自动层不再有私有断言实现，
 // TOKEN_STEP_PX / MAGNITUDE_RATIO 与意图层共用 _contract.mjs 的常量，
 // 保证「max(4px 步进, 25%)」这一容差策略在两层完全一致（件4：容差策略统一）。
@@ -31,8 +35,14 @@ import { chromium } from '/Users/aoqimin/Desktop/Nomi/node_modules/playwright/in
 import { TOKEN_STEP_PX, MAGNITUDE_RATIO, assertMockupContract } from './_contract.mjs'
 import autoContract from '../../docs/design/mockups/contracts/2026-09-01-agent-ui-final-redesign.auto.mjs'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
+
+// 件0：agentHostEnabled localStorage key（来自 src/utils/agentHostPreference.ts）
+// 硬编码字面值，避免在 .mjs 里直接引入 .ts 源文件。值与源码保持同步。
+const AGENT_HOST_ENABLED_KEY = 'nomi.agentHost.enabled'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const SPEC_PATH = path.join(ROOT, 'docs/design/agent-ui-spec.generated.json')
@@ -149,35 +159,152 @@ function parseOklchL(colorStr) {
   return null
 }
 
-// ── 启动浏览器 ────────────────────────────────────────────────────────────────
+// ── 启动浏览器 / 准备现场 ─────────────────────────────────────────────────────
 
-const browser = await chromium.launch({ headless: true })
-const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
-const page = await browser.newPage()
+let page
+let nomiApp = null  // Electron app handle（仅 app 模式使用）
 
 if (TARGET === 'mockup') {
+  const browser = await chromium.launch({ headless: true })
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  page = await browser.newPage()
   await page.goto(`file://${MOCKUP_PATH}`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(500)
 } else {
-  // 真实 App 模式：假设 Electron dev server 在 localhost 或通过 _launchApp.mjs 起
-  const APP_URL = process.env.APP_URL || 'http://localhost:5173'
-  console.log(`连接真实 App：${APP_URL}`)
-  await page.goto(APP_URL, { waitUntil: 'networkidle' })
-  await page.waitForTimeout(2000)
+  // ── app 模式：起真实 Electron App，备场后才开始断言 ─────────────────────────
+  // 件0：准备现场（步骤①②③④）
+  //   ① 建临时隔离 profile 目录
+  //   ② 置 agentHostEnabled=true（在 settingsDir 或 launchApp 后 evaluate 进 localStorage）
+  //   ③ 起 Electron，等窗口
+  //   ④ 导航：首启蒙层设 seen → reload → 新建空白项目 → 进生成画布 → 开 Agent 面板
+  //   ⑤ 自证在现场：确认 [data-agent-panel] 存在，否则明确报「现场没准备好」并退出
+
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-conf0-'))
+  const settingsDir = path.join(tempRoot, 'settings')
+  const userDataDir = path.join(tempRoot, 'user-data')
+  const projectsDir = path.join(tempRoot, 'projects')
+  for (const dir of [settingsDir, userDataDir, projectsDir]) fs.mkdirSync(dir, { recursive: true })
+
+  console.log(`临时 profile：${tempRoot}`)
+  console.log(`起动真实 Electron App（隔离 profile）...\n`)
+
+  nomiApp = await launchNomiApp({
+    name: 'agent-conformance',
+    settingsDir, userDataDir, projectsDir,
+    args: ['--disable-gpu', '--disable-software-rasterizer'],
+    settleMs: 2000,
+  })
+  page = nomiApp.win
+
+  // ── ② 置 agentHostEnabled=true（在首次载入后写 localStorage，reload 后生效）──
+  await page.waitForLoadState('domcontentloaded')
+  await page.waitForTimeout(2200)
+  await page.evaluate((key) => {
+    // 首启蒙层/引导标 seen；关闭引导巡游；置 agentHostEnabled
+    localStorage.setItem('nomi-color-scheme', 'light')
+    for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {
+      localStorage.setItem(k, 'seen')
+    }
+    localStorage.setItem(key, 'true')
+  }, AGENT_HOST_ENABLED_KEY)
+
+  // reload 让 agentHostEnabled 生效（模块级缓存读 localStorage 值）
+  // 注意：进项目后再 reload 会让 getActiveWorkbenchProjectId() 恒 null，面板静默空掉。
+  // 所以在进项目前 reload。
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+  await page.waitForTimeout(2500)
+
+  // ── ③ 新建空白项目 ────────────────────────────────────────────────────────
+  console.log('  → 新建空白项目...')
+  const blankCta = page.locator('button, [role="button"]', { hasText: '新建空白项目' }).first()
+  try {
+    await blankCta.waitFor({ state: 'visible', timeout: 15000 })
+    await blankCta.click()
+  } catch (e) {
+    console.error(`❌ 现场没准备好：找不到「新建空白项目」按钮（${e.message}）`)
+    process.exit(1)
+  }
+  await page.waitForTimeout(3000)
+
+  // ── ④ 切换到「生成」工作区 ───────────────────────────────────────────────
+  console.log('  → 切换到生成画布...')
+  const genTab = page.locator('button, [role="button"], [role="tab"]', { hasText: /^生成$/ }).first()
+  try {
+    await genTab.waitFor({ state: 'visible', timeout: 10000 })
+    await genTab.click()
+    await page.locator('.generation-canvas-v2__stage').first().waitFor({ state: 'visible', timeout: 15000 })
+  } catch (e) {
+    console.error(`❌ 现场没准备好：切换到生成画布失败（${e.message}）`)
+    process.exit(1)
+  }
+  await page.waitForTimeout(1000)
+
+  // ── ④b 展开 Agent 面板 ──────────────────────────────────────────────────
+  // 常驻助手可能处于折叠状态（显示为药丸按钮），需要展开。
+  // 参考 agent-runtime-walk-support.mjs openCanvas() 的做法。
+  console.log('  → 展开 Agent 面板...')
+  const collapsedLauncher = page.locator('[data-agent-resident-collapsed="true"]')
+  try {
+    if (await collapsedLauncher.isVisible({ timeout: 3000 })) {
+      await collapsedLauncher.click()
+      await page.waitForTimeout(500)
+    }
+  } catch {
+    // 可能已经展开了，继续
+  }
+  await page.waitForTimeout(1000)
+
+  // ── ⑤ 自证在现场（件0 的灵魂）────────────────────────────────────────────
+  // 教训 assert-you-are-in-the-situation-you-claim：开始逐条断言前先确认现场正确。
+  // 找不到 [data-agent-panel] → 明确报「现场没准备好」，绝不退化成逐条报「元素不存在」。
+  // 这两种失败的修法完全相反：① 现场没准备好→去备场；② 挂点缺→去补挂点。
+  console.log('\n  → 自证在现场：检查 [data-agent-panel] 是否存在...')
+  const panelEl = await page.$('[data-agent-panel]')
+  if (!panelEl) {
+    // 截图辅助排查（不依赖截图做判断，只是辅助）
+    const shot = path.join(tempRoot, 'scene-not-ready.png')
+    await page.screenshot({ path: shot }).catch(() => {})
+    console.error(`❌ 现场没准备好：[data-agent-panel] 不在 DOM 中——Agent 面板未挂载。`)
+    console.error(`   可能原因：agentHostEnabled 未生效（需 localStorage.setItem('${AGENT_HOST_ENABLED_KEY}', 'true') + reload）。`)
+    console.error(`   截图：${shot}`)
+    console.error(`   注意：这是「备场失败」，与「实现缺挂点」是完全不同的问题，修法相反。`)
+    if (nomiApp) await closeNomiApp(nomiApp.app).catch(() => {})
+    process.exit(1)
+  }
+  console.log('  ✓ [data-agent-panel] 存在，进入断言循环。\n')
 }
 
 // ── 阳性对照：注入缺陷 ────────────────────────────────────────────────────────
 
 if (POSITIVE_CONTROL) {
-  console.log('【阳性对照】注入缺陷：将 header 高度强制改为 +20px（期望断言报红）\n')
-  await page.evaluate(() => {
-    // 改写 .asst-head 高度使其超出容差
-    const el = document.querySelector('.asst-head')
-    if (el) {
-      el.style.setProperty('height', '61px', 'important')  // 正常 ~41px，+20px 超出 ±4 容差
-      el.setAttribute('data-positive-control', 'true')
-    }
-  })
+  if (TARGET === 'mockup') {
+    console.log('【阳性对照】注入缺陷：将 .asst-head 高度强制改为 +20px（期望断言报红）\n')
+    await page.evaluate(() => {
+      const el = document.querySelector('.asst-head')
+      if (el) {
+        el.style.setProperty('height', '61px', 'important')  // 正常 ~41px，+20px 超出 ±4 容差
+        el.setAttribute('data-positive-control', 'true')
+      }
+    })
+  } else {
+    // app 模式阳性对照：找到 [data-agent-header]，注入假高度（让断言必须红）
+    console.log('【阳性对照】注入缺陷：将 [data-agent-header] 高度强制改为 +20px（期望断言报红）\n')
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-agent-header]')
+      if (el) {
+        el.style.setProperty('height', '61px', 'important')  // +20px 必超出 max(4px, 25%) 容差
+        el.setAttribute('data-positive-control', 'true')
+      } else {
+        // 元素不存在时插入一个幽灵元素让断言能红（阳性对照：有缺陷的断言器必须报红）
+        const ghost = document.createElement('div')
+        ghost.setAttribute('data-agent-header', 'true')
+        ghost.style.cssText = 'height:61px;width:300px;position:fixed;top:0;left:0;'
+        ghost.setAttribute('data-positive-control', 'true')
+        document.body.appendChild(ghost)
+      }
+    })
+  }
   await page.waitForTimeout(100)
 }
 
@@ -186,24 +313,53 @@ if (POSITIVE_CONTROL) {
 let currentScreen = null
 
 for (const elem of elements) {
-  // 切换到对应屏
+  // 切换到对应屏（仅 mockup 模式：真实 app 没有 .screen/.on 结构）
   if (elem.screen !== currentScreen) {
     currentScreen = elem.screen
     console.log(`\n--- 屏 ${currentScreen} ---`)
 
-    await page.evaluate((s) => {
-      document.querySelectorAll('.screen').forEach(el => el.classList.remove('on'))
-      const target = document.querySelector(`[data-screen="${s}"]`)
-      if (target) target.classList.add('on')
-    }, currentScreen)
-    await page.waitForTimeout(200)
+    if (TARGET === 'mockup') {
+      await page.evaluate((s) => {
+        document.querySelectorAll('.screen').forEach(el => el.classList.remove('on'))
+        const target = document.querySelector(`[data-screen="${s}"]`)
+        if (target) target.classList.add('on')
+      }, currentScreen)
+      await page.waitForTimeout(200)
+    }
+    // app 模式：不执行屏切换——断言直接在当前 DOM 里找挂点。
+    // 屏 A 的所有挂点应在展开的 Agent 面板里同时存在。
   }
 
   const { anchor, cssSelector, specRef, desc } = elem
   console.log(`\n  验证 [${specRef}] ${anchor} (${desc})`)
 
   // 1. 存在性断言：找到对应的 CSS 类元素（样张自检）或 data-agent-* 挂点（真实 app）
-  const selector = TARGET === 'mockup' ? cssSelector : `[${anchor}]`
+  //
+  // 件0：修畸形选择器（规格里共 1 条属性限定形式：data-agent-at-token[data-stale=true]）
+  // 错误形式：[data-agent-at-token[data-stale=true]] ← 嵌套括号，CSS 语法非法，Playwright 崩溃
+  // 正确形式：[data-agent-at-token][data-stale="true"] ← 两个独立属性选择器并列
+  //
+  // 处理规则：若 anchor 含 "[...]" 后缀（属性限定），则将其转成合法的 CSS 属性选择器并列形式。
+  // 样张模式直接用 cssSelector（已正确），app 模式需要从 anchor 构建选择器。
+  let selector
+  if (TARGET === 'mockup') {
+    selector = cssSelector
+  } else {
+    // 把 anchor 里的属性限定 "[attr=val]" 拆分为独立的 CSS 选择器片段
+    // 例：data-agent-at-token[data-stale=true]
+    //   → base: data-agent-at-token
+    //   → qualifier: [data-stale=true] → [data-stale="true"]（给值加双引号）
+    //   → result: [data-agent-at-token][data-stale="true"]
+    const qualifierMatch = anchor.match(/^([^[]+)(\[.+\])$/)
+    if (qualifierMatch) {
+      const base = qualifierMatch[1].trim()
+      // 把 [attr=val] 里没有引号的值加上引号（CSS 属性选择器值必须带引号才合法）
+      const qualifier = qualifierMatch[2].replace(/=([^"'\]]+)\]/, '="$1"]')
+      selector = `[${base}]${qualifier}`
+    } else {
+      selector = `[${anchor}]`
+    }
+  }
   const actualElem = await page.$(selector)
 
   if (!actualElem) {
@@ -223,9 +379,9 @@ for (const elem of elements) {
 
   const rect = { w: Math.round(actualRect.width), h: Math.round(actualRect.height), x: Math.round(actualRect.x), y: Math.round(actualRect.y) }
 
-  // 阳性对照模式：对 header 注入期望值偏移（让几何断言必须红）
-  const injectedFaults = POSITIVE_CONTROL && anchor === 'data-agent-header' ? { h: elem.geometry.h } : {}
-  checkGeometry(elem, rect, anchor, specRef, injectedFaults)
+  // 阳性对照模式：缺陷已经直接注入 DOM（高度改成 61px）——几何断言对比真实 DOM 值
+  // 与规格期望值（~41px）自然报红，不需要额外修改 injectedFaults。
+  checkGeometry(elem, rect, anchor, specRef, {})
 
   // 3. 特定元素的额外语义断言
   if (anchor === 'data-agent-header') {
@@ -439,7 +595,13 @@ if (TARGET === 'mockup' && !ONLY_FORM && !POSITIVE_CONTROL) {
   console.log(`  自动层共跑 ${autoTotal} 条规则`)
 }
 
-await browser.close()
+// ── 关闭浏览器 / Electron app ─────────────────────────────────────────────────
+
+if (TARGET === 'mockup') {
+  await page.context().browser()?.close().catch(() => {})
+} else if (nomiApp) {
+  await closeNomiApp(nomiApp.app).catch(() => {})
+}
 
 // ── 汇总结果 ──────────────────────────────────────────────────────────────────
 
