@@ -181,6 +181,19 @@ export function readableToolPreview(t: Translate, name: string, args?: unknown):
     return count ? t('agentResident.toolTargetCount', { count }) : t('agentResident.toolInspectDetails')
   }
   if (normalized.includes('timeline.write')) return t('agentResident.toolTimelineWriteSummary')
+  // patch_shots 改的是已有分镜表：卡上必须说清**改哪几镜、改什么**。
+  // 不加这一支它落到兜底「查看细节」——用户面对一张不说改了什么的卡点同意，
+  // 那张卡就等于没有（确认卡的存在意义就是让人看懂再点）。
+  if (normalized.includes('patch_shots')) {
+    const select = record.select && typeof record.select === 'object' ? record.select as Record<string, unknown> : {}
+    const indexes = Array.isArray(select.indexes) ? select.indexes.filter((value): value is number => typeof value === 'number') : []
+    const scope = select.kind === 'all'
+      ? t('agentResident.patchShotsAll')
+      : t('agentResident.patchShotsIndexes', { indexes: indexes.join('、') })
+    const patch = record.patch && typeof record.patch === 'object' ? record.patch as Record<string, unknown> : {}
+    const fields = Object.keys(patch).map((key) => t(`agentResident.patchShotsField.${key}`, { defaultValue: key }))
+    return [scope, fields.join('、')].filter(Boolean).join(' · ')
+  }
   if (isGenerationToolName(name)) return t('agentResident.toolGenerationSummary')
   return t('agentResident.toolInspectDetails')
 }
@@ -188,6 +201,13 @@ export function readableToolPreview(t: Translate, name: string, args?: unknown):
 export function readableToolTarget(t: Translate, name: string, args?: unknown): string {
   const normalized = name.toLowerCase()
   const record = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : {}
+  // patch_shots 的作用对象是分镜表本身；它的 select 不是 nodeIds/shots 数组，
+  // 不先判会掉进下面按数组长度猜的分支，报出错误的对象数。
+  if (normalized.includes('patch_shots')) {
+    const select = record.select && typeof record.select === 'object' ? record.select as Record<string, unknown> : {}
+    const indexes = Array.isArray(select.indexes) ? select.indexes.length : 0
+    return select.kind === 'all' ? t('agentResident.targetStoryboardAll') : t('agentResident.targetShotCount', { count: indexes })
+  }
   if (Array.isArray(record.nodeIds) && record.nodeIds.length) return t('agentResident.targetShotCount', { count: record.nodeIds.length })
   if (Array.isArray(record.nodes) && record.nodes.length) return t('agentResident.targetShotCount', { count: record.nodes.length })
   if (Array.isArray(record.shots) && record.shots.length) return t('agentResident.targetShotCount', { count: record.shots.length })

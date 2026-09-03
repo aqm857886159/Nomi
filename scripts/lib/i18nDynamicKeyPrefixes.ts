@@ -18,6 +18,8 @@ export type DynamicPrefix =
   | { prefix: string; why: string; kind: 'concat'; suffixes: string[] }
 
 export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
+  // ── agentResident ──
+  { prefix: 'agentResident.patchShotsField', why: "动态: patch_shots 确认卡上要列出「本次改了哪几个字段」，字段名由工具入参 patch 的键决定;枚举来源: canvasWrite.ts 的 storyboardPatchShotsInputSchema.patch 的 key 集合(prompt/promptAppend/shotKind/durationSec/aspectRatio/modelKey/modelVendor)——schema 加字段时这里要同步加词条，否则卡上退回显示英文键名" },
   // ── creationAi ──
   { prefix: 'creationAi.mode', why: '动态: 创作助手模式 id;枚举来源: listCreationAiModes() 的内置 mode.id(CreationPromptPicker 用 `creationAi.mode.${id}` 再接 .label/.short/.title/.description)' },
   // ── antigravity ──

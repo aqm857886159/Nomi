@@ -73,3 +73,31 @@ describe('resident tool display projection', () => {
     expect(projection.technicalDetails).not.toContain('sk-secret-value')
   })
 })
+
+// 确认卡的存在意义是让人**看懂再点**。patch_shots 若落到兜底文案，用户面对的是一张
+// 不说改了什么的卡——那等于没有卡。2026-09-03 实测：不加专用分支时它显示「查看细节」。
+describe('patch_shots 确认卡说清改了什么', () => {
+  it('批量：说清「全部镜头 · 追加提示词」', () => {
+    const preview = readableToolPreview(translate, 'patch_shots', {
+      select: { kind: 'all' }, patch: { promptAppend: '雨天' },
+    })
+    expect(preview).toContain('patchShotsAll')
+    expect(preview).toContain('patchShotsField.promptAppend')
+    expect(preview).not.toContain('toolInspectDetails')
+  })
+
+  it('指定镜：卡上带出具体镜号，用户看得见它要动哪几镜', () => {
+    const preview = readableToolPreview(translate, 'patch_shots', {
+      select: { kind: 'indexes', indexes: [2, 5] }, patch: { durationSec: 8 },
+    })
+    expect(preview).toContain('indexes=2、5')
+    expect(preview).toContain('patchShotsField.durationSec')
+  })
+
+  it('作用对象不按数组长度瞎猜（select 不是 nodeIds/shots）', () => {
+    const projection = residentToolProjectionForCall(translate, 'patch_shots', {
+      select: { kind: 'all' }, patch: { prompt: 'x' },
+    }, 'proposed')
+    expect(projection.target).toContain('targetStoryboardAll')
+  })
+})

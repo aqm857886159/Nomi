@@ -187,9 +187,9 @@ const storyboardPatchShotsInputSchema = z
       })
       .strict()
       // 空补丁 = 一次无效调用，早报错好过静默无操作（静默无操作正是这轮一直在修的那类）。
-      .refine((patch) => Object.keys(patch).length > 0, { message: "patch 至少要点名一个字段" })
+      .refine((patch) => Object.keys(patch).length > 0, { message: "patch must name at least one field" })
       // prompt 是整句替换、promptAppend 是追加，同时给等于意图矛盾——不猜，直接拒。
-      .refine((patch) => !(patch.prompt && patch.promptAppend), { message: "prompt 与 promptAppend 只能给一个" }),
+      .refine((patch) => !(patch.prompt && patch.promptAppend), { message: "give either prompt or promptAppend, not both" }),
   })
   .strict();
 

@@ -19,6 +19,19 @@ export const zhAgentResident = {
   // 侧栏「新建分镜方案」/ 选中浮条「拆镜头」按下时真正发给 agent 的那句话（按钮文案是显示用的，
   // 这句是指令用的）。显式带 toolProfile:'storyboard'，不指望关键词表猜中。
   storyboardRequest: '把当前文稿拆成一份分镜方案：先读全文，再规划跨镜头要保持一致的角色/场景/风格，然后逐镜给出画面描述。',
+  // patch_shots 确认卡：说清改哪几镜、改什么。字段名用用户词汇（「提示词」不是「prompt」）。
+  patchShotsAll: '全部镜头',
+  patchShotsIndexes: '第 {{indexes}} 镜',
+  patchShotsField: {
+    prompt: '提示词',
+    promptAppend: '追加提示词',
+    shotKind: '镜头类型',
+    durationSec: '时长',
+    aspectRatio: '画幅',
+    modelKey: '模型',
+    modelVendor: '供应商',
+  },
+  targetStoryboardAll: '整张分镜表',
   currentScene: '当前现场',
   backToScene: '回到现场',
   scrollLatest: '回到最新消息',
@@ -330,6 +343,18 @@ export const enAgentResident = {
   contextPreview: 'Preview · Timeline',
   currentDocument: 'Current draft',
   storyboardRequest: 'Turn the current draft into a storyboard: read the full text, plan the characters/settings/style that must stay consistent across shots, then describe each shot.',
+  patchShotsAll: 'All shots',
+  patchShotsIndexes: 'Shot {{indexes}}',
+  patchShotsField: {
+    prompt: 'prompt',
+    promptAppend: 'appended prompt',
+    shotKind: 'shot type',
+    durationSec: 'duration',
+    aspectRatio: 'aspect ratio',
+    modelKey: 'model',
+    modelVendor: 'provider',
+  },
+  targetStoryboardAll: 'the whole storyboard',
   currentScene: 'Current scene',
   backToScene: 'Back to scene',
   scrollLatest: 'Back to latest',
