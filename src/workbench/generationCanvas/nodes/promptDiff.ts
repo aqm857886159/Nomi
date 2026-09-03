@@ -1,43 +1,90 @@
-// 词级 LCS diff:把优化后文本拆成段,标出相对原文「新增/改动」的部分,供「高亮=改动」展示。
-// 纯函数(可单测)。中英混排:CJK 按单字、Latin/数字按词、其它按单字符切,空白单独成 token。
+// 提示词 diff 的纯函数实现。Intl.Segmenter 负责中英文混排的自然分词，
+// 连续替换先聚合成一段，再交给编辑器 Decoration.inline 渲染，避免中文逐词碎片化。
 export type DiffSegment = { text: string; added: boolean }
+export type PromptDiffKind = 'keep' | 'added' | 'removed'
+export type PromptDiffSegment = { text: string; kind: PromptDiffKind }
 
-function tokenize(text: string): string[] {
+function fallbackTokenize(text: string): string[] {
   return text.match(/[A-Za-z0-9]+|[一-鿿]|\s+|[^\sA-Za-z0-9]/g) || []
 }
 
-/** 返回「优化后文本」的分段:added=true 的段是相对原文新增/改动的部分。 */
-export function diffPromptWords(original: string, optimized: string): DiffSegment[] {
-  const a = tokenize(original)
-  const b = tokenize(optimized)
-  const m = a.length
-  const n = b.length
-  // dp[i][j] = a[i:] 与 b[j:] 的最长公共子序列长度。
-  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0))
+function segmentText(text: string): string[] {
+  type Segmenter = { segment: (value: string) => Iterable<{ segment: string }> }
+  type IntlWithSegmenter = typeof Intl & { Segmenter?: new (locale: string, options: { granularity: 'word' }) => Segmenter }
+  const SegmenterConstructor = (Intl as IntlWithSegmenter).Segmenter
+  if (typeof SegmenterConstructor === 'function') {
+    const segmenter = new SegmenterConstructor('zh-CN', { granularity: 'word' })
+    return Array.from(segmenter.segment(text), ({ segment }) => segment)
+  }
+  return fallbackTokenize(text)
+}
+
+function pushSegment(segments: PromptDiffSegment[], text: string, kind: PromptDiffKind): void {
+  if (!text) return
+  const last = segments[segments.length - 1]
+  if (last?.kind === kind) last.text += text
+  else segments.push({ text, kind })
+}
+
+/**
+ * Return a three-state diff. Replacement runs intentionally emit one removed
+ * block and one added block, even when the segmenter returns many CJK words.
+ */
+export function diffPromptSegments(
+  original: string,
+  optimized: string,
+  options: Readonly<{ mergeChanges?: boolean }> = {},
+): PromptDiffSegment[] {
+  const originalTokens = segmentText(original)
+  const optimizedTokens = segmentText(optimized)
+  const m = originalTokens.length
+  const n = optimizedTokens.length
+  const lcs: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0))
   for (let i = m - 1; i >= 0; i--) {
     for (let j = n - 1; j >= 0; j--) {
-      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
+      lcs[i][j] = originalTokens[i] === optimizedTokens[j]
+        ? lcs[i + 1][j + 1] + 1
+        : Math.max(lcs[i + 1][j], lcs[i][j + 1])
     }
   }
-  const segments: DiffSegment[] = []
-  const push = (text: string, added: boolean) => {
-    const last = segments[segments.length - 1]
-    if (last && last.added === added) last.text += text
-    else segments.push({ text, added })
-  }
+
+  const segments: PromptDiffSegment[] = []
   let i = 0
   let j = 0
-  while (j < n) {
-    if (i < m && a[i] === b[j]) {
-      push(b[j], false)
+  while (i < m || j < n) {
+    if (i < m && j < n && originalTokens[i] === optimizedTokens[j]) {
+      pushSegment(segments, optimizedTokens[j], 'keep')
       i++
       j++
-    } else if (i < m && dp[i + 1][j] >= dp[i][j + 1]) {
-      i++ // 原文删除的 token,不体现在优化后文本里
-    } else {
-      push(b[j], true) // 优化后新增/改动的 token
-      j++
+      continue
     }
+
+    const oldStart = i
+    const newStart = j
+    while (i < m || j < n) {
+      if (i < m && j < n && originalTokens[i] === optimizedTokens[j]) break
+      if (i < m && j < n && lcs[i + 1][j] > lcs[i][j + 1]) i++
+      else if (j < n) j++
+      else i++
+    }
+    pushSegment(segments, originalTokens.slice(oldStart, i).join(''), 'removed')
+    pushSegment(segments, optimizedTokens.slice(newStart, j).join(''), 'added')
   }
-  return segments
+  if (options.mergeChanges === false) return segments
+  const changed = segments.flatMap((segment, index) => segment.kind === 'keep' ? [] : [index])
+  if (changed.length < 2) return segments
+  const first = changed[0]
+  const last = changed[changed.length - 1]
+  const between = segments.slice(first, last + 1).filter((segment) => segment.kind === 'keep').map((segment) => segment.text).join('')
+  if (/[，。！？；：,.!?;:]/u.test(between)) return segments
+  const removed = segments.slice(first, last + 1).filter((segment) => segment.kind === 'removed').map((segment) => segment.text).join('')
+  const added = segments.slice(first, last + 1).filter((segment) => segment.kind !== 'removed').map((segment) => segment.text).join('')
+  return [...segments.slice(0, first), ...(removed ? [{ text: removed, kind: 'removed' as const }] : []), ...(added ? [{ text: added, kind: 'added' as const }] : []), ...segments.slice(last + 1)]
+}
+
+/** Backward-compatible added/keep projection used by the canvas optimizer. */
+export function diffPromptWords(original: string, optimized: string): DiffSegment[] {
+  return diffPromptSegments(original, optimized, { mergeChanges: false })
+    .filter((segment) => segment.kind !== 'removed')
+    .map((segment) => ({ text: segment.text, added: segment.kind === 'added' }))
 }

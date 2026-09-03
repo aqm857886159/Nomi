@@ -23,6 +23,8 @@ import StoryboardShotFrame from './StoryboardShotFrame'
 import StoryboardShotRowExpand from './StoryboardShotRowExpand'
 import PromptSkeletonSegments from './PromptSkeletonSegments'
 import { modeGeneratesDialogue } from '../../../generationCanvas/agent/storyboardDialogue'
+import StoryboardPromptDiff from '../StoryboardPromptDiff'
+import { storyboardPatchPromptForShot, useStoryboardPatchPreview } from '../storyboardPatchPreview'
 
 /**
  * 分镜表 v5 的一行：`[grip | 画面格 76×132 | 参考区 136 | 提示词块 1fr]`（样张
@@ -75,6 +77,8 @@ type Props = {
   onSetAsFirstFrame?: ((targetIndex: number) => void) | undefined
   selected?: boolean
   onSelect?: ((event: React.MouseEvent) => void) | undefined
+  selectedFrame?: boolean
+  onSelectFrame?: (() => void) | undefined
   scenes?: readonly { id: string; title: string }[]
   onCopy?: (() => void) | undefined
   onMoveToScene?: ((sceneId: string) => void) | undefined
@@ -102,6 +106,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   const { shot, anchors, modelOptions, danglingIds, exec, onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onVariants, onToggleLock, targetShots, allShots, sourcePosition, onSaveAsReference, onSetAsFirstFrame, onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll, mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile } = props
   const [expanded, setExpanded] = React.useState(false)
   const [actionsOpen, setActionsOpen] = React.useState(false)
+  const patchPreview = useStoryboardPatchPreview()
   // C1：PromptEditor ref——参考区「@」入口点击时触发 mention（一个实现两个入口）。
   const editorRef = React.useRef<Editor | null>(null)
   const triggerAtMention = React.useCallback(() => {
@@ -152,10 +157,17 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
 
   const dialogueText = shot.dialogue?.trim() || shot.subtitle?.trim() || ''
   const dialogueWillGenerate = Boolean(dialogueText && modeGeneratesDialogue(resolvedMode, shot.params))
+  const proposedPrompt = patchPreview ? storyboardPatchPromptForShot(patchPreview.args, shot.index, shot.prompt) : null
+  const promptDiff = patchPreview && proposedPrompt !== null && proposedPrompt !== shot.prompt ? { patchPreview, proposedPrompt } : null
 
   return (
     <div
       tabIndex={-1}
+      onClick={(event) => {
+        const target = event.target instanceof HTMLElement ? event.target : null
+        if (target?.closest('button, input, textarea, select, [contenteditable="true"], [data-storyboard-frame]')) return
+        props.onSelect?.(event)
+      }}
       onDragOver={props.onDragOver}
       onDrop={props.onDrop}
       onKeyDown={(event) => {
@@ -173,9 +185,13 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           props.onKeyboardFocus?.(event.key === 'ArrowUp' ? -1 : 1)
         }
       }}
-      className="relative grid grid-cols-[14px_84px_136px_minmax(0,1fr)] gap-3 py-3 pl-1.5 pr-3 items-start bg-nomi-paper"
+      className={cn(
+        'relative grid grid-cols-[14px_84px_136px_minmax(0,1fr)] gap-3 py-3 pl-1.5 pr-3 items-start bg-nomi-paper',
+        props.selected && 'bg-nomi-ink-05',
+      )}
       data-storyboard-row={shot.index}
     >
+      {props.selected ? <span className="absolute inset-y-0 left-0 w-0.5 bg-nomi-accent" aria-hidden /> : null}
       {props.isDragOver ? (
         <div className="absolute inset-x-1.5 top-0 h-0.5 rounded-full bg-nomi-accent" aria-hidden />
       ) : null}
@@ -220,12 +236,20 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           sourcePosition={sourcePosition}
           onSaveAsReference={onSaveAsReference}
           onSetAsFirstFrame={onSetAsFirstFrame}
-          selected={props.selected}
+          selected={props.selectedFrame}
           onSelect={props.onSelect}
+          onSelectFrame={props.onSelectFrame}
         />
       ) : (
         /* exec 缺省（测试/降级）：纯占位格 */
-        <div className="relative w-[76px] h-[132px] rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05">
+        <div
+          className={cn('relative w-[76px] h-[132px] rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05', props.selectedFrame && 'ring-2 ring-nomi-accent ring-offset-1 ring-offset-nomi-paper')}
+          onClick={(event) => {
+            event.stopPropagation()
+            props.onSelectFrame?.()
+          }}
+          data-storyboard-frame="placeholder"
+        >
           <span className="absolute top-1 left-1 px-1 rounded-nomi-sm bg-nomi-ink-10 text-micro text-nomi-ink-60 tabular-nums">
             {String(shot.index).padStart(2, '0')}
           </span>
@@ -395,27 +419,41 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             mentionSearch/onMentionSelect 由 StoryboardShotTable 通过 useShotMentionSource 提供；
             缺省（不吃参考的模型）= 不开 @ 面板（§1.6 C4 禁用有说明）。
             currentRefUrls 维持 chip 编号一致性（与 NodeGenerationComposer 同语义）。 */}
-        <PromptSkeletonSegments
-          prompt={shot.prompt}
-          profile={storyboardProfile}
-          ranges={shot.promptSegments}
-          onChange={({ prompt, ranges }) => onUpdate({ prompt, promptSegments: ranges as PromptSegmentRange[] })}
-          editorProps={{
-            ariaLabel: t('storyboardEditor.promptAria', { index: shot.index }),
-            placeholder: isImageShot ? t('storyboardEditor.imagePromptPlaceholder') : t('storyboardEditor.videoPromptPlaceholder'),
-            className: cn(
-              'flex-1 px-2.5 py-2 rounded-nomi-sm border bg-nomi-paper',
-              'text-body-sm leading-normal',
-              '[&_.ProseMirror]:min-h-[60px]',
-              promptInvalid ? 'border-workbench-danger' : 'border-nomi-line',
-            ),
-            mentionCandidates: currentRefUrls,
-            mentionSearch,
-            onMentionSelect,
-            mentionUpload,
-            onReady: (editor) => { editorRef.current = editor },
-          }}
-        />
+        {promptDiff ? (
+          <StoryboardPromptDiff
+            original={shot.prompt}
+            proposed={promptDiff.proposedPrompt}
+            onApprove={promptDiff.patchPreview.onApprove}
+            onDiscard={promptDiff.patchPreview.onDiscard}
+            onContinueEdit={() => {
+              onUpdate({ prompt: promptDiff.proposedPrompt, promptSegments: undefined })
+              promptDiff.patchPreview.onDiscard()
+              requestAnimationFrame(() => editorRef.current?.commands.focus())
+            }}
+          />
+        ) : (
+          <PromptSkeletonSegments
+            prompt={shot.prompt}
+            profile={storyboardProfile}
+            ranges={shot.promptSegments}
+            onChange={({ prompt, ranges }) => onUpdate({ prompt, promptSegments: ranges as PromptSegmentRange[] })}
+            editorProps={{
+              ariaLabel: t('storyboardEditor.promptAria', { index: shot.index }),
+              placeholder: isImageShot ? t('storyboardEditor.imagePromptPlaceholder') : t('storyboardEditor.videoPromptPlaceholder'),
+              className: cn(
+                'flex-1 px-2.5 py-2 rounded-nomi-sm border bg-nomi-paper',
+                'text-body-sm leading-normal',
+                '[&_.ProseMirror]:min-h-[60px]',
+                promptInvalid ? 'border-workbench-danger' : 'border-nomi-line',
+              ),
+              mentionCandidates: currentRefUrls,
+              mentionSearch,
+              onMentionSelect,
+              mentionUpload,
+              onReady: (editor) => { editorRef.current = editor },
+            }}
+          />
+        )}
         {dialogueWillGenerate ? (
           <div className="text-micro text-nomi-ink-40" data-storyboard-dialogue-hint="true">
             {t('storyboardEditor.row.dialogueAudioHint')}

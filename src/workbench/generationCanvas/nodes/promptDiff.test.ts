@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diffPromptWords } from './promptDiff'
+import { diffPromptSegments, diffPromptWords } from './promptDiff'
 
 describe('diffPromptWords', () => {
   it('纯新增:原文整段保留,尾部追加标 added', () => {
@@ -30,5 +30,19 @@ describe('diffPromptWords', () => {
     const segs = diffPromptWords('', 'brand new prompt')
     expect(segs.length).toBeGreaterThan(0)
     expect(segs.every((s) => s.added)).toBe(true)
+  })
+})
+
+describe('diffPromptSegments', () => {
+  it('保留删除与新增，并把连续中文改写合成两段', () => {
+    const segments = diffPromptSegments('雨幕里被路灯拉长影子的', '雾中的路灯把影子拉得很长')
+    expect(segments.filter((segment) => segment.kind === 'removed')).toHaveLength(1)
+    expect(segments.filter((segment) => segment.kind === 'added')).toHaveLength(1)
+  })
+
+  it('新造词追加只生成一个连续新增段', () => {
+    const segments = diffPromptSegments('镜头停在窗边', '镜头停在窗边看见了新造词星尘桥')
+    expect(segments.filter((segment) => segment.kind === 'added').map((segment) => segment.text).join('')).toContain('星尘桥')
+    expect(segments.filter((segment) => segment.kind === 'added')).toHaveLength(1)
   })
 })

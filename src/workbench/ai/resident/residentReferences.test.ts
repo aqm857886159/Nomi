@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildResidentReference, contextHandleForResidentReference, residentReferenceFromContextHandle, residentReferencePromptValue } from './residentReferences'
+import { applyStoryboardSelectionToToolArgs, buildResidentReference, buildStoryboardReference, contextHandleForResidentReference, residentReferenceFromContextHandle, residentReferencePromptValue, storyboardShotIndexesFromReferences } from './residentReferences'
 
 const context = { documentId: 'doc-7', nodeIds: ['node-a', 'node-b'], clipIds: ['clip-3'] } as const
 
@@ -72,5 +72,19 @@ describe('resident reference capture', () => {
         intentRole: 'subject',
       },
     ])).toBeUndefined()
+  })
+
+  it('turns storyboard references into the patch_shots selector', () => {
+    const references = [
+      buildStoryboardReference('result', 3, '第 3 镜 · 产物', '产物'),
+      buildStoryboardReference('shot', 1, '第 1 镜 · 整体', '整体'),
+      buildStoryboardReference('result', 3, '第 3 镜 · 产物', '产物'),
+    ]
+    expect(storyboardShotIndexesFromReferences(references)).toEqual([1, 3])
+    expect(applyStoryboardSelectionToToolArgs('patch_shots', { select: { kind: 'all' }, patch: { promptAppend: '雨天' } }, references)).toEqual({
+      select: { kind: 'indexes', indexes: [1, 3] },
+      patch: { promptAppend: '雨天' },
+    })
+    expect(applyStoryboardSelectionToToolArgs('patch_shots', { select: { kind: 'all' }, patch: { promptAppend: '雨天' } }, [])).toMatchObject({ select: { kind: 'all' } })
   })
 })

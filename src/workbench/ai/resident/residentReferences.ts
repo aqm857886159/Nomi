@@ -30,6 +30,46 @@ export function residentReferencePromptValue(reference: ProjectAgentReference): 
   return reference.value ? `${reference.label} (${reference.value})` : reference.label
 }
 
+export function buildStoryboardReference(
+  scope: 'shot' | 'result',
+  shotIndex: number,
+  label: string,
+  role: string,
+): ProjectAgentReference {
+  const value = `storyboard:${scope}:${shotIndex}`
+  return Object.freeze({
+    id: value,
+    label,
+    kind: 'canvas',
+    value,
+    intentRole: role,
+  })
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
+/** Selectors emitted by the storyboard table are deterministic, so the model does not have to infer a shot number from prose. */
+export function storyboardShotIndexesFromReferences(references: readonly ProjectAgentReference[]): number[] {
+  return [...new Set(references.flatMap((reference) => {
+    const match = reference.value?.match(/^storyboard:(?:shot|result):(\d+)$/)
+    const index = match ? Number(match[1]) : NaN
+    return Number.isInteger(index) && index > 0 ? [index] : []
+  }))].sort((left, right) => left - right)
+}
+
+/** Apply the current storyboard selection at the last renderer boundary before an approval payload is sent. */
+export function applyStoryboardSelectionToToolArgs(
+  toolName: string,
+  args: unknown,
+  references: readonly ProjectAgentReference[],
+): unknown {
+  if (toolName.toLowerCase() !== 'patch_shots' || !isRecord(args)) return args
+  const indexes = storyboardShotIndexesFromReferences(references)
+  return indexes.length ? { ...args, select: { kind: 'indexes', indexes } } : args
+}
+
 function referenceKindForContextHandle(handle: AgentContextHandle): ProjectAgentReference['kind'] | null {
   if (handle.kind === 'document') return 'document'
   if (handle.kind === 'canvasNode') return 'canvas'

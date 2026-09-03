@@ -87,6 +87,11 @@ export const zhStoryboardEditor = {
     copy: '复制镜头',
     delete: '删除镜头',
     selectAria: '选择镜 {{index}}',
+    selectFrameAria: '引用镜 {{index}} 的生成画面',
+    referenceShot: '第 {{index}} 镜 · 整体',
+    referenceResult: '第 {{index}} 镜 · 产物',
+    referenceShotRole: '整体',
+    referenceResultRole: '产物',
   },
   filter: {
     active: '正在看引用「{{name}}」的 {{count}} 镜',
@@ -127,6 +132,11 @@ export const zhStoryboardEditor = {
     choose: '换一个预设',
     segmentAria: '{{label}}：{{value}}',
     segment: { shotSize: '景别·运镜', emotion: '情绪' },
+  },
+  patchPreview: {
+    accept: '采用改动',
+    discard: '丢弃改动',
+    continueEdit: '继续在框里编辑',
   },
   bulk: {
     scope: '全部镜头',
@@ -338,6 +348,11 @@ export const enStoryboardEditor = {
     copy: 'Duplicate shot',
     delete: 'Delete shot',
     selectAria: 'Select shot {{index}}',
+    selectFrameAria: 'Reference generated frame for shot {{index}}',
+    referenceShot: 'Shot {{index}} · Whole shot',
+    referenceResult: 'Shot {{index}} · Generated result',
+    referenceShotRole: 'Whole shot',
+    referenceResultRole: 'Generated result',
   },
   filter: {
     active: 'Showing {{count}} shots referencing “{{name}}”',
@@ -378,6 +393,11 @@ export const enStoryboardEditor = {
     choose: 'Choose a preset',
     segmentAria: '{{label}}: {{value}}',
     segment: { shotSize: 'Shot size · camera', emotion: 'Emotion' },
+  },
+  patchPreview: {
+    accept: 'Apply changes',
+    discard: 'Discard changes',
+    continueEdit: 'Continue editing here',
   },
   bulk: {
     scope: 'All shots',

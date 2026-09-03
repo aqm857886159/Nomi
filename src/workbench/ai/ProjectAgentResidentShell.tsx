@@ -44,13 +44,14 @@ import { normalizeResidentToolProjection, readResidentToolProjections, residentT
 import { proposalForTool, readableToolDetailRows, readableToolName, readableToolPreview, readableToolResult, readableToolSummary, readableToolTarget, residentToolProjectionForCall } from './resident/residentToolDisplay'
 import { GenerationProposalEditor } from './resident/GenerationProposalEditor'
 import { isGenerationProposalTool, proposalDecisionPayload } from './resident/generationProposalEditing'
-import { buildResidentReference, contextHandleForResidentReference, residentReferencePromptValue } from './resident/residentReferences'
+import { applyStoryboardSelectionToToolArgs, buildResidentReference, contextHandleForResidentReference, residentReferencePromptValue } from './resident/residentReferences'
 import { composeResidentSystemPrompt, libraryPromptMenuId, libraryPromptReferenceId } from './resident/residentPromptSelection'
 import { buildResidentContextSnapshot, mergeResidentContextHandles, type AgentContextSnapshot } from './resident/residentContextSnapshot'
 import { isTranscriptAtBottom, shouldFollowTranscript, transcriptScrollBehavior } from './resident/residentTranscriptScroll'
 import { isAgentActionIntent } from './agentIntent'
 import { buildStaticAgentSystemPrompt } from '../generationCanvas/agent/generationCanvasAgentClient'
 import { projectAgentSkillEvents } from './skillEventProjection'
+import { clearStoryboardPatchPreview, publishStoryboardPatchPreview } from '../creation/storyboard/storyboardPatchPreview'
 
 type ResidentSurface = Extract<WorkspaceMode, 'creation' | 'generation' | 'preview'>
 type PendingTool = { call: ToolCallEvent; bindingKey: string; state: ResidentApprovalState }
@@ -592,6 +593,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     } catch (caught) {
       setError(friendlyError(caught, t))
     } finally {
+      if (pending.call.toolName.toLowerCase() === 'patch_shots') clearStoryboardPatchPreview(key)
       residentResolvingTools.delete(key)
     }
   }, [proposalDrafts, t])
@@ -650,7 +652,18 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           ? selectedPromptPreset.prompt || selectedPrompt.prompt
           : undefined
       const systemPrompt = composeResidentSystemPrompt(surfaceSystemPrompt, activeSkill ? null : selectedLibraryPrompt)
-      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: options?.displayText ?? text, capability, ...(options?.toolProfile ? { toolProfile: options.toolProfile } : workspaceMode === 'storyboard' ? { toolProfile: 'storyboard' as const } : surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIdsAtSend : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: surface === 'creation' ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, workMode: runMode, approvalPolicy, skillKey, skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), contextSnapshot, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? ''); if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, call.args, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }; emitPending() } })
+      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: options?.displayText ?? text, capability, ...(options?.toolProfile ? { toolProfile: options.toolProfile } : workspaceMode === 'storyboard' ? { toolProfile: 'storyboard' as const } : surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIdsAtSend : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: surface === 'creation' ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, workMode: runMode, approvalPolicy, skillKey, skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), contextSnapshot, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => {
+        const effectiveArgs = applyStoryboardSelectionToToolArgs(call.toolName, call.args, references); const key = pendingKey(call)
+        const effectiveRecord = effectiveArgs && typeof effectiveArgs === 'object' && !Array.isArray(effectiveArgs) ? effectiveArgs as Record<string, unknown> : null
+        residentToolArgs.set(key, effectiveArgs); if (effectiveRecord && effectiveArgs !== call.args) setProposalDrafts((previous) => ({ ...previous, [key]: effectiveRecord }))
+        const pending: PendingTool = { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }; residentPendingTools.set(key, pending)
+        if (call.toolName.toLowerCase() === 'patch_shots' && effectiveRecord) {
+          publishStoryboardPatchPreview({ id: key, args: effectiveRecord, onApprove: () => { void resolveTool(pending, true, effectiveRecord).finally(() => clearStoryboardPatchPreview(key)) }, onDiscard: () => { void resolveTool(pending, false).finally(() => clearStoryboardPatchPreview(key)) } })
+        }
+        const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? '')
+        if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, effectiveArgs, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }
+        emitPending()
+      } })
       const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? '')
       if (projectionScope && response.toolCalls.length) {
         const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope)))
@@ -665,7 +678,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       }
       setLastTurnTokens(response.usage.totalTokens)
     } catch (caught) { setError(friendlyError(caught, t)) } finally { clearResidentPendingTools(turnId) }
-  }, [activeSkill, approvalPolicy, attachmentApi, attachments, closeMenu, creationDocumentTools, promptModeId, references, runMode, selectedLibraryPrompt, selectedPromptPreset, snapshot, surface, t, workspaceMode])
+  }, [activeSkill, approvalPolicy, attachmentApi, attachments, closeMenu, creationDocumentTools, promptModeId, references, resolveTool, runMode, selectedLibraryPrompt, selectedPromptPreset, snapshot, surface, t, workspaceMode])
 
   const submit = React.useCallback(async () => {
     const text = draft.trim(); if (!text || !snapshot) return; setError('')

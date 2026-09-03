@@ -25,6 +25,8 @@ import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionL
 import { positionsForAnchorFilter } from './storyboardDInteractions'
 import StoryboardSelectionToolbar from './StoryboardSelectionToolbar'
 import { confirmDialog } from '../../../design'
+import { useWorkbenchStore } from '../../workbenchStore'
+import { buildStoryboardReference } from '../../ai/resident/residentReferences'
 
 /**
  * 分镜表主体（v5 场分组 + 执行态）：`sceneGroupsOf` 把镜序切成场组——组头（▾ 场名 · N 镜 ·
@@ -89,6 +91,8 @@ function ShotRowWithMention(props: {
   onSetAsFirstFrame: Parameters<typeof StoryboardShotRow>[0]['onSetAsFirstFrame']
   selected: boolean
   onSelect: (event: React.MouseEvent) => void
+  selectedFrame: boolean
+  onSelectFrame: () => void
   scenes: readonly { id: string; title: string }[]
   onCopy: () => void
   onMoveToScene: (sceneId: string) => void
@@ -142,6 +146,8 @@ function ShotRowWithMention(props: {
       onSetAsFirstFrame={props.onSetAsFirstFrame}
       selected={props.selected}
       onSelect={props.onSelect}
+      selectedFrame={props.selectedFrame}
+      onSelectFrame={props.onSelectFrame}
       scenes={props.scenes}
       onCopy={props.onCopy}
       onMoveToScene={props.onMoveToScene}
@@ -176,6 +182,8 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
   const [foldedScenes, setFoldedScenes] = React.useState<ReadonlySet<string>>(new Set())
   const [selectedShotIds, setSelectedShotIds] = React.useState<ReadonlySet<string>>(new Set())
   const [selectionAnchor, setSelectionAnchor] = React.useState<number | null>(null)
+  const [selectedFrameKey, setSelectedFrameKey] = React.useState<string | null>(null)
+  const setProjectAgentReferences = useWorkbenchStore((state) => state.setProjectAgentReferences)
 
   const visiblePositions = positionsForAnchorFilter(plan, filterAnchorId ?? null)
   const visiblePlan = filterAnchorId ? { ...plan, shots: visiblePositions.map((position) => plan.shots[position]) } : plan
@@ -184,6 +192,13 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
   const selectedRows = rows.filter((runtime) => selectedShotIds.has(runtime.shot.shotId ?? `index:${runtime.shot.index}`))
   const selectableModelOptions = [...new Map([...imageModelOptions, ...videoModelOptions].map((option) => [option.value, option])).values()]
   const selectKeyOf = (shot: StoryboardRowRuntime['shot']): string => shot.shotId ?? `index:${shot.index}`
+  const addStoryboardReference = (scope: 'shot' | 'result', shot: StoryboardRowRuntime['shot']): void => {
+    const labelKey = scope === 'shot' ? 'storyboardEditor.row.referenceShot' : 'storyboardEditor.row.referenceResult'
+    const role = t(scope === 'shot' ? 'storyboardEditor.row.referenceShotRole' : 'storyboardEditor.row.referenceResultRole')
+    const label = t(labelKey, { index: shot.index })
+    const reference = buildStoryboardReference(scope, shot.index, label, role)
+    setProjectAgentReferences((previous) => previous.some((item) => item.id === reference.id) ? previous : [...previous, reference])
+  }
   const onSelectShot = (position: number, event: React.MouseEvent): void => {
     const keyAt = (index: number): string => selectKeyOf(rows[index].shot)
     const visible = visiblePositions
@@ -203,6 +218,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
       setSelectedShotIds(new Set([keyAt(position)]))
       setSelectionAnchor(visible.indexOf(position))
     }
+    addStoryboardReference('shot', rows[position].shot)
   }
   const moveSelectedToScene = (sceneId: string): void => {
     if (!sceneId) return
@@ -311,6 +327,13 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     onSetAsFirstFrame: runtime ? (targetIndex: number) => onSetResultAsFirstFrame(runtime, targetIndex) : undefined,
                     selected: selectedShotIds.has(selectKeyOf(shot)),
                     onSelect: (event: React.MouseEvent) => onSelectShot(pos, event),
+                    selectedFrame: selectedFrameKey === selectKeyOf(shot),
+                    onSelectFrame: () => {
+                      setSelectedFrameKey(selectKeyOf(shot))
+                      setSelectedShotIds(new Set([selectKeyOf(shot)]))
+                      setSelectionAnchor(visiblePositions.indexOf(pos))
+                      if (runtime?.exec.resultUrl) addStoryboardReference('result', shot)
+                    },
                     scenes: plan.scenes ?? [],
                     onCopy: () => onChange(duplicateShotAt(plan, pos)),
                     onMoveToScene: (sceneId: string) => onChange(updateShotAt(plan, pos, sceneId === '__none__' ? (() => { const { sceneId: _removed, ...rest } = shot; return rest })() : { sceneId })),

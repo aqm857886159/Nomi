@@ -43,6 +43,7 @@ type Props = {
   onSetAsFirstFrame?: ((targetIndex: number) => void) | undefined
   selected?: boolean
   onSelect?: ((event: React.MouseEvent) => void) | undefined
+  onSelectFrame?: (() => void) | undefined
 }
 
 /** 浮条按钮（mockup .actbar button：32×26 深底白字，悬停瞬时覆盖）。 */
@@ -157,8 +158,16 @@ export default function StoryboardShotFrame({
   onSetAsFirstFrame,
   selected,
   onSelect,
+  onSelectFrame,
 }: Props): JSX.Element {
   const { t } = useTranslation()
+  const frameAriaLabel = t('storyboardEditor.row.selectFrameAria', { index: shot.index })
+  const frameSelectionClass = selected ? 'ring-2 ring-nomi-accent ring-offset-1 ring-offset-nomi-paper' : ''
+  const onFrameClick = (event: React.MouseEvent<HTMLDivElement>): void => {
+    if ((event.target as HTMLElement).closest('button')) return
+    event.stopPropagation()
+    onSelectFrame?.()
+  }
   const indexBadge = (
     <button
       type="button"
@@ -196,8 +205,10 @@ export default function StoryboardShotFrame({
     const locked = exec.status === 'locked'
     return (
       <div
-        className="group/frame relative w-[76px] h-[132px] rounded-nomi overflow-hidden border border-nomi-line bg-nomi-ink-05"
+        className={cn('group/frame relative w-[76px] h-[132px] rounded-nomi overflow-hidden border border-nomi-line bg-nomi-ink-05', frameSelectionClass)}
         onDoubleClick={onOpenPreview}
+        onClick={onFrameClick}
+        aria-label={frameAriaLabel}
         data-storyboard-frame={exec.status}
       >
         <NomiImage
@@ -266,7 +277,8 @@ export default function StoryboardShotFrame({
   if (exec.status === 'generating') {
     return (
       <div
-        className="relative w-[76px] h-[132px] rounded-nomi overflow-hidden border border-nomi-line bg-nomi-ink-05"
+        className={cn('relative w-[76px] h-[132px] rounded-nomi overflow-hidden border border-nomi-line bg-nomi-ink-05', frameSelectionClass)}
+        onClick={onFrameClick}
         data-storyboard-frame="generating"
       >
         {exec.resultUrl ? (
@@ -293,7 +305,8 @@ export default function StoryboardShotFrame({
   if (exec.status === 'failed') {
     return (
       <div
-        className="relative w-[76px] h-[132px] rounded-nomi overflow-hidden border border-workbench-danger bg-workbench-danger-soft"
+        className={cn('relative w-[76px] h-[132px] rounded-nomi overflow-hidden border border-workbench-danger bg-workbench-danger-soft', frameSelectionClass)}
+        onClick={onFrameClick}
         data-storyboard-frame="failed"
       >
         {exec.resultUrl ? (
@@ -325,7 +338,8 @@ export default function StoryboardShotFrame({
   if (exec.status === 'missing-required') {
     return (
       <div
-        className="relative w-[76px] h-[132px] rounded-nomi border border-dashed border-workbench-danger bg-workbench-danger-soft flex flex-col items-center justify-center gap-1 p-2 text-center"
+        className={cn('relative w-[76px] h-[132px] rounded-nomi border border-dashed border-workbench-danger bg-workbench-danger-soft flex flex-col items-center justify-center gap-1 p-2 text-center', frameSelectionClass)}
+        onClick={onFrameClick}
         title={t('storyboardEditor.row.missingRequiredHint')}
         data-storyboard-frame="missing-required"
       >
@@ -344,7 +358,8 @@ export default function StoryboardShotFrame({
     const name = first?.anchor.name.trim() || t('storyboardEditor.unnamed')
     return (
       <div
-        className="relative w-[76px] h-[132px] rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05 flex flex-col items-center justify-center gap-1 p-2 text-center"
+        className={cn('relative w-[76px] h-[132px] rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05 flex flex-col items-center justify-center gap-1 p-2 text-center', frameSelectionClass)}
+        onClick={onFrameClick}
         data-storyboard-frame="waiting-refs"
       >
         {quietIndexBadge}
@@ -372,7 +387,8 @@ export default function StoryboardShotFrame({
   // ready：空格即生成入口（常驻按钮；与结果图的悬停浮条是两套出现逻辑，F3）。
   return (
     <div
-      className="relative w-[76px] h-[132px] rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05 grid place-items-center"
+      className={cn('relative w-[76px] h-[132px] rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05 grid place-items-center', frameSelectionClass)}
+      onClick={onFrameClick}
       data-storyboard-frame="ready"
     >
       {quietIndexBadge}
