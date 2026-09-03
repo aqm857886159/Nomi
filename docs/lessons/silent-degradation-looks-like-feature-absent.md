@@ -77,6 +77,32 @@ launcher 那句话没命中，被判成 chat 模式，于是它叙述而不行�
 判断「挡不挡路」的判据：猜错时**功能变成做不了**（挡路，必须可显式压过），还是**少给几个可选工具**
 （不挡路，兜底即可）。
 
+## 第三次复发：身份键少 vendor（已建门岗）
+
+同一天第三次：`modelHealthMemory` 按裸 modelKey 记账，Kie 的 gpt-image-2 连败 → APIMart 的同名
+模型一起被判病 → `pickHealthiestProvider` 的 healthyVendors 只能全好或全病 → **「换家优先于换模型」
+这个机制对它本来要解决的多供应商场景完全失效**，永远绕不开坏的那家。
+`useDedupedModelSelect.ts:47` 的注释写着「必须是**供应商级**而不是模型级」——**注释与实现对不上**。
+
+至此「模型身份键少 vendor」已发生三次（Agent 模型清单去重 / 分镜 IR / 健康记账），
+三次都独立、都真实、都靠真金白银才撞见。三次 = 不是巧合，是这个代码库的结构性倾向。
+
+**处置升级为门岗**：`check:model-identity`（棘轮，基线 10 条）。判据在**签名层**——
+带 `modelKey`/`modelAlias` 的对象类型或函数参数列表，必须同时带供应商字段。
+
+诚实的效力边界（写下来，免得把「门岗绿」读成「这一类不会再发生」）：
+
+| 已发生的三次 | 门岗抓得住吗 |
+|---|---|
+| `PlanShot` 少 `modelVendor` | ✅ 对象类型，红灯探针已验 |
+| `modelHealthMemory(modelKey, now?)` | ✅ 函数参数，红灯探针已验 |
+| `buildAgentModelEntries` 运行时按 key 去重 | ❌ 类型层看不见运行时用了哪个键 |
+
+第三种靠去重回归测试钉（`availableModels.test.ts` / `useDedupedModelSelect.test.ts`）。
+**扫描范围只覆盖多供应商并存那一层**（`src/workbench` + `src/config`）：catalog 种子表 /
+认证会话 / 供应商适配器都在「一家一个文件」的语境里，裸 modelKey 在那儿正当——全仓扫会得到
+108 条基线、95% 是噪音，冻结噪音的门岗没有价值（R20）。
+
 ## 更要紧的一条
 
 三个症状里，报告对根因的两处猜测事后实测**都是错的**（猜 `availableModels.ts:135-153` 按名字挑选、
