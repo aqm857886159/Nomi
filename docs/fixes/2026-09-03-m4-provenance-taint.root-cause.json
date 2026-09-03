@@ -1,0 +1,100 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-m4-provenance-taint",
+  "problem_type": "Prompt sections lose source identity and trust as information crosses the Agent context compiler",
+  "symptom": "A loaded Skill, project asset, or fetched external fragment can reach an outbound prompt as plain text, so downstream receipts cannot show which source was untrusted.",
+  "direct_cause": "The seven-layer PromptPipe stores one legacy trust value per section and has no structured source reference or AssetSourceEvidence link for fragments.",
+  "class_root": "Every prompt fragment must carry a canonical source category, source reference, trust decision, and derived taint bit at the shared outbound compiler boundary.",
+  "affected_population": [
+    "All Agent turns that load Skills or include project resources",
+    "All future web-fetched and external-MCP context fragments",
+    "All receipts and action gates that need to identify untrusted prompt inputs"
+  ],
+  "scope_paths": [
+    "electron/harness/context/provenance.ts",
+    "electron/harness/context/promptPipe.ts"
+  ],
+  "entry_points": [
+    "compilePromptPipe seven-layer outbound context",
+    "skillBodyContent loaded Skill injection",
+    "project asset and external fragment prompt inputs"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The source taxonomy and propagation rules are the M4 contracts in the checked-in M-line rulings, Creative Resource Chain plan, and PromptPipe M3 implementation.",
+  "invariants": [
+    "Every non-empty PromptSection exposes at least one structured provenance mark and retains it through budget truncation.",
+    "Skill content, web-fetched text, external MCP text, and non-cleared project assets are tainted and have untrusted trust.",
+    "Project asset provenance holds the exact AssetSourceEvidence object as the source-of-truth reference; M4 does not define a second license, fetchedAt, or usageStatus snapshot.",
+    "CompiledPrompt.taintedSourceRefs is derived from final retained sections and never hand-counted or independently persisted."
+  ],
+  "generality_proof": "All current outbound Agent turns converge on compilePromptPipe, and every supported fragment category is normalized there before section construction; a future caller cannot bypass source marking by supplying a plain fragment without entering this compiler.",
+  "shared_boundaries": [
+    {
+      "path": "electron/harness/context/provenance.ts",
+      "symbol": "createProvenanceMark",
+      "responsibility": "Derive trust and taint from the canonical source category and the reused AssetSourceEvidence usageStatus."
+    },
+    {
+      "path": "electron/harness/context/promptPipe.ts",
+      "symbol": "compilePromptPipe",
+      "responsibility": "Attach provenance to all seven layers, preserve it across budget decisions, and derive the final tainted source projection."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/ai/agentChatV2.ts",
+      "entry_point": "runAgentChatV2",
+      "disposition": "enforced",
+      "evidence": "The current runtime caller already converges on compilePromptPipe for every outbound turn; loaded Skill events are marked at the compiler boundary."
+    },
+    {
+      "path": "electron/harness/context/agentContext.ts",
+      "entry_point": "legacy context helpers",
+      "disposition": "not-affected",
+      "evidence": "These helpers are characterization/compatibility utilities and do not send an outbound Agent request; the production outbound path is PromptPipe."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "New prompt sources, Skill packages, connectors, browser imports, and MCP responses can all introduce the same plain-text provenance loss if they bypass the compiler metadata contract.",
+    "same_class_scan": [
+      "Searched PromptPipe, agentChatV2, Skill load events, project asset source evidence, MCP skill reads, and context helper callers.",
+      "Checked the Creative Resource Chain M4 shared-point contract and reused AssetSourceEvidence instead of introducing another license or source snapshot.",
+      "Added PromptPipe class coverage for Skill, project_asset, and web_fetched propagation plus final tainted source derivation."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/harness/context/promptPipe.ts",
+    "invariant": "No outbound section is constructed without provenance; untrusted origins remain tainted after section assembly and budget trimming.",
+    "failure_mode": "Missing optional fragment metadata falls back to an explicit host-derived mark; untrusted source categories are never upgraded by caller-supplied trust fields.",
+    "exception_policy": "none",
+    "strategy": "Normalize all supported source marks once, derive trust from source and AssetSourceEvidence usageStatus, then compute the receipt from final sections.",
+    "artifacts": [
+      "electron/harness/context/provenance.ts",
+      "electron/harness/context/promptPipe.ts",
+      "electron/harness/context/promptPipe.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/harness/context/promptPipe.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/harness/context/promptPipe.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old section trust field remains as a derived compatibility projection; no second source snapshot or parallel compiler was added."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is implemented by Nomi's existing TypeScript PromptPipe and AssetSourceEvidence contracts; no third-party dependency controls it.",
+    "exit_criteria": []
+  },
+  "migration": "Existing PromptPipe callers remain valid because legacy string fields receive explicit host/user fallback marks. New callers may opt into structured fragment parts without changing persisted project data.",
+  "residual_risks": [
+    "Dangerous action interception and ledger/UI projection are intentionally left for slice C.",
+    "The AssetSourceEvidence v2 dependency is PR #388 and is not yet merged into origin/main."
+  ]
+}

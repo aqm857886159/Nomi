@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { ProjectAgentMutation } from "../shared/projectAgentContracts";
 import * as reducerModule from "./projectAgentReducer";
 import { ProjectAgentReducerError, reduceProjectAgentMutation } from "./projectAgentReducer";
-import { __projectAgentFullValidationCountForTests, createInitialProjectAgentState } from "./projectAgentState";
+import {
+  __projectAgentFullValidationCountForTests,
+  createInitialProjectAgentState,
+  snapshotProjectAgentHostState,
+} from "./projectAgentState";
 
 const binding = {
   projectId: "project-a",
@@ -169,19 +173,39 @@ describe("ProjectAgent reducer bounded idempotency history", () => {
     ).toThrowError(expect.objectContaining<Partial<ProjectAgentReducerError>>({ code: "command_id_conflict" }));
   });
 
+  // 2026-09-03：这条此前用 `performance.now() < 8_000` 当判据，是负载敏感 flake 的另一条腿
+  // ——它在本轮全量 gates（1122 个测试文件并行）里实测 8145ms 红，只超 1.8%，没有任何算法改动。
+  // 上一版注释已经把预算从 2s 放宽到 8s 过一次；再放宽只是把同一枚地雷往后埋。
+  //
+  // 换判据：这里怕的「cubic」有确切机制——assertProjectAgentHostState 内部有一段
+  // `for (const approval of state.proposalApprovals)`，循环体里是 `state.queue.find` +
+  // `state.turns.find`（projectAgentState.ts:660-682），即单次全量校验本身就是 O(队列×审批)。
+  // 只要这个全量校验**每条命令都跑一次**，N 条命令就把它抬成 cubic。所以真正要钉的不变量是
+  // 「入队热路径一次全量状态校验都不许触发」——而 fullValidationCount 正是它的直接观测点
+  // （projectAgentState.ts 在 assertProjectAgentHostState 前一行自增），本文件上一条用例
+  // 已经是这个写法。计数器与机器快慢无关，于是墙钟彻底退出判据。
+  const QUEUE_DEPTH = 256;
+
   it("keeps queued-turn invariant validation out of the cubic growth path", () => {
     let state = createInitialProjectAgentState(binding);
-    const startedAt = performance.now();
-    for (let index = 0; index < 1_000; index += 1) {
+    const validationsBefore = __projectAgentFullValidationCountForTests();
+
+    for (let index = 0; index < QUEUE_DEPTH; index += 1) {
       state = reduceProjectAgentMutation(state, enqueueMutation(index)).state;
     }
-    expect(state.turns).toHaveLength(1_000);
-    expect(state.queue).toHaveLength(1_000);
-    // This guards the linear→cubic regression, not a fixed latency SLA. Isolated the loop is ~560ms;
-    // under the full 1084-file Vitest run it can starve to ~3.7s purely from CPU contention (measured),
-    // so a 2s budget flakes on load without any algorithmic change. A cubic path at n=1000 is ~10^6×
-    // slower (minutes), so an 8s budget still trips the regression while surviving parallel load — and
-    // the 10s per-test timeout remains a hard ceiling. Not a timeout-widen to mask a real failure.
-    expect(performance.now() - startedAt).toBeLessThan(8_000);
-  }, 10_000);
+
+    expect(state.turns).toHaveLength(QUEUE_DEPTH);
+    expect(state.queue).toHaveLength(QUEUE_DEPTH);
+    // 队列涨到 QUEUE_DEPTH 的整个过程里，全量校验必须一次都没跑。这才是 cubic 与否的分水岭；
+    // 命令数只要够让队列真的变深即可，判据本身不随 N 变化，所以不必再烧 1,000 条命令的 CPU。
+    expect(__projectAgentFullValidationCountForTests() - validationsBefore).toBe(0);
+
+    // 阳性对照（内建，防止上面退化成永远为真的空断言）：把状态拷成一份「不受信」的等价对象，
+    // 强制走一次真正的全量校验——它必须①能通过（证明热路径跳过校验没有藏下非法状态）
+    // ②让计数器正好 +1（证明这个计数器确实是活信号）。
+    const untrusted = JSON.parse(JSON.stringify(state)) as unknown;
+    const revalidated = snapshotProjectAgentHostState(untrusted);
+    expect(revalidated.queue).toHaveLength(QUEUE_DEPTH);
+    expect(__projectAgentFullValidationCountForTests() - validationsBefore).toBe(1);
+  });
 });

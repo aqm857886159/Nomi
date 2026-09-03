@@ -211,6 +211,10 @@ export type MultiShotGateProjection = {
   hardLimit?: number | null;
   anchorChips?: Array<{ label: string; price: ShotPrice }>;
   waitSeconds?: number | null;
+  /** J06 — 估计依据：'coldstart' = 无历史数据时给区间（low/high），'historical' = P50/P90 实测值。 */
+  etaBasis?: 'coldstart' | 'historical';
+  /** J06 — 冷启动悲观上限（秒）；仅 etaBasis='coldstart' 时存在。 */
+  waitSecondsHigh?: number | null;
   frozenItems?: string[];
   expiresAt?: string | null;
 };

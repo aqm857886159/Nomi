@@ -4,6 +4,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { desktopT } from "../../i18n";
+import { nowIso } from "../../jsonUtils";
+import { sanitizeSourceEvidence } from "../../assets/projectAssetStore";
 import { captureFileName } from "../captureNaming";
 import { BROWSER_MEDIA_MAX_BYTES, detectAnimatedImage, mediaTypeFromContentType, resolveBrowserMediaContentType, streamBrowserMediaResponseToFile } from "./browserMediaValidation";
 import {
@@ -481,6 +483,15 @@ export async function importBrowserMedia(record: BrowserViewRecord, payload: Bro
     }
   }
 
+  // P0-1 来源取证：浏览器导入路径——usageStatus 强制为 reference_only（诚实默认）。
+  // 没核实过许可的网页素材，进项目后不能自动当成可商用内容。
+  const browserSourceEvidence = sanitizeSourceEvidence({
+    source: "browser",
+    pageUrl: safeHeaderUrl(pageUrl) || "",
+    capturedAt: nowIso(),
+    usageStatus: "reference_only",
+  });
+
   try {
     const { moveAssetFile } = await import("../../runtime");
     return moveAssetFile(
@@ -504,6 +515,8 @@ export async function importBrowserMedia(record: BrowserViewRecord, payload: Bro
         // 来源质量诚实标注（sidecar 持久化，素材卡显示「网页原图/页面截图/视频当前帧」）。
         ...(captureQuality !== "original" ? { captureQuality } : {}),
         ...(animatedImage ? { animated: true } : {}),
+        // P0-1 来源取证（带 usageStatus: reference_only，后续导出署名清单可读取）。
+        ...(browserSourceEvidence ? { sourceEvidence: browserSourceEvidence } : {}),
       },
     );
   } finally {
@@ -536,12 +549,20 @@ async function movePromptReferenceFile(input: {
 }): Promise<unknown | null> {
   if (!input.projectId) return null;
   const { moveAssetFile } = await import("../../runtime");
+  // P0-1 来源取证：浏览器提示词参考图来源——usageStatus 强制为 reference_only（诚实默认）。
+  const promptRefEvidence = sanitizeSourceEvidence({
+    source: "browser",
+    pageUrl: safeHeaderUrl(input.pageUrl || "") || "",
+    capturedAt: nowIso(),
+    usageStatus: "reference_only",
+  });
   return moveAssetFile(input.projectId, input.absolutePath, input.fileName, input.contentType, {
     kind: "browser-prompt-reference",
     originalUrl: input.sourceUrl || null,
     pageUrl: safeHeaderUrl(input.pageUrl || "") || null,
     title: input.title || null,
     mediaType: "image",
+    ...(promptRefEvidence ? { sourceEvidence: promptRefEvidence } : {}),
   });
 }
 
