@@ -13,6 +13,7 @@ import readline from 'node:readline'
 
 import { createMcpProtocol, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
 import { MAX_MCP_LINE_BYTES, parseMcpStdioLine } from './mcpStdioLine'
+import { recordDetectedMcpClient } from './mcpDetectedClients'
 // 直接吃纯 locale 模块，不经 i18n.ts——后者顶层 `import { app } from 'electron'`，本 launcher 打包后跑在
 // 无 electron 的裸 Node 里，引 i18n 会 MODULE_NOT_FOUND。这条 electron-free 由 mcpLauncherClosure.test.ts 钉死。
 import { normalizeDesktopLocale, type DesktopLocale } from '../desktopLocale'
@@ -297,7 +298,28 @@ const protocol = createMcpProtocol({
       ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}),
     }
   },
+  // 打包态：client_elicitation 路径——客户端在调用方 accept 后，通过 loopback RPC 让主进程铸收据。
+  // 主进程持有 macKey，是唯一能签 client_elicitation attestation 的一方；
+  // 此函数是 mcpGateConfirmation.ts 中 verifyClientGenerationConfirmation 的装配点。
+  verifyClientGenerationConfirmation: async (challenge) => {
+    const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
+      ? challenge.handoff.challengeToken
+      : ''
+    const instance = readLiveInstance()
+    const authenticatedClient = launcherConnection().authenticatedClient
+    if (!challengeToken || !instance || !authenticatedClient) return { confirmed: false }
+    const result = await callViaRpc(instance, 'nomi_verify_client_generation_gate', { challengeToken, authenticatedClient })
+    const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
+    return {
+      confirmed: typed.confirmed === true,
+      ...(typed.receiptId ? { receiptId: typed.receiptId } : {}),
+      ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}),
+    }
+  },
   getLocale: () => launcherLocale,
+  // 打包态（裸 Node）与开发态（Electron stdio）共用同一套检测档案。
+  // mcpDetectedClients 是 bare-Node safe，不引 electron，可安全接入。
+  onClientDetected: (name) => { recordDetectedMcpClient(name) },
 })
 
 const input = readline.createInterface({ input: process.stdin })

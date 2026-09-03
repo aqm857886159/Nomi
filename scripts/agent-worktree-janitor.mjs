@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url'
 export const MARKER_RELATIVE_PATH = '.claude/agent-worktree-stop.json'
 export const DEFAULT_GRACE_MS = 15 * 60 * 1000
 /**
- * 未登记 worktree 回收依赖的静默期。比 marker 的 15 分钟宽限长得多：没有 marker 就没有
+ * 未登记 worktree 回收可再生目录的静默期。比 marker 的 15 分钟宽限长得多：没有 marker 就没有
  * 「会话已结束」这个明确信号，只能靠「很久没人动过」来推断，所以门槛要保守。
  */
 export const DEFAULT_UNMANAGED_IDLE_MS = 3 * 24 * 60 * 60 * 1000
@@ -24,37 +24,37 @@ export function decideAction({
   graceMs = DEFAULT_GRACE_MS,
   idleAgeMs = Number.NaN,
   unmanagedIdleMs = DEFAULT_UNMANAGED_IDLE_MS,
-  dependencyDirs = [],
+  reclaimableDirs = [],
 }) {
   if (active) return { kind: 'skip', reason: 'active' }
   if (!marker || marker.kind !== 'agent-worktree-lease' || marker.status !== 'stopped') {
     // 没有 marker 就没有「会话已正常结束」的凭据，所以**目录本身永远不删**——它可能装着
     // 别人的未提交改动。但依赖目录是可再生物（pnpm install 就回来），删它不需要任何安全
     // 证明，只需要确认长时间没人动过。marker 因此从「所有动作的前置」降级为「删目录的前置」。
-    if (dependencyDirs.length === 0) return { kind: 'skip', reason: 'unmanaged' }
+    if (reclaimableDirs.length === 0) return { kind: 'skip', reason: 'unmanaged' }
     if (!Number.isFinite(idleAgeMs) || idleAgeMs < unmanagedIdleMs) {
       return { kind: 'skip', reason: 'unmanaged-recent' }
     }
-    return { kind: 'prune-dependencies', reason: 'unmanaged-idle-deps-only' }
+    return { kind: 'prune-reclaimable', reason: 'unmanaged-idle-reclaimable-only' }
   }
   if (!Number.isFinite(markerAgeMs) || markerAgeMs < graceMs) {
     return { kind: 'skip', reason: 'grace-period' }
   }
   if (kind === 'full-clone') {
-    return dependencyDirs.length > 0
-      ? { kind: 'prune-dependencies', reason: 'full-clone-deps-only' }
+    return reclaimableDirs.length > 0
+      ? { kind: 'prune-reclaimable', reason: 'full-clone-reclaimable-only' }
       : { kind: 'skip', reason: 'full-clone-protected' }
   }
   if (kind !== 'linked-worktree') return { kind: 'skip', reason: 'unknown-kind' }
   if (detached) {
-    return dependencyDirs.length > 0
-      ? { kind: 'prune-dependencies', reason: 'detached-deps-only' }
+    return reclaimableDirs.length > 0
+      ? { kind: 'prune-reclaimable', reason: 'detached-reclaimable-only' }
       : { kind: 'skip', reason: 'detached-protected' }
   }
   if (clean) return { kind: 'remove-worktree', reason: 'stopped-clean-inactive' }
-  return dependencyDirs.length > 0
-    ? { kind: 'prune-dependencies', reason: 'stopped-dirty-inactive' }
-    : { kind: 'skip', reason: 'dirty-no-dependencies' }
+  return reclaimableDirs.length > 0
+    ? { kind: 'prune-reclaimable', reason: 'stopped-dirty-inactive' }
+    : { kind: 'skip', reason: 'dirty-no-reclaimable' }
 }
 
 function git(cwd, args) {
@@ -119,8 +119,8 @@ function readMarker(worktreePath) {
  * 更新它）、以及各依赖目录（装包/构建会动）。任何一个读不到就当它是刚动过——宁可少清，
  * 不可误删。
  */
-function worktreeIdleMs(worktreePath, dependencyDirs, now) {
-  const probes = [worktreePath, join(worktreePath, '.git'), ...dependencyDirs]
+function worktreeIdleMs(worktreePath, reclaimableDirs, now) {
+  const probes = [worktreePath, join(worktreePath, '.git'), ...reclaimableDirs]
   let newest = Number.NaN
   for (const probe of probes) {
     try {
@@ -133,8 +133,20 @@ function worktreeIdleMs(worktreePath, dependencyDirs, now) {
   return Number.isFinite(newest) ? now - newest : Number.NaN
 }
 
-function findDependencyDirs(worktreePath) {
-  const output = tryExec('find', [worktreePath, '-type', 'd', '-name', 'node_modules', '-prune', '-print'])
+// 可回收目录 = 装出来的依赖 + 构建出来的产物。两者安全等级相同：都在 .gitignore 里、
+// 都从不入库、都能重新生成（`pnpm install` / `pnpm build`），区别只是重建代价。
+// 刻意用显式清单而不是解析 .gitignore——ignore 规则里还有日志、缓存、用户导出物等
+// 「不该由 janitor 代为决定删不删」的条目，全量套用会把语义从「可再生」偷换成「未跟踪」。
+// 清单不许悄悄漂移：node-test 里有一条断言逐个验证它们确实被 .gitignore 覆盖，
+// 因此新增一个没被忽略（= 可能是源码）的名字会直接把测试打红。
+export const RECLAIMABLE_DIR_NAMES = ['node_modules', 'dist', 'dist-electron', 'dist-local', 'release']
+
+export function findReclaimableDirs(worktreePath) {
+  // -prune 命中后不再下潜，所以嵌套在 node_modules 内的 dist 不会被重复列出。
+  const nameMatchers = RECLAIMABLE_DIR_NAMES.flatMap((name, index) =>
+    index === 0 ? ['-name', name] : ['-o', '-name', name],
+  )
+  const output = tryExec('find', [worktreePath, '-type', 'd', '(', ...nameMatchers, ')', '-prune', '-print'])
   if (!output) return []
   return output
     .split('\n')
@@ -245,7 +257,7 @@ function inspectWorktree(repoRoot, entry, now = Date.now(), graceMs = DEFAULT_GR
   const marker = readMarker(path)
   const stoppedAt = marker?.stoppedAt ? Date.parse(marker.stoppedAt) : NaN
   const status = getStatus(path)
-  const dependencyDirs = findDependencyDirs(path)
+  const reclaimableDirs = findReclaimableDirs(path)
   const kind = worktreeKind(path, repoRoot)
   const managedStop = marker?.kind === 'agent-worktree-lease' && marker.status === 'stopped'
   const staleStop = managedStop && Number.isFinite(stoppedAt) && now - stoppedAt >= graceMs
@@ -258,10 +270,10 @@ function inspectWorktree(repoRoot, entry, now = Date.now(), graceMs = DEFAULT_GR
     marker,
     markerAgeMs: Number.isFinite(stoppedAt) ? now - stoppedAt : NaN,
     graceMs,
-    idleAgeMs: worktreeIdleMs(path, dependencyDirs, now),
-    dependencyDirs,
+    idleAgeMs: worktreeIdleMs(path, reclaimableDirs, now),
+    reclaimableDirs,
   })
-  return { ...entry, kind, clean: !status, active, dependencyDirs, action, marker }
+  return { ...entry, kind, clean: !status, active, reclaimableDirs, action, marker }
 }
 
 function runAction(repoRoot, worktree, action, apply) {
@@ -270,9 +282,9 @@ function runAction(repoRoot, worktree, action, apply) {
     console.log(`[dry-run] ${action.kind}: ${worktree.path} (${action.reason})`)
     return
   }
-  if (action.kind === 'prune-dependencies') {
-    if (worktree.dependencyDirs.length === 0) return
-    execFileSync('git', ['-C', worktree.path, 'clean', '-fdx', '--', ...worktree.dependencyDirs], {
+  if (action.kind === 'prune-reclaimable') {
+    if (worktree.reclaimableDirs.length === 0) return
+    execFileSync('git', ['-C', worktree.path, 'clean', '-fdx', '--', ...worktree.reclaimableDirs], {
       stdio: ['ignore', 'inherit', 'inherit'],
     })
     console.log(`pruned dependencies: ${worktree.path}`)

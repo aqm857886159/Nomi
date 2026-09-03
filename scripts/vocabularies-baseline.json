@@ -11,26 +11,9 @@
         "reason": "HTML media element 的播放生命周期观测点（对应 onCanPlay / onError / onLoadedMetadata 三个原生事件），是 J09「全屏预览短暂无法播放」的取证埋点专用维度。它描述的是浏览器媒体元素状态，不是 Nomi 的业务阶段（generation stage / run status / gate status），故不复用任何既有业务词表；成员集由 HTML 规范的事件名决定，不由我们扩展。"
     },
     {
-      "site": "electron/assets/projectAssetStore.ts::variable:VALID_USAGE_STATUSES/set",
-      "members": [
-        "cleared",
-        "reference_only",
-        "requires_attribution",
-        "restricted",
-        "rights_unknown"
-      ],
-      "reason": "AssetSourceEvidence.usageStatus 的运行时白名单由 projectAssetStore 统一校验 sidecar 数据；M4 只读取该合同，不复制或重写素材许可状态词表。"
-    },
-    {
       "site": "electron/connectors/connectorDefinition.ts::type:UsageStatus/type-union",
-      "members": [
-        "cleared",
-        "reference_only",
-        "requires_attribution",
-        "restricted",
-        "rights_unknown"
-      ],
-      "reason": "UsageStatus 是 AssetSourceEvidence 的唯一类型 owner，表达素材可用性而非 Agent 生命周期；M4 provenance 通过 AssetSourceEvidence 引用它，不另造来源可信度枚举。"
+      "members": ["cleared", "reference_only", "requires_attribution", "restricted", "rights_unknown"],
+      "reason": "UsageStatus 是 P0-1 来源取证的五态操作性枚举（代表「系统该怎么对待这份素材」，不是法律结论）：reference_only 浏览器/本地来源的诚实默认，rights_unknown connector 抓取平台内容的默认，requires_attribution CC BY 族等必须署名的来源，cleared 已核实可用（仅 Pixabay API 等明确授权来源才设），restricted 在当前用途下受限。与 M4 taint 系统对齐：usageStatus 是 content trust level 维度，M4 output projection 直接读取。projectAssetStore.ts 的 VALID_USAGE_STATUSES 运行时 Set 从此类型 derive，不另立成员列表。"
     },
     {
       "site": "electron/ai/antigravityProtocol.ts::type:AntigravityToolStep/property:state/type-union",
@@ -593,7 +576,7 @@
       "reason": "Project Agent Host 执行生产审批后回传给 coordinator 的二值结算信号（done 执行成功 / failed 执行失败）：settle 只把「这次已批准动作最终成/败」通知宿主以推进回合，是审批执行的收尾回执，不是 job 生命周期态也不是 UI 占位态；仅二值、与 ShotPlaceholderPhase 用途不同，故独立。"
     },
     {
-      "site": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts::type:ProjectAgentExecutionCoordinatorDeps/property:reportInternalError/parameter:context/property:phase/type-union",
+      "site": "electron/projectAgentHost/projectAgentExecutionCoordinatorTypes.ts::type:ProjectAgentExecutionCoordinatorDeps/property:reportInternalError/parameter:context/property:phase/type-union",
       "members": [
         "start",
         "terminalize-runtime-failure"
@@ -601,7 +584,7 @@
       "reason": "Project Agent 执行协调器上报内部错误时标注「错误发生在回合的哪个阶段」（start 启动阶段 / terminalize-runtime-failure 终结化运行时失败阶段）：它只服务错误遥测的现场定位，是内部诊断维度，不是对外的任务/审批状态，取值专属于协调器内部编排，故独立。"
     },
     {
-      "site": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts::type:SubscriptionDelivery/property:phase/type-union",
+      "site": "electron/projectAgentHost/projectAgentExecutionCoordinatorTypes.ts::type:SubscriptionDelivery/property:phase/type-union",
       "members": [
         "activating",
         "live",

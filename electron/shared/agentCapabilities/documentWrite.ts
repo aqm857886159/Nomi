@@ -61,7 +61,7 @@ export const DOCUMENT_WRITE_CAPABILITY = {
       description: "Propose an insertion, selection replacement, or append to the current creation document.",
     },
     mcp: {
-      description: "Propose an insertion, selection replacement, or append to the current creation document.",
+      description: "Propose document insertion, selection replacement, or append.",
     },
   },
 } as const satisfies CapabilityContract<DocumentWriteInput, DocumentWriteResult>;

@@ -26,7 +26,7 @@ export function createDefaultAuthorities(generationPolicy: McpGenerationPolicy, 
 } = {}): Pick<
   DispatchContext,
   'approvalReceiptAuthority' | 'projectRevisionResolver' | 'confirmGenerationInNomi'
-> & Pick<RpcServerOptions, 'projectSessionAuthority'> {
+> & Pick<RpcServerOptions, 'projectSessionAuthority' | 'verifyClientGenerationGateInMain'> {
   const authorityDir = capabilityCoreDir()
   const sharedLock = createProductionRunLock({
     filePath: path.join(authorityDir, 'semantic-authorities.lock'),
@@ -88,10 +88,20 @@ export function createDefaultAuthorities(generationPolicy: McpGenerationPolicy, 
       receiptToken: receipt.token,
     }
   }
+  const verifyClientGenerationGateInMain = async ({ challengeToken, authenticatedClient }: { challengeToken: string; authenticatedClient: string }) => {
+    const attestation = receiptAuthority.createClientElicitationAttestation(challengeToken, authenticatedClient)
+    const receipt = receiptAuthority.mintReceipt(challengeToken, attestation)
+    return {
+      confirmed: true,
+      receiptId: receipt.receipt.receiptId,
+      receiptToken: receipt.token,
+    }
+  }
   return {
     projectSessionAuthority: projectSession.authority,
     approvalReceiptAuthority: receiptAuthority,
     confirmGenerationInNomi,
+    verifyClientGenerationGateInMain,
     projectRevisionResolver: (projectId) => readWorkspaceProject(projectId, getWorkspaceRepositoryDeps())?.revision,
   }
 }

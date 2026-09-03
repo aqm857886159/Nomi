@@ -56,6 +56,7 @@ import { createRunOwnedGenerationGateAuthority } from './runOwnedGenerationGateA
 import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
 import { startSemanticMultiShotBatch } from './mcpSemanticBatchStart'
 import { hasGenerationOperationProviderReadiness } from './generationOperationProviderReadiness'
+import { recordDetectedMcpClient } from './mcpDetectedClients'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 
 const productionRuns = getProductionRunService()
@@ -430,6 +431,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     ),
     isAppOpen: () => Boolean(readLiveInstance(currentLibrary())),
     getAuthenticatedClient: () => connection.authenticatedClient,
+    onClientDetected: (name) => { recordDetectedMcpClient(name) },
     confirmGenerationInNomi: async (challenge) => {
       const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
         ? challenge.handoff.challengeToken
@@ -437,6 +439,19 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
       const instance = readLiveInstance(currentLibrary())
       if (!challengeToken || !instance) return { confirmed: false }
       const result = await callViaRpc(instance, 'nomi_confirm_generation_gate', { challengeToken }, connection)
+      const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
+      return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
+    },
+    // Electron stdio 态：client_elicitation 路径——客户端在调用方 accept 后，通过 loopback RPC 让主进程铸收据。
+    // 此函数是 mcpGateConfirmation.ts 中 verifyClientGenerationConfirmation 的装配点。
+    verifyClientGenerationConfirmation: async (challenge) => {
+      const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
+        ? challenge.handoff.challengeToken
+        : ''
+      const instance = readLiveInstance(currentLibrary())
+      const authenticatedClient = connection.authenticatedClient
+      if (!challengeToken || !instance || !authenticatedClient) return { confirmed: false }
+      const result = await callViaRpc(instance, 'nomi_verify_client_generation_gate', { challengeToken, authenticatedClient }, connection)
       const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
       return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
     },

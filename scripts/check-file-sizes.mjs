@@ -40,15 +40,14 @@ const ALLOWLIST = {
   // Project Agent Host 迁移巨壳（M1 transplant：electron 切片随 r2 入库、renderer 切片随
   // 本次 cutover 入库；上游 pr223 原型已人工评审同一批 owner，数字按本分支实际行数锁棘轮，
   // 只减不增，下一个分解批次按稳定 ownership seam 拆分后逐个出表）。834→836：并 origin/main 的
-  // TikHub connector（#296）加 registerTikhubConnectorIpc 的 import+调用两行；836→843：
-  // registerIntegrationHandoffIpc + registerIntegrationSessionIpc 的 import+调用（integration
-  // certification handoff queue，0b6441c6 transplant 时误删后按根因恢复）；仍远低于本分支起点 847。
-  "electron/main.ts": 843,
+  // TikHub connector（#296）加 registerTikhubConnectorIpc 的 import+调用两行；836→839：#298-v2
+  // 自定义 MCP 客户端 profile 接入（registerCustomMcpProfileIpc + watchMcpProfiles + import）3行；
+  // 839→846：registerIntegrationHandoffIpc + registerIntegrationSessionIpc 的 import+调用（integration
+  // certification handoff queue，0b6441c6 transplant 时误删后按根因恢复）7行；仍远低于本分支起点 847。
+  "electron/main.ts": 846,
   "electron/capabilityCore/mcpGenerationTools.ts": 826, // 803→826（2026-09-03 J05 changeset + J06 coldstartEtaForGate — net +23 行根因修复）
   "electron/capabilityCore/verifiedCapabilityInvocation.ts": 1257,
   "electron/productionRun/productionRunService.ts": 814,
-  "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1839, // 2026-09-02 M3: ledger extraction kept the coordinator below its prior ratchet.
-  "electron/projectAgentHost/projectAgentReducer.ts": 936,
   "electron/projectAgentHost/projectAgentState.ts": 809,
   // Phase 6 常驻壳成为唯一 Agent UI 后的应用外壳（pr223 评审基线曾为 908；并 origin/main 拆解面板宿主后
   // 折叠一行多名 import，曾 907；m1 侧栏收起修复顺手折叠 hydrate/navigate 多行调用参数，实际 903，锁棘轮只减不增）。

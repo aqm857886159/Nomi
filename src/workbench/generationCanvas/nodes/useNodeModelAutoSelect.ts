@@ -22,7 +22,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { CanvasMutationOptions } from '../store/canvasGuards'
 import { whenCanvasWriteBoundarySettled } from '../events/canvasWriteBoundary'
 import { remapArchetypeMode } from '../runner/usableVendorModel'
-import { showInfoToast } from '../../../utils/showInfoToast'
+import { providerSwitchToastId, showInfoToast } from '../../../utils/showInfoToast'
 import { chooseDefaultModelOption, resolveArchetypeForOption } from './nodeModelArchetype'
 import {
   generationModelDefaultsLoaded,
@@ -227,7 +227,13 @@ export function useNodeModelAutoSelect({
           : { imageModel: target.value, imageModelVendor: optionVendor }),
       },
     })
-    showInfoToast(t('generationCommon.node.providerDisconnectedSwitched', { model: target.label }))
+    const sourceVendor = readMeta(meta, 'modelVendor') || readMeta(meta, 'vendor')
+    const sourceModel = readMeta(meta, 'modelAlias') || readMeta(meta, 'modelKey') || selectedModelValue
+    const targetModel = target.modelAlias || target.modelKey || target.value
+    showInfoToast(
+      t('generationCommon.node.providerDisconnectedSwitched', { model: target.label }),
+      providerSwitchToastId([node.id, sourceVendor, sourceModel, optionVendor, targetModel]),
+    )
   }, [
     isGenerationNode,
     isVideoLike,

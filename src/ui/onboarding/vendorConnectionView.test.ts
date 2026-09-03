@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { vendorConnectionPill } from './vendorConnectionView'
+import { vendorConnectionPill, VENDOR_CONNECTION_PILL_LABEL_MEMBERS } from './vendorConnectionView'
 
 describe('vendorConnectionPill — 连接状态 → 卡片胶囊', () => {
   it('连通 = 绿点常态', () => {
@@ -29,5 +29,9 @@ describe('vendorConnectionPill — 连接状态 → 卡片胶囊', () => {
       (state) => vendorConnectionPill({ state }).labelKey,
     )
     expect(keys.some((k) => /Untested|TestUnavailable/i.test(k))).toBe(false)
+  })
+
+  it('pins the complete runtime label member set for the i18n gate', () => {
+    expect([...VENDOR_CONNECTION_PILL_LABEL_MEMBERS]).toEqual(['reachable', 'unreachable', 'checking', 'saved'])
   })
 })

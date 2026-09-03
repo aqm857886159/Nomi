@@ -40,15 +40,10 @@ const SURFACES = [
       'electron/capabilityCore/mcpStdioServer.ts',
     ],
     // member → 为什么这个生产装配点没接（必须是真理由，不是「以后再说」）
-    unwired: {
-      // 2026-09-03 扫描发现：本成员有 7 处测试引用（mcpGenerationConfirmation.test.ts /
-      // mcpSemanticGenerationConfirmation.test.ts 用 mock transport 全覆盖），但**两个生产装配点都没传**。
-      // 后果不是不安全（mcpGateConfirmation.ts:100 落空后 fail-closed 地降级到 Nomi 内确认），
-      // 而是「客户端自带确认凭证」这条路在生产里恒不可达——测试绿着，机制没上过场。
-      // 待裁决：接上真验证器，或连同它的测试一并删（P1 不留并行版）。
-      verifyClientGenerationConfirmation:
-        '有完整 mock 测试但两个生产装配点都没传；落空时 fail-closed 降级到 Nomi 内确认。待裁决：接上或连测试一并删。',
-    },
+    // verifyClientGenerationConfirmation 已于 2026-09-03 在两个装配点（mcpNodeLauncher / mcpStdioServer）
+    // 接通，通过 loopback RPC nomi_verify_client_generation_gate 让主进程铸 client_elicitation 收据。
+    // 欠账登记已删除。
+    unwired: {},
   },
 ]
 

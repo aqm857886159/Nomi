@@ -40,7 +40,9 @@ const MAIN_NON_MODEL_SECTION_SHA256 = {
   'ProjectLocationSection.tsx': 'd4922263552dfdb659d031e128c8baee47df22ab548621e933714c7a9d8b8df1',
   // 2026-09-02: AiModelsSection 按渲染边界收口供应商/模型展示名（translateModelDisplayText）。
   'AiModelsSection.tsx': 'f05b4e11bdeb83ef04b6b40d84e4fdfe275de41e06511163c8ee1be87b3240c8',
-  'AutomationPermissionsSection.tsx': 'a0ea704afb1a31c33ffa3e00821658d8696cc15d5069e6361032b194e638b352',
+  // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
+  // 新增 CustomMcpClientCard UI TODO 注释（底层能力已就绪，UI 面另排样张拍板）。
+  'AutomationPermissionsSection.tsx': '07b3790752d0a64fffdf814e4febcfc5eadebf469332d797c1754a5bce1851ff',
   'CanvasGestureSection.tsx': '3cf19ee35f686e76b54497ff668bb91245b00a6593bc5d5d6162a0d30c476c95',
   'AboutSection.tsx': 'b38e0e2265f29ca56da53595e4bb5886bd14799ea3a7f7f36797b33d46eda57f',
 } as const

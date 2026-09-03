@@ -441,9 +441,19 @@ function dirHasRealFiles(dir: string): boolean {
  * folder/external 一律豁免（复用 deleteWorkspaceProject 的双重边界，绝不碰用户文件）。
  * 不变量 `revision===0 ⟺ 落盘 payload 即出生默认值` 保证「revision 0 的草稿 = 可证明的零编辑」。
  * 调用方负责「一进程一次」（见 repository.listProjects 的 once-guard），故本会话新建的草稿不会被误删。
+ *
+ * `projects` 由调用方传入已列举好的库快照：GC 唯一需要的输入就是「当前这批项目」，
+ * 而它的调用方（listProjects）本来就要为自己再列举一次同一批。自己再列一遍 = 把
+ * 372 次 manifest 快照读整整做两遍，实测占冷启动列举总耗时的 55-63%（727/996/837ms
+ * of 1310/1598/1323ms，346 项目真实库）。判据只读 summary 字段（source/missing/draft/
+ * revision）与磁盘 assets/，与列举时刻的快照一致，故复用不改变任何回收判定。
+ * 不给默认值——留 `projects = listWorkspaceProjects(deps)` 这种兜底就等于把旧的
+ * 双份列举留成可达路径（P1：不留并行版）。
  */
-export function gcEmptyDraftWorkspaceProjects(deps: WorkspaceRepositoryDeps): { recycled: string[]; scanned: number } {
-  const projects = listWorkspaceProjects(deps);
+export function gcEmptyDraftWorkspaceProjects(
+  deps: WorkspaceRepositoryDeps,
+  projects: WorkspaceProjectSummary[],
+): { recycled: string[]; scanned: number } {
   const recycled: string[] = [];
   for (const project of projects) {
     if (project.source !== "native") continue;

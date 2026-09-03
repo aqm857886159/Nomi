@@ -1,5 +1,7 @@
 # Plan：模型档案层（Model Archetype）+ 模式原语 —— 接入 Seedance 2.0 / HappyHorse（kie.ai）
 
+> 裁决：已被统一模型档案/能力目录取代；证据：`src/config/modelArchetypes/index.ts:2-7`、`src/config/modelArchetypes/index.ts:63-75`、`docs/plan/2026-08-30-unified-model-integration-certification.md:31-40`。
+
 > 触发：用户要接 Seedance 2.0、HappyHorse（经 kie.ai），现有 UI 承接不了「生成方式/参考模式/多参考图」。
 > 用户已拍板三个方向（2026-06-05）：
 > 1. schema 来源 = **混合**：内置 curated 档案优先，长尾模型回退 onboarding 解析。

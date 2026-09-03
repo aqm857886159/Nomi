@@ -4,7 +4,7 @@ const str = (value: unknown): string => (typeof value === 'string' ? value : '')
 export const MCP_INTEGRATION_MANAGEMENT_TOOL = {
   name: 'nomi_integration_manage',
   title: '管理已接入连接：改配置、删除、切换单连接代理。',
-  description: '只接收公开配置；key 只进 Nomi 安全页。',
+  description: '只收公开配置；密钥只能在 Nomi 安全页管理。',
   inputSchema: {
     type: 'object',
     properties: {

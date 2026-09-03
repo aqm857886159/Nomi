@@ -1,5 +1,7 @@
 # Nomi 任意文件夹 Workspace 项目实施计划
 
+> 裁决：已被现行 Workspace/Project Explorer 实现取代；证据：`electron/workspace/workspaceIpc.ts:97-120`、`src/workbench/explorer/ProjectExplorerSidebar.tsx:21-52`。
+
 > **For Hermes:** 后续执行必须使用 `test-driven-development` + `subagent-driven-development`。每个任务先写失败测试，确认 RED，再写最小实现，确认 GREEN，再重构。每个完成且验证通过的 Wave 单独提交 commit。
 
 **Goal:** 把 Nomi 从“固定 `~/Documents/Nomi Projects` 下管理项目”升级为“用户选择任意文件夹作为项目 Workspace，所有生成文件写入该文件夹，并在左侧统一项目面板中显示该文件夹的文件树”。

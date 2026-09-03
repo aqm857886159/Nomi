@@ -1,0 +1,91 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-eta-history-identity",
+  "problem_type": "生成 ETA 历史身份不一致",
+  "symptom": "确认卡已有历史样本时仍显示视频冷启动区间 5–20 分钟，而历史样本应给出 2–10 分钟。",
+  "direct_cause": "确认按钮路径调用 generationCostContextForNode 时没有把当前活动项目 ID 带入上下文，historicalEta 无法读取该项目的 bridge 统计；同时 modelKey 与 modelAlias 同时存在时优先级也与 provenance 相反，可能继续查不到 bucket。",
+  "class_root": "同一生成实体在事件记录和消费方被各自重建，缺少共享的项目范围与模型身份归一化边界；项目 ID 或字段优先级漂移都会把可用历史统计降级成冷启动。",
+  "migration": "确认卡上下文现在统一携带 getDesktopActiveProjectId()，并按 provenance 一致的 modelAlias → modelKey → imageModel/videoModel 选择身份；删除原先不一致的优先级和隐式项目回退依赖。",
+  "affected_population": [
+    "同时保存 modelAlias 与 modelKey 的视频、图片、音频或 3D 生成节点的花费确认卡。",
+    "依赖 generationCostContextForNode/Nodes 查询历史 ETA 的正常 UI 生成路径。"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "src/workbench/generationCanvas/spend/spendConfirm.test.ts"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/spend/spendConfirm.ts#generationCostContextForNode",
+    "src/workbench/generationCanvas/spend/spendConfirm.ts#generationCostContextForNodes",
+    "src/workbench/generationCanvas/spend/spendConfirm.ts#historicalEta"
+  ],
+  "invariants": [
+    "确认卡查询历史 ETA 使用当前项目 ID及与 generationEtaStats provenance 相同的 vendor/model/kind 身份。",
+    "有匹配历史 bucket 时使用其 P50/P90 区间，没有匹配时才使用冷启动区间。",
+    "多节点上下文只有在 vendorKey 与 modelKey 各自唯一时才汇总，避免混用统计。"
+  ],
+  "regression_tests": [
+    "src/workbench/generationCanvas/spend/spendConfirm.test.ts"
+  ],
+  "residual_risks": [
+    "历史样本按项目缓存 10 秒；项目无样本或事件缺失时仍会诚实回退冷启动估算。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "问题发生在本仓库 provenance、事件统计和渲染确认卡之间的内部契约，不需要外部依据。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何消费历史统计的入口都可能因重复实现字段优先级而静默失配；本次已扫单节点、批节点和统计查找入口。",
+    "same_class_scan": [
+      "electron/vendor/provenance.ts:104,124#buildNormalizedRecipe 使用 modelAlias || modelKey",
+      "src/workbench/generationCanvas/spend/spendConfirm.ts:21-42#generationCostContextForNode/Nodes 已统一项目 ID与 alias 优先",
+      "src/workbench/generationCanvas/spend/spendConfirm.ts:238-256#historicalEta 按统一 vendor/model/kind 查 bucket"
+    ]
+  },
+  "generality_proof": "把项目范围和身份优先级固定在确认卡进入历史查询的共享上下文函数，并让单节点与批节点共用该函数；所有 ETA 消费者因此都会沿用当前项目和事件记录的 alias 身份。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "generationCostContextForNode",
+      "responsibility": "把画布节点元数据和当前活动项目归一化为历史 ETA 查询所需的 project/vendor/model 身份。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "entry_point": "generationCostContextForNode",
+      "disposition": "enforced",
+      "evidence": "本次回归测试同时提供 modelAlias 与 modelKey，使用默认活动项目上下文调用 bridge bucket，断言确认卡显示 2–10 分钟。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "entry_point": "generationCostContextForNodes",
+      "disposition": "enforced",
+      "evidence": "批节点入口调用 generationCostContextForNode，未保留第二套项目/身份优先级；唯一 vendor/model 才返回上下文。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "invariant": "ETA 查询上下文只能由统一的 generationCostContextForNode 产生，且包含当前项目 ID、modelAlias 优先级与 provenance 一致。",
+    "failure_mode": "回归测试在 alias/modelKey 不一致时失败，确认卡会重新暴露冷启动区间而不是静默通过。",
+    "exception_policy": "none",
+    "strategy": "集中归一化当前项目与节点身份，并用历史 bucket 的真实 alias 覆盖测试锁住项目范围和字段优先级。",
+    "artifacts": [
+      "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "src/workbench/generationCanvas/spend/spendConfirm.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/spend/spendConfirm.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有独立旧实现；本次删除的是错误的字段优先级，保留同一入口并修正其共享归一化规则。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及依赖版本或外部服务生命周期。",
+    "exit_criteria": []
+  }
+}
