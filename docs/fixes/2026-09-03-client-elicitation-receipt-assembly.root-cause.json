@@ -1,0 +1,108 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-client-elicitation-receipt-assembly",
+  "problem_type": "可选能力回调在接口层声明了、在逻辑层使用了，却在两个生产装配点都没传——类型检查绿、单测绿、只有生产运行时静默降级",
+  "symptom": "支持 elicitation 的 MCP 客户端（Claude Code CLI 2.1.232 / Codex CLI 0.151.0）点「同意」后，gate 仍返回 human_approval_required，nomi_decide_generation_gate 永远不被调用，生成未开始。根因：`verifyClientGenerationConfirmation` 是 `McpTransport` 的可选成员，`mcpGateConfirmation.ts` 在「已接通」分支里正确地调用它，但 mcpNodeLauncher.ts（打包态裸 Node 装配点）与 mcpStdioServer.ts（Electron stdio 装配点）两处 `createMcpProtocol({...})` 调用里都没传这个成员。`typeof transport.verifyClientGenerationConfirmation === 'function'` 恒假，逻辑无声地绕开收据路径，落回 Nomi 兜底卡或回 human_approval_required。",
+  "direct_cause": "McpTransport 接口用可选成员（`?:`）分发能力，TypeScript 对「不传可选成员」合法；装配点只需通过类型检查，漏传不会在编译期或单测中产生任何错误。mcpGateConfirmation.ts 的 `if (typeof transport.verifyClientGenerationConfirmation === 'function')` 判断正确，但它的两条「有能力」路径在真实运行时完全不可达，因为装配点一个都没传。这与 2026-09-03 同日前一次事故（mcpNodeLauncher 没传 `confirmGenerationInNomi`）同属一族。",
+  "class_root": "「可选成员静默缺失」族：接口的可选成员降低了门槛（调用方无须提供，类型仍然合法），但使用方假设它最终会被装配——只要有一个装配点漏传，整条路径的能力在那个部署形态里就静默死掉。本机开发态可能恰好只跑那个「传了」的装配点，线上用户跑另一个，于是本机全绿、用户全红。防不住靠人记——必须机器枚举接口全部可选成员、逐个核对每个生产装配点。",
+  "migration": "① 在 mcpNodeLauncher.ts 与 mcpStdioServer.ts 两处 createMcpProtocol({…}) 调用里接上 verifyClientGenerationConfirmation：通过 loopback RPC nomi_verify_client_generation_gate 调主进程铸 client_elicitation 收据；② approvalReceipt.ts 新增 ClientElicitationAttestationV1 类型和 createClientElicitationAttestation 函数，verifyGesture 同步接受新类型；③ rpcServer.ts 新增 nomi_verify_client_generation_gate 处理器，只允许已注册 MCP 客户端调用（禁 external/nomi origin）；④ appIntegrationAuthorities.ts 提供 verifyClientGenerationGateInMain 实现并注入 RpcServerOptions；⑤ mcpGateConfirmation.ts 调整判定：只要 verifyClientGenerationConfirmation 存在就调（无论 attestation 字段），用 authenticatedClient 身份铸收据；⑥ check-transport-assembly.mjs 删除 verifyClientGenerationConfirmation 的欠账登记；⑦ spend-confirmation-receipt-baseline.json 更新守卫字符串；⑧ mcpGenerationConfirmation.test.ts 新增「光秃秃的同意接通后也能铸收据」断言。",
+  "affected_population": [
+    "所有使用支持 elicitation 的 MCP 客户端（Claude Code CLI / Codex CLI / Cursor）驱动 Nomi 生成的用户——打包版 Nomi 的打包态装配点（mcpNodeLauncher）从未接通此能力",
+    "开发态 stdio 装配点（mcpStdioServer）同样未接通，开发期间测试也无法覆盖此路径",
+    "已完成 PR #432 中记录的「elicitation 支持探针」用户，他们看到 elicitation/create 弹出但确认后生成仍不开始"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/mcpGateConfirmation.ts",
+    "electron/capabilityCore/mcpNodeLauncher.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/approvalReceipt.ts",
+    "electron/capabilityCore/appIntegrationAuthorities.ts",
+    "electron/capabilityCore/rpcServer.ts",
+    "electron/capabilityCore/mcpGenerationConfirmation.test.ts",
+    "electron/capabilityCore/approvalReceipt.test.ts",
+    "scripts/check-transport-assembly.mjs",
+    "scripts/spend-confirmation-receipt-baseline.json"
+  ],
+  "entry_points": [
+    "electron/capabilityCore/mcpNodeLauncher.ts（打包态裸 Node 装配点：createMcpProtocol 调用）",
+    "electron/capabilityCore/mcpStdioServer.ts（Electron stdio 装配点：createMcpProtocol 调用）",
+    "electron/capabilityCore/mcpGateConfirmation.ts（确认面判定：verifyClientGenerationConfirmation 分支）",
+    "electron/capabilityCore/rpcServer.ts（loopback RPC 处理器：nomi_verify_client_generation_gate）"
+  ],
+  "invariants": [
+    "McpTransport 接口的每个可选成员，必须在所有生产装配点（mcpNodeLauncher / mcpStdioServer）都传入，或在 check-transport-assembly.mjs 的 unwired 名单里登记原因——不许靠人记",
+    "client_elicitation 收据只能由主进程铸（nomi-main 签发），不能由客户端自行构造；RPC 处理器仅接受已注册 MCP 客户端调用（禁 external/nomi origin）",
+    "verifyClientGenerationConfirmation 接通后，任何 confirmed:true 的客户端 accept 都必须进入主进程铸收据路径，不得有无收据的 confirmed:true 出口（由 check-spend-confirmation-receipt.mjs 盯住）"
+  ],
+  "regression_tests": [
+    "electron/capabilityCore/mcpGenerationConfirmation.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpGenerationConfirmation.test.ts"
+  ],
+  "generality_proof": "这一族的判据：「两个装配点手工各自组装同一组可选能力」在历史上已复发两次。① 2026-08-18：mcpNodeLauncher 没传 electron 值导入导致 MODULE_NOT_FOUND，本机全绿打包才炸；② 2026-09-03 前一事故：同日 mcpNodeLauncher 未传 confirmGenerationInNomi，导致打包态 15/43 绿（check-transport-assembly.mjs 就是为这次事故新增的）；③ 本次（2026-09-03）：同日 verifyClientGenerationConfirmation 两处都未传，开发/打包双双受影响。三次都靠「有人记得回来接上」这道防线，三次都失手。防的不是细心不够，是结构上「tsc 不拦、单测不知道哪个装配点跑的」——只有机器枚举接口成员、逐个核对每个装配点，才能彻底堵住这一族。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-transport-assembly.mjs",
+      "symbol": "SURFACES[McpTransport].unwired",
+      "responsibility": "机器枚举 McpTransport 接口的全部可选成员，逐个核对每个生产装配点有没有传；漏传即报红，欠账名单里的「已接上」条目也报红（防名单腐烂）。新增可选成员自动纳入，不需要有人记得回来加规则。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "entry_point": "createMcpProtocol({…}) 调用——打包态裸 Node 装配点，所有可选成员在此手工列出",
+      "disposition": "enforced",
+      "evidence": "check-transport-assembly.mjs 枚举 McpTransport 接口所有可选成员（`name?:` / `name?(`），逐个比对 mcpNodeLauncher.ts 传给 createMcpProtocol 的顶层键；本次补传 verifyClientGenerationConfirmation 后，staleExemptions 检测到旧欠账记录而报红——触发删除欠账条目，验证双向断言正常工作。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "createMcpProtocol({…}) 调用——Electron stdio 装配点，可选成员同样手工列出",
+      "disposition": "enforced",
+      "evidence": "同一门岗同时核查 mcpStdioServer.ts；两个装配点任何一个漏传都会触发 exit=1，已在本 PR 修复前手工验证为红、修复后验证为绿。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpGateConfirmation.ts",
+      "entry_point": "resolveGenerationConfirmation 里的 verifyClientGenerationConfirmation 分支——接口能力的消费侧",
+      "disposition": "not-affected",
+      "evidence": "消费侧逻辑正确（`typeof ... === 'function'` 判断），本次不改其判据；装配点的漏传使这个分支不可达，修法在装配点而非消费侧。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-transport-assembly.mjs",
+    "invariant": "McpTransport 接口的每个可选成员在每个生产装配点都有传入，或在 unwired 名单里登记理由；欠账已接上时名单必须删除（双向断言）。",
+    "failure_mode": "漏接时 exit=1，列出「哪个接口成员在哪个装配点缺失」；欠账名单里的成员其实已接上时 exit=1，防名单腐烂；受检接口锚点失效时 exit=1 而非静默通过——「漏掉什么都不报」本身就是一种失效。",
+    "exception_policy": "none",
+    "strategy": "结构性枚举而非人工记忆：门岗读接口声明、读装配点调用，按名字对比。新增可选成员自动纳入覆盖范围，不需要有人记得回来加一条规则——这是解决「靠人记三次都失手」这道入口的根本。",
+    "artifacts": [
+      "scripts/check-transport-assembly.mjs",
+      "electron/capabilityCore/mcpGateConfirmation.ts"
+    ]
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一装配点同一形状已在 2026-08-18 和 2026-09-03 同日前一次各栽一次，本次是第三次。每次都通过了全套类型检查与单测，靠人记根本挡不住这一族。",
+    "same_class_scan": [
+      "McpTransport 接口全部可选成员普查（check-transport-assembly.mjs 枚举）：当前共 3 个可选成员（verifyClientGenerationConfirmation / confirmGenerationInNomi / confirmGenerationInNomiWithTimeout 等），本次接通后 unwired 名单清零。",
+      "生产装配点普查：SURFACES 配置里列出 mcpNodeLauncher.ts 与 mcpStdioServer.ts 两处，均已核查接上。",
+      "同族历史复盘：2026-08-18 MODULE_NOT_FOUND（electron 值导入进裸 Node 闭包）→ 2026-09-03 前一次（confirmGenerationInNomi 漏传，打包态 15/43）→ 本次（verifyClientGenerationConfirmation 漏传，双装配点）；三次都是同一形状的首次出现即通过类型检查。"
+    ]
+  },
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本次是新增能力接通（client_elicitation 收据路径），没有需要删除的遗留路径；check-transport-assembly.mjs 的 unwired 欠账条目已从名单移除（属门岗内部状态，不是独立的遗留代码路径）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次改动全在自有代码：approvalReceipt.ts 的新类型与铸造函数、rpcServer.ts 的新处理器、装配点的回调接线、门岗的欠账清理。不涉及第三方依赖引入、升级或保留决策。",
+    "exit_criteria": []
+  },
+  "residual_risks": [
+    "loopback RPC nomi_verify_client_generation_gate 依赖 readLiveInstance() 返回非 null，若主进程实例尚未初始化（冷启动竞态）会静默返回 { confirmed: false }，导致回落 Nomi 卡而非报错——属已知合理降级，不是安全漏洞。",
+    "client_elicitation 收据的 MAC 校验使用 HMAC-SHA256，密钥与其他内部 token 共享同一 receiptSecret；若该 secret 泄露，攻击者可伪造任意 client_elicitation 收据——receiptSecret 保管策略属独立问题，不在本次范围内。",
+    "check-transport-assembly.mjs 按顶层键名匹配，若装配点把可选成员藏进扩展运算符（如 `...extraCapabilities`）门岗会误判为漏传——当前所有装配点都内联传入，形状稳定；未来重构时需同步更新门岗。"
+  ],
+  "internal_only_reason": "根因、修法与防线全部落在仓内自有代码：McpTransport 接口、两个生产装配点、loopback RPC 协议、approvalReceipt 铸造函数，均为 Nomi 自有花钱授权协议的组成部分。MCP elicitation 只用到其标准 accept/decline 语义且本次未改变用法，故无需外部文档佐证。"
+}

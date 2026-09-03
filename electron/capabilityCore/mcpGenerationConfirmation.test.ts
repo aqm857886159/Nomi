@@ -176,23 +176,19 @@ describe('one generation challenge, two confirmation surfaces', () => {
     expect(verifyClientGenerationConfirmation).toHaveBeenCalledTimes(1)
   })
 
-  // 【2026-09-03 走了一个来回，把过程留在这儿防再犯】
+  // 【2026-09-03 两次来回，把过程留在这儿防再犯】
   //
-  // 本用例原本断言「语义挑战 + 客户端只给光秃秃的同意 → 回落 Nomi 卡」。当天先被判成「规则的前提在生产
-  // 永远无法满足，所以是半成品开关」而推翻（改成就地算数），当天又被真机走查推回来——因为推翻的那版
-  // 让用户在客户端点完同意后，生成**直接报 human_approval_required**，比多点一次更糟。
+  // 第一次：「语义挑战 + 客户端只给光秃秃的同意 → 回落 Nomi 卡」被判成「规则前提生产里永远无法满足 = 半成品
+  // 开关」而推翻，改成就地算数；当天被真机走查推回——推翻版让用户点完同意后 gate 回 human_approval_required，
+  // 比多点一次更糟。结论：那面旗是对的要求，缺的是铸收据那一环。
   //
-  // 真正的约束在下游，本文件管不着也不能绕：
-  //   · mcpSemanticGenerationFlow.ts:22 —— 没有 receiptId/receiptToken 即回 human_approval_required；
-  //   · generationDispatcher.ts:156 —— 原话「Approval booleans cannot replace a Nomi human approval receipt」。
-  // 所以「确认面返回 confirmed」与「这次生成真能开始」是两件事：**光秃秃的同意换不来收据，就换不来生成**。
-  // 回落 Nomi 不是折磨用户，是因为那条路会铸出真收据。
-  //
-  // 结论：本断言恢复原意图。要让客户端的同意真正算数，缺的不是删掉哪面旗，而是补上「铸收据」那一环
-  // （verifyClientGenerationConfirmation 两个生产装配点都没接）——那是独立工作。
-  it('语义生成挑战：客户端光秃秃的同意换不来收据，回落 Nomi 卡（那条路才铸真收据）', async () => {
+  // 第二次（本 PR）：verifyClientGenerationConfirmation 在两个生产装配点接通，主进程铸 client_elicitation 收据。
+  // 结果：光秃秃的同意（无 attestation 字段）→ verifyClientGenerationConfirmation 仍然被调（只要它存在）→
+  // 主进程照样铸出 client_elicitation 收据 → gate 真的进入 decide/start，生成真的开始。
+  // 断言恢复为正确行为：surface:'client'，带收据，不再回落 Nomi。
+  it('语义生成挑战：接通 verifyClientGenerationConfirmation 后，客户端光秃秃的同意也能铸收据', async () => {
     const frames: unknown[] = []
-    const verifyClientGenerationConfirmation = vi.fn(async () => ({ confirmed: true, receiptId: 'should-not-be-used' }))
+    const verifyClientGenerationConfirmation = vi.fn(async () => ({ confirmed: true, receiptId: 'receipt-client-elicitation', receiptToken: 'token-client-elicitation' }))
     const confirmGenerationInNomi = vi.fn(async () => ({ confirmed: true, receiptId: 'receipt-gui' }))
     const protocol = await initialized({
       send: (frame) => frames.push(frame),
@@ -205,10 +201,12 @@ describe('one generation challenge, two confirmation surfaces', () => {
     const resultPromise = protocol.requestGenerationConfirmation({ ...challenge, handoff: { clientAttestation: true, challengeToken: 'challenge-token' } })
     await tick()
     const request = frames.find((frame) => (frame as { method?: string }).method === 'elicitation/create') as { id: string }
+    // 光秃秃的同意：没有 attestation 字段
     protocol.handleIncoming({ id: request.id, result: { action: 'accept', content: { confirm: true } } })
-    await expect(resultPromise).resolves.toMatchObject({ surface: 'nomi', receiptId: 'receipt-gui' })
-    expect(confirmGenerationInNomi).toHaveBeenCalledTimes(1)
-    expect(verifyClientGenerationConfirmation).not.toHaveBeenCalled()
+    await expect(resultPromise).resolves.toMatchObject({ surface: 'client', receiptId: 'receipt-client-elicitation', receiptToken: 'token-client-elicitation' })
+    // verifyClientGenerationConfirmation 被调（无论 attestation 字段是否存在），Nomi 确认卡不出现
+    expect(verifyClientGenerationConfirmation).toHaveBeenCalledTimes(1)
+    expect(confirmGenerationInNomi).not.toHaveBeenCalled()
   })
 
   it('treats client decline as no approval and keeps the challenge identity', async () => {

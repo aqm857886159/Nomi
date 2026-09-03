@@ -4,9 +4,9 @@
   "allowed": [
     {
       "surface": "client",
-      "condition": "elicited.attestation == null && challenge.handoff?.clientAttestation !== true",
-      "why": "原设计遗留：不要求凭证的挑战，客户端裸同意即算数。生产里够不着——两个签发点(generationDispatcher / runOwnedGenerationGateAuthority)都无条件带 clientAttestation:true，所以这条分支永远进不来。但挡住它的是**约定不是结构**：谁新加一个不带那面旗的签发点，就会让用户点完同意后撞 human_approval_required（2026-09-03 编排者删掉那面旗时真机复现过）。",
-      "exit_criteria": "补上「铸收据」那一环后删掉本条，或直接移除该分支（它无法为花钱授权，costScope/maximumCost 是必填，本函数只服务花钱确认）。"
+      "condition": "} else if (challenge.handoff?.clientAttestation !== true) {",
+      "why": "原设计遗留：不要求凭证的挑战（handoff.clientAttestation !== true），且 verifyClientGenerationConfirmation 未接通时，客户端裸同意即算数（无收据）。生产里够不着——两个签发点(generationDispatcher / runOwnedGenerationGateAuthority)都无条件带 clientAttestation:true，且两个装配点(mcpNodeLauncher / mcpStdioServer)都已接通 verifyClientGenerationConfirmation，所以该 else-if 永远进不来。守卫是双重的：① verifyClientGenerationConfirmation 不存在 ② handoff.clientAttestation !== true。",
+      "exit_criteria": "若有签发点不带 clientAttestation:true，需同步确保 verifyClientGenerationConfirmation 已接通；或直接移除该分支（无法为花钱授权，costScope/maximumCost 是必填）。"
     }
   ]
 }

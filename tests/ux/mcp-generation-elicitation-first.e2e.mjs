@@ -1,13 +1,17 @@
-// P4 S3a — elicitation 优先：自声明 elicitation 的客户端确认生成 → **0 张 GUI 卡**（含多镜确认卡）。
+// P4 S3a — elicitation 优先：自声明 elicitation 的客户端确认生成 → **0 张 GUI 卡**（含多镜确认卡）→ 生成真的开始。
 //
 // 铁律（§3.8）：客户端声明 elicitation → 确认弹在客户端内，Nomi 主窗**不弹任何卡**。多镜确认卡（S3a）
 // 只经 confirmGenerationInNomi 这条 GUI 兜底路径弹出（capabilityApplyHandler.confirmGenerationGateForAgent）；
 // 而 elicitation 分支（mcpProtocol.ts:274）在**读 display.shots 之前**就抢先接管，根本不会走到渲染层。
 // 所以「elicitation 客户端 → 0 GUI 卡」这条不变量对单镜/多镜卡是同一条——多镜卡与单镜卡共用这条兜底门。
 //
+// Phase B 额外断言（2026-09-03 补，连通盲区）：「gate 返回 confirmed」和「生成真的开始」是两件事。
+// 历史上两次分别在两个方向各栽一次（PR #429 / verifyClientGenerationConfirmation 漏接），两次都全绿过单测。
+// 本断言直接把「nomi_operation_gate 返回 started:true」钉进走查，让这条盲区再也没有空间存活。
+//
 // 两阶段（expectAbsent 需阳性基线，_assert.mjs 在签名上强制）：
 //   Phase A 基线：**不声明** elicitation 的客户端驱动真 gate → GUI 确认卡真的会浮（proveProbe 证探针活）。
-//   Phase B 不变量：**声明** elicitation 的客户端驱动真 gate → 客户端内自动确认 → expectAbsent 断言 0 张 GUI 卡。
+//   Phase B 不变量：**声明** elicitation 的客户端驱动真 gate → 客户端内自动确认 → expectAbsent 断言 0 张 GUI 卡 → started 断言生成进入 execute。
 // 全程零额度（provider fixture），不跑真生成。
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -133,13 +137,22 @@ try {
   await mcpA.terminate().catch(() => {})
   mcpA = null
 
-  // ── Phase B 不变量：声明 elicitation → 客户端内自动确认 → 0 张 GUI 卡。──
+  // ── Phase B 不变量：声明 elicitation → 客户端内自动确认 → 0 张 GUI 卡 → 生成真的开始。──
+  // 2026-09-03 加：「gate 返回 confirmed」和「生成真的开始」是两件事。
+  // 历史上有过两次误改：① PR #429 删 clientAttestation → gate 返回 human_approval_required；
+  // ② 本次修法前 verifyClientGenerationConfirmation 两装配点都没接 → 同样回 human_approval_required。
+  // 本断言连通「确认面返回值」与「生成是否开始」，专门盯住这条盲区（同 mcpGenerationConfirmation.test.ts 注释）。
   const b = await driveGate(dirs, token, { capabilities: { elicitation: {} }, clientName: 'elicit-client' })
   mcpB = b.mcp
   // 给 elicitation 往返 + 「若要弹卡也早该弹了」留足时间：等 gate promise 落地（elicitation 客户端自动 accept）。
   const gateResult = await b.gatePromise
   check(Boolean(gateResult), 'elicitation 客户端的 gate 请求已返回（在客户端内完成确认往返）')
   check(b.mcp.elicitationCount() >= 1, 'elicitation 客户端确实收到并处理了 elicitation/create（在客户端内确认）')
+  // 关键断言（补盲区）：gate 确认后生成真的进入 execute——不是退回 human_approval_required。
+  // parseToolResult 兼容 json / outcome 两种投影形状。
+  const gateResultParsed = parseToolResult(gateResult)
+  const gateStarted = gateResultParsed.json?.started ?? gateResultParsed.outcome?.started
+  check(Boolean(gateStarted), 'elicitation 客户端确认后生成进入 execute（不返回 human_approval_required）')
   // 关键断言：整条 elicitation 流程走完，Nomi 主窗一张 GUI 卡都没弹（多镜确认卡走同一门，同样不弹）。
   await expectAbsent(gateCard, { provenBy: probe, message: 'elicitation 客户端确认时，Nomi 不该弹任何 GUI 生成确认卡（含多镜卡）' })
   check(true, '不变量成立：elicitation 客户端确认多镜/单镜计划时 0 张 GUI 卡')
@@ -147,7 +160,7 @@ try {
   const cardCount = await gateCard.count()
   check(cardCount === 0, `确证 GUI 卡计数 = 0（实测 ${cardCount}）`)
 
-  console.log(`\nELICITATION-FIRST PASS: ${passed} 断言；elicitation 抢先接管，0 GUI 卡。`)
+  console.log(`\nELICITATION-FIRST PASS: ${passed} 断言；elicitation 抢先接管，0 GUI 卡，生成进入 execute。`)
   console.log('  截图 →', shotsDir)
 } catch (error) {
   console.error(`✗ ${error?.stack || error}`)
