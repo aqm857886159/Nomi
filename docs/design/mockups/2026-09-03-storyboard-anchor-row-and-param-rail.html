@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>分镜表 · 锚行与真实模型模式参考区（2026-09-03）</title>
+<style>
+  /* 只在这一段声明样张 token；消费侧不再写任意色、字号或圆角。 */
+  :root {
+    --nomi-bg: oklch(0.985 0.003 90);
+    --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80);
+    --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80);
+    --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-30: oklch(0.78 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80);
+    --nomi-line-soft: oklch(0.95 0.003 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+    --nomi-warning: oklch(0.62 0.14 75);
+    --nomi-danger: oklch(0.58 0.20 25);
+    --nomi-danger-soft: color-mix(in oklch, var(--nomi-danger) 10%, var(--nomi-paper));
+    --nomi-shadow-sm: 0 1px 2px color-mix(in oklch, var(--nomi-ink) 8%, transparent);
+    --nomi-shadow-md: 0 2px 10px color-mix(in oklch, var(--nomi-ink) 10%, transparent);
+    --nomi-shadow-lg: 0 12px 30px color-mix(in oklch, var(--nomi-ink) 18%, transparent);
+    --nomi-radius-field: 6px;
+    --nomi-radius-panel: 10px;
+    --nomi-radius-modal: 14px;
+    --nomi-radius-pill: 999px;
+    --nomi-font-micro: 11px;
+    --nomi-font-caption: 12px;
+    --nomi-font-body-sm: 13px;
+    --nomi-font-body: 14px;
+    --nomi-font-title: 16px;
+    --nomi-font-h1: 24px;
+    --nomi-font-h2: 20px;
+    --nomi-space-1: 4px;
+    --nomi-space-2: 8px;
+    --nomi-space-3: 12px;
+    --nomi-space-4: 16px;
+    --nomi-space-5: 20px;
+    --nomi-space-6: 24px;
+  }
+  .dark {
+    --nomi-bg: oklch(0.18 0.006 80);
+    --nomi-paper: oklch(0.235 0.007 80);
+    --nomi-ink: oklch(0.93 0.006 85);
+    --nomi-ink-80: oklch(0.84 0.006 85);
+    --nomi-ink-60: oklch(0.70 0.006 85);
+    --nomi-ink-40: oklch(0.62 0.006 85);
+    --nomi-ink-30: oklch(0.50 0.006 85);
+    --nomi-ink-20: oklch(0.42 0.006 85);
+    --nomi-ink-10: oklch(0.34 0.006 85);
+    --nomi-ink-05: oklch(0.30 0.006 85);
+    --nomi-line: oklch(0.36 0.007 80);
+    --nomi-line-soft: oklch(0.31 0.007 80);
+    --nomi-accent: oklch(0.70 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 26%, var(--nomi-paper));
+    --nomi-danger: oklch(0.73 0.16 25);
+    --nomi-danger-soft: color-mix(in oklch, var(--nomi-danger) 18%, var(--nomi-paper));
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--nomi-bg); color: var(--nomi-ink); font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; font-size: var(--nomi-font-body); }
+  button, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .app { width: 1540px; margin: 0 auto; min-height: 100vh; background: var(--nomi-bg); }
+  .appbar { height: 48px; display: flex; align-items: center; gap: var(--nomi-space-3); padding: 0 var(--nomi-space-4); border-bottom: 1px solid var(--nomi-line-soft); }
+  .brand { font-weight: 700; letter-spacing: .02em; }
+  .crumb { color: var(--nomi-ink-60); font-size: var(--nomi-font-caption); }
+  .crumb strong { color: var(--nomi-ink-80); font-weight: 600; }
+  .stepper { margin: 0 auto; display: flex; gap: 2px; padding: 3px; border-radius: var(--nomi-radius-pill); background: var(--nomi-ink-05); }
+  .step { padding: var(--nomi-space-1) var(--nomi-space-4); border-radius: var(--nomi-radius-pill); color: var(--nomi-ink-60); font-size: var(--nomi-font-caption); }
+  .step.on { background: var(--nomi-paper); color: var(--nomi-ink); box-shadow: var(--nomi-shadow-sm); }
+  .theme { width: 30px; height: 30px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-field); background: var(--nomi-paper); }
+  .page { padding: var(--nomi-space-6); }
+  .hero { display: flex; align-items: end; justify-content: space-between; margin-bottom: var(--nomi-space-4); }
+  .eyebrow { color: var(--nomi-accent); font-size: var(--nomi-font-micro); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  h1 { margin: var(--nomi-space-1) 0 0; font-size: var(--nomi-font-h1); line-height: 1.2; font-weight: 600; }
+  .hero p { margin: var(--nomi-space-2) 0 0; color: var(--nomi-ink-60); font-size: var(--nomi-font-caption); }
+  .proof-pill { display: inline-flex; align-items: center; gap: var(--nomi-space-1); padding: var(--nomi-space-1) var(--nomi-space-2); border-radius: var(--nomi-radius-pill); background: var(--nomi-accent-soft); color: var(--nomi-accent); font-size: var(--nomi-font-caption); }
+  .card { border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-modal); background: var(--nomi-paper); box-shadow: var(--nomi-shadow-md); }
+  .model-rail { display: grid; grid-template-columns: 170px minmax(220px, 1fr) 260px auto; align-items: center; gap: var(--nomi-space-3); padding: var(--nomi-space-3) var(--nomi-space-4); }
+  .rail-label { color: var(--nomi-ink-60); font-size: var(--nomi-font-caption); }
+  .select { width: 100%; height: 32px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-field); background: var(--nomi-paper); padding: 0 var(--nomi-space-2); font-size: var(--nomi-font-body-sm); }
+  .slot-contract { min-width: 0; color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); line-height: 1.5; }
+  .slot-contract strong { color: var(--nomi-ink-80); font-weight: 600; }
+  .mode-tag { justify-self: end; padding: var(--nomi-space-1) var(--nomi-space-2); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-pill); color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); white-space: nowrap; }
+  .layout { display: grid; grid-template-columns: 1fr; gap: var(--nomi-space-4); margin-top: var(--nomi-space-4); }
+  .anchor-panel { padding: var(--nomi-space-4); }
+  .section-head { display: flex; align-items: baseline; gap: var(--nomi-space-2); margin-bottom: var(--nomi-space-3); }
+  .section-head h2 { margin: 0; font-size: var(--nomi-font-title); font-weight: 650; }
+  .section-head span { color: var(--nomi-ink-40); font-size: var(--nomi-font-micro); }
+  .anchor-stack { display: grid; gap: var(--nomi-space-3); }
+  .anchor-state-key { display: flex; flex-wrap: wrap; gap: var(--nomi-space-1); margin: calc(var(--nomi-space-2) * -1) 0 var(--nomi-space-3); color: var(--nomi-ink-40); font-size: var(--nomi-font-micro); }
+  .state-key { padding: 2px var(--nomi-space-2); border: 1px solid var(--nomi-line-soft); border-radius: var(--nomi-radius-pill); background: var(--nomi-ink-05); }
+  .state-key::before { content: "●"; margin-right: var(--nomi-space-1); color: var(--nomi-ink-40); }
+  .state-key.loading::before { color: var(--nomi-warning); }
+  .state-key.failed::before { color: var(--nomi-danger); }
+  .state-key.generated::before { color: var(--nomi-accent); }
+  .state-key.locked::before { color: var(--nomi-ink-80); }
+  .anchor-row { border-color: var(--nomi-line); background: var(--nomi-paper); box-shadow: inset 3px 0 0 var(--nomi-ink-30); }
+  .anchor-placeholder { display: grid; place-items: center; min-height: 132px; color: var(--nomi-ink-30); font-size: var(--nomi-font-caption); }
+  .anchor-frame { justify-self: center; }
+  .frame.anchor-frame::before, .frame.anchor-frame::after { content: none; }
+  .anchor-frame.character { background: linear-gradient(145deg, var(--nomi-accent), var(--nomi-ink-80)); }
+  .anchor-frame.scene { background: linear-gradient(145deg, var(--nomi-warning), var(--nomi-accent)); }
+  .anchor-frame.text-anchor { color: var(--nomi-ink-80); background: var(--nomi-paper); border: 1px solid var(--nomi-line); font-size: var(--nomi-font-micro); line-height: 1.4; padding: var(--nomi-space-2); text-align: left; }
+  .anchor-state { position: absolute; top: var(--nomi-space-1); left: var(--nomi-space-1); padding: 2px var(--nomi-space-1); border-radius: var(--nomi-radius-field); background: color-mix(in oklch, var(--nomi-ink) 72%, transparent); color: var(--nomi-paper); font-size: var(--nomi-font-micro); }
+  .anchor-state.loading { background: color-mix(in oklch, var(--nomi-warning) 82%, var(--nomi-ink)); }
+  .anchor-state.failed { background: color-mix(in oklch, var(--nomi-danger) 82%, var(--nomi-ink)); }
+  .anchor-state.locked { background: color-mix(in oklch, var(--nomi-ink) 78%, transparent); }
+  .anchor-frame .generate { position: absolute; right: var(--nomi-space-1); bottom: var(--nomi-space-1); min-height: 26px; padding: 0 var(--nomi-space-2); background: color-mix(in oklch, var(--nomi-ink) 78%, transparent); font-size: var(--nomi-font-micro); }
+  .anchor-references { min-height: 132px; padding: var(--nomi-space-2); border: 1px dashed var(--nomi-line); border-radius: var(--nomi-radius-panel); background: var(--nomi-paper); }
+  .anchor-ref-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--nomi-space-2); color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); }
+  .anchor-ref-count { color: var(--nomi-ink-80); font-weight: 650; }
+  .anchor-ref-list { display: flex; flex-wrap: wrap; gap: var(--nomi-space-1); }
+  .shot-thumb { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-field); color: var(--nomi-paper); background: linear-gradient(145deg, var(--nomi-warning), var(--nomi-accent)); font-size: var(--nomi-font-micro); }
+  .shot-thumb:hover, .shot-thumb:focus-visible { outline: 2px solid var(--nomi-accent); outline-offset: 1px; }
+  .anchor-copy { min-width: 0; }
+  .anchor-heading { display: flex; align-items: center; gap: var(--nomi-space-2); }
+  .anchor-name { font-size: var(--nomi-font-body-sm); font-weight: 650; }
+  .anchor-meta { margin-top: var(--nomi-space-1); color: var(--nomi-ink-40); font-size: var(--nomi-font-micro); line-height: 1.5; }
+  .anchor-lock { display: inline-flex; margin-top: var(--nomi-space-2); padding: 2px var(--nomi-space-2); border-radius: var(--nomi-radius-pill); background: var(--nomi-ink-10); color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); }
+  .table-card { padding: var(--nomi-space-4); overflow: visible; }
+  .table-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--nomi-space-3); }
+  .table-head h2 { margin: 0; font-size: var(--nomi-font-title); font-weight: 650; }
+  .table-head span { color: var(--nomi-ink-40); font-size: var(--nomi-font-micro); }
+  .shot-row { display: grid; grid-template-columns: 14px 84px 136px minmax(0, 1fr); gap: var(--nomi-space-3); align-items: start; padding: var(--nomi-space-3); border: 1px solid var(--nomi-accent); border-radius: var(--nomi-radius-panel); background: var(--nomi-accent-soft); box-shadow: inset 3px 0 0 var(--nomi-accent); }
+  .grip { padding-top: 56px; color: var(--nomi-ink-30); font-size: var(--nomi-font-caption); line-height: 1; }
+  .frame { position: relative; width: 76px; height: 132px; overflow: hidden; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-field); background: linear-gradient(160deg, var(--nomi-ink-80), var(--nomi-accent)); }
+  .frame::before { content: "06"; position: absolute; top: var(--nomi-space-1); left: var(--nomi-space-1); padding: 2px var(--nomi-space-1); border-radius: var(--nomi-radius-field); background: color-mix(in oklch, var(--nomi-ink) 72%, transparent); color: var(--nomi-paper); font-size: var(--nomi-font-micro); }
+  .frame::after { content: "5 s"; position: absolute; right: var(--nomi-space-1); bottom: var(--nomi-space-1); padding: 2px var(--nomi-space-1); border-radius: var(--nomi-radius-field); background: color-mix(in oklch, var(--nomi-ink) 72%, transparent); color: var(--nomi-paper); font-size: var(--nomi-font-micro); }
+  .refzone { min-height: 132px; padding: var(--nomi-space-2); border: 1px dashed var(--nomi-line); border-radius: var(--nomi-radius-panel); background: var(--nomi-paper); }
+  .refzone-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--nomi-space-2); color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); }
+  .derive-badge { padding: 2px var(--nomi-space-1); border-radius: var(--nomi-radius-pill); background: var(--nomi-ink-05); color: var(--nomi-ink-40); }
+  .ref-grid { display: flex; flex-wrap: wrap; gap: var(--nomi-space-2); align-items: start; }
+  .ref-unit { display: grid; gap: 2px; justify-items: center; min-width: 56px; }
+  .ref-tile { width: 56px; height: 56px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-field); color: var(--nomi-paper); font-size: var(--nomi-font-caption); font-weight: 650; background: linear-gradient(145deg, var(--nomi-warning), var(--nomi-accent)); }
+  .ref-tile.empty { border-style: dashed; color: var(--nomi-ink-40); background: var(--nomi-ink-05); font-size: var(--nomi-font-h2); }
+  .ref-tile.array { color: var(--nomi-accent); background: var(--nomi-accent-soft); font-size: var(--nomi-font-h2); }
+  .ref-cap { color: var(--nomi-ink-40); font-size: var(--nomi-font-micro); white-space: nowrap; }
+  .array-summary { flex: 1; min-width: 156px; padding: var(--nomi-space-2); border-radius: var(--nomi-radius-field); background: var(--nomi-ink-05); color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); line-height: 1.5; }
+  .array-summary strong { display: block; color: var(--nomi-ink-80); font-weight: 650; }
+  .none-state { min-height: 82px; display: grid; place-items: center; padding: var(--nomi-space-2); color: var(--nomi-ink-40); font-size: var(--nomi-font-caption); line-height: 1.6; text-align: center; }
+  .none-state strong { display: block; color: var(--nomi-ink-80); font-weight: 650; }
+  .prompt-column { min-width: 0; }
+  .prompt-box { min-height: 86px; padding: var(--nomi-space-3); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-field); background: var(--nomi-paper); color: var(--nomi-ink-80); font-size: var(--nomi-font-body-sm); line-height: 1.8; }
+  .mention { display: inline-flex; align-items: center; gap: var(--nomi-space-1); padding: 2px var(--nomi-space-2); border-radius: var(--nomi-radius-pill); background: var(--nomi-accent-soft); color: var(--nomi-accent); font-size: var(--nomi-font-caption); }
+  .mention::before { content: "@"; font-weight: 700; }
+  .row-tools { display: flex; align-items: center; gap: var(--nomi-space-2); margin-top: var(--nomi-space-2); color: var(--nomi-ink-40); font-size: var(--nomi-font-micro); }
+  .row-tools .spacer { flex: 1; }
+  .ghost { border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-field); background: var(--nomi-paper); padding: var(--nomi-space-1) var(--nomi-space-2); font-size: var(--nomi-font-micro); }
+  .param-rail { display: flex; align-items: center; gap: var(--nomi-space-2); margin-top: var(--nomi-space-3); padding-top: var(--nomi-space-3); border-top: 1px solid var(--nomi-line-soft); }
+  .param-pill { display: inline-flex; align-items: center; gap: var(--nomi-space-1); min-height: 28px; max-width: 176px; padding: 0 var(--nomi-space-2); overflow: hidden; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-pill); background: var(--nomi-paper); color: var(--nomi-ink-80); font-size: var(--nomi-font-caption); white-space: nowrap; text-overflow: ellipsis; }
+  select.param-pill { min-width: 132px; cursor: pointer; }
+  .param-pill.summary { max-width: 260px; background: var(--nomi-ink-05); }
+  .param-pill .muted { color: var(--nomi-ink-40); }
+  .param-rail .spacer { flex: 1; }
+  .generate { min-height: 30px; padding: 0 var(--nomi-space-3); border: 0; border-radius: var(--nomi-radius-pill); background: var(--nomi-ink); color: var(--nomi-paper); font-size: var(--nomi-font-caption); font-weight: 650; }
+  .param-panel { display: none; width: 360px; margin: var(--nomi-space-2) 0 0 auto; padding: var(--nomi-space-3); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-modal); background: var(--nomi-paper); box-shadow: var(--nomi-shadow-lg); }
+  .param-panel.on { display: grid; gap: var(--nomi-space-3); }
+  .param-group { display: grid; gap: var(--nomi-space-1); }
+  .param-group label { color: var(--nomi-ink-40); font-size: var(--nomi-font-micro); font-weight: 650; }
+  .segment { display: flex; gap: 2px; padding: 3px; border-radius: var(--nomi-radius-panel); background: var(--nomi-ink-05); }
+  .segment button { flex: 1; min-height: 28px; border: 0; border-radius: var(--nomi-radius-field); background: transparent; color: var(--nomi-ink-60); font-size: var(--nomi-font-caption); }
+  .segment button.on { background: var(--nomi-paper); color: var(--nomi-ink); box-shadow: var(--nomi-shadow-sm); font-weight: 650; }
+  .inventory { margin-top: var(--nomi-space-4); padding: var(--nomi-space-4); }
+  .inventory summary { cursor: pointer; color: var(--nomi-ink-80); font-size: var(--nomi-font-body-sm); font-weight: 650; }
+  .inventory p { color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); line-height: 1.6; }
+  .inventory-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--nomi-space-2); margin-top: var(--nomi-space-3); }
+  .inventory-item { padding: var(--nomi-space-2); border: 1px solid var(--nomi-line-soft); border-radius: var(--nomi-radius-field); color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); line-height: 1.5; }
+  .inventory-item strong { display: block; color: var(--nomi-ink-80); font-weight: 650; }
+  .decision { display: grid; grid-template-columns: 1fr 1fr; gap: var(--nomi-space-3); margin-top: var(--nomi-space-4); }
+  .decision > div { padding: var(--nomi-space-3); border-radius: var(--nomi-radius-panel); background: var(--nomi-ink-05); }
+  .decision strong { display: block; margin-bottom: var(--nomi-space-1); font-size: var(--nomi-font-body-sm); }
+  .decision p { margin: 0; color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); line-height: 1.7; }
+  @media (max-width: 1100px) { .app { width: 100%; } .layout { grid-template-columns: 1fr; } .model-rail { grid-template-columns: 1fr 1fr; } .mode-tag { justify-self: start; } }
+</style>
+</head>
+<body>
+<main class="app light" id="app">
+  <header class="appbar">
+    <span class="brand">Nomi</span><span class="crumb">项目库 › <strong>夜风 · 分镜</strong></span>
+    <nav class="stepper"><span class="step on">创作</span><span class="step">生成</span><span class="step">预览</span></nav>
+    <span class="crumb">模型模式验收</span><button class="theme" id="themeToggle" type="button" aria-label="切换明暗">◐</button>
+  </header>
+  <div class="page">
+    <div class="hero">
+      <div><div class="eyebrow">Storyboard / reference contract</div><h1>锚行与镜头行：参考区跟着模型模式变</h1><p>同一行不再假设“总是两格”。下面的参考区是 `referenceZoneView()` 的静态同构投影。</p></div>
+      <span class="proof-pill" id="proofPill">● 真实模式快照 · 8 个可切换样本</span>
+    </div>
+
+    <section class="card model-rail" data-model-switcher>
+      <div class="rail-label">选择一个真实模型模式</div>
+      <select class="select" id="modelSelect" data-model-entry aria-label="真实模型模式"></select>
+      <div class="slot-contract" id="slotContract"></div>
+      <span class="mode-tag" id="modeTag"></span>
+    </section>
+
+    <div class="layout">
+      <section class="card anchor-panel" data-storyboard-anchors>
+        <div class="section-head"><h2>跨镜头要一致的</h2><span>锚行 · 全局管理面的行内投影</span></div>
+        <div class="anchor-state-key" aria-label="锚画面格状态示例">
+          <span class="state-key loading" data-anchor-state="loading">生成中</span><span class="state-key failed" data-anchor-state="failed">失败</span><span class="state-key generated" data-anchor-state="generated">已生成</span><span class="state-key locked" data-anchor-state="locked">已锁定</span>
+        </div>
+        <div class="anchor-stack">
+          <article class="shot-row anchor-row" data-storyboard-anchor-row="character">
+            <div class="anchor-placeholder" aria-hidden="true">—</div>
+            <div class="frame anchor-frame character" data-anchor-frame data-anchor-state="locked" aria-label="林薇角色锚已锁定"><span class="anchor-state locked">已锁定</span><button class="generate" type="button">重生成</button></div>
+            <div class="anchor-references" data-anchor-references>
+              <div class="anchor-ref-head"><span>谁引用了我</span><span class="anchor-ref-count">5 镜</span></div>
+              <div class="anchor-ref-list"><button class="shot-thumb" type="button" data-shot-ref="01" aria-label="打开镜 01">01</button><button class="shot-thumb" type="button" data-shot-ref="04" aria-label="打开镜 04">04</button><button class="shot-thumb" type="button" data-shot-ref="06" aria-label="打开镜 06">06</button><button class="shot-thumb" type="button" data-shot-ref="08" aria-label="打开镜 08">08</button><button class="shot-thumb" type="button" data-shot-ref="10" aria-label="打开镜 10">10</button></div>
+            </div>
+            <div class="anchor-copy">
+              <div class="anchor-heading"><div class="anchor-name">林薇</div><span class="anchor-lock">角色锚 · 图像已锁定</span></div>
+              <div class="anchor-meta">角色一致性源头 · 生成图可被镜头引用</div>
+              <div class="param-rail" data-parameter-rail>
+                <select class="param-pill model-pill" data-model-entry data-anchor-model aria-label="林薇锚模型"></select><span class="param-pill" data-anchor-aspect>9:16</span><button class="param-pill summary" type="button" data-anchor-summary>图像参数摘要　⌄</button><span class="spacer"></span>
+              </div>
+            </div>
+          </article>
+          <article class="shot-row anchor-row" data-storyboard-anchor-row="scene">
+            <div class="anchor-placeholder" aria-hidden="true">—</div>
+            <div class="frame anchor-frame scene" data-anchor-frame data-anchor-state="generated" aria-label="天台夜景场景锚已生成"><span class="anchor-state">已生成</span><button class="generate" type="button">重生成</button></div>
+            <div class="anchor-references" data-anchor-references>
+              <div class="anchor-ref-head"><span>谁引用了我</span><span class="anchor-ref-count">4 镜</span></div>
+              <div class="anchor-ref-list"><button class="shot-thumb" type="button" data-shot-ref="02" aria-label="打开镜 02">02</button><button class="shot-thumb" type="button" data-shot-ref="05" aria-label="打开镜 05">05</button><button class="shot-thumb" type="button" data-shot-ref="06" aria-label="打开镜 06">06</button><button class="shot-thumb" type="button" data-shot-ref="09" aria-label="打开镜 09">09</button></div>
+            </div>
+            <div class="anchor-copy">
+              <div class="anchor-heading"><div class="anchor-name">天台夜景</div><span class="anchor-lock">场景锚 · 已生成</span></div>
+              <div class="anchor-meta">场景连续性 · 4 镜正在使用这张图</div>
+              <div class="param-rail" data-parameter-rail>
+                <select class="param-pill model-pill" data-model-entry data-anchor-model aria-label="天台夜景锚模型"></select><span class="param-pill" data-anchor-aspect>16:9</span><button class="param-pill summary" type="button" data-anchor-summary>图像参数摘要　⌄</button><span class="spacer"></span>
+              </div>
+            </div>
+          </article>
+          <article class="shot-row anchor-row" data-storyboard-anchor-row="style">
+            <div class="anchor-placeholder" aria-hidden="true">—</div>
+            <div class="frame anchor-frame text-anchor" data-anchor-frame data-anchor-state="text" aria-label="全片风格文本锚">赛博霓虹<br>冷蓝洋红</div>
+            <div class="anchor-references" data-anchor-references>
+              <div class="anchor-ref-head"><span>谁引用了我</span><span class="anchor-ref-count">6 镜</span></div>
+              <div class="anchor-ref-list"><button class="shot-thumb" type="button" data-shot-ref="01" aria-label="打开镜 01">01</button><button class="shot-thumb" type="button" data-shot-ref="03" aria-label="打开镜 03">03</button><button class="shot-thumb" type="button" data-shot-ref="06" aria-label="打开镜 06">06</button><button class="shot-thumb" type="button" data-shot-ref="07" aria-label="打开镜 07">07</button><button class="shot-thumb" type="button" data-shot-ref="08" aria-label="打开镜 08">08</button><button class="shot-thumb" type="button" data-shot-ref="10" aria-label="打开镜 10">10</button></div>
+            </div>
+            <div class="anchor-copy">
+              <div class="anchor-heading"><div class="anchor-name">全片风格</div><span class="anchor-lock">风格文本锚 · 不生成图</span></div>
+              <div class="anchor-meta">赛博霓虹 · 写入镜头 prompt，不伪造图像产物</div>
+              <div class="param-rail" data-parameter-rail>
+                <select class="param-pill model-pill" data-model-entry data-anchor-model aria-label="全片风格锚模型"></select><span class="param-pill" data-anchor-aspect>—</span><button class="param-pill summary" type="button" data-anchor-summary>文本参数摘要　⌄</button><span class="spacer"></span>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="decision">
+          <div><strong>管理面与扫描面分工</strong><p>独立锚管理仍保留生成、锁定、重生成、描述编辑和反查；本行是同一锚的扫描投影，不复制另一套生命周期。</p></div>
+          <div><strong>同构但不混语义</strong><p>锚行第 3 格反查“谁引用了我”，镜头行第 3 格仍是“我引用了谁”；第 4 格统一放模型与画幅参数。</p></div>
+        </div>
+      </section>
+
+      <section class="card table-card" data-storyboard-rows>
+        <div class="table-head"><h2>场 2 · 天台 · 雨后</h2><span>4 镜 · 13 s · 当前选中镜 06</span></div>
+        <article class="shot-row" data-storyboard-row="6">
+          <div class="grip">⋮<br>⋮</div>
+          <div class="frame" data-storyboard-frame aria-label="镜 06 画面格"></div>
+          <div class="refzone" data-storyboard-refzone>
+            <div class="refzone-head"><span>参考输入</span><span class="derive-badge">derive · slots</span></div>
+            <div class="ref-grid" id="referenceZoneView" data-reference-zone-view></div>
+          </div>
+          <div class="prompt-column">
+            <div class="prompt-box" data-storyboard-prompt-block>中近景，雨停后的天台。<span class="mention">林薇</span> 松开栏杆，城市灯光在积水里晃动，镜头缓慢靠近，留下决绝但克制的余韵。</div>
+            <div class="row-tools"><span>已带入：全片风格「赛博霓虹」</span><span class="spacer"></span><button class="ghost" type="button">展开台词与转场</button></div>
+            <div class="param-rail" data-parameter-rail>
+              <select class="param-pill model-pill" id="modelPill" data-model-entry aria-label="镜头模型"></select>
+              <button class="param-pill summary" type="button" id="summaryPill" data-parameter-summary>首尾帧 · 9:16 · 5 s · 有声　⌄</button>
+              <span class="spacer"></span><button class="generate" type="button">生成这一镜</button>
+            </div>
+            <div class="param-panel" id="parameterPanel" data-parameter-panel>
+              <div class="param-group"><label>生成方式 · 随模式声明</label><div class="segment"><button type="button">文生视频</button><button class="on" type="button">首尾帧</button><button type="button">全能参考</button></div></div>
+              <div class="param-group"><label>画幅</label><div class="segment"><button class="on" type="button">9:16</button><button type="button">16:9</button><button type="button">1:1</button></div></div>
+              <div class="param-group"><label>清晰度</label><div class="segment"><button type="button">720p</button><button class="on" type="button">1080p</button></div></div>
+              <div class="param-group"><label>声音</label><div class="segment"><button class="on" type="button">有声</button><button type="button">无声</button></div></div>
+            </div>
+          </div>
+        </article>
+        <div class="decision">
+          <div><strong>参考区只读投影</strong><p>切换模式只改变声明出来的槽形状；已绑锚仍按 slot key 保存在 flat meta，不因切换被清空。</p></div>
+          <div><strong>参数条复用 InlineParameterBar</strong><p>模型身份留在底沿，当前参数收成摘要 pill；点它打开统一参数面板，不另画“露几个收几个”。</p></div>
+        </div>
+      </section>
+    </div>
+
+    <details class="card inventory" open>
+      <summary>当前注册表覆盖说明：89 个 archetype / 188 个 mode（全量清单见旁边设计记录）</summary>
+      <p>这里的可切换样本不是抽象四态：它们来自真实注册项，覆盖 `referenceZoneView()` 的所有输出分支与六种 `ArchetypeReferenceSlotKind`。完整 89 项逐 mode 清单见 `docs/design/2026-09-03-storyboard-model-mode-inventory.md`。</p>
+      <div class="inventory-grid" id="inventoryGrid"></div>
+    </details>
+  </div>
+</main>
+<script>
+  // 这份快照由 2026-09-03 的 MODEL_ARCHETYPES 读取结果整理；生产实现仍以 TS 档案为准。
+  // 这里故意先 derive view，再渲染 view，避免样张回到“手画四张图”。
+  const CASES = [
+    { key: 'seedance-2:t2v', label: 'Seedance 2.0 · 文生视频', archetype: 'seedance-2', mode: 't2v', term: '文生视频', slots: [], group: '零槽', note: 'slots.length === 0 → none-accepted' },
+    { key: 'seedance-2:first', label: 'Seedance 2.0 · 首帧', archetype: 'seedance-2', mode: 'first', term: '首帧', slots: [{ kind: 'first_frame', label: '首帧', min: 1, max: 1 }], group: '单槽', note: '1 个具名槽 → 1 格' },
+    { key: 'seedance-2:firstlast', label: 'Seedance 2.0 · 首尾帧', archetype: 'seedance-2', mode: 'firstlast', term: '首尾帧', slots: [{ kind: 'first_frame', label: '首帧', min: 1, max: 1 }, { kind: 'last_frame', label: '尾帧', min: 1, max: 1 }], group: '多具名槽', note: '2 个具名槽 → 2 格' },
+    { key: 'seedance-2:omni', label: 'Seedance 2.0 · 全能参考', archetype: 'seedance-2', mode: 'omni', term: '全能参考', slots: [{ kind: 'image_ref', label: '角色参考', min: 0, max: 9, characterIndexed: true }, { kind: 'video_ref', label: '参考视频', min: 0, max: 3 }, { kind: 'audio_ref', label: '参考音频', min: 0, max: 3 }], group: '数组参考', note: '非具名槽 → 一个 @ 通用入口；声明 image/video/audio' },
+    { key: 'happyhorse:i2v', label: 'HappyHorse 1.0 · 图生视频', archetype: 'happyhorse', mode: 'i2v', term: '图生视频', slots: [{ kind: 'first_frame', label: '首帧', min: 1, max: 1, asArray: true }], group: '单槽', note: '单图具名槽，但请求输入是 1 元素数组' },
+    { key: 'happyhorse:edit', label: 'HappyHorse 1.0 · 视频编辑', archetype: 'happyhorse', mode: 'edit', term: '视频编辑', slots: [{ kind: 'source_video', label: '源视频', min: 1, max: 1 }, { kind: 'image_ref', label: '参考图', min: 0, max: 5 }], group: '源视频 + 数组', note: 'source_video 具名格 + image_ref 的 @ 入口' },
+    { key: 'agnes-video:keyframes', label: 'Agnes Video V2.0 · 关键帧动画', archetype: 'agnes-video', mode: 'keyframes', term: '关键帧动画', slots: [{ kind: 'image_ref', label: '关键帧', min: 2 }], group: '未公布上限', note: 'max 缺省：不渲染伪造的具体上限' },
+    { key: 'unknown:default', label: '未识别模型 · 无档案默认', archetype: null, mode: 'default', term: '通用模式', slots: [], group: '无档案默认', note: '契约未知 → 最宽形态：已引用锚 + @' },
+  ];
+  const INVENTORY = [
+    ['seedance-2','Seedance 2.0','t2v · first · firstlast · omni'],['seedance-2.5','Seedance 2.5','t2v · first · firstlast · omni'],['minimax-h3','MiniMax H3','t2v · i2v · ref'],['minimax-h3-max','MiniMax H3-Max','t2v · i2v'],['happyhorse','HappyHorse 1.0','t2v · i2v · ref · edit'],['vidu-q3','Vidu Q3','ref'],['kling-3.0-turbo','可灵 3.0 Turbo','t2v · i2v'],['happyhorse-1.1','HappyHorse 1.1','t2v · i2v · ref'],['grok-imagine-1.5-video','Grok Imagine 1.5','t2v · i2v'],['sora-2','Sora 2','t2v · i2v'],['veo-3.1','Veo 3.1','t2v · reference · frame'],['gemini-omni-1.1','Gemini Omni 1.1 Flash','t2v · firstlast · reference'],['runway-gen4.5','Runway Gen-4.5','t2v · i2v'],['runway-gen4-turbo','Runway Gen-4 Turbo','i2v'],['kling-3.0','可灵 3.0','t2v · i2v'],['seedance-2-apimart','Seedance 2.0','t2v · i2v · omni · firstlast'],['seedance-2.5-apimart','Seedance 2.5','t2v · first · firstlast · omni'],['seedance-2.5-runway','Seedance 2.5','t2v · first · firstlast · omni'],['minimax-h3-apimart','MiniMax H3','t2v · first · firstlast · ref'],['wan-2.7','Wan 2.7','t2v · i2v · ref'],['wan-3.0','Wan 3.0','t2v · first · firstlast · ref'],['wan-3.0-apimart','Wan 3.0','t2v · first · firstlast · ref'],['hailuo-2.3','Hailuo 2.3','t2v · i2v'],['omni-flash-ext','Omni-Flash-Ext','t2v · i2v'],['minimax-h3-regeneration','MiniMax H3 再生成','regenerate'],['volcengine-seedance-2','Seedance 2.0','t2v · first · firstlast · omni'],['volcengine-seedance-2-5','Seedance 2.5','t2v · first · firstlast · omni'],['dreamina-seedance-2','即梦 Seedance','t2v · i2v · firstlast · multimodal'],['dreamina-multiframe','即梦多帧视频','multiframe'],['runninghub-seedance','Seedance 2.0 (RunningHub)','text · image'],['rh-veo-3.1','Veo 3.1 (RunningHub)','text · image'],['rh-kling-3.0','可灵 3.0 (RunningHub)','text · image'],['rh-wan-2.7','Wan 2.7 (RunningHub)','text · image'],['rh-hailuo-2.3','海螺 2.3 (RunningHub)','text · image'],['rh-sora-2','Sora 2 (RunningHub)','text · image'],['agnes-video','Agnes Video V2.0','t2v · i2v · keyframes'],['agnes-video-2.5','Agnes Video 2.5','text · keyframe · reference'],['agnes-video-2.5-flash','Agnes Video 2.5 Flash','text · keyframe · reference'],['minimax-music-3','MiniMax Music 3','music'],['minimax-speech-2.8','MiniMax Speech 2.8','speech'],['eleven-v3','Eleven v3','speech'],['eleven-multilingual-v2','Eleven Multilingual v2','speech'],['eleven-music-v2','Eleven Music v2','music'],['eleven-sfx-v2','Eleven Sound Effects v2','sfx'],['eleven-scribe-v2','Scribe v2','transcribe'],['meshy-7','Meshy 7','i2m'],['runway-gen4-image','Runway Gen-4 Image','t2i · i2i'],['runway-gen4-image-turbo','Runway Gen-4 Image Turbo','i2i'],['runway-muse-image','Runway Muse Image','t2i · i2i'],['grok-imagine-image-2','Grok Imagine Image 2','t2i · i2i'],['gemini-image-3-pro','Gemini Image 3 Pro','t2i · i2i'],['gemini-image-3.1-flash','Gemini Image 3.1 Flash','t2i · i2i'],['runway-seed-audio','Runway Seed Audio','sfx · speech'],['gpt-image-2','GPT Image 2','t2i · i2i'],['seedream','Seedream 4.5','t2i · edit'],['kie-seedream-5-pro','Seedream 5.0 Pro','t2i · edit'],['kie-seedream-5-lite','Seedream 5.0 Lite','t2i · edit'],['nano-banana-2','Nano Banana 2','t2i · edit'],['nano-banana-2-lite','Nano Banana 2 Lite','t2i · edit'],['nano-banana','Nano Banana','t2i · edit'],['flux-2-pro','FLUX.2 Pro','t2i · edit'],['qwen-image-3','Qwen-Image 3.0','t2i · edit'],['qwen-image','Qwen-Image 2.0','t2i · edit'],['imagen-4','Imagen 4','t2i'],['z-image-turbo','Z-Image Turbo','t2i'],['seedream-5-pro','Seedream 5.0 Pro','t2i · edit'],['nomi-audio','声音','speech · transcribe'],['suno-v5.5','Suno V5.5','music · extend · cover'],['suno-sfx-v5.5','Suno Sounds V5.5','sfx'],['lyria-3.5','Lyria 3.5','music'],['volcengine-doubao-tts','豆包语音 2.0','speech'],['seed-tts','Seed TTS 2.0（中转）','speech'],['modelscope-image','魔搭图像','t2i'],['modelscope-image-edit','魔搭改图','edit'],['volcengine-seedream','Seedream 5.0','t2i · edit'],['volcengine-seedream-5-pro','Seedream 5.0 Pro','t2i · edit'],['dreamina-image','即梦图片','t2i · i2i'],['dreamina-upscale','即梦图片超清','upscale'],['codex-imagegen','Codex 生图','t2i · i2i'],['antigravity-image','Antigravity · generate_image','t2i · i2i'],['hunyuan3d','混元3D v3.1','text · image'],['hitem3d','HiTem3D v21','image'],['meshy6','Meshy 6','text · image'],['rh-seedream-4.5','Seedream 4.5 (RunningHub)','text · edit'],['rh-nano-banana','Nano Banana (RunningHub)','text · edit'],['rh-gpt-image-2','GPT Image 2 (RunningHub)','text · edit'],['rh-qwen-image-2.0','Qwen-Image 2.0 (RunningHub)','text · edit'],['agnes-image','Agnes Image 2.0','t2i · edit'],['agnes-image-2.1','Agnes Image 2.1','t2i · edit'],
+  ];
+  const slotKindLabel = { first_frame: '首帧', last_frame: '尾帧', image_ref: 'image_ref', video_ref: 'video_ref', audio_ref: 'audio_ref', source_video: 'source_video' };
+  const namedFrameKinds = new Set(['first_frame', 'last_frame', 'source_video']);
+  const current = () => CASES.find((item) => item.key === document.getElementById('modelSelect').value) || CASES[0];
+  // 与 src/workbench/creation/storyboard/shotRow/shotRowModel.ts 保持同一 derive 顺序。
+  function referenceZoneView(mode, referencedAnchors = ['林薇']) {
+    if (!mode) return { kind: 'slots', namedSlots: [], hasArrayIntake: true, referencedAnchors };
+    if (mode.slots.length === 0) return { kind: 'none-accepted' };
+    return { kind: 'slots', namedSlots: mode.slots.filter((slot) => namedFrameKinds.has(slot.kind)), hasArrayIntake: mode.slots.some((slot) => !namedFrameKinds.has(slot.kind)), referencedAnchors };
+  }
+  function slotText(slot) { const limit = slot.max === undefined ? '上限未公布' : `${slot.min}–${slot.max}`; const flags = [slot.characterIndexed ? '按角色索引' : '', slot.asArray ? 'asArray' : ''].filter(Boolean); return `${slotKindLabel[slot.kind]} · ${limit}${flags.length ? ` · ${flags.join(' · ')}` : ''}`; }
+  function renderZone(item) {
+    const zone = document.getElementById('referenceZoneView');
+    const view = referenceZoneView(item.archetype ? item : null);
+    zone.innerHTML = '';
+    if (view.kind === 'none-accepted') { zone.innerHTML = '<div class="none-state" data-reference-zone="none-accepted"><div><strong>此模型不吃参考</strong>slots.length === 0 · @ 不可用</div></div>'; return; }
+    const grid = document.createElement('div'); grid.className = 'ref-grid'; grid.dataset.referenceZone = 'slots';
+    for (const slot of view.namedSlots) {
+      const unit = document.createElement('div'); unit.className = 'ref-unit';
+      unit.innerHTML = `<div class="ref-tile empty" data-storyboard-ref-tile aria-label="${slot.label}">${slot.kind === 'source_video' ? '▶' : '+'}</div><span class="ref-cap">${slot.label} · ${slot.kind}${slot.asArray ? ' · asArray' : ''}</span>`;
+      grid.append(unit);
+    }
+    if (view.hasArrayIntake) {
+      const unit = document.createElement('div'); unit.className = 'ref-unit';
+      unit.innerHTML = '<div class="ref-tile array" data-storyboard-ref-tile aria-label="@ 通用参考入口">@</div><span class="ref-cap">加参考</span>';
+      grid.append(unit);
+      const summary = document.createElement('div'); summary.className = 'array-summary'; summary.dataset.referenceArray = 'true';
+      summary.innerHTML = `<strong>数组参考 · 一个 @ 入口</strong>${item.archetype ? item.slots.filter((slot) => !namedFrameKinds.has(slot.kind)).map(slotText).join(' · ') : '契约未知 · 已引用锚 + @ 占位'}`;
+      grid.append(summary);
+    }
+    zone.append(grid);
+  }
+  function render() {
+    const item = current();
+    const declared = item.slots.length ? item.slots.map(slotText).join(' | ') : 'slots.length === 0';
+    document.getElementById('slotContract').innerHTML = `<strong>${item.archetype || 'no archetype'}</strong> / ${item.mode} · ${declared} · ${item.note}`;
+    document.getElementById('modeTag').textContent = `${item.group} · ${item.term}`;
+    document.getElementById('summaryPill').textContent = `${item.term} · 9:16 · 5 s · 参数摘要　⌄`;
+    document.querySelectorAll('[data-model-entry]').forEach((entry) => { entry.value = item.key; });
+    renderZone(item);
+    document.querySelectorAll('#parameterPanel .segment button').forEach((button) => button.classList.toggle('on', button.textContent.includes(item.term) || (item.mode === 'default' && button.textContent.includes('文生'))));
+  }
+  const select = document.getElementById('modelSelect');
+  const modelEntries = document.querySelectorAll('[data-model-entry]');
+  for (const entry of modelEntries) {
+    for (const item of CASES) { const option = document.createElement('option'); option.value = item.key; option.textContent = item.label; entry.append(option); }
+    entry.addEventListener('change', (event) => { select.value = event.currentTarget.value; render(); });
+  }
+  select.value = 'seedance-2:omni';
+  document.getElementById('summaryPill').addEventListener('click', () => document.getElementById('parameterPanel').classList.toggle('on'));
+  document.getElementById('themeToggle').addEventListener('click', () => document.getElementById('app').classList.toggle('dark'));
+  document.querySelectorAll('[data-anchor-summary]').forEach((button) => button.addEventListener('click', () => { button.textContent = button.textContent.includes('⌄') ? button.textContent.replace('⌄', '已展开') : button.textContent.replace('已展开', '⌄'); }));
+  document.querySelectorAll('[data-shot-ref]').forEach((button) => button.addEventListener('click', () => { document.querySelectorAll('[data-shot-ref]').forEach((item) => item.removeAttribute('aria-pressed')); button.setAttribute('aria-pressed', 'true'); document.getElementById('app').dataset.selectedShot = button.dataset.shotRef; }));
+  const inventoryGrid = document.getElementById('inventoryGrid');
+  for (const [id, label, modes] of INVENTORY) { const el = document.createElement('div'); el.className = 'inventory-item'; el.innerHTML = `<strong>${id} · ${label}</strong>${modes}`; inventoryGrid.append(el); }
+  render();
+</script>
+</body>
+</html>
