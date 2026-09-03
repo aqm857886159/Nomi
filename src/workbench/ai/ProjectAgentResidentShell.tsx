@@ -421,6 +421,23 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       ? selectedNodeIds.length > 0
       : selectedClipIds.length > 0
 
+  // Exception-card actions stay on the resident surface. These listeners
+  // make the two explicit recovery events actionable instead of leaving a
+  // button that only emits an unhandled browser event.
+  React.useEffect(() => {
+    const onPriceRefresh = (): void => setError(t('agentResident.priceUnavailable'))
+    const onWriteRetry = (): void => {
+      setError('')
+      setDraft(t('agentResident.editPlanPrompt'))
+    }
+    window.addEventListener('nomi-agent-price-refresh', onPriceRefresh)
+    window.addEventListener('nomi-agent-write-retry', onWriteRetry)
+    return () => {
+      window.removeEventListener('nomi-agent-price-refresh', onPriceRefresh)
+      window.removeEventListener('nomi-agent-write-retry', onWriteRetry)
+    }
+  }, [setDraft, t])
+
   // The picker is the user's capability index: expose every selectable
   // repository/user Skill. Electron filters implementation-only resources
   // before they cross the bridge.
@@ -703,7 +720,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       const shots = residentPlanShots(editableArgs)
       return <div key={pending.call.toolCallId} data-agent-item-kind="approval"><ResidentPlanCard state="ready" shots={shots} parameters={residentProposalParameters(editableArgs)} failureReason={t('agentResident.planFailed')} billing={t('agentResident.notCharged')} editLabel={t('agentResident.editPrompt')} retryLabel={t('agentResident.retry')} loadingLabel={t('agentResident.planLoading')} summaryLabel={(total, selected) => t('agentResident.planSummary', { total, selected })} generateLabel={(selected) => t('agentResident.planGenerate', { count: selected })} editedLabel={t('agentResident.planEdited')} selectAllLabel={t('agentResident.planSelectAll')} onEdit={() => setDraft(t('agentResident.editPlanPrompt'))} onRetry={() => void resolveTool(pending, true, editableArgs)} onGenerate={(selected) => void resolveTool(pending, true, residentArgsForSelection(editableArgs, selected))}><GenerationProposalEditor args={editableArgs} t={t} onChange={(next) => setProposalDrafts((previous) => ({ ...previous, [key]: next }))} /></ResidentPlanCard></div>
     }
-    return <div key={pending.call.toolCallId} data-agent-item-kind="approval"><ResidentApprovalCard title={readableToolName(t, pending.call.toolName)} iconName={pending.call.toolName} summary={readableToolPreview(t, pending.call.toolName, editableArgs)} details={readableToolDetailRows(t, pending.call.toolName, editableArgs)} detailsLabel={t('agentResident.toolInspectDetails')} proposal={proposal} state={approvalState} approveLabel={t('agentResident.approve')} denyLabel={t('agentResident.deny')} pendingLabel={t('agentResident.waitingApproval')} approvedLabel={t('agentResident.approved')} deniedLabel={t('agentResident.denied')} resolvedApprovedHint={t('agentResident.approvedReceiptHint')} resolvedDeniedHint={t('agentResident.deniedReceiptHint')} notWrittenLabel={t('agentResident.notWritten')} onApprove={() => void resolveTool(pending, true, editableArgs)} onDeny={() => void resolveTool(pending, false)} /></div>
+    return <div key={pending.call.toolCallId} data-agent-item-kind="approval"><ResidentApprovalCard title={readableToolName(t, pending.call.toolName)} iconName={pending.call.toolName} summary={readableToolPreview(t, pending.call.toolName, editableArgs)} details={readableToolDetailRows(t, pending.call.toolName, editableArgs)} detailsLabel={t('agentResident.toolInspectDetails')} proposal={proposal} state={approvalState} approveLabel={t('agentResident.approve')} denyLabel={t('agentResident.deny')} pendingLabel={t('agentResident.waitingApproval')} approvedLabel={t('agentResident.approved')} deniedLabel={t('agentResident.denied')} resolvedApprovedHint={t('agentResident.approvedReceiptHint')} resolvedDeniedHint={t('agentResident.deniedReceiptHint')} notWrittenLabel={t('agentResident.notWritten')} compactGeneration={compactGeneration} onApprove={() => void resolveTool(pending, true, editableArgs)} onDeny={() => void resolveTool(pending, false)} /></div>
   }
 
   if (collapsed) {
