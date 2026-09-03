@@ -62,6 +62,10 @@ try {
   assert(await b.win.getByRole('button', { name: '预览', exact: false }).first().isVisible(), '机器 B 工作台预览入口可见')
   await b.win.screenshot({ path: path.join(evidence, 'machine-b-project-open.png'), fullPage: true })
   console.log(`\nCROSS-DEVICE PASS: ${passed} assertions`)
+} catch (err) {
+  console.error('\nCROSS-DEVICE FAIL:', err.message)
+  process.exitCode = 1
 } finally {
   await Promise.all([a.close(), b.close()])
+  if (process.exitCode === 1) process.exit(1)
 }
