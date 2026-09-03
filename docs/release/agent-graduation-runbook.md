@@ -15,5 +15,8 @@
 ## 进入条件
 
 - 先通过 `pnpm run dist:mac:dir` 的 packaged smoke 和 `node tests/ux/model-integration-packaged.e2e.mjs --packaged release/mac-arm64/Nomi.app`。
-- 先修复并重跑 `pnpm run test:mcp-l2:packaged` 的 generation confirmation parity FAIL。
+- 先在**最终 main 基线**上跑 `pnpm run test:mcp-l2:packaged` 并确认 50/50。generation confirmation parity 的
+  FAIL 已于 2026-09-03 修复（根因见 `docs/fixes/2026-09-03-packaged-transport-callback-omitted.root-cause.json`，
+  机器防线 `scripts/check-transport-assembly.mjs`）——但那次 50/50 是在修复分支上取得的，**合入后的 main 尚未复核**，
+  这一条不许引用旧结果打勾。
 - 真实 Host 与付费检查只能在维护者明确批准账号/额度后执行；CI 保持 `agentHostEnabled=false`、零额度。

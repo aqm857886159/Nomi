@@ -10,6 +10,11 @@ export function shouldApplyExternalPromptSync(
   return effectValue === latestValue && effectValue !== lastEditorValue
 }
 
+/** 仅真正改变 prompt 字符串的文档事务向 owner 回写；胶囊编号事务不能覆盖外部 plan 编辑。 */
+export function shouldEmitPromptUpdate(docChanged: boolean, next: string, latest: string): boolean {
+  return docChanged && next !== latest
+}
+
 export function promptToContent(
   prompt: string,
   references: readonly string[] | readonly PromptReference[] = [],

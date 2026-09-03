@@ -4,6 +4,7 @@ import { ipcMain } from "electron";
 import { assertTrustedSender } from "../ipcSenderGuard";
 import { appendEvents, readEvents } from "./eventLogRepository";
 import type { NewNomiEvent } from "./types";
+import { deriveGenerationEtaStats } from './generationEtaStats';
 
 export function registerEventsIpc(): void {
   ipcMain.handle("nomi:events:append", async (event, payload: { projectId?: string; events?: unknown }) => {
@@ -21,5 +22,12 @@ export function registerEventsIpc(): void {
     const projectId = String(payload?.projectId || "");
     const fromSeq = Number(payload?.fromSeq) || 0;
     return { ok: true, events: readEvents(projectId, { fromSeq }) };
+  });
+
+  // ETA 读口只回按 vendor/model/kind 聚合后的数字，不把原始提示词或 URL 带进 renderer。
+  ipcMain.on('nomi:events:generation-eta-stats', (event, payload: { projectId?: string }) => {
+    assertTrustedSender(event);
+    const projectId = String(payload?.projectId || '');
+    event.returnValue = { ok: true, stats: deriveGenerationEtaStats(readEvents(projectId)) };
   });
 }

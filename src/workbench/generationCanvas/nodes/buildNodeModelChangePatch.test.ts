@@ -75,6 +75,33 @@ describe('buildNodeModelChangePatch', () => {
       imageModelVendor: 'next-vendor',
     })
     expect(patch.meta.old_only).toBeUndefined()
+    expect(patch.changeset).toEqual({
+      retained: [],
+      removed: [{ key: 'old_only', value: 'x' }],
+      changedDefaults: [{ key: 'quality', from: undefined, to: 'high' }],
+    })
+  })
+
+  it('reports retained controls and defaults that replace an existing value', () => {
+    const current = option({ value: 'old', label: 'Old', vendor: 'v', meta: {
+      parameterControls: [
+        { key: 'quality', label: 'Quality', type: 'select', options: [{ value: 'high', label: 'High' }], defaultValue: 'high' },
+        { key: 'ratio', label: 'Ratio', type: 'select', options: [{ value: 'wide', label: 'Wide' }], defaultValue: 'wide' },
+      ],
+    } })
+    const next = option({ value: 'next', label: 'Next', vendor: 'v', meta: {
+      parameterControls: [
+        { key: 'quality', label: 'Quality', type: 'select', options: [{ value: 'standard', label: 'Standard' }], defaultValue: 'standard' },
+        { key: 'ratio', label: 'Ratio', type: 'select', options: [{ value: 'wide', label: 'Wide' }], defaultValue: 'wide' },
+      ],
+    } })
+    const node = { ...createGenerationNode({ id: 'image', kind: 'image' }), meta: { modelKey: 'old', modelVendor: 'v', quality: 'low', ratio: 'wide' } }
+    const patch = buildNodeModelChangePatch({ node, nodes: [node], edges: [], modelOptions: [current, next], value: 'next', vendor: 'v' })
+    expect(patch.changeset).toEqual({
+      retained: [{ key: 'ratio', value: 'wide' }],
+      removed: [],
+      changedDefaults: [{ key: 'quality', from: 'low', to: 'standard' }],
+    })
   })
 
   it('uses the video product aspect default and promotes a referenced archetype mode', () => {

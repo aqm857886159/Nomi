@@ -4,12 +4,13 @@
   "description": "Connect HTTP models or a native ComfyUI workflow through Nomi's verified certification path.",
   "tools": [
     "nomi_integration",
+    "nomi_integration_manage",
     "nomi_read"
   ],
   "requiredProviders": ["text", "image", "video"],
   "permissions": ["read-only", "create"],
   "examples": [
     { "title": "Connect a provider", "description": "Bring an official API origin and choose verified text, image, or video models." },
-    { "title": "Connect ComfyUI", "description": "Submit an API or ordinary UI-saved workflow and resolve every explicit input binding." }
+    { "title": "Connect ComfyUI", "description": "Normalize an API or ordinary UI-saved workflow, submit one proposal, and repair field-level rejections." }
   ]
 }

@@ -280,6 +280,23 @@ const protocol = createMcpProtocol({
   },
   isAppOpen: () => Boolean(readLiveInstance()),
   getAuthenticatedClient: () => launcherConnection().authenticatedClient,
+  // 打包态：mcpNodeLauncher 以裸 Node 跑，无自己的 Electron 主进程，不能直接弹应用内卡。
+  // 通过 loopback RPC 把挑战令牌转给 GUI 进程的 nomi_confirm_generation_gate 端点，
+  // 由 GUI 负责弹真人确认卡并铸收据——与 mcpStdioServer.ts 的 confirmGenerationInNomi 同语义。
+  confirmGenerationInNomi: async (challenge) => {
+    const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
+      ? challenge.handoff.challengeToken
+      : ''
+    const instance = readLiveInstance()
+    if (!challengeToken || !instance) return { confirmed: false }
+    const result = await callViaRpc(instance, 'nomi_confirm_generation_gate', { challengeToken })
+    const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
+    return {
+      confirmed: typed.confirmed === true,
+      ...(typed.receiptId ? { receiptId: typed.receiptId } : {}),
+      ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}),
+    }
+  },
   getLocale: () => launcherLocale,
 })
 
@@ -302,7 +319,8 @@ let closing = false
 function close(): void {
   if (closing) return
   closing = true
-  protocol.cancelAllInFlight('stdio disconnected')
+  const cancelled = protocol.cancelAllInFlight('stdio disconnected')
+  if (cancelled > 0) process.stderr.write(`[nomi-mcp] cancelled ${cancelled} in-flight request(s) on disconnect\n`)
   if (process.env.NOMI_MCP_EXIT_BOOTSTRAPPED_APP === '1' && bootedApp?.pid) {
     try { bootedApp.kill('SIGTERM') } catch { /* best effort test cleanup */ }
   }

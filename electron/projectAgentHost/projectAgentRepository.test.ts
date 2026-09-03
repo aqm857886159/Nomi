@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { __projectAgentCommandLedgerScanCountForTests } from "./projectAgentCommandLedger";
 import {
   PROJECT_AGENT_STORE_SCHEMA_VERSION,
   ProjectAgentRepositoryCommittedDurabilityError,
@@ -577,7 +578,7 @@ describe("ProjectAgentRepository", () => {
     const realRename = fs.renameSync.bind(fs);
     const directoryFds = new Set<number>();
     let mainPublished = false;
-    const readSpy = vi.spyOn(fs, "readFileSync");
+    const scansBefore = __projectAgentCommandLedgerScanCountForTests();
     setDurabilityMode("durable");
     vi.spyOn(fs, "openSync").mockImplementation((filePath, flags, mode) => {
       const fd = realOpen(filePath, flags, mode);
@@ -619,7 +620,11 @@ describe("ProjectAgentRepository", () => {
     expect(repository.lookupCommittedCommand(state(BINDING_A, 1), "repository-fixture-command-1")).toMatchObject({
       appliedRevision: 1,
     });
-    expect(readSpy.mock.calls.filter(([filePath]) => String(filePath) === paths.ledger)).toHaveLength(0);
+    // 提交后仍走内存索引答题，一次账本全量重扫都没有。上一版这里过滤 `fs.readFileSync` 的
+    // 路径参数，而重扫走 readRegular() → fs.readFileSync(fd)，第一个参数是 fd 数字不是路径，
+    // 过滤器**永远匹配不到**——那条断言恒真。计数器不经过 fs 间接层，`projectAgentHost.test.ts`
+    // 里的阳性对照用例钉住「它真的会涨」。
+    expect(__projectAgentCommandLedgerScanCountForTests() - scansBefore).toBe(0);
     expect(fs.existsSync(paths.backup)).toBe(false);
   });
 

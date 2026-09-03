@@ -402,15 +402,15 @@ function applyVendorUpsert(state: CatalogState, payload: unknown): Vendor {
         }
       : { customConfig: existingMeta?.customConfig };
   }
-  // Credential-bearing network config (proxyUrl / extraHeaders) is encrypted into the
-  // vendor's ApiKeyRecord and never persisted as plaintext on the vendor. A field the
-  // upsert actually supplies is encrypted; a field it omits falls back to the existing
-  // vendor's legacy plaintext so a re-save migrates (never drops) pre-v12 secrets. The
-  // plaintext is stripped off the meta/network written to the vendor row below.
+  // Credential-bearing network config is encrypted into ApiKeyRecord; omitted fields migrate legacy plaintext.
   const networkIncoming = resolveNetworkConfigForWrite(raw, incomingMeta, existing, state.apiKeysByVendor[key]);
   if (networkIncoming.proxyUrl !== undefined || networkIncoming.extraHeaders !== undefined) {
     applyPlainNetworkConfig(state, key, networkIncoming);
   }
+  const rawNetwork = isJsonRecord(raw.network) ? raw.network : undefined;
+  const proxyEnabled = typeof rawNetwork?.proxyEnabled === "boolean"
+    ? rawNetwork.proxyEnabled
+    : existing?.network?.proxyEnabled;
   const vendor: Vendor = {
     key,
     name: String(raw.name || existing?.name || key).trim(),
@@ -423,6 +423,7 @@ function applyVendorUpsert(state: CatalogState, payload: unknown): Vendor {
       typeof raw.authQueryParam === "string" ? raw.authQueryParam.trim() || null : (existing?.authQueryParam ?? null),
     providerKind: normalizeProviderKind(raw.providerKind, existing?.providerKind ?? "openai-compatible"),
     meta: metaWithoutExtraHeaders(incomingMeta),
+    ...(proxyEnabled !== undefined ? { network: { proxyEnabled } } : {}),
     createdAt: existing?.createdAt || t,
     updatedAt: t,
   };

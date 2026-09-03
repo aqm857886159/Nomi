@@ -29,7 +29,7 @@ export type GenerationCanvasToolAction =
   | { tool: 'read_selected_nodes' }
   | { tool: 'read_node_context'; nodeId: string }
   | { tool: 'create_nodes'; nodes: CreateGenerationNodeToolInput[] }
-  | { tool: 'connect_nodes'; edges: Array<Pick<GenerationCanvasEdge, 'source' | 'target' | 'mode'>> }
+  | { tool: 'connect_nodes'; edges: Array<Pick<GenerationCanvasEdge, 'source' | 'target' | 'mode' | 'order'>> }
   | { tool: 'delete_nodes'; nodeIds: string[] }
   | { tool: 'update_node_prompt'; nodeId: string; prompt: string }
   | { tool: 'set_node_references'; nodeId: string; references: string[] }
@@ -73,7 +73,7 @@ export const generationCanvasTools = {
       return created
     })
   },
-  connect_nodes(edges: Array<Pick<GenerationCanvasEdge, 'source' | 'target' | 'mode'>>) {
+  connect_nodes(edges: Array<Pick<GenerationCanvasEdge, 'source' | 'target' | 'mode' | 'order'>>) {
     // 两道校验,放不行的边都带 reason 进 skipped——applyCanvasToolCall 原样回报给 LLM,它据此纠正:
     //   1. 端点必须真实存在(reason:'dangling')——吊边一旦入 store 会被持久化且永不渲染(连线静默丢失)。
     //   2. 目标模型必须支持这条参考(reason:'source_not_referenceable'/'unsupported_reference',T8)——
@@ -96,7 +96,7 @@ export const generationCanvasTools = {
       }
       // T1 轨迹语义:mode(first_frame/character_ref/…)随边落 store,
       // 生成期 generationReferenceResolver 按它分流参考槽。
-      useGenerationCanvasStore.getState().connectNodes(edge.source, edge.target, edge.mode)
+      useGenerationCanvasStore.getState().connectNodes(edge.source, edge.target, edge.mode, undefined, edge.order)
       connected += 1
     }
     return { connected, skipped, edges: useGenerationCanvasStore.getState().edges }

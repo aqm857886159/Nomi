@@ -168,6 +168,133 @@ test('reference baseline prevents cap growth, new debt, reclassification, and un
   })
 })
 
+test('convergence records are explicit, live-verified, and scoped to historical owners', async (t) => {
+  const sites = {
+    retiredDebt: 'src/old-status.ts::type:OldStatus/type-union',
+    retiredRegistered: 'src/old-schema.ts::variable:oldStatusSchema/z.enum',
+    retiredDebtTwo: 'src/older-status.ts::type:OlderStatus/type-union',
+    surviving: 'electron/shared/status.ts::variable:STATUS_VALUES/as-const',
+  }
+  const members = ['queued', 'running']
+  const entries = {
+    retiredDebt: vocabularyEntry(sites.retiredDebt, members),
+    retiredRegistered: vocabularyEntry(sites.retiredRegistered, members),
+    retiredDebtTwo: vocabularyEntry(sites.retiredDebtTwo, members),
+    surviving: vocabularyEntry(sites.surviving, members, 'The shared status tuple is the single runtime and type owner.'),
+  }
+  const reference = {
+    debtCap: 2,
+    registered: [entries.retiredRegistered],
+    debt: [entries.retiredDebt, entries.retiredDebtTwo],
+  }
+  const convergence = {
+    retiredOwners: [sites.retiredDebt, sites.retiredRegistered, sites.retiredDebtTwo],
+    survivingOwner: sites.surviving,
+  }
+
+  await t.test('a genuine merge passes when the record explains the retired debt owner', () => {
+    const fixture = makeFixture(
+      { 'electron/shared/status.ts': `const STATUS_VALUES = ['queued', 'running'] as const` },
+      { debtCap: 0, registered: [entries.surviving], debt: [], converged: [convergence] },
+    )
+    const referencePath = path.join(fixture.root, 'reference-baseline.json')
+    writeJson(referencePath, reference)
+    try {
+      const result = runChecker(fixture, '--reference-baseline', referencePath)
+      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`)
+    } finally {
+      cleanup(fixture)
+    }
+  })
+
+  await t.test('a retired owner still in the live scan invalidates the record', () => {
+    const fixture = makeFixture(
+      {
+        'src/old-status.ts': `type OldStatus = 'queued' | 'running'`,
+        'electron/shared/status.ts': `const STATUS_VALUES = ['queued', 'running'] as const`,
+      },
+      { debtCap: 0, registered: [entries.surviving], debt: [], converged: [convergence] },
+    )
+    const referencePath = path.join(fixture.root, 'reference-baseline.json')
+    writeJson(referencePath, reference)
+    try {
+      const result = runChecker(fixture, '--reference-baseline', referencePath)
+      assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`)
+      assert.match(result.stderr, /convergence retired owner is still present.*src\/old-status\.ts/s)
+    } finally {
+      cleanup(fixture)
+    }
+  })
+
+  await t.test('a surviving owner absent from the live scan invalidates the record', () => {
+    const fixture = makeFixture(
+      {},
+      { debtCap: 0, registered: [entries.surviving], debt: [], converged: [convergence] },
+    )
+    const referencePath = path.join(fixture.root, 'reference-baseline.json')
+    writeJson(referencePath, reference)
+    try {
+      const result = runChecker(fixture, '--reference-baseline', referencePath)
+      assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`)
+      assert.match(result.stderr, /convergence surviving owner is absent.*electron\/shared\/status\.ts/s)
+    } finally {
+      cleanup(fixture)
+    }
+  })
+
+  await t.test('a retired owner absent from the reference baseline invalidates the record', () => {
+    const fixture = makeFixture(
+      { 'electron/shared/status.ts': `const STATUS_VALUES = ['queued', 'running'] as const` },
+      { debtCap: 0, registered: [entries.surviving], debt: [], converged: [convergence] },
+    )
+    const referencePath = path.join(fixture.root, 'reference-baseline.json')
+    writeJson(referencePath, {
+      debtCap: 1,
+      registered: [entries.retiredRegistered],
+      debt: [entries.retiredDebtTwo],
+    })
+    try {
+      const result = runChecker(fixture, '--reference-baseline', referencePath)
+      assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`)
+      assert.match(result.stderr, /convergence retired owner is absent from reference baseline.*src\/old-status\.ts/s)
+    } finally {
+      cleanup(fixture)
+    }
+  })
+
+  await t.test('a convergence record cannot grow the historical debt cap', () => {
+    const fixture = makeFixture(
+      { 'electron/shared/status.ts': `const STATUS_VALUES = ['queued', 'running'] as const` },
+      { debtCap: 3, registered: [entries.surviving], debt: [], converged: [convergence] },
+    )
+    const referencePath = path.join(fixture.root, 'reference-baseline.json')
+    writeJson(referencePath, reference)
+    try {
+      const result = runChecker(fixture, '--reference-baseline', referencePath)
+      assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`)
+      assert.match(result.stderr, /historical debt cap increased/)
+    } finally {
+      cleanup(fixture)
+    }
+  })
+
+  await t.test('a convergence record cannot leave a reduced historical cap untightened', () => {
+    const fixture = makeFixture(
+      { 'electron/shared/status.ts': `const STATUS_VALUES = ['queued', 'running'] as const` },
+      { debtCap: 1, registered: [entries.surviving], debt: [], converged: [convergence] },
+    )
+    const referencePath = path.join(fixture.root, 'reference-baseline.json')
+    writeJson(referencePath, reference)
+    try {
+      const result = runChecker(fixture, '--reference-baseline', referencePath)
+      assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`)
+      assert.match(result.stderr, /historical debt reduction must tighten cap/)
+    } finally {
+      cleanup(fixture)
+    }
+  })
+})
+
 test('default reference resolution reads the uncommitted baseline from HEAD', () => {
   const siteA = 'src/a.ts::type:AStatus/type-union'
   const siteB = 'src/b.ts::type:BStatus/type-union'
