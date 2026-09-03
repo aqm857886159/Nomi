@@ -162,6 +162,7 @@ export const zhSettings = {
       back: '返回自动化与权限',
       loading: '正在读取 MCP 连接…',
       unavailable: '当前版本无法读取 MCP 连接状态。请重启 Nomi 后再试。',
+      // customClients i18n 键等待 CustomMcpClientCard UI 落地（R8 样张拍板后）再补入
     },
     hosts: {
       title: '可信发起方',
@@ -385,6 +386,7 @@ export const enSettings = {
       back: 'Back to automation and permissions',
       loading: 'Loading MCP connections…',
       unavailable: 'This version cannot read MCP connection status. Restart Nomi and try again.',
+      // customClients i18n keys pending CustomMcpClientCard UI (R8 mockup approval required)
     },
     hosts: {
       title: 'Trusted initiators',

@@ -6,6 +6,10 @@
 //
 // 这条走查刻意走**用户真实路径**（点侧栏 → 点导入 → 选文件 → 看 toast → 文件落盘），
 // 不直接调 importSkillPackageToUserDir —— 只测 IPC 会漏掉解析器、accept 过滤、i18n 文案和刷新。
+//
+// 2026-09-03 更新（根因合同 2026-09-03-skill-ipc-missing-handlers）：此走查现在也覆盖
+// nomi:skill:import handler 注册修复——三个 write handler 此前从 registerSkillIpc 消失，
+// 导致选文件后静默失败。走查经过 IPC 层完整路径，handler 缺失立刻使 toast 不出现/报错。
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible } from './_assert.mjs'
 import { zipSync, strToU8 } from 'fflate'

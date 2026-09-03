@@ -18,6 +18,7 @@ const lease = {
   keyId: "test",
   algorithm: "HMAC-SHA256",
   issuer: "nomi-main",
+  canonicalRootDigest: "root-digest",
   leasePrincipal: "mcp:codex",
   sessionId: "mcp-session:test",
   connectionNonce: "nonce-test",

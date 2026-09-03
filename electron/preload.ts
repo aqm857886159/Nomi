@@ -598,7 +598,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   skill: {
     list: () => invokeSync("nomi:skill:list"),
     exportPackage: (dirName: string) => invokeSync("nomi:skill:export", dirName),
-    importPackage: (payload: unknown) => ipcRenderer.invoke("nomi:skill:import", payload),
+    importPackage: (payload: unknown) => invokeSync("nomi:skill:import", payload),
     deleteByDir: (dirName: string) => invokeSync("nomi:skill:delete", dirName),
   },
   capability: {
@@ -606,6 +606,16 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     mcpInfo: () => invokeSync("nomi:capability:mcp-info"),
     installMcp: (client?: string) => invokeSync("nomi:capability:mcp-install", client),
     uninstallMcp: (client?: string) => invokeSync("nomi:capability:mcp-uninstall", client),
+    // 自定义 MCP 客户端 profile（方案 A：任意支持 MCP stdio 的工具接入）。
+    listCustomMcpProfiles: () => ipcRenderer.invoke("nomi:capability:mcp-custom-profiles"),
+    registerCustomMcpProfile: (profile: unknown) => ipcRenderer.invoke("nomi:capability:mcp-custom-profile-register", profile),
+    removeCustomMcpProfile: (key: string) => ipcRenderer.invoke("nomi:capability:mcp-custom-profile-remove", key),
+    // 自定义客户端列表变化的实时回流：外部进程（mcpNodeLauncher）检测写入文件后，主进程 watch 到变化广播到这里。
+    onMcpProfilesChanged: (cb: () => void) => {
+      const listener = () => cb()
+      ipcRenderer.on("nomi:mcp:profiles-changed", listener)
+      return () => ipcRenderer.removeListener("nomi:mcp:profiles-changed", listener)
+    },
     // 实连验证（异步）：真起一次配置里那条命令握手，用来分辨「配置里有这行字」和「还真连得上」。
     verifyMcp: (client?: string) => ipcRenderer.invoke("nomi:capability:mcp-verify", client),
     // A 模式实时桥：主进程把外部 MCP 的画布读/写/付费确认转发到这里，渲染层处理后回结果（按 id 配对）。

@@ -1,0 +1,99 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-skill-ipc-missing-handlers",
+  "problem_type": "P0 回归：技能 write IPC handler（import / export / delete）从主进程注册表里消失，导致整条技能导入功能无声失效，CI 全绿",
+  "symptom": "用户在技能库面板选完文件后，什么都不发生：无 toast、无错误、技能列表不变。真机 IPC 探针直接暴露：\"Error invoking remote method 'nomi:skill:import': Error: No handler registered for 'nomi:skill:import'\"。export 和 delete 同样静默失败（\"reply was never sent\"）。此外 importPackage 在 preload 里用了 ipcRenderer.invoke（返回 Promise），而其他 skill 通道均用 invokeSync（返回同步结果）——渲染层对结果做 res.ok 检查，但拿到的是 Promise 对象（truthy），错误路径被掩盖。2026-09-03 走查班（docs/qa/2026-09-03-skill-import-walkthrough.md）以 5 张截图和完整 IPC 日志亲验确认。",
+  "direct_cause": "electron/skills/skillIpc.ts 的 registerSkillIpc 函数只注册了两个只读通道（nomi:skill:list + nomi:skill:list-secure），漏掉三个写通道（nomi:skill:import / export / delete）。主进程业务函数 importSkillPackageToUserDir / exportSkillPackageByName / deleteUserSkill 在 skillPackage.ts 里完整存在，只是没被接入 IPC 层。同时 preload.ts 第 599 行把 importPackage 写成 ipcRenderer.invoke（异步），与其他三个 invokeSync（同步）通道协议不一致，即使将来注册了 handler，渲染层拿到的仍是 Promise 而非结果对象。",
+  "class_root": "IPC 三方合约（preload 暴露 × 主进程注册 × 渲染层调用）缺乏静态交叉验证。preload 里声明一条通道，主进程不注册，TypeScript 编译和所有单测照样全绿——这是「当场完全看不出来」的一族。正确结构：对所有 preload 暴露的 nomi:skill:* invokeSync 通道做 preload-vs-registerSkillIpc 交叉扫描，任何缺口在 CI 立即报红（check:skill-ipc-coverage 门岗）。",
+  "generality_proof": "判据可机械化：preload 暴露的 nomi:skill:* invokeSync 通道集合，必须与 skillIpc.ts 的 registerSyncIpc 注册集合完全相等；差集必须为零。同一结构在 nomi:model-catalog:*、nomi:proxy:*、nomi:workspace:* 等其他命名空间也存在（preload 有声明、主进程有注册），但当前只有 skill 命名空间被本次门岗覆盖——其余命名空间的差集检测留待 R17 级工作（全量扫描 + 基线），已记录在 residual_risks。此外 ipcRenderer.invoke（异步）与 registerSyncIpc（同步）协议混用的检测也已纳入门岗 Guard 2，防止协议级不一致再次掩盖错误。",
+  "affected_population": [
+    "所有在 v0.21.1 之后尝试向技能库导入技能的用户：选完文件后静默失败，无任何提示，技能未落盘。",
+    "所有尝试导出或删除技能的用户（v0.21.1 之后）：操作静默失败，无反馈。",
+    "技能功能的回归测试覆盖：写操作全部缺失断言，走查前门岗全绿无预警。"
+  ],
+  "scope_paths": [
+    "electron/skills/skillIpc.ts",
+    "electron/preload.ts",
+    "scripts/check-skill-ipc-coverage.mjs",
+    "package.json"
+  ],
+  "entry_points": [
+    "electron/skills/skillIpc.ts — registerSkillIpc（修复：新增 registerSyncIpc 调用接入 nomi:skill:import / nomi:skill:export / nomi:skill:delete 三个写通道）。",
+    "electron/preload.ts:599 — skill.importPackage（修复：从 ipcRenderer.invoke 改回 invokeSync，与 list/export/delete 协议统一；P1 并行版消除）。",
+    "scripts/check-skill-ipc-coverage.mjs — 新增门岗（防复发）：扫 preload 的 invokeSync nomi:skill:* 通道 × 扫 skillIpc.ts 的 registerSyncIpc 注册，差集必须为零；同时扫 preload 里任何 nomi:skill:* 通道不能用 ipcRenderer.invoke（协议混用），两条均硬零不棘轮。",
+    "package.json — 新增 check:skill-ipc-coverage，加入 gates:contracts 链（ipc-sender-binding 之后）。"
+  ],
+  "invariants": [
+    "preload 暴露的所有 nomi:skill:* invokeSync 通道在主进程的 registerSkillIpc 里都有对应 registerSyncIpc 注册——check:skill-ipc-coverage 硬零保证。",
+    "preload skill 对象里不存在用 ipcRenderer.invoke 暴露的 nomi:skill:* 通道——check:skill-ipc-coverage Guard 2 保证。",
+    "skill 写操作（import/export/delete）全部走 invokeSync（同步），渲染层拿到 {ok, ...} 对象而非 Promise，res.ok 检查有意义。"
+  ],
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-skill-ipc-coverage.mjs",
+      "symbol": "check:skill-ipc-coverage",
+      "responsibility": "nomi:skill:* 命名空间的 preload×注册差集静态门岗，也是协议混用（invoke vs invokeSync）检测的唯一执行点。新增或修改 skill IPC 通道必须经过此门岗；缺口在 CI 立即报红。此门岗是 package.json 的 check:skill-ipc-coverage 脚本，属 gates:contracts 链的一环。"
+    },
+    {
+      "path": "package.json",
+      "symbol": "check:skill-ipc-coverage",
+      "responsibility": "门岗在 gates:contracts 链中的唯一触发入口（ipc-sender-binding 之后）。任何改动 IPC 通道的 PR 都会经过此脚本；不在 gates:contracts 里就等于不存在。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/skill-import-formats.walk.mjs",
+      "entry_point": "技能导入完整 UX 走查（R16 真实用户任务路径）",
+      "disposition": "enforced",
+      "evidence": "此走查经过 preload → IPC → skillIpc.ts → skillPackage.ts 完整路径，handler 缺失立刻使 toast 不出现（走查会在 expectVisible 失败时红）。本次修复后，走查已在 docs/qa/2026-09-03-skill-import-walkthrough.md 中以 5 张截图亲验通过。走查刻意走 UI 路径（不直接调 importSkillPackageToUserDir），以覆盖解析器、accept 过滤、i18n 文案和刷新——IPC 层单独测不到这些。"
+    },
+    {
+      "path": "tests/ux/ipc-split-smoke.e2e.mjs",
+      "entry_point": "IPC handler 注册完整性回归冒烟（巨壳拆分专用）",
+      "disposition": "not-affected",
+      "evidence": "此 e2e 验证 app 启动后被搬走的 export/onboarding/catalog IPC handler 仍注册、仍路由到新模块。它覆盖的是另一族「handler 被巨壳拆分搬走后断线」，与本次「handler 从未注册」是同类（IPC 三方合约断裂）但不同具体原因。本次修复未改动此文件，此文件在修复前后均通过，构成对照组：同一 IPC 注册检测模式、不同命名空间。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-skill-ipc-coverage.mjs",
+    "invariant": "preload 暴露的 nomi:skill:* invokeSync 通道集合与 skillIpc.ts 的 registerSyncIpc 注册集合之差集为零；preload 里任何 nomi:skill:* 通道不使用 ipcRenderer.invoke。",
+    "failure_mode": "违反时，preload 里声明的通道在主进程没有对应注册（或协议错用 invoke 而非 invokeSync），TypeScript 编译和所有单测全绿，运行时静默失败（handler 缺失抛 'No handler registered'，但如果调用方用 invokeSync 的错误掩盖逻辑，甚至连错误也看不见）。",
+    "strategy": "在 gates:contracts 链中（ipc-sender-binding 之后）静态扫描 preload.ts 与 skillIpc.ts，把差集不为零变成 CI 红。由于这是一一对应关系（不是总数），用硬零而非棘轮——棘轮允许「删一条合法的、加一条缺失的」蒙混过关。",
+    "exception_policy": "none",
+    "artifacts": [
+      "scripts/check-skill-ipc-coverage.mjs",
+      "package.json"
+    ]
+  },
+  "class_regression_tests": [
+    "tests/ux/skill-import-formats.walk.mjs"
+  ],
+  "regression_tests": [
+    "tests/ux/skill-import-formats.walk.mjs"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "IPC 三方合约（preload × 注册 × 调用）缺乏静态交叉验证是通病，不只发生在 skill 命名空间。同类在 nomi:model-catalog:*、nomi:proxy:* 等命名空间均存在 preload 有声明的通道，当前无等价门岗保护（残余风险已记录）。本次为 skill 命名空间建立了 check:skill-ipc-coverage 静态门岗，属结构性防护，故按 recurring 提交。",
+    "same_class_scan": [
+      "扫全 preload.ts 的 ipcRenderer.invoke / invokeSync 调用，与 electron/main.ts 里的 ipcMain.handle / registerSyncIpc 注册做差集——skill 命名空间已被本修复覆盖；其他命名空间（model-catalog / proxy / workspace 等）当前靠 invokeSync 的错误抛出隐性兜底（handler 缺失抛 'Desktop IPC failed: channel'，不静默），风险低于本次 P0，但协议混用（invoke + registerSyncIpc）无任何门岗拦截，记入 residual_risks。",
+      "确认 nomi:skill:list-secure 走 ipcMain.handle（async）且有 assertTrustedSender 保护，不在 invokeSync 路径上，不受本次门岗影响（门岗只扫 invokeSync 通道）——此条构成本次扫描的排除项，非遗漏。"
+    ]
+  },
+  "migration": "无存储数据变更。handler 注册修复立即生效（重新 build 后）；invokeSync 与 ipcRenderer.invoke 的切换对渲染层调用方透明，useWorkbenchSkills.importPackage 本身已是同步调用方，无需改调用侧。",
+  "residual_risks": [
+    "check:skill-ipc-coverage 当前只覆盖 nomi:skill:* 命名空间；其余命名空间（nomi:model-catalog:* 等）的 preload×注册差集无门岗保护，靠 invokeSync 的错误抛出隐性兜底（不静默，但错误提示不总是用户可见的）。",
+    "nomi:skill:list-secure 走 ipcMain.handle（async）体系，与 registerSyncIpc 体系并存；当前没有统一协议，新加通道需手动判断走哪条路（trusted-sender 场景走 handle，普通主窗口场景走 registerSyncIpc）。"
+  ],
+  "internal_only_reason": "纯 Electron IPC 注册问题，不涉及任何外部 API 端点或网络请求。技能导入落盘逻辑（skillPackage.ts）已存在且正确，缺的只是 IPC handler 注册这一层中间连接。",
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本修复是新增缺失的 handler 注册和统一协议，没有删除或替换旧实现路径——旧实现是「不存在」，修复是「补上」。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本修复不涉及任何依赖版本或运行时生命周期变更，只改动 IPC 注册接线和静态门岗脚本。",
+    "exit_criteria": []
+  }
+}
