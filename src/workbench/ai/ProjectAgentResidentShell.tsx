@@ -9,10 +9,12 @@ import {
 } from '@tabler/icons-react'
 import { BodyPortal, NomiLogoMark, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
-import type { AgentToolProfile } from '../../../electron/harness/agentChatContracts'
 import { useWorkbenchStore, type ProjectAgentReference, type ProjectAgentRunMode, type WorkspaceMode } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { runWorkbenchAgent, type ToolCallEvent } from './workbenchAgentRunner'
+// 从渲染层自己的入口反推工具 profile 的取值域，不去 import electron/harness 的类型——
+// 渲染层直捅主进程模块会被 check:boundaries 拦（R26）。这样类型还跟着入口自动同步。
+type AgentToolProfile = NonNullable<Parameters<typeof runWorkbenchAgent>[0]['toolProfile']>
 import { stopProjectAgentTurn } from './projectAgentTurnCommands'
 import { activateProjectAgentThread, createProjectAgentThread, deleteProjectAgentQueueItem, editProjectAgentQueueItem, moveProjectAgentQueueItem, pauseProjectAgentQueueItem, removeProjectAgentThread, resumeProjectAgentQueueItem } from './projectAgentUiCommands'
 import { useProjectAgentSnapshot } from './useProjectAgentThreadMessages'
