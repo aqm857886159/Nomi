@@ -164,9 +164,10 @@ function requestedReferenceIds(
   input: Exclude<CanvasWriteInput, { operation: "set_node_prompt" }>,
 ): string[] {
   switch (input.operation) {
+    // 这三个都不引用画布节点，故无参考目标：tidy 只排版；
+    // propose/patch 改的是创作 store 里的分镜方案，不碰画布。
     case "tidy_canvas":
     case "propose_storyboard_plan":
-    // patch_shots 改的是创作 store 里的分镜方案，不引用任何画布节点，故无参考目标。
     case "patch_shots":
       return [];
     case "arrange_storyboard_to_timeline":
