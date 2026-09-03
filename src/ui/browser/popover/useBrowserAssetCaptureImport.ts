@@ -40,7 +40,7 @@ export function useBrowserAssetCaptureImport({
   const importRemoteAssetToLibrary = React.useCallback(
     async (input: BrowserAssetRemoteImportInput): Promise<void> => {
       const mediaType = input.mediaType === 'video' ? 'video' : 'image'
-      const sourceLabel = 'requestId' in input ? '网页捕捞' : '网页拖拽'
+      const sourceLabel = 'requestId' in input ? t('browserAssets.webCapture') : t('browserAssets.webDrop')
       const now = new Date().toISOString()
       const pendingId = `browser-${mediaType}-import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const title = input.title || input.fileName || fileNameFromRemoteAssetUrl(input.url)

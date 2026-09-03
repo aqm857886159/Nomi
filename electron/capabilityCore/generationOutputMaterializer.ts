@@ -87,12 +87,23 @@ export function createGenerationOutputMaterializer(deps: GenerationOutputMateria
     const projectRelativePath = typeof stored.data?.relativePath === "string" ? stored.data.relativePath.trim() : "";
     const thumbnailRelativePath = typeof stored.data?.thumbnailRelativePath === "string" ? stored.data.thumbnailRelativePath.trim() : "";
     if (!artifactId || !projectRelativePath) throw new Error("Asset store returned an incomplete generation receipt");
+    let posterPath = thumbnailRelativePath;
+    if (!posterPath && input.output.kind === "video" && input.output.thumbnailUrl) {
+      const poster = await fetchOutput(input.output.thumbnailUrl, { allowContentTypes: ["image/", "application/octet-stream"], maxBytes });
+      const posterType = (poster.contentType || "image/png").toLowerCase().split(";")[0]?.trim() || "image/png";
+      if (!posterType.startsWith("image/")) throw new Error("Generation poster content type does not match image");
+      const posterStored = storeAsset(input.projectId, poster.bytes, `${path.parse(fileNameFor(input.output)).name}-poster.png`, posterType, {
+        kind: "generated", source: "external-mcp", providerTaskId: input.providerTaskId,
+        providerOutputId: `${input.output.providerOutputId || input.output.url}:poster`,
+      }, `${materializationKey}:poster`) as StoredAsset;
+      posterPath = typeof posterStored.data?.relativePath === "string" ? posterStored.data.relativePath.trim() : "";
+    }
     return {
       artifactId,
       kind: input.output.kind,
       contentHash: contentHash(bytes),
       projectRelativePath,
-      ...(thumbnailRelativePath ? { thumbnailRelativePath } : {}),
+      ...(posterPath ? { thumbnailRelativePath: posterPath } : {}),
     };
   }
 

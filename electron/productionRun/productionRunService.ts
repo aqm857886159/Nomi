@@ -2,10 +2,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import {
-  createProductionRunRepository,
-  type ProductionRunRepository,
-} from './productionRunRepository'
+import { createProductionRunRepository, type ProductionRunRepository } from './productionRunRepository'
 import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { getWorkspaceRepositoryDeps } from '../runtimePaths'
 import {
@@ -17,7 +14,8 @@ import {
 } from './artifactProjection'
 import { buildProductionDeepLink } from './productionDeepLink'
 import { applyRunControl } from './productionRunControl'
-import { createDriverOps, isShotGate } from './productionRunDriverOps'
+import { createDriverOps } from './productionRunDriverOps'
+import { isShotGate } from './productionRunGateIdentity'
 import { withEventTap } from './productionRunEventTap'
 import { safeExternalText, safeProductionContract, safeShotId } from './productionRunProjectionSanitizer'
 import { assertStoryboardSourceFresh, createArtifactOperations } from './productionRunArtifactOperations'
@@ -106,7 +104,7 @@ type ServiceDeps = {
   projectRootResolver?: (projectId: string) => string | null
   previewSecret?: string
   requestRenderer?: (op: string, payload: unknown, timeoutMs: number) => Promise<unknown>
-  executeProductionExport?: (input: { projectId: string; runId: string; outputName: string }) => Promise<{ relativePath: string; size: number }>
+  executeProductionExport?: (input: { projectId: string; runId: string; outputName: string }) => Promise<{ relativePath: string; size: number; jobId?: string }>
   policyResolver?: () => Partial<AutomationPolicy>
   reconcileProviderTask?: (job: ProductionRun['jobs'][number]) => Promise<{
     status?: string

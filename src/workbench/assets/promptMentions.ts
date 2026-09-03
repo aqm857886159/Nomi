@@ -23,6 +23,16 @@ export function encodeMention(url: string): string {
 
 export type PromptSegment = { type: 'text'; value: string } | { type: 'mention'; url: string }
 
+/** 按文本出现顺序取出引用 URL；重复引用只保留第一次，供绑定顺序使用。 */
+export function mentionUrlsInOrder(prompt: string): string[] {
+  const seen = new Set<string>()
+  return parsePromptSegments(prompt).flatMap((segment) => {
+    if (segment.type !== 'mention' || seen.has(segment.url)) return []
+    seen.add(segment.url)
+    return [segment.url]
+  })
+}
+
 /** 把含标记的 prompt 解析成「文字 / 引用」段(供 Tiptap 渲染成 文本 + chip)。 */
 export function parsePromptSegments(prompt: string): PromptSegment[] {
   const segments: PromptSegment[] = []

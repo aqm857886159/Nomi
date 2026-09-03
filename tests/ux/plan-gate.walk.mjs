@@ -1,7 +1,7 @@
 // R16 走查（Phase B·方案门 surfacing）：外部 MCP agent 往画布**批量落节点**时，运行中的 Nomi
 // 弹出应用内「方案门」确认卡（复用付费卡漏斗，kind=plan、分镜图标），真人点了才落——不再静默写画布。
 // 起真 GUI app（写 instance 广告）+ 另起 stdio MCP 子进程（同 NOMI_CAPABILITY_DIR → 探到运行中的
-// GUI，经 RPC 转发）：stdio 发 nomi_add_nodes(3 节点) → 主进程经 hybrid 网关 requestRenderer('plan.confirm')
+// GUI，经 RPC 转发）：stdio 发 nomi_canvas_edit(action=add_nodes, 3 节点) → 主进程经 hybrid 网关 requestRenderer('plan.confirm')
 // → GUI 弹方案卡 → 截图人眼看 → 点「落到画布」→ stdio 拿到 ids。全程**不花额度**（只建节点，不生成）。
 // 用法：pnpm run build && node tests/ux/plan-gate.walk.mjs
 import { launchNomiApp, repoRoot, withLinuxNoSandbox } from './_launchApp.mjs'
@@ -95,14 +95,15 @@ try {
   }
   ok(init?.result, 'stdio MCP 服务起来了（探到运行中的 GUI）')
 
-  const proj = await callTool('nomi_create_project', { name: '方案门走查' })
+  const proj = await callTool('nomi_project_create', { name: '方案门走查' })
   const projectId = proj.projectId || proj.id
   ok(projectId, `建项目（${projectId}）`)
 
   // 发批量 add_nodes（3 节点 = 一套方案）——**不 await**：它会阻塞在 GUI 的方案门卡上。
-  console.log('  · 外部 agent 发 nomi_add_nodes(3 节点)，应在 GUI 弹方案门…')
-  const addPromise = callTool('nomi_add_nodes', {
+  console.log('  · 外部 agent 发 nomi_canvas_edit(add_nodes, 3 节点)，应在 GUI 弹方案门…')
+  const addPromise = callTool('nomi_canvas_edit', {
     projectId,
+    action: 'add_nodes',
     nodes: [
       { kind: 'shot', title: 'S1 空店', prompt: '深夜面馆空荡的店面' },
       { kind: 'shot', title: 'S2 擦桌', prompt: '老陈擦拭木桌' },

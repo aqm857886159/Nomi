@@ -14,8 +14,11 @@
 | [2026-06-07-model-onboarding-final-plan.md](2026-06-07-model-onboarding-final-plan.md) | **模型接入最终方案**（R7 定稿，审计+设计+计划）— 本簇主文档 | ✅ |
 | [2026-08-30-runway-seedance25-onboarding.md](2026-08-30-runway-seedance25-onboarding.md) | Runway Seedance 2.5 接入与分镜设置（源分支只含文档、未合并；配套指南带「未发布」横幅）| 📋 |
 | [2026-08-15-model-integration-no-dead-end-master-plan.md](2026-08-15-model-integration-no-dead-end-master-plan.md) | 模型接入「不留死路」总纲：事实源 manifest + 能力契约 + 旅程矩阵 | 🚧 |
+| [2026-09-03-self-hosted-relay-conformance-harness.md](2026-09-03-self-hosted-relay-conformance-harness.md) | **自建中转一致性台架**：CI 里起一个**严格的**假中转，驱动真实接入→认证→生成全链路。严格度锚定 2026-09-03 真机实测（用错端点/无图/图太小/multipart 无字节 四条拒绝规则），把「用户接入」这条唯一没有反馈回路的路径接上回路 | 📋 |
 | [2026-09-02-docaudit-kie-apimart.md](2026-09-02-docaudit-kie-apimart.md) | KIE + APIMart 官方文档全量对账、映射合同覆盖与未封印模型验收 | ✅ |
 | [2026-09-02-runway-model-identity-workflow.md](2026-09-02-runway-model-identity-workflow.md) | **一个模型一个档案主人**（PR #310 挂起的「单独立项裁决」）：删平台档案 runway-video，10 个 Runway 模型改挂真模型档案；补齐供应商特化三轴（参数/transport/模式可见性）；selectTaskMapping 停止借用别的模式的线缆 | ✅ |
+| [2026-09-03-mcp-integration-q8-seams.md](2026-09-03-mcp-integration-q8-seams.md) | Q8：MCP 接入面按「确定性归我们，情境性归模型」收敛为 5 个 T14 action，并补接入管理后端动词 | 🚧 |
+| [2026-09-03-mcp-remaining-holes.md](2026-09-03-mcp-remaining-holes.md) | #202 余账与群反馈非 UI 修洞班 | 🚧 |
 | [2026-08-15-model-access-exhaustive-user-journeys.md](2026-08-15-model-access-exhaustive-user-journeys.md) | 模型接入全集用户旅途测试：能力面逐维度真实 UI 往返旅程矩阵 | 🚧 |
 | [2026-08-28-conversational-model-integration-verification.md](2026-08-28-conversational-model-integration-verification.md) | 对话式模型接入与认证闭环：J0–J5 真实验收和发布记录 | 🚧 |
 | [2026-08-30-unified-model-integration-certification.md](2026-08-30-unified-model-integration-certification.md) | 旗舰供应商、模型扩充与统一认证流程（官方合同→零费用仿真→认证账本） | 🚧 |
@@ -93,6 +96,7 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-09-02-mcp-testnet-l1-handshake.md](2026-09-02-mcp-testnet-l1-handshake.md) | MCP 测试网第 1 片：真实 stdio L1 握手六条回归、tools/list payload 棘轮与 listChanged A1 | 🚧 |
+| [2026-09-02-mcp-l2-journeys.md](2026-09-02-mcp-l2-journeys.md) | MCP 测试网第 2 片：C7-C12 真实语义生成、断连回收、产物审片与导出对账 | ✅ |
 | [2026-08-25-p4-anchor-checkpoint-approval-card.md](2026-08-25-p4-anchor-checkpoint-approval-card.md) | P4 锚定妆照检查点的渲染层审批卡（#155 §8.5 两条腿之二；样张已拍板、方案未入库）| 📋 |
 | [2026-09-01-agent-m0-baseline-freeze.md](2026-09-01-agent-m0-baseline-freeze.md) | M0 基线冻结：owner map、50 项工具映射、旧路径、schema-v3 草案、红灯与 PR 切片 | ⏳ |
 | [2026-09-02-m2-generation-semantic-slice-1.md](2026-09-02-m2-generation-semantic-slice-1.md) | M2 第一片：generation plan/status 语义模型面与 Host-only 闸门排除 | 🚧 |
@@ -141,6 +145,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-03-creative-resource-chain-epic.md](2026-09-03-creative-resource-chain-epic.md) | **创作资源链 Epic 切片**：来源记录、Agent 浏览器工具、智能库视图、统一扩展合同四个 P0 切片（待拍板） | 📋 |
 | [2026-08-31-library-discovery-slice.md](2026-08-31-library-discovery-slice.md) | **非 Agent 资源库发现优化**：四库各自有家，共用搜索/确定性分类与素材真实媒体路径 | 🚧 |
 | [2026-05-31-workspace-folder-projects-implementation-plan.md](2026-05-31-workspace-folder-projects-implementation-plan.md) | 任意文件夹 Workspace 项目实施 | 🚧 |
 | [2026-05-31-merge-workspace-feature.md](2026-05-31-merge-workspace-feature.md) | 把 workspace 文件管理合并进 main | 🚧 |
@@ -192,4 +197,5 @@
 | [2026-06-07-backlog-handoff.md](2026-06-07-backlog-handoff.md) | 剩余 backlog 冷启动交接 | 📎 |
 | [2026-09-02-english-system-prompts.md](2026-09-02-english-system-prompts.md) | 英文版 AI 系统提示词（含 assets 大条·产物也英文·A/B 已过：不回退） | ✅ |
 | [2026-09-02-english-system-prompts.md](2026-09-02-english-system-prompts.md) | 英文版 AI 系统提示词（含 assets 大条·产物也英文·须真实生成 A/B） | 🚧 |
-| [2026-09-01-tail-batch.md](2026-09-01-tail-batch.md) | 尾巴批三件：i18n electron 存量烧批（≥60 处走 desktopT）+ pre-push 缺 Ponytail 脚本安全退出 + 手动 `check:handoff` 分支收货工具（不进 gates 链） | 🚧 |
+| [2026-09-01-tail-batch.md](2026-09-01-tail-batch.md) | 尾巴批三件：i18n electron 存量烧批（≥60 处走 desktopT）+ pre-push 缺 Ponytail 脚本安全退出 + 手动 `check:handoff` 分支收货工具（不进 gates 链） | ✅ |
+| [2026-09-03-open-work-ledger.md](2026-09-03-open-work-ledger.md) | 全量开工账本（2026-09-03）：四档盘点（在飞/待排期/僵尸/已完成）+ 架构线三问详答 | ✅ |

@@ -3,8 +3,11 @@
 // 背景（2026-09-01 CERT 核实）：保存凭据落盘即 enabled:false（认证前不 promote，属正确 fail-closed），
 // 而 resolveTextBrainKeys 要求凭据 enabled===true 才算可用。若某条保存路径只写凭据、忘了把 vendor 同时
 // de-publish，就会出现「vendor.enabled=true + 凭据 enabled:false」的错位——模型设置首页据此把它列进
-// 「已接入 / N 个可使用」，可文本大脑（及一切生成）实际拿不到可用模型。根因修在 upsertRendererCatalog-
-// VendorApiKey 这唯一共享边界：写凭据的同一操作里把 enabled 的 vendor de-publish。
+// 「已接入 / N 个可使用」，可文本大脑（及一切生成）实际拿不到可用模型。
+//
+// 根因修在 store 最内层共享边界 applyApiKeyUpsert（见 electron/catalog/credentialPublication.ts 与
+// docs/fixes/2026-09-01-credential-enable-honesty.root-cause.json）。认证 promote 一律写
+// enabled:true 故不触发该守卫——态②就是它的不变性证据。
 //
 // 这条走查锁两态的「名实一致」——两态都用真机 resolveTextBrain（渲染口）作真相：
 //   ① 裸凭据写入（bridge upsertVendorApiKey，不配对 upsertVendor）→ vendor 必被 de-publish →
@@ -105,7 +108,8 @@ try {
   {
     const p = mkProfile('bare')
     const { app, win } = await launch('bare', p)
-    // 复现旁路：只写凭据，不配对 upsertVendor({enabled:false})。fix 在共享边界补齐 de-publish。
+    // 复现旁路：只写凭据，不配对 upsertVendor({enabled:false})。真机端到端走 IPC → 渲染层 sanitizer
+    // → store applyApiKeyUpsert 的守卫，因此本态就是「下沉后的不变量仍然成立」的真机证据。
     await win.evaluate((k) => window.nomiDesktop.modelCatalog.upsertVendorApiKey('apimart', { apiKey: k, enabled: true }), API_KEY)
     const r = await resolverUsable(win)
     const dialog = await openModelSettings(win)

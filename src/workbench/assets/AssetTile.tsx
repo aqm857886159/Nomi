@@ -136,7 +136,7 @@ export function AssetThumb({ asset, playSize = 22 }: { asset: AssetRef; playSize
     )
   }
   if (asset.kind === 'model3d') {
-    return <Icon3dCubeSphere size={playSize + 4} stroke={1.5} className="text-nomi-ink-45" aria-hidden="true" />
+    return <Icon3dCubeSphere size={playSize + 4} stroke={1.5} className="text-nomi-ink-40" aria-hidden="true" />
   }
   return (
     <NomiImage

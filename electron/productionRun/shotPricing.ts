@@ -141,7 +141,8 @@ export type DurationEstimate = { known: true; seconds: number } | { known: false
 
 export type PreviewShotInput = {
   shotId: string;
-  candidate: Pick<PlanCandidate, "providerId" | "modelId" | "parameters" | "references">;
+  candidate: Pick<PlanCandidate, "providerId" | "modelId" | "parameters">
+    & Partial<Pick<PlanCandidate, "references">>;
   /** Whether this shot references a character (for the "model can't take a face" degradation). */
   hasCharacter?: boolean;
   /** Whether the selected model exposes a reference-image channel. */
@@ -188,6 +189,8 @@ export type MultiShotGateShot = {
   durationSeconds: number | null;
   price: ShotPrice;
   degradations: ShotDegradation[];
+  /** Safe, user-visible reference identities; paths and provider URLs never cross this boundary. */
+  referenceMedia?: Array<{ assetId: string; kind?: string; role?: string; version: number }>;
 };
 
 /**
@@ -208,6 +211,10 @@ export type MultiShotGateProjection = {
   hardLimit?: number | null;
   anchorChips?: Array<{ label: string; price: ShotPrice }>;
   waitSeconds?: number | null;
+  /** J06 — 估计依据：'coldstart' = 无历史数据时给区间（low/high），'historical' = P50/P90 实测值。 */
+  etaBasis?: 'coldstart' | 'historical';
+  /** J06 — 冷启动悲观上限（秒）；仅 etaBasis='coldstart' 时存在。 */
+  waitSecondsHigh?: number | null;
   frozenItems?: string[];
   expiresAt?: string | null;
 };
@@ -261,7 +268,7 @@ export type GateShotInput = {
   sceneOneLiner: string;
   /** Human "provider · model（mode）" string built by the caller — the renderer never re-joins it. */
   providerModelText: string;
-  candidate: Pick<PlanCandidate, "providerId" | "modelId" | "parameters">;
+  candidate: Pick<PlanCandidate, "providerId" | "modelId" | "parameters" | "references">;
   durationSeconds?: number;
   hasCharacter?: boolean;
   supportsReferenceImage?: boolean;
@@ -298,6 +305,14 @@ export function buildMultiShotGateProjection(input: BuildMultiShotGateProjection
       durationSeconds: isFiniteNonNegative(seconds) ? seconds : null,
       price,
       degradations: shotDegradations({ shotId: shot.shotId, candidate: shot.candidate as never, hasCharacter: shot.hasCharacter, supportsReferenceImage: shot.supportsReferenceImage }),
+      ...(shot.candidate.references?.length ? {
+        referenceMedia: shot.candidate.references.map((reference) => ({
+          assetId: reference.assetId,
+          ...(reference.kind ? { kind: reference.kind } : {}),
+          ...(reference.role ? { role: reference.role } : {}),
+          version: reference.version,
+        })),
+      } : {}),
     };
   });
   return {

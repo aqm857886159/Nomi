@@ -4,6 +4,36 @@ import { mintSpendGrant } from '../../api/taskApi'
 import type { ProductionContractView } from './productionContractView'
 import type { AnchorCheckpointCardModel } from './anchorCheckpointView'
 import i18n from '../../../i18n'
+import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
+import { getDesktopBridge } from '../../../desktop/bridge'
+
+type GenerationEtaBucket = {
+  key: string
+  vendorKey: string
+  modelKey: string
+  kind: 'image' | 'video' | 'audio' | 'model3d' | 'text'
+  sampleCount: number
+  p50Seconds: number
+  p90Seconds: number
+}
+
+export function generationCostContextForNode(node: { meta?: Record<string, unknown> | null } | undefined): GenerationCostContext {
+  const meta = node?.meta || {}
+  const read = (key: string): string => typeof meta[key] === 'string' ? String(meta[key]).trim() : ''
+  return {
+    vendorKey: read('modelVendor') || read('vendor') || read('imageModelVendor') || read('videoModelVendor') || undefined,
+    modelKey: read('modelKey') || read('modelAlias') || read('imageModel') || read('videoModel') || undefined,
+  }
+}
+
+export function generationCostContextForNodes(nodes: readonly ({ meta?: Record<string, unknown> | null } | undefined)[]): GenerationCostContext {
+  const contexts = nodes.map(generationCostContextForNode)
+  const vendorKeys = new Set(contexts.map((context) => context.vendorKey).filter(Boolean))
+  const modelKeys = new Set(contexts.map((context) => context.modelKey).filter(Boolean))
+  return vendorKeys.size === 1 && modelKeys.size === 1
+    ? { vendorKey: [...vendorKeys][0], modelKey: [...modelKeys][0] }
+    : {}
+}
 
 export type HostingDisclosure = {
   message: string
@@ -189,12 +219,55 @@ export async function confirmGenerationSpend(
 
 export type GenerationCostKind = 'text' | 'image' | 'video' | 'audio' | 'model3d' | 'mixed'
 
+export type GenerationCostContext = {
+  vendorKey?: string
+  modelKey?: string
+  projectId?: string
+  etaStats?: readonly GenerationEtaBucket[]
+}
+
+const etaStatsCache = new Map<string, { readAt: number; stats: readonly GenerationEtaBucket[] }>()
+const COLD_START_SECONDS: Record<Exclude<GenerationCostKind, 'text' | 'mixed'>, readonly [number, number]> = {
+  image: [30, 180],
+  video: [300, 1200],
+  audio: [30, 300],
+  model3d: [120, 900],
+}
+
+function historicalEta(context: GenerationCostContext | undefined, kind: GenerationCostKind): GenerationEtaBucket | undefined {
+  if (!context?.vendorKey || !context.modelKey || kind === 'text' || kind === 'mixed') return undefined
+  const projectId = context.projectId || getDesktopActiveProjectId()
+  let stats = context.etaStats
+  if (!stats && projectId) {
+    const cached = etaStatsCache.get(projectId)
+    if (cached && Date.now() - cached.readAt < 10_000) stats = cached.stats
+    else {
+      try {
+        const reply = getDesktopBridge()?.events?.generationEtaStats?.(projectId)
+        stats = Array.isArray(reply?.stats) ? reply.stats as GenerationEtaBucket[] : []
+        etaStatsCache.set(projectId, { readAt: Date.now(), stats })
+      } catch {
+        stats = []
+      }
+    }
+  }
+  return stats?.find((item) => item.vendorKey === context.vendorKey && item.modelKey === context.modelKey && item.kind === kind)
+}
+
+function etaMinutes(count: number, kind: GenerationCostKind, context?: GenerationCostContext): string {
+  const sample = historicalEta(context, kind)
+  const [lowSeconds, highSeconds] = sample
+    ? [sample.p50Seconds * count, sample.p90Seconds * count]
+    : kind === 'text' || kind === 'mixed' ? [0, 0] : COLD_START_SECONDS[kind].map((seconds) => seconds * count) as [number, number]
+  const low = Math.max(1, Math.round(lowSeconds / 60))
+  const high = Math.max(low, Math.round(highSeconds / 60))
+  return low === high ? String(low) : `${low}–${high}`
+}
+
 /** 件数 + 额度提示；文本耗时无可靠估计，不沿用媒体的固定时长。 */
-export function describeGenerationCost(count: number, kind: GenerationCostKind = 'image'): string {
+export function describeGenerationCost(count: number, kind: GenerationCostKind = 'image', context?: GenerationCostContext): string {
   if (kind === 'text') return i18n.t('generationCommon.spend.cost.text', { count })
-  // 3D 单件预估 120s：RunningHub 混元/Meshy 真实产出以分钟计（create→poll），不沿用图片的 12s。
-  const perItemSec = kind === 'video' ? 40 : kind === 'audio' ? 20 : kind === 'model3d' ? 120 : 12
-  const minutes = Math.max(1, Math.round((count * perItemSec) / 60))
+  const minutes = etaMinutes(count, kind, context)
   const unit = i18n.t(`generationCommon.spend.cost.units.${kind}`, { count })
   return i18n.t('generationCommon.spend.cost.media', { count, unit, minutes })
 }
