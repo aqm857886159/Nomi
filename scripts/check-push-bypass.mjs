@@ -34,7 +34,8 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const BYPASS_LOG = path.join(repoRoot, '.claude', 'push-bypass.log')
+// 测试时可通过 NOMI_BYPASS_LOG_OVERRIDE 注入隔离路径，避免污染真实 .claude/push-bypass.log
+const BYPASS_LOG = process.env.NOMI_BYPASS_LOG_OVERRIDE ?? path.join(repoRoot, '.claude', 'push-bypass.log')
 const MARKER_BASENAME = 'nomi-gates-ok'
 
 // ── 解析命令行 ──────────────────────────────────────────────────────────────
