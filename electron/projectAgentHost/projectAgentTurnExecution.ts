@@ -14,6 +14,7 @@ import type { OfflineProjectAgentHost } from "./projectAgentHost";
 import { proposalSettlementsFor, readProposalReceiptSafely, type ActiveExecution, type CanvasWriteCapabilityOutcomeCode, type ExecutionPartition, type ProjectAgentExecutionCoordinatorDeps } from "./projectAgentExecutionCoordinatorTypes";
 import { executeProductionApproval, reprepareEffectiveCall } from "./projectAgentApprovalHelpers";
 import { resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
+import { projectAgentWorkModeDecision } from "./projectAgentExecutionPolicy";
 import { DOCUMENT_READ_CAPABILITY } from "../shared/agentCapabilities/documentRead";
 import { CANVAS_DELETE_CAPABILITY } from "../shared/agentCapabilities/canvasDelete";
 import { CANVAS_WRITE_CAPABILITY } from "../shared/agentCapabilities/canvasWrite";
@@ -159,6 +160,15 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
       awaitToolConfirmation: async (call, signal) => {
         const frozen = partition.requests.get(execution.turn.turnId);
         const canonicalCapability = resolveCapabilityAlias(call.toolName)?.contract;
+        const workModeDecision = projectAgentWorkModeDecision(execution.turn.workMode, call.toolName, call.args);
+        if (!workModeDecision.allowed) {
+          return {
+            ok: false,
+            denied: true,
+            code: "work_mode_denied",
+            message: workModeDecision.reason ?? "Agent work mode denied this action",
+          };
+        }
         const isCanvasMutation = canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id || canonicalCapability?.id === CANVAS_DELETE_CAPABILITY.id || ["nomi_canvas_plan", "nomi_canvas_edit", "nomi_canvas_maintenance"].includes(call.toolName);
         const isRendererHandledStoryboardProposal =
           canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id && call.toolName === "propose_storyboard_plan";

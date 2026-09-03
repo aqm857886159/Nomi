@@ -40,7 +40,7 @@ import {
   stableJson,
 } from "./projectAgentExecutionHelpers";
 import { projectAgentWorkModeOf } from "../shared/projectAgentContracts";
-import { projectAgentExecutionRisk, projectAgentMayReuseSafeApproval } from "./projectAgentExecutionPolicy";
+import { projectAgentExecutionRisk, projectAgentMayReuseSafeApproval, projectAgentWorkModeDecision } from "./projectAgentExecutionPolicy";
 import {
   ProjectAgentSubscriptionError,
   deferred,
@@ -484,6 +484,10 @@ export function createProjectAgentExecutionCoordinator(
       return { ok: false, denied: true, message: "Agent request cancelled" };
     const existing = execution.pending.get(call.toolCallId);
     if (existing) return Promise.reject(new Error("Duplicate pending Project Agent tool call"));
+    const workModeDecision = projectAgentWorkModeDecision(execution.turn.workMode, call.toolName, call.args);
+    if (!workModeDecision.allowed) {
+      return { ok: false, denied: true, message: workModeDecision.reason ?? "Agent work mode denied this action" };
+    }
     const policy = execution.turn.approvalPolicy;
     if (projectAgentMayReuseSafeApproval(policy, call.toolName, call.args, execution.safeApprovalGranted === true)) {
       return { ok: true, silent: true };
