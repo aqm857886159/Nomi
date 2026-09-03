@@ -24,7 +24,7 @@ import { buildDependencyWaves, hasUsableResult } from '../../../generationCanvas
 import { confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace } from '../../../generationCanvas/runner/generationRunController'
 import { confirmAndRunPlan } from '../../../generationCanvas/components/batchPlanPreview'
 import i18n from '../../../../i18n'
-import { buildPlannedNodeMeta } from '../../../generationCanvas/agent/plannedNodeMeta'
+import { buildModelEntryIndex, buildPlannedNodeMeta } from '../../../generationCanvas/agent/plannedNodeMeta'
 import { ANCHOR_META_KEYS, isAnchorFrozen, type AnchorFrozenMark } from '../../../generationCanvas/model/anchorBibleKeys'
 import { findAnchorNode, findShotKeyframeNode, findShotNode } from './storyboardNodeBinding'
 import { rowConsumesReferences, type StoryboardRowRuntime } from './storyboardRowStatus'
@@ -54,9 +54,11 @@ async function resolveDefaults(): Promise<Pick<StoryboardShotRowArgsOptions,
   ])
   return {
     ...(imageDefault.modelKey ? { defaultImageModelKey: imageDefault.modelKey } : {}),
+    ...(imageDefault.modelVendor ? { defaultImageModelVendor: imageDefault.modelVendor } : {}),
     ...(imageDefault.modeId ? { defaultImageModeId: imageDefault.modeId } : {}),
     ...(imageDefault.refModeId ? { defaultImageRefModeId: imageDefault.refModeId } : {}),
     ...(videoDefault.modelKey ? { defaultVideoModelKey: videoDefault.modelKey } : {}),
+    ...(videoDefault.modelVendor ? { defaultVideoModelVendor: videoDefault.modelVendor } : {}),
     ...(videoDefault.modeId ? { defaultVideoModeId: videoDefault.modeId } : {}),
   }
 }
@@ -113,14 +115,17 @@ async function syncShotNodeWithRow(
   const prompt = part === 'shot' ? renderShotNodePrompt(ctx.plan, shot) : renderShotKeyframePrompt(ctx.plan, shot)
   const meta: Record<string, unknown> = { ...(node.meta || {}) }
   const rowModelKey = part === 'shot' ? shot.modelKey : shot.keyframe?.modelKey
+  const rowModelVendor = part === 'shot' ? shot.modelVendor : shot.keyframe?.modelVendor
   const rowModeId = part === 'shot' ? shot.modeId : shot.keyframe?.modeId
   const rowParams = (part === 'shot' ? shot.params : shot.keyframe?.params) || {}
   const metaModeId = (meta.archetype as { modeId?: unknown } | undefined)?.modeId
   if (rowModelKey && (meta.modelKey !== rowModelKey || (rowModeId && metaModeId !== rowModeId))) {
-    const entryByKey = new Map<string, AgentModelEntry>(
-      (await listAvailableModelsForAgent()).map((entry) => [entry.modelKey, entry]),
+    const entryByKey = buildModelEntryIndex(await listAvailableModelsForAgent())
+    // 行上选的 vendor 一起递进去：同名模型来自不同供应商是两个模型（身份唯一键）。
+    const planned = buildPlannedNodeMeta(
+      { modelKey: rowModelKey, ...(rowModelVendor ? { modelVendor: rowModelVendor } : {}), modeId: rowModeId, params: rowParams },
+      entryByKey,
     )
-    const planned = buildPlannedNodeMeta({ modelKey: rowModelKey, modeId: rowModeId, params: rowParams }, entryByKey)
     if (planned) Object.assign(meta, planned)
   } else {
     for (const [key, value] of Object.entries(rowParams)) {
