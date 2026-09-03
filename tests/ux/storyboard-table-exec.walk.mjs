@@ -11,7 +11,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { createAgentRuntimeFixture, FIXTURE_API_KEY, FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
-import { clickOrFail, expect, expectAbsent, expectCount, expectText, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { assertMockupContract, clickOrFail, expect, expectAbsent, expectCount, expectText, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import storyboardIntentContract from '../../docs/design/mockups/contracts/2026-09-01-storyboard-table-image-first.intent.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-storyboard-exec-'))
@@ -55,10 +56,11 @@ const shot = (index, sceneId, over = {}) => ({
 })
 const plan = {
   title: '夜风计划',
+  profileKey: 'genre.short-drama',
   anchors,
   scenes: [{ id: 's1', title: '第一场 · 天台对峙' }, { id: 's2', title: '第二场 · 巷口追逐' }],
   shots: [
-    shot(1, 's1', { anchorIds: ['hero'] }),                          // ready（锚已就绪+锁定）
+    shot(1, 's1', { anchorIds: ['hero'], prompt: '远景，第一镜画面', promptSegments: [{ key: 'shotSize', start: 0, end: 2 }] }), // ready（锚已就绪+锁定）
     shot(2, 's1', { anchorIds: ['rooftop', 'villain'] }),            // waiting-refs（两张卡都没生成）
     shot(3, 's1', { modelKey: FIXTURE_IMAGE_MODEL, modeId: 'edit' }), // missing-required（改图模式必填输入图）
     shot(4, 's1', { modelKey: FIXTURE_IMAGE_MODEL }),                // ready → 真跑 fixture 变 done
@@ -271,6 +273,97 @@ try {
   const shot1After = await frame(1).getAttribute('data-storyboard-frame')
   if (shot1After !== 'ready') failures.push(`取消花钱后镜 1 应回 ready（materialize 免费副作用），实为 ${shot1After}`)
   await snap('14-batch-cancelled-final.png')
+
+  // ── D1. 反查过滤：引用卡是入口，表行与场组小结都按过滤后重算；隐藏生成中另行报数由纯函数锁定。 ──
+  await clickOrFail(anchorStat('hero'), '点「被 3 镜引用」反查主角')
+  const filterBar = win.locator('[data-storyboard-filter="true"]')
+  await expectVisible(filterBar, '反查后顶部过滤条未出现')
+  await expectText(filterBar, /正在看引用「林薇」的 3 镜/, '过滤条没有显示过滤后的镜数')
+  await expectCount(win.locator('[data-storyboard-editor="true"] [data-storyboard-row]'), 3, '反查后表应只剩 3 镜')
+  await expectText(win.getByRole('button', { name: /第一场 · 天台对峙/ }), /1\/4 镜/, '过滤态第一场小结没有按过滤后重算')
+  await snap('15-filtered-reference.png')
+  await clickOrFail(filterBar.getByRole('button', { name: '退出过滤' }), '退出反查过滤')
+  await expectCount(win.locator('[data-storyboard-editor="true"] [data-storyboard-row]'), 8, '退出过滤后应恢复 8 镜')
+
+  // ── D1. 顺播：未生成镜自动跳过并提示，结果进入同一个 body-portal AssetPreviewDialog。 ──
+  const sequenceFrameCount = await win.locator('[data-storyboard-frame]').count()
+  const sequenceReadyCount = await win.locator('[data-storyboard-frame="done"], [data-storyboard-frame="locked"]').count()
+  const sequenceSkippedCount = sequenceFrameCount - sequenceReadyCount
+  await clickOrFail(win.getByRole('button', { name: '按镜序顺播已生成结果' }), '开始按镜序顺播')
+  const playbackDialog = win.locator('[role="dialog"][aria-modal="true"]').last()
+  await expectVisible(playbackDialog, '顺播没有打开全屏预览')
+  await expectText(win.locator('body'), new RegExp(`已跳过 ${sequenceSkippedCount} 个未生成镜头`), '顺播没有提示被跳过的未生成镜头')
+  await snap('16-sequence-playback-skipped.png')
+  await win.keyboard.press('Escape')
+  await expect(playbackDialog).toBeHidden({ timeout: 5000 })
+
+  // ── D2. 结果即收：⤴ 菜单的目标镜可选，默认下一镜；选择镜 8 后真的写入它。 ──
+  await frame(6).hover()
+  await clickOrFail(actbar6.getByRole('button', { name: '用作…' }), '打开结果即收菜单')
+  const intake = win.locator('[data-storyboard-row="6"] select[aria-label="目标镜头"]')
+  await expectVisible(intake, '结果即收菜单缺目标镜选择器')
+  if ((await intake.inputValue()) !== '6') failures.push(`镜 6 的结果即收默认目标应为下一镜位置 6，实为 ${await intake.inputValue()}`)
+  await snap('17-result-intake-target-selector.png')
+  await intake.selectOption({ label: '镜 1' })
+  await clickOrFail(win.locator('[data-storyboard-row="6"]').getByRole('button', { name: '设为首帧' }), '把镜 6 结果设为镜 1 首帧')
+  await expectCount(win.locator('[data-storyboard-row="1"] [data-storyboard-ref-tile="anchor"]'), 2, '设为镜 1 首帧没有把结果参考挂到目标镜')
+
+  // ── D2. 参考 tile / @ 胶囊三层预览：悬停克制浮层，双击走同一 body-portal 全屏。 ──
+  const heroFace = win.locator('[data-anchor-card="hero"] [data-anchor-face="locked"]').first()
+  await heroFace.hover()
+  await expectVisible(win.locator('[data-storyboard-hover-preview="true"] > span').last(), '参考 tile 悬停预览没有出现')
+  await snap('18-anchor-hover-preview.png')
+  await heroFace.dblclick()
+  await expectVisible(win.locator('[role="dialog"][aria-modal="true"]').last(), '参考 tile 双击没有打开全屏预览')
+  await snap('19-anchor-double-click-preview.png')
+  await win.keyboard.press('Escape')
+
+  const row6 = win.locator('[data-storyboard-row="6"]')
+  await clickOrFail(row6.getByRole('button', { name: '输入 @ 选择参考' }), '打开镜 6 的 @ 参考入口')
+  const mentionList = win.locator('[data-mention-list="true"]')
+  await clickOrFail(mentionList.locator('[data-mention-item^="shot-result:"]').first(), '插入镜头结果 @ 胶囊')
+  const mentionChip = row6.locator('[data-storyboard-mention-chip="true"]')
+  await expectVisible(mentionChip, '@ 胶囊没有落在提示词里')
+  await mentionChip.hover()
+  await expectVisible(mentionChip.locator('[data-storyboard-mention-preview="true"]'), '@ 胶囊悬停预览没有出现')
+  await snap('20-mention-hover-preview.png')
+  await mentionChip.dblclick()
+  await expectVisible(win.locator('[role="dialog"][aria-modal="true"]').last(), '@ 胶囊双击没有打开全屏预览')
+  await snap('21-mention-double-click-preview.png')
+  await win.keyboard.press('Escape')
+
+  // ── D3. 行操作：插入线、grip 菜单、键盘进入提示词/焦点移动，及画布同款多选浮条。 ──
+  const insertLine = win.locator('[data-storyboard-insert-line="2"]')
+  await insertLine.hover()
+  await expectVisible(insertLine.getByRole('button', { name: '在这里插入镜头' }), '两行交界悬停没有插入线')
+  await snap('22-insert-line.png')
+  await clickOrFail(insertLine.getByRole('button', { name: '在这里插入镜头' }), '就地插入镜头')
+  await expectCount(win.locator('[data-storyboard-editor="true"] [data-storyboard-row]'), 9, '就地插镜后应为 9 镜')
+
+  const gripMenu = win.locator('[data-storyboard-row="3"]')
+  await clickOrFail(gripMenu.getByRole('button', { name: '镜头操作' }).last(), '打开镜头 grip 菜单')
+  await expectVisible(gripMenu.getByRole('button', { name: '复制镜头' }), 'grip 菜单缺复制镜头')
+  await expectVisible(gripMenu.getByRole('button', { name: '第二场 · 巷口追逐' }), 'grip 菜单缺移到场选项')
+  await expectVisible(gripMenu.locator('div.absolute').getByRole('button', { name: '删除镜头' }), 'grip 菜单缺删除镜头')
+  await snap('23-grip-menu.png')
+  await win.keyboard.press('Escape')
+
+  const select1 = win.locator('[data-storyboard-row="1"] [aria-label="选择镜 1"]')
+  const select2 = win.locator('[data-storyboard-row="2"] [aria-label="选择镜 2"]')
+  await clickOrFail(select1, '选择镜 1')
+  await select2.click({ modifiers: ['Shift'] })
+  const selectionBar = win.locator('[data-storyboard-selection-toolbar="true"]')
+  await expectVisible(selectionBar, 'Shift 连选后没有出现画布同款多选浮条')
+  await expectText(selectionBar, /已选 2 镜/, '多选浮条作用域计数不对')
+  await snap('24-multi-selection-toolbar.png')
+  await gripMenu.focus()
+  await win.keyboard.press('Enter')
+  await expect(win.locator('[data-storyboard-row="3"] [data-prompt-box="true"] [contenteditable="true"]')).toBeFocused()
+  await snap('25-keyboard-prompt-focus.png')
+
+  // ── 形态契约（意图层）：拍板样张里「哪些位置承载设计意图」的二值断言。
+  // 放在这里——app 仍活、表已渲染出全部行状态，几何与结构都是真值。
+  await assertMockupContract(win, storyboardIntentContract)
 
   fixture.assertClean()
 } catch (error) {

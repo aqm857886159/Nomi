@@ -56,10 +56,10 @@ export class RootErrorBoundary extends React.Component<Props, State> {
       <div className="flex h-screen w-screen items-center justify-center bg-nomi-bg p-8 text-nomi-ink">
         <div className="max-w-lg rounded-nomi border border-nomi-line bg-white p-6 shadow-nomi-md">
           <h1 className="text-title font-nomi-display">{i18n.t('errors.rootTitle')}</h1>
-          <p className="mt-2 text-body text-nomi-ink-soft">
+          <p className="mt-2 text-body text-nomi-ink-60">
             {i18n.t('errors.rootDescription')}
           </p>
-          <pre className="mt-3 max-h-40 overflow-auto rounded-nomi bg-nomi-bg p-3 text-caption text-nomi-ink-soft">
+          <pre className="mt-3 max-h-40 overflow-auto rounded-nomi bg-nomi-bg p-3 text-caption text-nomi-ink-60">
             {error.name}: {error.message}
           </pre>
           <div className="mt-4 flex gap-2">

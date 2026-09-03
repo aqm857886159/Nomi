@@ -30,6 +30,7 @@ import { usePreviewVideoPlayheadSync } from './usePreviewVideoPlayheadSync'
 import { findTimelineTransitionForClipType, resolveTimelineTransitionsAtFrame } from '../timeline/timelineTransition'
 import { TimelineTransitionLayer } from './TimelineTransitionLayer'
 import { resolvePreviewMediaVolume } from '../timeline/clipAudio'
+import { recordVideoPlaybackState } from '../../media/videoPlaybackTelemetry'
 
 type TimelinePreviewProps = {
   activeClips: TimelineClip[]
@@ -488,10 +489,18 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
             playsInline
             style={videoStyle}
             onError={(event) => {
+              recordVideoPlaybackState(getDesktopActiveProjectId(), {
+                phase: 'error', rawUrl: videoUrl, readyState: event.currentTarget.readyState,
+                networkState: event.currentTarget.networkState, mediaErrorCode: event.currentTarget.error?.code,
+              })
               heal.onError(event)
               setTimelinePlaying(false)
             }}
-            onLoadedMetadata={heal.onLoadedMetadata}
+            onLoadedMetadata={(event) => {
+              recordVideoPlaybackState(getDesktopActiveProjectId(), { phase: 'metadata', rawUrl: videoUrl, readyState: event.currentTarget.readyState, networkState: event.currentTarget.networkState })
+              heal.onLoadedMetadata(event)
+            }}
+            onCanPlay={(event) => recordVideoPlaybackState(getDesktopActiveProjectId(), { phase: 'canplay', rawUrl: videoUrl, readyState: event.currentTarget.readyState, networkState: event.currentTarget.networkState })}
           />
         ) : null}
         {videoTransition ? (

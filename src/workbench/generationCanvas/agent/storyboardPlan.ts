@@ -1,7 +1,7 @@
-import { z } from 'zod'
 import type { BuiltinCanvasCategoryId, GenerationCanvasEdgeMode } from '../model/generationCanvasTypes'
 import { DEFAULT_IMAGE_SECONDS } from '../model/buildClipFromGenerationNode'
 import i18n from '../../../i18n'
+import { parsePromptSegments } from '../../assets/promptMentions'
 
 /**
  * 「分镜方案」中间表示（IR）—— 剧本→方案文档→确认→落画布 主链路的中枢。
@@ -17,6 +17,22 @@ export type PlanAnchorKind = 'character' | 'scene' | 'prop' | 'style'
 
 /** 载体：视觉锚=生成参考图挂参考槽；文本锚=描述拼进引用它的镜头 prompt（prompt 能说清的就别生成图）。 */
 export type PlanAnchorCarrier = 'visual' | 'text'
+
+export type StoryboardPromptSkeletonSegment = {
+  key: string
+  label: string
+  kind: 'enum'
+  options: string[]
+}
+
+export type StoryboardProfile = {
+  aspect: string
+  dialogue: boolean
+  promptSkeleton: StoryboardPromptSkeletonSegment[]
+}
+
+/** 可丢失的文本 range 标注；prompt 本身永远是唯一真相。 */
+export type PromptSegmentRange = { key: string; start: number; end: number }
 
 export type PlanAnchor = {
   /** 稳定 id；落画布时直接当 create_canvas_nodes 的 clientId。 */
@@ -46,6 +62,11 @@ export type PlanAnchor = {
    * 落画布时拼进卡片提示词的「变体行」，让多视图+多变体集中在一张图里、整张喂参考。
    */
   variants?: string[]
+  /** @ 引用绑定的来源事实；关系本身仍只存在于 PlanShot.anchorIds。 */
+  referenceUrl?: string
+  referenceKind?: 'image' | 'video' | 'audio'
+  /** 某镜结果已是画布节点时直接复用该节点，不复制成新的参考卡。 */
+  referenceSourceNodeId?: string
 }
 
 export type PlanShot = {
@@ -75,6 +96,8 @@ export type PlanShot = {
   anchorIds: string[]
   /** 可直接生成的提示词（运镜+动作演进，不复述锚的静态描述）。 */
   prompt: string
+  /** 片种骨架在 prompt 中的轻量标注；失效/丢失时不影响纯文本。 */
+  promptSegments?: PromptSegmentRange[]
   /** 用户在分镜编辑器为该镜选的视频模型 catalog key；没选 → 落画布用默认视频模型兜底。 */
   modelKey?: string
   /** 用户为该镜选的模型模式 id（随 modelKey 一起）；没选 → 默认模式。 */
@@ -143,6 +166,8 @@ export type StoryboardPlan = {
   scenes?: { id: string; title: string }[]
   /** 片种模板 key（如 'genre.short-drama'）；缺省 = 自由格式。骨架段/画幅默认按它 derive（C 阶段接管）。 */
   profileKey?: string
+  /** skill.json 声明的片种 profile 快照；缺省时按 profileKey/自由文本 derive。 */
+  storyboardProfile?: StoryboardProfile
   /** The exact approved script this plan was derived from. */
   sourceScriptArtifactId?: string
   sourceScriptVersion?: number
@@ -159,116 +184,6 @@ export function effectiveShotDurationSec(shot: PlanShot): number {
     return Number.isFinite(shot.durationSec) && shot.durationSec > 0 ? shot.durationSec : DEFAULT_IMAGE_SECONDS
   }
   return Number.isFinite(shot.durationSec) && shot.durationSec > 0 ? shot.durationSec : 0
-}
-
-// ── 校验 schema：planner 产出/落库前的运行时守卫（也是 S3 激活时交给 LLM 的工具参数 schema）──
-//
-// 与上方手写类型同形：手写类型带字段级 JSDoc（语义文档，z.infer 会丢），故两者并存；
-// 下方编译期守卫保证二者互相赋值兼容，防 schema 与类型漂移（P1 单一真相源的轻量落地）。
-
-export const planAnchorSchema = z.object({
-  id: z.string().min(1),
-  kind: z.enum(['character', 'scene', 'prop', 'style']),
-  name: z.string().min(1),
-  description: z.string(),
-  staticFeatures: z
-    .string()
-    .optional()
-    .describe('身份 DNA（脸型/发色/骨相/标志物）——跨镜必须一致、身份轴对照基准。从资产卡「基础面容锚点」填。'),
-  dynamicFeatures: z
-    .string()
-    .optional()
-    .describe('服装/配饰/状态（允许跨镜变，不进身份匹配）。从资产卡「服装层次/特殊状态」填。'),
-  carrier: z.enum(['visual', 'text']),
-  scope: z.enum(['all', 'selective']).optional(),
-  variants: z
-    .array(z.string())
-    .optional()
-    .describe(
-      '同一锚需要并列在一张定妆卡/场景卡里的变体/状态。仅当剧情里该角色/场景有明显形态差异时填，' +
-        '如角色「成年」「童年」，场景「白天远景」「夜晚近景」；没有就省略。',
-    ),
-})
-
-export const planShotSchema = z.object({
-  index: z.number().int(),
-  shotId: z.string().min(1).optional().describe('稳定镜头 ID；缺省时由系统按镜号生成。'),
-  sceneId: z.string().min(1).optional().describe('所属场 id（同场镜头连续、共用一个 id）；无分场故事省略。'),
-  shotKind: z
-    .enum(['image', 'video'])
-    .optional()
-    .describe("镜头种类:'image'=图片分镜(图生图静态画面,无时长),'video'=视频分镜(带时长运镜)。默认 image。"),
-  durationSec: z.number(),
-  anchorIds: z.array(z.string()),
-  prompt: z.string(),
-  modelKey: z.string().optional(),
-  modeId: z.string().optional(),
-  params: z.record(z.unknown()).optional(),
-  variationType: z.enum(['large', 'medium', 'small']).optional().describe('镜头内变化幅度：审片与生成策略的路由键。'),
-  camIdx: z.number().int().min(0).optional().describe('机位索引：同机位复用参考与构图（低成本一致性抓手）。'),
-  ffDesc: z.string().optional().describe('静态首帧快照描述（景别/角度/构图/光/人物位置，不写运动）。首帧图按它生成。'),
-  lfDesc: z.string().optional().describe('静态尾帧快照描述（须与首帧+运动自洽）。供尾帧槽与相邻镜续接用。'),
-  motionDesc: z.string().optional().describe('显式运动描述；与 prompt 并存，供审片与生产绑定读取。'),
-  subtitle: z.string().optional().describe('该镜字幕/台词，原样保留到画布 metadata 与时间轴。'),
-  dialogue: z.string().optional().describe('该镜对白文本（没有 subtitle 时可供时间轴层使用）。'),
-  transition: z.object({
-    type: z.enum(['cut', 'dissolve', 'fade', 'match_cut', 'whip_pan']),
-    durationFrames: z.number().int().positive().optional(),
-  }).optional().describe('进入下一镜的明确剪辑转场；可填 cut 表示明确硬切，不填表示未声明。'),
-  continuity: z
-    .union([z.string(), z.number(), z.record(z.unknown())])
-    .optional()
-    .describe('跨镜连贯约束/说明，原样保留到画布 metadata 与 Production binding。'),
-  keyframe: z
-    .object({
-      enabled: z.boolean().optional(),
-      prompt: z.string().optional(),
-      modelKey: z.string().optional(),
-      modeId: z.string().optional(),
-      params: z.record(z.unknown()).optional(),
-    })
-    .optional()
-    .describe('图片+视频模式的首帧图计划。仅 video shot 使用；enabled=true 时系统先生成首帧 image，再用 first_frame 喂视频。'),
-})
-
-function parseJsonArrayString(value: unknown): unknown {
-  if (typeof value !== 'string') return value
-  const trimmed = value.trim()
-  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) return value
-  try {
-    const parsed = JSON.parse(trimmed)
-    return Array.isArray(parsed) ? parsed : value
-  } catch {
-    return value
-  }
-}
-
-export const storyboardPlanSchema = z.object({
-  title: z.string(),
-  anchors: z.array(planAnchorSchema),
-  shots: z.preprocess(parseJsonArrayString, z.array(planShotSchema)),
-  scenes: z
-    .array(z.object({ id: z.string().min(1), title: z.string() }))
-    .optional()
-    .describe('场清单（数组序=场序）；id 被 shots[].sceneId 引用。无分场省略。'),
-  profileKey: z.string().min(1).optional().describe('片种模板 key；缺省=自由格式。'),
-  sourceScriptArtifactId: z.string().min(1).optional(),
-  sourceScriptVersion: z.number().int().positive().optional(),
-  sourceScriptHash: z.string().min(1).optional(),
-})
-
-// 编译期漂移守卫：仅当 zod 推断类型 ⟺ 手写类型互相可赋值时才编译通过（零运行时）。
-const _planSchemaToType = (p: z.infer<typeof storyboardPlanSchema>): StoryboardPlan => p
-const _planTypeToSchema = (p: StoryboardPlan): z.infer<typeof storyboardPlanSchema> => p
-void _planSchemaToType
-void _planTypeToSchema
-
-/**
- * 落库前校验方案对象。planner 产出经 backend zod 已过一道，渲染层再守一道——
- * 防直接调用 / 未来别的入口绕过 backend 时灌入畸形对象（throw，调用方映射成 tool error）。
- */
-export function parseStoryboardPlan(raw: unknown): StoryboardPlan {
-  return storyboardPlanSchema.parse(raw)
 }
 
 // ── 落画布转换器：StoryboardPlan → create_canvas_nodes 参数（纯函数，可单测）──
@@ -302,6 +217,8 @@ export type PlanCreatedEdge = {
   sourceClientId: string
   targetClientId: string
   mode?: GenerationCanvasEdgeMode
+  /** @ token 在提示词中的首次出现序，投影到画布边的唯一参考顺序。 */
+  order?: number
 }
 
 export type PlanCreateNodesArgs = {
@@ -512,6 +429,25 @@ function anchorPromptBits(shot: PlanShot, anchorById: Map<string, PlanAnchor>): 
     .filter(Boolean)
 }
 
+/** 视觉参考的边顺序：先按提示词 @ 的出现顺序，再接没有 @ 的旧绑定，保持兼容。 */
+function referenceOrderForShot(shot: PlanShot, anchorById: Map<string, PlanAnchor>): Map<string, number> {
+  const byUrl = new Map<string, string>()
+  for (const anchor of anchorById.values()) {
+    if (anchor.referenceUrl) byUrl.set(anchor.referenceUrl, anchor.id)
+  }
+  const ordered = new Set<string>()
+  for (const segment of parsePromptSegments(shot.prompt)) {
+    if (segment.type !== 'mention') continue
+    const anchorId = byUrl.get(segment.url)
+    if (anchorId && shot.anchorIds.includes(anchorId)) ordered.add(anchorId)
+  }
+  for (const anchorId of shot.anchorIds) {
+    const anchor = anchorById.get(anchorId)
+    if (anchor && isVisualAnchor(anchor)) ordered.add(anchorId)
+  }
+  return new Map([...ordered].map((anchorId, index) => [anchorId, index]))
+}
+
 /** 镜头 prompt = 镜头本体 + 引用锚的描述段（文本锚整段 / 视觉锚只给身份 DNA）。 */
 function buildShotPrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>): string {
   const bits = anchorPromptBits(shot, anchorById)
@@ -599,6 +535,14 @@ function buildShotRowNodes(
     const anchor = anchorById.get(anchorId)
     return Boolean(anchor) && isVisualAnchor(anchor!)
   })
+  const referenceOrder = referenceOrderForShot(shot, anchorById)
+  const externalReferences = visualAnchorIds
+    .map((anchorId) => anchorById.get(anchorId))
+    .filter((anchor): anchor is PlanAnchor => Boolean(anchor && anchor.referenceUrl && !anchor.referenceSourceNodeId))
+    .sort((a, b) => (referenceOrder.get(a.id) ?? 0) - (referenceOrder.get(b.id) ?? 0))
+  const externalImageUrls = externalReferences.filter((anchor) => (anchor.referenceKind ?? 'image') === 'image').map((anchor) => anchor.referenceUrl!)
+  const externalVideoUrls = externalReferences.filter((anchor) => anchor.referenceKind === 'video').map((anchor) => anchor.referenceUrl!)
+  const externalAudioUrls = externalReferences.filter((anchor) => anchor.referenceKind === 'audio').map((anchor) => anchor.referenceUrl!)
   // 图片镜头绑图片模型默认、视频镜头绑视频模型默认；用户在编辑器为该镜选的 modelKey 永远优先。
   const defaultModelKey = isImageShot ? options.defaultImageModelKey : options.defaultVideoModelKey
   const defaultModeId = isImageShot ? options.defaultImageModeId : options.defaultVideoModeId
@@ -652,6 +596,9 @@ function buildShotRowNodes(
       ),
       // 图片镜停留时长（v5）：写进节点 meta，buildClipFromGenerationNode/顺播读取（默认值同源 DEFAULT_IMAGE_SECONDS）。
       ...(isImageShot ? { imageDurationSec: effectiveShotDurationSec(shot) } : {}),
+      ...(externalImageUrls.length ? { referenceImageUrls: externalImageUrls } : {}),
+      ...(externalVideoUrls.length ? { referenceVideoUrls: externalVideoUrls } : {}),
+      ...(externalAudioUrls.length ? { referenceAudioUrls: externalAudioUrls } : {}),
     },
   })
   // 定妆卡 → 这一镜参考边（角色 character_ref / 场景·风格 style_ref / 道具 reference）。图片/视频镜头都连；
@@ -661,7 +608,8 @@ function buildShotRowNodes(
     for (const anchorId of visualAnchorIds) {
       const anchor = anchorById.get(anchorId)!
       const sourceId = options.existingAnchorNodeIdByAnchorId?.[anchorId] || anchorId
-      edges.push({ sourceClientId: sourceId, targetClientId: referenceTargetId, mode: edgeModeForAnchor(anchor.kind) })
+      if (anchor.referenceUrl && !anchor.referenceSourceNodeId) continue
+      edges.push({ sourceClientId: anchor.referenceSourceNodeId || sourceId, targetClientId: referenceTargetId, mode: edgeModeForAnchor(anchor.kind), order: referenceOrder.get(anchorId) })
     }
   }
   if (hasKeyframe) {
@@ -698,7 +646,7 @@ export function storyboardPlanToCreateNodesArgs(
 
   // 视觉锚 → 定妆卡/场景卡节点。prompt 用「卡片大图」构造器：多视图+多变体集中一张图、整张喂参考（用户拍板）。
   for (const anchor of plan.anchors) {
-    if (!isVisualAnchor(anchor)) continue
+    if (!isVisualAnchor(anchor) || anchor.referenceUrl || anchor.referenceSourceNodeId) continue
     nodes.push(buildAnchorCardNode(anchor, options))
   }
 
@@ -750,7 +698,7 @@ export function storyboardShotToCreateNodesArgs(
   if (!options.omitAnchorReferenceEdges) {
     for (const anchorId of shot.anchorIds) {
       const anchor = anchorById.get(anchorId)
-      if (!anchor || !isVisualAnchor(anchor)) continue
+      if (!anchor || !isVisualAnchor(anchor) || anchor.referenceUrl || anchor.referenceSourceNodeId) continue
       if (existing[anchorId]) continue
       nodes.push(buildAnchorCardNode(anchor, options))
     }

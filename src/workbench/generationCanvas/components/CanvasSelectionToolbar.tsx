@@ -5,6 +5,7 @@ import { cn } from '../../../utils/cn'
 import { CanvasBulkModelSelect, type CanvasApplyModelInput } from './CanvasBulkModelSelect'
 import type { CanvasGenerationExecutionGroup } from './canvasProductionScope'
 import { CanvasProductionConcurrencySelect, CanvasProductionRunButton } from './CanvasProductionControls'
+import { SelectionToolbarFrame } from './SelectionToolbarFrame'
 
 type CanvasSelectionToolbarProps = {
   selectedCount: number
@@ -46,15 +47,11 @@ export function CanvasSelectionToolbar({
 }: CanvasSelectionToolbarProps): JSX.Element {
   const { t } = useTranslation()
   return (
-    <div
-      className={cn(
-        'generation-canvas-v2__selection-toolbar',
-        'absolute z-[11] inline-flex max-w-[760px] items-center gap-2 overflow-x-auto px-2.5 py-1.5',
-        'border border-nomi-line rounded-full',
-        'bg-nomi-paper/[0.96] shadow-nomi-md pointer-events-auto',
-      )}
-      style={{ transform, maxWidth }}
-      aria-label={t('generationCommon.selection.aria')}
+    <SelectionToolbarFrame
+      className="generation-canvas-v2__selection-toolbar absolute z-[11] max-w-[760px]"
+      transform={transform}
+      maxWidth={maxWidth}
+      ariaLabel={t('generationCommon.selection.aria')}
       onPointerDown={(event) => event.stopPropagation()}
     >
       <span className={cn('pl-1.5 pr-1 text-nomi-ink-60 text-body-sm whitespace-nowrap')}>
@@ -112,6 +109,6 @@ export function CanvasSelectionToolbar({
         icon={<IconX size={16} />}
         onClick={onClearSelection}
       />
-    </div>
+    </SelectionToolbarFrame>
   )
 }

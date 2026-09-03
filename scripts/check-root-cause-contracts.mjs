@@ -112,7 +112,30 @@ if (!history.ok) {
   process.exit(1);
 }
 
-const result = validateRootCauseChange({ changedFiles: [...changedFiles], contracts, existingFiles, legacyHashes });
+const fileContents = new Map();
+for (const contract of contracts) {
+  if (contract.change_kind !== "structural") continue;
+  const preservedExports = contract.structural_evidence?.preserved_exports;
+  if (!Array.isArray(preservedExports)) continue;
+  for (const preserved of preservedExports) {
+    const relative = String(preserved?.path || "").replaceAll(path.sep, "/").replace(/^\.\//, "");
+    const absolute = path.resolve(repoRoot, relative);
+    if (absolute === repoRoot || !absolute.startsWith(`${repoRoot}${path.sep}`)) continue;
+    try {
+      if (fs.statSync(absolute).isFile()) fileContents.set(relative, fs.readFileSync(absolute, "utf8"));
+    } catch {
+      // The validator reports the missing path/content as a failed structural claim.
+    }
+  }
+}
+
+const result = validateRootCauseChange({
+  changedFiles: [...changedFiles],
+  contracts,
+  existingFiles,
+  legacyHashes,
+  fileContents,
+});
 if (!result.ok) {
   console.error(`✖ 根因合同门禁失败（触发 ${result.triggeredFiles.length} 个高风险生产文件）`);
   for (const error of result.errors) console.error(`  - ${error}`);

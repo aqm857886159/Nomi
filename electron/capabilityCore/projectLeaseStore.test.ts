@@ -78,10 +78,6 @@ const action = JSON.parse(process.env.NOMI_LEASE_WORKER_ACTION || "{}") as
   | { kind: "issue-many"; worker: number; count: number }
   | { kind: "issue"; lease: Record<string, unknown> }
   | { kind: "revoke"; tokenHash: string; revokedAt: string };
-const startAt = Number(process.env.NOMI_LEASE_WORKER_START_AT || "0");
-while (Date.now() < startAt) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.min(20, startAt - Date.now()));
-}
 const store = createProjectLeaseStore({
   filePath: process.env.NOMI_LEASE_WORKER_ROOT || "",
   macKey: "lease-store-key",
@@ -90,6 +86,20 @@ const store = createProjectLeaseStore({
   maxRecords: 1_000,
   maxRecordsPerProject: 1_000,
 });
+// 汇合点：原来用「父进程猜 Date.now() + 1000ms」当起跑线是错的——机器一忙，
+// node 启动 + 模块加载就超过这个窗口，worker 到场时闸门早已过期：既没真正同时起跑
+// （竞态覆盖被悄悄削弱），又把总耗时拖过 20s 超时。改成真握手：worker 备妥后写 ready
+// 标记，然后阻塞等父进程的 release 标记；父进程集齐全部 ready 才放行，与机器快慢无关。
+fs.writeFileSync(process.env.NOMI_LEASE_WORKER_READY_PATH || "", "1");
+const releasePath = process.env.NOMI_LEASE_WORKER_RELEASE_PATH || "";
+const idle = new Int32Array(new SharedArrayBuffer(4));
+// 仅作死锁兜底，不承担协调职责：正常路径永远是 release 标记先到。
+let waited = 0;
+while (!fs.existsSync(releasePath)) {
+  Atomics.wait(idle, 0, 0, 5);
+  waited += 1;
+  if (waited > 12_000) throw new Error("lease worker release barrier timed out");
+}
 try {
   let result: unknown;
   if (action.kind === "issue-many") {
@@ -126,10 +136,40 @@ try {
   return workerPath;
 }
 
+// 起跑线由「集齐 ready」定义，而不是墙钟时刻：谁都不会因为启动慢而错过闸门。
+async function raceWorkers(
+  workerPath: string,
+  rootPath: string,
+  actions: WorkerAction[],
+): Promise<{ ok: boolean; result?: unknown; name?: string; message?: string }[]> {
+  const barrierDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-lease-barrier-"));
+  tempDirs.push(barrierDir);
+  const releasePath = path.join(barrierDir, "release");
+  const readyPaths = actions.map((_, index) => path.join(barrierDir, `ready-${index}`));
+  const pending = actions.map((action, index) =>
+    runWorker(workerPath, rootPath, { readyPath: readyPaths[index], releasePath }, action),
+  );
+
+  // 兜底上限只防死锁（worker 崩了就永远集不齐 ready），正常路径靠 ready 到齐驱动。
+  const deadline = setTimeout(() => {
+    fs.writeFileSync(releasePath, "1");
+  }, 60_000);
+  try {
+    while (!readyPaths.every((readyPath) => fs.existsSync(readyPath))) {
+      if (fs.existsSync(releasePath)) break;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    if (!fs.existsSync(releasePath)) fs.writeFileSync(releasePath, "1");
+    return await Promise.all(pending);
+  } finally {
+    clearTimeout(deadline);
+  }
+}
+
 function runWorker(
   workerPath: string,
   rootPath: string,
-  startAt: number,
+  barrier: { readyPath: string; releasePath: string },
   action: WorkerAction,
 ): Promise<{ ok: boolean; result?: unknown; name?: string; message?: string }> {
   return new Promise((resolve, reject) => {
@@ -137,7 +177,8 @@ function runWorker(
       env: {
         ...process.env,
         NOMI_LEASE_WORKER_ROOT: rootPath,
-        NOMI_LEASE_WORKER_START_AT: String(startAt),
+        NOMI_LEASE_WORKER_READY_PATH: barrier.readyPath,
+        NOMI_LEASE_WORKER_RELEASE_PATH: barrier.releasePath,
         NOMI_LEASE_WORKER_ACTION: JSON.stringify(action),
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -224,12 +265,11 @@ describe("ProjectLeaseStore immutable per-token records", () => {
   it("publishes all unique leases across four real processes without treating a renamed candidate as corruption", async () => {
     const rootPath = makeRoot("nomi-project-lease-cross-process-");
     const workerPath = writeProcessWorker(rootPath);
-    const startAt = Date.now() + 1_000;
 
-    const results = await Promise.all(
-      Array.from({ length: 4 }, (_, worker) =>
-        runWorker(workerPath, rootPath, startAt, { kind: "issue-many", worker, count: 40 }),
-      ),
+    const results = await raceWorkers(
+      workerPath,
+      rootPath,
+      Array.from({ length: 4 }, (_, worker) => ({ kind: "issue-many" as const, worker, count: 40 })),
     );
 
     expect(results).toEqual(Array.from({ length: 4 }, () => ({ ok: true, result: { issued: 40 } })));
@@ -287,15 +327,14 @@ describe("ProjectLeaseStore immutable per-token records", () => {
     const workerPath = writeProcessWorker(rootPath);
     const issued = lease(600);
     makeStore(rootPath).recordIssued(issued);
-    const startAt = Date.now() + 750;
 
-    const [issueResult, revokeResult] = await Promise.all([
-      runWorker(workerPath, rootPath, startAt, { kind: "issue", lease: issued }),
-      runWorker(workerPath, rootPath, startAt, {
+    const [issueResult, revokeResult] = await raceWorkers(workerPath, rootPath, [
+      { kind: "issue", lease: issued },
+      {
         kind: "revoke",
         tokenHash: issued.tokenHash,
         revokedAt: "2026-08-23T00:01:00.000Z",
-      }),
+      },
     ]);
 
     expect(revokeResult).toMatchObject({ ok: true });
@@ -310,13 +349,12 @@ describe("ProjectLeaseStore immutable per-token records", () => {
     const workerPath = writeProcessWorker(rootPath);
     const issued = lease(601);
     makeStore(rootPath).recordIssued(issued);
-    const startAt = Date.now() + 750;
     const revokedAt = ["2026-08-23T00:01:00.000Z", "2026-08-23T00:02:00.000Z"];
 
-    const results = await Promise.all(
-      revokedAt.map((value) =>
-        runWorker(workerPath, rootPath, startAt, { kind: "revoke", tokenHash: issued.tokenHash, revokedAt: value }),
-      ),
+    const results = await raceWorkers(
+      workerPath,
+      rootPath,
+      revokedAt.map((value) => ({ kind: "revoke" as const, tokenHash: issued.tokenHash, revokedAt: value })),
     );
     const final = makeStore(rootPath).read(issued.tokenHash);
 

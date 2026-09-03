@@ -128,7 +128,7 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
             >
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <div className="truncate text-body-sm font-bold text-nomi-ink">{t('browserAssets.assetBox')}</div>
-                <span className="inline-flex h-5 shrink-0 items-center rounded-pill bg-nomi-ink-05 px-2 text-micro font-semibold text-nomi-ink-55">
+                <span className="inline-flex h-5 shrink-0 items-center rounded-pill bg-nomi-ink-05 px-2 text-micro font-semibold text-nomi-ink-60">
                   {t('browserAssets.captureInbox')}
                 </span>
               </div>
@@ -249,7 +249,7 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
                     <span className="truncate">{t('browserAssets.placedOnCanvasHint')}</span>
                   </span>
                 ) : (
-                  <span className="min-w-0 flex-1 truncate text-caption text-nomi-ink-55">
+                  <span className="min-w-0 flex-1 truncate text-caption text-nomi-ink-60">
                     {canvasImportSelectedCount > 0 ? t('browserAssets.selectedCount', { count: canvasImportSelectedCount }) : t('browserAssets.selectedToCanvas')}
                   </span>
                 )}

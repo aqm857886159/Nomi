@@ -7,7 +7,7 @@ import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import type { WhiteboardState } from '../whiteboard/whiteboardTypes'
 import { inferWhiteboardAspectRatio } from '../whiteboard/whiteboardState'
 import { buildLayerWhiteboardState } from './buildLayerWhiteboard'
-import { confirmAndMintGrant, describeGenerationCost } from '../../spend/spendConfirm'
+import { confirmAndMintGrant, describeGenerationCost, generationCostContextForNode } from '../../spend/spendConfirm'
 import { getDesktopBridge } from '../../../../desktop/bridge'
 import { getDesktopActiveProjectId } from '../../../../desktop/activeProject'
 import { listWorkbenchModelCatalogVendors } from '../../../api/modelCatalogApi'
@@ -53,7 +53,7 @@ export function useDecomposeLayers(node: GenerationCanvasNode, imageUrl: string)
     const grantId = await confirmAndMintGrant({
       nodeIds: [node.id],
       title: i18n.t('generationCommon.decompose.title'),
-      message: `${describeGenerationCost(1, 'image')}${i18n.t('generationCommon.decompose.costSuffix')}`,
+      message: `${describeGenerationCost(1, 'image', generationCostContextForNode(node))}${i18n.t('generationCommon.decompose.costSuffix')}`,
       confirmLabel: i18n.t('generationCommon.decompose.confirm'),
       light: true,
     })

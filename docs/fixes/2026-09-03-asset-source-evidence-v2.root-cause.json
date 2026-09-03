@@ -1,0 +1,128 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-asset-source-evidence-v2",
+  "problem_type": "provenance boundary: source evidence missing from non-connector import paths",
+  "symptom": "Browser-captured and user-local assets were written to sidecar without structured source evidence, making usageStatus, creator, licenseId, and intendedRoles unavailable for export attribution, M4 taint checks, and P0-3 smart views. The connector path used the deprecated rightsStatus:\"unknown\" field instead of usageStatus:\"rights_unknown\".",
+  "direct_cause": "sanitizeSourceEvidence only accepted source:\"connector\" and rejected all other sources silently. movePromptReferenceFile in browserViewMedia.ts lacked the sanitizeSourceEvidence call entirely. tikhubConnectorService.ts still wrote the deprecated rightsStatus field that sanitizeSourceEvidence was designed to normalize away.",
+  "class_root": "The original AssetSourceEvidence contract (P0.1 v1) modeled only the connector ingestion scenario. No structured evidence type existed for browser or user-local sources, so those paths had no choke point. Any new import path that bypassed sanitizeSourceEvidence could silently write arbitrary or missing provenance into the sidecar without any static detection.",
+  "affected_population": [
+    "All browser-captured assets moved via movePromptReferenceFile (browser-prompt-reference kind) that lacked sourceEvidence entirely",
+    "All tikhub connector imports that wrote the deprecated rightsStatus:\"unknown\" field, which M4 taint cannot read as a typed usageStatus"
+  ],
+  "scope_paths": [
+    "electron/connectors/connectorDefinition.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/assets/projectAssetStore.sourceEvidence.test.ts",
+    "electron/connectors/tikhubConnectorService.ts",
+    "electron/browser/media/browserViewMedia.ts",
+    "scripts/check-asset-evidence.mjs",
+    "scripts/asset-evidence-baseline.json"
+  ],
+  "entry_points": [
+    "sanitizeSourceEvidence() for all three source branches (connector / browser / user)",
+    "importRemoteAsset() payload path from IPC (nomi:assets:import-remote-url) — sanitizeSourceEvidence called inside",
+    "moveAssetFile() calls in browserViewMedia.ts for browser-capture and browser-prompt-reference kinds",
+    "importTikhubShareUrl() in tikhubConnectorService.ts for connector-ingested platform videos"
+  ],
+  "internal_only_reason": "The source evidence contract (usageStatus semantics, field whitelist, fail-closed defaults, migration rules, and M4 taint alignment) is defined entirely within Nomi. No provider or platform documentation can specify how Nomi sanitizes, normalises, or defaults provenance fields — those invariants must be enforced at the single internal choke point (sanitizeSourceEvidence) and are not derivable from any external specification.",
+  "invariants": [
+    "sanitizeSourceEvidence is the single choke point for all source evidence normalization; no caller may write sourceEvidence without passing through it.",
+    "browser and user source branches enforce usageStatus:\"reference_only\" unconditionally — callers cannot upgrade this value (fail-closed: no-permission-assumed).",
+    "connector source branch enforces usageStatus from the VALID_USAGE_STATUSES whitelist; missing or invalid values default to \"rights_unknown\" (fail-closed: no-permission-assumed).",
+    "The deprecated rightsStatus field is read-only during migration and never written by any new path.",
+    "Migration is idempotent: a sidecar that has already been migrated (has usageStatus, no rightsStatus) produces the same output when passed through sanitizeSourceEvidence a second time.",
+    "Fields outside the per-source whitelist are silently dropped; an untrusted payload cannot inject arbitrary metadata into the sidecar.",
+    "check:asset-evidence ratchet gate enforces zero new deprecated-rights-status occurrences and zero new missing-source-evidence occurrences on every CI run."
+  ],
+  "generality_proof": "All importRemoteAsset and moveAssetFile call sites in electron/ were enumerated (4 callers). Exempt callers (kind:generated — decomposeLayers.ts, runtime.ts) confirmed via inline kind value. Non-exempt callers now all pass through sanitizeSourceEvidence before writing sourceEvidence. The ratchet gate (check:asset-evidence) enforces this for future additions with baseline 0/0.",
+  "shared_boundaries": [
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "sanitizeSourceEvidence",
+      "responsibility": "Single choke point: normalizes all caller-supplied source evidence to the whitelisted schema, enforces fail-closed usageStatus defaults per source type, and migrates legacy rightsStatus field."
+    },
+    {
+      "path": "scripts/check-asset-evidence.mjs",
+      "symbol": "check:asset-evidence",
+      "responsibility": "Ratchet gate: statically detects new uses of deprecated rightsStatus writes and importRemoteAsset/moveAssetFile calls that lack sourceEvidence in non-generated paths."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/connectors/tikhubConnectorService.ts",
+      "entry_point": "importTikhubShareUrl — AssetSourceEvidence literal passed to importRemoteAsset",
+      "disposition": "enforced",
+      "evidence": "Migrated from rightsStatus:\"unknown\" to usageStatus:\"rights_unknown\". sanitizeSourceEvidence normalizes the usageStatus value before it reaches the sidecar."
+    },
+    {
+      "path": "electron/browser/media/browserViewMedia.ts",
+      "entry_point": "captureBrowserMediaFromPageView — moveAssetFile called with browser-capture kind",
+      "disposition": "enforced",
+      "evidence": "Already called sanitizeSourceEvidence with source:\"browser\" and usageStatus:\"reference_only\" before this change. Verified call present at line 488."
+    },
+    {
+      "path": "electron/browser/media/browserViewMedia.ts",
+      "entry_point": "movePromptReferenceFile — moveAssetFile called with browser-prompt-reference kind",
+      "disposition": "enforced",
+      "evidence": "Added sanitizeSourceEvidence call with source:\"browser\" and usageStatus:\"reference_only\". Was the only missing call site."
+    },
+    {
+      "path": "electron/image/decomposeLayers.ts",
+      "entry_point": "importRemoteAsset called with kind:\"generated\" for AI-synthesized layer assets",
+      "disposition": "not-affected",
+      "evidence": "kind:\"generated\" assets are AI outputs covered by certificationEvidence, not third-party provenance. Exempted in gate and confirmed by inline kind value. No sourceEvidence expected or required."
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "localizeTaskAsset — importRemoteAsset called with kind:\"generated\" for production run outputs",
+      "disposition": "not-affected",
+      "evidence": "kind:\"generated\" AI output, covered by certificationEvidence. IPC transfer layer (main.ts) also not-affected as it delegates to importRemoteAsset which calls sanitizeSourceEvidence internally for any sourceEvidence in the payload."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new non-generated import path that writes sourceEvidence without calling sanitizeSourceEvidence, or any path that writes the deprecated rightsStatus field, reintroduces the same silent provenance hole. This class of omission is structurally recurrent because new import paths will be added as P0-2 (browser tool) and future connectors are implemented.",
+    "same_class_scan": [
+      "Scanned all importRemoteAsset and moveAssetFile call sites in electron/ — found 4 callers; 2 exempt (kind:generated), 2 enforced.",
+      "Scanned for rightsStatus field writes outside exempt files (connectorDefinition.ts, projectAssetStore.ts): 1 hit in tikhubConnectorService.ts — fixed.",
+      "Enrolled both scan patterns as the check:asset-evidence ratchet gate with baseline 0/0 — future additions are caught immediately at the CI boundary."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/assets/projectAssetStore.ts",
+    "invariant": "All non-generated source evidence passes through sanitizeSourceEvidence before reaching the sidecar; no new path may write the deprecated rightsStatus field.",
+    "failure_mode": "A new call site that omits sanitizeSourceEvidence produces a sidecar with missing or arbitrary provenance fields; M4 taint checks treat missing usageStatus as \"rights_unknown\" (not \"cleared\") during the lazy migration window.",
+    "exception_policy": "none",
+    "strategy": "Whitelist the single choke point in the ratchet gate; exempt only kind:\"generated\" paths that are covered by certificationEvidence instead. New browser/connector/user paths must pass through sanitizeSourceEvidence or the gate goes red.",
+    "artifacts": [
+      "electron/assets/projectAssetStore.ts",
+      "electron/connectors/connectorDefinition.ts",
+      "electron/connectors/tikhubConnectorService.ts",
+      "electron/browser/media/browserViewMedia.ts",
+      "scripts/check-asset-evidence.mjs",
+      "scripts/asset-evidence-baseline.json"
+    ]
+  },
+  "regression_tests": [
+    "electron/assets/projectAssetStore.sourceEvidence.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/assets/projectAssetStore.sourceEvidence.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No parallel legacy implementation was removed. The deprecated rightsStatus field is migrated lazily on read; existing sidecars are not rewritten. The sanitizeSourceEvidence function is extended in place, not replaced."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The defect is in repository-owned provenance normalization semantics, not in a third-party package version. No dependency version change is required.",
+    "exit_criteria": []
+  },
+  "migration": "Existing sidecars written with rightsStatus:\"unknown\" are migrated lazily on next read through sanitizeSourceEvidence: rightsStatus is converted to usageStatus:\"rights_unknown\" and not written back. Old sidecars without any usageStatus are treated as \"rights_unknown\" by consumers. New write paths (connector / browser / user) now always produce usageStatus. The migration is one-directional: the legacy field is never re-emitted.",
+  "residual_risks": [
+    "Sidecars written before this change and not yet re-read will continue to carry rightsStatus instead of usageStatus until the owning asset is next accessed through sanitizeSourceEvidence. M4 taint consumers must treat a missing usageStatus as \"rights_unknown\" during the lazy migration window.",
+    "The check:asset-evidence gate scans TypeScript source for static patterns; a dynamic call that constructs sourceEvidence outside the recognized call sites could bypass detection. The invariant is defended by tests and code review, not only the gate."
+  ]
+}

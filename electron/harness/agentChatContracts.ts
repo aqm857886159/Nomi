@@ -2,6 +2,7 @@ import type { AgentContextScope } from './context/contextBinding';
 import type { LegacyAgentBubble } from './context/legacyBubbles';
 import type { RuntimeActivityEvent, RuntimeFinishReason, RuntimeToolCallRecord, RuntimeToolDecision, RuntimeUsage } from './runtime/runtimePort';
 import type { PromptCacheTelemetry } from './context/promptPipe';
+import type { ProvenanceProjection } from './context/provenance';
 import type { SkillLedgerItem } from './context/promptPipe';
 import type {
   CapturedCanvasReadSnapshotHandleWire,
@@ -71,6 +72,8 @@ export interface AgentChatResponse {
   promptCache?: PromptCacheTelemetry;
   promptBudgetWarning?: string;
   promptWarnings?: readonly string[];
+  provenance?: readonly ProvenanceProjection[];
+  taintedSourceRefs?: readonly string[];
 }
 
 export type AgentChatActivity = RuntimeActivityEvent | { type: 'error'; message: string; code?: AgentChatErrorCode };

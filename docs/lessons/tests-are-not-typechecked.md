@@ -12,6 +12,18 @@
 - `check:test-types` = `node ./scripts/check-test-types.mjs`，在 `gates:contracts` 链的最末尾（`… && pnpm run typecheck && pnpm run check:test-types`）。
 - 棘轮基线 `scripts/test-types-baseline.json`：**32 个文件 / 78 个存量错，`src/` 条目已清零**（上线时是 114，已减）。只减不增，`--update-baseline` 重记账。`src/` 清零 = 新增任何 src 测试类型错**当场报红**。
 
+**同族的第二个洞：走查用的 `.mjs` 连「能不能解析」都没人管（2026-09-02 补，已固化）**
+
+`check:test-types` 管的是 `.ts` 测试。而 `tests/ux/`、`evals/`、`scripts/` 下的 `.mjs`/`.cjs` **一道门都照不到**：`typecheck` 只编 `.ts`；`check:test-types` 走 `tsconfig.test.json`，同样只管 `.ts`；`eslint.config.mjs` 的 `ignores` 里明写着 `'tests/ux/**'`、`'evals/**'`、`'scripts/**/*'`（实测 `pnpm exec eslint tests/ux/mcp-l1-handshake.e2e.mjs` 回 `File ignored because of a matching ignore pattern`、exit 0）。
+
+**代价已付**：一次解冲突在 `tests/ux/mcp-l1-handshake.e2e.mjs` 里留下重复的 `const READ_ONLY_TOOL_NAMES` —— 硬 SyntaxError、加载即崩，五门全绿照样放行，直到有人**手动跑** E2E 才炸。走查按风险面触发、平时不在每次 push 的验证面上，所以「坏了但没人跑」能活很久。
+
+**已固化**：`check:mjs-parse`（`scripts/check-mjs-parse.mjs`，在 `gates:contracts` 链里，夹在 `check:vocabularies` 与 `check:e2e-launch` 之间）对这三片的每个 `.mjs`/`.cjs` 跑 `node --check`，**硬零、无基线**（上线时 545 个文件全部可解析，不欠债）。并发跑 ~2s（串行要 ~18s）。**语义边界**：它只保证**能解析**，不保证类型对、不保证逻辑对——`import` 的目标存不存在它一概不知。它挡的是「加载即崩」这一类。
+
+**上线时的阳性对照**（没做过阳性对照的闸不算闸，同 [`walkthrough-assertions-need-a-real-signal`](walkthrough-assertions-need-a-real-signal.md)）：把那行重复的 `const READ_ONLY_TOOL_NAMES` 原样塞回去 → 门岗 `exit 1` 并逐字点名 `SyntaxError: Identifier 'READ_ONLY_TOOL_NAMES' has already been declared`；恢复后回绿。另有个自嘲级实证：**门岗第一次运行就抓住了它自己**——它的 JSDoc 里写了 `config.mjs` 的通配符路径，其中的 `*/` 提前闭合了块注释。
+
+**为什么用 `node --check` 而不是把三片纳入 eslint**：解析是最小充分条件，零配置、零存量债，且用的就是运行时那个解析器（`.mjs` 按 ESM、`.cjs` 按 CJS，两边的重复声明都抓得住）。把三片纳入 eslint 是另一个量级的工程（大量存量风格债要还），这道门今天就能硬零。哪天真把它们纳入 eslint 了，这道门可以退休（`no-redeclare` 与解析错都会在 lint 里冒出来）。
+
 **为什么会踩**：
 
 2026-08-24 把「加字段必须登记落点」的编译期闸写进 `workbenchAiClient.test.ts` 的 `Record<keyof T, …>`，自以为上了保险；**探针一打就现原形**——给类型加 `testOnlyProbe?: string`，`tsc -p tsconfig.app.json` 照样全绿。当时那个 `exclude` 和「覆盖整个 src（含测试）」的注释是**同一次提交**写下去的，从第一天起就自相矛盾。

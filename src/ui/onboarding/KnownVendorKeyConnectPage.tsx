@@ -12,6 +12,7 @@ export function KnownVendorKeyConnectPage({
   directory,
   vendorName,
   modelCount,
+  hasApiKey = false,
   onBack,
   onSaved,
   onContinueVerification,
@@ -19,6 +20,12 @@ export function KnownVendorKeyConnectPage({
   directory: KnownVendor
   vendorName: string
   modelCount: number
+  /**
+   * 该供应商已有保存的 key（存了但尚未验证晋级）。
+   * 传 true 时跳过 key 录入步骤，直接进入「已保存·继续验证」状态——
+   * 避免用户在 availableKnown 点击卡片后看到一个要他重填 key 的表单。
+   */
+  hasApiKey?: boolean
   onBack: () => void
   onSaved: () => void
   onContinueVerification: () => void
@@ -26,7 +33,8 @@ export function KnownVendorKeyConnectPage({
   const { t } = useTranslation()
   const [apiKey, setApiKey] = React.useState('')
   const [busy, setBusy] = React.useState(false)
-  const [saved, setSaved] = React.useState(false)
+  // 已有 key = 直接进入「已保存」状态（跳过录入，避免要求用户重填已存 key）。
+  const [saved, setSaved] = React.useState(hasApiKey)
   const [error, setError] = React.useState('')
   const inputRef = React.useRef<HTMLInputElement>(null)
   const errorId = React.useId()
@@ -158,16 +166,30 @@ export function KnownVendorKeyConnectPage({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-body-sm font-semibold text-nomi-ink">
-                  {t('onboardingProviders.keyOnly.savedTitle', { name: vendorName })}
+                  {hasApiKey && apiKey === ''
+                    ? t('onboardingProviders.keyOnly.pendingTitle', { name: vendorName })
+                    : t('onboardingProviders.keyOnly.savedTitle', { name: vendorName })}
                 </div>
                 <p className="mt-1 text-caption leading-relaxed text-nomi-ink-60">
-                  {t('onboardingProviders.keyOnly.savedHint')}
+                  {hasApiKey && apiKey === ''
+                    ? t('onboardingProviders.keyOnly.pendingHint')
+                    : t('onboardingProviders.keyOnly.savedHint')}
                 </p>
               </div>
             </div>
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex items-center justify-between gap-2">
+              {/* 已有 key 的情况提供「更换密钥」出口，让用户不被困在此页 */}
+              {hasApiKey && apiKey === '' ? (
+                <button
+                  type="button"
+                  onClick={() => setSaved(false)}
+                  className="text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
+                >
+                  {t('onboardingProviders.keyOnly.replaceKey')}
+                </button>
+              ) : <span />}
               <DesignButton variant="filled" onClick={onContinueVerification}>
-                {t('onboardingProviders.keyOnly.save')}
+                {t('onboardingProviders.keyOnly.continueVerification')}
               </DesignButton>
             </div>
           </div>

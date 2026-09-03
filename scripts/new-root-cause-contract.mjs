@@ -7,6 +7,7 @@
 //
 // 用法：node scripts/new-root-cause-contract.mjs <id>      （或 pnpm run new:contract <id>）
 //   → 生成 docs/fixes/<id>.root-cause.json（已存在则拒绝覆盖）
+//   → 传 structural 生成结构变更骨架：node scripts/new-root-cause-contract.mjs <id> structural
 //
 // 骨架默认按 recurring（复发类）给全字段——这是 P2「修根因配结构保证」的主路径；
 // 真是 one_off 时按 recurrence.classification 占位里的说明降档（必须删掉 prevention）。
@@ -20,7 +21,25 @@ import { ROOT_CAUSE_CONTRACT_SCHEMA_VERSION } from './root-cause-contracts.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 /** 生成 schema v3 骨架。每个 TODO 值就是该字段的行内填写说明；枚举位列出合法全集。 */
-export function buildSkeleton(id, today = new Date().toISOString().slice(0, 10)) {
+export function buildSkeleton(id, today = new Date().toISOString().slice(0, 10), changeKind = 'corrective') {
+  if (!['corrective', 'structural'].includes(changeKind)) {
+    throw new Error(`非法 change_kind「${changeKind}」：只允许 corrective 或 structural`)
+  }
+  if (changeKind === 'structural') {
+    return {
+      schema_version: ROOT_CAUSE_CONTRACT_SCHEMA_VERSION,
+      id,
+      change_kind: 'structural',
+      scope_paths: ['TODO: 受影响的生产路径——须真实存在并覆盖 affected_paths'],
+      regression_tests: ['TODO: 回归测试文件路径——必须是真实存在且在本次 diff 中变化的测试文件'],
+      structural_evidence: {
+        affected_paths: ['TODO: 本次移动/受影响的真实模块路径——每条都须存在、变化且被 scope_paths 覆盖'],
+        preserved_exports: [],
+        behavior_preservation: 'TODO: 明确声明哪些可观察行为保持不变；这是声明，不是静态证明',
+        verification_limits: 'TODO: 写清 checker 已验证的路径/export，以及仍依赖测试、typecheck 或人工判断的部分',
+      },
+    }
+  }
   return {
     schema_version: ROOT_CAUSE_CONTRACT_SCHEMA_VERSION,
     id,
@@ -94,7 +113,7 @@ export function buildSkeleton(id, today = new Date().toISOString().slice(0, 10))
 }
 
 /** 把骨架写到 <dir>/<id>.root-cause.json；已存在则抛错（不覆盖任何已写的合同）。 */
-export function writeSkeleton(id, dir = path.join(repoRoot, 'docs', 'fixes')) {
+export function writeSkeleton(id, dir = path.join(repoRoot, 'docs', 'fixes'), changeKind = 'corrective') {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id)) {
     throw new Error(`非法 id「${id}」：只允许字母/数字/./_/-，如 2026-09-02-my-fix`)
   }
@@ -103,7 +122,7 @@ export function writeSkeleton(id, dir = path.join(repoRoot, 'docs', 'fixes')) {
     throw new Error(`已存在：${path.relative(repoRoot, target)}——不覆盖，换个 id 或直接编辑它`)
   }
   fs.mkdirSync(dir, { recursive: true })
-  fs.writeFileSync(target, `${JSON.stringify(buildSkeleton(id), null, 2)}\n`)
+  fs.writeFileSync(target, `${JSON.stringify(buildSkeleton(id, undefined, changeKind), null, 2)}\n`)
   return target
 }
 
@@ -113,11 +132,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.error('用法：node scripts/new-root-cause-contract.mjs <id>   （id 即文件名主干，如 2026-09-02-my-fix）')
     process.exit(1)
   }
+  const changeKind = process.argv[3] || 'corrective'
   try {
-    const target = writeSkeleton(id)
+    const target = writeSkeleton(id, undefined, changeKind)
     console.log(`✅ 已生成 ${path.relative(repoRoot, target)}`)
     console.log('   → 逐个把 TODO 换成实情（每个 TODO 里写了怎么填；TODO(...) 括号里是枚举全集）')
-    console.log('   → one_off 的话删掉 prevention；填完跑 pnpm run check:root-cause-contracts 验收')
+    console.log('   → corrective 默认按 one_off/recurring 填写；structural 填 structural_evidence；最后跑 pnpm run check:root-cause-contracts 验收')
   } catch (error) {
     console.error(`❌ ${error instanceof Error ? error.message : String(error)}`)
     process.exit(1)
