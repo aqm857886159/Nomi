@@ -14,7 +14,7 @@
 import { listProductionPlaybookNames } from '../productionRun/productionPlaybooks'
 import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead'
 import { MCP_CAPABILITY_RESOLVER, immutableSchemaSnapshot } from './mcpCapabilityProjection'
-import { MCP_GENERATION_TOOL_CATALOG } from './mcpGenerationTools'
+import { MCP_GENERATION_TOOL_CATALOG } from './mcpGenerationToolCatalog'
 import { MCP_INTEGRATION_TOOL, INTEGRATION_METHOD_BY_ACTION } from './mcpIntegrationTools'
 import { MCP_INTEGRATION_MANAGEMENT_TOOL } from './mcpIntegrationManagementTools'
 import { MCP_PROJECT_SESSION_TOOL } from './mcpProjectSessionTool'
