@@ -75,6 +75,7 @@
 - [改 baseline JSON 用文本级编辑，别整体重写](json-baselines-need-surgical-edits.md) — 短数组原文是单行，重写会炸出上千行假 diff
 - [方案讨论期别急着 commit/PR](discuss-before-committing-docs.md) — 聊透拍板再落 git；实施类不受限
 - [闸门凭据要绑「哪棵树 + 哪个提交」](gate-stamps-must-be-keyed-to-tree-and-head.md) — 只认固定路径 + mtime 的 gates 戳会跨 worktree 互相顶用，同一天误放和误杀各栽一次
+- [合并后不立刻录交付收据，窗口就永久关闭](verify-merged-receipt-window-closes-fast.md) — `verify-merged` 要求 HEAD == `origin/main` == 目标 SHA；main 一前进就再也录不成，收据命令要自带重试
 
 ## D. 排查与平台故障
 
@@ -112,5 +113,6 @@
 
 - [`codex exec` 后台派工要关 stdin](codex-exec-background-needs-stdin-closed.md) — 缺 `</dev/null` 会永久挂起等输入；会话内后台工人全随 App 死
 - [子 agent 起不来时的探针法](subagent-startup-400-probe-method.md) — 一次 harness 侧 400 故障的定位法与两次误诊，别照抄已过期的结论
+- [长等待交给 shell 哨兵，别交给子 agent](long-waits-belong-to-shell-sentinels-not-agents.md) — 同一天三种死法（Monitor 交卷 / 零 commit 等到超时 / `--watch` 挂死）；附哨兵模板与「CI 不替你跑新入库走查」
 
 > 另见 playbook [§14 门岗验「没变坏」，不验「做到了」](../engineering/agent-orchestration-playbook.md#14-门岗验没变坏不验做到了把-p3-机器化进派工合同)——派下去的活「36 门全绿」不等于规格达成；派工要绑验收物、收货先验规格再看门岗。

@@ -1,0 +1,125 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-packaged-transport-callback-omitted",
+  "problem_type": "同一组能力由两条装配路径手工各自组装（开发态 / 打包态），接口把成员做成可选 → 漏接类型合法、tsc 不响，只有漏接那条路径的运行时静默降级",
+  "symptom": "M5 毕业考在**打包应用**上跑 MCP L2 全链：15/43 通过，开发态同一套 43/43 全绿。硬失败点是 C9 —— `AssertionError [ERR_ASSERTION]: C9 gate request 完成确认并进入 execute`，`nomi_operation_gate` 返回 `{ errorCode: \"human_approval_required\" }`。用户视角：外部 AI 请求生成，Nomi 回「需要人工批准」，但**没有任何确认卡弹出来**，于是永远卡在那里——这条路在用户手上的打包版本里 100% 不通。",
+  "direct_cause": "`electron/capabilityCore/mcpGateConfirmation.ts:122` 的兜底分支是 `if (typeof transport.confirmGenerationInNomi === 'function' && transport.isAppOpen())`。打包态的 MCP 服务由 `mcpNodeLauncher.ts` 以 `ELECTRON_RUN_AS_NODE=1` 的裸 Node 跑，它调 `createMcpProtocol` 时**没有传 confirmGenerationInNomi**；开发态走 `mcpStdioServer.ts`，它传了。于是 typeof 判定在打包态恒假，函数直落 `confirmed: false` → `human_approval_required`。同族第二处：`productionRunE2eFixture.ts` 的 `isProductionRunE2eFixtureEnabled()` 以 `!isPackaged` 开头无条件拒绝打包态，导致 C12 导出驱动拿不到夹具、撞 `assertDraftFilmReady`（要 ≥6 个片段，C9 只有 4 个）返回 `needs_attention`。",
+  "class_root": "`McpTransport` 用**可选成员**（`confirmGenerationInNomi?`、`getAuthenticatedClient?`、`verifyClientGenerationConfirmation?`、`getLocale?`）分发能力，而这个接口有**两个生产装配点**，各自手写自己那份对象字面量。可选 = 漏一个是合法 TypeScript，编译器和 lint 都不会响；漏接的后果只在那个装配点独占的运行时路径上显形。开发态与打包态恰好各占一个装配点，于是「本机全绿、打包才炸」是这一族的固有形状，不是偶然。",
+  "migration": "① `mcpNodeLauncher.ts` 补上 `confirmGenerationInNomi`：打包态自己没有 Electron 主进程弹不了卡，改为经 loopback RPC 把挑战令牌转给 GUI 进程的 `nomi_confirm_generation_gate` 端点，由 GUI 弹真人确认卡并铸收据——与 `mcpStdioServer.ts` 同语义；② `mcpNodeLauncher.close()` 在取消数 >0 时向 stderr 记账，与 stdio 侧对齐（此前打包态断连静默丢在途请求）；③ `productionRunE2eFixture.ts` 把「打包态一律拒绝」改成三旗闸：`NOMI_E2E=1` + `NOMI_E2E_PRODUCTION_FIXTURE=1` + 打包态额外要 `NOMI_E2E_PACKAGED_FIXTURE=1`，默认仍对真实用户关闭，误开概率极低；④ 新增 `scripts/check-transport-assembly.mjs` 并入 `gates:contracts` 链，把「装配点必须传齐接口的可选成员」变成每次都跑的机器判据；⑤ 同 diff 删掉临时的单字段字符串断言（`mcpLauncherClosure.test.ts` 里只钉 `confirmGenerationInNomi` 那条），不留并行版——门岗对着接口枚举，严格覆盖它。",
+  "affected_population": [
+    "所有通过打包应用（正式安装版）使用外部 MCP 客户端驱动生成的用户——这正是 Nomi 的 Agent Host 主用法，本次修复前该路径 100% 不通",
+    "M5 毕业考本身：打包态 15/43 的判据一度被误读成「测试太严」，实为真实产品缺陷（班组拒绝放宽断言、把 PR 标为 do-not-merge 是对的）",
+    "任何未来给 McpTransport 新增可选成员的改动：不加门岗则每一个新成员都重开一次同样的漏接窗口",
+    "同构隐患：`verifyClientGenerationConfirmation` 有 7 处测试引用但两个生产装配点都没传 —— 该路径在生产恒不可达（fail-closed 降级到 Nomi 内确认，不影响安全），已登记为欠账待裁决"
+  ],
+  "scope_paths": [
+    "scripts/check-transport-assembly.mjs",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/capabilityCore/mcpNodeLauncher.ts",
+    "electron/capabilityCore/mcpLauncherClosure.test.ts",
+    "electron/productionRun/productionRunE2eFixture.ts",
+    "electron/productionRun/productionRunE2eFixture.test.ts",
+    "package.json"
+  ],
+  "entry_points": [
+    "electron/capabilityCore/mcpNodeLauncher.ts（打包态装配点：createMcpProtocol 漏传 confirmGenerationInNomi）",
+    "electron/capabilityCore/mcpStdioServer.ts（开发态装配点：传了，所以本机永远不复现）",
+    "electron/capabilityCore/mcpGateConfirmation.ts（消费点：typeof 判定落空即 confirmed:false）",
+    "electron/productionRun/productionRunE2eFixture.ts（同族第二处：isPackaged 无条件拒绝）"
+  ],
+  "invariants": [
+    "McpTransport 的每个可选成员，要么在**每个**生产装配点都传，要么在 check-transport-assembly.mjs 的 unwired 名单里带真实理由登记——没有第三种状态",
+    "unwired 名单双向断言：漏接未登记报红；登记项其实已接上也报红（名单不能腐烂成永久豁免）",
+    "门岗锚点失效必须报红而非静默放行：接口找不到、可选成员抽到 0 个、装配点找不到工厂调用、实参括号不配平 —— 四种情况全部 exit 1",
+    "生产用户在打包态永远不会启用 E2E 夹具：三旗同时置位才开，其中 NOMI_E2E_PACKAGED_FIXTURE 仅 CI 打包 E2E 设置",
+    "打包态与开发态的生成确认语义相同：都必须落到真人确认并铸收据，不得因传输层差异降级成自动通过或恒拒"
+  ],
+  "regression_tests": [
+    "electron/capabilityCore/mcpLauncherClosure.test.ts",
+    "electron/productionRun/productionRunE2eFixture.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpLauncherClosure.test.ts"
+  ],
+  "generality_proof": "这不是一处笔误，是接口形状决定的一族。判据有三：① **同族前科**——2026-08-18 同一个 mcpNodeLauncher 的打包态路径分叉（electron 值导入混进裸 Node 闭包 → MODULE_NOT_FOUND）也是本机全绿、打包才炸，当时立的门岗只管 import 闭包、不管装配传参，于是同一个病换一半复发；② **实扫证据**——对着 McpTransport 枚举 4 个可选成员逐个比对两个装配点，除本次修复的 confirmGenerationInNomi 外还扫出 verifyClientGenerationConfirmation 在两个装配点都没传（7 处测试引用、生产恒不可达），证明漏接不是孤例而是默认结局；③ **机制必然性**——可选成员 + 多装配点 + 手写对象字面量，三者同在则漏接类型合法，编译期无信号，只有跑到那条路径才显形；而两个装配点恰好分属开发态与打包态，所以信号最迟出现在打包 CI 或用户手上。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-transport-assembly.mjs",
+      "symbol": "SURFACES",
+      "responsibility": "唯一的装配面平价判据：对着接口枚举可选成员，逐个核对每个生产装配点是否传入；漏接或名单过期即 exit 1。新增受检接口在此登记一条。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpProtocol.ts",
+      "symbol": "McpTransport",
+      "responsibility": "能力注入契约的单一真相源；门岗对着它枚举，故新增可选成员自动纳入覆盖，无需有人记得回来加规则。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "entry_point": "createMcpProtocol({...}) 打包态装配点",
+      "disposition": "enforced",
+      "evidence": "变异测试：删掉 confirmGenerationInNomi 后 `node scripts/check-transport-assembly.mjs` exit 1 并点名 `McpTransport.confirmGenerationInNomi 未传于：electron/capabilityCore/mcpNodeLauncher.ts`；恢复后 exit 0。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "createMcpProtocol({...}) 开发态装配点",
+      "disposition": "enforced",
+      "evidence": "同一次门岗运行覆盖两个装配点（输出 `1 个接口 / 4 个可选成员 / 2 个生产装配点`）；对该站点漏接同样报红，判据不区分哪一边。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpProtocol.ts",
+      "entry_point": "McpTransport 新增可选成员",
+      "disposition": "enforced",
+      "evidence": "门岗对着接口枚举而非硬编码成员名单，新增 `foo?:` 立刻进入受检集合；接口锚点失效（改名/改形状）时门岗自身 exit 1 报「锚点失效」而非静默放空。"
+    },
+    {
+      "path": "electron/productionRun/productionRunE2eFixture.ts",
+      "entry_point": "isProductionRunE2eFixtureEnabled 的打包态分支",
+      "disposition": "not-affected",
+      "evidence": "同族的第二处（打包/开发行为分叉），但形态是显式 isPackaged 条件而非可选成员漏接，由 productionRunE2eFixture.test.ts 的三旗闸用例直接覆盖；装配面平价门岗不适用于它。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-transport-assembly.mjs",
+    "invariant": "受检接口的每个可选成员，在每个生产装配点要么被传入，要么带理由登记在 unwired 名单里；且名单项必须仍然属实（已接上的登记项报红）。",
+    "failure_mode": "漏接时 exit 1 并点名「哪个成员未传于哪个文件」，附「漏接是类型合法的，tsc 不会响」的解释与修法；名单过期时 exit 1 要求删除登记项；门岗自身锚点失效（接口/装配点/括号）同样 exit 1，不静默放行。",
+    "exception_policy": "none",
+    "strategy": "把判据建立在接口枚举而不是成员名单上：新增可选成员自动纳入覆盖，无需有人记得回来加规则；欠账用双向断言登记，使「暂不接」是可见且会过期的状态，而不是永久豁免。已并入 gates:contracts 链，每次 push 前与 CI Contracts 作业都跑。",
+    "artifacts": [
+      "scripts/check-transport-assembly.mjs",
+      "package.json",
+      "electron/capabilityCore/mcpNodeLauncher.ts"
+    ]
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个 mcpNodeLauncher 的「打包态路径与开发态路径分叉、本机永远不报」已是第二次：2026-08-18 是 electron 值导入进裸 Node 闭包（MODULE_NOT_FOUND），2026-09-03 是装配漏传回调（确认门恒拒）。当时立的门岗只覆盖 import 闭包这一半，另一半无人看管，于是复发。",
+    "same_class_scan": [
+      "对着 McpTransport 枚举 4 个可选成员 × 2 个生产装配点逐格比对：confirmGenerationInNomi 本次补齐；getAuthenticatedClient / getLocale 两边都已传；verifyClientGenerationConfirmation **两边都没传**（7 处测试引用、生产恒不可达）——已登记为欠账，处置见 residual_risks。",
+      "全仓 grep `createMcpProtocol(` 生产（非测试）调用点：仅 mcpNodeLauncher.ts:275 与 mcpStdioServer.ts:421 两处，均已纳入门岗 assemblySites，无第三处遗漏。",
+      "打包/开发行为分叉的同族扫描：productionRunE2eFixture.ts 的 isPackaged 无条件拒绝为第二处，已在同 diff 改成三旗闸并加用例；此形态是显式条件分支而非可选成员漏接，故用测试而非本门岗覆盖。",
+      "姊妹不变量核对：mcpLauncherClosure.test.ts 仍守 08-18 那条（裸 Node 闭包 electron-free），本次不动它的断言，只把临时的单字段字符串检查删除并留下指向新门岗的注释。"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpLauncherClosure.test.ts"
+    ],
+    "rationale": "先前版本在 mcpLauncherClosure.test.ts 里加了一条只钉单个字段名的字符串断言（`src.includes('confirmGenerationInNomi')`）。新门岗对着接口枚举、严格覆盖它且能覆盖未来新增成员，故同 diff 删除该断言，只留一行指向新门岗的注释——不留并行版（P1）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次修复不涉及第三方依赖的引入、升级或保留决策：三处改动全在自有代码（装配点补回调、夹具三旗闸、新增门岗脚本），loopback RPC 走的是仓内既有的 callViaRpc 通道。",
+    "exit_criteria": []
+  },
+  "residual_risks": [
+    "`verifyClientGenerationConfirmation` 仍未接：客户端自带确认凭证这条路在生产恒不可达（fail-closed 降级到 Nomi 内确认，不产生安全风险，但 7 处测试在验一条产品走不到的路）。已登记在门岗 unwired 名单，待裁决接上真验证器或连测试一并删除。",
+    "门岗按**源码文本**判定「传没传」，不做类型解析：若某装配点用展开（`...options`）或变量间接传入成员，门岗会误判为漏接。当前两个装配点都是直接的对象字面量，形态一致；若将来改成展开写法，需同步升级判据（届时门岗会报红，不会静默放过）。",
+    "`NOMI_E2E_PACKAGED_FIXTURE` 是新增的第三面旗：它把打包态夹具从「不可能」变成「三旗同置才可能」。虽然误开概率极低，但这是本次唯一放宽的约束，值得在发版前的打包 smoke 里确认真实安装包未设置该变量。",
+    "本修复的验证来自打包态 E2E（15/43 → 50/50）与门岗变异测试，尚未在用户真机安装版上做端到端人工走查；M5 毕业前应补一次真机确认卡走查。"
+  ],
+  "internal_only_reason": "根因、判据与修法全部落在仓内自有代码：可选成员的装配漏接由本仓接口形状决定，打包态启动路径（ELECTRON_RUN_AS_NODE 裸 Node）是本仓自建，确认门语义是 Nomi 自定义协议。不涉及第三方库行为或外部规范，故无需外部文档佐证。"
+}
