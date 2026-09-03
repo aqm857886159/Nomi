@@ -442,6 +442,31 @@ export const canvasToolDescriptors = {
       "Produce a structured storyboard plan (cross-shot anchors + shots) for the user to review/edit in the creation area before anything lands on the canvas. Does not touch the canvas and costs nothing. Emit exactly one call.",
     parameters: storyboardPlanParamsSchema,
   },
+  patch_shots: {
+    name: "patch_shots",
+    // 描述就是模型唯一的使用说明。三件事必须说清：什么时候用它（而不是 propose）、
+    // 选择器怎么写、以及最容易用错的那一点（promptAppend vs prompt）。
+    description:
+      "Edit shots in the EXISTING storyboard plan in place. Use this whenever the user asks to change shots that already exist (\"make shot 3 a close-up\", \"add rain to every shot\", \"switch shot 2 to video\"). Do NOT re-emit propose_storyboard_plan for edits — that rewrites the whole plan and can lose the user's own changes. "
+      + "Shot numbers are 1-based and match what the user sees in the table. One call can change many shots at once, which produces a single confirmation card and a single undo — prefer one batched call over several single-shot calls. "
+      + "Use promptAppend to ADD wording while keeping each shot's existing prompt (this is what \"add rain to every shot\" means); use prompt only to replace a shot's prompt entirely. "
+      + "Fields you do not name are left untouched. Free, does not touch the canvas, does not generate anything.",
+    parameters: z.object({
+      select: z.union([
+        z.object({ kind: z.literal("all") }),
+        z.object({ kind: z.literal("indexes"), indexes: z.array(z.number().int().min(1).max(24)).min(1).max(24) }),
+      ]),
+      patch: z.object({
+        prompt: z.string().min(1).optional(),
+        promptAppend: z.string().min(1).optional(),
+        shotKind: z.enum(["image", "video"]).optional(),
+        durationSec: z.number().int().min(1).max(60).optional(),
+        aspectRatio: z.string().min(1).optional(),
+        modelKey: z.string().min(1).optional(),
+        modelVendor: z.string().min(1).optional(),
+      }),
+    }),
+  },
   arrange_storyboard_to_timeline: {
     name: "arrange_storyboard_to_timeline",
     description:

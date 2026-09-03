@@ -18,6 +18,7 @@ import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
 import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlanSchema'
+import { updateShotAt } from './storyboardPlanEdits'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
 import type { CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
 import type { ScenePropPlacement } from '../nodes/scene3d/scene3dPropSpecs'
@@ -231,6 +232,102 @@ export async function applyCanvasToolCall(
   const inCtx = <T>(fn: () => T): T => {
     assertWritable()
     return gesture ? withCanvasGestureContext(gesture, fn) : fn()
+  }
+
+  if (toolName === 'patch_shots') {
+    // 改**已有**分镜表的逐项修改（propose_storyboard_plan 是「从无到有整份产出」，两件事）。
+    // 与 propose 同族：只落创作 store，不碰画布、零网络、零扣费。
+    //
+    // 编辑语义一律复用 storyboardPlanEdits 的纯函数（updateShotAt），不在这里另写一套（P1）——
+    // 那批函数同时被行内 UI 用着，两套语义迟早会分叉。
+    const store = useWorkbenchStore.getState()
+    const targetDocumentId = documentId ?? store.activeDocumentId
+    const entry = store.storyboardPlans[targetDocumentId]
+    // 错误信息就是给模型的提示词：说清「现在是什么状态、下一步该干什么」，
+    // 而不是「invalid input」。这条 throw 会被映射成 tool error 回喂 LLM 自我修正。
+    if (!entry?.plan) {
+      throw new Error('当前原稿还没有分镜方案，改不了。先用 propose_storyboard_plan 产出一份，再逐项修改。')
+    }
+    const plan = entry.plan
+    const select = record.select as { kind?: string; indexes?: unknown } | undefined
+    const patch = (record.patch ?? {}) as Record<string, unknown>
+
+    // 镜号是 **1-based**，与用户说的「第 3 镜」和 UI 上的 01/02/03 一致；数组下标才是 0-based。
+    const positions: number[] = select?.kind === 'all'
+      ? plan.shots.map((_, index) => index)
+      : (Array.isArray(select?.indexes) ? select.indexes : [])
+        .filter((value): value is number => typeof value === 'number')
+        .map((shotNumber) => shotNumber - 1)
+    const outOfRange = positions.filter((position) => position < 0 || position >= plan.shots.length)
+    if (outOfRange.length > 0) {
+      throw new Error(
+        `镜号 ${outOfRange.map((position) => position + 1).join('、')} 超出范围：当前方案共 ${plan.shots.length} 镜（镜号 1-${plan.shots.length}）。`,
+      )
+    }
+    if (positions.length === 0) throw new Error('没有选中任何镜头：select 用 {kind:"all"} 或给出至少一个镜号。')
+
+    const changedFields = new Set<string>()
+    let next = plan
+    for (const position of positions) {
+      const shot = next.shots[position]
+      const shotPatch: Record<string, unknown> = {}
+      // promptAppend 是**追加**（「所有镜头加雨天」的正确语义），prompt 是整句替换。
+      // schema 已拒掉两者同时给，这里不再二次猜。
+      if (typeof patch.promptAppend === 'string') {
+        shotPatch.prompt = `${shot.prompt ?? ''}${shot.prompt ? '，' : ''}${patch.promptAppend}`
+        // 追加会让原有骨架段的字符区间失效——清掉标注而不是留一份对不上的（宁可没有，不要错的）。
+        shotPatch.promptSegments = undefined
+        changedFields.add('prompt')
+      }
+      if (typeof patch.prompt === 'string') {
+        shotPatch.prompt = patch.prompt
+        shotPatch.promptSegments = undefined
+        changedFields.add('prompt')
+      }
+      if (patch.shotKind === 'image' || patch.shotKind === 'video') {
+        shotPatch.shotKind = patch.shotKind
+        changedFields.add('shotKind')
+      }
+      if (typeof patch.durationSec === 'number') {
+        shotPatch.durationSec = patch.durationSec
+        changedFields.add('durationSec')
+      }
+      if (typeof patch.aspectRatio === 'string') {
+        shotPatch.params = { ...(shot.params ?? {}), aspect_ratio: patch.aspectRatio }
+        changedFields.add('aspectRatio')
+      }
+      // modelKey 与 modelVendor 成对落地：模型身份的唯一键是 (vendor, modelKey)。
+      // 换了模型就清掉 modeId/params 里的模型专属项——别把上一个模型的模式套到新模型上。
+      if (typeof patch.modelKey === 'string') {
+        shotPatch.modelKey = patch.modelKey
+        shotPatch.modeId = undefined
+        changedFields.add('modelKey')
+        if (typeof patch.modelVendor === 'string') {
+          shotPatch.modelVendor = patch.modelVendor
+          changedFields.add('modelVendor')
+        }
+      }
+      next = updateShotAt(next, position, shotPatch as never)
+    }
+
+    // 改的是**用户此刻正看着的**那份方案：storyboardId 由调用方带来（异步期间切方案不串稿），
+    // 缺省回退当前激活的分镜设计——绝不 createNew，逐项修改不该凭空多出一份方案。
+    const design = store.setStoryboardPlan(
+      next,
+      targetDocumentId,
+      storyboardId ?? store.activeStoryboardId ?? undefined,
+      true,
+      false,
+    )
+    const changedShotIndexes = positions.map((position) => position + 1).sort((a, b) => a - b)
+    return {
+      status: 'applied',
+      documentId: targetDocumentId,
+      ...(design ? { storyboardDesignId: design.id } : {}),
+      changedShotIndexes,
+      changedFields: [...changedFields],
+      message: `已改 ${changedShotIndexes.length} 镜（第 ${changedShotIndexes.join('、')} 镜）：${[...changedFields].join('、')}。`,
+    } as StoryboardPlanApplicationResult & { changedShotIndexes: number[]; changedFields: string[] }
   }
 
   if (toolName === 'propose_storyboard_plan') {

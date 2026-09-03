@@ -526,3 +526,81 @@ describe('applyCanvasToolCall create_staging_reference customBlocking 降级', (
     expect((target?.meta as Record<string, unknown>)?.stagingPromptApplied).toBeTruthy()
   })
 })
+
+// patch_shots：改**已有**分镜表的逐项修改。测试按用户真会说的话组织，不按字段组织——
+// 工具的成败标准是「用户那句话能不能被做到」，不是「字段能不能被写进去」。
+describe('applyCanvasToolCall patch_shots', () => {
+  const PLAN: StoryboardPlan = {
+    title: '雨夜追凶',
+    anchors: [{ id: 'a1', kind: 'character', name: '林夏', description: '红色校服', carrier: 'visual' }],
+    shots: [
+      { index: 1, durationSec: 5, anchorIds: ['a1'], prompt: '推镜' },
+      { index: 2, durationSec: 8, anchorIds: ['a1'], prompt: '跟拍' },
+      { index: 3, durationSec: 5, anchorIds: [], prompt: '远景' },
+    ],
+  }
+
+  beforeEach(() => {
+    resetCanvas()
+    useWorkbenchStore.getState().hydrateWorkbenchDocuments(
+      [{ id: 'doc-1', version: 1, title: '', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }],
+      'doc-1',
+    )
+    useWorkbenchStore.getState().hydrateStoryboardPlans({ 'doc-1': { plan: PLAN, committed: false } })
+    useWorkbenchStore.getState().setWorkspaceMode('storyboard')
+  })
+
+  const shots = () => useWorkbenchStore.getState().storyboardPlans['doc-1'].plan.shots
+
+  it('「所有镜头加雨天」——一次调用改全部，且是追加不是替换', async () => {
+    const ack = await applyCanvasToolCall('patch_shots', {
+      select: { kind: 'all' }, patch: { promptAppend: '雨天' },
+    }) as { changedShotIndexes: number[]; changedFields: string[] }
+    expect(shots().map((shot) => shot.prompt)).toEqual(['推镜，雨天', '跟拍，雨天', '远景，雨天'])
+    // 结果要能让模型直接决定下一步，而不是回一个 ok 让它重读整份方案。
+    expect(ack.changedShotIndexes).toEqual([1, 2, 3])
+    expect(ack.changedFields).toEqual(['prompt'])
+  })
+
+  it('「第 3 镜改成近景」——只动点名那一镜，其余逐字不变', async () => {
+    await applyCanvasToolCall('patch_shots', {
+      select: { kind: 'indexes', indexes: [3] }, patch: { prompt: '近景' },
+    })
+    expect(shots()[2].prompt).toBe('近景')
+    expect(shots()[0]).toEqual(PLAN.shots[0])
+    expect(shots()[1]).toEqual(PLAN.shots[1])
+  })
+
+  it('没点名的字段结构上就改不到（软约束变硬约束的直接回归）', async () => {
+    await applyCanvasToolCall('patch_shots', {
+      select: { kind: 'all' }, patch: { durationSec: 6 },
+    })
+    // 只点名了 durationSec：提示词、锚引用、镜号全部逐字不变。
+    expect(shots().map((shot) => shot.prompt)).toEqual(['推镜', '跟拍', '远景'])
+    expect(shots().map((shot) => shot.anchorIds)).toEqual([['a1'], ['a1'], []])
+    expect(shots().map((shot) => shot.durationSec)).toEqual([6, 6, 6])
+  })
+
+  it('换模型时 vendor 成对落地，并清掉上一个模型的模式', async () => {
+    await applyCanvasToolCall('patch_shots', {
+      select: { kind: 'indexes', indexes: [1] },
+      patch: { modelKey: 'nano-banana', modelVendor: 'apimart' },
+    })
+    expect(shots()[0].modelKey).toBe('nano-banana')
+    expect(shots()[0].modelVendor).toBe('apimart')
+    expect(shots()[0].modeId).toBeUndefined()
+  })
+
+  it('镜号越界时错误信息告诉模型怎么改（错误信息即提示词）', async () => {
+    await expect(applyCanvasToolCall('patch_shots', {
+      select: { kind: 'indexes', indexes: [9] }, patch: { prompt: 'x' },
+    })).rejects.toThrow(/镜号 9 超出范围.*共 3 镜.*1-3/)
+  })
+
+  it('还没有方案时，告诉模型先去 propose，而不是报 invalid input', async () => {
+    useWorkbenchStore.getState().hydrateStoryboardPlans({})
+    await expect(applyCanvasToolCall('patch_shots', {
+      select: { kind: 'all' }, patch: { prompt: 'x' },
+    })).rejects.toThrow(/propose_storyboard_plan/)
+  })
+})

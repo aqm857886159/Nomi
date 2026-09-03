@@ -24,6 +24,7 @@ describe("canvas.write canonical contract", () => {
           "connect_canvas_edges",
           "tidy_canvas",
           "propose_storyboard_plan",
+          "patch_shots",
           "arrange_storyboard_to_timeline",
           "create_staging_reference",
           "create_camera_move",

@@ -55,11 +55,15 @@ describe("Nomi canvas descriptors", () => {
 
   it("preserves the byte-exact LIVE agentChatV2 descriptions, not the unused legacy table", () => {
     // Captured from buildCanvasToolsForV2 at b4a3f466 before extraction.
+    // 2026-09-03: rehashed for the new patch_shots descriptor. Tool descriptions are the
+    // model's only instruction manual and part of the KV-cache contract — this hash exists so
+    // nobody edits them by accident. Updating it must be a conscious act with a reason, which
+    // this comment is: a new operation was added, so its description joins the surface.
     const descriptions = Object.fromEntries(
       Object.entries(canvasToolDescriptors).map(([name, value]) => [name, value.description]),
     );
     expect(createHash("sha256").update(JSON.stringify(descriptions)).digest("hex")).toBe(
-      "da441357a56e731d16ed1567cc6edb753f15c5f3b1dbe27b391078f2cdaff48e",
+      "c2def8dd45c5718b8c589a0a9e5df62b28b361032fd0cc2399e2957b84fcae29",
     );
   });
 
@@ -262,10 +266,11 @@ describe("canvas descriptor schemas", () => {
   });
 
   describe("canvasToolNames", () => {
-    it("enumerates all 5 remaining legacy tools", () => {
+    it("enumerates all 6 remaining legacy tools", () => {
       expect(canvasToolNames).toEqual([
         "read_canvas_state",
         "propose_storyboard_plan", // 分镜方案：产出结构化方案对象落创作区，确认后才落画布
+        "patch_shots", // 改**已有**分镜表的逐项修改（与上一条是「从无到有」vs「逐项改」两件事）
         "arrange_storyboard_to_timeline", // 按剧本镜序排片到时间轴
         "create_staging_reference", // 3D 站位参考图（站位+动作+机位）
         "create_camera_move", // 3D 运镜参考小片（喂 video_ref / 降级 prompt）

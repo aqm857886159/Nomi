@@ -46,6 +46,8 @@ const TOOL_META: Record<string, ToolMeta> = {
   // 产出分镜方案对象,只落创作 store 给用户审/改(不写画布投影、不花钱)——免费可改,直通放行(allow)。
   // 真正花钱/写画布的是用户确认后由方案转出的 create_canvas_nodes(付费生成已改走 Run-owned 语义路)。
   propose_storyboard_plan: { writes: false },
+  // patch_shots 与上同族：改的是创作 store 里的分镜方案，不写画布投影、不花钱——免费可改，直通放行。
+  patch_shots: { writes: false },
   create_canvas_nodes: { writes: true },
   connect_canvas_edges: { writes: true },
   set_node_prompt: { writes: true },

@@ -166,6 +166,8 @@ function requestedReferenceIds(
   switch (input.operation) {
     case "tidy_canvas":
     case "propose_storyboard_plan":
+    // patch_shots 改的是创作 store 里的分镜方案，不引用任何画布节点，故无参考目标。
+    case "patch_shots":
       return [];
     case "arrange_storyboard_to_timeline":
       return [...input.nodeIds];

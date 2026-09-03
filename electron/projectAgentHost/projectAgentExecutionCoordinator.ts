@@ -1071,7 +1071,8 @@ export function createProjectAgentExecutionCoordinator(
           const canonicalCapability = resolveCapabilityAlias(call.toolName)?.contract;
           const isCanvasMutation = canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id || canonicalCapability?.id === CANVAS_DELETE_CAPABILITY.id || ["nomi_canvas_plan", "nomi_canvas_edit", "nomi_canvas_maintenance"].includes(call.toolName);
           const isRendererHandledStoryboardProposal =
-            canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id && call.toolName === "propose_storyboard_plan";
+            canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id
+            && (call.toolName === "propose_storyboard_plan" || call.toolName === "patch_shots");
           if (isCanvasMutation && execution.blockedCanvasWriteDecision) {
             return execution.blockedCanvasWriteDecision;
           }

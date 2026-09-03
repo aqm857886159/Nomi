@@ -80,7 +80,14 @@ export function captureCanvasWriteBatchRawEvidence(
   input?: Exclude<CanvasWriteInput, { operation: 'set_node_prompt' }>,
 ): CanvasWriteBatchRawEvidence {
   const requestedIds = (() => {
-    if (!input || input.operation === 'tidy_canvas' || input.operation === 'propose_storyboard_plan') return []
+    // patch_shots 与 propose_storyboard_plan 同族：改的是创作 store 里的分镜方案，不碰画布节点，
+    // 故没有 requestedIds。漏掉它会掉进最后那条 edges 分支并类型报错（这次就是编译期抓到的）。
+    if (
+      !input
+      || input.operation === 'tidy_canvas'
+      || input.operation === 'propose_storyboard_plan'
+      || input.operation === 'patch_shots'
+    ) return []
     if (input.operation === 'arrange_storyboard_to_timeline') return [...input.nodeIds]
     if (input.operation === 'create_staging_reference' || input.operation === 'create_camera_move') {
       return input.shotClientId ? [input.shotClientId] : []
@@ -350,6 +357,25 @@ export async function executeCanvasWriteTarget(
   // boundary.  Return the domain result inside a small canonical envelope so
   // the main executor can validate it instead of treating an approved call as
   // a generic no-op.
+  // patch_shots 单独一支：它的结果合同**带 changedShotIndexes / changedFields**，
+  // 让模型不必重读整份方案就能决定下一步（只回 applied:true 会逼它重读或瞎假设）。
+  // 这两个字段由 applyCanvasToolCall 的执行器算出，这里只做提升，不重算（单一真相）。
+  if (input.operation === 'patch_shots') {
+    const domain = (outcome.results[0] ?? null) as { changedShotIndexes?: unknown; changedFields?: unknown } | null
+    return {
+      applied: true,
+      proposalId: outcome.proposalId,
+      operation: 'patch_shots',
+      changedShotIndexes: Array.isArray(domain?.changedShotIndexes)
+        ? domain.changedShotIndexes.filter((value): value is number => typeof value === 'number')
+        : [],
+      changedFields: Array.isArray(domain?.changedFields)
+        ? domain.changedFields.filter((value): value is string => typeof value === 'string')
+        : [],
+      result: outcome.results[0] ?? null,
+      reconciliation,
+    } satisfies CanvasWriteResult
+  }
   if (
     input.operation === 'propose_storyboard_plan' ||
     input.operation === 'arrange_storyboard_to_timeline' ||

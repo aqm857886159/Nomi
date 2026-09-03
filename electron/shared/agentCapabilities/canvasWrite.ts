@@ -145,6 +145,54 @@ const storyboardPlanActionInputSchema = z
   })
   .strict();
 
+/**
+ * 改已有分镜表的**逐项修改**（区别于 propose_storyboard_plan 的「从无到有整份产出」）。
+ *
+ * 设计要点（每条都对应一个真实的失败模式，别顺手改）：
+ *
+ * 1. **patch 里结构上没有 shots / anchors 数组** —— 模型改不到没点名的字段。
+ *    此前「只改用户点名要改的部分，其余原样保留」是写在提示词里**求**它的（软约束），
+ *    它每次仍有权重写整份方案。这里把它变成 schema 硬约束。
+ *
+ * 2. **镜号是 1-based**，与用户说的「第 3 镜」和 UI 上显示的 01/02/03 一致。
+ *    内部若用 0-based，模型会 off-by-one 而用户看不出来——对齐用户词汇，不对齐数组下标。
+ *
+ * 3. **promptAppend 与 prompt 分开**：「所有镜头加雨天」的正确语义是**追加**。
+ *    只给 prompt 的话，模型得先逐镜读原文再拼接——多一轮读、容易丢内容。
+ *    让最高频的批量意图成为一次无损调用。
+ *
+ * 4. **modelKey 与 modelVendor 成对**：模型身份的唯一键是 (vendor, modelKey)，
+ *    schema 层就该体现（2026-09-03 因为漏 vendor 发生过三次真实故障）。
+ *
+ * 5. **选择器只有 all / indexes 两种，刻意不做「按生成状态选」**：
+ *    模型已能用 nomi_canvas_read 读状态再自己给出镜号——两步但不耦合，
+ *    而且用户在确认卡上看得见它到底选了哪几镜。确定性归我们，情境性归模型。
+ */
+const storyboardPatchShotsInputSchema = z
+  .object({
+    operation: z.literal("patch_shots"),
+    select: z.union([
+      z.object({ kind: z.literal("all") }).strict(),
+      z.object({ kind: z.literal("indexes"), indexes: z.array(z.number().int().min(1).max(24)).min(1).max(24) }).strict(),
+    ]),
+    patch: z
+      .object({
+        prompt: z.string().trim().min(1).optional(),
+        promptAppend: z.string().trim().min(1).optional(),
+        shotKind: z.enum(["image", "video"]).optional(),
+        durationSec: z.number().int().min(1).max(60).optional(),
+        aspectRatio: z.string().trim().min(1).optional(),
+        modelKey: z.string().trim().min(1).optional(),
+        modelVendor: z.string().trim().min(1).optional(),
+      })
+      .strict()
+      // 空补丁 = 一次无效调用，早报错好过静默无操作（静默无操作正是这轮一直在修的那类）。
+      .refine((patch) => Object.keys(patch).length > 0, { message: "patch 至少要点名一个字段" })
+      // prompt 是整句替换、promptAppend 是追加，同时给等于意图矛盾——不猜，直接拒。
+      .refine((patch) => !(patch.prompt && patch.promptAppend), { message: "prompt 与 promptAppend 只能给一个" }),
+  })
+  .strict();
+
 const arrangeStoryboardActionInputSchema = z
   .object({
     operation: z.literal("arrange_storyboard_to_timeline"),
@@ -189,6 +237,7 @@ const canvasWriteSemanticInputUnion = z.discriminatedUnion("operation", [
   connectCanvasEdgesInputSchema,
   tidyCanvasInputSchema,
   storyboardPlanActionInputSchema,
+  storyboardPatchShotsInputSchema,
   arrangeStoryboardActionInputSchema,
   stagingReferenceActionInputSchema,
   cameraMoveActionInputSchema,
@@ -214,6 +263,7 @@ const createCanvasNodesPiInputSchema = createCanvasNodesInputSchema.omit({ opera
 const connectCanvasEdgesPiInputSchema = connectCanvasEdgesInputSchema.omit({ operation: true });
 const tidyCanvasPiInputSchema = tidyCanvasInputSchema.omit({ operation: true });
 const storyboardPlanActionPiInputSchema = storyboardPlanActionInputSchema.omit({ operation: true });
+const storyboardPatchShotsPiInputSchema = storyboardPatchShotsInputSchema.omit({ operation: true });
 const arrangeStoryboardActionPiInputSchema = arrangeStoryboardActionInputSchema.omit({ operation: true });
 const stagingReferenceActionPiInputSchema = stagingReferenceActionInputSchema
   .omit({ operation: true })
@@ -245,6 +295,8 @@ export function canvasWritePiInputSchemaForAlias(alias: string): z.ZodTypeAny | 
       return tidyCanvasPiInputSchema;
     case "propose_storyboard_plan":
       return storyboardPlanActionPiInputSchema;
+    case "patch_shots":
+      return storyboardPatchShotsPiInputSchema;
     case "arrange_storyboard_to_timeline":
       return arrangeStoryboardActionPiInputSchema;
     case "create_staging_reference":
@@ -351,6 +403,19 @@ export const canvasWriteResultSchema = z.union([
     .object({
       applied: z.literal(true),
       proposalId: canonicalIdSchema,
+      operation: z.literal("patch_shots"),
+      // 结果要让模型能直接决定下一步：改了哪几镜（1-based 镜号）、改了哪些字段。
+      // 只回 {applied:true} 会逼它重读整份方案（浪费 token）或直接假设成功（出错时无法自我修正）。
+      changedShotIndexes: z.array(z.number().int().min(1)).max(24),
+      changedFields: z.array(z.string()).max(8),
+      result: z.unknown(),
+      reconciliation: reconciliationSchema,
+    })
+    .strict(),
+  z
+    .object({
+      applied: z.literal(true),
+      proposalId: canonicalIdSchema,
       operation: z.literal("arrange_storyboard_to_timeline"),
       result: z.unknown(),
       reconciliation: reconciliationSchema,
@@ -387,6 +452,7 @@ export const CANVAS_WRITE_OPERATION_ALIASES = Object.freeze({
   connectCanvasEdges: "connect_canvas_edges",
   tidyCanvas: "tidy_canvas",
   proposeStoryboardPlan: "propose_storyboard_plan",
+  patchShots: "patch_shots",
   arrangeStoryboardToTimeline: "arrange_storyboard_to_timeline",
   createStagingReference: "create_staging_reference",
   createCameraMove: "create_camera_move",
@@ -398,6 +464,7 @@ export function canvasWriteOperationForAlias(alias: string): CanvasWriteOperatio
   if (alias === CANVAS_WRITE_OPERATION_ALIASES.connectCanvasEdges) return "connect_canvas_edges";
   if (alias === CANVAS_WRITE_OPERATION_ALIASES.tidyCanvas) return "tidy_canvas";
   if (alias === CANVAS_WRITE_OPERATION_ALIASES.proposeStoryboardPlan) return "propose_storyboard_plan";
+  if (alias === CANVAS_WRITE_OPERATION_ALIASES.patchShots) return "patch_shots";
   if (alias === CANVAS_WRITE_OPERATION_ALIASES.arrangeStoryboardToTimeline) return "arrange_storyboard_to_timeline";
   if (alias === CANVAS_WRITE_OPERATION_ALIASES.createStagingReference) return "create_staging_reference";
   if (alias === CANVAS_WRITE_OPERATION_ALIASES.createCameraMove) return "create_camera_move";

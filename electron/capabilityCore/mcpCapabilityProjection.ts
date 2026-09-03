@@ -322,7 +322,7 @@ export const CANVAS_READ_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
 
 const canvasOperationNames = [
   "set_node_prompt", "create_canvas_nodes", "connect_canvas_edges", "tidy_canvas",
-  "propose_storyboard_plan", "arrange_storyboard_to_timeline", "create_staging_reference", "create_camera_move",
+  "propose_storyboard_plan", "patch_shots", "arrange_storyboard_to_timeline", "create_staging_reference", "create_camera_move",
 ] as const;
 const canvasNodeKinds = [
   "text", "character", "scene", "image", "keyframe", "video", "audio", "clip", "shot", "output", "panorama",
@@ -386,7 +386,7 @@ function canvasAdapter(name: string, allowed: readonly string[]): McpCapabilityA
 }
 
 export const CANVAS_PLAN_MCP_ADAPTER = canvasAdapter("nomi_canvas_plan", [
-  "propose_storyboard_plan", "arrange_storyboard_to_timeline", "create_staging_reference", "create_camera_move",
+  "propose_storyboard_plan", "patch_shots", "arrange_storyboard_to_timeline", "create_staging_reference", "create_camera_move",
 ]);
 export const CANVAS_EDIT_MCP_ADAPTER = canvasAdapter("nomi_canvas_edit", [
   "set_node_prompt", "create_canvas_nodes", "connect_canvas_edges", "tidy_canvas",
