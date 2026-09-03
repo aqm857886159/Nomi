@@ -4,6 +4,8 @@
 
 **Goal:** 在不重复实现已经合入的功能、不破坏仍在工作的 worktree、也不把“CI 绿”误当成产品完成的前提下，把 Nomi 当前所有可追踪的 PR、分支、worktree、计划文档和视觉证据收敛到一个可验证的 `main` 基线；随后用这份真实基线重新判断 M0–M5、Agent、TikHub/视频拆解、画布性能、MCP 和资源链的完成度，并把真正未完成的工作拆成可继续交付的后续 PR。
 
+> 状态：⏳ 已拍板·未开工（本文件定义执行方案；执行产物和后续 PR 另行记录）
+
 **Architecture:** 本计划是“收敛与重基线”工作，不新增产品功能。执行顺序固定为：冻结现场 → 盘点证据 → 安全收敛 → 捞取唯一提交 → 建立 M0–M5/功能/视觉矩阵 → 真实 Electron/打包走查 → 生成新的优先级和后续任务。所有产品修复都必须另开小范围任务和 PR，不能借盘点任务顺手扩大范围。
 
 **Tech Stack:** Git/GitHub PR、Git worktree、pnpm、Vitest、Electron/Playwright walkthrough、现有 `tests/ux` 和 `tests/system` 证据脚本、`docs/plan` 与 `docs/qa` 文档。
