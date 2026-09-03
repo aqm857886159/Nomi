@@ -69,6 +69,13 @@ export type KnownVendor = {
   /** 「新手推荐」软标：仅未接入时显示，帮纯新人在多家里有个默认起点（聚合中转一个 key 全解锁）。
    *  软提示，不钦点、不占 C 位（用户拍板：留但只当软提示）。 */
   recommended?: boolean
+  /**
+   * 该供应商支持「先填 key → 继续验证」的两步接入流程（KnownVendorKeyConnectPage → openWizard）。
+   * 缺省 true（当前全部已知供应商均支持 wizard 验证晋级）；
+   * 设为 false 的供应商保存 key 后直接可用，不需要经过认证运行。
+   * 推导规则：availableKnown 行的 onOpen 由此字段 derive，不再硬编码 vendorKey 白名单。
+   */
+  usesPlatformConnect?: boolean
 }
 
 export const KNOWN_VENDORS: readonly KnownVendor[] = [

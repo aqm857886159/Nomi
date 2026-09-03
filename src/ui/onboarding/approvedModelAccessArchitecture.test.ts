@@ -5,14 +5,19 @@ import { describe, expect, it } from 'vitest'
 const read = (relative: string): string => fs.readFileSync(path.join(process.cwd(), relative), 'utf8')
 
 describe('approved model access architecture', () => {
-  it('has a dedicated key-only route for APIMart and Kie.ai', () => {
+  it('routes all known vendors with usesPlatformConnect to the dedicated key-only page', () => {
     const drawer = read('src/ui/onboarding/OnboardingDrawer.tsx')
     const navigation = read('src/ui/onboarding/modelSettingsNavigation.ts')
     const page = read('src/ui/onboarding/KnownVendorKeyConnectPage.tsx')
+    const connections = read('src/ui/onboarding/onboardingDrawerConnections.ts')
+    const vendors = read('src/config/knownVendors.ts')
 
+    // Navigation type and drawer handler must exist.
     expect(navigation).toContain("type: 'platformConnect'")
     expect(drawer).toContain("page.type === 'platformConnect'")
     expect(drawer).toContain('<KnownVendorKeyConnectPage')
+
+    // Page structure: key input section before saved-success section.
     expect(page).toContain('data-key-only-vendor')
     expect(page.match(/type="password"/g)).toHaveLength(1)
     expect(page).toContain("value={saved ? 'saved-key' : apiKey}")
@@ -21,6 +26,19 @@ describe('approved model access architecture', () => {
     expect(page).not.toContain('baseUrl')
     expect(page).not.toContain('ModelChipGroups')
     expect(page).not.toContain('文档')
+
+    // Routing must be derived from the vendor archive field, not a hardcoded allowlist.
+    expect(connections).not.toMatch(/\['apimart',\s*'kie'\]\.includes/)
+    expect(connections).not.toMatch(/'apimart'\s*\|\|\s*'kie'/)
+    expect(connections).toContain('usesPlatformConnect !== false')
+
+    // The vendor type must declare the capability field.
+    expect(vendors).toContain('usesPlatformConnect')
+
+    // The page must accept hasApiKey and show pending state without requiring key re-entry.
+    expect(page).toContain('hasApiKey')
+    expect(page).toContain('pendingTitle')
+    expect(page).toContain('continueVerification')
   })
 
   it('keeps the Dreamina membership entry available while its local status is loading', () => {

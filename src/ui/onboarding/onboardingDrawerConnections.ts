@@ -169,7 +169,9 @@ export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatu
       models: [],
       logo: card.directory.logo,
       glyph: card.directory.glyph,
-    }, ['apimart', 'kie'].includes(card.directory.vendorKey)
+    // usesPlatformConnect 缺省 true（档案未声明 = 支持）→ 路由到 platformConnect（key 填入 + 继续验证）。
+    // 硬编码 vendorKey 白名单已移除（P1 加新删旧）：由档案字段 derive，不写死。
+    }, card.directory.usesPlatformConnect !== false
       ? () => openPage({ type: 'platformConnect', vendorKey: card.directory.vendorKey })
       : undefined)),
     ...comfyuiAvailableList.map((instance) => homeConnection({

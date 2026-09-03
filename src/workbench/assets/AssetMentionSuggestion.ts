@@ -1,7 +1,7 @@
 import { Extension } from '@tiptap/core'
 import Suggestion from '@tiptap/suggestion'
 import { ReactRenderer } from '@tiptap/react'
-import AssetMentionSuggestionList, { type MentionSuggestionItem, type MentionSuggestionListRef } from './AssetMentionSuggestionList'
+import AssetMentionSuggestionList, { type MentionSuggestionItem, type MentionSuggestionListRef, type MentionUploadControls } from './AssetMentionSuggestionList'
 
 // 打 @ 唤起 suggestion(规范 §4 快捷路径)。候选由 getCandidates(query) 注入 —— 三组：
 // 「当前参考」(已在 image_ref 槽里、与发送投影同一数组) / 「画布」已出图的节点 / 「素材库」。
@@ -29,6 +29,7 @@ export function createAssetMentionSuggestion(options: {
   getCandidates: (query: string) => MentionSuggestionItem[]
   /** 选中一条候选。返回最终该插的 chip 编号（建边/落槽后算出来的）；返回 null = 没插成（如能力校验没过）。 */
   onSelect: (item: MentionSuggestionItem) => number | null
+  getUpload?: () => MentionUploadControls | undefined
 }): Extension {
   return Extension.create({
     name: 'assetMentionSuggestion',
@@ -62,7 +63,7 @@ export function createAssetMentionSuggestion(options: {
             let el: HTMLElement | null = null
             return {
               onStart: (props) => {
-                renderer = new ReactRenderer(AssetMentionSuggestionList, { props, editor: props.editor })
+                renderer = new ReactRenderer(AssetMentionSuggestionList, { props: { ...props, upload: options.getUpload?.() }, editor: props.editor })
                 el = document.createElement('div')
                 el.style.position = 'fixed'
                 el.style.zIndex = '60'
@@ -71,7 +72,7 @@ export function createAssetMentionSuggestion(options: {
                 positionPopup(el, props.clientRect?.() ?? null)
               },
               onUpdate: (props) => {
-                renderer?.updateProps(props)
+                renderer?.updateProps({ ...props, upload: options.getUpload?.() })
                 if (el) positionPopup(el, props.clientRect?.() ?? null)
               },
               onKeyDown: (props) => {

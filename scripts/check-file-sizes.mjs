@@ -44,7 +44,7 @@ const ALLOWLIST = {
   // registerIntegrationHandoffIpc + registerIntegrationSessionIpc 的 import+调用（integration
   // certification handoff queue，0b6441c6 transplant 时误删后按根因恢复）；仍远低于本分支起点 847。
   "electron/main.ts": 843,
-  "electron/capabilityCore/mcpGenerationTools.ts": 803,
+  "electron/capabilityCore/mcpGenerationTools.ts": 826, // 803→826（2026-09-03 J05 changeset + J06 coldstartEtaForGate — net +23 行根因修复）
   "electron/capabilityCore/verifiedCapabilityInvocation.ts": 1257,
   "electron/productionRun/productionRunService.ts": 816,
   "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1839, // 2026-09-02 M3: ledger extraction kept the coordinator below its prior ratchet.
