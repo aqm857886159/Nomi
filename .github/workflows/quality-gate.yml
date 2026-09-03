@@ -156,6 +156,9 @@ jobs:
       - name: MCP L1 handshake journey
         if: needs.scope.outputs.journeys == 'true'
         run: xvfb-run -a pnpm run test:mcp-journey
+      - name: MCP elicitation-first journey
+        if: needs.scope.outputs.journeys == 'true'
+        run: xvfb-run -a pnpm run test:mcp-elicitation
       - name: Critical canvas acceptance
         if: needs.scope.outputs.canvas == 'critical'
         run: xvfb-run -a pnpm run test:canvas:critical
