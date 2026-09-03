@@ -107,7 +107,6 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   // ── storyboardEditor ──
   { prefix: 'storyboardEditor.row.transition', why: '动态: 镜行展开态转场类型;枚举来源: StoryboardShotRowExpand 的 TRANSITION_TYPES 常量(=storyboardShotSchema transition.type 枚举, row.transition.* 词条)' },
   // ── timelineEditor ──
-  { prefix: 'timelineEditor.agent.edges', why: '动态: 时间线 agent 边操作;枚举来源: timelineEditPlanModel 的 operation.edge(agent.edges.* 词条)' },
   { prefix: 'timelineEditor.transition.types', why: '动态: 转场类型;枚举来源: 时间线转场 type 集(transition.types.* 词条)' },
   // ── scene3d ──
   { prefix: 'scene3d.inspector.posePreset', why: '动态: 人偶姿势预设名;枚举来源: scene3dConstants 的 MANNEQUIN_POSE_PRESETS[].id(id 与词条同名,故键由 id 派生,不另存一份 labelKey)' },

@@ -17,7 +17,7 @@ import { withCanvasGestureContext, type CanvasGestureContext } from '../events/c
 import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
 import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
-import { parseStoryboardPlan } from './storyboardPlan'
+import { parseStoryboardPlan } from './storyboardPlanSchema'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
 import type { CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
 import type { ScenePropPlacement } from '../nodes/scene3d/scene3dPropSpecs'
@@ -66,13 +66,14 @@ function normalizeEdgeMode(raw: unknown): GenerationCanvasEdgeMode | undefined {
 /** create 携带边 / connect_canvas_edges 共用的边参数归一（clientId→真实 id + mode 白名单）。 */
 function normalizePlannedEdges(
   rawEdges: unknown[],
-): Array<{ source: string; target: string; mode?: GenerationCanvasEdgeMode }> {
+): Array<{ source: string; target: string; mode?: GenerationCanvasEdgeMode; order?: number }> {
   return rawEdges
     .map((raw) => (raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}))
     .map((edge) => ({
       source: resolveNodeId(String(edge.sourceClientId || edge.source || '').trim()),
       target: resolveNodeId(String(edge.targetClientId || edge.target || '').trim()),
       ...(normalizeEdgeMode(edge.mode) ? { mode: normalizeEdgeMode(edge.mode) } : {}),
+      ...(typeof edge.order === 'number' && Number.isFinite(edge.order) ? { order: edge.order } : {}),
     }))
     .filter((edge) => edge.source && edge.target)
 }

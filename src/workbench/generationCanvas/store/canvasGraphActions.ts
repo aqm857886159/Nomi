@@ -293,7 +293,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     }
     return { ok: true, connected: outcome.connected.length, skipped: outcome.skipped, alreadyConnected: outcome.alreadyConnected }
   },
-  connectNodes: (sourceNodeId, targetNodeId, mode, targetParamKey) => {
+  connectNodes: (sourceNodeId, targetNodeId, mode, targetParamKey, order) => {
     const beforeEdges = get().edges
     set((state) => {
       const target = state.nodes.find((node) => node.id === targetNodeId)
@@ -304,7 +304,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
         : { ok: true as const, mode: mode ?? 'reference', targetParamKey }
       if (!connection.ok) return
       const key = connection.targetParamKey
-      let nextEdges = connectNodes(state.edges, sourceNodeId, targetNodeId, connection.mode, key)
+      let nextEdges = connectNodes(state.edges, sourceNodeId, targetNodeId, connection.mode, key, order)
       if (nextEdges === state.edges) return
       if (key) nextEdges = nextEdges.filter((edge) => edge.target !== targetNodeId || edge.targetParamKey !== key || (edge.source === sourceNodeId && edge.mode === connection.mode))
       state.edges = normalizeParameterEdges(state.nodes, nextEdges)
