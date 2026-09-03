@@ -21,6 +21,37 @@ import {
 import { canvasToolDescriptors } from "./tools/canvasDescriptors";
 
 describe("Project Agent Pi capability projection", () => {
+  // 2026-09-03 真实付费闭环走查的功能哑火回归。
+  // 机制：工具 profile 靠一张手写关键词表猜用户措辞，而那张表和产品自己的文案脱钩——
+  // 侧栏按钮叫「新建分镜方案」、选中浮条叫「拆成镜头」、旧命令叫「拆镜头」，
+  // 而 STORYBOARD_INTENT 里只有「分镜/镜头卡/镜头设计」，于是点按钮发出的请求拿不到
+  // nomi_canvas_plan，整条拆镜功能静默哑掉（类型合法、CI 全绿）。
+  //
+  // 两道保险，缺一不可：
+  //  ① 显式通道——我们自己知道用户意图的入口必须直接声明 toolProfile，根本不进词表；
+  //  ② 词表兜底——自由文本仍要猜，那就至少收录产品自己教给用户的说法。
+  it.each([
+    "拆镜头",
+    "拆成镜头",
+    "把这个故事拆成 8 个镜头",
+    "新建分镜方案",
+    "帮我做一份分镜",
+  ])("产品自己教给用户的说法必须路由到 storyboard profile：%s", (prompt) => {
+    expect(resolveAgentToolProfile({ capability: "creation-editor", prompt } as never)).toBe("storyboard");
+    expect(agentToolsForRequest({ capability: "creation-editor", prompt } as never).map(({ name }) => name))
+      .toContain("nomi_canvas_plan");
+  });
+
+  it("显式 toolProfile 压过词表：入口知道意图时不再靠猜", () => {
+    // 这句话一个关键词都不带，词表必然猜不中——正是显式通道存在的理由。
+    const prompt = "按我刚写的那段内容往下做";
+    expect(resolveAgentToolProfile({ capability: "creation-editor", prompt } as never)).toBe("creation");
+    expect(agentToolsForRequest({ capability: "creation-editor", prompt } as never).map(({ name }) => name))
+      .not.toContain("nomi_canvas_plan");
+    expect(agentToolsForRequest({ capability: "creation-editor", prompt, toolProfile: "storyboard" } as never).map(({ name }) => name))
+      .toContain("nomi_canvas_plan");
+  });
+
   it("rejects an unknown work mode at the request boundary", () => {
     expect(() => captureAgentChatRequest({
       capability: "creation-chat",

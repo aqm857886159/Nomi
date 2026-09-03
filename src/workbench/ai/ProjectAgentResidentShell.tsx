@@ -9,6 +9,7 @@ import {
 } from '@tabler/icons-react'
 import { BodyPortal, NomiLogoMark, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
+import type { AgentToolProfile } from '../../../electron/harness/agentChatContracts'
 import { useWorkbenchStore, type ProjectAgentReference, type ProjectAgentRunMode, type WorkspaceMode } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { runWorkbenchAgent, type ToolCallEvent } from './workbenchAgentRunner'
@@ -588,9 +589,11 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     }
   }, [proposalDrafts, t])
 
-  const submit = React.useCallback(async () => {
-    const text = draft.trim(); if (!text || !snapshot) return; setError('')
-    if (editingQueue) { try { await editProjectAgentQueueItem({ ...editingQueue, text }); setEditingQueue(null); setDraft('') } catch (caught) { setError(friendlyError(caught, t)) }; return }
+  // 发一轮。`options.toolProfile` 是**显式意图通道**：调用方自己知道用户要干什么时直接声明，
+  // 不再让能力取决于 agentChatPolicy 那张关键词表碰巧收没收录用户的措辞（2026-09-03 走查：
+  // 按钮文案「拆镜头」不在表里，整条拆镜功能哑掉）。草稿框走 submit()，按钮类入口走这里。
+  const sendTurn = React.useCallback(async (rawText: string, options?: { toolProfile?: AgentToolProfile; displayText?: string }) => {
+    const text = rawText.trim(); if (!text || !snapshot) return; setError('')
     if (attachments.some((item) => item.status === 'uploading')) { setError(t('creationAi.attachmentsUploading')); return }
     const turnId = `turn-resident-${globalThis.crypto.randomUUID()}`
     let sendContext: ResidentSendContext
@@ -623,7 +626,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       references.flatMap((reference) => reference.contextHandle ? [reference.contextHandle] : []),
     )
     const referencesText = references.length ? `\n\n${t('agentResident.referencesLabel')}: ${references.map(residentReferencePromptValue).join(', ')}` : ''
-    setDraft(''); attachmentApi.clearAttachments(); closeMenu()
+    // 草稿归 submit() 自己清——按钮类入口不该顺手抹掉用户正在打的字。
+    attachmentApi.clearAttachments(); closeMenu()
     try {
       const actionIntent = isAgentActionIntent(text)
       const requestMode = runMode === 'ask' && !actionIntent ? 'chat' : 'auto'
@@ -635,7 +639,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           ? selectedPromptPreset.prompt || selectedPrompt.prompt
           : undefined
       const systemPrompt = composeResidentSystemPrompt(surfaceSystemPrompt, activeSkill ? null : selectedLibraryPrompt)
-      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: text, capability, ...(surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIdsAtSend : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: surface === 'creation' ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, workMode: runMode, approvalPolicy, skillKey, skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), contextSnapshot, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? ''); if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, call.args, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }; emitPending() } })
+      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: options?.displayText ?? text, capability, ...(options?.toolProfile ? { toolProfile: options.toolProfile } : surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIdsAtSend : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: surface === 'creation' ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, workMode: runMode, approvalPolicy, skillKey, skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), contextSnapshot, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? ''); if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, call.args, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }; emitPending() } })
       const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? '')
       if (projectionScope && response.toolCalls.length) {
         const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope)))
@@ -650,7 +654,33 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       }
       setLastTurnTokens(response.usage.totalTokens)
     } catch (caught) { setError(friendlyError(caught, t)) } finally { clearResidentPendingTools(turnId) }
-  }, [activeSkill, attachmentApi, attachments, closeMenu, creationDocumentTools, draft, editingQueue, promptModeId, references, runMode, selectedLibraryPrompt, selectedPromptPreset, setDraft, snapshot, surface, t])
+  }, [activeSkill, attachmentApi, attachments, closeMenu, creationDocumentTools, promptModeId, references, runMode, selectedLibraryPrompt, selectedPromptPreset, snapshot, surface, t])
+
+  const submit = React.useCallback(async () => {
+    const text = draft.trim(); if (!text || !snapshot) return; setError('')
+    if (editingQueue) { try { await editProjectAgentQueueItem({ ...editingQueue, text }); setEditingQueue(null); setDraft('') } catch (caught) { setError(friendlyError(caught, t)) }; return }
+    setDraft('')
+    await sendTurn(text)
+  }, [draft, editingQueue, sendTurn, setDraft, snapshot, t])
+
+  // 拆镜头入口（侧栏「新建分镜方案」/ 选中浮条）的唯一实现者。
+  // 2026-09-01 的 agent-host 移植把旧创作面板整个换掉，连带删掉了这个槽的**唯一注册者**，
+  // 而两处调用方都是 `?.()` —— 功能静默哑掉两天没人发现（2026-09-03 走查才撞见）。
+  // 现在：① 常驻壳是创作面的 agent 唯一所有者，注册责任跟着它走；
+  //       ② 显式声明 toolProfile，不靠关键词表猜；
+  //       ③ ProjectAgentResidentShell.structure.test.ts 钉住「必须有注册者」，再被搬走会红。
+  const setStoryboardPlannerLauncher = useWorkbenchStore((state) => state.setStoryboardPlannerLauncher)
+  React.useEffect(() => {
+    if (surface !== 'creation') return
+    const launch = (displayPrompt?: string) => {
+      void sendTurn(t('agentResident.storyboardRequest'), {
+        toolProfile: 'storyboard',
+        ...(displayPrompt ? { displayText: displayPrompt } : {}),
+      })
+    }
+    setStoryboardPlannerLauncher(launch)
+    return () => setStoryboardPlannerLauncher(null)
+  }, [sendTurn, setStoryboardPlannerLauncher, surface, t])
   const onKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void submit() } }, [submit])
 
   // Search by the stable Skill key and directory as well as the localized

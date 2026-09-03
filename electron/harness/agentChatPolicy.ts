@@ -132,8 +132,13 @@ const TIMELINE_TOOL_NAMES = new Set([
 const PRODUCTION_TOOL_NAMES = new Set<string>(agentToolNames.production);
 const GENERATION_TOOL_NAMES = new Set<string>(agentToolNames.generation);
 
+// 这几张词表只是**自由文本的兜底猜测**。任何我们自己知道用户意图的入口（按钮、菜单项、
+// 技能卡）必须显式传 `toolProfile`，别让能力的可用性取决于用户碰巧用了表里的哪个词——
+// 2026-09-03 真实付费走查实测：产品按钮文案「拆镜头」不在 STORYBOARD_INTENT 里，点它发出的
+// 请求拿不到 nomi_canvas_plan，功能整条哑掉。词表与产品文案脱钩就是这么发生的。
+// 漏判的代价（功能不可用）远大于误判（多给几个工具），所以这里宁可写宽。
 const DESTRUCTIVE_INTENT = /删除|移除|清理|整理|delete|remove|tidy|clean\s+up/i;
-const STORYBOARD_INTENT = /分镜|镜头卡|镜头设计|站位|姿势|运镜|storyboard|shot\s*card|blocking|camera\s*move/i;
+const STORYBOARD_INTENT = /分镜|拆镜|镜头|站位|姿势|运镜|storyboard|shot\s*card|shot\s*list|blocking|camera\s*move/i;
 const TIMELINE_INTENT = /时间线|时间轴|剪辑|裁剪|片段|轨道|重排|导出|预览|timeline|trim|split|track|export|preview/i;
 const PRODUCTION_INTENT = /\d+\s*(?:分钟|分|min(?:ute)?s?)|成片|短片|广告片|制作|剧本|长任务|production|feature\s*video/i;
 const MEDIA_INSPECTION_INTENT = /素材|媒体|音频|波形|时长|编码|查找|搜索|media|asset|waveform|duration|codec|search/i;

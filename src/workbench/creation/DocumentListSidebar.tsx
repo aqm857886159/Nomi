@@ -30,6 +30,9 @@ export default function DocumentListSidebar(): JSX.Element {
   const documents = useWorkbenchStore((state) => state.workbenchDocuments)
   const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
   const activeStoryboardId = useWorkbenchStore((state) => state.activeStoryboardId)
+  // 拆镜头能力由创作面常驻 Agent 提供（ProjectAgentResidentShell 注册）。它不在场时按钮**禁用并说明**，
+  // 不做成点了没反应（§1.6 C4）。
+  const plannerReady = useWorkbenchStore((state) => state.storyboardPlannerLauncher !== null)
   const canvasNodes = useGenerationCanvasStore((state) => state.nodes)
   const designsByDocumentId = useWorkbenchStore((state) => state.storyboardDesignsByDocumentId)
   const setActiveDocumentId = useWorkbenchStore((state) => state.setActiveDocumentId)
@@ -114,7 +117,13 @@ export default function DocumentListSidebar(): JSX.Element {
   const createDesignForDocument = (documentId: string) => {
     selectDocument(documentId)
     setExpanded((current) => ({ ...current, [documentId]: true }))
-    window.setTimeout(() => useWorkbenchStore.getState().storyboardPlannerLauncher?.(), 0)
+    // 不用 `?.()`：能力缺席时按钮已被禁用（下方 disabled），能走到这里就说明该有 launcher。
+    // 2026-09-01 的移植删掉了唯一注册者，而这里的可选链把「整个功能哑掉」吞成了「点了没反应」——
+    // 静默降级让缺口活了两天。缺能力就明说，不假装点了。
+    window.setTimeout(() => {
+      const launch = useWorkbenchStore.getState().storyboardPlannerLauncher
+      if (launch) launch()
+    }, 0)
   }
 
   const openMenu = React.useCallback((
@@ -387,8 +396,10 @@ export default function DocumentListSidebar(): JSX.Element {
                   })}
                   <button
                     type="button"
-                    className="mt-0.5 flex w-full items-center gap-2 rounded-nomi-sm px-2 py-1.5 text-left text-caption text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink-80"
+                    className="mt-0.5 flex w-full items-center gap-2 rounded-nomi-sm px-2 py-1.5 text-left text-caption text-nomi-ink-40 enabled:hover:bg-nomi-ink-05 enabled:hover:text-nomi-ink-80 disabled:cursor-not-allowed disabled:opacity-45"
                     onClick={() => createDesignForDocument(doc.id)}
+                    disabled={!plannerReady}
+                    title={plannerReady ? undefined : t('creationAi.documentList.newStoryboardUnavailable')}
                     data-add-storyboard={doc.id}
                   >
                     <IconPlus size={14} stroke={1.5} aria-hidden />
