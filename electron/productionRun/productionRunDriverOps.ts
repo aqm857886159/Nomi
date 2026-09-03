@@ -11,6 +11,7 @@ import { desktopT } from '../i18n'
 import { settlePauseIfQuiet } from './productionRunControl'
 import { adoptedGenerationShotNodeIds, buildQaRetryPlans, buildQaStageOutcome, type QaVerifyResponse } from './productionQaVerdict'
 import type { ProductionRunRepository } from './productionRunRepository'
+import { freezeGateId, hasApprovedFreezeGate, hasWaitingFreezeGate, hasWaitingSampleGate, isShotGate, sampleGateId, shotGateId, shouldSampleGate } from './productionRunGateIdentity'
 import { trustLevelOf, type ProductionRun } from './productionRunTypes'
 import { loadPlaybookStageEvidence } from '../skills/skillExecutionEvidence'
 
@@ -85,34 +86,6 @@ export function normalizeDirectionCandidates(value: unknown): Array<{ key: strin
   return out
 }
 
-/** One durable, URL-safe gate per plan/job. The hash keeps ids stable even when node ids collide
- * after sanitization, while jobIds[0] remains the authoritative job identity. */
-export function shotGateId(planVersion: number, jobId: string, round = 1): string {
-  const slug = jobId.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-48) || 'shot'
-  const suffix = crypto.createHash('sha256').update(jobId).digest('hex').slice(0, 10)
-  return `gate-shot-v${planVersion}-${slug}-${suffix}${round > 1 ? `-r${round}` : ''}`
-}
-
-export function isShotGate(gate: Pick<ProductionRun['gates'][number], 'gateId' | 'scope'>): boolean {
-  return gate.scope === 'job_set' && gate.gateId.startsWith('gate-shot-')
-}
-
-function sampleGateId(planVersion: number): string {
-  return `gate-sample-v${planVersion}`
-}
-
-function freezeGateId(planVersion: number): string {
-  return `gate-freeze-v${planVersion}`
-}
-
-function hasApprovedFreezeGate(run: ProductionRun): boolean {
-  return run.gates.some((gate) => gate.gateId === freezeGateId(run.planVersion) && gate.status === 'approved')
-}
-
-function hasWaitingFreezeGate(run: ProductionRun): boolean {
-  return run.gates.some((gate) => gate.gateId === freezeGateId(run.planVersion) && gate.status === 'waiting')
-}
-
 async function readUnfrozenAnchors(
   requestRenderer: DriverOpsDeps['requestRenderer'],
   projectId: string,
@@ -166,14 +139,6 @@ export function semanticGenerationReadiness(run: Pick<ProductionRun, 'jobs' | 'a
     if (!artifact) return { ready: false, reason: desktopT('production.generationMissingArtifact', { jobId: job.jobId }) }
   }
   return { ready: true }
-}
-
-function hasWaitingSampleGate(run: ProductionRun): boolean {
-  return run.gates.some((gate) => gate.gateId === sampleGateId(run.planVersion) && gate.status === 'waiting')
-}
-
-export function shouldSampleGate(run: ProductionRun): boolean {
-  return trustLevelOf(run.policy) !== 'budget_only'
 }
 
 export type DriverOps = {
