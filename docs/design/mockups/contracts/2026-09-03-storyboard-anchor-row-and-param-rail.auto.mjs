@@ -22,19 +22,19 @@ export default {
       "name": "锚行画面格",
       "selector": "[data-anchor-frame]",
       "dimension": "width",
-      "expected": 76
+      "expected": 108
     },
     {
       "name": "锚行画面格",
       "selector": "[data-anchor-frame]",
       "dimension": "height",
-      "expected": 132
+      "expected": 144
     },
     {
       "name": "锚行引用缩略",
-      "selector": "[data-shot-ref]",
+      "selector": "[data-anchor-ref-thumb]",
       "dimension": "width",
-      "expected": 32
+      "expected": 20
     },
     {
       "name": "参考 tile 识别尺寸",

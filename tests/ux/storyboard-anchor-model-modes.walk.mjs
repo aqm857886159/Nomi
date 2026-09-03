@@ -55,24 +55,37 @@ const anchorPanel = page.locator('[data-storyboard-anchors]')
 const anchorRows = anchorPanel.locator('.shot-row[data-storyboard-anchor-row]')
 if (await anchorRows.count() !== 3) failMode('锚区必须由角色、场景、风格文本三条 shot-row 同构锚行组成')
 if (await anchorPanel.locator('.anchor-card').count() !== 0) failMode('锚区仍残留旧的 anchor-card 布局')
-const layoutParity = await page.evaluate(() => {
+// FIX4（2026-09-03）：不再要求锚行与镜头行 gridTemplateColumns 逐字相等——那正是上一轮把
+// 108×144 的真实锚卡压扁成 76×132 的根因（为了凑同一套 14/84/136/1fr 四栏栅格）。
+// 现在只验证「同族」：两者都带 shot-row 类（border/radius/accent 描边共用），锚行画面格
+// 改用真实 StoryboardAnchorCard.tsx:181 的 flex 布局，不再假装是同一套栅格轨道。
+const sameFamily = await page.evaluate(() => {
   const anchor = document.querySelector('[data-storyboard-anchor-row]')
   const shot = document.querySelector('[data-storyboard-row]')
-  if (!anchor || !shot) return false
-  const anchorGrid = getComputedStyle(anchor).gridTemplateColumns
-  const shotGrid = getComputedStyle(shot).gridTemplateColumns
-  return anchor.classList.contains('shot-row') && anchorGrid === shotGrid
+  return Boolean(anchor && shot && anchor.classList.contains('shot-row') && shot.classList.contains('shot-row'))
 })
-if (!layoutParity) failMode('锚行没有复用 shot-row 的同一套四栏栅格')
+if (!sameFamily) failMode('锚行没有沿用 shot-row 的容器视觉家族（border/radius/accent 描边）')
 if (await anchorPanel.locator('[data-anchor-references]').count() !== 3) failMode('锚行缺少“谁引用了我”的反向引用格')
-if (await anchorPanel.locator('[data-anchor-frame]').count() !== 3) failMode('三种锚没有各自的画面格')
-if (await anchorPanel.locator('[data-anchor-frame] .generate').count() < 2) failMode('可生成锚的生成按钮没有留在画面格里')
+// 三条真实锚各一个画面格（不含下方「其余三态」演示画廊——那三个是同一 108×144 面的状态样本，非第四个锚）。
+if (await anchorRows.locator('[data-anchor-frame]').count() !== 3) failMode('三种锚没有各自的画面格')
+// 画面格必须逐字命中 StoryboardAnchorCard.tsx:100/151 的真实尺寸，不是镜头行 76×132 的缩小版。
+const anchorFrameSize = await anchorRows.locator('[data-anchor-frame]').first().boundingBox()
+if (!anchorFrameSize || Math.abs(anchorFrameSize.width - 108) > 4 || Math.abs(anchorFrameSize.height - 144) > 4) {
+  failMode(`锚行画面格必须是 108×144（StoryboardAnchorCard.tsx:100），实测 ${anchorFrameSize ? `${Math.round(anchorFrameSize.width)}×${Math.round(anchorFrameSize.height)}` : '找不到'}`)
+}
+// 未生成/失败态各自留有可点的生成/重试动作（真实按钮文案「生成」「重试」，不再是旧 .generate CSS 类）。
+const generateActionCount = await anchorPanel.locator('[data-anchor-frame] button').filter({ hasText: /^(生成|↻ 重试)$/ }).count()
+if (generateActionCount < 2) failMode('可生成/失败锚的生成或重试按钮没有留在画面格里')
 if (await anchorPanel.locator('[data-anchor-frame] .anchor-generate').count() !== 0) failMode('锚行生成按钮使用了未声明的画面格动作挂点')
 const anchorStates = new Set(await anchorPanel.locator('[data-anchor-state]').evaluateAll((elements) => elements.map((element) => element.dataset.anchorState)))
 for (const state of ['loading', 'failed', 'generated', 'locked']) if (!anchorStates.has(state)) failMode(`锚画面格状态缺少 ${state}`)
 for (const railText of await anchorPanel.locator('[data-parameter-rail]').allTextContents()) if (/\d+\s*s/.test(railText)) failMode('锚行参数条误带时长胶囊')
 const hasLegacyGridRule = await page.evaluate(() => document.documentElement.outerHTML.includes('.anchor-card') || document.documentElement.outerHTML.includes('108px 1fr'))
 if (hasLegacyGridRule) failMode('样张仍残留 .anchor-card 的 108px 1fr 旧布局规则')
+// 新增：锚行必须带模型 + 画幅两个选择器（NomiSelect size="xs" 视觉规格），且带缩略图的引用列表。
+if (await anchorRows.locator('[data-anchor-model]').count() !== 3) failMode('锚行缺少模型选择器（NomiSelect 视觉规格）')
+if (await anchorRows.locator('[data-anchor-aspect]').count() !== 3) failMode('锚行缺少画幅选择器（NomiSelect 视觉规格）')
+if (await anchorRows.locator('[data-anchor-ref-thumb]').count() < 5) failMode('“谁引用了我”缺少可点缩略图（应为文字列表升级版）')
 
 const inlineModel = page.locator('#modelPill')
 const inlineModelTag = await inlineModel.evaluate((element) => element.tagName.toLowerCase())
@@ -106,9 +119,20 @@ for (const proof of storyboardIntentContract.modeProof) {
 await select.selectOption('seedance-2:omni')
 await page.locator('[data-parameter-summary]').click()
 if (!(await page.locator('[data-parameter-panel]').isVisible())) failMode('摘要 pill 未打开统一参数面板')
-await page.screenshot({ path: path.join(outDir, 'storyboard-anchor-modes-light.png'), fullPage: true })
+
+// FIX4 §4：干净版主视觉（清单折叠，<details> 默认态）与清单证据（手动展开）分开命名、分开截图，
+// 不再让 89/188 模式清单跟设计主体挤在同一张图里。
+const inventoryDetails = page.locator('details.inventory')
+const isInventoryOpen = () => inventoryDetails.evaluate((el) => el.open)
+if (await isInventoryOpen()) failMode('清单默认展开——违反 §4 收尾要求（<details open> 应已去掉）')
+await page.screenshot({ path: path.join(outDir, 'storyboard-anchor-clean-light.png'), fullPage: true })
 await page.locator('#themeToggle').click()
-await page.screenshot({ path: path.join(outDir, 'storyboard-anchor-modes-dark.png'), fullPage: true })
+await page.screenshot({ path: path.join(outDir, 'storyboard-anchor-clean-dark.png'), fullPage: true })
+await page.locator('#themeToggle').click()
+
+await inventoryDetails.locator('summary').click()
+if (!(await isInventoryOpen())) failMode('点击 summary 后清单未展开——证据截图拍不到真实清单')
+await page.screenshot({ path: path.join(outDir, 'storyboard-anchor-inventory-evidence.png'), fullPage: true })
 
 if (failures.length) { await browser.close(); throw new Error(`\n${failures.join('\n')}`) }
 console.log(`✅ 分镜真实模式走查通过：${storyboardIntentContract.modeProof.length} 个模式输出已逐一切换并断言`)
