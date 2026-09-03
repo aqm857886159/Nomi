@@ -45,7 +45,6 @@ const ALLOWLIST = {
   // certification handoff queue，0b6441c6 transplant 时误删后按根因恢复）；仍远低于本分支起点 847。
   "electron/main.ts": 843,
   "electron/capabilityCore/mcpGenerationTools.ts": 826, // 803→826（2026-09-03 J05 changeset + J06 coldstartEtaForGate — net +23 行根因修复）
-  "electron/productionRun/productionRunService.ts": 814,
   "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1839, // 2026-09-02 M3: ledger extraction kept the coordinator below its prior ratchet.
   "electron/projectAgentHost/projectAgentReducer.ts": 936,
   "electron/projectAgentHost/projectAgentState.ts": 809,
