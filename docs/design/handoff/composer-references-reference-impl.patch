@@ -1,0 +1,180 @@
+From c81cf6a00e740a217f8a62fa3b3892f1b80021af Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E5=A5=A5=E5=90=AF=E6=95=8F?=
+ <aoqimin@aoqimindeMacBook-Pro.local>
+Date: Thu, 3 Sep 2026 19:43:55 +0800
+Subject: [PATCH] feat: keep agent references inside composer
+
+---
+ src/i18n/locales/agentResident.ts             |   4 +
+ .../ai/ProjectAgentResidentShell.tsx          |   8 +-
+ .../resident/ResidentComposerReferences.tsx   | 103 ++++++++++++++++++
+ 3 files changed, 112 insertions(+), 3 deletions(-)
+ create mode 100644 src/workbench/ai/resident/ResidentComposerReferences.tsx
+
+diff --git a/src/i18n/locales/agentResident.ts b/src/i18n/locales/agentResident.ts
+index c8f4569a..b6b12b28 100644
+--- a/src/i18n/locales/agentResident.ts
++++ b/src/i18n/locales/agentResident.ts
+@@ -242,6 +242,8 @@ export const zhAgentResident = {
+   queueHidden: '还有 {{count}} 项',
+   referencesLabel: '引用',
+   removeReference: '移除引用',
++  referenceMore: '{{label}} +{{count}} 条引用，点击展开',
++  referenceCollapse: '收起引用',
+   attachImage: '图片',
+   attachImageHint: 'PNG / JPG / WebP',
+   attachVideo: '视频',
+@@ -565,6 +567,8 @@ export const enAgentResident = {
+   queueHidden: '{{count}} more',
+   referencesLabel: 'References',
+   removeReference: 'Remove reference',
++  referenceMore: '{{label}} +{{count}} references, expand',
++  referenceCollapse: 'Collapse references',
+   attachImage: 'Image',
+   attachImageHint: 'PNG / JPG / WebP',
+   attachVideo: 'Video',
+diff --git a/src/workbench/ai/ProjectAgentResidentShell.tsx b/src/workbench/ai/ProjectAgentResidentShell.tsx
+index c33e67cd..61ab370b 100644
+--- a/src/workbench/ai/ProjectAgentResidentShell.tsx
++++ b/src/workbench/ai/ProjectAgentResidentShell.tsx
+@@ -39,6 +39,7 @@ import type { DocumentAnchorRef, PreconditionSet, TargetRef } from '../../../ele
+ import { timelineRevision } from '../timeline/kernel/timelineKernel'
+ import { useProductionRunStore } from '../production/productionRunStore'
+ import { ResidentApprovalCard, ResidentStreamingText, ResidentTaskRows, ResidentThinkingState, ResidentToolChips, type ResidentApprovalState, type ResidentToolChipData } from './resident/ResidentUiPrimitives'
++import { ResidentComposerReferences } from './resident/ResidentComposerReferences'
+ import { ResidentReferenceChip } from './resident/ResidentReferenceChip'
+ import { normalizeResidentToolProjection, readResidentToolProjections, residentToolProjectionKey, residentToolProjectionScope, writeResidentToolProjections, type ResidentToolProjection } from './resident/residentToolProjection'
+ import { proposalForTool, readableToolDetailRows, readableToolName, readableToolPreview, readableToolResult, readableToolSummary, readableToolTarget, residentToolProjectionForCall } from './resident/residentToolDisplay'
+@@ -697,7 +698,6 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
+   // perfectly loaded repository Skill appear to be missing.
+   const filteredSkills = skills.filter((item) => `${item.name} ${item.directoryName} ${item.label} ${item.description ?? ''}`.toLowerCase().includes(skillSearch.toLowerCase()))
+   const promptPreset = PROMPT_PRESETS.find((preset) => preset.id === promptModeId) ?? PROMPT_PRESETS[0]
+-  const PromptIcon = promptPreset.icon
+   const modeKey = (value: ProjectAgentRunMode): string => `agentResident.mode${value[0].toUpperCase()}${value.slice(1)}`
+   const modeTitle = `${t('agentResident.modeTitle')} · ${t(modeKey(runMode))}`
+   const approvalModeLabel = (value: ProjectAgentApprovalMode): string => t(`agentResident.approvalMode${value === 'safe-auto' ? 'SafeAuto' : value === 'project' ? 'Project' : 'Step'}`)
+@@ -765,8 +765,10 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
+     {showLatest ? <button type="button" className="absolute bottom-2 right-3 z-10 grid size-7 place-items-center rounded-pill border border-nomi-line bg-nomi-paper text-nomi-ink-60 shadow-nomi-md transition-[background,box-shadow,transform] duration-[var(--nomi-transition-fast)] hover:-translate-y-px hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nomi-accent/40 motion-reduce:transition-none" data-agent-action="scroll-latest" aria-label={t('agentResident.scrollLatest')} title={t('agentResident.scrollLatest')} onClick={scrollToLatest}><IconChevronDown size={15} aria-hidden="true" /></button> : null}
+     </div>
+     <div className="relative z-20 shrink-0 border-t border-nomi-line-soft bg-nomi-paper" data-agent-composer="true"><ResidentTaskRows entries={activeQueue} getLabel={(entry) => { const user = snapshot?.items.find((candidate) => candidate.kind === 'user' && candidate.turnId === entry.turnId); return user?.kind === 'user' ? user.text : t('agentResident.taskFallback') }} getStatusLabel={(status) => statusLabel(t, status)} editLabel={t('agentResident.edit')} cancelLabel={t('agentResident.cancel')} stopLabel={t('agentResident.stop')} deleteLabel={t('agentResident.delete')} moveUpLabel={t('agentResident.moveUp')} moveDownLabel={t('agentResident.moveDown')} pauseLabel={t('agentResident.pause')} resumeLabel={t('agentResident.resume')} queueLabel={t('agentResident.queue')} queueCountLabel={t('agentResident.queueCount', { count: activeQueue.length })} queueSummaryLabel={t('agentResident.queueSummary', { running: activeQueue.filter((entry) => entry.status === 'running').length, proposed: activeQueue.filter((entry) => entry.status === 'proposed').length, queued: activeQueue.filter((entry) => entry.status === 'queued').length })} queueHiddenLabel={t('agentResident.queueHidden', { count: Math.max(0, activeQueue.length - 3) })} onEdit={(entry) => { const user = snapshot?.items.find((candidate) => candidate.kind === 'user' && candidate.turnId === entry.turnId); if (user?.kind === 'user') { setDraft(user.text); setEditingQueue({ queueItemId: entry.queueItemId, userItemId: user.itemId }) } }} onCancel={(entry) => entry.status === 'queued' ? void runQueueMutation(() => deleteProjectAgentQueueItem(entry.queueItemId)) : void stopTurn(entry.turnId)} onDelete={(entry) => void runQueueMutation(() => deleteProjectAgentQueueItem(entry.queueItemId))} onMove={(entry, direction) => void runQueueMutation(() => moveProjectAgentQueueItem(entry.queueItemId, direction))} onPause={(entry) => void runQueueMutation(() => pauseProjectAgentQueueItem(entry.queueItemId))} onResume={(entry) => void runQueueMutation(() => resumeProjectAgentQueueItem(entry.queueItemId))} onStop={runningTurn ? () => void stopTurn(runningTurn.turnId) : undefined} />{error ? <div className="px-3 pb-1 text-micro text-workbench-danger" role="alert">{error}</div> : null}
+-      <form className="relative grid gap-1 px-3 pb-1.5 pt-1" onSubmit={(event) => { event.preventDefault(); void submit() }} {...attachmentApi.dragHandlers}><input ref={attachmentApi.inputRef} type="file" multiple accept={COMPOSER_ATTACHMENT_ACCEPT} className="hidden" tabIndex={-1} aria-hidden="true" onChange={attachmentApi.onInputChange} /><AttachmentRail attachments={attachments} onRemove={attachmentApi.removeAttachment} />{references.length || activeSkill || selectedLibraryPrompt || (promptModeId !== 'general' && !activeSkill) ? <div className="flex max-h-14 flex-wrap gap-1 overflow-y-auto" data-agent-references="true">{references.map((reference) => <ResidentReferenceChip key={reference.id} reference={reference} t={t} onRemove={() => removeReference(reference.id)} />)}{activeSkill ? <span data-agent-reference={`skill:${activeSkill.key}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent"><IconTool size={12} /><span className="truncate">{activeSkill.name}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setActiveSkill(null)}><IconX size={11} /></button></span> : null}{selectedLibraryPrompt && !activeSkill ? <span data-agent-reference={libraryPromptReferenceId(selectedLibraryPrompt)} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent" title={selectedLibraryPrompt.prompt}><IconPencil size={12} /><span className="truncate">{promptDisplayTitle(selectedLibraryPrompt)}</span><button type="button" aria-label={t('agentResident.removeReference')} title={t('agentResident.removeReference')} onClick={() => setSelectedLibraryPrompt(null)}><IconX size={11} /></button></span> : null}{promptModeId !== 'general' && !activeSkill && !selectedLibraryPrompt ? <span data-agent-reference={`prompt:${promptModeId}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80"><PromptIcon size={12} /><span className="truncate">{t(`agentResident.${promptPreset.labelKey}`)}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setPromptModeId('general')}><IconX size={11} /></button></span> : null}</div> : null}
+-        <div className={cn('rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1', attachmentApi.isDragging && 'border-nomi-accent bg-nomi-accent-soft')}><AutoGrowTextarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} onPaste={attachmentApi.handlePaste} placeholder={t('agentResident.placeholder')} aria-label={t('agentResident.messageAria')} maxHeight={120} className="min-h-10 text-body-sm" /><div className="flex flex-wrap items-center gap-1 border-t border-nomi-line-soft pt-1">
++      <form className="relative grid gap-1 px-3 pb-1.5 pt-1" onSubmit={(event) => { event.preventDefault(); void submit() }} {...attachmentApi.dragHandlers}><input ref={attachmentApi.inputRef} type="file" multiple accept={COMPOSER_ATTACHMENT_ACCEPT} className="hidden" tabIndex={-1} aria-hidden="true" onChange={attachmentApi.onInputChange} /><AttachmentRail attachments={attachments} onRemove={attachmentApi.removeAttachment} />
++        <div className={cn('rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1', attachmentApi.isDragging && 'border-nomi-accent bg-nomi-accent-soft')}>
++          <ResidentComposerReferences references={references} activeSkill={activeSkill} selectedLibraryPrompt={selectedLibraryPrompt} promptModeId={promptModeId} promptLabel={selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : promptModeId === 'general' ? '' : t(`agentResident.${promptPreset.labelKey}`)} t={t} onRemoveReference={removeReference} onRemoveSkill={() => setActiveSkill(null)} onRemovePrompt={() => setSelectedLibraryPrompt(null)} onRemoveMode={() => setPromptModeId('general')} referenceChip={ResidentReferenceChip} />
++          <AutoGrowTextarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} onPaste={attachmentApi.handlePaste} placeholder={t('agentResident.placeholder')} aria-label={t('agentResident.messageAria')} maxHeight={120} className="min-h-10 text-body-sm" /><div className="flex flex-wrap items-center gap-1 border-t border-nomi-line-soft pt-1">
+           <div className="relative shrink-0"><button type="button" className={iconControlClass(menu === 'attachments')} aria-expanded={menu === 'attachments'} aria-haspopup="menu" data-agent-attachment-trigger="true" aria-label={t('agentResident.attach')} title={t('agentResident.attachTitle')} onClick={() => setMenu(menu === 'attachments' ? null : 'attachments')}><IconPaperclip size={16} /></button><Popover open={menu === 'attachments'} onClose={closeMenu} label={t('agentResident.attach')}><MenuRow testId="image" onClick={() => { attachmentApi.openFilePicker(); closeMenu() }}><IconPhoto size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.attachImage')} hint={t('agentResident.attachImageHint')} /></MenuRow><MenuRow testId="video" onClick={() => { attachmentApi.openFilePicker(); closeMenu() }}><IconVideo size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.attachVideo')} hint={t('agentResident.attachVideoHint')} /></MenuRow><MenuRow testId="audio" onClick={() => { attachmentApi.openFilePicker(); closeMenu() }}><IconWaveSine size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.attachAudio')} hint={t('agentResident.attachAudioHint')} /></MenuRow><MenuRow testId="document" onClick={() => { attachmentApi.openFilePicker(); closeMenu() }}><IconFileText size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.attachDocument')} hint={t('agentResident.attachDocumentHint')} /></MenuRow><div className="my-1 border-t border-nomi-line-soft" /><MenuRow testId="voice" onClick={() => { startVoiceInput() }}><IconMicrophone size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.voiceInput')} hint={t('agentResident.voiceInputHint')} /></MenuRow></Popover></div>
+           <div className="relative shrink-0"><button type="button" className={iconControlClass(menu === 'references')} aria-expanded={menu === 'references'} aria-haspopup="menu" data-agent-mention-trigger="true" aria-label={t('agentResident.mention')} title={t('agentResident.mentionTitle')} onClick={() => setMenu(menu === 'references' ? null : 'references')}><IconAt size={16} /></button><Popover open={menu === 'references'} onClose={closeMenu} label={t('agentResident.mention')}><MenuRow testId="canvas" onClick={() => addReference(buildResidentReference('canvas', t('agentResident.referenceCanvas'), { documentId: activeDocumentId, nodeIds: surface === 'generation' ? selectedNodeIds : [], clipIds: [] }))}><IconPhoto size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.referenceCanvas')} hint={t('agentResident.referenceCanvasHint')} /></MenuRow><MenuRow testId="document" onClick={() => addReference(buildResidentReference('document', t('agentResident.referenceDocument'), { documentId: activeDocumentId, nodeIds: [], clipIds: [] }))}><IconFileText size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.referenceDocument')} hint={t('agentResident.referenceDocumentHint')} /></MenuRow><MenuRow testId="preview" onClick={() => addReference(buildResidentReference('preview', t('agentResident.referencePreview'), { documentId: activeDocumentId, nodeIds: [], clipIds: surface === 'preview' ? selectedClipIds : [] }))}><IconVideo size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.referencePreview')} hint={t('agentResident.referencePreviewHint')} /></MenuRow><MenuRow testId="timeline" onClick={() => addReference(buildResidentReference('timeline', t('agentResident.referenceTimeline'), { documentId: activeDocumentId, nodeIds: [], clipIds: surface === 'preview' ? selectedClipIds : [] }))}><IconTimelineEvent size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.referenceTimeline')} hint={t('agentResident.referenceTimelineHint')} /></MenuRow><MenuRow testId="browser" onClick={() => addReference(buildResidentReference('browser', t('agentResident.referenceBrowser'), { documentId: activeDocumentId, nodeIds: [], clipIds: [] }))}><IconWorld size={16} className="shrink-0 text-nomi-ink-60" /><MenuCopy label={t('agentResident.referenceBrowser')} hint={t('agentResident.referenceBrowserHint')} /></MenuRow></Popover></div>
+           <span className="min-w-0 flex-1 basis-0" aria-hidden="true" />
+diff --git a/src/workbench/ai/resident/ResidentComposerReferences.tsx b/src/workbench/ai/resident/ResidentComposerReferences.tsx
+new file mode 100644
+index 00000000..6e59b0ef
+--- /dev/null
++++ b/src/workbench/ai/resident/ResidentComposerReferences.tsx
+@@ -0,0 +1,103 @@
++import React from 'react'
++import { IconChevronDown, IconChevronUp, IconPencil, IconTool, IconX } from '@tabler/icons-react'
++import type { ProjectAgentReference } from '../../workbenchStore'
++import type { LibraryPrompt } from '../../api/promptLibraryApi'
++import { cn } from '../../../utils/cn'
++import { ResidentReferenceChip } from './ResidentReferenceChip'
++
++type Translate = (key: string, options?: Record<string, unknown>) => string
++
++type Props = {
++  references: readonly ProjectAgentReference[]
++  activeSkill: { key: string; name: string } | null
++  selectedLibraryPrompt: LibraryPrompt | null
++  promptModeId: string
++  promptLabel: string
++  t: Translate
++  onRemoveReference: (id: string) => void
++  onRemoveSkill: () => void
++  onRemovePrompt: () => void
++  onRemoveMode: () => void
++  referenceChip?: typeof ResidentReferenceChip
++}
++
++type ReferenceItem = { key: string; label: string; content: React.ReactNode }
++
++/** The composer owns one message: references and draft text share this box. */
++export function ResidentComposerReferences({
++  references,
++  activeSkill,
++  selectedLibraryPrompt,
++  promptModeId,
++  promptLabel,
++  t,
++  onRemoveReference,
++  onRemoveSkill,
++  onRemovePrompt,
++  onRemoveMode,
++  referenceChip: ReferenceChip = ResidentReferenceChip,
++}: Props): JSX.Element | null {
++  const [expanded, setExpanded] = React.useState(false)
++  const items: ReferenceItem[] = [
++    ...references.map((reference) => ({
++      key: reference.id,
++      label: reference.label,
++      content: <ReferenceChip reference={reference} t={t} onRemove={() => onRemoveReference(reference.id)} />,
++    })),
++    ...(activeSkill ? [{
++      key: `skill:${activeSkill.key}`,
++      label: activeSkill.name,
++      content: <span data-agent-reference={`skill:${activeSkill.key}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent">
++        <IconTool size={12} aria-hidden="true" /><span className="truncate">{activeSkill.name}</span>
++        <button type="button" aria-label={t('agentResident.removeReference')} title={t('agentResident.removeReference')} onClick={onRemoveSkill} className="grid size-4 shrink-0 place-items-center rounded-pill hover:bg-nomi-accent/10"><IconX size={11} aria-hidden="true" /></button>
++      </span>,
++    }] : []),
++    ...(selectedLibraryPrompt && !activeSkill ? [{
++      key: `prompt-library:${selectedLibraryPrompt.origin}:${selectedLibraryPrompt.id}`,
++      label: promptLabel,
++      content: <span data-agent-reference={`prompt-library:${selectedLibraryPrompt.origin}:${selectedLibraryPrompt.id}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent" title={selectedLibraryPrompt.prompt}>
++        <IconPencil size={12} aria-hidden="true" /><span className="truncate">{promptLabel}</span>
++        <button type="button" aria-label={t('agentResident.removeReference')} title={t('agentResident.removeReference')} onClick={onRemovePrompt} className="grid size-4 shrink-0 place-items-center rounded-pill hover:bg-nomi-accent/10"><IconX size={11} aria-hidden="true" /></button>
++      </span>,
++    }] : []),
++    ...(promptModeId !== 'general' && !activeSkill && !selectedLibraryPrompt ? [{
++      key: `prompt:${promptModeId}`,
++      label: promptLabel,
++      content: <span data-agent-reference={`prompt:${promptModeId}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80">
++        <IconPencil size={12} aria-hidden="true" /><span className="truncate">{promptLabel}</span>
++        <button type="button" aria-label={t('agentResident.removeReference')} title={t('agentResident.removeReference')} onClick={onRemoveMode} className="grid size-4 shrink-0 place-items-center rounded-pill hover:bg-nomi-ink-10"><IconX size={11} aria-hidden="true" /></button>
++      </span>,
++    }] : []),
++  ]
++
++  React.useEffect(() => {
++    if (items.length <= 3 && expanded) setExpanded(false)
++  }, [expanded, items.length])
++  if (!items.length) return null
++
++  const visibleItems = expanded || items.length <= 3 ? items : items.slice(0, 2)
++  const overflowCount = items.length - visibleItems.length
++  const third = items[2]
++  return (
++    <div className={cn('flex flex-wrap items-center gap-1', expanded && 'max-h-20 overflow-y-auto')} data-agent-references="true">
++      {visibleItems.map((item) => <React.Fragment key={item.key}>{item.content}</React.Fragment>)}
++      {!expanded && overflowCount > 0 && third ? (
++        <button
++          type="button"
++          className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80 hover:bg-nomi-ink-10"
++          aria-expanded="false"
++          aria-label={t('agentResident.referenceMore', { label: third.label, count: overflowCount })}
++          title={t('agentResident.referenceMore', { label: third.label, count: overflowCount })}
++          onClick={() => setExpanded(true)}
++        >
++          <span className="truncate">{third.label}</span><span className="shrink-0">+{overflowCount}</span><IconChevronDown size={12} aria-hidden="true" />
++        </button>
++      ) : null}
++      {expanded ? (
++        <button type="button" className="inline-flex h-6 items-center gap-1 rounded-pill px-2 text-micro text-nomi-ink-60 hover:bg-nomi-ink-05" aria-expanded="true" aria-label={t('agentResident.referenceCollapse')} title={t('agentResident.referenceCollapse')} onClick={() => setExpanded(false)}>
++          <IconChevronUp size={12} aria-hidden="true" />{t('agentResident.referenceCollapse')}
++        </button>
++      ) : null}
++    </div>
++  )
++}
+-- 
+2.50.1 (Apple Git-155)
+
