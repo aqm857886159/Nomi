@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   candidatesForArchetype,
   hiddenModesForChannel,
+  isNarrowedModeGuidanceDismissed,
   referencesSectionIsEmpty,
   resolveNarrowedModeGuidance,
   type ModeGuidanceCandidate,
@@ -47,6 +48,14 @@ describe('hiddenModesForChannel — 三态必须分开', () => {
   it('body 发得出 → 不藏', () => {
     const hidden = hiddenModesForChannel(archetype, () => RICH_BODY)
     expect(hidden).toEqual([])
+  })
+})
+
+describe('isNarrowedModeGuidanceDismissed — 只认当前节点 meta 的明确标记', () => {
+  it('true 才关闭提示，避免旧数据或其他 meta 值误隐藏', () => {
+    expect(isNarrowedModeGuidanceDismissed({ narrowedModeGuidanceDismissed: true })).toBe(true)
+    expect(isNarrowedModeGuidanceDismissed({ narrowedModeGuidanceDismissed: 'true' })).toBe(false)
+    expect(isNarrowedModeGuidanceDismissed({})).toBe(false)
   })
 })
 

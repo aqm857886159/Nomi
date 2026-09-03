@@ -109,11 +109,24 @@ async function closeParameterPanel() {
 /** 新建一个视频节点并选中指定模型（选完 composer 会收起，重新点节点叫回来）。 */
 async function newVideoNodeWithModel(optionLabel) {
   await closeParameterPanel()
+  const existingNodeIds = await getWin().locator('.react-flow__node[data-id]').evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute('data-id')).filter(Boolean),
+  )
   await getWin().locator('.generation-canvas-v2-toolbar [data-node-kind="video"]').click()
   await getWin().waitForTimeout(800)
-  const card = composerCard()
-  await card.waitFor({ timeout: 6000 })
-  await card.getByRole('button', { name: '模型', exact: true }).first().click()
+  await getWin().waitForFunction(
+    (knownIds) => [...document.querySelectorAll('.react-flow__node[data-id]')]
+      .some((node) => !knownIds.includes(node.getAttribute('data-id'))),
+    existingNodeIds,
+    { timeout: 6000 },
+  )
+  const newNodeId = await getWin().locator('.react-flow__node[data-id]').evaluateAll((nodes, knownIds) =>
+    nodes.map((node) => node.getAttribute('data-id')).find((id) => id && !knownIds.includes(id)) || null,
+    existingNodeIds,
+  )
+  assert(Boolean(newNodeId), `新建视频节点「${optionLabel}」后能定位新增节点`, String(newNodeId))
+  const node = getWin().locator(`.react-flow__node[data-id="${newNodeId}"]`).first()
+  await node.getByRole('button', { name: '模型', exact: true }).first().click()
   await getWin().waitForTimeout(500)
   const option = getWin()
     .getByRole('option')
@@ -219,6 +232,94 @@ try {
   await expectVisible(switchButton, '提示带一个「换到 X」的行内按钮')
   const switchLabel = (await switchButton.textContent())?.trim()
   assert(/换到/.test(switchLabel || ''), '按钮文案是「换到 …」', switchLabel)
+  const firstNodeId = await guidance().evaluate((note) => note.closest('.react-flow__node')?.getAttribute('data-id') || null)
+  assert(Boolean(firstNodeId), '提示属于一个可定位的生成节点', String(firstNodeId))
+  const dismissButton = guidance().getByRole('button', { name: '关闭模式提示', exact: true })
+  await expectVisible(dismissButton, '提示带有低调的关闭按钮，并提供 aria-label')
+  await dismissButton.click()
+  await expectAbsent(guidance(), { provenBy: proof, message: '关闭后当前节点不再显示指路提示' })
+  const projectId = await getWin().evaluate(() => {
+    const match = /[?&#]projectId=([^&#]+)/.exec(window.location.href)
+    return match ? decodeURIComponent(match[1]) : ''
+  })
+  assert(Boolean(projectId), '当前工作台 URL 带有可读的项目 ID', projectId)
+  const readPersistedDismissal = (projectIdValue, nodeIdValue) => getWin().evaluate(async ({ projectIdValue: projectId, nodeIdValue: nodeId }) => {
+    const projects = window.nomiDesktop?.projects
+    if (!projects || !projectId || !nodeId) return false
+    const record = projects.readAsync ? await projects.readAsync(projectId) : projects.read(projectId)
+    const nodes = record?.payload?.generationCanvas?.nodes
+    return Array.isArray(nodes) && nodes.some((node) => node?.id === nodeId && node?.meta?.narrowedModeGuidanceDismissed === true)
+  }, { projectIdValue, nodeIdValue })
+  await getWin().waitForFunction(async ({ projectId: id, nodeId }) => {
+    const projects = window.nomiDesktop?.projects
+    if (!projects || !id || !nodeId) return false
+    const record = projects.readAsync ? await projects.readAsync(id) : projects.read(id)
+    const nodes = record?.payload?.generationCanvas?.nodes
+    return Array.isArray(nodes) && nodes.some((node) => node?.id === nodeId && node?.meta?.narrowedModeGuidanceDismissed === true)
+  }, { projectId, nodeId: firstNodeId }, { timeout: 10_000 })
+  const persistedDismissal = await readPersistedDismissal(projectId, firstNodeId)
+  assert(persistedDismissal, '关闭标记已落到当前项目的节点快照', String(persistedDismissal))
+  await screenshotSettled(getWin(), { path: path.join(shotsDir, '02-dismissed-on-first-node.png') })
+  console.log('  · 截图 02（当前节点关闭后，提示消失）')
+
+  // 当前节点的关闭不应扩散到其它节点：新建第二个同款 Runway 节点，提示仍应出现。
+  await newVideoNodeWithModel('DRunway Seedance 2Runway Dev')
+  await expectVisible(guidance(), '另一个节点仍显示同一条收窄提示（关闭状态不跨节点）')
+  const secondNodeId = await guidance().evaluate((note) => note.closest('.react-flow__node')?.getAttribute('data-id') || null)
+  assert(Boolean(secondNodeId) && secondNodeId !== firstNodeId, '第二个提示属于不同的生成节点', JSON.stringify({ firstNodeId, secondNodeId }))
+  const secondGuidance = getWin().locator(`.react-flow__node[data-id="${secondNodeId}"] [data-testid="narrowed-mode-guidance"]`).first()
+  await expectVisible(secondGuidance, '第二个节点的提示定位与节点边界一致')
+  const firstNodeBeforeReopen = getWin().locator(`.react-flow__node[data-id="${firstNodeId}"]`).first()
+  await firstNodeBeforeReopen.click({ force: true })
+  await waitForVisualQuiescence(getWin())
+  const firstNodeAfterSecond = await getWin().evaluate((nodeId) => {
+    const node = [...document.querySelectorAll('.react-flow__node[data-id]')]
+      .find((candidate) => candidate.getAttribute('data-id') === nodeId)
+    return {
+      chipText: node?.querySelector('button[aria-label="模型"]')?.textContent?.trim() || null,
+      guidance: Boolean(node?.querySelector('[data-testid="narrowed-mode-guidance"]')),
+    }
+  }, firstNodeId)
+  assert(!firstNodeAfterSecond.guidance, '第二个节点出现提示后第一个节点仍保持关闭', JSON.stringify(firstNodeAfterSecond))
+
+  // ④ 重新打开同一个项目：第一个节点的关闭标记来自项目快照，不依赖组件 state。
+  const projectName = await getWin().evaluate(async (id) => {
+    const projects = window.nomiDesktop?.projects
+    const rows = projects?.listAsync ? await projects.listAsync() : projects?.list() || []
+    return rows.find((row) => row?.id === id)?.name || ''
+  }, projectId)
+  const backToLibrary = getWin().getByRole('button', { name: '项目库', exact: false }).first()
+  await backToLibrary.click()
+  const reopenedCard = getWin().locator('[data-project-card]', { hasText: projectName }).first()
+  await reopenedCard.waitFor({ timeout: 10_000 })
+  await reopenedCard.click()
+  await getWin().waitForFunction((id) => window.location.href.includes(`projectId=${encodeURIComponent(id)}`), projectId, { timeout: 30_000 })
+  await getWin().getByRole('button', { name: '生成', exact: true }).first().click()
+  const firstNode = getWin().locator(`.react-flow__node[data-id="${firstNodeId}"]`).first()
+  await firstNode.waitFor({ timeout: 10_000 })
+  await firstNode.click({ force: true })
+  await waitForVisualQuiescence(getWin())
+  const reopenedFirstState = await getWin().evaluate(() => {
+    const card = document.querySelector('.generation-canvas-v2-node__composer-card')
+    return {
+      nodeId: card?.closest('.react-flow__node')?.getAttribute('data-id') || null,
+      chipText: card?.querySelector('button[aria-label="模型"]')?.textContent?.trim() || null,
+    }
+  })
+  assert(reopenedFirstState.nodeId === firstNodeId, '重开后重新选中了第一个节点', JSON.stringify(reopenedFirstState))
+  await expectAbsent(guidance(), { provenBy: proof, message: '重开项目后第一个节点仍记得关闭状态' })
+  console.log('  · 重开项目后第一个节点提示仍关闭')
+
+  // ⑤ 另建一个未关闭的节点，继续验证原有「换到 X」动作；不把范围外的多节点换家行为混入关闭验收。
+  await newVideoNodeWithModel('DRunway Seedance 2Runway Dev')
+  await expectVisible(guidance(), '第三个节点仍可显示收窄提示')
+  const switchNodeId = await guidance().evaluate((note) => note.closest('.react-flow__node')?.getAttribute('data-id') || null)
+  assert(Boolean(switchNodeId) && switchNodeId !== firstNodeId, '换家用例使用未关闭的第三个节点', String(switchNodeId))
+  const switchGuidance = getWin().locator(`.react-flow__node[data-id="${switchNodeId}"] [data-testid="narrowed-mode-guidance"]`).first()
+  const guidanceNodeBeforeSwitch = await switchGuidance.evaluate((note) => note.closest('.react-flow__node')?.getAttribute('data-id') || null)
+  assert(guidanceNodeBeforeSwitch === switchNodeId, '换家按钮来自第三个节点', guidanceNodeBeforeSwitch)
+  const secondSwitchButton = switchGuidance.getByRole('button', { name: /换到/ }).first()
+
   const termsBefore = await modeTerms()
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '01-narrowed-guidance-runway-seedance2.png') })
   console.log(`  · 截图 01（提示原文：${guidanceText}）`)
@@ -234,7 +335,7 @@ try {
   // 那个 fixed 浮层（x578-898 / y280-688）正好压住按钮所在的 (710, 571)，
   // elementFromPoint 命中的是浮层里的「比例」radiogroup —— 那种状态下真人点不到。
   // 本走查因此不开浮层；下面的命中测试把这条不变量钉死，将来若有别的东西盖上来会立刻红。
-  const overlapReport = await guidance().evaluate((note) => {
+  const overlapReport = await switchGuidance.evaluate((note) => {
     const button = note.querySelector('button')
     if (!button) return { found: false }
     const rect = button.getBoundingClientRect()
@@ -258,12 +359,14 @@ try {
     JSON.stringify(overlapReport),
   )
   // 真点击，不加 force：这一步同时验证「点得到」和「点了有反应」。
-  await switchButton.click()
+  await secondSwitchButton.click()
   await getWin().waitForTimeout(1400)
   // 模型芯片 = 节点卡片上那个 aria-label="模型" 的按钮。**不能**用「文本里含 KIE/Runway」去找：
   // 指路提示自己的「换到 KIE.AI」按钮也含 KIE，会先命中，造成「切换成功」的假绿（实测踩到过）。
-  const modelChipAfter = await getWin().evaluate(() => {
-    const card = document.querySelector('.generation-canvas-v2-node__composer-card')
+  const modelChipAfter = await getWin().evaluate((nodeId) => {
+    const card = [...document.querySelectorAll('.react-flow__node[data-id]')]
+      .find((node) => node.getAttribute('data-id') === nodeId)
+      ?.querySelector('.generation-canvas-v2-node__composer-card')
     const chip = card?.querySelector('button[aria-label="模型"]')
     const guidanceNote = document.querySelector('[data-testid="narrowed-mode-guidance"]')
     return {
@@ -275,7 +378,7 @@ try {
         text: b.textContent?.trim().slice(0, 30),
       })),
     }
-  })
+  }, switchNodeId)
   console.log(`  · 切换后节点状态：${JSON.stringify(modelChipAfter)}`)
   const termsAfter = await modeTerms()
   // 芯片显示的是**模型名**不是供应商名：Runway 那条叫「DRunway Seedance 2」，KIE 那条叫「DSeedance 2.0」。
@@ -292,7 +395,7 @@ try {
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '02-after-switch-to-kie.png') })
   console.log(`  · 截图 02（模式栏 ${JSON.stringify(termsBefore)} → ${JSON.stringify(termsAfter)}）`)
 
-  // ④ Cmd+Z 撤销。
+  // ⑥ Cmd+Z 撤销。
   //
   // 实测结论（探针 7 的对照实验）：**换模型这件事本来就不进撤销栈**——
   //   对照组 A：用模型下拉手动把 Runway Seedance 2 换成 Gemini Omni，再 Cmd+Z → 没回来；

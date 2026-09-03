@@ -28,12 +28,19 @@ export type ModeGuidanceCandidate = {
 /**
  * 指路结论。`kind` 三态与样张的 B / E 一一对应：
  * - `switch`：别家能做且**已接入** → 出一行提示 + 「换到 X」按钮（样张 B / D）。
- * - `none`：已接入的模型里没有一个能做 → 只说实话，**不给按钮**（样张 E）。
+ * - `none`：已接入的模型里没有一个能做 → 只说实话，**不给换家按钮**（样张 E）。
  * - `null`（函数返回 null）：没有被藏的模式，或判据不可信 → 什么都不说。
  */
 export type NarrowedModeGuidance =
   | { kind: 'switch'; hiddenModeTerms: string[]; target: ModeGuidanceCandidate }
   | { kind: 'none'; hiddenModeTerms: string[] }
+
+/** 节点级关闭标记：写进 node.meta，随项目快照一起持久化。 */
+export const NARROWED_MODE_GUIDANCE_DISMISSED_META_KEY = 'narrowedModeGuidanceDismissed'
+
+export function isNarrowedModeGuidanceDismissed(meta?: Record<string, unknown>): boolean {
+  return meta?.[NARROWED_MODE_GUIDANCE_DISMISSED_META_KEY] === true
+}
 
 /**
  * 「档案声明了、但这条渠道发不出」的模式。
@@ -95,10 +102,11 @@ export function useNarrowedModeGuidance(params: {
   selectedModelOption: ModelOption | null
   modelOptions: readonly ModelOption[]
   modeBodies: Record<string, ModeChannelBody>
+  nodeMeta?: Record<string, unknown>
 }): NarrowedModeGuidance | null {
-  const { archetype, selectedModelOption, modelOptions, modeBodies } = params
+  const { archetype, selectedModelOption, modelOptions, modeBodies, nodeMeta } = params
   return React.useMemo(() => {
-    if (!archetype || !selectedModelOption) return null
+    if (!archetype || !selectedModelOption || isNarrowedModeGuidanceDismissed(nodeMeta)) return null
     const candidates = candidatesForArchetype({
       options: modelOptions,
       archetypeId: archetype.id,
@@ -118,7 +126,7 @@ export function useNarrowedModeGuidance(params: {
           mode.id,
         ),
     })
-  }, [archetype, selectedModelOption, modelOptions, modeBodies])
+  }, [archetype, selectedModelOption, modelOptions, modeBodies, nodeMeta])
 }
 
 /**

@@ -62,7 +62,11 @@ import {
   archetypeVariantAxisIsLive,
   fallbackVisibleModeId,
 } from './controls/channelModeReach'
-import { referencesSectionIsEmpty, useNarrowedModeGuidance } from './controls/narrowedModeGuidance'
+import {
+  NARROWED_MODE_GUIDANCE_DISMISSED_META_KEY,
+  referencesSectionIsEmpty,
+  useNarrowedModeGuidance,
+} from './controls/narrowedModeGuidance'
 import NarrowedModeGuidanceNote from './controls/NarrowedModeGuidanceNote'
 import { resolveReferenceSlots, decideArrayReferenceRemoval } from '../runner/referenceSlots'
 import { useChannelCreateBodies } from './controls/useChannelCreateBody'
@@ -192,6 +196,7 @@ export default function NodeParameterControls({
     selectedModelOption,
     modelOptions,
     modeBodies,
+    nodeMeta: meta,
   })
 
   // P1 单一真相源：所有 meta 增量 patch 都从 store 读**最新** meta 再 spread，绝不基于渲染快照 prop
@@ -739,6 +744,7 @@ export default function NodeParameterControls({
           // 复用**已有的** handleModelChange = 与用户手动换模型同一条状态写入路径（updateNode 带 meta patch
           // → pushEditBurstBarrier），因此天然被 Cmd+Z 覆盖，不新开第二条切换路径。
           onSwitch={handleModelChange}
+          onDismiss={() => updateMeta({ [NARROWED_MODE_GUIDANCE_DISMISSED_META_KEY]: true })}
         />
       ) : null}
 

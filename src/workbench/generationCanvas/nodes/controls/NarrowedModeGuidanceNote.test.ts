@@ -18,9 +18,9 @@ vi.mock('react-i18next', async (importOriginal) => ({
   }),
 }))
 
-const render = (guidance: NarrowedModeGuidance, onSwitch = vi.fn()) =>
+const render = (guidance: NarrowedModeGuidance, onSwitch = vi.fn(), onDismiss = vi.fn()) =>
   renderToStaticMarkup(
-    React.createElement(NarrowedModeGuidanceNote, { guidance, currentVendorName: 'Runway', onSwitch }),
+    React.createElement(NarrowedModeGuidanceNote, { guidance, currentVendorName: 'Runway', onSwitch, onDismiss }),
   )
 
 describe('NarrowedModeGuidanceNote', () => {
@@ -35,12 +35,15 @@ describe('NarrowedModeGuidanceNote', () => {
     expect(html).toContain('KIE')
     expect(html).toContain('narrowedModeSwitchAction')
     expect(html).toContain('<button')
+    expect(html).toContain('narrowedModeGuidanceDismiss')
+    expect(html).toContain('aria-label')
   })
 
-  it('none 态：只说实话，绝不给按钮（样张 E）', () => {
+  it('none 态：只说实话，不给换家按钮，但仍可关闭提示（样张 E）', () => {
     const html = render({ kind: 'none', hiddenModeTerms: ['全能参考'] })
     expect(html).toContain('narrowedModeNone')
-    expect(html).not.toContain('<button')
+    expect(html).toContain('narrowedModeGuidanceDismiss')
+    expect(html).toContain('<button')
   })
 
   it('沿用已有的「诚实说一句」视觉层级，不发明新的', () => {

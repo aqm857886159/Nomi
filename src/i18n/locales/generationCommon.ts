@@ -647,6 +647,7 @@ export const zhGenerationCommon = {
     narrowedModeSeparator: '',
     narrowedModeSwitch: '{{vendor}} 上没有{{modes}}—— {{targetVendor}} 上有',
     narrowedModeSwitchAction: '换到 {{targetVendor}}',
+    narrowedModeGuidanceDismiss: '关闭模式提示',
     narrowedModeNone: '你接入的这条中转发不出{{modes}}—— 已接入的模型里也没有能做的',
   },
   assetReference: {
@@ -2248,6 +2249,7 @@ export const enGenerationCommon = {
     narrowedModeSeparator: ', ',
     narrowedModeSwitch: '{{vendor}} does not offer {{modes}} — {{targetVendor}} does',
     narrowedModeSwitchAction: 'Switch to {{targetVendor}}',
+    narrowedModeGuidanceDismiss: 'Dismiss mode availability hint',
     narrowedModeNone: 'The relay you connected cannot send {{modes}} — none of your connected models can either',
   },
   assetReference: {
