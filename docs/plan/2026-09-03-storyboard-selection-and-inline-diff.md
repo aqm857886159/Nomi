@@ -143,7 +143,7 @@
 注释会过期而没人删——`ARCHITECTURE-NOW.md` 的存在就是为了给出"现在真正跑的是什么"，
 而我没查它。同一个毛病今天第五次。
 
-### 7.3 参考区是**模型声明式**的——锚行同构时别画死格子数
+### 7.3 参考区是**模型声明式**的——锚行同构时别画死格子数（样张已接真实模式）
 
 用户 2026-09-03 提醒：「不同模型需要的参考数量、参考模式都不一样」。实查确认**这已经是既有行为**，
 不是要新设计的东西——`shotRowModel.ts:85 referenceZoneView()` 完全由 `ArchetypeMode.slots` derive：
@@ -166,6 +166,22 @@
 **锚自己也要选模型，所以锚行同样吃这套**：锚生成时若所选模型的模式声明了参考槽
 （例如「照这张脸画」），锚行那一格就该出现——不能因为「锚是被参考的」就假设它不吃参考。
 
+**本批落地的设计验收**：样张 `docs/design/mockups/2026-09-03-storyboard-anchor-row-and-param-rail.html`
+不再并列画死四态，而是用当天从 `MODEL_ARCHETYPES` 读取的真实模式快照，先按
+`referenceZoneView()` 的同一顺序 derive，再渲染 `none-accepted / namedSlots / hasArrayIntake`。
+可切换并截图的真实项为：`seedance-2 / t2v`（零槽）、`seedance-2 / first`（单具名槽）、
+`seedance-2 / firstlast`（首尾双具名槽）、`seedance-2 / omni`（image/video/audio 数组参考）、
+`happyhorse / edit`（source_video + image_ref）、`agnes-video / keyframes`（max 未公布）以及
+无档案默认。完整 89 个 archetype / 188 个 mode 见
+[`2026-09-03-storyboard-model-mode-inventory.md`](../design/2026-09-03-storyboard-model-mode-inventory.md)。
+两层契约和走查分别见 `docs/design/mockups/contracts/2026-09-03-storyboard-anchor-row-and-param-rail.*.mjs`
+与 `tests/ux/storyboard-anchor-model-modes.walk.mjs`；走查在每个模式间切换并断言 tile 数、
+`@` 入口与“不吃参考”状态，证明测的是 derive 输出而不是 fixture。
+
+**路径核对**：当前权威实现是 `src/workbench/generationCanvas/nodes/InlineParameterBar.tsx`
+（不是旧路径 `nodes/controls/InlineParameterBar.tsx`）。样张下沿复用其模型芯片 + 摘要 pill +
+统一参数面板形态；不得按过期注释恢复“前两个参数内联、其余收起”。
+
 ### 7.4 锚行第 3 格的反向引用需要新建派生索引
 
 样张里锚行第 3 格显示「3 镜在等它 + 那几镜缩略」，但**绑定关系目前由镜头的 `anchorIds`
@@ -178,3 +194,11 @@
 
 样张里我在下沿右侧放了锚名字，实查 `StoryboardAnchorCard.tsx:190` **名字已在卡片下方显示**——
 重复，按 §1.5「先分组→再去重」删掉。下沿右侧留空（或留给后续真正需要的信息）。
+
+### 7.6 独立锚卡与行内画面格：本批结论
+
+**不退场，但不在分镜表里复制一份完整锚卡。** `StoryboardAnchorCard.tsx` 的 108×144
+是全局锚管理/审阅投影：生成、重生成、锁定/解锁、描述编辑、删除和“被 N 镜引用”反查都集中在这里。
+行内 76×132 是镜头扫描投影：用户扫表时认产物、看当前模式的参考输入、改这一镜参数，不承担锚的全局生命周期。
+这两个尺寸不同是任务不同，不是尺寸没对齐；共享 `PlanAnchor`、运行态和反向索引，故不违反 P1。
+迁移时保留独立卡；只有未来确认所有锚生命周期动作都已迁入全局资源管理面，才另开一轮按证据退场，不能在本批顺手删。
