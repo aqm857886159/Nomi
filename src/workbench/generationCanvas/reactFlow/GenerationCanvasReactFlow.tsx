@@ -68,7 +68,7 @@ import { GenerationCanvasReactFlowOverlays } from './GenerationCanvasReactFlowOv
 import { GenerationCanvasReactFlowViewport } from './GenerationCanvasReactFlowViewport'
 import { useGenerationCanvasReactFlowPointer } from './useGenerationCanvasReactFlowPointer'
 import { useGenerationCanvasReactFlowProjection } from './useGenerationCanvasReactFlowProjection'
-import { collectCanvasDropTargets, resolveCanvasDropTarget } from './canvasConnectionDropTarget'
+import { resolveCanvasDropTargetFromDom } from './canvasConnectionDropTarget'
 import {
   useBrowserAssetImportEffects,
   useGenerationCanvasReactFlowHostEffects,
@@ -574,30 +574,12 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       cancelConnection()
       return
     }
-    const targetNodeId = resolveCanvasDropTarget(
-      { clientX: point.clientX, clientY: point.clientY },
-      started.nodeId,
-      collectCanvasDropTargets(
-        hostRef.current,
-        '.generation-canvas-v2-node[data-node-id]',
-        'data-node-id',
-        new Set(nodeById.keys()),
-      ),
-    )
+    const targetNodeId = resolveCanvasDropTargetFromDom({ clientX: point.clientX, clientY: point.clientY }, started.nodeId, hostRef.current, '.generation-canvas-v2-node[data-node-id]', 'data-node-id', new Set(nodeById.keys()))
     if (targetNodeId) {
       completeNodeConnection(targetNodeId)
       return
     }
-    const targetGroupId = resolveCanvasDropTarget(
-      { clientX: point.clientX, clientY: point.clientY },
-      '',
-      collectCanvasDropTargets(
-        hostRef.current,
-        '[data-group-id]',
-        'data-group-id',
-        new Set(visibleGroups.map((group) => group.id)),
-      ),
-    )
+    const targetGroupId = resolveCanvasDropTargetFromDom({ clientX: point.clientX, clientY: point.clientY }, '', hostRef.current, '[data-group-id]', 'data-group-id', new Set(visibleGroups.map((group) => group.id)))
     if (targetGroupId) {
       handleConnectToGroup(targetGroupId)
       return

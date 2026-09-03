@@ -5,16 +5,19 @@ export type CanvasDropTarget = {
   rect: Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom'>
 }
 
-export function collectCanvasDropTargets(
+export function resolveCanvasDropTargetFromDom(
+  point: CanvasDropPoint,
+  excludedId: string,
   root: ParentNode | null,
   selector: string,
   idAttribute: 'data-node-id' | 'data-group-id',
   allowedIds: ReadonlySet<string>,
-): CanvasDropTarget[] {
-  return Array.from(root?.querySelectorAll<HTMLElement>(selector) ?? []).flatMap((element) => {
+): string | null {
+  const targets = Array.from(root?.querySelectorAll<HTMLElement>(selector) ?? []).flatMap((element) => {
     const id = element.getAttribute(idAttribute)
     return id && allowedIds.has(id) ? [{ id, rect: element.getBoundingClientRect() }] : []
   })
+  return resolveCanvasDropTarget(point, excludedId, targets)
 }
 
 /**
