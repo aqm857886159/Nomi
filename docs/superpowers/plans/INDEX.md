@@ -41,6 +41,7 @@
 | [2026-08-23-seo-observatory.md](2026-08-23-seo-observatory.md) | SEO Observatory Implementation Plan | — |
 | [2026-08-24-p4-multishot-continuity.md](2026-08-24-p4-multishot-continuity.md) | P4 多镜头连续性（Semantic Multi-Shot）实施计划 · Rev.2 | — |
 | [2026-08-24-unified-agent-master-plan.md](2026-08-24-unified-agent-master-plan.md) | Nomi 统一 Agent 总体方案（Master Plan · Rev.2 · 2026-08-24） | — |
+| [2026-09-03-competitive-research-workflow.md](2026-09-03-competitive-research-workflow.md) | 竞品与开源能力研究工作流及 3D 导演台对齐 | 🚧 |
 | [2026-08-25-asset-library-native-paste.md](2026-08-25-asset-library-native-paste.md) | 素材库原生图片拖入与粘贴 Implementation Plan | — |
 | [2026-08-25-canvas-batch-model-picker.md](2026-08-25-canvas-batch-model-picker.md) | Canvas Batch Model Picker Implementation Plan | — |
 | [2026-08-25-comfyui-workflow-matrix.md](2026-08-25-comfyui-workflow-matrix.md) | ComfyUI 通用工作流矩阵验证 Implementation Plan | — |

@@ -1,0 +1,38 @@
+{
+  "skill": "research.competitive",
+  "evals": [
+    {
+      "id": "product-clickthrough-evidence",
+      "promptFile": "eval-1.md",
+      "assertions": [
+        "Defines one real user task and explicit non-goals before browsing",
+        "Uses Codex browser actions and places a screenshot beside every meaningful Action",
+        "Does not treat Login, Generate, a task ID or a loading state as success",
+        "Records result and design rationale for each action",
+        "Produces a report package that can pass the explicit research report gate"
+      ]
+    },
+    {
+      "id": "open-source-alignment",
+      "promptFile": "eval-2.md",
+      "assertions": [
+        "Reads official repository, official documentation, license and recent activity",
+        "Separates framework, code, model weights, body models and datasets",
+        "Maps the candidate to current Nomi file and line evidence",
+        "Chooses direct adoption, interaction borrowing, backend adaptation or rejection with trade-offs",
+        "Does not introduce a second renderer or claim commercial safety without license evidence"
+      ]
+    },
+    {
+      "id": "tikhub-blocked-account-study",
+      "promptFile": "eval-3.md",
+      "assertions": [
+        "Uses runtime-only TIKHUB_API_KEY and never repeats or persists the credential",
+        "Resolves stable account identity before collecting posts",
+        "Keeps metadata and download/transcription limits",
+        "Marks the study blocked on missing credentials, ambiguity, authentication or rate limits",
+        "Extracts promotion mechanisms without copying complete videos or scripts"
+      ]
+    }
+  ]
+}
