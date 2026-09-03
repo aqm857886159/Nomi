@@ -7,7 +7,7 @@ import { getDesktopBridge } from '../../desktop/bridge'
 import type { McpInfo } from '../../desktop/mcpBridgeTypes'
 import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
 import type { AutomationPolicySettings } from '../../../electron/settings/automationPolicyContract'
-import { buildAutomationSettingsView, type SettingsHostKey } from './settingsAutomationView'
+import { buildAutomationSettingsView } from './settingsAutomationView'
 
 const ConnectAssistantCard = lazyWithChunkBoundary('MCP', () =>
   import('../../ui/onboarding/ConnectAssistantCard').then((module) => ({ default: module.ConnectAssistantCard })),
@@ -78,7 +78,7 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
   const refreshMcpInfo = React.useCallback(() => {
     setMcpSnapshot(readMcpConnectionSnapshot())
   }, [])
-  const toggleHost = (host: SettingsHostKey, enabled: boolean): void => {
+  const toggleHost = (host: string, enabled: boolean): void => {
     if (host === 'nomi') return
     const next = new Set(settings.trustedHosts)
     if (enabled) next.add(host)
@@ -157,6 +157,11 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
               }}
               detailMode
             />
+            {/* TODO(ui-deferred, R8): CustomMcpClientCard — 自定义 MCP 客户端接入 UI。
+                底层能力（profile 注册表 / HMAC 签名 / watchFile 回流）已就绪（#298-v2）。
+                需先出 HTML mockup 样张、用户拍板（R8），再实现 CustomMcpClientCard 组件并挂在此处。
+                参考：docs/fixes/2026-09-03-generic-mcp-client-profiles.root-cause.json §ui_todo。
+            */}
           </React.Suspense>
         ) : (
           <div role="status" className="rounded-nomi bg-nomi-ink-05 px-3 py-3 text-caption leading-relaxed text-nomi-ink-60">

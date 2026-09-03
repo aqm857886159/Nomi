@@ -5,6 +5,11 @@ import { ipcMain } from "electron";
 import { assertTrustedSender } from "../ipcSenderGuard";
 import type { SkillProviderKind } from "./skillManifestSchema";
 import { readSkillRecords } from "./skillStore";
+import {
+  importSkillPackageToUserDir,
+  exportSkillPackageByName,
+  deleteUserSkill,
+} from "./skillPackage";
 
 export type SkillListItem = {
   directoryName: string;
@@ -69,4 +74,16 @@ export function registerSkillIpc(registerSyncIpc: RegisterSyncIpc): void {
     assertTrustedSender(event);
     return listSkillsForRenderer();
   });
+  // 三个写操作 handler —— 渲染层用 invokeSync 调，返回值结构与 skillPackage.ts 里的函数一致。
+  // 2026-09-03: PR #279 合入了渲染层解析逻辑和主进程落地函数，但忘了在这里注册，
+  // 导致渲染层一直收到 "No handler registered" 且 UI 静默（P0 回归）。
+  registerSyncIpc("nomi:skill:import", (raw: unknown) =>
+    importSkillPackageToUserDir(raw),
+  );
+  registerSyncIpc("nomi:skill:export", (dirName: unknown) =>
+    exportSkillPackageByName(String(dirName ?? ""), Date.now()),
+  );
+  registerSyncIpc("nomi:skill:delete", (dirName: unknown) =>
+    deleteUserSkill(String(dirName ?? "")),
+  );
 }
