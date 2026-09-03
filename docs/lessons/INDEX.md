@@ -59,6 +59,7 @@
 - [productionRun 这类 flake 的分腿处置](production-run-tests-are-flaky.md) — 验修复用 `git cat-file` 看代码，别看 PR 状态
 - [复现竞态必须有阳性对照](race-repro-needs-positive-control.md) — 没阳性对照的绿灯不作数；「换平台才能复现」多半是仪器没 power
 - [性能预算在 macOS 校准却在 Linux CI 执行 → 假回归](canvas-perf-budget-calibrated-on-macos-fails-on-linux.md) — 别改预算挤 PR，那是治症状
+- [在满载机器上用墙钟做一次性 A/B，不算性能证据](wallclock-bisect-on-a-busy-machine-is-not-evidence.md) — 「拆完 9.1s→47s」已被证伪；量 CPU 时间 + 交错 A/B + 先注入已知变慢验尺子
 - [harness 的 catch 会把自己的 bug 洗成产品结论](harness-catch-launders-bugs-into-verdicts.md) — 报某腿失败前先分清是断言红的还是 catch 编的
 - [A/B 两版提示词：确认关卡会污染两臂](prompt-ab-gating-question-confounds-arms.md) — 量到的是服从度不是质量
 - [探针测不到它命名的那件事，断言就永远绿](vacuous-probe-passes-forever.md) — 按路径过滤 fs 读 spy 恒空；四个会话判成「负载 flake」的那条其实恒真。变异测试是唯一判据，「永不发生」必配阳性对照
