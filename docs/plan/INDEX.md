@@ -190,7 +190,6 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
-| [2026-09-03-m5-packaged-graduation.md](2026-09-03-m5-packaged-graduation.md) | M5 打包真机毕业：零额度 MCP 全链、M0-M4 不变量复验与发版边界 | 🚧 |
 | [v0.7.1-execution.md](v0.7.1-execution.md) | v0.7.1 卡片可用性修复+媒体轨道抽象+性能 | 📎 |
 | [v0.8-execution-token-opt-and-phase-b.md](v0.8-execution-token-opt-and-phase-b.md) | v0.8 Token 优化 + Phase B 接入 | 📎 |
 | [v0.8-handoff-2026-05-30.md](v0.8-handoff-2026-05-30.md) | v0.8 用户旅程交接 | 📎 |
