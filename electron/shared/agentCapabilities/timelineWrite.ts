@@ -122,6 +122,6 @@ export const TIMELINE_WRITE_CAPABILITY = {
   approval: "proposal",
   projections: {
     pi: { description: "Apply or undo an approved project timeline edit." },
-    mcp: { description: "Preview, apply, or undo a revision-guarded timeline edit after Host approval." },
+    mcp: { description: "Preview/apply/undo revision-guarded timeline edits after Host approval." },
   },
 } as const satisfies CapabilityContract<TimelineWriteInput, TimelineWriteResult>;

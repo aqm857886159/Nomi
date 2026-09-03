@@ -234,6 +234,6 @@ export const ASSET_READ_CAPABILITY = {
   approval: "none",
   projections: {
     pi: { description: "Read bounded technical facts about active-project media." },
-    mcp: { description: "Query project media, metadata, source usage, or waveform data without changing the project." },
+    mcp: { description: "Query project media, metadata, sources, or waveforms." },
   },
 } as const satisfies CapabilityContract<AssetReadInput, AssetReadResult>;

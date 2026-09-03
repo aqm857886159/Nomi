@@ -48,7 +48,7 @@ const proposalSchema = {
 export const MCP_INTEGRATION_TOOL = {
   name: 'nomi_integration',
   title: '模型 / ComfyUI 接入：公开配置、凭据页、提案、确认、启动、取消。',
-  description: 'Agent 负责发现与适配；Nomi 负责密钥隔离、落库、认证和付费两相。不得传 key。',
+  description: 'Agent 发现/适配；Nomi 隔离密钥、落库、认证并执行付费两相；不得传 key。',
   inputSchema: {
     type: 'object',
     properties: {
@@ -60,8 +60,8 @@ export const MCP_INTEGRATION_TOOL = {
       docs: { type: 'string', maxLength: 65536 },
       providerKind: { type: 'string', maxLength: 80 },
       authType: { type: 'string', enum: ['none', 'bearer', 'x-api-key', 'query'] },
-      authHeader: { type: 'string', maxLength: 200, description: 'header 名，不是值。' },
-      authQueryParam: { type: 'string', maxLength: 200, description: 'query 名，不是值。' },
+      authHeader: { type: 'string', maxLength: 200, description: 'header 名（非值）。' },
+      authQueryParam: { type: 'string', maxLength: 200, description: 'query 名（非值）。' },
       clientRequestId: { type: 'string', maxLength: 200 },
       proposal: proposalSchema,
       idempotencyKey: { type: 'string', minLength: 1, maxLength: 200 },

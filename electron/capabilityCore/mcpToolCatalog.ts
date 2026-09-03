@@ -78,20 +78,20 @@ export const READ_RUN_DATA_TARGETS = Object.freeze(['run', 'run_events', 'artifa
 const READ_TOOL = {
   name: 'nomi_read',
   title: '读 Nomi 的任意只读投影（画布/项目/模型/生成上下文/Run/产物/接入会话）。',
-  description: '按 target 读一份安全只读投影；不改状态、不花钱。',
+  description: '按 target 读取只读投影；不改状态、不花钱。',
   inputSchema: {
     type: 'object',
     properties: {
-      target: { type: 'string', enum: READ_TARGETS, description: '读什么：canvas 画布 / projects 项目 / models 模型 / generation_context 生成上下文 / operation 生成草稿 / run 制作 Run / run_events 长轮询事件 / artifact 产物元数据 / artifact_content 产物全文 / integration 接入会话。' },
+      target: { type: 'string', enum: READ_TARGETS, description: '读取：canvas/projects/models/generation_context/operation/run/run_events/artifact/artifact_content/integration。' },
       projectId: { type: 'string' },
-      leaseHandle: { type: 'string', description: 'target∈{canvas,generation_context,operation} 需要。' },
-      runId: { type: 'string', description: 'target∈{run,run_events,artifact,artifact_content} 需要。' },
-      operationId: { type: 'string', description: 'target=operation 需要。' },
-      artifactId: { type: 'string', description: 'target∈{artifact,artifact_content} 需要。' },
-      sessionId: { type: 'string', description: 'target=integration 需要。' },
-      afterCursor: { type: 'integer', minimum: 0, default: 0, description: 'target=run_events 长轮询起点游标。' },
-      waitMs: { type: 'integer', minimum: 0, maximum: 25_000, default: 0, description: 'target=run_events 最多等待毫秒（≤25s）。' },
-      page: { type: 'integer', minimum: 0, description: 'target∈{projects,models} 分页页码。' },
+      leaseHandle: { type: 'string', description: 'target=canvas/generation_context/operation 必填。' },
+      runId: { type: 'string', description: 'target=run/run_events/artifact/artifact_content 必填。' },
+      operationId: { type: 'string', description: 'target=operation 必填。' },
+      artifactId: { type: 'string', description: 'target=artifact/artifact_content 必填。' },
+      sessionId: { type: 'string', description: 'target=integration 必填。' },
+      afterCursor: { type: 'integer', minimum: 0, default: 0, description: 'run_events 的起点游标。' },
+      waitMs: { type: 'integer', minimum: 0, maximum: 25_000, default: 0, description: 'run_events 最多等待 25 秒。' },
+      page: { type: 'integer', minimum: 0 },
     },
     required: ['target'],
     additionalProperties: false,
@@ -131,13 +131,13 @@ const READ_TOOL = {
 const ASSET_IMPORT_TOOL = {
   name: 'nomi_asset_import',
   title: '把本机图片/视频文件导入项目当素材，返回可引用的 nomi-local:// 地址。',
-  description: '导入本机文件为项目素材。只收 png/jpg/webp/gif/bmp/tiff/heic/mp4/mov/webm/m4v，单个 ≤64MB，须传绝对路径；系统/凭据目录（~/.ssh、~/.nomi）会被拒绝。',
+  description: '导入本机图片/视频素材；支持 png/jpg/webp/gif/bmp/tiff/heic/mp4/mov/webm/m4v，单文件≤64MB，须绝对路径；拒绝 ~/.ssh、~/.nomi。',
   inputSchema: {
     type: 'object',
     properties: {
       projectId: { type: 'string' },
-      path: { type: 'string', description: '本机文件的绝对路径，如 /Users/你/Desktop/参考.png' },
-      title: { type: 'string', description: '可选：素材名（不带扩展名也行，会自动补）' },
+      path: { type: 'string', description: '本机文件绝对路径。' },
+      title: { type: 'string', description: '可选素材名；自动补扩展名。' },
     },
     required: ['projectId', 'path'],
     additionalProperties: false,
@@ -150,17 +150,17 @@ const ASSET_IMPORT_TOOL = {
 const ARTIFACT_REVIEW_TOOL = {
   name: 'nomi_artifact_review',
   title: '审阅/修订版本化剧本或分镜：approve 采用 / request_changes 请求改 / reject 否决 / revise 起定点修订候选。',
-  description: '按 action 对当前版本的剧本或分镜表态或修订；只能操作你刚读到的版本（乐观锁）。',
+  description: '按 action 审阅/修订当前剧本或分镜版本；仅接受刚读到的版本（乐观锁）。',
   inputSchema: {
     type: 'object',
     properties: {
       projectId: { type: 'string' },
       runId: { type: 'string' },
       artifactId: { type: 'string' },
-      expectedVersion: { type: 'integer', minimum: 1, description: '你刚读到的当前版本；版本变化后请求会被拒绝。' },
+      expectedVersion: { type: 'integer', minimum: 1, description: '刚读到的版本；变更后拒绝。' },
       action: { type: 'string', enum: ['approve', 'request_changes', 'reject', 'revise'] },
-      kind: { type: 'string', enum: ['script', 'storyboard'], description: 'action=revise 必填：改剧本还是分镜。' },
-      instruction: { type: 'string', minLength: 1, maxLength: 4_000, description: 'action=revise 必填：只描述这次定点修改。' },
+      kind: { type: 'string', enum: ['script', 'storyboard'], description: 'action=revise 必填。' },
+      instruction: { type: 'string', minLength: 1, maxLength: 4_000, description: 'action=revise 必填；描述定点修改。' },
     },
     required: ['projectId', 'runId', 'artifactId', 'expectedVersion', 'action'],
     additionalProperties: false,
@@ -181,7 +181,7 @@ const ARTIFACT_REVIEW_TOOL = {
 const RUN_GATE_TOOL = {
   name: 'nomi_run_gate',
   title: 'Run 的确认门：decide 对可逆创意门（方向/定妆照）approve/reject / materialize 把已批分镜落画布并登记 jobs+预算。',
-  description: '按 action 处理 Run 的授权边界：decide 表态可逆创意门（不新增授权）；materialize 把已批分镜落地（登记 jobs/预算合同，不批准剧本/预算、不直接调付费模型）。',
+  description: '按 action 处理 Run 授权：decide 表态可逆创意门；materialize 将已批分镜落画布并登记 jobs/预算；不批剧本/预算、不直接调用付费模型。',
   inputSchema: {
     type: 'object',
     properties: {
@@ -189,12 +189,12 @@ const RUN_GATE_TOOL = {
       runId: { type: 'string' },
       action: { type: 'string', enum: ['decide', 'materialize'] },
       // action=decide（可逆创意门）
-      gateId: { type: 'string', description: 'action=decide：门 id，例如 gate-direction-v1。' },
-      decision: { type: 'string', enum: ['approved', 'rejected'], description: 'action=decide：批准或否决。' },
-      choiceKey: { type: 'string', description: 'action=decide 方向门专用：选中候选 key（来自 gate.waiting 的 directionCandidates）。' },
+      gateId: { type: 'string', description: 'action=decide 的门 id。' },
+      decision: { type: 'string', enum: ['approved', 'rejected'], description: 'action=decide 的决定。' },
+      choiceKey: { type: 'string', description: 'action=decide 方向门的候选 key。' },
       // action=materialize（$ 落地）
-      artifactId: { type: 'string', description: 'action=materialize：已批准的 storyboard artifact id。' },
-      expectedVersion: { type: 'integer', minimum: 1, description: 'action=materialize：你刚读到的分镜版本；版本变化后拒绝，避免覆盖新稿。' },
+      artifactId: { type: 'string', description: 'action=materialize 的已批准 storyboard artifact id。' },
+      expectedVersion: { type: 'integer', minimum: 1, description: 'action=materialize 的分镜版本；变更后拒绝。' },
     },
     required: ['projectId', 'runId', 'action'],
     additionalProperties: false,
@@ -212,21 +212,21 @@ const RUN_GATE_TOOL = {
 const RUN_START_TOOL = {
   name: 'nomi_run_start',
   title: '在项目里建一个可审阅的持久制作草稿（只记 brief + playbook，不批预算、不调付费模型）。',
-  description: '创建一个可审阅的制作草稿。只记录 brief 与 playbook，不批准预算、不调用付费模型。',
+  description: '创建制作草稿；只记 brief/playbook，不批预算、不调用付费模型。',
   inputSchema: {
     type: 'object',
     properties: {
-      projectId: { type: 'string', description: '目标 Nomi 项目 id' },
+      projectId: { type: 'string' },
       playbook: {
         type: 'string',
         enum: listProductionPlaybookNames(),
-        description: `制作 playbook。当前只实现了：${listProductionPlaybookNames().join('、')}；传其它值会被拒绝。`,
+        description: `可用 playbook：${listProductionPlaybookNames().join('、')}；其他值拒绝。`,
       },
-      playbookVersion: { type: 'string', description: '可选版本；默认 1.0.0' },
+      playbookVersion: { type: 'string', description: '可选；默认 1.0.0。' },
       brief: {
         type: 'object',
         properties: {
-          goal: { type: 'string', description: '要完成什么' },
+          goal: { type: 'string' },
           audience: { type: 'string' },
           channel: { type: 'string' },
           tone: { type: 'string' },
@@ -240,7 +240,7 @@ const RUN_START_TOOL = {
       trustLevel: {
         type: 'string',
         enum: ['key_confirm', 'budget_only', 'confirm_all'],
-        description: '可选信任档位：key_confirm 默认（方向/样片门都停）/ budget_only 只管钱（跳过创意与样片门）/ confirm_all 每镜确认。用户一上来就说「别问了直接出」时设 budget_only。',
+        description: '信任档位：key_confirm 默认（停方向/样片门）；budget_only 跳过创意/样片门、只管钱；confirm_all 每镜确认。要求直接出时用 budget_only。',
       },
     },
     required: ['projectId', 'playbook', 'brief'],
@@ -260,14 +260,14 @@ const RUN_START_TOOL = {
 const RUN_CONTROL_TOOL = {
   name: 'nomi_run_control',
   title: '控制持久制作 Run：pause 暂停 / resume 从断点继续 / cancel 取消 / set_trust 改信任档位。',
-  description: 'pause 保住已花预算与已完成镜头 / resume 不重做不重付 / cancel 未提交不计费 / set_trust 改档（配 trustLevel）。用户说「停一下/继续/别做了」用前三个；「别问了直接出」= set_trust 到 budget_only。',
+  description: 'pause 保留已花预算/已完成镜头；resume 不重做/不重付；cancel 未提交不计费；set_trust 改档（需 trustLevel）。',
   inputSchema: {
     type: 'object',
     properties: {
       projectId: { type: 'string' },
       runId: { type: 'string' },
       action: { type: 'string', enum: ['pause', 'resume', 'cancel', 'set_trust'] },
-      trustLevel: { type: 'string', enum: ['key_confirm', 'budget_only', 'confirm_all'], description: 'action=set_trust 时必填：key_confirm 五门全开 / budget_only 只管钱 / confirm_all 每镜确认' },
+      trustLevel: { type: 'string', enum: ['key_confirm', 'budget_only', 'confirm_all'], description: 'action=set_trust 必填：key_confirm 五门全开 / budget_only 只管钱 / confirm_all 每镜确认。' },
     },
     required: ['projectId', 'runId', 'action'],
     additionalProperties: false,
@@ -280,8 +280,8 @@ const RUN_CONTROL_TOOL = {
 const PROJECT_CREATE_TOOL = {
   name: 'nomi_project_create',
   title: '新建一个空白 Nomi 项目，返回项目 id。',
-  description: '新建一个空白 Nomi 项目，返回项目 id。',
-  inputSchema: { type: 'object', properties: { name: { type: 'string', description: '项目名（可选）' } }, additionalProperties: false },
+  description: '新建空白 Nomi 项目并返回 projectId。',
+  inputSchema: { type: 'object', properties: { name: { type: 'string' } }, additionalProperties: false },
   method: 'project.create',
   build: (a: Record<string, unknown>): Record<string, unknown> => (a.name ? { name: a.name } : {}),
 } as const

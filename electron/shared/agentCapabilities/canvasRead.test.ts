@@ -122,7 +122,7 @@ describe("canvas.read canonical contract", () => {
           description: "Read the current generation canvas (nodes + edges).",
         },
         mcp: {
-          description: "Read a project's generation canvas as compact nodes and edges for planning.",
+          description: "Read the project canvas as compact nodes and edges.",
         },
       },
     });
