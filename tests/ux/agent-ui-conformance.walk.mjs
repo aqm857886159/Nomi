@@ -151,7 +151,15 @@ function checkGeometry(elem, actualRect, anchor, specRef, injectedFaults = {}) {
     pass(anchor, specRef, `宽度 ${actualRect.w}px ✓`)
   }
 
-  if (Math.abs(actualRect.h - faultyExpected.h) > hTol) {
+  // responsiveH: 元素高度响应式（flex-1 占满剩余空间），不与样张固定高度对比；
+  // 改为相对关系断言：高度必须 > 0（元素可见且有内容区）。
+  if (elem.responsiveH) {
+    if (actualRect.h > 0) {
+      pass(anchor, specRef, `高度 ${actualRect.h}px >0（响应式，不断言固定值）✓`)
+    } else {
+      fail(anchor, specRef, `高度为 0：元素不可见或被压缩至消失`)
+    }
+  } else if (Math.abs(actualRect.h - faultyExpected.h) > hTol) {
     fail(anchor, specRef, `高度不符: 期望 ${faultyExpected.h}px（容差 ±${Math.round(hTol)}px = max(${TOKEN_STEP_PX}px, ${MAGNITUDE_RATIO*100}%)），实测 ${actualRect.h}px（差 ${actualRect.h - faultyExpected.h > 0 ? '+' : ''}${actualRect.h - faultyExpected.h}px）`)
   } else {
     pass(anchor, specRef, `高度 ${actualRect.h}px ✓`)
@@ -201,9 +209,9 @@ async function sendAgentMessage(page, text) {
     }
   }
   await input.fill(text)
-  // 找发送按钮：优先用 aria-label，退化到 data-agent-send
+  // 找发送按钮：优先用 aria-label，退化到 data-agent-composer-send
   const sendBtn = page.getByRole('button', { name: /生成 AI 发送|创作 AI 发送|发送/ }).first()
-  const sendFallback = page.locator('[data-agent-send="true"]').first()
+  const sendFallback = page.locator('[data-agent-composer-send="true"]').first()
   try {
     await sendBtn.click({ timeout: 3000 })
   } catch {
@@ -502,22 +510,22 @@ if (POSITIVE_CONTROL) {
 // 这个映射表决定：当一个挂点找不到时，用哪个错误分类报错。
 // 背景知识来自对 src/workbench/ai/ProjectAgentResidentShell.tsx 的实查（不猜）：
 //
-// 【件1 已修·alias 并列挂】（实现加了 spec 名，保留旧名兼容）：
-//   - data-agent-usage-pill      → 已加（旧 data-agent-usage 兼容保留）
-//   - data-agent-history         → 已加（旧 data-agent-thread-trigger 兼容保留）
+// 【件1 已修·spec 名已单独挂（旧名已删）】：
+//   - data-agent-usage-pill      → 已加
+//   - data-agent-history         → 已加
 //   - data-agent-collapse        → 已加（新增）
 //   - data-agent-input           → 已加（AutoGrowTextarea 透传 ...rest）
-//   - data-agent-composer-attach → 已加（旧 data-agent-attachment-trigger 兼容保留）
-//   - data-agent-composer-mode   → 已加（旧 data-agent-mode-trigger 兼容保留）
-//   - data-agent-composer-model  → 已加（旧 data-agent-model-trigger 兼容保留）
-//   - data-agent-composer-prompt → 已加（旧 data-agent-prompt-trigger 兼容保留）
-//   - data-agent-composer-send   → 已加（旧 data-agent-send 兼容保留）
+//   - data-agent-composer-attach → 已加
+//   - data-agent-composer-mode   → 已加
+//   - data-agent-composer-model  → 已加
+//   - data-agent-composer-prompt → 已加
+//   - data-agent-composer-send   → 已加
 //   - data-agent-user-bubble     → 已加（item.kind==='user' 时条件渲染）
 //   - data-agent-reply           → 已加（item.kind==='assistant' 时条件渲染）
-//   - data-agent-thinking-line   → 已加（旧 data-agent-thinking 兼容保留）
-//   - data-agent-tool-line       → 已加（旧 data-agent-tool-chips 兼容保留）
-//   - data-agent-queue-row       → 已加（旧 data-agent-queue-item 兼容保留）
-//   - data-agent-queue-remove    → 已加（旧 data-agent-queue-action="cancel" 兼容保留）
+//   - data-agent-thinking-line   → 已加
+//   - data-agent-tool-line       → 已加
+//   - data-agent-queue-row       → 已加
+//   - data-agent-queue-remove    → 已加
 //
 // 【真差距·元素不存在 → 交后续排期，不虚造 UI】：
 //   - data-agent-model-alert     → 无未选模型红点 UI
@@ -659,21 +667,21 @@ for (const elem of elements) {
       } else {
         // 真差距：挂点名不对或实现没有这个属性
         // 件1 已修的挂点如果回归出现在这里，说明实现被意外改回：
-        const hint = anchor === 'data-agent-usage-pill' ? '（件1 已修·回归：ProjectAgentResidentShell.tsx 应并列挂此属性）'
-          : anchor === 'data-agent-history' ? '（件1 已修·回归：应并列挂此属性）'
+        const hint = anchor === 'data-agent-usage-pill' ? '（件1 已修·回归：ProjectAgentResidentShell.tsx 应挂此属性）'
+          : anchor === 'data-agent-history' ? '（件1 已修·回归：应挂此属性）'
           : anchor === 'data-agent-collapse' ? '（件1 已修·回归：应在 collapse 按钮挂此属性）'
           : anchor === 'data-agent-input' ? '（件1 已修·回归：AutoGrowTextarea ...rest 透传应带此属性）'
-          : anchor === 'data-agent-composer-attach' ? '（件1 已修·回归：应并列挂此属性）'
-          : anchor === 'data-agent-composer-mode' ? '（件1 已修·回归：应并列挂此属性）'
-          : anchor === 'data-agent-composer-model' ? '（件1 已修·回归：应并列挂此属性）'
-          : anchor === 'data-agent-composer-prompt' ? '（件1 已修·回归：应并列挂此属性）'
-          : anchor === 'data-agent-composer-send' ? '（件1 已修·回归：应并列挂此属性）'
+          : anchor === 'data-agent-composer-attach' ? '（件1 已修·回归：应挂此属性）'
+          : anchor === 'data-agent-composer-mode' ? '（件1 已修·回归：应挂此属性）'
+          : anchor === 'data-agent-composer-model' ? '（件1 已修·回归：应挂此属性）'
+          : anchor === 'data-agent-composer-prompt' ? '（件1 已修·回归：应挂此属性）'
+          : anchor === 'data-agent-composer-send' ? '（件1 已修·回归：应挂此属性）'
           : anchor === 'data-agent-user-bubble' ? '（件1 已修·回归：item.kind==="user" 时应带此属性）'
           : anchor === 'data-agent-reply' ? '（件1 已修·回归：item.kind==="assistant" 时应带此属性）'
-          : anchor === 'data-agent-thinking-line' ? '（件1 已修·回归：ResidentUiPrimitives details 应并列挂此属性）'
-          : anchor === 'data-agent-tool-line' ? '（件1 已修·回归：ResidentToolChips section 应并列挂此属性）'
-          : anchor === 'data-agent-queue-row' ? '（件1 已修·回归：queue li 应并列挂此属性）'
-          : anchor === 'data-agent-queue-remove' ? '（件1 已修·回归：queue cancel button 应并列挂此属性）'
+          : anchor === 'data-agent-thinking-line' ? '（件1 已修·回归：ResidentUiPrimitives details 应挂此属性）'
+          : anchor === 'data-agent-tool-line' ? '（件1 已修·回归：ResidentToolChips section 应挂此属性）'
+          : anchor === 'data-agent-queue-row' ? '（件1 已修·回归：queue li 应挂此属性）'
+          : anchor === 'data-agent-queue-remove' ? '（件1 已修·回归：queue cancel button 应挂此属性）'
           // 仍未实现（元素不存在）：
           : anchor === 'data-agent-model-alert' ? '（元素不存在：无未选模型红点 UI，交后续排期）'
           : anchor === 'data-agent-receipt-undo' ? '（元素不存在：UI 无 undo 按钮，transitionProposalReceipt API 存在但无渲染）'
