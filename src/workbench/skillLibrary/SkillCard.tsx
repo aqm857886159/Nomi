@@ -85,7 +85,7 @@ export function SkillCard({
           className={cn(
             'shrink-0 whitespace-nowrap rounded-nomi-sm px-2 py-1 text-caption transition-colors',
             manifestUnavailable
-              ? 'cursor-not-allowed text-nomi-ink-35'
+              ? 'cursor-not-allowed text-nomi-ink-40'
               : 'text-nomi-accent hover:bg-nomi-accent-soft',
           )}
         >

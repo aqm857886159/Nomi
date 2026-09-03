@@ -45,7 +45,6 @@ export const zhCreationAi = {
   },
   assistantMessage: {
     processing: '处理中',
-    stopped: '已停止',
     modelAria: '助手模型',
     modelHint: '助手使用的模型（建议选 GPT / Claude / DeepSeek 系，以稳定执行画布操作）',
   },
@@ -190,7 +189,6 @@ export const enCreationAi = {
   },
   assistantMessage: {
     processing: 'Processing',
-    stopped: 'Stopped',
     modelAria: 'Assistant model',
     modelHint:
       'Model used by the assistant. GPT, Claude, and DeepSeek families are recommended for reliable canvas actions.',

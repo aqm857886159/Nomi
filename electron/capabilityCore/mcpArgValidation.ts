@@ -22,7 +22,7 @@
 /** 校验器认识的 JSON Schema 关键字。目录里出现白名单以外的关键字 = 有人以为在校验其实没有 → 结构门报红。 */
 export const SUPPORTED_SCHEMA_KEYWORDS = new Set([
   'type', 'properties', 'required', 'items', 'enum',
-  'additionalProperties', 'minimum', 'maximum', 'maxItems',
+  'additionalProperties', 'minimum', 'maximum', 'minItems', 'maxItems',
   'minLength', 'maxLength',
   // 以下两个是纯描述性的（不产生校验行为），列入白名单以免结构门误报。
   'default', 'description',
@@ -104,6 +104,9 @@ function validateValue(value: unknown, schema: SchemaLike, path: string, issues:
     if (!Array.isArray(value)) {
       issues.push({ path, message: `必须是数组（收到 ${describeType(value)}）` })
       return
+    }
+    if (typeof schema.minItems === 'number' && value.length < schema.minItems) {
+      issues.push({ path, message: `至少 ${schema.minItems} 项（收到 ${value.length} 项）` })
     }
     if (typeof schema.maxItems === 'number' && value.length > schema.maxItems) {
       issues.push({ path, message: `最多 ${schema.maxItems} 项（收到 ${value.length} 项）` })
