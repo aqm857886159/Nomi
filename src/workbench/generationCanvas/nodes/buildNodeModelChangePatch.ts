@@ -25,6 +25,12 @@ export type BuildNodeModelChangePatchInput = {
   vendor?: string
 }
 
+export type NodeModelChangeSet = {
+  retained: Array<{ key: string; value: unknown }>
+  removed: Array<{ key: string; value: unknown }>
+  changedDefaults: Array<{ key: string; from: unknown; to: unknown }>
+}
+
 /** Single source of truth for both the per-node picker and bulk model changes. */
 export function buildNodeModelChangePatch({
   node,
@@ -33,7 +39,7 @@ export function buildNodeModelChangePatch({
   modelOptions,
   value,
   vendor,
-}: BuildNodeModelChangePatchInput): { meta: Record<string, unknown> } {
+}: BuildNodeModelChangePatchInput): { meta: Record<string, unknown>; changeset: NodeModelChangeSet } {
   const currentMeta = node.meta || {}
   const currentAddress = nodeSelectedModelAddress(currentMeta)
   const currentOption = findModelOptionByIdentifier(
@@ -47,6 +53,21 @@ export function buildNodeModelChangePatch({
   const previousControls = resolveRenderedControls(currentOption, currentMeta, isImageLike, isVideoLike)
   const controls = buildModelControls(nextOption?.meta, isImageLike, isVideoLike)
   const defaultPatch = defaultPatchForControls(controls)
+  const previousKeys = new Set(previousControls.map((control) => control.key))
+  const nextKeys = new Set(controls.map((control) => control.key))
+  const changeset: NodeModelChangeSet = {
+    retained: [...nextKeys]
+      .filter((key) => previousKeys.has(key) && Object.prototype.hasOwnProperty.call(currentMeta, key)
+        && (!Object.prototype.hasOwnProperty.call(defaultPatch, key) || Object.is(currentMeta[key], defaultPatch[key])))
+      .map((key) => ({ key, value: currentMeta[key] })),
+    removed: [...previousKeys]
+      .filter((key) => !nextKeys.has(key) && Object.prototype.hasOwnProperty.call(currentMeta, key))
+      .map((key) => ({ key, value: currentMeta[key] })),
+    changedDefaults: [...nextKeys]
+      .filter((key) => Object.prototype.hasOwnProperty.call(defaultPatch, key)
+        && (!Object.prototype.hasOwnProperty.call(currentMeta, key) || !Object.is(currentMeta[key], defaultPatch[key])))
+      .map((key) => ({ key, from: currentMeta[key], to: defaultPatch[key] })),
+  }
   const nextArchetype = resolveArchetypeForOption(nextOption)
   const aspectPatch = isVideoLike
     ? videoAspectDefaultPatch(controls, preferredVideoAspect(collectInputAspectRatios(node.id, edges, nodes)))
@@ -82,5 +103,5 @@ export function buildNodeModelChangePatch({
     if (promotedModeId) nextMeta = applyArchetypeModeSwitch(nextMeta, nextArchetype, promotedModeId)
   }
 
-  return { meta: nextMeta }
+  return { meta: nextMeta, changeset }
 }

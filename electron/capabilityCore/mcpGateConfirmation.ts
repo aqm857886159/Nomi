@@ -97,20 +97,36 @@ export function createGenerationGateConfirmation({ transport, clientSupportsElic
           nextAction: 'wait_for_reconciliation',
         }
       }
-      if (elicited.attestation != null && typeof transport.verifyClientGenerationConfirmation === 'function') {
-        const verified = await transport.verifyClientGenerationConfirmation(challenge, elicited.attestation)
-        const result = typeof verified === 'boolean' ? { confirmed: verified } : verified
-        if (result.confirmed === true) {
-          return {
-            challengeId: challenge.challengeId,
-            confirmed: true,
-            surface: 'client',
-            nextAction: 'in_client',
-            ...(result.receiptId ? { receiptId: result.receiptId } : {}),
-            ...(result.receiptToken ? { receiptToken: result.receiptToken } : {}),
+      // 客户端明确点了「是」。怎么算数，看它有没有附凭证（attestation）：
+      //
+      // · 附了凭证 → **必须验得过**才算数。验证器不在或验不过，都不降级成「光秃秃的同意」，落 Nomi
+      //   兜底卡重问——收到一份自己看不懂的凭证，比压根没收到更该谨慎。
+      // · 没附凭证 → 就地算数。这条的安全底线不在凭证上，而在走到这里之前已经成立的三件事：连接经
+      //   主进程 HMAC 认证（getAuthenticatedClient 非空）、只走 127.0.0.1、客户端声明了 elicitation
+      //   且用户在它那儿显式点了同意。
+      //
+      // 2026-09-03 用户拍板改的就是这一条。此前第二个条件是 `clientAttestation !== true`，而两个生产
+      // 签发点（generationDispatcher / runOwnedGenerationGateAuthority）**无条件**写死
+      // clientAttestation:true，于是这条分支在生产永远进不来；再加上验证器两个生产装配点都没接，
+      // 第一条也进不来——**「弹在调用方」这个主确认面在生产里整个是死的**：每次确认都被赶回 Nomi 应用，
+      // Nomi 没开就直接拒绝，哪怕用户已经在 Claude Code 里答应过。那面旗要求的东西没有任何实现能提供
+      // （标准 MCP 客户端不产出凭证，我们也没有验证器），所以它不是安全防线而是半成品开关，同 commit 删净。
+      if (elicited.attestation != null) {
+        if (typeof transport.verifyClientGenerationConfirmation === 'function') {
+          const verified = await transport.verifyClientGenerationConfirmation(challenge, elicited.attestation)
+          const result = typeof verified === 'boolean' ? { confirmed: verified } : verified
+          if (result.confirmed === true) {
+            return {
+              challengeId: challenge.challengeId,
+              confirmed: true,
+              surface: 'client',
+              nextAction: 'in_client',
+              ...(result.receiptId ? { receiptId: result.receiptId } : {}),
+              ...(result.receiptToken ? { receiptToken: result.receiptToken } : {}),
+            }
           }
         }
-      } else if (elicited.attestation == null && challenge.handoff?.clientAttestation !== true) {
+      } else {
         return {
           challengeId: challenge.challengeId,
           confirmed: true,

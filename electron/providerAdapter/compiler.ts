@@ -311,9 +311,13 @@ ${docsBlock(relevantDocs)}`;
       if (input.signal?.aborted) {
         throw input.signal.reason instanceof Error ? input.signal.reason : new Error("Adapter compilation cancelled");
       }
+      // AI 编译路的失败 = 我们没读懂这家的文档／它的契约过不了校验，跟用户填的东西无关。
+      // 与「这个 kind 根本没有通用协议」（serviceFallback 的 no_generic_contract）是两回事，
+      // 给用户的话与该点的按钮都不同，故原因在抛出点定死，不留给 UI 猜。
       failures.push({
         modelKey: selectedModel.modelKey,
         error: redactAdapterSecrets(error instanceof Error ? error.message : String(error)),
+        reason: "docs_not_understood",
       });
     }
   }

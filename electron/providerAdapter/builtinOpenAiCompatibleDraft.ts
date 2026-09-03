@@ -10,8 +10,9 @@
 // 直接用内置模板。模板不另起一份：复用 catalog/newapiTransport 这张中转接入用了很久的单一真相源，
 // 图生图协议、i2v 通道、参数键名那些血泪细节都在里面（P1 不造并行版）。
 // 后半段不打折：仍然拿真实请求验过才启用，不假设它能用。
-import { newapiTransportFor } from "../catalog/newapiTransport";
+import { newapiImageEditProfileForModel, newapiTransportFor } from "../catalog/newapiTransport";
 import { canHostPublicDocs } from "./docsDiscovery";
+import { assertAdapterModeInvariants } from "./validator";
 import type { BillingModelKind, HttpOperation, Model, Vendor } from "../catalog/types";
 import type { AdapterAuthType, AdapterModeDraft, AdapterModelDraft, ProviderAdapterDraft } from "./types";
 import type { AiSdkProviderKind } from "../catalog/types";
@@ -88,6 +89,7 @@ function modesForKind(
   kind: BillingModelKind,
   authType: AdapterAuthType,
   providerKind?: AiSdkProviderKind,
+  modelKey?: string,
 ): AdapterModeDraft[] {
   // 没有文档出处就诚实留空——这张卡来自内置标准契约，不是从某个页面读出来的（D4 缺口明着标）。
   const noSources = { sourceUrls: [] as string[] };
@@ -109,9 +111,23 @@ function modesForKind(
   };
   const modes: AdapterModeDraft[] = [{ taskKind: transport.taskKind, create: auth(transport.create), ...async, ...noSources }];
   // 图生图 / 图生视频各自注册一条：runtime 按 taskKind 选投递通道，缺了它连参考图的节点会被直接拒发。
-  if (transport.edit) modes.push({ taskKind: "image_edit", create: auth(transport.edit), ...noSources });
+  // 改图协议必须**按模型族 derive**，与接入落库路径（catalogCommit → newapiImageEditProfileForModel）同源：
+  // newapiTransportFor("image").edit 恒是 chat/completions 多模态，但 gpt-image 系 / dall-e-2 的改图端点是
+  // multipart /v1/images/edits。照 chat 那份发过去，中转如实回 400「This model is not supported on the Chat
+  // Completions endpoint」→ image_edit 模式认证失败 → 该模型根本没有改图通道，连了参考图的节点被直接拒发，
+  // 而这家中转其实完全支持改图。2026-09-03 自建中转 gpt-image-2 实测（真机 400 + 真机 multipart 200 双证）。
+  //
+  // referenceParam/referenceShape 必须声明：认证探针据此**注入一张参考图**（verifier.ts:144）。不声明就等于
+  // 拿「零参考图」去验一条改图通道——multipart 端点直接抛「图生图缺参考图」，chat 那份则验的是纯文生图，
+  // 两种都不是这条通道的真实用法。AI 编译路早被 validator.ts:299 强制声明，内置草稿绕过校验才漏到今天。
+  // 键各随各自的 wire：改图三种协议都读聚合的 reference_images（数组）；图生视频 body 读的是首帧单值
+  // image_url（newapiTransport.ts:211，那里注释写明不是裸 image 键）。写错键 = 探针注了参考却进不了报文。
+  if (transport.edit) {
+    const edit = kind === "image" ? newapiImageEditProfileForModel(modelKey || "").operation : transport.edit;
+    modes.push({ taskKind: "image_edit", create: auth(edit), referenceParam: "reference_images", referenceShape: "array", ...noSources });
+  }
   if (transport.imageToVideo) {
-    modes.push({ taskKind: "image_to_video", create: auth(transport.imageToVideo), ...async, ...noSources });
+    modes.push({ taskKind: "image_to_video", create: auth(transport.imageToVideo), referenceParam: "image_url", referenceShape: "single", ...async, ...noSources });
   }
   return modes;
 }
@@ -154,13 +170,20 @@ export function buildOpenAiCompatibleDraft(input: {
         model.kind === "image" || model.kind === "video" || model.kind === "audio"
           ? toDraftParameters(newapiTransportFor(model.kind).params)
           : [];
-      return {
+      const draftModel: AdapterModelDraft = {
         modelKey: model.modelKey,
         labelZh: model.labelZh,
         kind: model.kind,
         ...(parameters.length > 0 ? { parameters } : {}),
-        modes: modesForKind(model.kind, input.authType, input.providerKind),
+        modes: modesForKind(model.kind, input.authType, input.providerKind, model.modelKey),
       };
+      // 与 AI 编译路走**同一份**语义校验（P1 不留第二套判断）。此前这条路一次都没被校验过，
+      // 「参考类模式必须声明 referenceParam/referenceShape」对它结构性失效 —— image_edit 漏声明
+      // 多年没人拦，直到真中转实测才炸。线缆契约的声明缺失必须在构建期大声失败，不是运行期静默。
+      // 出处类约束（sources/sourceUrls 非空）与 create 的 strict 形状不适用于内置卡，
+      // 理由写在 assertAdapterModeInvariants 的注释里。
+      assertAdapterModeInvariants(draftModel);
+      return draftModel;
     }),
   };
 }

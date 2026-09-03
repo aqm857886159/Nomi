@@ -9,6 +9,7 @@ import path from 'node:path'
 import readline from 'node:readline'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { packagedMcpRuntime } from './_packagedMcpRuntime.mjs'
 
 const require = createRequire(import.meta.url)
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -35,45 +36,12 @@ function parseOption(name) {
   return index >= 0 ? String(process.argv[index + 1] || '') : ''
 }
 
-function packagedRuntime(bundlePath) {
-  const executablePath = process.platform === 'darwin' ? path.join(bundlePath, 'Contents', 'MacOS', 'Nomi') : bundlePath
-  const launcherPath =
-    process.platform === 'darwin'
-      ? path.join(bundlePath, 'Contents', 'Frameworks', 'Nomi Helper.app', 'Contents', 'MacOS', 'Nomi Helper')
-      : executablePath
-  const launcherScript =
-    process.platform === 'darwin'
-      ? path.join(
-          bundlePath,
-          'Contents',
-          'Resources',
-          'app.asar',
-          'dist-electron',
-          'capabilityCore',
-          'mcpNodeLauncher.js',
-        )
-      : path.join(
-          path.dirname(bundlePath),
-          'resources',
-          'app.asar',
-          'dist-electron',
-          'capabilityCore',
-          'mcpNodeLauncher.js',
-        )
-  assert(fs.existsSync(executablePath), `packaged executable missing: ${executablePath}`)
-  assert(fs.existsSync(launcherPath), `packaged launcher missing: ${launcherPath}`)
-  // `launcherScript` lives inside app.asar. Node's filesystem API intentionally
-  // cannot stat that virtual path, but the Electron helper resolves it when it
-  // loads the module. The packaged smoke uses the same asar path.
-  return { command: launcherPath, args: [launcherScript], packaged: true, executablePath }
-}
-
 /** Resolve a release bundle, or use the compiled Electron entry without exposing src/ to the child. */
 export function resolveRuntime() {
   const requested = parseOption('--packaged')
   const defaultBundle = path.join(repoRoot, 'release', 'mac-arm64', 'Nomi.app')
   if (requested || (process.platform === 'darwin' && fs.existsSync(defaultBundle))) {
-    return packagedRuntime(requested || defaultBundle)
+    return packagedMcpRuntime(requested || defaultBundle)
   }
   const electronPath = require('electron')
   const compiledEntry = path.join(repoRoot, 'dist-electron', 'main.js')

@@ -14,9 +14,18 @@ const PREVENTION_KINDS = new Set([
 const ENTRY_POINT_DISPOSITIONS = new Set(["enforced", "not-affected"]);
 const DEPENDENCY_DECISIONS = new Set(["not-applicable", "upgrade-now", "retain-with-exit"]);
 const RECURRENCE_CLASSIFICATIONS = new Set(["one_off", "recurring"]);
+const CHANGE_KINDS = new Set(["corrective", "structural"]);
 
 const HIGH_RISK_PREFIXES = [
   ".github/workflows/",
+  // 花钱确认面（2026-09-03 加）：决定「这次花钱要不要问人、问在哪、谁的同意算数」的三处。
+  // 加它们的理由是一次真事故：签发点无条件要求客户端凭证、而验证凭证的回调在两个生产装配点都没接——
+  // 两件事分开看都不像 bug，合起来把「弹在调用方」的主确认面整个堵死：用户在 Claude Code 里点了同意
+  // 也不算数，每次都被赶回 Nomi 应用，Nomi 没开就直接拒绝。这类改动必须写清「这一类的入口集在哪、
+  // 防线是什么」才放行，不能只靠单点 review。
+  "electron/capabilityCore/mcpGateConfirmation.ts",
+  "electron/capabilityCore/generationDispatcher.ts",
+  "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
   "electron/catalog/",
   "electron/assets/",
   "electron/comfyui/",
@@ -102,6 +111,96 @@ function pathExists(file, existingFiles) {
 
 function pathIsInScope(file, scopePaths) {
   return scopePaths.some((scope) => scopeCovers(scope, file));
+}
+
+function fileExists(file, existingFiles) {
+  return existingFiles.has(normalized(file));
+}
+
+function fileContent(file, fileContents) {
+  if (fileContents instanceof Map) return fileContents.get(normalized(file));
+  if (record(fileContents)) return fileContents[normalized(file)];
+  return undefined;
+}
+
+function hasNamedExport(source, name) {
+  const escaped = String(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const declaration = new RegExp(
+    `\\bexport\\s+(?:declare\\s+)?(?:async\\s+)?(?:function|class|const|let|var|interface|type|enum)\\s+${escaped}\\b`,
+  );
+  if (declaration.test(source)) return true;
+
+  const exportLists = String(source).matchAll(/\bexport\s+(?:type\s+)?{([\s\S]*?)}/g);
+  for (const match of exportLists) {
+    for (const member of match[1].split(",")) {
+      const parts = member.trim().split(/\s+as\s+/);
+      const exported = (parts.length > 1 ? parts.at(-1) : parts[0]).trim();
+      if (exported === name) return true;
+    }
+  }
+  return false;
+}
+
+function validateStructuralContract(contract, changed, existingFiles, label, fileContents) {
+  const errors = [];
+  const scopePaths = Array.isArray(contract?.scope_paths) ? contract.scope_paths : [];
+  const regressionTests = Array.isArray(contract?.regression_tests) ? contract.regression_tests : [];
+  const evidence = contract?.structural_evidence;
+
+  if (!record(evidence)) {
+    errors.push(`${label}: structural_evidence is required for structural contracts`);
+    return errors;
+  }
+
+  if (!nonEmptyTextArray(evidence.affected_paths)) {
+    errors.push(`${label}: structural_evidence.affected_paths must be a non-empty string array`);
+  } else {
+    for (const affectedPath of evidence.affected_paths) {
+      const clean = normalized(affectedPath);
+      if (!fileExists(clean, existingFiles)) errors.push(`${label}: structural affected path does not exist: ${affectedPath}`);
+      if (!changed.has(clean)) errors.push(`${label}: structural affected path was not changed in this diff: ${affectedPath}`);
+      if (!pathIsInScope(clean, scopePaths)) errors.push(`${label}: structural affected path is not covered by scope_paths: ${affectedPath}`);
+    }
+  }
+
+  if (!nonEmptyText(evidence.behavior_preservation)) {
+    errors.push(`${label}: structural_evidence.behavior_preservation is required`);
+  }
+  if (!nonEmptyText(evidence.verification_limits)) {
+    errors.push(`${label}: structural_evidence.verification_limits is required`);
+  }
+
+  if (!Array.isArray(evidence.preserved_exports)) {
+    errors.push(`${label}: structural_evidence.preserved_exports must be an array`);
+  } else {
+    for (const preserved of evidence.preserved_exports) {
+      if (!record(preserved) || !nonEmptyText(preserved.path) || !nonEmptyText(preserved.name)) {
+        errors.push(`${label}: every preserved_exports entry requires path and name`);
+        continue;
+      }
+      const cleanPath = normalized(preserved.path);
+      if (!fileExists(cleanPath, existingFiles)) {
+        errors.push(`${label}: preserved export path does not exist: ${preserved.path}`);
+        continue;
+      }
+      if (!changed.has(cleanPath)) errors.push(`${label}: preserved export path was not changed in this diff: ${preserved.path}`);
+      if (!pathIsInScope(cleanPath, scopePaths)) errors.push(`${label}: preserved export path is not covered by scope_paths: ${preserved.path}`);
+      const source = fileContent(cleanPath, fileContents);
+      if (typeof source !== "string") {
+        errors.push(`${label}: preserved export cannot be verified because file contents are unavailable: ${preserved.path}`);
+      } else if (!hasNamedExport(source, preserved.name.trim())) {
+        errors.push(`${label}: named export does not exist in ${preserved.path}: ${preserved.name}`);
+      }
+    }
+  }
+
+  for (const testFile of regressionTests) {
+    const clean = normalized(testFile);
+    if (!isTestFile(clean)) errors.push(`${label}: regression_tests entry is not a test file: ${testFile}`);
+    if (!existingFiles.has(clean)) errors.push(`${label}: regression test does not exist: ${testFile}`);
+    if (!changed.has(clean)) errors.push(`${label}: regression test was not changed in this diff: ${testFile}`);
+  }
+  return errors;
 }
 
 function isStructuralPreventionArtifact(file) {
@@ -227,7 +326,7 @@ function validateRecurringContract(contract, changed, existingFiles, label) {
   return errors;
 }
 
-function validateContract(contract, changed, existingFiles, index) {
+function validateContract(contract, changed, existingFiles, index, fileContents) {
   const label = nonEmptyText(contract?.id) ? contract.id : `contract #${index + 1}`;
   const errors = [];
   if (nonEmptyText(contract?.__file) && !changed.has(normalized(contract.__file))) {
@@ -236,7 +335,25 @@ function validateContract(contract, changed, existingFiles, index) {
   if (contract?.schema_version !== ROOT_CAUSE_CONTRACT_SCHEMA_VERSION) {
     errors.push(`${label}: schema_version must be ${ROOT_CAUSE_CONTRACT_SCHEMA_VERSION}`);
   }
-  for (const field of ["id", "problem_type", "symptom", "direct_cause", "class_root", "migration"]) {
+  if (!nonEmptyText(contract?.id)) errors.push(`${label}: id is required`);
+
+  const changeKind = contract?.change_kind === undefined ? "corrective" : contract.change_kind;
+  if (!CHANGE_KINDS.has(changeKind)) {
+    errors.push(`${label}: change_kind must be corrective or structural`);
+    return errors;
+  }
+  if (changeKind === "structural") {
+    if (!nonEmptyTextArray(contract?.scope_paths)) {
+      errors.push(`${label}: scope_paths must be a non-empty string array`);
+    }
+    if (!nonEmptyTextArray(contract?.regression_tests)) {
+      errors.push(`${label}: regression_tests must be a non-empty string array`);
+    }
+    errors.push(...validateStructuralContract(contract, changed, existingFiles, label, fileContents));
+    return errors;
+  }
+
+  for (const field of ["problem_type", "symptom", "direct_cause", "class_root", "migration"]) {
     if (!nonEmptyText(contract?.[field])) errors.push(`${label}: ${field} is required`);
   }
   for (const field of ["affected_population", "scope_paths", "entry_points", "invariants", "regression_tests", "residual_risks"]) {
@@ -306,7 +423,7 @@ export function inheritLegacyContractHashes(legacyHashes, baseContracts) {
   return inherited;
 }
 
-export function validateRootCauseChange({ changedFiles, contracts, existingFiles, legacyHashes = new Map() }) {
+export function validateRootCauseChange({ changedFiles, contracts, existingFiles, legacyHashes = new Map(), fileContents = new Map() }) {
   const changed = new Set(changedFiles.map(normalized));
   const existing = new Set([...existingFiles].map(normalized));
   const triggeredFiles = [...changed].filter(isHighRiskProductionFile).sort();
@@ -318,7 +435,7 @@ export function validateRootCauseChange({ changedFiles, contracts, existingFiles
     contract?.schema_version === ROOT_CAUSE_CONTRACT_SCHEMA_VERSION);
   const errors = [];
   for (const [index, contract] of changedCurrentContracts.entries()) {
-    errors.push(...validateContract(contract, changed, existing, index));
+    errors.push(...validateContract(contract, changed, existing, index, fileContents));
   }
   if (triggeredFiles.length === 0) return { ok: errors.length === 0, errors, triggeredFiles: [] };
 
