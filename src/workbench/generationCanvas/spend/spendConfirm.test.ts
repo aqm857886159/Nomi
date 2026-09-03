@@ -9,6 +9,10 @@ vi.mock('../../../desktop/bridge', () => ({
   getDesktopBridge: () => ({ events: etaBridge }),
 }))
 
+vi.mock('../../../desktop/activeProject', () => ({
+  getDesktopActiveProjectId: () => 'eta-context-project',
+}))
+
 describe('generation spend ETA copy', () => {
   it('uses historical P50/P90 as an interval', () => {
     const message = describeGenerationCost(2, 'video', {
@@ -33,8 +37,10 @@ describe('generation spend ETA copy', () => {
       modelVendor: 'relay', modelKey: 'canonical-video-id', modelAlias: 'video-model',
     } })
 
-    const message = describeGenerationCost(1, 'video', { ...context, projectId: 'eta-alias-regression' })
+    const message = describeGenerationCost(1, 'video', context)
 
+    expect(context.projectId).toBe('eta-context-project')
+    expect(etaBridge.generationEtaStats).toHaveBeenCalledWith('eta-context-project')
     expect(message).toContain('2–10')
     expect(message).not.toMatch(/预计约 5–20 分钟/)
   })
