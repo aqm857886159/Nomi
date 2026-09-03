@@ -281,7 +281,7 @@ function ReferencesDisclosure({ args, t, onChange }: { args: SemanticGenerationP
       <summary className="min-h-7 cursor-pointer list-none py-1 text-micro text-nomi-ink-60">{t('agentResident.referencesLabel')} · {references.length}</summary>
       <div className="grid gap-1 border-t border-nomi-line-soft py-1">
         {references.map((reference, index) => (
-          <div key={index} className="flex min-w-0 items-center gap-1 text-micro text-nomi-ink-70">
+          <div key={index} className="flex min-w-0 items-center gap-1 text-micro text-nomi-ink-80">
             <span className="min-w-0 flex-1 truncate">{reference && typeof reference === 'object' && 'assetId' in reference ? primitive((reference as { assetId?: unknown }).assetId) : t('agentResident.referencesLabel')}</span>
             <button type="button" className="grid size-6 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-10" aria-label={t('agentResident.removeReference')} onClick={() => onChange(updateSemanticGenerationReferences(args, references.filter((_, candidateIndex) => candidateIndex !== index)))}>×</button>
           </div>

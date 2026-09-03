@@ -95,13 +95,14 @@ export function decryptExtraHeaders(record: EncryptedNetworkConfig | undefined):
 export function resolveNetworkConfigForRead(
   vendor: Vendor,
   record: ApiKeyRecord | undefined,
-): { proxyUrl?: string; extraHeaders?: Record<string, string> } {
+): { proxyUrl?: string; proxyEnabled?: boolean; extraHeaders?: Record<string, string> } {
   const encrypted = record?.networkConfig;
   const proxyUrl = decryptProxyUrl(encrypted) || legacyProxyUrl(vendor);
   const decryptedHeaders = decryptExtraHeaders(encrypted);
   const extraHeaders = Object.keys(decryptedHeaders).length > 0 ? decryptedHeaders : legacyExtraHeaders(vendor);
   return {
     ...(proxyUrl ? { proxyUrl } : {}),
+    ...(vendor.network?.proxyEnabled !== undefined ? { proxyEnabled: vendor.network.proxyEnabled } : {}),
     ...(Object.keys(extraHeaders).length > 0 ? { extraHeaders } : {}),
   };
 }
@@ -124,7 +125,6 @@ export function applyPlainNetworkConfig(
 
   let nextProxy: EncryptedSecretValue | undefined = existingNetwork.proxyUrl;
   if (incoming.proxyUrl !== undefined) nextProxy = encryptProxyUrl(incoming.proxyUrl);
-
   let nextHeaders: Record<string, EncryptedSecretValue> | undefined = existingNetwork.extraHeaders;
   if (incoming.extraHeaders !== undefined) nextHeaders = encryptExtraHeaders(incoming.extraHeaders);
 
@@ -165,7 +165,7 @@ export function overlayDecryptedNetworkConfig(vendor: Vendor, record: ApiKeyReco
   if (!record?.networkConfig) return vendor;
   const resolved = resolveNetworkConfigForRead(vendor, record);
   const next: Vendor = { ...vendor };
-  if (resolved.proxyUrl) next.network = { ...(vendor.network || {}), proxyUrl: resolved.proxyUrl };
+  if (resolved.proxyUrl || resolved.proxyEnabled !== undefined) next.network = { ...(vendor.network || {}), ...(resolved.proxyUrl ? { proxyUrl: resolved.proxyUrl } : {}) };
   if (resolved.extraHeaders) {
     const meta = isJsonRecord(vendor.meta) ? vendor.meta : {};
     next.meta = { ...meta, extraHeaders: resolved.extraHeaders };
@@ -184,7 +184,7 @@ export function exportableVendorWithNetworkConfig(base: Vendor, record: ApiKeyRe
   const nextMeta = resolved.extraHeaders ? { ...(meta || {}), extraHeaders: resolved.extraHeaders } : meta;
   return {
     ...base,
-    ...(resolved.proxyUrl ? { network: { ...(base.network || {}), proxyUrl: resolved.proxyUrl } } : {}),
+    ...(resolved.proxyUrl || resolved.proxyEnabled !== undefined ? { network: { ...(base.network || {}), ...(resolved.proxyUrl ? { proxyUrl: resolved.proxyUrl } : {}) } } : {}),
     ...(nextMeta ? { meta: nextMeta } : {}),
   };
 }
@@ -229,8 +229,13 @@ export function resolveNetworkConfigForWrite(
 
   const rawNetwork = raw.network;
   if (rawNetwork !== undefined) {
-    const proxyUrl = isJsonRecord(rawNetwork) ? rawNetwork.proxyUrl : undefined;
-    out.proxyUrl = typeof proxyUrl === "string" ? proxyUrl : "";
+    const hasProxyUrl = isJsonRecord(rawNetwork) && Object.prototype.hasOwnProperty.call(rawNetwork, "proxyUrl");
+    const proxyUrl = hasProxyUrl && isJsonRecord(rawNetwork) ? rawNetwork.proxyUrl : undefined;
+    if (hasProxyUrl) out.proxyUrl = typeof proxyUrl === "string" ? proxyUrl : "";
+    else if (!encrypted?.proxyUrl) {
+      const legacyProxy = typeof existing?.network?.proxyUrl === "string" ? existing.network.proxyUrl.trim() : "";
+      if (legacyProxy) out.proxyUrl = legacyProxy;
+    }
   } else if (!encrypted?.proxyUrl) {
     const legacyProxy = typeof existing?.network?.proxyUrl === "string" ? existing.network.proxyUrl.trim() : "";
     if (legacyProxy) out.proxyUrl = legacyProxy;

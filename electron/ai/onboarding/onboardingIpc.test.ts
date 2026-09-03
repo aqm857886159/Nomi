@@ -25,7 +25,13 @@ describe("onboarding discovery IPC preserves the shared result contract", () => 
     const result = await handlers.get(`nomi:onboarding:${channel}`)?.({}, {
       baseUrl: "https://gateway.test/v1", apiKey: "secret", probe: "reachability",
     });
-    expect(result).toMatchObject({ ok: false, status: 200, failureKind: "auth", error: "expired" });
+    expect(result).toMatchObject({
+      ok: false,
+      status: 200,
+      failureKind: "auth",
+      error: expect.stringContaining("HTTP 200: provider returned expired."),
+    });
+    expect((result as { error?: string })?.error).toContain("Next:");
   });
 
   it.each(["list-models", "test-connection"])("classifies invalid addresses before the network: %s", async (channel) => {

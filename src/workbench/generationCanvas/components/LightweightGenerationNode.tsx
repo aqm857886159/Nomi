@@ -97,7 +97,7 @@ export function LightweightGenerationNode({
             <div className="min-w-0 truncate text-body-sm font-medium text-nomi-ink">
               {node.title || t('generationCommon.lightweightNode.untitled')}
             </div>
-            <div className="min-w-0 truncate text-micro text-nomi-ink-50">
+            <div className="min-w-0 truncate text-micro text-nomi-ink-40">
               {statusLabel}
             </div>
           </div>

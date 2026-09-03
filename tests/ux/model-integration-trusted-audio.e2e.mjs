@@ -146,24 +146,20 @@ async function run() {
 
     await withMcp(dirs, runtime, async (mcp) => {
       const current = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
-      const discovered = parseToolResult(await mcp.callTool('nomi_integration', {
-        action: 'discover',
+      const proposed = parseToolResult(await mcp.callTool('nomi_integration', {
+        action: 'propose',
         sessionId,
         expectedRevision: current.json.revision,
-      }, 60_000))
-      assert(!discovered.isError, `MCP discovers the audio fixture: ${discovered.text}`)
-      const candidate = discovered.json?.candidates?.find((item) => item.modelKey === 'tts-journey-audio')
-      assert(candidate?.kind === 'audio', 'discovery classifies the new model as audio')
-      const selected = parseToolResult(await mcp.callTool('nomi_integration', {
-        action: 'select',
-        sessionId,
-        expectedRevision: discovered.json.revision,
-        selections: [{ modelKey: candidate.modelKey }],
+        proposal: {
+          candidates: [{ modelKey: 'tts-journey-audio', kind: 'audio', evidence: ['docs', 'manual'], classification: 'supported' }],
+          selections: [{ modelKey: 'tts-journey-audio' }],
+        },
       }))
+      assert(!proposed.isError && proposed.json?.stage === 'needs_spend_confirmation', `MCP accepts the audio proposal: ${proposed.text}`)
       const requested = parseToolResult(await mcp.callTool('nomi_integration', {
         action: 'confirm',
         sessionId,
-        expectedRevision: selected.json.revision,
+        expectedRevision: proposed.json.revision,
         idempotencyKey: 'trusted-audio-certification',
       }))
       assert(!requested.isError && requested.json?.challengeId, 'MCP requests a signed immutable confirmation challenge')

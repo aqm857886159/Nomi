@@ -86,6 +86,24 @@ test('降档为 one_off（删 prevention）同样过结构层', () => {
   assert.equal(result.ok, true)
 })
 
+test('结构变更骨架包含路径、行为保持和验证局限证据，而不带 corrective fiction', () => {
+  const contract = buildSkeleton('test-structural', undefined, 'structural')
+  assert.equal(contract.change_kind, 'structural')
+  assert.deepEqual(Object.keys(contract.structural_evidence), [
+    'affected_paths',
+    'preserved_exports',
+    'behavior_preservation',
+    'verification_limits',
+  ])
+  assert.equal(Array.isArray(contract.structural_evidence.affected_paths), true)
+  assert.equal(Array.isArray(contract.structural_evidence.preserved_exports), true)
+  assert.match(contract.structural_evidence.behavior_preservation, /^TODO:/)
+  assert.match(contract.structural_evidence.verification_limits, /^TODO:/)
+  for (const key of ['problem_type', 'symptom', 'direct_cause', 'class_root', 'migration', 'generality_proof', 'recurrence', 'prevention', 'shared_boundaries', 'same_class_entry_points']) {
+    assert.equal(contract[key], undefined, `structural 骨架不应要求 corrective 字段：${key}`)
+  }
+})
+
 test('writeSkeleton 落盘为合法 JSON、拒绝覆盖、拒绝越界 id', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-contract-scaffold-'))
   try {

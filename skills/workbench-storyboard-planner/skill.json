@@ -14,6 +14,26 @@
   "permissions": [
     "create"
   ],
+  "storyboardProfile": {
+    "default": "genre.short-drama",
+    "templates": [
+      {
+        "key": "genre.short-drama",
+        "aspect": "9:16",
+        "dialogue": true,
+        "promptSkeleton": [
+          { "key": "shotSize", "label": "景别·运镜", "kind": "enum", "options": ["远景", "全景", "中景", "近景", "特写"] },
+          { "key": "emotion", "label": "情绪", "kind": "enum", "options": ["紧张", "温柔", "压抑", "轻松", "孤独"] }
+        ]
+      },
+      {
+        "key": "genre.free-form",
+        "aspect": "16:9",
+        "dialogue": false,
+        "promptSkeleton": []
+      }
+    ]
+  },
   "inputs": [
     {
       "name": "story",

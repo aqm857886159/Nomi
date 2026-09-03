@@ -247,6 +247,14 @@ export type ProjectAgentToolItem = ProjectAgentItemBase &
     text?: string;
     capability: ProjectAgentVersionRef;
     resultRef?: string;
+    /** Hash-free provenance projection from the Host-owned prompt receipt. */
+    provenance?: readonly Readonly<{
+      source: string;
+      sourceRef: string;
+      trust: string;
+      tainted: boolean;
+      assetEvidenceRef?: string;
+    }>[];
     /** Ref-only canonical Skill evidence; the body is re-read and hash-checked on the next turn. */
     skillLoad?: Readonly<{ name: string; packageVersion: string; contentHash: string }>;
   }>;
