@@ -12,7 +12,7 @@ import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
 import { useComfyuiPreviewStore } from '../store/comfyuiPreviewStore'
 import { isRecoverableTimeoutError } from './recoverableTimeout'
-import { recordModelFailure, recordModelSuccess, type ModelHealthIdentity } from './modelHealthMemory'
+import { recordNodeModelFailure, recordNodeModelSuccess } from './nodeModelHealth'
 import {
   beginSingletonBatch,
   isEntryCancelled,
@@ -232,18 +232,6 @@ export function reconcileNodeModeWithConnectedReferences(nodeId: string): void {
   })
 }
 
-/**
- * 结算时读节点当前绑定的**模型身份**（健康记忆的记账主体；meta 无 modelKey 的异常路径记空=跳过）。
- * 身份是 (vendor, modelKey) 而不是 modelKey：同名模型来自不同供应商，各家死活互不相干，
- * 记成一笔就等于「Kie 连败 → APIMart 也被判病」，换家机制随之失效（2026-09-03 复验实测）。
- */
-function currentNodeModelIdentity(nodeId: string): ModelHealthIdentity {
-  const meta = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)?.meta as
-    | Record<string, unknown>
-    | undefined
-  return { modelKey: meta?.modelKey, vendor: meta?.modelVendor ?? meta?.vendor }
-}
-
 // options 没有默认值：`= {}` 正是让调用点能省略托管同意的那个逃生口（F16b 根因）。
 // 去掉它之后，「谁问的用户」在编译期就必须有答案。
 export async function runGenerationNode(
@@ -363,7 +351,7 @@ export async function runGenerationNode(
         ?.assets?.autoSave?.({ url: result.url as string, suggestedName: title || undefined })
         .catch(() => undefined)
     }
-    recordModelSuccess(currentNodeModelIdentity(id))
+    recordNodeModelSuccess(id)
     useGenerationQueueStore.getState().markSettled(batchId, id, 'success')
     await persistActiveWorkbenchProjectNow().catch(() => {})
     return result
@@ -394,7 +382,7 @@ export async function runGenerationNode(
       })
       throw error
     }
-    recordModelFailure(currentNodeModelIdentity(id))
+    recordNodeModelFailure(id)
     // Store the RAW message; the UI (NodeErrorReport) runs classifyGenerationError
     // to show a human reason + hint + the raw detail. Keeping node.error a plain
     // string avoids a persisted-shape migration for existing project files.
