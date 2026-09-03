@@ -32,6 +32,6 @@
 
 ## 实施边界与验收
 
-- 外壳逻辑区保持在 `ProjectAgentResidentShell.tsx`；按渲染责任拆出 `resident/ResidentPanelHeader.tsx`、`resident/ResidentTranscript.tsx`、`composer/ResidentComposer.tsx`，必要时再拆 `resident/ResidentPinnedResult.tsx`，确保每个文件 ≤800 行。
+- 本轮整体 render 替换后外壳为 734 行，仍低于 800 行门槛，因此不为形式拆出新的并行外壳；可复用的审批、工具、引用、输入 primitives 继续留在 `resident/*` 与 `composer/*`。若后续增加状态，优先按 header/transcript/composer presentation 拆分，不复制 store/Host 管道。
 - 这是视觉/交互替换，不改断言器、不放宽尺寸容差、不伪造未驱达状态。已有 `ResidentUiPrimitives`、store、Host commands、附件/Skill/Prompt/Model API 继续作为唯一数据和行为来源。
 - 必须补齐前后真机截图与暗色截图，并用人眼对照样张；最终报告分别列出一致性断言的通过数、真差距数、状态未驱达数，及仍未驱达的状态原因。

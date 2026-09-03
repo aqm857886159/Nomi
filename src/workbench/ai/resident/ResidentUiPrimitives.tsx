@@ -1,7 +1,7 @@
 import React from 'react'
-import { IconAlertTriangle, IconArrowDown, IconArrowUp, IconCheck, IconChevronRight, IconCircleDashed, IconFileText, IconLayoutBoard, IconListCheck, IconLoader2, IconMessage, IconPhoto, IconPlayerPause, IconPlayerPlay, IconPlayerStopFilled, IconRobot, IconRotateClockwise, IconTimelineEvent, IconTool, IconTrash, IconVideo, IconX } from '@tabler/icons-react'
+import { IconAlertTriangle, IconCheck, IconChevronRight, IconCircleDashed, IconFileText, IconLayoutBoard, IconLoader2, IconMessage, IconPhoto, IconRobot, IconTimelineEvent, IconTool, IconVideo, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import type { ProjectAgentQueueItem, ProjectAgentStatus } from '../../../../electron/shared/projectAgentContracts'
+import type { ProjectAgentStatus } from '../../../../electron/shared/projectAgentContracts'
 import { partitionResidentProposalFields, residentProposalFieldKind, type ResidentApprovalDetail, type ResidentProposalData } from './residentProposalDisplay'
 import { formatResidentToolElapsed, residentToolElapsedMs } from './residentToolTiming'
 
@@ -31,29 +31,6 @@ export type ResidentToolChipData = Readonly<{
   updatedAt?: string
   elapsedMs?: number
 }>
-
-export type ResidentQueueSummary = Readonly<{
-  total: number
-  running: number
-  proposed: number
-  queued: number
-  hidden: number
-}>
-
-/** Keep queue accounting deterministic and independent from presentation. */
-function summarizeResidentQueue(
-  entries: readonly ProjectAgentQueueItem[],
-  visibleLimit = 3,
-): ResidentQueueSummary {
-  const safeLimit = Math.max(0, Math.floor(visibleLimit))
-  return {
-    total: entries.length,
-    running: entries.filter((entry) => entry.status === 'running').length,
-    proposed: entries.filter((entry) => entry.status === 'proposed').length,
-    queued: entries.filter((entry) => entry.status === 'queued').length,
-    hidden: Math.max(0, entries.length - safeLimit),
-  }
-}
 
 function ToolStatusIcon({ status }: { status: ProjectAgentStatus }): JSX.Element {
   if (status === 'running' || status === 'drafting') return <IconLoader2 size={14} className="animate-spin text-nomi-accent motion-reduce:animate-none" aria-hidden="true" />
@@ -186,53 +163,10 @@ export function ResidentApprovalCard({ title, iconName, summary, details, detail
   </article>
 }
 
-export function ResidentTaskRows({ entries, getLabel, getStatusLabel, editLabel, cancelLabel, stopLabel, deleteLabel, moveUpLabel, moveDownLabel, pauseLabel, resumeLabel, queueLabel, queueCountLabel, queueSummaryLabel, queueHiddenLabel, onEdit, onCancel, onDelete, onMove, onPause, onResume, onStop }: { entries: readonly ProjectAgentQueueItem[]; getLabel: (entry: ProjectAgentQueueItem) => string; getStatusLabel: (status: ProjectAgentStatus) => string; editLabel: string; cancelLabel: string; stopLabel: string; deleteLabel: string; moveUpLabel: string; moveDownLabel: string; pauseLabel: string; resumeLabel: string; queueLabel: string; queueCountLabel: string; queueSummaryLabel: string; queueHiddenLabel: string; onEdit: (entry: ProjectAgentQueueItem) => void; onCancel: (entry: ProjectAgentQueueItem) => void; onDelete: (entry: ProjectAgentQueueItem) => void; onMove: (entry: ProjectAgentQueueItem, direction: 'up' | 'down') => void; onPause: (entry: ProjectAgentQueueItem) => void; onResume: (entry: ProjectAgentQueueItem) => void; onStop?: (entry: ProjectAgentQueueItem) => void }): JSX.Element | null {
-  // Keep the composer and newest conversation visible. Users opt into the
-  // queue details instead of losing the dialogue to an auto-expanded list.
-  const [open, setOpen] = React.useState(false)
-  React.useEffect(() => {
-    setOpen(false)
-  }, [entries.length])
-  if (!entries.length) return null
-  const summary = summarizeResidentQueue(entries)
-  // Keep the closed summary compact; once the user explicitly opens it, all
-  // Host-owned queue entries remain actionable inside a bounded scroller.
-  const visibleEntries = open ? entries : entries.slice(0, 3)
-  const queuedEntries = entries.filter((entry) => entry.status === 'queued')
-  return <section className="space-y-1 border-t border-nomi-line-soft px-3 py-1.5" data-agent-queue="true">
-    <div className="flex min-w-0 items-center justify-between gap-2 text-micro text-nomi-ink-60">
-      <button type="button" className="inline-flex min-h-7 min-w-0 max-w-full items-center gap-1.5 rounded-nomi-sm px-1 text-left font-medium hover:bg-nomi-ink-05" aria-expanded={open} aria-controls="agent-queue-items" onClick={() => setOpen((value) => !value)}>
-        <IconChevronRight size={12} className={cn('transition-transform duration-[var(--nomi-transition-fast)] motion-reduce:transition-none', open && 'rotate-90')} aria-hidden="true" />
-        <IconListCheck size={13} className="shrink-0 text-nomi-ink-40" aria-hidden="true" /><span className="shrink-0">{queueLabel}</span><span className="min-w-0 truncate text-nomi-ink-40" data-agent-queue-summary="true">{queueCountLabel} · {queueSummaryLabel}{summary.hidden ? ` · ${queueHiddenLabel}` : ''}</span>
-      </button>
-      {onStop ? <button type="button" className="ml-auto inline-flex min-h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-nomi-sm px-1.5 text-workbench-danger transition-[background,color] duration-[var(--nomi-transition-fast)] hover:bg-workbench-danger-soft" data-agent-action="stop" aria-label={stopLabel} title={stopLabel} onClick={() => onStop(entries[0])}><IconPlayerStopFilled size={12} aria-hidden="true" />{stopLabel}</button> : null}
-    </div>
-     {open ? <ul id="agent-queue-items" className="m-0 grid max-h-40 list-none gap-1 overflow-y-auto overscroll-contain p-0">{visibleEntries.map((entry) => {
-       const queuedIndex = queuedEntries.findIndex((candidate) => candidate.queueItemId === entry.queueItemId)
-       const isQueued = entry.status === 'queued'
-       const canMoveUp = isQueued && queuedIndex > 0
-       const canMoveDown = isQueued && queuedIndex >= 0 && queuedIndex < queuedEntries.length - 1
-       const paused = isQueued && entry.paused === true
-       return <li key={entry.queueItemId} className="flex min-h-7 min-w-0 flex-wrap items-center gap-1.5 rounded-nomi-sm bg-nomi-ink-05 px-2 py-1 text-micro" data-agent-queue-row="true" data-agent-queue-paused={paused ? 'true' : undefined}>
-         <span className="size-1.5 shrink-0 rounded-pill bg-nomi-accent" aria-hidden="true" />
-         <span className="min-w-[4rem] flex-1 truncate text-nomi-ink-80">{getLabel(entry)}</span>
-         <span className="max-w-[5rem] shrink-0 truncate text-nomi-ink-40">{getStatusLabel(entry.status)}{paused ? ` · ${pauseLabel}` : ''}</span>
-         {isQueued ? <span className="ml-auto flex shrink-0 flex-wrap justify-end gap-0.5" data-agent-queue-actions="true">
-           <button type="button" data-agent-queue-action="edit" className="grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-10 hover:text-nomi-ink disabled:pointer-events-none disabled:opacity-30" aria-label={editLabel} title={editLabel} onClick={() => onEdit(entry)}><IconRotateClockwise size={13} aria-hidden="true" /></button>
-           <button type="button" data-agent-queue-action="move-up" className="grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-10 hover:text-nomi-ink disabled:pointer-events-none disabled:opacity-30" aria-label={moveUpLabel} title={moveUpLabel} disabled={!canMoveUp} onClick={() => onMove(entry, 'up')}><IconArrowUp size={13} aria-hidden="true" /></button>
-           <button type="button" data-agent-queue-action="move-down" className="grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-10 hover:text-nomi-ink disabled:pointer-events-none disabled:opacity-30" aria-label={moveDownLabel} title={moveDownLabel} disabled={!canMoveDown} onClick={() => onMove(entry, 'down')}><IconArrowDown size={13} aria-hidden="true" /></button>
-           <button type="button" data-agent-queue-action={paused ? 'resume' : 'pause'} className="grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-10 hover:text-nomi-ink" aria-label={paused ? resumeLabel : pauseLabel} title={paused ? resumeLabel : pauseLabel} onClick={() => paused ? onResume(entry) : onPause(entry)}>{paused ? <IconPlayerPlay size={13} aria-hidden="true" /> : <IconPlayerPause size={13} aria-hidden="true" />}</button>
-           <button type="button" data-agent-queue-action="delete" className="grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-workbench-danger-soft hover:text-workbench-danger" aria-label={deleteLabel} title={deleteLabel} onClick={() => onDelete(entry)}><IconTrash size={13} aria-hidden="true" /></button>
-         </span> : <button type="button" data-agent-queue-remove="true" className="ml-auto grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-workbench-danger-soft hover:text-workbench-danger" aria-label={cancelLabel} title={cancelLabel} onClick={() => onCancel(entry)}><IconX size={13} aria-hidden="true" /></button>}
-       </li>
-     })}</ul> : null}
-  </section>
-}
-
 export function ResidentThinkingState({ label, detail, open, onToggle }: { label: string; detail: string; open: boolean; onToggle: () => void }): JSX.Element {
   return <details open={open} className="rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05" data-agent-thinking-line="true"><summary className="flex min-h-7 cursor-pointer list-none items-center gap-1.5 px-2.5 py-1.5 text-micro text-nomi-ink-60" onClick={(event) => { event.preventDefault(); onToggle() }}><IconChevronRight size={12} className={cn('transition-transform duration-[var(--nomi-transition-fast)] motion-reduce:transition-none', open && 'rotate-90')} aria-hidden="true" /><IconRobot size={13} className="text-nomi-accent" aria-hidden="true" /><span className="font-medium">{label}</span></summary>{open ? <p className="m-0 border-t border-nomi-line-soft px-2.5 py-2 text-micro leading-relaxed text-nomi-ink-60">{detail}</p> : null}</details>
 }
 
-export function ResidentStreamingText({ text, streaming, streamingLabel }: { text: string; streaming: boolean; streamingLabel: string }): JSX.Element {
-  return <span className="whitespace-pre-wrap break-words" data-agent-streaming={streaming ? 'true' : 'false'}>{text}{streaming ? <span className="ml-0.5 inline-block h-[1em] w-px translate-y-[0.1em] rounded-pill bg-nomi-accent align-baseline motion-safe:animate-pulse" aria-label={streamingLabel} /> : null}</span>
+export function ResidentStreamingText({ text, streaming, streamingLabel, className }: { text: string; streaming: boolean; streamingLabel: string; className?: string }): JSX.Element {
+  return <span className={cn('whitespace-pre-wrap break-words', className)} data-agent-streaming={streaming ? 'true' : 'false'}>{text}{streaming ? <span className="ml-0.5 inline-block h-[1em] w-px translate-y-[0.1em] rounded-pill bg-nomi-accent align-baseline motion-safe:animate-pulse" aria-label={streamingLabel} /> : null}</span>
 }
