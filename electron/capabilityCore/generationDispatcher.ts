@@ -275,7 +275,7 @@ async function dispatchSemanticStub(
         costScope: challenge.challenge.costScope,
         maximumCost: challenge.challenge.reservationPreview.maximum,
         currency: challenge.challenge.reservationPreview.currency,
-        handoff: { challengeToken: challenge.token, contractHash, operationId: value?.operationId },
+        handoff: { challengeToken: challenge.token, clientAttestation: true, contractHash, operationId: value?.operationId },
       }
     }
   }
