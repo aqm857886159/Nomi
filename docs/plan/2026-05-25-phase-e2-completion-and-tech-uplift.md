@@ -1,5 +1,7 @@
 # Phase E.2 完成 + 长期主义技术栈升级 (v0.6.0)
 
+> 裁决：已被 v0.6.0 的 NodeRenderKind 体系取代；证据：`src/workbench/project/projectCategories.ts:4-19`、`docs/release-notes/v0.6.0.md:29-34`。
+
 日期：2026-05-25
 版本：v1
 状态：施工蓝图，已通过 4 项用户决策

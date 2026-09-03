@@ -1,5 +1,7 @@
 # 把 workspace 文件管理功能合并进发布线 main
 
+> 裁决：已在 main 的 Workspace/Project Explorer 链路中交付；证据：`electron/workspace/workspaceIpc.ts:97-120`、`docs/qa/workspace-folder-projects-qa.md:17-45`。
+
 > 状态：实施中
 > 触发：用户在另一个 AI 会话里、于父目录游离 HEAD（bf8a420）上做了一整套 workspace 文件管理功能（7 commits / ~4300 行），但从未合进 main。本地 app 由 main 构建，故看不到该功能。
 

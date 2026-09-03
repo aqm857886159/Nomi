@@ -1,5 +1,7 @@
 # 加模型表单 — 设计打磨方案（对照 Nomi 设计系统）
 
+> 裁决：已被现行模型设置/发现流程取代；证据：`src/ui/onboarding/OnboardingWizard.tsx:6-26`、`docs/plan/2026-08-16-model-settings-approved-implementation.md:26-32`。
+
 > 功能已跑通（预设/拉取/测试/保存全 OK）。这轮纯视觉/体验，逐条对照
 > `docs/design/nomi-design-system.md` 找违规与噪音。
 

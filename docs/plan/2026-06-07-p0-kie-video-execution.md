@@ -1,5 +1,7 @@
 # P0 执行范围 — kie 主路做到极致（含视频）
 
+> 裁决：已被现行 KIE Catalog 与统一认证流水线取代；证据：`electron/catalog/seedBuiltins.ts:137-168`、`docs/plan/2026-08-30-unified-model-integration-certification.md:46-77`。
+
 > 上位文档：`docs/plan/2026-06-07-model-onboarding-final-plan.md`（R7 定稿）。
 > 本文只定义 P0 的**执行边界**：动什么、不动什么、验收门、回滚。
 > 决策已拍：方向认可，先做 P0(kie 极致含视频)。

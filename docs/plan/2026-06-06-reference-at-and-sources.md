@@ -1,5 +1,7 @@
 # Plan：通用「素材引用」系统（不是 Seedance 专用模板）
 
+> 裁决：已被现行多媒体 @ 引用系统取代；证据：`src/workbench/generationCanvas/nodes/mentionCandidates.ts:101-148`、`docs/plan/2026-08-28-reference-media-mentions.md:1-10`。
+
 > **定位（用户 2026-06-06 拍板）**：这套逻辑**通用**——产品里任何「挑/加/引用一个素材」都用它，别给某个模型/功能写专用版（规则 1 并行版 + 违反通用第一）。生成参考只是它的第一个消费方。
 > 样张：`docs/design/mockups/2026-06-06-reference-at-v4.html`（4 态，已渲染）。方向已过设计师 + 真实用户 agent + 用户认可。
 > 规则：Rule 4 执行文档；UI 走 Rule 8 样张 + Rule 7 评审（已做）；架构对偶于「档案声明能力 / 供应商负责传输」。
