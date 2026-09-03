@@ -1,0 +1,111 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-agent-ui-v31-render-boundary",
+  "problem_type": "Approved Agent resident visual contract drift",
+  "symptom": "The live Agent panel kept the legacy three-row header and seven-button composer even though the v3.1 conformance hooks were present.",
+  "direct_cause": "The outer shell retained the legacy render tree after semantic hooks were added, so the visual contract and the existing Host-backed wiring were not changed at one presentation boundary.",
+  "class_root": "The resident presentation had no single approved v3.1 render boundary that owned header, transcript, queue, and composer composition while delegating state and commands to the existing stores and Host bridges.",
+  "affected_population": [
+    "All creation, generation, and preview users opening the resident Agent panel",
+    "Light and dark color schemes",
+    "Users using references, queue actions, model selection, skills, prompts, approvals, and receipt recovery"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/resident/ResidentUiPrimitives.tsx",
+    "src/workbench/ai/resident/ResidentReferenceChip.tsx",
+    "src/workbench/ai/resident/residentReferenceDisplay.ts",
+    "src/i18n/locales/agentResident.ts"
+  ],
+  "entry_points": [
+    "ProjectAgentResidentShell({ surface }) for the three resident work surfaces",
+    "ResidentReferenceChip for every composer reference projection",
+    "zhAgentResident/enAgentResident for all resident visible copy"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The governing invariant is the repository-approved v3.1 design and its generated conformance contract; no external provider contract decides this UI composition.",
+  "invariants": [
+    "The expanded resident shell has one header row, no current-scene chrome, and a user-readable remaining-rounds pill.",
+    "The composer has five functional clusters: attachment, execution mode, model, prompt, and send; secondary controls stay in menus.",
+    "Existing store subscriptions, Host commands, approval decisions, queue mutations, attachments, references, and i18n keys remain the source of truth.",
+    "Reference stale state is derived from machine-readable state signals, never localized copy matching."
+  ],
+  "generality_proof": "All three surfaces render the same ProjectAgentResidentShell and all composer references render through ResidentReferenceChip. Keeping the approved composition at that shared boundary prevents a later surface-specific JSX fork from reintroducing the legacy chrome.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "ProjectAgentResidentShell",
+      "responsibility": "Compose the v3.1 resident header, conversation flow, queue, and five-cluster composer around unchanged Host-backed state and callbacks."
+    },
+    {
+      "path": "src/workbench/ai/resident/ResidentReferenceChip.tsx",
+      "symbol": "ResidentReferenceChip",
+      "responsibility": "Render one compact @ reference token with explicit normal/stale semantics and removal callback."
+    },
+    {
+      "path": "src/i18n/locales/agentResident.ts",
+      "symbol": "zhAgentResident/enAgentResident",
+      "responsibility": "Keep visible resident copy human-readable and locale-parallel."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "ProjectAgentResidentShell({ surface: 'creation' | 'generation' | 'preview' })",
+      "disposition": "enforced",
+      "evidence": "The same render tree is used for all three surface values; only the captured target/context differs."
+    },
+    {
+      "path": "src/workbench/ai/resident/ResidentReferenceChip.tsx",
+      "entry_point": "ResidentReferenceChip",
+      "disposition": "enforced",
+      "evidence": "Every manual reference maps through this shared component before send-time context merging."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "A future semantic-hook-only change could again leave the visible resident render tree behind across every surface, while localized stale labels could reintroduce brittle classification.",
+    "same_class_scan": [
+      "rg ProjectAgentResidentShell across src/workbench",
+      "rg ResidentReferenceChip across src/workbench/ai",
+      "rg data-agent- and usageRounds across the resident shell, primitives, locale resources, and UX contract"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "invariant": "All resident surfaces use the v3.1 composition and all reference chips use machine-signal stale detection.",
+    "failure_mode": "The shell keeps Host/store behavior intact while unsupported visual states remain explicit in conformance output instead of being fabricated.",
+    "exception_policy": "none",
+    "strategy": "Keep visual composition at one shared render boundary and validate its reusable state projection with the resident reference test and real Electron conformance walk.",
+    "artifacts": [
+      "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "src/workbench/ai/resident/ResidentReferenceChip.tsx",
+      "src/workbench/ai/resident/residentReferenceDisplay.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/resident/residentReferenceDisplay.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/resident/residentReferenceDisplay.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "src/workbench/ai/resident/ResidentUiPrimitives.tsx"
+    ],
+    "rationale": "The old visual tree and its ResidentTaskRows component were replaced in these changed files; the queue command functions and Host data path remain and are rendered in the new light queue row."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls the resident visual contract.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration is needed. Existing references, queue records, thread snapshots, approvals, and receipt records continue through their existing store and Host paths.",
+  "residual_risks": [
+    "The current zero-cost conformance fixture does not drive compaction, tool/proposal receipts, queue, stale @ tokens, artifact/failure cards, or pinned result cards, so those states remain unproven in this turn.",
+    "Receipt undo is rendered only when the existing committed proposal record matches the completed Agent item; no synthetic receipt is created."
+  ]
+}

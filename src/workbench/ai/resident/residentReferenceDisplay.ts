@@ -25,6 +25,11 @@ export type ResidentReferencePresentation = Readonly<{
   accessibleLabel: string
 }>
 
+export function isResidentReferenceStale(state: string | undefined): boolean {
+  const normalized = state?.trim().toLowerCase() ?? ''
+  return normalized === 'stale' || normalized.endsWith('.referencechanged')
+}
+
 /**
  * Build the visible/accessible copy without inventing a revision.  A future
  * ContextSnapshot may pass `state` through the reference DTO; when absent we
