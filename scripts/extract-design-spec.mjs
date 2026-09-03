@@ -85,7 +85,11 @@ const CLASS_TO_ANCHOR = [
   { cssSelector: '.hico[title="收起"]', anchor: 'data-agent-collapse', specRef: 'A-01', screen: 'A',
     desc: '收起按钮', tolerances: { w: 2, h: 2 } },
   { cssSelector: '.flow', anchor: 'data-agent-flow', specRef: 'A-01', screen: 'A',
-    desc: '会话流（role=log）', tolerances: { w: 4 } },
+    desc: '会话流（role=log）',
+    // responsiveH: flow 是 flex-1 min-h-0，高度由窗口决定，不做固定值断言；
+    // 改为相对关系断言：flow 高度 > 0，且 > header + context + composer 三区高度之和（占满剩余空间）。
+    responsiveH: true,
+    tolerances: { w: 4 } },
   { cssSelector: '.divider:not(.stage-line)', anchor: 'data-agent-compaction-line', specRef: 'A-03', screen: 'A',
     desc: '压缩分隔线', tolerances: { h: 4 } },
   { cssSelector: '.divider.stage-line', anchor: 'data-agent-stage-line', specRef: 'A-05', screen: 'A',
