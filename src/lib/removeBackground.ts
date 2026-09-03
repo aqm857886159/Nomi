@@ -4,9 +4,7 @@ type RemoveBackgroundProgress = {
   total: number
 }
 
-type WorkerRequestInput =
-  | { type: 'preload' }
-  | { type: 'remove'; blob: Blob }
+type WorkerRequestInput = { type: 'remove'; blob: Blob }
 
 type WorkerResponse =
   | { id: number; type: 'done'; blob?: Blob }
@@ -66,10 +64,6 @@ function postWorkerRequest(
     pendingRequests.set(id, { resolve, reject, onProgress })
     worker.postMessage({ ...request, id })
   })
-}
-
-export function preloadRemoveBackground(): void {
-  void postWorkerRequest({ type: 'preload' }).catch(() => undefined)
 }
 
 export async function removeBackgroundBlob(

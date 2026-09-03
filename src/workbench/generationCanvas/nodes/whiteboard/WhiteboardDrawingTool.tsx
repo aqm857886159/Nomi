@@ -28,6 +28,7 @@ import {
 import { AspectRatioPopover, TOOL_ITEMS, ToolIconButton } from './WhiteboardToolbarControls'
 import { WhiteboardLibraryPanel, type WhiteboardLibraryTabKey } from './WhiteboardLibraryPanel'
 import { blobToDataUrl, removeBackgroundBlob } from '../../../../lib/removeBackground'
+import { removeBackgroundProgressMessage } from '../localImageOpPhase'
 import {
   ASSET_DRAG_MIME,
   assessDeleteTarget,
@@ -124,6 +125,9 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     const [removeBgBusy, setRemoveBgBusy] = React.useState(false)
     const [removeBgTargetId, setRemoveBgTargetId] = React.useState<string | null>(null)
     const [removeBgProgress, setRemoveBgProgress] = React.useState<number | null>(null)
+    // 首次抠图要下 ~50MB（启动预热已删）。只显示静态「抠图中」会让人以为卡死，
+    // 故把 worker 报上来的阶段 key 翻成人话，与节点画布共用同一份映射。
+    const [removeBgPhase, setRemoveBgPhase] = React.useState<string | null>(null)
     const [assetDragOver, setAssetDragOver] = React.useState(false)
     const [activeLibraryTab, setActiveLibraryTab] = React.useState<WhiteboardLibraryTabKey>('board')
     const leaferCanvasRef = React.useRef<LeaferCanvasHandle | null>(null)
@@ -406,10 +410,12 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
         setRemoveBgBusy(true)
         setRemoveBgTargetId(asset.id)
         setRemoveBgProgress(0)
+        setRemoveBgPhase(null)
         void (async () => {
           try {
-            const blob = await removeBackgroundBlob(asset.url, ({ current, total }) => {
+            const blob = await removeBackgroundBlob(asset.url, ({ key, current, total }) => {
               if (total > 0) setRemoveBgProgress(Math.round((current / total) * 100))
+              setRemoveBgPhase(removeBackgroundProgressMessage(key))
             })
             const file = new File([blob], `rmbg-${asset.id}-${createdAt}.png`, { type: 'image/png' })
             const localUrl = await persistNodeImageFile(file, ownerNodeId)
@@ -429,6 +435,7 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
             setRemoveBgBusy(false)
             setRemoveBgTargetId(null)
             setRemoveBgProgress(null)
+            setRemoveBgPhase(null)
           }
         })()
       },
@@ -460,8 +467,9 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                     role="status"
                     aria-label={t('generationCommon.whiteboard.removingBackgroundAria')}
                     aria-busy="true"
+                    data-testid="whiteboard-remove-bg-status"
                   >
-                    {t('generationCommon.whiteboard.removingBackground')}
+                    {removeBgPhase ?? t('generationCommon.whiteboard.removingBackground')}
                   </span>
                 ) : null}
               </div>

@@ -138,35 +138,96 @@ export function backfillWorkspaceOrigins(
   });
 }
 
+/**
+ * 单条合并逻辑（唯一实现）：把一条 record+origin 合进给定条目集合并返回新集合。
+ * 单条 `rememberWorkspace` 与批量 `rememberWorkspaces` 共用它——不留两份并行实现（P1）。
+ */
+function mergeWorkspaceEntry(
+  currentEntries: RecentWorkspaceEntry[],
+  record: WorkspaceProjectRecordV2,
+  origin?: WorkspaceOrigin,
+): RecentWorkspaceEntry[] {
+  const existing = currentEntries.find((entry) => entry.id === record.id);
+  // 已冻结的来源优先：保存/恢复/legacy 再发现都不能把外部项目改成 native。
+  const effectiveOrigin = storedOrigin(existing) ?? origin;
+  const rootPath = path.resolve(record.lastKnownRootPath as string);
+  const nextEntry = normalizeRecentWorkspaceEntry({
+    id: record.id,
+    name: record.name,
+    rootPath,
+    lastOpenedAt: Date.now(),
+    missing: !fs.existsSync(rootPath),
+    ...effectiveOrigin,
+  });
+  return [nextEntry, ...currentEntries.filter((entry) => entry.id !== record.id)];
+}
+
+function assertRegistrableRecord(record: WorkspaceProjectRecordV2): void {
+  if (!record.lastKnownRootPath) {
+    throw new Error("Workspace registry entry requires rootPath from the selected workspace");
+  }
+}
+
 export function rememberWorkspace(
   settingsRoot: string,
   record: WorkspaceProjectRecordV2,
   origin?: WorkspaceOrigin,
 ): RecentWorkspaceEntry[] {
-  if (!record.lastKnownRootPath) {
-    throw new Error("Workspace registry entry requires rootPath from the selected workspace");
-  }
+  assertRegistrableRecord(record);
 
   // 锁内重读→改→写：与并发的 host/app 串行，杜绝「后写覆盖先写丢条目」。
   return withRegistryLock(settingsRoot, () => {
-    const currentEntries = readRecentWorkspaceEntries(settingsRoot);
-    const existing = currentEntries.find((entry) => entry.id === record.id);
-    // 已冻结的来源优先：保存/恢复/legacy 再发现都不能把外部项目改成 native。
-    const effectiveOrigin = storedOrigin(existing) ?? origin;
-    const rootPath = path.resolve(record.lastKnownRootPath as string);
-    const nextEntry = normalizeRecentWorkspaceEntry({
-      id: record.id,
-      name: record.name,
-      rootPath,
-      lastOpenedAt: Date.now(),
-      missing: !fs.existsSync(rootPath),
-      ...effectiveOrigin,
-    });
-    const entries = currentEntries.filter((entry) => entry.id !== record.id);
-    const next = sortRecentWorkspaces([nextEntry, ...entries]);
+    const next = sortRecentWorkspaces(mergeWorkspaceEntry(readRecentWorkspaceEntries(settingsRoot), record, origin));
     writeRecentWorkspaces(settingsRoot, next);
     return next;
   });
+}
+
+/**
+ * 批量注册（性能根因边界三）：一次取锁、一次读、一次写地合并 N 条记录。
+ *
+ * 逐条 `rememberWorkspace` 在「发现阶段一次注册 N 个项目」时是 O(n²) 写放大——每条都要
+ * 取锁 + 重读整表 + 全量重写（实测 346 条 = 1752ms）。批量入口把它压成一次 IO；合并语义
+ * 与单条完全一致（共用 `mergeWorkspaceEntry`）。空数组不取锁、不写盘。
+ */
+export function rememberWorkspaces(
+  settingsRoot: string,
+  records: Array<{ record: WorkspaceProjectRecordV2; origin?: WorkspaceOrigin }>,
+): RecentWorkspaceEntry[] {
+  for (const { record } of records) assertRegistrableRecord(record);
+  if (!records.length) {
+    return sortRecentWorkspaces(readRecentWorkspaceEntries(settingsRoot));
+  }
+
+  return withRegistryLock(settingsRoot, () => {
+    let entries = readRecentWorkspaceEntries(settingsRoot);
+    for (const { record, origin } of records) {
+      entries = mergeWorkspaceEntry(entries, record, origin);
+    }
+    const next = sortRecentWorkspaces(entries);
+    writeRecentWorkspaces(settingsRoot, next);
+    return next;
+  });
+}
+
+/**
+ * 发现阶段的对账输入（性能根因边界一）：registry 里已知的 rootPath 集合，已 `path.resolve`
+ * 归一化。发现阶段据此跳过已注册目录——不读它们的 manifest、也不重注册它们。
+ */
+export function listRegisteredRootPaths(settingsRoot: string): Set<string> {
+  const known = new Set<string>();
+  for (const entry of readRecentWorkspaceEntries(settingsRoot)) {
+    if (!entry.rootPath) continue;
+    known.add(path.resolve(entry.rootPath));
+    // registry 存的是 path.resolve 过的路径，而扫盘拿到的目录可能经由符号链接
+    // （macOS 的 /tmp → /private/tmp）。两侧都登记 realpath，保证能对上。
+    try {
+      known.add(fs.realpathSync(entry.rootPath));
+    } catch {
+      /* 目录已不存在：resolve 版本已登记，足够跳过 */
+    }
+  }
+  return known;
 }
 
 export function removeWorkspaceReference(settingsRoot: string, projectId: string): RecentWorkspaceEntry[] {
