@@ -25,17 +25,29 @@ export type { ModelListFailureKind } from "./modelListResponse";
 
 export async function describeNetworkErrorLazy(error: unknown): Promise<string> {
   const { describeNetworkError } = await import("../../systemProxy");
-  return describeNetworkError(error);
+  const reason = describeNetworkError(error);
+  return `Network error: ${reason}. Next: check the relay URL, local network, and proxy settings, then retry.`;
 }
 
 /** 上游失败体 → 那句人话。键优先级表住 jsonUtils（全仓唯一），挑不出来才退回原文/HTTP 码。 */
+function nextStepForUpstreamError(status: number, message: string): string {
+  if (status === 401 || status === 403 || /api[_ -]?key|auth|forbidden|permission/i.test(message)) return 'check the API key, auth header, and relay permissions, then retry'
+  if (status === 404 || status === 405) return 'check the saved base URL and that its /models route is enabled'
+  if (status === 429) return 'wait for the provider rate limit to reset, then retry'
+  if (status >= 500) return 'check the relay/provider status and retry when the upstream is healthy'
+  return 'check the endpoint response and authentication settings, then retry'
+}
+
+/** Keep status, safe provider-body context, and a repair action together at the shared error boundary. */
 export function upstreamErrorText(bodyText: string, status: number, sanitize?: (message: string) => string): string {
   let parsed: unknown;
   try { parsed = bodyText ? JSON.parse(bodyText) : null; } catch { parsed = null; }
   const said = isJsonRecord(parsed) ? pickUpstreamMessage(parsed, sanitize) : "";
-  if (/^no message available[.!]?$/i.test(said || bodyText.trim())) return `HTTP ${status}`;
-  const message = said || bodyText.trim() || `HTTP ${status}`;
-  return (sanitize ? sanitize(message) : message).slice(0, 300);
+  const rawBody = sanitize ? sanitize(bodyText.trim()) : bodyText.trim();
+  const usableMessage = said && !/^no message available[.!]?$/i.test(said) ? said : '';
+  const bodySummary = usableMessage || (rawBody ? 'provider returned no usable error message' : 'provider returned an empty error body');
+  const safeSummary = bodySummary.slice(0, 220);
+  return `HTTP ${status}: provider returned ${safeSummary}. Next: ${nextStepForUpstreamError(status, safeSummary)}.`.slice(0, 500);
 }
 
 /** payload.headers（用户自填的中转请求头）→ 干净的 kv。 */
@@ -192,7 +204,7 @@ export async function fetchModelList(
         body = await res.text();
       } catch (error) {
         const failed = status === 401 || status === 403 || status === 429
-          ? failure(failureKindForStatus(status), `HTTP ${status}`, status)
+          ? failure(failureKindForStatus(status), upstreamErrorText('', status, redact), status)
           : failure("network", await describeNetworkErrorLazy(error), status);
         const best = remember(failed);
         if (pageNumber > 0 || signal.aborted) return best;
@@ -205,7 +217,7 @@ export async function fetchModelList(
       }
       const page = parseModelListPage(body, redact);
       if (!page.ok) {
-        const failed = remember(failure(page.failureKind, page.error || "Response is not a valid model list", res.status));
+        const failed = remember(failure(page.failureKind, upstreamErrorText(body, res.status, redact), res.status));
         if (pageNumber > 0) return failed;
         break;
       }

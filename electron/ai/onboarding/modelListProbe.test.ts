@@ -22,9 +22,11 @@ describe("model discovery failures are actionable across candidate routes", () =
       .mockResolvedValueOnce(response(404, { message: "No message available" })));
     const result = await probe();
     expect(result).toMatchObject({
-      ok: false, status, error: "actionable upstream reason", statuses: [status, 404],
+      ok: false, status, statuses: [status, 404],
       failureKind: status === 429 ? "rate_limit" : status >= 500 ? "upstream" : "auth",
     });
+    expect(result).toMatchObject({ error: expect.stringContaining(`HTTP ${status}`) });
+    expect(result).toMatchObject({ error: expect.stringContaining("actionable upstream reason") });
   });
 
   it.each([401, 429, 503])("does not hide HTTP %s behind a valid empty list", async (status) => {
@@ -58,14 +60,28 @@ describe("model discovery failures are actionable across candidate routes", () =
     vi.stubGlobal("fetch", vi.fn()
       .mockResolvedValueOnce(response(404, {}))
       .mockRejectedValueOnce(new Error("network unavailable")));
-    expect(await probe()).toMatchObject({ ok: false, failureKind: "network", error: "network unavailable", statuses: [404] });
+    const result = await probe();
+    expect(result).toMatchObject({ ok: false, failureKind: "network", error: expect.stringContaining("network unavailable"), statuses: [404] });
+    expect(result).toMatchObject({ ok: false, error: expect.stringContaining("Next:") });
   });
 
   it("uses unsupported only when all candidates actually lack a list route", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => response(404, { message: "No message available" })));
     const result = await probe();
     expect(result).toMatchObject({ ok: false, failureKind: "unsupported", statuses: [404, 404] });
-    expect(JSON.stringify(result)).not.toContain("No message available");
+    expect(result).toMatchObject({ error: expect.stringContaining("HTTP 404") });
+    expect(result).toMatchObject({ error: expect.stringContaining("Next:") });
+  });
+
+  it("explains an HTTP-200 business failure with its body and repair action", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(200, {
+      success: false,
+      error: { code: "invalid_api_key", message: "key rejected" },
+    })));
+    const result = await probe("https://gateway.test/v1");
+    expect(result).toMatchObject({ ok: false, status: 200, failureKind: "auth" });
+    expect(result).toMatchObject({ error: expect.stringContaining("key rejected") });
+    expect(result).toMatchObject({ error: expect.stringContaining("Next:") });
   });
 
   it("recognizes HTML as invalid_response but keeps trying the compatible route", async () => {
@@ -234,7 +250,7 @@ describe("model-list pagination follows the proven response protocol", () => {
     vi.stubGlobal("fetch", fetchSpy);
     const result = await probe("https://relay.test");
     expect(result).toMatchObject({
-      ok: false, failureKind: "auth", status: 401, error: "original auth rejection",
+      ok: false, failureKind: "auth", status: 401, error: expect.stringContaining("original auth rejection"),
       statuses: lastStatus === undefined ? [401, 200] : [401, 200, lastStatus],
     });
     expect(result).not.toHaveProperty("partial");
@@ -247,7 +263,7 @@ describe("model-list pagination follows the proven response protocol", () => {
         .mockResolvedValueOnce(response(200, { results: [{ owner: "a", name: "model" }], next }));
       vi.stubGlobal("fetch", fetchSpy);
       expect(await probe("https://relay.test"))
-        .toMatchObject({ ok: false, failureKind: "auth", status: 401, error: "original auth rejection", statuses: [401, 200] });
+        .toMatchObject({ ok: false, failureKind: "auth", status: 401, error: expect.stringContaining("original auth rejection"), statuses: [401, 200] });
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     },
   );
