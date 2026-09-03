@@ -32,6 +32,7 @@
 - 已知有 dirty/blocked/stacked PR（包括 #435、#403、#399、#384、#412、#314 等）和 dirty worktree；它们先保留，不能因为硬盘清理目标而删除代码。#452、#419 的状态也必须按最新 PR 页面刷新。
 - `origin/perf/canvas-click-select-20260903` 曾存在未开 PR 的唯一代码提交；`origin/fix/mcp-remaining-holes-20260903` 曾主要是 test-only 分支。两者必须通过 patch-id 和当前行为重测后，分别决定开 PR、归类 duplicate，或转后续任务。
 - 历史账本和 `docs/plan/INDEX.md` 存在明显状态漂移：TikHub、视频拆解、画布、MCP、凭据和部分 Agent/M 线条目可能已经有代码但仍标旧状态；反向地，资源链 P0-2/3/4、MCP Q8、M5 graduation、Agent 真实创作闭环等可能只有计划或部分实现。最终以当前 SHA 的证据矩阵为准。
+- **PR #454 必须作为独立审计输入纳入本轮：** 它有真实分镜表三栏工作区、分镜行引用/选择解耦、`patch_shots` 编辑内核、模型 vendor 修复和若干走查，但锚行/参数条样章已被用户明确否定；右侧 Agent 的生产模型目录使用 `nomi_canvas_plan`，而部分桥接/投影/选中注入仍按旧工具名 `patch_shots` 判断。详见 `docs/qa/2026-09-04-pr454-storyboard-agent-audit.md`。在 canonical Agent 闭环红→绿和新视觉方向确认前，不把 #454 整体合入。
 
 ## Exhaustive Feature Discovery: Preventing Memory-Based Omissions
 
@@ -197,10 +198,22 @@ MCP 测试按“工具面 → 握手/授权 → 执行 → 副作用 → 收据/
 - [ ] **绿证据：** 每个状态都有对应可重跑命令、SHA、原始输出或截图，且能解释旧计划为什么需要更新。
 - [ ] 退出条件：团队拥有一份以当前 main 为唯一基准的事实账本；“已经有了”和“真正完成了”被明确拆开。
 
+## Task 4A — Audit PR #454 Storyboard Slice Before Any Merge
+
+- [ ] 阅读并引用 `docs/qa/2026-09-04-pr454-storyboard-agent-audit.md`，把 #454 拆成三条独立状态：分镜表功能、锚行/参数条设计、右侧 Agent canonical tool path；不得用 PR 标题或单个 Workers check 代表整体完成。
+- [ ] **功能红测：** 在当前 main 和 #454 head 各执行一次生产形状的 Agent 调用：`toolName=nomi_canvas_plan`、`args.operation=patch_shots`。断言选中行注入、确认卡、行内 diff、批准/拒绝、proposal/receipt、落盘和重启恢复；若现有测试只喂 `patch_shots` 或使用 `window.__nomiStoryboardPatchPreview`，该证据只能列为旧名/测试探针证据，不能代替红测。
+- [ ] **别名正性对照：** 同一测试用故意将 `operation` 改成未知值、修改错误 revision、遗漏必需 selector 或点名 `durationSec` 但篡改另一个字段；每种错误都必须可靠失败/不落盘。测试必须能证明 `nomi_canvas_plan` 与 `patch_shots` 的工具名/operation 责任边界没有漏接。
+- [ ] **功能绿测：** 修正或证明 canonical 边界后，用同一生产形状跑通“右侧 Agent 提议 → 分镜行内预览 → 一次确认 → 一次撤销/拒绝 → receipt → 重启恢复”；至少覆盖 prompt、shot kind、duration、aspect ratio、model/vendor 中的代表性字段，并验证未点名字段逐字保留。
+- [ ] **MCP 交接：** 从 `nomi_canvas_plan` 的 MCP/模型目录、schema、授权、执行器和 output receipt 追到分镜表；补跑 `check:mcp-payload`、`check:mcp-tool-refs`、合同/单元和相关 L2 journey。不能只测 legacy `patch_shots` descriptor。
+- [ ] **设计红证据：** 将已否定的 `docs/design/mockups/2026-09-03-storyboard-anchor-row-and-param-rail.html` 及交接文档中的用户反馈登记为视觉 FAIL；不把 `storyboard-anchor-model-modes.walk.mjs` 的 8 个静态模式通过写成设计通过。
+- [ ] **设计绿门：** 新方向先明确锚/镜头空间组织、信息层级、真实字段和交互状态，再在真实 Electron 隔离原型或真实组件中截图；必须由用户/指定 reviewer 视觉确认后才允许进入实现 PR。新方案仍按红→绿→视觉走查，不继续在未确认的旧样张上叠修。
+- [ ] **范围判定：** #454 只算 storyboard + Agent tool slice，不替代 Agent interaction epic、MCP 全量、M0–M5、TikHub/视频拆解或画布性能的重基线；任何未覆盖面进入对应 follow-up。
+- [ ] 退出条件：#454 每个文件簇都有 `merged-and-proven`、`duplicate`、`open-ready`、`needs-decision` 或 `merged-but-unproven` 的唯一分类；不存在“功能可能已做、设计不喜欢、Agent 还没验证”混成一个 PR 状态的情况。
+
 ## Task 5 — Perform the Required Visual and Interaction Walkthrough
 
-- [ ] 先锁定设计真源和批准稿。至少对照 `docs/design/mockups/2026-09-03-agent-ui-p0-exception-states.html`、`docs/design/mockups/2026-09-01-video-deconstruction-v1.html` 以及仓库中对应的 design contract；若某个页面没有批准稿，标记为需要设计决策，不自行补设计。
-- [ ] 走查 Agent 正常态、异常态、恢复态、工作中/停止/重试/需确认态；走查 MCP 工具调用、授权/确认、失败/重试和结果回写；走查 TikHub → 视频拆解 → 新版分镜表 → 后续创作入口；走查画布拖拽/选中/缩放/大量节点；走查 M5 打包应用关键链路。
+- [ ] 先锁定设计真源和批准稿。至少对照 `docs/design/mockups/2026-09-03-agent-ui-p0-exception-states.html`、`docs/design/mockups/2026-09-01-video-deconstruction-v1.html` 以及仓库中对应的 design contract；PR #454 的锚行/参数条样张明确是失败样张，必须标记为 `visual-fail / needs-design-decision`，不能当批准稿；若某个页面没有批准稿，标记为需要设计决策，不自行补设计。
+- [ ] 走查 Agent 正常态、异常态、恢复态、工作中/停止/重试/需确认态；额外走查 storyboard 右侧 Agent 的 canonical `nomi_canvas_plan(operation=patch_shots)` 提议、预览、确认、拒绝、撤销和重启恢复；走查 MCP 工具调用、授权/确认、失败/重试和结果回写；走查 TikHub → 视频拆解 → 新版分镜表 → 后续创作入口；走查画布拖拽/选中/缩放/大量节点；走查 M5 打包应用关键链路。
 - [ ] 优先使用现有 walkthrough：`tests/ux/agent-ui-conformance.walk.mjs`、`tests/ux/agent-ui-exception-states-runtime.walk.mjs`、`tests/ux/mcp-l2-journeys.e2e.mjs`、`tests/ux/mcp-generation-elicitation-first.e2e.mjs`、`tests/ux/mcp-skills-integration.e2e.mjs`、`tests/ux/tikhub-connector.walk.mjs`、`tests/ux/storyboard-table-exec.walk.mjs`、`tests/ux/storyboard-table-phasec.walk.mjs`、`tests/ux/canvas-performance-benchmark.e2e.mjs`、`tests/ux/p4-s5-canvas-landing.e2e.mjs`、`tests/ux/p4-s6-rework-version.e2e.mjs`；打包态使用 `tests/ux/mcp-l2-journeys.e2e.mjs --packaged release/mac-arm64/Nomi.app`，并记录是否因缺 release/凭据而阻塞。
 - [ ] 每条路径至少保存：进入前状态、关键交互后状态、错误/确认态、落盘或恢复后的状态。截图存入本轮 QA 证据目录，不以一张“看起来对”的截图代替完整走查。
 - [ ] 视觉检查维度固定为：布局与间距、信息层级、字体/字号/行高、token 颜色与明暗主题、边界和空状态、按钮/禁用/加载/错误/确认态、交互反馈和恢复路径、无裁切/重叠/重复控件、键盘与可访问性、项目/资源/Agent 身份一致性、折叠/重启后的状态一致性。
