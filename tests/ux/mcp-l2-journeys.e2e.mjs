@@ -61,6 +61,11 @@ try {
       NOMI_APP_NAME: 'Nomi',
       NOMI_CAPABILITY_DIR: dirs.capabilityDir,
       NOMI_E2E_PRODUCTION_FIXTURE: '1',
+      // In packaged mode app.isPackaged===true guards the fixture; opt back in
+      // with the three-flag escape hatch (NOMI_E2E + NOMI_E2E_PRODUCTION_FIXTURE
+      // + NOMI_E2E_PACKAGED_FIXTURE) so the export driver uses the fixture path
+      // instead of assertDraftFilmReady against the renderer timeline state.
+      ...(mcpRuntime ? { NOMI_E2E_PACKAGED_FIXTURE: '1' } : {}),
       NOMI_E2E_APIMART_BASE_URL: provider.origin,
       NOMI_E2E_APIMART_REFERENCE_URL: `${provider.origin}/fixture/image.png`,
       NOMI_E2E_APIMART_API_KEY: 'mcp-l2-loopback-key',
