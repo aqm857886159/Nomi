@@ -153,6 +153,7 @@
 | [2026-05-31-library-search-cost-fixes.md](2026-05-31-library-search-cost-fixes.md) | 30秒体验/假搜索/花费徽章 三处修复 | 🚧 |
 | [2026-08-30-library-discovery-optimization.md](2026-08-30-library-discovery-optimization.md) | 跨项目工作流与素材库发现体验：搜索、分类、居中详情与原样复制边界 | 📋 |
 | [2026-06-08-custom-categories-and-chat-polish.md](2026-06-08-custom-categories-and-chat-polish.md) | 自定义分类+聊天气泡统一+右键菜单瘦身 | 🚧 |
+| [2026-09-02-cross-device-sync-execution.md](2026-09-02-cross-device-sync-execution.md) | 跨设备继续编辑：三阶段执行收据 | ✅ |
 
 ## 应用壳 / 反馈与社区
 
