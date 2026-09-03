@@ -24,7 +24,9 @@ const geometry = await page.evaluate(() => {
     measure('行内画面格', '[data-storyboard-frame]', 'height'),
     measure('锚行画面格', '[data-anchor-frame]', 'width'),
     measure('锚行画面格', '[data-anchor-frame]', 'height'),
-    measure('锚行引用缩略', '[data-shot-ref]', 'width'),
+    // FIX4：锚行「谁引用了我」从纯文字缩略胶囊改为带缩略图的可点行；引用缩略尺寸量的是缩略图
+    // 本体（data-anchor-ref-thumb），不是整个可点行（data-shot-ref 现在是行的导航挂点，更宽）。
+    measure('锚行引用缩略', '[data-anchor-ref-thumb]', 'width'),
     measure('参考 tile 识别尺寸', '[data-storyboard-ref-tile]', 'width'),
     measure('摘要 pill 高度', '[data-parameter-summary]', 'height'),
   ]
