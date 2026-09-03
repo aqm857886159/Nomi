@@ -3,10 +3,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { launchNomiApp } from './_launchApp.mjs'
-import { makeIsolatedDirs, parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
+import { makeIsolatedDirs, packagedMcpRuntime, parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { startFakeApimartServer, writeFakeApimartCatalog } from './_mcpL2Fixture.mjs'
 
 const dirs = makeIsolatedDirs('nomi-mcp-l2-')
+const packagedBundle = process.argv.includes('--packaged')
+  ? String(process.argv[process.argv.indexOf('--packaged') + 1] || '')
+  : ''
+const mcpRuntime = packagedBundle ? packagedMcpRuntime(packagedBundle, dirs.tempRoot) : null
 const artifactDir = path.join(dirs.tempRoot, 'tests', 'ux', 'mcp-l2')
 fs.mkdirSync(artifactDir, { recursive: true })
 const trace = (name) => path.join(artifactDir, `${name}.jsonl`)
@@ -57,6 +61,11 @@ try {
       NOMI_APP_NAME: 'Nomi',
       NOMI_CAPABILITY_DIR: dirs.capabilityDir,
       NOMI_E2E_PRODUCTION_FIXTURE: '1',
+      // In packaged mode app.isPackaged===true guards the fixture; opt back in
+      // with the three-flag escape hatch (NOMI_E2E + NOMI_E2E_PRODUCTION_FIXTURE
+      // + NOMI_E2E_PACKAGED_FIXTURE) so the export driver uses the fixture path
+      // instead of assertDraftFilmReady against the renderer timeline state.
+      ...(mcpRuntime ? { NOMI_E2E_PACKAGED_FIXTURE: '1' } : {}),
       NOMI_E2E_APIMART_BASE_URL: provider.origin,
       NOMI_E2E_APIMART_REFERENCE_URL: `${provider.origin}/fixture/image.png`,
       NOMI_E2E_APIMART_API_KEY: 'mcp-l2-loopback-key',
@@ -64,6 +73,7 @@ try {
       NOMI_MCP_GENERATION_SINGLE_SHOT_E1_V1: '1',
     },
     args: ['--disable-gpu', '--disable-software-rasterizer'], settleMs: 0, syntheticCredentialStorage: true,
+    ...(mcpRuntime ? { executablePath: mcpRuntime.executablePath } : {}),
   })
   const win = gui.win
   await win.getByText('新建空白项目', { exact: false }).first().click()
@@ -76,6 +86,7 @@ try {
   mcp = spawnMcpStdioClient({
     ...dirs, tracePath: trace('C7-C12'), captureStderr: true,
     clientInfo: { name: 'Codex MCP L2', version: 'e2e' }, capabilities: {},
+    ...(mcpRuntime ? { runtime: mcpRuntime } : {}),
     env: {
       NOMI_APP_NAME: 'Nomi',
       NOMI_E2E_PRODUCTION_FIXTURE: '1',
@@ -157,7 +168,7 @@ try {
   check(resultTextJson(proxyOff).enabled === false, 'C7 管理动词可关闭单连接代理')
 
   const fourNodes = [0, 1, 2, 3].map((index) => ({ clientId: `c8-shot-${index + 1}`, kind: 'shot', title: `镜头 ${index + 1}`, prompt: `湖边纸船镜头 ${index + 1}`, position: { x: index * 380, y: 0 } }))
-  declinedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-decline'), capabilities: { elicitation: {} }, elicitationAction: 'decline', syntheticCredentialStorage: true, env: { NOMI_APP_NAME: 'Nomi' } })
+  declinedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-decline'), capabilities: { elicitation: {} }, elicitationAction: 'decline', syntheticCredentialStorage: true, runtime: mcpRuntime, env: { NOMI_APP_NAME: 'Nomi' } })
   await declinedClient.initialize()
   const c8Project = await call(declinedClient, 'nomi_project_create', { name: 'C8 four-shot confirmation' })
   const c8ProjectData = resultTextJson(c8Project)
@@ -176,7 +187,7 @@ try {
   await declinedClient.terminate()
   declinedClient = null
 
-  landedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-land'), capabilities: {}, syntheticCredentialStorage: true, env: { NOMI_APP_NAME: 'Nomi' } })
+  landedClient = spawnMcpStdioClient({ ...dirs, tracePath: trace('C8-land'), capabilities: {}, syntheticCredentialStorage: true, runtime: mcpRuntime, env: { NOMI_APP_NAME: 'Nomi' } })
   await landedClient.initialize()
   const landedProject = await call(landedClient, 'nomi_project_create', { name: 'C8 four-shot landed' })
   const landedProjectData = resultTextJson(landedProject)
@@ -279,6 +290,7 @@ try {
   c10Client = spawnMcpStdioClient({
     ...dirs, tracePath: trace('C10-disconnect'), captureStderr: true,
     capabilities: {}, syntheticCredentialStorage: true,
+    runtime: mcpRuntime,
     env: {
       NOMI_APP_NAME: 'Nomi',
       NOMI_E2E_PRODUCTION_FIXTURE: '1',
@@ -442,7 +454,7 @@ try {
   check(typeof execution.buildSha === 'string' && execution.buildSha.length > 0, 'C12 export-execution.json 落盘 buildSha')
   await mcp.terminate()
   mcp = null
-  console.log(`MCP-L2 PASS: ${passed} assertions; artifacts=${artifactDir}`)
+  console.log(`MCP-L2 PASS: ${passed} assertions; mode=${mcpRuntime ? 'packaged' : 'development'}; artifacts=${artifactDir}`)
 } catch (error) {
   console.error(error?.stack || error)
   process.exitCode = 1
