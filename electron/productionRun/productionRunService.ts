@@ -106,7 +106,7 @@ type ServiceDeps = {
   projectRootResolver?: (projectId: string) => string | null
   previewSecret?: string
   requestRenderer?: (op: string, payload: unknown, timeoutMs: number) => Promise<unknown>
-  executeProductionExport?: (input: { projectId: string; runId: string; outputName: string }) => Promise<{ relativePath: string; size: number }>
+  executeProductionExport?: (input: { projectId: string; runId: string; outputName: string }) => Promise<{ relativePath: string; size: number; jobId?: string }>
   policyResolver?: () => Partial<AutomationPolicy>
   reconcileProviderTask?: (job: ProductionRun['jobs'][number]) => Promise<{
     status?: string
