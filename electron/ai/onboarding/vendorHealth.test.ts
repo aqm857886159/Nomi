@@ -260,7 +260,11 @@ describe("checkVendorHealth — 缓存与并发（「重开面板不回退」靠
 
   it("does not report a business auth failure in HTTP200 as unsupported", async () => {
     fetchSpy.mockResolvedValue({ ok: true, status: 200, text: async () => JSON.stringify({ code: 401, data: [], message: "expired" }) });
-    expect(await checkVendorHealth("v")).toMatchObject({ state: "unreachable", reason: "expired" });
+    expect(await checkVendorHealth("v")).toMatchObject({
+      state: "unreachable",
+      reason: expect.stringContaining("HTTP 200: provider returned expired."),
+    });
+    expect((await checkVendorHealth("v")).reason).toContain("Next:");
   });
 
   it.each(["authorization", "AUTHORIZATION"])("sends only the saved %s override, not two Bearer values", async (header) => {

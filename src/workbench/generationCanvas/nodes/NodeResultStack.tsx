@@ -356,7 +356,7 @@ export function NodeResultStack({
             <header className="flex items-center justify-between gap-3 border-b border-nomi-line px-3 py-2.5">
               <div>
                 <div className="text-body-sm font-semibold text-nomi-ink">{t('generationCommon.resultStack.title')}</div>
-                <div className="text-micro text-nomi-ink-50">{t('generationCommon.resultStack.versionCount', { count: entries.length })}</div>
+                <div className="text-micro text-nomi-ink-60">{t('generationCommon.resultStack.versionCount', { count: entries.length })}</div>
               </div>
               {production && !readOnly ? (
                 <button
@@ -439,7 +439,7 @@ export function NodeResultStack({
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-caption font-medium text-nomi-ink">{t('generationCommon.resultStack.versionLabel', { index: index + 1 })}</div>
-                      <div className="text-micro text-nomi-ink-50">
+                      <div className="text-micro text-nomi-ink-40">
                         {isCurrent ? t('generationCommon.resultStack.current') : entry.type === 'video' ? t('generationCommon.imagePreview.video') : t('generationCommon.imagePreview.image')}
                       </div>
                     </div>

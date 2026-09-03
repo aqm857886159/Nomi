@@ -22,7 +22,7 @@ export function NomiIdentityIcon({ icon, size = 'sm', className }: NomiIdentityI
     <span
       aria-hidden
       className={cn(
-        'relative inline-grid shrink-0 place-items-center overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-55',
+        'relative inline-grid shrink-0 place-items-center overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-60',
         size === 'sm' ? 'size-4' : '',
         className,
       )}
