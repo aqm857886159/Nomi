@@ -31,7 +31,7 @@ import { getAssistantModelPref, setAssistantModelPref } from './assistantModelPr
 import { useAgentUsageStore } from './agentUsageStore'
 import type { ComposerAttachment } from './composer/composerAttachmentTypes'
 import type { CreationDocumentTools } from '../workbenchTypes'
-import type { ProjectAgentApprovalMode, ProjectAgentItem, ProjectAgentSpendPolicy, ProjectAgentStatus } from '../../../electron/shared/projectAgentContracts'
+import type { ProjectAgentApprovalMode, ProjectAgentItem, ProjectAgentSpendPolicy, ProjectAgentStatus, ProjectAgentTurn } from '../../../electron/shared/projectAgentContracts'
 import type { DocumentAnchorRef, PreconditionSet, TargetRef } from '../../../electron/shared/capabilityTargeting'
 import { timelineRevision } from '../timeline/kernel/timelineKernel'
 import { useProductionRunStore } from '../production/productionRunStore'
@@ -67,6 +67,15 @@ const pendingKey = (call: Pick<ToolCallEvent, 'turnId' | 'toolCallId'>): string 
 const bindingKey = (binding: { immutableProjectUuid: string; projectGeneration: number }): string => `${binding.immutableProjectUuid}:${binding.projectGeneration}`
 const isLive = (status: ProjectAgentStatus): boolean => ['drafting', 'proposed', 'queued', 'running'].includes(status)
 const emitPending = (): void => residentPendingListeners.forEach((listener) => listener())
+
+function hostUsageForThread(turns: readonly ProjectAgentTurn[] | undefined, threadId: string | null): { turns: number; totalTokens: number; lastTurnTokens: number } {
+  const completed = (turns ?? []).filter((turn) => turn.threadId === threadId && turn.usage)
+  return completed.reduce((total, turn) => ({
+    turns: total.turns + 1,
+    totalTokens: total.totalTokens + (turn.usage?.totalTokens ?? 0),
+    lastTurnTokens: turn.usage?.totalTokens ?? total.lastTurnTokens,
+  }), { turns: 0, totalTokens: 0, lastTurnTokens: 0 })
+}
 
 function cacheResidentToolProjection(scope: string, turnId: string, toolCallId: string, projection: ResidentToolProjection): void {
   if (!scope) return
@@ -383,8 +392,12 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const activeTurn = snapshot?.turns.find((turn) => turn.threadId === activeThreadId && isLive(turn.status))
   const runningTurn = snapshot?.turns.find((turn) => turn.threadId === activeThreadId && turn.status === 'running')
   const planningTurn = snapshot?.turns.find((turn) => turn.threadId === activeThreadId && turn.status === 'drafting')
-  const sessionTotalTokens = useAgentUsageStore((state) => state.totalTokens)
-  const sessionTurns = useAgentUsageStore((state) => state.turns)
+  const sessionStoreTotalTokens = useAgentUsageStore((state) => state.totalTokens)
+  const sessionStoreTurns = useAgentUsageStore((state) => state.turns)
+  const hostUsage = React.useMemo(() => hostUsageForThread(snapshot?.turns, activeThreadId), [activeThreadId, snapshot?.turns])
+  const sessionTotalTokens = hostUsage.turns ? hostUsage.totalTokens : sessionStoreTotalTokens
+  const sessionTurns = hostUsage.turns ? hostUsage.turns : sessionStoreTurns
+  const displayedLastTurnTokens = hostUsage.turns ? hostUsage.lastTurnTokens : lastTurnTokens
   const toolProjectionScope = binding && activeThreadId ? residentToolProjectionScope(bindingKey(binding), activeThreadId) : ''
   const selectedModelRow = models.find((model) => encodeModelIdentity(model) === selectedModel)
   React.useEffect(() => {
@@ -737,7 +750,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   return <section id="project-agent-resident" onKeyDownCapture={(event) => { if (event.key === 'Escape') { setThreadsOpen(false); setMenu(null); setQueueMenuOpen(null) } }} className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col bg-[var(--workbench-ai-panel-bg)] text-nomi-ink" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-panel="true" data-agent-surface={surface} data-agent-run-mode={runMode} data-agent-approval-mode={approvalPolicy.mode} data-agent-spend-policy={approvalPolicy.spend}>
     <header className="relative flex min-h-11 shrink-0 items-center gap-2 border-b border-nomi-line-soft px-3 py-1.5" data-agent-header="true">
       <div className="flex min-w-0 items-center gap-2"><NomiLogoMark size={19} /><span className="text-body-sm font-semibold">{t('agentResident.brand')}</span></div>
-      <span className="relative inline-flex h-6 shrink-0 items-center gap-1.5 rounded-pill border border-nomi-line bg-nomi-paper px-2 text-micro tabular-nums text-nomi-ink-60" data-agent-usage-pill="true" title={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })} aria-label={t('agentResident.usageRoundsTitle', { count: remainingRounds })}><IconCircleDashed size={13} className="text-nomi-accent" aria-hidden="true" />{t('agentResident.usageRounds', { count: remainingRounds })}</span>
+      <span className="relative inline-flex h-6 shrink-0 items-center gap-1.5 rounded-pill border border-nomi-line bg-nomi-paper px-2 text-micro tabular-nums text-nomi-ink-60" data-agent-usage-pill="true" title={t('agentResident.usageTitle', { last: displayedLastTurnTokens, total: sessionTotalTokens })} aria-label={t('agentResident.usageRoundsTitle', { count: remainingRounds })}><IconCircleDashed size={13} className="text-nomi-accent" aria-hidden="true" />{t('agentResident.usageRounds', { count: remainingRounds })}</span>
       <span className="min-w-0 flex-1" aria-hidden="true" />
       <WorkbenchIconButton size="sm" label={t('agentResident.threadList')} icon={<IconHistory size={15} />} onClick={() => setThreadsOpen((value) => !value)} data-agent-history="true" />
       <WorkbenchIconButton size="sm" label={t('agentResident.collapse')} icon={<IconLayoutSidebarRightCollapse size={15} />} onClick={() => setCollapsed(true)} data-agent-collapse="true" />

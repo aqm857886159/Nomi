@@ -108,6 +108,7 @@ function assertTurn(
     "model",
     "workMode",
     "approvalPolicy",
+    "usage",
     "skillVersions",
     "capabilityVersions",
     "contextRef",
@@ -122,12 +123,21 @@ function assertTurn(
   assertVersionRef(turn.model);
   if (turn.workMode !== undefined) assertWorkMode(turn.workMode);
   if (turn.approvalPolicy !== undefined) assertApprovalPolicy(turn.approvalPolicy);
+  if (turn.usage !== undefined) assertAgentUsage(turn.usage);
   assertVersionRefs(turn.skillVersions);
   assertVersionRefs(turn.capabilityVersions);
   assertContextRef(turn.contextRef, binding, turn.threadId);
   assertCanonicalTimestamp(turn.createdAt);
   assertCanonicalTimestamp(turn.updatedAt);
   assertTimestampOrder(turn.createdAt, turn.updatedAt);
+}
+
+function assertAgentUsage(value: unknown): void {
+  const usage = asRecord(value);
+  assertAllowedKeys(usage, ["promptTokens", "completionTokens", "cachedPromptTokens", "totalTokens"]);
+  for (const key of ["promptTokens", "completionTokens", "cachedPromptTokens", "totalTokens"] as const) {
+    assertSafeInteger(usage[key]);
+  }
 }
 
 function assertTaskRef(value: unknown): asserts value is TaskRef {

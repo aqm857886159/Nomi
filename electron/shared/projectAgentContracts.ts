@@ -219,6 +219,8 @@ export type ProjectAgentTurn = ProjectAgentRecordBase &
     workMode?: ProjectAgentWorkMode;
     /** Optional for legacy snapshots; new turns freeze both approval axes. */
     approvalPolicy?: ProjectAgentApprovalPolicy;
+    /** Provider-reported usage for this terminal turn; absent on legacy/running records. */
+    usage?: AgentChatResponse["usage"];
     skillVersions: readonly ProjectAgentVersionRef[];
     capabilityVersions: readonly ProjectAgentVersionRef[];
     contextRef: ProjectAgentContextRef;
@@ -404,6 +406,8 @@ export type ProjectAgentAsyncResultEnvelope = Readonly<{
   expectedRevision: number;
   items: readonly ProjectAgentItem[];
   turnStatus: ProjectAgentStatus;
+  /** Provider-reported usage is committed with the terminal Host turn. */
+  usage?: AgentChatResponse["usage"];
   retryable?: boolean;
   proposalApprovalId?: string;
   proposalStatus?: ProjectAgentStatus;
