@@ -22,7 +22,9 @@ export function generationCostContextForNode(node: { meta?: Record<string, unkno
   const read = (key: string): string => typeof meta[key] === 'string' ? String(meta[key]).trim() : ''
   return {
     vendorKey: read('modelVendor') || read('vendor') || read('imageModelVendor') || read('videoModelVendor') || undefined,
-    modelKey: read('modelKey') || read('modelAlias') || read('imageModel') || read('videoModel') || undefined,
+    // generationEtaStats indexes the recipe identity from provenance, where modelAlias wins.
+    // Keep the confirmation card on that same identity or known history silently becomes cold start.
+    modelKey: read('modelAlias') || read('modelKey') || read('imageModel') || read('videoModel') || undefined,
   }
 }
 
