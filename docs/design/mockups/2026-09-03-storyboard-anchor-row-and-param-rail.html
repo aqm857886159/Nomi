@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="oklch(0.985 0.003 90)">
 <title>分镜表 · 锚行与真实模型模式参考区（2026-09-03）</title>
 <style>
   /* 只在这一段声明样张 token；消费侧不再写任意色、字号或圆角。 */
@@ -74,8 +75,14 @@
     --nomi-scrim: oklch(0.08 0.004 80 / 0.58);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--nomi-bg); color: var(--nomi-ink); font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; font-size: var(--nomi-font-body); }
-  button, select { font: inherit; color: inherit; }
+  html { color-scheme: light; }
+  html:has(.dark) { color-scheme: dark; }
+  body { margin: 0; overflow-x: hidden; background: var(--nomi-bg); color: var(--nomi-ink); font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; font-size: var(--nomi-font-body); }
+  button, select { font: inherit; color: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  button:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--nomi-accent); outline-offset: 2px; }
+  h1, h2 { text-wrap: balance; }
+  .skip-link { position: absolute; left: var(--nomi-space-3); top: -48px; z-index: 10; padding: var(--nomi-space-2) var(--nomi-space-3); border-radius: var(--nomi-radius-field); background: var(--nomi-ink); color: var(--nomi-paper); font-size: var(--nomi-font-caption); text-decoration: none; }
+  .skip-link:focus-visible { top: var(--nomi-space-3); }
   button { cursor: pointer; }
   .app { width: 1540px; margin: 0 auto; min-height: 100vh; background: var(--nomi-bg); }
   .appbar { height: 48px; display: flex; align-items: center; gap: var(--nomi-space-3); padding: 0 var(--nomi-space-4); border-bottom: 1px solid var(--nomi-line-soft); }
@@ -86,6 +93,7 @@
   .step { padding: var(--nomi-space-1) var(--nomi-space-4); border-radius: var(--nomi-radius-pill); color: var(--nomi-ink-60); font-size: var(--nomi-font-caption); }
   .step.on { background: var(--nomi-paper); color: var(--nomi-ink); box-shadow: var(--nomi-shadow-sm); }
   .theme { width: 30px; height: 30px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-field); background: var(--nomi-paper); }
+  .theme:hover, .ghost:hover, .param-pill:hover { border-color: var(--nomi-ink-20); background: var(--nomi-ink-05); }
   .page { padding: var(--nomi-space-6); }
   .hero { display: flex; align-items: end; justify-content: space-between; margin-bottom: var(--nomi-space-4); }
   .eyebrow { color: var(--nomi-accent); font-size: var(--nomi-font-micro); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
@@ -95,8 +103,8 @@
   .card { border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-modal); background: var(--nomi-paper); box-shadow: var(--nomi-shadow-md); }
   .model-rail { display: grid; grid-template-columns: 170px minmax(220px, 1fr) 260px auto; align-items: center; gap: var(--nomi-space-3); padding: var(--nomi-space-3) var(--nomi-space-4); }
   .rail-label { color: var(--nomi-ink-60); font-size: var(--nomi-font-caption); }
-  .select { width: 100%; height: 32px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-field); background: var(--nomi-paper); padding: 0 var(--nomi-space-2); font-size: var(--nomi-font-body-sm); }
-  .slot-contract { min-width: 0; color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); line-height: 1.5; }
+  .select { width: 100%; height: 32px; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-field); background-color: var(--nomi-paper); color: var(--nomi-ink-80); padding: 0 var(--nomi-space-2); font-size: var(--nomi-font-body-sm); }
+  .slot-contract { min-width: 0; color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); line-height: 1.5; font-variant-numeric: tabular-nums; }
   .slot-contract strong { color: var(--nomi-ink-80); font-weight: 600; }
   .mode-tag { justify-self: end; padding: var(--nomi-space-1) var(--nomi-space-2); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-pill); color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); white-space: nowrap; }
   .layout { display: grid; grid-template-columns: 1fr; gap: var(--nomi-space-4); margin-top: var(--nomi-space-4); }
@@ -226,12 +234,12 @@
 
   /* ── 新增：谁引用了我（带缩略图，仍是 §7.4 的新增内容；密度对齐 anchor-namerow）。 */
   .anchor-refs-list { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .anchor-refs-head { font-size: var(--nomi-font-micro); color: var(--nomi-ink-40); }
+  .anchor-refs-head { font-size: var(--nomi-font-micro); color: var(--nomi-ink-40); font-variant-numeric: tabular-nums; }
   .anchor-refs-head strong { color: var(--nomi-ink-80); font-weight: 600; }
   .anchor-ref-row { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 2px; border-radius: var(--nomi-radius-sm); border: 0; background: transparent; text-align: left; }
   .anchor-ref-row:hover { background: var(--nomi-ink-05); }
   .anchor-ref-row .ref-thumb { width: 20px; height: 20px; border-radius: var(--nomi-radius-sm); overflow: hidden; flex-shrink: 0; background: linear-gradient(145deg, var(--nomi-warning), var(--nomi-accent)); }
-  .anchor-ref-row .ref-label { font-size: var(--nomi-font-micro); color: var(--nomi-ink-60); white-space: nowrap; }
+  .anchor-ref-row .ref-label { font-size: var(--nomi-font-micro); color: var(--nomi-ink-60); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
   /* ── 新增：模型 + 画幅选择器，视觉规格逐字对齐 NomiSelect size="xs"（src/design/NomiSelect.tsx:102/152-156/159-168/174）：
      触发器 h-6（24px）· pl-2.5(10px) pr-2(8px) · gap-1(4px) · rounded-pill · border-nomi-line · bg-nomi-paper；
@@ -241,7 +249,7 @@
   .nomi-select-xs { display: inline-flex; min-width: 0; align-items: center; gap: 4px; height: 24px; padding-left: 10px; padding-right: 8px; border-radius: var(--nomi-radius-pill); border: 1px solid var(--nomi-line); background: var(--nomi-paper); font: inherit; color: inherit; }
   .nomi-select-xs:hover { border-color: var(--nomi-ink-20); }
   .nomi-select-xs .lead { flex-shrink: 0; font-size: var(--nomi-font-micro); line-height: 1; color: var(--nomi-ink-40); }
-  .nomi-select-xs select { appearance: none; border: 0; background: transparent; font: inherit; min-width: 0; max-width: 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--nomi-font-caption); color: var(--nomi-ink-80); padding-right: 2px; }
+  .nomi-select-xs select { appearance: none; border: 0; background-color: transparent; font: inherit; min-width: 0; max-width: 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--nomi-font-caption); color: var(--nomi-ink-80); padding-right: 2px; }
   .nomi-select-xs .chev { flex-shrink: 0; color: var(--nomi-ink-40); font-size: 10px; line-height: 1; pointer-events: none; }
   .table-card { padding: var(--nomi-space-4); overflow: visible; }
   .table-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--nomi-space-3); }
@@ -260,7 +268,7 @@
   .ref-tile { width: 56px; height: 56px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-field); color: var(--nomi-paper); font-size: var(--nomi-font-caption); font-weight: 650; background: linear-gradient(145deg, var(--nomi-warning), var(--nomi-accent)); }
   .ref-tile.empty { border-style: dashed; color: var(--nomi-ink-40); background: var(--nomi-ink-05); font-size: var(--nomi-font-h2); }
   .ref-tile.array { color: var(--nomi-accent); background: var(--nomi-accent-soft); font-size: var(--nomi-font-h2); }
-  .ref-cap { color: var(--nomi-ink-40); font-size: var(--nomi-font-micro); white-space: nowrap; }
+  .ref-cap { color: var(--nomi-ink-40); font-size: var(--nomi-font-micro); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .array-summary { flex: 1; min-width: 156px; padding: var(--nomi-space-2); border-radius: var(--nomi-radius-field); background: var(--nomi-ink-05); color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); line-height: 1.5; }
   .array-summary strong { display: block; color: var(--nomi-ink-80); font-weight: 650; }
   .none-state { min-height: 82px; display: grid; place-items: center; padding: var(--nomi-space-2); color: var(--nomi-ink-40); font-size: var(--nomi-font-caption); line-height: 1.6; text-align: center; }
@@ -274,11 +282,13 @@
   .ghost { border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-field); background: var(--nomi-paper); padding: var(--nomi-space-1) var(--nomi-space-2); font-size: var(--nomi-font-micro); }
   .param-rail { display: flex; align-items: center; gap: var(--nomi-space-2); margin-top: var(--nomi-space-3); padding-top: var(--nomi-space-3); border-top: 1px solid var(--nomi-line-soft); }
   .param-pill { display: inline-flex; align-items: center; gap: var(--nomi-space-1); min-height: 28px; max-width: 176px; padding: 0 var(--nomi-space-2); overflow: hidden; border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-pill); background: var(--nomi-paper); color: var(--nomi-ink-80); font-size: var(--nomi-font-caption); white-space: nowrap; text-overflow: ellipsis; }
-  select.param-pill { min-width: 132px; cursor: pointer; }
+  select.param-pill { min-width: 132px; cursor: pointer; background-color: var(--nomi-paper); color: var(--nomi-ink-80); }
   .param-pill.summary { max-width: 260px; background: var(--nomi-ink-05); }
   .param-pill .muted { color: var(--nomi-ink-40); }
   .param-rail .spacer { flex: 1; }
   .generate { min-height: 30px; padding: 0 var(--nomi-space-3); border: 0; border-radius: var(--nomi-radius-pill); background: var(--nomi-ink); color: var(--nomi-paper); font-size: var(--nomi-font-caption); font-weight: 650; }
+  .generate:hover, .anchor-generate-btn:hover { background: var(--nomi-ink-80); }
+  .anchor-retry-btn:hover { background: var(--nomi-danger-soft); }
   .param-panel { display: none; width: 360px; margin: var(--nomi-space-2) 0 0 auto; padding: var(--nomi-space-3); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-modal); background: var(--nomi-paper); box-shadow: var(--nomi-shadow-lg); }
   .param-panel.on { display: grid; gap: var(--nomi-space-3); }
   .param-group { display: grid; gap: var(--nomi-space-1); }
@@ -290,7 +300,7 @@
   .inventory summary { cursor: pointer; color: var(--nomi-ink-80); font-size: var(--nomi-font-body-sm); font-weight: 650; }
   .inventory p { color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); line-height: 1.6; }
   .inventory-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--nomi-space-2); margin-top: var(--nomi-space-3); }
-  .inventory-item { padding: var(--nomi-space-2); border: 1px solid var(--nomi-line-soft); border-radius: var(--nomi-radius-field); color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); line-height: 1.5; }
+  .inventory-item { content-visibility: auto; contain-intrinsic-size: 36px; padding: var(--nomi-space-2); border: 1px solid var(--nomi-line-soft); border-radius: var(--nomi-radius-field); color: var(--nomi-ink-60); font-size: var(--nomi-font-micro); line-height: 1.5; }
   .inventory-item strong { display: block; color: var(--nomi-ink-80); font-weight: 650; }
   .decision { display: grid; grid-template-columns: 1fr 1fr; gap: var(--nomi-space-3); margin-top: var(--nomi-space-4); }
   .decision > div { padding: var(--nomi-space-3); border-radius: var(--nomi-radius-panel); background: var(--nomi-ink-05); }
@@ -300,21 +310,22 @@
 </style>
 </head>
 <body>
+<a class="skip-link" href="#storyboard-content">跳到分镜内容</a>
 <main class="app light" id="app">
   <header class="appbar">
     <span class="brand">Nomi</span><span class="crumb">项目库 › <strong>夜风 · 分镜</strong></span>
     <nav class="stepper"><span class="step on">创作</span><span class="step">生成</span><span class="step">预览</span></nav>
     <span class="crumb">模型模式验收</span><button class="theme" id="themeToggle" type="button" aria-label="切换明暗">◐</button>
   </header>
-  <div class="page">
+  <div class="page" id="storyboard-content">
     <div class="hero">
-      <div><div class="eyebrow">Storyboard / reference contract</div><h1>锚行与镜头行：参考区跟着模型模式变</h1><p>同一行不再假设“总是两格”。下面的参考区是 `referenceZoneView()` 的静态同构投影。</p></div>
+      <div><div class="eyebrow">Storyboard / reference contract</div><h1>锚行与镜头行：参考区跟着模型模式变</h1><p>同一行不再假设“总是两格”。下面的参考区是 <code translate="no">referenceZoneView()</code> 的静态同构投影。</p></div>
       <span class="proof-pill" id="proofPill">● 真实模式快照 · 8 个可切换样本</span>
     </div>
 
     <section class="card model-rail" data-model-switcher>
       <div class="rail-label">选择一个真实模型模式</div>
-      <select class="select" id="modelSelect" data-model-entry aria-label="真实模型模式"></select>
+      <select class="select" id="modelSelect" data-model-entry name="model-mode" autocomplete="off" aria-label="真实模型模式"></select>
       <div class="slot-contract" id="slotContract"></div>
       <span class="mode-tag" id="modeTag"></span>
     </section>
@@ -349,8 +360,8 @@
             <div class="anchor-infocol">
               <!-- 新增 §3.1：模型 + 画幅选择器，视觉规格照抄 NomiSelect size="xs"。 -->
               <div class="anchor-selects" data-parameter-rail>
-                <label class="nomi-select-xs"><span class="lead">模型</span><select data-model-entry data-anchor-model aria-label="林薇锚模型"></select><span class="chev">▾</span></label>
-                <label class="nomi-select-xs"><span class="lead">画幅</span><select data-anchor-aspect aria-label="林薇锚画幅"><option>9:16</option><option>16:9</option><option>1:1</option></select><span class="chev">▾</span></label>
+                <label class="nomi-select-xs"><span class="lead">模型</span><select data-model-entry data-anchor-model name="character-anchor-model" autocomplete="off" aria-label="林薇锚模型"></select><span class="chev">▾</span></label>
+                <label class="nomi-select-xs"><span class="lead">画幅</span><select data-anchor-aspect name="character-anchor-aspect" autocomplete="off" aria-label="林薇锚画幅"><option>9:16</option><option>16:9</option><option>1:1</option></select><span class="chev">▾</span></label>
               </div>
               <!-- 新增 §3.2：谁引用了我，带小缩略图可点跳转（原文字行升级为缩略图列表）。 -->
               <div class="anchor-refs-list" data-anchor-references>
@@ -381,8 +392,8 @@
             </div>
             <div class="anchor-infocol">
               <div class="anchor-selects" data-parameter-rail>
-                <label class="nomi-select-xs"><span class="lead">模型</span><select data-model-entry data-anchor-model aria-label="天台夜景锚模型"></select><span class="chev">▾</span></label>
-                <label class="nomi-select-xs"><span class="lead">画幅</span><select data-anchor-aspect aria-label="天台夜景锚画幅"><option selected>16:9</option><option>9:16</option><option>1:1</option></select><span class="chev">▾</span></label>
+                <label class="nomi-select-xs"><span class="lead">模型</span><select data-model-entry data-anchor-model name="scene-anchor-model" autocomplete="off" aria-label="天台夜景锚模型"></select><span class="chev">▾</span></label>
+                <label class="nomi-select-xs"><span class="lead">画幅</span><select data-anchor-aspect name="scene-anchor-aspect" autocomplete="off" aria-label="天台夜景锚画幅"><option selected>16:9</option><option>9:16</option><option>1:1</option></select><span class="chev">▾</span></label>
               </div>
               <div class="anchor-refs-list" data-anchor-references>
                 <span class="anchor-refs-head">谁引用了我 · <strong>4 镜</strong></span>
@@ -405,7 +416,7 @@
             </div>
             <div class="anchor-infocol">
               <div class="anchor-selects" data-parameter-rail>
-                <label class="nomi-select-xs"><span class="lead">模型</span><select data-model-entry data-anchor-model aria-label="全片风格锚模型"></select><span class="chev">▾</span></label>
+                <label class="nomi-select-xs"><span class="lead">模型</span><select data-model-entry data-anchor-model name="style-anchor-model" autocomplete="off" aria-label="全片风格锚模型"></select><span class="chev">▾</span></label>
                 <span class="nomi-select-xs" data-anchor-aspect><span class="lead">画幅</span><span class="text-caption text-nomi-ink-80">—</span></span>
               </div>
               <div class="anchor-refs-list" data-anchor-references>
@@ -454,14 +465,14 @@
           <div class="grip">⋮<br>⋮</div>
           <div class="frame" data-storyboard-frame aria-label="镜 06 画面格"></div>
           <div class="refzone" data-storyboard-refzone>
-            <div class="refzone-head"><span>参考输入</span><span class="derive-badge">derive · slots</span></div>
-            <div class="ref-grid" id="referenceZoneView" data-reference-zone-view></div>
+            <div class="refzone-head"><span>参考输入</span><span class="derive-badge" translate="no">derive · slots</span></div>
+            <div class="ref-grid" id="referenceZoneView" data-reference-zone-view aria-live="polite"></div>
           </div>
           <div class="prompt-column">
             <div class="prompt-box" data-storyboard-prompt-block>中近景，雨停后的天台。<span class="mention">林薇</span> 松开栏杆，城市灯光在积水里晃动，镜头缓慢靠近，留下决绝但克制的余韵。</div>
             <div class="row-tools"><span>已带入：全片风格「赛博霓虹」</span><span class="spacer"></span><button class="ghost" type="button">展开台词与转场</button></div>
             <div class="param-rail" data-parameter-rail>
-              <select class="param-pill model-pill" id="modelPill" data-model-entry aria-label="镜头模型"></select>
+              <select class="param-pill model-pill" id="modelPill" data-model-entry name="shot-model" autocomplete="off" aria-label="镜头模型"></select>
               <button class="param-pill summary" type="button" id="summaryPill" data-parameter-summary>首尾帧 · 9:16 · 5 s · 有声　⌄</button>
               <span class="spacer"></span><button class="generate" type="button">生成这一镜</button>
             </div>
@@ -482,7 +493,7 @@
 
     <details class="card inventory">
       <summary>当前注册表覆盖说明：89 个 archetype / 188 个 mode（全量清单见旁边设计记录）</summary>
-      <p>这里的可切换样本不是抽象四态：它们来自真实注册项，覆盖 `referenceZoneView()` 的所有输出分支与六种 `ArchetypeReferenceSlotKind`。完整 89 项逐 mode 清单见 `docs/design/2026-09-03-storyboard-model-mode-inventory.md`。</p>
+      <p>这里的可切换样本不是抽象四态：它们来自真实注册项，覆盖 <code translate="no">referenceZoneView()</code> 的所有输出分支与六种 <code translate="no">ArchetypeReferenceSlotKind</code>。完整 89 项逐 mode 清单见 <code translate="no">docs/design/2026-09-03-storyboard-model-mode-inventory.md</code>。</p>
       <div class="inventory-grid" id="inventoryGrid"></div>
     </details>
   </div>
@@ -491,7 +502,7 @@
   // 这份快照由 2026-09-03 的 MODEL_ARCHETYPES 读取结果整理；生产实现仍以 TS 档案为准。
   // 这里故意先 derive view，再渲染 view，避免样张回到“手画四张图”。
   const CASES = [
-    { key: 'seedance-2:t2v', label: 'Seedance 2.0 · 文生视频', archetype: 'seedance-2', mode: 't2v', term: '文生视频', slots: [], group: '零槽', note: 'slots.length === 0 → none-accepted' },
+    { key: 'seedance-2:t2v', label: 'Seedance 2.0 · 文生视频', archetype: 'seedance-2', mode: 't2v', term: '文生视频', slots: [], group: '零槽', note: '没有参考槽 → 不显示参考入口' },
     { key: 'seedance-2:first', label: 'Seedance 2.0 · 首帧', archetype: 'seedance-2', mode: 'first', term: '首帧', slots: [{ kind: 'first_frame', label: '首帧', min: 1, max: 1 }], group: '单槽', note: '1 个具名槽 → 1 格' },
     { key: 'seedance-2:firstlast', label: 'Seedance 2.0 · 首尾帧', archetype: 'seedance-2', mode: 'firstlast', term: '首尾帧', slots: [{ kind: 'first_frame', label: '首帧', min: 1, max: 1 }, { kind: 'last_frame', label: '尾帧', min: 1, max: 1 }], group: '多具名槽', note: '2 个具名槽 → 2 格' },
     { key: 'seedance-2:omni', label: 'Seedance 2.0 · 全能参考', archetype: 'seedance-2', mode: 'omni', term: '全能参考', slots: [{ kind: 'image_ref', label: '角色参考', min: 0, max: 9, characterIndexed: true }, { kind: 'video_ref', label: '参考视频', min: 0, max: 3 }, { kind: 'audio_ref', label: '参考音频', min: 0, max: 3 }], group: '数组参考', note: '非具名槽 → 一个 @ 通用入口；声明 image/video/audio' },
@@ -503,7 +514,7 @@
   const INVENTORY = [
     ['seedance-2','Seedance 2.0','t2v · first · firstlast · omni'],['seedance-2.5','Seedance 2.5','t2v · first · firstlast · omni'],['minimax-h3','MiniMax H3','t2v · i2v · ref'],['minimax-h3-max','MiniMax H3-Max','t2v · i2v'],['happyhorse','HappyHorse 1.0','t2v · i2v · ref · edit'],['vidu-q3','Vidu Q3','ref'],['kling-3.0-turbo','可灵 3.0 Turbo','t2v · i2v'],['happyhorse-1.1','HappyHorse 1.1','t2v · i2v · ref'],['grok-imagine-1.5-video','Grok Imagine 1.5','t2v · i2v'],['sora-2','Sora 2','t2v · i2v'],['veo-3.1','Veo 3.1','t2v · reference · frame'],['gemini-omni-1.1','Gemini Omni 1.1 Flash','t2v · firstlast · reference'],['runway-gen4.5','Runway Gen-4.5','t2v · i2v'],['runway-gen4-turbo','Runway Gen-4 Turbo','i2v'],['kling-3.0','可灵 3.0','t2v · i2v'],['seedance-2-apimart','Seedance 2.0','t2v · i2v · omni · firstlast'],['seedance-2.5-apimart','Seedance 2.5','t2v · first · firstlast · omni'],['seedance-2.5-runway','Seedance 2.5','t2v · first · firstlast · omni'],['minimax-h3-apimart','MiniMax H3','t2v · first · firstlast · ref'],['wan-2.7','Wan 2.7','t2v · i2v · ref'],['wan-3.0','Wan 3.0','t2v · first · firstlast · ref'],['wan-3.0-apimart','Wan 3.0','t2v · first · firstlast · ref'],['hailuo-2.3','Hailuo 2.3','t2v · i2v'],['omni-flash-ext','Omni-Flash-Ext','t2v · i2v'],['minimax-h3-regeneration','MiniMax H3 再生成','regenerate'],['volcengine-seedance-2','Seedance 2.0','t2v · first · firstlast · omni'],['volcengine-seedance-2-5','Seedance 2.5','t2v · first · firstlast · omni'],['dreamina-seedance-2','即梦 Seedance','t2v · i2v · firstlast · multimodal'],['dreamina-multiframe','即梦多帧视频','multiframe'],['runninghub-seedance','Seedance 2.0 (RunningHub)','text · image'],['rh-veo-3.1','Veo 3.1 (RunningHub)','text · image'],['rh-kling-3.0','可灵 3.0 (RunningHub)','text · image'],['rh-wan-2.7','Wan 2.7 (RunningHub)','text · image'],['rh-hailuo-2.3','海螺 2.3 (RunningHub)','text · image'],['rh-sora-2','Sora 2 (RunningHub)','text · image'],['agnes-video','Agnes Video V2.0','t2v · i2v · keyframes'],['agnes-video-2.5','Agnes Video 2.5','text · keyframe · reference'],['agnes-video-2.5-flash','Agnes Video 2.5 Flash','text · keyframe · reference'],['minimax-music-3','MiniMax Music 3','music'],['minimax-speech-2.8','MiniMax Speech 2.8','speech'],['eleven-v3','Eleven v3','speech'],['eleven-multilingual-v2','Eleven Multilingual v2','speech'],['eleven-music-v2','Eleven Music v2','music'],['eleven-sfx-v2','Eleven Sound Effects v2','sfx'],['eleven-scribe-v2','Scribe v2','transcribe'],['meshy-7','Meshy 7','i2m'],['runway-gen4-image','Runway Gen-4 Image','t2i · i2i'],['runway-gen4-image-turbo','Runway Gen-4 Image Turbo','i2i'],['runway-muse-image','Runway Muse Image','t2i · i2i'],['grok-imagine-image-2','Grok Imagine Image 2','t2i · i2i'],['gemini-image-3-pro','Gemini Image 3 Pro','t2i · i2i'],['gemini-image-3.1-flash','Gemini Image 3.1 Flash','t2i · i2i'],['runway-seed-audio','Runway Seed Audio','sfx · speech'],['gpt-image-2','GPT Image 2','t2i · i2i'],['seedream','Seedream 4.5','t2i · edit'],['kie-seedream-5-pro','Seedream 5.0 Pro','t2i · edit'],['kie-seedream-5-lite','Seedream 5.0 Lite','t2i · edit'],['nano-banana-2','Nano Banana 2','t2i · edit'],['nano-banana-2-lite','Nano Banana 2 Lite','t2i · edit'],['nano-banana','Nano Banana','t2i · edit'],['flux-2-pro','FLUX.2 Pro','t2i · edit'],['qwen-image-3','Qwen-Image 3.0','t2i · edit'],['qwen-image','Qwen-Image 2.0','t2i · edit'],['imagen-4','Imagen 4','t2i'],['z-image-turbo','Z-Image Turbo','t2i'],['seedream-5-pro','Seedream 5.0 Pro','t2i · edit'],['nomi-audio','声音','speech · transcribe'],['suno-v5.5','Suno V5.5','music · extend · cover'],['suno-sfx-v5.5','Suno Sounds V5.5','sfx'],['lyria-3.5','Lyria 3.5','music'],['volcengine-doubao-tts','豆包语音 2.0','speech'],['seed-tts','Seed TTS 2.0（中转）','speech'],['modelscope-image','魔搭图像','t2i'],['modelscope-image-edit','魔搭改图','edit'],['volcengine-seedream','Seedream 5.0','t2i · edit'],['volcengine-seedream-5-pro','Seedream 5.0 Pro','t2i · edit'],['dreamina-image','即梦图片','t2i · i2i'],['dreamina-upscale','即梦图片超清','upscale'],['codex-imagegen','Codex 生图','t2i · i2i'],['antigravity-image','Antigravity · generate_image','t2i · i2i'],['hunyuan3d','混元3D v3.1','text · image'],['hitem3d','HiTem3D v21','image'],['meshy6','Meshy 6','text · image'],['rh-seedream-4.5','Seedream 4.5 (RunningHub)','text · edit'],['rh-nano-banana','Nano Banana (RunningHub)','text · edit'],['rh-gpt-image-2','GPT Image 2 (RunningHub)','text · edit'],['rh-qwen-image-2.0','Qwen-Image 2.0 (RunningHub)','text · edit'],['agnes-image','Agnes Image 2.0','t2i · edit'],['agnes-image-2.1','Agnes Image 2.1','t2i · edit'],
   ];
-  const slotKindLabel = { first_frame: '首帧', last_frame: '尾帧', image_ref: 'image_ref', video_ref: 'video_ref', audio_ref: 'audio_ref', source_video: 'source_video' };
+  const slotKindLabel = { first_frame: '首帧', last_frame: '尾帧', image_ref: '参考图', video_ref: '参考视频', audio_ref: '参考音频', source_video: '源视频' };
   const namedFrameKinds = new Set(['first_frame', 'last_frame', 'source_video']);
   const current = () => CASES.find((item) => item.key === document.getElementById('modelSelect').value) || CASES[0];
   // 与 src/workbench/creation/storyboard/shotRow/shotRowModel.ts 保持同一 derive 顺序。
@@ -512,16 +523,17 @@
     if (mode.slots.length === 0) return { kind: 'none-accepted' };
     return { kind: 'slots', namedSlots: mode.slots.filter((slot) => namedFrameKinds.has(slot.kind)), hasArrayIntake: mode.slots.some((slot) => !namedFrameKinds.has(slot.kind)), referencedAnchors };
   }
-  function slotText(slot) { const limit = slot.max === undefined ? '上限未公布' : `${slot.min}–${slot.max}`; const flags = [slot.characterIndexed ? '按角色索引' : '', slot.asArray ? 'asArray' : ''].filter(Boolean); return `${slotKindLabel[slot.kind]} · ${limit}${flags.length ? ` · ${flags.join(' · ')}` : ''}`; }
+  function slotLabel(slot) { return slot.label || slotKindLabel[slot.kind] || '参考输入'; }
+  function slotText(slot) { const limit = slot.max === undefined ? '上限未公布' : `${slot.min}–${slot.max}`; const flags = [slot.characterIndexed ? '按角色索引' : '', slot.asArray ? '按数组传入' : ''].filter(Boolean); return `${slotLabel(slot)} · ${limit}${flags.length ? ` · ${flags.join(' · ')}` : ''}`; }
   function renderZone(item) {
     const zone = document.getElementById('referenceZoneView');
     const view = referenceZoneView(item.archetype ? item : null);
     zone.innerHTML = '';
-    if (view.kind === 'none-accepted') { zone.innerHTML = '<div class="none-state" data-reference-zone="none-accepted"><div><strong>此模型不吃参考</strong>slots.length === 0 · @ 不可用</div></div>'; return; }
+    if (view.kind === 'none-accepted') { zone.innerHTML = '<div class="none-state" data-reference-zone="none-accepted"><div><strong>此模型不吃参考</strong><span translate="no">slots.length === 0</span> · @ 不可用</div></div>'; return; }
     const grid = document.createElement('div'); grid.className = 'ref-grid'; grid.dataset.referenceZone = 'slots';
     for (const slot of view.namedSlots) {
       const unit = document.createElement('div'); unit.className = 'ref-unit';
-      unit.innerHTML = `<div class="ref-tile empty" data-storyboard-ref-tile aria-label="${slot.label}">${slot.kind === 'source_video' ? '▶' : '+'}</div><span class="ref-cap">${slot.label} · ${slot.kind}${slot.asArray ? ' · asArray' : ''}</span>`;
+      unit.innerHTML = `<div class="ref-tile empty" data-storyboard-ref-tile aria-label="${slotLabel(slot)}">${slot.kind === 'source_video' ? '▶' : '+'}</div><span class="ref-cap">${slotText(slot)}</span>`;
       grid.append(unit);
     }
     if (view.hasArrayIntake) {
@@ -536,8 +548,8 @@
   }
   function render() {
     const item = current();
-    const declared = item.slots.length ? item.slots.map(slotText).join(' | ') : 'slots.length === 0';
-    document.getElementById('slotContract').innerHTML = `<strong>${item.archetype || 'no archetype'}</strong> / ${item.mode} · ${declared} · ${item.note}`;
+    const declared = item.slots.length ? item.slots.map(slotText).join(' | ') : '不吃参考';
+    document.getElementById('slotContract').innerHTML = `<strong translate="no">${item.archetype || '未知档案'}</strong> / <span translate="no">${item.mode}</span> · ${declared} · ${item.note}`;
     document.getElementById('modeTag').textContent = `${item.group} · ${item.term}`;
     document.getElementById('summaryPill').textContent = `${item.term} · 9:16 · 5 s · 参数摘要　⌄`;
     document.querySelectorAll('[data-model-entry]').forEach((entry) => { entry.value = item.key; });
@@ -552,10 +564,10 @@
   }
   select.value = 'seedance-2:omni';
   document.getElementById('summaryPill').addEventListener('click', () => document.getElementById('parameterPanel').classList.toggle('on'));
-  document.getElementById('themeToggle').addEventListener('click', () => document.getElementById('app').classList.toggle('dark'));
+  document.getElementById('themeToggle').addEventListener('click', () => { const app = document.getElementById('app'); app.classList.toggle('dark'); const dark = app.classList.contains('dark'); document.documentElement.style.colorScheme = dark ? 'dark' : 'light'; document.querySelector('meta[name="theme-color"]').setAttribute('content', getComputedStyle(app).getPropertyValue('--nomi-bg').trim()); });
   document.querySelectorAll('[data-shot-ref]').forEach((button) => button.addEventListener('click', () => { document.querySelectorAll('[data-shot-ref]').forEach((item) => item.removeAttribute('aria-pressed')); button.setAttribute('aria-pressed', 'true'); document.getElementById('app').dataset.selectedShot = button.dataset.shotRef; }));
   const inventoryGrid = document.getElementById('inventoryGrid');
-  for (const [id, label, modes] of INVENTORY) { const el = document.createElement('div'); el.className = 'inventory-item'; el.innerHTML = `<strong>${id} · ${label}</strong>${modes}`; inventoryGrid.append(el); }
+  for (const [id, label, modes] of INVENTORY) { const el = document.createElement('div'); el.className = 'inventory-item'; el.innerHTML = `<strong><span translate="no">${id}</span> · ${label}</strong><span translate="no">${modes}</span>`; inventoryGrid.append(el); }
   render();
 </script>
 </body>

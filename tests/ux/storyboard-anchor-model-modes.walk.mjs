@@ -48,12 +48,24 @@ for (const rule of storyboardAutoContract.geometry) {
 }
 const select = page.locator('#modelSelect')
 const zone = page.locator('[data-reference-zone-view]')
+const bareSnakeCaseIdentifier = /^[a-z]+_[a-z]+$/
+const assertReferenceCopyIsHuman = async () => {
+  const referenceCopy = await zone.locator('.ref-cap, [data-reference-array], .none-state').allTextContents()
+  const leakedReferenceIdentifier = referenceCopy
+    .flatMap((text) => text.split(/[\s·]+/))
+    .find((token) => bareSnakeCaseIdentifier.test(token))
+  if (leakedReferenceIdentifier) failMode(`参考区文案暴露内部标识符：${leakedReferenceIdentifier}`)
+}
+await assertReferenceCopyIsHuman()
 if (!(await select.isVisible())) failMode('真实模式选择器不可见')
 if (await select.locator('option').count() !== storyboardIntentContract.modeProof.length) failMode('样张取样模式数量与意图契约不符')
 
 const anchorPanel = page.locator('[data-storyboard-anchors]')
-const anchorRows = anchorPanel.locator('.shot-row[data-storyboard-anchor-row]')
+const anchorRows = anchorPanel.locator('[data-storyboard-anchor-row]')
+const shotRow = page.locator('[data-storyboard-row]')
 if (await anchorRows.count() !== 3) failMode('锚区必须由角色、场景、风格文本三条 shot-row 同构锚行组成')
+if (await shotRow.count() !== 1) failMode('镜头行精确挂点必须唯一')
+else await shotRow.screenshot({ path: path.join(outDir, 'storyboard-anchor-shot-row-selector.png') })
 if (await anchorPanel.locator('.anchor-card').count() !== 0) failMode('锚区仍残留旧的 anchor-card 布局')
 // FIX4（2026-09-03）：不再要求锚行与镜头行 gridTemplateColumns 逐字相等——那正是上一轮把
 // 108×144 的真实锚卡压扁成 76×132 的根因（为了凑同一套 14/84/136/1fr 四栏栅格）。
@@ -108,6 +120,7 @@ for (const proof of storyboardIntentContract.modeProof) {
     if (!(await zone.locator('[data-reference-zone="slots"]').isVisible())) failMode(`${proof.key} 应显示槽投影`)
     if (await zone.locator('[data-storyboard-ref-tile]').count() !== proof.tiles) failMode(`${proof.key} 参考格数量应来自 slots`)
     if (await zone.locator('[data-reference-array]').count() !== (proof.array ? 1 : 0)) failMode(`${proof.key} 数组参考入口不符`)
+    await assertReferenceCopyIsHuman()
     const zoneText = await zone.textContent()
     for (const text of proof.contains || []) if (!zoneText.includes(text)) failMode(`${proof.key} 缺少诚实声明 ${text}`)
   }
@@ -117,11 +130,17 @@ for (const proof of storyboardIntentContract.modeProof) {
 }
 
 await select.selectOption('seedance-2:omni')
-await page.locator('[data-parameter-summary]').click()
-if (!(await page.locator('[data-parameter-panel]').isVisible())) failMode('摘要 pill 未打开统一参数面板')
+const parameterSummary = page.locator('[data-parameter-summary]')
+const parameterPanel = page.locator('[data-parameter-panel]')
+if (await parameterPanel.isVisible()) failMode('参数面板初始不是默认收起态')
+await parameterSummary.click()
+if (!(await parameterPanel.isVisible())) failMode('摘要 pill 未打开统一参数面板')
+await page.screenshot({ path: path.join(outDir, 'storyboard-anchor-parameter-panel-clicked.png'), fullPage: true })
+await parameterSummary.click()
+if (await parameterPanel.isVisible()) failMode('点击摘要 pill 后参数面板未回到收起态')
 
-// FIX4 §4：干净版主视觉（清单折叠，<details> 默认态）与清单证据（手动展开）分开命名、分开截图，
-// 不再让 89/188 模式清单跟设计主体挤在同一张图里。
+// FIX5 §3：干净版主视觉同时保持清单与参数面板收起；点击摘要 pill 的展开态单独留证，
+// 不把 360px 参数面板混进默认态主视觉。
 const inventoryDetails = page.locator('details.inventory')
 const isInventoryOpen = () => inventoryDetails.evaluate((el) => el.open)
 if (await isInventoryOpen()) failMode('清单默认展开——违反 §4 收尾要求（<details open> 应已去掉）')
