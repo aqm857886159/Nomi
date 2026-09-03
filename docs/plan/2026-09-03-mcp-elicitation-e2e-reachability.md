@@ -1,5 +1,7 @@
 # MCP elicitation e2e 可达性补漏
 
+> 状态：✅ 已交付
+
 ## 范围
 
 - 为 `tests/ux/mcp-generation-elicitation-first.e2e.mjs` 增加明确的 `pnpm` 脚本入口。
