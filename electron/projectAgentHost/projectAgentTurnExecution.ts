@@ -632,6 +632,7 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
           expectedRevision: state.hostRevision,
           items: outcomeFailure ? [...resultItems, outcomeFailure] : resultItems,
           turnStatus: status,
+          usage: response.usage,
           ...(capabilityOutcome ? { retryable: capabilityOutcome.retryable } : {}),
           ...(proposalSettlements.length > 0
             ? { proposalSettlements }

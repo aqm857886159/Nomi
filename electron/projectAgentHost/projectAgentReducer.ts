@@ -81,6 +81,19 @@ function findQueueForTurn(queue: readonly ProjectAgentQueueItem[], turnId: strin
   return item;
 }
 
+const AGENT_USAGE_KEYS = ["promptTokens", "completionTokens", "cachedPromptTokens", "totalTokens"] as const;
+
+function assertAsyncResultUsage(value: unknown): void {
+  if (!value || typeof value !== "object" || Array.isArray(value)) fail("async_result_stale");
+  const usage = value as Record<string, unknown>;
+  if (Object.keys(usage).some((key) => !AGENT_USAGE_KEYS.includes(key as (typeof AGENT_USAGE_KEYS)[number]))) {
+    fail("async_result_stale");
+  }
+  for (const key of AGENT_USAGE_KEYS) {
+    if (!Number.isSafeInteger(usage[key]) || (usage[key] as number) < 0) fail("async_result_stale");
+  }
+}
+
 function assertSingleRunningTurn(state: ProjectAgentHostState, turnId: string): void {
   if (state.turns.some((turn) => turn.turnId !== turnId && turn.status === "running")) {
     fail("running_turn_exists");
@@ -573,6 +586,7 @@ export function reduceProjectAgentMutation(
           "expectedRevision",
           "items",
           "turnStatus",
+          "usage",
           "retryable",
           "proposalApprovalId",
           "proposalStatus",
@@ -583,6 +597,7 @@ export function reduceProjectAgentMutation(
         const result = mutation.payload;
         assertCanonicalMutationTimestamp(result.receivedAt);
         assertOptionalMutationBoolean(result.retryable);
+        if (result.usage !== undefined) assertAsyncResultUsage(result.usage);
         assertExactMutationKeys(result.binding, ["projectId", "immutableProjectUuid", "projectGeneration"]);
         if (
           result.expectedRevision !== mutation.expectedRevision ||
@@ -682,7 +697,7 @@ export function reduceProjectAgentMutation(
         const assistantFinal = reduceProjectAgentAssistantFinal(items, result);
         items = assistantFinal.items;
         changes.push(...assistantFinal.changes);
-        const updatedTurn = transitionRecord(
+        const updatedTurnBase = transitionRecord(
           turn,
           {
             status: result.turnStatus,
@@ -691,6 +706,10 @@ export function reduceProjectAgentMutation(
           },
           true,
         );
+        const updatedTurn = freezeProjectAgentIncremental({
+          ...updatedTurnBase,
+          ...(result.usage !== undefined ? { usage: result.usage } : {}),
+        }) as ProjectAgentTurn;
         const updatedQueue = transitionRecord(
           queueItem,
           {
