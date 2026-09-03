@@ -7,7 +7,7 @@ import {
   vendorHealthSnapshotForTests,
 } from './useVendorHealth'
 
-const errorHealth: VendorHealth = { state: 'unreachable', reason: 'old error', checkedAt: 1 }
+const errorHealth: VendorHealth = { vendorKey: 'custom', state: 'unreachable', reason: 'old error', checkedAt: 1 }
 
 describe('vendor health snapshot invalidation', () => {
   it('clears the affected vendor after a catalog mutation', () => {
