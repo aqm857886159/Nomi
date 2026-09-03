@@ -24,8 +24,10 @@ const CreationWorkspace = lazyWithChunkBoundary(
     "创作区",
     () => import("./creation/CreationWorkspace"),
 );
-// 分镜独立工作区（v5 C3）：storyboard 模式不再共用 CreationWorkspace，
-// 单独懒挂载全宽 StoryboardWorkspace（无文档侧栏、无 AI 栏）。
+// 分镜独立工作区（v5 C3）：storyboard 模式不再共用 CreationWorkspace，单独懒挂载。
+// 2026-09-03 起与创作页**同构三栏**（目录 | 分镜表 | Agent）——原本刻意做成全宽孤岛，
+// 结果用户在分镜页既回不去目录也叫不到 Agent。表宽的代价由 Agent 栏的收起态吸收
+// （projectAgentDockCollapsed 与创作页同一个槽，开合状态跨页连续）。
 const StoryboardWorkspace = lazyWithChunkBoundary(
     "i18n:workspace.storyboard",
     () => import("./creation/storyboard/StoryboardWorkspace"),
@@ -154,17 +156,22 @@ export default function WorkbenchShell({
     // 不挂 portal、不给工作区传 dock ref（于是也不预留助手列 / 折叠药丸 / 入口），不只是折叠态。
     // 开闸即删此闸的默认值歧义（P1）。
     const agentHostEnabled = useAgentHostEnabled();
-    const [agentDockTargets, setAgentDockTargets] = React.useState<Record<'creation' | 'generation' | 'preview', HTMLDivElement | null>>({ creation: null, generation: null, preview: null });
-    const setAgentDockTarget = React.useCallback((surface: 'creation' | 'generation' | 'preview') => (node: HTMLDivElement | null) => {
+    const [agentDockTargets, setAgentDockTargets] = React.useState<Record<'creation' | 'storyboard' | 'generation' | 'preview', HTMLDivElement | null>>({ creation: null, storyboard: null, generation: null, preview: null });
+    const setAgentDockTarget = React.useCallback((surface: 'creation' | 'storyboard' | 'generation' | 'preview') => (node: HTMLDivElement | null) => {
         setAgentDockTargets((current) => current[surface] === node ? current : { ...current, [surface]: node });
     }, []);
     const agentDockRefs = React.useMemo(() => agentHostEnabled ? {
         creation: setAgentDockTarget('creation'),
+        storyboard: setAgentDockTarget('storyboard'),
         generation: setAgentDockTarget('generation'),
         preview: setAgentDockTarget('preview'),
-    } : { creation: undefined, generation: undefined, preview: undefined }, [agentHostEnabled, setAgentDockTarget]);
+    } : { creation: undefined, storyboard: undefined, generation: undefined, preview: undefined }, [agentHostEnabled, setAgentDockTarget]);
+    // agentSurface 决定 Agent 的**能力与目标**（分镜页操作的仍是文稿，故按 creation 走）；
+    // agentDockTarget 决定它**渲染到哪个挂载点**。两者此前被合成一个：分镜模式算 creation，
+    // 于是 Agent 被渲染进已卸出视野的创作页 dock 里——分镜页因此没有 Agent（2026-09-03 用户提出）。
     const agentSurface = workspaceMode === 'generation' ? 'generation' : workspaceMode === 'preview' ? 'preview' : 'creation';
-    const agentDock = agentHostEnabled ? agentDockTargets[agentSurface] : null;
+    const agentDockSurface = workspaceMode === 'storyboard' ? 'storyboard' : agentSurface;
+    const agentDock = agentHostEnabled ? agentDockTargets[agentDockSurface] : null;
     const [mountedWorkspaceModes, setMountedWorkspaceModes] = React.useState<
         WorkspaceMode[]
     >(() => [workspaceMode]);
@@ -348,7 +355,7 @@ export default function WorkbenchShell({
                         <WorkspaceSlot
                             active={workspaceMode === "storyboard"}
                             label={t("workspace.storyboard")}>
-                            <StoryboardWorkspace projectId={projectId} />
+                            <StoryboardWorkspace projectId={projectId} aiCollapsed={agentDockCollapsed} agentDockRef={agentDockRefs.storyboard} />
                         </WorkspaceSlot>
                     ) : null}
                     {mountedWorkspaceModes.includes("generation") ? (
