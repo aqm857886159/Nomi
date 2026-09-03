@@ -60,7 +60,7 @@ export default function AssetMentionChip({ node }: NodeViewProps): JSX.Element {
       <span className={cn('relative w-[22px] h-[22px] overflow-hidden bg-nomi-ink-05 shrink-0 flex items-center justify-center')} aria-hidden>
         <AssetThumb asset={asset} playSize={10} />
       </span>
-      <span className={cn('text-micro font-medium leading-none text-nomi-ink-70 whitespace-nowrap')}>{label}</span>
+      <span className={cn('text-micro font-medium leading-none text-nomi-ink-60 whitespace-nowrap')}>{label}</span>
       {hoverPreview ? (
         <span className="pointer-events-none absolute left-0 top-full z-30 mt-1.5 w-40 overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1 shadow-nomi-md" data-storyboard-mention-preview="true">
           <AssetThumb asset={asset} playSize={12} />
