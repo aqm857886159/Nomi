@@ -64,10 +64,10 @@
       "evidence": "该入口直接调用同一 Zustand connectNodes，不经过 React Flow onConnectEnd。"
     },
     {
-      "path": "src/workbench/creation/storyboard/exec/storyboardExec.ts",
-      "entry_point": "storyboard batch adoption graph writes",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "entry_point": "storyboard row execution reads graph dependencies",
       "disposition": "not-affected",
-      "evidence": "分镜批量落地路径通过领域批量动作写入图快照，不经过正文 hit-test；本次修复 scope 不改其 order 或边归一化。"
+      "evidence": "分镜行执行只读取当前画布 nodes/edges 规划依赖，不经过正文 hit-test；本次修复 scope 不改其 order 或边归一化。"
     }
   ],
   "recurrence": {
