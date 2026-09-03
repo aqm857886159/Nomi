@@ -63,6 +63,7 @@ export const zhStoryboardEditor = {
     stayPill: '停留',
     stayHint: '图片镜的时长 = 进时间轴/顺播时这张图停留几秒',
     dialogueQuiet: '台词 {{text}}',
+    dialogueAudioHint: '对白将随出声模型生成',
     expand: '展开台词 / 转场 / 参数',
     collapse: '收起',
     dialogueLabel: '台词',
@@ -78,6 +79,15 @@ export const zhStoryboardEditor = {
       match_cut: '匹配剪辑',
       whip_pan: '甩镜',
     },
+    /** C1：参考区「@」入口（mention 触发按钮）。 */
+    atRefAria: '输入 @ 选择参考',
+    atRefTitle: '在提示词里插入参考（@ 符号弹出选择器）',
+    atRefDisabledTitle: '此模型不吃参考，无法用 @ 引用',
+  },
+  promptSkeleton: {
+    choose: '换一个预设',
+    segmentAria: '{{label}}：{{value}}',
+    segment: { shotSize: '景别·运镜', emotion: '情绪' },
   },
   bulk: {
     scope: '全部镜头',
@@ -266,6 +276,7 @@ export const enStoryboardEditor = {
     stayPill: 'Hold',
     stayHint: 'For image shots, duration = how long this frame holds on the timeline / in sequence playback',
     dialogueQuiet: 'Line {{text}}',
+    dialogueAudioHint: 'Dialogue will be generated with the speaking model',
     expand: 'Expand dialogue / transition / parameters',
     collapse: 'Collapse',
     dialogueLabel: 'Dialogue',
@@ -281,6 +292,14 @@ export const enStoryboardEditor = {
       match_cut: 'Match cut',
       whip_pan: 'Whip pan',
     },
+    atRefAria: 'Type @ to select a reference',
+    atRefTitle: 'Insert a reference into the prompt (@ opens the picker)',
+    atRefDisabledTitle: 'This model takes no references — @ is disabled',
+  },
+  promptSkeleton: {
+    choose: 'Choose a preset',
+    segmentAria: '{{label}}: {{value}}',
+    segment: { shotSize: 'Shot size · camera', emotion: 'Emotion' },
   },
   bulk: {
     scope: 'All shots',
