@@ -1,0 +1,110 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-provider-switch-toast-dedupe",
+  "problem_type": "供应商恢复通知缺少幂等身份",
+  "symptom": "同一供应商断开后的自动切换通知在右上角同时出现两条。",
+  "direct_cause": "useNodeModelAutoSelect 的供应商自愈 effect 每次执行都调用 showInfoToast，而通用 toast 在未传 id 时生成随机 id；React StrictMode 等生命周期重放因此产生两条独立通知。",
+  "class_root": "副作用通知没有携带可重建的业务事件身份，重复订阅、effect 重放或同一事件多次投递都无法在共享通知边界合并。",
+  "migration": "新增供应商恢复切换的稳定 transition id，扩展现有 showInfoToast/toast 透传该 id；删除该路径的随机 toast 身份，不增加新的 UI 容器或控件。",
+  "affected_population": [
+    "生成画布中原供应商不可用、节点自动切换到兼容模型的用户。",
+    "所有可能因 React StrictMode、重复订阅或重试而重复执行该恢复 effect 的开发和生产运行。"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+    "src/utils/showInfoToast.ts",
+    "src/ui/toast.tsx",
+    "src/utils/showInfoToast.test.ts",
+    "src/ui/toast.test.ts"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts#供应商断开自愈 useEffect",
+    "src/utils/showInfoToast.ts#showInfoToast",
+    "src/utils/showInfoToast.ts#providerSwitchToastId",
+    "src/ui/toast.tsx#toastStore.push"
+  ],
+  "invariants": [
+    "同一 node、源供应商/模型、目标供应商/模型组成的恢复切换始终使用同一个 toast id。",
+    "不同节点或不同切换目标使用不同 toast id，不互相覆盖。",
+    "通用通知容器收到稳定 id 时沿用已有 update → idempotent show 契约，界面最多保留一条该事件通知。"
+  ],
+  "regression_tests": [
+    "src/utils/showInfoToast.test.ts",
+    "src/ui/toast.test.ts"
+  ],
+  "residual_risks": [
+    "若文案本身在同一 transition 内变化，稳定 id 会更新同一条通知；跨不同 transition 仍按业务身份分别显示。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "问题是本仓库 React effect 生命周期与 Mantine 通知边界之间的内部幂等契约，不需要外部依据。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何 effect/订阅触发的用户通知若默认使用随机 id 都可能重复；本次扫描了通用 toast、信息 toast 和该自动切换入口。",
+    "same_class_scan": [
+      "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts#供应商断开自愈入口现在生成稳定 transition id",
+      "src/utils/showInfoToast.ts#showInfoToast 是普通告知的共享入口，现可透传稳定 id",
+      "src/ui/toast.tsx:92-111#toastStore.push 对稳定 id 执行 update 后幂等 show"
+    ]
+  },
+  "generality_proof": "业务入口负责构造可重建的事件身份，通用 showInfoToast/toast 负责把身份送到唯一通知容器；重复调用因此共享 Mantine 的稳定 id，而无需为每个 effect 增加本地 ref 或并行去重逻辑。",
+  "shared_boundaries": [
+    {
+      "path": "src/utils/showInfoToast.ts",
+      "symbol": "showInfoToast",
+      "responsibility": "统一普通信息通知的稳定身份透传。"
+    },
+    {
+      "path": "src/ui/toast.tsx",
+      "symbol": "toastStore.push",
+      "responsibility": "把稳定 id 交给唯一通知容器并保持 update/show 幂等契约。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "entry_point": "供应商断开自愈 useEffect",
+      "disposition": "enforced",
+      "evidence": "该入口使用 providerSwitchToastId，把节点和源/目标模型身份传给 showInfoToast。"
+    },
+    {
+      "path": "src/utils/showInfoToast.ts",
+      "entry_point": "showInfoToast",
+      "disposition": "enforced",
+      "evidence": "入口接收可选 id 并透传 toast(message, 'info', id)，回归测试断言重复 transition 的两次调用 id 相同。"
+    },
+    {
+      "path": "src/ui/toast.tsx",
+      "entry_point": "toastStore.push",
+      "disposition": "enforced",
+      "evidence": "稳定 id 分支先 update 再 show，既有 toast.test 锁住该共享行为。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/ui/toast.tsx",
+    "invariant": "带业务身份的重复通知必须使用同一 id 进入唯一 toast 容器，不能生成随机并行通知。",
+    "failure_mode": "稳定 id 回归测试或 toast 契约测试失败；若调用方遗漏 id，审查可沿共享入口发现随机身份回退。",
+    "exception_policy": "none",
+    "strategy": "将稳定身份透传与唯一容器幂等行为集中在 toast 边界，恢复 effect 只提供可重建的 transition 组成。",
+    "artifacts": [
+      "src/ui/toast.tsx",
+      "src/utils/showInfoToast.ts",
+      "src/utils/showInfoToast.test.ts",
+      "src/ui/toast.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/utils/showInfoToast.test.ts",
+    "src/ui/toast.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有并行通知实现；旧行为是同一 toast API 的随机 id 回退，本次直接替换该调用路径为稳定身份。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及依赖版本或外部服务生命周期。",
+    "exit_criteria": []
+  }
+}
