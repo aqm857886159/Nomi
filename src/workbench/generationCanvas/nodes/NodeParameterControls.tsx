@@ -236,7 +236,6 @@ export default function NodeParameterControls({
 
   useNodeModelAutoSelect({
     node,
-    meta,
     modelOptions,
     selectedModelValue,
     selectedModelOption,
