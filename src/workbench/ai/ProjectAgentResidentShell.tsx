@@ -594,7 +594,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   // 发一轮。`options.toolProfile` 是**显式意图通道**：调用方自己知道用户要干什么时直接声明，
   // 不再让能力取决于 agentChatPolicy 那张关键词表碰巧收没收录用户的措辞（2026-09-03 走查：
   // 按钮文案「拆镜头」不在表里，整条拆镜功能哑掉）。草稿框走 submit()，按钮类入口走这里。
-  const sendTurn = React.useCallback(async (rawText: string, options?: { toolProfile?: AgentToolProfile; displayText?: string }) => {
+  const sendTurn = React.useCallback(async (rawText: string, options?: { toolProfile?: AgentToolProfile; displayText?: string; action?: boolean }) => {
     const text = rawText.trim(); if (!text || !snapshot) return; setError('')
     if (attachments.some((item) => item.status === 'uploading')) { setError(t('creationAi.attachmentsUploading')); return }
     const turnId = `turn-resident-${globalThis.crypto.randomUUID()}`
@@ -631,7 +631,11 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     // 草稿归 submit() 自己清——按钮类入口不该顺手抹掉用户正在打的字。
     attachmentApi.clearAttachments(); closeMenu()
     try {
-      const actionIntent = isAgentActionIntent(text)
+      // isAgentActionIntent 是**自由文本的兜底猜测**：用户随手打字时判断他要执行还是要聊天。
+      // 按钮类入口自己就知道答案（点「新建分镜方案」当然是要执行），显式声明、不进这张表——
+      // 2026-09-03 复验实测：不声明时 launcher 那句话猜成 chat，Agent 回「我先读全文…」然后
+      // 就没有然后了（陈述意图而非调用工具，一次工具都没发）。这和 toolProfile 那张词表是同一类。
+      const actionIntent = options?.action ?? isAgentActionIntent(text)
       const requestMode = runMode === 'ask' && !actionIntent ? 'chat' : 'auto'
       const surfaceSystemPrompt = surface === 'generation'
         ? buildStaticAgentSystemPrompt(requestMode === 'chat' ? 'chat' : 'agent')
@@ -656,7 +660,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       }
       setLastTurnTokens(response.usage.totalTokens)
     } catch (caught) { setError(friendlyError(caught, t)) } finally { clearResidentPendingTools(turnId) }
-  }, [activeSkill, attachmentApi, attachments, closeMenu, creationDocumentTools, promptModeId, references, runMode, selectedLibraryPrompt, selectedPromptPreset, snapshot, surface, t])
+  }, [activeSkill, approvalPolicy, attachmentApi, attachments, closeMenu, creationDocumentTools, promptModeId, references, runMode, selectedLibraryPrompt, selectedPromptPreset, snapshot, surface, t])
 
   const submit = React.useCallback(async () => {
     const text = draft.trim(); if (!text || !snapshot) return; setError('')
@@ -677,6 +681,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     const launch = (displayPrompt?: string) => {
       void sendTurn(t('agentResident.storyboardRequest'), {
         toolProfile: 'storyboard',
+        // 点按钮就是要执行，不是要聊——两张判据表（工具集 + 执行/聊天）都显式给，一张都别留给猜。
+        action: true,
         ...(displayPrompt ? { displayText: displayPrompt } : {}),
       })
     }

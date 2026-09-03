@@ -16,7 +16,6 @@ import {
   listAvailableModelsForAgent,
   resolveStoryboardImageDefault,
   resolveStoryboardVideoDefault,
-  type AgentModelEntry,
 } from '../../../generationCanvas/agent/availableModels'
 import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'

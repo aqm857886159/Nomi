@@ -229,3 +229,19 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(preview).toContain('pointer-events-none absolute inset-0 z-40 overflow-visible')
   })
 })
+
+describe('按钮类入口的意图必须显式声明，不留给猜', () => {
+  // 2026-09-03 真实付费复验：拆镜头入口修好了「拿不拿得到分镜工具」（toolProfile），
+  // 却漏了「执行还是聊天」（isAgentActionIntent）——同一类机制的第三次复发。
+  // Agent 收到指令后回「我先读全文…」然后一次工具都没调，因为它被判成 chat 模式。
+  // 两张判据表都必须显式给：我们自己知道用户点了什么，没有任何理由去猜。
+  it('sendTurn 的 action 选项压过 isAgentActionIntent 词表', () => {
+    expect(resident).toContain('options?.action ?? isAgentActionIntent(text)')
+  })
+
+  it('拆镜头 launcher 同时声明 toolProfile 与 action', () => {
+    const launcher = resident.slice(resident.indexOf('setStoryboardPlannerLauncher(launch)') - 1200, resident.indexOf('setStoryboardPlannerLauncher(launch)'))
+    expect(launcher).toContain("toolProfile: 'storyboard'")
+    expect(launcher).toContain('action: true')
+  })
+})
