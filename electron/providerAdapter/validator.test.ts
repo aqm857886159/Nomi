@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import {
+  PROFILE_KIND_REFERENCE_CHANNEL,
+  REFERENCE_TASK_KINDS,
+  type DeclaredReferenceProfileKind,
+} from "../shared/contracts/modelAccessCapabilities";
 import type { ProviderAdapterDraft } from "./types";
 import { adapterRevisionDigest, assertAdapterModeInvariants, validateProviderAdapterDraft } from "./validator";
 
@@ -349,16 +354,23 @@ describe("validateProviderAdapterDraft", () => {
 // 于是「参考类模式必须声明 referenceParam/referenceShape」对它结构性失效——不是有人手滑漏写，
 // 是这条规则根本管不到那条路（2026-09-03 真中转实测挖出，见同名根因合同）。
 describe("assertAdapterModeInvariants（两个生产者共用的那一份）", () => {
-  const referenceMode = (taskKind: "image_edit" | "image_to_video" | "image_to_audio" | "image_to_3d") => ({
-    image_edit: { kind: "image" as const, path: "/v1/images/edits", mapping: { image_url: "url" } },
-    image_to_video: { kind: "video" as const, path: "/v1/video/generations", mapping: { video_url: "url" } },
-    image_to_audio: { kind: "audio" as const, path: "/v1/audio/speech", mapping: { audio_url: "url" } },
-    image_to_3d: { kind: "model3d" as const, path: "/v1/3d/generations", mapping: { model_url: "url" } },
-  })[taskKind];
+  // 每个参考类 taskKind 的最小合法外壳（模型 kind / 端点 / 结果映射）。键必须覆盖
+  // REFERENCE_TASK_KINDS 的全集——`Record<...>` 让「加了第七种参考类 kind 却没在这里补壳」
+  // 编译期就红，而不是悄悄少测一种。
+  const referenceMode: Record<DeclaredReferenceProfileKind, {
+    kind: "image" | "video" | "audio" | "model3d" | "text";
+    path: string;
+    mapping: Record<string, string>;
+  }> = {
+    image_edit: { kind: "image", path: "/v1/images/edits", mapping: { image_url: "url" } },
+    image_to_video: { kind: "video", path: "/v1/video/generations", mapping: { video_url: "url" } },
+    image_to_audio: { kind: "audio", path: "/v1/audio/speech", mapping: { audio_url: "url" } },
+    image_to_3d: { kind: "model3d", path: "/v1/3d/generations", mapping: { model_url: "url" } },
+  };
 
-  // 全集以 validator.ts 的 referenceTaskKinds 为准；四种都锁，防止将来加了第五种却漏挂。
-  for (const taskKind of ["image_edit", "image_to_video", "image_to_audio", "image_to_3d"] as const) {
-    const shape = referenceMode(taskKind);
+  // 全集从 PROFILE_KINDS 旁边那份划分 derive（不是手抄）：加第七种参考类 kind 会自动被锁上。
+  for (const taskKind of REFERENCE_TASK_KINDS) {
+    const shape = referenceMode[taskKind];
 
     it(`${taskKind} 缺 referenceParam 必须当场抛（不许留到运行期静默失败）`, () => {
       expect(() =>
@@ -400,6 +412,28 @@ describe("assertAdapterModeInvariants（两个生产者共用的那一份）", (
         modes: [{
           taskKind: "text_to_image",
           create: { method: "POST", path: "/v1/images/generations", response_mapping: { image_url: "url" } },
+          sourceUrls: [],
+        }],
+      }),
+    ).not.toThrow();
+  });
+
+  // 「吃输入媒体」≠「靠说明卡声明拿到媒体」。这两个 kind 的媒体通道按 kind 写死在运行期
+  // （textTaskRunner.ts:29-31 的 allReferenceImages、audioTaskRunner.ts:141-142 的 resolveAudioSource
+  // 且缺则抛），谁都不读 referenceParam——强制声明等于逼人编一个无人读取的字段。
+  // 这条锁住「豁免是想清楚的，不是漏了」：哪天有人把它们改回 'declared'，这里会红。
+  it.each([
+    { taskKind: "image_to_prompt" as const, kind: "text" as const, path: "/v1/chat/completions", mapping: { text: "text" } },
+    { taskKind: "transcribe" as const, kind: "audio" as const, path: "/v1/audio/transcriptions", mapping: { text: "text" } },
+  ])("$taskKind 吃媒体但通道写死在运行期，故不强制参考声明", ({ taskKind, kind, path, mapping }) => {
+    expect(PROFILE_KIND_REFERENCE_CHANNEL[taskKind]).toBe("runtime-fixed");
+    expect(() =>
+      assertAdapterModeInvariants({
+        modelKey: "m-1",
+        kind,
+        modes: [{
+          taskKind,
+          create: { method: "POST", path, response_mapping: mapping },
           sourceUrls: [],
         }],
       }),

@@ -1,6 +1,10 @@
 import crypto from "node:crypto";
 import { z } from "zod";
 import { BILLING_MODEL_KINDS, PROFILE_KINDS, type BillingModelKind, type HttpOperation, type ProfileKind } from "../catalog/types";
+// 「哪些 taskKind 的参考媒体是**说明卡声明**进去的」由 PROFILE_KINDS 旁边那份完全划分拥有
+// （新增 kind 不分类 = tsc 红）。这里只消费，不再手抄 Set——手抄那版没有穷尽检查，也说不清
+// image_to_prompt / transcribe 这类「吃媒体但通道写死在运行期」的 kind 该不该要声明。
+import { PROFILE_KIND_REFERENCE_CHANNEL } from "../shared/contracts/modelAccessCapabilities";
 import type { AdapterModelDraft, ProviderAdapterDraft } from "./types";
 
 const allowedMethods = new Set(["GET", "POST", "PUT", "PATCH"]);
@@ -17,7 +21,6 @@ const allowedResponseMappingKeys = new Set([
   "text",
   "error_message",
 ]);
-const referenceTaskKinds = new Set<ProfileKind>(["image_edit", "image_to_video", "image_to_audio", "image_to_3d"]);
 
 const audioResponseSchema = z.union([
   z.enum(["binary", "ndjson-base64"]),
@@ -300,10 +303,11 @@ export function assertAdapterModeInvariants(
     if (taskKindToModelKind[mode.taskKind] !== model.kind) {
       throw new Error(`Task ${mode.taskKind} does not match model kind ${model.kind}`);
     }
-    if (referenceTaskKinds.has(mode.taskKind) && !mode.referenceParam) {
+    const declaresReference = PROFILE_KIND_REFERENCE_CHANNEL[mode.taskKind] === "declared";
+    if (declaresReference && !mode.referenceParam) {
       throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires referenceParam`);
     }
-    if (referenceTaskKinds.has(mode.taskKind) && !mode.referenceShape) {
+    if (declaresReference && !mode.referenceShape) {
       throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires referenceShape`);
     }
     if (mode.result && !mode.query) {
