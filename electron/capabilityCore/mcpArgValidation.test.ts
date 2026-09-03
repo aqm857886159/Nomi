@@ -24,6 +24,12 @@ describe('MCP tools/call schema boundary', () => {
     expect(payload).toEqual({ projectId: 'p', nodes: [{ type: 'text', text: 'hello' }] })
   })
 
+  it('enforces array minimums at the shared MCP boundary', () => {
+    const schema = { type: 'array', minItems: 1, items: { type: 'string' } }
+    expect(validateToolArguments('demo', schema, [])?.message).toContain('至少')
+    expect(validateToolArguments('demo', schema, ['model-a'])).toBeNull()
+  })
+
   it('keeps the entire catalog inside the validator-supported schema subset', () => {
     const unsupported = MCP_TOOL_CATALOG.flatMap((tool) => findUnsupportedSchemaFeatures(tool.inputSchema).map((issue) => `${tool.name}: ${issue}`))
     expect(unsupported).toEqual([])

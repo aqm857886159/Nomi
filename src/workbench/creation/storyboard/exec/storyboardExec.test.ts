@@ -59,7 +59,7 @@ describe('storyboardShotToCreateNodesArgs（单行 materialize）', () => {
     const args = storyboardShotToCreateNodesArgs(plan, plan.shots[0], { storyboardDesignId: DESIGN })
     expect(args.nodes.map((node) => node.clientId)).toEqual(['hero', 'shot-a'])
     expect(args.anchorCount).toBe(1)
-    expect(args.edges).toEqual([{ sourceClientId: 'hero', targetClientId: 'shot-a', mode: 'character_ref' }])
+    expect(args.edges).toEqual([{ sourceClientId: 'hero', targetClientId: 'shot-a', mode: 'character_ref', order: 0 }])
 
     const reused = storyboardShotToCreateNodesArgs(plan, plan.shots[0], {
       storyboardDesignId: DESIGN,
@@ -67,7 +67,7 @@ describe('storyboardShotToCreateNodesArgs（单行 materialize）', () => {
     })
     expect(reused.nodes.map((node) => node.clientId)).toEqual(['shot-a'])
     expect(reused.anchorCount).toBe(0)
-    expect(reused.edges).toEqual([{ sourceClientId: 'node-77', targetClientId: 'shot-a', mode: 'character_ref' }])
+    expect(reused.edges).toEqual([{ sourceClientId: 'node-77', targetClientId: 'shot-a', mode: 'character_ref', order: 0 }])
   })
 
   it('锚节点 metadata 恒带 anchorId 绑定键；镜节点带 shotId', () => {
@@ -101,7 +101,7 @@ describe('storyboardShotToCreateNodesArgs（单行 materialize）', () => {
     })
     expect(reused.nodes.map((node) => node.clientId)).toEqual(['shot-a'])
     expect(reused.edges).toContainEqual({ sourceClientId: 'node-kf', targetClientId: 'shot-a', mode: 'first_frame' })
-    expect(reused.edges).toContainEqual({ sourceClientId: 'node-77', targetClientId: 'node-kf', mode: 'character_ref' })
+    expect(reused.edges).toContainEqual({ sourceClientId: 'node-77', targetClientId: 'node-kf', mode: 'character_ref', order: 0 })
   })
 
   it('单锚 materialize：视觉锚一张卡；文本锚返回 null', () => {
