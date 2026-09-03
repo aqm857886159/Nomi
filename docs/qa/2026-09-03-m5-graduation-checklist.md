@@ -11,7 +11,7 @@
 | M3：七层上下文在真实 Host 运行 | 需要真实 Agent Host/外部 AI session 的上下文 receipt | 未覆盖：本分支保持 Host 关闭 |
 | M3：技能 F-A5 三层载入：目录元数据→正文→证据 | packaged smoke 的 `resources/list` / content-addressed `resources/read`，核对 `director.cinematography` 正文 | PASS：34 resources；director body 7885 chars；unsigned 不泄露内部技能 |
 | M4：签名/未签名客户端边界 | packaged smoke 同时跑 3 signed client + generic unsigned，后者调用写工具 | PASS：unsigned generic writes rejected |
-| M4：污染标记驱动 spend 的危险动作拦截 | 依据 K-01..K-08 对当前 MCP skill/read→effect 链做打包态探针 | FAIL/未覆盖：当前实现没有可断言的 structured taint/effect gate；不能把文案当拦截证据 |
+| M4：污染标记驱动 spend 的危险动作拦截 | `electron/harness/context/promptPipe.test.ts` + `provenanceActionGuard.test.ts` 验证实现；打包态需 Agent Host 真旅程 | 未覆盖：最新 main 已有 structured provenance/action guard 且单测通过，但 `agentHostEnabled=false`，本次真实打包 MCP 不能到达该 Host 边界；不能把 unsigned write rejection 当成 taint spend 证据 |
 
 ## 开发态与打包态差异
 
