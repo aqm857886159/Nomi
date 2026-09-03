@@ -36,8 +36,14 @@ provider、timeline 或 MP4 export。用户视角：正式安装版里这条路 
 
 合同：`docs/fixes/2026-09-03-packaged-transport-callback-omitted.root-cause.json`。
 
-**仍待补的证据**：上述 50/50 由修复分支的打包运行取得。合入 main 后**尚未在最终 main 基线上
-重跑一次打包态 L2**——发版前必须补，否则「毕业」二字缺最后一环（P3：全绿 ≠ 完成）。
+**main 基线复核（已补）**：合入后在 `87bc55c9`（含 #420 的 merge commit）上重打包重跑，
+打包态 **50/50**、开发态 **50/50**，parity 成立。另两条打包验证同轮通过：`packaged-mcp-smoke`
+24 tools / 34 resources / unsigned generic writes rejected；`model-integration`
+`createRequests=0`、`credentialBytes=0`。
+
+复核中发现一处独立问题（不影响上述结论）：`dist:mac:dir` 缺前置 build，在干净 worktree 上直接跑
+会因 `dist-electron/main.js` 不存在而失败（`app-builder-lib` 报 "was not found in this archive"），
+需先 `pnpm run build`。已单列跟进。
 
 ## 执行与 CI 边界
 

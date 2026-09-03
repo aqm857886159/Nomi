@@ -15,8 +15,10 @@
 ## 进入条件
 
 - 先通过 `pnpm run dist:mac:dir` 的 packaged smoke 和 `node tests/ux/model-integration-packaged.e2e.mjs --packaged release/mac-arm64/Nomi.app`。
-- 先在**最终 main 基线**上跑 `pnpm run test:mcp-l2:packaged` 并确认 50/50。generation confirmation parity 的
-  FAIL 已于 2026-09-03 修复（根因见 `docs/fixes/2026-09-03-packaged-transport-callback-omitted.root-cause.json`，
-  机器防线 `scripts/check-transport-assembly.mjs`）——但那次 50/50 是在修复分支上取得的，**合入后的 main 尚未复核**，
-  这一条不许引用旧结果打勾。
+- `pnpm run test:mcp-l2:packaged` 须为 50/50。generation confirmation parity 的 FAIL 已于 2026-09-03 修复
+  （根因见 `docs/fixes/2026-09-03-packaged-transport-callback-omitted.root-cause.json`，机器防线
+  `scripts/check-transport-assembly.mjs`），并已在 main 基线 `87bc55c9` 上复核：打包态与开发态均 50/50。
+  **每次发版仍要在待发的那个基线上重跑**——这一条不许引用历史结果打勾（P3：全绿 ≠ 完成）。
+- 跑打包前先 `pnpm run build`：`dist:mac:dir` 目前不含前置 build，干净 worktree 上直接跑会因
+  `dist-electron/main.js` 缺失而失败。
 - 真实 Host 与付费检查只能在维护者明确批准账号/额度后执行；CI 保持 `agentHostEnabled=false`、零额度。
