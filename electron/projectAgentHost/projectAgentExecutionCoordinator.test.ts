@@ -620,6 +620,44 @@ describe("ProjectAgentExecutionCoordinator", () => {
     expect((observedRequest as AgentChatRequest & { approvalPolicy?: unknown }).approvalPolicy).toBeUndefined();
   });
 
+  it("denies an Ask-mode write before it reaches the document adapter", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-ask-read-only-"));
+    const documentAdapter = documentWriteAdapter();
+    let observedDecision: AgentChatToolDecision | undefined;
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-ask-read-only",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = { toolCallId: "tool-ask-write", toolName: "append_to_end", args: { content: "x" } };
+          observedDecision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          return documentWriteResponse(call, observedDecision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { documentWrite: documentAdapter });
+    const base = executionInput("ask-read-only", 0);
+    const input: ExecutionInput = {
+      ...base,
+      mutation: {
+        ...base.mutation,
+        payload: {
+          ...base.mutation.payload,
+          turn: { ...base.mutation.payload.turn, workMode: "ask" },
+          queueItem: { ...base.mutation.payload.queueItem, workMode: "ask" },
+        },
+      },
+      request: { ...base.request, workMode: "agent" } as AgentChatRequest,
+    };
+
+    await coordinator.enqueue(opened.subscriptionId, input);
+    await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(observedDecision).toMatchObject({ ok: false, denied: true, message: expect.stringContaining("Ask") });
+    expect(documentAdapter.prepare).not.toHaveBeenCalled();
+    expect(documentAdapter.execute).not.toHaveBeenCalled();
+  });
+
   it("reuses one approval for reversible edits while preserving a receipt per write", async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-safe-auto-"));
     const documentAdapter = documentWriteAdapter();
