@@ -55,6 +55,7 @@
 - [管道跑测试会吞掉退出码](piped-test-runs-mask-exit-codes.md) — `| tail` 的 exit 0 是 tail 的；错的 reporter 名会「全绿」通过
 - [测试文件不进主 typecheck](tests-are-not-typechecked.md) — 已由 `check:test-types` 接管，但 `pnpm typecheck` 仍看不见测试
 - [判测试翻红前先查别的 worktree](flaky-test-check-other-worktrees-first.md) — 并行 suite 能把耗时放大 40x，和真 flake 长得一样
+- [并行会话各跑各的 gates 会把机器压进 swap](parallel-gates-thrash-the-machine.md) — ✅ 已由 `vitest-fair-share` 接管；判超时红灯前先看 load 与 `sys%`，sys>15% 时超时红灯不作数
 - [productionRun 这类 flake 的分腿处置](production-run-tests-are-flaky.md) — 验修复用 `git cat-file` 看代码，别看 PR 状态
 - [复现竞态必须有阳性对照](race-repro-needs-positive-control.md) — 没阳性对照的绿灯不作数；「换平台才能复现」多半是仪器没 power
 - [性能预算在 macOS 校准却在 Linux CI 执行 → 假回归](canvas-perf-budget-calibrated-on-macos-fails-on-linux.md) — 别改预算挤 PR，那是治症状
