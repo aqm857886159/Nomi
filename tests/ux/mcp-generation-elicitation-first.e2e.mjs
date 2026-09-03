@@ -19,7 +19,8 @@ import http from 'node:http'
 import path from 'node:path'
 
 import { launchNomiApp } from './_launchApp.mjs'
-import { makeIsolatedDirs, parseToolResult, repoRoot, spawnMcpStdioClient, writeIsolatedCatalog } from './_mcpJourney.mjs'
+import { makeIsolatedDirs, parseToolResult, repoRoot, spawnMcpStdioClient } from './_mcpJourney.mjs'
+import { writeFakeApimartCatalog } from './_mcpL2Fixture.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 
 const PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
@@ -44,42 +45,30 @@ async function startSemanticProvider() {
   return { origin: `http://127.0.0.1:${port}`, hits, close: () => new Promise((resolve) => server.close(resolve)) }
 }
 
-function configureSemanticCatalog(settingsDir, origin) {
-  writeIsolatedCatalog(settingsDir, origin)
-  const filePath = path.join(settingsDir, 'model-catalog.json')
-  const catalog = JSON.parse(fs.readFileSync(filePath, 'utf8'))
-  catalog.vendors.find((vendor) => vendor.key === 'apimart').baseUrlHint = origin
-  catalog.models.push({
-    modelKey: 'gpt-image-2', vendorKey: 'apimart', labelZh: '语义图片模型', kind: 'image', enabled: true,
-    onboarding: { addedVia: 'manual', addedAt: new Date().toISOString(), fields: [{ key: 'aspectRatio', displayName: '比例', type: 'select', options: [{ value: '1:1', label: '1:1' }] }] },
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-  })
-  catalog.mappings.push({
-    id: 'semantic-apimart-image', vendorKey: 'apimart', modelKey: 'gpt-image-2', taskKind: 'text-to-image', name: 'semantic image', enabled: true,
-    create: { method: 'POST', path: '/v1/images/generations', body: {} }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-  })
-  catalog.apiKeysByVendor.apimart = { vendorKey: 'apimart', apiKey: 'semantic-fixture-key', enc: 'plain', enabled: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-  fs.writeFileSync(filePath, JSON.stringify(catalog), 'utf8')
-}
-
 function proofFor(token, client) {
   return crypto.createHmac('sha256', token).update(`nomi-mcp-client:v1:${client}`).digest('base64url')
 }
 
 /** Drive one real gate from a fresh MCP client with the given capabilities; returns the in-flight gate promise. */
-async function driveGate(dirs, token, { capabilities, clientName }) {
+async function driveGate(dirs, token, { capabilities, clientName, providerOrigin }) {
   const mcp = spawnMcpStdioClient({
     ...dirs,
     clientInfo: { name: clientName, version: 'e2e' },
     capabilities,
-    env: { NOMI_MCP_GENERATION_SINGLE_SHOT_V1: '1', NOMI_MCP_GENERATION_SINGLE_SHOT_E1_V1: '1', NOMI_MCP_CLIENT: 'codex', NOMI_MCP_CLIENT_PROOF: proofFor(token, 'codex') },
+    syntheticCredentialStorage: true,
+    env: {
+      NOMI_E2E_PRODUCTION_FIXTURE: '1', NOMI_E2E_APIMART_BASE_URL: providerOrigin,
+      NOMI_E2E_APIMART_API_KEY: 'semantic-fixture-key',
+      NOMI_MCP_GENERATION_SINGLE_SHOT_V1: '1', NOMI_MCP_GENERATION_SINGLE_SHOT_E1_V1: '1',
+      NOMI_MCP_CLIENT: 'codex', NOMI_MCP_CLIENT_PROOF: proofFor(token, 'codex'),
+    },
   })
   await mcp.initialize()
-  const opened = parseToolResult(await mcp.callTool('nomi_session_open', { bootstrap: { mode: 'current_project', clientSessionNonce: `${clientName}-session` } }))
+  const opened = parseToolResult(await mcp.callTool('nomi_session_open', { bootstrap: { mode: 'current_project' } }))
   const leaseHandle = opened.json?.leaseHandle || opened.outcome?.leaseHandle
   const projectId = opened.json?.projectId || opened.outcome?.projectId
   const candidate = {
-    candidateId: `elicit-${clientName}`, revision: 1, moduleId: 'generation.single-shot', providerId: 'apimart', modelId: 'gpt-image-2', mode: 'text-to-image',
+    candidateId: `elicit-${clientName}`, revision: 1, moduleId: 'generation.single-shot', providerId: 'apimart', modelId: 'gpt-image-2', mode: 'text_to_image',
     prompt: '一只纸鹤停在窗台，晨光', parameters: { aspectRatio: '1:1' }, references: [],
   }
   const created = parseToolResult(await mcp.callTool('nomi_operation_plan', { leaseHandle, projectId, candidate }))
@@ -108,12 +97,20 @@ const check = (condition, message) => {
 
 try {
   provider = await startSemanticProvider()
-  configureSemanticCatalog(dirs.settingsDir, provider.origin)
+  const seededCatalog = writeFakeApimartCatalog(dirs.settingsDir, dirs.userDataDir, provider.origin, { withKey: false })
+  seededCatalog.models = seededCatalog.models.map((model) => model.modelKey === 'gpt-image-2'
+    ? { ...model, pricing: { cost: 0, enabled: true, specCosts: [] } }
+    : model)
+  fs.writeFileSync(path.join(dirs.settingsDir, 'model-catalog.json'), JSON.stringify(seededCatalog), 'utf8')
   gui = await launchNomiApp({
     name: 'mcp-generation-elicitation-first',
-    userDataDir: dirs.userDataDir, settingsDir: dirs.settingsDir, projectsDir: dirs.projectsDir,
-    env: { NOMI_CAPABILITY_DIR: dirs.capabilityDir, NOMI_MCP_GENERATION_SINGLE_SHOT_V1: '1', NOMI_MCP_GENERATION_SINGLE_SHOT_E1_V1: '1' },
-    args: ['--disable-gpu', '--disable-software-rasterizer'], settleMs: 0,
+    userDataDir: dirs.userDataDir, settingsDir: dirs.settingsDir, projectsDir: dirs.projectsDir, capabilityDir: dirs.capabilityDir,
+    env: {
+      NOMI_CAPABILITY_DIR: dirs.capabilityDir, NOMI_E2E_PRODUCTION_FIXTURE: '1',
+      NOMI_E2E_APIMART_BASE_URL: provider.origin, NOMI_E2E_APIMART_API_KEY: 'semantic-fixture-key',
+      NOMI_MCP_GENERATION_SINGLE_SHOT_V1: '1', NOMI_MCP_GENERATION_SINGLE_SHOT_E1_V1: '1',
+    },
+    args: ['--disable-gpu', '--disable-software-rasterizer'], settleMs: 0, syntheticCredentialStorage: true,
   })
   const win = gui.win
   await win.getByText('新建空白项目', { exact: false }).first().click()
@@ -125,7 +122,7 @@ try {
   const gateCard = win.locator('.fixed.inset-0').filter({ hasText: '允许 Nomi 生成' })
 
   // ── Phase A 基线：不声明 elicitation → GUI 卡真的会浮（证探针活）。──
-  const a = await driveGate(dirs, token, { capabilities: {}, clientName: 'no-elicit-client' })
+  const a = await driveGate(dirs, token, { capabilities: {}, clientName: 'no-elicit-client', providerOrigin: provider.origin })
   mcpA = a.mcp
   const probe = await proveProbe(gateCard, '不声明 elicitation 的客户端会让 Nomi 弹一张 GUI 确认卡', 20_000)
   check(true, '基线成立：非 elicitation 客户端 → GUI 生成确认卡确实浮出（探针活）')
@@ -142,7 +139,7 @@ try {
   // 历史上有过两次误改：① PR #429 删 clientAttestation → gate 返回 human_approval_required；
   // ② 本次修法前 verifyClientGenerationConfirmation 两装配点都没接 → 同样回 human_approval_required。
   // 本断言连通「确认面返回值」与「生成是否开始」，专门盯住这条盲区（同 mcpGenerationConfirmation.test.ts 注释）。
-  const b = await driveGate(dirs, token, { capabilities: { elicitation: {} }, clientName: 'elicit-client' })
+  const b = await driveGate(dirs, token, { capabilities: { elicitation: {} }, clientName: 'elicit-client', providerOrigin: provider.origin })
   mcpB = b.mcp
   // 给 elicitation 往返 + 「若要弹卡也早该弹了」留足时间：等 gate promise 落地（elicitation 客户端自动 accept）。
   const gateResult = await b.gatePromise

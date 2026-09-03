@@ -54,6 +54,7 @@ jobs:
           xvfb-run -a node tests/ux/clip-node-editing.walk.mjs
           xvfb-run -a node tests/ux/production-mcp-journey.e2e.mjs
           xvfb-run -a pnpm run test:mcp-journey
+          xvfb-run -a pnpm run test:mcp-elicitation
           xvfb-run -a node tests/ux/canvas-performance-benchmark.e2e.mjs rc --scale S --runs 1 --warmup 0 --scenario media-reveal,media-error,video-hover,reload-heavy
 
   macos:
