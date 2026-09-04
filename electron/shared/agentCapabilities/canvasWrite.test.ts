@@ -105,6 +105,27 @@ describe("canvas.write canonical contract", () => {
     expect(canvasWriteSemanticInputSchema.safeParse({ operation: "tidy_canvas", categoryId: "shots" }).success).toBe(
       true,
     );
+    expect(
+      canvasWriteSemanticInputSchema.safeParse({
+        operation: "patch_shots",
+        select: { kind: "indexes", indexes: [2, 4] },
+        patch: { promptAppend: "雨天", durationSec: 8 },
+      }).success,
+    ).toBe(true);
+    expect(canvasWriteSemanticInputSchema.safeParse({
+      operation: "patch_shots",
+      select: { kind: "all" },
+      patch: { prompt: "新的镜头提示词" },
+    }).success).toBe(true);
+    for (const rejected of [
+      { operation: "patch_shots", select: { kind: "all" }, patch: {} },
+      { operation: "patch_shots", select: { kind: "all" }, patch: { prompt: "a", promptAppend: "b" } },
+      { operation: "patch_shots", select: { kind: "indexes", indexes: [0] }, patch: { prompt: "a" } },
+      { operation: "patch_shots", select: { kind: "indexes", indexes: [1] }, patch: { modelKey: "model-only" } },
+      { operation: "unknown_operation", select: { kind: "all" }, patch: { prompt: "a" } },
+    ]) {
+      expect(canvasWriteSemanticInputSchema.safeParse(rejected).success).toBe(false);
+    }
   });
 
   it("keeps create/connect bounds and confirmation guidance on canonical Pi projections", () => {
@@ -182,6 +203,7 @@ describe("canvas.write canonical contract", () => {
     );
     expect(canvasWriteOperationForAlias(CANVAS_WRITE_OPERATION_ALIASES.tidyCanvas)).toBe("tidy_canvas");
     expect(canvasWriteOperationForAlias("nomi_set_node_prompt")).toBeUndefined();
+    expect(canvasWriteOperationForAlias("patch_shots")).toBeUndefined();
   });
 
   it("keeps storyboard-side tools inside the canonical executable capability", () => {
@@ -199,5 +221,19 @@ describe("canvas.write canonical contract", () => {
     expect(canvasWriteOperationForAlias("create_camera_move")).toBe("create_camera_move");
     expect(plan?.safeParse({ title: "猫", anchors: [], shots: [{ index: 1 }], extra: true }).success).toBe(false);
     expect(camera?.safeParse({ shotClientId: "shot-1" }).success).toBe(false);
+  });
+
+  it("validates a canonical storyboard patch receipt without accepting a legacy tool name", () => {
+    const result = {
+      applied: true,
+      proposalId: "prop-patch-a",
+      operation: "patch_shots",
+      changedShotIndexes: [2, 4],
+      changedFields: ["prompt", "durationSec"],
+      result: { status: "applied" },
+      reconciliation: { ok: true, deviationCount: 0 },
+    } as const;
+    expect(canvasWriteResultSchema.parse(result)).toEqual(result);
+    expect(canvasWriteResultSchema.safeParse({ ...result, directTool: "patch_shots" }).success).toBe(false);
   });
 });

@@ -156,8 +156,12 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         }
         const method = String(parsed.method || '')
         const isCanvasRead = isCanvasReadTransportMethod(method)
-        const isEditing = isMcpEditingMethod(method)
         const params = (parsed.params && typeof parsed.params === 'object' ? parsed.params : {}) as Record<string, unknown>
+        // The storyboard plan adapter resolves to canvas.write, but patch_shots
+        // is renderer-owned: it must use the same live store/admission/receipt
+        // path as the open Electron project rather than generic planning.
+        const isCanonicalCanvasPlanPatch = method === 'canvas.write' && params.operation === 'patch_shots'
+        const isEditing = isMcpEditingMethod(method)
         const client = firstHeader(req.headers['x-nomi-mcp-client'])
         const clientProof = firstHeader(req.headers['x-nomi-mcp-client-proof'])
         const connectionAttestation = firstHeader(req.headers['x-nomi-mcp-connection-attestation'])
@@ -176,7 +180,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
             throw error
           }
         }
-        if (!projectSessionConnection && !isCanvasRead && !isEditing) assertLocalBearerProjectSessionRoute(method)
+        if (!projectSessionConnection && !isCanvasRead && !isEditing && !isCanonicalCanvasPlanPatch) assertLocalBearerProjectSessionRoute(method)
         if (method === 'nomi_confirm_generation_gate') {
           if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
           const challengeToken = typeof params.challengeToken === 'string' ? params.challengeToken.trim() : ''
@@ -231,7 +235,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
             throw error instanceof RpcError ? error : canvasReadRpcError(error)
           }
         }
-        if (isEditing) {
+        if (isEditing || isCanonicalCanvasPlanPatch) {
           if (!hasMcpTransportClaims || !projectSessionConnection || !options.projectSessionAuthority) {
             throw new RpcError('A verified project-session transport is required for editing tools', 403)
           }
@@ -239,10 +243,12 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           if (!leaseHandle) throw new RpcError('A project-session lease is required', 403)
           const projectHint = typeof params.projectId === 'string' ? params.projectId.trim() || undefined : undefined
           const operation = typeof params.operation === 'string' ? params.operation : ''
-          const scope = method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
-            ? 'timeline:write'
-            : method === 'timeline.write' ? 'timeline:read'
-              : method === 'asset.read' ? 'asset:read' : 'export:read'
+          const scope = isCanonicalCanvasPlanPatch
+            ? 'canvas:write'
+            : method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
+              ? 'timeline:write'
+              : method === 'timeline.write' ? 'timeline:read'
+                : method === 'asset.read' ? 'asset:read' : 'export:read'
           const lease = await options.projectSessionAuthority.verifyLease(leaseHandle, {
             connection: projectSessionConnection,
             ...(projectHint ? { projectHint } : {}),
@@ -251,19 +257,36 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           if (method === 'timeline.write' && (operation === 'apply' || operation === 'undo') && parsed.planConfirmed !== true) {
             throw new RpcError('Host approval is required before applying a timeline edit', 403)
           }
-          const rendererOp = method === 'timeline.read'
-            ? 'timeline.read'
-            : method === 'timeline.write'
-              ? 'timeline.write'
-              : method === 'asset.read' ? 'asset.read' : 'export.read'
-          const result = await requestRenderer(rendererOp, {
-            ...params,
-            projectId: lease.projectId,
-            // These values are minted only after the verified lease and (for writes) Host approval.
-            ...(method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
-              ? { receiptProposalId: `mcp-edit:${crypto.randomUUID()}`, approvalId: `mcp-host:${crypto.randomUUID()}`, actionHash: crypto.randomUUID() }
-              : {}),
-          }, 30_000)
+          const rendererOp = isCanonicalCanvasPlanPatch
+            ? 'canvas.write'
+            : method === 'timeline.read'
+              ? 'timeline.read'
+              : method === 'timeline.write'
+                ? 'timeline.write'
+                : method === 'asset.read' ? 'asset.read' : 'export.read'
+          const rendererPayload = isCanonicalCanvasPlanPatch
+            ? (() => {
+                const { leaseHandle: _leaseHandle, projectId: _projectHint, ...input } = params
+                return {
+                  projectId: lease.projectId,
+                  input,
+                  receiptProposalId: `mcp-canvas-plan:${crypto.randomUUID()}`,
+                  approvalId: `mcp-canvas-plan-approval:${crypto.randomUUID()}`,
+                  // This direct MCP request is approved by the MCP elicitation
+                  // seam, not by a Project Agent Host turn. Do not forge Host
+                  // correlation without a claimed Host approval; the renderer
+                  // receipt remains durable but intentionally uncorrelated.
+                }
+              })()
+            : {
+                ...params,
+                projectId: lease.projectId,
+                // These values are minted only after the verified lease and (for writes) Host approval.
+                ...(method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
+                  ? { receiptProposalId: `mcp-edit:${crypto.randomUUID()}`, approvalId: `mcp-host:${crypto.randomUUID()}`, actionHash: crypto.randomUUID() }
+                  : {}),
+              }
+          const result = await requestRenderer(rendererOp, rendererPayload, 30_000)
           send(200, { ok: true, result })
           return
         }

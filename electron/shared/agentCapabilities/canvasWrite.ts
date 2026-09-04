@@ -145,6 +145,47 @@ const storyboardPlanActionInputSchema = z
   })
   .strict();
 
+/**
+ * Patch an existing storyboard through the canonical `nomi_canvas_plan` tool.
+ * The selector and patch are deliberately narrow: a model can name the rows
+ * and fields it intends to change, but it cannot replace the whole plan or
+ * silently rewrite unselected fields.
+ */
+const storyboardPatchShotsInputSchema = z
+  .object({
+    operation: z.literal("patch_shots"),
+    select: z.union([
+      z.object({ kind: z.literal("all") }).strict(),
+      z
+        .object({
+          kind: z.literal("indexes"),
+          indexes: z.array(z.number().int().min(1).max(24)).min(1).max(24),
+        })
+        .strict(),
+    ]),
+    patch: z
+      .object({
+        prompt: nonBlankPromptSchema.optional(),
+        promptAppend: nonBlankPromptSchema.optional(),
+        shotKind: z.enum(["image", "video"]).optional(),
+        durationSec: z.number().int().min(1).max(60).optional(),
+        aspectRatio: z.string().trim().min(1).optional(),
+        modelKey: z.string().trim().min(1).optional(),
+        modelVendor: z.string().trim().min(1).optional(),
+      })
+      .strict()
+      .refine((patch) => Object.keys(patch).length > 0, {
+        message: "patch must name at least one field",
+      })
+      .refine((patch) => !(patch.prompt && patch.promptAppend), {
+        message: "give either prompt or promptAppend, not both",
+      })
+      .refine((patch) => !(patch.modelKey || patch.modelVendor) || Boolean(patch.modelKey && patch.modelVendor), {
+        message: "modelKey and modelVendor must be given together",
+      }),
+  })
+  .strict();
+
 const arrangeStoryboardActionInputSchema = z
   .object({
     operation: z.literal("arrange_storyboard_to_timeline"),
@@ -189,6 +230,7 @@ const canvasWriteSemanticInputUnion = z.discriminatedUnion("operation", [
   connectCanvasEdgesInputSchema,
   tidyCanvasInputSchema,
   storyboardPlanActionInputSchema,
+  storyboardPatchShotsInputSchema,
   arrangeStoryboardActionInputSchema,
   stagingReferenceActionInputSchema,
   cameraMoveActionInputSchema,
@@ -343,6 +385,17 @@ export const canvasWriteResultSchema = z.union([
       applied: z.literal(true),
       proposalId: canonicalIdSchema,
       operation: z.literal("propose_storyboard_plan"),
+      result: z.unknown(),
+      reconciliation: reconciliationSchema,
+    })
+    .strict(),
+  z
+    .object({
+      applied: z.literal(true),
+      proposalId: canonicalIdSchema,
+      operation: z.literal("patch_shots"),
+      changedShotIndexes: z.array(z.number().int().min(1)).max(24),
+      changedFields: z.array(z.string().trim().min(1)).max(8),
       result: z.unknown(),
       reconciliation: reconciliationSchema,
     })

@@ -110,6 +110,7 @@ function canvasWriteCaptureRequest(value: unknown): CanvasWriteCaptureSurfaceReq
     request.operation !== "connect_canvas_edges" &&
     request.operation !== "tidy_canvas" &&
     request.operation !== "propose_storyboard_plan" &&
+    request.operation !== "patch_shots" &&
     request.operation !== "arrange_storyboard_to_timeline" &&
     request.operation !== "create_staging_reference" &&
     request.operation !== "create_camera_move" &&

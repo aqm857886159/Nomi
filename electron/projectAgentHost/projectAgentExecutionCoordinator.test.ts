@@ -2889,6 +2889,101 @@ describe("ProjectAgentExecutionCoordinator", () => {
     coordinator.release(opened.subscriptionId);
   });
 
+  it("keeps canonical storyboard operations and the legacy planner alias on the renderer-owned path", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-storyboard-path-compatibility-"));
+    const calls = [
+      {
+        toolCallId: "tool-storyboard-legacy",
+        toolName: "propose_storyboard_plan",
+        args: { title: "Legacy plan", anchors: [], shots: [{ index: 1 }] },
+      },
+      {
+        toolCallId: "tool-storyboard-canonical",
+        toolName: "nomi_canvas_plan",
+        args: {
+          operation: "patch_shots",
+          select: { kind: "indexes", indexes: [1] },
+          patch: { promptAppend: "rain" },
+        },
+      },
+      {
+        toolCallId: "tool-storyboard-legacy-malformed-args",
+        toolName: "propose_storyboard_plan",
+        args: [],
+      },
+    ];
+    const decisions: AgentChatToolDecision[] = [];
+    let callIndex = 0;
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-storyboard-path-compatibility",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = calls[callIndex++];
+          if (!call) throw new Error("storyboard compatibility test exhausted its calls");
+          decisions.push(await hooks.awaitToolConfirmation(call, hooks.abortSignal!));
+          return {
+            id: `result-${call.toolCallId}`,
+            status: "finished",
+            text: "done",
+            finishReason: "stop",
+            artifacts: [],
+            toolCalls: [{ ...call, status: decisions.at(-1)?.ok ? "ok" as const : "denied" as const, decision: decisions.at(-1)! }],
+            usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+          } satisfies AgentChatResponse;
+        },
+      },
+    );
+    const opened = await coordinator.open(binding);
+    const observedToolNames: string[] = [];
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type !== "tool-call") return;
+      observedToolNames.push(event.toolName);
+      void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+        ok: true,
+        result: { approved: true },
+      });
+    });
+
+    const legacyInput = canvasExecutionInput("storyboard-path-compatibility-legacy", 0);
+    await coordinator.enqueue(opened.subscriptionId, legacyInput);
+    const legacyFinal = await coordinator.waitForTurn(opened.subscriptionId, legacyInput.mutation.payload.turn.turnId);
+
+    const canonicalInput = canvasExecutionInput(
+      "storyboard-path-compatibility-canonical",
+      coordinator.snapshot(opened.subscriptionId).hostRevision,
+    );
+    await coordinator.enqueue(opened.subscriptionId, canonicalInput);
+    const canonicalFinal = await coordinator.waitForTurn(opened.subscriptionId, canonicalInput.mutation.payload.turn.turnId);
+
+    const legacyMalformedInput = canvasExecutionInput(
+      "storyboard-path-compatibility-legacy-malformed-args",
+      coordinator.snapshot(opened.subscriptionId).hostRevision,
+    );
+    await coordinator.enqueue(opened.subscriptionId, legacyMalformedInput);
+    const legacyMalformedFinal = await coordinator.waitForTurn(
+      opened.subscriptionId,
+      legacyMalformedInput.mutation.payload.turn.turnId,
+    );
+
+    expect(observedToolNames).toEqual(["propose_storyboard_plan", "nomi_canvas_plan", "propose_storyboard_plan"]);
+    expect(decisions).toHaveLength(3);
+    expect(decisions.every((decision) => decision.ok)).toBe(true);
+    expect(legacyFinal.turns.find((turn) => turn.turnId === legacyInput.mutation.payload.turn.turnId)).toMatchObject({
+      status: "done",
+      retryable: false,
+    });
+    expect(canonicalFinal.turns.find((turn) => turn.turnId === canonicalInput.mutation.payload.turn.turnId)).toMatchObject({
+      status: "done",
+      retryable: false,
+    });
+    expect(legacyMalformedFinal.turns.find((turn) => turn.turnId === legacyMalformedInput.mutation.payload.turn.turnId)).toMatchObject({
+      status: "done",
+      retryable: false,
+    });
+    coordinator.release(opened.subscriptionId);
+  });
+
   it.each([
     {
       code: "capability_declined",

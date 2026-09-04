@@ -26,7 +26,9 @@ import type { CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { canvasWriteSemanticInputSchema } from '../../../../electron/shared/agentCapabilities/canvasWrite'
 import { registerCanvasToolClientId, resolveCanvasToolNodeId } from './clientIdRegistry'
+import { previewStoryboardPatchShots } from './storyboardPatchShots'
 export { resetClientIdRegistry, resolveCanvasToolNodeId } from './clientIdRegistry'
 
 // 批量创建节点的布局由渲染层 derive，而不是信任 LLM 发来的像素坐标。
@@ -225,6 +227,12 @@ export async function applyCanvasToolCall(
   }
   assertWritable()
   const record = args && typeof args === 'object' ? (args as Record<string, unknown>) : {}
+  // MCP's public entry is canonical; the semantic operation lives in args.
+  // Do not add the retired bare `patch_shots` name back to the public alias
+  // surface just to make this renderer branch reachable.
+  const operation = toolName === 'nomi_canvas_plan' || toolName === 'nomi_canvas_edit'
+    ? typeof record.operation === 'string' ? record.operation : toolName
+    : toolName
   // S6-2:提议事务把手势上下文传进来,store 变更段(纯同步)包在上下文里——途经 action
   // 发出的画布事件统一携带 source:'agent'+txnId/proposalId。只包同步段,await 间隙不持有
   // (异步持有会让并行的用户手势串台,见 canvasGestureContext 纪律)。
@@ -233,7 +241,44 @@ export async function applyCanvasToolCall(
     return gesture ? withCanvasGestureContext(gesture, fn) : fn()
   }
 
-  if (toolName === 'propose_storyboard_plan') {
+  if (toolName === 'nomi_canvas_plan' && operation === 'patch_shots') {
+    const store = useWorkbenchStore.getState()
+    const targetDocumentId = documentId ?? store.activeDocumentId
+    const entry = store.storyboardPlans[targetDocumentId]
+    if (!entry?.plan) {
+      throw Object.assign(new Error('当前原稿还没有分镜方案，先生成一份分镜方案再修改。'), {
+        code: 'capability_target_stale',
+      })
+    }
+    const parsed = canvasWriteSemanticInputSchema.safeParse(record)
+    if (!parsed.success || parsed.data.operation !== 'patch_shots') {
+      throw Object.assign(new Error('分镜修改参数无效。'), { code: 'capability_input_invalid' })
+    }
+    const preview = previewStoryboardPatchShots(entry.plan, parsed.data)
+    const targetStoryboardId = storyboardId
+      ?? store.activeStoryboardId
+      ?? store.storyboardDesignsByDocumentId[targetDocumentId]?.[0]?.id
+    const design = store.setStoryboardPlan(
+      preview.nextPlan,
+      targetDocumentId,
+      targetStoryboardId,
+      true,
+      false,
+    )
+    if (!design) {
+      throw Object.assign(new Error('目标分镜方案已不存在，未应用修改。'), { code: 'capability_target_stale' })
+    }
+    return {
+      status: 'applied',
+      documentId: targetDocumentId,
+      storyboardDesignId: design.id,
+      changedShotIndexes: preview.changedShotIndexes,
+      changedFields: preview.changedFields,
+      message: `已修改第 ${preview.changedShotIndexes.join('、')} 镜：${preview.changedFields.join('、')}。`,
+    } as StoryboardPlanApplicationResult & { changedShotIndexes: number[]; changedFields: string[] }
+  }
+
+  if (operation === 'propose_storyboard_plan') {
     // 规划免费可改:planner 第一手产出结构化方案对象,落创作 store 给用户审/改——不碰画布、零网络、零扣费。
     // 用户确认后才由 storyboardPlanToCreateNodesArgs 转成 create_canvas_nodes 落画布(S4)。
     // 校验失败 throw → 调用方映射成 tool error,回喂 LLM 自我修正(与 gate deny 同语义)。
@@ -270,7 +315,7 @@ export async function applyCanvasToolCall(
     } satisfies StoryboardPlanApplicationResult
   }
 
-  if (toolName === 'create_canvas_nodes') {
+  if (operation === 'create_canvas_nodes') {
     const incoming = Array.isArray(record.nodes) ? record.nodes : []
     // 任一节点带 modelKey 才加载可用模型清单（校验+补全 agent 选的模型/参数，否则零 IPC）。
     const needsModels = incoming.some(
@@ -432,7 +477,7 @@ export async function applyCanvasToolCall(
     }
   }
 
-  if (toolName === 'create_staging_reference') {
+  if (operation === 'create_staging_reference') {
     const rawShot = typeof record.shotClientId === 'string' ? record.shotClientId.trim() : ''
     const targetNodeId = rawShot ? resolveNodeId(rawShot) : undefined
     const rawChars = Array.isArray(record.characters) ? record.characters : []
@@ -488,7 +533,7 @@ export async function applyCanvasToolCall(
     }
   }
 
-  if (toolName === 'create_camera_move') {
+  if (operation === 'create_camera_move') {
     const parsed = parseCameraMoveSpec(record)
     const rawShot = typeof record.shotClientId === 'string' ? record.shotClientId.trim() : ''
     const targetNodeId = rawShot ? resolveNodeId(rawShot) : undefined
@@ -547,7 +592,7 @@ export async function applyCanvasToolCall(
     }
   }
 
-  if (toolName === 'connect_canvas_edges') {
+  if (operation === 'connect_canvas_edges') {
     const rawEdges = Array.isArray(record.edges) ? record.edges : []
     const edges = normalizePlannedEdges(rawEdges)
     const { connected, skipped } = inCtx(() => generationCanvasTools.connect_nodes(edges))
@@ -555,7 +600,7 @@ export async function applyCanvasToolCall(
     return { connectedCount: connected, ...(skipped.length > 0 ? { skippedEdges: skipped } : {}) }
   }
 
-  if (toolName === 'set_node_prompt') {
+  if (operation === 'set_node_prompt') {
     const nodeId = resolveNodeId(String(record.nodeId || '').trim())
     const prompt = typeof record.prompt === 'string' ? record.prompt : ''
     const node = inCtx(() => generationCanvasTools.update_node_prompt(nodeId, prompt))
@@ -563,7 +608,7 @@ export async function applyCanvasToolCall(
     return { nodeId: node.id }
   }
 
-  if (toolName === 'delete_canvas_nodes') {
+  if (operation === 'delete_canvas_nodes') {
     const nodeIds = Array.isArray(record.nodeIds)
       ? record.nodeIds.map((id) => resolveNodeId(String(id || '').trim())).filter(Boolean)
       : []
@@ -571,7 +616,7 @@ export async function applyCanvasToolCall(
     return { deletedNodeIds: deleted }
   }
 
-  if (toolName === 'arrange_storyboard_to_timeline') {
+  if (operation === 'arrange_storyboard_to_timeline') {
     // 排序/选片全在纯函数(planStoryboardTimeline)里——LLM 只触发,顺序按 shotIndex 镜序确定。
     // 不走 inCtx 手势上下文(那是画布事件域);时间轴变更是 workbenchStore 的事。
     const rawIds = Array.isArray(record.nodeIds)
@@ -594,7 +639,7 @@ export async function applyCanvasToolCall(
     }
   }
 
-  if (toolName === 'tidy_canvas') {
+  if (operation === 'tidy_canvas') {
     // 助手「整理画布」：复用 store 的 tidyCategory（与右下角整理按钮同一实现，P1 无并行版）。
     // categoryId 缺省 = 用户当前正看的子画布（activeCategoryId 在 workbenchStore）；aspect 用视口比例兜底。
     const categoryId =

@@ -491,6 +491,43 @@ export function createMcpProtocol(transport: McpTransport) {
           reply(id, buildToolResultPayload(tool.name, args, result))
           return
         }
+        // A storyboard patch is a reversible write, but it is still a user task:
+        // when the MCP client can surface elicitation in an open app, make the
+        // approve/deny decision at this protocol boundary before reaching the
+        // verified lease/renderer path. The renderer receipt must not be given
+        // Host correlation unless a Host turn actually claimed that approval.
+        if (
+          tool.name === 'nomi_canvas_plan'
+          && built.operation === 'patch_shots'
+          && clientSupportsElicitation
+          && transport.isAppOpen()
+        ) {
+          const confirm = await elicitBooleanConfirm({
+            message: 'Apply the selected storyboard shot patch?\nOnly the named rows and fields will change; the operation is reversible.',
+            title: 'Confirm storyboard patch',
+            description: 'Approve to apply the canonical patch_shots task. Decline or timeout leaves the project unchanged.',
+          }, requestSignal)
+          if (!confirm.confirmed) {
+            reply(id, {
+              content: [{
+                type: 'text',
+                text: locale() === 'en'
+                  ? 'Not applied: the storyboard patch was not approved.'
+                  : '未生效：这次分镜修改没有获得批准。',
+              }],
+              isError: true,
+              structuredContent: {
+                nomiOutcome: {
+                  operation: 'patch_shots',
+                  applied: false,
+                  denied: true,
+                  reason: confirm.action === 'timeout' ? 'timeout' : 'declined',
+                },
+              },
+            })
+            return
+          }
+        }
         // 画布方案确认 elicitation-first（免费可撤，见 mcpPlanTrust.ts）：批量加节点（≥2）当声明 elicitation
         // 且 App 开着时，把确认递进聊天问一次而非让人跑去 App 点弹窗；批准记会话级信任、同项目后续不再问。
         // 不满足（单节点 / 不声明 elicitation / headless）→ 落到下面原样 invoke，走既有 gateway.confirmPlan

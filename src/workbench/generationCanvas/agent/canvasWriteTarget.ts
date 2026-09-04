@@ -80,7 +80,7 @@ export function captureCanvasWriteBatchRawEvidence(
   input?: Exclude<CanvasWriteInput, { operation: 'set_node_prompt' }>,
 ): CanvasWriteBatchRawEvidence {
   const requestedIds = (() => {
-    if (!input || input.operation === 'tidy_canvas' || input.operation === 'propose_storyboard_plan') return []
+    if (!input || input.operation === 'tidy_canvas' || input.operation === 'propose_storyboard_plan' || input.operation === 'patch_shots') return []
     if (input.operation === 'arrange_storyboard_to_timeline') return [...input.nodeIds]
     if (input.operation === 'create_staging_reference' || input.operation === 'create_camera_move') {
       return input.shotClientId ? [input.shotClientId] : []
@@ -203,7 +203,8 @@ export type CanvasWriteTargetExecution = Readonly<{
   preconditions: unknown
   receiptProposalId: string
   approvalId: string
-  actionHash: string
+  /** Optional for direct MCP calls: only Host-claimed executions may carry Host correlation. */
+  actionHash?: string
   signal: AbortSignal
   assertCurrent(): void
 }>
@@ -243,7 +244,14 @@ export async function executeCanvasWriteTarget(
   let outcome: Awaited<ReturnType<typeof applyProposalBatch>>
   try {
     outcome = await applyProposalBatch(
-      [{ toolCallId: request.approvalId, toolName: input.operation, effectiveArgs: input }],
+      [{
+        toolCallId: request.approvalId,
+        // Keep the public canonical tool name all the way through the
+        // proposal transaction; patch_shots is an args.operation, never a
+        // direct tool name.
+        toolName: input.operation === 'patch_shots' ? 'nomi_canvas_plan' : input.operation,
+        effectiveArgs: input,
+      }],
       { canWrite: () => {
         assertExecutionCurrent(request)
         return true
@@ -351,11 +359,28 @@ export async function executeCanvasWriteTarget(
   // the main executor can validate it instead of treating an approved call as
   // a generic no-op.
   if (
+    input.operation === 'patch_shots' ||
     input.operation === 'propose_storyboard_plan' ||
     input.operation === 'arrange_storyboard_to_timeline' ||
     input.operation === 'create_staging_reference' ||
     input.operation === 'create_camera_move'
   ) {
+    if (input.operation === 'patch_shots') {
+      const domain = (outcome.results[0] ?? null) as { changedShotIndexes?: unknown; changedFields?: unknown } | null
+      return {
+        applied: true,
+        proposalId: outcome.proposalId,
+        operation: input.operation,
+        changedShotIndexes: Array.isArray(domain?.changedShotIndexes)
+          ? domain.changedShotIndexes.filter((value): value is number => typeof value === 'number')
+          : [],
+        changedFields: Array.isArray(domain?.changedFields)
+          ? domain.changedFields.filter((value): value is string => typeof value === 'string')
+          : [],
+        result: outcome.results[0] ?? null,
+        reconciliation,
+      } satisfies CanvasWriteResult
+    }
     return {
       applied: true,
       proposalId: outcome.proposalId,

@@ -30,6 +30,44 @@ export function buildResidentAssetReference(assetId: string, label: string): Pro
   return Object.freeze({ id: `asset:${assetId}`, label, kind: 'asset' as const, value: `asset:${assetId}` })
 }
 
+/** Stable reference emitted by a real storyboard row/result selection. */
+export function buildStoryboardReference(
+  scope: 'shot' | 'result',
+  shotIndex: number,
+  label: string,
+  _role?: string,
+): ProjectAgentReference {
+  const value = `storyboard:${scope}:${shotIndex}`
+  return Object.freeze({ id: value, label, kind: 'canvas' as const, value })
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
+/** Decode only deterministic storyboard references; display labels never become targets. */
+export function storyboardShotIndexesFromReferences(references: readonly ProjectAgentReference[]): number[] {
+  return [...new Set(references.flatMap((reference) => {
+    const match = reference.value?.match(/^storyboard:(?:shot|result):(\d+)$/)
+    const index = match ? Number(match[1]) : NaN
+    return Number.isInteger(index) && index > 0 ? [index] : []
+  }))].sort((left, right) => left - right)
+}
+
+/**
+ * Inject the current row selection into the canonical approval payload. This
+ * is intentionally a no-op for the retired public `patch_shots` tool name.
+ */
+export function applyStoryboardSelectionToToolArgs(
+  toolName: string,
+  args: unknown,
+  references: readonly ProjectAgentReference[],
+): unknown {
+  if (toolName !== 'nomi_canvas_plan' || !isRecord(args) || args.operation !== 'patch_shots') return args
+  const indexes = storyboardShotIndexesFromReferences(references)
+  return indexes.length ? { ...args, select: { kind: 'indexes', indexes } } : args
+}
+
 export function residentReferencePromptValue(reference: ProjectAgentReference): string {
   return reference.value ? `${reference.label} (${reference.value})` : reference.label
 }
