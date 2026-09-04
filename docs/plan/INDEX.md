@@ -116,6 +116,7 @@
 | [2026-09-03-m1-contract-coverage-gap-remediation.md](2026-09-03-m1-contract-coverage-gap-remediation.md) | M1 转发壳删除后暴露的 rc-01/02/05/06 覆盖缺口：逐条核实的真实覆盖表、4 条缺失不变量（含 rc-05 脱敏安全项、rc-06 `execution_settled` 代码中不存在）与返还顺序 | ⏳ |
 | [2026-09-02-m2-generation-semantic-slice-1.md](2026-09-02-m2-generation-semantic-slice-1.md) | M2 第一片：generation plan/status 语义模型面与 Host-only 闸门排除 | 🚧 |
 | [2026-09-03-agent-ui-p0-exception-states-impl.md](2026-09-03-agent-ui-p0-exception-states-impl.md) | Agent 界面 P0 异常态：折叠、错误、加载和空状态在 v3.1 常驻壳内的实现与验收 | ✅ |
+| [2026-09-04-agent-ui-computable-conformance.md](2026-09-04-agent-ui-computable-conformance.md) | #315/#438 Agent UI 设计到运行时的可计算合同：source metadata、真实 Electron DOM/computed-style 测量、mismatch report 与三项偏差修复 | 🚧 |
 | [2026-09-02-m2-editing-semantic-slices.md](2026-09-02-m2-editing-semantic-slices.md) | M2 第二片：timeline/media/export 语义面、MCP 可达性与 Host 审批 | 🚧 |
 | [2026-09-02-m2-canvas-vertical-slice-3.md](2026-09-02-m2-canvas-vertical-slice-3.md) | M2 第三片：canvas + document 语义 MCP 面、租约边界与 ProductionRun 退役收口 | 🚧 |
 | [2026-09-01-m1-round2-host-runtime.md](2026-09-01-m1-round2-host-runtime.md) | M1 round-2：Host/runtime 切片移植计划（Project Agent 执行协调器 + 常驻壳 transport） | ⏳ |
