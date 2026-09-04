@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { SkillManifest } from "./skillManifestSchema";
+import { SKILL_PACKAGE_VERSION } from "./skillPackage";
 import type { SkillRecord } from "./skillStore";
 import { listSkillsForRenderer } from "./skillIpc";
 
@@ -23,7 +24,7 @@ const record = (partial: Partial<SkillRecord>): SkillRecord => ({
   manifest: manifest({ name: "test.skill" }),
   origin: "builtin",
   audience: "internal",
-  packageVersion: "1",
+  packageVersion: SKILL_PACKAGE_VERSION,
   contentHash: "a".repeat(64),
   ...partial,
 });
