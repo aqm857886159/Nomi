@@ -3,12 +3,16 @@ import { useTranslation } from 'react-i18next'
 import i18n, { getAppLocale } from '../../i18n'
 import {
   IconBrowser,
+  IconAlertTriangle,
+  IconCircleCheck,
   IconFolderOpen,
   IconFolderShare,
+  IconInfoCircle,
   IconMovie,
   IconPlayerPlay,
   IconPlugConnected,
   IconPlus,
+  IconRefresh,
   IconSettings,
   IconTrash,
 } from '@tabler/icons-react'
@@ -22,6 +26,8 @@ import type { ProjectTemplateId } from './projectTemplates'
 import { markLibraryUsed, sortByLibraryUsage, useLibraryUsageVersion } from './libraryDiscovery'
 import { filterProjectLibraryItems } from './libraryAdapters'
 import { LibraryDiscoveryToolbar } from './LibraryDiscoveryToolbar'
+import { getDesktopBridge } from '../../desktop/bridge'
+import type { WorkspaceSyncInspection } from '../../../electron/shared/workspaceSyncContracts'
 
 type Props = {
   onOpenProject: (projectId: string) => void
@@ -124,6 +130,8 @@ export default function ProjectLibraryPage({
   // 双击项目名进入 inline 编辑：editingId 记哪张卡在编辑、editValue 是输入中的名字。
   const [editingId, setEditingId] = React.useState('')
   const [editValue, setEditValue] = React.useState('')
+  const [syncInspectionByProject, setSyncInspectionByProject] = React.useState<Record<string, WorkspaceSyncInspection>>({})
+  const [openSyncProjectId, setOpenSyncProjectId] = React.useState<string | null>(null)
   const beginRename = (project: LocalProjectSummary): void => {
     if (!onRenameProject || project.missing) return
     setEditingId(project.id)
@@ -160,6 +168,39 @@ export default function ProjectLibraryPage({
       : searchedProjects.filter((project) =>
           sourceFilter === 'folder' ? project.source === 'folder' : project.source !== 'folder',
         )
+  const inspectSyncProjects = React.useCallback(async (): Promise<void> => {
+    const api = getDesktopBridge()?.workspace?.syncInspect
+    if (!api) return
+    const entries = await Promise.all(
+      projects.filter((project) => Boolean(project.rootPath)).map(async (project) => {
+        try {
+          const inspection = await api({ projectId: project.id })
+          return [project.id, inspection] as const
+        } catch {
+          return null
+        }
+      }),
+    )
+    setSyncInspectionByProject(Object.fromEntries(entries.filter((entry): entry is readonly [string, WorkspaceSyncInspection] => entry !== null)))
+  }, [projects])
+
+  React.useEffect(() => {
+    void inspectSyncProjects()
+    window.addEventListener('focus', inspectSyncProjects)
+    return () => window.removeEventListener('focus', inspectSyncProjects)
+  }, [inspectSyncProjects])
+
+  const recheckSync = React.useCallback(async (projectId: string): Promise<void> => {
+    const api = getDesktopBridge()?.workspace?.syncInspect
+    if (!api) return
+    try {
+      const inspection = await api({ projectId, adopt: true })
+      setSyncInspectionByProject((current) => ({ ...current, [projectId]: inspection }))
+      if (inspection.status === 'ready') setOpenSyncProjectId(null)
+    } catch {
+      setOpenSyncProjectId(projectId)
+    }
+  }, [])
   const sourceOptions: Array<{ id: 'all' | 'native' | 'folder'; label: string; count: number }> = [
     { id: 'all', label: t('library.all'), count: sourceCounts.all },
     { id: 'native', label: t('library.local'), count: sourceCounts.native },
@@ -167,9 +208,14 @@ export default function ProjectLibraryPage({
   ]
   const textModelMissing = hasTextModel === false
   const openProject = React.useCallback((projectId: string): void => {
+    const status = syncInspectionByProject[projectId]?.status
+    if (status && status !== 'ready') {
+      setOpenSyncProjectId(projectId)
+      return
+    }
     onOpenProject(projectId)
     markLibraryUsed('project', projectId)
-  }, [onOpenProject])
+  }, [onOpenProject, syncInspectionByProject])
   // 单一入口互斥：缺文本模型时弱入口隐藏，模型入口 = 状态条（有项目）/ 主 CTA 自动带入（空库）
   const showModelEntry = Boolean(onOpenModelCatalog) && !textModelMissing
   // Windows：库窗也 frame:false，需自绘标题栏才能拖动/关窗。mac/Linux：原生 chrome，右上操作留在 header 原位。
@@ -385,7 +431,7 @@ export default function ProjectLibraryPage({
                   key={project.id}
                   data-project-card="true"
                   className={cn(
-                    'group bg-nomi-paper border border-nomi-line rounded-nomi-lg overflow-hidden text-left',
+                    'group relative bg-nomi-paper border border-nomi-line rounded-nomi-lg overflow-visible text-left',
                     'transition-[box-shadow,transform,border-color] duration-150',
                     project.missing
                       ? 'opacity-50 cursor-not-allowed'
@@ -489,7 +535,79 @@ export default function ProjectLibraryPage({
                           {project.name}
                         </div>
                       )}
-                      <div className="text-micro text-nomi-ink-40">{formatUpdatedAt(project.updatedAt)}</div>
+                      <div className="flex items-center gap-2 text-micro text-nomi-ink-40">
+                        <span>{formatUpdatedAt(project.updatedAt)}</span>
+                        {project.rootPath && syncInspectionByProject[project.id] ? (() => {
+                          const inspection = syncInspectionByProject[project.id]
+                          const ready = inspection.status === 'ready'
+                          const missing = inspection.status === 'missing-assets'
+                          const label = ready
+                            ? t('library.syncReady')
+                            : inspection.status === 'external-change'
+                              ? t('library.syncExternalChange')
+                              : missing
+                                ? t('library.syncMissingAssets', { count: inspection.missingAssetCount })
+                                : t('library.syncCorrupt')
+                          const tone = ready ? 'text-workbench-success' : missing ? 'text-nomi-warning' : 'text-workbench-danger'
+                          const Icon = ready ? IconCircleCheck : missing ? IconInfoCircle : IconAlertTriangle
+                          return (
+                            <button
+                              type="button"
+                              data-sync-status={inspection.status}
+                              aria-label={label}
+                              title={label}
+                              className={cn('inline-flex max-w-[12rem] items-center gap-1 border-0 bg-transparent p-0 font-inherit text-micro cursor-pointer truncate', tone)}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                setOpenSyncProjectId((current) => current === project.id ? null : project.id)
+                              }}
+                            >
+                              <Icon size={12} stroke={1.8} aria-hidden="true" />
+                              <span className="truncate">{label}</span>
+                            </button>
+                          )
+                        })() : null}
+                      </div>
+                      {openSyncProjectId === project.id && project.rootPath && syncInspectionByProject[project.id] ? (() => {
+                        const inspection = syncInspectionByProject[project.id]
+                        const ready = inspection.status === 'ready'
+                        const title = ready ? t('library.syncDetailsReady') : inspection.status === 'external-change' ? t('library.syncDetailsExternal') : inspection.status === 'missing-assets' ? t('library.syncDetailsMissing') : t('library.syncDetailsCorrupt')
+                        const copy = ready ? t('library.syncDetailsReadyHint') : inspection.status === 'external-change' ? t('library.syncDetailsExternalHint') : inspection.status === 'missing-assets' ? t('library.syncDetailsMissingHint', { count: inspection.missingAssetCount }) : t('library.syncDetailsCorruptHint')
+                        return (
+                          <div
+                            role="dialog"
+                            aria-label={title}
+                            data-sync-popover
+                            className="absolute right-2 top-full z-20 mt-1 w-64 rounded-nomi border border-nomi-line bg-nomi-paper p-3 shadow-nomi-lg"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <div className="text-caption font-medium text-nomi-ink">{title}</div>
+                            <div className="mt-1 text-micro leading-relaxed text-nomi-ink-60">{copy}</div>
+                            <div className="mt-2 truncate rounded-nomi-sm bg-nomi-ink-05 px-2 py-1.5 font-mono text-micro text-nomi-ink-60" title={project.rootPath}>{project.rootPath}</div>
+                            <div className="mt-3 flex items-center gap-2">
+                              {!ready ? (
+                                <button
+                                  type="button"
+                                  className="inline-flex h-7 items-center rounded-nomi-sm border-0 bg-nomi-ink px-2.5 text-micro font-medium text-nomi-paper cursor-pointer hover:bg-nomi-accent"
+                                  onClick={() => { void recheckSync(project.id) }}
+                                >
+                                  <IconRefresh size={13} stroke={1.8} className="mr-1" aria-hidden="true" />
+                                  {t('library.syncRecheck')}
+                                </button>
+                              ) : null}
+                              {onRevealProjectFolder ? (
+                                <button
+                                  type="button"
+                                  className="inline-flex h-7 items-center rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5 text-micro text-nomi-ink cursor-pointer hover:bg-nomi-ink-05"
+                                  onClick={() => onRevealProjectFolder(project.id)}
+                                >
+                                  {t('library.syncOpenFolder')}
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        )
+                      })() : null}
                     </div>
                     {onRevealProjectFolder && project.rootPath ? (
                       <button

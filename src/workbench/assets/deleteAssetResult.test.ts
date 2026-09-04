@@ -90,6 +90,23 @@ describe('deleteAssetResult durability', () => {
     expect(mocks.nodes[0].history?.map((result) => result.id)).toEqual(['a', 'b'])
   })
 
+  it('keeps a shared physical file while another result still references it', async () => {
+    const shared = image('shared', 'nomi-local://asset/project-1/assets/generated/a.png')
+    mocks.nodes = [
+      node(image('a', 'nomi-local://asset/project-1/assets/generated/a.png'), [image('a', 'nomi-local://asset/project-1/assets/generated/a.png')]),
+      {
+        ...node(shared, []),
+        id: 'node-2',
+        result: { id: 'video', type: 'video', url: 'nomi-local://asset/project-1/assets/generated/video.mp4', thumbnailUrl: shared.url, createdAt: 1 },
+      },
+    ]
+
+    await deleteAssetResult(projectAsset('a'), 'project-1')
+
+    expect(mocks.persistNow).toHaveBeenCalledOnce()
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+  })
+
   it('serializes closed-project deletions so concurrent buttons cannot restore stale references', async () => {
     const latch = { resolve: null as ((value: unknown) => void) | null }
     const firstRead = new Promise((resolve) => { latch.resolve = resolve })

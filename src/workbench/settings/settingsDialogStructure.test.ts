@@ -9,6 +9,7 @@ function stripComments(source: string): string {
 }
 const readCode = (file: string): string => stripComments(fs.readFileSync(file, 'utf8'))
 const settingsSource = readCode(path.join(process.cwd(), 'src/workbench/settings/SettingsDialog.tsx'))
+const projectLocationSource = readCode(path.join(process.cwd(), 'src/workbench/settings/ProjectLocationSection.tsx'))
 const aiModelsSource = readCode(path.join(process.cwd(), 'src/workbench/settings/AiModelsSection.tsx'))
 const taskCenterSource = readCode(path.join(process.cwd(), 'src/workbench/taskCenter/TaskCenterPanel.tsx'))
 const studioSource = readCode(path.join(process.cwd(), 'src/workbench/NomiStudioApp.tsx'))
@@ -35,7 +36,9 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 //             故更新 AiModelsSection 基线；对应正向断言见下方 translates vendor and model display
 //             names through the model-display boundary。
 const MAIN_NON_MODEL_SECTION_SHA256 = {
-  'ProjectLocationSection.tsx': 'ad37c2f07c403b60cf42385f4d93fce8e2ff494c934467c670a7ae4b8c8d5523',
+  // 2026-09-04：检查反馈 tone 改为从公共 toast 函数参数推导，避免重复词表 owner。
+  'ProjectLocationSection.tsx': 'c0b2350bda45c5126b69296a0b526fda521feb210a1f6908c5d8ac187a7a0c3a',
+  // 2026-09-02: AiModelsSection 按渲染边界收口供应商/模型展示名（translateModelDisplayText）。
   'AiModelsSection.tsx': 'f05b4e11bdeb83ef04b6b40d84e4fdfe275de41e06511163c8ee1be87b3240c8',
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
   // 新增 CustomMcpClientCard UI TODO 注释（底层能力已就绪，UI 面另排样张拍板）。
@@ -70,6 +73,24 @@ describe('settings dialog structure', () => {
     expect(taskCenterSource).not.toContain('PrefToggle')
     expect(taskCenterSource).not.toContain('writeTaskCenterPrefs')
     expect(settingsSource).toContain('automationPolicy')
+  })
+
+  it('keeps cross-device folder setup inside File & saving', () => {
+    expect(settingsSource).toContain('<ProjectLocationSection />')
+    expect(projectLocationSource).toContain('data-settings-project-sync')
+    expect(projectLocationSource).toContain("settings.file.projectLocationConfigured")
+    expect(projectLocationSource).toContain("settings.file.projectLocationCheck")
+    expect(projectLocationSource).toContain("settings.file.projectLocationSyncTitle")
+    expect(projectLocationSource).toContain("settings.file.projectLocationSyncSteps")
+    expect(projectLocationSource).toContain('aria-expanded={showSyncSteps}')
+    expect(projectLocationSource).toContain('data-project-location-check-feedback')
+    expect(projectLocationSource).toContain('data-feedback-tone')
+    expect(projectLocationSource).toContain('NonNullable<Parameters<typeof toast>[1]>')
+    expect(projectLocationSource).toContain('role="status"')
+    expect(projectLocationSource).toContain('aria-live="polite"')
+    expect(projectLocationSource).toContain('https://www.verysync.com/')
+    expect(projectLocationSource).toContain('https://www.jianguoyun.com/s/downloads')
+    expect(settingsSource).not.toContain('settings.file.autoSave')
   })
 
   it('keeps model management in one settings host', () => {

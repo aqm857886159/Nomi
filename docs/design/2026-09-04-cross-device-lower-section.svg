@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="330" viewBox="0 0 760 330" role="img" aria-labelledby="title desc">
+  <title id="title">Nomi 新项目默认位置区域</title>
+  <desc id="desc">基于真实 Settings 组件的跨设备目录区域，仅展示改动部分</desc>
+  <rect width="760" height="300" fill="#ffffff"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#201f1d">
+    <text x="32" y="42" font-size="18" font-weight="600">新项目默认位置</text>
+    <rect x="32" y="60" width="500" height="42" rx="8" fill="#f7f6f4"/>
+    <text x="48" y="87" font-family="SFMono-Regular, Menlo, monospace" font-size="14" fill="#6e6a64">~/Nutstore/Nomi Projects</text>
+    <g font-size="14" fill="#6e6a64">
+      <text x="548" y="86">⚙ 更换位置</text>
+      <text x="655" y="86">▱ 打开位置</text>
+    </g>
+    <text x="32" y="130" font-size="14" fill="#9a958d">新项目会放在这里；已有项目位置不变。</text>
+    <line x1="32" y1="158" x2="728" y2="158" stroke="#dedbd5"/>
+    <text x="32" y="190" font-size="18" font-weight="600">换电脑继续</text>
+    <text x="32" y="216" font-size="14" fill="#9a958d">VerySync / 坚果云：双向同步上面的文件夹。</text>
+    <rect x="32" y="236" width="696" height="44" rx="8" fill="#e9f8ec"/>
+    <circle cx="53" cy="258" r="8" fill="none" stroke="#22b653" stroke-width="2"/>
+    <path d="M49 258l3 3 5-6" fill="none" stroke="#22b653" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="70" y="263" font-size="15" fill="#22b653">可在另一台电脑继续编辑</text>
+    <text x="648" y="263" font-size="14" fill="#22b653">检查文件夹</text>
+    <text x="32" y="298" font-size="12" fill="#9a958d">仅展示真实 ProjectLocationSection 的改动区域；Settings 外壳和上方内容保持不变。</text>
+  </g>
+</svg>
