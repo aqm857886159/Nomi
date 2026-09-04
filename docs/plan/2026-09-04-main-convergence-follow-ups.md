@@ -1,5 +1,7 @@
 # 2026-09-04 Main 收敛后续计划
 
+**状态：**📋 方案待拍板。
+
 > **For agentic workers:** 本文是计划文档，不是本轮实现授权。任何实现必须先按对应 featureId 建立独立 PR，并遵守本文的红测、真实 Electron、package、持久化重启和视觉验收门禁。
 
 **Goal:** 以 `origin/main@53e3ab7c2f38561760a6b7262c76c098929a7c34`（PR #455 merge `976584c8`、PR #457 merge `53e3ab7c`）为唯一基线，只安排当前主线上仍有用户价值、但尚未完成或尚未被真实证据证明的收敛后续；不重复已合入、已被主线吸收或已关闭的工作。
@@ -12,7 +14,7 @@
 
 ## Global Constraints
 
-1. 本计划只读当前 `origin/main`、审计和 open PR 状态；本轮只新增本文件，不改产品代码、测试、既有主计划、`docs/plan` 索引或共享 `outputs`。
+1. 本计划只读当前 `origin/main`、审计和 open PR 状态；本轮主动修改仅本文件，不改产品代码、测试或既有主计划，不 add/覆盖共享 `outputs`。普通基线 merge 允许同步 `origin/main` 已有文件（包括其既有索引变更），但不把这些同步内容作为本轮功能实现。
 2. 所有 feature 的硬门禁都包含 Happy、Boundary、Error、Timeout、Network 五类红测。每一类都要有明确输入、预期状态/副作用和可定位断言；无网络依赖的功能也必须证明 `Network` 场景不发起外部调用，而不是省略该类。
 3. 外部依赖只在 adapter/transport 边界 mock：provider、APIMart、TikHub、同步客户端、图像生成器和模型运行时不得被内部 resolver、store 或 UI 假 mock。mock journey 只能证明控制流/错误策略，不能证明 provider 成功或真实资产效果。
 4. `red → green` 必须使用同一断言、同一生产调用形状和同一 featureId。每次 green receipt 同时记录 commit、测试命令、真实副作用、项目文件/receipt 路径和运行环境。
