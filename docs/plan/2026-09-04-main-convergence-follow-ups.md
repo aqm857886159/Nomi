@@ -20,7 +20,7 @@
 6. coverage receipt 只能从实际通过的 feature/tool/effect receipt 聚合；`skipped`、`blocked`、`fixture-only`、`old-baseline`、`visual-pending` 不得计为通过，不能伪造 100%。工具覆盖按“工具 → schema/resolver → 实际 effect → receipt → 持久化文件 → restart readback”计数，不按 `tools/list` 数量计数。
 7. UI 功能先走 image2：真实 shell、真实用户任务、目标状态和 Prompt Brief → image2 探索 → 用户明确确认 → 冻结 design contract → 红测 → 实组件 → green → Electron/package 截图与视觉走查。用户拒绝的方向标为 `rejected`，不得从旧 mockup 直接实现。
 8. live provider、真实第二设备、付费模型、外部同步客户端、发布或不可逆架构迁移均需要用户决策/授权。没有 key、额度、第二设备或可审计环境时只能标 `blocked`，不能以模拟结果代替。
-9. 每个后续项目都要有一个新 PR 的清晰边界；已有 open PR 只能作为依赖、owner 或候选 patch，必须先 rebase 到 `976584c8` 并重新核验，不能把旧 PR 整体当作完成证据。
+9. 每个后续项目都要有一个新 PR 的清晰边界；已有 open PR 只能作为依赖、owner 或候选 patch，必须先 rebase 到 `53e3ab7c` 并重新核验，不能把旧 PR 整体当作完成证据。
 
 ## Baseline、Inventory 与排除项
 
@@ -59,7 +59,7 @@
 
 ## 交付顺序与决策闸门
 
-1. 先在 `976584c8` 上刷新所有红测和 evidence manifest，优先处理无额度/无外部写入的 Agent M0/M1、MCP L2、canonical storyboard 和 Canvas S5/S6。
+1. 先在 `53e3ab7c` 上刷新所有红测和 evidence manifest，优先处理无额度/无外部写入的 Agent M0/M1、MCP L2、canonical storyboard 和 Canvas S5/S6。
 2. 在真实 Electron 上证明每个 effect 的 receipt、文件读回和重启恢复，再做 packaged journey；旧的 fixture-only、旧截图和 skipped check 只能保留为上下文。
 3. 在 TikHub live、跨设备真实同步、APIMart/视频 live canary 前取得用户的 key/额度/第二设备/同步客户端授权；不因开关存在而宣称已完成。
 4. UI image2 用户确认和架构 phase-3 所有权决策是独立闸门；二者未通过前不实现 rejected mockup、不做大规模 contract/cycle 重排。
@@ -72,7 +72,7 @@
 
 **用户价值：** 用户能看到“已偏离/需恢复/不可继续”的真实状态，避免 Agent 在重启、重复或异常后把错误状态伪装成成功。
 
-**当前 main / PR / merge SHA：** `origin/main@976584c8` 已含 M0 文档来源 #272 `c1f6b385`、#275 `7bf7e27f`；Host lifecycle forwarding shell 已由 #411 `ea0d51b7` 移除。没有新的 M0 product merge；#453 只承载计划。
+**当前 main / PR / merge SHA：** `origin/main@53e3ab7c` 已含 M0 文档来源 #272 `c1f6b385`、#275 `7bf7e27f`；Host lifecycle forwarding shell 已由 #411 `ea0d51b7` 移除。没有新的 M0 product merge；#453 只承载计划。
 
 **依赖 / 不重复：** 依赖当前 `projectAgentHost`/lifecycle state owner 和 M1 的真实 Host journey；不重复 M0 文档、不复制 #301 Host 基础、不为了绿灯改写既有 contract。
 
@@ -212,7 +212,7 @@
 
 **用户价值：** 用户安装实际发行包后，Agent、MCP、skills、canvas 和 receipts 仍能启动、恢复和安全失败，不会出现开发环境能用、安装包失效的断层。
 
-**当前 main / PR / merge SHA：** #420 `87bc55c9` 已合入；#419 head `7b67877a...` 为旧 M5 stack 且冲突，不能当 current main proof。基线为 `976584c8`，没有 M5 graduation SHA。
+**当前 main / PR / merge SHA：** `origin/main@53e3ab7c` 已含 #420 `87bc55c9`；#419 head `7b67877a...` 为旧 M5 stack 且冲突，不能当 current main proof。当前基线没有 M5 graduation SHA。
 
 **依赖 / 不重复：** 依赖 M0-M4 的真实 receipts、MCP L2 catalog、skills roots 和 image2/视觉验收；不重新安排 #420 已交付的 packaged Slice A，不在本项目打开 Host 或付费模型。
 
@@ -226,7 +226,7 @@
 | Timeout | packaged startup、MCP stdio、Agent task、restart recovery 超时可诊断且不假绿；进程退出后无孤儿 operation。 |
 | Network | packaged 无网络/ provider 401/429/5xx 时保持 zero-quota safe mode；不得以 fake adapter 计 live success。 |
 
-**实现范围：** 在 `976584c8` 重新 build/package，重跑 M0-M4 代表旅程、MCP L2 smoke、skills root/hash、receipt/restart 和 mac packaged gate；记录每项真实证据状态。非目标是 Host enable、paid provider 和发布。
+**实现范围：** 在 `53e3ab7c` 重新 build/package，重跑 M0-M4 代表旅程、MCP L2 smoke、skills root/hash、receipt/restart 和 mac packaged gate；记录每项真实证据状态。非目标是 Host enable、paid provider 和发布。
 
 **验证与交付：** unit/integration 先在源码 runtime 通过；真实 Electron 作为安装包前置；packaged 是本项目主门禁；持久化重启读回 project/receipt/skills state；视觉走查安装包的 Agent/MCP/confirmation/error/receipt shell。任何 skipped check 都保留为未证明。
 
@@ -240,7 +240,7 @@
 
 **用户价值：** 用户从 Agent、MCP client 或 UI 调用工具时，看到的每一个成功都对应真实项目变化、可审计 receipt 和可恢复状态，而不是只返回 protocol-level success。
 
-**当前 main / PR / merge SHA：** MCP 相关已合入 #381 `deb48a6d`、#387 `8d091288`、#426 `d022252d`、#442 `b0b98a61`、#448 `7b25000c`；packaged catalog 相关 #420 `87bc55c9`。`origin/fix/mcp-remaining-holes-20260903@99396b...` 可能重复 #426，尚无可用完成 SHA；当前 exact L2 rerun 仍需在 `976584c8` 上执行。
+**当前 main / PR / merge SHA：** `origin/main@53e3ab7c` 已含 MCP 相关 #381 `deb48a6d`、#387 `8d091288`、#426 `d022252d`、#442 `b0b98a61`、#448 `7b25000c`；packaged catalog 相关 #420 `87bc55c9`。`origin/fix/mcp-remaining-holes-20260903@99396b...` 可能重复 #426，尚无可用完成 SHA；当前 exact L2 rerun 仍需在 `53e3ab7c` 上执行。
 
 **依赖 / 不重复：** 依赖 M1 lease/settlement、M2 semantic effect、canonical storyboard、M5 packaged；不重新实现已合入 #426 的通用 holes。工具 ledger 必须区分 model-facing manifest 与 external catalog，不能混计。
 
@@ -310,7 +310,7 @@
 | Timeout | S5 launch/render/wait、media retry、large graph interaction 超过阈值时可诊断且无 infinite retry/selection race。 |
 | Network | canvas selection/perf 不依赖网络；provider/network unavailable 时断言 click-select 仍可用且没有隐藏请求。 |
 
-**实现范围：** 在 `976584c8` fresh baseline 上重建 S5 scenario，验证候选 branch 的 unique truth、click-select、React Flow/domain projection、performance artifacts；只保留实测的增量 patch。共享 outputs 保持不变，未来 evidence 使用新路径。
+**实现范围：** 在 `53e3ab7c` fresh baseline 上重建 S5 scenario，验证候选 branch 的 unique truth、click-select、React Flow/domain projection、performance artifacts；只保留实测的增量 patch。共享 outputs 保持不变，未来 evidence 使用新路径。
 
 **验证与交付：** unit 覆盖 selection reducer/adapter；integration 覆盖 click/drag/group/connection；真实 Electron 完成 dense canvas 用户旅程并采集阈值；packaged 运行性能/selection smoke；持久化重启读回 selection/graph revision；视觉走查选中、未选中、hover、error/retry、最小窗口。S5 数值和截图必须来自本次 main，不使用旧 artifacts 冒充。
 
@@ -404,7 +404,7 @@
 
 ### 13. `ARCH.PHASE3.NEUTRAL-CONTRACTS` — 架构三期与中立层收尾（决策闸门）
 
-**状态/优先级：** 仍在架构 roadmap 中，但未达到立即实现条件；P2/高风险。phase 1 与 phase 2 初始 neutral-contract slices 已部分合入；phase 3 的 providerAdapter↔catalog↔integrationCertification hard-loop 拆分、`integrationSession.ts` 分解和 `electron/runtime.ts` 依赖清理仍未证明。旧审计中的耦合数量只能作为历史信号，必须在 `976584c8` fresh scan 后再定范围。
+**状态/优先级：** 仍在架构 roadmap 中，但未达到立即实现条件；P2/高风险。phase 1 与 phase 2 初始 neutral-contract slices 已部分合入；phase 3 的 providerAdapter↔catalog↔integrationCertification hard-loop 拆分、`integrationSession.ts` 分解和 `electron/runtime.ts` 依赖清理仍未证明。旧审计中的耦合数量只能作为历史信号，必须在 `53e3ab7c` fresh scan 后再定范围。
 
 **用户价值：** 减少升级/模型/provider/Agent 变更引发的循环依赖与启动回归，让不同界面共享稳定 contract，长期降低用户遇到“某个页面能用、另一个页面失效”的概率。
 
@@ -432,7 +432,7 @@
 
 ### 14. `UI.IMAGE2.DESIGN-GATE` — UI 设计 image2→用户确认→视觉验收
 
-**状态/优先级：** 规则已有于当前收敛分支的 design 文档，但 current `origin/main@976584c8` 尚未把它变成所有 UI follow-up 的强制交付闸门；P0 横切流程。旧 #454 anchor/parameter rail mockup 已 rejected，不能继续实现。
+**状态/优先级：** 规则已有于当前收敛分支的 design 文档，但 current `origin/main@53e3ab7c` 尚未把它变成所有 UI follow-up 的强制交付闸门；P0 横切流程。旧 #454 anchor/parameter rail mockup 已 rejected，不能继续实现。
 
 **用户价值：** 用户在真实组件出现前就能确认层级、密度、信息优先级和状态设计，减少静态稿与真实工作流脱节；实现后还能在 Electron/package 中确认视觉没有退化。
 
@@ -470,6 +470,12 @@
 6. coverage receipt 的分子、分母、跳过项、blocked 项和 fixture-only 项，禁止把未证明项计入 100%；
 7. 若涉及 UI：image2 Prompt Brief、用户确认、冻结 design contract、实现后 Electron/package 截图和视觉走查；
 8. 若涉及 live/同步/付费/架构决策：用户授权、额度/设备/环境、失败边界、回滚和明确的 `live-certified`/`blocked` 标签。
+
+### Scoped coverage hard gate
+
+用户要求的 `100% branch` 与 `100% statement` 是**每一个交付 PR 的 scoped production module/test target**，不是自动把整个仓库宣称为 100%。PR 必须列出精确的 production module、对应 test target、branch/statement 分子分母、coverage tool receipt（命令、commit、配置、原始输出路径和环境），并证明该 receipt 来自实际运行的测试；只补 unit、只跑 fixture、只看 CI job 名称或手填 coverage 数字均不合格。
+
+若全仓库覆盖不可行，必须明确写出“仓库级 100% 未达成”，不得把局部 module 的 100% 冒充全仓库 100%；同时列出剩余 uncovered branch 的 `owner`、`blocking reason`、预计承接的 `next PR` 和其依赖。uncovered branch 不能藏在 ignore/exclude、snapshot 或 skipped test 中；每个被保留的 branch 都要有对应的 H/B/E/T/N 断言或明确标为 blocked。该 coverage gate 与真实 Electron journey、packaged journey、持久化重启和 UI image2/视觉走查相互独立，任何一项通过都不能替代另一项。
 
 ## 本计划的完成定义
 
