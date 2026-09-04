@@ -81,7 +81,7 @@ try {
     match: (body) => hasToolResult(body, PLAN_CALL),
     reply: { type: 'text', text: 'F_PLAN_DONE：请先审阅，再落到画布。' },
   })
-  await clickOrFail(win.locator('[data-action-run="storyboard"]'), '在创作区就地拆镜头')
+  await clickOrFail(win.getByRole('button', { name: /分镜/ }).last(), '在创作区就地拆镜头')
   const plannerWire = await recorded(planner.received, 'inline planner request')
   expect(toolNames(plannerWire.body)).toEqual(['propose_storyboard_plan', 'read_canvas_state'])
   expect(plannerWire.body.messages.some((message) => message.role === 'user'
