@@ -161,7 +161,7 @@ describe('canonical storyboard patch production transaction', () => {
     expect(createProjectAgentProposalReceiptService({ projectRoot, binding }).read()).toEqual(service.read())
 
     const payload = readCurrentWorkbenchProjectPayload()
-    expect(payload.storyboardPlans['storyboard-doc']?.plan.shots[1]).toMatchObject({
+    expect(payload.storyboardPlans?.['storyboard-doc']?.plan.shots[1]).toMatchObject({
       prompt: '跟拍，雨天',
       params: { aspect_ratio: '9:16', quality: 'high' },
     })
@@ -171,7 +171,7 @@ describe('canonical storyboard patch production transaction', () => {
     })
     useWorkbenchStore.setState({
       workbenchDocuments: [],
-      activeDocumentId: null,
+      activeDocumentId: undefined,
       storyboardPlans: {},
       storyboardDesignsByDocumentId: {},
       activeStoryboardId: null,
