@@ -53,7 +53,10 @@ export function writeProjectDocument(
   const { project, document, text } = projectDocument(projectId, documentId)
   const nextText = operation === 'replace' ? content : operation === 'append' ? `${text}${text ? '\n' : ''}${content}` : `${content}${text ? '\n' : ''}${text}`
   const payload = record(project.payload)
-  const documents = (Array.isArray(payload.workbenchDocuments) ? payload.workbenchDocuments : []).map((candidate) => {
+  // projectDocument already rejected a missing/non-array document collection;
+  // keep the write path on that same validated collection instead of carrying
+  // an unreachable fallback that can never preserve the selected document.
+  const documents = (payload.workbenchDocuments as DocumentRecord[]).map((candidate) => {
     const item = record(candidate)
     return item.id === document.id ? { ...item, contentJson: contentFor(nextText), updatedAt: Date.now() } : candidate
   })
