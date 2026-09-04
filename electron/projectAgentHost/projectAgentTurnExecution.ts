@@ -175,8 +175,16 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
           : undefined;
         const isRendererHandledStoryboardProposal =
           canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id
-          && call.toolName === "nomi_canvas_plan"
-          && (canvasOperation === "propose_storyboard_plan" || canvasOperation === "patch_shots");
+          && (
+            // The renderer-owned planner still emits this historical alias;
+            // keep it on the same guarded path while MCP uses the canonical
+            // nomi_canvas_plan operation envelope.
+            call.toolName === "propose_storyboard_plan"
+            || (
+              call.toolName === "nomi_canvas_plan"
+              && (canvasOperation === "propose_storyboard_plan" || canvasOperation === "patch_shots")
+            )
+          );
         if (isCanvasMutation && execution.blockedCanvasWriteDecision) {
           return execution.blockedCanvasWriteDecision;
         }
