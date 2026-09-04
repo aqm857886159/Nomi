@@ -1,0 +1,34 @@
+{
+  "profileVersion": 1,
+  "id": "nomi.real-user.long-video.live-canary.apimart-gemini-3-5-flash",
+  "provider": "apimart",
+  "model": "gemini-3.5-flash",
+  "modelKind": "text-vision",
+  "selectionReason": "仓库已有 APIMart OpenAI-compatible 文本档案，并明确声明 gemini-3.5-flash 支持 image input；视频拆解只需文本视觉分析，不应额外调用视频生成模型。",
+  "credentialEnv": "APIMART_API_KEY",
+  "samplePathEnv": "NOMI_LONG_VIDEO_PATH",
+  "explicitGates": {
+    "liveCanaryEnv": "NOMI_LONG_VIDEO_LIVE_CANARY=1",
+    "budgetConfirmationEnv": "NOMI_LONG_VIDEO_BUDGET_CONFIRM=I_UNDERSTAND_ONE_REQUEST"
+  },
+  "requestBudget": {
+    "maxCanaryRuns": 1,
+    "framesPerShot": 1,
+    "concurrency": 1,
+    "noVideoGeneration": true,
+    "noRetry": true,
+    "costEvidenceRequired": true,
+    "requestIdEvidenceRequired": true
+  },
+  "rollback": {
+    "isolateUserData": true,
+    "deleteOnlyOwnedTempProfile": true,
+    "doNotModifyExistingCatalog": true,
+    "doNotPublishOrMerge": true
+  },
+  "truthRules": [
+    "缺 APIMART_API_KEY、NOMI_LONG_VIDEO_PATH、请求 ID 或费用/额度证据时只能是 blocked-live。",
+    "仓库 fixture、loopback server 和 recorded output 不能证明 live provider 成功。",
+    "API key 只能进入应用配置 bridge；日志和报告只记录存在性，不记录 secret 值。"
+  ]
+}
