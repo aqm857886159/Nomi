@@ -1,5 +1,7 @@
 # Nomi M0-M5 Agent vertical-spine status ledger
 
+状态：🚧 进行中
+
 > 唯一状态台账：本文件是本交付的持久化状态真源。后续每个未完成项必须拆成独立 PR，并在对应单元格补入命令、SHA、PR 或明确的 blocked reason；状态不得只留在对话中。
 
 ## Goal
