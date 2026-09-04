@@ -44,10 +44,8 @@ import {
 import {
   asRecord,
   assertAllowedKeys,
-  assertCanonicalTimestamp,
-  assertCanonicalId,
-  assertNonEmpty,
-  assertSafeInteger, assertSkillLoadReference,
+  assertCanonicalTimestamp, assertCanonicalId, assertNonEmpty,
+  assertSafeInteger, assertSkillLoadReference, assertProjectAgentUsage,
   assertStatusRecord,
   assertTimestampOrder,
   assertVersionRef,
@@ -108,6 +106,7 @@ function assertTurn(
     "model",
     "workMode",
     "approvalPolicy",
+    "usage",
     "skillVersions",
     "capabilityVersions",
     "contextRef",
@@ -122,6 +121,7 @@ function assertTurn(
   assertVersionRef(turn.model);
   if (turn.workMode !== undefined) assertWorkMode(turn.workMode);
   if (turn.approvalPolicy !== undefined) assertApprovalPolicy(turn.approvalPolicy);
+  if (turn.usage !== undefined) assertProjectAgentUsage(turn.usage);
   assertVersionRefs(turn.skillVersions);
   assertVersionRefs(turn.capabilityVersions);
   assertContextRef(turn.contextRef, binding, turn.threadId);
