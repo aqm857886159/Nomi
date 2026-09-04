@@ -1,7 +1,7 @@
 # MCP 全量能力审计与重基线
 
-日期：2026-09-04  
-审计范围：MCP 工具面、schema/contract、授权/确认、执行器、receipt/persistence/recovery、Skills 注入、L1/L2/packaged 测试。  
+日期：2026-09-04
+审计范围：MCP 工具面、schema/contract、授权/确认、执行器、receipt/persistence/recovery、Skills 注入、L1/L2/packaged 测试。
 审计基线：`origin/main` = `45912ae01a155a3f6592f65368d0ce3d12fc034e`（merge PR #446）。
 
 ## 结论先行
