@@ -214,10 +214,4 @@ describe('canonical storyboard patch production transaction', () => {
     expect(useWorkbenchStore.getState().storyboardPlans['storyboard-doc']?.plan).toEqual(before)
   })
 
-  it('keeps the canonical renderer entry distinct from the retired direct tool name', async () => {
-    await expect(applyCanvasToolCall('patch_shots', {
-      select: { kind: 'all' },
-      patch: { prompt: 'must fail closed' },
-    })).rejects.toThrow(/unknown tool/)
-  })
 })

@@ -203,7 +203,8 @@ export type CanvasWriteTargetExecution = Readonly<{
   preconditions: unknown
   receiptProposalId: string
   approvalId: string
-  actionHash: string
+  /** Optional for direct MCP calls: only Host-claimed executions may carry Host correlation. */
+  actionHash?: string
   signal: AbortSignal
   assertCurrent(): void
 }>
