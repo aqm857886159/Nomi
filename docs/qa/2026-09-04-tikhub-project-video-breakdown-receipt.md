@@ -2,7 +2,7 @@
 
 ## 基线与范围
 
-- base: `origin/main=68e88075ddfaa90edb0078f902b2d9103dba1bb3`
+- base: `origin/main=bc33b701bb6c38d90b687af0ec89a5fc125ecc2b`
 - branch: `codex/tikhub-project-video-breakdown-e2e-20260904`
 - 仅使用 loopback HTTP fixture；没有真实 TikHub API key、外部 upstream 或付费 provider。
 - 没有修改视觉 UI、CSS、样张或 baseline coverage 配置。
