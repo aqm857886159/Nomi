@@ -234,6 +234,6 @@ describe("canvas.write canonical contract", () => {
       reconciliation: { ok: true, deviationCount: 0 },
     } as const;
     expect(canvasWriteResultSchema.parse(result)).toEqual(result);
-    expect(canvasWriteResultSchema.safeParse({ ...result, toolName: "patch_shots" }).success).toBe(false);
+    expect(canvasWriteResultSchema.safeParse({ ...result, directTool: "patch_shots" }).success).toBe(false);
   });
 });
