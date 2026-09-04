@@ -53,7 +53,8 @@ import { buildStaticAgentSystemPrompt } from '../generationCanvas/agent/generati
 import { projectAgentSkillEvents } from './skillEventProjection'
 import { runProposalUndo, useCommittedProposal } from '../generationCanvas/agent/proposalUndo'
 
-type ResidentSurface = Extract<WorkspaceMode, 'creation' | 'generation' | 'preview'>
+type ResidentSurface = Extract<WorkspaceMode, 'creation' | 'storyboard' | 'generation' | 'preview'>
+const isDocumentSurface = (surface: ResidentSurface): boolean => surface === 'creation' || surface === 'storyboard'
 type PendingTool = { call: ToolCallEvent; bindingKey: string; state: ResidentApprovalState }
 type MenuId = 'attachments' | 'references' | 'skills' | 'prompts' | 'modes' | 'policy' | 'models' | null
 
@@ -230,7 +231,13 @@ const PROMPT_PRESETS = [
 ] as const
 
 function surfaceLabel(t: (key: string, options?: Record<string, unknown>) => string, surface: ResidentSurface): string {
-  return surface === 'generation' ? t('agentResident.contextGeneration') : surface === 'preview' ? t('agentResident.contextPreview') : t('agentResident.contextCreation')
+  return surface === 'generation'
+    ? t('agentResident.contextGeneration')
+    : surface === 'preview'
+      ? t('agentResident.contextPreview')
+      : surface === 'storyboard'
+        ? t('agentResident.contextStoryboard')
+        : t('agentResident.contextCreation')
 }
 
 function statusLabel(t: (key: string, options?: Record<string, unknown>) => string, status: ProjectAgentStatus): string {
@@ -253,6 +260,25 @@ function readableFailure(t: (key: string, options?: Record<string, unknown>) => 
 
 function isWriteFailure(code: string, message: string): boolean {
   return /(^|[_\s-])(write|written)([_\s-]|$)|canvas[._-]write/i.test(`${code} ${message}`)
+}
+
+type AgentFailureCategory = 'auth' | 'quota' | 'network' | 'provider' | 'lifecycle' | 'capability' | 'unknown'
+
+function safeAgentFailureCode(code: string): string {
+  const normalized = code.trim()
+  return /^[a-z0-9][a-z0-9._-]{0,63}$/i.test(normalized) ? normalized : 'unknown'
+}
+
+/** Keep diagnostics useful to the runner without projecting provider messages or credentials into the DOM. */
+function agentFailureCategory(code: string, message: string): AgentFailureCategory {
+  const text = `${code} ${message}`.toLowerCase()
+  if (/401|403|auth|credential|api.?key|unauthori[sz]ed|forbidden/.test(text)) return 'auth'
+  if (/429|quota|rate.?limit|too many requests/.test(text)) return 'quota'
+  if (/network|fetch failed|timeout|econn|dns|connect/.test(text)) return 'network'
+  if (/provider|upstream|http 5\d\d|runtime_error/.test(text)) return 'provider'
+  if (/stale|precondition|binding|subscription|abort|cancel|lifecycle/.test(text)) return 'lifecycle'
+  if (/capability|write|approval|denied/.test(text)) return 'capability'
+  return 'unknown'
 }
 
 function friendlyError(error: unknown, t: (key: string, options?: Record<string, unknown>) => string): string {
@@ -294,7 +320,7 @@ function captureResidentSendContext(surface: ResidentSurface, creationDocumentTo
   // active. Generation/preview may keep the resident shell mounted after the
   // editor has been torn down; probing that bridge there would make an
   // otherwise valid send fail or capture a stale anchor.
-  const documentState = surface === 'creation' ? creationDocumentTools?.readState() : undefined
+  const documentState = isDocumentSurface(surface) ? creationDocumentTools?.readState() : undefined
   const selectedNodeIds = surface === 'generation' ? Object.freeze([...canvas.selectedNodeIds]) : Object.freeze([])
   const selectedClipIds = surface === 'preview' ? Object.freeze([...workbench.selectedTimelineClipIds]) : Object.freeze([])
   const snapshot = buildResidentContextSnapshot({
@@ -415,7 +441,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       mine: filterPrompts(userPromptLibrary.items, 'all', query),
     }
   }, [promptLibrary.items, promptSearch, userPromptLibrary.items])
-  const hasContextLocator = surface === 'creation'
+  const hasContextLocator = isDocumentSurface(surface)
     ? Boolean(activeDocumentId)
     : surface === 'generation'
       ? selectedNodeIds.length > 0
@@ -442,7 +468,32 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   // repository/user Skill. Electron filters implementation-only resources
   // before they cross the bridge.
   React.useEffect(() => { try { setSkills(listWorkbenchSkills()) } catch { setSkills([]) }; void getAvailableSkillProviders().then(setAvailableSkillProviders).catch(() => setAvailableSkillProviders(new Set())) }, [])
-  React.useEffect(() => { let alive = true; void Promise.all([listWorkbenchModelCatalogVendors(), listWorkbenchModelCatalogModels({ kind: 'text', enabled: true })]).then(([vendorRows, modelRows]) => { if (!alive) return; const usable = filterUsableAssistantTextModels(modelRows, vendorRows); setModels(usable); setVendors(Object.fromEntries(vendorRows.map((row) => [row.key, row.name]))); const pref = getAssistantModelPref(); const found = pref && usable.find((row) => row.vendorKey === pref.vendorKey && row.modelKey === pref.modelKey); if (found) setSelectedModel(encodeModelIdentity(found)); else { setAssistantModelPref(null); setSelectedModel('') } }).catch(() => { if (alive) setModels([]) }); return () => { alive = false } }, [])
+  React.useEffect(() => {
+    let alive = true
+    let requestVersion = 0
+    const loadModels = (): void => {
+      const version = ++requestVersion
+      void Promise.all([listWorkbenchModelCatalogVendors(), listWorkbenchModelCatalogModels({ kind: 'text', enabled: true })]).then(([vendorRows, modelRows]) => {
+        if (!alive || version !== requestVersion) return
+        const usable = filterUsableAssistantTextModels(modelRows, vendorRows)
+        setModels(usable)
+        setVendors(Object.fromEntries(vendorRows.map((row) => [row.key, row.name])))
+        const pref = getAssistantModelPref()
+        const found = pref && usable.find((row) => row.vendorKey === pref.vendorKey && row.modelKey === pref.modelKey)
+        if (found) setSelectedModel(encodeModelIdentity(found))
+        else { setAssistantModelPref(null); setSelectedModel('') }
+      }).catch(() => {
+        if (alive && version === requestVersion) setModels([])
+      })
+    }
+    loadModels()
+    window.addEventListener('nomi-model-catalog-changed', loadModels)
+    return () => {
+      alive = false
+      requestVersion += 1
+      window.removeEventListener('nomi-model-catalog-changed', loadModels)
+    }
+  }, [])
   // Skill, built-in mode, and library prompt are mutually exclusive round
   // context choices. Keep the canonical store fields in sync even when a
   // selection comes from a different menu row.
@@ -609,12 +660,12 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     // legacy canvas-chat capability for callers that explicitly need prose,
     // while the resident routes timeline work through the Host's timeline
     // profile so read/plan/apply/export can use the existing owner.
-    const capability = surface === 'creation' ? 'creation-editor' as const : 'canvas-agent' as const
+    const capability = isDocumentSurface(surface) ? 'creation-editor' as const : 'canvas-agent' as const
     const selectedPrompt = getCreationAiMode(promptModeId)
-    const skillKey = activeSkill?.key ?? (surface === 'creation' ? `workbench.creation.${selectedPrompt.id}` : surface === 'preview' ? 'workbench.timeline.editor' : 'workbench.generation.canvas-planner')
+    const skillKey = activeSkill?.key ?? (surface === 'storyboard' ? 'workbench.storyboard.planner' : surface === 'creation' ? `workbench.creation.${selectedPrompt.id}` : surface === 'preview' ? 'workbench.timeline.editor' : 'workbench.generation.canvas-planner')
     let target: TargetRef; let preconditions: PreconditionSet | undefined
     try {
-      if (surface === 'creation') {
+      if (isDocumentSurface(surface)) {
         const state = sendContext.documentState
         target = { kind: 'document', documentId: sendContext.activeDocumentId, anchor: state?.anchor ?? { kind: 'whole-document' } }
         if (state) preconditions = { document: { revision: state.revision, contentHash: state.contentHash } }
@@ -637,11 +688,11 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         ? buildStaticAgentSystemPrompt(requestMode === 'chat' ? 'chat' : 'agent')
         : surface === 'preview'
           ? buildStaticAgentSystemPrompt(requestMode === 'chat' ? 'chat' : 'agent', 'timeline')
-        : surface === 'creation' && !activeSkill
+        : isDocumentSurface(surface) && !activeSkill
           ? selectedPromptPreset.prompt || selectedPrompt.prompt
           : undefined
       const systemPrompt = composeResidentSystemPrompt(surfaceSystemPrompt, activeSkill ? null : selectedLibraryPrompt)
-      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: text, capability, ...(surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIdsAtSend : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: surface === 'creation' ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, workMode: runMode, approvalPolicy, skillKey, skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), contextSnapshot, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? ''); if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, call.args, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }; emitPending() } })
+      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: text, capability, ...(surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIdsAtSend : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: isDocumentSurface(surface) ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, workMode: runMode, approvalPolicy, skillKey, skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), contextSnapshot, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? ''); if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, call.args, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }; emitPending() } })
       const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? '')
       if (projectionScope && response.toolCalls.length) {
         const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope)))
@@ -750,7 +801,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         {planningTurn ? <ResidentPlanCard state="loading" shots={[]} parameters={[]} failureReason={t('agentResident.planFailed')} billing={t('agentResident.notCharged')} editLabel={t('agentResident.editPrompt')} retryLabel={t('agentResident.retry')} loadingLabel={t('agentResident.planLoading')} summaryLabel={(total, selected) => t('agentResident.planSummary', { total, selected })} generateLabel={(selected) => t('agentResident.planGenerate', { count: selected })} editedLabel={t('agentResident.planEdited')} selectAllLabel={t('agentResident.planSelectAll')} onEdit={() => undefined} onRetry={() => undefined} onGenerate={() => undefined} /> : null}
         {skillEvents.map((item) => <div key={item.itemId} className="flex min-h-6 items-center gap-1.5 px-1 text-micro text-nomi-ink-40" data-agent-skill-event="true" data-state={item.loaded ? 'settled' : 'failed'}><IconTool size={13} className="shrink-0" aria-hidden="true" /><span>{item.loaded ? t('agentResident.skillLoaded', { name: item.name }) : t('agentResident.skillLoadFailed')}</span></div>)}
         <ResidentToolChips items={toolChipItems} emptyLabel={t('agentResident.toolDetailEmpty')} sectionLabel={t('agentResident.toolCalls')} headerLabel={toolChipItems.length > 20 ? t('agentResident.toolCallsLong', { count: toolChipItems.length, actions: toolChipItems.slice(0, 3).map((item) => item.label).join(' · ') }) : t('agentResident.toolCallsCount', { count: toolChipItems.length })} explanationLabel={t('agentResident.toolExplanation')} targetLabel={t('agentResident.toolTargetLabel')} resultLabel={t('agentResident.toolResult')} technicalLabel={t('agentResident.toolTechnicalDetails')} statusLabel={(status) => statusLabel(t, status)} />
-        {items.map((item) => { const proposal = item.kind === 'proposal' && item.approval; const proposalActive = item.kind === 'proposal' && item.status === 'proposed' && Boolean(proposal); const receipt = item.kind === 'proposal' && item.status === 'done' && item.approval?.receiptProposalId === committedProposal?.proposalId ? committedProposal : null; const declined = item.kind === 'failure' && item.status === 'declined'; if (item.kind === 'tool' || proposalActive) return null; return <article key={item.itemId} data-agent-item-kind={item.kind} data-agent-turn-id={item.turnId} data-agent-status={item.status} data-agent-user-bubble={item.kind === 'user' ? 'true' : undefined} className={cn(item.kind === 'user' ? 'ml-auto min-h-[52px] max-w-[86%] text-caption text-nomi-paper' : item.kind === 'assistant' ? 'max-w-full px-1 text-caption leading-5' : cn('rounded-nomi-sm border px-2.5 py-1.5 text-caption', item.kind === 'failure' && !declined ? 'border-workbench-danger bg-nomi-paper' : declined ? 'border-nomi-line-soft bg-nomi-ink-05' : 'border-nomi-line-soft bg-nomi-paper'))}>
+        {items.map((item) => { const proposal = item.kind === 'proposal' && item.approval; const proposalActive = item.kind === 'proposal' && item.status === 'proposed' && Boolean(proposal); const receipt = item.kind === 'proposal' && item.status === 'done' && item.approval?.receiptProposalId === committedProposal?.proposalId ? committedProposal : null; const declined = item.kind === 'failure' && item.status === 'declined'; const failureCode = item.kind === 'failure' ? safeAgentFailureCode(item.code) : undefined; const failureCategory = item.kind === 'failure' ? agentFailureCategory(item.code, item.message) : undefined; if (item.kind === 'tool' || proposalActive) return null; return <article key={item.itemId} data-agent-item-kind={item.kind} data-agent-turn-id={item.turnId} data-agent-status={item.status} data-agent-user-bubble={item.kind === 'user' ? 'true' : undefined} data-agent-error-code={failureCode} data-agent-error-message-category={failureCategory} className={cn(item.kind === 'user' ? 'ml-auto min-h-[52px] max-w-[86%] text-caption text-nomi-paper' : item.kind === 'assistant' ? 'max-w-full px-1 text-caption leading-5' : cn('rounded-nomi-sm border px-2.5 py-1.5 text-caption', item.kind === 'failure' && !declined ? 'border-workbench-danger bg-nomi-paper' : declined ? 'border-nomi-line-soft bg-nomi-ink-05' : 'border-nomi-line-soft bg-nomi-paper'))}>
           {item.kind === 'user' ? <ResidentFoldableText text={item.text} expandLabel={t('agentResident.foldMore')} collapseLabel={t('agentResident.foldCollapse')} estimatedExtra={t('agentResident.foldCharacters', { count: Math.max(1, item.text.length - 360) })} dataUserContent foldLinkOutside className="text-caption" contentWrapClassName="rounded-nomi-sm border border-nomi-ink bg-nomi-ink px-3 py-2" contentClassName="text-nomi-paper" /> : null}
           {item.kind === 'assistant' ? <><div data-agent-reply="true" className={cn('block max-w-full', item.text.length <= 360 && 'h-5 overflow-hidden')} title={item.text}><ResidentFoldableText text={item.text || (isLive(item.status) ? `${t('creationAi.assistantMessage.processing')}…` : '')} expandLabel={t('agentResident.foldMore')} collapseLabel={t('agentResident.foldCollapse')} estimatedExtra={t('agentResident.foldCharacters', { count: Math.max(1, item.text.length - 360) })} singleLine contentClassName="text-caption leading-5" /></div>{item.status === 'stopped' ? <span data-agent-status-label="stopped" className="text-micro text-nomi-ink-40">{statusLabel(t, item.status)}</span> : null}</> : null}
           {item.kind === 'proposal' ? <div data-agent-proposal="true" data-agent-proposal-receipt={item.status === 'done' ? 'true' : undefined} title={item.status === 'done' ? t('agentResident.approvedReceiptHint') : undefined}><div className="flex min-h-7 items-center gap-1.5 text-micro font-medium text-nomi-ink-60"><IconListCheck size={15} className="shrink-0 text-nomi-accent" />{item.status === 'done' ? t('agentResident.approved') : t('agentResident.plan')}<span className="ml-auto text-micro text-nomi-accent">{statusLabel(t, item.status)}</span>{receipt ? <button type="button" className="grid size-5 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink" aria-label={t('generationCommon.committedProposal.undo')} title={t('generationCommon.committedProposal.undo')} data-agent-receipt-undo="true" onClick={() => void undoReceipt(receipt)}><IconArrowBackUp size={13} aria-hidden="true" /></button> : null}{item.status === 'done' && hasContextLocator ? <button type="button" className="grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink" aria-label={t('agentResident.viewChange')} title={t('agentResident.viewChange')} data-agent-action="focus-receipt" onClick={focusReceipt}><IconFocusCentered size={13} aria-hidden="true" /></button> : null}</div></div> : null}

@@ -5,6 +5,7 @@ import WorkbenchEditor from './WorkbenchEditor'
 import DocumentListSidebar from './DocumentListSidebar'
 import StoryboardPlanCard from './storyboard/StoryboardPlanCard'
 import { useWorkbenchStore } from '../workbenchStore'
+import { isEmptyStoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
 
 type CreationWorkspaceProps = {
   aiCollapsed?: boolean
@@ -23,11 +24,24 @@ export default function CreationWorkspace({ aiCollapsed = false, agentDockRef }:
   const workspaceMode = useWorkbenchStore((s) => s.workspaceMode)
   const designsForActiveDocument = useWorkbenchStore((s) => s.storyboardDesignsByDocumentId[s.activeDocumentId] ?? [])
   const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
+  const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
   React.useEffect(() => {
     if (workspaceMode === 'storyboard' && !activeStoryboardId && designsForActiveDocument[0]) {
       setActiveStoryboardId(designsForActiveDocument[0].id, activeDocumentId)
     }
   }, [activeDocumentId, activeStoryboardId, designsForActiveDocument, setActiveStoryboardId, workspaceMode])
+  React.useEffect(() => {
+    const starter = designsForActiveDocument[0]
+    // Fresh blank projects carry only structural starter rows. Promote that
+    // first reachable surface to the dedicated storyboard workspace so the
+    // editor remains single-homed in StoryboardWorkspace.
+    // Hydration may already assign the starter design's id before the user
+    // lands on Creation. The mode transition must therefore depend on the
+    // structural starter, not on whether that id is already selected.
+    if (workspaceMode !== 'creation' || !starter || !isEmptyStoryboardPlan(starter.plan)) return
+    setActiveStoryboardId(starter.id, activeDocumentId)
+    setWorkspaceMode('storyboard')
+  }, [activeDocumentId, activeStoryboardId, designsForActiveDocument, setActiveStoryboardId, setWorkspaceMode, workspaceMode])
   return (
     <section
       className={cn(

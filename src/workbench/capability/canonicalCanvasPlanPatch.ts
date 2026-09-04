@@ -3,6 +3,7 @@ import { buildCanvasWriteAdmissionForOperation } from '../../../electron/shared/
 import { SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
 import { captureCanvasWriteRawEvidence, executeCanvasWriteTarget } from '../generationCanvas/agent/canvasWriteTarget'
 import { readGenerationCanvasSnapshot } from '../generationCanvas/agent/generationCanvasTools'
+import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
 
 export type CanonicalCanvasPlanPatchRequest = Readonly<{
   projectId: string
@@ -44,7 +45,7 @@ export async function executeCanonicalCanvasPlanPatch(
     input,
   })
   const admission = buildCanvasWriteAdmissionForOperation(rawEvidence, input)
-  return executeCanvasWriteTarget(
+  const result = await executeCanvasWriteTarget(
     {
       input,
       target: admission.target,
@@ -61,4 +62,27 @@ export async function executeCanonicalCanvasPlanPatch(
     },
     readSnapshot,
   )
+
+  // The proposal receipt is an audit of the user-visible write, so it must
+  // never get ahead of the durable project owner.  Normal store persistence
+  // is debounced for editing ergonomics; canonical Host writes cross a
+  // process boundary and therefore flush the active project before returning
+  // the committed result to MCP.  A missing/mismatched save target is an
+  // unresolved receipt, not a successful in-memory mutation.
+  if (request.readActiveProjectId() !== request.projectId) {
+    throw new SurfacePortWireError('surface_port_stale')
+  }
+  let saved
+  try {
+    saved = await persistActiveWorkbenchProjectNow()
+  } catch {
+    throw new SurfacePortWireError('capability_receipt_unresolved')
+  }
+  if (!saved || saved.id !== request.projectId || !Number.isInteger(saved.revision)) {
+    throw new SurfacePortWireError('capability_receipt_unresolved')
+  }
+  if (request.readActiveProjectId() !== request.projectId) {
+    throw new SurfacePortWireError('surface_port_stale')
+  }
+  return result
 }

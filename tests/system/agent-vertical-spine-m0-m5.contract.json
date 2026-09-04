@@ -106,10 +106,41 @@
     "exclude": ["video canary in this red stage", "TikHub canary in this red stage", "Skill Hub", "UI redesign", "provider spend"]
   },
   "evidencePolicy": {
+    "agentHostPublication": {
+      "default": "disabled",
+      "testBoundary": "visible Settings → General → Project AI assistant toggle",
+      "helper": "tests/ux/agent-runtime-walk-support.mjs#enableAgentHostThroughSettings",
+      "rule": "The real user task explicitly enables the existing project preference after M1; no test-only state injection or production default flip is allowed."
+    },
+    "apimartTextModelPublication": {
+      "credentialSource": "process.env.APIMART_API_KEY",
+      "visibleEntry": "dispatch nomi-open-model-catalog → APIMart connection → visible key field",
+      "writeBoundary": "onboarding.httpCertificationStartExisting({ entryPoint: 'manual-ui', vendorKey: 'apimart', models: [{ modelKey: 'deepseek-v4-pro', kind: 'text' }] })",
+      "modelIdentity": "apimart/deepseek-v4-pro",
+      "missingCredential": "BLOCKED_ENVIRONMENT (runner stops before model selection)",
+      "refreshBoundary": "certificationGet terminal completed, then complete public catalog DTO exact-row check (enabled + published + adapter verified), existing nomi-model-catalog-changed event, and visible Agent model menu",
+      "secretPolicy": "The key is passed only to the visible onboarding bridge; it is never written to contract/evidence/log output.",
+      "forbidden": "Direct modelCatalog upsertVendorApiKey(... enabled:true) or direct vendor/model enable is test injection and is not evidence."
+    },
+    "settingsOverlayClosure": {
+      "after": "APIMart certification publication and catalog refresh",
+      "action": "visible click on the outer Settings dialog [data-settings-close] control",
+      "assertion": "[data-settings-overlay] is hidden before the runner opens Agent Skill/model menus",
+      "forbidden": "Escape-only dismissal, DOM evaluate-based hiding, or synthetic settings state"
+    },
+    "publicMcpSessionProbe": {
+      "entryPoint": "public MCP stdio client after visible storyboard row selection",
+      "call": "nomi_session_open({ bootstrap: { mode: 'current_project' } })",
+      "evidence": "M2.public-mcp-session-open is PARTIAL_PROOF from a custom stdio diagnostic only; it records projectId and leaseIssued, while leaseHandle remains in memory and is never logged or persisted.",
+      "purpose": "Probe the preload-to-public-MCP session boundary before provider credentials can block later milestones.",
+      "codexHostCoverage": "未覆盖：不得把自定义 stdio 客户端结果当作真实 Codex Host 验收；需后续用真实 Codex 会话验证同一 MCP 全旅程。"
+    },
     "required": [
       "real Electron window",
       "visible DOM user actions",
-      "preload bridge and public MCP stdio",
+      "preload bridge and public MCP stdio (custom diagnostic PARTIAL_PROOF only)",
+      "real Codex Host → Nomi MCP full journey (currently uncovered; required for completion)",
+      "public MCP session_open probe after M1",
       "production semantic tool name nomi_canvas_plan",
       "disk-backed project and receipt readback",
       "cold Electron restart",

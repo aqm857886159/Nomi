@@ -178,6 +178,37 @@ export type StoryboardPlan = {
 }
 
 /**
+ * Blank starter rows for a newly-created project. These rows carry no authored
+ * story content; they only make the first storyboard editing surface reachable
+ * before the user (or Agent) supplies the actual prompts.
+ */
+export function createEmptyStoryboardPlan(): StoryboardPlan {
+  return {
+    title: '',
+    anchors: [],
+    shots: [1, 2].map((index) => ({
+      index,
+      shotId: `shot-${index}`,
+      shotKind: 'video' as const,
+      durationSec: 5,
+      anchorIds: [],
+      prompt: '',
+    })),
+  }
+}
+
+export function isEmptyStoryboardPlan(plan: StoryboardPlan): boolean {
+  return plan.title.trim() === ''
+    && plan.anchors.length === 0
+    && plan.shots.length === 2
+    && plan.shots.every((shot, index) => (
+      shot.index === index + 1
+      && shot.prompt.trim() === ''
+      && shot.anchorIds.length === 0
+    ))
+}
+
+/**
  * 该镜计入合计/顺播/时间轴的**有效时长**（秒）——图片镜的停留语义唯一换算点。
  * 图片镜：durationSec>0 用它，否则回落 `DEFAULT_IMAGE_SECONDS`（旧 planner 对图片镜吐 0 的向后兼容）；
  * 视频镜：durationSec 原值。方案卡合计、场组头小结、行角标全走这里（P1 单一真相源）。

@@ -1,0 +1,95 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-agent-failure-diagnostic-redaction",
+  "problem_type": "Agent failure evidence loses provider/lifecycle classification",
+  "symptom": "A real Agent turn can stream assistant text and then render only the generic 发送失败 message, leaving the vertical runner unable to distinguish a provider auth/quota/network failure from an Agent lifecycle failure without inspecting unsafe raw diagnostics.",
+  "direct_cause": "ProjectAgentResidentShell rendered failure items with localized text and kept item.code/item.message only inside the renderer branch; no stable DOM field exposed a bounded error code or category for truthful journey evidence.",
+  "class_root": "The Agent failure projection had no redacted diagnostic boundary between Host/provider error facts and UI automation evidence, so runners either guessed from a generic message or would need to expose raw provider text that could contain credentials.",
+  "affected_population": [
+    "Users seeing a failed Agent turn after partial assistant output",
+    "Real M0-M5 journey diagnostics that must classify provider and lifecycle failures",
+    "Any UI automation consuming Agent failure state without access to a Host snapshot"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs",
+    "tests/ux/agent-runtime-walk-support.test.mjs",
+    "docs/plan/2026-09-05-m0-m5-vertical-spine-status.md"
+  ],
+  "entry_points": [
+    "ProjectAgentResidentShell failure article projection",
+    "M0-M5 runner failureContext readback"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The diagnostic attributes are an internal Nomi Host-to-renderer evidence contract and must not expose provider payloads or credentials.",
+  "invariants": [
+    "Failure articles expose only a bounded allowlisted code and one of auth, quota, network, provider, lifecycle, capability, or unknown categories.",
+    "Raw failure messages and provider response bodies are never copied into diagnostic DOM attributes or runner evidence.",
+    "A journey runner does not retry an unknown failure until structured evidence establishes that retry is safe and expected."
+  ],
+  "generality_proof": "All Agent failure items render through the single items.map failure article in ProjectAgentResidentShell, so the same safe code/category projection covers provider, Host lifecycle, and capability failures across creation, storyboard, generation, and preview surfaces.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "safeAgentFailureCode / agentFailureCategory",
+      "responsibility": "Project internal failure facts into bounded diagnostic attributes while retaining localized user-facing copy."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs",
+      "entry_point": "failureContext evidence capture",
+      "disposition": "enforced",
+      "evidence": "The runner consumes only the bounded data-agent-error-code and data-agent-error-message-category fields."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "localized ResidentFailureCard body",
+      "disposition": "enforced",
+      "evidence": "User-facing failure copy remains localized and does not become a raw provider diagnostic."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every provider or Host failure can otherwise collapse to the same generic sendFailed copy, making truthful retry and failure classification impossible.",
+    "same_class_scan": [
+      "Searched ProjectAgentResidentShell, projectAgentClient, workbenchAgentRunner, runtimeVendorError, and failure-card projections for provider/lifecycle diagnostics.",
+      "Confirmed the Host already classifies runtime facts internally; this slice exposes only a redacted renderer evidence projection."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "invariant": "No raw provider error message or credential-shaped value is placed in Agent diagnostic attributes.",
+    "failure_mode": "Unknown or malformed codes map to unknown; category classification is a closed allowlist and the runner remains fail-closed.",
+    "exception_policy": "none",
+    "strategy": "Normalize code with a strict identifier regex and derive a bounded category from internal code/message text before rendering.",
+    "artifacts": [
+      "src/workbench/ai/ProjectAgentResidentShell.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "tests/ux/agent-runtime-walk-support.test.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "tests/ux/agent-runtime-walk-support.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The existing localized failure card remains the user-facing path; this adds bounded evidence attributes without a parallel renderer."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is introduced; classification uses existing Host error facts.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration is needed; attributes are ephemeral DOM evidence.",
+  "residual_risks": [
+    "If the Host supplies only a generic runtime_error with no transport facts, the category remains provider or unknown and the runner must stay blocked.",
+    "The DOM projection cannot replace a full Host snapshot when deeper correlation is required; it only supplies safe first-line evidence."
+  ]
+}

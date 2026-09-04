@@ -158,6 +158,12 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       tabIndex={-1}
       onDragOver={props.onDragOver}
       onDrop={props.onDrop}
+      onClick={(event) => {
+        // Keep row selection usable from the row surface while preserving the
+        // controls inside it (inputs, menus, and the frame action buttons).
+        if (event.target instanceof Element && event.target.closest('button, input, textarea, select')) return
+        props.onSelect?.(event)
+      }}
       onKeyDown={(event) => {
         if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
           event.preventDefault()
@@ -175,6 +181,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       }}
       className="relative grid grid-cols-[14px_84px_136px_minmax(0,1fr)] gap-3 py-3 pl-1.5 pr-3 items-start bg-nomi-paper"
       data-storyboard-row={shot.index}
+      data-selected={props.selected ? 'true' : undefined}
     >
       {props.isDragOver ? (
         <div className="absolute inset-x-1.5 top-0 h-0.5 rounded-full bg-nomi-accent" aria-hidden />

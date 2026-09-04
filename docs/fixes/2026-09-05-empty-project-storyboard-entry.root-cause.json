@@ -1,0 +1,123 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-empty-project-storyboard-entry",
+  "problem_type": "unreachable storyboard editing boundary",
+  "symptom": "A genuinely newly-created blank project, or a reopened project with a persisted storyboard plan, can open the Creation surface with only 新建分镜方案; the existing storyboard editor and row 2 cannot be reached by the real vertical-spine task.",
+  "direct_cause": "Blank project creation persisted a document and canvas defaults but no storyboard plan, while hydration restored storyboard designs with activeStoryboardId cleared; the dedicated storyboard workspace renders the editor only when an active plan exists.",
+  "class_root": "Storyboard plan activation was not owned at the shared creation and hydration boundaries, so a valid structural or persisted design could exist without a selected design and no single transition reached the dedicated storyboard editor.",
+  "affected_population": [
+    "Users creating a new blank project on desktop or browser fallback",
+    "The M0-M5 real Electron vertical-spine task that selects storyboard row 2 before any authored content exists",
+    "Users reopening a project whose storyboard plan/design payload is present but whose active design must be restored"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+      "src/workbench/project/projectRepository.ts",
+      "src/workbench/workbenchDocumentSlice.ts",
+    "src/workbench/creation/CreationWorkspace.tsx",
+    "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "src/workbench/project/projectRepository.workspace.test.ts",
+    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts",
+    "tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs"
+  ],
+  "entry_points": [
+    "Visible new blank project action through createLocalProject",
+    "Existing storyboard planner/editor path through setStoryboardPlan and StoryboardWorkspace"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The storyboard plan schema, project creation flow, and approved dedicated StoryboardWorkspace are internal Nomi contracts; no external source controls this invariant.",
+  "invariants": [
+    "Every newly-created blank project has an active-document storyboard design with two empty, selectable rows and no authored prompts or anchors.",
+    "The dedicated StoryboardWorkspace remains the sole mounted home of StoryboardPlanEditor.",
+    "Selecting a storyboard row emits a stable storyboard reference consumed by the resident Agent without changing unrelated references or authored plan content."
+  ],
+  "generality_proof": "Both desktop and browser project creation converge on src/workbench/project/projectRepository.ts, and all authored plans converge on StoryboardWorkspace/StoryboardPlanEditor. Supplying structural starter rows at creation and routing only the empty starter through the existing dedicated workspace prevents the same blank-project reachability failure across those entry points without seeding user-authored content.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/project/projectRepository.ts",
+      "symbol": "createLocalProject",
+      "responsibility": "Attach an empty two-row storyboard starter to newly-created blank projects at the shared creation boundary."
+    },
+    {
+      "path": "src/workbench/creation/CreationWorkspace.tsx",
+      "symbol": "starter storyboard routing effect",
+      "responsibility": "Select the starter design and transition to the dedicated StoryboardWorkspace so the editor has one home."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "symbol": "onSelectShot",
+      "responsibility": "Forward the selected PlanShot identity to the Agent reference owner while retaining table selection semantics."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "row surface click and data-selected",
+      "responsibility": "Make the whole row selectable while preserving nested controls, and expose the selected state to the real journey contract."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/project/projectRepository.ts",
+      "entry_point": "createLocalProject",
+      "disposition": "enforced",
+      "evidence": "Desktop and browser fallback creation both call this shared renderer repository function before the project is handed to the desktop bridge or local storage."
+    },
+    {
+      "path": "src/workbench/workbenchDocumentSlice.ts",
+      "entry_point": "setStoryboardPlan and hydrateStoryboardDesigns",
+      "disposition": "enforced",
+      "evidence": "Both planner writes and persisted project hydration converge here; each selects the first valid design for the active document while an empty restore remains unselected."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new project created without authored storyboard data can reproduce the missing-plan seam, and both desktop and browser fallback creation share the same payload construction.",
+    "same_class_scan": [
+      "Searched createLocalProject, createProjectRecord, createDefaultWorkbenchProjectPayload, normalizePayload, hydrateStoryboardDesigns, setStoryboardPlan, StoryboardWorkspace, CreationWorkspace, and all StoryboardPlanEditor mounts.",
+      "Checked both desktop bridge creation and browser local-storage creation in projectRepository.workspace.test.ts.",
+      "Checked planner-created designs through setStoryboardPlan and the document sidebar planner launcher as the separate same-domain entry point."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/project/projectRepository.ts",
+    "invariant": "A new blank project payload includes only structural storyboard rows (empty prompts, anchors, and title), and every hydrated active document with a valid design selects its first design so CreationWorkspace can reach StoryboardWorkspace.",
+    "failure_mode": "Malformed or authored plans are not rewritten or routed by the starter predicate; they continue through the existing planner/card behavior, while a missing plan cannot leave the newly-created blank project without an editor entry.",
+    "exception_policy": "none",
+    "strategy": "Create the starter once at the shared project payload boundary, restore the active design at the shared hydration boundary, and reuse the existing dedicated editor route; row selection then forwards stable storyboard identity through the existing resident reference mechanism.",
+    "artifacts": [
+      "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+      "src/workbench/project/projectRepository.ts",
+    "src/workbench/workbenchDocumentSlice.ts",
+      "src/workbench/creation/CreationWorkspace.tsx",
+      "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/project/projectRepository.workspace.test.ts",
+    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts",
+    "tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/project/projectRepository.workspace.test.ts",
+    "tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy editor implementation is retained or removed; the existing dedicated StoryboardWorkspace remains the only editor home."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The failure is caused by Nomi project payload and workspace routing; no third-party dependency controls the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Existing projects and authored storyboard plans are left untouched. Newly-created blank projects receive structural rows; persisted empty starter rows are valid under the existing storyboard plan schema and can be edited or discarded normally.",
+  "residual_risks": [
+    "The unchanged vertical-spine runner still uses a custom MCP stdio client after M1, so later M2-M5 results remain outside this repair.",
+    "A full real Electron and packaged rerun must prove the starter routing and row reference in the current build."
+  ]
+}

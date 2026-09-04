@@ -40,6 +40,7 @@ const now = "2026-08-28T00:00:00.000Z";
 const rootVendorKey = "active-provider";
 const targetModelKey = "image-v1";
 const siblingModelKey = "video-sibling";
+const textModelKey = "deepseek-v4-pro";
 
 function encryptedCredential(vendorKey: string, value: string) {
   return {
@@ -112,6 +113,42 @@ function seedPublishedCatalog(): void {
       },
     ],
     apiKeysByVendor: { [rootVendorKey]: encryptedCredential(rootVendorKey, "active-key") },
+  };
+  fs.writeFileSync(path.join(userDataRoot, "model-catalog.json"), JSON.stringify(state), "utf8");
+}
+
+function seedUnpublishedTextCatalog(): void {
+  const state: CatalogState = {
+    version: CURRENT_CATALOG_VERSION,
+    vendors: [
+      {
+        key: rootVendorKey,
+        name: "APIMart",
+        // Credential writes de-publish the known vendor before the user enters
+        // the canonical certification flow. Promotion must still target this
+        // stable key once chat verification succeeds.
+        enabled: false,
+        baseUrlHint: "https://api.apimart.ai/v1",
+        authType: "bearer",
+        providerKind: "openai-compatible",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    models: [
+      {
+        vendorKey: rootVendorKey,
+        modelKey: textModelKey,
+        labelZh: textModelKey,
+        kind: "text",
+        enabled: false,
+        meta: { adapter: { state: "unverified", modes: [], updatedAt: now } },
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    mappings: [],
+    apiKeysByVendor: { [rootVendorKey]: encryptedCredential(rootVendorKey, "apimart-key") },
   };
   fs.writeFileSync(path.join(userDataRoot, "model-catalog.json"), JSON.stringify(state), "utf8");
 }
@@ -211,6 +248,93 @@ afterEach(() => {
 });
 
 describe("ProviderAdapterService real catalog candidate lifecycle", () => {
+  it("re-publishes a verified text chat mode on a de-published seeded vendor", async () => {
+    seedUnpublishedTextCatalog();
+    const service = new ProviderAdapterService(
+      new ProviderAdapterStore(path.join(userDataRoot, "provider-adapters.json")),
+      serviceDependencies({
+        id: () => "run-real-text",
+        verify: async ({ mode }) => ({ ok: true, taskKind: mode.taskKind }),
+      }),
+    );
+
+    const started = await service.start({
+      catalogVendorKey: rootVendorKey,
+      vendorName: "APIMart",
+      baseUrl: "https://api.apimart.ai/v1",
+      apiKey: "apimart-key",
+      authType: "bearer",
+      providerKind: "openai-compatible",
+      models: [{ modelKey: textModelKey, labelZh: textModelKey, kind: "text" }],
+      certification: {
+        contractDigest: "f".repeat(64),
+        idempotencyKey: "real-text-promotion",
+        remoteIdempotency: "unsupported",
+      },
+    });
+
+    await service.executeRun(started.id);
+
+    expect(service.getRun(started.id)?.stage).toBe("completed");
+    expect(readCatalog().models.find((model) => model.modelKey === textModelKey)).toMatchObject({
+      vendorKey: rootVendorKey,
+      enabled: true,
+      meta: {
+        adapter: {
+          state: "verified",
+          activeRevision: expect.stringMatching(/^adapter-revision-/),
+          publicationModes: ["chat"],
+        },
+      },
+    });
+    expect(readCatalog().vendors.find((vendor) => vendor.key === rootVendorKey)).toMatchObject({ enabled: true });
+    expect(listModelCatalogModels({ vendorKey: rootVendorKey })).toEqual([
+      expect.objectContaining({
+        modelKey: textModelKey,
+        enabled: true,
+        published: true,
+        publishedModes: ["chat"],
+        meta: expect.objectContaining({
+          adapter: expect.objectContaining({ state: "verified", publicationModes: ["chat"] }),
+        }),
+      }),
+    ]);
+  });
+
+  it("keeps a de-published seeded text vendor disabled when chat verification fails", async () => {
+    seedUnpublishedTextCatalog();
+    const service = new ProviderAdapterService(
+      new ProviderAdapterStore(path.join(userDataRoot, "provider-adapters.json")),
+      serviceDependencies({
+        id: () => "run-real-text-failed",
+        verify: async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "create", error: "provider rejected" }),
+      }),
+    );
+
+    const started = await service.start({
+      catalogVendorKey: rootVendorKey,
+      vendorName: "APIMart",
+      baseUrl: "https://api.apimart.ai/v1",
+      apiKey: "apimart-key",
+      authType: "bearer",
+      providerKind: "openai-compatible",
+      models: [{ modelKey: textModelKey, labelZh: textModelKey, kind: "text" }],
+      certification: {
+        contractDigest: "e".repeat(64),
+        idempotencyKey: "real-text-failure",
+        remoteIdempotency: "unsupported",
+      },
+    });
+
+    await service.executeRun(started.id);
+
+    expect(service.getRun(started.id)?.stage).toBe("failed");
+    expect(readCatalog().vendors.find((vendor) => vendor.key === rootVendorKey)).toMatchObject({ enabled: false });
+    expect(listModelCatalogModels({ vendorKey: rootVendorKey })).toEqual([
+      expect.objectContaining({ modelKey: textModelKey, enabled: false, published: false, publishedModes: [] }),
+    ]);
+  });
+
   it("resolves the real manual-existing and programmatic HTTP entries to one canonical run", async () => {
     let sequence = 0;
     const provider = new ProviderAdapterService(

@@ -385,7 +385,9 @@ export const createWorkbenchDocumentSlice: WorkbenchSliceCreator<WorkbenchDocume
       design.status = entry.committed ? 'committed' : 'draft'
       designsByDocument[documentId] = [design]
     }
-    set({ storyboardPlans: entries, storyboardDesignsByDocumentId: designsByDocument, activeStoryboardId: null })
+    const activeDocumentId = get().activeDocumentId
+    const activeStoryboardId = designsByDocument[activeDocumentId]?.[0]?.id ?? null
+    set({ storyboardPlans: entries, storyboardDesignsByDocumentId: designsByDocument, activeStoryboardId })
   },
   hydrateStoryboardDesigns: (entries, fallbackEntries = {}) => {
     const safeEntries: Record<string, StoryboardDesign[]> = {}
@@ -408,6 +410,8 @@ export const createWorkbenchDocumentSlice: WorkbenchSliceCreator<WorkbenchDocume
       safeEntries[documentId] = [design]
       projection[documentId] = designToEntry(design)
     }
-    set({ storyboardDesignsByDocumentId: safeEntries, storyboardPlans: projection, activeStoryboardId: null })
+    const activeDocumentId = get().activeDocumentId
+    const activeStoryboardId = safeEntries[activeDocumentId]?.[0]?.id ?? null
+    set({ storyboardDesignsByDocumentId: safeEntries, storyboardPlans: projection, activeStoryboardId })
   },
 })

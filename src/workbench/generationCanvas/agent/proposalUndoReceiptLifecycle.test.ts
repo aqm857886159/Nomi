@@ -167,6 +167,21 @@ describe('committed proposal receipt renderer lifecycle', () => {
     expect(getCommittedProposal()).toBeNull()
   })
 
+  it('does not recover a transport-owned preparing receipt during hydration', async () => {
+    const transportOwned = {
+      ...record,
+      compensation: [{ kind: 'restore-snapshot' as const, snapshot: { nodes: [], edges: [], groups: [] } }],
+      hostApprovalId: undefined,
+      hostActionHash: undefined,
+    }
+    deps.activeProposal = transportOwned
+    hydrateCommittedProposalReceipt(receipt('preparing', 1, transportOwned))
+
+    await expect(recoverPendingProposalReceipt()).resolves.toBe(false)
+    expect(deps.transition).not.toHaveBeenCalled()
+    expect(getCommittedProposal()).toBeNull()
+  })
+
   it('durably enters undoing before compensation and hides only after durable completion', async () => {
     const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', title: 'Node A', prompt: 'prompt' })
     const applied = { ...record, compensation: [{ kind: 'delete-nodes' as const, nodeIds: [node.id] }] }
@@ -225,6 +240,8 @@ describe('committed proposal receipt renderer lifecycle', () => {
     const second = useGenerationCanvasStore.getState().addNode({ kind: 'image', title: 'Two', prompt: 'two' })
     const undoing = {
       ...record,
+      hostApprovalId: 'host-approval-a',
+      hostActionHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       compensation: [{ kind: 'delete-nodes' as const, nodeIds: [first.id, second.id] }],
     }
     deps.activeProposal = undoing
@@ -259,6 +276,8 @@ describe('committed proposal receipt renderer lifecycle', () => {
     useGenerationCanvasStore.getState().addNode({ kind: 'image', title: 'Partially applied', prompt: 'partial' })
     const preparing = {
       ...record,
+      hostApprovalId: 'host-approval-a',
+      hostActionHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       compensation: [{ kind: 'restore-snapshot' as const, snapshot: { nodes: [], edges: [], groups: [] } }],
       watchNodes: [],
       reconciliationOk: true,

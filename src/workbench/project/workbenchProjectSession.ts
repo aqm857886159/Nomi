@@ -103,6 +103,11 @@ type ActiveWorkbenchProjectSaveTarget = {
   canPersist: () => boolean
   saveProject: WorkbenchProjectSaveFn
   onSaved: (record: WorkbenchProjectRecordV1) => void
+  /** Cancel the debounce scheduled for the same in-memory revision before an
+   * immediate canonical write starts. Otherwise that old timer can save the
+   * identical payload again after a later decline and advance project.revision
+   * even though the declined request changed nothing. */
+  beforeImmediateSave?: () => Promise<void>
 }
 
 let activeWorkbenchProjectSaveTarget: ActiveWorkbenchProjectSaveTarget | null = null
@@ -128,6 +133,7 @@ export function getActiveWorkbenchProjectId(): string | null {
 export async function persistActiveWorkbenchProjectNow(): Promise<WorkbenchProjectRecordV1 | null> {
   const target = activeWorkbenchProjectSaveTarget
   if (!target || !target.canPersist()) return null
+  await target.beforeImmediateSave?.()
   const saved = await saveCurrentWorkbenchProject(target.projectId, target.projectName, target.saveProject)
   target.onSaved(saved)
   return saved
@@ -159,6 +165,13 @@ function createProjectSaveQueue(input: {
 }) {
   let running = false
   let pending: QueuedWorkbenchProjectSave | null = null
+  const idleWaiters: Array<() => void> = []
+
+  const notifyIdle = () => {
+    if (running || pending) return
+    const waiters = idleWaiters.splice(0)
+    waiters.forEach((resolve) => resolve())
+  }
 
   const drain = async (): Promise<void> => {
     if (running) return
@@ -177,6 +190,7 @@ function createProjectSaveQueue(input: {
     } finally {
       running = false
       if (pending && input.isActive()) void drain()
+      notifyIdle()
     }
   }
 
@@ -184,6 +198,14 @@ function createProjectSaveQueue(input: {
     enqueue(save: QueuedWorkbenchProjectSave): void {
       pending = save
       void drain()
+    },
+    cancelPending(): void {
+      pending = null
+      notifyIdle()
+    },
+    whenIdle(): Promise<void> {
+      if (!running && !pending) return Promise.resolve()
+      return new Promise((resolve) => idleWaiters.push(resolve))
     },
   }
 }
@@ -231,6 +253,15 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
     canPersist: () => !options.isHydrating() && options.canPersist(),
     saveProject: options.saveProject,
     onSaved: options.onSaved,
+    beforeImmediateSave: async () => {
+      if (saveTimer) {
+        clearTimeout(saveTimer)
+        saveTimer = null
+      }
+      saveScheduled = false
+      saveQueue.cancelPending()
+      await saveQueue.whenIdle()
+    },
   })
   return () => {
     // Cancel the debounce timer so it doesn't fire after disposal

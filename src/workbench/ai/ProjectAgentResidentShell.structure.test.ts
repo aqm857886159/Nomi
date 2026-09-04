@@ -77,6 +77,14 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('statusLabel(t, item.status)')
   })
 
+  it('exposes only allowlisted failure diagnostics for truthful runner classification', () => {
+    expect(resident).toContain('safeAgentFailureCode')
+    expect(resident).toContain('agentFailureCategory')
+    expect(resident).toContain('data-agent-error-code={failureCode}')
+    expect(resident).toContain('data-agent-error-message-category={failureCategory}')
+    expect(resident).not.toContain('data-agent-error-message={item.message}')
+  })
+
   it('mounts the same resident projection at each surface slot', () => {
     expect(shell).toContain('createPortal(<ProjectAgentResidentShell surface={agentSurface} />, agentDock)')
     expect(shell).toContain('agentDockRefs.creation')
@@ -84,6 +92,11 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(shell).toContain('agentDockRefs.preview')
     expect(shell).not.toContain('CanvasAssistantEntry')
     expect(shell).not.toContain('generationAi')
+  })
+
+  it('keeps direct workspace mode actions reflected in the URL projection', () => {
+    expect(shell).toContain('writeWorkspaceModeToUrl(workspaceMode)')
+    expect(shell).toMatch(/useEffect\(\(\) => \{\s*writeWorkspaceModeToUrl\(workspaceMode\)/)
   })
 
   it('keeps PR194 controls separate and routes actions through the Host boundary', () => {
@@ -103,6 +116,8 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('stopProjectAgentTurn')
     expect(resident).toContain('pending.call.confirm')
     expect(resident).toContain('setAssistantModelPref')
+    expect(resident).toContain("window.addEventListener('nomi-model-catalog-changed', loadModels)")
+    expect(resident).toContain("window.removeEventListener('nomi-model-catalog-changed', loadModels)")
     expect(resident).toContain('projectAgentReferences')
     for (const icon of ['IconPaperclip', 'IconBolt', 'IconTool', 'IconPencil', 'IconRobot', 'IconArrowUp', 'IconPlayerStopFilled', 'IconChevronLeft', 'IconFocusCentered']) {
       expect(resident).toContain(icon)
