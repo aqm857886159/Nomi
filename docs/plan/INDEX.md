@@ -7,6 +7,14 @@
 > 状态图例：✅ 已交付 ｜ 🚧 进行中 ｜ ⏳ 已拍板·未开工 ｜ 🧊 暂缓/远期 ｜ 📋 方案待拍板 ｜ ⛔ 已废弃 ｜ 📎 交接/日志
 > 📋/⏳/🚧 会进交付账本现役区并被每日提醒（`pnpm run ledger:brief`；账本是本地视图，不进 git）；🧊 列出但不催；无标记 = 未登记存量，不打扰。
 
+## 总收敛与交付主轴
+
+| 文件 | 一句话 | 状态 |
+|---|---|---|
+| [2026-09-04-nomi-convergence-execution-plan.md](2026-09-04-nomi-convergence-execution-plan.md) | **Nomi 收敛总执行方案**：以 M0–M5 为主轴，统一 Agent/MCP/分镜表/画布/视频/TikHub/真实 Provider/持久化/重启/视觉和 PR 收敛门槛；以 current `origin/main` 为基线 | 🚧 |
+| [2026-09-04-main-convergence-follow-ups.md](2026-09-04-main-convergence-follow-ups.md) | Main 收敛后续明细；历史执行拆解，状态以总方案和 current-main 审计为准 | 📎 |
+| [2026-09-03-open-work-ledger.md](2026-09-03-open-work-ledger.md) | 全量开工账本历史快照；只用于追溯，不覆盖总方案的当前状态 | 📎 |
+
 ## 模型接入 / Onboarding（最大簇）
 
 | 文件 | 一句话 | 状态 |
