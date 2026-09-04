@@ -27,6 +27,7 @@ vi.mock('./canvasReadTransportAdapters', () => ({
 }))
 
 import { createProjectAgentProposalReceiptService, projectAgentProposalReceiptPath } from '../projectAgentHost/projectAgentProposalReceiptStore'
+import type { WorkspaceProjectIdentity } from '../workspace/workspaceProjectIdentity'
 import { createDefaultMcpProposalReceiptResolver, createMcpStdioDirectInvoker } from './mcpStdioServer'
 
 const roots: string[] = []
@@ -59,10 +60,12 @@ const canvasReadExecutionRuntime = { executor: { execute: vi.fn() } } as never
 describe('MCP stdio direct document receipt boundary', () => {
   it('resolves the default headless receipt service only after the project root and identity are real', async () => {
     const { root, service } = makeService()
-    const ensureProjectIdentity = vi.fn(async () => ({
+    const ensureProjectIdentity = vi.fn(async (): Promise<WorkspaceProjectIdentity> => ({
       projectId: service.binding.projectId,
       immutableProjectUuid: service.binding.immutableProjectUuid,
       projectGeneration: service.binding.projectGeneration,
+      canonicalRootPath: root,
+      canonicalRootDigest: 'canonical-root-digest',
     }))
     const createReceiptService = vi.fn(() => service)
     const resolve = createDefaultMcpProposalReceiptResolver({

@@ -526,10 +526,11 @@ export function createMcpProtocol(transport: McpTransport) {
           }
         }
         if (tool.name === 'nomi_document_edit') {
-          return handleDocumentEditConfirmation(
+          await handleDocumentEditConfirmation(
             { id, args, routedMethod, built, requestSignal },
             { elicitBooleanConfirm, invokeForRequest, reply, buildToolResultPayload, locale },
           )
+          return
         }
         // 画布方案确认 elicitation-first（免费可撤，见 mcpPlanTrust.ts）：批量加节点（≥2）当声明 elicitation
         // 且 App 开着时，把确认递进聊天问一次而非让人跑去 App 点弹窗；批准记会话级信任、同项目后续不再问。
@@ -599,7 +600,6 @@ export function createMcpProtocol(transport: McpTransport) {
     // skills.list 只返元数据（name+描述，不含正文）；skills.read 才载正文——客户端只为用到的技能付上下文。
     const SKILL_URI_PREFIX = 'nomi-skill://'
     const PRODUCTION_ARTIFACT_URI_PREFIX = 'nomi://project/'
-
     function skillResourceUri(skill: SkillSummaryFrame): string | null {
       if (!/^[A-Za-z0-9._-]{1,160}$/.test(skill.directoryName)) return null
       if (!/^[A-Za-z0-9._-]{1,80}$/.test(skill.packageVersion)) return null

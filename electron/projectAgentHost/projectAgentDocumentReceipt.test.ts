@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { ProposalApprovalRef } from "../shared/projectAgentContracts";
+import type {
+  ProjectAgentCommittedProposalRecord,
+  ProjectAgentProposalReceiptTransition,
+  ProjectAgentProposalReceiptView,
+  ProjectAgentProposalReceiptWrite,
+} from "../shared/projectAgentProposalReceipt";
+import type { ProjectAgentProposalReceiptWriter } from "./projectAgentExecutionCoordinatorTypes";
 import {
   abandonDocumentProposalReceipt,
   commitDocumentProposalReceipt,
@@ -7,12 +15,40 @@ import {
   prepareDocumentProposalReceipt,
 } from "./projectAgentDocumentReceipt";
 
-const persisted = {
+const receiptBinding = {
+  projectId: "project-1",
+  immutableProjectUuid: "6b0f4a39-1ae4-4e1e-8b2e-0b9460a67a51",
+  projectGeneration: 1,
+} as const;
+const persisted: ProposalApprovalRef = {
   receiptProposalId: "receipt-id",
   approvalId: "approval-id",
+  threadId: "thread-id",
+  turnId: "turn-id",
+  toolCallId: "tool-call-id",
+  policyRevision: 1,
+  inputHash: "input-hash",
   actionHash: "action-hash",
+  target: { kind: "document", documentId: "document-id", anchor: { kind: "whole-document" } },
+  preconditions: { document: { revision: 1, contentHash: "document-hash" } },
+  expiresAt: "2099-01-01T00:00:00.000Z",
 };
 const prepared = { invocation: { input: { operation: "append" as const } } };
+
+function receiptView(
+  lifecycle: ProjectAgentProposalReceiptView["lifecycle"],
+  revision: number,
+  proposal: ProjectAgentCommittedProposalRecord,
+): ProjectAgentProposalReceiptView {
+  return {
+    binding: receiptBinding,
+    revision,
+    lifecycle,
+    proposalId: proposal.proposalId,
+    operationId: `document-${lifecycle}`,
+    proposal,
+  };
+}
 
 describe("Project Agent document receipt helper", () => {
   it.each([
@@ -38,10 +74,18 @@ describe("Project Agent document receipt helper", () => {
 
   it("prepares, commits, and abandons the same receipt with CAS revisions", () => {
     const proposal = documentProposalReceiptFor({ toolName: "nomi_document_edit", args: {} }, persisted, prepared);
-    const writer = {
+    const writer: ProjectAgentProposalReceiptWriter = {
       read: vi.fn(() => null),
-      write: vi.fn((value) => ({ ...value, revision: 1 })),
-      transition: vi.fn(),
+      write: vi.fn((value: ProjectAgentProposalReceiptWrite) => receiptView(
+        value.lifecycle,
+        value.lifecycle === "preparing" ? 1 : 2,
+        value.proposal,
+      )),
+      transition: vi.fn((value: ProjectAgentProposalReceiptTransition) => receiptView(
+        value.lifecycle,
+        2,
+        proposal,
+      )),
     };
 
     const preparing = prepareDocumentProposalReceipt(writer, proposal, "approval-id");
@@ -55,12 +99,12 @@ describe("Project Agent document receipt helper", () => {
 
   it("preserves a preparing receipt when the undone CAS transition fails", () => {
     const proposal = documentProposalReceiptFor({ toolName: "nomi_document_edit", args: {} }, persisted, prepared);
-    const writer = {
-      read: () => ({ revision: 4 }),
-      write: (value: unknown) => ({ ...(value as object), revision: 5 }),
+    const writer: ProjectAgentProposalReceiptWriter = {
+      read: () => receiptView("preparing", 4, proposal),
+      write: (value: ProjectAgentProposalReceiptWrite) => receiptView(value.lifecycle, 5, value.proposal),
       transition: () => { throw new Error("stale revision"); },
     };
 
-    expect(() => abandonDocumentProposalReceipt(writer, { revision: 5 }, proposal, "approval-id")).not.toThrow();
+    expect(() => abandonDocumentProposalReceipt(writer, receiptView("preparing", 5, proposal), proposal, "approval-id")).not.toThrow();
   });
 });

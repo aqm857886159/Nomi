@@ -13,7 +13,7 @@ const service = { binding, read: vi.fn(), write: vi.fn(), transition: vi.fn(), c
 function dependencies() {
   return {
     getWorkspaceRepositoryDeps: vi.fn(() => repositoryDeps),
-    resolveWorkspaceProjectDir: vi.fn(() => "/projects/project-1"),
+    resolveWorkspaceProjectDir: vi.fn((_projectId: string, _deps: typeof repositoryDeps): string | null => "/projects/project-1"),
     createProjectAgentProposalReceiptService: vi.fn(() => service),
   };
 }
@@ -57,7 +57,7 @@ describe("desktop Project Agent proposal receipt resolver", () => {
     const deps = dependencies();
     const resolve = createDesktopProposalReceiptResolver(deps);
 
-    expect(() => resolve({ projectId: "" } as typeof binding)).toThrow("invalid_project_binding");
+    expect(() => resolve({ projectId: "" } as unknown as typeof binding)).toThrow("invalid_project_binding");
     expect(deps.getWorkspaceRepositoryDeps).not.toHaveBeenCalled();
   });
 

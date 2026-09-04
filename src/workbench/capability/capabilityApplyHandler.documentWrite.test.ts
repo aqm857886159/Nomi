@@ -30,6 +30,20 @@ function tools() {
   };
 }
 
+type DocumentWriteFailureState = {
+  creationDocumentTools: ReturnType<typeof tools> | null;
+  activeDocumentId?: string;
+  operation?: string;
+  content?: string;
+};
+
+const documentWriteFailureCases: readonly (readonly [string, DocumentWriteFailureState])[] = [
+  ["missing tools", { creationDocumentTools: null }],
+  ["unknown operation", { creationDocumentTools: tools(), operation: "delete" }],
+  ["empty content", { creationDocumentTools: tools(), operation: "append", content: "" }],
+  ["missing active document", { creationDocumentTools: tools(), activeDocumentId: "" }],
+];
+
 describe("document.write renderer capability boundary", () => {
   it("reads the live document state and applies the verified write through CreationDocumentTools", async () => {
     const documentTools = tools();
@@ -51,12 +65,7 @@ describe("document.write renderer capability boundary", () => {
     });
   });
 
-  it.each([
-    ["missing tools", { creationDocumentTools: null }],
-    ["unknown operation", { creationDocumentTools: tools(), operation: "delete" }],
-    ["empty content", { creationDocumentTools: tools(), operation: "append", content: "" }],
-    ["missing active document", { creationDocumentTools: tools(), activeDocumentId: "" }],
-  ] as const)("fails closed for document.write %s before applying", async (_label, state) => {
+  it.each(documentWriteFailureCases)("fails closed for document.write %s before applying", async (_label, state) => {
     const documentTools = state.creationDocumentTools;
     useWorkbenchStore.setState({
       activeDocumentId: state.activeDocumentId ?? "document-live",

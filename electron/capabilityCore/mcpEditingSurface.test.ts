@@ -88,6 +88,27 @@ describe("M2 semantic editing surface", () => {
     ));
   });
 
+  it("publishes document execution failures as typed tool errors", async () => {
+    const frames: unknown[] = [];
+    const invoke = vi.fn(async () => { throw new Error("document write failed"); });
+    const protocol = createMcpProtocol({ send: (frame) => frames.push(frame), isAppOpen: () => true, invoke });
+    protocol.handleIncoming({
+      jsonrpc: "2.0", id: 1, method: "initialize",
+      params: { protocolVersion: "2025-11-25", capabilities: { elicitation: {} }, clientInfo: { name: "Claude Code" } },
+    });
+    protocol.handleIncoming({
+      jsonrpc: "2.0", id: 2, method: "tools/call",
+      params: { name: "nomi_document_edit", arguments: { leaseHandle: "lease-a", projectId: "project-a", operation: "append", content: "失败也要是工具结果" } },
+    });
+    await vi.waitFor(() => expect(frames).toContainEqual(expect.objectContaining({ method: "elicitation/create" })));
+    const request = frames.find((frame) => (frame as { method?: string }).method === "elicitation/create") as { id: unknown };
+    protocol.handleIncoming({ jsonrpc: "2.0", id: request.id, result: { action: "accept", content: { confirm: true } } });
+    await vi.waitFor(() => expect(frames).toContainEqual(expect.objectContaining({ id: 2, result: expect.objectContaining({ isError: true }) })));
+    expect(frames.find((frame) => (frame as { id?: number }).id === 2)).not.toHaveProperty("error");
+    expect(invoke).toHaveBeenCalledWith("document.write", expect.anything(), { documentConfirmed: true });
+    protocol.dispose();
+  });
+
   it("returns a typed denial and never routes document.write when the user refuses", async () => {
     const frames: unknown[] = [];
     const invoke = vi.fn(async () => ({ applied: true }));
