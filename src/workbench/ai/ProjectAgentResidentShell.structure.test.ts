@@ -70,6 +70,13 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain("t('agentResident.changeModelRetry'")
   })
 
+  it('renders the formal stopped marker on a retained assistant item', () => {
+    expect(resident).toContain("item.kind === 'assistant' ? <><div data-agent-reply")
+    expect(resident).toContain("item.status === 'stopped' ? <span data-agent-status-label=\"stopped\"")
+    expect(resident).toContain('data-agent-status-label="stopped"')
+    expect(resident).toContain('statusLabel(t, item.status)')
+  })
+
   it('mounts the same resident projection at each surface slot', () => {
     expect(shell).toContain('createPortal(<ProjectAgentResidentShell surface={agentSurface} />, agentDock)')
     expect(shell).toContain('agentDockRefs.creation')

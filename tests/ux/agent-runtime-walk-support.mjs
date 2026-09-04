@@ -5,11 +5,11 @@ import os from 'node:os'
 import path from 'node:path'
 import { once } from 'node:events'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
-import { clickOrFail, expect, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
 
-export const CREATION_PANEL = '[aria-label="AI 创作区"]'
-export const CANVAS_PANEL = '[aria-label="生成区 AI 助手"]'
+export const CREATION_PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="creation"]'
+export const CANVAS_PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="generation"]'
 export const DOCUMENT = '[aria-label="创作文档编辑区"] .tiptap[contenteditable="true"]'
 
 export function toolNames(body) {
@@ -75,6 +75,58 @@ export async function readProject(win, projectId) {
   return win.evaluate((id) => window.nomiDesktop.projects.readAsync(id), projectId)
 }
 
+/**
+ * Read back the active document without hiding the persisted schema version.
+ * The legacy field remains readable for old projects, but current journeys must
+ * prove that the writer emits the multi-document shape.
+ */
+export function readPersistedWorkbenchDocument(record) {
+  const payload = record && typeof record === 'object' && record.payload && typeof record.payload === 'object'
+    ? record.payload
+    : null
+  if (payload && Array.isArray(payload.workbenchDocuments)) {
+    const activeDocumentId = typeof payload.activeDocumentId === 'string' ? payload.activeDocumentId : ''
+    const document = payload.workbenchDocuments.find((item) => item && item.id === activeDocumentId)
+    return document ? { schema: 'multi', document } : { schema: 'missing', document: null }
+  }
+  if (payload && payload.workbenchDocument && typeof payload.workbenchDocument === 'object') {
+    return { schema: 'legacy', document: payload.workbenchDocument }
+  }
+  return { schema: 'missing', document: null }
+}
+
+export function requireCurrentPersistedWorkbenchDocument(record) {
+  const readback = readPersistedWorkbenchDocument(record)
+  if (readback.schema !== 'multi') {
+    const detail = readback.schema === 'legacy'
+      ? 'legacy workbenchDocument was readable but is not an acceptable current-writer result'
+      : 'no supported persisted workbench document was readable'
+    throw new Error(`Current multi-document persistence evidence missing: ${detail}`)
+  }
+  return readback.document
+}
+
+export async function enableAgentHostThroughSettings(win) {
+  const settings = win.getByRole('button', { name: '设置', exact: true }).first()
+  await clickOrFail(settings, '打开系统设置')
+  const settingsOverlay = win.locator('[data-settings-overlay]')
+  const settingsOverlayProof = await proveProbe(settingsOverlay, '系统设置打开后存在设置 overlay')
+  const dialog = win.getByRole('dialog', { name: '设置', exact: true })
+  await expect(dialog).toBeVisible()
+  await clickOrFail(dialog.locator('[data-settings-tab-id="general"]'), '打开通用设置')
+  const toggle = dialog.locator('[data-settings-section="agent-host"] [data-settings-agent-host-toggle]')
+  await expect(toggle).toBeAttached()
+  const toggleTrack = dialog.locator('[data-settings-section="agent-host"] .mantine-Switch-track')
+  await expect(toggleTrack).toBeVisible()
+  if (!(await toggle.isChecked())) await clickOrFail(toggleTrack, '开启常驻 Agent')
+  await expect(toggle).toBeChecked()
+  await clickOrFail(dialog.locator('[data-settings-close]'), '关闭系统设置')
+  await expectAbsent(settingsOverlay, {
+    provenBy: settingsOverlayProof,
+    message: '关闭系统设置后 overlay 应持续消失',
+  })
+}
+
 export async function readConversations(win, projectId) {
   const result = await win.evaluate((id) => window.nomiDesktop.conversations.read(id), projectId)
   expect(result.ok, 'The real conversations IPC must succeed').toBe(true)
@@ -96,9 +148,62 @@ export function snapshotMessages(record) {
   return envelope.data.entries.filter((entry) => entry.type === 'message').map((entry) => entry.message)
 }
 
+/**
+ * Current ProjectAgentHost persistence is a settings-owned, binding-partitioned
+ * snapshot. Keep the legacy Pi reader above for the old support journeys, but
+ * let current-host journeys prove the durable state that production actually
+ * writes today.
+ */
+export function readCurrentProjectAgentHostSnapshot(settingsRoot, projectRoot) {
+  const projectFile = path.join(projectRoot, '.nomi', 'project.json')
+  if (!fs.existsSync(projectFile)) return null
+  const project = JSON.parse(fs.readFileSync(projectFile, 'utf8'))
+  const { immutableProjectUuid, projectGeneration, id: projectId } = project
+  if (typeof immutableProjectUuid !== 'string' || typeof projectGeneration !== 'number' || typeof projectId !== 'string') {
+    return null
+  }
+  const partition = `project-agent.${encodeURIComponent(immutableProjectUuid)}.g${projectGeneration}`
+  const snapshotFile = path.join(settingsRoot, 'project-agent-host', partition, 'snapshot-v1.json')
+  if (!fs.existsSync(snapshotFile)) return null
+  const envelope = JSON.parse(fs.readFileSync(snapshotFile, 'utf8'))
+  expect(envelope.schemaVersion, 'Current ProjectAgentHost snapshot schema').toBe(1)
+  expect(envelope.binding, 'Current ProjectAgentHost snapshot binding').toEqual({
+    immutableProjectUuid,
+    projectGeneration,
+    projectId,
+  })
+  return envelope.state
+}
+
+export function readProjectAgentProposalReceipt(projectRoot) {
+  const receiptFile = path.join(projectRoot, '.nomi', 'project-agent-proposal-receipt.json')
+  if (!fs.existsSync(receiptFile)) return null
+  return JSON.parse(fs.readFileSync(receiptFile, 'utf8'))
+}
+
+/**
+ * Locate a current tool result by its persisted capability and its matching
+ * proposal approval. The test never invents or assumes the provider's call id.
+ */
+export function readCurrentProjectAgentToolEvidence(settingsRoot, projectRoot, capabilityId) {
+  const state = readCurrentProjectAgentHostSnapshot(settingsRoot, projectRoot)
+  if (!state) return null
+  const tool = state.items.find((item) => item.kind === 'tool' && item.capability?.id === capabilityId)
+  const proposal = tool
+    ? state.items.find((item) => item.kind === 'proposal' && item.approval?.toolCallId === tool.toolCallId)
+    : undefined
+  const receipt = readProjectAgentProposalReceipt(projectRoot)
+  return { state, tool, proposal, receipt }
+}
+
 export async function chooseCreationMode(win, mode) {
-  await clickOrFail(win.locator(`${CREATION_PANEL} [data-creation-prompt-picker]`), '本轮提示词选择器')
-  await clickOrFail(win.locator(`[data-prompt-option="${mode}"]`), `创作提示词 ${mode}`)
+  await clickOrFail(win.locator(`${CREATION_PANEL} [data-agent-composer-prompt="true"]`), '当前 Agent 提示词选择器')
+  await clickOrFail(win.locator(`[data-agent-menu-item="${mode}"]`), `当前 Agent 提示词 ${mode}`)
+}
+
+export async function chooseAssistantModel(win, modelIdentity) {
+  await clickOrFail(win.locator(`${CREATION_PANEL} [data-agent-composer-model="true"]`), '当前 Agent 模型选择器')
+  await clickOrFail(win.locator(`[data-agent-menu-item="${modelIdentity}"]`), `当前 Agent 文本模型 ${modelIdentity}`)
 }
 
 export async function openCanvas(win) {
@@ -114,27 +219,37 @@ export async function openCanvas(win) {
 }
 
 export async function sendCreation(win, text) {
-  const input = win.getByRole('textbox', { name: '创作 AI 输入', exact: true })
+  const input = win.locator(`${CREATION_PANEL} [data-agent-input="true"]`)
   await expect(input).toBeVisible()
   await input.fill(text)
-  await clickOrFail(win.getByRole('button', { name: '创作 AI 发送', exact: true }), '发送创作指令')
+  await clickOrFail(win.locator(`${CREATION_PANEL} [data-agent-composer-send="true"]`), '发送当前 Agent 指令')
 }
 
 export async function sendCanvas(win, text) {
-  const input = win.getByRole('textbox', { name: '给生成助手发送消息', exact: true })
+  const input = win.locator(`${CANVAS_PANEL} [data-agent-input="true"]`)
   await expect(input).toBeVisible()
   await input.fill(text)
-  await clickOrFail(win.getByRole('button', { name: '生成 AI 发送', exact: true }), '发送画布指令')
+  await clickOrFail(win.locator(`${CANVAS_PANEL} [data-agent-composer-send="true"]`), '发送当前 Agent 画布指令')
 }
 
 export async function newConversation(win, panel) {
-  await clickOrFail(win.locator(panel).getByRole('button', { name: '会话历史', exact: true }), '会话历史')
-  await clickOrFail(win.getByRole('button', { name: '新对话 当前会存入历史' }), '新对话（归档而非清空旧对话）')
+  const resident = win.locator(panel)
+  await clickOrFail(resident.locator('[data-agent-history="true"]'), '当前 Agent 会话列表')
+  await clickOrFail(win.locator('[data-agent-thread-menu="true"]').getByRole('button', { name: '新对话', exact: true }), '当前 Agent 新对话')
 }
 
 export async function selectConversation(win, panel, title) {
-  await clickOrFail(win.locator(panel).getByRole('button', { name: '会话历史', exact: true }), '会话历史')
-  await clickOrFail(win.locator('li').filter({ has: win.getByText(title, { exact: true }) }), `恢复会话 ${title}`)
+  const resident = win.locator(panel)
+  await clickOrFail(resident.locator('[data-agent-history="true"]'), '当前 Agent 会话列表')
+  await clickOrFail(win.locator('[data-agent-thread-menu="true"]').getByRole('button', { name: title, exact: true }), `恢复当前 Agent 会话 ${title}`)
+}
+
+/** Current Host threads may intentionally have no title; select by persisted order in that case. */
+export async function selectConversationAt(win, panel, index) {
+  const resident = win.locator(panel)
+  await clickOrFail(resident.locator('[data-agent-history="true"]'), '当前 Agent 会话列表')
+  const rows = win.locator('[data-agent-thread-menu="true"] > div')
+  await clickOrFail(rows.nth(index + 1).getByRole('button').first(), `恢复当前 Agent 第 ${index + 1} 个会话`)
 }
 
 export async function createRuntimeWalk(name) {
