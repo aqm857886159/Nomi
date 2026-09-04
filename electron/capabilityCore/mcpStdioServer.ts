@@ -206,7 +206,7 @@ export function createMcpStdioDirectInvoker(
     const makeGateway = routedOptions?.spendConfirmed ? makeConfirmedGateway : createDiskGateway
     // 交付②④：GUI 没开的进程内路——本进程就是 Electron（NOMI_MCP_STDIO 模式），有 nativeImage → dispatchAndEnrich
     // 里就地富化生成结果（缩略图/签名链）。收口在包装器（0a），此路与 GUI-开着的 RPC 路一样忘不了富化。
-    const dispatch = (writeProposalId?: string) => dispatchFn(routedMethod, routedParams, {
+    const invokeDispatch = (writeProposalId?: string) => dispatchFn(routedMethod, routedParams, {
       runTask,
       fetchTaskResult,
       makeGateway,
@@ -242,10 +242,10 @@ export function createMcpStdioDirectInvoker(
         operation: typeof routedParams.operation === 'string' ? routedParams.operation : 'write',
         requestId: routedOptions?.requestId ?? JSON.stringify(routedParams),
         signal: routedOptions?.signal,
-        execute: (writeProposalId) => dispatch(writeProposalId),
+        execute: (writeProposalId) => invokeDispatch(writeProposalId),
       })
     }
-    if (routedMethod !== 'document.write') return dispatch()
+    if (routedMethod !== 'document.write') return invokeDispatch()
     if (routedOptions?.documentConfirmed !== true) throw new Error('human_approval_required')
     const projectId = typeof routedParams.projectId === 'string' ? routedParams.projectId : ''
     const service = await authorities.proposalReceiptFor?.(projectId)
@@ -253,7 +253,7 @@ export function createMcpStdioDirectInvoker(
     return executeMcpDocumentWriteWithReceipt({
       service,
       operation: typeof routedParams.operation === 'string' ? routedParams.operation : 'write',
-      execute: () => dispatch(),
+      execute: () => invokeDispatch(),
     })
   }
 }
