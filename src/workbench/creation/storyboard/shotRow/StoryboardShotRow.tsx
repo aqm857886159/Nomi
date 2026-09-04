@@ -249,17 +249,20 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
               const missing = slot.min >= 1
               return (
                 <span key={slot.kind} className="flex flex-col items-center gap-0.5">
-                  <span
+                  <button
+                    type="button"
                     data-storyboard-ref-tile="named-slot"
+                    aria-label={`${translateModelDisplayText(slot.label)} ${t('storyboardEditor.row.atRefAria')}`}
+                    onClick={triggerAtMention}
                     className={cn(
-                      'grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed',
+                      'grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed hover:border-nomi-accent hover:text-nomi-accent',
                       missing ? 'border-workbench-danger bg-workbench-danger-soft text-workbench-danger' : 'border-nomi-ink-20 bg-nomi-ink-05 text-nomi-ink-30',
                     )}
                   >
                     <span className="text-micro leading-tight text-center">
-                      {missing ? t('storyboardEditor.row.slotRequired') : null}
+                      {missing ? t('storyboardEditor.row.slotRequired') : t('storyboardEditor.row.refIntakeCap')}
                     </span>
-                  </span>
+                  </button>
                   <span className={cn('text-micro', missing ? 'text-workbench-danger' : 'text-nomi-ink-40')}>
                     {translateModelDisplayText(slot.label)}
                   </span>

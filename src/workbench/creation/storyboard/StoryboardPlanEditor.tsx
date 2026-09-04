@@ -353,6 +353,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
                 onToggleLock={() => onToggleLockAnchor(runtime)}
                 onFilterByAnchor={() => setFilterAnchorId(runtime.anchor.id)}
                 onOpenPreview={() => onOpenPreviewAnchor(runtime)}
+                modelOptions={imageModelOptions}
               />
             ))}
             <button

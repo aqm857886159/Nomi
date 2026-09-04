@@ -199,6 +199,14 @@ test('vertical spine reopens the persisted project through the visible library a
   expect(runner).not.toMatch(/const restartedPanel = win\.locator\('\[data-agent-panel=\"true\"\]'\)\.first\(\)\n    await restartedPanel\.waitFor/)
 })
 
+test('Agent empty state gives the user a clear first action instead of a blank dock', () => {
+  const source = fs.readFileSync(new URL('../../src/workbench/ai/ProjectAgentResidentShell.tsx', import.meta.url), 'utf8')
+  expect(source).toMatch(/data-agent-empty-state="true"/)
+  expect(source).toMatch(/data-agent-empty-cta="true"/)
+  expect(source).toMatch(/emptyCta/)
+  expect(source).toMatch(/querySelector<HTMLTextAreaElement>\('\[data-agent-input=/)
+})
+
 function ownedApp(close) {
   const child = Object.assign(new EventEmitter(), { exitCode: null, signalCode: null })
   child.kill = vi.fn((signal) => {

@@ -67,6 +67,10 @@ export type PlanAnchor = {
   referenceKind?: 'image' | 'video' | 'audio'
   /** 某镜结果已是画布节点时直接复用该节点，不复制成新的参考卡。 */
   referenceSourceNodeId?: string
+  /** Image model used to render this visual anchor; explicit selection survives materialization. */
+  modelKey?: string
+  modeId?: string
+  params?: Record<string, unknown>
 }
 
 export type PlanShot = {
@@ -523,8 +527,9 @@ function buildAnchorCardNode(anchor: PlanAnchor, options: StoryboardPlanToArgsOp
       ...(options.creationDocumentId ? { creationDocumentId: options.creationDocumentId } : {}),
       ...(options.storyboardDesignId ? { storyboardDesignId: options.storyboardDesignId } : {}),
     },
-    ...(options.defaultImageModelKey ? { modelKey: options.defaultImageModelKey } : {}),
-    ...(options.defaultImageModeId ? { modeId: options.defaultImageModeId } : {}),
+    ...((anchor.modelKey || options.defaultImageModelKey) ? { modelKey: anchor.modelKey || options.defaultImageModelKey } : {}),
+    ...((anchor.modeId || (!anchor.modelKey && options.defaultImageModeId)) ? { modeId: anchor.modeId || options.defaultImageModeId } : {}),
+    ...(anchor.params ? { params: anchor.params } : {}),
   }
 }
 
