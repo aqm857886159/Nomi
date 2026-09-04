@@ -236,8 +236,8 @@ export function useNodeModelAutoSelect({
           : { imageModel: target.value, imageModelVendor: optionVendor }),
       },
     })
-    const sourceVendor = readMeta(meta, 'modelVendor') || readMeta(meta, 'vendor')
-    const sourceModel = readMeta(meta, 'modelAlias') || readMeta(meta, 'modelKey') || selectedModelValue
+    const sourceVendor = readMeta(latestMeta, 'modelVendor') || readMeta(latestMeta, 'vendor')
+    const sourceModel = readMeta(latestMeta, 'modelAlias') || readMeta(latestMeta, 'modelKey') || selectedModelValue
     const targetModel = target.modelAlias || target.modelKey || target.value
     showInfoToast(
       t('generationCommon.node.providerDisconnectedSwitched', { model: target.label }),
