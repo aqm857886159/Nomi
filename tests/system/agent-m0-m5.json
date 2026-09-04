@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "baseRef": "origin/main",
+  "dimensions": ["happy", "boundary", "error", "timeout", "network"],
+  "commands": {
+    "m0-contract": {
+      "kind": "vitest-production-contract",
+      "command": "pnpm",
+      "args": ["exec", "vitest", "run", "electron/productionRun/productionGenerationAuthorizationFlow.test.ts", "electron/productionRun/productionShotGate.test.ts", "electron/productionRun/productionRunE2eFixture.test.ts", "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts", "electron/projectAgentHost/projectAgentHost.test.ts", "--reporter=verbose"],
+      "boundaryMock": "none"
+    },
+    "m0-mcp": {
+      "kind": "electron-mcp-stdio",
+      "command": "node",
+      "args": ["tests/ux/mcp-l1-handshake.e2e.mjs"],
+      "requiresBuild": true,
+      "boundaryMock": "none"
+    },
+    "m1-editor": {
+      "kind": "electron-agent-journey",
+      "command": "node",
+      "args": ["tests/ux/agent-runtime-editing.walk.mjs"],
+      "requiresBuild": true,
+      "boundaryMock": "model-http-loopback-only"
+    },
+    "m1-runtime-boundary": {
+      "kind": "agent-runtime-boundary",
+      "command": "pnpm",
+      "args": ["run", "test:agent-runtime"],
+      "boundaryMock": "transport-http"
+    },
+    "m2-production": {
+      "kind": "electron-mcp-production-journey",
+      "command": "node",
+      "args": ["tests/ux/production-mcp-journey.e2e.mjs"],
+      "requiresBuild": true,
+      "boundaryMock": "provider-loopback-only"
+    },
+    "m2-semantic-contract": {
+      "kind": "vitest-mcp-contract",
+      "command": "pnpm",
+      "args": ["exec", "vitest", "run", "electron/harness/tools/modelToolSurfaceManifest.test.ts", "electron/harness/tools/agentToolCatalog.test.ts", "electron/capabilityCore/mcpCanvasDocumentSurface.test.ts", "electron/capabilityCore/mcpEditingSurface.test.ts", "electron/capabilityCore/generationTransportAdapters.test.ts", "--reporter=verbose"],
+      "boundaryMock": "transport-boundary"
+    },
+    "m2-degradation": {
+      "kind": "provider-boundary-journey",
+      "command": "node",
+      "args": ["tests/ux/mcp-generation-provider-degradation.e2e.mjs"],
+      "boundaryMock": "provider-adapter-only"
+    },
+    "m3-context": {
+      "kind": "vitest-context-contract",
+      "command": "pnpm",
+      "args": ["exec", "vitest", "run", "electron/harness/context/promptPipe.test.ts", "electron/ai/agentChatV2.facade.test.ts", "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts", "--reporter=verbose"],
+      "boundaryMock": "transport-http"
+    },
+    "m3-editor": {
+      "kind": "electron-agent-journey",
+      "command": "node",
+      "args": ["tests/ux/agent-runtime-editing.walk.mjs"],
+      "requiresBuild": true,
+      "boundaryMock": "model-http-loopback-only"
+    },
+    "m3-runtime-boundary": {
+      "kind": "agent-runtime-boundary",
+      "command": "pnpm",
+      "args": ["run", "test:agent-runtime"],
+      "boundaryMock": "transport-http"
+    },
+    "m4-trust": {
+      "kind": "vitest-trust-boundary",
+      "command": "pnpm",
+      "args": ["exec", "vitest", "run", "electron/harness/context/provenanceActionGuard.test.ts", "electron/projectAgentHost/projectAgentExecutionHelpers.test.ts", "--reporter=verbose"],
+      "boundaryMock": "none"
+    },
+    "m4-exception": {
+      "kind": "electron-host-ipc-journey",
+      "command": "node",
+      "args": ["tests/ux/agent-ui-exception-states-runtime.walk.mjs"],
+      "requiresBuild": true,
+      "boundaryMock": "model-http-loopback-only"
+    },
+    "m5-packaged": {
+      "kind": "packaged-mcp-journey",
+      "command": "node",
+      "args": ["tests/ux/packaged-mcp-smoke.e2e.mjs", "<fresh-current-head-app>"],
+      "boundaryMock": "provider-not-called"
+    }
+  },
+  "stages": [
+    {
+      "id": "AGENT.M0.BASELINE",
+      "milestone": "M0",
+      "deliveryState": "已合入但未证明",
+      "evidenceMode": "simulated",
+      "dimensions": {
+        "happy": { "status": "ready", "commandRef": "m0-contract", "assertions": ["M0-H-001 durable owner contracts execute without a second state owner"] },
+        "boundary": { "status": "ready", "commandRef": "m0-mcp", "assertions": ["M0-B-001 real stdio rejects unknown tools and invalid arguments with typed errors"] },
+        "error": { "status": "ready", "commandRef": "m0-mcp", "assertions": ["M0-E-001 malformed MCP input returns a protocol error without killing the server"] },
+        "timeout": { "status": "blocked", "reason": "M0 is a contract/fact baseline and has no independent timeout production entrypoint on current main.", "alternative": "Keep the missing branch visible; M1 runtime cancellation/timeout boundary is the first executable owner." },
+        "network": { "status": "blocked", "reason": "M0 has no network failure behavior of its own; the stdio handshake does not prove provider network classification.", "alternative": "Use the M1/M3 transport-boundary network tests without upgrading them to M0 evidence." }
+      },
+      "persistence": { "status": "blocked", "coldStart": false, "reason": "M0 has no runtime state of its own; its documents define owners but do not create a user-owned artifact.", "alternative": "M1 durable Host/repository tests remain the first runtime persistence owner." }
+    },
+    {
+      "id": "AGENT.M1.HOST",
+      "milestone": "M1",
+      "deliveryState": "部分完成",
+      "evidenceMode": "simulated",
+      "dimensions": {
+        "happy": { "status": "ready", "commandRef": "m1-editor", "assertions": ["M1-H-001 approved document and canvas effects travel through real Electron UI, Host/IPC, and disk"] },
+        "boundary": { "status": "ready", "commandRef": "m1-editor", "assertions": ["M1-B-001 denied proposal leaves the real document/canvas unchanged and consumes no effect"] },
+        "error": { "status": "ready", "commandRef": "m1-runtime-boundary", "assertions": ["M1-E-001 runtime failure is terminal and does not publish a late tool write"] },
+        "timeout": { "status": "ready", "commandRef": "m1-runtime-boundary", "assertions": ["M1-T-001 cancellation settles the owned request and prevents post-cancel publication"] },
+        "network": { "status": "ready", "commandRef": "m1-runtime-boundary", "assertions": ["M1-N-001 transport failure is classified without replaying the request or leaking credentials"] }
+      },
+      "persistence": { "status": "ready", "coldStart": true, "commandRef": "m1-editor", "assertions": ["M1-R-001 cold Electron restart reads the same conversations, native tool result, undo state, and message identities"] }
+    },
+    {
+      "id": "AGENT.M2.SEMANTIC",
+      "milestone": "M2",
+      "deliveryState": "部分完成",
+      "evidenceMode": "simulated",
+      "dimensions": {
+        "happy": { "status": "ready", "commandRef": "m2-production", "assertions": ["M2-H-001 real MCP semantic tools create, approve, reconcile, and project a durable production effect"] },
+        "boundary": { "status": "ready", "commandRef": "m2-semantic-contract", "assertions": ["M2-B-001 semantic manifest keeps host-only transitions out of the model and rejects invalid revision/scope inputs"] },
+        "error": { "status": "ready", "commandRef": "m2-production", "assertions": ["M2-E-001 declined/unknown semantic calls return typed errors and do not mutate the project"] },
+        "timeout": { "status": "ready", "commandRef": "m0-mcp", "assertions": ["M2-T-001 cancelled long-poll has no response leak and keeps the real MCP server alive"] },
+        "network": { "status": "ready", "commandRef": "m2-degradation", "assertions": ["M2-N-001 provider capability/unknown-submission states become reconcile/manual-review without blind retry"] }
+      },
+      "persistence": { "status": "ready", "coldStart": true, "commandRef": "m2-production", "assertions": ["M2-R-001 cold Electron restart preserves semantic canvas state, approval gates, and zero-spend recovery without resubmission"] }
+    },
+    {
+      "id": "AGENT.M3.CONTEXT",
+      "milestone": "M3",
+      "deliveryState": "已合入但未证明",
+      "evidenceMode": "simulated",
+      "dimensions": {
+        "happy": { "status": "ready", "commandRef": "m3-context", "assertions": ["M3-H-001 seven context layers preserve identity, skill evidence, and provider cache evidence in the outbound context contract"] },
+        "boundary": { "status": "ready", "commandRef": "m3-context", "assertions": ["M3-B-001 visibility/hash/budget failures are explicit and do not inject an invalid skill body"] },
+        "error": { "status": "ready", "commandRef": "m3-context", "assertions": ["M3-E-001 context projection failure is visible and does not silently change durable display text"] },
+        "timeout": { "status": "ready", "commandRef": "m3-runtime-boundary", "assertions": ["M3-T-001 runtime capacity/compaction pressure has a bounded terminal outcome and no summary replay loop"] },
+        "network": { "status": "ready", "commandRef": "m3-runtime-boundary", "assertions": ["M3-N-001 network errors are redacted/classified at the transport boundary"] }
+      },
+      "persistence": { "status": "blocked", "coldStart": false, "reason": "The current main has no fresh real Host seven-layer context projection plus cold-start journey; agentHostEnabled=false remains the documented boundary.", "alternative": "The prompt/context/coordinator unit contracts are executed, but they cannot be promoted to Host persistence evidence." }
+    },
+    {
+      "id": "AGENT.M4.TRUST",
+      "milestone": "M4",
+      "deliveryState": "已合入但未证明",
+      "evidenceMode": "simulated",
+      "dimensions": {
+        "happy": { "status": "ready", "commandRef": "m4-trust", "assertions": ["M4-H-001 clean read-only work is allowed while scoped write/spend requires explicit confirmation"] },
+        "boundary": { "status": "ready", "commandRef": "m4-trust", "assertions": ["M4-B-001 unsigned/tainted/clean provenance combinations select the correct action guard"] },
+        "error": { "status": "ready", "commandRef": "m4-exception", "assertions": ["M4-E-001 real Host IPC projects a failed item as actionable failure rather than false success"] },
+        "timeout": { "status": "blocked", "reason": "No current-main real trust/spend timeout journey exists; existing runtime cancellation is not evidence of taint spend timeout handling.", "alternative": "Keep the trust timeout branch blocked until the canonical Host action path exposes it." },
+        "network": { "status": "ready", "commandRef": "m1-runtime-boundary", "assertions": ["M4-N-001 transport failure cannot upgrade tainted input into an approved effect"] }
+      },
+      "persistence": { "status": "blocked", "coldStart": false, "reason": "Current main has no independent signed/unsigned taint-to-action cold-start journey; Host is disabled for the packaged boundary.", "alternative": "Provenance/action guard tests remain lower-level evidence only." }
+    },
+    {
+      "id": "AGENT.M5.PACKAGED",
+      "milestone": "M5",
+      "deliveryState": "被阻塞",
+      "evidenceMode": "blocked",
+      "dimensions": {
+        "happy": { "status": "blocked", "reason": "No fresh packaged artifact for current HEAD is available at release/mac-arm64/Nomi.app.", "alternative": "Run m5-packaged only after a current-HEAD packaged app exists and passes identity/signature checks." },
+        "boundary": { "status": "blocked", "reason": "Packaged MCP boundary cannot be exercised without a current-HEAD bundle.", "alternative": "Existing packaged smoke source is the lower-level contract; historical binaries are not accepted." },
+        "error": { "status": "blocked", "reason": "Packaged rejection/error behavior has no current-HEAD runtime to execute.", "alternative": "Do not reuse the 2026-09-03 checklist PASS." },
+        "timeout": { "status": "blocked", "reason": "Packaged timeout behavior has no current-HEAD runtime evidence.", "alternative": "Build first, then run the same packaged command with its real bounded wait." },
+        "network": { "status": "blocked", "reason": "Packaged network boundary has no current-HEAD runtime evidence.", "alternative": "Provider remains out of scope; use only the packaged transport boundary after a fresh build." }
+      },
+      "persistence": { "status": "blocked", "coldStart": false, "reason": "Current-main packaged restart/readback is explicitly not graduated in the QA checklist.", "alternative": "Build and checksum a current-HEAD app, then rerun packaged MCP L2 and restart readback." }
+    }
+  ]
+}

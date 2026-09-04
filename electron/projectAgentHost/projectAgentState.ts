@@ -30,11 +30,11 @@ import { assertContextRef, assertPreconditions, assertTarget } from "./projectAg
 import { assertProjectAgentAssistantLifecycle } from "./projectAgentAssistantStateInvariant";
 import { ProjectAgentStateError } from "./projectAgentStateError";
 import {
-  isProjectAgentClaimedProposalItemStatus,
-  isProjectAgentLiveProposalItemStatus,
+  isProjectAgentClaimedProposalItemStatus, isProjectAgentLiveProposalItemStatus,
 } from "./projectAgentStatusSemantics";
 import { assertTrustedProjectAgentDelta } from "./projectAgentTrustedStateValidation";
 import { assertTrustedProjectAgentDeltaCoverage } from "./projectAgentTrustedDeltaCoverage";
+import { assertProjectAgentProvenance } from "./projectAgentProvenanceValidation";
 import {
   hasDuplicateProjectAgentApprovalIdentity,
   hasDuplicateProjectAgentArtifactIdentity,
@@ -44,9 +44,8 @@ import {
 import {
   asRecord,
   assertAllowedKeys,
-  assertCanonicalTimestamp, assertCanonicalId, assertNonEmpty,
-  assertSafeInteger, assertSkillLoadReference, assertProjectAgentUsage,
-  assertStatusRecord,
+  assertCanonicalTimestamp, assertCanonicalId, assertNonEmpty, assertSafeInteger,
+  assertSkillLoadReference, assertProjectAgentUsage, assertStatusRecord,
   assertTimestampOrder,
   assertVersionRef,
   assertVersionRefs,
@@ -218,7 +217,7 @@ function assertItem(
   const extraKeys: Record<string, readonly string[]> = {
     user: ["text"],
     assistant: ["text", "textRevision"],
-    tool: ["toolCallId", "invocationId", "text", "capability", "resultRef", "skillLoad"],
+    tool: ["toolCallId", "invocationId", "text", "capability", "resultRef", "provenance", "skillLoad"],
     proposal: ["approval", "humanApproval"],
     task: ["task"],
     artifact: ["artifact"],
@@ -250,6 +249,7 @@ function assertItem(
       assertNonEmpty(item.invocationId);
       if (item.text !== undefined && typeof item.text !== "string") throw new ProjectAgentStateError("invalid_state"); assertVersionRef(item.capability);
       if (item.resultRef !== undefined) assertNonEmpty(item.resultRef);
+      if (item.provenance !== undefined) assertProjectAgentProvenance(item.provenance);
       if (item.skillLoad !== undefined) { if ((item.capability as { id?: unknown }).id !== "skill.read") throw new ProjectAgentStateError("invalid_state"); assertSkillLoadReference(item.skillLoad); }
       break;
     case "proposal":

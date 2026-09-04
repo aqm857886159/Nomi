@@ -268,7 +268,11 @@ function documentWriteAdapter(
   };
 }
 
-function documentWriteResponse(call: RuntimeToolCall, decision: AgentChatToolDecision): AgentChatResponse {
+function documentWriteResponse(
+  call: RuntimeToolCall,
+  decision: AgentChatToolDecision,
+  provenance?: AgentChatResponse["provenance"],
+): AgentChatResponse {
   return {
     id: `result-${call.toolCallId}`,
     status: "finished",
@@ -284,6 +288,7 @@ function documentWriteResponse(call: RuntimeToolCall, decision: AgentChatToolDec
       },
     ],
     usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+    ...(provenance ? { provenance } : {}),
   };
 }
 
@@ -1885,7 +1890,13 @@ describe("ProjectAgentExecutionCoordinator", () => {
           };
           const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
           expect(decision).toMatchObject({ ok: true, result: { applied: true } });
-          return documentWriteResponse(call, decision);
+          hooks.emit({ type: "content-delta", delta: "done" });
+          return documentWriteResponse(call, decision, [{
+            source: "host_derived",
+            sourceRef: "agent.capability",
+            trust: "trusted",
+            tainted: false,
+          }]);
         },
       },
     );
@@ -1917,6 +1928,16 @@ describe("ProjectAgentExecutionCoordinator", () => {
     await coordinator.enqueue(opened.subscriptionId, input);
     const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
 
+    expect(final.turns.find((turn) => turn.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+      status: "done",
+      retryable: false,
+    });
+    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({
+      toolCallId: "tool-document-write-approved",
+      capability: { id: "document.write", version: 1 },
+      status: "done",
+      resultRef: expect.stringMatching(/^result-/),
+    });
     expect(documentAdapter.prepare).toHaveBeenCalledWith(
       expect.objectContaining({ toolName: "replace_selection" }),
       { documentId: target.documentId, target, preconditions },
