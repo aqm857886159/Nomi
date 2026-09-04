@@ -1,0 +1,134 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-04-cross-device-settings-surface",
+  "problem_type": "settings surface semantic and validation-boundary regression",
+  "symptom": "The File & saving page mixed generated-file auto-save controls with the project location used for cross-device continuation, while the visible Check folder action only re-read settings and could not prove that the configured folder was usable.",
+  "direct_cause": "SettingsDialog rendered two unrelated storage concepts in one first-view flow, and ProjectLocationSection called projectLocation.get() for its check action instead of a filesystem validation operation.",
+  "class_root": "The settings surface had no shared invariant separating project-location configuration from optional artifact export, and no dedicated validation contract for user-facing folder health. As a result, copy, layout, and behavior could drift independently while still passing shape-only UI checks.",
+  "affected_population": [
+    "Every user looking for a place to continue editing on another computer",
+    "Users with a missing, replaced, non-directory, or non-writable configured project folder",
+    "Users reading the File & saving page in Chinese or English and either light or dark theme"
+  ],
+  "scope_paths": [
+    "src/workbench/settings/SettingsDialog.tsx",
+    "src/workbench/settings/ProjectLocationSection.tsx",
+    "src/desktop/settingsBridge.ts",
+    "electron/preload.ts",
+    "electron/settings/projectLocationIpc.ts",
+    "src/i18n/locales/settings.ts",
+    "src/workbench/settings/settingsDialogStructure.test.ts",
+    "electron/settings/projectLocationIpc.test.ts"
+  ],
+  "entry_points": [
+    "Settings → File & saving",
+    "ProjectLocationSection project-location actions",
+    "Check folder action through the renderer bridge and trusted IPC handler"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-site",
+      "url": "https://www.verysync.com/",
+      "checked_at": "2026-09-04",
+      "purpose": "Provide a verified external destination for users who need a third-party folder synchronization tool; Nomi does not configure or claim transfer state for that tool."
+    },
+    {
+      "kind": "official-site",
+      "url": "https://www.jianguoyun.com/s/downloads",
+      "checked_at": "2026-09-04",
+      "purpose": "Provide a verified Nutstore download destination in the expanded three-step guidance."
+    }
+  ],
+  "internal_only_reason": "The semantic separation and folder-health claim are Nomi-owned invariants; third-party sync websites only provide optional destinations and cannot define the Settings component hierarchy or local validation contract.",
+  "invariants": [
+    "The File & saving first view exposes one project-location owner for new-project defaults; unrelated generated-artifact auto-save controls are not rendered in that surface.",
+    "Cross-device guidance is a separate semantic section with one short collapsed hint and an optional three-step disclosure; it never claims that Nomi performed synchronization.",
+    "Check folder invokes the shared project-location validation boundary and fails with an allowlisted error when the path is not a directory or is not writable.",
+    "Chinese and English use the same component tree, existing DesignButton and token classes, and the same light/dark layout hierarchy."
+  ],
+  "generality_proof": "Every user-visible project-location action enters ProjectLocationSection, and every renderer check crosses the single project-location bridge into the trusted IPC registration. Separating the sections at SettingsDialog and validating at the shared IPC boundary prevents another caller from reintroducing the mixed storage concept or a read-only check.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "symbol": "tab === 'file'",
+      "responsibility": "Own the File & saving information hierarchy and render only the project-location feature on this page."
+    },
+    {
+      "path": "src/workbench/settings/ProjectLocationSection.tsx",
+      "symbol": "ProjectLocationSection",
+      "responsibility": "Own project path actions, the collapsed/expanded continuation guidance, and the single Check folder affordance."
+    },
+    {
+      "path": "electron/settings/projectLocationIpc.ts",
+      "symbol": "checkProjectLocation",
+      "responsibility": "Validate the configured path and write probe at the trusted filesystem boundary before reporting it usable."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/settings/ProjectLocationSection.tsx",
+      "entry_point": "checkDirectory",
+      "disposition": "enforced",
+      "evidence": "The action now calls the dedicated bridge check operation rather than the read-only get operation."
+    },
+    {
+      "path": "electron/settings/projectLocationIpc.ts",
+      "entry_point": "pickProjectLocation and revealProjectLocation",
+      "disposition": "enforced",
+      "evidence": "Picker and reveal already validate the same root at the filesystem boundary; the new check operation reuses that validator."
+    },
+    {
+      "path": "electron/assets/autoSaveAsset.ts",
+      "entry_point": "generated artifact auto-save runtime",
+      "disposition": "not-affected",
+      "evidence": "This runtime still serves generation output behavior and is not a settings-surface project-location owner; removing its settings controls does not change its generation contract."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Settings pages can repeatedly conflate adjacent storage features, and any future status action can regress to a read-only refresh unless the behavior is represented by a dedicated bridge operation and shared validation boundary.",
+    "same_class_scan": [
+      "Searched SettingsDialog, ProjectLocationSection, preload, DesktopSettingsBridge, and projectLocation IPC for every project-location and auto-save entry point.",
+      "Checked the existing picker and reveal paths to confirm they use filesystem validation before mutation or reveal.",
+      "Ran the settings structural test and project-location IPC tests after the new handler and section split."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/settings/projectLocationIpc.ts",
+    "invariant": "A folder health claim is returned only after validateProjectLocationRoot succeeds through the dedicated check operation.",
+    "failure_mode": "Invalid or unwritable paths return an allowlisted error and never report the folder usable.",
+    "exception_policy": "none",
+    "strategy": "Keep UI actions thin and route every folder-health check through one trusted IPC function that reuses the existing validator.",
+    "artifacts": [
+      "electron/settings/projectLocationIpc.ts",
+      "src/desktop/settingsBridge.ts",
+      "electron/preload.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/settings/settingsDialogStructure.test.ts",
+    "electron/settings/projectLocationIpc.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/settings/settingsDialogStructure.test.ts",
+    "electron/settings/projectLocationIpc.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/settings/SettingsDialog.tsx"
+    ],
+    "rationale": "The obsolete settings UI and its locale copy are removed; the generation-time auto-save runtime remains because it is a separate existing capability outside this surface."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant uses Electron IPC and Node filesystem primitives already owned by Nomi; no third-party dependency controls folder validation.",
+    "exit_criteria": []
+  },
+  "migration": "Existing auto-save preferences remain stored for the generation runtime but are no longer presented in Settings → File & saving. Existing project-location settings are read unchanged and are validated on explicit Check folder.",
+  "residual_risks": [
+    "Nomi can validate the local folder but cannot prove that VerySync, Nutstore, or another external client has completed transfer.",
+    "A real two-computer network transfer and continuation task still requires a second reachable computer and a configured sync client; this change does not claim that evidence."
+  ]
+}

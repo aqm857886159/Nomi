@@ -79,6 +79,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   settings: {
     projectLocation: {
       get: () => ipcRenderer.invoke("nomi:settings:project-location-get"),
+      check: () => ipcRenderer.invoke("nomi:settings:project-location-check"),
       pick: () => ipcRenderer.invoke("nomi:settings:project-location-pick"),
       reset: () => ipcRenderer.invoke("nomi:settings:project-location-reset"),
       reveal: () => ipcRenderer.invoke("nomi:settings:project-location-reveal"),

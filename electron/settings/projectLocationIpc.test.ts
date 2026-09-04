@@ -17,6 +17,7 @@ vi.mock("electron", () => ({
 }));
 
 import {
+  checkProjectLocation,
   getProjectLocationResponse,
   pickProjectLocation,
   registerProjectLocationIpc,
@@ -54,6 +55,7 @@ describe("project location IPC", () => {
 
     expect(electronMocks.handle.mock.calls.map(([channel]) => channel)).toEqual([
       "nomi:settings:project-location-get",
+      "nomi:settings:project-location-check",
       "nomi:settings:project-location-pick",
       "nomi:settings:project-location-reset",
       "nomi:settings:project-location-reveal",
@@ -68,6 +70,17 @@ describe("project location IPC", () => {
       ok: true,
       location: { path: customRoot, source: "custom" },
     });
+  });
+
+  it("checks that the current location is a usable directory", () => {
+    const currentRoot = path.join(settingsRoot, "current");
+    writeProjectsRoot(currentRoot);
+
+    expect(checkProjectLocation()).toEqual({
+      ok: true,
+      location: { path: currentRoot, source: "custom" },
+    });
+    expect(fs.statSync(currentRoot).isDirectory()).toBe(true);
   });
 
   it("leaves the setting unchanged when the native picker is canceled", async () => {
