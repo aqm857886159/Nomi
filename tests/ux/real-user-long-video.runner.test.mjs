@@ -11,7 +11,7 @@ describe("real user long-video runner contract", () => {
     assert.deepEqual(
       REAL_USER_LONG_VIDEO_MANIFEST.steps.map((step) => step.action),
       [
-        "enterNomi", "loadSkill", "selectModel", "importVideo", "deconstructVideo",
+        "enterNomi", "loadSkill", "selectModel", "applySkill", "importVideo", "deconstructVideo",
         "produceStoryboard", "sendToCanvas", "openPreview", "approveResult", "rejectResult",
         "verifyPersistence", "restartReadback", "repeatIdempotently", "failureRollback",
       ],
@@ -39,7 +39,7 @@ describe("real user long-video runner contract", () => {
         },
       },
     });
-    assert.deepEqual(executed, ["enterNomi", "loadSkill", "selectModel", "importVideo", "deconstructVideo"]);
+    assert.deepEqual(executed, ["enterNomi", "loadSkill", "selectModel", "applySkill", "importVideo", "deconstructVideo"]);
     assert.equal(report.terminalStatus, "blocked");
     assert.equal(report.steps.at(-1).detail, "blocked_by:deconstruct-video");
   });
