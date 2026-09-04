@@ -2,7 +2,7 @@
 
 日期：2026-09-04
 分支：`codex/agent-usage-ledger-rebaseline-20260904`
-基线：`origin/main=91af6c9a96ca729b7af1610810e994782e6c3aae`
+基线：`origin/main=0c17317328dcfd29d72fb3c8235353981d92058d`（已合入 #461 MCP test hardening）
 PR：[#460](https://github.com/aqm857886159/Nomi/pull/460)
 
 ## Scope rule
@@ -38,7 +38,7 @@ PR：[#460](https://github.com/aqm857886159/Nomi/pull/460)
 命令（无全量 test/build）：
 
 ```sh
-coverage_dir=$(mktemp -d /tmp/nomi-460-coverage-final3.XXXXXX)
+coverage_dir=$(mktemp -d /tmp/nomi-460-coverage-final4.XXXXXX)
 pnpm exec vitest run \
   electron/capabilityCore/mcpSemanticGenerationFlow.test.ts \
   electron/productionRun/productionGenerationAuthorizationFlow.test.ts \
@@ -60,7 +60,7 @@ pnpm exec vitest run \
   --coverage.reportsDirectory="$coverage_dir"
 ```
 
-原始 JSON：`/tmp/nomi-460-coverage-final3.ro0kWP/coverage-final.json`
+原始 JSON：`/tmp/nomi-460-coverage-final4.QiPlCR/coverage-final.json`
 命令结果：`6 passed`，`61 passed | 74 skipped`，exit `0`。选定文件 raw summary 是 `Statements 48.94% (762/1557)`、`Branches 42.16% (600/1423)`；这两个数字包含大量未改动 legacy code，不能作为 scoped gate，也没有被冒充为 100%。
 
 ## Changed-function receipt
