@@ -5,7 +5,7 @@ import {
   type ApprovalReceiptAuthority,
   type HumanApprovalReceiptV1,
 } from '../capabilityCore/approvalReceipt'
-import type { RunCommand } from './productionRunTypes'
+import type { ProductionRun, RunCommand } from './productionRunTypes'
 
 export type ProjectRevisionResolver = (projectId: string) => number | undefined
 
@@ -58,4 +58,22 @@ export function approvalReceiptForGate(
     if (error instanceof HumanApprovalRequiredError || error instanceof ReceiptScopeError || error instanceof ReceiptExpiredError) throw error
     throw new ReceiptScopeError(error instanceof Error ? error.message : 'Approval receipt is invalid')
   }
+}
+
+/** Verify a supplied receipt before returning an already-decided gate no-op. */
+export function duplicateGateDecisionFor(
+  authority: ApprovalReceiptAuthority | undefined,
+  projectId: string,
+  runId: string,
+  current: ProductionRun,
+  command: RunCommand,
+  projectRevisionResolver?: ProjectRevisionResolver,
+): { current: ProductionRun; gateReceipt?: { token: string; receipt: HumanApprovalReceiptV1 } } | undefined {
+  const gateId = typeof command.payload.gateId === 'string' ? command.payload.gateId.trim() : ''
+  const decidedGate = current.gates.find((item) => item.gateId === gateId)
+  if (!decidedGate || decidedGate.status === 'waiting' || decidedGate.status !== command.payload.status) return undefined
+  const hasReceipt = [command.payload.receiptId, command.payload.receiptToken]
+    .some((value) => typeof value === 'string' && value.trim().length > 0)
+  if (!hasReceipt) return { current }
+  return { current, gateReceipt: approvalReceiptForGate(authority, projectId, runId, command, projectRevisionResolver) }
 }

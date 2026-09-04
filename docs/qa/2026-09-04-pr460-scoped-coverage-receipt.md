@@ -33,12 +33,18 @@ PR：[#460](https://github.com/aqm857886159/Nomi/pull/460)
 - malformed/expired/non-waiting gate：改变各自生产错误 contract 时，三条 exact message assertion 均 exit 1。
 - Host usage：去掉 reducer 的 usage validator 时，malformed usage 收到 `code: invalid_mutation` 而非 `async_result_stale`；exit 1。
 
+## CI contract repair
+
+- CI run `33847795060` 的 Contracts annotation `.github#435` 对应 `pnpm run check:filesize`；同步本地 exact command 在修复前红：`electron/productionRun/productionRunService.ts: 822 行 > 基线 814`，exit `1`。
+- 最小修复把 duplicate gate receipt 判定抽到 `duplicateGateDecisionFor`，service 只保留一次边界调用；修复后 service 为 `803` 行，`pnpm run check:filesize` 绿，exit `0`。
+- 抽取后的同一 production tests 首次捕获了双重 verify 与 receipt-free duplicate 错误，修正数据流后 `productionRunApprovalReceipt.test.ts`、`productionRunService.test.ts`、`productionGenerationAuthorizationFlow.test.ts` 为 `42/42` green。
+
 ## Fresh raw V8 output
 
 命令（无全量 test/build）：
 
 ```sh
-coverage_dir=$(mktemp -d /tmp/nomi-460-coverage-final4.XXXXXX)
+coverage_dir=$(mktemp -d /tmp/nomi-460-coverage-contract-fix2.XXXXXX)
 pnpm exec vitest run \
   electron/capabilityCore/mcpSemanticGenerationFlow.test.ts \
   electron/productionRun/productionGenerationAuthorizationFlow.test.ts \
@@ -60,8 +66,8 @@ pnpm exec vitest run \
   --coverage.reportsDirectory="$coverage_dir"
 ```
 
-原始 JSON：`/tmp/nomi-460-coverage-final4.QiPlCR/coverage-final.json`
-命令结果：`6 passed`，`61 passed | 74 skipped`，exit `0`。选定文件 raw summary 是 `Statements 48.94% (762/1557)`、`Branches 42.16% (600/1423)`；这两个数字包含大量未改动 legacy code，不能作为 scoped gate，也没有被冒充为 100%。
+原始 JSON：`/tmp/nomi-460-coverage-contract-fix2.KUTWVe/coverage-final.json`
+命令结果：`6 passed`，`61 passed | 74 skipped`，exit `0`。选定文件 raw summary 是 `Statements 48.97% (763/1558)`、`Branches 42.16% (600/1423)`；这两个数字包含大量未改动 legacy code，不能作为 scoped gate，也没有被冒充为 100%。
 
 ## Changed-function receipt
 
@@ -71,8 +77,9 @@ pnpm exec vitest run \
 | --- | --- | ---: | ---: |
 | `handleSemanticGenerationGate` | `mcpSemanticGenerationFlow.ts:20-50` | 9/9 | 13/13 |
 | `assertCurrentProjectRevision` + `approvalReceiptForGate` | `productionRunApprovalReceipt.ts:18-60` | 24/24 | 38/38 |
+| Duplicate gate receipt helper | `productionRunApprovalReceipt.ts:63-78` | 10/10 | 3/3 |
 | Run-owned revision gates and durable revision forwarding | `runOwnedGenerationGateAuthority.ts` additions at `74,134,147,173,210,221`; V8 enclosing carriers `74,134-152,173,208-226` | 13/13 | 100% of added gate arms |
-| `productionRunService` duplicate receipt boundary | `productionRunService.ts:544-568` | 13/13 | 17/17 |
+| `productionRunService` duplicate receipt boundary | `productionRunService.ts:543-549` | 4/4 | 2/2 |
 | Host async usage validation and persistence | `projectAgentReducer.ts:588-594,703-706` | 5/5 | 4/4 |
 | Host snapshot usage acceptance | `projectAgentState.ts:124` | 2/2 | 2/2 |
 | `assertProjectAgentUsage` | `projectAgentStateValidationPrimitives.ts:56-62` | 4/4 | 100% (no independent conditional in added function) |
