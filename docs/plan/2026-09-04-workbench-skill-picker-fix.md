@@ -1,5 +1,7 @@
 # Workbench Skill picker 修复
 
+> 状态：✅ 已交付
+
 ## 目标
 
 让合法的 `workbench.storyboard.planner` 从 canonical Skill catalog 经真实
