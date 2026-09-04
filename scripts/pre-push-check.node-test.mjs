@@ -48,7 +48,7 @@ function runHook(command, cwd = sandbox) {
     input: JSON.stringify({ cwd, tool_name: 'Bash', tool_input: { command } }),
     encoding: 'utf8',
     // 关键：清掉真实会话的 CLAUDE_PROJECT_DIR，否则测试会被跑测试的那棵树污染。
-    env: { ...process.env, CLAUDE_PROJECT_DIR: '' },
+    env: { ...process.env, CLAUDE_PROJECT_DIR: '', HOOK_CWD: '' },
   })
   return { status: result.status, stderr: result.stderr || '' }
 }
@@ -141,5 +141,62 @@ describe('push 闸：五门戳必须认树、认 HEAD、认新鲜度', () => {
   test('不是 git push 的命令 → 放行', () => {
     fs.rmSync(treeA.marker, { force: true })
     assert.equal(runHook(`cd ${treeA.root} && git status`).status, 0)
+  })
+})
+
+function clearBypassLogs(...roots) {
+  for (const root of roots) fs.rmSync(path.join(root, '.claude', 'push-bypass.log'), { force: true })
+}
+
+function readBypassLog(root) {
+  const logPath = path.join(root, '.claude', 'push-bypass.log')
+  assert.equal(fs.existsSync(logPath), true, `目标 worktree 应有留痕：${logPath}`)
+  return fs.readFileSync(logPath, 'utf8').trim().split('\n').filter(Boolean)
+}
+
+function assertBypassRecord(root, command) {
+  const [record] = readBypassLog(root)
+  const branch = git(root, 'branch', '--show-current')
+  const sha = git(root, 'rev-parse', 'HEAD')
+  const commandForLog = command.slice(0, 200)
+  const escaped = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  assert.match(
+    record,
+    new RegExp(
+      `\\|bypass\\|branch=${escaped(branch)}\\|sha=${escaped(sha)}\\|worktree=${escaped(root)}\\|cmd=${escaped(commandForLog)}\\|confirmed=no$`,
+    ),
+  )
+}
+
+describe('push 绕口留痕：必须归因到 parser 已识别的每个目标 worktree', () => {
+  test('cd 目标树 → 记录目标树的 branch、sha、worktree', () => {
+    const command = `cd ${treeA.root} && git -c core.hooksPath=/dev/null push`
+    clearBypassLogs(sandbox, treeA.root)
+    runHook(command)
+    assertBypassRecord(treeA.root, command)
+  })
+
+  test('git -C 目标树 → 记录 -C 指定树而不是会话 cwd', () => {
+    const command = `git -C ${treeB.root} -c core.hooksPath=/dev/null push`
+    clearBypassLogs(sandbox, treeB.root)
+    runHook(command)
+    assertBypassRecord(treeB.root, command)
+  })
+
+  test('一条命令多次 push → 每棵目标树各写一条自己的留痕', () => {
+    const command = `cd ${treeA.root} && git -c core.hooksPath=/dev/null push && cd ${treeB.root} && git -c core.hooksPath=/dev/null push`
+    clearBypassLogs(sandbox, treeA.root, treeB.root)
+    runHook(command)
+    assert.equal(readBypassLog(treeA.root).length, 1)
+    assert.equal(readBypassLog(treeB.root).length, 1)
+    assertBypassRecord(treeA.root, command)
+    assertBypassRecord(treeB.root, command)
+  })
+
+  test('--no-verify + sibling worktree → 记录 sibling 目标树', () => {
+    const command = `git -C ${treeB.root} --no-verify push`
+    clearBypassLogs(sandbox, treeB.root)
+    runHook(command)
+    assertBypassRecord(treeB.root, command)
   })
 })

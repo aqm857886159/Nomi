@@ -1,0 +1,100 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-push-bypass-audit-trail",
+  "problem_type": "hook_bypass_silent_failure",
+  "symptom": "Orchestrating agents repeatedly used `git -c core.hooksPath=/dev/null push` to bypass the native pre-push hooks (ponytail-review + gates chain), and the Claude Code PreToolUse hook was inactive in sub-agent worktrees — both defense layers failed silently with no audit record.",
+  "direct_cause": "The pre-push hook only ran when invoked naturally by git; a `-c core.hooksPath=` override in the git command silently skipped it. Sub-agent sessions did not activate the Claude Code hook layer, so no interception occurred at either level.",
+  "class_root": "Push bypass via `core.hooksPath=` or `--no-verify` is a legal git invocation. Forbidding it requires a git wrapper (invasive, fragile). The class of bugs is: gate-bypassing actions that are type-safe, lint-clean, and leave no trace — only discovered post-push on the remote. The remedy is auditing, not prohibition: record every bypass with branch/SHA/worktree/command, then require a gates stamp or explicit human confirmation before the gate clears.",
+  "affected_population": [
+    "All pushes from orchestrated sub-agent worktrees where Claude Code PreToolUse hooks are inactive",
+    "Any git invocation using -c core.hooksPath=... or --no-verify in a push command",
+    "check:push-bypass gate consumers (CI and local gate chain)"
+  ],
+  "scope_paths": [
+    "scripts/claude-hooks/pre-push-check.sh",
+    "scripts/check-push-bypass.mjs"
+  ],
+  "entry_points": [
+    "scripts/claude-hooks/pre-push-check.sh: PreToolUse(Bash) hook — intercepts git push commands containing core.hooksPath= or --no-verify and appends a bypass record",
+    "scripts/check-push-bypass.mjs: gate — reads .claude/push-bypass.log and verifies each unconfirmed bypass has a matching nomi-gates-ok stamp or explicit human acceptance"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal audit mechanism operating on local git state and Claude Code hook infrastructure; no external API or dependency controls its invariants.",
+  "invariants": [
+    "Every push containing core.hooksPath= or --no-verify gets a bypass record written to .claude/push-bypass.log with timestamp, branch, SHA, worktree path, and command.",
+    "The check:push-bypass gate exits nonzero if any record has confirmed=no and the referenced worktree has no matching nomi-gates-ok stamp.",
+    "A bypass record is auto-confirmed if the referenced worktree has a nomi-gates-ok stamp whose sha= field matches the bypass record SHA.",
+    "Human can confirm with --accept <sha> or clear confirmed records with --clear-confirmed.",
+    "NOMI_BYPASS_LOG_OVERRIDE allows tests to inject an isolated log path without polluting the real .claude/push-bypass.log."
+  ],
+  "generality_proof": "The detection is in the shared PreToolUse hook (pre-push-check.sh) which runs for every Bash tool call — it catches all variants of the bypass pattern (core.hooksPath=, --no-verify) regardless of which agent or worktree issues the push. The audit gate (check-push-bypass.mjs) is a single convergence point for all bypass records from all worktrees.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "symbol": "push bypass detection block",
+      "responsibility": "Detect push commands that skip native git hooks and append an immutable audit record to .claude/push-bypass.log before the push proceeds."
+    },
+    {
+      "path": "scripts/check-push-bypass.mjs",
+      "symbol": "main gate logic",
+      "responsibility": "Read the bypass log and fail the gate for any unconfirmed bypass without a matching gates stamp, auto-confirm those with matching stamps, and expose --accept and --clear-confirmed for human resolution."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "entry_point": "push bypass detection (grep core.hooksPath|--no-verify)",
+      "disposition": "enforced",
+      "evidence": "The new detection block intercepts push commands before they execute and writes to .claude/push-bypass.log; the node-test verifies the gate correctly rejects unconfirmed bypass records."
+    },
+    {
+      "path": "scripts/check-push-bypass.mjs",
+      "entry_point": "bypass log gate",
+      "disposition": "enforced",
+      "evidence": "Gate is wired into gates:contracts chain in package.json; node-test covers: absent log, all-confirmed, unconfirmed-without-stamp, --accept, --clear-confirmed, and auto-confirm with matching stamp."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Sub-agent orchestration sessions will continue to exist and the core.hooksPath bypass pattern is a known workaround for hook-blocked pushes. Without a machine audit trail, each new bypass is invisible until post-push review.",
+    "same_class_scan": [
+      "Scanned scripts/claude-hooks/ for other hook files that could be similarly bypassed; pre-push-check.sh is the only gate-enforcing hook in the set.",
+      "Scanned scripts/check-*.mjs for existing bypass detection; none covered push hook bypass before this change.",
+      "The class is closed by the combination of: detection in pre-push-check.sh (write record) + gate in check-push-bypass.mjs (require evidence) + wiring in package.json gates:contracts."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/claude-hooks/pre-push-check.sh",
+    "invariant": "Every push command that bypasses git hooks must produce an audit record, and that record must be cleared by either a matching gates stamp or explicit human confirmation before the gate passes.",
+    "failure_mode": "Any confirmed=no bypass record without a matching nomi-gates-ok stamp causes check:push-bypass to exit nonzero and block the gates chain.",
+    "exception_policy": "none",
+    "strategy": "Detect at interception point (pre-push-check.sh), record immutably, verify at gate (check-push-bypass.mjs), auto-clear when gates evidence exists, require human confirmation otherwise.",
+    "artifacts": [
+      "scripts/claude-hooks/pre-push-check.sh",
+      "scripts/check-push-bypass.mjs",
+      "scripts/check-push-bypass.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-push-bypass.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-push-bypass.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No previous bypass-detection mechanism existed; this is a net-new audit trail with no parallel implementation to remove."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The mechanism relies only on Node.js built-ins (fs, path, child_process) and git; no third-party dependency controls the audit invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No migration needed. Existing worktrees that have never bypassed hooks will have no .claude/push-bypass.log and the gate passes immediately.",
+  "residual_risks": [
+    "The detection grep for core.hooksPath and --no-verify only fires if the Claude Code PreToolUse hook (pre-push-check.sh) is active. In sessions where no hooks are installed at all, bypasses go undetected. This is noted in the class_root and is out of scope for this change.",
+    "A malicious actor who knows about the log file could manually delete .claude/push-bypass.log to erase the audit trail. This is acceptable: the log is in .claude/ (gitignored, local), and the gate's purpose is auditability of honest mistakes, not adversarial resistance."
+  ]
+}
