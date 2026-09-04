@@ -29,7 +29,6 @@ import { promptDisplayTitle, promptSourceLabel } from '../promptLibrary/promptDi
 import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from './assistantModelIdentity'
 import { getAssistantModelPref, setAssistantModelPref } from './assistantModelPref'
 import { useAgentUsageStore } from './agentUsageStore'
-import type { ComposerAttachment } from './composer/composerAttachmentTypes'
 import type { CreationDocumentTools } from '../workbenchTypes'
 import type { ProjectAgentApprovalMode, ProjectAgentItem, ProjectAgentSpendPolicy, ProjectAgentStatus } from '../../../electron/shared/projectAgentContracts'
 import type { DocumentAnchorRef, PreconditionSet, TargetRef } from '../../../electron/shared/capabilityTargeting'
@@ -38,6 +37,7 @@ import { useProductionRunStore } from '../production/productionRunStore'
 import { ResidentApprovalCard, ResidentThinkingState, ResidentToolChips, type ResidentApprovalState, type ResidentToolChipData } from './resident/ResidentUiPrimitives'
 import { ResidentArtifactCard, ResidentAtPicker, ResidentCandidatesCard, ResidentDeviationCard, ResidentFailureCard, ResidentFoldableText, ResidentPlanCard, ResidentSpendCard, ResidentQuestionCard, ResidentWriteFailureRow } from './resident/ResidentExceptionStates'
 import { ResidentReferenceChip } from './resident/ResidentReferenceChip'
+import { attachmentPayloads, itemRef } from './resident/agentItemHelpers'
 import { normalizeResidentToolProjection, readResidentToolProjections, residentToolProjectionKey, residentToolProjectionScope, writeResidentToolProjections, type ResidentToolProjection } from './resident/residentToolProjection'
 import { proposalForTool, readableToolDetailRows, readableToolName, readableToolPreview, readableToolResult, readableToolSummary, readableToolTarget, residentToolProjectionForCall } from './resident/residentToolDisplay'
 import { GenerationProposalEditor } from './resident/GenerationProposalEditor'
@@ -49,6 +49,7 @@ import { composeResidentSystemPrompt, libraryPromptMenuId, libraryPromptReferenc
 import { buildResidentContextSnapshot, mergeResidentContextHandles, type AgentContextSnapshot } from './resident/residentContextSnapshot'
 import { isTranscriptAtBottom, shouldFollowTranscript, transcriptScrollBehavior } from './resident/residentTranscriptScroll'
 import { isAgentActionIntent } from './agentIntent'
+import { agentFailureCategory, isWriteFailure, readableFailure, safeAgentFailureCode } from './agentFailureDiagnostics'
 import { buildStaticAgentSystemPrompt } from '../generationCanvas/agent/generationCanvasAgentClient'
 import { projectAgentSkillEvents } from './skillEventProjection'
 import { runProposalUndo, useCommittedProposal } from '../generationCanvas/agent/proposalUndo'
@@ -249,52 +250,9 @@ function isActiveQueueStatus(status: ProjectAgentStatus): boolean {
   return status === 'queued' || status === 'proposed' || status === 'running'
 }
 
-function readableFailure(t: (key: string, options?: Record<string, unknown>) => string, code: string, message: string): string {
-  const text = `${code} ${message}`.toLowerCase()
-  if (text.includes('model') && (text.includes('config') || text.includes('credential') || text.includes('key'))) return t('agentResident.modelUnavailable')
-  if (text.includes('stale') || text.includes('precondition')) return t('agentResident.contextChanged')
-  if (text.includes('denied') || text.includes('approval')) return t('agentResident.operationDenied')
-  if (text.includes('cancel')) return t('agentResident.operationStopped')
-  return t('agentResident.operationFailed')
-}
-
-function isWriteFailure(code: string, message: string): boolean {
-  return /(^|[_\s-])(write|written)([_\s-]|$)|canvas[._-]write/i.test(`${code} ${message}`)
-}
-
-type AgentFailureCategory = 'auth' | 'quota' | 'network' | 'provider' | 'lifecycle' | 'capability' | 'unknown'
-
-function safeAgentFailureCode(code: string): string {
-  const normalized = code.trim()
-  return /^[a-z0-9][a-z0-9._-]{0,63}$/i.test(normalized) ? normalized : 'unknown'
-}
-
-/** Keep diagnostics useful to the runner without projecting provider messages or credentials into the DOM. */
-function agentFailureCategory(code: string, message: string): AgentFailureCategory {
-  const text = `${code} ${message}`.toLowerCase()
-  if (/401|403|auth|credential|api.?key|unauthori[sz]ed|forbidden/.test(text)) return 'auth'
-  if (/429|quota|rate.?limit|too many requests/.test(text)) return 'quota'
-  if (/network|fetch failed|timeout|econn|dns|connect/.test(text)) return 'network'
-  if (/provider|upstream|http 5\d\d|runtime_error/.test(text)) return 'provider'
-  if (/stale|precondition|binding|subscription|abort|cancel|lifecycle/.test(text)) return 'lifecycle'
-  if (/capability|write|approval|denied/.test(text)) return 'capability'
-  return 'unknown'
-}
-
 function friendlyError(error: unknown, t: (key: string, options?: Record<string, unknown>) => string): string {
   const code = error instanceof Error ? error.message : ''
   return code === 'project_agent_unavailable' || code === 'project_binding_stale' ? t('agentResident.unavailable') : t('agentResident.sendFailed')
-}
-
-function itemRef(item: ProjectAgentItem): string {
-  if (item.kind === 'task') return item.task.kind === 'production-run' ? item.task.runId : item.task.jobId
-  if (item.kind === 'artifact') return item.artifact.artifactId
-  if (item.kind === 'proposal') return item.approval?.approvalId ?? item.humanApproval?.challengeId ?? ''
-  return ''
-}
-
-function attachmentPayloads(attachments: readonly ComposerAttachment[]) {
-  return attachments.filter((item) => item.status === 'ready' && item.url).map((item) => ({ url: item.url!, contentType: item.contentType, fileName: item.fileName, kind: item.kind }))
 }
 
 type ResidentSendContext = Readonly<{

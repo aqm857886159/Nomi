@@ -3,7 +3,10 @@ import { buildCanvasWriteAdmissionForOperation } from '../../../electron/shared/
 import { SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
 import { captureCanvasWriteRawEvidence, executeCanvasWriteTarget } from '../generationCanvas/agent/canvasWriteTarget'
 import { readGenerationCanvasSnapshot } from '../generationCanvas/agent/generationCanvasTools'
-import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
+import {
+  persistActiveWorkbenchProjectNow,
+  waitForActiveWorkbenchProjectSaveTarget,
+} from '../project/workbenchProjectSession'
 
 export type CanonicalCanvasPlanPatchRequest = Readonly<{
   projectId: string
@@ -39,6 +42,15 @@ export async function executeCanonicalCanvasPlanPatch(
     throw new SurfacePortWireError('capability_input_invalid')
   }
 
+  // Ensure the durable owner exists before preparing/committing the proposal
+  // receipt.  Waiting only after executeCanvasWriteTarget would allow an
+  // in-memory mutation and receipt to become orphaned if hydration never
+  // installs the save target.
+  const ownerReadyBeforeWrite = waitForActiveWorkbenchProjectSaveTarget(request.projectId)
+  if (ownerReadyBeforeWrite !== true && !(await ownerReadyBeforeWrite)) {
+    throw new SurfacePortWireError('capability_receipt_unresolved')
+  }
+
   const readSnapshot = readGenerationCanvasSnapshot
   const rawEvidence = captureCanvasWriteRawEvidence(readSnapshot(), {
     operation: input.operation,
@@ -71,6 +83,12 @@ export async function executeCanonicalCanvasPlanPatch(
   // unresolved receipt, not a successful in-memory mutation.
   if (request.readActiveProjectId() !== request.projectId) {
     throw new SurfacePortWireError('surface_port_stale')
+  }
+  // React can rebind the owner while the renderer mutation crosses IPC.  The
+  // second readiness check closes that cutover window before the durable save.
+  const ownerReady = waitForActiveWorkbenchProjectSaveTarget(request.projectId)
+  if (ownerReady !== true && !(await ownerReady)) {
+    throw new SurfacePortWireError('capability_receipt_unresolved')
   }
   let saved
   try {

@@ -12,6 +12,7 @@
   ],
   "scope_paths": [
     "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/resident/agentItemHelpers.ts",
     "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
     "tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs",
     "tests/ux/agent-runtime-walk-support.test.mjs",

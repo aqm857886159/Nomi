@@ -33,7 +33,12 @@ vi.mock('../generationCanvas/events/canvasEventEmitter', () => ({
 }))
 vi.mock('../generationCanvas/agent/shotVerifyStore', () => ({ useShotVerifyStore: { getState: () => ({ activateProject: vi.fn() }) } }))
 
-import { persistActiveWorkbenchProjectNow, subscribeWorkbenchProjectPersistence } from './workbenchProjectSession'
+import {
+  persistActiveWorkbenchProjectNow,
+  subscribeWorkbenchProjectPersistence,
+  waitForActiveWorkbenchProjectSaveTarget,
+  clearActiveWorkbenchProjectSaveTarget,
+} from './workbenchProjectSession'
 
 describe('canonical persistence barrier suppresses stale debounce writes', () => {
   beforeEach(() => {
@@ -66,5 +71,29 @@ describe('canonical persistence barrier suppresses stale debounce writes', () =>
     expect(saveProject).toHaveBeenCalledOnce()
     expect(deps.saves).toEqual([{ id: 'project-a', version: 1, revision: 1 }])
     dispose()
+  })
+
+  it('signals canonical callers when React installs the active persistence owner', async () => {
+    const pending = waitForActiveWorkbenchProjectSaveTarget('project-a')
+    let ownerReady = false
+    const dispose = subscribeWorkbenchProjectPersistence({
+      projectId: 'project-a', projectName: 'Project A', isHydrating: () => false,
+      canPersist: () => { ownerReady = true; return ownerReady },
+      saveProject: vi.fn(async () => ({ id: 'project-a', version: 1, revision: 1 }) as never), onSaved: vi.fn(),
+    })
+    await expect(pending).resolves.toBe(true)
+    dispose()
+  })
+
+  it('fails closed after a bounded owner wait when hydration never installs a save target', async () => {
+    const pending = waitForActiveWorkbenchProjectSaveTarget('project-a')
+    await vi.advanceTimersByTimeAsync(5_000)
+    await expect(pending).resolves.toBe(false)
+  })
+
+  it('cancels an owner wait when the active project is cut over', async () => {
+    const pending = waitForActiveWorkbenchProjectSaveTarget('project-a')
+    clearActiveWorkbenchProjectSaveTarget()
+    await expect(pending).resolves.toBe(false)
   })
 })

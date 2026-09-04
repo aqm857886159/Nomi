@@ -186,6 +186,8 @@ test('vertical spine reopens the persisted project through the visible library a
   expect(runner).toMatch(/getByRole\('button', \{ name: '创作', exact: true \}\)/)
   expect(runner).toMatch(/locator\('\[data-storyboard-card\]'\)/)
   expect(runner).toMatch(/\.workbench-shell__workspace:not\(\[hidden\]\)/)
+  expect(runner).toMatch(/data-workspace-mode.*creation/)
+  expect(runner).toMatch(/storyboardCards\.first\(\)\.waitFor\(\{ state: 'visible'/)
   expect(runner).toMatch(/getByRole\('button', \{ name: \/打开分镜\|再次编辑\|Open storyboard\|Edit again\/i \}\)/)
   expect(runner).toMatch(/openButton\.isVisible\(\)/)
   expect(runner).not.toMatch(/const openStoryboard = win\.getByRole\('button'/)

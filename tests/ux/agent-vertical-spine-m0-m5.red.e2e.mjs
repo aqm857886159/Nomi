@@ -192,12 +192,20 @@ async function reopenProjectThroughVisibleLibrary(win, projectId, projectName, p
   const creationTab = win.getByRole('button', { name: '创作', exact: true }).first()
   await creationTab.waitFor({ state: 'visible', timeout: 15_000 })
   await creationTab.click()
+  // Zustand updates synchronously, but React's hidden WorkspaceSlot is mounted
+  // on the following render. Waiting only for the slot element is insufficient:
+  // every slot exists from the first shell render, so the next locator lookup
+  // can still inspect the previous generation surface and conclude that the
+  // persisted storyboard card is absent. Wait for the shared mode projection
+  // and then for the card's visible action before traversing the card.
+  await win.waitForFunction(() => document.querySelector('.workbench-shell')?.getAttribute('data-workspace-mode') === 'creation', undefined, { timeout: 15_000 })
   // The shell keeps a hidden WorkspaceSlot action with the same accessible
   // name. Scope the action to the visible storyboard summary card and inspect
   // every matching button instead of trusting locator.first().
   const activeWorkspace = win.locator('.workbench-shell__workspace:not([hidden])').first()
   await activeWorkspace.waitFor({ state: 'visible', timeout: 10_000 })
   const storyboardCards = activeWorkspace.locator('[data-storyboard-card]')
+  await storyboardCards.first().waitFor({ state: 'visible', timeout: 15_000 })
   const storyboardCardCount = await storyboardCards.count()
   let openedStoryboard = false
   for (let index = 0; index < storyboardCardCount && !openedStoryboard; index += 1) {
