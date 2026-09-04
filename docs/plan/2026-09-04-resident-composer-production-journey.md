@@ -13,13 +13,13 @@ The journey is split into two explicit production boundaries:
 1. Resident Composer: loopback HTTP is the only mocked external dependency. The real renderer, Agent runner, ProjectAgentHost, verified document-write adapter, approval card, receipt/revision journal, project persistence, and cold restart are exercised.
 2. MCP stdio: the real `electron <repo>` stdio process and JSON-RPC framing are exercised against the isolated project. The test must prove that a production write is governed by the same Resident Host approval/receipt contract. If stdio writes directly through the MCP dispatcher, the journey records a blocker and fails closed; it does not treat direct disk mutation as approval evidence.
 
-The H/B/E/T/N matrix is represented by the same task harness:
+The journey harness records the H/B/E/N observations from its real Electron/MCP run and links T/N fault semantics to the existing production contract test:
 
 - H: normal intent, plan, approval, receipt, persistence, restart.
-- B: empty, overlong, Unicode, cancellation, and duplicate submission behavior.
-- E: malformed/illegal request, user rejection, stale revision, and no mutation after denial.
-- T: Agent/model timeout and MCP/RPC timeout are distinct observations.
-- N: loopback network failure and provider failure are distinct observations.
+- B: the journey exercises empty and Unicode inputs; overlong, cancellation, and duplicate submission cases remain explicit follow-up gaps until the UI contract is defined.
+- E: the journey exercises user rejection and no mutation after denial; malformed/illegal request and stale revision remain covered by the existing MCP production contract tests.
+- T: Agent/model timeout and MCP/RPC timeout are distinct observations in the existing production contract tests; this journey does not claim a UI timeout pass.
+- N: the journey exercises the real MCP stdio production boundary; network/provider failure sanitization remains covered by the existing production contract tests.
 
 ## TDD order
 
