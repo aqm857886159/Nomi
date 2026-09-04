@@ -90,6 +90,11 @@ test('正向：注释里的通配符示例不算用法', () => {
   assert.deepEqual(findDanglingClasses(CFG, sources), [])
 })
 
+test('正向：模板插值类名不应被截断成静态悬空类', () => {
+  const sources = [{ file: 'dynamic.tsx', text: 'className={`text-nomi-ink-${tone}`}' }]
+  assert.deepEqual(findDanglingClasses(CFG, sources), [])
+})
+
 test('正向：不碰 Tailwind 原生调色板', () => {
   const sources = [{ file: 'e.tsx', text: `<p className="text-red-500 bg-slate-900" />` }]
   assert.deepEqual(findDanglingClasses(CFG, sources), [])

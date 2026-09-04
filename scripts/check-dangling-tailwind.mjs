@@ -92,7 +92,7 @@ export function findDanglingClasses(cfg, sources) {
     text.split("\n").forEach((line, idx) => {
       const t = line.trim();
       if (t.startsWith("//") || t.startsWith("*") || t.startsWith("/*")) return; // 注释里的通配符示例不算用法
-      const re = new RegExp(`(?<![\\w-])(${[...UTILS, "rounded", "font"].join("|")})-((?:nomi|workbench)-[\\w-]+)`, "g");
+      const re = new RegExp(`(?<![\\w-])(${[...UTILS, "rounded", "font"].join("|")})-((?:nomi|workbench)-[\\w-]+)(?![\\w$-])`, "g");
       let m;
       while ((m = re.exec(line))) {
         const [, util, key] = m;
