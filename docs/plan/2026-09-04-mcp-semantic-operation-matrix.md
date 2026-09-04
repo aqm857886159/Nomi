@@ -1,5 +1,7 @@
 # MCP semantic operation matrix
 
+> 状态：✅ 已交付
+
 ## Scope
 
 - Base: `origin/main` at `68e88075ddfaa90edb0078f902b2d9103dba1bb3` (#462 merged).
