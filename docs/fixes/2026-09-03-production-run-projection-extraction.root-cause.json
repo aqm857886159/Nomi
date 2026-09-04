@@ -1,0 +1,27 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-production-run-projection-extraction",
+  "change_kind": "structural",
+  "scope_paths": [
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/productionRunProjections.ts",
+    "electron/productionRun/productionRunProjections.test.ts"
+  ],
+  "regression_tests": [
+    "electron/productionRun/productionRunProjections.test.ts"
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/productionRun/productionRunService.ts",
+      "electron/productionRun/productionRunProjections.ts"
+    ],
+    "preserved_exports": [
+      { "path": "electron/productionRun/productionRunProjections.ts", "name": "safeRunProjection" },
+      { "path": "electron/productionRun/productionRunProjections.ts", "name": "runProjection" },
+      { "path": "electron/productionRun/productionRunProjections.ts", "name": "eventProjection" },
+      { "path": "electron/productionRun/productionRunService.ts", "name": "createProductionRunService" }
+    ],
+    "behavior_preservation": "纯结构搬迁，无行为改动。对外投影层——SafeProductionGate、SafeProductionJob、ProductionRunProjection、ProductionEventProjection、ProductionArtifactProjection、MaterializeStoryboardResult 六个类型，与 safeRunProjection、runProjection、eventProjection 三个函数——逐行移入 productionRunProjections.ts，函数体一字未改，注释随代码同行搬走。productionRunService.ts 保留 export type ... from './productionRunProjections'，因此 productionRunArtifactOperations.ts 与 src/desktop/productionRunBridgeTypes.ts 的 import 路径完全不变。ServiceDeps、identifier 与 createProductionRunService 刻意留在原处：identifier 在服务体内被引用 9 次，属于编排层而非投影层。electron/main.ts 与 preload 的接线未触碰。行数 814 到 658，出巨壳白名单。",
+    "verification_limits": "checker 已机器校验：change_kind 与 structural_evidence 必填项、regression_tests 文件真实存在且在本次 diff 中变化、affected_paths 两项均真实存在且有改动且被 scope_paths 覆盖、preserved_exports 四项的路径存在且具名导出确实出现在文件内容中——导出检查是保守语法扫描，不是模块解析。checker 未证明也无法证明的是行为等价本身：behavior_preservation 是一句声明，不是语义证明。本次的实际等价证据在别处——electron tsc EXIT=0 说明跨模块类型完全咬合（含 16 个投影类型调用方），productionRunService.test.ts 与新增的 productionRunProjections.test.ts 共 10 项全过，且新增那条护栏用运行期函数身份比较钉住「投影实现只有一份」，日后若有人在 service 里复制出第二份同名实现它会红。仍然只能靠人工判断的是：作者是否诚实地把一次真实行为变更归类成了 structural。"
+  }
+}
