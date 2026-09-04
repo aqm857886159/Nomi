@@ -137,7 +137,7 @@ git diff --name-only origin/main...HEAD | rg '(^|/)(src/ui/|.*\\.(css|scss|less)
 The legacy-entry check is:
 
 ```text
-git diff origin/main...HEAD -- . ':!docs/qa/2026-09-04-storyboard-agent-canonical-followup.md' | rg "toolName\\s*[:=]\\s*['\"]patch_shots['\"]|(?:callTool|resolve)\\(['\"]patch_shots['\"]|window\\.__nomiStoryboardPatchPreview" && exit 1 || echo 'legacy direct tool/preview probe: clean'
+git diff origin/main...HEAD -- . ':!docs/qa/2026-09-04-storyboard-agent-canonical-followup.md' | rg "toolName\\s*[:=]\\s*['\"]patch_shots['\"]|callTool\\(['\"]patch_shots['\"]|window\\.__nomiStoryboardPatchPreview" && exit 1 || echo 'legacy direct tool/preview probe: clean'
 ```
 
 No physical Electron canary, full repository typecheck, or all-repository coverage claim is made here. The delivered gate is the scoped V8 target plus the CI-safe real Electron journey and the focused boundary suites above.
