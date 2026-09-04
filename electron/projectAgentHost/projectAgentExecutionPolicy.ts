@@ -31,7 +31,7 @@ export function projectAgentExecutionRisk(toolName: string, args?: unknown): Pro
   const hardGatePattern = /(delete|remove|destroy|export|publish|submit|start|cancel|reconcile|provider|external|production|payment|purchase|credential|account)/;
   if (hardGatePattern.test(normalized) || hardGatePattern.test(operation)) return "hard-gate";
 
-  const safePattern = /(^|[._:-])(append_to_end|insert_at_cursor|replace_selection|document\.write|document_write|canvas\.write|create_canvas_nodes|set_node_prompt|timeline\.write|apply_edit_plan|undo_timeline_edit)([._:-]|$)/;
+  const safePattern = /(^|[._:-])(append_to_end|insert_at_cursor|replace_selection|document\.write|document_write|canvas\.write|create_canvas_nodes|set_node_prompt|patch_shots|timeline\.write|apply_edit_plan|undo_timeline_edit)([._:-]|$)/;
   if (safePattern.test(normalized) || safePattern.test(operation)) return "safe-reversible";
   return "hard-gate";
 }

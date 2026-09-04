@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { deriveProjectSessionScopes } from "./projectSessionAuthority";
-import { MCP_CAPABILITY_RESOLVER } from "./mcpCapabilityProjection";
+import { CANVAS_PLAN_MCP_ADAPTER, MCP_CAPABILITY_RESOLVER } from "./mcpCapabilityProjection";
 import { normalizeSnapshot, connectNodes, deleteNodes, setNodePrompt } from "./canvasGraph";
 import { projectCanvasRead } from "../shared/agentCapabilities/canvasRead";
 import { canvasWriteResultSchema } from "../shared/agentCapabilities/canvasWrite";
@@ -63,5 +63,23 @@ describe("M2 canvas/document semantic MCP surface", () => {
     const projected = projectCanvasRead({ nodes: [{ id: "n", kind: "text", prompt: "x".repeat(300_000) }], edges: [] });
     expect(projected.truncated).toBe(true);
     expect(projected.nodes[0]?.prompt.length).toBeLessThanOrEqual(8_192);
+  });
+
+  it("routes the real storyboard task through nomi_canvas_plan and its semantic operation", () => {
+    const parsed = CANVAS_PLAN_MCP_ADAPTER.parseCall({
+      leaseHandle: "lease-a",
+      operation: "patch_shots",
+      select: { kind: "indexes", indexes: [2, 4] },
+      patch: { promptAppend: "雨天" },
+    });
+    expect(parsed?.semanticInput).toEqual({
+      operation: "patch_shots",
+      select: { kind: "indexes", indexes: [2, 4] },
+      patch: { promptAppend: "雨天" },
+    });
+    expect(MCP_CAPABILITY_RESOLVER.resolve("patch_shots")).toBeUndefined();
+    expect(() => CANVAS_PLAN_MCP_ADAPTER.parseCall({
+      leaseHandle: "lease-a", operation: "unknown_operation",
+    })).toThrow();
   });
 });

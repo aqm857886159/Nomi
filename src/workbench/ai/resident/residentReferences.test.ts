@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { buildResidentReference, contextHandleForResidentReference, residentReferenceFromContextHandle, residentReferencePromptValue } from './residentReferences'
+import {
+  applyStoryboardSelectionToToolArgs,
+  buildResidentReference,
+  buildStoryboardReference,
+  contextHandleForResidentReference,
+  residentReferenceFromContextHandle,
+  residentReferencePromptValue,
+  storyboardShotIndexesFromReferences,
+} from './residentReferences'
 
 const context = { documentId: 'doc-7', nodeIds: ['node-a', 'node-b'], clipIds: ['clip-3'] } as const
 
@@ -72,5 +80,31 @@ describe('resident reference capture', () => {
         intentRole: 'subject',
       },
     ])).toBeUndefined()
+  })
+
+  it('injects the real selected storyboard rows into the canonical plan approval args', () => {
+    const references = [
+      buildStoryboardReference('shot', 4, '镜头 04', 'selected shot'),
+      buildStoryboardReference('shot', 2, '镜头 02', 'selected shot'),
+    ]
+    const args = {
+      operation: 'patch_shots',
+      select: { kind: 'all' },
+      patch: { promptAppend: '雨天' },
+      untouched: 'must stay out of the selection bridge',
+    }
+    const effective = applyStoryboardSelectionToToolArgs('nomi_canvas_plan', args, references)
+    expect(effective).toEqual({
+      ...args,
+      select: { kind: 'indexes', indexes: [2, 4] },
+    })
+    expect(args.select).toEqual({ kind: 'all' })
+    expect(storyboardShotIndexesFromReferences(references)).toEqual([2, 4])
+    expect(applyStoryboardSelectionToToolArgs('patch_shots', args, references)).toBe(args)
+  })
+
+  it('does not invent a target when no storyboard row is selected', () => {
+    const args = { operation: 'patch_shots', select: { kind: 'all' }, patch: { promptAppend: '雨天' } }
+    expect(applyStoryboardSelectionToToolArgs('nomi_canvas_plan', args, [])).toBe(args)
   })
 })
