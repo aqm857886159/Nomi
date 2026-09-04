@@ -915,6 +915,10 @@ async function runAction(page, scenario, fixture) {
         })
       if (!candidate) return false
       candidate.setAttribute('src', url)
+      // Setting src directly does not guarantee a network error event in the
+      // Electron test protocol. Dispatch the same renderer event explicitly
+      // so the real React onError path is exercised deterministically.
+      candidate.dispatchEvent(new Event('error'))
       return true
     }, missingUrl)
     if (!injected) throw new Error('没有可见图片节点可注入媒体错误')
