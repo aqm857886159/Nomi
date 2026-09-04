@@ -148,12 +148,12 @@ MCP 测试按“工具面 → 握手/授权 → 执行 → 副作用 → 收据/
 
 ## Task 0 — Freeze the Current Main Baseline
 
-- [ ] 在独立 worktree 从最新 `origin/main` 建立本轮工作分支，并保存 `git rev-parse HEAD`、`git status --short --branch`、`git worktree list --porcelain`、`git remote -v` 和远端 refs。
-- [ ] 运行 `pnpm run delivery:preflight`。若 preflight 失败，先分类为环境、权限、网络、依赖或仓库问题，记录结果，不通过盲目重试伪造基线。
-- [ ] 建立 `docs/qa/2026-09-04-main-convergence-inventory.md`，先写入基线快照和运行环境；后续所有盘点追加到该文件或同名结构化数据中。
-- [ ] **红证据：** 在清单尚不存在时，尝试读取本轮清单应得到明确的“尚未建立”结果；随后以当前 SHA 建立清单。这里的红证据只证明收据链尚未建立，不把缺文件当作产品失败。
-- [ ] **绿证据：** 清单包含当前 SHA、分支、worktree、远端访问结果和 preflight 结果，并通过 `git diff --check`。
-- [ ] 退出条件：现场已经冻结，且所有后续操作都能回到本轮基线。任何脏 worktree 的路径、所有者和保留原因必须登记。
+- [x] 在独立 worktree 从最新 `origin/main` 建立本轮工作分支，并保存 `git rev-parse HEAD`、`git status --short --branch`、`git worktree list --porcelain`、`git remote -v` 和远端 refs。
+- [x] 运行 `pnpm run delivery:preflight`。若 preflight 失败，先分类为环境、权限、网络、依赖或仓库问题，记录结果，不通过盲目重试伪造基线。
+- [x] 建立 `docs/qa/2026-09-04-main-convergence-inventory.md`，先写入基线快照和运行环境；后续所有盘点追加到该文件或同名结构化数据中。
+- [x] **红证据：** 在清单尚不存在时，尝试读取本轮清单应得到明确的“尚未建立”结果；随后以当前 SHA 建立清单。这里的红证据只证明收据链尚未建立，不把缺文件当作产品失败。
+- [x] **绿证据：** 清单包含当前 SHA、分支、worktree、远端访问结果和 preflight 结果，并通过 `git diff --check`。
+- [x] 退出条件：现场已经冻结，且所有后续操作都能回到本轮基线。任何脏 worktree 的路径、所有者和保留原因必须登记。
 
 ## Task 1 — Inventory Every PR, Branch, Worktree and Plan
 
