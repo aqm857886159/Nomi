@@ -13,7 +13,7 @@ afterEach(() => {
   for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true })
 })
 
-function makeApprovalReceipt() {
+function makeApprovalReceipt(clock: () => string = () => '2026-08-23T00:00:00.000Z') {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-service-receipt-'))
   tempDirs.push(dir)
   const authority = createApprovalReceiptAuthority({
@@ -21,7 +21,7 @@ function makeApprovalReceipt() {
     macKey: 'service-receipt-key',
     storeMacKey: 'service-receipt-store-key',
     keyId: 'service-receipt-v1',
-    now: () => '2026-08-23T00:00:00.000Z',
+    now: clock,
     randomId: (() => {
       let index = 0
       return () => 'service-receipt-id-' + ++index
@@ -241,5 +241,66 @@ describe('production run service projection boundary', () => {
     })
     expect(decided.run.gates[0].status).toBe('approved')
     expect(consume).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects a stale receipt before execute and also checks receipts on duplicate decisions', async () => {
+    const approval = makeApprovalReceipt()
+    const execute = vi.fn(() => ({ run, events: [] }))
+    const repository = {
+      read: vi.fn(() => ({
+        ...run,
+        gates: run.gates.map((gate) => ({ ...gate, status: 'approved' as const })),
+      })),
+      readEvents: vi.fn(() => []),
+      execute,
+    }
+    let projectRevision = 2
+    const consume = vi.spyOn(approval.authority, 'consumeReceipt')
+    const service = createProductionRunService({
+      repository: repository as never,
+      projectRootResolver: () => null,
+      approvalReceiptAuthority: approval.authority,
+      projectRevisionResolver: () => projectRevision,
+    })
+
+    projectRevision = 3
+    await expect(service.command('project-1', 'run-1', {
+      commandId: 'duplicate-with-stale-receipt',
+      expectedRevision: 2,
+      type: 'gate.decide',
+      payload: { gateId: 'gate-1', status: 'approved', receiptId: approval.receiptId, projectRevision: 2 },
+      issuedAt: new Date().toISOString(),
+    })).rejects.toMatchObject({ code: 'receipt_invalid' })
+    expect(execute).not.toHaveBeenCalled()
+    expect(consume).not.toHaveBeenCalled()
+  })
+
+  it('rejects an expired receipt before execute and leaves it available for audit', async () => {
+    let clock = '2026-08-23T00:00:00.000Z'
+    const approval = makeApprovalReceipt(() => clock)
+    const execute = vi.fn(() => ({ run, events: [] }))
+    const repository = {
+      read: vi.fn(() => run),
+      readEvents: vi.fn(() => []),
+      execute,
+    }
+    const consume = vi.spyOn(approval.authority, 'consumeReceipt')
+    const service = createProductionRunService({
+      repository: repository as never,
+      projectRootResolver: () => null,
+      approvalReceiptAuthority: approval.authority,
+      projectRevisionResolver: () => 2,
+    })
+
+    clock = '2026-08-23T00:06:00.000Z'
+    await expect(service.command('project-1', 'run-1', {
+      commandId: 'expired-receipt',
+      expectedRevision: 2,
+      type: 'gate.decide',
+      payload: { gateId: 'gate-1', status: 'approved', receiptId: approval.receiptId },
+      issuedAt: clock,
+    })).rejects.toMatchObject({ code: 'receipt_expired' })
+    expect(execute).not.toHaveBeenCalled()
+    expect(consume).not.toHaveBeenCalled()
   })
 })

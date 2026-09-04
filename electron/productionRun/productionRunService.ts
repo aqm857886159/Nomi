@@ -540,6 +540,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       })
       return result
     }
+    let duplicateGateDecision: ProductionRun | undefined
     if (runCommand.type === 'gate.decide') {
       // B4 幂等：两个审批同时来（异 commandId、同决议）——门已按同方向决过 → 幂等 no-op，
       // 返回当前态、不再执行（不重复授权预算 / 不重踢 driver / 不炸「already decided」）。
@@ -548,7 +549,13 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       const gateId = typeof runCommand.payload.gateId === 'string' ? runCommand.payload.gateId.trim() : ''
       const decidedGate = current.gates.find((item) => item.gateId === gateId)
       if (decidedGate && decidedGate.status !== 'waiting' && decidedGate.status === runCommand.payload.status) {
-        return { run: current, events: [] }
+        const hasReceipt = (typeof runCommand.payload.receiptId === 'string' && runCommand.payload.receiptId.trim().length > 0)
+          || (typeof runCommand.payload.receiptToken === 'string' && runCommand.payload.receiptToken.trim().length > 0)
+        if (!hasReceipt) return { run: current, events: [] }
+        // A supplied receipt must still cross approvalReceiptForGate below,
+        // even when the durable gate is already in the requested state.
+        // Otherwise a stale receipt could silently bypass the scope boundary.
+        duplicateGateDecision = current
       }
     }
     const gateReceipt = approvalReceiptForGate(
@@ -558,6 +565,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       runCommand,
       deps.projectRevisionResolver,
     )
+    if (duplicateGateDecision) return { run: duplicateGateDecision, events: [] }
     if (runCommand.type === 'gate.decide' && runCommand.payload.status === 'approved') {
       const current = requireRun(safeProjectId, safeRunId)
       const gateId = typeof runCommand.payload.gateId === 'string' ? runCommand.payload.gateId.trim() : ''

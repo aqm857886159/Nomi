@@ -192,6 +192,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   }
   const generationPolicy = authorities.generationPolicy ?? createRuntimeMcpGenerationPolicy()
   const defaultAuthorities = createDefaultAuthorities(generationPolicy)
+  const projectRevisionResolver = authorities.projectRevisionResolver ?? defaultAuthorities.projectRevisionResolver!
   const approvalReceiptAuthority = authorities.approvalReceiptAuthority ?? defaultAuthorities.approvalReceiptAuthority
   const projectSession = createProductionMcpStdioProjectSessionBinding(generationPolicy)
   const canvasReadExecutionRuntime = createHeadlessCanvasReadExecutionRuntime()
@@ -405,11 +406,13 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         operations: operationStore,
         planning: generationPlanning,
         receipts: approvalReceiptAuthority,
+        projectRevisionResolver,
       })
     : undefined
   const generationAuthorities = {
     ...authorities,
     approvalReceiptAuthority,
+    projectRevisionResolver,
     generationPlanning,
     generationPolicy,
     ...(authorities.requestGenerationGate ?? runOwnedGenerationAuthority?.requestGenerationGate

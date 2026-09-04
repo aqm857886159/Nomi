@@ -7,12 +7,29 @@ import {
 } from '../capabilityCore/approvalReceipt'
 import type { RunCommand } from './productionRunTypes'
 
+export type ProjectRevisionResolver = (projectId: string) => number | undefined
+
+/** A receipt is only usable while the project document it describes is current. */
+export function assertCurrentProjectRevision(
+  projectId: string,
+  expectedProjectRevision: unknown,
+  projectRevisionResolver: ProjectRevisionResolver | undefined,
+): number {
+  const currentProjectRevision = projectRevisionResolver?.(projectId)
+  if (typeof currentProjectRevision !== 'number' || !Number.isSafeInteger(currentProjectRevision)
+    || !Number.isSafeInteger(expectedProjectRevision)
+    || currentProjectRevision !== expectedProjectRevision) {
+    throw new ReceiptScopeError('Approval receipt project revision does not match the current project')
+  }
+  return currentProjectRevision
+}
+
 export function approvalReceiptForGate(
   authority: ApprovalReceiptAuthority | undefined,
   projectId: string,
   runId: string,
   command: RunCommand,
-  projectRevisionResolver?: (projectId: string) => number | undefined,
+  projectRevisionResolver?: ProjectRevisionResolver,
 ): { token: string; receipt: HumanApprovalReceiptV1 } | undefined {
   if (!authority || command.type !== 'gate.decide') return undefined
   const receiptId = typeof command.payload.receiptId === 'string' ? command.payload.receiptId.trim() : ''
@@ -21,11 +38,7 @@ export function approvalReceiptForGate(
   try {
     const token = suppliedToken || authority.resolveReceiptToken(receiptId)
     const receipt = authority.verifyReceipt(token)
-    const projectRevision = projectRevisionResolver?.(projectId)
-    if (!Number.isInteger(projectRevision) || (command.payload.projectRevision !== undefined
-      && Number(command.payload.projectRevision) !== projectRevision)) {
-      throw new ReceiptScopeError('Approval receipt project revision does not match the current project')
-    }
+    const projectRevision = assertCurrentProjectRevision(projectId, command.payload.projectRevision ?? receipt.projectRevision, projectRevisionResolver)
     const expected: Array<[keyof HumanApprovalReceiptV1, unknown]> = [
       ['projectId', projectId],
       ['runId', runId],

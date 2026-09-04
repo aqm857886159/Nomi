@@ -9,7 +9,7 @@ import { compileExecutionContract, type PlanCandidate } from "../capabilityCore/
 import type { GenerationProvider } from "../capabilityCore/generationRuntimeAdapter";
 import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
 import type { ProjectLeaseV2 } from "../capabilityCore/projectLease";
-import { decideRunOwnedGenerationGate } from "../capabilityCore/runOwnedGenerationGateAuthority";
+import { createRunOwnedGenerationGateAuthority, decideRunOwnedGenerationGate } from "../capabilityCore/runOwnedGenerationGateAuthority";
 import { prepareProductionGenerationAuthorization, prepareProductionGenerationReauthorization } from "./prepareProductionGenerationAuthorization";
 import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
 import { productionRunPaths } from "./productionRunPaths";
@@ -160,6 +160,7 @@ describe("Run-owned paid generation authorization", () => {
       operationId: "op-1",
       authorization,
       commandPrefix: "test-authority",
+      projectRevisionResolver: () => 12,
       display: { model: "fixture-model" },
       now: () => NOW,
       confirm: async ({ challengeToken }) => {
@@ -182,6 +183,84 @@ describe("Run-owned paid generation authorization", () => {
     expect(repository.readBudgetLedger("project-1", "op-1").authorized).toBe(6);
   });
 
+  it("rejects a receipt when the workspace revision drifts after confirmation and before the Run command", async () => {
+    const { root, repository, authorization } = setup(false);
+    const receipts = createApprovalReceiptAuthority({
+      filePath: path.join(root, "approval-receipts.json"),
+      macKey: "approval-receipt-key",
+      storeMacKey: "approval-receipt-store-key",
+      keyId: "approval-receipt-v1",
+      now: () => NOW,
+    });
+    let projectRevision = 12;
+    const owner = {
+      readFull: (projectId: string, runId: string) => repository.read(projectId, runId)!,
+      command: async (projectId: string, runId: string, command: Parameters<typeof repository.execute>[2]) => repository.execute(projectId, runId, command),
+    };
+
+    await expect(decideRunOwnedGenerationGate({
+      owner: owner as never,
+      receipts,
+      lease,
+      operationId: "op-1",
+      authorization,
+      commandPrefix: "test-revision-drift",
+      display: { model: "fixture-model" },
+      now: () => NOW,
+      // Drift is introduced after the challenge is presented but before the
+      // receipt is verified/used. The old implementation only compares the
+      // receipt to the sealed envelope and therefore approves this stale proof.
+      projectRevisionResolver: () => projectRevision,
+      confirm: async ({ challengeToken }) => {
+        projectRevision = 13;
+        const attestation = receipts.createMainProcessGestureAttestation(challengeToken, {
+          webContentsId: 1,
+          frameId: 2,
+          origin: "app://nomi",
+          decision: "accept",
+        });
+        const receipt = receipts.mintReceipt(challengeToken, attestation);
+        return { confirmed: true, receiptToken: receipt.token };
+      },
+    })).rejects.toMatchObject({ code: "receipt_invalid", message: expect.stringMatching(/revision/i) });
+
+    expect(repository.read("project-1", "op-1")?.gates).toEqual([expect.objectContaining({ status: "waiting" })]);
+    expect(repository.readApprovals("project-1", "op-1")).toEqual([]);
+  });
+
+  it("does not issue a challenge when the project revision drifted before the gate request", async () => {
+    const { root, repository, authorization } = setup(false);
+    const receipts = createApprovalReceiptAuthority({
+      filePath: path.join(root, "approval-receipts.json"),
+      macKey: "approval-receipt-key",
+      storeMacKey: "approval-receipt-store-key",
+      keyId: "approval-receipt-v1",
+      now: () => NOW,
+    });
+    const owner = {
+      readFull: (projectId: string, runId: string) => repository.read(projectId, runId)!,
+      command: async (projectId: string, runId: string, command: Parameters<typeof repository.execute>[2]) => repository.execute(projectId, runId, command),
+    };
+    const planning = vi.fn(async () => ({ operationId: "op-1", model: "fixture-model" }));
+    const generationAuthority = createRunOwnedGenerationGateAuthority({
+      owner: owner as never,
+      operations: { read: vi.fn(async () => undefined) } as never,
+      planning: planning as never,
+      receipts,
+      projectRevisionResolver: () => 13,
+      now: () => NOW,
+    });
+
+    await expect(generationAuthority.requestGenerationGate({
+      params: { operationId: "op-1" },
+      lease,
+    })).rejects.toMatchObject({ code: "receipt_invalid", message: expect.stringMatching(/revision/i) });
+    expect(planning).toHaveBeenCalledTimes(1);
+    expect(repository.read("project-1", "op-1")?.gates).toEqual([expect.objectContaining({ status: "waiting" })]);
+    expect(repository.readApprovals("project-1", "op-1")).toEqual([]);
+    expect(authorization.envelope.projectRevision).toBe(12);
+  });
+
   it("rejects the shared gate without creating Approval or budget authority", async () => {
     const { root, repository, authorization } = setup(false);
     const receipts = createApprovalReceiptAuthority({
@@ -202,6 +281,7 @@ describe("Run-owned paid generation authorization", () => {
       operationId: "op-1",
       authorization,
       commandPrefix: "test-authority",
+      projectRevisionResolver: () => 12,
       display: { model: "fixture-model" },
       now: () => NOW,
       confirm: async () => ({ confirmed: false }),
