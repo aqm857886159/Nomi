@@ -6,7 +6,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { clickOrFail, expect, proveProbe } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
 import { DOCUMENT, createRuntimeWalk, readProject, recorded } from './agent-runtime-walk-support.mjs'
@@ -88,7 +88,7 @@ try {
   await sendResidentIntent(win, RESIDENT_INTENT)
   await recorded(proposalRequest.received, 'the real Agent planning request')
   const approval = win.locator(`${CREATION_PANEL} [data-agent-approval="true"][data-agent-approval-state="pending"]`)
-  await proveProbe(approval, 'Resident Composer shows a real pending approval')
+  const approvalProof = await proveProbe(approval, 'Resident Composer shows a real pending approval')
   walk.report.matrix.H.evidence.push('visible intent -> real Agent planning request -> pending approval')
   await expect(document, 'Proposal must not mutate the document before approval').toHaveText(ORIGINAL)
   await clickOrFail(approval.getByRole('button', { name: '批准', exact: true }), '用户确认 Resident 文稿提案')
@@ -98,8 +98,10 @@ try {
     message: 'Approved Resident write must persist to the project',
     timeout: 30_000,
   }).toContain(RESIDENT_APPEND)
-  await expect(approval.getByRole('button', { name: '批准', exact: true }),
-    'An applied approval must no longer be actionable').toHaveCount(0)
+  await expectAbsent(approval.getByRole('button', { name: '批准', exact: true }), {
+    provenBy: approvalProof,
+    message: 'An applied approval must no longer be actionable',
+  })
 
   const receiptPath = path.join(projectRoot, '.nomi', 'project-agent-proposal-receipt.json')
   const beforeMcp = fs.existsSync(receiptPath) ? JSON.parse(fs.readFileSync(receiptPath, 'utf8')) : null
