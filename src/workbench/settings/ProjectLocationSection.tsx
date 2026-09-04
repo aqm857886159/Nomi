@@ -17,6 +17,11 @@ const ERROR_KEY: Record<DesktopProjectLocationError, string> = {
   'managed-by-environment': 'settings.file.projectLocationManaged',
 }
 
+type CheckFeedback = {
+  tone: 'success' | 'error'
+  messageKey: string
+}
+
 export function ProjectLocationSection(): JSX.Element {
   const { t } = useTranslation()
   const [location, setLocation] = React.useState<DesktopProjectLocation | null>(null)
@@ -24,6 +29,7 @@ export function ProjectLocationSection(): JSX.Element {
   const [busy, setBusy] = React.useState(false)
   const [checking, setChecking] = React.useState(false)
   const [showSyncSteps, setShowSyncSteps] = React.useState(false)
+  const [checkFeedback, setCheckFeedback] = React.useState<CheckFeedback | null>(null)
 
   React.useEffect(() => {
     let active = true
@@ -68,15 +74,19 @@ export function ProjectLocationSection(): JSX.Element {
   const checkDirectory = async (): Promise<void> => {
     if (!api) return
     setChecking(true)
+    setCheckFeedback(null)
     try {
       const result = await api.check()
       if (result.ok) {
         setLocation(result.location)
+        setCheckFeedback({ tone: 'success', messageKey: 'settings.file.projectLocationCheckSuccess' })
         toast(t('settings.file.projectLocationCheckSuccess'), 'success')
       } else {
+        setCheckFeedback({ tone: 'error', messageKey: ERROR_KEY[result.error] })
         toast(t(ERROR_KEY[result.error]), 'error')
       }
     } catch {
+      setCheckFeedback({ tone: 'error', messageKey: 'settings.file.projectLocationErrorUnknown' })
       toast(t('settings.file.projectLocationErrorUnknown'), 'error')
     } finally {
       setChecking(false)
@@ -177,11 +187,23 @@ export function ProjectLocationSection(): JSX.Element {
             className="shrink-0 border-0 bg-transparent p-0 text-caption text-workbench-success cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             disabled={unavailable || checking}
             onClick={() => { void checkDirectory() }}
-          >
-            {checking ? t('settings.file.projectLocationChecking') : t('settings.file.projectLocationCheck')}
-          </button>
-        </div>
-      </section>
-    </div>
+           >
+             {checking ? t('settings.file.projectLocationChecking') : t('settings.file.projectLocationCheck')}
+           </button>
+         </div>
+         <div
+           className="mt-2 text-caption text-nomi-ink-60"
+           data-project-location-check-feedback
+           data-feedback-state={checking ? 'checking' : checkFeedback?.tone || 'idle'}
+           data-feedback-tone={checkFeedback?.tone || 'idle'}
+           role="status"
+           aria-live="polite"
+           aria-atomic="true"
+           aria-busy={checking}
+         >
+           {checking ? t('settings.file.projectLocationChecking') : checkFeedback ? t(checkFeedback.messageKey) : null}
+         </div>
+       </section>
+     </div>
   )
 }

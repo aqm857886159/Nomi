@@ -37,7 +37,7 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 //             names through the model-display boundary。
 const MAIN_NON_MODEL_SECTION_SHA256 = {
   // 2026-09-02：文件与保存页新增跨设备目录状态与检查入口，保持项目位置仍由该区唯一拥有。
-  'ProjectLocationSection.tsx': 'e33f5f6169231f2f4f1b90d21bbd9c1e43ffb5ede9306df09244c8d4c5408e45',
+  'ProjectLocationSection.tsx': 'da4e45a880ef5dc6adb80e838a1b2179a93b3da06e74b9b684534856269d13b7',
   // 2026-09-02: AiModelsSection 按渲染边界收口供应商/模型展示名（translateModelDisplayText）。
   'AiModelsSection.tsx': 'f05b4e11bdeb83ef04b6b40d84e4fdfe275de41e06511163c8ee1be87b3240c8',
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
@@ -83,6 +83,10 @@ describe('settings dialog structure', () => {
     expect(projectLocationSource).toContain("settings.file.projectLocationSyncTitle")
     expect(projectLocationSource).toContain("settings.file.projectLocationSyncSteps")
     expect(projectLocationSource).toContain('aria-expanded={showSyncSteps}')
+    expect(projectLocationSource).toContain('data-project-location-check-feedback')
+    expect(projectLocationSource).toContain('data-feedback-tone')
+    expect(projectLocationSource).toContain('role="status"')
+    expect(projectLocationSource).toContain('aria-live="polite"')
     expect(projectLocationSource).toContain('https://www.verysync.com/')
     expect(projectLocationSource).toContain('https://www.jianguoyun.com/s/downloads')
     expect(settingsSource).not.toContain('settings.file.autoSave')

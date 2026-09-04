@@ -83,6 +83,18 @@ describe("project location IPC", () => {
     expect(fs.statSync(currentRoot).isDirectory()).toBe(true);
   });
 
+  it("accepts an empty directory as a usable project location", () => {
+    const emptyRoot = path.join(settingsRoot, "empty");
+    fs.mkdirSync(emptyRoot);
+    writeProjectsRoot(emptyRoot);
+
+    expect(checkProjectLocation()).toEqual({
+      ok: true,
+      location: { path: emptyRoot, source: "custom" },
+    });
+    expect(fs.readdirSync(emptyRoot)).toEqual([]);
+  });
+
   it("leaves the setting unchanged when the native picker is canceled", async () => {
     const existingRoot = path.join(settingsRoot, "existing");
     writeProjectsRoot(existingRoot);
@@ -222,6 +234,28 @@ describe("project location IPC", () => {
     expect(result).toEqual({ ok: true, location: { path: customRoot, source: "custom" } });
     expect(fs.statSync(customRoot).isDirectory()).toBe(true);
     expect(openPath).toHaveBeenCalledWith(customRoot);
+  });
+
+  it("returns an explicit error when the file manager rejects the reveal", async () => {
+    const customRoot = path.join(settingsRoot, "open-failed-root");
+    fs.mkdirSync(customRoot);
+    writeProjectsRoot(customRoot);
+
+    await expect(revealProjectLocation({ openPath: vi.fn(async () => "permission denied") })).resolves.toEqual({
+      ok: false,
+      error: "open-failed",
+    });
+  });
+
+  it("returns an explicit error when the file manager times out", async () => {
+    const customRoot = path.join(settingsRoot, "open-timeout-root");
+    fs.mkdirSync(customRoot);
+    writeProjectsRoot(customRoot);
+
+    await expect(revealProjectLocation({ openPath: vi.fn(async () => { throw new Error("ETIMEDOUT") }) })).resolves.toEqual({
+      ok: false,
+      error: "open-failed",
+    });
   });
 
   it("reveals an existing read-only location without running the write probe", async () => {
