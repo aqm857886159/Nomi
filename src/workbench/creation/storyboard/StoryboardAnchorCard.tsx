@@ -255,7 +255,7 @@ export default function StoryboardAnchorCard({ anchor, runtime, onUpdate, onChan
             })}
             <CarrierToggle value={anchor.carrier} onChange={(carrier) => onUpdate({ carrier })} />
           </div>
-          {anchor.carrier === 'visual' && modelOptions.length > 0 ? (
+          {anchor.carrier === 'visual' ? (modelOptions.length > 0 ? (
             <NomiSelect
               ariaLabel={t('storyboardEditor.anchor.modelAria')}
               leadingLabel={t('storyboardEditor.anchor.modelLabel')}
@@ -264,7 +264,11 @@ export default function StoryboardAnchorCard({ anchor, runtime, onUpdate, onChan
               options={[{ value: '', label: t('storyboardEditor.defaultModel') }, ...modelOptions.map((option) => ({ value: option.value, label: translateModelDisplayText(option.label) }))]}
               onChange={(value) => onUpdate({ modelKey: value || undefined, modeId: undefined, params: undefined })}
             />
-          ) : null}
+          ) : (
+            <span className="text-micro text-workbench-warning" data-anchor-model-empty="true">
+              {t('storyboardEditor.anchor.noImageModel')}
+            </span>
+          )) : null}
           <AutoGrowTextarea
             value={anchor.description}
             onChange={(event) => onUpdate({ description: event.target.value })}
