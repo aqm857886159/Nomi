@@ -1,0 +1,65 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-04-tikhub-video-breakdown-journey",
+  "problem_type": "真实视频拆解的 image_to_prompt 多模态路径被通用参考可达性护栏误判",
+  "symptom": "用户从 TikHub 导入视频并在真实 Electron 入口点击视频拆解时，运行时固定的 image_to_prompt 路径没有 profile/fallback create body，却被通用 imageEditGuardError 当作普通 body 路径检查；请求可能在发送模型请求前失败，用户看不到真实拆解结果，且会落入 zero model request/visionFailed 的错误形态。",
+  "direct_cause": "electron/catalog/taskParams.ts::imageEditGuardError 对所有带参考的 kind 默认执行 bodyReferencedParamKeys/unreachableReferenceLabels。image_to_prompt 实际由 executeTextTask 直接把 referenceImages 交给 streamTextTask，生产路径没有可供该护栏审计的 create body；因此不能把这个 kind 的 undefined body 解释成兜底 wire 缺少参考。",
+  "class_root": "共享的参考素材护栏把『有 body 但 body 读不到参考』和『运行时固定的多模态路径没有 body、参考由调用方直接组装』放进同一判据。只要新增一个 runtime-fixed multimodal kind 而未在护栏边界明确其真实 wire，用户任务就会在模型请求前被错误阻断或被错误归类。",
+  "migration": "无持久化格式迁移。改动仅在发送前守卫中为 image_to_prompt 识别其真实的 streamTextTask 多模态路径；TikHub 导入仍写入相同 durable asset/source evidence，真实拆解仍通过模型入口产生 shots，并由 Electron journey 在冷启动后 readback。",
+  "affected_population": [
+    "从 TikHub 导入视频、随后使用项目素材视频拆解的 Electron 用户",
+    "使用 image_to_prompt runtime-fixed multimodal model path 且携带视频帧参考的模型请求",
+    "TikHub upstream/import、项目素材持久化、视频拆解模型请求和分镜节点副作用之间的联动验证"
+  ],
+  "scope_paths": [
+    "electron/catalog/taskParams.ts",
+    "electron/connectors/tikhubConnector.ts",
+    "electron/connectors/tikhubConnectorService.ts",
+    "electron/connectors/tikhubConnectorService.test.ts",
+    "electron/connectors/tikhubLocalFixture.test.ts",
+    "tests/ux/tikhub-project-video-breakdown.e2e.mjs"
+  ],
+  "entry_points": [
+    "electron/catalog/taskParams.ts::imageEditGuardError",
+    "electron/connectors/tikhubConnector.ts::importTikhubShareUrl / resolveShareVideo",
+    "electron/connectors/tikhubConnectorService.ts::importTikhubShareUrl",
+    "tests/ux/tikhub-project-video-breakdown.e2e.mjs::真实 Electron TikHub → 视频拆解 → 分镜 journey"
+  ],
+  "invariants": [
+    "image_to_prompt 的 runtime-fixed 多模态路径不因缺少 profile/fallback create body 被参考可达性护栏错误阻断；它必须沿真实 streamTextTask 发送路径携带视频帧 image reference。",
+    "TikHub upstream 只允许受控 loopback E2E origin；生产 host、非 loopback、错误协议、超时、网络错误、401、404、无 route 和模型解析失败都 fail-closed，不能回退到真实 provider 或伪造结果。",
+    "真实 Electron 入口必须先产生 durable 项目素材及 source evidence，再通过真实拆解按钮/model request 产生结构化 shots，随后产生分镜节点副作用；测试不得注入最终拆解结果冒充成功。",
+    "素材、source evidence、shots 和分镜节点在 reload/cold restart 后必须可 readback；模型 fixture malformed response 必须进入 visionFailed 且不产生伪造视觉结果。"
+  ],
+  "regression_tests": [
+    "electron/connectors/tikhubConnectorService.test.ts",
+    "electron/connectors/tikhubLocalFixture.test.ts",
+    "tests/ux/tikhub-project-video-breakdown.e2e.mjs"
+  ],
+  "residual_risks": [
+    "没有真实 TikHub API key、真实外部网络或付费模型 provider 认证，因此本合同不声称 live provider certification；loopback fixture 只证明 upstream 边界合同和真实 Electron 任务路径。",
+    "V8 receipt 只覆盖本次 changed production function targets，不代表全仓、完整 Electron 进程或 renderer UI 100% 覆盖。",
+    "本次不修改视觉 UI/CSS/样张；真实用户对不同 provider 返回的视频格式、帧提取失败和超大媒体的体验仍需后续独立验证。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "本次合同约束的是 Nomi 自有 Electron 任务路由、TikHub connector 的 loopback 测试边界、项目持久化和视频拆解结果合同；没有第三方文档可以定义 image_to_prompt 的内部 guard 例外、source evidence/readback 或本地 fixture 的 fail-closed 规则。",
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "本次是一个明确的 runtime-fixed image_to_prompt multimodal kind 与通用 body guard 之间的单点边界对齐；生产实现只有一个 imageEditGuardError 入口和一个 streamTextTask 消费形状。若未来新增其它 runtime-fixed kind，应按同一调查流程单独提交对应合同，而不是把本次例外扩大成无条件放行。",
+    "same_class_scan": [
+      "扫描 imageEditGuardError 的生产调用与 task kind 分支，确认它是统一参考可达性守卫，且本次例外只作用于 image_to_prompt，不改变 image_edit/image_to_video 或无 mapping fallback 的 fail-closed 语义。",
+      "扫描 executeTextTask/streamTextTask 的 image_to_prompt 发送路径，确认参考 image parts 在真实模型请求中由该路径组装，而不是由 profile/fallback create body 提供。",
+      "扫描 TikHub connector/service 与真实 Electron journey，确认本地 upstream seam 只替代 TikHub 边界，不替代模型拆解、shots 解析、分镜副作用或持久化 readback。"
+    ]
+  },
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有删除旧实现或持久化格式；本次仅为已有 TikHub journey 的高风险 taskParams 边界补齐可审计合同。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不新增、不升级、不保留第三方依赖；本地 HTTP server 和 model fixture 均为现有测试 harness 能力。",
+    "exit_criteria": []
+  }
+}
