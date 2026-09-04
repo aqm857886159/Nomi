@@ -167,3 +167,32 @@ describe('owned Electron teardown', () => {
     expect(rejected.cause).toBe(rejected.errors[1])
   })
 })
+
+describe('persisted Agent workbench document readback', () => {
+  test('selects the active document from the current multi-document schema', () => {
+    const active = { id: 'doc-active', title: 'active' }
+    expect(support.readPersistedWorkbenchDocument({
+      payload: {
+        workbenchDocuments: [{ id: 'doc-other', title: 'other' }, active],
+        activeDocumentId: active.id,
+      },
+    })).toEqual({ schema: 'multi', document: active })
+  })
+
+  test('keeps legacy single-document reads explicitly classified for compatibility', () => {
+    const legacy = { id: 'legacy-doc', title: 'legacy' }
+    expect(support.readPersistedWorkbenchDocument({ payload: { workbenchDocument: legacy } })).toEqual({
+      schema: 'legacy',
+      document: legacy,
+    })
+  })
+
+  test('fails closed when no supported persisted document schema is present', () => {
+    expect(support.readPersistedWorkbenchDocument({ payload: {} })).toEqual({ schema: 'missing', document: null })
+  })
+
+  test('does not silently promote legacy readback into current-writer evidence', () => {
+    expect(() => support.requireCurrentPersistedWorkbenchDocument({ payload: { workbenchDocument: { id: 'legacy' } } }))
+      .toThrow(/legacy workbenchDocument/)
+  })
+})

@@ -21,6 +21,13 @@ export const STAGES = {
   "real-generation": stage("real-generation", "node", ["tests/ux/camera-move-render-e2e.mjs"], {
     env: { APIMART_E2E: "1", NOMI_SPEND_OK: "1", NOMI_E2E: "1", NOMI_E2E_ALLOW_MULTI_INSTANCE: "1" },
   }),
+  "agent-m0-matrix": stage("agent-m0-matrix", "node", ["scripts/test-agent-m0-m5-matrix.mjs", "M0"]),
+  "agent-m1-matrix": stage("agent-m1-matrix", "node", ["scripts/test-agent-m0-m5-matrix.mjs", "M1"]),
+  "agent-m2-matrix": stage("agent-m2-matrix", "node", ["scripts/test-agent-m0-m5-matrix.mjs", "M2"]),
+  "agent-m3-matrix": stage("agent-m3-matrix", "node", ["scripts/test-agent-m0-m5-matrix.mjs", "M3"]),
+  "agent-m4-matrix": stage("agent-m4-matrix", "node", ["scripts/test-agent-m0-m5-matrix.mjs", "M4"]),
+  "agent-m5-matrix": stage("agent-m5-matrix", "node", ["scripts/test-agent-m0-m5-matrix.mjs", "M5"]),
+  "agent-m0-m5-matrix": stage("agent-m0-m5-matrix", "node", ["scripts/test-agent-m0-m5-matrix.mjs"]),
 };
 
 export const PROFILES = {
@@ -35,5 +42,12 @@ export const PROFILES = {
   "ci-performance": ["canvas-performance"],
   "full-local": ["matrix", "gates", "e2e", "canvas-full", "canvas-performance", "journeys-ci"],
   "real-generation": ["real-generation"],
+  "agent-m0": ["agent-m0-matrix"],
+  "agent-m1": ["agent-m1-matrix"],
+  "agent-m2": ["agent-m2-matrix"],
+  "agent-m3": ["agent-m3-matrix"],
+  "agent-m4": ["agent-m4-matrix"],
+  "agent-m5": ["agent-m5-matrix"],
+  "agent-m0-m5": ["agent-m0-m5-matrix"],
   release: ["matrix", "gates", "e2e", "canvas-full", "canvas-performance", "journeys-all", "real-generation"],
 };

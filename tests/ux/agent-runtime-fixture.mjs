@@ -51,12 +51,12 @@ function modelCatalog(baseURL) {
     version: 8,
     vendors: [{
       key: FIXTURE_VENDOR, name: 'Agent Runtime Loopback', enabled: true, baseUrlHint: baseURL,
-      authType: 'bearer', authHeader: null, authQueryParam: null, providerKind: 'openai-compatible',
+      authType: 'none', authHeader: null, authQueryParam: null, providerKind: 'openai-compatible',
       createdAt: NOW, updatedAt: NOW,
     }],
     models: [
-      { ...common, modelKey: FIXTURE_TEXT_MODEL, labelZh: 'Fixture 文本', kind: 'text', meta: { supportsImageInput: true } },
-      { ...common, modelKey: FIXTURE_IMAGE_MODEL, labelZh: 'Fixture 图片', kind: 'image', meta: { archetypeId: 'agnes-image' } },
+      { ...common, modelKey: FIXTURE_TEXT_MODEL, labelZh: 'Fixture 文本', kind: 'text', published: true, meta: { supportsImageInput: true } },
+      { ...common, modelKey: FIXTURE_IMAGE_MODEL, labelZh: 'Fixture 图片', kind: 'image', published: true, meta: { archetypeId: 'agnes-image' } },
     ],
     mappings: ['text_to_image', 'image_edit'].map(imageMapping),
     apiKeysByVendor: {

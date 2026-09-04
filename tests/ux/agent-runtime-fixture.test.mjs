@@ -269,8 +269,8 @@ describe('agent runtime loopback fixture', () => {
     const catalog = JSON.parse(await readFile(path.join(fixture.settingsDir, 'model-catalog.json'), 'utf8'))
     expect(catalog.version).toBe(8)
     expect(catalog.vendors).toEqual([expect.objectContaining({
-      key: FIXTURE_VENDOR, enabled: true, baseUrlHint: fixture.baseURL,
-      authType: 'bearer', providerKind: 'openai-compatible',
+      key: FIXTURE_VENDOR, name: 'Agent Runtime Loopback', enabled: true, baseUrlHint: fixture.baseURL,
+      authType: 'none', authHeader: null, authQueryParam: null, providerKind: 'openai-compatible',
     })])
     expect(catalog.models).toEqual([
       expect.objectContaining({ modelKey: FIXTURE_TEXT_MODEL, kind: 'text', vendorKey: FIXTURE_VENDOR, enabled: true, meta: { supportsImageInput: true } }),
