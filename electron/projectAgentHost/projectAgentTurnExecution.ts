@@ -41,7 +41,6 @@ import {
 
 type ToolCall = { toolCallId: string; toolName: string; args: unknown };
 type PreparedInvocation = { target: ProjectAgentQueueItem["target"]; preconditions: ProjectAgentQueueItem["preconditions"]; policyRevision: number; inputHash: string; actionHash: string };
-
 export type ProjectAgentTurnExecutionContext = Readonly<{
   now: () => string;
   dispatchPartition: (partition: ExecutionPartition, mutation: ProjectAgentMutation) => ReturnType<OfflineProjectAgentHost["dispatch"]>;
@@ -792,6 +791,7 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
     try {
       await execution.publicationTail;
     } catch {
+      /* terminal publication is best effort after cancellation */
     }
   } finally {
     cleanupExecution(partition, execution, false);
