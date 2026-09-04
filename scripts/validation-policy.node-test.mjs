@@ -52,6 +52,20 @@ test('model execution paths select full unit and real journeys without packaging
   })
 })
 
+test('the registered product journeys cannot fall back to focused-only validation', () => {
+  for (const file of [
+    'tests/ux/resident-composer-receipt-fix.e2e.mjs',
+    'tests/ux/storyboard-agent-canonical-patch.e2e.mjs',
+    'tests/ux/production-mcp-journey.e2e.mjs',
+  ]) {
+    assert.deepEqual(surfaces(classifyValidationPolicy([file])), {
+      ...focusedOnly,
+      unit: 'full',
+      journeys: true,
+    })
+  }
+})
+
 test('renderer-to-Electron bridges retain full unit, desktop, and journey coverage', () => {
   assert.deepEqual(surfaces(classifyValidationPolicy(['src/desktop/bridge.ts'])), {
     ...focusedOnly,
@@ -159,6 +173,7 @@ test('validation infrastructure changes exercise functional coverage without unr
     ['.github/workflows/quality-gate.yml'],
     [{ status: 'R100', path: 'eslint.config.mjs' }],
     ['scripts/select-quality-gate-profile.mjs'],
+    ['scripts/real-user-test-gates.mjs'],
   ]) {
     assert.deepEqual(surfaces(classifyValidationPolicy(files)), {
       unit: 'full',

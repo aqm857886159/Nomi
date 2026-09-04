@@ -21,7 +21,7 @@ const VALIDATION_INFRASTRUCTURE_POLICY = Object.freeze({
 
 const VALIDATION_INFRASTRUCTURE_PATTERNS = [
   /^\.github\/(?:actions|workflows)\//,
-  /^scripts\/(?:validation-policy|select-quality-gate-profile|check-quality-gate-workflow|test-system|test-focused|git-delivery|canvas-performance-verdict|eval-journey|.*walkthrough)(?:\.|$)/,
+  /^scripts\/(?:validation-policy|select-quality-gate-profile|check-quality-gate-workflow|real-user-test-gates|test-system|test-focused|git-delivery|canvas-performance-verdict|eval-journey|.*walkthrough)(?:\.|$)/,
   /^tests\/system(?:\/|$)/,
   /^tests\/ux\/(?:canvas-real-suite|canvas-performance-(?:benchmark|verdict))(?:\.|$)/,
   /^(?:eslint|playwright|vitest)\.config\.(?:ts|mts|cts|js|mjs|cjs)$/,
@@ -55,6 +55,7 @@ const JOURNEY_PATTERNS = [
   /^src\/.*(?:agent|bridge|credential|model|provider|catalog|comfyui|network|security|generationCanvas\/runner).*\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i,
   /^electron\/capabilityCore\/mcp.*\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i,
   /^tests\/ux\/mcp-(?:l1-handshake|journey).*\.(?:mjs|js|ts)$/i,
+  /^tests\/ux\/(?:resident-composer-receipt-fix|storyboard-agent-canonical-patch|production-mcp-journey)\.(?:e2e\.)?mjs$/i,
 ]
 
 const DESKTOP_PATTERNS = [/^src\/desktop\/bridge\.(?:ts|tsx|js|jsx)$/]

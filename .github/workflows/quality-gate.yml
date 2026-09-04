@@ -159,6 +159,9 @@ jobs:
       - name: MCP elicitation-first journey
         if: needs.scope.outputs.journeys == 'true'
         run: xvfb-run -a pnpm run test:mcp-elicitation
+      - name: Real user loopback journey gate
+        if: needs.scope.outputs.journeys == 'true'
+        run: xvfb-run -a pnpm run test:real-user-journeys:ci
       - name: Critical canvas acceptance
         if: needs.scope.outputs.canvas == 'critical'
         run: xvfb-run -a pnpm run test:canvas:critical
@@ -179,6 +182,7 @@ jobs:
             outputs/canvas-card-stack-20260827/**
             tests/system/runs/**/report.md
             tests/system/runs/**/summary.json
+            tests/system/runs/**/*-real-user-journeys/**
             tests/ux/shots/canvas-drag-pan-gestures/**
             tests/ux/shots/group-ports/**
             tests/ux/shots/react-flow-read-only/**
