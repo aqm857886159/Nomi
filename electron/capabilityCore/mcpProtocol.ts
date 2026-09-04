@@ -21,11 +21,11 @@ import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
 import type { AuthenticatedMcpClient } from './security'
 import { subscribeMcpToolCatalogChanges } from './mcpToolCatalogChanges'
 import { handleDocumentEditConfirmation } from './mcpDocumentConfirmation'
-
 export type McpInvokeOptions = {
   spendConfirmed?: boolean
   planConfirmed?: boolean
   documentConfirmed?: boolean
+  requestId?: string
   signal?: AbortSignal
 }
 export const MCP_REQUEST_SIGNAL = Symbol('nomi.mcp.request-signal')

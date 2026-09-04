@@ -1,0 +1,59 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-mcp-canvas-write-durable-receipt",
+  "problem_type": "MCP canvas write durability and cancellation contract gap",
+  "symptom": "A real nomi_canvas_edit canvas.write could mutate project.json and return applied:true without a main-process durable proposal receipt, so the effect had no queryable committed evidence and no restart recovery proof.",
+  "direct_cause": "The headless stdio invoker wrapped document.write in the shared receipt lifecycle but dispatched canvas.write directly; canvas results also minted their proposalId inside dispatcher.ts, leaving no transport-owned prepare/commit boundary.",
+  "class_root": "Semantic MCP writes crossed the catalog, lease, dispatcher, and disk gateway as independent effects, while receipt ownership and request identity were implemented only for one method. Without a common main-process lifecycle, successful writes and cancellation/error paths could not share durable evidence or replay protection.",
+  "migration": "Existing projects remain readable. New canvas.write calls through the production stdio invoker prepare and commit the existing .nomi/project-agent-proposal-receipt.json journal, reuse the committed binding after restart, and fail closed on duplicate request identity, schema, lease, disk, or cancellation errors. GUI renderer journey certification remains outside this slice.",
+  "affected_population": [
+    "MCP clients using nomi_canvas_edit against a headless Electron stdio process",
+    "Projects whose canvas mutation succeeded before the process exited or was restarted",
+    "Cancelled, malformed, unauthorized, or failed-disk canvas writes that previously had no shared receipt boundary"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/mcpDocumentWriteReceipt.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/dispatcher.ts"
+  ],
+  "entry_points": [
+    "MCP_CAPABILITY_RESOLVER.resolve('nomi_canvas_edit') → canvas.write",
+    "createMcpStdioDirectInvoker → dispatchAndEnrich → dispatcher.ts canvas.write",
+    "ProjectAgentProposalReceiptService at .nomi/project-agent-proposal-receipt.json"
+  ],
+  "invariants": [
+    "A real canvas.write commits a main-process durable receipt only after the disk gateway returns an applied result, and the result proposalId equals the committed receipt proposalId.",
+    "The receipt binding is checked against the verified project lease and survives a fresh receipt-service instance after restart.",
+    "A repeated request identity cannot apply a second disk mutation; malformed schema, invalid lease, failed disk read, and pre-effect cancellation leave the canvas unchanged and never produce a committed receipt.",
+    "The production test enters through the catalog resolver and exercises the real lease, dispatcher, and disk gateway; old patch_shots probes and injected stores are not evidence for this contract."
+  ],
+  "regression_tests": [
+    "electron/capabilityCore/mcpStdioCanvasWriteReceipt.test.ts",
+    "tests/ux/mcp-canvas-write-durable-receipt.e2e.mjs"
+  ],
+  "residual_risks": [
+    "The GUI-open RPC renderer journey is not certified in this PR; it remains blocked for a follow-up that must bind the same main receipt lifecycle to renderer writes without inventing a second receipt contract.",
+    "An abort arriving after a synchronous disk gateway has already applied cannot undo that physical write in this slice; the boundary prevents work after an already-cancelled request and commits no late receipt."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal Nomi receipt, lease, filesystem durability, and MCP cancellation contract; no external protocol or provider documentation can establish the trusted project binding or local recovery semantics.",
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "The known missing production edge is the canvas.write transport seam adjacent to the already-existing document.write receipt seam. The shared helper and regression journey close this bounded M0-M5 slice; a broader recurring prevention contract would require a separately scoped audit of every renderer-owned write surface.",
+    "same_class_scan": [
+      "Read document.write receipt helper/tests and rpcServer.ts: document.write already has a prepare/commit/undone lifecycle; canvas.write was the uncovered semantic MCP sibling.",
+      "Read canvas.write catalog, resolver, dispatcher, gateway, and existing patch_shots journey: the old storyboard evidence exercises a different renderer-owned path and is intentionally not reused as canvas.write proof.",
+      "Read ProjectAgentProposalReceiptService: its binding, CAS, operation replay, atomic file write, fsync, and recovery lifecycle are reused rather than copied into a second store."
+    ]
+  },
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "There is no separate legacy canvas receipt store to delete; the pre-existing direct canvas.write dispatch remains the domain effect and is now enclosed by the shared main-process receipt boundary."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The change reuses existing Node, Vitest, Electron, and receipt-store dependencies without adding or upgrading a dependency.",
+    "exit_criteria": []
+  }
+}

@@ -28,7 +28,7 @@
 |---|---|---|---|
 | `nomi_session_open` | project session / lease | `mcpStdioProjectSessionBinding.test.ts`, `mcpStdioProjectSessionRouter.test.ts`, `mcp-l1-handshake.e2e.mjs` | stdio/租约链有证据；需补重启后 lease/session 续接证明 |
 | `nomi_read` | read projection；按 target 路由 canvas/project/model/run/artifact/integration | `mcpEditingSurface.test.ts`, `mcpToolResults.test.ts`, `mcp-l1-handshake.e2e.mjs`, `production-mcp-journey.e2e.mjs` | 只读投影与真实 MCP 读取有证据；每个 target 的权限/红测仍需逐项闭合 |
-| `nomi_canvas_edit` | `canvas.write`，租约内语义写 | `mcpCanvasDocumentSurface.test.ts`, `canvasWrite*.test.ts`, `mcp-l1-handshake.e2e.mjs` | schema/lease/adapter 有证据；L1 只证明坏参数，不证明每个 write operation 的落盘 |
+| `nomi_canvas_edit` | `canvas.write`，租约内语义写 | `mcpCanvasDocumentSurface.test.ts`, `canvasWrite*.test.ts`, `mcpStdioCanvasWriteReceipt.test.ts`, `mcp-l1-handshake.e2e.mjs` | 新增 headless stdio 真实 catalog→resolver→lease→dispatcher→disk gateway 的 set_node_prompt receipt/重启/错误矩阵；GUI-open renderer、packaged MCP 仍未证明 |
 | `nomi_asset_import` | `asset.import` | `mcpToolCatalog` 路由测试、`mcp-l2-journeys.e2e.mjs` 相关流程 | 目录/路由有证据；真实导入、资产持久化、重启回读需单独证明 |
 | `nomi_operation_plan` | generation plan/create/patch | `mcpGenerationTools.test.ts`, `nomiMcpGenerationPlanning.test.ts`, `mcpGenerationDispatcher.test.ts` | 单元/策略边界充分；外部 MCP 真正创建并恢复草稿需 L2/packaged 证据 |
 | `nomi_operation_preview` | generation preview，read-only | `mcpGenerationTools.test.ts`, `mcpGenerationPreview` 相关测试 | 无 provider effect 的预览证据；需证明未知价格不被当作 0 |
@@ -48,6 +48,17 @@
 | `nomi_document_edit` | `document.write` proposal | `documentWrite*.test.ts`, `mcpCanvasDocumentSurface.test.ts` | 合同/适配器有证据；proposal/approve/落盘/undo 的 MCP E2E 缺口明显 |
 | `nomi_timeline_read` | `timeline.read` | `timelineRead.test.ts`, `mcpEditingSurface.test.ts` | 单测/语义 manifest 有证据；真实项目时间线回读与 cursor 边界需补 |
 | `nomi_timeline_edit` | `timeline.write` preview/apply/undo | `timelineWrite.test.ts`, `mcpEditingSurface.test.ts` | schema/receipt 设计有证据；MCP 外部调用的 apply/undo durable effect 未闭合 |
+
+### 2026-09-05 canvas.write durable-receipt slice evidence
+
+本 slice 只覆盖 headless Electron stdio 的真实写入边界，不把旧 `patch_shots`、静态 probe、注入 dispatcher 或假 store 当作 canvas.write 完成证据：
+
+- 红测先证明现状缺口：`mcpStdioCanvasWriteReceipt.test.ts` 通过 `MCP_CAPABILITY_RESOLVER.resolve('nomi_canvas_edit')` 生成调用，真实写入返回 `applied:true`，但基线没有 `.nomi/project-agent-proposal-receipt.json`。
+- 绿测证明：共享 document/canvas receipt lifecycle 在真实写入后提交；新建 receipt service 读取同一项目目录仍得到 committed receipt；相同 requestId 不重复写；最大 prompt 可真实提交，空 prompt schema、失效 lease、磁盘缺失和取消前请求不产生晚写或 committed receipt。
+- 生产边界：`mcpDocumentWriteReceipt.ts` 是唯一共享 prepare/commit/undone helper；`mcpStdioServer.ts` 在 verified lease 后解析 receipt binding，把 transport-owned proposalId 注入 `dispatcher.ts`，并以显式 requestId 或稳定参数指纹支撑 replay 防重。
+- 本地命令证据：`pnpm exec vitest run electron/capabilityCore/mcpDocumentWriteReceipt.test.ts electron/capabilityCore/mcpStdioCanvasWriteReceipt.test.ts electron/capabilityCore/mcpStdioProjectSessionRouter.test.ts --no-file-parallelism`（16 passed）、协议回归 11 passed、`pnpm run typecheck`、`pnpm run check:root-cause-contracts` 均通过。
+- 构建后用户任务入口：`tests/ux/mcp-canvas-write-durable-receipt.e2e.mjs` 使用共享真实 Electron stdio spawner，执行 project create → session lease → `nomi_canvas_edit` create/set → 读取 project/receipt → 新 MCP 进程重启读回；本轮 `node tests/ux/mcp-canvas-write-durable-receipt.e2e.mjs` 已通过 9 assertions。它不是 packaged/GUI 证明。
+- 状态边界：这不是整个 `nomi_canvas_edit` 或 M2 的毕业证明；GUI-open RPC renderer、Electron packaged launcher 的实际运行、视觉 walkthrough 和完整 MCP L2 仍为 `blocked / out of this PR`。
 | `nomi_export_job` | `export.read`；启动/取消为 Host-only | `mcpEditingSurface.test.ts`, `mcpToolCatalog` 路由测试 | 只读 status/verify 有证据；export write 不应误报为 MCP 可调用 |
 | `nomi_media_query` | `asset.read` media metadata/source/waveform | `assetRead.test.ts`, `mcpEditingSurface.test.ts` | 只读能力有证据；真实项目媒体源/波形与大文件边界需补 |
 

@@ -210,6 +210,8 @@ git worktree list --porcelain
 
 **缺口**：24 项 MCP 真实 effect ledger；canonical `nomi_canvas_plan` + `operation=patch_shots`；selection injection、未点名字段保持、invalid revision/model/vendor、preview/approve/deny、receipt、落盘、重启、undo 和 Agent/table/canvas 一致性。
 
+**2026-09-05 slice evidence（仅 headless canvas.write）**：`nomi_canvas_edit` 已补一条真实 stdio effect 链：catalog resolver → verified project lease → shared main-process receipt prepare → dispatcher → disk gateway → committed receipt；新 receipt service 可在同一项目目录重启后读回。红测先证明基线真实写入无 receipt，绿测覆盖重复 requestId、最大 payload 成功、空 payload schema、失效 lease、磁盘缺失和取消前不得晚写。对应单测为 `electron/capabilityCore/mcpStdioCanvasWriteReceipt.test.ts`；构建后真实用户任务契约入口为 `tests/ux/mcp-canvas-write-durable-receipt.e2e.mjs`，本轮 fresh build 后已通过 9 assertions，证据状态为 `implemented / tested / headless-persistence-certified`。GUI-open renderer、packaged launcher 的实际运行、视觉 walkthrough 和其余 canvas operations 的全链仍为 `blocked / not this PR`，不能将本 slice 升格为 M2 graduated。
+
 **红测 → 实现 → 绿测 → 真实用户任务 → 视觉走查 → 合入门槛**：
 
 - [ ] 红测：在当前 main 用生产 manifest/catalog shape 对 document/canvas/timeline/generation/storyboard 各取代表性写操作，先断言当前 canonical 调用链无法完成 effect 或缺 receipt；另测 stale revision、wrong project、empty selection、旧 alias、重复 operation。
