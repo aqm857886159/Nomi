@@ -4,7 +4,19 @@
 
 **Goal:** 在不重复实现已经合入的功能、不破坏仍在工作的 worktree、也不把“CI 绿”误当成产品完成的前提下，把 Nomi 当前所有可追踪的 PR、分支、worktree、计划文档和视觉证据收敛到一个可验证的 `main` 基线；随后用这份真实基线重新判断 M0–M5、Agent、TikHub/视频拆解、画布性能、MCP 和资源链的完成度，并把真正未完成的工作拆成可继续交付的后续 PR。
 
-> 状态：⏳ 已拍板·未开工（本文件定义执行方案；执行产物和后续 PR 另行记录）
+> 状态：S1 盘点报告已入账；S4 史诗重基线待执行（本文件定义执行方案；执行产物和后续 PR 另行记录）
+
+## Current audit report registry
+
+本轮主计划只引用审计报告，不复制或改写报告内容。三份报告是后续 S1/S4 判断的入口：
+
+| 报告 | 当前状态 | 用途 |
+|---|---|---|
+| [`docs/qa/2026-09-04-pr-branch-inventory.md`](../../qa/2026-09-04-pr-branch-inventory.md) | 已提交 | PR、branch、merge-base、patch-id、worktree 和未知项基线 |
+| [`docs/qa/2026-09-04-mcp-rebaseline-audit.md`](../../qa/2026-09-04-mcp-rebaseline-audit.md) | 已提交 | MCP 工具面、合同、L2/打包证据与当前缺口 |
+| [`docs/qa/2026-09-04-epics-rebaseline-audit.md`](../../qa/2026-09-04-epics-rebaseline-audit.md) | 工作区已存在，待其所属会话提交 | M0–M5、Agent、TikHub、视频拆解、画布、资源链等史诗状态重基线 |
+
+史诗报告当前仍是未跟踪文件，本次不代替其所属会话提交；因此本计划只引用其路径，并保留“待提交”状态，不把它误写成已合入主分支的证据。
 
 **Architecture:** 本计划是“收敛与重基线”工作，不新增产品功能。执行顺序固定为：冻结现场 → 盘点证据 → 安全收敛 → 捞取唯一提交 → 建立 M0–M5/功能/视觉矩阵 → 真实 Electron/打包走查 → 生成新的优先级和后续任务。所有产品修复都必须另开小范围任务和 PR，不能借盘点任务顺手扩大范围。
 
@@ -138,7 +150,7 @@ MCP 测试按“工具面 → 握手/授权 → 执行 → 副作用 → 收据/
 | 阶段 | 结果 | 必须留下的证据 | 未满足时的动作 |
 |---|---|---|---|
 | S0 冻结现场 | 当前 main、PR、worktree 和远端快照固定 | `main-convergence-inventory` 初版、基线 SHA、dirty 清单 | 停止清理，先保护现场 |
-| S1 全量盘点 | 每个 PR/分支/计划都有唯一身份和状态 | PR/commit/worktree/plan 对照表、重复判断 | 不能凭标题判断完成度 |
+| S1 全量盘点 | 每个 PR/分支/计划都有唯一身份和状态；未知会话/未提交史诗报告必须显式保留 | [PR/branch/worktree inventory](../../qa/2026-09-04-pr-branch-inventory.md)、[MCP audit](../../qa/2026-09-04-mcp-rebaseline-audit.md)、[epics audit](../../qa/2026-09-04-epics-rebaseline-audit.md) 及其 SHA/重复判断 | 不能凭标题或 CI 状态判断完成度；未知项未解除前不得清理/合并 |
 | S2 安全收敛 | 只有可验证、非重复、非阻塞的提交进入 main | 每次合并的 merge SHA、checks、合并后验证 | 冲突或失败转后续修复 PR |
 | S3 遗留提交捞取 | 唯一且已提交的 worktree/remote branch 得到归宿 | patch-id/range-diff、来源、目标 PR | dirty/detached 只保留，不自动搬运 |
 | S4 真实重基线 | M0–M5、Agent、各 epic 的事实状态被重新证明 | 状态矩阵、当前 main SHA、未证实项 | 文档状态降级为“未证实/阻塞” |
@@ -157,13 +169,15 @@ MCP 测试按“工具面 → 握手/授权 → 执行 → 副作用 → 收据/
 
 ## Task 1 — Inventory Every PR, Branch, Worktree and Plan
 
-- [ ] 读取全部 open PR 的 `number/title/head/base/state/checks`，同时读取最近关闭/已合并 PR，避免只看当前网页排序。对每个候选记录是否 direct-to-main、stacked、dirty、blocked、由其他会话负责。
-- [ ] 扫描本地和远端分支，计算与 `origin/main` 的 merge-base、ahead/behind、变更文件和 patch-id。至少使用 `git log --oneline --decorate --all`、`git diff --stat origin/main...<head>`、`git range-diff` 或等价证据；不要以分支名字推断“未做/已做”。
-- [ ] 扫描所有 worktree，区分 clean committed、dirty tracked、untracked、detached、full clone、活跃会话和可回收候选。只登记，不删除。
-- [ ] 读取 `docs/plan/INDEX.md` 和所有仍标记为 `🚧`、`📋`、`⏸️` 的相关计划，逐项对照当前代码、合并记录和测试证据。特别检查 TikHub、视频拆解、画布性能、MCP、凭据、资源链、Agent、M0–M5 和架构方案的“文档状态—代码状态”漂移。
-- [ ] **红证据：** 对至少一条已知过期账本项和一条真实未完成项分别写出“文档说法”和“当前证据”的冲突/缺口；盘点不得把旧快照直接当结论。
-- [ ] **绿证据：** 每个条目都有唯一分类：`merged-and-proven`、`merged-but-unproven`、`open-ready`、`open-blocked`、`stacked`、`dirty-preserve`、`duplicate`、`plan-only`、`external-owner` 或 `needs-decision`，并带来源链接/SHA/路径。
-- [ ] 退出条件：形成完整清单，覆盖 PR、远端分支、本地分支、所有 worktree 和计划文档，而不是只盘点用户刚提到的几个项目。
+> 当前状态：盘点报告已完成并入账；活跃会话进程扫描受 macOS 权限限制，已在报告中显式标记为 `unknown`。S1 的未知项不是失败隐藏点，后续任何清理/捞取前仍必须重新确认所有权。
+
+- [x] 读取全部 open PR 的 `number/title/head/base/state/checks`，同时读取最近关闭/已合并 PR；详见 [S1 PR/branch/worktree inventory](../../qa/2026-09-04-pr-branch-inventory.md)。
+- [x] 扫描本地和远端分支，计算与 `origin/main` 的 merge-base、ahead/behind、变更文件、patch-id 和 exact-tree duplicate；详见同一报告的重点 refs 表。
+- [x] 扫描所有 worktree，区分 clean、dirty、detached、prunable 和未知会话风险；只登记，不删除。活跃进程检测的权限阻塞已保留在报告中。
+- [x] 读取计划/历史来源并记录文档状态漂移；MCP 与史诗的专项证据分别见 [MCP rebaseline audit](../../qa/2026-09-04-mcp-rebaseline-audit.md) 和 [epics rebaseline audit](../../qa/2026-09-04-epics-rebaseline-audit.md)。
+- [x] **红证据：** 报告记录了过期账本与当前 PR/check/ref/worktree 证据的冲突，以及无法证明活跃会话为空的环境阻塞。
+- [x] **绿证据：** 当前可确认条目已按 `open-blocked`、`stacked`、`duplicate`、`dirty-preserve`、`external-owner`、`needs-decision` 等唯一分类登记，并带 URL/SHA/路径；未确认项保持 `unknown`。
+- [x] 退出条件：形成以 `origin/main=45912ae01a155a3f6592f65368d0ce3d12fc034e` 为基线的 PR、branch、worktree、计划来源清单；剩余未知项已显式列出，不作为清理或合并授权。
 
 ## Task 2 — Converge Safe PRs Into Main
 
@@ -187,7 +201,9 @@ MCP 测试按“工具面 → 握手/授权 → 执行 → 副作用 → 收据/
 
 ## Task 4 — Rebaseline M0–M5, Agent and All Feature Epics
 
-- [ ] 以最新 main SHA 重新阅读 `docs/superpowers/plans/2026-09-01-agent-architecture-test-system.md`、`docs/qa/2026-09-03-m5-graduation-checklist.md`、`docs/research/2026-09-01-agent-architecture-solution-and-execution-plan.md`、MCP/Q8、TikHub、video deconstruction、canvas performance、credential、resource-chain 等相关计划。
+> 当前状态：史诗重基线报告已在工作区生成但尚未由其所属会话提交；在该报告提交并可追溯到当前 `origin/main` 前，Task 4 仍保持未完成。MCP 的专项报告已提交，可作为 Task 4 的输入，但不能替代史诗全量重基线。
+
+- [ ] 以最新 main SHA 重新阅读并汇总 [epics rebaseline audit](../../qa/2026-09-04-epics-rebaseline-audit.md)；同时以 [MCP rebaseline audit](../../qa/2026-09-04-mcp-rebaseline-audit.md) 和 [PR/branch inventory](../../qa/2026-09-04-pr-branch-inventory.md) 校对来源、SHA、PR 状态和阻塞项。史诗报告未提交前，不把 Task 4 标为完成。
 - [ ] 建立 `docs/qa/2026-09-04-main-convergence-rebaseline.md`，每一行至少有：目标/用户价值、代码路径、相关 PR/merge SHA、契约证据、单元证据、系统/真实 Electron 证据、持久化/重启证据、视觉证据、当前状态、阻塞原因和下一动作；主表至少分为 MCP、Agent、Storyboard Table 三大能力簇，并记录三者之间的交接。
 - [ ] 状态只能使用：`已合入且已证明`、`已合入但未证明`、`部分完成`、`仅计划/设计`、`未开始`、`被阻塞`、`等待外部会话`、`等待用户决策`。`CI green` 只能填某个证据列，不能直接填完成状态。
 - [ ] M0–M5 必须按现行 checklist 重跑，尤其确认当前 main 的 packaged parity、真实 Agent Host context、M4 taint/approval spend guard、M5 client confirmation chain 和 packaged L2；旧的 50/50、旧 release 或旧 SHA 证据全部标记为历史证据。
