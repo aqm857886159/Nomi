@@ -16,15 +16,17 @@
 
 ## 状态与数据模型
 
-每镜状态为 `draft → queued → generating → ready | failed | stale`。`PlanShot.generationDraft` 保存 `modelKey/modeId/params/prompt`；`referenceBindings` 是 `slotKind/inputKey → 有序 AssetRef[]`，保留未知键以便前向兼容；结果保存 `resultNodeId/resultAssetId/contentHash/acceptedRevision`。锚增加 `generationProfile:{modelKey,modeId,params}`，旧 `anchor.modelKey` 迁入其中。
+每镜状态为 `draft → queued → generating → ready | failed | stale`，状态徽标、冗余/缺参考/等待计数和失败原因都在行内可见，并由多选批量栏汇总。`PlanShot.generationDraft` 保存 `modelKey/modeId/params/prompt`；`referenceBindings` 是 `slotKind/inputKey → 有序 AssetRef[]`，保留未知键以便前向兼容；结果保存 `resultNodeId/resultAssetId/contentHash/acceptedRevision`。锚增加 `generationProfile:{modelKey,modeId,params}`，旧 `anchor.modelKey` 迁入其中。
 
 编辑态只写 draft；生成成功先写不可变结果资产。用户显式点击“引用到下一镜/设为首帧/采纳时间轴”才写 binding 或 adoption receipt，避免隐式污染。失败保留 draft 和错误诊断，重试生成新 attempt；stale 表示引用内容 hash 已变化。
 
-## 布局与交互
+## 布局与交互（保留表格框架）
 
-编辑态左侧为固定比例的结果格，右侧依次为模型→模式→动态参考槽→提示词→参数；每个槽显示 label、必填标记、已用/上限计数，并提供上传、素材库、@ 引用。视频槽只接受视频，图片槽只接受图片；超过 max 或缺必填在生成前阻断并说明原因。
+不把分镜改成画布式大卡或左右双栏。唯一容器仍是样张的 table grid：场景组头、批量栏和逐镜行；行选择、Shift 多选、拖拽、复制、移动、删除、锁定、键盘操作和底部批量操作全部保留。样张的行骨架 `14px | 84px | 136px | 1fr`（`docs/design/mockups/2026-09-01-storyboard-table-image-first.html:96-106`）是稳定外壳。
 
-生成态将结果合并为大卡：视频使用原生播放控件，图片 `object-contain`，宽高比来自 mode 的 `aspect_ratio`。卡下提供重生成、变体、锁定、放大、保存为锚、设为后续首帧、采纳时间轴。编辑态与结果态可展开/收起；旧有复制、移动场景、删除、台词、转场、拖拽、多选、键盘和撤销全部保留。镜头结果格按样张 land 变体至少 176px；锚缩略图保留 108×144，但编辑空态必须直接出现“选模型/写描述/上传”。
+编辑态与 ready 态是**同一行内部的状态切换**。编辑态在同一行的画面格、参考区、提示词块中逐项配置：参考区按槽显示 label、必填/已用/上限计数，并提供上传、素材库、@ 引用；视频槽拒绝图片，图片槽拒绝视频；超过 max 或缺必填时该行显示原因并从批量“将跑 N 镜”中排除。模型、模式、画幅、时长和参数仍在行上沿胶囊中选择，不能搬出表格。
+
+ready 态仍是表格行：画面格替换为空态为结果缩略图/视频播放器，保持行高与比例；视频支持原生播放，图片 `object-contain`，比例取 mode 的 `aspect_ratio`。悬停画面格显示重生成、变体、锁定、放大、存为参考卡、设为后续首帧、采纳时间轴；结果详情、台词/转场/参考绑定在同一行的展开区查看。按样张 `:160,345,381-453,527,692-696` 保留 56px 参考 tile、结果动作、反查过滤、批量观察和锁定语义；不把 176px land 结果卡变成独立页面。锚卡仍为表格上方的参考卡区，仅在编辑空态直接呈现“选模型/写描述/上传”。
 
 ## 能力槽矩阵
 
