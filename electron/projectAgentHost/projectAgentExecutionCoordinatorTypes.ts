@@ -21,7 +21,10 @@ import type { PiSkillWriteTransportAdapter } from "../capabilityCore/skillWriteT
 import type { PiSkillReadTransportAdapter } from "../capabilityCore/skillReadTransportAdapters";
 import type { PiProductionRunTransportAdapter } from "../capabilityCore/productionRunTransportAdapters";
 import type { PiGenerationTransportAdapter } from "../capabilityCore/generationTransportAdapters";
-import type { ProjectAgentProposalReceiptView } from "../shared/projectAgentProposalReceipt";
+import type {
+  ProjectAgentProposalReceiptView,
+} from "../shared/projectAgentProposalReceipt";
+import type { ProjectAgentProposalReceiptService } from "./projectAgentProposalReceiptStore";
 
 export type ProjectAgentSubscription = Readonly<{
   subscriptionId: string;
@@ -30,6 +33,7 @@ export type ProjectAgentSubscription = Readonly<{
   snapshot: ProjectAgentHostState;
 }>;
 export type ProjectAgentProposalReceiptReader = () => ProjectAgentProposalReceiptView | null;
+export type ProjectAgentProposalReceiptWriter = Pick<ProjectAgentProposalReceiptService, "read" | "write" | "transition">;
 export type ProjectAgentExecutionOpenOptions = Readonly<{
   canvasRead?: PiCanvasReadTransportAdapter;
   documentRead?: PiDocumentReadTransportAdapter;
@@ -41,6 +45,8 @@ export type ProjectAgentExecutionOpenOptions = Readonly<{
   skillRead?: PiSkillReadTransportAdapter;
   skillWrite?: PiSkillWriteTransportAdapter;
   proposalReceipt?: ProjectAgentProposalReceiptReader;
+  /** Main-owned writer. Renderer clients only receive the read/undo IPC seam. */
+  proposalReceiptWriter?: ProjectAgentProposalReceiptWriter;
 }>;
 export type ProjectAgentExecutionCoordinatorDeps = Readonly<{
   runAgent?: (request: AgentChatRequest, hooks: AgentChatV2Hooks) => Promise<AgentChatResponse>;

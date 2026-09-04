@@ -30,7 +30,13 @@ import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
 import type { AuthenticatedMcpClient } from './security'
 import { subscribeMcpToolCatalogChanges } from './mcpToolCatalogChanges'
 
-export type McpInvokeOptions = { spendConfirmed?: boolean; planConfirmed?: boolean; signal?: AbortSignal }
+export type McpInvokeOptions = {
+  spendConfirmed?: boolean
+  planConfirmed?: boolean
+  /** A real user accepted the reversible document proposal at the MCP confirmation boundary. */
+  documentConfirmed?: boolean
+  signal?: AbortSignal
+}
 export const MCP_REQUEST_SIGNAL = Symbol('nomi.mcp.request-signal')
 
 function withRequestSignal(params: Record<string, unknown>, signal?: AbortSignal): Record<string, unknown> {
@@ -527,6 +533,39 @@ export function createMcpProtocol(transport: McpTransport) {
             })
             return
           }
+        }
+        // Document writes are reversible but still mutate the user's work. The MCP client must
+        // surface the real elicitation to a human before the verified RPC/renderer boundary is
+        // reached; an agent cannot self-assert this flag.
+        if (tool.name === 'nomi_document_edit') {
+          const confirm = await elicitBooleanConfirm({
+            message: 'Apply this document change? The operation is reversible and will update the current project document.',
+            title: 'Confirm document change',
+            description: 'Approve to write the requested content. Decline or timeout leaves the document and receipt unchanged.',
+          }, requestSignal)
+          if (!confirm.supported || !confirm.confirmed) {
+            reply(id, {
+              content: [{
+                type: 'text',
+                text: locale() === 'en'
+                  ? 'Not applied: the document change was not approved.'
+                  : '未生效：这次文稿修改没有获得批准。',
+              }],
+              isError: true,
+              structuredContent: {
+                nomiOutcome: {
+                  operation: 'document.write',
+                  applied: false,
+                  denied: true,
+                  reason: confirm.action === 'timeout' ? 'timeout' : 'declined',
+                },
+              },
+            })
+            return
+          }
+          const result = await invokeForRequest(routedMethod, built, { documentConfirmed: true })
+          reply(id, buildToolResultPayload(tool.name, args, result))
+          return
         }
         // 画布方案确认 elicitation-first（免费可撤，见 mcpPlanTrust.ts）：批量加节点（≥2）当声明 elicitation
         // 且 App 开着时，把确认递进聊天问一次而非让人跑去 App 点弹窗；批准记会话级信任、同项目后续不再问。

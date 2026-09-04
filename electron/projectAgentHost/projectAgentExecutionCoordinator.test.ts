@@ -48,7 +48,15 @@ import type {
 import type { PiSkillReadTransportAdapter } from "../capabilityCore/skillReadTransportAdapters";
 import type { PiProductionRunTransportAdapter } from "../capabilityCore/productionRunTransportAdapters";
 import type { PreconditionSet, TargetRef } from "../shared/capabilityTargeting";
-import type { ProjectAgentProposalReceiptView } from "../shared/projectAgentProposalReceipt";
+import type {
+  ProjectAgentCommittedProposalRecord,
+  ProjectAgentProposalReceiptView,
+} from "../shared/projectAgentProposalReceipt";
+import type { ProjectAgentProposalReceiptWriter } from "./projectAgentExecutionCoordinatorTypes";
+import {
+  createProjectAgentProposalReceiptService,
+  projectAgentProposalReceiptPath,
+} from "./projectAgentProposalReceiptStore";
 
 function skillWriteAdapter(): PiSkillWriteTransportAdapter & {
   prepare: ReturnType<typeof vi.fn>;
@@ -1856,6 +1864,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
 
   it("executes an approved document.write through the Host and settles its frozen proposal", async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-document-write-approved-"));
+    fs.mkdirSync(path.join(root, ".nomi"), { recursive: true });
     const target = {
       kind: "document" as const,
       documentId: "document-document-write-approved",
@@ -1863,6 +1872,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
     };
     const preconditions = { document: { revision: 3, contentHash: "fnv1a-before" } } as const;
     const documentAdapter = documentWriteAdapter();
+    const proposalReceipts = createProjectAgentProposalReceiptService({ projectRoot: root, binding });
     const coordinator = createProjectAgentExecutionCoordinator(
       createProjectAgentRepositoryRouter({ rootDir: root }),
       () => "subscription-document-write-approved",
@@ -1879,7 +1889,11 @@ describe("ProjectAgentExecutionCoordinator", () => {
         },
       },
     );
-    const opened = await coordinator.open(binding, { documentWrite: documentAdapter });
+    const opened = await coordinator.open(binding, {
+      documentWrite: documentAdapter,
+      proposalReceipt: () => proposalReceipts.read(),
+      proposalReceiptWriter: proposalReceipts,
+    });
     coordinator.subscribe(opened.subscriptionId, (event) => {
       if (event.type === "tool-call") {
         void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
@@ -1937,6 +1951,214 @@ describe("ProjectAgentExecutionCoordinator", () => {
         preconditions,
       },
     });
+    const receiptPath = projectAgentProposalReceiptPath(root);
+    expect(fs.existsSync(receiptPath)).toBe(true);
+    expect(proposalReceipts.read()).toMatchObject({
+      revision: 2,
+      lifecycle: "committed",
+      proposalId: expect.any(String),
+      proposal: {
+        hostApprovalId: expect.stringMatching(/^approval-/),
+        hostActionHash: invocation.actionHash,
+      },
+    });
+  });
+
+  it.each(["capability_timeout", "capability_execution_failed"] as const)(
+    "closes a prepared document receipt as undone on a %s write failure",
+    async (code) => {
+      root = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-project-agent-document-write-${code}-`));
+      fs.mkdirSync(path.join(root, ".nomi"), { recursive: true });
+      const documentAdapter = documentWriteAdapter({
+        result: { ok: false, code, message: code },
+      });
+      const proposalReceipts = createProjectAgentProposalReceiptService({ projectRoot: root, binding });
+      const coordinator = createProjectAgentExecutionCoordinator(
+        createProjectAgentRepositoryRouter({ rootDir: root }),
+        () => `subscription-document-write-${code}`,
+        {
+          runAgent: async (_request, hooks) => {
+            const call = {
+              toolCallId: `tool-document-write-${code}`,
+              toolName: "append_to_end",
+              args: { content: "network-safe failure" },
+            };
+            const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+            expect(decision).toMatchObject({ ok: true, result: { applied: true } });
+            return documentWriteResponse(call, decision);
+          },
+        },
+      );
+      const opened = await coordinator.open(binding, {
+        documentWrite: documentAdapter,
+        proposalReceipt: () => proposalReceipts.read(),
+        proposalReceiptWriter: proposalReceipts,
+      });
+      coordinator.subscribe(opened.subscriptionId, (event) => {
+        if (event.type === "tool-call") {
+          void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+            ok: true,
+            result: { applied: true },
+          });
+        }
+      });
+
+      const input = executionInput(`document-write-${code}`, 0);
+      await coordinator.enqueue(opened.subscriptionId, input);
+      const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+      expect(documentAdapter.prepare).toHaveBeenCalledOnce();
+      expect(documentAdapter.execute).toHaveBeenCalledOnce();
+      expect(proposalReceipts.read()).toMatchObject({ revision: 2, lifecycle: "undone" });
+      expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "failed" });
+      expect(final.items.find((item) => item.kind === "failure")).toMatchObject({ status: "failed" });
+    },
+  );
+
+  it("keeps the legacy document adapter fail-closed when no optional receipt writer is available", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-document-write-no-receipt-writer-"));
+    const documentAdapter = documentWriteAdapter({
+      result: { ok: false, code: "capability_timeout", message: "capability_timeout" },
+    });
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-document-write-no-receipt-writer",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "tool-document-write-no-receipt-writer",
+            toolName: "append_to_end",
+            args: { content: "receipt writer unavailable" },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          return documentWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { documentWrite: documentAdapter });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: true,
+          result: { applied: true },
+        });
+      }
+    });
+
+    const input = executionInput("document-write-no-receipt-writer", 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(documentAdapter.execute).toHaveBeenCalledOnce();
+    expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "failed" });
+    coordinator.release(opened.subscriptionId);
+  });
+
+  it.each([
+    { label: "explicit args operation", args: { operation: "append", content: "fallback append" }, operation: "append" },
+    { label: "write fallback", args: { content: "fallback write" }, operation: "write" },
+  ])("records the %s operation in the receipt proposal", async ({ label, args, operation }) => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-project-agent-document-write-${label.replaceAll(" ", "-")}-`));
+    fs.mkdirSync(path.join(root, ".nomi"), { recursive: true });
+    const documentAdapter = documentWriteAdapter();
+    const proposalReceipts = createProjectAgentProposalReceiptService({ projectRoot: root, binding });
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => `subscription-document-write-${operation}`,
+      {
+        runAgent: async (_request, hooks) => {
+          const call = { toolCallId: `tool-document-write-${operation}`, toolName: "nomi_document_edit", args };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          return documentWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, {
+      documentWrite: documentAdapter,
+      proposalReceipt: () => proposalReceipts.read(),
+      proposalReceiptWriter: proposalReceipts,
+    });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: true,
+          result: { applied: true },
+        });
+      }
+    });
+
+    const input = executionInput(`document-write-${operation}`, 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "done" });
+    expect(proposalReceipts.read()).toMatchObject({
+      revision: 2,
+      lifecycle: "committed",
+      proposal: { stepLabels: [`${operation}:nomi_document_edit`] },
+    });
+    coordinator.release(opened.subscriptionId);
+  });
+
+  it("fails closed when the document receipt commit cannot be persisted", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-document-write-receipt-commit-failure-"));
+    const preparedReceipt = (input: { proposalId: string; operationId: string; proposal: ProjectAgentCommittedProposalRecord }) => ({
+      schemaVersion: 2,
+      binding,
+      revision: 1,
+      lifecycle: "preparing" as const,
+      proposalId: input.proposalId,
+      operationId: input.operationId,
+      proposal: input.proposal,
+      proposalHash: "a".repeat(64),
+      operations: [],
+      updatedAt: "2026-08-28T00:00:00.000Z",
+      journalHash: "b".repeat(64),
+    });
+    let writes = 0;
+    const proposalReceiptWriter = {
+      binding,
+      read: vi.fn(() => null),
+      write: vi.fn((input: Parameters<ProjectAgentProposalReceiptWriter["write"]>[0]) => {
+        writes += 1;
+        if (writes > 1) throw new Error("receipt_commit_write_failed");
+        return preparedReceipt(input);
+      }),
+      transition: vi.fn(),
+    } as unknown as ProjectAgentProposalReceiptWriter;
+    const documentAdapter = documentWriteAdapter();
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-document-write-receipt-commit-failure",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = { toolCallId: "tool-document-write-receipt-commit-failure", toolName: "append_to_end", args: { content: "receipt must settle" } };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          return documentWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, {
+      documentWrite: documentAdapter,
+      proposalReceipt: () => null,
+      proposalReceiptWriter,
+    });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: true,
+          result: { applied: true },
+        });
+      }
+    });
+
+    const input = executionInput("document-write-receipt-commit-failure", 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(proposalReceiptWriter.write).toHaveBeenCalledTimes(2);
+    expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "failed" });
+    coordinator.release(opened.subscriptionId);
   });
 
   it("executes author_skill through the Host and settles its Skill-library proposal", async () => {

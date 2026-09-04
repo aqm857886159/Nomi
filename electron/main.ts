@@ -178,7 +178,14 @@ async function startDesktopCapabilityCore(): Promise<void> {
       const { fetchTaskResult } = await loadRuntimeModule();
       return fetchTaskResult(payload);
     },
-    { canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime, onGenerationReady: (factory) => getInstalledProductionProjectAgentHost()?.setGenerationAdapterFactory(factory) },
+    {
+      canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime,
+      onGenerationReady: (factory) => getInstalledProductionProjectAgentHost()?.setGenerationAdapterFactory(factory),
+      proposalReceiptFor: (binding) => {
+        const root = resolveWorkspaceProjectDir(binding.projectId, getWorkspaceRepositoryDeps());
+        return root ? createProjectAgentProposalReceiptService({ projectRoot: root, binding }) : undefined;
+      },
+    },
   );
   capabilityPortCache = core.getCapabilityPort();
 }

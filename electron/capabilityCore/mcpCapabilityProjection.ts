@@ -231,6 +231,7 @@ export const MEDIA_QUERY_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
 export const MCP_EDITING_METHODS = Object.freeze(new Set([
   TIMELINE_READ_CAPABILITY.id,
   TIMELINE_WRITE_CAPABILITY.id,
+  DOCUMENT_WRITE_CAPABILITY.id,
   EXPORT_READ_CAPABILITY.id,
   ASSET_READ_CAPABILITY.id,
 ]));

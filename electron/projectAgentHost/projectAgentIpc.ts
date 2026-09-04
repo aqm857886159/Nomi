@@ -421,7 +421,13 @@ export function registerProjectAgentIpc(
               ...(skillRead ? { skillRead } : {}),
               ...(skillWrite ? { skillWrite } : {}),
               ...(proposalReceipts
-                ? { proposalReceipt: () => proposalReceipts.read() }
+                ? {
+                    proposalReceipt: () => proposalReceipts.read(),
+                    // The renderer may read/transition recovery evidence, but
+                    // only this main-owned service is handed to Host execution
+                    // for prepare/commit receipt ownership.
+                    proposalReceiptWriter: proposalReceipts,
+                  }
                 : {}),
             }
           : undefined,

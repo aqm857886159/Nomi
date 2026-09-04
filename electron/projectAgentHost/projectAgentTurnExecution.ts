@@ -16,6 +16,7 @@ import { executeProductionApproval, reprepareEffectiveCall } from "./projectAgen
 import { resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
 import { projectAgentWorkModeDecision } from "./projectAgentExecutionPolicy";
 import { DOCUMENT_READ_CAPABILITY } from "../shared/agentCapabilities/documentRead";
+import { documentWriteOperationForAlias } from "../shared/agentCapabilities/documentWrite";
 import { CANVAS_DELETE_CAPABILITY } from "../shared/agentCapabilities/canvasDelete";
 import { CANVAS_WRITE_CAPABILITY } from "../shared/agentCapabilities/canvasWrite";
 import { TIMELINE_READ_CAPABILITY } from "../shared/agentCapabilities/timelineRead";
@@ -27,6 +28,8 @@ import { SKILL_READ_CAPABILITY } from "../shared/agentCapabilities/skillRead";
 import { committedProjectAgentReceiptMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
 import { digest, steeredExecutionPrompt, exportJobTaskItems, productionRunTaskItems, statusForResponse, toolItem, hostPromptLedgerForTurn } from "./projectAgentExecutionHelpers";
 import { isPiGenerationToolName } from "../capabilityCore/generationTransportAdapters";
+import type { ProjectAgentCommittedProposalRecord } from "../shared/projectAgentProposalReceipt";
+import type { ProjectAgentProposalReceiptWriter } from "./projectAgentExecutionCoordinatorTypes";
 
 type ToolCall = { toolCallId: string; toolName: string; args: unknown };
 type PreparedInvocation = { target: ProjectAgentQueueItem["target"]; preconditions: ProjectAgentQueueItem["preconditions"]; policyRevision: number; inputHash: string; actionHash: string };
@@ -65,10 +68,83 @@ export type ProjectAgentTurnExecutionContext = Readonly<{
   productionRunFor: (partition: ExecutionPartition) => PiProductionRunTransportAdapter | undefined;
   generationFor: (partition: ExecutionPartition) => PiGenerationTransportAdapter | undefined;
   proposalReceiptReaderFor: (partition: ExecutionPartition, preferredSubscriptionId: string) => (() => import("../shared/projectAgentProposalReceipt").ProjectAgentProposalReceiptView | null) | undefined;
+  proposalReceiptWriterFor: (partition: ExecutionPartition, preferredSubscriptionId: string) => ProjectAgentProposalReceiptWriter | undefined;
 }>;
 
+function documentProposalReceiptFor(
+  call: ToolCall,
+  persisted: ProposalApprovalRef,
+  prepared: PreparedDocumentWrite,
+): ProjectAgentCommittedProposalRecord {
+  const operation = prepared.invocation.input?.operation
+    ?? documentWriteOperationForAlias(call.toolName)
+    ?? (call.args && typeof call.args === "object" && typeof (call.args as Record<string, unknown>).operation === "string"
+      ? (call.args as Record<string, unknown>).operation as "insert" | "replace" | "append"
+      : "write");
+  return Object.freeze({
+    proposalId: persisted.receiptProposalId,
+    hostApprovalId: persisted.approvalId,
+    hostActionHash: persisted.actionHash,
+    summary: `${operation} ${call.toolName}`,
+    stepLabels: Object.freeze([`${operation}:${call.toolName}`]),
+    compensation: Object.freeze([]),
+    watchNodes: Object.freeze([]),
+    reconciliationOk: true,
+  });
+}
+
+function prepareDocumentProposalReceipt(
+  writer: ProjectAgentProposalReceiptWriter,
+  proposal: ProjectAgentCommittedProposalRecord,
+  approvalId: string,
+) {
+  const current = writer.read();
+  return writer.write({
+    expectedRevision: current?.revision ?? 0,
+    proposalId: proposal.proposalId,
+    operationId: `document-prepare:${approvalId}`,
+    lifecycle: "preparing",
+    proposal,
+  });
+}
+
+function commitDocumentProposalReceipt(
+  writer: ProjectAgentProposalReceiptWriter,
+  prepared: import("../shared/projectAgentProposalReceipt").ProjectAgentProposalReceiptView,
+  proposal: ProjectAgentCommittedProposalRecord,
+  approvalId: string,
+) {
+  return writer.write({
+    expectedRevision: prepared.revision,
+    proposalId: proposal.proposalId,
+    operationId: `document-commit:${approvalId}`,
+    lifecycle: "committed",
+    proposal,
+  });
+}
+
+function abandonDocumentProposalReceipt(
+  writer: ProjectAgentProposalReceiptWriter,
+  prepared: import("../shared/projectAgentProposalReceipt").ProjectAgentProposalReceiptView,
+  proposal: ProjectAgentCommittedProposalRecord,
+  approvalId: string,
+): void {
+  try {
+    writer.transition({
+      expectedRevision: prepared.revision,
+      proposalId: proposal.proposalId,
+      operationId: `document-failed:${approvalId}`,
+      lifecycle: "undone",
+    });
+  } catch {
+    // Keep the preparing receipt as recovery evidence if the failure settlement
+    // loses its CAS race. It is safer to block a retry than to claim an undo
+    // that was not durably recorded.
+  }
+}
+
 export async function executeProjectAgentTurn(context: ProjectAgentTurnExecutionContext, partition: ExecutionPartition, execution: ActiveExecution): Promise<"continue" | "stop"> {
-  const { now, dispatchPartition, publish, dispatchFresh, queueExecutionMutation, recordProposalSettlement, cleanupExecution, reportInternalError, runAgent, awaitToolDecision, persistApprovedProposal, persistPreparedProposal, rememberCanvasWriteOutcome, canvasReadFor, documentReadFor, documentWriteFor, canvasWriteFor, timelineReadFor, timelineWriteFor, phase4SurfaceFor, skillReadFor, skillWriteFor, productionRunFor, generationFor, proposalReceiptReaderFor } = context;
+  const { now, dispatchPartition, publish, dispatchFresh, queueExecutionMutation, recordProposalSettlement, cleanupExecution, reportInternalError, runAgent, awaitToolDecision, persistApprovedProposal, persistPreparedProposal, rememberCanvasWriteOutcome, canvasReadFor, documentReadFor, documentWriteFor, canvasWriteFor, timelineReadFor, timelineWriteFor, phase4SurfaceFor, skillReadFor, skillWriteFor, productionRunFor, generationFor, proposalReceiptReaderFor, proposalReceiptWriterFor } = context;
   const startAt = now();
   const current = partition.host.getSnapshot(partition.binding);
   const assistantItem = Object.freeze({
@@ -560,10 +636,39 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
             if (!decision.ok) return decision;
             const effective = await reprepareEffectiveCall(call, decision, prepared, (effectiveCall) => writeAdapter.prepare(effectiveCall, { documentId, target: execution.queueItem.target, preconditions: execution.queueItem.preconditions }, signal));
             if (!effective.ok) return { ok: false, message: effective.code, code: effective.code };
+            const receiptWriter = proposalReceiptWriterFor(
+              partition,
+              frozen?.preferredSubscriptionId ?? "",
+            );
             try {
               const persisted = await persistPreparedProposal(partition, execution, effective.call, decision, effective.prepared);
+              const receiptProposal = receiptWriter
+                ? documentProposalReceiptFor(effective.call, persisted, effective.prepared)
+                : undefined;
+              const preparingReceipt = receiptWriter && receiptProposal
+                ? prepareDocumentProposalReceipt(receiptWriter, receiptProposal, persisted.approvalId)
+                : undefined;
               const executed = await writeAdapter.execute(effective.prepared, signal);
-              recordProposalSettlement(execution, persisted.approvalId, executed.ok ? "done" : "failed");
+              if (!executed.ok) {
+                if (receiptWriter && receiptProposal && preparingReceipt) {
+                  abandonDocumentProposalReceipt(receiptWriter, preparingReceipt, receiptProposal, persisted.approvalId);
+                }
+                recordProposalSettlement(execution, persisted.approvalId, "failed");
+                return executed;
+              }
+              if (receiptWriter && receiptProposal && preparingReceipt) {
+                try {
+                  commitDocumentProposalReceipt(receiptWriter, preparingReceipt, receiptProposal, persisted.approvalId);
+                } catch {
+                  recordProposalSettlement(execution, persisted.approvalId, "failed");
+                  return {
+                    ok: false,
+                    code: "capability_receipt_unresolved",
+                    message: "capability_receipt_unresolved",
+                  };
+                }
+              }
+              recordProposalSettlement(execution, persisted.approvalId, "done");
               return executed;
             } catch {
               return { ok: false, message: "approval_persistence_failed" };

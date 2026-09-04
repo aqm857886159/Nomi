@@ -1,0 +1,84 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-04-resident-composer-receipt-revision",
+  "problem_type": "Resident Composer document proposal receipt was not durably owned by the Host/MCP approval boundary",
+  "symptom": "A real Agent or MCP document write could reach the document adapter and report an applied result without one durable main-process proposal receipt tying the approved action, revision, and persisted project effect together. Restart and failure reconciliation therefore could not distinguish approve, deny, stale revision, duplicate/no-op, timeout, and network-failure outcomes from an unrecorded mutation.",
+  "direct_cause": "The Host and MCP stdio paths had separate write entry points and no shared main-owned prepare/commit CAS boundary. The renderer adapter could apply the document operation, while the receipt writer was optional or absent at the call site; startup also had no safe default resolver for a headless MCP project. Receipt ownership, revision advancement, and fail-closed failure transition were therefore not enforced at the production write boundary.",
+  "class_root": "Approval-bearing mutations become non-reconcilable when planning, execution, and durable evidence are owned by different process boundaries. A document write must prepare a receipt with the frozen approval/action hash, execute only after the real confirmation, commit the same receipt after an applied result, and transition it to undone or unresolved on failure using revision CAS. All transport adapters must resolve the same main-process writer rather than inventing or injecting a final receipt.",
+  "migration": "No persisted schema migration. The existing project-agent proposal receipt schema remains the durable format; this slice adds main-process prepare/commit/undone transitions and forwards document confirmation through the real MCP and Host boundaries. Existing receipts remain readable and cold-start recovery continues to use their binding and revision fields.",
+  "affected_population": [
+    "Resident Composer users asking the Agent to edit the current document",
+    "MCP clients performing a confirmed document.write through loopback or stdio",
+    "Projects reopened after an approved, denied, stale, duplicate, timeout, or network-failed write"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/mcpCapabilityProjection.ts",
+    "electron/capabilityCore/mcpDocumentWriteReceipt.ts",
+    "electron/capabilityCore/mcpLoopbackRpcRequest.ts",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/rpcServer.ts",
+    "electron/main.ts",
+    "electron/projectAgentHost/projectAgentAdapterResolvers.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinatorTypes.ts",
+    "electron/projectAgentHost/projectAgentIpc.ts",
+    "electron/projectAgentHost/projectAgentTurnExecution.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "tests/ux/resident-composer-receipt-fix.e2e.mjs"
+  ],
+  "entry_points": [
+    "Resident Composer visible input and Agent approval card",
+    "electron/capabilityCore/mcpProtocol.ts::nomi_document_edit",
+    "electron/capabilityCore/mcpStdioServer.ts::createMcpStdioDirectInvoker",
+    "electron/capabilityCore/rpcServer.ts::document.write",
+    "electron/projectAgentHost/projectAgentTurnExecution.ts::executeProjectAgentTurn"
+  ],
+  "invariants": [
+    "The main process is the sole owner of document proposal receipt persistence; tests and renderers cannot write a final receipt directly.",
+    "An approved document write prepares before the real adapter dispatch and commits the same proposal/action receipt only after an applied result; revision CAS rejects stale and duplicate/no-op transitions.",
+    "Denial, missing confirmation, stale target, timeout, network/provider failure, missing authority, and receipt commit failure fail closed without claiming a successful document mutation.",
+    "MCP stdio and loopback resolve the current project and use the same receipt writer contract; headless startup has a safe resolver fallback and non-document tools remain on their existing dispatch path.",
+    "A cold restart reads the persisted document and receipt binding/revision; the Electron journey uses visible user input, real Agent/MCP execution, and disk readback rather than Host state or receipt injection."
+  ],
+  "regression_tests": [
+    "electron/capabilityCore/mcpDocumentWriteReceipt.test.ts",
+    "electron/capabilityCore/mcpStdioDocumentReceipt.test.ts",
+    "electron/capabilityCore/mcpEditingSurface.test.ts",
+    "electron/capabilityCore/mcpLoopbackRpcRequest.test.ts",
+    "electron/capabilityCore/rpcServer.test.ts",
+    "electron/projectAgentHost/projectAgentAdapterResolvers.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
+    "electron/projectAgentHost/projectAgentIpc.test.ts",
+    "src/workbench/capability/capabilityApplyHandler.documentWrite.test.ts",
+    "tests/ux/resident-composer-receipt-fix.e2e.mjs"
+  ],
+  "residual_risks": [
+    "The exact raw V8 receipt covers only the changed production spans listed in the QA evidence; it does not claim repository-wide or whole-file 100% coverage.",
+    "The real Electron evidence is development-mode dual-process coverage. The journey script has no packaged mode and no packaged parity run is claimed here.",
+    "The document proposal slice is complete for this change; canvas proposal receipts and live paid/external provider certification remain separate follow-up scopes.",
+    "External provider behavior is represented only at the explicitly bounded deterministic provider seam; paidCalls remained zero."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This contract defines Nomi's own Electron process ownership, MCP stdio/loopback boundaries, approval correlation, revision CAS, project persistence, and restart recovery. No external source can define these internal receipt invariants.",
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "The missing ownership is one document-write boundary gap exposed by the #466 real journey evidence. Other capabilities must not inherit this document contract without their own operation, receipt, and persistence scope.",
+    "same_class_scan": [
+      "Traced Host approval persistence, adapter resolution, document execution, MCP loopback forwarding, MCP stdio direct invocation, and RPC document.write to confirm one main-owned writer is used at each production entry.",
+      "Checked non-document MCP dispatch and existing canvas paths remain outside this document slice; no CSS, visual direction, or #462 storyboard canonical file was changed.",
+      "Ran exact raw V8 map verification against coverage-final.json and a real two-process Electron cold restart; no final receipt is injected by the harness."
+    ]
+  },
+  "legacy_paths": {
+    "status": "preserved",
+    "removed_paths": [],
+    "rationale": "Legacy non-document MCP dispatch and the existing receipt schema remain in place; only the document write ownership boundary is made durable and fail-closed."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency was added, upgraded, or removed; the implementation uses existing Electron, MCP, repository, and Vitest infrastructure.",
+    "exit_criteria": []
+  }
+}

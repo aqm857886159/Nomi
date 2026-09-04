@@ -41,6 +41,9 @@ import { createInternalCanvasReadVerifiedInvocationFactory } from './verifiedCap
 import { createVerifiedProjectSessionBindingFromAuthority } from './projectSessionRuntime'
 import { canvasReadLeaseRequiredRpcError, canvasReadRpcError } from './canvasReadPublicError'
 import { isMcpEditingMethod } from './mcpCapabilityProjection'
+import type { ProjectBinding } from '../shared/projectBinding'
+import type { ProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
+import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
 
 export type RpcServerOptions = {
   /** 真实生成入口（runtime.runTask）。注入式：headless host 与 app 各自传同一份。 */
@@ -70,6 +73,8 @@ export type RpcServerOptions = {
   projectRevisionResolver?: (projectId: string) => number | undefined
   /** B4 main-only executor. When absent canvas.read is denied, never routed to legacy dispatch. */
   canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
+  /** Main-owned durable proposal receipt service resolved only after a verified project lease. */
+  proposalReceiptFor?: (binding: ProjectBinding) => ProjectAgentProposalReceiptService | undefined | Promise<ProjectAgentProposalReceiptService | undefined>
 }
 
 function readBody(req: http.IncomingMessage): Promise<string> {
@@ -148,7 +153,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         if (req.method !== 'POST' || req.url !== '/rpc') throw new RpcError('仅支持 POST /rpc', 404)
         if (!verifyToken(bearerToken(req))) throw new RpcError('鉴权失败：token 无效', 401)
         const raw = await readBody(req)
-        let parsed: { method?: unknown; params?: unknown; planConfirmed?: unknown; spendConfirmed?: unknown }
+        let parsed: { method?: unknown; params?: unknown; planConfirmed?: unknown; spendConfirmed?: unknown; documentConfirmed?: unknown }
         try {
           parsed = JSON.parse(raw || '{}')
         } catch {
@@ -245,15 +250,23 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           const operation = typeof params.operation === 'string' ? params.operation : ''
           const scope = isCanonicalCanvasPlanPatch
             ? 'canvas:write'
-            : method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
-              ? 'timeline:write'
-              : method === 'timeline.write' ? 'timeline:read'
+              : method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
+                ? 'timeline:write'
+                : method === 'timeline.write' ? 'timeline:read'
+                  : method === 'document.write' ? 'document:write'
                 : method === 'asset.read' ? 'asset:read' : 'export:read'
           const lease = await options.projectSessionAuthority.verifyLease(leaseHandle, {
             connection: projectSessionConnection,
             ...(projectHint ? { projectHint } : {}),
             scope,
           })
+          if (method === 'document.write' && parsed.documentConfirmed !== true) {
+            throw new RpcError('Human confirmation is required before applying a document change', 403, {
+              code: 'human_approval_required',
+              nextAction: 'Confirm the document change in the MCP client and retry',
+              capability: 'document.write' as never,
+            })
+          }
           if (method === 'timeline.write' && (operation === 'apply' || operation === 'undo') && parsed.planConfirmed !== true) {
             throw new RpcError('Host approval is required before applying a timeline edit', 403)
           }
@@ -263,7 +276,9 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
               ? 'timeline.read'
               : method === 'timeline.write'
                 ? 'timeline.write'
-                : method === 'asset.read' ? 'asset.read' : 'export.read'
+                : method === 'document.write'
+                  ? 'document.write'
+                  : method === 'asset.read' ? 'asset.read' : 'export.read'
           const rendererPayload = isCanonicalCanvasPlanPatch
             ? (() => {
                 const { leaseHandle: _leaseHandle, projectId: _projectHint, ...input } = params
@@ -286,7 +301,28 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
                   ? { receiptProposalId: `mcp-edit:${crypto.randomUUID()}`, approvalId: `mcp-host:${crypto.randomUUID()}`, actionHash: crypto.randomUUID() }
                   : {}),
               }
-          const result = await requestRenderer(rendererOp, rendererPayload, 30_000)
+          const result = method === 'document.write'
+            ? await (async () => {
+                const service = await options.proposalReceiptFor?.({
+                  projectId: lease.projectId,
+                  immutableProjectUuid: lease.immutableProjectUuid,
+                  projectGeneration: lease.projectGeneration,
+                })
+                if (!service) throw new RpcError('Durable document proposal receipt is unavailable', 501)
+                if (
+                  service.binding.projectId !== lease.projectId ||
+                  service.binding.immutableProjectUuid !== lease.immutableProjectUuid ||
+                  service.binding.projectGeneration !== lease.projectGeneration
+                ) {
+                  throw new RpcError('Durable document proposal receipt binding mismatch', 409)
+                }
+                return executeMcpDocumentWriteWithReceipt({
+                  service,
+                  operation,
+                  execute: () => requestRenderer(rendererOp, rendererPayload, 30_000),
+                })
+              })()
+            : await requestRenderer(rendererOp, rendererPayload, 30_000)
           send(200, { ok: true, result })
           return
         }
