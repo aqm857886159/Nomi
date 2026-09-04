@@ -52,10 +52,6 @@ function restoreEnvironment(name: string, value: string | undefined): void {
   else process.env[name] = value
 }
 
-function settle(): Promise<void> {
-  return new Promise((resolve) => setImmediate(resolve))
-}
-
 function outcomeCode(frame: Frame): unknown {
   return frame.result?.structuredContent?.nomiOutcome?.errorCode
 }
@@ -136,7 +132,6 @@ function makeClient(
 ) {
   const frames: Frame[] = []
   const waiters: Array<(frame: Frame) => void> = []
-  let protocol!: ReturnType<typeof createMcpProtocol>
   const invoke = vi.fn(async (method: string, params: Record<string, unknown>) => {
     if (method !== 'nomi_session_open' && fault === 'timeout') {
       throw Object.assign(new Error('MCP transport timeout'), { code: 'capability_timeout' })
@@ -160,7 +155,7 @@ function makeClient(
     if (waiter) waiter(message)
     else frames.push(message)
   }
-  protocol = createMcpProtocol({
+  const protocol = createMcpProtocol({
     send,
     invoke: invoke as McpTransport['invoke'],
     isAppOpen: () => false,
