@@ -12,9 +12,15 @@
 
 **Spec:** 本方案依据 `docs/qa/2026-09-04-real-user-test-contract.md`、`docs/qa/2026-09-04-epics-rebaseline-audit.md`、`docs/qa/2026-09-04-mcp-rebaseline-audit.md`、`docs/design/2026-09-01-agent-ui-final-redesign.md` 和已合入 PR 的实际差异；本方案只描述执行，不把历史 PR 标题、静态 mockup、fixture、loopback 或 skipped check 当作完成证据。
 
+### Current baseline freshness (2026-09-05)
+
+本次刷新先执行 `git fetch origin main`；随后 `git rev-parse origin/main` 得到精确 SHA `89dcd9131025cc8d5f74e5afe3432ea9eb142faf`，且本工作树 clean。该 SHA 是本方案当前唯一 baseline，已包含 #471 的 computable Agent UI design contract。#471 证明的是设计规则、来源定位、运行时 DOM/样式测量和 mismatch 报告可计算，不等于 M0–M5 任一阶段毕业。
+
+文中较早的 PR merge SHA、测试结果和状态是写作时的 `snapshot`：它们只用于追溯当时的证据，不持续更新，也不能覆盖本节的 current baseline。`implemented`/`tested`/`live-certified`/`blocked` 仍按本方案的证据门分别判断；远端 PR 的标题、按钮点击或 CI 绿灯不能单独升级阶段状态。
+
 ## Global Constraints
 
-1. 当前基线固定为 `origin/main@3e997f2547d019b6ed6021f917074927e08cbf36`，即已包含 #468、#469、#470 的主线；每个后续 PR 开工前必须刷新 `origin/main` 并记录完整 SHA。
+1. 当前基线固定为本次刷新确认的 `origin/main@89dcd9131025cc8d5f74e5afe3432ea9eb142faf`，即已包含 #468、#469、#470 和 #471；每个后续 PR 开工前必须重新 fetch `origin/main` 并记录完整 SHA。#471 的 UI 设计合同已合入，但不构成 M0–M5 完成证据。
 2. 本文是总方案，不授权一次性大合并。每个 featureId 必须拆成边界清楚的新 PR；实现、测试、批量修改和长代码阅读由执行 agent 负责，编排者只做拆解、分发和验收。
 3. 每一个阶段都必须先写会失败的生产形状断言，再实现最小改动，再用同一输入、同一命令、同一断言 ID 重跑为绿；如果当前基线已绿，登记为 `absorbed/duplicate`，不得人为制造红灯。
 4. 每个阶段强制覆盖 Happy、Boundary、Error、Timeout、Network 五类场景。无网络依赖的功能也要证明 Network 场景不发起外部请求。
@@ -37,7 +43,10 @@
 |---|---|---|
 | #468 real-user journey gates | 已合入，merge `3e997f2547d019b6ed6021f917074927e08cbf36`；新增真实用户任务契约、provider preflight、Electron/UI boundary harness 和 blocked-live 规则 | `implemented / tested`；当前只证明门和阻断诚实，不证明 live provider 成功 |
 | #469 M0/M1 matrix evidence | 已合入，merge `15fdc9b8fd9af118f699f1408d54470fc4b7c4ff`；补 M0/M1 矩阵、文档/画布 approval、undo/disk rollback、stopped terminal、独立 session、cold restart 证据 | `implemented / tested`；M1 全量 Host、M3/M4 全量仍未毕业 |
-| #470 long-video real-user contract | 已合入，merge `8891666960abb168e07b3fce440524f872fa1e4c`；真实长视频任务 manifest、H/B/E/T/N、provider check、Electron harness 和 live canary profile | `implemented / tested / blocked`；记录了 60.096 秒仓库样本，但当时 Skill 未在当前 Agent 菜单暴露，未产生 provider 请求 |
+| #470 long-video real-user contract | 已合入，merge `8891666960abb168e07b3fce440524f872fa1e4c`；真实长视频任务 manifest、H/B/E/T/N、provider check、Electron harness 和 live canary profile | `implemented / tested / blocked-live`；真实 canary 在 Skill menu 暴露前即被阻塞，未发生外部 API 请求；不能写成 provider 成功 |
+| #471 computable Agent UI design contract | 已合入 current baseline `89dcd9131025cc8d5f74e5afe3432ea9eb142faf`；将 approved design source、selector/state/severity/tolerance、DOM/computed-style measurement 和 mismatch report 变成可计算合同 | `implemented / tested`（横切设计合同）；不等于 M0–M5 任一阶段毕业，packaged/真实 Host/provider 证据仍缺 |
+| #473 storyboard planner Skill menu fix | 仍 open；产品修复与真实 Electron menu walk 已过，证明 `workbench.storyboard.planner` 可见/可选的修复方向；Contracts gate 因缺少对应 root-cause contract 阻塞，未合入 | `implemented / locally-tested / blocked`；未合入、无 live provider 请求 |
+| #474 storyboard planner Skill menu fix | 仍 open；与 #473 仍是独立的重复修复方向，包含相同 Skill menu 暴露目标；在唯一 owner、根因合同和 PR 取舍裁决前不纳入 baseline | `duplicate / needs-decision`；不能把独立 PR 的验证或 Claims 当作 current-main 事实 |
 | M0 文档基线 | owner map、tool mapping、legacy paths、PR slices 和 M-line rulings 已在 main | `implemented / tested`（架构文档）；不是产品 Happy path |
 | M1 Host | Host lifecycle/settlement/projection 基础代码和 unit slices 已合入 | `implemented / tested`（局部）；真实 Host 默认关闭，完整 remediation/重启仍 `blocked` |
 | M2 semantic surfaces | generation、editing、canvas/document 的语义切片和部分 MCP L2 已合入 | `implemented / tested`（局部/待 current-main 重跑）；全链 effect/receipt/restart 未证明 |
@@ -69,11 +78,12 @@
 ```bash
 git fetch origin main
 git rev-parse origin/main
-git merge-base --is-ancestor 3e997f2547d019b6ed6021f917074927e08cbf36 origin/main
+git merge-base --is-ancestor 89dcd9131025cc8d5f74e5afe3432ea9eb142faf origin/main
+git status --short --branch
 git worktree list --porcelain
 ```
 
-预期：`origin/main` 为 `3e997f2547d019b6ed6021f917074927e08cbf36` 或其后代，且 #468/#469/#470 的 merge commit 都在祖先链上。任何执行分支都必须记录完整 SHA、dirty 状态、基于哪个 commit 和实际改动文件。
+本次结果：`origin/main` 精确为 `89dcd9131025cc8d5f74e5afe3432ea9eb142faf`，#471 merge commit；`git status --short --branch` 无 dirty 文件。任何执行分支都必须记录完整 SHA、dirty 状态、基于哪个 commit 和实际改动文件。历史基线快照不能替代这条 current-main 记录。
 
 ### 2.2 设计真源与来源边界
 
@@ -92,6 +102,9 @@ git worktree list --porcelain
 
 当前 open PR 只作为候选 patch、依赖或审计材料，不能因为“有 PR”就计为完成：
 
+- #471：已合入 current `origin/main`；其 computable UI design contract 是横切合同，不把 M0–M5 或真实 provider/package 证据升级为完成。
+- #473：产品修复/真实 Electron menu walk 已过，但 Contracts gate 因缺 root-cause contract 阻塞；保持 open/blocked，不能合入或写成 current-main 已吸收。
+- #474：与 #473 的 Skill menu 修复仍为独立重复 PR；标记 `duplicate / needs-decision`，等待唯一 owner/PR 取舍裁决，不把其独立 head 状态写入 current baseline。
 - #466/#452：先做 receipt/Host 差异审计；若功能与 #469/#468 重叠，合并唯一 owner 后再拆小 PR。
 - #454：保留已完成的分镜功能事实和模型身份修复线索；整体不作为 Agent epic 完成，不复制被否定的样张。
 - #456/#459/#458/#435/#419/#412/#403/#399/#384：按当前 main 重算冲突、required checks 和用户价值；失败、旧 base、stacked 或仅诊断文档不直接合入。
@@ -343,7 +356,7 @@ pnpm run test:mcp-l2:packaged
 
 ### 5.6 视频拆解与长视频真实任务
 
-使用已合入 #470 的 manifest/runner/Provider preflight。真实任务包含：导入仓库 60 秒以上或用户授权的长视频→加载可见 Skill→切换 text-vision 模型→拆解→查看/选择镜头→失败镜头重试→送新版分镜表/画布→Agent 修改→审批→保存→重启回读。每次真实 provider 只做单次、单并发、每镜一帧、无视频生成、无自动重试的最小 canary；记录 provider/model/request ID/usage/cost。当前已知红灯是 `workbench.storyboard.planner` 未出现在 Agent 菜单，后续审批 selector、durable result/selection/restart 和失败回滚也未证明。
+使用已合入 #470 的 manifest/runner/Provider preflight。真实任务包含：导入仓库 60 秒以上或用户授权的长视频→加载可见 Skill→切换 text-vision 模型→拆解→查看/选择镜头→失败镜头重试→送新版分镜表/画布→Agent 修改→审批→保存→重启回读。每次真实 provider 只做单次、单并发、每镜一帧、无视频生成、无自动重试的最小 canary；记录 provider/model/request ID/usage/cost。#470 的真实 live canary 结论是：在 Skill menu 暴露前即被阻塞，未发生外部 API 请求；因此不能写成 provider 成功。后续审批 selector、durable result/selection/restart 和失败回滚也未证明。
 
 ### 5.7 持久化、重启和跨设备
 
