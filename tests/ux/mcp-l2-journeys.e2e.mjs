@@ -221,6 +221,11 @@ try {
   await win.evaluate((id) => { window.location.hash = `#/studio?projectId=${id}` }, c9ProjectId)
   await win.waitForFunction((id) => window.location.hash.includes(`projectId=${id}`), c9ProjectId, { timeout: 10_000 })
   await win.getByText('C9 semantic four-shot generation', { exact: true }).waitFor({ timeout: 20_000 })
+  // Let the renderer finish its normal project-persistence tick before the
+  // challenge is sealed. The stale-receipt leg below is deliberate; this
+  // settle window keeps that leg attributable to the explicit revision write
+  // instead of the first project-open persistence pass.
+  await win.waitForTimeout(1_000)
   const c9Session = await call(mcp, 'nomi_session_open', { projectSelectionHandle: c9SelectionHandle })
   const c9SessionData = resultTextJson(c9Session)
   const c9Lease = c9SessionData.leaseHandle || resultData(c9Session).leaseHandle
@@ -263,17 +268,62 @@ try {
   }))
   const planned = await call(mcp, 'nomi_operation_plan', { projectId: c9ProjectId, leaseHandle: c9Lease, shots: c9Shots })
   const plannedData = resultTextJson(planned)
-  const operationId = plannedData.operation?.operationId || resultData(planned).operation?.operationId
+  let operationId = plannedData.operation?.operationId || resultData(planned).operation?.operationId
   check(typeof operationId === 'string' && operationId.length > 0, 'C9 operation_plan 创建四镜草稿')
   const preview = await call(mcp, 'nomi_operation_preview', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId })
   const previewData = resultTextJson(preview)
   check(previewData.pricing?.shots?.length === 4 || previewData.pricing?.total?.unknownShotCount !== undefined, 'C9 operation_preview 返回四镜定价投影')
-  const gatePromise = call(mcp, 'nomi_operation_gate', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId, phase: 'request' }, { timeoutMs: 120_000 })
+  // C9-stale: a real project write after challenge creation invalidates the
+  // receipt. This is the production fail-closed contract, not a swallowed
+  // error: the result is retained and asserted before a fresh operation is
+  // planned. The bridge call uses the same persisted project record boundary
+  // as the app rename/save path, and only mutates this isolated E2E project.
+  const staleOperationId = operationId
+  const staleGatePromise = mcp.callTool('nomi_operation_gate', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId: staleOperationId, phase: 'request' }, { timeoutMs: 120_000 })
   const generationCard = win.locator('div.fixed.inset-0').filter({ hasText: /允许 Nomi 生成这一批镜头|生成这一批镜头/ }).first()
   await generationCard.waitFor({ timeout: 20_000 })
-  await takeScreenshot(win, 'C9-generation-gate')
+  await takeScreenshot(win, 'C9-generation-gate-stale')
+  const staleRevisionWrite = await win.evaluate((id) => {
+    const projects = window.nomiDesktop?.projects
+    const current = projects?.read?.(id)
+    if (!projects?.save || !current) throw new Error('C9 stale-receipt probe could not read the isolated project')
+    const before = Number(current.revision)
+    const saved = projects.save(id, {
+      ...current,
+      // A real persisted user-visible project edit is enough to invalidate a
+      // generation approval receipt. Keep the project isolated and make the
+      // edit explicit so the report can distinguish it from an accidental
+      // renderer save race.
+      name: `${String(current.name || 'C9 project')} stale-receipt edit`,
+    })
+    return { before, after: Number(saved?.revision) }
+  }, c9ProjectId)
+  check(Number.isInteger(staleRevisionWrite.before) && staleRevisionWrite.after === staleRevisionWrite.before + 1, 'C9 stale leg 真实项目保存使 revision 单调增加')
   await generationCard.locator('[data-production-action="confirm"]').click()
-  const gated = await gatePromise
+  const staleGate = await staleGatePromise
+  const staleOutcome = staleGate?.structuredContent?.nomiOutcome || resultData(staleGate)
+  check(staleGate?.isError === true && staleOutcome.errorCode === 'receipt_invalid', 'C9 stale receipt 被结构化拒绝为 receipt_invalid（不吞错）')
+  check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length === 0, 'C9 stale receipt 失败不触达供应商')
+  const cancelledStale = await call(mcp, 'nomi_operation_control', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId: staleOperationId, action: 'cancel' })
+  const cancelledStaleData = resultTextJson(cancelledStale)
+  check((cancelledStaleData.operation || resultData(cancelledStale).operation)?.state === 'cancelled', 'C9 stale sealed Run 取消后不留可提交计划')
+
+  const retryPlanned = await call(mcp, 'nomi_operation_plan', { projectId: c9ProjectId, leaseHandle: c9Lease, shots: c9Shots })
+  const retryPlannedData = resultTextJson(retryPlanned)
+  operationId = retryPlannedData.operation?.operationId || resultData(retryPlanned).operation?.operationId
+  check(typeof operationId === 'string' && operationId.length > 0 && operationId !== staleOperationId, 'C9 receipt_invalid 后重新创建四镜 operation')
+  const retryPreview = await call(mcp, 'nomi_operation_preview', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId })
+  const retryPreviewData = resultTextJson(retryPreview)
+  check(retryPreviewData.pricing?.shots?.length === 4 || retryPreviewData.pricing?.total?.unknownShotCount !== undefined, 'C9 re-confirm 前重新生成四镜定价投影')
+  const retryGatePromise = mcp.callTool('nomi_operation_gate', { projectId: c9ProjectId, leaseHandle: c9Lease, operationId, phase: 'request' }, { timeoutMs: 120_000 })
+  await generationCard.waitFor({ timeout: 20_000 })
+  await takeScreenshot(win, 'C9-generation-gate-reconfirm')
+  await generationCard.locator('[data-production-action="confirm"]').click()
+  const gated = await retryGatePromise
+  if (gated?.isError) {
+    console.log('  nomi_operation_gate retry error=', JSON.stringify(gated))
+    throw new Error(`nomi_operation_gate retry: ${parseToolResult(gated).text}`)
+  }
   const gatedData = resultTextJson(gated)
   const challenge = gatedData.challenge || resultData(gated).challenge
   const gateShots = challenge?.shots?.shots || []
