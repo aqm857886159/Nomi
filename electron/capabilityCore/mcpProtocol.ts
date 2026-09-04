@@ -316,7 +316,7 @@ export function createMcpProtocol(transport: McpTransport) {
     const invokeForRequest = (methodName: string, paramsValue: Record<string, unknown>, options?: McpInvokeOptions) => {
       const forwardedParams = withRequestSignal(paramsValue, requestSignal)
       const { signal: _signal, ...forwardedOptions } = options ?? {}
-      const requestId = methodName === 'canvas.write' && (typeof message.id === 'string' || (typeof message.id === 'number' && Number.isFinite(message.id))) ? String(message.id) : undefined
+      const requestId = (methodName === 'canvas.write' || methodName === 'document.write') && (typeof message.id === 'string' || (typeof message.id === 'number' && Number.isFinite(message.id))) ? String(message.id) : undefined
       const effectiveOptions = requestId ? { ...forwardedOptions, requestId } : forwardedOptions
       return Object.keys(effectiveOptions).length ? transport.invoke(methodName, forwardedParams, effectiveOptions) : transport.invoke(methodName, forwardedParams)
     }

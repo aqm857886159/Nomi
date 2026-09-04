@@ -161,6 +161,10 @@ describe('committed proposal receipt renderer lifecycle', () => {
     expect(getCommittedProposal()).toBeNull()
     expect(hydrateCommittedProposalReceipt(receipt('preparing', 1))).toBe(true)
     expect(getCommittedProposal()).toBeNull()
+    for (const lifecycle of ['effect_unknown', 'partial', 'commit_failed'] as const) {
+      expect(hydrateCommittedProposalReceipt(receipt(lifecycle, 2))).toBe(true)
+      expect(getCommittedProposal()).toEqual(record)
+    }
     expect(hydrateCommittedProposalReceipt(receipt('committed', 2))).toBe(true)
     expect(getCommittedProposal()).toEqual(record)
     expect(hydrateCommittedProposalReceipt(receipt('undone', 4))).toBe(true)

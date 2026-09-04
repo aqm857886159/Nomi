@@ -93,17 +93,54 @@ describe('MCP stdio direct document receipt boundary', () => {
       dispatch as never,
     )
 
+    const first = await invokeDirect(
+      'document.write',
+      { projectId: 'project-stdio-document', operation: 'append', content: 'headless content' },
+      session,
+      { documentConfirmed: true, requestId: 'stdio-document-replay-1' },
+    )
+    expect(first).toMatchObject({ applied: true })
+
     await expect(invokeDirect(
       'document.write',
       { projectId: 'project-stdio-document', operation: 'append', content: 'headless content' },
       session,
-      { documentConfirmed: true },
-    )).resolves.toMatchObject({ applied: true })
+      { documentConfirmed: true, requestId: 'stdio-document-replay-1' },
+    )).resolves.toEqual(first)
+
+    await expect(invokeDirect(
+      'document.write',
+      { projectId: 'project-stdio-document', operation: 'append', content: 'different content' },
+      session,
+      { documentConfirmed: true, requestId: 'stdio-document-replay-1' },
+    )).rejects.toThrow(/conflicts|conflict/)
 
     expect(dispatch).toHaveBeenCalledOnce()
     expect(proposalReceiptFor).toHaveBeenCalledWith('project-stdio-document')
     expect(fs.existsSync(projectAgentProposalReceiptPath(root))).toBe(true)
     expect(service.read()).toMatchObject({ revision: 2, lifecycle: 'committed' })
+  })
+
+  it('passes cancellation through the direct document receipt boundary after a real effect', async () => {
+    const { service } = makeService()
+    const controller = new AbortController()
+    const dispatch = vi.fn(async () => {
+      controller.abort(new Error('late direct document cancel'))
+      return { applied: true, revision: 2, contentHash: 'stdio-hash' }
+    })
+    const invokeDirect = createMcpStdioDirectInvoker(
+      { proposalReceiptFor: () => service },
+      canvasReadExecutionRuntime,
+      dispatch as never,
+    )
+
+    await expect(invokeDirect(
+      'document.write',
+      { projectId: service.binding.projectId, operation: 'append', content: 'effect before cancellation' },
+      session,
+      { documentConfirmed: true, requestId: 'stdio-document-late-cancel-1', signal: controller.signal },
+    )).rejects.toThrow('late direct document cancel')
+    expect(service.read()).toMatchObject({ lifecycle: 'effect_unknown' })
   })
 
   it('fails closed before dispatch when headless document confirmation is absent', async () => {

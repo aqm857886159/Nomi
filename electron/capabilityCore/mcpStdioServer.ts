@@ -265,6 +265,9 @@ export function createMcpStdioDirectInvoker(
     return executeMcpDocumentWriteWithReceipt({
       service,
       operation: typeof routedParams.operation === 'string' ? routedParams.operation : 'write',
+      requestId: routedOptions?.requestId,
+      requestFingerprint: stableRequestFingerprint(routedParams),
+      signal: routedOptions?.signal,
       execute: () => invokeDispatch(),
     })
   }

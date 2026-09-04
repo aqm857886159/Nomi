@@ -43,7 +43,7 @@ import { canvasReadLeaseRequiredRpcError, canvasReadRpcError } from './canvasRea
 import { isMcpEditingMethod } from './mcpCapabilityProjection'
 import type { ProjectBinding } from '../shared/projectBinding'
 import type { ProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
-import { executeMcpDocumentWriteWithReceipt, executeMcpWriteWithReceipt } from './mcpDocumentWriteReceipt'
+import { executeMcpDocumentWriteWithReceipt, executeMcpWriteWithReceipt, markMcpWriteEffect } from './mcpDocumentWriteReceipt'
 
 export type RpcServerOptions = {
   /** 真实生成入口（runtime.runTask）。注入式：headless host 与 app 各自传同一份。 */
@@ -177,7 +177,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         // is renderer-owned: it must use the same live store/admission/receipt
         // path as the open Electron project rather than generic planning.
         const isCanonicalCanvasPlanPatch = method === 'canvas.write' && params.operation === 'patch_shots'
-        const isCanvasWrite = method === 'canvas.write' && !isCanonicalCanvasPlanPatch
+        const isCanvasWrite = method === 'canvas.write'
         const isEditing = isMcpEditingMethod(method)
         const client = firstHeader(req.headers['x-nomi-mcp-client'])
         const clientProof = firstHeader(req.headers['x-nomi-mcp-client-proof'])
@@ -294,29 +294,28 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
                 : method === 'document.write'
                   ? 'document.write'
                   : method === 'asset.read' ? 'asset.read' : 'export.read'
-          const rendererPayload = isCanonicalCanvasPlanPatch
+          const canonicalCanvasInput = isCanonicalCanvasPlanPatch
             ? (() => {
                 const { leaseHandle: _leaseHandle, projectId: _projectHint, ...input } = params
-                return {
-                  projectId: lease.projectId,
-                  input,
-                  receiptProposalId: `mcp-canvas-plan:${crypto.randomUUID()}`,
-                  approvalId: `mcp-canvas-plan-approval:${crypto.randomUUID()}`,
-                  // This direct MCP request is approved by the MCP elicitation
-                  // seam, not by a Project Agent Host turn. Do not forge Host
-                  // correlation without a claimed Host approval; the renderer
-                  // receipt remains durable but intentionally uncorrelated.
-                }
+                return input
               })()
-            : {
-                ...params,
-                projectId: lease.projectId,
-                ...(requestId ? { requestId } : {}),
-                // These values are minted only after the verified lease and (for writes) Host approval.
-                ...(method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
-                  ? { receiptProposalId: `mcp-edit:${crypto.randomUUID()}`, approvalId: `mcp-host:${crypto.randomUUID()}`, actionHash: crypto.randomUUID() }
-                  : {}),
-              }
+            : undefined
+          const rendererPayload = {
+            ...params,
+            projectId: lease.projectId,
+            ...(requestId ? { requestId } : {}),
+            // These values are minted only after the verified lease and (for writes) Host approval.
+            ...(method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
+              ? { receiptProposalId: `mcp-edit:${crypto.randomUUID()}`, approvalId: `mcp-host:${crypto.randomUUID()}`, actionHash: crypto.randomUUID() }
+              : {}),
+          }
+          const rejectLateRendererResult = (result: unknown): unknown => {
+            if (!requestController.signal.aborted && !req.aborted && !res.destroyed) return result
+            const reason = requestController.signal.reason instanceof Error
+              ? requestController.signal.reason
+              : new Error('MCP request cancelled after the renderer write boundary')
+            throw markMcpWriteEffect(reason, 'effect_unknown')
+          }
           const result = method === 'document.write'
             ? await (async () => {
                 const service = await options.proposalReceiptFor?.({
@@ -335,7 +334,10 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
                 return executeMcpDocumentWriteWithReceipt({
                   service,
                   operation,
-                  execute: () => requestRenderer(rendererOp, rendererPayload, 30_000),
+                  requestId,
+                  requestFingerprint: stableRequestFingerprint(params),
+                  signal: requestController.signal,
+                  execute: async () => rejectLateRendererResult(await requestRenderer(rendererOp, rendererPayload, 30_000)),
                 })
               })()
             : isCanvasWrite
@@ -360,26 +362,33 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
                     requestId,
                     requestFingerprint: stableRequestFingerprint(params),
                     signal: requestController.signal,
-                    execute: () => dispatchAndEnrich(method, params, {
-                      runTask: options.runTask,
-                      fetchTaskResult: options.fetchTaskResult,
-                      makeGateway: preApprovedSpend ? (projectId: string) => withPreApprovedSpend(makeGateway(projectId)) : makeGateway,
-                      productionRuns,
-                      origin: { host: origin },
-                      generationPolicy: options.generationPolicy,
-                      generationContext: options.generationContext,
-                      generationPlanning: options.generationPlanning,
-                      projectRevisionResolver: options.projectRevisionResolver,
-                      ...(options.projectSessionAuthority && projectSessionConnection
-                        ? { projectSession: { authority: options.projectSessionAuthority, connection: projectSessionConnection } }
-                        : {}),
-                      approvalReceiptAuthority: options.approvalReceiptAuthority,
-                      requestGenerationGate: options.requestGenerationGate,
-                      authorizeGeneration: options.authorizeGeneration,
-                      makeVerifyDeps: (verifyCtx) => makeShotVerifyDeps(verifyCtx),
-                      ...(parsed.planConfirmed === true ? { planConfirmed: true } : {}),
-                      signal: requestController.signal,
-                    }),
+                    execute: (proposalId) => isCanonicalCanvasPlanPatch
+                      ? requestRenderer(rendererOp, {
+                          projectId: lease.projectId,
+                          input: canonicalCanvasInput,
+                          receiptProposalId: proposalId,
+                          approvalId: `mcp-canvas-plan-approval:${proposalId}`,
+                        }, 30_000).then(rejectLateRendererResult)
+                      : dispatchAndEnrich(method, params, {
+                          runTask: options.runTask,
+                          fetchTaskResult: options.fetchTaskResult,
+                          makeGateway: preApprovedSpend ? (projectId: string) => withPreApprovedSpend(makeGateway(projectId)) : makeGateway,
+                          productionRuns,
+                          origin: { host: origin },
+                          generationPolicy: options.generationPolicy,
+                          generationContext: options.generationContext,
+                          generationPlanning: options.generationPlanning,
+                          projectRevisionResolver: options.projectRevisionResolver,
+                          ...(options.projectSessionAuthority && projectSessionConnection
+                            ? { projectSession: { authority: options.projectSessionAuthority, connection: projectSessionConnection } }
+                            : {}),
+                          approvalReceiptAuthority: options.approvalReceiptAuthority,
+                          requestGenerationGate: options.requestGenerationGate,
+                          authorizeGeneration: options.authorizeGeneration,
+                          makeVerifyDeps: (verifyCtx) => makeShotVerifyDeps(verifyCtx),
+                          ...(parsed.planConfirmed === true ? { planConfirmed: true } : {}),
+                          signal: requestController.signal,
+                        }).then(rejectLateRendererResult),
                   })
                 })()
             : await requestRenderer(rendererOp, rendererPayload, 30_000)
