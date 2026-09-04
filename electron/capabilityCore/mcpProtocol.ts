@@ -316,9 +316,9 @@ export function createMcpProtocol(transport: McpTransport) {
     const invokeForRequest = (methodName: string, paramsValue: Record<string, unknown>, options?: McpInvokeOptions) => {
       const forwardedParams = withRequestSignal(paramsValue, requestSignal)
       const { signal: _signal, ...forwardedOptions } = options ?? {}
-      return Object.keys(forwardedOptions).length
-        ? transport.invoke(methodName, forwardedParams, forwardedOptions)
-        : transport.invoke(methodName, forwardedParams)
+      const requestId = methodName === 'canvas.write' && (typeof message.id === 'string' || (typeof message.id === 'number' && Number.isFinite(message.id))) ? String(message.id) : undefined
+      const effectiveOptions = requestId ? { ...forwardedOptions, requestId } : forwardedOptions
+      return Object.keys(effectiveOptions).length ? transport.invoke(methodName, forwardedParams, effectiveOptions) : transport.invoke(methodName, forwardedParams)
     }
     const { id, method, params } = message
     // 通知不回响应；取消通知仍须交给 registry。

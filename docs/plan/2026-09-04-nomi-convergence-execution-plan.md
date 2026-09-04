@@ -14,13 +14,13 @@
 
 ### Current baseline freshness (2026-09-05)
 
-本次刷新先执行 `git fetch origin main`；随后 `git rev-parse origin/main` 得到精确 SHA `0ca7e307fe6caa875c7177ff9ffd7c12f2ff88ce`，且本工作树 clean。该 SHA 是本方案当前唯一 baseline，已包含 #471 的 computable Agent UI design contract、已合入的 #474 Skill menu 修复和 #475 的 convergence baseline refresh。#471 证明的是设计规则、来源定位、运行时 DOM/样式测量和 mismatch 报告可计算；#474 证明 Skill visibility 修复已进入主线；#475 只更新收敛基线文档；三者都不等于 M0–M5 任一阶段毕业。
+本次刷新先执行 `git fetch origin main`；随后 `git rev-parse origin/main` 得到精确 SHA `d26a2dae78d1b4337d28b75e6a76b531c767f1a0`，且本工作树 clean。该 SHA 是本方案当前唯一 baseline，已包含 #471 的 computable Agent UI design contract、已合入的 #474 Skill menu 修复、#475 的 convergence baseline refresh、#478 和 #480 的主线变更。#471 证明的是设计规则、来源定位、运行时 DOM/样式测量和 mismatch 报告可计算；#474 证明 Skill visibility 修复已进入主线；#475 只更新收敛基线文档；三者都不等于 M0–M5 任一阶段毕业。
 
 文中较早的 PR merge SHA、测试结果和状态是写作时的 `snapshot`：它们只用于追溯当时的证据，不持续更新，也不能覆盖本节的 current baseline。`implemented`/`tested`/`live-certified`/`blocked` 仍按本方案的证据门分别判断；远端 PR 的标题、按钮点击或 CI 绿灯不能单独升级阶段状态。
 
 ## Global Constraints
 
-1. 当前基线固定为本次刷新确认的 `origin/main@0ca7e307fe6caa875c7177ff9ffd7c12f2ff88ce`，即已包含 #468、#469、#470、#471、#474 和 #475；每个后续 PR 开工前必须重新 fetch `origin/main` 并记录完整 SHA。#471 的 UI 设计合同、#474 的 Skill menu 修复和 #475 的基线文档刷新已合入，但都不构成 M0–M5 完成证据。
+1. 当前基线固定为本次刷新确认的 `origin/main@d26a2dae78d1b4337d28b75e6a76b531c767f1a0`，即已包含 #468、#469、#470、#471、#474、#475、#478 和 #480；每个后续 PR 开工前必须重新 fetch `origin/main` 并记录完整 SHA。#471 的 UI 设计合同、#474 的 Skill menu 修复、#475 的基线文档刷新、#478 和 #480 的主线变更已合入，但都不构成 M0–M5 完成证据。
 2. 本文是总方案，不授权一次性大合并。每个 featureId 必须拆成边界清楚的新 PR；实现、测试、批量修改和长代码阅读由执行 agent 负责，编排者只做拆解、分发和验收。
 3. 每一个阶段都必须先写会失败的生产形状断言，再实现最小改动，再用同一输入、同一命令、同一断言 ID 重跑为绿；如果当前基线已绿，登记为 `absorbed/duplicate`，不得人为制造红灯。
 4. 每个阶段强制覆盖 Happy、Boundary、Error、Timeout、Network 五类场景。无网络依赖的功能也要证明 Network 场景不发起外部请求。
@@ -44,10 +44,10 @@
 | #468 real-user journey gates | 已合入，merge `3e997f2547d019b6ed6021f917074927e08cbf36`；新增真实用户任务契约、provider preflight、Electron/UI boundary harness 和 blocked-live 规则 | `implemented / tested`；当前只证明门和阻断诚实，不证明 live provider 成功 |
 | #469 M0/M1 matrix evidence | 已合入，merge `15fdc9b8fd9af118f699f1408d54470fc4b7c4ff`；补 M0/M1 矩阵、文档/画布 approval、undo/disk rollback、stopped terminal、独立 session、cold restart 证据 | `implemented / tested`；M1 全量 Host、M3/M4 全量仍未毕业 |
 | #470 long-video real-user contract | 已合入，merge `8891666960abb168e07b3fce440524f872fa1e4c`；真实长视频任务 manifest、H/B/E/T/N、provider check、Electron harness 和 live canary profile | `implemented / tested / blocked-live`；真实 canary 在 Skill menu 暴露前即被阻塞，未发生外部 API 请求；不能写成 provider 成功 |
-| #471 computable Agent UI design contract | 已合入；其 merge commit 已包含于 current baseline `0ca7e307fe6caa875c7177ff9ffd7c12f2ff88ce`；将 approved design source、selector/state/severity/tolerance、DOM/computed-style measurement 和 mismatch report 变成可计算合同 | `implemented / tested`（横切设计合同）；不等于 M0–M5 任一阶段毕业，packaged/真实 Host/provider 证据仍缺 |
+| #471 computable Agent UI design contract | 已合入；其 merge commit 已包含于 current baseline `d26a2dae78d1b4337d28b75e6a76b531c767f1a0`；将 approved design source、selector/state/severity/tolerance、DOM/computed-style measurement 和 mismatch report 变成可计算合同 | `implemented / tested`（横切设计合同）；不等于 M0–M5 任一阶段毕业，packaged/真实 Host/provider 证据仍缺 |
 | #473 storyboard planner Skill menu fix | 仍 open；与已合入的 #474 是同一 Skill menu 修复方向的重复 PR。其产品修复/真实 Electron menu walk 证据不能作为主线实现；Contracts gate 因缺少对应 root-cause contract 阻塞 | `duplicate / blocked`；不作为主线实现，未合入、无 live provider 请求 |
 | #474 storyboard planner Skill menu fix | 已合入 main，merge commit `8ff53610900accad9a319f2720ec9e887712a9ff`；将 canonical `selectableInWorkbench`/共享 Workbench visibility boundary 的修复带入 current baseline | `implemented / tested`（Skill visibility 修复）；不等于 M0–M5 任一阶段毕业，真实 provider/package/全链证据仍缺 |
-| #476 canvas.write durable receipt slice | 当前 open；headless stdio 真实写入、receipt、重启恢复和错误边界已在本分支实现并验证，当前 baseline 为 `0ca7e307fe6caa875c7177ff9ffd7c12f2ff88ce` | `implemented / tested / headless-persistence-certified`；GUI-open renderer、packaged launcher、完整 canvas operations 和远端 required checks 不在已完成证据内 |
+| #476 canvas.write durable receipt slice | 当前 open；headless stdio 真实写入、receipt、重启恢复和错误边界已在本分支实现并验证，当前 baseline 为 `d26a2dae78d1b4337d28b75e6a76b531c767f1a0` | `implemented / tested / headless-persistence-certified`；GUI-open renderer、packaged launcher、完整 canvas operations 和远端 required checks 不在已完成证据内 |
 | M0 文档基线 | owner map、tool mapping、legacy paths、PR slices 和 M-line rulings 已在 main | `implemented / tested`（架构文档）；不是产品 Happy path |
 | M1 Host | Host lifecycle/settlement/projection 基础代码和 unit slices 已合入 | `implemented / tested`（局部）；真实 Host 默认关闭，完整 remediation/重启仍 `blocked` |
 | M2 semantic surfaces | generation、editing、canvas/document 的语义切片和部分 MCP L2 已合入 | `implemented / tested`（局部/待 current-main 重跑）；全链 effect/receipt/restart 未证明 |
@@ -79,12 +79,12 @@
 ```bash
 git fetch origin main
 git rev-parse origin/main
-git merge-base --is-ancestor 0ca7e307fe6caa875c7177ff9ffd7c12f2ff88ce origin/main
+git merge-base --is-ancestor d26a2dae78d1b4337d28b75e6a76b531c767f1a0 origin/main
 git status --short --branch
 git worktree list --porcelain
 ```
 
-本次结果：`origin/main` 精确为 `0ca7e307fe6caa875c7177ff9ffd7c12f2ff88ce`，已包含 #475 merge commit；`git status --short --branch` 无 dirty 文件。任何执行分支都必须记录完整 SHA、dirty 状态、基于哪个 commit 和实际改动文件。历史基线快照不能替代这条 current-main 记录。
+本次结果：`origin/main` 精确为 `d26a2dae78d1b4337d28b75e6a76b531c767f1a0`，已包含 #480 merge commit；`git status --short --branch` 无 dirty 文件。任何执行分支都必须记录完整 SHA、dirty 状态、基于哪个 commit 和实际改动文件。历史基线快照不能替代这条 current-main 记录。
 
 ### 2.2 设计真源与来源边界
 

@@ -135,6 +135,16 @@ function makeConfirmedGateway(projectId: string): ProjectGateway {
   return withPreApprovedSpend(createDiskGateway(projectId))
 }
 
+function stableRequestFingerprint(value: unknown): string {
+  if (value === null || typeof value === 'boolean' || typeof value === 'string') return JSON.stringify(value)
+  if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(stableRequestFingerprint).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, child]) => `${JSON.stringify(key)}:${stableRequestFingerprint(child)}`).join(',')}}`
+  }
+  return JSON.stringify(String(value))
+}
+
 async function callViaRpc(
   instance: InstanceAdvertisement,
   method: string,
@@ -160,6 +170,7 @@ async function callViaRpc(
         planConfirmed: options?.planConfirmed,
         spendConfirmed: options?.spendConfirmed,
         documentConfirmed: options?.documentConfirmed,
+        requestId: options?.requestId,
         signal: controller.signal,
       }),
     })
@@ -241,6 +252,7 @@ export function createMcpStdioDirectInvoker(
         kind: 'canvas',
         operation: typeof routedParams.operation === 'string' ? routedParams.operation : 'write',
         requestId: routedOptions?.requestId ?? JSON.stringify(routedParams),
+        requestFingerprint: stableRequestFingerprint(routedParams),
         signal: routedOptions?.signal,
         execute: (writeProposalId) => invokeDispatch(writeProposalId),
       })

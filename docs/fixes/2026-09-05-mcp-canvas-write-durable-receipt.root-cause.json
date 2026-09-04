@@ -14,7 +14,15 @@
   "scope_paths": [
     "electron/capabilityCore/mcpDocumentWriteReceipt.ts",
     "electron/capabilityCore/mcpStdioServer.ts",
-    "electron/capabilityCore/dispatcher.ts"
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/capabilityCore/core.ts",
+    "electron/capabilityCore/gateway.ts",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/capabilityCore/mcpLoopbackRpcRequest.ts",
+    "electron/capabilityCore/mcpNodeLauncher.ts",
+    "electron/capabilityCore/rpcServer.ts",
+    "electron/projectAgentHost/projectAgentProposalReceiptStore.ts",
+    "electron/shared/projectAgentProposalReceipt.ts"
   ],
   "entry_points": [
     "MCP_CAPABILITY_RESOLVER.resolve('nomi_canvas_edit') → canvas.write",
@@ -25,15 +33,19 @@
     "A real canvas.write commits a main-process durable receipt only after the disk gateway returns an applied result, and the result proposalId equals the committed receipt proposalId.",
     "The receipt binding is checked against the verified project lease and survives a fresh receipt-service instance after restart.",
     "A repeated request identity cannot apply a second disk mutation; malformed schema, invalid lease, failed disk read, and pre-effect cancellation leave the canvas unchanged and never produce a committed receipt.",
+    "After an effect, late cancellation, partial application, or receipt commit failure is never represented as undone; the durable lifecycle is effect_unknown, partial, or commit_failed and preparing evidence is reconciled after restart.",
+    "A JSON-RPC request id is carried through handleIncoming, the stdio/loopback transport, and the existing receipt owner; same-id same-parameter calls replay while same-id different-parameter calls conflict deterministically.",
     "The production test enters through the catalog resolver and exercises the real lease, dispatcher, and disk gateway; old patch_shots probes and injected stores are not evidence for this contract."
   ],
   "regression_tests": [
+    "electron/capabilityCore/mcpDocumentWriteReceipt.test.ts",
     "electron/capabilityCore/mcpStdioCanvasWriteReceipt.test.ts",
+    "electron/capabilityCore/mcpLoopbackRpcRequest.test.ts",
     "tests/ux/mcp-canvas-write-durable-receipt.e2e.mjs"
   ],
   "residual_risks": [
-    "The GUI-open RPC renderer journey is not certified in this PR; it remains blocked for a follow-up that must bind the same main receipt lifecycle to renderer writes without inventing a second receipt contract.",
-    "An abort arriving after a synchronous disk gateway has already applied cannot undo that physical write in this slice; the boundary prevents work after an already-cancelled request and commits no late receipt."
+    "The canonical patch_shots renderer-owned journey is not certified in this PR; it remains bounded by its existing renderer receipt owner and is not used as evidence for ordinary canvas.write.",
+    "An abort arriving after a synchronous disk gateway has already applied cannot undo that physical write; the durable receipt records effect_unknown and restart reconciliation keeps the state truthful."
   ],
   "external_sources": [],
   "internal_only_reason": "This is an internal Nomi receipt, lease, filesystem durability, and MCP cancellation contract; no external protocol or provider documentation can establish the trusted project binding or local recovery semantics.",

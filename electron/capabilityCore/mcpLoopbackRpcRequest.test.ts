@@ -42,9 +42,10 @@ describe('MCP loopback RPC request boundary', () => {
       method: 'document.write',
       params: { projectId: 'project-1', operation: 'append', content: 'approved' },
       documentConfirmed: true,
+      requestId: 'json-rpc-id-17',
     })
 
-    expect(JSON.parse(String(request.body))).toMatchObject({ documentConfirmed: true });
+    expect(JSON.parse(String(request.body))).toMatchObject({ documentConfirmed: true, requestId: 'json-rpc-id-17' });
   });
 
   it.each([

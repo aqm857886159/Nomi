@@ -311,7 +311,7 @@ export async function addProjectNodes(gateway: ProjectGateway, specs: NodeSpec[]
     if (!approved) return { ids: [], cancelled: true }
   }
   const { snapshot, ids } = addNodes(await gateway.readDoc(), specs)
-  await gateway.apply(snapshot)
+  await applyCanvasSnapshot(gateway, snapshot)
   return { ids }
 }
 
@@ -320,20 +320,35 @@ export async function connectProjectNodes(gateway: ProjectGateway, connections: 
   skipped: Array<{ connection: ConnectionSpec; reason: string }>
 }> {
   const result = connectNodes(await gateway.readDoc(), connections)
-  await gateway.apply(result.snapshot)
+  await applyCanvasSnapshot(gateway, result.snapshot)
   return { edgeIds: result.edgeIds, skipped: result.skipped }
 }
 
 export async function setProjectNodePrompt(gateway: ProjectGateway, nodeId: string, prompt: string, title?: string): Promise<{ changed: boolean }> {
   const { snapshot, changed } = setNodePrompt(await gateway.readDoc(), nodeId, prompt, title)
-  if (changed) await gateway.apply(snapshot)
+  if (changed) await applyCanvasSnapshot(gateway, snapshot)
   return { changed }
 }
 
 export async function deleteProjectNodes(gateway: ProjectGateway, nodeIds: string[]): Promise<{ deleted: string[] }> {
   const { snapshot, deleted } = deleteNodes(await gateway.readDoc(), nodeIds)
-  if (deleted.length) await gateway.apply(snapshot)
+  if (deleted.length) await applyCanvasSnapshot(gateway, snapshot)
   return { deleted }
+}
+
+/** A gateway apply can fail after the underlying store accepted the snapshot. Keep that fact
+ * attached to the original error so the receipt boundary never reports an effect as undone. */
+async function applyCanvasSnapshot(gateway: ProjectGateway, snapshot: CanvasSnapshot): Promise<void> {
+  try {
+    await gateway.apply(snapshot)
+  } catch (error) {
+    try {
+      Object.defineProperty(error, 'mcpWriteEffect', { value: 'effect_unknown', configurable: true })
+    } catch {
+      // Preserve the original gateway error when it is not extensible.
+    }
+    throw error
+  }
 }
 
 // ── 生成（复用主进程 runtime.runTask；B 模式落结果回节点）─────────────────

@@ -74,7 +74,7 @@ describe("MCP document.write durable receipt boundary", () => {
     expect(service.read()).toMatchObject({ revision: 2, lifecycle: "undone" });
   });
 
-  it("closes a commit CAS/write failure as undone when the write was not reported applied", async () => {
+  it("records commit failure separately when the effect was applied but receipt commit failed", async () => {
     const projectRoot = tempProject();
     const backing = proposalService(projectRoot);
     let writes = 0;
@@ -92,7 +92,47 @@ describe("MCP document.write durable receipt boundary", () => {
       operation: "append",
       execute: async () => ({ applied: true }),
     })).rejects.toThrow("receipt_commit_write_failed");
-    expect(backing.read()).toMatchObject({ revision: 2, lifecycle: "undone" });
+    expect(backing.read()).toMatchObject({ revision: 2, lifecycle: "commit_failed" });
+  });
+
+  it("never claims undone when cancellation arrives after the executor reports an effect", async () => {
+    const service = proposalService(tempProject());
+    const controller = new AbortController();
+
+    await expect(executeMcpDocumentWriteWithReceipt({
+      service,
+      operation: "append",
+      signal: controller.signal,
+      execute: async () => {
+        controller.abort(new Error("late cancel"));
+        return { applied: true };
+      },
+    })).rejects.toThrow("late cancel");
+
+    expect(service.read()).toMatchObject({ revision: 2, lifecycle: "effect_unknown" });
+  });
+
+  it("reconciles a preparing receipt after restart as effect-unknown", async () => {
+    const projectRoot = tempProject();
+    const first = proposalService(projectRoot);
+    let writes = 0;
+    await expect(executeMcpDocumentWriteWithReceipt({
+      service: {
+        ...first,
+        write: vi.fn((input: Parameters<ProjectAgentProposalReceiptService["write"]>[0]) => {
+          if (++writes === 2) throw new Error("receipt commit interrupted");
+          return first.write(input);
+        }),
+        transition: vi.fn(() => { throw new Error("receipt commit interrupted"); }),
+      } as unknown as ProjectAgentProposalReceiptService,
+      operation: "append",
+      execute: async () => ({ applied: true }),
+    })).rejects.toThrow("receipt commit interrupted");
+
+    const restarted = proposalService(projectRoot);
+    expect(restarted.read()).toMatchObject({ lifecycle: "preparing" });
+    expect(restarted.reconcileInDoubt()).toMatchObject({ lifecycle: "effect_unknown" });
+    expect(restarted.read()).toMatchObject({ lifecycle: "effect_unknown" });
   });
 
   it("preserves preparing evidence when its failure transition loses the receipt CAS race", async () => {

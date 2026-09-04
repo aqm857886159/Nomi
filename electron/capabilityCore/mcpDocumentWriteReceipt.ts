@@ -4,14 +4,35 @@ import type { ProjectAgentCommittedProposalRecord } from '../shared/projectAgent
 import type { ProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
 
 type McpWriteReceiptKind = 'document' | 'canvas'
+export type McpWriteEffectState = 'effect_unknown' | 'partial' | 'commit_failed'
+
+export function markMcpWriteEffect(error: unknown, state: McpWriteEffectState): unknown {
+  if (!error || (typeof error !== 'object' && typeof error !== 'function')) return error
+  try {
+    Object.defineProperty(error, 'mcpWriteEffect', { value: state, configurable: true })
+  } catch {
+    try { (error as { mcpWriteEffect?: McpWriteEffectState }).mcpWriteEffect = state } catch { /* preserve original error */ }
+  }
+  return error
+}
+
+function effectState(error: unknown): McpWriteEffectState | undefined {
+  const value = error && typeof error === 'object' ? (error as { mcpWriteEffect?: unknown }).mcpWriteEffect : undefined
+  return value === 'effect_unknown' || value === 'partial' || value === 'commit_failed' ? value : undefined
+}
 
 function proposalFor(input: Readonly<{
   proposalId: string
   kind: McpWriteReceiptKind
   operation: string
+  requestFingerprint?: string
 }>): ProjectAgentCommittedProposalRecord {
+  const requestHash = input.requestFingerprint
+    ? crypto.createHash('sha256').update(`nomi-mcp-write-request\0${input.requestFingerprint}`).digest('hex')
+    : undefined
   return {
     proposalId: input.proposalId,
+    ...(requestHash ? { requestHash } : {}),
     summary: `MCP ${input.kind} ${input.operation}`,
     stepLabels: [`${input.kind}.write:${input.operation}`],
     compensation: [],
@@ -46,13 +67,26 @@ export async function executeMcpWriteWithReceipt(input: Readonly<{
   kind: McpWriteReceiptKind
   operation: string
   requestId?: string
+  requestFingerprint?: string
   signal?: AbortSignal
   execute: (proposalId: string) => Promise<unknown>
 }>): Promise<unknown> {
   if (input.signal?.aborted) throw cancellationError(input.signal)
   const proposalId = proposalIdFor(input.kind, input.requestId)
-  const proposal = proposalFor({ proposalId, kind: input.kind, operation: input.operation })
+  const proposal = proposalFor({ proposalId, kind: input.kind, operation: input.operation, requestFingerprint: input.requestFingerprint })
+  input.service.reconcileInDoubt?.()
   const current = input.service.read()
+  if (current?.proposalId === proposalId) {
+    if (current.proposal.requestHash !== proposal.requestHash) {
+      throw new Error('Project Agent proposal receipt operation conflicts with its first request')
+    }
+    if (current.lifecycle === 'committed') {
+      return current.result ?? { applied: true, proposalId, operation: input.operation }
+    }
+    if (current.lifecycle === 'effect_unknown' || current.lifecycle === 'partial' || current.lifecycle === 'commit_failed') {
+      throw new Error(`MCP write receipt is ${current.lifecycle}; manual reconciliation is required`)
+    }
+  }
   const preparing = input.service.write({
     expectedRevision: current?.revision ?? 0,
     proposalId,
@@ -61,29 +95,36 @@ export async function executeMcpWriteWithReceipt(input: Readonly<{
     proposal,
   })
   try {
-    if (input.signal?.aborted) throw cancellationError(input.signal)
     const result = await input.execute(proposalId)
-    if (input.signal?.aborted) throw cancellationError(input.signal)
-    if (!result || typeof result !== 'object' || (result as { applied?: unknown }).applied !== true) {
+    const applied = Boolean(result && typeof result === 'object' && (result as { applied?: unknown }).applied === true)
+    if (input.signal?.aborted) {
+      if (applied) throw markMcpWriteEffect(cancellationError(input.signal), 'effect_unknown')
+      throw cancellationError(input.signal)
+    }
+    if (!applied) {
       throw new Error('capability_execution_failed')
     }
-    input.service.write({
-      expectedRevision: preparing.revision,
-      proposalId,
-      operationId: `mcp-${input.kind}-commit:${proposalId}`,
-      lifecycle: 'committed',
-      proposal,
-    })
+    try {
+      input.service.write({
+        expectedRevision: preparing.revision,
+        proposalId,
+        operationId: `mcp-${input.kind}-commit:${proposalId}`,
+        lifecycle: 'committed',
+        proposal,
+        result,
+      })
+    } catch (error) {
+      throw markMcpWriteEffect(error, 'commit_failed')
+    }
     return result
   } catch (error) {
-    // Close a failed prepare with durable evidence. A lost CAS remains a
-    // preparing receipt, which is intentionally recovered/fail-closed later.
+    const lifecycle = effectState(error) ?? 'undone'
     try {
       input.service.transition({
         expectedRevision: preparing.revision,
         proposalId,
         operationId: `mcp-${input.kind}-failed:${proposalId}`,
-        lifecycle: 'undone',
+        lifecycle,
       })
     } catch {
       // Preserve the original failure; the orphan is evidence for recovery.
@@ -95,12 +136,18 @@ export async function executeMcpWriteWithReceipt(input: Readonly<{
 export async function executeMcpDocumentWriteWithReceipt(input: Readonly<{
   service: ProjectAgentProposalReceiptService
   operation: string
+  requestId?: string
+  requestFingerprint?: string
+  signal?: AbortSignal
   execute: () => Promise<unknown>
 }>): Promise<unknown> {
   return executeMcpWriteWithReceipt({
     service: input.service,
     kind: 'document',
     operation: input.operation,
+    requestId: input.requestId,
+    requestFingerprint: input.requestFingerprint,
+    signal: input.signal,
     execute: () => input.execute(),
   })
 }
