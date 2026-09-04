@@ -165,6 +165,11 @@ export const WAN_3_0_ARCHETYPE: ModelArchetype = {
       hint: "多模态参考；最多 10 图 / 5 视频 / 5 音频（视频与音频每段 1-15 秒）",
       promptRequired: true,
       transportTaskKind: "image_to_video",
+      // Runway 的多图参考 union 声明在 **text** 端点（POST /v1/text_to_video，PR #342）——只有单图
+      // i2v 那个 wire role 才是 image_to_video。不覆盖的话档案把 ref 路由去 image_to_video 桶、
+      // seed 的线缆却在 text_to_video 桶，selectTaskMapping 永远取不到 → 模式栏静默藏掉「全能参考」
+      // （2026-09-03 check:orphan-cables 实测；seed 侧是对的，此处跟上）。
+      vendorTransportTaskKind: { runway: "text_to_video" },
       slots: [
         { kind: "image_ref", label: "参考图", min: 0, max: 10, characterIndexed: true, inputKey: "reference_image_urls" },
         { kind: "video_ref", label: "参考视频", min: 0, max: 5, inputKey: "reference_video_urls" },

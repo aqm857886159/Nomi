@@ -122,3 +122,29 @@ RL2 是本轮唯一从红转绿的红灯，直接证明 Codex r3 的 canvasRead 
 4. **`check:*` 门禁回归**（vocab 22 处 / test-types `SkillRecord` fixture / walkthroughs 死选择器+剥注释 / filesize 巨壳 / perf 墙钟预算 / `resources.mts` pi 技能隔离）：见上文各节，`pnpm run gates` 全绿。
 
 **⚠️ 剩 1 处需继续（cutover 项目迁移回归）：E2E `Full functional canvas acceptance`（`canvas-full`，`test:canvas:acceptance`）`FAIL (11/13)`**。失败断言：`selection-toolbar-vendor.walk.mjs:131`「打开项目后没等到顶部「生成」导航」——`getByRole('button',{name:'生成'})` 不可见，因为**项目 hydration 失败**（DOM 停在「未找到可用的自动备份。可以打开项目文件夹检查 .nomi/project.json」恢复卡）。定位：cutover **重写了 `electron/workspace/legacyProjectMigration.ts::migrateLegacyProjectFolder`**——改从 `context.canonicalRootPath`（`workspaceManifestLock.ts:99` 的 `fs.realpathSync(rootPath)` 实解析）读 `legacyProjectFile(canonicalRootPath)`。该走查只在项目根写 `project.json`（无 `.nomi/project.json`，与 origin/main 逐字节同、main-era 假设），能过 origin/main 的旧迁移、但过不了 cutover 的新 canonical 迁移（本机 macOS + Linux CI 双复现，非 flake；`canvas-full` 在 origin/main CI 被 skip 故 main 从没跑到、无对照 CI）。**已排除迁移函数本身**：隔离直调 `migrateLegacyProjectFolder(projDir)`（root-only `project.json`、`version:1` seed）返回 SUCCESS——迁移函数正确工作。故失败在**全 app 打开流的 hydration 时序/下游**（恢复卡「未找到备份」在该流里持续可见而非闪现），非迁移逻辑破。需继续追：该 seed 在完整打开流里为何停在恢复卡（app 是否走到 migration、或 hydration 某步在 cutover 后竞态/超时）。属 cutover transplant 项目打开子系统债，超出终装机械范围。**PR CI 现红仅剩此一项**；其余全绿。
+
+## ⚠️ 追记（2026-09-03）：RL3 的复现命令曾在「一字不改」的前提下被悄悄换掉了对象
+
+上面 RL3 那三处复现命令 `pnpm exec vitest run electron/projectAgentHost/hostLifecycle.test.ts` **现在跑不了**——该文件已于本次（2026-09-03）删除。删除前它已不是原来那个文件，这才是要记下来的事：
+
+**发生了什么**：`hostLifecycle.test.ts` 原本是一份 80 行、5 个用例的真测试，测 `hostLifecycle.ts` 里的 `ProjectAgentHost.open` / `acceptIntent` / `beginEffect` / `settleEffect`。commit `0b6441c6`（M1 round-2 transplant）**把 `hostLifecycle.ts` 连同这 5 个用例一起删了**，只在原路径留了 3 行：
+
+```ts
+// Compatibility entrypoint for the immutable M0 red-light command.
+import './projectAgentHost.test'
+```
+
+于是同一条命令的**文本没变、含义变了**：
+- 本文档第一张表记的 **「5/5 lifecycle tests passed；`markDeviated` is the sole durable write path」** —— 跑的是那份真 lifecycle 测试。
+- 后面终验班记的 **「绿 10/10（含 1,000 命令同实体快照有界…12.3s）」** —— 跑的已经是 `projectAgentHost.test.ts` 这套**完全不同**的 Host reducer/repository 测试，`deviated` 一个断言都没有。
+
+「原命令一字不改逐条复核」这条纪律**在字面上被遵守了**，但它想守的东西（同一条命令验同一件事）在中间被转发壳架空了。转发壳同时还让 4 份根因合同的 `pathExists` 检查一直是绿的——它们都把这个文件列为唯一回归测试。
+
+**RL3 现在的真实状态**：
+- `markDeviated` **已从全仓消失**（`grep -rn markDeviated electron/` 零命中）。RL3 记的「`markDeviated` 是唯一持久化写入路径」是关于一个**已不存在的机制**的结论。
+- `deviated` 作为字段还在，参与 `projectAgentState.ts:261,267` 的校验闸；但**没有任何测试断言它**——测试里每一处 `deviated` 都是 fixture 赋值（`deviated: false`），不是断言。
+- 所以 RL3 目前**既没有原验收覆盖、也没有等价替代覆盖**，属未关闭红灯，不是已通过项。
+
+**命令更正**：想跑当年那套 Host 覆盖，用 `pnpm exec vitest run electron/projectAgentHost/projectAgentHost.test.ts --reporter=verbose`。但要清楚：**它验的不是 RL3 的原命题**。RL3 的 `deviated` 覆盖需要重建。
+
+**合同侧同步**：`docs/fixes/2026-09-01-rc-{01,02,05,06}` 四份合同已改指到经逐条读断言核实过的真实后继测试，并在各自 `residual_risks` 里写明了仍未覆盖的不变量（含 rc-05 的凭据/私有路径脱敏这条安全项、rc-06 的 `execution_settled` 在代码中根本不存在）。详见各合同的 `COVERAGE GAP` / `UNCOVERED INVARIANT` 条目。

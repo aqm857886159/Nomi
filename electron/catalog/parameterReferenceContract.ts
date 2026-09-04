@@ -12,7 +12,13 @@ export type ParameterReferenceContract = {
   vendorKey: string
   slots: ParameterReferenceSlot[]
 }
-export type ParameterReferenceSelection = { modelKey?: string; vendorKey: string }
+/**
+ * `modelKey` 是**目录身份**（选哪条 mapping / 比对 comfy 契约用）。
+ * `wireModelKey` 是**要发到线上的 model 串的回落值**——与 `{{model.modelKey}}` 同一个表达式
+ * （modelAlias 优先、否则 modelKey）。两者语义不同故不能合并：comfy 契约必须按目录身份比对，
+ * 而线上字段必须跟别名走。taskTemplateParams 用它给没有变体的模型补 params.model（见那边注释）。
+ */
+export type ParameterReferenceSelection = { modelKey?: string; vendorKey: string; wireModelKey?: string }
 
 const DECLARATION_KEY = 'parameterReferenceSlots'
 

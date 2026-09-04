@@ -16,7 +16,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string
 
 function ReferenceIcon({ kind }: { kind: ProjectAgentReference['kind'] }): JSX.Element {
   if (kind === 'document') return <IconFileText size={12} aria-hidden="true" />
-  if (kind === 'canvas') return <IconPhoto size={12} aria-hidden="true" />
+  if (kind === 'canvas' || kind === 'asset') return <IconPhoto size={12} aria-hidden="true" />
   if (kind === 'preview') return <IconVideo size={12} aria-hidden="true" />
   if (kind === 'timeline') return <IconTimelineEvent size={12} aria-hidden="true" />
   if (kind === 'browser') return <IconWorld size={12} aria-hidden="true" />

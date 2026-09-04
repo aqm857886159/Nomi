@@ -3,14 +3,27 @@
 import { spawn } from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import readline from 'node:readline'
+import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 // 工具面的真相源：与打包进 app.asar 的是同一份 dist-electron 构建产物（Mac Package job 先 `pnpm run build`
 // 再 `dist:mac:dir`）。因此「打包后 tools/list === MCP_TOOL_NAMES」是一条真不变量，不是同义反复：
 // 打包漏带模块、或客户端过滤把工具吃掉，两边就会不等。
 import { MCP_TOOL_NAMES } from '../../dist-electron/capabilityCore/mcpProtocol.js'
+
+// Expected catalog = the SAME compiled truth source electron-builder packs into app.asar
+// (electron/capabilityCore/mcpToolCatalog.ts → dist-electron/capabilityCore/mcpToolCatalog.js;
+// the mac-package job builds dist-electron before packaging). Deriving the expectation kills the
+// stale-hand-copy class for good: 2026-09-02 the surface-16-collapse (a0091dec, 42→15 object-grouped
+// tools + 4 M2 semantic editing tools = 19) landed on main while this file still hand-required the
+// pre-M2 names and a `>= 22` floor — green on the PR fast path (no package lane), red on the next
+// main push. Set equality against the built catalog can never drift, and still catches a packaging
+// drop: the packaged server's tools/list comes from the asar, the expectation from dist-electron.
+const require = createRequire(import.meta.url)
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 const bundlePath = path.resolve(process.argv[2] || '')
 const executablePath = process.platform === 'darwin'

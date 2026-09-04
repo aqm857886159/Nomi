@@ -95,6 +95,11 @@ const SEEDANCE_2_MODES: ModelArchetype["modes"] = [
       // 故 kie 这条渠道同样带上（档案按模型身份认，供应商只管传输）。2.5 已解除此限。
       { kind: "audio_ref", label: "参考音频", min: 0, max: 3, requiresAnyOf: ["image_ref", "video_ref"] },
     ],
+    // Runway 的多图参考 union 声明在 **text** 端点（POST /v1/text_to_video，PR #342）——只有单图
+    // i2v 那个 wire role 才是 image_to_video。不覆盖的话本模式吃档案级 image_to_video，而 seed 把
+    // 线缆放在 text_to_video 桶，selectTaskMapping 永远取不到 → 模式栏静默藏掉「全能参考」
+    // （2026-09-03 check:orphan-cables 实测，seedance2 / _fast / _mini 三行同族；seed 侧是对的）。
+    vendorTransportTaskKind: { runway: "text_to_video" },
     params: FIRST_MODE_PARAMS,
     vendorParams: { runway: RUNWAY_PARAMS },
   },

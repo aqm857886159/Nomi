@@ -34,6 +34,17 @@ const PACKAGE_PATTERNS = [
   /^tsconfig[^/]*\.json$/,
   /^electron\/(?:main|preload|runtimePaths|mainProcessLifecycle)\.(?:ts|tsx|js|mjs|cjs)$/,
   /^scripts\/(?:electron-install-identity|release-contract)(?:\.|$)/,
+  // The packaged MCP smoke (dist:mac:dir) asserts the packaged server's behaviour and tool
+  // surface. The truth sources of that surface — capability-core (catalog/collapse/stdio
+  // server/launcher) and the harness tool-surface manifest — must select the package lane on
+  // the PR path, or a surface change rides the fast path green and burns the next main push
+  // (2026-09-02: surface-16-collapse escaped exactly this way; see docs/fixes/
+  // 2026-09-02-packaged-mcp-smoke-stale-catalog-anchor.root-cause.json).
+  /^electron\/capabilityCore\//,
+  /^electron\/harness\/tools\//,
+  // The smoke instrument itself: editing the packaged smoke must re-run the packaged smoke
+  // (same rule as PERFORMANCE_INSTRUMENT_PATTERNS — instrument edits re-run the instrument).
+  /^tests\/ux\/packaged-mcp-smoke/,
 ]
 
 const JOURNEY_PATTERNS = [

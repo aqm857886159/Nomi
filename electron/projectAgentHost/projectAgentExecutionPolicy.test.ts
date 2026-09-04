@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   projectAgentExecutionRisk,
   projectAgentMayReuseSafeApproval,
+  projectAgentWorkModeDecision,
 } from "./projectAgentExecutionPolicy";
 
 describe("Project Agent approval policy", () => {
@@ -32,5 +33,23 @@ describe("Project Agent approval policy", () => {
     expect(projectAgentMayReuseSafeApproval(project, "export_timeline", {}, true)).toBe(false);
     expect(projectAgentMayReuseSafeApproval(project, "nomi_operation_create", {}, true)).toBe(false);
     expect(projectAgentMayReuseSafeApproval(undefined, "append_to_end", {}, true)).toBe(false);
+  });
+
+  it("makes Ask read-only at the Host boundary", () => {
+    expect(projectAgentWorkModeDecision("ask", "read_full_text", {})).toEqual({ allowed: true });
+    expect(projectAgentWorkModeDecision("ask", "append_to_end", { content: "draft" })).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("Ask"),
+    });
+    expect(projectAgentWorkModeDecision("ask", "unknown_tool", {})).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("Ask"),
+    });
+  });
+
+  it("keeps edit-selection from starting paid or destructive work", () => {
+    expect(projectAgentWorkModeDecision("editSelection", "replace_selection", { content: "new" })).toEqual({ allowed: true });
+    expect(projectAgentWorkModeDecision("editSelection", "nomi_start_generation", {})).toMatchObject({ allowed: false });
+    expect(projectAgentWorkModeDecision("editSelection", "delete_canvas_nodes", {})).toMatchObject({ allowed: false });
   });
 });

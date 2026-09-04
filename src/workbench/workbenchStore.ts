@@ -89,7 +89,7 @@ type GraphViewport = { zoom: number; offset: { x: number; y: number } }
 export type ProjectAgentReference = Readonly<{
   id: string
   label: string
-  kind: 'document' | 'canvas' | 'preview' | 'timeline' | 'browser'
+  kind: 'document' | 'canvas' | 'preview' | 'timeline' | 'browser' | 'asset'
   /** Stable domain identity captured at send time (never a UI-only label). */
   value?: string
   /** Immutable selection handle captured when the user added this reference. */

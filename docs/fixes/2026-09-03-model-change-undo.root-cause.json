@@ -1,0 +1,107 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-model-change-undo",
+  "problem_type": "Stale editable focus captures canvas undo",
+  "symptom": "After manually changing a generation-canvas node model, Cmd+Z/Ctrl+Z leaves the new model selected instead of undoing the model change.",
+  "direct_cause": "The canvas keydown guard treats an editable document.activeElement as sufficient evidence that the keystroke belongs to text editing, even when the actual key event target is the model picker.",
+  "class_root": "The shared keyboard boundary has no event-source ownership rule: stale focus is allowed to override the target that emitted the shortcut.",
+  "affected_population": [
+    "Generation Canvas users on macOS using Cmd+Z after model/provider/variant selection",
+    "Generation Canvas users on Windows/Linux using Ctrl+Z after model/provider/variant selection",
+    "Any generation-canvas shortcut emitted by a non-editable control while an editable element remains focused"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+    "src/workbench/generationCanvas/components/useCanvasShortcuts.test.ts"
+  ],
+  "entry_points": [
+    "GenerationCanvasReactFlow installs the shared canvas keydown listener",
+    "NodeParameterControls routes manual model, provider, and variant changes through updateNode"
+  ],
+  "internal_only_reason": "The invariant is an application-level DOM event ownership rule; no third-party behavior determines the fix.",
+  "invariants": [
+    "A canvas undo shortcut is ignored for text editing only when the actual event target resolves to the focused editable root.",
+    "A stale editable activeElement alone cannot suppress a canvas shortcut from a non-editable target.",
+    "The canvas shortcut still calls the supplied undo action, which remains the generation-canvas store boundary."
+  ],
+  "generality_proof": "All generation-canvas undo/redo key combinations converge on createCanvasKeydownHandler, while model, provider, and variant selection converge on the same NodeParameterControls model-change write. The target-root rule therefore covers both Meta and Control modifiers and all checked manual model-selection variants without naming a vendor or model.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "symbol": "isCanvasTextEditingContext",
+      "responsibility": "Own editable shortcut ownership by comparing the event target's editable root with the active editable root."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "symbol": "createCanvasKeydownHandler",
+      "responsibility": "Route the real canvas keydown event to undo/redo only after shared guards pass."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "entry_point": "Meta+Z canvas undo",
+      "disposition": "enforced",
+      "evidence": "The handler uses event.metaKey and the same editable-root guard; the regression dispatches a Meta+Z event with stale textarea focus."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "entry_point": "Control+Z canvas undo",
+      "disposition": "enforced",
+      "evidence": "The handler uses event.ctrlKey and shares the same target/focus guard; the class test covers the same path independent of model identity."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "entry_point": "handleModelChange",
+      "disposition": "enforced",
+      "evidence": "Manual model/provider/variant controls call the same updateNode path, whose existing history boundary already records the meta edit."
+    },
+    {
+      "path": "src/workbench/timeline/timelineShortcuts.ts",
+      "entry_point": "resolveTimelineShortcut",
+      "disposition": "not-affected",
+      "evidence": "Timeline shortcuts have a separate resolver and timeline store; they do not install or call the generation-canvas handler."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The stale-focus mechanism is independent of the selected model and can recur for either modifier key or any non-editable canvas control that leaves an editor focused.",
+    "same_class_scan": [
+      "Searched all generation-canvas keydown listeners and confirmed useCanvasShortcuts is the shared canvas undo owner.",
+      "Searched model/provider/variant selection and confirmed NodeParameterControls.handleModelChange is the shared manual model write entry.",
+      "Checked timelineShortcuts separately and classified it not-affected because it owns a different store and resolver."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+    "invariant": "Editable shortcut ownership requires the key event target to resolve to the current editable root; stale focus alone never blocks canvas shortcuts.",
+    "failure_mode": "A non-editable target with stale editable focus falls through to the canvas command; a real event from the editable root returns without preventDefault.",
+    "exception_policy": "none",
+    "strategy": "Enforce event-source ownership once in the shared canvas keydown guard so every caller and both platform modifiers receive identical behavior.",
+    "artifacts": [
+      "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "src/workbench/generationCanvas/components/useCanvasShortcuts.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/components/useCanvasShortcuts.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/components/useCanvasShortcuts.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No persisted or callable legacy behavior needs migration; the handler extraction keeps one production keydown path and changes only its shared focus判据."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls the application-level event-target and focus ownership invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data or caller contract changes; existing nodes and undo journal entries remain valid.",
+  "residual_risks": [
+    "The focused component test models stale editable focus explicitly; the real Electron model-picker walk confirmed ordinary model-button focus and undo, but no separate OS-level IME/native-select path was exercised."
+  ]
+}
