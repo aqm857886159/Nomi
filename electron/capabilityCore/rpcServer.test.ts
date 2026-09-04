@@ -12,6 +12,8 @@ import { getWorkspaceRepositoryDeps } from "../runtimePaths";
 import { readWorkspaceProject, resolveWorkspaceProjectDir } from "../workspace/workspaceRepository";
 import { ensureWorkspaceProjectIdentity } from "../workspace/workspaceProjectIdentity";
 import { createMainCapabilityExecutorRegistry } from "./capabilityExecutorRegistry";
+import { createProjectAgentProposalReceiptService } from "../projectAgentHost/projectAgentProposalReceiptStore";
+import { projectAgentProposalReceiptPath } from "../projectAgentHost/projectAgentProposalReceiptStore";
 
 function canvasReadRuntime(nodeId: string) {
   return Object.freeze({
@@ -39,6 +41,7 @@ let rendererUp = false;
 let spendReply: { confirmed?: boolean } = { confirmed: true };
 let planReply: { confirmed?: boolean } = { confirmed: true };
 let rendererOps: string[] = [];
+let documentReply: { applied: true; revision: number; contentHash: string } = { applied: true, revision: 7, contentHash: "document-hash" };
 // 捕获最后一次 runTask 请求,断言 grantId 是否随请求下传(=付费确认是否真路由+铸令牌)。
 let lastRunTaskReq: { extras?: Record<string, unknown> } | null = null;
 
@@ -55,6 +58,9 @@ vi.mock("./rendererBridge", () => ({
     rendererOps.push(op);
     if (op === "spend.confirm") return spendReply;
     if (op === "plan.confirm") return planReply;
+    if (op === "document.write") return documentReply;
+    if (op === "timeline.read") return { timeline: [] };
+    if (op === "asset.read") return { assets: [] };
     // hybrid 网关读写应走盘,绝不该把 canvas.* 转给渲染层——命中即测试失败。
     throw new Error(`hybrid 不应调用渲染层 op: ${op}`);
   },
@@ -77,6 +83,7 @@ async function rpc(
     connectionNonce?: string;
     connectionAttestation?: string;
   },
+  flags: { documentConfirmed?: boolean } = {},
 ) {
   const res = await fetch(`http://127.0.0.1:${server!.port}/rpc`, {
     method: "POST",
@@ -95,7 +102,7 @@ async function rpc(
           }
         : {}),
     },
-    body: JSON.stringify({ method, params }),
+    body: JSON.stringify({ method, params, ...(flags.documentConfirmed ? { documentConfirmed: true } : {}) }),
   });
   return { status: res.status, body: (await res.json()) as { ok: boolean; result?: unknown; error?: unknown } };
 }
@@ -119,6 +126,7 @@ beforeEach(async () => {
   spendReply = { confirmed: true };
   planReply = { confirmed: true };
   rendererOps = [];
+  documentReply = { applied: true, revision: 7, contentHash: "document-hash" };
   lastRunTaskReq = null;
   token = ensureToken();
   server = await startRpcServer({
@@ -149,6 +157,114 @@ describe("capabilityCore/rpcServer", () => {
     const res = await rpc("ping");
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
+  });
+
+  it("owns an approved MCP document.write receipt in the main RPC boundary", async () => {
+    await server!.close();
+    const root = makeTempDir("nomi-rpc-document-receipt-");
+    fs.mkdirSync(path.join(root, ".nomi"), { recursive: true });
+    const binding = {
+      projectId: "project-document-receipt",
+      immutableProjectUuid: "11111111-1111-4111-8111-111111111111",
+      projectGeneration: 1,
+    } as const;
+    const receiptService = createProjectAgentProposalReceiptService({ projectRoot: root, binding });
+    let resolvedReceiptService: typeof receiptService | undefined = receiptService;
+    const mismatchRoot = makeTempDir("nomi-rpc-document-receipt-mismatch-");
+    fs.mkdirSync(path.join(mismatchRoot, ".nomi"), { recursive: true });
+    const mismatchedReceiptService = createProjectAgentProposalReceiptService({
+      projectRoot: mismatchRoot,
+      binding: { ...binding, immutableProjectUuid: "22222222-2222-4222-8222-222222222222" },
+    });
+    const proof = signMcpClient("codex")!;
+    const context = createMcpConnectionContext({
+      client: "codex",
+      proof,
+      randomSecret: () => "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+    });
+    rendererUp = true;
+    openProjectId = binding.projectId;
+    server = await startRpcServer({
+      runTask: async () => ({ id: "t", status: "succeeded", assets: [] }),
+      isProjectOpen: (id) => id === binding.projectId,
+      projectSessionAuthority: {
+        verifyLease: vi.fn(async () => ({
+          projectId: binding.projectId,
+          immutableProjectUuid: binding.immutableProjectUuid,
+          projectGeneration: binding.projectGeneration,
+          canonicalRootDigest: "root-digest",
+        })),
+      } as never,
+      proposalReceiptFor: (candidate) => candidate.projectId === binding.projectId ? resolvedReceiptService : undefined,
+    });
+
+    const identity = { client: "codex" as const, proof, connectionAttestation: getMcpConnectionAttestation(context) };
+    rendererOps = [];
+    const unconfirmed = await rpc(
+      "document.write",
+      { leaseHandle: "verified-lease", projectId: binding.projectId, operation: "append", content: "must confirm" },
+      token,
+      identity,
+    );
+    expect(unconfirmed).toMatchObject({ status: 403, body: { ok: false, error: { code: "human_approval_required" } } });
+    expect(rendererOps).not.toContain("document.write");
+
+    resolvedReceiptService = undefined;
+    const missingReceipt = await rpc(
+      "document.write",
+      { leaseHandle: "verified-lease", projectId: binding.projectId, operation: "append", content: "no receipt" },
+      token,
+      identity,
+      { documentConfirmed: true },
+    );
+    expect(missingReceipt).toMatchObject({ status: 501, body: { ok: false } });
+
+    resolvedReceiptService = mismatchedReceiptService;
+    const mismatchedReceipt = await rpc(
+      "document.write",
+      { leaseHandle: "verified-lease", projectId: binding.projectId, operation: "append", content: "wrong binding" },
+      token,
+      identity,
+      { documentConfirmed: true },
+    );
+    expect(mismatchedReceipt).toMatchObject({ status: 409, body: { ok: false } });
+
+    resolvedReceiptService = receiptService;
+
+    const result = await rpc(
+      "document.write",
+      { leaseHandle: "verified-lease", projectId: binding.projectId, operation: "append", content: "from MCP" },
+      token,
+      identity,
+      { documentConfirmed: true },
+    );
+
+    expect(result).toMatchObject({ status: 200, body: { ok: true, result: documentReply } });
+    expect(rendererOps).toContain("document.write");
+    expect(fs.existsSync(projectAgentProposalReceiptPath(root))).toBe(true);
+    expect(receiptService.read()).toMatchObject({
+      revision: 2,
+      lifecycle: "committed",
+      proposal: { proposalId: expect.stringMatching(/^mcp-document-/) },
+    });
+
+    const nonDocument = await rpc(
+      "timeline.read",
+      { leaseHandle: "verified-lease", projectId: binding.projectId },
+      token,
+      identity,
+    );
+    expect(nonDocument).toMatchObject({ status: 200, body: { ok: true, result: { timeline: [] } } });
+    expect(rendererOps).toContain("timeline.read");
+
+    const assetRead = await rpc(
+      "asset.read",
+      { leaseHandle: "verified-lease", projectId: binding.projectId },
+      token,
+      identity,
+    );
+    expect(assetRead).toMatchObject({ status: 200, body: { ok: true, result: { assets: [] } } });
+    expect(rendererOps).toContain("asset.read");
   });
 
   it("accepts only a Nomi-signed MCP client as Production Run authority", async () => {

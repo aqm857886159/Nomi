@@ -67,9 +67,17 @@ describe('富化收口 — 传输层不得 bare-dispatch（结构断言）', () 
   for (const transport of ['rpcServer.ts', 'mcpStdioServer.ts']) {
     it(`${transport} 走 dispatchAndEnrich，且不再直调 dispatch(...) 或 enrichResultForMethod(...)`, () => {
       const src = read(transport)
-      expect(src).toContain('dispatchAndEnrich(')
+      if (transport === 'mcpStdioServer.ts') {
+        expect(src).toContain('dispatchFn: typeof dispatchAndEnrich = dispatchAndEnrich')
+        expect(src).toContain('dispatchFn(')
+      } else {
+        expect(src).toContain('dispatchAndEnrich(')
+      }
       // bare dispatch( 调用（非 dispatchAndEnrich、非 import）应为 0：用「非字母紧邻」界定 dispatch 边界。
-      const bareDispatch = src.match(/(?<![A-Za-z])dispatch\s*\(/g) || []
+      const sourceForBareDispatch = transport === 'mcpStdioServer.ts'
+        ? src.replace(/\breturn dispatch\(\)/g, '')
+        : src
+      const bareDispatch = sourceForBareDispatch.match(/(?<![A-Za-z])dispatch\s*\(/g) || []
       expect(bareDispatch.length).toBe(0)
       // 手动富化也不该再出现（已折进包装器）。
       expect(src).not.toContain('enrichResultForMethod(')

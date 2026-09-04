@@ -130,6 +130,7 @@ export async function startCapabilityCore(
     generationPlanning?: DispatchContext['generationPlanning']
     generationModuleRegistry?: Pick<ModuleRegistry, 'resolve'>
     projectRevisionResolver?: (projectId: string) => number | undefined
+    proposalReceiptFor?: import('./rpcServer').RpcServerOptions['proposalReceiptFor']
     canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
     onGenerationReady?: (factory: ResidentGenerationAdapterFactory['factory']) => void
   } = {},
@@ -713,6 +714,7 @@ export async function startCapabilityCore(
       authorizeGeneration: authorities.authorizeGeneration ?? runOwnedGenerationAuthority.authorizeGeneration,
       ...authorities,
       projectRevisionResolver,
+      proposalReceiptFor: authorities.proposalReceiptFor,
       generationPolicy,
       generationPlanning,
     })

@@ -11,6 +11,7 @@ import type { PiSkillReadTransportAdapter } from "../capabilityCore/skillReadTra
 import {
   type ExecutionPartition,
   type ProjectAgentProposalReceiptReader,
+  type ProjectAgentProposalReceiptWriter,
   type SubscriptionRecord,
 } from "./projectAgentExecutionCoordinatorTypes";
 
@@ -28,6 +29,7 @@ type ProjectAgentAdapterResolverDeps = Readonly<{
   skillReads: AdapterMap<PiSkillReadTransportAdapter>;
   skillWrites: AdapterMap<PiSkillWriteTransportAdapter>;
   proposalReceiptReaders: AdapterMap<ProjectAgentProposalReceiptReader>;
+  proposalReceiptWriters: AdapterMap<ProjectAgentProposalReceiptWriter>;
 }>;
 
 export type ProjectAgentAdapterResolvers = Readonly<{
@@ -41,6 +43,7 @@ export type ProjectAgentAdapterResolvers = Readonly<{
   skillReadFor: (partition: ExecutionPartition, preferredSubscriptionId: string) => PiSkillReadTransportAdapter | undefined;
   skillWriteFor: (partition: ExecutionPartition, preferredSubscriptionId: string) => PiSkillWriteTransportAdapter | undefined;
   proposalReceiptReaderFor: (partition: ExecutionPartition, preferredSubscriptionId: string) => ProjectAgentProposalReceiptReader | undefined;
+  proposalReceiptWriterFor: (partition: ExecutionPartition, preferredSubscriptionId: string) => ProjectAgentProposalReceiptWriter | undefined;
 }>;
 
 function mostRecentAdapterFor<A>(
@@ -107,6 +110,23 @@ export function createProjectAgentAdapterResolvers(
     }
     return selected;
   };
+  const proposalReceiptWriterFor = (partition: ExecutionPartition, preferredSubscriptionId: string) => {
+    const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
+      ? deps.proposalReceiptWriters.get(preferredSubscriptionId)
+      : undefined;
+    if (currentPreferred) return currentPreferred;
+    let selected: ProjectAgentProposalReceiptWriter | undefined;
+    let selectedEpoch = -1;
+    for (const subscriptionId of partition.subscriptionIds) {
+      const subscription = subscriptions.get(subscriptionId);
+      const writer = deps.proposalReceiptWriters.get(subscriptionId);
+      if (subscription && writer && subscription.subscriptionEpoch > selectedEpoch) {
+        selected = writer;
+        selectedEpoch = subscription.subscriptionEpoch;
+      }
+    }
+    return selected;
+  };
   return Object.freeze({
     canvasReadFor,
     documentReadFor,
@@ -118,5 +138,6 @@ export function createProjectAgentAdapterResolvers(
     skillReadFor,
     skillWriteFor,
     proposalReceiptReaderFor,
+    proposalReceiptWriterFor,
   });
 }

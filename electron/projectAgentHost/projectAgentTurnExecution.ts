@@ -11,7 +11,12 @@ import type { PiSkillWriteTransportAdapter, PreparedSkillWrite } from "../capabi
 import type { PiProductionRunTransportAdapter } from "../capabilityCore/productionRunTransportAdapters";
 import type { PiGenerationTransportAdapter } from "../capabilityCore/generationTransportAdapters";
 import type { OfflineProjectAgentHost } from "./projectAgentHost";
-import { proposalSettlementsFor, readProposalReceiptSafely, type ActiveExecution, type CanvasWriteCapabilityOutcomeCode, type ExecutionPartition, type ProjectAgentExecutionCoordinatorDeps } from "./projectAgentExecutionCoordinatorTypes";
+import {
+  proposalSettlementsFor, readProposalReceiptSafely,
+  type ActiveExecution, type CanvasWriteCapabilityOutcomeCode, type ExecutionPartition,
+  type ProjectAgentExecutionCoordinatorDeps,
+  type ProjectAgentProposalReceiptWriter,
+} from "./projectAgentExecutionCoordinatorTypes";
 import { executeProductionApproval, reprepareEffectiveCall } from "./projectAgentApprovalHelpers";
 import { resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
 import { projectAgentWorkModeDecision } from "./projectAgentExecutionPolicy";
@@ -27,10 +32,15 @@ import { SKILL_READ_CAPABILITY } from "../shared/agentCapabilities/skillRead";
 import { committedProjectAgentReceiptMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
 import { digest, steeredExecutionPrompt, exportJobTaskItems, productionRunTaskItems, statusForResponse, toolItem, hostPromptLedgerForTurn } from "./projectAgentExecutionHelpers";
 import { isPiGenerationToolName } from "../capabilityCore/generationTransportAdapters";
+import {
+  abandonDocumentProposalReceipt,
+  commitDocumentProposalReceipt,
+  documentProposalReceiptFor,
+  prepareDocumentProposalReceipt,
+} from "./projectAgentDocumentReceipt";
 
 type ToolCall = { toolCallId: string; toolName: string; args: unknown };
 type PreparedInvocation = { target: ProjectAgentQueueItem["target"]; preconditions: ProjectAgentQueueItem["preconditions"]; policyRevision: number; inputHash: string; actionHash: string };
-
 export type ProjectAgentTurnExecutionContext = Readonly<{
   now: () => string;
   dispatchPartition: (partition: ExecutionPartition, mutation: ProjectAgentMutation) => ReturnType<OfflineProjectAgentHost["dispatch"]>;
@@ -65,10 +75,11 @@ export type ProjectAgentTurnExecutionContext = Readonly<{
   productionRunFor: (partition: ExecutionPartition) => PiProductionRunTransportAdapter | undefined;
   generationFor: (partition: ExecutionPartition) => PiGenerationTransportAdapter | undefined;
   proposalReceiptReaderFor: (partition: ExecutionPartition, preferredSubscriptionId: string) => (() => import("../shared/projectAgentProposalReceipt").ProjectAgentProposalReceiptView | null) | undefined;
+  proposalReceiptWriterFor: (partition: ExecutionPartition, preferredSubscriptionId: string) => ProjectAgentProposalReceiptWriter | undefined;
 }>;
 
 export async function executeProjectAgentTurn(context: ProjectAgentTurnExecutionContext, partition: ExecutionPartition, execution: ActiveExecution): Promise<"continue" | "stop"> {
-  const { now, dispatchPartition, publish, dispatchFresh, queueExecutionMutation, recordProposalSettlement, cleanupExecution, reportInternalError, runAgent, awaitToolDecision, persistApprovedProposal, persistPreparedProposal, rememberCanvasWriteOutcome, canvasReadFor, documentReadFor, documentWriteFor, canvasWriteFor, timelineReadFor, timelineWriteFor, phase4SurfaceFor, skillReadFor, skillWriteFor, productionRunFor, generationFor, proposalReceiptReaderFor } = context;
+  const { now, dispatchPartition, publish, dispatchFresh, queueExecutionMutation, recordProposalSettlement, cleanupExecution, reportInternalError, runAgent, awaitToolDecision, persistApprovedProposal, persistPreparedProposal, rememberCanvasWriteOutcome, canvasReadFor, documentReadFor, documentWriteFor, canvasWriteFor, timelineReadFor, timelineWriteFor, phase4SurfaceFor, skillReadFor, skillWriteFor, productionRunFor, generationFor, proposalReceiptReaderFor, proposalReceiptWriterFor } = context;
   const startAt = now();
   const current = partition.host.getSnapshot(partition.binding);
   const assistantItem = Object.freeze({
@@ -176,9 +187,6 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
         const isRendererHandledStoryboardProposal =
           (canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id || call.toolName === "nomi_canvas_plan")
           && (
-            // The renderer-owned planner still emits this historical alias;
-            // keep it on the same guarded path while MCP uses the canonical
-            // nomi_canvas_plan operation envelope.
             call.toolName === "propose_storyboard_plan"
             || (
               call.toolName === "nomi_canvas_plan"
@@ -227,10 +235,6 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
         if (resolveCapabilityAlias(call.toolName)?.contract?.execution.port === "production-run") {
           return rememberCanvasWriteOutcome(execution, call.toolCallId, "capability_surface_unavailable", "capability_surface_unavailable");
         }
-        // Skill loading is a canonical read capability.  It must be handled
-        // by the same main-process catalog owner as MCP/Workbench reads;
-        // never turn it into a renderer approval request or let the model
-        // receive a synthetic success from the generic confirmation path.
         const skillReadAdapter = skillReadFor(partition, frozen?.preferredSubscriptionId ?? "");
         const skillRead = await skillReadAdapter?.tryExecute(call, signal);
         if (skillRead) return skillRead;
@@ -560,10 +564,39 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
             if (!decision.ok) return decision;
             const effective = await reprepareEffectiveCall(call, decision, prepared, (effectiveCall) => writeAdapter.prepare(effectiveCall, { documentId, target: execution.queueItem.target, preconditions: execution.queueItem.preconditions }, signal));
             if (!effective.ok) return { ok: false, message: effective.code, code: effective.code };
+            const receiptWriter = proposalReceiptWriterFor(
+              partition,
+              frozen?.preferredSubscriptionId ?? "",
+            );
             try {
               const persisted = await persistPreparedProposal(partition, execution, effective.call, decision, effective.prepared);
+              const receiptProposal = receiptWriter
+                ? documentProposalReceiptFor(effective.call, persisted, effective.prepared)
+                : undefined;
+              const preparingReceipt = receiptWriter && receiptProposal
+                ? prepareDocumentProposalReceipt(receiptWriter, receiptProposal, persisted.approvalId)
+                : undefined;
               const executed = await writeAdapter.execute(effective.prepared, signal);
-              recordProposalSettlement(execution, persisted.approvalId, executed.ok ? "done" : "failed");
+              if (!executed.ok) {
+                if (receiptWriter && receiptProposal && preparingReceipt) {
+                  abandonDocumentProposalReceipt(receiptWriter, preparingReceipt, receiptProposal, persisted.approvalId);
+                }
+                recordProposalSettlement(execution, persisted.approvalId, "failed");
+                return executed;
+              }
+              if (receiptWriter && receiptProposal && preparingReceipt) {
+                try {
+                  commitDocumentProposalReceipt(receiptWriter, preparingReceipt, receiptProposal, persisted.approvalId);
+                } catch {
+                  recordProposalSettlement(execution, persisted.approvalId, "failed");
+                  return {
+                    ok: false,
+                    code: "capability_receipt_unresolved",
+                    message: "capability_receipt_unresolved",
+                  };
+                }
+              }
+              recordProposalSettlement(execution, persisted.approvalId, "done");
               return executed;
             } catch {
               return { ok: false, message: "approval_persistence_failed" };
@@ -679,8 +712,6 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
   } catch (error) {
     if (!execution.controller.signal.aborted) {
       const message = error instanceof Error && error.message ? error.message : String(error) || "Agent execution failed";
-      // A runtime failure is a canonical transcript fact. Commit both the
-      // terminal assistant and a Failure Item before notifying views.
       let terminalError: unknown;
       try {
         await execution.publicationTail;

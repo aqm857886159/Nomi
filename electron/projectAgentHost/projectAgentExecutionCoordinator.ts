@@ -53,6 +53,7 @@ import {
   type ProjectAgentExecutionEnqueue,
   type ProjectAgentExecutionListener,
   type ProjectAgentProposalReceiptReader,
+  type ProjectAgentProposalReceiptWriter,
   type ProjectAgentSubscription,
   type ProjectAgentExecutionOpenOptions,
   type ProjectAgentExecutionCoordinator,
@@ -66,6 +67,7 @@ import { createProjectAgentAdapterResolvers } from "./projectAgentAdapterResolve
 export type {
   ProjectAgentSubscription,
   ProjectAgentProposalReceiptReader,
+  ProjectAgentProposalReceiptWriter,
   ProjectAgentExecutionOpenOptions,
   ProjectAgentExecutionCoordinatorDeps,
   ProjectAgentExecutionCoordinator,
@@ -93,6 +95,7 @@ export function createProjectAgentExecutionCoordinator(
   const productionRuns = new Map<string, PiProductionRunTransportAdapter | undefined>();
   const generationAdapters = new Map<string, PiGenerationTransportAdapter | undefined>(); let generationAdapterFactory = deps.generation;
   const proposalReceiptReaders = new Map<string, ProjectAgentProposalReceiptReader | undefined>();
+  const proposalReceiptWriters = new Map<string, ProjectAgentProposalReceiptWriter | undefined>();
   const runAgent =
     deps.runAgent ?? (async (request, hooks) => (await import("../ai/agentChatV2")).runAgentChatV2(request, hooks));
   const now = deps.now ?? (() => new Date().toISOString());
@@ -211,6 +214,7 @@ export function createProjectAgentExecutionCoordinator(
     skillReads.set(subscription.subscriptionId, options.skillRead);
     skillWrites.set(subscription.subscriptionId, options.skillWrite);
     proposalReceiptReaders.set(subscription.subscriptionId, options.proposalReceipt);
+    proposalReceiptWriters.set(subscription.subscriptionId, options.proposalReceiptWriter);
     return subscription;
   }
 
@@ -552,6 +556,7 @@ export function createProjectAgentExecutionCoordinator(
     skillReadFor,
     skillWriteFor,
     proposalReceiptReaderFor,
+    proposalReceiptWriterFor,
   } = createProjectAgentAdapterResolvers({
     subscriptions,
     canvasReads,
@@ -564,6 +569,7 @@ export function createProjectAgentExecutionCoordinator(
     skillReads,
     skillWrites,
     proposalReceiptReaders,
+    proposalReceiptWriters,
   });
   const turnExecutionContext: ProjectAgentTurnExecutionContext = {
     now,
@@ -591,6 +597,7 @@ export function createProjectAgentExecutionCoordinator(
     productionRunFor,
     generationFor,
     proposalReceiptReaderFor,
+    proposalReceiptWriterFor,
   };
 
   function scheduleDrain(partition: ExecutionPartition): void {
@@ -771,6 +778,7 @@ export function createProjectAgentExecutionCoordinator(
       skillReads.get(subscriptionId)?.dispose();
       skillReads.delete(subscriptionId);
       proposalReceiptReaders.delete(subscriptionId);
+      proposalReceiptWriters.delete(subscriptionId);
     },
     setGenerationAdapterFactory: (factory) => { generationAdapterFactory = factory; for (const [partitionKey, adapter] of generationAdapters) { adapter?.dispose(); generationAdapters.delete(partitionKey); } },
     subscriptionCount: () => subscriptions.size,

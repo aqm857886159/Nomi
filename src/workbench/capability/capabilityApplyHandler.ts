@@ -368,6 +368,24 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   if (landed !== null) return landed
 
   switch (op) {
+    case 'document.write': {
+      const tools = useWorkbenchStore.getState().creationDocumentTools
+      const operation = data.operation === 'insert' || data.operation === 'replace' || data.operation === 'append'
+        ? data.operation
+        : null
+      const content = typeof data.content === 'string' ? data.content : ''
+      const documentId = useWorkbenchStore.getState().activeDocumentId
+      if (!tools || !operation || !content || !documentId) {
+        throw new SurfacePortWireError('surface_port_unavailable')
+      }
+      const current = tools.readState()
+      return tools.applyDocumentWrite({
+        operation,
+        content,
+        target: { kind: 'document', documentId, anchor: current.anchor },
+        preconditions: { document: { revision: current.revision, contentHash: current.contentHash } },
+      })
+    }
     case 'canvas.write':
       return executeCanonicalCanvasPlanPatch({
         projectId,
