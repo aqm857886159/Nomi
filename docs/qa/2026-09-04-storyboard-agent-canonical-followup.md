@@ -63,6 +63,74 @@ Raw `coverage/coverage-summary.json` receipt for the scoped files:
 
 The initial red gate, before the added resolver/handler coverage cases, was the same V8 threshold command scoped only to `storyboardPatchShots.ts`: Statements `65.11% (28/43)`, Branches `57.69% (15/26)`, with uncovered lines `37, 50-51, 57-60`. The expanded tests then made the same threshold green.
 
+## Host planner compatibility scoped V8 receipt
+
+The existing real main-interception test exposed a regression in the changed
+`executeProjectAgentTurn` dispatch predicate: the old renderer-owned
+`propose_storyboard_plan` alias stopped reaching the planner callback after the
+canonical `nomi_canvas_plan` operation check was added. The first compatibility
+fix restored the legacy alias. A follow-up red test then showed that
+`nomi_canvas_plan` is an MCP semantic surface and is not a registry alias, so a
+registry-only capability check made its canonical branch unreachable. The
+minimal second fix admits that explicit canonical tool name only for the same
+guarded storyboard operations (`propose_storyboard_plan` and `patch_shots`).
+
+The regression test is a real `ProjectAgentExecutionCoordinator` run, not a
+direct helper/probe. It asserts the emitted production tool-call sequence is
+exactly `propose_storyboard_plan` (legacy), `nomi_canvas_plan` with
+`operation=patch_shots` (canonical), then a malformed-args legacy case for the
+object-shape guard. The real Electron MCP journey above remains the evidence
+for actual `nomi_canvas_plan` → `patch_shots` canvas mutation; this unit
+coverage test only isolates the Host dispatch compatibility predicate.
+
+Exact scoped V8 command:
+
+```text
+coverage_dir=$(mktemp -d /tmp/nomi-project-agent-turn-v8-final.XXXXXX)
+pnpm exec vitest run electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=json-summary --coverage.reporter=json --coverage.include=electron/projectAgentHost/projectAgentTurnExecution.ts --coverage.reportsDirectory="$coverage_dir"
+```
+
+Raw command output:
+
+```text
+Test Files  2 passed (2)
+Tests       69 passed (69)
+
+% Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   81.05 |    62.58 |   73.33 |   84.52 |
+...rnExecution.ts  |   81.05 |    62.58 |   73.33 |   84.52 | ...35,569,578,669
+-------------------|---------|----------|---------|---------|-------------------
+Statements   : 81.05% ( 231/285 )
+Branches     : 62.58% ( 184/294 )
+Functions    : 73.33% ( 22/30 )
+Lines        : 84.52% ( 213/252 )
+```
+
+The whole-file result above is recorded as context only: it includes unrelated
+legacy dispatcher branches and is not claimed as changed-function coverage.
+The raw `coverage-final.json` receipt was
+`/tmp/nomi-project-agent-turn-v8-final.Y4PtzQ/coverage-final.json`, with the
+following line-scoped extraction for the changed predicate at lines 173–187:
+
+```json
+{
+  "source": "electron/projectAgentHost/projectAgentTurnExecution.ts",
+  "scope": "lines 173-187: changed canonical/legacy renderer-owned storyboard dispatch predicate",
+  "statements": {"total": 2, "covered": 2, "pct": 100},
+  "branchArms": {"total": 11, "covered": 11, "pct": 100},
+  "containingFunctions": [
+    {"name": "executeProjectAgentTurn", "executions": 63},
+    {"name": "(anonymous_6)", "executions": 58}
+  ]
+}
+```
+
+The line-scoped receipt is computed from V8's raw statement/branch maps; no
+coverage exclusion or baseline update is used. The exact compatibility test
+also passed independently with `1 passed | 66 skipped`, and the focused
+canonical/compatibility suite passed after this addition.
+
 ## Real Electron journey
 
 Exact commands:
