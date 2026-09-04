@@ -25,6 +25,7 @@ const confirmation: GenerationGateConfirmation = {
 function dependencies(overrides: Partial<{
   invoke: (method: string, params: Record<string, unknown>, signal?: AbortSignal) => Promise<unknown>
   requestConfirmation: (received: GenerationGateChallengeProjection, signal?: AbortSignal) => Promise<GenerationGateConfirmation>
+  locale: () => 'zh-CN' | 'en'
 }> = {}) {
   const invoke = vi.fn(async (method: string, _params: Record<string, unknown>, _signal?: AbortSignal) => {
     if (method === 'nomi_request_generation_gate') return challenge
@@ -33,14 +34,16 @@ function dependencies(overrides: Partial<{
   })
   const requestConfirmation = vi.fn(async () => confirmation)
   const reply = vi.fn()
+  const activeInvoke = overrides.invoke ?? invoke
+  const activeRequestConfirmation = overrides.requestConfirmation ?? requestConfirmation
   return {
-    invoke: overrides.invoke ?? invoke,
-    requestConfirmation: overrides.requestConfirmation ?? requestConfirmation,
+    invoke: activeInvoke,
+    requestConfirmation: activeRequestConfirmation,
     buildResult: vi.fn((_toolName: string, _args: Record<string, unknown>, result: unknown) => result as Record<string, unknown>),
     reply,
-    locale: () => 'en' as const,
-    invokeSpy: invoke,
-    requestConfirmationSpy: requestConfirmation,
+    locale: overrides.locale ?? (() => 'en' as const),
+    invokeSpy: activeInvoke,
+    requestConfirmationSpy: activeRequestConfirmation,
   }
 }
 
@@ -86,6 +89,52 @@ describe('semantic generation flow', () => {
     }))
   })
 
+  it('uses the semantic public-challenge fallback while keeping the sealed handoff private', async () => {
+    const invoke = vi.fn(async (method: string) => {
+      if (method === 'nomi_request_generation_gate') return challenge
+      if (method === 'nomi_decide_generation_gate') return { operationId: 'op-1' }
+      return { operationId: 'op-1', nextAction: 'observe' }
+    })
+    const deps = dependencies({ invoke })
+
+    await handleSemanticGenerationGate('call-public-fallback', 'nomi_operation_gate', { phase: 'request' }, { operationId: 'op-1', leaseHandle: 'lease-gate' }, deps)
+
+    expect(invoke).toHaveBeenCalledTimes(3)
+    expect(invoke.mock.calls[1]?.[1]).toMatchObject({ contractHash: 'digest-1' })
+    expect(invoke.mock.calls[2]?.[1]).toMatchObject({ leaseHandle: 'lease-gate' })
+    const result = deps.reply.mock.calls[0]?.[1] as { challenge?: Record<string, unknown> }
+    expect(result.challenge).toMatchObject({ challengeId: 'challenge-1', model: 'fixture-model' })
+    expect(result.challenge).not.toHaveProperty('handoff')
+  })
+
+  it('does not invent a contract hash when a public challenge has no handoff', async () => {
+    const invoke = vi.fn(async (method: string) => {
+      if (method === 'nomi_request_generation_gate') return { ...challenge, handoff: undefined }
+      if (method === 'nomi_decide_generation_gate') return { operationId: 'op-1' }
+      return { operationId: 'op-1', nextAction: 'observe' }
+    })
+    const deps = dependencies({ invoke })
+
+    await handleSemanticGenerationGate('call-no-handoff', 'nomi_operation_gate', { phase: 'request' }, { operationId: 'op-1' }, deps)
+
+    expect(invoke.mock.calls[1]?.[1]).toMatchObject({ contractHash: undefined })
+    expect(deps.reply).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the localized boundary response for an unconfirmed semantic challenge', async () => {
+    const deps = dependencies({
+      locale: () => 'zh-CN',
+      requestConfirmation: vi.fn(async () => ({ ...confirmation, confirmed: false, receiptId: undefined, receiptToken: undefined })),
+    })
+
+    await handleSemanticGenerationGate('call-zh-boundary', 'nomi_operation_gate', { phase: 'request' }, { operationId: 'op-1' }, deps)
+
+    expect(deps.reply).toHaveBeenCalledWith('call-zh-boundary', expect.objectContaining({
+      content: [{ type: 'text', text: '未开始：请在当前客户端确认这次生成，或在唯一的 Nomi 兜底卡中确认。' }],
+      isError: true,
+    }))
+  })
+
   it('does not decide or start when a confirmed client returns no receipt', async () => {
     const deps = dependencies({
       requestConfirmation: vi.fn(async () => ({ ...confirmation, receiptId: undefined, receiptToken: undefined })),
@@ -127,6 +176,7 @@ describe('semantic generation flow', () => {
 
     await expect(handleSemanticGenerationGate('call-failure', 'nomi_operation_gate', { phase: 'request' }, { operationId: 'op-1' }, deps))
       .rejects.toThrow(failure.message)
-    expect(deps.invokeSpy).toHaveBeenCalledTimes(phase === 'request' ? 0 : 1)
+    expect(deps.invokeSpy).toHaveBeenCalledTimes(phase === 'request' ? 1 : 1)
+    expect(deps.requestConfirmationSpy).toHaveBeenCalledTimes(phase === 'confirmation' ? 1 : 0)
   })
 })

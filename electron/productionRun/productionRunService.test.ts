@@ -275,6 +275,167 @@ describe('production run service projection boundary', () => {
     expect(consume).not.toHaveBeenCalled()
   })
 
+  it('verifies a valid receipt before returning a duplicate approved gate no-op', async () => {
+    const approval = makeApprovalReceipt()
+    const execute = vi.fn(() => ({ run, events: [] }))
+    const repository = {
+      read: vi.fn(() => ({
+        ...run,
+        gates: run.gates.map((gate) => ({ ...gate, status: 'approved' as const })),
+      })),
+      readEvents: vi.fn(() => []),
+      execute,
+    }
+    const verify = vi.spyOn(approval.authority, 'verifyReceipt')
+    const service = createProductionRunService({
+      repository: repository as never,
+      projectRootResolver: () => null,
+      approvalReceiptAuthority: approval.authority,
+      projectRevisionResolver: () => 2,
+    })
+
+    const result = await service.command('project-1', 'run-1', {
+      commandId: 'duplicate-with-valid-receipt',
+      expectedRevision: 2,
+      type: 'gate.decide',
+      payload: { gateId: 'gate-1', status: 'approved', receiptId: approval.receiptId, projectRevision: 2 },
+      issuedAt: new Date().toISOString(),
+    })
+
+    expect(result).toEqual({ run: expect.objectContaining({ revision: 2 }), events: [] })
+    expect(verify).toHaveBeenCalledTimes(1)
+    expect(execute).not.toHaveBeenCalled()
+  })
+
+  it('keeps a receipt-free duplicate no-op and verifies a token-only duplicate', async () => {
+    const approval = makeApprovalReceipt()
+    const token = approval.authority.resolveReceiptToken(approval.receiptId)
+    const execute = vi.fn(() => ({ run, events: [] }))
+    const repository = {
+      read: vi.fn(() => ({
+        ...run,
+        gates: run.gates.map((gate) => ({ ...gate, status: 'approved' as const })),
+      })),
+      readEvents: vi.fn(() => []),
+      execute,
+    }
+    const verify = vi.spyOn(approval.authority, 'verifyReceipt')
+    const service = createProductionRunService({
+      repository: repository as never,
+      projectRootResolver: () => null,
+      approvalReceiptAuthority: approval.authority,
+      projectRevisionResolver: () => 2,
+    })
+
+    await expect(service.command('project-1', 'run-1', {
+      commandId: 'duplicate-without-receipt',
+      expectedRevision: 2,
+      type: 'gate.decide',
+      payload: { gateId: 'gate-1', status: 'approved' },
+      issuedAt: new Date().toISOString(),
+    })).resolves.toEqual({ run: expect.objectContaining({ revision: 2 }), events: [] })
+    expect(verify).not.toHaveBeenCalled()
+
+    await expect(service.command('project-1', 'run-1', {
+      commandId: 'duplicate-with-token-only',
+      expectedRevision: 2,
+      type: 'gate.decide',
+      payload: { gateId: 'gate-1', status: 'approved', receiptToken: token, projectRevision: 2 },
+      issuedAt: new Date().toISOString(),
+    })).resolves.toEqual({ run: expect.objectContaining({ revision: 2 }), events: [] })
+    expect(verify).toHaveBeenCalledTimes(1)
+    expect(execute).not.toHaveBeenCalled()
+  })
+
+  it('does not enter the receipt gate for a non-gate production command', async () => {
+    const approval = makeApprovalReceipt()
+    const execute = vi.fn(() => ({ run, events: [] }))
+    const repository = { read: vi.fn(() => run), readEvents: vi.fn(() => []), execute }
+    const service = createProductionRunService({
+      repository: repository as never,
+      projectRootResolver: () => null,
+      approvalReceiptAuthority: approval.authority,
+      projectRevisionResolver: () => 2,
+    })
+
+    await expect(service.command('project-1', 'run-1', {
+      commandId: 'non-gate-command',
+      expectedRevision: 2,
+      type: 'job.status',
+      payload: { jobId: 'job-1', status: 'polling' },
+      issuedAt: new Date().toISOString(),
+    })).resolves.toEqual({ run, events: [] })
+    expect(execute).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps malformed gate identity on the normal command path without receipt lookup', async () => {
+    const execute = vi.fn(() => ({ run, events: [] }))
+    const repository = { read: vi.fn(() => run), readEvents: vi.fn(() => []), execute }
+    const service = createProductionRunService({ repository: repository as never, projectRootResolver: () => null })
+
+    await expect(service.command('project-1', 'run-1', {
+      commandId: 'gate-without-id',
+      expectedRevision: 2,
+      type: 'gate.decide',
+      payload: { status: 'approved' },
+      issuedAt: new Date().toISOString(),
+    })).resolves.toEqual({ run, events: [] })
+    expect(execute).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects a receipt whose verified scope belongs to another project before execute', async () => {
+    const approval = makeApprovalReceipt()
+    const token = approval.authority.resolveReceiptToken(approval.receiptId)
+    const verified = approval.authority.verifyReceipt(token)
+    const foreignAuthority = {
+      resolveReceiptToken: vi.fn(() => token),
+      verifyReceipt: vi.fn(() => ({ ...verified, projectId: 'project-other' })),
+      consumeReceipt: vi.fn(),
+    }
+    const execute = vi.fn(() => ({ run, events: [] }))
+    const repository = { read: vi.fn(() => run), readEvents: vi.fn(() => []), execute }
+    const service = createProductionRunService({
+      repository: repository as never,
+      projectRootResolver: () => null,
+      approvalReceiptAuthority: foreignAuthority as never,
+      projectRevisionResolver: () => 2,
+    })
+
+    await expect(service.command('project-1', 'run-1', {
+      commandId: 'foreign-scope-receipt',
+      expectedRevision: 2,
+      type: 'gate.decide',
+      payload: { gateId: 'gate-1', status: 'approved', receiptId: approval.receiptId },
+      issuedAt: new Date().toISOString(),
+    })).rejects.toMatchObject({ code: 'receipt_invalid', message: expect.stringContaining('projectId') })
+    expect(execute).not.toHaveBeenCalled()
+  })
+
+  it('maps a malformed verified receipt failure to receipt_invalid before execute', async () => {
+    const authority = {
+      resolveReceiptToken: vi.fn(() => 'malformed-token'),
+      verifyReceipt: vi.fn(() => { throw new Error('malformed sealed receipt') }),
+      consumeReceipt: vi.fn(),
+    }
+    const execute = vi.fn(() => ({ run, events: [] }))
+    const repository = { read: vi.fn(() => run), readEvents: vi.fn(() => []), execute }
+    const service = createProductionRunService({
+      repository: repository as never,
+      projectRootResolver: () => null,
+      approvalReceiptAuthority: authority as never,
+      projectRevisionResolver: () => 2,
+    })
+
+    await expect(service.command('project-1', 'run-1', {
+      commandId: 'malformed-receipt',
+      expectedRevision: 2,
+      type: 'gate.decide',
+      payload: { gateId: 'gate-1', status: 'approved', receiptId: 'receipt-malformed' },
+      issuedAt: new Date().toISOString(),
+    })).rejects.toMatchObject({ code: 'receipt_invalid', message: 'malformed sealed receipt' })
+    expect(execute).not.toHaveBeenCalled()
+  })
+
   it('rejects an expired receipt before execute and leaves it available for audit', async () => {
     let clock = '2026-08-23T00:00:00.000Z'
     const approval = makeApprovalReceipt(() => clock)
