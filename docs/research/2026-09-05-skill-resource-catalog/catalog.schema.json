@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nomi.local/schemas/skill-resource-catalog-v1.json",
+  "title": "Nomi Skill Resource Catalog v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "entries"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "status": { "enum": ["documented", "observed", "inferred", "proposed", "blocked"] },
+    "contentType": { "enum": ["text", "image", "video", "workflow"] },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "title", "summary", "useCases", "category", "author", "originUrl",
+        "contentTypes", "sourceEvidence", "quality", "status", "rights"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "useCases": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "category": { "enum": ["script", "cinematic-visual", "editing"] },
+        "tags": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "author": {
+          "type": "object", "additionalProperties": false, "required": ["name"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "organization": { "type": "string" },
+            "profileUrl": { "type": "string", "format": "uri" }
+          }
+        },
+        "originUrl": { "type": "string", "format": "uri" },
+        "repository": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "url": { "type": "string", "format": "uri" },
+            "ref": { "type": "string" },
+            "version": { "type": "string" },
+            "publishedAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "contentTypes": { "type": "array", "items": { "$ref": "#/$defs/contentType" }, "minItems": 1, "uniqueItems": true },
+        "previews": {
+          "type": "array", "items": {
+            "type": "object", "additionalProperties": false, "required": ["kind", "url", "rightsStatus"],
+            "properties": {
+              "kind": { "$ref": "#/$defs/contentType" },
+              "url": { "type": "string", "format": "uri" },
+              "alt": { "type": "string" },
+              "rightsStatus": { "enum": ["allowed", "restricted", "unknown", "blocked"] }
+            }
+          }
+        },
+        "rights": {
+          "type": "object", "additionalProperties": false,
+          "required": ["license", "copyrightStatus", "redistribution", "adaptation"],
+          "properties": {
+            "license": { "type": "string", "minLength": 1 },
+            "licenseUrl": { "type": "string", "format": "uri" },
+            "copyrightStatus": { "enum": ["original-claimed", "open-license", "proprietary", "unknown", "disputed"] },
+            "redistribution": { "enum": ["allowed", "conditional", "forbidden", "unknown"] },
+            "adaptation": { "enum": ["allowed", "conditional", "forbidden", "unknown"] },
+            "attribution": { "type": "string" },
+            "notice": { "type": "string" }
+          }
+        },
+        "quality": {
+          "type": "object", "additionalProperties": false, "required": ["score", "rationale"],
+          "properties": {
+            "score": { "type": "integer", "minimum": 0, "maximum": 5 },
+            "rationale": { "type": "string", "minLength": 1 },
+            "tested": { "type": "boolean" }
+          }
+        },
+        "sourceEvidence": {
+          "type": "array", "minItems": 1, "items": {
+            "type": "object", "additionalProperties": false, "required": ["url", "kind", "capturedAt", "claim"],
+            "properties": {
+              "url": { "type": "string", "format": "uri" },
+              "kind": { "enum": ["official-doc", "official-repo", "author-page", "observed-page", "screenshot", "license-file"] },
+              "capturedAt": { "type": "string", "format": "date-time" },
+              "claim": { "type": "string", "minLength": 1 },
+              "artifactPath": { "type": "string" }
+            }
+          }
+        },
+        "contact": {
+          "type": "object", "additionalProperties": false,
+          "properties": { "url": { "type": "string", "format": "uri" }, "email": { "type": "string", "format": "email" }, "note": { "type": "string" } }
+        },
+        "status": { "$ref": "#/$defs/status" },
+        "blockedReason": { "type": "string" },
+        "nomi": {
+          "type": "object", "additionalProperties": false,
+          "properties": { "launchRoute": { "type": "string" }, "downloadPolicy": { "enum": ["metadata-only", "source-download", "licensed-copy", "blocked"] } }
+        }
+      },
+      "allOf": [
+        { "if": { "properties": { "status": { "const": "blocked" } } }, "then": { "required": ["blockedReason"] } }
+      ]
+    }
+  }
+}
