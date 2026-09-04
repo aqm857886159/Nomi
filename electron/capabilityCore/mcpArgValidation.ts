@@ -123,15 +123,16 @@ function validateValue(value: unknown, schema: SchemaLike, path: string, issues:
       issues.push({ path, message: `必须是字符串（收到 ${describeType(value)}）` })
       return
     }
+    const characterCount = Array.from(value).length
     // minLength:1 在目录里是「不许给空串」的写法（如修改指令），必须真拦——否则空指令被当成合法定点修改。
-    if (typeof schema.minLength === 'number' && value.length < schema.minLength) {
+    if (typeof schema.minLength === 'number' && characterCount < schema.minLength) {
       issues.push({
         path,
-        message: schema.minLength === 1 ? '不能为空' : `至少 ${schema.minLength} 个字符（收到 ${value.length} 个）`,
+        message: schema.minLength === 1 ? '不能为空' : `至少 ${schema.minLength} 个字符（收到 ${characterCount} 个）`,
       })
     }
-    if (typeof schema.maxLength === 'number' && value.length > schema.maxLength) {
-      issues.push({ path, message: `最多 ${schema.maxLength} 个字符（收到 ${value.length} 个）` })
+    if (typeof schema.maxLength === 'number' && characterCount > schema.maxLength) {
+      issues.push({ path, message: `最多 ${schema.maxLength} 个字符（收到 ${characterCount} 个）` })
     }
     return
   }
