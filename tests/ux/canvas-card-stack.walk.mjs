@@ -323,8 +323,11 @@ try {
 
   await clickOrFail(collapsed.getByRole('button', { name: '3 节点' }), '展开雨夜参考组')
   await expectVisible(win.locator('[data-node-id="group-character"]'), '点击卡角后应恢复组内节点')
-  check('点击卡角恢复组内节点', await win.locator('[data-node-id="group-character"]').isVisible())
-  check('展开后恢复三条真实成员输入线', await win.locator('g[data-edge-id^="group-input-"]').count() === 3)
+  // expectVisible above is the web-first assertion; do not immediately sample
+  // isVisible(), which can race the React Flow expand animation and re-mount.
+  check('点击卡角恢复组内节点', true)
+  await expect.poll(() => win.locator('g[data-edge-id^="group-input-"]').count(), { message: '展开后真实成员输入线应完成投影' }).toBe(3)
+  check('展开后恢复三条真实成员输入线', true)
 
   await clickOrFail(collapse, '再次收起雨夜参考组')
   await expectVisible(collapsed, '再次收起后应恢复编组卡')

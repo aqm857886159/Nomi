@@ -84,6 +84,12 @@ export function getProjectLocationResponse(): ProjectLocationResult {
   return { ok: true, location: getProjectLocationState() };
 }
 
+export function checkProjectLocation(): ProjectLocationResult {
+  const location = getProjectLocationState();
+  const validationError = validateProjectLocationRoot(location.path);
+  return validationError ? { ok: false, error: validationError } : { ok: true, location };
+}
+
 export async function pickProjectLocation(
   deps: ProjectLocationPickerDeps = {
     showOpenDialog: (options) => dialog.showOpenDialog(options),
@@ -140,6 +146,10 @@ export function registerProjectLocationIpc(): void {
   ipcMain.handle("nomi:settings:project-location-get", (event) => {
     assertTrustedSender(event);
     return getProjectLocationResponse();
+  });
+  ipcMain.handle("nomi:settings:project-location-check", (event) => {
+    assertTrustedSender(event);
+    return checkProjectLocation();
   });
   ipcMain.handle("nomi:settings:project-location-pick", (event) => {
     assertTrustedSender(event);

@@ -275,3 +275,4 @@ export function useNodeModelAutoSelect({
     )
   }, [archetype, getLatestNode, isGenerationNode, node.id, writeDerivedMeta])
 }
+
