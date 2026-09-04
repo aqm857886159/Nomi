@@ -1,9 +1,34 @@
 import { describe, expect, it } from "vitest";
 
-import { findSkillRecord, normalizeSkillLookupKey, type SkillRecord } from "./skillStore";
+import type { SkillManifest } from "./skillManifestSchema";
+import { SKILL_PACKAGE_VERSION } from "./skillPackage";
+import { findSkillRecord, isSkillSelectableInWorkbench, normalizeSkillLookupKey, type SkillRecord } from "./skillStore";
+
+function manifest(partial: Partial<SkillManifest>): SkillManifest {
+  return {
+    name: "test.skill",
+    version: "1.0.0",
+    description: "Test skill",
+    tools: [],
+    requiredProviders: [],
+    permissions: [],
+    ...partial,
+  };
+}
 
 function record(name: string, directoryName: string): SkillRecord {
-  return { name, directoryName, filePath: `${directoryName}/SKILL.md`, body: "x", manifest: null, origin: "builtin" };
+  return {
+    name,
+    directoryName,
+    filePath: `${directoryName}/SKILL.md`,
+    description: "Test skill",
+    body: "x",
+    manifest: null,
+    origin: "builtin",
+    audience: "internal",
+    packageVersion: SKILL_PACKAGE_VERSION,
+    contentHash: "a".repeat(64),
+  };
 }
 
 const records: SkillRecord[] = [
@@ -36,5 +61,34 @@ describe("findSkillRecord", () => {
 
   it("returns null when nothing matches", () => {
     expect(findSkillRecord("does.not.exist", "nope", records)).toBeNull();
+  });
+});
+
+describe("isSkillSelectableInWorkbench", () => {
+  it("requires explicit opt-in for a built-in single-stage Skill", () => {
+    expect(isSkillSelectableInWorkbench({
+      ...record("workbench.storyboard.planner", "workbench-storyboard-planner"),
+      manifest: manifest({ selectableInWorkbench: true }),
+    })).toBe(true);
+    expect(isSkillSelectableInWorkbench({
+      ...record("workbench.generation.canvas-planner", "workbench-generation"),
+      manifest: manifest({ selectableInWorkbench: false }),
+    })).toBe(false);
+  });
+
+  it("keeps user Skills and existing multi-stage playbooks selectable, independent of MCP audience", () => {
+    expect(isSkillSelectableInWorkbench({
+      ...record("brand.promo", "brand-promo"),
+      manifest: manifest({ stages: [{ id: "script", goal: "Write", tools: [] }] }),
+    })).toBe(true);
+    expect(isSkillSelectableInWorkbench({
+      ...record("user.skill", "user-skill"),
+      origin: "user",
+      manifest: null,
+    })).toBe(true);
+    expect(isSkillSelectableInWorkbench({
+      ...record("mcp.only", "mcp-only"),
+      manifest: manifest({ audience: "mcp" }),
+    })).toBe(false);
   });
 });

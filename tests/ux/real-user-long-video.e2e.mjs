@@ -40,6 +40,13 @@ function listen(server) {
   })
 }
 
+async function readJsonBody(req) {
+  const chunks = []
+  for await (const chunk of req) chunks.push(Buffer.from(chunk))
+  const raw = Buffer.concat(chunks).toString('utf8')
+  return raw ? JSON.parse(raw) : null
+}
+
 function streamCompletion(res) {
   const content = JSON.stringify({
     shotSize: '中景',
@@ -65,9 +72,10 @@ function streamCompletion(res) {
 
 async function startLoopbackProvider() {
   const requests = []
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     if (req.method !== 'POST' || !req.url?.endsWith('/chat/completions')) return json(res, 404, { error: 'route not found' })
-    requests.push({ method: req.method, url: req.url })
+    const body = await readJsonBody(req)
+    requests.push({ method: req.method, url: req.url, body })
     streamCompletion(res)
   })
   const origin = await listen(server)
@@ -112,12 +120,11 @@ function sampleDurationSeconds(samplePath) {
 }
 
 async function dismissChrome(win) {
-  await win.evaluate(() => {
-    for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1', 'nomi-onboarding-checklist:v1']) localStorage.setItem(key, 'seen')
-    localStorage.setItem('__nomiE2E', '1')
-  })
-  await win.reload()
-  await win.waitForLoadState('domcontentloaded')
+  const splashSkip = win.locator('[data-splash-skip="true"]').first()
+  if (await splashSkip.count()) {
+    await splashSkip.click()
+    await splashSkip.waitFor({ state: 'detached', timeout: 5_000 })
+  }
 }
 
 async function enterProject(win) {
@@ -196,6 +203,29 @@ function buildUiDriver({ appRef, winRef, profile, samplePath, loopback }) {
       await item.click()
       selectedModel = identity
       return { status: 'pass', evidenceState: loopback ? 'loopback' : 'blocked-live', detail: 'model selected from visible Agent menu', evidence: { model: selectedModel, provider: profile.provider } }
+    }
+
+    if (step.action === 'applySkill') {
+      const panel = await openAgent(win)
+      const beforeRequests = loopback?.requests.length || 0
+      await panel.locator('[data-agent-input="true"]').fill('请用当前选择的 Skill 做一次只读规划，只回复已加载。')
+      await panel.locator('[data-agent-composer-send="true"]').click()
+      // A selected Skill is loaded as the canonical turn's prompt layer. It
+      // does not necessarily produce a model `load_skill` tool item (and the
+      // UI correctly reserves that row for actual Host skill.read calls).
+      // Wait for the real turn result, then inspect the provider request.
+      const terminalItem = panel.locator('[data-agent-item-kind="assistant"][data-agent-status="done"], [data-agent-item-kind="failure"]').last()
+      await terminalItem.waitFor({ state: 'visible', timeout: 30_000 })
+      const terminalKind = await terminalItem.getAttribute('data-agent-item-kind')
+      if (terminalKind !== 'assistant') {
+        return { status: 'blocked', evidenceState: 'blocked-live', detail: 'selected_skill_turn_failed_before_provider_result', evidence: { requestedSkill: FIXTURE_SKILL, failure: await terminalItem.textContent(), requestCount: loopback?.requests.length || 0 } }
+      }
+      const captured = loopback?.requests.slice(beforeRequests).find((request) => request.body)
+      const requestText = JSON.stringify(captured?.body || '')
+      if (!requestText.includes(FIXTURE_SKILL)) {
+        return { status: 'blocked', evidenceState: 'blocked-live', detail: 'selected_skill_not_carried_into_agent_request', evidence: { requestedSkill: FIXTURE_SKILL, requestCount: loopback?.requests.length || 0 } }
+      }
+      return { status: 'pass', evidenceState: 'loopback', detail: 'selected Skill loaded through Host and carried into the provider request', evidence: { skill: FIXTURE_SKILL, terminal: await terminalItem.textContent(), requestCount: loopback?.requests.length || 0 } }
     }
 
     if (step.action === 'importVideo') {

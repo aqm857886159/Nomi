@@ -263,13 +263,15 @@ export function isSkillVisibleToMcp(record: SkillRecord, access: SkillMcpAccess 
 }
 
 /**
- * Workbench picker visibility is separate from MCP audience visibility. Creative
- * built-ins and every user skill are selectable; workbench implementation skills
- * remain internal routing resources and must not clutter the picker.
+ * Workbench picker visibility is separate from MCP audience visibility. User
+ * Skills and existing playbooks remain selectable; a built-in single-stage
+ * Skill must opt in explicitly so routing resources do not leak into the UI.
  */
-export function isSkillSelectableInWorkbench(record: Pick<SkillRecord, "name" | "origin">): boolean {
+export function isSkillSelectableInWorkbench(
+  record: Pick<SkillRecord, "name" | "origin" | "manifest">,
+): boolean {
   if (record.origin === "user") return true;
-  return !record.name.startsWith("workbench.") && record.name !== "creation-edit";
+  return record.manifest?.selectableInWorkbench === true || Boolean(record.manifest?.stages?.length);
 }
 
 export type SkillSummary = {
