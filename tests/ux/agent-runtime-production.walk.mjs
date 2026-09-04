@@ -37,6 +37,9 @@ let failure
 try {
   const { win } = await walk.start({ first: true })
   const { projectId, projectRoot } = await walk.newProject()
+  // A real new user reaches the Agent through the visible Settings toggle. Keep
+  // this journey on that same boundary before locating the resident composer.
+  await (await import('./agent-runtime-walk-support.mjs')).enableAgentHostThroughSettings(win)
   const settingsRoot = path.join(walk.report.tempRoot, 'settings')
   await win.locator(DOCUMENT).fill(STORY)
   await expect(win.locator(DOCUMENT)).toHaveText(STORY)
@@ -49,7 +52,10 @@ try {
   await sendCreation(win, PARENT)
   await recorded(parent.received, 'parent conversation request')
   await expect(win.locator(CREATION_PANEL)).toContainText('F_PARENT_ACK')
-  await expect(win.getByRole('button', { name: '创作 AI 发送', exact: true })).toBeVisible()
+  // The resident composer owns the send control; its accessible label is
+  // localized and changed with the Agent shell copy, while this data contract
+  // remains the stable user action.
+  await expect(win.locator(`${CREATION_PANEL} [data-agent-composer-send="true"]`)).toBeVisible()
   await expect.poll(async () => (await readConversations(win, projectId))?.creation.threads[0]?.messages
     .some((message) => message.content === PARENT), { timeout: 30_000 }).toBe(true)
   const parentThreadId = (await readConversations(win, projectId)).creation.activeId

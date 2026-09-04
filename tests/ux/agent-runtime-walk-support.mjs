@@ -128,9 +128,28 @@ export async function enableAgentHostThroughSettings(win) {
 }
 
 export async function readConversations(win, projectId) {
-  const result = await win.evaluate((id) => window.nomiDesktop.conversations.read(id), projectId)
-  expect(result.ok, 'The real conversations IPC must succeed').toBe(true)
-  return result.conversations
+  // The old conversations IPC was retired by the Project Agent cutover. Read
+  // the same durable Host snapshot that the resident shell consumes.
+  const snapshot = await win.evaluate(async (id) => {
+    const record = await window.nomiDesktop.projects.readAsync(id)
+    const opened = await window.nomiDesktop.projectAgent.open({
+      projectId: id,
+      immutableProjectUuid: record?.immutableProjectUuid,
+      projectGeneration: record?.projectGeneration,
+    })
+    if (!opened?.ok) throw new Error('projectAgent.open failed')
+    return opened.value.snapshot
+  }, projectId)
+  const threads = (snapshot?.threads || []).map((thread) => ({
+    id: thread.threadId,
+    title: thread.title || '',
+    createdAt: thread.createdAt || 0,
+    updatedAt: thread.updatedAt || 0,
+    messages: (snapshot?.items || [])
+      .filter((item) => item.threadId === thread.threadId && (item.kind === 'user' || item.kind === 'assistant'))
+      .map((item) => ({ id: item.itemId, role: item.kind, content: item.text || '' })),
+  }))
+  return { creation: { activeId: snapshot?.activeThreadId || null, threads }, generation: { activeId: null, threads: [] } }
 }
 
 export function readNativeContexts(projectRoot) {
