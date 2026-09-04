@@ -1964,6 +1964,64 @@ describe("ProjectAgentExecutionCoordinator", () => {
     });
   });
 
+  it("uses the empty preferred subscription fallback for an approved document receipt", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-document-write-missing-subscription-"));
+    fs.mkdirSync(path.join(root, ".nomi"), { recursive: true });
+    const documentAdapter = documentWriteAdapter();
+    const proposalReceipts = createProjectAgentProposalReceiptService({ projectRoot: root, binding });
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => undefined as unknown as string,
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "tool-document-write-missing-subscription",
+            toolName: "replace_selection",
+            args: { content: "new" },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          expect(decision).toMatchObject({ ok: true, result: { applied: true } });
+          return documentWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, {
+      documentWrite: documentAdapter,
+      proposalReceipt: () => proposalReceipts.read(),
+      proposalReceiptWriter: proposalReceipts,
+    });
+    expect(opened.subscriptionId).toBeUndefined();
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: true,
+          result: { applied: true },
+        });
+      }
+    });
+
+    const input = executionInput("document-write-missing-subscription", 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(documentAdapter.execute).toHaveBeenCalledOnce();
+    expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({
+      status: "done",
+      approval: {
+        approvalId: expect.stringMatching(/^approval-/),
+        receiptProposalId: expect.any(String),
+      },
+    });
+    expect(proposalReceipts.read()).toMatchObject({
+      revision: 2,
+      lifecycle: "committed",
+      proposal: {
+        hostApprovalId: expect.stringMatching(/^approval-/),
+      },
+    });
+    coordinator.release(opened.subscriptionId);
+  });
+
   it.each(["capability_timeout", "capability_execution_failed"] as const)(
     "closes a prepared document receipt as undone on a %s write failure",
     async (code) => {

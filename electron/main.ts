@@ -77,14 +77,14 @@ import { createPiSkillWriteTransportAdapter } from "./capabilityCore/skillWriteT
 import { createPiSkillReadTransportAdapter } from "./capabilityCore/skillReadTransportAdapters";
 import { createPiProductionRunTransportAdapter } from "./capabilityCore/productionRunTransportAdapters";
 import { getProductionRunService } from "./productionRun/productionRunRuntime";
-import { getSettingsRoot } from "./runtimePaths";
+import { getSettingsRoot, getWorkspaceRepositoryDeps } from "./runtimePaths";
 import { getInstalledProductionProjectAgentHost, installProductionProjectAgentHost } from "./projectAgentHost/projectAgentProductionRuntime";
 import { createProjectAgentRepositoryRouter } from "./projectAgentHost/projectAgentRepositoryRouter";
 import { registerProjectAgentIpc } from "./projectAgentHost/projectAgentIpc";
 import { migrateProjectAgentLegacy } from "./projectAgentHost/projectAgentMigration";
 import { createProjectAgentProposalReceiptService } from "./projectAgentHost/projectAgentProposalReceiptStore";
+import { createDesktopProposalReceiptResolver } from "./projectAgentHost/projectAgentReceiptResolver";
 import { resolveProjectAgentAttachmentClaims } from "./assets/projectAssetStore";
-import { getWorkspaceRepositoryDeps } from "./runtimePaths";
 import { ensureWorkspaceProjectIdentity } from "./workspace/workspaceProjectIdentity";
 import { resolveWorkspaceProjectDir } from "./workspace/workspaceRepository";
 import { installContentSecurityPolicy } from "./contentSecurityPolicy";
@@ -181,10 +181,7 @@ async function startDesktopCapabilityCore(): Promise<void> {
     {
       canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime,
       onGenerationReady: (factory) => getInstalledProductionProjectAgentHost()?.setGenerationAdapterFactory(factory),
-      proposalReceiptFor: (binding) => {
-        const root = resolveWorkspaceProjectDir(binding.projectId, getWorkspaceRepositoryDeps());
-        return root ? createProjectAgentProposalReceiptService({ projectRoot: root, binding }) : undefined;
-      },
+      proposalReceiptFor: createDesktopProposalReceiptResolver(),
     },
   );
   capabilityPortCache = core.getCapabilityPort();
@@ -759,17 +756,13 @@ function registerIpc(): void {
   registerProductionActionIpc({
     getActiveProjectId: () => canvasReadSurfaceRuntime.getCommittedProjectSelection()?.projectId ?? "",
     loadCore: loadCapabilityCoreModule,
-  }); // P4 S6 返工/续拍
+  });
   registerUpdaterIpc();
-  // M0 独立捕捞窗已退役（方案A 2026-07-12）：捕捞面收敛到应用内浏览器（registerBrowserViewIpc）。
-  // S4-1 评测安全铁律:事件落盘前,已配置的 vendor key 精确匹配脱敏(形态兜底之外的地基)。
   setEventLogSecretsProvider(catalogSecretsProvider);
 }
 const SKIP_CROSS_ORIGIN_ISOLATION = process.env.NOMI_E2E === "1";
 const SKIP_CROSS_ORIGIN_ISOLATION_FOR_WINDOWS_FRAMELESS = process.platform === "win32";
 
-// 非主实例（没拿到单实例锁）不启动 UI / RPC——已让出给老实例（second-instance 已聚焦它）。
-// 单实例锁本身在文件顶部定义（main 与本批独立都加了同一锁，合并去重，根治全局 index 并发覆盖）。
 if (hasSingleInstanceLock)
   app
     .whenReady()

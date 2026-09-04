@@ -44,77 +44,70 @@ pnpm exec vitest run \
 
 ## Changed-scope raw V8 receipt
 
-Raw artifact：
-`outputs/qa/2026-09-04/resident-composer-receipt-fix/f439f514/raw-v8-final/coverage-final.json`
+当前源码 raw V8 artifact：
+`/tmp/nomi-resident-final.zYYmhq/coverage-final.json`
 
-原始 map 生成命令只 include 本次五个 production carrier 文件；整文件 summary 仅用于生成 raw map，不能当 changed-scope target：
+生成命令使用安全临时目录，并运行当前 focused `12 files / 150 tests`：
 
 ```sh
-coverage_out='outputs/qa/2026-09-04/resident-composer-receipt-fix/f439f514/raw-v8-final'
+coverage_dir=$(mktemp -d /tmp/nomi-resident-final.XXXXXX)
 pnpm exec vitest run \
+  electron/capabilityCore/mcpEditingSurface.test.ts \
+  electron/capabilityCore/mcpLoopbackRpcRequest.test.ts \
   electron/capabilityCore/mcpDocumentWriteReceipt.test.ts \
   electron/capabilityCore/mcpStdioDocumentReceipt.test.ts \
   electron/capabilityCore/rpcServer.test.ts \
   electron/projectAgentHost/projectAgentAdapterResolvers.test.ts \
   electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts \
+  electron/projectAgentHost/projectAgentIpc.test.ts \
+  src/workbench/capability/capabilityApplyHandler.documentWrite.test.ts \
+  electron/capabilityCore/mcpDocumentConfirmation.test.ts \
+  electron/projectAgentHost/projectAgentDocumentReceipt.test.ts \
+  electron/projectAgentHost/projectAgentReceiptResolver.test.ts \
   --coverage --coverage.provider=v8 \
-  --coverage.include=electron/capabilityCore/mcpDocumentWriteReceipt.ts \
-  --coverage.include=electron/capabilityCore/mcpStdioServer.ts \
-  --coverage.include=electron/capabilityCore/rpcServer.ts \
-  --coverage.include=electron/projectAgentHost/projectAgentAdapterResolvers.ts \
+  --coverage.include=electron/capabilityCore/mcpDocumentConfirmation.ts \
+  --coverage.include=electron/projectAgentHost/projectAgentDocumentReceipt.ts \
+  --coverage.include=electron/projectAgentHost/projectAgentReceiptResolver.ts \
+  --coverage.include=electron/capabilityCore/mcpProtocol.ts \
   --coverage.include=electron/projectAgentHost/projectAgentTurnExecution.ts \
   --coverage.reporter=text --coverage.reporter=json --coverage.reporter=json-summary \
-  --coverage.reportsDirectory="$coverage_out"
+  --coverage.reportsDirectory="$coverage_dir"
 ```
 
-新 helper 使用同一 command 加四项 thresholds，结果为：
+Raw result：`12 files passed, 150 tests passed`。Exact `statementMap` / `branchMap` / `fnMap` extraction from the same raw map is 100% for every requested dimension；unique statement lines are the exact statementMap line carriers in each span：
 
-```text
-Statements: 100% (14/14)
-Branches:   100% (7/7)
-Functions:  100% (2/2)
-Lines:      100% (14/14)
-```
-
-精确 map receipt 按已合入的 [`storyboard-agent-canonical-followup.md`](./2026-09-04-storyboard-agent-canonical-followup.md) 第 66-129 段算法，在本地临时 Node 校验器中从上述 `coverage-final.json` 复核，结果为 `PASS`。该一次性校验器和所有 `outputs/qa` coverage JSON 均为临时产物，刻意不进入 PR；PR 保留 exact span、branch id 和可审计命令，避免带入大体量报告或新的 QA tooling。`coverage-final.json` 的 V8 v4.1 原始结构提供 `s/f/b`，没有独立 `l` counter；line 数由 exact statementMap line carriers 计算，新 helper 的独立 Vitest threshold 同时验证了 lines 100%。
-
-| production file | exact changed spans | statements | branch arms | functions | line carriers |
+| production file | exact span | statements | branch arms | functions | unique statement lines |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `mcpDocumentWriteReceipt.ts` | `10-68` | 14/14 | 7/7 | 2/2 | 46/46 |
-| `mcpStdioServer.ts` | `98-110;222-230` | 14/14 | 12/12 | 5/5 | 21/21 |
-| `rpcServer.ts` | `263-268;280-281;304-324` | 10/10 | 15/15 | 3/3 | 29/29 |
-| `projectAgentAdapterResolvers.ts` | `113-130` | 13/13 | 9/9 | 2/2 | 30/30 |
-| `projectAgentTurnExecution.ts` | `74-143;643-672` | 24/24 | 28/28 | 5/5 | 75/75 |
-| **total** | **exact scope only** | **75/75** | **71/71** | **17/17** | **201/201** |
+| `mcpDocumentConfirmation.ts` | `17-48` | 6/6 | 8/8 | 1/1 | 6/6 |
+| `projectAgentDocumentReceipt.ts` | `14-81` | 7/7 | 10/10 | 4/4 | 7/7 |
+| `projectAgentReceiptResolver.ts` | `30-44` | 8/8 | 5/5 | 2/2 | 6/6 |
+| `mcpProtocol.ts` | `528-533` | 2/2 | 2/2 | 0/0 | 2/2 |
+| `projectAgentTurnExecution.ts` | `568-602` | 18/18 | 20/20 | 0/0 | 18/18 |
+| **aggregate** | **exact requested spans** | **41/41** | **45/45** | **7/7** | **39/39** |
 
-The requested renderer fallback is current V8 branch `76` at source line `279`, both arms `[3,1]`. The requested receipt-writer failure fallback is current V8 branch `122` at source line `653`, both arms `[2,1]`. The startup fallback was extracted into a helper during the minimal fix: the current source carrier is `mcpStdioServer.ts:98-110`, V8 branch `1` at line `100`, both arms `[1,1]`; its direct invoker spans `222-230`, branches `15-19`, all arms non-zero. The old `233-237` / `25-26` coordinates were stale after that helper extraction and are not silently used as current IDs.
+`projectAgentTurnExecution.ts` 的旧 line 603 catch 属于 unchanged legacy fallback，已排除，不进入本次 exact span 分母。`main.ts` 的 `proposalReceiptFor` 只是 thin wiring；它由真实 Electron journey 证明，不错误计入 raw unit aggregate。
 
 ## Real Electron evidence
 
-Command:
+Command：
 
 ```sh
-pnpm run typecheck
-pnpm run build
 node tests/ux/resident-composer-receipt-fix.e2e.mjs
 ```
 
-Results:
+Result：exit `0`；真实 journey matrix `H/B/E/T/N = 5/5`。
 
-- typecheck passed: app, Electron, and PI configs.
-- build passed: Electron install identity, renderer production build, and Electron build.
-- Electron report: `.tmp/pi-resident-composer-receipt-fix-development-1788517485296/report.json`.
-- two GUI launches used the same isolated project: first PID `70433`, cold-restart PID `70971`; Electron `43.4.1`, Node `24.18.1`; independent MCP stdio PID `70873`.
-- H passed: visible intent → real Agent planning request → pending approval.
-- B passed: empty Composer remains disabled; Unicode content survives the real journey.
-- E passed: visible approval card refusal causes no project mutation.
-- T passed by `mcpRealUserJourneys.test.ts`: malformed/illegal operation, stale revision, timeout, network failure, provider failure, and duplicate/no-op contracts.
-- N passed: real stdio process → MCP elicitation → GUI RPC → document write; Host receipt revision `2`, MCP receipt revision `4`, lifecycle `committed`, then cold restart readback returned `ResidentHostApproved她按下录制键，开始拍摄。` and `McpStdioProductionWrite这次写入必须经过同一确认回执。`.
-- `paidCalls=0`, `blockers=[]`, `result=passed`.
+- 双进程真实 GUI：首次 Electron PID `206`，冷启动第二个 Electron PID `1381`；Electron `43.4.1`，Node `24.18.1`。
+- 独立真实 MCP stdio PID `859`。
+- Host receipt：revision `2`，lifecycle `committed`。
+- MCP receipt：revision `4`，lifecycle `committed`。
+- cold restart 读回两条：`ResidentHostApproved她按下录制键，开始拍摄。`；`McpStdioProductionWrite这次写入必须经过同一确认回执。`。
+- `paidCalls=0`，`blockers=[]`，`unexpected=[]`，journey `result=passed`。
+- Artifact：`.tmp/pi-resident-composer-receipt-fix-development-1788523378863`。
 
-This was development-mode two-process evidence. The journey script has no packaged argument, so no packaged parity result is claimed. Full-repository 100% coverage is also not claimed.
+这是 development-only 的双进程真实 Electron evidence；journey script 没有 packaged 参数，因此不声称 packaged parity。截图数组为空；没有用截图或模拟结果替代真实 GUI/MCP 流程。Full-repository 100% coverage 也不在本次声明范围内。
 
-The temporary report directory under `outputs/qa/` and the temporary Electron `.tmp/pi-*` report are local evidence only; neither is a tracked deliverable.
+临时 raw V8、Electron project root 和 `.tmp/pi-*` report 均为本地证据，不进入 PR。
 
 ## Remaining gaps
 

@@ -1,15 +1,6 @@
-// 能力核 · MCP 协议层（纯逻辑，传输注入 → 可裸 node 单测；见 docs/plan/2026-06-24-packaged-mcp-stdio-server.md）。
+// 能力核 · MCP 协议层（传输注入，纯逻辑，可裸 node 单测）。
 //
-// 手搓 stdio JSON-RPC 2.0（newline-delimited，MCP stdio transport 规范；协议形状经 Context7 核对 R5），
-// 不引 @modelcontextprotocol/sdk 依赖（P1 极简）。把能力核暴露成 MCP 工具，供 Claude Code / Codex / Cursor
-// 配置后实时驱动 Nomi。**这是唯一的 MCP server 实现**——打包/dev 都由 app 自身二进制以 NOMI_MCP_STDIO
-// 模式拉起 mcpStdioServer.ts，后者把本模块接到 stdin/stdout + 进程内 invoke（取代旧 scripts/nomi-mcp.mjs，P1）。
-//
-// 传输经 McpTransport 注入：send（服务端→客户端帧）/ invoke（调能力核）/ isAppOpen（Nomi 开着没 = 还有没有
-// 应用内确认卡这条兜底问法；**不用来猜用户注意力在哪**）。本模块不 import electron → 协议握手可纯逻辑单测。
-//
-// MCP Apps（GUI 宿主内嵌活 widget，扩展 id io.modelcontextprotocol/ui，Stable 2026-01-26）。
-// ProductionRun 结果可携带同一个 ui:// 资源；宿主不支持时仍回文本兜底。
+// MCP Apps（GUI 宿主内嵌 widget）；ProductionRun 结果保留文本兜底。
 import {
   NOMI_LIVE_DRAFT_UI_URI,
   MCP_APP_MIME_TYPE,
@@ -29,11 +20,11 @@ import { createPlanTrustStore, planConfirmElicit } from './mcpPlanTrust'
 import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
 import type { AuthenticatedMcpClient } from './security'
 import { subscribeMcpToolCatalogChanges } from './mcpToolCatalogChanges'
+import { handleDocumentEditConfirmation } from './mcpDocumentConfirmation'
 
 export type McpInvokeOptions = {
   spendConfirmed?: boolean
   planConfirmed?: boolean
-  /** A real user accepted the reversible document proposal at the MCP confirmation boundary. */
   documentConfirmed?: boolean
   signal?: AbortSignal
 }
@@ -534,38 +525,11 @@ export function createMcpProtocol(transport: McpTransport) {
             return
           }
         }
-        // Document writes are reversible but still mutate the user's work. The MCP client must
-        // surface the real elicitation to a human before the verified RPC/renderer boundary is
-        // reached; an agent cannot self-assert this flag.
         if (tool.name === 'nomi_document_edit') {
-          const confirm = await elicitBooleanConfirm({
-            message: 'Apply this document change? The operation is reversible and will update the current project document.',
-            title: 'Confirm document change',
-            description: 'Approve to write the requested content. Decline or timeout leaves the document and receipt unchanged.',
-          }, requestSignal)
-          if (!confirm.supported || !confirm.confirmed) {
-            reply(id, {
-              content: [{
-                type: 'text',
-                text: locale() === 'en'
-                  ? 'Not applied: the document change was not approved.'
-                  : '未生效：这次文稿修改没有获得批准。',
-              }],
-              isError: true,
-              structuredContent: {
-                nomiOutcome: {
-                  operation: 'document.write',
-                  applied: false,
-                  denied: true,
-                  reason: confirm.action === 'timeout' ? 'timeout' : 'declined',
-                },
-              },
-            })
-            return
-          }
-          const result = await invokeForRequest(routedMethod, built, { documentConfirmed: true })
-          reply(id, buildToolResultPayload(tool.name, args, result))
-          return
+          return handleDocumentEditConfirmation(
+            { id, args, routedMethod, built, requestSignal },
+            { elicitBooleanConfirm, invokeForRequest, reply, buildToolResultPayload, locale },
+          )
         }
         // 画布方案确认 elicitation-first（免费可撤，见 mcpPlanTrust.ts）：批量加节点（≥2）当声明 elicitation
         // 且 App 开着时，把确认递进聊天问一次而非让人跑去 App 点弹窗；批准记会话级信任、同项目后续不再问。
