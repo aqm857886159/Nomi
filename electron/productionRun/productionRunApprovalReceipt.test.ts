@@ -62,10 +62,10 @@ describe('production approval receipt scope', () => {
   })
 
   it.each([
-    ['missing resolver', undefined, () => undefined],
+    ['missing resolver', undefined, (): undefined => undefined],
     ['non-safe current revision', 2, () => Number.MAX_SAFE_INTEGER + 1],
-    ['non-safe expected revision', Number.MAX_SAFE_INTEGER + 1, () => 2],
-    ['different revision', 2, () => 3],
+    ['non-safe expected revision', Number.MAX_SAFE_INTEGER + 1, (): number => 2],
+    ['different revision', 2, (): number => 3],
   ] as const)('rejects %s before a receipt can cross the scope boundary', (_label, expected, resolver) => {
     expect(() => assertCurrentProjectRevision('project-1', expected, resolver)).toThrowError(ReceiptScopeError)
   })

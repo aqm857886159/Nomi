@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, type MockedFunction } from 'vitest'
 
 import { handleSemanticGenerationGate } from './mcpSemanticGenerationFlow'
+import type { SemanticGenerationFlowDependencies } from './mcpSemanticGenerationFlow'
 import type { GenerationGateChallengeProjection, GenerationGateConfirmation } from './mcpProtocol'
 
 const challenge: GenerationGateChallengeProjection = {
@@ -22,12 +23,14 @@ const confirmation: GenerationGateConfirmation = {
   receiptToken: 'receipt-token-1',
 }
 
+type InvokeMock = MockedFunction<SemanticGenerationFlowDependencies['invoke']>
+
 function dependencies(overrides: Partial<{
-  invoke: (method: string, params: Record<string, unknown>, signal?: AbortSignal) => Promise<unknown>
+  invoke: InvokeMock
   requestConfirmation: (received: GenerationGateChallengeProjection, signal?: AbortSignal) => Promise<GenerationGateConfirmation>
   locale: () => 'zh-CN' | 'en'
 }> = {}) {
-  const invoke = vi.fn(async (method: string, _params: Record<string, unknown>, _signal?: AbortSignal) => {
+  const invoke = vi.fn<SemanticGenerationFlowDependencies['invoke']>(async (method, _params, _signal) => {
     if (method === 'nomi_request_generation_gate') return challenge
     if (method === 'nomi_decide_generation_gate') return { operationId: 'op-1', leaseHandle: 'lease-submit' }
     return { operationId: 'op-1', nextAction: 'observe' }
@@ -90,7 +93,7 @@ describe('semantic generation flow', () => {
   })
 
   it('uses the semantic public-challenge fallback while keeping the sealed handoff private', async () => {
-    const invoke = vi.fn(async (method: string) => {
+    const invoke = vi.fn<SemanticGenerationFlowDependencies['invoke']>(async (method) => {
       if (method === 'nomi_request_generation_gate') return challenge
       if (method === 'nomi_decide_generation_gate') return { operationId: 'op-1' }
       return { operationId: 'op-1', nextAction: 'observe' }
@@ -108,7 +111,7 @@ describe('semantic generation flow', () => {
   })
 
   it('does not invent a contract hash when a public challenge has no handoff', async () => {
-    const invoke = vi.fn(async (method: string) => {
+    const invoke = vi.fn<SemanticGenerationFlowDependencies['invoke']>(async (method) => {
       if (method === 'nomi_request_generation_gate') return { ...challenge, handoff: undefined }
       if (method === 'nomi_decide_generation_gate') return { operationId: 'op-1' }
       return { operationId: 'op-1', nextAction: 'observe' }
@@ -150,7 +153,7 @@ describe('semantic generation flow', () => {
   })
 
   it('surfaces a downstream receipt_invalid error and never starts the provider task', async () => {
-    const invoke = vi.fn(async (method: string) => {
+    const invoke = vi.fn<SemanticGenerationFlowDependencies['invoke']>(async (method) => {
       if (method === 'nomi_request_generation_gate') return challenge
       if (method === 'nomi_decide_generation_gate') {
         throw Object.assign(new Error('Approval receipt project revision does not match the current project'), { code: 'receipt_invalid' })
