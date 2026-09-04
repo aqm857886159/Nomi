@@ -907,27 +907,55 @@ async function runAction(page, scenario, fixture) {
     // after the real canvas is mounted so this scenario measures the renderer's
     // visible failure/retry path rather than a project-open failure.
     const missingUrl = `nomi-local://asset/${encodeURIComponent(fixture.record.id)}/assets/generated/canvas-performance/missing.png`
-    const injected = await page.evaluate((url) => {
-      const candidate = Array.from(document.querySelectorAll('.generation-canvas-v2-node[data-kind="image"] img[src]'))
-        .find((element) => {
+    const mediaSelector = '.generation-canvas-v2-node[data-kind="image"] img[src]'
+    const failureSelector = '[data-node-media-failure="error"]'
+    const waitForMountedMedia = async (nodeId) => {
+      const media = page.locator(`.generation-canvas-v2-node[data-node-id="${nodeId}"] img[src]`).first()
+      await media.waitFor({ timeout: 10_000 })
+      return media
+    }
+    const dispatchMediaError = async (targetNodeId = null) => {
+      const nodeId = await page.evaluate(({ url, selector, targetNodeId: requestedNodeId }) => {
+        const candidate = Array.from(document.querySelectorAll(selector)).find((element) => {
+          const node = element.closest('.generation-canvas-v2-node')
           const rect = element.getBoundingClientRect()
-          return rect.width > 2 && rect.height > 2 && rect.bottom > 0 && rect.top < innerHeight
+          return (
+            (!requestedNodeId || node?.getAttribute('data-node-id') === requestedNodeId) &&
+            rect.width > 2 &&
+            rect.height > 2 &&
+            rect.bottom > 0 &&
+            rect.top < innerHeight
+          )
         })
-      if (!candidate) return false
-      candidate.setAttribute('src', url)
-      // Setting src directly does not guarantee a network error event in the
-      // Electron test protocol. Dispatch the same renderer event explicitly
-      // so the real React onError path is exercised deterministically.
-      candidate.dispatchEvent(new Event('error'))
-      return true
-    }, missingUrl)
-    if (!injected) throw new Error('没有可见图片节点可注入媒体错误')
-    const failure = page.locator('[data-node-media-failure="error"]').first()
+        if (!candidate) return null
+        candidate.setAttribute('src', url)
+        // Setting src directly does not guarantee a network error event in the
+        // Electron test protocol. Dispatch the same renderer event explicitly
+        // so the real React onError path is exercised deterministically.
+        candidate.dispatchEvent(new Event('error'))
+        return candidate.closest('.generation-canvas-v2-node')?.getAttribute('data-node-id')
+      }, { url: missingUrl, selector: mediaSelector, targetNodeId })
+      if (!nodeId) throw new Error('没有可见图片节点可注入媒体错误')
+      return nodeId
+    }
+    const failure = page.locator(failureSelector).first()
+    const nodeId = await dispatchMediaError()
     await failure.waitFor({ timeout: 10_000 })
+    const initialFailure = (await page.locator(failureSelector).count()) === 1
     await failure.getByRole('button', { name: '重试' }).click()
+    await waitForMountedMedia(nodeId)
+    await dispatchMediaError(nodeId)
     await failure.waitFor({ timeout: 10_000 })
+    const retryFailure = (await page.locator(failureSelector).count()) === 1
+    await failure.getByRole('button', { name: '重试' }).click()
+    const recoveredMedia = await waitForMountedMedia(nodeId)
+    await recoveredMedia.evaluate((element) => element.dispatchEvent(new Event('load')))
+    await failure.waitFor({ state: 'detached', timeout: 10_000 })
     return {
-      explicitFailures: await page.locator('[data-node-media-failure="error"]').count(),
+      explicitFailures: Number(initialFailure) + Number(retryFailure),
+      initialFailure,
+      retryFailure,
+      recoverySuccess: (await page.locator(failureSelector).count()) === 0,
       retryCompleted: true,
     }
   }
@@ -1246,8 +1274,11 @@ function sampleHardFailures(sample) {
   if (sample.probe?.maxLoadingVideos > 1) failures.push(`video activation peak ${sample.probe.maxLoadingVideos} > 1`)
   if (sample.probe?.maxActiveVideos > 1)
     failures.push(`simultaneously playing videos ${sample.probe.maxActiveVideos} > 1`)
-  if (sample.scenario === 'media-error' && sample.actionDetails?.explicitFailures < 1)
-    failures.push('media failure did not remain explicit after retry')
+  if (sample.scenario === 'media-error') {
+    if (sample.actionDetails?.initialFailure !== true) failures.push('media failure did not surface initially')
+    if (sample.actionDetails?.retryFailure !== true) failures.push('media failure did not surface after retry')
+    if (sample.actionDetails?.recoverySuccess !== true) failures.push('media failure did not recover successfully')
+  }
   if (sample.scenario === 'low-zoom-preview' && !sample.error && sample.fixture?.nodes > 80) {
     const zoom = sample.actionDetails?.zoom
     const lightweightNodeCount = sample.actionDetails?.settled?.lightweightCanvasNodes
