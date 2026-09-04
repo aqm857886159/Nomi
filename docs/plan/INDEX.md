@@ -172,6 +172,7 @@
 | [2026-09-02-walkthrough-catalog-seed-version.md](2026-09-02-walkthrough-catalog-seed-version.md) | 隔离走查 catalog 种子按被测 app 版本校验：future seed quarantine + 版本真源单一化，终结「切模型静默失效」假绿 | ✅ |
 | [2026-09-03-walkthrough-findings.md](2026-09-03-walkthrough-findings.md) | R13 走查暴露的五项缺陷修复：i18n、历史 ETA、供应商切换 toast 与 ComfyUI/H3 验证 | 🚧 |
 | [2026-09-03-m5-packaged-graduation.md](2026-09-03-m5-packaged-graduation.md) | M5 打包真机毕业：零额度 MCP 全链、M0-M4 证据清单与发版前人工 runbook | 🚧 |
+| [2026-09-04-main-convergence-follow-ups.md](2026-09-04-main-convergence-follow-ups.md) | current main 收敛后续：Agent/MCP/storyboard/canvas/同步/live provider/durable handoff/架构三期与 image2 gate | 📋 |
 
 ## 性能 / 技术地基 / 巨壳拆分 / 管线
 
