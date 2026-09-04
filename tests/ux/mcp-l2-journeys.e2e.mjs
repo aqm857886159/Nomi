@@ -290,30 +290,15 @@ try {
   // 两段式（expectAbsent 需阳性基线，_assert.mjs 签名强制）：
   //   Phase A 基线：无 elicitation 的 mcp 客户端触发 gate → GUI 确认卡真的会浮（proveProbe 证探针活）。
   //   Phase B 不变量：有 elicitation 的 c9bClient 触发 gate → 客户端自动 accept → 0 张 GUI 卡。
-  // 注：elicitation 路径确认后无收据（无 verifyClientGenerationConfirmation 实现），mcpSemanticGenerationFlow
-  // 无法继续调用 nomi_decide_generation_gate，返回 isError: human_approval_required。这是已知设计：
-  // surface:'client'/nextAction:'in_client' 的真实语义是「调用方侧已确认，但 Nomi 侧无从知晓已发生了
-  // 什么」；此 E2E 覆盖的是「弹在调用方且 Nomi 卡不出现」这条管线，而非后续决账路径。
-  const c9bProject = await call(mcp, 'nomi_project_create', { name: 'C9b client elicitation confirmation' })
-  const c9bProjectData = resultTextJson(c9bProject)
-  const c9bProjectId = c9bProjectData.id || resultData(c9bProject).id
-  const c9bSelectionHandle = c9bProjectData.projectSelectionHandle || resultData(c9bProject).projectSelectionHandle
-  check(Boolean(c9bProjectId && c9bSelectionHandle), 'C9b 项目选择句柄有效')
-  await win.evaluate((id) => { window.location.hash = `#/studio?projectId=${id}` }, c9bProjectId)
-  await win.waitForFunction((id) => window.location.hash.includes(`projectId=${id}`), c9bProjectId, { timeout: 10_000 })
-  const c9bSession = await call(mcp, 'nomi_session_open', { projectSelectionHandle: c9bSelectionHandle })
-  const c9bLease = resultTextJson(c9bSession).leaseHandle || resultData(c9bSession).leaseHandle
-  check(typeof c9bLease === 'string' && c9bLease.length > 20, 'C9b session/open 返回可用 leaseHandle')
-  // 导入参考素材（复用 provider 端点，保持与 C9 相同的装配路径）
-  const c9bImported = await call(mcp, 'nomi_asset_import', { projectId: c9bProjectId, path: provider.referencePath, title: 'C9b reference' })
-  const c9bImportedData = resultTextJson(c9bImported)
-  const c9bReferenceAssetId = c9bImportedData.assetId || resultData(c9bImported).assetId
-  check(typeof c9bReferenceAssetId === 'string' && c9bReferenceAssetId.length > 0, 'C9b 参考素材导入成功')
-  const c9bReference = {
-    assetId: c9bReferenceAssetId, kind: 'image', role: 'character',
-    version: Number(c9bImportedData.version || resultData(c9bImported).version || 1),
-    contentHash: c9bImportedData.contentHash || resultData(c9bImported).contentHash,
-  }
+  // 注：elicitation 路径确认后由主进程验收 client confirmation receipt，直接进入 execute；
+  // 因而这条 E2E 同时覆盖「弹在调用方且 Nomi 卡不出现」与「确认后真实启动」两个不变量。
+  // Phase A 必须落在 GUI 当前 C9 项目，才能证明 Nomi 兜底卡确实会浮出。
+  // Phase B 改用 c9bClient 自己创建的项目；project selection handle 是
+  // connection-bound，不能把主 mcp 的句柄跨连接交给 c9bClient。
+  const c9bProjectId = c9ProjectId
+  const c9bLease = c9Lease
+  const c9bReference = reference
+  check(Boolean(c9bProjectId && c9bLease), 'C9b 复用当前已打开项目与主连接 lease')
   // 两镜计划（比 C9 少，仅用来激活 gate 门，不需要四镜）
   const c9bShots = [0, 1].map((index) => ({
     shotId: `c9b-shot-${index + 1}`, role: 'shot', included: true,
@@ -342,7 +327,12 @@ try {
     c9bGenerationCard.locator('button').last().click().catch(() => {}))
   await c9bGenerationCard.waitFor({ state: 'detached', timeout: 8_000 }).catch(() => {})
   await c9bBaselineGatePromise.catch(() => {})
-  // Phase B：c9bClient（声明 elicitation）在同一项目创建新计划并触发 gate
+  // Phase B：c9bClient（声明 elicitation）在自己的项目上创建计划。
+  // projectSelectionHandle 是 connection-bound（含 sessionId/connectionNonce），
+  // 不能把 Phase A 的 mcp 句柄跨连接交给 c9bClient；这样测到的只会是
+  // lease_invalid，而不是调用方 elicitation 的真实语义。独立项目还避免
+  // 第二个 active Run 抢走 Nomi 任务中心的当前卡，保证 C12 后续 UI 走查
+  // 仍然指向四镜 C9 Run。
   c9bClient = spawnMcpStdioClient({
     ...dirs, tracePath: trace('C9b-elicitation'), captureStderr: true,
     capabilities: { elicitation: {} }, elicitationAction: 'accept', syntheticCredentialStorage: true,
@@ -358,9 +348,23 @@ try {
     },
   })
   await c9bClient.initialize()
-  const c9bElicitSession = await call(c9bClient, 'nomi_session_open', { projectSelectionHandle: c9bSelectionHandle })
-  const c9bElicitLease = resultTextJson(c9bElicitSession).leaseHandle || resultData(c9bElicitSession).leaseHandle
+  const c9bElicitProject = await call(c9bClient, 'nomi_project_create', { name: 'C9b elicitation isolated project' })
+  const c9bElicitProjectData = resultTextJson(c9bElicitProject)
+  const c9bElicitProjectId = c9bElicitProjectData.id || resultData(c9bElicitProject).id
+  const c9bElicitSelectionHandle = c9bElicitProjectData.projectSelectionHandle || resultData(c9bElicitProject).projectSelectionHandle
+  check(Boolean(c9bElicitProjectId && c9bElicitSelectionHandle), 'C9b Phase B elicitation 项目选择句柄来自同一连接 project_create')
+  const c9bElicitSession = await call(c9bClient, 'nomi_session_open', { projectSelectionHandle: c9bElicitSelectionHandle })
+  const c9bElicitSessionData = resultTextJson(c9bElicitSession)
+  const c9bElicitLease = c9bElicitSessionData.leaseHandle || resultData(c9bElicitSession).leaseHandle
   check(typeof c9bElicitLease === 'string' && c9bElicitLease.length > 20, 'C9b Phase B elicitation 客户端 session/open 成功')
+  const c9bElicitImportedReference = await call(c9bClient, 'nomi_asset_import', { projectId: c9bElicitProjectId, path: provider.referencePath, title: 'C9b reference' })
+  const c9bElicitImportedData = resultTextJson(c9bElicitImportedReference)
+  const c9bElicitReference = {
+    assetId: c9bElicitImportedData.assetId || resultData(c9bElicitImportedReference).assetId,
+    kind: 'image', role: 'character',
+    version: Number(c9bElicitImportedData.version || resultData(c9bElicitImportedReference).version || 1),
+    contentHash: c9bElicitImportedData.contentHash || resultData(c9bElicitImportedReference).contentHash,
+  }
   const c9bElicitShots = [0, 1].map((index) => ({
     shotId: `c9b-elicit-shot-${index + 1}`, role: 'shot', included: true,
     candidate: {
@@ -368,30 +372,36 @@ try {
       providerId: videoModel.providerId, modelId: videoModel.modelId,
       ...(videoModel.variants?.[0]?.id ? { variantId: videoModel.variants[0].id } : {}),
       mode: 'image_to_video', ...(mode?.id ? { modeId: mode.id } : {}),
-      prompt: `C9b elicitation 路径 ${index + 1}`, parameters: {}, references: [c9bReference],
+      prompt: `C9b elicitation 路径 ${index + 1}`, parameters: {}, references: [c9bElicitReference],
     },
   }))
-  const c9bElicitPlanned = await call(c9bClient, 'nomi_operation_plan', { projectId: c9bProjectId, leaseHandle: c9bElicitLease, shots: c9bElicitShots })
+  const c9bElicitPlanned = await call(c9bClient, 'nomi_operation_plan', { projectId: c9bElicitProjectId, leaseHandle: c9bElicitLease, shots: c9bElicitShots })
   const c9bElicitPlannedData = resultTextJson(c9bElicitPlanned)
   const c9bElicitOperationId = c9bElicitPlannedData.operation?.operationId || resultData(c9bElicitPlanned).operation?.operationId
   check(typeof c9bElicitOperationId === 'string' && c9bElicitOperationId.length > 0, 'C9b Phase B elicitation 客户端 operation_plan 成功')
-  await call(c9bClient, 'nomi_operation_preview', { projectId: c9bProjectId, leaseHandle: c9bElicitLease, operationId: c9bElicitOperationId })
+  await call(c9bClient, 'nomi_operation_preview', { projectId: c9bElicitProjectId, leaseHandle: c9bElicitLease, operationId: c9bElicitOperationId })
   // 触发 gate——elicitation 客户端自动 accept，确认在调用方侧发生
   // callTool 不抛 isError 错误（只抛协议级错误），结果保留以供断言
-  const c9bGateResult = await c9bClient.callTool('nomi_operation_gate', { projectId: c9bProjectId, leaseHandle: c9bElicitLease, operationId: c9bElicitOperationId, phase: 'request' }, { timeoutMs: 30_000 })
-  console.log('  C9b gate result=', JSON.stringify({ isError: c9bGateResult?.isError, elicitationCount: c9bClient.elicitationCount(), nomiOutcome: c9bGateResult?.structuredContent?.nomiOutcome }))
+  const c9bGateResult = await c9bClient.callTool('nomi_operation_gate', { projectId: c9bElicitProjectId, leaseHandle: c9bElicitLease, operationId: c9bElicitOperationId, phase: 'request' }, { timeoutMs: 30_000 })
+  console.log('  C9b gate result=', JSON.stringify({
+    isError: c9bGateResult?.isError,
+    elicitationCount: c9bClient.elicitationCount(),
+    started: Boolean(resultTextJson(c9bGateResult)?.started),
+  }))
   // 断言 1：客户端真的被问了（surface: 'client' 的直接证据）
   check(c9bClient.elicitationCount() >= 1, 'C9b ① elicitationCount ≥ 1：客户端被问了，确认在调用方侧发生（surface: client）')
-  // 断言 2：gate 返回 human_approval_required（confirmed: true, surface: client 后无收据→无法 decide）
-  const c9bOutcome = c9bGateResult?.structuredContent?.nomiOutcome || {}
-  check(c9bGateResult?.isError === true && c9bOutcome?.errorCode === 'human_approval_required',
-    'C9b ② gate 返回 human_approval_required（confirmed: true，surface: client，修复前此处无收据=旧行为走 nomi/none）')
+  // 断言 2：主进程能验收客户端确认收据并继续 execute。该路径曾因
+  // verifyClientGenerationConfirmation 未接入而退回 human_approval_required。
+  const c9bOutcome = resultTextJson(c9bGateResult)
+  check(c9bGateResult?.isError !== true && Boolean(c9bOutcome?.started),
+    'C9b ② 客户端确认收据被主进程验收，gate 返回 started=true')
   // 断言 3：Nomi 应用内生成确认卡全程未出现（两段式，阳性基线由 Phase A proveProbe 证明）
   await expectAbsent(c9bGenerationCard, { provenBy: c9bBaselineProof, message: 'C9b ③ elicitation 客户端确认时 Nomi 应用内生成确认卡不应出现' })
   check(true, 'C9b ③ Nomi 应用内生成确认卡持续缺席（expectAbsent 通过：不存在且保持窗口内未冒出）')
   await takeScreenshot(win, 'C9b-phase-b-no-gui-card')
   await c9bClient.terminate()
   c9bClient = null
+  const providerSubmissionsBeforeC10 = provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length
 
   // C10: while the same confirmed batch is still being observed, drop a second
   // real MCP client's stdin. This leaves its long-poll request in flight and
@@ -437,7 +447,7 @@ try {
   check(c10Exit?.code === 0, 'C10 stdin 断连后 stdio server 正常收口')
   check(c10Cancelled instanceof Error && /exited|cancel/i.test(c10Cancelled.message), 'C10 在飞 run_events 请求被断连取消')
   check(/cancelled \d+ in-flight request/.test(c10Client.stderrText()), 'C10 stderr 留下断连取消日志')
-  check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length <= 4, 'C10 断连未新增供应商提交')
+  check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length <= providerSubmissionsBeforeC10, 'C10 断连未新增供应商提交')
   c10Client = null
 
   let cursor = 0
@@ -461,7 +471,7 @@ try {
   check(terminalRunStatus === 'awaiting_rough_cut_review', 'C9 run_events 轮询观察到粗剪审核终态')
   const c9Artifacts = c9RunData.artifacts || resultData(c9Run).artifacts || []
   check(c9Artifacts.length >= 4 && c9Artifacts.every((artifact) => typeof artifact.projectRelativePath === 'string' && artifact.projectRelativePath.length > 0), 'C9 四镜物化且每个 artifact 带 projectRelativePath')
-  check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length === 4, 'C10 对账后只有四次对应镜头提交、无孤儿付费提交')
+  check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length === providerSubmissionsBeforeC10, 'C10 对账后没有新增供应商提交或孤儿付费提交')
   const videoArtifact = c9Artifacts.find((artifact) => artifact.kind === 'video') || c9Artifacts[0]
   const artifactResult = await call(mcp, 'nomi_read', { target: 'artifact', projectId: c9ProjectId, runId: operationId, artifactId: videoArtifact.artifactId })
   check(Boolean(artifactResult.structuredContent?.nomiRunData), 'C11 artifact structuredContent 带 nomiRunData')

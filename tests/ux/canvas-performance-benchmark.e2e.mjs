@@ -903,6 +903,21 @@ async function runAction(page, scenario, fixture) {
     return { settled, zoom: settled.transform?.zoom ?? null }
   }
   if (scenario === 'media-error') {
+    // Keep the project valid through hydration. Inject the missing asset only
+    // after the real canvas is mounted so this scenario measures the renderer's
+    // visible failure/retry path rather than a project-open failure.
+    const missingUrl = `nomi-local://asset/${encodeURIComponent(fixture.record.id)}/assets/generated/canvas-performance/missing.png`
+    const injected = await page.evaluate((url) => {
+      const candidate = Array.from(document.querySelectorAll('.generation-canvas-v2-node[data-kind="image"] img[src]'))
+        .find((element) => {
+          const rect = element.getBoundingClientRect()
+          return rect.width > 2 && rect.height > 2 && rect.bottom > 0 && rect.top < innerHeight
+        })
+      if (!candidate) return false
+      candidate.setAttribute('src', url)
+      return true
+    }, missingUrl)
+    if (!injected) throw new Error('没有可见图片节点可注入媒体错误')
     const failure = page.locator('[data-node-media-failure="error"]').first()
     await failure.waitFor({ timeout: 10_000 })
     await failure.getByRole('button', { name: '重试' }).click()
@@ -976,15 +991,6 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
     projectId: `project-canvas-perf-${scale.toLowerCase()}-${scenario}-${runIndex}`,
     projectName: `ZZ Canvas 性能 ${scale} ${scenario} ${runIndex}`,
   })
-  if (scenario === 'media-error') {
-    const imageNode = fixture.record.payload.generationCanvas.nodes.find((node) => node.kind === 'image')
-    if (imageNode?.result) {
-      const missingUrl = `nomi-local://asset/${encodeURIComponent(fixture.record.id)}/assets/generated/canvas-performance/missing.png`
-      imageNode.result.url = missingUrl
-      imageNode.result.thumbnailUrl = missingUrl
-      fs.writeFileSync(path.join(fixture.projectRoot, '.nomi', 'project.json'), JSON.stringify(fixture.record, null, 1))
-    }
-  }
   let app = null
   let page = null
   const pageErrors = []
