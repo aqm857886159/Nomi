@@ -49,6 +49,21 @@ export const skillExampleSchema = z.object({
 });
 export type SkillExample = z.infer<typeof skillExampleSchema>;
 
+const storyboardProfileSchema = z.object({
+  default: z.string().min(1),
+  templates: z.array(z.object({
+    key: z.string().min(1),
+    aspect: z.string().min(1),
+    dialogue: z.boolean(),
+    promptSkeleton: z.array(z.object({
+      key: z.string().min(1),
+      label: z.string().min(1),
+      kind: z.string().min(1),
+      options: z.array(z.string().min(1)),
+    }).strict()),
+  }).strict()),
+}).strict();
+
 /**
  * 阶段级模型偏好 —— **只声明能力身份（kind + 可选 family），绝不绑 vendor 专属 archetypeId，
  * 也不写死参数**（参数合法区间交模型档案给）。这是「通用第一（P4）」+「分享出去不绑死」的硬约束：
@@ -111,6 +126,8 @@ export const skillManifestSchema = z.object({
   inputs: z.array(skillInputSchema).optional(),
   /** Sample prompts shown in onboarding or the skill picker (optional). */
   examples: z.array(skillExampleSchema).optional(),
+  /** Legacy storyboard planner metadata for the single-stage Agent menu skill. */
+  storyboardProfile: storyboardProfileSchema.optional(),
   /**
    * Multi-stage playbook skeleton (optional). Absent ⇒ legacy single-stage pack
    * (current 5 built-ins are unaffected — full back-compat). Present ⇒ the
