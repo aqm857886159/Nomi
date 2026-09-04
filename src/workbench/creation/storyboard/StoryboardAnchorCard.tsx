@@ -265,7 +265,7 @@ export default function StoryboardAnchorCard({ anchor, runtime, onUpdate, onChan
               onChange={(value) => onUpdate({ modelKey: value || undefined, modeId: undefined, params: undefined })}
             />
           ) : (
-            <span className="text-micro text-workbench-warning" data-anchor-model-empty="true">
+            <span className="text-micro text-nomi-warning" data-anchor-model-empty="true">
               {t('storyboardEditor.anchor.noImageModel')}
             </span>
           )) : null}
