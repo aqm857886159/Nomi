@@ -221,6 +221,14 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('hasContextLocator ?')
   })
 
+  it('keeps the durable committed result visible in the fixed resident area', () => {
+    expect(resident).toContain('ResidentPinnedResultCard')
+    expect(resident).toContain('data-agent-result-card-area')
+    expect(resident).toContain("summaryLabel={(total, selected) => t('agentResident.planSummary', { total, selected })}")
+    expect(resident).toContain("openLabel={t('agentResident.pinnedOpen')}")
+    expect(resident).toContain("collapseLabel={t('agentResident.pinnedCollapse')}")
+  })
+
   it('keeps queue mutations Host-owned while exposing the typed mutation seam', () => {
     for (const mutation of [
       '"queue.delete"',

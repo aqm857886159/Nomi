@@ -35,7 +35,7 @@ import type { DocumentAnchorRef, PreconditionSet, TargetRef } from '../../../ele
 import { timelineRevision } from '../timeline/kernel/timelineKernel'
 import { useProductionRunStore } from '../production/productionRunStore'
 import { ResidentApprovalCard, ResidentThinkingState, ResidentToolChips, type ResidentApprovalState, type ResidentToolChipData } from './resident/ResidentUiPrimitives'
-import { ResidentArtifactCard, ResidentAtPicker, ResidentCandidatesCard, ResidentDeviationCard, ResidentFailureCard, ResidentFoldableText, ResidentPlanCard, ResidentSpendCard, ResidentQuestionCard, ResidentWriteFailureRow } from './resident/ResidentExceptionStates'
+import { ResidentArtifactCard, ResidentAtPicker, ResidentCandidatesCard, ResidentDeviationCard, ResidentFailureCard, ResidentFoldableText, ResidentPinnedResultCard, ResidentPlanCard, ResidentSpendCard, ResidentQuestionCard, ResidentWriteFailureRow } from './resident/ResidentExceptionStates'
 import { ResidentReferenceChip } from './resident/ResidentReferenceChip'
 import { attachmentPayloads, itemRef } from './resident/agentItemHelpers'
 import { normalizeResidentToolProjection, readResidentToolProjections, residentToolProjectionKey, residentToolProjectionScope, writeResidentToolProjections, type ResidentToolProjection } from './resident/residentToolProjection'
@@ -752,6 +752,16 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       <WorkbenchIconButton size="sm" label={t('agentResident.collapse')} icon={<IconLayoutSidebarRightCollapse size={15} />} onClick={() => setCollapsed(true)} data-agent-collapse="true" />
       {threadsOpen ? <div ref={threadMenuRef} tabIndex={-1} onKeyDown={(event) => { if (event.key === 'Escape') setThreadsOpen(false) }} className="absolute right-2 top-full z-50 mt-1 w-[280px] rounded-nomi border border-nomi-line bg-nomi-paper p-1 shadow-nomi-lg" data-agent-thread-menu="true" role="menu"><div className="flex items-center justify-between px-2 py-1 text-micro text-nomi-ink-60"><span>{t('agentResident.threads')}</span><button type="button" className="text-nomi-accent" onClick={() => { void createProjectAgentThread(); setThreadsOpen(false) }}>{t('agentResident.newThread')}</button></div>{(snapshot?.threads ?? []).map((thread) => <div key={thread.threadId} className={cn('flex items-center gap-1 rounded-nomi-sm px-2 py-1', thread.threadId === activeThreadId && 'bg-nomi-accent-soft')}><button type="button" className="min-w-0 flex-1 truncate text-left text-caption" onClick={() => { void activateProjectAgentThread(thread.threadId); setThreadsOpen(false) }}>{thread.title || t('agentResident.untitledThread')}</button><button type="button" className="grid size-7 place-items-center rounded-nomi-sm hover:bg-nomi-ink-10" aria-label={t('agentResident.removeThread')} onClick={() => void removeProjectAgentThread(thread.threadId)}><IconTrash size={13} /></button></div>)}</div> : null}
     </header>
+    {committedProposal ? <div className="shrink-0 px-3 pt-1.5" data-agent-result-card-area="true">
+      <ResidentPinnedResultCard
+        record={committedProposal}
+        undoLabel={t('generationCommon.committedProposal.undo')}
+        onUndo={() => void undoReceipt(committedProposal)}
+        summaryLabel={(total, selected) => t('agentResident.planSummary', { total, selected })}
+        openLabel={t('agentResident.pinnedOpen')}
+        collapseLabel={t('agentResident.pinnedCollapse')}
+      />
+    </div> : null}
     <div className="relative min-h-0 flex-1">
       <div ref={scrollRef} className={cn('h-full min-h-0 space-y-1 overflow-y-auto px-3 py-2', menu && 'pointer-events-none')} role="log" aria-live="polite" data-agent-transcript="true" data-agent-flow="true">
         {!items.length && !activeQueue.length ? <div className="grid min-h-40 place-items-center px-5 py-8 text-center" data-agent-empty-state="true"><div className="grid justify-items-center gap-2"><span className="grid size-10 place-items-center rounded-pill bg-nomi-accent-soft text-nomi-accent"><IconMessageQuestion size={22} aria-hidden="true" /></span><div className="text-body-sm font-semibold">{t('agentResident.emptyTitle')}</div><p className="m-0 max-w-[18rem] text-caption leading-5 text-nomi-ink-60">{t('agentResident.emptyDescription')}</p><button type="button" className="mt-1 inline-flex h-8 items-center gap-1.5 rounded-nomi-sm border border-nomi-accent bg-nomi-accent-soft px-3 text-caption font-medium text-nomi-accent transition-colors hover:bg-nomi-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nomi-accent/40" data-agent-empty-cta="true" onClick={() => { document.querySelector<HTMLTextAreaElement>('[data-agent-input="true"]')?.focus() }}><IconArrowUp size={14} aria-hidden="true" />{t('agentResident.emptyCta')}</button></div></div> : null}
