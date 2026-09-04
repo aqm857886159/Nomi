@@ -58,11 +58,14 @@ try {
   await expect(win.locator(`${CREATION_PANEL} [data-agent-composer-send="true"]`)).toBeVisible()
   await expect.poll(async () => (await readConversations(win, projectId))?.creation.threads[0]?.messages
     .some((message) => message.content === PARENT), { timeout: 30_000 }).toBe(true)
-  const parentThreadId = (await readConversations(win, projectId)).creation.activeId
+  const persistedConversations = await readConversations(win, projectId)
+  const parentThreadId = persistedConversations.creation.activeId
   expect(parentThreadId).toMatch(/^thread-/)
-  const parentContext = readNativeContexts(projectRoot).find((record) => record.threadId === parentThreadId)
-  expect(snapshotMessages(parentContext).some((message) => message.role === 'user'
-    && flattenRequestText({ messages: [message] }) === PARENT)).toBe(true)
+  // The current cutover snapshot is the persistence proof; the retired
+  // agent-session.json container is intentionally absent in fresh projects.
+  expect(persistedConversations.creation.threads
+    .find((thread) => thread.id === parentThreadId)?.messages
+    .some((message) => message.role === 'user' && message.content === PARENT)).toBe(true)
   const planner = walk.fixture.expectText({
     label: 'inline storyboard planner inherits the creation thread',
     match: (body) => flattenRequestText(body).includes('F_INLINE_STORY') && !hasToolResult(body, PLAN_CALL),
