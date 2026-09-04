@@ -91,7 +91,9 @@ try {
   const approvalProof = await proveProbe(approval, 'Resident Composer shows a real pending approval')
   walk.report.matrix.H.evidence.push('visible intent -> real Agent planning request -> pending approval')
   await expect(document, 'Proposal must not mutate the document before approval').toHaveText(ORIGINAL)
-  await clickOrFail(approval.getByRole('button', { name: '批准', exact: true }), '用户确认 Resident 文稿提案')
+  await clickOrFail(approval.getByRole('button', { name: '批准', exact: true }), '用户确认 Resident 文稿提案', {
+    noWaitAfter: true,
+  })
   await recorded(approvedFollowup.received, 'the approved write result')
   await expect(document).toContainText(RESIDENT_APPEND)
   await expect.poll(async () => JSON.stringify((await readProject(win, projectId)).payload.workbenchDocuments), {
