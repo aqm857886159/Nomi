@@ -36,8 +36,8 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 //             故更新 AiModelsSection 基线；对应正向断言见下方 translates vendor and model display
 //             names through the model-display boundary。
 const MAIN_NON_MODEL_SECTION_SHA256 = {
-  // 2026-09-02：文件与保存页新增跨设备目录状态与检查入口，保持项目位置仍由该区唯一拥有。
-  'ProjectLocationSection.tsx': 'da4e45a880ef5dc6adb80e838a1b2179a93b3da06e74b9b684534856269d13b7',
+  // 2026-09-04：检查反馈 tone 改为从公共 toast 函数参数推导，避免重复词表 owner。
+  'ProjectLocationSection.tsx': 'c0b2350bda45c5126b69296a0b526fda521feb210a1f6908c5d8ac187a7a0c3a',
   // 2026-09-02: AiModelsSection 按渲染边界收口供应商/模型展示名（translateModelDisplayText）。
   'AiModelsSection.tsx': 'f05b4e11bdeb83ef04b6b40d84e4fdfe275de41e06511163c8ee1be87b3240c8',
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
@@ -85,6 +85,7 @@ describe('settings dialog structure', () => {
     expect(projectLocationSource).toContain('aria-expanded={showSyncSteps}')
     expect(projectLocationSource).toContain('data-project-location-check-feedback')
     expect(projectLocationSource).toContain('data-feedback-tone')
+    expect(projectLocationSource).toContain('NonNullable<Parameters<typeof toast>[1]>')
     expect(projectLocationSource).toContain('role="status"')
     expect(projectLocationSource).toContain('aria-live="polite"')
     expect(projectLocationSource).toContain('https://www.verysync.com/')

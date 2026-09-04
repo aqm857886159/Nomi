@@ -18,7 +18,7 @@ const ERROR_KEY: Record<DesktopProjectLocationError, string> = {
 }
 
 type CheckFeedback = {
-  tone: 'success' | 'error'
+  tone: NonNullable<Parameters<typeof toast>[1]>
   messageKey: string
 }
 
