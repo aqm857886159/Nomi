@@ -29,7 +29,7 @@ const trajectory = {
   sessionId: "s1",
   prompt: "修复接入",
   response: "<!-- nomi-learning {\"kind\":\"procedure\",\"title\":\"先跑契约\",\"content\":\"先验证再沉淀\",\"evidence\":{\"problem\":\"列表为空\",\"action\":\"补认证\",\"outcome\":\"列表恢复\",\"verification\":\"测试通过\",\"eventSeqs\":[1]},\"confidence\":0.9} -->",
-  events: [],
+  events: [{ type: "agent.turn.finished", seq: 1 }],
   completedAt: "2026-09-02T00:00:00.000Z",
 } as const;
 

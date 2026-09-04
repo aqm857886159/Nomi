@@ -4,8 +4,6 @@
 import crypto from "node:crypto";
 import { appendEvents, projectIdFromSessionKey } from "./eventLogRepository";
 import type { NewNomiEvent } from "./types";
-import { getExperienceRepository } from "../experience/experienceRepository";
-import type { ExperienceTrajectory } from "../experience/experienceTypes";
 
 const TEXT_HEAD = 2048;
 const PROMPT_HEAD = 256;
@@ -13,29 +11,11 @@ const PROMPT_HEAD = 256;
 type TurnTrace = {
   projectId: string;
   sessionId: string;
-  threadId?: string;
-  area?: "creation" | "generation";
-  prompt: string;
-  response: string;
-  observedEvents: ExperienceTrajectory["events"];
   /** toolCallId → tool.proposed 事件 id(因果链)。 */
   proposedIds: Map<string, string>;
-  completed: boolean;
 };
 
 const turns = new Map<string, TurnTrace>();
-
-type ExperienceCompletionHandler = (trajectory: ExperienceTrajectory) => void | Promise<void>;
-const defaultExperienceCompletionHandler: ExperienceCompletionHandler = (trajectory) => {
-  void getExperienceRepository().complete(trajectory).catch((error: unknown) => {
-    console.warn("[experience] completion projection unavailable", error);
-  });
-};
-let experienceCompletionHandler: ExperienceCompletionHandler = defaultExperienceCompletionHandler;
-
-export function setExperienceCompletionHandlerForTests(handler: ExperienceCompletionHandler | null): void {
-  experienceCompletionHandler = handler ?? defaultExperienceCompletionHandler;
-}
 
 const mintId = () => `evt_${crypto.randomUUID().slice(0, 12)}`;
 
@@ -46,38 +26,8 @@ function head(value: unknown, max: number): string {
 
 function append(trace: TurnTrace, event: Omit<NewNomiEvent, "id"> & { id?: string }): string {
   const id = event.id ?? mintId();
-  const written = appendEvents(trace.projectId, [{ ...event, id }]);
-  const payload = event.payload || {};
-  const encoded = JSON.stringify(payload);
-  trace.observedEvents.push({
-    type: event.type,
-    ...(written[0]?.seq ? { seq: written[0].seq } : {}),
-    ...(encoded.length <= 2000 ? { payload } : { payload: { summary: encoded.slice(0, 2000) } }),
-  });
+  appendEvents(trace.projectId, [{ ...event, id }]);
   return id;
-}
-
-function completeTrace(trace: TurnTrace): void {
-  if (trace.completed) return;
-  trace.completed = true;
-  const trajectory: ExperienceTrajectory = {
-    trajectoryId: `traj_${trace.sessionId}`,
-    projectId: trace.projectId,
-    sessionId: trace.sessionId,
-    ...(trace.threadId ? { threadId: trace.threadId } : {}),
-    ...(trace.area ? { area: trace.area } : {}),
-    prompt: trace.prompt,
-    response: trace.response,
-    events: trace.observedEvents,
-    completedAt: new Date().toISOString(),
-  };
-  try {
-    void Promise.resolve(experienceCompletionHandler(trajectory)).catch((error: unknown) => {
-      console.warn("[experience] completion handler unavailable", error);
-    });
-  } catch (error) {
-    console.warn("[experience] completion handler unavailable", error);
-  }
 }
 
 /** turn 开始:从 start payload 建 trace(项目不可解析时返回 null,全程 no-op)。 */
@@ -87,17 +37,7 @@ export function beginTurnTrace(sessionId: string, payload: Record<string, unknow
   const projectId = projectIdFromSessionKey(binding?.sessionKey)
     || (typeof payload.projectId === 'string' ? payload.projectId : typeof payload.canvasProjectId === 'string' ? payload.canvasProjectId : null);
   if (!projectId) return;
-  const trace: TurnTrace = {
-    projectId,
-    sessionId,
-    ...(binding?.threadId ? { threadId: binding.threadId } : {}),
-    ...(binding?.sessionKey?.endsWith(":creation") ? { area: "creation" as const } : binding?.sessionKey?.endsWith(":generation") ? { area: "generation" as const } : {}),
-    prompt: head(payload.displayPrompt || payload.prompt, TEXT_HEAD),
-    response: "",
-    observedEvents: [],
-    proposedIds: new Map(),
-    completed: false,
-  };
+  const trace: TurnTrace = { projectId, sessionId, proposedIds: new Map() };
   turns.set(sessionId, trace);
   append(trace, {
     source: "user",
@@ -154,7 +94,6 @@ export function traceChatEvent(sessionId: string, event: unknown): void {
     case "result": {
       const result = (rec.result ?? {}) as Record<string, unknown>;
       const text = typeof result.text === "string" ? result.text : "";
-      trace.response = text.slice(0, TEXT_HEAD);
       append(trace, {
         source: "agent",
         type: "agent.turn.finished",
@@ -167,7 +106,6 @@ export function traceChatEvent(sessionId: string, event: unknown): void {
           finishReason: result.finishReason ?? null,
         },
       });
-      completeTrace(trace);
       return;
     }
     case "done":

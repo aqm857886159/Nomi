@@ -59,5 +59,5 @@
 | [2026-09-01-agent-architecture-test-system.md](2026-09-01-agent-architecture-test-system.md) | Agent Architecture Test System Implementation Plan | 🚧 进行中 |
 | [2026-09-01-cross-device-project-continuation.md](2026-09-01-cross-device-project-continuation.md) | Nomi 跨设备继续编辑实施计划 | 📋 方案待拍板 |
 | [2026-09-01-real-tutorial-system.md](2026-09-01-real-tutorial-system.md) | Real Tutorial System Implementation Plan | 🚧 进行中 |
+| [2026-09-02-verified-experience-loop.md](2026-09-02-verified-experience-loop.md) | Verified Experience Loop 实现计划 | 🚧 进行中 |
 | [2026-09-04-main-convergence-and-rebaseline.md](2026-09-04-main-convergence-and-rebaseline.md) | Main Convergence and Rebaseline Execution Plan | ⏳ 已拍板·未开工 |
-| [2026-09-02-verified-experience-loop.md](2026-09-02-verified-experience-loop.md) | Verified Experience Loop 实现计划 | ✅ 已交付 |

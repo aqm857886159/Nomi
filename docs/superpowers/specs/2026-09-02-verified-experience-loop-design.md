@@ -6,7 +6,7 @@ Nomi 在一轮对话结束后，自动从“真实问题 → 尝试解决 → �
 
 ## 现状与边界
 
-- Agent 运行时是 pi SDK，经 `electron/ai/agentChatV2Ipc.ts` 发送 `result`/`done` 事件；`electron/events/agentChatTrace.ts` 已把工具提议、结果、拒绝、错误写入项目 EventLog。
+- Agent 运行时由 canonical `ProjectAgentHost` 管理；Host 在 `async.result` 提交并确认终态后异步触发经验完成旁路。旧 `agentChatV2Ipc` trace 不是本闭环的生产入口。
 - 会话持久化仍按 `creation|generation` 分区；本功能只消费一轮已完成轨迹，不改变两个 area 的历史边界。
 - `electron/memory/projectMemory.ts` 是现有事实记忆的物化视图。本功能不会绕过它直接改 `memory.json`，而是通过明确的投影入口写入事件/事实。
 - 默认不上传、不调用远端训练服务、不把完整对话发出本机。候选的来源文本在本地经过脱敏、长度限制和哈希；未来接入本地或用户已配置的模型时，只替换 extractor，不改变证据闸门。
@@ -64,7 +64,7 @@ Git 不是知识类型，而是 red 候选的交付载体；本 PR 只实现安�
 
 ## 触发与失败策略
 
-`agentChatV2Ipc` 在 `result` 后、`done` 前调用旁路 `completeExperienceLoop`。触发器只读 trace，所有异常吞掉并记 warning，不阻塞或改变回答。重启后可从 EventLog 重放，处理使用 `trajectoryId` 幂等。
+Host 在已提交的 terminal turn 后调用 `completeProjectAgentExperience`。它先追加 bounded `agent.turn.finished` EventLog receipt，再异步运行 repository；所有异常只记 warning，不阻塞或改变回答。重启后可从 EventLog 重放，处理使用 `trajectoryId` 幂等。当前 extractor 仍要求显式 envelope 和其引用的真实 EventLog seq。
 
 ## 隐私与数据治理
 
@@ -81,4 +81,3 @@ Git 不是知识类型，而是 red 候选的交付载体；本 PR 只实现安�
 4. 同一轨迹重复处理只产生一个候选；崩溃/损坏投影可从 EventLog 重建。
 5. 敏感字段被脱敏，超长文本被截断，默认不出本机。
 6. 会话完成旁路失败不影响 Agent `result`/`done`。
-

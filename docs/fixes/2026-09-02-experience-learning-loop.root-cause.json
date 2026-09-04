@@ -15,7 +15,8 @@
     "electron/experience/experienceExtractor.ts",
     "electron/experience/experiencePolicy.ts",
     "electron/experience/experienceRepository.ts",
-    "electron/events/agentChatTrace.ts",
+    "electron/projectAgentHost/projectAgentTurnExecution.ts",
+    "electron/experience/projectAgentExperience.ts",
     "electron/events/types.ts",
     "electron/memory/projectMemory.ts"
   ],
@@ -24,7 +25,7 @@
     "experiencePolicy.buildExperienceCandidate — evidence completeness, destination, risk, scope, and initial activation",
     "experiencePolicy.recordExperienceReuse/expireExperience — promotion, demotion, contradiction, and expiry",
     "experienceRepository.complete/list/recordReuse — EventLog-backed projection, idempotency, and replay",
-    "agentChatTrace.completeTrace — result-to-trajectory completion hook isolated from the Agent response path",
+    "projectAgentExperience.completeProjectAgentExperience — committed Host terminal-to-trajectory completion hook isolated from the Agent response path",
     "projectMemory.distillEvent — green fact adapter into the existing memory projection"
   ],
   "internal_only_reason": "The evidence boundary and local projection lifecycle are Nomi-specific invariants. External memory research informs the design, but cannot decide Nomi's project scope, EventLog, or prompt eligibility contracts.",
@@ -55,9 +56,9 @@
       "responsibility": "Own idempotent EventLog writes and disposable projection replay for all candidate state changes."
     },
     {
-      "path": "electron/events/agentChatTrace.ts",
-      "symbol": "completeTrace",
-      "responsibility": "Trigger the experience loop as a failure-isolated side effect after the Agent result."
+      "path": "electron/projectAgentHost/projectAgentTurnExecution.ts",
+      "symbol": "onTurnCompleted",
+      "responsibility": "Trigger the experience loop only after Host commits a successful terminal turn, without awaiting the side effect."
     },
     {
       "path": "electron/memory/projectMemory.ts",
@@ -85,10 +86,10 @@
       "evidence": "The repository is the sole experience event writer, merges content hashes, and replays candidate snapshots when index.json is corrupt."
     },
     {
-      "path": "electron/events/agentChatTrace.ts",
-      "entry_point": "completeTrace",
+      "path": "electron/experience/projectAgentExperience.ts",
+      "entry_point": "completeProjectAgentExperience",
       "disposition": "enforced",
-      "evidence": "The result hook is guarded once-per-trace and catches both synchronous and asynchronous completion failures."
+      "evidence": "The Host invokes the completion hook after terminal commit and catches both synchronous and asynchronous completion failures without changing the result path."
     },
     {
       "path": "electron/memory/projectMemory.ts",
@@ -101,7 +102,7 @@
     "classification": "recurring",
     "reason": "Any future post-conversation extractor, model provider, or candidate destination could reintroduce unverified promotion or non-reversible state unless it passes the same shared schema and policy.",
     "same_class_scan": [
-      "Searched Agent completion and EventLog writers; the new completeTrace hook is the only experience trigger and experienceRepository is the only experience event writer.",
+      "Searched Agent completion and EventLog writers; the canonical ProjectAgentHost terminal hook is the only production experience trigger and experienceRepository is the only experience event writer.",
       "Enumerated all candidate kinds and destinations in experienceTypes and verified each has one policy mapping and an explicit initial status.",
       "Checked projectMemory's existing distillEvent rules and added one green-fact adapter rather than a second memory store or prompt injection path.",
       "Added tests for ordinary prose, missing evidence, scope, reuse promotion, failures, contradiction, expiry, projection corruption, and result-path failure isolation."
@@ -119,7 +120,7 @@
       "electron/experience/experienceExtractor.ts",
       "electron/experience/experiencePolicy.ts",
       "electron/experience/experienceRepository.ts",
-      "electron/events/agentChatTrace.ts",
+      "electron/experience/projectAgentExperience.ts",
       "electron/memory/projectMemory.ts"
     ]
   },
@@ -128,13 +129,15 @@
     "electron/experience/experienceExtractor.test.ts",
     "electron/experience/experiencePolicy.test.ts",
     "electron/experience/experienceRepository.test.ts",
-    "electron/events/agentChatTrace.experience.test.ts"
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
+    "electron/experience/projectAgentExperience.test.ts"
   ],
   "class_regression_tests": [
     "electron/experience/experienceExtractor.test.ts",
     "electron/experience/experiencePolicy.test.ts",
     "electron/experience/experienceRepository.test.ts",
-    "electron/events/agentChatTrace.experience.test.ts"
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
+    "electron/experience/projectAgentExperience.test.ts"
   ],
   "legacy_paths": {
     "status": "not-applicable",

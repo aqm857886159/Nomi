@@ -7,7 +7,7 @@ const trajectory = {
   sessionId: "session-1",
   prompt: "修复供应商接入",
   response: "<!-- nomi-learning {\"kind\":\"procedure\",\"title\":\"先跑契约\",\"content\":\"先跑官方契约，再跑 loopback。\",\"evidence\":{\"problem\":\"模型列表为空\",\"action\":\"补认证字段\",\"outcome\":\"列表恢复\",\"verification\":\"测试通过\",\"eventSeqs\":[4,5]},\"confidence\":0.9} -->",
-  events: [],
+  events: [{ type: "agent.turn.finished", seq: 4 }, { type: "agent.tool.completed", seq: 5 }],
   completedAt: "2026-09-02T00:00:00.000Z",
 } as const;
 
@@ -21,6 +21,13 @@ describe("experience extractor", () => {
 
   it("does not invent a learning from an ordinary answer", async () => {
     await expect(extractExperienceCandidates({ ...trajectory, response: "已经处理好了" })).resolves.toEqual([]);
+  });
+
+  it("rejects an envelope whose source sequence is absent from the normalized trajectory", async () => {
+    await expect(extractExperienceCandidates({
+      ...trajectory,
+      events: [{ type: "agent.turn.finished", seq: 4 }],
+    })).resolves.toEqual([]);
   });
 
   it("redacts secrets and caps trajectory text before an extractor sees it", () => {
@@ -46,7 +53,7 @@ describe("experience extractor", () => {
       evidence: { problem: "p", action: "a", outcome: "o", verification: "v", eventSeqs: [1] },
       confidence: 0.8,
     }));
-    const [candidate] = await extractExperienceCandidates(trajectory);
+    const [candidate] = await extractExperienceCandidates({ ...trajectory, events: [{ type: "agent.turn.finished", seq: 1 }] });
     expect(candidate.content).not.toContain("sk-1234567890abcdef");
     setExperienceExtractorForTests(null);
   });

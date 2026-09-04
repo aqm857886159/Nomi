@@ -1,6 +1,6 @@
 # Verified Experience Loop 实现计划
 
-> 状态：✅ 已交付（实现与回归验证已完成，等待 PR 审阅）
+> 状态：🚧 canonical Host 替换接线已完成；真实用户任务与打包运行证据待补
 > 设计规格：`docs/superpowers/specs/2026-09-02-verified-experience-loop-design.md`
 > 目标：完成自动候选提炼、证据闸门、路由、生命周期与会话完成接线；不做远端训练、不自动合并代码。
 
@@ -30,8 +30,8 @@
 
 ## 任务 5：接入会话完成旁路（TDD）
 
-- 在 `electron/events/agentChatTrace.ts` 增加完成 trace 的只读快照与注入式完成处理器；在 `electron/ai/agentChatV2Ipc.ts` 的 `result`→`done` 之间触发。
-- 先写 `electron/events/agentChatTrace.experience.test.ts` 或扩展现有测试：result 后只触发一次；done/异常不阻塞；多 session 不串轨迹。
+- 在 canonical `ProjectAgentHost` 的 `async.result` 提交并确认终态后调用 `electron/experience/projectAgentExperience.ts`；完成投影是异步旁路，不能阻塞 `execution-result`。
+- 先写 Host coordinator/experience bridge 测试：提交终态后只触发一次；旁路异常不阻塞；没有真实 EventLog seq 的 envelope 不落 candidate。
 - 默认处理器调用 repository；测试注入 fake handler 验证失败隔离。
 
 ## 任务 6：现有 Memory 投影边界与提示文档
@@ -43,5 +43,5 @@
 ## 任务 7：验证与交付
 
 - 先跑新增 focused tests，再跑 `pnpm run typecheck`、`pnpm run lint:ci`、`pnpm run check:filesize`、`pnpm run check:heavy-path`、`pnpm run check:root-cause-contracts`、`pnpm run test:system:focused`。
-- 用一个真实 fixture 走“问题→动作→验证→候选→晋级/降级→重建”闭环，保存命令和结果。
+- 当前单测使用显式 envelope 验证“问题→动作→验证→候选→重建”合同；真实 Electron/打包用户任务仍是独立验收门，不能由该 fixture 代替。
 - 检查 diff 与样例，提交任务分支、推送并创建 PR；不合并、不直接 push main。
