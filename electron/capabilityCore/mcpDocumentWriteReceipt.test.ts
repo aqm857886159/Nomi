@@ -131,7 +131,9 @@ describe("MCP document.write durable receipt boundary", () => {
 
     const restarted = proposalService(projectRoot);
     expect(restarted.read()).toMatchObject({ lifecycle: "preparing" });
-    expect(restarted.reconcileInDoubt()).toMatchObject({ lifecycle: "effect_unknown" });
+    const reconcileInDoubt = restarted.reconcileInDoubt;
+    if (!reconcileInDoubt) throw new Error("receipt service must expose restart reconciliation");
+    expect(reconcileInDoubt()).toMatchObject({ lifecycle: "effect_unknown" });
     expect(restarted.read()).toMatchObject({ lifecycle: "effect_unknown" });
   });
 

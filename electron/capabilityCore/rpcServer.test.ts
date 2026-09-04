@@ -41,6 +41,7 @@ let rendererUp = false;
 let spendReply: { confirmed?: boolean } = { confirmed: true };
 let planReply: { confirmed?: boolean } = { confirmed: true };
 let rendererOps: string[] = [];
+let rendererCanvasSnapshot: { nodes: unknown[]; edges: unknown[]; groups: unknown[]; selectedNodeIds: unknown[] } = { nodes: [], edges: [], groups: [], selectedNodeIds: [] };
 let documentReply: { applied: true; revision: number; contentHash: string } = { applied: true, revision: 7, contentHash: "document-hash" };
 // 捕获最后一次 runTask 请求,断言 grantId 是否随请求下传(=付费确认是否真路由+铸令牌)。
 let lastRunTaskReq: { extras?: Record<string, unknown> } | null = null;
@@ -54,10 +55,15 @@ vi.mock("electron", () => ({
 
 vi.mock("./rendererBridge", () => ({
   isRendererAvailable: () => rendererUp,
-  requestRenderer: async (op: string) => {
+  requestRenderer: async (op: string, payload?: unknown) => {
     rendererOps.push(op);
     if (op === "spend.confirm") return spendReply;
     if (op === "plan.confirm") return planReply;
+    if (op === "canvas.read-doc") return rendererCanvasSnapshot;
+    if (op === "canvas.apply") {
+      rendererCanvasSnapshot = (payload as { snapshot: typeof rendererCanvasSnapshot }).snapshot;
+      return { ok: true };
+    }
     if (op === "document.write") return documentReply;
     if (op === "timeline.read") return { timeline: [] };
     if (op === "asset.read") return { assets: [] };
@@ -126,6 +132,7 @@ beforeEach(async () => {
   spendReply = { confirmed: true };
   planReply = { confirmed: true };
   rendererOps = [];
+  rendererCanvasSnapshot = { nodes: [], edges: [], groups: [], selectedNodeIds: [] };
   documentReply = { applied: true, revision: 7, contentHash: "document-hash" };
   lastRunTaskReq = null;
   token = ensureToken();
@@ -265,6 +272,80 @@ describe("capabilityCore/rpcServer", () => {
     );
     expect(assetRead).toMatchObject({ status: 200, body: { ok: true, result: { assets: [] } } });
     expect(rendererOps).toContain("asset.read");
+  });
+
+  it("routes an ordinary canvas.write through the live renderer gateway before committing its receipt", async () => {
+    await server!.close();
+    const authorityDir = makeTempDir("nomi-rpc-canvas-write-receipt-");
+    const repositoryDeps = getWorkspaceRepositoryDeps();
+    const generationPolicy = createMcpGenerationPolicy({ env: {} });
+    const runtime = createProjectSessionRuntime({
+      generationPolicy,
+      leaseFilePath: path.join(authorityDir, "project-leases-v2"),
+      leaseMacKey: "rpc-canvas-write-lease-key",
+      leaseStoreMacKey: "rpc-canvas-write-lease-store-key",
+      getOpenProjectSelection: () => null,
+      resolveProjectRoot: (projectId) => resolveWorkspaceProjectDir(projectId, repositoryDeps),
+      ensureProjectIdentity: (actualRootPath) => ensureWorkspaceProjectIdentity(actualRootPath),
+      readProject: (projectId) => readWorkspaceProject(projectId, repositoryDeps),
+      isServerAllowlisted: () => false,
+    });
+    const receipt = { service: undefined as ReturnType<typeof createProjectAgentProposalReceiptService> | undefined };
+    rendererUp = true;
+    server = await startRpcServer({
+      runTask: async () => ({ id: "t", status: "succeeded", assets: [] }),
+      isProjectOpen: (id) => id === openProjectId,
+      generationPolicy,
+      projectSessionAuthority: runtime.authority,
+      proposalReceiptFor: (candidate) => candidate.projectId === openProjectId ? receipt.service : undefined,
+    });
+    const proof = signMcpClient("codex")!;
+    const context = createMcpConnectionContext({
+      client: "codex",
+      proof,
+      randomSecret: () => "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE",
+    });
+    const connection = {
+      client: "codex" as const,
+      proof,
+      connectionAttestation: getMcpConnectionAttestation(context),
+    };
+    const created = await rpc("project.create", { name: "RPC canvas receipt" }, token, connection);
+    const createdResult = created.body.result as { id: string; projectSelectionHandle: string };
+    openProjectId = createdResult.id;
+    const opened = await rpc("nomi_session_open", { projectSelectionHandle: createdResult.projectSelectionHandle }, token, connection);
+    const lease = opened.body.result as {
+      leaseHandle: string;
+      projectId: string;
+      immutableProjectUuid: string;
+      projectGeneration: number;
+    };
+    const projectRoot = resolveWorkspaceProjectDir(createdResult.id, repositoryDeps);
+    if (!projectRoot) throw new Error("workspace project root unavailable");
+    receipt.service = createProjectAgentProposalReceiptService({
+      projectRoot,
+      binding: {
+        projectId: lease.projectId,
+        immutableProjectUuid: lease.immutableProjectUuid,
+        projectGeneration: lease.projectGeneration,
+      },
+    });
+
+    rendererOps = [];
+    const result = await rpc("canvas.write", {
+      projectId: createdResult.id,
+      leaseHandle: lease.leaseHandle,
+      operation: "create_canvas_nodes",
+      summary: "在画布落一套方案",
+      nodes: [
+        { clientId: "shot-1", kind: "shot", title: "镜头 1", prompt: "湖边纸船" },
+        { clientId: "shot-2", kind: "shot", title: "镜头 2", prompt: "湖面月光" },
+      ],
+    }, token, connection);
+
+    expect(result).toMatchObject({ status: 200, body: { ok: true, result: { applied: true } } });
+    expect(rendererOps).toEqual(["plan.confirm", "canvas.read-doc", "canvas.apply"]);
+    expect(receipt.service?.read()).toMatchObject({ lifecycle: "committed" });
   });
 
   it("accepts only a Nomi-signed MCP client as Production Run authority", async () => {

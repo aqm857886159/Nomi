@@ -252,6 +252,8 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
             throw error instanceof RpcError ? error : canvasReadRpcError(error)
           }
         }
+        // 付费确认标志在所有编辑/生成分支共用，必须在编辑分支进入前解析。
+        const preApprovedSpend = parsed.spendConfirmed === true
         if (isEditing || isCanonicalCanvasPlanPatch || isCanvasWrite) {
           if (!hasMcpTransportClaims || !projectSessionConnection || !options.projectSessionAuthority) {
             throw new RpcError('A verified project-session transport is required for editing tools', 403)
@@ -398,7 +400,6 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         //   会弹卡、用户看得见能拒。这是把「防本地攻击者」这层纵深换成「少跑一趟」，不是「防 AI」那道红线松了。
         // ⚠️ 边界仅放宽到付费确认这一处：令牌仍只在主进程铸、assertAndConsumeSpendGrant 仍逐次硬校验、
         // 导出等其余硬边界一律不得复制本模式（那些是抗伪造红线，客户端一个 flag 不足以过）。
-        const preApprovedSpend = parsed.spendConfirmed === true
         // 交付②④：dispatch + 生成结果富化收口在 dispatchAndEnrich（0a）——传输里没有 bare dispatch 可调，
         // 缩略图 base64 / 签名预览链的富化在结构上不可能被忘（此进程有 nativeImage，launcher bare node 做不了）。
         const result = await dispatchAndEnrich(method, params, {
