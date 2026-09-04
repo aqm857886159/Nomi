@@ -1,0 +1,133 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-04-agent-usage-ledger-project-revision",
+  "problem_type": "生成审批收据只绑定 sealed Run 授权，不在所有 Run-owned 审批入口重新确认当前项目文档 revision",
+  "symptom": "项目文档从 revision 12 变为 revision 13 后，revision 12 的真实 approval receipt 仍可沿语义 MCP 或 GUI rework/continuation 的 Run-owned gate.decide 路径批准旧 Run；旧收据跨项目 revision 被接受，用户可能在已变更的项目上执行过时的付费生成计划。",
+  "direct_cause": "assertReceiptMatchesAuthorization 只把收据字段与 sealed authorization envelope 比对；requestGenerationGate、authorizeGeneration 和 decideRunOwnedGenerationGate 没有统一读取当前项目 revision。productionRunApprovalReceipt 已有 resolver 防线，但只有 production service 同时注入 receipt authority 与 resolver 时才生效，不能替代 Run-owned authority 的共享检查。",
+  "class_root": "项目 revision 是收据作用域的一部分，却没有被所有生成审批入口视为“sealed revision 必须等于 live project revision”的共享不变量。不同入口分别组装 planning、确认、Run command 和 receipt 校验，导致语义 MCP、GUI rework/continuation 与 production service 的保护层不对称；只校验签名和 sealed envelope 不能证明收据仍适用于当前项目文档。",
+  "affected_population": [
+    "通过语义 MCP 生成入口审批的用户",
+    "通过 GUI rework 或 budget continuation 审批多镜 Run 的用户",
+    "在项目保存/重启/多入口并发后仍持有旧确认收据的未来 Run"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
+    "electron/capabilityCore/mcpSemanticGenerationFlow.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/appIntegrationProductionActions.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/productionRunApprovalReceipt.ts",
+    "electron/productionRun/productionGenerationAuthorizationFlow.test.ts",
+    "electron/productionRun/productionRunService.test.ts",
+    "electron/capabilityCore/mcpSemanticGenerationFlow.test.ts"
+  ],
+  "entry_points": [
+    "mcpSemanticGenerationFlow.handleSemanticGenerationGate → nomi_request_generation_gate → nomi_decide_generation_gate",
+    "runOwnedGenerationGateAuthority.requestGenerationGate / authorizeGeneration",
+    "appIntegrationProductionActions.reworkProductionShot / resumeProductionBatch",
+    "productionRunService.command(gate.decide) → productionRunApprovalReceipt.approvalReceiptForGate"
+  ],
+  "internal_only_reason": "projectRevision 的含义、sealed authorization envelope、Run-owned gate command 以及 approval receipt 的作用域都是 Nomi 自有持久化与授权合同；没有第三方 API 文档可以决定当前项目 revision 必须如何绑定收据。",
+  "invariants": [
+    "每个付费生成 challenge 和 receipt 的 projectRevision 必须等于 sealed authorization envelope 的 projectRevision。",
+    "发 challenge 前以及 gate.decide 写入 Run 前，live project revision 必须可解析且等于 sealed projectRevision；否则 fail closed，不产生 approved gate。",
+    "productionRunService 与 productionRunApprovalReceipt 在配置 authority/resolver 时必须拒绝 expired、scope 不匹配或跨 current project revision 的 receipt，并且在 durable Run event 前不得消费收据。",
+    "同方向 duplicate gate command 不得重复授权或消费；带 stale receipt 的 duplicate 不能绕过当前 revision scope 校验。"
+  ],
+  "generality_proof": "revision 检查位于 Run-owned gate authority 的 request/approve 共享边界，覆盖语义 MCP 和 GUI action 两类 caller；生产 service 继续通过 approvalReceiptForGate 做独立 receipt scope 防线。resolver 由 appIntegration、mcp stdio 和 action hooks 统一注入，因此规则不依赖 provider、模型、客户端或某一个测试 fixture。",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
+      "symbol": "createRunOwnedGenerationGateAuthority / decideRunOwnedGenerationGate",
+      "responsibility": "在 challenge 发放和 durable gate.decide 前读取 live project revision，并要求它与 sealed authorization revision 相等；把 revision 写入 Run command。"
+    },
+    {
+      "path": "electron/productionRun/productionRunApprovalReceipt.ts",
+      "symbol": "approvalReceiptForGate",
+      "responsibility": "在 production Run service 配置 receipt authority 与 project revision resolver 时，验证收据与当前项目 revision 和 gate scope 匹配后才允许 service 执行。"
+    },
+    {
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "command",
+      "responsibility": "保持 gate.decide 的 receipt 校验先于 durable repository execute，并在同方向 duplicate 不能带 stale receipt 绕过 scope 校验。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpSemanticGenerationFlow.ts",
+      "entry_point": "handleSemanticGenerationGate",
+      "disposition": "enforced",
+      "evidence": "该流程的 request/confirm/decide 顺序最终汇入 Run-owned authority；focused integration test 证明 drift 发生在确认后、Run command 前时不会进入 start。"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationProductionActions.ts",
+      "entry_point": "decideRunOwnedGenerationGate callers for rework and continuation",
+      "disposition": "enforced",
+      "evidence": "两个 action caller 使用同一 readProject-backed resolver；shared decide boundary 在 command 前重新读取 revision。"
+    },
+    {
+      "path": "electron/productionRun/productionRunService.ts",
+      "entry_point": "command gate.decide receipt path",
+      "disposition": "enforced",
+      "evidence": "service focused test configures approvalReceiptAuthority and a mutable projectRevisionResolver, then proves an old receipt is rejected before repository execute or receipt consume."
+    },
+    {
+      "path": "electron/capabilityCore/approvalReceipt.ts",
+      "entry_point": "receipt verify/mint/consume persistence",
+      "disposition": "not-affected",
+      "evidence": "cryptographic mint, expiry, duplicate mint, consume replay, and restart persistence already own receipt lifecycle; this fix changes the project-scope boundary, not receipt MAC or storage format."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一 sealed authorization 可被多个 caller、多个进程装配点和重启后的 durable Run 重新提交；只在 dispatcher 或 production service 的某一层校验 live revision 不能覆盖未经过该层的 Run-owned/UI 路径。",
+    "same_class_scan": [
+      "搜索 createRunOwnedGenerationGateAuthority 与 decideRunOwnedGenerationGate，独立检查语义 MCP、mcp stdio、GUI rework 和 GUI continuation 四类 caller。",
+      "搜索 projectRevisionResolver、approvalReceiptForGate 与 gate.decide，确认 dispatcher 和 production service 已有局部防线但 Run-owned authority 之前没有 live revision recheck。",
+      "搜索 approvalReceiptAuthority 的 mint/verify/consume 与 operation/repository readback 测试，确认 expired、duplicate、replay、restart 是同一收据生命周期的相邻分支，而不是可通过放宽校验解决的替代路径。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
+    "invariant": "任何 Run-owned paid generation approval 都必须在 challenge 前和 durable gate.decide 前证明 live project revision 是一个有效整数且等于 sealed authorization envelope.projectRevision；production service receipt validation remains a defense in depth.",
+    "failure_mode": "resolver 缺失、revision 非法或发生漂移时抛出明确 revision scope 错误；不写 approved gate、不启动 provider、不消费 receipt。",
+    "exception_policy": "none",
+    "strategy": "把 project revision 检查放进所有语义/UI caller 汇入的 Run-owned authority，并由 appIntegration/mcp stdio 统一注入 resolver；将 sealed revision 透传至 gate command，使 productionRunApprovalReceipt 在有配置时继续独立拒绝跨 revision receipt。",
+    "artifacts": [
+      "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
+      "electron/capabilityCore/appIntegration.ts",
+      "electron/capabilityCore/appIntegrationProductionActions.ts",
+      "electron/capabilityCore/mcpStdioServer.ts",
+      "electron/productionRun/productionRunService.ts",
+      "electron/productionRun/productionRunApprovalReceipt.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/productionGenerationAuthorizationFlow.test.ts",
+    "electron/productionRun/productionRunService.test.ts",
+    "electron/capabilityCore/mcpSemanticGenerationFlow.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/productionGenerationAuthorizationFlow.test.ts",
+    "electron/productionRun/productionRunService.test.ts",
+    "electron/capabilityCore/mcpSemanticGenerationFlow.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有删除旧 receipt 或旧持久化格式；修复把原先缺失的共享 live revision assertion 补到现有 authority，并保留现有 dispatcher/service 防线。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "修复只依赖 Nomi 自有的 workspace repository、Run repository 和 receipt authority，不涉及第三方运行时行为或版本升级。",
+    "exit_criteria": []
+  },
+  "migration": "无需数据迁移。已有 receipt、Run event 和 usage ledger 的磁盘格式保持兼容；旧 receipt 在其 sealed revision 仍是当前 revision 时可继续使用，跨 revision 的旧 receipt 从本次 gate approval 起显式失效。",
+  "residual_risks": [
+    "本次聚焦测试不启动真实 Electron renderer、GUI RPC 或付费 provider；真实打包版 transport/renderer 的时序仍需后续受控 journey 验证。",
+    "调用方显式替换 requestGenerationGate 或 authorizeGeneration 的自定义 authority 不由默认 appIntegration wiring 自动证明；其合同仍要求自行提供同等 live revision enforcement。",
+    "项目 revision 在 check 与 durable command 之间若再次变化，workspace save 与 Run command 的跨存储原子性仍由现有生命周期处理；本修复保证 stale receipt 不放行，但不提供跨存储事务。"
+  ]
+}

@@ -658,6 +658,38 @@ describe("ProjectAgentExecutionCoordinator", () => {
     expect(documentAdapter.execute).not.toHaveBeenCalled();
   });
 
+  it("persists terminal model usage on the Host turn and restores it after reopening", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-usage-ledger-"));
+    const usage = { promptTokens: 17, completionTokens: 5, cachedPromptTokens: 3, totalTokens: 22 } as const;
+    const createCoordinator = () => createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-usage-ledger",
+      {
+        runAgent: async () => ({
+          id: "usage-result",
+          status: "finished",
+          text: "done",
+          finishReason: "stop",
+          artifacts: [],
+          toolCalls: [],
+          usage,
+        }),
+      },
+    );
+    const input = executionInput("usage-ledger", 0);
+    const first = createCoordinator();
+    const opened = await first.open(input.mutation.binding);
+    await first.enqueue(opened.subscriptionId, input);
+    await first.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+    expect(first.snapshot(opened.subscriptionId).turns[0]?.usage).toEqual(usage);
+    first.release(opened.subscriptionId);
+
+    const reopened = createCoordinator();
+    const restored = await reopened.open(input.mutation.binding);
+    expect(reopened.snapshot(restored.subscriptionId).turns[0]?.usage).toEqual(usage);
+    reopened.release(restored.subscriptionId);
+  });
+
   it("reuses one approval for reversible edits while preserving a receipt per write", async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-safe-auto-"));
     const documentAdapter = documentWriteAdapter();

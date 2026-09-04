@@ -24,7 +24,7 @@ import { MEANINGFUL_EVENT_TYPES } from './productionRunMeaningfulEvents'
 import { readAutomationPolicySettings } from '../settings/automationPolicySettings'
 import { assertProductionPolicyReady } from './productionPolicyReadiness'
 import { normalizeTrustLevel, trustLevelOf } from './productionRunTypes'
-import { approvalReceiptForGate } from './productionRunApprovalReceipt'
+import { approvalReceiptForGate, duplicateGateDecisionFor } from './productionRunApprovalReceipt'
 import { isAnchorCheckpointGate } from './anchorCheckpoint'
 import { kickBatchSchedulerForRun } from './batchSchedulerKick'
 import { recoverStoryboardContentHashes } from './productionRunStoryboardHashRecovery'
@@ -540,24 +540,13 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       })
       return result
     }
-    if (runCommand.type === 'gate.decide') {
-      // B4 幂等：两个审批同时来（异 commandId、同决议）——门已按同方向决过 → 幂等 no-op，
-      // 返回当前态、不再执行（不重复授权预算 / 不重踢 driver / 不炸「already decided」）。
-      // 翻决议（approved↔rejected）不在此放行 → 落到 reducer 拒改写。竞态的输家由此静默收敛。
-      const current = requireRun(safeProjectId, safeRunId)
-      const gateId = typeof runCommand.payload.gateId === 'string' ? runCommand.payload.gateId.trim() : ''
-      const decidedGate = current.gates.find((item) => item.gateId === gateId)
-      if (decidedGate && decidedGate.status !== 'waiting' && decidedGate.status === runCommand.payload.status) {
-        return { run: current, events: [] }
-      }
-    }
-    const gateReceipt = approvalReceiptForGate(
-      deps.approvalReceiptAuthority,
-      safeProjectId,
-      safeRunId,
-      runCommand,
-      deps.projectRevisionResolver,
-    )
+    const duplicateGateDecision = runCommand.type === 'gate.decide'
+      ? duplicateGateDecisionFor(deps.approvalReceiptAuthority, safeProjectId, safeRunId, requireRun(safeProjectId, safeRunId), runCommand, deps.projectRevisionResolver)
+      : undefined
+    const gateReceipt = duplicateGateDecision
+      ? duplicateGateDecision.gateReceipt
+      : approvalReceiptForGate(deps.approvalReceiptAuthority, safeProjectId, safeRunId, runCommand, deps.projectRevisionResolver)
+    if (duplicateGateDecision) return { run: duplicateGateDecision.current, events: [] }
     if (runCommand.type === 'gate.decide' && runCommand.payload.status === 'approved') {
       const current = requireRun(safeProjectId, safeRunId)
       const gateId = typeof runCommand.payload.gateId === 'string' ? runCommand.payload.gateId.trim() : ''

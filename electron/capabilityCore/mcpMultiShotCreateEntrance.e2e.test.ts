@@ -174,7 +174,7 @@ function harness(vendorOrigin: string, submits: string[], planStoryboard?: (inpu
     now,
     randomId: () => `receipt-sequence-${++receiptSequence}`,
   });
-  const generationAuthority = createRunOwnedGenerationGateAuthority({ owner: owner as never, operations, planning: handler, receipts, now });
+  const generationAuthority = createRunOwnedGenerationGateAuthority({ owner: owner as never, operations, planning: handler, receipts, projectRevisionResolver: () => 0, now });
   return { root, repository, handler, buildScheduler, generationAuthority, receipts };
 }
 

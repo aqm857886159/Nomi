@@ -26,6 +26,7 @@ import {
   assertProjectAgentMutationEnvelope,
   hashProjectAgentMutation,
 } from "./projectAgentMutationValidation";
+import { assertProjectAgentUsage } from "./projectAgentStateValidationPrimitives";
 import type { ProjectAgentReduction } from "./projectAgentReduction";
 import {
   isProjectAgentAbortStatus,
@@ -573,6 +574,7 @@ export function reduceProjectAgentMutation(
           "expectedRevision",
           "items",
           "turnStatus",
+          "usage",
           "retryable",
           "proposalApprovalId",
           "proposalStatus",
@@ -583,6 +585,13 @@ export function reduceProjectAgentMutation(
         const result = mutation.payload;
         assertCanonicalMutationTimestamp(result.receivedAt);
         assertOptionalMutationBoolean(result.retryable);
+        if (result.usage !== undefined) {
+          try {
+            assertProjectAgentUsage(result.usage);
+          } catch {
+            fail("async_result_stale");
+          }
+        }
         assertExactMutationKeys(result.binding, ["projectId", "immutableProjectUuid", "projectGeneration"]);
         if (
           result.expectedRevision !== mutation.expectedRevision ||
@@ -682,7 +691,7 @@ export function reduceProjectAgentMutation(
         const assistantFinal = reduceProjectAgentAssistantFinal(items, result);
         items = assistantFinal.items;
         changes.push(...assistantFinal.changes);
-        const updatedTurn = transitionRecord(
+        const updatedTurnBase = transitionRecord(
           turn,
           {
             status: result.turnStatus,
@@ -691,6 +700,10 @@ export function reduceProjectAgentMutation(
           },
           true,
         );
+        const updatedTurn = freezeProjectAgentIncremental({
+          ...updatedTurnBase,
+          ...(result.usage !== undefined ? { usage: result.usage } : {}),
+        }) as ProjectAgentTurn;
         const updatedQueue = transitionRecord(
           queueItem,
           {

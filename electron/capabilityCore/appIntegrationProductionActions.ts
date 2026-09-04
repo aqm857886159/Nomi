@@ -28,6 +28,7 @@ type ActionDeps = {
   driveScheduler: (projectId: string, runId: string, scheduler: SchedulerLike, label: string) => void
   receiptAuthority?: ApprovalReceiptAuthority
   confirmGenerationInNomi?: (input: { challengeToken: string }) => Promise<unknown>
+  projectRevisionResolver: (projectId: string) => number | undefined
 }
 
 function projectIdentity(projectId: string, record: WorkspaceProjectRecordV2): GenerationAuthorizationProjectIdentity {
@@ -115,6 +116,7 @@ export function createProductionActionHooks(deps: ActionDeps): {
         operationId: runId,
         authorization,
         commandPrefix: 'production-rework',
+        projectRevisionResolver: deps.projectRevisionResolver,
         display: {
           model: modelLabel,
           ...(shotSummary ? { shotSummary } : {}),
@@ -197,6 +199,7 @@ export function createProductionActionHooks(deps: ActionDeps): {
           operationId: runId,
           authorization,
           commandPrefix: 'production-continuation',
+          projectRevisionResolver: deps.projectRevisionResolver,
           display: { model: modelLabel },
         })
         if (!decision.approved) return { ok: false, code: 'resume_declined' }
