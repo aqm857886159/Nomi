@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { findSkillRecord, normalizeSkillLookupKey, type SkillRecord } from "./skillStore";
+import { findSkillRecord, isSkillSelectableInWorkbench, normalizeSkillLookupKey, type SkillRecord } from "./skillStore";
 
 function record(name: string, directoryName: string): SkillRecord {
   return { name, directoryName, filePath: `${directoryName}/SKILL.md`, body: "x", manifest: null, origin: "builtin" };
@@ -36,5 +36,34 @@ describe("findSkillRecord", () => {
 
   it("returns null when nothing matches", () => {
     expect(findSkillRecord("does.not.exist", "nope", records)).toBeNull();
+  });
+});
+
+describe("isSkillSelectableInWorkbench", () => {
+  it("requires explicit opt-in for a built-in single-stage Skill", () => {
+    expect(isSkillSelectableInWorkbench({
+      ...record("workbench.storyboard.planner", "workbench-storyboard-planner"),
+      manifest: { selectableInWorkbench: true } as SkillRecord["manifest"],
+    })).toBe(true);
+    expect(isSkillSelectableInWorkbench({
+      ...record("workbench.generation.canvas-planner", "workbench-generation"),
+      manifest: { selectableInWorkbench: false } as SkillRecord["manifest"],
+    })).toBe(false);
+  });
+
+  it("keeps user Skills and existing multi-stage playbooks selectable, independent of MCP audience", () => {
+    expect(isSkillSelectableInWorkbench({
+      ...record("brand.promo", "brand-promo"),
+      manifest: { stages: [{ id: "script", goal: "Write", tools: [] }] } as SkillRecord["manifest"],
+    })).toBe(true);
+    expect(isSkillSelectableInWorkbench({
+      ...record("user.skill", "user-skill"),
+      origin: "user",
+      manifest: null,
+    })).toBe(true);
+    expect(isSkillSelectableInWorkbench({
+      ...record("mcp.only", "mcp-only"),
+      manifest: { audience: "mcp" } as SkillRecord["manifest"],
+    })).toBe(false);
   });
 });
