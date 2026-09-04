@@ -28,7 +28,10 @@ fs.mkdirSync(shotsDir, { recursive: true })
 const mcpDirs = { settingsDir: userDataDir, userDataDir, projectsDir, capabilityDir }
 const mcpEnv = { NOMI_E2E_PRODUCTION_FIXTURE: '1' }
 const mcpClientInfo = { name: 'OpenAI Codex', version: 'e2e' }
-const mcpCapabilities = { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } }
+const mcpCapabilities = {
+  elicitation: {},
+  extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } },
+}
 
 const launchGuiOptions = {
   name: 'production-mcp-journey',
@@ -165,6 +168,48 @@ try {
     check(tools.some((tool) => tool.name === name), `${name} is registered over real stdio`)
   }
 
+  // Semantic editing smoke: use the same real GUI+stdio connection as the Run
+  // journey. Stdio's production binding intentionally has no implicit current
+  // project selection, so create an explicit MCP project and open its returned
+  // selection handle; this is the supported production authorization path.
+  const semanticProjectResult = await callTool('nomi_project_create', { name: 'MCP semantic production fixture' })
+  const semanticProjectText = semanticProjectResult.content?.find((block) => block.type === 'text')?.text || '{}'
+  const semanticProject = JSON.parse(semanticProjectText)
+  const semanticProjectId = semanticProject.id
+  const openedSession = await callTool('nomi_session_open', { projectSelectionHandle: semanticProject.projectSelectionHandle })
+  const sessionText = openedSession.content?.find((block) => block.type === 'text')?.text || '{}'
+  const session = JSON.parse(sessionText)
+  const leaseHandle = session.leaseHandle
+  check(typeof leaseHandle === 'string' && leaseHandle.length > 0, 'semantic MCP session opens a verified project lease')
+  const missingDocument = await mcp.callTool('nomi_document_read', { leaseHandle, projectId: semanticProjectId, scope: 'full' })
+  check(missingDocument.isError === true && missingDocument.structuredContent?.nomiOutcome?.errorCode === 'document_not_found', 'document MCP gap is explicit for a newly created project without a creation document')
+
+  const createdSemanticNode = await callTool('nomi_canvas_edit', {
+    leaseHandle,
+    projectId: semanticProjectId,
+    operation: 'create_canvas_nodes',
+    summary: 'semantic maintenance fixture node',
+    nodes: [{ clientId: 'semantic-maintenance-node', kind: 'text', title: 'Semantic maintenance fixture', prompt: 'temporary MCP maintenance node' }],
+  })
+  const nodeId = createdSemanticNode.structuredContent?.clientIdToNodeId?.['semantic-maintenance-node']
+  check(typeof nodeId === 'string' && nodeId.length > 0, 'canvas edit creates a real node before maintenance')
+  const deletedSemanticNode = await callTool('nomi_canvas_maintenance', {
+    leaseHandle,
+    projectId: semanticProjectId,
+    operation: 'delete_canvas_nodes',
+    nodeIds: [nodeId],
+    reason: 'semantic maintenance cleanup',
+  })
+  const undoToken = deletedSemanticNode.structuredContent?.undoToken
+  check(deletedSemanticNode.structuredContent?.deletedNodeIds?.includes(nodeId) && typeof undoToken === 'string', 'canvas maintenance deletes through the real renderer gateway and returns undo')
+  const restoredSemanticNode = await callTool('nomi_canvas_maintenance', {
+    leaseHandle,
+    projectId: semanticProjectId,
+    operation: 'undo_canvas_delete',
+    undoToken,
+  })
+  check(restoredSemanticNode.structuredContent?.restoredNodeIds?.includes(nodeId), 'canvas maintenance undo restores the real node')
+
   const resources = (await mcp.rpc('resources/list', {}, 20_000)).result?.resources || []
   // Host cutover content-addresses skill resources: nomi-skill://<dir>/<packageVersion>/<contentHash>.
   // Match by directory-name prefix and read via the returned uri (same as packaged-mcp-smoke).
@@ -265,6 +310,8 @@ try {
   gui = await launchGui()
   await gui.window.locator('[data-project-card="true"]').first().click()
   await gui.window.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 10_000 })
+  const afterRestartCanvas = await callTool('nomi_read', { target: 'canvas', leaseHandle, projectId: semanticProjectId })
+  check(afterRestartCanvas.structuredContent?.nodes?.some((node) => node.id === nodeId), 'canvas semantic undo survives real Nomi restart')
   await openRunFromTaskCenter(gui.window)
   atShot = await waitForWaitingGate(projectId, runId, 'gate-shot-')
   check(atShot.jobs.every((job) => job.status === 'authorized'), 'restart recovers the waiting shot gate without submitting or spending')
