@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -41,6 +42,9 @@ let rendererUp = false;
 let spendReply: { confirmed?: boolean } = { confirmed: true };
 let planReply: { confirmed?: boolean } = { confirmed: true };
 let rendererOps: string[] = [];
+let rendererCanvasSnapshot: { nodes: unknown[]; edges: unknown[]; groups: unknown[]; selectedNodeIds: unknown[] } = { nodes: [], edges: [], groups: [], selectedNodeIds: [] };
+let rendererCanvasWrites: unknown[] = [];
+let rendererCanvasWriteHandler: ((payload: unknown) => Promise<unknown>) | null = null;
 let documentReply: { applied: true; revision: number; contentHash: string } = { applied: true, revision: 7, contentHash: "document-hash" };
 // 捕获最后一次 runTask 请求,断言 grantId 是否随请求下传(=付费确认是否真路由+铸令牌)。
 let lastRunTaskReq: { extras?: Record<string, unknown> } | null = null;
@@ -54,10 +58,19 @@ vi.mock("electron", () => ({
 
 vi.mock("./rendererBridge", () => ({
   isRendererAvailable: () => rendererUp,
-  requestRenderer: async (op: string) => {
+  requestRenderer: async (op: string, payload?: unknown) => {
     rendererOps.push(op);
     if (op === "spend.confirm") return spendReply;
     if (op === "plan.confirm") return planReply;
+    if (op === "canvas.read-doc") return rendererCanvasSnapshot;
+    if (op === "canvas.apply") {
+      rendererCanvasSnapshot = (payload as { snapshot: typeof rendererCanvasSnapshot }).snapshot;
+      return { ok: true };
+    }
+    if (op === "canvas.write") {
+      rendererCanvasWrites.push(payload);
+      return rendererCanvasWriteHandler ? rendererCanvasWriteHandler(payload) : { applied: true, changedShotIndexes: [1], changedFields: ["prompt"] };
+    }
     if (op === "document.write") return documentReply;
     if (op === "timeline.read") return { timeline: [] };
     if (op === "asset.read") return { assets: [] };
@@ -72,6 +85,42 @@ function makeTempDir(name = "nomi-rpc-test-"): string {
   return dir;
 }
 
+async function startReceiptRpcFixture(name: string) {
+  await server!.close();
+  const root = makeTempDir(`nomi-rpc-${name}-`);
+  fs.mkdirSync(path.join(root, ".nomi"), { recursive: true });
+  const binding = {
+    projectId: `project-${name}`,
+    immutableProjectUuid: "55555555-5555-4555-8555-555555555555",
+    projectGeneration: 1,
+  } as const;
+  const service = createProjectAgentProposalReceiptService({ projectRoot: root, binding });
+  const proof = signMcpClient("codex")!;
+  const context = createMcpConnectionContext({
+    client: "codex",
+    proof,
+    randomSecret: () => "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+  });
+  rendererUp = true;
+  openProjectId = binding.projectId;
+  server = await startRpcServer({
+    runTask: async () => ({ id: "t", status: "succeeded", assets: [] }),
+    isProjectOpen: (id) => id === binding.projectId,
+    projectSessionAuthority: {
+      verifyLease: vi.fn(async () => ({
+        ...binding,
+        canonicalRootDigest: "root-digest",
+      })),
+    } as never,
+    proposalReceiptFor: (candidate) => candidate.projectId === binding.projectId ? service : undefined,
+  });
+  return {
+    binding,
+    service,
+    identity: { client: "codex" as const, proof, connectionAttestation: getMcpConnectionAttestation(context) },
+  };
+}
+
 async function rpc(
   method: string,
   params: Record<string, unknown> = {},
@@ -83,7 +132,7 @@ async function rpc(
     connectionNonce?: string;
     connectionAttestation?: string;
   },
-  flags: { documentConfirmed?: boolean } = {},
+  flags: { documentConfirmed?: boolean; requestId?: string } = {},
 ) {
   const res = await fetch(`http://127.0.0.1:${server!.port}/rpc`, {
     method: "POST",
@@ -102,7 +151,12 @@ async function rpc(
           }
         : {}),
     },
-    body: JSON.stringify({ method, params, ...(flags.documentConfirmed ? { documentConfirmed: true } : {}) }),
+    body: JSON.stringify({
+      method,
+      params,
+      ...(flags.documentConfirmed ? { documentConfirmed: true } : {}),
+      ...(flags.requestId ? { requestId: flags.requestId } : {}),
+    }),
   });
   return { status: res.status, body: (await res.json()) as { ok: boolean; result?: unknown; error?: unknown } };
 }
@@ -126,6 +180,9 @@ beforeEach(async () => {
   spendReply = { confirmed: true };
   planReply = { confirmed: true };
   rendererOps = [];
+  rendererCanvasSnapshot = { nodes: [], edges: [], groups: [], selectedNodeIds: [] };
+  rendererCanvasWrites = [];
+  rendererCanvasWriteHandler = null;
   documentReply = { applied: true, revision: 7, contentHash: "document-hash" };
   lastRunTaskReq = null;
   token = ensureToken();
@@ -236,7 +293,7 @@ describe("capabilityCore/rpcServer", () => {
       { leaseHandle: "verified-lease", projectId: binding.projectId, operation: "append", content: "from MCP" },
       token,
       identity,
-      { documentConfirmed: true },
+      { documentConfirmed: true, requestId: "document-rpc-replay-1" },
     );
 
     expect(result).toMatchObject({ status: 200, body: { ok: true, result: documentReply } });
@@ -247,6 +304,26 @@ describe("capabilityCore/rpcServer", () => {
       lifecycle: "committed",
       proposal: { proposalId: expect.stringMatching(/^mcp-document-/) },
     });
+
+    const replay = await rpc(
+      "document.write",
+      { leaseHandle: "verified-lease", projectId: binding.projectId, operation: "append", content: "from MCP" },
+      token,
+      identity,
+      { documentConfirmed: true, requestId: "document-rpc-replay-1" },
+    );
+    expect(replay).toEqual(result);
+    expect(rendererOps.filter((op) => op === "document.write")).toHaveLength(1);
+
+    const conflict = await rpc(
+      "document.write",
+      { leaseHandle: "verified-lease", projectId: binding.projectId, operation: "append", content: "different document" },
+      token,
+      identity,
+      { documentConfirmed: true, requestId: "document-rpc-replay-1" },
+    );
+    expect(conflict).toMatchObject({ status: 500, body: { ok: false, error: expect.stringMatching(/conflicts|conflict/) } });
+    expect(rendererOps.filter((op) => op === "document.write")).toHaveLength(1);
 
     const nonDocument = await rpc(
       "timeline.read",
@@ -265,6 +342,176 @@ describe("capabilityCore/rpcServer", () => {
     );
     expect(assetRead).toMatchObject({ status: 200, body: { ok: true, result: { assets: [] } } });
     expect(rendererOps).toContain("asset.read");
+  });
+
+  it("routes an ordinary canvas.write through the live renderer gateway before committing its receipt", async () => {
+    await server!.close();
+    const authorityDir = makeTempDir("nomi-rpc-canvas-write-receipt-");
+    const repositoryDeps = getWorkspaceRepositoryDeps();
+    const generationPolicy = createMcpGenerationPolicy({ env: {} });
+    const runtime = createProjectSessionRuntime({
+      generationPolicy,
+      leaseFilePath: path.join(authorityDir, "project-leases-v2"),
+      leaseMacKey: "rpc-canvas-write-lease-key",
+      leaseStoreMacKey: "rpc-canvas-write-lease-store-key",
+      getOpenProjectSelection: () => null,
+      resolveProjectRoot: (projectId) => resolveWorkspaceProjectDir(projectId, repositoryDeps),
+      ensureProjectIdentity: (actualRootPath) => ensureWorkspaceProjectIdentity(actualRootPath),
+      readProject: (projectId) => readWorkspaceProject(projectId, repositoryDeps),
+      isServerAllowlisted: () => false,
+    });
+    const receipt = { service: undefined as ReturnType<typeof createProjectAgentProposalReceiptService> | undefined };
+    rendererUp = true;
+    server = await startRpcServer({
+      runTask: async () => ({ id: "t", status: "succeeded", assets: [] }),
+      isProjectOpen: (id) => id === openProjectId,
+      generationPolicy,
+      projectSessionAuthority: runtime.authority,
+      proposalReceiptFor: (candidate) => candidate.projectId === openProjectId ? receipt.service : undefined,
+    });
+    const proof = signMcpClient("codex")!;
+    const context = createMcpConnectionContext({
+      client: "codex",
+      proof,
+      randomSecret: () => "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE",
+    });
+    const connection = {
+      client: "codex" as const,
+      proof,
+      connectionAttestation: getMcpConnectionAttestation(context),
+    };
+    const created = await rpc("project.create", { name: "RPC canvas receipt" }, token, connection);
+    const createdResult = created.body.result as { id: string; projectSelectionHandle: string };
+    openProjectId = createdResult.id;
+    const opened = await rpc("nomi_session_open", { projectSelectionHandle: createdResult.projectSelectionHandle }, token, connection);
+    const lease = opened.body.result as {
+      leaseHandle: string;
+      projectId: string;
+      immutableProjectUuid: string;
+      projectGeneration: number;
+    };
+    const projectRoot = resolveWorkspaceProjectDir(createdResult.id, repositoryDeps);
+    if (!projectRoot) throw new Error("workspace project root unavailable");
+    receipt.service = createProjectAgentProposalReceiptService({
+      projectRoot,
+      binding: {
+        projectId: lease.projectId,
+        immutableProjectUuid: lease.immutableProjectUuid,
+        projectGeneration: lease.projectGeneration,
+      },
+    });
+
+    rendererOps = [];
+    const result = await rpc("canvas.write", {
+      projectId: createdResult.id,
+      leaseHandle: lease.leaseHandle,
+      operation: "create_canvas_nodes",
+      summary: "在画布落一套方案",
+      nodes: [
+        { clientId: "shot-1", kind: "shot", title: "镜头 1", prompt: "湖边纸船" },
+        { clientId: "shot-2", kind: "shot", title: "镜头 2", prompt: "湖面月光" },
+      ],
+    }, token, connection);
+
+    expect(result).toMatchObject({ status: 200, body: { ok: true, result: { applied: true } } });
+    expect(rendererOps).toEqual(["plan.confirm", "canvas.read-doc", "canvas.apply"]);
+    expect(receipt.service?.read()).toMatchObject({ lifecycle: "committed" });
+  });
+
+  it("wraps canonical patch_shots in the request-id receipt and replays without a second renderer effect", async () => {
+    const { binding, service, identity } = await startReceiptRpcFixture("canonical-patch-replay");
+    rendererCanvasWriteHandler = async (payload) => ({
+      applied: true,
+      proposalId: (payload as { receiptProposalId: string }).receiptProposalId,
+      operation: "patch_shots",
+      changedShotIndexes: [1],
+      changedFields: ["prompt"],
+    });
+    const requestId = "canonical-patch-rpc-1";
+    const params = {
+      leaseHandle: "verified-lease",
+      projectId: binding.projectId,
+      operation: "patch_shots",
+      select: { kind: "indexes", indexes: [1] },
+      patch: { prompt: "canonical patch prompt" },
+    };
+
+    const first = await rpc("canvas.write", params, token, identity, { requestId });
+    expect(first).toMatchObject({ status: 200, body: { ok: true, result: { applied: true, operation: "patch_shots" } } });
+    const firstPayload = rendererCanvasWrites[0] as { receiptProposalId?: string; approvalId?: string; input?: Record<string, unknown> };
+    expect(firstPayload).toMatchObject({
+      receiptProposalId: expect.stringMatching(/^mcp-canvas-/),
+      input: expect.objectContaining({ operation: "patch_shots" }),
+    });
+    expect(firstPayload.approvalId).toBe(`mcp-canvas-plan-approval:${firstPayload.receiptProposalId}`);
+    expect(service.read()).toMatchObject({ lifecycle: "committed", proposal: { requestHash: expect.any(String) } });
+
+    const replay = await rpc("canvas.write", params, token, identity, { requestId });
+    expect(replay).toEqual(first);
+    expect(rendererCanvasWrites).toHaveLength(1);
+
+    const conflict = await rpc("canvas.write", { ...params, patch: { prompt: "different canonical patch" } }, token, identity, { requestId });
+    expect(conflict).toMatchObject({ status: 500, body: { ok: false, error: expect.stringMatching(/conflicts|conflict/) } });
+    expect(rendererCanvasWrites).toHaveLength(1);
+  });
+
+  it("keeps canonical patch cancellation after renderer effect as effect-unknown and preserves failure evidence", async () => {
+    const { binding, service, identity } = await startReceiptRpcFixture("canonical-patch-failure");
+    rendererCanvasWriteHandler = async () => { throw new Error("canonical_canvas_apply_failed"); };
+    const failed = await rpc("canvas.write", {
+      leaseHandle: "verified-lease",
+      projectId: binding.projectId,
+      operation: "patch_shots",
+      select: { kind: "all" },
+      patch: { prompt: "failed canonical patch" },
+    }, token, identity, { requestId: "canonical-patch-failure-1" });
+    expect(failed).toMatchObject({ status: 500, body: { ok: false, error: "canonical_canvas_apply_failed" } });
+    expect(service.read()).toMatchObject({ lifecycle: "undone" });
+
+    let markEffect!: () => void;
+    let release!: () => void;
+    const effectObserved = new Promise<void>((resolve) => { markEffect = resolve; });
+    const rendererRelease = new Promise<void>((resolve) => { release = resolve; });
+    rendererCanvasWriteHandler = async (payload) => {
+      markEffect();
+      await rendererRelease;
+      return { applied: true, proposalId: (payload as { receiptProposalId: string }).receiptProposalId };
+    };
+    let request!: http.ClientRequest;
+    const raw = new Promise<void>((resolve, reject) => {
+      request = http.request(`http://127.0.0.1:${server!.port}/rpc`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+          "x-nomi-mcp-client": identity.client,
+          "x-nomi-mcp-client-proof": identity.proof,
+          "x-nomi-mcp-connection-attestation": identity.connectionAttestation,
+        },
+      }, (response) => {
+        response.resume();
+        response.once("end", resolve);
+      });
+      request.once("error", reject);
+      request.end(JSON.stringify({
+        method: "canvas.write",
+        requestId: "canonical-patch-late-cancel-1",
+        params: {
+          leaseHandle: "verified-lease",
+          projectId: binding.projectId,
+          operation: "patch_shots",
+          select: { kind: "all" },
+          patch: { prompt: "effect landed before cancel" },
+        },
+      }));
+    });
+    void raw.catch(() => undefined);
+    await effectObserved;
+    request.destroy(new Error("late canonical cancel"));
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+    release();
+    await expect(raw).rejects.toBeDefined();
+    await vi.waitFor(() => expect(service.read()).toMatchObject({ lifecycle: "effect_unknown" }));
   });
 
   it("accepts only a Nomi-signed MCP client as Production Run authority", async () => {

@@ -99,7 +99,7 @@ function receiptForBinding(
     !sameBinding(receipt.binding, binding) ||
     !Number.isSafeInteger(receipt.revision) ||
     receipt.revision < 1 ||
-    !['preparing', 'committed', 'undoing', 'undone'].includes(receipt.lifecycle) ||
+    !['preparing', 'committed', 'undoing', 'undone', 'effect_unknown', 'partial', 'commit_failed'].includes(receipt.lifecycle) ||
     typeof receipt.operationId !== 'string' ||
     !receipt.operationId.trim()
   ) return null
@@ -111,7 +111,7 @@ function receiptForBinding(
 function installReceipt(receipt: ProjectAgentProposalReceiptView): void {
   currentReceipt = receipt
   current =
-    (receipt.lifecycle === 'committed' || receipt.lifecycle === 'undoing') && receipt.proposal.compensation.length > 0
+    ['committed', 'undoing', 'effect_unknown', 'partial', 'commit_failed'].includes(receipt.lifecycle) && receipt.proposal.compensation.length > 0
       ? receipt.proposal
       : null
   notify()

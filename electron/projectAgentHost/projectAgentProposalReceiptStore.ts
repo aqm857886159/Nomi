@@ -13,6 +13,7 @@ import {
   type ProjectAgentProposalReceiptTransition,
   type ProjectAgentProposalReceiptView,
   type ProjectAgentProposalReceiptWrite,
+  PROJECT_AGENT_PROPOSAL_RECEIPT_LIFECYCLES,
 } from "../shared/projectAgentProposalReceipt";
 import { assertProjectAgentBinding, sameProjectAgentBinding } from "./projectAgentIdentity";
 
@@ -32,6 +33,7 @@ export type ProjectAgentProposalReceipt = Readonly<{
   proposal: ProjectAgentCommittedProposalRecord;
   proposalHash: string;
   operations: readonly ReceiptOperation[];
+  result?: unknown;
   updatedAt: string;
   journalHash: string;
 }>;
@@ -41,6 +43,7 @@ export type ProjectAgentProposalReceiptService = Readonly<{
   read(): ProjectAgentProposalReceiptView | null;
   write(input: ProjectAgentProposalReceiptWrite): ProjectAgentProposalReceiptView;
   transition(input: ProjectAgentProposalReceiptTransition): ProjectAgentProposalReceiptView;
+  reconcileInDoubt?(): ProjectAgentProposalReceiptView | null;
   clear(input: ProjectAgentProposalReceiptClear): Readonly<{
     cleared: true;
     receipt: ProjectAgentProposalReceiptView;
@@ -143,7 +146,19 @@ function toView(receipt: ProjectAgentProposalReceipt): ProjectAgentProposalRecei
     proposalId: receipt.proposalId,
     operationId: receipt.operationId,
     proposal: receipt.proposal,
+    ...(receipt.result === undefined ? {} : { result: receipt.result }),
   });
+}
+
+function cloneReceiptResult(value: unknown): unknown | undefined {
+  if (value === undefined) return undefined;
+  try {
+    const encoded = JSON.stringify(value);
+    if (encoded === undefined || Buffer.byteLength(encoded, "utf8") > 8 * 1024 * 1024) return undefined;
+    return Object.freeze(JSON.parse(encoded) as unknown);
+  } catch {
+    return undefined;
+  }
 }
 
 function parseOperation(value: unknown): ReceiptOperation | null {
@@ -169,7 +184,8 @@ function parseReceipt(value: unknown): ProjectAgentProposalReceipt | null {
   const raw = asRecord(value);
   if (
     !raw ||
-    !exactKeys(raw, [
+    !(
+      exactKeys(raw, [
       "schemaVersion",
       "binding",
       "revision",
@@ -179,13 +195,27 @@ function parseReceipt(value: unknown): ProjectAgentProposalReceipt | null {
       "proposal",
       "proposalHash",
       "operations",
+      "result",
       "updatedAt",
       "journalHash",
-    ]) ||
+      ]) || exactKeys(raw, [
+        "schemaVersion",
+        "binding",
+        "revision",
+        "lifecycle",
+        "proposalId",
+        "operationId",
+        "proposal",
+        "proposalHash",
+        "operations",
+        "updatedAt",
+        "journalHash",
+      ])
+    ) ||
     raw.schemaVersion !== 2 ||
     !Number.isSafeInteger(raw.revision) ||
     (raw.revision as number) < 1 ||
-    !["preparing", "committed", "undoing", "undone"].includes(String(raw.lifecycle)) ||
+    !(PROJECT_AGENT_PROPOSAL_RECEIPT_LIFECYCLES as readonly string[]).includes(String(raw.lifecycle)) ||
     !validId(raw.proposalId) ||
     !validId(raw.operationId) ||
     !validHash(raw.proposalHash) ||
@@ -222,6 +252,8 @@ function parseReceipt(value: unknown): ProjectAgentProposalReceipt | null {
   ) {
     return null;
   }
+  const parsedResult = raw.result === undefined ? undefined : cloneReceiptResult(raw.result);
+  if (raw.result !== undefined && parsedResult === undefined) return null;
   const core: Omit<ProjectAgentProposalReceipt, "journalHash"> = {
     schemaVersion: 2,
     binding: Object.freeze({ ...(raw.binding as ProjectBinding) }),
@@ -232,6 +264,7 @@ function parseReceipt(value: unknown): ProjectAgentProposalReceipt | null {
     proposal,
     proposalHash,
     operations: Object.freeze(parsedOperations),
+    ...(raw.result === undefined ? {} : { result: parsedResult }),
     updatedAt: raw.updatedAt,
   };
   if (hashJournal(core) !== raw.journalHash) return null;
@@ -271,6 +304,7 @@ function makeReceipt(
     operationId: string;
     proposal: ProjectAgentCommittedProposalRecord;
     requestHash: string;
+    result?: unknown;
     updatedAt?: string;
   }>,
 ): Omit<ProjectAgentProposalReceipt, "journalHash"> {
@@ -289,6 +323,7 @@ function makeReceipt(
     proposal: input.proposal,
     proposalHash: hashProjectAgentCommittedProposal(input.proposal),
     operations: Object.freeze(operations),
+    ...(input.result === undefined ? {} : { result: input.result }),
     updatedAt: input.updatedAt ?? new Date().toISOString(),
   });
 }
@@ -364,7 +399,7 @@ export function createProjectAgentProposalReceiptService(
       if (repeated) return repeated;
       assertCas(receipt, value.expectedRevision);
       if (value.lifecycle === "preparing") {
-        if (receipt && receipt.lifecycle !== "committed" && receipt.lifecycle !== "undone") {
+        if (receipt && !["committed", "undone"].includes(receipt.lifecycle)) {
           throw new ProjectAgentProposalReceiptError(
             "Project Agent proposal receipt already has an unfinished operation",
           );
@@ -389,6 +424,7 @@ export function createProjectAgentProposalReceiptService(
             operationId: value.operationId,
             proposal,
             requestHash,
+            ...(value.result === undefined ? {} : { result: value.result }),
           }),
         ),
       );
@@ -397,7 +433,13 @@ export function createProjectAgentProposalReceiptService(
       if (!validId(value.proposalId) || !validId(value.operationId)) {
         throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt operation is invalid");
       }
-      if (value.lifecycle !== "undoing" && value.lifecycle !== "undone") {
+      if (
+        value.lifecycle !== "undoing" &&
+        value.lifecycle !== "undone" &&
+        value.lifecycle !== "effect_unknown" &&
+        value.lifecycle !== "partial" &&
+        value.lifecycle !== "commit_failed"
+      ) {
         throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt lifecycle is invalid");
       }
       const requestHash = operationHash("transition", value);
@@ -408,10 +450,11 @@ export function createProjectAgentProposalReceiptService(
       if (!receipt || receipt.proposalId !== value.proposalId) {
         throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt proposal mismatch");
       }
-      if (
-        (value.lifecycle === "undoing" && receipt.lifecycle !== "committed") ||
-        (value.lifecycle === "undone" && receipt.lifecycle !== "undoing" && receipt.lifecycle !== "preparing")
-      ) {
+      const validTransition = value.lifecycle === "effect_unknown" || value.lifecycle === "partial" || value.lifecycle === "commit_failed"
+        ? receipt.lifecycle === "preparing"
+        : (value.lifecycle === "undoing" && receipt.lifecycle === "committed")
+          || (value.lifecycle === "undone" && (receipt.lifecycle === "undoing" || receipt.lifecycle === "preparing"));
+      if (!validTransition) {
         throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt lifecycle transition is invalid");
       }
       return toView(
@@ -422,6 +465,30 @@ export function createProjectAgentProposalReceiptService(
             lifecycle: value.lifecycle,
             proposalId: receipt.proposalId,
             operationId: value.operationId,
+            proposal: receipt.proposal,
+            requestHash,
+          }),
+        ),
+      );
+    },
+    reconcileInDoubt() {
+      const receipt = current();
+      if (!receipt || receipt.lifecycle !== "preparing") return receipt ? toView(receipt) : null;
+      const operationId = `project-agent-reconcile:${receipt.proposalId}`;
+      const requestHash = operationHash("transition", {
+        expectedRevision: receipt.revision,
+        proposalId: receipt.proposalId,
+        operationId,
+        lifecycle: "effect_unknown",
+      });
+      return toView(
+        store.write(
+          makeReceipt({
+            previous: receipt,
+            binding: trustedBinding,
+            lifecycle: "effect_unknown",
+            proposalId: receipt.proposalId,
+            operationId,
             proposal: receipt.proposal,
             requestHash,
           }),

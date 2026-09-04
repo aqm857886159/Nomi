@@ -43,7 +43,7 @@ import { canvasReadLeaseRequiredRpcError, canvasReadRpcError } from './canvasRea
 import { isMcpEditingMethod } from './mcpCapabilityProjection'
 import type { ProjectBinding } from '../shared/projectBinding'
 import type { ProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
-import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
+import { executeMcpDocumentWriteWithReceipt, executeMcpWriteWithReceipt, markMcpWriteEffect } from './mcpDocumentWriteReceipt'
 
 export type RpcServerOptions = {
   /** 真实生成入口（runtime.runTask）。注入式：headless host 与 app 各自传同一份。 */
@@ -94,6 +94,16 @@ function readBody(req: http.IncomingMessage): Promise<string> {
     req.on('end', () => resolve(body))
     req.on('error', reject)
   })
+}
+
+function stableRequestFingerprint(value: unknown): string {
+  if (value === null || typeof value === 'boolean' || typeof value === 'string') return JSON.stringify(value)
+  if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(stableRequestFingerprint).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, child]) => `${JSON.stringify(key)}:${stableRequestFingerprint(child)}`).join(',')}}`
+  }
+  return JSON.stringify(String(value))
 }
 
 function bearerToken(req: http.IncomingMessage): string {
@@ -153,19 +163,21 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         if (req.method !== 'POST' || req.url !== '/rpc') throw new RpcError('仅支持 POST /rpc', 404)
         if (!verifyToken(bearerToken(req))) throw new RpcError('鉴权失败：token 无效', 401)
         const raw = await readBody(req)
-        let parsed: { method?: unknown; params?: unknown; planConfirmed?: unknown; spendConfirmed?: unknown; documentConfirmed?: unknown }
+        let parsed: { method?: unknown; params?: unknown; planConfirmed?: unknown; spendConfirmed?: unknown; documentConfirmed?: unknown; requestId?: unknown }
         try {
           parsed = JSON.parse(raw || '{}')
         } catch {
           throw new RpcError('请求体非合法 JSON', 400)
         }
         const method = String(parsed.method || '')
+        const requestId = typeof parsed.requestId === 'string' && parsed.requestId.trim() ? parsed.requestId.trim() : undefined
         const isCanvasRead = isCanvasReadTransportMethod(method)
         const params = (parsed.params && typeof parsed.params === 'object' ? parsed.params : {}) as Record<string, unknown>
         // The storyboard plan adapter resolves to canvas.write, but patch_shots
         // is renderer-owned: it must use the same live store/admission/receipt
         // path as the open Electron project rather than generic planning.
         const isCanonicalCanvasPlanPatch = method === 'canvas.write' && params.operation === 'patch_shots'
+        const isCanvasWrite = method === 'canvas.write'
         const isEditing = isMcpEditingMethod(method)
         const client = firstHeader(req.headers['x-nomi-mcp-client'])
         const clientProof = firstHeader(req.headers['x-nomi-mcp-client-proof'])
@@ -185,7 +197,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
             throw error
           }
         }
-        if (!projectSessionConnection && !isCanvasRead && !isEditing && !isCanonicalCanvasPlanPatch) assertLocalBearerProjectSessionRoute(method)
+        if (!projectSessionConnection && !isCanvasRead && !isEditing && !isCanonicalCanvasPlanPatch && !isCanvasWrite) assertLocalBearerProjectSessionRoute(method)
         if (method === 'nomi_confirm_generation_gate') {
           if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
           const challengeToken = typeof params.challengeToken === 'string' ? params.challengeToken.trim() : ''
@@ -240,7 +252,9 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
             throw error instanceof RpcError ? error : canvasReadRpcError(error)
           }
         }
-        if (isEditing || isCanonicalCanvasPlanPatch) {
+        // 付费确认标志在所有编辑/生成分支共用，必须在编辑分支进入前解析。
+        const preApprovedSpend = parsed.spendConfirmed === true
+        if (isEditing || isCanonicalCanvasPlanPatch || isCanvasWrite) {
           if (!hasMcpTransportClaims || !projectSessionConnection || !options.projectSessionAuthority) {
             throw new RpcError('A verified project-session transport is required for editing tools', 403)
           }
@@ -250,6 +264,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           const operation = typeof params.operation === 'string' ? params.operation : ''
           const scope = isCanonicalCanvasPlanPatch
             ? 'canvas:write'
+              : isCanvasWrite ? 'canvas:write'
               : method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
                 ? 'timeline:write'
                 : method === 'timeline.write' ? 'timeline:read'
@@ -279,28 +294,28 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
                 : method === 'document.write'
                   ? 'document.write'
                   : method === 'asset.read' ? 'asset.read' : 'export.read'
-          const rendererPayload = isCanonicalCanvasPlanPatch
+          const canonicalCanvasInput = isCanonicalCanvasPlanPatch
             ? (() => {
                 const { leaseHandle: _leaseHandle, projectId: _projectHint, ...input } = params
-                return {
-                  projectId: lease.projectId,
-                  input,
-                  receiptProposalId: `mcp-canvas-plan:${crypto.randomUUID()}`,
-                  approvalId: `mcp-canvas-plan-approval:${crypto.randomUUID()}`,
-                  // This direct MCP request is approved by the MCP elicitation
-                  // seam, not by a Project Agent Host turn. Do not forge Host
-                  // correlation without a claimed Host approval; the renderer
-                  // receipt remains durable but intentionally uncorrelated.
-                }
+                return input
               })()
-            : {
-                ...params,
-                projectId: lease.projectId,
-                // These values are minted only after the verified lease and (for writes) Host approval.
-                ...(method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
-                  ? { receiptProposalId: `mcp-edit:${crypto.randomUUID()}`, approvalId: `mcp-host:${crypto.randomUUID()}`, actionHash: crypto.randomUUID() }
-                  : {}),
-              }
+            : undefined
+          const rendererPayload = {
+            ...params,
+            projectId: lease.projectId,
+            ...(requestId ? { requestId } : {}),
+            // These values are minted only after the verified lease and (for writes) Host approval.
+            ...(method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
+              ? { receiptProposalId: `mcp-edit:${crypto.randomUUID()}`, approvalId: `mcp-host:${crypto.randomUUID()}`, actionHash: crypto.randomUUID() }
+              : {}),
+          }
+          const rejectLateRendererResult = (result: unknown): unknown => {
+            if (!requestController.signal.aborted && !req.aborted && !res.destroyed) return result
+            const reason = requestController.signal.reason instanceof Error
+              ? requestController.signal.reason
+              : new Error('MCP request cancelled after the renderer write boundary')
+            throw markMcpWriteEffect(reason, 'effect_unknown')
+          }
           const result = method === 'document.write'
             ? await (async () => {
                 const service = await options.proposalReceiptFor?.({
@@ -319,9 +334,63 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
                 return executeMcpDocumentWriteWithReceipt({
                   service,
                   operation,
-                  execute: () => requestRenderer(rendererOp, rendererPayload, 30_000),
+                  requestId,
+                  requestFingerprint: stableRequestFingerprint(params),
+                  signal: requestController.signal,
+                  execute: async () => rejectLateRendererResult(await requestRenderer(rendererOp, rendererPayload, 30_000)),
                 })
               })()
+            : isCanvasWrite
+              ? await (async () => {
+                  const service = await options.proposalReceiptFor?.({
+                    projectId: lease.projectId,
+                    immutableProjectUuid: lease.immutableProjectUuid,
+                    projectGeneration: lease.projectGeneration,
+                  })
+                  if (!service) throw new RpcError('Durable canvas proposal receipt is unavailable', 501)
+                  if (
+                    service.binding.projectId !== lease.projectId ||
+                    service.binding.immutableProjectUuid !== lease.immutableProjectUuid ||
+                    service.binding.projectGeneration !== lease.projectGeneration
+                  ) {
+                    throw new RpcError('Durable canvas proposal receipt binding mismatch', 409)
+                  }
+                  return executeMcpWriteWithReceipt({
+                    service,
+                    kind: 'canvas',
+                    operation,
+                    requestId,
+                    requestFingerprint: stableRequestFingerprint(params),
+                    signal: requestController.signal,
+                    execute: (proposalId) => isCanonicalCanvasPlanPatch
+                      ? requestRenderer(rendererOp, {
+                          projectId: lease.projectId,
+                          input: canonicalCanvasInput,
+                          receiptProposalId: proposalId,
+                          approvalId: `mcp-canvas-plan-approval:${proposalId}`,
+                        }, 30_000).then(rejectLateRendererResult)
+                      : dispatchAndEnrich(method, params, {
+                          runTask: options.runTask,
+                          fetchTaskResult: options.fetchTaskResult,
+                          makeGateway: preApprovedSpend ? (projectId: string) => withPreApprovedSpend(makeGateway(projectId)) : makeGateway,
+                          productionRuns,
+                          origin: { host: origin },
+                          generationPolicy: options.generationPolicy,
+                          generationContext: options.generationContext,
+                          generationPlanning: options.generationPlanning,
+                          projectRevisionResolver: options.projectRevisionResolver,
+                          ...(options.projectSessionAuthority && projectSessionConnection
+                            ? { projectSession: { authority: options.projectSessionAuthority, connection: projectSessionConnection } }
+                            : {}),
+                          approvalReceiptAuthority: options.approvalReceiptAuthority,
+                          requestGenerationGate: options.requestGenerationGate,
+                          authorizeGeneration: options.authorizeGeneration,
+                          makeVerifyDeps: (verifyCtx) => makeShotVerifyDeps(verifyCtx),
+                          ...(parsed.planConfirmed === true ? { planConfirmed: true } : {}),
+                          signal: requestController.signal,
+                        }).then(rejectLateRendererResult),
+                  })
+                })()
             : await requestRenderer(rendererOp, rendererPayload, 30_000)
           send(200, { ok: true, result })
           return
@@ -340,7 +409,6 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         //   会弹卡、用户看得见能拒。这是把「防本地攻击者」这层纵深换成「少跑一趟」，不是「防 AI」那道红线松了。
         // ⚠️ 边界仅放宽到付费确认这一处：令牌仍只在主进程铸、assertAndConsumeSpendGrant 仍逐次硬校验、
         // 导出等其余硬边界一律不得复制本模式（那些是抗伪造红线，客户端一个 flag 不足以过）。
-        const preApprovedSpend = parsed.spendConfirmed === true
         // 交付②④：dispatch + 生成结果富化收口在 dispatchAndEnrich（0a）——传输里没有 bare dispatch 可调，
         // 缩略图 base64 / 签名预览链的富化在结构上不可能被忘（此进程有 nativeImage，launcher bare node 做不了）。
         const result = await dispatchAndEnrich(method, params, {

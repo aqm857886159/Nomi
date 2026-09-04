@@ -12,6 +12,8 @@ export type ProjectAgentProposalCompensation =
 
 export type ProjectAgentCommittedProposalRecord = Readonly<{
   proposalId: string;
+  /** Stable request fingerprint used to distinguish replay from same-id conflict. */
+  requestHash?: string;
   hostApprovalId?: string;
   hostActionHash?: string;
   summary: string;
@@ -29,6 +31,9 @@ export const PROJECT_AGENT_PROPOSAL_RECEIPT_LIFECYCLES = [
   "committed",
   "undoing",
   "undone",
+  "effect_unknown",
+  "partial",
+  "commit_failed",
 ] as const;
 
 export type ProjectAgentProposalReceiptLifecycle = (typeof PROJECT_AGENT_PROPOSAL_RECEIPT_LIFECYCLES)[number];
@@ -40,6 +45,7 @@ export type ProjectAgentProposalReceiptView = Readonly<{
   proposalId: string;
   operationId: string;
   proposal: ProjectAgentCommittedProposalRecord;
+  result?: unknown;
 }>;
 
 export type ProjectAgentProposalReceiptWrite = Readonly<{
@@ -48,13 +54,14 @@ export type ProjectAgentProposalReceiptWrite = Readonly<{
   operationId: string;
   lifecycle: Extract<ProjectAgentProposalReceiptLifecycle, "preparing" | "committed">;
   proposal: ProjectAgentCommittedProposalRecord;
+  result?: unknown;
 }>;
 
 export type ProjectAgentProposalReceiptTransition = Readonly<{
   expectedRevision: number;
   proposalId: string;
   operationId: string;
-  lifecycle: Extract<ProjectAgentProposalReceiptLifecycle, "undoing" | "undone">;
+  lifecycle: Extract<ProjectAgentProposalReceiptLifecycle, "undoing" | "undone" | "effect_unknown" | "partial" | "commit_failed">;
 }>;
 
 export type ProjectAgentProposalReceiptClear = Readonly<{
@@ -236,6 +243,7 @@ export function parseProjectAgentCommittedProposal(value: unknown): ProjectAgent
     !source ||
     !exactKeys(source, [
       "proposalId",
+      "requestHash",
       "hostApprovalId",
       "hostActionHash",
       "summary",
@@ -256,6 +264,7 @@ export function parseProjectAgentCommittedProposal(value: unknown): ProjectAgent
     return null;
   }
   const proposalId = safeString(source.proposalId);
+  const requestHash = source.requestHash === undefined ? undefined : safeString(source.requestHash);
   const hasHostApprovalId = source.hostApprovalId !== undefined;
   const hasHostActionHash = source.hostActionHash !== undefined;
   if (hasHostApprovalId !== hasHostActionHash) return null;
@@ -265,6 +274,7 @@ export function parseProjectAgentCommittedProposal(value: unknown): ProjectAgent
   const stepLabels = stringList(source.stepLabels);
   if (
     proposalId === null ||
+    (source.requestHash !== undefined && (requestHash === undefined || requestHash === null || !/^[a-f0-9]{64}$/.test(requestHash))) ||
     (hasHostApprovalId &&
       (hostApprovalId === null || hostActionHash === null || !/^[a-f0-9]{64}$/.test(hostActionHash))) ||
     summary === null ||
@@ -325,6 +335,7 @@ export function parseProjectAgentCommittedProposal(value: unknown): ProjectAgent
 
   return Object.freeze({
     proposalId,
+    ...(requestHash ? { requestHash } : {}),
     ...(hostApprovalId !== null && hostActionHash !== null ? { hostApprovalId, hostActionHash } : {}),
     summary,
     stepLabels,

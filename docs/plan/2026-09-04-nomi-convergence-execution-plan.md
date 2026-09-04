@@ -14,13 +14,13 @@
 
 ### Current baseline freshness (2026-09-05)
 
-本次刷新先执行 `git fetch origin main`；随后 `git rev-parse origin/main` 得到精确 SHA `8ff53610900accad9a319f2720ec9e887712a9ff`，且本工作树 clean。该 SHA 是本方案当前唯一 baseline，已包含 #471 的 computable Agent UI design contract 和已合入的 #474 Skill menu 修复。#471 证明的是设计规则、来源定位、运行时 DOM/样式测量和 mismatch 报告可计算；#474 证明 Skill visibility 修复已进入主线；二者都不等于 M0–M5 任一阶段毕业。
+本次刷新先执行 `git fetch origin main`；随后 `git rev-parse origin/main` 得到精确 SHA `163bddf157b613bde1d8291098b8813cea2bc80b`，且本工作树 clean。该 SHA 是本方案当前唯一 baseline，已包含 #471 的 computable Agent UI design contract、已合入的 #474 Skill menu 修复、#475 的 convergence baseline refresh、#478、#479、#480 和 #481 的主线变更。#471 证明的是设计规则、来源定位、运行时 DOM/样式测量和 mismatch 报告可计算；#474 证明 Skill visibility 修复已进入主线；#475 只更新收敛基线文档；#481 只吸收结构债务拆分边界；这些都不等于 M0–M5 任一阶段毕业。
 
 文中较早的 PR merge SHA、测试结果和状态是写作时的 `snapshot`：它们只用于追溯当时的证据，不持续更新，也不能覆盖本节的 current baseline。`implemented`/`tested`/`live-certified`/`blocked` 仍按本方案的证据门分别判断；远端 PR 的标题、按钮点击或 CI 绿灯不能单独升级阶段状态。
 
 ## Global Constraints
 
-1. 当前基线固定为本次刷新确认的 `origin/main@8ff53610900accad9a319f2720ec9e887712a9ff`，即已包含 #468、#469、#470、#471 和 #474；每个后续 PR 开工前必须重新 fetch `origin/main` 并记录完整 SHA。#471 的 UI 设计合同和 #474 的 Skill menu 修复已合入，但都不构成 M0–M5 完成证据。
+1. 当前基线固定为本次刷新确认的 `origin/main@163bddf157b613bde1d8291098b8813cea2bc80b`，即已包含 #468、#469、#470、#471、#474、#475、#478、#479、#480 和 #481；每个后续 PR 开工前必须重新 fetch `origin/main` 并记录完整 SHA。#471 的 UI 设计合同、#474 的 Skill menu 修复、#475 的基线文档刷新、#478、#479、#480 和 #481 的主线变更已合入，但都不构成 M0–M5 完成证据。
 2. 本文是总方案，不授权一次性大合并。每个 featureId 必须拆成边界清楚的新 PR；实现、测试、批量修改和长代码阅读由执行 agent 负责，编排者只做拆解、分发和验收。
 3. 每一个阶段都必须先写会失败的生产形状断言，再实现最小改动，再用同一输入、同一命令、同一断言 ID 重跑为绿；如果当前基线已绿，登记为 `absorbed/duplicate`，不得人为制造红灯。
 4. 每个阶段强制覆盖 Happy、Boundary、Error、Timeout、Network 五类场景。无网络依赖的功能也要证明 Network 场景不发起外部请求。
@@ -44,9 +44,11 @@
 | #468 real-user journey gates | 已合入，merge `3e997f2547d019b6ed6021f917074927e08cbf36`；新增真实用户任务契约、provider preflight、Electron/UI boundary harness 和 blocked-live 规则 | `implemented / tested`；当前只证明门和阻断诚实，不证明 live provider 成功 |
 | #469 M0/M1 matrix evidence | 已合入，merge `15fdc9b8fd9af118f699f1408d54470fc4b7c4ff`；补 M0/M1 矩阵、文档/画布 approval、undo/disk rollback、stopped terminal、独立 session、cold restart 证据 | `implemented / tested`；M1 全量 Host、M3/M4 全量仍未毕业 |
 | #470 long-video real-user contract | 已合入，merge `8891666960abb168e07b3fce440524f872fa1e4c`；真实长视频任务 manifest、H/B/E/T/N、provider check、Electron harness 和 live canary profile | `implemented / tested / blocked-live`；真实 canary 在 Skill menu 暴露前即被阻塞，未发生外部 API 请求；不能写成 provider 成功 |
-| #471 computable Agent UI design contract | 已合入；其 merge commit 已包含于 current baseline `8ff53610900accad9a319f2720ec9e887712a9ff`；将 approved design source、selector/state/severity/tolerance、DOM/computed-style measurement 和 mismatch report 变成可计算合同 | `implemented / tested`（横切设计合同）；不等于 M0–M5 任一阶段毕业，packaged/真实 Host/provider 证据仍缺 |
+| #471 computable Agent UI design contract | 已合入；其 merge commit 已包含于 current baseline `163bddf157b613bde1d8291098b8813cea2bc80b`；将 approved design source、selector/state/severity/tolerance、DOM/computed-style measurement 和 mismatch report 变成可计算合同 | `implemented / tested`（横切设计合同）；不等于 M0–M5 任一阶段毕业，packaged/真实 Host/provider 证据仍缺 |
 | #473 storyboard planner Skill menu fix | 仍 open；与已合入的 #474 是同一 Skill menu 修复方向的重复 PR。其产品修复/真实 Electron menu walk 证据不能作为主线实现；Contracts gate 因缺少对应 root-cause contract 阻塞 | `duplicate / blocked`；不作为主线实现，未合入、无 live provider 请求 |
 | #474 storyboard planner Skill menu fix | 已合入 main，merge commit `8ff53610900accad9a319f2720ec9e887712a9ff`；将 canonical `selectableInWorkbench`/共享 Workbench visibility boundary 的修复带入 current baseline | `implemented / tested`（Skill visibility 修复）；不等于 M0–M5 任一阶段毕业，真实 provider/package/全链证据仍缺 |
+| #476 canvas.write durable receipt slice | 当前 open；本轮在 baseline `163bddf157b613bde1d8291098b8813cea2bc80b` 上已完成 P1 red→implementation→green：canonical `patch_shots` receipt、RPC/stdio request identity 和 renderer recovery lifecycle 已补齐；不宣称 M0–M5 完成 | `implemented / tested / headless-persistence-certified`；本轮 P1 focused 已绿，delivery/full CI 待完成；GUI-open renderer、packaged launcher、完整 canvas operations 不在本阶段完成证据内 |
+| #481 structural shell-debt migration | 已合入 main，merge commit `163bddf157b613bde1d8291098b8813cea2bc80b`；只吸收 `verifiedCapabilityInvocation` 的 public facade/runtime/renderer/session 拆分、`mcpGenerationToolCatalog` 提取、`productionRunProjections` 提取及其 structural root-cause contract，边界是结构债务收敛，不新增 MCP 产品行为 | `implemented / tested`（结构拆分）；不等于 M0–M5 任一阶段毕业，不替代 #476 的 receipt/RPC/GUI 证据 |
 | M0 文档基线 | owner map、tool mapping、legacy paths、PR slices 和 M-line rulings 已在 main | `implemented / tested`（架构文档）；不是产品 Happy path |
 | M1 Host | Host lifecycle/settlement/projection 基础代码和 unit slices 已合入 | `implemented / tested`（局部）；真实 Host 默认关闭，完整 remediation/重启仍 `blocked` |
 | M2 semantic surfaces | generation、editing、canvas/document 的语义切片和部分 MCP L2 已合入 | `implemented / tested`（局部/待 current-main 重跑）；全链 effect/receipt/restart 未证明 |
@@ -78,12 +80,12 @@
 ```bash
 git fetch origin main
 git rev-parse origin/main
-git merge-base --is-ancestor 8ff53610900accad9a319f2720ec9e887712a9ff origin/main
+git merge-base --is-ancestor 163bddf157b613bde1d8291098b8813cea2bc80b origin/main
 git status --short --branch
 git worktree list --porcelain
 ```
 
-本次结果：`origin/main` 精确为 `8ff53610900accad9a319f2720ec9e887712a9ff`，#474 merge commit；`git status --short --branch` 无 dirty 文件。任何执行分支都必须记录完整 SHA、dirty 状态、基于哪个 commit 和实际改动文件。历史基线快照不能替代这条 current-main 记录。
+本次结果：`origin/main` 精确为 `163bddf157b613bde1d8291098b8813cea2bc80b`，已包含 #479、#480 和 #481 merge commit；`git status --short --branch` 无 dirty 文件。任何执行分支都必须记录完整 SHA、dirty 状态、基于哪个 commit 和实际改动文件。历史基线快照不能替代这条 current-main 记录。
 
 ### 2.2 设计真源与来源边界
 
@@ -105,6 +107,7 @@ git worktree list --porcelain
 - #471：已合入 current `origin/main`；其 computable UI design contract 是横切合同，不把 M0–M5 或真实 provider/package 证据升级为完成。
 - #473：与已合入 #474 是重复修复方向；其 Contracts gate 因缺 root-cause contract 阻塞，标记 `duplicate / blocked`，不作为主线实现，也不能把其 head 状态或独立验证写成 current-main 事实。
 - #474：已合入 current `origin/main`，merge commit 为 `8ff53610900accad9a319f2720ec9e887712a9ff`；只吸收 Skill menu visibility 修复边界，不吸收 M0–M5 毕业、真实 provider 或 packaged 证据。
+- #481：已合入 current `origin/main`，merge commit 为 `163bddf157b613bde1d8291098b8813cea2bc80b`；只吸收 `verifiedCapabilityInvocation`、MCP generation catalog 与 production projection 的结构拆分和 structural contract，不把结构债务收敛写成新的产品能力或 M0–M5 毕业证据。
 - #466/#452：先做 receipt/Host 差异审计；若功能与 #469/#468 重叠，合并唯一 owner 后再拆小 PR。
 - #454：保留已完成的分镜功能事实和模型身份修复线索；整体不作为 Agent epic 完成，不复制被否定的样张。
 - #456/#459/#458/#435/#419/#412/#403/#399/#384：按当前 main 重算冲突、required checks 和用户价值；失败、旧 base、stacked 或仅诊断文档不直接合入。
@@ -209,6 +212,10 @@ git worktree list --porcelain
 **证据状态**：`implemented`（语义切片/表格基础）；`tested`（unit、schema、部分 fixture/L2）；`live-certified` `blocked`（完整真实 effect/Provider 未证明）；整体 `partial / needs-rebaseline`。
 
 **缺口**：24 项 MCP 真实 effect ledger；canonical `nomi_canvas_plan` + `operation=patch_shots`；selection injection、未点名字段保持、invalid revision/model/vendor、preview/approve/deny、receipt、落盘、重启、undo 和 Agent/table/canvas 一致性。
+
+**2026-09-05 slice evidence（仅 headless canvas.write）**：`nomi_canvas_edit` 已补一条真实 stdio effect 链：catalog resolver → verified project lease → shared main-process receipt prepare → dispatcher → disk gateway → committed receipt；新 receipt service 可在同一项目目录重启后读回。红测先证明基线真实写入无 receipt，绿测覆盖重复 requestId、最大 payload 成功、空 payload schema、失效 lease、磁盘缺失和取消前不得晚写。对应单测为 `electron/capabilityCore/mcpStdioCanvasWriteReceipt.test.ts`；构建后真实用户任务契约入口为 `tests/ux/mcp-canvas-write-durable-receipt.e2e.mjs`，本轮 fresh build 后已通过 9 assertions，证据状态为 `implemented / tested / headless-persistence-certified`。GUI-open renderer、packaged launcher 的实际运行、视觉 walkthrough 和其余 canvas operations 的全链仍为 `blocked / not this PR`，不能将本 slice 升格为 M2 graduated。
+
+**2026-09-05 #476 P1 follow-up evidence（基于 `163bddf157b613bde1d8291098b8813cea2bc80b`）**：新红测先走真实 RPC/stdio receipt 边界，未 mock dispatcher/store：`rpcServer.test.ts` 暴露 canonical `patch_shots` 未落 receipt、随机 approval identity 和 document replay 二次 renderer effect；`mcpStdioDocumentReceipt.test.ts` 暴露 direct document request identity/cancellation 未穿透；`proposalUndoReceiptLifecycle.test.ts` 暴露 `effect_unknown`/`partial`/`commit_failed` hydration 被拒。首次 red 命令为 `pnpm exec vitest run electron/capabilityCore/rpcServer.test.ts electron/capabilityCore/mcpStdioDocumentReceipt.test.ts src/workbench/generationCanvas/agent/proposalUndoReceiptLifecycle.test.ts --reporter=verbose`，结果 `6 failed, 31 passed`。最小生产修复后，同一边界扩展命令 `pnpm exec vitest run electron/capabilityCore/mcpDocumentWriteReceipt.test.ts electron/capabilityCore/mcpStdioCanvasWriteReceipt.test.ts electron/capabilityCore/mcpStdioDocumentReceipt.test.ts electron/capabilityCore/rpcServer.test.ts electron/capabilityCore/mcpProtocol.test.ts electron/capabilityCore/mcpLoopbackRpcRequest.test.ts src/workbench/generationCanvas/agent/proposalUndoReceiptLifecycle.test.ts --reporter=dot` 结果 `7 files, 61 passed`：canonical receipt/requestId/replay-conflict/late-disconnect、document RPC/stdio identity+cancel、三种 recovery lifecycle hydration 均 green；没有放宽断言或 gate。用户任务入口仍使用自然表达“我想做一个完整短片”，canonical tool/id 仅作为技术链断言，不作为用户话术。本轮状态为 `P1 green / awaiting delivery and remote required checks`，不创建 follow-up、不开合并；真实 Electron/packaged/视觉证据仍为 `blocked / not this PR`。
 
 **红测 → 实现 → 绿测 → 真实用户任务 → 视觉走查 → 合入门槛**：
 

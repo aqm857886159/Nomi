@@ -23,7 +23,8 @@ import { listSkillSummariesForMcp, readSkillContentForMcp, type SkillMcpAccess }
 import type { ProductionRunService } from '../productionRun/productionRunService'
 import type { ProductionBrief } from '../productionRun/productionRunTypes'
 import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
-import { withPreApprovedPlan, type ProjectGateway } from './gateway'
+import { withPreApprovedPlan, withWriteCancellation, type ProjectGateway } from './gateway'
+import { markMcpWriteEffect } from './mcpDocumentWriteReceipt'
 import { INTAKE_MAX_QUESTIONS, buildIntakeMessage, buildIntakeQuestions } from './mcpBriefIntake'
 import type { CapabilityOriginHost } from './security'
 import { createMcpGenerationPolicy, type McpGenerationPolicy } from './mcpGenerationPolicy'
@@ -96,6 +97,10 @@ export type DispatchContext = {
    * 方案门、不再弹渲染层卡（免双问）。只作用于 addNodes 的 confirmPlan，钱路（confirmSpend）不受影响。
    */
   planConfirmed?: boolean
+  /** Main-process MCP receipt proposal id, never sourced from tool params. */
+  writeProposalId?: string
+  /** Transport cancellation signal; checked before every canvas effect. */
+  signal?: AbortSignal
   /**
    * 审片环 deps 工厂（W1，可选）。传输层注入真实现（headless=makeShotVerifyDeps；GUI-RPC 同一份）→
    * generate 生成成功后跑判分→定向重试→红标。**不注入 = generate 行为逐字节不变**（默认）。
@@ -212,6 +217,16 @@ async function leasedProject(
 }
 
 function proposalId(): string { return `proposal-${crypto.randomUUID()}` }
+
+function canvasWriteProposalId(ctx: DispatchContext): string {
+  return ctx.writeProposalId ?? proposalId()
+}
+
+function assertCanvasWriteNotCancelled(ctx: DispatchContext): void {
+  if (ctx.signal?.aborted) {
+    throw ctx.signal.reason instanceof Error ? ctx.signal.reason : new Error('MCP request cancelled')
+  }
+}
 
 function canvasRecovery(deviationCount = 0) {
   return { ok: deviationCount === 0, deviationCount }
@@ -521,16 +536,19 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       return ctx.productionRuns.readProjection(projectId, runId)
     }
     case 'canvas.write': {
+      assertCanvasWriteNotCancelled(ctx)
       const lease = await leasedProject(ctx, params, 'canvas:write')
+      assertCanvasWriteNotCancelled(ctx)
       const raw = { ...params }
       delete raw.leaseHandle
       delete raw.projectId
       const input = canvasWriteSemanticInputSchema.parse(raw)
-      const base = ctx.makeGateway(lease.projectId)
+      assertCanvasWriteNotCancelled(ctx)
+      const base = withWriteCancellation(ctx.makeGateway(lease.projectId), ctx.signal)
       if (input.operation === 'set_node_prompt') {
         const result = await setProjectNodePrompt(base, input.nodeId, input.prompt)
         if (!result.changed) throw new CanvasGraphError('node_not_found', `Canvas node not found: ${input.nodeId}`)
-        return { applied: true, proposalId: proposalId(), operation: input.operation, affectedNodeIds: [input.nodeId], reconciliation: canvasRecovery() }
+        return { applied: true, proposalId: canvasWriteProposalId(ctx), operation: input.operation, affectedNodeIds: [input.nodeId], reconciliation: canvasRecovery() }
       }
       if (input.operation === 'create_canvas_nodes') {
         const created = await addProjectNodes(
@@ -543,29 +561,34 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
           })),
           lease.projectId,
         )
-        if (created.cancelled) return { applied: false, proposalId: proposalId(), operation: input.operation, cancelled: true, affectedNodeIds: [], affectedEdgeIds: [], clientIdToNodeId: {}, connectedCount: 0, skippedEdges: [], reconciliation: canvasRecovery() }
+        if (created.cancelled) return { applied: false, proposalId: canvasWriteProposalId(ctx), operation: input.operation, cancelled: true, affectedNodeIds: [], affectedEdgeIds: [], clientIdToNodeId: {}, connectedCount: 0, skippedEdges: [], reconciliation: canvasRecovery() }
         const clientIdToNodeId = Object.fromEntries(input.nodes.map((node, index) => [node.clientId, created.ids[index]]))
         const edges = (input.edges ?? []).map((edge) => ({
           source: clientIdToNodeId[edge.sourceClientId] ?? edge.sourceClientId,
           target: clientIdToNodeId[edge.targetClientId] ?? edge.targetClientId,
           ...(edge.mode ? { mode: edge.mode } : {}),
         }))
-        const connected = edges.length
-          ? await connectProjectNodes(ctx.makeGateway(lease.projectId), edges)
-          : { edgeIds: [], skipped: [] }
+        let connected: Awaited<ReturnType<typeof connectProjectNodes>>
+        try {
+          connected = edges.length
+            ? await connectProjectNodes(base, edges)
+            : { edgeIds: [], skipped: [] }
+        } catch (error) {
+          throw markMcpWriteEffect(error, 'partial')
+        }
         const skippedEdges = connected.skipped.map((item) => ({ source: item.connection.source, target: item.connection.target, reason: item.reason }))
-        return { applied: true, proposalId: proposalId(), operation: input.operation, affectedNodeIds: created.ids, affectedEdgeIds: connected.edgeIds, clientIdToNodeId, connectedCount: connected.edgeIds.length, skippedEdges, reconciliation: canvasRecovery(skippedEdges.length) }
+        return { applied: true, proposalId: canvasWriteProposalId(ctx), operation: input.operation, affectedNodeIds: created.ids, affectedEdgeIds: connected.edgeIds, clientIdToNodeId, connectedCount: connected.edgeIds.length, skippedEdges, reconciliation: canvasRecovery(skippedEdges.length) }
       }
       if (input.operation === 'connect_canvas_edges') {
-        const connected = await connectProjectNodes(ctx.makeGateway(lease.projectId), input.edges.map((edge) => ({
+        const connected = await connectProjectNodes(base, input.edges.map((edge) => ({
           source: edge.sourceClientId, target: edge.targetClientId, ...(edge.mode ? { mode: edge.mode } : {}),
         })))
         const skippedEdges = connected.skipped.map((item) => ({ source: item.connection.source, target: item.connection.target, reason: item.reason }))
-        return { applied: true, proposalId: proposalId(), operation: input.operation, affectedNodeIds: [], affectedEdgeIds: connected.edgeIds, connectedCount: connected.edgeIds.length, skippedEdges, reconciliation: canvasRecovery(skippedEdges.length) }
+        return { applied: true, proposalId: canvasWriteProposalId(ctx), operation: input.operation, affectedNodeIds: [], affectedEdgeIds: connected.edgeIds, connectedCount: connected.edgeIds.length, skippedEdges, reconciliation: canvasRecovery(skippedEdges.length) }
       }
       if (typeof ctx.generationPlanning !== 'function') throw new RpcError('Canvas planning is unavailable', 501, { code: 'capability_unsupported', nextAction: 'Open the Nomi creation surface and retry', capability: 'canvas.write' as never })
       const planned = await ctx.generationPlanning({ capability: input.operation, params: input as unknown as Record<string, unknown>, lease, origin: ctx.origin })
-      return { applied: true, proposalId: proposalId(), operation: input.operation, result: planned, reconciliation: canvasRecovery() }
+      return { applied: true, proposalId: canvasWriteProposalId(ctx), operation: input.operation, result: planned, reconciliation: canvasRecovery() }
     }
     case 'canvas.delete': {
       const lease = await leasedProject(ctx, params, 'canvas:write')

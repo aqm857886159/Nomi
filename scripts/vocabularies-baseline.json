@@ -743,12 +743,24 @@
     {
       "site": "electron/shared/projectAgentProposalReceipt.ts::variable:PROJECT_AGENT_PROPOSAL_RECEIPT_LIFECYCLES/as-const",
       "members": [
+        "commit_failed",
         "committed",
+        "effect_unknown",
+        "partial",
         "preparing",
         "undoing",
         "undone"
       ],
-      "reason": "Project Agent 提案回执（写盘后可撤销）的持久化生命周期规范单源（preparing 准备提交 / committed 已提交 / undoing 撤销中 / undone 已撤销）：它保证「批准后落盘的提案改动可被用户 Ctrl+Z 撤销且重启后精确重放」，是提案写入的可撤销事务态，独立于提案分发（PROPOSAL_LIFECYCLES）与回合态（PROJECT_AGENT_STATUSES），三者各管一段，故独立。"
+      "reason": "Project Agent 提案回执（写盘后可撤销）的持久化生命周期规范单源（preparing 准备提交 / committed 已提交 / undoing 撤销中 / undone 已撤销 / effect_unknown 已产生效果但效果尚不能确认 / partial 部分应用 / commit_failed 效果已产生但回执提交失败）：它保证「批准后落盘的提案改动可被用户 Ctrl+Z 撤销且重启后精确重放」，并在效果发生后不把事实错误标成 undone；是提案写入的可撤销事务态，独立于提案分发（PROPOSAL_LIFECYCLES）与回合态（PROJECT_AGENT_STATUSES），三者各管一段，故独立。"
+    },
+    {
+      "site": "electron/capabilityCore/mcpDocumentWriteReceipt.ts::type:McpWriteEffectState/type-union",
+      "members": [
+        "commit_failed",
+        "effect_unknown",
+        "partial"
+      ],
+      "reason": "MCP durable write helper 的效果判定词表（effect_unknown 效果已产生但无法完全确认 / partial 只完成部分应用 / commit_failed 效果已产生但回执提交失败）：它只描述磁盘写入错误后的物理效果边界，供 receipt 生命周期选择 truthful terminal state；不复用 Project Agent 回执生命周期，因为这里是执行错误上下文而非持久化 receipt 状态。"
     },
     {
       "site": "electron/shared/providerAdapterContract.ts::variable:ADAPTER_RUN_STAGES/as-const",

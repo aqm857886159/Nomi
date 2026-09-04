@@ -60,7 +60,7 @@ import { hasGenerationOperationProviderReadiness } from './generationOperationPr
 import { recordDetectedMcpClient } from './mcpDetectedClients'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
-import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
+import { executeMcpDocumentWriteWithReceipt, executeMcpWriteWithReceipt } from './mcpDocumentWriteReceipt'
 
 const productionRuns = getProductionRunService()
 
@@ -135,6 +135,16 @@ function makeConfirmedGateway(projectId: string): ProjectGateway {
   return withPreApprovedSpend(createDiskGateway(projectId))
 }
 
+function stableRequestFingerprint(value: unknown): string {
+  if (value === null || typeof value === 'boolean' || typeof value === 'string') return JSON.stringify(value)
+  if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(stableRequestFingerprint).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, child]) => `${JSON.stringify(key)}:${stableRequestFingerprint(child)}`).join(',')}}`
+  }
+  return JSON.stringify(String(value))
+}
+
 async function callViaRpc(
   instance: InstanceAdvertisement,
   method: string,
@@ -160,6 +170,7 @@ async function callViaRpc(
         planConfirmed: options?.planConfirmed,
         spendConfirmed: options?.spendConfirmed,
         documentConfirmed: options?.documentConfirmed,
+        requestId: options?.requestId,
         signal: controller.signal,
       }),
     })
@@ -206,7 +217,7 @@ export function createMcpStdioDirectInvoker(
     const makeGateway = routedOptions?.spendConfirmed ? makeConfirmedGateway : createDiskGateway
     // 交付②④：GUI 没开的进程内路——本进程就是 Electron（NOMI_MCP_STDIO 模式），有 nativeImage → dispatchAndEnrich
     // 里就地富化生成结果（缩略图/签名链）。收口在包装器（0a），此路与 GUI-开着的 RPC 路一样忘不了富化。
-    const dispatch = () => dispatchFn(routedMethod, routedParams, {
+    const invokeDispatch = (writeProposalId?: string) => dispatchFn(routedMethod, routedParams, {
       runTask,
       fetchTaskResult,
       makeGateway,
@@ -214,12 +225,39 @@ export function createMcpStdioDirectInvoker(
       origin: { host: routedProjectSession.connection.authenticatedClient },
       ...authorities,
       projectSession: routedProjectSession,
+      signal: routedOptions?.signal,
       ...(routedOptions?.planConfirmed ? { planConfirmed: true } : {}),
+      ...(writeProposalId ? { writeProposalId } : {}),
       // 审片环（W1）：headless 路的真实 deps——judge 走 runTask 文本路（不花生成额度）、抽帧走主进程 ffmpeg、
       // 重试复用首发 grantId+同 nodeId 直发。judge 模型无可用 text 模型时 visionAvailable=false → 整体跳过。
       makeVerifyDeps: (verifyCtx) => makeShotVerifyDeps(verifyCtx),
     })
-    if (routedMethod !== 'document.write') return dispatch()
+    if (routedMethod === 'canvas.write') {
+      const projectId = typeof routedParams.projectId === 'string' ? routedParams.projectId : ''
+      const leaseHandle = typeof routedParams.leaseHandle === 'string' ? routedParams.leaseHandle : ''
+      const lease = await routedProjectSession.authority.verifyLease(leaseHandle, {
+        connection: routedProjectSession.connection,
+        ...(projectId ? { projectHint: projectId } : {}),
+        scope: 'canvas:write',
+      })
+      const service = await authorities.proposalReceiptFor?.(lease.projectId)
+      if (!service) throw new Error('durable_canvas_receipt_unavailable')
+      if (
+        service.binding.projectId !== lease.projectId
+        || service.binding.immutableProjectUuid !== lease.immutableProjectUuid
+        || service.binding.projectGeneration !== lease.projectGeneration
+      ) throw new Error('durable_canvas_receipt_binding_mismatch')
+      return executeMcpWriteWithReceipt({
+        service,
+        kind: 'canvas',
+        operation: typeof routedParams.operation === 'string' ? routedParams.operation : 'write',
+        requestId: routedOptions?.requestId ?? JSON.stringify(routedParams),
+        requestFingerprint: stableRequestFingerprint(routedParams),
+        signal: routedOptions?.signal,
+        execute: (writeProposalId) => invokeDispatch(writeProposalId),
+      })
+    }
+    if (routedMethod !== 'document.write') return invokeDispatch()
     if (routedOptions?.documentConfirmed !== true) throw new Error('human_approval_required')
     const projectId = typeof routedParams.projectId === 'string' ? routedParams.projectId : ''
     const service = await authorities.proposalReceiptFor?.(projectId)
@@ -227,7 +265,10 @@ export function createMcpStdioDirectInvoker(
     return executeMcpDocumentWriteWithReceipt({
       service,
       operation: typeof routedParams.operation === 'string' ? routedParams.operation : 'write',
-      execute: dispatch,
+      requestId: routedOptions?.requestId,
+      requestFingerprint: stableRequestFingerprint(routedParams),
+      signal: routedOptions?.signal,
+      execute: () => invokeDispatch(),
     })
   }
 }

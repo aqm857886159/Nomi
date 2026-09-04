@@ -66,6 +66,20 @@ export function withPreApprovedPlan(gateway: ProjectGateway): ProjectGateway {
   }
 }
 
+/** Check cancellation immediately before every core-level apply boundary. */
+export function withWriteCancellation(gateway: ProjectGateway, signal?: AbortSignal): ProjectGateway {
+  if (!signal) return gateway
+  return {
+    readDoc: gateway.readDoc,
+    apply: async (snapshot) => {
+      if (signal.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('MCP request cancelled')
+      await gateway.apply(snapshot)
+    },
+    confirmSpend: gateway.confirmSpend,
+    confirmPlan: gateway.confirmPlan,
+  }
+}
+
 /**
  * 付费已在**调用方客户端**经 elicitation 得到真人确认 → 包一层直铸令牌，不再弹应用内确认卡（免双问）。
  * 其余读写/方案确认原样透传。
