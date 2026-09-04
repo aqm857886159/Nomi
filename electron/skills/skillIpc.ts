@@ -4,7 +4,7 @@ import { deriveSkillNeeds } from "./skillCapability";
 import { ipcMain } from "electron";
 import { assertTrustedSender } from "../ipcSenderGuard";
 import type { SkillProviderKind } from "./skillManifestSchema";
-import { readSkillRecords } from "./skillStore";
+import { isSkillSelectableInWorkbench, readSkillRecords } from "./skillStore";
 import {
   importSkillPackageToUserDir,
   exportSkillPackageByName,
@@ -37,11 +37,9 @@ export type SkillListItem = {
 
 export function listSkillsForRenderer(): SkillListItem[] {
   return readSkillRecords()
-    // 库只露「用户会浏览、挑来用」的：用户目录的（自己导入/建的，永远显示）∪ 内置 playbook（有 stages，
-    // 如品牌宣传片）。藏掉两类不该出现在用户库里的：① 外来工程技能（superpowers 的 brainstorming 等，
-    // 无 manifest）；② 幕后管线技能（creation-edit / skill-author / workbench.* 助手，自动路由或按钮触发，
-    // 不是浏览挑选项）。口径与创作区技能下拉（ActiveSkillChip 的 isPlaybook 过滤）一致。
-    .filter((r) => r.origin === "user" || (r.manifest?.stages?.length ?? 0) > 0)
+    // The canonical record policy owns picker visibility. Do not recreate a
+    // stages-only heuristic here: single-stage built-ins may explicitly opt in.
+    .filter(isSkillSelectableInWorkbench)
     .map((r) => {
     const needs = r.manifest ? deriveSkillNeeds(r.manifest) : null;
     return {

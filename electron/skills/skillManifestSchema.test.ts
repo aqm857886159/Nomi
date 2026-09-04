@@ -29,6 +29,20 @@ describe("skillManifestSchema", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("accepts an explicit Workbench picker visibility declaration", () => {
+    const result = parseSkillManifest({
+      name: "workbench.storyboard.planner",
+      version: "1.0.0",
+      description: "Storyboard planner",
+      selectableInWorkbench: true,
+      tools: ["propose_storyboard_plan"],
+      requiredProviders: ["text", "image"],
+      permissions: ["create"],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.manifest.selectableInWorkbench).toBe(true);
+  });
+
   it("rejects unknown permission values", () => {
     const result = parseSkillManifest({
       name: "x",

@@ -25,6 +25,7 @@
     { "id": "enter-nomi", "action": "enterNomi", "classification": "H", "evidenceMode": "loopback", "required": true },
     { "id": "load-skill", "action": "loadSkill", "classification": "B", "evidenceMode": "loopback", "required": true },
     { "id": "select-model", "action": "selectModel", "classification": "H", "evidenceMode": "loopback", "required": true },
+    { "id": "apply-skill", "action": "applySkill", "classification": "B", "evidenceMode": "loopback", "required": true },
     { "id": "import-video", "action": "importVideo", "classification": "H", "evidenceMode": "recorded", "required": true },
     { "id": "deconstruct-video", "action": "deconstructVideo", "classification": "B", "evidenceMode": "blocked-live", "required": true },
     { "id": "produce-storyboard", "action": "produceStoryboard", "classification": "B", "evidenceMode": "blocked-live", "required": true },

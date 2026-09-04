@@ -43,6 +43,10 @@ skills/
   "version": "1.0.0",                       // SemVer
   "description": "把一段故事文本拆成 6-12 个镜头节点 + 时序连边",
 
+  // 可选：允许内置单阶段 Skill 出现在 Workbench Agent Skill 选择器。
+  // 不填时，内置多阶段流程包仍按兼容规则显示；内部 routing Skill 默认隐藏。
+  "selectableInWorkbench": true,
+
   // 工具白名单：LLM 仅能调用这里列出的工具
   // 如果省略或为空数组，等同于"允许所有内置工具"
   "tools": [
@@ -51,7 +55,7 @@ skills/
   ],
 
   // 必需的 provider 能力。runtime 会检查模型目录里是否至少有一个
-  // enabled 的对应 kind 模型；缺少时 skill 不可用。
+  // enabled 的对应 kind 模型；缺少时选择器保留该 Skill，但标出能力缺口。
   "requiredProviders": ["text"],            // 子集: "text" | "image" | "video"
 
   // 权限边界。Agent 调用受限工具前 UI 会做对应确认。
