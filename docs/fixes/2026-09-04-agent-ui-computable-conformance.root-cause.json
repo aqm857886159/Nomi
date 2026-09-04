@@ -1,0 +1,106 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-04-agent-ui-computable-conformance",
+  "problem_type": "design-to-runtime contract drift",
+  "symptom": "The approved Agent UI could be visually compared only by screenshots while the pinned result area, Storyboard right Dock, and P0 queue fold-row hook drifted in production.",
+  "direct_cause": "The generated mockup spec captured only partial height geometry and the runtime walk did not measure a shared rule schema against production DOM and computed styles; conditional states were also reported before their real drivers ran.",
+  "class_root": "There was no single executable boundary carrying source locator, tolerance, state, severity, and runtime observation for every approved Agent UI rule.",
+  "affected_population": [
+    "Agent users on generation, storyboard, browser takeover, and P0 exception states",
+    "Maintainers reviewing future Agent UI changes against PR #315 and PR #438"
+  ],
+  "scope_paths": [
+    "scripts/extract-design-spec.mjs",
+    "tests/ux/agent-ui-conformance.walk.mjs",
+    "tests/ux/agent-ui-contract.mjs",
+    "src/workbench/WorkbenchShell.tsx",
+    "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/resident/ResidentExceptionStates.tsx"
+  ],
+  "entry_points": [
+    "Approved PR #315 mockup geometry and tokens",
+    "Approved PR #438 exception-state structure and dynamic queue copy",
+    "Production Electron resident surfaces and native browser takeover"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The requested design files and existing Nomi contracts are the authoritative sources; no external system decides this internal UI invariant.",
+  "invariants": [
+    "Every measured rule has a source locator, tolerance, state, and severity.",
+    "Runtime evidence comes from real Electron DOM, boundingClientRect, computed styles, accessibility attributes, ordering, and visibility.",
+    "The resident Agent has one owner and one in-flow Dock target per supported workbench surface.",
+    "Conditional P0 rules are classified as state-not-reached or blocked until a real driver exists; they are not silently converted into passes."
+  ],
+  "generality_proof": "The extractor and runtime reporter are shared across every generated element and approved exception selector. Centralizing metadata and observation prevents future surface or state additions from bypassing source, tolerance, and mismatch reporting.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/extract-design-spec.mjs",
+      "symbol": "CLASS_TO_ANCHOR and generated contract output",
+      "responsibility": "Derive machine-readable source metadata and measured rules from the approved PR #315 mockup."
+    },
+    {
+      "path": "tests/ux/agent-ui-contract.mjs",
+      "symbol": "measureRuntimeContract and buildMismatchReport",
+      "responsibility": "Read production runtime observations and compare them with generated rules and approved P0 intent selectors."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "entry_point": "creation, storyboard, generation, and preview resident portals",
+      "disposition": "enforced",
+      "evidence": "All supported surfaces are checked through the same agentDock target map and portal owner."
+    },
+    {
+      "path": "src/ui/browser/dialog/NomiBrowserDialog.tsx",
+      "entry_point": "native browser takeover",
+      "disposition": "not-affected",
+      "evidence": "The renderer can assert takeover ownership and hidden DOM boundaries, but native WebContentsView pixels are outside renderer DOM."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Conditional UI states, mockup edits, and new surface mounts can reproduce the same contract drift without a shared executable rule boundary.",
+    "same_class_scan": [
+      "Searched existing generated spec, auto and P0 intent contracts, conformance walk, and all resident surface mounts.",
+      "Searched all current data-agent-pinned, data-agent-queue, storyboard, and browser dialog anchors before choosing the repair boundary."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/agent-ui-contract.mjs",
+    "invariant": "No runtime rule is green unless its approved source metadata and real DOM/computed-style observation satisfy the declared tolerance and state.",
+    "failure_mode": "Missing or un-driven selectors are emitted as mismatch or state-not-reached with expected, actual, delta, locator, and severity; design values absent from the source are blocked.",
+    "exception_policy": "none",
+    "strategy": "Keep design extraction in the existing generator, keep PR #438 structure in its existing intent contract, and centralize only runtime measurement/reporting in one shared test module.",
+    "artifacts": [
+      "scripts/extract-design-spec.mjs",
+      "tests/ux/agent-ui-contract.mjs",
+      "tests/ux/agent-ui-conformance.walk.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/agent-ui-computable-contract.node-test.mjs",
+    "tests/ux/agent-ui-conformance.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/agent-ui-computable-contract.node-test.mjs",
+    "tests/ux/agent-ui-conformance.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The stale queue fold-row hook is replaced by the approved PR #438 data-queue-more-row hook in the same change; the old selector is not retained and no separate legacy path needs migration."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Existing Playwright and Node test infrastructure is sufficient; no new dependency controls the contract.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted project data changes. The committed proposal receipt remains the canonical source for the pinned result projection, and queue state remains owned by ProjectAgent Host.",
+  "residual_risks": [
+    "Native browser WebContentsView pixel occlusion remains blocked from renderer-only measurement.",
+    "Selected-shot count in the pinned card remains blocked because the durable receipt does not expose that fact.",
+    "Provider-backed live canary remains intentionally skipped per task scope."
+  ]
+}

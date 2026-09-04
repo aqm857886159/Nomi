@@ -47,6 +47,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
+import { measureRuntimeContract, writeMismatchReport } from './agent-ui-contract.mjs'
 
 // 件0：agentHostEnabled localStorage key（来自 src/utils/agentHostPreference.ts）
 // 硬编码字面值，避免在 .mjs 里直接引入 .ts 源文件。值与源码保持同步。
@@ -949,6 +950,24 @@ if (TARGET === 'mockup' && !ONLY_FORM && !POSITIVE_CONTROL) {
 }
 
 // ── 关闭夹具 / 浏览器 / Electron app ─────────────────────────────────────────
+
+if (TARGET === 'app' && !ONLY_FORM) {
+  const runtimeRules = (spec.runtimeRules ?? []).map((rule) => ({
+    ...rule,
+    // The ordinary conformance flow is intentionally a normal-state run. A
+    // conditional rule is recorded as state-not-reached here; its dedicated
+    // exception walk must drive the state before it can be green.
+    stateNotReached: true,
+  }))
+  const report = await measureRuntimeContract(page, { spec, state: 'generation-normal', rules: runtimeRules })
+  const reportPath = process.env.AGENT_UI_REPORT_PATH || path.join(ROOT, '.tmp', 'agent-ui-reports', 'agent-ui-conformance-app.json')
+  writeMismatchReport(reportPath, report)
+  console.log(`\n机器化 runtime report：${reportPath}`)
+  console.log(`  rules=${report.summary.rules} pass=${report.summary.pass} mismatch=${report.summary.mismatch} state-not-reached=${report.summary.stateNotReached}`)
+  for (const item of report.mismatches.slice(0, 12)) {
+    console.log(`  [${item.severity}] ${item.ruleId} ${item.property}: expected=${JSON.stringify(item.expected)} actual=${JSON.stringify(item.actual)} delta=${JSON.stringify(item.delta)} @ ${item.sourceLocator}`)
+  }
+}
 
 if (runtimeFixture) await runtimeFixture.close().catch(() => {})
 if (TARGET === 'mockup') {

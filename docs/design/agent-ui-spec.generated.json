@@ -1,6 +1,11 @@
 {
-  "version": "1.0",
-  "generatedAt": "2026-09-02T18:22:01.253Z",
+  "version": "1.1",
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "generatedAt": "2026-09-04T15:28:02.097Z",
   "description": "从样张 HTML 渲染提取的设计规格表——每条对应一个 conformance testspec 断言挂点，包含真实几何（px）和计算色值，供实现者核对实现与样张是否对齐。",
   "mockupPath": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html",
   "mockupHash": "7853f8149d90e80b",
@@ -75,6 +80,15 @@
         "h": 4,
         "padding": 4
       },
+      "tolerance": {
+        "h": 4,
+        "padding": 4
+      },
+      "sourceLibrary": "AI Elements",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.asst-head",
+      "adaptationRule": "Use the Context/Message/Artifact/Queue interaction pattern only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "N\nNomi\n还能聊 ~40 轮",
       "tagName": "div",
       "role": null,
@@ -98,7 +112,9 @@
         "paddingTop": "8px",
         "paddingRight": "10px",
         "paddingBottom": "8px",
-        "paddingLeft": "10px"
+        "paddingLeft": "10px",
+        "borderRadius": "0px",
+        "gap": "7px"
       }
     },
     {
@@ -112,6 +128,15 @@
         "h": 2,
         "w": 8
       },
+      "tolerance": {
+        "h": 2,
+        "w": 8
+      },
+      "sourceLibrary": "AI Elements",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.usage-pill",
+      "adaptationRule": "Use the Context/Message/Artifact/Queue interaction pattern only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "还能聊 ~40 轮",
       "tagName": "span",
       "role": null,
@@ -135,7 +160,9 @@
         "paddingTop": "0px",
         "paddingRight": "8px",
         "paddingBottom": "0px",
-        "paddingLeft": "8px"
+        "paddingLeft": "8px",
+        "borderRadius": "999px",
+        "gap": "5px"
       }
     },
     {
@@ -149,6 +176,15 @@
         "w": 2,
         "h": 2
       },
+      "tolerance": {
+        "w": 2,
+        "h": 2
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.hico[title=\"历史对话\"]",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "normal",
+      "severity": "P1",
       "text": "",
       "tagName": "span",
       "role": null,
@@ -172,7 +208,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "6px",
+        "gap": "normal"
       }
     },
     {
@@ -186,6 +224,15 @@
         "w": 2,
         "h": 2
       },
+      "tolerance": {
+        "w": 2,
+        "h": 2
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.hico[title=\"收起\"]",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "normal",
+      "severity": "P1",
       "text": "",
       "tagName": "span",
       "role": null,
@@ -209,7 +256,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "6px",
+        "gap": "normal"
       }
     },
     {
@@ -222,6 +271,14 @@
       "tolerances": {
         "w": 4
       },
+      "tolerance": {
+        "w": 4
+      },
+      "sourceLibrary": "Beautiful UI",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.flow",
+      "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "前面 24 轮已折叠 ·\n展开\n进入 · 生产段\n把这段雨夜追逐拆成 5 个镜头，第 2、4 镜生成参考图。\n载入 编剧·Kasdan\n想了 4 秒 · 拆成 5 镜，2 镜要站位参考\n拆好了：5 个镜头，第 2、4 镜的参考图我来生成。\n6 步 · 读剧本 · 拆 5 镜 · 生成 2 图\n已加 5 个节点\n撤销会丢掉你改过的东西：镜 3 的提示词你手动改过（暖光→冷调），整笔撤销会一起丢。\n再",
       "tagName": "div",
       "role": null,
@@ -245,9 +302,10 @@
         "paddingTop": "12px",
         "paddingRight": "12px",
         "paddingBottom": "8px",
-        "paddingLeft": "12px"
-      },
-      "responsiveH": true
+        "paddingLeft": "12px",
+        "borderRadius": "0px",
+        "gap": "normal"
+      }
     },
     {
       "anchor": "data-agent-compaction-line",
@@ -259,6 +317,14 @@
       "tolerances": {
         "h": 4
       },
+      "tolerance": {
+        "h": 4
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.divider:not(.stage-line)",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "normal",
+      "severity": "P1",
       "text": "前面 24 轮已折叠 ·\n展开",
       "tagName": "div",
       "role": null,
@@ -282,7 +348,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "0px",
+        "gap": "8px"
       }
     },
     {
@@ -295,6 +363,14 @@
       "tolerances": {
         "h": 4
       },
+      "tolerance": {
+        "h": 4
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.divider.stage-line",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "normal",
+      "severity": "P1",
       "text": "进入 · 生产段",
       "tagName": "div",
       "role": null,
@@ -318,7 +394,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "0px",
+        "gap": "8px"
       }
     },
     {
@@ -332,6 +410,15 @@
         "x": 4,
         "h": 4
       },
+      "tolerance": {
+        "x": 4,
+        "h": 4
+      },
+      "sourceLibrary": "Beautiful UI",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.userbubble",
+      "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "把这段雨夜追逐拆成 5 个镜头，第 2、4 镜生成参考图。",
       "tagName": "div",
       "role": null,
@@ -355,7 +442,9 @@
         "paddingTop": "8px",
         "paddingRight": "12px",
         "paddingBottom": "8px",
-        "paddingLeft": "12px"
+        "paddingLeft": "12px",
+        "borderRadius": "12px",
+        "gap": "normal"
       }
     },
     {
@@ -368,6 +457,14 @@
       "tolerances": {
         "h": 4
       },
+      "tolerance": {
+        "h": 4
+      },
+      "sourceLibrary": "Beautiful UI",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.evt",
+      "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "载入 编剧·Kasdan",
       "tagName": "div",
       "role": null,
@@ -391,7 +488,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "0px",
+        "gap": "6px"
       }
     },
     {
@@ -404,6 +503,14 @@
       "tolerances": {
         "h": 4
       },
+      "tolerance": {
+        "h": 4
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.line.settled",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "normal",
+      "severity": "P1",
       "text": "想了 4 秒 · 拆成 5 镜，2 镜要站位参考",
       "tagName": "div",
       "role": null,
@@ -427,7 +534,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "0px",
+        "gap": "8px"
       }
     },
     {
@@ -440,6 +549,14 @@
       "tolerances": {
         "h": 8
       },
+      "tolerance": {
+        "h": 8
+      },
+      "sourceLibrary": "Beautiful UI",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.asstext",
+      "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "拆好了：5 个镜头，第 2、4 镜的参考图我来生成。",
       "tagName": "div",
       "role": null,
@@ -463,7 +580,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "0px",
+        "gap": "normal"
       }
     },
     {
@@ -476,6 +595,14 @@
       "tolerances": {
         "h": 4
       },
+      "tolerance": {
+        "h": 4
+      },
+      "sourceLibrary": "Beautiful UI",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.toolline",
+      "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "6 步 · 读剧本 · 拆 5 镜 · 生成 2 图",
       "tagName": "div",
       "role": null,
@@ -499,7 +626,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "0px",
+        "gap": "8px"
       }
     },
     {
@@ -512,6 +641,14 @@
       "tolerances": {
         "h": 4
       },
+      "tolerance": {
+        "h": 4
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.receipt",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "normal",
+      "severity": "P1",
       "text": "已加 5 个节点",
       "tagName": "div",
       "role": null,
@@ -535,7 +672,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "0px",
+        "gap": "8px"
       }
     },
     {
@@ -549,6 +688,15 @@
         "w": 4,
         "h": 4
       },
+      "tolerance": {
+        "w": 4,
+        "h": 4
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.rico",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "normal",
+      "severity": "P1",
       "text": "",
       "tagName": "span",
       "role": null,
@@ -572,7 +720,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "6px",
+        "gap": "normal"
       }
     },
     {
@@ -585,6 +735,14 @@
       "tolerances": {
         "h": 8
       },
+      "tolerance": {
+        "h": 8
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.lost-edits",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "normal",
+      "severity": "P1",
       "text": "撤销会丢掉你改过的东西：镜 3 的提示词你手动改过（暖光→冷调），整笔撤销会一起丢。\n再想想\n仍要撤销",
       "tagName": "div",
       "role": null,
@@ -608,7 +766,9 @@
         "paddingTop": "8px",
         "paddingRight": "10px",
         "paddingBottom": "8px",
-        "paddingLeft": "10px"
+        "paddingLeft": "10px",
+        "borderRadius": "8px",
+        "gap": "normal"
       }
     },
     {
@@ -622,6 +782,15 @@
         "h": 4,
         "w": 8
       },
+      "tolerance": {
+        "h": 4,
+        "w": 8
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.chip-jump",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "normal",
+      "severity": "P1",
       "text": "2 张参考图在「参考」分类 · 去看",
       "tagName": "span",
       "role": null,
@@ -645,7 +814,9 @@
         "paddingTop": "0px",
         "paddingRight": "8px",
         "paddingBottom": "0px",
-        "paddingLeft": "8px"
+        "paddingLeft": "8px",
+        "borderRadius": "999px",
+        "gap": "4px"
       }
     },
     {
@@ -658,6 +829,14 @@
       "tolerances": {
         "h": 4
       },
+      "tolerance": {
+        "h": 4
+      },
+      "sourceLibrary": "AI Elements",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.qline",
+      "adaptationRule": "Use the Context/Message/Artifact/Queue interaction pattern only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P0",
       "text": "再给第 5 镜换个更冷的色调",
       "tagName": "div",
       "role": null,
@@ -681,7 +860,9 @@
         "paddingTop": "3px",
         "paddingRight": "6px",
         "paddingBottom": "3px",
-        "paddingLeft": "6px"
+        "paddingLeft": "6px",
+        "borderRadius": "0px",
+        "gap": "7px"
       }
     },
     {
@@ -695,6 +876,15 @@
         "w": 4,
         "h": 4
       },
+      "tolerance": {
+        "w": 4,
+        "h": 4
+      },
+      "sourceLibrary": "AI Elements",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.qx",
+      "adaptationRule": "Use the Context/Message/Artifact/Queue interaction pattern only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "",
       "tagName": "span",
       "role": null,
@@ -718,7 +908,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "5px",
+        "gap": "normal"
       }
     },
     {
@@ -731,6 +923,14 @@
       "tolerances": {
         "h": 8
       },
+      "tolerance": {
+        "h": 8
+      },
+      "sourceLibrary": "Beautiful UI",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.composer",
+      "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "第 5 镜也按 @阿青定妆 的造型，接 @街道 02:10 那段的雨势",
       "tagName": "div",
       "role": null,
@@ -754,7 +954,9 @@
         "paddingTop": "7px",
         "paddingRight": "10px",
         "paddingBottom": "9px",
-        "paddingLeft": "10px"
+        "paddingLeft": "10px",
+        "borderRadius": "0px",
+        "gap": "normal"
       }
     },
     {
@@ -767,6 +969,14 @@
       "tolerances": {
         "h": 8
       },
+      "tolerance": {
+        "h": 8
+      },
+      "sourceLibrary": "Beautiful UI",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cprompt",
+      "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "第 5 镜也按 @阿青定妆 的造型，接 @街道 02:10 那段的雨势",
       "tagName": "div",
       "role": null,
@@ -790,7 +1000,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "0px",
+        "gap": "normal"
       }
     },
     {
@@ -803,6 +1015,14 @@
       "tolerances": {
         "h": 2
       },
+      "tolerance": {
+        "h": 2
+      },
+      "sourceLibrary": "AI Elements",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.at:not(.stale)",
+      "adaptationRule": "Use the Context/Message/Artifact/Queue interaction pattern only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "@阿青定妆",
       "tagName": "span",
       "role": null,
@@ -826,7 +1046,9 @@
         "paddingTop": "0px",
         "paddingRight": "6px",
         "paddingBottom": "0px",
-        "paddingLeft": "6px"
+        "paddingLeft": "6px",
+        "borderRadius": "5px",
+        "gap": "normal"
       }
     },
     {
@@ -839,6 +1061,14 @@
       "tolerances": {
         "h": 2
       },
+      "tolerance": {
+        "h": 2
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.at.stale",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "normal",
+      "severity": "P1",
       "text": "@街道 02:10",
       "tagName": "span",
       "role": null,
@@ -862,7 +1092,9 @@
         "paddingTop": "0px",
         "paddingRight": "6px",
         "paddingBottom": "0px",
-        "paddingLeft": "6px"
+        "paddingLeft": "6px",
+        "borderRadius": "5px",
+        "gap": "normal"
       }
     },
     {
@@ -876,6 +1108,15 @@
         "w": 2,
         "h": 2
       },
+      "tolerance": {
+        "w": 2,
+        "h": 2
+      },
+      "sourceLibrary": "Beautiful UI",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip=\"附件\"]",
+      "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "",
       "tagName": "button",
       "role": null,
@@ -899,7 +1140,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "7px",
+        "gap": "normal"
       }
     },
     {
@@ -913,6 +1156,15 @@
         "w": 2,
         "h": 2
       },
+      "tolerance": {
+        "w": 2,
+        "h": 2
+      },
+      "sourceLibrary": "Beautiful UI",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip^=\"Agent\"]",
+      "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "",
       "tagName": "button",
       "role": null,
@@ -936,7 +1188,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "7px",
+        "gap": "normal"
       }
     },
     {
@@ -950,6 +1204,15 @@
         "w": 2,
         "h": 2
       },
+      "tolerance": {
+        "w": 2,
+        "h": 2
+      },
+      "sourceLibrary": "Beautiful UI",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip^=\"去选\"]",
+      "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "",
       "tagName": "button",
       "role": null,
@@ -973,7 +1236,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "7px",
+        "gap": "normal"
       }
     },
     {
@@ -987,6 +1252,15 @@
         "w": 2,
         "h": 2
       },
+      "tolerance": {
+        "w": 2,
+        "h": 2
+      },
+      "sourceLibrary": "Beautiful UI",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip=\"提示词模板\"]",
+      "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "",
       "tagName": "button",
       "role": null,
@@ -1010,7 +1284,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "7px",
+        "gap": "normal"
       }
     },
     {
@@ -1024,6 +1300,15 @@
         "w": 2,
         "h": 2
       },
+      "tolerance": {
+        "w": 2,
+        "h": 2
+      },
+      "sourceLibrary": "Beautiful UI",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.send",
+      "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+      "state": "normal",
+      "severity": "P1",
       "text": "",
       "tagName": "button",
       "role": null,
@@ -1047,7 +1332,9 @@
         "paddingTop": "1px",
         "paddingRight": "6px",
         "paddingBottom": "1px",
-        "paddingLeft": "6px"
+        "paddingLeft": "6px",
+        "borderRadius": "999px",
+        "gap": "normal"
       }
     },
     {
@@ -1061,6 +1348,15 @@
         "w": 2,
         "h": 2
       },
+      "tolerance": {
+        "w": 2,
+        "h": 2
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.reddot",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "normal",
+      "severity": "P1",
       "text": "",
       "tagName": "span",
       "role": null,
@@ -1084,7 +1380,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "50%",
+        "gap": "normal"
       }
     },
     {
@@ -1097,6 +1395,14 @@
       "tolerances": {
         "h": 8
       },
+      "tolerance": {
+        "h": 8
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.card.accent .chd",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "exception",
+      "severity": "P1",
       "text": "拆成 5 镜 · 生成计划",
       "tagName": "div",
       "role": null,
@@ -1120,7 +1426,9 @@
         "paddingTop": "9px",
         "paddingRight": "11px",
         "paddingBottom": "9px",
-        "paddingLeft": "11px"
+        "paddingLeft": "11px",
+        "borderRadius": "0px",
+        "gap": "7px"
       }
     },
     {
@@ -1133,6 +1441,14 @@
       "tolerances": {
         "h": 8
       },
+      "tolerance": {
+        "h": 8
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.card.accent .frozen",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "exception",
+      "severity": "P1",
       "text": "付费后就不能再改：镜头数、模型、时长、清晰度。提示词仍可改。",
       "tagName": "div",
       "role": null,
@@ -1156,7 +1472,9 @@
         "paddingTop": "7px",
         "paddingRight": "9px",
         "paddingBottom": "7px",
-        "paddingLeft": "9px"
+        "paddingLeft": "9px",
+        "borderRadius": "7px",
+        "gap": "normal"
       }
     },
     {
@@ -1169,6 +1487,14 @@
       "tolerances": {
         "h": 8
       },
+      "tolerance": {
+        "h": 8
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.card.warn",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "exception",
+      "severity": "P1",
       "text": "做完了，有 2 处和你批准的不一样\n其余 3 镜都对上了。没对上的：\n镜 2\n→\n镜 3\n画面衔接镜 2 结尾的画面没接到镜 3 开头——中间那条连线生成时丢了。\n镜 4\n→\n阿青\n角色造型阿青的头发画成了棕色，和定妆不一样。\n让 AI 修\n撤销这一步\n知道了",
       "tagName": "div",
       "role": null,
@@ -1192,7 +1518,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "10px",
+        "gap": "normal"
       }
     },
     {
@@ -1205,6 +1533,14 @@
       "tolerances": {
         "h": 8
       },
+      "tolerance": {
+        "h": 8
+      },
+      "sourceLibrary": "AI Elements",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.card.artifact",
+      "adaptationRule": "Use the Context/Message/Artifact/Queue interaction pattern only; implement with Nomi primitives and tokens.",
+      "state": "exception",
+      "severity": "P1",
       "text": "镜 1\n1024×1792 · 第 2 版\n去画布\n镜 1 · 特写 · 暖光",
       "tagName": "div",
       "role": null,
@@ -1228,7 +1564,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "10px",
+        "gap": "normal"
       }
     },
     {
@@ -1241,6 +1579,14 @@
       "tolerances": {
         "h": 8
       },
+      "tolerance": {
+        "h": 8
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.card.danger",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "exception",
+      "severity": "P1",
       "text": "镜 4 生成失败\n当前模型没配置好，这一步没跑起来。这次没扣钱。\n换模型重试\n改提示词\n看详情",
       "tagName": "div",
       "role": null,
@@ -1264,7 +1610,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "10px",
+        "gap": "normal"
       }
     },
     {
@@ -1277,6 +1625,14 @@
       "tolerances": {
         "h": 8
       },
+      "tolerance": {
+        "h": 8
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.result-card",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "completed",
+      "severity": "P0",
       "text": "拆解结果\n· 5 镜 · 已选 2",
       "tagName": "div",
       "role": null,
@@ -1300,7 +1656,9 @@
         "paddingTop": "0px",
         "paddingRight": "0px",
         "paddingBottom": "0px",
-        "paddingLeft": "0px"
+        "paddingLeft": "0px",
+        "borderRadius": "8px",
+        "gap": "normal"
       }
     },
     {
@@ -1313,6 +1671,14 @@
       "tolerances": {
         "h": 4
       },
+      "tolerance": {
+        "h": 4
+      },
+      "sourceLibrary": "Nomi",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.result-card .rc-head",
+      "adaptationRule": "Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.",
+      "state": "completed",
+      "severity": "P0",
       "text": "拆解结果\n· 5 镜 · 已选 2",
       "tagName": "div",
       "role": null,
@@ -1336,8 +1702,91 @@
         "paddingTop": "0px",
         "paddingRight": "9px",
         "paddingBottom": "0px",
-        "paddingLeft": "9px"
+        "paddingLeft": "9px",
+        "borderRadius": "0px",
+        "gap": "7px"
       }
+    }
+  ],
+  "runtimeRules": [
+    {
+      "id": "P0-QUEUE-MORE-ROW",
+      "selector": "[data-queue-more-row]",
+      "sourceLocator": "docs/design/mockups/2026-09-03-agent-ui-p0-exception-states.html:519-530",
+      "sourceLibrary": "AI Elements",
+      "adaptationRule": "Use the Queue fold-row behavior with Nomi tokens and the existing Host queue state.",
+      "tolerance": {
+        "default": 0
+      },
+      "state": "queue-overflow-collapsed",
+      "severity": "P0",
+      "stateNotReached": true,
+      "expected": {
+        "visible": true
+      }
+    },
+    {
+      "id": "P0-PINNED-RESULT-CARD",
+      "selector": "[data-agent-pinned-card]",
+      "sourceLocator": "docs/design/2026-09-02-agent-ui-v3-walkthrough.md:155-164",
+      "sourceLibrary": "Nomi",
+      "adaptationRule": "Use the durable committed-proposal receipt and Nomi design primitives; no second result-card store.",
+      "tolerance": {
+        "w": 4,
+        "h": 8
+      },
+      "state": "completed-generation",
+      "severity": "P0",
+      "stateNotReached": true,
+      "expected": {
+        "visible": true
+      }
+    },
+    {
+      "id": "P1-STORYBOARD-AGENT-DOCK",
+      "selector": "[data-workspace-mode=\"storyboard\"] [data-agent-panel=\"true\"]",
+      "sourceLocator": "docs/design/2026-09-02-agent-ui-v3-walkthrough.md:173-185",
+      "sourceLibrary": "Nomi",
+      "adaptationRule": "Reuse the same resident Agent portal and width as creation; storyboard is not a second Agent surface.",
+      "tolerance": {
+        "default": 0
+      },
+      "state": "storyboard",
+      "severity": "P1",
+      "stateNotReached": true,
+      "expected": {
+        "visible": true
+      }
+    },
+    {
+      "id": "BLOCKED-BROWSER-NATIVE-OCCLUSION",
+      "selector": "[data-browser-dialog]",
+      "sourceLocator": "docs/design/2026-09-02-agent-ui-v3-walkthrough.md:197-200",
+      "sourceLibrary": "Nomi",
+      "adaptationRule": "Assert renderer ownership and takeover state only; native WebContentsView pixels require a platform harness.",
+      "tolerance": {
+        "default": 0
+      },
+      "state": "browser-takeover",
+      "severity": "P1",
+      "blocked": true,
+      "expected": {
+        "visible": true
+      }
+    },
+    {
+      "id": "BLOCKED-PINNED-SELECTED-SHOT-COUNT",
+      "selector": "[data-agent-pinned-summary]",
+      "sourceLocator": "docs/design/2026-09-02-agent-ui-v3-walkthrough.md:156-160",
+      "sourceLibrary": "Nomi",
+      "adaptationRule": "Do not infer selected-shot count until the durable receipt exposes that field.",
+      "tolerance": {
+        "default": 0
+      },
+      "state": "completed-generation",
+      "severity": "P0",
+      "blocked": true,
+      "expected": {}
     }
   ],
   "summary": {

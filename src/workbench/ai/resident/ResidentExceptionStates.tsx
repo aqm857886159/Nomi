@@ -5,6 +5,7 @@ import {
   IconCircleDashed,
   IconPencil,
   IconInfoCircle,
+  IconPin,
   IconPhoto,
   IconRefresh,
   IconSearch,
@@ -14,6 +15,7 @@ import type { AssetRef } from '../../assets/assetTypes'
 import { AssetThumb } from '../../assets/AssetTile'
 import { cn } from '../../../utils/cn'
 import { residentVisibleCandidates } from './residentExceptionProjections'
+import type { ProjectAgentCommittedProposalRecord } from '../../../../electron/shared/projectAgentProposalReceipt'
 
 type Label = string
 const IconEdit = IconPencil
@@ -39,6 +41,28 @@ export type ResidentCandidate = Readonly<{
 }>
 
 export type ResidentQuestionOption = Readonly<{ id: string; label: string }>
+
+export function ResidentPinnedResultCard({ record, undoLabel, onUndo, summaryLabel, openLabel, collapseLabel }: {
+  record: ProjectAgentCommittedProposalRecord
+  undoLabel: Label
+  onUndo: () => void
+  summaryLabel: (total: number, selected: number) => Label
+  openLabel: Label
+  collapseLabel: Label
+}): JSX.Element {
+  const [open, setOpen] = React.useState(false)
+  const [selected, setSelected] = React.useState(() => new Set(record.watchNodes.map((node) => node.nodeId)))
+  React.useEffect(() => setSelected(new Set(record.watchNodes.map((node) => node.nodeId))), [record])
+  return <article className="overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper" data-agent-pinned-card="true" data-state={open ? 'expanded' : 'collapsed'}>
+    <button type="button" className="flex h-7 w-full items-center gap-1.5 px-2.5 text-left text-micro hover:bg-nomi-ink-05 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nomi-accent/40" data-agent-pinned-head="true" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+      <IconPin size={13} className="shrink-0 text-nomi-accent" aria-hidden="true" /><span className="font-semibold text-nomi-ink">{record.summary}</span><span className="truncate text-nomi-ink-40" data-agent-pinned-summary="true">{summaryLabel(record.watchNodes.length, selected.size)}</span><span className="ml-auto text-nomi-ink-40" aria-label={open ? collapseLabel : openLabel}><IconChevronDown size={12} className={cn('transition-transform motion-reduce:transition-none', open && 'rotate-180')} aria-hidden="true" /></span>
+    </button>
+    {open ? <div className="border-t border-nomi-line-soft px-2.5 pb-2" data-agent-pinned-body="true">
+      <div className="max-h-[194px] overflow-y-auto py-1">{record.watchNodes.map((node) => <label key={node.nodeId} className="flex min-h-7 items-center gap-1.5 border-b border-nomi-line-soft py-1 text-micro"><input type="checkbox" checked={selected.has(node.nodeId)} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.currentTarget.checked) next.add(node.nodeId); else next.delete(node.nodeId); return next })} /><span className="min-w-0 flex-1 truncate text-nomi-ink">{node.title}</span></label>)}</div>
+      <div className="flex items-center justify-between gap-2 pt-1 text-micro text-nomi-ink-60"><span>{summaryLabel(record.watchNodes.length, selected.size)}</span><button type="button" className="text-nomi-accent hover:underline" onClick={onUndo}>{undoLabel}</button></div>
+    </div> : null}
+  </article>
+}
 
 function iconButtonClass(danger = false): string {
   return cn(
