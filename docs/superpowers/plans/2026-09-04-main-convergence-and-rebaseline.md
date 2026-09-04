@@ -28,7 +28,7 @@
 
 - 基线始终从最新 `origin/main` 建立。禁止直接向 `main`、`master` 或远端默认分支 push；每个代码或计划变更使用独立分支、独立 worktree、单独 PR。
 - 执行前先检查 `git status`、`git worktree list --porcelain`、远端 refs 和当前 PR 状态。脏、detached、full clone、正在被另一会话使用的 worktree 一律保留原样；不使用 `git clean -fd`、`git reset --hard`、`git checkout --` 或宽范围删除。
-- #313 和 #328 已由其他会话负责合并。本方案只读取它们的状态和最终合并结果，不抢合、不改分支、不在其未完成时声称收敛完成。
+- #313 和 #328 标记为 `previous-session-released / convergence-queue-pending`。本方案先只读取状态和最终合并结果；仍保护其 dirty/unknown worktree，只有刷新 owner、分支和 clean 状态后才允许接管，不抢合、不改分支、不在其未完成时声称收敛完成。
 - `BLOCKED`、`DIRTY`、有冲突、依赖 stacked base、缺少真实凭据/真实素材或等待用户拍板的 PR 不得强行合并。它们要进入阻塞清单并由后续任务处理。
 - 真实付费调用、使用用户私有 API key、真实外部发布、不可逆数据删除和架构三期定案均需要额外授权或评审；本方案不会自行跨过这些门。
 - 当前 main 上已经存在的实现必须先通过证据矩阵确认，再决定是否补代码。发现“已合入但文档过期”时，先修订事实和证据，不重新实现同一功能。
@@ -39,7 +39,8 @@
 以下是本方案建立时已掌握的入口信息，不是最终结论；S0/S1 必须在最新远端状态上重新验证，防止另一会话已经改变 PR 状态：
 
 - 当前 main 基线曾推进到 `45912ae01a155a3f6592f65368d0ce3d12fc034e`，其中已包含 Agent normal/exception/work-mode、MCP 既有修复、TikHub/视频拆解代码、若干画布性能修复、凭据加密和 M0–M4 相关提交；“代码已在 main”不等于每个用户路径已经毕业。
-- #313 与 #328 由另一会话负责；只读取状态和最终 merge SHA。#452 的 Agent Host usage/receipt 路径曾有 Linux L2 `receipt_invalid`、本地 `lease_invalid` 证据，必须重新验证，不能按 checks 通过的部分宣称完成。
+- #313 与 #328 已释放到收敛队列；只读取状态和最终 merge SHA，接管前必须重新确认 owner、dirty/clean worktree 和分支 head。#452 的 Agent Host usage/receipt 路径曾有 Linux L2 `receipt_invalid`、本地 `lease_invalid` 证据，必须重新验证，不能按 checks 通过的部分宣称完成。
+- #457 当前为 `main ← codex/cross-device-continuation-repair-20260904`、head `e54aa4d447d81c0e9013b90b39f4c02884d30525`；Contracts 已失败，Unit/E2E 在运行，分类为 `blocked / 需修复`。#458 当前为 `codex/main-typecheck-repair-20260904 ← codex/pr456-failure-gates-followup-20260904`、head `cd0cc1e9d22bb1abd14462417ffa2ceceda94659`，是 #456 failure-gate diagnosis 的 stacked PR，分类为 `stacked / 待重基线`。详见 [S1 PR/branch/worktree inventory](../../qa/2026-09-04-pr-branch-inventory.md)。
 - #419 是 stacked 的 M5 packaged graduation 路线；M5 checklist 仍要求重新确认 packaged parity、真实 Host context、M4 taint/approval spend guard、client confirmation chain 和 packaged L2。
 - 已知有 dirty/blocked/stacked PR（包括 #435、#403、#399、#384、#412、#314 等）和 dirty worktree；它们先保留，不能因为硬盘清理目标而删除代码。#452、#419 的状态也必须按最新 PR 页面刷新。
 - `origin/perf/canvas-click-select-20260903` 曾存在未开 PR 的唯一代码提交；`origin/fix/mcp-remaining-holes-20260903` 曾主要是 test-only 分支。两者必须通过 patch-id 和当前行为重测后，分别决定开 PR、归类 duplicate，或转后续任务。
@@ -176,16 +177,16 @@ MCP 测试按“工具面 → 握手/授权 → 执行 → 副作用 → 收据/
 - [x] 扫描所有 worktree，区分 clean、dirty、detached、prunable 和未知会话风险；只登记，不删除。活跃进程检测的权限阻塞已保留在报告中。
 - [x] 读取计划/历史来源并记录文档状态漂移；MCP 与史诗的专项证据分别见 [MCP rebaseline audit](../../qa/2026-09-04-mcp-rebaseline-audit.md) 和 [epics rebaseline audit](../../qa/2026-09-04-epics-rebaseline-audit.md)。
 - [x] **红证据：** 报告记录了过期账本与当前 PR/check/ref/worktree 证据的冲突，以及无法证明活跃会话为空的环境阻塞。
-- [x] **绿证据：** 当前可确认条目已按 `open-blocked`、`stacked`、`duplicate`、`dirty-preserve`、`external-owner`、`needs-decision` 等唯一分类登记，并带 URL/SHA/路径；未确认项保持 `unknown`。
+- [x] **绿证据：** 当前可确认条目已按 `open-blocked`、`stacked`、`duplicate`、`dirty-preserve`、`previous-session-released`、`convergence-queue-pending`、`needs-decision` 等唯一分类登记，并带 URL/SHA/路径；未确认项保持 `unknown`。
 - [x] 退出条件：形成以 `origin/main=45912ae01a155a3f6592f65368d0ce3d12fc034e` 为基线的 PR、branch、worktree、计划来源清单；剩余未知项已显式列出，不作为清理或合并授权。
 
 ## Task 2 — Converge Safe PRs Into Main
 
-- [ ] 从 S1 清单中只选 `open-ready` 且 base 可对齐、checks 可复核、没有外部会话所有权的 PR。按依赖顺序一次处理一个，处理前再次刷新 `origin/main` 和 PR head。
+- [ ] 从 S1 清单中只选 `open-ready` 且 base 可对齐、checks 可复核、owner/clean 状态已刷新且没有 dirty/未知接管风险的 PR。按依赖顺序一次处理一个，处理前再次刷新 `origin/main` 和 PR head。
 - [ ] 每次合并前做重复检查：`git diff --cherry-pick`、patch-id/range-diff、涉及文件、是否已经以另一个 merge commit 进入 main。重复实现直接归档为 duplicate，不再合并。
 - [ ] **红证据：** 对每个候选 PR 在合并前运行其最小验收/集成断言，记录目标行为在当前 main 或 PR head 上仍未被证明；如果候选已经满足行为，红证据应转为“重复/无需合并”，不能为了形式制造失败。
 - [ ] 用 GitHub 的正常 merge 流程合并后，立即刷新本地 `origin/main`，记录 merge SHA；运行 `pnpm run delivery:verify-merged -- --expected-sha <merge-sha>`，并按改动风险补跑 `pnpm run gates:contracts`、`pnpm run test`、`pnpm run build` 或对应的系统 profile。
-- [ ] 不合并 #313/#328；不把 #452、#419、#412、#435、#403、#399、#384、#314 等 blocked/dirty/stacked 项伪装成 ready。它们只更新清单并生成后续动作。
+- [ ] #313/#328 先保持 `previous-session-released / convergence-queue-pending`，仍保护 dirty/unknown worktree；只有刷新 owner、分支和 clean 状态后才可接管并重新走红测。不得把 #452、#457、#458、#419、#412、#435、#403、#399、#384、#314 等 blocked/dirty/stacked 项伪装成 ready；它们只更新清单并生成后续动作。
 - [ ] **绿证据：** 合并后 main 可复现、merge verification 通过、没有新增未解释的 contract/build/test 失败，且合并记录附带 PR URL、merge SHA 和 checks。
 - [ ] 退出条件：所有安全可合并项已归位；剩余项都有具体原因和下一步，不再存在“可能已经合了但没人知道”的无主状态。
 
@@ -205,7 +206,7 @@ MCP 测试按“工具面 → 握手/授权 → 执行 → 副作用 → 收据/
 
 - [ ] 以最新 main SHA 重新阅读并汇总 [epics rebaseline audit](../../qa/2026-09-04-epics-rebaseline-audit.md)；同时以 [MCP rebaseline audit](../../qa/2026-09-04-mcp-rebaseline-audit.md) 和 [PR/branch inventory](../../qa/2026-09-04-pr-branch-inventory.md) 校对来源、SHA、PR 状态和阻塞项。史诗报告未提交前，不把 Task 4 标为完成。
 - [ ] 建立 `docs/qa/2026-09-04-main-convergence-rebaseline.md`，每一行至少有：目标/用户价值、代码路径、相关 PR/merge SHA、契约证据、单元证据、系统/真实 Electron 证据、持久化/重启证据、视觉证据、当前状态、阻塞原因和下一动作；主表至少分为 MCP、Agent、Storyboard Table 三大能力簇，并记录三者之间的交接。
-- [ ] 状态只能使用：`已合入且已证明`、`已合入但未证明`、`部分完成`、`仅计划/设计`、`未开始`、`被阻塞`、`等待外部会话`、`等待用户决策`。`CI green` 只能填某个证据列，不能直接填完成状态。
+- [ ] 状态只能使用：`已合入且已证明`、`已合入但未证明`、`部分完成`、`仅计划/设计`、`未开始`、`被阻塞`、`等待 owner/状态刷新`、`等待用户决策`。`CI green` 只能填某个证据列，不能直接填完成状态。
 - [ ] M0–M5 必须按现行 checklist 重跑，尤其确认当前 main 的 packaged parity、真实 Agent Host context、M4 taint/approval spend guard、M5 client confirmation chain 和 packaged L2；旧的 50/50、旧 release 或旧 SHA 证据全部标记为历史证据。
 - [ ] TikHub 与视频拆解要区分“代码已合入”“面板存在”“真实连接器/无水印链路可运行”“拆解结果能进入后续创作工作流”；缺真实 key 时只做无密钥契约和模拟证据，不声称 live-certified。
 - [ ] 新版分镜表要单独核验，不沿用旧分镜方案的完成结论：确认新版设计、表格编辑、单镜/批量执行、参考绑定、状态/错误、画布与时间线交接和重启恢复；把旧方案仍有效的需求与已被新版替代的需求分开登记。

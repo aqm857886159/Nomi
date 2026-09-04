@@ -1,6 +1,6 @@
 # S1 PR / branch / worktree inventory
 
-> Snapshot: 2026-09-04 11:49 Asia/Shanghai. This is a read-only repository inventory: no product code was changed, no file was deleted, and no PR was merged or pushed to `main`.
+> Snapshot: 2026-09-04 12:14 Asia/Shanghai. This is a read-only repository inventory: no product code was changed, no file was deleted, and no PR was merged or pushed to `main`.
 
 ## Baseline
 
@@ -14,14 +14,16 @@
 
 `behind/ahead` below is `git rev-list --left-right --count base...head`. File scope is `file count; insertions/deletions`.
 
-## 14 open PRs
+## 16 open PRs
 
 | PR / URL | base ← head | head SHA | merge-base | behind/ahead | scope | merge/check state | classification / next action |
 |---|---|---|---|---:|---|---|---|
+| [#458](https://github.com/aqm857886159/Nomi/pull/458) | codex/main-typecheck-repair-20260904 ← codex/pr456-failure-gates-followup-20260904 | `cd0cc1e9d22bb1abd14462417ffa2ceceda94659` | `9ab34aa` | 0/1 | 1; 99/-0 | MERGEABLE/CHECKING; Contracts, Unit in progress; E2E skipped | stacked; #456 failure-gate diagnosis; wait for rebaseline |
+| [#457](https://github.com/aqm857886159/Nomi/pull/457) | main ← codex/cross-device-continuation-repair-20260904 | `e54aa4d447d81c0e9013b90b39f4c02884d30525` | `c2c8c9e` | 33/16 | 44; 1683/-162 | MERGEABLE/BLOCKED; Contracts failure; Unit/E2E in progress | blocked; needs repair |
 | [#456](https://github.com/aqm857886159/Nomi/pull/456) | main ← codex/main-typecheck-repair-20260904 | `9ab34aafcefd3c52e5809a337a9124797e410d3a` | `45912ae` | 0/1 | 1; 2/-2 | MERGEABLE/BLOCKED; E2E, Quality fail | blocked; repair checks |
 | [#455](https://github.com/aqm857886159/Nomi/pull/455) | main ← codex/ci-recovery-20260904 | `7baf3bcfa135093a53f14f5c6fd3549d9e757c31` | `45912ae` | 0/3 | 3; 69/-49 | MERGEABLE/BLOCKED; Canvas Performance, Quality fail | blocked; diagnose performance |
 | [#454](https://github.com/aqm857886159/Nomi/pull/454) | main ← fix/storyboard-entry-and-vendor-identity-20260903 | `feb392525b8bbd75205890e8099ba1aff72cbba7` | `4f012f9` | 48/49 | 91; 4783/-310 | CONFLICTING/DIRTY; Workers only visible and passed | needs design decision; do not merge monolith |
-| [#453](https://github.com/aqm857886159/Nomi/pull/453) | main ← codex/convergence-execution-plan-20260904 | `2aee87e873627f14d232d8fee0a601fdeb1529ab` | `45912ae` | 0/5 | 4; 517/-0 | MERGEABLE/BLOCKED; Contracts, Workers fail | blocked; repair/recheck |
+| [#453](https://github.com/aqm857886159/Nomi/pull/453) | main ← codex/convergence-execution-plan-20260904 | `e0e05c19374d90a44a5a1091b410bc1b39c737b0` | `45912ae` | 0/10 | 7; 1162/-0 | MERGEABLE/BLOCKED; previous observed Contracts/Workers failure; refresh required | blocked; repair/recheck |
 | [#452](https://github.com/aqm857886159/Nomi/pull/452) | main ← codex/agent-usage-ledger-followup-20260904 | `75f8e4148ee6d539d2e54250e3c7bb5b75497f5a` | `c74b843` | 0/2 | 7; 80/-9 | MERGEABLE/BLOCKED; E2E, Quality fail | blocked; receipt/Host follow-up |
 | [#435](https://github.com/aqm857886159/Nomi/pull/435) | main ← codex/3d-research-workflow-20260903 | `5f1f5719b7b6c3be4cffeb4ca083b0a8a7df110d` | `246f394` | 0/2 | 16; 931/-0 | MERGEABLE/BLOCKED; Contracts, Quality fail | blocked; contract first |
 | [#419](https://github.com/aqm857886159/Nomi/pull/419) | m5/packaged-graduation-20260903 ← m5/packaged-graduation-c-20260903 | `7b67877af662546f435ec5deea53bf71cff81baa` | `d8bbf8b` | 1/90 | 100; 8628/-1547 | CONFLICTING/DIRTY; Workers only visible and passed | stacked; owner must rebase |
@@ -29,11 +31,11 @@
 | [#403](https://github.com/aqm857886159/Nomi/pull/403) | main ← codex/seo-open-seo-alignment-20260903 | `7ef61f5b059601c1c590f15f22ff883b3ce8ba5d` | `beeb3bb` | 0/4 | 17; 688/-39 | MERGEABLE/BLOCKED; Contracts, Quality fail | blocked; contract first |
 | [#399](https://github.com/aqm857886159/Nomi/pull/399) | main ← docs/rule-enforcement-audit-20260903 | `0ec176771d6b15feaf93d95d93ac5a2b381df772` | `0f844df` | 0/4 | 6; 606/-1 | CONFLICTING/DIRTY; visible checks pass | rebase; preserve dirty worktree |
 | [#384](https://github.com/aqm857886159/Nomi/pull/384) | main ← fix/dangling-tailwind-classes-20260903 | `b377cf9bc2a9d921033e6d10fafd2ecdb76ef923` | `16b1e6b` | 0/4 | 4; 190/-2 | CONFLICTING/DIRTY; visible checks pass | rebase; check absorption |
-| [#328](https://github.com/aqm857886159/Nomi/pull/328) | main ← codex/cross-device-continuation-v2 | `fee6d56f40890dce7361bb55c9ba1fbd11ba9a05` | `c2c8c9e` | 0/15 | 35; 1264/-47 | MERGEABLE/BLOCKED; E2E, Performance, Quality fail | external owner; read-only here |
+| [#328](https://github.com/aqm857886159/Nomi/pull/328) | main ← codex/cross-device-continuation-v2 | `fee6d56f40890dce7361bb55c9ba1fbd11ba9a05` | `c2c8c9e` | 0/15 | 35; 1264/-47 | MERGEABLE/BLOCKED; E2E, Performance, Quality fail | previous-session-released / convergence-queue-pending; protect dirty worktree; refresh owner/clean state before takeover |
 | [#314](https://github.com/aqm857886159/Nomi/pull/314) | main ← fix/library-language-walk-anchors-20260902 | `1d6701751b4fa0dcdb85e8de8743f17c0d2cf9305` | `da41562` | 0/14 | 25; 913/-40 | CONFLICTING/DIRTY; Contracts, Quality fail | owner rebase; preserve |
-| [#313](https://github.com/aqm857886159/Nomi/pull/313) | main ← codex/experience-learning-loop-20260902 | `b1787e07a7c4e7ad43243526a60d513f8e2b7ac2` | `87bc55c` | 0/5 | 19; 1179/-2 | MERGEABLE/CLEAN; visible required checks pass, platform skipped | external owner; do not touch |
+| [#313](https://github.com/aqm857886159/Nomi/pull/313) | main ← codex/experience-learning-loop-20260902 | `b1787e07a7c4e7ad43243526a60d513f8e2b7ac2` | `87bc55c` | 0/5 | 19; 1179/-2 | MERGEABLE/CLEAN; visible required checks pass, platform skipped | previous-session-released / convergence-queue-pending; protect dirty worktree; refresh owner/clean state before takeover |
 
-No open PR is authorized for merge by this inventory. `MERGEABLE` is GitHub's mergeability signal, not a product-completion or check-green signal. #313 and #328 remain owned by the other session.
+No open PR is authorized for merge by this inventory. `MERGEABLE` is GitHub's mergeability signal, not a product-completion or check-green signal. #313 and #328 are previous-session-released but remain in the convergence queue; their dirty/unknown worktrees stay protected, and takeover is allowed only after a fresh owner and clean-state check.
 
 ## Key refs without a new open PR
 
@@ -98,4 +100,4 @@ Active-session status is explicitly unknown. The attempted process scan `ps -ax 
 
 ## S1 disposition
 
-The repository classification report is delivered with the process-scan limitation above. Next action is not merge or cleanup: preserve dirty/unknown worktrees, let the owners of #313/#328 finish, and use the classifications above to create small, independently verified follow-up PRs.
+The repository classification report is delivered with the process-scan limitation above. Next action is not merge or cleanup: preserve dirty/unknown worktrees, keep #313/#328 pending in the convergence queue until owner/clean state is refreshed, and use the classifications above to create small, independently verified follow-up PRs.
