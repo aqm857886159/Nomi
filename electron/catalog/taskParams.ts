@@ -681,6 +681,11 @@ export function imageEditGuardError(
   modeBodies?: ModelModeBody[],
   selected?: ParameterReferenceSelection,
 ): string | null {
+  // image_to_prompt is a runtime-fixed multimodal text path: executeTextTask
+  // sends its referenceImages directly through streamTextTask, so it has no
+  // profile/fallback body for this guard to audit.
+  if (kind === "image_to_prompt") return null;
+
   // 第三闸对**所有 kind** 生效（运镜的参考视频可能挂在 t2v/omni 上），且只在真带了参考时才可能触发。
   //
   // `createBody === undefined` 有两种截然不同的成因，处置也相反：
