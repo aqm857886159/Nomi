@@ -19,8 +19,24 @@ export const PROJECT_AGENT_REDUCER_ERROR_CODES = [
 
 export type ProjectAgentReducerErrorCode = (typeof PROJECT_AGENT_REDUCER_ERROR_CODES)[number];
 
+/**
+ * The exact table cell a rejected proposal move landed on. Structural on purpose:
+ * the transition table owns the vocabularies, this contract only carries them out
+ * so the failure receipt names the cell instead of an anonymous code.
+ */
+export type ProjectAgentTransitionCoordinate = Readonly<{
+  sourceDomain: string;
+  targetDomain: string;
+  fromState: string;
+  action: string;
+  reason: string;
+}>;
+
 export class ProjectAgentReducerError extends Error {
-  constructor(readonly code: ProjectAgentReducerErrorCode) {
+  constructor(
+    readonly code: ProjectAgentReducerErrorCode,
+    readonly transition?: ProjectAgentTransitionCoordinate,
+  ) {
     super(code);
     this.name = "ProjectAgentReducerError";
   }
