@@ -10,6 +10,7 @@ import {
 import { buildToolErrorOutcome, buildProgressStartMessage, sanitizeArtifactResource, type ResultLocale } from './mcpToolResults'
 import { buildCanonicalMcpToolResult } from './mcpCanonicalToolResult'
 import { canvasReadResultSchema } from '../shared/agentCapabilities/canvasRead'
+import { CANVAS_WRITE_CAPABILITY } from '../shared/agentCapabilities/canvasWrite' // 画布写只此一个 method
 import { assembleToolResultContent } from './mcpResultPayload'
 import { stripInternalEnrichFields } from './mcpResultEnrich'
 import { createProgressReporter } from './mcpProgress'
@@ -494,7 +495,7 @@ export function createMcpProtocol(transport: McpTransport) {
         // verified lease/renderer path. The renderer receipt must not be given
         // Host correlation unless a Host turn actually claimed that approval.
         if (
-          tool.name === 'nomi_canvas_plan'
+          tool.method === CANVAS_WRITE_CAPABILITY.id
           && built.operation === 'patch_shots'
           && clientSupportsElicitation
           && transport.isAppOpen()
@@ -541,10 +542,9 @@ export function createMcpProtocol(transport: McpTransport) {
         // Nomi 边上」（错的，已改判据）；这里它问的是「不这么做的话，会不会弹出一张应用内方案卡」——
         // 本分支的价值就是把那张卡搬进聊天。App 关着时 confirmPlan 恒 true（免费可撤、无人值守自动放行，
         // 见 createDiskGateway），没有卡可替代，去掉这个条件只会凭空多问一次 → 与「少让用户点」正相反。
-        // 面收敛：批量加节点并入 nomi_canvas_edit（operation=create_canvas_nodes，M2 语义面）——只有加节点走
-        // elicitation-first 方案确认，其余 operation（set_node_prompt/connect_canvas_edges/tidy_canvas）走下面原样 invoke。
+        // 只有 create_canvas_nodes 走 elicitation-first 方案确认；其余 operation 走下面原样 invoke。
         if (
-          tool.name === 'nomi_canvas_edit'
+          tool.method === CANVAS_WRITE_CAPABILITY.id
           && clientSupportsElicitation
           && transport.isAppOpen()
           && built.operation === 'create_canvas_nodes'
