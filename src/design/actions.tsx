@@ -19,9 +19,19 @@ export const IconActionButton = forwardRef<HTMLButtonElement, IconActionButtonPr
     'tc-icon-action-button',
     'inline-flex items-center justify-center',
     'size-8 rounded-workbench-control',
-    'text-workbench-muted',
+    // 背景必须自己声明(哪怕就是透明)——Mantine 的 ActionIcon 基础样式给 :disabled/[data-disabled]
+    // 铺了一块实色底(亮 gray-1 / 暗 dark-6),我们不写 bg-* 时那块灰底就是唯一生效的背景规则,
+    // 禁用态反而比旁边可点的那颗更抢眼、读起来像「选中/悬停」而不是「点不了」(违背 §1.6 C1)。
+    // 写成基类而不是 disabled: 变体:tailwind-merge 会让调用点自己的 bg-* 整体接管(如详情弹窗
+    // 关闭钮的 bg-nomi-paper/95),而 disabled: 变体特异性更高会把调用点的底色一起吃掉。
+    'bg-transparent text-workbench-muted',
     'transition-[background,color] duration-150 ease-out',
-    'hover:bg-workbench-hover hover:text-workbench-ink',
+    // 禁用的 <button> 在 CSS 里照样匹配 :hover,所以 hover 反馈必须显式排除禁用态,否则鼠标
+    // 移上去又铺一块底、字也提亮,同样在说「我可以点」。底色用基类的 disabled:hover:
+    // (特异性 0,3,0)压住调用点自己的 hover:bg-*(0,2,0),各处不必重复写一遍;文字色只用
+    // enabled: 收住本组件这一条,不去盖调用点自己的 hover:text-*(那是调用点的取舍)。
+    'hover:bg-workbench-hover enabled:hover:text-workbench-ink',
+    'disabled:hover:bg-transparent',
     'disabled:opacity-40 disabled:cursor-not-allowed',
     className,
   )
