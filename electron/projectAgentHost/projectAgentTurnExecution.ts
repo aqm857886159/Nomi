@@ -23,6 +23,7 @@ import { projectAgentWorkModeDecision } from "./projectAgentExecutionPolicy";
 import { DOCUMENT_READ_CAPABILITY } from "../shared/agentCapabilities/documentRead";
 import { CANVAS_DELETE_CAPABILITY } from "../shared/agentCapabilities/canvasDelete";
 import { CANVAS_WRITE_CAPABILITY } from "../shared/agentCapabilities/canvasWrite";
+import { isRendererOwnedStoryboardProposal } from "../shared/agentCapabilities/canvasWrite";
 import { TIMELINE_READ_CAPABILITY } from "../shared/agentCapabilities/timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "../shared/agentCapabilities/timelineWrite";
 import { ASSET_READ_CAPABILITY } from "../shared/agentCapabilities/assetRead";
@@ -181,18 +182,9 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
           };
         }
         const isCanvasMutation = canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id || canonicalCapability?.id === CANVAS_DELETE_CAPABILITY.id || ["nomi_canvas_plan", "nomi_canvas_edit", "nomi_canvas_maintenance"].includes(call.toolName);
-        const canvasOperation = call.args && typeof call.args === "object" && !Array.isArray(call.args)
-          ? (call.args as Record<string, unknown>).operation
-          : undefined;
         const isRendererHandledStoryboardProposal =
           (canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id || call.toolName === "nomi_canvas_plan")
-          && (
-            call.toolName === "propose_storyboard_plan"
-            || (
-              call.toolName === "nomi_canvas_plan"
-              && (canvasOperation === "propose_storyboard_plan" || canvasOperation === "patch_shots")
-            )
-          );
+          && isRendererOwnedStoryboardProposal(call.toolName, call.args);
         if (isCanvasMutation && execution.blockedCanvasWriteDecision) {
           return execution.blockedCanvasWriteDecision;
         }

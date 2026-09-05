@@ -39,6 +39,7 @@ import {
   turnIsInterruptible,
   stableJson,
 } from "./projectAgentExecutionHelpers";
+import { isRendererOwnedStoryboardProposal } from "../shared/agentCapabilities/canvasWrite";
 import { projectAgentWorkModeOf } from "../shared/projectAgentContracts";
 import { projectAgentExecutionRisk, projectAgentMayReuseSafeApproval, projectAgentWorkModeDecision } from "./projectAgentExecutionPolicy";
 import {
@@ -393,8 +394,19 @@ export function createProjectAgentExecutionCoordinator(
     const approvalId = verified?.approvalId
       ?? decision.proposalId?.trim()
       ?? `approval-${digest([execution.turn.executionToken, call.toolCallId])}`;
-    const target = verified?.target ?? execution.queueItem.target;
-    const preconditions = verified?.preconditions ?? execution.queueItem.preconditions;
+    // Renderer-owned storyboard writes are prepared through the canvas
+    // adapter even when the Agent turn was queued from the creation
+    // document.  The verified invocation target is needed by the adapter,
+    // but the Host proposal ledger must remain anchored to its queue item;
+    // otherwise proposal.put rejects the cross-surface target as an invalid
+    // transition before the renderer can persist the storyboard plan.
+    const rendererOwnedStoryboard = isRendererOwnedStoryboardProposal(call.toolName, call.args);
+    const target = rendererOwnedStoryboard
+      ? execution.queueItem.target
+      : verified?.target ?? execution.queueItem.target;
+    const preconditions = rendererOwnedStoryboard
+      ? execution.queueItem.preconditions
+      : verified?.preconditions ?? execution.queueItem.preconditions;
     const fallbackActionHash = digest({
       toolName: call.toolName,
       args: call.args,
