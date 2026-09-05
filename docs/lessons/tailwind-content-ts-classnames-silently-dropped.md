@@ -72,4 +72,7 @@ R28 口径：**能让构建拦住的，别留给门岗；能让门岗拦住的�
 - 盘点方法：`node scripts/build-tailwind.mjs` 前后各存一份 `.tmp/tailwind.generated.css`，`comm` 比选择器集合（零删除、16 新增），再把新增类逐条 `grep` 回 `.ts` 源。
 - 4 处表现用 headless Chromium 加载**真实的前/后 CSS**、挂**源码里原样的类串**测 `getBoundingClientRect` 与计算色得到，不是推理。
 - 现场首次暴露：PR #517（`residentItemClassName` 搬家 → 用户气泡 `ml-auto` / `max-w-[86%]` 消失）。
+  #517 合入后已在本分支收尾：两处「不能搬」的注释改成新结论，`residentItemClassName` 搬回
+  `resident/residentShellDisplay.ts`，并把 `max-w-[86%]` 收进哨兵——现在它在全仓 `.tsx` 里零出现，
+  而 `.max-w-\[86\%\] { max-width: 86% }` 确实在生成的 CSS 里。整条链路真通了。
 - `check:design-lab` 46 格视觉基线全绿、零格变化——4 处都不在 Agent 面板里，符合预期。

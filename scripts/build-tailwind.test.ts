@@ -34,6 +34,8 @@ const SENTINELS = [
   { source: 'bg-nomi-paper/[0.32]', selector: '.bg-nomi-paper\\/\\[0\\.32\\]' },
   // src/ui/browser/popover/browserAssetPopoverConstants.ts —— 浮窗上/下边 resize 手柄的右锚
   { source: 'right-5', selector: '.right-5' },
+  // src/workbench/ai/resident/residentShellDisplay.ts —— 最早暴露这个坑的那条：用户气泡的宽度上限
+  { source: 'max-w-[86%]', selector: '.max-w-\\[86\\%\\]' },
 ] as const
 
 function collectSources(dir: string, out: { tsx: string[]; ts: string[] }): void {
