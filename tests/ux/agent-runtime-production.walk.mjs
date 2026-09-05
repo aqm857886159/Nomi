@@ -85,9 +85,10 @@ try {
   // the brief text before the popover action becomes enabled.
   const document = win.locator(DOCUMENT)
   await document.click()
-  await document.press(process.platform === 'Darwin' ? 'Meta+A' : 'Control+A')
-  await expect(win.getByRole('button', { name: /分镜/ }).last()).toBeEnabled()
-  await clickOrFail(win.getByRole('button', { name: /分镜/ }).last(), '在创作区就地拆镜头')
+  await document.selectText()
+  const selectionStoryboardButton = win.locator('.workbench-selection-popover').getByRole('button', { name: '拆成镜头', exact: true })
+  await expect(selectionStoryboardButton).toBeEnabled()
+  await clickOrFail(selectionStoryboardButton, '在创作区就地拆镜头')
   const plannerWire = await recorded(planner.received, 'inline planner request')
   expect(toolNames(plannerWire.body)).toEqual(['propose_storyboard_plan', 'read_canvas_state'])
   expect(plannerWire.body.messages.some((message) => message.role === 'user'
