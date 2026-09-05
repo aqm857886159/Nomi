@@ -13,6 +13,10 @@ function readSource(file: string): string {
 const resident = readSource(
   path.join(process.cwd(), 'src/workbench/ai/ProjectAgentResidentShell.tsx'),
 )
+const residentMenus = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/ResidentMenus.tsx'),
+)
+const residentUi = `${resident}\n${residentMenus}`
 const residentPrimitives = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/ResidentUiPrimitives.tsx'),
 )
@@ -139,15 +143,15 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).not.toContain('IconSparkles')
     expect(resident).not.toContain('IconNotes')
     expect(resident).not.toContain('IconStack2')
-    expect(resident).toContain('motion-safe:hover:-translate-y-px')
+    expect(residentUi).toContain('motion-safe:hover:-translate-y-px')
     expect(resident).not.toContain("t('agentResident.addToRound')")
     expect(resident).not.toContain("t('agentResident.promptMenuHint')")
     expect(resident).not.toContain("t('agentResident.modeMenuHint')")
     expect(resident).not.toContain('data-agent-action="approve-plan"')
     expect(resident).toContain('title={t(\'agentResident.attachTitle\')}')
     expect(resident).toContain('aria-haspopup="menu"')
-    expect(resident).toContain('BodyPortal')
-    expect(resident).toContain('anchorRef')
+    expect(residentUi).toContain('BodyPortal')
+    expect(residentUi).toContain('anchorRef')
     expect(resident).toContain('data-agent-resident-collapsed="true"')
     expect(resident).toContain('rounded-pill border border-nomi-line')
     expect(resident).not.toContain('CreationPromptPicker')
