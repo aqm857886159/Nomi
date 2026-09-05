@@ -26,6 +26,7 @@ import type { AutomationPolicySettings } from '../../../electron/settings/automa
 import type { ProductionPolicyRequirement } from '../production/productionPolicyRecovery'
 import { hasSettingsUnsavedChanges } from './settingsUnsavedChanges'
 import { TelemetrySection } from './TelemetrySection'
+import { DiagnosticsBundleSection } from './DiagnosticsBundleSection'
 
 // ⚠️ 必须懒加载：SettingsDialog 本身是 NomiStudioApp 里**同步 import** 的，而接入面整棵树
 // （OnboardingWizard / 各家 VendorCard / ComfyUI 那套）是个 160KB+ 的独立 chunk。直接 import
@@ -391,7 +392,10 @@ export function SettingsDialog({
                     <ThemeToggleButton className="shrink-0 border-nomi-line bg-nomi-paper" />
                   </div>
                 </div>
+                {/* 「隐私与诊断」是一格两半：TelemetrySection 管「发不发匿名计数」，
+                    DiagnosticsBundleSection 管「出事时怎么把本机证据交出来」。同块相邻，不另起 tab。 */}
                 <TelemetrySection />
+                <DiagnosticsBundleSection />
               </div>
             ) : tab === 'about' ? (
               <AboutSection onClose={() => { void requestClose() }} onReplaySplash={onReplaySplash} />
