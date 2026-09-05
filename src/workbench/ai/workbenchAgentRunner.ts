@@ -83,6 +83,7 @@ export type RunWorkbenchAgentInput = {
   onToolCall?: (event: ToolCallEvent) => void | Promise<void>
   onToolError?: (error: ProjectAgentToolError) => void
   onCancelReady?: (cancel: () => void) => void
+  onEnqueued?: (result: { queueItemId: string; turnId: string; userItemId: string }) => void
   /** Optional exact domain target captured by a surface owner before enqueue. */
   target?: TargetRef
   preconditions?: PreconditionSet
@@ -302,6 +303,7 @@ export async function runWorkbenchAgent(input: RunWorkbenchAgentInput): Promise<
       ...(input.approvalPolicy ? { approvalPolicy: input.approvalPolicy } : {}),
       ...turnTarget(input),
     })
+    input.onEnqueued?.(enqueued)
     input.onCancelReady?.(() => {
       for (const tool of tools.values()) tool.pending = false
       void stopProjectAgentTurn(turnId).catch(() => undefined)

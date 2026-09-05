@@ -5,7 +5,7 @@ import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import path from 'node:path'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, chooseAssistantModel, chooseCreationMode, createRuntimeWalk, enableAgentHostThroughSettings, hasToolResult,
+  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, chooseAssistantModel, createRuntimeWalk, enableAgentHostThroughSettings, hasToolResult,
   newConversation, openCanvas, readCurrentProjectAgentHostSnapshot, readCurrentProjectAgentToolEvidence, readProject,
   recorded, requireCurrentPersistedWorkbenchDocument,
   selectConversationAt, sendCanvas, sendCreation, toolNames,
@@ -64,7 +64,6 @@ try {
   await expect(document).toHaveText(ORIGINAL)
   await expect.poll(async () => JSON.stringify(requireCurrentPersistedWorkbenchDocument(await readProject(win, projectId))),
     { message: 'Human typing must reach the real saved project', timeout: 30_000 }).toContain(ORIGINAL)
-  await chooseCreationMode(win, 'script')
 
   const appendRequest = walk.fixture.expectText({
     label: 'creation-editor proposes a real append',
