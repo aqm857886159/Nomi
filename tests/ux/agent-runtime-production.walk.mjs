@@ -102,8 +102,9 @@ try {
     message: 'The applied storyboard approval is no longer actionable',
   })
   await recorded(plannerDone.received, 'inline planner result')
-  // v5：方案落成中列摘要卡（完整编辑器只住分镜页），先卡后审。
-  await expect(win.locator('[data-storyboard-card="draft"]')).toBeVisible()
+  // 805096d41 删掉了中列摘要卡：方案现在只落在左侧资源树上，草稿态一行（完整编辑器仍只住分镜页）。
+  // 断言的还是同一件事——方案已成形、状态是草稿、用户没被自动带走。
+  await expect(win.locator('[data-storyboard-row][data-storyboard-status="draft"]')).toBeVisible()
   await expect(win.locator('[data-workspace-mode="creation"]')).toBeVisible()
   await expect.poll(async () => {
     const payload = (await readProject(win, projectId)).payload
@@ -127,7 +128,9 @@ try {
   await walk.snap('inline-plan-awaits-human')
 
   // v5 执行面：没有「确认落画布」——进分镜页，footer「生成未生成的 N 镜」按需 materialize + 批量。
-  await clickOrFail(win.getByRole('button', { name: '打开分镜', exact: true }), '从方案卡进入分镜页')
+  // 进分镜页的入口随摘要卡一起搬到了资源树：点这一行 = setActiveStoryboardId + 切 workspace。
+  await clickOrFail(win.locator('[data-storyboard-row] [data-storyboard-id]').first(), '从资源树进入分镜页')
+  await expect(win.locator('[data-workspace-mode="storyboard"]')).toBeVisible()
   await expect(win.getByRole('textbox', { name: '方案标题', exact: true })).toHaveValue('F镜头')
   const beforeJudge = snapshots(projectRoot, settingsRoot)
   const judge = walk.fixture.expectText({
