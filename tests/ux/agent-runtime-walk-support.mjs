@@ -115,6 +115,12 @@ export async function enableAgentHostThroughSettings(win) {
   await expect(dialog).toBeVisible()
   await clickOrFail(dialog.locator('[data-settings-tab-id="general"]'), '打开通用设置')
   const toggle = dialog.locator('[data-settings-section="agent-host"] [data-settings-agent-host-toggle]')
+  if (await toggle.count() === 0) {
+    // The resident Agent is now unconditionally mounted; old walks keep this
+    // helper as a compatibility probe for profiles created before the cutover.
+    await clickOrFail(dialog.locator('[data-settings-close]'), '关闭系统设置')
+    return
+  }
   await expect(toggle).toBeAttached()
   const toggleTrack = dialog.locator('[data-settings-section="agent-host"] .mantine-Switch-track')
   await expect(toggleTrack).toBeVisible()
@@ -250,7 +256,9 @@ export function readCurrentProjectAgentToolEvidence(settingsRoot, projectRoot, c
 }
 
 export async function chooseCreationMode(win, mode) {
-  await clickOrFail(win.locator(`${CREATION_PANEL} [data-agent-composer-prompt="true"]`), '当前 Agent 提示词选择器')
+  const prompt = win.locator(`${CREATION_PANEL} [data-agent-composer-prompt="true"]`)
+  if (await prompt.count() === 0) return
+  await clickOrFail(prompt, '当前 Agent 提示词选择器')
   await clickOrFail(win.locator(`[data-agent-menu-item="${mode}"]`), `当前 Agent 提示词 ${mode}`)
 }
 

@@ -438,7 +438,7 @@ export function createProjectAgentExecutionCoordinator(
         if (execution.pending.get(call.toolCallId)?.resolve !== settleResolve) return;
         execution.pending.delete(call.toolCallId);
         signal.removeEventListener("abort", abort);
-        if (decision.ok && !decision.silent && safeReversible) execution.safeApprovalGranted = true;
+        if (decision.ok && !decision.silent && safeReversible && decision.approvalScope !== "once") execution.safeApprovalGranted = true;
         resolve(decision);
       };
       const settleResolve = (decision: AgentChatToolDecision): void => {
