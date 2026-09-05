@@ -1,0 +1,343 @@
+URL: https://www.capcut.com/help
+Accessed: 2026-09-05
+
+CapCut Help Center | FAQs, Tutorials & Troubleshooting
+Products
+CapCut Desktop
+Powerful editing tool
+CapCut Online
+Online video editor
+CapCut Pad
+Edit anywhere, anytime
+CapCut Mobile
+Unlimited templates
+Dreamina AI
+Image & video maker
+Pippit AI
+Smart creative agent
+Hypic
+AI photo editor
+Features
+AI creation
+AI Design
+Video Studio
+AI video generator
+AI image generator
+AI image enhancer
+Dreamina Seedance 2.5
+Nano Banana Pro
+Gemini Omni
+Text & Audio
+Auto captions
+Caption templates
+Speech recognition
+Text to speech
+Custom voices
+Enhance voice
+Reduce noise
+Image
+Remove image BG
+Image merge
+Image Enhancer
+Resize Image
+Online Photo Editor
+Meme Generator
+AI Text Remover
+AI People Remover
+AI Inpainting
+Face Cutout
+Video
+Remove video BG
+Enhance quality
+Video Editor
+Trim Video
+Add Subtitles To Video
+Video Converter
+Seedream 5.0
+Blog
+Features
+AI tools
+Video editor & generator
+Image editor & generator
+Voice generator & editor
+More
+Use cases
+Social media
+Marketing
+Lifestyle & Vlogs
+Custom design
+More
+Resources
+How-to guides
+Market Trends
+Top Picks
+Template trends & tips
+More
+Templates
+Social media templates
+Holiday templates
+More
+Calendar templates
+Anniversary templates
+Effects templates
+Business templates
+Industry templates
+Recap templates
+Discover
+About
+Community
+Initiatives
+Affiliates
+Pioneer Program
+Creative Partner Program
+CapCut Creative Campus
+Help
+Trust Center
+Help Center
+Newsroom
+About CapCut's Terms of Service
+Dreamina Seedance 2.0 Launch
+Try online
+Download
+Home
+Help Center
+CapCut Help & Support
+Find FAQs, video tutorials, and troubleshooting articles. Learn how to make the most of every CapCut feature with ease.
+How Can I Log In to CapCut?
+Logging in to CapCut is simple and can be done on mobile, PC, or web. Follow the steps below to access your account, whether you are a new user or already have an account.
+Dec 23, 2025 · 4 min
+Read now
+Help Center
+View all
+What Should I Do If Template Search Doesn't Show Any Content?
+Template search is available on CapCut Mobile and CapCut Web, but not on Desktop (which only shows a limited set of built-in templates without a search function). If you're using Mobile or Web and your template search returns no results, please follow the steps below based on your platform.
+Jan 21, 2026 · 3 min
+Why Does a Downloaded Template Only Show One Image/Frame? (CapCut PC)
+This issue only occurs on CapCut Desktop (PC) and is not observed on Mobile or Web. Below is a clear, step-by-step explanation of why this happens and what it means.
+Jan 21, 2026 · 3 min
+How Do I Export a Premiere Pro Project to CapCut?
+Currently, CapCut does not support direct importing or exporting of project files from third-party editing software, including Adobe Premiere Pro.
+Jan 21, 2026 · 2 min
+How Do I Export a Part or Clip of a Video in CapCut?
+If you only need to export a specific section of your video instead of the entire timeline, you can use In and Out markers to define the exact range you want to export.
+Jan 21, 2026 · 1 min
+What Should I Do If I Can't Display My Text (Editorial Content)?
+If your text does not appear in the preview after you've edited it and selected the text track, it may be hidden, transparent, too small, or covered by other layers. You can usually restore it by adjusting a few settings.
+Jan 21, 2026 · 2 min
+Account Setting
+View all
+Is CapCut Appropriate for Kids?
+Learn whether CapCut is appropriate for kids and teens, including age guidance, privacy tips, AI safety, sharing risks, and parent supervision advice.
+Sep 1, 2026 · 9 min
+Is CapCut Safe to Use?
+Wondering if CapCut is safe to use? Learn how to download CapCut safely, protect your privacy, use AI features responsibly, and manage your account and content settings.
+Sep 1, 2026 · 9 min
+How Do I Make My Account Private?
+As of January 2026, CapCut does not offer a "private account" feature on any platform—including Web, Desktop (Windows/macOS), and Mobile (iOS/Android).
+Jan 13, 2026 · 3 min
+How to Change My Profile Picture in CapCut PC?
+As of January 2026, neither CapCut Web or CapCut Desktop (PC/Mac) supports changing your profile picture. This functionality is exclusively available on the CapCut Mobile App.
+Jan 13, 2026 · 2 min
+When the "Age Restriction" Appeal Deadline Expires: How to Get a Refund?
+The refund process depends on where and how you made your purchase.
+Jan 13, 2026 · 2 min
+How to Change My Avatar and Nickname in CapCut?
+You can update your avatar and nickname in CapCut to personalize how your profile appears.
+Jan 12, 2026 · 1 min
+User Interface and Settings
+View all
+Why Did Feature Locations or the UI Change After I Updated CapCut?
+CapCut regularly releases updates across all platforms—mobile, desktop, and web—to improve performance, introduce new features, and enhance the overall user experience.
+Jan 7, 2026 · 2 min
+Why Can't I Find CapCut for iPad in The U.S?
+We're excited to let you know that the dedicated iPad app is currently in Beta development.
+Jan 6, 2026 · 1 min
+Why Can't I Precisely Select Certain Functions on an iPad?
+This is a known usability challenge when using CapCut on iPad, and it's primarily due to how the app is currently optimized (or not fully optimized) for tablet touch interaction.
+Jan 6, 2026 · 3 min
+Will the CapCut App Be Taken Offline and Replaced by CapCut for iPad?
+The CapCut mobile app will not be taken offline or replaced by CapCut for iPad. Both versions are actively supported and designed for different editing needs and use cases.
+Dec 30, 2025 · 2 min
+What The Videos I Can See on Other CapCut Users' Profile?
+The Videos you see on the Template tab or on some users' profile pages are templates created by CapCut creators. These are not finished videos, but reusable designs that help you create your own videos quickly and easily.
+Dec 25, 2025 · 1 min
+What is The Feature Difference Between CapCut App and CapCut for iPad?
+CapCut offers tailored editing experiences across devices. While both the CapCut mobile app and CapCut for iPad support powerful video creation, CapCut for iPad is designed for more advanced and complex editing workflows.
+Dec 25, 2025 · 2 min
+Templates & Trends
+View all
+Which CapCut Templates Are Trending on TikTok Right Now?
+If you're trying to go viral, using CapCut trend templates for TikTok is one of the fastest ways to match current content styles.
+Mar 30, 2026 · 2 min
+What Are the Most Popular CapCut Templates for Instagram Reels?
+If you're creating short-form content, using popular CapCut Templates for Reels is one of the fastest ways to go viral.
+Mar 30, 2026 · 2 min
+Which CapCut Transitions Are Trending in 2026?
+In CapCut, transitions are no longer just simple cuts—they're now synced with music, enhanced by AI, and designed to grab attention within seconds.
+Mar 30, 2026 · 3 min
+Where Can I Find the Newest CapCut Templates for 2026?
+If you're looking for CapCut's new templates for 2026, there are several official and reliable places where you can discover the latest trending designs in CapCut.
+Mar 30, 2026 · 2 min
+What Are the Latest CapCut Editing Trends in 2026?
+Video editing styles evolve fast, and 2026 CapCut trends are heavily influenced by short-form platforms like TikTok and Instagram Reels.
+Mar 30, 2026 · 3 min
+How Can I Remove the Watermark When Exporting a CapCut Template Video?
+In most cases, the watermark comes from a default ending clip or built-in template element—not from the export itself.
+Mar 25, 2026 · 2 min
+AI Features
+View all
+Is CapCut AI Safe to Use?
+Learn whether CapCut AI is safe to use, how to use AI editing tools responsibly, what to know about privacy, and how to protect your videos, images, and personal information.
+Aug 14, 2026 · 9 min
+How to Add Voiceover and Captions to Your Ad Videos with AI
+Add AI voiceover and captions to your ad videos in CapCut. Write and verify the script, generate the voice, auto-caption, then proofread before you export.
+Aug 13, 2026 · 4 min
+Why Is the Final Effect of My Design Not as Expected?
+CapCut is continuously improving its AI and creative features to better support different styles, formats, and creative needs.
+Jan 15, 2026 · 3 min
+Why Am I Seeing Garbled Text When I Use AI Design?
+"Garbled text" (e.g., random symbols like "#@!%", distorted characters, or unreadable glyphs) in AI-generated images typically occurs when the AI model attempts to simulate text-like shapes without understanding real language, or when non-Latin scripts are misrendered due to font or encoding limitations.
+Jan 12, 2026 · 3 min
+Why Did the People or Objects in My Generated Image Change Unexpectedly?
+When using AI image generation in CapCut, you may notice that people, objects, colors, poses, or scene elements differ significantly between generations—even with the same prompt.
+Jan 12, 2026 · 4 min
+Why Does My Project Feel Like It Lacks Creativity or Good Design?
+When using AI-powered design tools in CapCut, you might sometimes feel your output looks generic, uninspired, or visually unbalanced—even when following prompts carefully. This isn't a flaw in the tool, but often stems from how prompts are framed, the level of creative guidance provided, or the inherent limitations of current generative models.
+Jan 12, 2026 · 3 min
+Editing & Exporting
+View all
+How Do I Make a Photo Background White with CapCut?
+Learn how to make a photo background white with CapCut. Remove the original background, add a solid white color, refine the edges, and export your image.
+Jul 24, 2026 · 2 min
+Why Can't I Use Auto Cut?
+"Auto Cut" is an AI-powered editing feature in CapCut that automatically trims and syncs your clips to music beats, speech pauses, or text prompts.
+Jul 3, 2026 · 4 min
+Why Is My Video Not Showing in CapCut?
+If your clip doesn't appear in the preview or timeline, you may be facing the CapCut not showing video issue.
+Mar 25, 2026 · 2 min
+Why Are Templates Not Appearing in CapCut?
+Templates are a popular feature, but they may be missing due to region restrictions, app versions, or navigation confusion.
+Mar 25, 2026 · 2 min
+Why Does My CapCut Template Play in Slow Motion?
+This usually happens when playback or rendering settings don't match the original template design, or when your device struggles to process effects in real time.
+Mar 24, 2026 · 2 min
+Why Can't I See Transitions in CapCut?
+If you're trying to enhance your edits but notice CapCut transitions not showing, the issue is usually related to timeline setup, clip placement, or feature visibility.
+Mar 24, 2026 · 3 min
+Download & Install
+View all
+How Do I Return to an Older Version of CapCut on PC?
+Due to continuous software iterations, older versions may contain known defects or security vulnerabilities and may not be compatible with new features. To ensure you have the best user experience and optimal security, we strongly recommend using the latest version of CapCut.
+Jan 6, 2026 · 1 min
+Why Am I Being Forced to Update CapCut on PC?
+Regular updates are essential to ensure CapCut operates securely and efficiently. By keeping your app up to date, you gain access to the latest features, improvements in performance, and important security enhancements that protect your projects and data.
+Dec 25, 2025 · 3 min
+Where Can I Find My Current Version?
+You can easily check your current CapCut version on both desktop and mobile devices. Follow the steps below based on the platform you're using.
+Dec 25, 2025 · 2 min
+Why Should I Update to a New Version of CapCut?
+Keeping CapCut up to date ensures you get the best possible editing experience. New versions are designed to be faster, more stable, and packed with powerful features to help you create high-quality videos more easily.
+Dec 24, 2025 · 2 min
+How Do I Get the Latest Version of the CapCut App?
+To access the newest features, improvements, and bug fixes, make sure you're using the latest version of the CapCut app. Follow the steps below to check for updates on your device.
+Dec 24, 2025 · 1 min
+How Can I Update CapCut to The Latest Version on PC?
+Keeping CapCut Desktop up to date ensures you have access to the latest features, performance improvements, and bug fixes. You can easily check for updates directly within the app by following the steps below.
+Dec 24, 2025 · 1 min
+Payment & Billing
+View all
+Why is the Price Lower on My Other Account?
+The price differences you noticed in CapCut are due to limited-time promotional campaigns that are currently being tested and optimized for selected users, which means not all accounts may see the same pricing.
+Apr 8, 2026 · 2 min
+Why In-App Price Inconsistency with Payment Price?
+The difference between the Pro price displayed in CapCut and the final payment amount you see at checkout can happen for a few common reasons.
+Apr 8, 2026 · 2 min
+Why the Adjusted Price Became Expensive?
+In CapCut, upgrading to CapCut Pro unlocks a wide range of advanced features designed to enhance your editing experience.
+Apr 8, 2026 · 2 min
+What Is the Price After the Adjustment?
+After the recent pricing update in CapCut, the final subscription price will be shown on the payment page, as it may vary depending on your region, platform, and applicable taxes.
+Apr 8, 2026 · 2 min
+What Happens If I Forget to Cancel My Subscription?
+CapCut subscriptions, including CapCut Pro and CapCut Teams, are set to auto-renewal. If you forget to cancel your subscription at least 24 hours before the renewal date, your account will be charged, and a new billing cycle will begin.
+Mar 25, 2026 · 2 min
+How Should I Address Credit or Debit Card Errors?
+If you encounter payment issues while using a credit or debit card for CapCut subscriptions or in-app purchases, it is usually related to card settings, banking policies, or account configurations.
+Mar 25, 2026 · 2 min
+Creator Level & Incentives
+CapCut Pro Plans
+Can I Use CapCut Subscription Across Different Platforms?
+CapCut offers different levels of cross-platform support based on whether you are using Pro or Standard.
+Aug 13, 2026 · 2 min
+Can I Access Diamond-Icon Items with the Standard Plan?
+If you've subscribed to the Standard plan in CapCut, you may be wondering what content is included when you see different diamond icons in the app.
+Apr 8, 2026 · 2 min
+Why is the Standard Subscription Not Applicable to CapCut App and PC?
+If you've found that your Standard subscription doesn't work across both mobile and PC in CapCut, this is due to recent updates in the membership structure.
+Apr 8, 2026 · 2 min
+Will the Price Increase When Renewing CapCut Pro?
+If you're an existing subscriber of CapCut, you may be wondering whether your subscription price will go up in the future.
+Apr 8, 2026 · 2 min
+What Is the Price of CapCut for New Subscribers?
+If you're a new subscriber wondering about the updated pricing in CapCut, it's part of a newly upgraded membership plan designed to better support different types of creators.
+Apr 8, 2026 · 2 min
+How to Switch Back to the Old Version of CapCut After Upgrading to Pro?
+If you downgrade to an older version of CapCut after subscribing to a newer Standard or Pro plan, you may notice that your membership benefits no longer appear as expected.
+Apr 8, 2026 · 2 min
+Products
+CapCut Desktop
+CapCut Online
+CapCut Pad
+CapCut Mobile
+AI Features
+AI image generator
+AI video generator
+AI dialogue scene
+AI Design
+AI Voice Generator
+Auto Caption Generator
+AI Art Generator
+AI Logo Generator
+Dreamina Seedance 2.0
+Nano Banana Pro
+Gemini Omni
+Image & Video
+Remove Background
+Transparent Background
+Image Upscaler
+Meme Maker
+Convert Video To MP4
+Transcribe Video To Text
+Compress Video
+AI Text Remover
+AI People Remover
+AI Inpainting
+Face Cutout
+Discover
+Affiliates
+Pioneer Program
+Creative Partner Program
+CapCut Creative Campus
+Company
+Blog
+Help Center
+Newsroom
+Community
+Trust Center
+About CapCut's Terms of Service
+AI-Powered Video Editor for Everyone
+English
+Terms of Service
+Privacy Policy
+Cookies Policy
+License Agreement
+Creator Terms of Service
+Digital Services Act
+Community Guidelines
+Your Privacy Choices
+Link Products:
+Lark
+CapCut
+Edit smarter, create faster
+Easy to use
+Try online for free

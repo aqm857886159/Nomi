@@ -1,0 +1,266 @@
+URL: https://chatcut.io/docs/ai-panel-overview
+Accessed: 2026-09-05
+
+ChatCut AI Panel Overview
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+ChatCut
+Docs
+Download ChatCut
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+How do I open the AI panel?
+Start from a workflow card
+What can I do in the prompt composer?
+Choose Agent or Video Gen
+Where do results appear?
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Contents
+Contents
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+How do I open the AI panel?
+Start from a workflow card
+What can I do in the prompt composer?
+Choose Agent or Video Gen
+Where do results appear?
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+AI Workspace
+AI Panel Overview
+The
+AI
+panel is where you describe a task, give ChatCut precise project context, approve generation, and follow the agent’s work. It normally appears on the left side of the editor.
+How do I open the AI panel?
+If the panel is hidden, open the
+Workspace
+menu in the top bar and enable
+AI
+. Choose
+Reset to default
+from the same menu if several panels have moved or disappeared.
+The panel has three main regions:
+Conversation:
+your requests, agent replies, progress, questions, and generation confirmations.
+Prompt composer:
+the field at the bottom where you enter the next task and add context.
+Composer controls:
+the mode, settings, attachments, reusable context, Selection Mode, and Send or Stop button.
+Start from a workflow card
+In a new or empty conversation, ChatCut may show workflow cards above the Prompt composer. Select a card to fill the composer with a starter prompt. Review it, add the requested inputs, and then select
+Send
+. Selecting the card alone does not start a task.
+What can I do in the prompt composer?
+The controls below the composer change the current draft:
+Select
+Agent / Video Gen
+to switch how the next request runs.
+Select
+Agent settings
+to change Agent behavior and generation approval preferences.
+Select
+Upload (+)
+to attach a file to this request.
+Select the video model, voice, Design Style, or Skill controls to add that context to the draft.
+Select
+Selection Mode
+to add a precise
+@
+reference from the canvas, Timeline, My Assets, or Transcript.
+Select
+Send
+to submit the draft. While a task can still be cancelled, the button changes to
+Stop
+.
+Adding context does not run the task. Describe the result you want, check the attached context, and then send the request. See
+Prompt Composer
+for the full input flow. Voice and video-model controls are covered under
+Voice Library and Voice Cloning
+and
+Video Generation Models
+.
+Choose Agent or Video Gen
+Select the current mode name in the lower-left of the composer, then choose
+Agent
+or
+Video Gen
+.
+Use
+Agent
+when ChatCut should understand project context, edit the Timeline, or complete several connected steps.
+Use
+Video Gen
+when you want to configure and submit one video-generation job directly.
+Switching modes changes the composer, not the active Timeline. Check the draft again after switching because inputs that do not apply to the new mode may be removed.
+Where do results appear?
+Agent progress and questions appear in the conversation. Imported and generated media appears in
+My Assets
+. Timeline edits appear in the active
+Timeline
+and can be reviewed in the
+Viewer
+. A task can therefore finish with a new asset, a changed timeline, a response in the conversation, or a combination of all three.
+Continue to
+Prompt Composer
+for sending context or
+Selection Mode
+for precise references.
+Next:
+Prompt Composer
+On this page
+How do I open the AI panel?
+Start from a workflow card
+What can I do in the prompt composer?
+Choose Agent or Video Gen
+Where do results appear?
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service

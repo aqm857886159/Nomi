@@ -1,0 +1,221 @@
+URL: https://chatcut.io/docs/generation-confirmations
+Accessed: 2026-09-05
+
+ChatCut Generation Confirmations and Auto-Allow
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+ChatCut
+Docs
+Download ChatCut
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Respond to a confirmation
+Change Auto-Allow later
+If the card disappeared
+Verify the final charge
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Contents
+Contents
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Respond to a confirmation
+Change Auto-Allow later
+If the card disappeared
+Verify the final charge
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+AI Workspace
+Generation Confirmations and Auto-Allow
+ChatCut may pause before Motion Graphics, Video Generation, or Image Generation and show a confirmation card in the AI conversation. Review the proposed action, references, and credit estimate before deciding.
+Respond to a confirmation
+Select
+Allow
+to approve this generation once.
+Select the displayed
+Allow all …
+option to approve later matching generations within the scope written on the card.
+Select
+Deny
+to stop this proposed generation.
+Use the adjustment field when the card offers one and the request should change before it runs.
+The scope is part of the visible label. Current project-scoped options apply only to that project. A Motion Graphics option may be labeled as applying across projects; Agent Settings marks an all-project preference as
+Global
+.
+Approving a generation does not guarantee completion. The feature still checks plan access, inputs, safety rules, and available credits before or during the request.
+Change Auto-Allow later
+To change a saved approval choice, open
+Agent settings → Generation Auto-Allow
+. The Motion Graphics, Video Generation, and Image Generation switches are independent. See
+Agent Settings
+for the setting behavior.
+If the card disappeared
+The card may already have been allowed or denied, cancelled when the task stopped, or expired while waiting. Check the conversation and
+My Assets
+before retrying so you do not submit a duplicate generation.
+If no job started and you still want the generation, send the request again. If the original job is visible in
+My Assets
+, monitor that job instead of creating another one.
+Verify the final charge
+The value shown before generation is an estimate. After the action completes, open
+avatar → Credits history → Detail
+to inspect the individual transaction and resulting balance. Failed or cancelled work should be checked from the same history rather than inferred from the confirmation card.
+For current generation rates and what creates a charge, see
+Generation Credits
+.
+Voice Library / My Voices / Voice Cloning
+On this page
+Respond to a confirmation
+Change Auto-Allow later
+If the card disappeared
+Verify the final charge
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service

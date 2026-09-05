@@ -1,0 +1,228 @@
+URL: https://chatcut.io/docs/selection-mode
+Accessed: 2026-09-05
+
+Selection Mode in ChatCut
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+ChatCut
+Docs
+Download ChatCut
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Turn on Selection Mode
+What can I select?
+Selection Mode versus normal editor selection
+If a reference is stale
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Contents
+Contents
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Turn on Selection Mode
+What can I select?
+Selection Mode versus normal editor selection
+If a reference is stale
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+AI Workspace
+Selection Mode
+Selection Mode turns something you select in the editor into a precise reference in the current Agent draft. Use it when a request such as “change this,” “start here,” or “remove these words” would otherwise be ambiguous.
+Turn on Selection Mode
+Open the
+AI
+panel and keep the composer in
+Agent
+mode.
+Select the pointer button labeled
+Selection Mode
+below the Prompt field. The tooltip also shows the shortcut
+Option-S
+.
+Select the project content you want ChatCut to understand.
+Confirm that a reference chip appears in the Prompt field, then describe the requested change and select
+Send message
+.
+Select the button again to leave Selection Mode. Leaving the mode does not remove reference chips already attached to the draft.
+What can I select?
+Select a clip or other item on the
+Timeline
+.
+Select media in
+My Assets
+.
+Drag a box over a region in the
+Viewer
+.
+Select a point on the Timeline ruler to reference a specific time.
+Select words or a passage in the
+Transcript
+panel.
+The resulting chip records the kind of reference and enough project context for the Agent to resolve it when the message is sent.
+Selection Mode versus normal editor selection
+Normal selection chooses an item for manual editing in the Inspector or Timeline. Selection Mode additionally inserts that selection into the AI draft. Turning it on does not ask the Agent to do anything by itself; the Prompt still needs an instruction.
+If a reference is stale
+Before sending, reselect the content when you have switched Timelines, deleted or replaced a referenced asset, or substantially changed the referenced Transcript passage. If ChatCut says the reference can no longer be resolved, remove that chip, select the current content again, and resend the request.
+For files that are not yet in the project, use
+Prompt Composer → Upload attachments
+. For reusable project media, import it through
+My Assets
+.
+Prompt Composer
+Next:
+Skills / My Skills
+On this page
+Turn on Selection Mode
+What can I select?
+Selection Mode versus normal editor selection
+If a reference is stale
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service

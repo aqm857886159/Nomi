@@ -1,0 +1,290 @@
+URL: https://chatcut.io/docs/editor-overview
+Accessed: 2026-09-05
+
+ChatCut Editor Overview — Layout and Controls
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+ChatCut
+Docs
+Download ChatCut
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+What is in the top bar?
+Change the workspace layout
+How do I use the AI panel?
+Where are my media and transcript?
+What are the Viewer and Timeline for?
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Contents
+Contents
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+What is in the top bar?
+Change the workspace layout
+How do I use the AI panel?
+Where are my media and transcript?
+What are the Viewer and Timeline for?
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Editor and Media
+Editor Layout
+The ChatCut editor is a configurable workspace rather than a fixed set of panels. The default view puts AI and media controls beside the Viewer, with the Timeline below. Use the workspace menu to show, hide, or reset panels.
+What is in the top bar?
+From left to right, the top bar gives you the main project-level actions:
+Select the
+Home
+icon to open the project dashboard.
+Select the project name to rename it if you are the owner.
+Select the share-and-members button beside the name to invite people or manage access.
+Use
+Undo
+and
+Redo
+for recent editing changes.
+Open the
+Workspace
+menu to show or hide
+AI
+,
+My Assets
+,
+Library
+,
+Transcript
+, and
+Timeline
+, or select
+Reset to default
+.
+Open
+Versions
+to save or restore project snapshots.
+Select
+Export
+to open video, audio, graphics, subtitles, and XML export options.
+Open your avatar menu to see the active plan and credits, then access invite, upgrade, language, skin, feedback, shortcuts, credits history, affiliate, and sign-out actions.
+Change the workspace layout
+Open
+Workspace
+, then check or uncheck
+AI
+,
+My Assets
+,
+Library
+,
+Transcript
+, or
+Timeline
+: show or hide that panel without deleting its content.
+Drag a divider between panels: resize the adjacent working areas.
+Select
+Reset to default
+: restore the default panel arrangement and sizes.
+How do I use the AI panel?
+Write a request in the message field and select
+Send
+. Use
++
+to attach local reference files. Use the selection button to add an
+@
+reference by clicking a timeline item or asset, marking a Viewer region, clicking a timeline time, or selecting Transcript text.
+Below the field, switch between
+Agent
+and
+Video Gen
+, or open Skills, Design Style, Voices, the video model selector, and Agent Settings. See
+AI Panel Overview
+for the complete workflow.
+Where are my media and transcript?
+The media panel group contains:
+My Assets
+: uploaded, recorded, and generated project media. Select
+Upload
+for
+Files…
+,
+Folder…
+, or
+From phone…
+. Drag an asset to the Timeline to use it.
+Library
+: built-in effects, transitions, LUTs, and sound effects. The adjacent
+Templates
+tab contains prebuilt editing content; see
+Library
+for both.
+Transcript
+: speech as editable text. Delete or rearrange words to change the corresponding edit.
+Active generation jobs also appear in
+My Assets
+with progress or a failure state.
+What are the Viewer and Timeline for?
+The
+Viewer
+displays the current playhead frame. Playback controls above the Timeline include split, snapping, play/pause, time, zoom, canvas aspect ratio, captions, and fullscreen.
+The
+Timeline
+contains video tracks above audio tracks. Drag clips to move them, drag their edges to trim, and use the track header to control visibility and audio. A project can contain multiple timelines; see
+Timeline
+.
+If a panel is missing, use the actions under “Change the workspace layout” above to restore it.
+Next:
+My Assets / Media Pool
+On this page
+What is in the top bar?
+Change the workspace layout
+How do I use the AI panel?
+Where are my media and transcript?
+What are the Viewer and Timeline for?
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service

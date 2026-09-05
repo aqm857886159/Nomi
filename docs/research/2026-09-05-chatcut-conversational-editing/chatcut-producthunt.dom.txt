@@ -1,0 +1,5 @@
+URL: https://www.producthunt.com/products/chatcut-ai-video-editor
+Accessed: 2026-09-05
+
+Fetch result: page shell returned no readable product body in this non-login/static fetch (16 bytes). Do not treat this file as direct DOM evidence.
+Fallback evidence: WebSearch index excerpt reported ChatCut launches on 2026-04-09, 2026-07-10, and ChatCut Desktop on 2026-08-26; Product Hunt listed 4.5/5 from 2 reviews. These are platform-index/评测转述, not independently verified page DOM.

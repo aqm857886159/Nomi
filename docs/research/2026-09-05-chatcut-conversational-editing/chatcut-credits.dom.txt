@@ -1,0 +1,313 @@
+URL: https://chatcut.io/docs/credits-policy
+Accessed: 2026-09-05
+
+ChatCut Credits Policy and Generation Rates
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+ChatCut
+Docs
+Download ChatCut
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Which actions use ChatCut credits?
+How can I keep Agent conversation usage focused?
+How many credits does video generation use?
+What does not use ChatCut credits?
+What changes when I use a Codex or Claude plugin?
+How do generation confirmations work?
+How do I verify the final charge?
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Contents
+Contents
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Which actions use ChatCut credits?
+How can I keep Agent conversation usage focused?
+How many credits does video generation use?
+What does not use ChatCut credits?
+What changes when I use a Codex or Claude plugin?
+How do generation confirmations work?
+How do I verify the final charge?
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Account, Collaboration, and Billing
+Credits
+ChatCut credits pay for AI processing and media generation. Manual timeline editing, uploads, project browsing, transcription, and exporting do not consume credits. A plan can still limit access to a feature even when you have enough credits.
+Which actions use ChatCut credits?
+Action
+How it is charged
+ChatCut Agent messages in the web or desktop editor
+Variable. The model, input and output tokens, cached context, conversation length, and project context all affect the charge.
+AI video generation
+By generated seconds, model, resolution, and—for Seedance 2.5—eligible video-input usage. See the table below.
+AI image generation
+By model, output quality, resolution, and image count.
+Motion-graphics generation in the built-in Agent
+Variable, based on the AI model usage required to create or revise the graphic.
+AI music
+0.18 credits per generated song at the current backend rate.
+AI sound effects
+0.12 credits per generated second.
+AI voiceover
+Usually 0.28–0.80 credits per 1,000 characters, or 0.08–0.12 credits per generated second, depending on the voice engine.
+The estimate beside the
+Video Gen
+send button updates after you choose the model, resolution, duration, and supported video inputs. Agent-driven video, image, or motion-graphics generation may instead show a confirmation card before the job starts.
+How can I keep Agent conversation usage focused?
+Agent-message charges vary with the context ChatCut must process. To avoid paying for unnecessary back-and-forth:
+Put the goal, required source material, output format, and constraints in one specific request.
+Use attachments or Selection Mode references instead of repeatedly describing which asset, clip, time, screen region, or transcript passage you mean.
+Keep related revisions in the same conversation while the previous context is useful.
+Start a new conversation for an unrelated task when the old discussion is no longer needed. Create a separate project only when the media and Timeline should also be separate.
+These steps reduce unnecessary context; they do not promise a fixed charge. Verify the completed amount in
+Credits history → Detail
+.
+How many credits does video generation use?
+The following rates match the current backend billing rules as of August 23, 2026. A completed job is rounded up to the nearest 0.01 credit, so multiplying a displayed per-second figure can differ by a few hundredths from the final transaction.
+Model and mode
+480p
+720p
+1080p
+Seedance 2.5
+— output only
+about 0.3982/sec
+0.896/sec
+about 2.2175/sec
+Seedance 2.0
+0.28/sec
+0.60/sec
+1.32/sec
+Seedance 2.0 Fast
+0.165/sec
+0.36/sec
+Not available
+Seedance 2.0 mini
+0.056/sec
+0.12/sec
+Not available
+Kling 3.0 Standard
+—
+0.60/sec
+—
+Kling 3.0 Pro
+—
+—
+0.80/sec
+Gemini Omni
+—
+0.40544 per actual generated second
+—
+For
+Seedance 2.5
+, the first row is the output-only rate. Adding a reference or source video adds input usage based on its duration and resolution. The editor includes that input in the preflight estimate; final billing uses the provider-reported usage when it is available.
+For
+Gemini Omni
+, the requested duration is a target. Billing follows the duration actually returned by the model.
+The
+Seedance 2.0 Fast
+and
+mini
+values above are the rates active on the page’s update date. If the estimate in the editor differs from this table, use the editor estimate before submitting and confirm the completed transaction afterward.
+What does not use ChatCut credits?
+Uploading files, organizing the media library, and browsing projects.
+Manual editing such as trimming, moving, styling, and arranging timeline items.
+Transcription and standard caption editing.
+Video, audio, subtitle, and XML export. Export can still be limited by your plan; see
+Web vs Desktop Export
+and
+Export Panel
+.
+What changes when I use a Codex or Claude plugin?
+When Codex, Claude, or another supported local agent controls ChatCut through the plugin or MCP connection, the host agent’s reasoning uses that host’s own subscription or API allowance. ChatCut credits are used only when the workflow calls a ChatCut-hosted generation service, such as video, music, sound effects, or voiceover generation.
+If Codex uses its own image-generation capability, that image generation follows your ChatGPT/Codex allowance instead of creating a ChatCut image-generation charge. Check the confirmation shown by the active tool when a workflow mixes host-provided and ChatCut-provided generation.
+How do generation confirmations work?
+A confirmation card can show
+Allow
+,
+Allow all … in this project
+, and
+Deny
+.
+Allow all
+applies only to that generation category in the current project.
+To turn it off, open
+Agent Settings
+beside the Agent mode control, select
+Generation Auto-Allow
+, and disable Motion Graphics, Video Generation, or Image Generation.
+How do I verify the final charge?
+Open the avatar menu in the top-right of the editor.
+Select
+Credits history
+.
+Open
+Detail
+.
+Read the newest negative transaction and the balance shown after it.
+The transaction list is the source of truth for completed charges. If a generation fails, open its card in
+My Assets
+, then check
+Credits history
+instead of assuming that the estimate was deducted.
+Free and Pro
+Next:
+Credits History
+On this page
+Which actions use ChatCut credits?
+How can I keep Agent conversation usage focused?
+How many credits does video generation use?
+What does not use ChatCut credits?
+What changes when I use a Codex or Claude plugin?
+How do generation confirmations work?
+How do I verify the final charge?
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service

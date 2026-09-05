@@ -1,0 +1,513 @@
+URL: https://chatcut.io/
+Accessed: 2026-09-05
+
+ChatCut · AI Video Editor | Edit Videos with Prompts
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+Menu
+Features
+Resources
+Plugin
+Pricing
+Web App
+EN
+Try Now
+Download
+Your AI Video Editing Assistant
+ChatCut is an AI video editor. Tell it what you want and it figures out how, then it does the work. Use it on desktop, right in your browser, or any agent tools you prefer.
+Download Desktop
+Download for macOS
+Apple Silicon
+Download for macOS
+Intel Chip
+Download for Windows
+Use it in your Agent
+Install it in ChatGPT
+Install it in Claude Code
+Enter the prompt below into any task on your ChatGPT desktop app
+/goal Read chatcut.io/chatgpt to install the ChatCut plugin and set up a new task for me.
+/goal Read chatcut.io/desktop-plugin to install the ChatCut plugin and set up a new task for me.
+Enter the prompt below into any session on your Claude Code desktop app
+/goal Read chatcut.io/claude to install and use the ChatCut plugin
+/goal Read chatcut.io/desktop-plugin to install and use the ChatCut plugin
+Demo Project
+GPT 5.6
+Off
+00:00:00:00 / 00:01:00:00
+Off
+00:00:00
+MG·1
+Graphics
+MG·2
+Graphics
+V2
+Video
+V1
+Video
+A1
+Music
+00:00:00
+00:00:05
+00:00:10
+00:00:15
+✦ Favorite Card Motion Graphic
+✦ Midnights Chapter Overlay
+✦ Taylor Swift Top 5
+✦ Midnights Atmosphere
+✦ YouTube Subscribe CTA
+Standings B-roll
+Open
+Take A
+Take B
+Take C
+Take D
+Take E
+CTA
+Voice-over
+Home
+Code
+New session
+Artifacts
+Routines
+More
+AI motion graphics page redesign
+design system explore
+Codex page redesign
+landing-page-task
+Codex page redesign (fork)
+AI motion graphics page redesign
+landing page text copy
+Landing page editor redesign
+visual collect
+Marketing tools
+figma post test
+design system build
+Recents
+claude code
+ChatCut video editing
+ChatCut plugin setup
+ChatCut project editing walkthrou…
+Feishu feedback bot design review
+Landing page blog updates
+Design workflow review and comp…
+claude code page redesign
+C
+ChatCut
+· Max
+Evening, ChatCut
+IMG_4822.MOV
+Done — I cut it in ChatCut. Opening the timeline for you.
+How can I help you today?
+Fable 5
+Extra
+Project or folder
+Manual
+⚡
+2× more usage
+until August 5
+Active
+Clear active
+Purple route beta
+4 days ago
+C
+ChatCut - AI Video Editor
+app.chatcut.dev/editor/b1d5d023-4df0-414b-8abd-c736939544d5
+MY ASSETS
+LIBRARY
+TRANSCRIPT
+Motion Graphics
+LUTs
+Zoom
+FX
+Favorite
+Popular
+Quote Card
+GDP Chart
+Apple Sales
+Lower Third
+00:00:00:00 / 00:00:19:27
+OFF
+00:00:00
+00:00:05
+00:00:10
+00:00:15
+MG
+Graphics
+Favorite Card
+Midnights Overlay
+Top 5
+V1
+Video 1
+Open
+Take A
+Take B
+Take C
+Take D
+Take E
+CTA
+A1
+Music
+IMG_4822
+IMG_4822
+Music
+Chat
+Work
+What should we do today?
+IMG_4822.MOV
+ChatCut
+Worked for 22m 40s
+Full access
+5.6 Sol
+High
+Choose project
+Plugins
+MY ASSETS
+LIBRARY
+TRANSCRIPT
+Motion Graphics
+LUTs
+Zoom
+FX
+Favorite
+Popular
+Quote Card
+GDP Chart
+Apple Sales
+Lower Third
+00:00:00:00 / 00:00:19:27
+OFF
+00:00:00
+00:00:05
+00:00:10
+00:00:15
+MG
+Graphics
+Favorite Card
+Midnights Overlay
+Top 5
+V1
+Video 1
+Open
+Take A
+Take B
+Take C
+Take D
+Take E
+CTA
+A1
+Music
+IMG_4822
+IMG_4822
+Music
+Here's how you can use ChatCut.
+Desktop
+Claude Code
+Codex
+Edit Like an Expert Editor
+The agent watches your footage, understands what each clip is about, and puts them in an order that actually makes sense. This is prompt-based video editing done properly: the AI video editor finds your highlights, cuts the repeated takes, and builds a real first cut instead of slapping a template on your footage.
+00:00
+00:02
+00:04
+00:06
+00:08
+00:10
+00:12
+V1
+V2
+V3
+Find the highlights and add B-roll to my video.
+Best moments
+Product hook
+Open Editor
+AI Motion Graphics, Generated From a Sentence
+Chapter cards, quick charts, timelines, and emphasis effects that make creator videos easier to follow. Describe the animation in plain English and the AI motion graphics generator builds it straight onto your timeline, no After Effects and no keyframing.
+Editorial set
+MindSpace
+Data overlays
+01
+Chapter page number icon animation
+02
+Bar chart growth animation
+03
+Vertical timeline animation
+04
+Pie chart animation
+05
+Keyword typing animation
+06
+Type emphasis animation
+Creator edit
+Turn this rough creator edit into crisp chapters, charts, and emphasized on-screen moments.
+↗
+Open in ChatCut
+↗
+AI Motion Graphics, Generated From a Sentence
+Chapter cards, quick charts, timelines, and emphasis effects that make creator videos easier to follow. Describe the animation in plain English and the AI motion graphics generator builds it straight onto your timeline, no After Effects and no keyframing.
+Editorial set
+MindSpace
+Data overlays
+Creator edit
+Open in ChatCut
+Transcript
+my-first-video.mp4
+So
+um
+today
+I
+want
+to
+talk
+about
+uh
+how
+to
+actually
+make
+your
+videos
+look
+you know
+really
+professional.
+Um
+the
+first
+thing
+is
+like
+you
+gotta
+have
+good
+lighting.
+Uh
+and
+then
+you know
+the
+editing
+part
+is
+where
+the
+magic
+happens.
+Like
+cutting
+out
+all
+the
+dead
+air
+and
+keeping
+the
+energy
+tight.
+Clean up all the filler words
+Transcribing…
+54 words · 0:43
+Text-Based Editing for Your Talking Head Content
+Edit your video like a doc. Change a word, cut a sentence, or remove filler words from your video in the transcript, and the timeline follows. It is the fastest way to clean up talking head footage without ever scrubbing.
+Try it in ChatCut
+Auto AI Captions, in 100+ Languages
+Auto captions for your video, generated straight from the transcript so they are accurate on the first pass. In ChatCut, pick from 20+ styles in 100+ languages, or create your own and save it as a template for every video after.
+Try it in ChatCut
+Plain
+TikTok Pop
+Submagic
+French Dispatch
+Bubble Pop
+Noir Glass
+Dogme
+Signal Flux
+AI Image Generation, Right Inside Your Edit
+Generate what you cannot film, right inside your project in ChatCut. Grab a frame to make a thumbnail, create a reference image for video generation, or generate the B-roll visuals your edit is missing.
+Generate a cinematic creator portrait for a video editing story.
+AI Video Generation for the Shots You Couldn't Film
+Generate B-roll, establishing shots, or anything you could not capture on set, straight from a prompt. Use a reference image to keep every generated shot consistent with your real footage, then drop it directly into the timeline.
+Reference image
+Prompt
+Turn a comic reference into a short live-action cinematic sequence.
+0:00 / 0:18
+Electronic
+Modern / 120 BPM
+Lo-fi
+Mellow / 85 BPM
+Cinematic
+Orchestral / 90 BPM
+Jazz
+Swinging / 110 BPM
+Ambient
+Atmospheric / 70 BPM
+AI Music Generator for Video, Royalty Free
+Describe the vibe and the AI music generator creates a royalty-free track at exactly the length your video needs. No stock library digging and no trimming a three minute song down to forty seconds.
+Try it in ChatCut
+Monthly
+Annual
+$25
+/month
+Billed monthly
+100 credits / month
+Get started
+✓
+Seedance 2.5
+(up to 263s of video)
+✓
+Seedance 2.0
+(up to 357s of video)
+✓
+Kling 3.0
+(up to 166s of video)
+✓
+GPT Image 2
+(up to 454 images)
+✓
+Nano Banana 2
+(up to 312 images)
+✓
+Motion graphics
+(up to 500 clips)
+✓
+AI music
+(up to 555 songs)
+✓
+Motion graphics transparent export
+✓
+All AI agent editing capabilities
+$45
+$50
+/month
+10% off
+Billed monthly
+200 credits / month
+Get started
+✓
+Seedance 2.5
+(up to 526s of video)
+✓
+Seedance 2.0
+(up to 714s of video)
+✓
+Kling 3.0
+(up to 333s of video)
+✓
+GPT Image 2
+(up to 909 images)
+✓
+Nano Banana 2
+(up to 625 images)
+✓
+Motion graphics
+(up to 1,000 clips)
+✓
+AI music
+(up to 1,111 songs)
+✓
+Motion graphics transparent export
+✓
+All AI agent editing capabilities
+$88
+$100
+/month
+12% off
+Billed monthly
+400 credits / month
+Get started
+✓
+Seedance 2.5
+(up to 1,052s of video)
+✓
+Seedance 2.0
+(up to 1,428s of video)
+✓
+Kling 3.0
+(up to 666s of video)
+✓
+GPT Image 2
+(up to 1,818 images)
+✓
+Nano Banana 2
+(up to 1,250 images)
+✓
+Motion graphics
+(up to 2,000 clips)
+✓
+AI music
+(up to 2,222 songs)
+✓
+Motion graphics transparent export
+✓
+All AI agent editing capabilities
+$160
+$200
+/month
+20% off
+Billed monthly
+800 credits / month
+Get started
+800 credits / month
+800 credits / month
+1,200 credits / month
+2,000 credits / month
+3,000 credits / month
+4,000 credits / month
+5,000 credits / month
+7,500 credits / month
+10,000 credits / month
+✓
+Seedance 2.5
+(up to 2,105s of video)
+✓
+Seedance 2.0
+(up to 2,857s of video)
+✓
+Kling 3.0
+(up to 1,333s of video)
+✓
+GPT Image 2
+(up to 3,636 images)
+✓
+Nano Banana 2
+(up to 2,500 images)
+✓
+Motion graphics
+(up to 4,000 clips)
+✓
+AI music
+(up to 4,444 songs)
+✓
+Motion graphics transparent export
+✓
+All AI agent editing capabilities
+Questions
+What is ChatCut?
+How does conversational editing work?
+Who is ChatCut for?
+How long does it take to get a cut?
+Can I still edit manually?
+What's included in the free plan?
+Need more help?
+team@chatcut.io
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service

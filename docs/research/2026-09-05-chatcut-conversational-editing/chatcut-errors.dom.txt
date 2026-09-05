@@ -1,0 +1,229 @@
+URL: https://chatcut.io/docs/error-messages
+Accessed: 2026-09-05
+
+Troubleshoot ChatCut Errors
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+ChatCut
+Docs
+Download ChatCut
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Where should I look for the error?
+Why is the Send button disabled?
+Why was a reference removed or rejected?
+Why does a feature ask me to upgrade?
+What if I have insufficient credits?
+What if generation fails after it starts?
+When should I contact support?
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Contents
+Contents
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Where should I look for the error?
+Why is the Send button disabled?
+Why was a reference removed or rejected?
+Why does a feature ask me to upgrade?
+What if I have insufficient credits?
+What if generation fails after it starts?
+When should I contact support?
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Troubleshooting and Reference
+Common Errors
+Start with the exact message shown in the editor. ChatCut reports immediate validation near the control you used, longer-running generation failures on the asset card in
+My Assets
+, and account or credit issues in a dialog.
+Where should I look for the error?
+Composer or toast
+: invalid files, missing prompt, unsupported input combinations, and settings that need correction before sending.
+My Assets
+: progress and final status for video, image, music, and other generation jobs. Open the failed card for its message.
+Export panel
+: unsupported export options, browser limitations, and render failures.
+Avatar → Credits history
+: credit balance, transactions, subscription, and payment actions.
+Why is the Send button disabled?
+Hover the button and read its tooltip. Common causes include a missing first frame, a last frame without a first frame, missing source video, missing edit/extension prompt, unsupported audio-only references, or a source outside the allowed duration. Add or replace the requested input.
+Why was a reference removed or rejected?
+Confirm the selected model and input mode. Switching models keeps only compatible media. Remove extra files, convert unsupported formats, shorten an overlong source, or choose a model that accepts that media type. See
+Video Generation Models
+.
+Why does a feature ask me to upgrade?
+The current account does not have access to that feature or capacity. Select
+Upgrade
+in the dialog to review current options. If you already upgraded, refresh the project and reopen the action. If access is still wrong, contact support with the account email and a screenshot of the dialog.
+What if I have insufficient credits?
+Open the avatar menu and select
+Credits history
+to check the balance and recent transactions. Add or renew credits using the options shown there, then submit again. Do not repeatedly retry a request that already has an active job in
+My Assets
+.
+What if generation fails after it starts?
+Read the failed asset card. Provider safety checks, temporary service problems, and output processing errors can happen after submission. Follow the card’s specific instruction: revise the named prompt or reference, retry later, or regenerate. Use the credit transaction shown in
+Credits history
+to verify whether any charge was retained; do not infer billing from the error category alone.
+When should I contact support?
+Contact support after the same valid input fails repeatedly, a completed payment does not update access, a project cannot reopen, or an export fails after retrying with standard settings. Include the account email, project URL, approximate time, exact message, browser or desktop version, and a screenshot. Do not send private payment credentials or unnecessary source media.
+Next:
+Upload, Generation, and Export Failures
+On this page
+Where should I look for the error?
+Why is the Send button disabled?
+Why was a reference removed or rejected?
+Why does a feature ask me to upgrade?
+What if I have insufficient credits?
+What if generation fails after it starts?
+When should I contact support?
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service
