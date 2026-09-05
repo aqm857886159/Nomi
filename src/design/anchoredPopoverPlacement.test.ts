@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveAnchoredPopoverPlacement } from './AnchoredPopover'
+import { resolveAnchoredPopoverPlacement } from './anchoredPopoverPlacement'
 
 // AnchoredPopover 的全部几何都在这一个纯函数里。钉死它，是因为这一族的失败长得不像失败：
 // 浮层放歪了不会抛错、不会消失，只会被裁掉一角或者顶出视口——DOM 断言全绿，人看不见。

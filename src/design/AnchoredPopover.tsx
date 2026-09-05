@@ -1,6 +1,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
+import { resolveAnchoredPopoverPlacement, type AnchoredPopoverAlign } from './anchoredPopoverPlacement'
 
 /**
  * 锚点浮层：Portal 到 body + fixed 贴锚点，**逃出祖先 overflow 的裁切**。全站唯一一套浮层定位机制。
@@ -19,10 +20,6 @@ import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
  * P1：新增浮层一律用它，不要再各写各的 absolute，也不要引第三套定位库。
  */
 
-const MARGIN = 8
-
-export type AnchoredPopoverAlign = 'start' | 'center' | 'end'
-
 export type AnchoredPopoverProps = {
   /** 贴谁。不给就贴「浮层原本在流里的那个位置」（组件会就地留一个 0 尺寸锚点）。 */
   anchorRef?: React.RefObject<HTMLElement | null>
@@ -38,30 +35,6 @@ export type AnchoredPopoverProps = {
 }
 
 type Placement = { top: number; left: number }
-
-export function resolveAnchoredPopoverPlacement(
-  anchor: DOMRect,
-  size: { width: number; height: number },
-  align: AnchoredPopoverAlign,
-  gap: number,
-  viewport: { width: number; height: number },
-): Placement {
-  // 下方放不下就往上翻；上方也放不下就顶到视口上边（宁可盖住锚点，也不许被切）。
-  let top = anchor.bottom + gap
-  if (top + size.height > viewport.height - MARGIN) {
-    top = Math.max(MARGIN, anchor.top - gap - size.height)
-  }
-  top = Math.min(top, Math.max(MARGIN, viewport.height - MARGIN - size.height))
-
-  let left = align === 'center'
-    ? anchor.left + anchor.width / 2 - size.width / 2
-    : align === 'end'
-      ? anchor.right - size.width
-      : anchor.left
-  if (left + size.width > viewport.width - MARGIN) left = viewport.width - MARGIN - size.width
-  left = Math.max(MARGIN, left)
-  return { top, left }
-}
 
 export function AnchoredPopover({
   anchorRef,

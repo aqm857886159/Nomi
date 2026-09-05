@@ -78,6 +78,11 @@ const settingsDialog = readSource(
 const timelineSurface = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/timelineAgentSurface.tsx'),
 )
+// 面名 / 状态名 / 介入槽行 / 出错文案 / 消息样式这一族纯显示换算，2026-09-06 从壳里搬到
+// resident/residentShellDisplay.ts（壳撞上 R12 的 800 行上限）。钉的还是同一条契约，只是换了住处。
+const residentShellDisplay = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/residentShellDisplay.ts'),
+)
 
 describe('ProjectAgentResidentShell production contract', () => {
   it('projects one Host timeline and keeps busy queue actions in the shell', () => {
@@ -241,7 +246,7 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(residentTiming).toContain('residentToolElapsedMs')
     // 2026-09-05：状态→文案从三目链改成整键查表（拼 `agentResident.${key}` 会让死键门岗
     // 对整棵 agentResident 失明）。断言跟着搬到查表项上，钉的还是「declined 有自己的文案」。
-    expect(resident).toContain("declined: 'agentResident.declined'")
+    expect(residentShellDisplay).toContain("declined: 'agentResident.declined'")
     expect(residentPrimitives).toContain('data-agent-proposal-prompt')
     expect(residentPrimitives).toContain('<IconMessage')
     expect(residentGenerationEditor).toContain('ResidentBatchStack')
