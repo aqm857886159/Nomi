@@ -103,7 +103,7 @@ export default function AssetReference({
             const url = typeof raw === 'string' ? raw : ''
             const isOpen = openSlotKey === slot.key
             return (
-              <div key={slot.key} className={cn('relative flex flex-col gap-[4px]')}>
+              <div key={slot.key} data-asset-slot={slot.key} className={cn('relative flex flex-col gap-[4px]')}>
                 {labelSingles ? <span className={cn('text-nomi-ink-60 text-micro leading-none')}>{slot.label}</span> : null}
                 {url
                   ? <AssetTile asset={displayRef(url, slot.accept, slot.label)} onRemove={() => onRemove(slot, 0)} />
@@ -128,7 +128,7 @@ export default function AssetReference({
 
       {/* 数组参考:合并成一排方块 + 一个「+」(样张態①),无标签无 caption */}
       {arraySlots.length > 0 ? (
-        <div className={cn('relative flex flex-col gap-[4px]')}>
+        <div data-asset-slot-group="array" className={cn('relative flex flex-col gap-[4px]')}>
           <div className={cn('flex flex-wrap items-center gap-[8px]')}>
             {arrayTiles.map(({ slot, url, index }) => (
               <AssetTile

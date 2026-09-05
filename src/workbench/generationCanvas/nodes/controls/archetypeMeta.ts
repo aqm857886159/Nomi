@@ -585,6 +585,30 @@ function slotAsArray(slot: { kind: ArchetypeReferenceSlotKind; asArray?: boolean
   return slot.asArray ?? DEFAULT_AS_ARRAY[slot.kind]
 }
 
+/**
+ * 「这个槽是一格还是一袋」的**唯一判据**（P1）：声明的 `asArray` 优先，缺省按 kind 推（DEFAULT_AS_ARRAY）。
+ * 从前分镜行另有一份写死的 `NAMED_FRAME_SLOT_KINDS` 集合与这里并列——两份真相源今天恰好一致、
+ * 明天任一档案写 `asArray` 覆盖就分家。任何「单槽 vs 数组槽」的分叉都必须问这个函数。
+ */
+export function referenceSlotIsArray(slot: { kind: ArchetypeReferenceSlotKind; asArray?: boolean }): boolean {
+  return slotAsArray(slot)
+}
+
+/** 单帧槽收哪种媒体（数组槽由 ARRAY_SLOT_ROUTE 给）。首/尾帧收图、源视频收视频。 */
+const SINGLE_SLOT_ACCEPT: Partial<Record<ArchetypeReferenceSlotKind, 'image' | 'video' | 'audio'>> = {
+  first_frame: 'image',
+  last_frame: 'image',
+  source_video: 'video',
+}
+
+/**
+ * 槽接受哪种媒体的**唯一真相源**（声明里没有这个字段，只能由 kind 推——brief §D1 已核实）。
+ * 「视频槽拒图片、图片槽拒视频」的判据就是它，不许在各消费端各推一遍。
+ */
+export function referenceSlotAccept(kind: ArchetypeReferenceSlotKind): 'image' | 'video' | 'audio' {
+  return ARRAY_SLOT_ROUTE[kind]?.accept ?? SINGLE_SLOT_ACCEPT[kind] ?? 'image'
+}
+
 function volcengineImageContentItem(url: string, role: string): Record<string, unknown> {
   return { type: 'image_url', image_url: { url }, role }
 }

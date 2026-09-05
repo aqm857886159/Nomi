@@ -73,6 +73,17 @@ export type PlanAnchor = {
   params?: Record<string, unknown>
 }
 
+/** 一条参考绑定：url 是发送真相，其余是来源事实（供 tile 显示与「从哪来的」溯源）。 */
+export type PlanReferenceBinding = {
+  url: string
+  /** 素材名（tile 的 caption / 缩略图加载失败时的兜底）。 */
+  name?: string
+  /** 引用某镜结果 / 某张参考卡时的来源节点（结果 hash 变了要能查回去）。 */
+  sourceNodeId?: string
+  /** 引用锚（参考卡）时的锚 id。 */
+  anchorId?: string
+}
+
 export type PlanShot = {
   index: number
   /** Stable story-order identifier. Legacy plans may omit it; the converter derives `shot-${index}`. */
@@ -98,6 +109,15 @@ export type PlanShot = {
   durationSec: number
   /** 这镜用到哪些锚（按 anchor.id 引用）→ 视觉锚连参考边、文本锚拼 prompt。 */
   anchorIds: string[]
+  /**
+   * **按槽的参考绑定**（键 = `ArchetypeReferenceSlotKind`，值 = 有序素材列表）。
+   * 分镜行的具名槽（首帧/尾帧/源视频）与数组槽（图/视频/音频参考）各自独立成桶——`anchorIds`
+   * 是「引用了哪几张参考卡」的无类型关系，表达不了「这张放首帧、那段放参考视频」。
+   * 落画布时经 `referenceSlotStorage` 映射进节点 meta，请求体仍由档案的 `inputKey`/`asArray`
+   * 单源构造（`buildArchetypeInputParams`），**不为任何供应商写分支**。
+   * 切模式**不删**绑定：未被当前 mode 声明的键原样保留（前向兼容 + 切回来还在）。
+   */
+  referenceBindings?: Record<string, PlanReferenceBinding[]>
   /** 可直接生成的提示词（运镜+动作演进，不复述锚的静态描述）。 */
   prompt: string
   /** 片种骨架在 prompt 中的轻量标注；失效/丢失时不影响纯文本。 */

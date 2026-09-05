@@ -41,6 +41,13 @@ const planShotSchema = z.object({
   shotKind: z.enum(['image', 'video']).optional().describe("镜头种类:'image'=图片分镜,'video'=视频分镜。默认 image。"),
   durationSec: z.number(),
   anchorIds: z.array(z.string()),
+  /** 按槽的参考绑定：键 = 槽 kind（未知键原样保留，前向兼容），值 = 有序素材。 */
+  referenceBindings: z.record(z.array(z.object({
+    url: z.string().min(1),
+    name: z.string().optional(),
+    sourceNodeId: z.string().min(1).optional(),
+    anchorId: z.string().min(1).optional(),
+  }))).optional(),
   prompt: z.string(),
   promptSegments: z.array(promptSegmentRangeSchema).optional(),
   modelKey: z.string().optional(),
