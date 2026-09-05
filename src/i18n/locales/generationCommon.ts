@@ -323,7 +323,10 @@ export const zhGenerationCommon = {
   },
   imageToolbar: {
     // 抠图分步进度(按 worker 阶段 key 选一句),让等待有具体的「现在在干嘛」。
+    // download 是首次抠图专有：模型+运行时约 50MB 要下载,只发生一次,之后走本地缓存。
+    // 不说清「只此一次」,用户会以为每次抠图都这么慢。
     matteProgress: {
+      download: '首次抠图，正在下载模型（约 50MB，仅此一次）',
       decode: '读取图片中',
       inference: '识别主体中',
       mask: '生成透明遮罩',
@@ -638,6 +641,14 @@ export const zhGenerationCommon = {
     referencesAria: '参考素材',
     generationMode: '生成方式',
     comfyNoPrompt: '这条工作流无需提示词',
+    // 被这条渠道藏掉的模式：指一条路，而不是让用户以为「这个模型没这功能」。
+    // 模式名用模型自己的真名（mode.vendorTerm）；引号与分隔符都在译文里，不在代码里拼中文标点。
+    narrowedModeName: '「{{mode}}」',
+    narrowedModeSeparator: '',
+    narrowedModeSwitch: '{{vendor}} 上没有{{modes}}—— {{targetVendor}} 上有',
+    narrowedModeSwitchAction: '换到 {{targetVendor}}',
+    narrowedModeGuidanceDismiss: '关闭模式提示',
+    narrowedModeNone: '你接入的这条中转发不出{{modes}}—— 已接入的模型里也没有能做的',
   },
   assetReference: {
     addNamed: '添加{{label}}',
@@ -1916,6 +1927,7 @@ export const enGenerationCommon = {
   },
   imageToolbar: {
     matteProgress: {
+      download: 'First cut-out: downloading the model (~50MB, one time only)',
       decode: 'Reading the image',
       inference: 'Detecting the subject',
       mask: 'Generating the transparency mask',
@@ -2232,6 +2244,13 @@ export const enGenerationCommon = {
     referencesAria: 'Reference assets',
     generationMode: 'Generation mode',
     comfyNoPrompt: 'This workflow takes no prompt',
+    // English quotes the mode names and joins with a comma — punctuation lives in the copy, not the code.
+    narrowedModeName: '“{{mode}}”',
+    narrowedModeSeparator: ', ',
+    narrowedModeSwitch: '{{vendor}} does not offer {{modes}} — {{targetVendor}} does',
+    narrowedModeSwitchAction: 'Switch to {{targetVendor}}',
+    narrowedModeGuidanceDismiss: 'Dismiss mode availability hint',
+    narrowedModeNone: 'The relay you connected cannot send {{modes}} — none of your connected models can either',
   },
   assetReference: {
     addNamed: 'Add {{label}}',

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nomi · 文件与保存 · 跨设备继续编辑样张</title>
+  <style>
+    :root { --bg:#11110f; --paper:#1e1d1a; --paper-2:#25231f; --ink:#f3f0e9; --ink-60:#b6b0a5; --ink-40:#817b72; --line:#38352f; --accent:#c95f3f; --success:#68b18a; --success-soft:#20352b; --focus:#e7a18c; font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink)}
+    .app{height:760px;padding:32px 48px;background:radial-gradient(circle at 15% 8%,#26221d 0,#11110f 32%);}
+    .library-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;opacity:.74}.wordmark{font-size:23px;font-weight:650;letter-spacing:-.02em}.tools{display:flex;gap:20px;color:var(--ink-60);font-size:12px}
+    .toolbar{display:flex;gap:10px;margin-bottom:24px}.ghost-card{width:210px;height:74px;border:1px solid var(--line);border-radius:10px;background:var(--paper);padding:14px;color:var(--ink-60);font-size:12px}.ghost-card.primary{background:#dedbd5;color:#1d1c19}.ghost-card strong{display:block;color:inherit;font-size:13px;margin-bottom:5px}
+    .projects{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;opacity:.47}.project{height:160px;background:var(--paper);border:1px solid var(--line);border-radius:11px;overflow:hidden}.project-img{height:104px;background:linear-gradient(135deg,#6d4d39,#272f31)}.project:nth-child(2n) .project-img{background:linear-gradient(135deg,#4a655f,#272a30)}.project:nth-child(3n) .project-img{background:linear-gradient(135deg,#6d5b44,#37312e)}.project p{margin:10px 11px 0;font-size:12px}.project small{display:block;margin:5px 11px;color:var(--ink-40);font-size:10px}
+    .scrim{position:absolute;inset:0;background:rgb(0 0 0 / 46%)}
+    .modal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:690px;min-height:505px;display:grid;grid-template-columns:176px 1fr;background:var(--paper);border:1px solid #454139;border-radius:14px;box-shadow:0 24px 70px rgb(0 0 0 / 44%);overflow:hidden}
+    .side{padding:18px 10px;background:#24231f;border-right:1px solid var(--line)}.side-title{padding:2px 12px 14px;font-size:12px;color:var(--ink-40)}.nav{display:grid;gap:3px}.nav div{height:31px;display:flex;align-items:center;gap:9px;padding:0 12px;border-radius:7px;color:var(--ink-60);font-size:12px}.nav .active{background:#f0ede7;color:#25231f;font-weight:600}.ico{width:14px;text-align:center;color:inherit;font-size:13px}
+    .content{padding:28px 28px 24px}.content-head{display:flex;justify-content:space-between;align-items:start}.content h1{margin:0 0 24px;font-size:16px;font-weight:620}.close{color:var(--ink-40);font-size:18px}.group{padding:0 0 21px;border-bottom:1px solid var(--line);margin-bottom:20px}.group:last-child{border-bottom:0;margin-bottom:0}.label{font-size:12px;color:var(--ink-60);margin-bottom:8px}.path-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center}.path{height:34px;display:flex;align-items:center;min-width:0;padding:0 10px;background:var(--paper-2);border:1px solid var(--line);border-radius:7px;color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px}.path span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.button{height:34px;padding:0 12px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--ink-60);font:inherit;font-size:12px;white-space:nowrap}.button:hover{border-color:#676157;color:var(--ink)}.button.primary{border-color:var(--accent);background:var(--accent);color:#fff}.hint{margin:8px 0 0;color:var(--ink-40);font-size:11px;line-height:1.55}.status-row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:10px 11px;background:var(--success-soft);border-radius:8px}.status-copy{display:flex;align-items:center;gap:7px;color:var(--success);font-size:12px}.dot{width:7px;height:7px;border-radius:50%;background:var(--success)}.status-row button{border:0;background:transparent;color:var(--success);font:inherit;font-size:11px;cursor:pointer}.subhead{font-size:12px;color:var(--ink-60);margin-bottom:8px}.mini{display:flex;justify-content:space-between;align-items:center;color:var(--ink-40);font-size:11px;line-height:1.6}.mini strong{color:var(--ink-60);font-weight:500}.footer-note{margin-top:14px;color:var(--ink-40);font-size:10px;line-height:1.5}
+    @media(max-width:760px){.app{padding:20px}.modal{width:calc(100% - 24px);grid-template-columns:130px 1fr}.path-row{grid-template-columns:1fr}.button{width:100%}.projects{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="library-head"><div class="wordmark">▣ Nomi 项目库</div><div class="tools">模型　浏览器　设置</div></div>
+    <div class="toolbar"><div class="ghost-card primary"><strong>＋ 新建空白项目</strong>从一段文字或想法开始</div><div class="ghost-card"><strong>⌂ 打开已有文件夹</strong>把素材文件夹变成项目</div><div class="ghost-card"><strong>▷ 重看一遍引导</strong>60 秒预览，从一句话到成片</div></div>
+    <section class="projects"><div class="project"><div class="project-img"></div><p>示例：修好一个小机器人</p><small>16 小时前</small></div><div class="project"><div class="project-img"></div><p>Product Demo</p><small>昨天</small></div><div class="project"><div class="project-img"></div><p>Travel Cut</p><small>3 天前</small></div><div class="project"><div class="project-img"></div><p>未命名项目</p><small>5 天前</small></div><div class="project"><div class="project-img"></div><p>Nomi 宣传片</p><small>8 天前</small></div></section>
+    <div class="scrim"></div>
+    <section class="modal" aria-label="设置：文件与保存">
+      <aside class="side"><div class="side-title">设置</div><nav class="nav"><div class="active"><span class="ico">▣</span>文件与保存</div><div><span class="ico">⌘</span>模型</div><div><span class="ico">♧</span>AI 策略</div><div><span class="ico">♙</span>自动化与权限</div><div><span class="ico">☼</span>通用</div><div><span class="ico">ⓘ</span>关于</div></nav></aside>
+      <div class="content"><div class="content-head"><h1>文件与保存</h1><span class="close">×</span></div>
+        <section class="group"><div class="label">项目文件位置</div><div class="path-row"><div class="path"><span>~/Nutstore/Nomi Projects</span></div><button class="button primary">更改…</button><button class="button">打开文件夹</button></div><p class="hint">新项目会放在这里。请在 VerySync、坚果云或其他同步工具中把此目录设为双向同步。</p><div class="status-row"><div class="status-copy"><span class="dot"></span>路径已设置 · Nomi 不上传文件</div><button>检查目录</button></div></section>
+        <section class="group"><div class="subhead">自动另存生成物</div><div class="mini"><span>完成生成后复制一份到指定目录</span><strong>关闭</strong></div><div class="footer-note">只影响生成物备份；项目本身仍保存在上面的项目目录。</div></section>
+        <section><div class="subhead">关于跨设备继续编辑</div><div class="mini"><span>项目库会在项目卡片上显示同步状态</span><strong>异常时提醒</strong></div><div class="footer-note">同步工具负责传输。Nomi 只在打开项目或回到前台时检查版本和素材是否完整。</div></section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

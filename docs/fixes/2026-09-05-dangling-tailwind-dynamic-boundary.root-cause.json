@@ -1,0 +1,98 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-dangling-tailwind-dynamic-boundary",
+  "problem_type": "悬空 Tailwind 类门岗误报动态模板类名",
+  "symptom": "checker 扫描 `className={`text-nomi-ink-${tone}`}` 时把模板插值前的 `text-nomi-ink-` 截断成静态类，并以 exit 1 阻断检查。",
+  "direct_cause": "findDanglingClasses 的受管类名正则允许 token 捕获在 `$` 插值或连字符前结束，因而把动态类名片段当作完整静态 token。",
+  "class_root": "静态 Tailwind 扫描必须只判断完整静态字面类名；如果 token 结束边界没有排除模板插值和未完成连字符，动态类名会被错误归类为静态悬空类，导致门岗在有效代码上误失败。",
+  "affected_population": [
+    "src/**/*.ts、src/**/*.tsx、src/**/*.css 中使用模板插值构造 nomi-/workbench- Tailwind 类名的代码",
+    "运行 check:dangling-tailwind 的本地开发与 CI gate"
+  ],
+  "scope_paths": [
+    "scripts/check-dangling-tailwind.mjs",
+    "scripts/check-dangling-tailwind.node-test.mjs"
+  ],
+  "entry_points": [
+    "scripts/check-dangling-tailwind.mjs 的 findDanglingClasses 正向静态类名扫描",
+    "src/**/*.ts|tsx|css 中的 Tailwind 类名字面量与模板插值",
+    "package.json 的 check:dangling-tailwind gate"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这是 Nomi 静态 checker 对 Tailwind JIT 扫描边界的内部合同，不涉及第三方运行时行为变更。",
+  "invariants": [
+    "完整静态 nomi-/workbench- token 类名仍必须在 tailwind.config.ts 对应 theme.extend 族中存在。",
+    "模板插值类名不得在插值边界前被截断成静态 token，也不得因此产生伪悬空类。",
+    "未知的完整静态 token 仍必须 fail-closed，不能通过放宽基线或吞掉错误来规避。"
+  ],
+  "generality_proof": "所有受管工具前缀都在同一个 findDanglingClasses 正则和同一个静态扫描循环中处理；在捕获 token 后统一排除 `$` 与 `-`，因此任何文件、工具前缀或 token 族的模板插值都不会被截断，而完整静态未知键仍沿原路径进入 offenders 并以 exit 1 失败。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-dangling-tailwind.mjs",
+      "symbol": "findDanglingClasses",
+      "responsibility": "在正向静态扫描边界识别完整受管 Tailwind 类，跳过动态模板的未完成片段，同时继续报告完整未知 token。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-dangling-tailwind.mjs",
+      "entry_point": "findDanglingClasses 的动态类名边界",
+      "disposition": "enforced",
+      "evidence": "新增 node:test fixture 复现 `text-nomi-ink-${tone}`，并由正则 token 末尾的 `$`/`-` 负向边界阻止截断匹配。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "entry_point": "真实静态 token 类名消费者",
+      "disposition": "not-affected",
+      "evidence": "该文件仅作为现有静态类名消费者被扫描；本修复不改变其类名、配置映射或运行时渲染。"
+    },
+    {
+      "path": "tailwind.config.ts",
+      "entry_point": "theme.extend token 定义",
+      "disposition": "not-affected",
+      "evidence": "本次根因在 checker 的静态匹配边界，不改动 Tailwind token 定义或基线。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "动态类名可在任意组件、任意受管工具前缀和任意 token 族出现；共享正则若继续允许部分匹配，每个新模板类都可能造成同样的错误 gate 失败。",
+    "same_class_scan": [
+      "搜索 scripts/check-dangling-tailwind.mjs、其 node:test fixture 和 tests/ux/dangling-tailwind-tokens.walk.mjs，确认正向扫描只有一个共享匹配边界。",
+      "用 `className={`text-nomi-ink-${tone}`}` 复现修复前的 `text-nomi-ink-` offender，用完整静态 `text-nomi-ink-999` 验证失败路径仍保留。",
+      "用现有 `text`、`bg`、`rounded`、`shadow` 和 `font` 族 fixture 确认完整静态未知类仍被报告，原生 Tailwind 调色板仍不受影响。"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-dangling-tailwind.mjs",
+    "invariant": "只对完整静态受管类名做 token 存在性判断；动态模板片段不被截断，完整未知 token 仍 exit 1。",
+    "failure_mode": "完整未知 token 继续打印文件、行号和类名并 exit 1；动态模板片段不产生伪 offender；不新增例外基线。",
+    "exception_policy": "none",
+    "strategy": "在唯一共享正向扫描边界修正 token 结束条件，并用最小单测固定动态边界与 fail-closed 反例。",
+    "artifacts": [
+      "scripts/check-dangling-tailwind.mjs",
+      "scripts/check-dangling-tailwind.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-dangling-tailwind.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-dangling-tailwind.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本次修复收紧共享正则边界，没有替换或删除旧生产路径。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "修复仅调整仓库内 checker 的正则边界与回归测试，不涉及第三方依赖版本。",
+    "exit_criteria": []
+  },
+  "migration": "无需迁移；现有 baseline、Tailwind 配置和消费者类名保持不变。",
+  "residual_risks": [
+    "该 checker 仍是静态字面扫描，不解析任意 JavaScript 表达式；动态类名本身不会被证明可被 Tailwind JIT 生成，组件应继续使用可枚举的静态类名。",
+    "本次仅验证正向类名误报边界；反向颜色变量棘轮沿用现有 checker 与历史合同。"
+  ]
+}

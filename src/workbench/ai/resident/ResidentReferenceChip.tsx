@@ -10,13 +10,13 @@ import {
 } from '@tabler/icons-react'
 import type { ProjectAgentReference } from '../../workbenchStore'
 import { cn } from '../../../utils/cn'
-import { presentResidentReference } from './residentReferenceDisplay'
+import { isResidentReferenceStale, presentResidentReference } from './residentReferenceDisplay'
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
 function ReferenceIcon({ kind }: { kind: ProjectAgentReference['kind'] }): JSX.Element {
   if (kind === 'document') return <IconFileText size={12} aria-hidden="true" />
-  if (kind === 'canvas') return <IconPhoto size={12} aria-hidden="true" />
+  if (kind === 'canvas' || kind === 'asset') return <IconPhoto size={12} aria-hidden="true" />
   if (kind === 'preview') return <IconVideo size={12} aria-hidden="true" />
   if (kind === 'timeline') return <IconTimelineEvent size={12} aria-hidden="true" />
   if (kind === 'browser') return <IconWorld size={12} aria-hidden="true" />
@@ -37,6 +37,8 @@ export function ResidentReferenceChip({
   const presentation = presentResidentReference(t, reference)
   return <span
     data-agent-reference={reference.id}
+    data-agent-at-token="true"
+    data-stale={isResidentReferenceStale(reference.state) ? 'true' : undefined}
     data-agent-reference-kind={reference.kind}
     data-agent-reference-context-bound={reference.contextHandle ? 'true' : 'false'}
     data-agent-reference-role={presentation.role}

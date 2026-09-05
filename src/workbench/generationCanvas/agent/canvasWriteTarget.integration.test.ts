@@ -6,8 +6,10 @@ import { SurfacePortWireError } from '../../../../electron/shared/surfacePortBin
 import { abandonPendingCanvasWrite } from '../events/canvasWriteBoundary'
 import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { useWorkbenchStore } from '../../workbenchStore'
 import { readGenerationCanvasSnapshot } from './generationCanvasTools'
 import { resetClientIdRegistry } from './applyCanvasToolCall'
+import type { StoryboardPlan } from './storyboardPlan'
 
 const receiptHarness = vi.hoisted(() => ({
   metadata: [] as unknown[],
@@ -216,6 +218,49 @@ describe('canvas.write real renderer execution', () => {
     expect(receiptHarness.metadata).toEqual([
       expect.objectContaining({ hostApprovalId: APPROVAL_ID, hostActionHash: ACTION_HASH }),
     ])
+    expect(receiptHarness.prepares).toEqual([expect.objectContaining({ proposalId: RECEIPT_ID })])
+    expect(receiptHarness.commits).toEqual([expect.objectContaining({ proposalId: RECEIPT_ID })])
+    expect(receiptHarness.aborts).toEqual([])
+  })
+
+  it('executes the real user task through nomi_canvas_plan + patch_shots and commits changed rows', async () => {
+    const plan: StoryboardPlan = {
+      title: '雨夜追凶',
+      anchors: [],
+      shots: [
+        { index: 1, durationSec: 5, anchorIds: [], prompt: '推镜' },
+        { index: 2, durationSec: 8, anchorIds: [], prompt: '跟拍', params: { aspect_ratio: '16:9', quality: 'high' } },
+        { index: 3, durationSec: 5, anchorIds: [], prompt: '远景' },
+      ],
+    }
+    useWorkbenchStore.getState().hydrateWorkbenchDocuments(
+      [{ id: 'storyboard-doc', version: 1, title: '雨夜追凶', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }],
+      'storyboard-doc',
+    )
+    useWorkbenchStore.getState().hydrateStoryboardPlans({ 'storyboard-doc': { plan, committed: false } })
+
+    const input: CanvasWriteInput = {
+      operation: 'patch_shots',
+      select: { kind: 'indexes', indexes: [2] },
+      patch: { promptAppend: '雨天', aspectRatio: '9:16' },
+    }
+    const result = await executeCanvasWriteTarget(buildRequest(input), readGenerationCanvasSnapshot)
+    const persisted = useWorkbenchStore.getState().storyboardPlans['storyboard-doc']?.plan.shots ?? []
+    expect(result).toMatchObject({
+      applied: true,
+      operation: 'patch_shots',
+      proposalId: RECEIPT_ID,
+      changedShotIndexes: [2],
+      changedFields: ['prompt', 'aspectRatio'],
+    })
+    expect(persisted[0]).toEqual(plan.shots[0])
+    expect(persisted[1]).toMatchObject({
+      prompt: '跟拍，雨天',
+      durationSec: 8,
+      anchorIds: [],
+      params: { aspect_ratio: '9:16', quality: 'high' },
+    })
+    expect(persisted[2]).toEqual(plan.shots[2])
     expect(receiptHarness.prepares).toEqual([expect.objectContaining({ proposalId: RECEIPT_ID })])
     expect(receiptHarness.commits).toEqual([expect.objectContaining({ proposalId: RECEIPT_ID })])
     expect(receiptHarness.aborts).toEqual([])

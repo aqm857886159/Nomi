@@ -1,0 +1,127 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-narrowed-mode-left-user-in-the-dark",
+  "problem_type": "能力面按可达性收窄后静默——判定「这条渠道发不出」就把功能从界面摘掉、不留痕迹，用户读到的是「这个模型没这功能」",
+  "symptom": "生成画布的模式栏按 archetypeModeIsVisible 收窄：档案声明了「首尾帧」「全能参考」等模式，但当前供应商这条线没有对应 mapping 时，该模式条目被直接从分段栏摘掉；收窄到只剩 1 个模式时整条模式栏都不显示（showModeBar = modeChoices.length > 1）。全内置目录实测（95 个多模式模型）：收窄命中 11 个模型、藏掉 11 个模式条目，其中 11 条在别家供应商都能用，0 条是「全目录谁都做不了」。用户面对的是一个功能齐全的模型少了半张脸，且没有任何线索说明它去哪了——要么放弃，要么以为 Nomi 坏了。",
+  "direct_cause": "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts:99 的 archetypeModeChoices 只把 archetypeModeIsVisible 的返回值当 filter 谓词用。判据算出了「这个模式在这家发不出」这个有价值的事实，但消费端（NodeParameterControls.tsx:514）只取它的布尔值做显隐，事实本身连同「那谁能做」这个可推导信息一起被丢弃。",
+  "class_root": "收窄判据与告知义务被拆开了：把「判定做不到」做成纯过滤器，而过滤器的语义天然是「让它消失」。只要一个能力面的收窄点只输出布尔值、消费端是 filter/隐藏，用户就必然只看到结果不看到原因——判据越准，静默阉割越彻底。同一模型身份在 Nomi 可经多条供应商渠道接入，因此「这家发不出」几乎从不等于「做不到」，把前者呈现成后者就是撒谎。正解是让收窄点输出结构化事实（哪些模式被藏、已接入候选里谁能做），由 UI 决定说什么。",
+  "migration": "同 diff 加判据 + 消费端，不留并行版：① 新增 narrowedModeGuidance.ts，把「哪些模式被这条渠道藏了」与「已接入的别家里谁能把它们全做出来」算成结构化结论（switch | none | null）；判据一律复用 archetypeModeIsVisible + readModeChannelBody，绝不另写第二份可达性判断，候选渠道的 taskKind 同样走 modeTransportFor 带 vendor 特化。② 新增 NarrowedModeGuidanceNote.tsx 渲染那一行，视觉沿用同组件已有的「诚实说一句」惯用法（text-ink-40 text-micro leading-tight，与 showNoPromptNote 同层）；动作是行内文字按钮，点击复用已有的 handleModelChange，因此与手动换模型共用同一条状态写入路径（updateNode 带 meta patch → pushEditBurstBarrier），天然被 Cmd+Z 覆盖。③ 把参考区的空返回判据从组件里内联表达式抽成 referencesSectionIsEmpty 并把 hasModeGuidance 纳入其中——最坏情形恰恰是「只剩 1 个模式 → 模式栏整条不显示」，提示若跟着模式栏一起消失，最需要说话的场合反而哑了。④ 文案 zh-CN/en 双语，模式名用 mode.vendorTerm 走 translateModelDisplayText，引号与分隔符住在译文里，代码不拼标点。",
+  "affected_population": [
+    "生成画布上任何「档案声明了多个模式、但当前供应商 mapping 缺其中一部分」的节点；全内置目录实测命中 11 个模型 / 11 个模式条目（95 个多模式模型的约 12%）",
+    "自建中转用户：模型能力由 meta.adapter.publicationModes 声明、走通用 transport 发送，最容易撞上「这条线发不出某模式」且在已接入模型里也找不到替代"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.ts",
+    "src/workbench/generationCanvas/nodes/controls/NarrowedModeGuidanceNote.tsx",
+    "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+    "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+    "src/i18n/locales/generationCommon.ts"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:514 archetypeModeChoices → showModeBar（模式栏收窄点，本次修复处）",
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:595 assetSlots.filter(slotReachByKey !== 'none')（槽级收窄）",
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:184 archetypeVariantAxisIsLive 为假时 variantChoices 置空（变体轴收窄）"
+  ],
+  "invariants": [
+    "undefined（查不到 body）走 fail-open：模式不藏，因此也不出提示；把 undefined 与 null 合并会让老 preload / 自建中转用户看到一行假指控",
+    "「换到 X」的落点必须能把全部被藏的模式都做出来（every 而非 some）——只能做一半的家不配当落点",
+    "提示的存在独立于模式栏：showModeBar === false 时仍必须渲染",
+    "切换动作复用 handleModelChange，与手动换模型同一条写入路径（不新开第二条切换路径）"
+  ],
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.test.ts",
+    "src/workbench/generationCanvas/nodes/controls/NarrowedModeGuidanceNote.test.ts"
+  ],
+  "residual_risks": [
+    "样张承诺的「点了可 Cmd+Z 撤回」真机不成立：2026-09-03 R13 走查实测，点「换到 X」之后按 Cmd+Z 换不回去——而且手动换模型也一样撤不回，是既有缺陷（断裂在「键盘事件 → store」这一段，store 自身历史正常）。已另派任务从真实按键路径修并补回归锁。此处一并删掉了原先的 narrowedModeGuidanceUndo.test.ts：它直接调 store.undo()，恰好绕过坏掉的那一段，是假绿，比没有测试更坏。",
+    "样张 C（「别家有这个模式，但那家你还没接入」）没有实现，因为渲染层拿不到未接入供应商的目录。实测证据：src/config/modelCatalogCache.ts 的 getEnabledVendorKeys 只收 enabled && (authType === 'none' || hasApiKey) 的供应商，getCatalogModelOptions 再用 enabledVendorKeys.has(vendorKey) 硬过滤模型行；本次用桩数据实跑 preloadModelOptions（runway 已接入 / kie 有行无 key / apimart 停用，三家都有同一模型的已发布行），输出 vendors = ['runway']。ModelCatalogHealthDto 只有计数与 issues，无逐供应商凭证状态。故 C 档在渲染层无数据源，故意不做，也绝不用猜的去谎称某家「有但你没接」。将来要做的正解是让主进程补一个「未接入供应商也返回的目录只读视图」。",
+    "「谁能做」只在同一档案身份（archetype.id 相同）的候选里找；跨档案的功能替代不在覆盖内——那是模型推荐问题，混进来会把提示变成广告",
+    "候选渠道的 body 查询走 readModeChannelBody 的同步 bridge 调用，候选数量等于同身份的已接入渠道数（实测个位数），故无可感知开销；目录规模大幅增长时需改成缓存/批量"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "缺陷完全发生在本仓自有的「档案声明 × 渠道 mapping」对账逻辑与渲染层呈现之间。判据（referenceReachability / selectTaskMapping）与候选目录（modelCatalogCache 的接入过滤）都是仓内实现，没有第三方 API 契约或版本语义参与判定。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「我们判定做不到、然后什么都不说」在本轮已反复出现：模式栏收窄（本次）、槽级 reach='none' 直接 filter 掉、变体轴惰性时整条不显示。三处共用同一个反模式——把结构化判据压成布尔值再交给 filter/隐藏。只要还有收窄点按这个形状写，它就会从下一个能力面复发。",
+    "same_class_scan": [
+      "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:514 — 模式栏收窄（archetypeModeChoices 的 filter），本次修复处",
+      "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:595 — 槽级收窄 .filter((slot) => slotReachByKey[slot.key] !== 'none')，发不出的参考槽被直接摘掉且不说话；相邻的 'single' 分支反而已有 channelSingleReferenceOnly 说明，同一处代码里「收窄后告不告知」全凭当时有没有想到",
+      "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:184 — 变体轴惰性收窄 archetypeVariantAxisIsLive 为假时 variantChoices 置空",
+      "commit 95fba66c（2026-09-03 孤儿线缆）— 配好却永远选不中的 mapping 让模式被静默藏掉，正是本次要指路的那批被藏模式的一部分"
+    ]
+  },
+  "generality_proof": "判据住在 narrowedModeGuidance.ts 这个与具体供应商/模型无关的模块里，输入是「档案 + 每个模式在本渠道的 body + 已接入候选渠道 + 候选渠道的 body」，输出是结构化结论。它不认识 runway/kie/apimart 任何一家，也不含任何模型名分支：任何新接入的供应商、新加的档案、新增的模式都自动纳入，无需登记。可达性判断 100% 委托给 archetypeModeIsVisible（与第三闸同源），因此本模块永远不会与发送路径产生第二把尺子——这正是「UI 说能发、闸门判发不出」那类病的结构性免疫。候选筛选用 archetype.id 而非模型串匹配，故同一身份经任意多条渠道接入都能互相指路。参考区的空返回判据被收敛到 referencesSectionIsEmpty 这一个函数后，「提示是否随模式栏一起消失」不再是散落在 JSX 里的一串布尔与，而是一个有名字、有测试、必须显式传入 hasModeGuidance 的边界——下一个往参考区加常驻元素的人无法再绕开它。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.ts",
+      "symbol": "resolveNarrowedModeGuidance / referencesSectionIsEmpty",
+      "responsibility": "把「被藏的模式」与「已接入候选里谁能全做」算成结构化结论，并集中裁定参考区能否整块空返回；拦住「收窄了却什么都不说」以及「提示随模式栏一起消失」"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+      "symbol": "archetypeModeIsVisible",
+      "responsibility": "模式级可达性的唯一判据；拦住 UI 与第三闸出现两把尺子"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+      "symbol": "readModeChannelBody",
+      "responsibility": "「这条渠道这个模式的 create body」唯一入口，三态语义（body/null/undefined）在此定义；拦住把「查不到」误读成「发不出」"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "entry_point": "archetypeModeChoices → showModeBar（模式栏收窄，:514）",
+      "disposition": "enforced",
+      "evidence": "本次改为输出结构化结论并渲染一行指路提示；提示独立于模式栏存在（referencesSectionIsEmpty 纳入 hasModeGuidance），由 narrowedModeGuidance.test.ts 的样张 D 回归锁钉住，阳性对照已实跑：从判据拿掉 hasModeGuidance 即红"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "entry_point": "assetSlots.filter(slotReachByKey[slot.key] !== 'none')（槽级承载力收窄，:595）",
+      "disposition": "not-affected",
+      "evidence": "实扫确认同族但本次未覆盖：发不出的参考槽仍被直接摘掉且不说话。影响面与文案落点都不同（槽是模式内部构件，指路的目标也不是换供应商而是换模式/换模型）。相邻 'single' 分支已有 channelSingleReferenceOnly caption 可作为将来补齐的样式参照。如实记录为未覆盖，不假称已治。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "entry_point": "archetypeVariantAxisIsLive 为假时 variantChoices 置空（变体轴收窄，:184）",
+      "disposition": "not-affected",
+      "evidence": "实扫确认此处静默是有意且伤害小：Runway 把 veo3.1 / veo3.1_fast 建成两个独立目录行，本就不需要变体轴，说一句反而是噪音（该判断已写在 channelModeReach.ts:63-78 的注释里）。列出以记录判断，不是遗漏。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+      "entry_point": "readModeChannelBody 的空 mapping 列表 → undefined（fail-open）",
+      "disposition": "enforced",
+      "evidence": "自建中转用户的命根子：一条 mapping 都不配时必须 fail-open 不收窄。本次未改动该逻辑，并新增两条测试把「undefined 不藏因而也不提示」钉死（narrowedModeGuidance.test.ts），阳性对照已实跑：把 undefined 折成 null 后两条同时红。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.ts",
+    "invariant": "模式收窄的结论必须以结构化形式（哪些模式被藏 + 已接入候选里谁能全做）离开判据层；参考区能否整块空返回必须经 referencesSectionIsEmpty 裁定，且 hasModeGuidance 是其必填输入——因此指路提示不可能随模式栏一起静默消失。",
+    "failure_mode": "把 hasModeGuidance 从 referencesSectionIsEmpty 移除或不传，narrowedModeGuidance.test.ts 的样张 D 回归锁当场报红（已实跑验证）；把 undefined 当 null 处理，fail-open 两条同时报红；把落点判据从 every 放宽成 some，「半吊子落点」那条报红。三处红均在 pnpm run gates 的单测面。",
+    "exception_policy": "none",
+    "strategy": "不新增静态门岗（同样是 filter，槽级 'none' 该说话、变体轴惰性不该说话，差别在产品判断而非代码形状，做成 AST 门岗会产出大量假红并诱导用无意义文案凑数）；改为把判据与空返回裁定收敛到单一命名边界，让绕过它需要显式删除一个有测试保护的必填参数。",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.ts",
+      "src/workbench/generationCanvas/nodes/controls/NarrowedModeGuidanceNote.tsx",
+      "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx"
+    ],
+    "rationale": "参考区空返回的内联布尔表达式（原 NodeParameterControls 里那串 && 连写）已同 commit 删除，改为调用 referencesSectionIsEmpty，不留并行版。archetypeModeChoices 的 filter 收窄本身有意保留：模式确实发不出时仍应从分段栏摘掉（让用户点一个必被第三闸拒的模式更糟）——本次改的是「摘掉之后说不说话」，不是要不要摘。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "无新增/升级依赖；全部复用仓内既有判据模块（channelModeReach / useChannelCreateBody）与 i18n 基础设施。",
+    "exit_criteria": []
+  }
+}

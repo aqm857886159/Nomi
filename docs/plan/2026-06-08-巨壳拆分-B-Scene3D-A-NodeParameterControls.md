@@ -1,5 +1,7 @@
 # 巨壳拆分计划：B (Scene3DFullscreen) → A (NodeParameterControls)
 
+> 裁决：已被后续 Scene3D/参数模块拆分取代；证据：`src/workbench/generationCanvas/nodes/scene3d/Scene3DFullscreen.tsx:21-34`、`src/workbench/generationCanvas/nodes/NodeParameterControls.tsx:76-221`。
+
 > 触发：PR #7 引入 `docs/coding-standards.md`（单一职责 + 文件分割）。4-agent 审计后，按 ROI/风险排序逐个拆。
 > 原则：纯结构搬运，**零行为变更**。每个文件一个 commit，改完跑五门 + 多 agent 对抗验证。
 > 日期：2026-06-08。

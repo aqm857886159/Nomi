@@ -112,6 +112,38 @@ export type ResolvedShareVideo = {
   unitPriceUsd?: number;
 };
 
+/**
+ * Test-only upstream seam. It is deliberately opt-in, loopback-only, and
+ * active only for isolated Electron journeys; a malformed value fails closed
+ * instead of silently falling back to the real TikHub hosts.
+ */
+export function getTikhubTestOrigin(): string | null {
+  const raw = trim(process.env.NOMI_TIKHUB_TEST_ORIGIN);
+  if (!raw) return null;
+  if (process.env.NOMI_E2E !== "1") {
+    throw new TikhubConnectorError("bad-response", "TikHub 本地测试线路只允许在 E2E 测试进程中启用。");
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new TikhubConnectorError("bad-response", "TikHub 本地测试线路地址无效。");
+  }
+  const loopback = parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost" || parsed.hostname === "[::1]";
+  if (!loopback || !["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password
+    || parsed.pathname !== "/" || parsed.search || parsed.hash) {
+    throw new TikhubConnectorError("bad-response", "TikHub 本地测试线路必须是无凭据的 loopback origin。");
+  }
+  return parsed.origin;
+}
+
+async function resolveRuntimeHost(deps: TikhubDeps): Promise<string | null> {
+  if (deps.resolveHost) return deps.resolveHost();
+  const testOrigin = getTikhubTestOrigin();
+  if (testOrigin) return new URL(testOrigin).host;
+  return resolveTikhubHost();
+}
+
 type TikhubDeps = {
   /** 出站发送器（默认 hardenedFetch）。host 由选路给定。测试注入。 */
   fetchJson?: (path: string, query: Record<string, string>, apiKey: string, host: string) => Promise<JsonRecord>;
@@ -147,10 +179,13 @@ async function fetchTikhubJson(
   apiKey: string,
   host: string,
 ): Promise<JsonRecord> {
-  const url = new URL(path, `https://${host}`);
+  const testOrigin = getTikhubTestOrigin();
+  const url = new URL(path, testOrigin && new URL(testOrigin).host === host ? testOrigin : `https://${host}`);
   for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v);
-  // allowedOrigins 硬校验：只允许候选域清单里的域（防被改 host/path 打到别处）。
-  if (!(TIKHUB_HOSTS as readonly string[]).includes(url.hostname.toLowerCase())) {
+  // 生产只允许 TikHub 候选域；隔离 E2E 只允许同一个 loopback origin。
+  const productionHostAllowed = !testOrigin && (TIKHUB_HOSTS as readonly string[]).includes(url.hostname.toLowerCase());
+  const testOriginAllowed = Boolean(testOrigin && url.origin === testOrigin && url.hostname === new URL(testOrigin).hostname);
+  if (!productionHostAllowed && !testOriginAllowed) {
     throw new TikhubConnectorError("bad-response", `TikHub 出站目标非法：${url.hostname}`);
   }
 
@@ -164,6 +199,7 @@ async function fetchTikhubJson(
       maxBytes: 8 * 1024 * 1024,
       timeoutMs: 30_000,
       throwOnNon2xx: false,
+      ...(testOriginAllowed && testOrigin ? { allowedPrivateOrigins: [testOrigin] } : {}),
     });
   } catch (error) {
     throw new TikhubConnectorError(
@@ -318,7 +354,7 @@ export async function verifyTikhubApiKey(apiKey: string, deps: TikhubDeps = {}):
     throw new TikhubConnectorError("missing-key", "尚未配置 TikHub API Key。");
   }
   const fetchJson = deps.fetchJson || fetchTikhubJson;
-  const resolveHost = deps.resolveHost || resolveTikhubHost;
+  const resolveHost = () => resolveRuntimeHost(deps);
   const failover = deps.failover || failoverTikhubHost;
 
   const host = await resolveHost();
@@ -369,7 +405,7 @@ export async function resolveShareVideo(
   }
   const shareUrl = extractShareUrl(shareText);
   const fetchJson = deps.fetchJson || fetchTikhubJson;
-  const resolveHost = deps.resolveHost || resolveTikhubHost;
+  const resolveHost = () => resolveRuntimeHost(deps);
   const failover = deps.failover || failoverTikhubHost;
 
   const host = await resolveHost();

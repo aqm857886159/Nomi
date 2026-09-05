@@ -195,6 +195,47 @@ describe("canvas.write renderer evidence capture", () => {
     });
   });
 
+  it("executes patch_shots through the canonical tool name and returns changed-row receipt data", async () => {
+    const snapshot = writableSnapshot();
+    const input: CanvasWriteInput = {
+      operation: "patch_shots",
+      select: { kind: "indexes", indexes: [2] },
+      patch: { promptAppend: "雨天" },
+    };
+    const evidence = captureCanvasWriteRawEvidence(snapshot, { operation: input.operation, input });
+    const admission = buildCanvasWriteAdmissionForOperation(evidence, input);
+    deps.applyProposalBatch.mockImplementation(async (steps, _turn, _coordinator, batchAdmission) => {
+      expect(steps[0]).toMatchObject({ toolName: "nomi_canvas_plan", effectiveArgs: input });
+      batchAdmission.beforePrepare();
+      return {
+        status: "committed",
+        proposalId: batchAdmission.proposalId,
+        results: [{ status: "applied", changedShotIndexes: [2], changedFields: ["prompt"] }],
+        clientIdToNodeId: {},
+        reconciliation: { ok: true, deviations: [] },
+        compensation: [],
+        watchNodes: [],
+      };
+    });
+
+    await expect(executeCanvasWriteTarget({
+      input,
+      ...admission,
+      receiptProposalId: "receipt-patch",
+      approvalId: "approval-patch",
+      actionHash: "c".repeat(64),
+      ...executionGuard,
+    }, () => snapshot)).resolves.toEqual({
+      applied: true,
+      proposalId: "receipt-patch",
+      operation: "patch_shots",
+      changedShotIndexes: [2],
+      changedFields: ["prompt"],
+      result: { status: "applied", changedShotIndexes: [2], changedFields: ["prompt"] },
+      reconciliation: { ok: true, deviationCount: 0 },
+    });
+  });
+
   it.each([
     ["content", writableSnapshot("changed prompt")],
     ["lock", writableSnapshot("old prompt", true)],

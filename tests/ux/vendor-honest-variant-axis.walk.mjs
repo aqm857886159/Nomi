@@ -65,6 +65,13 @@ const { app, win } = await launchNomiApp({
   settleMs: 0,
 })
 
+const rendererUpdateDepthErrors = []
+win.on('console', (message) => {
+  if (message.type() !== 'error') return
+  const text = message.text()
+  if (text.includes('React error #185') || text.includes('invariant=185')) rendererUpdateDepthErrors.push(text)
+})
+
 let passed = 0
 function record(label, detail = '') {
   passed += 1
@@ -149,6 +156,11 @@ async function selectAndBind({ pick, humanLabel, expectVendor, expectModelKey, t
     )
   }
   return { picked, identity, file }
+}
+
+function assertNoRendererUpdateDepth(label) {
+  if (rendererUpdateDepthErrors.length === 0) return
+  throw new Error(`WALK FAIL: ${label} renderer hit React #185 (Maximum update depth exceeded): ${rendererUpdateDepthErrors[0]}`)
 }
 
 /** 读变体下拉当前展示的文案（视觉证据的 DOM 对照物）。控件不在时返回 null。 */
@@ -249,6 +261,7 @@ try {
     expectModelKey: 'veo3.1',
     tag: 'runway-veo31-variant-absent',
   })
+  assertNoRendererUpdateDepth('Runway Veo 3.1 选中后')
   await expectAbsent(variantSelect, {
     provenBy: variantProof,
     message: 'Runway 把 create op 的 model 写成字面量——切变体一个字节都不会变。\n'

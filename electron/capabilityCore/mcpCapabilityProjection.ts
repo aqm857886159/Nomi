@@ -231,6 +231,7 @@ export const MEDIA_QUERY_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
 export const MCP_EDITING_METHODS = Object.freeze(new Set([
   TIMELINE_READ_CAPABILITY.id,
   TIMELINE_WRITE_CAPABILITY.id,
+  DOCUMENT_WRITE_CAPABILITY.id,
   EXPORT_READ_CAPABILITY.id,
   ASSET_READ_CAPABILITY.id,
 ]));
@@ -322,7 +323,7 @@ export const CANVAS_READ_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
 
 const canvasOperationNames = [
   "set_node_prompt", "create_canvas_nodes", "connect_canvas_edges", "tidy_canvas",
-  "propose_storyboard_plan", "arrange_storyboard_to_timeline", "create_staging_reference", "create_camera_move",
+  "propose_storyboard_plan", "patch_shots", "arrange_storyboard_to_timeline", "create_staging_reference", "create_camera_move",
 ] as const;
 const canvasNodeKinds = [
   "text", "character", "scene", "image", "keyframe", "video", "audio", "clip", "shot", "output", "panorama",
@@ -337,6 +338,7 @@ const canvasMutationTransportSchema = immutableSchemaSnapshot({
     prompt: { type: "string", minLength: 1 }, summary: { type: "string", minLength: 1 },
     nodes: { type: "array", maxItems: 24, items: { type: "object", additionalProperties: true } },
     edges: { type: "array", maxItems: 48, items: { type: "object", additionalProperties: true } },
+    select: { type: "object", additionalProperties: true }, patch: { type: "object", additionalProperties: true },
     categoryId: { type: "string", minLength: 1 }, nodeIds: { type: "array", maxItems: 48, items: { type: "string" } },
     kind: { type: "string", enum: [...canvasNodeKinds] }, mode: { type: "string", enum: [...canvasEdgeModes] },
   },
@@ -366,7 +368,7 @@ const documentWriteTransportSchema = immutableSchemaSnapshot({
   }, required: ["leaseHandle", "operation", "content"], additionalProperties: false,
 });
 
-const canvasMcpInput = z.object({ ...leaseField, operation: z.enum(canvasOperationNames), nodeId: z.string().trim().min(1).optional(), prompt: z.string().min(1).optional(), summary: z.string().trim().min(1).optional(), nodes: z.array(z.record(z.unknown())).min(1).max(24).optional(), edges: z.array(z.record(z.unknown())).max(48).optional(), categoryId: z.string().trim().min(1).optional(), nodeIds: z.array(z.string().trim().min(1)).max(48).optional() }).strict();
+const canvasMcpInput = z.object({ ...leaseField, operation: z.enum(canvasOperationNames), nodeId: z.string().trim().min(1).optional(), prompt: z.string().min(1).optional(), summary: z.string().trim().min(1).optional(), nodes: z.array(z.record(z.unknown())).min(1).max(24).optional(), edges: z.array(z.record(z.unknown())).max(48).optional(), select: z.record(z.unknown()).optional(), patch: z.record(z.unknown()).optional(), categoryId: z.string().trim().min(1).optional(), nodeIds: z.array(z.string().trim().min(1)).max(48).optional() }).strict();
 function canvasAdapter(name: string, allowed: readonly string[]): McpCapabilityAdapter {
   return Object.freeze({
     contract: CANVAS_WRITE_CAPABILITY,
@@ -386,7 +388,7 @@ function canvasAdapter(name: string, allowed: readonly string[]): McpCapabilityA
 }
 
 export const CANVAS_PLAN_MCP_ADAPTER = canvasAdapter("nomi_canvas_plan", [
-  "propose_storyboard_plan", "arrange_storyboard_to_timeline", "create_staging_reference", "create_camera_move",
+  "propose_storyboard_plan", "patch_shots", "arrange_storyboard_to_timeline", "create_staging_reference", "create_camera_move",
 ]);
 export const CANVAS_EDIT_MCP_ADAPTER = canvasAdapter("nomi_canvas_edit", [
   "set_node_prompt", "create_canvas_nodes", "connect_canvas_edges", "tidy_canvas",

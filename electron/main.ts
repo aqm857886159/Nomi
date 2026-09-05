@@ -26,6 +26,7 @@ import { registerNotificationIpc } from "./notificationIpc";
 import { openWorkspaceFolder, selectWorkspaceFolder } from "./workspace/workspaceIpc";
 import { listWorkspaceFiles, resolveWorkspaceFilePath } from "./workspace/workspaceFileIndex";
 import { registerWorkspaceFileDeleteIpc } from "./workspace/workspaceFileDelete";
+import { registerWorkspaceSyncIpc } from "./workspace/workspaceSyncIpc";
 import { logCrash } from "./crashLog";
 import { installMainProcessLifecycle } from "./mainProcessLifecycle";
 import { registerExportJobIpc } from "./export/exportJobIpc";
@@ -45,6 +46,7 @@ import { registerUpdaterIpc } from "./update/autoUpdater";
 import { setRendererTarget } from "./capabilityCore/rendererBridge";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
 import { verifyMcp } from "./capabilityCore/mcpVerify";
+import { registerCustomMcpProfileIpc, watchMcpProfiles } from "./capabilityCore/mcpProfiles";
 import { registerLocalProtocol } from "./protocol/localProtocol";
 import { installMainWindowInteractions } from "./mainWindowInteractions";
 import { getMainWindow, setMainWindow } from "./mainWindowRegistry";
@@ -75,14 +77,14 @@ import { createPiSkillWriteTransportAdapter } from "./capabilityCore/skillWriteT
 import { createPiSkillReadTransportAdapter } from "./capabilityCore/skillReadTransportAdapters";
 import { createPiProductionRunTransportAdapter } from "./capabilityCore/productionRunTransportAdapters";
 import { getProductionRunService } from "./productionRun/productionRunRuntime";
-import { getSettingsRoot } from "./runtimePaths";
+import { getSettingsRoot, getWorkspaceRepositoryDeps } from "./runtimePaths";
 import { getInstalledProductionProjectAgentHost, installProductionProjectAgentHost } from "./projectAgentHost/projectAgentProductionRuntime";
 import { createProjectAgentRepositoryRouter } from "./projectAgentHost/projectAgentRepositoryRouter";
 import { registerProjectAgentIpc } from "./projectAgentHost/projectAgentIpc";
 import { migrateProjectAgentLegacy } from "./projectAgentHost/projectAgentMigration";
 import { createProjectAgentProposalReceiptService } from "./projectAgentHost/projectAgentProposalReceiptStore";
+import { createDesktopProposalReceiptResolver } from "./projectAgentHost/projectAgentReceiptResolver";
 import { resolveProjectAgentAttachmentClaims } from "./assets/projectAssetStore";
-import { getWorkspaceRepositoryDeps } from "./runtimePaths";
 import { ensureWorkspaceProjectIdentity } from "./workspace/workspaceProjectIdentity";
 import { resolveWorkspaceProjectDir } from "./workspace/workspaceRepository";
 import { installContentSecurityPolicy } from "./contentSecurityPolicy";
@@ -176,7 +178,11 @@ async function startDesktopCapabilityCore(): Promise<void> {
       const { fetchTaskResult } = await loadRuntimeModule();
       return fetchTaskResult(payload);
     },
-    { canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime, onGenerationReady: (factory) => getInstalledProductionProjectAgentHost()?.setGenerationAdapterFactory(factory) },
+    {
+      canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime,
+      onGenerationReady: (factory) => getInstalledProductionProjectAgentHost()?.setGenerationAdapterFactory(factory),
+      proposalReceiptFor: createDesktopProposalReceiptResolver(),
+    },
   );
   capabilityPortCache = core.getCapabilityPort();
 }
@@ -593,11 +599,9 @@ function registerIpc(): void {
   // 域 IPC 各住各的模块（给 main.ts 800 行门腾空间；新通道加到对应模块，别回填这里）。comfy 那棵树重 → 惰性 require；素材通道薄 → 顶部静态 import。
   (require("./comfyuiIpc") as typeof import("./comfyuiIpc")).registerComfyuiIpc(registerSyncIpc);
   registerAssetTransportIpc(registerSyncIpc);
-  // 自定义调用域（契约/AI 指令/试跑）住 electron/catalog/customCallIpc.ts（同上，腾 800 行门）。
   const { registerCustomCallIpc } = require("./catalog/customCallIpc") as typeof import("./catalog/customCallIpc");
   registerCustomCallIpc(registerSyncIpc);
-  // 系统通知（任务跑完且窗口失焦时）住 electron/notificationIpc.ts，同样为 800 行门腾空间。
-  // 静态 import 而非惰性 require：该文件只依赖 electron 本身，载入零成本，且不吃 no-require-imports 警告配额。
+  // 系统通知（notificationIpc.ts）：静态 import，该文件只依赖 electron 本身，载入零成本，不吃 no-require-imports 配额。
   registerNotificationIpc();
   // Skill / Playbook 域在自己的 IPC 模块；ZIP import 异步流式解析，不能阻塞 renderer。
   registerSkillIpc(registerSyncIpc);
@@ -685,6 +689,7 @@ function registerIpc(): void {
     return { ok: true };
   });
   registerWorkspaceFileDeleteIpc({ readProject });
+  registerWorkspaceSyncIpc({ readProject });
   ipcMain.handle("nomi:workspace:reveal-project-folder", (event, payload) => {
     assertTrustedSender(event);
     const projectId = String((payload as { projectId?: unknown } | null)?.projectId || "").trim();
@@ -733,6 +738,7 @@ function registerIpc(): void {
   registerSyncIpc("nomi:capability:mcp-info", () => readMcpInfo(getActiveCapabilityPort()));
   registerSyncIpc("nomi:capability:mcp-install", installMcp);
   registerSyncIpc("nomi:capability:mcp-uninstall", uninstallMcp);
+  registerCustomMcpProfileIpc();
   // 实连验证（异步：真起一次配置里那条命令握手）。「配置里有这行字」≠「还连得上」，见 mcpVerify 头注释。
   ipcMain.handle("nomi:capability:mcp-verify", (event, client: unknown) => (assertTrustedSender(event), verifyMcp(typeof client === "string" ? client : undefined)));
   registerTextStreamIpc();
@@ -750,23 +756,20 @@ function registerIpc(): void {
   registerProductionActionIpc({
     getActiveProjectId: () => canvasReadSurfaceRuntime.getCommittedProjectSelection()?.projectId ?? "",
     loadCore: loadCapabilityCoreModule,
-  }); // P4 S6 返工/续拍
+  });
   registerUpdaterIpc();
-  // M0 独立捕捞窗已退役（方案A 2026-07-12）：捕捞面收敛到应用内浏览器（registerBrowserViewIpc）。
-  // S4-1 评测安全铁律:事件落盘前,已配置的 vendor key 精确匹配脱敏(形态兜底之外的地基)。
   setEventLogSecretsProvider(catalogSecretsProvider);
 }
 const SKIP_CROSS_ORIGIN_ISOLATION = process.env.NOMI_E2E === "1";
 const SKIP_CROSS_ORIGIN_ISOLATION_FOR_WINDOWS_FRAMELESS = process.platform === "win32";
 
-// 非主实例（没拿到单实例锁）不启动 UI / RPC——已让出给老实例（second-instance 已聚焦它）。
-// 单实例锁本身在文件顶部定义（main 与本批独立都加了同一锁，合并去重，根治全局 index 并发覆盖）。
 if (hasSingleInstanceLock)
   app
     .whenReady()
     .then(async () => {
       setDesktopLocale(app.getLocale());
       ensureArtifactPreviewSecret();
+      watchMcpProfiles();
       try {
         app.setAsDefaultProtocolClient("nomi");
       } catch {

@@ -300,6 +300,6 @@ export const TIMELINE_READ_CAPABILITY = {
   approval: "none",
   projections: {
     pi: { description: "Read and preview the current project timeline." },
-    mcp: { description: "Read the current project timeline or a bounded frame range without changing it." },
+    mcp: { description: "Read the project timeline or a bounded frame range." },
   },
 } as const satisfies CapabilityContract<TimelineReadInput, TimelineReadResult>;

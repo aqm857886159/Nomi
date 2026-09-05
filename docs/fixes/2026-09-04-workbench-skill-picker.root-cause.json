@@ -1,0 +1,127 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-04-workbench-skill-picker",
+  "problem_type": "Workbench Agent Skill discoverability and selection boundary",
+  "symptom": "The real Agent Skill menu does not show or allow selecting workbench.storyboard.planner even though the canonical Skill catalog discovers its package.",
+  "direct_cause": "The renderer-facing Skill IPC list keeps user Skills and built-in Skills with stages, so the valid single-stage storyboard planner is filtered out before the menu renders it.",
+  "class_root": "The shared Skill catalog has no explicit Workbench-selectability invariant; a presentation-specific stages heuristic is used as a proxy and silently drops valid single-stage Workbench Skills.",
+  "affected_population": [
+    "Users opening the Agent Skill menu in creation, generation, or preview surfaces",
+    "Built-in single-stage Workbench Skills, especially workbench.storyboard.planner",
+    "Instances with missing providers, malformed manifests, or unavailable catalog health"
+  ],
+  "scope_paths": [
+    "electron/skills/skillManifestSchema.ts",
+    "electron/skills/skillStore.ts",
+    "electron/skills/skillIpc.ts",
+    "skills/workbench-storyboard-planner/skill.json",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "tests/ux/real-user-long-video.e2e.mjs"
+  ],
+  "entry_points": [
+    "ProjectAgentResidentShell Skill menu",
+    "CreationPromptPicker Skill section",
+    "Skill Library reload and card projection",
+    "ProjectAgent Host skill.read execution"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This invariant is Nomi's internal canonical catalog-to-Workbench contract; no third-party runtime decides which installed Skill is user-selectable.",
+  "invariants": [
+    "A built-in Skill enters the Workbench picker only when its validated manifest explicitly declares selectableInWorkbench or it is an existing multi-stage playbook; internal routing Skills remain hidden.",
+    "User Skills remain visible even when their optional manifest is missing or invalid, while their manifestError remains observable in the DTO.",
+    "Workbench picker visibility is independent of MCP audience and provider health; missing text/image/video providers mark capability gaps but do not silently remove the Skill.",
+    "A selected menu item preserves the canonical Skill name and is passed as skillKey through the existing resident Agent request path."
+  ],
+  "generality_proof": "The Agent resident shell, CreationPromptPicker, and Skill Library all consume the renderer-facing skill.list DTO, while Pi/MCP discovery continues to use the same Skill records. Centralizing Workbench selectability on the validated record prevents a single-stage or future explicitly selectable built-in from being dropped by any renderer caller, without widening MCP visibility or routing-only resources.",
+  "shared_boundaries": [
+    {
+      "path": "electron/skills/skillStore.ts",
+      "symbol": "isSkillSelectableInWorkbench",
+      "responsibility": "Own the canonical Workbench selection invariant from validated Skill origin, manifest declaration, and existing playbook shape."
+    },
+    {
+      "path": "electron/skills/skillIpc.ts",
+      "symbol": "listSkillsForRenderer",
+      "responsibility": "Project only canonical selectable records into the DTO consumed by every Workbench picker."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "ProjectAgentResidentShell",
+      "responsibility": "Render the DTO and preserve the selected canonical Skill identity in the existing store-to-Agent request path."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "ProjectAgentResidentShell({ surface }) Skill menu",
+      "disposition": "enforced",
+      "evidence": "The resident menu reads listWorkbenchSkills, which is backed by nomi:skill:list and therefore the shared listSkillsForRenderer boundary."
+    },
+    {
+      "path": "src/workbench/ai/CreationPromptPicker.tsx",
+      "entry_point": "CreationPromptPicker Skill section",
+      "disposition": "enforced",
+      "evidence": "The creation picker calls the same listWorkbenchSkills API and renders its returned DTO without a second catalog filter."
+    },
+    {
+      "path": "src/workbench/skillLibrary/useWorkbenchSkills.ts",
+      "entry_point": "useWorkbenchSkills Skill Library",
+      "disposition": "enforced",
+      "evidence": "The library reload path calls the same listWorkbenchSkills API, so the canonical IPC projection is shared with management UI."
+    },
+    {
+      "path": "electron/harness/runtime/pi/nomiSkillResources.mts",
+      "entry_point": "createNomiSkillResourceCatalog",
+      "disposition": "not-affected",
+      "evidence": "Pi loads the full canonical resource catalog for model-facing progressive disclosure; it must not apply the user-facing Workbench picker filter."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future built-in Skill without stages, or any caller that copies the stages-only heuristic, can reproduce the same silent omission.",
+    "same_class_scan": [
+      "rg listWorkbenchSkills across src/workbench: resident Agent, CreationPromptPicker, and Skill Library all converge on one API.",
+      "rg listSkillsForRenderer and isSkillSelectableInWorkbench across electron: the IPC projection and policy are the shared production boundary.",
+      "rg workbench.storyboard.planner and stages across skills, electron/skills, and tests: the reported package is single-stage while routing Skills are separately identified."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/skills/skillStore.ts",
+    "invariant": "Only validated built-in Skills explicitly selectable for Workbench or existing multi-stage playbooks, plus all user Skills, enter the Workbench DTO; provider health and MCP audience do not alter this visibility decision.",
+    "failure_mode": "Missing or invalid built-in manifests fail closed and stay out of the picker; missing provider/network health leaves a valid Skill visible with a capability warning; malformed user packages remain observable with manifestError under the existing user-origin policy.",
+    "exception_policy": "none",
+    "strategy": "Declare user-facing Workbench intent in the canonical manifest, evaluate it once at the Skill record boundary, and remove the duplicated stages-only IPC heuristic.",
+    "artifacts": [
+      "electron/skills/skillManifestSchema.ts",
+      "electron/skills/skillStore.ts",
+      "electron/skills/skillIpc.ts",
+      "skills/workbench-storyboard-planner/skill.json"
+    ]
+  },
+  "regression_tests": [
+    "electron/skills/skillStore.test.ts",
+    "electron/skills/skillIpc.test.ts",
+    "electron/skills/skillManifestSchema.test.ts",
+    "tests/ux/real-user-long-video.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/skills/skillStore.test.ts",
+    "electron/skills/skillIpc.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old stages-only branch was an inline predicate, not a standalone path; it is removed from listSkillsForRenderer and replaced by the shared Workbench selectability boundary. No parallel list or hidden injection path is retained."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The defect is caused by Nomi's catalog projection policy, not a third-party dependency.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration is needed. The new manifest field is optional, existing user Skills remain selectable, existing multi-stage playbooks retain their behavior, and the selected Skill continues through the current ephemeral composer state and Host request contract.",
+  "residual_risks": [
+    "A live provider canary requires user-supplied credentials and a real sample; it must remain blocked when those prerequisites are absent.",
+    "The existing long-video journey has later approval/rejection boundaries outside this picker fix; those remain explicitly blocked rather than inferred from screenshots or result visibility."
+  ]
+}

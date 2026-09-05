@@ -1,0 +1,82 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
+import { executeCanonicalCanvasPlanPatch } from './canonicalCanvasPlanPatch'
+import { buildCanvasWriteAdmissionForOperation } from '../../../electron/shared/agentCapabilities/canvasWriteEvidence'
+import { captureCanvasWriteRawEvidence, executeCanvasWriteTarget } from '../generationCanvas/agent/canvasWriteTarget'
+import { readGenerationCanvasSnapshot } from '../generationCanvas/agent/generationCanvasTools'
+
+vi.mock('../../../electron/shared/agentCapabilities/canvasWriteEvidence', () => ({
+  buildCanvasWriteAdmissionForOperation: vi.fn(),
+}))
+
+vi.mock('../generationCanvas/agent/canvasWriteTarget', () => ({
+  captureCanvasWriteRawEvidence: vi.fn(),
+  executeCanvasWriteTarget: vi.fn(),
+}))
+
+vi.mock('../generationCanvas/agent/generationCanvasTools', () => ({
+  readGenerationCanvasSnapshot: vi.fn(),
+}))
+
+const snapshot = { nodes: [], edges: [], selectedNodeIds: [], groups: [] }
+const patchInput = {
+  operation: 'patch_shots' as const,
+  select: { kind: 'indexes' as const, indexes: [2] },
+  patch: { promptAppend: '雨天' },
+}
+
+function request(readActiveProjectId: () => string | null, input: unknown = patchInput) {
+  return {
+    projectId: 'project-a',
+    input,
+    receiptProposalId: 'receipt-a',
+    approvalId: 'approval-a',
+    actionHash: 'a'.repeat(64),
+    readActiveProjectId,
+  }
+}
+
+describe('canonicalCanvasPlanPatch changed-function coverage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(readGenerationCanvasSnapshot).mockReturnValue(snapshot)
+    vi.mocked(captureCanvasWriteRawEvidence).mockReturnValue({ node: { id: 'live', kind: 'shot', title: 'live', prompt: 'live', locked: false, categoryId: null, groupId: null, model: { modelKey: null, vendorKey: null, archetypeId: null, modeId: null, variantId: null }, currentResult: null }, groups: [] } as never)
+    vi.mocked(buildCanvasWriteAdmissionForOperation).mockReturnValue({ target: { kind: 'canvas', nodeIds: [] }, preconditions: { edges: [] } })
+    vi.mocked(executeCanvasWriteTarget).mockImplementation(async (targetRequest) => {
+      targetRequest.assertCurrent()
+      return { applied: true, operation: 'patch_shots', proposalId: 'receipt-a', changedShotIndexes: [2], changedFields: ['prompt'], result: {}, reconciliation: { ok: true, deviationCount: 0 } } as never
+    })
+  })
+
+  it('fails closed for a stale active project before parsing or capturing', async () => {
+    await expect(executeCanonicalCanvasPlanPatch(request(() => 'project-b'))).rejects.toMatchObject({ code: 'surface_port_stale' } satisfies Partial<SurfacePortWireError>)
+    expect(captureCanvasWriteRawEvidence).not.toHaveBeenCalled()
+  })
+
+  it('fails closed for invalid input and for a valid non-patch operation', async () => {
+    await expect(executeCanonicalCanvasPlanPatch(request(() => 'project-a', { operation: 'not-real' }))).rejects.toMatchObject({ code: 'capability_input_invalid' } satisfies Partial<SurfacePortWireError>)
+    await expect(executeCanonicalCanvasPlanPatch(request(() => 'project-a', { operation: 'set_node_prompt', nodeId: 'node-a', prompt: 'new' }))).rejects.toMatchObject({ code: 'capability_input_invalid' } satisfies Partial<SurfacePortWireError>)
+    expect(captureCanvasWriteRawEvidence).not.toHaveBeenCalled()
+  })
+
+  it('captures live evidence, builds admission, delegates, and rechecks the active project', async () => {
+    const result = await executeCanonicalCanvasPlanPatch(request(() => 'project-a'))
+    expect(result).toMatchObject({ applied: true, operation: 'patch_shots', changedShotIndexes: [2] })
+    expect(captureCanvasWriteRawEvidence).toHaveBeenCalledWith(snapshot, { operation: 'patch_shots', input: patchInput })
+    expect(buildCanvasWriteAdmissionForOperation).toHaveBeenCalledWith(expect.anything(), patchInput)
+    expect(executeCanvasWriteTarget).toHaveBeenCalledWith(expect.objectContaining({
+      input: patchInput,
+      target: { kind: 'canvas', nodeIds: [] },
+      preconditions: { edges: [] },
+      receiptProposalId: 'receipt-a',
+      approvalId: 'approval-a',
+    }), readGenerationCanvasSnapshot)
+  })
+
+  it('fails closed if the active project changes after admission', async () => {
+    let reads = 0
+    const activeProject = () => (reads++ === 0 ? 'project-a' : 'project-b')
+    await expect(executeCanonicalCanvasPlanPatch(request(activeProject))).rejects.toMatchObject({ code: 'surface_port_stale' } satisfies Partial<SurfacePortWireError>)
+  })
+})

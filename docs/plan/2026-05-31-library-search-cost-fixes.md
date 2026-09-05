@@ -1,5 +1,7 @@
 # 三处修复：30秒体验被压扁 / 假搜索 / 无用花费徽章
 
+> 裁决：已被资源库发现与生产计费链路取代；证据：`src/workbench/library/ProjectLibraryPage.tsx:246-285`、`src/workbench/library/ProjectLibraryPage.tsx:137-167`、`electron/productionRun/catalogPricingResolver.ts:35-58`。
+
 > 状态：实施中
 > 触发：用户反馈 ——「一开始进入30秒体验NOMI这个东西已经没了。另外搜索项目名称那个东西是假搜索，没有用。还有右上角那个花多少钱，那个也没用。没法做到就先删掉，能做到就处理。」
 

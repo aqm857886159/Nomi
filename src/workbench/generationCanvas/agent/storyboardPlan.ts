@@ -100,6 +100,8 @@ export type PlanShot = {
   promptSegments?: PromptSegmentRange[]
   /** 用户在分镜编辑器为该镜选的视频模型 catalog key；没选 → 落画布用默认视频模型兜底。 */
   modelKey?: string
+  /** Canonical model vendor paired with modelKey for an unambiguous model identity. */
+  modelVendor?: string
   /** 用户为该镜选的模型模式 id（随 modelKey 一起）；没选 → 默认模式。 */
   modeId?: string
   /** 用户为该镜调的模型参数（archetype 控件键 → 值，如 aspect_ratio/resolution）；落画布铺进节点 meta。留空=用模型默认。 */
@@ -150,6 +152,7 @@ export type PlanShot = {
     enabled?: boolean
     prompt?: string
     modelKey?: string
+    modelVendor?: string
     modeId?: string
     params?: Record<string, unknown>
   }

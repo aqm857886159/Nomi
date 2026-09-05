@@ -41,6 +41,9 @@ import { createInternalCanvasReadVerifiedInvocationFactory } from './verifiedCap
 import { createVerifiedProjectSessionBindingFromAuthority } from './projectSessionRuntime'
 import { canvasReadLeaseRequiredRpcError, canvasReadRpcError } from './canvasReadPublicError'
 import { isMcpEditingMethod } from './mcpCapabilityProjection'
+import type { ProjectBinding } from '../shared/projectBinding'
+import type { ProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
+import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
 
 export type RpcServerOptions = {
   /** 真实生成入口（runtime.runTask）。注入式：headless host 与 app 各自传同一份。 */
@@ -57,12 +60,21 @@ export type RpcServerOptions = {
   authorizeGeneration?: import('./dispatcher').DispatchContext['authorizeGeneration']
   /** Internal client→GUI fallback. The callback must verify the challenge before prompting. */
   confirmGenerationInNomi?: (input: { challengeToken: string }) => Promise<unknown>
+  /**
+   * Verify that a registered MCP client confirmed the gate identified by
+   * challengeToken via the elicitation protocol, then mint and return a real
+   * main-process receipt. Called by the launcher/stdio-server loopback RPC
+   * `nomi_verify_client_generation_gate`.
+   */
+  verifyClientGenerationGateInMain?: (input: { challengeToken: string; authenticatedClient: string }) => Promise<unknown>
   generationPolicy?: McpGenerationPolicy
   generationContext?: (params: Record<string, unknown>) => unknown | Promise<unknown>
   generationPlanning?: import('./dispatcher').DispatchContext['generationPlanning']
   projectRevisionResolver?: (projectId: string) => number | undefined
   /** B4 main-only executor. When absent canvas.read is denied, never routed to legacy dispatch. */
   canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
+  /** Main-owned durable proposal receipt service resolved only after a verified project lease. */
+  proposalReceiptFor?: (binding: ProjectBinding) => ProjectAgentProposalReceiptService | undefined | Promise<ProjectAgentProposalReceiptService | undefined>
 }
 
 function readBody(req: http.IncomingMessage): Promise<string> {
@@ -141,7 +153,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         if (req.method !== 'POST' || req.url !== '/rpc') throw new RpcError('仅支持 POST /rpc', 404)
         if (!verifyToken(bearerToken(req))) throw new RpcError('鉴权失败：token 无效', 401)
         const raw = await readBody(req)
-        let parsed: { method?: unknown; params?: unknown; planConfirmed?: unknown; spendConfirmed?: unknown }
+        let parsed: { method?: unknown; params?: unknown; planConfirmed?: unknown; spendConfirmed?: unknown; documentConfirmed?: unknown }
         try {
           parsed = JSON.parse(raw || '{}')
         } catch {
@@ -149,8 +161,12 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         }
         const method = String(parsed.method || '')
         const isCanvasRead = isCanvasReadTransportMethod(method)
-        const isEditing = isMcpEditingMethod(method)
         const params = (parsed.params && typeof parsed.params === 'object' ? parsed.params : {}) as Record<string, unknown>
+        // The storyboard plan adapter resolves to canvas.write, but patch_shots
+        // is renderer-owned: it must use the same live store/admission/receipt
+        // path as the open Electron project rather than generic planning.
+        const isCanonicalCanvasPlanPatch = method === 'canvas.write' && params.operation === 'patch_shots'
+        const isEditing = isMcpEditingMethod(method)
         const client = firstHeader(req.headers['x-nomi-mcp-client'])
         const clientProof = firstHeader(req.headers['x-nomi-mcp-client-proof'])
         const connectionAttestation = firstHeader(req.headers['x-nomi-mcp-connection-attestation'])
@@ -169,13 +185,25 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
             throw error
           }
         }
-        if (!projectSessionConnection && !isCanvasRead && !isEditing) assertLocalBearerProjectSessionRoute(method)
+        if (!projectSessionConnection && !isCanvasRead && !isEditing && !isCanonicalCanvasPlanPatch) assertLocalBearerProjectSessionRoute(method)
         if (method === 'nomi_confirm_generation_gate') {
           if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
           const challengeToken = typeof params.challengeToken === 'string' ? params.challengeToken.trim() : ''
           if (!challengeToken) throw new RpcError('Generation challenge is required', 400)
           if (typeof options.confirmGenerationInNomi !== 'function') throw new RpcError('Nomi confirmation is unavailable', 501)
           const result = await options.confirmGenerationInNomi({ challengeToken })
+          send(200, { ok: true, result })
+          return
+        }
+        if (method === 'nomi_verify_client_generation_gate') {
+          // Only registered MCP clients may call this — the same guard as nomi_confirm_generation_gate.
+          if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
+          const challengeToken = typeof params.challengeToken === 'string' ? params.challengeToken.trim() : ''
+          if (!challengeToken) throw new RpcError('Generation challenge is required', 400)
+          const authenticatedClient = typeof params.authenticatedClient === 'string' ? params.authenticatedClient.trim() : ''
+          if (!authenticatedClient) throw new RpcError('Authenticated client identity is required', 400)
+          if (typeof options.verifyClientGenerationGateInMain !== 'function') throw new RpcError('Client generation verification is unavailable', 501)
+          const result = await options.verifyClientGenerationGateInMain({ challengeToken, authenticatedClient })
           send(200, { ok: true, result })
           return
         }
@@ -212,7 +240,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
             throw error instanceof RpcError ? error : canvasReadRpcError(error)
           }
         }
-        if (isEditing) {
+        if (isEditing || isCanonicalCanvasPlanPatch) {
           if (!hasMcpTransportClaims || !projectSessionConnection || !options.projectSessionAuthority) {
             throw new RpcError('A verified project-session transport is required for editing tools', 403)
           }
@@ -220,31 +248,81 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           if (!leaseHandle) throw new RpcError('A project-session lease is required', 403)
           const projectHint = typeof params.projectId === 'string' ? params.projectId.trim() || undefined : undefined
           const operation = typeof params.operation === 'string' ? params.operation : ''
-          const scope = method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
-            ? 'timeline:write'
-            : method === 'timeline.write' ? 'timeline:read'
-              : method === 'asset.read' ? 'asset:read' : 'export:read'
+          const scope = isCanonicalCanvasPlanPatch
+            ? 'canvas:write'
+              : method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
+                ? 'timeline:write'
+                : method === 'timeline.write' ? 'timeline:read'
+                  : method === 'document.write' ? 'document:write'
+                : method === 'asset.read' ? 'asset:read' : 'export:read'
           const lease = await options.projectSessionAuthority.verifyLease(leaseHandle, {
             connection: projectSessionConnection,
             ...(projectHint ? { projectHint } : {}),
             scope,
           })
+          if (method === 'document.write' && parsed.documentConfirmed !== true) {
+            throw new RpcError('Human confirmation is required before applying a document change', 403, {
+              code: 'human_approval_required',
+              nextAction: 'Confirm the document change in the MCP client and retry',
+              capability: 'document.write' as never,
+            })
+          }
           if (method === 'timeline.write' && (operation === 'apply' || operation === 'undo') && parsed.planConfirmed !== true) {
             throw new RpcError('Host approval is required before applying a timeline edit', 403)
           }
-          const rendererOp = method === 'timeline.read'
-            ? 'timeline.read'
-            : method === 'timeline.write'
-              ? 'timeline.write'
-              : method === 'asset.read' ? 'asset.read' : 'export.read'
-          const result = await requestRenderer(rendererOp, {
-            ...params,
-            projectId: lease.projectId,
-            // These values are minted only after the verified lease and (for writes) Host approval.
-            ...(method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
-              ? { receiptProposalId: `mcp-edit:${crypto.randomUUID()}`, approvalId: `mcp-host:${crypto.randomUUID()}`, actionHash: crypto.randomUUID() }
-              : {}),
-          }, 30_000)
+          const rendererOp = isCanonicalCanvasPlanPatch
+            ? 'canvas.write'
+            : method === 'timeline.read'
+              ? 'timeline.read'
+              : method === 'timeline.write'
+                ? 'timeline.write'
+                : method === 'document.write'
+                  ? 'document.write'
+                  : method === 'asset.read' ? 'asset.read' : 'export.read'
+          const rendererPayload = isCanonicalCanvasPlanPatch
+            ? (() => {
+                const { leaseHandle: _leaseHandle, projectId: _projectHint, ...input } = params
+                return {
+                  projectId: lease.projectId,
+                  input,
+                  receiptProposalId: `mcp-canvas-plan:${crypto.randomUUID()}`,
+                  approvalId: `mcp-canvas-plan-approval:${crypto.randomUUID()}`,
+                  // This direct MCP request is approved by the MCP elicitation
+                  // seam, not by a Project Agent Host turn. Do not forge Host
+                  // correlation without a claimed Host approval; the renderer
+                  // receipt remains durable but intentionally uncorrelated.
+                }
+              })()
+            : {
+                ...params,
+                projectId: lease.projectId,
+                // These values are minted only after the verified lease and (for writes) Host approval.
+                ...(method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
+                  ? { receiptProposalId: `mcp-edit:${crypto.randomUUID()}`, approvalId: `mcp-host:${crypto.randomUUID()}`, actionHash: crypto.randomUUID() }
+                  : {}),
+              }
+          const result = method === 'document.write'
+            ? await (async () => {
+                const service = await options.proposalReceiptFor?.({
+                  projectId: lease.projectId,
+                  immutableProjectUuid: lease.immutableProjectUuid,
+                  projectGeneration: lease.projectGeneration,
+                })
+                if (!service) throw new RpcError('Durable document proposal receipt is unavailable', 501)
+                if (
+                  service.binding.projectId !== lease.projectId ||
+                  service.binding.immutableProjectUuid !== lease.immutableProjectUuid ||
+                  service.binding.projectGeneration !== lease.projectGeneration
+                ) {
+                  throw new RpcError('Durable document proposal receipt binding mismatch', 409)
+                }
+                return executeMcpDocumentWriteWithReceipt({
+                  service,
+                  operation,
+                  execute: () => requestRenderer(rendererOp, rendererPayload, 30_000),
+                })
+              })()
+            : await requestRenderer(rendererOp, rendererPayload, 30_000)
           send(200, { ok: true, result })
           return
         }

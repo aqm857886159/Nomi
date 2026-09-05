@@ -1,5 +1,7 @@
 # Nomi Production Video Export Implementation Plan
 
+> 裁决：已被现行持久化导出任务与统一导出引擎取代；证据：`electron/export/exportJobManager.ts:53-84`、`docs/plan/2026-06-14-export-engine-unification.md:72-86`。
+
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task.
 
 **Goal:** 把 Nomi 的视频导出从当前过渡型 `Canvas → MediaRecorder WebM → FFmpeg MP4` 升级为分阶段工业化的本地桌面导出系统：P0 可商业试用、P1 真正生产可用、P2 高级创作能力。

@@ -99,7 +99,7 @@ async function findBlankPoint(preferBottom = false) {
         // React Flow 的多选包围浮层（.react-flow__nodesselection[-rect]）是可拖动的交互层，
         // 会盖住两个已选节点之间的画布：点它既不平移也不取消选中（原生行为）。它不是「空白」，
         // 否则「点空白取消选中」这一步会落到浮层上被吞（窗口尺寸不同处随机命中，见 S4 尾修）。
-        if (hit.closest('.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-bounds, .generation-canvas-v2__selection-toolbar, .react-flow__nodesselection, button, input, textarea, [role="menu"], [role="toolbar"], .generation-canvas-v2__edge-hit, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack')) continue
+        if (hit.closest('.generation-canvas-v2-node, .generation-canvas-v2-node__composer, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-bounds, .generation-canvas-v2__selection-toolbar, .react-flow__nodesselection, button, input, textarea, [role="menu"], [role="toolbar"], .generation-canvas-v2__edge-hit, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack')) continue
         return { x: Math.round(x), y: Math.round(y) }
       }
     }
@@ -140,7 +140,7 @@ async function findMarqueeGesture() {
     const insideStage = (point) =>
       point.x >= stageRect.left + 8 && point.x <= stageRect.right - 8 &&
       point.y >= stageRect.top + 8 && point.y <= stageRect.bottom - 8
-    const excluded = '.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-bounds, .generation-canvas-v2__selection-toolbar, button, input, textarea, [role="menu"], [role="toolbar"], .generation-canvas-v2__edge-hit, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack'
+    const excluded = '.generation-canvas-v2-node, .generation-canvas-v2-node__composer, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-bounds, .generation-canvas-v2__selection-toolbar, button, input, textarea, [role="menu"], [role="toolbar"], .generation-canvas-v2__edge-hit, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack'
 
     for (const gap of [24, 40, 64, 80]) {
       const gestures = [

@@ -503,7 +503,7 @@ describe("ProjectAgent IPC wire boundary", () => {
     const wrongFrame = { sender, senderFrame: { ...frame } } as unknown as IpcMainInvokeEvent;
     const runtime = {
       executionCoordinator: {
-        open: vi.fn((_projectBinding: ProjectBinding, _options?: Readonly<{ proposalReceipt?: () => unknown }>) => ({
+        open: vi.fn((_projectBinding: ProjectBinding, _options?: Readonly<{ proposalReceipt?: () => unknown; proposalReceiptWriter?: unknown }>) => ({
           subscriptionId: "subscription-receipt",
           subscriptionEpoch: 1,
           binding,
@@ -524,10 +524,11 @@ describe("ProjectAgent IPC wire boundary", () => {
     const opened = await state.handlers.get(PROJECT_AGENT_OPEN_CHANNEL)!(event, { binding });
     expect(opened).toMatchObject({ ok: true, value: { proposalReceipt: null } });
     const openOptions = runtime.executionCoordinator.open.mock.calls[0]?.[1] as
-      | Readonly<{ proposalReceipt?: () => unknown }>
+      | Readonly<{ proposalReceipt?: () => unknown; proposalReceiptWriter?: unknown }>
       | undefined;
     expect(openOptions?.proposalReceipt).toEqual(expect.any(Function));
     expect(openOptions?.proposalReceipt?.()).toBeNull();
+    expect(openOptions?.proposalReceiptWriter).toBe(receiptService);
     const prepared = await state.handlers.get(PROJECT_AGENT_PROPOSAL_RECEIPT_WRITE_CHANNEL)!(event, {
       subscriptionId: "subscription-receipt",
       expectedRevision: 0,

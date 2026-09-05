@@ -505,7 +505,9 @@ export const zhOnboardingProviders = {
     // 连接状态只说「你能不能用」，不汇报「我们测没测」——「未测试」那套是死路：
     // 它暗示有个测试动作，卡上却没有入口（见 docs/plan/2026-08-11-vendor-connection-health.md）。
     connection: {
+      checking: '检查中…',
       reachable: '已连通',
+      unreachable: '连不上',
       saved: '已保存',
       recheck: '重新检查',
       unknownReason: '连不上，没拿到具体原因',
@@ -1648,7 +1650,9 @@ export const enOnboardingProviders = {
     credentialHint: 'Enter it once. The key is encrypted locally and used only for requests.',
     credentialSaved: 'Credentials saved',
     connection: {
+      checking: 'Checking…',
       reachable: 'Connected',
+      unreachable: 'Unreachable',
       saved: 'Saved',
       recheck: 'Check again',
       unknownReason: 'Unreachable — no details returned',

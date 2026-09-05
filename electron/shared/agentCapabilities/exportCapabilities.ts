@@ -186,7 +186,7 @@ export const EXPORT_READ_CAPABILITY = {
   approval: "none",
   projections: {
     pi: { description: "Inspect and verify active-project export receipts." },
-    mcp: { description: "Inspect or verify an export job receipt; starting and cancelling exports remain Host-only." },
+    mcp: { description: "Inspect/verify export receipts; Host starts/cancels exports." },
   },
 } as const satisfies CapabilityContract<ExportReadInput, ExportReadResult>;
 

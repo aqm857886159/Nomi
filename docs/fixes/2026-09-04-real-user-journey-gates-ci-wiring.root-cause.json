@@ -1,0 +1,124 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-04-real-user-journey-gates-ci-wiring",
+  "problem_type": "产品级真实用户旅程没有进入与其风险匹配的 CI profile",
+  "symptom": "Resident receipt、canonical storyboard、production MCP 等真实用户旅程虽然已有可运行入口，但只改附近 source 时可能不触发对应门岗；Quality Gate 的 Linux walkthrough 没有显式执行 loopback 真实旅程，也没有上传其 report/summary，live provider 的凭据边界则无法在同一份报告中区分 blocked 与 passed。",
+  "direct_cause": ".github/workflows/quality-gate.yml 的 desktop-linux job 没有调用 test:real-user-journeys:ci，artifact 上传范围也没有包含 *-real-user-journeys 目录；package/profile、validation-policy 和 workflow contract test 因此没有把这组真实旅程作为 journeys 风险面的必经入口登记起来。",
+  "class_root": "真实用户测试的入口、风险分类和 CI job 可以各自存在却互不相连，形成“测试文件可执行但产品级路径可漏跑”的静默覆盖缺口。真实旅程必须在一个可复用 manifest/runner 中登记，由 capability 选择和 provider state 驱动；loopback 必须进 journeys profile，live provider 必须显式 blocked 并以非通过状态报告，workflow 必须把执行与证据消费接到同一风险条件。",
+  "affected_population": [
+    "修改 Electron、MCP、receipt、canvas 或 storyboard 相关 source 的贡献者：附近 unit 通过不能说明真实产品旅程仍被执行",
+    "依赖 Quality Gate 判断真实用户路径的 reviewer 和 CI：缺失的 journey report 会把“未执行”误看成“没有问题”",
+    "没有 live provider credentials 的普通 PR runner：必须得到可机读的 blocked 状态，而不能启动真实付费 provider 或把 SKIP 记为 pass"
+  ],
+  "scope_paths": [
+    ".github/workflows/quality-gate.yml",
+    "package.json",
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "scripts/real-user-test-gates.mjs",
+    "scripts/real-user-test-gates.node-test.mjs",
+    "scripts/validation-policy.mjs",
+    "scripts/validation-policy.node-test.mjs",
+    "scripts/test-system.test.mjs",
+    "tests/system/profiles.mjs",
+    "tests/system/real-user-test-gates.mjs",
+    "tests/ux/mcp-l2-journeys.e2e.mjs"
+  ],
+  "entry_points": [
+    "Quality Gate / E2E Walkthroughs (Linux)：在 journeys 风险条件下执行 loopback 真实用户旅程并上传 tests/system/runs/**/*-real-user-journeys/**",
+    "pnpm run test:real-user-journeys:ci -- --provider loopback：复用 manifest runner，按 capability 选择已登记旅程",
+    "pnpm run test:system ci-journeys：与 journeys-ci 一起执行 loopback 真实旅程；live provider 只报告 blocked",
+    "scripts/check-quality-gate-workflow.node-test.mjs、scripts/validation-policy.node-test.mjs：钉住 workflow 接线、profile 选择和风险分类"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "本次不变量由仓库自己的 manifest、Electron journey、validation-policy、quality-gate workflow 和报告消费约定定义；provider credentials、receipt persistence/restart 与视觉证据的分层边界不能由外部文档决定。",
+  "invariants": [
+    "三条指定真实用户 journey 和已有 MCP journey 必须在 manifest 中有唯一 id、唯一 capability、稳定 command、H/B/E/T/N 证据和 persistence/restart/visual 状态。",
+    "runner 只能执行 manifest 中按 capability 选出的项目；空、重复、未知或不完整项 fail closed；子进程返回 SKIP 不能提升为 pass。",
+    "loopback 是普通 CI 可执行的零付费 provider state；live provider 没有授权时必须是 blocked、不得启动，blocked 不能计入 passed。",
+    "receipt、canvas/storyboard 落地、持久化/restart readback 和真实截图证据必须由旅程自身产生并报告；runner 不伪造截图或视觉 acceptance。",
+    "Quality Gate 只有在 journeys risk profile 命中时执行真实 loopback journey gate，并上传 report.md、summary.json 与每项 stdout/stderr，避免产品级旅程因局部 source 变更而静默漏跑。"
+  ],
+  "generality_proof": "manifest validation、capability selection、provider blocking 和报告退出码都在 scripts/real-user-test-gates.mjs 这一共享 runner 边界收口；tests/system/profiles.mjs 与 .github/workflows/quality-gate.yml 只负责把同一 stage 接入风险条件。未来新增 Resident、storyboard、MCP 或其它产品级旅程仍必须经过同一 manifest/runner，不能仅靠某个 source 目录附近的 unit job 偶然覆盖。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/real-user-test-gates.mjs",
+      "symbol": "runRealUserGates",
+      "responsibility": "验证 manifest、按 capability/provider 选择旅程、执行实际命令、保留 stdout/stderr，并以 failed/blocked 非零退出；SKIP 不得变成 pass。"
+    },
+    {
+      "path": "tests/system/profiles.mjs",
+      "symbol": "STAGES.real-user-journeys",
+      "responsibility": "把 loopback 真实用户旅程作为独立 journeys profile stage，供 ci-journeys/full-local 等风险 profile 显式消费。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "jobs.desktop-linux.steps.Real user loopback journey gate",
+      "disposition": "enforced",
+      "evidence": "desktop-linux 在 needs.scope.outputs.journeys 为 true 时通过 xvfb-run 调用 pnpm run test:real-user-journeys:ci，并上传该 runner 的 report/summary 与每项日志；这是本次漏接的高风险 workflow 入口。"
+    },
+    {
+      "path": "tests/system/profiles.mjs",
+      "entry_point": "PROFILES.ci-journeys / PROFILES.full-local",
+      "disposition": "enforced",
+      "evidence": "ci-journeys 与 full-local 都显式包含 real-user-journeys stage，stage 将 provider 固定为 loopback；这保证 profile 选择不会只跑旧 journeys-ci。"
+    },
+    {
+      "path": "scripts/validation-policy.mjs",
+      "entry_point": "JOURNEY_PATTERNS",
+      "disposition": "enforced",
+      "evidence": "validation policy 将 resident-composer-receipt-fix、storyboard-agent-canonical-patch 和 production-mcp-journey 归入 journeys 风险分类，避免改动这些真实入口时只选择普通 unit。"
+    }
+  ],
+  "migration": "无数据迁移。现有真实旅程文件和既有 MCP journey 的入口保持不变，只新增 manifest/runner/profile/workflow 接线；已有 CI consumer 不需要改变。后续新增或改名的真实用户旅程必须先登记唯一 capability、provider state 和 H/B/E/T/N evidence，再由 runner 选择执行。",
+  "regression_tests": [
+    "scripts/real-user-test-gates.node-test.mjs",
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "scripts/validation-policy.node-test.mjs",
+    "scripts/test-system.test.mjs",
+    "tests/ux/mcp-l2-journeys.e2e.mjs"
+  ],
+  "residual_risks": [
+    "loopback provider fixture 证明真实 Electron/MCP/Run/persistence 路径和零付费边界，不等于任何 live provider 的凭据、额度、网络或 SLA certification；live 仍须明确授权后单独运行。",
+    "visual status 是证据状态，不是自动视觉 acceptance；截图需要真实生成并由后续 reviewer/visual gate 审核，pending-review 不能变成 pass。",
+    "本次 runner 按 manifest command 顺序执行并以失败/阻塞退出；GitHub runner 的桌面启动、xvfb 和 provider fixture 资源仍可能造成环境级失败，报告会保留 stdout/stderr 供定位。"
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/real-user-test-gates.mjs",
+    "invariant": "所有登记的真实用户旅程都必须有唯一 capability、loopback/live provider state、H/B/E/T/N 证据和持久化/restart/visual 状态；runner 只执行明确选择的项目，并将 failed、blocked、pending-review 保留为非通过状态。",
+    "failure_mode": "manifest 结构、空/重复/未知 capability、缺失证据、子进程失败或 SKIP 均 fail closed；live provider 的 blocked state 不启动命令并以 exit 2 报告，loopback 失败以 exit 1 报告。",
+    "exception_policy": "none",
+    "strategy": "将旅程登记、选择、执行、日志产物和报告退出码集中在一个 runner，profile/workflow 只消费该边界；任何新增入口若没有显式登记或没有被风险 profile 接线，就不能生成通过报告。",
+    "artifacts": [
+      "scripts/real-user-test-gates.mjs",
+      "tests/system/real-user-test-gates.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/real-user-test-gates.node-test.mjs",
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "scripts/validation-policy.node-test.mjs",
+    "scripts/test-system.test.mjs"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新增真实用户旅程、provider profile 或 CI 风险拆分都可能再次出现“文件存在但没有进入必经 profile”的覆盖缺口；该类问题必须在共享 manifest/runner、validation policy 和 workflow contract 检查处持续收口。",
+    "same_class_scan": [
+      "扫描 package.json、tests/system/profiles.mjs、scripts/validation-policy.mjs 和 .github/workflows/quality-gate.yml，逐项核对 real-user-journeys stage、ci-journeys profile、journeys 风险分类和 desktop-linux job 条件是否同名同路由。",
+      "扫描 tests/ux/resident-composer-receipt-fix.e2e.mjs、tests/ux/storyboard-agent-canonical-patch.e2e.mjs、tests/ux/production-mcp-journey.e2e.mjs 及 tests/ux/mcp-* journey，确认 manifest 使用稳定真实入口，不把 retired/preview-only probe 当产品 journey。",
+      "扫描 runner/manifest contract tests，覆盖 H/B/E/T/N、空/重复/未知项、失败与 SKIP、live blocked 退出码、report.md/summary.json 与 stdout/stderr 产物，避免只断言对象形状。"
+    ]
+  },
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本次只把既有真实旅程接入风险匹配的 profile，并保留原有 journeys-ci、MCP journey 和 workflow job；没有删除旧脚本、checker、baseline 或 allowlist。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不新增、不升级、不保留第三方依赖；runner 使用仓库现有 Node、pnpm、Electron/xvfb 和测试 fixture。",
+    "exit_criteria": []
+  }
+}

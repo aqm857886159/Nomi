@@ -51,7 +51,10 @@ describe("BUG-1: fal openai/gpt-image-2 image_size must be a fal enum, not a WxH
   // Live fal rejects "1024x1024" with 422 model_attributes_type; it accepts the ImageSize
   // enum. The OpenAI/new-api `size` field DOES take WxH — so the transform must be fal-specific.
   it("gpt-image-2 fal mapping translates aspect_ratio→image_size via ratioResToFalImageSize", () => {
-    for (const modeId of ["t2i", "edit"] as const) {
+    // 改图那条的 modeId 是 "i2i"——gpt-image-2 档案声明的就是 t2i / i2i（"edit" 是 nano-banana-2 /
+    // seedream 档案的写法）。这里只是**查找键**跟着改，被断言的东西（image_size 的 transform 规则）
+    // 一字未动（2026-09-03 孤儿线缆修复：seed 侧曾写 "edit"，档案侧永远选不中它）。
+    for (const modeId of ["t2i", "i2i"] as const) {
       const mapping = findFalMapping("openai/gpt-image-2", modeId);
       const rule = mapping.create.paramMap?.rules?.find((r) => "wire" in r && r.wire === "image_size");
       expect(rule && "transform" in rule ? rule.transform : undefined).toBe("ratioResToFalImageSize");

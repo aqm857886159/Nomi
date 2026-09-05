@@ -9,7 +9,7 @@ import type {
   ProjectAgentUserItem,
 } from "../shared/projectAgentContracts";
 import { ProjectAgentReducerError, reduceProjectAgentMutation } from "./projectAgentReducer";
-import { createInitialProjectAgentState } from "./projectAgentState";
+import { assertProjectAgentHostState, createInitialProjectAgentState } from "./projectAgentState";
 
 const queuedAt = "2026-08-28T00:00:00.000Z";
 const startedAt = "2026-08-28T00:00:01.000Z";
@@ -163,6 +163,7 @@ function asyncMutation(
   expectedRevision: number,
   turnStatus: "running" | "done" | "failed" | "stopped",
   assistantFinal?: Record<string, unknown>,
+  overrides: Record<string, unknown> = {},
 ): ProjectAgentMutation {
   return {
     commandId: `async-${turnStatus}-${expectedRevision}`,
@@ -183,6 +184,7 @@ function asyncMutation(
       turnStatus,
       ...(assistantFinal === undefined ? {} : { assistantFinal }),
       receivedAt: "2026-08-28T00:00:03.000Z",
+      ...overrides,
     },
   } as unknown as ProjectAgentMutation;
 }
@@ -573,6 +575,40 @@ describe("ProjectAgentHost assistant async finalization", () => {
       "turn-upserted",
       "queue-upserted",
     ]);
+  });
+
+  it("persists validated terminal model usage in the Host state and snapshot contract", () => {
+    const usage = { promptTokens: 5, completionTokens: 3, cachedPromptTokens: 1, totalTokens: 8 };
+    const finalized = reduceProjectAgentMutation(
+      startedState(),
+      asyncMutation(2, "done", {
+        itemId: "assistant-turn-a",
+        executionToken: "token-turn-a",
+        expectedTextRevision: 0,
+        text: "done",
+      }, { usage }),
+    );
+
+    expect(finalized.state.turns[0]).toMatchObject({ status: "done", usage });
+    expect(() => assertProjectAgentHostState(finalized.state)).not.toThrow();
+  });
+
+  it("rejects malformed terminal model usage before changing the Host state", () => {
+    const started = startedState();
+    const validFinal = {
+      itemId: "assistant-turn-a",
+      executionToken: "token-turn-a",
+      expectedTextRevision: 0,
+      text: "done",
+    };
+    for (const usage of [
+      null,
+      { promptTokens: 5, completionTokens: 3, cachedPromptTokens: 1, totalTokens: -1 },
+      { promptTokens: 5, completionTokens: 3, cachedPromptTokens: 1, totalTokens: 8, extra: true },
+    ]) {
+      expect(() => reduceProjectAgentMutation(started, asyncMutation(2, "done", validFinal, { usage })))
+        .toThrowError(expect.objectContaining<Partial<ProjectAgentReducerError>>({ code: "async_result_stale" }));
+    }
   });
 
   it("does not advance textRevision when terminal full text is unchanged", () => {

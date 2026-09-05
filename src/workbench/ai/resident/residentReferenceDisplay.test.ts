@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { presentResidentReference, residentReferenceRole } from './residentReferenceDisplay'
+import { isResidentReferenceStale, presentResidentReference, residentReferenceRole } from './residentReferenceDisplay'
 
 const translate = (key: string, options?: Record<string, unknown>): string => {
   if (!options) return key
@@ -37,5 +37,12 @@ describe('resident reference presentation', () => {
     expect(presentation.role).toBe('agentResident.referenceRoleTimeline')
     expect(presentation.state).toBe('agentResident.referenceChanged')
     expect(presentation.accessibleLabel).toContain('agentResident.referenceChanged')
+  })
+
+  it('recognizes only structured stale-state signals', () => {
+    expect(isResidentReferenceStale('stale')).toBe(true)
+    expect(isResidentReferenceStale('agentResident.referenceChanged')).toBe(true)
+    expect(isResidentReferenceStale('agentResident.referenceRoleTimeline')).toBe(false)
+    expect(isResidentReferenceStale(undefined)).toBe(false)
   })
 })

@@ -32,6 +32,7 @@ import {
 import { handleMultiShotCanvasLandingOp } from './multiShotCanvasLanding'
 import { executeTimelineReadTarget, executeTimelineWriteTarget } from '../timeline/agent/timelineCapabilityTarget'
 import { executeAssetReadTarget, executeExportReadTarget } from '../timeline/agent/phase4CapabilityTargets'
+import { executeCanonicalCanvasPlanPatch } from './canonicalCanvasPlanPatch'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。
@@ -367,6 +368,33 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   if (landed !== null) return landed
 
   switch (op) {
+    case 'document.write': {
+      const tools = useWorkbenchStore.getState().creationDocumentTools
+      const operation = data.operation === 'insert' || data.operation === 'replace' || data.operation === 'append'
+        ? data.operation
+        : null
+      const content = typeof data.content === 'string' ? data.content : ''
+      const documentId = useWorkbenchStore.getState().activeDocumentId
+      if (!tools || !operation || !content || !documentId) {
+        throw new SurfacePortWireError('surface_port_unavailable')
+      }
+      const current = tools.readState()
+      return tools.applyDocumentWrite({
+        operation,
+        content,
+        target: { kind: 'document', documentId, anchor: current.anchor },
+        preconditions: { document: { revision: current.revision, contentHash: current.contentHash } },
+      })
+    }
+    case 'canvas.write':
+      return executeCanonicalCanvasPlanPatch({
+        projectId,
+        input: data.input,
+        receiptProposalId: typeof data.receiptProposalId === 'string' ? data.receiptProposalId : 'mcp-canvas-plan:renderer',
+        approvalId: typeof data.approvalId === 'string' ? data.approvalId : 'mcp-canvas-plan:renderer',
+        ...(typeof data.actionHash === 'string' ? { actionHash: data.actionHash } : {}),
+        readActiveProjectId: getActiveWorkbenchProjectId,
+      })
     case 'canvas.read-doc':
       return useGenerationCanvasStore.getState().readDocumentSnapshot()
     case 'canvas.apply':

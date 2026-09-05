@@ -56,6 +56,13 @@ describe("built-in skill packs", () => {
     ]);
   });
 
+  it("marks the storyboard planner as a user-selectable Workbench Skill", () => {
+    const raw = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, "workbench-storyboard-planner", "skill.json"), "utf8"));
+    const parsed = parseSkillManifest(raw);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.manifest.selectableInWorkbench).toBe(true);
+  });
+
   it("release-media-pack is an evidence-first 7-stage playbook with an honest handoff", () => {
     const raw = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, "release-media-pack", "skill.json"), "utf8"));
     const parsed = parseSkillManifest(raw);

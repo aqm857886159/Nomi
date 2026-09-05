@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "nomi.real-user.long-video-creation",
+  "title": "真实用户长视频创作任务",
+  "purpose": "验证用户从进入 Nomi 到视频拆解、分镜表、画布/预览、审批、持久化和失败回滚的真实顺序；不把内部 store 注入当作用户路径。",
+  "defaultExecution": "contract-only",
+  "evidenceStates": ["loopback", "recorded", "blocked-live"],
+  "classifications": {
+    "H": "Human action: 用户可见的进入、点击、选择、导入和审批动作",
+    "B": "Behavior: Skill、模型和产物在用户动作后的可观察行为",
+    "E": "Evidence: 磁盘、重启、请求和费用/额度证据",
+    "T": "Technical boundary: Electron/UI/preload/本地持久化边界",
+    "N": "Negative path: 拒绝、失败、回滚和阻断必须诚实返回"
+  },
+  "sample": {
+    "path": "marketing/assets/demo.mp4",
+    "kind": "repository-tracked-fixture",
+    "licenseEvidence": "仓库已跟踪的 marketing demo 素材；runner 只读取，不宣称是真实 provider 生成",
+    "minimumDurationSeconds": 30,
+    "measuredDurationSeconds": 60.096,
+    "liveOverrideEnv": "NOMI_LONG_VIDEO_PATH"
+  },
+  "liveCanaryProfile": "tests/ux/real-user-long-video.live-canary.json",
+  "steps": [
+    { "id": "enter-nomi", "action": "enterNomi", "classification": "H", "evidenceMode": "loopback", "required": true },
+    { "id": "load-skill", "action": "loadSkill", "classification": "B", "evidenceMode": "loopback", "required": true },
+    { "id": "select-model", "action": "selectModel", "classification": "H", "evidenceMode": "loopback", "required": true },
+    { "id": "apply-skill", "action": "applySkill", "classification": "B", "evidenceMode": "loopback", "required": true },
+    { "id": "import-video", "action": "importVideo", "classification": "H", "evidenceMode": "recorded", "required": true },
+    { "id": "deconstruct-video", "action": "deconstructVideo", "classification": "B", "evidenceMode": "blocked-live", "required": true },
+    { "id": "produce-storyboard", "action": "produceStoryboard", "classification": "B", "evidenceMode": "blocked-live", "required": true },
+    { "id": "send-to-canvas", "action": "sendToCanvas", "classification": "H", "evidenceMode": "blocked-live", "required": true },
+    { "id": "open-preview", "action": "openPreview", "classification": "H", "evidenceMode": "blocked-live", "required": true },
+    { "id": "approve-result", "action": "approveResult", "classification": "H", "evidenceMode": "blocked-live", "required": true },
+    { "id": "reject-result", "action": "rejectResult", "classification": "N", "evidenceMode": "blocked-live", "required": true },
+    { "id": "verify-persistence", "action": "verifyPersistence", "classification": "E", "evidenceMode": "recorded", "required": true },
+    { "id": "restart-readback", "action": "restartReadback", "classification": "T", "evidenceMode": "recorded", "required": true },
+    { "id": "repeat-idempotently", "action": "repeatIdempotently", "classification": "E", "evidenceMode": "recorded", "required": true },
+    { "id": "failure-rollback", "action": "failureRollback", "classification": "N", "evidenceMode": "blocked-live", "required": true }
+  ]
+}

@@ -97,6 +97,8 @@ export const skillManifestSchema = z.object({
   description: z.string().min(1),
   /** Visibility request. User-imported Skills are still forced internal by origin policy. */
   audience: skillAudienceSchema.optional(),
+  /** Explicitly allow a built-in Skill to appear in the Workbench picker. */
+  selectableInWorkbench: z.boolean().optional(),
   /** Canonical requests can only shrink the Host-owned capability ceiling. */
   requestedCapabilities: z.array(skillRequestedCapabilitySchema).max(64)
     .refine((items) => new Set(items).size === items.length, "must not contain duplicate capability ids")

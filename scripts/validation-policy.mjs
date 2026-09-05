@@ -21,7 +21,7 @@ const VALIDATION_INFRASTRUCTURE_POLICY = Object.freeze({
 
 const VALIDATION_INFRASTRUCTURE_PATTERNS = [
   /^\.github\/(?:actions|workflows)\//,
-  /^scripts\/(?:validation-policy|select-quality-gate-profile|check-quality-gate-workflow|test-system|test-focused|git-delivery|canvas-performance-verdict|eval-journey|.*walkthrough)(?:\.|$)/,
+  /^scripts\/(?:validation-policy|select-quality-gate-profile|check-quality-gate-workflow|real-user-test-gates|test-system|test-focused|git-delivery|canvas-performance-verdict|eval-journey|.*walkthrough)(?:\.|$)/,
   /^tests\/system(?:\/|$)/,
   /^tests\/ux\/(?:canvas-real-suite|canvas-performance-(?:benchmark|verdict))(?:\.|$)/,
   /^(?:eslint|playwright|vitest)\.config\.(?:ts|mts|cts|js|mjs|cjs)$/,
@@ -34,6 +34,17 @@ const PACKAGE_PATTERNS = [
   /^tsconfig[^/]*\.json$/,
   /^electron\/(?:main|preload|runtimePaths|mainProcessLifecycle)\.(?:ts|tsx|js|mjs|cjs)$/,
   /^scripts\/(?:electron-install-identity|release-contract)(?:\.|$)/,
+  // The packaged MCP smoke (dist:mac:dir) asserts the packaged server's behaviour and tool
+  // surface. The truth sources of that surface — capability-core (catalog/collapse/stdio
+  // server/launcher) and the harness tool-surface manifest — must select the package lane on
+  // the PR path, or a surface change rides the fast path green and burns the next main push
+  // (2026-09-02: surface-16-collapse escaped exactly this way; see docs/fixes/
+  // 2026-09-02-packaged-mcp-smoke-stale-catalog-anchor.root-cause.json).
+  /^electron\/capabilityCore\//,
+  /^electron\/harness\/tools\//,
+  // The smoke instrument itself: editing the packaged smoke must re-run the packaged smoke
+  // (same rule as PERFORMANCE_INSTRUMENT_PATTERNS — instrument edits re-run the instrument).
+  /^tests\/ux\/packaged-mcp-smoke/,
 ]
 
 const JOURNEY_PATTERNS = [
@@ -44,6 +55,7 @@ const JOURNEY_PATTERNS = [
   /^src\/.*(?:agent|bridge|credential|model|provider|catalog|comfyui|network|security|generationCanvas\/runner).*\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i,
   /^electron\/capabilityCore\/mcp.*\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i,
   /^tests\/ux\/mcp-(?:l1-handshake|journey).*\.(?:mjs|js|ts)$/i,
+  /^tests\/ux\/(?:resident-composer-receipt-fix|storyboard-agent-canonical-patch|production-mcp-journey)\.(?:e2e\.)?mjs$/i,
 ]
 
 const DESKTOP_PATTERNS = [/^src\/desktop\/bridge\.(?:ts|tsx|js|jsx)$/]

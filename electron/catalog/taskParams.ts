@@ -160,8 +160,28 @@ export function taskTemplateParams(request: TaskParamsInput, selected?: Paramete
   const speed = numericWireParam(extras.speed);
   const refInput = referenceInputParams(extras, selected);
   const jsonEditInput = jsonImageEditInput(refInput.reference_images);
+  // 变体（档案切档的产物）优先，其次目录身份回落。详见下方 model 键的注释。
+  const wireModel = firstString(extras.model) || firstString(selected?.wireModelKey);
   return {
     ...extras,
+    // **要发出去的 model 串的单一真相源**（变体轴 > 目录身份）。
+    //
+    // 为什么必须在这里补默认：body 模板写 `{{request.params.model}}` 才能让变体切换真的换掉线上的
+    // model 串（archetypeVariantAxisIsLive 读的就是「body 有没有引用 params.model」）。但 extras.model
+    // 只有**带变体的档案**才产出（buildArchetypeInputParams 末尾：变体 > mode.modelEnum > 不带）——
+    // 裸模型走同一条 body 时 params.model 是 undefined，而 renderTemplateValue 对整 token 的
+    // undefined 是**整键丢弃**（requestPipeline.ts:110-117 实测：{model:"{{request.params.model}}"}
+    // 渲染成 {}），于是每个没变体的中转模型都会发出一个**没有 model 字段**的请求 → 站点必 400。
+    // 所以「模板层没有 fallback 语法」这件事在这里一次性补齐（followPath 只会走点号路径，`||` 之类
+    // 写法解析不出任何东西，实测渲染成 {}）——回落值取与 `{{model.modelKey}}` **完全同一个**表达式
+    // （modelAlias 优先、否则 modelKey，见 profileHttpRequest.templateContext），保证换成参数化 model
+    // 之后裸模型的线上字节与换之前逐字节一致。
+    // 单源纪律（P1）：全仓只有这一处决定「发哪个 model 串」，各家 catalog 不再各自兜底。
+    //
+    // 用条件展开而不是 `model: ... || undefined`：后者会留下一个**值为 undefined 的自有键**，
+    // 于是调用方的 `{ model: 兜底, ...params }` 会被这个空键反向覆盖掉（渲染结果照样没有 model）。
+    // 键干脆不存在，才能让上游的展开兜底按直觉生效。
+    ...(wireModel ? { model: wireModel } : {}),
     // An unset size must stay undefined so exact template fields are omitted.
     // Sending the empty alias (the persisted value for the gpt-image-2
     // `Auto` aspect-ratio choice) makes OpenAI-compatible endpoints reject the
@@ -194,7 +214,25 @@ export function taskTemplateParams(request: TaskParamsInput, selected?: Paramete
     // xAI 单图编辑固定沿用输入图比例；只有多图编辑才允许显式 aspect_ratio。
     json_edit_aspect_ratio: jsonEditInput.images ? firstString(extras.aspect_ratio, extras.aspectRatio) || undefined : undefined,
     max_tokens: extras.maxTokens ?? extras.max_tokens,
+    // 通用中转视频的 `metadata`（供应商自定义参数袋）——**整个对象在这里构造，不在模板里逐键写**。
+    // 理由是模板层的一个真实边界：它丢得掉值为 undefined 的**键**，却丢不掉因此变空的**父对象**，
+    // 逐键写法在用户什么都没填时会发出 `"metadata":{}`（实测），凭空给严格端点多一个空对象。
+    // 没有任何内容 → 整个键 undefined → 模板把 metadata 一起丢掉，wire 与加这个字段之前逐字节一致。
+    relay_metadata: relayVideoMetadata(request.negativePrompt ?? extras.negative_prompt),
   };
+}
+
+/**
+ * 通用中转视频 `metadata` 袋（R5 核 doc.newapi.pro/api/kling-jimeng/ 2026-09-03，原文：
+ * 「供应商特定/自定义参数（如 negative_prompt, style, quality_level 等）」）。
+ *
+ * 只放**文档点名**的键。这是有意的克制：metadata 是自由袋，往里塞我们自己想当然的键名
+ * （generate_audio 之类）不会报错、也不会生效，只会变成一种更难发现的静默丢弃——
+ * 看起来发出去了，实际上没有哪个供应商认得。没有文档依据的参数宁可如实标成「送不到」。
+ */
+function relayVideoMetadata(negativePrompt: unknown): JsonRecord | undefined {
+  const negative = firstString(negativePrompt);
+  return negative ? { negative_prompt: negative } : undefined;
 }
 
 function numericWireParam(value: unknown): number | string | undefined {
@@ -643,6 +681,11 @@ export function imageEditGuardError(
   modeBodies?: ModelModeBody[],
   selected?: ParameterReferenceSelection,
 ): string | null {
+  // image_to_prompt is a runtime-fixed multimodal text path: executeTextTask
+  // sends its referenceImages directly through streamTextTask, so it has no
+  // profile/fallback body for this guard to audit.
+  if (kind === "image_to_prompt") return null;
+
   // 第三闸对**所有 kind** 生效（运镜的参考视频可能挂在 t2v/omni 上），且只在真带了参考时才可能触发。
   //
   // `createBody === undefined` 有两种截然不同的成因，处置也相反：

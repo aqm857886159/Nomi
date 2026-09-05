@@ -5,15 +5,24 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 // verify 本身的行为（打鉴权账户端点、401→auth、no-route 区分）在 tikhubConnector.test.ts 单独锁。
 
 const verifyTikhubApiKey = vi.fn();
+const resolveShareVideo = vi.fn();
 const upsertModelCatalogVendorApiKey = vi.fn();
 const clearModelCatalogVendorApiKey = vi.fn();
+const importRemoteAsset = vi.fn();
 // 凭据态：默认「已存且可解密」= ok，让「校验通过→落盘→回 ok」这条正路能走通。
 let decryptStatus: "ok" | "missing" = "missing";
 
 vi.mock("./tikhubConnector", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./tikhubConnector")>();
-  return { ...actual, verifyTikhubApiKey: (...args: unknown[]) => verifyTikhubApiKey(...args) };
+  return {
+    ...actual,
+    verifyTikhubApiKey: (...args: unknown[]) => verifyTikhubApiKey(...args),
+    resolveShareVideo: (...args: unknown[]) => resolveShareVideo(...args),
+  };
 });
+vi.mock("../assets/projectAssetStore", () => ({
+  importRemoteAsset: (...args: unknown[]) => importRemoteAsset(...args),
+}));
 vi.mock("../catalog/catalogStore", () => ({
   readCatalog: () => ({ apiKeysByVendor: { tikhub: decryptStatus === "ok" ? { safeStorage: "x" } : undefined } }),
   upsertModelCatalogVendorApiKey: (...args: unknown[]) => upsertModelCatalogVendorApiKey(...args),
@@ -29,9 +38,33 @@ import { TikhubConnectorError } from "./tikhubConnector";
 
 beforeEach(() => {
   verifyTikhubApiKey.mockReset();
+  resolveShareVideo.mockReset();
   upsertModelCatalogVendorApiKey.mockReset();
   clearModelCatalogVendorApiKey.mockReset();
+  importRemoteAsset.mockReset();
   decryptStatus = "missing";
+  delete process.env.NOMI_E2E;
+  delete process.env.NOMI_TIKHUB_TEST_ORIGIN;
+});
+
+describe("importTikhubShareUrl — 解析后带 source evidence 落成项目素材", () => {
+  it("真实导入编排把 resolved 视频和 loopback trusted origin 交给素材落盘边界", async () => {
+    const { importTikhubShareUrl } = await import("./tikhubConnectorService");
+    decryptStatus = "ok";
+    process.env.NOMI_E2E = "1";
+    process.env.NOMI_TIKHUB_TEST_ORIGIN = "http://127.0.0.1:43210";
+    resolveShareVideo.mockResolvedValue({ platform: "douyin", playUrl: "http://127.0.0.1:43210/fixture.mp4", videoId: "fixture-video" });
+    importRemoteAsset.mockResolvedValue({ id: "asset-fixture" });
+
+    const result = await importTikhubShareUrl({ projectId: "project-fixture", shareUrl: "抖音 https://v.douyin.com/fixture/" });
+
+    expect(result).toEqual({ asset: { id: "asset-fixture" }, resolved: expect.objectContaining({ playUrl: "http://127.0.0.1:43210/fixture.mp4" }) });
+    expect(importRemoteAsset).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: "project-fixture",
+      url: "http://127.0.0.1:43210/fixture.mp4",
+      sourceEvidence: expect.objectContaining({ connectorId: "tikhub", originalUrl: "抖音 https://v.douyin.com/fixture/", resolvedUrl: "http://127.0.0.1:43210/fixture.mp4" }),
+    }), { trustedPrivateOrigin: "http://127.0.0.1:43210" });
+  });
 });
 
 describe("saveTikhubApiKey — 先校验再落盘", () => {

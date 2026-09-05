@@ -166,6 +166,7 @@ function requestedReferenceIds(
   switch (input.operation) {
     case "tidy_canvas":
     case "propose_storyboard_plan":
+    case "patch_shots":
       return [];
     case "arrange_storyboard_to_timeline":
       return [...input.nodeIds];

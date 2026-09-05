@@ -1,5 +1,7 @@
 # 执行计划：助手面板收敛（双面板 → 单上下文助手）
 
+> 裁决：已被 Project Agent Host/Resident Shell 架构取代；证据：`docs/audit/2026-09-03-codex-agent-host-review.md:229-234`、`src/workbench/ai/ProjectAgentResidentShell.tsx:696-700`。
+
 > 依据：`docs/audit/2026-06-07-assistant-architecture-audit.md`（决策 B + §10 复核修正）。
 > 本文是 R4 执行文档：范围 / 不动项 / 分阶段 / 回滚 / 验收门。实现按阶段推进，阶段 2 的可见改动须先过 R8 样张（见 `docs/mockup/2026-06-07-unified-assistant-panel.html`）。
 

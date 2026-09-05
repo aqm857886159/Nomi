@@ -85,7 +85,7 @@ async function runTextToSpeech(input: AudioTaskInput): Promise<TaskResult> {
 //   → fetch → NDJSON+base64 解码（decodeDoubaoNdjsonAudio）→ 落盘 mp3 资产。
 async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperation): Promise<TaskResult> {
   const { vendor, model, apiKey, request, kind, taskId, projectId } = input;
-  const params = taskTemplateParams(request, { vendorKey: vendor.key, modelKey: model.modelKey });
+  const params = taskTemplateParams(request, { vendorKey: vendor.key, modelKey: model.modelKey, wireModelKey: model.modelAlias || model.modelKey });
   const text = trim(request.prompt) || firstString(params.text);
   if (!text) throw new Error(desktopT("dubbing.noText"));
   const voice = firstString(params.voice);
@@ -137,7 +137,7 @@ async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperati
 // Whisper：读参考音频字节 → multipart(file+model+language+response_format) → 同步 JSON → 文本结果。
 async function runTranscribe(input: AudioTaskInput): Promise<TaskResult> {
   const { vendor, model, apiKey, request, kind, taskId } = input;
-  const params = taskTemplateParams(request, { vendorKey: vendor.key, modelKey: model.modelKey });
+  const params = taskTemplateParams(request, { vendorKey: vendor.key, modelKey: model.modelKey, wireModelKey: model.modelAlias || model.modelKey });
   const audioUrl = resolveAudioSource(request, params);
   if (!audioUrl) throw new Error(desktopT("transcribe.noAudio"));
   const audio = await readAudioBytes(audioUrl);

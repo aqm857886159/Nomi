@@ -33,4 +33,21 @@ describe('renderer apply reply binding', () => {
     listener({ sender: { id: 17 }, senderFrame: { routingId: 9, url: 'http://127.0.0.1:5273/other-route' } }, { id, ok: true, result: { confirmed: true } })
     await expect(pending).resolves.toEqual({ confirmed: true })
   })
+
+  it('fails closed when the renderer is unavailable or does not answer before the timeout', async () => {
+    await expect(requestRenderer('canvas.write', {}, 5)).rejects.toMatchObject({ name: 'RendererUnavailableError' })
+
+    const target = {
+      id: 18,
+      isDestroyed: () => false,
+      mainFrame: { routingId: 10 },
+      getURL: () => 'http://127.0.0.1:5273/index.html',
+      send: vi.fn(),
+    }
+    setRendererTarget(target as never)
+    const pending = requestRenderer('canvas.write', {}, 5)
+    const timeoutExpectation = expect(pending).rejects.toMatchObject({ name: 'RendererApplyError' })
+    await new Promise((resolve) => setTimeout(resolve, 15))
+    await timeoutExpectation
+  })
 })

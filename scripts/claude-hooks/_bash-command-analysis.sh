@@ -90,6 +90,11 @@ def analyse(command, cwd):
                     j += 2; continue
                 if t in GLOBAL_FLAGS:
                     j += 1; continue
+                # Git accepts `--no-verify` before `push`; recognize this
+                # push-only spelling without making secret-guard miss
+                # `git --no-verify commit`.
+                if t == "--no-verify" and j + 1 < n and tokens[j + 1] == "push":
+                    j += 1; continue
                 if t.startswith("--") and "=" in t:
                     if t.split("=")[0] in OPAQUE_TAKES_ARG:
                         opaque = True

@@ -20,6 +20,7 @@ import { readProxyPrefs } from '../proxySettings'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { startArtifactPreviewHttpServer, withAssetPreview } from '../productionRun/artifactPreviewHttpServer'
 import { readWorkspaceProject, resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
+import { ensureWorkspaceProjectIdentity } from '../workspace/workspaceProjectIdentity'
 import { getProjectLocationState, getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { dispatchAndEnrich } from './mcpResultEnrichLive'
 import { makeShotVerifyDeps } from './shotVerifyDeps'
@@ -56,7 +57,10 @@ import { createRunOwnedGenerationGateAuthority } from './runOwnedGenerationGateA
 import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
 import { startSemanticMultiShotBatch } from './mcpSemanticBatchStart'
 import { hasGenerationOperationProviderReadiness } from './generationOperationProviderReadiness'
+import { recordDetectedMcpClient } from './mcpDetectedClients'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
+import { createProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
+import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
 
 const productionRuns = getProductionRunService()
 
@@ -69,6 +73,41 @@ export type McpStdioServerOptions = {
   generationPlanning?: DispatchContext['generationPlanning']
   generationModuleRegistry?: Pick<ModuleRegistry, 'resolve'>
   projectRevisionResolver?: (projectId: string) => number | undefined
+  /** Main-owned receipt resolver for the headless stdio process. */
+  proposalReceiptFor?: (projectId: string) => ReturnType<typeof createProjectAgentProposalReceiptService> | undefined | Promise<ReturnType<typeof createProjectAgentProposalReceiptService> | undefined>
+}
+
+type DefaultProposalReceiptResolverDeps = Readonly<{
+  resolveProjectRoot: (projectId: string) => string | null
+  ensureProjectIdentity: typeof ensureWorkspaceProjectIdentity
+  createReceiptService: typeof createProjectAgentProposalReceiptService
+}>
+
+/**
+ * Resolve the main-owned receipt service for a headless stdio request. The
+ * project root and identity remain the trusted boundary; the caller never
+ * supplies a receipt or binding directly.
+ */
+export function createDefaultMcpProposalReceiptResolver(
+  deps: DefaultProposalReceiptResolverDeps = {
+    resolveProjectRoot: (projectId) => resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps()),
+    ensureProjectIdentity: ensureWorkspaceProjectIdentity,
+    createReceiptService: createProjectAgentProposalReceiptService,
+  },
+) {
+  return async (projectId: string) => {
+    const root = deps.resolveProjectRoot(projectId)
+    if (!root) return undefined
+    const identity = await deps.ensureProjectIdentity(root)
+    return deps.createReceiptService({
+      projectRoot: root,
+      binding: {
+        projectId: identity.projectId,
+        immutableProjectUuid: identity.immutableProjectUuid,
+        projectGeneration: identity.projectGeneration,
+      },
+    })
+  }
 }
 
 /**
@@ -120,6 +159,7 @@ async function callViaRpc(
         params,
         planConfirmed: options?.planConfirmed,
         spendConfirmed: options?.spendConfirmed,
+        documentConfirmed: options?.documentConfirmed,
         signal: controller.signal,
       }),
     })
@@ -141,6 +181,57 @@ async function callViaRpc(
   return body.result
 }
 
+/**
+ * Build the no-GUI direct invoker separately from the stdio bootstrap so the
+ * real headless receipt boundary can be exercised without starting a second
+ * stdin/stdout server in a unit test. The production default is still the
+ * same dispatchAndEnrich function used by the Electron process.
+ */
+export function createMcpStdioDirectInvoker(
+  authorities: McpStdioServerOptions,
+  canvasReadExecutionRuntime: CanvasReadExecutionRuntime,
+  dispatchFn: typeof dispatchAndEnrich = dispatchAndEnrich,
+) {
+  return async (
+    routedMethod: string,
+    routedParams: Record<string, unknown>,
+    routedProjectSession: VerifiedProjectSessionBinding,
+    routedOptions: McpInvokeOptions | undefined,
+  ): Promise<unknown> => {
+    const canvasRead = await createMcpCanvasReadTransportAdapter({
+      projectSession: routedProjectSession,
+      executor: canvasReadExecutionRuntime.executor,
+    }).tryExecute(routedMethod, routedParams, { signal: routedOptions?.signal })
+    if (canvasRead.handled) return canvasRead.result
+    const makeGateway = routedOptions?.spendConfirmed ? makeConfirmedGateway : createDiskGateway
+    // 交付②④：GUI 没开的进程内路——本进程就是 Electron（NOMI_MCP_STDIO 模式），有 nativeImage → dispatchAndEnrich
+    // 里就地富化生成结果（缩略图/签名链）。收口在包装器（0a），此路与 GUI-开着的 RPC 路一样忘不了富化。
+    const dispatch = () => dispatchFn(routedMethod, routedParams, {
+      runTask,
+      fetchTaskResult,
+      makeGateway,
+      productionRuns,
+      origin: { host: routedProjectSession.connection.authenticatedClient },
+      ...authorities,
+      projectSession: routedProjectSession,
+      ...(routedOptions?.planConfirmed ? { planConfirmed: true } : {}),
+      // 审片环（W1）：headless 路的真实 deps——judge 走 runTask 文本路（不花生成额度）、抽帧走主进程 ffmpeg、
+      // 重试复用首发 grantId+同 nodeId 直发。judge 模型无可用 text 模型时 visionAvailable=false → 整体跳过。
+      makeVerifyDeps: (verifyCtx) => makeShotVerifyDeps(verifyCtx),
+    })
+    if (routedMethod !== 'document.write') return dispatch()
+    if (routedOptions?.documentConfirmed !== true) throw new Error('human_approval_required')
+    const projectId = typeof routedParams.projectId === 'string' ? routedParams.projectId : ''
+    const service = await authorities.proposalReceiptFor?.(projectId)
+    if (!service) throw new Error('durable_document_receipt_unavailable')
+    return executeMcpDocumentWriteWithReceipt({
+      service,
+      operation: typeof routedParams.operation === 'string' ? routedParams.operation : 'write',
+      execute: dispatch,
+    })
+  }
+}
+
 /** 进程内调能力核：GUI 开着→转发 RPC（实时 + 应用内确认卡）；关着→进程内 dispatch（磁盘网关）。 */
 async function invoke(
   method: string,
@@ -158,29 +249,7 @@ async function invoke(
     // GUI 开着 → RPC 转发，rpcServer 侧已做生成结果富化（缩略图/签名链），此处不再重复富化。
     invokeViaRpc: (instance, routedMethod, routedParams, connection, routedOptions) =>
       callViaRpc(instance, routedMethod, routedParams, connection, routedOptions),
-    invokeDirect: async (routedMethod, routedParams, routedProjectSession, routedOptions) => {
-      const canvasRead = await createMcpCanvasReadTransportAdapter({
-        projectSession: routedProjectSession,
-        executor: canvasReadExecutionRuntime.executor,
-      }).tryExecute(routedMethod, routedParams, { signal: routedOptions?.signal })
-      if (canvasRead.handled) return canvasRead.result
-      const makeGateway = routedOptions?.spendConfirmed ? makeConfirmedGateway : createDiskGateway
-      // 交付②④：GUI 没开的进程内路——本进程就是 Electron（NOMI_MCP_STDIO 模式），有 nativeImage → dispatchAndEnrich
-      // 里就地富化生成结果（缩略图/签名链）。收口在包装器（0a），此路与 GUI-开着的 RPC 路一样忘不了富化。
-      return dispatchAndEnrich(routedMethod, routedParams, {
-        runTask,
-        fetchTaskResult,
-        makeGateway,
-        productionRuns,
-        origin: { host: routedProjectSession.connection.authenticatedClient },
-        ...authorities,
-        projectSession: routedProjectSession,
-        ...(routedOptions?.planConfirmed ? { planConfirmed: true } : {}),
-        // 审片环（W1）：headless 路的真实 deps——judge 走 runTask 文本路（不花生成额度）、抽帧走主进程 ffmpeg、
-        // 重试复用首发 grantId+同 nodeId 直发。judge 模型无可用 text 模型时 visionAvailable=false → 整体跳过。
-        makeVerifyDeps: (verifyCtx) => makeShotVerifyDeps(verifyCtx),
-      })
-    },
+    invokeDirect: createMcpStdioDirectInvoker(authorities, canvasReadExecutionRuntime),
   })(method, params, effectiveOptions)
 }
 
@@ -191,8 +260,10 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   }
   const generationPolicy = authorities.generationPolicy ?? createRuntimeMcpGenerationPolicy()
   const defaultAuthorities = createDefaultAuthorities(generationPolicy)
+  const projectRevisionResolver = authorities.projectRevisionResolver ?? defaultAuthorities.projectRevisionResolver!
   const approvalReceiptAuthority = authorities.approvalReceiptAuthority ?? defaultAuthorities.approvalReceiptAuthority
   const projectSession = createProductionMcpStdioProjectSessionBinding(generationPolicy)
+  const proposalReceiptFor = authorities.proposalReceiptFor ?? createDefaultMcpProposalReceiptResolver()
   const canvasReadExecutionRuntime = createHeadlessCanvasReadExecutionRuntime()
   const { connection } = projectSession
   // 无窗口进程：mac 别在 dock 弹图标。
@@ -404,13 +475,16 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         operations: operationStore,
         planning: generationPlanning,
         receipts: approvalReceiptAuthority,
+        projectRevisionResolver,
       })
     : undefined
   const generationAuthorities = {
     ...authorities,
     approvalReceiptAuthority,
+    projectRevisionResolver,
     generationPlanning,
     generationPolicy,
+    proposalReceiptFor,
     ...(authorities.requestGenerationGate ?? runOwnedGenerationAuthority?.requestGenerationGate
       ? { requestGenerationGate: authorities.requestGenerationGate ?? runOwnedGenerationAuthority!.requestGenerationGate }
       : {}),
@@ -430,6 +504,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     ),
     isAppOpen: () => Boolean(readLiveInstance(currentLibrary())),
     getAuthenticatedClient: () => connection.authenticatedClient,
+    onClientDetected: (name) => { recordDetectedMcpClient(name) },
     confirmGenerationInNomi: async (challenge) => {
       const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
         ? challenge.handoff.challengeToken
@@ -437,6 +512,19 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
       const instance = readLiveInstance(currentLibrary())
       if (!challengeToken || !instance) return { confirmed: false }
       const result = await callViaRpc(instance, 'nomi_confirm_generation_gate', { challengeToken }, connection)
+      const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
+      return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
+    },
+    // Electron stdio 态：client_elicitation 路径——客户端在调用方 accept 后，通过 loopback RPC 让主进程铸收据。
+    // 此函数是 mcpGateConfirmation.ts 中 verifyClientGenerationConfirmation 的装配点。
+    verifyClientGenerationConfirmation: async (challenge) => {
+      const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
+        ? challenge.handoff.challengeToken
+        : ''
+      const instance = readLiveInstance(currentLibrary())
+      const authenticatedClient = connection.authenticatedClient
+      if (!challengeToken || !instance || !authenticatedClient) return { confirmed: false }
+      const result = await callViaRpc(instance, 'nomi_verify_client_generation_gate', { challengeToken, authenticatedClient }, connection)
       const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
       return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
     },

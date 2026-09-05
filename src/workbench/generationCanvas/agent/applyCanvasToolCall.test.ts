@@ -186,6 +186,56 @@ describe('applyCanvasToolCall clientId 翻译', () => {
   })
 })
 
+describe('applyCanvasToolCall canonical nomi_canvas_plan patch_shots', () => {
+  const plan: StoryboardPlan = {
+    title: '雨夜追凶',
+    anchors: [{ id: 'a1', kind: 'character', name: '林夏', description: '红色校服', carrier: 'visual' }],
+    shots: [
+      { index: 1, durationSec: 5, anchorIds: ['a1'], prompt: '推镜' },
+      { index: 2, durationSec: 8, anchorIds: ['a1'], prompt: '跟拍', params: { aspect_ratio: '16:9', quality: 'high' } },
+      { index: 3, durationSec: 5, anchorIds: [], prompt: '远景' },
+    ],
+  }
+
+  beforeEach(() => {
+    resetCanvas()
+    useWorkbenchStore.getState().hydrateWorkbenchDocuments(
+      [{ id: 'doc-1', version: 1, title: '', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }],
+      'doc-1',
+    )
+    useWorkbenchStore.getState().hydrateStoryboardPlans({ 'doc-1': { plan, committed: false } })
+  })
+
+  const shots = () => useWorkbenchStore.getState().storyboardPlans['doc-1']?.plan.shots ?? []
+  const patch = (input: Record<string, unknown>) => applyCanvasToolCall('nomi_canvas_plan', { operation: 'patch_shots', ...input }, undefined, undefined, 'doc-1')
+
+  it('applies promptAppend to the selected rows and returns a canonical receipt payload', async () => {
+    const result = await patch({ select: { kind: 'indexes', indexes: [3, 1] }, patch: { promptAppend: '雨天' } }) as Record<string, unknown>
+    expect(shots().map((shot) => shot.prompt)).toEqual(['推镜，雨天', '跟拍', '远景，雨天'])
+    expect(result).toMatchObject({ status: 'applied', changedShotIndexes: [1, 3], changedFields: ['prompt'] })
+  })
+
+  it('preserves every unselected shot and every unselected field', async () => {
+    const before = structuredClone(shots())
+    await patch({ select: { kind: 'indexes', indexes: [2] }, patch: { aspectRatio: '9:16' } })
+    expect(shots()[0]).toEqual(before[0])
+    expect(shots()[2]).toEqual(before[2])
+    expect(shots()[1]).toMatchObject({ prompt: before[1]?.prompt, durationSec: before[1]?.durationSec, anchorIds: before[1]?.anchorIds, params: { aspect_ratio: '9:16', quality: 'high' } })
+  })
+
+  it('rejects the retired public tool name and stale shot indexes without mutating state', async () => {
+    const before = structuredClone(shots())
+    await expect(applyCanvasToolCall('patch_shots', { select: { kind: 'all' }, patch: { prompt: 'x' } }, undefined, undefined, 'doc-1')).rejects.toThrow(/unknown tool/)
+    await expect(patch({ select: { kind: 'indexes', indexes: [9] }, patch: { prompt: 'x' } })).rejects.toMatchObject({ code: 'capability_target_stale' })
+    expect(shots()).toEqual(before)
+  })
+
+  it('fails closed when there is no storyboard plan', async () => {
+    useWorkbenchStore.getState().hydrateStoryboardPlans({})
+    await expect(patch({ select: { kind: 'all' }, patch: { prompt: 'x' } })).rejects.toMatchObject({ code: 'capability_target_stale' })
+  })
+})
+
 // 图片+视频分镜落画布的镜号语义：首帧图带 storyboardKeyframe 标记不自动领号，
 // 落地后按 first_frame 边共用所属视频的镜号（与手动「转视频」桥继承号同语义）——
 // 否则 N 镜领出 1..2N 交错编号，角标与「镜头 N 首帧」标题错位（A2 类编号 bug）。

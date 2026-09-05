@@ -1,0 +1,181 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-relay-variant-axis-inert",
+  "problem_type": "中转 wire 把「要发的 model 串」写成字面量，使依赖参数化的能力轴整条失效；同类还有「档案声明了参数、通用 wire 却没有位置」的静默丢弃",
+  "symptom": "同一个模型名（如 seedance-2），经内置 kie/apimart 能选 标准/快速/mini 三档，经用户自建中转**一档都选不到**；界面上没有任何提示，用户每一次生成都在跑默认（最贵最慢）档。同族问题：节点上填的种子与负向词经通用中转全程无声丢弃，产出不可复现、负向词不生效。",
+  "direct_cause": "electron/catalog/newapiTransport.ts 的六个 op 都把 body.model 写成字面量 \"{{model.modelKey}}\"。渲染层的变体收窄判据 archetypeVariantAxisIsLive（src/workbench/generationCanvas/nodes/controls/channelModeReach.ts:80-83）读的是「这条 create op 的 wire 有没有引用 params.model」——字面量渠道读不到，判据于是（正确地）把整条变体栏藏掉。判据没错，错的是 wire 没给变体留位置。",
+  "class_root": "**能力轴的「活/惰」由 wire 的写法决定，而 UI 只是如实反映它**。任何「按 wire 是否引用某参数键来 derive 能力」的判据（变体轴、槽可达性、参数一致性）都共享这个结构：wire 里没有位置 = 该能力对这条渠道恒不存在，且因为判据是 fail-open/收窄式的，用户看到的是「功能不存在」而不是「发不出去」——没有任何报错，只有更贵的默认档与不生效的参数。内置模型早就用参数化 model（apimartVideos.VARIANT_MODEL_REF 等）绕开了它，唯独通用中转这条最晚接入的线缆留着字面量，于是内置与中转的体验从这里分家。",
+  "migration": "六个中转 op 的 model 统一改读 RELAY_MODEL_REF = \"{{request.params.model}}\"（与内置变体模型逐字同串）。回落补在**参数层**而不是模板层：taskTemplateParams 用 `extras.model || selected.wireModelKey` 产出 params.model，wireModelKey 与 {{model.modelKey}} 取同一个表达式（modelAlias 优先、否则 modelKey），保证没有变体的裸模型换写法前后线上字节逐字节一致。同一 commit 把 seed / metadata.negative_prompt 两个**文档明写、此前无位置**的字段补进视频 op。不留并行写法：全仓「发哪个 model 串」只此一处决定。",
+  "affected_population": [
+    "所有经用户自建中转（openai-compatible / new-api）接入的模型，无论 kind",
+    "所有带变体轴（variants）的档案在中转上的实例",
+    "任何未来新增的、走 newapiTransportFor 三个桶的中转 op",
+    "任何按 wireReferencedParamKeys derive 能力可见性的判据（变体轴、槽可达、参数一致性）"
+  ],
+  "scope_paths": [
+    "electron/catalog/newapiTransport.ts",
+    "electron/catalog/taskParams.ts",
+    "electron/catalog/profileHttpRequest.ts",
+    "electron/catalog/parameterReferenceContract.ts",
+    "electron/catalog/customCallDispatch.ts",
+    "electron/audioTaskRunner.ts",
+    "electron/providerAdapter/relayConformanceVideoAudio.integration.test.ts",
+    "docs/research/2026-09-03-self-hosted-relay-coverage-matrix.md"
+  ],
+  "entry_points": [
+    "electron/catalog/newapiTransport.ts 的 RELAY_MODEL_REF（六个 op 共用的 model 字段引用）",
+    "electron/catalog/taskParams.ts:taskTemplateParams 产出的 params.model（回落唯一发生地）",
+    "electron/catalog/profileHttpRequest.ts:templateContext（wireModelKey 与 {{model.modelKey}} 同源之处）",
+    "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts:archetypeVariantAxisIsLive（读判据的消费端，本次未改）",
+    "pnpm run test → electron/providerAdapter/relayConformanceVideoAudio.integration.test.ts"
+  ],
+  "invariants": [
+    "中转 create op 的 model 字段一律参数化（{{request.params.model}}），不得回退成字面量——回退时变体台架当场红。",
+    "params.model 在**任何**情况下都有值：选了变体取变体串，没变体取目录身份（modelAlias 优先）。裸模型发出的请求绝不缺 model 字段。",
+    "没有变体、没有种子、没有负向词时，中转 wire 的字节与本次改动前完全一致（不多发空字段、不多发空对象）。",
+    "档案声明的参数要么被 body 引用、要么被 paramMap 翻译、要么显式 drop——不存在第四种「静默丢弃」。"
+  ],
+  "regression_tests": [
+    "electron/providerAdapter/relayConformanceVideoAudio.integration.test.ts",
+    "electron/catalog/newapiImageEdit.test.ts",
+    "electron/catalog/multipartOperation.test.ts"
+  ],
+  "residual_risks": [
+    "generate_audio / return_last_frame / audio 等「档案声明、通用协议无对应字段」的参数仍到不了中转 wire。这是协议边界不是疏漏：doc.newapi.pro/api/kling-jimeng/ 的字段表里没有它们，metadata 袋虽是自由的，但往里塞我们臆想的键名不会报错也不会生效，只会变成更难发现的静默丢弃。已如实记进覆盖矩阵 §3，不假装覆盖。",
+    "metadata 目前只放文档点名的 negative_prompt。若将来供应商文档补出更多通用键，需按同一条纪律（有文档依据才加）扩展。",
+    "本轮全部证据来自严格假中转 + 文档对账（零额度）。**没有任何真实视频/音频中转实测**——手上没有这样的账号，故不写供应商拒绝规则，付费封印段留空。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://doc.newapi.pro/api/kling-jimeng/",
+      "checked_at": "2026-09-03",
+      "purpose": "定位本仓中转视频所用端点 POST /v1/video/generations 的**权威字段表**，据此判定每个档案参数「送得到 / 要翻译 / 根本送不到」。原文字段含 model / prompt / duration / image / seed（『随机种子』，可选 integer）/ metadata（『供应商特定/自定义参数（如 negative_prompt, style, quality_level 等）』）；表中**无** generate_audio 或 audio 字段——这是 seed 与 negative_prompt 本次得以补上、而 generate_audio 被诚实标为送不到的直接依据。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://doc.newapi.pro/api/openai-video/",
+      "checked_at": "2026-09-03",
+      "purpose": "排除张冠李戴：OpenAI/Sora 格式走 POST /v1/videos（multipart，字段名是 seconds/input_reference），与本仓所用的 /v1/video/generations 不是同一条线缆。先核这一页才敢断定上一页才是该对账的字段表。"
+    }
+  ],
+  "internal_only_reason": "",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一构造（wire 写死某字段 → 依赖该字段参数化的能力整条失效/静默丢弃）在本仓已多次出现：i2v 首帧曾因 body 读裸 image 键而到不了 wire；标准参数键名曾因 image/image_url 不一致被 reconcile 覆盖掉；本次是变体轴与 seed/negative_prompt。都不是手滑，是「wire 与声明层各自演进、没有对账」这一结构反复发作。",
+    "same_class_scan": [
+      "按**构造**全仓实扫（不按名字）：grep -rn 'model: \"{{model.modelKey}}\"' --include=*.ts electron/ | grep -v '\\.test\\.' 得 14 处。其中 newapiTransport.ts 的 6 处即本次全部改掉（中转，有变体轴）；builtinOpenAiCompatibleDraft.ts 的 2 处是 chat/messages 文本 op，判 not-affected（见下）；其余 agnesImages/agnesVideos/volcengineImages/modelscopeImages/minimaxOfficial/apimartTexts/apimartVideos(regeneration) 均为直连供应商目录，每个变体自带独立 catalog 行、无变体轴，判 not-affected。",
+      "反向扫「已经参数化的」作对照：grep -rn 'VARIANT_MODEL_REF\\|request.params.model' electron/catalog/*.ts —— apimartVideos / apimartImages / volcengineVideos / kieSeedance 早已是参数化写法，证明本次改动是向既有单一写法收敛，不是新造机制。",
+      "参数静默丢弃同类扫描：用与 paramConsistency.test 同一个 wireReferencedParamKeys 判据，对全部 89 个档案 / 180 个「中转可服务」模式跑覆盖差集（脚本见 PR 描述）。差集里 seed(15 档案) 与 negative_prompt(5 档案) 有文档依据 → 本次补齐；generate_audio(9) / return_last_frame(3) / audio(3) 等无文档字段 → 判 genuinely-undeliverable，记进矩阵而非硬塞。"
+    ]
+  },
+  "generality_proof": "修在**最早的共享边界**而不是逐个 op 打补丁：六个中转 op 共用一个 RELAY_MODEL_REF 常量，回落只在 taskTemplateParams 一处发生，而 wireModelKey 与模板的 {{model.modelKey}} 在 profileHttpRequest 里由同一个局部变量喂出。因此任何**将来新增**的中转 op 只要引用同一个常量就自动获得「变体能切、裸模型不缺 model」两条性质，无需各自兜底；反之若有人把某个 op 改回字面量，变体台架会当场红。",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/newapiTransport.ts",
+      "symbol": "RELAY_MODEL_REF",
+      "responsibility": "所有自建中转 op「要发哪个 model 串」的唯一模板引用；参数化写法在此收口，新增 op 引用它即自动具备活的变体轴。"
+    },
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "taskTemplateParams 的 wireModel / params.model",
+      "responsibility": "「变体 > 目录身份」这条回落的唯一发生地；保证 params.model 永不缺席，且裸模型的串与 {{model.modelKey}} 逐字一致。"
+    },
+    {
+      "path": "electron/catalog/profileHttpRequest.ts",
+      "symbol": "templateContext 的 wireModelKey",
+      "responsibility": "把「模板看到的 model 身份」与「参数层回落用的身份」钉成同一个局部变量，杜绝两侧各算一次而漂移。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/newapiTransport.ts",
+      "entry_point": "NEWAPI_IMAGE_CREATE_OP / NEWAPI_IMAGE_EDIT_OP / XAI_JSON_IMAGE_EDIT_OP / OPENAI_MULTIPART_IMAGE_EDIT_OP / NEWAPI_VIDEO_CREATE_OP / NEWAPI_AUDIO_TTS_OP 的 model 字段",
+      "disposition": "enforced",
+      "evidence": "六处统一改引 RELAY_MODEL_REF。变异测试：把 RELAY_MODEL_REF 改回 \"{{model.modelKey}}\"，变体台架红在「expected 'relay-video-1' to be 'relay-video-1-fast'」，其余 8 条仍绿（证明该断言精确隔离变体轴）。"
+    },
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "entry_point": "taskTemplateParams 的 params.model 回落",
+      "disposition": "enforced",
+      "evidence": "变异测试：删掉 `|| selected?.wireModelKey`，**7 条**测试红，且严格假中转本身以 HTTP 400 'Missing required parameter: model' 拒收——正是回落若丢失时的真实生产后果。"
+    },
+    {
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "entry_point": "OPENAI_COMPATIBLE_CHAT_OP / ANTHROPIC_CHAT_OP 的 model 字面量",
+      "disposition": "not-affected",
+      "evidence": "两者都是**文本** op：文本请求实际走 buildLanguageModelForVendor（AI SDK streamText），验证在 verifier 里短路成 streamTextTask，这条 body 模板运行时根本不渲染；且文本档案无 variants，不存在变体轴。故字面量在此无害，刻意不改（改了反而制造一处无人消费的差异）。"
+    },
+    {
+      "path": "electron/catalog/apimartVideos.ts",
+      "entry_point": "第 77 行 regeneration op 的 model 字面量",
+      "disposition": "not-affected",
+      "evidence": "apimart 直连目录：带变体的行早已用 VARIANT_MODEL_REF（第 125/152/160/177/200/218 行），仅「按 source_task_id 重生成」这一条用字面量——它复用原任务的模型身份，本就不该由当前节点的变体覆盖。"
+    },
+    {
+      "path": "electron/catalog/volcengineImages.ts",
+      "entry_point": "create op 的 model 字面量 \"{{model.modelKey}}\"",
+      "disposition": "not-affected",
+      "evidence": "火山直连目录：每个可选档位都是**独立 catalog 行**（用户在模型列表直接选），档案层无 variants，故不存在「切变体却发不出去」的通道；判据 archetypeVariantAxisIsLive 对它不适用。改成参数化只会制造一处无人消费的差异。"
+    },
+    {
+      "path": "electron/catalog/agnesImages.ts",
+      "entry_point": "create op 的 model 字面量 \"{{model.modelKey}}\"",
+      "disposition": "not-affected",
+      "evidence": "Agnes 直连目录：每个可选档位都是**独立 catalog 行**（用户在模型列表直接选），档案层无 variants，故不存在「切变体却发不出去」的通道；判据 archetypeVariantAxisIsLive 对它不适用。改成参数化只会制造一处无人消费的差异。"
+    },
+    {
+      "path": "electron/catalog/agnesVideos.ts",
+      "entry_point": "create op 的 model 字面量 \"{{model.modelKey}}\"",
+      "disposition": "not-affected",
+      "evidence": "Agnes 直连目录：每个可选档位都是**独立 catalog 行**（用户在模型列表直接选），档案层无 variants，故不存在「切变体却发不出去」的通道；判据 archetypeVariantAxisIsLive 对它不适用。改成参数化只会制造一处无人消费的差异。"
+    },
+    {
+      "path": "electron/catalog/modelscopeImages.ts",
+      "entry_point": "create op 的 model 字面量 \"{{model.modelKey}}\"",
+      "disposition": "not-affected",
+      "evidence": "ModelScope 直连目录：每个可选档位都是**独立 catalog 行**（用户在模型列表直接选），档案层无 variants，故不存在「切变体却发不出去」的通道；判据 archetypeVariantAxisIsLive 对它不适用。改成参数化只会制造一处无人消费的差异。"
+    },
+    {
+      "path": "electron/catalog/minimaxOfficial.ts",
+      "entry_point": "create op 的 model 字面量 \"{{model.modelKey}}\"",
+      "disposition": "not-affected",
+      "evidence": "MiniMax 直连目录：每个可选档位都是**独立 catalog 行**（用户在模型列表直接选），档案层无 variants，故不存在「切变体却发不出去」的通道；判据 archetypeVariantAxisIsLive 对它不适用。改成参数化只会制造一处无人消费的差异。"
+    },
+    {
+      "path": "electron/catalog/apimartTexts.ts",
+      "entry_point": "create op 的 model 字面量 \"{{model.modelKey}}\"",
+      "disposition": "not-affected",
+      "evidence": "apimart 文本目录：每个可选档位都是**独立 catalog 行**（用户在模型列表直接选），档案层无 variants，故不存在「切变体却发不出去」的通道；判据 archetypeVariantAxisIsLive 对它不适用。改成参数化只会制造一处无人消费的差异。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/newapiTransport.ts",
+    "invariant": "严格假中转台架上：①切变体后**发到中转的 model 串**真的变成变体串；②没有变体时 model 键必须存在且等于目录身份；③seed/negative_prompt 填了就必须出现在报文里；④什么都没填时绝不多发空的 seed/metadata 字段。四条都断 wire 报文本身，不断 UI。",
+    "failure_mode": "把 model 改回字面量 → ①红；删掉参数层回落 → ②红且假中转以 400 Missing required parameter 拒收（连带 7 条红）；撤掉 seed/metadata → ③红；把 metadata 改成逐键写法 → ④红（实测发出 \"metadata\":{}）。四条均已亲手破坏并复原，红字见 PR 描述。",
+    "exception_policy": "none",
+    "strategy": "把「发哪个 model 串」收敛到一个常量 RELAY_MODEL_REF + 一处参数层回落：新增中转 op 只要引用该常量就自动具备活的变体轴与不缺席的 model 字段，不需各自兜底；再由严格假中转台架把四条性质断在**真实报文**上，任何回退当场变红。",
+    "artifacts": [
+      "electron/catalog/newapiTransport.ts",
+      "electron/catalog/taskParams.ts",
+      "electron/providerAdapter/relayConformanceVideoAudio.integration.test.ts",
+      "docs/research/2026-09-03-self-hosted-relay-coverage-matrix.md"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/providerAdapter/relayConformanceVideoAudio.integration.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/newapiTransport.ts"
+    ],
+    "rationale": "六处 \"{{model.modelKey}}\" 字面量在同一 commit 全部替换为 RELAY_MODEL_REF，不保留任何「旧写法仍可用」的并行分支；模板层也刻意不新增 `||` 回落语法（那会成为第二套决定 model 串的机制）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只改本仓的 wire 模板与参数构造，未引入或升级任何第三方依赖。",
+    "exit_criteria": []
+  }
+}

@@ -1,15 +1,6 @@
-// 能力核 · MCP 协议层（纯逻辑，传输注入 → 可裸 node 单测；见 docs/plan/2026-06-24-packaged-mcp-stdio-server.md）。
+// 能力核 · MCP 协议层（传输注入，纯逻辑，可裸 node 单测）。
 //
-// 手搓 stdio JSON-RPC 2.0（newline-delimited，MCP stdio transport 规范；协议形状经 Context7 核对 R5），
-// 不引 @modelcontextprotocol/sdk 依赖（P1 极简）。把能力核暴露成 MCP 工具，供 Claude Code / Codex / Cursor
-// 配置后实时驱动 Nomi。**这是唯一的 MCP server 实现**——打包/dev 都由 app 自身二进制以 NOMI_MCP_STDIO
-// 模式拉起 mcpStdioServer.ts，后者把本模块接到 stdin/stdout + 进程内 invoke（取代旧 scripts/nomi-mcp.mjs，P1）。
-//
-// 传输经 McpTransport 注入：send（服务端→客户端帧）/ invoke（调能力核）/ isAppOpen（Nomi 开着没 = 还有没有
-// 应用内确认卡这条兜底问法；**不用来猜用户注意力在哪**）。本模块不 import electron → 协议握手可纯逻辑单测。
-//
-// MCP Apps（GUI 宿主内嵌活 widget，扩展 id io.modelcontextprotocol/ui，Stable 2026-01-26）。
-// ProductionRun 结果可携带同一个 ui:// 资源；宿主不支持时仍回文本兜底。
+// MCP Apps（GUI 宿主内嵌 widget）；ProductionRun 结果保留文本兜底。
 import {
   NOMI_LIVE_DRAFT_UI_URI,
   MCP_APP_MIME_TYPE,
@@ -29,8 +20,14 @@ import { createPlanTrustStore, planConfirmElicit } from './mcpPlanTrust'
 import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
 import type { AuthenticatedMcpClient } from './security'
 import { subscribeMcpToolCatalogChanges } from './mcpToolCatalogChanges'
+import { handleDocumentEditConfirmation } from './mcpDocumentConfirmation'
 
-export type McpInvokeOptions = { spendConfirmed?: boolean; planConfirmed?: boolean; signal?: AbortSignal }
+export type McpInvokeOptions = {
+  spendConfirmed?: boolean
+  planConfirmed?: boolean
+  documentConfirmed?: boolean
+  signal?: AbortSignal
+}
 export const MCP_REQUEST_SIGNAL = Symbol('nomi.mcp.request-signal')
 
 function withRequestSignal(params: Record<string, unknown>, signal?: AbortSignal): Record<string, unknown> {
@@ -73,6 +70,11 @@ export interface McpTransport {
   confirmGenerationInNomi?(challenge: GenerationGateChallengeProjection): Promise<boolean | GenerationGateVerificationResult>
   /** 结果/进度文案语言（可选；缺省 zh-CN，跟 App 语言设置走）。 */
   getLocale?(): ResultLocale
+  /**
+   * 未签名的外部客户端（clientHost === 'external'）自报了名字时回调——用于自动检测并登记到 profile 列表。
+   * 只传自报名字（rawName），登记逻辑在 recordDetectedMcpClient（mcpDetectedClients.ts），HMAC 安全模型不受影响。
+   */
+  onClientDetected?(name: string): void
 }
 
 const PROTOCOL_VERSION = '2025-11-25'
@@ -331,14 +333,10 @@ export function createMcpProtocol(transport: McpTransport) {
 
     if (method === 'initialize') {
       clientSupportsElicitation = Boolean(params?.capabilities && (params.capabilities as Record<string, unknown>).elicitation)
-      const clientName = String((params?.clientInfo as Record<string, unknown> | undefined)?.name || '').toLowerCase()
-      clientHost = clientName.includes('codex')
-        ? 'codex'
-        : clientName.includes('claude')
-          ? 'claude'
-          : clientName.includes('cursor')
-            ? 'cursor'
-            : 'external'
+      const rawName = String((params?.clientInfo as Record<string, unknown> | undefined)?.name || '').trim()
+      const clientName = rawName.toLowerCase()
+      clientHost = ['codex', 'claude', 'cursor'].find((host) => clientName.includes(host)) ?? 'external'
+      if (clientHost === 'external' && rawName) transport.onClientDetected?.(rawName)
       // 版本交集协商：不支持的版本回 -32602。
       const requested = params?.protocolVersion
       if (requested !== undefined && requested !== null && typeof requested !== 'string') {
@@ -490,6 +488,50 @@ export function createMcpProtocol(transport: McpTransport) {
           reply(id, buildToolResultPayload(tool.name, args, result))
           return
         }
+        // A storyboard patch is a reversible write, but it is still a user task:
+        // when the MCP client can surface elicitation in an open app, make the
+        // approve/deny decision at this protocol boundary before reaching the
+        // verified lease/renderer path. The renderer receipt must not be given
+        // Host correlation unless a Host turn actually claimed that approval.
+        if (
+          tool.name === 'nomi_canvas_plan'
+          && built.operation === 'patch_shots'
+          && clientSupportsElicitation
+          && transport.isAppOpen()
+        ) {
+          const confirm = await elicitBooleanConfirm({
+            message: 'Apply the selected storyboard shot patch?\nOnly the named rows and fields will change; the operation is reversible.',
+            title: 'Confirm storyboard patch',
+            description: 'Approve to apply the canonical patch_shots task. Decline or timeout leaves the project unchanged.',
+          }, requestSignal)
+          if (!confirm.confirmed) {
+            reply(id, {
+              content: [{
+                type: 'text',
+                text: locale() === 'en'
+                  ? 'Not applied: the storyboard patch was not approved.'
+                  : '未生效：这次分镜修改没有获得批准。',
+              }],
+              isError: true,
+              structuredContent: {
+                nomiOutcome: {
+                  operation: 'patch_shots',
+                  applied: false,
+                  denied: true,
+                  reason: confirm.action === 'timeout' ? 'timeout' : 'declined',
+                },
+              },
+            })
+            return
+          }
+        }
+        if (tool.name === 'nomi_document_edit') {
+          await handleDocumentEditConfirmation(
+            { id, args, routedMethod, built, requestSignal },
+            { elicitBooleanConfirm, invokeForRequest, reply, buildToolResultPayload, locale },
+          )
+          return
+        }
         // 画布方案确认 elicitation-first（免费可撤，见 mcpPlanTrust.ts）：批量加节点（≥2）当声明 elicitation
         // 且 App 开着时，把确认递进聊天问一次而非让人跑去 App 点弹窗；批准记会话级信任、同项目后续不再问。
         // 不满足（单节点 / 不声明 elicitation / headless）→ 落到下面原样 invoke，走既有 gateway.confirmPlan
@@ -558,7 +600,6 @@ export function createMcpProtocol(transport: McpTransport) {
     // skills.list 只返元数据（name+描述，不含正文）；skills.read 才载正文——客户端只为用到的技能付上下文。
     const SKILL_URI_PREFIX = 'nomi-skill://'
     const PRODUCTION_ARTIFACT_URI_PREFIX = 'nomi://project/'
-
     function skillResourceUri(skill: SkillSummaryFrame): string | null {
       if (!/^[A-Za-z0-9._-]{1,160}$/.test(skill.directoryName)) return null
       if (!/^[A-Za-z0-9._-]{1,80}$/.test(skill.packageVersion)) return null

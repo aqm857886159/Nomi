@@ -16,6 +16,7 @@ export type DesktopProjectLocationResult =
 export type DesktopSettingsBridge = {
   projectLocation: {
     get: () => Promise<DesktopProjectLocationResult>
+    check: () => Promise<DesktopProjectLocationResult>
     pick: () => Promise<DesktopProjectLocationResult>
     reset: () => Promise<DesktopProjectLocationResult>
     reveal: () => Promise<DesktopProjectLocationResult>

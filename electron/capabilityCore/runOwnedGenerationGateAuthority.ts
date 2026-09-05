@@ -10,6 +10,7 @@ import type {
   HumanApprovalDisplay,
   HumanApprovalReceiptV1,
 } from "./approvalReceipt";
+import { assertCurrentProjectRevision, type ProjectRevisionResolver } from "../productionRun/productionRunApprovalReceipt";
 import type { DispatchContext } from "./dispatcher";
 import type { GenerationOperationStore } from "./mcpGenerationTools";
 import type { ProjectLeaseV2 } from "./projectLease";
@@ -34,6 +35,7 @@ export function createRunOwnedGenerationGateAuthority(input: Readonly<{
   operations: GenerationOperationStore;
   planning: NonNullable<DispatchContext["generationPlanning"]>;
   receipts: ApprovalReceiptAuthority;
+  projectRevisionResolver: ProjectRevisionResolver;
   now?: () => string;
 }>) {
   const now = input.now ?? (() => new Date().toISOString());
@@ -69,6 +71,7 @@ export function createRunOwnedGenerationGateAuthority(input: Readonly<{
     ) {
       throw new Error("Generation gate does not match the sealed Run authorization");
     }
+    assertCurrentProjectRevision(lease.projectId, envelope.projectRevision, input.projectRevisionResolver);
     const currentMs = Date.parse(now());
     const expiryMs = Date.parse(envelope.expiresAt);
     if (!Number.isFinite(currentMs) || !Number.isFinite(expiryMs) || expiryMs <= currentMs) {
@@ -128,6 +131,7 @@ export function createRunOwnedGenerationGateAuthority(input: Readonly<{
       ? run.gates.find((candidate) => candidate.gateId === plan.authorizationGateId)
       : undefined;
     assertReceiptMatchesAuthorization(receipt, lease, operationId, envelope, digest, gate?.gateId);
+    assertCurrentProjectRevision(lease.projectId, envelope?.projectRevision, input.projectRevisionResolver);
     if (!gate || gate.status !== "waiting" || gate.authorizationDigest !== digest || gate.planHash !== digest) {
       throw new Error("Generation authorization gate is not waiting for this receipt");
     }
@@ -140,6 +144,7 @@ export function createRunOwnedGenerationGateAuthority(input: Readonly<{
         status: "approved",
         receiptId: receipt.receiptId,
         authorizationDigest: digest,
+        projectRevision: envelope!.projectRevision,
       },
       issuedAt: now(),
     });
@@ -159,11 +164,13 @@ export async function decideRunOwnedGenerationGate(input: Readonly<{
   authorization: PreparedProductionGenerationAuthorization;
   display: HumanApprovalDisplay;
   commandPrefix: string;
+  projectRevisionResolver: ProjectRevisionResolver;
   now?: () => string;
 }>): Promise<{ approved: boolean; run: ProductionRun }> {
   const now = input.now ?? (() => new Date().toISOString());
   const { envelope } = input.authorization;
   const digest = input.authorization.authorizationDigest;
+  assertCurrentProjectRevision(input.lease.projectId, envelope.projectRevision, input.projectRevisionResolver);
   const challenge = input.receipts.requestChallenge({
     challengeKey: `${envelope.costScope}:${digest}`,
     immutableProjectUuid: envelope.immutableProjectUuid,
@@ -200,6 +207,7 @@ export async function decideRunOwnedGenerationGate(input: Readonly<{
   }
   const receipt = input.receipts.verifyReceipt(receiptToken);
   assertReceiptMatchesAuthorization(receipt, input.lease, input.operationId, envelope, digest, envelope.gateId);
+  assertCurrentProjectRevision(input.lease.projectId, envelope.projectRevision, input.projectRevisionResolver);
   const approving = input.owner.readFull(input.lease.projectId, input.operationId);
   const decision = await input.owner.command(input.lease.projectId, input.operationId, {
     commandId: `${input.commandPrefix}-decide:${envelope.gateId}:${receipt.receiptId}`,
@@ -210,6 +218,7 @@ export async function decideRunOwnedGenerationGate(input: Readonly<{
       status: "approved",
       receiptId: receipt.receiptId,
       authorizationDigest: digest,
+      projectRevision: envelope.projectRevision,
     },
     issuedAt: now(),
   });

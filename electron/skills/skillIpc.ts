@@ -4,7 +4,12 @@ import { deriveSkillNeeds } from "./skillCapability";
 import { ipcMain } from "electron";
 import { assertTrustedSender } from "../ipcSenderGuard";
 import type { SkillProviderKind } from "./skillManifestSchema";
-import { readSkillRecords } from "./skillStore";
+import { isSkillSelectableInWorkbench, readSkillRecords } from "./skillStore";
+import {
+  importSkillPackageToUserDir,
+  exportSkillPackageByName,
+  deleteUserSkill,
+} from "./skillPackage";
 
 export type SkillListItem = {
   directoryName: string;
@@ -32,11 +37,9 @@ export type SkillListItem = {
 
 export function listSkillsForRenderer(): SkillListItem[] {
   return readSkillRecords()
-    // 库只露「用户会浏览、挑来用」的：用户目录的（自己导入/建的，永远显示）∪ 内置 playbook（有 stages，
-    // 如品牌宣传片）。藏掉两类不该出现在用户库里的：① 外来工程技能（superpowers 的 brainstorming 等，
-    // 无 manifest）；② 幕后管线技能（creation-edit / skill-author / workbench.* 助手，自动路由或按钮触发，
-    // 不是浏览挑选项）。口径与创作区技能下拉（ActiveSkillChip 的 isPlaybook 过滤）一致。
-    .filter((r) => r.origin === "user" || (r.manifest?.stages?.length ?? 0) > 0)
+    // The canonical record policy owns picker visibility. Do not recreate a
+    // stages-only heuristic here: single-stage built-ins may explicitly opt in.
+    .filter(isSkillSelectableInWorkbench)
     .map((r) => {
     const needs = r.manifest ? deriveSkillNeeds(r.manifest) : null;
     return {
@@ -69,4 +72,16 @@ export function registerSkillIpc(registerSyncIpc: RegisterSyncIpc): void {
     assertTrustedSender(event);
     return listSkillsForRenderer();
   });
+  // 三个写操作 handler —— 渲染层用 invokeSync 调，返回值结构与 skillPackage.ts 里的函数一致。
+  // 2026-09-03: PR #279 合入了渲染层解析逻辑和主进程落地函数，但忘了在这里注册，
+  // 导致渲染层一直收到 "No handler registered" 且 UI 静默（P0 回归）。
+  registerSyncIpc("nomi:skill:import", (raw: unknown) =>
+    importSkillPackageToUserDir(raw),
+  );
+  registerSyncIpc("nomi:skill:export", (dirName: unknown) =>
+    exportSkillPackageByName(String(dirName ?? ""), Date.now()),
+  );
+  registerSyncIpc("nomi:skill:delete", (dirName: unknown) =>
+    deleteUserSkill(String(dirName ?? "")),
+  );
 }

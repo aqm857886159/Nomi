@@ -29,6 +29,24 @@ async function listen(server: http.Server): Promise<number> {
 }
 
 describe('MCP loopback RPC request boundary', () => {
+  it('forwards an explicit document approval as a top-level RPC confirmation flag', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-loopback-document-confirm-'))
+    roots.push(root)
+    process.env[CAPABILITY_DIR_ENV] = path.join(root, 'capability')
+    ensureToken()
+    const proof = signMcpClient('codex')!
+    const request = createMcpLoopbackRpcRequest({
+      token: 'token',
+      clientProof: proof,
+      connection: createMcpConnectionContext({ client: 'codex', proof }),
+      method: 'document.write',
+      params: { projectId: 'project-1', operation: 'append', content: 'approved' },
+      documentConfirmed: true,
+    })
+
+    expect(JSON.parse(String(request.body))).toMatchObject({ documentConfirmed: true });
+  });
+
   it.each([
     ['packaged launcher fetch', globalThis.fetch.bind(globalThis)],
     ['Electron stdio appFetch', appFetch],

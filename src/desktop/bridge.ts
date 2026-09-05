@@ -1,9 +1,10 @@
 import type { ExportJobEvent, ExportJobSnapshot, ExportJobVerification } from '../../electron/export/exportJobManager'
 import type { WorkspaceFileListResult } from '../../electron/workspace/workspaceFileIndex'
+import type { WorkspaceSyncInspection } from '../../electron/shared/workspaceSyncContracts'
 import type { ProviderKind } from './providerKind'
 import type { DesktopMediaBridge } from './bridgeMedia'
 import type { DesktopConnectorBridge } from './bridgeConnector'
-import type { McpInfo, McpVerifyResult } from './mcpBridgeTypes'
+import type { McpClientProfile, McpInfo, McpVerifyResult } from './mcpBridgeTypes'
 import type { DesktopSettingsBridge } from './settingsBridge'
 import type { DesktopOnboardingBridge } from './onboardingBridgeTypes'
 import type { DesktopProductionRunBridge } from './productionRunBridgeTypes'
@@ -359,6 +360,9 @@ export type DesktopBridge = DesktopMediaBridge & DesktopConnectorBridge & {
       relativePaths: string[]
     }) => Promise<{ ok: boolean; deletedCount: number; failedCount: number }>
     revealProjectFolder: (payload: { projectId: string }) => Promise<{ ok: boolean }>
+    syncInspect?: (payload: string | { projectId: string; adopt?: boolean }) => Promise<WorkspaceSyncInspection>
+    syncReveal?: (projectId: string) => Promise<{ ok: boolean }>
+    syncCopyConflict?: (payload: { projectId: string; source?: 'local' | 'remote' }) => Promise<{ path: string }>
   }
   /** 系统通知（任务中心：跑完且窗口失焦才发）。可选 —— 老 preload / 测试环境没有时调用端降级到自制提示音。 */
   notifications?: {
@@ -750,10 +754,11 @@ export type DesktopBridge = DesktopMediaBridge & DesktopConnectorBridge & {
     installMcp: (client?: string) => { ok: boolean; client: string; configPath: string; backupPath: string | null }
     /** 撤销接入指定客户端：删 nomi 条目。默认 Claude Code。 */
     uninstallMcp: (client?: string) => { ok: boolean; client: string }
-    /**
-     * 实连验证：真起一次**配置里那条**命令握手。可选（老 preload 无此口 → 卡片退回只读配置的老口径）。
-     * 「配置里有 nomi 这行字」≠「还连得上」：老版本写的脚本已被删、dev 构建钉的 worktree 被删都会失效。
-     */
+    listCustomMcpProfiles?: () => Promise<McpClientProfile[]>
+    registerCustomMcpProfile?: (profile: unknown) => Promise<McpClientProfile | null>
+    removeCustomMcpProfile?: (key: string) => Promise<boolean>
+    onMcpProfilesChanged?: (cb: () => void) => () => void
+    /** 实连验证：真起一次配置里那条命令握手（老 preload 无此口）。「配置里有这行字」≠「还连得上」。 */
     verifyMcp?: (client?: string) => Promise<McpVerifyResult>
     /** A 模式实时桥：注册处理器，接主进程转发来的外部 MCP 画布读/写/付费确认。返回反注册函数。 */
     onApply?: (handler: (op: string, payload: unknown) => unknown | Promise<unknown>) => () => void

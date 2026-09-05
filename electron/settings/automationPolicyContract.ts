@@ -1,6 +1,8 @@
 import type { AutomationMode } from "../productionRun/productionRunTypes";
 
-const TRUSTED_HOSTS = new Set(["nomi", "claude", "codex", "cursor"]);
+// 泛化（方案 A）：trustedHosts 不再限定为硬编码四值，任意形状合法的 MCP 客户端 key
+// （内置 + 自定义 profile）都可由用户显式勾选加入信任列表。
+const MCP_HOST_KEY = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SAFE_CATALOG_KEY = /^[A-Za-z0-9._:-]{1,160}$/;
 
 export type AutomationPolicySettings = {
@@ -64,7 +66,7 @@ function trustedHosts(value: unknown): string[] {
   const requested = Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string").map((item) => item.trim())
     : DEFAULT_AUTOMATION_POLICY_SETTINGS.trustedHosts;
-  return ["nomi", ...new Set(requested.filter((item) => item !== "nomi" && TRUSTED_HOSTS.has(item)))];
+  return ["nomi", ...new Set(requested.filter((item) => item !== "nomi" && MCP_HOST_KEY.test(item)))];
 }
 
 export function normalizeAutomationPolicySettings(value: unknown): AutomationPolicySettings {

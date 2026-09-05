@@ -1,5 +1,7 @@
 # 加模型弹窗 — 减负 + 适配式入口重组
 
+> 裁决：已被现行模型设置/发现流程取代；证据：`src/ui/onboarding/OnboardingWizard.tsx:6-26`、`docs/plan/2026-08-16-model-settings-approved-implementation.md:26-32`。
+
 > 用户反馈：东西堆一屏太乱；该按"已有什么"智能决定先给看哪个。功能已跑通，这轮是结构/体验。
 
 ## A. 减负（删噪音，4 项）

@@ -11,6 +11,7 @@ export type McpLoopbackRpcRequestInput = Readonly<{
   params: Record<string, unknown>
   planConfirmed?: boolean
   spendConfirmed?: boolean
+  documentConfirmed?: boolean
   signal?: AbortSignal
 }>
 
@@ -34,6 +35,7 @@ export function createMcpLoopbackRpcRequest(input: McpLoopbackRpcRequestInput): 
       params: input.params,
       ...(input.planConfirmed ? { planConfirmed: true } : {}),
       ...(input.spendConfirmed ? { spendConfirmed: true } : {}),
+      ...(input.documentConfirmed ? { documentConfirmed: true } : {}),
     }),
     signal: input.signal,
   }

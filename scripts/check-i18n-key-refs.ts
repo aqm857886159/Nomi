@@ -76,6 +76,10 @@ function resolvesAsLeaf(key: string): boolean {
     hasPluralLeaf(enTree, key)
   )
 }
+
+function resolvesAsLeafInLocale(tree: Tree, key: string): boolean {
+  return tree.leaves.has(key) || hasPluralLeaf(tree, key)
+}
 // 一个前缀可解析 = 在任一树里是「有后代的子树」。
 function resolvesAsSubtree(prefix: string): boolean {
   return zhTree.subtrees.has(prefix) || enTree.subtrees.has(prefix)
@@ -96,8 +100,33 @@ for (const entry of DYNAMIC_KEY_PREFIXES) {
     if (missing.length > 0) {
       staleRegisteredPrefixes.push({ prefix: entry.prefix, why: entry.why, reason: `concat 后缀无对应叶子: ${missing.map((s) => entry.prefix + s).join(', ')}` })
     }
-  } else if (!resolvesAsSubtree(entry.prefix)) {
-    staleRegisteredPrefixes.push({ prefix: entry.prefix, why: entry.why, reason: '前缀在 resources 树里不是子树' })
+  } else {
+    if (!resolvesAsSubtree(entry.prefix)) {
+      staleRegisteredPrefixes.push({ prefix: entry.prefix, why: entry.why, reason: '前缀在 resources 树里不是子树' })
+    }
+    if (entry.members) {
+      const duplicates = entry.members.filter((member, index) => entry.members.indexOf(member) !== index)
+      if (entry.members.length === 0) {
+        staleRegisteredPrefixes.push({ prefix: entry.prefix, why: entry.why, reason: '成员来源为空，无法证明动态键覆盖范围' })
+      }
+      if (duplicates.length > 0) {
+        staleRegisteredPrefixes.push({ prefix: entry.prefix, why: entry.why, reason: `成员来源重复: ${[...new Set(duplicates)].join(', ')}` })
+      }
+      for (const member of entry.members) {
+        const key = `${entry.prefix}.${member}`
+        const missingLocales = [
+          !resolvesAsLeafInLocale(zhTree, key) ? 'zh-CN' : '',
+          !resolvesAsLeafInLocale(enTree, key) ? 'en' : '',
+        ].filter(Boolean)
+        if (missingLocales.length > 0) {
+          staleRegisteredPrefixes.push({
+            prefix: entry.prefix,
+            why: entry.why,
+            reason: `成员缺少译文叶子: ${key} (${missingLocales.join('、')})`,
+          })
+        }
+      }
+    }
   }
 }
 
@@ -267,7 +296,7 @@ if (REPORT) {
   console.log(`Unresolved references: ${findings.length}`)
   for (const f of findings) console.log(`  ${f.file}:${f.line} [${f.kind}] ${f.detail}`)
   if (staleRegisteredPrefixes.length > 0) {
-    console.log(`Stale registered prefixes: ${staleRegisteredPrefixes.length}`)
+    console.log(`Stale dynamic registrations: ${staleRegisteredPrefixes.length}`)
     for (const p of staleRegisteredPrefixes) console.log(`  - ${p.prefix} (${p.reason})`)
   }
   process.exit(0)
@@ -301,7 +330,7 @@ if (findings.length > 0) {
   )
 }
 if (staleRegisteredPrefixes.length > 0) {
-  console.error(`\n注册表里有失效前缀(等于假注册):`)
+  console.error(`\n注册表里有失效前缀或成员(等于假注册):`)
   for (const p of staleRegisteredPrefixes) console.error(`- ${p.prefix}  —— ${p.reason}\n    (${p.why})`)
   console.error(`  → 该前缀词条可能被删/改名;更新 DYNAMIC_KEY_PREFIXES 或补回词条。`)
 }

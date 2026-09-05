@@ -130,6 +130,7 @@ export async function startCapabilityCore(
     generationPlanning?: DispatchContext['generationPlanning']
     generationModuleRegistry?: Pick<ModuleRegistry, 'resolve'>
     projectRevisionResolver?: (projectId: string) => number | undefined
+    proposalReceiptFor?: import('./rpcServer').RpcServerOptions['proposalReceiptFor']
     canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
     onGenerationReady?: (factory: ResidentGenerationAdapterFactory['factory']) => void
   } = {},
@@ -157,6 +158,7 @@ export async function startCapabilityCore(
         await operationStore.trialNarrow(projectId, operationId, new Date().toISOString())
       },
     })
+    const projectRevisionResolver = authorities.projectRevisionResolver ?? defaults.projectRevisionResolver!
     const fixtureBaseUrlOverride = process.env.NOMI_E2E_PRODUCTION_FIXTURE === '1'
       ? process.env.NOMI_E2E_APIMART_BASE_URL
       : undefined
@@ -602,6 +604,7 @@ export async function startCapabilityCore(
       operations: operationStore,
       planning: generationPlanning,
       receipts: defaults.approvalReceiptAuthority!,
+      projectRevisionResolver,
     })
     try {
       const requestGenerationGate = authorities.requestGenerationGate ?? runOwnedGenerationAuthority.requestGenerationGate
@@ -697,6 +700,7 @@ export async function startCapabilityCore(
       driveScheduler,
       receiptAuthority: defaults.approvalReceiptAuthority,
       confirmGenerationInNomi: defaults.confirmGenerationInNomi,
+      projectRevisionResolver,
     })
     reworkProductionShotHook = reworkProductionShot
     resumeProductionBatchHook = resumeProductionBatch
@@ -709,6 +713,8 @@ export async function startCapabilityCore(
       requestGenerationGate: authorities.requestGenerationGate ?? runOwnedGenerationAuthority.requestGenerationGate,
       authorizeGeneration: authorities.authorizeGeneration ?? runOwnedGenerationAuthority.authorizeGeneration,
       ...authorities,
+      projectRevisionResolver,
+      proposalReceiptFor: authorities.proposalReceiptFor,
       generationPolicy,
       generationPlanning,
     })

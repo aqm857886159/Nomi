@@ -180,6 +180,16 @@ describe('Surface preload bridge', () => {
     }))
     expect(capture).toHaveBeenCalledWith({ binding, operation: 'set_node_prompt', nodeId: 'node-alias' })
 
+    receivers.get('nomi:surface:canvasWrite:capture:request')?.({
+      requestId: 'capture-patch', binding, operation: 'patch_shots',
+      input: { operation: 'patch_shots', select: { kind: 'indexes', indexes: [2] }, patch: { promptAppend: '雨天' } },
+    })
+    await vi.waitFor(() => expect(capture).toHaveBeenCalledWith({
+      binding,
+      operation: 'patch_shots',
+      input: { operation: 'patch_shots', select: { kind: 'indexes', indexes: [2] }, patch: { promptAppend: '雨天' } },
+    }))
+
     receivers.get('nomi:surface:canvasWrite:execute:request')?.({
       requestId: 'execute-a', binding,
       input: { operation: 'set_node_prompt', nodeId: 'node-alias', prompt: 'new prompt' },
@@ -202,7 +212,7 @@ describe('Surface preload bridge', () => {
     receivers.get('nomi:surface:canvasWrite:capture:request')?.({
       requestId: 'malformed', binding, operation: 'delete_canvas_nodes', nodeId: 'node-real',
     })
-    expect(capture).toHaveBeenCalledTimes(1)
+    expect(capture).toHaveBeenCalledTimes(2)
   })
 
   it('validates Timeline requests and preserves exact Host approval evidence in replies', async () => {

@@ -1,0 +1,126 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-02-packaged-mcp-smoke-stale-catalog-anchor",
+  "problem_type": "hand-copied test expectation drifting from its truth source, escaping through a coverage gap in scope selection",
+  "symptom": "Main push CI red and all merges frozen: Mac Package run 33625231611 on eae0d930 failed with 'PACKAGED MCP SMOKE FAIL: claude expected the legacy catalog baseline, got 19'. The same smoke reproduced identically against a locally packaged release/mac-arm64/Nomi.app built from origin/main fbb8e062.",
+  "direct_cause": "tests/ux/packaged-mcp-smoke.e2e.mjs pinned a hand-copied catalog expectation from before the M2 semantic cutover: a `tools.length >= 22` floor plus a requiredTools list containing retired names (nomi_operation_create, nomi_operation_read, nomi_start_playbook, nomi_create_project, nomi_integration_begin, ...). Commit a0091dec (surface-16-collapse) deliberately collapsed the MCP surface 42→15 object-grouped tools, which with the 4 M2 semantic editing tools yields exactly 19; every hand-pinned anchor and every retired-name tools/call in the smoke went stale at once.",
+  "class_root": "Two compounding structural gaps. (1) The smoke's expected catalog was a hand copy, not derived from the truth source (electron/capabilityCore/mcpToolCatalog.ts), so any intentional surface redesign was guaranteed to strand it. (2) scripts/validation-policy.mjs PACKAGE_PATTERNS did not include the packaged server's surface truth sources (electron/capabilityCore/, electron/harness/tools/) nor the smoke instrument itself, so a surface-changing PR rode the fast path without the package lane and the stale anchor could only burn on the next main push or release build, where the package lane always runs.",
+  "affected_population": [
+    "every main push after the surface-16-collapse merge (Mac Package is a required check, so the whole merge train froze)",
+    "every future PR that reshapes the MCP tool surface: without the fix it would go green on the PR path and redden main the same way",
+    "release builds via desktop-rc.yml, which run the same packaged smoke on mac and windows artifacts"
+  ],
+  "scope_paths": [
+    "tests/ux/packaged-mcp-smoke.e2e.mjs",
+    "scripts/validation-policy.mjs",
+    "scripts/validation-policy.node-test.mjs",
+    "electron/capabilityCore/mcpToolCatalog.ts",
+    "electron/capabilityCore/mcpSurfaceCollapse.test.ts"
+  ],
+  "entry_points": [
+    "main push and merge_group builds where the package lane always runs against the current catalog",
+    "pull requests touching electron/capabilityCore/ or electron/harness/tools/ that reshape the tool surface",
+    "workflow_dispatch full-validation and desktop-rc release builds invoking the packaged smoke"
+  ],
+  "internal_only_reason": "Entirely between our own test harness, our own catalog module, and our own CI scope classifier; no external API, vendor contract, or third-party behaviour is involved.",
+  "structural_guarantee": "The smoke now derives its expected catalog from the same compiled module electron-builder packs into app.asar (dist-electron/capabilityCore/mcpToolCatalog.js → MCP_TOOL_RESOLVER.list()) and asserts set equality per client, so the expectation can never drift from the truth source while still catching packaging drops (actual comes from the asar, expected from dist-electron). Negative control verified: perturbing only the expected set fails with 'packaged catalog drifted from the dist-electron truth source (missing: nomi_negative_control_probe)' and exit code 1. The escape path is closed by PACKAGE_PATTERNS additions (electron/capabilityCore/, electron/harness/tools/, tests/ux/packaged-mcp-smoke) pinned by scripts/validation-policy.node-test.mjs, so surface-truth-source PRs select the mac-package lane on the PR path.",
+  "verification": [
+    "positive control: unmodified smoke against a locally packaged release/mac-arm64/Nomi.app reproduced the exact CI failure string 'claude expected the legacy catalog baseline, got 19'",
+    "fixed smoke against the same packaged app: 'PACKAGED MCP SMOKE PASS: 19 tools, 34 resources, director body 7885 chars, origins claude/codex/cursor/external; unsigned generic writes rejected', exit code 0 checked without pipe masking",
+    "negative control: appending a probe name to only the expected set fails the drift assert with exit code 1, then reverts clean",
+    "node --test scripts/validation-policy.node-test.mjs passes 15/15 including the three new truth-source package-lane cases",
+    "live tiers cross-checked over NOMI_MCP_STDIO against dist-electron: claude/codex/cursor each list the identical 19 names; 19 = 15 collapsed (a0091dec) + 4 M2 editing tools, intentional per mcpSurfaceCollapse.test.ts equivalence mapping of all 42 retired names"
+  ],
+  "regression_tests": [
+    "scripts/validation-policy.node-test.mjs",
+    "tests/ux/packaged-mcp-smoke.e2e.mjs"
+  ],
+  "residual_risks": [
+    "every PR touching electron/capabilityCore/ now pays a mac-package round (~4-5 min job) on the PR path; accepted deliberately because the alternative is exactly this class of main-push burn",
+    "set equality proves packaged surface ≡ built catalog, not built catalog ≡ design intent; a wrong catalog edit still needs mcpSurfaceCollapse.test.ts and review to catch",
+    "the smoke asserts the unsigned generic host sees the same unfiltered list as signed clients (current mcpProtocol behaviour); if a future design filters tools/list per tier, the smoke needs a per-tier expectation",
+    "ten non-CI journey harnesses under tests/ux/ (mcp-journey, production-mcp-journey, mcp-draft-loop, model-integration-*, draft-journey, p4-s6p5-multishot-paid, mcp-generation-*) still call retired tool names and are stale against the collapsed surface; they are outside the merge path (eval-journey --ci runs only zero-quota evals journeys) and are tracked as follow-up work, not silently blessed"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Hand-copied surface expectations strand on every deliberate surface redesign, and any lane that only runs on main/release can hide the strand until after merge; both mechanisms are generic, not specific to this incident.",
+    "same_class_scan": [
+      "grep of retired tool names across tests/, scripts/, .github/ (2026-09-02): tests/ux/mcp-l1-handshake.e2e.mjs was already migrated in a0091dec because the journeys lane runs it on the PR path — proving lane coverage forces migration; the packaged smoke was the only merge-path consumer left stale, and ten manual/audit harnesses remain stale off the merge path (listed in residual_risks)",
+      "scripts/validation-policy.mjs lane triggers audited: PERFORMANCE_INSTRUMENT_PATTERNS already encodes the 'instrument edits re-run the instrument' rule for the perf lane; the package lane had no analogue for its instrument or its truth sources — closed by this change",
+      ".github/workflows/desktop-rc.yml runs the identical smoke file for mac and windows artifacts, so the single-file fix covers the release path with no second copy to drift (P1)"
+    ]
+  },
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The stale floor, hand-required name list, and retired-name tools/call sites were replaced in the same commit inside the one smoke file; no file path was removed and no parallel version survives."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency added, upgraded, or removed; the change is confined to the smoke script, the scope classifier, its pinned test, and this contract.",
+    "exit_criteria": []
+  },
+  "same_class_entry_points": [
+    {
+      "path": "scripts/validation-policy.mjs",
+      "entry_point": "PACKAGE_PATTERNS omitting the packaged surface truth sources and the smoke instrument",
+      "disposition": "enforced",
+      "evidence": "electron/capabilityCore/, electron/harness/tools/ and tests/ux/packaged-mcp-smoke now select the package lane; scripts/validation-policy.node-test.mjs pins all three expectations so removing them fails the Contracts job."
+    },
+    {
+      "path": "tests/ux/packaged-mcp-smoke.e2e.mjs",
+      "entry_point": "hand-copied catalog floor and required-name list drifting from mcpToolCatalog.ts",
+      "disposition": "enforced",
+      "evidence": "EXPECTED_TOOL_NAMES is derived from dist-electron/capabilityCore/mcpToolCatalog.js at runtime and asserted as set equality per client; a missing build fails fast with a build instruction, and the negative control proved the drift assert fires."
+    },
+    {
+      "path": ".github/workflows/desktop-rc.yml",
+      "entry_point": "release builds running the packaged smoke on mac and windows artifacts",
+      "disposition": "not-affected",
+      "evidence": "Both release steps execute the same single tests/ux/packaged-mcp-smoke.e2e.mjs that now self-derives its expectation; there is no second expectation copy on the release path."
+    },
+    {
+      "path": "tests/ux/mcp-l1-handshake.e2e.mjs",
+      "entry_point": "merge-path MCP journey consuming the tool surface",
+      "disposition": "not-affected",
+      "evidence": "Runs on the PR path whenever electron/capabilityCore/mcp* changes (JOURNEY_PATTERNS), which is why a0091dec was forced to migrate it in-branch before merging."
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/validation-policy.mjs",
+    "invariant": "Changing the packaged MCP surface truth sources (electron/capabilityCore/, electron/harness/tools/) or the packaged smoke itself always selects the mac-package lane on the PR path, and the smoke's expected catalog is always the compiled catalog that gets packed, never a hand copy.",
+    "failure_mode": "Removing the new PACKAGE_PATTERNS entries fails scripts/validation-policy.node-test.mjs in the Contracts job; a packaged surface that diverges from the built catalog fails the smoke's set-equality assert with the missing/unexpected names spelled out; running the smoke without a dist-electron build fails fast with the build instruction.",
+    "exception_policy": "none",
+    "strategy": "Expectations about generated surfaces must be derived from the module that generates them, and every lane instrument plus its truth sources must appear in the scope patterns of the lane that runs the instrument (the PERFORMANCE_INSTRUMENT_PATTERNS rule, now applied to the package lane).",
+    "artifacts": [
+      "scripts/validation-policy.mjs",
+      "scripts/validation-policy.node-test.mjs",
+      "tests/ux/packaged-mcp-smoke.e2e.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/validation-policy.node-test.mjs",
+    "tests/ux/packaged-mcp-smoke.e2e.mjs"
+  ],
+  "generality_proof": "Class = 'a merge-path expectation is a hand copy of a generated surface, and the only lane that executes it is skipped on the PR path'. Scanned all merge-path consumers of the MCP surface: mcp-l1-handshake runs on the PR path (already migrated under CI pressure, proving lane coverage is the operative guard), the packaged smoke was the one consumer whose lane (mac-package) skipped PRs — now its expectation is derived instead of copied AND its truth sources trigger its lane. Scanned the other scope lanes for the same instrument gap: the performance lane already had PERFORMANCE_INSTRUMENT_PATTERNS; the package lane was the only lane missing the rule and now has it. Off-merge-path harnesses with the same stale-name symptom are enumerated in residual_risks and tracked as follow-up, so nothing of the class is silently left as 'works by luck'.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/validation-policy.mjs",
+      "symbol": "PACKAGE_PATTERNS / classifyValidationPolicy",
+      "responsibility": "Single scope classifier deciding which risk lanes a diff selects; now maps the packaged surface truth sources and the smoke instrument to the package lane, pinned by validation-policy.node-test.mjs."
+    },
+    {
+      "path": "tests/ux/packaged-mcp-smoke.e2e.mjs",
+      "symbol": "EXPECTED_TOOL_NAMES set-equality assert",
+      "responsibility": "Derives the expected catalog from dist-electron/capabilityCore/mcpToolCatalog.js (the exact module packed into app.asar) and fails with an explicit missing/unexpected diff when the packaged surface drifts."
+    }
+  ],
+  "migration": "No persisted data, consumer, or check-name migration. Required checks stay 'Quality Gate' and 'Mac Package'; the smoke's CLI contract (node tests/ux/packaged-mcp-smoke.e2e.mjs <bundle>) is unchanged for quality-gate.yml and desktop-rc.yml; the only new precondition — a fresh dist-electron build — is already satisfied by both workflows' build steps and enforced locally by a fail-fast message.",
+  "invariants": [
+    "The packaged server's tools/list equals the compiled catalog packed into the artifact, for signed and unsigned clients alike, asserted as set equality with named diffs.",
+    "PRs that change electron/capabilityCore/, electron/harness/tools/, or the packaged smoke run the mac-package lane before merge.",
+    "The smoke never encodes tool names or counts by hand; its only catalog input is dist-electron/capabilityCore/mcpToolCatalog.js.",
+    "Unsigned generic hosts still connect, see the public catalog, are denied the internal creative skill resources, and have integration writes rejected."
+  ]
+}

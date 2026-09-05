@@ -119,6 +119,6 @@ export const useToastStore = Object.assign(
   { getState: () => toastStore },
 )
 
-export function toast(message: string, type?: ToastType): void {
-  toastStore.push({ message, type })
+export function toast(message: string, type?: ToastType, id?: string): void {
+  toastStore.push({ message, type, ...(id ? { id } : {}) })
 }

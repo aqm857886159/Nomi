@@ -32,6 +32,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const MOCKUP_PATH = path.join(ROOT, 'docs/design/mockups/2026-09-01-agent-ui-final-redesign.html')
 const OUTPUT_PATH = path.join(ROOT, 'docs/design/agent-ui-spec.generated.json')
 const HASH_PATH = path.join(ROOT, 'docs/design/agent-ui-spec.generated.hash')
+const FIXED_VIEWPORT = { width: 1440, height: 900, deviceScaleFactor: 1 }
 
 const CHECK_ONLY = process.argv.includes('--check')
 const ONLY_SCREEN = (() => {
@@ -85,7 +86,11 @@ const CLASS_TO_ANCHOR = [
   { cssSelector: '.hico[title="收起"]', anchor: 'data-agent-collapse', specRef: 'A-01', screen: 'A',
     desc: '收起按钮', tolerances: { w: 2, h: 2 } },
   { cssSelector: '.flow', anchor: 'data-agent-flow', specRef: 'A-01', screen: 'A',
-    desc: '会话流（role=log）', tolerances: { w: 4 } },
+    desc: '会话流（role=log）',
+    // responsiveH: flow 是 flex-1 min-h-0，高度由窗口决定，不做固定值断言；
+    // 改为相对关系断言：flow 高度 > 0，且 > header + context + composer 三区高度之和（占满剩余空间）。
+    responsiveH: true,
+    tolerances: { w: 4 } },
   { cssSelector: '.divider:not(.stage-line)', anchor: 'data-agent-compaction-line', specRef: 'A-03', screen: 'A',
     desc: '压缩分隔线', tolerances: { h: 4 } },
   { cssSelector: '.divider.stage-line', anchor: 'data-agent-stage-line', specRef: 'A-05', screen: 'A',
@@ -155,13 +160,45 @@ const CLASS_TO_ANCHOR = [
     desc: '固定卡头部', tolerances: { h: 4 } },
 ]
 
+const BEAUTIFUL_UI_ANCHORS = new Set([
+  'data-agent-flow', 'data-agent-user-bubble', 'data-agent-reply',
+  'data-agent-thinking', 'data-agent-loading', 'data-agent-tool-line',
+  'data-agent-tool-detail', 'data-agent-skill-event', 'data-agent-task-row',
+  'data-agent-approval-card', 'data-agent-composer', 'data-agent-input',
+  'data-agent-composer-attach', 'data-agent-composer-mode',
+  'data-agent-composer-model', 'data-agent-composer-prompt', 'data-agent-composer-send',
+])
+const AI_ELEMENTS_ANCHORS = new Set([
+  'data-agent-header', 'data-agent-usage-pill', 'data-agent-usage-popover',
+  'data-agent-at-picker', 'data-agent-at-token', 'data-agent-queue-row',
+  'data-agent-queue-remove', 'data-agent-artifact-card',
+])
+
+function sourceMetadata(mapping) {
+  const sourceLibrary = BEAUTIFUL_UI_ANCHORS.has(mapping.anchor) ? 'Beautiful UI' :
+    AI_ELEMENTS_ANCHORS.has(mapping.anchor) ? 'AI Elements' : 'Nomi'
+  const adaptationRule = sourceLibrary === 'Nomi'
+    ? 'Use src/design primitives, Tabler icons, and Nomi tokens; retain Nomi persistence and surface ownership.'
+    : sourceLibrary === 'AI Elements'
+      ? 'Use the Context/Message/Artifact/Queue interaction pattern only; implement with Nomi primitives and tokens.'
+      : 'Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.'
+  return {
+    sourceLibrary,
+    sourceLocator: `${path.relative(ROOT, MOCKUP_PATH)}#${mapping.cssSelector}`,
+    adaptationRule,
+    state: mapping.screen === 'B' ? 'exception' : mapping.screen === 'D' ? 'completed' : mapping.screen === 'C' ? 'deconstruction' : 'normal',
+    severity: ['data-agent-pinned-card', 'data-agent-pinned-head', 'data-agent-queue-row'].includes(mapping.anchor) ? 'P0' : 'P1',
+  }
+}
+
 // ── 提取模式 ──────────────────────────────────────────────────────────────────
 
 console.log('启动 Playwright Chromium 渲染样张...')
 
 const browser = await chromium.launch({ headless: true })
 const context = await browser.newContext({
-  viewport: { width: 1440, height: 900 },
+  viewport: { width: FIXED_VIEWPORT.width, height: FIXED_VIEWPORT.height },
+  deviceScaleFactor: FIXED_VIEWPORT.deviceScaleFactor,
 })
 const page = await context.newPage()
 
@@ -196,7 +233,8 @@ for (const screen of screens) {
   const screenMappings = CLASS_TO_ANCHOR.filter(m => m.screen === screen)
 
   for (const mapping of screenMappings) {
-    const result = await page.evaluate(({ cssSelector, anchor, specRef, screen: scr, desc, tolerances }) => {
+    const metadata = sourceMetadata(mapping)
+    const result = await page.evaluate(({ cssSelector, anchor, specRef, screen: scr, desc, tolerances, metadata }) => {
       // 限定在当前激活屏内查找
       const screenEl = document.querySelector('.screen.on')
       if (!screenEl) return null
@@ -218,6 +256,8 @@ for (const screen of screens) {
         specRef,
         desc,
         tolerances,
+        tolerance: tolerances,
+        ...metadata,
         text: (el.innerText || '').trim().slice(0, 200),
         tagName: el.tagName.toLowerCase(),
         role: el.getAttribute('role') || null,
@@ -242,9 +282,11 @@ for (const screen of screens) {
           paddingRight: cs.paddingRight,
           paddingBottom: cs.paddingBottom,
           paddingLeft: cs.paddingLeft,
+          borderRadius: cs.borderRadius,
+          gap: cs.gap,
         },
       }
-    }, { cssSelector: mapping.cssSelector, anchor: mapping.anchor, specRef: mapping.specRef, screen, desc: mapping.desc, tolerances: mapping.tolerances })
+    }, { cssSelector: mapping.cssSelector, anchor: mapping.anchor, specRef: mapping.specRef, screen, desc: mapping.desc, tolerances: mapping.tolerances, metadata })
 
     if (result) {
       if (result.notFound) {
@@ -290,7 +332,8 @@ const specAnchors = [
 
 const mockupHash = hashFile(MOCKUP_PATH)
 const spec = {
-  version: '1.0',
+  version: '1.1',
+  viewport: FIXED_VIEWPORT,
   generatedAt: new Date().toISOString(),
   description: '从样张 HTML 渲染提取的设计规格表——每条对应一个 conformance testspec 断言挂点，' +
     '包含真实几何（px）和计算色值，供实现者核对实现与样张是否对齐。',
@@ -300,6 +343,53 @@ const spec = {
   specAnchors,       // conformance testspec §0 声明的全量挂点（实现必须提供）
   declaredAnchors,   // 样张 HTML 里实际出现的 data-agent-* 属性（目前为 0，因为样张用 CSS class）
   elements: allElements,
+  runtimeRules: [
+    {
+      id: 'P0-QUEUE-MORE-ROW',
+      selector: '[data-queue-more-row]',
+      sourceLocator: 'docs/design/mockups/2026-09-03-agent-ui-p0-exception-states.html:519-530',
+      sourceLibrary: 'AI Elements',
+      adaptationRule: 'Use the Queue fold-row behavior with Nomi tokens and the existing Host queue state.',
+      tolerance: { default: 0 }, state: 'queue-overflow-collapsed', severity: 'P0', stateNotReached: true,
+      expected: { visible: true },
+    },
+    {
+      id: 'P0-PINNED-RESULT-CARD',
+      selector: '[data-agent-pinned-card]',
+      sourceLocator: 'docs/design/2026-09-02-agent-ui-v3-walkthrough.md:155-164',
+      sourceLibrary: 'Nomi',
+      adaptationRule: 'Use the durable committed-proposal receipt and Nomi design primitives; no second result-card store.',
+      tolerance: { w: 4, h: 8 }, state: 'completed-generation', severity: 'P0', stateNotReached: true,
+      expected: { visible: true },
+    },
+    {
+      id: 'P1-STORYBOARD-AGENT-DOCK',
+      selector: '[data-workspace-mode="storyboard"] [data-agent-panel="true"]',
+      sourceLocator: 'docs/design/2026-09-02-agent-ui-v3-walkthrough.md:173-185',
+      sourceLibrary: 'Nomi',
+      adaptationRule: 'Reuse the same resident Agent portal and width as creation; storyboard is not a second Agent surface.',
+      tolerance: { default: 0 }, state: 'storyboard', severity: 'P1', stateNotReached: true,
+      expected: { visible: true },
+    },
+    {
+      id: 'BLOCKED-BROWSER-NATIVE-OCCLUSION',
+      selector: '[data-browser-dialog]',
+      sourceLocator: 'docs/design/2026-09-02-agent-ui-v3-walkthrough.md:197-200',
+      sourceLibrary: 'Nomi',
+      adaptationRule: 'Assert renderer ownership and takeover state only; native WebContentsView pixels require a platform harness.',
+      tolerance: { default: 0 }, state: 'browser-takeover', severity: 'P1', blocked: true,
+      expected: { visible: true },
+    },
+    {
+      id: 'BLOCKED-PINNED-SELECTED-SHOT-COUNT',
+      selector: '[data-agent-pinned-summary]',
+      sourceLocator: 'docs/design/2026-09-02-agent-ui-v3-walkthrough.md:156-160',
+      sourceLibrary: 'Nomi',
+      adaptationRule: 'Do not infer selected-shot count until the durable receipt exposes that field.',
+      tolerance: { default: 0 }, state: 'completed-generation', severity: 'P0', blocked: true,
+      expected: {},
+    },
+  ],
   summary: {
     totalElements: allElements.length,
     byScreen: Object.fromEntries(
@@ -334,6 +424,12 @@ const autoGeometry = allElements.map(elem => ({
   selector: elem.cssSelector,  // 样张自检用 cssSelector，真实 app 用 [data-agent-*]
   dimension: 'height',          // 高度是形态最关键的量（宽度受容器拉伸影响大）
   expected: elem.geometry.h,
+  sourceLocator: elem.sourceLocator,
+  sourceLibrary: elem.sourceLibrary,
+  adaptationRule: elem.adaptationRule,
+  tolerance: elem.tolerance,
+  state: elem.state,
+  severity: elem.severity,
 })).filter(r => r.expected > 0)
 
 const autoContractContent = `// Agent UI 自动层形态契约（2026-09-03，由 scripts/extract-design-spec.mjs 生成）。

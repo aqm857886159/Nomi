@@ -68,3 +68,12 @@
 
 可安全删减的文本约 3,500 字符（约 875 tokens）。
 删减后 CLAUDE.md 仍能让新 AI 正确干活：P0–P5 完整、D1–D6 完整、规则索引完整、指向 L2 的指针完整。
+
+## push 绕口留痕（PR #399 补充）
+
+规则审计还发现，`git -c core.hooksPath=... push` 与 `git --no-verify push` 可以绕过 native pre-push hook；仅靠 push 前拦截无法为未安装 Claude hook 的 worktree 留证。PR #399 增加了两段式机器化补强：
+
+- `scripts/claude-hooks/pre-push-check.sh` 在绕过命令放行前写入 `.claude/push-bypass.log`，记录时间、分支、HEAD、worktree 与命令摘要。
+- `scripts/check-push-bypass.mjs` 及其行为测试把日志接入 `gates:contracts`：匹配本树、本 HEAD 的 gate stamp 可自动确认，否则必须人工 `--accept <sha>`，未确认记录保持红灯。
+
+该补充是留痕与审计门，不取代既有的 worktree/HEAD gate stamp，也不把旧的文档瘦身审计报告重新复制到本文件。

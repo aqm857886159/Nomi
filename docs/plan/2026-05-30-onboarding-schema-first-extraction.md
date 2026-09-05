@@ -1,5 +1,7 @@
 # Onboarding 参数抽取：从 curl-only 升级为 schema-first（根治）
 
+> 裁决：已被现行模型发现/设置流程取代；证据：`src/ui/onboarding/OnboardingWizard.tsx:192-224`、`docs/plan/2026-08-16-model-settings-approved-implementation.md:26-32`。
+
 > 日期 2026-05-30 · 触发：kie.ai GPT Image-2 文档 onboarding 后，节点参数严重缺失（aspect_ratio 只有 0~1 个选项、resolution 等参数完全没出现）。
 
 ## 1. 根因（已实证）

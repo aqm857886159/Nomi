@@ -72,11 +72,14 @@ describe('Nomi toast contract', () => {
 
   it('updates a stable id and uses idempotent show to cover its first appearance', () => {
     useToastStore.getState().push({ id: 'canvas-batch-run', message: 'starting', ttl: false })
+    useToastStore.getState().push({ id: 'canvas-batch-run', message: 'still starting', ttl: false })
 
-    expect(notificationMocks.update).toHaveBeenCalledOnce()
-    expect(notificationMocks.show).toHaveBeenCalledOnce()
+    expect(notificationMocks.update).toHaveBeenCalledTimes(2)
+    expect(notificationMocks.show).toHaveBeenCalledTimes(2)
     expect(notificationMocks.update.mock.calls[0][0]).toMatchObject({ id: 'canvas-batch-run', autoClose: false })
     expect(notificationMocks.show.mock.calls[0][0]).toMatchObject({ id: 'canvas-batch-run', autoClose: false })
+    expect(notificationMocks.update.mock.calls[1][0]).toMatchObject({ id: 'canvas-batch-run', autoClose: false })
+    expect(notificationMocks.show.mock.calls[1][0]).toMatchObject({ id: 'canvas-batch-run', autoClose: false })
     expect(notificationMocks.update.mock.invocationCallOrder[0]).toBeLessThan(notificationMocks.show.mock.invocationCallOrder[0])
   })
 })

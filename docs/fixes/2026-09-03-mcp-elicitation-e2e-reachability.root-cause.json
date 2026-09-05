@@ -1,0 +1,108 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-mcp-elicitation-e2e-reachability",
+  "problem_type": "关键 MCP elicitation e2e 存在但未进入任何可达执行链",
+  "symptom": "`mcp-generation-elicitation-first.e2e.mjs` 含有确认后 `started` 断言，但 package scripts、Quality Gate 和 RC workflow 都没有执行它，因此相关功能可以在所有已跑门禁中静默失效。",
+  "direct_cause": "e2e 文件被提交后没有同步注册 package script，workflow 也没有引用该 script；现有 workflow 合同测试没有要求该关键 lane 存在。首次真正执行后还暴露出 launcher capability 目录覆盖、session_open 旧字段、operation mode 旧枚举和隔离明文凭据未启用 synthetic backend 四处 fixture 合同漂移。",
+  "class_root": "关键回归测试的“存在”与“可达执行”没有在同一接线边界形成闭环，导致断言只是代码文本而不是持续信号。",
+  "affected_population": [
+    "声明 elicitation 的 MCP 客户端生成确认路径",
+    "依赖 Quality Gate 或 desktop RC 判断该路径是否回归的维护者"
+  ],
+  "scope_paths": [
+    "package.json",
+    ".github/workflows/quality-gate.yml",
+    ".github/workflows/desktop-rc.yml",
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "tests/ux/mcp-generation-elicitation-first.e2e.mjs"
+  ],
+  "entry_points": [
+    "package.json::test:mcp-elicitation 显式执行入口",
+    ".github/workflows/quality-gate.yml::MCP elicitation-first journey CI 入口",
+    ".github/workflows/desktop-rc.yml::Release-critical feature journeys 入口"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这是 Nomi 仓库内部测试可达性和 CI 接线不变量，不由第三方协议定义。",
+  "invariants": [
+    "关键 elicitation e2e 必须有唯一明确的 package script 入口，且该入口直接指向目标文件。",
+    "该 package script 必须被 Quality Gate 的 journeys lane 执行，并在 RC 的 release-critical journeys 中复用。",
+    "workflow 合同测试必须在任一入口或 CI 接线缺失时失败。"
+  ],
+  "generality_proof": "将目标 e2e 收敛到 package script，再由两个真实 workflow lane 调用同一 script；合同测试同时检查脚本命令、Quality Gate step 与条件，因此后续只要出现“文件存在但未执行”或“workflow 漏接”的同类漂移，至少一个共享接线边界会立刻报红。",
+  "shared_boundaries": [
+    {
+      "path": "package.json",
+      "symbol": "scripts.test:mcp-elicitation",
+      "responsibility": "为 elicitation-first e2e 提供唯一可复制的本地和 CI 执行入口。"
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "symbol": "desktop-linux MCP elicitation-first journey step",
+      "responsibility": "在 journeys 风险面被选中时实际运行该 e2e。"
+    },
+    {
+      "path": "scripts/check-quality-gate-workflow.node-test.mjs",
+      "symbol": "MCP elicitation-first script/workflow contract assertions",
+      "responsibility": "阻止 package script、workflow step 或 journeys 条件任一处脱钩。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "Linux quality gate journeys lane",
+      "disposition": "enforced",
+      "evidence": "该 workflow 通过 pnpm script 调用目标 e2e，并由合同测试锁住 step 名称、命令和 journeys 条件。"
+    },
+    {
+      "path": ".github/workflows/desktop-rc.yml",
+      "entry_point": "desktop RC release-critical feature journeys",
+      "disposition": "enforced",
+      "evidence": "RC workflow 复用同一个 package script，发布候选的真实 Electron journey 不再遗漏该断言。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "已有 PR #429 与本次都出现“确认函数/返回值有信号，但真正功能路径没有被持续执行或验证”的同类失效；任何未来新增关键 e2e 都可能再次只提交文件而漏掉执行链。",
+    "same_class_scan": [
+      "逐项检查 package.json 的 test:* 脚本，确认目标文件此前没有入口。",
+      "逐项检查 .github/workflows 中的 Electron e2e 调用，确认此前只有既有 MCP/画布/生产 journey，没有目标文件。",
+      "检查 quality-gate workflow 合同测试，确认此前没有目标 lane 的脚本、step 和条件断言。",
+      "实际启动 e2e 并追踪到 session_open、operation_plan 与 provider readiness，修正当前 MCP schema 和隔离凭据 backend 要求后再验证目标断言。"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-quality-gate-workflow.node-test.mjs",
+    "invariant": "目标 e2e 的 package script 与 Quality Gate workflow step 必须同时存在，命令和 journeys 条件必须精确匹配。",
+    "failure_mode": "缺少脚本、目标文件指向漂移、workflow step 被删除或条件脱钩时，workflow 合同测试非零退出，阻止接线静默消失。",
+    "exception_policy": "none",
+    "strategy": "以一个明确 package script 作为本地/CI 共享 seam，并在现有 workflow 合同测试中锁住 script、step、command 和条件；RC 复用同一 script，避免第二套命令漂移。",
+    "artifacts": [
+      "package.json",
+      ".github/workflows/quality-gate.yml",
+      ".github/workflows/desktop-rc.yml",
+      "scripts/check-quality-gate-workflow.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有新增并行 e2e 或旧实现；本次只把现有目标文件接入一个共享 script，并由两个 workflow 复用。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不新增、不升级、不保留第三方依赖；修复完全是仓库内脚本和 workflow 接线。",
+    "exit_criteria": []
+  },
+  "migration": "无存储或用户数据迁移。现有 e2e 文件保持不变；本地调用者改用新增的 package script，CI 通过同一入口执行。",
+  "residual_risks": [
+    "Linux Quality Gate 的 Electron 旅程仍依赖 runner 提供 xvfb；本地脚本在无图形环境时需由调用者提供可用显示环境。",
+    "本次接线证明断言会被执行，不替代真实 provider 付费生成认证；该 e2e 明确使用零额度 loopback fixture。"
+  ]
+}

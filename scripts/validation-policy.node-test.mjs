@@ -52,6 +52,20 @@ test('model execution paths select full unit and real journeys without packaging
   })
 })
 
+test('the registered product journeys cannot fall back to focused-only validation', () => {
+  for (const file of [
+    'tests/ux/resident-composer-receipt-fix.e2e.mjs',
+    'tests/ux/storyboard-agent-canonical-patch.e2e.mjs',
+    'tests/ux/production-mcp-journey.e2e.mjs',
+  ]) {
+    assert.deepEqual(surfaces(classifyValidationPolicy([file])), {
+      ...focusedOnly,
+      unit: 'full',
+      journeys: true,
+    })
+  }
+})
+
 test('renderer-to-Electron bridges retain full unit, desktop, and journey coverage', () => {
   assert.deepEqual(surfaces(classifyValidationPolicy(['src/desktop/bridge.ts'])), {
     ...focusedOnly,
@@ -84,6 +98,32 @@ test('ordinary canvas behavior and React Flow performance paths select different
 
 test('packaging and native runtime identity paths select package without forcing canvas performance', () => {
   assert.deepEqual(surfaces(classifyValidationPolicy(['electron/preload.ts'])), {
+    ...focusedOnly,
+    unit: 'full',
+    desktop: true,
+    package: true,
+  })
+})
+
+test('packaged MCP surface truth sources select the package lane on the PR path', () => {
+  // 2026-09-02 escape: surface-16-collapse rewrote the capability-core catalog, the PR round
+  // never selected the package lane, and the packaged smoke only burned on the next main push.
+  // The catalog/collapse/stdio-server/launcher dir, the harness tool-surface manifest, and the
+  // smoke instrument itself must each pull mac-package forward onto the PR path.
+  assert.deepEqual(surfaces(classifyValidationPolicy(['electron/capabilityCore/mcpToolCatalog.ts'])), {
+    ...focusedOnly,
+    unit: 'full',
+    desktop: true,
+    journeys: true,
+    package: true,
+  })
+  assert.deepEqual(surfaces(classifyValidationPolicy(['electron/harness/tools/modelToolSurfaceManifest.ts'])), {
+    ...focusedOnly,
+    unit: 'full',
+    desktop: true,
+    package: true,
+  })
+  assert.deepEqual(surfaces(classifyValidationPolicy(['tests/ux/packaged-mcp-smoke.e2e.mjs'])), {
     ...focusedOnly,
     unit: 'full',
     desktop: true,
@@ -133,6 +173,7 @@ test('validation infrastructure changes exercise functional coverage without unr
     ['.github/workflows/quality-gate.yml'],
     [{ status: 'R100', path: 'eslint.config.mjs' }],
     ['scripts/select-quality-gate-profile.mjs'],
+    ['scripts/real-user-test-gates.mjs'],
   ]) {
     assert.deepEqual(surfaces(classifyValidationPolicy(files)), {
       unit: 'full',

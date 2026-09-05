@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import crypto from "node:crypto";
 import path from "node:path";
 import { readJsonFile } from "../jsonFile";
 import { migrateLegacyProjectFolder } from "./legacyProjectMigration";
@@ -25,6 +26,7 @@ import {
   type WorkspaceProjectRecordV2,
 } from "./workspaceTypes";
 import { workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
+import { writeWorkspaceSyncBaseline } from "./workspaceSyncBaseline";
 
 export type WorkspaceRepositoryDeps = {
   settingsRoot: string;
@@ -248,6 +250,11 @@ export function createWorkspaceProject(
       ? { source: "native", nativeRootPath: defaultRoot }
       : { source: "folder" };
   rememberWorkspace(deps.settingsRoot, record, input.origin ?? fallbackOrigin);
+  const manifestPath = workspaceProjectFile(rootPath);
+  if (fs.existsSync(manifestPath)) {
+    const contentHash = crypto.createHash("sha256").update(fs.readFileSync(manifestPath)).digest("hex");
+    writeWorkspaceSyncBaseline(deps.settingsRoot, record.id, { rootPath, revision: record.revision, contentHash });
+  }
   return record;
 }
 
@@ -372,6 +379,9 @@ export function saveWorkspaceProject(
     return context.replace(next);
   });
   rememberWorkspace(deps.settingsRoot, written);
+  const manifestPath = workspaceProjectFile(entry.rootPath);
+  const contentHash = crypto.createHash("sha256").update(fs.readFileSync(manifestPath)).digest("hex");
+  writeWorkspaceSyncBaseline(deps.settingsRoot, written.id, { rootPath: entry.rootPath, revision: written.revision, contentHash });
   return written;
 }
 
@@ -431,9 +441,19 @@ function dirHasRealFiles(dir: string): boolean {
  * folder/external 一律豁免（复用 deleteWorkspaceProject 的双重边界，绝不碰用户文件）。
  * 不变量 `revision===0 ⟺ 落盘 payload 即出生默认值` 保证「revision 0 的草稿 = 可证明的零编辑」。
  * 调用方负责「一进程一次」（见 repository.listProjects 的 once-guard），故本会话新建的草稿不会被误删。
+ *
+ * `projects` 由调用方传入已列举好的库快照：GC 唯一需要的输入就是「当前这批项目」，
+ * 而它的调用方（listProjects）本来就要为自己再列举一次同一批。自己再列一遍 = 把
+ * 372 次 manifest 快照读整整做两遍，实测占冷启动列举总耗时的 55-63%（727/996/837ms
+ * of 1310/1598/1323ms，346 项目真实库）。判据只读 summary 字段（source/missing/draft/
+ * revision）与磁盘 assets/，与列举时刻的快照一致，故复用不改变任何回收判定。
+ * 不给默认值——留 `projects = listWorkspaceProjects(deps)` 这种兜底就等于把旧的
+ * 双份列举留成可达路径（P1：不留并行版）。
  */
-export function gcEmptyDraftWorkspaceProjects(deps: WorkspaceRepositoryDeps): { recycled: string[]; scanned: number } {
-  const projects = listWorkspaceProjects(deps);
+export function gcEmptyDraftWorkspaceProjects(
+  deps: WorkspaceRepositoryDeps,
+  projects: WorkspaceProjectSummary[],
+): { recycled: string[]; scanned: number } {
   const recycled: string[] = [];
   for (const project of projects) {
     if (project.source !== "native") continue;

@@ -14,6 +14,7 @@ export function residentReferenceRole(t: Translate, kind: ProjectAgentReference[
     preview: 'referenceRolePreview',
     timeline: 'referenceRoleTimeline',
     browser: 'referenceRoleBrowser',
+    asset: 'referenceRoleAsset',
   }[kind]
   return t(`agentResident.${key}`)
 }
@@ -24,6 +25,11 @@ export type ResidentReferencePresentation = Readonly<{
   state?: string
   accessibleLabel: string
 }>
+
+export function isResidentReferenceStale(state: string | undefined): boolean {
+  const normalized = state?.trim().toLowerCase() ?? ''
+  return normalized === 'stale' || normalized.endsWith('.referencechanged')
+}
 
 /**
  * Build the visible/accessible copy without inventing a revision.  A future

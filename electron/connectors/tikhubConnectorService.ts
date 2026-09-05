@@ -12,6 +12,7 @@ import {
   TikhubConnectorError,
   resolveShareVideo,
   verifyTikhubApiKey,
+  getTikhubTestOrigin,
   type ResolvedShareVideo,
 } from "./tikhubConnector";
 import { getTikhubRouteStatus, setTikhubRouteMode, type TikhubRouteStatus } from "./tikhubRoute";
@@ -105,6 +106,9 @@ export async function importTikhubShareUrl(payload: unknown): Promise<TikhubImpo
     kind: "imported",
     fileName: resolved.videoId ? `${resolved.platform}-${resolved.videoId}.mp4` : `${resolved.platform}-video.mp4`,
     sourceEvidence: evidence,
-  });
+  }, (() => {
+    const testOrigin = getTikhubTestOrigin();
+    return testOrigin ? { trustedPrivateOrigin: testOrigin } : undefined;
+  })());
   return { asset, resolved };
 }

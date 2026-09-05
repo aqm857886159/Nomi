@@ -115,18 +115,24 @@ test('Linux walkthrough job builds once and keeps only smoke, journey, and criti
       selectedSteps['Electron smoke'].run,
       selectedSteps['CI-safe user journeys'].run,
       selectedSteps['MCP L1 handshake journey'].run,
+      selectedSteps['MCP elicitation-first journey'].run,
+      selectedSteps['Real user loopback journey gate'].run,
       selectedSteps['Critical canvas acceptance'].run,
     ],
     [
       'xvfb-run -a pnpm run test:e2e',
       'xvfb-run -a pnpm run test:journeys',
       'xvfb-run -a pnpm run test:mcp-journey',
+      'xvfb-run -a pnpm run test:mcp-elicitation',
+      'xvfb-run -a pnpm run test:real-user-journeys:ci',
       'xvfb-run -a pnpm run test:canvas:critical',
     ],
   )
   assert.equal(selectedSteps['Electron smoke'].if, "needs.scope.outputs.desktop == 'true'")
   assert.equal(selectedSteps['CI-safe user journeys'].if, "needs.scope.outputs.journeys == 'true'")
   assert.equal(selectedSteps['MCP L1 handshake journey'].if, "needs.scope.outputs.journeys == 'true'")
+  assert.equal(selectedSteps['MCP elicitation-first journey'].if, "needs.scope.outputs.journeys == 'true'")
+  assert.equal(selectedSteps['Real user loopback journey gate'].if, "needs.scope.outputs.journeys == 'true'")
   assert.equal(selectedSteps['Critical canvas acceptance'].if, "needs.scope.outputs.canvas == 'critical'")
   assert.equal(runCommands(desktop).filter((command) => command === 'pnpm run build').length, 1)
   // full/performance 面已拆到并行 job；本 job 不得再串行执行它们（那是 22 分钟关键路径的根因）。
@@ -189,7 +195,7 @@ test('system profiles expose separated surfaces and explicit full/release still 
   assert.deepEqual(PROFILES['ci-contracts'], ['contracts'])
   assert.deepEqual(PROFILES['ci-unit'], ['unit'])
   assert.deepEqual(PROFILES['ci-desktop'], ['build', 'e2e'])
-  assert.deepEqual(PROFILES['ci-journeys'], ['journeys-ci'])
+  assert.deepEqual(PROFILES['ci-journeys'], ['journeys-ci', 'real-user-journeys'])
   assert.deepEqual(PROFILES['ci-canvas-critical'], ['canvas-critical'])
   assert.deepEqual(PROFILES['ci-canvas-full'], ['canvas-full'])
   assert.deepEqual(PROFILES['ci-performance'], ['canvas-performance'])
@@ -208,12 +214,19 @@ test('package scripts expose canonical separated profiles and classifier contrac
   assert.equal(scripts['test:system:unit'], 'node scripts/test-system.mjs ci-unit')
   assert.equal(scripts['test:system:desktop'], 'node scripts/test-system.mjs ci-desktop')
   assert.equal(scripts['test:system:journeys'], 'node scripts/test-system.mjs ci-journeys')
+  assert.equal(scripts['test:real-user-journeys:ci'], 'node scripts/real-user-test-gates.mjs --provider loopback')
+  assert.match(scripts['test:real-user-journeys'], /real-user-test-gates\.mjs --provider loopback/)
+  assert.equal(
+    scripts['test:mcp-elicitation'],
+    'pnpm run check:electron-install && node tests/ux/mcp-generation-elicitation-first.e2e.mjs',
+  )
   assert.equal(scripts['test:system:canvas:critical'], 'node scripts/test-system.mjs ci-canvas-critical')
   assert.equal(scripts['test:system:canvas:full'], 'node scripts/test-system.mjs ci-canvas-full')
   assert.equal(scripts['test:system:performance'], 'node scripts/test-system.mjs ci-performance')
   assert.equal(scripts['test:canvas:performance'], 'node tests/ux/canvas-real-suite.mjs performance')
   assert.equal(scripts['lint:ci'], 'eslint . --max-warnings=82')
   assert.match(scripts['check:quality-gate-workflow'], /validation-policy\.node-test\.mjs/)
+  assert.match(scripts['check:quality-gate-workflow'], /real-user-test-gates\.node-test\.mjs/)
 })
 
 test('Quality Gate requires mandatory jobs and every risk-selected optional surface', () => {

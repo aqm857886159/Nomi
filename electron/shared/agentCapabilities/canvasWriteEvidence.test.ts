@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  assertCanvasWriteAdmissionMatches,
   CanvasWriteEvidenceError,
   buildCanvasWriteAdmission,
   buildCanvasWriteAdmissionForOperation,
@@ -149,5 +150,21 @@ describe("canvas.write raw evidence admission", () => {
         }),
       ),
     ).toThrowError(expect.objectContaining({ code: "capability_input_invalid" }));
+  });
+
+  it("binds patch_shots to the captured canvas revision and rejects a bad revision before apply", () => {
+    const raw = { nodes: [], edges: [], groups: [], resolvedReferences: [] };
+    const input = {
+      operation: "patch_shots",
+      select: { kind: "all" },
+      patch: { promptAppend: "雨天" },
+    } as const;
+    const admission = buildCanvasWriteAdmissionForOperation(raw, input);
+    expect(admission.target).toEqual({ kind: "canvas", nodeIds: [] });
+    expect(admission.preconditions).toEqual({ edges: [{ relationHash: expect.stringMatching(/^sha256-[a-f0-9]{64}$/) }] });
+    expect(() => assertCanvasWriteAdmissionMatches(raw, {
+      target: admission.target,
+      preconditions: { edges: [{ relationHash: "sha256-bad-revision" }] },
+    }, input)).toThrowError(expect.objectContaining({ code: "capability_target_stale" }));
   });
 });

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="520" viewBox="0 0 760 520" role="img" aria-labelledby="title desc">
+  <title id="title">Nomi 换电脑继续：同步工具引导</title>
+  <desc id="desc">真实 Settings 页面下方区域的引导展开态，使用简短三步和官方入口</desc>
+  <rect width="760" height="430" fill="#ffffff"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#201f1d">
+    <text x="32" y="42" font-size="18" font-weight="600">新项目默认位置</text>
+    <rect x="32" y="60" width="500" height="42" rx="8" fill="#f7f6f4"/>
+    <text x="48" y="87" font-family="SFMono-Regular, Menlo, monospace" font-size="14" fill="#6e6a64">~/Nutstore/Nomi Projects</text>
+    <g font-size="14" fill="#6e6a64">
+      <text x="548" y="86">⚙ 更换位置</text>
+      <text x="655" y="86">▱ 打开位置</text>
+    </g>
+    <text x="32" y="130" font-size="14" fill="#9a958d">新项目会放在这里；已有项目位置不变。</text>
+    <line x1="32" y1="158" x2="728" y2="158" stroke="#dedbd5"/>
+
+    <text x="32" y="193" font-size="18" font-weight="600">换电脑继续</text>
+    <text x="32" y="220" font-size="14" fill="#6e6a64">用同步工具同步上面的文件夹</text>
+    <text x="274" y="220" font-size="14" fill="#201f1d" text-decoration="underline">收起</text>
+
+    <text x="52" y="274" font-size="15" font-weight="600">同步工具是什么？</text>
+    <text x="52" y="298" font-size="13" fill="#6e6a64">让同一个文件夹在两台电脑保持一致。</text>
+
+    <text x="38" y="334" font-size="14" fill="#6e6a64">1</text>
+    <text x="72" y="326" font-size="14" font-weight="600">安装一个同步工具</text>
+    <text x="72" y="348" font-size="13" fill="#6e6a64">VerySync ↗　　坚果云 ↗</text>
+
+    <text x="38" y="394" font-size="14" fill="#6e6a64">2</text>
+    <text x="72" y="386" font-size="14" font-weight="600">添加上面的项目文件夹</text>
+    <text x="72" y="408" font-size="13" fill="#201f1d">复制路径　　打开位置 ↗</text>
+
+    <text x="38" y="454" font-size="14" fill="#6e6a64">3</text>
+    <text x="72" y="446" font-size="14" font-weight="600">等同步工具显示完成</text>
+    <text x="72" y="468" font-size="13" fill="#6e6a64">再在另一台电脑打开 Nomi</text>
+
+    <rect x="32" y="486" width="696" height="44" rx="8" fill="#e9f8ec"/>
+    <circle cx="53" cy="508" r="8" fill="none" stroke="#22b653" stroke-width="2"/>
+    <path d="M49 508l3 3 5-6" fill="none" stroke="#22b653" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="70" y="513" font-size="15" fill="#22b653">可在另一台电脑继续编辑</text>
+    <text x="648" y="513" font-size="14" fill="#22b653">检查文件夹</text>
+  </g>
+</svg>

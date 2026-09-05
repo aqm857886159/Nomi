@@ -59,7 +59,7 @@ export const DOCUMENT_READ_CAPABILITY = {
       description: "Read the current creation document or selection as plain text.",
     },
     mcp: {
-      description: "Read the current creation document or a bounded selection as plain text.",
+      description: "Read the creation document or a bounded selection as text.",
     },
   },
 } as const satisfies CapabilityContract<DocumentReadInput, DocumentReadResult>;
